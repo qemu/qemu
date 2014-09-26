@@ -114,7 +114,6 @@ static void qbus_set_hotplug_handler_internal(BusState *bus, Object *handler,
 
     object_property_set_link(OBJECT(bus), OBJECT(handler),
                              QDEV_HOTPLUG_HANDLER_PROPERTY, errp);
-    bus->allow_hotplug = 1;
 }
 
 void qbus_set_hotplug_handler(BusState *bus, DeviceState *handler, Error **errp)
@@ -254,10 +253,7 @@ void qdev_unplug(DeviceState *dev, Error **errp)
             hotplug_handler_unplug(dev->parent_bus->hotplug_handler, dev, errp);
         }
     } else {
-        assert(dc->unplug != NULL);
-        if (dc->unplug(dev) < 0) { /* legacy handler */
-            error_set(errp, QERR_UNDEFINED_ERROR);
-        }
+        assert(0);
     }
 }
 
@@ -294,17 +290,11 @@ void qbus_reset_all_fn(void *opaque)
 }
 
 /* can be used as ->unplug() callback for the simple cases */
-int qdev_simple_unplug_cb(DeviceState *dev)
-{
-    /* just zap it */
-    object_unparent(OBJECT(dev));
-    return 0;
-}
-
 void qdev_simple_device_unplug_cb(HotplugHandler *hotplug_dev,
                                   DeviceState *dev, Error **errp)
 {
-    qdev_simple_unplug_cb(dev);
+    /* just zap it */
+    object_unparent(OBJECT(dev));
 }
 
 /* Like qdev_init(), but terminate program via error_report() instead of

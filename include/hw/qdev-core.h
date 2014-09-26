@@ -126,7 +126,6 @@ typedef struct DeviceClass {
 
     /* Private to qdev / bus.  */
     qdev_initfn init; /* TODO remove, once users are converted to realize */
-    qdev_event unplug;
     qdev_event exit; /* TODO remove, once users are converted to unrealize */
     const char *bus_type;
 } DeviceClass;
@@ -210,7 +209,6 @@ struct BusState {
     Object obj;
     DeviceState *parent;
     const char *name;
-    int allow_hotplug;
     HotplugHandler *hotplug_handler;
     int max_index;
     bool realized;
@@ -264,7 +262,6 @@ void qdev_init_nofail(DeviceState *dev);
 void qdev_set_legacy_instance_id(DeviceState *dev, int alias_id,
                                  int required_for_version);
 void qdev_unplug(DeviceState *dev, Error **errp);
-int qdev_simple_unplug_cb(DeviceState *dev);
 void qdev_simple_device_unplug_cb(HotplugHandler *hotplug_dev,
                                   DeviceState *dev, Error **errp);
 void qdev_machine_creation_done(void);
@@ -370,6 +367,6 @@ void qbus_set_bus_hotplug_handler(BusState *bus, Error **errp);
 
 static inline bool qbus_is_hotpluggable(BusState *bus)
 {
-   return bus->allow_hotplug || bus->hotplug_handler;
+   return bus->hotplug_handler;
 }
 #endif
