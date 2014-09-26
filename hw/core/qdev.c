@@ -86,7 +86,7 @@ static void bus_add_child(BusState *bus, DeviceState *child)
     BusChild *kid = g_malloc0(sizeof(*kid));
 
     if (qdev_hotplug) {
-        assert(bus->allow_hotplug);
+        assert(qbus_is_hotpluggable(bus));
     }
 
     kid->index = bus->max_index++;
@@ -213,7 +213,7 @@ void qdev_unplug(DeviceState *dev, Error **errp)
 {
     DeviceClass *dc = DEVICE_GET_CLASS(dev);
 
-    if (dev->parent_bus && !dev->parent_bus->allow_hotplug) {
+    if (dev->parent_bus && !qbus_is_hotpluggable(dev->parent_bus)) {
         error_set(errp, QERR_BUS_NO_HOTPLUG, dev->parent_bus->name);
         return;
     }
@@ -948,7 +948,7 @@ static bool device_get_hotpluggable(Object *obj, Error **errp)
     DeviceState *dev = DEVICE(obj);
 
     return dc->hotpluggable && (dev->parent_bus == NULL ||
-                                dev->parent_bus->allow_hotplug);
+                                qbus_is_hotpluggable(dev->parent_bus));
 }
 
 static bool device_get_hotplugged(Object *obj, Error **err)

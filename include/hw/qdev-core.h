@@ -368,4 +368,9 @@ static inline void qbus_set_hotplug_handler(BusState *bus, DeviceState *handler,
                              QDEV_HOTPLUG_HANDLER_PROPERTY, errp);
     bus->allow_hotplug = 1;
 }
+
+static inline bool qbus_is_hotpluggable(BusState *bus)
+{
+   return bus->allow_hotplug || bus->hotplug_handler;
+}
 #endif

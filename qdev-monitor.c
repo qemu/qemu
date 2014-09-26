@@ -515,7 +515,7 @@ DeviceState *qdev_device_add(QemuOpts *opts)
             return NULL;
         }
     }
-    if (qdev_hotplug && bus && !bus->allow_hotplug) {
+    if (qdev_hotplug && bus && !qbus_is_hotpluggable(bus)) {
         qerror_report(QERR_BUS_NO_HOTPLUG, bus->name);
         return NULL;
     }

@@ -77,7 +77,7 @@ static PCIDevice *qemu_pci_hot_add_nic(Monitor *mon,
         monitor_printf(mon, "Invalid PCI device address %s\n", devaddr);
         return NULL;
     }
-    if (!((BusState*)bus)->allow_hotplug) {
+    if (!qbus_is_hotpluggable(BUS(bus))) {
         monitor_printf(mon, "PCI bus doesn't support hotplug\n");
         return NULL;
     }
@@ -227,7 +227,7 @@ static PCIDevice *qemu_pci_hot_add_storage(Monitor *mon,
         monitor_printf(mon, "Invalid PCI device address %s\n", devaddr);
         return NULL;
     }
-    if (!((BusState*)bus)->allow_hotplug) {
+    if (!qbus_is_hotpluggable(BUS(bus))) {
         monitor_printf(mon, "PCI bus doesn't support hotplug\n");
         return NULL;
     }
