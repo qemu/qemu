@@ -425,6 +425,49 @@ static inline void gen_subs(TCGv ret, TCGv r1, TCGv r2)
     gen_helper_sub_ssov(ret, cpu_env, r1, r2);
 }
 
+static inline void gen_bit_2op(TCGv ret, TCGv r1, TCGv r2,
+                               int pos1, int pos2,
+                               void(*op1)(TCGv, TCGv, TCGv),
+                               void(*op2)(TCGv, TCGv, TCGv))
+{
+    TCGv temp1, temp2;
+
+    temp1 = tcg_temp_new();
+    temp2 = tcg_temp_new();
+
+    tcg_gen_shri_tl(temp2, r2, pos2);
+    tcg_gen_shri_tl(temp1, r1, pos1);
+
+    (*op1)(temp1, temp1, temp2);
+    (*op2)(temp1 , ret, temp1);
+
+    tcg_gen_deposit_tl(ret, ret, temp1, 0, 1);
+
+    tcg_temp_free(temp1);
+    tcg_temp_free(temp2);
+}
+
+/* ret = r1[pos1] op1 r2[pos2]; */
+static inline void gen_bit_1op(TCGv ret, TCGv r1, TCGv r2,
+                               int pos1, int pos2,
+                               void(*op1)(TCGv, TCGv, TCGv))
+{
+    TCGv temp1, temp2;
+
+    temp1 = tcg_temp_new();
+    temp2 = tcg_temp_new();
+
+    tcg_gen_shri_tl(temp2, r2, pos2);
+    tcg_gen_shri_tl(temp1, r1, pos1);
+
+    (*op1)(ret, temp1, temp2);
+
+    tcg_gen_andi_tl(ret, ret, 0x1);
+
+    tcg_temp_free(temp1);
+    tcg_temp_free(temp2);
+}
+
 /* helpers for generating program flow micro-ops */
 
 static inline void gen_save_pc(target_ulong pc)
@@ -1345,6 +1388,253 @@ static void decode_abs_storeb_h(CPUTriCoreState *env, DisasContext *ctx)
     tcg_temp_free(temp);
 }
 
+/* Bit-format */
+
+static void decode_bit_andacc(CPUTriCoreState *env, DisasContext *ctx)
+{
+    uint32_t op2;
+    int r1, r2, r3;
+    int pos1, pos2;
+
+    r1 = MASK_OP_BIT_S1(ctx->opcode);
+    r2 = MASK_OP_BIT_S2(ctx->opcode);
+    r3 = MASK_OP_BIT_D(ctx->opcode);
+    pos1 = MASK_OP_BIT_POS1(ctx->opcode);
+    pos2 = MASK_OP_BIT_POS2(ctx->opcode);
+    op2 = MASK_OP_BIT_OP2(ctx->opcode);
+
+
+    switch (op2) {
+    case OPC2_32_BIT_AND_AND_T:
+        gen_bit_2op(cpu_gpr_d[r3], cpu_gpr_d[r1], cpu_gpr_d[r2],
+                    pos1, pos2, &tcg_gen_and_tl, &tcg_gen_and_tl);
+        break;
+    case OPC2_32_BIT_AND_ANDN_T:
+        gen_bit_2op(cpu_gpr_d[r3], cpu_gpr_d[r1], cpu_gpr_d[r2],
+                    pos1, pos2, &tcg_gen_andc_tl, &tcg_gen_and_tl);
+        break;
+    case OPC2_32_BIT_AND_NOR_T:
+        if (TCG_TARGET_HAS_andc_i32) {
+            gen_bit_2op(cpu_gpr_d[r3], cpu_gpr_d[r1], cpu_gpr_d[r2],
+                        pos1, pos2, &tcg_gen_or_tl, &tcg_gen_andc_tl);
+        } else {
+            gen_bit_2op(cpu_gpr_d[r3], cpu_gpr_d[r1], cpu_gpr_d[r2],
+                        pos1, pos2, &tcg_gen_nor_tl, &tcg_gen_and_tl);
+        }
+        break;
+    case OPC2_32_BIT_AND_OR_T:
+        gen_bit_2op(cpu_gpr_d[r3], cpu_gpr_d[r1], cpu_gpr_d[r2],
+                    pos1, pos2, &tcg_gen_or_tl, &tcg_gen_and_tl);
+        break;
+    }
+}
+
+static void decode_bit_logical_t(CPUTriCoreState *env, DisasContext *ctx)
+{
+    uint32_t op2;
+    int r1, r2, r3;
+    int pos1, pos2;
+    r1 = MASK_OP_BIT_S1(ctx->opcode);
+    r2 = MASK_OP_BIT_S2(ctx->opcode);
+    r3 = MASK_OP_BIT_D(ctx->opcode);
+    pos1 = MASK_OP_BIT_POS1(ctx->opcode);
+    pos2 = MASK_OP_BIT_POS2(ctx->opcode);
+    op2 = MASK_OP_BIT_OP2(ctx->opcode);
+
+    switch (op2) {
+    case OPC2_32_BIT_AND_T:
+        gen_bit_1op(cpu_gpr_d[r3], cpu_gpr_d[r1], cpu_gpr_d[r2],
+                    pos1, pos2, &tcg_gen_and_tl);
+        break;
+    case OPC2_32_BIT_ANDN_T:
+        gen_bit_1op(cpu_gpr_d[r3], cpu_gpr_d[r1], cpu_gpr_d[r2],
+                    pos1, pos2, &tcg_gen_andc_tl);
+        break;
+    case OPC2_32_BIT_NOR_T:
+        gen_bit_1op(cpu_gpr_d[r3], cpu_gpr_d[r1], cpu_gpr_d[r2],
+                    pos1, pos2, &tcg_gen_nor_tl);
+        break;
+    case OPC2_32_BIT_OR_T:
+        gen_bit_1op(cpu_gpr_d[r3], cpu_gpr_d[r1], cpu_gpr_d[r2],
+                    pos1, pos2, &tcg_gen_or_tl);
+        break;
+    }
+}
+
+static void decode_bit_insert(CPUTriCoreState *env, DisasContext *ctx)
+{
+    uint32_t op2;
+    int r1, r2, r3;
+    int pos1, pos2;
+    TCGv temp;
+    op2 = MASK_OP_BIT_OP2(ctx->opcode);
+    r1 = MASK_OP_BIT_S1(ctx->opcode);
+    r2 = MASK_OP_BIT_S2(ctx->opcode);
+    r3 = MASK_OP_BIT_D(ctx->opcode);
+    pos1 = MASK_OP_BIT_POS1(ctx->opcode);
+    pos2 = MASK_OP_BIT_POS2(ctx->opcode);
+
+    temp = tcg_temp_new();
+
+    tcg_gen_shri_tl(temp, cpu_gpr_d[r2], pos2);
+    if (op2 == OPC2_32_BIT_INSN_T) {
+        tcg_gen_not_tl(temp, temp);
+    }
+    tcg_gen_deposit_tl(cpu_gpr_d[r3], cpu_gpr_d[r1], temp, pos1, 1);
+    tcg_temp_free(temp);
+}
+
+static void decode_bit_logical_t2(CPUTriCoreState *env, DisasContext *ctx)
+{
+    uint32_t op2;
+
+    int r1, r2, r3;
+    int pos1, pos2;
+
+    op2 = MASK_OP_BIT_OP2(ctx->opcode);
+    r1 = MASK_OP_BIT_S1(ctx->opcode);
+    r2 = MASK_OP_BIT_S2(ctx->opcode);
+    r3 = MASK_OP_BIT_D(ctx->opcode);
+    pos1 = MASK_OP_BIT_POS1(ctx->opcode);
+    pos2 = MASK_OP_BIT_POS2(ctx->opcode);
+
+    switch (op2) {
+    case OPC2_32_BIT_NAND_T:
+        gen_bit_1op(cpu_gpr_d[r3], cpu_gpr_d[r1], cpu_gpr_d[r2],
+                    pos1, pos2, &tcg_gen_nand_tl);
+        break;
+    case OPC2_32_BIT_ORN_T:
+        gen_bit_1op(cpu_gpr_d[r3], cpu_gpr_d[r1], cpu_gpr_d[r2],
+                    pos1, pos2, &tcg_gen_orc_tl);
+        break;
+    case OPC2_32_BIT_XNOR_T:
+        gen_bit_1op(cpu_gpr_d[r3], cpu_gpr_d[r1], cpu_gpr_d[r2],
+                    pos1, pos2, &tcg_gen_eqv_tl);
+        break;
+    case OPC2_32_BIT_XOR_T:
+        gen_bit_1op(cpu_gpr_d[r3], cpu_gpr_d[r1], cpu_gpr_d[r2],
+                    pos1, pos2, &tcg_gen_xor_tl);
+        break;
+    }
+}
+
+static void decode_bit_orand(CPUTriCoreState *env, DisasContext *ctx)
+{
+    uint32_t op2;
+
+    int r1, r2, r3;
+    int pos1, pos2;
+
+    op2 = MASK_OP_BIT_OP2(ctx->opcode);
+    r1 = MASK_OP_BIT_S1(ctx->opcode);
+    r2 = MASK_OP_BIT_S2(ctx->opcode);
+    r3 = MASK_OP_BIT_D(ctx->opcode);
+    pos1 = MASK_OP_BIT_POS1(ctx->opcode);
+    pos2 = MASK_OP_BIT_POS2(ctx->opcode);
+
+    switch (op2) {
+    case OPC2_32_BIT_OR_AND_T:
+        gen_bit_2op(cpu_gpr_d[r3], cpu_gpr_d[r1], cpu_gpr_d[r2],
+                    pos1, pos2, &tcg_gen_and_tl, &tcg_gen_or_tl);
+        break;
+    case OPC2_32_BIT_OR_ANDN_T:
+        gen_bit_2op(cpu_gpr_d[r3], cpu_gpr_d[r1], cpu_gpr_d[r2],
+                    pos1, pos2, &tcg_gen_andc_tl, &tcg_gen_or_tl);
+        break;
+    case OPC2_32_BIT_OR_NOR_T:
+        if (TCG_TARGET_HAS_orc_i32) {
+            gen_bit_2op(cpu_gpr_d[r3], cpu_gpr_d[r1], cpu_gpr_d[r2],
+                        pos1, pos2, &tcg_gen_or_tl, &tcg_gen_orc_tl);
+        } else {
+            gen_bit_2op(cpu_gpr_d[r3], cpu_gpr_d[r1], cpu_gpr_d[r2],
+                        pos1, pos2, &tcg_gen_nor_tl, &tcg_gen_or_tl);
+        }
+        break;
+    case OPC2_32_BIT_OR_OR_T:
+        gen_bit_2op(cpu_gpr_d[r3], cpu_gpr_d[r1], cpu_gpr_d[r2],
+                    pos1, pos2, &tcg_gen_or_tl, &tcg_gen_or_tl);
+        break;
+    }
+}
+
+static void decode_bit_sh_logic1(CPUTriCoreState *env, DisasContext *ctx)
+{
+    uint32_t op2;
+    int r1, r2, r3;
+    int pos1, pos2;
+    TCGv temp;
+
+    op2 = MASK_OP_BIT_OP2(ctx->opcode);
+    r1 = MASK_OP_BIT_S1(ctx->opcode);
+    r2 = MASK_OP_BIT_S2(ctx->opcode);
+    r3 = MASK_OP_BIT_D(ctx->opcode);
+    pos1 = MASK_OP_BIT_POS1(ctx->opcode);
+    pos2 = MASK_OP_BIT_POS2(ctx->opcode);
+
+    temp = tcg_temp_new();
+
+    switch (op2) {
+    case OPC2_32_BIT_SH_AND_T:
+        gen_bit_1op(temp, cpu_gpr_d[r1], cpu_gpr_d[r2],
+                    pos1, pos2, &tcg_gen_and_tl);
+        break;
+    case OPC2_32_BIT_SH_ANDN_T:
+        gen_bit_1op(temp, cpu_gpr_d[r1], cpu_gpr_d[r2],
+                    pos1, pos2, &tcg_gen_andc_tl);
+        break;
+    case OPC2_32_BIT_SH_NOR_T:
+        gen_bit_1op(temp, cpu_gpr_d[r1], cpu_gpr_d[r2],
+                    pos1, pos2, &tcg_gen_nor_tl);
+        break;
+    case OPC2_32_BIT_SH_OR_T:
+        gen_bit_1op(temp, cpu_gpr_d[r1], cpu_gpr_d[r2],
+                    pos1, pos2, &tcg_gen_or_tl);
+        break;
+    }
+    tcg_gen_shli_tl(cpu_gpr_d[r3], cpu_gpr_d[r3], 1);
+    tcg_gen_add_tl(cpu_gpr_d[r3], cpu_gpr_d[r3], temp);
+    tcg_temp_free(temp);
+}
+
+static void decode_bit_sh_logic2(CPUTriCoreState *env, DisasContext *ctx)
+{
+    uint32_t op2;
+    int r1, r2, r3;
+    int pos1, pos2;
+    TCGv temp;
+
+    op2 = MASK_OP_BIT_OP2(ctx->opcode);
+    r1 = MASK_OP_BIT_S1(ctx->opcode);
+    r2 = MASK_OP_BIT_S2(ctx->opcode);
+    r3 = MASK_OP_BIT_D(ctx->opcode);
+    pos1 = MASK_OP_BIT_POS1(ctx->opcode);
+    pos2 = MASK_OP_BIT_POS2(ctx->opcode);
+
+    temp = tcg_temp_new();
+
+    switch (op2) {
+    case OPC2_32_BIT_SH_NAND_T:
+        gen_bit_1op(temp, cpu_gpr_d[r1] , cpu_gpr_d[r2] ,
+                    pos1, pos2, &tcg_gen_nand_tl);
+        break;
+    case OPC2_32_BIT_SH_ORN_T:
+        gen_bit_1op(temp, cpu_gpr_d[r1], cpu_gpr_d[r2],
+                    pos1, pos2, &tcg_gen_orc_tl);
+        break;
+    case OPC2_32_BIT_SH_XNOR_T:
+        gen_bit_1op(temp, cpu_gpr_d[r1], cpu_gpr_d[r2],
+                    pos1, pos2, &tcg_gen_eqv_tl);
+        break;
+    case OPC2_32_BIT_SH_XOR_T:
+        gen_bit_1op(temp, cpu_gpr_d[r1], cpu_gpr_d[r2],
+                    pos1, pos2, &tcg_gen_xor_tl);
+        break;
+    }
+    tcg_gen_shli_tl(cpu_gpr_d[r3], cpu_gpr_d[r3], 1);
+    tcg_gen_add_tl(cpu_gpr_d[r3], cpu_gpr_d[r3], temp);
+    tcg_temp_free(temp);
+}
+
 static void decode_32Bit_opc(CPUTriCoreState *env, DisasContext *ctx)
 {
     int op1;
@@ -1429,6 +1719,28 @@ static void decode_32Bit_opc(CPUTriCoreState *env, DisasContext *ctx)
     case OPC1_32_B_JLA:
         address = MASK_OP_B_DISP24(ctx->opcode);
         gen_compute_branch(ctx, op1, 0, 0, 0, address);
+        break;
+/* Bit-format */
+    case OPCM_32_BIT_ANDACC:
+        decode_bit_andacc(env, ctx);
+        break;
+    case OPCM_32_BIT_LOGICAL_T1:
+        decode_bit_logical_t(env, ctx);
+        break;
+    case OPCM_32_BIT_INSERT:
+        decode_bit_insert(env, ctx);
+        break;
+    case OPCM_32_BIT_LOGICAL_T2:
+        decode_bit_logical_t2(env, ctx);
+        break;
+    case OPCM_32_BIT_ORAND:
+        decode_bit_orand(env, ctx);
+        break;
+    case OPCM_32_BIT_SH_LOGIC1:
+        decode_bit_sh_logic1(env, ctx);
+        break;
+    case OPCM_32_BIT_SH_LOGIC2:
+        decode_bit_sh_logic2(env, ctx);
         break;
     }
 }
