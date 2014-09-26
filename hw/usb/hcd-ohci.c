@@ -723,11 +723,13 @@ static int ohci_service_iso_td(OHCIState *ohci, struct ohci_ed *ed,
     trace_usb_ohci_iso_td_head(
            ed->head & OHCI_DPTR_MASK, ed->tail & OHCI_DPTR_MASK,
            iso_td.flags, iso_td.bp, iso_td.next, iso_td.be,
-           iso_td.offset[0], iso_td.offset[1], iso_td.offset[2], iso_td.offset[3],
-           iso_td.offset[4], iso_td.offset[5], iso_td.offset[6], iso_td.offset[7],
-           ohci->frame_number, starting_frame, 
-           frame_count, relative_frame_number,         
-           OHCI_BM(iso_td.flags, TD_DI), OHCI_BM(iso_td.flags, TD_CC));
+           ohci->frame_number, starting_frame,
+           frame_count, relative_frame_number);
+    trace_usb_ohci_iso_td_head_offset(
+           iso_td.offset[0], iso_td.offset[1],
+           iso_td.offset[2], iso_td.offset[3],
+           iso_td.offset[4], iso_td.offset[5],
+           iso_td.offset[6], iso_td.offset[7]);
 
     if (relative_frame_number < 0) {
         trace_usb_ohci_iso_td_relative_frame_number_neg(relative_frame_number);
@@ -1199,13 +1201,14 @@ static int ohci_service_ed_list(OHCIState *ohci, uint32_t head, int completion)
         }
 
         while ((ed.head & OHCI_DPTR_MASK) != ed.tail) {
-            trace_usb_ohci_ed_pkt(cur,
+            trace_usb_ohci_ed_pkt(cur, (ed.head & OHCI_ED_H) != 0,
+                    (ed.head & OHCI_ED_C) != 0, ed.head & OHCI_DPTR_MASK,
+                    ed.tail & OHCI_DPTR_MASK, ed.next & OHCI_DPTR_MASK);
+            trace_usb_ohci_ed_pkt_flags(
                     OHCI_BM(ed.flags, ED_FA), OHCI_BM(ed.flags, ED_EN),
                     OHCI_BM(ed.flags, ED_D), (ed.flags & OHCI_ED_S)!= 0,
                     (ed.flags & OHCI_ED_K) != 0, (ed.flags & OHCI_ED_F) != 0,
-                    OHCI_BM(ed.flags, ED_MPS), (ed.head & OHCI_ED_H) != 0,
-                    (ed.head & OHCI_ED_C) != 0, ed.head & OHCI_DPTR_MASK,
-                    ed.tail & OHCI_DPTR_MASK, ed.next & OHCI_DPTR_MASK);
+                    OHCI_BM(ed.flags, ED_MPS));
 
             active = 1;
 

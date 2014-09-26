@@ -11,6 +11,9 @@
 # QAPI event definitions
 { 'include': 'qapi/event.json' }
 
+# Tracing commands
+{ 'include': 'qapi/trace.json' }
+
 ##
 # LostTickPolicy:
 #

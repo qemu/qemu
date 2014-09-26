@@ -34,7 +34,6 @@
 #include "qemu/bitops.h"
 #include "qemu/bitmap.h"
 #include "block/block_int.h"
-#include "trace.h"
 #include "block/scsi.h"
 #include "qemu/iov.h"
 #include "sysemu/sysemu.h"

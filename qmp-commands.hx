@@ -3752,5 +3752,40 @@ Example:
 
 -> { "execute": "rtc-reset-reinjection" }
 <- { "return": {} }
+EQMP
 
+    {
+        .name       = "trace-event-get-state",
+        .args_type  = "name:s",
+        .mhandler.cmd_new = qmp_marshal_input_trace_event_get_state,
+    },
+
+SQMP
+trace-event-get-state
+---------------------
+
+Query the state of events.
+
+Example:
+
+-> { "execute": "trace-event-get-state", "arguments": { "name": "qemu_memalign" } }
+<- { "return": [ { "name": "qemu_memalign", "state": "disabled" } ] }
+EQMP
+
+    {
+        .name       = "trace-event-set-state",
+        .args_type  = "name:s,enable:b,ignore-unavailable:b?",
+        .mhandler.cmd_new = qmp_marshal_input_trace_event_set_state,
+    },
+
+SQMP
+trace-event-set-state
+---------------------
+
+Set the state of events.
+
+Example:
+
+-> { "execute": "trace-event-set-state", "arguments": { "name": "qemu_memalign", "enable": "true" } }
+<- { "return": {} }
 EQMP
