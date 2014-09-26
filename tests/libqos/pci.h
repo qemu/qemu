@@ -87,4 +87,7 @@ void qpci_io_writel(QPCIDevice *dev, void *data, uint32_t value);
 void *qpci_iomap(QPCIDevice *dev, int barno, uint64_t *sizeptr);
 void qpci_iounmap(QPCIDevice *dev, void *data);
 
+void qpci_plug_device_test(const char *driver, const char *id,
+                           uint8_t slot, const char *opts);
+void qpci_unplug_acpi_device_test(const char *id, uint8_t slot);
 #endif
