@@ -82,7 +82,7 @@ int configure_accelerator(MachineClass *mc)
             fprintf(stderr, "\"%s\" accelerator does not exist.\n", buf);
             continue;
         }
-        if (!acc->available()) {
+        if (acc->available && !acc->available()) {
             printf("%s not supported for this target\n",
                    acc->name);
             continue;
