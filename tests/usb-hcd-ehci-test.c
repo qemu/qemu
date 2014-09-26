@@ -15,11 +15,7 @@
 #include "qemu/osdep.h"
 #include "hw/usb/uhci-regs.h"
 #include "hw/usb/ehci-regs.h"
-
-struct qhc {
-    QPCIDevice *dev;
-    void *base;
-};
+#include "libqos/usb.h"
 
 static QPCIBus *pcibus;
 static struct qhc uhci1;
@@ -28,15 +24,6 @@ static struct qhc uhci3;
 static struct qhc ehci1;
 
 /* helpers */
-
-static void pci_init_one(struct qhc *hc, uint32_t devfn, int bar)
-{
-    hc->dev = qpci_device_find(pcibus, devfn);
-    g_assert(hc->dev != NULL);
-    qpci_device_enable(hc->dev);
-    hc->base = qpci_iomap(hc->dev, bar, NULL);
-    g_assert(hc->base != NULL);
-}
 
 #if 0
 static void uhci_port_update(struct qhc *hc, int port,
@@ -51,19 +38,6 @@ static void uhci_port_update(struct qhc *hc, int port,
     qpci_io_writew(hc->dev, addr, value);
 }
 #endif
-
-static void uhci_port_test(struct qhc *hc, int port, uint16_t expect)
-{
-    void *addr = hc->base + 0x10 + 2 * port;
-    uint16_t value = qpci_io_readw(hc->dev, addr);
-    uint16_t mask = ~(UHCI_PORT_WRITE_CLEAR | UHCI_PORT_RSVD1);
-
-#if 0
-    fprintf(stderr, "%s: %d, have 0x%04x, want 0x%04x\n",
-            __func__, port, value & mask, expect & mask);
-#endif
-    g_assert((value & mask) == (expect & mask));
-}
 
 static void ehci_port_test(struct qhc *hc, int port, uint32_t expect)
 {
@@ -88,10 +62,10 @@ static void pci_init(void)
     pcibus = qpci_init_pc();
     g_assert(pcibus != NULL);
 
-    pci_init_one(&uhci1, QPCI_DEVFN(0x1d, 0), 4);
-    pci_init_one(&uhci2, QPCI_DEVFN(0x1d, 1), 4);
-    pci_init_one(&uhci3, QPCI_DEVFN(0x1d, 2), 4);
-    pci_init_one(&ehci1, QPCI_DEVFN(0x1d, 7), 0);
+    qusb_pci_init_one(pcibus, &uhci1, QPCI_DEVFN(0x1d, 0), 4);
+    qusb_pci_init_one(pcibus, &uhci2, QPCI_DEVFN(0x1d, 1), 4);
+    qusb_pci_init_one(pcibus, &uhci3, QPCI_DEVFN(0x1d, 2), 4);
+    qusb_pci_init_one(pcibus, &ehci1, QPCI_DEVFN(0x1d, 7), 0);
 }
 
 static void pci_uhci_port_1(void)
