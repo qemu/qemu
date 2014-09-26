@@ -62,6 +62,7 @@ int configure_accelerator(MachineClass *mc)
     int i, ret;
     bool accel_initialised = false;
     bool init_failed = false;
+    AccelType *acc = NULL;
 
     p = qemu_opt_get(qemu_get_machine_opts(), "accel");
     if (p == NULL) {
@@ -75,20 +76,21 @@ int configure_accelerator(MachineClass *mc)
         }
         p = get_opt_name(buf, sizeof(buf), p, ':');
         for (i = 0; i < ARRAY_SIZE(accel_list); i++) {
-            if (strcmp(accel_list[i].opt_name, buf) == 0) {
-                if (!accel_list[i].available()) {
+            acc = &accel_list[i];
+            if (strcmp(acc->opt_name, buf) == 0) {
+                if (!acc->available()) {
                     printf("%s not supported for this target\n",
-                           accel_list[i].name);
+                           acc->name);
                     break;
                 }
-                *(accel_list[i].allowed) = true;
-                ret = accel_list[i].init(mc);
+                *(acc->allowed) = true;
+                ret = acc->init(mc);
                 if (ret < 0) {
                     init_failed = true;
                     fprintf(stderr, "failed to initialize %s: %s\n",
-                            accel_list[i].name,
+                            acc->name,
                             strerror(-ret));
-                    *(accel_list[i].allowed) = false;
+                    *(acc->allowed) = false;
                 } else {
                     accel_initialised = true;
                 }
@@ -108,7 +110,7 @@ int configure_accelerator(MachineClass *mc)
     }
 
     if (init_failed) {
-        fprintf(stderr, "Back to %s accelerator.\n", accel_list[i].name);
+        fprintf(stderr, "Back to %s accelerator.\n", acc->name);
     }
 
     return !accel_initialised;
