@@ -2712,7 +2712,7 @@ static int configure_accelerator(MachineClass *mc)
         if (*p == ':') {
             p++;
         }
-        p = get_opt_name(buf, sizeof (buf), p, ':');
+        p = get_opt_name(buf, sizeof(buf), p, ':');
         for (i = 0; i < ARRAY_SIZE(accel_list); i++) {
             if (strcmp(accel_list[i].opt_name, buf) == 0) {
                 if (!accel_list[i].available()) {
