@@ -520,7 +520,7 @@ static void configure_qtest_icount(const char *options)
     qemu_opts_del(opts);
 }
 
-static int qtest_init_accel(MachineClass *mc)
+static int qtest_init_accel(MachineState *ms)
 {
     configure_qtest_icount("0");
     return 0;

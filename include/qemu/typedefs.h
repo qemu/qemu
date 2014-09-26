@@ -32,6 +32,7 @@ typedef struct MemoryMappingList MemoryMappingList;
 
 typedef struct QEMUMachine QEMUMachine;
 typedef struct MachineClass MachineClass;
+typedef struct MachineState MachineState;
 typedef struct NICInfo NICInfo;
 typedef struct HCIInfo HCIInfo;
 typedef struct AudioState AudioState;

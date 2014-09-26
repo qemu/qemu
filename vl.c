@@ -4179,7 +4179,7 @@ int main(int argc, char **argv, char **envp)
         exit(1);
     }
 
-    configure_accelerator(machine_class);
+    configure_accelerator(current_machine);
 
     if (qtest_chrdev) {
         Error *local_err = NULL;

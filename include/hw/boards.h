@@ -9,8 +9,6 @@
 #include "qom/object.h"
 
 
-typedef struct MachineState MachineState;
-
 typedef void QEMUMachineInitFunc(MachineState *ms);
 
 typedef void QEMUMachineResetFunc(void);

@@ -24,6 +24,7 @@
  */
 
 #include "sysemu/accel.h"
+#include "hw/boards.h"
 #include "qemu-common.h"
 #include "sysemu/arch_init.h"
 #include "sysemu/sysemu.h"
@@ -35,7 +36,7 @@
 int tcg_tb_size;
 static bool tcg_allowed = true;
 
-static int tcg_init(MachineClass *mc)
+static int tcg_init(MachineState *ms)
 {
     tcg_exec_init(tcg_tb_size * 1024 * 1024);
     return 0;
@@ -57,18 +58,18 @@ static AccelClass *accel_find(const char *opt_name)
     return ac;
 }
 
-static int accel_init_machine(AccelClass *acc, MachineClass *mc)
+static int accel_init_machine(AccelClass *acc, MachineState *ms)
 {
     int ret;
     *(acc->allowed) = true;
-    ret = acc->init_machine(mc);
+    ret = acc->init_machine(ms);
     if (ret < 0) {
         *(acc->allowed) = false;
     }
     return ret;
 }
 
-int configure_accelerator(MachineClass *mc)
+int configure_accelerator(MachineState *ms)
 {
     const char *p;
     char buf[10];
@@ -98,7 +99,7 @@ int configure_accelerator(MachineClass *mc)
                    acc->name);
             continue;
         }
-        ret = accel_init_machine(acc, mc);
+        ret = accel_init_machine(acc, ms);
         if (ret < 0) {
             init_failed = true;
             fprintf(stderr, "failed to initialize %s: %s\n",
