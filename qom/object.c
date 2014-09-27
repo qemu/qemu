@@ -1642,6 +1642,7 @@ void object_property_add_alias(Object *obj, const char *name,
     ObjectProperty *op;
     ObjectProperty *target_prop;
     gchar *prop_type;
+    Error *local_err = NULL;
 
     target_prop = object_property_find(target_obj, target_name, errp);
     if (!target_prop) {
@@ -1663,9 +1664,15 @@ void object_property_add_alias(Object *obj, const char *name,
                              property_get_alias,
                              property_set_alias,
                              property_release_alias,
-                             prop, errp);
+                             prop, &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        g_free(prop);
+        goto out;
+    }
     op->resolve = property_resolve_alias;
 
+out:
     g_free(prop_type);
 }
 
