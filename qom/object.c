@@ -1010,11 +1010,19 @@ char *object_property_print(Object *obj, const char *name, bool human,
                             Error **errp)
 {
     StringOutputVisitor *mo;
-    char *string;
+    char *string = NULL;
+    Error *local_err = NULL;
 
     mo = string_output_visitor_new(human);
-    object_property_get(obj, string_output_get_visitor(mo), name, errp);
+    object_property_get(obj, string_output_get_visitor(mo), name, &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        goto out;
+    }
+
     string = string_output_get_string(mo);
+
+out:
     string_output_visitor_cleanup(mo);
     return string;
 }
