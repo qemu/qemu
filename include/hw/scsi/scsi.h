@@ -5,6 +5,7 @@
 #include "block/block.h"
 #include "hw/block/block.h"
 #include "sysemu/sysemu.h"
+#include "qemu/notify.h"
 
 #define MAX_SCSI_DEVS	255
 
@@ -53,6 +54,7 @@ struct SCSIRequest {
     void              *hba_private;
     size_t            resid;
     SCSICommand       cmd;
+    NotifierList      cancel_notifiers;
 
     /* Note:
      * - fields before sense are initialized by scsi_req_alloc;
@@ -266,6 +268,7 @@ uint8_t *scsi_req_get_buf(SCSIRequest *req);
 int scsi_req_get_sense(SCSIRequest *req, uint8_t *buf, int len);
 void scsi_req_cancel_complete(SCSIRequest *req);
 void scsi_req_cancel(SCSIRequest *req);
+void scsi_req_cancel_async(SCSIRequest *req, Notifier *notifier);
 void scsi_req_retry(SCSIRequest *req);
 void scsi_device_purge_requests(SCSIDevice *sdev, SCSISense sense);
 void scsi_device_set_ua(SCSIDevice *sdev, SCSISense sense);

@@ -566,6 +566,7 @@ SCSIRequest *scsi_req_alloc(const SCSIReqOps *reqops, SCSIDevice *d,
     req->ops = reqops;
     object_ref(OBJECT(d));
     object_ref(OBJECT(qbus->parent));
+    notifier_list_init(&req->cancel_notifiers);
     trace_scsi_req_alloc(req->dev->id, req->lun, req->tag);
     return req;
 }
@@ -1715,6 +1716,9 @@ void scsi_req_complete(SCSIRequest *req, int status)
     scsi_req_ref(req);
     scsi_req_dequeue(req);
     req->bus->info->complete(req, req->status, req->resid);
+
+    /* Cancelled requests might end up being completed instead of cancelled */
+    notifier_list_notify(&req->cancel_notifiers, req);
     scsi_req_unref(req);
 }
 
@@ -1725,7 +1729,29 @@ void scsi_req_cancel_complete(SCSIRequest *req)
     if (req->bus->info->cancel) {
         req->bus->info->cancel(req);
     }
+    notifier_list_notify(&req->cancel_notifiers, req);
     scsi_req_unref(req);
+}
+
+/* Cancel @req asynchronously. @notifier is added to @req's cancellation
+ * notifier list, the bus will be notified the requests cancellation is
+ * completed.
+ * */
+void scsi_req_cancel_async(SCSIRequest *req, Notifier *notifier)
+{
+    trace_scsi_req_cancel(req->dev->id, req->lun, req->tag);
+    if (notifier) {
+        notifier_list_add(&req->cancel_notifiers, notifier);
+    }
+    if (req->io_canceled) {
+        return;
+    }
+    scsi_req_ref(req);
+    scsi_req_dequeue(req);
+    req->io_canceled = true;
+    if (req->aiocb) {
+        bdrv_aio_cancel_async(req->aiocb);
+    }
 }
 
 void scsi_req_cancel(SCSIRequest *req)
