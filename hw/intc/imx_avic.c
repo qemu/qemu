@@ -97,15 +97,6 @@ static inline int imx_avic_prio(IMXAVICState *s, int irq)
     return 0xf & (s->prio[word] >> part);
 }
 
-static inline void imx_avic_set_prio(IMXAVICState *s, int irq, int prio)
-{
-    uint32_t word = irq / PRIO_PER_WORD;
-    uint32_t part = 4 * (irq % PRIO_PER_WORD);
-    uint32_t mask = ~(0xf << part);
-    s->prio[word] &= mask;
-    s->prio[word] |= prio << part;
-}
-
 /* Update interrupts.  */
 static void imx_avic_update(IMXAVICState *s)
 {
