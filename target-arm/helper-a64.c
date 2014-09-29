@@ -476,6 +476,7 @@ void aarch64_cpu_do_interrupt(CPUState *cs)
     case EXCP_BKPT:
     case EXCP_UDEF:
     case EXCP_SWI:
+    case EXCP_HVC:
         env->cp15.esr_el[new_el] = env->exception.syndrome;
         break;
     case EXCP_IRQ:

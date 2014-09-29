@@ -385,6 +385,37 @@ void HELPER(clear_pstate_ss)(CPUARMState *env)
     env->pstate &= ~PSTATE_SS;
 }
 
+void HELPER(pre_hvc)(CPUARMState *env)
+{
+    int cur_el = arm_current_pl(env);
+    /* FIXME: Use actual secure state.  */
+    bool secure = false;
+    bool undef;
+
+    /* We've already checked that EL2 exists at translation time.
+     * EL3.HCE has priority over EL2.HCD.
+     */
+    if (arm_feature(env, ARM_FEATURE_EL3)) {
+        undef = !(env->cp15.scr_el3 & SCR_HCE);
+    } else {
+        undef = env->cp15.hcr_el2 & HCR_HCD;
+    }
+
+    /* In ARMv7 and ARMv8/AArch32, HVC is undef in secure state.
+     * For ARMv8/AArch64, HVC is allowed in EL3.
+     * Note that we've already trapped HVC from EL0 at translation
+     * time.
+     */
+    if (secure && (!is_a64(env) || cur_el == 1)) {
+        undef = true;
+    }
+
+    if (undef) {
+        env->exception.syndrome = syn_uncategorized();
+        raise_exception(env, EXCP_UDEF);
+    }
+}
+
 void HELPER(exception_return)(CPUARMState *env)
 {
     int cur_el = arm_current_pl(env);

@@ -3769,7 +3769,25 @@ void switch_mode(CPUARMState *env, int mode)
  */
 unsigned int arm_excp_target_el(CPUState *cs, unsigned int excp_idx)
 {
-    return 1;
+    ARMCPU *cpu = ARM_CPU(cs);
+    CPUARMState *env = &cpu->env;
+    unsigned int cur_el = arm_current_pl(env);
+    unsigned int target_el;
+
+    if (!env->aarch64) {
+        /* TODO: Add EL2 and 3 exception handling for AArch32.  */
+        return 1;
+    }
+
+    switch (excp_idx) {
+    case EXCP_HVC:
+        target_el = 2;
+        break;
+    default:
+        target_el = MAX(cur_el, 1);
+        break;
+    }
+    return target_el;
 }
 
 static void v7m_push(CPUARMState *env, uint32_t val)
