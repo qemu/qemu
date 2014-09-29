@@ -1245,19 +1245,18 @@ int load_vmstate(const char *name)
 
 void do_delvm(Monitor *mon, const QDict *qdict)
 {
-    BlockDriverState *bs, *bs1;
+    BlockDriverState *bs;
     Error *err = NULL;
     const char *name = qdict_get_str(qdict, "name");
 
-    bs = find_vmstate_bs();
-    if (!bs) {
+    if (!find_vmstate_bs()) {
         monitor_printf(mon, "No block device supports snapshots\n");
         return;
     }
 
-    bs1 = NULL;
-    while ((bs1 = bdrv_next(bs1))) {
-        if (bdrv_can_snapshot(bs1)) {
+    bs = NULL;
+    while ((bs = bdrv_next(bs))) {
+        if (bdrv_can_snapshot(bs)) {
             bdrv_snapshot_delete_by_id_or_name(bs, name, &err);
             if (err) {
                 monitor_printf(mon,
