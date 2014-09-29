@@ -162,6 +162,11 @@ void qvirtio_set_driver_ok(const QVirtioBus *bus, QVirtioDevice *d);
 
 bool qvirtio_wait_queue_isr(const QVirtioBus *bus, QVirtioDevice *d,
                                             QVirtQueue *vq, uint64_t timeout);
+uint8_t qvirtio_wait_status_byte_no_isr(const QVirtioBus *bus,
+                                        QVirtioDevice *d,
+                                        QVirtQueue *vq,
+                                        uint64_t addr,
+                                        gint64 timeout_us);
 bool qvirtio_wait_config_isr(const QVirtioBus *bus, QVirtioDevice *d,
                                                             uint64_t timeout);
 QVirtQueue *qvirtqueue_setup(const QVirtioBus *bus, QVirtioDevice *d,
