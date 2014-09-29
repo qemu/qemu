@@ -154,16 +154,4 @@ void qerror_report_err(Error *err);
 #define QERR_UNSUPPORTED \
     ERROR_CLASS_GENERIC_ERROR, "this feature or command is not currently supported"
 
-#define QERR_SOCKET_CONNECT_FAILED \
-    ERROR_CLASS_GENERIC_ERROR, "Failed to connect to socket"
-
-#define QERR_SOCKET_LISTEN_FAILED \
-    ERROR_CLASS_GENERIC_ERROR, "Failed to set socket to listening mode"
-
-#define QERR_SOCKET_BIND_FAILED \
-    ERROR_CLASS_GENERIC_ERROR, "Failed to bind socket"
-
-#define QERR_SOCKET_CREATE_FAILED \
-    ERROR_CLASS_GENERIC_ERROR, "Failed to create socket"
-
 #endif /* QERROR_H */

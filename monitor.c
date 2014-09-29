@@ -2922,6 +2922,13 @@ static mon_cmd_t info_cmds[] = {
         .mhandler.cmd = hmp_info_memdev,
     },
     {
+        .name       = "memory-devices",
+        .args_type  = "",
+        .params     = "",
+        .help       = "show memory devices",
+        .mhandler.cmd = hmp_info_memory_devices,
+    },
+    {
         .name       = NULL,
     },
 };
@@ -5249,6 +5256,7 @@ static void monitor_event(void *opaque, int event)
         monitor_printf(mon, "QEMU %s monitor - type 'help' for more "
                        "information\n", QEMU_VERSION);
         if (!mon->mux_out) {
+            readline_restart(mon->rs);
             readline_show_prompt(mon->rs);
         }
         mon->reset_seen = 1;

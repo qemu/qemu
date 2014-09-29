@@ -1778,6 +1778,8 @@ show qdev device model list
 show roms
 @item info tpm
 show the TPM device
+@item info memory-devices
+show the memory devices
 @end table
 ETEXI
 

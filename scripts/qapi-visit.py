@@ -358,6 +358,9 @@ void visit_type_%(name)s(Visitor *m, %(name)s **obj, const char *name, Error **e
         if (err) {
             goto out_obj;
         }
+        if (!visit_start_union(m, !!(*obj)->data, &err) || err) {
+            goto out_obj;
+        }
         switch ((*obj)->kind) {
 ''',
                  disc_type = disc_type,
@@ -384,6 +387,9 @@ void visit_type_%(name)s(Visitor *m, %(name)s **obj, const char *name, Error **e
             abort();
         }
 out_obj:
+        error_propagate(errp, err);
+        err = NULL;
+        visit_end_union(m, !!(*obj)->data, &err);
         error_propagate(errp, err);
         err = NULL;
     }

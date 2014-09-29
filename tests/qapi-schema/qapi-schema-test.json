@@ -33,6 +33,9 @@
 { 'type': 'UserDefB',
   'data': { 'integer': 'int' } }
 
+{ 'type': 'UserDefC',
+  'data': { 'string1': 'str', 'string2': 'str' } }
+
 { 'union': 'UserDefUnion',
   'base': 'UserDefZero',
   'data': { 'a' : 'UserDefA', 'b' : 'UserDefB' } }
@@ -46,6 +49,13 @@
   'data': { 'value1' : 'UserDefA', 'value2' : 'UserDefB', 'value3' : 'UserDefB' } }
 # FIXME generated struct UserDefFlatUnion has members for direct base
 # UserDefOne, but lacks members for indirect base UserDefZero
+
+# this variant of UserDefFlatUnion defaults to a union that uses fields with
+# allocated types to test corner cases in the cleanup/dealloc visitor
+{ 'union': 'UserDefFlatUnion2',
+  'base': 'UserDefUnionBase',
+  'discriminator': 'enum1',
+  'data': { 'value1' : 'UserDefC', 'value2' : 'UserDefB', 'value3' : 'UserDefA' } }
 
 { 'union': 'UserDefAnonUnion',
   'discriminator': {},
