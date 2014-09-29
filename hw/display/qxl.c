@@ -132,6 +132,8 @@ static void qxl_reset_memslots(PCIQXLDevice *d);
 static void qxl_reset_surfaces(PCIQXLDevice *d);
 static void qxl_ring_set_dirty(PCIQXLDevice *qxl);
 
+static void qxl_hw_update(void *opaque);
+
 void qxl_set_guest_bug(PCIQXLDevice *qxl, const char *msg, ...)
 {
     trace_qxl_set_guest_bug(qxl->id);
@@ -1076,6 +1078,10 @@ static const QXLInterface qxl_interface = {
     .client_monitors_config = interface_client_monitors_config,
 };
 
+static const GraphicHwOps qxl_ops = {
+    .gfx_update  = qxl_hw_update,
+};
+
 static void qxl_enter_vga_mode(PCIQXLDevice *d)
 {
     if (d->mode == QXL_MODE_VGA) {
@@ -1085,6 +1091,7 @@ static void qxl_enter_vga_mode(PCIQXLDevice *d)
 #if SPICE_SERVER_VERSION >= 0x000c03 /* release 0.12.3 */
     spice_qxl_driver_unload(&d->ssd.qxl);
 #endif
+    graphic_console_set_hwops(d->ssd.dcl.con, d->vga.hw_ops, &d->vga);
     qemu_spice_create_host_primary(&d->ssd);
     d->mode = QXL_MODE_VGA;
     vga_dirty_log_start(&d->vga);
@@ -1097,6 +1104,7 @@ static void qxl_exit_vga_mode(PCIQXLDevice *d)
         return;
     }
     trace_qxl_exit_vga_mode(d->id);
+    graphic_console_set_hwops(d->ssd.dcl.con, &qxl_ops, d);
     vga_dirty_log_stop(&d->vga);
     qxl_destroy_primary(d, QXL_SYNC);
 }
@@ -1756,41 +1764,8 @@ static void qxl_send_events(PCIQXLDevice *d, uint32_t events)
 static void qxl_hw_update(void *opaque)
 {
     PCIQXLDevice *qxl = opaque;
-    VGACommonState *vga = &qxl->vga;
 
-    switch (qxl->mode) {
-    case QXL_MODE_VGA:
-        vga->hw_ops->gfx_update(vga);
-        break;
-    case QXL_MODE_COMPAT:
-    case QXL_MODE_NATIVE:
-        qxl_render_update(qxl);
-        break;
-    default:
-        break;
-    }
-}
-
-static void qxl_hw_invalidate(void *opaque)
-{
-    PCIQXLDevice *qxl = opaque;
-    VGACommonState *vga = &qxl->vga;
-
-    if (qxl->mode == QXL_MODE_VGA) {
-        vga->hw_ops->invalidate(vga);
-        return;
-    }
-}
-
-static void qxl_hw_text_update(void *opaque, console_ch_t *chardata)
-{
-    PCIQXLDevice *qxl = opaque;
-    VGACommonState *vga = &qxl->vga;
-
-    if (qxl->mode == QXL_MODE_VGA) {
-        vga->hw_ops->text_update(vga, chardata);
-        return;
-    }
+    qxl_render_update(qxl);
 }
 
 static void qxl_dirty_surfaces(PCIQXLDevice *qxl)
@@ -2048,12 +2023,6 @@ static int qxl_init_common(PCIQXLDevice *qxl)
 
     return 0;
 }
-
-static const GraphicHwOps qxl_ops = {
-    .invalidate  = qxl_hw_invalidate,
-    .gfx_update  = qxl_hw_update,
-    .text_update = qxl_hw_text_update,
-};
 
 static int qxl_init_primary(PCIDevice *dev)
 {
