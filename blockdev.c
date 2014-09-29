@@ -224,9 +224,7 @@ void drive_info_del(DriveInfo *dinfo)
     if (!dinfo) {
         return;
     }
-    if (dinfo->opts) {
-        qemu_opts_del(dinfo->opts);
-    }
+    qemu_opts_del(dinfo->opts);
     g_free(dinfo->id);
     QTAILQ_REMOVE(&drives, dinfo, next);
     g_free(dinfo->serial);
