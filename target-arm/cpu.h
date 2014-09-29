@@ -500,6 +500,12 @@ void pmccntr_sync(CPUARMState *env);
 #define PSTATE_MODE_EL1t 4
 #define PSTATE_MODE_EL0t 0
 
+/* Map EL and handler into a PSTATE_MODE.  */
+static inline unsigned int aarch64_pstate_mode(unsigned int el, bool handler)
+{
+    return (el << 2) | handler;
+}
+
 /* Return the current PSTATE value. For the moment we don't support 32<->64 bit
  * interprocessing, so we don't attempt to sync with the cpsr state used by
  * the 32 bit decoder.
@@ -755,6 +761,7 @@ static inline bool arm_el_is_aa64(CPUARMState *env, int el)
 }
 
 void arm_cpu_list(FILE *f, fprintf_function cpu_fprintf);
+unsigned int arm_excp_target_el(CPUState *cs, unsigned int excp_idx);
 
 /* Interface between CPU and Interrupt controller.  */
 void armv7m_nvic_set_pending(void *opaque, int irq);

@@ -3704,6 +3704,11 @@ uint32_t HELPER(get_r13_banked)(CPUARMState *env, uint32_t mode)
     return 0;
 }
 
+unsigned int arm_excp_target_el(CPUState *cs, unsigned int excp_idx)
+{
+    return 1;
+}
+
 #else
 
 /* Map CPU modes onto saved register banks.  */
@@ -3757,6 +3762,14 @@ void switch_mode(CPUARMState *env, int mode)
     env->regs[13] = env->banked_r13[i];
     env->regs[14] = env->banked_r14[i];
     env->spsr = env->banked_spsr[i];
+}
+
+/*
+ * Determine the target EL for a given exception type.
+ */
+unsigned int arm_excp_target_el(CPUState *cs, unsigned int excp_idx)
+{
+    return 1;
 }
 
 static void v7m_push(CPUARMState *env, uint32_t val)
