@@ -55,6 +55,7 @@ static const char * const excnames[] = {
     [EXCP_STREX] = "QEMU intercept of STREX",
     [EXCP_HVC] = "Hypervisor Call",
     [EXCP_HYP_TRAP] = "Hypervisor Trap",
+    [EXCP_SMC] = "Secure Monitor Call",
 };
 
 static inline void arm_log_exception(int idx)
@@ -220,6 +221,11 @@ static inline uint32_t syn_aa64_svc(uint32_t imm16)
 static inline uint32_t syn_aa64_hvc(uint32_t imm16)
 {
     return (EC_AA64_HVC << ARM_EL_EC_SHIFT) | ARM_EL_IL | (imm16 & 0xffff);
+}
+
+static inline uint32_t syn_aa64_smc(uint32_t imm16)
+{
+    return (EC_AA64_SMC << ARM_EL_EC_SHIFT) | ARM_EL_IL | (imm16 & 0xffff);
 }
 
 static inline uint32_t syn_aa32_svc(uint32_t imm16, bool is_thumb)

@@ -3784,6 +3784,9 @@ unsigned int arm_excp_target_el(CPUState *cs, unsigned int excp_idx)
     case EXCP_HYP_TRAP:
         target_el = 2;
         break;
+    case EXCP_SMC:
+        target_el = 3;
+        break;
     default:
         target_el = MAX(cur_el, 1);
         break;

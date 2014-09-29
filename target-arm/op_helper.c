@@ -416,6 +416,32 @@ void HELPER(pre_hvc)(CPUARMState *env)
     }
 }
 
+void HELPER(pre_smc)(CPUARMState *env, uint32_t syndrome)
+{
+    int cur_el = arm_current_pl(env);
+    /* FIXME: Use real secure state.  */
+    bool secure = false;
+    bool smd = env->cp15.scr_el3 & SCR_SMD;
+    /* On ARMv8 AArch32, SMD only applies to NS state.
+     * On ARMv7 SMD only applies to NS state and only if EL2 is available.
+     * For ARMv7 non EL2, we force SMD to zero so we don't need to re-check
+     * the EL2 condition here.
+     */
+    bool undef = is_a64(env) ? smd : (!secure && smd);
+
+    /* In NS EL1, HCR controlled routing to EL2 has priority over SMD.  */
+    if (!secure && cur_el == 1 && (env->cp15.hcr_el2 & HCR_TSC)) {
+        env->exception.syndrome = syndrome;
+        raise_exception(env, EXCP_HYP_TRAP);
+    }
+
+    /* We've already checked that EL3 exists at translation time.  */
+    if (undef) {
+        env->exception.syndrome = syn_uncategorized();
+        raise_exception(env, EXCP_UDEF);
+    }
+}
+
 void HELPER(exception_return)(CPUARMState *env)
 {
     int cur_el = arm_current_pl(env);

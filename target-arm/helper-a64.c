@@ -478,6 +478,7 @@ void aarch64_cpu_do_interrupt(CPUState *cs)
     case EXCP_SWI:
     case EXCP_HVC:
     case EXCP_HYP_TRAP:
+    case EXCP_SMC:
         env->cp15.esr_el[new_el] = env->exception.syndrome;
         break;
     case EXCP_IRQ:

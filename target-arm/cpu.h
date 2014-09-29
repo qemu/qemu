@@ -53,6 +53,7 @@
 #define EXCP_STREX          10
 #define EXCP_HVC            11   /* HyperVisor Call */
 #define EXCP_HYP_TRAP       12
+#define EXCP_SMC            13   /* Secure Monitor Call */
 
 #define ARMV7M_EXCP_RESET   1
 #define ARMV7M_EXCP_NMI     2

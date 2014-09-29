@@ -1470,6 +1470,7 @@ static void disas_exc(DisasContext *s, uint32_t insn)
     int opc = extract32(insn, 21, 3);
     int op2_ll = extract32(insn, 0, 5);
     int imm16 = extract32(insn, 5, 16);
+    TCGv_i32 tmp;
 
     switch (opc) {
     case 0:
@@ -1495,6 +1496,18 @@ static void disas_exc(DisasContext *s, uint32_t insn)
             gen_helper_pre_hvc(cpu_env);
             gen_ss_advance(s);
             gen_exception_insn(s, 0, EXCP_HVC, syn_aa64_hvc(imm16));
+            break;
+        case 3:
+            if (!arm_dc_feature(s, ARM_FEATURE_EL3) || s->current_pl == 0) {
+                unallocated_encoding(s);
+                break;
+            }
+            gen_a64_set_pc_im(s->pc - 4);
+            tmp = tcg_const_i32(syn_aa64_smc(imm16));
+            gen_helper_pre_smc(cpu_env, tmp);
+            tcg_temp_free_i32(tmp);
+            gen_ss_advance(s);
+            gen_exception_insn(s, 0, EXCP_SMC, syn_aa64_smc(imm16));
             break;
         default:
             unallocated_encoding(s);
