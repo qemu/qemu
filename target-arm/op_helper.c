@@ -301,6 +301,17 @@ void HELPER(set_user_reg)(CPUARMState *env, uint32_t regno, uint32_t val)
 void HELPER(access_check_cp_reg)(CPUARMState *env, void *rip, uint32_t syndrome)
 {
     const ARMCPRegInfo *ri = rip;
+
+    if (arm_feature(env, ARM_FEATURE_XSCALE) && ri->cp < 14
+        && extract32(env->cp15.c15_cpar, ri->cp, 1) == 0) {
+        env->exception.syndrome = syndrome;
+        raise_exception(env, EXCP_UDEF);
+    }
+
+    if (!ri->accessfn) {
+        return;
+    }
+
     switch (ri->accessfn(env, ri)) {
     case CP_ACCESS_OK:
         return;

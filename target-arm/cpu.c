@@ -173,11 +173,6 @@ static void arm_cpu_reset(CPUState *s)
     set_float_detect_tininess(float_tininess_before_rounding,
                               &env->vfp.standard_fp_status);
     tlb_flush(s, 1);
-    /* Reset is a state change for some CPUARMState fields which we
-     * bake assumptions about into translated code, so we need to
-     * tb_flush().
-     */
-    tb_flush(env);
 
 #ifndef CONFIG_USER_ONLY
     if (kvm_enabled()) {

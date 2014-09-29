@@ -1224,6 +1224,11 @@ static inline bool arm_singlestep_active(CPUARMState *env)
 #define ARM_TBFLAG_SS_ACTIVE_MASK (1 << ARM_TBFLAG_SS_ACTIVE_SHIFT)
 #define ARM_TBFLAG_PSTATE_SS_SHIFT 19
 #define ARM_TBFLAG_PSTATE_SS_MASK (1 << ARM_TBFLAG_PSTATE_SS_SHIFT)
+/* We store the bottom two bits of the CPAR as TB flags and handle
+ * checks on the other bits at runtime
+ */
+#define ARM_TBFLAG_XSCALE_CPAR_SHIFT 20
+#define ARM_TBFLAG_XSCALE_CPAR_MASK (3 << ARM_TBFLAG_XSCALE_CPAR_SHIFT)
 
 /* Bit usage when in AArch64 state */
 #define ARM_TBFLAG_AA64_EL_SHIFT    0
@@ -1258,6 +1263,8 @@ static inline bool arm_singlestep_active(CPUARMState *env)
     (((F) & ARM_TBFLAG_SS_ACTIVE_MASK) >> ARM_TBFLAG_SS_ACTIVE_SHIFT)
 #define ARM_TBFLAG_PSTATE_SS(F) \
     (((F) & ARM_TBFLAG_PSTATE_SS_MASK) >> ARM_TBFLAG_PSTATE_SS_SHIFT)
+#define ARM_TBFLAG_XSCALE_CPAR(F) \
+    (((F) & ARM_TBFLAG_XSCALE_CPAR_MASK) >> ARM_TBFLAG_XSCALE_CPAR_SHIFT)
 #define ARM_TBFLAG_AA64_EL(F) \
     (((F) & ARM_TBFLAG_AA64_EL_MASK) >> ARM_TBFLAG_AA64_EL_SHIFT)
 #define ARM_TBFLAG_AA64_FPEN(F) \
@@ -1335,6 +1342,8 @@ static inline void cpu_get_tb_cpu_state(CPUARMState *env, target_ulong *pc,
                 *flags |= ARM_TBFLAG_PSTATE_SS_MASK;
             }
         }
+        *flags |= (extract32(env->cp15.c15_cpar, 0, 2)
+                   << ARM_TBFLAG_XSCALE_CPAR_SHIFT);
     }
 
     *cs_base = 0;
