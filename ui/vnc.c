@@ -2778,6 +2778,11 @@ static void vnc_refresh(DisplayChangeListener *dcl)
     VncState *vs, *vn;
     int has_dirty, rects = 0;
 
+    if (QTAILQ_EMPTY(&vd->clients)) {
+        update_displaychangelistener(&vd->dcl, VNC_REFRESH_INTERVAL_MAX);
+        return;
+    }
+
     graphic_hw_update(NULL);
 
     if (vnc_trylock_display(vd)) {
@@ -2791,11 +2796,6 @@ static void vnc_refresh(DisplayChangeListener *dcl)
     QTAILQ_FOREACH_SAFE(vs, &vd->clients, next, vn) {
         rects += vnc_update_client(vs, has_dirty, false);
         /* vs might be free()ed here */
-    }
-
-    if (QTAILQ_EMPTY(&vd->clients)) {
-        update_displaychangelistener(&vd->dcl, VNC_REFRESH_INTERVAL_MAX);
-        return;
     }
 
     if (has_dirty && rects) {
