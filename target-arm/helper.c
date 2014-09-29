@@ -2225,10 +2225,44 @@ static const ARMCPRegInfo v8_el3_no_el2_cp_reginfo[] = {
       .opc0 = 3, .opc1 = 4, .crn = 12, .crm = 0, .opc2 = 0,
       .access = PL2_RW,
       .readfn = arm_cp_read_zero, .writefn = arm_cp_write_ignore },
+    { .name = "HCR_EL2", .state = ARM_CP_STATE_AA64,
+      .type = ARM_CP_NO_MIGRATE,
+      .opc0 = 3, .opc1 = 4, .crn = 1, .crm = 1, .opc2 = 0,
+      .access = PL2_RW,
+      .readfn = arm_cp_read_zero, .writefn = arm_cp_write_ignore },
     REGINFO_SENTINEL
 };
 
+static void hcr_write(CPUARMState *env, const ARMCPRegInfo *ri, uint64_t value)
+{
+    ARMCPU *cpu = arm_env_get_cpu(env);
+    uint64_t valid_mask = HCR_MASK;
+
+    if (arm_feature(env, ARM_FEATURE_EL3)) {
+        valid_mask &= ~HCR_HCD;
+    } else {
+        valid_mask &= ~HCR_TSC;
+    }
+
+    /* Clear RES0 bits.  */
+    value &= valid_mask;
+
+    /* These bits change the MMU setup:
+     * HCR_VM enables stage 2 translation
+     * HCR_PTW forbids certain page-table setups
+     * HCR_DC Disables stage1 and enables stage2 translation
+     */
+    if ((raw_read(env, ri) ^ value) & (HCR_VM | HCR_PTW | HCR_DC)) {
+        tlb_flush(CPU(cpu), 1);
+    }
+    raw_write(env, ri, value);
+}
+
 static const ARMCPRegInfo v8_el2_cp_reginfo[] = {
+    { .name = "HCR_EL2", .state = ARM_CP_STATE_AA64,
+      .opc0 = 3, .opc1 = 4, .crn = 1, .crm = 1, .opc2 = 0,
+      .access = PL2_RW, .fieldoffset = offsetof(CPUARMState, cp15.hcr_el2),
+      .writefn = hcr_write },
     { .name = "ELR_EL2", .state = ARM_CP_STATE_AA64,
       .type = ARM_CP_NO_MIGRATE,
       .opc0 = 3, .opc1 = 4, .crn = 4, .crm = 0, .opc2 = 1,

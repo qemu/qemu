@@ -184,6 +184,7 @@ typedef struct CPUARMState {
                         MPU write buffer control.  */
         uint32_t pmsav5_data_ap; /* PMSAv5 MPU data access permissions */
         uint32_t pmsav5_insn_ap; /* PMSAv5 MPU insn access permissions */
+        uint64_t hcr_el2; /* Hypervisor configuration register */
         uint32_t ifsr_el2; /* Fault status registers.  */
         uint64_t esr_el[4];
         uint32_t c6_region[8]; /* MPU base/size registers.  */
@@ -565,6 +566,41 @@ static inline void xpsr_write(CPUARMState *env, uint32_t val, uint32_t mask)
         env->v7m.exception = val & 0x1ff;
     }
 }
+
+#define HCR_VM        (1ULL << 0)
+#define HCR_SWIO      (1ULL << 1)
+#define HCR_PTW       (1ULL << 2)
+#define HCR_FMO       (1ULL << 3)
+#define HCR_IMO       (1ULL << 4)
+#define HCR_AMO       (1ULL << 5)
+#define HCR_VF        (1ULL << 6)
+#define HCR_VI        (1ULL << 7)
+#define HCR_VSE       (1ULL << 8)
+#define HCR_FB        (1ULL << 9)
+#define HCR_BSU_MASK  (3ULL << 10)
+#define HCR_DC        (1ULL << 12)
+#define HCR_TWI       (1ULL << 13)
+#define HCR_TWE       (1ULL << 14)
+#define HCR_TID0      (1ULL << 15)
+#define HCR_TID1      (1ULL << 16)
+#define HCR_TID2      (1ULL << 17)
+#define HCR_TID3      (1ULL << 18)
+#define HCR_TSC       (1ULL << 19)
+#define HCR_TIDCP     (1ULL << 20)
+#define HCR_TACR      (1ULL << 21)
+#define HCR_TSW       (1ULL << 22)
+#define HCR_TPC       (1ULL << 23)
+#define HCR_TPU       (1ULL << 24)
+#define HCR_TTLB      (1ULL << 25)
+#define HCR_TVM       (1ULL << 26)
+#define HCR_TGE       (1ULL << 27)
+#define HCR_TDZ       (1ULL << 28)
+#define HCR_HCD       (1ULL << 29)
+#define HCR_TRVM      (1ULL << 30)
+#define HCR_RW        (1ULL << 31)
+#define HCR_CD        (1ULL << 32)
+#define HCR_ID        (1ULL << 33)
+#define HCR_MASK      ((1ULL << 34) - 1)
 
 /* Return the current FPSCR value.  */
 uint32_t vfp_get_fpscr(CPUARMState *env);
