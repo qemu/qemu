@@ -54,6 +54,7 @@ static const char * const excnames[] = {
     [EXCP_KERNEL_TRAP] = "QEMU intercept of kernel commpage",
     [EXCP_STREX] = "QEMU intercept of STREX",
     [EXCP_HVC] = "Hypervisor Call",
+    [EXCP_HYP_TRAP] = "Hypervisor Trap",
 };
 
 static inline void arm_log_exception(int idx)
