@@ -172,7 +172,6 @@ typedef struct CPUARMState {
         uint64_t c1_sys; /* System control register.  */
         uint64_t c1_coproc; /* Coprocessor access register.  */
         uint32_t c1_xscaleauxcr; /* XScale auxiliary control register.  */
-        uint32_t c1_scr; /* secure config register.  */
         uint64_t ttbr0_el1; /* MMU translation table base 0. */
         uint64_t ttbr1_el1; /* MMU translation table base 1. */
         uint64_t c2_control; /* MMU translation table base control.  */
@@ -185,6 +184,7 @@ typedef struct CPUARMState {
         uint32_t pmsav5_data_ap; /* PMSAv5 MPU data access permissions */
         uint32_t pmsav5_insn_ap; /* PMSAv5 MPU insn access permissions */
         uint64_t hcr_el2; /* Hypervisor configuration register */
+        uint64_t scr_el3; /* Secure configuration register.  */
         uint32_t ifsr_el2; /* Fault status registers.  */
         uint64_t esr_el[4];
         uint32_t c6_region[8]; /* MPU base/size registers.  */
@@ -601,6 +601,23 @@ static inline void xpsr_write(CPUARMState *env, uint32_t val, uint32_t mask)
 #define HCR_CD        (1ULL << 32)
 #define HCR_ID        (1ULL << 33)
 #define HCR_MASK      ((1ULL << 34) - 1)
+
+#define SCR_NS                (1U << 0)
+#define SCR_IRQ               (1U << 1)
+#define SCR_FIQ               (1U << 2)
+#define SCR_EA                (1U << 3)
+#define SCR_FW                (1U << 4)
+#define SCR_AW                (1U << 5)
+#define SCR_NET               (1U << 6)
+#define SCR_SMD               (1U << 7)
+#define SCR_HCE               (1U << 8)
+#define SCR_SIF               (1U << 9)
+#define SCR_RW                (1U << 10)
+#define SCR_ST                (1U << 11)
+#define SCR_TWI               (1U << 12)
+#define SCR_TWE               (1U << 13)
+#define SCR_AARCH32_MASK      (0x3fff & ~(SCR_RW | SCR_ST))
+#define SCR_AARCH64_MASK      (0x3fff & ~SCR_NET)
 
 /* Return the current FPSCR value.  */
 uint32_t vfp_get_fpscr(CPUARMState *env);

@@ -747,6 +747,32 @@ static void vbar_write(CPUARMState *env, const ARMCPRegInfo *ri,
     raw_write(env, ri, value & ~0x1FULL);
 }
 
+static void scr_write(CPUARMState *env, const ARMCPRegInfo *ri, uint64_t value)
+{
+    /* We only mask off bits that are RES0 both for AArch64 and AArch32.
+     * For bits that vary between AArch32/64, code needs to check the
+     * current execution mode before directly using the feature bit.
+     */
+    uint32_t valid_mask = SCR_AARCH64_MASK | SCR_AARCH32_MASK;
+
+    if (!arm_feature(env, ARM_FEATURE_EL2)) {
+        valid_mask &= ~SCR_HCE;
+
+        /* On ARMv7, SMD (or SCD as it is called in v7) is only
+         * supported if EL2 exists. The bit is UNK/SBZP when
+         * EL2 is unavailable. In QEMU ARMv7, we force it to always zero
+         * when EL2 is unavailable.
+         */
+        if (arm_feature(env, ARM_FEATURE_V7)) {
+            valid_mask &= ~SCR_SMD;
+        }
+    }
+
+    /* Clear all-context RES0 bits.  */
+    value &= valid_mask;
+    raw_write(env, ri, value);
+}
+
 static uint64_t ccsidr_read(CPUARMState *env, const ARMCPRegInfo *ri)
 {
     ARMCPU *cpu = arm_env_get_cpu(env);
@@ -873,8 +899,8 @@ static const ARMCPRegInfo v7_cp_reginfo[] = {
       .fieldoffset = offsetof(CPUARMState, cp15.vbar_el[1]),
       .resetvalue = 0 },
     { .name = "SCR", .cp = 15, .crn = 1, .crm = 1, .opc1 = 0, .opc2 = 0,
-      .access = PL1_RW, .fieldoffset = offsetof(CPUARMState, cp15.c1_scr),
-      .resetvalue = 0, },
+      .access = PL1_RW, .fieldoffset = offsetoflow32(CPUARMState, cp15.scr_el3),
+      .resetvalue = 0, .writefn = scr_write },
     { .name = "CCSIDR", .state = ARM_CP_STATE_BOTH,
       .opc0 = 3, .crn = 0, .crm = 0, .opc1 = 1, .opc2 = 0,
       .access = PL1_R, .readfn = ccsidr_read, .type = ARM_CP_NO_MIGRATE },
@@ -2309,6 +2335,11 @@ static const ARMCPRegInfo v8_el3_cp_reginfo[] = {
       .access = PL3_RW, .writefn = vbar_write,
       .fieldoffset = offsetof(CPUARMState, cp15.vbar_el[3]),
       .resetvalue = 0 },
+    { .name = "SCR_EL3", .state = ARM_CP_STATE_AA64,
+      .type = ARM_CP_NO_MIGRATE,
+      .opc0 = 3, .opc1 = 6, .crn = 1, .crm = 1, .opc2 = 0,
+      .access = PL3_RW, .fieldoffset = offsetof(CPUARMState, cp15.scr_el3),
+      .writefn = scr_write },
     REGINFO_SENTINEL
 };
 
