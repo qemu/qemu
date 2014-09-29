@@ -3773,6 +3773,8 @@ unsigned int arm_excp_target_el(CPUState *cs, unsigned int excp_idx)
     CPUARMState *env = &cpu->env;
     unsigned int cur_el = arm_current_pl(env);
     unsigned int target_el;
+    /* FIXME: Use actual secure state.  */
+    bool secure = false;
 
     if (!env->aarch64) {
         /* TODO: Add EL2 and 3 exception handling for AArch32.  */
@@ -3787,6 +3789,21 @@ unsigned int arm_excp_target_el(CPUState *cs, unsigned int excp_idx)
     case EXCP_SMC:
         target_el = 3;
         break;
+    case EXCP_FIQ:
+    case EXCP_IRQ:
+    {
+        const uint64_t hcr_mask = excp_idx == EXCP_FIQ ? HCR_FMO : HCR_IMO;
+        const uint32_t scr_mask = excp_idx == EXCP_FIQ ? SCR_FIQ : SCR_IRQ;
+
+        target_el = 1;
+        if (!secure && (env->cp15.hcr_el2 & hcr_mask)) {
+            target_el = 2;
+        }
+        if (env->cp15.scr_el3 & scr_mask) {
+            target_el = 3;
+        }
+        break;
+    }
     default:
         target_el = MAX(cur_el, 1);
         break;

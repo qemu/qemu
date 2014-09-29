@@ -1180,6 +1180,10 @@ static inline bool arm_excp_unmasked(CPUState *cs, unsigned int excp_idx)
     CPUARMState *env = cs->env_ptr;
     unsigned int cur_el = arm_current_pl(env);
     unsigned int target_el = arm_excp_target_el(cs, excp_idx);
+    /* FIXME: Use actual secure state.  */
+    bool secure = false;
+    /* If in EL1/0, Physical IRQ routing to EL2 only happens from NS state.  */
+    bool irq_can_hyp = !secure && cur_el < 2 && target_el == 2;
 
     /* Don't take exceptions if they target a lower EL.  */
     if (cur_el > target_el) {
@@ -1188,8 +1192,14 @@ static inline bool arm_excp_unmasked(CPUState *cs, unsigned int excp_idx)
 
     switch (excp_idx) {
     case EXCP_FIQ:
+        if (irq_can_hyp && (env->cp15.hcr_el2 & HCR_FMO)) {
+            return true;
+        }
         return !(env->daif & PSTATE_F);
     case EXCP_IRQ:
+        if (irq_can_hyp && (env->cp15.hcr_el2 & HCR_IMO)) {
+            return true;
+        }
         return !(env->daif & PSTATE_I)
                && (!IS_M(env) || env->regs[15] < 0xfffffff0);
     default:
