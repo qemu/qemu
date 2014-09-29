@@ -313,6 +313,12 @@ static inline uint32_t syn_watchpoint(int same_el, int cm, int wnr)
         | (cm << 8) | (wnr << 6) | 0x22;
 }
 
+static inline uint32_t syn_breakpoint(int same_el)
+{
+    return (EC_BREAKPOINT << ARM_EL_EC_SHIFT) | (same_el << ARM_EL_EC_SHIFT)
+        | ARM_EL_IL | 0x22;
+}
+
 /* Update a QEMU watchpoint based on the information the guest has set in the
  * DBGWCR<n>_EL1 and DBGWVR<n>_EL1 registers.
  */

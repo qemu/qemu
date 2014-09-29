@@ -511,32 +511,43 @@ static bool linked_bp_matches(ARMCPU *cpu, int lbn)
     return false;
 }
 
-static bool wp_matches(ARMCPU *cpu, int n)
+static bool bp_wp_matches(ARMCPU *cpu, int n, bool is_wp)
 {
     CPUARMState *env = &cpu->env;
-    uint64_t wcr = env->cp15.dbgwcr[n];
+    uint64_t cr;
     int pac, hmc, ssc, wt, lbn;
     /* TODO: check against CPU security state when we implement TrustZone */
     bool is_secure = false;
 
-    if (!env->cpu_watchpoint[n]
-        || !(env->cpu_watchpoint[n]->flags & BP_WATCHPOINT_HIT)) {
-        return false;
-    }
+    if (is_wp) {
+        if (!env->cpu_watchpoint[n]
+            || !(env->cpu_watchpoint[n]->flags & BP_WATCHPOINT_HIT)) {
+            return false;
+        }
+        cr = env->cp15.dbgwcr[n];
+    } else {
+        uint64_t pc = is_a64(env) ? env->pc : env->regs[15];
 
+        if (!env->cpu_breakpoint[n] || env->cpu_breakpoint[n]->pc != pc) {
+            return false;
+        }
+        cr = env->cp15.dbgbcr[n];
+    }
     /* The WATCHPOINT_HIT flag guarantees us that the watchpoint is
-     * enabled and that the address and access type match; check the
-     * remaining fields, including linked breakpoints.
-     * Note that some combinations of {PAC, HMC SSC} are reserved and
+     * enabled and that the address and access type match; for breakpoints
+     * we know the address matched; check the remaining fields, including
+     * linked breakpoints. We rely on WCR and BCR having the same layout
+     * for the LBN, SSC, HMC, PAC/PMC and is-linked fields.
+     * Note that some combinations of {PAC, HMC, SSC} are reserved and
      * must act either like some valid combination or as if the watchpoint
      * were disabled. We choose the former, and use this together with
      * the fact that EL3 must always be Secure and EL2 must always be
      * Non-Secure to simplify the code slightly compared to the full
      * table in the ARM ARM.
      */
-    pac = extract64(wcr, 1, 2);
-    hmc = extract64(wcr, 13, 1);
-    ssc = extract64(wcr, 14, 2);
+    pac = extract64(cr, 1, 2);
+    hmc = extract64(cr, 13, 1);
+    ssc = extract64(cr, 14, 2);
 
     switch (ssc) {
     case 0:
@@ -560,6 +571,7 @@ static bool wp_matches(ARMCPU *cpu, int n)
      * Implementing this would require reworking the core watchpoint code
      * to plumb the mmu_idx through to this point. Luckily Linux does not
      * rely on this behaviour currently.
+     * For breakpoints we do want to use the current CPU state.
      */
     switch (arm_current_pl(env)) {
     case 3:
@@ -582,8 +594,8 @@ static bool wp_matches(ARMCPU *cpu, int n)
         g_assert_not_reached();
     }
 
-    wt = extract64(wcr, 20, 1);
-    lbn = extract64(wcr, 16, 4);
+    wt = extract64(cr, 20, 1);
+    lbn = extract64(cr, 16, 4);
 
     if (wt && !linked_bp_matches(cpu, lbn)) {
         return false;
@@ -606,7 +618,28 @@ static bool check_watchpoints(ARMCPU *cpu)
     }
 
     for (n = 0; n < ARRAY_SIZE(env->cpu_watchpoint); n++) {
-        if (wp_matches(cpu, n)) {
+        if (bp_wp_matches(cpu, n, true)) {
+            return true;
+        }
+    }
+    return false;
+}
+
+static bool check_breakpoints(ARMCPU *cpu)
+{
+    CPUARMState *env = &cpu->env;
+    int n;
+
+    /* If breakpoints are disabled globally or we can't take debug
+     * exceptions here then breakpoint firings are ignored.
+     */
+    if (extract32(env->cp15.mdscr_el1, 15, 1) == 0
+        || !arm_generate_debug_exceptions(env)) {
+        return false;
+    }
+
+    for (n = 0; n < ARRAY_SIZE(env->cpu_breakpoint); n++) {
+        if (bp_wp_matches(cpu, n, false)) {
             return true;
         }
     }
@@ -640,6 +673,18 @@ void arm_debug_excp_handler(CPUState *cs)
             } else {
                 cpu_resume_from_signal(cs, NULL);
             }
+        }
+    } else {
+        if (check_breakpoints(cpu)) {
+            bool same_el = (arm_debug_target_el(env) == arm_current_pl(env));
+            env->exception.syndrome = syn_breakpoint(same_el);
+            if (extended_addresses_enabled(env)) {
+                env->exception.fsr = (1 << 9) | 0x22;
+            } else {
+                env->exception.fsr = 0x2;
+            }
+            /* FAR is UNKNOWN, so doesn't need setting */
+            raise_exception(env, EXCP_PREFETCH_ABORT);
         }
     }
 }
