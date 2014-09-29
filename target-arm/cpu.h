@@ -1172,6 +1172,21 @@ bool write_cpustate_to_list(ARMCPU *cpu);
 #  define TARGET_VIRT_ADDR_SPACE_BITS 32
 #endif
 
+static inline bool arm_excp_unmasked(CPUState *cs, unsigned int excp_idx)
+{
+    CPUARMState *env = cs->env_ptr;
+
+    switch (excp_idx) {
+    case EXCP_FIQ:
+        return !(env->daif & PSTATE_F);
+    case EXCP_IRQ:
+        return !(env->daif & PSTATE_I)
+               && (!IS_M(env) || env->regs[15] < 0xfffffff0);
+    default:
+        g_assert_not_reached();
+    }
+}
+
 static inline CPUARMState *cpu_init(const char *cpu_model)
 {
     ARMCPU *cpu = cpu_arm_init(cpu_model);

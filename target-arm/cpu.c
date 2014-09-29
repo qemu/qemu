@@ -187,12 +187,10 @@ static void arm_cpu_reset(CPUState *s)
 bool arm_cpu_exec_interrupt(CPUState *cs, int interrupt_request)
 {
     CPUClass *cc = CPU_GET_CLASS(cs);
-    ARMCPU *cpu = ARM_CPU(cs);
-    CPUARMState *env = &cpu->env;
     bool ret = false;
 
     if (interrupt_request & CPU_INTERRUPT_FIQ
-        && !(env->daif & PSTATE_F)) {
+        && arm_excp_unmasked(cs, EXCP_FIQ)) {
         cs->exception_index = EXCP_FIQ;
         cc->do_interrupt(cs);
         ret = true;
@@ -207,8 +205,7 @@ bool arm_cpu_exec_interrupt(CPUState *cs, int interrupt_request)
        We avoid this by disabling interrupts when
        pc contains a magic address.  */
     if (interrupt_request & CPU_INTERRUPT_HARD
-        && !(env->daif & PSTATE_I)
-        && (!IS_M(env) || env->regs[15] < 0xfffffff0)) {
+        && arm_excp_unmasked(cs, EXCP_IRQ)) {
         cs->exception_index = EXCP_IRQ;
         cc->do_interrupt(cs);
         ret = true;
