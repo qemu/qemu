@@ -216,11 +216,17 @@ static void bdrv_format_print(void *opaque, const char *name)
 
 void drive_del(DriveInfo *dinfo)
 {
+    bdrv_unref(dinfo->bdrv);
+}
+
+void drive_info_del(DriveInfo *dinfo)
+{
+    if (!dinfo) {
+        return;
+    }
     if (dinfo->opts) {
         qemu_opts_del(dinfo->opts);
     }
-
-    bdrv_unref(dinfo->bdrv);
     g_free(dinfo->id);
     QTAILQ_REMOVE(&drives, dinfo, next);
     g_free(dinfo->serial);
@@ -301,6 +307,7 @@ static DriveInfo *blockdev_init(const char *file, QDict *bs_opts,
     int ro = 0;
     int bdrv_flags = 0;
     int on_read_error, on_write_error;
+    BlockDriverState *bs;
     DriveInfo *dinfo;
     ThrottleConfig cfg;
     int snapshot = 0;
@@ -456,25 +463,26 @@ static DriveInfo *blockdev_init(const char *file, QDict *bs_opts,
     }
 
     /* init */
-    dinfo = g_malloc0(sizeof(*dinfo));
-    dinfo->id = g_strdup(qemu_opts_id(opts));
-    dinfo->bdrv = bdrv_new(dinfo->id, &error);
-    if (error) {
-        error_propagate(errp, error);
-        goto bdrv_new_err;
+    bs = bdrv_new(qemu_opts_id(opts), errp);
+    if (!bs) {
+        goto early_err;
     }
-    dinfo->bdrv->open_flags = snapshot ? BDRV_O_SNAPSHOT : 0;
-    dinfo->bdrv->read_only = ro;
-    dinfo->bdrv->detect_zeroes = detect_zeroes;
-    QTAILQ_INSERT_TAIL(&drives, dinfo, next);
+    bs->open_flags = snapshot ? BDRV_O_SNAPSHOT : 0;
+    bs->read_only = ro;
+    bs->detect_zeroes = detect_zeroes;
 
-    bdrv_set_on_error(dinfo->bdrv, on_read_error, on_write_error);
+    bdrv_set_on_error(bs, on_read_error, on_write_error);
 
     /* disk I/O throttling */
     if (throttle_enabled(&cfg)) {
-        bdrv_io_limits_enable(dinfo->bdrv);
-        bdrv_set_io_limits(dinfo->bdrv, &cfg);
+        bdrv_io_limits_enable(bs);
+        bdrv_set_io_limits(bs, &cfg);
     }
+
+    dinfo = g_malloc0(sizeof(*dinfo));
+    dinfo->id = g_strdup(qemu_opts_id(opts));
+    dinfo->bdrv = bs;
+    QTAILQ_INSERT_TAIL(&drives, dinfo, next);
 
     if (!file || !*file) {
         if (has_driver_specific_opts) {
@@ -502,7 +510,8 @@ static DriveInfo *blockdev_init(const char *file, QDict *bs_opts,
     bdrv_flags |= ro ? 0 : BDRV_O_RDWR;
 
     QINCREF(bs_opts);
-    ret = bdrv_open(&dinfo->bdrv, file, NULL, bs_opts, bdrv_flags, drv, &error);
+    ret = bdrv_open(&bs, file, NULL, bs_opts, bdrv_flags, drv, &error);
+    assert(bs == dinfo->bdrv);
 
     if (ret < 0) {
         error_setg(errp, "could not open disk image %s: %s",
@@ -511,8 +520,9 @@ static DriveInfo *blockdev_init(const char *file, QDict *bs_opts,
         goto err;
     }
 
-    if (bdrv_key_required(dinfo->bdrv))
+    if (bdrv_key_required(bs)) {
         autostart = 0;
+    }
 
     QDECREF(bs_opts);
     qemu_opts_del(opts);
@@ -520,11 +530,7 @@ static DriveInfo *blockdev_init(const char *file, QDict *bs_opts,
     return dinfo;
 
 err:
-    bdrv_unref(dinfo->bdrv);
-    QTAILQ_REMOVE(&drives, dinfo, next);
-bdrv_new_err:
-    g_free(dinfo->id);
-    g_free(dinfo);
+    bdrv_unref(bs);
 early_err:
     qemu_opts_del(opts);
 err_no_opts:
@@ -532,12 +538,18 @@ err_no_opts:
     return NULL;
 }
 
-static void qemu_opt_rename(QemuOpts *opts, const char *from, const char *to)
+static void qemu_opt_rename(QemuOpts *opts, const char *from, const char *to,
+                            Error **errp)
 {
     const char *value;
 
     value = qemu_opt_get(opts, from);
     if (value) {
+        if (qemu_opt_find(opts, to)) {
+            error_setg(errp, "'%s' and its alias '%s' can't be used at the "
+                       "same time", to, from);
+            return;
+        }
         qemu_opt_set(opts, to, value);
         qemu_opt_unset(opts, from);
     }
@@ -641,28 +653,43 @@ DriveInfo *drive_new(QemuOpts *all_opts, BlockInterfaceType block_default_type)
     const char *serial;
     const char *filename;
     Error *local_err = NULL;
+    int i;
 
     /* Change legacy command line options into QMP ones */
-    qemu_opt_rename(all_opts, "iops", "throttling.iops-total");
-    qemu_opt_rename(all_opts, "iops_rd", "throttling.iops-read");
-    qemu_opt_rename(all_opts, "iops_wr", "throttling.iops-write");
+    static const struct {
+        const char *from;
+        const char *to;
+    } opt_renames[] = {
+        { "iops",           "throttling.iops-total" },
+        { "iops_rd",        "throttling.iops-read" },
+        { "iops_wr",        "throttling.iops-write" },
 
-    qemu_opt_rename(all_opts, "bps", "throttling.bps-total");
-    qemu_opt_rename(all_opts, "bps_rd", "throttling.bps-read");
-    qemu_opt_rename(all_opts, "bps_wr", "throttling.bps-write");
+        { "bps",            "throttling.bps-total" },
+        { "bps_rd",         "throttling.bps-read" },
+        { "bps_wr",         "throttling.bps-write" },
 
-    qemu_opt_rename(all_opts, "iops_max", "throttling.iops-total-max");
-    qemu_opt_rename(all_opts, "iops_rd_max", "throttling.iops-read-max");
-    qemu_opt_rename(all_opts, "iops_wr_max", "throttling.iops-write-max");
+        { "iops_max",       "throttling.iops-total-max" },
+        { "iops_rd_max",    "throttling.iops-read-max" },
+        { "iops_wr_max",    "throttling.iops-write-max" },
 
-    qemu_opt_rename(all_opts, "bps_max", "throttling.bps-total-max");
-    qemu_opt_rename(all_opts, "bps_rd_max", "throttling.bps-read-max");
-    qemu_opt_rename(all_opts, "bps_wr_max", "throttling.bps-write-max");
+        { "bps_max",        "throttling.bps-total-max" },
+        { "bps_rd_max",     "throttling.bps-read-max" },
+        { "bps_wr_max",     "throttling.bps-write-max" },
 
-    qemu_opt_rename(all_opts,
-                    "iops_size", "throttling.iops-size");
+        { "iops_size",      "throttling.iops-size" },
 
-    qemu_opt_rename(all_opts, "readonly", "read-only");
+        { "readonly",       "read-only" },
+    };
+
+    for (i = 0; i < ARRAY_SIZE(opt_renames); i++) {
+        qemu_opt_rename(all_opts, opt_renames[i].from, opt_renames[i].to,
+                        &local_err);
+        if (local_err) {
+            error_report("%s", error_get_pretty(local_err));
+            error_free(local_err);
+            return NULL;
+        }
+    }
 
     value = qemu_opt_get(all_opts, "cache");
     if (value) {

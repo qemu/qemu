@@ -214,6 +214,7 @@ static int get_event_by_name(const char *name, BlkDebugEvent *event)
 struct add_rule_data {
     BDRVBlkdebugState *s;
     int action;
+    Error **errp;
 };
 
 static int add_rule(QemuOpts *opts, void *opaque)
@@ -226,7 +227,11 @@ static int add_rule(QemuOpts *opts, void *opaque)
 
     /* Find the right event for the rule */
     event_name = qemu_opt_get(opts, "event");
-    if (!event_name || get_event_by_name(event_name, &event) < 0) {
+    if (!event_name) {
+        error_setg(d->errp, "Missing event name for rule");
+        return -1;
+    } else if (get_event_by_name(event_name, &event) < 0) {
+        error_setg(d->errp, "Invalid event name \"%s\"", event_name);
         return -1;
     }
 
@@ -312,10 +317,21 @@ static int read_config(BDRVBlkdebugState *s, const char *filename,
 
     d.s = s;
     d.action = ACTION_INJECT_ERROR;
-    qemu_opts_foreach(&inject_error_opts, add_rule, &d, 0);
+    d.errp = &local_err;
+    qemu_opts_foreach(&inject_error_opts, add_rule, &d, 1);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        ret = -EINVAL;
+        goto fail;
+    }
 
     d.action = ACTION_SET_STATE;
-    qemu_opts_foreach(&set_state_opts, add_rule, &d, 0);
+    qemu_opts_foreach(&set_state_opts, add_rule, &d, 1);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        ret = -EINVAL;
+        goto fail;
+    }
 
     ret = 0;
 fail:
