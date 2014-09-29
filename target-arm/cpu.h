@@ -1175,6 +1175,13 @@ bool write_cpustate_to_list(ARMCPU *cpu);
 static inline bool arm_excp_unmasked(CPUState *cs, unsigned int excp_idx)
 {
     CPUARMState *env = cs->env_ptr;
+    unsigned int cur_el = arm_current_pl(env);
+    unsigned int target_el = arm_excp_target_el(cs, excp_idx);
+
+    /* Don't take exceptions if they target a lower EL.  */
+    if (cur_el > target_el) {
+        return false;
+    }
 
     switch (excp_idx) {
     case EXCP_FIQ:
