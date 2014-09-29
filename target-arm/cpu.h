@@ -323,6 +323,7 @@ typedef struct CPUARMState {
     int eabi;
 #endif
 
+    struct CPUBreakpoint *cpu_breakpoint[16];
     struct CPUWatchpoint *cpu_watchpoint[16];
 
     CPU_COMMON

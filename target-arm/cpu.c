@@ -185,6 +185,7 @@ static void arm_cpu_reset(CPUState *s)
     }
 #endif
 
+    hw_breakpoint_update_all(cpu);
     hw_watchpoint_update_all(cpu);
 }
 

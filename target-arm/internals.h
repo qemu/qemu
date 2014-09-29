@@ -322,6 +322,15 @@ void hw_watchpoint_update(ARMCPU *cpu, int n);
  * suitable for use after migration or on reset.
  */
 void hw_watchpoint_update_all(ARMCPU *cpu);
+/* Update a QEMU breakpoint based on the information the guest has set in the
+ * DBGBCR<n>_EL1 and DBGBVR<n>_EL1 registers.
+ */
+void hw_breakpoint_update(ARMCPU *cpu, int n);
+/* Update the QEMU breakpoints for every guest breakpoint. This does a
+ * complete delete-and-reinstate of the QEMU breakpoint list and so is
+ * suitable for use after migration or on reset.
+ */
+void hw_breakpoint_update_all(ARMCPU *cpu);
 
 /* Callback function for when a watchpoint or breakpoint triggers. */
 void arm_debug_excp_handler(CPUState *cs);
