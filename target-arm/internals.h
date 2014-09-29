@@ -56,6 +56,8 @@ static const char * const excnames[] = {
     [EXCP_HVC] = "Hypervisor Call",
     [EXCP_HYP_TRAP] = "Hypervisor Trap",
     [EXCP_SMC] = "Secure Monitor Call",
+    [EXCP_VIRQ] = "Virtual IRQ",
+    [EXCP_VFIQ] = "Virtual FIQ",
 };
 
 static inline void arm_log_exception(int idx)

@@ -54,6 +54,8 @@
 #define EXCP_HVC            11   /* HyperVisor Call */
 #define EXCP_HYP_TRAP       12
 #define EXCP_SMC            13   /* Secure Monitor Call */
+#define EXCP_VIRQ           14
+#define EXCP_VFIQ           15
 
 #define ARMV7M_EXCP_RESET   1
 #define ARMV7M_EXCP_NMI     2
@@ -68,6 +70,8 @@
 
 /* ARM-specific interrupt pending bits.  */
 #define CPU_INTERRUPT_FIQ   CPU_INTERRUPT_TGT_EXT_1
+#define CPU_INTERRUPT_VIRQ  CPU_INTERRUPT_TGT_EXT_2
+#define CPU_INTERRUPT_VFIQ  CPU_INTERRUPT_TGT_EXT_3
 
 /* The usual mapping for an AArch64 system register to its AArch32
  * counterpart is for the 32 bit world to have access to the lower
@@ -83,9 +87,11 @@
 #define offsetofhigh32(S, M) (offsetof(S, M) + sizeof(uint32_t))
 #endif
 
-/* Meanings of the ARMCPU object's two inbound GPIO lines */
+/* Meanings of the ARMCPU object's four inbound GPIO lines */
 #define ARM_CPU_IRQ 0
 #define ARM_CPU_FIQ 1
+#define ARM_CPU_VIRQ 2
+#define ARM_CPU_VFIQ 3
 
 typedef void ARMWriteCPFunc(void *opaque, int cp_info,
                             int srcreg, int operand, uint32_t value);
@@ -1184,6 +1190,18 @@ static inline bool arm_excp_unmasked(CPUState *cs, unsigned int excp_idx)
     bool secure = false;
     /* If in EL1/0, Physical IRQ routing to EL2 only happens from NS state.  */
     bool irq_can_hyp = !secure && cur_el < 2 && target_el == 2;
+    /* ARMv7-M interrupt return works by loading a magic value
+     * into the PC.  On real hardware the load causes the
+     * return to occur.  The qemu implementation performs the
+     * jump normally, then does the exception return when the
+     * CPU tries to execute code at the magic address.
+     * This will cause the magic PC value to be pushed to
+     * the stack if an interrupt occurred at the wrong time.
+     * We avoid this by disabling interrupts when
+     * pc contains a magic address.
+     */
+    bool irq_unmasked = !(env->daif & PSTATE_I)
+                        && (!IS_M(env) || env->regs[15] < 0xfffffff0);
 
     /* Don't take exceptions if they target a lower EL.  */
     if (cur_el > target_el) {
@@ -1200,8 +1218,19 @@ static inline bool arm_excp_unmasked(CPUState *cs, unsigned int excp_idx)
         if (irq_can_hyp && (env->cp15.hcr_el2 & HCR_IMO)) {
             return true;
         }
-        return !(env->daif & PSTATE_I)
-               && (!IS_M(env) || env->regs[15] < 0xfffffff0);
+        return irq_unmasked;
+    case EXCP_VFIQ:
+        if (!secure && !(env->cp15.hcr_el2 & HCR_FMO)) {
+            /* VFIQs are only taken when hypervized and non-secure.  */
+            return false;
+        }
+        return !(env->daif & PSTATE_F);
+    case EXCP_VIRQ:
+        if (!secure && !(env->cp15.hcr_el2 & HCR_IMO)) {
+            /* VIRQs are only taken when hypervized and non-secure.  */
+            return false;
+        }
+        return irq_unmasked;
     default:
         g_assert_not_reached();
     }

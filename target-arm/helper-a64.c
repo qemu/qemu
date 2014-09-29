@@ -482,9 +482,11 @@ void aarch64_cpu_do_interrupt(CPUState *cs)
         env->cp15.esr_el[new_el] = env->exception.syndrome;
         break;
     case EXCP_IRQ:
+    case EXCP_VIRQ:
         addr += 0x80;
         break;
     case EXCP_FIQ:
+    case EXCP_VFIQ:
         addr += 0x100;
         break;
     default:

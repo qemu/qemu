@@ -3804,6 +3804,10 @@ unsigned int arm_excp_target_el(CPUState *cs, unsigned int excp_idx)
         }
         break;
     }
+    case EXCP_VIRQ:
+    case EXCP_VFIQ:
+        target_el = 1;
+        break;
     default:
         target_el = MAX(cur_el, 1);
         break;
