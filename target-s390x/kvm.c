@@ -952,6 +952,7 @@ static void sigp_initial_cpu_reset(void *arg)
 
     cpu_synchronize_state(cpu);
     scc->initial_cpu_reset(cpu);
+    cpu_synchronize_post_reset(cpu);
 }
 
 static void sigp_cpu_reset(void *arg)
@@ -961,6 +962,7 @@ static void sigp_cpu_reset(void *arg)
 
     cpu_synchronize_state(cpu);
     scc->cpu_reset(cpu);
+    cpu_synchronize_post_reset(cpu);
 }
 
 #define SIGP_ORDER_MASK 0x000000ff
