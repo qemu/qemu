@@ -306,6 +306,10 @@ bool e820_get_entry(int, uint32_t, uint64_t *, uint64_t *);
             .driver   = "intel-hda",\
             .property = "old_msi_addr",\
             .value    = "on",\
+        },{\
+            .driver   = "usb-mouse",\
+            .property = "usb_version",\
+            .value    = stringify(1),\
         }
 
 #define PC_COMPAT_2_0 \

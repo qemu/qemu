@@ -104,6 +104,37 @@ static const USBDescIface desc_iface_mouse = {
     },
 };
 
+static const USBDescIface desc_iface_mouse2 = {
+    .bInterfaceNumber              = 0,
+    .bNumEndpoints                 = 1,
+    .bInterfaceClass               = USB_CLASS_HID,
+    .bInterfaceSubClass            = 0x01, /* boot */
+    .bInterfaceProtocol            = 0x02,
+    .ndesc                         = 1,
+    .descs = (USBDescOther[]) {
+        {
+            /* HID descriptor */
+            .data = (uint8_t[]) {
+                0x09,          /*  u8  bLength */
+                USB_DT_HID,    /*  u8  bDescriptorType */
+                0x01, 0x00,    /*  u16 HID_class */
+                0x00,          /*  u8  country_code */
+                0x01,          /*  u8  num_descriptors */
+                USB_DT_REPORT, /*  u8  type: Report */
+                52, 0,         /*  u16 len */
+            },
+        },
+    },
+    .eps = (USBDescEndpoint[]) {
+        {
+            .bEndpointAddress      = USB_DIR_IN | 0x01,
+            .bmAttributes          = USB_ENDPOINT_XFER_INT,
+            .wMaxPacketSize        = 4,
+            .bInterval             = 7, /* 2 ^ (8-1) * 125 usecs = 8 ms */
+        },
+    },
+};
+
 static const USBDescIface desc_iface_tablet = {
     .bInterfaceNumber              = 0,
     .bNumEndpoints                 = 1,
@@ -212,6 +243,23 @@ static const USBDescDevice desc_device_mouse = {
     },
 };
 
+static const USBDescDevice desc_device_mouse2 = {
+    .bcdUSB                        = 0x0200,
+    .bMaxPacketSize0               = 64,
+    .bNumConfigurations            = 1,
+    .confs = (USBDescConfig[]) {
+        {
+            .bNumInterfaces        = 1,
+            .bConfigurationValue   = 1,
+            .iConfiguration        = STR_CONFIG_MOUSE,
+            .bmAttributes          = USB_CFG_ATT_ONE | USB_CFG_ATT_WAKEUP,
+            .bMaxPower             = 50,
+            .nif = 1,
+            .ifs = &desc_iface_mouse2,
+        },
+    },
+};
+
 static const USBDescDevice desc_device_tablet = {
     .bcdUSB                        = 0x0100,
     .bMaxPacketSize0               = 8,
@@ -277,6 +325,21 @@ static const USBDesc desc_mouse = {
         .iSerialNumber     = STR_SERIALNUMBER,
     },
     .full = &desc_device_mouse,
+    .str  = desc_strings,
+    .msos = &desc_msos_suspend,
+};
+
+static const USBDesc desc_mouse2 = {
+    .id = {
+        .idVendor          = 0x0627,
+        .idProduct         = 0x0001,
+        .bcdDevice         = 0,
+        .iManufacturer     = STR_MANUFACTURER,
+        .iProduct          = STR_PRODUCT_MOUSE,
+        .iSerialNumber     = STR_SERIALNUMBER,
+    },
+    .full = &desc_device_mouse,
+    .high = &desc_device_mouse2,
     .str  = desc_strings,
     .msos = &desc_msos_suspend,
 };
@@ -606,7 +669,7 @@ static void usb_tablet_realize(USBDevice *dev, Error **errp)
 
 static void usb_mouse_realize(USBDevice *dev, Error **errp)
 {
-    usb_hid_initfn(dev, HID_MOUSE, &desc_mouse, NULL, errp);
+    usb_hid_initfn(dev, HID_MOUSE, &desc_mouse, &desc_mouse2, errp);
 }
 
 static void usb_keyboard_realize(USBDevice *dev, Error **errp)
@@ -685,6 +748,11 @@ static const TypeInfo usb_tablet_info = {
     .class_init    = usb_tablet_class_initfn,
 };
 
+static Property usb_mouse_properties[] = {
+        DEFINE_PROP_UINT32("usb_version", USBHIDState, usb_version, 2),
+        DEFINE_PROP_END_OF_LIST(),
+};
+
 static void usb_mouse_class_initfn(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
@@ -694,6 +762,7 @@ static void usb_mouse_class_initfn(ObjectClass *klass, void *data)
     uc->realize        = usb_mouse_realize;
     uc->product_desc   = "QEMU USB Mouse";
     dc->vmsd = &vmstate_usb_ptr;
+    dc->props = usb_mouse_properties;
     set_bit(DEVICE_CATEGORY_INPUT, dc->categories);
 }
 
