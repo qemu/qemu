@@ -181,9 +181,10 @@ unsigned long kvm_arch_vcpu_id(CPUState *cpu)
     return cpu->cpu_index;
 }
 
-int kvm_arch_init_vcpu(CPUState *cpu)
+int kvm_arch_init_vcpu(CPUState *cs)
 {
-    /* nothing todo yet */
+    S390CPU *cpu = S390_CPU(cs);
+    kvm_s390_set_cpu_state(cpu, cpu->env.cpu_state);
     return 0;
 }
 
@@ -1320,4 +1321,42 @@ int kvm_s390_assign_subch_ioeventfd(EventNotifier *notifier, uint32_t sch,
 int kvm_s390_get_memslot_count(KVMState *s)
 {
     return kvm_check_extension(s, KVM_CAP_NR_MEMSLOTS);
+}
+
+int kvm_s390_set_cpu_state(S390CPU *cpu, uint8_t cpu_state)
+{
+    struct kvm_mp_state mp_state = {};
+    int ret;
+
+    /* the kvm part might not have been initialized yet */
+    if (CPU(cpu)->kvm_state == NULL) {
+        return 0;
+    }
+
+    switch (cpu_state) {
+    case CPU_STATE_STOPPED:
+        mp_state.mp_state = KVM_MP_STATE_STOPPED;
+        break;
+    case CPU_STATE_CHECK_STOP:
+        mp_state.mp_state = KVM_MP_STATE_CHECK_STOP;
+        break;
+    case CPU_STATE_OPERATING:
+        mp_state.mp_state = KVM_MP_STATE_OPERATING;
+        break;
+    case CPU_STATE_LOAD:
+        mp_state.mp_state = KVM_MP_STATE_LOAD;
+        break;
+    default:
+        error_report("Requested CPU state is not a valid S390 CPU state: %u",
+                     cpu_state);
+        exit(1);
+    }
+
+    ret = kvm_vcpu_ioctl(CPU(cpu), KVM_SET_MP_STATE, &mp_state);
+    if (ret) {
+        trace_kvm_failed_cpu_state_set(CPU(cpu)->cpu_index, cpu_state,
+                                       strerror(-ret));
+    }
+
+    return ret;
 }

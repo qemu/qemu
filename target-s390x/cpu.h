@@ -1072,6 +1072,7 @@ int kvm_s390_assign_subch_ioeventfd(EventNotifier *notifier, uint32_t sch,
 int kvm_s390_cpu_restart(S390CPU *cpu);
 int kvm_s390_get_memslot_count(KVMState *s);
 void kvm_s390_clear_cmma_callback(void *opaque);
+int kvm_s390_set_cpu_state(S390CPU *cpu, uint8_t cpu_state);
 #else
 static inline void kvm_s390_io_interrupt(uint16_t subchannel_id,
                                         uint16_t subchannel_nr,
@@ -1101,6 +1102,10 @@ static inline void kvm_s390_clear_cmma_callback(void *opaque)
 static inline int kvm_s390_get_memslot_count(KVMState *s)
 {
   return MAX_AVAIL_SLOTS;
+}
+static inline int kvm_s390_set_cpu_state(S390CPU *cpu, uint8_t cpu_state)
+{
+    return -ENOSYS;
 }
 #endif
 

@@ -288,6 +288,9 @@ unsigned int s390_cpu_set_state(uint8_t cpu_state, S390CPU *cpu)
                      cpu_state);
         exit(1);
     }
+    if (kvm_enabled() && cpu->env.cpu_state != cpu_state) {
+        kvm_s390_set_cpu_state(cpu, cpu_state);
+    }
     cpu->env.cpu_state = cpu_state;
 
     return s390_count_running_cpus();
