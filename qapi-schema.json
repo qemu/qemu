@@ -3233,6 +3233,23 @@
               'abs'     : 'InputMoveEvent' } }
 
 ##
+# @input-send-event
+#
+# Send input event(s) to guest.
+#
+# @console: Which console to send event(s) to.
+#
+# @events: List of InputEvent union.
+#
+# Returns: Nothing on success.
+#
+# Since: 2.2
+#
+##
+{ 'command': 'input-send-event',
+  'data': { 'console':'int', 'events': [ 'InputEvent' ] } }
+
+##
 # @NumaOptions
 #
 # A discriminated record of NUMA options. (for OptsVisitor)
