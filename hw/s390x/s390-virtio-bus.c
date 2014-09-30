@@ -227,6 +227,7 @@ static void s390_virtio_serial_instance_init(Object *obj)
     object_initialize(&dev->vdev, sizeof(dev->vdev), TYPE_VIRTIO_SERIAL);
     object_property_add_child(obj, "virtio-backend", OBJECT(&dev->vdev), NULL);
     qdev_alias_all_properties(DEVICE(&dev->vdev), obj);
+    object_unref(OBJECT(&dev->vdev));
 }
 
 static int s390_virtio_scsi_init(VirtIOS390Device *s390_dev)
