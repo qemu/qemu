@@ -24,6 +24,12 @@
 #define QEMU_WARN_UNUSED_RESULT
 #endif
 
+#if QEMU_GNUC_PREREQ(4, 3)
+#define QEMU_ARTIFICIAL __attribute__((always_inline, artificial))
+#else
+#define QEMU_ARTIFICIAL
+#endif
+
 #if defined(_WIN32)
 # define QEMU_PACKED __attribute__((gcc_struct, packed))
 #else

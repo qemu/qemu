@@ -24,8 +24,9 @@
 #define TCG_MAX_QEMU_LDST       640
 
 typedef struct TCGLabelQemuLdst {
-    bool is_ld:1;           /* qemu_ld: true, qemu_st: false */
-    TCGMemOp opc:4;
+    bool is_ld;             /* qemu_ld: true, qemu_st: false */
+    TCGMemOp opc;
+    TCGType type;           /* result type of a load */
     TCGReg addrlo_reg;      /* reg index for low word of guest virtual addr */
     TCGReg addrhi_reg;      /* reg index for high word of guest virtual addr */
     TCGReg datalo_reg;      /* reg index for low word to be loaded or stored */
