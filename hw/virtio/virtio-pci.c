@@ -950,6 +950,7 @@ static void virtio_9p_pci_instance_init(Object *obj)
     object_initialize(&dev->vdev, sizeof(dev->vdev), TYPE_VIRTIO_9P);
     object_property_add_child(obj, "virtio-backend", OBJECT(&dev->vdev), NULL);
     qdev_alias_all_properties(DEVICE(&dev->vdev), obj);
+    object_unref(OBJECT(&dev->vdev));
 }
 
 static const TypeInfo virtio_9p_pci_info = {
