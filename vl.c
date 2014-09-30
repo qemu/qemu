@@ -134,6 +134,7 @@ const char* keyboard_layout = NULL;
 ram_addr_t ram_size;
 const char *mem_path = NULL;
 int mem_prealloc = 0; /* force preallocation of physical target memory */
+bool enable_mlock = false;
 int nb_nics;
 NICInfo nd_table[MAX_NICS];
 int autostart;
@@ -1421,12 +1422,8 @@ static void smp_parse(QemuOpts *opts)
 
 }
 
-static void configure_realtime(QemuOpts *opts)
+static void realtime_init(void)
 {
-    bool enable_mlock;
-
-    enable_mlock = qemu_opt_get_bool(opts, "mlock", true);
-
     if (enable_mlock) {
         if (os_mlock() < 0) {
             fprintf(stderr, "qemu: locking memory failed\n");
@@ -3974,7 +3971,7 @@ int main(int argc, char **argv, char **envp)
                 if (!opts) {
                     exit(1);
                 }
-                configure_realtime(opts);
+                enable_mlock = qemu_opt_get_bool(opts, "mlock", true);
                 break;
             case QEMU_OPTION_msg:
                 opts = qemu_opts_parse(qemu_find_opts("msg"), optarg, 0);
@@ -4441,6 +4438,8 @@ int main(int argc, char **argv, char **envp)
     current_machine->cpu_model = cpu_model;
 
     machine_class->init(current_machine);
+
+    realtime_init();
 
     audio_init();
 
