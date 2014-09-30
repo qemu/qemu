@@ -88,10 +88,19 @@ int slow_bitmap_andnot(unsigned long *dst, const unsigned long *bitmap1,
 int slow_bitmap_intersects(const unsigned long *bitmap1,
                            const unsigned long *bitmap2, long bits);
 
-static inline unsigned long *bitmap_new(long nbits)
+static inline unsigned long *bitmap_try_new(long nbits)
 {
     long len = BITS_TO_LONGS(nbits) * sizeof(unsigned long);
-    return g_malloc0(len);
+    return g_try_malloc0(len);
+}
+
+static inline unsigned long *bitmap_new(long nbits)
+{
+    unsigned long *ptr = bitmap_try_new(nbits);
+    if (ptr == NULL) {
+        abort();
+    }
+    return ptr;
 }
 
 static inline void bitmap_zero(unsigned long *dst, long nbits)
