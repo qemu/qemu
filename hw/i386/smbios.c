@@ -821,7 +821,7 @@ void smbios_get_tables(uint8_t **tables, size_t *tables_len,
         smbios_build_type_2_table();
         smbios_build_type_3_table();
 
-        smbios_smp_sockets = smp_cpus / (smp_cores * smp_threads);
+        smbios_smp_sockets = DIV_ROUND_UP(smp_cpus, smp_cores * smp_threads);
         assert(smbios_smp_sockets >= 1);
 
         for (i = 0; i < smbios_smp_sockets; i++) {
