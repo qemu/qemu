@@ -1410,6 +1410,7 @@ static void virtio_serial_pci_instance_init(Object *obj)
     object_initialize(&dev->vdev, sizeof(dev->vdev), TYPE_VIRTIO_SERIAL);
     object_property_add_child(obj, "virtio-backend", OBJECT(&dev->vdev), NULL);
     qdev_alias_all_properties(DEVICE(&dev->vdev), obj);
+    object_unref(OBJECT(&dev->vdev));
 }
 
 static const TypeInfo virtio_serial_pci_info = {
