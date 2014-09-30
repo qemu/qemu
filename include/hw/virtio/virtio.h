@@ -161,6 +161,9 @@ typedef struct VirtioDeviceClass {
     int (*load)(VirtIODevice *vdev, QEMUFile *f, int version_id);
 } VirtioDeviceClass;
 
+void virtio_instance_init_common(Object *proxy_obj, void *data,
+                                 size_t vdev_size, const char *vdev_name);
+
 void virtio_init(VirtIODevice *vdev, const char *name,
                          uint16_t device_id, size_t config_size);
 void virtio_cleanup(VirtIODevice *vdev);
