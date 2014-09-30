@@ -317,6 +317,13 @@ static bool is_request_lun_aligned(int64_t sector_num, int nb_sectors,
     return 1;
 }
 
+static unsigned long *iscsi_allocationmap_init(IscsiLun *iscsilun)
+{
+    return bitmap_try_new(DIV_ROUND_UP(sector_lun2qemu(iscsilun->num_blocks,
+                                                       iscsilun),
+                                       iscsilun->cluster_sectors));
+}
+
 static void iscsi_allocationmap_set(IscsiLun *iscsilun, int64_t sector_num,
                                     int nb_sectors)
 {
@@ -1403,9 +1410,10 @@ static int iscsi_open(BlockDriverState *bs, QDict *options, int flags,
         iscsilun->cluster_sectors = (iscsilun->bl.opt_unmap_gran *
                                      iscsilun->block_size) >> BDRV_SECTOR_BITS;
         if (iscsilun->lbprz && !(bs->open_flags & BDRV_O_NOCACHE)) {
-            iscsilun->allocationmap =
-                bitmap_new(DIV_ROUND_UP(bs->total_sectors,
-                                        iscsilun->cluster_sectors));
+            iscsilun->allocationmap = iscsi_allocationmap_init(iscsilun);
+            if (iscsilun->allocationmap == NULL) {
+                ret = -ENOMEM;
+            }
         }
     }
 
@@ -1498,10 +1506,7 @@ static int iscsi_truncate(BlockDriverState *bs, int64_t offset)
 
     if (iscsilun->allocationmap != NULL) {
         g_free(iscsilun->allocationmap);
-        iscsilun->allocationmap =
-            bitmap_new(DIV_ROUND_UP(sector_lun2qemu(iscsilun->num_blocks,
-                                                    iscsilun),
-                                    iscsilun->cluster_sectors));
+        iscsilun->allocationmap = iscsi_allocationmap_init(iscsilun);
     }
 
     return 0;
