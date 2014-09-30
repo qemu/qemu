@@ -310,6 +310,10 @@ bool e820_get_entry(int, uint32_t, uint64_t *, uint64_t *);
             .driver   = "usb-mouse",\
             .property = "usb_version",\
             .value    = stringify(1),\
+        },{\
+            .driver   = "usb-kbd",\
+            .property = "usb_version",\
+            .value    = stringify(1),\
         }
 
 #define PC_COMPAT_2_0 \
