@@ -1542,6 +1542,7 @@ static void virtio_ccw_rng_instance_init(Object *obj)
     VirtIORNGCcw *dev = VIRTIO_RNG_CCW(obj);
     object_initialize(&dev->vdev, sizeof(dev->vdev), TYPE_VIRTIO_RNG);
     object_property_add_child(obj, "virtio-backend", OBJECT(&dev->vdev), NULL);
+    qdev_alias_all_properties(DEVICE(&dev->vdev), obj);
     object_property_add_link(obj, "rng", TYPE_RNG_BACKEND,
                              (Object **)&dev->vdev.conf.rng,
                              qdev_prop_allow_set_link_before_realize,
@@ -1550,7 +1551,6 @@ static void virtio_ccw_rng_instance_init(Object *obj)
 
 static Property virtio_ccw_rng_properties[] = {
     DEFINE_PROP_STRING("devno", VirtioCcwDevice, bus_id),
-    DEFINE_VIRTIO_RNG_PROPERTIES(VirtIORNGCcw, vdev.conf),
     DEFINE_PROP_BIT("ioeventfd", VirtioCcwDevice, flags,
                     VIRTIO_CCW_FLAG_USE_IOEVENTFD_BIT, true),
     DEFINE_PROP_END_OF_LIST(),
