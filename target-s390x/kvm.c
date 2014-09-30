@@ -198,7 +198,7 @@ void kvm_s390_reset_vcpu(S390CPU *cpu)
      * Before this ioctl cpu_synchronize_state() is called in common kvm
      * code (kvm-all) */
     if (kvm_vcpu_ioctl(cs, KVM_S390_INITIAL_RESET, NULL)) {
-        perror("Can't reset vcpu\n");
+        error_report("Initial CPU reset failed on CPU %i\n", cs->cpu_index);
     }
 }
 

@@ -389,16 +389,12 @@ int s390_virtio_hypercall(CPUS390XState *env);
 void s390_virtio_irq(int config_change, uint64_t token);
 
 #ifdef CONFIG_KVM
-void kvm_s390_reset_vcpu(S390CPU *cpu);
 void kvm_s390_virtio_irq(int config_change, uint64_t token);
 void kvm_s390_service_interrupt(uint32_t parm);
 void kvm_s390_vcpu_interrupt(S390CPU *cpu, struct kvm_s390_irq *irq);
 void kvm_s390_floating_interrupt(struct kvm_s390_irq *irq);
 int kvm_s390_inject_flic(struct kvm_s390_irq *irq);
 #else
-static inline void kvm_s390_reset_vcpu(S390CPU *cpu)
-{
-}
 static inline void kvm_s390_virtio_irq(int config_change, uint64_t token)
 {
 }
@@ -1073,6 +1069,7 @@ int kvm_s390_cpu_restart(S390CPU *cpu);
 int kvm_s390_get_memslot_count(KVMState *s);
 void kvm_s390_clear_cmma_callback(void *opaque);
 int kvm_s390_set_cpu_state(S390CPU *cpu, uint8_t cpu_state);
+void kvm_s390_reset_vcpu(S390CPU *cpu);
 #else
 static inline void kvm_s390_io_interrupt(uint16_t subchannel_id,
                                         uint16_t subchannel_nr,
@@ -1106,6 +1103,9 @@ static inline int kvm_s390_get_memslot_count(KVMState *s)
 static inline int kvm_s390_set_cpu_state(S390CPU *cpu, uint8_t cpu_state)
 {
     return -ENOSYS;
+}
+static inline void kvm_s390_reset_vcpu(S390CPU *cpu)
+{
 }
 #endif
 

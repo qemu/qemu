@@ -117,14 +117,10 @@ static void s390_cpu_initial_reset(CPUState *s)
 
     env->pfault_token = -1UL;
 
-#if defined(CONFIG_KVM)
     /* Reset state inside the kernel that we cannot access yet from QEMU. */
     if (kvm_enabled()) {
-        if (kvm_vcpu_ioctl(s, KVM_S390_INITIAL_RESET, NULL)) {
-            perror("Initial CPU reset failed");
-        }
+        kvm_s390_reset_vcpu(cpu);
     }
-#endif
 }
 
 /* CPUClass:reset() */
@@ -145,11 +141,10 @@ static void s390_cpu_full_reset(CPUState *s)
 
     env->pfault_token = -1UL;
 
-#if !defined(CONFIG_USER_ONLY)
+    /* Reset state inside the kernel that we cannot access yet from QEMU. */
     if (kvm_enabled()) {
         kvm_s390_reset_vcpu(cpu);
     }
-#endif
     tlb_flush(s, 1);
 }
 
