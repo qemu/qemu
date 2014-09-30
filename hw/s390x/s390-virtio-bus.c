@@ -311,6 +311,7 @@ static void s390_virtio_rng_instance_init(Object *obj)
     VirtIORNGS390 *dev = VIRTIO_RNG_S390(obj);
     object_initialize(&dev->vdev, sizeof(dev->vdev), TYPE_VIRTIO_RNG);
     object_property_add_child(obj, "virtio-backend", OBJECT(&dev->vdev), NULL);
+    qdev_alias_all_properties(DEVICE(&dev->vdev), obj);
     object_property_add_link(obj, "rng", TYPE_RNG_BACKEND,
                              (Object **)&dev->vdev.conf.rng,
                              qdev_prop_allow_set_link_before_realize,
@@ -561,7 +562,6 @@ static const TypeInfo s390_virtio_serial = {
 
 static Property s390_virtio_rng_properties[] = {
     DEFINE_VIRTIO_COMMON_FEATURES(VirtIOS390Device, host_features),
-    DEFINE_VIRTIO_RNG_PROPERTIES(VirtIORNGS390, vdev.conf),
     DEFINE_PROP_END_OF_LIST(),
 };
 

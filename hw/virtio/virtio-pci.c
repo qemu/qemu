@@ -1483,7 +1483,6 @@ static const TypeInfo virtio_net_pci_info = {
 /* virtio-rng-pci */
 
 static Property virtio_rng_pci_properties[] = {
-    DEFINE_VIRTIO_RNG_PROPERTIES(VirtIORngPCI, vdev.conf),
     DEFINE_PROP_END_OF_LIST(),
 };
 
@@ -1525,6 +1524,7 @@ static void virtio_rng_initfn(Object *obj)
     VirtIORngPCI *dev = VIRTIO_RNG_PCI(obj);
     object_initialize(&dev->vdev, sizeof(dev->vdev), TYPE_VIRTIO_RNG);
     object_property_add_child(obj, "virtio-backend", OBJECT(&dev->vdev), NULL);
+    qdev_alias_all_properties(DEVICE(&dev->vdev), obj);
     object_property_add_link(obj, "rng", TYPE_RNG_BACKEND,
                              (Object **)&dev->vdev.conf.rng,
                              qdev_prop_allow_set_link_before_realize,
