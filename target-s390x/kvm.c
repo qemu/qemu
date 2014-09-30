@@ -921,7 +921,7 @@ static void sigp_cpu_start(void *arg)
     CPUState *cs = arg;
     S390CPU *cpu = S390_CPU(cs);
 
-    s390_add_running_cpu(cpu);
+    s390_cpu_set_state(CPU_STATE_OPERATING, cpu);
     DPRINTF("DONE: KVM cpu start: %p\n", &cpu->env);
 }
 
@@ -934,7 +934,7 @@ static void sigp_cpu_restart(void *arg)
     };
 
     kvm_s390_vcpu_interrupt(cpu, &irq);
-    s390_add_running_cpu(cpu);
+    s390_cpu_set_state(CPU_STATE_OPERATING, cpu);
 }
 
 int kvm_s390_cpu_restart(S390CPU *cpu)
@@ -1074,7 +1074,7 @@ static void unmanageable_intercept(S390CPU *cpu, const char *str, int pswoffset)
     error_report("Unmanageable %s! CPU%i new PSW: 0x%016lx:%016lx",
                  str, cs->cpu_index, ldq_phys(cs->as, cpu->env.psa + pswoffset),
                  ldq_phys(cs->as, cpu->env.psa + pswoffset + 8));
-    s390_del_running_cpu(cpu);
+    s390_cpu_halt(cpu);
     guest_panicked();
 }
 
@@ -1103,7 +1103,8 @@ static int handle_intercept(S390CPU *cpu)
             break;
         case ICPT_WAITPSW:
             /* disabled wait, since enabled wait is handled in kernel */
-            if (s390_del_running_cpu(cpu) == 0) {
+            cpu_synchronize_state(cs);
+            if (s390_cpu_halt(cpu) == 0) {
                 if (is_special_wait_psw(cs)) {
                     qemu_system_shutdown_request();
                 } else {
@@ -1113,7 +1114,7 @@ static int handle_intercept(S390CPU *cpu)
             r = EXCP_HALTED;
             break;
         case ICPT_CPU_STOP:
-            if (s390_del_running_cpu(cpu) == 0) {
+            if (s390_cpu_set_state(CPU_STATE_STOPPED, cpu) == 0) {
                 qemu_system_shutdown_request();
             }
             r = EXCP_HALTED;

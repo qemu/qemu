@@ -1372,3 +1372,8 @@ kvm_clear_cmma(int rc) "CMMA: clearing with result code %d"
 
 # hw/dma/i8257.c
 i8257_unregistered_dma(int nchan, int dma_pos, int dma_len) "unregistered DMA channel used nchan=%d dma_pos=%d dma_len=%d"
+
+# target-s390x/cpu.c
+cpu_set_state(int cpu_index, uint8_t state) "setting cpu %d state to %" PRIu8
+cpu_halt(int cpu_index) "halting cpu %d"
+cpu_unhalt(int cpu_index) "unhalting cpu %d"
