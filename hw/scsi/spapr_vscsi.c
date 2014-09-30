@@ -77,8 +77,9 @@ typedef struct vscsi_req {
     SCSIRequest             *sreq;
     uint32_t                qtag; /* qemu tag != srp tag */
     bool                    active;
-    uint32_t                data_len;
     bool                    writing;
+    bool                    dma_error;
+    uint32_t                data_len;
     uint32_t                senselen;
     uint8_t                 sense[SCSI_SENSE_BUF_SIZE];
 
@@ -536,8 +537,8 @@ static void vscsi_transfer_data(SCSIRequest *sreq, uint32_t len)
     }
     if (rc < 0) {
         fprintf(stderr, "VSCSI: RDMA error rc=%d!\n", rc);
-        vscsi_makeup_sense(s, req, HARDWARE_ERROR, 0, 0);
-        scsi_req_abort(req->sreq, CHECK_CONDITION);
+        req->dma_error = true;
+        scsi_req_cancel(req->sreq);
         return;
     }
 
@@ -591,6 +592,12 @@ static void vscsi_request_cancelled(SCSIRequest *sreq)
 {
     vscsi_req *req = sreq->hba_private;
 
+    if (req->dma_error) {
+        VSCSIState *s = VIO_SPAPR_VSCSI_DEVICE(sreq->bus->qbus.parent);
+
+        vscsi_makeup_sense(s, req, HARDWARE_ERROR, 0, 0);
+        vscsi_send_rsp(s, req, CHECK_CONDITION, 0, 0);
+    }
     vscsi_put_req(req);
 }
 

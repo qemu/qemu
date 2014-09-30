@@ -1123,6 +1123,17 @@ static void virtio_vmstate_change(void *opaque, int running, RunState state)
     }
 }
 
+void virtio_instance_init_common(Object *proxy_obj, void *data,
+                                 size_t vdev_size, const char *vdev_name)
+{
+    DeviceState *vdev = data;
+
+    object_initialize(vdev, vdev_size, vdev_name);
+    object_property_add_child(proxy_obj, "virtio-backend", OBJECT(vdev), NULL);
+    object_unref(OBJECT(vdev));
+    qdev_alias_all_properties(vdev, proxy_obj);
+}
+
 void virtio_init(VirtIODevice *vdev, const char *name,
                  uint16_t device_id, size_t config_size)
 {

@@ -792,8 +792,9 @@ static int virtio_ccw_net_init(VirtioCcwDevice *ccw_dev)
 static void virtio_ccw_net_instance_init(Object *obj)
 {
     VirtIONetCcw *dev = VIRTIO_NET_CCW(obj);
-    object_initialize(&dev->vdev, sizeof(dev->vdev), TYPE_VIRTIO_NET);
-    object_property_add_child(obj, "virtio-backend", OBJECT(&dev->vdev), NULL);
+
+    virtio_instance_init_common(obj, &dev->vdev, sizeof(dev->vdev),
+                                TYPE_VIRTIO_NET);
 }
 
 static int virtio_ccw_blk_init(VirtioCcwDevice *ccw_dev)
@@ -811,10 +812,9 @@ static int virtio_ccw_blk_init(VirtioCcwDevice *ccw_dev)
 static void virtio_ccw_blk_instance_init(Object *obj)
 {
     VirtIOBlkCcw *dev = VIRTIO_BLK_CCW(obj);
-    object_initialize(&dev->vdev, sizeof(dev->vdev), TYPE_VIRTIO_BLK);
-    object_property_add_child(obj, "virtio-backend", OBJECT(&dev->vdev), NULL);
-    object_unref(OBJECT(&dev->vdev));
-    qdev_alias_all_properties(DEVICE(&dev->vdev), obj);
+
+    virtio_instance_init_common(obj, &dev->vdev, sizeof(dev->vdev),
+                                TYPE_VIRTIO_BLK);
     object_property_add_alias(obj, "iothread", OBJECT(&dev->vdev),"iothread",
                               &error_abort);
 }
@@ -848,8 +848,9 @@ static int virtio_ccw_serial_init(VirtioCcwDevice *ccw_dev)
 static void virtio_ccw_serial_instance_init(Object *obj)
 {
     VirtioSerialCcw *dev = VIRTIO_SERIAL_CCW(obj);
-    object_initialize(&dev->vdev, sizeof(dev->vdev), TYPE_VIRTIO_SERIAL);
-    object_property_add_child(obj, "virtio-backend", OBJECT(&dev->vdev), NULL);
+
+    virtio_instance_init_common(obj, &dev->vdev, sizeof(dev->vdev),
+                                TYPE_VIRTIO_SERIAL);
 }
 
 static int virtio_ccw_balloon_init(VirtioCcwDevice *ccw_dev)
@@ -896,7 +897,7 @@ static void virtio_ccw_balloon_instance_init(Object *obj)
     VirtIOBalloonCcw *dev = VIRTIO_BALLOON_CCW(obj);
     object_initialize(&dev->vdev, sizeof(dev->vdev), TYPE_VIRTIO_BALLOON);
     object_property_add_child(obj, "virtio-backend", OBJECT(&dev->vdev), NULL);
-
+    object_unref(OBJECT(&dev->vdev));
     object_property_add(obj, "guest-stats", "guest statistics",
                         balloon_ccw_stats_get_all, NULL, NULL, dev, NULL);
 
@@ -934,8 +935,11 @@ static int virtio_ccw_scsi_init(VirtioCcwDevice *ccw_dev)
 static void virtio_ccw_scsi_instance_init(Object *obj)
 {
     VirtIOSCSICcw *dev = VIRTIO_SCSI_CCW(obj);
-    object_initialize(&dev->vdev, sizeof(dev->vdev), TYPE_VIRTIO_SCSI);
-    object_property_add_child(obj, "virtio-backend", OBJECT(&dev->vdev), NULL);
+
+    virtio_instance_init_common(obj, &dev->vdev, sizeof(dev->vdev),
+                                TYPE_VIRTIO_SCSI);
+    object_property_add_alias(obj, "iothread", OBJECT(&dev->vdev), "iothread",
+                              &error_abort);
 }
 
 #ifdef CONFIG_VHOST_SCSI
@@ -955,8 +959,9 @@ static int vhost_ccw_scsi_init(VirtioCcwDevice *ccw_dev)
 static void vhost_ccw_scsi_instance_init(Object *obj)
 {
     VHostSCSICcw *dev = VHOST_SCSI_CCW(obj);
-    object_initialize(&dev->vdev, sizeof(dev->vdev), TYPE_VHOST_SCSI);
-    object_property_add_child(obj, "virtio-backend", OBJECT(&dev->vdev), NULL);
+
+    virtio_instance_init_common(obj, &dev->vdev, sizeof(dev->vdev),
+                                TYPE_VHOST_SCSI);
 }
 #endif
 
@@ -1374,8 +1379,6 @@ static int virtio_ccw_load_config(DeviceState *d, QEMUFile *f)
 static Property virtio_ccw_net_properties[] = {
     DEFINE_PROP_STRING("devno", VirtioCcwDevice, bus_id),
     DEFINE_VIRTIO_NET_FEATURES(VirtioCcwDevice, host_features[0]),
-    DEFINE_VIRTIO_NET_PROPERTIES(VirtIONetCcw, vdev.net_conf),
-    DEFINE_NIC_PROPERTIES(VirtIONetCcw, vdev.nic_conf),
     DEFINE_PROP_BIT("ioeventfd", VirtioCcwDevice, flags,
                     VIRTIO_CCW_FLAG_USE_IOEVENTFD_BIT, true),
     DEFINE_PROP_END_OF_LIST(),
@@ -1428,7 +1431,6 @@ static const TypeInfo virtio_ccw_blk = {
 
 static Property virtio_ccw_serial_properties[] = {
     DEFINE_PROP_STRING("devno", VirtioCcwDevice, bus_id),
-    DEFINE_VIRTIO_SERIAL_PROPERTIES(VirtioSerialCcw, vdev.serial),
     DEFINE_PROP_BIT("ioeventfd", VirtioCcwDevice, flags,
                     VIRTIO_CCW_FLAG_USE_IOEVENTFD_BIT, true),
     DEFINE_PROP_END_OF_LIST(),
@@ -1481,7 +1483,6 @@ static const TypeInfo virtio_ccw_balloon = {
 
 static Property virtio_ccw_scsi_properties[] = {
     DEFINE_PROP_STRING("devno", VirtioCcwDevice, bus_id),
-    DEFINE_VIRTIO_SCSI_PROPERTIES(VirtIOSCSICcw, vdev.parent_obj.conf),
     DEFINE_VIRTIO_SCSI_FEATURES(VirtioCcwDevice, host_features[0]),
     DEFINE_PROP_BIT("ioeventfd", VirtioCcwDevice, flags,
                     VIRTIO_CCW_FLAG_USE_IOEVENTFD_BIT, true),
@@ -1510,7 +1511,6 @@ static const TypeInfo virtio_ccw_scsi = {
 #ifdef CONFIG_VHOST_SCSI
 static Property vhost_ccw_scsi_properties[] = {
     DEFINE_PROP_STRING("devno", VirtioCcwDevice, bus_id),
-    DEFINE_VHOST_SCSI_PROPERTIES(VirtIOSCSICcw, vdev.parent_obj.conf),
     DEFINE_PROP_END_OF_LIST(),
 };
 
@@ -1537,8 +1537,9 @@ static const TypeInfo vhost_ccw_scsi = {
 static void virtio_ccw_rng_instance_init(Object *obj)
 {
     VirtIORNGCcw *dev = VIRTIO_RNG_CCW(obj);
-    object_initialize(&dev->vdev, sizeof(dev->vdev), TYPE_VIRTIO_RNG);
-    object_property_add_child(obj, "virtio-backend", OBJECT(&dev->vdev), NULL);
+
+    virtio_instance_init_common(obj, &dev->vdev, sizeof(dev->vdev),
+                                TYPE_VIRTIO_RNG);
     object_property_add_link(obj, "rng", TYPE_RNG_BACKEND,
                              (Object **)&dev->vdev.conf.rng,
                              qdev_prop_allow_set_link_before_realize,
@@ -1547,7 +1548,6 @@ static void virtio_ccw_rng_instance_init(Object *obj)
 
 static Property virtio_ccw_rng_properties[] = {
     DEFINE_PROP_STRING("devno", VirtioCcwDevice, bus_id),
-    DEFINE_VIRTIO_RNG_PROPERTIES(VirtIORNGCcw, vdev.conf),
     DEFINE_PROP_BIT("ioeventfd", VirtioCcwDevice, flags,
                     VIRTIO_CCW_FLAG_USE_IOEVENTFD_BIT, true),
     DEFINE_PROP_END_OF_LIST(),

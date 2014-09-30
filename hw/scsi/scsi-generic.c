@@ -93,6 +93,10 @@ static void scsi_command_complete(void *opaque, int ret)
     SCSIGenericReq *r = (SCSIGenericReq *)opaque;
 
     r->req.aiocb = NULL;
+    if (r->req.io_canceled) {
+        scsi_req_cancel_complete(&r->req);
+        goto done;
+    }
     if (r->io_header.driver_status & SG_ERR_DRIVER_SENSE) {
         r->req.sense_len = r->io_header.sb_len_wr;
     }
@@ -133,26 +137,8 @@ static void scsi_command_complete(void *opaque, int ret)
             r, r->req.tag, status);
 
     scsi_req_complete(&r->req, status);
-    if (!r->req.io_canceled) {
-        scsi_req_unref(&r->req);
-    }
-}
-
-/* Cancel a pending data transfer.  */
-static void scsi_cancel_io(SCSIRequest *req)
-{
-    SCSIGenericReq *r = DO_UPCAST(SCSIGenericReq, req, req);
-
-    DPRINTF("Cancel tag=0x%x\n", req->tag);
-    if (r->req.aiocb) {
-        bdrv_aio_cancel(r->req.aiocb);
-
-        /* This reference was left in by scsi_*_data.  We take ownership of
-         * it independent of whether bdrv_aio_cancel completes the request
-         * or not.  */
-        scsi_req_unref(&r->req);
-    }
-    r->req.aiocb = NULL;
+done:
+    scsi_req_unref(&r->req);
 }
 
 static int execute_command(BlockDriverState *bdrv,
@@ -186,8 +172,7 @@ static void scsi_read_complete(void * opaque, int ret)
     int len;
 
     r->req.aiocb = NULL;
-    if (ret) {
-        DPRINTF("IO error ret %d\n", ret);
+    if (ret || r->req.io_canceled) {
         scsi_command_complete(r, ret);
         return;
     }
@@ -211,9 +196,7 @@ static void scsi_read_complete(void * opaque, int ret)
         bdrv_set_guest_block_size(s->conf.bs, s->blocksize);
 
         scsi_req_data(&r->req, len);
-        if (!r->req.io_canceled) {
-            scsi_req_unref(&r->req);
-        }
+        scsi_req_unref(&r->req);
     }
 }
 
@@ -246,8 +229,7 @@ static void scsi_write_complete(void * opaque, int ret)
 
     DPRINTF("scsi_write_complete() ret = %d\n", ret);
     r->req.aiocb = NULL;
-    if (ret) {
-        DPRINTF("IO error\n");
+    if (ret || r->req.io_canceled) {
         scsi_command_complete(r, ret);
         return;
     }
@@ -465,7 +447,6 @@ const SCSIReqOps scsi_generic_req_ops = {
     .send_command = scsi_send_command,
     .read_data    = scsi_read_data,
     .write_data   = scsi_write_data,
-    .cancel_io    = scsi_cancel_io,
     .get_buf      = scsi_get_buf,
     .load_request = scsi_generic_load_request,
     .save_request = scsi_generic_save_request,

@@ -23,6 +23,7 @@
 #include "hw/virtio/vhost.h"
 #include "hw/virtio/virtio-scsi.h"
 #include "hw/virtio/virtio-bus.h"
+#include "hw/virtio/virtio-access.h"
 
 /* Features supported by host kernel. */
 static const int kernel_feature_bits[] = {
@@ -163,8 +164,8 @@ static void vhost_scsi_set_config(VirtIODevice *vdev,
     VirtIOSCSIConfig *scsiconf = (VirtIOSCSIConfig *)config;
     VirtIOSCSICommon *vs = VIRTIO_SCSI_COMMON(vdev);
 
-    if ((uint32_t) ldl_p(&scsiconf->sense_size) != vs->sense_size ||
-        (uint32_t) ldl_p(&scsiconf->cdb_size) != vs->cdb_size) {
+    if ((uint32_t) virtio_ldl_p(vdev, &scsiconf->sense_size) != vs->sense_size ||
+        (uint32_t) virtio_ldl_p(vdev, &scsiconf->cdb_size) != vs->cdb_size) {
         error_report("vhost-scsi does not support changing the sense data and CDB sizes");
         exit(1);
     }
