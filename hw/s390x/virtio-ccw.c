@@ -938,6 +938,7 @@ static void virtio_ccw_scsi_instance_init(Object *obj)
     VirtIOSCSICcw *dev = VIRTIO_SCSI_CCW(obj);
     object_initialize(&dev->vdev, sizeof(dev->vdev), TYPE_VIRTIO_SCSI);
     object_property_add_child(obj, "virtio-backend", OBJECT(&dev->vdev), NULL);
+    object_unref(OBJECT(&dev->vdev));
     qdev_alias_all_properties(DEVICE(&dev->vdev), obj);
 }
 
@@ -960,6 +961,7 @@ static void vhost_ccw_scsi_instance_init(Object *obj)
     VHostSCSICcw *dev = VHOST_SCSI_CCW(obj);
     object_initialize(&dev->vdev, sizeof(dev->vdev), TYPE_VHOST_SCSI);
     object_property_add_child(obj, "virtio-backend", OBJECT(&dev->vdev), NULL);
+    object_unref(OBJECT(&dev->vdev));
     qdev_alias_all_properties(DEVICE(&dev->vdev), obj);
 }
 #endif
