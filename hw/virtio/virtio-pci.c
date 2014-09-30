@@ -1465,6 +1465,7 @@ static void virtio_net_pci_instance_init(Object *obj)
     VirtIONetPCI *dev = VIRTIO_NET_PCI(obj);
     object_initialize(&dev->vdev, sizeof(dev->vdev), TYPE_VIRTIO_NET);
     object_property_add_child(obj, "virtio-backend", OBJECT(&dev->vdev), NULL);
+    object_unref(OBJECT(&dev->vdev));
     qdev_alias_all_properties(DEVICE(&dev->vdev), obj);
 }
 
