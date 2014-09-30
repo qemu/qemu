@@ -443,10 +443,12 @@ void aarch64_cpu_do_interrupt(CPUState *cs)
 {
     ARMCPU *cpu = ARM_CPU(cs);
     CPUARMState *env = &cpu->env;
-    target_ulong addr = env->cp15.vbar_el[1];
+    unsigned int new_el = arm_excp_target_el(cs, cs->exception_index);
+    target_ulong addr = env->cp15.vbar_el[new_el];
+    unsigned int new_mode = aarch64_pstate_mode(new_el, true);
     int i;
 
-    if (arm_current_pl(env) == 0) {
+    if (arm_current_pl(env) < new_el) {
         if (env->aarch64) {
             addr += 0x400;
         } else {
@@ -464,23 +466,27 @@ void aarch64_cpu_do_interrupt(CPUState *cs)
                       env->exception.syndrome);
     }
 
-    env->cp15.esr_el[1] = env->exception.syndrome;
-    env->cp15.far_el[1] = env->exception.vaddress;
-
     switch (cs->exception_index) {
     case EXCP_PREFETCH_ABORT:
     case EXCP_DATA_ABORT:
+        env->cp15.far_el[new_el] = env->exception.vaddress;
         qemu_log_mask(CPU_LOG_INT, "...with FAR 0x%" PRIx64 "\n",
-                      env->cp15.far_el[1]);
-        break;
+                      env->cp15.far_el[new_el]);
+        /* fall through */
     case EXCP_BKPT:
     case EXCP_UDEF:
     case EXCP_SWI:
+    case EXCP_HVC:
+    case EXCP_HYP_TRAP:
+    case EXCP_SMC:
+        env->cp15.esr_el[new_el] = env->exception.syndrome;
         break;
     case EXCP_IRQ:
+    case EXCP_VIRQ:
         addr += 0x80;
         break;
     case EXCP_FIQ:
+    case EXCP_VFIQ:
         addr += 0x100;
         break;
     default:
@@ -488,15 +494,15 @@ void aarch64_cpu_do_interrupt(CPUState *cs)
     }
 
     if (is_a64(env)) {
-        env->banked_spsr[aarch64_banked_spsr_index(1)] = pstate_read(env);
+        env->banked_spsr[aarch64_banked_spsr_index(new_el)] = pstate_read(env);
         aarch64_save_sp(env, arm_current_pl(env));
-        env->elr_el[1] = env->pc;
+        env->elr_el[new_el] = env->pc;
     } else {
         env->banked_spsr[0] = cpsr_read(env);
         if (!env->thumb) {
-            env->cp15.esr_el[1] |= 1 << 25;
+            env->cp15.esr_el[new_el] |= 1 << 25;
         }
-        env->elr_el[1] = env->regs[15];
+        env->elr_el[new_el] = env->regs[15];
 
         for (i = 0; i < 15; i++) {
             env->xregs[i] = env->regs[i];
@@ -505,9 +511,9 @@ void aarch64_cpu_do_interrupt(CPUState *cs)
         env->condexec_bits = 0;
     }
 
-    pstate_write(env, PSTATE_DAIF | PSTATE_MODE_EL1h);
+    pstate_write(env, PSTATE_DAIF | new_mode);
     env->aarch64 = 1;
-    aarch64_restore_sp(env, 1);
+    aarch64_restore_sp(env, new_el);
 
     env->pc = addr;
     cs->interrupt_request |= CPU_INTERRUPT_EXITTB;

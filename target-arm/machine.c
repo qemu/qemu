@@ -214,6 +214,7 @@ static int cpu_post_load(void *opaque, int version_id)
         }
     }
 
+    hw_breakpoint_update_all(cpu);
     hw_watchpoint_update_all(cpu);
 
     return 0;

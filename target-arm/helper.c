@@ -747,6 +747,32 @@ static void vbar_write(CPUARMState *env, const ARMCPRegInfo *ri,
     raw_write(env, ri, value & ~0x1FULL);
 }
 
+static void scr_write(CPUARMState *env, const ARMCPRegInfo *ri, uint64_t value)
+{
+    /* We only mask off bits that are RES0 both for AArch64 and AArch32.
+     * For bits that vary between AArch32/64, code needs to check the
+     * current execution mode before directly using the feature bit.
+     */
+    uint32_t valid_mask = SCR_AARCH64_MASK | SCR_AARCH32_MASK;
+
+    if (!arm_feature(env, ARM_FEATURE_EL2)) {
+        valid_mask &= ~SCR_HCE;
+
+        /* On ARMv7, SMD (or SCD as it is called in v7) is only
+         * supported if EL2 exists. The bit is UNK/SBZP when
+         * EL2 is unavailable. In QEMU ARMv7, we force it to always zero
+         * when EL2 is unavailable.
+         */
+        if (arm_feature(env, ARM_FEATURE_V7)) {
+            valid_mask &= ~SCR_SMD;
+        }
+    }
+
+    /* Clear all-context RES0 bits.  */
+    value &= valid_mask;
+    raw_write(env, ri, value);
+}
+
 static uint64_t ccsidr_read(CPUARMState *env, const ARMCPRegInfo *ri)
 {
     ARMCPU *cpu = arm_env_get_cpu(env);
@@ -873,8 +899,8 @@ static const ARMCPRegInfo v7_cp_reginfo[] = {
       .fieldoffset = offsetof(CPUARMState, cp15.vbar_el[1]),
       .resetvalue = 0 },
     { .name = "SCR", .cp = 15, .crn = 1, .crm = 1, .opc1 = 0, .opc2 = 0,
-      .access = PL1_RW, .fieldoffset = offsetof(CPUARMState, cp15.c1_scr),
-      .resetvalue = 0, },
+      .access = PL1_RW, .fieldoffset = offsetoflow32(CPUARMState, cp15.scr_el3),
+      .resetvalue = 0, .writefn = scr_write },
     { .name = "CCSIDR", .state = ARM_CP_STATE_BOTH,
       .opc0 = 3, .crn = 0, .crm = 0, .opc1 = 1, .opc2 = 0,
       .access = PL1_R, .readfn = ccsidr_read, .type = ARM_CP_NO_MIGRATE },
@@ -1714,12 +1740,7 @@ static const ARMCPRegInfo omap_cp_reginfo[] = {
 static void xscale_cpar_write(CPUARMState *env, const ARMCPRegInfo *ri,
                               uint64_t value)
 {
-    value &= 0x3fff;
-    if (env->cp15.c15_cpar != value) {
-        /* Changes cp0 to cp13 behavior, so needs a TB flush.  */
-        tb_flush(env);
-        env->cp15.c15_cpar = value;
-    }
+    env->cp15.c15_cpar = value & 0x3fff;
 }
 
 static const ARMCPRegInfo xscale_cp_reginfo[] = {
@@ -2230,10 +2251,44 @@ static const ARMCPRegInfo v8_el3_no_el2_cp_reginfo[] = {
       .opc0 = 3, .opc1 = 4, .crn = 12, .crm = 0, .opc2 = 0,
       .access = PL2_RW,
       .readfn = arm_cp_read_zero, .writefn = arm_cp_write_ignore },
+    { .name = "HCR_EL2", .state = ARM_CP_STATE_AA64,
+      .type = ARM_CP_NO_MIGRATE,
+      .opc0 = 3, .opc1 = 4, .crn = 1, .crm = 1, .opc2 = 0,
+      .access = PL2_RW,
+      .readfn = arm_cp_read_zero, .writefn = arm_cp_write_ignore },
     REGINFO_SENTINEL
 };
 
+static void hcr_write(CPUARMState *env, const ARMCPRegInfo *ri, uint64_t value)
+{
+    ARMCPU *cpu = arm_env_get_cpu(env);
+    uint64_t valid_mask = HCR_MASK;
+
+    if (arm_feature(env, ARM_FEATURE_EL3)) {
+        valid_mask &= ~HCR_HCD;
+    } else {
+        valid_mask &= ~HCR_TSC;
+    }
+
+    /* Clear RES0 bits.  */
+    value &= valid_mask;
+
+    /* These bits change the MMU setup:
+     * HCR_VM enables stage 2 translation
+     * HCR_PTW forbids certain page-table setups
+     * HCR_DC Disables stage1 and enables stage2 translation
+     */
+    if ((raw_read(env, ri) ^ value) & (HCR_VM | HCR_PTW | HCR_DC)) {
+        tlb_flush(CPU(cpu), 1);
+    }
+    raw_write(env, ri, value);
+}
+
 static const ARMCPRegInfo v8_el2_cp_reginfo[] = {
+    { .name = "HCR_EL2", .state = ARM_CP_STATE_AA64,
+      .opc0 = 3, .opc1 = 4, .crn = 1, .crm = 1, .opc2 = 0,
+      .access = PL2_RW, .fieldoffset = offsetof(CPUARMState, cp15.hcr_el2),
+      .writefn = hcr_write },
     { .name = "ELR_EL2", .state = ARM_CP_STATE_AA64,
       .type = ARM_CP_NO_MIGRATE,
       .opc0 = 3, .opc1 = 4, .crn = 4, .crm = 0, .opc2 = 1,
@@ -2280,6 +2335,11 @@ static const ARMCPRegInfo v8_el3_cp_reginfo[] = {
       .access = PL3_RW, .writefn = vbar_write,
       .fieldoffset = offsetof(CPUARMState, cp15.vbar_el[3]),
       .resetvalue = 0 },
+    { .name = "SCR_EL3", .state = ARM_CP_STATE_AA64,
+      .type = ARM_CP_NO_MIGRATE,
+      .opc0 = 3, .opc1 = 6, .crn = 1, .crm = 1, .opc2 = 0,
+      .access = PL3_RW, .fieldoffset = offsetof(CPUARMState, cp15.scr_el3),
+      .writefn = scr_write },
     REGINFO_SENTINEL
 };
 
@@ -2492,6 +2552,124 @@ static void dbgwcr_write(CPUARMState *env, const ARMCPRegInfo *ri,
     hw_watchpoint_update(cpu, i);
 }
 
+void hw_breakpoint_update(ARMCPU *cpu, int n)
+{
+    CPUARMState *env = &cpu->env;
+    uint64_t bvr = env->cp15.dbgbvr[n];
+    uint64_t bcr = env->cp15.dbgbcr[n];
+    vaddr addr;
+    int bt;
+    int flags = BP_CPU;
+
+    if (env->cpu_breakpoint[n]) {
+        cpu_breakpoint_remove_by_ref(CPU(cpu), env->cpu_breakpoint[n]);
+        env->cpu_breakpoint[n] = NULL;
+    }
+
+    if (!extract64(bcr, 0, 1)) {
+        /* E bit clear : watchpoint disabled */
+        return;
+    }
+
+    bt = extract64(bcr, 20, 4);
+
+    switch (bt) {
+    case 4: /* unlinked address mismatch (reserved if AArch64) */
+    case 5: /* linked address mismatch (reserved if AArch64) */
+        qemu_log_mask(LOG_UNIMP,
+                      "arm: address mismatch breakpoint types not implemented");
+        return;
+    case 0: /* unlinked address match */
+    case 1: /* linked address match */
+    {
+        /* Bits [63:49] are hardwired to the value of bit [48]; that is,
+         * we behave as if the register was sign extended. Bits [1:0] are
+         * RES0. The BAS field is used to allow setting breakpoints on 16
+         * bit wide instructions; it is CONSTRAINED UNPREDICTABLE whether
+         * a bp will fire if the addresses covered by the bp and the addresses
+         * covered by the insn overlap but the insn doesn't start at the
+         * start of the bp address range. We choose to require the insn and
+         * the bp to have the same address. The constraints on writing to
+         * BAS enforced in dbgbcr_write mean we have only four cases:
+         *  0b0000  => no breakpoint
+         *  0b0011  => breakpoint on addr
+         *  0b1100  => breakpoint on addr + 2
+         *  0b1111  => breakpoint on addr
+         * See also figure D2-3 in the v8 ARM ARM (DDI0487A.c).
+         */
+        int bas = extract64(bcr, 5, 4);
+        addr = sextract64(bvr, 0, 49) & ~3ULL;
+        if (bas == 0) {
+            return;
+        }
+        if (bas == 0xc) {
+            addr += 2;
+        }
+        break;
+    }
+    case 2: /* unlinked context ID match */
+    case 8: /* unlinked VMID match (reserved if no EL2) */
+    case 10: /* unlinked context ID and VMID match (reserved if no EL2) */
+        qemu_log_mask(LOG_UNIMP,
+                      "arm: unlinked context breakpoint types not implemented");
+        return;
+    case 9: /* linked VMID match (reserved if no EL2) */
+    case 11: /* linked context ID and VMID match (reserved if no EL2) */
+    case 3: /* linked context ID match */
+    default:
+        /* We must generate no events for Linked context matches (unless
+         * they are linked to by some other bp/wp, which is handled in
+         * updates for the linking bp/wp). We choose to also generate no events
+         * for reserved values.
+         */
+        return;
+    }
+
+    cpu_breakpoint_insert(CPU(cpu), addr, flags, &env->cpu_breakpoint[n]);
+}
+
+void hw_breakpoint_update_all(ARMCPU *cpu)
+{
+    int i;
+    CPUARMState *env = &cpu->env;
+
+    /* Completely clear out existing QEMU breakpoints and our array, to
+     * avoid possible stale entries following migration load.
+     */
+    cpu_breakpoint_remove_all(CPU(cpu), BP_CPU);
+    memset(env->cpu_breakpoint, 0, sizeof(env->cpu_breakpoint));
+
+    for (i = 0; i < ARRAY_SIZE(cpu->env.cpu_breakpoint); i++) {
+        hw_breakpoint_update(cpu, i);
+    }
+}
+
+static void dbgbvr_write(CPUARMState *env, const ARMCPRegInfo *ri,
+                         uint64_t value)
+{
+    ARMCPU *cpu = arm_env_get_cpu(env);
+    int i = ri->crm;
+
+    raw_write(env, ri, value);
+    hw_breakpoint_update(cpu, i);
+}
+
+static void dbgbcr_write(CPUARMState *env, const ARMCPRegInfo *ri,
+                         uint64_t value)
+{
+    ARMCPU *cpu = arm_env_get_cpu(env);
+    int i = ri->crm;
+
+    /* BAS[3] is a read-only copy of BAS[2], and BAS[1] a read-only
+     * copy of BAS[0].
+     */
+    value = deposit64(value, 6, 1, extract64(value, 5, 1));
+    value = deposit64(value, 8, 1, extract64(value, 7, 1));
+
+    raw_write(env, ri, value);
+    hw_breakpoint_update(cpu, i);
+}
+
 static void define_debug_regs(ARMCPU *cpu)
 {
     /* Define v7 and v8 architectural debug registers.
@@ -2533,11 +2711,15 @@ static void define_debug_regs(ARMCPU *cpu)
             { .name = "DBGBVR", .state = ARM_CP_STATE_BOTH,
               .cp = 14, .opc0 = 2, .opc1 = 0, .crn = 0, .crm = i, .opc2 = 4,
               .access = PL1_RW,
-              .fieldoffset = offsetof(CPUARMState, cp15.dbgbvr[i]) },
+              .fieldoffset = offsetof(CPUARMState, cp15.dbgbvr[i]),
+              .writefn = dbgbvr_write, .raw_writefn = raw_write
+            },
             { .name = "DBGBCR", .state = ARM_CP_STATE_BOTH,
               .cp = 14, .opc0 = 2, .opc1 = 0, .crn = 0, .crm = i, .opc2 = 5,
               .access = PL1_RW,
-              .fieldoffset = offsetof(CPUARMState, cp15.dbgbcr[i]) },
+              .fieldoffset = offsetof(CPUARMState, cp15.dbgbcr[i]),
+              .writefn = dbgbcr_write, .raw_writefn = raw_write
+            },
             REGINFO_SENTINEL
         };
         define_arm_cp_regs(cpu, dbgregs);
@@ -3522,6 +3704,11 @@ uint32_t HELPER(get_r13_banked)(CPUARMState *env, uint32_t mode)
     return 0;
 }
 
+unsigned int arm_excp_target_el(CPUState *cs, unsigned int excp_idx)
+{
+    return 1;
+}
+
 #else
 
 /* Map CPU modes onto saved register banks.  */
@@ -3575,6 +3762,57 @@ void switch_mode(CPUARMState *env, int mode)
     env->regs[13] = env->banked_r13[i];
     env->regs[14] = env->banked_r14[i];
     env->spsr = env->banked_spsr[i];
+}
+
+/*
+ * Determine the target EL for a given exception type.
+ */
+unsigned int arm_excp_target_el(CPUState *cs, unsigned int excp_idx)
+{
+    ARMCPU *cpu = ARM_CPU(cs);
+    CPUARMState *env = &cpu->env;
+    unsigned int cur_el = arm_current_pl(env);
+    unsigned int target_el;
+    /* FIXME: Use actual secure state.  */
+    bool secure = false;
+
+    if (!env->aarch64) {
+        /* TODO: Add EL2 and 3 exception handling for AArch32.  */
+        return 1;
+    }
+
+    switch (excp_idx) {
+    case EXCP_HVC:
+    case EXCP_HYP_TRAP:
+        target_el = 2;
+        break;
+    case EXCP_SMC:
+        target_el = 3;
+        break;
+    case EXCP_FIQ:
+    case EXCP_IRQ:
+    {
+        const uint64_t hcr_mask = excp_idx == EXCP_FIQ ? HCR_FMO : HCR_IMO;
+        const uint32_t scr_mask = excp_idx == EXCP_FIQ ? SCR_FIQ : SCR_IRQ;
+
+        target_el = 1;
+        if (!secure && (env->cp15.hcr_el2 & hcr_mask)) {
+            target_el = 2;
+        }
+        if (env->cp15.scr_el3 & scr_mask) {
+            target_el = 3;
+        }
+        break;
+    }
+    case EXCP_VIRQ:
+    case EXCP_VFIQ:
+        target_el = 1;
+        break;
+    default:
+        target_el = MAX(cur_el, 1);
+        break;
+    }
+    return target_el;
 }
 
 static void v7m_push(CPUARMState *env, uint32_t val)
