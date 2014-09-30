@@ -1543,6 +1543,7 @@ static void virtio_ccw_rng_instance_init(Object *obj)
     object_initialize(&dev->vdev, sizeof(dev->vdev), TYPE_VIRTIO_RNG);
     object_property_add_child(obj, "virtio-backend", OBJECT(&dev->vdev), NULL);
     qdev_alias_all_properties(DEVICE(&dev->vdev), obj);
+    object_unref(OBJECT(&dev->vdev));
     object_property_add_link(obj, "rng", TYPE_RNG_BACKEND,
                              (Object **)&dev->vdev.conf.rng,
                              qdev_prop_allow_set_link_before_realize,
