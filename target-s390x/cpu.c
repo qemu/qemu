@@ -292,11 +292,6 @@ unsigned int s390_cpu_set_state(uint8_t cpu_state, S390CPU *cpu)
 }
 #endif
 
-static const VMStateDescription vmstate_s390_cpu = {
-    .name = "cpu",
-    .unmigratable = 1,
-};
-
 static void s390_cpu_class_init(ObjectClass *oc, void *data)
 {
     S390CPUClass *scc = S390_CPU_CLASS(oc);
@@ -323,11 +318,11 @@ static void s390_cpu_class_init(ObjectClass *oc, void *data)
     cc->handle_mmu_fault = s390_cpu_handle_mmu_fault;
 #else
     cc->get_phys_page_debug = s390_cpu_get_phys_page_debug;
+    cc->vmsd = &vmstate_s390_cpu;
     cc->write_elf64_note = s390_cpu_write_elf64_note;
     cc->write_elf64_qemunote = s390_cpu_write_elf64_qemunote;
     cc->cpu_exec_interrupt = s390_cpu_exec_interrupt;
 #endif
-    dc->vmsd = &vmstate_s390_cpu;
     cc->gdb_num_core_regs = S390_NUM_CORE_REGS;
     cc->gdb_core_xml_file = "s390x-core64.xml";
 }

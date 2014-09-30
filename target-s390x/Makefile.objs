@@ -1,5 +1,5 @@
 obj-y += translate.o helper.o cpu.o interrupt.o
 obj-y += int_helper.o fpu_helper.o cc_helper.o mem_helper.o misc_helper.o
 obj-y += gdbstub.o
-obj-$(CONFIG_SOFTMMU) += ioinst.o arch_dump.o
+obj-$(CONFIG_SOFTMMU) += machine.o ioinst.o arch_dump.o
 obj-$(CONFIG_KVM) += kvm.o
