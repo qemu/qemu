@@ -214,8 +214,13 @@ typedef struct VirtIOSCSIReq {
     /* Set by dataplane code. */
     VirtIOSCSIVring *vring;
 
-    /* Used for two-stage request submission */
-    QTAILQ_ENTRY(VirtIOSCSIReq) next;
+    union {
+        /* Used for two-stage request submission */
+        QTAILQ_ENTRY(VirtIOSCSIReq) next;
+
+        /* Used for cancellation of request during TMFs */
+        int remaining;
+    };
 
     SCSIRequest *sreq;
     size_t resp_size;

@@ -208,12 +208,33 @@ static void *virtio_scsi_load_request(QEMUFile *f, SCSIRequest *sreq)
     return req;
 }
 
-static void virtio_scsi_do_tmf(VirtIOSCSI *s, VirtIOSCSIReq *req)
+typedef struct {
+    Notifier        notifier;
+    VirtIOSCSIReq  *tmf_req;
+} VirtIOSCSICancelNotifier;
+
+static void virtio_scsi_cancel_notify(Notifier *notifier, void *data)
+{
+    VirtIOSCSICancelNotifier *n = container_of(notifier,
+                                               VirtIOSCSICancelNotifier,
+                                               notifier);
+
+    if (--n->tmf_req->remaining == 0) {
+        virtio_scsi_complete_req(n->tmf_req);
+    }
+    g_slice_free(VirtIOSCSICancelNotifier, n);
+}
+
+/* Return 0 if the request is ready to be completed and return to guest;
+ * -EINPROGRESS if the request is submitted and will be completed later, in the
+ *  case of async cancellation. */
+static int virtio_scsi_do_tmf(VirtIOSCSI *s, VirtIOSCSIReq *req)
 {
     SCSIDevice *d = virtio_scsi_device_find(s, req->req.tmf.lun);
     SCSIRequest *r, *next;
     BusChild *kid;
     int target;
+    int ret = 0;
 
     if (s->dataplane_started && bdrv_get_aio_context(d->conf.bs) != s->ctx) {
         aio_context_acquire(s->ctx);
@@ -251,7 +272,14 @@ static void virtio_scsi_do_tmf(VirtIOSCSI *s, VirtIOSCSIReq *req)
                  */
                 req->resp.tmf.response = VIRTIO_SCSI_S_FUNCTION_SUCCEEDED;
             } else {
-                scsi_req_cancel(r);
+                VirtIOSCSICancelNotifier *notifier;
+
+                req->remaining = 1;
+                notifier = g_slice_new(VirtIOSCSICancelNotifier);
+                notifier->tmf_req = req;
+                notifier->notifier.notify = virtio_scsi_cancel_notify;
+                scsi_req_cancel_async(r, &notifier->notifier);
+                ret = -EINPROGRESS;
             }
         }
         break;
@@ -277,6 +305,13 @@ static void virtio_scsi_do_tmf(VirtIOSCSI *s, VirtIOSCSIReq *req)
         if (d->lun != virtio_scsi_get_lun(req->req.tmf.lun)) {
             goto incorrect_lun;
         }
+
+        /* Add 1 to "remaining" until virtio_scsi_do_tmf returns.
+         * This way, if the bus starts calling back to the notifiers
+         * even before we finish the loop, virtio_scsi_cancel_notify
+         * will not complete the TMF too early.
+         */
+        req->remaining = 1;
         QTAILQ_FOREACH_SAFE(r, &d->requests, next, next) {
             if (r->hba_private) {
                 if (req->req.tmf.subtype == VIRTIO_SCSI_T_TMF_QUERY_TASK_SET) {
@@ -286,9 +321,18 @@ static void virtio_scsi_do_tmf(VirtIOSCSI *s, VirtIOSCSIReq *req)
                     req->resp.tmf.response = VIRTIO_SCSI_S_FUNCTION_SUCCEEDED;
                     break;
                 } else {
-                    scsi_req_cancel(r);
+                    VirtIOSCSICancelNotifier *notifier;
+
+                    req->remaining++;
+                    notifier = g_slice_new(VirtIOSCSICancelNotifier);
+                    notifier->notifier.notify = virtio_scsi_cancel_notify;
+                    notifier->tmf_req = req;
+                    scsi_req_cancel_async(r, &notifier->notifier);
                 }
             }
+        }
+        if (--req->remaining > 0) {
+            ret = -EINPROGRESS;
         }
         break;
 
@@ -310,20 +354,22 @@ static void virtio_scsi_do_tmf(VirtIOSCSI *s, VirtIOSCSIReq *req)
         break;
     }
 
-    return;
+    return ret;
 
 incorrect_lun:
     req->resp.tmf.response = VIRTIO_SCSI_S_INCORRECT_LUN;
-    return;
+    return ret;
 
 fail:
     req->resp.tmf.response = VIRTIO_SCSI_S_BAD_TARGET;
+    return ret;
 }
 
 void virtio_scsi_handle_ctrl_req(VirtIOSCSI *s, VirtIOSCSIReq *req)
 {
     VirtIODevice *vdev = (VirtIODevice *)s;
     int type;
+    int r = 0;
 
     if (iov_to_buf(req->elem.out_sg, req->elem.out_num, 0,
                 &type, sizeof(type)) < sizeof(type)) {
@@ -337,7 +383,7 @@ void virtio_scsi_handle_ctrl_req(VirtIOSCSI *s, VirtIOSCSIReq *req)
                     sizeof(VirtIOSCSICtrlTMFResp)) < 0) {
             virtio_scsi_bad_req();
         } else {
-            virtio_scsi_do_tmf(s, req);
+            r = virtio_scsi_do_tmf(s, req);
         }
 
     } else if (req->req.tmf.type == VIRTIO_SCSI_T_AN_QUERY ||
@@ -350,7 +396,11 @@ void virtio_scsi_handle_ctrl_req(VirtIOSCSI *s, VirtIOSCSIReq *req)
             req->resp.an.response = VIRTIO_SCSI_S_OK;
         }
     }
-    virtio_scsi_complete_req(req);
+    if (r == 0) {
+        virtio_scsi_complete_req(req);
+    } else {
+        assert(r == -EINPROGRESS);
+    }
 }
 
 static void virtio_scsi_handle_ctrl(VirtIODevice *vdev, VirtQueue *vq)
