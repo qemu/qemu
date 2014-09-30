@@ -566,9 +566,26 @@ static void usb_hid_handle_destroy(USBDevice *dev)
     hid_free(&us->hid);
 }
 
-static void usb_hid_initfn(USBDevice *dev, int kind)
+static void usb_hid_initfn(USBDevice *dev, int kind,
+                           const USBDesc *usb1, const USBDesc *usb2,
+                           Error **errp)
 {
     USBHIDState *us = DO_UPCAST(USBHIDState, dev, dev);
+    switch (us->usb_version) {
+    case 1:
+        dev->usb_desc = usb1;
+        break;
+    case 2:
+        dev->usb_desc = usb2;
+        break;
+    default:
+        dev->usb_desc = NULL;
+    }
+    if (!dev->usb_desc) {
+        error_setg(errp, "Invalid usb version %d for usb hid device",
+                   us->usb_version);
+        return;
+    }
 
     if (dev->serial) {
         usb_desc_set_string(dev, STR_SERIALNUMBER, dev->serial);
@@ -583,32 +600,18 @@ static void usb_hid_initfn(USBDevice *dev, int kind)
 
 static void usb_tablet_realize(USBDevice *dev, Error **errp)
 {
-    USBHIDState *us = DO_UPCAST(USBHIDState, dev, dev);
 
-    switch (us->usb_version) {
-    case 1:
-        dev->usb_desc = &desc_tablet;
-        break;
-    case 2:
-        dev->usb_desc = &desc_tablet2;
-        break;
-    default:
-        error_setg(errp, "Invalid usb version %d for usb-tablet "
-                   "(must be 1 or 2)", us->usb_version);
-        return;
-    }
-
-    usb_hid_initfn(dev, HID_TABLET);
+    usb_hid_initfn(dev, HID_TABLET, &desc_tablet, &desc_tablet2, errp);
 }
 
 static void usb_mouse_realize(USBDevice *dev, Error **errp)
 {
-    usb_hid_initfn(dev, HID_MOUSE);
+    usb_hid_initfn(dev, HID_MOUSE, &desc_mouse, NULL, errp);
 }
 
 static void usb_keyboard_realize(USBDevice *dev, Error **errp)
 {
-    usb_hid_initfn(dev, HID_KEYBOARD);
+    usb_hid_initfn(dev, HID_KEYBOARD, &desc_keyboard, NULL, errp);
 }
 
 static int usb_ptr_post_load(void *opaque, int version_id)
@@ -690,7 +693,6 @@ static void usb_mouse_class_initfn(ObjectClass *klass, void *data)
     usb_hid_class_initfn(klass, data);
     uc->realize        = usb_mouse_realize;
     uc->product_desc   = "QEMU USB Mouse";
-    uc->usb_desc       = &desc_mouse;
     dc->vmsd = &vmstate_usb_ptr;
     set_bit(DEVICE_CATEGORY_INPUT, dc->categories);
 }
@@ -715,7 +717,6 @@ static void usb_keyboard_class_initfn(ObjectClass *klass, void *data)
     usb_hid_class_initfn(klass, data);
     uc->realize        = usb_keyboard_realize;
     uc->product_desc   = "QEMU USB Keyboard";
-    uc->usb_desc       = &desc_keyboard;
     dc->vmsd = &vmstate_usb_kbd;
     dc->props = usb_keyboard_properties;
     set_bit(DEVICE_CATEGORY_INPUT, dc->categories);
