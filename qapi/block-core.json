@@ -38,12 +38,16 @@
 #
 # @lazy-refcounts: #optional on or off; only valid for compat >= 1.1
 #
+# @corrupt: #optional true if the image has been marked corrupt; only valid for
+#           compat >= 1.1 (since 2.2)
+#
 # Since: 1.7
 ##
 { 'type': 'ImageInfoSpecificQCow2',
   'data': {
       'compat': 'str',
-      '*lazy-refcounts': 'bool'
+      '*lazy-refcounts': 'bool',
+      '*corrupt': 'bool'
   } }
 
 ##
