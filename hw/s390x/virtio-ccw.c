@@ -1528,7 +1528,7 @@ static void vhost_ccw_scsi_class_init(ObjectClass *klass, void *data)
 static const TypeInfo vhost_ccw_scsi = {
     .name          = TYPE_VHOST_SCSI_CCW,
     .parent        = TYPE_VIRTIO_CCW_DEVICE,
-    .instance_size = sizeof(VirtIOSCSICcw),
+    .instance_size = sizeof(VHostSCSICcw),
     .instance_init = vhost_ccw_scsi_instance_init,
     .class_init    = vhost_ccw_scsi_class_init,
 };
