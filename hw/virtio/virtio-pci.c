@@ -1325,7 +1325,7 @@ static void virtio_balloon_pci_instance_init(Object *obj)
     VirtIOBalloonPCI *dev = VIRTIO_BALLOON_PCI(obj);
     object_initialize(&dev->vdev, sizeof(dev->vdev), TYPE_VIRTIO_BALLOON);
     object_property_add_child(obj, "virtio-backend", OBJECT(&dev->vdev), NULL);
-
+    object_unref(OBJECT(&dev->vdev));
     object_property_add(obj, "guest-stats", "guest statistics",
                         balloon_pci_stats_get_all, NULL, NULL, dev,
                         NULL);
