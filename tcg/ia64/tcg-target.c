@@ -1550,34 +1550,33 @@ static inline void tcg_out_qemu_tlb(TCGContext *s, TCGReg addr_reg,
                    bswap2);
 }
 
-#define TCG_MAX_QEMU_LDST       640
-
 typedef struct TCGLabelQemuLdst {
     bool is_ld;
     TCGMemOp size;
     tcg_insn_unit *label_ptr;     /* label pointers to be updated */
+    struct TCGLabelQemuLdst *next;
 } TCGLabelQemuLdst;
 
 typedef struct TCGBackendData {
-    int nb_ldst_labels;
-    TCGLabelQemuLdst ldst_labels[TCG_MAX_QEMU_LDST];
+    TCGLabelQemuLdst *labels;
 } TCGBackendData;
 
 static inline void tcg_out_tb_init(TCGContext *s)
 {
-    s->be->nb_ldst_labels = 0;
+    s->be->labels = NULL;
 }
 
 static void add_qemu_ldst_label(TCGContext *s, bool is_ld, TCGMemOp opc,
                                 tcg_insn_unit *label_ptr)
 {
     TCGBackendData *be = s->be;
-    TCGLabelQemuLdst *l = &be->ldst_labels[be->nb_ldst_labels++];
+    TCGLabelQemuLdst *l = tcg_malloc(sizeof(*l));
 
-    assert(be->nb_ldst_labels <= TCG_MAX_QEMU_LDST);
     l->is_ld = is_ld;
     l->size = opc & MO_SIZE;
     l->label_ptr = label_ptr;
+    l->next = be->labels;
+    be->labels = l;
 }
 
 static void tcg_out_tb_finalize(TCGContext *s)
@@ -1593,11 +1592,9 @@ static void tcg_out_tb_finalize(TCGContext *s)
         helper_le_ldq_mmu,
     };
     tcg_insn_unit *thunks[8] = { };
-    TCGBackendData *be = s->be;
-    size_t i, n = be->nb_ldst_labels;
+    TCGLabelQemuLdst *l;
 
-    for (i = 0; i < n; i++) {
-        TCGLabelQemuLdst *l = &be->ldst_labels[i];
+    for (l = s->be->labels; l != NULL; l = l->next) {
         long x = l->is_ld * 4 + l->size;
         tcg_insn_unit *dest = thunks[x];
 
