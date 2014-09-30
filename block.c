@@ -335,18 +335,13 @@ void bdrv_register(BlockDriver *bdrv)
     QLIST_INSERT_HEAD(&bdrv_drivers, bdrv, list);
 }
 
-static bool bdrv_is_valid_name(const char *name)
-{
-    return qemu_opts_id_wellformed(name);
-}
-
 /* create a new block device (by default it is empty) */
 BlockDriverState *bdrv_new(const char *device_name, Error **errp)
 {
     BlockDriverState *bs;
     int i;
 
-    if (*device_name && !bdrv_is_valid_name(device_name)) {
+    if (*device_name && !id_wellformed(device_name)) {
         error_setg(errp, "Invalid device name");
         return NULL;
     }
@@ -874,7 +869,7 @@ static void bdrv_assign_node_name(BlockDriverState *bs,
     }
 
     /* Check for empty string or invalid characters */
-    if (!bdrv_is_valid_name(node_name)) {
+    if (!id_wellformed(node_name)) {
         error_setg(errp, "Invalid node name");
         return;
     }

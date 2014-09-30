@@ -641,28 +641,13 @@ QemuOpts *qemu_opts_find(QemuOptsList *list, const char *id)
     return NULL;
 }
 
-int qemu_opts_id_wellformed(const char *id)
-{
-    int i;
-
-    if (!qemu_isalpha(id[0])) {
-        return 0;
-    }
-    for (i = 1; id[i]; i++) {
-        if (!qemu_isalnum(id[i]) && !strchr("-._", id[i])) {
-            return 0;
-        }
-    }
-    return 1;
-}
-
 QemuOpts *qemu_opts_create(QemuOptsList *list, const char *id,
                            int fail_if_exists, Error **errp)
 {
     QemuOpts *opts = NULL;
 
     if (id) {
-        if (!qemu_opts_id_wellformed(id)) {
+        if (!id_wellformed(id)) {
             error_set(errp,QERR_INVALID_PARAMETER_VALUE, "id", "an identifier");
 #if 0 /* conversion from qerror_report() to error_set() broke this: */
             error_printf_unless_qmp("Identifiers consist of letters, digits, '-', '.', '_', starting with a letter.\n");
