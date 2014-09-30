@@ -229,6 +229,49 @@ static void s390_cpu_finalize(Object *obj)
 #endif
 }
 
+#if !defined(CONFIG_USER_ONLY)
+static unsigned s390_count_running_cpus(void)
+{
+    CPUState *cpu;
+    int nr_running = 0;
+
+    CPU_FOREACH(cpu) {
+        uint8_t state = S390_CPU(cpu)->env.cpu_state;
+        if (state == CPU_STATE_OPERATING ||
+            state == CPU_STATE_LOAD) {
+            nr_running++;
+        }
+    }
+
+    return nr_running;
+}
+
+void s390_add_running_cpu(S390CPU *cpu)
+{
+    CPUState *cs = CPU(cpu);
+
+    if (cs->halted) {
+        cpu->env.cpu_state = CPU_STATE_OPERATING;
+        cs->halted = 0;
+        cs->exception_index = -1;
+    }
+}
+
+unsigned s390_del_running_cpu(S390CPU *cpu)
+{
+    CPUState *cs = CPU(cpu);
+
+    if (cs->halted == 0) {
+        assert(s390_count_running_cpus() >= 1);
+        cpu->env.cpu_state = CPU_STATE_STOPPED;
+        cs->halted = 1;
+        cs->exception_index = EXCP_HLT;
+    }
+
+    return s390_count_running_cpus();
+}
+#endif
+
 static const VMStateDescription vmstate_s390_cpu = {
     .name = "cpu",
     .unmigratable = 1,

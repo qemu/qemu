@@ -141,6 +141,20 @@ typedef struct CPUS390XState {
     QEMUTimer *tod_timer;
 
     QEMUTimer *cpu_timer;
+
+    /*
+     * The cpu state represents the logical state of a cpu. In contrast to other
+     * architectures, there is a difference between a halt and a stop on s390.
+     * If all cpus are either stopped (including check stop) or in the disabled
+     * wait state, the vm can be shut down.
+     */
+#define CPU_STATE_UNINITIALIZED        0x00
+#define CPU_STATE_STOPPED              0x01
+#define CPU_STATE_CHECK_STOP           0x02
+#define CPU_STATE_OPERATING            0x03
+#define CPU_STATE_LOAD                 0x04
+    uint8_t cpu_state;
+
 } CPUS390XState;
 
 #include "cpu-qom.h"
