@@ -1188,6 +1188,7 @@ static void virtio_scsi_pci_instance_init(Object *obj)
     VirtIOSCSIPCI *dev = VIRTIO_SCSI_PCI(obj);
     object_initialize(&dev->vdev, sizeof(dev->vdev), TYPE_VIRTIO_SCSI);
     object_property_add_child(obj, "virtio-backend", OBJECT(&dev->vdev), NULL);
+    object_unref(OBJECT(&dev->vdev));
     qdev_alias_all_properties(DEVICE(&dev->vdev), obj);
 }
 
@@ -1244,6 +1245,7 @@ static void vhost_scsi_pci_instance_init(Object *obj)
     VHostSCSIPCI *dev = VHOST_SCSI_PCI(obj);
     object_initialize(&dev->vdev, sizeof(dev->vdev), TYPE_VHOST_SCSI);
     object_property_add_child(obj, "virtio-backend", OBJECT(&dev->vdev), NULL);
+    object_unref(OBJECT(&dev->vdev));
     qdev_alias_all_properties(DEVICE(&dev->vdev), obj);
 }
 

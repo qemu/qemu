@@ -258,6 +258,7 @@ static void s390_virtio_scsi_instance_init(Object *obj)
     VirtIOSCSIS390 *dev = VIRTIO_SCSI_S390(obj);
     object_initialize(&dev->vdev, sizeof(dev->vdev), TYPE_VIRTIO_SCSI);
     object_property_add_child(obj, "virtio-backend", OBJECT(&dev->vdev), NULL);
+    object_unref(OBJECT(&dev->vdev));
     qdev_alias_all_properties(DEVICE(&dev->vdev), obj);
 }
 
@@ -280,6 +281,7 @@ static void s390_vhost_scsi_instance_init(Object *obj)
     VHostSCSIS390 *dev = VHOST_SCSI_S390(obj);
     object_initialize(&dev->vdev, sizeof(dev->vdev), TYPE_VHOST_SCSI);
     object_property_add_child(obj, "virtio-backend", OBJECT(&dev->vdev), NULL);
+    object_unref(OBJECT(&dev->vdev));
     qdev_alias_all_properties(DEVICE(&dev->vdev), obj);
 }
 #endif
