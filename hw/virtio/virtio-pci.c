@@ -1425,8 +1425,6 @@ static Property virtio_net_properties[] = {
                     VIRTIO_PCI_FLAG_USE_IOEVENTFD_BIT, false),
     DEFINE_PROP_UINT32("vectors", VirtIOPCIProxy, nvectors, 3),
     DEFINE_VIRTIO_NET_FEATURES(VirtIOPCIProxy, host_features),
-    DEFINE_NIC_PROPERTIES(VirtIONetPCI, vdev.nic_conf),
-    DEFINE_VIRTIO_NET_PROPERTIES(VirtIONetPCI, vdev.net_conf),
     DEFINE_PROP_END_OF_LIST(),
 };
 
@@ -1467,6 +1465,7 @@ static void virtio_net_pci_instance_init(Object *obj)
     VirtIONetPCI *dev = VIRTIO_NET_PCI(obj);
     object_initialize(&dev->vdev, sizeof(dev->vdev), TYPE_VIRTIO_NET);
     object_property_add_child(obj, "virtio-backend", OBJECT(&dev->vdev), NULL);
+    qdev_alias_all_properties(DEVICE(&dev->vdev), obj);
 }
 
 static const TypeInfo virtio_net_pci_info = {

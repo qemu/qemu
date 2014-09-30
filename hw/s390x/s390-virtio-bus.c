@@ -161,6 +161,7 @@ static void s390_virtio_net_instance_init(Object *obj)
     VirtIONetS390 *dev = VIRTIO_NET_S390(obj);
     object_initialize(&dev->vdev, sizeof(dev->vdev), TYPE_VIRTIO_NET);
     object_property_add_child(obj, "virtio-backend", OBJECT(&dev->vdev), NULL);
+    qdev_alias_all_properties(DEVICE(&dev->vdev), obj);
 }
 
 static int s390_virtio_blk_init(VirtIOS390Device *s390_dev)
@@ -493,10 +494,8 @@ static unsigned virtio_s390_get_features(DeviceState *d)
 /**************** S390 Virtio Bus Device Descriptions *******************/
 
 static Property s390_virtio_net_properties[] = {
-    DEFINE_NIC_PROPERTIES(VirtIONetS390, vdev.nic_conf),
     DEFINE_VIRTIO_COMMON_FEATURES(VirtIOS390Device, host_features),
     DEFINE_VIRTIO_NET_FEATURES(VirtIOS390Device, host_features),
-    DEFINE_VIRTIO_NET_PROPERTIES(VirtIONetS390, vdev.net_conf),
     DEFINE_PROP_END_OF_LIST(),
 };
 

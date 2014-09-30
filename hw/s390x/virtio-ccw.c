@@ -794,6 +794,7 @@ static void virtio_ccw_net_instance_init(Object *obj)
     VirtIONetCcw *dev = VIRTIO_NET_CCW(obj);
     object_initialize(&dev->vdev, sizeof(dev->vdev), TYPE_VIRTIO_NET);
     object_property_add_child(obj, "virtio-backend", OBJECT(&dev->vdev), NULL);
+    qdev_alias_all_properties(DEVICE(&dev->vdev), obj);
 }
 
 static int virtio_ccw_blk_init(VirtioCcwDevice *ccw_dev)
@@ -1374,8 +1375,6 @@ static int virtio_ccw_load_config(DeviceState *d, QEMUFile *f)
 static Property virtio_ccw_net_properties[] = {
     DEFINE_PROP_STRING("devno", VirtioCcwDevice, bus_id),
     DEFINE_VIRTIO_NET_FEATURES(VirtioCcwDevice, host_features[0]),
-    DEFINE_VIRTIO_NET_PROPERTIES(VirtIONetCcw, vdev.net_conf),
-    DEFINE_NIC_PROPERTIES(VirtIONetCcw, vdev.nic_conf),
     DEFINE_PROP_BIT("ioeventfd", VirtioCcwDevice, flags,
                     VIRTIO_CCW_FLAG_USE_IOEVENTFD_BIT, true),
     DEFINE_PROP_END_OF_LIST(),
