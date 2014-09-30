@@ -258,6 +258,7 @@ static void s390_virtio_scsi_instance_init(Object *obj)
     VirtIOSCSIS390 *dev = VIRTIO_SCSI_S390(obj);
     object_initialize(&dev->vdev, sizeof(dev->vdev), TYPE_VIRTIO_SCSI);
     object_property_add_child(obj, "virtio-backend", OBJECT(&dev->vdev), NULL);
+    qdev_alias_all_properties(DEVICE(&dev->vdev), obj);
 }
 
 #ifdef CONFIG_VHOST_SCSI
@@ -279,6 +280,7 @@ static void s390_vhost_scsi_instance_init(Object *obj)
     VHostSCSIS390 *dev = VHOST_SCSI_S390(obj);
     object_initialize(&dev->vdev, sizeof(dev->vdev), TYPE_VHOST_SCSI);
     object_property_add_child(obj, "virtio-backend", OBJECT(&dev->vdev), NULL);
+    qdev_alias_all_properties(DEVICE(&dev->vdev), obj);
 }
 #endif
 
@@ -614,7 +616,6 @@ static const TypeInfo virtio_s390_device_info = {
 };
 
 static Property s390_virtio_scsi_properties[] = {
-    DEFINE_VIRTIO_SCSI_PROPERTIES(VirtIOSCSIS390, vdev.parent_obj.conf),
     DEFINE_VIRTIO_COMMON_FEATURES(VirtIOS390Device, host_features),
     DEFINE_VIRTIO_SCSI_FEATURES(VirtIOS390Device, host_features),
     DEFINE_PROP_END_OF_LIST(),
@@ -640,7 +641,6 @@ static const TypeInfo s390_virtio_scsi = {
 #ifdef CONFIG_VHOST_SCSI
 static Property s390_vhost_scsi_properties[] = {
     DEFINE_VIRTIO_COMMON_FEATURES(VirtIOS390Device, host_features),
-    DEFINE_VHOST_SCSI_PROPERTIES(VHostSCSIS390, vdev.parent_obj.conf),
     DEFINE_PROP_END_OF_LIST(),
 };
 
