@@ -170,7 +170,7 @@ static void balloon_stats_set_poll_interval(Object *obj, struct Visitor *v,
         return;
     }
 
-    if (value > UINT_MAX) {
+    if (value > UINT32_MAX) {
         error_setg(errp, "timer value is too big");
         return;
     }
