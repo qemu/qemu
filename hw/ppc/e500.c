@@ -61,6 +61,8 @@
 #define MPC8544_PCI_IO             0xE1000000ULL
 #define MPC8544_UTIL_OFFSET        0xe0000ULL
 #define MPC8544_SPIN_BASE          0xEF000000ULL
+#define MPC8XXX_GPIO_OFFSET        0x000FF000ULL
+#define MPC8XXX_GPIO_IRQ           43
 
 struct boot_info
 {
@@ -120,6 +122,23 @@ static void dt_serial_create(void *fdt, unsigned long long offset,
     if (defcon) {
         qemu_fdt_setprop_string(fdt, "/chosen", "linux,stdout-path", ser);
     }
+}
+
+static void create_dt_mpc8xxx_gpio(void *fdt, const char *soc, const char *mpic)
+{
+    hwaddr mmio0 = MPC8XXX_GPIO_OFFSET;
+    int irq0 = MPC8XXX_GPIO_IRQ;
+    gchar *node = g_strdup_printf("%s/gpio@%"PRIx64, soc, mmio0);
+
+    qemu_fdt_add_subnode(fdt, node);
+    qemu_fdt_setprop_string(fdt, node, "compatible", "fsl,qoriq-gpio");
+    qemu_fdt_setprop_cells(fdt, node, "reg", mmio0, 0x1000);
+    qemu_fdt_setprop_cells(fdt, node, "interrupts", irq0, 0x2);
+    qemu_fdt_setprop_phandle(fdt, node, "interrupt-parent", mpic);
+    qemu_fdt_setprop_cells(fdt, node, "#gpio-cells", 2);
+    qemu_fdt_setprop(fdt, node, "gpio-controller", NULL, 0);
+
+    g_free(node);
 }
 
 static int ppce500_load_device_tree(MachineState *machine,
@@ -378,6 +397,10 @@ static int ppce500_load_device_tree(MachineState *machine,
     qemu_fdt_setprop_cell(fdt, pci, "#size-cells", 2);
     qemu_fdt_setprop_cell(fdt, pci, "#address-cells", 3);
     qemu_fdt_setprop_string(fdt, "/aliases", "pci0", pci);
+
+    if (params->has_mpc8xxx_gpio) {
+        create_dt_mpc8xxx_gpio(fdt, soc, mpic);
+    }
 
     params->fixup_devtree(params, fdt);
 
@@ -767,6 +790,15 @@ void ppce500_init(MachineState *machine, PPCE500Params *params)
     if (cur_base < (32 * 1024 * 1024)) {
         /* u-boot occupies memory up to 32MB, so load blobs above */
         cur_base = (32 * 1024 * 1024);
+    }
+
+    if (params->has_mpc8xxx_gpio) {
+        dev = qdev_create(NULL, "mpc8xxx_gpio");
+        s = SYS_BUS_DEVICE(dev);
+        qdev_init_nofail(dev);
+        sysbus_connect_irq(s, 0, mpic[MPC8XXX_GPIO_IRQ]);
+        memory_region_add_subregion(ccsr_addr_space, MPC8XXX_GPIO_OFFSET,
+                                    sysbus_mmio_get_region(s, 0));
     }
 
     /* Load kernel. */

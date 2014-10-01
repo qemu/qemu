@@ -35,6 +35,7 @@ static void e500plat_init(MachineState *machine)
         .pci_nr_slots = PCI_SLOT_MAX - 1,
         .fixup_devtree = e500plat_fixup_devtree,
         .mpic_version = OPENPIC_MODEL_FSL_MPIC_42,
+        .has_mpc8xxx_gpio = true,
     };
 
     /* Older KVM versions don't support EPR which breaks guests when we announce
