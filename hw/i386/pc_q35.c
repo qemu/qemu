@@ -344,7 +344,8 @@ static void pc_q35_init_1_4(MachineState *machine)
 #define PC_Q35_MACHINE_OPTIONS \
     PC_DEFAULT_MACHINE_OPTIONS, \
     .desc = "Standard PC (Q35 + ICH9, 2009)", \
-    .hot_add_cpu = pc_hot_add_cpu
+    .hot_add_cpu = pc_hot_add_cpu, \
+    .units_per_default_bus = 1
 
 #define PC_Q35_2_2_MACHINE_OPTIONS                      \
     PC_Q35_MACHINE_OPTIONS,                             \
