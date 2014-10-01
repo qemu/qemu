@@ -58,7 +58,6 @@ int __clone2(int (*fn)(void *), void *child_stack_base,
 #include <sys/shm.h>
 #include <sys/sem.h>
 #include <sys/statfs.h>
-#include <sys/timerfd.h>
 #include <utime.h>
 #include <sys/sysinfo.h>
 //#include <sys/user.h>
@@ -67,6 +66,9 @@ int __clone2(int (*fn)(void *), void *child_stack_base,
 #include <linux/wireless.h>
 #include <linux/icmp.h>
 #include "qemu-common.h"
+#ifdef CONFIG_TIMERFD
+#include <sys/timerfd.h>
+#endif
 #ifdef TARGET_GPROF
 #include <sys/gmon.h>
 #endif
