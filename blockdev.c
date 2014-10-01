@@ -166,6 +166,27 @@ DriveInfo *drive_get(BlockInterfaceType type, int bus, int unit)
     return NULL;
 }
 
+bool drive_check_orphaned(void)
+{
+    DriveInfo *dinfo;
+    bool rs = false;
+
+    QTAILQ_FOREACH(dinfo, &drives, next) {
+        /* If dinfo->bdrv->dev is NULL, it has no device attached. */
+        /* Unless this is a default drive, this may be an oversight. */
+        if (!dinfo->bdrv->dev && !dinfo->is_default &&
+            dinfo->type != IF_NONE) {
+            fprintf(stderr, "Warning: Orphaned drive without device: "
+                    "id=%s,file=%s,if=%s,bus=%d,unit=%d\n",
+                    dinfo->id, dinfo->bdrv->filename, if_name[dinfo->type],
+                    dinfo->bus, dinfo->unit);
+            rs = true;
+        }
+    }
+
+    return rs;
+}
+
 DriveInfo *drive_get_by_index(BlockInterfaceType type, int index)
 {
     return drive_get(type,

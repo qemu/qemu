@@ -1169,6 +1169,7 @@ static void default_drive(int enable, int snapshot, BlockInterfaceType type,
                           int index, const char *optstr)
 {
     QemuOpts *opts;
+    DriveInfo *dinfo;
 
     if (!enable || drive_get_by_index(type, index)) {
         return;
@@ -1178,9 +1179,13 @@ static void default_drive(int enable, int snapshot, BlockInterfaceType type,
     if (snapshot) {
         drive_enable_snapshot(opts, NULL);
     }
-    if (!drive_new(opts, type)) {
+
+    dinfo = drive_new(opts, type);
+    if (!dinfo) {
         exit(1);
     }
+    dinfo->is_default = true;
+
 }
 
 void qemu_register_boot_set(QEMUBootSetHandler *func, void *opaque)
@@ -4456,6 +4461,9 @@ int main(int argc, char **argv, char **envp)
     /* init generic devices */
     if (qemu_opts_foreach(qemu_find_opts("device"), device_init_func, NULL, 1) != 0)
         exit(1);
+
+    /* Did we create any drives that we failed to create a device for? */
+    drive_check_orphaned();
 
     net_check_clients();
 

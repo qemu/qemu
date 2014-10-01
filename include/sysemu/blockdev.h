@@ -38,6 +38,7 @@ struct DriveInfo {
     int unit;
     int auto_del;               /* see blockdev_mark_auto_del() */
     bool enable_auto_del;       /* Only for legacy drive_new() */
+    bool is_default;            /* Added by default_drive() ?  */
     int media_cd;
     int cyls, heads, secs, trans;
     QemuOpts *opts;
@@ -46,6 +47,7 @@ struct DriveInfo {
 };
 
 DriveInfo *drive_get(BlockInterfaceType type, int bus, int unit);
+bool drive_check_orphaned(void);
 DriveInfo *drive_get_by_index(BlockInterfaceType type, int index);
 int drive_get_max_bus(BlockInterfaceType type);
 DriveInfo *drive_get_next(BlockInterfaceType type);
