@@ -175,7 +175,7 @@ static int stdio_fclose(void *opaque)
     QEMUFileStdio *s = opaque;
     int ret = 0;
 
-    if (s->file->ops->put_buffer || s->file->ops->writev_buffer) {
+    if (qemu_file_is_writable(s->file)) {
         int fd = fileno(s->stdio_file);
         struct stat st;
 
