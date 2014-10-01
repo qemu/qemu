@@ -129,6 +129,8 @@ static void create_dt_mpc8xxx_gpio(void *fdt, const char *soc, const char *mpic)
     hwaddr mmio0 = MPC8XXX_GPIO_OFFSET;
     int irq0 = MPC8XXX_GPIO_IRQ;
     gchar *node = g_strdup_printf("%s/gpio@%"PRIx64, soc, mmio0);
+    gchar *poweroff = g_strdup_printf("%s/power-off", soc);
+    int gpio_ph;
 
     qemu_fdt_add_subnode(fdt, node);
     qemu_fdt_setprop_string(fdt, node, "compatible", "fsl,qoriq-gpio");
@@ -137,8 +139,17 @@ static void create_dt_mpc8xxx_gpio(void *fdt, const char *soc, const char *mpic)
     qemu_fdt_setprop_phandle(fdt, node, "interrupt-parent", mpic);
     qemu_fdt_setprop_cells(fdt, node, "#gpio-cells", 2);
     qemu_fdt_setprop(fdt, node, "gpio-controller", NULL, 0);
+    gpio_ph = qemu_fdt_alloc_phandle(fdt);
+    qemu_fdt_setprop_cell(fdt, node, "phandle", gpio_ph);
+    qemu_fdt_setprop_cell(fdt, node, "linux,phandle", gpio_ph);
+
+    /* Power Off Pin */
+    qemu_fdt_add_subnode(fdt, poweroff);
+    qemu_fdt_setprop_string(fdt, poweroff, "compatible", "gpio-poweroff");
+    qemu_fdt_setprop_cells(fdt, poweroff, "gpios", gpio_ph, 0, 0);
 
     g_free(node);
+    g_free(poweroff);
 }
 
 static int ppce500_load_device_tree(MachineState *machine,
@@ -641,6 +652,13 @@ static qemu_irq *ppce500_init_mpic(PPCE500Params *params, MemoryRegion *ccsr,
     return mpic;
 }
 
+static void ppce500_power_off(void *opaque, int line, int on)
+{
+    if (on) {
+        qemu_system_shutdown_request();
+    }
+}
+
 void ppce500_init(MachineState *machine, PPCE500Params *params)
 {
     MemoryRegion *address_space_mem = get_system_memory();
@@ -793,12 +811,18 @@ void ppce500_init(MachineState *machine, PPCE500Params *params)
     }
 
     if (params->has_mpc8xxx_gpio) {
+        qemu_irq poweroff_irq;
+
         dev = qdev_create(NULL, "mpc8xxx_gpio");
         s = SYS_BUS_DEVICE(dev);
         qdev_init_nofail(dev);
         sysbus_connect_irq(s, 0, mpic[MPC8XXX_GPIO_IRQ]);
         memory_region_add_subregion(ccsr_addr_space, MPC8XXX_GPIO_OFFSET,
                                     sysbus_mmio_get_region(s, 0));
+
+        /* Power Off GPIO at Pin 0 */
+        poweroff_irq = qemu_allocate_irq(ppce500_power_off, NULL, 0);
+        qdev_connect_gpio_out(dev, 0, poweroff_irq);
     }
 
     /* Load kernel. */
