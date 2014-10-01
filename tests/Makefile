@@ -258,7 +258,7 @@ tests/test-qdev-global-props$(EXESUF): tests/test-qdev-global-props.o \
 	$(test-qapi-obj-y) \
 	libqemuutil.a libqemustub.a
 tests/test-vmstate$(EXESUF): tests/test-vmstate.o \
-	vmstate.o qemu-file.o \
+	vmstate.o qemu-file.o qemu-file-unix.o \
 	libqemuutil.a libqemustub.a
 
 tests/test-qapi-types.c tests/test-qapi-types.h :\
