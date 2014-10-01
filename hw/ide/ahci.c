@@ -600,6 +600,7 @@ static void ahci_write_fis_pio(AHCIDevice *ad, uint16_t len)
     uint8_t *pio_fis, *cmd_fis;
     uint64_t tbl_addr;
     dma_addr_t cmd_len = 0x80;
+    IDEState *s = &ad->port.ifs[0];
 
     if (!ad->res_fis || !(pr->cmd & PORT_CMD_FIS_RX)) {
         return;
@@ -629,21 +630,21 @@ static void ahci_write_fis_pio(AHCIDevice *ad, uint16_t len)
 
     pio_fis[0] = 0x5f;
     pio_fis[1] = (ad->hba->control_regs.irqstatus ? (1 << 6) : 0);
-    pio_fis[2] = ad->port.ifs[0].status;
-    pio_fis[3] = ad->port.ifs[0].error;
+    pio_fis[2] = s->status;
+    pio_fis[3] = s->error;
 
-    pio_fis[4] = cmd_fis[4];
-    pio_fis[5] = cmd_fis[5];
-    pio_fis[6] = cmd_fis[6];
-    pio_fis[7] = cmd_fis[7];
-    pio_fis[8] = cmd_fis[8];
-    pio_fis[9] = cmd_fis[9];
-    pio_fis[10] = cmd_fis[10];
-    pio_fis[11] = cmd_fis[11];
+    pio_fis[4] = s->sector;
+    pio_fis[5] = s->lcyl;
+    pio_fis[6] = s->hcyl;
+    pio_fis[7] = s->select;
+    pio_fis[8] = s->hob_sector;
+    pio_fis[9] = s->hob_lcyl;
+    pio_fis[10] = s->hob_hcyl;
+    pio_fis[11] = 0;
     pio_fis[12] = cmd_fis[12];
     pio_fis[13] = cmd_fis[13];
     pio_fis[14] = 0;
-    pio_fis[15] = ad->port.ifs[0].status;
+    pio_fis[15] = s->status;
     pio_fis[16] = len & 255;
     pio_fis[17] = len >> 8;
     pio_fis[18] = 0;
@@ -670,6 +671,7 @@ static void ahci_write_fis_d2h(AHCIDevice *ad, uint8_t *cmd_fis)
     int i;
     dma_addr_t cmd_len = 0x80;
     int cmd_mapped = 0;
+    IDEState *s = &ad->port.ifs[0];
 
     if (!ad->res_fis || !(pr->cmd & PORT_CMD_FIS_RX)) {
         return;
@@ -687,17 +689,17 @@ static void ahci_write_fis_d2h(AHCIDevice *ad, uint8_t *cmd_fis)
 
     d2h_fis[0] = 0x34;
     d2h_fis[1] = (ad->hba->control_regs.irqstatus ? (1 << 6) : 0);
-    d2h_fis[2] = ad->port.ifs[0].status;
-    d2h_fis[3] = ad->port.ifs[0].error;
+    d2h_fis[2] = s->status;
+    d2h_fis[3] = s->error;
 
-    d2h_fis[4] = cmd_fis[4];
-    d2h_fis[5] = cmd_fis[5];
-    d2h_fis[6] = cmd_fis[6];
-    d2h_fis[7] = cmd_fis[7];
-    d2h_fis[8] = cmd_fis[8];
-    d2h_fis[9] = cmd_fis[9];
-    d2h_fis[10] = cmd_fis[10];
-    d2h_fis[11] = cmd_fis[11];
+    d2h_fis[4] = s->sector;
+    d2h_fis[5] = s->lcyl;
+    d2h_fis[6] = s->hcyl;
+    d2h_fis[7] = s->select;
+    d2h_fis[8] = s->hob_sector;
+    d2h_fis[9] = s->hob_lcyl;
+    d2h_fis[10] = s->hob_hcyl;
+    d2h_fis[11] = 0;
     d2h_fis[12] = cmd_fis[12];
     d2h_fis[13] = cmd_fis[13];
     for (i = 14; i < 20; i++) {
