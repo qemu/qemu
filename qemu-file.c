@@ -456,7 +456,7 @@ void qemu_file_set_error(QEMUFile *f, int ret)
     }
 }
 
-static inline bool qemu_file_is_writable(QEMUFile *f)
+bool qemu_file_is_writable(QEMUFile *f)
 {
     return f->ops->writev_buffer || f->ops->put_buffer;
 }

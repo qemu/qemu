@@ -120,6 +120,7 @@ void qemu_put_byte(QEMUFile *f, int v);
  */
 void qemu_put_buffer_async(QEMUFile *f, const uint8_t *buf, int size);
 bool qemu_file_mode_is_not_valid(const char *mode);
+bool qemu_file_is_writable(QEMUFile *f);
 
 QEMUSizedBuffer *qsb_create(const uint8_t *buffer, size_t len);
 QEMUSizedBuffer *qsb_clone(const QEMUSizedBuffer *);
