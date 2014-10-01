@@ -294,7 +294,7 @@ void mips_r4k_init(MachineState *machine)
     if (nd_table[0].used)
         isa_ne2000_init(isa_bus, 0x300, 9, &nd_table[0]);
 
-    ide_drive_get(hd, MAX_IDE_BUS);
+    ide_drive_get(hd, ARRAY_SIZE(hd));
     for(i = 0; i < MAX_IDE_BUS; i++)
         isa_ide_init(isa_bus, ide_iobase[i], ide_iobase2[i], ide_irq[i],
                      hd[MAX_IDE_DEVS * i],

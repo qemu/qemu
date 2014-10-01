@@ -1147,7 +1147,7 @@ void mips_malta_init(MachineState *machine)
     pci_bus = gt64120_register(isa_irq);
 
     /* Southbridge */
-    ide_drive_get(hd, MAX_IDE_BUS);
+    ide_drive_get(hd, ARRAY_SIZE(hd));
 
     piix4_devfn = piix4_init(pci_bus, &isa_bus, 80);
 

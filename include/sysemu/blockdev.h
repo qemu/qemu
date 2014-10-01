@@ -52,6 +52,7 @@ DriveInfo *drive_get(BlockInterfaceType type, int bus, int unit);
 bool drive_check_orphaned(void);
 DriveInfo *drive_get_by_index(BlockInterfaceType type, int index);
 int drive_get_max_bus(BlockInterfaceType type);
+int drive_get_max_devs(BlockInterfaceType type);
 DriveInfo *drive_get_next(BlockInterfaceType type);
 DriveInfo *drive_get_by_blockdev(BlockDriverState *bs);
 
