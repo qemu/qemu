@@ -49,6 +49,9 @@ static int handle_cmd(AHCIState *s,int port,int slot);
 static void ahci_reset_port(AHCIState *s, int port);
 static void ahci_write_fis_d2h(AHCIDevice *ad, uint8_t *cmd_fis);
 static void ahci_init_d2h(AHCIDevice *ad);
+static int ahci_dma_prepare_buf(IDEDMA *dma, int is_write);
+static void ahci_commit_buf(IDEDMA *dma, uint32_t tx_bytes);
+
 
 static uint32_t  ahci_port_read(AHCIState *s, int port, int offset)
 {
@@ -1105,16 +1108,12 @@ static void ahci_start_transfer(IDEDMA *dma)
         }
     }
 
-    /* update number of transferred bytes */
-    ad->cur_cmd->status = cpu_to_le32(le32_to_cpu(ad->cur_cmd->status) + size);
-
 out:
     /* declare that we processed everything */
     s->data_ptr = s->data_end;
 
-    if (has_sglist) {
-        qemu_sglist_destroy(&s->sg);
-    }
+    /* Update number of transferred bytes, destroy sglist */
+    ahci_commit_buf(dma, size);
 
     s->end_transfer_func(s);
 
@@ -1135,6 +1134,11 @@ static void ahci_start_dma(IDEDMA *dma, IDEState *s,
     dma_cb(s, 0);
 }
 
+/**
+ * Called in DMA R/W chains to read the PRDT, utilizing ahci_populate_sglist.
+ * Not currently invoked by PIO R/W chains,
+ * which invoke ahci_populate_sglist via ahci_start_transfer.
+ */
 static int ahci_dma_prepare_buf(IDEDMA *dma, int is_write)
 {
     AHCIDevice *ad = DO_UPCAST(AHCIDevice, dma, dma);
@@ -1145,6 +1149,24 @@ static int ahci_dma_prepare_buf(IDEDMA *dma, int is_write)
 
     DPRINTF(ad->port_no, "len=%#x\n", s->io_buffer_size);
     return s->io_buffer_size != 0;
+}
+
+/**
+ * Destroys the scatter-gather list,
+ * and updates the command header with a bytes-read value.
+ * called explicitly via ahci_dma_rw_buf (ATAPI DMA),
+ * and ahci_start_transfer (PIO R/W),
+ * and called via callback from ide_dma_cb for DMA R/W paths.
+ */
+static void ahci_commit_buf(IDEDMA *dma, uint32_t tx_bytes)
+{
+    AHCIDevice *ad = DO_UPCAST(AHCIDevice, dma, dma);
+    IDEState *s = &ad->port.ifs[0];
+
+    tx_bytes += le32_to_cpu(ad->cur_cmd->status);
+    ad->cur_cmd->status = cpu_to_le32(tx_bytes);
+
+    qemu_sglist_destroy(&s->sg);
 }
 
 static int ahci_dma_rw_buf(IDEDMA *dma, int is_write)
@@ -1164,11 +1186,9 @@ static int ahci_dma_rw_buf(IDEDMA *dma, int is_write)
         dma_buf_write(p, l, &s->sg);
     }
 
-    /* free sglist that was created in ahci_populate_sglist() */
-    qemu_sglist_destroy(&s->sg);
+    /* free sglist, update byte count */
+    ahci_commit_buf(dma, l);
 
-    /* update number of transferred bytes */
-    ad->cur_cmd->status = cpu_to_le32(le32_to_cpu(ad->cur_cmd->status) + l);
     s->io_buffer_index += l;
     s->io_buffer_offset += l;
 
@@ -1211,6 +1231,7 @@ static const IDEDMAOps ahci_dma_ops = {
     .start_dma = ahci_start_dma,
     .start_transfer = ahci_start_transfer,
     .prepare_buf = ahci_dma_prepare_buf,
+    .commit_buf = ahci_commit_buf,
     .rw_buf = ahci_dma_rw_buf,
     .set_unit = ahci_dma_set_unit,
     .cmd_done = ahci_cmd_done,
