@@ -46,6 +46,8 @@ struct DriveInfo {
     QTAILQ_ENTRY(DriveInfo) next;
 };
 
+void override_max_devs(BlockInterfaceType type, int max_devs);
+
 DriveInfo *drive_get(BlockInterfaceType type, int bus, int unit);
 bool drive_check_orphaned(void);
 DriveInfo *drive_get_by_index(BlockInterfaceType type, int index);

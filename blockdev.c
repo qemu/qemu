@@ -60,7 +60,7 @@ static const char *const if_name[IF_COUNT] = {
     [IF_XEN] = "xen",
 };
 
-static const int if_max_devs[IF_COUNT] = {
+static int if_max_devs[IF_COUNT] = {
     /*
      * Do not change these numbers!  They govern how drive option
      * index maps to unit and bus.  That mapping is ABI.
@@ -78,6 +78,30 @@ static const int if_max_devs[IF_COUNT] = {
     [IF_IDE] = 2,
     [IF_SCSI] = 7,
 };
+
+/**
+ * Boards may call this to offer board-by-board overrides
+ * of the default, global values.
+ */
+void override_max_devs(BlockInterfaceType type, int max_devs)
+{
+    DriveInfo *dinfo;
+
+    if (max_devs <= 0) {
+        return;
+    }
+
+    QTAILQ_FOREACH(dinfo, &drives, next) {
+        if (dinfo->type == type) {
+            fprintf(stderr, "Cannot override units-per-bus property of"
+                    " the %s interface, because a drive of that type has"
+                    " already been added.\n", if_name[type]);
+            g_assert_not_reached();
+        }
+    }
+
+    if_max_devs[type] = max_devs;
+}
 
 /*
  * We automatically delete the drive when a device using it gets
