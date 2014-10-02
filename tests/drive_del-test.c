@@ -40,6 +40,19 @@ static void drive_del(void)
     QDECREF(response);
 }
 
+static void device_del(void)
+{
+    QDict *response;
+
+    /* Complication: ignore DEVICE_DELETED event */
+    qmp_discard_response("{'execute': 'device_del',"
+                         " 'arguments': { 'id': 'dev0' } }");
+    response = qmp_receive();
+    g_assert(response);
+    g_assert(qdict_haskey(response, "return"));
+    QDECREF(response);
+}
+
 static void test_drive_without_dev(void)
 {
     /* Start with an empty drive */
@@ -87,6 +100,23 @@ static void test_after_failed_device_add(void)
     qtest_end();
 }
 
+static void test_drive_del_device_del(void)
+{
+    /* Start with a drive used by a device that unplugs instantaneously */
+    qtest_start("-drive if=none,id=drive0,file=/dev/null"
+                " -device virtio-scsi-pci"
+                " -device scsi-hd,drive=drive0,id=dev0");
+
+    /*
+     * Delete the drive, and then the device
+     * Doing it in this order takes notoriously tricky special paths
+     */
+    drive_del();
+    device_del();
+
+    qtest_end();
+}
+
 int main(int argc, char **argv)
 {
     const char *arch = qtest_get_arch();
@@ -99,6 +129,8 @@ int main(int argc, char **argv)
     if (!strcmp(arch, "i386") || !strcmp(arch, "x86_64")) {
         qtest_add_func("/drive_del/after_failed_device_add",
                        test_after_failed_device_add);
+        qtest_add_func("/blockdev/drive_del_device_del",
+                       test_drive_del_device_del);
     }
 
     return g_test_run();
