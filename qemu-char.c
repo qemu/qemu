@@ -84,6 +84,7 @@
 
 #define READ_BUF_LEN 4096
 #define READ_RETRIES 10
+#define CHR_MAX_FILENAME_SIZE 256
 
 /***********************************************************/
 /* character device */
@@ -989,7 +990,8 @@ static CharDriverState *qemu_chr_open_fd(int fd_in, int fd_out)
 static CharDriverState *qemu_chr_open_pipe(ChardevHostdev *opts)
 {
     int fd_in, fd_out;
-    char filename_in[256], filename_out[256];
+    char filename_in[CHR_MAX_FILENAME_SIZE];
+    char filename_out[CHR_MAX_FILENAME_SIZE];
     const char *filename = opts->device;
 
     if (filename == NULL) {
@@ -997,8 +999,8 @@ static CharDriverState *qemu_chr_open_pipe(ChardevHostdev *opts)
         return NULL;
     }
 
-    snprintf(filename_in, 256, "%s.in", filename);
-    snprintf(filename_out, 256, "%s.out", filename);
+    snprintf(filename_in, CHR_MAX_FILENAME_SIZE, "%s.in", filename);
+    snprintf(filename_out, CHR_MAX_FILENAME_SIZE, "%s.out", filename);
     TFR(fd_in = qemu_open(filename_in, O_RDWR | O_BINARY));
     TFR(fd_out = qemu_open(filename_out, O_RDWR | O_BINARY));
     if (fd_in < 0 || fd_out < 0) {
@@ -1976,7 +1978,7 @@ static int win_chr_pipe_init(CharDriverState *chr, const char *filename)
     OVERLAPPED ov;
     int ret;
     DWORD size;
-    char openname[256];
+    char openname[CHR_MAX_FILENAME_SIZE];
 
     s->fpipe = TRUE;
 
@@ -2918,12 +2920,12 @@ static CharDriverState *qemu_chr_open_socket_fd(int fd, bool do_nodelay,
     s->write_msgfds = 0;
     s->write_msgfds_num = 0;
 
-    chr->filename = g_malloc(256);
+    chr->filename = g_malloc(CHR_MAX_FILENAME_SIZE);
     switch (ss.ss_family) {
 #ifndef _WIN32
     case AF_UNIX:
         s->is_unix = 1;
-        snprintf(chr->filename, 256, "unix:%s%s",
+        snprintf(chr->filename, CHR_MAX_FILENAME_SIZE, "unix:%s%s",
                  ((struct sockaddr_un *)(&ss))->sun_path,
                  is_listen ? ",server" : "");
         break;
@@ -2936,7 +2938,7 @@ static CharDriverState *qemu_chr_open_socket_fd(int fd, bool do_nodelay,
         s->do_nodelay = do_nodelay;
         getnameinfo((struct sockaddr *) &ss, ss_len, host, sizeof(host),
                     serv, sizeof(serv), NI_NUMERICHOST | NI_NUMERICSERV);
-        snprintf(chr->filename, 256, "%s:%s%s%s:%s%s",
+        snprintf(chr->filename, CHR_MAX_FILENAME_SIZE, "%s:%s%s%s:%s%s",
                  is_telnet ? "telnet" : "tcp",
                  left, host, right, serv,
                  is_listen ? ",server" : "");
