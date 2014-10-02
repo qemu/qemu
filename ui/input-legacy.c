@@ -85,6 +85,8 @@ void qmp_send_key(KeyValueList *keys, bool has_hold_time, int64_t hold_time,
                   Error **errp)
 {
     KeyValueList *p;
+    KeyValue **up = NULL;
+    int count = 0;
 
     if (!has_hold_time) {
         hold_time = 0; /* use default */
@@ -93,11 +95,16 @@ void qmp_send_key(KeyValueList *keys, bool has_hold_time, int64_t hold_time,
     for (p = keys; p != NULL; p = p->next) {
         qemu_input_event_send_key(NULL, copy_key_value(p->value), true);
         qemu_input_event_send_key_delay(hold_time);
+        up = g_realloc(up, sizeof(*up) * (count+1));
+        up[count] = copy_key_value(p->value);
+        count++;
     }
-    for (p = keys; p != NULL; p = p->next) {
-        qemu_input_event_send_key(NULL, copy_key_value(p->value), false);
+    while (count) {
+        count--;
+        qemu_input_event_send_key(NULL, up[count], false);
         qemu_input_event_send_key_delay(hold_time);
     }
+    g_free(up);
 }
 
 static void legacy_kbd_event(DeviceState *dev, QemuConsole *src,

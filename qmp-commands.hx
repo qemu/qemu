@@ -3789,3 +3789,66 @@ Example:
 -> { "execute": "trace-event-set-state", "arguments": { "name": "qemu_memalign", "enable": "true" } }
 <- { "return": {} }
 EQMP
+
+    {
+        .name       = "input-send-event",
+        .args_type  = "console:i,events:q",
+        .mhandler.cmd_new = qmp_marshal_input_input_send_event,
+    },
+
+SQMP
+@input-send-event
+-----------------
+
+Send input event to guest.
+
+Arguments:
+
+- "console": console index.
+- "events": list of input events.
+
+The consoles are visible in the qom tree, under
+/backend/console[$index]. They have a device link and head property, so
+it is possible to map which console belongs to which device and display.
+
+Example (1):
+
+Press left mouse button.
+
+-> { "execute": "input-send-event",
+    "arguments": { "console": 0,
+                   "events": [ { "type": "btn",
+                    "data" : { "down": true, "button": "Left" } } } }
+<- { "return": {} }
+
+-> { "execute": "input-send-event",
+    "arguments": { "console": 0,
+                   "events": [ { "type": "btn",
+                    "data" : { "down": false, "button": "Left" } } } }
+<- { "return": {} }
+
+Example (2):
+
+Press ctrl-alt-del.
+
+-> { "execute": "input-send-event",
+     "arguments": { "console": 0, "events": [
+        { "type": "key", "data" : { "down": true,
+          "key": {"type": "qcode", "data": "ctrl" } } },
+        { "type": "key", "data" : { "down": true,
+          "key": {"type": "qcode", "data": "alt" } } },
+        { "type": "key", "data" : { "down": true,
+          "key": {"type": "qcode", "data": "delete" } } } ] } }
+<- { "return": {} }
+
+Example (3):
+
+Move mouse pointer to absolute coordinates (20000, 400).
+
+-> { "execute": "input-send-event" ,
+  "arguments": { "console": 0, "events": [
+               { "type": "abs", "data" : { "axis": "X", "value" : 20000 } },
+               { "type": "abs", "data" : { "axis": "Y", "value" : 400 } } ] } }
+<- { "return": {} }
+
+EQMP
