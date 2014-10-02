@@ -17,7 +17,6 @@
 static void test_drive_without_dev(void)
 {
     QDict *response;
-    const char *response_return;
 
     /* Start with an empty drive */
     qtest_start("-drive if=none,id=drive0");
@@ -28,9 +27,7 @@ static void test_drive_without_dev(void)
                    "   'command-line': 'drive_del drive0'"
                    "}}");
     g_assert(response);
-    response_return = qdict_get_try_str(response, "return");
-    g_assert(response_return);
-    g_assert(strcmp(response_return, "") == 0);
+    g_assert_cmpstr(qdict_get_try_str(response, "return"), ==, "");
     QDECREF(response);
 
     /* Ensure re-adding the drive works - there should be no duplicate ID error
@@ -41,9 +38,7 @@ static void test_drive_without_dev(void)
                    "   'command-line': 'drive_add 0 if=none,id=drive0'"
                    "}}");
     g_assert(response);
-    response_return = qdict_get_try_str(response, "return");
-    g_assert(response_return);
-    g_assert(strcmp(response_return, "OK\r\n") == 0);
+    g_assert_cmpstr(qdict_get_try_str(response, "return"), ==, "OK\r\n");
     QDECREF(response);
 
     qtest_end();
