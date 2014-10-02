@@ -1,7 +1,7 @@
 /*
- * qdev-monitor.c test cases
+ * blockdev.c test cases
  *
- * Copyright (C) 2013 Red Hat Inc.
+ * Copyright (C) 2013-2014 Red Hat Inc.
  *
  * Authors:
  *  Stefan Hajnoczi <stefanha@redhat.com>
@@ -10,12 +10,46 @@
  * See the COPYING.LIB file in the top-level directory.
  */
 
-#include <string.h>
 #include <glib.h>
+#include <string.h>
 #include "libqtest.h"
-#include "qapi/qmp/qjson.h"
 
-static void test_device_add(void)
+static void test_drive_without_dev(void)
+{
+    QDict *response;
+    const char *response_return;
+
+    /* Start with an empty drive */
+    qtest_start("-drive if=none,id=drive0");
+
+    /* Delete the drive */
+    response = qmp("{\"execute\": \"human-monitor-command\","
+                   " \"arguments\": {"
+                   "   \"command-line\": \"drive_del drive0\""
+                   "}}");
+    g_assert(response);
+    response_return = qdict_get_try_str(response, "return");
+    g_assert(response_return);
+    g_assert(strcmp(response_return, "") == 0);
+    QDECREF(response);
+
+    /* Ensure re-adding the drive works - there should be no duplicate ID error
+     * because the old drive must be gone.
+     */
+    response = qmp("{\"execute\": \"human-monitor-command\","
+                   " \"arguments\": {"
+                   "   \"command-line\": \"drive_add 0 if=none,id=drive0\""
+                   "}}");
+    g_assert(response);
+    response_return = qdict_get_try_str(response, "return");
+    g_assert(response_return);
+    g_assert(strcmp(response_return, "OK\r\n") == 0);
+    QDECREF(response);
+
+    qtest_end();
+}
+
+static void test_after_failed_device_add(void)
 {
     QDict *response;
     QDict *error;
@@ -62,16 +96,15 @@ int main(int argc, char **argv)
 {
     const char *arch = qtest_get_arch();
 
-    /* Check architecture */
-    if (strcmp(arch, "i386") && strcmp(arch, "x86_64")) {
-        g_test_message("Skipping test for non-x86\n");
-        return 0;
-    }
-
-    /* Run the tests */
     g_test_init(&argc, &argv, NULL);
 
-    qtest_add_func("/qmp/device_add", test_device_add);
+    qtest_add_func("/drive_del/without-dev", test_drive_without_dev);
+
+    /* TODO I guess any arch with PCI would do */
+    if (!strcmp(arch, "i386") || !strcmp(arch, "x86_64")) {
+        qtest_add_func("/drive_del/after_failed_device_add",
+                       test_after_failed_device_add);
+    }
 
     return g_test_run();
 }
