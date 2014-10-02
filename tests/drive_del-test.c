@@ -14,25 +14,10 @@
 #include <string.h>
 #include "libqtest.h"
 
-static void test_drive_without_dev(void)
+static void drive_add(void)
 {
     QDict *response;
 
-    /* Start with an empty drive */
-    qtest_start("-drive if=none,id=drive0");
-
-    /* Delete the drive */
-    response = qmp("{'execute': 'human-monitor-command',"
-                   " 'arguments': {"
-                   "   'command-line': 'drive_del drive0'"
-                   "}}");
-    g_assert(response);
-    g_assert_cmpstr(qdict_get_try_str(response, "return"), ==, "");
-    QDECREF(response);
-
-    /* Ensure re-adding the drive works - there should be no duplicate ID error
-     * because the old drive must be gone.
-     */
     response = qmp("{'execute': 'human-monitor-command',"
                    " 'arguments': {"
                    "   'command-line': 'drive_add 0 if=none,id=drive0'"
@@ -40,6 +25,33 @@ static void test_drive_without_dev(void)
     g_assert(response);
     g_assert_cmpstr(qdict_get_try_str(response, "return"), ==, "OK\r\n");
     QDECREF(response);
+}
+
+static void drive_del(void)
+{
+    QDict *response;
+
+    response = qmp("{'execute': 'human-monitor-command',"
+                   " 'arguments': {"
+                   "   'command-line': 'drive_del drive0'"
+                   "}}");
+    g_assert(response);
+    g_assert_cmpstr(qdict_get_try_str(response, "return"), ==, "");
+    QDECREF(response);
+}
+
+static void test_drive_without_dev(void)
+{
+    /* Start with an empty drive */
+    qtest_start("-drive if=none,id=drive0");
+
+    /* Delete the drive */
+    drive_del();
+
+    /* Ensure re-adding the drive works - there should be no duplicate ID error
+     * because the old drive must be gone.
+     */
+    drive_add();
 
     qtest_end();
 }
@@ -65,24 +77,12 @@ static void test_after_failed_device_add(void)
     QDECREF(response);
 
     /* Delete the drive */
-    response = qmp("{'execute': 'human-monitor-command',"
-                   " 'arguments': {"
-                   "   'command-line': 'drive_del drive0'"
-                   "}}");
-    g_assert(response);
-    g_assert_cmpstr(qdict_get_try_str(response, "return"), ==, "");
-    QDECREF(response);
+    drive_del();
 
     /* Try to re-add the drive.  This fails with duplicate IDs if a leaked
      * virtio-blk-pci exists that holds a reference to the old drive0.
      */
-    response = qmp("{'execute': 'human-monitor-command',"
-                   " 'arguments': {"
-                   "   'command-line': 'drive_add 0 if=none,id=drive0'"
-                   "}}");
-    g_assert(response);
-    g_assert_cmpstr(qdict_get_try_str(response, "return"), ==, "OK\r\n");
-    QDECREF(response);
+    drive_add();
 
     qtest_end();
 }
