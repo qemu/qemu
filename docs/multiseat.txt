@@ -7,7 +7,7 @@ host side
 
 First you must compile qemu with a user interface supporting
 multihead/multiseat and input event routing.  Right now this
-list includes sdl2 and gtk (both 2+3):
+list includes sdl2, gtk (both 2+3) and vnc:
 
   ./configure --enable-sdl --with-sdlabi=2.0
 
@@ -16,16 +16,16 @@ or
   ./configure --enable-gtk
 
 
-Next put together the qemu command line:
+Next put together the qemu command line (sdk/gtk):
 
 qemu	-enable-kvm -usb $memory $disk $whatever \
 	-display [ sdl | gtk ] \
 	-vga std \
 	-device usb-tablet
 
-That is it for the first head, which will use the standard vga, the
+That is it for the first seat, which will use the standard vga, the
 standard ps/2 keyboard (implicitly there) and the usb-tablet.  Now the
-additional switches for the second head:
+additional switches for the second seat:
 
 	-device pci-bridge,addr=12.0,chassis_nr=2,id=head.2 \
 	-device secondary-vga,bus=head.2,addr=02.0,id=video.2 \
@@ -46,6 +46,16 @@ device.  The gtk ui will start with a single window and each display
 in a separate tab.  You can either simply switch tabs to switch heads,
 or use the "View / Detach tab" menu item to move one of the displays
 to its own window so you can see both display devices side-by-side.
+
+For vnc some additional configuration on the command line is needed.
+We'll create two vnc server instances, and bind the second one to the
+second seat, simliar to input devices:
+
+	-display vnc=:1,id=primary \
+	-display vnc=:2,id=secondary,display=video.2
+
+Connecting to vnc display :1 gives you access to the first seat, and
+likewise connecting to vnc display :2 shows the second seat.
 
 Note on spice: Spice handles multihead just fine.  But it can't do
 multiseat.  For tablet events the event source is sent to the spice
