@@ -68,12 +68,34 @@ static void vnc_set_share_mode(VncState *vs, VncShareMode mode)
             vs->csock, mn[vs->share_mode], mn[mode]);
 #endif
 
-    if (vs->share_mode == VNC_SHARE_MODE_EXCLUSIVE) {
+    switch (vs->share_mode) {
+    case VNC_SHARE_MODE_CONNECTING:
+        vs->vd->num_connecting--;
+        break;
+    case VNC_SHARE_MODE_SHARED:
+        vs->vd->num_shared--;
+        break;
+    case VNC_SHARE_MODE_EXCLUSIVE:
         vs->vd->num_exclusive--;
+        break;
+    default:
+        break;
     }
+
     vs->share_mode = mode;
-    if (vs->share_mode == VNC_SHARE_MODE_EXCLUSIVE) {
+
+    switch (vs->share_mode) {
+    case VNC_SHARE_MODE_CONNECTING:
+        vs->vd->num_connecting++;
+        break;
+    case VNC_SHARE_MODE_SHARED:
+        vs->vd->num_shared++;
+        break;
+    case VNC_SHARE_MODE_EXCLUSIVE:
         vs->vd->num_exclusive++;
+        break;
+    default:
+        break;
     }
 }
 
@@ -2337,6 +2359,11 @@ static int protocol_client_init(VncState *vs, uint8_t *data, size_t len)
     }
     vnc_set_share_mode(vs, mode);
 
+    if (vs->vd->num_shared > vs->vd->connections_limit) {
+        vnc_disconnect_start(vs);
+        return 0;
+    }
+
     vs->client_width = pixman_image_get_width(vs->vd->server);
     vs->client_height = pixman_image_get_height(vs->vd->server);
     vnc_write_u16(vs, vs->client_width);
@@ -2889,6 +2916,15 @@ static void vnc_connect(VncDisplay *vd, int csock,
     {
         vnc_init_state(vs);
     }
+
+    if (vd->num_connecting > vd->connections_limit) {
+        QTAILQ_FOREACH(vs, &vd->clients, next) {
+            if (vs->share_mode == VNC_SHARE_MODE_CONNECTING) {
+                vnc_disconnect_start(vs);
+                return;
+            }
+        }
+    }
 }
 
 void vnc_init_state(VncState *vs)
@@ -2907,7 +2943,7 @@ void vnc_init_state(VncState *vs)
     qemu_mutex_init(&vs->output_mutex);
     vs->bh = qemu_bh_new(vnc_jobs_bh, vs);
 
-    QTAILQ_INSERT_HEAD(&vd->clients, vs, next);
+    QTAILQ_INSERT_TAIL(&vd->clients, vs, next);
 
     graphic_hw_update(vd->dcl.con);
 
@@ -3098,6 +3134,9 @@ static QemuOptsList qemu_vnc_opts = {
             .name = "head",
             .type = QEMU_OPT_NUMBER,
         },{
+            .name = "connections",
+            .type = QEMU_OPT_NUMBER,
+        },{
             .name = "password",
             .type = QEMU_OPT_BOOL,
         },{
@@ -3211,6 +3250,7 @@ void vnc_display_open(const char *id, Error **errp)
     } else {
         vs->share_policy = VNC_SHARE_POLICY_ALLOW_EXCLUSIVE;
     }
+    vs->connections_limit = qemu_opt_get_number(opts, "connections", 32);
 
  #ifdef CONFIG_VNC_WS
     websocket = qemu_opt_get(opts, "websocket");

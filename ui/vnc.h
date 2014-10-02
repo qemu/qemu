@@ -150,7 +150,10 @@ typedef enum VncSharePolicy {
 struct VncDisplay
 {
     QTAILQ_HEAD(, VncState) clients;
+    int num_connecting;
+    int num_shared;
     int num_exclusive;
+    int connections_limit;
     VncSharePolicy share_policy;
     int lsock;
 #ifdef CONFIG_VNC_WS
