@@ -117,6 +117,60 @@ static void qapi_copy_SocketAddress(SocketAddress **p_dest,
     qobject_decref(obj);
 }
 
+static int SocketAddress_to_str(char *dest, int max_len,
+                                const char *prefix, SocketAddress *addr,
+                                bool is_listen, bool is_telnet)
+{
+    switch (addr->kind) {
+    case SOCKET_ADDRESS_KIND_INET:
+        return snprintf(dest, max_len, "%s%s:%s:%s%s", prefix,
+                        is_telnet ? "telnet" : "tcp", addr->inet->host,
+                        addr->inet->port, is_listen ? ",server" : "");
+        break;
+    case SOCKET_ADDRESS_KIND_UNIX:
+        return snprintf(dest, max_len, "%sunix:%s%s", prefix,
+                        addr->q_unix->path, is_listen ? ",server" : "");
+        break;
+    case SOCKET_ADDRESS_KIND_FD:
+        return snprintf(dest, max_len, "%sfd:%s%s", prefix, addr->fd->str,
+                        is_listen ? ",server" : "");
+        break;
+    default:
+        abort();
+    }
+}
+
+static int sockaddr_to_str(char *dest, int max_len,
+                           struct sockaddr_storage *ss, socklen_t ss_len,
+                           bool is_listen, bool is_telnet)
+{
+    char host[NI_MAXHOST], serv[NI_MAXSERV];
+    const char *left = "", *right = "";
+
+    switch (ss->ss_family) {
+#ifndef _WIN32
+    case AF_UNIX:
+        return snprintf(dest, max_len, "unix:%s%s",
+                        ((struct sockaddr_un *)(ss))->sun_path,
+                        is_listen ? ",server" : "");
+#endif
+    case AF_INET6:
+        left  = "[";
+        right = "]";
+        /* fall through */
+    case AF_INET:
+        getnameinfo((struct sockaddr *) ss, ss_len, host, sizeof(host),
+                    serv, sizeof(serv), NI_NUMERICHOST | NI_NUMERICSERV);
+        return snprintf(dest, max_len, "%s:%s%s%s:%s%s",
+                        is_telnet ? "telnet" : "tcp",
+                        left, host, right, serv,
+                        is_listen ? ",server" : "");
+
+    default:
+        return snprintf(dest, max_len, "unknown");
+    }
+}
+
 /***********************************************************/
 /* character device */
 
@@ -2727,6 +2781,8 @@ static void tcp_chr_disconnect(CharDriverState *chr)
     s->chan = NULL;
     closesocket(s->fd);
     s->fd = -1;
+    SocketAddress_to_str(chr->filename, CHR_MAX_FILENAME_SIZE,
+                         "disconnected:", s->addr, s->is_listen, s->is_telnet);
     qemu_chr_be_event(chr, CHR_EVENT_CLOSED);
 }
 
@@ -2798,6 +2854,17 @@ static void tcp_chr_connect(void *opaque)
 {
     CharDriverState *chr = opaque;
     TCPCharDriver *s = chr->opaque;
+    struct sockaddr_storage ss;
+    socklen_t ss_len = sizeof(ss);
+
+    memset(&ss, 0, ss_len);
+    if (getsockname(s->fd, (struct sockaddr *) &ss, &ss_len) != 0) {
+        snprintf(chr->filename, CHR_MAX_FILENAME_SIZE,
+                 "Error in getsockname: %s\n", strerror(errno));
+    } else {
+        sockaddr_to_str(chr->filename, CHR_MAX_FILENAME_SIZE, &ss, ss_len,
+                        s->is_listen, s->is_telnet);
+    }
 
     s->connected = 1;
     if (s->chan) {
@@ -2928,43 +2995,9 @@ static void tcp_chr_close(CharDriverState *chr)
     qemu_chr_be_event(chr, CHR_EVENT_CLOSED);
 }
 
-static bool qemu_chr_finish_socket_connection(CharDriverState *chr, int fd,
-                                              Error **errp)
+static void qemu_chr_finish_socket_connection(CharDriverState *chr, int fd)
 {
     TCPCharDriver *s = chr->opaque;
-    char host[NI_MAXHOST], serv[NI_MAXSERV];
-    const char *left = "", *right = "";
-    struct sockaddr_storage ss;
-    socklen_t ss_len = sizeof(ss);
-
-    memset(&ss, 0, ss_len);
-    if (getsockname(fd, (struct sockaddr *) &ss, &ss_len) != 0) {
-        closesocket(fd);
-        error_setg_errno(errp, errno, "getsockname");
-        return false;
-    }
-
-    switch (ss.ss_family) {
-#ifndef _WIN32
-    case AF_UNIX:
-        snprintf(chr->filename, CHR_MAX_FILENAME_SIZE, "unix:%s%s",
-                 ((struct sockaddr_un *)(&ss))->sun_path,
-                 s->is_listen ? ",server" : "");
-        break;
-#endif
-    case AF_INET6:
-        left  = "[";
-        right = "]";
-        /* fall through */
-    case AF_INET:
-        getnameinfo((struct sockaddr *) &ss, ss_len, host, sizeof(host),
-                    serv, sizeof(serv), NI_NUMERICHOST | NI_NUMERICSERV);
-        snprintf(chr->filename, CHR_MAX_FILENAME_SIZE, "%s:%s%s%s:%s%s",
-                 s->is_telnet ? "telnet" : "tcp",
-                 left, host, right, serv,
-                 s->is_listen ? ",server" : "");
-        break;
-    }
 
     if (s->is_listen) {
         s->listen_fd = fd;
@@ -2978,8 +3011,6 @@ static bool qemu_chr_finish_socket_connection(CharDriverState *chr, int fd,
         s->chan = io_channel_from_socket(s->fd);
         tcp_chr_connect(chr);
     }
-
-    return true;
 }
 
 static bool qemu_chr_open_socket_fd(CharDriverState *chr, Error **errp)
@@ -2996,7 +3027,8 @@ static bool qemu_chr_open_socket_fd(CharDriverState *chr, Error **errp)
         return false;
     }
 
-    return qemu_chr_finish_socket_connection(chr, fd, errp);
+    qemu_chr_finish_socket_connection(chr, fd);
+    return true;
 }
 
 /*********************************************************/
@@ -4019,6 +4051,8 @@ static CharDriverState *qmp_chardev_open_socket(ChardevSocket *sock,
     chr->explicit_be_open = true;
 
     chr->filename = g_malloc(CHR_MAX_FILENAME_SIZE);
+    SocketAddress_to_str(chr->filename, CHR_MAX_FILENAME_SIZE, "disconnected:",
+                         addr, is_listen, is_telnet);
 
     if (is_listen) {
         if (is_telnet) {
