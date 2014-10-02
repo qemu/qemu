@@ -29,6 +29,7 @@
 #include "hw/hw.h"
 #include "hw/pci/pci.h"
 #include "ui/console.h"
+#include "ui/pixel_ops.h"
 #include "vga_int.h"
 #include "hw/loader.h"
 
@@ -2170,20 +2171,44 @@ static void cirrus_cursor_invalidate(VGACommonState *s1)
     }
 }
 
-#define DEPTH 8
-#include "cirrus_vga_template.h"
+static void vga_draw_cursor_line(uint8_t *d1,
+                                 const uint8_t *src1,
+                                 int poffset, int w,
+                                 unsigned int color0,
+                                 unsigned int color1,
+                                 unsigned int color_xor)
+{
+    const uint8_t *plane0, *plane1;
+    int x, b0, b1;
+    uint8_t *d;
 
-#define DEPTH 16
-#include "cirrus_vga_template.h"
-
-#define DEPTH 32
-#include "cirrus_vga_template.h"
+    d = d1;
+    plane0 = src1;
+    plane1 = src1 + poffset;
+    for (x = 0; x < w; x++) {
+        b0 = (plane0[x >> 3] >> (7 - (x & 7))) & 1;
+        b1 = (plane1[x >> 3] >> (7 - (x & 7))) & 1;
+        switch (b0 | (b1 << 1)) {
+        case 0:
+            break;
+        case 1:
+            ((uint32_t *)d)[0] ^= color_xor;
+            break;
+        case 2:
+            ((uint32_t *)d)[0] = color0;
+            break;
+        case 3:
+            ((uint32_t *)d)[0] = color1;
+            break;
+        }
+        d += 4;
+    }
+}
 
 static void cirrus_cursor_draw_line(VGACommonState *s1, uint8_t *d1, int scr_y)
 {
     CirrusVGAState *s = container_of(s1, CirrusVGAState, vga);
-    DisplaySurface *surface = qemu_console_surface(s->vga.con);
-    int w, h, bpp, x1, x2, poffset;
+    int w, h, x1, x2, poffset;
     unsigned int color0, color1;
     const uint8_t *palette, *src;
     uint32_t content;
@@ -2212,6 +2237,8 @@ static void cirrus_cursor_draw_line(VGACommonState *s1, uint8_t *d1, int scr_y)
     } else {
         src += (s->vga.sr[0x13] & 0x3f) * 256;
         src += (scr_y - s->hw_cursor_y) * 4;
+
+
         poffset = 128;
         content = ((uint32_t *)src)[0] |
             ((uint32_t *)(src + 128))[0];
@@ -2229,30 +2256,14 @@ static void cirrus_cursor_draw_line(VGACommonState *s1, uint8_t *d1, int scr_y)
         x2 = s->vga.last_scr_width;
     w = x2 - x1;
     palette = s->cirrus_hidden_palette;
-    color0 = s->vga.rgb_to_pixel(c6_to_8(palette[0x0 * 3]),
-                                 c6_to_8(palette[0x0 * 3 + 1]),
-                                 c6_to_8(palette[0x0 * 3 + 2]));
-    color1 = s->vga.rgb_to_pixel(c6_to_8(palette[0xf * 3]),
-                                 c6_to_8(palette[0xf * 3 + 1]),
-                                 c6_to_8(palette[0xf * 3 + 2]));
-    bpp = surface_bytes_per_pixel(surface);
-    d1 += x1 * bpp;
-    switch (surface_bits_per_pixel(surface)) {
-    default:
-        break;
-    case 8:
-        vga_draw_cursor_line_8(d1, src, poffset, w, color0, color1, 0xff);
-        break;
-    case 15:
-        vga_draw_cursor_line_16(d1, src, poffset, w, color0, color1, 0x7fff);
-        break;
-    case 16:
-        vga_draw_cursor_line_16(d1, src, poffset, w, color0, color1, 0xffff);
-        break;
-    case 32:
-        vga_draw_cursor_line_32(d1, src, poffset, w, color0, color1, 0xffffff);
-        break;
-    }
+    color0 = rgb_to_pixel32(c6_to_8(palette[0x0 * 3]),
+                            c6_to_8(palette[0x0 * 3 + 1]),
+                            c6_to_8(palette[0x0 * 3 + 2]));
+    color1 = rgb_to_pixel32(c6_to_8(palette[0xf * 3]),
+                            c6_to_8(palette[0xf * 3 + 1]),
+                            c6_to_8(palette[0xf * 3 + 2]));
+    d1 += x1 * 4;
+    vga_draw_cursor_line(d1, src, poffset, w, color0, color1, 0xffffff);
 }
 
 /***************************************
