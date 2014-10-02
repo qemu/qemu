@@ -83,7 +83,7 @@ static void test_after_failed_device_add(void)
      */
     response = qmp("{'execute': 'human-monitor-command',"
                    " 'arguments': {"
-                   "   'command-line': 'drive_add pci-addr=auto if=none,id=drive0'"
+                   "   'command-line': 'drive_add 0 if=none,id=drive0'"
                    "}}");
     g_assert(response);
     g_assert_cmpstr(qdict_get_try_str(response, "return"), ==, "OK\r\n");
