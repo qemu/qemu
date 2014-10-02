@@ -142,9 +142,11 @@ static int SocketAddress_to_str(char *dest, int max_len,
 
 static int sockaddr_to_str(char *dest, int max_len,
                            struct sockaddr_storage *ss, socklen_t ss_len,
+                           struct sockaddr_storage *ps, socklen_t ps_len,
                            bool is_listen, bool is_telnet)
 {
-    char host[NI_MAXHOST], serv[NI_MAXSERV];
+    char shost[NI_MAXHOST], sserv[NI_MAXSERV];
+    char phost[NI_MAXHOST], pserv[NI_MAXSERV];
     const char *left = "", *right = "";
 
     switch (ss->ss_family) {
@@ -159,12 +161,15 @@ static int sockaddr_to_str(char *dest, int max_len,
         right = "]";
         /* fall through */
     case AF_INET:
-        getnameinfo((struct sockaddr *) ss, ss_len, host, sizeof(host),
-                    serv, sizeof(serv), NI_NUMERICHOST | NI_NUMERICSERV);
-        return snprintf(dest, max_len, "%s:%s%s%s:%s%s",
+        getnameinfo((struct sockaddr *) ss, ss_len, shost, sizeof(shost),
+                    sserv, sizeof(sserv), NI_NUMERICHOST | NI_NUMERICSERV);
+        getnameinfo((struct sockaddr *) ps, ps_len, phost, sizeof(phost),
+                    pserv, sizeof(pserv), NI_NUMERICHOST | NI_NUMERICSERV);
+        return snprintf(dest, max_len, "%s:%s%s%s:%s%s <-> %s%s%s:%s",
                         is_telnet ? "telnet" : "tcp",
-                        left, host, right, serv,
-                        is_listen ? ",server" : "");
+                        left, shost, right, sserv,
+                        is_listen ? ",server" : "",
+                        left, phost, right, pserv);
 
     default:
         return snprintf(dest, max_len, "unknown");
@@ -2870,15 +2875,19 @@ static void tcp_chr_connect(void *opaque)
 {
     CharDriverState *chr = opaque;
     TCPCharDriver *s = chr->opaque;
-    struct sockaddr_storage ss;
-    socklen_t ss_len = sizeof(ss);
+    struct sockaddr_storage ss, ps;
+    socklen_t ss_len = sizeof(ss), ps_len = sizeof(ps);
 
     memset(&ss, 0, ss_len);
     if (getsockname(s->fd, (struct sockaddr *) &ss, &ss_len) != 0) {
         snprintf(chr->filename, CHR_MAX_FILENAME_SIZE,
                  "Error in getsockname: %s\n", strerror(errno));
+    } else if (getpeername(s->fd, (struct sockaddr *) &ps, &ps_len) != 0) {
+        snprintf(chr->filename, CHR_MAX_FILENAME_SIZE,
+                 "Error in getpeername: %s\n", strerror(errno));
     } else {
-        sockaddr_to_str(chr->filename, CHR_MAX_FILENAME_SIZE, &ss, ss_len,
+        sockaddr_to_str(chr->filename, CHR_MAX_FILENAME_SIZE,
+                        &ss, ss_len, &ps, ps_len,
                         s->is_listen, s->is_telnet);
     }
 
