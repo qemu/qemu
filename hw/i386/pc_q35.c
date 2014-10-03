@@ -299,7 +299,7 @@ static void pc_compat_1_7(MachineState *machine)
     smbios_defaults = false;
     gigabyte_align = false;
     option_rom_has_mr = true;
-    x86_cpu_compat_disable_kvm_features(FEAT_1_ECX, CPUID_EXT_X2APIC);
+    x86_cpu_compat_kvm_no_autoenable(FEAT_1_ECX, CPUID_EXT_X2APIC);
 }
 
 static void pc_compat_1_6(MachineState *machine)

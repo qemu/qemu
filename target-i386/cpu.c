@@ -462,7 +462,7 @@ static uint32_t kvm_default_unset_features[FEATURE_WORDS] = {
     [FEAT_1_ECX] = CPUID_EXT_MONITOR,
 };
 
-void x86_cpu_compat_disable_kvm_features(FeatureWord w, uint32_t features)
+void x86_cpu_compat_kvm_no_autoenable(FeatureWord w, uint32_t features)
 {
     kvm_default_features[w] &= ~features;
 }
