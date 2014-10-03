@@ -234,8 +234,8 @@ static void pc_init1(MachineState *machine,
     pc_vga_init(isa_bus, pci_enabled ? pci_bus : NULL);
 
     /* init basic PC hardware */
-    pc_basic_device_init(isa_bus, gsi, &rtc_state, &floppy, xen_enabled(),
-        0x4);
+    pc_basic_device_init(isa_bus, gsi, &rtc_state, &floppy,
+                         !pc_machine->vmport, 0x4);
 
     pc_nic_init(isa_bus, pci_bus);
 

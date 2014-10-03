@@ -242,7 +242,8 @@ static void pc_q35_init(MachineState *machine)
     pc_register_ferr_irq(gsi[13]);
 
     /* init basic PC hardware */
-    pc_basic_device_init(isa_bus, gsi, &rtc_state, &floppy, false, 0xff0104);
+    pc_basic_device_init(isa_bus, gsi, &rtc_state, &floppy,
+                         !pc_machine->vmport, 0xff0104);
 
     /* connect pm stuff to lpc */
     ich9_lpc_pm_init(lpc);
