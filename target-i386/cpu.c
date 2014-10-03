@@ -461,11 +461,17 @@ static uint32_t kvm_default_features[FEATURE_WORDS] = {
 static uint32_t kvm_default_unset_features[FEATURE_WORDS] = {
     [FEAT_1_EDX] = CPUID_ACPI,
     [FEAT_1_ECX] = CPUID_EXT_MONITOR,
+    [FEAT_8000_0001_ECX] = CPUID_EXT3_SVM,
 };
 
 void x86_cpu_compat_kvm_no_autoenable(FeatureWord w, uint32_t features)
 {
     kvm_default_features[w] &= ~features;
+}
+
+void x86_cpu_compat_kvm_no_autodisable(FeatureWord w, uint32_t features)
+{
+    kvm_default_unset_features[w] &= ~features;
 }
 
 /*
