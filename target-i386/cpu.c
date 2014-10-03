@@ -718,10 +718,10 @@ static X86CPUDefinition builtin_x86_defs[] = {
             CPUID_MTRR | CPUID_CLFLUSH | CPUID_MCA |
             CPUID_PSE36 | CPUID_VME | CPUID_ACPI | CPUID_SS,
         /* Missing: CPUID_EXT_DTES64, CPUID_EXT_DSCPL, CPUID_EXT_EST,
-         * CPUID_EXT_TM2, CPUID_EXT_XTPR, CPUID_EXT_PDCM */
+         * CPUID_EXT_TM2, CPUID_EXT_XTPR, CPUID_EXT_PDCM, CPUID_EXT_VMX */
         .features[FEAT_1_ECX] =
             CPUID_EXT_SSE3 | CPUID_EXT_MONITOR | CPUID_EXT_SSSE3 |
-            CPUID_EXT_VMX | CPUID_EXT_CX16,
+            CPUID_EXT_CX16,
         .features[FEAT_8000_0001_EDX] =
             CPUID_EXT2_LM | CPUID_EXT2_SYSCALL | CPUID_EXT2_NX,
         .features[FEAT_8000_0001_ECX] =
@@ -802,9 +802,9 @@ static X86CPUDefinition builtin_x86_defs[] = {
             CPUID_MTRR | CPUID_CLFLUSH | CPUID_MCA | CPUID_ACPI |
             CPUID_SS,
         /* Missing: CPUID_EXT_EST, CPUID_EXT_TM2 , CPUID_EXT_XTPR,
-         * CPUID_EXT_PDCM */
+         * CPUID_EXT_PDCM, CPUID_EXT_VMX */
         .features[FEAT_1_ECX] =
-            CPUID_EXT_SSE3 | CPUID_EXT_MONITOR | CPUID_EXT_VMX,
+            CPUID_EXT_SSE3 | CPUID_EXT_MONITOR,
         .features[FEAT_8000_0001_EDX] =
             CPUID_EXT2_NX,
         .xlevel = 0x80000008,
