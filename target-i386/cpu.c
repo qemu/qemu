@@ -459,6 +459,7 @@ static uint32_t kvm_default_features[FEATURE_WORDS] = {
 /* Features that are not added by default to any CPU model when KVM is enabled.
  */
 static uint32_t kvm_default_unset_features[FEATURE_WORDS] = {
+    [FEAT_1_EDX] = CPUID_ACPI,
     [FEAT_1_ECX] = CPUID_EXT_MONITOR,
 };
 
