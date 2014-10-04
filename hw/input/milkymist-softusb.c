@@ -194,10 +194,13 @@ static void softusb_kbd_hid_datain(HIDState *hs)
         return;
     }
 
-    len = hid_keyboard_poll(hs, s->kbd_hid_buffer, sizeof(s->kbd_hid_buffer));
+    while (hid_has_events(hs)) {
+        len = hid_keyboard_poll(hs, s->kbd_hid_buffer,
+                sizeof(s->kbd_hid_buffer));
 
-    if (len == 8) {
-        softusb_kbd_changed(s);
+        if (len == 8) {
+            softusb_kbd_changed(s);
+        }
     }
 }
 
@@ -212,11 +215,13 @@ static void softusb_mouse_hid_datain(HIDState *hs)
         return;
     }
 
-    len = hid_pointer_poll(hs, s->mouse_hid_buffer,
-            sizeof(s->mouse_hid_buffer));
+    while (hid_has_events(hs)) {
+        len = hid_pointer_poll(hs, s->mouse_hid_buffer,
+                sizeof(s->mouse_hid_buffer));
 
-    if (len == 4) {
-        softusb_mouse_changed(s);
+        if (len == 4) {
+            softusb_mouse_changed(s);
+        }
     }
 }
 
