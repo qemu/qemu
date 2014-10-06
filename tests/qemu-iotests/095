@@ -60,7 +60,7 @@ _make_test_img -b "${TEST_IMG}.snp1" $size_larger
 
 echo
 echo "=== Base image info before commit and resize ==="
-$QEMU_IMG info "${TEST_IMG}.base" | _filter_testdir
+TEST_IMG="${TEST_IMG}.base" _img_info
 
 echo
 echo === Running QEMU Live Commit Test ===
@@ -78,7 +78,7 @@ _send_qemu_cmd $h "{ 'execute': 'block-commit',
 
 echo
 echo "=== Base image info after commit and resize ==="
-$QEMU_IMG info "${TEST_IMG}.base" | _filter_testdir
+TEST_IMG="${TEST_IMG}.base" _img_info
 
 # success, all done
 echo "*** done"

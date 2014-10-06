@@ -1736,9 +1736,7 @@ out:
     qemu_opts_del(opts);
     qemu_opts_free(create_opts);
     qemu_vfree(buf);
-    if (sn_opts) {
-        qemu_opts_del(sn_opts);
-    }
+    qemu_opts_del(sn_opts);
     if (out_bs) {
         bdrv_unref(out_bs);
     }

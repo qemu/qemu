@@ -60,7 +60,7 @@ static const char *const if_name[IF_COUNT] = {
     [IF_XEN] = "xen",
 };
 
-static const int if_max_devs[IF_COUNT] = {
+static int if_max_devs[IF_COUNT] = {
     /*
      * Do not change these numbers!  They govern how drive option
      * index maps to unit and bus.  That mapping is ABI.
@@ -78,6 +78,30 @@ static const int if_max_devs[IF_COUNT] = {
     [IF_IDE] = 2,
     [IF_SCSI] = 7,
 };
+
+/**
+ * Boards may call this to offer board-by-board overrides
+ * of the default, global values.
+ */
+void override_max_devs(BlockInterfaceType type, int max_devs)
+{
+    DriveInfo *dinfo;
+
+    if (max_devs <= 0) {
+        return;
+    }
+
+    QTAILQ_FOREACH(dinfo, &drives, next) {
+        if (dinfo->type == type) {
+            fprintf(stderr, "Cannot override units-per-bus property of"
+                    " the %s interface, because a drive of that type has"
+                    " already been added.\n", if_name[type]);
+            g_assert_not_reached();
+        }
+    }
+
+    if_max_devs[type] = max_devs;
+}
 
 /*
  * We automatically delete the drive when a device using it gets
@@ -109,6 +133,23 @@ void blockdev_auto_del(BlockDriverState *bs)
     if (dinfo && dinfo->auto_del) {
         drive_del(dinfo);
     }
+}
+
+/**
+ * Returns the current mapping of how many units per bus
+ * a particular interface can support.
+ *
+ *  A positive integer indicates n units per bus.
+ *  0 implies the mapping has not been established.
+ * -1 indicates an invalid BlockInterfaceType was given.
+ */
+int drive_get_max_devs(BlockInterfaceType type)
+{
+    if (type >= IF_IDE && type < IF_COUNT) {
+        return if_max_devs[type];
+    }
+
+    return -1;
 }
 
 static int drive_index_to_bus_id(BlockInterfaceType type, int index)
@@ -164,6 +205,27 @@ DriveInfo *drive_get(BlockInterfaceType type, int bus, int unit)
     }
 
     return NULL;
+}
+
+bool drive_check_orphaned(void)
+{
+    DriveInfo *dinfo;
+    bool rs = false;
+
+    QTAILQ_FOREACH(dinfo, &drives, next) {
+        /* If dinfo->bdrv->dev is NULL, it has no device attached. */
+        /* Unless this is a default drive, this may be an oversight. */
+        if (!dinfo->bdrv->dev && !dinfo->is_default &&
+            dinfo->type != IF_NONE) {
+            fprintf(stderr, "Warning: Orphaned drive without device: "
+                    "id=%s,file=%s,if=%s,bus=%d,unit=%d\n",
+                    dinfo->id, dinfo->bdrv->filename, if_name[dinfo->type],
+                    dinfo->bus, dinfo->unit);
+            rs = true;
+        }
+    }
+
+    return rs;
 }
 
 DriveInfo *drive_get_by_index(BlockInterfaceType type, int index)
@@ -224,9 +286,7 @@ void drive_info_del(DriveInfo *dinfo)
     if (!dinfo) {
         return;
     }
-    if (dinfo->opts) {
-        qemu_opts_del(dinfo->opts);
-    }
+    qemu_opts_del(dinfo->opts);
     g_free(dinfo->id);
     QTAILQ_REMOVE(&drives, dinfo, next);
     g_free(dinfo->serial);
@@ -550,6 +610,10 @@ static void qemu_opt_rename(QemuOpts *opts, const char *from, const char *to,
                        "same time", to, from);
             return;
         }
+    }
+
+    /* rename all items in opts */
+    while ((value = qemu_opt_get(opts, from))) {
         qemu_opt_set(opts, to, value);
         qemu_opt_unset(opts, from);
     }

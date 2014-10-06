@@ -86,6 +86,7 @@ static void pc_q35_init(MachineState *machine)
     DeviceState *icc_bridge;
     PcGuestInfo *guest_info;
     ram_addr_t lowmem;
+    DriveInfo *hd[MAX_SATA_PORTS];
 
     /* Check whether RAM fits below 4G (leaving 1/2 GByte for IO memory
      * and 256 Mbytes for PCI Express Enhanced Configuration Access Mapping
@@ -253,6 +254,9 @@ static void pc_q35_init(MachineState *machine)
                                            true, "ich9-ahci");
     idebus[0] = qdev_get_child_bus(&ahci->qdev, "ide.0");
     idebus[1] = qdev_get_child_bus(&ahci->qdev, "ide.1");
+    g_assert_cmpint(MAX_SATA_PORTS, ==, ICH_AHCI(ahci)->ahci.ports);
+    ide_drive_get(hd, ICH_AHCI(ahci)->ahci.ports);
+    ahci_ide_create_devs(ahci, hd);
 
     if (usb_enabled(false)) {
         /* Should we create 6 UHCI according to ich9 spec? */
@@ -344,7 +348,8 @@ static void pc_q35_init_1_4(MachineState *machine)
 #define PC_Q35_MACHINE_OPTIONS \
     PC_DEFAULT_MACHINE_OPTIONS, \
     .desc = "Standard PC (Q35 + ICH9, 2009)", \
-    .hot_add_cpu = pc_hot_add_cpu
+    .hot_add_cpu = pc_hot_add_cpu, \
+    .units_per_default_bus = 1
 
 #define PC_Q35_2_2_MACHINE_OPTIONS                      \
     PC_Q35_MACHINE_OPTIONS,                             \

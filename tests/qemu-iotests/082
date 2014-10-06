@@ -56,7 +56,7 @@ echo === create: Options specified more than once ===
 
 # Last -f should win
 run_qemu_img create -f foo -f $IMGFMT "$TEST_IMG" $size
-run_qemu_img info "$TEST_IMG"
+_img_info
 
 # Multiple -o should be merged
 run_qemu_img create -f $IMGFMT -o cluster_size=4k -o lazy_refcounts=on "$TEST_IMG" $size
@@ -66,7 +66,7 @@ run_qemu_img info "$TEST_IMG"
 run_qemu_img create -f $IMGFMT -o cluster_size=4k -o lazy_refcounts=on -o cluster_size=8k "$TEST_IMG" $size
 run_qemu_img info "$TEST_IMG"
 run_qemu_img create -f $IMGFMT -o cluster_size=4k,cluster_size=8k "$TEST_IMG" $size
-run_qemu_img info "$TEST_IMG"
+_img_info
 
 echo
 echo === create: help for -o ===
@@ -106,11 +106,11 @@ run_qemu_img create -f $IMGFMT "$TEST_IMG" $size
 
 # Last -f should win
 run_qemu_img convert -f foo -f $IMGFMT "$TEST_IMG" "$TEST_IMG".base
-run_qemu_img info "$TEST_IMG".base
+TEST_IMG="${TEST_IMG}.base" _img_info
 
 # Last -O should win
 run_qemu_img convert -O foo -O $IMGFMT "$TEST_IMG" "$TEST_IMG".base
-run_qemu_img info "$TEST_IMG".base
+TEST_IMG="${TEST_IMG}.base" _img_info
 
 # Multiple -o should be merged
 run_qemu_img convert -O $IMGFMT -o cluster_size=4k -o lazy_refcounts=on "$TEST_IMG" "$TEST_IMG".base
@@ -120,7 +120,7 @@ run_qemu_img info "$TEST_IMG".base
 run_qemu_img convert -O $IMGFMT -o cluster_size=4k -o lazy_refcounts=on -o cluster_size=8k "$TEST_IMG" "$TEST_IMG".base
 run_qemu_img info "$TEST_IMG".base
 run_qemu_img convert -O $IMGFMT -o cluster_size=4k,cluster_size=8k "$TEST_IMG" "$TEST_IMG".base
-run_qemu_img info "$TEST_IMG".base
+TEST_IMG="${TEST_IMG}.base" _img_info
 
 echo
 echo === convert: help for -o ===
@@ -167,7 +167,7 @@ run_qemu_img info "$TEST_IMG"
 run_qemu_img amend -f $IMGFMT -o size=8M -o lazy_refcounts=on -o size=132M "$TEST_IMG"
 run_qemu_img info "$TEST_IMG"
 run_qemu_img amend -f $IMGFMT -o size=4M,size=148M "$TEST_IMG"
-run_qemu_img info "$TEST_IMG"
+_img_info
 
 echo
 echo === amend: help for -o ===

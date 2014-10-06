@@ -714,14 +714,12 @@ static void test_acpi_one(const char *params, test_data *data)
     uint8_t signature_high;
     uint16_t signature;
     int i;
-    const char *device = "";
 
-    if (!g_strcmp0(data->machine, MACHINE_Q35)) {
-        device = ",id=hd -device ide-hd,drive=hd";
-    }
+    args = g_strdup_printf("-net none -display none %s "
+                           "-drive id=hd0,if=none,file=%s "
+                           "-device ide-hd,drive=hd0 ",
+                           params ? params : "", disk);
 
-    args = g_strdup_printf("-net none -display none %s -drive file=%s%s,",
-                           params ? params : "", disk, device);
     qtest_start(args);
 
    /* Wait at most 1 minute */

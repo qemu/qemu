@@ -77,7 +77,7 @@ _use_sample_img test-disk2vhd.vhdx.bz2
 
 echo
 echo "=== Verify image created by Disk2VHD can be opened ==="
-$QEMU_IMG info "$TEST_IMG" 2>&1 | _filter_testdir | _filter_qemu
+_img_info
 
 # success, all done
 echo "*** done"

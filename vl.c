@@ -1169,6 +1169,7 @@ static void default_drive(int enable, int snapshot, BlockInterfaceType type,
                           int index, const char *optstr)
 {
     QemuOpts *opts;
+    DriveInfo *dinfo;
 
     if (!enable || drive_get_by_index(type, index)) {
         return;
@@ -1178,9 +1179,13 @@ static void default_drive(int enable, int snapshot, BlockInterfaceType type,
     if (snapshot) {
         drive_enable_snapshot(opts, NULL);
     }
-    if (!drive_new(opts, type)) {
+
+    dinfo = drive_new(opts, type);
+    if (!dinfo) {
         exit(1);
     }
+    dinfo->is_default = true;
+
 }
 
 void qemu_register_boot_set(QEMUBootSetHandler *func, void *opaque)
@@ -1580,6 +1585,7 @@ static void machine_class_init(ObjectClass *oc, void *data)
     mc->hot_add_cpu = qm->hot_add_cpu;
     mc->kvm_type = qm->kvm_type;
     mc->block_default_type = qm->block_default_type;
+    mc->units_per_default_bus = qm->units_per_default_bus;
     mc->max_cpus = qm->max_cpus;
     mc->no_serial = qm->no_serial;
     mc->no_parallel = qm->no_parallel;
@@ -4370,6 +4376,13 @@ int main(int argc, char **argv, char **envp)
     blk_mig_init();
     ram_mig_init();
 
+    /* If the currently selected machine wishes to override the units-per-bus
+     * property of its default HBA interface type, do so now. */
+    if (machine_class->units_per_default_bus) {
+        override_max_devs(machine_class->block_default_type,
+                          machine_class->units_per_default_bus);
+    }
+
     /* open the virtual block devices */
     if (snapshot)
         qemu_opts_foreach(qemu_find_opts("drive"), drive_enable_snapshot, NULL, 0);
@@ -4456,6 +4469,9 @@ int main(int argc, char **argv, char **envp)
     /* init generic devices */
     if (qemu_opts_foreach(qemu_find_opts("device"), device_init_func, NULL, 1) != 0)
         exit(1);
+
+    /* Did we create any drives that we failed to create a device for? */
+    drive_check_orphaned();
 
     net_check_clients();
 

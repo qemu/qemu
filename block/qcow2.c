@@ -2282,6 +2282,9 @@ static ImageInfoSpecific *qcow2_get_specific_info(BlockDriverState *bs)
             .lazy_refcounts     = s->compatible_features &
                                   QCOW2_COMPAT_LAZY_REFCOUNTS,
             .has_lazy_refcounts = true,
+            .corrupt            = s->incompatible_features &
+                                  QCOW2_INCOMPAT_CORRUPT,
+            .has_corrupt        = true,
         };
     }
 

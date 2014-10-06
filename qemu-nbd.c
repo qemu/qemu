@@ -778,9 +778,7 @@ int main(int argc, char **argv)
         unlink(sockpath);
     }
 
-    if (sn_opts) {
-        qemu_opts_del(sn_opts);
-    }
+    qemu_opts_del(sn_opts);
 
     if (device) {
         void *ret;

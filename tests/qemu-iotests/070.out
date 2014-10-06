@@ -20,9 +20,8 @@ read 18874368/18874368 bytes at offset 0
 18 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 
 === Verify image created by Disk2VHD can be opened ===
-image: TEST_DIR/test-disk2vhd.vhdx
-file format: vhdx
+image: TEST_DIR/test-disk2vhd.IMGFMT
+file format: IMGFMT
 virtual size: 256M (268435456 bytes)
-disk size: 260M
 cluster_size: 2097152
 *** done

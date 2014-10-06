@@ -1,8 +1,8 @@
 #!/bin/bash
 #
-# Test bdrv_read/bdrv_write using BDRV_O_SNAPSHOT
+# Create, read, write big image
 #
-# Copyright (C) 2013 Red Hat, Inc.
+# Copyright (C) 2014 Red Hat, Inc.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -19,7 +19,7 @@
 #
 
 # creator
-owner=stefanha@redhat.com
+owner=famz@redhat.com
 
 seq=`basename $0`
 echo "QA output created by $seq"
@@ -38,24 +38,31 @@ trap "_cleanup; exit \$status" 0 1 2 3 15
 . ./common.rc
 . ./common.filter
 
-_supported_fmt generic
-_supported_proto file
+_supported_fmt qcow2 vmdk vhdx qed
+_supported_proto generic
 _supported_os Linux
-
-# Don't do O_DIRECT on tmpfs
-_supported_cache_modes "writeback" "writethrough" "unsafe"
-
-size=128M
-_make_test_img $size
+_unsupported_imgopts "subformat=twoGbMaxExtentFlat" \
+                     "subformat=twoGbMaxExtentSparse"
 
 echo
-echo "== reading whole image =="
-$QEMU_IO -s -c "read 0 $size" "$TEST_IMG" | _filter_qemu_io
+echo "creating large image"
+_make_test_img 16T
 
 echo
-echo "== writing whole image does not modify image =="
-$QEMU_IO -s -c "write -P 0xa 0 $size" "$TEST_IMG" | _filter_qemu_io
-$QEMU_IO -c "read -P 0 0 $size" "$TEST_IMG" | _filter_qemu_io
+echo "small read"
+$QEMU_IO -c "read 1024 4096" "$TEST_IMG" | _filter_qemu_io
+
+echo
+echo "small write"
+$QEMU_IO -c "write 8192 4096" "$TEST_IMG" | _filter_qemu_io
+
+echo
+echo "small read at high offset"
+$QEMU_IO -c "read 14T 4096" "$TEST_IMG" | _filter_qemu_io
+
+echo
+echo "small write at high offset"
+$QEMU_IO -c "write 14T 4096" "$TEST_IMG" | _filter_qemu_io
 
 # success, all done
 echo "*** done"
