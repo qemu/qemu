@@ -356,36 +356,12 @@ static inline void vmsvga_update_rect(struct vmsvga_state_s *s,
     uint8_t *src;
     uint8_t *dst;
 
-    if (x < 0) {
-        fprintf(stderr, "%s: update x was < 0 (%d)\n", __func__, x);
-        w += x;
+    if (!vmsvga_verify_rect(surface, __func__, x, y, w, h)) {
+        /* go for a fullscreen update as fallback */
         x = 0;
-    }
-    if (w < 0) {
-        fprintf(stderr, "%s: update w was < 0 (%d)\n", __func__, w);
-        w = 0;
-    }
-    if (x + w > surface_width(surface)) {
-        fprintf(stderr, "%s: update width too large x: %d, w: %d\n",
-                __func__, x, w);
-        x = MIN(x, surface_width(surface));
-        w = surface_width(surface) - x;
-    }
-
-    if (y < 0) {
-        fprintf(stderr, "%s: update y was < 0 (%d)\n",  __func__, y);
-        h += y;
         y = 0;
-    }
-    if (h < 0) {
-        fprintf(stderr, "%s: update h was < 0 (%d)\n",  __func__, h);
-        h = 0;
-    }
-    if (y + h > surface_height(surface)) {
-        fprintf(stderr, "%s: update height too large y: %d, h: %d\n",
-                __func__, y, h);
-        y = MIN(y, surface_height(surface));
-        h = surface_height(surface) - y;
+        w = surface_width(surface);
+        h = surface_height(surface);
     }
 
     bypl = surface_stride(surface);
