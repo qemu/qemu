@@ -29,8 +29,8 @@
 #include "hw/pci/pci.h"
 
 #undef VERBOSE
-#if 0
 #define HW_RECT_ACCEL
+#if 0
 #define HW_FILL_ACCEL
 #endif
 #define HW_MOUSE_ACCEL
@@ -406,7 +406,7 @@ static inline void vmsvga_update_rect_flush(struct vmsvga_state_s *s)
 }
 
 #ifdef HW_RECT_ACCEL
-static inline void vmsvga_copy_rect(struct vmsvga_state_s *s,
+static inline int vmsvga_copy_rect(struct vmsvga_state_s *s,
                 int x0, int y0, int x1, int y1, int w, int h)
 {
     DisplaySurface *surface = qemu_console_surface(s->vga.con);
@@ -416,6 +416,13 @@ static inline void vmsvga_copy_rect(struct vmsvga_state_s *s,
     int width = bypp * w;
     int line = h;
     uint8_t *ptr[2];
+
+    if (!vmsvga_verify_rect(surface, "vmsvga_copy_rect/src", x0, y0, w, h)) {
+        return -1;
+    }
+    if (!vmsvga_verify_rect(surface, "vmsvga_copy_rect/dst", x1, y1, w, h)) {
+        return -1;
+    }
 
     if (y1 > y0) {
         ptr[0] = vram + bypp * x0 + bypl * (y0 + h - 1);
@@ -432,6 +439,7 @@ static inline void vmsvga_copy_rect(struct vmsvga_state_s *s,
     }
 
     vmsvga_update_rect_delayed(s, x1, y1, w, h);
+    return 0;
 }
 #endif
 
@@ -625,12 +633,12 @@ static void vmsvga_fifo_run(struct vmsvga_state_s *s)
             width = vmsvga_fifo_read(s);
             height = vmsvga_fifo_read(s);
 #ifdef HW_RECT_ACCEL
-            vmsvga_copy_rect(s, x, y, dx, dy, width, height);
-            break;
-#else
+            if (vmsvga_copy_rect(s, x, y, dx, dy, width, height) == 0) {
+                break;
+            }
+#endif
             args = 0;
             goto badcmd;
-#endif
 
         case SVGA_CMD_DEFINE_CURSOR:
             len -= 8;
