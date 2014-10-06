@@ -29,8 +29,10 @@
 #include "hw/pci/pci.h"
 
 #undef VERBOSE
+#if 0
 #define HW_RECT_ACCEL
 #define HW_FILL_ACCEL
+#endif
 #define HW_MOUSE_ACCEL
 
 #include "vga_int.h"
