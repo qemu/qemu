@@ -1593,8 +1593,10 @@ exit:
 }
 
 
-static void eject_device(BlockDriverState *bs, int force, Error **errp)
+static void eject_device(BlockBackend *blk, int force, Error **errp)
 {
+    BlockDriverState *bs = blk_bs(blk);
+
     if (bdrv_op_is_blocked(bs, BLOCK_OP_TYPE_EJECT, errp)) {
         return;
     }
@@ -1618,15 +1620,15 @@ static void eject_device(BlockDriverState *bs, int force, Error **errp)
 
 void qmp_eject(const char *device, bool has_force, bool force, Error **errp)
 {
-    BlockDriverState *bs;
+    BlockBackend *blk;
 
-    bs = bdrv_find(device);
-    if (!bs) {
+    blk = blk_by_name(device);
+    if (!blk) {
         error_set(errp, QERR_DEVICE_NOT_FOUND, device);
         return;
     }
 
-    eject_device(bs, force, errp);
+    eject_device(blk, force, errp);
 }
 
 void qmp_block_passwd(bool has_device, const char *device,
@@ -1685,16 +1687,18 @@ static void qmp_bdrv_open_encrypted(BlockDriverState *bs, const char *filename,
 void qmp_change_blockdev(const char *device, const char *filename,
                          const char *format, Error **errp)
 {
+    BlockBackend *blk;
     BlockDriverState *bs;
     BlockDriver *drv = NULL;
     int bdrv_flags;
     Error *err = NULL;
 
-    bs = bdrv_find(device);
-    if (!bs) {
+    blk = blk_by_name(device);
+    if (!blk) {
         error_set(errp, QERR_DEVICE_NOT_FOUND, device);
         return;
     }
+    bs = blk_bs(blk);
 
     if (format) {
         drv = bdrv_find_whitelisted_format(format, bs->read_only);
@@ -1704,7 +1708,7 @@ void qmp_change_blockdev(const char *device, const char *filename,
         }
     }
 
-    eject_device(bs, 0, &err);
+    eject_device(blk, 0, &err);
     if (err) {
         error_propagate(errp, err);
         return;
