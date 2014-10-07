@@ -463,7 +463,6 @@ static SCSIRequest *scsi_new_request(SCSIDevice *d, uint32_t tag, uint32_t lun,
 
 static Property scsi_generic_properties[] = {
     DEFINE_PROP_DRIVE("drive", SCSIDevice, conf.bs),
-    DEFINE_PROP_INT32("bootindex", SCSIDevice, conf.bootindex, -1),
     DEFINE_PROP_END_OF_LIST(),
 };
 
