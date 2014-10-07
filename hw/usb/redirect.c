@@ -2471,7 +2471,6 @@ static Property usbredir_properties[] = {
     DEFINE_PROP_CHR("chardev", USBRedirDevice, cs),
     DEFINE_PROP_UINT8("debug", USBRedirDevice, debug, usbredirparser_warning),
     DEFINE_PROP_STRING("filter", USBRedirDevice, filter_str),
-    DEFINE_PROP_INT32("bootindex", USBRedirDevice, bootindex, -1),
     DEFINE_PROP_END_OF_LIST(),
 };
 
@@ -2496,11 +2495,22 @@ static void usbredir_class_initfn(ObjectClass *klass, void *data)
     set_bit(DEVICE_CATEGORY_MISC, dc->categories);
 }
 
+static void usbredir_instance_init(Object *obj)
+{
+    USBDevice *udev = USB_DEVICE(obj);
+    USBRedirDevice *dev = DO_UPCAST(USBRedirDevice, dev, udev);
+
+    device_add_bootindex_property(obj, &dev->bootindex,
+                                  "bootindex", NULL,
+                                  &udev->qdev, NULL);
+}
+
 static const TypeInfo usbredir_dev_info = {
     .name          = "usb-redir",
     .parent        = TYPE_USB_DEVICE,
     .instance_size = sizeof(USBRedirDevice),
     .class_init    = usbredir_class_initfn,
+    .instance_init = usbredir_instance_init,
 };
 
 static void usbredir_register_types(void)
