@@ -369,6 +369,7 @@ static void object_property_del_all(Object *obj)
 
         g_free(prop->name);
         g_free(prop->type);
+        g_free(prop->description);
         g_free(prop);
     }
 }
@@ -803,6 +804,7 @@ void object_property_del(Object *obj, const char *name, Error **errp)
 
     g_free(prop->name);
     g_free(prop->type);
+    g_free(prop->description);
     g_free(prop);
 }
 
@@ -1672,8 +1674,26 @@ void object_property_add_alias(Object *obj, const char *name,
     }
     op->resolve = property_resolve_alias;
 
+    object_property_set_description(obj, name,
+                                    target_prop->description,
+                                    &error_abort);
+
 out:
     g_free(prop_type);
+}
+
+void object_property_set_description(Object *obj, const char *name,
+                                     const char *description, Error **errp)
+{
+    ObjectProperty *op;
+
+    op = object_property_find(obj, name, errp);
+    if (!op) {
+        return;
+    }
+
+    g_free(op->description);
+    op->description = g_strdup(description);
 }
 
 static void object_instance_init(Object *obj)
