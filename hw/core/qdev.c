@@ -826,6 +826,11 @@ void qdev_property_add_static(DeviceState *dev, Property *prop,
         error_propagate(errp, local_err);
         return;
     }
+
+    object_property_set_description(obj, prop->name,
+                                    prop->info->description,
+                                    &error_abort);
+
     if (prop->qtype == QTYPE_NONE) {
         return;
     }
