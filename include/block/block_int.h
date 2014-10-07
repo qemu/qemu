@@ -326,11 +326,6 @@ struct BlockDriverState {
 
     BlockBackend *blk;          /* owning backend, if any */
 
-    void *dev;                  /* attached device model, if any */
-    /* TODO change to DeviceState when all users are qdevified */
-    const BlockDevOps *dev_ops;
-    void *dev_opaque;
-
     AioContext *aio_context; /* event loop used for fd handlers, timers, etc */
     /* long-running tasks intended to always use the same AioContext as this
      * BDS may register themselves in this list to be notified of changes
@@ -586,5 +581,12 @@ void backup_start(BlockDriverState *bs, BlockDriverState *target,
                   BlockdevOnError on_target_error,
                   BlockCompletionFunc *cb, void *opaque,
                   Error **errp);
+
+void blk_dev_change_media_cb(BlockBackend *blk, bool load);
+bool blk_dev_has_removable_media(BlockBackend *blk);
+void blk_dev_eject_request(BlockBackend *blk, bool force);
+bool blk_dev_is_tray_open(BlockBackend *blk);
+bool blk_dev_is_medium_locked(BlockBackend *blk);
+void blk_dev_resize_cb(BlockBackend *blk);
 
 #endif /* BLOCK_INT_H */

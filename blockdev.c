@@ -217,7 +217,7 @@ bool drive_check_orphaned(void)
         dinfo = blk_legacy_dinfo(blk);
         /* If dinfo->bdrv->dev is NULL, it has no device attached. */
         /* Unless this is a default drive, this may be an oversight. */
-        if (!blk_bs(blk)->dev && !dinfo->is_default &&
+        if (!blk_get_attached_dev(blk) && !dinfo->is_default &&
             dinfo->type != IF_NONE) {
             fprintf(stderr, "Warning: Orphaned drive without device: "
                     "id=%s,file=%s,if=%s,bus=%d,unit=%d\n",
@@ -1600,14 +1600,14 @@ static void eject_device(BlockBackend *blk, int force, Error **errp)
     if (bdrv_op_is_blocked(bs, BLOCK_OP_TYPE_EJECT, errp)) {
         return;
     }
-    if (!bdrv_dev_has_removable_media(bs)) {
+    if (!blk_dev_has_removable_media(blk)) {
         error_setg(errp, "Device '%s' is not removable",
                    bdrv_get_device_name(bs));
         return;
     }
 
-    if (bdrv_dev_is_medium_locked(bs) && !bdrv_dev_is_tray_open(bs)) {
-        bdrv_dev_eject_request(bs, force);
+    if (blk_dev_is_medium_locked(blk) && !blk_dev_is_tray_open(blk)) {
+        blk_dev_eject_request(blk, force);
         if (!force) {
             error_setg(errp, "Device '%s' is locked",
                        bdrv_get_device_name(bs));
@@ -1844,7 +1844,7 @@ int do_drive_del(Monitor *mon, const QDict *qdict, QObject **ret_data)
      * can be removed.  If this is a drive with no device backing
      * then we can just get rid of the block driver state right here.
      */
-    if (bdrv_get_attached_dev(bs)) {
+    if (blk_get_attached_dev(blk)) {
         blk_hide_on_behalf_of_do_drive_del(blk);
         /* Further I/O must not pause the guest */
         bdrv_set_on_error(bs, BLOCKDEV_ON_ERROR_REPORT,

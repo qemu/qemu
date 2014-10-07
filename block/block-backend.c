@@ -13,6 +13,10 @@
 #include "sysemu/block-backend.h"
 #include "block/block_int.h"
 #include "sysemu/blockdev.h"
+#include "qapi-event.h"
+
+/* Number of coroutines to reserve per attached device model */
+#define COROUTINE_POOL_RESERVATION 64
 
 struct BlockBackend {
     char *name;
@@ -20,6 +24,11 @@ struct BlockBackend {
     BlockDriverState *bs;
     DriveInfo *legacy_dinfo;    /* null unless created by drive_new() */
     QTAILQ_ENTRY(BlockBackend) link; /* for blk_backends */
+
+    void *dev;                  /* attached device model, if any */
+    /* TODO change to DeviceState when all users are qdevified */
+    const BlockDevOps *dev_ops;
+    void *dev_opaque;
 };
 
 static void drive_info_del(DriveInfo *dinfo);
@@ -85,6 +94,7 @@ BlockBackend *blk_new_with_bs(const char *name, Error **errp)
 static void blk_delete(BlockBackend *blk)
 {
     assert(!blk->refcnt);
+    assert(!blk->dev);
     if (blk->bs) {
         assert(blk->bs->blk == blk);
         blk->bs->blk = NULL;
@@ -237,34 +247,153 @@ void blk_hide_on_behalf_of_do_drive_del(BlockBackend *blk)
     }
 }
 
+/*
+ * Attach device model @dev to @blk.
+ * Return 0 on success, -EBUSY when a device model is attached already.
+ */
+int blk_attach_dev(BlockBackend *blk, void *dev)
+/* TODO change to DeviceState *dev when all users are qdevified */
+{
+    if (blk->dev) {
+        return -EBUSY;
+    }
+    blk->dev = dev;
+    bdrv_iostatus_reset(blk->bs);
+
+    /* We're expecting I/O from the device so bump up coroutine pool size */
+    qemu_coroutine_adjust_pool_size(COROUTINE_POOL_RESERVATION);
+    return 0;
+}
+
+/*
+ * Attach device model @dev to @blk.
+ * @blk must not have a device model attached already.
+ * TODO qdevified devices don't use this, remove when devices are qdevified
+ */
+void blk_attach_dev_nofail(BlockBackend *blk, void *dev)
+{
+    if (blk_attach_dev(blk, dev) < 0) {
+        abort();
+    }
+}
+
+/*
+ * Detach device model @dev from @blk.
+ * @dev must be currently attached to @blk.
+ */
+void blk_detach_dev(BlockBackend *blk, void *dev)
+/* TODO change to DeviceState *dev when all users are qdevified */
+{
+    assert(blk->dev == dev);
+    blk->dev = NULL;
+    blk->dev_ops = NULL;
+    blk->dev_opaque = NULL;
+    bdrv_set_guest_block_size(blk->bs, 512);
+    qemu_coroutine_adjust_pool_size(-COROUTINE_POOL_RESERVATION);
+}
+
+/*
+ * Return the device model attached to @blk if any, else null.
+ */
+void *blk_get_attached_dev(BlockBackend *blk)
+/* TODO change to return DeviceState * when all users are qdevified */
+{
+    return blk->dev;
+}
+
+/*
+ * Set @blk's device model callbacks to @ops.
+ * @opaque is the opaque argument to pass to the callbacks.
+ * This is for use by device models.
+ */
+void blk_set_dev_ops(BlockBackend *blk, const BlockDevOps *ops,
+                     void *opaque)
+{
+    blk->dev_ops = ops;
+    blk->dev_opaque = opaque;
+}
+
+/*
+ * Notify @blk's attached device model of media change.
+ * If @load is true, notify of media load.
+ * Else, notify of media eject.
+ * Also send DEVICE_TRAY_MOVED events as appropriate.
+ */
+void blk_dev_change_media_cb(BlockBackend *blk, bool load)
+{
+    if (blk->dev_ops && blk->dev_ops->change_media_cb) {
+        bool tray_was_closed = !blk_dev_is_tray_open(blk);
+
+        blk->dev_ops->change_media_cb(blk->dev_opaque, load);
+        if (tray_was_closed) {
+            /* tray open */
+            qapi_event_send_device_tray_moved(blk_name(blk),
+                                              true, &error_abort);
+        }
+        if (load) {
+            /* tray close */
+            qapi_event_send_device_tray_moved(blk_name(blk),
+                                              false, &error_abort);
+        }
+    }
+}
+
+/*
+ * Does @blk's attached device model have removable media?
+ * %true if no device model is attached.
+ */
+bool blk_dev_has_removable_media(BlockBackend *blk)
+{
+    return !blk->dev || (blk->dev_ops && blk->dev_ops->change_media_cb);
+}
+
+/*
+ * Notify @blk's attached device model of a media eject request.
+ * If @force is true, the medium is about to be yanked out forcefully.
+ */
+void blk_dev_eject_request(BlockBackend *blk, bool force)
+{
+    if (blk->dev_ops && blk->dev_ops->eject_request_cb) {
+        blk->dev_ops->eject_request_cb(blk->dev_opaque, force);
+    }
+}
+
+/*
+ * Does @blk's attached device model have a tray, and is it open?
+ */
+bool blk_dev_is_tray_open(BlockBackend *blk)
+{
+    if (blk->dev_ops && blk->dev_ops->is_tray_open) {
+        return blk->dev_ops->is_tray_open(blk->dev_opaque);
+    }
+    return false;
+}
+
+/*
+ * Does @blk's attached device model have the medium locked?
+ * %false if the device model has no such lock.
+ */
+bool blk_dev_is_medium_locked(BlockBackend *blk)
+{
+    if (blk->dev_ops && blk->dev_ops->is_medium_locked) {
+        return blk->dev_ops->is_medium_locked(blk->dev_opaque);
+    }
+    return false;
+}
+
+/*
+ * Notify @blk's attached device model of a backend size change.
+ */
+void blk_dev_resize_cb(BlockBackend *blk)
+{
+    if (blk->dev_ops && blk->dev_ops->resize_cb) {
+        blk->dev_ops->resize_cb(blk->dev_opaque);
+    }
+}
+
 void blk_iostatus_enable(BlockBackend *blk)
 {
     bdrv_iostatus_enable(blk->bs);
-}
-
-int blk_attach_dev(BlockBackend *blk, void *dev)
-{
-    return bdrv_attach_dev(blk->bs, dev);
-}
-
-void blk_attach_dev_nofail(BlockBackend *blk, void *dev)
-{
-    bdrv_attach_dev_nofail(blk->bs, dev);
-}
-
-void blk_detach_dev(BlockBackend *blk, void *dev)
-{
-    bdrv_detach_dev(blk->bs, dev);
-}
-
-void *blk_get_attached_dev(BlockBackend *blk)
-{
-    return bdrv_get_attached_dev(blk->bs);
-}
-
-void blk_set_dev_ops(BlockBackend *blk, const BlockDevOps *ops, void *opaque)
-{
-    bdrv_set_dev_ops(blk->bs, ops, opaque);
 }
 
 int blk_read(BlockBackend *blk, int64_t sector_num, uint8_t *buf,

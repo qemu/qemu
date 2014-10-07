@@ -275,12 +275,12 @@ static void bdrv_query_info(BlockBackend *blk, BlockInfo **p_info,
     Error *local_err = NULL;
     info->device = g_strdup(blk_name(blk));
     info->type = g_strdup("unknown");
-    info->locked = bdrv_dev_is_medium_locked(bs);
-    info->removable = bdrv_dev_has_removable_media(bs);
+    info->locked = blk_dev_is_medium_locked(blk);
+    info->removable = blk_dev_has_removable_media(blk);
 
-    if (bdrv_dev_has_removable_media(bs)) {
+    if (blk_dev_has_removable_media(blk)) {
         info->has_tray_open = true;
-        info->tray_open = bdrv_dev_is_tray_open(bs);
+        info->tray_open = blk_dev_is_tray_open(blk);
     }
 
     if (bdrv_iostatus_is_enabled(bs)) {

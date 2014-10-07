@@ -58,9 +58,6 @@ struct BdrvDirtyBitmap {
 
 #define NOT_DONE 0x7fffffff /* used while emulated sync operation in progress */
 
-#define COROUTINE_POOL_RESERVATION 64 /* number of coroutines to reserve */
-
-static void bdrv_dev_change_media_cb(BlockDriverState *bs, bool load);
 static BlockAIOCB *bdrv_aio_readv_em(BlockDriverState *bs,
         int64_t sector_num, QEMUIOVector *qiov, int nb_sectors,
         BlockCompletionFunc *cb, void *opaque);
@@ -1527,7 +1524,9 @@ int bdrv_open(BlockDriverState **pbs, const char *filename,
     }
 
     if (!bdrv_key_required(bs)) {
-        bdrv_dev_change_media_cb(bs, true);
+        if (bs->blk) {
+            blk_dev_change_media_cb(bs->blk, true);
+        }
     } else if (!runstate_check(RUN_STATE_PRELAUNCH)
                && !runstate_check(RUN_STATE_INMIGRATE)
                && !runstate_check(RUN_STATE_PAUSED)) { /* HACK */
@@ -1852,7 +1851,9 @@ void bdrv_close(BlockDriverState *bs)
         }
     }
 
-    bdrv_dev_change_media_cb(bs, false);
+    if (bs->blk) {
+        blk_dev_change_media_cb(bs->blk, false);
+    }
 
     /*throttling disk I/O limits*/
     if (bs->io_limits_enabled) {
@@ -1971,9 +1972,6 @@ static void bdrv_move_feature_fields(BlockDriverState *bs_dest,
     /* move some fields that need to stay attached to the device */
 
     /* dev info */
-    bs_dest->dev_ops            = bs_src->dev_ops;
-    bs_dest->dev_opaque         = bs_src->dev_opaque;
-    bs_dest->dev                = bs_src->dev;
     bs_dest->guest_block_size   = bs_src->guest_block_size;
     bs_dest->copy_on_read       = bs_src->copy_on_read;
 
@@ -2043,7 +2041,6 @@ void bdrv_swap(BlockDriverState *bs_new, BlockDriverState *bs_old)
     assert(!bs_new->blk);
     assert(QLIST_EMPTY(&bs_new->dirty_bitmaps));
     assert(bs_new->job == NULL);
-    assert(bs_new->dev == NULL);
     assert(bs_new->io_limits_enabled == false);
     assert(!throttle_have_timer(&bs_new->throttle_state));
 
@@ -2060,7 +2057,6 @@ void bdrv_swap(BlockDriverState *bs_new, BlockDriverState *bs_old)
     assert(!bs_new->blk);
 
     /* Check a few fields that should remain attached to the device */
-    assert(bs_new->dev == NULL);
     assert(bs_new->job == NULL);
     assert(bs_new->io_limits_enabled == false);
     assert(!throttle_have_timer(&bs_new->throttle_state));
@@ -2099,7 +2095,6 @@ void bdrv_append(BlockDriverState *bs_new, BlockDriverState *bs_top)
 
 static void bdrv_delete(BlockDriverState *bs)
 {
-    assert(!bs->dev);
     assert(!bs->job);
     assert(bdrv_op_blocker_is_empty(bs));
     assert(!bs->refcnt);
@@ -2111,105 +2106,6 @@ static void bdrv_delete(BlockDriverState *bs)
     bdrv_make_anon(bs);
 
     g_free(bs);
-}
-
-int bdrv_attach_dev(BlockDriverState *bs, void *dev)
-/* TODO change to DeviceState *dev when all users are qdevified */
-{
-    if (bs->dev) {
-        return -EBUSY;
-    }
-    bs->dev = dev;
-    bdrv_iostatus_reset(bs);
-
-    /* We're expecting I/O from the device so bump up coroutine pool size */
-    qemu_coroutine_adjust_pool_size(COROUTINE_POOL_RESERVATION);
-    return 0;
-}
-
-/* TODO qdevified devices don't use this, remove when devices are qdevified */
-void bdrv_attach_dev_nofail(BlockDriverState *bs, void *dev)
-{
-    if (bdrv_attach_dev(bs, dev) < 0) {
-        abort();
-    }
-}
-
-void bdrv_detach_dev(BlockDriverState *bs, void *dev)
-/* TODO change to DeviceState *dev when all users are qdevified */
-{
-    assert(bs->dev == dev);
-    bs->dev = NULL;
-    bs->dev_ops = NULL;
-    bs->dev_opaque = NULL;
-    bs->guest_block_size = 512;
-    qemu_coroutine_adjust_pool_size(-COROUTINE_POOL_RESERVATION);
-}
-
-/* TODO change to return DeviceState * when all users are qdevified */
-void *bdrv_get_attached_dev(BlockDriverState *bs)
-{
-    return bs->dev;
-}
-
-void bdrv_set_dev_ops(BlockDriverState *bs, const BlockDevOps *ops,
-                      void *opaque)
-{
-    bs->dev_ops = ops;
-    bs->dev_opaque = opaque;
-}
-
-static void bdrv_dev_change_media_cb(BlockDriverState *bs, bool load)
-{
-    if (bs->dev_ops && bs->dev_ops->change_media_cb) {
-        bool tray_was_closed = !bdrv_dev_is_tray_open(bs);
-        bs->dev_ops->change_media_cb(bs->dev_opaque, load);
-        if (tray_was_closed) {
-            /* tray open */
-            qapi_event_send_device_tray_moved(bdrv_get_device_name(bs),
-                                              true, &error_abort);
-        }
-        if (load) {
-            /* tray close */
-            qapi_event_send_device_tray_moved(bdrv_get_device_name(bs),
-                                              false, &error_abort);
-        }
-    }
-}
-
-bool bdrv_dev_has_removable_media(BlockDriverState *bs)
-{
-    return !bs->dev || (bs->dev_ops && bs->dev_ops->change_media_cb);
-}
-
-void bdrv_dev_eject_request(BlockDriverState *bs, bool force)
-{
-    if (bs->dev_ops && bs->dev_ops->eject_request_cb) {
-        bs->dev_ops->eject_request_cb(bs->dev_opaque, force);
-    }
-}
-
-bool bdrv_dev_is_tray_open(BlockDriverState *bs)
-{
-    if (bs->dev_ops && bs->dev_ops->is_tray_open) {
-        return bs->dev_ops->is_tray_open(bs->dev_opaque);
-    }
-    return false;
-}
-
-static void bdrv_dev_resize_cb(BlockDriverState *bs)
-{
-    if (bs->dev_ops && bs->dev_ops->resize_cb) {
-        bs->dev_ops->resize_cb(bs->dev_opaque);
-    }
-}
-
-bool bdrv_dev_is_medium_locked(BlockDriverState *bs)
-{
-    if (bs->dev_ops && bs->dev_ops->is_medium_locked) {
-        return bs->dev_ops->is_medium_locked(bs->dev_opaque);
-    }
-    return false;
 }
 
 /*
@@ -3545,7 +3441,9 @@ int bdrv_truncate(BlockDriverState *bs, int64_t offset)
     ret = drv->bdrv_truncate(bs, offset);
     if (ret == 0) {
         ret = refresh_total_sectors(bs, offset >> BDRV_SECTOR_BITS);
-        bdrv_dev_resize_cb(bs);
+        if (bs->blk) {
+            blk_dev_resize_cb(bs->blk);
+        }
     }
     return ret;
 }
@@ -3746,8 +3644,10 @@ int bdrv_set_key(BlockDriverState *bs, const char *key)
         bs->valid_key = 0;
     } else if (!bs->valid_key) {
         bs->valid_key = 1;
-        /* call the change callback now, we skipped it on open */
-        bdrv_dev_change_media_cb(bs, true);
+        if (bs->blk) {
+            /* call the change callback now, we skipped it on open */
+            blk_dev_change_media_cb(bs->blk, true);
+        }
     }
     return ret;
 }

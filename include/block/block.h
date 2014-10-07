@@ -48,41 +48,6 @@ typedef struct BlockFragInfo {
     uint64_t compressed_clusters;
 } BlockFragInfo;
 
-/* Callbacks for block device models */
-typedef struct BlockDevOps {
-    /*
-     * Runs when virtual media changed (monitor commands eject, change)
-     * Argument load is true on load and false on eject.
-     * Beware: doesn't run when a host device's physical media
-     * changes.  Sure would be useful if it did.
-     * Device models with removable media must implement this callback.
-     */
-    void (*change_media_cb)(void *opaque, bool load);
-    /*
-     * Runs when an eject request is issued from the monitor, the tray
-     * is closed, and the medium is locked.
-     * Device models that do not implement is_medium_locked will not need
-     * this callback.  Device models that can lock the medium or tray might
-     * want to implement the callback and unlock the tray when "force" is
-     * true, even if they do not support eject requests.
-     */
-    void (*eject_request_cb)(void *opaque, bool force);
-    /*
-     * Is the virtual tray open?
-     * Device models implement this only when the device has a tray.
-     */
-    bool (*is_tray_open)(void *opaque);
-    /*
-     * Is the virtual medium locked into the device?
-     * Device models implement this only when device has such a lock.
-     */
-    bool (*is_medium_locked)(void *opaque);
-    /*
-     * Runs when the size changed (e.g. monitor command block_resize)
-     */
-    void (*resize_cb)(void *opaque);
-} BlockDevOps;
-
 typedef enum {
     BDRV_REQ_COPY_ON_READ = 0x1,
     BDRV_REQ_ZERO_WRITE   = 0x2,
@@ -230,16 +195,6 @@ void bdrv_reopen_commit(BDRVReopenState *reopen_state);
 void bdrv_reopen_abort(BDRVReopenState *reopen_state);
 void bdrv_close(BlockDriverState *bs);
 void bdrv_add_close_notifier(BlockDriverState *bs, Notifier *notify);
-int bdrv_attach_dev(BlockDriverState *bs, void *dev);
-void bdrv_attach_dev_nofail(BlockDriverState *bs, void *dev);
-void bdrv_detach_dev(BlockDriverState *bs, void *dev);
-void *bdrv_get_attached_dev(BlockDriverState *bs);
-void bdrv_set_dev_ops(BlockDriverState *bs, const BlockDevOps *ops,
-                      void *opaque);
-void bdrv_dev_eject_request(BlockDriverState *bs, bool force);
-bool bdrv_dev_has_removable_media(BlockDriverState *bs);
-bool bdrv_dev_is_tray_open(BlockDriverState *bs);
-bool bdrv_dev_is_medium_locked(BlockDriverState *bs);
 int bdrv_read(BlockDriverState *bs, int64_t sector_num,
               uint8_t *buf, int nb_sectors);
 int bdrv_read_unthrottled(BlockDriverState *bs, int64_t sector_num,
