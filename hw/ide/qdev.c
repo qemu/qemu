@@ -219,6 +219,10 @@ static void ide_dev_set_bootindex(Object *obj, Visitor *v, void *opaque,
     /* change bootindex to a new one */
     d->conf.bootindex = boot_index;
 
+    if (d->unit != -1) {
+        add_boot_device_path(d->conf.bootindex, &d->qdev,
+                             d->unit ? "/disk@1" : "/disk@0");
+    }
 out:
     if (local_err) {
         error_propagate(errp, local_err);
@@ -230,6 +234,7 @@ static void ide_dev_instance_init(Object *obj)
     object_property_add(obj, "bootindex", "int32",
                         ide_dev_get_bootindex,
                         ide_dev_set_bootindex, NULL, NULL, NULL);
+    object_property_set_int(obj, -1, "bootindex", NULL);
 }
 
 static int ide_hd_initfn(IDEDevice *dev)
