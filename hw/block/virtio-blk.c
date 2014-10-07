@@ -296,7 +296,7 @@ static bool virtio_blk_sect_range_ok(VirtIOBlock *dev,
     if (sector & dev->sector_mask) {
         return false;
     }
-    if (size % dev->conf->logical_block_size) {
+    if (size % dev->blk.conf.logical_block_size) {
         return false;
     }
     bdrv_get_geometry(dev->bs, &total_sectors);
@@ -513,19 +513,20 @@ static void virtio_blk_reset(VirtIODevice *vdev)
 static void virtio_blk_update_config(VirtIODevice *vdev, uint8_t *config)
 {
     VirtIOBlock *s = VIRTIO_BLK(vdev);
+    BlockConf *conf = &s->blk.conf;
     struct virtio_blk_config blkcfg;
     uint64_t capacity;
-    int blk_size = s->conf->logical_block_size;
+    int blk_size = conf->logical_block_size;
 
     bdrv_get_geometry(s->bs, &capacity);
     memset(&blkcfg, 0, sizeof(blkcfg));
     virtio_stq_p(vdev, &blkcfg.capacity, capacity);
     virtio_stl_p(vdev, &blkcfg.seg_max, 128 - 2);
-    virtio_stw_p(vdev, &blkcfg.cylinders, s->conf->cyls);
+    virtio_stw_p(vdev, &blkcfg.cylinders, conf->cyls);
     virtio_stl_p(vdev, &blkcfg.blk_size, blk_size);
-    virtio_stw_p(vdev, &blkcfg.min_io_size, s->conf->min_io_size / blk_size);
-    virtio_stw_p(vdev, &blkcfg.opt_io_size, s->conf->opt_io_size / blk_size);
-    blkcfg.heads = s->conf->heads;
+    virtio_stw_p(vdev, &blkcfg.min_io_size, conf->min_io_size / blk_size);
+    virtio_stw_p(vdev, &blkcfg.opt_io_size, conf->opt_io_size / blk_size);
+    blkcfg.heads = conf->heads;
     /*
      * We must ensure that the block device capacity is a multiple of
      * the logical block size. If that is not the case, let's use
@@ -537,13 +538,13 @@ static void virtio_blk_update_config(VirtIODevice *vdev, uint8_t *config)
      * divided by 512 - instead it is the amount of blk_size blocks
      * per track (cylinder).
      */
-    if (bdrv_getlength(s->bs) /  s->conf->heads / s->conf->secs % blk_size) {
-        blkcfg.sectors = s->conf->secs & ~s->sector_mask;
+    if (bdrv_getlength(s->bs) /  conf->heads / conf->secs % blk_size) {
+        blkcfg.sectors = conf->secs & ~s->sector_mask;
     } else {
-        blkcfg.sectors = s->conf->secs;
+        blkcfg.sectors = conf->secs;
     }
     blkcfg.size_max = 0;
-    blkcfg.physical_block_exp = get_physical_block_exp(s->conf);
+    blkcfg.physical_block_exp = get_physical_block_exp(conf);
     blkcfg.alignment_offset = 0;
     blkcfg.wce = bdrv_enable_write_cache(s->bs);
     memcpy(config, &blkcfg, sizeof(struct virtio_blk_config));
@@ -746,9 +747,8 @@ static void virtio_blk_device_realize(DeviceState *dev, Error **errp)
                 sizeof(struct virtio_blk_config));
 
     s->bs = blk->conf.bs;
-    s->conf = &blk->conf;
     s->rq = NULL;
-    s->sector_mask = (s->conf->logical_block_size / BDRV_SECTOR_SIZE) - 1;
+    s->sector_mask = (s->blk.conf.logical_block_size / BDRV_SECTOR_SIZE) - 1;
 
     s->vq = virtio_add_queue(vdev, 128, virtio_blk_handle_output);
     s->complete_request = virtio_blk_complete_request;
@@ -765,7 +765,7 @@ static void virtio_blk_device_realize(DeviceState *dev, Error **errp)
     register_savevm(dev, "virtio-blk", virtio_blk_id++, 2,
                     virtio_blk_save, virtio_blk_load, s);
     bdrv_set_dev_ops(s->bs, &virtio_block_ops, s);
-    bdrv_set_guest_block_size(s->bs, s->conf->logical_block_size);
+    bdrv_set_guest_block_size(s->bs, s->blk.conf.logical_block_size);
 
     bdrv_iostatus_enable(s->bs);
 }
