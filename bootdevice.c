@@ -23,6 +23,7 @@
  */
 
 #include "sysemu/sysemu.h"
+#include "qapi/visitor.h"
 
 typedef struct FWBootEntry FWBootEntry;
 
@@ -177,4 +178,76 @@ char *get_boot_devices_list(size_t *size, bool ignore_suffixes)
         *size = total + 5;
     }
     return list;
+}
+
+typedef struct {
+    int32_t *bootindex;
+    const char *suffix;
+    DeviceState *dev;
+} BootIndexProperty;
+
+static void device_get_bootindex(Object *obj, Visitor *v, void *opaque,
+                                 const char *name, Error **errp)
+{
+    BootIndexProperty *prop = opaque;
+    visit_type_int32(v, prop->bootindex, name, errp);
+}
+
+static void device_set_bootindex(Object *obj, Visitor *v, void *opaque,
+                                 const char *name, Error **errp)
+{
+    BootIndexProperty *prop = opaque;
+    int32_t boot_index;
+    Error *local_err = NULL;
+
+    visit_type_int32(v, &boot_index, name, &local_err);
+    if (local_err) {
+        goto out;
+    }
+    /* check whether bootindex is present in fw_boot_order list  */
+    check_boot_index(boot_index, &local_err);
+    if (local_err) {
+        goto out;
+    }
+    /* change bootindex to a new one */
+    *prop->bootindex = boot_index;
+
+out:
+    if (local_err) {
+        error_propagate(errp, local_err);
+    }
+}
+
+static void property_release_bootindex(Object *obj, const char *name,
+                                       void *opaque)
+
+{
+    BootIndexProperty *prop = opaque;
+    g_free(prop);
+}
+
+void device_add_bootindex_property(Object *obj, int32_t *bootindex,
+                                   const char *name, const char *suffix,
+                                   DeviceState *dev, Error **errp)
+{
+    Error *local_err = NULL;
+    BootIndexProperty *prop = g_malloc0(sizeof(*prop));
+
+    prop->bootindex = bootindex;
+    prop->suffix = suffix;
+    prop->dev = dev;
+
+    object_property_add(obj, name, "int32",
+                        device_get_bootindex,
+                        device_set_bootindex,
+                        property_release_bootindex,
+                        prop, &local_err);
+
+    if (local_err) {
+        error_propagate(errp, local_err);
+        g_free(prop);
+        return;
+    }
+    /* initialize devices' bootindex property to -1 */
+    object_property_set_int(obj, -1, name, NULL);
 }
