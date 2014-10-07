@@ -858,7 +858,7 @@ static int blk_connect(struct XenDevice *xendev)
 
         /* setup via xenbus -> create new block driver instance */
         xen_be_printf(&blkdev->xendev, 2, "create new bdrv (xenbus setup)\n");
-        blkdev->bs = bdrv_new(blkdev->dev, NULL);
+        blkdev->bs = bdrv_new_root(blkdev->dev, NULL);
         if (!blkdev->bs) {
             return -1;
         }

@@ -336,10 +336,11 @@ void bdrv_register(BlockDriver *bdrv)
 }
 
 /* create a new block device (by default it is empty) */
-BlockDriverState *bdrv_new(const char *device_name, Error **errp)
+BlockDriverState *bdrv_new_root(const char *device_name, Error **errp)
 {
     BlockDriverState *bs;
-    int i;
+
+    assert(*device_name);
 
     if (*device_name && !id_wellformed(device_name)) {
         error_setg(errp, "Invalid device name");
@@ -358,12 +359,21 @@ BlockDriverState *bdrv_new(const char *device_name, Error **errp)
         return NULL;
     }
 
+    bs = bdrv_new();
+
+    pstrcpy(bs->device_name, sizeof(bs->device_name), device_name);
+    QTAILQ_INSERT_TAIL(&bdrv_states, bs, device_list);
+
+    return bs;
+}
+
+BlockDriverState *bdrv_new(void)
+{
+    BlockDriverState *bs;
+    int i;
+
     bs = g_new0(BlockDriverState, 1);
     QLIST_INIT(&bs->dirty_bitmaps);
-    pstrcpy(bs->device_name, sizeof(bs->device_name), device_name);
-    if (device_name[0] != '\0') {
-        QTAILQ_INSERT_TAIL(&bdrv_states, bs, device_list);
-    }
     for (i = 0; i < BLOCK_OP_TYPE_MAX; i++) {
         QLIST_INIT(&bs->op_blockers[i]);
     }
@@ -1224,7 +1234,7 @@ int bdrv_open_backing_file(BlockDriverState *bs, QDict *options, Error **errp)
         goto free_exit;
     }
 
-    backing_hd = bdrv_new("", errp);
+    backing_hd = bdrv_new();
 
     if (bs->backing_format[0] != '\0') {
         back_drv = bdrv_find_format(bs->backing_format);
@@ -1353,7 +1363,7 @@ int bdrv_append_temp_snapshot(BlockDriverState *bs, int flags, Error **errp)
     qdict_put(snapshot_options, "file.filename",
               qstring_from_str(tmp_filename));
 
-    bs_snapshot = bdrv_new("", &error_abort);
+    bs_snapshot = bdrv_new();
 
     ret = bdrv_open(&bs_snapshot, NULL, NULL, snapshot_options,
                     flags, bdrv_qcow2, &local_err);
@@ -1424,7 +1434,7 @@ int bdrv_open(BlockDriverState **pbs, const char *filename,
     if (*pbs) {
         bs = *pbs;
     } else {
-        bs = bdrv_new("", &error_abort);
+        bs = bdrv_new();
     }
 
     /* NULL means an empty set of options */

@@ -523,7 +523,7 @@ static DriveInfo *blockdev_init(const char *file, QDict *bs_opts,
     }
 
     /* init */
-    bs = bdrv_new(qemu_opts_id(opts), errp);
+    bs = bdrv_new_root(qemu_opts_id(opts), errp);
     if (!bs) {
         goto early_err;
     }

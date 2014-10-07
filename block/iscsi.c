@@ -1519,7 +1519,7 @@ static int iscsi_create(const char *filename, QemuOpts *opts, Error **errp)
     IscsiLun *iscsilun = NULL;
     QDict *bs_options;
 
-    bs = bdrv_new("", &error_abort);
+    bs = bdrv_new();
 
     /* Read out options */
     total_size = DIV_ROUND_UP(qemu_opt_get_size_del(opts, BLOCK_OPT_SIZE, 0),
