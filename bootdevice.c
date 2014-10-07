@@ -36,6 +36,21 @@ struct FWBootEntry {
 static QTAILQ_HEAD(, FWBootEntry) fw_boot_order =
     QTAILQ_HEAD_INITIALIZER(fw_boot_order);
 
+void check_boot_index(int32_t bootindex, Error **errp)
+{
+    FWBootEntry *i;
+
+    if (bootindex >= 0) {
+        QTAILQ_FOREACH(i, &fw_boot_order, link) {
+            if (i->bootindex == bootindex) {
+                error_setg(errp, "The bootindex %d has already been used",
+                           bootindex);
+                return;
+            }
+        }
+    }
+}
+
 void add_boot_device_path(int32_t bootindex, DeviceState *dev,
                           const char *suffix)
 {
