@@ -78,7 +78,8 @@
      IOCTL(BLKRAGET, IOC_R, MK_PTR(TYPE_LONG))
      IOCTL(BLKSSZGET, IOC_R, MK_PTR(TYPE_LONG))
      IOCTL(BLKBSZGET, IOC_R, MK_PTR(TYPE_INT))
-     IOCTL(BLKPG, IOC_W, MK_PTR(MK_STRUCT(STRUCT_blkpg_ioctl_arg)))
+     IOCTL_SPECIAL(BLKPG, IOC_W, do_ioctl_blkpg,
+                   MK_PTR(MK_STRUCT(STRUCT_blkpg_ioctl_arg)))
 #ifdef FIBMAP
      IOCTL(FIBMAP, IOC_W | IOC_R, MK_PTR(TYPE_LONG))
 #endif

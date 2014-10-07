@@ -252,4 +252,4 @@ STRUCT(blkpg_ioctl_arg,
        TYPE_INT, /* op */
        TYPE_INT, /* flags */
        TYPE_INT, /* datalen */
-       MK_PTR(MK_STRUCT(STRUCT_blkpg_partition))) /* data */
+       TYPE_PTRVOID) /* data */

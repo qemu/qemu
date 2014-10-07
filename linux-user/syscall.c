@@ -58,7 +58,6 @@ int __clone2(int (*fn)(void *), void *child_stack_base,
 #include <sys/shm.h>
 #include <sys/sem.h>
 #include <sys/statfs.h>
-#include <sys/timerfd.h>
 #include <utime.h>
 #include <sys/sysinfo.h>
 //#include <sys/user.h>
@@ -67,6 +66,9 @@ int __clone2(int (*fn)(void *), void *child_stack_base,
 #include <linux/wireless.h>
 #include <linux/icmp.h>
 #include "qemu-common.h"
+#ifdef CONFIG_TIMERFD
+#include <sys/timerfd.h>
+#endif
 #ifdef TARGET_GPROF
 #include <sys/gmon.h>
 #endif
@@ -3693,6 +3695,59 @@ static abi_long do_ioctl_dm(const IOCTLEntry *ie, uint8_t *buf_temp, int fd,
     }
 out:
     g_free(big_buf);
+    return ret;
+}
+
+static abi_long do_ioctl_blkpg(const IOCTLEntry *ie, uint8_t *buf_temp, int fd,
+                               abi_long cmd, abi_long arg)
+{
+    void *argptr;
+    int target_size;
+    const argtype *arg_type = ie->arg_type;
+    const argtype part_arg_type[] = { MK_STRUCT(STRUCT_blkpg_partition) };
+    abi_long ret;
+
+    struct blkpg_ioctl_arg *host_blkpg = (void*)buf_temp;
+    struct blkpg_partition host_part;
+
+    /* Read and convert blkpg */
+    arg_type++;
+    target_size = thunk_type_size(arg_type, 0);
+    argptr = lock_user(VERIFY_READ, arg, target_size, 1);
+    if (!argptr) {
+        ret = -TARGET_EFAULT;
+        goto out;
+    }
+    thunk_convert(buf_temp, argptr, arg_type, THUNK_HOST);
+    unlock_user(argptr, arg, 0);
+
+    switch (host_blkpg->op) {
+    case BLKPG_ADD_PARTITION:
+    case BLKPG_DEL_PARTITION:
+        /* payload is struct blkpg_partition */
+        break;
+    default:
+        /* Unknown opcode */
+        ret = -TARGET_EINVAL;
+        goto out;
+    }
+
+    /* Read and convert blkpg->data */
+    arg = (abi_long)(uintptr_t)host_blkpg->data;
+    target_size = thunk_type_size(part_arg_type, 0);
+    argptr = lock_user(VERIFY_READ, arg, target_size, 1);
+    if (!argptr) {
+        ret = -TARGET_EFAULT;
+        goto out;
+    }
+    thunk_convert(&host_part, argptr, part_arg_type, THUNK_HOST);
+    unlock_user(argptr, arg, 0);
+
+    /* Swizzle the data pointer to our local copy and call! */
+    host_blkpg->data = &host_part;
+    ret = get_errno(ioctl(fd, ie->host_cmd, host_blkpg));
+
+out:
     return ret;
 }
 
@@ -9562,11 +9617,12 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
     {
         /* args: timer_t timerid, int flags, const struct itimerspec *new_value,
          * struct itimerspec * old_value */
-        arg1 &= 0xffff;
-        if (arg3 == 0 || arg1 < 0 || arg1 >= ARRAY_SIZE(g_posix_timers)) {
+        target_ulong timerid = arg1;
+
+        if (arg3 == 0 || timerid >= ARRAY_SIZE(g_posix_timers)) {
             ret = -TARGET_EINVAL;
         } else {
-            timer_t htimer = g_posix_timers[arg1];
+            timer_t htimer = g_posix_timers[timerid];
             struct itimerspec hspec_new = {{0},}, hspec_old = {{0},};
 
             target_to_host_itimerspec(&hspec_new, arg3);
@@ -9582,13 +9638,14 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
     case TARGET_NR_timer_gettime:
     {
         /* args: timer_t timerid, struct itimerspec *curr_value */
-        arg1 &= 0xffff;
+        target_ulong timerid = arg1;
+
         if (!arg2) {
             return -TARGET_EFAULT;
-        } else if (arg1 < 0 || arg1 >= ARRAY_SIZE(g_posix_timers)) {
+        } else if (timerid >= ARRAY_SIZE(g_posix_timers)) {
             ret = -TARGET_EINVAL;
         } else {
-            timer_t htimer = g_posix_timers[arg1];
+            timer_t htimer = g_posix_timers[timerid];
             struct itimerspec hspec;
             ret = get_errno(timer_gettime(htimer, &hspec));
 
@@ -9604,11 +9661,12 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
     case TARGET_NR_timer_getoverrun:
     {
         /* args: timer_t timerid */
-        arg1 &= 0xffff;
-        if (arg1 < 0 || arg1 >= ARRAY_SIZE(g_posix_timers)) {
+        target_ulong timerid = arg1;
+
+        if (timerid >= ARRAY_SIZE(g_posix_timers)) {
             ret = -TARGET_EINVAL;
         } else {
-            timer_t htimer = g_posix_timers[arg1];
+            timer_t htimer = g_posix_timers[timerid];
             ret = get_errno(timer_getoverrun(htimer));
         }
         break;
@@ -9619,13 +9677,14 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
     case TARGET_NR_timer_delete:
     {
         /* args: timer_t timerid */
-        arg1 &= 0xffff;
-        if (arg1 < 0 || arg1 >= ARRAY_SIZE(g_posix_timers)) {
+        target_ulong timerid = arg1;
+
+        if (timerid >= ARRAY_SIZE(g_posix_timers)) {
             ret = -TARGET_EINVAL;
         } else {
-            timer_t htimer = g_posix_timers[arg1];
+            timer_t htimer = g_posix_timers[timerid];
             ret = get_errno(timer_delete(htimer));
-            g_posix_timers[arg1] = 0;
+            g_posix_timers[timerid] = 0;
         }
         break;
     }
