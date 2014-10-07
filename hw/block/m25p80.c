@@ -22,6 +22,7 @@
  */
 
 #include "hw/hw.h"
+#include "sysemu/block-backend.h"
 #include "sysemu/blockdev.h"
 #include "hw/ssi.h"
 
@@ -624,9 +625,9 @@ static int m25p80_init(SSISlave *ss)
 
     dinfo = drive_get_next(IF_MTD);
 
-    if (dinfo && dinfo->bdrv) {
+    if (dinfo) {
         DB_PRINT_L(0, "Binding to IF_MTD drive\n");
-        s->bdrv = dinfo->bdrv;
+        s->bdrv = blk_bs(blk_by_legacy_dinfo(dinfo));
 
         /* FIXME: Move to late init */
         if (bdrv_read(s->bdrv, 0, s->storage, DIV_ROUND_UP(s->size,

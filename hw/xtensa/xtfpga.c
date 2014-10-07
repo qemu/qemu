@@ -35,6 +35,7 @@
 #include "net/net.h"
 #include "hw/sysbus.h"
 #include "hw/block/flash.h"
+#include "sysemu/block-backend.h"
 #include "sysemu/blockdev.h"
 #include "sysemu/char.h"
 #include "sysemu/device_tree.h"
@@ -230,7 +231,8 @@ static void lx_init(const LxBoardDesc *board, MachineState *machine)
     if (dinfo) {
         flash = pflash_cfi01_register(board->flash_base,
                 NULL, "lx60.io.flash", board->flash_size,
-                dinfo->bdrv, board->flash_sector_size,
+                blk_bs(blk_by_legacy_dinfo(dinfo)),
+                board->flash_sector_size,
                 board->flash_size / board->flash_sector_size,
                 4, 0x0000, 0x0000, 0x0000, 0x0000, be);
         if (flash == NULL) {

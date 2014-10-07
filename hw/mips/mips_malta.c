@@ -44,6 +44,7 @@
 #include "elf.h"
 #include "hw/timer/mc146818rtc.h"
 #include "hw/timer/i8254.h"
+#include "sysemu/block-backend.h"
 #include "sysemu/blockdev.h"
 #include "exec/address-spaces.h"
 #include "hw/sysbus.h"             /* SysBusDevice */
@@ -1036,7 +1037,8 @@ void mips_malta_init(MachineState *machine)
     }
 #endif
     fl = pflash_cfi01_register(FLASH_ADDRESS, NULL, "mips_malta.bios",
-                               BIOS_SIZE, dinfo ? dinfo->bdrv : NULL,
+                               BIOS_SIZE,
+                               dinfo ? blk_bs(blk_by_legacy_dinfo(dinfo)) : NULL,
                                65536, fl_sectors,
                                4, 0x0000, 0x0000, 0x0000, 0x0000, be);
     bios = pflash_cfi01_get_memory(fl);

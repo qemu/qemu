@@ -20,6 +20,7 @@
 #include "sysemu/dma.h"
 #include "qemu/error-report.h"
 #include <hw/ide/internal.h>
+#include "sysemu/block-backend.h"
 #include "sysemu/blockdev.h"
 #include "hw/block/block.h"
 #include "sysemu/sysemu.h"
@@ -117,7 +118,8 @@ IDEDevice *ide_create_drive(IDEBus *bus, int unit, DriveInfo *drive)
 
     dev = qdev_create(&bus->qbus, drive->media_cd ? "ide-cd" : "ide-hd");
     qdev_prop_set_uint32(dev, "unit", unit);
-    qdev_prop_set_drive_nofail(dev, "drive", drive->bdrv);
+    qdev_prop_set_drive_nofail(dev, "drive",
+                               blk_bs(blk_by_legacy_dinfo(drive)));
     qdev_init_nofail(dev);
     return DO_UPCAST(IDEDevice, qdev, dev);
 }

@@ -23,6 +23,7 @@
  * THE SOFTWARE.
  */
 
+#include "sysemu/block-backend.h"
 #include "sysemu/blockdev.h"
 #include "qemu/error-report.h"
 #include "hw/sysbus.h"
@@ -119,7 +120,7 @@ static void pc_system_flash_init(MemoryRegion *rom_memory)
          (unit < FLASH_MAP_UNIT_MAX &&
           (pflash_drv = drive_get(IF_PFLASH, 0, unit)) != NULL);
          ++unit) {
-        bdrv = pflash_drv->bdrv;
+        bdrv = blk_bs(blk_by_legacy_dinfo(pflash_drv));
         size = bdrv_getlength(bdrv);
         if (size < 0) {
             fatal_errmsg = g_strdup_printf("failed to get backing file size");

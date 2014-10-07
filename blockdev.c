@@ -220,11 +220,11 @@ bool drive_check_orphaned(void)
         dinfo = blk_legacy_dinfo(blk);
         /* If dinfo->bdrv->dev is NULL, it has no device attached. */
         /* Unless this is a default drive, this may be an oversight. */
-        if (!dinfo->bdrv->dev && !dinfo->is_default &&
+        if (!blk_bs(blk)->dev && !dinfo->is_default &&
             dinfo->type != IF_NONE) {
             fprintf(stderr, "Warning: Orphaned drive without device: "
                     "id=%s,file=%s,if=%s,bus=%d,unit=%d\n",
-                    dinfo->id, dinfo->bdrv->filename, if_name[dinfo->type],
+                    dinfo->id, blk_bs(blk)->filename, if_name[dinfo->type],
                     dinfo->bus, dinfo->unit);
             rs = true;
         }
@@ -526,7 +526,6 @@ static BlockBackend *blockdev_init(const char *file, QDict *bs_opts,
 
     dinfo = g_malloc0(sizeof(*dinfo));
     dinfo->id = g_strdup(qemu_opts_id(opts));
-    dinfo->bdrv = bs;
     blk_set_legacy_dinfo(blk, dinfo);
 
     if (!file || !*file) {
@@ -556,7 +555,7 @@ static BlockBackend *blockdev_init(const char *file, QDict *bs_opts,
 
     QINCREF(bs_opts);
     ret = bdrv_open(&bs, file, NULL, bs_opts, bdrv_flags, drv, &error);
-    assert(bs == dinfo->bdrv);
+    assert(bs == blk_bs(blk));
 
     if (ret < 0) {
         error_setg(errp, "could not open disk image %s: %s",

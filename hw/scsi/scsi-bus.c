@@ -3,6 +3,7 @@
 #include "hw/scsi/scsi.h"
 #include "block/scsi.h"
 #include "hw/qdev.h"
+#include "sysemu/block-backend.h"
 #include "sysemu/blockdev.h"
 #include "trace.h"
 #include "sysemu/dma.h"
@@ -270,8 +271,8 @@ void scsi_bus_legacy_handle_cmdline(SCSIBus *bus, Error **errp)
             continue;
         }
         qemu_opts_loc_restore(dinfo->opts);
-        scsi_bus_legacy_add_drive(bus, dinfo->bdrv, unit, false, -1, NULL,
-                                  &err);
+        scsi_bus_legacy_add_drive(bus, blk_bs(blk_by_legacy_dinfo(dinfo)),
+                                  unit, false, -1, NULL, &err);
         if (err != NULL) {
             error_report("%s", error_get_pretty(err));
             error_propagate(errp, err);

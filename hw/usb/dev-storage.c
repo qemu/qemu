@@ -16,6 +16,7 @@
 #include "ui/console.h"
 #include "monitor/monitor.h"
 #include "sysemu/sysemu.h"
+#include "sysemu/block-backend.h"
 #include "sysemu/blockdev.h"
 #include "qapi/visitor.h"
 
@@ -707,7 +708,8 @@ static USBDevice *usb_msd_init(USBBus *bus, const char *filename)
     if (!dev) {
         return NULL;
     }
-    if (qdev_prop_set_drive(&dev->qdev, "drive", dinfo->bdrv) < 0) {
+    if (qdev_prop_set_drive(&dev->qdev, "drive",
+                            blk_bs(blk_by_legacy_dinfo(dinfo))) < 0) {
         object_unparent(OBJECT(dev));
         return NULL;
     }

@@ -25,6 +25,7 @@
 #include "block/block.h"
 #include "audio/audio.h"
 #include "hw/boards.h"
+#include "sysemu/block-backend.h"
 #include "sysemu/blockdev.h"
 #include "hw/sysbus.h"
 #include "exec/address-spaces.h"
@@ -170,7 +171,8 @@ static int sl_nand_init(SysBusDevice *dev)
 
     s->ctl = 0;
     nand = drive_get(IF_MTD, 0, 0);
-    s->nand = nand_init(nand ? nand->bdrv : NULL, s->manf_id, s->chip_id);
+    s->nand = nand_init(nand ? blk_bs(blk_by_legacy_dinfo(nand)) : NULL,
+                        s->manf_id, s->chip_id);
 
     memory_region_init_io(&s->iomem, OBJECT(s), &sl_ops, s, "sl", 0x40);
     sysbus_init_mmio(dev, &s->iomem);
