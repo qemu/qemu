@@ -38,7 +38,7 @@
 #include "hw/loader.h"
 #include "hw/timer/mc146818rtc.h"
 #include "hw/isa/pc87312.h"
-#include "sysemu/blockdev.h"
+#include "sysemu/block-backend.h"
 #include "sysemu/arch_init.h"
 #include "sysemu/qtest.h"
 #include "exec/address-spaces.h"

@@ -21,7 +21,7 @@
 
 #include "sysemu/tpm_backend.h"
 #include "tpm_int.h"
-#include "block/block.h"
+#include "sysemu/block-backend.h"
 #include "exec/address-spaces.h"
 #include "hw/hw.h"
 #include "hw/i386/pc.h"

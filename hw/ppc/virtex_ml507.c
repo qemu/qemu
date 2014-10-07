@@ -40,7 +40,6 @@
 #include "ppc405.h"
 
 #include "sysemu/block-backend.h"
-#include "sysemu/blockdev.h"
 #include "qapi/qmp/qerror.h"
 
 #define EPAPR_MAGIC    (0x45504150)
@@ -228,7 +227,7 @@ static void virtex_init(MachineState *machine)
 
     dinfo = drive_get(IF_PFLASH, 0, 0);
     pflash_cfi01_register(PFLASH_BASEADDR, NULL, "virtex.flash", FLASH_SIZE,
-                          dinfo ? blk_bs(blk_by_legacy_dinfo(dinfo)) : NULL,
+                          dinfo ? blk_by_legacy_dinfo(dinfo) : NULL,
                           (64 * 1024), FLASH_SIZE >> 16,
                           1, 0x89, 0x18, 0x0000, 0x0, 1);
 

@@ -28,7 +28,6 @@
 #include <hw/pci/pci.h>
 #include <hw/isa/isa.h>
 #include "sysemu/block-backend.h"
-#include "sysemu/blockdev.h"
 #include "sysemu/sysemu.h"
 #include "sysemu/dma.h"
 
@@ -180,12 +179,11 @@ int pci_piix3_xen_ide_unplug(DeviceState *dev)
         di = drive_get_by_index(IF_IDE, i);
         if (di != NULL && !di->media_cd) {
             BlockBackend *blk = blk_by_legacy_dinfo(di);
-            BlockDriverState *bs = blk_bs(blk);
-            DeviceState *ds = bdrv_get_attached_dev(bs);
+            DeviceState *ds = blk_get_attached_dev(blk);
             if (ds) {
-                bdrv_detach_dev(bs, ds);
+                blk_detach_dev(blk, ds);
             }
-            pci_ide->bus[di->bus].ifs[di->unit].bs = NULL;
+            pci_ide->bus[di->bus].ifs[di->unit].blk = NULL;
             blk_unref(blk);
         }
     }

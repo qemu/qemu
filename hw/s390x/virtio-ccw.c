@@ -10,7 +10,7 @@
  */
 
 #include "hw/hw.h"
-#include "block/block.h"
+#include "sysemu/block-backend.h"
 #include "sysemu/blockdev.h"
 #include "sysemu/sysemu.h"
 #include "net/net.h"

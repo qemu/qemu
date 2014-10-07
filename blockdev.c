@@ -111,10 +111,10 @@ void override_max_devs(BlockInterfaceType type, int max_devs)
  * automatic deletion, and generic qdev code calls blockdev_auto_del()
  * when deletion is actually safe.
  */
-void blockdev_mark_auto_del(BlockDriverState *bs)
+void blockdev_mark_auto_del(BlockBackend *blk)
 {
-    BlockBackend *blk = bs->blk;
     DriveInfo *dinfo = blk_legacy_dinfo(blk);
+    BlockDriverState *bs = blk_bs(blk);
 
     if (dinfo && !dinfo->enable_auto_del) {
         return;
@@ -128,9 +128,8 @@ void blockdev_mark_auto_del(BlockDriverState *bs)
     }
 }
 
-void blockdev_auto_del(BlockDriverState *bs)
+void blockdev_auto_del(BlockBackend *blk)
 {
-    BlockBackend *blk = bs->blk;
     DriveInfo *dinfo = blk_legacy_dinfo(blk);
 
     if (dinfo && dinfo->auto_del) {
@@ -264,11 +263,6 @@ DriveInfo *drive_get_next(BlockInterfaceType type)
     static int next_block_unit[IF_COUNT];
 
     return drive_get(type, 0, next_block_unit[type]++);
-}
-
-DriveInfo *drive_get_by_blockdev(BlockDriverState *bs)
-{
-    return bs->blk ? blk_legacy_dinfo(bs->blk) : NULL;
 }
 
 static void bdrv_format_print(void *opaque, const char *name)

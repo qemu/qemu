@@ -24,7 +24,6 @@
 #include "hw/boards.h"
 #include "hw/loader.h"
 #include "sysemu/block-backend.h"
-#include "sysemu/blockdev.h"
 #include "elf.h"
 #include "lm32_hwsetup.h"
 #include "lm32.h"
@@ -120,7 +119,7 @@ static void lm32_evr_init(MachineState *machine)
     dinfo = drive_get(IF_PFLASH, 0, 0);
     /* Spansion S29NS128P */
     pflash_cfi02_register(flash_base, NULL, "lm32_evr.flash", flash_size,
-                          dinfo ? blk_bs(blk_by_legacy_dinfo(dinfo)) : NULL,
+                          dinfo ? blk_by_legacy_dinfo(dinfo) : NULL,
                           flash_sector_size, flash_size / flash_sector_size,
                           1, 2, 0x01, 0x7e, 0x43, 0x00, 0x555, 0x2aa, 1);
 
@@ -223,7 +222,7 @@ static void lm32_uclinux_init(MachineState *machine)
     dinfo = drive_get(IF_PFLASH, 0, 0);
     /* Spansion S29NS128P */
     pflash_cfi02_register(flash_base, NULL, "lm32_uclinux.flash", flash_size,
-                          dinfo ? blk_bs(blk_by_legacy_dinfo(dinfo)) : NULL,
+                          dinfo ? blk_by_legacy_dinfo(dinfo) : NULL,
                           flash_sector_size, flash_size / flash_sector_size,
                           1, 2, 0x01, 0x7e, 0x43, 0x00, 0x555, 0x2aa, 1);
 

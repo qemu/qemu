@@ -8,6 +8,7 @@
  */
 
 #include "sysemu/blockdev.h"
+#include "sysemu/block-backend.h"
 #include "hw/block/block.h"
 #include "qemu/error-report.h"
 
@@ -17,7 +18,7 @@ void blkconf_serial(BlockConf *conf, char **serial)
 
     if (!*serial) {
         /* try to fall back to value set with legacy -drive serial=... */
-        dinfo = drive_get_by_blockdev(conf->bs);
+        dinfo = blk_legacy_dinfo(conf->blk);
         *serial = g_strdup(dinfo->serial);
     }
 }
@@ -30,7 +31,7 @@ void blkconf_geometry(BlockConf *conf, int *ptrans,
 
     if (!conf->cyls && !conf->heads && !conf->secs) {
         /* try to fall back to value set with legacy -drive cyls=... */
-        dinfo = drive_get_by_blockdev(conf->bs);
+        dinfo = blk_legacy_dinfo(conf->blk);
         conf->cyls  = dinfo->cyls;
         conf->heads = dinfo->heads;
         conf->secs  = dinfo->secs;
@@ -39,7 +40,7 @@ void blkconf_geometry(BlockConf *conf, int *ptrans,
         }
     }
     if (!conf->cyls && !conf->heads && !conf->secs) {
-        hd_geometry_guess(conf->bs,
+        hd_geometry_guess(conf->blk,
                           &conf->cyls, &conf->heads, &conf->secs,
                           ptrans);
     } else if (ptrans && *ptrans == BIOS_ATA_TRANSLATION_AUTO) {

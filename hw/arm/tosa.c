@@ -17,11 +17,10 @@
 #include "hw/devices.h"
 #include "hw/arm/sharpsl.h"
 #include "hw/pcmcia.h"
-#include "block/block.h"
 #include "hw/boards.h"
 #include "hw/i2c/i2c.h"
 #include "hw/ssi.h"
-#include "sysemu/blockdev.h"
+#include "sysemu/block-backend.h"
 #include "hw/sysbus.h"
 #include "exec/address-spaces.h"
 

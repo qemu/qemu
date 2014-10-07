@@ -31,7 +31,6 @@
 #include "hw/devices.h"
 #include "hw/boards.h"
 #include "sysemu/block-backend.h"
-#include "sysemu/blockdev.h"
 #include "exec/address-spaces.h"
 
 #include "boot.h"
@@ -95,7 +94,7 @@ petalogix_s3adsp1800_init(MachineState *machine)
     dinfo = drive_get(IF_PFLASH, 0, 0);
     pflash_cfi01_register(FLASH_BASEADDR,
                           NULL, "petalogix_s3adsp1800.flash", FLASH_SIZE,
-                          dinfo ? blk_bs(blk_by_legacy_dinfo(dinfo)) : NULL,
+                          dinfo ? blk_by_legacy_dinfo(dinfo) : NULL,
                           (64 * 1024), FLASH_SIZE >> 16,
                           1, 0x89, 0x18, 0x0000, 0x0, 1);
 

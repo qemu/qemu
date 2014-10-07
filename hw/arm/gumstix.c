@@ -41,7 +41,6 @@
 #include "hw/devices.h"
 #include "hw/boards.h"
 #include "sysemu/block-backend.h"
-#include "sysemu/blockdev.h"
 #include "exec/address-spaces.h"
 #include "sysemu/qtest.h"
 
@@ -72,7 +71,7 @@ static void connex_init(MachineState *machine)
     be = 0;
 #endif
     if (!pflash_cfi01_register(0x00000000, NULL, "connext.rom", connex_rom,
-                               dinfo ? blk_bs(blk_by_legacy_dinfo(dinfo)) : NULL,
+                               dinfo ? blk_by_legacy_dinfo(dinfo) : NULL,
                                sector_len, connex_rom / sector_len,
                                2, 0, 0, 0, 0, be)) {
         fprintf(stderr, "qemu: Error registering flash memory.\n");
@@ -110,7 +109,7 @@ static void verdex_init(MachineState *machine)
     be = 0;
 #endif
     if (!pflash_cfi01_register(0x00000000, NULL, "verdex.rom", verdex_rom,
-                               dinfo ? blk_bs(blk_by_legacy_dinfo(dinfo)) : NULL,
+                               dinfo ? blk_by_legacy_dinfo(dinfo) : NULL,
                                sector_len, verdex_rom / sector_len,
                                2, 0, 0, 0, 0, be)) {
         fprintf(stderr, "qemu: Error registering flash memory.\n");

@@ -452,7 +452,7 @@ static void create_one_flash(const char *name, hwaddr flashbase,
     const uint64_t sectorlength = 256 * 1024;
 
     if (dinfo && qdev_prop_set_drive(dev, "drive",
-                                     blk_bs(blk_by_legacy_dinfo(dinfo)))) {
+                                     blk_by_legacy_dinfo(dinfo))) {
         abort();
     }
 

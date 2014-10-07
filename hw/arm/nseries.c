@@ -32,7 +32,6 @@
 #include "hw/bt.h"
 #include "hw/loader.h"
 #include "sysemu/block-backend.h"
-#include "sysemu/blockdev.h"
 #include "hw/sysbus.h"
 #include "exec/address-spaces.h"
 
@@ -175,7 +174,7 @@ static void n8x0_nand_setup(struct n800_s *s)
     dinfo = drive_get(IF_MTD, 0, 0);
     if (dinfo) {
         qdev_prop_set_drive_nofail(s->nand, "drive",
-                                   blk_bs(blk_by_legacy_dinfo(dinfo)));
+                                   blk_by_legacy_dinfo(dinfo));
     }
     qdev_init_nofail(s->nand);
     sysbus_connect_irq(SYS_BUS_DEVICE(s->nand), 0,

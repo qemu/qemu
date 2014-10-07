@@ -37,7 +37,6 @@
 #include "hw/usb.h"
 #include "hw/block/flash.h"
 #include "sysemu/block-backend.h"
-#include "sysemu/blockdev.h"
 #include "exec/address-spaces.h"
 
 #define FLASH_BASE 0x00000000
@@ -291,7 +290,7 @@ static void r2d_init(MachineState *machine)
     /* onboard flash memory */
     dinfo = drive_get(IF_PFLASH, 0, 0);
     pflash_cfi02_register(0x0, NULL, "r2d.flash", FLASH_SIZE,
-                          dinfo ? blk_bs(blk_by_legacy_dinfo(dinfo)) : NULL,
+                          dinfo ? blk_by_legacy_dinfo(dinfo) : NULL,
                           (16 * 1024), FLASH_SIZE >> 16,
                           1, 4, 0x0000, 0x0000, 0x0000, 0x0000,
                           0x555, 0x2aa, 0);

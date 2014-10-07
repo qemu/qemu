@@ -1,7 +1,7 @@
 #include "net/net.h"
 #include "hw/qdev.h"
 #include "qapi/qmp/qerror.h"
-#include "sysemu/blockdev.h"
+#include "sysemu/block-backend.h"
 #include "hw/block/block.h"
 #include "net/hub.h"
 #include "qapi/visitor.h"

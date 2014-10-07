@@ -17,7 +17,7 @@
 #include "qemu/thread.h"
 #include "qemu/error-report.h"
 #include "hw/virtio/dataplane/vring.h"
-#include "block/block.h"
+#include "sysemu/block-backend.h"
 #include "hw/virtio/virtio-blk.h"
 #include "virtio-blk.h"
 #include "block/aio.h"
@@ -94,7 +94,7 @@ static void handle_notify(EventNotifier *e)
     VirtIOBlock *vblk = VIRTIO_BLK(s->vdev);
 
     event_notifier_test_and_clear(&s->host_notifier);
-    bdrv_io_plug(s->conf->conf.bs);
+    blk_io_plug(s->conf->conf.blk);
     for (;;) {
         MultiReqBuffer mrb = {
             .num_writes = 0,
@@ -120,7 +120,7 @@ static void handle_notify(EventNotifier *e)
             virtio_blk_handle_request(req, &mrb);
         }
 
-        virtio_submit_multiwrite(s->conf->conf.bs, &mrb);
+        virtio_submit_multiwrite(s->conf->conf.blk, &mrb);
 
         if (likely(ret == -EAGAIN)) { /* vring emptied */
             /* Re-enable guest->host notifies and stop processing the vring.
@@ -133,7 +133,7 @@ static void handle_notify(EventNotifier *e)
             break;
         }
     }
-    bdrv_io_unplug(s->conf->conf.bs);
+    blk_io_unplug(s->conf->conf.blk);
 }
 
 /* Context: QEMU global mutex held */
@@ -163,8 +163,8 @@ void virtio_blk_data_plane_create(VirtIODevice *vdev, VirtIOBlkConf *conf,
     /* If dataplane is (re-)enabled while the guest is running there could be
      * block jobs that can conflict.
      */
-    if (bdrv_op_is_blocked(conf->conf.bs, BLOCK_OP_TYPE_DATAPLANE,
-                           &local_err)) {
+    if (blk_op_is_blocked(conf->conf.blk, BLOCK_OP_TYPE_DATAPLANE,
+                          &local_err)) {
         error_setg(errp, "cannot start dataplane thread: %s",
                    error_get_pretty(local_err));
         error_free(local_err);
@@ -193,9 +193,9 @@ void virtio_blk_data_plane_create(VirtIODevice *vdev, VirtIOBlkConf *conf,
     s->bh = aio_bh_new(s->ctx, notify_guest_bh, s);
 
     error_setg(&s->blocker, "block device is in use by data plane");
-    bdrv_op_block_all(conf->conf.bs, s->blocker);
-    bdrv_op_unblock(conf->conf.bs, BLOCK_OP_TYPE_RESIZE, s->blocker);
-    bdrv_op_unblock(conf->conf.bs, BLOCK_OP_TYPE_DRIVE_DEL, s->blocker);
+    blk_op_block_all(conf->conf.blk, s->blocker);
+    blk_op_unblock(conf->conf.blk, BLOCK_OP_TYPE_RESIZE, s->blocker);
+    blk_op_unblock(conf->conf.blk, BLOCK_OP_TYPE_DRIVE_DEL, s->blocker);
 
     *dataplane = s;
 }
@@ -208,7 +208,7 @@ void virtio_blk_data_plane_destroy(VirtIOBlockDataPlane *s)
     }
 
     virtio_blk_data_plane_stop(s);
-    bdrv_op_unblock_all(s->conf->conf.bs, s->blocker);
+    blk_op_unblock_all(s->conf->conf.blk, s->blocker);
     error_free(s->blocker);
     object_unref(OBJECT(s->iothread));
     qemu_bh_delete(s->bh);
@@ -263,7 +263,7 @@ void virtio_blk_data_plane_start(VirtIOBlockDataPlane *s)
     s->started = true;
     trace_virtio_blk_data_plane_start(s);
 
-    bdrv_set_aio_context(s->conf->conf.bs, s->ctx);
+    blk_set_aio_context(s->conf->conf.blk, s->ctx);
 
     /* Kick right away to begin processing requests already in vring */
     event_notifier_set(virtio_queue_get_host_notifier(vq));
@@ -309,7 +309,7 @@ void virtio_blk_data_plane_stop(VirtIOBlockDataPlane *s)
     aio_set_event_notifier(s->ctx, &s->host_notifier, NULL);
 
     /* Drain and switch bs back to the QEMU main loop */
-    bdrv_set_aio_context(s->conf->conf.bs, qemu_get_aio_context());
+    blk_set_aio_context(s->conf->conf.blk, qemu_get_aio_context());
 
     aio_context_release(s->ctx);
 

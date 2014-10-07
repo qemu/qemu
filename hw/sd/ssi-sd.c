@@ -256,7 +256,7 @@ static int ssi_sd_init(SSISlave *d)
 
     s->mode = SSI_SD_CMD;
     dinfo = drive_get_next(IF_SD);
-    s->sd = sd_init(dinfo ? blk_bs(blk_by_legacy_dinfo(dinfo)) : NULL, true);
+    s->sd = sd_init(dinfo ? blk_by_legacy_dinfo(dinfo) : NULL, true);
     if (s->sd == NULL) {
         return -1;
     }

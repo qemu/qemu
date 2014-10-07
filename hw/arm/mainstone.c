@@ -149,7 +149,7 @@ static void mainstone_common_init(MemoryRegion *address_space_mem,
         if (!pflash_cfi01_register(mainstone_flash_base[i], NULL,
                                    i ? "mainstone.flash1" : "mainstone.flash0",
                                    MAINSTONE_FLASH,
-                                   blk_bs(blk_by_legacy_dinfo(dinfo)),
+                                   blk_by_legacy_dinfo(dinfo),
                                    sector_len, MAINSTONE_FLASH / sector_len,
                                    4, 0, 0, 0, 0, be)) {
             fprintf(stderr, "qemu: Error registering flash memory.\n");

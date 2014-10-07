@@ -34,7 +34,6 @@
 #include "hw/virtio/virtio-blk.h"
 #include "qemu/config-file.h"
 #include "sysemu/block-backend.h"
-#include "sysemu/blockdev.h"
 #include "qapi/error.h"
 
 static int pci_read_devaddr(Monitor *mon, const char *addr,
@@ -129,7 +128,7 @@ static int scsi_hot_add(Monitor *mon, DeviceState *adapter,
     dinfo->unit = qemu_opt_get_number(dinfo->opts, "unit", -1);
     dinfo->bus = scsibus->busnr;
     scsidev = scsi_bus_legacy_add_drive(scsibus,
-                                        blk_bs(blk_by_legacy_dinfo(dinfo)),
+                                        blk_by_legacy_dinfo(dinfo),
                                         dinfo->unit, false, -1, NULL,
                                         &local_err);
     if (!scsidev) {
@@ -254,7 +253,7 @@ static PCIDevice *qemu_pci_hot_add_storage(Monitor *mon,
         }
         dev = pci_create(bus, devfn, "virtio-blk-pci");
         if (qdev_prop_set_drive(&dev->qdev, "drive",
-                                blk_bs(blk_by_legacy_dinfo(dinfo))) < 0) {
+                                blk_by_legacy_dinfo(dinfo)) < 0) {
             object_unparent(OBJECT(dev));
             dev = NULL;
             break;

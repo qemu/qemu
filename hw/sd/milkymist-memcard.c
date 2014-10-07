@@ -253,16 +253,16 @@ static int milkymist_memcard_init(SysBusDevice *dev)
 {
     MilkymistMemcardState *s = MILKYMIST_MEMCARD(dev);
     DriveInfo *dinfo;
-    BlockDriverState *bs;
+    BlockBackend *blk;
 
     dinfo = drive_get_next(IF_SD);
-    bs = dinfo ? blk_bs(blk_by_legacy_dinfo(dinfo)) : NULL;
-    s->card = sd_init(bs, false);
+    blk = dinfo ? blk_by_legacy_dinfo(dinfo) : NULL;
+    s->card = sd_init(blk, false);
     if (s->card == NULL) {
         return -1;
     }
 
-    s->enabled = bs && bdrv_is_inserted(bs);
+    s->enabled = blk && blk_is_inserted(blk);
 
     memory_region_init_io(&s->regs_region, OBJECT(s), &memcard_mmio_ops, s,
             "milkymist-memcard", R_MAX * 4);

@@ -322,12 +322,12 @@ static void pc87312_realize(DeviceState *dev, Error **errp)
         drive = drive_get(IF_FLOPPY, 0, 0);
         if (drive != NULL) {
             qdev_prop_set_drive_nofail(d, "driveA",
-                                       blk_bs(blk_by_legacy_dinfo(drive)));
+                                       blk_by_legacy_dinfo(drive));
         }
         drive = drive_get(IF_FLOPPY, 0, 1);
         if (drive != NULL) {
             qdev_prop_set_drive_nofail(d, "driveB",
-                                       blk_bs(blk_by_legacy_dinfo(drive)));
+                                       blk_by_legacy_dinfo(drive));
         }
         qdev_init_nofail(d);
         s->fdc.dev = isa;

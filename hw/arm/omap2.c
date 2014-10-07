@@ -2463,7 +2463,7 @@ struct omap_mpu_state_s *omap2420_mpu_init(MemoryRegion *sysmem,
         exit(1);
     }
     s->mmc = omap2_mmc_init(omap_l4tao(s->l4, 9),
-                    blk_bs(blk_by_legacy_dinfo(dinfo)),
+                    blk_by_legacy_dinfo(dinfo),
                     qdev_get_gpio_in(s->ih[0], OMAP_INT_24XX_MMC_IRQ),
                     &s->drq[OMAP24XX_DMA_MMC1_TX],
                     omap_findclk(s, "mmc_fclk"), omap_findclk(s, "mmc_iclk"));

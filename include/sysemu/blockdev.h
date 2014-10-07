@@ -14,8 +14,8 @@
 #include "qapi/error.h"
 #include "qemu/queue.h"
 
-void blockdev_mark_auto_del(BlockDriverState *bs);
-void blockdev_auto_del(BlockDriverState *bs);
+void blockdev_mark_auto_del(BlockBackend *blk);
+void blockdev_auto_del(BlockBackend *blk);
 
 typedef enum {
     IF_DEFAULT = -1,            /* for use with drive_add() only */
@@ -57,7 +57,6 @@ DriveInfo *drive_get_by_index(BlockInterfaceType type, int index);
 int drive_get_max_bus(BlockInterfaceType type);
 int drive_get_max_devs(BlockInterfaceType type);
 DriveInfo *drive_get_next(BlockInterfaceType type);
-DriveInfo *drive_get_by_blockdev(BlockDriverState *bs);
 
 QemuOpts *drive_def(const char *optstr);
 QemuOpts *drive_add(BlockInterfaceType type, int index, const char *file,

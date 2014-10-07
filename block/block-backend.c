@@ -237,3 +237,265 @@ void blk_hide_on_behalf_of_do_drive_del(BlockBackend *blk)
         bdrv_make_anon(blk->bs);
     }
 }
+
+void blk_iostatus_enable(BlockBackend *blk)
+{
+    bdrv_iostatus_enable(blk->bs);
+}
+
+int blk_attach_dev(BlockBackend *blk, void *dev)
+{
+    return bdrv_attach_dev(blk->bs, dev);
+}
+
+void blk_attach_dev_nofail(BlockBackend *blk, void *dev)
+{
+    bdrv_attach_dev_nofail(blk->bs, dev);
+}
+
+void blk_detach_dev(BlockBackend *blk, void *dev)
+{
+    bdrv_detach_dev(blk->bs, dev);
+}
+
+void *blk_get_attached_dev(BlockBackend *blk)
+{
+    return bdrv_get_attached_dev(blk->bs);
+}
+
+void blk_set_dev_ops(BlockBackend *blk, const BlockDevOps *ops, void *opaque)
+{
+    bdrv_set_dev_ops(blk->bs, ops, opaque);
+}
+
+int blk_read(BlockBackend *blk, int64_t sector_num, uint8_t *buf,
+             int nb_sectors)
+{
+    return bdrv_read(blk->bs, sector_num, buf, nb_sectors);
+}
+
+int blk_read_unthrottled(BlockBackend *blk, int64_t sector_num, uint8_t *buf,
+                         int nb_sectors)
+{
+    return bdrv_read_unthrottled(blk->bs, sector_num, buf, nb_sectors);
+}
+
+int blk_write(BlockBackend *blk, int64_t sector_num, const uint8_t *buf,
+              int nb_sectors)
+{
+    return bdrv_write(blk->bs, sector_num, buf, nb_sectors);
+}
+
+BlockAIOCB *blk_aio_write_zeroes(BlockBackend *blk, int64_t sector_num,
+                                 int nb_sectors, BdrvRequestFlags flags,
+                                 BlockCompletionFunc *cb, void *opaque)
+{
+    return bdrv_aio_write_zeroes(blk->bs, sector_num, nb_sectors, flags,
+                                 cb, opaque);
+}
+
+int blk_pread(BlockBackend *blk, int64_t offset, void *buf, int count)
+{
+    return bdrv_pread(blk->bs, offset, buf, count);
+}
+
+int blk_pwrite(BlockBackend *blk, int64_t offset, const void *buf, int count)
+{
+    return bdrv_pwrite(blk->bs, offset, buf, count);
+}
+
+int64_t blk_getlength(BlockBackend *blk)
+{
+    return bdrv_getlength(blk->bs);
+}
+
+void blk_get_geometry(BlockBackend *blk, uint64_t *nb_sectors_ptr)
+{
+    bdrv_get_geometry(blk->bs, nb_sectors_ptr);
+}
+
+BlockAIOCB *blk_aio_readv(BlockBackend *blk, int64_t sector_num,
+                          QEMUIOVector *iov, int nb_sectors,
+                          BlockCompletionFunc *cb, void *opaque)
+{
+    return bdrv_aio_readv(blk->bs, sector_num, iov, nb_sectors, cb, opaque);
+}
+
+BlockAIOCB *blk_aio_writev(BlockBackend *blk, int64_t sector_num,
+                           QEMUIOVector *iov, int nb_sectors,
+                           BlockCompletionFunc *cb, void *opaque)
+{
+    return bdrv_aio_writev(blk->bs, sector_num, iov, nb_sectors, cb, opaque);
+}
+
+BlockAIOCB *blk_aio_flush(BlockBackend *blk,
+                          BlockCompletionFunc *cb, void *opaque)
+{
+    return bdrv_aio_flush(blk->bs, cb, opaque);
+}
+
+BlockAIOCB *blk_aio_discard(BlockBackend *blk,
+                            int64_t sector_num, int nb_sectors,
+                            BlockCompletionFunc *cb, void *opaque)
+{
+    return bdrv_aio_discard(blk->bs, sector_num, nb_sectors, cb, opaque);
+}
+
+void blk_aio_cancel(BlockAIOCB *acb)
+{
+    bdrv_aio_cancel(acb);
+}
+
+void blk_aio_cancel_async(BlockAIOCB *acb)
+{
+    bdrv_aio_cancel_async(acb);
+}
+
+int blk_aio_multiwrite(BlockBackend *blk, BlockRequest *reqs, int num_reqs)
+{
+    return bdrv_aio_multiwrite(blk->bs, reqs, num_reqs);
+}
+
+int blk_ioctl(BlockBackend *blk, unsigned long int req, void *buf)
+{
+    return bdrv_ioctl(blk->bs, req, buf);
+}
+
+BlockAIOCB *blk_aio_ioctl(BlockBackend *blk, unsigned long int req, void *buf,
+                          BlockCompletionFunc *cb, void *opaque)
+{
+    return bdrv_aio_ioctl(blk->bs, req, buf, cb, opaque);
+}
+
+int blk_flush(BlockBackend *blk)
+{
+    return bdrv_flush(blk->bs);
+}
+
+int blk_flush_all(void)
+{
+    return bdrv_flush_all();
+}
+
+void blk_drain_all(void)
+{
+    bdrv_drain_all();
+}
+
+BlockdevOnError blk_get_on_error(BlockBackend *blk, bool is_read)
+{
+    return bdrv_get_on_error(blk->bs, is_read);
+}
+
+BlockErrorAction blk_get_error_action(BlockBackend *blk, bool is_read,
+                                      int error)
+{
+    return bdrv_get_error_action(blk->bs, is_read, error);
+}
+
+void blk_error_action(BlockBackend *blk, BlockErrorAction action,
+                      bool is_read, int error)
+{
+    bdrv_error_action(blk->bs, action, is_read, error);
+}
+
+int blk_is_read_only(BlockBackend *blk)
+{
+    return bdrv_is_read_only(blk->bs);
+}
+
+int blk_is_sg(BlockBackend *blk)
+{
+    return bdrv_is_sg(blk->bs);
+}
+
+int blk_enable_write_cache(BlockBackend *blk)
+{
+    return bdrv_enable_write_cache(blk->bs);
+}
+
+void blk_set_enable_write_cache(BlockBackend *blk, bool wce)
+{
+    bdrv_set_enable_write_cache(blk->bs, wce);
+}
+
+int blk_is_inserted(BlockBackend *blk)
+{
+    return bdrv_is_inserted(blk->bs);
+}
+
+void blk_lock_medium(BlockBackend *blk, bool locked)
+{
+    bdrv_lock_medium(blk->bs, locked);
+}
+
+void blk_eject(BlockBackend *blk, bool eject_flag)
+{
+    bdrv_eject(blk->bs, eject_flag);
+}
+
+int blk_get_flags(BlockBackend *blk)
+{
+    return bdrv_get_flags(blk->bs);
+}
+
+void blk_set_guest_block_size(BlockBackend *blk, int align)
+{
+    bdrv_set_guest_block_size(blk->bs, align);
+}
+
+void *blk_blockalign(BlockBackend *blk, size_t size)
+{
+    return qemu_blockalign(blk ? blk->bs : NULL, size);
+}
+
+bool blk_op_is_blocked(BlockBackend *blk, BlockOpType op, Error **errp)
+{
+    return bdrv_op_is_blocked(blk->bs, op, errp);
+}
+
+void blk_op_unblock(BlockBackend *blk, BlockOpType op, Error *reason)
+{
+    bdrv_op_unblock(blk->bs, op, reason);
+}
+
+void blk_op_block_all(BlockBackend *blk, Error *reason)
+{
+    bdrv_op_block_all(blk->bs, reason);
+}
+
+void blk_op_unblock_all(BlockBackend *blk, Error *reason)
+{
+    bdrv_op_unblock_all(blk->bs, reason);
+}
+
+AioContext *blk_get_aio_context(BlockBackend *blk)
+{
+    return bdrv_get_aio_context(blk->bs);
+}
+
+void blk_set_aio_context(BlockBackend *blk, AioContext *new_context)
+{
+    bdrv_set_aio_context(blk->bs, new_context);
+}
+
+void blk_io_plug(BlockBackend *blk)
+{
+    bdrv_io_plug(blk->bs);
+}
+
+void blk_io_unplug(BlockBackend *blk)
+{
+    bdrv_io_unplug(blk->bs);
+}
+
+BlockAcctStats *blk_get_stats(BlockBackend *blk)
+{
+    return bdrv_get_stats(blk->bs);
+}
+
+void *blk_aio_get(const AIOCBInfo *aiocb_info, BlockBackend *blk,
+                  BlockCompletionFunc *cb, void *opaque)
+{
+    return qemu_aio_get(aiocb_info, blk_bs(blk), cb, opaque);
+}

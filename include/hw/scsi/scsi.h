@@ -2,7 +2,7 @@
 #define QEMU_HW_SCSI_H
 
 #include "hw/qdev.h"
-#include "block/block.h"
+#include "qemu/typedefs.h"
 #include "hw/block/block.h"
 #include "sysemu/sysemu.h"
 #include "qemu/notify.h"
@@ -173,7 +173,7 @@ static inline SCSIBus *scsi_bus_from_device(SCSIDevice *d)
     return DO_UPCAST(SCSIBus, qbus, d->qdev.parent_bus);
 }
 
-SCSIDevice *scsi_bus_legacy_add_drive(SCSIBus *bus, BlockDriverState *bdrv,
+SCSIDevice *scsi_bus_legacy_add_drive(SCSIBus *bus, BlockBackend *blk,
                                       int unit, bool removable, int bootindex,
                                       const char *serial, Error **errp);
 void scsi_bus_legacy_handle_cmdline(SCSIBus *bus, Error **errp);

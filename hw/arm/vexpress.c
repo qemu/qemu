@@ -31,7 +31,6 @@
 #include "hw/loader.h"
 #include "exec/address-spaces.h"
 #include "sysemu/block-backend.h"
-#include "sysemu/blockdev.h"
 #include "hw/block/flash.h"
 #include "sysemu/device_tree.h"
 #include "qemu/error-report.h"
@@ -493,7 +492,7 @@ static pflash_t *ve_pflash_cfi01_register(hwaddr base, const char *name,
     DeviceState *dev = qdev_create(NULL, "cfi.pflash01");
 
     if (di && qdev_prop_set_drive(dev, "drive",
-                                  blk_bs(blk_by_legacy_dinfo(di)))) {
+                                  blk_by_legacy_dinfo(di))) {
         abort();
     }
 
