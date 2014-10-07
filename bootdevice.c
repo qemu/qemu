@@ -24,6 +24,7 @@
 
 #include "sysemu/sysemu.h"
 #include "qapi/visitor.h"
+#include "qemu/error-report.h"
 
 typedef struct FWBootEntry FWBootEntry;
 
@@ -93,7 +94,7 @@ void add_boot_device_path(int32_t bootindex, DeviceState *dev,
 
     QTAILQ_FOREACH(i, &fw_boot_order, link) {
         if (i->bootindex == bootindex) {
-            fprintf(stderr, "Two devices with same boot index %d\n", bootindex);
+            error_report("Two devices with same boot index %d", bootindex);
             exit(1);
         } else if (i->bootindex < bootindex) {
             continue;
