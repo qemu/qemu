@@ -2608,26 +2608,21 @@ fail:
     qmp_output_visitor_cleanup(ov);
 }
 
-static void do_qmp_query_block_jobs_one(void *opaque, BlockDriverState *bs)
-{
-    BlockJobInfoList **prev = opaque;
-    BlockJob *job = bs->job;
-
-    if (job) {
-        BlockJobInfoList *elem = g_new0(BlockJobInfoList, 1);
-        elem->value = block_job_query(bs->job);
-        (*prev)->next = elem;
-        *prev = elem;
-    }
-}
-
 BlockJobInfoList *qmp_query_block_jobs(Error **errp)
 {
-    /* Dummy is a fake list element for holding the head pointer */
-    BlockJobInfoList dummy = {};
-    BlockJobInfoList *prev = &dummy;
-    bdrv_iterate(do_qmp_query_block_jobs_one, &prev);
-    return dummy.next;
+    BlockJobInfoList *head = NULL, **p_next = &head;
+    BlockDriverState *bs;
+
+    for (bs = bdrv_next(NULL); bs; bs = bdrv_next(bs)) {
+        if (bs->job) {
+            BlockJobInfoList *elem = g_new0(BlockJobInfoList, 1);
+            elem->value = block_job_query(bs->job);
+            *p_next = elem;
+            p_next = &elem->next;
+        }
+    }
+
+    return head;
 }
 
 QemuOptsList qemu_common_drive_opts = {

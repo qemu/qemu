@@ -411,8 +411,6 @@ BlockDriverState *bdrv_lookup_bs(const char *device,
                                  Error **errp);
 bool bdrv_chain_contains(BlockDriverState *top, BlockDriverState *base);
 BlockDriverState *bdrv_next(BlockDriverState *bs);
-void bdrv_iterate(void (*it)(void *opaque, BlockDriverState *bs),
-                  void *opaque);
 int bdrv_is_encrypted(BlockDriverState *bs);
 int bdrv_key_required(BlockDriverState *bs);
 int bdrv_set_key(BlockDriverState *bs, const char *key);

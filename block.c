@@ -3906,15 +3906,6 @@ BlockDriverState *bdrv_next(BlockDriverState *bs)
     return QTAILQ_NEXT(bs, device_list);
 }
 
-void bdrv_iterate(void (*it)(void *opaque, BlockDriverState *bs), void *opaque)
-{
-    BlockDriverState *bs;
-
-    QTAILQ_FOREACH(bs, &bdrv_states, device_list) {
-        it(opaque, bs);
-    }
-}
-
 const char *bdrv_get_device_name(BlockDriverState *bs)
 {
     return bs->device_name;

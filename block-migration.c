@@ -343,12 +343,25 @@ static void unset_dirty_tracking(void)
     }
 }
 
-static void init_blk_migration_it(void *opaque, BlockDriverState *bs)
+static void init_blk_migration(QEMUFile *f)
 {
+    BlockDriverState *bs;
     BlkMigDevState *bmds;
     int64_t sectors;
 
-    if (!bdrv_is_read_only(bs)) {
+    block_mig_state.submitted = 0;
+    block_mig_state.read_done = 0;
+    block_mig_state.transferred = 0;
+    block_mig_state.total_sector_sum = 0;
+    block_mig_state.prev_progress = -1;
+    block_mig_state.bulk_completed = 0;
+    block_mig_state.zero_blocks = migrate_zero_blocks();
+
+    for (bs = bdrv_next(NULL); bs; bs = bdrv_next(bs)) {
+        if (bdrv_is_read_only(bs)) {
+            continue;
+        }
+
         sectors = bdrv_nb_sectors(bs);
         if (sectors <= 0) {
             return;
@@ -376,19 +389,6 @@ static void init_blk_migration_it(void *opaque, BlockDriverState *bs)
 
         QSIMPLEQ_INSERT_TAIL(&block_mig_state.bmds_list, bmds, entry);
     }
-}
-
-static void init_blk_migration(QEMUFile *f)
-{
-    block_mig_state.submitted = 0;
-    block_mig_state.read_done = 0;
-    block_mig_state.transferred = 0;
-    block_mig_state.total_sector_sum = 0;
-    block_mig_state.prev_progress = -1;
-    block_mig_state.bulk_completed = 0;
-    block_mig_state.zero_blocks = migrate_zero_blocks();
-
-    bdrv_iterate(init_blk_migration_it, NULL);
 }
 
 /* Called with no lock taken.  */

@@ -4216,24 +4216,6 @@ static void file_completion(Monitor *mon, const char *input)
     closedir(ffs);
 }
 
-typedef struct MonitorBlockComplete {
-    Monitor *mon;
-    const char *input;
-} MonitorBlockComplete;
-
-static void block_completion_it(void *opaque, BlockDriverState *bs)
-{
-    const char *name = bdrv_get_device_name(bs);
-    MonitorBlockComplete *mbc = opaque;
-    Monitor *mon = mbc->mon;
-    const char *input = mbc->input;
-
-    if (input[0] == '\0' ||
-        !strncmp(name, (char *)input, strlen(input))) {
-        readline_add_completion(mon->rs, name);
-    }
-}
-
 static const char *next_arg_type(const char *typestr)
 {
     const char *p = strchr(typestr, ':');
@@ -4671,9 +4653,9 @@ static void monitor_find_completion_by_table(Monitor *mon,
 {
     const char *cmdname;
     int i;
-    const char *ptype, *str;
+    const char *ptype, *str, *name;
     const mon_cmd_t *cmd;
-    MonitorBlockComplete mbs;
+    BlockDriverState *bs;
 
     if (nb_args <= 1) {
         /* command completion */
@@ -4725,10 +4707,14 @@ static void monitor_find_completion_by_table(Monitor *mon,
             break;
         case 'B':
             /* block device name completion */
-            mbs.mon = mon;
-            mbs.input = str;
             readline_set_completion_index(mon->rs, strlen(str));
-            bdrv_iterate(block_completion_it, &mbs);
+            for (bs = bdrv_next(NULL); bs; bs = bdrv_next(bs)) {
+                name = bdrv_get_device_name(bs);
+                if (str[0] == '\0' ||
+                    !strncmp(name, str, strlen(str))) {
+                    readline_add_completion(mon->rs, name);
+                }
+            }
             break;
         case 's':
         case 'S':
