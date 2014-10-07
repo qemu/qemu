@@ -28,6 +28,7 @@
 #include "qapi-visit.h"
 #include "qapi/qmp-output-visitor.h"
 #include "qapi/qmp/types.h"
+#include "sysemu/block-backend.h"
 #ifdef __linux__
 #include <linux/fs.h>
 #include <sys/ioctl.h>
@@ -264,15 +265,15 @@ void bdrv_query_image_info(BlockDriverState *bs,
 }
 
 /* @p_info will be set only on success. */
-void bdrv_query_info(BlockDriverState *bs,
-                     BlockInfo **p_info,
-                     Error **errp)
+static void bdrv_query_info(BlockBackend *blk, BlockInfo **p_info,
+                            Error **errp)
 {
     BlockInfo *info = g_malloc0(sizeof(*info));
+    BlockDriverState *bs = blk_bs(blk);
     BlockDriverState *bs0;
     ImageInfo **p_image_info;
     Error *local_err = NULL;
-    info->device = g_strdup(bdrv_get_device_name(bs));
+    info->device = g_strdup(blk_name(blk));
     info->type = g_strdup("unknown");
     info->locked = bdrv_dev_is_medium_locked(bs);
     info->removable = bdrv_dev_has_removable_media(bs);
@@ -360,12 +361,12 @@ static BlockStats *bdrv_query_stats(const BlockDriverState *bs)
 BlockInfoList *qmp_query_block(Error **errp)
 {
     BlockInfoList *head = NULL, **p_next = &head;
-    BlockDriverState *bs = NULL;
+    BlockBackend *blk;
     Error *local_err = NULL;
 
-     while ((bs = bdrv_next(bs))) {
+    for (blk = blk_next(NULL); blk; blk = blk_next(blk)) {
         BlockInfoList *info = g_malloc0(sizeof(*info));
-        bdrv_query_info(bs, &info->value, &local_err);
+        bdrv_query_info(blk, &info->value, &local_err);
         if (local_err) {
             error_propagate(errp, local_err);
             goto err;
