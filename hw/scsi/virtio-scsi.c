@@ -545,11 +545,12 @@ bool virtio_scsi_handle_cmd_req_prepare(VirtIOSCSI *s, VirtIOSCSIReq *req)
 
 void virtio_scsi_handle_cmd_req_submit(VirtIOSCSI *s, VirtIOSCSIReq *req)
 {
-    if (scsi_req_enqueue(req->sreq)) {
-        scsi_req_continue(req->sreq);
+    SCSIRequest *sreq = req->sreq;
+    if (scsi_req_enqueue(sreq)) {
+        scsi_req_continue(sreq);
     }
-    bdrv_io_unplug(req->sreq->dev->conf.bs);
-    scsi_req_unref(req->sreq);
+    bdrv_io_unplug(sreq->dev->conf.bs);
+    scsi_req_unref(sreq);
 }
 
 static void virtio_scsi_handle_cmd(VirtIODevice *vdev, VirtQueue *vq)
