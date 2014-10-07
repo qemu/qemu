@@ -125,7 +125,7 @@ typedef struct VirtIOBlock {
     VirtQueue *vq;
     void *rq;
     QEMUBH *bh;
-    VirtIOBlkConf blk;
+    VirtIOBlkConf conf;
     unsigned short sector_mask;
     bool original_wce;
     VMChangeStateEntry *change;

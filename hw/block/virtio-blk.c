@@ -155,7 +155,7 @@ int virtio_blk_handle_scsi_req(VirtIOBlock *blk,
      */
     scsi = (void *)elem->in_sg[elem->in_num - 2].iov_base;
 
-    if (!blk->blk.scsi) {
+    if (!blk->conf.scsi) {
         status = VIRTIO_BLK_S_UNSUPP;
         goto fail;
     }
@@ -296,7 +296,7 @@ static bool virtio_blk_sect_range_ok(VirtIOBlock *dev,
     if (sector & dev->sector_mask) {
         return false;
     }
-    if (size % dev->blk.conf.logical_block_size) {
+    if (size % dev->conf.conf.logical_block_size) {
         return false;
     }
     bdrv_get_geometry(dev->bs, &total_sectors);
@@ -405,7 +405,7 @@ void virtio_blk_handle_request(VirtIOBlockReq *req, MultiReqBuffer *mrb)
          * NB: per existing s/n string convention the string is
          * terminated by '\0' only when shorter than buffer.
          */
-        const char *serial = s->blk.serial ? s->blk.serial : "";
+        const char *serial = s->conf.serial ? s->conf.serial : "";
         size_t size = MIN(strlen(serial) + 1,
                           MIN(iov_size(in_iov, in_num),
                               VIRTIO_BLK_ID_BYTES));
@@ -486,7 +486,7 @@ static void virtio_blk_dma_restart_cb(void *opaque, int running,
     }
 
     if (!s->bh) {
-        s->bh = aio_bh_new(bdrv_get_aio_context(s->blk.conf.bs),
+        s->bh = aio_bh_new(bdrv_get_aio_context(s->conf.conf.bs),
                            virtio_blk_dma_restart_bh, s);
         qemu_bh_schedule(s->bh);
     }
@@ -513,7 +513,7 @@ static void virtio_blk_reset(VirtIODevice *vdev)
 static void virtio_blk_update_config(VirtIODevice *vdev, uint8_t *config)
 {
     VirtIOBlock *s = VIRTIO_BLK(vdev);
-    BlockConf *conf = &s->blk.conf;
+    BlockConf *conf = &s->conf.conf;
     struct virtio_blk_config blkcfg;
     uint64_t capacity;
     int blk_size = conf->logical_block_size;
@@ -572,7 +572,7 @@ static uint32_t virtio_blk_get_features(VirtIODevice *vdev, uint32_t features)
     features |= (1 << VIRTIO_BLK_F_BLK_SIZE);
     features |= (1 << VIRTIO_BLK_F_SCSI);
 
-    if (s->blk.config_wce) {
+    if (s->conf.config_wce) {
         features |= (1 << VIRTIO_BLK_F_CONFIG_WCE);
     }
     if (bdrv_enable_write_cache(s->bs))
@@ -709,7 +709,7 @@ static void virtio_blk_migration_state_changed(Notifier *notifier, void *data)
             return;
         }
         bdrv_drain_all(); /* complete in-flight non-dataplane requests */
-        virtio_blk_data_plane_create(VIRTIO_DEVICE(s), &s->blk,
+        virtio_blk_data_plane_create(VIRTIO_DEVICE(s), &s->conf,
                                      &s->dataplane, &err);
         if (err != NULL) {
             error_report("%s", error_get_pretty(err));
@@ -722,22 +722,22 @@ static void virtio_blk_device_realize(DeviceState *dev, Error **errp)
 {
     VirtIODevice *vdev = VIRTIO_DEVICE(dev);
     VirtIOBlock *s = VIRTIO_BLK(dev);
-    VirtIOBlkConf *blk = &(s->blk);
+    VirtIOBlkConf *conf = &s->conf;
     Error *err = NULL;
     static int virtio_blk_id;
 
-    if (!blk->conf.bs) {
+    if (!conf->conf.bs) {
         error_setg(errp, "drive property not set");
         return;
     }
-    if (!bdrv_is_inserted(blk->conf.bs)) {
+    if (!bdrv_is_inserted(conf->conf.bs)) {
         error_setg(errp, "Device needs media, but drive is empty");
         return;
     }
 
-    blkconf_serial(&blk->conf, &blk->serial);
-    s->original_wce = bdrv_enable_write_cache(blk->conf.bs);
-    blkconf_geometry(&blk->conf, NULL, 65535, 255, 255, &err);
+    blkconf_serial(&conf->conf, &conf->serial);
+    s->original_wce = bdrv_enable_write_cache(conf->conf.bs);
+    blkconf_geometry(&conf->conf, NULL, 65535, 255, 255, &err);
     if (err) {
         error_propagate(errp, err);
         return;
@@ -746,13 +746,13 @@ static void virtio_blk_device_realize(DeviceState *dev, Error **errp)
     virtio_init(vdev, "virtio-blk", VIRTIO_ID_BLOCK,
                 sizeof(struct virtio_blk_config));
 
-    s->bs = blk->conf.bs;
+    s->bs = conf->conf.bs;
     s->rq = NULL;
-    s->sector_mask = (s->blk.conf.logical_block_size / BDRV_SECTOR_SIZE) - 1;
+    s->sector_mask = (s->conf.conf.logical_block_size / BDRV_SECTOR_SIZE) - 1;
 
     s->vq = virtio_add_queue(vdev, 128, virtio_blk_handle_output);
     s->complete_request = virtio_blk_complete_request;
-    virtio_blk_data_plane_create(vdev, blk, &s->dataplane, &err);
+    virtio_blk_data_plane_create(vdev, conf, &s->dataplane, &err);
     if (err != NULL) {
         error_propagate(errp, err);
         virtio_cleanup(vdev);
@@ -765,7 +765,7 @@ static void virtio_blk_device_realize(DeviceState *dev, Error **errp)
     register_savevm(dev, "virtio-blk", virtio_blk_id++, 2,
                     virtio_blk_save, virtio_blk_load, s);
     bdrv_set_dev_ops(s->bs, &virtio_block_ops, s);
-    bdrv_set_guest_block_size(s->bs, s->blk.conf.logical_block_size);
+    bdrv_set_guest_block_size(s->bs, s->conf.conf.logical_block_size);
 
     bdrv_iostatus_enable(s->bs);
 }
@@ -789,23 +789,23 @@ static void virtio_blk_instance_init(Object *obj)
     VirtIOBlock *s = VIRTIO_BLK(obj);
 
     object_property_add_link(obj, "iothread", TYPE_IOTHREAD,
-                             (Object **)&s->blk.iothread,
+                             (Object **)&s->conf.iothread,
                              qdev_prop_allow_set_link_before_realize,
                              OBJ_PROP_LINK_UNREF_ON_RELEASE, NULL);
-    device_add_bootindex_property(obj, &s->blk.conf.bootindex,
+    device_add_bootindex_property(obj, &s->conf.conf.bootindex,
                                   "bootindex", "/disk@0,0",
                                   DEVICE(obj), NULL);
 }
 
 static Property virtio_blk_properties[] = {
-    DEFINE_BLOCK_PROPERTIES(VirtIOBlock, blk.conf),
-    DEFINE_BLOCK_CHS_PROPERTIES(VirtIOBlock, blk.conf),
-    DEFINE_PROP_STRING("serial", VirtIOBlock, blk.serial),
-    DEFINE_PROP_BIT("config-wce", VirtIOBlock, blk.config_wce, 0, true),
+    DEFINE_BLOCK_PROPERTIES(VirtIOBlock, conf.conf),
+    DEFINE_BLOCK_CHS_PROPERTIES(VirtIOBlock, conf.conf),
+    DEFINE_PROP_STRING("serial", VirtIOBlock, conf.serial),
+    DEFINE_PROP_BIT("config-wce", VirtIOBlock, conf.config_wce, 0, true),
 #ifdef __linux__
-    DEFINE_PROP_BIT("scsi", VirtIOBlock, blk.scsi, 0, true),
+    DEFINE_PROP_BIT("scsi", VirtIOBlock, conf.scsi, 0, true),
 #endif
-    DEFINE_PROP_BIT("x-data-plane", VirtIOBlock, blk.data_plane, 0, false),
+    DEFINE_PROP_BIT("x-data-plane", VirtIOBlock, conf.data_plane, 0, false),
     DEFINE_PROP_END_OF_LIST(),
 };
 
