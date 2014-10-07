@@ -362,6 +362,7 @@ static void ide_set_signature(IDEState *s)
 
 typedef struct TrimAIOCB {
     BlockAIOCB common;
+    BlockBackend *blk;
     QEMUBH *bh;
     int ret;
     QEMUIOVector *qiov;
@@ -421,8 +422,8 @@ static void ide_issue_trim_cb(void *opaque, int ret)
                 }
 
                 /* Got an entry! Submit and exit.  */
-                iocb->aiocb = bdrv_aio_discard(iocb->common.bs, sector, count,
-                                               ide_issue_trim_cb, opaque);
+                iocb->aiocb = blk_aio_discard(iocb->blk, sector, count,
+                                              ide_issue_trim_cb, opaque);
                 return;
             }
 
@@ -446,6 +447,7 @@ BlockAIOCB *ide_issue_trim(BlockBackend *blk,
     TrimAIOCB *iocb;
 
     iocb = blk_aio_get(&trim_aiocb_info, blk, cb, opaque);
+    iocb->blk = blk;
     iocb->bh = qemu_bh_new(ide_trim_bh_cb, iocb);
     iocb->ret = 0;
     iocb->qiov = qiov;
