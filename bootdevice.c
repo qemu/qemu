@@ -77,6 +77,7 @@ void add_boot_device_path(int32_t bootindex, DeviceState *dev,
     FWBootEntry *node, *i;
 
     if (bootindex < 0) {
+        del_boot_device_path(dev, suffix);
         return;
     }
 
