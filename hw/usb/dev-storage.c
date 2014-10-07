@@ -17,6 +17,7 @@
 #include "monitor/monitor.h"
 #include "sysemu/sysemu.h"
 #include "sysemu/blockdev.h"
+#include "qapi/visitor.h"
 
 //#define DEBUG_MSD
 
@@ -59,6 +60,7 @@ typedef struct {
     /* usb-storage only */
     BlockConf conf;
     uint32_t removable;
+    SCSIDevice *scsi_dev;
 } MSDState;
 
 struct usb_msd_cbw {
@@ -634,6 +636,7 @@ static void usb_msd_realize_storage(USBDevice *dev, Error **errp)
     }
     s->bus.qbus.allow_hotplug = 0;
     usb_msd_handle_reset(dev);
+    s->scsi_dev = scsi_dev;
 
     if (bdrv_key_required(bs)) {
         if (cur_mon) {
@@ -767,6 +770,54 @@ static void usb_msd_class_initfn_storage(ObjectClass *klass, void *data)
     usb_msd_class_initfn_common(klass);
 }
 
+static void usb_msd_get_bootindex(Object *obj, Visitor *v, void *opaque,
+                                  const char *name, Error **errp)
+{
+    USBDevice *dev = USB_DEVICE(obj);
+    MSDState *s = DO_UPCAST(MSDState, dev, dev);
+
+    visit_type_int32(v, &s->conf.bootindex, name, errp);
+}
+
+static void usb_msd_set_bootindex(Object *obj, Visitor *v, void *opaque,
+                                  const char *name, Error **errp)
+{
+    USBDevice *dev = USB_DEVICE(obj);
+    MSDState *s = DO_UPCAST(MSDState, dev, dev);
+    int32_t boot_index;
+    Error *local_err = NULL;
+
+    visit_type_int32(v, &boot_index, name, &local_err);
+    if (local_err) {
+        goto out;
+    }
+    /* check whether bootindex is present in fw_boot_order list  */
+    check_boot_index(boot_index, &local_err);
+    if (local_err) {
+        goto out;
+    }
+    /* change bootindex to a new one */
+    s->conf.bootindex = boot_index;
+
+    if (s->scsi_dev) {
+        object_property_set_int(OBJECT(s->scsi_dev), boot_index, "bootindex",
+                                &error_abort);
+    }
+
+out:
+    if (local_err) {
+        error_propagate(errp, local_err);
+    }
+}
+
+static void usb_msd_instance_init(Object *obj)
+{
+    object_property_add(obj, "bootindex", "int32",
+                        usb_msd_get_bootindex,
+                        usb_msd_set_bootindex, NULL, NULL, NULL);
+    object_property_set_int(obj, -1, "bootindex", NULL);
+}
+
 static void usb_msd_class_initfn_bot(ObjectClass *klass, void *data)
 {
     USBDeviceClass *uc = USB_DEVICE_CLASS(klass);
@@ -780,6 +831,7 @@ static const TypeInfo msd_info = {
     .parent        = TYPE_USB_DEVICE,
     .instance_size = sizeof(MSDState),
     .class_init    = usb_msd_class_initfn_storage,
+    .instance_init = usb_msd_instance_init,
 };
 
 static const TypeInfo bot_info = {
