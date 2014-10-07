@@ -51,6 +51,26 @@ void check_boot_index(int32_t bootindex, Error **errp)
     }
 }
 
+void del_boot_device_path(DeviceState *dev, const char *suffix)
+{
+    FWBootEntry *i;
+
+    if (dev == NULL) {
+        return;
+    }
+
+    QTAILQ_FOREACH(i, &fw_boot_order, link) {
+        if ((!suffix || !g_strcmp0(i->suffix, suffix)) &&
+             i->dev == dev) {
+            QTAILQ_REMOVE(&fw_boot_order, i, link);
+            g_free(i->suffix);
+            g_free(i);
+
+            break;
+        }
+    }
+}
+
 void add_boot_device_path(int32_t bootindex, DeviceState *dev,
                           const char *suffix)
 {

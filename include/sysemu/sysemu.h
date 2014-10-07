@@ -214,6 +214,7 @@ char *get_boot_devices_list(size_t *size, bool ignore_suffixes);
 
 DeviceState *get_boot_device(uint32_t position);
 void check_boot_index(int32_t bootindex, Error **errp);
+void del_boot_device_path(DeviceState *dev, const char *suffix);
 
 QemuOpts *qemu_get_machine_opts(void);
 
