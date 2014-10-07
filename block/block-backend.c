@@ -54,8 +54,6 @@ BlockBackend *blk_new(const char *name, Error **errp)
 
 /*
  * Create a new BlockBackend with a new BlockDriverState attached.
- * Both have a reference count of one.  Caller owns *both* references.
- * TODO Let caller own only the BlockBackend reference
  * Otherwise just like blk_new(), which see.
  */
 BlockBackend *blk_new_with_bs(const char *name, Error **errp)
@@ -83,7 +81,9 @@ static void blk_delete(BlockBackend *blk)
 {
     assert(!blk->refcnt);
     if (blk->bs) {
+        assert(blk->bs->blk == blk);
         blk->bs->blk = NULL;
+        bdrv_unref(blk->bs);
         blk->bs = NULL;
     }
     /* Avoid double-remove after blk_hide_on_behalf_of_do_drive_del() */
@@ -119,8 +119,6 @@ void blk_ref(BlockBackend *blk)
  * Decrement @blk's reference count.
  * If this drops it to zero, destroy @blk.
  * For convenience, do nothing if @blk is null.
- * Does *not* touch the attached BlockDriverState's reference count.
- * TODO Decrement it!
  */
 void blk_unref(BlockBackend *blk)
 {

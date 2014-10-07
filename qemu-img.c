@@ -329,7 +329,6 @@ static BlockBackend *img_open(const char *id, const char *filename,
     }
     return blk;
 fail:
-    bdrv_unref(bs);
     blk_unref(blk);
     return NULL;
 }
@@ -712,9 +711,7 @@ static int img_check(int argc, char **argv)
 
 fail:
     qapi_free_ImageCheck(check);
-    bdrv_unref(bs);
     blk_unref(blk);
-
     return ret;
 }
 
@@ -786,7 +783,6 @@ static int img_commit(int argc, char **argv)
         break;
     }
 
-    bdrv_unref(bs);
     blk_unref(blk);
     if (ret) {
         return 1;
@@ -1196,10 +1192,8 @@ static int img_compare(int argc, char **argv)
 out:
     qemu_vfree(buf1);
     qemu_vfree(buf2);
-    bdrv_unref(bs2);
     blk_unref(blk2);
 out2:
-    bdrv_unref(bs1);
     blk_unref(blk1);
 out3:
     qemu_progress_end();
@@ -1754,18 +1748,8 @@ out:
     qemu_opts_free(create_opts);
     qemu_vfree(buf);
     qemu_opts_del(sn_opts);
-    if (out_bs) {
-        bdrv_unref(out_bs);
-    }
     blk_unref(out_blk);
-    if (bs) {
-        for (bs_i = 0; bs_i < bs_n; bs_i++) {
-            if (bs[bs_i]) {
-                bdrv_unref(bs[bs_i]);
-            }
-        }
-        g_free(bs);
-    }
+    g_free(bs);
     if (blk) {
         for (bs_i = 0; bs_i < bs_n; bs_i++) {
             blk_unref(blk[bs_i]);
@@ -1903,7 +1887,6 @@ static ImageInfoList *collect_image_info_list(const char *filename,
         if (err) {
             error_report("%s", error_get_pretty(err));
             error_free(err);
-            bdrv_unref(bs);
             blk_unref(blk);
             goto err;
         }
@@ -1913,7 +1896,6 @@ static ImageInfoList *collect_image_info_list(const char *filename,
         *last = elem;
         last = &elem->next;
 
-        bdrv_unref(bs);
         blk_unref(blk);
 
         filename = fmt = NULL;
@@ -2202,7 +2184,6 @@ static int img_map(int argc, char **argv)
     dump_map_entry(output_format, &curr, NULL);
 
 out:
-    bdrv_unref(bs);
     blk_unref(blk);
     return ret < 0;
 }
@@ -2327,7 +2308,6 @@ static int img_snapshot(int argc, char **argv)
     }
 
     /* Cleanup */
-    bdrv_unref(bs);
     blk_unref(blk);
     if (ret) {
         return 1;
@@ -2647,17 +2627,10 @@ out:
     qemu_progress_end();
     /* Cleanup */
     if (!unsafe) {
-        if (bs_old_backing != NULL) {
-            bdrv_unref(bs_old_backing);
-        }
         blk_unref(blk_old_backing);
-        if (bs_new_backing != NULL) {
-            bdrv_unref(bs_new_backing);
-        }
         blk_unref(blk_new_backing);
     }
 
-    bdrv_unref(bs);
     blk_unref(blk);
     if (ret) {
         return 1;
@@ -2783,9 +2756,6 @@ static int img_resize(int argc, char **argv)
         break;
     }
 out:
-    if (bs) {
-        bdrv_unref(bs);
-    }
     blk_unref(blk);
     if (ret) {
         return 1;
@@ -2897,9 +2867,6 @@ static int img_amend(int argc, char **argv)
     }
 
 out:
-    if (bs) {
-        bdrv_unref(bs);
-    }
     blk_unref(blk);
     qemu_opts_del(opts);
     qemu_opts_free(create_opts);

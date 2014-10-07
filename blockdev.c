@@ -278,10 +278,7 @@ static void bdrv_format_print(void *opaque, const char *name)
 
 void drive_del(DriveInfo *dinfo)
 {
-    BlockBackend *blk = dinfo->bdrv->blk;
-
-    bdrv_unref(dinfo->bdrv);
-    blk_unref(blk);
+    blk_unref(dinfo->bdrv->blk);
 }
 
 typedef struct {
@@ -583,7 +580,6 @@ static BlockBackend *blockdev_init(const char *file, QDict *bs_opts,
     return blk;
 
 err:
-    bdrv_unref(bs);
     blk_unref(blk);
 early_err:
     qemu_opts_del(opts);
@@ -2608,7 +2604,6 @@ void qmp_blockdev_add(BlockdevOptions *options, Error **errp)
     }
 
     if (bdrv_key_required(blk_bs(blk))) {
-        bdrv_unref(blk_bs(blk));
         blk_unref(blk);
         error_setg(errp, "blockdev-add doesn't support encrypted devices");
         goto fail;

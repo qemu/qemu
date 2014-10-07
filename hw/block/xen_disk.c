@@ -872,7 +872,6 @@ static int blk_connect(struct XenDevice *xendev)
             xen_be_printf(&blkdev->xendev, 0, "error: %s\n",
                           error_get_pretty(local_err));
             error_free(local_err);
-            bdrv_unref(blkdev->bs);
             blk_unref(blk);
             blkdev->bs = NULL;
             return -1;
@@ -888,7 +887,9 @@ static int blk_connect(struct XenDevice *xendev)
         }
         /* blkdev->bs is not create by us, we get a reference
          * so we can bdrv_unref() unconditionally */
-        bdrv_ref(blkdev->bs);
+        /* Except we don't bdrv_unref() anymore, we blk_unref().
+         * Conditionally, because we can't easily blk_ref() here.
+         * TODO Clean this up! */
     }
     bdrv_attach_dev_nofail(blkdev->bs, blkdev);
     blkdev->file_size = bdrv_getlength(blkdev->bs);
@@ -988,7 +989,6 @@ static void blk_disconnect(struct XenDevice *xendev)
 
     if (blkdev->bs) {
         bdrv_detach_dev(blkdev->bs, blkdev);
-        bdrv_unref(blkdev->bs);
         if (!blkdev->dinfo) {
             blk_unref(blk_by_name(blkdev->dev));
         }

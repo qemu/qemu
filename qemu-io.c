@@ -38,7 +38,6 @@ static ReadLineState *readline_state;
 
 static int close_f(BlockDriverState *bs, int argc, char **argv)
 {
-    bdrv_unref(bs);
     blk_unref(qemuio_blk);
     qemuio_bs = NULL;
     qemuio_blk = NULL;
@@ -74,7 +73,6 @@ static int openfile(char *name, int flags, int growable, QDict *opts)
                 name ? " device " : "", name ?: "",
                 error_get_pretty(local_err));
         error_free(local_err);
-        bdrv_unref(qemuio_bs);
         blk_unref(qemuio_blk);
         qemuio_bs = NULL;
         qemuio_blk = NULL;
@@ -488,9 +486,6 @@ int main(int argc, char **argv)
      */
     bdrv_drain_all();
 
-    if (qemuio_bs) {
-        bdrv_unref(qemuio_bs);
-    }
     blk_unref(qemuio_blk);
     g_free(readline_state);
     return 0;
