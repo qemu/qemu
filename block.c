@@ -28,6 +28,7 @@
 #include "block/blockjob.h"
 #include "qemu/module.h"
 #include "qapi/qmp/qjson.h"
+#include "sysemu/block-backend.h"
 #include "sysemu/sysemu.h"
 #include "qemu/notify.h"
 #include "block/coroutine.h"
@@ -360,9 +361,7 @@ BlockDriverState *bdrv_new_root(const char *device_name, Error **errp)
 
     bs = bdrv_new();
 
-    pstrcpy(bs->device_name, sizeof(bs->device_name), device_name);
     QTAILQ_INSERT_TAIL(&bdrv_states, bs, device_list);
-
     return bs;
 }
 
@@ -1168,7 +1167,7 @@ void bdrv_set_backing_hd(BlockDriverState *bs, BlockDriverState *backing_hd)
     } else if (backing_hd) {
         error_setg(&bs->backing_blocker,
                    "device is used as backing hd of '%s'",
-                   bs->device_name);
+                   bdrv_get_device_name(bs));
     }
 
     bs->backing_hd = backing_hd;
@@ -1542,7 +1541,7 @@ int bdrv_open(BlockDriverState **pbs, const char *filename,
         } else {
             error_setg(errp, "Block format '%s' used by device '%s' doesn't "
                        "support the option '%s'", drv->format_name,
-                       bs->device_name, entry->key);
+                       bdrv_get_device_name(bs), entry->key);
         }
 
         ret = -EINVAL;
@@ -1749,7 +1748,7 @@ int bdrv_reopen_prepare(BDRVReopenState *reopen_state, BlockReopenQueue *queue,
     if (!(reopen_state->bs->open_flags & BDRV_O_ALLOW_RDWR) &&
         reopen_state->flags & BDRV_O_RDWR) {
         error_set(errp, QERR_DEVICE_IS_READ_ONLY,
-                  reopen_state->bs->device_name);
+                  bdrv_get_device_name(reopen_state->bs));
         goto error;
     }
 
@@ -1776,7 +1775,7 @@ int bdrv_reopen_prepare(BDRVReopenState *reopen_state, BlockReopenQueue *queue,
         /* It is currently mandatory to have a bdrv_reopen_prepare()
          * handler for each supported drv. */
         error_set(errp, QERR_BLOCK_FORMAT_FEATURE_NOT_SUPPORTED,
-                  drv->format_name, reopen_state->bs->device_name,
+                  drv->format_name, bdrv_get_device_name(reopen_state->bs),
                  "reopening of file");
         ret = -1;
         goto error;
@@ -1964,10 +1963,17 @@ void bdrv_drain_all(void)
    Also, NULL terminate the device_name to prevent double remove */
 void bdrv_make_anon(BlockDriverState *bs)
 {
-    if (bs->device_name[0] != '\0') {
+    /*
+     * Take care to remove bs from bdrv_states only when it's actually
+     * in it.  Note that bs->device_list.tqe_prev is initially null,
+     * and gets set to non-null by QTAILQ_INSERT_TAIL().  Establish
+     * the useful invariant "bs in bdrv_states iff bs->tqe_prev" by
+     * resetting it to null on remove.
+     */
+    if (bs->device_list.tqe_prev) {
         QTAILQ_REMOVE(&bdrv_states, bs, device_list);
+        bs->device_list.tqe_prev = NULL;
     }
-    bs->device_name[0] = '\0';
     if (bs->node_name[0] != '\0') {
         QTAILQ_REMOVE(&graph_bdrv_states, bs, node_list);
     }
@@ -2021,8 +2027,6 @@ static void bdrv_move_feature_fields(BlockDriverState *bs_dest,
     bs_dest->job                = bs_src->job;
 
     /* keep the same entry in bdrv_states */
-    pstrcpy(bs_dest->device_name, sizeof(bs_dest->device_name),
-            bs_src->device_name);
     bs_dest->device_list = bs_src->device_list;
     bs_dest->blk = bs_src->blk;
 
@@ -2038,7 +2042,7 @@ static void bdrv_move_feature_fields(BlockDriverState *bs_dest,
  * This will modify the BlockDriverState fields, and swap contents
  * between bs_new and bs_old. Both bs_new and bs_old are modified.
  *
- * bs_new must be nameless and not attached to a BlockBackend.
+ * bs_new must not be attached to a BlockBackend.
  *
  * This function does not create any image files.
  */
@@ -2057,8 +2061,7 @@ void bdrv_swap(BlockDriverState *bs_new, BlockDriverState *bs_old)
         QTAILQ_REMOVE(&graph_bdrv_states, bs_old, node_list);
     }
 
-    /* bs_new must be nameless and shouldn't have anything fancy enabled */
-    assert(bs_new->device_name[0] == '\0');
+    /* bs_new must be unattached and shouldn't have anything fancy enabled */
     assert(!bs_new->blk);
     assert(QLIST_EMPTY(&bs_new->dirty_bitmaps));
     assert(bs_new->job == NULL);
@@ -2075,8 +2078,7 @@ void bdrv_swap(BlockDriverState *bs_new, BlockDriverState *bs_old)
     bdrv_move_feature_fields(bs_old, bs_new);
     bdrv_move_feature_fields(bs_new, &tmp);
 
-    /* bs_new must remain nameless and unattached */
-    assert(bs_new->device_name[0] == '\0');
+    /* bs_new must remain unattached */
     assert(!bs_new->blk);
 
     /* Check a few fields that should remain attached to the device */
@@ -2104,7 +2106,7 @@ void bdrv_swap(BlockDriverState *bs_new, BlockDriverState *bs_old)
  * This will modify the BlockDriverState fields, and swap contents
  * between bs_new and bs_top. Both bs_new and bs_top are modified.
  *
- * bs_new must be nameless and not attached to a BlockBackend.
+ * bs_new must not be attached to a BlockBackend.
  *
  * This function does not create any image files.
  */
@@ -3820,7 +3822,7 @@ BlockDriverState *bdrv_find(const char *name)
     BlockDriverState *bs;
 
     QTAILQ_FOREACH(bs, &bdrv_states, device_list) {
-        if (!strcmp(name, bs->device_name)) {
+        if (!strcmp(name, bdrv_get_device_name(bs))) {
             return bs;
         }
     }
@@ -3906,9 +3908,9 @@ BlockDriverState *bdrv_next(BlockDriverState *bs)
     return QTAILQ_NEXT(bs, device_list);
 }
 
-const char *bdrv_get_device_name(BlockDriverState *bs)
+const char *bdrv_get_device_name(const BlockDriverState *bs)
 {
-    return bs->device_name;
+    return bs->blk ? blk_name(bs->blk) : "";
 }
 
 int bdrv_get_flags(BlockDriverState *bs)
@@ -5262,13 +5264,15 @@ int bdrv_media_changed(BlockDriverState *bs)
 void bdrv_eject(BlockDriverState *bs, bool eject_flag)
 {
     BlockDriver *drv = bs->drv;
+    const char *device_name;
 
     if (drv && drv->bdrv_eject) {
         drv->bdrv_eject(bs, eject_flag);
     }
 
-    if (bs->device_name[0] != '\0') {
-        qapi_event_send_device_tray_moved(bdrv_get_device_name(bs),
+    device_name = bdrv_get_device_name(bs);
+    if (device_name[0] != '\0') {
+        qapi_event_send_device_tray_moved(device_name,
                                           eject_flag, &error_abort);
     }
 }
@@ -5478,7 +5482,8 @@ bool bdrv_op_is_blocked(BlockDriverState *bs, BlockOpType op, Error **errp)
         blocker = QLIST_FIRST(&bs->op_blockers[op]);
         if (errp) {
             error_setg(errp, "Device '%s' is busy: %s",
-                       bs->device_name, error_get_pretty(blocker->reason));
+                       bdrv_get_device_name(bs),
+                       error_get_pretty(blocker->reason));
         }
         return true;
     }

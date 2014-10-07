@@ -272,7 +272,7 @@ void bdrv_query_info(BlockDriverState *bs,
     BlockDriverState *bs0;
     ImageInfo **p_image_info;
     Error *local_err = NULL;
-    info->device = g_strdup(bs->device_name);
+    info->device = g_strdup(bdrv_get_device_name(bs));
     info->type = g_strdup("unknown");
     info->locked = bdrv_dev_is_medium_locked(bs);
     info->removable = bdrv_dev_has_removable_media(bs);
@@ -327,9 +327,9 @@ static BlockStats *bdrv_query_stats(const BlockDriverState *bs)
 
     s = g_malloc0(sizeof(*s));
 
-    if (bs->device_name[0]) {
+    if (bdrv_get_device_name(bs)[0]) {
         s->has_device = true;
-        s->device = g_strdup(bs->device_name);
+        s->device = g_strdup(bdrv_get_device_name(bs));
     }
 
     s->stats = g_malloc0(sizeof(*s->stats));

@@ -417,7 +417,7 @@ int bdrv_set_key(BlockDriverState *bs, const char *key);
 int bdrv_query_missing_keys(void);
 void bdrv_iterate_format(void (*it)(void *opaque, const char *name),
                          void *opaque);
-const char *bdrv_get_device_name(BlockDriverState *bs);
+const char *bdrv_get_device_name(const BlockDriverState *bs);
 int bdrv_get_flags(BlockDriverState *bs);
 int bdrv_write_compressed(BlockDriverState *bs, int64_t sector_num,
                           const uint8_t *buf, int nb_sectors);

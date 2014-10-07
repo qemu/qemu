@@ -1182,7 +1182,7 @@ static int vvfat_open(BlockDriverState *bs, QDict *options, int flags,
     if (s->qcow) {
         error_set(&s->migration_blocker,
                   QERR_BLOCK_FORMAT_FEATURE_NOT_SUPPORTED,
-                  "vvfat (rw)", bs->device_name, "live migration");
+                  "vvfat (rw)", bdrv_get_device_name(bs), "live migration");
         migrate_add_blocker(s->migration_blocker);
     }
 

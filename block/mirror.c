@@ -567,7 +567,8 @@ static void mirror_complete(BlockJob *job, Error **errp)
         return;
     }
     if (!s->synced) {
-        error_set(errp, QERR_BLOCK_JOB_NOT_READY, job->bs->device_name);
+        error_set(errp, QERR_BLOCK_JOB_NOT_READY,
+                  bdrv_get_device_name(job->bs));
         return;
     }
 

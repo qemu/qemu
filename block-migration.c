@@ -14,7 +14,9 @@
  */
 
 #include "qemu-common.h"
-#include "block/block_int.h"
+#include "block/block.h"
+#include "qemu/error-report.h"
+#include "qemu/main-loop.h"
 #include "hw/hw.h"
 #include "qemu/queue.h"
 #include "qemu/timer.h"
@@ -130,9 +132,9 @@ static void blk_send(QEMUFile *f, BlkMigBlock * blk)
                      | flags);
 
     /* device name */
-    len = strlen(blk->bmds->bs->device_name);
+    len = strlen(bdrv_get_device_name(blk->bmds->bs));
     qemu_put_byte(f, len);
-    qemu_put_buffer(f, (uint8_t *)blk->bmds->bs->device_name, len);
+    qemu_put_buffer(f, (uint8_t *)bdrv_get_device_name(blk->bmds->bs), len);
 
     /* if a block is zero we need to flush here since the network
      * bandwidth is now a lot higher than the storage device bandwidth.
@@ -382,9 +384,9 @@ static void init_blk_migration(QEMUFile *f)
 
         if (bmds->shared_base) {
             DPRINTF("Start migration for %s with shared base image\n",
-                    bs->device_name);
+                    bdrv_get_device_name(bs));
         } else {
-            DPRINTF("Start full migration for %s\n", bs->device_name);
+            DPRINTF("Start full migration for %s\n", bdrv_get_device_name(bs));
         }
 
         QSIMPLEQ_INSERT_TAIL(&block_mig_state.bmds_list, bmds, entry);
