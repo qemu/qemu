@@ -27,7 +27,7 @@ typedef struct ThreadPool ThreadPool;
 ThreadPool *thread_pool_new(struct AioContext *ctx);
 void thread_pool_free(ThreadPool *pool);
 
-BlockDriverAIOCB *thread_pool_submit_aio(ThreadPool *pool,
+BlockAIOCB *thread_pool_submit_aio(ThreadPool *pool,
         ThreadPoolFunc *func, void *arg,
         BlockDriverCompletionFunc *cb, void *opaque);
 int coroutine_fn thread_pool_submit_co(ThreadPool *pool,

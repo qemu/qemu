@@ -248,9 +248,9 @@ int bdrv_write(BlockDriverState *bs, int64_t sector_num,
                const uint8_t *buf, int nb_sectors);
 int bdrv_write_zeroes(BlockDriverState *bs, int64_t sector_num,
                int nb_sectors, BdrvRequestFlags flags);
-BlockDriverAIOCB *bdrv_aio_write_zeroes(BlockDriverState *bs, int64_t sector_num,
-                                        int nb_sectors, BdrvRequestFlags flags,
-                                        BlockDriverCompletionFunc *cb, void *opaque);
+BlockAIOCB *bdrv_aio_write_zeroes(BlockDriverState *bs, int64_t sector_num,
+                                  int nb_sectors, BdrvRequestFlags flags,
+                                  BlockDriverCompletionFunc *cb, void *opaque);
 int bdrv_make_zero(BlockDriverState *bs, BdrvRequestFlags flags);
 int bdrv_pread(BlockDriverState *bs, int64_t offset,
                void *buf, int count);
@@ -326,19 +326,19 @@ BlockDriverState *check_to_replace_node(const char *node_name, Error **errp);
 /* async block I/O */
 typedef void BlockDriverDirtyHandler(BlockDriverState *bs, int64_t sector,
                                      int sector_num);
-BlockDriverAIOCB *bdrv_aio_readv(BlockDriverState *bs, int64_t sector_num,
-                                 QEMUIOVector *iov, int nb_sectors,
-                                 BlockDriverCompletionFunc *cb, void *opaque);
-BlockDriverAIOCB *bdrv_aio_writev(BlockDriverState *bs, int64_t sector_num,
-                                  QEMUIOVector *iov, int nb_sectors,
-                                  BlockDriverCompletionFunc *cb, void *opaque);
-BlockDriverAIOCB *bdrv_aio_flush(BlockDriverState *bs,
-                                 BlockDriverCompletionFunc *cb, void *opaque);
-BlockDriverAIOCB *bdrv_aio_discard(BlockDriverState *bs,
-                                   int64_t sector_num, int nb_sectors,
-                                   BlockDriverCompletionFunc *cb, void *opaque);
-void bdrv_aio_cancel(BlockDriverAIOCB *acb);
-void bdrv_aio_cancel_async(BlockDriverAIOCB *acb);
+BlockAIOCB *bdrv_aio_readv(BlockDriverState *bs, int64_t sector_num,
+                           QEMUIOVector *iov, int nb_sectors,
+                           BlockDriverCompletionFunc *cb, void *opaque);
+BlockAIOCB *bdrv_aio_writev(BlockDriverState *bs, int64_t sector_num,
+                            QEMUIOVector *iov, int nb_sectors,
+                            BlockDriverCompletionFunc *cb, void *opaque);
+BlockAIOCB *bdrv_aio_flush(BlockDriverState *bs,
+                           BlockDriverCompletionFunc *cb, void *opaque);
+BlockAIOCB *bdrv_aio_discard(BlockDriverState *bs,
+                             int64_t sector_num, int nb_sectors,
+                             BlockDriverCompletionFunc *cb, void *opaque);
+void bdrv_aio_cancel(BlockAIOCB *acb);
+void bdrv_aio_cancel_async(BlockAIOCB *acb);
 
 typedef struct BlockRequest {
     /* Fields to be filled by multiwrite caller */
@@ -358,7 +358,7 @@ int bdrv_aio_multiwrite(BlockDriverState *bs, BlockRequest *reqs,
 
 /* sg packet commands */
 int bdrv_ioctl(BlockDriverState *bs, unsigned long int req, void *buf);
-BlockDriverAIOCB *bdrv_aio_ioctl(BlockDriverState *bs,
+BlockAIOCB *bdrv_aio_ioctl(BlockDriverState *bs,
         unsigned long int req, void *buf,
         BlockDriverCompletionFunc *cb, void *opaque);
 

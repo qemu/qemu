@@ -35,7 +35,7 @@
 #ifdef CONFIG_LINUX_AIO
 void *laio_init(void);
 void laio_cleanup(void *s);
-BlockDriverAIOCB *laio_submit(BlockDriverState *bs, void *aio_ctx, int fd,
+BlockAIOCB *laio_submit(BlockDriverState *bs, void *aio_ctx, int fd,
         int64_t sector_num, QEMUIOVector *qiov, int nb_sectors,
         BlockDriverCompletionFunc *cb, void *opaque, int type);
 void laio_detach_aio_context(void *s, AioContext *old_context);
@@ -49,7 +49,7 @@ typedef struct QEMUWin32AIOState QEMUWin32AIOState;
 QEMUWin32AIOState *win32_aio_init(void);
 void win32_aio_cleanup(QEMUWin32AIOState *aio);
 int win32_aio_attach(QEMUWin32AIOState *aio, HANDLE hfile);
-BlockDriverAIOCB *win32_aio_submit(BlockDriverState *bs,
+BlockAIOCB *win32_aio_submit(BlockDriverState *bs,
         QEMUWin32AIOState *aio, HANDLE hfile,
         int64_t sector_num, QEMUIOVector *qiov, int nb_sectors,
         BlockDriverCompletionFunc *cb, void *opaque, int type);

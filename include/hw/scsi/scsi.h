@@ -68,7 +68,7 @@ struct SCSIRequest {
     bool              io_canceled;
     bool              retry;
     bool              dma_started;
-    BlockDriverAIOCB  *aiocb;
+    BlockAIOCB        *aiocb;
     QEMUSGList        *sg;
     QTAILQ_ENTRY(SCSIRequest) next;
 };

@@ -86,7 +86,7 @@ typedef enum {
 } ARCHIPCmd;
 
 typedef struct ArchipelagoAIOCB {
-    BlockDriverAIOCB common;
+    BlockAIOCB common;
     QEMUBH *bh;
     struct BDRVArchipelagoState *s;
     QEMUIOVector *qiov;
@@ -856,13 +856,13 @@ err_exit:
     return ret;
 }
 
-static BlockDriverAIOCB *qemu_archipelago_aio_rw(BlockDriverState *bs,
-                                                 int64_t sector_num,
-                                                 QEMUIOVector *qiov,
-                                                 int nb_sectors,
-                                                 BlockDriverCompletionFunc *cb,
-                                                 void *opaque,
-                                                 int op)
+static BlockAIOCB *qemu_archipelago_aio_rw(BlockDriverState *bs,
+                                           int64_t sector_num,
+                                           QEMUIOVector *qiov,
+                                           int nb_sectors,
+                                           BlockDriverCompletionFunc *cb,
+                                           void *opaque,
+                                           int op)
 {
     ArchipelagoAIOCB *aio_cb;
     BDRVArchipelagoState *s = bs->opaque;
@@ -894,7 +894,7 @@ err_exit:
     return NULL;
 }
 
-static BlockDriverAIOCB *qemu_archipelago_aio_readv(BlockDriverState *bs,
+static BlockAIOCB *qemu_archipelago_aio_readv(BlockDriverState *bs,
         int64_t sector_num, QEMUIOVector *qiov, int nb_sectors,
         BlockDriverCompletionFunc *cb, void *opaque)
 {
@@ -902,7 +902,7 @@ static BlockDriverAIOCB *qemu_archipelago_aio_readv(BlockDriverState *bs,
                                    opaque, ARCHIP_OP_READ);
 }
 
-static BlockDriverAIOCB *qemu_archipelago_aio_writev(BlockDriverState *bs,
+static BlockAIOCB *qemu_archipelago_aio_writev(BlockDriverState *bs,
         int64_t sector_num, QEMUIOVector *qiov, int nb_sectors,
         BlockDriverCompletionFunc *cb, void *opaque)
 {
@@ -1052,7 +1052,7 @@ static QemuOptsList qemu_archipelago_create_opts = {
     }
 };
 
-static BlockDriverAIOCB *qemu_archipelago_aio_flush(BlockDriverState *bs,
+static BlockAIOCB *qemu_archipelago_aio_flush(BlockDriverState *bs,
         BlockDriverCompletionFunc *cb, void *opaque)
 {
     return qemu_archipelago_aio_rw(bs, 0, NULL, 0, cb, opaque,

@@ -22,16 +22,16 @@
 #include "qemu/rfifolock.h"
 #include "qemu/timer.h"
 
-typedef struct BlockDriverAIOCB BlockDriverAIOCB;
+typedef struct BlockAIOCB BlockAIOCB;
 typedef void BlockDriverCompletionFunc(void *opaque, int ret);
 
 typedef struct AIOCBInfo {
-    void (*cancel_async)(BlockDriverAIOCB *acb);
-    AioContext *(*get_aio_context)(BlockDriverAIOCB *acb);
+    void (*cancel_async)(BlockAIOCB *acb);
+    AioContext *(*get_aio_context)(BlockAIOCB *acb);
     size_t aiocb_size;
 } AIOCBInfo;
 
-struct BlockDriverAIOCB {
+struct BlockAIOCB {
     const AIOCBInfo *aiocb_info;
     BlockDriverState *bs;
     BlockDriverCompletionFunc *cb;

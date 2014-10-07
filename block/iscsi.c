@@ -80,7 +80,7 @@ typedef struct IscsiTask {
 } IscsiTask;
 
 typedef struct IscsiAIOCB {
-    BlockDriverAIOCB common;
+    BlockAIOCB common;
     QEMUIOVector *qiov;
     QEMUBH *bh;
     IscsiLun *iscsilun;
@@ -227,7 +227,7 @@ iscsi_abort_task_cb(struct iscsi_context *iscsi, int status, void *command_data,
 }
 
 static void
-iscsi_aio_cancel(BlockDriverAIOCB *blockacb)
+iscsi_aio_cancel(BlockAIOCB *blockacb)
 {
     IscsiAIOCB *acb = (IscsiAIOCB *)blockacb;
     IscsiLun *iscsilun = acb->iscsilun;
@@ -663,7 +663,7 @@ iscsi_aio_ioctl_cb(struct iscsi_context *iscsi, int status,
     iscsi_schedule_bh(acb);
 }
 
-static BlockDriverAIOCB *iscsi_aio_ioctl(BlockDriverState *bs,
+static BlockAIOCB *iscsi_aio_ioctl(BlockDriverState *bs,
         unsigned long int req, void *buf,
         BlockDriverCompletionFunc *cb, void *opaque)
 {

@@ -1041,7 +1041,7 @@ static int paio_submit_co(BlockDriverState *bs, int fd,
     return thread_pool_submit_co(pool, aio_worker, acb);
 }
 
-static BlockDriverAIOCB *paio_submit(BlockDriverState *bs, int fd,
+static BlockAIOCB *paio_submit(BlockDriverState *bs, int fd,
         int64_t sector_num, QEMUIOVector *qiov, int nb_sectors,
         BlockDriverCompletionFunc *cb, void *opaque, int type)
 {
@@ -1066,7 +1066,7 @@ static BlockDriverAIOCB *paio_submit(BlockDriverState *bs, int fd,
     return thread_pool_submit_aio(pool, aio_worker, acb, cb, opaque);
 }
 
-static BlockDriverAIOCB *raw_aio_submit(BlockDriverState *bs,
+static BlockAIOCB *raw_aio_submit(BlockDriverState *bs,
         int64_t sector_num, QEMUIOVector *qiov, int nb_sectors,
         BlockDriverCompletionFunc *cb, void *opaque, int type)
 {
@@ -1125,7 +1125,7 @@ static void raw_aio_flush_io_queue(BlockDriverState *bs)
 #endif
 }
 
-static BlockDriverAIOCB *raw_aio_readv(BlockDriverState *bs,
+static BlockAIOCB *raw_aio_readv(BlockDriverState *bs,
         int64_t sector_num, QEMUIOVector *qiov, int nb_sectors,
         BlockDriverCompletionFunc *cb, void *opaque)
 {
@@ -1133,7 +1133,7 @@ static BlockDriverAIOCB *raw_aio_readv(BlockDriverState *bs,
                           cb, opaque, QEMU_AIO_READ);
 }
 
-static BlockDriverAIOCB *raw_aio_writev(BlockDriverState *bs,
+static BlockAIOCB *raw_aio_writev(BlockDriverState *bs,
         int64_t sector_num, QEMUIOVector *qiov, int nb_sectors,
         BlockDriverCompletionFunc *cb, void *opaque)
 {
@@ -1141,7 +1141,7 @@ static BlockDriverAIOCB *raw_aio_writev(BlockDriverState *bs,
                           cb, opaque, QEMU_AIO_WRITE);
 }
 
-static BlockDriverAIOCB *raw_aio_flush(BlockDriverState *bs,
+static BlockAIOCB *raw_aio_flush(BlockDriverState *bs,
         BlockDriverCompletionFunc *cb, void *opaque)
 {
     BDRVRawState *s = bs->opaque;
@@ -1595,7 +1595,7 @@ static int64_t coroutine_fn raw_co_get_block_status(BlockDriverState *bs,
     return ret;
 }
 
-static coroutine_fn BlockDriverAIOCB *raw_aio_discard(BlockDriverState *bs,
+static coroutine_fn BlockAIOCB *raw_aio_discard(BlockDriverState *bs,
     int64_t sector_num, int nb_sectors,
     BlockDriverCompletionFunc *cb, void *opaque)
 {
@@ -1935,7 +1935,7 @@ static int hdev_ioctl(BlockDriverState *bs, unsigned long int req, void *buf)
     return ioctl(s->fd, req, buf);
 }
 
-static BlockDriverAIOCB *hdev_aio_ioctl(BlockDriverState *bs,
+static BlockAIOCB *hdev_aio_ioctl(BlockDriverState *bs,
         unsigned long int req, void *buf,
         BlockDriverCompletionFunc *cb, void *opaque)
 {
@@ -1976,7 +1976,7 @@ static int fd_open(BlockDriverState *bs)
 
 #endif /* !linux && !FreeBSD */
 
-static coroutine_fn BlockDriverAIOCB *hdev_aio_discard(BlockDriverState *bs,
+static coroutine_fn BlockAIOCB *hdev_aio_discard(BlockDriverState *bs,
     int64_t sector_num, int nb_sectors,
     BlockDriverCompletionFunc *cb, void *opaque)
 {

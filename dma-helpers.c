@@ -67,9 +67,9 @@ void qemu_sglist_destroy(QEMUSGList *qsg)
 }
 
 typedef struct {
-    BlockDriverAIOCB common;
+    BlockAIOCB common;
     BlockDriverState *bs;
-    BlockDriverAIOCB *acb;
+    BlockAIOCB *acb;
     QEMUSGList *sg;
     uint64_t sector_num;
     DMADirection dir;
@@ -173,7 +173,7 @@ static void dma_bdrv_cb(void *opaque, int ret)
     assert(dbs->acb);
 }
 
-static void dma_aio_cancel(BlockDriverAIOCB *acb)
+static void dma_aio_cancel(BlockAIOCB *acb)
 {
     DMAAIOCB *dbs = container_of(acb, DMAAIOCB, common);
 
@@ -190,7 +190,7 @@ static const AIOCBInfo dma_aiocb_info = {
     .cancel_async       = dma_aio_cancel,
 };
 
-BlockDriverAIOCB *dma_bdrv_io(
+BlockAIOCB *dma_bdrv_io(
     BlockDriverState *bs, QEMUSGList *sg, uint64_t sector_num,
     DMAIOFunc *io_func, BlockDriverCompletionFunc *cb,
     void *opaque, DMADirection dir)
@@ -214,17 +214,17 @@ BlockDriverAIOCB *dma_bdrv_io(
 }
 
 
-BlockDriverAIOCB *dma_bdrv_read(BlockDriverState *bs,
-                                QEMUSGList *sg, uint64_t sector,
-                                void (*cb)(void *opaque, int ret), void *opaque)
+BlockAIOCB *dma_bdrv_read(BlockDriverState *bs,
+                          QEMUSGList *sg, uint64_t sector,
+                          void (*cb)(void *opaque, int ret), void *opaque)
 {
     return dma_bdrv_io(bs, sg, sector, bdrv_aio_readv, cb, opaque,
                        DMA_DIRECTION_FROM_DEVICE);
 }
 
-BlockDriverAIOCB *dma_bdrv_write(BlockDriverState *bs,
-                                 QEMUSGList *sg, uint64_t sector,
-                                 void (*cb)(void *opaque, int ret), void *opaque)
+BlockAIOCB *dma_bdrv_write(BlockDriverState *bs,
+                           QEMUSGList *sg, uint64_t sector,
+                           void (*cb)(void *opaque, int ret), void *opaque)
 {
     return dma_bdrv_io(bs, sg, sector, bdrv_aio_writev, cb, opaque,
                        DMA_DIRECTION_TO_DEVICE);

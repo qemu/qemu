@@ -360,15 +360,15 @@ static void ide_set_signature(IDEState *s)
 }
 
 typedef struct TrimAIOCB {
-    BlockDriverAIOCB common;
+    BlockAIOCB common;
     QEMUBH *bh;
     int ret;
     QEMUIOVector *qiov;
-    BlockDriverAIOCB *aiocb;
+    BlockAIOCB *aiocb;
     int i, j;
 } TrimAIOCB;
 
-static void trim_aio_cancel(BlockDriverAIOCB *acb)
+static void trim_aio_cancel(BlockAIOCB *acb)
 {
     TrimAIOCB *iocb = container_of(acb, TrimAIOCB, common);
 
@@ -438,7 +438,7 @@ static void ide_issue_trim_cb(void *opaque, int ret)
     }
 }
 
-BlockDriverAIOCB *ide_issue_trim(BlockDriverState *bs,
+BlockAIOCB *ide_issue_trim(BlockDriverState *bs,
         int64_t sector_num, QEMUIOVector *qiov, int nb_sectors,
         BlockDriverCompletionFunc *cb, void *opaque)
 {

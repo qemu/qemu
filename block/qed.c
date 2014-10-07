@@ -1365,11 +1365,11 @@ static void qed_aio_next_io(void *opaque, int ret)
                       io_fn, acb);
 }
 
-static BlockDriverAIOCB *qed_aio_setup(BlockDriverState *bs,
-                                       int64_t sector_num,
-                                       QEMUIOVector *qiov, int nb_sectors,
-                                       BlockDriverCompletionFunc *cb,
-                                       void *opaque, int flags)
+static BlockAIOCB *qed_aio_setup(BlockDriverState *bs,
+                                 int64_t sector_num,
+                                 QEMUIOVector *qiov, int nb_sectors,
+                                 BlockDriverCompletionFunc *cb,
+                                 void *opaque, int flags)
 {
     QEDAIOCB *acb = qemu_aio_get(&qed_aiocb_info, bs, cb, opaque);
 
@@ -1390,20 +1390,20 @@ static BlockDriverAIOCB *qed_aio_setup(BlockDriverState *bs,
     return &acb->common;
 }
 
-static BlockDriverAIOCB *bdrv_qed_aio_readv(BlockDriverState *bs,
-                                            int64_t sector_num,
-                                            QEMUIOVector *qiov, int nb_sectors,
-                                            BlockDriverCompletionFunc *cb,
-                                            void *opaque)
+static BlockAIOCB *bdrv_qed_aio_readv(BlockDriverState *bs,
+                                      int64_t sector_num,
+                                      QEMUIOVector *qiov, int nb_sectors,
+                                      BlockDriverCompletionFunc *cb,
+                                      void *opaque)
 {
     return qed_aio_setup(bs, sector_num, qiov, nb_sectors, cb, opaque, 0);
 }
 
-static BlockDriverAIOCB *bdrv_qed_aio_writev(BlockDriverState *bs,
-                                             int64_t sector_num,
-                                             QEMUIOVector *qiov, int nb_sectors,
-                                             BlockDriverCompletionFunc *cb,
-                                             void *opaque)
+static BlockAIOCB *bdrv_qed_aio_writev(BlockDriverState *bs,
+                                       int64_t sector_num,
+                                       QEMUIOVector *qiov, int nb_sectors,
+                                       BlockDriverCompletionFunc *cb,
+                                       void *opaque)
 {
     return qed_aio_setup(bs, sector_num, qiov, nb_sectors, cb,
                          opaque, QED_AIOCB_WRITE);
@@ -1431,7 +1431,7 @@ static int coroutine_fn bdrv_qed_co_write_zeroes(BlockDriverState *bs,
                                                  int nb_sectors,
                                                  BdrvRequestFlags flags)
 {
-    BlockDriverAIOCB *blockacb;
+    BlockAIOCB *blockacb;
     BDRVQEDState *s = bs->opaque;
     QEDWriteZeroesCB cb = { .done = false };
     QEMUIOVector qiov;

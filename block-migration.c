@@ -72,7 +72,7 @@ typedef struct BlkMigBlock {
     int nr_sectors;
     struct iovec iov;
     QEMUIOVector qiov;
-    BlockDriverAIOCB *aiocb;
+    BlockAIOCB *aiocb;
 
     /* Protected by block migration lock.  */
     int ret;

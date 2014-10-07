@@ -389,7 +389,7 @@ struct IDEState {
     int cd_sector_size;
     int atapi_dma; /* true if dma is requested for the packet cmd */
     BlockAcctCookie acct;
-    BlockDriverAIOCB *pio_aiocb;
+    BlockAIOCB *pio_aiocb;
     struct iovec iov;
     QEMUIOVector qiov;
     /* ATA DMA state */
@@ -442,7 +442,7 @@ struct IDEDMA {
     const struct IDEDMAOps *ops;
     struct iovec iov;
     QEMUIOVector qiov;
-    BlockDriverAIOCB *aiocb;
+    BlockAIOCB *aiocb;
 };
 
 struct IDEBus {
@@ -555,7 +555,7 @@ void ide_transfer_start(IDEState *s, uint8_t *buf, int size,
                         EndTransferFunc *end_transfer_func);
 void ide_transfer_stop(IDEState *s);
 void ide_set_inactive(IDEState *s, bool more);
-BlockDriverAIOCB *ide_issue_trim(BlockDriverState *bs,
+BlockAIOCB *ide_issue_trim(BlockDriverState *bs,
         int64_t sector_num, QEMUIOVector *qiov, int nb_sectors,
         BlockDriverCompletionFunc *cb, void *opaque);
 

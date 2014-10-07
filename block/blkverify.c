@@ -19,7 +19,7 @@ typedef struct {
 
 typedef struct BlkverifyAIOCB BlkverifyAIOCB;
 struct BlkverifyAIOCB {
-    BlockDriverAIOCB common;
+    BlockAIOCB common;
     QEMUBH *bh;
 
     /* Request metadata */
@@ -229,7 +229,7 @@ static void blkverify_verify_readv(BlkverifyAIOCB *acb)
     }
 }
 
-static BlockDriverAIOCB *blkverify_aio_readv(BlockDriverState *bs,
+static BlockAIOCB *blkverify_aio_readv(BlockDriverState *bs,
         int64_t sector_num, QEMUIOVector *qiov, int nb_sectors,
         BlockDriverCompletionFunc *cb, void *opaque)
 {
@@ -249,7 +249,7 @@ static BlockDriverAIOCB *blkverify_aio_readv(BlockDriverState *bs,
     return &acb->common;
 }
 
-static BlockDriverAIOCB *blkverify_aio_writev(BlockDriverState *bs,
+static BlockAIOCB *blkverify_aio_writev(BlockDriverState *bs,
         int64_t sector_num, QEMUIOVector *qiov, int nb_sectors,
         BlockDriverCompletionFunc *cb, void *opaque)
 {
@@ -264,9 +264,9 @@ static BlockDriverAIOCB *blkverify_aio_writev(BlockDriverState *bs,
     return &acb->common;
 }
 
-static BlockDriverAIOCB *blkverify_aio_flush(BlockDriverState *bs,
-                                             BlockDriverCompletionFunc *cb,
-                                             void *opaque)
+static BlockAIOCB *blkverify_aio_flush(BlockDriverState *bs,
+                                       BlockDriverCompletionFunc *cb,
+                                       void *opaque)
 {
     BDRVBlkverifyState *s = bs->opaque;
 

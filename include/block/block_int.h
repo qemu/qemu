@@ -128,15 +128,15 @@ struct BlockDriver {
     void (*bdrv_refresh_filename)(BlockDriverState *bs);
 
     /* aio */
-    BlockDriverAIOCB *(*bdrv_aio_readv)(BlockDriverState *bs,
+    BlockAIOCB *(*bdrv_aio_readv)(BlockDriverState *bs,
         int64_t sector_num, QEMUIOVector *qiov, int nb_sectors,
         BlockDriverCompletionFunc *cb, void *opaque);
-    BlockDriverAIOCB *(*bdrv_aio_writev)(BlockDriverState *bs,
+    BlockAIOCB *(*bdrv_aio_writev)(BlockDriverState *bs,
         int64_t sector_num, QEMUIOVector *qiov, int nb_sectors,
         BlockDriverCompletionFunc *cb, void *opaque);
-    BlockDriverAIOCB *(*bdrv_aio_flush)(BlockDriverState *bs,
+    BlockAIOCB *(*bdrv_aio_flush)(BlockDriverState *bs,
         BlockDriverCompletionFunc *cb, void *opaque);
-    BlockDriverAIOCB *(*bdrv_aio_discard)(BlockDriverState *bs,
+    BlockAIOCB *(*bdrv_aio_discard)(BlockDriverState *bs,
         int64_t sector_num, int nb_sectors,
         BlockDriverCompletionFunc *cb, void *opaque);
 
@@ -218,7 +218,7 @@ struct BlockDriver {
 
     /* to control generic scsi devices */
     int (*bdrv_ioctl)(BlockDriverState *bs, unsigned long int req, void *buf);
-    BlockDriverAIOCB *(*bdrv_aio_ioctl)(BlockDriverState *bs,
+    BlockAIOCB *(*bdrv_aio_ioctl)(BlockDriverState *bs,
         unsigned long int req, void *buf,
         BlockDriverCompletionFunc *cb, void *opaque);
 

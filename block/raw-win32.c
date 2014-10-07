@@ -138,7 +138,7 @@ static int aio_worker(void *arg)
     return ret;
 }
 
-static BlockDriverAIOCB *paio_submit(BlockDriverState *bs, HANDLE hfile,
+static BlockAIOCB *paio_submit(BlockDriverState *bs, HANDLE hfile,
         int64_t sector_num, QEMUIOVector *qiov, int nb_sectors,
         BlockDriverCompletionFunc *cb, void *opaque, int type)
 {
@@ -369,7 +369,7 @@ fail:
     return ret;
 }
 
-static BlockDriverAIOCB *raw_aio_readv(BlockDriverState *bs,
+static BlockAIOCB *raw_aio_readv(BlockDriverState *bs,
                          int64_t sector_num, QEMUIOVector *qiov, int nb_sectors,
                          BlockDriverCompletionFunc *cb, void *opaque)
 {
@@ -383,7 +383,7 @@ static BlockDriverAIOCB *raw_aio_readv(BlockDriverState *bs,
     }
 }
 
-static BlockDriverAIOCB *raw_aio_writev(BlockDriverState *bs,
+static BlockAIOCB *raw_aio_writev(BlockDriverState *bs,
                           int64_t sector_num, QEMUIOVector *qiov, int nb_sectors,
                           BlockDriverCompletionFunc *cb, void *opaque)
 {
@@ -397,7 +397,7 @@ static BlockDriverAIOCB *raw_aio_writev(BlockDriverState *bs,
     }
 }
 
-static BlockDriverAIOCB *raw_aio_flush(BlockDriverState *bs,
+static BlockAIOCB *raw_aio_flush(BlockDriverState *bs,
                          BlockDriverCompletionFunc *cb, void *opaque)
 {
     BDRVRawState *s = bs->opaque;
