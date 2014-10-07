@@ -213,9 +213,14 @@ int qdev_device_help(QemuOpts *opts)
     }
 
     for (prop = prop_list; prop; prop = prop->next) {
-        error_printf("%s.%s=%s\n", driver,
+        error_printf("%s.%s=%s", driver,
                      prop->value->name,
                      prop->value->type);
+        if (prop->value->has_description) {
+            error_printf(" (%s)\n", prop->value->description);
+        } else {
+            error_printf("\n");
+        }
     }
 
     qapi_free_DevicePropertyInfoList(prop_list);
