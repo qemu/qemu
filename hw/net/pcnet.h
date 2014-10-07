@@ -66,5 +66,4 @@ void pcnet_set_link_status(NetClientState *nc);
 void pcnet_common_cleanup(PCNetState *d);
 int pcnet_common_init(DeviceState *dev, PCNetState *s, NetClientInfo *info);
 extern const VMStateDescription vmstate_pcnet;
-
 #endif
