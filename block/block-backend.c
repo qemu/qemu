@@ -12,11 +12,13 @@
 
 #include "sysemu/block-backend.h"
 #include "block/block_int.h"
+#include "sysemu/blockdev.h"
 
 struct BlockBackend {
     char *name;
     int refcnt;
     BlockDriverState *bs;
+    DriveInfo *legacy_dinfo;
     QTAILQ_ENTRY(BlockBackend) link; /* for blk_backends */
 };
 
@@ -87,6 +89,7 @@ static void blk_delete(BlockBackend *blk)
         QTAILQ_REMOVE(&blk_backends, blk, link);
     }
     g_free(blk->name);
+    drive_info_del(blk->legacy_dinfo);
     g_free(blk);
 }
 
@@ -164,6 +167,41 @@ BlockBackend *blk_by_name(const char *name)
 BlockDriverState *blk_bs(BlockBackend *blk)
 {
     return blk->bs;
+}
+
+/*
+ * Return @blk's DriveInfo if any, else null.
+ */
+DriveInfo *blk_legacy_dinfo(BlockBackend *blk)
+{
+    return blk->legacy_dinfo;
+}
+
+/*
+ * Set @blk's DriveInfo to @dinfo, and return it.
+ * @blk must not have a DriveInfo set already.
+ * No other BlockBackend may have the same DriveInfo set.
+ */
+DriveInfo *blk_set_legacy_dinfo(BlockBackend *blk, DriveInfo *dinfo)
+{
+    assert(!blk->legacy_dinfo);
+    return blk->legacy_dinfo = dinfo;
+}
+
+/*
+ * Return the BlockBackend with DriveInfo @dinfo.
+ * It must exist.
+ */
+BlockBackend *blk_by_legacy_dinfo(DriveInfo *dinfo)
+{
+    BlockBackend *blk;
+
+    QTAILQ_FOREACH(blk, &blk_backends, link) {
+        if (blk->legacy_dinfo == dinfo) {
+            return blk;
+        }
+    }
+    abort();
 }
 
 /*

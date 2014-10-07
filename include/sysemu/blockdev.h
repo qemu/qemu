@@ -46,6 +46,10 @@ struct DriveInfo {
     QTAILQ_ENTRY(DriveInfo) next;
 };
 
+DriveInfo *blk_legacy_dinfo(BlockBackend *blk);
+DriveInfo *blk_set_legacy_dinfo(BlockBackend *blk, DriveInfo *dinfo);
+BlockBackend *blk_by_legacy_dinfo(DriveInfo *dinfo);
+
 void override_max_devs(BlockInterfaceType type, int max_devs);
 
 DriveInfo *drive_get(BlockInterfaceType type, int bus, int unit);
