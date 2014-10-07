@@ -3543,6 +3543,15 @@ static int pci_rtl8139_init(PCIDevice *dev)
     return 0;
 }
 
+static void rtl8139_instance_init(Object *obj)
+{
+    RTL8139State *s = RTL8139(obj);
+
+    device_add_bootindex_property(obj, &s->conf.bootindex,
+                                  "bootindex", "/ethernet-phy@0",
+                                  DEVICE(obj), NULL);
+}
+
 static Property rtl8139_properties[] = {
     DEFINE_NIC_PROPERTIES(RTL8139State, conf),
     DEFINE_PROP_END_OF_LIST(),
@@ -3571,6 +3580,7 @@ static const TypeInfo rtl8139_info = {
     .parent        = TYPE_PCI_DEVICE,
     .instance_size = sizeof(RTL8139State),
     .class_init    = rtl8139_class_init,
+    .instance_init = rtl8139_instance_init,
 };
 
 static void rtl8139_register_types(void)
