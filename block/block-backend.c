@@ -40,8 +40,18 @@ BlockBackend *blk_new(const char *name, Error **errp)
     BlockBackend *blk;
 
     assert(name && name[0]);
+    if (!id_wellformed(name)) {
+        error_setg(errp, "Invalid device name");
+        return NULL;
+    }
     if (blk_by_name(name)) {
         error_setg(errp, "Device with id '%s' already exists", name);
+        return NULL;
+    }
+    if (bdrv_find_node(name)) {
+        error_setg(errp,
+                   "Device name '%s' conflicts with an existing node name",
+                   name);
         return NULL;
     }
 
@@ -66,12 +76,7 @@ BlockBackend *blk_new_with_bs(const char *name, Error **errp)
         return NULL;
     }
 
-    bs = bdrv_new_root(name, errp);
-    if (!bs) {
-        blk_unref(blk);
-        return NULL;
-    }
-
+    bs = bdrv_new_root();
     blk->bs = bs;
     bs->blk = blk;
     return blk;

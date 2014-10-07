@@ -335,31 +335,9 @@ void bdrv_register(BlockDriver *bdrv)
     QLIST_INSERT_HEAD(&bdrv_drivers, bdrv, list);
 }
 
-/* create a new block device (by default it is empty) */
-BlockDriverState *bdrv_new_root(const char *device_name, Error **errp)
+BlockDriverState *bdrv_new_root(void)
 {
-    BlockDriverState *bs;
-
-    assert(*device_name);
-
-    if (*device_name && !id_wellformed(device_name)) {
-        error_setg(errp, "Invalid device name");
-        return NULL;
-    }
-
-    if (bdrv_find(device_name)) {
-        error_setg(errp, "Device with id '%s' already exists",
-                   device_name);
-        return NULL;
-    }
-    if (bdrv_find_node(device_name)) {
-        error_setg(errp,
-                   "Device name '%s' conflicts with an existing node name",
-                   device_name);
-        return NULL;
-    }
-
-    bs = bdrv_new();
+    BlockDriverState *bs = bdrv_new();
 
     QTAILQ_INSERT_TAIL(&bdrv_states, bs, device_list);
     return bs;
@@ -883,7 +861,7 @@ static void bdrv_assign_node_name(BlockDriverState *bs,
     }
 
     /* takes care of avoiding namespaces collisions */
-    if (bdrv_find(node_name)) {
+    if (blk_by_name(node_name)) {
         error_setg(errp, "node-name=%s is conflicting with a device id",
                    node_name);
         return;
@@ -3817,16 +3795,12 @@ void bdrv_iterate_format(void (*it)(void *opaque, const char *name),
 }
 
 /* This function is to find block backend bs */
+/* TODO convert callers to blk_by_name(), then remove */
 BlockDriverState *bdrv_find(const char *name)
 {
-    BlockDriverState *bs;
+    BlockBackend *blk = blk_by_name(name);
 
-    QTAILQ_FOREACH(bs, &bdrv_states, device_list) {
-        if (!strcmp(name, bdrv_get_device_name(bs))) {
-            return bs;
-        }
-    }
-    return NULL;
+    return blk ? blk_bs(blk) : NULL;
 }
 
 /* This function is to find a node in the bs graph */
@@ -3865,13 +3839,14 @@ BlockDriverState *bdrv_lookup_bs(const char *device,
                                  const char *node_name,
                                  Error **errp)
 {
-    BlockDriverState *bs = NULL;
+    BlockBackend *blk;
+    BlockDriverState *bs;
 
     if (device) {
-        bs = bdrv_find(device);
+        blk = blk_by_name(device);
 
-        if (bs) {
-            return bs;
+        if (blk) {
+            return blk_bs(blk);
         }
     }
 
@@ -3908,6 +3883,7 @@ BlockDriverState *bdrv_next(BlockDriverState *bs)
     return QTAILQ_NEXT(bs, device_list);
 }
 
+/* TODO check what callers really want: bs->node_name or blk_name() */
 const char *bdrv_get_device_name(const BlockDriverState *bs)
 {
     return bs->blk ? blk_name(bs->blk) : "";
