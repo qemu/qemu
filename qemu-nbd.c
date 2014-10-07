@@ -17,7 +17,7 @@
  */
 
 #include "qemu-common.h"
-#include "block/block.h"
+#include "sysemu/block-backend.h"
 #include "block/block_int.h"
 #include "block/nbd.h"
 #include "qemu/main-loop.h"
@@ -384,6 +384,7 @@ static void nbd_accept(void *opaque)
 
 int main(int argc, char **argv)
 {
+    BlockBackend *blk;
     BlockDriverState *bs;
     BlockDriver *drv;
     off_t dev_offset = 0;
@@ -691,6 +692,7 @@ int main(int argc, char **argv)
         drv = NULL;
     }
 
+    blk = blk_new("hda", &error_abort);
     bs = bdrv_new_root("hda", &error_abort);
 
     srcpath = argv[optind];
@@ -774,6 +776,7 @@ int main(int argc, char **argv)
     } while (state != TERMINATED);
 
     bdrv_unref(bs);
+    blk_unref(blk);
     if (sockpath) {
         unlink(sockpath);
     }

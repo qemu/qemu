@@ -30,6 +30,7 @@
  * THE SOFTWARE.
  */
 
+#include "sysemu/block-backend.h"
 #include "sysemu/blockdev.h"
 #include "hw/block/block.h"
 #include "block/blockjob.h"
@@ -278,7 +279,10 @@ static void bdrv_format_print(void *opaque, const char *name)
 
 void drive_del(DriveInfo *dinfo)
 {
+    BlockBackend *blk = blk_by_name(dinfo->id);
+
     bdrv_unref(dinfo->bdrv);
+    blk_unref(blk);
 }
 
 void drive_info_del(DriveInfo *dinfo)
@@ -367,6 +371,7 @@ static DriveInfo *blockdev_init(const char *file, QDict *bs_opts,
     int ro = 0;
     int bdrv_flags = 0;
     int on_read_error, on_write_error;
+    BlockBackend *blk;
     BlockDriverState *bs;
     DriveInfo *dinfo;
     ThrottleConfig cfg;
@@ -523,9 +528,13 @@ static DriveInfo *blockdev_init(const char *file, QDict *bs_opts,
     }
 
     /* init */
+    blk = blk_new(qemu_opts_id(opts), errp);
+    if (!blk) {
+        goto early_err;
+    }
     bs = bdrv_new_root(qemu_opts_id(opts), errp);
     if (!bs) {
-        goto early_err;
+        goto bdrv_new_err;
     }
     bs->open_flags = snapshot ? BDRV_O_SNAPSHOT : 0;
     bs->read_only = ro;
@@ -591,6 +600,8 @@ static DriveInfo *blockdev_init(const char *file, QDict *bs_opts,
 
 err:
     bdrv_unref(bs);
+bdrv_new_err:
+    blk_unref(blk);
 early_err:
     qemu_opts_del(opts);
 err_no_opts:

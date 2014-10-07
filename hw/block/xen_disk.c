@@ -39,6 +39,7 @@
 #include "hw/xen/xen_backend.h"
 #include "xen_blkif.h"
 #include "sysemu/blockdev.h"
+#include "sysemu/block-backend.h"
 
 /* ------------------------------------------------------------- */
 
@@ -854,12 +855,18 @@ static int blk_connect(struct XenDevice *xendev)
     blkdev->dinfo = drive_get(IF_XEN, 0, index);
     if (!blkdev->dinfo) {
         Error *local_err = NULL;
+        BlockBackend *blk;
         BlockDriver *drv;
 
         /* setup via xenbus -> create new block driver instance */
         xen_be_printf(&blkdev->xendev, 2, "create new bdrv (xenbus setup)\n");
+        blk = blk_new(blkdev->dev, NULL);
+        if (!blk) {
+            return -1;
+        }
         blkdev->bs = bdrv_new_root(blkdev->dev, NULL);
         if (!blkdev->bs) {
+            blk_unref(blk);
             return -1;
         }
 
@@ -870,6 +877,7 @@ static int blk_connect(struct XenDevice *xendev)
                           error_get_pretty(local_err));
             error_free(local_err);
             bdrv_unref(blkdev->bs);
+            blk_unref(blk);
             blkdev->bs = NULL;
             return -1;
         }
@@ -985,6 +993,9 @@ static void blk_disconnect(struct XenDevice *xendev)
     if (blkdev->bs) {
         bdrv_detach_dev(blkdev->bs, blkdev);
         bdrv_unref(blkdev->bs);
+        if (!blkdev->dinfo) {
+            blk_unref(blk_by_name(blkdev->dev));
+        }
         blkdev->bs = NULL;
     }
     xen_be_unbind_evtchn(&blkdev->xendev);

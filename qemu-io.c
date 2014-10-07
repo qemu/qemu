@@ -19,6 +19,7 @@
 #include "qemu/option.h"
 #include "qemu/config-file.h"
 #include "qemu/readline.h"
+#include "sysemu/block-backend.h"
 #include "block/block_int.h"
 #include "trace/control.h"
 
@@ -26,6 +27,7 @@
 
 static char *progname;
 
+static BlockBackend *qemuio_blk;
 static BlockDriverState *qemuio_bs;
 
 /* qemu-io commands passed using -c */
@@ -37,7 +39,9 @@ static ReadLineState *readline_state;
 static int close_f(BlockDriverState *bs, int argc, char **argv)
 {
     bdrv_unref(bs);
+    blk_unref(qemuio_blk);
     qemuio_bs = NULL;
+    qemuio_blk = NULL;
     return 0;
 }
 
@@ -58,6 +62,7 @@ static int openfile(char *name, int flags, int growable, QDict *opts)
         return 1;
     }
 
+    qemuio_blk = blk_new("hda", &error_abort);
     qemuio_bs = bdrv_new_root("hda", &error_abort);
 
     if (growable) {
@@ -70,7 +75,9 @@ static int openfile(char *name, int flags, int growable, QDict *opts)
                 error_get_pretty(local_err));
         error_free(local_err);
         bdrv_unref(qemuio_bs);
+        blk_unref(qemuio_blk);
         qemuio_bs = NULL;
+        qemuio_blk = NULL;
         return 1;
     }
 
@@ -484,6 +491,7 @@ int main(int argc, char **argv)
     if (qemuio_bs) {
         bdrv_unref(qemuio_bs);
     }
+    blk_unref(qemuio_blk);
     g_free(readline_state);
     return 0;
 }

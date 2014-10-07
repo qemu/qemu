@@ -29,6 +29,7 @@
 #include "qemu/error-report.h"
 #include "qemu/osdep.h"
 #include "sysemu/sysemu.h"
+#include "sysemu/block-backend.h"
 #include "block/block_int.h"
 #include "block/qapi.h"
 #include <getopt.h>
@@ -575,10 +576,11 @@ static int img_check(int argc, char **argv)
     int c, ret;
     OutputFormat output_format = OFORMAT_HUMAN;
     const char *filename, *fmt, *output, *cache;
+    BlockBackend *blk;
     BlockDriverState *bs;
     int fix = 0;
     int flags = BDRV_O_FLAGS | BDRV_O_CHECK;
-    ImageCheck *check;
+    ImageCheck *check = NULL;
     bool quiet = false;
 
     fmt = NULL;
@@ -649,9 +651,11 @@ static int img_check(int argc, char **argv)
         return 1;
     }
 
+    blk = blk_new("image", &error_abort);
     bs = bdrv_new_open("image", filename, fmt, flags, true, quiet);
     if (!bs) {
-        return 1;
+        ret = 1;
+        goto fail;
     }
 
     check = g_new0(ImageCheck, 1);
@@ -710,6 +714,7 @@ static int img_check(int argc, char **argv)
 fail:
     qapi_free_ImageCheck(check);
     bdrv_unref(bs);
+    blk_unref(blk);
 
     return ret;
 }
@@ -718,6 +723,7 @@ static int img_commit(int argc, char **argv)
 {
     int c, ret, flags;
     const char *filename, *fmt, *cache;
+    BlockBackend *blk;
     BlockDriverState *bs;
     bool quiet = false;
 
@@ -756,9 +762,11 @@ static int img_commit(int argc, char **argv)
         return 1;
     }
 
+    blk = blk_new("image", &error_abort);
     bs = bdrv_new_open("image", filename, fmt, flags, true, quiet);
     if (!bs) {
-        return 1;
+        ret = -1;
+        goto out;
     }
     ret = bdrv_commit(bs);
     switch(ret) {
@@ -779,7 +787,9 @@ static int img_commit(int argc, char **argv)
         break;
     }
 
+out:
     bdrv_unref(bs);
+    blk_unref(blk);
     if (ret) {
         return 1;
     }
@@ -942,6 +952,7 @@ static int check_empty_sectors(BlockDriverState *bs, int64_t sect_num,
 static int img_compare(int argc, char **argv)
 {
     const char *fmt1 = NULL, *fmt2 = NULL, *cache, *filename1, *filename2;
+    BlockBackend *blk1, *blk2;
     BlockDriverState *bs1, *bs2;
     int64_t total_sectors1, total_sectors2;
     uint8_t *buf1 = NULL, *buf2 = NULL;
@@ -1011,18 +1022,20 @@ static int img_compare(int argc, char **argv)
         goto out3;
     }
 
+    blk1 = blk_new("image_1", &error_abort);
     bs1 = bdrv_new_open("image_1", filename1, fmt1, flags, true, quiet);
     if (!bs1) {
         error_report("Can't open file %s", filename1);
         ret = 2;
-        goto out3;
+        goto out2;
     }
 
+    blk2 = blk_new("image_2", &error_abort);
     bs2 = bdrv_new_open("image_2", filename2, fmt2, flags, true, quiet);
     if (!bs2) {
         error_report("Can't open file %s", filename2);
         ret = 2;
-        goto out2;
+        goto out1;
     }
 
     buf1 = qemu_blockalign(bs1, IO_BUF_SIZE);
@@ -1183,11 +1196,14 @@ static int img_compare(int argc, char **argv)
     ret = 0;
 
 out:
-    bdrv_unref(bs2);
     qemu_vfree(buf1);
     qemu_vfree(buf2);
+out1:
+    bdrv_unref(bs2);
+    blk_unref(blk2);
 out2:
     bdrv_unref(bs1);
+    blk_unref(blk1);
 out3:
     qemu_progress_end();
     return ret;
@@ -1200,6 +1216,7 @@ static int img_convert(int argc, char **argv)
     int progress = 0, flags, src_flags;
     const char *fmt, *out_fmt, *cache, *src_cache, *out_baseimg, *out_filename;
     BlockDriver *drv, *proto_drv;
+    BlockBackend **blk = NULL, *out_blk = NULL;
     BlockDriverState **bs = NULL, *out_bs = NULL;
     int64_t total_sectors, nb_sectors, sector_num, bs_offset;
     int64_t *bs_sectors = NULL;
@@ -1354,6 +1371,7 @@ static int img_convert(int argc, char **argv)
 
     qemu_progress_print(0, 100);
 
+    blk = g_new0(BlockBackend *, bs_n);
     bs = g_new0(BlockDriverState *, bs_n);
     bs_sectors = g_new(int64_t, bs_n);
 
@@ -1361,6 +1379,7 @@ static int img_convert(int argc, char **argv)
     for (bs_i = 0; bs_i < bs_n; bs_i++) {
         char *id = bs_n > 1 ? g_strdup_printf("source_%d", bs_i)
                             : g_strdup("source");
+        blk[bs_i] = blk_new(id, &error_abort);
         bs[bs_i] = bdrv_new_open(id, argv[optind + bs_i], fmt, src_flags,
                                  true, quiet);
         g_free(id);
@@ -1486,6 +1505,7 @@ static int img_convert(int argc, char **argv)
         goto out;
     }
 
+    out_blk = blk_new("target", &error_abort);
     out_bs = bdrv_new_open("target", out_filename, out_fmt, flags, true, quiet);
     if (!out_bs) {
         ret = -1;
@@ -1740,6 +1760,7 @@ out:
     if (out_bs) {
         bdrv_unref(out_bs);
     }
+    blk_unref(out_blk);
     if (bs) {
         for (bs_i = 0; bs_i < bs_n; bs_i++) {
             if (bs[bs_i]) {
@@ -1747,6 +1768,12 @@ out:
             }
         }
         g_free(bs);
+    }
+    if (blk) {
+        for (bs_i = 0; bs_i < bs_n; bs_i++) {
+            blk_unref(blk[bs_i]);
+        }
+        g_free(blk);
     }
     g_free(bs_sectors);
 fail_getopt:
@@ -1856,6 +1883,7 @@ static ImageInfoList *collect_image_info_list(const char *filename,
     filenames = g_hash_table_new_full(g_str_hash, str_equal_func, NULL, NULL);
 
     while (filename) {
+        BlockBackend *blk;
         BlockDriverState *bs;
         ImageInfo *info;
         ImageInfoList *elem;
@@ -1867,9 +1895,11 @@ static ImageInfoList *collect_image_info_list(const char *filename,
         }
         g_hash_table_insert(filenames, (gpointer)filename, NULL);
 
+        blk = blk_new("image", &error_abort);
         bs = bdrv_new_open("image", filename, fmt,
                            BDRV_O_FLAGS | BDRV_O_NO_BACKING, false, false);
         if (!bs) {
+            blk_unref(blk);
             goto err;
         }
 
@@ -1878,6 +1908,7 @@ static ImageInfoList *collect_image_info_list(const char *filename,
             error_report("%s", error_get_pretty(err));
             error_free(err);
             bdrv_unref(bs);
+            blk_unref(blk);
             goto err;
         }
 
@@ -1887,6 +1918,7 @@ static ImageInfoList *collect_image_info_list(const char *filename,
         last = &elem->next;
 
         bdrv_unref(bs);
+        blk_unref(blk);
 
         filename = fmt = NULL;
         if (chain) {
@@ -2080,6 +2112,7 @@ static int img_map(int argc, char **argv)
 {
     int c;
     OutputFormat output_format = OFORMAT_HUMAN;
+    BlockBackend *blk;
     BlockDriverState *bs;
     const char *filename, *fmt, *output;
     int64_t length;
@@ -2128,9 +2161,11 @@ static int img_map(int argc, char **argv)
         return 1;
     }
 
+    blk = blk_new("image", &error_abort);
     bs = bdrv_new_open("image", filename, fmt, BDRV_O_FLAGS, true, false);
     if (!bs) {
-        return 1;
+        ret = -1;
+        goto out;
     }
 
     if (output_format == OFORMAT_HUMAN) {
@@ -2173,6 +2208,7 @@ static int img_map(int argc, char **argv)
 
 out:
     bdrv_unref(bs);
+    blk_unref(blk);
     return ret < 0;
 }
 
@@ -2183,6 +2219,7 @@ out:
 
 static int img_snapshot(int argc, char **argv)
 {
+    BlockBackend *blk;
     BlockDriverState *bs;
     QEMUSnapshotInfo sn;
     char *filename, *snapshot_name = NULL;
@@ -2248,9 +2285,11 @@ static int img_snapshot(int argc, char **argv)
     filename = argv[optind++];
 
     /* Open the image */
+    blk = blk_new("image", &error_abort);
     bs = bdrv_new_open("image", filename, NULL, bdrv_oflags, true, quiet);
     if (!bs) {
-        return 1;
+        ret = -1;
+        goto out;
     }
 
     /* Perform the requested action */
@@ -2294,7 +2333,9 @@ static int img_snapshot(int argc, char **argv)
     }
 
     /* Cleanup */
+out:
     bdrv_unref(bs);
+    blk_unref(blk);
     if (ret) {
         return 1;
     }
@@ -2303,6 +2344,7 @@ static int img_snapshot(int argc, char **argv)
 
 static int img_rebase(int argc, char **argv)
 {
+    BlockBackend *blk = NULL, *blk_old_backing = NULL, *blk_new_backing = NULL;
     BlockDriverState *bs = NULL, *bs_old_backing = NULL, *bs_new_backing = NULL;
     BlockDriver *old_backing_drv, *new_backing_drv;
     char *filename;
@@ -2391,6 +2433,7 @@ static int img_rebase(int argc, char **argv)
      * Ignore the old backing file for unsafe rebase in case we want to correct
      * the reference to a renamed or moved backing file.
      */
+    blk = blk_new("image", &error_abort);
     bs = bdrv_new_open("image", filename, fmt, flags, true, quiet);
     if (!bs) {
         ret = -1;
@@ -2423,6 +2466,7 @@ static int img_rebase(int argc, char **argv)
     if (!unsafe) {
         char backing_name[1024];
 
+        blk_old_backing = blk_new("old_backing", &error_abort);
         bs_old_backing = bdrv_new_root("old_backing", &error_abort);
         bdrv_get_backing_filename(bs, backing_name, sizeof(backing_name));
         ret = bdrv_open(&bs_old_backing, backing_name, NULL, NULL, src_flags,
@@ -2434,6 +2478,7 @@ static int img_rebase(int argc, char **argv)
             goto out;
         }
         if (out_baseimg[0]) {
+            blk_new_backing = blk_new("new_backing", &error_abort);
             bs_new_backing = bdrv_new_root("new_backing", &error_abort);
             ret = bdrv_open(&bs_new_backing, out_baseimg, NULL, NULL, src_flags,
                             new_backing_drv, &local_err);
@@ -2612,12 +2657,15 @@ out:
         if (bs_old_backing != NULL) {
             bdrv_unref(bs_old_backing);
         }
+        blk_unref(blk_old_backing);
         if (bs_new_backing != NULL) {
             bdrv_unref(bs_new_backing);
         }
+        blk_unref(blk_new_backing);
     }
 
     bdrv_unref(bs);
+    blk_unref(blk);
     if (ret) {
         return 1;
     }
@@ -2630,6 +2678,7 @@ static int img_resize(int argc, char **argv)
     const char *filename, *fmt, *size;
     int64_t n, total_size;
     bool quiet = false;
+    BlockBackend *blk = NULL;
     BlockDriverState *bs = NULL;
     QemuOpts *param;
     static QemuOptsList resize_options = {
@@ -2706,6 +2755,7 @@ static int img_resize(int argc, char **argv)
     n = qemu_opt_get_size(param, BLOCK_OPT_SIZE, 0);
     qemu_opts_del(param);
 
+    blk = blk_new("image", &error_abort);
     bs = bdrv_new_open("image", filename, fmt, BDRV_O_FLAGS | BDRV_O_RDWR,
                        true, quiet);
     if (!bs) {
@@ -2743,6 +2793,7 @@ out:
     if (bs) {
         bdrv_unref(bs);
     }
+    blk_unref(blk);
     if (ret) {
         return 1;
     }
@@ -2758,6 +2809,7 @@ static int img_amend(int argc, char **argv)
     const char *fmt = NULL, *filename, *cache;
     int flags;
     bool quiet = false;
+    BlockBackend *blk = NULL;
     BlockDriverState *bs = NULL;
 
     cache = BDRV_DEFAULT_CACHE;
@@ -2821,6 +2873,7 @@ static int img_amend(int argc, char **argv)
         goto out;
     }
 
+    blk = blk_new("image", &error_abort);
     bs = bdrv_new_open("image", filename, fmt, flags, true, quiet);
     if (!bs) {
         error_report("Could not open image '%s'", filename);
@@ -2854,6 +2907,7 @@ out:
     if (bs) {
         bdrv_unref(bs);
     }
+    blk_unref(blk);
     qemu_opts_del(opts);
     qemu_opts_free(create_opts);
     g_free(options);
