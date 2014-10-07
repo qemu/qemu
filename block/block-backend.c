@@ -257,6 +257,7 @@ int blk_attach_dev(BlockBackend *blk, void *dev)
     if (blk->dev) {
         return -EBUSY;
     }
+    blk_ref(blk);
     blk->dev = dev;
     bdrv_iostatus_reset(blk->bs);
 
@@ -290,6 +291,7 @@ void blk_detach_dev(BlockBackend *blk, void *dev)
     blk->dev_opaque = NULL;
     bdrv_set_guest_block_size(blk->bs, 512);
     qemu_coroutine_adjust_pool_size(-COROUTINE_POOL_RESERVATION);
+    blk_unref(blk);
 }
 
 /*
