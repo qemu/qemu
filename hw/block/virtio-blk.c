@@ -794,6 +794,9 @@ static void virtio_blk_instance_init(Object *obj)
                              (Object **)&s->blk.iothread,
                              qdev_prop_allow_set_link_before_realize,
                              OBJ_PROP_LINK_UNREF_ON_RELEASE, NULL);
+    device_add_bootindex_property(obj, &s->blk.conf.bootindex,
+                                  "bootindex", "/disk@0,0",
+                                  DEVICE(obj), NULL);
 }
 
 static Property virtio_blk_properties[] = {
