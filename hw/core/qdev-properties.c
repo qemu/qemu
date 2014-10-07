@@ -121,6 +121,7 @@ static void prop_set_bit(Object *obj, Visitor *v, void *opaque,
 PropertyInfo qdev_prop_bit = {
     .name  = "bool",
     .legacy_name  = "on/off",
+    .description = "on/off",
     .get   = prop_get_bit,
     .set   = prop_set_bit,
 };
@@ -456,6 +457,7 @@ inval:
 PropertyInfo qdev_prop_macaddr = {
     .name  = "str",
     .legacy_name  = "macaddr",
+    .description = "Ethernet 6-byte MAC Address, example: 52:54:00:12:34:56",
     .get   = get_mac,
     .set   = set_mac,
 };
@@ -478,6 +480,8 @@ QEMU_BUILD_BUG_ON(sizeof(BiosAtaTranslation) != sizeof(int));
 PropertyInfo qdev_prop_bios_chs_trans = {
     .name = "BiosAtaTranslation",
     .legacy_name = "bios-chs-trans",
+    .description = "Logical CHS translation algorithm, "
+                   "auto/none/lba/large/rechs",
     .enum_table = BiosAtaTranslation_lookup,
     .get = get_enum,
     .set = set_enum,
@@ -552,6 +556,7 @@ static int print_pci_devfn(DeviceState *dev, Property *prop, char *dest,
 PropertyInfo qdev_prop_pci_devfn = {
     .name  = "int32",
     .legacy_name  = "pci-devfn",
+    .description = "Slot and optional function number, example: 06.0 or 06",
     .print = print_pci_devfn,
     .get   = get_int32,
     .set   = set_pci_devfn,
@@ -599,6 +604,7 @@ static void set_blocksize(Object *obj, Visitor *v, void *opaque,
 PropertyInfo qdev_prop_blocksize = {
     .name  = "uint16",
     .legacy_name  = "blocksize",
+    .description = "A power of two between 512 and 32768",
     .get   = get_uint16,
     .set   = set_blocksize,
 };
@@ -707,6 +713,8 @@ inval:
 PropertyInfo qdev_prop_pci_host_devaddr = {
     .name = "str",
     .legacy_name = "pci-host-devaddr",
+    .description = "Address (bus/device/function) of "
+                   "the host device, example: 04:10.0",
     .get = get_pci_host_devaddr,
     .set = set_pci_host_devaddr,
 };

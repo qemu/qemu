@@ -231,6 +231,7 @@ struct Property {
 struct PropertyInfo {
     const char *name;
     const char *legacy_name;
+    const char *description;
     const char **enum_table;
     int (*print)(DeviceState *dev, Property *prop, char *dest, size_t len);
     ObjectPropertyAccessor *get;
