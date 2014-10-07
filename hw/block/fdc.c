@@ -2216,9 +2216,6 @@ static void isabus_fdc_realize(DeviceState *dev, Error **errp)
         error_propagate(errp, err);
         return;
     }
-
-    add_boot_device_path(isa->bootindexA, dev, "/floppy@0");
-    add_boot_device_path(isa->bootindexB, dev, "/floppy@1");
 }
 
 static void sysbus_fdc_initfn(Object *obj)

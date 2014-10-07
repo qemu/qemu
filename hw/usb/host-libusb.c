@@ -978,7 +978,6 @@ static void usb_host_realize(USBDevice *udev, Error **errp)
     qemu_add_exit_notifier(&s->exit);
 
     QTAILQ_INSERT_TAIL(&hostdevs, s, next);
-    add_boot_device_path(s->bootindex, &udev->qdev, NULL);
     usb_host_auto_check(NULL);
 }
 

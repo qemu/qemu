@@ -4296,7 +4296,6 @@ static int vfio_initfn(PCIDevice *pdev)
         }
     }
 
-    add_boot_device_path(vdev->bootindex, &pdev->qdev, NULL);
     vfio_register_err_notifier(vdev);
 
     return 0;

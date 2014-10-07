@@ -212,6 +212,8 @@ static void device_set_bootindex(Object *obj, Visitor *v, void *opaque,
     /* change bootindex to a new one */
     *prop->bootindex = boot_index;
 
+    add_boot_device_path(*prop->bootindex, prop->dev, prop->suffix);
+
 out:
     if (local_err) {
         error_propagate(errp, local_err);

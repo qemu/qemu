@@ -1901,8 +1901,6 @@ static int e100_nic_init(PCIDevice *pci_dev)
     s->vmstate->name = qemu_get_queue(s->nic)->model;
     vmstate_register(&pci_dev->qdev, -1, s->vmstate, s);
 
-    add_boot_device_path(s->conf.bootindex, &pci_dev->qdev, "/ethernet-phy@0");
-
     return 0;
 }
 

@@ -768,8 +768,6 @@ static void virtio_blk_device_realize(DeviceState *dev, Error **errp)
     bdrv_set_guest_block_size(s->bs, s->conf->logical_block_size);
 
     bdrv_iostatus_enable(s->bs);
-
-    add_boot_device_path(s->conf->bootindex, dev, "/disk@0,0");
 }
 
 static void virtio_blk_device_unrealize(DeviceState *dev, Error **errp)

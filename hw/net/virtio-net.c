@@ -1661,8 +1661,6 @@ static void virtio_net_device_realize(DeviceState *dev, Error **errp)
     n->qdev = dev;
     register_savevm(dev, "virtio-net", -1, VIRTIO_NET_VM_VERSION,
                     virtio_net_save, virtio_net_load, n);
-
-    add_boot_device_path(n->nic_conf.bootindex, dev, "/ethernet-phy@0");
 }
 
 static void virtio_net_device_unrealize(DeviceState *dev, Error **errp)

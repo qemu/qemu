@@ -1401,7 +1401,6 @@ static void usbredir_realize(USBDevice *udev, Error **errp)
                           usbredir_chardev_read, usbredir_chardev_event, dev);
 
     qemu_add_vm_change_state_handler(usbredir_vm_state_change, dev);
-    add_boot_device_path(dev->bootindex, &udev->qdev, NULL);
 }
 
 static void usbredir_cleanup_device_queues(USBRedirDevice *dev)

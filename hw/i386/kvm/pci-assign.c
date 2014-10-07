@@ -1825,8 +1825,6 @@ static int assigned_initfn(struct PCIDevice *pci_dev)
 
     assigned_dev_load_option_rom(dev);
 
-    add_boot_device_path(dev->bootindex, &pci_dev->qdev, NULL);
-
     return 0;
 
 assigned_out:

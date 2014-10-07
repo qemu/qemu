@@ -2172,8 +2172,6 @@ static int vmxnet3_pci_init(PCIDevice *pci_dev)
     register_savevm(dev, "vmxnet3-msix", -1, 1,
                     vmxnet3_msix_save, vmxnet3_msix_load, s);
 
-    add_boot_device_path(s->conf.bootindex, dev, "/ethernet-phy@0");
-
     return 0;
 }
 

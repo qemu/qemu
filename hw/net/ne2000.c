@@ -738,8 +738,6 @@ static int pci_ne2000_init(PCIDevice *pci_dev)
                           object_get_typename(OBJECT(pci_dev)), pci_dev->qdev.id, s);
     qemu_format_nic_info_str(qemu_get_queue(s->nic), s->c.macaddr.a);
 
-    add_boot_device_path(s->c.bootindex, &pci_dev->qdev, "/ethernet-phy@0");
-
     return 0;
 }
 

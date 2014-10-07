@@ -1371,8 +1371,6 @@ static void usb_net_realize(USBDevice *dev, Error **errrp)
              s->conf.macaddr.a[4],
              s->conf.macaddr.a[5]);
     usb_desc_set_string(dev, STRING_ETHADDR, s->usbstring_mac);
-
-    add_boot_device_path(s->conf.bootindex, &dev->qdev, "/ethernet@0");
 }
 
 static void usb_net_instance_init(Object *obj)

@@ -221,8 +221,6 @@ static int spapr_vlan_init(VIOsPAPRDevice *sdev)
                             object_get_typename(OBJECT(sdev)), sdev->qdev.id, dev);
     qemu_format_nic_info_str(qemu_get_queue(dev->nic), dev->nicconf.macaddr.a);
 
-    add_boot_device_path(dev->nicconf.bootindex, DEVICE(dev), "");
-
     return 0;
 }
 

@@ -1569,8 +1569,6 @@ static int pci_e1000_init(PCIDevice *pci_dev)
 
     qemu_format_nic_info_str(qemu_get_queue(d->nic), macaddr);
 
-    add_boot_device_path(d->conf.bootindex, dev, "/ethernet-phy@0");
-
     d->autoneg_timer = timer_new_ms(QEMU_CLOCK_VIRTUAL, e1000_autoneg_timer, d);
     d->mit_timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, e1000_mit_timer, d);
 

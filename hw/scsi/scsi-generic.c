@@ -413,9 +413,6 @@ static void scsi_generic_realize(SCSIDevice *s, Error **errp)
     /* define device state */
     s->type = scsiid.scsi_type;
     DPRINTF("device type %d\n", s->type);
-    if (s->type == TYPE_DISK || s->type == TYPE_ROM) {
-        add_boot_device_path(s->conf.bootindex, &s->qdev, NULL);
-    }
 
     switch (s->type) {
     case TYPE_TAPE:

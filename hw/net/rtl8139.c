@@ -3538,8 +3538,6 @@ static int pci_rtl8139_init(PCIDevice *dev)
     s->timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, rtl8139_timer, s);
     rtl8139_set_next_tctr_time(s, qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL));
 
-    add_boot_device_path(s->conf.bootindex, d, "/ethernet-phy@0");
-
     return 0;
 }
 
