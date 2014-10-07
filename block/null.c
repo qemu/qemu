@@ -95,7 +95,7 @@ static void null_bh_cb(void *opaque)
 }
 
 static inline BlockAIOCB *null_aio_common(BlockDriverState *bs,
-                                          BlockDriverCompletionFunc *cb,
+                                          BlockCompletionFunc *cb,
                                           void *opaque)
 {
     NullAIOCB *acb;
@@ -109,7 +109,7 @@ static inline BlockAIOCB *null_aio_common(BlockDriverState *bs,
 static BlockAIOCB *null_aio_readv(BlockDriverState *bs,
                                   int64_t sector_num, QEMUIOVector *qiov,
                                   int nb_sectors,
-                                  BlockDriverCompletionFunc *cb,
+                                  BlockCompletionFunc *cb,
                                   void *opaque)
 {
     return null_aio_common(bs, cb, opaque);
@@ -118,14 +118,14 @@ static BlockAIOCB *null_aio_readv(BlockDriverState *bs,
 static BlockAIOCB *null_aio_writev(BlockDriverState *bs,
                                    int64_t sector_num, QEMUIOVector *qiov,
                                    int nb_sectors,
-                                   BlockDriverCompletionFunc *cb,
+                                   BlockCompletionFunc *cb,
                                    void *opaque)
 {
     return null_aio_common(bs, cb, opaque);
 }
 
 static BlockAIOCB *null_aio_flush(BlockDriverState *bs,
-                                  BlockDriverCompletionFunc *cb,
+                                  BlockCompletionFunc *cb,
                                   void *opaque)
 {
     return null_aio_common(bs, cb, opaque);

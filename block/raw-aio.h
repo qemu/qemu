@@ -37,7 +37,7 @@ void *laio_init(void);
 void laio_cleanup(void *s);
 BlockAIOCB *laio_submit(BlockDriverState *bs, void *aio_ctx, int fd,
         int64_t sector_num, QEMUIOVector *qiov, int nb_sectors,
-        BlockDriverCompletionFunc *cb, void *opaque, int type);
+        BlockCompletionFunc *cb, void *opaque, int type);
 void laio_detach_aio_context(void *s, AioContext *old_context);
 void laio_attach_aio_context(void *s, AioContext *new_context);
 void laio_io_plug(BlockDriverState *bs, void *aio_ctx);
@@ -52,7 +52,7 @@ int win32_aio_attach(QEMUWin32AIOState *aio, HANDLE hfile);
 BlockAIOCB *win32_aio_submit(BlockDriverState *bs,
         QEMUWin32AIOState *aio, HANDLE hfile,
         int64_t sector_num, QEMUIOVector *qiov, int nb_sectors,
-        BlockDriverCompletionFunc *cb, void *opaque, int type);
+        BlockCompletionFunc *cb, void *opaque, int type);
 void win32_aio_detach_aio_context(QEMUWin32AIOState *aio,
                                   AioContext *old_context);
 void win32_aio_attach_aio_context(QEMUWin32AIOState *aio,

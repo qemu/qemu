@@ -665,7 +665,7 @@ iscsi_aio_ioctl_cb(struct iscsi_context *iscsi, int status,
 
 static BlockAIOCB *iscsi_aio_ioctl(BlockDriverState *bs,
         unsigned long int req, void *buf,
-        BlockDriverCompletionFunc *cb, void *opaque)
+        BlockCompletionFunc *cb, void *opaque)
 {
     IscsiLun *iscsilun = bs->opaque;
     struct iscsi_context *iscsi = iscsilun->iscsi;

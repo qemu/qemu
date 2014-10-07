@@ -250,7 +250,7 @@ int bdrv_write_zeroes(BlockDriverState *bs, int64_t sector_num,
                int nb_sectors, BdrvRequestFlags flags);
 BlockAIOCB *bdrv_aio_write_zeroes(BlockDriverState *bs, int64_t sector_num,
                                   int nb_sectors, BdrvRequestFlags flags,
-                                  BlockDriverCompletionFunc *cb, void *opaque);
+                                  BlockCompletionFunc *cb, void *opaque);
 int bdrv_make_zero(BlockDriverState *bs, BdrvRequestFlags flags);
 int bdrv_pread(BlockDriverState *bs, int64_t offset,
                void *buf, int count);
@@ -328,15 +328,15 @@ typedef void BlockDriverDirtyHandler(BlockDriverState *bs, int64_t sector,
                                      int sector_num);
 BlockAIOCB *bdrv_aio_readv(BlockDriverState *bs, int64_t sector_num,
                            QEMUIOVector *iov, int nb_sectors,
-                           BlockDriverCompletionFunc *cb, void *opaque);
+                           BlockCompletionFunc *cb, void *opaque);
 BlockAIOCB *bdrv_aio_writev(BlockDriverState *bs, int64_t sector_num,
                             QEMUIOVector *iov, int nb_sectors,
-                            BlockDriverCompletionFunc *cb, void *opaque);
+                            BlockCompletionFunc *cb, void *opaque);
 BlockAIOCB *bdrv_aio_flush(BlockDriverState *bs,
-                           BlockDriverCompletionFunc *cb, void *opaque);
+                           BlockCompletionFunc *cb, void *opaque);
 BlockAIOCB *bdrv_aio_discard(BlockDriverState *bs,
                              int64_t sector_num, int nb_sectors,
-                             BlockDriverCompletionFunc *cb, void *opaque);
+                             BlockCompletionFunc *cb, void *opaque);
 void bdrv_aio_cancel(BlockAIOCB *acb);
 void bdrv_aio_cancel_async(BlockAIOCB *acb);
 
@@ -346,7 +346,7 @@ typedef struct BlockRequest {
     int nb_sectors;
     int flags;
     QEMUIOVector *qiov;
-    BlockDriverCompletionFunc *cb;
+    BlockCompletionFunc *cb;
     void *opaque;
 
     /* Filled by multiwrite implementation */
@@ -360,7 +360,7 @@ int bdrv_aio_multiwrite(BlockDriverState *bs, BlockRequest *reqs,
 int bdrv_ioctl(BlockDriverState *bs, unsigned long int req, void *buf);
 BlockAIOCB *bdrv_aio_ioctl(BlockDriverState *bs,
         unsigned long int req, void *buf,
-        BlockDriverCompletionFunc *cb, void *opaque);
+        BlockCompletionFunc *cb, void *opaque);
 
 /* Invalidate any cached metadata used by image formats */
 void bdrv_invalidate_cache(BlockDriverState *bs, Error **errp);

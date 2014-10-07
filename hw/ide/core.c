@@ -440,7 +440,7 @@ static void ide_issue_trim_cb(void *opaque, int ret)
 
 BlockAIOCB *ide_issue_trim(BlockDriverState *bs,
         int64_t sector_num, QEMUIOVector *qiov, int nb_sectors,
-        BlockDriverCompletionFunc *cb, void *opaque)
+        BlockCompletionFunc *cb, void *opaque)
 {
     TrimAIOCB *iocb;
 
@@ -789,7 +789,7 @@ static void ide_sector_start_dma(IDEState *s, enum ide_dma_cmd dma_cmd)
     ide_start_dma(s, ide_dma_cb);
 }
 
-void ide_start_dma(IDEState *s, BlockDriverCompletionFunc *cb)
+void ide_start_dma(IDEState *s, BlockCompletionFunc *cb)
 {
     if (s->bus->dma->ops->start_dma) {
         s->bus->dma->ops->start_dma(s->bus->dma, s, cb);

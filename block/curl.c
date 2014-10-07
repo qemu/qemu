@@ -682,7 +682,7 @@ static void curl_readv_bh_cb(void *p)
 
 static BlockAIOCB *curl_aio_readv(BlockDriverState *bs,
         int64_t sector_num, QEMUIOVector *qiov, int nb_sectors,
-        BlockDriverCompletionFunc *cb, void *opaque)
+        BlockCompletionFunc *cb, void *opaque)
 {
     CURLAIOCB *acb;
 

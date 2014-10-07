@@ -1122,7 +1122,7 @@ out:
 }
 
 static void ahci_start_dma(IDEDMA *dma, IDEState *s,
-                           BlockDriverCompletionFunc *dma_cb)
+                           BlockCompletionFunc *dma_cb)
 {
 #ifdef DEBUG_AHCI
     AHCIDevice *ad = DO_UPCAST(AHCIDevice, dma, dma);

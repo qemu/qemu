@@ -593,7 +593,7 @@ static BlockAIOCB *rbd_start_aio(BlockDriverState *bs,
                                  int64_t sector_num,
                                  QEMUIOVector *qiov,
                                  int nb_sectors,
-                                 BlockDriverCompletionFunc *cb,
+                                 BlockCompletionFunc *cb,
                                  void *opaque,
                                  RBDAIOCmd cmd)
 {
@@ -679,7 +679,7 @@ static BlockAIOCB *qemu_rbd_aio_readv(BlockDriverState *bs,
                                       int64_t sector_num,
                                       QEMUIOVector *qiov,
                                       int nb_sectors,
-                                      BlockDriverCompletionFunc *cb,
+                                      BlockCompletionFunc *cb,
                                       void *opaque)
 {
     return rbd_start_aio(bs, sector_num, qiov, nb_sectors, cb, opaque,
@@ -690,7 +690,7 @@ static BlockAIOCB *qemu_rbd_aio_writev(BlockDriverState *bs,
                                        int64_t sector_num,
                                        QEMUIOVector *qiov,
                                        int nb_sectors,
-                                       BlockDriverCompletionFunc *cb,
+                                       BlockCompletionFunc *cb,
                                        void *opaque)
 {
     return rbd_start_aio(bs, sector_num, qiov, nb_sectors, cb, opaque,
@@ -699,7 +699,7 @@ static BlockAIOCB *qemu_rbd_aio_writev(BlockDriverState *bs,
 
 #ifdef LIBRBD_SUPPORTS_AIO_FLUSH
 static BlockAIOCB *qemu_rbd_aio_flush(BlockDriverState *bs,
-                                      BlockDriverCompletionFunc *cb,
+                                      BlockCompletionFunc *cb,
                                       void *opaque)
 {
     return rbd_start_aio(bs, 0, NULL, 0, cb, opaque, RBD_AIO_FLUSH);
@@ -879,7 +879,7 @@ static int qemu_rbd_snap_list(BlockDriverState *bs,
 static BlockAIOCB* qemu_rbd_aio_discard(BlockDriverState *bs,
                                         int64_t sector_num,
                                         int nb_sectors,
-                                        BlockDriverCompletionFunc *cb,
+                                        BlockCompletionFunc *cb,
                                         void *opaque)
 {
     return rbd_start_aio(bs, sector_num, NULL, nb_sectors, cb, opaque,

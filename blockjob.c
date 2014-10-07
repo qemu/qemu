@@ -36,7 +36,7 @@
 #include "qapi-event.h"
 
 void *block_job_create(const BlockJobDriver *driver, BlockDriverState *bs,
-                       int64_t speed, BlockDriverCompletionFunc *cb,
+                       int64_t speed, BlockCompletionFunc *cb,
                        void *opaque, Error **errp)
 {
     BlockJob *job;
@@ -155,7 +155,7 @@ void block_job_iostatus_reset(BlockJob *job)
 
 struct BlockCancelData {
     BlockJob *job;
-    BlockDriverCompletionFunc *cb;
+    BlockCompletionFunc *cb;
     void *opaque;
     bool cancelled;
     int ret;

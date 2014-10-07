@@ -143,7 +143,7 @@ done:
 
 static int execute_command(BlockDriverState *bdrv,
                            SCSIGenericReq *r, int direction,
-			   BlockDriverCompletionFunc *complete)
+                           BlockCompletionFunc *complete)
 {
     r->io_header.interface_id = 'S';
     r->io_header.dxfer_direction = direction;

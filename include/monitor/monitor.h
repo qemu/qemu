@@ -27,10 +27,10 @@ int monitor_suspend(Monitor *mon);
 void monitor_resume(Monitor *mon);
 
 int monitor_read_bdrv_key_start(Monitor *mon, BlockDriverState *bs,
-                                BlockDriverCompletionFunc *completion_cb,
+                                BlockCompletionFunc *completion_cb,
                                 void *opaque);
 int monitor_read_block_device_key(Monitor *mon, const char *device,
-                                  BlockDriverCompletionFunc *completion_cb,
+                                  BlockCompletionFunc *completion_cb,
                                   void *opaque);
 
 int monitor_get_fd(Monitor *mon, const char *fdname, Error **errp);

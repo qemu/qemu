@@ -245,7 +245,7 @@ int laio_io_unplug(BlockDriverState *bs, void *aio_ctx, bool unplug)
 
 BlockAIOCB *laio_submit(BlockDriverState *bs, void *aio_ctx, int fd,
         int64_t sector_num, QEMUIOVector *qiov, int nb_sectors,
-        BlockDriverCompletionFunc *cb, void *opaque, int type)
+        BlockCompletionFunc *cb, void *opaque, int type)
 {
     struct qemu_laio_state *s = aio_ctx;
     struct qemu_laiocb *laiocb;

@@ -130,15 +130,15 @@ struct BlockDriver {
     /* aio */
     BlockAIOCB *(*bdrv_aio_readv)(BlockDriverState *bs,
         int64_t sector_num, QEMUIOVector *qiov, int nb_sectors,
-        BlockDriverCompletionFunc *cb, void *opaque);
+        BlockCompletionFunc *cb, void *opaque);
     BlockAIOCB *(*bdrv_aio_writev)(BlockDriverState *bs,
         int64_t sector_num, QEMUIOVector *qiov, int nb_sectors,
-        BlockDriverCompletionFunc *cb, void *opaque);
+        BlockCompletionFunc *cb, void *opaque);
     BlockAIOCB *(*bdrv_aio_flush)(BlockDriverState *bs,
-        BlockDriverCompletionFunc *cb, void *opaque);
+        BlockCompletionFunc *cb, void *opaque);
     BlockAIOCB *(*bdrv_aio_discard)(BlockDriverState *bs,
         int64_t sector_num, int nb_sectors,
-        BlockDriverCompletionFunc *cb, void *opaque);
+        BlockCompletionFunc *cb, void *opaque);
 
     int coroutine_fn (*bdrv_co_readv)(BlockDriverState *bs,
         int64_t sector_num, int nb_sectors, QEMUIOVector *qiov);
@@ -220,7 +220,7 @@ struct BlockDriver {
     int (*bdrv_ioctl)(BlockDriverState *bs, unsigned long int req, void *buf);
     BlockAIOCB *(*bdrv_aio_ioctl)(BlockDriverState *bs,
         unsigned long int req, void *buf,
-        BlockDriverCompletionFunc *cb, void *opaque);
+        BlockCompletionFunc *cb, void *opaque);
 
     /* List of options for creating images, terminated by name == NULL */
     QemuOptsList *create_opts;
@@ -501,7 +501,7 @@ int is_windows_drive(const char *filename);
  */
 void stream_start(BlockDriverState *bs, BlockDriverState *base,
                   const char *base_id, int64_t speed, BlockdevOnError on_error,
-                  BlockDriverCompletionFunc *cb,
+                  BlockCompletionFunc *cb,
                   void *opaque, Error **errp);
 
 /**
@@ -519,7 +519,7 @@ void stream_start(BlockDriverState *bs, BlockDriverState *base,
  */
 void commit_start(BlockDriverState *bs, BlockDriverState *base,
                  BlockDriverState *top, int64_t speed,
-                 BlockdevOnError on_error, BlockDriverCompletionFunc *cb,
+                 BlockdevOnError on_error, BlockCompletionFunc *cb,
                  void *opaque, const char *backing_file_str, Error **errp);
 /**
  * commit_active_start:
@@ -535,7 +535,7 @@ void commit_start(BlockDriverState *bs, BlockDriverState *base,
 void commit_active_start(BlockDriverState *bs, BlockDriverState *base,
                          int64_t speed,
                          BlockdevOnError on_error,
-                         BlockDriverCompletionFunc *cb,
+                         BlockCompletionFunc *cb,
                          void *opaque, Error **errp);
 /*
  * mirror_start:
@@ -563,7 +563,7 @@ void mirror_start(BlockDriverState *bs, BlockDriverState *target,
                   int64_t speed, int64_t granularity, int64_t buf_size,
                   MirrorSyncMode mode, BlockdevOnError on_source_error,
                   BlockdevOnError on_target_error,
-                  BlockDriverCompletionFunc *cb,
+                  BlockCompletionFunc *cb,
                   void *opaque, Error **errp);
 
 /*
@@ -584,7 +584,7 @@ void backup_start(BlockDriverState *bs, BlockDriverState *target,
                   int64_t speed, MirrorSyncMode sync_mode,
                   BlockdevOnError on_source_error,
                   BlockdevOnError on_target_error,
-                  BlockDriverCompletionFunc *cb, void *opaque,
+                  BlockCompletionFunc *cb, void *opaque,
                   Error **errp);
 
 #endif /* BLOCK_INT_H */

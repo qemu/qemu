@@ -192,7 +192,7 @@ static const AIOCBInfo dma_aiocb_info = {
 
 BlockAIOCB *dma_bdrv_io(
     BlockDriverState *bs, QEMUSGList *sg, uint64_t sector_num,
-    DMAIOFunc *io_func, BlockDriverCompletionFunc *cb,
+    DMAIOFunc *io_func, BlockCompletionFunc *cb,
     void *opaque, DMADirection dir)
 {
     DMAAIOCB *dbs = qemu_aio_get(&dma_aiocb_info, bs, cb, opaque);

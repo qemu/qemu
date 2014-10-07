@@ -63,10 +63,10 @@ struct BdrvDirtyBitmap {
 static void bdrv_dev_change_media_cb(BlockDriverState *bs, bool load);
 static BlockAIOCB *bdrv_aio_readv_em(BlockDriverState *bs,
         int64_t sector_num, QEMUIOVector *qiov, int nb_sectors,
-        BlockDriverCompletionFunc *cb, void *opaque);
+        BlockCompletionFunc *cb, void *opaque);
 static BlockAIOCB *bdrv_aio_writev_em(BlockDriverState *bs,
         int64_t sector_num, QEMUIOVector *qiov, int nb_sectors,
-        BlockDriverCompletionFunc *cb, void *opaque);
+        BlockCompletionFunc *cb, void *opaque);
 static int coroutine_fn bdrv_co_readv_em(BlockDriverState *bs,
                                          int64_t sector_num, int nb_sectors,
                                          QEMUIOVector *iov);
@@ -84,7 +84,7 @@ static BlockAIOCB *bdrv_co_aio_rw_vector(BlockDriverState *bs,
                                          QEMUIOVector *qiov,
                                          int nb_sectors,
                                          BdrvRequestFlags flags,
-                                         BlockDriverCompletionFunc *cb,
+                                         BlockCompletionFunc *cb,
                                          void *opaque,
                                          bool is_write);
 static void coroutine_fn bdrv_co_do_rw(void *opaque);
@@ -4415,7 +4415,7 @@ int bdrv_get_backing_file_depth(BlockDriverState *bs)
 
 BlockAIOCB *bdrv_aio_readv(BlockDriverState *bs, int64_t sector_num,
                            QEMUIOVector *qiov, int nb_sectors,
-                           BlockDriverCompletionFunc *cb, void *opaque)
+                           BlockCompletionFunc *cb, void *opaque)
 {
     trace_bdrv_aio_readv(bs, sector_num, nb_sectors, opaque);
 
@@ -4425,7 +4425,7 @@ BlockAIOCB *bdrv_aio_readv(BlockDriverState *bs, int64_t sector_num,
 
 BlockAIOCB *bdrv_aio_writev(BlockDriverState *bs, int64_t sector_num,
                             QEMUIOVector *qiov, int nb_sectors,
-                            BlockDriverCompletionFunc *cb, void *opaque)
+                            BlockCompletionFunc *cb, void *opaque)
 {
     trace_bdrv_aio_writev(bs, sector_num, nb_sectors, opaque);
 
@@ -4435,7 +4435,7 @@ BlockAIOCB *bdrv_aio_writev(BlockDriverState *bs, int64_t sector_num,
 
 BlockAIOCB *bdrv_aio_write_zeroes(BlockDriverState *bs,
         int64_t sector_num, int nb_sectors, BdrvRequestFlags flags,
-        BlockDriverCompletionFunc *cb, void *opaque)
+        BlockCompletionFunc *cb, void *opaque)
 {
     trace_bdrv_aio_write_zeroes(bs, sector_num, nb_sectors, flags, opaque);
 
@@ -4450,7 +4450,7 @@ typedef struct MultiwriteCB {
     int num_requests;
     int num_callbacks;
     struct {
-        BlockDriverCompletionFunc *cb;
+        BlockCompletionFunc *cb;
         void *opaque;
         QEMUIOVector *free_qiov;
     } callbacks[];
@@ -4688,7 +4688,7 @@ static BlockAIOCB *bdrv_aio_rw_vector(BlockDriverState *bs,
                                       int64_t sector_num,
                                       QEMUIOVector *qiov,
                                       int nb_sectors,
-                                      BlockDriverCompletionFunc *cb,
+                                      BlockCompletionFunc *cb,
                                       void *opaque,
                                       int is_write)
 
@@ -4717,14 +4717,14 @@ static BlockAIOCB *bdrv_aio_rw_vector(BlockDriverState *bs,
 
 static BlockAIOCB *bdrv_aio_readv_em(BlockDriverState *bs,
         int64_t sector_num, QEMUIOVector *qiov, int nb_sectors,
-        BlockDriverCompletionFunc *cb, void *opaque)
+        BlockCompletionFunc *cb, void *opaque)
 {
     return bdrv_aio_rw_vector(bs, sector_num, qiov, nb_sectors, cb, opaque, 0);
 }
 
 static BlockAIOCB *bdrv_aio_writev_em(BlockDriverState *bs,
         int64_t sector_num, QEMUIOVector *qiov, int nb_sectors,
-        BlockDriverCompletionFunc *cb, void *opaque)
+        BlockCompletionFunc *cb, void *opaque)
 {
     return bdrv_aio_rw_vector(bs, sector_num, qiov, nb_sectors, cb, opaque, 1);
 }
@@ -4775,7 +4775,7 @@ static BlockAIOCB *bdrv_co_aio_rw_vector(BlockDriverState *bs,
                                          QEMUIOVector *qiov,
                                          int nb_sectors,
                                          BdrvRequestFlags flags,
-                                         BlockDriverCompletionFunc *cb,
+                                         BlockCompletionFunc *cb,
                                          void *opaque,
                                          bool is_write)
 {
@@ -4806,7 +4806,7 @@ static void coroutine_fn bdrv_aio_flush_co_entry(void *opaque)
 }
 
 BlockAIOCB *bdrv_aio_flush(BlockDriverState *bs,
-        BlockDriverCompletionFunc *cb, void *opaque)
+        BlockCompletionFunc *cb, void *opaque)
 {
     trace_bdrv_aio_flush(bs, opaque);
 
@@ -4833,7 +4833,7 @@ static void coroutine_fn bdrv_aio_discard_co_entry(void *opaque)
 
 BlockAIOCB *bdrv_aio_discard(BlockDriverState *bs,
         int64_t sector_num, int nb_sectors,
-        BlockDriverCompletionFunc *cb, void *opaque)
+        BlockCompletionFunc *cb, void *opaque)
 {
     Coroutine *co;
     BlockAIOCBCoroutine *acb;
@@ -4861,7 +4861,7 @@ void bdrv_init_with_whitelist(void)
 }
 
 void *qemu_aio_get(const AIOCBInfo *aiocb_info, BlockDriverState *bs,
-                   BlockDriverCompletionFunc *cb, void *opaque)
+                   BlockCompletionFunc *cb, void *opaque)
 {
     BlockAIOCB *acb;
 
@@ -5281,7 +5281,7 @@ int bdrv_ioctl(BlockDriverState *bs, unsigned long int req, void *buf)
 
 BlockAIOCB *bdrv_aio_ioctl(BlockDriverState *bs,
         unsigned long int req, void *buf,
-        BlockDriverCompletionFunc *cb, void *opaque)
+        BlockCompletionFunc *cb, void *opaque)
 {
     BlockDriver *drv = bs->drv;
 

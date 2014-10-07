@@ -558,7 +558,7 @@ static void ide_nop_restart(void *opaque, int x, RunState y)
 }
 
 static void ide_dbdma_start(IDEDMA *dma, IDEState *s,
-                            BlockDriverCompletionFunc *cb)
+                            BlockCompletionFunc *cb)
 {
     MACIOIDEState *m = container_of(dma, MACIOIDEState, dma);
 

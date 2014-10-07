@@ -131,7 +131,7 @@ static int raw_ioctl(BlockDriverState *bs, unsigned long int req, void *buf)
 
 static BlockAIOCB *raw_aio_ioctl(BlockDriverState *bs,
                                  unsigned long int req, void *buf,
-                                 BlockDriverCompletionFunc *cb,
+                                 BlockCompletionFunc *cb,
                                  void *opaque)
 {
     return bdrv_aio_ioctl(bs->file, req, buf, cb, opaque);

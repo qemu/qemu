@@ -165,7 +165,7 @@ static int64_t blkverify_getlength(BlockDriverState *bs)
 static BlkverifyAIOCB *blkverify_aio_get(BlockDriverState *bs, bool is_write,
                                          int64_t sector_num, QEMUIOVector *qiov,
                                          int nb_sectors,
-                                         BlockDriverCompletionFunc *cb,
+                                         BlockCompletionFunc *cb,
                                          void *opaque)
 {
     BlkverifyAIOCB *acb = qemu_aio_get(&blkverify_aiocb_info, bs, cb, opaque);
@@ -231,7 +231,7 @@ static void blkverify_verify_readv(BlkverifyAIOCB *acb)
 
 static BlockAIOCB *blkverify_aio_readv(BlockDriverState *bs,
         int64_t sector_num, QEMUIOVector *qiov, int nb_sectors,
-        BlockDriverCompletionFunc *cb, void *opaque)
+        BlockCompletionFunc *cb, void *opaque)
 {
     BDRVBlkverifyState *s = bs->opaque;
     BlkverifyAIOCB *acb = blkverify_aio_get(bs, false, sector_num, qiov,
@@ -251,7 +251,7 @@ static BlockAIOCB *blkverify_aio_readv(BlockDriverState *bs,
 
 static BlockAIOCB *blkverify_aio_writev(BlockDriverState *bs,
         int64_t sector_num, QEMUIOVector *qiov, int nb_sectors,
-        BlockDriverCompletionFunc *cb, void *opaque)
+        BlockCompletionFunc *cb, void *opaque)
 {
     BDRVBlkverifyState *s = bs->opaque;
     BlkverifyAIOCB *acb = blkverify_aio_get(bs, true, sector_num, qiov,
@@ -265,7 +265,7 @@ static BlockAIOCB *blkverify_aio_writev(BlockDriverState *bs,
 }
 
 static BlockAIOCB *blkverify_aio_flush(BlockDriverState *bs,
-                                       BlockDriverCompletionFunc *cb,
+                                       BlockCompletionFunc *cb,
                                        void *opaque)
 {
     BDRVBlkverifyState *s = bs->opaque;

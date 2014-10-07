@@ -860,7 +860,7 @@ static BlockAIOCB *qemu_archipelago_aio_rw(BlockDriverState *bs,
                                            int64_t sector_num,
                                            QEMUIOVector *qiov,
                                            int nb_sectors,
-                                           BlockDriverCompletionFunc *cb,
+                                           BlockCompletionFunc *cb,
                                            void *opaque,
                                            int op)
 {
@@ -896,7 +896,7 @@ err_exit:
 
 static BlockAIOCB *qemu_archipelago_aio_readv(BlockDriverState *bs,
         int64_t sector_num, QEMUIOVector *qiov, int nb_sectors,
-        BlockDriverCompletionFunc *cb, void *opaque)
+        BlockCompletionFunc *cb, void *opaque)
 {
     return qemu_archipelago_aio_rw(bs, sector_num, qiov, nb_sectors, cb,
                                    opaque, ARCHIP_OP_READ);
@@ -904,7 +904,7 @@ static BlockAIOCB *qemu_archipelago_aio_readv(BlockDriverState *bs,
 
 static BlockAIOCB *qemu_archipelago_aio_writev(BlockDriverState *bs,
         int64_t sector_num, QEMUIOVector *qiov, int nb_sectors,
-        BlockDriverCompletionFunc *cb, void *opaque)
+        BlockCompletionFunc *cb, void *opaque)
 {
     return qemu_archipelago_aio_rw(bs, sector_num, qiov, nb_sectors, cb,
                                    opaque, ARCHIP_OP_WRITE);
@@ -1053,7 +1053,7 @@ static QemuOptsList qemu_archipelago_create_opts = {
 };
 
 static BlockAIOCB *qemu_archipelago_aio_flush(BlockDriverState *bs,
-        BlockDriverCompletionFunc *cb, void *opaque)
+        BlockCompletionFunc *cb, void *opaque)
 {
     return qemu_archipelago_aio_rw(bs, 0, NULL, 0, cb, opaque,
                                    ARCHIP_OP_FLUSH);

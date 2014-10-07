@@ -23,7 +23,7 @@ typedef struct BMDMAState {
     uint32_t cur_prd_addr;
     uint32_t cur_prd_len;
     uint8_t unit;
-    BlockDriverCompletionFunc *dma_cb;
+    BlockCompletionFunc *dma_cb;
     int64_t sector_num;
     uint32_t nsector;
     MemoryRegion addr_ioport;

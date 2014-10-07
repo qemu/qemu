@@ -206,7 +206,7 @@ struct Monitor {
     ReadLineState *rs;
     MonitorControl *mc;
     CPUState *mon_cpu;
-    BlockDriverCompletionFunc *password_completion_cb;
+    BlockCompletionFunc *password_completion_cb;
     void *password_opaque;
     mon_cmd_t *cmd_table;
     QError *error;
@@ -5374,7 +5374,7 @@ ReadLineState *monitor_get_rs(Monitor *mon)
 }
 
 int monitor_read_bdrv_key_start(Monitor *mon, BlockDriverState *bs,
-                                BlockDriverCompletionFunc *completion_cb,
+                                BlockCompletionFunc *completion_cb,
                                 void *opaque)
 {
     int err;
@@ -5406,7 +5406,7 @@ int monitor_read_bdrv_key_start(Monitor *mon, BlockDriverState *bs,
 }
 
 int monitor_read_block_device_key(Monitor *mon, const char *device,
-                                  BlockDriverCompletionFunc *completion_cb,
+                                  BlockCompletionFunc *completion_cb,
                                   void *opaque)
 {
     BlockDriverState *bs;

@@ -235,7 +235,7 @@ static const AIOCBInfo thread_pool_aiocb_info = {
 
 BlockAIOCB *thread_pool_submit_aio(ThreadPool *pool,
         ThreadPoolFunc *func, void *arg,
-        BlockDriverCompletionFunc *cb, void *opaque)
+        BlockCompletionFunc *cb, void *opaque)
 {
     ThreadPoolElement *req;
 

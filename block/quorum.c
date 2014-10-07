@@ -186,7 +186,7 @@ static QuorumAIOCB *quorum_aio_get(BDRVQuorumState *s,
                                    QEMUIOVector *qiov,
                                    uint64_t sector_num,
                                    int nb_sectors,
-                                   BlockDriverCompletionFunc *cb,
+                                   BlockCompletionFunc *cb,
                                    void *opaque)
 {
     QuorumAIOCB *acb = qemu_aio_get(&quorum_aiocb_info, bs, cb, opaque);
@@ -679,7 +679,7 @@ static BlockAIOCB *quorum_aio_readv(BlockDriverState *bs,
                                     int64_t sector_num,
                                     QEMUIOVector *qiov,
                                     int nb_sectors,
-                                    BlockDriverCompletionFunc *cb,
+                                    BlockCompletionFunc *cb,
                                     void *opaque)
 {
     BDRVQuorumState *s = bs->opaque;
@@ -700,7 +700,7 @@ static BlockAIOCB *quorum_aio_writev(BlockDriverState *bs,
                                      int64_t sector_num,
                                      QEMUIOVector *qiov,
                                      int nb_sectors,
-                                     BlockDriverCompletionFunc *cb,
+                                     BlockCompletionFunc *cb,
                                      void *opaque)
 {
     BDRVQuorumState *s = bs->opaque;

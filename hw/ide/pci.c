@@ -38,7 +38,7 @@
         IDE_RETRY_READ | IDE_RETRY_FLUSH)
 
 static void bmdma_start_dma(IDEDMA *dma, IDEState *s,
-                            BlockDriverCompletionFunc *dma_cb)
+                            BlockCompletionFunc *dma_cb)
 {
     BMDMAState *bm = DO_UPCAST(BMDMAState, dma, dma);
 

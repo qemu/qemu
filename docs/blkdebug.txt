@@ -73,7 +73,7 @@ Rules support the following attributes:
   immediately - (optional, default "off") return a NULL BlockAIOCB
                 pointer and fail without an errno instead.  This
                 exercises the code path where BlockAIOCB fails and the
-                caller's BlockDriverCompletionFunc is not invoked.
+                caller's BlockCompletionFunc is not invoked.
 
 Events
 ------

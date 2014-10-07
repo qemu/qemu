@@ -319,7 +319,7 @@ typedef enum { IDE_HD, IDE_CD, IDE_CFATA } IDEDriveKind;
 
 typedef void EndTransferFunc(IDEState *);
 
-typedef void DMAStartFunc(IDEDMA *, IDEState *, BlockDriverCompletionFunc *);
+typedef void DMAStartFunc(IDEDMA *, IDEState *, BlockCompletionFunc *);
 typedef void DMAVoidFunc(IDEDMA *);
 typedef int DMAIntFunc(IDEDMA *, int);
 typedef void DMAStopFunc(IDEDMA *, bool);
@@ -521,7 +521,7 @@ void ide_bus_reset(IDEBus *bus);
 int64_t ide_get_sector(IDEState *s);
 void ide_set_sector(IDEState *s, int64_t sector_num);
 
-void ide_start_dma(IDEState *s, BlockDriverCompletionFunc *cb);
+void ide_start_dma(IDEState *s, BlockCompletionFunc *cb);
 void ide_dma_error(IDEState *s);
 
 void ide_atapi_cmd_ok(IDEState *s);
@@ -557,7 +557,7 @@ void ide_transfer_stop(IDEState *s);
 void ide_set_inactive(IDEState *s, bool more);
 BlockAIOCB *ide_issue_trim(BlockDriverState *bs,
         int64_t sector_num, QEMUIOVector *qiov, int nb_sectors,
-        BlockDriverCompletionFunc *cb, void *opaque);
+        BlockCompletionFunc *cb, void *opaque);
 
 /* hw/ide/atapi.c */
 void ide_atapi_cmd(IDEState *s);

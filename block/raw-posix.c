@@ -1043,7 +1043,7 @@ static int paio_submit_co(BlockDriverState *bs, int fd,
 
 static BlockAIOCB *paio_submit(BlockDriverState *bs, int fd,
         int64_t sector_num, QEMUIOVector *qiov, int nb_sectors,
-        BlockDriverCompletionFunc *cb, void *opaque, int type)
+        BlockCompletionFunc *cb, void *opaque, int type)
 {
     RawPosixAIOData *acb = g_slice_new(RawPosixAIOData);
     ThreadPool *pool;
@@ -1068,7 +1068,7 @@ static BlockAIOCB *paio_submit(BlockDriverState *bs, int fd,
 
 static BlockAIOCB *raw_aio_submit(BlockDriverState *bs,
         int64_t sector_num, QEMUIOVector *qiov, int nb_sectors,
-        BlockDriverCompletionFunc *cb, void *opaque, int type)
+        BlockCompletionFunc *cb, void *opaque, int type)
 {
     BDRVRawState *s = bs->opaque;
 
@@ -1127,7 +1127,7 @@ static void raw_aio_flush_io_queue(BlockDriverState *bs)
 
 static BlockAIOCB *raw_aio_readv(BlockDriverState *bs,
         int64_t sector_num, QEMUIOVector *qiov, int nb_sectors,
-        BlockDriverCompletionFunc *cb, void *opaque)
+        BlockCompletionFunc *cb, void *opaque)
 {
     return raw_aio_submit(bs, sector_num, qiov, nb_sectors,
                           cb, opaque, QEMU_AIO_READ);
@@ -1135,14 +1135,14 @@ static BlockAIOCB *raw_aio_readv(BlockDriverState *bs,
 
 static BlockAIOCB *raw_aio_writev(BlockDriverState *bs,
         int64_t sector_num, QEMUIOVector *qiov, int nb_sectors,
-        BlockDriverCompletionFunc *cb, void *opaque)
+        BlockCompletionFunc *cb, void *opaque)
 {
     return raw_aio_submit(bs, sector_num, qiov, nb_sectors,
                           cb, opaque, QEMU_AIO_WRITE);
 }
 
 static BlockAIOCB *raw_aio_flush(BlockDriverState *bs,
-        BlockDriverCompletionFunc *cb, void *opaque)
+        BlockCompletionFunc *cb, void *opaque)
 {
     BDRVRawState *s = bs->opaque;
 
@@ -1597,7 +1597,7 @@ static int64_t coroutine_fn raw_co_get_block_status(BlockDriverState *bs,
 
 static coroutine_fn BlockAIOCB *raw_aio_discard(BlockDriverState *bs,
     int64_t sector_num, int nb_sectors,
-    BlockDriverCompletionFunc *cb, void *opaque)
+    BlockCompletionFunc *cb, void *opaque)
 {
     BDRVRawState *s = bs->opaque;
 
@@ -1937,7 +1937,7 @@ static int hdev_ioctl(BlockDriverState *bs, unsigned long int req, void *buf)
 
 static BlockAIOCB *hdev_aio_ioctl(BlockDriverState *bs,
         unsigned long int req, void *buf,
-        BlockDriverCompletionFunc *cb, void *opaque)
+        BlockCompletionFunc *cb, void *opaque)
 {
     BDRVRawState *s = bs->opaque;
     RawPosixAIOData *acb;
@@ -1978,7 +1978,7 @@ static int fd_open(BlockDriverState *bs)
 
 static coroutine_fn BlockAIOCB *hdev_aio_discard(BlockDriverState *bs,
     int64_t sector_num, int nb_sectors,
-    BlockDriverCompletionFunc *cb, void *opaque)
+    BlockCompletionFunc *cb, void *opaque)
 {
     BDRVRawState *s = bs->opaque;
 
