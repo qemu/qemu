@@ -324,6 +324,8 @@ struct BlockDriverState {
     BlockDriver *drv; /* NULL means no media */
     void *opaque;
 
+    BlockBackend *blk;          /* owning backend, if any */
+
     void *dev;                  /* attached device model, if any */
     /* TODO change to DeviceState when all users are qdevified */
     const BlockDevOps *dev_ops;

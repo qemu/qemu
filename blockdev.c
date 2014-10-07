@@ -279,7 +279,7 @@ static void bdrv_format_print(void *opaque, const char *name)
 
 void drive_del(DriveInfo *dinfo)
 {
-    BlockBackend *blk = blk_by_name(dinfo->id);
+    BlockBackend *blk = dinfo->bdrv->blk;
 
     bdrv_unref(dinfo->bdrv);
     blk_unref(blk);
@@ -528,14 +528,11 @@ static DriveInfo *blockdev_init(const char *file, QDict *bs_opts,
     }
 
     /* init */
-    blk = blk_new(qemu_opts_id(opts), errp);
+    blk = blk_new_with_bs(qemu_opts_id(opts), errp);
     if (!blk) {
         goto early_err;
     }
-    bs = bdrv_new_root(qemu_opts_id(opts), errp);
-    if (!bs) {
-        goto bdrv_new_err;
-    }
+    bs = blk_bs(blk);
     bs->open_flags = snapshot ? BDRV_O_SNAPSHOT : 0;
     bs->read_only = ro;
     bs->detect_zeroes = detect_zeroes;
@@ -600,7 +597,6 @@ static DriveInfo *blockdev_init(const char *file, QDict *bs_opts,
 
 err:
     bdrv_unref(bs);
-bdrv_new_err:
     blk_unref(blk);
 early_err:
     qemu_opts_del(opts);
@@ -1840,16 +1836,18 @@ void qmp_block_set_io_throttle(const char *device, int64_t bps, int64_t bps_rd,
 int do_drive_del(Monitor *mon, const QDict *qdict, QObject **ret_data)
 {
     const char *id = qdict_get_str(qdict, "id");
+    BlockBackend *blk;
     BlockDriverState *bs;
     DriveInfo *dinfo;
     AioContext *aio_context;
     Error *local_err = NULL;
 
-    bs = bdrv_find(id);
-    if (!bs) {
+    blk = blk_by_name(id);
+    if (!blk) {
         error_report("Device '%s' not found", id);
         return -1;
     }
+    bs = blk_bs(blk);
 
     dinfo = drive_get_by_blockdev(bs);
     if (dinfo && !dinfo->enable_auto_del) {
@@ -1879,8 +1877,7 @@ int do_drive_del(Monitor *mon, const QDict *qdict, QObject **ret_data)
      * then we can just get rid of the block driver state right here.
      */
     if (bdrv_get_attached_dev(bs)) {
-        bdrv_make_anon(bs);
-
+        blk_hide_on_behalf_of_do_drive_del(blk);
         /* Further I/O must not pause the guest */
         bdrv_set_on_error(bs, BLOCKDEV_ON_ERROR_REPORT,
                           BLOCKDEV_ON_ERROR_REPORT);

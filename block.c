@@ -2025,6 +2025,8 @@ static void bdrv_move_feature_fields(BlockDriverState *bs_dest,
     pstrcpy(bs_dest->device_name, sizeof(bs_dest->device_name),
             bs_src->device_name);
     bs_dest->device_list = bs_src->device_list;
+    bs_dest->blk = bs_src->blk;
+
     memcpy(bs_dest->op_blockers, bs_src->op_blockers,
            sizeof(bs_dest->op_blockers));
 }
@@ -2037,7 +2039,7 @@ static void bdrv_move_feature_fields(BlockDriverState *bs_dest,
  * This will modify the BlockDriverState fields, and swap contents
  * between bs_new and bs_old. Both bs_new and bs_old are modified.
  *
- * bs_new is required to be anonymous.
+ * bs_new must be nameless and not attached to a BlockBackend.
  *
  * This function does not create any image files.
  */
@@ -2056,8 +2058,9 @@ void bdrv_swap(BlockDriverState *bs_new, BlockDriverState *bs_old)
         QTAILQ_REMOVE(&graph_bdrv_states, bs_old, node_list);
     }
 
-    /* bs_new must be anonymous and shouldn't have anything fancy enabled */
+    /* bs_new must be nameless and shouldn't have anything fancy enabled */
     assert(bs_new->device_name[0] == '\0');
+    assert(!bs_new->blk);
     assert(QLIST_EMPTY(&bs_new->dirty_bitmaps));
     assert(bs_new->job == NULL);
     assert(bs_new->dev == NULL);
@@ -2073,8 +2076,9 @@ void bdrv_swap(BlockDriverState *bs_new, BlockDriverState *bs_old)
     bdrv_move_feature_fields(bs_old, bs_new);
     bdrv_move_feature_fields(bs_new, &tmp);
 
-    /* bs_new shouldn't be in bdrv_states even after the swap!  */
+    /* bs_new must remain nameless and unattached */
     assert(bs_new->device_name[0] == '\0');
+    assert(!bs_new->blk);
 
     /* Check a few fields that should remain attached to the device */
     assert(bs_new->dev == NULL);
@@ -2101,7 +2105,7 @@ void bdrv_swap(BlockDriverState *bs_new, BlockDriverState *bs_old)
  * This will modify the BlockDriverState fields, and swap contents
  * between bs_new and bs_top. Both bs_new and bs_top are modified.
  *
- * bs_new is required to be anonymous.
+ * bs_new must be nameless and not attached to a BlockBackend.
  *
  * This function does not create any image files.
  */

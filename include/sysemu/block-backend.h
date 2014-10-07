@@ -17,10 +17,15 @@
 #include "qapi/error.h"
 
 BlockBackend *blk_new(const char *name, Error **errp);
+BlockBackend *blk_new_with_bs(const char *name, Error **errp);
 void blk_ref(BlockBackend *blk);
 void blk_unref(BlockBackend *blk);
 const char *blk_name(BlockBackend *blk);
 BlockBackend *blk_by_name(const char *name);
 BlockBackend *blk_next(BlockBackend *blk);
+
+BlockDriverState *blk_bs(BlockBackend *blk);
+
+void blk_hide_on_behalf_of_do_drive_del(BlockBackend *blk);
 
 #endif

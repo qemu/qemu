@@ -62,8 +62,8 @@ static int openfile(char *name, int flags, int growable, QDict *opts)
         return 1;
     }
 
-    qemuio_blk = blk_new("hda", &error_abort);
-    qemuio_bs = bdrv_new_root("hda", &error_abort);
+    qemuio_blk = blk_new_with_bs("hda", &error_abort);
+    qemuio_bs = blk_bs(qemuio_blk);
 
     if (growable) {
         flags |= BDRV_O_PROTOCOL;

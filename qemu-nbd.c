@@ -692,8 +692,8 @@ int main(int argc, char **argv)
         drv = NULL;
     }
 
-    blk = blk_new("hda", &error_abort);
-    bs = bdrv_new_root("hda", &error_abort);
+    blk = blk_new_with_bs("hda", &error_abort);
+    bs = blk_bs(blk);
 
     srcpath = argv[optind];
     ret = bdrv_open(&bs, srcpath, NULL, NULL, flags, drv, &local_err);

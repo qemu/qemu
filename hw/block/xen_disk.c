@@ -860,15 +860,11 @@ static int blk_connect(struct XenDevice *xendev)
 
         /* setup via xenbus -> create new block driver instance */
         xen_be_printf(&blkdev->xendev, 2, "create new bdrv (xenbus setup)\n");
-        blk = blk_new(blkdev->dev, NULL);
+        blk = blk_new_with_bs(blkdev->dev, NULL);
         if (!blk) {
             return -1;
         }
-        blkdev->bs = bdrv_new_root(blkdev->dev, NULL);
-        if (!blkdev->bs) {
-            blk_unref(blk);
-            return -1;
-        }
+        blkdev->bs = blk_bs(blk);
 
         drv = bdrv_find_whitelisted_format(blkdev->fileproto, readonly);
         if (bdrv_open(&blkdev->bs, blkdev->filename, NULL, NULL, qflags,

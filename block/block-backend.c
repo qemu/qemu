@@ -16,10 +16,11 @@
 struct BlockBackend {
     char *name;
     int refcnt;
+    BlockDriverState *bs;
     QTAILQ_ENTRY(BlockBackend) link; /* for blk_backends */
 };
 
-/* All the BlockBackends */
+/* All the BlockBackends (except for hidden ones) */
 static QTAILQ_HEAD(, BlockBackend) blk_backends =
     QTAILQ_HEAD_INITIALIZER(blk_backends);
 
@@ -47,10 +48,44 @@ BlockBackend *blk_new(const char *name, Error **errp)
     return blk;
 }
 
+/*
+ * Create a new BlockBackend with a new BlockDriverState attached.
+ * Both have a reference count of one.  Caller owns *both* references.
+ * TODO Let caller own only the BlockBackend reference
+ * Otherwise just like blk_new(), which see.
+ */
+BlockBackend *blk_new_with_bs(const char *name, Error **errp)
+{
+    BlockBackend *blk;
+    BlockDriverState *bs;
+
+    blk = blk_new(name, errp);
+    if (!blk) {
+        return NULL;
+    }
+
+    bs = bdrv_new_root(name, errp);
+    if (!bs) {
+        blk_unref(blk);
+        return NULL;
+    }
+
+    blk->bs = bs;
+    bs->blk = blk;
+    return blk;
+}
+
 static void blk_delete(BlockBackend *blk)
 {
     assert(!blk->refcnt);
-    QTAILQ_REMOVE(&blk_backends, blk, link);
+    if (blk->bs) {
+        blk->bs->blk = NULL;
+        blk->bs = NULL;
+    }
+    /* Avoid double-remove after blk_hide_on_behalf_of_do_drive_del() */
+    if (blk->name[0]) {
+        QTAILQ_REMOVE(&blk_backends, blk, link);
+    }
     g_free(blk->name);
     g_free(blk);
 }
@@ -68,6 +103,8 @@ void blk_ref(BlockBackend *blk)
  * Decrement @blk's reference count.
  * If this drops it to zero, destroy @blk.
  * For convenience, do nothing if @blk is null.
+ * Does *not* touch the attached BlockDriverState's reference count.
+ * TODO Decrement it!
  */
 void blk_unref(BlockBackend *blk)
 {
@@ -95,7 +132,9 @@ BlockBackend *blk_next(BlockBackend *blk)
 }
 
 /*
- * Return @blk's name, a non-null, non-empty string.
+ * Return @blk's name, a non-null string.
+ * Wart: the name is empty iff @blk has been hidden with
+ * blk_hide_on_behalf_of_do_drive_del().
  */
 const char *blk_name(BlockBackend *blk)
 {
@@ -117,4 +156,30 @@ BlockBackend *blk_by_name(const char *name)
         }
     }
     return NULL;
+}
+
+/*
+ * Return the BlockDriverState attached to @blk if any, else null.
+ */
+BlockDriverState *blk_bs(BlockBackend *blk)
+{
+    return blk->bs;
+}
+
+/*
+ * Hide @blk.
+ * @blk must not have been hidden already.
+ * Make attached BlockDriverState, if any, anonymous.
+ * Once hidden, @blk is invisible to all functions that don't receive
+ * it as argument.  For example, blk_by_name() won't return it.
+ * Strictly for use by do_drive_del().
+ * TODO get rid of it!
+ */
+void blk_hide_on_behalf_of_do_drive_del(BlockBackend *blk)
+{
+    QTAILQ_REMOVE(&blk_backends, blk, link);
+    blk->name[0] = 0;
+    if (blk->bs) {
+        bdrv_make_anon(blk->bs);
+    }
 }
