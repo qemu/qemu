@@ -223,7 +223,7 @@ bool drive_check_orphaned(void)
             dinfo->type != IF_NONE) {
             fprintf(stderr, "Warning: Orphaned drive without device: "
                     "id=%s,file=%s,if=%s,bus=%d,unit=%d\n",
-                    dinfo->id, blk_bs(blk)->filename, if_name[dinfo->type],
+                    blk_name(blk), blk_bs(blk)->filename, if_name[dinfo->type],
                     dinfo->bus, dinfo->unit);
             rs = true;
         }
@@ -519,7 +519,6 @@ static BlockBackend *blockdev_init(const char *file, QDict *bs_opts,
     }
 
     dinfo = g_malloc0(sizeof(*dinfo));
-    dinfo->id = g_strdup(qemu_opts_id(opts));
     blk_set_legacy_dinfo(blk, dinfo);
 
     if (!file || !*file) {
@@ -553,7 +552,7 @@ static BlockBackend *blockdev_init(const char *file, QDict *bs_opts,
 
     if (ret < 0) {
         error_setg(errp, "could not open disk image %s: %s",
-                   file ?: dinfo->id, error_get_pretty(error));
+                   file ?: blk_name(blk), error_get_pretty(error));
         error_free(error);
         goto err;
     }

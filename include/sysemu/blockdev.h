@@ -30,7 +30,6 @@ typedef enum {
 } BlockInterfaceType;
 
 struct DriveInfo {
-    char *id;
     const char *devaddr;
     BlockInterfaceType type;
     int bus;
