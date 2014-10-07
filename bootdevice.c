@@ -225,6 +225,8 @@ static void property_release_bootindex(Object *obj, const char *name,
 
 {
     BootIndexProperty *prop = opaque;
+
+    del_boot_device_path(prop->dev, prop->suffix);
     g_free(prop);
 }
 
