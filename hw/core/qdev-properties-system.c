@@ -112,7 +112,6 @@ static void set_drive(Object *obj, Visitor *v, void *opaque,
 
 PropertyInfo qdev_prop_drive = {
     .name  = "str",
-    .legacy_name  = "drive",
     .description = "ID of a drive to use as a backend",
     .get   = get_drive,
     .set   = set_drive,
@@ -170,7 +169,6 @@ static void set_chr(Object *obj, Visitor *v, void *opaque,
 
 PropertyInfo qdev_prop_chr = {
     .name  = "str",
-    .legacy_name  = "chr",
     .description = "ID of a chardev to use as a backend",
     .get   = get_chr,
     .set   = set_chr,
@@ -250,7 +248,6 @@ static void set_netdev(Object *obj, Visitor *v, void *opaque,
 
 PropertyInfo qdev_prop_netdev = {
     .name  = "str",
-    .legacy_name  = "netdev",
     .description = "ID of a netdev to use as a backend",
     .get   = get_netdev,
     .set   = set_netdev,
@@ -331,7 +328,6 @@ static void set_vlan(Object *obj, Visitor *v, void *opaque,
 
 PropertyInfo qdev_prop_vlan = {
     .name  = "int32",
-    .legacy_name  = "vlan",
     .description = "Integer VLAN id to connect to",
     .print = print_vlan,
     .get   = get_vlan,
