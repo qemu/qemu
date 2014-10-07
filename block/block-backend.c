@@ -22,6 +22,8 @@ struct BlockBackend {
     QTAILQ_ENTRY(BlockBackend) link; /* for blk_backends */
 };
 
+static void drive_info_del(DriveInfo *dinfo);
+
 /* All the BlockBackends (except for hidden ones) */
 static QTAILQ_HEAD(, BlockBackend) blk_backends =
     QTAILQ_HEAD_INITIALIZER(blk_backends);
@@ -91,6 +93,17 @@ static void blk_delete(BlockBackend *blk)
     g_free(blk->name);
     drive_info_del(blk->legacy_dinfo);
     g_free(blk);
+}
+
+static void drive_info_del(DriveInfo *dinfo)
+{
+    if (!dinfo) {
+        return;
+    }
+    qemu_opts_del(dinfo->opts);
+    g_free(dinfo->id);
+    g_free(dinfo->serial);
+    g_free(dinfo);
 }
 
 /*

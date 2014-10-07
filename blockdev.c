@@ -284,17 +284,6 @@ void drive_del(DriveInfo *dinfo)
     blk_unref(blk);
 }
 
-void drive_info_del(DriveInfo *dinfo)
-{
-    if (!dinfo) {
-        return;
-    }
-    qemu_opts_del(dinfo->opts);
-    g_free(dinfo->id);
-    g_free(dinfo->serial);
-    g_free(dinfo);
-}
-
 typedef struct {
     QEMUBH *bh;
     BlockDriverState *bs;
