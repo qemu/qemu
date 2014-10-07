@@ -134,7 +134,7 @@ void blockdev_auto_del(BlockDriverState *bs)
     DriveInfo *dinfo = blk_legacy_dinfo(blk);
 
     if (dinfo && dinfo->auto_del) {
-        drive_del(dinfo);
+        blk_unref(blk);
     }
 }
 
@@ -274,11 +274,6 @@ DriveInfo *drive_get_by_blockdev(BlockDriverState *bs)
 static void bdrv_format_print(void *opaque, const char *name)
 {
     error_printf(" %s", name);
-}
-
-void drive_del(DriveInfo *dinfo)
-{
-    blk_unref(dinfo->bdrv->blk);
 }
 
 typedef struct {
@@ -1867,7 +1862,7 @@ int do_drive_del(Monitor *mon, const QDict *qdict, QObject **ret_data)
         bdrv_set_on_error(bs, BLOCKDEV_ON_ERROR_REPORT,
                           BLOCKDEV_ON_ERROR_REPORT);
     } else {
-        drive_del(dinfo);
+        blk_unref(blk);
     }
 
     aio_context_release(aio_context);

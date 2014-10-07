@@ -24,6 +24,7 @@
 
 #include "hw/hw.h"
 #include "hw/boards.h"
+#include "sysemu/block-backend.h"
 #include "sysemu/blockdev.h"
 #include "qemu/config-file.h"
 #include "sysemu/sysemu.h"
@@ -76,6 +77,6 @@ void drive_hot_add(Monitor *mon, const QDict *qdict)
 
 err:
     if (dinfo) {
-        drive_del(dinfo);
+        blk_unref(blk_by_legacy_dinfo(dinfo));
     }
 }
