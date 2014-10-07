@@ -2310,7 +2310,7 @@ static void scsi_disk_realize(SCSIDevice *dev, Error **errp)
     }
 
     dinfo = blk_legacy_dinfo(dev->conf.blk);
-    if (dinfo->media_cd) {
+    if (dinfo && dinfo->media_cd) {
         scsi_cd_realize(dev, errp);
     } else {
         scsi_hd_realize(dev, errp);

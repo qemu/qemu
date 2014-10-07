@@ -116,16 +116,14 @@ void blockdev_mark_auto_del(BlockBackend *blk)
     DriveInfo *dinfo = blk_legacy_dinfo(blk);
     BlockDriverState *bs = blk_bs(blk);
 
-    if (dinfo && !dinfo->enable_auto_del) {
+    if (!dinfo) {
         return;
     }
 
     if (bs->job) {
         block_job_cancel(bs->job);
     }
-    if (dinfo) {
-        dinfo->auto_del = 1;
-    }
+    dinfo->auto_del = 1;
 }
 
 void blockdev_auto_del(BlockBackend *blk)
@@ -346,7 +344,6 @@ static BlockBackend *blockdev_init(const char *file, QDict *bs_opts,
     int on_read_error, on_write_error;
     BlockBackend *blk;
     BlockDriverState *bs;
-    DriveInfo *dinfo;
     ThrottleConfig cfg;
     int snapshot = 0;
     bool copy_on_read;
@@ -517,9 +514,6 @@ static BlockBackend *blockdev_init(const char *file, QDict *bs_opts,
         bdrv_io_limits_enable(bs);
         bdrv_set_io_limits(bs, &cfg);
     }
-
-    dinfo = g_malloc0(sizeof(*dinfo));
-    blk_set_legacy_dinfo(blk, dinfo);
 
     if (!file || !*file) {
         if (has_driver_specific_opts) {
@@ -990,9 +984,8 @@ DriveInfo *drive_new(QemuOpts *all_opts, BlockInterfaceType block_default_type)
         assert(!local_err);
     }
 
-    /* Set legacy DriveInfo fields */
-    dinfo = blk_legacy_dinfo(blk);
-    dinfo->enable_auto_del = true;
+    /* Create legacy DriveInfo */
+    dinfo = g_malloc0(sizeof(*dinfo));
     dinfo->opts = all_opts;
 
     dinfo->cyls = cyls;
@@ -1004,8 +997,9 @@ DriveInfo *drive_new(QemuOpts *all_opts, BlockInterfaceType block_default_type)
     dinfo->bus = bus_id;
     dinfo->unit = unit_id;
     dinfo->devaddr = devaddr;
-
     dinfo->serial = g_strdup(serial);
+
+    blk_set_legacy_dinfo(blk, dinfo);
 
     switch(type) {
     case IF_IDE:
@@ -1810,7 +1804,6 @@ int do_drive_del(Monitor *mon, const QDict *qdict, QObject **ret_data)
     const char *id = qdict_get_str(qdict, "id");
     BlockBackend *blk;
     BlockDriverState *bs;
-    DriveInfo *dinfo;
     AioContext *aio_context;
     Error *local_err = NULL;
 
@@ -1821,8 +1814,7 @@ int do_drive_del(Monitor *mon, const QDict *qdict, QObject **ret_data)
     }
     bs = blk_bs(blk);
 
-    dinfo = blk_legacy_dinfo(blk);
-    if (dinfo && !dinfo->enable_auto_del) {
+    if (!blk_legacy_dinfo(blk)) {
         error_report("Deleting device added with blockdev-add"
                      " is not supported");
         return -1;

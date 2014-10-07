@@ -35,7 +35,6 @@ struct DriveInfo {
     int bus;
     int unit;
     int auto_del;               /* see blockdev_mark_auto_del() */
-    bool enable_auto_del;       /* Only for legacy drive_new() */
     bool is_default;            /* Added by default_drive() ?  */
     int media_cd;
     int cyls, heads, secs, trans;

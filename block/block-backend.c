@@ -18,7 +18,7 @@ struct BlockBackend {
     char *name;
     int refcnt;
     BlockDriverState *bs;
-    DriveInfo *legacy_dinfo;
+    DriveInfo *legacy_dinfo;    /* null unless created by drive_new() */
     QTAILQ_ENTRY(BlockBackend) link; /* for blk_backends */
 };
 

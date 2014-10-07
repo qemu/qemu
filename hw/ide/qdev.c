@@ -252,7 +252,7 @@ static int ide_drive_initfn(IDEDevice *dev)
 {
     DriveInfo *dinfo = blk_legacy_dinfo(dev->conf.blk);
 
-    return ide_dev_initfn(dev, dinfo->media_cd ? IDE_CD : IDE_HD);
+    return ide_dev_initfn(dev, dinfo && dinfo->media_cd ? IDE_CD : IDE_HD);
 }
 
 #define DEFINE_IDE_DEV_PROPERTIES()                     \

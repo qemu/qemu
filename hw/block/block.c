@@ -19,7 +19,9 @@ void blkconf_serial(BlockConf *conf, char **serial)
     if (!*serial) {
         /* try to fall back to value set with legacy -drive serial=... */
         dinfo = blk_legacy_dinfo(conf->blk);
-        *serial = g_strdup(dinfo->serial);
+        if (dinfo) {
+            *serial = g_strdup(dinfo->serial);
+        }
     }
 }
 
@@ -32,11 +34,13 @@ void blkconf_geometry(BlockConf *conf, int *ptrans,
     if (!conf->cyls && !conf->heads && !conf->secs) {
         /* try to fall back to value set with legacy -drive cyls=... */
         dinfo = blk_legacy_dinfo(conf->blk);
-        conf->cyls  = dinfo->cyls;
-        conf->heads = dinfo->heads;
-        conf->secs  = dinfo->secs;
-        if (ptrans) {
-            *ptrans = dinfo->trans;
+        if (dinfo) {
+            conf->cyls  = dinfo->cyls;
+            conf->heads = dinfo->heads;
+            conf->secs  = dinfo->secs;
+            if (ptrans) {
+                *ptrans = dinfo->trans;
+            }
         }
     }
     if (!conf->cyls && !conf->heads && !conf->secs) {
