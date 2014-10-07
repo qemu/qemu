@@ -795,6 +795,8 @@ static void virtio_ccw_net_instance_init(Object *obj)
 
     virtio_instance_init_common(obj, &dev->vdev, sizeof(dev->vdev),
                                 TYPE_VIRTIO_NET);
+    object_property_add_alias(obj, "bootindex", OBJECT(&dev->vdev),
+                              "bootindex", &error_abort);
 }
 
 static int virtio_ccw_blk_init(VirtioCcwDevice *ccw_dev)
