@@ -1853,6 +1853,7 @@ static const TypeInfo spapr_machine_info = {
 static void spapr_compat_2_3(Object *obj)
 {
     savevm_skip_section_footers();
+    global_state_set_optional();
 }
 
 static void spapr_compat_2_2(Object *obj)

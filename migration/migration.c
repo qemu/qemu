@@ -100,6 +100,7 @@ void migration_incoming_state_destroy(void)
 
 
 typedef struct {
+    bool optional;
     uint32_t size;
     uint8_t runstate[100];
 } GlobalState;
@@ -120,6 +121,33 @@ static int global_state_store(void)
 static char *global_state_get_runstate(void)
 {
     return (char *)global_state.runstate;
+}
+
+void global_state_set_optional(void)
+{
+    global_state.optional = true;
+}
+
+static bool global_state_needed(void *opaque)
+{
+    GlobalState *s = opaque;
+    char *runstate = (char *)s->runstate;
+
+    /* If it is not optional, it is mandatory */
+
+    if (s->optional == false) {
+        return true;
+    }
+
+    /* If state is running or paused, it is not needed */
+
+    if (strcmp(runstate, "running") == 0 ||
+        strcmp(runstate, "paused") == 0) {
+        return false;
+    }
+
+    /* for any other state it is needed */
+    return true;
 }
 
 static int global_state_post_load(void *opaque, int version_id)
@@ -161,6 +189,7 @@ static const VMStateDescription vmstate_globalstate = {
     .minimum_version_id = 1,
     .post_load = global_state_post_load,
     .pre_save = global_state_pre_save,
+    .needed = global_state_needed,
     .fields = (VMStateField[]) {
         VMSTATE_UINT32(size, GlobalState),
         VMSTATE_BUFFER(runstate, GlobalState),

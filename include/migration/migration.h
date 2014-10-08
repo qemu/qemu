@@ -198,4 +198,5 @@ size_t ram_control_save_page(QEMUFile *f, ram_addr_t block_offset,
 void ram_mig_init(void);
 void savevm_skip_section_footers(void);
 void register_global_state(void);
+void global_state_set_optional(void);
 #endif
