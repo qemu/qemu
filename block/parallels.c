@@ -155,7 +155,7 @@ static int64_t seek_to_sector(BlockDriverState *bs, int64_t sector_num)
     offset = sector_num % s->tracks;
 
     /* not allocated */
-    if ((index > s->catalog_size) || (s->catalog_bitmap[index] == 0))
+    if ((index >= s->catalog_size) || (s->catalog_bitmap[index] == 0))
         return -1;
     return
         ((uint64_t)s->catalog_bitmap[index] * s->off_multiplier + offset) * 512;
