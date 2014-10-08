@@ -28,6 +28,7 @@ bool runstate_check(RunState state);
 void runstate_set(RunState new_state);
 int runstate_is_running(void);
 bool runstate_needs_reset(void);
+bool runstate_store(char *str, size_t size);
 typedef struct vm_change_state_entry VMChangeStateEntry;
 typedef void VMChangeStateHandler(void *opaque, int running, RunState state);
 
