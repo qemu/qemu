@@ -70,6 +70,11 @@ _use_sample_img parallels-v1.bz2
 poke_file "$TEST_IMG" "$tracks_offset" "\x00\x00\x00\x00"
 { $QEMU_IO -c "read 0 512" $TEST_IMG; } 2>&1 | _filter_qemu_io | _filter_testdir
 
+echo
+echo "== Read from a valid v2 image =="
+_use_sample_img parallels-v2.bz2
+{ $QEMU_IO -c "read -P 0x11 0 64k" $TEST_IMG; } 2>&1 | _filter_qemu_io | _filter_testdir
+
 # success, all done
 echo "*** done"
 rm -f $seq.full
