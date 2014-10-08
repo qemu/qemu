@@ -4624,6 +4624,7 @@ int main(int argc, char **argv, char **envp)
         return 0;
     }
 
+    register_global_state();
     if (incoming) {
         Error *local_err = NULL;
         qemu_start_incoming_migration(incoming, &local_err);
