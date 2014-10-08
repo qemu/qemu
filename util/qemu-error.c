@@ -199,14 +199,13 @@ static void error_print_loc(void)
 bool enable_timestamp_msg;
 /*
  * Print an error message to current monitor if we have one, else to stderr.
- * Format arguments like sprintf().  The result should not contain
+ * Format arguments like vsprintf().  The result should not contain
  * newlines.
  * Prepend the current location and append a newline.
  * It's wrong to call this in a QMP monitor.  Use qerror_report() there.
  */
-void error_report(const char *fmt, ...)
+void error_vreport(const char *fmt, va_list ap)
 {
-    va_list ap;
     GTimeVal tv;
     gchar *timestr;
 
@@ -218,8 +217,22 @@ void error_report(const char *fmt, ...)
     }
 
     error_print_loc();
-    va_start(ap, fmt);
     error_vprintf(fmt, ap);
-    va_end(ap);
     error_printf("\n");
+}
+
+/*
+ * Print an error message to current monitor if we have one, else to stderr.
+ * Format arguments like sprintf().  The result should not contain
+ * newlines.
+ * Prepend the current location and append a newline.
+ * It's wrong to call this in a QMP monitor.  Use qerror_report() there.
+ */
+void error_report(const char *fmt, ...)
+{
+    va_list ap;
+
+    va_start(ap, fmt);
+    error_vreport(fmt, ap);
+    va_end(ap);
 }
