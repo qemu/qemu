@@ -25,6 +25,7 @@
 #include "qemu/option.h"
 #include "qemu/config-file.h"
 #include "sysemu/sysemu.h"
+#include "sysemu/accel.h"
 #include "hw/hw.h"
 #include "hw/pci/msi.h"
 #include "hw/s390x/adapter.h"
@@ -70,8 +71,10 @@ typedef struct KVMSlot
 
 typedef struct kvm_dirty_log KVMDirtyLog;
 
-struct KVMState
+typedef struct KVMState
 {
+    AccelState parent_obj;
+
     KVMSlot *slots;
     int nr_slots;
     int fd;
@@ -104,7 +107,12 @@ struct KVMState
     QTAILQ_HEAD(msi_hashtab, KVMMSIRoute) msi_hashtab[KVM_MSI_HASHTAB_SIZE];
     bool direct_msi;
 #endif
-};
+} KVMState;
+
+#define TYPE_KVM_ACCEL ACCEL_CLASS_NAME("kvm")
+
+#define KVM_STATE(obj) \
+    OBJECT_CHECK(KVMState, (obj), TYPE_KVM_ACCEL)
 
 KVMState *kvm_state;
 bool kvm_kernel_irqchip;
@@ -1377,8 +1385,9 @@ static int kvm_max_vcpus(KVMState *s)
     return (ret) ? ret : kvm_recommended_vcpus(s);
 }
 
-int kvm_init(MachineClass *mc)
+static int kvm_init(MachineState *ms)
 {
+    MachineClass *mc = MACHINE_GET_CLASS(ms);
     static const char upgrade_note[] =
         "Please upgrade to at least kernel 2.6.29 or recent kvm-kmod\n"
         "(see http://sourceforge.net/projects/kvm).\n";
@@ -1397,7 +1406,7 @@ int kvm_init(MachineClass *mc)
     int i, type = 0;
     const char *kvm_type;
 
-    s = g_malloc0(sizeof(KVMState));
+    s = KVM_STATE(ms->accelerator);
 
     /*
      * On systems where the kernel can support different base page
@@ -1586,7 +1595,6 @@ err:
         close(s->fd);
     }
     g_free(s->slots);
-    g_free(s);
 
     return ret;
 }
@@ -2225,3 +2233,25 @@ int kvm_get_one_reg(CPUState *cs, uint64_t id, void *target)
     }
     return r;
 }
+
+static void kvm_accel_class_init(ObjectClass *oc, void *data)
+{
+    AccelClass *ac = ACCEL_CLASS(oc);
+    ac->name = "KVM";
+    ac->init_machine = kvm_init;
+    ac->allowed = &kvm_allowed;
+}
+
+static const TypeInfo kvm_accel_type = {
+    .name = TYPE_KVM_ACCEL,
+    .parent = TYPE_ACCEL,
+    .class_init = kvm_accel_class_init,
+    .instance_size = sizeof(KVMState),
+};
+
+static void kvm_type_init(void)
+{
+    type_register_static(&kvm_accel_type);
+}
+
+type_init(kvm_type_init);

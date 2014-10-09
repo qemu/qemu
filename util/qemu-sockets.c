@@ -234,6 +234,7 @@ static void wait_for_connect(void *opaque)
     int val = 0, rc = 0;
     socklen_t valsize = sizeof(val);
     bool in_progress;
+    Error *err = NULL;
 
     qemu_set_fd_handler2(s->fd, NULL, NULL, NULL, NULL);
 
@@ -244,10 +245,12 @@ static void wait_for_connect(void *opaque)
     /* update rc to contain error */
     if (!rc && val) {
         rc = -1;
+        errno = val;
     }
 
     /* connect error */
     if (rc < 0) {
+        error_setg_errno(&err, errno, "Error connecting to socket");
         closesocket(s->fd);
         s->fd = rc;
     }
@@ -257,9 +260,14 @@ static void wait_for_connect(void *opaque)
         while (s->current_addr->ai_next != NULL && s->fd < 0) {
             s->current_addr = s->current_addr->ai_next;
             s->fd = inet_connect_addr(s->current_addr, &in_progress, s, NULL);
+            if (s->fd < 0) {
+                error_free(err);
+                err = NULL;
+                error_setg_errno(&err, errno, "Unable to start socket connect");
+            }
             /* connect in progress */
             if (in_progress) {
-                return;
+                goto out;
             }
         }
 
@@ -267,9 +275,11 @@ static void wait_for_connect(void *opaque)
     }
 
     if (s->callback) {
-        s->callback(s->fd, s->opaque);
+        s->callback(s->fd, err, s->opaque);
     }
     g_free(s);
+out:
+    error_free(err);
 }
 
 static int inet_connect_addr(struct addrinfo *addr, bool *in_progress,
@@ -401,7 +411,7 @@ int inet_connect_opts(QemuOpts *opts, Error **errp,
         return sock;
     } else {
         if (callback) {
-            callback(sock, opaque);
+            callback(sock, NULL, opaque);
         }
     }
     g_free(connect_state);
@@ -769,7 +779,7 @@ int unix_connect_opts(QemuOpts *opts, Error **errp,
     } else if (rc >= 0) {
         /* non blocking socket immediate success, call callback */
         if (callback != NULL) {
-            callback(sock, opaque);
+            callback(sock, NULL, opaque);
         }
     }
 
@@ -919,7 +929,7 @@ int socket_connect(SocketAddress *addr, Error **errp,
         fd = monitor_get_fd(cur_mon, addr->fd->str, errp);
         if (fd >= 0 && callback) {
             qemu_set_nonblock(fd);
-            callback(fd, opaque);
+            callback(fd, NULL, opaque);
         }
         break;
 

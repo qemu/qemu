@@ -76,14 +76,45 @@ boot_kernel:
 
 
 copy_kernel:
+	/* Compute initrd address */
+	mov		$0xe801, %ax
+	xor		%cx, %cx
+	xor		%dx, %dx
+	int		$0x15
+
+	/* Output could be in AX/BX or CX/DX */
+	or		%cx, %cx
+	jnz		1f
+	or		%dx, %dx
+	jnz		1f
+	mov		%ax, %cx
+	mov		%bx, %dx
+1:
+
+	or		%dx, %dx
+	jnz		2f
+	addw		$1024, %cx            /* add 1 MB */
+	movzwl		%cx, %edi
+	shll		$10, %edi             /* convert to bytes */
+	jmp		3f
+
+2:
+	addw		$16777216 >> 16, %dx  /* add 16 MB */
+	movzwl		%dx, %edi
+	shll		$16, %edi             /* convert to bytes */
+
+3:
+	read_fw         FW_CFG_INITRD_SIZE
+	subl            %eax, %edi
+	andl            $-4096, %edi          /* EDI = start of initrd */
 
 	/* We need to load the kernel into memory we can't access in 16 bit
 	   mode, so let's get into 32 bit mode, write the kernel and jump
 	   back again. */
 
 	/* Reserve space on the stack for our GDT descriptor. */
-	mov		%esp, %ebp
-	sub		$16, %esp
+	mov             %esp, %ebp
+	sub             $16, %esp
 
 	/* Now create the GDT descriptor */
 	movw		$((3 * 8) - 1), -16(%bp)
@@ -108,10 +139,18 @@ copy_kernel:
 	/* We're now running in 16-bit CS, but 32-bit ES! */
 
 	/* Load kernel and initrd */
+	pushl		%edi
+	read_fw_blob_addr32_edi(FW_CFG_INITRD)
 	read_fw_blob_addr32(FW_CFG_KERNEL)
-	read_fw_blob_addr32(FW_CFG_INITRD)
 	read_fw_blob_addr32(FW_CFG_CMDLINE)
-	read_fw_blob_addr32(FW_CFG_SETUP)
+
+	read_fw		FW_CFG_SETUP_ADDR
+	mov		%eax, %edi
+	mov		%eax, %ebx
+	read_fw_blob_addr32_edi(FW_CFG_SETUP)
+
+	/* Update the header with the initrd address we chose above */
+	popl		%es:0x218(%ebx)
 
 	/* And now jump into Linux! */
 	mov		$0, %eax

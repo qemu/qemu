@@ -2651,14 +2651,19 @@
 # @nodelay: #optional set TCP_NODELAY socket option (default: false)
 # @telnet: #optional enable telnet protocol on server
 #          sockets (default: false)
+# @reconnect: #optional For a client socket, if a socket is disconnected,
+#          then attempt a reconnect after the given number of seconds.
+#          Setting this to zero disables this function. (default: 0)
+#          (Since: 2.2)
 #
 # Since: 1.4
 ##
-{ 'type': 'ChardevSocket', 'data': { 'addr'     : 'SocketAddress',
-                                     '*server'  : 'bool',
-                                     '*wait'    : 'bool',
-                                     '*nodelay' : 'bool',
-                                     '*telnet'  : 'bool' } }
+{ 'type': 'ChardevSocket', 'data': { 'addr'       : 'SocketAddress',
+                                     '*server'    : 'bool',
+                                     '*wait'      : 'bool',
+                                     '*nodelay'   : 'bool',
+                                     '*telnet'    : 'bool',
+                                     '*reconnect' : 'int' } }
 
 ##
 # @ChardevUdp:

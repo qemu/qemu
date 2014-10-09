@@ -61,6 +61,7 @@ int main(int argc, char **argv)
 #include "qemu/sockets.h"
 #include "hw/hw.h"
 #include "hw/boards.h"
+#include "sysemu/accel.h"
 #include "hw/usb.h"
 #include "hw/pcmcia.h"
 #include "hw/i386/pc.h"
@@ -213,11 +214,9 @@ static NotifierList exit_notifiers =
 static NotifierList machine_init_done_notifiers =
     NOTIFIER_LIST_INITIALIZER(machine_init_done_notifiers);
 
-static bool tcg_allowed = true;
 bool xen_allowed;
 uint32_t xen_domid;
 enum xen_mode xen_mode = XEN_EMULATE;
-static int tcg_tb_size;
 
 static int has_defaults = 1;
 static int default_serial = 1;
@@ -2681,84 +2680,6 @@ static MachineClass *machine_parse(const char *name)
     exit(!name || !is_help_option(name));
 }
 
-static int tcg_init(MachineClass *mc)
-{
-    tcg_exec_init(tcg_tb_size * 1024 * 1024);
-    return 0;
-}
-
-static struct {
-    const char *opt_name;
-    const char *name;
-    int (*available)(void);
-    int (*init)(MachineClass *mc);
-    bool *allowed;
-} accel_list[] = {
-    { "tcg", "tcg", tcg_available, tcg_init, &tcg_allowed },
-    { "xen", "Xen", xen_available, xen_init, &xen_allowed },
-    { "kvm", "KVM", kvm_available, kvm_init, &kvm_allowed },
-    { "qtest", "QTest", qtest_available, qtest_init_accel, &qtest_allowed },
-};
-
-static int configure_accelerator(MachineClass *mc)
-{
-    const char *p;
-    char buf[10];
-    int i, ret;
-    bool accel_initialised = false;
-    bool init_failed = false;
-
-    p = qemu_opt_get(qemu_get_machine_opts(), "accel");
-    if (p == NULL) {
-        /* Use the default "accelerator", tcg */
-        p = "tcg";
-    }
-
-    while (!accel_initialised && *p != '\0') {
-        if (*p == ':') {
-            p++;
-        }
-        p = get_opt_name(buf, sizeof (buf), p, ':');
-        for (i = 0; i < ARRAY_SIZE(accel_list); i++) {
-            if (strcmp(accel_list[i].opt_name, buf) == 0) {
-                if (!accel_list[i].available()) {
-                    printf("%s not supported for this target\n",
-                           accel_list[i].name);
-                    break;
-                }
-                *(accel_list[i].allowed) = true;
-                ret = accel_list[i].init(mc);
-                if (ret < 0) {
-                    init_failed = true;
-                    fprintf(stderr, "failed to initialize %s: %s\n",
-                            accel_list[i].name,
-                            strerror(-ret));
-                    *(accel_list[i].allowed) = false;
-                } else {
-                    accel_initialised = true;
-                }
-                break;
-            }
-        }
-        if (i == ARRAY_SIZE(accel_list)) {
-            fprintf(stderr, "\"%s\" accelerator does not exist.\n", buf);
-        }
-    }
-
-    if (!accel_initialised) {
-        if (!init_failed) {
-            fprintf(stderr, "No accelerator found!\n");
-        }
-        exit(1);
-    }
-
-    if (init_failed) {
-        fprintf(stderr, "Back to %s accelerator.\n", accel_list[i].name);
-    }
-
-    return !accel_initialised;
-}
-
 void qemu_add_exit_notifier(Notifier *notify)
 {
     notifier_list_add(&exit_notifiers, notify);
@@ -4264,7 +4185,7 @@ int main(int argc, char **argv, char **envp)
         exit(1);
     }
 
-    configure_accelerator(machine_class);
+    configure_accelerator(current_machine);
 
     if (qtest_chrdev) {
         Error *local_err = NULL;

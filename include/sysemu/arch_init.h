@@ -33,7 +33,6 @@ void do_smbios_option(QemuOpts *opts);
 void ram_mig_init(void);
 void cpudef_init(void);
 void audio_init(void);
-int tcg_available(void);
 int kvm_available(void);
 int xen_available(void);
 

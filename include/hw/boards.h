@@ -5,11 +5,10 @@
 
 #include "qemu/typedefs.h"
 #include "sysemu/blockdev.h"
+#include "sysemu/accel.h"
 #include "hw/qdev.h"
 #include "qom/object.h"
 
-
-typedef struct MachineState MachineState;
 
 typedef void QEMUMachineInitFunc(MachineState *ms);
 
@@ -135,6 +134,7 @@ struct MachineState {
     char *kernel_cmdline;
     char *initrd_filename;
     const char *cpu_model;
+    AccelState *accelerator;
 };
 
 #endif
