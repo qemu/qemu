@@ -26,7 +26,9 @@
 #include "cpu.h"
 #include "qemu-common.h"
 #include "qemu/timer.h"
+#include "qemu/error-report.h"
 #include "hw/hw.h"
+#include "trace.h"
 #ifndef CONFIG_USER_ONLY
 #include "sysemu/arch_init.h"
 #endif
@@ -81,7 +83,7 @@ static void s390_cpu_load_normal(CPUState *s)
     S390CPU *cpu = S390_CPU(s);
     cpu->env.psw.addr = ldl_phys(s->as, 4) & PSW_MASK_ESA_ADDR;
     cpu->env.psw.mask = PSW_MASK_32 | PSW_MASK_64;
-    s390_add_running_cpu(cpu);
+    s390_cpu_set_state(CPU_STATE_OPERATING, cpu);
 }
 #endif
 
@@ -93,11 +95,8 @@ static void s390_cpu_reset(CPUState *s)
     CPUS390XState *env = &cpu->env;
 
     env->pfault_token = -1UL;
-    s390_del_running_cpu(cpu);
     scc->parent_reset(s);
-#if !defined(CONFIG_USER_ONLY)
-    s->halted = 1;
-#endif
+    s390_cpu_set_state(CPU_STATE_STOPPED, cpu);
     tlb_flush(s, 1);
 }
 
@@ -118,14 +117,10 @@ static void s390_cpu_initial_reset(CPUState *s)
 
     env->pfault_token = -1UL;
 
-#if defined(CONFIG_KVM)
     /* Reset state inside the kernel that we cannot access yet from QEMU. */
     if (kvm_enabled()) {
-        if (kvm_vcpu_ioctl(s, KVM_S390_INITIAL_RESET, NULL)) {
-            perror("Initial CPU reset failed");
-        }
+        kvm_s390_reset_vcpu(cpu);
     }
-#endif
 }
 
 /* CPUClass:reset() */
@@ -135,9 +130,8 @@ static void s390_cpu_full_reset(CPUState *s)
     S390CPUClass *scc = S390_CPU_GET_CLASS(cpu);
     CPUS390XState *env = &cpu->env;
 
-    s390_del_running_cpu(cpu);
-
     scc->parent_reset(s);
+    s390_cpu_set_state(CPU_STATE_STOPPED, cpu);
 
     memset(env, 0, offsetof(CPUS390XState, cpu_num));
 
@@ -147,16 +141,10 @@ static void s390_cpu_full_reset(CPUState *s)
 
     env->pfault_token = -1UL;
 
-    /* set halted to 1 to make sure we can add the cpu in
-     * s390_ipl_cpu code, where CPUState::halted is set back to 0
-     * after incrementing the cpu counter */
-#if !defined(CONFIG_USER_ONLY)
-    s->halted = 1;
-
+    /* Reset state inside the kernel that we cannot access yet from QEMU. */
     if (kvm_enabled()) {
         kvm_s390_reset_vcpu(cpu);
     }
-#endif
     tlb_flush(s, 1);
 }
 
@@ -206,10 +194,7 @@ static void s390_cpu_initfn(Object *obj)
     env->tod_basetime = 0;
     env->tod_timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, s390x_tod_timer, cpu);
     env->cpu_timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, s390x_cpu_timer, cpu);
-    /* set CPUState::halted state to 1 to avoid decrementing the running
-     * cpu counter in s390_cpu_reset to a negative number at
-     * initial ipl */
-    cs->halted = 1;
+    s390_cpu_set_state(CPU_STATE_STOPPED, cpu);
 #endif
     env->cpu_num = cpu_num++;
     env->ext_index = -1;
@@ -229,10 +214,83 @@ static void s390_cpu_finalize(Object *obj)
 #endif
 }
 
-static const VMStateDescription vmstate_s390_cpu = {
-    .name = "cpu",
-    .unmigratable = 1,
-};
+#if !defined(CONFIG_USER_ONLY)
+static bool disabled_wait(CPUState *cpu)
+{
+    return cpu->halted && !(S390_CPU(cpu)->env.psw.mask &
+                            (PSW_MASK_IO | PSW_MASK_EXT | PSW_MASK_MCHECK));
+}
+
+static unsigned s390_count_running_cpus(void)
+{
+    CPUState *cpu;
+    int nr_running = 0;
+
+    CPU_FOREACH(cpu) {
+        uint8_t state = S390_CPU(cpu)->env.cpu_state;
+        if (state == CPU_STATE_OPERATING ||
+            state == CPU_STATE_LOAD) {
+            if (!disabled_wait(cpu)) {
+                nr_running++;
+            }
+        }
+    }
+
+    return nr_running;
+}
+
+unsigned int s390_cpu_halt(S390CPU *cpu)
+{
+    CPUState *cs = CPU(cpu);
+    trace_cpu_halt(cs->cpu_index);
+
+    if (!cs->halted) {
+        cs->halted = 1;
+        cs->exception_index = EXCP_HLT;
+    }
+
+    return s390_count_running_cpus();
+}
+
+void s390_cpu_unhalt(S390CPU *cpu)
+{
+    CPUState *cs = CPU(cpu);
+    trace_cpu_unhalt(cs->cpu_index);
+
+    if (cs->halted) {
+        cs->halted = 0;
+        cs->exception_index = -1;
+    }
+}
+
+unsigned int s390_cpu_set_state(uint8_t cpu_state, S390CPU *cpu)
+ {
+    trace_cpu_set_state(CPU(cpu)->cpu_index, cpu_state);
+
+    switch (cpu_state) {
+    case CPU_STATE_STOPPED:
+    case CPU_STATE_CHECK_STOP:
+        /* halt the cpu for common infrastructure */
+        s390_cpu_halt(cpu);
+        break;
+    case CPU_STATE_OPERATING:
+    case CPU_STATE_LOAD:
+        /* unhalt the cpu for common infrastructure */
+        s390_cpu_unhalt(cpu);
+        break;
+    default:
+        error_report("Requested CPU state is not a valid S390 CPU state: %u",
+                     cpu_state);
+        exit(1);
+    }
+    if (kvm_enabled() && cpu->env.cpu_state != cpu_state) {
+        kvm_s390_set_cpu_state(cpu, cpu_state);
+    }
+    cpu->env.cpu_state = cpu_state;
+
+    return s390_count_running_cpus();
+}
+#endif
 
 static void s390_cpu_class_init(ObjectClass *oc, void *data)
 {
@@ -260,11 +318,11 @@ static void s390_cpu_class_init(ObjectClass *oc, void *data)
     cc->handle_mmu_fault = s390_cpu_handle_mmu_fault;
 #else
     cc->get_phys_page_debug = s390_cpu_get_phys_page_debug;
+    cc->vmsd = &vmstate_s390_cpu;
     cc->write_elf64_note = s390_cpu_write_elf64_note;
     cc->write_elf64_qemunote = s390_cpu_write_elf64_qemunote;
     cc->cpu_exec_interrupt = s390_cpu_exec_interrupt;
 #endif
-    dc->vmsd = &vmstate_s390_cpu;
     cc->gdb_num_core_regs = S390_NUM_CORE_REGS;
     cc->gdb_core_xml_file = "s390x-core64.xml";
 }

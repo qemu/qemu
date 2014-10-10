@@ -141,6 +141,20 @@ typedef struct CPUS390XState {
     QEMUTimer *tod_timer;
 
     QEMUTimer *cpu_timer;
+
+    /*
+     * The cpu state represents the logical state of a cpu. In contrast to other
+     * architectures, there is a difference between a halt and a stop on s390.
+     * If all cpus are either stopped (including check stop) or in the disabled
+     * wait state, the vm can be shut down.
+     */
+#define CPU_STATE_UNINITIALIZED        0x00
+#define CPU_STATE_STOPPED              0x01
+#define CPU_STATE_CHECK_STOP           0x02
+#define CPU_STATE_OPERATING            0x03
+#define CPU_STATE_LOAD                 0x04
+    uint8_t cpu_state;
+
 } CPUS390XState;
 
 #include "cpu-qom.h"
@@ -375,16 +389,12 @@ int s390_virtio_hypercall(CPUS390XState *env);
 void s390_virtio_irq(int config_change, uint64_t token);
 
 #ifdef CONFIG_KVM
-void kvm_s390_reset_vcpu(S390CPU *cpu);
 void kvm_s390_virtio_irq(int config_change, uint64_t token);
 void kvm_s390_service_interrupt(uint32_t parm);
 void kvm_s390_vcpu_interrupt(S390CPU *cpu, struct kvm_s390_irq *irq);
 void kvm_s390_floating_interrupt(struct kvm_s390_irq *irq);
 int kvm_s390_inject_flic(struct kvm_s390_irq *irq);
 #else
-static inline void kvm_s390_reset_vcpu(S390CPU *cpu)
-{
-}
 static inline void kvm_s390_virtio_irq(int config_change, uint64_t token)
 {
 }
@@ -393,8 +403,9 @@ static inline void kvm_s390_service_interrupt(uint32_t parm)
 }
 #endif
 S390CPU *s390_cpu_addr2state(uint16_t cpu_addr);
-void s390_add_running_cpu(S390CPU *cpu);
-unsigned s390_del_running_cpu(S390CPU *cpu);
+unsigned int s390_cpu_halt(S390CPU *cpu);
+void s390_cpu_unhalt(S390CPU *cpu);
+unsigned int s390_cpu_set_state(uint8_t cpu_state, S390CPU *cpu);
 
 /* service interrupts are floating therefore we must not pass an cpustate */
 void s390_sclp_extint(uint32_t parm);
@@ -403,11 +414,16 @@ void s390_sclp_extint(uint32_t parm);
 extern const hwaddr virtio_size;
 
 #else
-static inline void s390_add_running_cpu(S390CPU *cpu)
+static inline unsigned int s390_cpu_halt(S390CPU *cpu)
+{
+    return 0;
+}
+
+static inline void s390_cpu_unhalt(S390CPU *cpu)
 {
 }
 
-static inline unsigned s390_del_running_cpu(S390CPU *cpu)
+static inline unsigned int s390_cpu_set_state(uint8_t cpu_state, S390CPU *cpu)
 {
     return 0;
 }
@@ -1052,6 +1068,8 @@ int kvm_s390_assign_subch_ioeventfd(EventNotifier *notifier, uint32_t sch,
 int kvm_s390_cpu_restart(S390CPU *cpu);
 int kvm_s390_get_memslot_count(KVMState *s);
 void kvm_s390_clear_cmma_callback(void *opaque);
+int kvm_s390_set_cpu_state(S390CPU *cpu, uint8_t cpu_state);
+void kvm_s390_reset_vcpu(S390CPU *cpu);
 #else
 static inline void kvm_s390_io_interrupt(uint16_t subchannel_id,
                                         uint16_t subchannel_nr,
@@ -1081,6 +1099,13 @@ static inline void kvm_s390_clear_cmma_callback(void *opaque)
 static inline int kvm_s390_get_memslot_count(KVMState *s)
 {
   return MAX_AVAIL_SLOTS;
+}
+static inline int kvm_s390_set_cpu_state(S390CPU *cpu, uint8_t cpu_state)
+{
+    return -ENOSYS;
+}
+static inline void kvm_s390_reset_vcpu(S390CPU *cpu)
+{
 }
 #endif
 
