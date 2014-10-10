@@ -1591,6 +1591,11 @@ async_common:
             qxl_set_guest_bug(d,
                     "QXL_IO_UPDATE_AREA: invalid area (%ux%u)x(%ux%u)\n",
                     update.left, update.top, update.right, update.bottom);
+            if (update.left == update.right || update.top == update.bottom) {
+                /* old drivers may provide empty area, keep going */
+                qxl_clear_guest_bug(d);
+                goto cancel_async;
+            }
             break;
         }
         if (async == QXL_ASYNC) {
