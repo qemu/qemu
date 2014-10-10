@@ -70,6 +70,26 @@ static void sparc_cpu_reset(CPUState *s)
     env->cache_control = 0;
 }
 
+static bool sparc_cpu_exec_interrupt(CPUState *cs, int interrupt_request)
+{
+    if (interrupt_request & CPU_INTERRUPT_HARD) {
+        SPARCCPU *cpu = SPARC_CPU(cs);
+        CPUSPARCState *env = &cpu->env;
+
+        if (cpu_interrupts_enabled(env) && env->interrupt_index > 0) {
+            int pil = env->interrupt_index & 0xf;
+            int type = env->interrupt_index & 0xf0;
+
+            if (type != TT_EXTINT || cpu_pil_allowed(env, pil)) {
+                cs->exception_index = env->interrupt_index;
+                sparc_cpu_do_interrupt(cs);
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
 static int cpu_sparc_register(SPARCCPU *cpu, const char *cpu_model)
 {
     CPUClass *cc = CPU_GET_CLASS(cpu);
@@ -813,6 +833,7 @@ static void sparc_cpu_class_init(ObjectClass *oc, void *data)
     cc->parse_features = sparc_cpu_parse_features;
     cc->has_work = sparc_cpu_has_work;
     cc->do_interrupt = sparc_cpu_do_interrupt;
+    cc->cpu_exec_interrupt = sparc_cpu_exec_interrupt;
     cc->dump_state = sparc_cpu_dump_state;
 #if !defined(TARGET_SPARC64) && !defined(CONFIG_USER_ONLY)
     cc->memory_rw_debug = sparc_cpu_memory_rw_debug;

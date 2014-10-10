@@ -278,7 +278,7 @@ static void ppc_heathrow_init(MachineState *machine)
         pci_nic_init_nofail(&nd_table[i], pci_bus, "ne2k_pci", NULL);
 
 
-    ide_drive_get(hd, MAX_IDE_BUS);
+    ide_drive_get(hd, ARRAY_SIZE(hd));
 
     macio = pci_create(pci_bus, -1, TYPE_OLDWORLD_MACIO);
     dev = DEVICE(macio);

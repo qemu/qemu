@@ -85,19 +85,6 @@ TraceEvent *trace_event_pattern(const char *pat, TraceEvent *ev)
     return NULL;
 }
 
-void trace_print_events(FILE *stream, fprintf_function stream_printf)
-{
-    TraceEventID i;
-
-    for (i = 0; i < trace_event_count(); i++) {
-        TraceEvent *ev = trace_event_id(i);
-        stream_printf(stream, "%s [Event ID %u] : state %u\n",
-                      trace_event_get_name(ev), i,
-                      trace_event_get_state_static(ev) &&
-                      trace_event_get_state_dynamic(ev));
-    }
-}
-
 static void trace_init_events(const char *fname)
 {
     Location loc;

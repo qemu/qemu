@@ -501,7 +501,7 @@ static void usb_bt_handle_destroy(USBDevice *dev)
     s->hci->acl_recv = NULL;
 }
 
-static int usb_bt_initfn(USBDevice *dev)
+static void usb_bt_realize(USBDevice *dev, Error **errp)
 {
     struct USBBtState *s = DO_UPCAST(struct USBBtState, dev, dev);
 
@@ -516,8 +516,6 @@ static int usb_bt_initfn(USBDevice *dev)
     s->hci->acl_recv = usb_bt_out_hci_packet_acl;
     usb_bt_handle_reset(&s->dev);
     s->intr = usb_ep_get(dev, USB_TOKEN_IN, USB_EVT_EP);
-
-    return 0;
 }
 
 static USBDevice *usb_bt_init(USBBus *bus, const char *cmdline)
@@ -560,7 +558,7 @@ static void usb_bt_class_initfn(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
     USBDeviceClass *uc = USB_DEVICE_CLASS(klass);
 
-    uc->init           = usb_bt_initfn;
+    uc->realize        = usb_bt_realize;
     uc->product_desc   = "QEMU BT dongle";
     uc->usb_desc       = &desc_bluetooth;
     uc->handle_reset   = usb_bt_handle_reset;

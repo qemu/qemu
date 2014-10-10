@@ -53,6 +53,11 @@ static const char * const excnames[] = {
     [EXCP_EXCEPTION_EXIT] = "QEMU v7M exception exit",
     [EXCP_KERNEL_TRAP] = "QEMU intercept of kernel commpage",
     [EXCP_STREX] = "QEMU intercept of STREX",
+    [EXCP_HVC] = "Hypervisor Call",
+    [EXCP_HYP_TRAP] = "Hypervisor Trap",
+    [EXCP_SMC] = "Secure Monitor Call",
+    [EXCP_VIRQ] = "Virtual IRQ",
+    [EXCP_VFIQ] = "Virtual FIQ",
 };
 
 static inline void arm_log_exception(int idx)
@@ -215,6 +220,16 @@ static inline uint32_t syn_aa64_svc(uint32_t imm16)
     return (EC_AA64_SVC << ARM_EL_EC_SHIFT) | ARM_EL_IL | (imm16 & 0xffff);
 }
 
+static inline uint32_t syn_aa64_hvc(uint32_t imm16)
+{
+    return (EC_AA64_HVC << ARM_EL_EC_SHIFT) | ARM_EL_IL | (imm16 & 0xffff);
+}
+
+static inline uint32_t syn_aa64_smc(uint32_t imm16)
+{
+    return (EC_AA64_SMC << ARM_EL_EC_SHIFT) | ARM_EL_IL | (imm16 & 0xffff);
+}
+
 static inline uint32_t syn_aa32_svc(uint32_t imm16, bool is_thumb)
 {
     return (EC_AA32_SVC << ARM_EL_EC_SHIFT) | (imm16 & 0xffff)
@@ -313,6 +328,12 @@ static inline uint32_t syn_watchpoint(int same_el, int cm, int wnr)
         | (cm << 8) | (wnr << 6) | 0x22;
 }
 
+static inline uint32_t syn_breakpoint(int same_el)
+{
+    return (EC_BREAKPOINT << ARM_EL_EC_SHIFT) | (same_el << ARM_EL_EC_SHIFT)
+        | ARM_EL_IL | 0x22;
+}
+
 /* Update a QEMU watchpoint based on the information the guest has set in the
  * DBGWCR<n>_EL1 and DBGWVR<n>_EL1 registers.
  */
@@ -322,6 +343,15 @@ void hw_watchpoint_update(ARMCPU *cpu, int n);
  * suitable for use after migration or on reset.
  */
 void hw_watchpoint_update_all(ARMCPU *cpu);
+/* Update a QEMU breakpoint based on the information the guest has set in the
+ * DBGBCR<n>_EL1 and DBGBVR<n>_EL1 registers.
+ */
+void hw_breakpoint_update(ARMCPU *cpu, int n);
+/* Update the QEMU breakpoints for every guest breakpoint. This does a
+ * complete delete-and-reinstate of the QEMU breakpoint list and so is
+ * suitable for use after migration or on reset.
+ */
+void hw_breakpoint_update_all(ARMCPU *cpu);
 
 /* Callback function for when a watchpoint or breakpoint triggers. */
 void arm_debug_excp_handler(CPUState *cs);

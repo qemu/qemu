@@ -82,10 +82,6 @@ int cpu_tricore_handle_mmu_fault(CPUState *cs, target_ulong address,
     return ret;
 }
 
-void tricore_cpu_do_interrupt(CPUState *cs)
-{
-}
-
 TriCoreCPU *cpu_tricore_init(const char *cpu_model)
 {
     return TRICORE_CPU(cpu_generic_init(TYPE_TRICORE_CPU, cpu_model));

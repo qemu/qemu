@@ -76,7 +76,9 @@ struct SubchDev {
     hwaddr channel_prog;
     CCW1 last_cmd;
     bool last_cmd_valid;
+    bool ccw_fmt_1;
     bool thinint_active;
+    uint8_t ccw_no_data_cnt;
     /* transport-provided data: */
     int (*ccw_cb) (SubchDev *, CCW1);
     SenseId id;

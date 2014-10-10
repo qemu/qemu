@@ -372,23 +372,21 @@ static void trim_aio_cancel(BlockDriverAIOCB *acb)
 {
     TrimAIOCB *iocb = container_of(acb, TrimAIOCB, common);
 
-    /* Exit the loop in case bdrv_aio_cancel calls ide_issue_trim_cb again.  */
+    /* Exit the loop so ide_issue_trim_cb will not continue  */
     iocb->j = iocb->qiov->niov - 1;
     iocb->i = (iocb->qiov->iov[iocb->j].iov_len / 8) - 1;
 
-    /* Tell ide_issue_trim_cb not to trigger the completion, too.  */
-    qemu_bh_delete(iocb->bh);
-    iocb->bh = NULL;
+    iocb->ret = -ECANCELED;
 
     if (iocb->aiocb) {
-        bdrv_aio_cancel(iocb->aiocb);
+        bdrv_aio_cancel_async(iocb->aiocb);
+        iocb->aiocb = NULL;
     }
-    qemu_aio_release(iocb);
 }
 
 static const AIOCBInfo trim_aiocb_info = {
     .aiocb_size         = sizeof(TrimAIOCB),
-    .cancel             = trim_aio_cancel,
+    .cancel_async       = trim_aio_cancel,
 };
 
 static void ide_trim_bh_cb(void *opaque)
@@ -399,7 +397,7 @@ static void ide_trim_bh_cb(void *opaque)
 
     qemu_bh_delete(iocb->bh);
     iocb->bh = NULL;
-    qemu_aio_release(iocb);
+    qemu_aio_unref(iocb);
 }
 
 static void ide_issue_trim_cb(void *opaque, int ret)
@@ -568,6 +566,9 @@ static void ide_sector_read_cb(void *opaque, int ret)
     s->pio_aiocb = NULL;
     s->status &= ~BUSY_STAT;
 
+    if (ret == -ECANCELED) {
+        return;
+    }
     block_acct_done(bdrv_get_stats(s->bs), &s->acct);
     if (ret != 0) {
         if (ide_handle_rw_error(s, -ret, IDE_RETRY_PIO |
@@ -678,6 +679,9 @@ void ide_dma_cb(void *opaque, int ret)
     int64_t sector_num;
     bool stay_active = false;
 
+    if (ret == -ECANCELED) {
+        return;
+    }
     if (ret < 0) {
         int op = IDE_RETRY_DMA;
 
@@ -803,6 +807,9 @@ static void ide_sector_write_cb(void *opaque, int ret)
     IDEState *s = opaque;
     int n;
 
+    if (ret == -ECANCELED) {
+        return;
+    }
     block_acct_done(bdrv_get_stats(s->bs), &s->acct);
 
     s->pio_aiocb = NULL;
@@ -882,6 +889,9 @@ static void ide_flush_cb(void *opaque, int ret)
 
     s->pio_aiocb = NULL;
 
+    if (ret == -ECANCELED) {
+        return;
+    }
     if (ret < 0) {
         /* XXX: What sector number to set here? */
         if (ide_handle_rw_error(s, -ret, IDE_RETRY_FLUSH)) {
@@ -2548,16 +2558,28 @@ const VMStateDescription vmstate_ide_bus = {
     }
 };
 
-void ide_drive_get(DriveInfo **hd, int max_bus)
+void ide_drive_get(DriveInfo **hd, int n)
 {
     int i;
+    int highest_bus = drive_get_max_bus(IF_IDE) + 1;
+    int max_devs = drive_get_max_devs(IF_IDE);
+    int n_buses = max_devs ? (n / max_devs) : n;
 
-    if (drive_get_max_bus(IF_IDE) >= max_bus) {
-        fprintf(stderr, "qemu: too many IDE bus: %d\n", max_bus);
+    /*
+     * Note: The number of actual buses available is not known.
+     * We compute this based on the size of the DriveInfo* array, n.
+     * If it is less than max_devs * <num_real_buses>,
+     * We will stop looking for drives prematurely instead of overfilling
+     * the array.
+     */
+
+    if (highest_bus > n_buses) {
+        error_report("Too many IDE buses defined (%d > %d)",
+                     highest_bus, n_buses);
         exit(1);
     }
 
-    for(i = 0; i < max_bus * MAX_IDE_DEVS; i++) {
-        hd[i] = drive_get(IF_IDE, i / MAX_IDE_DEVS, i % MAX_IDE_DEVS);
+    for (i = 0; i < n; i++) {
+        hd[i] = drive_get_by_index(IF_IDE, i);
     }
 }

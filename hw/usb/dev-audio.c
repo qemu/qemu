@@ -628,7 +628,7 @@ static void usb_audio_handle_destroy(USBDevice *dev)
     streambuf_fini(&s->out.buf);
 }
 
-static int usb_audio_initfn(USBDevice *dev)
+static void usb_audio_realize(USBDevice *dev, Error **errp)
 {
     USBAudioState *s = DO_UPCAST(USBAudioState, dev, dev);
 
@@ -651,7 +651,6 @@ static int usb_audio_initfn(USBDevice *dev)
                                 s, output_callback, &s->out.as);
     AUD_set_volume_out(s->out.voice, s->out.mute, s->out.vol[0], s->out.vol[1]);
     AUD_set_active_out(s->out.voice, 0);
-    return 0;
 }
 
 static const VMStateDescription vmstate_usb_audio = {
@@ -676,7 +675,7 @@ static void usb_audio_class_init(ObjectClass *klass, void *data)
     set_bit(DEVICE_CATEGORY_SOUND, dc->categories);
     k->product_desc   = "QEMU USB Audio Interface";
     k->usb_desc       = &desc_audio;
-    k->init           = usb_audio_initfn;
+    k->realize        = usb_audio_realize;
     k->handle_reset   = usb_audio_handle_reset;
     k->handle_control = usb_audio_handle_control;
     k->handle_data    = usb_audio_handle_data;

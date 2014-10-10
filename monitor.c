@@ -886,19 +886,12 @@ static void do_trace_event_set_state(Monitor *mon, const QDict *qdict)
 {
     const char *tp_name = qdict_get_str(qdict, "name");
     bool new_state = qdict_get_bool(qdict, "option");
+    Error *local_err = NULL;
 
-    bool found = false;
-    TraceEvent *ev = NULL;
-    while ((ev = trace_event_pattern(tp_name, ev)) != NULL) {
-        found = true;
-        if (!trace_event_get_state_static(ev)) {
-            monitor_printf(mon, "event \"%s\" is not traceable\n", tp_name);
-        } else {
-            trace_event_set_state_dynamic(ev, new_state);
-        }
-    }
-    if (!trace_event_is_pattern(tp_name) && !found) {
-        monitor_printf(mon, "unknown event name \"%s\"\n", tp_name);
+    qmp_trace_event_set_state(tp_name, new_state, true, true, &local_err);
+    if (local_err) {
+        qerror_report_err(local_err);
+        error_free(local_err);
     }
 }
 
@@ -1079,7 +1072,15 @@ static void do_info_cpu_stats(Monitor *mon, const QDict *qdict)
 
 static void do_trace_print_events(Monitor *mon, const QDict *qdict)
 {
-    trace_print_events((FILE *)mon, &monitor_fprintf);
+    TraceEventInfoList *events = qmp_trace_event_get_state("*", NULL);
+    TraceEventInfoList *elem;
+
+    for (elem = events; elem != NULL; elem = elem->next) {
+        monitor_printf(mon, "%s : state %u\n",
+                       elem->value->name,
+                       elem->value->state == TRACE_EVENT_STATE_ENABLED ? 1 : 0);
+    }
+    qapi_free_TraceEventInfoList(events);
 }
 
 static int client_migrate_info(Monitor *mon, const QDict *qdict,
@@ -2919,6 +2920,13 @@ static mon_cmd_t info_cmds[] = {
         .params     = "",
         .help       = "show memory backends",
         .mhandler.cmd = hmp_info_memdev,
+    },
+    {
+        .name       = "memory-devices",
+        .args_type  = "",
+        .params     = "",
+        .help       = "show memory devices",
+        .mhandler.cmd = hmp_info_memory_devices,
     },
     {
         .name       = NULL,
@@ -5248,6 +5256,7 @@ static void monitor_event(void *opaque, int event)
         monitor_printf(mon, "QEMU %s monitor - type 'help' for more "
                        "information\n", QEMU_VERSION);
         if (!mon->mux_out) {
+            readline_restart(mon->rs);
             readline_show_prompt(mon->rs);
         }
         mon->reset_seen = 1;

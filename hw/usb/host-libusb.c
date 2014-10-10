@@ -275,7 +275,7 @@ static void usb_host_libusb_error(const char *func, int rc)
     } else {
         errname = "?";
     }
-    fprintf(stderr, "%s: %d [%s]\n", func, rc, errname);
+    error_report("%s: %d [%s]", func, rc, errname);
 }
 
 /* ------------------------------------------------------------------------ */
@@ -834,6 +834,7 @@ static int usb_host_open(USBHostDevice *s, libusb_device *dev)
     int bus_num = libusb_get_bus_number(dev);
     int addr    = libusb_get_device_address(dev);
     int rc;
+    Error *local_err = NULL;
 
     trace_usb_host_open_started(bus_num, addr);
 
@@ -869,8 +870,10 @@ static int usb_host_open(USBHostDevice *s, libusb_device *dev)
                  "host:%d.%d", bus_num, addr);
     }
 
-    rc = usb_device_attach(udev);
-    if (rc) {
+    usb_device_attach(udev, &local_err);
+    if (local_err) {
+        error_report("%s", error_get_pretty(local_err));
+        error_free(local_err);
         goto fail;
     }
 
@@ -948,21 +951,21 @@ static void usb_host_exit_notifier(struct Notifier *n, void *data)
     }
 }
 
-static int usb_host_initfn(USBDevice *udev)
+static void usb_host_realize(USBDevice *udev, Error **errp)
 {
     USBHostDevice *s = USB_HOST_DEVICE(udev);
 
     if (s->match.vendor_id > 0xffff) {
-        error_report("vendorid out of range");
-        return -1;
+        error_setg(errp, "vendorid out of range");
+        return;
     }
     if (s->match.product_id > 0xffff) {
-        error_report("productid out of range");
-        return -1;
+        error_setg(errp, "productid out of range");
+        return;
     }
     if (s->match.addr > 127) {
-        error_report("hostaddr out of range");
-        return -1;
+        error_setg(errp, "hostaddr out of range");
+        return;
     }
 
     loglevel = s->loglevel;
@@ -977,7 +980,6 @@ static int usb_host_initfn(USBDevice *udev)
     QTAILQ_INSERT_TAIL(&hostdevs, s, next);
     add_boot_device_path(s->bootindex, &udev->qdev, NULL);
     usb_host_auto_check(NULL);
-    return 0;
 }
 
 static void usb_host_handle_destroy(USBDevice *udev)
@@ -1374,14 +1376,13 @@ static int usb_host_alloc_streams(USBDevice *udev, USBEndpoint **eps,
     if (rc < 0) {
         usb_host_libusb_error("libusb_alloc_streams", rc);
     } else if (rc != streams) {
-        fprintf(stderr,
-            "libusb_alloc_streams: got less streams then requested %d < %d\n",
-            rc, streams);
+        error_report("libusb_alloc_streams: got less streams "
+                     "then requested %d < %d", rc, streams);
     }
 
     return (rc == streams) ? 0 : -1;
 #else
-    fprintf(stderr, "libusb_alloc_streams: error not implemented\n");
+    error_report("libusb_alloc_streams: error not implemented");
     return -1;
 #endif
 }
@@ -1477,7 +1478,7 @@ static void usb_host_class_initfn(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
     USBDeviceClass *uc = USB_DEVICE_CLASS(klass);
 
-    uc->init           = usb_host_initfn;
+    uc->realize        = usb_host_realize;
     uc->product_desc   = "USB Host Device";
     uc->cancel_packet  = usb_host_cancel_packet;
     uc->handle_data    = usb_host_handle_data;

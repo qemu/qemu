@@ -181,7 +181,8 @@ static int get_desc(Vring *vring, VirtQueueElement *elem,
 
     /* Stop for now if there are not enough iovecs available. */
     if (*num >= VIRTQUEUE_MAX_SIZE) {
-        return -ENOBUFS;
+        error_report("Invalid SG num: %u", *num);
+        return -EFAULT;
     }
 
     /* TODO handle non-contiguous memory across region boundaries */

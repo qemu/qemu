@@ -72,8 +72,10 @@
 #define DPRINTF(fmt, ...)
 #endif
 
-/* Leave a chunk of memory at the top of RAM for the BIOS ACPI tables.  */
-unsigned acpi_data_size = 0x20000;
+/* Leave a chunk of memory at the top of RAM for the BIOS ACPI tables
+ * (128K) and other BIOS datastructures (less than 4K reported to be used at
+ * the moment, 32K should be enough for a while).  */
+static unsigned acpi_data_size = 0x20000 + 0x8000;
 void pc_set_legacy_acpi_data_size(void)
 {
     acpi_data_size = 0x10000;
@@ -1522,6 +1524,7 @@ static void pc_generic_machine_class_init(ObjectClass *oc, void *data)
     mc->hot_add_cpu = qm->hot_add_cpu;
     mc->kvm_type = qm->kvm_type;
     mc->block_default_type = qm->block_default_type;
+    mc->units_per_default_bus = qm->units_per_default_bus;
     mc->max_cpus = qm->max_cpus;
     mc->no_serial = qm->no_serial;
     mc->no_parallel = qm->no_parallel;

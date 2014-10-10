@@ -150,15 +150,16 @@ typedef struct VGACommonState {
     uint32_t last_width, last_height; /* in chars or pixels */
     uint32_t last_scr_width, last_scr_height; /* in pixels */
     uint32_t last_depth; /* in bits */
+    bool last_byteswap;
     uint8_t cursor_start, cursor_end;
     bool cursor_visible_phase;
     int64_t cursor_blink_time;
     uint32_t cursor_offset;
-    unsigned int (*rgb_to_pixel)(unsigned int r,
-                                 unsigned int g, unsigned b);
     const GraphicHwOps *hw_ops;
     bool full_update_text;
     bool full_update_gfx;
+    bool big_endian_fb;
+    bool default_endian_fb;
     /* hardware mouse cursor support */
     uint32_t invalidated_y_table[VGA_MAX_HEIGHT / 32];
     void (*cursor_invalidate)(struct VGACommonState *s);

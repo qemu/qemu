@@ -97,7 +97,7 @@ static void clipper_init(MachineState *machine)
     /* IDE disk setup.  */
     {
         DriveInfo *hd[MAX_IDE_BUS * MAX_IDE_DEVS];
-        ide_drive_get(hd, MAX_IDE_BUS);
+        ide_drive_get(hd, ARRAY_SIZE(hd));
 
         pci_cmd646_ide_init(pci_bus, hd, 0);
     }

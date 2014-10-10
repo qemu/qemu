@@ -655,15 +655,6 @@ File name of a base image (see @option{create} subcommand)
 If this option is set to @code{on}, the image is encrypted.
 @end table
 
-@item cow
-User Mode Linux Copy On Write image format. It is supported only for
-compatibility with previous versions.
-Supported options:
-@table @code
-@item backing_file
-File name of a base image (see @option{create} subcommand)
-@end table
-
 @item vdi
 VirtualBox 1.1 compatible image format.
 Supported options:

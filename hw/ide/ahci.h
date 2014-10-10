@@ -332,4 +332,6 @@ void ahci_uninit(AHCIState *s);
 
 void ahci_reset(AHCIState *s);
 
+void ahci_ide_create_devs(PCIDevice *dev, DriveInfo **hd);
+
 #endif /* HW_IDE_AHCI_H */

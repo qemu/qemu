@@ -25,7 +25,7 @@ sub out {
 
 while (<>) {
     if (/^(disable )?([a-z_0-9]+)\(/) {
-        open GREP, '-|', 'git', 'grep', '-l', "trace_$2"
+        open GREP, '-|', 'git', 'grep', '-lw', "trace_$2"
             or die "run git grep: $!";
         my $fname;
         while ($fname = <GREP>) {

@@ -94,28 +94,28 @@ class TestQCow2(TestQemuImgInfo):
 class TestQCow3NotLazy(TestQemuImgInfo):
     '''Testing a qcow2 version 3 image with lazy refcounts disabled'''
     img_options = 'compat=1.1,lazy_refcounts=off'
-    json_compare = { 'compat': '1.1', 'lazy-refcounts': False }
-    human_compare = [ 'compat: 1.1', 'lazy refcounts: false' ]
+    json_compare = { 'compat': '1.1', 'lazy-refcounts': False, 'corrupt': False }
+    human_compare = [ 'compat: 1.1', 'lazy refcounts: false', 'corrupt: false' ]
 
 class TestQCow3Lazy(TestQemuImgInfo):
     '''Testing a qcow2 version 3 image with lazy refcounts enabled'''
     img_options = 'compat=1.1,lazy_refcounts=on'
-    json_compare = { 'compat': '1.1', 'lazy-refcounts': True }
-    human_compare = [ 'compat: 1.1', 'lazy refcounts: true' ]
+    json_compare = { 'compat': '1.1', 'lazy-refcounts': True, 'corrupt': False }
+    human_compare = [ 'compat: 1.1', 'lazy refcounts: true', 'corrupt: false' ]
 
 class TestQCow3NotLazyQMP(TestQMP):
     '''Testing a qcow2 version 3 image with lazy refcounts disabled, opening
        with lazy refcounts enabled'''
     img_options = 'compat=1.1,lazy_refcounts=off'
     qemu_options = 'lazy-refcounts=on'
-    compare = { 'compat': '1.1', 'lazy-refcounts': False }
+    compare = { 'compat': '1.1', 'lazy-refcounts': False, 'corrupt': False }
 
 class TestQCow3LazyQMP(TestQMP):
     '''Testing a qcow2 version 3 image with lazy refcounts enabled, opening
        with lazy refcounts disabled'''
     img_options = 'compat=1.1,lazy_refcounts=on'
     qemu_options = 'lazy-refcounts=off'
-    compare = { 'compat': '1.1', 'lazy-refcounts': True }
+    compare = { 'compat': '1.1', 'lazy-refcounts': True, 'corrupt': False }
 
 TestImageInfoSpecific = None
 TestQemuImgInfo = None

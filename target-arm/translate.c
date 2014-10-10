@@ -6997,22 +6997,18 @@ static int disas_coproc_insn(CPUARMState * env, DisasContext *s, uint32_t insn)
     const ARMCPRegInfo *ri;
 
     cpnum = (insn >> 8) & 0xf;
-    if (arm_feature(env, ARM_FEATURE_XSCALE)
-	    && ((env->cp15.c15_cpar ^ 0x3fff) & (1 << cpnum)))
-	return 1;
 
-    /* First check for coprocessor space used for actual instructions */
-    switch (cpnum) {
-      case 0:
-      case 1:
-	if (arm_feature(env, ARM_FEATURE_IWMMXT)) {
-	    return disas_iwmmxt_insn(env, s, insn);
-	} else if (arm_feature(env, ARM_FEATURE_XSCALE)) {
-	    return disas_dsp_insn(env, s, insn);
-	}
-	return 1;
-    default:
-        break;
+    /* First check for coprocessor space used for XScale/iwMMXt insns */
+    if (arm_feature(env, ARM_FEATURE_XSCALE) && (cpnum < 2)) {
+        if (extract32(s->c15_cpar, cpnum, 1) == 0) {
+            return 1;
+        }
+        if (arm_feature(env, ARM_FEATURE_IWMMXT)) {
+            return disas_iwmmxt_insn(env, s, insn);
+        } else if (arm_feature(env, ARM_FEATURE_XSCALE)) {
+            return disas_dsp_insn(env, s, insn);
+        }
+        return 1;
     }
 
     /* Otherwise treat as a generic register access */
@@ -7045,9 +7041,12 @@ static int disas_coproc_insn(CPUARMState * env, DisasContext *s, uint32_t insn)
             return 1;
         }
 
-        if (ri->accessfn) {
+        if (ri->accessfn ||
+            (arm_feature(env, ARM_FEATURE_XSCALE) && cpnum < 14)) {
             /* Emit code to perform further access permissions checks at
              * runtime; this may result in an exception.
+             * Note that on XScale all cp0..c13 registers do an access check
+             * call in order to handle c15_cpar.
              */
             TCGv_ptr tmpptr;
             TCGv_i32 tcg_syn;
@@ -7671,9 +7670,11 @@ static void disas_arm_insn(CPUARMState * env, DisasContext *s)
         } else if ((insn & 0x0e000f00) == 0x0c000100) {
             if (arm_feature(env, ARM_FEATURE_IWMMXT)) {
                 /* iWMMXt register transfer.  */
-                if (env->cp15.c15_cpar & (1 << 1))
-                    if (!disas_iwmmxt_insn(env, s, insn))
+                if (extract32(s->c15_cpar, 1, 1)) {
+                    if (!disas_iwmmxt_insn(env, s, insn)) {
                         return;
+                    }
+                }
             }
         } else if ((insn & 0x0fe00000) == 0x0c400000) {
             /* Coprocessor double register transfer.  */
@@ -10938,6 +10939,7 @@ static inline void gen_intermediate_code_internal(ARMCPU *cpu,
     dc->vfp_enabled = ARM_TBFLAG_VFPEN(tb->flags);
     dc->vec_len = ARM_TBFLAG_VECLEN(tb->flags);
     dc->vec_stride = ARM_TBFLAG_VECSTRIDE(tb->flags);
+    dc->c15_cpar = ARM_TBFLAG_XSCALE_CPAR(tb->flags);
     dc->cp_regs = cpu->cp_regs;
     dc->current_pl = arm_current_pl(env);
     dc->features = env->features;

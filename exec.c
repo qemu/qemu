@@ -595,7 +595,7 @@ int cpu_watchpoint_insert(CPUState *cpu, vaddr addr, vaddr len,
     CPUWatchpoint *wp;
 
     /* forbid ranges which are empty or run off the end of the address space */
-    if (len == 0 || (addr + len - 1) <= addr) {
+    if (len == 0 || (addr + len - 1) < addr) {
         error_report("tried to set invalid watchpoint at %"
                      VADDR_PRIx ", len=%" VADDR_PRIu, addr, len);
         return -EINVAL;

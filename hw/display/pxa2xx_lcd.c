@@ -279,14 +279,6 @@ static inline void pxa2xx_dma_ber_set(PXA2xxLCDState *s, int ch)
         s->liidr = s->dma_ch[ch].id;
 }
 
-/* Set Read Status interrupt high and poke associated registers */
-static inline void pxa2xx_dma_rdst_set(PXA2xxLCDState *s)
-{
-    s->status[0] |= LCSR0_RDST;
-    if (s->irqlevel && !(s->control[0] & LCCR0_RDSTM))
-        s->status[0] |= LCSR0_SINT;
-}
-
 /* Load new Frame Descriptors from DMA */
 static void pxa2xx_descriptor_load(PXA2xxLCDState *s)
 {

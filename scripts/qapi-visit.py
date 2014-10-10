@@ -263,7 +263,8 @@ void visit_type_%(name)s(Visitor *m, %(name)s **obj, const char *name, Error **e
     for key in members:
         assert (members[key] in builtin_types
             or find_struct(members[key])
-            or find_union(members[key])), "Invalid anonymous union member"
+            or find_union(members[key])
+            or find_enum(members[key])), "Invalid anonymous union member"
 
         enum_full_value = generate_enum_full_value(disc_type, key)
         ret += mcgen('''
@@ -357,6 +358,9 @@ void visit_type_%(name)s(Visitor *m, %(name)s **obj, const char *name, Error **e
         if (err) {
             goto out_obj;
         }
+        if (!visit_start_union(m, !!(*obj)->data, &err) || err) {
+            goto out_obj;
+        }
         switch ((*obj)->kind) {
 ''',
                  disc_type = disc_type,
@@ -383,6 +387,9 @@ void visit_type_%(name)s(Visitor *m, %(name)s **obj, const char *name, Error **e
             abort();
         }
 out_obj:
+        error_propagate(errp, err);
+        err = NULL;
+        visit_end_union(m, !!(*obj)->data, &err);
         error_propagate(errp, err);
         err = NULL;
     }

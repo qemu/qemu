@@ -400,6 +400,4 @@ static inline void cpu_pc_from_tb(CPUTriCoreState *env, TranslationBlock *tb)
     env->PC = tb->pc;
 }
 
-void do_interrupt(CPUTriCoreState *env);
-
 #endif /*__TRICORE_CPU_H__ */

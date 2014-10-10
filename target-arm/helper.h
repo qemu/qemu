@@ -50,6 +50,8 @@ DEF_HELPER_2(exception_internal, void, env, i32)
 DEF_HELPER_3(exception_with_syndrome, void, env, i32, i32)
 DEF_HELPER_1(wfi, void, env)
 DEF_HELPER_1(wfe, void, env)
+DEF_HELPER_1(pre_hvc, void, env)
+DEF_HELPER_2(pre_smc, void, env, i32)
 
 DEF_HELPER_3(cpsr_write, void, env, i32, i32)
 DEF_HELPER_1(cpsr_read, i32, env)

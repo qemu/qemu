@@ -204,45 +204,49 @@ static void change_root(void)
 void os_daemonize(void)
 {
     if (daemonize) {
-	pid_t pid;
+        pid_t pid;
 
-	if (pipe(fds) == -1)
-	    exit(1);
-
-	pid = fork();
-	if (pid > 0) {
-	    uint8_t status;
-	    ssize_t len;
-
-	    close(fds[1]);
-
-	again:
-            len = read(fds[0], &status, 1);
-            if (len == -1 && (errno == EINTR))
-                goto again;
-
-            if (len != 1)
-                exit(1);
-            else if (status == 1) {
-                fprintf(stderr, "Could not acquire pidfile: %s\n", strerror(errno));
-                exit(1);
-            } else
-                exit(0);
-	} else if (pid < 0)
+        if (pipe(fds) == -1) {
             exit(1);
+        }
 
-	close(fds[0]);
-	qemu_set_cloexec(fds[1]);
+        pid = fork();
+        if (pid > 0) {
+            uint8_t status;
+            ssize_t len;
 
-	setsid();
+            close(fds[1]);
 
-	pid = fork();
-	if (pid > 0)
-	    exit(0);
-	else if (pid < 0)
-	    exit(1);
+        again:
+            len = read(fds[0], &status, 1);
+            if (len == -1 && (errno == EINTR)) {
+                goto again;
+            }
+            if (len != 1) {
+                exit(1);
+            }
+            else if (status == 1) {
+                fprintf(stderr, "Could not acquire pidfile\n");
+                exit(1);
+            } else {
+                exit(0);
+            }
+            } else if (pid < 0) {
+                exit(1);
+            }
 
-	umask(027);
+        close(fds[0]);
+        qemu_set_cloexec(fds[1]);
+
+        setsid();
+
+        pid = fork();
+        if (pid > 0) {
+            exit(0);
+        } else if (pid < 0) {
+            exit(1);
+        }
+        umask(027);
 
         signal(SIGTSTP, SIG_IGN);
         signal(SIGTTOU, SIG_IGN);
@@ -255,24 +259,25 @@ void os_setup_post(void)
     int fd = 0;
 
     if (daemonize) {
-	uint8_t status = 0;
-	ssize_t len;
+        uint8_t status = 0;
+        ssize_t len;
 
     again1:
-	len = write(fds[1], &status, 1);
-	if (len == -1 && (errno == EINTR))
-	    goto again1;
-
-	if (len != 1)
-	    exit(1);
-
+        len = write(fds[1], &status, 1);
+        if (len == -1 && (errno == EINTR)) {
+            goto again1;
+        }
+        if (len != 1) {
+            exit(1);
+        }
         if (chdir("/")) {
             perror("not able to chdir to /");
             exit(1);
         }
-	TFR(fd = qemu_open("/dev/null", O_RDWR));
-	if (fd == -1)
-	    exit(1);
+        TFR(fd = qemu_open("/dev/null", O_RDWR));
+        if (fd == -1) {
+            exit(1);
+        }
     }
 
     change_root();
@@ -314,6 +319,8 @@ int qemu_create_pidfile(const char *filename)
         return -1;
     }
     if (lockf(fd, F_TLOCK, 0) == -1) {
+        fprintf(stderr, "lock file '%s' failed: %s\n",
+                filename, strerror(errno));
         close(fd);
         return -1;
     }

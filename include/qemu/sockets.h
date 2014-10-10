@@ -67,7 +67,7 @@ int qemu_setsockopt(int sockfd, int level, int optname,
 /* callback function for nonblocking connect
  * valid fd on success, negative error code on failure
  */
-typedef void NonBlockingConnectHandler(int fd, void *opaque);
+typedef void NonBlockingConnectHandler(int fd, Error *errp, void *opaque);
 
 InetSocketAddress *inet_parse(const char *str, Error **errp);
 int inet_listen_opts(QemuOpts *opts, int port_offset, Error **errp);

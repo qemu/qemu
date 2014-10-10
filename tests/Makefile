@@ -58,7 +58,7 @@ check-unit-y += tests/test-int128$(EXESUF)
 # all code tested by test-int128 is inside int128.h
 gcov-files-test-int128-y =
 check-unit-y += tests/test-bitops$(EXESUF)
-check-unit-y += tests/test-qdev-global-props$(EXESUF)
+check-unit-$(CONFIG_HAS_GLIB_SUBPROCESS_TESTS) += tests/test-qdev-global-props$(EXESUF)
 check-unit-y += tests/check-qom-interface$(EXESUF)
 gcov-files-check-qom-interface-y = qom/object.c
 check-unit-$(CONFIG_POSIX) += tests/test-vmstate$(EXESUF)
@@ -132,6 +132,7 @@ check-qtest-i386-y = tests/endianness-test$(EXESUF)
 check-qtest-i386-y += tests/fdc-test$(EXESUF)
 gcov-files-i386-y = hw/block/fdc.c
 check-qtest-i386-y += tests/ide-test$(EXESUF)
+check-qtest-i386-y += tests/ahci-test$(EXESUF)
 check-qtest-i386-y += tests/hd-geo-test$(EXESUF)
 gcov-files-i386-y += hw/block/hd-geometry.c
 check-qtest-i386-y += tests/boot-order-test$(EXESUF)
@@ -139,8 +140,7 @@ check-qtest-i386-y += tests/bios-tables-test$(EXESUF)
 check-qtest-i386-y += tests/rtc-test$(EXESUF)
 check-qtest-i386-y += tests/i440fx-test$(EXESUF)
 check-qtest-i386-y += tests/fw_cfg-test$(EXESUF)
-check-qtest-i386-y += tests/blockdev-test$(EXESUF)
-check-qtest-i386-y += tests/qdev-monitor-test$(EXESUF)
+check-qtest-i386-y += tests/drive_del-test$(EXESUF)
 check-qtest-i386-y += tests/wdt_ib700-test$(EXESUF)
 gcov-files-i386-y += hw/watchdog/watchdog.c hw/watchdog/wdt_ib700.c
 check-qtest-i386-y += $(check-qtest-pci-y)
@@ -192,26 +192,27 @@ check-qtest-xtensaeb-y = $(check-qtest-xtensa-y)
 
 # qom-test works for all sysemu architectures:
 $(foreach target,$(SYSEMU_TARGET_LIST), \
-    $(eval check-qtest-$(target)-y += tests/qom-test$(EXESUF)))
+	$(if $(findstring tests/qom-test$(EXESUF), $(check-qtest-$(target)-y)),, \
+		$(eval check-qtest-$(target)-y += tests/qom-test$(EXESUF))))
 
 check-qapi-schema-y := $(addprefix tests/qapi-schema/, \
-        comments.json empty.json funny-char.json indented-expr.json \
-        missing-colon.json missing-comma-list.json \
-        missing-comma-object.json non-objects.json \
-        qapi-schema-test.json quoted-structural-chars.json \
-        trailing-comma-list.json trailing-comma-object.json \
-        unclosed-list.json unclosed-object.json unclosed-string.json \
-        duplicate-key.json union-invalid-base.json flat-union-no-base.json \
-        flat-union-invalid-discriminator.json \
-        flat-union-invalid-branch-key.json flat-union-reverse-define.json \
-        flat-union-string-discriminator.json \
-        include-simple.json include-relpath.json include-format-err.json \
-        include-non-file.json include-no-file.json include-before-err.json \
-        include-nested-err.json include-self-cycle.json include-cycle.json \
-        include-repetition.json event-nest-struct.json)
+	comments.json empty.json funny-char.json indented-expr.json \
+	missing-colon.json missing-comma-list.json \
+	missing-comma-object.json non-objects.json \
+	qapi-schema-test.json quoted-structural-chars.json \
+	trailing-comma-list.json trailing-comma-object.json \
+	unclosed-list.json unclosed-object.json unclosed-string.json \
+	duplicate-key.json union-invalid-base.json flat-union-no-base.json \
+	flat-union-invalid-discriminator.json \
+	flat-union-invalid-branch-key.json flat-union-reverse-define.json \
+	flat-union-string-discriminator.json \
+	include-simple.json include-relpath.json include-format-err.json \
+	include-non-file.json include-no-file.json include-before-err.json \
+	include-nested-err.json include-self-cycle.json include-cycle.json \
+	include-repetition.json event-nest-struct.json)
 
 GENERATED_HEADERS += tests/test-qapi-types.h tests/test-qapi-visit.h \
-                     tests/test-qmp-commands.h tests/test-qapi-event.h
+		     tests/test-qmp-commands.h tests/test-qapi-event.h
 
 test-obj-y = tests/check-qint.o tests/check-qstring.o tests/check-qdict.o \
 	tests/check-qlist.o tests/check-qfloat.o tests/check-qjson.o \
@@ -223,7 +224,7 @@ test-obj-y = tests/check-qint.o tests/check-qstring.o tests/check-qdict.o \
 	tests/test-opts-visitor.o tests/test-qmp-event.o
 
 test-qapi-obj-y = tests/test-qapi-visit.o tests/test-qapi-types.o \
-                  tests/test-qapi-event.o
+		  tests/test-qapi-event.o
 
 $(test-obj-y): QEMU_INCLUDES += -Itests
 QEMU_CFLAGS += -I$(SRC_PATH)/tests
@@ -307,6 +308,7 @@ tests/endianness-test$(EXESUF): tests/endianness-test.o
 tests/spapr-phb-test$(EXESUF): tests/spapr-phb-test.o $(libqos-obj-y)
 tests/fdc-test$(EXESUF): tests/fdc-test.o
 tests/ide-test$(EXESUF): tests/ide-test.o $(libqos-pc-obj-y)
+tests/ahci-test$(EXESUF): tests/ahci-test.o $(libqos-pc-obj-y)
 tests/hd-geo-test$(EXESUF): tests/hd-geo-test.o
 tests/boot-order-test$(EXESUF): tests/boot-order-test.o $(libqos-obj-y)
 tests/bios-tables-test$(EXESUF): tests/bios-tables-test.o $(libqos-obj-y)
@@ -332,7 +334,7 @@ tests/tpci200-test$(EXESUF): tests/tpci200-test.o
 tests/display-vga-test$(EXESUF): tests/display-vga-test.o
 tests/ipoctal232-test$(EXESUF): tests/ipoctal232-test.o
 tests/qom-test$(EXESUF): tests/qom-test.o
-tests/blockdev-test$(EXESUF): tests/blockdev-test.o $(libqos-pc-obj-y)
+tests/drive_del-test$(EXESUF): tests/drive_del-test.o $(libqos-pc-obj-y)
 tests/qdev-monitor-test$(EXESUF): tests/qdev-monitor-test.o $(libqos-pc-obj-y)
 tests/nvme-test$(EXESUF): tests/nvme-test.o
 tests/pvpanic-test$(EXESUF): tests/pvpanic-test.o

@@ -212,7 +212,7 @@ static size_t curl_read_cb(void *ptr, size_t size, size_t nmemb, void *opaque)
             qemu_iovec_from_buf(acb->qiov, 0, s->orig_buf + acb->start,
                                 acb->end - acb->start);
             acb->common.cb(acb->common.opaque, 0);
-            qemu_aio_release(acb);
+            qemu_aio_unref(acb);
             s->acb[i] = NULL;
         }
     }
@@ -304,7 +304,7 @@ static void curl_multi_check_completion(BDRVCURLState *s)
                     }
 
                     acb->common.cb(acb->common.opaque, -EIO);
-                    qemu_aio_release(acb);
+                    qemu_aio_unref(acb);
                     state->acb[i] = NULL;
                 }
             }
@@ -613,14 +613,8 @@ out_noclean:
     return -EINVAL;
 }
 
-static void curl_aio_cancel(BlockDriverAIOCB *blockacb)
-{
-    // Do we have to implement canceling? Seems to work without...
-}
-
 static const AIOCBInfo curl_aiocb_info = {
     .aiocb_size         = sizeof(CURLAIOCB),
-    .cancel             = curl_aio_cancel,
 };
 
 
@@ -642,7 +636,7 @@ static void curl_readv_bh_cb(void *p)
     // we can just call the callback and be done.
     switch (curl_find_buf(s, start, acb->nb_sectors * SECTOR_SIZE, acb)) {
         case FIND_RET_OK:
-            qemu_aio_release(acb);
+            qemu_aio_unref(acb);
             // fall through
         case FIND_RET_WAIT:
             return;
@@ -654,7 +648,7 @@ static void curl_readv_bh_cb(void *p)
     state = curl_init_state(acb->common.bs, s);
     if (!state) {
         acb->common.cb(acb->common.opaque, -EIO);
-        qemu_aio_release(acb);
+        qemu_aio_unref(acb);
         return;
     }
 
@@ -670,7 +664,7 @@ static void curl_readv_bh_cb(void *p)
     if (state->buf_len && state->orig_buf == NULL) {
         curl_clean_state(state);
         acb->common.cb(acb->common.opaque, -ENOMEM);
-        qemu_aio_release(acb);
+        qemu_aio_unref(acb);
         return;
     }
     state->acb[0] = acb;

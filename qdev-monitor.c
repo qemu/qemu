@@ -206,7 +206,7 @@ int qdev_device_help(QemuOpts *opts)
     }
 
     prop_list = qmp_device_list_properties(driver, &local_err);
-    if (!prop_list) {
+    if (local_err) {
         error_printf("%s\n", error_get_pretty(local_err));
         error_free(local_err);
         return 1;

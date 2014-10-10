@@ -337,6 +337,7 @@ BlockDriverAIOCB *bdrv_aio_discard(BlockDriverState *bs,
                                    int64_t sector_num, int nb_sectors,
                                    BlockDriverCompletionFunc *cb, void *opaque);
 void bdrv_aio_cancel(BlockDriverAIOCB *acb);
+void bdrv_aio_cancel_async(BlockDriverAIOCB *acb);
 
 typedef struct BlockRequest {
     /* Fields to be filled by multiwrite caller */

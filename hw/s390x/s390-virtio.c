@@ -125,38 +125,6 @@ static void s390_virtio_register_hcalls(void)
                                    s390_virtio_hcall_set_status);
 }
 
-/*
- * The number of running CPUs. On s390 a shutdown is the state of all CPUs
- * being either stopped or disabled (for interrupts) waiting. We have to
- * track this number to call the shutdown sequence accordingly. This
- * number is modified either on startup or while holding the big qemu lock.
- */
-static unsigned s390_running_cpus;
-
-void s390_add_running_cpu(S390CPU *cpu)
-{
-    CPUState *cs = CPU(cpu);
-
-    if (cs->halted) {
-        s390_running_cpus++;
-        cs->halted = 0;
-        cs->exception_index = -1;
-    }
-}
-
-unsigned s390_del_running_cpu(S390CPU *cpu)
-{
-    CPUState *cs = CPU(cpu);
-
-    if (cs->halted == 0) {
-        assert(s390_running_cpus >= 1);
-        s390_running_cpus--;
-        cs->halted = 1;
-        cs->exception_index = EXCP_HLT;
-    }
-    return s390_running_cpus;
-}
-
 void s390_init_ipl_dev(const char *kernel_filename,
                        const char *kernel_cmdline,
                        const char *initrd_filename,

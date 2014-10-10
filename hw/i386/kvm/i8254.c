@@ -239,6 +239,7 @@ static void kvm_pit_vm_state_change(void *opaque, int running,
 
     if (running) {
         kvm_pit_update_clock_offset(s);
+        kvm_pit_put(PIT_COMMON(s));
         s->vm_stopped = false;
     } else {
         kvm_pit_update_clock_offset(s);
@@ -314,8 +315,6 @@ static void kvm_pit_class_init(ObjectClass *klass, void *data)
     dc->realize = kvm_pit_realizefn;
     k->set_channel_gate = kvm_pit_set_gate;
     k->get_channel_info = kvm_pit_get_channel_info;
-    k->pre_save = kvm_pit_get;
-    k->post_load = kvm_pit_put;
     dc->reset = kvm_pit_reset;
     dc->props = kvm_pit_properties;
 }

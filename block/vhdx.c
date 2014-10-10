@@ -99,7 +99,8 @@ static const MSGUID logical_sector_guid = { .data1 = 0x8141bf1d,
 /* Each parent type must have a valid GUID; this is for parent images
  * of type 'VHDX'.  If we were to allow e.g. a QCOW2 parent, we would
  * need to make up our own QCOW2 GUID type */
-static const MSGUID parent_vhdx_guid = { .data1 = 0xb04aefb7,
+static const MSGUID parent_vhdx_guid __attribute__((unused))
+                                     = { .data1 = 0xb04aefb7,
                                          .data2 = 0xd19e,
                                          .data3 = 0x4a81,
                                          .data4 = { 0xb7, 0x89, 0x25, 0xb8,
@@ -1407,6 +1408,12 @@ exit:
     return ret;
 }
 
+#define VHDX_METADATA_ENTRY_BUFFER_SIZE \
+                                    (sizeof(VHDXFileParameters)               +\
+                                     sizeof(VHDXVirtualDiskSize)              +\
+                                     sizeof(VHDXPage83Data)                   +\
+                                     sizeof(VHDXVirtualDiskLogicalSectorSize) +\
+                                     sizeof(VHDXVirtualDiskPhysicalSectorSize))
 
 /*
  * Create the Metadata entries.
@@ -1445,11 +1452,7 @@ static int vhdx_create_new_metadata(BlockDriverState *bs,
     VHDXVirtualDiskLogicalSectorSize  *mt_log_sector_size;
     VHDXVirtualDiskPhysicalSectorSize *mt_phys_sector_size;
 
-    entry_buffer = g_malloc0(sizeof(VHDXFileParameters)               +
-                             sizeof(VHDXVirtualDiskSize)              +
-                             sizeof(VHDXPage83Data)                   +
-                             sizeof(VHDXVirtualDiskLogicalSectorSize) +
-                             sizeof(VHDXVirtualDiskPhysicalSectorSize));
+    entry_buffer = g_malloc0(VHDX_METADATA_ENTRY_BUFFER_SIZE);
 
     mt_file_params = entry_buffer;
     offset += sizeof(VHDXFileParameters);
@@ -1530,7 +1533,7 @@ static int vhdx_create_new_metadata(BlockDriverState *bs,
     }
 
     ret = bdrv_pwrite(bs, metadata_offset + (64 * KiB), entry_buffer,
-                      VHDX_HEADER_BLOCK_SIZE);
+                      VHDX_METADATA_ENTRY_BUFFER_SIZE);
     if (ret < 0) {
         goto exit;
     }
@@ -1593,7 +1596,7 @@ static int vhdx_create_bat(BlockDriverState *bs, BDRVVHDXState *s,
                 bdrv_has_zero_init(bs) == 0) {
         /* for a fixed file, the default BAT entry is not zero */
         s->bat = g_try_malloc0(length);
-        if (length && s->bat != NULL) {
+        if (length && s->bat == NULL) {
             ret = -ENOMEM;
             goto exit;
         }
@@ -1724,7 +1727,6 @@ static int vhdx_create_new_region_table(BlockDriverState *bs,
     if (ret < 0) {
         goto exit;
     }
-
 
 exit:
     g_free(s);
@@ -1874,7 +1876,6 @@ static int vhdx_create(const char *filename, QemuOpts *opts, Error **errp)
     if (ret < 0) {
         goto delete_and_exit;
     }
-
 
 
 delete_and_exit:

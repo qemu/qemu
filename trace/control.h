@@ -149,13 +149,6 @@ static void trace_event_set_state_dynamic(TraceEvent *ev, bool state);
 
 
 /**
- * trace_print_events:
- *
- * Print the state of all events.
- */
-void trace_print_events(FILE *stream, fprintf_function stream_printf);
-
-/**
  * trace_init_backends:
  * @events: Name of file with events to be enabled at startup; may be NULL.
  *          Corresponds to commandline option "-trace events=...".

@@ -286,3 +286,19 @@ hwaddr mb_cpu_get_phys_page_debug(CPUState *cs, vaddr addr)
     return paddr;
 }
 #endif
+
+bool mb_cpu_exec_interrupt(CPUState *cs, int interrupt_request)
+{
+    MicroBlazeCPU *cpu = MICROBLAZE_CPU(cs);
+    CPUMBState *env = &cpu->env;
+
+    if ((interrupt_request & CPU_INTERRUPT_HARD)
+        && (env->sregs[SR_MSR] & MSR_IE)
+        && !(env->sregs[SR_MSR] & (MSR_EIP | MSR_BIP))
+        && !(env->iflags & (D_FLAG | IMM_FLAG))) {
+        cs->exception_index = EXCP_IRQ;
+        mb_cpu_do_interrupt(cs);
+        return true;
+    }
+    return false;
+}

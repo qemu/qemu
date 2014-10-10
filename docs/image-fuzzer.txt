@@ -125,7 +125,8 @@ If a fuzzer configuration is specified, then it has the next interpretation:
     will be always fuzzed for every test. This case is useful for regression
     testing.
 
-For now only header fields, header extensions and L1/L2 tables are generated.
+The generator can create header fields, header extensions, L1/L2 tables and
+refcount table and blocks.
 
 Module interfaces
 -----------------

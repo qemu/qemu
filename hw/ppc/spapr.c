@@ -541,7 +541,7 @@ static void *spapr_create_fdt_skel(hwaddr initrd_base,
     _FDT((fdt_property_cell(fdt, "rtas-error-log-max", RTAS_ERROR_LOG_MAX)));
 
     /*
-     * According to PAPR, rtas ibm,os-term, does not gaurantee a return
+     * According to PAPR, rtas ibm,os-term does not guarantee a return
      * back to the guest cpu.
      *
      * While an additional ibm,extended-os-term property indicates that

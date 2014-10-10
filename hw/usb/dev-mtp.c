@@ -1060,7 +1060,7 @@ static void usb_mtp_handle_data(USBDevice *dev, USBPacket *p)
     }
 }
 
-static int usb_mtp_initfn(USBDevice *dev)
+static void usb_mtp_realize(USBDevice *dev, Error **errp)
 {
     MTPState *s = DO_UPCAST(MTPState, dev, dev);
 
@@ -1075,7 +1075,6 @@ static int usb_mtp_initfn(USBDevice *dev)
             s->desc = g_strdup("none");
         }
     }
-    return 0;
 }
 
 static const VMStateDescription vmstate_usb_mtp = {
@@ -1100,7 +1099,7 @@ static void usb_mtp_class_initfn(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
     USBDeviceClass *uc = USB_DEVICE_CLASS(klass);
 
-    uc->init           = usb_mtp_initfn;
+    uc->realize        = usb_mtp_realize;
     uc->product_desc   = "QEMU USB MTP";
     uc->usb_desc       = &desc;
     uc->cancel_packet  = usb_mtp_cancel_packet;

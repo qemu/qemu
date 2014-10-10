@@ -20,7 +20,7 @@ QMP_VERSION
 {"return": {}}
 {"return": {}}
 {"error": {"class": "GenericError", "desc": "Device with id 'disk' already exists"}}
-{"error": {"class": "GenericError", "desc": "Device with node-name 'test-node' already exists"}}
+{"error": {"class": "GenericError", "desc": "Device name 'test-node' conflicts with an existing node name"}}
 main-loop: WARNING: I/O thread spun for 1000 iterations
 {"error": {"class": "GenericError", "desc": "could not open disk image disk2: node-name=disk is conflicting with a device id"}}
 {"error": {"class": "GenericError", "desc": "could not open disk image disk2: Duplicate node name"}}
@@ -59,6 +59,19 @@ Testing:
 QMP_VERSION
 {"return": {}}
 {"error": {"class": "GenericError", "desc": "could not open disk image disk: Guest must be stopped for opening of encrypted image"}}
+{"return": {}}
+{"timestamp": {"seconds":  TIMESTAMP, "microseconds":  TIMESTAMP}, "event": "SHUTDOWN"}
+{"timestamp": {"seconds":  TIMESTAMP, "microseconds":  TIMESTAMP}, "event": "DEVICE_TRAY_MOVED", "data": {"device": "ide1-cd0", "tray-open": true}}
+{"timestamp": {"seconds":  TIMESTAMP, "microseconds":  TIMESTAMP}, "event": "DEVICE_TRAY_MOVED", "data": {"device": "floppy0", "tray-open": true}}
+
+
+=== Missing driver ===
+
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=134217728 encryption=on 
+Testing: -S
+QMP_VERSION
+{"return": {}}
+{"error": {"class": "GenericError", "desc": "Invalid parameter type for 'driver', expected: string"}}
 {"return": {}}
 {"timestamp": {"seconds":  TIMESTAMP, "microseconds":  TIMESTAMP}, "event": "SHUTDOWN"}
 {"timestamp": {"seconds":  TIMESTAMP, "microseconds":  TIMESTAMP}, "event": "DEVICE_TRAY_MOVED", "data": {"device": "ide1-cd0", "tray-open": true}}

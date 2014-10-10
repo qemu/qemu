@@ -199,6 +199,29 @@ run_qemu -drive file.driver=raw
 run_qemu -drive foo=bar
 
 echo
+echo === Specifying both an option and its legacy alias ===
+echo
+
+run_qemu -drive file="$TEST_IMG",iops=1234,throttling.iops-total=5678
+run_qemu -drive file="$TEST_IMG",iops_rd=1234,throttling.iops-read=5678
+run_qemu -drive file="$TEST_IMG",iops_wr=1234,throttling.iops-write=5678
+
+run_qemu -drive file="$TEST_IMG",bps=1234,throttling.bps-total=5678
+run_qemu -drive file="$TEST_IMG",bps_rd=1234,throttling.bps-read=5678
+run_qemu -drive file="$TEST_IMG",bps_wr=1234,throttling.bps-write=5678
+
+run_qemu -drive file="$TEST_IMG",iops_max=1234,throttling.iops-total-max=5678
+run_qemu -drive file="$TEST_IMG",iops_rd_max=1234,throttling.iops-read-max=5678
+run_qemu -drive file="$TEST_IMG",iops_wr_max=1234,throttling.iops-write-max=5678
+
+run_qemu -drive file="$TEST_IMG",bps_max=1234,throttling.bps-total-max=5678
+run_qemu -drive file="$TEST_IMG",bps_rd_max=1234,throttling.bps-read-max=5678
+run_qemu -drive file="$TEST_IMG",bps_wr_max=1234,throttling.bps-write-max=5678
+
+run_qemu -drive file="$TEST_IMG",iops_size=1234,throttling.iops-size=5678
+run_qemu -drive file="$TEST_IMG",readonly=on,read-only=off
+
+echo
 echo === Parsing protocol from file name ===
 echo
 

@@ -2914,6 +2914,7 @@ static void vnc_listen_read(void *opaque, bool websocket)
     }
 
     if (csock != -1) {
+        socket_set_nodelay(csock);
         vnc_connect(vs, csock, false, websocket);
     }
 }

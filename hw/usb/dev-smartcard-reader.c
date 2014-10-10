@@ -1304,7 +1304,7 @@ static int ccid_card_init(DeviceState *qdev)
     return ret;
 }
 
-static int ccid_initfn(USBDevice *dev)
+static void ccid_realize(USBDevice *dev, Error **errp)
 {
     USBCCIDState *s = DO_UPCAST(USBCCIDState, dev, dev);
 
@@ -1332,7 +1332,6 @@ static int ccid_initfn(USBDevice *dev)
     ccid_reset_parameters(s);
     ccid_reset(s);
     s->debug = parse_debug_env("QEMU_CCID_DEBUG", D_VERBOSE, s->debug);
-    return 0;
 }
 
 static int ccid_post_load(void *opaque, int version_id)
@@ -1441,7 +1440,7 @@ static void ccid_class_initfn(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
     USBDeviceClass *uc = USB_DEVICE_CLASS(klass);
 
-    uc->init           = ccid_initfn;
+    uc->realize        = ccid_realize;
     uc->product_desc   = "QEMU USB CCID";
     uc->usb_desc       = &desc_ccid;
     uc->handle_reset   = ccid_handle_reset;

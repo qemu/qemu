@@ -25,6 +25,7 @@
 #include "qemu/option.h"
 #include "qemu/config-file.h"
 #include "sysemu/sysemu.h"
+#include "sysemu/accel.h"
 #include "hw/hw.h"
 #include "hw/pci/msi.h"
 #include "hw/s390x/adapter.h"
@@ -42,10 +43,6 @@
 /* This check must be after config-host.h is included */
 #ifdef CONFIG_EVENTFD
 #include <sys/eventfd.h>
-#endif
-
-#ifdef CONFIG_VALGRIND_H
-#include <valgrind/memcheck.h>
 #endif
 
 /* KVM uses PAGE_SIZE in its definition of COALESCED_MMIO_MAX */
@@ -76,6 +73,8 @@ typedef struct kvm_dirty_log KVMDirtyLog;
 
 struct KVMState
 {
+    AccelState parent_obj;
+
     KVMSlot *slots;
     int nr_slots;
     int fd;
@@ -109,6 +108,11 @@ struct KVMState
     bool direct_msi;
 #endif
 };
+
+#define TYPE_KVM_ACCEL ACCEL_CLASS_NAME("kvm")
+
+#define KVM_STATE(obj) \
+    OBJECT_CHECK(KVMState, (obj), TYPE_KVM_ACCEL)
 
 KVMState *kvm_state;
 bool kvm_kernel_irqchip;
@@ -1381,8 +1385,9 @@ static int kvm_max_vcpus(KVMState *s)
     return (ret) ? ret : kvm_recommended_vcpus(s);
 }
 
-int kvm_init(MachineClass *mc)
+static int kvm_init(MachineState *ms)
 {
+    MachineClass *mc = MACHINE_GET_CLASS(ms);
     static const char upgrade_note[] =
         "Please upgrade to at least kernel 2.6.29 or recent kvm-kmod\n"
         "(see http://sourceforge.net/projects/kvm).\n";
@@ -1401,7 +1406,7 @@ int kvm_init(MachineClass *mc)
     int i, type = 0;
     const char *kvm_type;
 
-    s = g_malloc0(sizeof(KVMState));
+    s = KVM_STATE(ms->accelerator);
 
     /*
      * On systems where the kernel can support different base page
@@ -1590,7 +1595,6 @@ err:
         close(s->fd);
     }
     g_free(s->slots);
-    g_free(s);
 
     return ret;
 }
@@ -1706,6 +1710,11 @@ static void do_kvm_cpu_synchronize_post_init(void *arg)
 void kvm_cpu_synchronize_post_init(CPUState *cpu)
 {
     run_on_cpu(cpu, do_kvm_cpu_synchronize_post_init, cpu);
+}
+
+void kvm_cpu_clean_state(CPUState *cpu)
+{
+    cpu->kvm_vcpu_dirty = false;
 }
 
 int kvm_cpu_exec(CPUState *cpu)
@@ -1954,9 +1963,6 @@ int kvm_has_intx_set_mask(void)
 
 void kvm_setup_guest_memory(void *start, size_t size)
 {
-#ifdef CONFIG_VALGRIND_H
-    VALGRIND_MAKE_MEM_DEFINED(start, size);
-#endif
     if (!kvm_has_sync_mmu()) {
         int ret = qemu_madvise(start, size, QEMU_MADV_DONTFORK);
 
@@ -2227,3 +2233,25 @@ int kvm_get_one_reg(CPUState *cs, uint64_t id, void *target)
     }
     return r;
 }
+
+static void kvm_accel_class_init(ObjectClass *oc, void *data)
+{
+    AccelClass *ac = ACCEL_CLASS(oc);
+    ac->name = "KVM";
+    ac->init_machine = kvm_init;
+    ac->allowed = &kvm_allowed;
+}
+
+static const TypeInfo kvm_accel_type = {
+    .name = TYPE_KVM_ACCEL,
+    .parent = TYPE_ACCEL,
+    .class_init = kvm_accel_class_init,
+    .instance_size = sizeof(KVMState),
+};
+
+static void kvm_type_init(void)
+{
+    type_register_static(&kvm_accel_type);
+}
+
+type_init(kvm_type_init);

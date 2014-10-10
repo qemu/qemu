@@ -23,7 +23,7 @@ for debugging, profiling, and observing execution.
 
 4. Pretty-print the binary trace file:
 
-    ./scripts/simpletrace.py trace-events trace-*
+    ./scripts/simpletrace.py trace-events trace-* # Override * with QEMU <pid>
 
 == Trace events ==
 

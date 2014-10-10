@@ -202,6 +202,19 @@ void lm32_cpu_do_interrupt(CPUState *cs)
     }
 }
 
+bool lm32_cpu_exec_interrupt(CPUState *cs, int interrupt_request)
+{
+    LM32CPU *cpu = LM32_CPU(cs);
+    CPULM32State *env = &cpu->env;
+
+    if ((interrupt_request & CPU_INTERRUPT_HARD) && (env->ie & IE_IE)) {
+        cs->exception_index = EXCP_IRQ;
+        lm32_cpu_do_interrupt(cs);
+        return true;
+    }
+    return false;
+}
+
 LM32CPU *cpu_lm32_init(const char *cpu_model)
 {
     return LM32_CPU(cpu_generic_init(TYPE_LM32_CPU, cpu_model));

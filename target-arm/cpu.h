@@ -51,6 +51,11 @@
 #define EXCP_EXCEPTION_EXIT  8   /* Return from v7M exception.  */
 #define EXCP_KERNEL_TRAP     9   /* Jumped to kernel code page.  */
 #define EXCP_STREX          10
+#define EXCP_HVC            11   /* HyperVisor Call */
+#define EXCP_HYP_TRAP       12
+#define EXCP_SMC            13   /* Secure Monitor Call */
+#define EXCP_VIRQ           14
+#define EXCP_VFIQ           15
 
 #define ARMV7M_EXCP_RESET   1
 #define ARMV7M_EXCP_NMI     2
@@ -65,6 +70,8 @@
 
 /* ARM-specific interrupt pending bits.  */
 #define CPU_INTERRUPT_FIQ   CPU_INTERRUPT_TGT_EXT_1
+#define CPU_INTERRUPT_VIRQ  CPU_INTERRUPT_TGT_EXT_2
+#define CPU_INTERRUPT_VFIQ  CPU_INTERRUPT_TGT_EXT_3
 
 /* The usual mapping for an AArch64 system register to its AArch32
  * counterpart is for the 32 bit world to have access to the lower
@@ -80,9 +87,11 @@
 #define offsetofhigh32(S, M) (offsetof(S, M) + sizeof(uint32_t))
 #endif
 
-/* Meanings of the ARMCPU object's two inbound GPIO lines */
+/* Meanings of the ARMCPU object's four inbound GPIO lines */
 #define ARM_CPU_IRQ 0
 #define ARM_CPU_FIQ 1
+#define ARM_CPU_VIRQ 2
+#define ARM_CPU_VFIQ 3
 
 typedef void ARMWriteCPFunc(void *opaque, int cp_info,
                             int srcreg, int operand, uint32_t value);
@@ -172,7 +181,6 @@ typedef struct CPUARMState {
         uint64_t c1_sys; /* System control register.  */
         uint64_t c1_coproc; /* Coprocessor access register.  */
         uint32_t c1_xscaleauxcr; /* XScale auxiliary control register.  */
-        uint32_t c1_scr; /* secure config register.  */
         uint64_t ttbr0_el1; /* MMU translation table base 0. */
         uint64_t ttbr1_el1; /* MMU translation table base 1. */
         uint64_t c2_control; /* MMU translation table base control.  */
@@ -184,6 +192,8 @@ typedef struct CPUARMState {
                         MPU write buffer control.  */
         uint32_t pmsav5_data_ap; /* PMSAv5 MPU data access permissions */
         uint32_t pmsav5_insn_ap; /* PMSAv5 MPU insn access permissions */
+        uint64_t hcr_el2; /* Hypervisor configuration register */
+        uint64_t scr_el3; /* Secure configuration register.  */
         uint32_t ifsr_el2; /* Fault status registers.  */
         uint64_t esr_el[4];
         uint32_t c6_region[8]; /* MPU base/size registers.  */
@@ -324,6 +334,7 @@ typedef struct CPUARMState {
     int eabi;
 #endif
 
+    struct CPUBreakpoint *cpu_breakpoint[16];
     struct CPUWatchpoint *cpu_watchpoint[16];
 
     CPU_COMMON
@@ -499,6 +510,12 @@ void pmccntr_sync(CPUARMState *env);
 #define PSTATE_MODE_EL1t 4
 #define PSTATE_MODE_EL0t 0
 
+/* Map EL and handler into a PSTATE_MODE.  */
+static inline unsigned int aarch64_pstate_mode(unsigned int el, bool handler)
+{
+    return (el << 2) | handler;
+}
+
 /* Return the current PSTATE value. For the moment we don't support 32<->64 bit
  * interprocessing, so we don't attempt to sync with the cpsr state used by
  * the 32 bit decoder.
@@ -565,6 +582,58 @@ static inline void xpsr_write(CPUARMState *env, uint32_t val, uint32_t mask)
         env->v7m.exception = val & 0x1ff;
     }
 }
+
+#define HCR_VM        (1ULL << 0)
+#define HCR_SWIO      (1ULL << 1)
+#define HCR_PTW       (1ULL << 2)
+#define HCR_FMO       (1ULL << 3)
+#define HCR_IMO       (1ULL << 4)
+#define HCR_AMO       (1ULL << 5)
+#define HCR_VF        (1ULL << 6)
+#define HCR_VI        (1ULL << 7)
+#define HCR_VSE       (1ULL << 8)
+#define HCR_FB        (1ULL << 9)
+#define HCR_BSU_MASK  (3ULL << 10)
+#define HCR_DC        (1ULL << 12)
+#define HCR_TWI       (1ULL << 13)
+#define HCR_TWE       (1ULL << 14)
+#define HCR_TID0      (1ULL << 15)
+#define HCR_TID1      (1ULL << 16)
+#define HCR_TID2      (1ULL << 17)
+#define HCR_TID3      (1ULL << 18)
+#define HCR_TSC       (1ULL << 19)
+#define HCR_TIDCP     (1ULL << 20)
+#define HCR_TACR      (1ULL << 21)
+#define HCR_TSW       (1ULL << 22)
+#define HCR_TPC       (1ULL << 23)
+#define HCR_TPU       (1ULL << 24)
+#define HCR_TTLB      (1ULL << 25)
+#define HCR_TVM       (1ULL << 26)
+#define HCR_TGE       (1ULL << 27)
+#define HCR_TDZ       (1ULL << 28)
+#define HCR_HCD       (1ULL << 29)
+#define HCR_TRVM      (1ULL << 30)
+#define HCR_RW        (1ULL << 31)
+#define HCR_CD        (1ULL << 32)
+#define HCR_ID        (1ULL << 33)
+#define HCR_MASK      ((1ULL << 34) - 1)
+
+#define SCR_NS                (1U << 0)
+#define SCR_IRQ               (1U << 1)
+#define SCR_FIQ               (1U << 2)
+#define SCR_EA                (1U << 3)
+#define SCR_FW                (1U << 4)
+#define SCR_AW                (1U << 5)
+#define SCR_NET               (1U << 6)
+#define SCR_SMD               (1U << 7)
+#define SCR_HCE               (1U << 8)
+#define SCR_SIF               (1U << 9)
+#define SCR_RW                (1U << 10)
+#define SCR_ST                (1U << 11)
+#define SCR_TWI               (1U << 12)
+#define SCR_TWE               (1U << 13)
+#define SCR_AARCH32_MASK      (0x3fff & ~(SCR_RW | SCR_ST))
+#define SCR_AARCH64_MASK      (0x3fff & ~SCR_NET)
 
 /* Return the current FPSCR value.  */
 uint32_t vfp_get_fpscr(CPUARMState *env);
@@ -709,6 +778,7 @@ static inline bool arm_el_is_aa64(CPUARMState *env, int el)
 }
 
 void arm_cpu_list(FILE *f, fprintf_function cpu_fprintf);
+unsigned int arm_excp_target_el(CPUState *cs, unsigned int excp_idx);
 
 /* Interface between CPU and Interrupt controller.  */
 void armv7m_nvic_set_pending(void *opaque, int irq);
@@ -1119,6 +1189,61 @@ bool write_cpustate_to_list(ARMCPU *cpu);
 #  define TARGET_VIRT_ADDR_SPACE_BITS 32
 #endif
 
+static inline bool arm_excp_unmasked(CPUState *cs, unsigned int excp_idx)
+{
+    CPUARMState *env = cs->env_ptr;
+    unsigned int cur_el = arm_current_pl(env);
+    unsigned int target_el = arm_excp_target_el(cs, excp_idx);
+    /* FIXME: Use actual secure state.  */
+    bool secure = false;
+    /* If in EL1/0, Physical IRQ routing to EL2 only happens from NS state.  */
+    bool irq_can_hyp = !secure && cur_el < 2 && target_el == 2;
+    /* ARMv7-M interrupt return works by loading a magic value
+     * into the PC.  On real hardware the load causes the
+     * return to occur.  The qemu implementation performs the
+     * jump normally, then does the exception return when the
+     * CPU tries to execute code at the magic address.
+     * This will cause the magic PC value to be pushed to
+     * the stack if an interrupt occurred at the wrong time.
+     * We avoid this by disabling interrupts when
+     * pc contains a magic address.
+     */
+    bool irq_unmasked = !(env->daif & PSTATE_I)
+                        && (!IS_M(env) || env->regs[15] < 0xfffffff0);
+
+    /* Don't take exceptions if they target a lower EL.  */
+    if (cur_el > target_el) {
+        return false;
+    }
+
+    switch (excp_idx) {
+    case EXCP_FIQ:
+        if (irq_can_hyp && (env->cp15.hcr_el2 & HCR_FMO)) {
+            return true;
+        }
+        return !(env->daif & PSTATE_F);
+    case EXCP_IRQ:
+        if (irq_can_hyp && (env->cp15.hcr_el2 & HCR_IMO)) {
+            return true;
+        }
+        return irq_unmasked;
+    case EXCP_VFIQ:
+        if (!secure && !(env->cp15.hcr_el2 & HCR_FMO)) {
+            /* VFIQs are only taken when hypervized and non-secure.  */
+            return false;
+        }
+        return !(env->daif & PSTATE_F);
+    case EXCP_VIRQ:
+        if (!secure && !(env->cp15.hcr_el2 & HCR_IMO)) {
+            /* VIRQs are only taken when hypervized and non-secure.  */
+            return false;
+        }
+        return irq_unmasked;
+    default:
+        g_assert_not_reached();
+    }
+}
+
 static inline CPUARMState *cpu_init(const char *cpu_model)
 {
     ARMCPU *cpu = cpu_arm_init(cpu_model);
@@ -1231,6 +1356,11 @@ static inline bool arm_singlestep_active(CPUARMState *env)
 #define ARM_TBFLAG_SS_ACTIVE_MASK (1 << ARM_TBFLAG_SS_ACTIVE_SHIFT)
 #define ARM_TBFLAG_PSTATE_SS_SHIFT 19
 #define ARM_TBFLAG_PSTATE_SS_MASK (1 << ARM_TBFLAG_PSTATE_SS_SHIFT)
+/* We store the bottom two bits of the CPAR as TB flags and handle
+ * checks on the other bits at runtime
+ */
+#define ARM_TBFLAG_XSCALE_CPAR_SHIFT 20
+#define ARM_TBFLAG_XSCALE_CPAR_MASK (3 << ARM_TBFLAG_XSCALE_CPAR_SHIFT)
 
 /* Bit usage when in AArch64 state */
 #define ARM_TBFLAG_AA64_EL_SHIFT    0
@@ -1265,6 +1395,8 @@ static inline bool arm_singlestep_active(CPUARMState *env)
     (((F) & ARM_TBFLAG_SS_ACTIVE_MASK) >> ARM_TBFLAG_SS_ACTIVE_SHIFT)
 #define ARM_TBFLAG_PSTATE_SS(F) \
     (((F) & ARM_TBFLAG_PSTATE_SS_MASK) >> ARM_TBFLAG_PSTATE_SS_SHIFT)
+#define ARM_TBFLAG_XSCALE_CPAR(F) \
+    (((F) & ARM_TBFLAG_XSCALE_CPAR_MASK) >> ARM_TBFLAG_XSCALE_CPAR_SHIFT)
 #define ARM_TBFLAG_AA64_EL(F) \
     (((F) & ARM_TBFLAG_AA64_EL_MASK) >> ARM_TBFLAG_AA64_EL_SHIFT)
 #define ARM_TBFLAG_AA64_FPEN(F) \
@@ -1342,6 +1474,8 @@ static inline void cpu_get_tb_cpu_state(CPUARMState *env, target_ulong *pc,
                 *flags |= ARM_TBFLAG_PSTATE_SS_MASK;
             }
         }
+        *flags |= (extract32(env->cp15.c15_cpar, 0, 2)
+                   << ARM_TBFLAG_XSCALE_CPAR_SHIFT);
     }
 
     *cs_base = 0;

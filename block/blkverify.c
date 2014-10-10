@@ -29,7 +29,6 @@ struct BlkverifyAIOCB {
 
     int ret;                    /* first completed request's result */
     unsigned int done;          /* completion counter */
-    bool *finished;             /* completion signal for cancel */
 
     QEMUIOVector *qiov;         /* user I/O vector */
     QEMUIOVector raw_qiov;      /* cloned I/O vector for raw file */
@@ -38,22 +37,8 @@ struct BlkverifyAIOCB {
     void (*verify)(BlkverifyAIOCB *acb);
 };
 
-static void blkverify_aio_cancel(BlockDriverAIOCB *blockacb)
-{
-    BlkverifyAIOCB *acb = (BlkverifyAIOCB *)blockacb;
-    AioContext *aio_context = bdrv_get_aio_context(blockacb->bs);
-    bool finished = false;
-
-    /* Wait until request completes, invokes its callback, and frees itself */
-    acb->finished = &finished;
-    while (!finished) {
-        aio_poll(aio_context, true);
-    }
-}
-
 static const AIOCBInfo blkverify_aiocb_info = {
     .aiocb_size         = sizeof(BlkverifyAIOCB),
-    .cancel             = blkverify_aio_cancel,
 };
 
 static void GCC_FMT_ATTR(2, 3) blkverify_err(BlkverifyAIOCB *acb,
@@ -194,7 +179,6 @@ static BlkverifyAIOCB *blkverify_aio_get(BlockDriverState *bs, bool is_write,
     acb->qiov = qiov;
     acb->buf = NULL;
     acb->verify = NULL;
-    acb->finished = NULL;
     return acb;
 }
 
@@ -208,10 +192,7 @@ static void blkverify_aio_bh(void *opaque)
         qemu_vfree(acb->buf);
     }
     acb->common.cb(acb->common.opaque, acb->ret);
-    if (acb->finished) {
-        *acb->finished = true;
-    }
-    qemu_aio_release(acb);
+    qemu_aio_unref(acb);
 }
 
 static void blkverify_aio_cb(void *opaque, int ret)

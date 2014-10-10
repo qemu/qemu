@@ -328,7 +328,6 @@ glusterfs=""
 glusterfs_discard="no"
 glusterfs_zerofill="no"
 archipelago=""
-virtio_blk_data_plane=""
 gtk=""
 gtkabi=""
 vte=""
@@ -390,6 +389,7 @@ cpp="${CPP-$cc -E}"
 objcopy="${OBJCOPY-${cross_prefix}objcopy}"
 ld="${LD-${cross_prefix}ld}"
 libtool="${LIBTOOL-${cross_prefix}libtool}"
+nm="${NM-${cross_prefix}nm}"
 strip="${STRIP-${cross_prefix}strip}"
 windres="${WINDRES-${cross_prefix}windres}"
 pkg_config_exe="${PKG_CONFIG-${cross_prefix}pkg-config}"
@@ -1108,9 +1108,8 @@ for opt do
   ;;
   --enable-archipelago) archipelago="yes"
   ;;
-  --disable-virtio-blk-data-plane) virtio_blk_data_plane="no"
-  ;;
-  --enable-virtio-blk-data-plane) virtio_blk_data_plane="yes"
+  --disable-virtio-blk-data-plane|--enable-virtio-blk-data-plane)
+      echo "$0: $opt is obsolete, virtio-blk data-plane is always on" >&2
   ;;
   --disable-gtk) gtk="no"
   ;;
@@ -1365,7 +1364,7 @@ Advanced options (experts only):
   --enable-linux-aio       enable Linux AIO support
   --disable-cap-ng         disable libcap-ng support
   --enable-cap-ng          enable libcap-ng support
-  --disable-attr           disables attr and xattr support
+  --disable-attr           disable attr and xattr support
   --enable-attr            enable attr and xattr support
   --disable-blobs          disable installing provided firmware blobs
   --enable-docs            enable documentation build
@@ -1396,7 +1395,7 @@ Advanced options (experts only):
   --with-vss-sdk=SDK-path  enable Windows VSS support in QEMU Guest Agent
   --with-win-sdk=SDK-path  path to Windows Platform SDK (to build VSS .tlb)
   --disable-seccomp        disable seccomp support
-  --enable-seccomp         enables seccomp support
+  --enable-seccomp         enable seccomp support
   --with-coroutine=BACKEND coroutine backend. Supported options:
                            gthread, ucontext, sigaltstack, windows
   --disable-coroutine-pool disable coroutine freelist (worse performance)
@@ -1411,7 +1410,7 @@ Advanced options (experts only):
   --enable-tpm             enable TPM support
   --disable-libssh2        disable ssh block device support
   --enable-libssh2         enable ssh block device support
-  --disable-vhdx           disables support for the Microsoft VHDX image format
+  --disable-vhdx           disable support for the Microsoft VHDX image format
   --enable-vhdx            enable support for the Microsoft VHDX image format
   --disable-quorum         disable quorum block filter support
   --enable-quorum          enable quorum block filter support
@@ -2739,6 +2738,12 @@ for i in $glib_modules; do
     fi
 done
 
+# g_test_trap_subprocess added in 2.38. Used by some tests.
+glib_subprocess=yes
+if ! $pkg_config --atleast-version=2.38 glib-2.0; then
+    glib_subprocess=no
+fi
+
 ##########################################
 # SHA command probe for modules
 if test "$modules" = yes; then
@@ -2957,16 +2962,6 @@ if test "$targetos" = Linux && test "$cpu" = i386 -o "$cpu" = x86_64; then
   tpm_passthrough=$tpm
 else
   tpm_passthrough=no
-fi
-
-##########################################
-# adjust virtio-blk-data-plane based on linux-aio
-
-if test "$virtio_blk_data_plane" = "yes" -a \
-	"$linux_aio" != "yes" ; then
-  error_exit "virtio-blk-data-plane requires Linux AIO, please try --enable-linux-aio"
-elif test -z "$virtio_blk_data_plane" ; then
-  virtio_blk_data_plane=$linux_aio
 fi
 
 ##########################################
@@ -3334,6 +3329,21 @@ int main(void)
 EOF
 if compile_prog "" "" ; then
   fallocate_punch_hole=yes
+fi
+
+# check for posix_fallocate
+posix_fallocate=no
+cat > $TMPC << EOF
+#include <fcntl.h>
+
+int main(void)
+{
+    posix_fallocate(0, 0, 0);
+    return 0;
+}
+EOF
+if compile_prog "" "" ; then
+    posix_fallocate=yes
 fi
 
 # check for sync_file_range
@@ -3990,12 +4000,11 @@ if compile_prog "-Werror" "" ; then
 fi
 
 ########################################
-# check if we have valgrind/valgrind.h and valgrind/memcheck.h
+# check if we have valgrind/valgrind.h
 
 valgrind_h=no
 cat > $TMPC << EOF
 #include <valgrind/valgrind.h>
-#include <valgrind/memcheck.h>
 int main(void) {
   return 0;
 }
@@ -4350,7 +4359,6 @@ echo "coroutine backend $coroutine"
 echo "coroutine pool    $coroutine_pool"
 echo "GlusterFS support $glusterfs"
 echo "Archipelago support $archipelago"
-echo "virtio-blk-data-plane $virtio_blk_data_plane"
 echo "gcov              $gcov_tool"
 echo "gcov enabled      $gcov"
 echo "TPM support       $tpm"
@@ -4560,6 +4568,9 @@ fi
 if test "$fallocate_punch_hole" = "yes" ; then
   echo "CONFIG_FALLOCATE_PUNCH_HOLE=y" >> $config_host_mak
 fi
+if test "$posix_fallocate" = "yes" ; then
+  echo "CONFIG_POSIX_FALLOCATE=y" >> $config_host_mak
+fi
 if test "$sync_file_range" = "yes" ; then
   echo "CONFIG_SYNC_FILE_RANGE=y" >> $config_host_mak
 fi
@@ -4616,6 +4627,9 @@ fi
 if test "$bluez" = "yes" ; then
   echo "CONFIG_BLUEZ=y" >> $config_host_mak
   echo "BLUEZ_CFLAGS=$bluez_cflags" >> $config_host_mak
+fi
+if test "glib_subprocess" = "yes" ; then
+  echo "CONFIG_HAS_GLIB_SUBPROCESS_TESTS=y" >> $config_host_mak
 fi
 echo "GLIB_CFLAGS=$glib_cflags" >> $config_host_mak
 if test "$gtk" = "yes" ; then
@@ -4810,10 +4824,6 @@ if test "$quorum" = "yes" ; then
   echo "CONFIG_QUORUM=y" >> $config_host_mak
 fi
 
-if test "$virtio_blk_data_plane" = "yes" ; then
-  echo 'CONFIG_VIRTIO_BLK_DATA_PLANE=$(CONFIG_VIRTIO)' >> $config_host_mak
-fi
-
 if test "$vhdx" = "yes" ; then
   echo "CONFIG_VHDX=y" >> $config_host_mak
 fi
@@ -4920,6 +4930,7 @@ echo "AS=$as" >> $config_host_mak
 echo "CPP=$cpp" >> $config_host_mak
 echo "OBJCOPY=$objcopy" >> $config_host_mak
 echo "LD=$ld" >> $config_host_mak
+echo "NM=$nm" >> $config_host_mak
 echo "WINDRES=$windres" >> $config_host_mak
 echo "LIBTOOL=$libtool" >> $config_host_mak
 echo "CFLAGS=$CFLAGS" >> $config_host_mak
@@ -5048,7 +5059,7 @@ case "$target_name" in
   aarch64)
     TARGET_BASE_ARCH=arm
     bflt="yes"
-    gdb_xml_files="aarch64-core.xml aarch64-fpu.xml"
+    gdb_xml_files="aarch64-core.xml aarch64-fpu.xml arm-core.xml arm-vfp.xml arm-vfp3.xml arm-neon.xml"
   ;;
   cris)
   ;;

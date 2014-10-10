@@ -176,7 +176,7 @@ static void s390_ipl_reset(DeviceState *dev)
         }
     }
 
-    s390_add_running_cpu(cpu);
+    s390_cpu_set_state(CPU_STATE_OPERATING, cpu);
 }
 
 static void s390_ipl_class_init(ObjectClass *klass, void *data)

@@ -23,7 +23,7 @@ QEMU_DGFLAGS += -MMD -MP -MT $@ -MF $(*D)/$(*F).d
 QEMU_INCLUDES += -I$(<D) -I$(@D)
 
 WL_U := -Wl,-u,
-find-symbols = $(if $1, $(sort $(shell nm -P -g $1 | $2)))
+find-symbols = $(if $1, $(sort $(shell $(NM) -P -g $1 | $2)))
 defined-symbols = $(call find-symbols,$1,awk '$$2!="U"{print $$1}')
 undefined-symbols = $(call find-symbols,$1,awk '$$2=="U"{print $$1}')
 

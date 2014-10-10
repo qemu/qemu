@@ -105,23 +105,6 @@ static void scsi_check_condition(SCSIDiskReq *r, SCSISense sense)
     scsi_req_complete(&r->req, CHECK_CONDITION);
 }
 
-/* Cancel a pending data transfer.  */
-static void scsi_cancel_io(SCSIRequest *req)
-{
-    SCSIDiskReq *r = DO_UPCAST(SCSIDiskReq, req, req);
-
-    DPRINTF("Cancel tag=0x%x\n", req->tag);
-    if (r->req.aiocb) {
-        bdrv_aio_cancel(r->req.aiocb);
-
-        /* This reference was left in by scsi_*_data.  We take ownership of
-         * it the moment scsi_req_cancel is called, independent of whether
-         * bdrv_aio_cancel completes the request or not.  */
-        scsi_req_unref(&r->req);
-    }
-    r->req.aiocb = NULL;
-}
-
 static uint32_t scsi_init_iovec(SCSIDiskReq *r, size_t size)
 {
     SCSIDiskState *s = DO_UPCAST(SCSIDiskState, qdev, r->req.dev);
@@ -185,6 +168,7 @@ static void scsi_aio_complete(void *opaque, int ret)
     r->req.aiocb = NULL;
     block_acct_done(bdrv_get_stats(s->qdev.conf.bs), &r->acct);
     if (r->req.io_canceled) {
+        scsi_req_cancel_complete(&r->req);
         goto done;
     }
 
@@ -197,9 +181,7 @@ static void scsi_aio_complete(void *opaque, int ret)
     scsi_req_complete(&r->req, GOOD);
 
 done:
-    if (!r->req.io_canceled) {
-        scsi_req_unref(&r->req);
-    }
+    scsi_req_unref(&r->req);
 }
 
 static bool scsi_is_cmd_fua(SCSICommand *cmd)
@@ -233,6 +215,7 @@ static void scsi_write_do_fua(SCSIDiskReq *r)
     SCSIDiskState *s = DO_UPCAST(SCSIDiskState, qdev, r->req.dev);
 
     if (r->req.io_canceled) {
+        scsi_req_cancel_complete(&r->req);
         goto done;
     }
 
@@ -246,9 +229,7 @@ static void scsi_write_do_fua(SCSIDiskReq *r)
     scsi_req_complete(&r->req, GOOD);
 
 done:
-    if (!r->req.io_canceled) {
-        scsi_req_unref(&r->req);
-    }
+    scsi_req_unref(&r->req);
 }
 
 static void scsi_dma_complete_noio(void *opaque, int ret)
@@ -261,6 +242,7 @@ static void scsi_dma_complete_noio(void *opaque, int ret)
         block_acct_done(bdrv_get_stats(s->qdev.conf.bs), &r->acct);
     }
     if (r->req.io_canceled) {
+        scsi_req_cancel_complete(&r->req);
         goto done;
     }
 
@@ -280,9 +262,7 @@ static void scsi_dma_complete_noio(void *opaque, int ret)
     }
 
 done:
-    if (!r->req.io_canceled) {
-        scsi_req_unref(&r->req);
-    }
+    scsi_req_unref(&r->req);
 }
 
 static void scsi_dma_complete(void *opaque, int ret)
@@ -303,6 +283,7 @@ static void scsi_read_complete(void * opaque, int ret)
     r->req.aiocb = NULL;
     block_acct_done(bdrv_get_stats(s->qdev.conf.bs), &r->acct);
     if (r->req.io_canceled) {
+        scsi_req_cancel_complete(&r->req);
         goto done;
     }
 
@@ -320,9 +301,7 @@ static void scsi_read_complete(void * opaque, int ret)
     scsi_req_data(&r->req, r->qiov.size);
 
 done:
-    if (!r->req.io_canceled) {
-        scsi_req_unref(&r->req);
-    }
+    scsi_req_unref(&r->req);
 }
 
 /* Actually issue a read to the block device.  */
@@ -337,6 +316,7 @@ static void scsi_do_read(void *opaque, int ret)
         block_acct_done(bdrv_get_stats(s->qdev.conf.bs), &r->acct);
     }
     if (r->req.io_canceled) {
+        scsi_req_cancel_complete(&r->req);
         goto done;
     }
 
@@ -363,9 +343,7 @@ static void scsi_do_read(void *opaque, int ret)
     }
 
 done:
-    if (!r->req.io_canceled) {
-        scsi_req_unref(&r->req);
-    }
+    scsi_req_unref(&r->req);
 }
 
 /* Read more data from scsi device into buffer.  */
@@ -459,6 +437,7 @@ static void scsi_write_complete(void * opaque, int ret)
         block_acct_done(bdrv_get_stats(s->qdev.conf.bs), &r->acct);
     }
     if (r->req.io_canceled) {
+        scsi_req_cancel_complete(&r->req);
         goto done;
     }
 
@@ -481,9 +460,7 @@ static void scsi_write_complete(void * opaque, int ret)
     }
 
 done:
-    if (!r->req.io_canceled) {
-        scsi_req_unref(&r->req);
-    }
+    scsi_req_unref(&r->req);
 }
 
 static void scsi_write_data(SCSIRequest *req)
@@ -1553,6 +1530,7 @@ static void scsi_unmap_complete(void *opaque, int ret)
 
     r->req.aiocb = NULL;
     if (r->req.io_canceled) {
+        scsi_req_cancel_complete(&r->req);
         goto done;
     }
 
@@ -1582,9 +1560,7 @@ static void scsi_unmap_complete(void *opaque, int ret)
     scsi_req_complete(&r->req, GOOD);
 
 done:
-    if (!r->req.io_canceled) {
-        scsi_req_unref(&r->req);
-    }
+    scsi_req_unref(&r->req);
     g_free(data);
 }
 
@@ -1654,6 +1630,7 @@ static void scsi_write_same_complete(void *opaque, int ret)
     r->req.aiocb = NULL;
     block_acct_done(bdrv_get_stats(s->qdev.conf.bs), &r->acct);
     if (r->req.io_canceled) {
+        scsi_req_cancel_complete(&r->req);
         goto done;
     }
 
@@ -1678,9 +1655,7 @@ static void scsi_write_same_complete(void *opaque, int ret)
     scsi_req_complete(&r->req, GOOD);
 
 done:
-    if (!r->req.io_canceled) {
-        scsi_req_unref(&r->req);
-    }
+    scsi_req_unref(&r->req);
     qemu_vfree(data->iov.iov_base);
     g_free(data);
 }
@@ -2346,7 +2321,6 @@ static const SCSIReqOps scsi_disk_emulate_reqops = {
     .send_command = scsi_disk_emulate_command,
     .read_data    = scsi_disk_emulate_read_data,
     .write_data   = scsi_disk_emulate_write_data,
-    .cancel_io    = scsi_cancel_io,
     .get_buf      = scsi_get_buf,
 };
 
@@ -2356,7 +2330,6 @@ static const SCSIReqOps scsi_disk_dma_reqops = {
     .send_command = scsi_disk_dma_command,
     .read_data    = scsi_read_data,
     .write_data   = scsi_write_data,
-    .cancel_io    = scsi_cancel_io,
     .get_buf      = scsi_get_buf,
     .load_request = scsi_disk_load_request,
     .save_request = scsi_disk_save_request,

@@ -160,10 +160,15 @@ void qvirtio_set_acknowledge(const QVirtioBus *bus, QVirtioDevice *d);
 void qvirtio_set_driver(const QVirtioBus *bus, QVirtioDevice *d);
 void qvirtio_set_driver_ok(const QVirtioBus *bus, QVirtioDevice *d);
 
-bool qvirtio_wait_queue_isr(const QVirtioBus *bus, QVirtioDevice *d,
-                                            QVirtQueue *vq, uint64_t timeout);
-bool qvirtio_wait_config_isr(const QVirtioBus *bus, QVirtioDevice *d,
-                                                            uint64_t timeout);
+void qvirtio_wait_queue_isr(const QVirtioBus *bus, QVirtioDevice *d,
+                            QVirtQueue *vq, gint64 timeout_us);
+uint8_t qvirtio_wait_status_byte_no_isr(const QVirtioBus *bus,
+                                        QVirtioDevice *d,
+                                        QVirtQueue *vq,
+                                        uint64_t addr,
+                                        gint64 timeout_us);
+void qvirtio_wait_config_isr(const QVirtioBus *bus, QVirtioDevice *d,
+                             gint64 timeout_us);
 QVirtQueue *qvirtqueue_setup(const QVirtioBus *bus, QVirtioDevice *d,
                                         QGuestAllocator *alloc, uint16_t index);
 

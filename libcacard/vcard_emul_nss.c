@@ -286,10 +286,10 @@ vcard_emul_rsa_op(VCard *card, VCardKey *key,
             }
         }
         if ((i < buffer_size) && (buffer[i] == 0)) {
-            /* yes, we have a properly formated PKCS #1 signature */
+            /* yes, we have a properly formatted PKCS #1 signature */
             /*
              * NOTE: even if we accidentally got an encrypt buffer, which
-             * through shear luck started with 00, 01, ff, 00, it won't matter
+             * through sheer luck started with 00, 01, ff, 00, it won't matter
              * because the resulting Sign operation will effectively decrypt
              * the real buffer.
              */

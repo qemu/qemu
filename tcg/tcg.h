@@ -274,74 +274,53 @@ typedef enum TCGMemOp {
 
 typedef tcg_target_ulong TCGArg;
 
-/* Define a type and accessor macros for variables.  Using a struct is
-   nice because it gives some level of type safely.  Ideally the compiler
-   be able to see through all this.  However in practice this is not true,
-   especially on targets with braindamaged ABIs (e.g. i386).
-   We use plain int by default to avoid this runtime overhead.
-   Users of tcg_gen_* don't need to know about any of this, and should
-   treat TCGv as an opaque type.
+/* Define a type and accessor macros for variables.  Using pointer types
+   is nice because it gives some level of type safely.  Converting to and
+   from intptr_t rather than int reduces the number of sign-extension
+   instructions that get implied on 64-bit hosts.  Users of tcg_gen_* don't
+   need to know about any of this, and should treat TCGv as an opaque type.
    In addition we do typechecking for different types of variables.  TCGv_i32
    and TCGv_i64 are 32/64-bit variables respectively.  TCGv and TCGv_ptr
-   are aliases for target_ulong and host pointer sized values respectively.
- */
+   are aliases for target_ulong and host pointer sized values respectively.  */
 
-#ifdef CONFIG_DEBUG_TCG
-#define DEBUG_TCGV 1
-#endif
+typedef struct TCGv_i32_d *TCGv_i32;
+typedef struct TCGv_i64_d *TCGv_i64;
+typedef struct TCGv_ptr_d *TCGv_ptr;
 
-#ifdef DEBUG_TCGV
-
-typedef struct
+static inline TCGv_i32 QEMU_ARTIFICIAL MAKE_TCGV_I32(intptr_t i)
 {
-    int i32;
-} TCGv_i32;
+    return (TCGv_i32)i;
+}
 
-typedef struct
+static inline TCGv_i64 QEMU_ARTIFICIAL MAKE_TCGV_I64(intptr_t i)
 {
-    int i64;
-} TCGv_i64;
+    return (TCGv_i64)i;
+}
 
-typedef struct {
-    int iptr;
-} TCGv_ptr;
+static inline TCGv_ptr QEMU_ARTIFICIAL MAKE_TCGV_PTR(intptr_t i)
+{
+    return (TCGv_ptr)i;
+}
 
-#define MAKE_TCGV_I32(i) __extension__                  \
-    ({ TCGv_i32 make_tcgv_tmp = {i}; make_tcgv_tmp;})
-#define MAKE_TCGV_I64(i) __extension__                  \
-    ({ TCGv_i64 make_tcgv_tmp = {i}; make_tcgv_tmp;})
-#define MAKE_TCGV_PTR(i) __extension__                  \
-    ({ TCGv_ptr make_tcgv_tmp = {i}; make_tcgv_tmp; })
-#define GET_TCGV_I32(t) ((t).i32)
-#define GET_TCGV_I64(t) ((t).i64)
-#define GET_TCGV_PTR(t) ((t).iptr)
+static inline intptr_t QEMU_ARTIFICIAL GET_TCGV_I32(TCGv_i32 t)
+{
+    return (intptr_t)t;
+}
+
+static inline intptr_t QEMU_ARTIFICIAL GET_TCGV_I64(TCGv_i64 t)
+{
+    return (intptr_t)t;
+}
+
+static inline intptr_t QEMU_ARTIFICIAL GET_TCGV_PTR(TCGv_ptr t)
+{
+    return (intptr_t)t;
+}
+
 #if TCG_TARGET_REG_BITS == 32
 #define TCGV_LOW(t) MAKE_TCGV_I32(GET_TCGV_I64(t))
 #define TCGV_HIGH(t) MAKE_TCGV_I32(GET_TCGV_I64(t) + 1)
 #endif
-
-#else /* !DEBUG_TCGV */
-
-typedef int TCGv_i32;
-typedef int TCGv_i64;
-#if TCG_TARGET_REG_BITS == 32
-#define TCGv_ptr TCGv_i32
-#else
-#define TCGv_ptr TCGv_i64
-#endif
-#define MAKE_TCGV_I32(x) (x)
-#define MAKE_TCGV_I64(x) (x)
-#define MAKE_TCGV_PTR(x) (x)
-#define GET_TCGV_I32(t) (t)
-#define GET_TCGV_I64(t) (t)
-#define GET_TCGV_PTR(t) (t)
-
-#if TCG_TARGET_REG_BITS == 32
-#define TCGV_LOW(t) (t)
-#define TCGV_HIGH(t) ((t) + 1)
-#endif
-
-#endif /* DEBUG_TCGV */
 
 #define TCGV_EQUAL_I32(a, b) (GET_TCGV_I32(a) == GET_TCGV_I32(b))
 #define TCGV_EQUAL_I64(a, b) (GET_TCGV_I64(a) == GET_TCGV_I64(b))

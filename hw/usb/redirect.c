@@ -1256,6 +1256,7 @@ static void usbredir_device_reject_bh(void *opaque)
 static void usbredir_do_attach(void *opaque)
 {
     USBRedirDevice *dev = opaque;
+    Error *local_err = NULL;
 
     /* In order to work properly with XHCI controllers we need these caps */
     if ((dev->dev.port->speedmask & USB_SPEED_MASK_SUPER) && !(
@@ -1270,7 +1271,10 @@ static void usbredir_do_attach(void *opaque)
         return;
     }
 
-    if (usb_device_attach(&dev->dev) != 0) {
+    usb_device_attach(&dev->dev, &local_err);
+    if (local_err) {
+        error_report("%s", error_get_pretty(local_err));
+        error_free(local_err);
         WARNING("rejecting device due to speed mismatch\n");
         usbredir_reject_device(dev);
     }
@@ -1357,14 +1361,14 @@ static void usbredir_init_endpoints(USBRedirDevice *dev)
     }
 }
 
-static int usbredir_initfn(USBDevice *udev)
+static void usbredir_realize(USBDevice *udev, Error **errp)
 {
     USBRedirDevice *dev = DO_UPCAST(USBRedirDevice, dev, udev);
     int i;
 
     if (dev->cs == NULL) {
-        qerror_report(QERR_MISSING_PARAMETER, "chardev");
-        return -1;
+        error_set(errp, QERR_MISSING_PARAMETER, "chardev");
+        return;
     }
 
     if (dev->filter_str) {
@@ -1372,9 +1376,9 @@ static int usbredir_initfn(USBDevice *udev)
                                            &dev->filter_rules,
                                            &dev->filter_rules_count);
         if (i) {
-            qerror_report(QERR_INVALID_PARAMETER_VALUE, "filter",
-                          "a usb device filter string");
-            return -1;
+            error_set(errp, QERR_INVALID_PARAMETER_VALUE, "filter",
+                      "a usb device filter string");
+            return;
         }
     }
 
@@ -1398,7 +1402,6 @@ static int usbredir_initfn(USBDevice *udev)
 
     qemu_add_vm_change_state_handler(usbredir_vm_state_change, dev);
     add_boot_device_path(dev->bootindex, &udev->qdev, NULL);
-    return 0;
 }
 
 static void usbredir_cleanup_device_queues(USBRedirDevice *dev)
@@ -2477,7 +2480,7 @@ static void usbredir_class_initfn(ObjectClass *klass, void *data)
     USBDeviceClass *uc = USB_DEVICE_CLASS(klass);
     DeviceClass *dc = DEVICE_CLASS(klass);
 
-    uc->init           = usbredir_initfn;
+    uc->realize        = usbredir_realize;
     uc->product_desc   = "USB Redirection Device";
     uc->handle_destroy = usbredir_handle_destroy;
     uc->cancel_packet  = usbredir_cancel_packet;

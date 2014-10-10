@@ -41,7 +41,7 @@
 #define QVIRTIO_BLK_T_GET_ID        8
 
 #define TEST_IMAGE_SIZE         (64 * 1024 * 1024)
-#define QVIRTIO_BLK_TIMEOUT     100
+#define QVIRTIO_BLK_TIMEOUT_US  (30 * 1000 * 1000)
 #define PCI_SLOT                0x04
 #define PCI_FN                  0x00
 
@@ -183,8 +183,8 @@ static void pci_basic(void)
     qvirtqueue_add(&vqpci->vq, req_addr + 528, 1, true, false);
     qvirtqueue_kick(&qvirtio_pci, &dev->vdev, &vqpci->vq, free_head);
 
-    g_assert(qvirtio_wait_queue_isr(&qvirtio_pci, &dev->vdev, &vqpci->vq,
-                                                        QVIRTIO_BLK_TIMEOUT));
+    qvirtio_wait_queue_isr(&qvirtio_pci, &dev->vdev, &vqpci->vq,
+                           QVIRTIO_BLK_TIMEOUT_US);
     status = readb(req_addr + 528);
     g_assert_cmpint(status, ==, 0);
 
@@ -205,8 +205,8 @@ static void pci_basic(void)
 
     qvirtqueue_kick(&qvirtio_pci, &dev->vdev, &vqpci->vq, free_head);
 
-    g_assert(qvirtio_wait_queue_isr(&qvirtio_pci, &dev->vdev, &vqpci->vq,
-                                                        QVIRTIO_BLK_TIMEOUT));
+    qvirtio_wait_queue_isr(&qvirtio_pci, &dev->vdev, &vqpci->vq,
+                           QVIRTIO_BLK_TIMEOUT_US);
     status = readb(req_addr + 528);
     g_assert_cmpint(status, ==, 0);
 
@@ -233,8 +233,8 @@ static void pci_basic(void)
 
     qvirtqueue_kick(&qvirtio_pci, &dev->vdev, &vqpci->vq, free_head);
 
-    g_assert(qvirtio_wait_queue_isr(&qvirtio_pci, &dev->vdev, &vqpci->vq,
-                                                        QVIRTIO_BLK_TIMEOUT));
+    qvirtio_wait_queue_isr(&qvirtio_pci, &dev->vdev, &vqpci->vq,
+                           QVIRTIO_BLK_TIMEOUT_US);
     status = readb(req_addr + 528);
     g_assert_cmpint(status, ==, 0);
 
@@ -256,8 +256,8 @@ static void pci_basic(void)
 
     qvirtqueue_kick(&qvirtio_pci, &dev->vdev, &vqpci->vq, free_head);
 
-    g_assert(qvirtio_wait_queue_isr(&qvirtio_pci, &dev->vdev, &vqpci->vq,
-                                                        QVIRTIO_BLK_TIMEOUT));
+    qvirtio_wait_queue_isr(&qvirtio_pci, &dev->vdev, &vqpci->vq,
+                           QVIRTIO_BLK_TIMEOUT_US);
     status = readb(req_addr + 528);
     g_assert_cmpint(status, ==, 0);
 
@@ -329,8 +329,8 @@ static void pci_indirect(void)
     free_head = qvirtqueue_add_indirect(&vqpci->vq, indirect);
     qvirtqueue_kick(&qvirtio_pci, &dev->vdev, &vqpci->vq, free_head);
 
-    g_assert(qvirtio_wait_queue_isr(&qvirtio_pci, &dev->vdev, &vqpci->vq,
-                                                        QVIRTIO_BLK_TIMEOUT));
+    qvirtio_wait_queue_isr(&qvirtio_pci, &dev->vdev, &vqpci->vq,
+                           QVIRTIO_BLK_TIMEOUT_US);
     status = readb(req_addr + 528);
     g_assert_cmpint(status, ==, 0);
 
@@ -354,8 +354,8 @@ static void pci_indirect(void)
     free_head = qvirtqueue_add_indirect(&vqpci->vq, indirect);
     qvirtqueue_kick(&qvirtio_pci, &dev->vdev, &vqpci->vq, free_head);
 
-    g_assert(qvirtio_wait_queue_isr(&qvirtio_pci, &dev->vdev, &vqpci->vq,
-                                                        QVIRTIO_BLK_TIMEOUT));
+    qvirtio_wait_queue_isr(&qvirtio_pci, &dev->vdev, &vqpci->vq,
+                           QVIRTIO_BLK_TIMEOUT_US);
     status = readb(req_addr + 528);
     g_assert_cmpint(status, ==, 0);
 
@@ -396,8 +396,7 @@ static void pci_config(void)
 
     qmp("{ 'execute': 'block_resize', 'arguments': { 'device': 'drive0', "
                                                     " 'size': %d } }", n_size);
-    g_assert(qvirtio_wait_config_isr(&qvirtio_pci, &dev->vdev,
-                                                        QVIRTIO_BLK_TIMEOUT));
+    qvirtio_wait_config_isr(&qvirtio_pci, &dev->vdev, QVIRTIO_BLK_TIMEOUT_US);
 
     capacity = qvirtio_config_readq(&qvirtio_pci, &dev->vdev, addr);
     g_assert_cmpint(capacity, ==, n_size / 512);
@@ -452,8 +451,7 @@ static void pci_msix(void)
     qmp("{ 'execute': 'block_resize', 'arguments': { 'device': 'drive0', "
                                                     " 'size': %d } }", n_size);
 
-    g_assert(qvirtio_wait_config_isr(&qvirtio_pci, &dev->vdev,
-                                                        QVIRTIO_BLK_TIMEOUT));
+    qvirtio_wait_config_isr(&qvirtio_pci, &dev->vdev, QVIRTIO_BLK_TIMEOUT_US);
 
     capacity = qvirtio_config_readq(&qvirtio_pci, &dev->vdev, addr);
     g_assert_cmpint(capacity, ==, n_size / 512);
@@ -473,8 +471,8 @@ static void pci_msix(void)
     qvirtqueue_add(&vqpci->vq, req_addr + 528, 1, true, false);
     qvirtqueue_kick(&qvirtio_pci, &dev->vdev, &vqpci->vq, free_head);
 
-    g_assert(qvirtio_wait_queue_isr(&qvirtio_pci, &dev->vdev, &vqpci->vq,
-                                                        QVIRTIO_BLK_TIMEOUT));
+    qvirtio_wait_queue_isr(&qvirtio_pci, &dev->vdev, &vqpci->vq,
+                           QVIRTIO_BLK_TIMEOUT_US);
 
     status = readb(req_addr + 528);
     g_assert_cmpint(status, ==, 0);
@@ -497,8 +495,8 @@ static void pci_msix(void)
     qvirtqueue_kick(&qvirtio_pci, &dev->vdev, &vqpci->vq, free_head);
 
 
-    g_assert(qvirtio_wait_queue_isr(&qvirtio_pci, &dev->vdev, &vqpci->vq,
-                                                        QVIRTIO_BLK_TIMEOUT));
+    qvirtio_wait_queue_isr(&qvirtio_pci, &dev->vdev, &vqpci->vq,
+                           QVIRTIO_BLK_TIMEOUT_US);
 
     status = readb(req_addr + 528);
     g_assert_cmpint(status, ==, 0);
@@ -574,8 +572,8 @@ static void pci_idx(void)
     qvirtqueue_add(&vqpci->vq, req_addr + 528, 1, true, false);
     qvirtqueue_kick(&qvirtio_pci, &dev->vdev, &vqpci->vq, free_head);
 
-    g_assert(qvirtio_wait_queue_isr(&qvirtio_pci, &dev->vdev, &vqpci->vq,
-                                                        QVIRTIO_BLK_TIMEOUT));
+    qvirtio_wait_queue_isr(&qvirtio_pci, &dev->vdev, &vqpci->vq,
+                           QVIRTIO_BLK_TIMEOUT_US);
 
     /* Write request */
     req.type = QVIRTIO_BLK_T_OUT;
@@ -595,10 +593,9 @@ static void pci_idx(void)
     qvirtqueue_kick(&qvirtio_pci, &dev->vdev, &vqpci->vq, free_head);
 
     /* No notification expected */
-    g_assert(!qvirtio_wait_queue_isr(&qvirtio_pci, &dev->vdev, &vqpci->vq,
-                                                        QVIRTIO_BLK_TIMEOUT));
-
-    status = readb(req_addr + 528);
+    status = qvirtio_wait_status_byte_no_isr(&qvirtio_pci, &dev->vdev,
+                                             &vqpci->vq, req_addr + 528,
+                                             QVIRTIO_BLK_TIMEOUT_US);
     g_assert_cmpint(status, ==, 0);
 
     guest_free(alloc, req_addr);
@@ -619,8 +616,8 @@ static void pci_idx(void)
     qvirtqueue_kick(&qvirtio_pci, &dev->vdev, &vqpci->vq, free_head);
 
 
-    g_assert(qvirtio_wait_queue_isr(&qvirtio_pci, &dev->vdev, &vqpci->vq,
-                                                        QVIRTIO_BLK_TIMEOUT));
+    qvirtio_wait_queue_isr(&qvirtio_pci, &dev->vdev, &vqpci->vq,
+                           QVIRTIO_BLK_TIMEOUT_US);
 
     status = readb(req_addr + 528);
     g_assert_cmpint(status, ==, 0);

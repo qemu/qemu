@@ -65,7 +65,7 @@ def generate(events, backend):
 
             types = e.args.types()
             names = e.args.names()
-            fmts = e.arg_fmts
+            fmts = e.formats()
             for t,n,f in zip(types, names, fmts):
                 if ('char *' in t) or ('char*' in t):
                     out('       ctf_string(' + n + ', ' + n + ')')

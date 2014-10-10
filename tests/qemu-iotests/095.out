@@ -4,14 +4,10 @@ Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=104857600 backing_file='TEST_DIR
 Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=104857600 backing_file='TEST_DIR/t.IMGFMT.snp1' 
 
 === Base image info before commit and resize ===
-image: TEST_DIR/t.qcow2.base
-file format: qcow2
+image: TEST_DIR/t.IMGFMT.base
+file format: IMGFMT
 virtual size: 5.0M (5242880 bytes)
-disk size: 196K
 cluster_size: 65536
-Format specific information:
-    compat: 1.1
-    lazy refcounts: false
 
 === Running QEMU Live Commit Test ===
 
@@ -20,12 +16,8 @@ Format specific information:
 {"timestamp": {"seconds":  TIMESTAMP, "microseconds":  TIMESTAMP}, "event": "BLOCK_JOB_COMPLETED", "data": {"device": "test", "len": 104857600, "offset": 104857600, "speed": 0, "type": "commit"}}
 
 === Base image info after commit and resize ===
-image: TEST_DIR/t.qcow2.base
-file format: qcow2
+image: TEST_DIR/t.IMGFMT.base
+file format: IMGFMT
 virtual size: 100M (104857600 bytes)
-disk size: 196K
 cluster_size: 65536
-Format specific information:
-    compat: 1.1
-    lazy refcounts: false
 *** done

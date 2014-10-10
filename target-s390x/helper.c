@@ -504,23 +504,18 @@ hwaddr s390_cpu_get_phys_addr_debug(CPUState *cs, vaddr vaddr)
 
 void load_psw(CPUS390XState *env, uint64_t mask, uint64_t addr)
 {
-    if (mask & PSW_MASK_WAIT) {
-        S390CPU *cpu = s390_env_get_cpu(env);
-        CPUState *cs = CPU(cpu);
-        if (!(mask & (PSW_MASK_IO | PSW_MASK_EXT | PSW_MASK_MCHECK))) {
-            if (s390_del_running_cpu(cpu) == 0) {
-#ifndef CONFIG_USER_ONLY
-                qemu_system_shutdown_request();
-#endif
-            }
-        }
-        cs->halted = 1;
-        cs->exception_index = EXCP_HLT;
-    }
-
     env->psw.addr = addr;
     env->psw.mask = mask;
     env->cc_op = (mask >> 44) & 3;
+
+    if (mask & PSW_MASK_WAIT) {
+        S390CPU *cpu = s390_env_get_cpu(env);
+        if (s390_cpu_halt(cpu) == 0) {
+#ifndef CONFIG_USER_ONLY
+            qemu_system_shutdown_request();
+#endif
+        }
+    }
 }
 
 static uint64_t get_psw_mask(CPUS390XState *env)
@@ -818,7 +813,7 @@ void s390_cpu_do_interrupt(CPUState *cs)
     qemu_log_mask(CPU_LOG_INT, "%s: %d at pc=%" PRIx64 "\n",
                   __func__, cs->exception_index, env->psw.addr);
 
-    s390_add_running_cpu(cpu);
+    s390_cpu_set_state(CPU_STATE_OPERATING, cpu);
     /* handle machine checks */
     if ((env->psw.mask & PSW_MASK_MCHECK) &&
         (cs->exception_index == -1)) {
@@ -876,4 +871,17 @@ void s390_cpu_do_interrupt(CPUState *cs)
     }
 }
 
+bool s390_cpu_exec_interrupt(CPUState *cs, int interrupt_request)
+{
+    if (interrupt_request & CPU_INTERRUPT_HARD) {
+        S390CPU *cpu = S390_CPU(cs);
+        CPUS390XState *env = &cpu->env;
+
+        if (env->psw.mask & PSW_MASK_EXT) {
+            s390_cpu_do_interrupt(cs);
+            return true;
+        }
+    }
+    return false;
+}
 #endif /* CONFIG_USER_ONLY */

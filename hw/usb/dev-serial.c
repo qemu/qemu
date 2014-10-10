@@ -9,7 +9,7 @@
  */
 
 #include "qemu-common.h"
-#include "qemu/error-report.h"
+#include "monitor/monitor.h"
 #include "hw/usb.h"
 #include "hw/usb/desc.h"
 #include "sysemu/char.h"
@@ -460,7 +460,7 @@ static void usb_serial_event(void *opaque, int event)
             break;
         case CHR_EVENT_OPENED:
             if (!s->dev.attached) {
-                usb_device_attach(&s->dev);
+                usb_device_attach(&s->dev, &error_abort);
             }
             break;
         case CHR_EVENT_CLOSED:
@@ -471,17 +471,24 @@ static void usb_serial_event(void *opaque, int event)
     }
 }
 
-static int usb_serial_initfn(USBDevice *dev)
+static void usb_serial_realize(USBDevice *dev, Error **errp)
 {
     USBSerialState *s = DO_UPCAST(USBSerialState, dev, dev);
+    Error *local_err = NULL;
 
     usb_desc_create_serial(dev);
     usb_desc_init(dev);
     dev->auto_attach = 0;
 
     if (!s->cs) {
-        error_report("Property chardev is required");
-        return -1;
+        error_setg(errp, "Property chardev is required");
+        return;
+    }
+
+    usb_check_attach(dev, &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        return;
     }
 
     qemu_chr_add_handlers(s->cs, usb_serial_can_read, usb_serial_read,
@@ -489,9 +496,8 @@ static int usb_serial_initfn(USBDevice *dev)
     usb_serial_handle_reset(dev);
 
     if (s->cs->be_open && !dev->attached) {
-        usb_device_attach(dev);
+        usb_device_attach(dev, &error_abort);
     }
-    return 0;
 }
 
 static USBDevice *usb_serial_init(USBBus *bus, const char *filename)
@@ -582,7 +588,7 @@ static void usb_serial_class_initfn(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
     USBDeviceClass *uc = USB_DEVICE_CLASS(klass);
 
-    uc->init = usb_serial_initfn;
+    uc->realize = usb_serial_realize;
     uc->product_desc   = "QEMU USB Serial";
     uc->usb_desc       = &desc_serial;
     uc->handle_reset   = usb_serial_handle_reset;
@@ -610,7 +616,7 @@ static void usb_braille_class_initfn(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
     USBDeviceClass *uc = USB_DEVICE_CLASS(klass);
 
-    uc->init           = usb_serial_initfn;
+    uc->realize        = usb_serial_realize;
     uc->product_desc   = "QEMU USB Braille";
     uc->usb_desc       = &desc_braille;
     uc->handle_reset   = usb_serial_handle_reset;

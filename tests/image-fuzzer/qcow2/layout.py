@@ -102,6 +102,8 @@ class Image(object):
         self.end_of_extension_area = FieldsList()
         self.l2_tables = FieldsList()
         self.l1_table = FieldsList()
+        self.refcount_table = FieldsList()
+        self.refcount_blocks = FieldsList()
         self.ext_offset = 0
         self.create_header(cluster_bits, backing_file_name)
         self.set_backing_file_name(backing_file_name)
@@ -113,7 +115,8 @@ class Image(object):
     def __iter__(self):
         return chain(self.header, self.backing_file_format,
                      self.feature_name_table, self.end_of_extension_area,
-                     self.backing_file_name, self.l1_table, self.l2_tables)
+                     self.backing_file_name, self.l1_table, self.l2_tables,
+                     self.refcount_table, self.refcount_blocks)
 
     def create_header(self, cluster_bits, backing_file_name=None):
         """Generate a random valid header."""
@@ -330,6 +333,138 @@ class Image(object):
                                                 float(self.cluster_size**2)))
         self.header['l1_table_offset'][0].value = l1_offset
 
+    def create_refcount_structures(self):
+        """Generate random refcount blocks and refcount table."""
+        def allocate_rfc_blocks(data, size):
+            """Return indices of clusters allocated for refcount blocks."""
+            cluster_ids = set()
+            diff = block_ids = set([x / size for x in data])
+            while len(diff) != 0:
+                # Allocate all yet not allocated clusters
+                new = self._get_available_clusters(data | cluster_ids,
+                                                   len(diff))
+                # Indices of new refcount blocks necessary to cover clusters
+                # in 'new'
+                diff = set([x / size for x in new]) - block_ids
+                cluster_ids |= new
+                block_ids |= diff
+            return cluster_ids, block_ids
+
+        def allocate_rfc_table(data, init_blocks, block_size):
+            """Return indices of clusters allocated for the refcount table
+            and updated indices of clusters allocated for blocks and indices
+            of blocks.
+            """
+            blocks = set(init_blocks)
+            clusters = set()
+            # Number of entries in one cluster of the refcount table
+            size = self.cluster_size / UINT64_S
+            # Number of clusters necessary for the refcount table based on
+            # the current number of refcount blocks
+            table_size = int(ceil((max(blocks) + 1) / float(size)))
+            # Index of the first cluster of the refcount table
+            table_start = self._get_adjacent_clusters(data, table_size + 1)
+            # Clusters allocated for the current length of the refcount table
+            table_clusters = set(range(table_start, table_start + table_size))
+            # Clusters allocated for the refcount table including
+            # last optional one for potential l1 growth
+            table_clusters_allocated = set(range(table_start, table_start +
+                                                 table_size + 1))
+            # New refcount blocks necessary for clusters occupied by the
+            # refcount table
+            diff = set([c / block_size for c in table_clusters]) - blocks
+            blocks |= diff
+            while len(diff) != 0:
+                # Allocate clusters for new refcount blocks
+                new = self._get_available_clusters((data | clusters) |
+                                                   table_clusters_allocated,
+                                                   len(diff))
+                # Indices of new refcount blocks necessary to cover
+                # clusters in 'new'
+                diff = set([x / block_size for x in new]) - blocks
+                clusters |= new
+                blocks |= diff
+                # Check if the refcount table needs one more cluster
+                if int(ceil((max(blocks) + 1) / float(size))) > table_size:
+                    new_block_id = (table_start + table_size) / block_size
+                    # Check if the additional table cluster needs
+                    # one more refcount block
+                    if new_block_id not in blocks:
+                        diff.add(new_block_id)
+                    table_clusters.add(table_start + table_size)
+                    table_size += 1
+            return table_clusters, blocks, clusters
+
+        def create_table_entry(table_offset, block_cluster, block_size,
+                               cluster):
+            """Generate a refcount table entry."""
+            offset = table_offset + UINT64_S * (cluster / block_size)
+            return ['>Q', offset, block_cluster * self.cluster_size,
+                    'refcount_table_entry']
+
+        def create_block_entry(block_cluster, block_size, cluster):
+            """Generate a list of entries for the current block."""
+            entry_size = self.cluster_size / block_size
+            offset = block_cluster * self.cluster_size
+            entry_offset = offset + entry_size * (cluster % block_size)
+            # While snapshots are not supported all refcounts are set to 1
+            return ['>H', entry_offset, 1, 'refcount_block_entry']
+        # Size of a block entry in bits
+        refcount_bits = 1 << self.header['refcount_order'][0].value
+        # Number of refcount entries per refcount block
+        # Convert self.cluster_size from bytes to bits to have the same
+        # base for the numerator and denominator
+        block_size = self.cluster_size * 8 / refcount_bits
+        meta_data = self._get_metadata()
+        if len(self.data_clusters) == 0:
+            # All metadata for an empty guest image needs 4 clusters:
+            # header, rfc table, rfc block, L1 table.
+            # Header takes cluster #0, other clusters ##1-3 can be used
+            block_clusters = set([random.choice(list(set(range(1, 4)) -
+                                                     meta_data))])
+            block_ids = set([0])
+            table_clusters = set([random.choice(list(set(range(1, 4)) -
+                                                     meta_data -
+                                                     block_clusters))])
+        else:
+            block_clusters, block_ids = \
+                                allocate_rfc_blocks(self.data_clusters |
+                                                    meta_data, block_size)
+            table_clusters, block_ids, new_clusters = \
+                                    allocate_rfc_table(self.data_clusters |
+                                                       meta_data |
+                                                       block_clusters,
+                                                       block_ids,
+                                                       block_size)
+            block_clusters |= new_clusters
+
+        meta_data |= block_clusters | table_clusters
+        table_offset = min(table_clusters) * self.cluster_size
+        block_id = None
+        # Clusters allocated for refcount blocks
+        block_clusters = list(block_clusters)
+        # Indices of refcount blocks
+        block_ids = list(block_ids)
+        # Refcount table entries
+        rfc_table = []
+        # Refcount entries
+        rfc_blocks = []
+
+        for cluster in sorted(self.data_clusters | meta_data):
+            if cluster / block_size != block_id:
+                block_id = cluster / block_size
+                block_cluster = block_clusters[block_ids.index(block_id)]
+                rfc_table.append(create_table_entry(table_offset,
+                                                    block_cluster,
+                                                    block_size, cluster))
+            rfc_blocks.append(create_block_entry(block_cluster, block_size,
+                                                 cluster))
+        self.refcount_table = FieldsList(rfc_table)
+        self.refcount_blocks = FieldsList(rfc_blocks)
+
+        self.header['refcount_table_offset'][0].value = table_offset
+        self.header['refcount_table_clusters'][0].value = len(table_clusters)
+
     def fuzz(self, fields_to_fuzz=None):
         """Fuzz an image by corrupting values of a random subset of its fields.
 
@@ -471,6 +606,7 @@ def create_image(test_img_path, backing_file_name=None, backing_file_fmt=None,
     image.create_feature_name_table()
     image.set_end_of_extension_area()
     image.create_l_structures()
+    image.create_refcount_structures()
     image.fuzz(fields_to_fuzz)
     image.write(test_img_path)
     return image.image_size

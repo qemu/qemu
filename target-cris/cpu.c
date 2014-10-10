@@ -279,6 +279,7 @@ static void cris_cpu_class_init(ObjectClass *oc, void *data)
     cc->class_by_name = cris_cpu_class_by_name;
     cc->has_work = cris_cpu_has_work;
     cc->do_interrupt = cris_cpu_do_interrupt;
+    cc->cpu_exec_interrupt = cris_cpu_exec_interrupt;
     cc->dump_state = cris_cpu_dump_state;
     cc->set_pc = cris_cpu_set_pc;
     cc->gdb_read_register = cris_cpu_gdb_read_register;
@@ -290,6 +291,7 @@ static void cris_cpu_class_init(ObjectClass *oc, void *data)
 #endif
 
     cc->gdb_num_core_regs = 49;
+    cc->gdb_stop_before_watchpoint = true;
 }
 
 static const TypeInfo cris_cpu_type_info = {

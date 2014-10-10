@@ -78,30 +78,54 @@ void qvirtio_set_driver_ok(const QVirtioBus *bus, QVirtioDevice *d)
                 QVIRTIO_DRIVER_OK | QVIRTIO_DRIVER | QVIRTIO_ACKNOWLEDGE);
 }
 
-bool qvirtio_wait_queue_isr(const QVirtioBus *bus, QVirtioDevice *d,
-                                            QVirtQueue *vq, uint64_t timeout)
+void qvirtio_wait_queue_isr(const QVirtioBus *bus, QVirtioDevice *d,
+                            QVirtQueue *vq, gint64 timeout_us)
 {
-    do {
+    gint64 start_time = g_get_monotonic_time();
+
+    for (;;) {
         clock_step(100);
         if (bus->get_queue_isr_status(d, vq)) {
-            break; /* It has ended */
+            return;
         }
-    } while (--timeout);
-
-    return timeout != 0;
+        g_assert(g_get_monotonic_time() - start_time <= timeout_us);
+    }
 }
 
-bool qvirtio_wait_config_isr(const QVirtioBus *bus, QVirtioDevice *d,
-                                                            uint64_t timeout)
+/* Wait for the status byte at given guest memory address to be set
+ *
+ * The virtqueue interrupt must not be raised, making this useful for testing
+ * event_index functionality.
+ */
+uint8_t qvirtio_wait_status_byte_no_isr(const QVirtioBus *bus,
+                                        QVirtioDevice *d,
+                                        QVirtQueue *vq,
+                                        uint64_t addr,
+                                        gint64 timeout_us)
 {
-    do {
+    gint64 start_time = g_get_monotonic_time();
+    uint8_t val;
+
+    while ((val = readb(addr)) == 0xff) {
+        clock_step(100);
+        g_assert(!bus->get_queue_isr_status(d, vq));
+        g_assert(g_get_monotonic_time() - start_time <= timeout_us);
+    }
+    return val;
+}
+
+void qvirtio_wait_config_isr(const QVirtioBus *bus, QVirtioDevice *d,
+                             gint64 timeout_us)
+{
+    gint64 start_time = g_get_monotonic_time();
+
+    for (;;) {
         clock_step(100);
         if (bus->get_config_isr_status(d)) {
-            break; /* It has ended */
+            return;
         }
-    } while (--timeout);
-
-    return timeout != 0;
+        g_assert(g_get_monotonic_time() - start_time <= timeout_us);
+    }
 }
 
 void qvring_init(const QGuestAllocator *alloc, QVirtQueue *vq, uint64_t addr)

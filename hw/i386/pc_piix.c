@@ -239,7 +239,7 @@ static void pc_init1(MachineState *machine,
 
     pc_nic_init(isa_bus, pci_bus);
 
-    ide_drive_get(hd, MAX_IDE_BUS);
+    ide_drive_get(hd, ARRAY_SIZE(hd));
     if (pci_enabled) {
         PCIDevice *dev;
         if (xen_enabled()) {

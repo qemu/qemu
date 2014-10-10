@@ -409,19 +409,19 @@ static void usb_msd_handle_data(USBDevice *dev, USBPacket *p)
         switch (s->mode) {
         case USB_MSDM_CBW:
             if (p->iov.size != 31) {
-                fprintf(stderr, "usb-msd: Bad CBW size");
+                error_report("usb-msd: Bad CBW size");
                 goto fail;
             }
             usb_packet_copy(p, &cbw, 31);
             if (le32_to_cpu(cbw.sig) != 0x43425355) {
-                fprintf(stderr, "usb-msd: Bad signature %08x\n",
-                        le32_to_cpu(cbw.sig));
+                error_report("usb-msd: Bad signature %08x",
+                             le32_to_cpu(cbw.sig));
                 goto fail;
             }
             DPRINTF("Command on LUN %d\n", cbw.lun);
             scsi_dev = scsi_device_find(&s->bus, 0, 0, cbw.lun);
             if (scsi_dev == NULL) {
-                fprintf(stderr, "usb-msd: Bad LUN %d\n", cbw.lun);
+                error_report("usb-msd: Bad LUN %d", cbw.lun);
                 goto fail;
             }
             tag = le32_to_cpu(cbw.tag);
@@ -549,12 +549,17 @@ static void usb_msd_handle_data(USBDevice *dev, USBPacket *p)
 static void usb_msd_password_cb(void *opaque, int err)
 {
     MSDState *s = opaque;
+    Error *local_err = NULL;
 
-    if (!err)
-        err = usb_device_attach(&s->dev);
+    if (!err) {
+        usb_device_attach(&s->dev, &local_err);
+    }
 
-    if (err)
+    if (local_err) {
+        qerror_report_err(local_err);
+        error_free(local_err);
         qdev_unplug(&s->dev.qdev, NULL);
+    }
 }
 
 static void *usb_msd_load_request(QEMUFile *f, SCSIRequest *req)
@@ -590,7 +595,7 @@ static const struct SCSIBusInfo usb_msd_scsi_info_bot = {
     .load_request = usb_msd_load_request,
 };
 
-static int usb_msd_initfn_storage(USBDevice *dev)
+static void usb_msd_realize_storage(USBDevice *dev, Error **errp)
 {
     MSDState *s = DO_UPCAST(MSDState, dev, dev);
     BlockDriverState *bs = s->conf.bs;
@@ -598,8 +603,8 @@ static int usb_msd_initfn_storage(USBDevice *dev)
     Error *err = NULL;
 
     if (!bs) {
-        error_report("drive property not set");
-        return -1;
+        error_setg(errp, "drive property not set");
+        return;
     }
 
     blkconf_serial(&s->conf, &dev->serial);
@@ -624,7 +629,8 @@ static int usb_msd_initfn_storage(USBDevice *dev)
                                          s->conf.bootindex, dev->serial,
                                          &err);
     if (!scsi_dev) {
-        return -1;
+        error_propagate(errp, err);
+        return;
     }
     s->bus.qbus.allow_hotplug = 0;
     usb_msd_handle_reset(dev);
@@ -637,11 +643,9 @@ static int usb_msd_initfn_storage(USBDevice *dev)
             autostart = 0;
         }
     }
-
-    return 0;
 }
 
-static int usb_msd_initfn_bot(USBDevice *dev)
+static void usb_msd_realize_bot(USBDevice *dev, Error **errp)
 {
     MSDState *s = DO_UPCAST(MSDState, dev, dev);
 
@@ -651,8 +655,6 @@ static int usb_msd_initfn_bot(USBDevice *dev)
                  &usb_msd_scsi_info_bot, NULL);
     s->bus.qbus.allow_hotplug = 0;
     usb_msd_handle_reset(dev);
-
-    return 0;
 }
 
 static USBDevice *usb_msd_init(USBBus *bus, const char *filename)
@@ -666,8 +668,10 @@ static USBDevice *usb_msd_init(USBBus *bus, const char *filename)
     char fmt[32];
 
     /* parse -usbdevice disk: syntax into drive opts */
-    snprintf(id, sizeof(id), "usb%d", nr++);
-    opts = qemu_opts_create(qemu_find_opts("drive"), id, 0, NULL);
+    do {
+        snprintf(id, sizeof(id), "usb%d", nr++);
+        opts = qemu_opts_create(qemu_find_opts("drive"), id, 1, NULL);
+    } while (!opts);
 
     p1 = strchr(filename, ':');
     if (p1++) {
@@ -678,13 +682,13 @@ static USBDevice *usb_msd_init(USBBus *bus, const char *filename)
             pstrcpy(fmt, len, p2);
             qemu_opt_set(opts, "format", fmt);
         } else if (*filename != ':') {
-            printf("unrecognized USB mass-storage option %s\n", filename);
+            error_report("unrecognized USB mass-storage option %s", filename);
             return NULL;
         }
         filename = p1;
     }
     if (!*filename) {
-        printf("block device specification needed\n");
+        error_report("block device specification needed");
         return NULL;
     }
     qemu_opt_set(opts, "file", filename);
@@ -758,7 +762,7 @@ static void usb_msd_class_initfn_storage(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
     USBDeviceClass *uc = USB_DEVICE_CLASS(klass);
 
-    uc->init = usb_msd_initfn_storage;
+    uc->realize = usb_msd_realize_storage;
     dc->props = msd_properties;
     usb_msd_class_initfn_common(klass);
 }
@@ -767,7 +771,7 @@ static void usb_msd_class_initfn_bot(ObjectClass *klass, void *data)
 {
     USBDeviceClass *uc = USB_DEVICE_CLASS(klass);
 
-    uc->init = usb_msd_initfn_bot;
+    uc->realize = usb_msd_realize_bot;
     usb_msd_class_initfn_common(klass);
 }
 

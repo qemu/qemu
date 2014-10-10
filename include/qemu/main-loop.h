@@ -42,7 +42,7 @@
  *
  * In the case of QEMU tools, this will also start/initialize timers.
  */
-int qemu_init_main_loop(void);
+int qemu_init_main_loop(Error **errp);
 
 /**
  * main_loop_wait: Run one iteration of the main loop.

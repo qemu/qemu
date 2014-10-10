@@ -551,8 +551,11 @@ SCSIRequest *scsi_req_alloc(const SCSIReqOps *reqops, SCSIDevice *d,
     SCSIRequest *req;
     SCSIBus *bus = scsi_bus_from_device(d);
     BusState *qbus = BUS(bus);
+    const int memset_off = offsetof(SCSIRequest, sense)
+                           + sizeof(req->sense);
 
-    req = g_malloc0(reqops->size);
+    req = g_slice_alloc(reqops->size);
+    memset((uint8_t *)req + memset_off, 0, reqops->size - memset_off);
     req->refcount = 1;
     req->bus = bus;
     req->dev = d;
@@ -560,10 +563,10 @@ SCSIRequest *scsi_req_alloc(const SCSIReqOps *reqops, SCSIDevice *d,
     req->lun = lun;
     req->hba_private = hba_private;
     req->status = -1;
-    req->sense_len = 0;
     req->ops = reqops;
     object_ref(OBJECT(d));
     object_ref(OBJECT(qbus->parent));
+    notifier_list_init(&req->cancel_notifiers);
     trace_scsi_req_alloc(req->dev->id, req->lun, req->tag);
     return req;
 }
@@ -1603,7 +1606,7 @@ void scsi_req_unref(SCSIRequest *req)
         }
         object_unref(OBJECT(req->dev));
         object_unref(OBJECT(qbus->parent));
-        g_free(req);
+        g_slice_free1(req->ops->size, req);
     }
 }
 
@@ -1713,7 +1716,42 @@ void scsi_req_complete(SCSIRequest *req, int status)
     scsi_req_ref(req);
     scsi_req_dequeue(req);
     req->bus->info->complete(req, req->status, req->resid);
+
+    /* Cancelled requests might end up being completed instead of cancelled */
+    notifier_list_notify(&req->cancel_notifiers, req);
     scsi_req_unref(req);
+}
+
+/* Called by the devices when the request is canceled. */
+void scsi_req_cancel_complete(SCSIRequest *req)
+{
+    assert(req->io_canceled);
+    if (req->bus->info->cancel) {
+        req->bus->info->cancel(req);
+    }
+    notifier_list_notify(&req->cancel_notifiers, req);
+    scsi_req_unref(req);
+}
+
+/* Cancel @req asynchronously. @notifier is added to @req's cancellation
+ * notifier list, the bus will be notified the requests cancellation is
+ * completed.
+ * */
+void scsi_req_cancel_async(SCSIRequest *req, Notifier *notifier)
+{
+    trace_scsi_req_cancel(req->dev->id, req->lun, req->tag);
+    if (notifier) {
+        notifier_list_add(&req->cancel_notifiers, notifier);
+    }
+    if (req->io_canceled) {
+        return;
+    }
+    scsi_req_ref(req);
+    scsi_req_dequeue(req);
+    req->io_canceled = true;
+    if (req->aiocb) {
+        bdrv_aio_cancel_async(req->aiocb);
+    }
 }
 
 void scsi_req_cancel(SCSIRequest *req)
@@ -1725,28 +1763,9 @@ void scsi_req_cancel(SCSIRequest *req)
     scsi_req_ref(req);
     scsi_req_dequeue(req);
     req->io_canceled = true;
-    if (req->ops->cancel_io) {
-        req->ops->cancel_io(req);
+    if (req->aiocb) {
+        bdrv_aio_cancel(req->aiocb);
     }
-    if (req->bus->info->cancel) {
-        req->bus->info->cancel(req);
-    }
-    scsi_req_unref(req);
-}
-
-void scsi_req_abort(SCSIRequest *req, int status)
-{
-    if (!req->enqueued) {
-        return;
-    }
-    scsi_req_ref(req);
-    scsi_req_dequeue(req);
-    req->io_canceled = true;
-    if (req->ops->cancel_io) {
-        req->ops->cancel_io(req);
-    }
-    scsi_req_complete(req, status);
-    scsi_req_unref(req);
 }
 
 static int scsi_ua_precedence(SCSISense sense)

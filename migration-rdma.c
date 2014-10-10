@@ -2523,7 +2523,7 @@ static void *qemu_rdma_data_init(const char *host_port, Error **errp)
 /*
  * QEMUFile interface to the control channel.
  * SEND messages for control only.
- * pc.ram is handled with regular RDMA messages.
+ * VM's ram is handled with regular RDMA messages.
  */
 static int qemu_rdma_put_buffer(void *opaque, const uint8_t *buf,
                                 int64_t pos, int size)
@@ -2539,7 +2539,7 @@ static int qemu_rdma_put_buffer(void *opaque, const uint8_t *buf,
 
     /*
      * Push out any writes that
-     * we're queued up for pc.ram.
+     * we're queued up for VM's ram.
      */
     ret = qemu_rdma_write_flush(f, rdma);
     if (ret < 0) {

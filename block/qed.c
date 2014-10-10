@@ -18,22 +18,8 @@
 #include "qapi/qmp/qerror.h"
 #include "migration/migration.h"
 
-static void qed_aio_cancel(BlockDriverAIOCB *blockacb)
-{
-    QEDAIOCB *acb = (QEDAIOCB *)blockacb;
-    AioContext *aio_context = bdrv_get_aio_context(blockacb->bs);
-    bool finished = false;
-
-    /* Wait for the request to finish */
-    acb->finished = &finished;
-    while (!finished) {
-        aio_poll(aio_context, true);
-    }
-}
-
 static const AIOCBInfo qed_aiocb_info = {
     .aiocb_size         = sizeof(QEDAIOCB),
-    .cancel             = qed_aio_cancel,
 };
 
 static int bdrv_qed_probe(const uint8_t *buf, int buf_size,
@@ -919,18 +905,12 @@ static void qed_aio_complete_bh(void *opaque)
     BlockDriverCompletionFunc *cb = acb->common.cb;
     void *user_opaque = acb->common.opaque;
     int ret = acb->bh_ret;
-    bool *finished = acb->finished;
 
     qemu_bh_delete(acb->bh);
-    qemu_aio_release(acb);
+    qemu_aio_unref(acb);
 
     /* Invoke callback */
     cb(user_opaque, ret);
-
-    /* Signal cancel completion */
-    if (finished) {
-        *finished = true;
-    }
 }
 
 static void qed_aio_complete(QEDAIOCB *acb, int ret)
@@ -1397,7 +1377,6 @@ static BlockDriverAIOCB *qed_aio_setup(BlockDriverState *bs,
                         opaque, flags);
 
     acb->flags = flags;
-    acb->finished = NULL;
     acb->qiov = qiov;
     acb->qiov_offset = 0;
     acb->cur_pos = (uint64_t)sector_num * BDRV_SECTOR_SIZE;

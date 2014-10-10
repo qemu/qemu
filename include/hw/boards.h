@@ -5,11 +5,10 @@
 
 #include "qemu/typedefs.h"
 #include "sysemu/blockdev.h"
+#include "sysemu/accel.h"
 #include "hw/qdev.h"
 #include "qom/object.h"
 
-
-typedef struct MachineState MachineState;
 
 typedef void QEMUMachineInitFunc(MachineState *ms);
 
@@ -28,6 +27,7 @@ struct QEMUMachine {
     QEMUMachineHotAddCPUFunc *hot_add_cpu;
     QEMUMachineGetKvmtypeFunc *kvm_type;
     BlockInterfaceType block_default_type;
+    int units_per_default_bus;
     int max_cpus;
     unsigned int no_serial:1,
         no_parallel:1,
@@ -86,6 +86,7 @@ struct MachineClass {
     int (*kvm_type)(const char *arg);
 
     BlockInterfaceType block_default_type;
+    int units_per_default_bus;
     int max_cpus;
     unsigned int no_serial:1,
         no_parallel:1,
@@ -133,6 +134,7 @@ struct MachineState {
     char *kernel_cmdline;
     char *initrd_filename;
     const char *cpu_model;
+    AccelState *accelerator;
 };
 
 #endif

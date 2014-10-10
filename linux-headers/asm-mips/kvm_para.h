@@ -1,1 +1,5 @@
-#include <asm-generic/kvm_para.h>
+#ifndef _ASM_MIPS_KVM_PARA_H
+#define _ASM_MIPS_KVM_PARA_H
+
+
+#endif /* _ASM_MIPS_KVM_PARA_H */

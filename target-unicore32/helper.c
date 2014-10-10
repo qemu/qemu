@@ -250,3 +250,18 @@ int uc32_cpu_handle_mmu_fault(CPUState *cs, vaddr address,
     return 1;
 }
 #endif
+
+bool uc32_cpu_exec_interrupt(CPUState *cs, int interrupt_request)
+{
+    if (interrupt_request & CPU_INTERRUPT_HARD) {
+        UniCore32CPU *cpu = UNICORE32_CPU(cs);
+        CPUUniCore32State *env = &cpu->env;
+
+        if (!(env->uncached_asr & ASR_I)) {
+            cs->exception_index = UC32_EXCP_INTR;
+            uc32_cpu_do_interrupt(cs);
+            return true;
+        }
+    }
+    return false;
+}

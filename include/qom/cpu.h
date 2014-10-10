@@ -99,6 +99,11 @@ struct TranslationBlock;
  * @vmsd: State description for migration.
  * @gdb_num_core_regs: Number of core registers accessible to GDB.
  * @gdb_core_xml_file: File name for core registers GDB XML description.
+ * @gdb_stop_before_watchpoint: Indicates whether GDB expects the CPU to stop
+ *           before the insn which triggers a watchpoint rather than after it.
+ * @cpu_exec_enter: Callback for cpu_exec preparation.
+ * @cpu_exec_exit: Callback for cpu_exec cleanup.
+ * @cpu_exec_interrupt: Callback for processing interrupts in cpu_exec.
  *
  * Represents a CPU family or model.
  */
@@ -149,6 +154,11 @@ typedef struct CPUClass {
     const struct VMStateDescription *vmsd;
     int gdb_num_core_regs;
     const char *gdb_core_xml_file;
+    bool gdb_stop_before_watchpoint;
+
+    void (*cpu_exec_enter)(CPUState *cpu);
+    void (*cpu_exec_exit)(CPUState *cpu);
+    bool (*cpu_exec_interrupt)(CPUState *cpu, int interrupt_request);
 } CPUClass;
 
 #ifdef HOST_WORDS_BIGENDIAN

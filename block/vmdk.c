@@ -1113,7 +1113,7 @@ static int get_cluster_offset(BlockDriverState *bs,
     uint32_t min_count, *l2_table;
     bool zeroed = false;
     int64_t ret;
-    int32_t cluster_sector;
+    int64_t cluster_sector;
 
     if (m_data) {
         m_data->valid = 0;

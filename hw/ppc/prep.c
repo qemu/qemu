@@ -519,7 +519,7 @@ static void ppc_prep_init(MachineState *machine)
         }
     }
 
-    ide_drive_get(hd, MAX_IDE_BUS);
+    ide_drive_get(hd, ARRAY_SIZE(hd));
     for(i = 0; i < MAX_IDE_BUS; i++) {
         isa_ide_init(isa_bus, ide_iobase[i], ide_iobase2[i], ide_irq[i],
                      hd[2 * i],

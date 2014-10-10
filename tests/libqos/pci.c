@@ -71,6 +71,12 @@ void qpci_device_enable(QPCIDevice *dev)
     cmd = qpci_config_readw(dev, PCI_COMMAND);
     cmd |= PCI_COMMAND_IO | PCI_COMMAND_MEMORY | PCI_COMMAND_MASTER;
     qpci_config_writew(dev, PCI_COMMAND, cmd);
+
+    /* Verify the bits are now set. */
+    cmd = qpci_config_readw(dev, PCI_COMMAND);
+    g_assert_cmphex(cmd & PCI_COMMAND_IO, ==, PCI_COMMAND_IO);
+    g_assert_cmphex(cmd & PCI_COMMAND_MEMORY, ==, PCI_COMMAND_MEMORY);
+    g_assert_cmphex(cmd & PCI_COMMAND_MASTER, ==, PCI_COMMAND_MASTER);
 }
 
 uint8_t qpci_find_capability(QPCIDevice *dev, uint8_t id)

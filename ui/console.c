@@ -1678,6 +1678,14 @@ DisplayState *init_displaystate(void)
     return display_state;
 }
 
+void graphic_console_set_hwops(QemuConsole *con,
+                               const GraphicHwOps *hw_ops,
+                               void *opaque)
+{
+    con->hw_ops = hw_ops;
+    con->hw = opaque;
+}
+
 QemuConsole *graphic_console_init(DeviceState *dev, uint32_t head,
                                   const GraphicHwOps *hw_ops,
                                   void *opaque)
@@ -1692,8 +1700,7 @@ QemuConsole *graphic_console_init(DeviceState *dev, uint32_t head,
     ds = get_alloc_displaystate();
     trace_console_gfx_new();
     s = new_console(ds, GRAPHIC_CONSOLE, head);
-    s->hw_ops = hw_ops;
-    s->hw = opaque;
+    graphic_console_set_hwops(s, hw_ops, opaque);
     if (dev) {
         object_property_set_link(OBJECT(s), OBJECT(dev), "device",
                                  &error_abort);

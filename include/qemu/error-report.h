@@ -38,6 +38,7 @@ void error_vprintf(const char *fmt, va_list ap) GCC_FMT_ATTR(1, 0);
 void error_printf(const char *fmt, ...) GCC_FMT_ATTR(1, 2);
 void error_printf_unless_qmp(const char *fmt, ...) GCC_FMT_ATTR(1, 2);
 void error_set_progname(const char *argv0);
+void error_vreport(const char *fmt, va_list ap) GCC_FMT_ATTR(1, 0);
 void error_report(const char *fmt, ...) GCC_FMT_ATTR(1, 2);
 const char *error_get_progname(void);
 extern bool enable_timestamp_msg;
