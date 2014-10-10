@@ -71,7 +71,7 @@ typedef struct KVMSlot
 
 typedef struct kvm_dirty_log KVMDirtyLog;
 
-typedef struct KVMState
+struct KVMState
 {
     AccelState parent_obj;
 
@@ -107,7 +107,7 @@ typedef struct KVMState
     QTAILQ_HEAD(msi_hashtab, KVMMSIRoute) msi_hashtab[KVM_MSI_HASHTAB_SIZE];
     bool direct_msi;
 #endif
-} KVMState;
+};
 
 #define TYPE_KVM_ACCEL ACCEL_CLASS_NAME("kvm")
 
