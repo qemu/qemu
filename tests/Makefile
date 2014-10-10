@@ -259,7 +259,7 @@ tests/test-qdev-global-props$(EXESUF): tests/test-qdev-global-props.o \
 	libqemuutil.a libqemustub.a
 tests/test-vmstate$(EXESUF): tests/test-vmstate.o \
 	vmstate.o qemu-file.o \
-	libqemuutil.a
+	libqemuutil.a libqemustub.a
 
 tests/test-qapi-types.c tests/test-qapi-types.h :\
 $(SRC_PATH)/tests/qapi-schema/qapi-schema-test.json $(SRC_PATH)/scripts/qapi-types.py
