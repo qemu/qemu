@@ -16,6 +16,7 @@
  * You should have received a copy of the GNU Lesser General Public
  * License along with this library; if not, see <http://www.gnu.org/licenses/>.
  */
+
 #include "cpu.h"
 #include "exec/helper-proto.h"
 #include "internals.h"
@@ -209,7 +210,7 @@ uint32_t HELPER(usat16)(CPUARMState *env, uint32_t x, uint32_t shift)
     return res;
 }
 
-void HELPER(wfi)(CPUARMState *env)
+void QEMU_NORETURN HELPER(wfi)(CPUARMState *env)
 {
     CPUState *cs = CPU(arm_env_get_cpu(env));
 

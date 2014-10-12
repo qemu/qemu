@@ -1,4 +1,5 @@
 obj-y += mips_r4k.o mips_jazz.o mips_malta.o mips_mipssim.o
 obj-y += addr.o cputimer.o mips_int.o
+obj-$(CONFIG_AR7) += ar7.o
 obj-$(CONFIG_FULONG) += mips_fulong2e.o
 obj-y += gt64xxx_pci.o

@@ -16,8 +16,7 @@
  * You should have received a copy of the GNU Lesser General Public
  * License along with this library; if not, see <http://www.gnu.org/licenses/>.
  */
-#include <assert.h>
-#include <stdlib.h>
+
 #include "cpu.h"
 #include "exec/helper-proto.h"
 #include "exec/cpu_ldst.h"
@@ -41,7 +40,11 @@ void tlb_fill(CPUState *cs, target_ulong addr, int is_write, int mmu_idx,
 
 #endif
 
+#ifdef CONFIG_USER_ONLY
+void QEMU_NORETURN helper_ldtlb(CPUSH4State *env)
+#else
 void helper_ldtlb(CPUSH4State *env)
+#endif
 {
 #ifdef CONFIG_USER_ONLY
     SuperHCPU *cpu = sh_env_get_cpu(env);
@@ -65,32 +68,32 @@ static inline void QEMU_NORETURN raise_exception(CPUSH4State *env, int index,
     cpu_loop_exit(cs);
 }
 
-void helper_raise_illegal_instruction(CPUSH4State *env)
+void QEMU_NORETURN helper_raise_illegal_instruction(CPUSH4State *env)
 {
     raise_exception(env, 0x180, 0);
 }
 
-void helper_raise_slot_illegal_instruction(CPUSH4State *env)
+void QEMU_NORETURN helper_raise_slot_illegal_instruction(CPUSH4State *env)
 {
     raise_exception(env, 0x1a0, 0);
 }
 
-void helper_raise_fpu_disable(CPUSH4State *env)
+void QEMU_NORETURN helper_raise_fpu_disable(CPUSH4State *env)
 {
     raise_exception(env, 0x800, 0);
 }
 
-void helper_raise_slot_fpu_disable(CPUSH4State *env)
+void QEMU_NORETURN helper_raise_slot_fpu_disable(CPUSH4State *env)
 {
     raise_exception(env, 0x820, 0);
 }
 
-void helper_debug(CPUSH4State *env)
+void QEMU_NORETURN helper_debug(CPUSH4State *env)
 {
     raise_exception(env, EXCP_DEBUG, 0);
 }
 
-void helper_sleep(CPUSH4State *env)
+void QEMU_NORETURN helper_sleep(CPUSH4State *env)
 {
     CPUState *cs = CPU(sh_env_get_cpu(env));
 
@@ -99,7 +102,7 @@ void helper_sleep(CPUSH4State *env)
     raise_exception(env, EXCP_HLT, 0);
 }
 
-void helper_trapa(CPUSH4State *env, uint32_t tra)
+void QEMU_NORETURN helper_trapa(CPUSH4State *env, uint32_t tra)
 {
     env->tra = tra << 2;
     raise_exception(env, 0x160, 0);
@@ -130,7 +133,7 @@ void helper_discard_movcal_backup(CPUSH4State *env)
 	env->movcal_backup = current = next;
 	if (current == NULL)
 	    env->movcal_backup_tail = &(env->movcal_backup);
-    } 
+    }
 }
 
 void helper_ocbi(CPUSH4State *env, uint32_t address)

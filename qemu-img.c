@@ -1985,7 +1985,6 @@ static int img_info(int argc, char **argv)
     return 0;
 }
 
-
 typedef struct MapEntry {
     int flags;
     int depth;
@@ -1994,6 +1993,7 @@ typedef struct MapEntry {
     int64_t offset;
     BlockDriverState *bs;
 } MapEntry;
+
 
 static void dump_map_entry(OutputFormat output_format, MapEntry *e,
                            MapEntry *next)

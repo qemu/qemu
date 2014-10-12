@@ -63,7 +63,7 @@ void tlb_fill(CPUState *cs, target_ulong addr, int is_write, int mmu_idx,
 
 #endif
 
-void helper_raise_exception(CPUCRISState *env, uint32_t index)
+void QEMU_NORETURN helper_raise_exception(CPUCRISState *env, uint32_t index)
 {
     CPUState *cs = CPU(cris_env_get_cpu(env));
 
@@ -113,7 +113,7 @@ void helper_movl_sreg_reg(CPUCRISState *env, uint32_t sreg, uint32_t reg)
 #if !defined(CONFIG_USER_ONLY)
 	if (srs == 1 || srs == 2) {
 		if (sreg == 6) {
-			/* Writes to tlb-hi write to mm_cause as a side 
+			/* Writes to tlb-hi write to mm_cause as a side
 			   effect.  */
 			env->sregs[SFR_RW_MM_TLB_HI] = env->regs[reg];
 			env->sregs[SFR_R_MM_CAUSE] = env->regs[reg];
@@ -143,7 +143,7 @@ void helper_movl_sreg_reg(CPUCRISState *env, uint32_t sreg, uint32_t reg)
 			env->tlbsets[srs - 1][set][idx].lo = lo;
 			env->tlbsets[srs - 1][set][idx].hi = hi;
 
-			D_LOG("tlb flush vaddr=%x v=%d pc=%x\n", 
+			D_LOG("tlb flush vaddr=%x v=%d pc=%x\n",
 				  vaddr, tlb_v, env->pc);
 			if (tlb_v) {
                 tlb_flush_page(CPU(cpu), vaddr);
@@ -158,7 +158,7 @@ void helper_movl_reg_sreg(CPUCRISState *env, uint32_t reg, uint32_t sreg)
 	uint32_t srs;
 	env->pregs[PR_SRS] &= 3;
 	srs = env->pregs[PR_SRS];
-	
+
 #if !defined(CONFIG_USER_ONLY)
 	if (srs == 1 || srs == 2)
 	{
@@ -202,7 +202,7 @@ void helper_rfe(CPUCRISState *env)
 {
 	int rflag = env->pregs[PR_CCS] & R_FLAG;
 
-	D_LOG("rfe: erp=%x pid=%x ccs=%x btarget=%x\n", 
+	D_LOG("rfe: erp=%x pid=%x ccs=%x btarget=%x\n",
 		 env->pregs[PR_ERP], env->pregs[PR_PID],
 		 env->pregs[PR_CCS],
 		 env->btarget);
@@ -218,7 +218,7 @@ void helper_rfn(CPUCRISState *env)
 {
 	int rflag = env->pregs[PR_CCS] & R_FLAG;
 
-	D_LOG("rfn: erp=%x pid=%x ccs=%x btarget=%x\n", 
+	D_LOG("rfn: erp=%x pid=%x ccs=%x btarget=%x\n",
 		 env->pregs[PR_ERP], env->pregs[PR_PID],
 		 env->pregs[PR_CCS],
 		 env->btarget);
@@ -347,9 +347,9 @@ uint32_t helper_evaluate_flags_mcp(CPUCRISState *env, uint32_t ccs,
 	{
 		if (res == 0L)
 			flags |= Z_FLAG;
-		if (src & dst) 
+		if (src & dst)
 			flags |= V_FLAG;
-		if (dst | src) 
+		if (dst | src)
 			flags |= R_FLAG;
 	}
 
@@ -376,9 +376,9 @@ uint32_t helper_evaluate_flags_alu_4(CPUCRISState *env, uint32_t ccs,
 	{
 		if (res == 0L)
 			flags |= Z_FLAG;
-		if (src & dst) 
+		if (src & dst)
 			flags |= V_FLAG;
-		if (dst | src) 
+		if (dst | src)
 			flags |= C_FLAG;
 	}
 
@@ -405,9 +405,9 @@ uint32_t helper_evaluate_flags_sub_4(CPUCRISState *env, uint32_t ccs,
 	{
 		if (res == 0L)
 			flags |= Z_FLAG;
-		if (src & dst) 
+		if (src & dst)
 			flags |= V_FLAG;
-		if (dst | src) 
+		if (dst | src)
 			flags |= C_FLAG;
 	}
 

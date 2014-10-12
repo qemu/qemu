@@ -628,7 +628,7 @@ static abi_ulong copy_elf_strings(int argc,char ** argv, void **page,
     while (argc-- > 0) {
         tmp = argv[argc];
         if (!tmp) {
-            fprintf(stderr, "VFS: argc is wrong");
+            error_report("VFS: argc is wrong");
             exit(-1);
         }
         tmp1 = tmp;

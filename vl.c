@@ -41,10 +41,10 @@
 #ifdef CONFIG_SDL
 #if defined(__APPLE__) || defined(main)
 #include <SDL.h>
-int qemu_main(int argc, char **argv, char **envp);
+int qemu_main(int argc, char **argv);
 int main(int argc, char **argv)
 {
-    return qemu_main(argc, argv, NULL);
+    return qemu_main(argc, argv);
 }
 #undef main
 #define main qemu_main
@@ -204,6 +204,9 @@ NodeInfo numa_info[MAX_NODES];
 
 uint8_t qemu_uuid[16];
 bool qemu_uuid_set;
+
+/* Trace unassigned memory or i/o accesses. */
+bool trace_unassigned;
 
 static QEMUBootSetHandler *boot_set_handler;
 static void *boot_set_opaque;
@@ -2043,7 +2046,7 @@ static void version(void)
     printf("QEMU emulator version " QEMU_VERSION QEMU_PKGVERSION ", Copyright (c) 2003-2008 Fabrice Bellard\n");
 }
 
-static void help(int exitcode)
+static void QEMU_NORETURN help(int exitcode)
 {
     version();
     printf("usage: %s [options] [disk_image]\n\n"
@@ -2324,6 +2327,42 @@ static int balloon_parse(const char *arg)
 
     return -1;
 }
+
+#if defined(CONFIG_RUBY)
+/* Ruby interface for QEMU. See README.EXT for programming example. */
+#warning mit ruby
+#include <ruby.h>
+
+static VALUE qemu_open(int argc, VALUE *argv, VALUE klass)
+{
+  int i;
+  for (i = 0; i < argc; i++) {
+    argv[i] = StringValue(argv[i]);
+    fprintf(stderr, "argv[%d] = %s\n", i, StringValuePtr(argv[i]));
+  }
+    //~ if (rb_scan_args(argc, argv, "11", &file, &vmode) == 1) {
+        //~ mode = 0666;            /* default value */
+    //~ }
+  return INT2FIX(argc);
+}
+
+void Init_qemu(void)
+{
+  printf("%s\n", __func__);
+  VALUE cQEMU = rb_define_class("QEMU", rb_cObject);
+  rb_define_singleton_method(cQEMU, "run", qemu_open, -1);
+#if 0
+  rb_define_method();
+#endif
+}
+#endif /* CONFIG_RUBY */
+
+#if defined(CONFIG_DLL)
+BOOL APIENTRY DllMain(HINSTANCE hModule, DWORD ul_reason_for_call, LPVOID data)
+{
+  return FALSE;
+}
+#endif /* CONFIG_DLL */
 
 char *qemu_find_file(int type, const char *name)
 {
@@ -2852,7 +2891,7 @@ out:
     return 0;
 }
 
-int main(int argc, char **argv, char **envp)
+int main(int argc, char **argv)
 {
     int i;
     int snapshot, linux_boot;
@@ -3823,6 +3862,9 @@ int main(int argc, char **argv, char **envp)
                 trace_file = qemu_opt_get(opts, "file");
                 break;
             }
+            case QEMU_OPTION_trace_unassigned:
+                trace_unassigned = true;
+                break;
             case QEMU_OPTION_readconfig:
                 {
                     int ret = qemu_read_config_file(optarg);

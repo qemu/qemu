@@ -77,6 +77,9 @@ void gen_intermediate_code_pc(CPUArchState *env, struct TranslationBlock *tb);
 void restore_state_to_opc(CPUArchState *env, struct TranslationBlock *tb,
                           int pc_pos);
 
+/* Get a backtrace for the guest code. */
+const char *qemu_sprint_backtrace(char *buffer, size_t length);
+
 void cpu_gen_init(void);
 int cpu_gen_code(CPUArchState *env, struct TranslationBlock *tb,
                  int *gen_code_size_ptr);

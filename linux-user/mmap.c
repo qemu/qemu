@@ -16,20 +16,15 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
-#include <stdlib.h>
-#include <stdio.h>
-#include <stdarg.h>
-#include <string.h>
-#include <unistd.h>
-#include <errno.h>
+
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/mman.h>
 #include <linux/mman.h>
 #include <linux/unistd.h>
 
-#include "qemu.h"
 #include "qemu-common.h"
+#include "qemu.h"
 
 //#define DEBUG_MMAP
 

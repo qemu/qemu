@@ -18,7 +18,6 @@
  * License along with this library; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <assert.h>
 #include "cpu.h"
 #include "exec/helper-proto.h"
 #include "qemu/host-utils.h"
@@ -83,7 +82,7 @@ uint32_t helper_get(uint32_t id, uint32_t ctrl)
     return 0xdead0000 | id;
 }
 
-void helper_raise_exception(CPUMBState *env, uint32_t index)
+void QEMU_NORETURN helper_raise_exception(CPUMBState *env, uint32_t index)
 {
     CPUState *cs = CPU(mb_env_get_cpu(env));
 

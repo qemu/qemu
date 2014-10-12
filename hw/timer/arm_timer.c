@@ -403,10 +403,49 @@ static const TypeInfo sp804_info = {
     .class_init    = sp804_class_init,
 };
 
+/* BCM2708 timer module. */
+
+static int bcm2708_sp804_init(SysBusDevice *sbd)
+{
+    DeviceState *dev = DEVICE(sbd);
+    SP804State *s = SP804(dev);
+    qemu_irq *qi;
+
+    qi = qemu_allocate_irqs(sp804_set_irq, s, 2);
+    sysbus_init_irq(sbd, &s->irq);
+    s->timer[0] = arm_timer_init(s->freq0);
+    s->timer[1] = arm_timer_init(s->freq1);
+    s->timer[0]->irq = qi[0];
+    s->timer[1]->irq = qi[1];
+    g_free(qi);
+    memory_region_init_io(&s->iomem, OBJECT(s), &sp804_ops, s,
+                          "bcm2708.sp804", 0x0400);
+    sysbus_init_mmio(sbd, &s->iomem);
+    vmstate_register(dev, -1, &vmstate_sp804, s);
+    return 0;
+}
+
+static void bcm2708_sp804_class_init(ObjectClass *klass, void *data)
+{
+    SysBusDeviceClass *sdc = SYS_BUS_DEVICE_CLASS(klass);
+    DeviceClass *k = DEVICE_CLASS(klass);
+
+    sdc->init = bcm2708_sp804_init;
+    k->props = sp804_properties;
+}
+
+static TypeInfo bcm2708_sp804_info = {
+    .name          = "bcm2708.sp804",
+    .parent        = TYPE_SYS_BUS_DEVICE,
+    .instance_size = sizeof(SP804State),
+    .class_init    = bcm2708_sp804_class_init,
+};
+
 static void arm_timer_register_types(void)
 {
     type_register_static(&icp_pit_info);
     type_register_static(&sp804_info);
+    type_register_static(&bcm2708_sp804_info);
 }
 
 type_init(arm_timer_register_types)

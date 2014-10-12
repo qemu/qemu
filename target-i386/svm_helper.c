@@ -52,6 +52,7 @@ void helper_clgi(CPUX86State *env)
 
 void helper_skinit(CPUX86State *env)
 {
+  abort();
 }
 
 void helper_invlpga(CPUX86State *env, int aflag)
@@ -60,10 +61,12 @@ void helper_invlpga(CPUX86State *env, int aflag)
 
 void helper_vmexit(CPUX86State *env, uint32_t exit_code, uint64_t exit_info_1)
 {
+  abort();
 }
 
 void cpu_vmexit(CPUX86State *nenv, uint32_t exit_code, uint64_t exit_info_1)
 {
+  abort();
 }
 
 void helper_svm_check_intercept_param(CPUX86State *env, uint32_t type,
@@ -453,7 +456,7 @@ void helper_clgi(CPUX86State *env)
     env->hflags2 &= ~HF2_GIF_MASK;
 }
 
-void helper_skinit(CPUX86State *env)
+void QEMU_NORETURN helper_skinit(CPUX86State *env)
 {
     cpu_svm_check_intercept_param(env, SVM_EXIT_SKINIT, 0);
     /* XXX: not implemented */
@@ -582,7 +585,7 @@ void helper_svm_check_io(CPUX86State *env, uint32_t port, uint32_t param,
 }
 
 /* Note: currently only 32 bits of exit_code are used */
-void helper_vmexit(CPUX86State *env, uint32_t exit_code, uint64_t exit_info_1)
+void QEMU_NORETURN helper_vmexit(CPUX86State *env, uint32_t exit_code, uint64_t exit_info_1)
 {
     CPUState *cs = CPU(x86_env_get_cpu(env));
     uint32_t int_ctl;
@@ -764,7 +767,7 @@ void helper_vmexit(CPUX86State *env, uint32_t exit_code, uint64_t exit_info_1)
     cpu_loop_exit(cs);
 }
 
-void cpu_vmexit(CPUX86State *env, uint32_t exit_code, uint64_t exit_info_1)
+void QEMU_NORETURN cpu_vmexit(CPUX86State *env, uint32_t exit_code, uint64_t exit_info_1)
 {
     helper_vmexit(env, exit_code, exit_info_1);
 }

@@ -468,7 +468,7 @@ struct TCGContext {
     uint8_t *op_sync_args;  /* for each operation, each bit tells if the
                                corresponding output argument needs to be
                                sync to memory. */
-    
+
     /* tells in which temporary a given register is. It does not take
        into account fixed registers */
     int reg_to_temp[TCG_TARGET_NB_REGS];

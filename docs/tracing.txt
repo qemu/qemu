@@ -286,12 +286,12 @@ function. In these cases you can use the macro 'TRACE_${EVENT_NAME}_ENABLED' to
 guard such computations and avoid its compilation when the event is disabled:
 
     #include "trace.h"  /* needed for trace event prototype */
-    
+
     void *qemu_vmalloc(size_t size)
     {
         void *ptr;
         size_t align = QEMU_VMALLOC_ALIGN;
-    
+
         if (size < align) {
             align = getpagesize();
         }

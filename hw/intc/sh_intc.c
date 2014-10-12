@@ -137,7 +137,7 @@ static unsigned int sh_intc_mode(unsigned long address,
 }
 
 static void sh_intc_locate(struct intc_desc *desc,
-			   unsigned long address,
+			   hwaddr address,
 			   unsigned long **datap,
 			   intc_enum **enums,
 			   unsigned int *first,
@@ -234,7 +234,7 @@ static uint64_t sh_intc_read(void *opaque, hwaddr offset,
     printf("sh_intc_read 0x%lx\n", (unsigned long) offset);
 #endif
 
-    sh_intc_locate(desc, (unsigned long)offset, &valuep, 
+    sh_intc_locate(desc, offset, &valuep,
 		   &enum_ids, &first, &width, &mode);
     return *valuep;
 }
@@ -255,7 +255,7 @@ static void sh_intc_write(void *opaque, hwaddr offset,
     printf("sh_intc_write 0x%lx 0x%08x\n", (unsigned long) offset, value);
 #endif
 
-    sh_intc_locate(desc, (unsigned long)offset, &valuep, 
+    sh_intc_locate(desc, offset, &valuep,
 		   &enum_ids, &first, &width, &mode);
 
     switch (mode) {

@@ -26,10 +26,13 @@ endif
 obj-$(CONFIG_OMAP) += omap_dss.o
 obj-$(CONFIG_OMAP) += omap_lcdc.o
 obj-$(CONFIG_PXA2XX) += pxa2xx_lcd.o
+obj-$(CONFIG_RASPI) += bcm2835_fb.o
 obj-$(CONFIG_SM501) += sm501.o
 obj-$(CONFIG_TCX) += tcx.o
 obj-$(CONFIG_CG3) += cg3.o
 
 obj-$(CONFIG_VGA) += vga.o
+
+obj-$(CONFIG_RASPI) += bcm2835_fb.o
 
 common-obj-$(CONFIG_QXL) += qxl.o qxl-logger.o qxl-render.o

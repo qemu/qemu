@@ -36,7 +36,7 @@ qemu-img: Could not open 'TEST_DIR/t.IMGFMT': 'image' uses a IMGFMT feature whic
 qemu-img: Could not open 'TEST_DIR/t.IMGFMT': 'image' uses a IMGFMT feature which is not supported by this qemu version: test2, Unknown incompatible feature: a000000000000000
 === Create image with unknown autoclear feature bit ===
 
-Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864 
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864
 magic                     0x514649fb
 version                   3
 backing_file_offset       0x0

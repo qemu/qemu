@@ -846,8 +846,9 @@ static void cpu_dump_rfi(target_ulong RA, target_ulong msr)
 /*****************************************************************************/
 /* Exceptions processing helpers */
 
-void helper_raise_exception_err(CPUPPCState *env, uint32_t exception,
-                                uint32_t error_code)
+void QEMU_NORETURN
+helper_raise_exception_err(CPUPPCState *env, uint32_t exception,
+                           uint32_t error_code)
 {
     CPUState *cs = CPU(ppc_env_get_cpu(env));
 
@@ -859,7 +860,7 @@ void helper_raise_exception_err(CPUPPCState *env, uint32_t exception,
     cpu_loop_exit(cs);
 }
 
-void helper_raise_exception(CPUPPCState *env, uint32_t exception)
+void QEMU_NORETURN helper_raise_exception(CPUPPCState *env, uint32_t exception)
 {
     helper_raise_exception_err(env, exception, 0);
 }
