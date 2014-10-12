@@ -184,7 +184,7 @@ int cpu_signal_handler(int host_signum, void *pinfo,
 #endif
     pc = EIP_sig(uc);
     trapno = TRAP_sig(uc);
-    return handle_cpu_signal(pc, info->si_addr,
+    return handle_cpu_signal(pc, (unsigned long)info->si_addr,
                              trapno == 0xe ?
                              (ERROR_sig(uc) >> 1) & 1 : 0,
                              &MASK_sig(uc), puc);

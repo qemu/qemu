@@ -534,19 +534,9 @@ int cpu_exec(CPUArchState *env)
         } else {
             /* Reload env after longjmp - the compiler may have smashed all
              * local variables as longjmp is marked 'noreturn'. */
-<<<<<<< HEAD
-            /* TODO: Fix comment in 2014 - then it was wrong. */
-            g_assert(cpu == current_cpu);
-            g_assert(env == cpu->env_ptr);
-#if !(defined(CONFIG_USER_ONLY) && \
-      (defined(TARGET_M68K) || defined(TARGET_PPC) || defined(TARGET_S390X)))
-            g_assert(cc == CPU_GET_CLASS(cpu));
-#endif
-=======
             cpu = current_cpu;
             env = cpu->env_ptr;
             cc = CPU_GET_CLASS(cpu);
->>>>>>> 7a847fd153a15abbd09050ec4551f5c946cd4ee2
 #ifdef TARGET_I386
             x86_cpu = X86_CPU(cpu);
 #endif

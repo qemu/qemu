@@ -2528,13 +2528,8 @@ static abi_ulong vma_dump_size(const struct vm_area_struct *vma)
     return (vma->vma_end - vma->vma_start);
 }
 
-<<<<<<< HEAD
-static int vma_walker(void *priv, abi_ulong start, abi_ulong end,
-                      abi_ulong flags)
-=======
 static int vma_walker(void *priv, target_ulong start, target_ulong end,
                       unsigned long flags)
->>>>>>> 7a847fd153a15abbd09050ec4551f5c946cd4ee2
 {
     struct mm_struct *mm = (struct mm_struct *)priv;
 
