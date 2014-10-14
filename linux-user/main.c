@@ -3546,6 +3546,17 @@ static void handle_arg_pagesize(const char *arg)
     }
 }
 
+static void handle_arg_randseed(const char *arg)
+{
+    unsigned long long seed;
+
+    if (parse_uint_full(arg, &seed, 0) != 0 || seed > UINT_MAX) {
+        fprintf(stderr, "Invalid seed number: %s\n", arg);
+        exit(1);
+    }
+    srand(seed);
+}
+
 static void handle_arg_gdb(const char *arg)
 {
     gdbstub_port = atoi(arg);
@@ -3674,6 +3685,8 @@ static const struct qemu_argument arg_table[] = {
      "",           "run in singlestep mode"},
     {"strace",     "QEMU_STRACE",      false, handle_arg_strace,
      "",           "log system calls"},
+    {"seed",       "QEMU_RAND_SEED",   true,  handle_arg_randseed,
+     "",           "Seed for pseudo-random number generator"},
     {"version",    "QEMU_VERSION",     false, handle_arg_version,
      "",           "display version information and exit"},
     {NULL, NULL, false, NULL, NULL, NULL}
@@ -3856,6 +3869,8 @@ int main(int argc, char **argv, char **envp)
     cpudef_setup(); /* parse cpu definitions in target config file (TBD) */
 #endif
 
+    srand(time(NULL));
+
     optind = parse_args(argc, argv);
 
     /* Zero out regs */
@@ -3924,6 +3939,10 @@ int main(int argc, char **argv, char **envp)
 
     if (getenv("QEMU_STRACE")) {
         do_strace = 1;
+    }
+
+    if (getenv("QEMU_RAND_SEED")) {
+        handle_arg_randseed(getenv("QEMU_RAND_SEED"));
     }
 
     target_environ = envlist_to_environ(envlist, NULL);

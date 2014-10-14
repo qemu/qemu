@@ -1539,7 +1539,6 @@ static abi_ulong create_elf_tables(abi_ulong p, int argc, int envc,
      * Generate 16 random bytes for userspace PRNG seeding (not
      * cryptically secure but it's not the aim of QEMU).
      */
-    srand((unsigned int) time(NULL));
     for (i = 0; i < 16; i++) {
         k_rand_bytes[i] = rand();
     }
