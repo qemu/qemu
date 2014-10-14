@@ -86,9 +86,6 @@
  * 12 is historical, and due to x86 page size. */
 #define VIRTIO_PCI_QUEUE_ADDR_SHIFT    12
 
-/* Flags track per-device state like workarounds for quirks in older guests. */
-#define VIRTIO_PCI_FLAG_BUS_MASTER_BUG  (1 << 0)
-
 static void virtio_pci_bus_new(VirtioBusState *bus, size_t bus_size,
                                VirtIOPCIProxy *dev);
 
@@ -323,14 +320,6 @@ static void virtio_ioport_write(void *opaque, uint32_t addr, uint32_t val)
                                      proxy->pci_dev.config[PCI_COMMAND] |
                                      PCI_COMMAND_MASTER, 1);
         }
-
-        /* Linux before 2.6.34 sets the device as OK without enabling
-           the PCI device bus master bit. In this case we need to disable
-           some safety checks. */
-        if ((val & VIRTIO_CONFIG_S_DRIVER_OK) &&
-            !(proxy->pci_dev.config[PCI_COMMAND] & PCI_COMMAND_MASTER)) {
-            proxy->flags |= VIRTIO_PCI_FLAG_BUS_MASTER_BUG;
-        }
         break;
     case VIRTIO_MSI_CONFIG_VECTOR:
         msix_vector_unuse(&proxy->pci_dev, vdev->config_vector);
@@ -483,8 +472,7 @@ static void virtio_write_config(PCIDevice *pci_dev, uint32_t address,
     pci_default_write_config(pci_dev, address, val, len);
 
     if (range_covers_byte(address, len, PCI_COMMAND) &&
-        !(pci_dev->config[PCI_COMMAND] & PCI_COMMAND_MASTER) &&
-        !(proxy->flags & VIRTIO_PCI_FLAG_BUS_MASTER_BUG)) {
+        !(pci_dev->config[PCI_COMMAND] & PCI_COMMAND_MASTER)) {
         virtio_pci_stop_ioeventfd(proxy);
         virtio_set_status(vdev, vdev->status & ~VIRTIO_CONFIG_S_DRIVER_OK);
     }
@@ -895,11 +883,15 @@ static void virtio_pci_vmstate_change(DeviceState *d, bool running)
     VirtIODevice *vdev = virtio_bus_get_device(&proxy->bus);
 
     if (running) {
-        /* Try to find out if the guest has bus master disabled, but is
-           in ready state. Then we have a buggy guest OS. */
-        if ((vdev->status & VIRTIO_CONFIG_S_DRIVER_OK) &&
+        /* Old QEMU versions did not set bus master enable on status write.
+         * Detect DRIVER set and enable it.
+         */
+        if ((proxy->flags & VIRTIO_PCI_FLAG_BUS_MASTER_BUG_MIGRATION) &&
+            (vdev->status & VIRTIO_CONFIG_S_DRIVER) &&
             !(proxy->pci_dev.config[PCI_COMMAND] & PCI_COMMAND_MASTER)) {
-            proxy->flags |= VIRTIO_PCI_FLAG_BUS_MASTER_BUG;
+            pci_default_write_config(&proxy->pci_dev, PCI_COMMAND,
+                                     proxy->pci_dev.config[PCI_COMMAND] |
+                                     PCI_COMMAND_MASTER, 1);
         }
         virtio_pci_start_ioeventfd(proxy);
     } else {
@@ -1040,10 +1032,11 @@ static void virtio_pci_reset(DeviceState *qdev)
     virtio_pci_stop_ioeventfd(proxy);
     virtio_bus_reset(bus);
     msix_unuse_all_vectors(&proxy->pci_dev);
-    proxy->flags &= ~VIRTIO_PCI_FLAG_BUS_MASTER_BUG;
 }
 
 static Property virtio_pci_properties[] = {
+    DEFINE_PROP_BIT("virtio-pci-bus-master-bug-migration", VirtIOPCIProxy, flags,
+                    VIRTIO_PCI_FLAG_BUS_MASTER_BUG_MIGRATION_BIT, false),
     DEFINE_VIRTIO_COMMON_FEATURES(VirtIOPCIProxy, host_features),
     DEFINE_PROP_END_OF_LIST(),
 };
