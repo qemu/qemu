@@ -1371,8 +1371,16 @@ static void usb_net_realize(USBDevice *dev, Error **errrp)
              s->conf.macaddr.a[4],
              s->conf.macaddr.a[5]);
     usb_desc_set_string(dev, STRING_ETHADDR, s->usbstring_mac);
+}
 
-    add_boot_device_path(s->conf.bootindex, &dev->qdev, "/ethernet@0");
+static void usb_net_instance_init(Object *obj)
+{
+    USBDevice *dev = USB_DEVICE(obj);
+    USBNetState *s = DO_UPCAST(USBNetState, dev, dev);
+
+    device_add_bootindex_property(obj, &s->conf.bootindex,
+                                  "bootindex", "/ethernet-phy@0",
+                                  &dev->qdev, NULL);
 }
 
 static USBDevice *usb_net_init(USBBus *bus, const char *cmdline)
@@ -1438,6 +1446,7 @@ static const TypeInfo net_info = {
     .parent        = TYPE_USB_DEVICE,
     .instance_size = sizeof(USBNetState),
     .class_init    = usb_net_class_initfn,
+    .instance_init = usb_net_instance_init,
 };
 
 static void usb_net_register_types(void)

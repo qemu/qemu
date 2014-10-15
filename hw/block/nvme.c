@@ -24,6 +24,8 @@
 #include <hw/hw.h>
 #include <hw/pci/msix.h>
 #include <hw/pci/pci.h>
+#include "sysemu/sysemu.h"
+#include "qapi/visitor.h"
 
 #include "nvme.h"
 
@@ -871,11 +873,53 @@ static void nvme_class_init(ObjectClass *oc, void *data)
     dc->vmsd = &nvme_vmstate;
 }
 
+static void nvme_get_bootindex(Object *obj, Visitor *v, void *opaque,
+                                  const char *name, Error **errp)
+{
+    NvmeCtrl *s = NVME(obj);
+
+    visit_type_int32(v, &s->conf.bootindex, name, errp);
+}
+
+static void nvme_set_bootindex(Object *obj, Visitor *v, void *opaque,
+                                  const char *name, Error **errp)
+{
+    NvmeCtrl *s = NVME(obj);
+    int32_t boot_index;
+    Error *local_err = NULL;
+
+    visit_type_int32(v, &boot_index, name, &local_err);
+    if (local_err) {
+        goto out;
+    }
+    /* check whether bootindex is present in fw_boot_order list  */
+    check_boot_index(boot_index, &local_err);
+    if (local_err) {
+        goto out;
+    }
+    /* change bootindex to a new one */
+    s->conf.bootindex = boot_index;
+
+out:
+    if (local_err) {
+        error_propagate(errp, local_err);
+    }
+}
+
+static void nvme_instance_init(Object *obj)
+{
+    object_property_add(obj, "bootindex", "int32",
+                        nvme_get_bootindex,
+                        nvme_set_bootindex, NULL, NULL, NULL);
+    object_property_set_int(obj, -1, "bootindex", NULL);
+}
+
 static const TypeInfo nvme_info = {
     .name          = "nvme",
     .parent        = TYPE_PCI_DEVICE,
     .instance_size = sizeof(NvmeCtrl),
     .class_init    = nvme_class_init,
+    .instance_init = nvme_instance_init,
 };
 
 static void nvme_register_types(void)

@@ -130,6 +130,7 @@ extern int no_shutdown;
 extern int semihosting_enabled;
 extern int old_param;
 extern int boot_menu;
+extern bool boot_strict;
 extern uint8_t *boot_splash_filedata;
 extern size_t boot_splash_filedata_size;
 extern uint8_t qemu_extra_params_fw[2];
@@ -212,6 +213,11 @@ void add_boot_device_path(int32_t bootindex, DeviceState *dev,
 char *get_boot_devices_list(size_t *size, bool ignore_suffixes);
 
 DeviceState *get_boot_device(uint32_t position);
+void check_boot_index(int32_t bootindex, Error **errp);
+void del_boot_device_path(DeviceState *dev, const char *suffix);
+void device_add_bootindex_property(Object *obj, int32_t *bootindex,
+                                   const char *name, const char *suffix,
+                                   DeviceState *dev, Error **errp);
 
 QemuOpts *qemu_get_machine_opts(void);
 

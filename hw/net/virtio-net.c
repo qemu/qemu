@@ -1661,8 +1661,6 @@ static void virtio_net_device_realize(DeviceState *dev, Error **errp)
     n->qdev = dev;
     register_savevm(dev, "virtio-net", -1, VIRTIO_NET_VM_VERSION,
                     virtio_net_save, virtio_net_load, n);
-
-    add_boot_device_path(n->nic_conf.bootindex, dev, "/ethernet-phy@0");
 }
 
 static void virtio_net_device_unrealize(DeviceState *dev, Error **errp)
@@ -1714,6 +1712,9 @@ static void virtio_net_instance_init(Object *obj)
      * Can be overriden with virtio_net_set_config_size.
      */
     n->config_size = sizeof(struct virtio_net_config);
+    device_add_bootindex_property(obj, &n->nic_conf.bootindex,
+                                  "bootindex", "/ethernet-phy@0",
+                                  DEVICE(n), NULL);
 }
 
 static Property virtio_net_properties[] = {

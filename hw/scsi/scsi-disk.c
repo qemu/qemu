@@ -2269,7 +2269,6 @@ static void scsi_realize(SCSIDevice *dev, Error **errp)
     bdrv_set_guest_block_size(s->qdev.conf.bs, s->qdev.blocksize);
 
     bdrv_iostatus_enable(s->qdev.conf.bs);
-    add_boot_device_path(s->qdev.conf.bootindex, &dev->qdev, NULL);
 }
 
 static void scsi_hd_realize(SCSIDevice *dev, Error **errp)
@@ -2662,7 +2661,6 @@ static const TypeInfo scsi_cd_info = {
 #ifdef __linux__
 static Property scsi_block_properties[] = {
     DEFINE_PROP_DRIVE("drive", SCSIDiskState, qdev.conf.bs),
-    DEFINE_PROP_INT32("bootindex", SCSIDiskState, qdev.conf.bootindex, -1),
     DEFINE_PROP_END_OF_LIST(),
 };
 

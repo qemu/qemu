@@ -23,6 +23,7 @@
 #include "sysemu/blockdev.h"
 #include "hw/block/block.h"
 #include "sysemu/sysemu.h"
+#include "qapi/visitor.h"
 
 /* --------------------------------- */
 
@@ -191,6 +192,51 @@ static int ide_dev_initfn(IDEDevice *dev, IDEDriveKind kind)
     return 0;
 }
 
+static void ide_dev_get_bootindex(Object *obj, Visitor *v, void *opaque,
+                                  const char *name, Error **errp)
+{
+    IDEDevice *d = IDE_DEVICE(obj);
+
+    visit_type_int32(v, &d->conf.bootindex, name, errp);
+}
+
+static void ide_dev_set_bootindex(Object *obj, Visitor *v, void *opaque,
+                                  const char *name, Error **errp)
+{
+    IDEDevice *d = IDE_DEVICE(obj);
+    int32_t boot_index;
+    Error *local_err = NULL;
+
+    visit_type_int32(v, &boot_index, name, &local_err);
+    if (local_err) {
+        goto out;
+    }
+    /* check whether bootindex is present in fw_boot_order list  */
+    check_boot_index(boot_index, &local_err);
+    if (local_err) {
+        goto out;
+    }
+    /* change bootindex to a new one */
+    d->conf.bootindex = boot_index;
+
+    if (d->unit != -1) {
+        add_boot_device_path(d->conf.bootindex, &d->qdev,
+                             d->unit ? "/disk@1" : "/disk@0");
+    }
+out:
+    if (local_err) {
+        error_propagate(errp, local_err);
+    }
+}
+
+static void ide_dev_instance_init(Object *obj)
+{
+    object_property_add(obj, "bootindex", "int32",
+                        ide_dev_get_bootindex,
+                        ide_dev_set_bootindex, NULL, NULL, NULL);
+    object_property_set_int(obj, -1, "bootindex", NULL);
+}
+
 static int ide_hd_initfn(IDEDevice *dev)
 {
     return ide_dev_initfn(dev, IDE_HD);
@@ -300,6 +346,7 @@ static const TypeInfo ide_device_type_info = {
     .abstract = true,
     .class_size = sizeof(IDEDeviceClass),
     .class_init = ide_device_class_init,
+    .instance_init = ide_dev_instance_init,
 };
 
 static void ide_register_types(void)

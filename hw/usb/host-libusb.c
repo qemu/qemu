@@ -978,8 +978,17 @@ static void usb_host_realize(USBDevice *udev, Error **errp)
     qemu_add_exit_notifier(&s->exit);
 
     QTAILQ_INSERT_TAIL(&hostdevs, s, next);
-    add_boot_device_path(s->bootindex, &udev->qdev, NULL);
     usb_host_auto_check(NULL);
+}
+
+static void usb_host_instance_init(Object *obj)
+{
+    USBDevice *udev = USB_DEVICE(obj);
+    USBHostDevice *s = USB_HOST_DEVICE(udev);
+
+    device_add_bootindex_property(obj, &s->bootindex,
+                                  "bootindex", NULL,
+                                  &udev->qdev, NULL);
 }
 
 static void usb_host_handle_destroy(USBDevice *udev)
@@ -1465,7 +1474,6 @@ static Property usb_host_dev_properties[] = {
     DEFINE_PROP_UINT32("productid", USBHostDevice, match.product_id, 0),
     DEFINE_PROP_UINT32("isobufs",  USBHostDevice, iso_urb_count,    4),
     DEFINE_PROP_UINT32("isobsize", USBHostDevice, iso_urb_frames,   32),
-    DEFINE_PROP_INT32("bootindex", USBHostDevice, bootindex,        -1),
     DEFINE_PROP_UINT32("loglevel",  USBHostDevice, loglevel,
                        LIBUSB_LOG_LEVEL_WARNING),
     DEFINE_PROP_BIT("pipeline",    USBHostDevice, options,
@@ -1498,6 +1506,7 @@ static TypeInfo usb_host_dev_info = {
     .parent        = TYPE_USB_DEVICE,
     .instance_size = sizeof(USBHostDevice),
     .class_init    = usb_host_class_initfn,
+    .instance_init = usb_host_instance_init,
 };
 
 static void usb_host_register_types(void)

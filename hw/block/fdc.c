@@ -2216,9 +2216,6 @@ static void isabus_fdc_realize(DeviceState *dev, Error **errp)
         error_propagate(errp, err);
         return;
     }
-
-    add_boot_device_path(isa->bootindexA, dev, "/floppy@0");
-    add_boot_device_path(isa->bootindexB, dev, "/floppy@1");
 }
 
 static void sysbus_fdc_initfn(Object *obj)
@@ -2291,8 +2288,6 @@ static Property isa_fdc_properties[] = {
     DEFINE_PROP_UINT32("dma", FDCtrlISABus, dma, 2),
     DEFINE_PROP_DRIVE("driveA", FDCtrlISABus, state.drives[0].bs),
     DEFINE_PROP_DRIVE("driveB", FDCtrlISABus, state.drives[1].bs),
-    DEFINE_PROP_INT32("bootindexA", FDCtrlISABus, bootindexA, -1),
-    DEFINE_PROP_INT32("bootindexB", FDCtrlISABus, bootindexB, -1),
     DEFINE_PROP_BIT("check_media_rate", FDCtrlISABus, state.check_media_rate,
                     0, true),
     DEFINE_PROP_END_OF_LIST(),
@@ -2310,11 +2305,24 @@ static void isabus_fdc_class_init(ObjectClass *klass, void *data)
     set_bit(DEVICE_CATEGORY_STORAGE, dc->categories);
 }
 
+static void isabus_fdc_instance_init(Object *obj)
+{
+    FDCtrlISABus *isa = ISA_FDC(obj);
+
+    device_add_bootindex_property(obj, &isa->bootindexA,
+                                  "bootindexA", "/floppy@0",
+                                  DEVICE(obj), NULL);
+    device_add_bootindex_property(obj, &isa->bootindexB,
+                                  "bootindexB", "/floppy@1",
+                                  DEVICE(obj), NULL);
+}
+
 static const TypeInfo isa_fdc_info = {
     .name          = TYPE_ISA_FDC,
     .parent        = TYPE_ISA_DEVICE,
     .instance_size = sizeof(FDCtrlISABus),
     .class_init    = isabus_fdc_class_init,
+    .instance_init = isabus_fdc_instance_init,
 };
 
 static const VMStateDescription vmstate_sysbus_fdc ={

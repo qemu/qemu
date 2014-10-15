@@ -768,8 +768,6 @@ static void virtio_blk_device_realize(DeviceState *dev, Error **errp)
     bdrv_set_guest_block_size(s->bs, s->conf->logical_block_size);
 
     bdrv_iostatus_enable(s->bs);
-
-    add_boot_device_path(s->conf->bootindex, dev, "/disk@0,0");
 }
 
 static void virtio_blk_device_unrealize(DeviceState *dev, Error **errp)
@@ -794,6 +792,9 @@ static void virtio_blk_instance_init(Object *obj)
                              (Object **)&s->blk.iothread,
                              qdev_prop_allow_set_link_before_realize,
                              OBJ_PROP_LINK_UNREF_ON_RELEASE, NULL);
+    device_add_bootindex_property(obj, &s->blk.conf.bootindex,
+                                  "bootindex", "/disk@0,0",
+                                  DEVICE(obj), NULL);
 }
 
 static Property virtio_blk_properties[] = {

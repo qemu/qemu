@@ -1825,8 +1825,6 @@ static int assigned_initfn(struct PCIDevice *pci_dev)
 
     assigned_dev_load_option_rom(dev);
 
-    add_boot_device_path(dev->bootindex, &pci_dev->qdev, NULL);
-
     return 0;
 
 assigned_out:
@@ -1850,13 +1848,22 @@ static void assigned_exitfn(struct PCIDevice *pci_dev)
     free_assigned_device(dev);
 }
 
+static void assigned_dev_instance_init(Object *obj)
+{
+    PCIDevice *pci_dev = PCI_DEVICE(obj);
+    AssignedDevice *d = DO_UPCAST(AssignedDevice, dev, PCI_DEVICE(obj));
+
+    device_add_bootindex_property(obj, &d->bootindex,
+                                  "bootindex", NULL,
+                                  &pci_dev->qdev, NULL);
+}
+
 static Property assigned_dev_properties[] = {
     DEFINE_PROP_PCI_HOST_DEVADDR("host", AssignedDevice, host),
     DEFINE_PROP_BIT("prefer_msi", AssignedDevice, features,
                     ASSIGNED_DEVICE_PREFER_MSI_BIT, false),
     DEFINE_PROP_BIT("share_intx", AssignedDevice, features,
                     ASSIGNED_DEVICE_SHARE_INTX_BIT, true),
-    DEFINE_PROP_INT32("bootindex", AssignedDevice, bootindex, -1),
     DEFINE_PROP_STRING("configfd", AssignedDevice, configfd_name),
     DEFINE_PROP_END_OF_LIST(),
 };
@@ -1882,6 +1889,7 @@ static const TypeInfo assign_info = {
     .parent             = TYPE_PCI_DEVICE,
     .instance_size      = sizeof(AssignedDevice),
     .class_init         = assign_class_init,
+    .instance_init      = assigned_dev_instance_init,
 };
 
 static void assign_register_types(void)
