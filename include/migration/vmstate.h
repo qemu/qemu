@@ -820,6 +820,8 @@ int vmstate_load_state(QEMUFile *f, const VMStateDescription *vmsd,
 void vmstate_save_state(QEMUFile *f, const VMStateDescription *vmsd,
                         void *opaque, QJSON *vmdesc);
 
+bool vmstate_save_needed(const VMStateDescription *vmsd, void *opaque);
+
 int vmstate_register_with_alias_id(DeviceState *dev, int instance_id,
                                    const VMStateDescription *vmsd,
                                    void *base, int alias_id,

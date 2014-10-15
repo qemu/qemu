@@ -836,6 +836,11 @@ void qemu_savevm_state_complete(QEMUFile *f)
         if ((!se->ops || !se->ops->save_state) && !se->vmsd) {
             continue;
         }
+        if (se->vmsd && !vmstate_save_needed(se->vmsd, se->opaque)) {
+            trace_savevm_section_skip(se->idstr, se->section_id);
+            continue;
+        }
+
         trace_savevm_section_start(se->idstr, se->section_id);
 
         json_start_object(vmdesc, NULL);
@@ -947,6 +952,9 @@ static int qemu_save_device_state(QEMUFile *f)
             continue;
         }
         if ((!se->ops || !se->ops->save_state) && !se->vmsd) {
+            continue;
+        }
+        if (se->vmsd && !vmstate_save_needed(se->vmsd, se->opaque)) {
             continue;
         }
 

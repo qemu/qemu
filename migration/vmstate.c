@@ -276,6 +276,17 @@ static void vmsd_desc_field_end(const VMStateDescription *vmsd, QJSON *vmdesc,
     json_end_object(vmdesc);
 }
 
+
+bool vmstate_save_needed(const VMStateDescription *vmsd, void *opaque)
+{
+    if (vmsd->needed && !vmsd->needed(opaque)) {
+        /* optional section not needed */
+        return false;
+    }
+    return true;
+}
+
+
 void vmstate_save_state(QEMUFile *f, const VMStateDescription *vmsd,
                         void *opaque, QJSON *vmdesc)
 {
