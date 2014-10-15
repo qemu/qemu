@@ -22,9 +22,7 @@ void s390_sclp_extint(uint32_t parm)
         kvm_s390_service_interrupt(parm);
     } else {
         S390CPU *dummy_cpu = s390_cpu_addr2state(0);
-        CPUS390XState *env = &dummy_cpu->env;
 
-        env->psw.addr += 4;
         cpu_inject_ext(dummy_cpu, EXT_SERVICE, parm, 0);
     }
 }
