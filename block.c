@@ -5043,6 +5043,11 @@ void bdrv_invalidate_cache(BlockDriverState *bs, Error **errp)
         return;
     }
 
+    if (!(bs->open_flags & BDRV_O_INCOMING)) {
+        return;
+    }
+    bs->open_flags &= ~BDRV_O_INCOMING;
+
     if (bs->drv->bdrv_invalidate_cache) {
         bs->drv->bdrv_invalidate_cache(bs, &local_err);
     } else if (bs->file) {
@@ -5075,19 +5080,6 @@ void bdrv_invalidate_cache_all(Error **errp)
             error_propagate(errp, local_err);
             return;
         }
-    }
-}
-
-void bdrv_clear_incoming_migration_all(void)
-{
-    BlockDriverState *bs;
-
-    QTAILQ_FOREACH(bs, &bdrv_states, device_list) {
-        AioContext *aio_context = bdrv_get_aio_context(bs);
-
-        aio_context_acquire(aio_context);
-        bs->open_flags = bs->open_flags & ~(BDRV_O_INCOMING);
-        aio_context_release(aio_context);
     }
 }
 

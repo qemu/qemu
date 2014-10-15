@@ -71,6 +71,7 @@ typedef struct SSIBus SSIBus;
 typedef struct EventNotifier EventNotifier;
 typedef struct VirtIODevice VirtIODevice;
 typedef struct QEMUSGList QEMUSGList;
+typedef struct QEMUSizedBuffer QEMUSizedBuffer;
 typedef struct SHPCDevice SHPCDevice;
 typedef struct FWCfgState FWCfgState;
 typedef struct PcGuestInfo PcGuestInfo;

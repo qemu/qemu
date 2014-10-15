@@ -49,9 +49,16 @@ static void *vmstate_base_addr(void *opaque, VMStateField *field, bool alloc)
 
     if (field->flags & VMS_POINTER) {
         if (alloc && (field->flags & VMS_ALLOC)) {
-            int n_elems = vmstate_n_elems(opaque, field);
-            if (n_elems) {
-                gsize size = n_elems * field->size;
+            gsize size = 0;
+            if (field->flags & VMS_VBUFFER) {
+                size = vmstate_size(opaque, field);
+            } else {
+                int n_elems = vmstate_n_elems(opaque, field);
+                if (n_elems) {
+                    size = n_elems * field->size;
+                }
+            }
+            if (size) {
                 *((void **)base_addr + field->start) = g_malloc(size);
             }
         }
