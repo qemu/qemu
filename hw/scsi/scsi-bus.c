@@ -23,9 +23,11 @@ static Property scsi_props[] = {
 static void scsi_bus_class_init(ObjectClass *klass, void *data)
 {
     BusClass *k = BUS_CLASS(klass);
+    HotplugHandlerClass *hc = HOTPLUG_HANDLER_CLASS(klass);
 
     k->get_dev_path = scsibus_get_dev_path;
     k->get_fw_dev_path = scsibus_get_fw_dev_path;
+    hc->unplug = qdev_simple_device_unplug_cb;
 }
 
 static const TypeInfo scsi_bus_info = {
@@ -33,6 +35,10 @@ static const TypeInfo scsi_bus_info = {
     .parent = TYPE_BUS,
     .instance_size = sizeof(SCSIBus),
     .class_init = scsi_bus_class_init,
+    .interfaces = (InterfaceInfo[]) {
+        { TYPE_HOTPLUG_HANDLER },
+        { }
+    }
 };
 static int next_scsi_bus;
 
@@ -92,7 +98,7 @@ void scsi_bus_new(SCSIBus *bus, size_t bus_size, DeviceState *host,
     qbus_create_inplace(bus, bus_size, TYPE_SCSI_BUS, host, bus_name);
     bus->busnr = next_scsi_bus++;
     bus->info = info;
-    bus->qbus.allow_hotplug = 1;
+    qbus_set_bus_hotplug_handler(BUS(bus), &error_abort);
 }
 
 static void scsi_dma_restart_bh(void *opaque)
@@ -202,10 +208,6 @@ static void scsi_qdev_realize(DeviceState *qdev, Error **errp)
     }
     dev->vmsentry = qemu_add_vm_change_state_handler(scsi_dma_restart_cb,
                                                      dev);
-
-    if (bus->info->hotplug) {
-        bus->info->hotplug(bus, dev);
-    }
 }
 
 static void scsi_qdev_unrealize(DeviceState *qdev, Error **errp)
@@ -1937,17 +1939,6 @@ static int get_scsi_requests(QEMUFile *f, void *pv, size_t size)
     return 0;
 }
 
-static int scsi_qdev_unplug(DeviceState *qdev)
-{
-    SCSIDevice *dev = SCSI_DEVICE(qdev);
-    SCSIBus *bus = DO_UPCAST(SCSIBus, qbus, dev->qdev.parent_bus);
-
-    if (bus->info->hot_unplug) {
-        bus->info->hot_unplug(bus, dev);
-    }
-    return qdev_simple_unplug_cb(qdev);
-}
-
 static const VMStateInfo vmstate_info_scsi_requests = {
     .name = "scsi-requests",
     .get  = get_scsi_requests,
@@ -2011,7 +2002,6 @@ static void scsi_device_class_init(ObjectClass *klass, void *data)
     set_bit(DEVICE_CATEGORY_STORAGE, k->categories);
     k->bus_type  = TYPE_SCSI_BUS;
     k->realize   = scsi_qdev_realize;
-    k->unplug    = scsi_qdev_unplug;
     k->unrealize = scsi_qdev_unrealize;
     k->props     = scsi_props;
 }

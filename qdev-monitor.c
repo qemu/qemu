@@ -213,9 +213,14 @@ int qdev_device_help(QemuOpts *opts)
     }
 
     for (prop = prop_list; prop; prop = prop->next) {
-        error_printf("%s.%s=%s\n", driver,
+        error_printf("%s.%s=%s", driver,
                      prop->value->name,
                      prop->value->type);
+        if (prop->value->has_description) {
+            error_printf(" (%s)\n", prop->value->description);
+        } else {
+            error_printf("\n");
+        }
     }
 
     qapi_free_DevicePropertyInfoList(prop_list);
@@ -487,7 +492,8 @@ DeviceState *qdev_device_add(QemuOpts *opts)
     }
 
     dc = DEVICE_CLASS(oc);
-    if (dc->cannot_instantiate_with_device_add_yet) {
+    if (dc->cannot_instantiate_with_device_add_yet ||
+        (qdev_hotplug && !dc->hotpluggable)) {
         qerror_report(QERR_INVALID_PARAMETER_VALUE, "driver",
                       "pluggable device type");
         return NULL;
@@ -515,7 +521,7 @@ DeviceState *qdev_device_add(QemuOpts *opts)
             return NULL;
         }
     }
-    if (qdev_hotplug && bus && !bus->allow_hotplug) {
+    if (qdev_hotplug && bus && !qbus_is_hotpluggable(bus)) {
         qerror_report(QERR_BUS_NO_HOTPLUG, bus->name);
         return NULL;
     }
@@ -685,15 +691,20 @@ int do_device_add(Monitor *mon, const QDict *qdict, QObject **ret_data)
 
 void qmp_device_del(const char *id, Error **errp)
 {
-    DeviceState *dev;
+    Object *obj;
+    char *root_path = object_get_canonical_path(qdev_get_peripheral());
+    char *path = g_strdup_printf("%s/%s", root_path, id);
 
-    dev = qdev_find_recursive(sysbus_get_default(), id);
-    if (!dev) {
+    g_free(root_path);
+    obj = object_resolve_path_type(path, TYPE_DEVICE, NULL);
+    g_free(path);
+
+    if (!obj) {
         error_set(errp, QERR_DEVICE_NOT_FOUND, id);
         return;
     }
 
-    qdev_unplug(dev, errp);
+    qdev_unplug(DEVICE(obj), errp);
 }
 
 void qdev_machine_init(void)

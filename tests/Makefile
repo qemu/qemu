@@ -301,6 +301,7 @@ libqos-pc-obj-y = $(libqos-obj-y) tests/libqos/pci-pc.o
 libqos-pc-obj-y += tests/libqos/malloc-pc.o
 libqos-omap-obj-y = $(libqos-obj-y) tests/libqos/i2c-omap.o
 libqos-virtio-obj-y = $(libqos-obj-y) $(libqos-pc-obj-y) tests/libqos/virtio.o tests/libqos/virtio-pci.o
+libqos-usb-obj-y = $(libqos-pc-obj-y) tests/libqos/usb.o
 
 tests/rtc-test$(EXESUF): tests/rtc-test.o
 tests/m48t59-test$(EXESUF): tests/m48t59-test.o
@@ -324,8 +325,8 @@ tests/ne2000-test$(EXESUF): tests/ne2000-test.o
 tests/wdt_ib700-test$(EXESUF): tests/wdt_ib700-test.o
 tests/virtio-balloon-test$(EXESUF): tests/virtio-balloon-test.o
 tests/virtio-blk-test$(EXESUF): tests/virtio-blk-test.o $(libqos-virtio-obj-y)
-tests/virtio-net-test$(EXESUF): tests/virtio-net-test.o
-tests/virtio-rng-test$(EXESUF): tests/virtio-rng-test.o
+tests/virtio-net-test$(EXESUF): tests/virtio-net-test.o $(libqos-pc-obj-y)
+tests/virtio-rng-test$(EXESUF): tests/virtio-rng-test.o $(libqos-pc-obj-y)
 tests/virtio-scsi-test$(EXESUF): tests/virtio-scsi-test.o
 tests/virtio-9p-test$(EXESUF): tests/virtio-9p-test.o
 tests/virtio-serial-test$(EXESUF): tests/virtio-serial-test.o
@@ -343,10 +344,10 @@ tests/ac97-test$(EXESUF): tests/ac97-test.o
 tests/es1370-test$(EXESUF): tests/es1370-test.o
 tests/intel-hda-test$(EXESUF): tests/intel-hda-test.o
 tests/ioh3420-test$(EXESUF): tests/ioh3420-test.o
-tests/usb-hcd-ohci-test$(EXESUF): tests/usb-hcd-ohci-test.o
-tests/usb-hcd-uhci-test$(EXESUF): tests/usb-hcd-uhci-test.o
-tests/usb-hcd-ehci-test$(EXESUF): tests/usb-hcd-ehci-test.o $(libqos-pc-obj-y)
-tests/usb-hcd-xhci-test$(EXESUF): tests/usb-hcd-xhci-test.o
+tests/usb-hcd-ohci-test$(EXESUF): tests/usb-hcd-ohci-test.o $(libqos-usb-obj-y)
+tests/usb-hcd-uhci-test$(EXESUF): tests/usb-hcd-uhci-test.o $(libqos-usb-obj-y)
+tests/usb-hcd-ehci-test$(EXESUF): tests/usb-hcd-ehci-test.o $(libqos-usb-obj-y)
+tests/usb-hcd-xhci-test$(EXESUF): tests/usb-hcd-xhci-test.o $(libqos-usb-obj-y)
 tests/vhost-user-test$(EXESUF): tests/vhost-user-test.o qemu-char.o qemu-timer.o $(qtest-obj-y)
 tests/qemu-iotests/socket_scm_helper$(EXESUF): tests/qemu-iotests/socket_scm_helper.o
 tests/test-qemu-opts$(EXESUF): tests/test-qemu-opts.o libqemuutil.a libqemustub.a

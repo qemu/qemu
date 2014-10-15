@@ -24,18 +24,10 @@
 
 /* icc-bridge implementation */
 
-static void icc_bus_init(Object *obj)
-{
-    BusState *b = BUS(obj);
-
-    b->allow_hotplug = true;
-}
-
 static const TypeInfo icc_bus_info = {
     .name = TYPE_ICC_BUS,
     .parent = TYPE_BUS,
     .instance_size = sizeof(ICCBus),
-    .instance_init = icc_bus_init,
 };
 
 

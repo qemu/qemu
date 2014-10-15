@@ -126,7 +126,6 @@ typedef struct DeviceClass {
 
     /* Private to qdev / bus.  */
     qdev_initfn init; /* TODO remove, once users are converted to realize */
-    qdev_event unplug;
     qdev_event exit; /* TODO remove, once users are converted to unrealize */
     const char *bus_type;
 } DeviceClass;
@@ -210,7 +209,6 @@ struct BusState {
     Object obj;
     DeviceState *parent;
     const char *name;
-    int allow_hotplug;
     HotplugHandler *hotplug_handler;
     int max_index;
     bool realized;
@@ -232,7 +230,7 @@ struct Property {
 
 struct PropertyInfo {
     const char *name;
-    const char *legacy_name;
+    const char *description;
     const char **enum_table;
     int (*print)(DeviceState *dev, Property *prop, char *dest, size_t len);
     ObjectPropertyAccessor *get;
@@ -264,7 +262,8 @@ void qdev_init_nofail(DeviceState *dev);
 void qdev_set_legacy_instance_id(DeviceState *dev, int alias_id,
                                  int required_for_version);
 void qdev_unplug(DeviceState *dev, Error **errp);
-int qdev_simple_unplug_cb(DeviceState *dev);
+void qdev_simple_device_unplug_cb(HotplugHandler *hotplug_dev,
+                                  DeviceState *dev, Error **errp);
 void qdev_machine_creation_done(void);
 bool qdev_machine_modified(void);
 
@@ -361,11 +360,13 @@ extern int qdev_hotplug;
 
 char *qdev_get_dev_path(DeviceState *dev);
 
-static inline void qbus_set_hotplug_handler(BusState *bus, DeviceState *handler,
-                                            Error **errp)
+void qbus_set_hotplug_handler(BusState *bus, DeviceState *handler,
+                              Error **errp);
+
+void qbus_set_bus_hotplug_handler(BusState *bus, Error **errp);
+
+static inline bool qbus_is_hotpluggable(BusState *bus)
 {
-    object_property_set_link(OBJECT(bus), OBJECT(handler),
-                             QDEV_HOTPLUG_HANDLER_PROPERTY, errp);
-    bus->allow_hotplug = 1;
+   return bus->hotplug_handler;
 }
 #endif

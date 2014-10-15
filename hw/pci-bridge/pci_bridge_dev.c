@@ -150,7 +150,7 @@ static void pci_bridge_dev_class_init(ObjectClass *klass, void *data)
     dc->vmsd = &pci_bridge_dev_vmstate;
     set_bit(DEVICE_CATEGORY_BRIDGE, dc->categories);
     hc->plug = shpc_device_hotplug_cb;
-    hc->unplug = shpc_device_hot_unplug_cb;
+    hc->unplug_request = shpc_device_hot_unplug_request_cb;
 }
 
 static const TypeInfo pci_bridge_dev_info = {

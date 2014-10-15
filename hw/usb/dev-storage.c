@@ -632,7 +632,6 @@ static void usb_msd_realize_storage(USBDevice *dev, Error **errp)
         error_propagate(errp, err);
         return;
     }
-    s->bus.qbus.allow_hotplug = 0;
     usb_msd_handle_reset(dev);
 
     if (bdrv_key_required(bs)) {
@@ -653,7 +652,6 @@ static void usb_msd_realize_bot(USBDevice *dev, Error **errp)
     usb_desc_init(dev);
     scsi_bus_new(&s->bus, sizeof(s->bus), DEVICE(dev),
                  &usb_msd_scsi_info_bot, NULL);
-    s->bus.qbus.allow_hotplug = 0;
     usb_msd_handle_reset(dev);
 }
 
@@ -770,9 +768,11 @@ static void usb_msd_class_initfn_storage(ObjectClass *klass, void *data)
 static void usb_msd_class_initfn_bot(ObjectClass *klass, void *data)
 {
     USBDeviceClass *uc = USB_DEVICE_CLASS(klass);
+    DeviceClass *dc = DEVICE_CLASS(klass);
 
     uc->realize = usb_msd_realize_bot;
     usb_msd_class_initfn_common(klass);
+    dc->hotpluggable = false;
 }
 
 static const TypeInfo msd_info = {

@@ -17,14 +17,43 @@ static void pci_nop(void)
 {
 }
 
+static void hotplug(void)
+{
+    QDict *response;
+
+    response = qmp("{\"execute\": \"device_add\","
+                   " \"arguments\": {"
+                   "   \"driver\": \"scsi-hd\","
+                   "   \"id\": \"scsi-hd\","
+                   "   \"drive\": \"drv1\""
+                   "}}");
+
+    g_assert(response);
+    g_assert(!qdict_haskey(response, "error"));
+    QDECREF(response);
+
+    response = qmp("{\"execute\": \"device_del\","
+                   " \"arguments\": {"
+                   "   \"id\": \"scsi-hd\""
+                   "}}");
+
+    g_assert(response);
+    g_assert(!qdict_haskey(response, "error"));
+    g_assert(qdict_haskey(response, "event"));
+    g_assert(!strcmp(qdict_get_str(response, "event"), "DEVICE_DELETED"));
+    QDECREF(response);
+}
+
 int main(int argc, char **argv)
 {
     int ret;
 
     g_test_init(&argc, &argv, NULL);
     qtest_add_func("/virtio/scsi/pci/nop", pci_nop);
+    qtest_add_func("/virtio/scsi/pci/hotplug", hotplug);
 
     qtest_start("-drive id=drv0,if=none,file=/dev/null "
+                "-drive id=drv1,if=none,file=/dev/null "
                 "-device virtio-scsi-pci,id=vscsi0 "
                 "-device scsi-hd,bus=vscsi0.0,drive=drv0");
     ret = g_test_run();

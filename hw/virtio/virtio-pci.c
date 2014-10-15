@@ -1542,13 +1542,10 @@ static void virtio_pci_bus_new(VirtioBusState *bus, size_t bus_size,
                                VirtIOPCIProxy *dev)
 {
     DeviceState *qdev = DEVICE(dev);
-    BusState *qbus;
     char virtio_bus_name[] = "virtio-bus";
 
     qbus_create_inplace(bus, bus_size, TYPE_VIRTIO_PCI_BUS, qdev,
                         virtio_bus_name);
-    qbus = BUS(bus);
-    qbus->allow_hotplug = 1;
 }
 
 static void virtio_pci_bus_class_init(ObjectClass *klass, void *data)
