@@ -53,6 +53,7 @@ static VirtIOSCSIVring *virtio_scsi_vring_init(VirtIOSCSI *s,
     if (rc != 0) {
         fprintf(stderr, "virtio-scsi: Failed to set host notifier (%d)\n",
                 rc);
+        s->dataplane_fenced = true;
         return NULL;
     }
     r->host_notifier = *virtio_queue_get_host_notifier(vq);
@@ -198,6 +199,7 @@ void virtio_scsi_dataplane_start(VirtIOSCSI *s)
 
     if (s->dataplane_started ||
         s->dataplane_starting ||
+        s->dataplane_fenced ||
         s->ctx != iothread_get_aio_context(vs->conf.iothread)) {
         return;
     }
@@ -211,6 +213,7 @@ void virtio_scsi_dataplane_start(VirtIOSCSI *s)
     if (rc != 0) {
         fprintf(stderr, "virtio-scsi: Failed to set guest notifiers (%d), "
                 "ensure -enable-kvm is set\n", rc);
+        s->dataplane_fenced = true;
         goto fail_guest_notifiers;
     }
 
@@ -262,6 +265,11 @@ void virtio_scsi_dataplane_stop(VirtIOSCSI *s)
     VirtIOSCSICommon *vs = VIRTIO_SCSI_COMMON(s);
     int i;
 
+    /* Better luck next time. */
+    if (s->dataplane_fenced) {
+        s->dataplane_fenced = false;
+        return;
+    }
     if (!s->dataplane_started || s->dataplane_stopping) {
         return;
     }
