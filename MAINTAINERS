@@ -926,6 +926,15 @@ M: Blue Swirl <blauwirbel@gmail.com>
 S: Odd Fixes
 F: scripts/checkpatch.pl
 
+Migration
+M: Juan Quintela <quintela@redhat.com>
+S: Maintained
+F: include/migration/
+F: migration*
+F: savevm.c
+F: arch_init.c
+F: vmstate.c
+
 Seccomp
 M: Eduardo Otubo <eduardo.otubo@profitbricks.com>
 S: Supported
