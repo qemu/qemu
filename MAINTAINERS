@@ -100,7 +100,8 @@ F: hw/microblaze/
 
 MIPS
 M: Aurelien Jarno <aurelien@aurel32.net>
-S: Odd Fixes
+M: Leon Alrae <leon.alrae@imgtec.com>
+S: Maintained
 F: target-mips/
 F: hw/mips/
 
