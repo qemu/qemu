@@ -1,0 +1,10 @@
+QA output created by 107
+
+=== Updates should not write random data ===
+
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=65536 
+wrote 65536/65536 bytes at offset 0
+64 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+read 65528/65528 bytes at offset 196616
+63.992 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+*** done
