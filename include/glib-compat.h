@@ -45,6 +45,23 @@ static inline gint64 g_get_monotonic_time(void)
 }
 #endif
 
+#if !GLIB_CHECK_VERSION(2, 16, 0)
+static inline int g_strcmp0(const char *str1, const char *str2)
+{
+    int result;
+
+    if (!str1) {
+        result = -(str1 != str2);
+    } else if (!str2) {
+        result = (str1 != str2);
+    } else {
+        result = strcmp(str1, str2);
+    }
+
+    return result;
+}
+#endif
+
 #ifdef _WIN32
 /*
  * g_poll has a problem on Windows when using
