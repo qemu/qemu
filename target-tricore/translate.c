@@ -2279,6 +2279,46 @@ static void decode_bo_addrmode_ldmst_bitreverse_circular(CPUTriCoreState *env,
     tcg_temp_free(temp3);
 }
 
+static void decode_bol_opc(CPUTriCoreState *env, DisasContext *ctx, int32_t op1)
+{
+    int r1, r2;
+    int32_t address;
+    TCGv temp;
+
+    r1 = MASK_OP_BOL_S1D(ctx->opcode);
+    r2 = MASK_OP_BOL_S2(ctx->opcode);
+    address = MASK_OP_BOL_OFF16_SEXT(ctx->opcode);
+
+    switch (op1) {
+    case OPC1_32_BOL_LD_A_LONGOFF:
+        temp = tcg_temp_new();
+        tcg_gen_addi_tl(temp, cpu_gpr_a[r2], address);
+        tcg_gen_qemu_ld_tl(cpu_gpr_a[r1], temp, ctx->mem_idx, MO_LEUL);
+        tcg_temp_free(temp);
+        break;
+    case OPC1_32_BOL_LD_W_LONFOFF:
+        temp = tcg_temp_new();
+        tcg_gen_addi_tl(temp, cpu_gpr_a[r2], address);
+        tcg_gen_qemu_ld_tl(cpu_gpr_d[r1], temp, ctx->mem_idx, MO_LEUL);
+        tcg_temp_free(temp);
+        break;
+    case OPC1_32_BOL_LEA_LONGOFF:
+        tcg_gen_addi_tl(cpu_gpr_a[r1], cpu_gpr_a[r2], address);
+        break;
+    case OPC1_32_BOL_ST_A_LONGOFF:
+        if (tricore_feature(env, TRICORE_FEATURE_16)) {
+            gen_offset_st(ctx, cpu_gpr_a[r1], cpu_gpr_a[r2], address, MO_LEUL);
+        } else {
+            /* raise illegal opcode trap */
+        }
+        break;
+    case OPC1_32_BOL_ST_W_LONGOFF:
+        gen_offset_st(ctx, cpu_gpr_d[r1], cpu_gpr_a[r2], address, MO_LEUL);
+        break;
+    }
+
+}
+
 static void decode_32Bit_opc(CPUTriCoreState *env, DisasContext *ctx)
 {
     int op1;
@@ -2404,6 +2444,14 @@ static void decode_32Bit_opc(CPUTriCoreState *env, DisasContext *ctx)
         break;
     case OPCM_32_BO_ADDRMODE_LDMST_BITREVERSE_CIRCULAR:
         decode_bo_addrmode_ldmst_bitreverse_circular(env, ctx);
+        break;
+/* BOL-format */
+    case OPC1_32_BOL_LD_A_LONGOFF:
+    case OPC1_32_BOL_LD_W_LONFOFF:
+    case OPC1_32_BOL_LEA_LONGOFF:
+    case OPC1_32_BOL_ST_W_LONGOFF:
+    case OPC1_32_BOL_ST_A_LONGOFF:
+        decode_bol_opc(env, ctx, op1);
         break;
     }
 }
