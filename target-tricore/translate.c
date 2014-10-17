@@ -568,6 +568,7 @@ static void gen_compute_branch(DisasContext *ctx, uint32_t opc, int r1,
                                int r2 , int32_t constant , int32_t offset)
 {
     TCGv temp;
+    int n;
 
     switch (opc) {
 /* SB-format jumps */
@@ -703,6 +704,20 @@ static void gen_compute_branch(DisasContext *ctx, uint32_t opc, int r1,
             /* addi is unconditional */
             tcg_gen_addi_tl(cpu_gpr_d[r1], cpu_gpr_d[r1], 1);
             gen_branch_condi(ctx, TCG_COND_NE, temp, constant, offset);
+        }
+        tcg_temp_free(temp);
+        break;
+/* BRN format */
+    case OPCM_32_BRN_JTT:
+        n = MASK_OP_BRN_N(ctx->opcode);
+
+        temp = tcg_temp_new();
+        tcg_gen_andi_tl(temp, cpu_gpr_d[r1], (1 << n));
+
+        if (MASK_OP_BRN_OP2(ctx->opcode) == OPC2_32_BRN_JNZ_T) {
+            gen_branch_condi(ctx, TCG_COND_NE, temp, 0, offset);
+        } else {
+            gen_branch_condi(ctx, TCG_COND_EQ, temp, 0, offset);
         }
         tcg_temp_free(temp);
         break;
@@ -2371,6 +2386,11 @@ static void decode_32Bit_opc(CPUTriCoreState *env, DisasContext *ctx)
 
     op1 = MASK_OP_MAJOR(ctx->opcode);
 
+    /* handle JNZ.T opcode only being 6 bit long */
+    if (unlikely((op1 & 0x3f) == OPCM_32_BRN_JTT)) {
+        op1 = OPCM_32_BRN_JTT;
+    }
+
     switch (op1) {
 /* ABS-format */
     case OPCM_32_ABS_LDW:
@@ -2503,6 +2523,12 @@ static void decode_32Bit_opc(CPUTriCoreState *env, DisasContext *ctx)
         address = MASK_OP_BRC_DISP15_SEXT(ctx->opcode);
         r1 = MASK_OP_BRC_S1(ctx->opcode);
         gen_compute_branch(ctx, op1, r1, 0, const4, address);
+        break;
+/* BRN Format */
+    case OPCM_32_BRN_JTT:
+        address = MASK_OP_BRN_DISP15_SEXT(ctx->opcode);
+        r1 = MASK_OP_BRN_S1(ctx->opcode);
+        gen_compute_branch(ctx, op1, r1, 0, 0, address);
         break;
     }
 }

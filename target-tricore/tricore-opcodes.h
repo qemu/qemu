@@ -132,6 +132,7 @@
 /* BRN Format */
 #define MASK_OP_BRN_OP2(op)    MASK_BITS_SHIFT(op, 31, 31)
 #define MASK_OP_BRN_DISP15(op) MASK_BITS_SHIFT(op, 16, 30)
+#define MASK_OP_BRN_DISP15_SEXT(op) MASK_BITS_SHIFT_SEXT(op, 16, 30)
 #define MASK_OP_BRN_N(op)      (MASK_BITS_SHIFT(op, 12, 15) + \
                                (MASK_BITS_SHIFT(op, 7, 7) << 4))
 #define MASK_OP_BRN_S1(op)     MASK_BITS_SHIFT(op, 8, 11)
