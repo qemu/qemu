@@ -124,7 +124,9 @@
 /* BRC Format */
 #define MASK_OP_BRC_OP2(op)    MASK_BITS_SHIFT(op, 31, 31)
 #define MASK_OP_BRC_DISP15(op) MASK_BITS_SHIFT(op, 16, 30)
+#define MASK_OP_BRC_DISP15_SEXT(op) MASK_BITS_SHIFT_SEXT(op, 16, 30)
 #define MASK_OP_BRC_CONST4(op) MASK_BITS_SHIFT(op, 12, 15)
+#define MASK_OP_BRC_CONST4_SEXT(op) MASK_BITS_SHIFT_SEXT(op, 12, 15)
 #define MASK_OP_BRC_S1(op)     MASK_BITS_SHIFT(op, 8, 11)
 
 /* BRN Format */
@@ -765,8 +767,8 @@ enum {
 };
 /* OPCM_32_BRC_GE                                   */
 enum {
-    OP2_BRC_JGE                                  = 0x00,
-    OPC_BRC_JGE_U                                = 0x01,
+    OP2_32_BRC_JGE                               = 0x00,
+    OPC_32_BRC_JGE_U                             = 0x01,
 };
 /* OPCM_32_BRC_JLT                                  */
 enum {

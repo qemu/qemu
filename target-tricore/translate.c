@@ -665,6 +665,47 @@ static void gen_compute_branch(DisasContext *ctx, uint32_t opc, int r1,
         tcg_gen_movi_tl(cpu_gpr_a[11], ctx->next_pc);
         gen_goto_tb(ctx, 0, ctx->pc + offset * 2);
         break;
+/* BOL format */
+    case OPCM_32_BRC_EQ_NEQ:
+         if (MASK_OP_BRC_OP2(ctx->opcode) == OPC2_32_BRC_JEQ) {
+            gen_branch_condi(ctx, TCG_COND_EQ, cpu_gpr_d[r1], constant, offset);
+         } else {
+            gen_branch_condi(ctx, TCG_COND_NE, cpu_gpr_d[r1], constant, offset);
+         }
+         break;
+    case OPCM_32_BRC_GE:
+         if (MASK_OP_BRC_OP2(ctx->opcode) == OP2_32_BRC_JGE) {
+            gen_branch_condi(ctx, TCG_COND_GE, cpu_gpr_d[r1], constant, offset);
+         } else {
+            constant = MASK_OP_BRC_CONST4(ctx->opcode);
+            gen_branch_condi(ctx, TCG_COND_GEU, cpu_gpr_d[r1], constant,
+                             offset);
+         }
+         break;
+    case OPCM_32_BRC_JLT:
+         if (MASK_OP_BRC_OP2(ctx->opcode) == OPC2_32_BRC_JLT) {
+            gen_branch_condi(ctx, TCG_COND_LT, cpu_gpr_d[r1], constant, offset);
+         } else {
+            constant = MASK_OP_BRC_CONST4(ctx->opcode);
+            gen_branch_condi(ctx, TCG_COND_LTU, cpu_gpr_d[r1], constant,
+                             offset);
+         }
+         break;
+    case OPCM_32_BRC_JNE:
+        temp = tcg_temp_new();
+        if (MASK_OP_BRC_OP2(ctx->opcode) == OPC2_32_BRC_JNED) {
+            tcg_gen_mov_tl(temp, cpu_gpr_d[r1]);
+            /* subi is unconditional */
+            tcg_gen_subi_tl(cpu_gpr_d[r1], cpu_gpr_d[r1], 1);
+            gen_branch_condi(ctx, TCG_COND_NE, temp, constant, offset);
+        } else {
+            tcg_gen_mov_tl(temp, cpu_gpr_d[r1]);
+            /* addi is unconditional */
+            tcg_gen_addi_tl(cpu_gpr_d[r1], cpu_gpr_d[r1], 1);
+            gen_branch_condi(ctx, TCG_COND_NE, temp, constant, offset);
+        }
+        tcg_temp_free(temp);
+        break;
     default:
         printf("Branch Error at %x\n", ctx->pc);
     }
@@ -2324,7 +2365,7 @@ static void decode_32Bit_opc(CPUTriCoreState *env, DisasContext *ctx)
     int op1;
     int32_t r1;
     int32_t address;
-    int8_t b;
+    int8_t b, const4;
     int32_t bpos;
     TCGv temp, temp2;
 
@@ -2452,6 +2493,16 @@ static void decode_32Bit_opc(CPUTriCoreState *env, DisasContext *ctx)
     case OPC1_32_BOL_ST_W_LONGOFF:
     case OPC1_32_BOL_ST_A_LONGOFF:
         decode_bol_opc(env, ctx, op1);
+        break;
+/* BRC Format */
+    case OPCM_32_BRC_EQ_NEQ:
+    case OPCM_32_BRC_GE:
+    case OPCM_32_BRC_JLT:
+    case OPCM_32_BRC_JNE:
+        const4 = MASK_OP_BRC_CONST4_SEXT(ctx->opcode);
+        address = MASK_OP_BRC_DISP15_SEXT(ctx->opcode);
+        r1 = MASK_OP_BRC_S1(ctx->opcode);
+        gen_compute_branch(ctx, op1, r1, 0, const4, address);
         break;
     }
 }
