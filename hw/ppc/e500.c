@@ -830,7 +830,8 @@ void ppce500_init(MachineState *machine, PPCE500Params *params)
          * Hrm. No ELF image? Try a uImage, maybe someone is giving us an
          * ePAPR compliant kernel
          */
-        kernel_size = load_uimage(filename, &bios_entry, &loadaddr, NULL);
+        kernel_size = load_uimage(filename, &bios_entry, &loadaddr, NULL,
+                                  NULL, NULL);
         if (kernel_size < 0) {
             fprintf(stderr, "qemu: could not load firmware '%s'\n", filename);
             exit(1);
