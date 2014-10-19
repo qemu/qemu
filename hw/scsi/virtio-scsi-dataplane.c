@@ -155,6 +155,8 @@ void virtio_scsi_dataplane_start(VirtIOSCSI *s)
 
     s->dataplane_starting = true;
 
+    assert(!s->blocker);
+    error_setg(&s->blocker, "block device is in use by data plane");
     /* Set up guest notifier (irq) */
     rc = k->set_guest_notifiers(qbus->parent, vs->conf.num_queues + 2, true);
     if (rc != 0) {
@@ -195,6 +197,8 @@ void virtio_scsi_dataplane_stop(VirtIOSCSI *s)
     if (!s->dataplane_started || s->dataplane_stopping) {
         return;
     }
+    error_free(s->blocker);
+    s->blocker = NULL;
     s->dataplane_stopping = true;
     assert(s->ctx == iothread_get_aio_context(vs->conf.iothread));
 
