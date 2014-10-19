@@ -250,6 +250,11 @@ void
 vcard_select_applet(VCard *card, int channel, VCardApplet *applet)
 {
     assert(channel < MAX_CHANNEL);
+
+    /* If using an emulated card, make sure to log out of any already logged in
+     * session. */
+    vcard_emul_logout(card);
+
     card->current_applet[channel] = applet;
     /* reset the applet */
     if (applet && applet->reset_applet) {
