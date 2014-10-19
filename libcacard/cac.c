@@ -115,6 +115,7 @@ cac_applet_pki_process_apdu(VCard *card, VCardAPDU *apdu,
     VCardAppletPrivate *applet_private;
     int size, next;
     unsigned char *sign_buffer;
+    bool retain_sign_buffer = FALSE;
     vcard_7816_status_t status;
     VCardStatus ret = VCARD_FAIL;
 
@@ -178,6 +179,7 @@ cac_applet_pki_process_apdu(VCard *card, VCardAPDU *apdu,
             pki_applet->sign_buffer = sign_buffer;
             pki_applet->sign_buffer_len = size;
             *response = vcard_make_response(VCARD7816_STATUS_SUCCESS);
+            retain_sign_buffer = TRUE;
             break;
         case 0x00:
             /* we now have the whole buffer, do the operation, result will be
@@ -200,9 +202,11 @@ cac_applet_pki_process_apdu(VCard *card, VCardAPDU *apdu,
                                 VCARD7816_STATUS_ERROR_P1_P2_INCORRECT);
             break;
         }
-        g_free(sign_buffer);
-        pki_applet->sign_buffer = NULL;
-        pki_applet->sign_buffer_len = 0;
+        if (!retain_sign_buffer) {
+            g_free(sign_buffer);
+            pki_applet->sign_buffer = NULL;
+            pki_applet->sign_buffer_len = 0;
+        }
         ret = VCARD_DONE;
         break;
     case CAC_READ_BUFFER:
