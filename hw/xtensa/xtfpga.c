@@ -329,7 +329,7 @@ static void lx_init(const LxBoardDesc *board, MachineState *machine)
             hwaddr ep;
             int is_linux;
             success = load_uimage(kernel_filename, &ep, NULL, &is_linux,
-                                  NULL, NULL);
+                                  translate_phys_addr, cpu);
             if (success > 0 && is_linux) {
                 entry_point = ep;
             } else {
