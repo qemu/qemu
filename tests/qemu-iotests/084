@@ -41,7 +41,7 @@ trap "_cleanup; exit \$status" 0 1 2 3 15
 
 # This tests vdi-specific header fields
 _supported_fmt vdi
-_supported_proto generic
+_supported_proto file
 _supported_os Linux
 
 size=64M

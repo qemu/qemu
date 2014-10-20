@@ -40,7 +40,7 @@ trap "_cleanup; exit \$status" 0 1 2 3 15
 . ./common.filter
 
 _supported_fmt qcow
-_supported_proto generic
+_supported_proto file
 _supported_os Linux
 
 offset_backing_file_offset=8
