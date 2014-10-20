@@ -198,7 +198,9 @@ M: Cornelia Huck <cornelia.huck@de.ibm.com>
 M: Alexander Graf <agraf@suse.de>
 S: Maintained
 F: target-s390x/kvm.c
-F: hw/intc/s390_flic.[hc]
+F: hw/intc/s390_flic.c
+F: hw/intc/s390_flic_kvm.c
+F: include/hw/s390x/s390_flic.h
 
 X86
 M: Marcelo Tosatti <mtosatti@redhat.com>
@@ -521,6 +523,8 @@ F: hw/s390x/s390-virtio-ccw.c
 F: hw/s390x/css.[hc]
 F: hw/s390x/sclp*.[hc]
 F: hw/s390x/ipl*.[hc]
+F: include/hw/s390x/
+F: pc-bios/s390-ccw/
 T: git git://github.com/cohuck/qemu virtio-ccw-upstr
 
 UniCore32 Machines
