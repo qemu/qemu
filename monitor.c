@@ -4322,25 +4322,6 @@ void object_add_completion(ReadLineState *rs, int nb_args, const char *str)
     g_slist_free(list);
 }
 
-static void device_del_bus_completion(ReadLineState *rs,  BusState *bus,
-                                      const char *str, size_t len)
-{
-    BusChild *kid;
-
-    QTAILQ_FOREACH(kid, &bus->children, sibling) {
-        DeviceState *dev = kid->child;
-        BusState *dev_child;
-
-        if (dev->id && !strncmp(str, dev->id, len)) {
-            readline_add_completion(rs, dev->id);
-        }
-
-        QLIST_FOREACH(dev_child, &dev->child_bus, sibling) {
-            device_del_bus_completion(rs, dev_child, str, len);
-        }
-    }
-}
-
 static void peripheral_device_del_completion(ReadLineState *rs,
                                              const char *str, size_t len)
 {
@@ -4438,7 +4419,6 @@ void device_del_completion(ReadLineState *rs, int nb_args, const char *str)
 
     len = strlen(str);
     readline_set_completion_index(rs, len);
-    device_del_bus_completion(rs, sysbus_get_default(), str, len);
     peripheral_device_del_completion(rs, str, len);
 }
 
