@@ -77,6 +77,7 @@ M: Richard Henderson <rth@twiddle.net>
 S: Maintained
 F: target-alpha/
 F: hw/alpha/
+F: tests/tcg/alpha/
 
 ARM
 M: Peter Maydell <peter.maydell@linaro.org>
@@ -90,6 +91,7 @@ M: Edgar E. Iglesias <edgar.iglesias@gmail.com>
 S: Maintained
 F: target-cris/
 F: hw/cris/
+F: tests/tcg/cris/
 
 LM32
 M: Michael Walle <michael@walle.cc>
@@ -97,6 +99,7 @@ S: Maintained
 F: target-lm32/
 F: hw/lm32/
 F: hw/char/lm32_*
+F: tests/tcg/lm32/
 
 M68K
 S: Orphan
@@ -114,6 +117,7 @@ M: Aurelien Jarno <aurelien@aurel32.net>
 S: Odd Fixes
 F: target-mips/
 F: hw/mips/
+F: tests/tcg/mips/
 
 Moxie
 M: Anthony Green <green@moxielogic.com>
@@ -125,6 +129,7 @@ M: Jia Liu <proljc@gmail.com>
 S: Maintained
 F: target-openrisc/
 F: hw/openrisc/
+F: tests/tcg/openrisc/
 
 PowerPC
 M: Alexander Graf <agraf@suse.de>
@@ -172,6 +177,7 @@ W: http://wiki.osll.spb.ru/doku.php?id=etc:users:jcmvbkbc:qemu-target-xtensa
 S: Maintained
 F: target-xtensa/
 F: hw/xtensa/
+F: tests/tcg/xtensa/
 
 TriCore
 M: Bastian Koppelmann <kbastian@mail.uni-paderborn.de>
@@ -850,6 +856,7 @@ M: Luiz Capitulino <lcapitulino@redhat.com>
 M: Michael Roth <mdroth@linux.vnet.ibm.com>
 S: Maintained
 F: qapi/
+F: tests/qapi-schema/
 T: git git://repo.or.cz/qemu/qmp-unstable.git queue/qmp
 
 QAPI Schema
