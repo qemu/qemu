@@ -342,3 +342,48 @@ BlockErrorAction block_job_error_action(BlockJob *job, BlockDriverState *bs,
     }
     return action;
 }
+
+typedef struct {
+    BlockJob *job;
+    QEMUBH *bh;
+    AioContext *aio_context;
+    BlockJobDeferToMainLoopFn *fn;
+    void *opaque;
+} BlockJobDeferToMainLoopData;
+
+static void block_job_defer_to_main_loop_bh(void *opaque)
+{
+    BlockJobDeferToMainLoopData *data = opaque;
+    AioContext *aio_context;
+
+    qemu_bh_delete(data->bh);
+
+    /* Prevent race with block_job_defer_to_main_loop() */
+    aio_context_acquire(data->aio_context);
+
+    /* Fetch BDS AioContext again, in case it has changed */
+    aio_context = bdrv_get_aio_context(data->job->bs);
+    aio_context_acquire(aio_context);
+
+    data->fn(data->job, data->opaque);
+
+    aio_context_release(aio_context);
+
+    aio_context_release(data->aio_context);
+
+    g_free(data);
+}
+
+void block_job_defer_to_main_loop(BlockJob *job,
+                                  BlockJobDeferToMainLoopFn *fn,
+                                  void *opaque)
+{
+    BlockJobDeferToMainLoopData *data = g_malloc(sizeof(*data));
+    data->job = job;
+    data->bh = qemu_bh_new(block_job_defer_to_main_loop_bh, data);
+    data->aio_context = bdrv_get_aio_context(job->bs);
+    data->fn = fn;
+    data->opaque = opaque;
+
+    qemu_bh_schedule(data->bh);
+}
