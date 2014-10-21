@@ -2245,6 +2245,7 @@ void qmp_drive_mirror(const char *device, const char *target,
 {
     BlockDriverState *bs;
     BlockDriverState *source, *target_bs;
+    AioContext *aio_context;
     BlockDriver *drv = NULL;
     Error *local_err = NULL;
     QDict *options = NULL;
@@ -2287,9 +2288,12 @@ void qmp_drive_mirror(const char *device, const char *target,
         return;
     }
 
+    aio_context = bdrv_get_aio_context(bs);
+    aio_context_acquire(aio_context);
+
     if (!bdrv_is_inserted(bs)) {
         error_set(errp, QERR_DEVICE_HAS_NO_MEDIUM, device);
-        return;
+        goto out;
     }
 
     if (!has_format) {
@@ -2299,12 +2303,12 @@ void qmp_drive_mirror(const char *device, const char *target,
         drv = bdrv_find_format(format);
         if (!drv) {
             error_set(errp, QERR_INVALID_BLOCK_FORMAT, format);
-            return;
+            goto out;
         }
     }
 
     if (bdrv_op_is_blocked(bs, BLOCK_OP_TYPE_MIRROR, errp)) {
-        return;
+        goto out;
     }
 
     flags = bs->open_flags | BDRV_O_RDWR;
@@ -2319,29 +2323,36 @@ void qmp_drive_mirror(const char *device, const char *target,
     size = bdrv_getlength(bs);
     if (size < 0) {
         error_setg_errno(errp, -size, "bdrv_getlength failed");
-        return;
+        goto out;
     }
 
     if (has_replaces) {
         BlockDriverState *to_replace_bs;
+        AioContext *replace_aio_context;
+        int64_t replace_size;
 
         if (!has_node_name) {
             error_setg(errp, "a node-name must be provided when replacing a"
                              " named node of the graph");
-            return;
+            goto out;
         }
 
         to_replace_bs = check_to_replace_node(replaces, &local_err);
 
         if (!to_replace_bs) {
             error_propagate(errp, local_err);
-            return;
+            goto out;
         }
 
-        if (size != bdrv_getlength(to_replace_bs)) {
+        replace_aio_context = bdrv_get_aio_context(to_replace_bs);
+        aio_context_acquire(replace_aio_context);
+        replace_size = bdrv_getlength(to_replace_bs);
+        aio_context_release(replace_aio_context);
+
+        if (size != replace_size) {
             error_setg(errp, "cannot replace image with a mirror image of "
                              "different size");
-            return;
+            goto out;
         }
     }
 
@@ -2370,7 +2381,7 @@ void qmp_drive_mirror(const char *device, const char *target,
 
     if (local_err) {
         error_propagate(errp, local_err);
-        return;
+        goto out;
     }
 
     if (has_node_name) {
@@ -2386,8 +2397,10 @@ void qmp_drive_mirror(const char *device, const char *target,
                     flags | BDRV_O_NO_BACKING, drv, &local_err);
     if (ret < 0) {
         error_propagate(errp, local_err);
-        return;
+        goto out;
     }
+
+    bdrv_set_aio_context(target_bs, aio_context);
 
     /* pass the node name to replace to mirror start since it's loose coupling
      * and will allow to check whether the node still exist at mirror completion
@@ -2400,8 +2413,11 @@ void qmp_drive_mirror(const char *device, const char *target,
     if (local_err != NULL) {
         bdrv_unref(target_bs);
         error_propagate(errp, local_err);
-        return;
+        goto out;
     }
+
+out:
+    aio_context_release(aio_context);
 }
 
 /* Get the block job for a given device name and acquire its AioContext */

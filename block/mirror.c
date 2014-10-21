@@ -321,9 +321,56 @@ static void mirror_drain(MirrorBlockJob *s)
     }
 }
 
+typedef struct {
+    int ret;
+} MirrorExitData;
+
+static void mirror_exit(BlockJob *job, void *opaque)
+{
+    MirrorBlockJob *s = container_of(job, MirrorBlockJob, common);
+    MirrorExitData *data = opaque;
+    AioContext *replace_aio_context = NULL;
+
+    if (s->to_replace) {
+        replace_aio_context = bdrv_get_aio_context(s->to_replace);
+        aio_context_acquire(replace_aio_context);
+    }
+
+    if (s->should_complete && data->ret == 0) {
+        BlockDriverState *to_replace = s->common.bs;
+        if (s->to_replace) {
+            to_replace = s->to_replace;
+        }
+        if (bdrv_get_flags(s->target) != bdrv_get_flags(to_replace)) {
+            bdrv_reopen(s->target, bdrv_get_flags(to_replace), NULL);
+        }
+        bdrv_swap(s->target, to_replace);
+        if (s->common.driver->job_type == BLOCK_JOB_TYPE_COMMIT) {
+            /* drop the bs loop chain formed by the swap: break the loop then
+             * trigger the unref from the top one */
+            BlockDriverState *p = s->base->backing_hd;
+            bdrv_set_backing_hd(s->base, NULL);
+            bdrv_unref(p);
+        }
+    }
+    if (s->to_replace) {
+        bdrv_op_unblock_all(s->to_replace, s->replace_blocker);
+        error_free(s->replace_blocker);
+        bdrv_unref(s->to_replace);
+    }
+    if (replace_aio_context) {
+        aio_context_release(replace_aio_context);
+    }
+    g_free(s->replaces);
+    bdrv_unref(s->target);
+    block_job_completed(&s->common, data->ret);
+    g_free(data);
+}
+
 static void coroutine_fn mirror_run(void *opaque)
 {
     MirrorBlockJob *s = opaque;
+    MirrorExitData *data;
     BlockDriverState *bs = s->common.bs;
     int64_t sector_num, end, sectors_per_chunk, length;
     uint64_t last_pause_ns;
@@ -479,7 +526,7 @@ static void coroutine_fn mirror_run(void *opaque)
              * mirror_populate runs.
              */
             trace_mirror_before_drain(s, cnt);
-            bdrv_drain_all();
+            bdrv_drain(bs);
             cnt = bdrv_get_dirty_count(bs, s->dirty_bitmap);
         }
 
@@ -520,31 +567,10 @@ immediate_exit:
     g_free(s->in_flight_bitmap);
     bdrv_release_dirty_bitmap(bs, s->dirty_bitmap);
     bdrv_iostatus_disable(s->target);
-    if (s->should_complete && ret == 0) {
-        BlockDriverState *to_replace = s->common.bs;
-        if (s->to_replace) {
-            to_replace = s->to_replace;
-        }
-        if (bdrv_get_flags(s->target) != bdrv_get_flags(to_replace)) {
-            bdrv_reopen(s->target, bdrv_get_flags(to_replace), NULL);
-        }
-        bdrv_swap(s->target, to_replace);
-        if (s->common.driver->job_type == BLOCK_JOB_TYPE_COMMIT) {
-            /* drop the bs loop chain formed by the swap: break the loop then
-             * trigger the unref from the top one */
-            BlockDriverState *p = s->base->backing_hd;
-            bdrv_set_backing_hd(s->base, NULL);
-            bdrv_unref(p);
-        }
-    }
-    if (s->to_replace) {
-        bdrv_op_unblock_all(s->to_replace, s->replace_blocker);
-        error_free(s->replace_blocker);
-        bdrv_unref(s->to_replace);
-    }
-    g_free(s->replaces);
-    bdrv_unref(s->target);
-    block_job_completed(&s->common, ret);
+
+    data = g_malloc(sizeof(*data));
+    data->ret = ret;
+    block_job_defer_to_main_loop(&s->common, mirror_exit, data);
 }
 
 static void mirror_set_speed(BlockJob *job, int64_t speed, Error **errp)
@@ -584,16 +610,23 @@ static void mirror_complete(BlockJob *job, Error **errp)
 
     /* check the target bs is not blocked and block all operations on it */
     if (s->replaces) {
+        AioContext *replace_aio_context;
+
         s->to_replace = check_to_replace_node(s->replaces, &local_err);
         if (!s->to_replace) {
             error_propagate(errp, local_err);
             return;
         }
 
+        replace_aio_context = bdrv_get_aio_context(s->to_replace);
+        aio_context_acquire(replace_aio_context);
+
         error_setg(&s->replace_blocker,
                    "block device is in use by block-job-complete");
         bdrv_op_block_all(s->to_replace, s->replace_blocker);
         bdrv_ref(s->to_replace);
+
+        aio_context_release(replace_aio_context);
     }
 
     s->should_complete = true;
