@@ -2108,6 +2108,7 @@ void qmp_drive_backup(const char *device, const char *target,
     BlockDriverState *bs;
     BlockDriverState *target_bs;
     BlockDriverState *source = NULL;
+    AioContext *aio_context;
     BlockDriver *drv = NULL;
     Error *local_err = NULL;
     int flags;
@@ -2133,9 +2134,12 @@ void qmp_drive_backup(const char *device, const char *target,
         return;
     }
 
+    aio_context = bdrv_get_aio_context(bs);
+    aio_context_acquire(aio_context);
+
     if (!bdrv_is_inserted(bs)) {
         error_set(errp, QERR_DEVICE_HAS_NO_MEDIUM, device);
-        return;
+        goto out;
     }
 
     if (!has_format) {
@@ -2145,12 +2149,12 @@ void qmp_drive_backup(const char *device, const char *target,
         drv = bdrv_find_format(format);
         if (!drv) {
             error_set(errp, QERR_INVALID_BLOCK_FORMAT, format);
-            return;
+            goto out;
         }
     }
 
     if (bdrv_op_is_blocked(bs, BLOCK_OP_TYPE_BACKUP_SOURCE, errp)) {
-        return;
+        goto out;
     }
 
     flags = bs->open_flags | BDRV_O_RDWR;
@@ -2170,7 +2174,7 @@ void qmp_drive_backup(const char *device, const char *target,
     size = bdrv_getlength(bs);
     if (size < 0) {
         error_setg_errno(errp, -size, "bdrv_getlength failed");
-        return;
+        goto out;
     }
 
     if (mode != NEW_IMAGE_MODE_EXISTING) {
@@ -2187,23 +2191,28 @@ void qmp_drive_backup(const char *device, const char *target,
 
     if (local_err) {
         error_propagate(errp, local_err);
-        return;
+        goto out;
     }
 
     target_bs = NULL;
     ret = bdrv_open(&target_bs, target, NULL, NULL, flags, drv, &local_err);
     if (ret < 0) {
         error_propagate(errp, local_err);
-        return;
+        goto out;
     }
+
+    bdrv_set_aio_context(target_bs, aio_context);
 
     backup_start(bs, target_bs, speed, sync, on_source_error, on_target_error,
                  block_job_cb, bs, &local_err);
     if (local_err != NULL) {
         bdrv_unref(target_bs);
         error_propagate(errp, local_err);
-        return;
+        goto out;
     }
+
+out:
+    aio_context_release(aio_context);
 }
 
 BlockDeviceInfoList *qmp_query_named_block_nodes(Error **errp)
