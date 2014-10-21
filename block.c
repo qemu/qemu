@@ -1904,6 +1904,34 @@ static bool bdrv_requests_pending(BlockDriverState *bs)
     return false;
 }
 
+static bool bdrv_drain_one(BlockDriverState *bs)
+{
+    bool bs_busy;
+
+    bdrv_flush_io_queue(bs);
+    bdrv_start_throttled_reqs(bs);
+    bs_busy = bdrv_requests_pending(bs);
+    bs_busy |= aio_poll(bdrv_get_aio_context(bs), bs_busy);
+    return bs_busy;
+}
+
+/*
+ * Wait for pending requests to complete on a single BlockDriverState subtree
+ *
+ * See the warning in bdrv_drain_all().  This function can only be called if
+ * you are sure nothing can generate I/O because you have op blockers
+ * installed.
+ *
+ * Note that unlike bdrv_drain_all(), the caller must hold the BlockDriverState
+ * AioContext.
+ */
+void bdrv_drain(BlockDriverState *bs)
+{
+    while (bdrv_drain_one(bs)) {
+        /* Keep iterating */
+    }
+}
+
 /*
  * Wait for pending requests to complete across all BlockDriverStates
  *
@@ -1927,16 +1955,10 @@ void bdrv_drain_all(void)
 
         QTAILQ_FOREACH(bs, &bdrv_states, device_list) {
             AioContext *aio_context = bdrv_get_aio_context(bs);
-            bool bs_busy;
 
             aio_context_acquire(aio_context);
-            bdrv_flush_io_queue(bs);
-            bdrv_start_throttled_reqs(bs);
-            bs_busy = bdrv_requests_pending(bs);
-            bs_busy |= aio_poll(aio_context, bs_busy);
+            busy |= bdrv_drain_one(bs);
             aio_context_release(aio_context);
-
-            busy |= bs_busy;
         }
     }
 }
