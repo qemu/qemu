@@ -61,6 +61,17 @@ L: secalert@redhat.com
 
 Guest CPU cores (TCG):
 ----------------------
+Overall
+M: qemu-devel@nongnu.org
+S: Odd fixes
+F: cpu-exec.c
+F: cputlb.c
+F: softmmu_template.h
+F: translate-all.c
+F: include/exec/cpu_ldst.h
+F: include/exec/cpu_ldst_template.h
+F: include/exec/helper*.h
+
 Alpha
 M: Richard Henderson <rth@twiddle.net>
 S: Maintained
@@ -897,6 +908,12 @@ F: include/sysemu/seccomp.h
 
 Usermode Emulation
 ------------------
+Overall
+M: Riku Voipio <riku.voipio@iki.fi>
+S: Maintained
+F: thunk.c
+F: user-exec.c
+
 BSD user
 M: Blue Swirl <blauwirbel@gmail.com>
 S: Maintained
