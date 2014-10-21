@@ -2027,6 +2027,7 @@ void qmp_block_commit(const char *device,
 {
     BlockDriverState *bs;
     BlockDriverState *base_bs, *top_bs;
+    AioContext *aio_context;
     Error *local_err = NULL;
     /* This will be part of the QMP command, if/when the
      * BlockdevOnError change for blkmirror makes it in
@@ -2036,9 +2037,6 @@ void qmp_block_commit(const char *device,
     if (!has_speed) {
         speed = 0;
     }
-
-    /* drain all i/o before commits */
-    bdrv_drain_all();
 
     /* Important Note:
      *  libvirt relies on the DeviceNotFound error class in order to probe for
@@ -2051,8 +2049,14 @@ void qmp_block_commit(const char *device,
         return;
     }
 
+    aio_context = bdrv_get_aio_context(bs);
+    aio_context_acquire(aio_context);
+
+    /* drain all i/o before commits */
+    bdrv_drain_all();
+
     if (bdrv_op_is_blocked(bs, BLOCK_OP_TYPE_COMMIT, errp)) {
-        return;
+        goto out;
     }
 
     /* default top_bs is the active layer */
@@ -2066,8 +2070,10 @@ void qmp_block_commit(const char *device,
 
     if (top_bs == NULL) {
         error_setg(errp, "Top image file %s not found", top ? top : "NULL");
-        return;
+        goto out;
     }
+
+    assert(bdrv_get_aio_context(top_bs) == aio_context);
 
     if (has_base && base) {
         base_bs = bdrv_find_backing_image(top_bs, base);
@@ -2077,20 +2083,22 @@ void qmp_block_commit(const char *device,
 
     if (base_bs == NULL) {
         error_set(errp, QERR_BASE_NOT_FOUND, base ? base : "NULL");
-        return;
+        goto out;
     }
+
+    assert(bdrv_get_aio_context(base_bs) == aio_context);
 
     /* Do not allow attempts to commit an image into itself */
     if (top_bs == base_bs) {
         error_setg(errp, "cannot commit an image into itself");
-        return;
+        goto out;
     }
 
     if (top_bs == bs) {
         if (has_backing_file) {
             error_setg(errp, "'backing-file' specified,"
                              " but 'top' is the active layer");
-            return;
+            goto out;
         }
         commit_active_start(bs, base_bs, speed, on_error, block_job_cb,
                             bs, &local_err);
@@ -2100,8 +2108,11 @@ void qmp_block_commit(const char *device,
     }
     if (local_err != NULL) {
         error_propagate(errp, local_err);
-        return;
+        goto out;
     }
+
+out:
+    aio_context_release(aio_context);
 }
 
 void qmp_drive_backup(const char *device, const char *target,

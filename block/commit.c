@@ -60,17 +60,50 @@ static int coroutine_fn commit_populate(BlockDriverState *bs,
     return 0;
 }
 
-static void coroutine_fn commit_run(void *opaque)
+typedef struct {
+    int ret;
+} CommitCompleteData;
+
+static void commit_complete(BlockJob *job, void *opaque)
 {
-    CommitBlockJob *s = opaque;
+    CommitBlockJob *s = container_of(job, CommitBlockJob, common);
+    CommitCompleteData *data = opaque;
     BlockDriverState *active = s->active;
     BlockDriverState *top = s->top;
     BlockDriverState *base = s->base;
     BlockDriverState *overlay_bs;
+    int ret = data->ret;
+
+    if (!block_job_is_cancelled(&s->common) && ret == 0) {
+        /* success */
+        ret = bdrv_drop_intermediate(active, top, base, s->backing_file_str);
+    }
+
+    /* restore base open flags here if appropriate (e.g., change the base back
+     * to r/o). These reopens do not need to be atomic, since we won't abort
+     * even on failure here */
+    if (s->base_flags != bdrv_get_flags(base)) {
+        bdrv_reopen(base, s->base_flags, NULL);
+    }
+    overlay_bs = bdrv_find_overlay(active, top);
+    if (overlay_bs && s->orig_overlay_flags != bdrv_get_flags(overlay_bs)) {
+        bdrv_reopen(overlay_bs, s->orig_overlay_flags, NULL);
+    }
+    g_free(s->backing_file_str);
+    block_job_completed(&s->common, ret);
+    g_free(data);
+}
+
+static void coroutine_fn commit_run(void *opaque)
+{
+    CommitBlockJob *s = opaque;
+    CommitCompleteData *data;
+    BlockDriverState *top = s->top;
+    BlockDriverState *base = s->base;
     int64_t sector_num, end;
     int ret = 0;
     int n = 0;
-    void *buf;
+    void *buf = NULL;
     int bytes_written = 0;
     int64_t base_len;
 
@@ -78,18 +111,18 @@ static void coroutine_fn commit_run(void *opaque)
 
 
     if (s->common.len < 0) {
-        goto exit_restore_reopen;
+        goto out;
     }
 
     ret = base_len = bdrv_getlength(base);
     if (base_len < 0) {
-        goto exit_restore_reopen;
+        goto out;
     }
 
     if (base_len < s->common.len) {
         ret = bdrv_truncate(base, s->common.len);
         if (ret) {
-            goto exit_restore_reopen;
+            goto out;
         }
     }
 
@@ -128,7 +161,7 @@ wait:
             if (s->on_error == BLOCKDEV_ON_ERROR_STOP ||
                 s->on_error == BLOCKDEV_ON_ERROR_REPORT||
                 (s->on_error == BLOCKDEV_ON_ERROR_ENOSPC && ret == -ENOSPC)) {
-                goto exit_free_buf;
+                goto out;
             } else {
                 n = 0;
                 continue;
@@ -140,27 +173,12 @@ wait:
 
     ret = 0;
 
-    if (!block_job_is_cancelled(&s->common) && sector_num == end) {
-        /* success */
-        ret = bdrv_drop_intermediate(active, top, base, s->backing_file_str);
-    }
-
-exit_free_buf:
+out:
     qemu_vfree(buf);
 
-exit_restore_reopen:
-    /* restore base open flags here if appropriate (e.g., change the base back
-     * to r/o). These reopens do not need to be atomic, since we won't abort
-     * even on failure here */
-    if (s->base_flags != bdrv_get_flags(base)) {
-        bdrv_reopen(base, s->base_flags, NULL);
-    }
-    overlay_bs = bdrv_find_overlay(active, top);
-    if (overlay_bs && s->orig_overlay_flags != bdrv_get_flags(overlay_bs)) {
-        bdrv_reopen(overlay_bs, s->orig_overlay_flags, NULL);
-    }
-    g_free(s->backing_file_str);
-    block_job_completed(&s->common, ret);
+    data = g_malloc(sizeof(*data));
+    data->ret = ret;
+    block_job_defer_to_main_loop(&s->common, commit_complete, data);
 }
 
 static void commit_set_speed(BlockJob *job, int64_t speed, Error **errp)
