@@ -1963,6 +1963,7 @@ void qmp_block_stream(const char *device,
 {
     BlockDriverState *bs;
     BlockDriverState *base_bs = NULL;
+    AioContext *aio_context;
     Error *local_err = NULL;
     const char *base_name = NULL;
 
@@ -1976,16 +1977,20 @@ void qmp_block_stream(const char *device,
         return;
     }
 
+    aio_context = bdrv_get_aio_context(bs);
+    aio_context_acquire(aio_context);
+
     if (bdrv_op_is_blocked(bs, BLOCK_OP_TYPE_STREAM, errp)) {
-        return;
+        goto out;
     }
 
     if (has_base) {
         base_bs = bdrv_find_backing_image(bs, base);
         if (base_bs == NULL) {
             error_set(errp, QERR_BASE_NOT_FOUND, base);
-            return;
+            goto out;
         }
+        assert(bdrv_get_aio_context(base_bs) == aio_context);
         base_name = base;
     }
 
@@ -1994,7 +1999,7 @@ void qmp_block_stream(const char *device,
     if (base_bs == NULL && has_backing_file) {
         error_setg(errp, "backing file specified, but streaming the "
                          "entire chain");
-        return;
+        goto out;
     }
 
     /* backing_file string overrides base bs filename */
@@ -2004,10 +2009,13 @@ void qmp_block_stream(const char *device,
                  on_error, block_job_cb, bs, &local_err);
     if (local_err) {
         error_propagate(errp, local_err);
-        return;
+        goto out;
     }
 
     trace_qmp_block_stream(bs, bs->job);
+
+out:
+    aio_context_release(aio_context);
 }
 
 void qmp_block_commit(const char *device,

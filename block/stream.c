@@ -79,9 +79,39 @@ static void close_unused_images(BlockDriverState *top, BlockDriverState *base,
     bdrv_refresh_limits(top, NULL);
 }
 
+typedef struct {
+    int ret;
+    bool reached_end;
+} StreamCompleteData;
+
+static void stream_complete(BlockJob *job, void *opaque)
+{
+    StreamBlockJob *s = container_of(job, StreamBlockJob, common);
+    StreamCompleteData *data = opaque;
+    BlockDriverState *base = s->base;
+
+    if (!block_job_is_cancelled(&s->common) && data->reached_end &&
+        data->ret == 0) {
+        const char *base_id = NULL, *base_fmt = NULL;
+        if (base) {
+            base_id = s->backing_file_str;
+            if (base->drv) {
+                base_fmt = base->drv->format_name;
+            }
+        }
+        data->ret = bdrv_change_backing_file(job->bs, base_id, base_fmt);
+        close_unused_images(job->bs, base, base_id);
+    }
+
+    g_free(s->backing_file_str);
+    block_job_completed(&s->common, data->ret);
+    g_free(data);
+}
+
 static void coroutine_fn stream_run(void *opaque)
 {
     StreamBlockJob *s = opaque;
+    StreamCompleteData *data;
     BlockDriverState *bs = s->common.bs;
     BlockDriverState *base = s->base;
     int64_t sector_num, end;
@@ -183,21 +213,13 @@ wait:
     /* Do not remove the backing file if an error was there but ignored.  */
     ret = error;
 
-    if (!block_job_is_cancelled(&s->common) && sector_num == end && ret == 0) {
-        const char *base_id = NULL, *base_fmt = NULL;
-        if (base) {
-            base_id = s->backing_file_str;
-            if (base->drv) {
-                base_fmt = base->drv->format_name;
-            }
-        }
-        ret = bdrv_change_backing_file(bs, base_id, base_fmt);
-        close_unused_images(bs, base, base_id);
-    }
-
     qemu_vfree(buf);
-    g_free(s->backing_file_str);
-    block_job_completed(&s->common, ret);
+
+    /* Modify backing chain and close BDSes in main loop */
+    data = g_malloc(sizeof(*data));
+    data->ret = ret;
+    data->reached_end = sector_num == end;
+    block_job_defer_to_main_loop(&s->common, stream_complete, data);
 }
 
 static void stream_set_speed(BlockJob *job, int64_t speed, Error **errp)
