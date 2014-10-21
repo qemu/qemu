@@ -2375,20 +2375,35 @@ void qmp_drive_mirror(const char *device, const char *target,
     }
 }
 
-static BlockJob *find_block_job(const char *device)
+/* Get the block job for a given device name and acquire its AioContext */
+static BlockJob *find_block_job(const char *device, AioContext **aio_context)
 {
     BlockDriverState *bs;
 
     bs = bdrv_find(device);
-    if (!bs || !bs->job) {
-        return NULL;
+    if (!bs) {
+        goto notfound;
     }
+
+    *aio_context = bdrv_get_aio_context(bs);
+    aio_context_acquire(*aio_context);
+
+    if (!bs->job) {
+        aio_context_release(*aio_context);
+        goto notfound;
+    }
+
     return bs->job;
+
+notfound:
+    *aio_context = NULL;
+    return NULL;
 }
 
 void qmp_block_job_set_speed(const char *device, int64_t speed, Error **errp)
 {
-    BlockJob *job = find_block_job(device);
+    AioContext *aio_context;
+    BlockJob *job = find_block_job(device, &aio_context);
 
     if (!job) {
         error_set(errp, QERR_BLOCK_JOB_NOT_ACTIVE, device);
@@ -2396,34 +2411,40 @@ void qmp_block_job_set_speed(const char *device, int64_t speed, Error **errp)
     }
 
     block_job_set_speed(job, speed, errp);
+    aio_context_release(aio_context);
 }
 
 void qmp_block_job_cancel(const char *device,
                           bool has_force, bool force, Error **errp)
 {
-    BlockJob *job = find_block_job(device);
-
-    if (!has_force) {
-        force = false;
-    }
+    AioContext *aio_context;
+    BlockJob *job = find_block_job(device, &aio_context);
 
     if (!job) {
         error_set(errp, QERR_BLOCK_JOB_NOT_ACTIVE, device);
         return;
     }
+
+    if (!has_force) {
+        force = false;
+    }
+
     if (job->paused && !force) {
         error_setg(errp, "The block job for device '%s' is currently paused",
                    device);
-        return;
+        goto out;
     }
 
     trace_qmp_block_job_cancel(job);
     block_job_cancel(job);
+out:
+    aio_context_release(aio_context);
 }
 
 void qmp_block_job_pause(const char *device, Error **errp)
 {
-    BlockJob *job = find_block_job(device);
+    AioContext *aio_context;
+    BlockJob *job = find_block_job(device, &aio_context);
 
     if (!job) {
         error_set(errp, QERR_BLOCK_JOB_NOT_ACTIVE, device);
@@ -2432,11 +2453,13 @@ void qmp_block_job_pause(const char *device, Error **errp)
 
     trace_qmp_block_job_pause(job);
     block_job_pause(job);
+    aio_context_release(aio_context);
 }
 
 void qmp_block_job_resume(const char *device, Error **errp)
 {
-    BlockJob *job = find_block_job(device);
+    AioContext *aio_context;
+    BlockJob *job = find_block_job(device, &aio_context);
 
     if (!job) {
         error_set(errp, QERR_BLOCK_JOB_NOT_ACTIVE, device);
@@ -2445,11 +2468,13 @@ void qmp_block_job_resume(const char *device, Error **errp)
 
     trace_qmp_block_job_resume(job);
     block_job_resume(job);
+    aio_context_release(aio_context);
 }
 
 void qmp_block_job_complete(const char *device, Error **errp)
 {
-    BlockJob *job = find_block_job(device);
+    AioContext *aio_context;
+    BlockJob *job = find_block_job(device, &aio_context);
 
     if (!job) {
         error_set(errp, QERR_BLOCK_JOB_NOT_ACTIVE, device);
@@ -2458,6 +2483,7 @@ void qmp_block_job_complete(const char *device, Error **errp)
 
     trace_qmp_block_job_complete(job);
     block_job_complete(job, errp);
+    aio_context_release(aio_context);
 }
 
 void qmp_change_backing_file(const char *device,
