@@ -720,8 +720,12 @@ T: git git://github.com/stefanha/qemu.git block
 
 Character Devices
 M: Anthony Liguori <aliguori@amazon.com>
+M: Paolo Bonzini <pbonzini@redhat.com>
 S: Maintained
 F: qemu-char.c
+F: backends/baum.c
+F: backends/msmouse.c
+F: backends/testdev.c
 
 CPU
 M: Andreas Färber <afaerber@suse.de>
@@ -780,7 +784,11 @@ F: ui/cocoa.m
 
 Main loop
 M: Anthony Liguori <aliguori@amazon.com>
-S: Supported
+M: Paolo Bonzini <pbonzini@redhat.com>
+S: Maintained
+F: cpus.c
+F: main-loop.c
+F: qemu-timer.c
 F: vl.c
 
 Human Monitor (HMP)
