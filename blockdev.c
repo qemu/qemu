@@ -1929,6 +1929,11 @@ out:
 
 static void block_job_cb(void *opaque, int ret)
 {
+    /* Note that this function may be executed from another AioContext besides
+     * the QEMU main loop.  If you need to access anything that assumes the
+     * QEMU global mutex, use a BH or introduce a mutex.
+     */
+
     BlockDriverState *bs = opaque;
     const char *msg = NULL;
 
