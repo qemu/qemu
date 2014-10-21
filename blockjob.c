@@ -50,6 +50,7 @@ void *block_job_create(const BlockJobDriver *driver, BlockDriverState *bs,
     error_setg(&job->blocker, "block device is in use by block job: %s",
                BlockJobType_lookup[driver->job_type]);
     bdrv_op_block_all(bs, job->blocker);
+    bdrv_op_unblock(bs, BLOCK_OP_TYPE_DATAPLANE, job->blocker);
 
     job->driver        = driver;
     job->bs            = bs;
