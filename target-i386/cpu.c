@@ -2696,6 +2696,13 @@ static void x86_cpu_apic_realize(X86CPU *cpu, Error **errp)
 }
 #endif
 
+
+#define IS_INTEL_CPU(env) ((env)->cpuid_vendor1 == CPUID_VENDOR_INTEL_1 && \
+                           (env)->cpuid_vendor2 == CPUID_VENDOR_INTEL_2 && \
+                           (env)->cpuid_vendor3 == CPUID_VENDOR_INTEL_3)
+#define IS_AMD_CPU(env) ((env)->cpuid_vendor1 == CPUID_VENDOR_AMD_1 && \
+                         (env)->cpuid_vendor2 == CPUID_VENDOR_AMD_2 && \
+                         (env)->cpuid_vendor3 == CPUID_VENDOR_AMD_3)
 static void x86_cpu_realizefn(DeviceState *dev, Error **errp)
 {
     CPUState *cs = CPU(dev);
@@ -2703,6 +2710,7 @@ static void x86_cpu_realizefn(DeviceState *dev, Error **errp)
     X86CPUClass *xcc = X86_CPU_GET_CLASS(dev);
     CPUX86State *env = &cpu->env;
     Error *local_err = NULL;
+    static bool ht_warned;
 
     if (env->features[FEAT_7_0_EBX] && env->cpuid_level < 7) {
         env->cpuid_level = 7;
@@ -2711,9 +2719,7 @@ static void x86_cpu_realizefn(DeviceState *dev, Error **errp)
     /* On AMD CPUs, some CPUID[8000_0001].EDX bits must match the bits on
      * CPUID[1].EDX.
      */
-    if (env->cpuid_vendor1 == CPUID_VENDOR_AMD_1 &&
-        env->cpuid_vendor2 == CPUID_VENDOR_AMD_2 &&
-        env->cpuid_vendor3 == CPUID_VENDOR_AMD_3) {
+    if (IS_AMD_CPU(env)) {
         env->features[FEAT_8000_0001_EDX] &= ~CPUID_EXT2_AMD_ALIASES;
         env->features[FEAT_8000_0001_EDX] |= (env->features[FEAT_1_EDX]
            & CPUID_EXT2_AMD_ALIASES);
@@ -2741,6 +2747,20 @@ static void x86_cpu_realizefn(DeviceState *dev, Error **errp)
 
     mce_init(cpu);
     qemu_init_vcpu(cs);
+
+    /* Only Intel CPUs support hyperthreading. Even though QEMU fixes this
+     * issue by adjusting CPUID_0000_0001_EBX and CPUID_8000_0008_ECX
+     * based on inputs (sockets,cores,threads), it is still better to gives
+     * users a warning.
+     *
+     * NOTE: the following code has to follow qemu_init_vcpu(). Otherwise
+     * cs->nr_threads hasn't be populated yet and the checking is incorrect.
+     */
+    if (!IS_INTEL_CPU(env) && cs->nr_threads > 1 && !ht_warned) {
+        error_report("AMD CPU doesn't support hyperthreading. Please configure"
+                     " -smp options properly.");
+        ht_warned = true;
+    }
 
     x86_cpu_apic_realize(cpu, &local_err);
     if (local_err != NULL) {
