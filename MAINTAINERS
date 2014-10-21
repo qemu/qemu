@@ -717,6 +717,7 @@ F: block/
 F: hw/block/
 F: qemu-img*
 F: qemu-io*
+F: tests/image-fuzzer/
 F: tests/qemu-iotests/
 T: git git://repo.or.cz/qemu/kevin.git block
 T: git git://github.com/stefanha/qemu.git block
