@@ -149,7 +149,8 @@ F: target-unicore32/
 F: hw/unicore32/
 
 X86
-M: qemu-devel@nongnu.org
+M: Paolo Bonzini <pbonzini@redhat.com>
+M: Richard Henderson <rth@twiddle.net>
 S: Odd Fixes
 F: target-i386/
 F: hw/i386/
@@ -203,6 +204,7 @@ F: hw/intc/s390_flic_kvm.c
 F: include/hw/s390x/s390_flic.h
 
 X86
+M: Paolo Bonzini <pbonzini@redhat.com>
 M: Marcelo Tosatti <mtosatti@redhat.com>
 L: kvm@vger.kernel.org
 S: Supported
