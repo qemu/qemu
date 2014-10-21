@@ -115,14 +115,21 @@ void blockdev_mark_auto_del(BlockBackend *blk)
 {
     DriveInfo *dinfo = blk_legacy_dinfo(blk);
     BlockDriverState *bs = blk_bs(blk);
+    AioContext *aio_context;
 
     if (!dinfo) {
         return;
     }
 
+    aio_context = bdrv_get_aio_context(bs);
+    aio_context_acquire(aio_context);
+
     if (bs->job) {
         block_job_cancel(bs->job);
     }
+
+    aio_context_release(aio_context);
+
     dinfo->auto_del = 1;
 }
 
