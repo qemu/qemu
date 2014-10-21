@@ -710,6 +710,8 @@ Block
 M: Kevin Wolf <kwolf@redhat.com>
 M: Stefan Hajnoczi <stefanha@redhat.com>
 S: Supported
+F: async.c
+F: aio-*.c
 F: block*
 F: block/
 F: hw/block/
