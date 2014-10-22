@@ -20,6 +20,9 @@ typedef struct AcpiCpuHotplug {
     uint8_t sts[ACPI_GPE_PROC_LEN];
 } AcpiCpuHotplug;
 
+void acpi_cpu_plug_cb(ACPIREGS *ar, qemu_irq irq,
+                      AcpiCpuHotplug *g, DeviceState *dev, Error **errp);
+
 void AcpiCpuHotplug_add(ACPIGPE *gpe, AcpiCpuHotplug *g, CPUState *cpu);
 
 void AcpiCpuHotplug_init(MemoryRegion *parent, Object *owner,

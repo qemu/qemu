@@ -36,6 +36,24 @@ static const MemoryRegionOps AcpiCpuHotplug_ops = {
     },
 };
 
+void acpi_cpu_plug_cb(ACPIREGS *ar, qemu_irq irq,
+                      AcpiCpuHotplug *g, DeviceState *dev, Error **errp)
+{
+    CPUState *cpu = CPU(dev);
+    CPUClass *k = CPU_GET_CLASS(cpu);
+    int64_t cpu_id;
+
+    cpu_id = k->get_arch_id(cpu);
+    if ((cpu_id / 8) >= ACPI_GPE_PROC_LEN) {
+        error_setg(errp, "acpi: invalid cpu id: %" PRIi64, cpu_id);
+        return;
+    }
+
+    AcpiCpuHotplug_add(&ar->gpe, g, cpu);
+
+    acpi_update_sci(ar, irq);
+}
+
 void AcpiCpuHotplug_add(ACPIGPE *gpe, AcpiCpuHotplug *g, CPUState *cpu)
 {
     CPUClass *k = CPU_GET_CLASS(cpu);
