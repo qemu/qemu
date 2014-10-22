@@ -1,0 +1,64 @@
+#!/bin/bash
+#
+# Test case for qemu-io -c map and qemu-img map
+#
+# Copyright (C) 2014 Red Hat, Inc.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+
+# creator
+owner=mreitz@redhat.com
+
+seq=$(basename $0)
+echo "QA output created by $seq"
+
+here=$PWD
+tmp=/tmp/$$
+status=1	# failure is the default!
+
+_cleanup()
+{
+	_cleanup_test_img
+}
+trap "_cleanup; exit \$status" 0 1 2 3 15
+
+# get standard environment, filters and checks
+. ./common.rc
+. ./common.filter
+
+_supported_fmt qcow2
+_supported_proto file
+_supported_os Linux
+
+IMG_SIZE=64K
+
+echo
+echo '=== Testing map command on truncated image ==='
+echo
+
+_make_test_img $IMG_SIZE
+# Create cluster
+$QEMU_IO -c 'write 0 64k' "$TEST_IMG" | _filter_qemu_io
+# Remove data cluster from image (first cluster: image header, second: reftable,
+# third: refblock, fourth: L1 table, fifth: L2 table)
+truncate -s $((5 * 64 * 1024)) "$TEST_IMG"
+
+$QEMU_IO -c map "$TEST_IMG"
+$QEMU_IMG map "$TEST_IMG"
+
+# success, all done
+echo '*** done'
+rm -f $seq.full
+status=0
