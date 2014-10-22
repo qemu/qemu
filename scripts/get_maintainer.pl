@@ -651,18 +651,17 @@ sub get_maintainers {
 	$email->[0] = deduplicate_email($email->[0]);
     }
 
-    foreach my $file (@files) {
-	if ($email &&
-	    ($email_git || ($email_git_fallback &&
-			    !$exact_pattern_match_hash{$file}))) {
-	    vcs_file_signoffs($file);
-	}
-	if ($email && $email_git_blame) {
-	    vcs_file_blame($file);
-	}
-    }
-
     if ($email) {
+	foreach my $file (@files) {
+	    if ($email_git || ($email_git_fallback &&
+			       !$exact_pattern_match_hash{$file})) {
+	        vcs_file_signoffs($file);
+	    }
+	    if ($email_git_blame) {
+	        vcs_file_blame($file);
+	    }
+	}
+
 	foreach my $chief (@penguin_chief) {
 	    if ($chief =~ m/^(.*):(.*)/) {
 		my $email_address;
