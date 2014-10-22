@@ -1688,6 +1688,285 @@ static void compare_refcounts(BlockDriverState *bs, BdrvCheckResult *res,
 }
 
 /*
+ * Allocates clusters using an in-memory refcount table (IMRT) in contrast to
+ * the on-disk refcount structures.
+ *
+ * On input, *first_free_cluster tells where to start looking, and need not
+ * actually be a free cluster; the returned offset will not be before that
+ * cluster.  On output, *first_free_cluster points to the first gap found, even
+ * if that gap was too small to be used as the returned offset.
+ *
+ * Note that *first_free_cluster is a cluster index whereas the return value is
+ * an offset.
+ */
+static int64_t alloc_clusters_imrt(BlockDriverState *bs,
+                                   int cluster_count,
+                                   uint16_t **refcount_table,
+                                   int64_t *imrt_nb_clusters,
+                                   int64_t *first_free_cluster)
+{
+    BDRVQcowState *s = bs->opaque;
+    int64_t cluster = *first_free_cluster, i;
+    bool first_gap = true;
+    int contiguous_free_clusters;
+
+    /* Starting at *first_free_cluster, find a range of at least cluster_count
+     * continuously free clusters */
+    for (contiguous_free_clusters = 0;
+         cluster < *imrt_nb_clusters &&
+         contiguous_free_clusters < cluster_count;
+         cluster++)
+    {
+        if (!(*refcount_table)[cluster]) {
+            contiguous_free_clusters++;
+            if (first_gap) {
+                /* If this is the first free cluster found, update
+                 * *first_free_cluster accordingly */
+                *first_free_cluster = cluster;
+                first_gap = false;
+            }
+        } else if (contiguous_free_clusters) {
+            contiguous_free_clusters = 0;
+        }
+    }
+
+    /* If contiguous_free_clusters is greater than zero, it contains the number
+     * of continuously free clusters until the current cluster; the first free
+     * cluster in the current "gap" is therefore
+     * cluster - contiguous_free_clusters */
+
+    /* If no such range could be found, grow the in-memory refcount table
+     * accordingly to append free clusters at the end of the image */
+    if (contiguous_free_clusters < cluster_count) {
+        int64_t old_imrt_nb_clusters = *imrt_nb_clusters;
+        uint16_t *new_refcount_table;
+
+        /* contiguous_free_clusters clusters are already empty at the image end;
+         * we need cluster_count clusters; therefore, we have to allocate
+         * cluster_count - contiguous_free_clusters new clusters at the end of
+         * the image (which is the current value of cluster; note that cluster
+         * may exceed old_imrt_nb_clusters if *first_free_cluster pointed beyond
+         * the image end) */
+        *imrt_nb_clusters = cluster + cluster_count - contiguous_free_clusters;
+        new_refcount_table = g_try_realloc(*refcount_table,
+                                           *imrt_nb_clusters *
+                                           sizeof(**refcount_table));
+        if (!new_refcount_table) {
+            *imrt_nb_clusters = old_imrt_nb_clusters;
+            return -ENOMEM;
+        }
+        *refcount_table = new_refcount_table;
+
+        memset(*refcount_table + old_imrt_nb_clusters, 0,
+               (*imrt_nb_clusters - old_imrt_nb_clusters) *
+               sizeof(**refcount_table));
+    }
+
+    /* Go back to the first free cluster */
+    cluster -= contiguous_free_clusters;
+    for (i = 0; i < cluster_count; i++) {
+        (*refcount_table)[cluster + i] = 1;
+    }
+
+    return cluster << s->cluster_bits;
+}
+
+/*
+ * Creates a new refcount structure based solely on the in-memory information
+ * given through *refcount_table. All necessary allocations will be reflected
+ * in that array.
+ *
+ * On success, the old refcount structure is leaked (it will be covered by the
+ * new refcount structure).
+ */
+static int rebuild_refcount_structure(BlockDriverState *bs,
+                                      BdrvCheckResult *res,
+                                      uint16_t **refcount_table,
+                                      int64_t *nb_clusters)
+{
+    BDRVQcowState *s = bs->opaque;
+    int64_t first_free_cluster = 0, reftable_offset = -1, cluster = 0;
+    int64_t refblock_offset, refblock_start, refblock_index;
+    uint32_t reftable_size = 0;
+    uint64_t *on_disk_reftable = NULL;
+    uint16_t *on_disk_refblock;
+    int i, ret = 0;
+    struct {
+        uint64_t reftable_offset;
+        uint32_t reftable_clusters;
+    } QEMU_PACKED reftable_offset_and_clusters;
+
+    qcow2_cache_empty(bs, s->refcount_block_cache);
+
+write_refblocks:
+    for (; cluster < *nb_clusters; cluster++) {
+        if (!(*refcount_table)[cluster]) {
+            continue;
+        }
+
+        refblock_index = cluster >> s->refcount_block_bits;
+        refblock_start = refblock_index << s->refcount_block_bits;
+
+        /* Don't allocate a cluster in a refblock already written to disk */
+        if (first_free_cluster < refblock_start) {
+            first_free_cluster = refblock_start;
+        }
+        refblock_offset = alloc_clusters_imrt(bs, 1, refcount_table,
+                                              nb_clusters, &first_free_cluster);
+        if (refblock_offset < 0) {
+            fprintf(stderr, "ERROR allocating refblock: %s\n",
+                    strerror(-refblock_offset));
+            res->check_errors++;
+            ret = refblock_offset;
+            goto fail;
+        }
+
+        if (reftable_size <= refblock_index) {
+            uint32_t old_reftable_size = reftable_size;
+            uint64_t *new_on_disk_reftable;
+
+            reftable_size = ROUND_UP((refblock_index + 1) * sizeof(uint64_t),
+                                     s->cluster_size) / sizeof(uint64_t);
+            new_on_disk_reftable = g_try_realloc(on_disk_reftable,
+                                                 reftable_size *
+                                                 sizeof(uint64_t));
+            if (!new_on_disk_reftable) {
+                res->check_errors++;
+                ret = -ENOMEM;
+                goto fail;
+            }
+            on_disk_reftable = new_on_disk_reftable;
+
+            memset(on_disk_reftable + old_reftable_size, 0,
+                   (reftable_size - old_reftable_size) * sizeof(uint64_t));
+
+            /* The offset we have for the reftable is now no longer valid;
+             * this will leak that range, but we can easily fix that by running
+             * a leak-fixing check after this rebuild operation */
+            reftable_offset = -1;
+        }
+        on_disk_reftable[refblock_index] = refblock_offset;
+
+        /* If this is apparently the last refblock (for now), try to squeeze the
+         * reftable in */
+        if (refblock_index == (*nb_clusters - 1) >> s->refcount_block_bits &&
+            reftable_offset < 0)
+        {
+            uint64_t reftable_clusters = size_to_clusters(s, reftable_size *
+                                                          sizeof(uint64_t));
+            reftable_offset = alloc_clusters_imrt(bs, reftable_clusters,
+                                                  refcount_table, nb_clusters,
+                                                  &first_free_cluster);
+            if (reftable_offset < 0) {
+                fprintf(stderr, "ERROR allocating reftable: %s\n",
+                        strerror(-reftable_offset));
+                res->check_errors++;
+                ret = reftable_offset;
+                goto fail;
+            }
+        }
+
+        ret = qcow2_pre_write_overlap_check(bs, 0, refblock_offset,
+                                            s->cluster_size);
+        if (ret < 0) {
+            fprintf(stderr, "ERROR writing refblock: %s\n", strerror(-ret));
+            goto fail;
+        }
+
+        on_disk_refblock = qemu_blockalign0(bs->file, s->cluster_size);
+        for (i = 0; i < s->refcount_block_size &&
+                    refblock_start + i < *nb_clusters; i++)
+        {
+            on_disk_refblock[i] =
+                cpu_to_be16((*refcount_table)[refblock_start + i]);
+        }
+
+        ret = bdrv_write(bs->file, refblock_offset / BDRV_SECTOR_SIZE,
+                         (void *)on_disk_refblock, s->cluster_sectors);
+        qemu_vfree(on_disk_refblock);
+        if (ret < 0) {
+            fprintf(stderr, "ERROR writing refblock: %s\n", strerror(-ret));
+            goto fail;
+        }
+
+        /* Go to the end of this refblock */
+        cluster = refblock_start + s->refcount_block_size - 1;
+    }
+
+    if (reftable_offset < 0) {
+        uint64_t post_refblock_start, reftable_clusters;
+
+        post_refblock_start = ROUND_UP(*nb_clusters, s->refcount_block_size);
+        reftable_clusters = size_to_clusters(s,
+                                             reftable_size * sizeof(uint64_t));
+        /* Not pretty but simple */
+        if (first_free_cluster < post_refblock_start) {
+            first_free_cluster = post_refblock_start;
+        }
+        reftable_offset = alloc_clusters_imrt(bs, reftable_clusters,
+                                              refcount_table, nb_clusters,
+                                              &first_free_cluster);
+        if (reftable_offset < 0) {
+            fprintf(stderr, "ERROR allocating reftable: %s\n",
+                    strerror(-reftable_offset));
+            res->check_errors++;
+            ret = reftable_offset;
+            goto fail;
+        }
+
+        goto write_refblocks;
+    }
+
+    assert(on_disk_reftable);
+
+    for (refblock_index = 0; refblock_index < reftable_size; refblock_index++) {
+        cpu_to_be64s(&on_disk_reftable[refblock_index]);
+    }
+
+    ret = qcow2_pre_write_overlap_check(bs, 0, reftable_offset,
+                                        reftable_size * sizeof(uint64_t));
+    if (ret < 0) {
+        fprintf(stderr, "ERROR writing reftable: %s\n", strerror(-ret));
+        goto fail;
+    }
+
+    assert(reftable_size < INT_MAX / sizeof(uint64_t));
+    ret = bdrv_pwrite(bs->file, reftable_offset, on_disk_reftable,
+                      reftable_size * sizeof(uint64_t));
+    if (ret < 0) {
+        fprintf(stderr, "ERROR writing reftable: %s\n", strerror(-ret));
+        goto fail;
+    }
+
+    /* Enter new reftable into the image header */
+    cpu_to_be64w(&reftable_offset_and_clusters.reftable_offset,
+                 reftable_offset);
+    cpu_to_be32w(&reftable_offset_and_clusters.reftable_clusters,
+                 size_to_clusters(s, reftable_size * sizeof(uint64_t)));
+    ret = bdrv_pwrite_sync(bs->file, offsetof(QCowHeader,
+                                              refcount_table_offset),
+                           &reftable_offset_and_clusters,
+                           sizeof(reftable_offset_and_clusters));
+    if (ret < 0) {
+        fprintf(stderr, "ERROR setting reftable: %s\n", strerror(-ret));
+        goto fail;
+    }
+
+    for (refblock_index = 0; refblock_index < reftable_size; refblock_index++) {
+        be64_to_cpus(&on_disk_reftable[refblock_index]);
+    }
+    s->refcount_table = on_disk_reftable;
+    s->refcount_table_offset = reftable_offset;
+    s->refcount_table_size = reftable_size;
+
+    return 0;
+
+fail:
+    g_free(on_disk_reftable);
+    return ret;
+}
+
+/*
  * Checks an image for refcount consistency.
  *
  * Returns 0 if no errors are found, the number of errors in case the image is
@@ -1697,6 +1976,7 @@ int qcow2_check_refcounts(BlockDriverState *bs, BdrvCheckResult *res,
                           BdrvCheckMode fix)
 {
     BDRVQcowState *s = bs->opaque;
+    BdrvCheckResult pre_compare_res;
     int64_t size, highest_cluster, nb_clusters;
     uint16_t *refcount_table = NULL;
     bool rebuild = false;
@@ -1723,14 +2003,33 @@ int qcow2_check_refcounts(BlockDriverState *bs, BdrvCheckResult *res,
         goto fail;
     }
 
-    compare_refcounts(bs, res, fix, &rebuild, &highest_cluster, refcount_table,
+    /* In case we don't need to rebuild the refcount structure (but want to fix
+     * something), this function is immediately called again, in which case the
+     * result should be ignored */
+    pre_compare_res = *res;
+    compare_refcounts(bs, res, 0, &rebuild, &highest_cluster, refcount_table,
                       nb_clusters);
 
-    if (rebuild) {
-        fprintf(stderr, "ERROR need to rebuild refcount structures\n");
-        res->check_errors++;
-        /* Just carry on, the rest does not rely on the on-disk refcount
-         * structures */
+    if (rebuild && (fix & BDRV_FIX_ERRORS)) {
+        fprintf(stderr, "Rebuilding refcount structure\n");
+        ret = rebuild_refcount_structure(bs, res, &refcount_table,
+                                         &nb_clusters);
+        if (ret < 0) {
+            goto fail;
+        }
+    } else if (fix) {
+        if (rebuild) {
+            fprintf(stderr, "ERROR need to rebuild refcount structures\n");
+            res->check_errors++;
+            ret = -EIO;
+            goto fail;
+        }
+
+        if (res->leaks || res->corruptions) {
+            *res = pre_compare_res;
+            compare_refcounts(bs, res, fix, &rebuild, &highest_cluster,
+                              refcount_table, nb_clusters);
+        }
     }
 
     /* check OFLAG_COPIED */
