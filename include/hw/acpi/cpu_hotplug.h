@@ -23,8 +23,6 @@ typedef struct AcpiCpuHotplug {
 void acpi_cpu_plug_cb(ACPIREGS *ar, qemu_irq irq,
                       AcpiCpuHotplug *g, DeviceState *dev, Error **errp);
 
-void AcpiCpuHotplug_add(ACPIGPE *gpe, AcpiCpuHotplug *g, CPUState *cpu);
-
 void AcpiCpuHotplug_init(MemoryRegion *parent, Object *owner,
                          AcpiCpuHotplug *gpe_cpu, uint16_t base);
 #endif

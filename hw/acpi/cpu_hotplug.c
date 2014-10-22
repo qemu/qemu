@@ -49,20 +49,10 @@ void acpi_cpu_plug_cb(ACPIREGS *ar, qemu_irq irq,
         return;
     }
 
-    AcpiCpuHotplug_add(&ar->gpe, g, cpu);
+    ar->gpe.sts[0] |= ACPI_CPU_HOTPLUG_STATUS;
+    g->sts[cpu_id / 8] |= (1 << (cpu_id % 8));
 
     acpi_update_sci(ar, irq);
-}
-
-void AcpiCpuHotplug_add(ACPIGPE *gpe, AcpiCpuHotplug *g, CPUState *cpu)
-{
-    CPUClass *k = CPU_GET_CLASS(cpu);
-    int64_t cpu_id;
-
-    *gpe->sts = *gpe->sts | ACPI_CPU_HOTPLUG_STATUS;
-    cpu_id = k->get_arch_id(CPU(cpu));
-    g_assert((cpu_id / 8) < ACPI_GPE_PROC_LEN);
-    g->sts[cpu_id / 8] |= (1 << (cpu_id % 8));
 }
 
 void AcpiCpuHotplug_init(MemoryRegion *parent, Object *owner,
