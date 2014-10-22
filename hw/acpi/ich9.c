@@ -235,8 +235,8 @@ void ich9_pm_init(PCIDevice *lpc_pci, ICH9LPCPMRegs *pm,
     pm->powerdown_notifier.notify = pm_powerdown_req;
     qemu_register_powerdown_notifier(&pm->powerdown_notifier);
 
-    AcpiCpuHotplug_init(pci_address_space_io(lpc_pci), OBJECT(lpc_pci),
-                        &pm->gpe_cpu, ICH9_CPU_HOTPLUG_IO_BASE);
+    acpi_cpu_hotplug_init(pci_address_space_io(lpc_pci), OBJECT(lpc_pci),
+                          &pm->gpe_cpu, ICH9_CPU_HOTPLUG_IO_BASE);
 
     if (pm->acpi_memory_hotplug.is_enabled) {
         acpi_memory_hotplug_init(pci_address_space_io(lpc_pci), OBJECT(lpc_pci),

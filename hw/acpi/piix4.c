@@ -555,8 +555,8 @@ static void piix4_acpi_system_hot_add_init(MemoryRegion *parent,
     acpi_pcihp_init(&s->acpi_pci_hotplug, bus, parent,
                     s->use_acpi_pci_hotplug);
 
-    AcpiCpuHotplug_init(parent, OBJECT(s), &s->gpe_cpu,
-                        PIIX4_CPU_HOTPLUG_IO_BASE);
+    acpi_cpu_hotplug_init(parent, OBJECT(s), &s->gpe_cpu,
+                          PIIX4_CPU_HOTPLUG_IO_BASE);
 
     if (s->acpi_memory_hotplug.is_enabled) {
         acpi_memory_hotplug_init(parent, OBJECT(s), &s->acpi_memory_hotplug);

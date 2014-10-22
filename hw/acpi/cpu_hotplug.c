@@ -55,8 +55,8 @@ void acpi_cpu_plug_cb(ACPIREGS *ar, qemu_irq irq,
     acpi_update_sci(ar, irq);
 }
 
-void AcpiCpuHotplug_init(MemoryRegion *parent, Object *owner,
-                         AcpiCpuHotplug *gpe_cpu, uint16_t base)
+void acpi_cpu_hotplug_init(MemoryRegion *parent, Object *owner,
+                           AcpiCpuHotplug *gpe_cpu, uint16_t base)
 {
     CPUState *cpu;
 
