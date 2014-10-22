@@ -1078,3 +1078,8 @@ M: Chrysostomos Nanakos <cnanakos@grnet.gr>
 M: Chrysostomos Nanakos <chris@include.gr>
 S: Maintained
 F: block/archipelago.c
+
+Bootdevice
+M: Gonglei <arei.gonglei@huawei.com>
+S: Maintained
+F: bootdevice.c
