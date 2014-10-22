@@ -3954,13 +3954,24 @@ static int64_t coroutine_fn bdrv_co_get_block_status(BlockDriverState *bs,
     if (bs->file &&
         (ret & BDRV_BLOCK_DATA) && !(ret & BDRV_BLOCK_ZERO) &&
         (ret & BDRV_BLOCK_OFFSET_VALID)) {
+        int file_pnum;
+
         ret2 = bdrv_co_get_block_status(bs->file, ret >> BDRV_SECTOR_BITS,
-                                        *pnum, pnum);
+                                        *pnum, &file_pnum);
         if (ret2 >= 0) {
             /* Ignore errors.  This is just providing extra information, it
              * is useful but not necessary.
              */
-            ret |= (ret2 & BDRV_BLOCK_ZERO);
+            if (!file_pnum) {
+                /* !file_pnum indicates an offset at or beyond the EOF; it is
+                 * perfectly valid for the format block driver to point to such
+                 * offsets, so catch it and mark everything as zero */
+                ret |= BDRV_BLOCK_ZERO;
+            } else {
+                /* Limit request to the range reported by the protocol driver */
+                *pnum = file_pnum;
+                ret |= (ret2 & BDRV_BLOCK_ZERO);
+            }
         }
     }
 
