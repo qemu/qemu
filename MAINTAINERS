@@ -583,12 +583,13 @@ Xtensa Machines
 sim
 M: Max Filippov <jcmvbkbc@gmail.com>
 S: Maintained
-F: hw/xtensa/xtensa_sim.c
+F: hw/xtensa/sim.c
 
-Avnet LX60
+XTFPGA (LX60, LX200, ML605, KC705)
 M: Max Filippov <jcmvbkbc@gmail.com>
 S: Maintained
-F: hw/xtensa/xtensa_lx60.c
+F: hw/xtensa/xtfpga.c
+F: hw/net/opencores_eth.c
 
 Devices
 -------
