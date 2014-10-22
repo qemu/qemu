@@ -33,6 +33,7 @@
 #include "hw/arm/primecell.h"
 #include "hw/devices.h"
 #include "net/net.h"
+#include "sysemu/block-backend.h"
 #include "sysemu/device_tree.h"
 #include "sysemu/sysemu.h"
 #include "sysemu/kvm.h"
@@ -450,7 +451,8 @@ static void create_one_flash(const char *name, hwaddr flashbase,
     DeviceState *dev = qdev_create(NULL, "cfi.pflash01");
     const uint64_t sectorlength = 256 * 1024;
 
-    if (dinfo && qdev_prop_set_drive(dev, "drive", dinfo->bdrv)) {
+    if (dinfo && qdev_prop_set_drive(dev, "drive",
+                                     blk_by_legacy_dinfo(dinfo))) {
         abort();
     }
 

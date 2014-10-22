@@ -10,6 +10,7 @@
  * GNU GPL, version 2 or (at your option) any later version.
  */
 
+#include "sysemu/block-backend.h"
 #include "sysemu/blockdev.h"
 #include "hw/ssi.h"
 #include "hw/sd.h"
@@ -255,7 +256,7 @@ static int ssi_sd_init(SSISlave *d)
 
     s->mode = SSI_SD_CMD;
     dinfo = drive_get_next(IF_SD);
-    s->sd = sd_init(dinfo ? dinfo->bdrv : NULL, true);
+    s->sd = sd_init(dinfo ? blk_by_legacy_dinfo(dinfo) : NULL, true);
     if (s->sd == NULL) {
         return -1;
     }

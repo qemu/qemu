@@ -33,6 +33,7 @@
 #include "qemu/timer.h"
 #include "hw/isa/isa.h"
 #include "hw/sysbus.h"
+#include "sysemu/block-backend.h"
 #include "sysemu/blockdev.h"
 #include "sysemu/sysemu.h"
 #include "qemu/log.h"
@@ -113,7 +114,7 @@ static const FDFormat fd_formats[] = {
     { FDRIVE_DRV_NONE, -1, -1, 0, 0, },
 };
 
-static void pick_geometry(BlockDriverState *bs, int *nb_heads,
+static void pick_geometry(BlockBackend *blk, int *nb_heads,
                           int *max_track, int *last_sect,
                           FDriveType drive_in, FDriveType *drive,
                           FDriveRate *rate)
@@ -122,7 +123,7 @@ static void pick_geometry(BlockDriverState *bs, int *nb_heads,
     uint64_t nb_sectors, size;
     int i, first_match, match;
 
-    bdrv_get_geometry(bs, &nb_sectors);
+    blk_get_geometry(blk, &nb_sectors);
     match = -1;
     first_match = -1;
     for (i = 0; ; i++) {
@@ -175,7 +176,7 @@ typedef enum FDiskFlags {
 
 typedef struct FDrive {
     FDCtrl *fdctrl;
-    BlockDriverState *bs;
+    BlockBackend *blk;
     /* Drive status */
     FDriveType drive;
     uint8_t perpendicular;    /* 2.88 MB access mode    */
@@ -260,7 +261,7 @@ static int fd_seek(FDrive *drv, uint8_t head, uint8_t track, uint8_t sect,
 #endif
         drv->head = head;
         if (drv->track != track) {
-            if (drv->bs != NULL && bdrv_is_inserted(drv->bs)) {
+            if (drv->blk != NULL && blk_is_inserted(drv->blk)) {
                 drv->media_changed = 0;
             }
             ret = 1;
@@ -269,7 +270,7 @@ static int fd_seek(FDrive *drv, uint8_t head, uint8_t track, uint8_t sect,
         drv->sect = sect;
     }
 
-    if (drv->bs == NULL || !bdrv_is_inserted(drv->bs)) {
+    if (drv->blk == NULL || !blk_is_inserted(drv->blk)) {
         ret = 2;
     }
 
@@ -291,11 +292,11 @@ static void fd_revalidate(FDrive *drv)
     FDriveRate rate;
 
     FLOPPY_DPRINTF("revalidate\n");
-    if (drv->bs != NULL) {
-        ro = bdrv_is_read_only(drv->bs);
-        pick_geometry(drv->bs, &nb_heads, &max_track,
+    if (drv->blk != NULL) {
+        ro = blk_is_read_only(drv->blk);
+        pick_geometry(drv->blk, &nb_heads, &max_track,
                       &last_sect, drv->drive, &drive, &rate);
-        if (!bdrv_is_inserted(drv->bs)) {
+        if (!blk_is_inserted(drv->blk)) {
             FLOPPY_DPRINTF("No disk in drive\n");
         } else {
             FLOPPY_DPRINTF("Floppy disk (%d h %d t %d s) %s\n", nb_heads,
@@ -665,7 +666,7 @@ static bool fdrive_media_changed_needed(void *opaque)
 {
     FDrive *drive = opaque;
 
-    return (drive->bs != NULL && drive->media_changed != 1);
+    return (drive->blk != NULL && drive->media_changed != 1);
 }
 
 static const VMStateDescription vmstate_fdrive_media_changed = {
@@ -910,8 +911,9 @@ static void fdctrl_reset(FDCtrl *fdctrl, int do_irq)
     /* Initialise controller */
     fdctrl->sra = 0;
     fdctrl->srb = 0xc0;
-    if (!fdctrl->drives[1].bs)
+    if (!fdctrl->drives[1].blk) {
         fdctrl->sra |= FD_SRA_nDRV2;
+    }
     fdctrl->cur_drv = 0;
     fdctrl->dor = FD_DOR_nRESET;
     fdctrl->dor |= (fdctrl->dma_chann != -1) ? FD_DOR_DMAEN : 0;
@@ -1403,7 +1405,7 @@ static int fdctrl_transfer_handler (void *opaque, int nchan,
         status2 = FD_SR2_SNS;
     if (dma_len > fdctrl->data_len)
         dma_len = fdctrl->data_len;
-    if (cur_drv->bs == NULL) {
+    if (cur_drv->blk == NULL) {
         if (fdctrl->data_dir == FD_DIR_WRITE)
             fdctrl_stop_transfer(fdctrl, FD_SR0_ABNTERM | FD_SR0_SEEK, 0x00, 0x00);
         else
@@ -1424,8 +1426,8 @@ static int fdctrl_transfer_handler (void *opaque, int nchan,
         if (fdctrl->data_dir != FD_DIR_WRITE ||
             len < FD_SECTOR_LEN || rel_pos != 0) {
             /* READ & SCAN commands and realign to a sector for WRITE */
-            if (bdrv_read(cur_drv->bs, fd_sector(cur_drv),
-                          fdctrl->fifo, 1) < 0) {
+            if (blk_read(cur_drv->blk, fd_sector(cur_drv),
+                         fdctrl->fifo, 1) < 0) {
                 FLOPPY_DPRINTF("Floppy: error getting sector %d\n",
                                fd_sector(cur_drv));
                 /* Sure, image size is too small... */
@@ -1452,8 +1454,8 @@ static int fdctrl_transfer_handler (void *opaque, int nchan,
 
             DMA_read_memory (nchan, fdctrl->fifo + rel_pos,
                              fdctrl->data_pos, len);
-            if (bdrv_write(cur_drv->bs, fd_sector(cur_drv),
-                           fdctrl->fifo, 1) < 0) {
+            if (blk_write(cur_drv->blk, fd_sector(cur_drv),
+                          fdctrl->fifo, 1) < 0) {
                 FLOPPY_DPRINTF("error writing sector %d\n",
                                fd_sector(cur_drv));
                 fdctrl_stop_transfer(fdctrl, FD_SR0_ABNTERM | FD_SR0_SEEK, 0x00, 0x00);
@@ -1528,7 +1530,8 @@ static uint32_t fdctrl_read_data(FDCtrl *fdctrl)
                                    fd_sector(cur_drv));
                     return 0;
                 }
-            if (bdrv_read(cur_drv->bs, fd_sector(cur_drv), fdctrl->fifo, 1) < 0) {
+            if (blk_read(cur_drv->blk, fd_sector(cur_drv), fdctrl->fifo, 1)
+                < 0) {
                 FLOPPY_DPRINTF("error getting sector %d\n",
                                fd_sector(cur_drv));
                 /* Sure, image size is too small... */
@@ -1597,8 +1600,8 @@ static void fdctrl_format_sector(FDCtrl *fdctrl)
         break;
     }
     memset(fdctrl->fifo, 0, FD_SECTOR_LEN);
-    if (cur_drv->bs == NULL ||
-        bdrv_write(cur_drv->bs, fd_sector(cur_drv), fdctrl->fifo, 1) < 0) {
+    if (cur_drv->blk == NULL ||
+        blk_write(cur_drv->blk, fd_sector(cur_drv), fdctrl->fifo, 1) < 0) {
         FLOPPY_DPRINTF("error formatting sector %d\n", fd_sector(cur_drv));
         fdctrl_stop_transfer(fdctrl, FD_SR0_ABNTERM | FD_SR0_SEEK, 0x00, 0x00);
     } else {
@@ -1988,7 +1991,8 @@ static void fdctrl_write_data(FDCtrl *fdctrl, uint32_t value)
         if (pos == FD_SECTOR_LEN - 1 ||
             fdctrl->data_pos == fdctrl->data_len) {
             cur_drv = get_cur_drv(fdctrl);
-            if (bdrv_write(cur_drv->bs, fd_sector(cur_drv), fdctrl->fifo, 1) < 0) {
+            if (blk_write(cur_drv->blk, fd_sector(cur_drv), fdctrl->fifo, 1)
+                < 0) {
                 FLOPPY_DPRINTF("error writing sector %d\n",
                                fd_sector(cur_drv));
                 return;
@@ -2076,12 +2080,12 @@ static void fdctrl_connect_drives(FDCtrl *fdctrl, Error **errp)
         drive = &fdctrl->drives[i];
         drive->fdctrl = fdctrl;
 
-        if (drive->bs) {
-            if (bdrv_get_on_error(drive->bs, 0) != BLOCKDEV_ON_ERROR_ENOSPC) {
+        if (drive->blk) {
+            if (blk_get_on_error(drive->blk, 0) != BLOCKDEV_ON_ERROR_ENOSPC) {
                 error_setg(errp, "fdc doesn't support drive option werror");
                 return;
             }
-            if (bdrv_get_on_error(drive->bs, 1) != BLOCKDEV_ON_ERROR_REPORT) {
+            if (blk_get_on_error(drive->blk, 1) != BLOCKDEV_ON_ERROR_REPORT) {
                 error_setg(errp, "fdc doesn't support drive option rerror");
                 return;
             }
@@ -2089,8 +2093,8 @@ static void fdctrl_connect_drives(FDCtrl *fdctrl, Error **errp)
 
         fd_init(drive);
         fdctrl_change_cb(drive, 0);
-        if (drive->bs) {
-            bdrv_set_dev_ops(drive->bs, &fdctrl_block_ops, drive);
+        if (drive->blk) {
+            blk_set_dev_ops(drive->blk, &fdctrl_block_ops, drive);
         }
     }
 }
@@ -2107,10 +2111,10 @@ ISADevice *fdctrl_init_isa(ISABus *bus, DriveInfo **fds)
     dev = DEVICE(isadev);
 
     if (fds[0]) {
-        qdev_prop_set_drive_nofail(dev, "driveA", fds[0]->bdrv);
+        qdev_prop_set_drive_nofail(dev, "driveA", blk_by_legacy_dinfo(fds[0]));
     }
     if (fds[1]) {
-        qdev_prop_set_drive_nofail(dev, "driveB", fds[1]->bdrv);
+        qdev_prop_set_drive_nofail(dev, "driveB", blk_by_legacy_dinfo(fds[1]));
     }
     qdev_init_nofail(dev);
 
@@ -2130,10 +2134,10 @@ void fdctrl_init_sysbus(qemu_irq irq, int dma_chann,
     fdctrl = &sys->state;
     fdctrl->dma_chann = dma_chann; /* FIXME */
     if (fds[0]) {
-        qdev_prop_set_drive_nofail(dev, "driveA", fds[0]->bdrv);
+        qdev_prop_set_drive_nofail(dev, "driveA", blk_by_legacy_dinfo(fds[0]));
     }
     if (fds[1]) {
-        qdev_prop_set_drive_nofail(dev, "driveB", fds[1]->bdrv);
+        qdev_prop_set_drive_nofail(dev, "driveB", blk_by_legacy_dinfo(fds[1]));
     }
     qdev_init_nofail(dev);
     sbd = SYS_BUS_DEVICE(dev);
@@ -2149,7 +2153,7 @@ void sun4m_fdctrl_init(qemu_irq irq, hwaddr io_base,
 
     dev = qdev_create(NULL, "SUNW,fdtwo");
     if (fds[0]) {
-        qdev_prop_set_drive_nofail(dev, "drive", fds[0]->bdrv);
+        qdev_prop_set_drive_nofail(dev, "drive", blk_by_legacy_dinfo(fds[0]));
     }
     qdev_init_nofail(dev);
     sys = SYSBUS_FDC(dev);
@@ -2286,8 +2290,8 @@ static Property isa_fdc_properties[] = {
     DEFINE_PROP_UINT32("iobase", FDCtrlISABus, iobase, 0x3f0),
     DEFINE_PROP_UINT32("irq", FDCtrlISABus, irq, 6),
     DEFINE_PROP_UINT32("dma", FDCtrlISABus, dma, 2),
-    DEFINE_PROP_DRIVE("driveA", FDCtrlISABus, state.drives[0].bs),
-    DEFINE_PROP_DRIVE("driveB", FDCtrlISABus, state.drives[1].bs),
+    DEFINE_PROP_DRIVE("driveA", FDCtrlISABus, state.drives[0].blk),
+    DEFINE_PROP_DRIVE("driveB", FDCtrlISABus, state.drives[1].blk),
     DEFINE_PROP_BIT("check_media_rate", FDCtrlISABus, state.check_media_rate,
                     0, true),
     DEFINE_PROP_END_OF_LIST(),
@@ -2336,8 +2340,8 @@ static const VMStateDescription vmstate_sysbus_fdc ={
 };
 
 static Property sysbus_fdc_properties[] = {
-    DEFINE_PROP_DRIVE("driveA", FDCtrlSysBus, state.drives[0].bs),
-    DEFINE_PROP_DRIVE("driveB", FDCtrlSysBus, state.drives[1].bs),
+    DEFINE_PROP_DRIVE("driveA", FDCtrlSysBus, state.drives[0].blk),
+    DEFINE_PROP_DRIVE("driveB", FDCtrlSysBus, state.drives[1].blk),
     DEFINE_PROP_END_OF_LIST(),
 };
 
@@ -2357,7 +2361,7 @@ static const TypeInfo sysbus_fdc_info = {
 };
 
 static Property sun4m_fdc_properties[] = {
-    DEFINE_PROP_DRIVE("drive", FDCtrlSysBus, state.drives[0].bs),
+    DEFINE_PROP_DRIVE("drive", FDCtrlSysBus, state.drives[0].blk),
     DEFINE_PROP_END_OF_LIST(),
 };
 

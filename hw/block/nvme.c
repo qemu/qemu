@@ -26,6 +26,7 @@
 #include <hw/pci/pci.h>
 #include "sysemu/sysemu.h"
 #include "qapi/visitor.h"
+#include "sysemu/block-backend.h"
 
 #include "nvme.h"
 
@@ -199,7 +200,7 @@ static void nvme_rw_cb(void *opaque, int ret)
     NvmeCtrl *n = sq->ctrl;
     NvmeCQueue *cq = n->cq[sq->cqid];
 
-    block_acct_done(bdrv_get_stats(n->conf.bs), &req->acct);
+    block_acct_done(blk_get_stats(n->conf.blk), &req->acct);
     if (!ret) {
         req->status = NVME_SUCCESS;
     } else {
@@ -233,11 +234,11 @@ static uint16_t nvme_rw(NvmeCtrl *n, NvmeNamespace *ns, NvmeCmd *cmd,
     }
     assert((nlb << data_shift) == req->qsg.size);
 
-    dma_acct_start(n->conf.bs, &req->acct, &req->qsg, is_write ?
-        BLOCK_ACCT_WRITE : BLOCK_ACCT_READ);
+    dma_acct_start(n->conf.blk, &req->acct, &req->qsg,
+                   is_write ? BLOCK_ACCT_WRITE : BLOCK_ACCT_READ);
     req->aiocb = is_write ?
-        dma_bdrv_write(n->conf.bs, &req->qsg, aio_slba, nvme_rw_cb, req) :
-        dma_bdrv_read(n->conf.bs, &req->qsg, aio_slba, nvme_rw_cb, req);
+        dma_blk_write(n->conf.blk, &req->qsg, aio_slba, nvme_rw_cb, req) :
+        dma_blk_read(n->conf.blk, &req->qsg, aio_slba, nvme_rw_cb, req);
 
     return NVME_NO_COMPLETE;
 }
@@ -290,7 +291,7 @@ static uint16_t nvme_del_sq(NvmeCtrl *n, NvmeCmd *cmd)
     while (!QTAILQ_EMPTY(&sq->out_req_list)) {
         req = QTAILQ_FIRST(&sq->out_req_list);
         assert(req->aiocb);
-        bdrv_aio_cancel(req->aiocb);
+        blk_aio_cancel(req->aiocb);
     }
     if (!nvme_check_cqid(n, sq->cqid)) {
         cq = n->cq[sq->cqid];
@@ -565,7 +566,7 @@ static void nvme_clear_ctrl(NvmeCtrl *n)
         }
     }
 
-    bdrv_flush(n->conf.bs);
+    blk_flush(n->conf.blk);
     n->bar.cc = 0;
 }
 
@@ -750,11 +751,11 @@ static int nvme_init(PCIDevice *pci_dev)
     int64_t bs_size;
     uint8_t *pci_conf;
 
-    if (!(n->conf.bs)) {
+    if (!n->conf.blk) {
         return -1;
     }
 
-    bs_size = bdrv_getlength(n->conf.bs);
+    bs_size = blk_getlength(n->conf.blk);
     if (bs_size < 0) {
         return -1;
     }

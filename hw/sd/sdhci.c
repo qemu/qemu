@@ -23,6 +23,7 @@
  */
 
 #include "hw/hw.h"
+#include "sysemu/block-backend.h"
 #include "sysemu/blockdev.h"
 #include "sysemu/dma.h"
 #include "qemu/timer.h"
@@ -1165,7 +1166,7 @@ static void sdhci_initfn(Object *obj)
     DriveInfo *di;
 
     di = drive_get_next(IF_SD);
-    s->card = sd_init(di ? di->bdrv : NULL, false);
+    s->card = sd_init(di ? blk_by_legacy_dinfo(di) : NULL, false);
     if (s->card == NULL) {
         exit(1);
     }

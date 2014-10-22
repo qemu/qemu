@@ -32,7 +32,7 @@
 #include "sysemu/sysemu.h"
 #include "hw/devices.h"
 #include "hw/boards.h"
-#include "sysemu/blockdev.h"
+#include "sysemu/block-backend.h"
 #include "hw/char/serial.h"
 #include "exec/address-spaces.h"
 #include "hw/ssi.h"
@@ -113,8 +113,8 @@ petalogix_ml605_init(MachineState *machine)
      * 10th paremeter 0 means little-endian */
     pflash_cfi01_register(FLASH_BASEADDR,
                           NULL, "petalogix_ml605.flash", FLASH_SIZE,
-                          dinfo ? dinfo->bdrv : NULL, (64 * 1024),
-                          FLASH_SIZE >> 16,
+                          dinfo ? blk_by_legacy_dinfo(dinfo) : NULL,
+                          (64 * 1024), FLASH_SIZE >> 16,
                           2, 0x89, 0x18, 0x0000, 0x0, 0);
 
 

@@ -17,7 +17,7 @@
 /* Configuration */
 
 typedef struct BlockConf {
-    BlockDriverState *bs;
+    BlockBackend *blk;
     uint16_t physical_block_size;
     uint16_t logical_block_size;
     uint16_t min_io_size;
@@ -42,7 +42,7 @@ static inline unsigned int get_physical_block_exp(BlockConf *conf)
 }
 
 #define DEFINE_BLOCK_PROPERTIES(_state, _conf)                          \
-    DEFINE_PROP_DRIVE("drive", _state, _conf.bs),                       \
+    DEFINE_PROP_DRIVE("drive", _state, _conf.blk),                      \
     DEFINE_PROP_BLOCKSIZE("logical_block_size", _state,                 \
                           _conf.logical_block_size, 512),               \
     DEFINE_PROP_BLOCKSIZE("physical_block_size", _state,                \
@@ -66,7 +66,7 @@ void blkconf_geometry(BlockConf *conf, int *trans,
 
 /* Hard disk geometry */
 
-void hd_geometry_guess(BlockDriverState *bs,
+void hd_geometry_guess(BlockBackend *blk,
                        uint32_t *pcyls, uint32_t *pheads, uint32_t *psecs,
                        int *ptrans);
 int hd_bios_chs_auto_trans(uint32_t cyls, uint32_t heads, uint32_t secs);

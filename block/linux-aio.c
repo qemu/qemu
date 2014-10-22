@@ -28,7 +28,7 @@
 #define MAX_QUEUED_IO  128
 
 struct qemu_laiocb {
-    BlockDriverAIOCB common;
+    BlockAIOCB common;
     struct qemu_laio_state *ctx;
     struct iocb iocb;
     ssize_t ret;
@@ -146,7 +146,7 @@ static void qemu_laio_completion_cb(EventNotifier *e)
     }
 }
 
-static void laio_cancel(BlockDriverAIOCB *blockacb)
+static void laio_cancel(BlockAIOCB *blockacb)
 {
     struct qemu_laiocb *laiocb = (struct qemu_laiocb *)blockacb;
     struct io_event event;
@@ -243,9 +243,9 @@ int laio_io_unplug(BlockDriverState *bs, void *aio_ctx, bool unplug)
     return ret;
 }
 
-BlockDriverAIOCB *laio_submit(BlockDriverState *bs, void *aio_ctx, int fd,
+BlockAIOCB *laio_submit(BlockDriverState *bs, void *aio_ctx, int fd,
         int64_t sector_num, QEMUIOVector *qiov, int nb_sectors,
-        BlockDriverCompletionFunc *cb, void *opaque, int type)
+        BlockCompletionFunc *cb, void *opaque, int type)
 {
     struct qemu_laio_state *s = aio_ctx;
     struct qemu_laiocb *laiocb;

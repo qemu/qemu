@@ -92,7 +92,7 @@ typedef struct QuorumAIOCB QuorumAIOCB;
  * $children_count QuorumChildRequest.
  */
 typedef struct QuorumChildRequest {
-    BlockDriverAIOCB *aiocb;
+    BlockAIOCB *aiocb;
     QEMUIOVector qiov;
     uint8_t *buf;
     int ret;
@@ -105,7 +105,7 @@ typedef struct QuorumChildRequest {
  * used to do operations on each children and track overall progress.
  */
 struct QuorumAIOCB {
-    BlockDriverAIOCB common;
+    BlockAIOCB common;
 
     /* Request metadata */
     uint64_t sector_num;
@@ -130,7 +130,7 @@ struct QuorumAIOCB {
 
 static bool quorum_vote(QuorumAIOCB *acb);
 
-static void quorum_aio_cancel(BlockDriverAIOCB *blockacb)
+static void quorum_aio_cancel(BlockAIOCB *blockacb)
 {
     QuorumAIOCB *acb = container_of(blockacb, QuorumAIOCB, common);
     BDRVQuorumState *s = acb->common.bs->opaque;
@@ -186,7 +186,7 @@ static QuorumAIOCB *quorum_aio_get(BDRVQuorumState *s,
                                    QEMUIOVector *qiov,
                                    uint64_t sector_num,
                                    int nb_sectors,
-                                   BlockDriverCompletionFunc *cb,
+                                   BlockCompletionFunc *cb,
                                    void *opaque)
 {
     QuorumAIOCB *acb = qemu_aio_get(&quorum_aiocb_info, bs, cb, opaque);
@@ -226,8 +226,8 @@ static void quorum_report_bad(QuorumAIOCB *acb, char *node_name, int ret)
 
 static void quorum_report_failure(QuorumAIOCB *acb)
 {
-    const char *reference = acb->common.bs->device_name[0] ?
-                            acb->common.bs->device_name :
+    const char *reference = bdrv_get_device_name(acb->common.bs)[0] ?
+                            bdrv_get_device_name(acb->common.bs) :
                             acb->common.bs->node_name;
 
     qapi_event_send_quorum_failure(reference, acb->sector_num,
@@ -264,7 +264,7 @@ static void quorum_rewrite_aio_cb(void *opaque, int ret)
     quorum_aio_finalize(acb);
 }
 
-static BlockDriverAIOCB *read_fifo_child(QuorumAIOCB *acb);
+static BlockAIOCB *read_fifo_child(QuorumAIOCB *acb);
 
 static void quorum_copy_qiov(QEMUIOVector *dest, QEMUIOVector *source)
 {
@@ -640,7 +640,7 @@ free_exit:
     return rewrite;
 }
 
-static BlockDriverAIOCB *read_quorum_children(QuorumAIOCB *acb)
+static BlockAIOCB *read_quorum_children(QuorumAIOCB *acb)
 {
     BDRVQuorumState *s = acb->common.bs->opaque;
     int i;
@@ -659,7 +659,7 @@ static BlockDriverAIOCB *read_quorum_children(QuorumAIOCB *acb)
     return &acb->common;
 }
 
-static BlockDriverAIOCB *read_fifo_child(QuorumAIOCB *acb)
+static BlockAIOCB *read_fifo_child(QuorumAIOCB *acb)
 {
     BDRVQuorumState *s = acb->common.bs->opaque;
 
@@ -675,12 +675,12 @@ static BlockDriverAIOCB *read_fifo_child(QuorumAIOCB *acb)
     return &acb->common;
 }
 
-static BlockDriverAIOCB *quorum_aio_readv(BlockDriverState *bs,
-                                          int64_t sector_num,
-                                          QEMUIOVector *qiov,
-                                          int nb_sectors,
-                                          BlockDriverCompletionFunc *cb,
-                                          void *opaque)
+static BlockAIOCB *quorum_aio_readv(BlockDriverState *bs,
+                                    int64_t sector_num,
+                                    QEMUIOVector *qiov,
+                                    int nb_sectors,
+                                    BlockCompletionFunc *cb,
+                                    void *opaque)
 {
     BDRVQuorumState *s = bs->opaque;
     QuorumAIOCB *acb = quorum_aio_get(s, bs, qiov, sector_num,
@@ -696,12 +696,12 @@ static BlockDriverAIOCB *quorum_aio_readv(BlockDriverState *bs,
     return read_fifo_child(acb);
 }
 
-static BlockDriverAIOCB *quorum_aio_writev(BlockDriverState *bs,
-                                          int64_t sector_num,
-                                          QEMUIOVector *qiov,
-                                          int nb_sectors,
-                                          BlockDriverCompletionFunc *cb,
-                                          void *opaque)
+static BlockAIOCB *quorum_aio_writev(BlockDriverState *bs,
+                                     int64_t sector_num,
+                                     QEMUIOVector *qiov,
+                                     int nb_sectors,
+                                     BlockCompletionFunc *cb,
+                                     void *opaque)
 {
     BDRVQuorumState *s = bs->opaque;
     QuorumAIOCB *acb = quorum_aio_get(s, bs, qiov, sector_num, nb_sectors,

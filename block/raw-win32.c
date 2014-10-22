@@ -138,9 +138,9 @@ static int aio_worker(void *arg)
     return ret;
 }
 
-static BlockDriverAIOCB *paio_submit(BlockDriverState *bs, HANDLE hfile,
+static BlockAIOCB *paio_submit(BlockDriverState *bs, HANDLE hfile,
         int64_t sector_num, QEMUIOVector *qiov, int nb_sectors,
-        BlockDriverCompletionFunc *cb, void *opaque, int type)
+        BlockCompletionFunc *cb, void *opaque, int type)
 {
     RawWin32AIOData *acb = g_slice_new(RawWin32AIOData);
     ThreadPool *pool;
@@ -369,9 +369,9 @@ fail:
     return ret;
 }
 
-static BlockDriverAIOCB *raw_aio_readv(BlockDriverState *bs,
+static BlockAIOCB *raw_aio_readv(BlockDriverState *bs,
                          int64_t sector_num, QEMUIOVector *qiov, int nb_sectors,
-                         BlockDriverCompletionFunc *cb, void *opaque)
+                         BlockCompletionFunc *cb, void *opaque)
 {
     BDRVRawState *s = bs->opaque;
     if (s->aio) {
@@ -383,9 +383,9 @@ static BlockDriverAIOCB *raw_aio_readv(BlockDriverState *bs,
     }
 }
 
-static BlockDriverAIOCB *raw_aio_writev(BlockDriverState *bs,
+static BlockAIOCB *raw_aio_writev(BlockDriverState *bs,
                           int64_t sector_num, QEMUIOVector *qiov, int nb_sectors,
-                          BlockDriverCompletionFunc *cb, void *opaque)
+                          BlockCompletionFunc *cb, void *opaque)
 {
     BDRVRawState *s = bs->opaque;
     if (s->aio) {
@@ -397,8 +397,8 @@ static BlockDriverAIOCB *raw_aio_writev(BlockDriverState *bs,
     }
 }
 
-static BlockDriverAIOCB *raw_aio_flush(BlockDriverState *bs,
-                         BlockDriverCompletionFunc *cb, void *opaque)
+static BlockAIOCB *raw_aio_flush(BlockDriverState *bs,
+                         BlockCompletionFunc *cb, void *opaque)
 {
     BDRVRawState *s = bs->opaque;
     return paio_submit(bs, s->hfile, 0, NULL, 0, cb, opaque, QEMU_AIO_FLUSH);

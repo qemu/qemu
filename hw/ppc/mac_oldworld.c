@@ -40,7 +40,7 @@
 #include "elf.h"
 #include "sysemu/kvm.h"
 #include "kvm_ppc.h"
-#include "sysemu/blockdev.h"
+#include "sysemu/block-backend.h"
 #include "exec/address-spaces.h"
 
 #define MAX_IDE_BUS 2

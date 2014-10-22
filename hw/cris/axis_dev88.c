@@ -30,7 +30,7 @@
 #include "hw/loader.h"
 #include "elf.h"
 #include "boot.h"
-#include "sysemu/blockdev.h"
+#include "sysemu/block-backend.h"
 #include "exec/address-spaces.h"
 #include "sysemu/qtest.h"
 
@@ -284,7 +284,7 @@ void axisdev88_init(MachineState *machine)
 
       /* Attach a NAND flash to CS1.  */
     nand = drive_get(IF_MTD, 0, 0);
-    nand_state.nand = nand_init(nand ? nand->bdrv : NULL,
+    nand_state.nand = nand_init(nand ? blk_by_legacy_dinfo(nand) : NULL,
                                 NAND_MFR_STMICRO, 0x39);
     memory_region_init_io(&nand_state.iomem, NULL, &nand_ops, &nand_state,
                           "nand", 0x05000000);

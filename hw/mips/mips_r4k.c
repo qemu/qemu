@@ -24,7 +24,7 @@
 #include "elf.h"
 #include "hw/timer/mc146818rtc.h"
 #include "hw/timer/i8254.h"
-#include "sysemu/blockdev.h"
+#include "sysemu/block-backend.h"
 #include "exec/address-spaces.h"
 #include "sysemu/qtest.h"
 
@@ -241,8 +241,8 @@ void mips_r4k_init(MachineState *machine)
     } else if ((dinfo = drive_get(IF_PFLASH, 0, 0)) != NULL) {
         uint32_t mips_rom = 0x00400000;
         if (!pflash_cfi01_register(0x1fc00000, NULL, "mips_r4k.bios", mips_rom,
-                                   dinfo->bdrv, sector_len,
-                                   mips_rom / sector_len,
+                                   blk_by_legacy_dinfo(dinfo),
+                                   sector_len, mips_rom / sector_len,
                                    4, 0, 0, 0, 0, be)) {
             fprintf(stderr, "qemu: Error registering flash memory.\n");
 	}

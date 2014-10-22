@@ -20,6 +20,7 @@
 #include "sysemu/dma.h"
 #include "qemu/error-report.h"
 #include <hw/ide/internal.h>
+#include "sysemu/block-backend.h"
 #include "sysemu/blockdev.h"
 #include "hw/block/block.h"
 #include "sysemu/sysemu.h"
@@ -72,7 +73,7 @@ static int ide_qdev_init(DeviceState *qdev)
     IDEDeviceClass *dc = IDE_DEVICE_GET_CLASS(dev);
     IDEBus *bus = DO_UPCAST(IDEBus, qbus, qdev->parent_bus);
 
-    if (!dev->conf.bs) {
+    if (!dev->conf.blk) {
         error_report("No drive specified");
         goto err;
     }
@@ -117,7 +118,7 @@ IDEDevice *ide_create_drive(IDEBus *bus, int unit, DriveInfo *drive)
 
     dev = qdev_create(&bus->qbus, drive->media_cd ? "ide-cd" : "ide-hd");
     qdev_prop_set_uint32(dev, "unit", unit);
-    qdev_prop_set_drive_nofail(dev, "drive", drive->bdrv);
+    qdev_prop_set_drive_nofail(dev, "drive", blk_by_legacy_dinfo(drive));
     qdev_init_nofail(dev);
     return DO_UPCAST(IDEDevice, qdev, dev);
 }
@@ -127,7 +128,7 @@ int ide_get_geometry(BusState *bus, int unit,
 {
     IDEState *s = &DO_UPCAST(IDEBus, qbus, bus)->ifs[unit];
 
-    if (s->drive_kind != IDE_HD || !s->bs) {
+    if (s->drive_kind != IDE_HD || !s->blk) {
         return -1;
     }
 
@@ -172,7 +173,7 @@ static int ide_dev_initfn(IDEDevice *dev, IDEDriveKind kind)
         }
     }
 
-    if (ide_init_drive(s, dev->conf.bs, kind,
+    if (ide_init_drive(s, dev->conf.blk, kind,
                        dev->version, dev->serial, dev->model, dev->wwn,
                        dev->conf.cyls, dev->conf.heads, dev->conf.secs,
                        dev->chs_trans) < 0) {
@@ -249,9 +250,9 @@ static int ide_cd_initfn(IDEDevice *dev)
 
 static int ide_drive_initfn(IDEDevice *dev)
 {
-    DriveInfo *dinfo = drive_get_by_blockdev(dev->conf.bs);
+    DriveInfo *dinfo = blk_legacy_dinfo(dev->conf.blk);
 
-    return ide_dev_initfn(dev, dinfo->media_cd ? IDE_CD : IDE_HD);
+    return ide_dev_initfn(dev, dinfo && dinfo->media_cd ? IDE_CD : IDE_HD);
 }
 
 #define DEFINE_IDE_DEV_PROPERTIES()                     \

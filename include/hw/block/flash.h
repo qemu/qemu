@@ -11,7 +11,7 @@ typedef struct pflash_t pflash_t;
 pflash_t *pflash_cfi01_register(hwaddr base,
                                 DeviceState *qdev, const char *name,
                                 hwaddr size,
-                                BlockDriverState *bs,
+                                BlockBackend *blk,
                                 uint32_t sector_len, int nb_blocs, int width,
                                 uint16_t id0, uint16_t id1,
                                 uint16_t id2, uint16_t id3, int be);
@@ -20,7 +20,7 @@ pflash_t *pflash_cfi01_register(hwaddr base,
 pflash_t *pflash_cfi02_register(hwaddr base,
                                 DeviceState *qdev, const char *name,
                                 hwaddr size,
-                                BlockDriverState *bs, uint32_t sector_len,
+                                BlockBackend *blk, uint32_t sector_len,
                                 int nb_blocs, int nb_mappings, int width,
                                 uint16_t id0, uint16_t id1,
                                 uint16_t id2, uint16_t id3,
@@ -30,7 +30,7 @@ pflash_t *pflash_cfi02_register(hwaddr base,
 MemoryRegion *pflash_cfi01_get_memory(pflash_t *fl);
 
 /* nand.c */
-DeviceState *nand_init(BlockDriverState *bdrv, int manf_id, int chip_id);
+DeviceState *nand_init(BlockBackend *blk, int manf_id, int chip_id);
 void nand_setpins(DeviceState *dev, uint8_t cle, uint8_t ale,
                   uint8_t ce, uint8_t wp, uint8_t gnd);
 void nand_getpins(DeviceState *dev, int *rb);

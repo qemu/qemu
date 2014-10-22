@@ -36,6 +36,7 @@ typedef struct MachineState MachineState;
 typedef struct NICInfo NICInfo;
 typedef struct HCIInfo HCIInfo;
 typedef struct AudioState AudioState;
+typedef struct BlockBackend BlockBackend;
 typedef struct BlockDriverState BlockDriverState;
 typedef struct DriveInfo DriveInfo;
 typedef struct DisplayState DisplayState;

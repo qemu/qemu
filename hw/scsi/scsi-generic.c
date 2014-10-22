@@ -14,6 +14,7 @@
 #include "qemu-common.h"
 #include "qemu/error-report.h"
 #include "hw/scsi/scsi.h"
+#include "sysemu/block-backend.h"
 #include "sysemu/blockdev.h"
 
 #ifdef __linux__
@@ -141,9 +142,9 @@ done:
     scsi_req_unref(&r->req);
 }
 
-static int execute_command(BlockDriverState *bdrv,
+static int execute_command(BlockBackend *blk,
                            SCSIGenericReq *r, int direction,
-			   BlockDriverCompletionFunc *complete)
+                           BlockCompletionFunc *complete)
 {
     r->io_header.interface_id = 'S';
     r->io_header.dxfer_direction = direction;
@@ -157,7 +158,7 @@ static int execute_command(BlockDriverState *bdrv,
     r->io_header.usr_ptr = r;
     r->io_header.flags |= SG_FLAG_DIRECT_IO;
 
-    r->req.aiocb = bdrv_aio_ioctl(bdrv, SG_IO, &r->io_header, complete, r);
+    r->req.aiocb = blk_aio_ioctl(blk, SG_IO, &r->io_header, complete, r);
     if (r->req.aiocb == NULL) {
         return -EIO;
     }
@@ -193,7 +194,7 @@ static void scsi_read_complete(void * opaque, int ret)
             s->blocksize = ldl_be_p(&r->buf[8]);
             s->max_lba = ldq_be_p(&r->buf[0]);
         }
-        bdrv_set_guest_block_size(s->conf.bs, s->blocksize);
+        blk_set_guest_block_size(s->conf.blk, s->blocksize);
 
         scsi_req_data(&r->req, len);
         scsi_req_unref(&r->req);
@@ -216,7 +217,8 @@ static void scsi_read_data(SCSIRequest *req)
         return;
     }
 
-    ret = execute_command(s->conf.bs, r, SG_DXFER_FROM_DEV, scsi_read_complete);
+    ret = execute_command(s->conf.blk, r, SG_DXFER_FROM_DEV,
+                          scsi_read_complete);
     if (ret < 0) {
         scsi_command_complete(r, ret);
     }
@@ -260,7 +262,7 @@ static void scsi_write_data(SCSIRequest *req)
 
     /* The request is used as the AIO opaque value, so add a ref.  */
     scsi_req_ref(&r->req);
-    ret = execute_command(s->conf.bs, r, SG_DXFER_TO_DEV, scsi_write_complete);
+    ret = execute_command(s->conf.blk, r, SG_DXFER_TO_DEV, scsi_write_complete);
     if (ret < 0) {
         scsi_command_complete(r, ret);
     }
@@ -302,7 +304,8 @@ static int32_t scsi_send_command(SCSIRequest *req, uint8_t *cmd)
         r->buf = NULL;
         /* The request is used as the AIO opaque value, so add a ref.  */
         scsi_req_ref(&r->req);
-        ret = execute_command(s->conf.bs, r, SG_DXFER_NONE, scsi_command_complete);
+        ret = execute_command(s->conf.blk, r, SG_DXFER_NONE,
+                              scsi_command_complete);
         if (ret < 0) {
             scsi_command_complete(r, ret);
             return 0;
@@ -327,7 +330,7 @@ static int32_t scsi_send_command(SCSIRequest *req, uint8_t *cmd)
     }
 }
 
-static int get_stream_blocksize(BlockDriverState *bdrv)
+static int get_stream_blocksize(BlockBackend *blk)
 {
     uint8_t cmd[6];
     uint8_t buf[12];
@@ -351,7 +354,7 @@ static int get_stream_blocksize(BlockDriverState *bdrv)
     io_header.sbp = sensebuf;
     io_header.timeout = 6000; /* XXX */
 
-    ret = bdrv_ioctl(bdrv, SG_IO, &io_header);
+    ret = blk_ioctl(blk, SG_IO, &io_header);
     if (ret < 0 || io_header.driver_status || io_header.host_status) {
         return -1;
     }
@@ -368,7 +371,7 @@ static void scsi_generic_reset(DeviceState *dev)
 static void scsi_unrealize(SCSIDevice *s, Error **errp)
 {
     scsi_device_purge_requests(s, SENSE_CODE(NO_SENSE));
-    blockdev_mark_auto_del(s->conf.bs);
+    blockdev_mark_auto_del(s->conf.blk);
 }
 
 static void scsi_generic_realize(SCSIDevice *s, Error **errp)
@@ -377,22 +380,22 @@ static void scsi_generic_realize(SCSIDevice *s, Error **errp)
     int sg_version;
     struct sg_scsi_id scsiid;
 
-    if (!s->conf.bs) {
+    if (!s->conf.blk) {
         error_setg(errp, "drive property not set");
         return;
     }
 
-    if (bdrv_get_on_error(s->conf.bs, 0) != BLOCKDEV_ON_ERROR_ENOSPC) {
+    if (blk_get_on_error(s->conf.blk, 0) != BLOCKDEV_ON_ERROR_ENOSPC) {
         error_setg(errp, "Device doesn't support drive option werror");
         return;
     }
-    if (bdrv_get_on_error(s->conf.bs, 1) != BLOCKDEV_ON_ERROR_REPORT) {
+    if (blk_get_on_error(s->conf.blk, 1) != BLOCKDEV_ON_ERROR_REPORT) {
         error_setg(errp, "Device doesn't support drive option rerror");
         return;
     }
 
     /* check we are using a driver managing SG_IO (version 3 and after */
-    rc = bdrv_ioctl(s->conf.bs, SG_GET_VERSION_NUM, &sg_version);
+    rc = blk_ioctl(s->conf.blk, SG_GET_VERSION_NUM, &sg_version);
     if (rc < 0) {
         error_setg(errp, "cannot get SG_IO version number: %s.  "
                          "Is this a SCSI device?",
@@ -405,7 +408,7 @@ static void scsi_generic_realize(SCSIDevice *s, Error **errp)
     }
 
     /* get LUN of the /dev/sg? */
-    if (bdrv_ioctl(s->conf.bs, SG_GET_SCSI_ID, &scsiid)) {
+    if (blk_ioctl(s->conf.blk, SG_GET_SCSI_ID, &scsiid)) {
         error_setg(errp, "SG_GET_SCSI_ID ioctl failed");
         return;
     }
@@ -416,7 +419,7 @@ static void scsi_generic_realize(SCSIDevice *s, Error **errp)
 
     switch (s->type) {
     case TYPE_TAPE:
-        s->blocksize = get_stream_blocksize(s->conf.bs);
+        s->blocksize = get_stream_blocksize(s->conf.blk);
         if (s->blocksize == -1) {
             s->blocksize = 0;
         }
@@ -459,7 +462,7 @@ static SCSIRequest *scsi_new_request(SCSIDevice *d, uint32_t tag, uint32_t lun,
 }
 
 static Property scsi_generic_properties[] = {
-    DEFINE_PROP_DRIVE("drive", SCSIDevice, conf.bs),
+    DEFINE_PROP_DRIVE("drive", SCSIDevice, conf.blk),
     DEFINE_PROP_END_OF_LIST(),
 };
 

@@ -29,7 +29,7 @@
 #include "net/net.h"
 #include "hw/boards.h"
 #include "hw/i2c/smbus.h"
-#include "block/block.h"
+#include "sysemu/block-backend.h"
 #include "hw/block/flash.h"
 #include "hw/mips/mips.h"
 #include "hw/mips/cpudevs.h"
@@ -44,6 +44,7 @@
 #include "elf.h"
 #include "hw/timer/mc146818rtc.h"
 #include "hw/timer/i8254.h"
+#include "sysemu/block-backend.h"
 #include "sysemu/blockdev.h"
 #include "exec/address-spaces.h"
 #include "hw/sysbus.h"             /* SysBusDevice */
@@ -1032,11 +1033,12 @@ void mips_malta_init(MachineState *machine)
         printf("Register parallel flash %d size " TARGET_FMT_lx " at "
                "addr %08llx '%s' %x\n",
                fl_idx, bios_size, FLASH_ADDRESS,
-               bdrv_get_device_name(dinfo->bdrv), fl_sectors);
+               blk_name(dinfo->bdrv), fl_sectors);
     }
 #endif
     fl = pflash_cfi01_register(FLASH_ADDRESS, NULL, "mips_malta.bios",
-                               BIOS_SIZE, dinfo ? dinfo->bdrv : NULL,
+                               BIOS_SIZE,
+                               dinfo ? blk_by_legacy_dinfo(dinfo) : NULL,
                                65536, fl_sectors,
                                4, 0x0000, 0x0000, 0x0000, 0x0000, be);
     bios = pflash_cfi01_get_memory(fl);

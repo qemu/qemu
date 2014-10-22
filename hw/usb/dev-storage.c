@@ -16,6 +16,7 @@
 #include "ui/console.h"
 #include "monitor/monitor.h"
 #include "sysemu/sysemu.h"
+#include "sysemu/block-backend.h"
 #include "sysemu/blockdev.h"
 #include "qapi/visitor.h"
 
@@ -600,11 +601,11 @@ static const struct SCSIBusInfo usb_msd_scsi_info_bot = {
 static void usb_msd_realize_storage(USBDevice *dev, Error **errp)
 {
     MSDState *s = DO_UPCAST(MSDState, dev, dev);
-    BlockDriverState *bs = s->conf.bs;
+    BlockBackend *blk = s->conf.blk;
     SCSIDevice *scsi_dev;
     Error *err = NULL;
 
-    if (!bs) {
+    if (!blk) {
         error_setg(errp, "drive property not set");
         return;
     }
@@ -620,14 +621,14 @@ static void usb_msd_realize_storage(USBDevice *dev, Error **errp)
      *
      * The hack is probably a bad idea.
      */
-    bdrv_detach_dev(bs, &s->dev.qdev);
-    s->conf.bs = NULL;
+    blk_detach_dev(blk, &s->dev.qdev);
+    s->conf.blk = NULL;
 
     usb_desc_create_serial(dev);
     usb_desc_init(dev);
     scsi_bus_new(&s->bus, sizeof(s->bus), DEVICE(dev),
                  &usb_msd_scsi_info_storage, NULL);
-    scsi_dev = scsi_bus_legacy_add_drive(&s->bus, bs, 0, !!s->removable,
+    scsi_dev = scsi_bus_legacy_add_drive(&s->bus, blk, 0, !!s->removable,
                                          s->conf.bootindex, dev->serial,
                                          &err);
     if (!scsi_dev) {
@@ -637,9 +638,10 @@ static void usb_msd_realize_storage(USBDevice *dev, Error **errp)
     usb_msd_handle_reset(dev);
     s->scsi_dev = scsi_dev;
 
-    if (bdrv_key_required(bs)) {
+    if (bdrv_key_required(blk_bs(blk))) {
         if (cur_mon) {
-            monitor_read_bdrv_key_start(cur_mon, bs, usb_msd_password_cb, s);
+            monitor_read_bdrv_key_start(cur_mon, blk_bs(blk),
+                                        usb_msd_password_cb, s);
             s->dev.auto_attach = 0;
         } else {
             autostart = 0;
@@ -707,7 +709,8 @@ static USBDevice *usb_msd_init(USBBus *bus, const char *filename)
     if (!dev) {
         return NULL;
     }
-    if (qdev_prop_set_drive(&dev->qdev, "drive", dinfo->bdrv) < 0) {
+    if (qdev_prop_set_drive(&dev->qdev, "drive",
+                            blk_by_legacy_dinfo(dinfo)) < 0) {
         object_unparent(OBJECT(dev));
         return NULL;
     }

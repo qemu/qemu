@@ -524,6 +524,7 @@ found:
         QTAILQ_REMOVE(&s->discards, p, next);
         d->offset = MIN(d->offset, p->offset);
         d->bytes += p->bytes;
+        g_free(p);
     }
 }
 

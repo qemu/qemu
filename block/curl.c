@@ -78,7 +78,7 @@ static CURLMcode __curl_multi_socket_action(CURLM *multi_handle,
 struct BDRVCURLState;
 
 typedef struct CURLAIOCB {
-    BlockDriverAIOCB common;
+    BlockAIOCB common;
     QEMUBH *bh;
     QEMUIOVector *qiov;
 
@@ -680,9 +680,9 @@ static void curl_readv_bh_cb(void *p)
     curl_multi_socket_action(s->multi, CURL_SOCKET_TIMEOUT, 0, &running);
 }
 
-static BlockDriverAIOCB *curl_aio_readv(BlockDriverState *bs,
+static BlockAIOCB *curl_aio_readv(BlockDriverState *bs,
         int64_t sector_num, QEMUIOVector *qiov, int nb_sectors,
-        BlockDriverCompletionFunc *cb, void *opaque)
+        BlockCompletionFunc *cb, void *opaque)
 {
     CURLAIOCB *acb;
 

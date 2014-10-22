@@ -41,7 +41,7 @@
 #include "hw/sysbus.h"
 #include "hw/cpu/icc_bus.h"
 #include "sysemu/arch_init.h"
-#include "sysemu/blockdev.h"
+#include "sysemu/block-backend.h"
 #include "hw/i2c/smbus.h"
 #include "hw/xen/xen.h"
 #include "exec/memory.h"

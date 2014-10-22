@@ -1004,7 +1004,7 @@ static int vhdx_open(BlockDriverState *bs, QDict *options, int flags,
     /* Disable migration when VHDX images are used */
     error_set(&s->migration_blocker,
             QERR_BLOCK_FORMAT_FEATURE_NOT_SUPPORTED,
-            "vhdx", bs->device_name, "live migration");
+            "vhdx", bdrv_get_device_name(bs), "live migration");
     migrate_add_blocker(s->migration_blocker);
 
     return 0;

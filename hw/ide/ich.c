@@ -65,7 +65,7 @@
 #include <hw/i386/pc.h>
 #include <hw/pci/pci.h>
 #include <hw/isa/isa.h>
-#include "block/block.h"
+#include "sysemu/block-backend.h"
 #include "sysemu/dma.h"
 
 #include <hw/ide/pci.h>
