@@ -626,6 +626,12 @@ S: Maintained
 F: hw/usb/*
 F: tests/usb-*-test.c
 
+USB (serial adapter)
+M: Gerd Hoffmann <kraxel@redhat.com>
+M: Samuel Thibault <samuel.thibault@ens-lyon.org>
+S: Maintained
+F: hw/usb/dev-serial.c
+
 VFIO
 M: Alex Williamson <alex.williamson@redhat.com>
 S: Supported
@@ -723,9 +729,13 @@ M: Anthony Liguori <aliguori@amazon.com>
 M: Paolo Bonzini <pbonzini@redhat.com>
 S: Maintained
 F: qemu-char.c
-F: backends/baum.c
 F: backends/msmouse.c
 F: backends/testdev.c
+
+Character Devices (Braille)
+M: Samuel Thibault <samuel.thibault@ens-lyon.org>
+S: Maintained
+F: backends/baum.c
 
 CPU
 M: Andreas Färber <afaerber@suse.de>
