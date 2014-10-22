@@ -1647,7 +1647,7 @@ static int check_refblocks(BlockDriverState *bs, BdrvCheckResult *res,
                                                   *nb_clusters);
                         memset(&(*refcount_table)[old_nb_clusters], 0,
                                (*nb_clusters - old_nb_clusters) *
-                               sizeof(uint16_t));
+                               sizeof(**refcount_table));
                     }
                     (*refcount_table)[cluster]--;
                     inc_refcounts(bs, res, *refcount_table, *nb_clusters,
