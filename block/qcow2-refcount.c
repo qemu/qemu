@@ -2011,12 +2011,57 @@ int qcow2_check_refcounts(BlockDriverState *bs, BdrvCheckResult *res,
                       nb_clusters);
 
     if (rebuild && (fix & BDRV_FIX_ERRORS)) {
+        BdrvCheckResult old_res = *res;
+        int fresh_leaks = 0;
+
         fprintf(stderr, "Rebuilding refcount structure\n");
         ret = rebuild_refcount_structure(bs, res, &refcount_table,
                                          &nb_clusters);
         if (ret < 0) {
             goto fail;
         }
+
+        res->corruptions = 0;
+        res->leaks = 0;
+
+        /* Because the old reftable has been exchanged for a new one the
+         * references have to be recalculated */
+        rebuild = false;
+        memset(refcount_table, 0, nb_clusters * sizeof(uint16_t));
+        ret = calculate_refcounts(bs, res, 0, &rebuild, &refcount_table,
+                                  &nb_clusters);
+        if (ret < 0) {
+            goto fail;
+        }
+
+        if (fix & BDRV_FIX_LEAKS) {
+            /* The old refcount structures are now leaked, fix it; the result
+             * can be ignored, aside from leaks which were introduced by
+             * rebuild_refcount_structure() that could not be fixed */
+            BdrvCheckResult saved_res = *res;
+            *res = (BdrvCheckResult){ 0 };
+
+            compare_refcounts(bs, res, BDRV_FIX_LEAKS, &rebuild,
+                              &highest_cluster, refcount_table, nb_clusters);
+            if (rebuild) {
+                fprintf(stderr, "ERROR rebuilt refcount structure is still "
+                        "broken\n");
+            }
+
+            /* Any leaks accounted for here were introduced by
+             * rebuild_refcount_structure() because that function has created a
+             * new refcount structure from scratch */
+            fresh_leaks = res->leaks;
+            *res = saved_res;
+        }
+
+        if (res->corruptions < old_res.corruptions) {
+            res->corruptions_fixed += old_res.corruptions - res->corruptions;
+        }
+        if (res->leaks < old_res.leaks) {
+            res->leaks_fixed += old_res.leaks - res->leaks;
+        }
+        res->leaks += fresh_leaks;
     } else if (fix) {
         if (rebuild) {
             fprintf(stderr, "ERROR need to rebuild refcount structures\n");
