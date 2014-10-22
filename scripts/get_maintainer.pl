@@ -652,6 +652,15 @@ sub get_maintainers {
     }
 
     if ($email) {
+	if (! $interactive) {
+	    $email_git_fallback = 0 if @email_to > 0 || @list_to > 0 || $email_git || $email_git_blame;
+	    if ($email_git_fallback) {
+	        print STDERR "get_maintainer.pl: No maintainers found, printing recent contributors.\n";
+	        print STDERR "get_maintainer.pl: Do not blindly cc: them on patches!  Use common sense.\n";
+	        print STDERR "\n";
+            }
+        }
+
 	foreach my $file (@files) {
 	    if ($email_git || ($email_git_fallback &&
 			       !$exact_pattern_match_hash{$file})) {
