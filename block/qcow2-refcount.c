@@ -1452,127 +1452,12 @@ fail:
 }
 
 /*
- * Writes one sector of the refcount table to the disk
- */
-#define RT_ENTRIES_PER_SECTOR (512 / sizeof(uint64_t))
-static int write_reftable_entry(BlockDriverState *bs, int rt_index)
-{
-    BDRVQcowState *s = bs->opaque;
-    uint64_t buf[RT_ENTRIES_PER_SECTOR];
-    int rt_start_index;
-    int i, ret;
-
-    rt_start_index = rt_index & ~(RT_ENTRIES_PER_SECTOR - 1);
-    for (i = 0; i < RT_ENTRIES_PER_SECTOR; i++) {
-        buf[i] = cpu_to_be64(s->refcount_table[rt_start_index + i]);
-    }
-
-    ret = qcow2_pre_write_overlap_check(bs, QCOW2_OL_REFCOUNT_TABLE,
-            s->refcount_table_offset + rt_start_index * sizeof(uint64_t),
-            sizeof(buf));
-    if (ret < 0) {
-        return ret;
-    }
-
-    BLKDBG_EVENT(bs->file, BLKDBG_REFTABLE_UPDATE);
-    ret = bdrv_pwrite_sync(bs->file, s->refcount_table_offset +
-            rt_start_index * sizeof(uint64_t), buf, sizeof(buf));
-    if (ret < 0) {
-        return ret;
-    }
-
-    return 0;
-}
-
-/*
- * Allocates a new cluster for the given refcount block (represented by its
- * offset in the image file) and copies the current content there. This function
- * does _not_ decrement the reference count for the currently occupied cluster.
- *
- * This function prints an informative message to stderr on error (and returns
- * -errno); on success, the offset of the newly allocated cluster is returned.
- */
-static int64_t realloc_refcount_block(BlockDriverState *bs, int reftable_index,
-                                      uint64_t offset)
-{
-    BDRVQcowState *s = bs->opaque;
-    int64_t new_offset = 0;
-    void *refcount_block = NULL;
-    int ret;
-
-    /* allocate new refcount block */
-    new_offset = qcow2_alloc_clusters(bs, s->cluster_size);
-    if (new_offset < 0) {
-        fprintf(stderr, "Could not allocate new cluster: %s\n",
-                strerror(-new_offset));
-        ret = new_offset;
-        goto done;
-    }
-
-    /* fetch current refcount block content */
-    ret = qcow2_cache_get(bs, s->refcount_block_cache, offset, &refcount_block);
-    if (ret < 0) {
-        fprintf(stderr, "Could not fetch refcount block: %s\n", strerror(-ret));
-        goto fail_free_cluster;
-    }
-
-    /* new block has not yet been entered into refcount table, therefore it is
-     * no refcount block yet (regarding this check) */
-    ret = qcow2_pre_write_overlap_check(bs, 0, new_offset, s->cluster_size);
-    if (ret < 0) {
-        fprintf(stderr, "Could not write refcount block; metadata overlap "
-                "check failed: %s\n", strerror(-ret));
-        /* the image will be marked corrupt, so don't even attempt on freeing
-         * the cluster */
-        goto done;
-    }
-
-    /* write to new block */
-    ret = bdrv_write(bs->file, new_offset / BDRV_SECTOR_SIZE, refcount_block,
-            s->cluster_sectors);
-    if (ret < 0) {
-        fprintf(stderr, "Could not write refcount block: %s\n", strerror(-ret));
-        goto fail_free_cluster;
-    }
-
-    /* update refcount table */
-    assert(!offset_into_cluster(s, new_offset));
-    s->refcount_table[reftable_index] = new_offset;
-    ret = write_reftable_entry(bs, reftable_index);
-    if (ret < 0) {
-        fprintf(stderr, "Could not update refcount table: %s\n",
-                strerror(-ret));
-        goto fail_free_cluster;
-    }
-
-    goto done;
-
-fail_free_cluster:
-    qcow2_free_clusters(bs, new_offset, s->cluster_size, QCOW2_DISCARD_OTHER);
-
-done:
-    if (refcount_block) {
-        /* This should never fail, as it would only do so if the given refcount
-         * block cannot be found in the cache. As this is impossible as long as
-         * there are no bugs, assert the success. */
-        int tmp = qcow2_cache_put(bs, s->refcount_block_cache, &refcount_block);
-        assert(tmp == 0);
-    }
-
-    if (ret < 0) {
-        return ret;
-    }
-
-    return new_offset;
-}
-
-/*
  * Checks consistency of refblocks and accounts for each refblock in
  * *refcount_table.
  */
 static int check_refblocks(BlockDriverState *bs, BdrvCheckResult *res,
-                           BdrvCheckMode fix, uint16_t **refcount_table,
-                           int64_t *nb_clusters)
+                           BdrvCheckMode fix, bool *rebuild,
+                           uint16_t **refcount_table, int64_t *nb_clusters)
 {
     BDRVQcowState *s = bs->opaque;
     int64_t i, size;
@@ -1588,6 +1473,7 @@ static int check_refblocks(BlockDriverState *bs, BdrvCheckResult *res,
             fprintf(stderr, "ERROR refcount block %" PRId64 " is not "
                 "cluster aligned; refcount table entry corrupted\n", i);
             res->corruptions++;
+            *rebuild = true;
             continue;
         }
 
@@ -1649,6 +1535,7 @@ static int check_refblocks(BlockDriverState *bs, BdrvCheckResult *res,
 
 resize_fail:
                 res->corruptions++;
+                *rebuild = true;
                 fprintf(stderr, "ERROR could not resize image: %s\n",
                         strerror(-ret));
             } else {
@@ -1664,43 +1551,10 @@ resize_fail:
                 return ret;
             }
             if ((*refcount_table)[cluster] != 1) {
-                fprintf(stderr, "%s refcount block %" PRId64
-                    " refcount=%d\n",
-                    fix & BDRV_FIX_ERRORS ? "Repairing" :
-                                            "ERROR",
-                    i, (*refcount_table)[cluster]);
-
-                if (fix & BDRV_FIX_ERRORS) {
-                    int64_t new_offset;
-
-                    new_offset = realloc_refcount_block(bs, i, offset);
-                    if (new_offset < 0) {
-                        res->corruptions++;
-                        continue;
-                    }
-
-                    /* update refcounts */
-                    if ((new_offset >> s->cluster_bits) >= *nb_clusters) {
-                        /* increase refcount_table size if necessary */
-                        int old_nb_clusters = *nb_clusters;
-                        *nb_clusters = (new_offset >> s->cluster_bits) + 1;
-                        *refcount_table = g_renew(uint16_t, *refcount_table,
-                                                  *nb_clusters);
-                        memset(&(*refcount_table)[old_nb_clusters], 0,
-                               (*nb_clusters - old_nb_clusters) *
-                               sizeof(**refcount_table));
-                    }
-                    (*refcount_table)[cluster]--;
-                    ret = inc_refcounts(bs, res, refcount_table, nb_clusters,
-                                        new_offset, s->cluster_size);
-                    if (ret < 0) {
-                        return ret;
-                    }
-
-                    res->corruptions_fixed++;
-                } else {
-                    res->corruptions++;
-                }
+                fprintf(stderr, "ERROR refcount block %" PRId64
+                        " refcount=%d\n", i, (*refcount_table)[cluster]);
+                res->corruptions++;
+                *rebuild = true;
             }
         }
     }
@@ -1712,8 +1566,8 @@ resize_fail:
  * Calculates an in-memory refcount table.
  */
 static int calculate_refcounts(BlockDriverState *bs, BdrvCheckResult *res,
-                               BdrvCheckMode fix, uint16_t **refcount_table,
-                               int64_t *nb_clusters)
+                               BdrvCheckMode fix, bool *rebuild,
+                               uint16_t **refcount_table, int64_t *nb_clusters)
 {
     BDRVQcowState *s = bs->opaque;
     int64_t i;
@@ -1765,7 +1619,7 @@ static int calculate_refcounts(BlockDriverState *bs, BdrvCheckResult *res,
         return ret;
     }
 
-    return check_refblocks(bs, res, fix, refcount_table, nb_clusters);
+    return check_refblocks(bs, res, fix, rebuild, refcount_table, nb_clusters);
 }
 
 /*
@@ -1773,7 +1627,8 @@ static int calculate_refcounts(BlockDriverState *bs, BdrvCheckResult *res,
  * refcount as reported by the refcount structures on-disk.
  */
 static void compare_refcounts(BlockDriverState *bs, BdrvCheckResult *res,
-                              BdrvCheckMode fix, int64_t *highest_cluster,
+                              BdrvCheckMode fix, bool *rebuild,
+                              int64_t *highest_cluster,
                               uint16_t *refcount_table, int64_t nb_clusters)
 {
     BDRVQcowState *s = bs->opaque;
@@ -1798,7 +1653,9 @@ static void compare_refcounts(BlockDriverState *bs, BdrvCheckResult *res,
         if (refcount1 != refcount2) {
             /* Check if we're allowed to fix the mismatch */
             int *num_fixed = NULL;
-            if (refcount1 > refcount2 && (fix & BDRV_FIX_LEAKS)) {
+            if (refcount1 == 0) {
+                *rebuild = true;
+            } else if (refcount1 > refcount2 && (fix & BDRV_FIX_LEAKS)) {
                 num_fixed = &res->leaks_fixed;
             } else if (refcount1 < refcount2 && (fix & BDRV_FIX_ERRORS)) {
                 num_fixed = &res->corruptions_fixed;
@@ -1842,6 +1699,7 @@ int qcow2_check_refcounts(BlockDriverState *bs, BdrvCheckResult *res,
     BDRVQcowState *s = bs->opaque;
     int64_t size, highest_cluster, nb_clusters;
     uint16_t *refcount_table = NULL;
+    bool rebuild = false;
     int ret;
 
     size = bdrv_getlength(bs->file);
@@ -1859,13 +1717,21 @@ int qcow2_check_refcounts(BlockDriverState *bs, BdrvCheckResult *res,
     res->bfi.total_clusters =
         size_to_clusters(s, bs->total_sectors * BDRV_SECTOR_SIZE);
 
-    ret = calculate_refcounts(bs, res, fix, &refcount_table, &nb_clusters);
+    ret = calculate_refcounts(bs, res, fix, &rebuild, &refcount_table,
+                              &nb_clusters);
     if (ret < 0) {
         goto fail;
     }
 
-    compare_refcounts(bs, res, fix, &highest_cluster, refcount_table,
+    compare_refcounts(bs, res, fix, &rebuild, &highest_cluster, refcount_table,
                       nb_clusters);
+
+    if (rebuild) {
+        fprintf(stderr, "ERROR need to rebuild refcount structures\n");
+        res->check_errors++;
+        /* Just carry on, the rest does not rely on the on-disk refcount
+         * structures */
+    }
 
     /* check OFLAG_COPIED */
     ret = check_oflag_copied(bs, res, fix);
