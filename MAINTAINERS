@@ -880,6 +880,12 @@ S: Maintained
 F: qobject/
 T: git git://repo.or.cz/qemu/qmp-unstable.git queue/qmp
 
+QEMU Guest Agent
+M: Michael Roth <mdroth@linux.vnet.ibm.com>
+S: Maintained
+F: qga/
+T: git git://github.com/mdroth/qemu.git qga
+
 QOM
 M: Anthony Liguori <aliguori@amazon.com>
 M: Andreas Färber <afaerber@suse.de>
