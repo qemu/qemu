@@ -698,6 +698,9 @@ static int qcow2_open(BlockDriverState *bs, QDict *options, int flags,
 
     s->l2_bits = s->cluster_bits - 3; /* L2 is always one cluster */
     s->l2_size = 1 << s->l2_bits;
+    /* 2^(s->refcount_order - 3) is the refcount width in bytes */
+    s->refcount_block_bits = s->cluster_bits - (s->refcount_order - 3);
+    s->refcount_block_size = 1 << s->refcount_block_bits;
     bs->total_sectors = header.size / 512;
     s->csize_shift = (62 - (s->cluster_bits - 8));
     s->csize_mask = (1 << (s->cluster_bits - 8)) - 1;

@@ -223,6 +223,8 @@ typedef struct BDRVQcowState {
     int l2_size;
     int l1_size;
     int l1_vm_state_index;
+    int refcount_block_bits;
+    int refcount_block_size;
     int csize_shift;
     int csize_mask;
     uint64_t cluster_offset_mask;
