@@ -1,0 +1,141 @@
+#!/bin/bash
+#
+# Test case for repairing qcow2 images which cannot be repaired using
+# the on-disk refcount structures
+#
+# Copyright (C) 2014 Red Hat, Inc.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+
+# creator
+owner=mreitz@redhat.com
+
+seq="$(basename $0)"
+echo "QA output created by $seq"
+
+here="$PWD"
+tmp=/tmp/$$
+status=1	# failure is the default!
+
+_cleanup()
+{
+	_cleanup_test_img
+}
+trap "_cleanup; exit \$status" 0 1 2 3 15
+
+# get standard environment, filters and checks
+. ./common.rc
+. ./common.filter
+
+# This tests qocw2-specific low-level functionality
+_supported_fmt qcow2
+_supported_proto file
+_supported_os Linux
+
+echo
+echo '=== Repairing an image without any refcount table ==='
+echo
+
+_make_test_img 64M
+# just write some data
+$QEMU_IO -c 'write -P 42 0 64k' "$TEST_IMG" | _filter_qemu_io
+
+# refcount_table_offset
+poke_file "$TEST_IMG" $((0x30)) "\x00\x00\x00\x00\x00\x00\x00\x00"
+# refcount_table_clusters
+poke_file "$TEST_IMG" $((0x38)) "\x00\x00\x00\x00"
+
+_check_test_img -r all
+
+$QEMU_IO -c 'read -P 42 0 64k' "$TEST_IMG" | _filter_qemu_io
+
+echo
+echo '=== Repairing unreferenced data cluster in new refblock area ==='
+echo
+
+IMGOPTS='cluster_size=512' _make_test_img 64M
+# Allocate the first 128 kB in the image (first refblock)
+$QEMU_IO -c 'write 0 0x1b200' "$TEST_IMG" | _filter_qemu_io
+# should be 131072 == 0x20000
+stat -c '%s' "$TEST_IMG"
+
+# Enter a cluster at 128 kB (0x20000)
+# XXX: This should be the first free entry in the last L2 table, but we cannot
+# be certain
+poke_file "$TEST_IMG" $((0x1ccc8)) "\x80\x00\x00\x00\x00\x02\x00\x00"
+
+# Fill the cluster
+truncate -s $((0x20200)) "$TEST_IMG"
+$QEMU_IO -c "open -o driver=raw $TEST_IMG" -c 'write -P 42 128k 512' \
+    | _filter_qemu_io
+
+# The data should now appear at this guest offset
+$QEMU_IO -c 'read -P 42 0x1b200 512' "$TEST_IMG" | _filter_qemu_io
+
+# This cluster is unallocated; fix it
+_check_test_img -r all
+
+# This repair operation must have allocated a new refblock; and that refblock
+# should not overlap with the unallocated data cluster. If it does, the data
+# will be damaged, so check it.
+$QEMU_IO -c 'read -P 42 0x1b200 512' "$TEST_IMG" | _filter_qemu_io
+
+echo
+echo '=== Repairing refblock beyond the image end ==='
+echo
+
+echo
+echo '--- Otherwise clean ---'
+echo
+
+_make_test_img 64M
+# Normally, qemu doesn't create empty refblocks, so we just have to do it by
+# hand
+# XXX: This should be the entry for the second refblock
+poke_file "$TEST_IMG" $((0x10008)) "\x00\x00\x00\x00\x00\x10\x00\x00"
+# Mark that refblock as used
+# XXX: This should be the 17th entry (cluster 16) of the first
+# refblock
+poke_file "$TEST_IMG" $((0x20020)) "\x00\x01"
+_check_test_img -r all
+
+echo
+echo '--- Refblock is unallocated ---'
+echo
+
+_make_test_img 64M
+poke_file "$TEST_IMG" $((0x10008)) "\x00\x00\x00\x00\x00\x10\x00\x00"
+_check_test_img -r all
+
+echo
+echo '--- Signed overflow after the refblock ---'
+echo
+
+_make_test_img 64M
+poke_file "$TEST_IMG" $((0x10008)) "\x7f\xff\xff\xff\xff\xff\x00\x00"
+_check_test_img -r all
+
+echo
+echo '--- Unsigned overflow after the refblock ---'
+echo
+
+_make_test_img 64M
+poke_file "$TEST_IMG" $((0x10008)) "\xff\xff\xff\xff\xff\xff\x00\x00"
+_check_test_img -r all
+
+# success, all done
+echo '*** done'
+rm -f $seq.full
+status=0
