@@ -1618,11 +1618,36 @@ out:
     error_propagate(errp, local_err);
 }
 
+static void pc_cpu_plug(HotplugHandler *hotplug_dev,
+                        DeviceState *dev, Error **errp)
+{
+    HotplugHandlerClass *hhc;
+    Error *local_err = NULL;
+    PCMachineState *pcms = PC_MACHINE(hotplug_dev);
+
+    if (!dev->hotplugged) {
+        goto out;
+    }
+
+    if (!pcms->acpi_dev) {
+        error_setg(&local_err,
+                   "cpu hotplug is not enabled: missing acpi device");
+        goto out;
+    }
+
+    hhc = HOTPLUG_HANDLER_GET_CLASS(pcms->acpi_dev);
+    hhc->plug(HOTPLUG_HANDLER(pcms->acpi_dev), dev, &local_err);
+out:
+    error_propagate(errp, local_err);
+}
+
 static void pc_machine_device_plug_cb(HotplugHandler *hotplug_dev,
                                       DeviceState *dev, Error **errp)
 {
     if (object_dynamic_cast(OBJECT(dev), TYPE_PC_DIMM)) {
         pc_dimm_plug(hotplug_dev, dev, errp);
+    } else if (object_dynamic_cast(OBJECT(dev), TYPE_CPU)) {
+        pc_cpu_plug(hotplug_dev, dev, errp);
     }
 }
 
@@ -1631,7 +1656,8 @@ static HotplugHandler *pc_get_hotpug_handler(MachineState *machine,
 {
     PCMachineClass *pcmc = PC_MACHINE_GET_CLASS(machine);
 
-    if (object_dynamic_cast(OBJECT(dev), TYPE_PC_DIMM)) {
+    if (object_dynamic_cast(OBJECT(dev), TYPE_PC_DIMM) ||
+        object_dynamic_cast(OBJECT(dev), TYPE_CPU)) {
         return HOTPLUG_HANDLER(machine);
     }
 
