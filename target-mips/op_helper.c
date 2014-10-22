@@ -90,7 +90,6 @@ static inline type do_##name(CPUMIPSState *env, target_ulong addr,      \
     }                                                                   \
 }
 #endif
-HELPER_LD(lbu, ldub, uint8_t)
 HELPER_LD(lw, ldl, int32_t)
 #ifdef TARGET_MIPS64
 HELPER_LD(ld, ldq, int64_t)
@@ -264,6 +263,29 @@ target_ulong helper_mulshiu(CPUMIPSState *env, target_ulong arg1,
 {
     return set_HIT0_LO(env, 0 - (uint64_t)(uint32_t)arg1 *
                        (uint64_t)(uint32_t)arg2);
+}
+
+static inline target_ulong bitswap(target_ulong v)
+{
+    v = ((v >> 1) & (target_ulong)0x5555555555555555) |
+              ((v & (target_ulong)0x5555555555555555) << 1);
+    v = ((v >> 2) & (target_ulong)0x3333333333333333) |
+              ((v & (target_ulong)0x3333333333333333) << 2);
+    v = ((v >> 4) & (target_ulong)0x0F0F0F0F0F0F0F0F) |
+              ((v & (target_ulong)0x0F0F0F0F0F0F0F0F) << 4);
+    return v;
+}
+
+#ifdef TARGET_MIPS64
+target_ulong helper_dbitswap(target_ulong rt)
+{
+    return bitswap(rt);
+}
+#endif
+
+target_ulong helper_bitswap(target_ulong rt)
+{
+    return (int32_t)bitswap(rt);
 }
 
 #ifndef CONFIG_USER_ONLY
@@ -2786,6 +2808,110 @@ FLOAT_UNOP(abs)
 FLOAT_UNOP(chs)
 #undef FLOAT_UNOP
 
+#define FLOAT_FMADDSUB(name, bits, muladd_arg)                          \
+uint ## bits ## _t helper_float_ ## name (CPUMIPSState *env,            \
+                                          uint ## bits ## _t fs,        \
+                                          uint ## bits ## _t ft,        \
+                                          uint ## bits ## _t fd)        \
+{                                                                       \
+    uint ## bits ## _t fdret;                                           \
+                                                                        \
+    fdret = float ## bits ## _muladd(fs, ft, fd, muladd_arg,            \
+                                     &env->active_fpu.fp_status);       \
+    update_fcr31(env, GETPC());                                         \
+    return fdret;                                                       \
+}
+
+FLOAT_FMADDSUB(maddf_s, 32, 0)
+FLOAT_FMADDSUB(maddf_d, 64, 0)
+FLOAT_FMADDSUB(msubf_s, 32, float_muladd_negate_product)
+FLOAT_FMADDSUB(msubf_d, 64, float_muladd_negate_product)
+#undef FLOAT_FMADDSUB
+
+#define FLOAT_MINMAX(name, bits, minmaxfunc)                            \
+uint ## bits ## _t helper_float_ ## name (CPUMIPSState *env,            \
+                                          uint ## bits ## _t fs,        \
+                                          uint ## bits ## _t ft)        \
+{                                                                       \
+    uint ## bits ## _t fdret;                                           \
+                                                                        \
+    fdret = float ## bits ## _ ## minmaxfunc(fs, ft,                    \
+                                           &env->active_fpu.fp_status); \
+    update_fcr31(env, GETPC());                                         \
+    return fdret;                                                       \
+}
+
+FLOAT_MINMAX(max_s, 32, maxnum)
+FLOAT_MINMAX(max_d, 64, maxnum)
+FLOAT_MINMAX(maxa_s, 32, maxnummag)
+FLOAT_MINMAX(maxa_d, 64, maxnummag)
+
+FLOAT_MINMAX(min_s, 32, minnum)
+FLOAT_MINMAX(min_d, 64, minnum)
+FLOAT_MINMAX(mina_s, 32, minnummag)
+FLOAT_MINMAX(mina_d, 64, minnummag)
+#undef FLOAT_MINMAX
+
+#define FLOAT_RINT(name, bits)                                              \
+uint ## bits ## _t helper_float_ ## name (CPUMIPSState *env,                \
+                                          uint ## bits ## _t fs)            \
+{                                                                           \
+    uint ## bits ## _t fdret;                                               \
+                                                                            \
+    fdret = float ## bits ## _round_to_int(fs, &env->active_fpu.fp_status); \
+    update_fcr31(env, GETPC());                                             \
+    return fdret;                                                           \
+}
+
+FLOAT_RINT(rint_s, 32)
+FLOAT_RINT(rint_d, 64)
+#undef FLOAT_RINT
+
+#define FLOAT_CLASS_SIGNALING_NAN      0x001
+#define FLOAT_CLASS_QUIET_NAN          0x002
+#define FLOAT_CLASS_NEGATIVE_INFINITY  0x004
+#define FLOAT_CLASS_NEGATIVE_NORMAL    0x008
+#define FLOAT_CLASS_NEGATIVE_SUBNORMAL 0x010
+#define FLOAT_CLASS_NEGATIVE_ZERO      0x020
+#define FLOAT_CLASS_POSITIVE_INFINITY  0x040
+#define FLOAT_CLASS_POSITIVE_NORMAL    0x080
+#define FLOAT_CLASS_POSITIVE_SUBNORMAL 0x100
+#define FLOAT_CLASS_POSITIVE_ZERO      0x200
+
+#define FLOAT_CLASS(name, bits)                                      \
+uint ## bits ## _t helper_float_ ## name (uint ## bits ## _t arg)    \
+{                                                                    \
+    if (float ## bits ## _is_signaling_nan(arg)) {                   \
+        return FLOAT_CLASS_SIGNALING_NAN;                            \
+    } else if (float ## bits ## _is_quiet_nan(arg)) {                \
+        return FLOAT_CLASS_QUIET_NAN;                                \
+    } else if (float ## bits ## _is_neg(arg)) {                      \
+        if (float ## bits ## _is_infinity(arg)) {                    \
+            return FLOAT_CLASS_NEGATIVE_INFINITY;                    \
+        } else if (float ## bits ## _is_zero(arg)) {                 \
+            return FLOAT_CLASS_NEGATIVE_ZERO;                        \
+        } else if (float ## bits ## _is_zero_or_denormal(arg)) {     \
+            return FLOAT_CLASS_NEGATIVE_SUBNORMAL;                   \
+        } else {                                                     \
+            return FLOAT_CLASS_NEGATIVE_NORMAL;                      \
+        }                                                            \
+    } else {                                                         \
+        if (float ## bits ## _is_infinity(arg)) {                    \
+            return FLOAT_CLASS_POSITIVE_INFINITY;                    \
+        } else if (float ## bits ## _is_zero(arg)) {                 \
+            return FLOAT_CLASS_POSITIVE_ZERO;                        \
+        } else if (float ## bits ## _is_zero_or_denormal(arg)) {     \
+            return FLOAT_CLASS_POSITIVE_SUBNORMAL;                   \
+        } else {                                                     \
+            return FLOAT_CLASS_POSITIVE_NORMAL;                      \
+        }                                                            \
+    }                                                                \
+}
+
+FLOAT_CLASS(class_s, 32)
+FLOAT_CLASS(class_d, 64)
+#undef FLOAT_CLASS
+
 /* MIPS specific unary operations */
 uint64_t helper_float_recip_d(CPUMIPSState *env, uint64_t fdt0)
 {
@@ -3261,3 +3387,114 @@ FOP_COND_PS(le,  float32_le(fst0, fst1, &env->active_fpu.fp_status),
                  float32_le(fsth0, fsth1, &env->active_fpu.fp_status))
 FOP_COND_PS(ngt, float32_unordered(fst1, fst0, &env->active_fpu.fp_status)    || float32_le(fst0, fst1, &env->active_fpu.fp_status),
                  float32_unordered(fsth1, fsth0, &env->active_fpu.fp_status)  || float32_le(fsth0, fsth1, &env->active_fpu.fp_status))
+
+/* R6 compare operations */
+#define FOP_CONDN_D(op, cond)                                       \
+uint64_t helper_r6_cmp_d_ ## op(CPUMIPSState * env, uint64_t fdt0,  \
+                         uint64_t fdt1)                             \
+{                                                                   \
+    uint64_t c;                                                     \
+    c = cond;                                                       \
+    update_fcr31(env, GETPC());                                     \
+    if (c) {                                                        \
+        return -1;                                                  \
+    } else {                                                        \
+        return 0;                                                   \
+    }                                                               \
+}
+
+/* NOTE: the comma operator will make "cond" to eval to false,
+ * but float64_unordered_quiet() is still called. */
+FOP_CONDN_D(af,  (float64_unordered_quiet(fdt1, fdt0, &env->active_fpu.fp_status), 0))
+FOP_CONDN_D(un,  (float64_unordered_quiet(fdt1, fdt0, &env->active_fpu.fp_status)))
+FOP_CONDN_D(eq,  (float64_eq_quiet(fdt0, fdt1, &env->active_fpu.fp_status)))
+FOP_CONDN_D(ueq, (float64_unordered_quiet(fdt1, fdt0, &env->active_fpu.fp_status)
+                  || float64_eq_quiet(fdt0, fdt1, &env->active_fpu.fp_status)))
+FOP_CONDN_D(lt,  (float64_lt_quiet(fdt0, fdt1, &env->active_fpu.fp_status)))
+FOP_CONDN_D(ult, (float64_unordered_quiet(fdt1, fdt0, &env->active_fpu.fp_status)
+                  || float64_lt_quiet(fdt0, fdt1, &env->active_fpu.fp_status)))
+FOP_CONDN_D(le,  (float64_le_quiet(fdt0, fdt1, &env->active_fpu.fp_status)))
+FOP_CONDN_D(ule, (float64_unordered_quiet(fdt1, fdt0, &env->active_fpu.fp_status)
+                  || float64_le_quiet(fdt0, fdt1, &env->active_fpu.fp_status)))
+/* NOTE: the comma operator will make "cond" to eval to false,
+ * but float64_unordered() is still called. */
+FOP_CONDN_D(saf,  (float64_unordered(fdt1, fdt0, &env->active_fpu.fp_status), 0))
+FOP_CONDN_D(sun,  (float64_unordered(fdt1, fdt0, &env->active_fpu.fp_status)))
+FOP_CONDN_D(seq,  (float64_eq(fdt0, fdt1, &env->active_fpu.fp_status)))
+FOP_CONDN_D(sueq, (float64_unordered(fdt1, fdt0, &env->active_fpu.fp_status)
+                   || float64_eq(fdt0, fdt1, &env->active_fpu.fp_status)))
+FOP_CONDN_D(slt,  (float64_lt(fdt0, fdt1, &env->active_fpu.fp_status)))
+FOP_CONDN_D(sult, (float64_unordered(fdt1, fdt0, &env->active_fpu.fp_status)
+                   || float64_lt(fdt0, fdt1, &env->active_fpu.fp_status)))
+FOP_CONDN_D(sle,  (float64_le(fdt0, fdt1, &env->active_fpu.fp_status)))
+FOP_CONDN_D(sule, (float64_unordered(fdt1, fdt0, &env->active_fpu.fp_status)
+                   || float64_le(fdt0, fdt1, &env->active_fpu.fp_status)))
+FOP_CONDN_D(or,   (float64_le_quiet(fdt1, fdt0, &env->active_fpu.fp_status)
+                   || float64_le_quiet(fdt0, fdt1, &env->active_fpu.fp_status)))
+FOP_CONDN_D(une,  (float64_unordered_quiet(fdt1, fdt0, &env->active_fpu.fp_status)
+                   || float64_lt_quiet(fdt1, fdt0, &env->active_fpu.fp_status)
+                   || float64_lt_quiet(fdt0, fdt1, &env->active_fpu.fp_status)))
+FOP_CONDN_D(ne,   (float64_lt_quiet(fdt1, fdt0, &env->active_fpu.fp_status)
+                   || float64_lt_quiet(fdt0, fdt1, &env->active_fpu.fp_status)))
+FOP_CONDN_D(sor,  (float64_le(fdt1, fdt0, &env->active_fpu.fp_status)
+                   || float64_le(fdt0, fdt1, &env->active_fpu.fp_status)))
+FOP_CONDN_D(sune, (float64_unordered(fdt1, fdt0, &env->active_fpu.fp_status)
+                   || float64_lt(fdt1, fdt0, &env->active_fpu.fp_status)
+                   || float64_lt(fdt0, fdt1, &env->active_fpu.fp_status)))
+FOP_CONDN_D(sne,  (float64_lt(fdt1, fdt0, &env->active_fpu.fp_status)
+                   || float64_lt(fdt0, fdt1, &env->active_fpu.fp_status)))
+
+#define FOP_CONDN_S(op, cond)                                       \
+uint32_t helper_r6_cmp_s_ ## op(CPUMIPSState * env, uint32_t fst0,  \
+                         uint32_t fst1)                             \
+{                                                                   \
+    uint64_t c;                                                     \
+    c = cond;                                                       \
+    update_fcr31(env, GETPC());                                     \
+    if (c) {                                                        \
+        return -1;                                                  \
+    } else {                                                        \
+        return 0;                                                   \
+    }                                                               \
+}
+
+/* NOTE: the comma operator will make "cond" to eval to false,
+ * but float32_unordered_quiet() is still called. */
+FOP_CONDN_S(af,   (float32_unordered_quiet(fst1, fst0, &env->active_fpu.fp_status), 0))
+FOP_CONDN_S(un,   (float32_unordered_quiet(fst1, fst0, &env->active_fpu.fp_status)))
+FOP_CONDN_S(eq,   (float32_eq_quiet(fst0, fst1, &env->active_fpu.fp_status)))
+FOP_CONDN_S(ueq,  (float32_unordered_quiet(fst1, fst0, &env->active_fpu.fp_status)
+                   || float32_eq_quiet(fst0, fst1, &env->active_fpu.fp_status)))
+FOP_CONDN_S(lt,   (float32_lt_quiet(fst0, fst1, &env->active_fpu.fp_status)))
+FOP_CONDN_S(ult,  (float32_unordered_quiet(fst1, fst0, &env->active_fpu.fp_status)
+                   || float32_lt_quiet(fst0, fst1, &env->active_fpu.fp_status)))
+FOP_CONDN_S(le,   (float32_le_quiet(fst0, fst1, &env->active_fpu.fp_status)))
+FOP_CONDN_S(ule,  (float32_unordered_quiet(fst1, fst0, &env->active_fpu.fp_status)
+                   || float32_le_quiet(fst0, fst1, &env->active_fpu.fp_status)))
+/* NOTE: the comma operator will make "cond" to eval to false,
+ * but float32_unordered() is still called. */
+FOP_CONDN_S(saf,  (float32_unordered(fst1, fst0, &env->active_fpu.fp_status), 0))
+FOP_CONDN_S(sun,  (float32_unordered(fst1, fst0, &env->active_fpu.fp_status)))
+FOP_CONDN_S(seq,  (float32_eq(fst0, fst1, &env->active_fpu.fp_status)))
+FOP_CONDN_S(sueq, (float32_unordered(fst1, fst0, &env->active_fpu.fp_status)
+                   || float32_eq(fst0, fst1, &env->active_fpu.fp_status)))
+FOP_CONDN_S(slt,  (float32_lt(fst0, fst1, &env->active_fpu.fp_status)))
+FOP_CONDN_S(sult, (float32_unordered(fst1, fst0, &env->active_fpu.fp_status)
+                   || float32_lt(fst0, fst1, &env->active_fpu.fp_status)))
+FOP_CONDN_S(sle,  (float32_le(fst0, fst1, &env->active_fpu.fp_status)))
+FOP_CONDN_S(sule, (float32_unordered(fst1, fst0, &env->active_fpu.fp_status)
+                   || float32_le(fst0, fst1, &env->active_fpu.fp_status)))
+FOP_CONDN_S(or,   (float32_le_quiet(fst1, fst0, &env->active_fpu.fp_status)
+                   || float32_le_quiet(fst0, fst1, &env->active_fpu.fp_status)))
+FOP_CONDN_S(une,  (float32_unordered_quiet(fst1, fst0, &env->active_fpu.fp_status)
+                   || float32_lt_quiet(fst1, fst0, &env->active_fpu.fp_status)
+                   || float32_lt_quiet(fst0, fst1, &env->active_fpu.fp_status)))
+FOP_CONDN_S(ne,   (float32_lt_quiet(fst1, fst0, &env->active_fpu.fp_status)
+                   || float32_lt_quiet(fst0, fst1, &env->active_fpu.fp_status)))
+FOP_CONDN_S(sor,  (float32_le(fst1, fst0, &env->active_fpu.fp_status)
+                   || float32_le(fst0, fst1, &env->active_fpu.fp_status)))
+FOP_CONDN_S(sune, (float32_unordered(fst1, fst0, &env->active_fpu.fp_status)
+                   || float32_lt(fst1, fst0, &env->active_fpu.fp_status)
+                   || float32_lt(fst0, fst1, &env->active_fpu.fp_status)))
+FOP_CONDN_S(sne,  (float32_lt(fst1, fst0, &env->active_fpu.fp_status)
+                   || float32_lt(fst0, fst1, &env->active_fpu.fp_status)))
