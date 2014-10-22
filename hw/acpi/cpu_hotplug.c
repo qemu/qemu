@@ -36,10 +36,9 @@ static const MemoryRegionOps AcpiCpuHotplug_ops = {
     },
 };
 
-void acpi_cpu_plug_cb(ACPIREGS *ar, qemu_irq irq,
-                      AcpiCpuHotplug *g, DeviceState *dev, Error **errp)
+static void acpi_set_cpu_present_bit(AcpiCpuHotplug *g, CPUState *cpu,
+                                     Error **errp)
 {
-    CPUState *cpu = CPU(dev);
     CPUClass *k = CPU_GET_CLASS(cpu);
     int64_t cpu_id;
 
@@ -49,9 +48,18 @@ void acpi_cpu_plug_cb(ACPIREGS *ar, qemu_irq irq,
         return;
     }
 
-    ar->gpe.sts[0] |= ACPI_CPU_HOTPLUG_STATUS;
     g->sts[cpu_id / 8] |= (1 << (cpu_id % 8));
+}
 
+void acpi_cpu_plug_cb(ACPIREGS *ar, qemu_irq irq,
+                      AcpiCpuHotplug *g, DeviceState *dev, Error **errp)
+{
+    acpi_set_cpu_present_bit(g, CPU(dev), errp);
+    if (*errp != NULL) {
+        return;
+    }
+
+    ar->gpe.sts[0] |= ACPI_CPU_HOTPLUG_STATUS;
     acpi_update_sci(ar, irq);
 }
 
@@ -61,11 +69,7 @@ void acpi_cpu_hotplug_init(MemoryRegion *parent, Object *owner,
     CPUState *cpu;
 
     CPU_FOREACH(cpu) {
-        CPUClass *cc = CPU_GET_CLASS(cpu);
-        int64_t id = cc->get_arch_id(cpu);
-
-        g_assert((id / 8) < ACPI_GPE_PROC_LEN);
-        gpe_cpu->sts[id / 8] |= (1 << (id % 8));
+        acpi_set_cpu_present_bit(gpe_cpu, cpu, &error_abort);
     }
     memory_region_init_io(&gpe_cpu->io, owner, &AcpiCpuHotplug_ops,
                           gpe_cpu, "acpi-cpu-hotplug", ACPI_GPE_PROC_LEN);
