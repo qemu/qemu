@@ -62,7 +62,7 @@ L: secalert@redhat.com
 Guest CPU cores (TCG):
 ----------------------
 Overall
-M: qemu-devel@nongnu.org
+L: qemu-devel@nongnu.org
 S: Odd fixes
 F: cpu-exec.c
 F: cputlb.c
@@ -287,7 +287,7 @@ F: include/hw/arm/digic.h
 F: hw/*/digic*
 
 Gumstix
-M: qemu-devel@nongnu.org
+L: qemu-devel@nongnu.org
 S: Orphan
 F: hw/arm/gumstix.c
 
@@ -303,7 +303,7 @@ S: Maintained
 F: hw/arm/integratorcp.c
 
 Mainstone
-M: qemu-devel@nongnu.org
+L: qemu-devel@nongnu.org
 S: Orphan
 F: hw/arm/mainstone.c
 
@@ -409,7 +409,7 @@ S: Maintained
 F: hw/mips/mips_malta.c
 
 Mipssim
-M: qemu-devel@nongnu.org
+L: qemu-devel@nongnu.org
 S: Orphan
 F: hw/mips/mips_mipssim.c
 
@@ -776,7 +776,7 @@ S: Maintained
 F: device_tree.[ch]
 
 GDB stub
-M: qemu-devel@nongnu.org
+L: qemu-devel@nongnu.org
 S: Odd Fixes
 F: gdbstub*
 F: gdb-xml/
@@ -934,7 +934,6 @@ F: linux-user/
 Tiny Code Generator (TCG)
 -------------------------
 Common code
-M: qemu-devel@nongnu.org
 M: Richard Henderson <rth@twiddle.net>
 S: Maintained
 F: tcg/
@@ -951,7 +950,7 @@ S: Maintained
 F: tcg/arm/
 
 i386 target
-M: qemu-devel@nongnu.org
+L: qemu-devel@nongnu.org
 S: Maintained
 F: tcg/i386/
 
