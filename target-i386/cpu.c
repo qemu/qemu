@@ -259,8 +259,8 @@ static const char *svm_feature_name[] = {
 static const char *cpuid_7_0_ebx_feature_name[] = {
     "fsgsbase", "tsc_adjust", NULL, "bmi1", "hle", "avx2", NULL, "smep",
     "bmi2", "erms", "invpcid", "rtm", NULL, NULL, "mpx", NULL,
-    NULL, NULL, "rdseed", "adx", "smap", NULL, NULL, NULL,
-    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+    "avx512f", NULL, "rdseed", "adx", "smap", NULL, NULL, NULL,
+    NULL, NULL, "avx512pf", "avx512er", "avx512cd", NULL, NULL, NULL,
 };
 
 static const char *cpuid_apm_edx_feature_name[] = {
@@ -426,6 +426,12 @@ static const ExtSaveArea ext_save_areas[] = {
             .offset = 0x3c0, .size = 0x40  },
     [4] = { .feature = FEAT_7_0_EBX, .bits = CPUID_7_0_EBX_MPX,
             .offset = 0x400, .size = 0x40  },
+    [5] = { .feature = FEAT_7_0_EBX, .bits = CPUID_7_0_EBX_AVX512F,
+            .offset = 0x440, .size = 0x40 },
+    [6] = { .feature = FEAT_7_0_EBX, .bits = CPUID_7_0_EBX_AVX512F,
+            .offset = 0x480, .size = 0x200 },
+    [7] = { .feature = FEAT_7_0_EBX, .bits = CPUID_7_0_EBX_AVX512F,
+            .offset = 0x680, .size = 0x400 },
 };
 
 const char *get_register_name_32(unsigned int reg)
