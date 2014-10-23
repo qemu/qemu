@@ -1666,7 +1666,6 @@ static GSList *gd_vc_gfx_init(GtkDisplayState *s, VirtualConsole *vc,
                           GDK_LEAVE_NOTIFY_MASK |
                           GDK_SCROLL_MASK |
                           GDK_KEY_PRESS_MASK);
-    gtk_widget_set_double_buffered(vc->gfx.drawing_area, FALSE);
     gtk_widget_set_can_focus(vc->gfx.drawing_area, TRUE);
 
     vc->type = GD_VC_GFX;
