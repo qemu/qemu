@@ -829,6 +829,12 @@ S: Supported
 F: qapi-schema.json
 T: git git://repo.or.cz/qemu/qmp-unstable.git queue/qmp
 
+QObject
+M: Luiz Capitulino <lcapitulino@redhat.com>
+S: Maintained
+F: qobject/
+T: git git://repo.or.cz/qemu/qmp-unstable.git queue/qmp
+
 QOM
 M: Anthony Liguori <aliguori@amazon.com>
 M: Andreas Färber <afaerber@suse.de>
