@@ -435,6 +435,15 @@ static void gtk_release_modifiers(GtkDisplayState *s)
     }
 }
 
+static void gd_widget_reparent(GtkWidget *from, GtkWidget *to,
+                               GtkWidget *widget)
+{
+    g_object_ref(G_OBJECT(widget));
+    gtk_container_remove(GTK_CONTAINER(from), widget);
+    gtk_container_add(GTK_CONTAINER(to), widget);
+    g_object_unref(G_OBJECT(widget));
+}
+
 /** DisplayState Callbacks **/
 
 static void gd_update(DisplayChangeListener *dcl,
@@ -1031,7 +1040,7 @@ static gboolean gd_tab_window_close(GtkWidget *widget, GdkEvent *event,
     GtkDisplayState *s = vc->s;
 
     gtk_widget_set_sensitive(vc->menu_item, true);
-    gtk_widget_reparent(vc->tab_item, s->notebook);
+    gd_widget_reparent(vc->window, s->notebook, vc->tab_item);
     gtk_notebook_set_tab_label_text(GTK_NOTEBOOK(s->notebook),
                                     vc->tab_item, vc->label);
     gtk_widget_destroy(vc->window);
@@ -1065,7 +1074,7 @@ static void gd_menu_untabify(GtkMenuItem *item, void *opaque)
     if (!vc->window) {
         gtk_widget_set_sensitive(vc->menu_item, false);
         vc->window = gtk_window_new(GTK_WINDOW_TOPLEVEL);
-        gtk_widget_reparent(vc->tab_item, vc->window);
+        gd_widget_reparent(s->notebook, vc->window, vc->tab_item);
 
         g_signal_connect(vc->window, "delete-event",
                          G_CALLBACK(gd_tab_window_close), vc);
