@@ -567,7 +567,7 @@ static void gen_loop(DisasContext *ctx, int r1, int32_t offset)
 static void gen_compute_branch(DisasContext *ctx, uint32_t opc, int r1,
                                int r2 , int32_t constant , int32_t offset)
 {
-    TCGv temp;
+    TCGv temp, temp2;
     int n;
 
     switch (opc) {
@@ -720,6 +720,79 @@ static void gen_compute_branch(DisasContext *ctx, uint32_t opc, int r1,
             gen_branch_condi(ctx, TCG_COND_EQ, temp, 0, offset);
         }
         tcg_temp_free(temp);
+        break;
+/* BRR Format */
+    case OPCM_32_BRR_EQ_NEQ:
+        if (MASK_OP_BRR_OP2(ctx->opcode) == OPC2_32_BRR_JEQ) {
+            gen_branch_cond(ctx, TCG_COND_EQ, cpu_gpr_d[r1], cpu_gpr_d[r2],
+                            offset);
+        } else {
+            gen_branch_cond(ctx, TCG_COND_NE, cpu_gpr_d[r1], cpu_gpr_d[r2],
+                            offset);
+        }
+        break;
+    case OPCM_32_BRR_ADDR_EQ_NEQ:
+        if (MASK_OP_BRR_OP2(ctx->opcode) == OPC2_32_BRR_JEQ_A) {
+            gen_branch_cond(ctx, TCG_COND_EQ, cpu_gpr_a[r1], cpu_gpr_a[r2],
+                            offset);
+        } else {
+            gen_branch_cond(ctx, TCG_COND_NE, cpu_gpr_a[r1], cpu_gpr_a[r2],
+                            offset);
+        }
+        break;
+    case OPCM_32_BRR_GE:
+        if (MASK_OP_BRR_OP2(ctx->opcode) == OPC2_32_BRR_JGE) {
+            gen_branch_cond(ctx, TCG_COND_GE, cpu_gpr_d[r1], cpu_gpr_d[r2],
+                            offset);
+        } else {
+            gen_branch_cond(ctx, TCG_COND_GEU, cpu_gpr_d[r1], cpu_gpr_d[r2],
+                            offset);
+        }
+        break;
+    case OPCM_32_BRR_JLT:
+        if (MASK_OP_BRR_OP2(ctx->opcode) == OPC2_32_BRR_JLT) {
+            gen_branch_cond(ctx, TCG_COND_LT, cpu_gpr_d[r1], cpu_gpr_d[r2],
+                            offset);
+        } else {
+            gen_branch_cond(ctx, TCG_COND_LTU, cpu_gpr_d[r1], cpu_gpr_d[r2],
+                            offset);
+        }
+        break;
+    case OPCM_32_BRR_LOOP:
+        if (MASK_OP_BRR_OP2(ctx->opcode) == OPC2_32_BRR_LOOP) {
+            gen_loop(ctx, r1, offset * 2);
+        } else {
+            /* OPC2_32_BRR_LOOPU */
+            gen_goto_tb(ctx, 0, ctx->pc + offset * 2);
+        }
+        break;
+    case OPCM_32_BRR_JNE:
+        temp = tcg_temp_new();
+        temp2 = tcg_temp_new();
+        if (MASK_OP_BRC_OP2(ctx->opcode) == OPC2_32_BRR_JNED) {
+            tcg_gen_mov_tl(temp, cpu_gpr_d[r1]);
+            /* also save r2, in case of r1 == r2, so r2 is not decremented */
+            tcg_gen_mov_tl(temp2, cpu_gpr_d[r2]);
+            /* subi is unconditional */
+            tcg_gen_subi_tl(cpu_gpr_d[r1], cpu_gpr_d[r1], 1);
+            gen_branch_cond(ctx, TCG_COND_NE, temp, temp2, offset);
+        } else {
+            tcg_gen_mov_tl(temp, cpu_gpr_d[r1]);
+            /* also save r2, in case of r1 == r2, so r2 is not decremented */
+            tcg_gen_mov_tl(temp2, cpu_gpr_d[r2]);
+            /* addi is unconditional */
+            tcg_gen_addi_tl(cpu_gpr_d[r1], cpu_gpr_d[r1], 1);
+            gen_branch_cond(ctx, TCG_COND_NE, temp, temp2, offset);
+        }
+        tcg_temp_free(temp);
+        tcg_temp_free(temp2);
+        break;
+    case OPCM_32_BRR_JNZ:
+        if (MASK_OP_BRR_OP2(ctx->opcode) == OPC2_32_BRR_JNZ_A) {
+            gen_branch_condi(ctx, TCG_COND_NE, cpu_gpr_a[r1], 0, offset);
+        } else {
+            gen_branch_condi(ctx, TCG_COND_EQ, cpu_gpr_a[r1], 0, offset);
+        }
         break;
     default:
         printf("Branch Error at %x\n", ctx->pc);
@@ -2378,7 +2451,7 @@ static void decode_bol_opc(CPUTriCoreState *env, DisasContext *ctx, int32_t op1)
 static void decode_32Bit_opc(CPUTriCoreState *env, DisasContext *ctx)
 {
     int op1;
-    int32_t r1;
+    int32_t r1, r2;
     int32_t address;
     int8_t b, const4;
     int32_t bpos;
@@ -2529,6 +2602,19 @@ static void decode_32Bit_opc(CPUTriCoreState *env, DisasContext *ctx)
         address = MASK_OP_BRN_DISP15_SEXT(ctx->opcode);
         r1 = MASK_OP_BRN_S1(ctx->opcode);
         gen_compute_branch(ctx, op1, r1, 0, 0, address);
+        break;
+/* BRR Format */
+    case OPCM_32_BRR_EQ_NEQ:
+    case OPCM_32_BRR_ADDR_EQ_NEQ:
+    case OPCM_32_BRR_GE:
+    case OPCM_32_BRR_JLT:
+    case OPCM_32_BRR_JNE:
+    case OPCM_32_BRR_JNZ:
+    case OPCM_32_BRR_LOOP:
+        address = MASK_OP_BRR_DISP15_SEXT(ctx->opcode);
+        r2 = MASK_OP_BRR_S2(ctx->opcode);
+        r1 = MASK_OP_BRR_S1(ctx->opcode);
+        gen_compute_branch(ctx, op1, r1, r2, 0, address);
         break;
     }
 }

@@ -139,6 +139,7 @@
 /* BRR Format */
 #define MASK_OP_BRR_OP2(op)    MASK_BITS_SHIFT(op, 31, 31)
 #define MASK_OP_BRR_DISP15(op) MASK_BITS_SHIFT(op, 16, 30)
+#define MASK_OP_BRR_DISP15_SEXT(op) MASK_BITS_SHIFT_SEXT(op, 16, 30)
 #define MASK_OP_BRR_S2(op)     MASK_BITS_SHIFT(op, 12, 15)
 #define MASK_OP_BRR_S1(op)     MASK_BITS_SHIFT(op, 8, 11)
 
