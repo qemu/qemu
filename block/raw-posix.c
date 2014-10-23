@@ -150,6 +150,7 @@ typedef struct BDRVRawState {
     bool has_discard:1;
     bool has_write_zeroes:1;
     bool discard_zeroes:1;
+    bool needs_alignment;
 #ifdef CONFIG_FIEMAP
     bool skip_fiemap;
 #endif
@@ -230,7 +231,7 @@ static void raw_probe_alignment(BlockDriverState *bs, int fd, Error **errp)
 
     /* For /dev/sg devices the alignment is not really used.
        With buffered I/O, we don't have any restrictions. */
-    if (bs->sg || !(s->open_flags & O_DIRECT)) {
+    if (bs->sg || !s->needs_alignment) {
         bs->request_alignment = 1;
         s->buf_align = 1;
         return;
@@ -446,6 +447,9 @@ static int raw_open_common(BlockDriverState *bs, QDict *options,
 
     s->has_discard = true;
     s->has_write_zeroes = true;
+    if ((bs->open_flags & BDRV_O_NOCACHE) != 0) {
+        s->needs_alignment = true;
+    }
 
     if (fstat(s->fd, &st) < 0) {
         error_setg_errno(errp, errno, "Could not stat file");
@@ -472,6 +476,17 @@ static int raw_open_common(BlockDriverState *bs, QDict *options,
         }
 #endif
     }
+#ifdef __FreeBSD__
+    if (S_ISCHR(st.st_mode)) {
+        /*
+         * The file is a char device (disk), which on FreeBSD isn't behind
+         * a pager, so force all requests to be aligned. This is needed
+         * so QEMU makes sure all IO operations on the device are aligned
+         * to sector size, or else FreeBSD will reject them with EINVAL.
+         */
+        s->needs_alignment = true;
+    }
+#endif
 
 #ifdef CONFIG_XFS
     if (platform_test_xfs_fd(s->fd)) {
@@ -1076,11 +1091,12 @@ static BlockAIOCB *raw_aio_submit(BlockDriverState *bs,
         return NULL;
 
     /*
-     * If O_DIRECT is used the buffer needs to be aligned on a sector
-     * boundary.  Check if this is the case or tell the low-level
-     * driver that it needs to copy the buffer.
+     * Check if the underlying device requires requests to be aligned,
+     * and if the request we are trying to submit is aligned or not.
+     * If this is the case tell the low-level driver that it needs
+     * to copy the buffer.
      */
-    if ((bs->open_flags & BDRV_O_NOCACHE)) {
+    if (s->needs_alignment) {
         if (!bdrv_qiov_is_aligned(bs, qiov)) {
             type |= QEMU_AIO_MISALIGNED;
 #ifdef CONFIG_LINUX_AIO
