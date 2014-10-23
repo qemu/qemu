@@ -1006,7 +1006,6 @@ void cpu_loop(CPUARMState *env)
     CPUState *cs = CPU(arm_env_get_cpu(env));
     int trapnr, sig;
     target_siginfo_t info;
-    uint32_t addr;
 
     for (;;) {
         cpu_exec_start(cs);
@@ -1042,12 +1041,11 @@ void cpu_loop(CPUARMState *env)
             /* fall through for segv */
         case EXCP_PREFETCH_ABORT:
         case EXCP_DATA_ABORT:
-            addr = env->exception.vaddress;
             info.si_signo = SIGSEGV;
             info.si_errno = 0;
             /* XXX: check env->error_code */
             info.si_code = TARGET_SEGV_MAPERR;
-            info._sifields._sigfault._addr = addr;
+            info._sifields._sigfault._addr = env->exception.vaddress;
             queue_signal(env, info.si_signo, &info);
             break;
         case EXCP_DEBUG:
