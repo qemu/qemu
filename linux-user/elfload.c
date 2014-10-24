@@ -1820,7 +1820,7 @@ static void load_elf_image(const char *image_name, int image_fd,
     loaddr = -1, hiaddr = 0;
     for (i = 0; i < ehdr->e_phnum; ++i) {
         if (phdr[i].p_type == PT_LOAD) {
-            abi_ulong a = phdr[i].p_vaddr;
+            abi_ulong a = phdr[i].p_vaddr - phdr[i].p_offset;
             if (a < loaddr) {
                 loaddr = a;
             }
