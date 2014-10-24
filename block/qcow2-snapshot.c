@@ -441,7 +441,7 @@ int qcow2_snapshot_create(BlockDriverState *bs, QEMUSnapshotInfo *sn_info)
     qcow2_discard_clusters(bs, qcow2_vm_state_offset(s),
                            align_offset(sn->vm_state_size, s->cluster_size)
                                 >> BDRV_SECTOR_BITS,
-                           QCOW2_DISCARD_NEVER);
+                           QCOW2_DISCARD_NEVER, false);
 
 #ifdef DEBUG_ALLOC
     {

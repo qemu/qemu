@@ -1414,7 +1414,7 @@ int qcow2_decompress_cluster(BlockDriverState *bs, uint64_t cluster_offset)
  * clusters.
  */
 static int discard_single_l2(BlockDriverState *bs, uint64_t offset,
-    unsigned int nb_clusters, enum qcow2_discard_type type)
+    unsigned int nb_clusters, enum qcow2_discard_type type, bool full_discard)
 {
     BDRVQcowState *s = bs->opaque;
     uint64_t *l2_table;
@@ -1436,23 +1436,30 @@ static int discard_single_l2(BlockDriverState *bs, uint64_t offset,
         old_l2_entry = be64_to_cpu(l2_table[l2_index + i]);
 
         /*
-         * Make sure that a discarded area reads back as zeroes for v3 images
-         * (we cannot do it for v2 without actually writing a zero-filled
-         * buffer). We can skip the operation if the cluster is already marked
-         * as zero, or if it's unallocated and we don't have a backing file.
+         * If full_discard is false, make sure that a discarded area reads back
+         * as zeroes for v3 images (we cannot do it for v2 without actually
+         * writing a zero-filled buffer). We can skip the operation if the
+         * cluster is already marked as zero, or if it's unallocated and we
+         * don't have a backing file.
          *
          * TODO We might want to use bdrv_get_block_status(bs) here, but we're
          * holding s->lock, so that doesn't work today.
+         *
+         * If full_discard is true, the sector should not read back as zeroes,
+         * but rather fall through to the backing file.
          */
         switch (qcow2_get_cluster_type(old_l2_entry)) {
             case QCOW2_CLUSTER_UNALLOCATED:
-                if (!bs->backing_hd) {
+                if (full_discard || !bs->backing_hd) {
                     continue;
                 }
                 break;
 
             case QCOW2_CLUSTER_ZERO:
-                continue;
+                if (!full_discard) {
+                    continue;
+                }
+                break;
 
             case QCOW2_CLUSTER_NORMAL:
             case QCOW2_CLUSTER_COMPRESSED:
@@ -1464,7 +1471,7 @@ static int discard_single_l2(BlockDriverState *bs, uint64_t offset,
 
         /* First remove L2 entries */
         qcow2_cache_entry_mark_dirty(s->l2_table_cache, l2_table);
-        if (s->qcow_version >= 3) {
+        if (!full_discard && s->qcow_version >= 3) {
             l2_table[l2_index + i] = cpu_to_be64(QCOW_OFLAG_ZERO);
         } else {
             l2_table[l2_index + i] = cpu_to_be64(0);
@@ -1483,7 +1490,7 @@ static int discard_single_l2(BlockDriverState *bs, uint64_t offset,
 }
 
 int qcow2_discard_clusters(BlockDriverState *bs, uint64_t offset,
-    int nb_sectors, enum qcow2_discard_type type)
+    int nb_sectors, enum qcow2_discard_type type, bool full_discard)
 {
     BDRVQcowState *s = bs->opaque;
     uint64_t end_offset;
@@ -1506,7 +1513,7 @@ int qcow2_discard_clusters(BlockDriverState *bs, uint64_t offset,
 
     /* Each L2 table is handled by its own loop iteration */
     while (nb_clusters > 0) {
-        ret = discard_single_l2(bs, offset, nb_clusters, type);
+        ret = discard_single_l2(bs, offset, nb_clusters, type, full_discard);
         if (ret < 0) {
             goto fail;
         }
