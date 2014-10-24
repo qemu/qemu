@@ -96,30 +96,6 @@ const unsigned kDoubleExponentBits = 11;
 const unsigned kFloatMantissaBits = 23;
 const unsigned kFloatExponentBits = 8;
 
-const float kFP32PositiveInfinity = rawbits_to_float(0x7f800000);
-const float kFP32NegativeInfinity = rawbits_to_float(0xff800000);
-const double kFP64PositiveInfinity =
-    rawbits_to_double(UINT64_C(0x7ff0000000000000));
-const double kFP64NegativeInfinity =
-    rawbits_to_double(UINT64_C(0xfff0000000000000));
-
-// This value is a signalling NaN as both a double and as a float (taking the
-// least-significant word).
-static const double kFP64SignallingNaN =
-    rawbits_to_double(UINT64_C(0x7ff000007f800001));
-static const float kFP32SignallingNaN = rawbits_to_float(0x7f800001);
-
-// A similar value, but as a quiet NaN.
-static const double kFP64QuietNaN =
-    rawbits_to_double(UINT64_C(0x7ff800007fc00001));
-static const float kFP32QuietNaN = rawbits_to_float(0x7fc00001);
-
-// The default NaN values (for FPCR.DN=1).
-static const double kFP64DefaultNaN =
-    rawbits_to_double(UINT64_C(0x7ff8000000000000));
-static const float kFP32DefaultNaN = rawbits_to_float(0x7fc00000);
-
-
 enum LSDataSize {
   LSByte        = 0,
   LSHalfword    = 1,
