@@ -108,8 +108,8 @@ static void arm_cpu_reset(CPUState *s)
         env->aarch64 = 1;
 #if defined(CONFIG_USER_ONLY)
         env->pstate = PSTATE_MODE_EL0t;
-        /* Userspace expects access to CTL_EL0 and the cache ops */
-        env->cp15.c1_sys |= SCTLR_UCT | SCTLR_UCI;
+        /* Userspace expects access to DC ZVA, CTL_EL0 and the cache ops */
+        env->cp15.c1_sys |= SCTLR_UCT | SCTLR_UCI | SCTLR_DZE;
         /* and to the FP/Neon instructions */
         env->cp15.c1_coproc = deposit64(env->cp15.c1_coproc, 20, 2, 3);
 #else
