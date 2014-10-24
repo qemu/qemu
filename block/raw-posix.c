@@ -1535,10 +1535,6 @@ static int64_t try_seek_hole(BlockDriverState *bs, off_t start, off_t *data,
 
     *hole = lseek(s->fd, start, SEEK_HOLE);
     if (*hole == -1) {
-        /* -ENXIO indicates that sector_num was past the end of the file.
-         * There is a virtual hole there.  */
-        assert(errno != -ENXIO);
-
         return -errno;
     }
 
@@ -1578,6 +1574,7 @@ static int64_t coroutine_fn raw_co_get_block_status(BlockDriverState *bs,
                                                     int nb_sectors, int *pnum)
 {
     off_t start, data = 0, hole = 0;
+    int64_t total_size;
     int64_t ret;
 
     ret = fd_open(bs);
@@ -1586,6 +1583,15 @@ static int64_t coroutine_fn raw_co_get_block_status(BlockDriverState *bs,
     }
 
     start = sector_num * BDRV_SECTOR_SIZE;
+    total_size = bdrv_getlength(bs);
+    if (total_size < 0) {
+        return total_size;
+    } else if (start >= total_size) {
+        *pnum = 0;
+        return 0;
+    } else if (start + nb_sectors * BDRV_SECTOR_SIZE > total_size) {
+        nb_sectors = DIV_ROUND_UP(total_size - start, BDRV_SECTOR_SIZE);
+    }
 
     ret = try_seek_hole(bs, start, &data, &hole, pnum);
     if (ret < 0) {
