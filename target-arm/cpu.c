@@ -40,7 +40,10 @@ static void arm_cpu_set_pc(CPUState *cs, vaddr value)
 
 static bool arm_cpu_has_work(CPUState *cs)
 {
-    return cs->interrupt_request &
+    ARMCPU *cpu = ARM_CPU(cs);
+
+    return !cpu->powered_off
+        && cs->interrupt_request &
         (CPU_INTERRUPT_FIQ | CPU_INTERRUPT_HARD
          | CPU_INTERRUPT_VFIQ | CPU_INTERRUPT_VIRQ
          | CPU_INTERRUPT_EXITTB);
@@ -92,6 +95,9 @@ static void arm_cpu_reset(CPUState *s)
     env->vfp.xregs[ARM_VFP_MVFR0] = cpu->mvfr0;
     env->vfp.xregs[ARM_VFP_MVFR1] = cpu->mvfr1;
     env->vfp.xregs[ARM_VFP_MVFR2] = cpu->mvfr2;
+
+    cpu->powered_off = cpu->start_powered_off;
+    s->halted = cpu->start_powered_off;
 
     if (arm_feature(env, ARM_FEATURE_IWMMXT)) {
         env->iwmmxt.cregs[ARM_IWMMXT_wCID] = 0x69051000 | 'Q';
