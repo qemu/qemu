@@ -438,6 +438,8 @@ uint64_t HELPER(crc32c_64)(uint64_t acc, uint64_t val, uint32_t bytes)
     return crc32c(acc, buf, bytes) ^ 0xffffffff;
 }
 
+#if !defined(CONFIG_USER_ONLY)
+
 /* Handle a CPU exception.  */
 void aarch64_cpu_do_interrupt(CPUState *cs)
 {
@@ -448,7 +450,7 @@ void aarch64_cpu_do_interrupt(CPUState *cs)
     unsigned int new_mode = aarch64_pstate_mode(new_el, true);
     int i;
 
-    if (arm_current_pl(env) < new_el) {
+    if (arm_current_el(env) < new_el) {
         if (env->aarch64) {
             addr += 0x400;
         } else {
@@ -459,11 +461,17 @@ void aarch64_cpu_do_interrupt(CPUState *cs)
     }
 
     arm_log_exception(cs->exception_index);
-    qemu_log_mask(CPU_LOG_INT, "...from EL%d\n", arm_current_pl(env));
+    qemu_log_mask(CPU_LOG_INT, "...from EL%d\n", arm_current_el(env));
     if (qemu_loglevel_mask(CPU_LOG_INT)
         && !excp_is_internal(cs->exception_index)) {
         qemu_log_mask(CPU_LOG_INT, "...with ESR 0x%" PRIx32 "\n",
                       env->exception.syndrome);
+    }
+
+    if (arm_is_psci_call(cpu, cs->exception_index)) {
+        arm_handle_psci_call(cpu);
+        qemu_log_mask(CPU_LOG_INT, "...handled as PSCI call\n");
+        return;
     }
 
     switch (cs->exception_index) {
@@ -495,7 +503,7 @@ void aarch64_cpu_do_interrupt(CPUState *cs)
 
     if (is_a64(env)) {
         env->banked_spsr[aarch64_banked_spsr_index(new_el)] = pstate_read(env);
-        aarch64_save_sp(env, arm_current_pl(env));
+        aarch64_save_sp(env, arm_current_el(env));
         env->elr_el[new_el] = env->pc;
     } else {
         env->banked_spsr[0] = cpsr_read(env);
@@ -518,3 +526,4 @@ void aarch64_cpu_do_interrupt(CPUState *cs)
     env->pc = addr;
     cs->interrupt_request |= CPU_INTERRUPT_EXITTB;
 }
+#endif

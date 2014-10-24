@@ -44,6 +44,7 @@ const unsigned kMaxLoadLiteralRange = 1 * MBytes;
 // This is the nominal page size (as used by the adrp instruction); the actual
 // size of the memory pages allocated by the kernel is likely to differ.
 const unsigned kPageSize = 4 * KBytes;
+const unsigned kPageSizeLog2 = 12;
 
 const unsigned kWRegSize = 32;
 const unsigned kWRegSizeLog2 = 5;
@@ -94,30 +95,6 @@ const unsigned kDoubleMantissaBits = 52;
 const unsigned kDoubleExponentBits = 11;
 const unsigned kFloatMantissaBits = 23;
 const unsigned kFloatExponentBits = 8;
-
-const float kFP32PositiveInfinity = rawbits_to_float(0x7f800000);
-const float kFP32NegativeInfinity = rawbits_to_float(0xff800000);
-const double kFP64PositiveInfinity =
-    rawbits_to_double(UINT64_C(0x7ff0000000000000));
-const double kFP64NegativeInfinity =
-    rawbits_to_double(UINT64_C(0xfff0000000000000));
-
-// This value is a signalling NaN as both a double and as a float (taking the
-// least-significant word).
-static const double kFP64SignallingNaN =
-    rawbits_to_double(UINT64_C(0x7ff000007f800001));
-static const float kFP32SignallingNaN = rawbits_to_float(0x7f800001);
-
-// A similar value, but as a quiet NaN.
-static const double kFP64QuietNaN =
-    rawbits_to_double(UINT64_C(0x7ff800007fc00001));
-static const float kFP32QuietNaN = rawbits_to_float(0x7fc00001);
-
-// The default NaN values (for FPCR.DN=1).
-static const double kFP64DefaultNaN =
-    rawbits_to_double(UINT64_C(0x7ff8000000000000));
-static const float kFP32DefaultNaN = rawbits_to_float(0x7fc00000);
-
 
 enum LSDataSize {
   LSByte        = 0,
@@ -201,9 +178,9 @@ class Instruction {
     return signed_bitextract_32(width-1, 0, offset);
   }
 
-  uint64_t ImmLogical();
-  float ImmFP32();
-  double ImmFP64();
+  uint64_t ImmLogical() const;
+  float ImmFP32() const;
+  double ImmFP64() const;
 
   inline LSDataSize SizeLSPair() const {
     return CalcLSPairDataSize(
@@ -311,46 +288,49 @@ class Instruction {
 
   // Find the target of this instruction. 'this' may be a branch or a
   // PC-relative addressing instruction.
-  Instruction* ImmPCOffsetTarget();
+  const Instruction* ImmPCOffsetTarget() const;
 
   // Patch a PC-relative offset to refer to 'target'. 'this' may be a branch or
   // a PC-relative addressing instruction.
-  void SetImmPCOffsetTarget(Instruction* target);
+  void SetImmPCOffsetTarget(const Instruction* target);
   // Patch a literal load instruction to load from 'source'.
-  void SetImmLLiteral(Instruction* source);
+  void SetImmLLiteral(const Instruction* source);
 
-  inline uint8_t* LiteralAddress() {
+  inline uint8_t* LiteralAddress() const {
     int offset = ImmLLiteral() << kLiteralEntrySizeLog2;
-    return reinterpret_cast<uint8_t*>(this) + offset;
+    const uint8_t* address = reinterpret_cast<const uint8_t*>(this) + offset;
+    // Note that the result is safely mutable only if the backing buffer is
+    // safely mutable.
+    return const_cast<uint8_t*>(address);
   }
 
-  inline uint32_t Literal32() {
+  inline uint32_t Literal32() const {
     uint32_t literal;
     memcpy(&literal, LiteralAddress(), sizeof(literal));
 
     return literal;
   }
 
-  inline uint64_t Literal64() {
+  inline uint64_t Literal64() const {
     uint64_t literal;
     memcpy(&literal, LiteralAddress(), sizeof(literal));
 
     return literal;
   }
 
-  inline float LiteralFP32() {
+  inline float LiteralFP32() const {
     return rawbits_to_float(Literal32());
   }
 
-  inline double LiteralFP64() {
+  inline double LiteralFP64() const {
     return rawbits_to_double(Literal64());
   }
 
-  inline Instruction* NextInstruction() {
+  inline const Instruction* NextInstruction() const {
     return this + kInstructionSize;
   }
 
-  inline Instruction* InstructionAtOffset(int64_t offset) {
+  inline const Instruction* InstructionAtOffset(int64_t offset) const {
     VIXL_ASSERT(IsWordAligned(this + offset));
     return this + offset;
   }
@@ -359,11 +339,15 @@ class Instruction {
     return reinterpret_cast<Instruction*>(src);
   }
 
+  template<typename T> static inline const Instruction* CastConst(T src) {
+    return reinterpret_cast<const Instruction*>(src);
+  }
+
  private:
   inline int ImmBranch() const;
 
-  void SetPCRelImmTarget(Instruction* target);
-  void SetBranchImmTarget(Instruction* target);
+  void SetPCRelImmTarget(const Instruction* target);
+  void SetBranchImmTarget(const Instruction* target);
 };
 }  // namespace vixl
 

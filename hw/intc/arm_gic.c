@@ -769,7 +769,7 @@ static const MemoryRegionOps gic_cpu_ops = {
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
-void gic_init_irqs_and_distributor(GICState *s, int num_irq)
+void gic_init_irqs_and_distributor(GICState *s)
 {
     SysBusDevice *sbd = SYS_BUS_DEVICE(s);
     int i;
@@ -808,7 +808,7 @@ static void arm_gic_realize(DeviceState *dev, Error **errp)
         return;
     }
 
-    gic_init_irqs_and_distributor(s, s->num_irq);
+    gic_init_irqs_and_distributor(s);
 
     /* Memory regions for the CPU interfaces (NVIC doesn't have these):
      * a region for "CPU interface for this core", then a region for

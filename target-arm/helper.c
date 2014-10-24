@@ -571,7 +571,7 @@ static CPAccessResult pmreg_access(CPUARMState *env, const ARMCPRegInfo *ri)
     /* Performance monitor registers user accessibility is controlled
      * by PMUSERENR.
      */
-    if (arm_current_pl(env) == 0 && !env->cp15.c9_pmuserenr) {
+    if (arm_current_el(env) == 0 && !env->cp15.c9_pmuserenr) {
         return CP_ACCESS_TRAP;
     }
     return CP_ACCESS_OK;
@@ -996,7 +996,7 @@ static void teecr_write(CPUARMState *env, const ARMCPRegInfo *ri,
 
 static CPAccessResult teehbr_access(CPUARMState *env, const ARMCPRegInfo *ri)
 {
-    if (arm_current_pl(env) == 0 && (env->teecr & 1)) {
+    if (arm_current_el(env) == 0 && (env->teecr & 1)) {
         return CP_ACCESS_TRAP;
     }
     return CP_ACCESS_OK;
@@ -1042,7 +1042,7 @@ static const ARMCPRegInfo v6k_cp_reginfo[] = {
 static CPAccessResult gt_cntfrq_access(CPUARMState *env, const ARMCPRegInfo *ri)
 {
     /* CNTFRQ: not visible from PL0 if both PL0PCTEN and PL0VCTEN are zero */
-    if (arm_current_pl(env) == 0 && !extract32(env->cp15.c14_cntkctl, 0, 2)) {
+    if (arm_current_el(env) == 0 && !extract32(env->cp15.c14_cntkctl, 0, 2)) {
         return CP_ACCESS_TRAP;
     }
     return CP_ACCESS_OK;
@@ -1051,7 +1051,7 @@ static CPAccessResult gt_cntfrq_access(CPUARMState *env, const ARMCPRegInfo *ri)
 static CPAccessResult gt_counter_access(CPUARMState *env, int timeridx)
 {
     /* CNT[PV]CT: not visible from PL0 if ELO[PV]CTEN is zero */
-    if (arm_current_pl(env) == 0 &&
+    if (arm_current_el(env) == 0 &&
         !extract32(env->cp15.c14_cntkctl, timeridx, 1)) {
         return CP_ACCESS_TRAP;
     }
@@ -1063,7 +1063,7 @@ static CPAccessResult gt_timer_access(CPUARMState *env, int timeridx)
     /* CNT[PV]_CVAL, CNT[PV]_CTL, CNT[PV]_TVAL: not visible from PL0 if
      * EL0[PV]TEN is zero.
      */
-    if (arm_current_pl(env) == 0 &&
+    if (arm_current_el(env) == 0 &&
         !extract32(env->cp15.c14_cntkctl, 9 - timeridx, 1)) {
         return CP_ACCESS_TRAP;
     }
@@ -1911,7 +1911,7 @@ static void aa64_fpsr_write(CPUARMState *env, const ARMCPRegInfo *ri,
 
 static CPAccessResult aa64_daif_access(CPUARMState *env, const ARMCPRegInfo *ri)
 {
-    if (arm_current_pl(env) == 0 && !(env->cp15.c1_sys & SCTLR_UMA)) {
+    if (arm_current_el(env) == 0 && !(env->cp15.c1_sys & SCTLR_UMA)) {
         return CP_ACCESS_TRAP;
     }
     return CP_ACCESS_OK;
@@ -1929,7 +1929,7 @@ static CPAccessResult aa64_cacheop_access(CPUARMState *env,
     /* Cache invalidate/clean: NOP, but EL0 must UNDEF unless
      * SCTLR_EL1.UCI is set.
      */
-    if (arm_current_pl(env) == 0 && !(env->cp15.c1_sys & SCTLR_UCI)) {
+    if (arm_current_el(env) == 0 && !(env->cp15.c1_sys & SCTLR_UCI)) {
         return CP_ACCESS_TRAP;
     }
     return CP_ACCESS_OK;
@@ -2006,7 +2006,7 @@ static CPAccessResult aa64_zva_access(CPUARMState *env, const ARMCPRegInfo *ri)
     /* We don't implement EL2, so the only control on DC ZVA is the
      * bit in the SCTLR which can prohibit access for EL0.
      */
-    if (arm_current_pl(env) == 0 && !(env->cp15.c1_sys & SCTLR_DZE)) {
+    if (arm_current_el(env) == 0 && !(env->cp15.c1_sys & SCTLR_DZE)) {
         return CP_ACCESS_TRAP;
     }
     return CP_ACCESS_OK;
@@ -2018,7 +2018,7 @@ static uint64_t aa64_dczid_read(CPUARMState *env, const ARMCPRegInfo *ri)
     int dzp_bit = 1 << 4;
 
     /* DZP indicates whether DC ZVA access is allowed */
-    if (aa64_zva_access(env, NULL) != CP_ACCESS_OK) {
+    if (aa64_zva_access(env, NULL) == CP_ACCESS_OK) {
         dzp_bit = 0;
     }
     return cpu->dcz_blocksize | dzp_bit;
@@ -2366,7 +2366,7 @@ static CPAccessResult ctr_el0_access(CPUARMState *env, const ARMCPRegInfo *ri)
     /* Only accessible in EL0 if SCTLR.UCT is set (and only in AArch64,
      * but the AArch32 CTR has its own reginfo struct)
      */
-    if (arm_current_pl(env) == 0 && !(env->cp15.c1_sys & SCTLR_UCT)) {
+    if (arm_current_el(env) == 0 && !(env->cp15.c1_sys & SCTLR_UCT)) {
         return CP_ACCESS_TRAP;
     }
     return CP_ACCESS_OK;
@@ -3531,6 +3531,8 @@ static int bad_mode_switch(CPUARMState *env, int mode)
     case ARM_CPU_MODE_IRQ:
     case ARM_CPU_MODE_FIQ:
         return 0;
+    case ARM_CPU_MODE_MON:
+        return !arm_is_secure(env);
     default:
         return 1;
     }
@@ -3643,11 +3645,6 @@ uint32_t HELPER(rbit)(uint32_t x)
 }
 
 #if defined(CONFIG_USER_ONLY)
-
-void arm_cpu_do_interrupt(CPUState *cs)
-{
-    cs->exception_index = -1;
-}
 
 int arm_cpu_handle_mmu_fault(CPUState *cs, vaddr address, int rw,
                              int mmu_idx)
@@ -3771,7 +3768,7 @@ unsigned int arm_excp_target_el(CPUState *cs, unsigned int excp_idx)
 {
     ARMCPU *cpu = ARM_CPU(cs);
     CPUARMState *env = &cpu->env;
-    unsigned int cur_el = arm_current_pl(env);
+    unsigned int cur_el = arm_current_el(env);
     unsigned int target_el;
     /* FIXME: Use actual secure state.  */
     bool secure = false;
@@ -3975,6 +3972,12 @@ void arm_cpu_do_interrupt(CPUState *cs)
 
     arm_log_exception(cs->exception_index);
 
+    if (arm_is_psci_call(cpu, cs->exception_index)) {
+        arm_handle_psci_call(cpu);
+        qemu_log_mask(CPU_LOG_INT, "...handled as PSCI call\n");
+        return;
+    }
+
     /* If this is a debug exception we must update the DBGDSCR.MOE bits */
     switch (env->exception.syndrome >> ARM_EL_EC_SHIFT) {
     case EC_BREAKPOINT:
@@ -4088,6 +4091,12 @@ void arm_cpu_do_interrupt(CPUState *cs)
         mask = CPSR_A | CPSR_I | CPSR_F;
         offset = 4;
         break;
+    case EXCP_SMC:
+        new_mode = ARM_CPU_MODE_MON;
+        addr = 0x08;
+        mask = CPSR_A | CPSR_I | CPSR_F;
+        offset = 0;
+        break;
     default:
         cpu_abort(cs, "Unhandled exception 0x%x\n", cs->exception_index);
         return; /* Never happens.  Keep compiler happy.  */
@@ -4106,6 +4115,11 @@ void arm_cpu_do_interrupt(CPUState *cs)
          */
         addr += env->cp15.vbar_el[1];
     }
+
+    if ((env->uncached_cpsr & CPSR_M) == ARM_CPU_MODE_MON) {
+        env->cp15.scr_el3 &= ~SCR_NS;
+    }
+
     switch_mode (env, new_mode);
     /* For exceptions taken to AArch32 we must clear the SS bit in both
      * PSTATE and in the old-state value we save to SPSR_<mode>, so zero it now.
@@ -4767,7 +4781,7 @@ int arm_cpu_handle_mmu_fault(CPUState *cs, vaddr address,
     int prot;
     int ret, is_user;
     uint32_t syn;
-    bool same_el = (arm_current_pl(env) != 0);
+    bool same_el = (arm_current_el(env) != 0);
 
     is_user = mmu_idx == MMU_USER_IDX;
     ret = get_phys_addr(env, address, access_type, is_user, &phys_addr, &prot,

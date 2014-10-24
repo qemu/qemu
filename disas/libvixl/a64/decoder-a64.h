@@ -88,112 +88,152 @@ namespace vixl {
 // must provide implementations for all of these functions.
 class DecoderVisitor {
  public:
-  #define DECLARE(A) virtual void Visit##A(Instruction* instr) = 0;
-  VISITOR_LIST(DECLARE)
-  #undef DECLARE
+  enum VisitorConstness {
+    kConstVisitor,
+    kNonConstVisitor
+  };
+  explicit DecoderVisitor(VisitorConstness constness = kConstVisitor)
+      : constness_(constness) {}
 
   virtual ~DecoderVisitor() {}
 
- private:
-  // Visitors are registered in a list.
-  std::list<DecoderVisitor*> visitors_;
+  #define DECLARE(A) virtual void Visit##A(const Instruction* instr) = 0;
+  VISITOR_LIST(DECLARE)
+  #undef DECLARE
 
-  friend class Decoder;
+  bool IsConstVisitor() const { return constness_ == kConstVisitor; }
+  Instruction* MutableInstruction(const Instruction* instr) {
+    VIXL_ASSERT(!IsConstVisitor());
+    return const_cast<Instruction*>(instr);
+  }
+
+ private:
+  VisitorConstness constness_;
 };
 
 
-class Decoder: public DecoderVisitor {
+class Decoder {
  public:
   Decoder() {}
 
-  // Top-level instruction decoder function. Decodes an instruction and calls
-  // the visitor functions registered with the Decoder class.
-  void Decode(Instruction *instr);
+  // Top-level wrappers around the actual decoding function.
+  void Decode(const Instruction* instr) {
+    std::list<DecoderVisitor*>::iterator it;
+    for (it = visitors_.begin(); it != visitors_.end(); it++) {
+      VIXL_ASSERT((*it)->IsConstVisitor());
+    }
+    DecodeInstruction(instr);
+  }
+  void Decode(Instruction* instr) {
+    DecodeInstruction(const_cast<const Instruction*>(instr));
+  }
 
   // Register a new visitor class with the decoder.
   // Decode() will call the corresponding visitor method from all registered
   // visitor classes when decoding reaches the leaf node of the instruction
   // decode tree.
-  // Visitors are called in the order.
-  // A visitor can only be registered once.
-  // Registering an already registered visitor will update its position.
+  // Visitors are called in order.
+  // A visitor can be registered multiple times.
   //
   //   d.AppendVisitor(V1);
   //   d.AppendVisitor(V2);
-  //   d.PrependVisitor(V2);            // Move V2 at the start of the list.
-  //   d.InsertVisitorBefore(V3, V2);
-  //   d.AppendVisitor(V4);
-  //   d.AppendVisitor(V4);             // No effect.
+  //   d.PrependVisitor(V2);
+  //   d.AppendVisitor(V3);
   //
   //   d.Decode(i);
   //
-  // will call in order visitor methods in V3, V2, V1, V4.
+  // will call in order visitor methods in V2, V1, V2, V3.
   void AppendVisitor(DecoderVisitor* visitor);
   void PrependVisitor(DecoderVisitor* visitor);
+  // These helpers register `new_visitor` before or after the first instance of
+  // `registered_visiter` in the list.
+  // So if
+  //   V1, V2, V1, V2
+  // are registered in this order in the decoder, calls to
+  //   d.InsertVisitorAfter(V3, V1);
+  //   d.InsertVisitorBefore(V4, V2);
+  // will yield the order
+  //   V1, V3, V4, V2, V1, V2
+  //
+  // For more complex modifications of the order of registered visitors, one can
+  // directly access and modify the list of visitors via the `visitors()'
+  // accessor.
   void InsertVisitorBefore(DecoderVisitor* new_visitor,
                            DecoderVisitor* registered_visitor);
   void InsertVisitorAfter(DecoderVisitor* new_visitor,
                           DecoderVisitor* registered_visitor);
 
-  // Remove a previously registered visitor class from the list of visitors
-  // stored by the decoder.
+  // Remove all instances of a previously registered visitor class from the list
+  // of visitors stored by the decoder.
   void RemoveVisitor(DecoderVisitor* visitor);
 
-  #define DECLARE(A) void Visit##A(Instruction* instr);
+  #define DECLARE(A) void Visit##A(const Instruction* instr);
   VISITOR_LIST(DECLARE)
   #undef DECLARE
 
+
+  std::list<DecoderVisitor*>* visitors() { return &visitors_; }
+
  private:
+  // Decodes an instruction and calls the visitor functions registered with the
+  // Decoder class.
+  void DecodeInstruction(const Instruction* instr);
+
   // Decode the PC relative addressing instruction, and call the corresponding
   // visitors.
   // On entry, instruction bits 27:24 = 0x0.
-  void DecodePCRelAddressing(Instruction* instr);
+  void DecodePCRelAddressing(const Instruction* instr);
 
   // Decode the add/subtract immediate instruction, and call the correspoding
   // visitors.
   // On entry, instruction bits 27:24 = 0x1.
-  void DecodeAddSubImmediate(Instruction* instr);
+  void DecodeAddSubImmediate(const Instruction* instr);
 
   // Decode the branch, system command, and exception generation parts of
   // the instruction tree, and call the corresponding visitors.
   // On entry, instruction bits 27:24 = {0x4, 0x5, 0x6, 0x7}.
-  void DecodeBranchSystemException(Instruction* instr);
+  void DecodeBranchSystemException(const Instruction* instr);
 
   // Decode the load and store parts of the instruction tree, and call
   // the corresponding visitors.
   // On entry, instruction bits 27:24 = {0x8, 0x9, 0xC, 0xD}.
-  void DecodeLoadStore(Instruction* instr);
+  void DecodeLoadStore(const Instruction* instr);
 
   // Decode the logical immediate and move wide immediate parts of the
   // instruction tree, and call the corresponding visitors.
   // On entry, instruction bits 27:24 = 0x2.
-  void DecodeLogical(Instruction* instr);
+  void DecodeLogical(const Instruction* instr);
 
   // Decode the bitfield and extraction parts of the instruction tree,
   // and call the corresponding visitors.
   // On entry, instruction bits 27:24 = 0x3.
-  void DecodeBitfieldExtract(Instruction* instr);
+  void DecodeBitfieldExtract(const Instruction* instr);
 
   // Decode the data processing parts of the instruction tree, and call the
   // corresponding visitors.
   // On entry, instruction bits 27:24 = {0x1, 0xA, 0xB}.
-  void DecodeDataProcessing(Instruction* instr);
+  void DecodeDataProcessing(const Instruction* instr);
 
   // Decode the floating point parts of the instruction tree, and call the
   // corresponding visitors.
   // On entry, instruction bits 27:24 = {0xE, 0xF}.
-  void DecodeFP(Instruction* instr);
+  void DecodeFP(const Instruction* instr);
 
   // Decode the Advanced SIMD (NEON) load/store part of the instruction tree,
   // and call the corresponding visitors.
   // On entry, instruction bits 29:25 = 0x6.
-  void DecodeAdvSIMDLoadStore(Instruction* instr);
+  void DecodeAdvSIMDLoadStore(const Instruction* instr);
 
   // Decode the Advanced SIMD (NEON) data processing part of the instruction
   // tree, and call the corresponding visitors.
   // On entry, instruction bits 27:25 = 0x7.
-  void DecodeAdvSIMDDataProcessing(Instruction* instr);
+  void DecodeAdvSIMDDataProcessing(const Instruction* instr);
+
+ private:
+  // Visitors are registered in a list.
+  std::list<DecoderVisitor*> visitors_;
 };
+
 }  // namespace vixl
 
 #endif  // VIXL_A64_DECODER_A64_H_
