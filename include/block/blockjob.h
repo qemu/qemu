@@ -273,6 +273,21 @@ bool block_job_is_paused(BlockJob *job);
 int block_job_cancel_sync(BlockJob *job);
 
 /**
+ * block_job_complete_sync:
+ * @job: The job to be completed.
+ * @errp: Error object which may be set by block_job_complete(); this is not
+ *        necessarily set on every error, the job return value has to be
+ *        checked as well.
+ *
+ * Synchronously complete the job.  The completion callback is called before the
+ * function returns, unless it is NULL (which is permissible when using this
+ * function).
+ *
+ * Returns the return value from the job.
+ */
+int block_job_complete_sync(BlockJob *job, Error **errp);
+
+/**
  * block_job_iostatus_reset:
  * @job: The job whose I/O status should be reset.
  *

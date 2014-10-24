@@ -153,7 +153,7 @@ void block_job_iostatus_reset(BlockJob *job)
     }
 }
 
-struct BlockCancelData {
+struct BlockFinishData {
     BlockJob *job;
     BlockCompletionFunc *cb;
     void *opaque;
@@ -161,19 +161,22 @@ struct BlockCancelData {
     int ret;
 };
 
-static void block_job_cancel_cb(void *opaque, int ret)
+static void block_job_finish_cb(void *opaque, int ret)
 {
-    struct BlockCancelData *data = opaque;
+    struct BlockFinishData *data = opaque;
 
     data->cancelled = block_job_is_cancelled(data->job);
     data->ret = ret;
     data->cb(data->opaque, ret);
 }
 
-int block_job_cancel_sync(BlockJob *job)
+static int block_job_finish_sync(BlockJob *job,
+                                 void (*finish)(BlockJob *, Error **errp),
+                                 Error **errp)
 {
-    struct BlockCancelData data;
+    struct BlockFinishData data;
     BlockDriverState *bs = job->bs;
+    Error *local_err = NULL;
 
     assert(bs->job == job);
 
@@ -184,13 +187,35 @@ int block_job_cancel_sync(BlockJob *job)
     data.cb = job->cb;
     data.opaque = job->opaque;
     data.ret = -EINPROGRESS;
-    job->cb = block_job_cancel_cb;
+    job->cb = block_job_finish_cb;
     job->opaque = &data;
-    block_job_cancel(job);
+    finish(job, &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        return -EBUSY;
+    }
     while (data.ret == -EINPROGRESS) {
         aio_poll(bdrv_get_aio_context(bs), true);
     }
     return (data.cancelled && data.ret == 0) ? -ECANCELED : data.ret;
+}
+
+/* A wrapper around block_job_cancel() taking an Error ** parameter so it may be
+ * used with block_job_finish_sync() without the need for (rather nasty)
+ * function pointer casts there. */
+static void block_job_cancel_err(BlockJob *job, Error **errp)
+{
+    block_job_cancel(job);
+}
+
+int block_job_cancel_sync(BlockJob *job)
+{
+    return block_job_finish_sync(job, &block_job_cancel_err, NULL);
+}
+
+int block_job_complete_sync(BlockJob *job, Error **errp)
+{
+    return block_job_finish_sync(job, &block_job_complete, errp);
 }
 
 void block_job_sleep_ns(BlockJob *job, QEMUClockType type, int64_t ns)
