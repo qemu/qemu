@@ -100,7 +100,7 @@ typedef uint32_t ARMReadCPFunc(void *opaque, int cp_info,
 
 struct arm_boot_info;
 
-#define NB_MMU_MODES 2
+#define NB_MMU_MODES 4
 
 /* We currently assume float and double are IEEE single and double
    precision respectively.
@@ -803,11 +803,12 @@ static inline bool arm_is_secure(CPUARMState *env)
 /* Return true if the specified exception level is running in AArch64 state. */
 static inline bool arm_el_is_aa64(CPUARMState *env, int el)
 {
-    /* We don't currently support EL2 or EL3, and this isn't valid for EL0
+    /* We don't currently support EL2, and this isn't valid for EL0
      * (if we're in EL0, is_a64() is what you want, and if we're not in EL0
      * then the state of EL0 isn't well defined.)
      */
-    assert(el == 1);
+    assert(el == 1 || el == 3);
+
     /* AArch64-capable CPUs always run with EL1 in AArch64 mode. This
      * is a QEMU-imposed simplification which we may wish to change later.
      * If we in future support EL2 and/or EL3, then the state of lower
@@ -996,17 +997,27 @@ static inline bool cptype_valid(int cptype)
  */
 static inline int arm_current_el(CPUARMState *env)
 {
-    if (env->aarch64) {
+    if (is_a64(env)) {
         return extract32(env->pstate, 2, 2);
     }
 
-    if ((env->uncached_cpsr & 0x1f) == ARM_CPU_MODE_USR) {
+    switch (env->uncached_cpsr & 0x1f) {
+    case ARM_CPU_MODE_USR:
         return 0;
+    case ARM_CPU_MODE_HYP:
+        return 2;
+    case ARM_CPU_MODE_MON:
+        return 3;
+    default:
+        if (arm_is_secure(env) && !arm_el_is_aa64(env, 3)) {
+            /* If EL3 is 32-bit then all secure privileged modes run in
+             * EL3
+             */
+            return 3;
+        }
+
+        return 1;
     }
-    /* We don't currently implement the Virtualization or TrustZone
-     * extensions, so EL2 and EL3 don't exist for us.
-     */
-    return 1;
 }
 
 typedef struct ARMCPRegInfo ARMCPRegInfo;
