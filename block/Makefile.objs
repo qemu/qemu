@@ -9,7 +9,7 @@ block-obj-y += block-backend.o snapshot.o qapi.o
 block-obj-$(CONFIG_WIN32) += raw-win32.o win32-aio.o
 block-obj-$(CONFIG_POSIX) += raw-posix.o
 block-obj-$(CONFIG_LINUX_AIO) += linux-aio.o
-block-obj-y += null.o
+block-obj-y += null.o mirror.o
 
 block-obj-y += nbd.o nbd-client.o sheepdog.o
 block-obj-$(CONFIG_LIBISCSI) += iscsi.o
@@ -23,7 +23,6 @@ block-obj-y += accounting.o
 
 common-obj-y += stream.o
 common-obj-y += commit.o
-common-obj-y += mirror.o
 common-obj-y += backup.o
 
 iscsi.o-cflags     := $(LIBISCSI_CFLAGS)

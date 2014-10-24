@@ -31,6 +31,7 @@
 #include "sysemu/sysemu.h"
 #include "sysemu/block-backend.h"
 #include "block/block_int.h"
+#include "block/blockjob.h"
 #include "block/qapi.h"
 #include <getopt.h>
 
@@ -722,13 +723,43 @@ fail:
     return ret;
 }
 
+typedef struct CommonBlockJobCBInfo {
+    BlockDriverState *bs;
+    Error **errp;
+} CommonBlockJobCBInfo;
+
+static void common_block_job_cb(void *opaque, int ret)
+{
+    CommonBlockJobCBInfo *cbi = opaque;
+
+    if (ret < 0) {
+        error_setg_errno(cbi->errp, -ret, "Block job failed");
+    }
+
+    /* Drop this block job's reference */
+    bdrv_unref(cbi->bs);
+}
+
+static void run_block_job(BlockJob *job, Error **errp)
+{
+    AioContext *aio_context = bdrv_get_aio_context(job->bs);
+
+    do {
+        aio_poll(aio_context, true);
+    } while (!job->ready);
+
+    block_job_complete_sync(job, errp);
+}
+
 static int img_commit(int argc, char **argv)
 {
     int c, ret, flags;
     const char *filename, *fmt, *cache;
     BlockBackend *blk;
-    BlockDriverState *bs;
+    BlockDriverState *bs, *base_bs;
     bool quiet = false;
+    Error *local_err = NULL;
+    CommonBlockJobCBInfo cbi;
 
     fmt = NULL;
     cache = BDRV_DEFAULT_CACHE;
@@ -771,29 +802,38 @@ static int img_commit(int argc, char **argv)
     }
     bs = blk_bs(blk);
 
-    ret = bdrv_commit(bs);
-    switch(ret) {
-    case 0:
-        qprintf(quiet, "Image committed.\n");
-        break;
-    case -ENOENT:
-        error_report("No disk inserted");
-        break;
-    case -EACCES:
-        error_report("Image is read-only");
-        break;
-    case -ENOTSUP:
-        error_report("Image is already committed");
-        break;
-    default:
-        error_report("Error while committing image");
-        break;
+    /* This is different from QMP, which by default uses the deepest file in the
+     * backing chain (i.e., the very base); however, the traditional behavior of
+     * qemu-img commit is using the immediate backing file. */
+    base_bs = bs->backing_hd;
+    if (!base_bs) {
+        error_setg(&local_err, "Image does not have a backing file");
+        goto done;
     }
 
+    cbi = (CommonBlockJobCBInfo){
+        .errp = &local_err,
+        .bs   = bs,
+    };
+
+    commit_active_start(bs, base_bs, 0, BLOCKDEV_ON_ERROR_REPORT,
+                        common_block_job_cb, &cbi, &local_err);
+    if (local_err) {
+        goto done;
+    }
+
+    run_block_job(bs->job, &local_err);
+
+done:
     blk_unref(blk);
-    if (ret) {
+
+    if (local_err) {
+        qerror_report_err(local_err);
+        error_free(local_err);
         return 1;
     }
+
+    qprintf(quiet, "Image committed.\n");
     return 0;
 }
 
