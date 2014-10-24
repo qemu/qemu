@@ -110,6 +110,7 @@ in the description of a field.
                     in bits: refcount_bits = 1 << refcount_order). For version 2
                     images, the order is always assumed to be 4
                     (i.e. refcount_bits = 16).
+                    This value may not exceed 6 (i.e. refcount_bits = 64).
 
         100 - 103:  header_length
                     Length of the header structure in bytes. For version 2
@@ -183,7 +184,7 @@ blocks and are exactly one cluster in size.
 Given a offset into the image file, the refcount of its cluster can be obtained
 as follows:
 
-    refcount_block_entries = (cluster_size / sizeof(uint16_t))
+    refcount_block_entries = (cluster_size * 8 / refcount_bits)
 
     refcount_block_index = (offset / cluster_size) % refcount_block_entries
     refcount_table_index = (offset / cluster_size) / refcount_block_entries

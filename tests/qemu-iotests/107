@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# Test qemu-img progress output
+# Tests updates of the qcow2 L1 table
 #
 # Copyright (C) 2014 Red Hat, Inc.
 #
@@ -19,12 +19,12 @@
 #
 
 # creator
-owner=kwolf@redhat.com
+owner=mreitz@redhat.com
 
-seq=`basename $0`
+seq="$(basename $0)"
 echo "QA output created by $seq"
 
-here=`pwd`
+here="$PWD"
 tmp=/tmp/$$
 status=1	# failure is the default!
 
@@ -39,27 +39,23 @@ trap "_cleanup; exit \$status" 0 1 2 3 15
 . ./common.filter
 
 _supported_fmt qcow2
-_supported_proto file nfs
+_supported_proto file
 _supported_os Linux
 
-function run_qemu_img()
-{
-    echo
-    echo Testing: "$@" | _filter_testdir
-}
 
-size=128M
+IMG_SIZE=64K
 
-_make_test_img $size
-$QEMU_IO -c 'write 0 1M' "$TEST_IMG" | _filter_qemu_io
-$QEMU_IO -c 'write 2M 1M' "$TEST_IMG" | _filter_qemu_io
-$QEMU_IO -c 'write 4M 1M' "$TEST_IMG" | _filter_qemu_io
-$QEMU_IO -c 'write 32M 1M' "$TEST_IMG" | _filter_qemu_io
+echo
+echo '=== Updates should not write random data ==='
+echo
 
-$QEMU_IMG convert -p -O $IMGFMT -f $IMGFMT "$TEST_IMG" "$TEST_IMG".base  2>&1 |\
-    _filter_testdir | sed -e 's/\r/\n/g'
+_make_test_img $IMG_SIZE
+$QEMU_IO -c 'write 0 64k' "$TEST_IMG" | _filter_qemu_io
+$QEMU_IO -c "open -o driver=raw $TEST_IMG" -c 'read -p -P 0 196616 65528' \
+    | _filter_qemu_io
 
 # success, all done
 echo "*** done"
 rm -f $seq.full
 status=0
+

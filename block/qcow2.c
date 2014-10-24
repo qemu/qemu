@@ -698,6 +698,9 @@ static int qcow2_open(BlockDriverState *bs, QDict *options, int flags,
 
     s->l2_bits = s->cluster_bits - 3; /* L2 is always one cluster */
     s->l2_size = 1 << s->l2_bits;
+    /* 2^(s->refcount_order - 3) is the refcount width in bytes */
+    s->refcount_block_bits = s->cluster_bits - (s->refcount_order - 3);
+    s->refcount_block_size = 1 << s->refcount_block_bits;
     bs->total_sectors = header.size / 512;
     s->csize_shift = (62 - (s->cluster_bits - 8));
     s->csize_mask = (1 << (s->cluster_bits - 8)) - 1;
@@ -907,7 +910,7 @@ static int qcow2_open(BlockDriverState *bs, QDict *options, int flags,
         (s->incompatible_features & QCOW2_INCOMPAT_DIRTY)) {
         BdrvCheckResult result = {0};
 
-        ret = qcow2_check(bs, &result, BDRV_FIX_ERRORS);
+        ret = qcow2_check(bs, &result, BDRV_FIX_ERRORS | BDRV_FIX_LEAKS);
         if (ret < 0) {
             error_setg_errno(errp, -ret, "Could not repair dirty image");
             goto fail;
@@ -1871,7 +1874,7 @@ static int qcow2_create2(const char *filename, int64_t total_size,
         .l1_size                    = cpu_to_be32(0),
         .refcount_table_offset      = cpu_to_be64(cluster_size),
         .refcount_table_clusters    = cpu_to_be32(1),
-        .refcount_order             = cpu_to_be32(3 + REFCOUNT_SHIFT),
+        .refcount_order             = cpu_to_be32(4),
         .header_length              = cpu_to_be32(sizeof(*header)),
     };
 

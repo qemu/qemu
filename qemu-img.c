@@ -687,16 +687,23 @@ static int img_check(int argc, char **argv)
         check->corruptions_fixed    = corruptions_fixed;
     }
 
-    switch (output_format) {
-    case OFORMAT_HUMAN:
-        dump_human_image_check(check, quiet);
-        break;
-    case OFORMAT_JSON:
-        dump_json_image_check(check, quiet);
-        break;
+    if (!ret) {
+        switch (output_format) {
+        case OFORMAT_HUMAN:
+            dump_human_image_check(check, quiet);
+            break;
+        case OFORMAT_JSON:
+            dump_json_image_check(check, quiet);
+            break;
+        }
     }
 
     if (ret || check->check_errors) {
+        if (ret) {
+            error_report("Check failed: %s", strerror(-ret));
+        } else {
+            error_report("Check failed");
+        }
         ret = 1;
         goto fail;
     }

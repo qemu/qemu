@@ -36,11 +36,15 @@ incompatible_features     0x0
 qcow2: Marking image as corrupt: Preventing invalid write on metadata (overlaps with refcount block); further corruption events will be suppressed
 write failed: Input/output error
 incompatible_features     0x2
-Repairing refcount block 0 refcount=2
+ERROR refcount block 0 refcount=2
+ERROR cluster 2 refcount=1 reference=2
+Rebuilding refcount structure
+Repairing cluster 1 refcount=1 reference=0
+Repairing cluster 2 refcount=2 reference=1
 The following inconsistencies were found and repaired:
 
     0 leaked clusters
-    1 corruptions
+    2 corruptions
 
 Double checking the fixed image now...
 No errors were found on the image.
@@ -68,6 +72,8 @@ incompatible_features     0x0
 qcow2: Marking image as corrupt: Preventing invalid write on metadata (overlaps with inactive L2 table); further corruption events will be suppressed
 write failed: Input/output error
 incompatible_features     0x2
+ERROR cluster 4 refcount=1 reference=2
+Leaked cluster 9 refcount=1 reference=0
 Repairing cluster 4 refcount=1 reference=2
 Repairing cluster 9 refcount=1 reference=0
 Repairing OFLAG_COPIED data cluster: l2_entry=8000000000040000 refcount=2
