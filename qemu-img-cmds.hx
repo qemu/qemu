@@ -22,9 +22,9 @@ STEXI
 ETEXI
 
 DEF("commit", img_commit,
-    "commit [-q] [-f fmt] [-t cache] filename")
+    "commit [-q] [-f fmt] [-t cache] [-d] filename")
 STEXI
-@item commit [-q] [-f @var{fmt}] [-t @var{cache}] @var{filename}
+@item commit [-q] [-f @var{fmt}] [-t @var{cache}] [-d] @var{filename}
 ETEXI
 
 DEF("compare", img_compare,

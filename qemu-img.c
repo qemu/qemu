@@ -757,14 +757,14 @@ static int img_commit(int argc, char **argv)
     const char *filename, *fmt, *cache;
     BlockBackend *blk;
     BlockDriverState *bs, *base_bs;
-    bool quiet = false;
+    bool quiet = false, drop = false;
     Error *local_err = NULL;
     CommonBlockJobCBInfo cbi;
 
     fmt = NULL;
     cache = BDRV_DEFAULT_CACHE;
     for(;;) {
-        c = getopt(argc, argv, "f:ht:q");
+        c = getopt(argc, argv, "f:ht:dq");
         if (c == -1) {
             break;
         }
@@ -779,6 +779,9 @@ static int img_commit(int argc, char **argv)
         case 't':
             cache = optarg;
             break;
+        case 'd':
+            drop = true;
+            break;
         case 'q':
             quiet = true;
             break;
@@ -789,7 +792,7 @@ static int img_commit(int argc, char **argv)
     }
     filename = argv[optind++];
 
-    flags = BDRV_O_RDWR;
+    flags = BDRV_O_RDWR | BDRV_O_UNMAP;
     ret = bdrv_parse_cache_flags(cache, &flags);
     if (ret < 0) {
         error_report("Invalid cache option: %s", cache);
@@ -822,7 +825,32 @@ static int img_commit(int argc, char **argv)
         goto done;
     }
 
+    /* The block job will swap base_bs and bs (which is not what we really want
+     * here, but okay) and unref base_bs (after the swap, i.e., the old top
+     * image). In order to still be able to empty that top image afterwards,
+     * increment the reference counter here preemptively. */
+    if (!drop) {
+        bdrv_ref(base_bs);
+    }
+
     run_block_job(bs->job, &local_err);
+    if (local_err) {
+        goto unref_backing;
+    }
+
+    if (!drop && base_bs->drv->bdrv_make_empty) {
+        ret = base_bs->drv->bdrv_make_empty(base_bs);
+        if (ret) {
+            error_setg_errno(&local_err, -ret, "Could not empty %s",
+                             filename);
+            goto unref_backing;
+        }
+    }
+
+unref_backing:
+    if (!drop) {
+        bdrv_unref(base_bs);
+    }
 
 done:
     blk_unref(blk);
