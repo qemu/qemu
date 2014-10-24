@@ -3232,6 +3232,9 @@ static int disas_vfp_insn(CPUARMState * env, DisasContext *s, uint32_t insn)
                             break;
                         case ARM_VFP_FPINST:
                         case ARM_VFP_FPINST2:
+                            if (IS_USER(s)) {
+                                return 1;
+                            }
                             tmp = load_reg(s, rd);
                             store_cpu_field(tmp, vfp.xregs[rn]);
                             break;
