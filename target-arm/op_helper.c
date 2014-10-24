@@ -392,10 +392,11 @@ void HELPER(pre_hvc)(CPUARMState *env)
     bool secure = false;
     bool undef;
 
-    /* We've already checked that EL2 exists at translation time.
-     * EL3.HCE has priority over EL2.HCD.
-     */
-    if (arm_feature(env, ARM_FEATURE_EL3)) {
+    if (!arm_feature(env, ARM_FEATURE_EL2)) {
+        /* If EL2 doesn't exist, HVC always UNDEFs */
+        undef = true;
+    } else if (arm_feature(env, ARM_FEATURE_EL3)) {
+        /* EL3.HCE has priority over EL2.HCD. */
         undef = !(env->cp15.scr_el3 & SCR_HCE);
     } else {
         undef = env->cp15.hcr_el2 & HCR_HCD;
@@ -429,13 +430,15 @@ void HELPER(pre_smc)(CPUARMState *env, uint32_t syndrome)
      */
     bool undef = is_a64(env) ? smd : (!secure && smd);
 
-    /* In NS EL1, HCR controlled routing to EL2 has priority over SMD.  */
-    if (!secure && cur_el == 1 && (env->cp15.hcr_el2 & HCR_TSC)) {
+    if (!arm_feature(env, ARM_FEATURE_EL3)) {
+        /* If we have no EL3 then SMC always UNDEFs */
+        undef = true;
+    } else if (!secure && cur_el == 1 && (env->cp15.hcr_el2 & HCR_TSC)) {
+        /* In NS EL1, HCR controlled routing to EL2 has priority over SMD. */
         env->exception.syndrome = syndrome;
         raise_exception(env, EXCP_HYP_TRAP);
     }
 
-    /* We've already checked that EL3 exists at translation time.  */
     if (undef) {
         env->exception.syndrome = syn_uncategorized();
         raise_exception(env, EXCP_UDEF);

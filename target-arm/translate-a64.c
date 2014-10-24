@@ -1485,7 +1485,7 @@ static void disas_exc(DisasContext *s, uint32_t insn)
             gen_exception_insn(s, 0, EXCP_SWI, syn_aa64_svc(imm16));
             break;
         case 2:
-            if (!arm_dc_feature(s, ARM_FEATURE_EL2) || s->current_pl == 0) {
+            if (s->current_pl == 0) {
                 unallocated_encoding(s);
                 break;
             }
@@ -1498,7 +1498,7 @@ static void disas_exc(DisasContext *s, uint32_t insn)
             gen_exception_insn(s, 0, EXCP_HVC, syn_aa64_hvc(imm16));
             break;
         case 3:
-            if (!arm_dc_feature(s, ARM_FEATURE_EL3) || s->current_pl == 0) {
+            if (s->current_pl == 0) {
                 unallocated_encoding(s);
                 break;
             }
