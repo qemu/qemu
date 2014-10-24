@@ -3970,6 +3970,12 @@ void arm_cpu_do_interrupt(CPUState *cs)
 
     arm_log_exception(cs->exception_index);
 
+    if (arm_is_psci_call(cpu, cs->exception_index)) {
+        arm_handle_psci_call(cpu);
+        qemu_log_mask(CPU_LOG_INT, "...handled as PSCI call\n");
+        return;
+    }
+
     /* If this is a debug exception we must update the DBGDSCR.MOE bits */
     switch (env->exception.syndrome >> ARM_EL_EC_SHIFT) {
     case EC_BREAKPOINT:

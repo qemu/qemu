@@ -387,10 +387,18 @@ void HELPER(clear_pstate_ss)(CPUARMState *env)
 
 void HELPER(pre_hvc)(CPUARMState *env)
 {
+    ARMCPU *cpu = arm_env_get_cpu(env);
     int cur_el = arm_current_pl(env);
     /* FIXME: Use actual secure state.  */
     bool secure = false;
     bool undef;
+
+    if (arm_is_psci_call(cpu, EXCP_HVC)) {
+        /* If PSCI is enabled and this looks like a valid PSCI call then
+         * that overrides the architecturally mandated HVC behaviour.
+         */
+        return;
+    }
 
     if (!arm_feature(env, ARM_FEATURE_EL2)) {
         /* If EL2 doesn't exist, HVC always UNDEFs */
@@ -419,6 +427,7 @@ void HELPER(pre_hvc)(CPUARMState *env)
 
 void HELPER(pre_smc)(CPUARMState *env, uint32_t syndrome)
 {
+    ARMCPU *cpu = arm_env_get_cpu(env);
     int cur_el = arm_current_pl(env);
     /* FIXME: Use real secure state.  */
     bool secure = false;
@@ -429,6 +438,13 @@ void HELPER(pre_smc)(CPUARMState *env, uint32_t syndrome)
      * the EL2 condition here.
      */
     bool undef = is_a64(env) ? smd : (!secure && smd);
+
+    if (arm_is_psci_call(cpu, EXCP_SMC)) {
+        /* If PSCI is enabled and this looks like a valid PSCI call then
+         * that overrides the architecturally mandated SMC behaviour.
+         */
+        return;
+    }
 
     if (!arm_feature(env, ARM_FEATURE_EL3)) {
         /* If we have no EL3 then SMC always UNDEFs */

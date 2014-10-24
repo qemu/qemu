@@ -334,9 +334,12 @@ static void arm_cpu_initfn(Object *obj)
     cpu->psci_version = 1; /* By default assume PSCI v0.1 */
     cpu->kvm_target = QEMU_KVM_ARM_TARGET_NONE;
 
-    if (tcg_enabled() && !inited) {
-        inited = true;
-        arm_translate_init();
+    if (tcg_enabled()) {
+        cpu->psci_version = 2; /* TCG implements PSCI 0.2 */
+        if (!inited) {
+            inited = true;
+            arm_translate_init();
+        }
     }
 }
 
@@ -1090,6 +1093,7 @@ static const ARMCPUInfo arm_cpus[] = {
 
 static Property arm_cpu_properties[] = {
     DEFINE_PROP_BOOL("start-powered-off", ARMCPU, start_powered_off, false),
+    DEFINE_PROP_UINT32("psci-conduit", ARMCPU, psci_conduit, 0),
     DEFINE_PROP_UINT32("midr", ARMCPU, midr, 0),
     DEFINE_PROP_END_OF_LIST()
 };

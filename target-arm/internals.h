@@ -366,4 +366,16 @@ void hw_breakpoint_update_all(ARMCPU *cpu);
 /* Callback function for when a watchpoint or breakpoint triggers. */
 void arm_debug_excp_handler(CPUState *cs);
 
+#ifdef CONFIG_USER_ONLY
+static inline bool arm_is_psci_call(ARMCPU *cpu, int excp_type)
+{
+    return false;
+}
+#else
+/* Return true if the r0/x0 value indicates that this SMC/HVC is a PSCI call. */
+bool arm_is_psci_call(ARMCPU *cpu, int excp_type);
+/* Actually handle a PSCI call */
+void arm_handle_psci_call(ARMCPU *cpu);
+#endif
+
 #endif

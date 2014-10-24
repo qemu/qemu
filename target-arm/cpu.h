@@ -1484,4 +1484,10 @@ static inline void cpu_pc_from_tb(CPUARMState *env, TranslationBlock *tb)
     }
 }
 
+enum {
+    QEMU_PSCI_CONDUIT_DISABLED = 0,
+    QEMU_PSCI_CONDUIT_SMC = 1,
+    QEMU_PSCI_CONDUIT_HVC = 2,
+};
+
 #endif
