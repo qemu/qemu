@@ -746,9 +746,14 @@ static void run_block_job(BlockJob *job, Error **errp)
 
     do {
         aio_poll(aio_context, true);
+        qemu_progress_print((float)job->offset / job->len * 100.f, 0);
     } while (!job->ready);
 
     block_job_complete_sync(job, errp);
+
+    /* A block job may finish instantaneously without publishing any progress,
+     * so just signal completion here */
+    qemu_progress_print(100.f, 0);
 }
 
 static int img_commit(int argc, char **argv)
@@ -757,14 +762,14 @@ static int img_commit(int argc, char **argv)
     const char *filename, *fmt, *cache;
     BlockBackend *blk;
     BlockDriverState *bs, *base_bs;
-    bool quiet = false, drop = false;
+    bool progress = false, quiet = false, drop = false;
     Error *local_err = NULL;
     CommonBlockJobCBInfo cbi;
 
     fmt = NULL;
     cache = BDRV_DEFAULT_CACHE;
     for(;;) {
-        c = getopt(argc, argv, "f:ht:dq");
+        c = getopt(argc, argv, "f:ht:dpq");
         if (c == -1) {
             break;
         }
@@ -782,11 +787,20 @@ static int img_commit(int argc, char **argv)
         case 'd':
             drop = true;
             break;
+        case 'p':
+            progress = true;
+            break;
         case 'q':
             quiet = true;
             break;
         }
     }
+
+    /* Progress is not shown in Quiet mode */
+    if (quiet) {
+        progress = false;
+    }
+
     if (optind != argc - 1) {
         error_exit("Expecting one image file name");
     }
@@ -804,6 +818,9 @@ static int img_commit(int argc, char **argv)
         return 1;
     }
     bs = blk_bs(blk);
+
+    qemu_progress_init(progress, 1.f);
+    qemu_progress_print(0.f, 100);
 
     /* This is different from QMP, which by default uses the deepest file in the
      * backing chain (i.e., the very base); however, the traditional behavior of
@@ -853,6 +870,8 @@ unref_backing:
     }
 
 done:
+    qemu_progress_end();
+
     blk_unref(blk);
 
     if (local_err) {

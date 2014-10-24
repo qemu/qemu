@@ -167,7 +167,7 @@ this case. @var{backing_file} will never be modified unless you use the
 The size can also be specified using the @var{size} option with @code{-o},
 it doesn't need to be specified separately in this case.
 
-@item commit [-f @var{fmt}] [-t @var{cache}] [-d] @var{filename}
+@item commit [-q] [-f @var{fmt}] [-t @var{cache}] [-d] [-p] @var{filename}
 
 Commit the changes recorded in @var{filename} in its base image or backing file.
 If the backing file is smaller than the snapshot, then the backing file will be
