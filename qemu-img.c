@@ -759,7 +759,7 @@ static void run_block_job(BlockJob *job, Error **errp)
 static int img_commit(int argc, char **argv)
 {
     int c, ret, flags;
-    const char *filename, *fmt, *cache;
+    const char *filename, *fmt, *cache, *base;
     BlockBackend *blk;
     BlockDriverState *bs, *base_bs;
     bool progress = false, quiet = false, drop = false;
@@ -768,8 +768,9 @@ static int img_commit(int argc, char **argv)
 
     fmt = NULL;
     cache = BDRV_DEFAULT_CACHE;
+    base = NULL;
     for(;;) {
-        c = getopt(argc, argv, "f:ht:dpq");
+        c = getopt(argc, argv, "f:ht:b:dpq");
         if (c == -1) {
             break;
         }
@@ -783,6 +784,11 @@ static int img_commit(int argc, char **argv)
             break;
         case 't':
             cache = optarg;
+            break;
+        case 'b':
+            base = optarg;
+            /* -b implies -d */
+            drop = true;
             break;
         case 'd':
             drop = true;
@@ -822,13 +828,21 @@ static int img_commit(int argc, char **argv)
     qemu_progress_init(progress, 1.f);
     qemu_progress_print(0.f, 100);
 
-    /* This is different from QMP, which by default uses the deepest file in the
-     * backing chain (i.e., the very base); however, the traditional behavior of
-     * qemu-img commit is using the immediate backing file. */
-    base_bs = bs->backing_hd;
-    if (!base_bs) {
-        error_setg(&local_err, "Image does not have a backing file");
-        goto done;
+    if (base) {
+        base_bs = bdrv_find_backing_image(bs, base);
+        if (!base_bs) {
+            error_set(&local_err, QERR_BASE_NOT_FOUND, base);
+            goto done;
+        }
+    } else {
+        /* This is different from QMP, which by default uses the deepest file in
+         * the backing chain (i.e., the very base); however, the traditional
+         * behavior of qemu-img commit is using the immediate backing file. */
+        base_bs = bs->backing_hd;
+        if (!base_bs) {
+            error_setg(&local_err, "Image does not have a backing file");
+            goto done;
+        }
     }
 
     cbi = (CommonBlockJobCBInfo){
