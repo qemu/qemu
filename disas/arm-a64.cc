@@ -39,7 +39,7 @@ public:
     ~QEMUDisassembler() { }
 
 protected:
-    void ProcessOutput(Instruction *instr) {
+    virtual void ProcessOutput(const Instruction *instr) {
         fprintf(stream_, "%08" PRIx32 "      %s",
                 instr->InstructionBits(), GetOutput());
     }

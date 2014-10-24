@@ -134,4 +134,5 @@ uint64_t LowestSetBit(uint64_t value) {
 bool IsPowerOf2(int64_t value) {
   return (value != 0) && ((value & (value - 1)) == 0);
 }
+
 }  // namespace vixl

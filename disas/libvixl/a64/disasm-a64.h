@@ -31,6 +31,7 @@
 #include "utils.h"
 #include "instructions-a64.h"
 #include "decoder-a64.h"
+#include "assembler-a64.h"
 
 namespace vixl {
 
@@ -42,48 +43,83 @@ class Disassembler: public DecoderVisitor {
   char* GetOutput();
 
   // Declare all Visitor functions.
-  #define DECLARE(A)  void Visit##A(Instruction* instr);
+  #define DECLARE(A)  void Visit##A(const Instruction* instr);
   VISITOR_LIST(DECLARE)
   #undef DECLARE
 
  protected:
-  virtual void ProcessOutput(Instruction* instr);
+  virtual void ProcessOutput(const Instruction* instr);
+
+  // Default output functions.  The functions below implement a default way of
+  // printing elements in the disassembly. A sub-class can override these to
+  // customize the disassembly output.
+
+  // Prints the name of a register.
+  virtual void AppendRegisterNameToOutput(const Instruction* instr,
+                                          const CPURegister& reg);
+
+  // Prints a PC-relative offset. This is used for example when disassembling
+  // branches to immediate offsets.
+  virtual void AppendPCRelativeOffsetToOutput(const Instruction* instr,
+                                              int64_t offset);
+
+  // Prints an address, in the general case. It can be code or data. This is
+  // used for example to print the target address of an ADR instruction.
+  virtual void AppendAddressToOutput(const Instruction* instr,
+                                     const void* addr);
+
+  // Prints the address of some code.
+  // This is used for example to print the target address of a branch to an
+  // immediate offset.
+  // A sub-class can for example override this method to lookup the address and
+  // print an appropriate name.
+  virtual void AppendCodeAddressToOutput(const Instruction* instr,
+                                         const void* addr);
+
+  // Prints the address of some data.
+  // This is used for example to print the source address of a load literal
+  // instruction.
+  virtual void AppendDataAddressToOutput(const Instruction* instr,
+                                         const void* addr);
 
  private:
-  void Format(Instruction* instr, const char* mnemonic, const char* format);
-  void Substitute(Instruction* instr, const char* string);
-  int SubstituteField(Instruction* instr, const char* format);
-  int SubstituteRegisterField(Instruction* instr, const char* format);
-  int SubstituteImmediateField(Instruction* instr, const char* format);
-  int SubstituteLiteralField(Instruction* instr, const char* format);
-  int SubstituteBitfieldImmediateField(Instruction* instr, const char* format);
-  int SubstituteShiftField(Instruction* instr, const char* format);
-  int SubstituteExtendField(Instruction* instr, const char* format);
-  int SubstituteConditionField(Instruction* instr, const char* format);
-  int SubstitutePCRelAddressField(Instruction* instr, const char* format);
-  int SubstituteBranchTargetField(Instruction* instr, const char* format);
-  int SubstituteLSRegOffsetField(Instruction* instr, const char* format);
-  int SubstitutePrefetchField(Instruction* instr, const char* format);
-  int SubstituteBarrierField(Instruction* instr, const char* format);
+  void Format(
+      const Instruction* instr, const char* mnemonic, const char* format);
+  void Substitute(const Instruction* instr, const char* string);
+  int SubstituteField(const Instruction* instr, const char* format);
+  int SubstituteRegisterField(const Instruction* instr, const char* format);
+  int SubstituteImmediateField(const Instruction* instr, const char* format);
+  int SubstituteLiteralField(const Instruction* instr, const char* format);
+  int SubstituteBitfieldImmediateField(
+      const Instruction* instr, const char* format);
+  int SubstituteShiftField(const Instruction* instr, const char* format);
+  int SubstituteExtendField(const Instruction* instr, const char* format);
+  int SubstituteConditionField(const Instruction* instr, const char* format);
+  int SubstitutePCRelAddressField(const Instruction* instr, const char* format);
+  int SubstituteBranchTargetField(const Instruction* instr, const char* format);
+  int SubstituteLSRegOffsetField(const Instruction* instr, const char* format);
+  int SubstitutePrefetchField(const Instruction* instr, const char* format);
+  int SubstituteBarrierField(const Instruction* instr, const char* format);
 
-  inline bool RdIsZROrSP(Instruction* instr) const {
+  inline bool RdIsZROrSP(const Instruction* instr) const {
     return (instr->Rd() == kZeroRegCode);
   }
 
-  inline bool RnIsZROrSP(Instruction* instr) const {
+  inline bool RnIsZROrSP(const Instruction* instr) const {
     return (instr->Rn() == kZeroRegCode);
   }
 
-  inline bool RmIsZROrSP(Instruction* instr) const {
+  inline bool RmIsZROrSP(const Instruction* instr) const {
     return (instr->Rm() == kZeroRegCode);
   }
 
-  inline bool RaIsZROrSP(Instruction* instr) const {
+  inline bool RaIsZROrSP(const Instruction* instr) const {
     return (instr->Ra() == kZeroRegCode);
   }
 
   bool IsMovzMovnImm(unsigned reg_size, uint64_t value);
 
+ protected:
   void ResetOutput();
   void AppendToOutput(const char* string, ...) PRINTF_CHECK(2, 3);
 
@@ -97,10 +133,10 @@ class Disassembler: public DecoderVisitor {
 class PrintDisassembler: public Disassembler {
  public:
   explicit PrintDisassembler(FILE* stream) : stream_(stream) { }
-  ~PrintDisassembler() { }
+  virtual ~PrintDisassembler() { }
 
  protected:
-  virtual void ProcessOutput(Instruction* instr);
+  virtual void ProcessOutput(const Instruction* instr);
 
  private:
   FILE *stream_;
