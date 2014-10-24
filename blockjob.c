@@ -261,6 +261,7 @@ BlockJobInfo *block_job_query(BlockJob *job)
     info->offset    = job->offset;
     info->speed     = job->speed;
     info->io_status = job->iostatus;
+    info->ready     = job->ready;
     return info;
 }
 
@@ -296,6 +297,8 @@ void block_job_event_completed(BlockJob *job, const char *msg)
 
 void block_job_event_ready(BlockJob *job)
 {
+    job->ready = true;
+
     qapi_event_send_block_job_ready(job->driver->job_type,
                                     bdrv_get_device_name(job->bs),
                                     job->len,

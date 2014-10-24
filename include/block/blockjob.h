@@ -91,6 +91,11 @@ struct BlockJob {
      */
     bool busy;
 
+    /**
+     * Set to true when the job is ready to be completed.
+     */
+    bool ready;
+
     /** Status that is published by the query-block-jobs QMP API */
     BlockDeviceIoStatus iostatus;
 
