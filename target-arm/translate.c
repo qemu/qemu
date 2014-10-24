@@ -7077,7 +7077,7 @@ static int disas_coproc_insn(CPUARMState * env, DisasContext *s, uint32_t insn)
                             ENCODE_CP_REG(cpnum, is64, crn, crm, opc1, opc2));
     if (ri) {
         /* Check access permissions */
-        if (!cp_access_ok(s->current_pl, ri, isread)) {
+        if (!cp_access_ok(s->current_el, ri, isread)) {
             return 1;
         }
 
@@ -11011,7 +11011,7 @@ static inline void gen_intermediate_code_internal(ARMCPU *cpu,
     dc->vec_stride = ARM_TBFLAG_VECSTRIDE(tb->flags);
     dc->c15_cpar = ARM_TBFLAG_XSCALE_CPAR(tb->flags);
     dc->cp_regs = cpu->cp_regs;
-    dc->current_pl = arm_current_pl(env);
+    dc->current_el = arm_current_el(env);
     dc->features = env->features;
 
     /* Single step state. The code-generation logic here is:

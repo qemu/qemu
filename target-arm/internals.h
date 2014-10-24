@@ -130,7 +130,7 @@ static inline void aarch64_restore_sp(CPUARMState *env, int el)
 
 static inline void update_spsel(CPUARMState *env, uint32_t imm)
 {
-    unsigned int cur_el = arm_current_pl(env);
+    unsigned int cur_el = arm_current_el(env);
     /* Update PSTATE SPSel bit; this requires us to update the
      * working stack pointer in xregs[31].
      */

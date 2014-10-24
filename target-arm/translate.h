@@ -29,7 +29,7 @@ typedef struct DisasContext {
      */
     uint32_t svc_imm;
     int aarch64;
-    int current_pl;
+    int current_el;
     GHashTable *cp_regs;
     uint64_t features; /* CPU features bits */
     /* Because unallocated encodings generate different exception syndrome
@@ -68,7 +68,7 @@ static inline int arm_dc_feature(DisasContext *dc, int feature)
 
 static inline int get_mem_index(DisasContext *s)
 {
-    return s->current_pl;
+    return s->current_el;
 }
 
 /* target-specific extra values for is_jmp */

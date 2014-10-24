@@ -991,7 +991,10 @@ static inline bool cptype_valid(int cptype)
 #define PL1_RW (PL1_R | PL1_W)
 #define PL0_RW (PL0_R | PL0_W)
 
-static inline int arm_current_pl(CPUARMState *env)
+/* Return the current Exception Level (as per ARMv8; note that this differs
+ * from the ARMv7 Privilege Level).
+ */
+static inline int arm_current_el(CPUARMState *env)
 {
     if (env->aarch64) {
         return extract32(env->pstate, 2, 2);
@@ -1001,7 +1004,7 @@ static inline int arm_current_pl(CPUARMState *env)
         return 0;
     }
     /* We don't currently implement the Virtualization or TrustZone
-     * extensions, so PL2 and PL3 don't exist for us.
+     * extensions, so EL2 and EL3 don't exist for us.
      */
     return 1;
 }
@@ -1164,10 +1167,10 @@ static inline bool cpreg_field_is_64bit(const ARMCPRegInfo *ri)
     return (ri->state == ARM_CP_STATE_AA64) || (ri->type & ARM_CP_64BIT);
 }
 
-static inline bool cp_access_ok(int current_pl,
+static inline bool cp_access_ok(int current_el,
                                 const ARMCPRegInfo *ri, int isread)
 {
-    return (ri->access >> ((current_pl * 2) + isread)) & 1;
+    return (ri->access >> ((current_el * 2) + isread)) & 1;
 }
 
 /**
@@ -1231,7 +1234,7 @@ bool write_cpustate_to_list(ARMCPU *cpu);
 static inline bool arm_excp_unmasked(CPUState *cs, unsigned int excp_idx)
 {
     CPUARMState *env = cs->env_ptr;
-    unsigned int cur_el = arm_current_pl(env);
+    unsigned int cur_el = arm_current_el(env);
     unsigned int target_el = arm_excp_target_el(cs, excp_idx);
     /* FIXME: Use actual secure state.  */
     bool secure = false;
@@ -1303,7 +1306,7 @@ static inline CPUARMState *cpu_init(const char *cpu_model)
 #define MMU_USER_IDX 0
 static inline int cpu_mmu_index (CPUARMState *env)
 {
-    return arm_current_pl(env);
+    return arm_current_el(env);
 }
 
 /* Return the Exception Level targeted by debug exceptions;
@@ -1316,7 +1319,7 @@ static inline int arm_debug_target_el(CPUARMState *env)
 
 static inline bool aa64_generate_debug_exceptions(CPUARMState *env)
 {
-    if (arm_current_pl(env) == arm_debug_target_el(env)) {
+    if (arm_current_el(env) == arm_debug_target_el(env)) {
         if ((extract32(env->cp15.mdscr_el1, 13, 1) == 0)
             || (env->daif & PSTATE_D)) {
             return false;
@@ -1327,10 +1330,10 @@ static inline bool aa64_generate_debug_exceptions(CPUARMState *env)
 
 static inline bool aa32_generate_debug_exceptions(CPUARMState *env)
 {
-    if (arm_current_pl(env) == 0 && arm_el_is_aa64(env, 1)) {
+    if (arm_current_el(env) == 0 && arm_el_is_aa64(env, 1)) {
         return aa64_generate_debug_exceptions(env);
     }
-    return arm_current_pl(env) != 2;
+    return arm_current_el(env) != 2;
 }
 
 /* Return true if debugging exceptions are currently enabled.
@@ -1460,8 +1463,8 @@ static inline void cpu_get_tb_cpu_state(CPUARMState *env, target_ulong *pc,
     if (is_a64(env)) {
         *pc = env->pc;
         *flags = ARM_TBFLAG_AARCH64_STATE_MASK
-            | (arm_current_pl(env) << ARM_TBFLAG_AA64_EL_SHIFT);
-        if (fpen == 3 || (fpen == 1 && arm_current_pl(env) != 0)) {
+            | (arm_current_el(env) << ARM_TBFLAG_AA64_EL_SHIFT);
+        if (fpen == 3 || (fpen == 1 && arm_current_el(env) != 0)) {
             *flags |= ARM_TBFLAG_AA64_FPEN_MASK;
         }
         /* The SS_ACTIVE and PSTATE_SS bits correspond to the state machine
@@ -1497,7 +1500,7 @@ static inline void cpu_get_tb_cpu_state(CPUARMState *env, target_ulong *pc,
             || arm_el_is_aa64(env, 1)) {
             *flags |= ARM_TBFLAG_VFPEN_MASK;
         }
-        if (fpen == 3 || (fpen == 1 && arm_current_pl(env) != 0)) {
+        if (fpen == 3 || (fpen == 1 && arm_current_el(env) != 0)) {
             *flags |= ARM_TBFLAG_CPACR_FPEN_MASK;
         }
         /* The SS_ACTIVE and PSTATE_SS bits correspond to the state machine
