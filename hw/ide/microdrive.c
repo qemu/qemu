@@ -543,7 +543,6 @@ static int dscm1xxxx_attach(PCMCIACardState *card)
     device_reset(DEVICE(md));
     md_interrupt_update(md);
 
-    card->slot->card_string = "DSCM-1xxxx Hitachi Microdrive";
     return 0;
 }
 

@@ -25,7 +25,6 @@
 #include "hw/hw.h"
 #include "monitor/qdev.h"
 #include "hw/usb.h"
-#include "hw/pcmcia.h"
 #include "hw/i386/pc.h"
 #include "hw/pci/pci.h"
 #include "sysemu/watchdog.h"
@@ -2790,13 +2789,6 @@ static mon_cmd_t info_cmds[] = {
         .params     = "",
         .help       = "show the current VM status (running|paused)",
         .mhandler.cmd = hmp_info_status,
-    },
-    {
-        .name       = "pcmcia",
-        .args_type  = "",
-        .params     = "",
-        .help       = "show guest PCMCIA status",
-        .mhandler.cmd = pcmcia_info,
     },
     {
         .name       = "mice",
