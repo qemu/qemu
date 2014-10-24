@@ -753,6 +753,53 @@ static inline int arm_feature(CPUARMState *env, int feature)
     return (env->features & (1ULL << feature)) != 0;
 }
 
+#if !defined(CONFIG_USER_ONLY)
+/* Return true if exception levels below EL3 are in secure state,
+ * or would be following an exception return to that level.
+ * Unlike arm_is_secure() (which is always a question about the
+ * _current_ state of the CPU) this doesn't care about the current
+ * EL or mode.
+ */
+static inline bool arm_is_secure_below_el3(CPUARMState *env)
+{
+    if (arm_feature(env, ARM_FEATURE_EL3)) {
+        return !(env->cp15.scr_el3 & SCR_NS);
+    } else {
+        /* If EL2 is not supported then the secure state is implementation
+         * defined, in which case QEMU defaults to non-secure.
+         */
+        return false;
+    }
+}
+
+/* Return true if the processor is in secure state */
+static inline bool arm_is_secure(CPUARMState *env)
+{
+    if (arm_feature(env, ARM_FEATURE_EL3)) {
+        if (is_a64(env) && extract32(env->pstate, 2, 2) == 3) {
+            /* CPU currently in AArch64 state and EL3 */
+            return true;
+        } else if (!is_a64(env) &&
+                (env->uncached_cpsr & CPSR_M) == ARM_CPU_MODE_MON) {
+            /* CPU currently in AArch32 state and monitor mode */
+            return true;
+        }
+    }
+    return arm_is_secure_below_el3(env);
+}
+
+#else
+static inline bool arm_is_secure_below_el3(CPUARMState *env)
+{
+    return false;
+}
+
+static inline bool arm_is_secure(CPUARMState *env)
+{
+    return false;
+}
+#endif
+
 /* Return true if the specified exception level is running in AArch64 state. */
 static inline bool arm_el_is_aa64(CPUARMState *env, int el)
 {
