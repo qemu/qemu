@@ -153,8 +153,8 @@ typedef struct CPUARMState {
 
     /* Banked registers.  */
     uint64_t banked_spsr[8];
-    uint32_t banked_r13[6];
-    uint32_t banked_r14[6];
+    uint32_t banked_r13[8];
+    uint32_t banked_r14[8];
 
     /* These hold r8-r12.  */
     uint32_t usr_regs[5];
