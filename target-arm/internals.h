@@ -236,6 +236,16 @@ static inline uint32_t syn_aa32_svc(uint32_t imm16, bool is_thumb)
         | (is_thumb ? 0 : ARM_EL_IL);
 }
 
+static inline uint32_t syn_aa32_hvc(uint32_t imm16)
+{
+    return (EC_AA32_HVC << ARM_EL_EC_SHIFT) | ARM_EL_IL | (imm16 & 0xffff);
+}
+
+static inline uint32_t syn_aa32_smc(void)
+{
+    return (EC_AA32_SMC << ARM_EL_EC_SHIFT) | ARM_EL_IL;
+}
+
 static inline uint32_t syn_aa64_bkpt(uint32_t imm16)
 {
     return (EC_AA64_BKPT << ARM_EL_EC_SHIFT) | ARM_EL_IL | (imm16 & 0xffff);
