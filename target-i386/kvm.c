@@ -1048,7 +1048,7 @@ static int kvm_put_xsave(X86CPU *cpu)
     CPUX86State *env = &cpu->env;
     struct kvm_xsave* xsave = env->kvm_xsave_buf;
     uint16_t cwd, swd, twd;
-    uint8_t *xmm;
+    uint8_t *xmm, *ymmh, *zmmh;
     int i, r;
 
     if (!kvm_has_xsave()) {
@@ -1071,26 +1071,30 @@ static int kvm_put_xsave(X86CPU *cpu)
             sizeof env->fpregs);
     xsave->region[XSAVE_MXCSR] = env->mxcsr;
     *(uint64_t *)&xsave->region[XSAVE_XSTATE_BV] = env->xstate_bv;
-    memcpy(&xsave->region[XSAVE_YMMH_SPACE], env->ymmh_regs,
-            sizeof env->ymmh_regs);
     memcpy(&xsave->region[XSAVE_BNDREGS], env->bnd_regs,
             sizeof env->bnd_regs);
     memcpy(&xsave->region[XSAVE_BNDCSR], &env->bndcs_regs,
             sizeof(env->bndcs_regs));
     memcpy(&xsave->region[XSAVE_OPMASK], env->opmask_regs,
             sizeof env->opmask_regs);
-    memcpy(&xsave->region[XSAVE_ZMM_Hi256], env->zmmh_regs,
-            sizeof env->zmmh_regs);
 
     xmm = (uint8_t *)&xsave->region[XSAVE_XMM_SPACE];
-    for (i = 0; i < CPU_NB_REGS; i++, xmm += 16) {
+    ymmh = (uint8_t *)&xsave->region[XSAVE_YMMH_SPACE];
+    zmmh = (uint8_t *)&xsave->region[XSAVE_ZMM_Hi256];
+    for (i = 0; i < CPU_NB_REGS; i++, xmm += 16, ymmh += 16, zmmh += 32) {
         stq_p(xmm,     env->xmm_regs[i].XMM_Q(0));
         stq_p(xmm+8,   env->xmm_regs[i].XMM_Q(1));
+        stq_p(ymmh,    env->xmm_regs[i].XMM_Q(2));
+        stq_p(ymmh+8,  env->xmm_regs[i].XMM_Q(3));
+        stq_p(zmmh,    env->xmm_regs[i].XMM_Q(4));
+        stq_p(zmmh+8,  env->xmm_regs[i].XMM_Q(5));
+        stq_p(zmmh+16, env->xmm_regs[i].XMM_Q(6));
+        stq_p(zmmh+24, env->xmm_regs[i].XMM_Q(7));
     }
 
 #ifdef TARGET_X86_64
-    memcpy(&xsave->region[XSAVE_Hi16_ZMM], env->hi16_zmm_regs,
-            sizeof env->hi16_zmm_regs);
+    memcpy(&xsave->region[XSAVE_Hi16_ZMM], &env->xmm_regs[16],
+            16 * sizeof env->xmm_regs[16]);
 #endif
     r = kvm_vcpu_ioctl(CPU(cpu), KVM_SET_XSAVE, xsave);
     return r;
@@ -1407,7 +1411,7 @@ static int kvm_get_xsave(X86CPU *cpu)
     CPUX86State *env = &cpu->env;
     struct kvm_xsave* xsave = env->kvm_xsave_buf;
     int ret, i;
-    const uint8_t *xmm;
+    const uint8_t *xmm, *ymmh, *zmmh;
     uint16_t cwd, swd, twd;
 
     if (!kvm_has_xsave()) {
@@ -1435,26 +1439,30 @@ static int kvm_get_xsave(X86CPU *cpu)
     memcpy(env->fpregs, &xsave->region[XSAVE_ST_SPACE],
             sizeof env->fpregs);
     env->xstate_bv = *(uint64_t *)&xsave->region[XSAVE_XSTATE_BV];
-    memcpy(env->ymmh_regs, &xsave->region[XSAVE_YMMH_SPACE],
-            sizeof env->ymmh_regs);
     memcpy(env->bnd_regs, &xsave->region[XSAVE_BNDREGS],
             sizeof env->bnd_regs);
     memcpy(&env->bndcs_regs, &xsave->region[XSAVE_BNDCSR],
             sizeof(env->bndcs_regs));
     memcpy(env->opmask_regs, &xsave->region[XSAVE_OPMASK],
             sizeof env->opmask_regs);
-    memcpy(env->zmmh_regs, &xsave->region[XSAVE_ZMM_Hi256],
-            sizeof env->zmmh_regs);
 
     xmm = (const uint8_t *)&xsave->region[XSAVE_XMM_SPACE];
-    for (i = 0; i < CPU_NB_REGS; i++, xmm += 16) {
+    ymmh = (const uint8_t *)&xsave->region[XSAVE_YMMH_SPACE];
+    zmmh = (const uint8_t *)&xsave->region[XSAVE_ZMM_Hi256];
+    for (i = 0; i < CPU_NB_REGS; i++, xmm += 16, ymmh += 16, zmmh += 32) {
         env->xmm_regs[i].XMM_Q(0) = ldq_p(xmm);
         env->xmm_regs[i].XMM_Q(1) = ldq_p(xmm+8);
+        env->xmm_regs[i].XMM_Q(2) = ldq_p(ymmh);
+        env->xmm_regs[i].XMM_Q(3) = ldq_p(ymmh+8);
+        env->xmm_regs[i].XMM_Q(4) = ldq_p(zmmh);
+        env->xmm_regs[i].XMM_Q(5) = ldq_p(zmmh+8);
+        env->xmm_regs[i].XMM_Q(6) = ldq_p(zmmh+16);
+        env->xmm_regs[i].XMM_Q(7) = ldq_p(zmmh+24);
     }
 
 #ifdef TARGET_X86_64
-    memcpy(env->hi16_zmm_regs, &xsave->region[XSAVE_Hi16_ZMM],
-            sizeof env->hi16_zmm_regs);
+    memcpy(&env->xmm_regs[16], &xsave->region[XSAVE_Hi16_ZMM],
+           16 * sizeof env->xmm_regs[16]);
 #endif
     return 0;
 }
