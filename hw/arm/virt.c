@@ -240,14 +240,23 @@ static void fdt_add_timer_nodes(const VirtBoardInfo *vbi)
      * but for the GIC implementation provided by both QEMU and KVM
      * they are edge-triggered.
      */
+    ARMCPU *armcpu;
     uint32_t irqflags = GIC_FDT_IRQ_FLAGS_EDGE_LO_HI;
 
     irqflags = deposit32(irqflags, GIC_FDT_IRQ_PPI_CPU_START,
                          GIC_FDT_IRQ_PPI_CPU_WIDTH, (1 << vbi->smp_cpus) - 1);
 
     qemu_fdt_add_subnode(vbi->fdt, "/timer");
-    qemu_fdt_setprop_string(vbi->fdt, "/timer",
-                                "compatible", "arm,armv7-timer");
+
+    armcpu = ARM_CPU(qemu_get_cpu(0));
+    if (arm_feature(&armcpu->env, ARM_FEATURE_V8)) {
+        const char compat[] = "arm,armv8-timer\0arm,armv7-timer";
+        qemu_fdt_setprop(vbi->fdt, "/timer", "compatible",
+                         compat, sizeof(compat));
+    } else {
+        qemu_fdt_setprop_string(vbi->fdt, "/timer", "compatible",
+                                "arm,armv7-timer");
+    }
     qemu_fdt_setprop_cells(vbi->fdt, "/timer", "interrupts",
                                GIC_FDT_IRQ_TYPE_PPI, 13, irqflags,
                                GIC_FDT_IRQ_TYPE_PPI, 14, irqflags,
@@ -555,7 +564,6 @@ static void machvirt_init(MachineState *machine)
     }
 
     create_fdt(vbi);
-    fdt_add_timer_nodes(vbi);
 
     for (n = 0; n < smp_cpus; n++) {
         ObjectClass *oc = cpu_class_by_name(TYPE_ARM_CPU, cpu_model);
@@ -579,6 +587,7 @@ static void machvirt_init(MachineState *machine)
 
         object_property_set_bool(cpuobj, true, "realized", NULL);
     }
+    fdt_add_timer_nodes(vbi);
     fdt_add_cpu_nodes(vbi);
     fdt_add_psci_node(vbi);
 
