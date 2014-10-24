@@ -429,8 +429,7 @@ void HELPER(pre_smc)(CPUARMState *env, uint32_t syndrome)
 {
     ARMCPU *cpu = arm_env_get_cpu(env);
     int cur_el = arm_current_el(env);
-    /* FIXME: Use real secure state.  */
-    bool secure = false;
+    bool secure = arm_is_secure(env);
     bool smd = env->cp15.scr_el3 & SCR_SMD;
     /* On ARMv8 AArch32, SMD only applies to NS state.
      * On ARMv7 SMD only applies to NS state and only if EL2 is available.

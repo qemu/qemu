@@ -4091,6 +4091,12 @@ void arm_cpu_do_interrupt(CPUState *cs)
         mask = CPSR_A | CPSR_I | CPSR_F;
         offset = 4;
         break;
+    case EXCP_SMC:
+        new_mode = ARM_CPU_MODE_MON;
+        addr = 0x08;
+        mask = CPSR_A | CPSR_I | CPSR_F;
+        offset = 0;
+        break;
     default:
         cpu_abort(cs, "Unhandled exception 0x%x\n", cs->exception_index);
         return; /* Never happens.  Keep compiler happy.  */
@@ -4109,6 +4115,11 @@ void arm_cpu_do_interrupt(CPUState *cs)
          */
         addr += env->cp15.vbar_el[1];
     }
+
+    if ((env->uncached_cpsr & CPSR_M) == ARM_CPU_MODE_MON) {
+        env->cp15.scr_el3 &= ~SCR_NS;
+    }
+
     switch_mode (env, new_mode);
     /* For exceptions taken to AArch32 we must clear the SS bit in both
      * PSTATE and in the old-state value we save to SPSR_<mode>, so zero it now.
