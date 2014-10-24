@@ -438,6 +438,8 @@ uint64_t HELPER(crc32c_64)(uint64_t acc, uint64_t val, uint32_t bytes)
     return crc32c(acc, buf, bytes) ^ 0xffffffff;
 }
 
+#if !defined(CONFIG_USER_ONLY)
+
 /* Handle a CPU exception.  */
 void aarch64_cpu_do_interrupt(CPUState *cs)
 {
@@ -518,3 +520,4 @@ void aarch64_cpu_do_interrupt(CPUState *cs)
     env->pc = addr;
     cs->interrupt_request |= CPU_INTERRUPT_EXITTB;
 }
+#endif
