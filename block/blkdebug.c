@@ -195,6 +195,8 @@ static const char *event_names[BLKDBG_EVENT_MAX] = {
     [BLKDBG_PWRITEV]                        = "pwritev",
     [BLKDBG_PWRITEV_ZERO]                   = "pwritev_zero",
     [BLKDBG_PWRITEV_DONE]                   = "pwritev_done",
+
+    [BLKDBG_EMPTY_IMAGE_PREPARE]            = "empty_image_prepare",
 };
 
 static int get_event_by_name(const char *name, BlkDebugEvent *event)

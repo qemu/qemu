@@ -498,6 +498,8 @@ typedef enum {
     BLKDBG_PWRITEV_ZERO,
     BLKDBG_PWRITEV_DONE,
 
+    BLKDBG_EMPTY_IMAGE_PREPARE,
+
     BLKDBG_EVENT_MAX,
 } BlkDebugEvent;
 
