@@ -191,47 +191,48 @@ static void create_fdt(VirtBoardInfo *vbi)
 
 static void fdt_add_psci_node(const VirtBoardInfo *vbi)
 {
+    uint32_t cpu_suspend_fn;
+    uint32_t cpu_off_fn;
+    uint32_t cpu_on_fn;
+    uint32_t migrate_fn;
     void *fdt = vbi->fdt;
     ARMCPU *armcpu = ARM_CPU(qemu_get_cpu(0));
 
-    /* No PSCI for TCG yet */
-    if (kvm_enabled()) {
-        uint32_t cpu_suspend_fn;
-        uint32_t cpu_off_fn;
-        uint32_t cpu_on_fn;
-        uint32_t migrate_fn;
+    qemu_fdt_add_subnode(fdt, "/psci");
+    if (armcpu->psci_version == 2) {
+        const char comp[] = "arm,psci-0.2\0arm,psci";
+        qemu_fdt_setprop(fdt, "/psci", "compatible", comp, sizeof(comp));
 
-        qemu_fdt_add_subnode(fdt, "/psci");
-        if (armcpu->psci_version == 2) {
-            const char comp[] = "arm,psci-0.2\0arm,psci";
-            qemu_fdt_setprop(fdt, "/psci", "compatible", comp, sizeof(comp));
-
-            cpu_off_fn = QEMU_PSCI_0_2_FN_CPU_OFF;
-            if (arm_feature(&armcpu->env, ARM_FEATURE_AARCH64)) {
-                cpu_suspend_fn = QEMU_PSCI_0_2_FN64_CPU_SUSPEND;
-                cpu_on_fn = QEMU_PSCI_0_2_FN64_CPU_ON;
-                migrate_fn = QEMU_PSCI_0_2_FN64_MIGRATE;
-            } else {
-                cpu_suspend_fn = QEMU_PSCI_0_2_FN_CPU_SUSPEND;
-                cpu_on_fn = QEMU_PSCI_0_2_FN_CPU_ON;
-                migrate_fn = QEMU_PSCI_0_2_FN_MIGRATE;
-            }
+        cpu_off_fn = QEMU_PSCI_0_2_FN_CPU_OFF;
+        if (arm_feature(&armcpu->env, ARM_FEATURE_AARCH64)) {
+            cpu_suspend_fn = QEMU_PSCI_0_2_FN64_CPU_SUSPEND;
+            cpu_on_fn = QEMU_PSCI_0_2_FN64_CPU_ON;
+            migrate_fn = QEMU_PSCI_0_2_FN64_MIGRATE;
         } else {
-            qemu_fdt_setprop_string(fdt, "/psci", "compatible", "arm,psci");
-
-            cpu_suspend_fn = QEMU_PSCI_0_1_FN_CPU_SUSPEND;
-            cpu_off_fn = QEMU_PSCI_0_1_FN_CPU_OFF;
-            cpu_on_fn = QEMU_PSCI_0_1_FN_CPU_ON;
-            migrate_fn = QEMU_PSCI_0_1_FN_MIGRATE;
+            cpu_suspend_fn = QEMU_PSCI_0_2_FN_CPU_SUSPEND;
+            cpu_on_fn = QEMU_PSCI_0_2_FN_CPU_ON;
+            migrate_fn = QEMU_PSCI_0_2_FN_MIGRATE;
         }
+    } else {
+        qemu_fdt_setprop_string(fdt, "/psci", "compatible", "arm,psci");
 
-        qemu_fdt_setprop_string(fdt, "/psci", "method", "hvc");
-
-        qemu_fdt_setprop_cell(fdt, "/psci", "cpu_suspend", cpu_suspend_fn);
-        qemu_fdt_setprop_cell(fdt, "/psci", "cpu_off", cpu_off_fn);
-        qemu_fdt_setprop_cell(fdt, "/psci", "cpu_on", cpu_on_fn);
-        qemu_fdt_setprop_cell(fdt, "/psci", "migrate", migrate_fn);
+        cpu_suspend_fn = QEMU_PSCI_0_1_FN_CPU_SUSPEND;
+        cpu_off_fn = QEMU_PSCI_0_1_FN_CPU_OFF;
+        cpu_on_fn = QEMU_PSCI_0_1_FN_CPU_ON;
+        migrate_fn = QEMU_PSCI_0_1_FN_MIGRATE;
     }
+
+    /* We adopt the PSCI spec's nomenclature, and use 'conduit' to refer
+     * to the instruction that should be used to invoke PSCI functions.
+     * However, the device tree binding uses 'method' instead, so that is
+     * what we should use here.
+     */
+    qemu_fdt_setprop_string(fdt, "/psci", "method", "hvc");
+
+    qemu_fdt_setprop_cell(fdt, "/psci", "cpu_suspend", cpu_suspend_fn);
+    qemu_fdt_setprop_cell(fdt, "/psci", "cpu_off", cpu_off_fn);
+    qemu_fdt_setprop_cell(fdt, "/psci", "cpu_on", cpu_on_fn);
+    qemu_fdt_setprop_cell(fdt, "/psci", "migrate", migrate_fn);
 }
 
 static void fdt_add_timer_nodes(const VirtBoardInfo *vbi)
@@ -548,16 +549,6 @@ static void machvirt_init(MachineState *machine)
 
     vbi->smp_cpus = smp_cpus;
 
-    /*
-     * Only supported method of starting secondary CPUs is PSCI and
-     * PSCI is not yet supported with TCG, so limit smp_cpus to 1
-     * if we're not using KVM.
-     */
-    if (!kvm_enabled() && smp_cpus > 1) {
-        error_report("mach-virt: must enable KVM to use multiple CPUs");
-        exit(1);
-    }
-
     if (machine->ram_size > vbi->memmap[VIRT_MEM].size) {
         error_report("mach-virt: cannot model more than 30GB RAM");
         exit(1);
@@ -574,6 +565,9 @@ static void machvirt_init(MachineState *machine)
             exit(1);
         }
         cpuobj = object_new(object_class_get_name(oc));
+
+        object_property_set_int(cpuobj, QEMU_PSCI_CONDUIT_HVC, "psci-conduit",
+                                NULL);
 
         /* Secondary CPUs start in PSCI powered-down state */
         if (n > 0) {
