@@ -2230,6 +2230,32 @@ fail:
     return ret;
 }
 
+static int qcow2_make_empty(BlockDriverState *bs)
+{
+    int ret = 0;
+    uint64_t start_sector;
+    int sector_step = INT_MAX / BDRV_SECTOR_SIZE;
+
+    for (start_sector = 0; start_sector < bs->total_sectors;
+         start_sector += sector_step)
+    {
+        /* As this function is generally used after committing an external
+         * snapshot, QCOW2_DISCARD_SNAPSHOT seems appropriate. Also, the
+         * default action for this kind of discard is to pass the discard,
+         * which will ideally result in an actually smaller image file, as
+         * is probably desired. */
+        ret = qcow2_discard_clusters(bs, start_sector * BDRV_SECTOR_SIZE,
+                                     MIN(sector_step,
+                                         bs->total_sectors - start_sector),
+                                     QCOW2_DISCARD_SNAPSHOT, true);
+        if (ret < 0) {
+            break;
+        }
+    }
+
+    return ret;
+}
+
 static coroutine_fn int qcow2_co_flush_to_os(BlockDriverState *bs)
 {
     BDRVQcowState *s = bs->opaque;
@@ -2676,6 +2702,7 @@ static BlockDriver bdrv_qcow2 = {
     .bdrv_co_discard        = qcow2_co_discard,
     .bdrv_truncate          = qcow2_truncate,
     .bdrv_write_compressed  = qcow2_write_compressed,
+    .bdrv_make_empty        = qcow2_make_empty,
 
     .bdrv_snapshot_create   = qcow2_snapshot_create,
     .bdrv_snapshot_goto     = qcow2_snapshot_goto,
