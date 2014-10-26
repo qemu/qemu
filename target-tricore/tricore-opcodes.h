@@ -151,6 +151,7 @@
 #define MASK_OP_RC_D(op)       MASK_OP_META_D(op)
 #define MASK_OP_RC_OP2(op)     MASK_BITS_SHIFT(op, 21, 27)
 #define MASK_OP_RC_CONST9(op)  MASK_BITS_SHIFT(op, 12, 20)
+#define MASK_OP_RC_CONST9_SEXT(op)  MASK_BITS_SHIFT_SEXT(op, 12, 20)
 #define MASK_OP_RC_S1(op)      MASK_OP_META_S1(op)
 
 /* RCPW Format */

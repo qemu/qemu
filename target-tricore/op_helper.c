@@ -77,6 +77,27 @@ uint32_t helper_circ_update(uint32_t reg, uint32_t off)
     env->PSW_USB_SAV |= env->PSW_USB_AV;            \
 } while (0)
 
+#define SUOV(env, ret, arg, len) do {               \
+    int64_t max_pos = UINT##len ##_MAX;             \
+    if (arg > max_pos) {                            \
+        env->PSW_USB_V = (1 << 31);                 \
+        env->PSW_USB_SV = (1 << 31);                \
+        ret = (target_ulong)max_pos;                \
+    } else {                                        \
+        if (arg < 0) {                              \
+            env->PSW_USB_V = (1 << 31);             \
+            env->PSW_USB_SV = (1 << 31);            \
+            ret = 0;                                \
+        } else {                                    \
+            env->PSW_USB_V = 0;                     \
+            ret = (target_ulong)arg;                \
+        }                                           \
+     }                                              \
+    env->PSW_USB_AV = arg ^ arg * 2u;               \
+    env->PSW_USB_SAV |= env->PSW_USB_AV;            \
+} while (0)
+
+
 target_ulong helper_add_ssov(CPUTriCoreState *env, target_ulong r1,
                              target_ulong r2)
 {
@@ -85,6 +106,17 @@ target_ulong helper_add_ssov(CPUTriCoreState *env, target_ulong r1,
     int64_t t2 = sextract64(r2, 0, 32);
     int64_t result = t1 + t2;
     SSOV(env, ret, result, 32);
+    return ret;
+}
+
+target_ulong helper_add_suov(CPUTriCoreState *env, target_ulong r1,
+                             target_ulong r2)
+{
+    target_ulong ret;
+    int64_t t1 = extract64(r1, 0, 32);
+    int64_t t2 = extract64(r2, 0, 32);
+    int64_t result = t1 + t2;
+    SUOV(env, ret, result, 32);
     return ret;
 }
 
@@ -99,6 +131,73 @@ target_ulong helper_sub_ssov(CPUTriCoreState *env, target_ulong r1,
     return ret;
 }
 
+target_ulong helper_sub_suov(CPUTriCoreState *env, target_ulong r1,
+                             target_ulong r2)
+{
+    target_ulong ret;
+    int64_t t1 = extract64(r1, 0, 32);
+    int64_t t2 = extract64(r2, 0, 32);
+    int64_t result = t1 - t2;
+    SUOV(env, ret, result, 32);
+    return ret;
+}
+
+target_ulong helper_mul_ssov(CPUTriCoreState *env, target_ulong r1,
+                             target_ulong r2)
+{
+    target_ulong ret;
+    int64_t t1 = sextract64(r1, 0, 32);
+    int64_t t2 = sextract64(r2, 0, 32);
+    int64_t result = t1 * t2;
+    SSOV(env, ret, result, 32);
+    return ret;
+}
+
+target_ulong helper_mul_suov(CPUTriCoreState *env, target_ulong r1,
+                             target_ulong r2)
+{
+    target_ulong ret;
+    int64_t t1 = extract64(r1, 0, 32);
+    int64_t t2 = extract64(r2, 0, 32);
+    int64_t result = t1 * t2;
+    SUOV(env, ret, result, 32);
+    return ret;
+}
+
+target_ulong helper_sha_ssov(CPUTriCoreState *env, target_ulong r1,
+                             target_ulong r2)
+{
+    target_ulong ret;
+    int64_t t1 = sextract64(r1, 0, 32);
+    int32_t t2 = sextract64(r2, 0, 6);
+    int64_t result;
+    if (t2 == 0) {
+        result = t1;
+    } else if (t2 > 0) {
+        result = t1 << t2;
+    } else {
+        result = t1 >> -t2;
+    }
+    SSOV(env, ret, result, 32);
+    return ret;
+}
+
+target_ulong helper_absdif_ssov(CPUTriCoreState *env, target_ulong r1,
+                                target_ulong r2)
+{
+    target_ulong ret;
+    int64_t t1 = sextract64(r1, 0, 32);
+    int64_t t2 = sextract64(r2, 0, 32);
+    int64_t result;
+
+    if (t1 > t2) {
+        result = t1 - t2;
+    } else {
+        result = t2 - t1;
+    }
+    SSOV(env, ret, result, 32);
+    return ret;
+}
 /* context save area (CSA) related helpers */
 
 static int cdc_increment(target_ulong *psw)

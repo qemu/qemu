@@ -17,7 +17,13 @@
 
 /* Arithmetic */
 DEF_HELPER_3(add_ssov, i32, env, i32, i32)
+DEF_HELPER_3(add_suov, i32, env, i32, i32)
 DEF_HELPER_3(sub_ssov, i32, env, i32, i32)
+DEF_HELPER_3(sub_suov, i32, env, i32, i32)
+DEF_HELPER_3(mul_ssov, i32, env, i32, i32)
+DEF_HELPER_3(mul_suov, i32, env, i32, i32)
+DEF_HELPER_3(sha_ssov, i32, env, i32, i32)
+DEF_HELPER_3(absdif_ssov, i32, env, i32, i32)
 /* CSA */
 DEF_HELPER_2(call, void, env, i32)
 DEF_HELPER_1(ret, void, env)
