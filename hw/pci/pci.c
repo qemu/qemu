@@ -1942,6 +1942,15 @@ static int pci_add_option_rom(PCIDevice *pdev, bool is_default_rom)
          * for 0.11 compatibility.
          */
         int class = pci_get_word(pdev->config + PCI_CLASS_DEVICE);
+
+        /*
+         * Hot-plugged devices can't use the option ROM
+         * if the rom bar is disabled.
+         */
+        if (DEVICE(pdev)->hotplugged) {
+            return -1;
+        }
+
         if (class == 0x0300) {
             rom_add_vga(pdev->romfile);
         } else {
