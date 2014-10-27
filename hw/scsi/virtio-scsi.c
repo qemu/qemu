@@ -400,7 +400,7 @@ static void virtio_scsi_command_complete(SCSIRequest *r, uint32_t status,
         sense_len = scsi_req_get_sense(r, sense, sizeof(sense));
         sense_len = MIN(sense_len, req->resp_iov.size - sizeof(req->resp.cmd));
         qemu_iovec_from_buf(&req->resp_iov, sizeof(req->resp.cmd),
-                            &req->resp, sense_len);
+                            sense, sense_len);
         req->resp.cmd.sense_len = virtio_tswap32(vdev, sense_len);
     }
     virtio_scsi_complete_cmd_req(req);
