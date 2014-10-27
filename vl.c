@@ -1609,9 +1609,7 @@ int qemu_reset_requested_get(void)
 
 static int qemu_shutdown_requested(void)
 {
-    int r = shutdown_requested;
-    shutdown_requested = 0;
-    return r;
+    return atomic_xchg(&shutdown_requested, 0);
 }
 
 static void qemu_kill_report(void)
