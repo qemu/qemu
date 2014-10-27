@@ -2948,7 +2948,9 @@ static int img_amend(int argc, char **argv)
     }
 
     if (optind != argc - 1) {
-        error_exit("Expecting one image file name");
+        error_report("Expecting one image file name");
+        ret = -1;
+        goto out;
     }
 
     flags = BDRV_O_FLAGS | BDRV_O_RDWR;
