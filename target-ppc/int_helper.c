@@ -2352,7 +2352,7 @@ void helper_vcipherlast(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b)
     int i;
 
     VECTOR_FOR_INORDER_I(i, u8) {
-        r->AVRB(i) = b->AVRB(i) ^ (AES_Te4[a->AVRB(AES_shifts[i])] & 0xFF);
+        r->AVRB(i) = b->AVRB(i) ^ (AES_sbox[a->AVRB(AES_shifts[i])]);
     }
 }
 
@@ -2381,7 +2381,7 @@ void helper_vncipherlast(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b)
     int i;
 
     VECTOR_FOR_INORDER_I(i, u8) {
-        r->AVRB(i) = b->AVRB(i) ^ (AES_Td4[a->AVRB(AES_ishifts[i])] & 0xFF);
+        r->AVRB(i) = b->AVRB(i) ^ (AES_isbox[a->AVRB(AES_ishifts[i])]);
     }
 }
 
