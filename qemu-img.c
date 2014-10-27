@@ -2871,6 +2871,12 @@ out:
     return 0;
 }
 
+static void amend_status_cb(BlockDriverState *bs,
+                            int64_t offset, int64_t total_work_size)
+{
+    qemu_progress_print(100.f * offset / total_work_size, 0);
+}
+
 static int img_amend(int argc, char **argv)
 {
     int c, ret = 0;
@@ -2879,13 +2885,13 @@ static int img_amend(int argc, char **argv)
     QemuOpts *opts = NULL;
     const char *fmt = NULL, *filename, *cache;
     int flags;
-    bool quiet = false;
+    bool quiet = false, progress = false;
     BlockBackend *blk = NULL;
     BlockDriverState *bs = NULL;
 
     cache = BDRV_DEFAULT_CACHE;
     for (;;) {
-        c = getopt(argc, argv, "ho:f:t:q");
+        c = getopt(argc, argv, "ho:f:t:pq");
         if (c == -1) {
             break;
         }
@@ -2915,6 +2921,9 @@ static int img_amend(int argc, char **argv)
             case 't':
                 cache = optarg;
                 break;
+            case 'p':
+                progress = true;
+                break;
             case 'q':
                 quiet = true;
                 break;
@@ -2924,6 +2933,11 @@ static int img_amend(int argc, char **argv)
     if (!options) {
         error_exit("Must specify options (-o)");
     }
+
+    if (quiet) {
+        progress = false;
+    }
+    qemu_progress_init(progress, 1.0);
 
     filename = (optind == argc - 1) ? argv[argc - 1] : NULL;
     if (fmt && has_help_option(options)) {
@@ -2968,13 +2982,18 @@ static int img_amend(int argc, char **argv)
         goto out;
     }
 
-    ret = bdrv_amend_options(bs, opts, NULL);
+    /* In case the driver does not call amend_status_cb() */
+    qemu_progress_print(0.f, 0);
+    ret = bdrv_amend_options(bs, opts, &amend_status_cb);
+    qemu_progress_print(100.f, 0);
     if (ret < 0) {
         error_report("Error while amending options: %s", strerror(-ret));
         goto out;
     }
 
 out:
+    qemu_progress_end();
+
     blk_unref(blk);
     qemu_opts_del(opts);
     qemu_opts_free(create_opts);
