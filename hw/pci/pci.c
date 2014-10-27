@@ -1776,7 +1776,12 @@ static int pci_qdev_init(DeviceState *qdev)
         pci_dev->romfile = g_strdup(pc->romfile);
         is_default_rom = true;
     }
-    pci_add_option_rom(pci_dev, is_default_rom);
+
+    rc = pci_add_option_rom(pci_dev, is_default_rom);
+    if (rc != 0) {
+        pci_unregister_device(DEVICE(pci_dev));
+        return rc;
+    }
 
     return 0;
 }
