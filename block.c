@@ -519,6 +519,7 @@ void bdrv_refresh_limits(BlockDriverState *bs, Error **errp)
             return;
         }
         bs->bl.opt_transfer_length = bs->file->bl.opt_transfer_length;
+        bs->bl.max_transfer_length = bs->file->bl.max_transfer_length;
         bs->bl.opt_mem_alignment = bs->file->bl.opt_mem_alignment;
     } else {
         bs->bl.opt_mem_alignment = 512;
@@ -533,6 +534,9 @@ void bdrv_refresh_limits(BlockDriverState *bs, Error **errp)
         bs->bl.opt_transfer_length =
             MAX(bs->bl.opt_transfer_length,
                 bs->backing_hd->bl.opt_transfer_length);
+        bs->bl.max_transfer_length =
+            MIN_NON_ZERO(bs->bl.max_transfer_length,
+                         bs->backing_hd->bl.max_transfer_length);
         bs->bl.opt_mem_alignment =
             MAX(bs->bl.opt_mem_alignment,
                 bs->backing_hd->bl.opt_mem_alignment);
