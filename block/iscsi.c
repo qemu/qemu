@@ -362,6 +362,12 @@ static int coroutine_fn iscsi_co_writev(BlockDriverState *bs,
         return -EINVAL;
     }
 
+    if (bs->bl.max_transfer_length && nb_sectors > bs->bl.max_transfer_length) {
+        error_report("iSCSI Error: Write of %d sectors exceeds max_xfer_len "
+                     "of %d sectors", nb_sectors, bs->bl.max_transfer_length);
+        return -EINVAL;
+    }
+
     lba = sector_qemu2lun(sector_num, iscsilun);
     num_sectors = sector_qemu2lun(nb_sectors, iscsilun);
     iscsi_co_init_iscsitask(iscsilun, &iTask);
@@ -526,6 +532,12 @@ static int coroutine_fn iscsi_co_readv(BlockDriverState *bs,
     uint32_t num_sectors;
 
     if (!is_request_lun_aligned(sector_num, nb_sectors, iscsilun)) {
+        return -EINVAL;
+    }
+
+    if (bs->bl.max_transfer_length && nb_sectors > bs->bl.max_transfer_length) {
+        error_report("iSCSI Error: Read of %d sectors exceeds max_xfer_len "
+                     "of %d sectors", nb_sectors, bs->bl.max_transfer_length);
         return -EINVAL;
     }
 
