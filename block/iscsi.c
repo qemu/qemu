@@ -1447,12 +1447,25 @@ static void iscsi_close(BlockDriverState *bs)
     memset(iscsilun, 0, sizeof(IscsiLun));
 }
 
+static int sector_limits_lun2qemu(int64_t sector, IscsiLun *iscsilun)
+{
+    return MIN(sector_lun2qemu(sector, iscsilun), INT_MAX / 2 + 1);
+}
+
 static void iscsi_refresh_limits(BlockDriverState *bs, Error **errp)
 {
-    IscsiLun *iscsilun = bs->opaque;
-
     /* We don't actually refresh here, but just return data queried in
      * iscsi_open(): iscsi targets don't change their limits. */
+
+    IscsiLun *iscsilun = bs->opaque;
+    uint32_t max_xfer_len = iscsilun->use_16_for_rw ? 0xffffffff : 0xffff;
+
+    if (iscsilun->bl.max_xfer_len) {
+        max_xfer_len = MIN(max_xfer_len, iscsilun->bl.max_xfer_len);
+    }
+
+    bs->bl.max_transfer_length = sector_limits_lun2qemu(max_xfer_len, iscsilun);
+
     if (iscsilun->lbp.lbpu) {
         if (iscsilun->bl.max_unmap < 0xffffffff) {
             bs->bl.max_discard = sector_lun2qemu(iscsilun->bl.max_unmap,
