@@ -1618,10 +1618,17 @@ fail:
  * zero expansion (i.e., has been filled with zeroes and is referenced from an
  * L2 table). nb_clusters contains the total cluster count of the image file,
  * i.e., the number of bits in expanded_clusters.
+ *
+ * l1_entries and *visited_l1_entries are used to keep track of progress for
+ * status_cb(). l1_entries contains the total number of L1 entries and
+ * *visited_l1_entries counts all visited L1 entries.
  */
 static int expand_zero_clusters_in_l1(BlockDriverState *bs, uint64_t *l1_table,
                                       int l1_size, uint8_t **expanded_clusters,
-                                      uint64_t *nb_clusters)
+                                      uint64_t *nb_clusters,
+                                      int64_t *visited_l1_entries,
+                                      int64_t l1_entries,
+                                      BlockDriverAmendStatusCB *status_cb)
 {
     BDRVQcowState *s = bs->opaque;
     bool is_active_l1 = (l1_table == s->l1_table);
@@ -1644,6 +1651,10 @@ static int expand_zero_clusters_in_l1(BlockDriverState *bs, uint64_t *l1_table,
 
         if (!l2_offset) {
             /* unallocated */
+            (*visited_l1_entries)++;
+            if (status_cb) {
+                status_cb(bs, *visited_l1_entries, l1_entries);
+            }
             continue;
         }
 
@@ -1776,6 +1787,11 @@ static int expand_zero_clusters_in_l1(BlockDriverState *bs, uint64_t *l1_table,
                 }
             }
         }
+
+        (*visited_l1_entries)++;
+        if (status_cb) {
+            status_cb(bs, *visited_l1_entries, l1_entries);
+        }
     }
 
     ret = 0;
@@ -1802,14 +1818,23 @@ fail:
  * allocation for pre-allocated ones). This is important for downgrading to a
  * qcow2 version which doesn't yet support metadata zero clusters.
  */
-int qcow2_expand_zero_clusters(BlockDriverState *bs)
+int qcow2_expand_zero_clusters(BlockDriverState *bs,
+                               BlockDriverAmendStatusCB *status_cb)
 {
     BDRVQcowState *s = bs->opaque;
     uint64_t *l1_table = NULL;
     uint64_t nb_clusters;
+    int64_t l1_entries = 0, visited_l1_entries = 0;
     uint8_t *expanded_clusters;
     int ret;
     int i, j;
+
+    if (status_cb) {
+        l1_entries = s->l1_size;
+        for (i = 0; i < s->nb_snapshots; i++) {
+            l1_entries += s->snapshots[i].l1_size;
+        }
+    }
 
     nb_clusters = size_to_clusters(s, bs->file->total_sectors *
                                    BDRV_SECTOR_SIZE);
@@ -1820,7 +1845,9 @@ int qcow2_expand_zero_clusters(BlockDriverState *bs)
     }
 
     ret = expand_zero_clusters_in_l1(bs, s->l1_table, s->l1_size,
-                                     &expanded_clusters, &nb_clusters);
+                                     &expanded_clusters, &nb_clusters,
+                                     &visited_l1_entries, l1_entries,
+                                     status_cb);
     if (ret < 0) {
         goto fail;
     }
@@ -1854,7 +1881,9 @@ int qcow2_expand_zero_clusters(BlockDriverState *bs)
         }
 
         ret = expand_zero_clusters_in_l1(bs, l1_table, s->snapshots[i].l1_size,
-                                         &expanded_clusters, &nb_clusters);
+                                         &expanded_clusters, &nb_clusters,
+                                         &visited_l1_entries, l1_entries,
+                                         status_cb);
         if (ret < 0) {
             goto fail;
         }

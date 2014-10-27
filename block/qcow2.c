@@ -2550,7 +2550,8 @@ static int qcow2_load_vmstate(BlockDriverState *bs, uint8_t *buf,
  * Downgrades an image's version. To achieve this, any incompatible features
  * have to be removed.
  */
-static int qcow2_downgrade(BlockDriverState *bs, int target_version)
+static int qcow2_downgrade(BlockDriverState *bs, int target_version,
+                           BlockDriverAmendStatusCB *status_cb)
 {
     BDRVQcowState *s = bs->opaque;
     int current_version = s->qcow_version;
@@ -2599,7 +2600,7 @@ static int qcow2_downgrade(BlockDriverState *bs, int target_version)
     /* clearing autoclear features is trivial */
     s->autoclear_features = 0;
 
-    ret = qcow2_expand_zero_clusters(bs);
+    ret = qcow2_expand_zero_clusters(bs, status_cb);
     if (ret < 0) {
         return ret;
     }
@@ -2692,7 +2693,7 @@ static int qcow2_amend_options(BlockDriverState *bs, QemuOpts *opts,
                 return ret;
             }
         } else {
-            ret = qcow2_downgrade(bs, new_version);
+            ret = qcow2_downgrade(bs, new_version, status_cb);
             if (ret < 0) {
                 return ret;
             }
