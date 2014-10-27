@@ -2613,7 +2613,8 @@ static int qcow2_downgrade(BlockDriverState *bs, int target_version)
     return 0;
 }
 
-static int qcow2_amend_options(BlockDriverState *bs, QemuOpts *opts)
+static int qcow2_amend_options(BlockDriverState *bs, QemuOpts *opts,
+                               BlockDriverAmendStatusCB *status_cb)
 {
     BDRVQcowState *s = bs->opaque;
     int old_version = s->qcow_version, new_version = old_version;

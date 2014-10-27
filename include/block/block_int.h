@@ -232,7 +232,8 @@ struct BlockDriver {
     int (*bdrv_check)(BlockDriverState* bs, BdrvCheckResult *result,
         BdrvCheckMode fix);
 
-    int (*bdrv_amend_options)(BlockDriverState *bs, QemuOpts *opts);
+    int (*bdrv_amend_options)(BlockDriverState *bs, QemuOpts *opts,
+                              BlockDriverAmendStatusCB *status_cb);
 
     void (*bdrv_debug_event)(BlockDriverState *bs, BlkDebugEvent event);
 

@@ -2968,7 +2968,7 @@ static int img_amend(int argc, char **argv)
         goto out;
     }
 
-    ret = bdrv_amend_options(bs, opts);
+    ret = bdrv_amend_options(bs, opts, NULL);
     if (ret < 0) {
         error_report("Error while amending options: %s", strerror(-ret));
         goto out;
