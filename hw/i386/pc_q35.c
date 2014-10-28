@@ -368,7 +368,8 @@ static void pc_q35_init_1_4(MachineState *machine)
 
 #define PC_Q35_2_2_MACHINE_OPTIONS                      \
     PC_Q35_MACHINE_OPTIONS,                             \
-    .default_machine_opts = "firmware=bios-256k.bin"
+    .default_machine_opts = "firmware=bios-256k.bin",   \
+    .default_display = "std"
 
 static QEMUMachine pc_q35_machine_v2_2 = {
     PC_Q35_2_2_MACHINE_OPTIONS,
@@ -377,7 +378,9 @@ static QEMUMachine pc_q35_machine_v2_2 = {
     .init = pc_q35_init,
 };
 
-#define PC_Q35_2_1_MACHINE_OPTIONS PC_Q35_2_2_MACHINE_OPTIONS
+#define PC_Q35_2_1_MACHINE_OPTIONS                      \
+    PC_Q35_MACHINE_OPTIONS,                             \
+    .default_machine_opts = "firmware=bios-256k.bin"
 
 static QEMUMachine pc_q35_machine_v2_1 = {
     PC_Q35_2_1_MACHINE_OPTIONS,

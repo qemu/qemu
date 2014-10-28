@@ -470,7 +470,8 @@ static void pc_xen_hvm_init(MachineState *machine)
 
 #define PC_I440FX_2_2_MACHINE_OPTIONS                           \
     PC_I440FX_MACHINE_OPTIONS,                                  \
-    .default_machine_opts = "firmware=bios-256k.bin"
+    .default_machine_opts = "firmware=bios-256k.bin",           \
+    .default_display = "std"
 
 static QEMUMachine pc_i440fx_machine_v2_2 = {
     PC_I440FX_2_2_MACHINE_OPTIONS,
@@ -480,7 +481,9 @@ static QEMUMachine pc_i440fx_machine_v2_2 = {
     .is_default = 1,
 };
 
-#define PC_I440FX_2_1_MACHINE_OPTIONS PC_I440FX_2_2_MACHINE_OPTIONS
+#define PC_I440FX_2_1_MACHINE_OPTIONS                           \
+    PC_I440FX_MACHINE_OPTIONS,                                  \
+    .default_machine_opts = "firmware=bios-256k.bin"
 
 static QEMUMachine pc_i440fx_machine_v2_1 = {
     PC_I440FX_2_1_MACHINE_OPTIONS,
