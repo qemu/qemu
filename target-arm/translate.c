@@ -7560,17 +7560,14 @@ static void gen_srs(DisasContext *s,
     tcg_temp_free_i32(addr);
 }
 
-static void disas_arm_insn(CPUARMState * env, DisasContext *s)
+static void disas_arm_insn(DisasContext *s, unsigned int insn)
 {
-    unsigned int cond, insn, val, op1, i, shift, rm, rs, rn, rd, sh;
+    unsigned int cond, val, op1, i, shift, rm, rs, rn, rd, sh;
     TCGv_i32 tmp;
     TCGv_i32 tmp2;
     TCGv_i32 tmp3;
     TCGv_i32 addr;
     TCGv_i64 tmp64;
-
-    insn = arm_ldl_code(env, s->pc, s->bswap_code);
-    s->pc += 4;
 
     /* M variants do not implement ARM mode.  */
     if (arm_dc_feature(s, ARM_FEATURE_M)) {
@@ -11199,7 +11196,9 @@ static inline void gen_intermediate_code_internal(ARMCPU *cpu,
                 }
             }
         } else {
-            disas_arm_insn(env, dc);
+            unsigned int insn = arm_ldl_code(env, dc->pc, dc->bswap_code);
+            dc->pc += 4;
+            disas_arm_insn(dc, insn);
         }
 
         if (dc->condjmp && !dc->is_jmp) {
