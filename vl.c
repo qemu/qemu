@@ -1444,6 +1444,7 @@ static void machine_class_init(ObjectClass *oc, void *data)
     mc->is_default = qm->is_default;
     mc->default_machine_opts = qm->default_machine_opts;
     mc->default_boot_order = qm->default_boot_order;
+    mc->default_display = qm->default_display;
     mc->compat_props = qm->compat_props;
     mc->hw_version = qm->hw_version;
 }
@@ -4223,7 +4224,9 @@ int main(int argc, char **argv, char **envp)
 
     /* If no default VGA is requested, the default is "none".  */
     if (default_vga) {
-        if (cirrus_vga_available()) {
+        if (machine_class->default_display) {
+            vga_model = machine_class->default_display;
+        } else if (cirrus_vga_available()) {
             vga_model = "cirrus";
         } else if (vga_available()) {
             vga_model = "std";

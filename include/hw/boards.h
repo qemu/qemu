@@ -40,6 +40,7 @@ struct QEMUMachine {
     int is_default;
     const char *default_machine_opts;
     const char *default_boot_order;
+    const char *default_display;
     GlobalProperty *compat_props;
     const char *hw_version;
 };
@@ -100,6 +101,7 @@ struct MachineClass {
     int is_default;
     const char *default_machine_opts;
     const char *default_boot_order;
+    const char *default_display;
     GlobalProperty *compat_props;
     const char *hw_version;
 

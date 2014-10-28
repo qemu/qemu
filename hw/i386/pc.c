@@ -1526,6 +1526,7 @@ static void pc_generic_machine_class_init(ObjectClass *oc, void *data)
     mc->is_default = qm->is_default;
     mc->default_machine_opts = qm->default_machine_opts;
     mc->default_boot_order = qm->default_boot_order;
+    mc->default_display = qm->default_display;
     mc->compat_props = qm->compat_props;
     mc->hw_version = qm->hw_version;
 }
