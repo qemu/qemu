@@ -2619,7 +2619,7 @@ static int disas_dsp_insn(CPUARMState *env, DisasContext *s, uint32_t insn)
 #define VFP_SREG(insn, bigbit, smallbit) \
   ((VFP_REG_SHR(insn, bigbit - 1) & 0x1e) | (((insn) >> (smallbit)) & 1))
 #define VFP_DREG(reg, insn, bigbit, smallbit) do { \
-    if (arm_feature(env, ARM_FEATURE_VFP3)) { \
+    if (arm_dc_feature(s, ARM_FEATURE_VFP3)) { \
         reg = (((insn) >> (bigbit)) & 0x0f) \
               | (((insn) >> ((smallbit) - 4)) & 0x10); \
     } else { \
@@ -2970,7 +2970,7 @@ static int disas_vfp_v8_insn(CPUARMState *env, DisasContext *s, uint32_t insn)
 {
     uint32_t rd, rn, rm, dp = extract32(insn, 8, 1);
 
-    if (!arm_feature(env, ARM_FEATURE_V8)) {
+    if (!arm_dc_feature(s, ARM_FEATURE_V8)) {
         return 1;
     }
 
@@ -3010,8 +3010,9 @@ static int disas_vfp_insn(CPUARMState * env, DisasContext *s, uint32_t insn)
     TCGv_i32 tmp;
     TCGv_i32 tmp2;
 
-    if (!arm_feature(env, ARM_FEATURE_VFP))
+    if (!arm_dc_feature(s, ARM_FEATURE_VFP)) {
         return 1;
+    }
 
     /* FIXME: this access check should not take precedence over UNDEF
      * for invalid encodings; we will generate incorrect syndrome information
@@ -3055,8 +3056,9 @@ static int disas_vfp_insn(CPUARMState * env, DisasContext *s, uint32_t insn)
                 if (insn & 0xf)
                     return 1;
                 if (insn & 0x00c00060
-                    && !arm_feature(env, ARM_FEATURE_NEON))
+                    && !arm_dc_feature(s, ARM_FEATURE_NEON)) {
                     return 1;
+                }
 
                 pass = (insn >> 21) & 1;
                 if (insn & (1 << 22)) {
@@ -3151,8 +3153,9 @@ static int disas_vfp_insn(CPUARMState * env, DisasContext *s, uint32_t insn)
                                VFP3 restricts all id registers to privileged
                                accesses.  */
                             if (IS_USER(s)
-                                && arm_feature(env, ARM_FEATURE_VFP3))
+                                && arm_dc_feature(s, ARM_FEATURE_VFP3)) {
                                 return 1;
+                            }
                             tmp = load_cpu_field(vfp.xregs[rn]);
                             break;
                         case ARM_VFP_FPEXC:
@@ -3164,8 +3167,9 @@ static int disas_vfp_insn(CPUARMState * env, DisasContext *s, uint32_t insn)
                         case ARM_VFP_FPINST2:
                             /* Not present in VFP3.  */
                             if (IS_USER(s)
-                                || arm_feature(env, ARM_FEATURE_VFP3))
+                                || arm_dc_feature(s, ARM_FEATURE_VFP3)) {
                                 return 1;
+                            }
                             tmp = load_cpu_field(vfp.xregs[rn]);
                             break;
                         case ARM_VFP_FPSCR:
@@ -3178,15 +3182,16 @@ static int disas_vfp_insn(CPUARMState * env, DisasContext *s, uint32_t insn)
                             }
                             break;
                         case ARM_VFP_MVFR2:
-                            if (!arm_feature(env, ARM_FEATURE_V8)) {
+                            if (!arm_dc_feature(s, ARM_FEATURE_V8)) {
                                 return 1;
                             }
                             /* fall through */
                         case ARM_VFP_MVFR0:
                         case ARM_VFP_MVFR1:
                             if (IS_USER(s)
-                                || !arm_feature(env, ARM_FEATURE_MVFR))
+                                || !arm_dc_feature(s, ARM_FEATURE_MVFR)) {
                                 return 1;
+                            }
                             tmp = load_cpu_field(vfp.xregs[rn]);
                             break;
                         default:
@@ -3367,8 +3372,8 @@ static int disas_vfp_insn(CPUARMState * env, DisasContext *s, uint32_t insn)
                      * UNPREDICTABLE if bit 8 is set prior to ARMv8
                      * (we choose to UNDEF)
                      */
-                    if ((dp && !arm_feature(env, ARM_FEATURE_V8)) ||
-                        !arm_feature(env, ARM_FEATURE_VFP_FP16)) {
+                    if ((dp && !arm_dc_feature(s, ARM_FEATURE_V8)) ||
+                        !arm_dc_feature(s, ARM_FEATURE_VFP_FP16)) {
                         return 1;
                     }
                     if (!extract32(rn, 1, 1)) {
@@ -3447,7 +3452,7 @@ static int disas_vfp_insn(CPUARMState * env, DisasContext *s, uint32_t insn)
                      * correct : an input NaN should come out with its sign bit
                      * flipped if it is a negated-input.
                      */
-                    if (!arm_feature(env, ARM_FEATURE_VFP4)) {
+                    if (!arm_dc_feature(s, ARM_FEATURE_VFP4)) {
                         return 1;
                     }
                     if (dp) {
@@ -3488,8 +3493,9 @@ static int disas_vfp_insn(CPUARMState * env, DisasContext *s, uint32_t insn)
                     }
                     break;
                 case 14: /* fconst */
-                    if (!arm_feature(env, ARM_FEATURE_VFP3))
-                      return 1;
+                    if (!arm_dc_feature(s, ARM_FEATURE_VFP3)) {
+                        return 1;
+                    }
 
                     n = (insn << 12) & 0x80000000;
                     i = ((insn >> 12) & 0x70) | (insn & 0xf);
@@ -3644,23 +3650,27 @@ static int disas_vfp_insn(CPUARMState * env, DisasContext *s, uint32_t insn)
                         gen_vfp_sito(dp, 0);
                         break;
                     case 20: /* fshto */
-                        if (!arm_feature(env, ARM_FEATURE_VFP3))
-                          return 1;
+                        if (!arm_dc_feature(s, ARM_FEATURE_VFP3)) {
+                            return 1;
+                        }
                         gen_vfp_shto(dp, 16 - rm, 0);
                         break;
                     case 21: /* fslto */
-                        if (!arm_feature(env, ARM_FEATURE_VFP3))
-                          return 1;
+                        if (!arm_dc_feature(s, ARM_FEATURE_VFP3)) {
+                            return 1;
+                        }
                         gen_vfp_slto(dp, 32 - rm, 0);
                         break;
                     case 22: /* fuhto */
-                        if (!arm_feature(env, ARM_FEATURE_VFP3))
-                          return 1;
+                        if (!arm_dc_feature(s, ARM_FEATURE_VFP3)) {
+                            return 1;
+                        }
                         gen_vfp_uhto(dp, 16 - rm, 0);
                         break;
                     case 23: /* fulto */
-                        if (!arm_feature(env, ARM_FEATURE_VFP3))
-                          return 1;
+                        if (!arm_dc_feature(s, ARM_FEATURE_VFP3)) {
+                            return 1;
+                        }
                         gen_vfp_ulto(dp, 32 - rm, 0);
                         break;
                     case 24: /* ftoui */
@@ -3676,23 +3686,27 @@ static int disas_vfp_insn(CPUARMState * env, DisasContext *s, uint32_t insn)
                         gen_vfp_tosiz(dp, 0);
                         break;
                     case 28: /* ftosh */
-                        if (!arm_feature(env, ARM_FEATURE_VFP3))
-                          return 1;
+                        if (!arm_dc_feature(s, ARM_FEATURE_VFP3)) {
+                            return 1;
+                        }
                         gen_vfp_tosh(dp, 16 - rm, 0);
                         break;
                     case 29: /* ftosl */
-                        if (!arm_feature(env, ARM_FEATURE_VFP3))
-                          return 1;
+                        if (!arm_dc_feature(s, ARM_FEATURE_VFP3)) {
+                            return 1;
+                        }
                         gen_vfp_tosl(dp, 32 - rm, 0);
                         break;
                     case 30: /* ftouh */
-                        if (!arm_feature(env, ARM_FEATURE_VFP3))
-                          return 1;
+                        if (!arm_dc_feature(s, ARM_FEATURE_VFP3)) {
+                            return 1;
+                        }
                         gen_vfp_touh(dp, 16 - rm, 0);
                         break;
                     case 31: /* ftoul */
-                        if (!arm_feature(env, ARM_FEATURE_VFP3))
-                          return 1;
+                        if (!arm_dc_feature(s, ARM_FEATURE_VFP3)) {
+                            return 1;
+                        }
                         gen_vfp_toul(dp, 32 - rm, 0);
                         break;
                     default: /* undefined */
@@ -3963,14 +3977,18 @@ static uint32_t msr_mask(CPUARMState *env, DisasContext *s, int flags, int spsr)
 
     /* Mask out undefined bits.  */
     mask &= ~CPSR_RESERVED;
-    if (!arm_feature(env, ARM_FEATURE_V4T))
+    if (!arm_dc_feature(s, ARM_FEATURE_V4T)) {
         mask &= ~CPSR_T;
-    if (!arm_feature(env, ARM_FEATURE_V5))
+    }
+    if (!arm_dc_feature(s, ARM_FEATURE_V5)) {
         mask &= ~CPSR_Q; /* V5TE in reality*/
-    if (!arm_feature(env, ARM_FEATURE_V6))
+    }
+    if (!arm_dc_feature(s, ARM_FEATURE_V6)) {
         mask &= ~(CPSR_E | CPSR_GE);
-    if (!arm_feature(env, ARM_FEATURE_THUMB2))
+    }
+    if (!arm_dc_feature(s, ARM_FEATURE_THUMB2)) {
         mask &= ~CPSR_IT;
+    }
     /* Mask out execution state and reserved bits.  */
     if (!spsr) {
         mask &= ~(CPSR_EXEC | CPSR_RESERVED);
@@ -5092,7 +5110,7 @@ static int disas_neon_data_insn(CPUARMState * env, DisasContext *s, uint32_t ins
                 return 1;
             }
             if (!u) { /* SHA-1 */
-                if (!arm_feature(env, ARM_FEATURE_V8_SHA1)) {
+                if (!arm_dc_feature(s, ARM_FEATURE_V8_SHA1)) {
                     return 1;
                 }
                 tmp = tcg_const_i32(rd);
@@ -5102,7 +5120,7 @@ static int disas_neon_data_insn(CPUARMState * env, DisasContext *s, uint32_t ins
                 gen_helper_crypto_sha1_3reg(cpu_env, tmp, tmp2, tmp3, tmp4);
                 tcg_temp_free_i32(tmp4);
             } else { /* SHA-256 */
-                if (!arm_feature(env, ARM_FEATURE_V8_SHA256) || size == 3) {
+                if (!arm_dc_feature(s, ARM_FEATURE_V8_SHA256) || size == 3) {
                     return 1;
                 }
                 tmp = tcg_const_i32(rd);
@@ -5237,7 +5255,7 @@ static int disas_neon_data_insn(CPUARMState * env, DisasContext *s, uint32_t ins
             break;
         case NEON_3R_FLOAT_MISC:
             /* VMAXNM/VMINNM in ARMv8 */
-            if (u && !arm_feature(env, ARM_FEATURE_V8)) {
+            if (u && !arm_dc_feature(s, ARM_FEATURE_V8)) {
                 return 1;
             }
             break;
@@ -5248,7 +5266,7 @@ static int disas_neon_data_insn(CPUARMState * env, DisasContext *s, uint32_t ins
             }
             break;
         case NEON_3R_VFM:
-            if (!arm_feature(env, ARM_FEATURE_VFP4) || u) {
+            if (!arm_dc_feature(s, ARM_FEATURE_VFP4) || u) {
                 return 1;
             }
             break;
@@ -6067,7 +6085,7 @@ static int disas_neon_data_insn(CPUARMState * env, DisasContext *s, uint32_t ins
                 if (op == 14 && size == 2) {
                     TCGv_i64 tcg_rn, tcg_rm, tcg_rd;
 
-                    if (!arm_feature(env, ARM_FEATURE_V8_PMULL)) {
+                    if (!arm_dc_feature(s, ARM_FEATURE_V8_PMULL)) {
                         return 1;
                     }
                     tcg_rn = tcg_temp_new_i64();
@@ -6555,7 +6573,7 @@ static int disas_neon_data_insn(CPUARMState * env, DisasContext *s, uint32_t ins
                     }
                     break;
                 case NEON_2RM_VCVT_F16_F32:
-                    if (!arm_feature(env, ARM_FEATURE_VFP_FP16) ||
+                    if (!arm_dc_feature(s, ARM_FEATURE_VFP_FP16) ||
                         q || (rm & 1)) {
                         return 1;
                     }
@@ -6579,7 +6597,7 @@ static int disas_neon_data_insn(CPUARMState * env, DisasContext *s, uint32_t ins
                     tcg_temp_free_i32(tmp);
                     break;
                 case NEON_2RM_VCVT_F32_F16:
-                    if (!arm_feature(env, ARM_FEATURE_VFP_FP16) ||
+                    if (!arm_dc_feature(s, ARM_FEATURE_VFP_FP16) ||
                         q || (rd & 1)) {
                         return 1;
                     }
@@ -6603,7 +6621,7 @@ static int disas_neon_data_insn(CPUARMState * env, DisasContext *s, uint32_t ins
                     tcg_temp_free_i32(tmp3);
                     break;
                 case NEON_2RM_AESE: case NEON_2RM_AESMC:
-                    if (!arm_feature(env, ARM_FEATURE_V8_AES)
+                    if (!arm_dc_feature(s, ARM_FEATURE_V8_AES)
                         || ((rm | rd) & 1)) {
                         return 1;
                     }
@@ -6625,7 +6643,7 @@ static int disas_neon_data_insn(CPUARMState * env, DisasContext *s, uint32_t ins
                     tcg_temp_free_i32(tmp3);
                     break;
                 case NEON_2RM_SHA1H:
-                    if (!arm_feature(env, ARM_FEATURE_V8_SHA1)
+                    if (!arm_dc_feature(s, ARM_FEATURE_V8_SHA1)
                         || ((rm | rd) & 1)) {
                         return 1;
                     }
@@ -6643,10 +6661,10 @@ static int disas_neon_data_insn(CPUARMState * env, DisasContext *s, uint32_t ins
                     }
                     /* bit 6 (q): set -> SHA256SU0, cleared -> SHA1SU1 */
                     if (q) {
-                        if (!arm_feature(env, ARM_FEATURE_V8_SHA256)) {
+                        if (!arm_dc_feature(s, ARM_FEATURE_V8_SHA256)) {
                             return 1;
                         }
-                    } else if (!arm_feature(env, ARM_FEATURE_V8_SHA1)) {
+                    } else if (!arm_dc_feature(s, ARM_FEATURE_V8_SHA1)) {
                         return 1;
                     }
                     tmp = tcg_const_i32(rd);
@@ -7039,13 +7057,13 @@ static int disas_coproc_insn(CPUARMState * env, DisasContext *s, uint32_t insn)
     cpnum = (insn >> 8) & 0xf;
 
     /* First check for coprocessor space used for XScale/iwMMXt insns */
-    if (arm_feature(env, ARM_FEATURE_XSCALE) && (cpnum < 2)) {
+    if (arm_dc_feature(s, ARM_FEATURE_XSCALE) && (cpnum < 2)) {
         if (extract32(s->c15_cpar, cpnum, 1) == 0) {
             return 1;
         }
-        if (arm_feature(env, ARM_FEATURE_IWMMXT)) {
+        if (arm_dc_feature(s, ARM_FEATURE_IWMMXT)) {
             return disas_iwmmxt_insn(env, s, insn);
-        } else if (arm_feature(env, ARM_FEATURE_XSCALE)) {
+        } else if (arm_dc_feature(s, ARM_FEATURE_XSCALE)) {
             return disas_dsp_insn(env, s, insn);
         }
         return 1;
@@ -7082,7 +7100,7 @@ static int disas_coproc_insn(CPUARMState * env, DisasContext *s, uint32_t insn)
         }
 
         if (ri->accessfn ||
-            (arm_feature(env, ARM_FEATURE_XSCALE) && cpnum < 14)) {
+            (arm_dc_feature(s, ARM_FEATURE_XSCALE) && cpnum < 14)) {
             /* Emit code to perform further access permissions checks at
              * runtime; this may result in an exception.
              * Note that on XScale all cp0..c13 registers do an access check
@@ -7125,7 +7143,7 @@ static int disas_coproc_insn(CPUARMState * env, DisasContext *s, uint32_t insn)
                  * in which case the syndrome information won't actually be
                  * guest visible.
                  */
-                assert(!arm_feature(env, ARM_FEATURE_V8));
+                assert(!arm_dc_feature(s, ARM_FEATURE_V8));
                 syndrome = syn_uncategorized();
                 break;
             }
@@ -7569,8 +7587,9 @@ static void disas_arm_insn(CPUARMState * env, DisasContext *s)
         /* Unconditional instructions.  */
         if (((insn >> 25) & 7) == 1) {
             /* NEON Data processing.  */
-            if (!arm_feature(env, ARM_FEATURE_NEON))
+            if (!arm_dc_feature(s, ARM_FEATURE_NEON)) {
                 goto illegal_op;
+            }
 
             if (disas_neon_data_insn(env, s, insn))
                 goto illegal_op;
@@ -7578,8 +7597,9 @@ static void disas_arm_insn(CPUARMState * env, DisasContext *s)
         }
         if ((insn & 0x0f100000) == 0x04000000) {
             /* NEON load/store.  */
-            if (!arm_feature(env, ARM_FEATURE_NEON))
+            if (!arm_dc_feature(s, ARM_FEATURE_NEON)) {
                 goto illegal_op;
+            }
 
             if (disas_neon_ls_insn(env, s, insn))
                 goto illegal_op;
@@ -7596,7 +7616,7 @@ static void disas_arm_insn(CPUARMState * env, DisasContext *s)
             ((insn & 0x0f30f010) == 0x0710f000)) {
             if ((insn & (1 << 22)) == 0) {
                 /* PLDW; v7MP */
-                if (!arm_feature(env, ARM_FEATURE_V7MP)) {
+                if (!arm_dc_feature(s, ARM_FEATURE_V7MP)) {
                     goto illegal_op;
                 }
             }
@@ -7611,7 +7631,7 @@ static void disas_arm_insn(CPUARMState * env, DisasContext *s)
         }
         if (((insn & 0x0f700000) == 0x04100000) ||
             ((insn & 0x0f700010) == 0x06100000)) {
-            if (!arm_feature(env, ARM_FEATURE_V7MP)) {
+            if (!arm_dc_feature(s, ARM_FEATURE_V7MP)) {
                 goto illegal_op;
             }
             return; /* v7MP: Unallocated memory hint: must NOP */
@@ -7708,7 +7728,7 @@ static void disas_arm_insn(CPUARMState * env, DisasContext *s)
             gen_bx_im(s, val);
             return;
         } else if ((insn & 0x0e000f00) == 0x0c000100) {
-            if (arm_feature(env, ARM_FEATURE_IWMMXT)) {
+            if (arm_dc_feature(s, ARM_FEATURE_IWMMXT)) {
                 /* iWMMXt register transfer.  */
                 if (extract32(s->c15_cpar, 1, 1)) {
                     if (!disas_iwmmxt_insn(env, s, insn)) {
@@ -7864,7 +7884,7 @@ static void disas_arm_insn(CPUARMState * env, DisasContext *s)
              * op1 == 3 is UNPREDICTABLE but handle as UNDEFINED.
              * Bits 8, 10 and 11 should be zero.
              */
-            if (!arm_feature(env, ARM_FEATURE_CRC) || op1 == 0x3 ||
+            if (!arm_dc_feature(s, ARM_FEATURE_CRC) || op1 == 0x3 ||
                 (c & 0xd) != 0) {
                 goto illegal_op;
             }
@@ -8673,7 +8693,7 @@ static void disas_arm_insn(CPUARMState * env, DisasContext *s)
                     case 1:
                     case 3:
                         /* SDIV, UDIV */
-                        if (!arm_feature(env, ARM_FEATURE_ARM_DIV)) {
+                        if (!arm_dc_feature(s, ARM_FEATURE_ARM_DIV)) {
                             goto illegal_op;
                         }
                         if (((insn >> 5) & 7) || (rd != 15)) {
@@ -9069,8 +9089,8 @@ static int disas_thumb2_insn(CPUARMState *env, DisasContext *s, uint16_t insn_hw
     int conds;
     int logic_cc;
 
-    if (!(arm_feature(env, ARM_FEATURE_THUMB2)
-          || arm_feature (env, ARM_FEATURE_M))) {
+    if (!(arm_dc_feature(s, ARM_FEATURE_THUMB2)
+          || arm_dc_feature(s, ARM_FEATURE_M))) {
         /* Thumb-1 cores may need to treat bl and blx as a pair of
            16-bit instructions to get correct prefetch abort behavior.  */
         insn = insn_hw1;
@@ -9523,7 +9543,7 @@ static int disas_thumb2_insn(CPUARMState *env, DisasContext *s, uint16_t insn_hw
                     uint32_t sz = op & 0x3;
                     uint32_t c = op & 0x8;
 
-                    if (!arm_feature(env, ARM_FEATURE_CRC)) {
+                    if (!arm_dc_feature(s, ARM_FEATURE_CRC)) {
                         goto illegal_op;
                     }
 
@@ -9651,7 +9671,7 @@ static int disas_thumb2_insn(CPUARMState *env, DisasContext *s, uint16_t insn_hw
             tmp2 = load_reg(s, rm);
             if ((op & 0x50) == 0x10) {
                 /* sdiv, udiv */
-                if (!arm_feature(env, ARM_FEATURE_THUMB_DIV)) {
+                if (!arm_dc_feature(s, ARM_FEATURE_THUMB_DIV)) {
                     goto illegal_op;
                 }
                 if (op & 0x20)
