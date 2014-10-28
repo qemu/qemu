@@ -7574,8 +7574,9 @@ static void disas_arm_insn(CPUARMState * env, DisasContext *s)
     s->pc += 4;
 
     /* M variants do not implement ARM mode.  */
-    if (IS_M(env))
+    if (arm_dc_feature(s, ARM_FEATURE_M)) {
         goto illegal_op;
+    }
     cond = insn >> 28;
     if (cond == 0xf){
         /* In ARMv3 and v4 the NV condition is UNPREDICTABLE; we
@@ -9300,7 +9301,7 @@ static int disas_thumb2_insn(CPUARMState *env, DisasContext *s, uint16_t insn_hw
             /* Load/store multiple, RFE, SRS.  */
             if (((insn >> 23) & 1) == ((insn >> 24) & 1)) {
                 /* RFE, SRS: not available in user mode or on M profile */
-                if (IS_USER(s) || IS_M(env)) {
+                if (IS_USER(s) || arm_dc_feature(s, ARM_FEATURE_M)) {
                     goto illegal_op;
                 }
                 if (insn & (1 << 20)) {
@@ -9804,7 +9805,7 @@ static int disas_thumb2_insn(CPUARMState *env, DisasContext *s, uint16_t insn_hw
                     op = (insn >> 20) & 7;
                     switch (op) {
                     case 0: /* msr cpsr.  */
-                        if (IS_M(env)) {
+                        if (arm_dc_feature(s, ARM_FEATURE_M)) {
                             tmp = load_reg(s, rn);
                             addr = tcg_const_i32(insn & 0xff);
                             gen_helper_v7m_msr(cpu_env, addr, tmp);
@@ -9815,8 +9816,9 @@ static int disas_thumb2_insn(CPUARMState *env, DisasContext *s, uint16_t insn_hw
                         }
                         /* fall through */
                     case 1: /* msr spsr.  */
-                        if (IS_M(env))
+                        if (arm_dc_feature(s, ARM_FEATURE_M)) {
                             goto illegal_op;
+                        }
                         tmp = load_reg(s, rn);
                         if (gen_set_psr(s,
                               msr_mask(env, s, (insn >> 8) & 0xf, op == 1),
@@ -9884,7 +9886,7 @@ static int disas_thumb2_insn(CPUARMState *env, DisasContext *s, uint16_t insn_hw
                         break;
                     case 6: /* mrs cpsr.  */
                         tmp = tcg_temp_new_i32();
-                        if (IS_M(env)) {
+                        if (arm_dc_feature(s, ARM_FEATURE_M)) {
                             addr = tcg_const_i32(insn & 0xff);
                             gen_helper_v7m_mrs(tmp, cpu_env, addr);
                             tcg_temp_free_i32(addr);
@@ -9895,8 +9897,9 @@ static int disas_thumb2_insn(CPUARMState *env, DisasContext *s, uint16_t insn_hw
                         break;
                     case 7: /* mrs spsr.  */
                         /* Not accessible in user mode.  */
-                        if (IS_USER(s) || IS_M(env))
+                        if (IS_USER(s) || arm_dc_feature(s, ARM_FEATURE_M)) {
                             goto illegal_op;
+                        }
                         tmp = load_cpu_field(spsr);
                         store_reg(s, rd, tmp);
                         break;
@@ -10851,7 +10854,7 @@ static void disas_thumb_insn(CPUARMState *env, DisasContext *s)
                 if (IS_USER(s)) {
                     break;
                 }
-                if (IS_M(env)) {
+                if (arm_dc_feature(s, ARM_FEATURE_M)) {
                     tmp = tcg_const_i32((insn & (1 << 4)) != 0);
                     /* FAULTMASK */
                     if (insn & 1) {
@@ -11123,7 +11126,7 @@ static inline void gen_intermediate_code_internal(ARMCPU *cpu,
             break;
         }
 #else
-        if (dc->pc >= 0xfffffff0 && IS_M(env)) {
+        if (dc->pc >= 0xfffffff0 && arm_dc_feature(dc, ARM_FEATURE_M)) {
             /* We always get here via a jump, so know we are not in a
                conditional execution block.  */
             gen_exception_internal(EXCP_EXCEPTION_EXIT);
