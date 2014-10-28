@@ -38,16 +38,16 @@
 #include "trace-tcg.h"
 
 
-#define ENABLE_ARCH_4T    arm_feature(env, ARM_FEATURE_V4T)
-#define ENABLE_ARCH_5     arm_feature(env, ARM_FEATURE_V5)
+#define ENABLE_ARCH_4T    arm_dc_feature(s, ARM_FEATURE_V4T)
+#define ENABLE_ARCH_5     arm_dc_feature(s, ARM_FEATURE_V5)
 /* currently all emulated v5 cores are also v5TE, so don't bother */
-#define ENABLE_ARCH_5TE   arm_feature(env, ARM_FEATURE_V5)
+#define ENABLE_ARCH_5TE   arm_dc_feature(s, ARM_FEATURE_V5)
 #define ENABLE_ARCH_5J    0
-#define ENABLE_ARCH_6     arm_feature(env, ARM_FEATURE_V6)
-#define ENABLE_ARCH_6K   arm_feature(env, ARM_FEATURE_V6K)
-#define ENABLE_ARCH_6T2   arm_feature(env, ARM_FEATURE_THUMB2)
-#define ENABLE_ARCH_7     arm_feature(env, ARM_FEATURE_V7)
-#define ENABLE_ARCH_8     arm_feature(env, ARM_FEATURE_V8)
+#define ENABLE_ARCH_6     arm_dc_feature(s, ARM_FEATURE_V6)
+#define ENABLE_ARCH_6K    arm_dc_feature(s, ARM_FEATURE_V6K)
+#define ENABLE_ARCH_6T2   arm_dc_feature(s, ARM_FEATURE_THUMB2)
+#define ENABLE_ARCH_7     arm_dc_feature(s, ARM_FEATURE_V7)
+#define ENABLE_ARCH_8     arm_dc_feature(s, ARM_FEATURE_V8)
 
 #define ARCH(x) do { if (!ENABLE_ARCH_##x) goto illegal_op; } while(0)
 
