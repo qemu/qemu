@@ -834,8 +834,7 @@ static inline void gen_bx(DisasContext *s, TCGv_i32 var)
 /* Variant of store_reg which uses branch&exchange logic when storing
    to r15 in ARM architecture v7 and above. The source must be a temporary
    and will be marked as dead. */
-static inline void store_reg_bx(CPUARMState *env, DisasContext *s,
-                                int reg, TCGv_i32 var)
+static inline void store_reg_bx(DisasContext *s, int reg, TCGv_i32 var)
 {
     if (reg == 15 && ENABLE_ARCH_7) {
         gen_bx(s, var);
@@ -848,8 +847,7 @@ static inline void store_reg_bx(CPUARMState *env, DisasContext *s,
  * to r15 in ARM architecture v5T and above. This is used for storing
  * the results of a LDR/LDM/POP into r15, and corresponds to the cases
  * in the ARM ARM which use the LoadWritePC() pseudocode function. */
-static inline void store_reg_from_load(CPUARMState *env, DisasContext *s,
-                                       int reg, TCGv_i32 var)
+static inline void store_reg_from_load(DisasContext *s, int reg, TCGv_i32 var)
 {
     if (reg == 15 && ENABLE_ARCH_5) {
         gen_bx(s, var);
@@ -1541,7 +1539,7 @@ static inline int gen_iwmmxt_shift(uint32_t insn, uint32_t mask, TCGv_i32 dest)
 
 /* Disassemble an iwMMXt instruction.  Returns nonzero if an error occurred
    (ie. an undefined instruction).  */
-static int disas_iwmmxt_insn(CPUARMState *env, DisasContext *s, uint32_t insn)
+static int disas_iwmmxt_insn(DisasContext *s, uint32_t insn)
 {
     int rd, wrd;
     int rdhi, rdlo, rd0, rd1, i;
@@ -2547,7 +2545,7 @@ static int disas_iwmmxt_insn(CPUARMState *env, DisasContext *s, uint32_t insn)
 
 /* Disassemble an XScale DSP instruction.  Returns nonzero if an error occurred
    (ie. an undefined instruction).  */
-static int disas_dsp_insn(CPUARMState *env, DisasContext *s, uint32_t insn)
+static int disas_dsp_insn(DisasContext *s, uint32_t insn)
 {
     int acc, rd0, rd1, rdhi, rdlo;
     TCGv_i32 tmp, tmp2;
@@ -2966,7 +2964,7 @@ static const uint8_t fp_decode_rm[] = {
     FPROUNDING_NEGINF,
 };
 
-static int disas_vfp_v8_insn(CPUARMState *env, DisasContext *s, uint32_t insn)
+static int disas_vfp_v8_insn(DisasContext *s, uint32_t insn)
 {
     uint32_t rd, rn, rm, dp = extract32(insn, 8, 1);
 
@@ -3002,7 +3000,7 @@ static int disas_vfp_v8_insn(CPUARMState *env, DisasContext *s, uint32_t insn)
 
 /* Disassemble a VFP instruction.  Returns nonzero if an error occurred
    (ie. an undefined instruction).  */
-static int disas_vfp_insn(CPUARMState * env, DisasContext *s, uint32_t insn)
+static int disas_vfp_insn(DisasContext *s, uint32_t insn)
 {
     uint32_t rd, rn, rm, op, i, n, offset, delta_d, delta_m, bank_mask;
     int dp, veclen;
@@ -3039,7 +3037,7 @@ static int disas_vfp_insn(CPUARMState * env, DisasContext *s, uint32_t insn)
         /* Encodings with T=1 (Thumb) or unconditional (ARM):
          * only used in v8 and above.
          */
-        return disas_vfp_v8_insn(env, s, insn);
+        return disas_vfp_v8_insn(s, insn);
     }
 
     dp = ((insn & 0xf00) == 0xb00);
@@ -3962,7 +3960,8 @@ static inline void gen_mulxy(TCGv_i32 t0, TCGv_i32 t1, int x, int y)
 }
 
 /* Return the mask of PSR bits set by a MSR instruction.  */
-static uint32_t msr_mask(CPUARMState *env, DisasContext *s, int flags, int spsr) {
+static uint32_t msr_mask(DisasContext *s, int flags, int spsr)
+{
     uint32_t mask;
 
     mask = 0;
@@ -4312,7 +4311,7 @@ static struct {
 
 /* Translate a NEON load/store element instruction.  Return nonzero if the
    instruction is invalid.  */
-static int disas_neon_ls_insn(CPUARMState * env, DisasContext *s, uint32_t insn)
+static int disas_neon_ls_insn(DisasContext *s, uint32_t insn)
 {
     int rd, rn, rm;
     int op;
@@ -5054,7 +5053,7 @@ static const uint8_t neon_2rm_sizes[] = {
    We process data in a mixture of 32-bit and 64-bit chunks.
    Mostly we use 32-bit chunks so we can use normal scalar instructions.  */
 
-static int disas_neon_data_insn(CPUARMState * env, DisasContext *s, uint32_t insn)
+static int disas_neon_data_insn(DisasContext *s, uint32_t insn)
 {
     int op;
     int q;
@@ -7049,7 +7048,7 @@ static int disas_neon_data_insn(CPUARMState * env, DisasContext *s, uint32_t ins
     return 0;
 }
 
-static int disas_coproc_insn(CPUARMState * env, DisasContext *s, uint32_t insn)
+static int disas_coproc_insn(DisasContext *s, uint32_t insn)
 {
     int cpnum, is64, crn, crm, opc1, opc2, isread, rt, rt2;
     const ARMCPRegInfo *ri;
@@ -7062,9 +7061,9 @@ static int disas_coproc_insn(CPUARMState * env, DisasContext *s, uint32_t insn)
             return 1;
         }
         if (arm_dc_feature(s, ARM_FEATURE_IWMMXT)) {
-            return disas_iwmmxt_insn(env, s, insn);
+            return disas_iwmmxt_insn(s, insn);
         } else if (arm_dc_feature(s, ARM_FEATURE_XSCALE)) {
-            return disas_dsp_insn(env, s, insn);
+            return disas_dsp_insn(s, insn);
         }
         return 1;
     }
@@ -7592,8 +7591,9 @@ static void disas_arm_insn(CPUARMState * env, DisasContext *s)
                 goto illegal_op;
             }
 
-            if (disas_neon_data_insn(env, s, insn))
+            if (disas_neon_data_insn(s, insn)) {
                 goto illegal_op;
+            }
             return;
         }
         if ((insn & 0x0f100000) == 0x04000000) {
@@ -7602,13 +7602,14 @@ static void disas_arm_insn(CPUARMState * env, DisasContext *s)
                 goto illegal_op;
             }
 
-            if (disas_neon_ls_insn(env, s, insn))
+            if (disas_neon_ls_insn(s, insn)) {
                 goto illegal_op;
+            }
             return;
         }
         if ((insn & 0x0f000e10) == 0x0e000a00) {
             /* VFP.  */
-            if (disas_vfp_insn(env, s, insn)) {
+            if (disas_vfp_insn(s, insn)) {
                 goto illegal_op;
             }
             return;
@@ -7732,7 +7733,7 @@ static void disas_arm_insn(CPUARMState * env, DisasContext *s)
             if (arm_dc_feature(s, ARM_FEATURE_IWMMXT)) {
                 /* iWMMXt register transfer.  */
                 if (extract32(s->c15_cpar, 1, 1)) {
-                    if (!disas_iwmmxt_insn(env, s, insn)) {
+                    if (!disas_iwmmxt_insn(s, insn)) {
                         return;
                     }
                 }
@@ -7805,8 +7806,10 @@ static void disas_arm_insn(CPUARMState * env, DisasContext *s)
                 if (shift)
                     val = (val >> shift) | (val << (32 - shift));
                 i = ((insn & (1 << 22)) != 0);
-                if (gen_set_psr_im(s, msr_mask(env, s, (insn >> 16) & 0xf, i), i, val))
+                if (gen_set_psr_im(s, msr_mask(s, (insn >> 16) & 0xf, i),
+                                   i, val)) {
                     goto illegal_op;
+                }
             }
         }
     } else if ((insn & 0x0f900000) == 0x01000000
@@ -7821,7 +7824,7 @@ static void disas_arm_insn(CPUARMState * env, DisasContext *s)
                 /* PSR = reg */
                 tmp = load_reg(s, rm);
                 i = ((op1 & 2) != 0);
-                if (gen_set_psr(s, msr_mask(env, s, (insn >> 16) & 0xf, i), i, tmp))
+                if (gen_set_psr(s, msr_mask(s, (insn >> 16) & 0xf, i), i, tmp))
                     goto illegal_op;
             } else {
                 /* reg = PSR */
@@ -8059,14 +8062,14 @@ static void disas_arm_insn(CPUARMState * env, DisasContext *s)
             if (logic_cc) {
                 gen_logic_CC(tmp);
             }
-            store_reg_bx(env, s, rd, tmp);
+            store_reg_bx(s, rd, tmp);
             break;
         case 0x01:
             tcg_gen_xor_i32(tmp, tmp, tmp2);
             if (logic_cc) {
                 gen_logic_CC(tmp);
             }
-            store_reg_bx(env, s, rd, tmp);
+            store_reg_bx(s, rd, tmp);
             break;
         case 0x02:
             if (set_cc && rd == 15) {
@@ -8082,7 +8085,7 @@ static void disas_arm_insn(CPUARMState * env, DisasContext *s)
                 } else {
                     tcg_gen_sub_i32(tmp, tmp, tmp2);
                 }
-                store_reg_bx(env, s, rd, tmp);
+                store_reg_bx(s, rd, tmp);
             }
             break;
         case 0x03:
@@ -8091,7 +8094,7 @@ static void disas_arm_insn(CPUARMState * env, DisasContext *s)
             } else {
                 tcg_gen_sub_i32(tmp, tmp2, tmp);
             }
-            store_reg_bx(env, s, rd, tmp);
+            store_reg_bx(s, rd, tmp);
             break;
         case 0x04:
             if (set_cc) {
@@ -8099,7 +8102,7 @@ static void disas_arm_insn(CPUARMState * env, DisasContext *s)
             } else {
                 tcg_gen_add_i32(tmp, tmp, tmp2);
             }
-            store_reg_bx(env, s, rd, tmp);
+            store_reg_bx(s, rd, tmp);
             break;
         case 0x05:
             if (set_cc) {
@@ -8107,7 +8110,7 @@ static void disas_arm_insn(CPUARMState * env, DisasContext *s)
             } else {
                 gen_add_carry(tmp, tmp, tmp2);
             }
-            store_reg_bx(env, s, rd, tmp);
+            store_reg_bx(s, rd, tmp);
             break;
         case 0x06:
             if (set_cc) {
@@ -8115,7 +8118,7 @@ static void disas_arm_insn(CPUARMState * env, DisasContext *s)
             } else {
                 gen_sub_carry(tmp, tmp, tmp2);
             }
-            store_reg_bx(env, s, rd, tmp);
+            store_reg_bx(s, rd, tmp);
             break;
         case 0x07:
             if (set_cc) {
@@ -8123,7 +8126,7 @@ static void disas_arm_insn(CPUARMState * env, DisasContext *s)
             } else {
                 gen_sub_carry(tmp, tmp2, tmp);
             }
-            store_reg_bx(env, s, rd, tmp);
+            store_reg_bx(s, rd, tmp);
             break;
         case 0x08:
             if (set_cc) {
@@ -8156,7 +8159,7 @@ static void disas_arm_insn(CPUARMState * env, DisasContext *s)
             if (logic_cc) {
                 gen_logic_CC(tmp);
             }
-            store_reg_bx(env, s, rd, tmp);
+            store_reg_bx(s, rd, tmp);
             break;
         case 0x0d:
             if (logic_cc && rd == 15) {
@@ -8169,7 +8172,7 @@ static void disas_arm_insn(CPUARMState * env, DisasContext *s)
                 if (logic_cc) {
                     gen_logic_CC(tmp2);
                 }
-                store_reg_bx(env, s, rd, tmp2);
+                store_reg_bx(s, rd, tmp2);
             }
             break;
         case 0x0e:
@@ -8177,7 +8180,7 @@ static void disas_arm_insn(CPUARMState * env, DisasContext *s)
             if (logic_cc) {
                 gen_logic_CC(tmp);
             }
-            store_reg_bx(env, s, rd, tmp);
+            store_reg_bx(s, rd, tmp);
             break;
         default:
         case 0x0f:
@@ -8185,7 +8188,7 @@ static void disas_arm_insn(CPUARMState * env, DisasContext *s)
             if (logic_cc) {
                 gen_logic_CC(tmp2);
             }
-            store_reg_bx(env, s, rd, tmp2);
+            store_reg_bx(s, rd, tmp2);
             break;
         }
         if (op1 != 0x0f && op1 != 0x0d) {
@@ -8823,7 +8826,7 @@ static void disas_arm_insn(CPUARMState * env, DisasContext *s)
             }
             if (insn & (1 << 20)) {
                 /* Complete the load.  */
-                store_reg_from_load(env, s, rd, tmp);
+                store_reg_from_load(s, rd, tmp);
             }
             break;
         case 0x08:
@@ -8886,7 +8889,7 @@ static void disas_arm_insn(CPUARMState * env, DisasContext *s)
                                 loaded_var = tmp;
                                 loaded_base = 1;
                             } else {
-                                store_reg_from_load(env, s, i, tmp);
+                                store_reg_from_load(s, i, tmp);
                             }
                         } else {
                             /* store */
@@ -8969,10 +8972,10 @@ static void disas_arm_insn(CPUARMState * env, DisasContext *s)
         case 0xe:
             if (((insn >> 8) & 0xe) == 10) {
                 /* VFP.  */
-                if (disas_vfp_insn(env, s, insn)) {
+                if (disas_vfp_insn(s, insn)) {
                     goto illegal_op;
                 }
-            } else if (disas_coproc_insn(env, s, insn)) {
+            } else if (disas_coproc_insn(s, insn)) {
                 /* Coprocessor.  */
                 goto illegal_op;
             }
@@ -9453,7 +9456,7 @@ static int disas_thumb2_insn(CPUARMState *env, DisasContext *s, uint16_t insn_hw
             gen_arm_shift_reg(tmp, op, tmp2, logic_cc);
             if (logic_cc)
                 gen_logic_CC(tmp);
-            store_reg_bx(env, s, rd, tmp);
+            store_reg_bx(s, rd, tmp);
             break;
         case 1: /* Sign/zero extend.  */
             tmp = load_reg(s, rm);
@@ -9735,17 +9738,19 @@ static int disas_thumb2_insn(CPUARMState *env, DisasContext *s, uint16_t insn_hw
         if (((insn >> 24) & 3) == 3) {
             /* Translate into the equivalent ARM encoding.  */
             insn = (insn & 0xe2ffffff) | ((insn & (1 << 28)) >> 4) | (1 << 28);
-            if (disas_neon_data_insn(env, s, insn))
+            if (disas_neon_data_insn(s, insn)) {
                 goto illegal_op;
+            }
         } else if (((insn >> 8) & 0xe) == 10) {
-            if (disas_vfp_insn(env, s, insn)) {
+            if (disas_vfp_insn(s, insn)) {
                 goto illegal_op;
             }
         } else {
             if (insn & (1 << 28))
                 goto illegal_op;
-            if (disas_coproc_insn (env, s, insn))
+            if (disas_coproc_insn(s, insn)) {
                 goto illegal_op;
+            }
         }
         break;
     case 8: case 9: case 10: case 11:
@@ -9821,7 +9826,7 @@ static int disas_thumb2_insn(CPUARMState *env, DisasContext *s, uint16_t insn_hw
                         }
                         tmp = load_reg(s, rn);
                         if (gen_set_psr(s,
-                              msr_mask(env, s, (insn >> 8) & 0xf, op == 1),
+                              msr_mask(s, (insn >> 8) & 0xf, op == 1),
                               op == 1, tmp))
                             goto illegal_op;
                         break;
@@ -10087,8 +10092,9 @@ static int disas_thumb2_insn(CPUARMState *env, DisasContext *s, uint16_t insn_hw
         int writeback = 0;
         int memidx;
         if ((insn & 0x01100000) == 0x01000000) {
-            if (disas_neon_ls_insn(env, s, insn))
+            if (disas_neon_ls_insn(s, insn)) {
                 goto illegal_op;
+            }
             break;
         }
         op = ((insn >> 21) & 3) | ((insn >> 22) & 4);
@@ -10784,7 +10790,7 @@ static void disas_thumb_insn(CPUARMState *env, DisasContext *s)
             store_reg(s, 13, addr);
             /* set the new PC value */
             if ((insn & 0x0900) == 0x0900) {
-                store_reg_from_load(env, s, 15, tmp);
+                store_reg_from_load(s, 15, tmp);
             }
             break;
 
