@@ -1111,6 +1111,13 @@ struct mfi_ld_list {
     } ld_list[MFI_MAX_LD];
 } QEMU_PACKED;
 
+struct mfi_ld_targetid_list {
+    uint32_t size;
+    uint32_t ld_count;
+    uint8_t pad[3];
+    uint8_t targetid[MFI_MAX_LD];
+} QEMU_PACKED;
+
 enum mfi_ld_access {
     MFI_LD_ACCESS_RW =          0,
     MFI_LD_ACCSSS_RO =          2,
