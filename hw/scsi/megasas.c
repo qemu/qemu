@@ -31,9 +31,11 @@
 
 #include "mfi.h"
 
-#define MEGASAS_VERSION "1.70"
+#define MEGASAS_VERSION_GEN1 "1.70"
+#define MEGASAS_VERSION_GEN2 "1.80"
 #define MEGASAS_MAX_FRAMES 2048         /* Firmware limit at 65535 */
 #define MEGASAS_DEFAULT_FRAMES 1000     /* Windows requires this */
+#define MEGASAS_GEN2_DEFAULT_FRAMES 1008     /* Windows requires this */
 #define MEGASAS_MAX_SGE 128             /* Firmware limit */
 #define MEGASAS_DEFAULT_SGE 80
 #define MEGASAS_MAX_SECTORS 0xFFFF      /* No real limit */
@@ -91,6 +93,8 @@ typedef struct MegasasState {
     int intr_mask;
     int doorbell;
     int busy;
+    int diag;
+    int adp_reset;
 
     MegasasCmd *event_cmd;
     int event_locale;
@@ -115,10 +119,26 @@ typedef struct MegasasState {
     SCSIBus bus;
 } MegasasState;
 
-#define TYPE_MEGASAS "megasas"
+typedef struct MegasasBaseClass {
+    PCIDeviceClass parent_class;
+    const char *product_name;
+    const char *product_version;
+    int mmio_bar;
+    int ioport_bar;
+    int osts;
+} MegasasBaseClass;
+
+#define TYPE_MEGASAS_BASE "megasas-base"
+#define TYPE_MEGASAS_GEN1 "megasas"
+#define TYPE_MEGASAS_GEN2 "megasas-gen2"
 
 #define MEGASAS(obj) \
-    OBJECT_CHECK(MegasasState, (obj), TYPE_MEGASAS)
+    OBJECT_CHECK(MegasasState, (obj), TYPE_MEGASAS_BASE)
+
+#define MEGASAS_DEVICE_CLASS(oc) \
+    OBJECT_CLASS_CHECK(MegasasBaseClass, (oc), TYPE_MEGASAS_BASE)
+#define MEGASAS_DEVICE_GET_CLASS(oc) \
+    OBJECT_GET_CLASS(MegasasBaseClass, (oc), TYPE_MEGASAS_BASE)
 
 #define MEGASAS_INTR_DISABLED_MASK 0xFFFFFFFF
 
@@ -686,6 +706,8 @@ static void megasas_finish_dcmd(MegasasCmd *cmd, uint32_t iov_size)
 static int megasas_ctrl_get_info(MegasasState *s, MegasasCmd *cmd)
 {
     PCIDevice *pci_dev = PCI_DEVICE(s);
+    PCIDeviceClass *pci_class = PCI_DEVICE_GET_CLASS(pci_dev);
+    MegasasBaseClass *base_class = MEGASAS_DEVICE_GET_CLASS(s);
     struct mfi_ctrl_info info;
     size_t dcmd_size = sizeof(info);
     BusChild *kid;
@@ -698,10 +720,10 @@ static int megasas_ctrl_get_info(MegasasState *s, MegasasCmd *cmd)
         return MFI_STAT_INVALID_PARAMETER;
     }
 
-    info.pci.vendor = cpu_to_le16(PCI_VENDOR_ID_LSI_LOGIC);
-    info.pci.device = cpu_to_le16(PCI_DEVICE_ID_LSI_SAS1078);
-    info.pci.subvendor = cpu_to_le16(PCI_VENDOR_ID_LSI_LOGIC);
-    info.pci.subdevice = cpu_to_le16(0x1013);
+    info.pci.vendor = cpu_to_le16(pci_class->vendor_id);
+    info.pci.device = cpu_to_le16(pci_class->device_id);
+    info.pci.subvendor = cpu_to_le16(pci_class->subsystem_vendor_id);
+    info.pci.subdevice = cpu_to_le16(pci_class->subsystem_id);
 
     /*
      * For some reason the firmware supports
@@ -728,11 +750,12 @@ static int megasas_ctrl_get_info(MegasasState *s, MegasasCmd *cmd)
         num_pd_disks++;
     }
 
-    memcpy(info.product_name, "MegaRAID SAS 8708EM2", 20);
+    memcpy(info.product_name, base_class->product_name, 24);
     snprintf(info.serial_number, 32, "%s", s->hba_serial);
     snprintf(info.package_version, 0x60, "%s-QEMU", QEMU_VERSION);
     memcpy(info.image_component[0].name, "APP", 3);
-    memcpy(info.image_component[0].version, MEGASAS_VERSION "-QEMU", 9);
+    snprintf(info.image_component[0].version, 10, "%s-QEMU",
+             base_class->product_version);
     memcpy(info.image_component[0].build_date, "Apr  1 2014", 11);
     memcpy(info.image_component[0].build_time, "12:34:56", 8);
     info.image_component_count = 1;
@@ -1960,6 +1983,8 @@ static uint64_t megasas_mmio_read(void *opaque, hwaddr addr,
                                   unsigned size)
 {
     MegasasState *s = opaque;
+    PCIDevice *pci_dev = PCI_DEVICE(s);
+    MegasasBaseClass *base_class = MEGASAS_DEVICE_GET_CLASS(s);
     uint32_t retval = 0;
 
     switch (addr) {
@@ -1968,14 +1993,14 @@ static uint64_t megasas_mmio_read(void *opaque, hwaddr addr,
         break;
     case MFI_OMSG0:
     case MFI_OSP0:
-        retval = (megasas_use_msix(s) ? MFI_FWSTATE_MSIX_SUPPORTED : 0) |
+        retval = (msix_present(pci_dev) ? MFI_FWSTATE_MSIX_SUPPORTED : 0) |
             (s->fw_state & MFI_FWSTATE_MASK) |
             ((s->fw_sge & 0xff) << 16) |
             (s->fw_cmds & 0xFFFF);
         break;
     case MFI_OSTS:
         if (megasas_intr_enabled(s) && s->doorbell) {
-            retval = MFI_1078_RM | 1;
+            retval = base_class->osts;
         }
         break;
     case MFI_OMSK:
@@ -1984,6 +2009,12 @@ static uint64_t megasas_mmio_read(void *opaque, hwaddr addr,
     case MFI_ODCR0:
         retval = s->doorbell;
         break;
+    case MFI_DIAG:
+        retval = s->diag;
+        break;
+    case MFI_OSP1:
+        retval = 15;
+        break;
     default:
         trace_megasas_mmio_invalid_readl(addr);
         break;
@@ -1991,6 +2022,8 @@ static uint64_t megasas_mmio_read(void *opaque, hwaddr addr,
     trace_megasas_mmio_readl(addr, retval);
     return retval;
 }
+
+static int adp_reset_seq[] = {0x00, 0x04, 0x0b, 0x02, 0x07, 0x0d};
 
 static void megasas_mmio_write(void *opaque, hwaddr addr,
                                uint64_t val, unsigned size)
@@ -2017,6 +2050,10 @@ static void megasas_mmio_write(void *opaque, hwaddr addr,
         if (val & MFI_FWINIT_MFIMODE) {
             /* discard MFIs */
         }
+        if (val & MFI_FWINIT_STOP_ADP) {
+            /* Terminal error, stop processing */
+            s->fw_state = MFI_FWSTATE_FAULT;
+        }
         break;
     case MFI_OMSK:
         s->intr_mask = val;
@@ -2036,6 +2073,7 @@ static void megasas_mmio_write(void *opaque, hwaddr addr,
             }
         } else {
             trace_megasas_intr_disabled();
+            megasas_soft_reset(s);
         }
         break;
     case MFI_ODCR0:
@@ -2057,14 +2095,37 @@ static void megasas_mmio_write(void *opaque, hwaddr addr,
         break;
     case MFI_IQPL:
         /* Received low 32 bits of a 64 bit MFI frame address */
+        /* Fallthrough */
     case MFI_IQP:
-        /* Received 32 bit MFI frame address */
+        /* Received 64 bit MFI frame address */
         frame_addr = (val & ~0x1F);
         /* Add possible 64 bit offset */
         frame_addr |= ((uint64_t)s->frame_hi << 32);
         s->frame_hi = 0;
         frame_count = (val >> 1) & 0xF;
         megasas_handle_frame(s, frame_addr, frame_count);
+        break;
+    case MFI_SEQ:
+        /* Magic sequence to start ADP reset */
+        if (adp_reset_seq[s->adp_reset] == val) {
+            s->adp_reset++;
+        } else {
+            s->adp_reset = 0;
+            s->diag = 0;
+        }
+        if (s->adp_reset == 6) {
+            s->diag = MFI_DIAG_WRITE_ENABLE;
+        }
+        break;
+    case MFI_DIAG:
+        /* ADP reset */
+        if ((s->diag & MFI_DIAG_WRITE_ENABLE) &&
+            (val & MFI_DIAG_RESET_ADP)) {
+            s->diag |= MFI_DIAG_RESET_ADP;
+            megasas_soft_reset(s);
+            s->adp_reset = 0;
+            s->diag = 0;
+        }
         break;
     default:
         trace_megasas_mmio_invalid_writel(addr, val);
@@ -2150,12 +2211,31 @@ static void megasas_scsi_reset(DeviceState *dev)
     megasas_soft_reset(s);
 }
 
-static const VMStateDescription vmstate_megasas = {
+static const VMStateDescription vmstate_megasas_gen1 = {
     .name = "megasas",
     .version_id = 0,
     .minimum_version_id = 0,
     .fields = (VMStateField[]) {
         VMSTATE_PCI_DEVICE(parent_obj, MegasasState),
+        VMSTATE_MSIX(parent_obj, MegasasState),
+
+        VMSTATE_INT32(fw_state, MegasasState),
+        VMSTATE_INT32(intr_mask, MegasasState),
+        VMSTATE_INT32(doorbell, MegasasState),
+        VMSTATE_UINT64(reply_queue_pa, MegasasState),
+        VMSTATE_UINT64(consumer_pa, MegasasState),
+        VMSTATE_UINT64(producer_pa, MegasasState),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
+static const VMStateDescription vmstate_megasas_gen2 = {
+    .name = "megasas-gen2",
+    .version_id = 0,
+    .minimum_version_id = 0,
+    .minimum_version_id_old = 0,
+    .fields      = (VMStateField[]) {
+        VMSTATE_PCIE_DEVICE(parent_obj, MegasasState),
         VMSTATE_MSIX(parent_obj, MegasasState),
 
         VMSTATE_INT32(fw_state, MegasasState),
@@ -2195,6 +2275,7 @@ static int megasas_scsi_init(PCIDevice *dev)
 {
     DeviceState *d = DEVICE(dev);
     MegasasState *s = MEGASAS(dev);
+    MegasasBaseClass *b = MEGASAS_DEVICE_GET_CLASS(s);
     uint8_t *pci_conf;
     int i, bar_type;
     Error *err = NULL;
@@ -2218,14 +2299,18 @@ static int megasas_scsi_init(PCIDevice *dev)
         s->flags &= ~MEGASAS_MASK_USE_MSI;
     }
     if (megasas_use_msix(s) &&
-        msix_init(dev, 15, &s->mmio_io, 0, 0x2000,
-                  &s->mmio_io, 0, 0x3800, 0x68)) {
+        msix_init(dev, 15, &s->mmio_io, b->mmio_bar, 0x2000,
+                  &s->mmio_io, b->mmio_bar, 0x3800, 0x68)) {
         s->flags &= ~MEGASAS_MASK_USE_MSIX;
+    }
+    if (pci_is_express(dev)) {
+        pcie_endpoint_cap_init(dev, 0xa0);
     }
 
     bar_type = PCI_BASE_ADDRESS_SPACE_MEMORY | PCI_BASE_ADDRESS_MEM_TYPE_64;
-    pci_register_bar(dev, 0, bar_type, &s->mmio_io);
-    pci_register_bar(dev, 2, PCI_BASE_ADDRESS_SPACE_IO, &s->port_io);
+    pci_register_bar(dev, b->ioport_bar,
+                     PCI_BASE_ADDRESS_SPACE_IO, &s->port_io);
+    pci_register_bar(dev, b->mmio_bar, bar_type, &s->mmio_io);
     pci_register_bar(dev, 3, bar_type, &s->queue_io);
 
     if (megasas_use_msix(s)) {
@@ -2288,7 +2373,7 @@ megasas_write_config(PCIDevice *pci, uint32_t addr, uint32_t val, int len)
     msi_write_config(pci, addr, val, len);
 }
 
-static Property megasas_properties[] = {
+static Property megasas_properties_gen1[] = {
     DEFINE_PROP_UINT32("max_sge", MegasasState, fw_sge,
                        MEGASAS_DEFAULT_SGE),
     DEFINE_PROP_UINT32("max_cmds", MegasasState, fw_cmds,
@@ -2304,36 +2389,119 @@ static Property megasas_properties[] = {
     DEFINE_PROP_END_OF_LIST(),
 };
 
+static Property megasas_properties_gen2[] = {
+    DEFINE_PROP_UINT32("max_sge", MegasasState, fw_sge,
+                       MEGASAS_DEFAULT_SGE),
+    DEFINE_PROP_UINT32("max_cmds", MegasasState, fw_cmds,
+                       MEGASAS_GEN2_DEFAULT_FRAMES),
+    DEFINE_PROP_STRING("hba_serial", MegasasState, hba_serial),
+    DEFINE_PROP_UINT64("sas_address", MegasasState, sas_addr, 0),
+    DEFINE_PROP_BIT("use_msi", MegasasState, flags,
+                    MEGASAS_FLAG_USE_MSI, true),
+    DEFINE_PROP_BIT("use_msix", MegasasState, flags,
+                    MEGASAS_FLAG_USE_MSIX, true),
+    DEFINE_PROP_BIT("use_jbod", MegasasState, flags,
+                    MEGASAS_FLAG_USE_JBOD, false),
+    DEFINE_PROP_END_OF_LIST(),
+};
+
+typedef struct MegasasInfo {
+    const char *name;
+    const char *desc;
+    const char *product_name;
+    const char *product_version;
+    uint16_t device_id;
+    uint16_t subsystem_id;
+    int ioport_bar;
+    int mmio_bar;
+    bool is_express;
+    int osts;
+    const VMStateDescription *vmsd;
+    Property *props;
+} MegasasInfo;
+
+static struct MegasasInfo megasas_devices[] = {
+    {
+        .name = TYPE_MEGASAS_GEN1,
+        .desc = "LSI MegaRAID SAS 1078",
+        .product_name = "LSI MegaRAID SAS 8708EM2",
+        .product_version = MEGASAS_VERSION_GEN1,
+        .device_id = PCI_DEVICE_ID_LSI_SAS1078,
+        .subsystem_id = 0x1013,
+        .ioport_bar = 2,
+        .mmio_bar = 0,
+        .osts = MFI_1078_RM | 1,
+        .is_express = false,
+        .vmsd = &vmstate_megasas_gen1,
+        .props = megasas_properties_gen1,
+    },{
+        .name = TYPE_MEGASAS_GEN2,
+        .desc = "LSI MegaRAID SAS 2108",
+        .product_name = "LSI MegaRAID SAS 9260-8i",
+        .product_version = MEGASAS_VERSION_GEN2,
+        .device_id = PCI_DEVICE_ID_LSI_SAS0079,
+        .subsystem_id = 0x9261,
+        .ioport_bar = 0,
+        .mmio_bar = 1,
+        .osts = MFI_GEN2_RM,
+        .is_express = true,
+        .vmsd = &vmstate_megasas_gen2,
+        .props = megasas_properties_gen2,
+    }
+};
+
 static void megasas_class_init(ObjectClass *oc, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(oc);
     PCIDeviceClass *pc = PCI_DEVICE_CLASS(oc);
+    MegasasBaseClass *e = MEGASAS_DEVICE_CLASS(oc);
+    const MegasasInfo *info = data;
 
     pc->init = megasas_scsi_init;
     pc->exit = megasas_scsi_uninit;
     pc->vendor_id = PCI_VENDOR_ID_LSI_LOGIC;
-    pc->device_id = PCI_DEVICE_ID_LSI_SAS1078;
+    pc->device_id = info->device_id;
     pc->subsystem_vendor_id = PCI_VENDOR_ID_LSI_LOGIC;
-    pc->subsystem_id = 0x1013;
+    pc->subsystem_id = info->subsystem_id;
     pc->class_id = PCI_CLASS_STORAGE_RAID;
-    dc->props = megasas_properties;
+    pc->is_express = info->is_express;
+    e->mmio_bar = info->mmio_bar;
+    e->ioport_bar = info->ioport_bar;
+    e->osts = info->osts;
+    e->product_name = info->product_name;
+    e->product_version = info->product_version;
+    dc->props = info->props;
     dc->reset = megasas_scsi_reset;
-    dc->vmsd = &vmstate_megasas;
+    dc->vmsd = info->vmsd;
     set_bit(DEVICE_CATEGORY_STORAGE, dc->categories);
-    dc->desc = "LSI MegaRAID SAS 1078";
+    dc->desc = info->desc;
     pc->config_write = megasas_write_config;
 }
 
 static const TypeInfo megasas_info = {
-    .name  = TYPE_MEGASAS,
+    .name  = TYPE_MEGASAS_BASE,
     .parent = TYPE_PCI_DEVICE,
     .instance_size = sizeof(MegasasState),
-    .class_init = megasas_class_init,
+    .class_size = sizeof(MegasasBaseClass),
+    .abstract = true,
 };
 
 static void megasas_register_types(void)
 {
+    int i;
+
     type_register_static(&megasas_info);
+    for (i = 0; i < ARRAY_SIZE(megasas_devices); i++) {
+        const MegasasInfo *info = &megasas_devices[i];
+        TypeInfo type_info = {};
+
+        type_info.name = info->name;
+        type_info.parent = TYPE_MEGASAS_BASE;
+        type_info.class_data = (void *)info;
+        type_info.class_init = megasas_class_init;
+
+        type_register(&type_info);
+    }
 }
 
 type_init(megasas_register_types)

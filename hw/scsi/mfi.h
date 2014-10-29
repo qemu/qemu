@@ -60,6 +60,7 @@
 #define MFI_ODR0        0x9c            /* outbound doorbell register0 */
 #define MFI_ODCR0       0xa0            /* outbound doorbell clear register0  */
 #define MFI_OSP0        0xb0            /* outbound scratch pad0  */
+#define MFI_OSP1        0xb4            /* outbound scratch pad1  */
 #define MFI_IQPL        0xc0            /* Inbound queue port (low bytes)  */
 #define MFI_IQPH        0xc4            /* Inbound queue port (high bytes)  */
 #define MFI_DIAG        0xf8            /* Host diag */
@@ -115,6 +116,12 @@
 #define MFI_FWINIT_HOTPLUG      0x00000010
 #define MFI_FWINIT_STOP_ADP     0x00000020 /* Move to operational, stop */
 #define MFI_FWINIT_ADP_RESET    0x00000040 /* Reset ADP */
+
+/*
+ * Control bits for the DIAG register
+ */
+#define MFI_DIAG_WRITE_ENABLE 0x00000080
+#define MFI_DIAG_RESET_ADP    0x00000004
 
 /* MFI Commands */
 typedef enum {
