@@ -1525,11 +1525,8 @@ static void virtio_rng_initfn(Object *obj)
 
     virtio_instance_init_common(obj, &dev->vdev, sizeof(dev->vdev),
                                 TYPE_VIRTIO_RNG);
-    object_property_add_link(obj, "rng", TYPE_RNG_BACKEND,
-                             (Object **)&dev->vdev.conf.rng,
-                             qdev_prop_allow_set_link_before_realize,
-                             OBJ_PROP_LINK_UNREF_ON_RELEASE, NULL);
-
+    object_property_add_alias(obj, "rng", OBJECT(&dev->vdev), "rng",
+                              &error_abort);
 }
 
 static const TypeInfo virtio_rng_pci_info = {
