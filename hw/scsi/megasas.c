@@ -610,16 +610,19 @@ static int megasas_init_firmware(MegasasState *s, MegasasCmd *cmd)
 {
     PCIDevice *pcid = PCI_DEVICE(s);
     uint32_t pa_hi, pa_lo;
-    hwaddr iq_pa, initq_size;
-    struct mfi_init_qinfo *initq;
+    hwaddr iq_pa, initq_size = sizeof(struct mfi_init_qinfo);
+    struct mfi_init_qinfo *initq = NULL;
     uint32_t flags;
     int ret = MFI_STAT_OK;
 
+    if (s->reply_queue_pa) {
+        trace_megasas_initq_mapped(s->reply_queue_pa);
+        goto out;
+    }
     pa_lo = le32_to_cpu(cmd->frame->init.qinfo_new_addr_lo);
     pa_hi = le32_to_cpu(cmd->frame->init.qinfo_new_addr_hi);
     iq_pa = (((uint64_t) pa_hi << 32) | pa_lo);
     trace_megasas_init_firmware((uint64_t)iq_pa);
-    initq_size = sizeof(*initq);
     initq = pci_dma_map(pcid, iq_pa, &initq_size, 0);
     if (!initq || initq_size != sizeof(*initq)) {
         trace_megasas_initq_map_failed(cmd->index);
