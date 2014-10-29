@@ -527,8 +527,12 @@ static MegasasCmd *megasas_enqueue_frame(MegasasState *s,
     cmd->count = count;
     s->busy++;
 
+    if (s->consumer_pa) {
+        s->reply_queue_tail = ldl_le_phys(&address_space_memory,
+                                          s->consumer_pa);
+    }
     trace_megasas_qf_enqueue(cmd->index, cmd->count, cmd->context,
-                             s->reply_queue_head, s->busy);
+                             s->reply_queue_head, s->reply_queue_tail, s->busy);
 
     return cmd;
 }
@@ -558,8 +562,10 @@ static void megasas_complete_frame(MegasasState *s, uint64_t context)
                         s->reply_queue_pa + queue_offset, context);
         }
         s->reply_queue_head = megasas_next_index(s, tail, s->fw_cmds);
-        trace_megasas_qf_complete(context, tail, queue_offset,
-                                  s->busy, s->doorbell);
+        s->reply_queue_tail = ldl_le_phys(&address_space_memory,
+                                          s->consumer_pa);
+        trace_megasas_qf_complete(context, s->reply_queue_head,
+                                  s->reply_queue_tail, s->busy, s->doorbell);
     }
 
     if (megasas_intr_enabled(s)) {
@@ -1649,7 +1655,6 @@ static int megasas_handle_scsi(MegasasState *s, MegasasCmd *cmd,
                                bool is_logical)
 {
     uint8_t *cdb;
-    int len;
     bool is_write;
     struct SCSIDevice *sdev = NULL;
 
@@ -1710,16 +1715,16 @@ static int megasas_handle_scsi(MegasasState *s, MegasasCmd *cmd,
     }
 
     is_write = (cmd->req->cmd.mode == SCSI_XFER_TO_DEV);
-    len = megasas_enqueue_req(cmd, is_write);
-    if (len > 0) {
+    if (cmd->iov_size) {
         if (is_write) {
-            trace_megasas_scsi_write_start(cmd->index, len);
+            trace_megasas_scsi_write_start(cmd->index, cmd->iov_size);
         } else {
-            trace_megasas_scsi_read_start(cmd->index, len);
+            trace_megasas_scsi_read_start(cmd->index, cmd->iov_size);
         }
     } else {
         trace_megasas_scsi_nodata(cmd->index);
     }
+    megasas_enqueue_req(cmd, is_write);
     return MFI_STAT_INVALID_STATUS;
 }
 
@@ -2106,7 +2111,10 @@ static void megasas_mmio_write(void *opaque, hwaddr addr,
         s->doorbell = 0;
         if (s->producer_pa && megasas_intr_enabled(s)) {
             /* Update reply queue pointer */
-            trace_megasas_qf_update(s->reply_queue_head, s->busy);
+            s->reply_queue_tail = ldl_le_phys(&address_space_memory,
+                                              s->consumer_pa);
+            trace_megasas_qf_update(s->reply_queue_head, s->reply_queue_tail,
+                                    s->busy);
             stl_le_phys(&address_space_memory,
                         s->producer_pa, s->reply_queue_head);
             if (!msix_enabled(pci_dev)) {
