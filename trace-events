@@ -754,7 +754,7 @@ megasas_dcmd_unsupported(int cmd, unsigned long size) "scmd %d: set properties l
 megasas_abort_frame(int cmd, int abort_cmd) "scmd %d: frame %x"
 megasas_abort_no_cmd(int cmd, uint64_t context) "scmd %d: no active command for frame context %" PRIx64 ""
 megasas_abort_invalid_context(int cmd, uint64_t context, int abort_cmd) "scmd %d: invalid frame context %" PRIx64 " for abort frame %x"
-megasas_reset(void) "Reset"
+megasas_reset(int fw_state) "firmware state %x"
 megasas_init(int sges, int cmds, const char *mode) "Using %d sges, %d cmds, %s mode"
 megasas_msix_raise(int vector) "vector %d"
 megasas_msi_raise(int vector) "vector %d"

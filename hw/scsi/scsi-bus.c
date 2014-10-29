@@ -84,7 +84,7 @@ static SCSIRequest *scsi_device_alloc_req(SCSIDevice *s, uint32_t tag, uint32_t 
     return NULL;
 }
 
-static void scsi_device_unit_attention_reported(SCSIDevice *s)
+void scsi_device_unit_attention_reported(SCSIDevice *s)
 {
     SCSIDeviceClass *sc = SCSI_DEVICE_GET_CLASS(s);
     if (sc->unit_attention_reported) {

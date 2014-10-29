@@ -2202,10 +2202,25 @@ static void megasas_soft_reset(MegasasState *s)
     int i;
     MegasasCmd *cmd;
 
-    trace_megasas_reset();
+    trace_megasas_reset(s->fw_state);
     for (i = 0; i < s->fw_cmds; i++) {
         cmd = &s->frames[i];
         megasas_abort_command(cmd);
+    }
+    if (s->fw_state == MFI_FWSTATE_READY) {
+        BusChild *kid;
+
+        /*
+         * The EFI firmware doesn't handle UA,
+         * so we need to clear the Power On/Reset UA
+         * after the initial reset.
+         */
+        QTAILQ_FOREACH(kid, &s->bus.qbus.children, sibling) {
+            SCSIDevice *sdev = DO_UPCAST(SCSIDevice, qdev, kid->child);
+
+            sdev->unit_attention = SENSE_CODE(NO_SENSE);
+            scsi_device_unit_attention_reported(sdev);
+        }
     }
     megasas_reset_frames(s);
     s->reply_queue_len = s->fw_cmds;
@@ -2334,6 +2349,7 @@ static int megasas_scsi_init(PCIDevice *dev)
         msix_vector_use(dev, 0);
     }
 
+    s->fw_state = MFI_FWSTATE_READY;
     if (!s->sas_addr) {
         s->sas_addr = ((NAA_LOCALLY_ASSIGNED_ID << 24) |
                        IEEE_COMPANY_LOCALLY_ASSIGNED) << 36;
