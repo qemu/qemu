@@ -1118,7 +1118,7 @@ static int megasas_dcmd_ld_get_list(MegasasState *s, MegasasCmd *cmd)
     BusChild *kid;
 
     memset(&info, 0, dcmd_size);
-    if (cmd->iov_size < dcmd_size) {
+    if (cmd->iov_size > dcmd_size) {
         trace_megasas_dcmd_invalid_xfer_len(cmd->index, cmd->iov_size,
                                             dcmd_size);
         return MFI_STAT_INVALID_PARAMETER;
