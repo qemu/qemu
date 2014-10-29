@@ -239,8 +239,9 @@ extern const struct SCSISense sense_code_SPACE_ALLOC_FAILED;
 
 #define SENSE_CODE(x) sense_code_ ## x
 
-uint32_t scsi_data_cdb_length(uint8_t *buf);
-uint32_t scsi_cdb_length(uint8_t *buf);
+uint32_t scsi_data_cdb_xfer(uint8_t *buf);
+uint32_t scsi_cdb_xfer(uint8_t *buf);
+int scsi_cdb_length(uint8_t *buf);
 int scsi_sense_valid(SCSISense sense);
 int scsi_build_sense(uint8_t *in_buf, int in_len,
                      uint8_t *buf, int len, bool fixed);
