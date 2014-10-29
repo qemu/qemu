@@ -21,6 +21,7 @@
 #include "hw/hw.h"
 #include "hw/pci/pci.h"
 #include "sysemu/dma.h"
+#include "sysemu/block-backend.h"
 #include "hw/pci/msi.h"
 #include "hw/pci/msix.h"
 #include "qemu/iov.h"
@@ -976,7 +977,6 @@ static int megasas_pd_get_info_submit(SCSIDevice *sdev, int lun,
 {
     struct mfi_pd_info *info = cmd->iov_buf;
     size_t dcmd_size = sizeof(struct mfi_pd_info);
-    BlockConf *conf = &sdev->conf;
     uint64_t pd_size;
     uint16_t sdev_id = ((sdev->id & 0xFF) >> 8) | (lun & 0xFF);
     uint8_t cmdbuf[6];
@@ -1037,7 +1037,7 @@ static int megasas_pd_get_info_submit(SCSIDevice *sdev, int lun,
     info->ref.v.device_id = cpu_to_le16(sdev_id);
     info->state.ddf.pd_type = cpu_to_le16(MFI_PD_DDF_TYPE_IN_VD|
                                           MFI_PD_DDF_TYPE_INTF_SAS);
-    bdrv_get_geometry(conf->bs, &pd_size);
+    blk_get_geometry(sdev->conf.blk, &pd_size);
     info->raw_size = cpu_to_le64(pd_size);
     info->non_coerced_size = cpu_to_le64(pd_size);
     info->coerced_size = cpu_to_le64(pd_size);
@@ -1100,13 +1100,12 @@ static int megasas_dcmd_ld_get_list(MegasasState *s, MegasasCmd *cmd)
     }
     QTAILQ_FOREACH(kid, &s->bus.qbus.children, sibling) {
         SCSIDevice *sdev = DO_UPCAST(SCSIDevice, qdev, kid->child);
-        BlockConf *conf = &sdev->conf;
 
         if (num_ld_disks >= max_ld_disks) {
             break;
         }
         /* Logical device size is in blocks */
-        bdrv_get_geometry(conf->bs, &ld_size);
+        blk_get_geometry(sdev->conf.blk, &ld_size);
         info.ld_list[num_ld_disks].ld.v.target_id = sdev->id;
         info.ld_list[num_ld_disks].ld.v.lun_id = sdev->lun;
         info.ld_list[num_ld_disks].state = MFI_LD_STATE_OPTIMAL;
@@ -1144,7 +1143,6 @@ static int megasas_ld_get_info_submit(SCSIDevice *sdev, int lun,
     uint8_t cdb[6];
     SCSIRequest *req;
     ssize_t len, resid;
-    BlockConf *conf = &sdev->conf;
     uint16_t sdev_id = ((sdev->id & 0xFF) >> 8) | (lun & 0xFF);
     uint64_t ld_size;
 
@@ -1177,7 +1175,7 @@ static int megasas_ld_get_info_submit(SCSIDevice *sdev, int lun,
     info->ld_config.params.num_drives = 1;
     info->ld_config.params.is_consistent = 1;
     /* Logical device size is in blocks */
-    bdrv_get_geometry(conf->bs, &ld_size);
+    blk_get_geometry(sdev->conf.blk, &ld_size);
     info->size = cpu_to_le64(ld_size);
     memset(info->ld_config.span, 0, sizeof(info->ld_config.span));
     info->ld_config.span[0].start_block = 0;
@@ -1261,7 +1259,6 @@ static int megasas_dcmd_cfg_read(MegasasState *s, MegasasCmd *cmd)
 
     QTAILQ_FOREACH(kid, &s->bus.qbus.children, sibling) {
         SCSIDevice *sdev = DO_UPCAST(SCSIDevice, qdev, kid->child);
-        BlockConf *conf = &sdev->conf;
         uint16_t sdev_id = ((sdev->id & 0xFF) >> 8) | (sdev->lun & 0xFF);
         struct mfi_array *array;
         struct mfi_ld_config *ld;
@@ -1269,7 +1266,7 @@ static int megasas_dcmd_cfg_read(MegasasState *s, MegasasCmd *cmd)
         int i;
 
         array = (struct mfi_array *)(data + array_offset);
-        bdrv_get_geometry(conf->bs, &pd_size);
+        blk_get_geometry(sdev->conf.blk, &pd_size);
         array->size = cpu_to_le64(pd_size);
         array->num_drives = 1;
         array->array_ref = cpu_to_le16(sdev_id);
@@ -1340,7 +1337,7 @@ static int megasas_dcmd_get_properties(MegasasState *s, MegasasCmd *cmd)
 
 static int megasas_cache_flush(MegasasState *s, MegasasCmd *cmd)
 {
-    bdrv_drain_all();
+    blk_drain_all();
     return MFI_STAT_OK;
 }
 

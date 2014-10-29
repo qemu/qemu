@@ -4296,7 +4296,6 @@ static int vfio_initfn(PCIDevice *pdev)
         }
     }
 
-    add_boot_device_path(vdev->bootindex, &pdev->qdev, NULL);
     vfio_register_err_notifier(vdev);
 
     return 0;
@@ -4365,13 +4364,22 @@ post_reset:
     vfio_pci_post_reset(vdev);
 }
 
+static void vfio_instance_init(Object *obj)
+{
+    PCIDevice *pci_dev = PCI_DEVICE(obj);
+    VFIODevice *vdev = DO_UPCAST(VFIODevice, pdev, PCI_DEVICE(obj));
+
+    device_add_bootindex_property(obj, &vdev->bootindex,
+                                  "bootindex", NULL,
+                                  &pci_dev->qdev, NULL);
+}
+
 static Property vfio_pci_dev_properties[] = {
     DEFINE_PROP_PCI_HOST_DEVADDR("host", VFIODevice, host),
     DEFINE_PROP_UINT32("x-intx-mmap-timeout-ms", VFIODevice,
                        intx.mmap_timeout, 1100),
     DEFINE_PROP_BIT("x-vga", VFIODevice, features,
                     VFIO_FEATURE_ENABLE_VGA_BIT, false),
-    DEFINE_PROP_INT32("bootindex", VFIODevice, bootindex, -1),
     /*
      * TODO - support passed fds... is this necessary?
      * DEFINE_PROP_STRING("vfiofd", VFIODevice, vfiofd_name),
@@ -4407,6 +4415,7 @@ static const TypeInfo vfio_pci_dev_info = {
     .parent = TYPE_PCI_DEVICE,
     .instance_size = sizeof(VFIODevice),
     .class_init = vfio_pci_dev_class_init,
+    .instance_init = vfio_instance_init,
 };
 
 static void register_vfio_pci_dev_type(void)

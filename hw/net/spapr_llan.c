@@ -221,9 +221,16 @@ static int spapr_vlan_init(VIOsPAPRDevice *sdev)
                             object_get_typename(OBJECT(sdev)), sdev->qdev.id, dev);
     qemu_format_nic_info_str(qemu_get_queue(dev->nic), dev->nicconf.macaddr.a);
 
-    add_boot_device_path(dev->nicconf.bootindex, DEVICE(dev), "");
-
     return 0;
+}
+
+static void spapr_vlan_instance_init(Object *obj)
+{
+    VIOsPAPRVLANDevice *dev = VIO_SPAPR_VLAN_DEVICE(obj);
+
+    device_add_bootindex_property(obj, &dev->nicconf.bootindex,
+                                  "bootindex", "",
+                                  DEVICE(dev), NULL);
 }
 
 void spapr_vlan_create(VIOsPAPRBus *bus, NICInfo *nd)
@@ -553,6 +560,7 @@ static const TypeInfo spapr_vlan_info = {
     .parent        = TYPE_VIO_SPAPR_DEVICE,
     .instance_size = sizeof(VIOsPAPRVLANDevice),
     .class_init    = spapr_vlan_class_init,
+    .instance_init = spapr_vlan_instance_init,
 };
 
 static void spapr_vlan_register_types(void)

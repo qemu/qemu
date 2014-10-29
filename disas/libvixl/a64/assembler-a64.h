@@ -32,6 +32,7 @@
 
 #include "globals.h"
 #include "utils.h"
+#include "code-buffer.h"
 #include "a64/instructions-a64.h"
 
 namespace vixl {
@@ -168,6 +169,11 @@ class CPURegister {
     return type_ == kFPRegister;
   }
 
+  bool IsW() const { return IsValidRegister() && Is32Bits(); }
+  bool IsX() const { return IsValidRegister() && Is64Bits(); }
+  bool IsS() const { return IsValidFPRegister() && Is32Bits(); }
+  bool IsD() const { return IsValidFPRegister() && Is64Bits(); }
+
   const Register& W() const;
   const Register& X() const;
   const FPRegister& S() const;
@@ -191,12 +197,12 @@ class CPURegister {
 
 class Register : public CPURegister {
  public:
-  explicit Register() : CPURegister() {}
+  Register() : CPURegister() {}
   inline explicit Register(const CPURegister& other)
       : CPURegister(other.code(), other.size(), other.type()) {
     VIXL_ASSERT(IsValidRegister());
   }
-  explicit Register(unsigned code, unsigned size)
+  Register(unsigned code, unsigned size)
       : CPURegister(code, size, kRegister) {}
 
   bool IsValid() const {
@@ -536,7 +542,7 @@ class Operand {
 class MemOperand {
  public:
   explicit MemOperand(Register base,
-                      ptrdiff_t offset = 0,
+                      int64_t offset = 0,
                       AddrMode addrmode = Offset);
   explicit MemOperand(Register base,
                       Register regoffset,
@@ -552,7 +558,7 @@ class MemOperand {
 
   const Register& base() const { return base_; }
   const Register& regoffset() const { return regoffset_; }
-  ptrdiff_t offset() const { return offset_; }
+  int64_t offset() const { return offset_; }
   AddrMode addrmode() const { return addrmode_; }
   Shift shift() const { return shift_; }
   Extend extend() const { return extend_; }
@@ -565,7 +571,7 @@ class MemOperand {
  private:
   Register base_;
   Register regoffset_;
-  ptrdiff_t offset_;
+  int64_t offset_;
   AddrMode addrmode_;
   Shift shift_;
   Extend extend_;
@@ -680,32 +686,80 @@ class Label {
 };
 
 
-// TODO: Obtain better values for these, based on real-world data.
-const int kLiteralPoolCheckInterval = 4 * KBytes;
-const int kRecommendedLiteralPoolRange = 2 * kLiteralPoolCheckInterval;
+// A literal is a 32-bit or 64-bit piece of data stored in the instruction
+// stream and loaded through a pc relative load. The same literal can be
+// referred to by multiple instructions but a literal can only reside at one
+// place in memory. A literal can be used by a load before or after being
+// placed in memory.
+//
+// Internally an offset of 0 is associated with a literal which has been
+// neither used nor placed. Then two possibilities arise:
+//  1) the label is placed, the offset (stored as offset + 1) is used to
+//     resolve any subsequent load using the label.
+//  2) the label is not placed and offset is the offset of the last load using
+//     the literal (stored as -offset -1). If multiple loads refer to this
+//     literal then the last load holds the offset of the preceding load and
+//     all loads form a chain. Once the offset is placed all the loads in the
+//     chain are resolved and future loads fall back to possibility 1.
+class RawLiteral {
+ public:
+  RawLiteral() : size_(0), offset_(0), raw_value_(0) {}
 
+  size_t size() {
+    VIXL_STATIC_ASSERT(kDRegSizeInBytes == kXRegSizeInBytes);
+    VIXL_STATIC_ASSERT(kSRegSizeInBytes == kWRegSizeInBytes);
+    VIXL_ASSERT((size_ == kXRegSizeInBytes) || (size_ == kWRegSizeInBytes));
+    return size_;
+  }
+  uint64_t raw_value64() {
+    VIXL_ASSERT(size_ == kXRegSizeInBytes);
+    return raw_value_;
+  }
+  uint32_t raw_value32() {
+    VIXL_ASSERT(size_ == kWRegSizeInBytes);
+    VIXL_ASSERT(is_uint32(raw_value_) || is_int32(raw_value_));
+    return static_cast<uint32_t>(raw_value_);
+  }
+  bool IsUsed() { return offset_ < 0; }
+  bool IsPlaced() { return offset_ > 0; }
 
-// Control whether a branch over the literal pool should also be emitted. This
-// is needed if the literal pool has to be emitted in the middle of the JITted
-// code.
-enum LiteralPoolEmitOption {
-  JumpRequired,
-  NoJumpRequired
+ protected:
+  ptrdiff_t offset() {
+    VIXL_ASSERT(IsPlaced());
+    return offset_ - 1;
+  }
+  void set_offset(ptrdiff_t offset) {
+    VIXL_ASSERT(offset >= 0);
+    VIXL_ASSERT(IsWordAligned(offset));
+    VIXL_ASSERT(!IsPlaced());
+    offset_ = offset + 1;
+  }
+  ptrdiff_t last_use() {
+    VIXL_ASSERT(IsUsed());
+    return -offset_ - 1;
+  }
+  void set_last_use(ptrdiff_t offset) {
+    VIXL_ASSERT(offset >= 0);
+    VIXL_ASSERT(IsWordAligned(offset));
+    VIXL_ASSERT(!IsPlaced());
+    offset_ = -offset - 1;
+  }
+
+  size_t size_;
+  ptrdiff_t offset_;
+  uint64_t raw_value_;
+
+  friend class Assembler;
 };
 
 
-// Literal pool entry.
-class Literal {
+template <typename T>
+class Literal : public RawLiteral {
  public:
-  Literal(Instruction* pc, uint64_t imm, unsigned size)
-      : pc_(pc), value_(imm), size_(size) {}
-
- private:
-  Instruction* pc_;
-  int64_t value_;
-  unsigned size_;
-
-  friend class Assembler;
+  explicit Literal(T value) {
+    size_ = sizeof(value);
+    memcpy(&raw_value_, &value, sizeof(value));
+  }
 };
 
 
@@ -750,7 +804,9 @@ enum LoadStoreScalingOption {
 // Assembler.
 class Assembler {
  public:
-  Assembler(byte* buffer, unsigned buffer_size,
+  Assembler(size_t capacity,
+            PositionIndependentCodeOption pic = PositionIndependentCode);
+  Assembler(byte* buffer, size_t capacity,
             PositionIndependentCodeOption pic = PositionIndependentCode);
 
   // The destructor asserts that one of the following is true:
@@ -763,9 +819,6 @@ class Assembler {
 
   // Start generating code from the beginning of the buffer, discarding any code
   // and data that has already been emitted into the buffer.
-  //
-  // In order to avoid any accidental transfer of state, Reset ASSERTs that the
-  // constant pool is not blocked.
   void Reset();
 
   // Finalize a code buffer of generated instructions. This function must be
@@ -776,13 +829,47 @@ class Assembler {
   // Bind a label to the current PC.
   void bind(Label* label);
 
+  // Bind a label to a specified offset from the start of the buffer.
+  void BindToOffset(Label* label, ptrdiff_t offset);
+
+  // Place a literal at the current PC.
+  void place(RawLiteral* literal);
+
+  ptrdiff_t CursorOffset() const {
+    return buffer_->CursorOffset();
+  }
+
+  ptrdiff_t BufferEndOffset() const {
+    return static_cast<ptrdiff_t>(buffer_->capacity());
+  }
+
+  // Return the address of an offset in the buffer.
+  template <typename T>
+  inline T GetOffsetAddress(ptrdiff_t offset) {
+    VIXL_STATIC_ASSERT(sizeof(T) >= sizeof(uintptr_t));
+    return buffer_->GetOffsetAddress<T>(offset);
+  }
+
   // Return the address of a bound label.
   template <typename T>
   inline T GetLabelAddress(const Label * label) {
     VIXL_ASSERT(label->IsBound());
     VIXL_STATIC_ASSERT(sizeof(T) >= sizeof(uintptr_t));
-    VIXL_STATIC_ASSERT(sizeof(*buffer_) == 1);
-    return reinterpret_cast<T>(buffer_ + label->location());
+    return GetOffsetAddress<T>(label->location());
+  }
+
+  // Return the address of the cursor.
+  template <typename T>
+  inline T GetCursorAddress() {
+    VIXL_STATIC_ASSERT(sizeof(T) >= sizeof(uintptr_t));
+    return GetOffsetAddress<T>(CursorOffset());
+  }
+
+  // Return the address of the start of the buffer.
+  template <typename T>
+  inline T GetStartAddress() {
+    VIXL_STATIC_ASSERT(sizeof(T) >= sizeof(uintptr_t));
+    return GetOffsetAddress<T>(0);
   }
 
   // Instruction set functions.
@@ -1324,14 +1411,17 @@ class Assembler {
   void stnp(const CPURegister& rt, const CPURegister& rt2,
             const MemOperand& dst);
 
-  // Load literal to register.
-  void ldr(const Register& rt, uint64_t imm);
+  // Load integer or FP register from literal pool.
+  void ldr(const CPURegister& rt, RawLiteral* literal);
 
-  // Load double precision floating point literal to FP register.
-  void ldr(const FPRegister& ft, double imm);
+  // Load word with sign extension from literal pool.
+  void ldrsw(const Register& rt, RawLiteral* literal);
 
-  // Load single precision floating point literal to FP register.
-  void ldr(const FPRegister& ft, float imm);
+  // Load integer or FP register from pc + imm19 << 2.
+  void ldr(const CPURegister& rt, int imm19);
+
+  // Load word with sign extension from pc + imm19 << 2.
+  void ldrsw(const Register& rt, int imm19);
 
   // Store exclusive byte.
   void stxrb(const Register& rs, const Register& rt, const MemOperand& dst);
@@ -1618,25 +1708,26 @@ class Assembler {
   inline void dci(Instr raw_inst) { Emit(raw_inst); }
 
   // Emit 32 bits of data into the instruction stream.
-  inline void dc32(uint32_t data) { EmitData(&data, sizeof(data)); }
+  inline void dc32(uint32_t data) {
+    VIXL_ASSERT(buffer_monitor_ > 0);
+    buffer_->Emit32(data);
+  }
 
   // Emit 64 bits of data into the instruction stream.
-  inline void dc64(uint64_t data) { EmitData(&data, sizeof(data)); }
+  inline void dc64(uint64_t data) {
+    VIXL_ASSERT(buffer_monitor_ > 0);
+    buffer_->Emit64(data);
+  }
 
   // Copy a string into the instruction stream, including the terminating NULL
-  // character. The instruction pointer (pc_) is then aligned correctly for
+  // character. The instruction pointer is then aligned correctly for
   // subsequent instructions.
-  void EmitStringData(const char * string) {
+  void EmitString(const char * string) {
     VIXL_ASSERT(string != NULL);
+    VIXL_ASSERT(buffer_monitor_ > 0);
 
-    size_t len = strlen(string) + 1;
-    EmitData(string, len);
-
-    // Pad with NULL characters until pc_ is aligned.
-    const char pad[] = {'\0', '\0', '\0', '\0'};
-    VIXL_STATIC_ASSERT(sizeof(pad) == kInstructionSize);
-    Instruction* next_pc = AlignUp(pc_, kInstructionSize);
-    EmitData(&pad, next_pc - pc_);
+    buffer_->EmitString(string);
+    buffer_->Align();
   }
 
   // Code generation helpers.
@@ -1912,43 +2003,39 @@ class Assembler {
     return scale << FPScale_offset;
   }
 
-  // Size of the code generated in bytes
-  size_t SizeOfCodeGenerated() const {
-    VIXL_ASSERT((pc_ >= buffer_) && (pc_ < (buffer_ + buffer_size_)));
-    return pc_ - buffer_;
-  }
-
   // Size of the code generated since label to the current position.
   size_t SizeOfCodeGeneratedSince(Label* label) const {
-    size_t pc_offset = SizeOfCodeGenerated();
-
     VIXL_ASSERT(label->IsBound());
-    VIXL_ASSERT(pc_offset >= static_cast<size_t>(label->location()));
-    VIXL_ASSERT(pc_offset < buffer_size_);
-
-    return pc_offset - label->location();
+    return buffer_->OffsetFrom(label->location());
   }
 
+  size_t BufferCapacity() const { return buffer_->capacity(); }
 
-  inline void BlockLiteralPool() {
-    literal_pool_monitor_++;
-  }
+  size_t RemainingBufferSpace() const { return buffer_->RemainingBytes(); }
 
-  inline void ReleaseLiteralPool() {
-    if (--literal_pool_monitor_ == 0) {
-      // Has the literal pool been blocked for too long?
-      VIXL_ASSERT(literals_.empty() ||
-             (pc_ < (literals_.back()->pc_ + kMaxLoadLiteralRange)));
+  void EnsureSpaceFor(size_t amount) {
+    if (buffer_->RemainingBytes() < amount) {
+      size_t capacity = buffer_->capacity();
+      size_t size = buffer_->CursorOffset();
+      do {
+        // TODO(all): refine.
+        capacity *= 2;
+      } while ((capacity - size) <  amount);
+      buffer_->Grow(capacity);
     }
   }
 
-  inline bool IsLiteralPoolBlocked() {
-    return literal_pool_monitor_ != 0;
+#ifdef DEBUG
+  void AcquireBuffer() {
+    VIXL_ASSERT(buffer_monitor_ >= 0);
+    buffer_monitor_++;
   }
 
-  void CheckLiteralPool(LiteralPoolEmitOption option = JumpRequired);
-  void EmitLiteralPool(LiteralPoolEmitOption option = NoJumpRequired);
-  size_t LiteralPoolSize();
+  void ReleaseBuffer() {
+    buffer_monitor_--;
+    VIXL_ASSERT(buffer_monitor_ >= 0);
+  }
+#endif
 
   inline PositionIndependentCodeOption pic() {
     return pic_;
@@ -1959,22 +2046,30 @@ class Assembler {
            (pic() == PositionDependentCode);
   }
 
- protected:
-  inline const Register& AppropriateZeroRegFor(const CPURegister& reg) const {
+  static inline const Register& AppropriateZeroRegFor(const CPURegister& reg) {
     return reg.Is64Bits() ? xzr : wzr;
   }
 
 
+ protected:
   void LoadStore(const CPURegister& rt,
                  const MemOperand& addr,
                  LoadStoreOp op,
                  LoadStoreScalingOption option = PreferScaledOffset);
-  static bool IsImmLSUnscaled(ptrdiff_t offset);
-  static bool IsImmLSScaled(ptrdiff_t offset, LSDataSize size);
+  static bool IsImmLSUnscaled(int64_t offset);
+  static bool IsImmLSScaled(int64_t offset, LSDataSize size);
 
+  void LoadStorePair(const CPURegister& rt,
+                     const CPURegister& rt2,
+                     const MemOperand& addr,
+                     LoadStorePairOp op);
+  static bool IsImmLSPair(int64_t offset, LSDataSize size);
+
+  // TODO(all): The third parameter should be passed by reference but gcc 4.8.2
+  // reports a bogus uninitialised warning then.
   void Logical(const Register& rd,
                const Register& rn,
-               const Operand& operand,
+               const Operand operand,
                LogicalOp op);
   void LogicalImmediate(const Register& rd,
                         const Register& rn,
@@ -2035,6 +2130,7 @@ class Assembler {
     const CPURegister& rt, const CPURegister& rt2);
   static LoadStorePairNonTemporalOp StorePairNonTemporalOpFor(
     const CPURegister& rt, const CPURegister& rt2);
+  static LoadLiteralOp LoadLiteralOpFor(const CPURegister& rt);
 
 
  private:
@@ -2053,10 +2149,6 @@ class Assembler {
                                 const Operand& operand,
                                 FlagsUpdate S,
                                 Instr op);
-  void LoadStorePair(const CPURegister& rt,
-                     const CPURegister& rt2,
-                     const MemOperand& addr,
-                     LoadStorePairOp op);
   void LoadStorePairNonTemporal(const CPURegister& rt,
                                 const CPURegister& rt2,
                                 const MemOperand& addr,
@@ -2088,8 +2180,6 @@ class Assembler {
                                const FPRegister& fa,
                                FPDataProcessing3SourceOp op);
 
-  void RecordLiteral(int64_t imm, unsigned size);
-
   // Link the current (not-yet-emitted) instruction to the specified label, then
   // return an offset to be encoded in the instruction. If the label is not yet
   // bound, an offset of 0 is returned.
@@ -2098,79 +2188,102 @@ class Assembler {
   ptrdiff_t LinkAndGetPageOffsetTo(Label * label);
 
   // A common implementation for the LinkAndGet<Type>OffsetTo helpers.
-  template <int element_size>
+  template <int element_shift>
   ptrdiff_t LinkAndGetOffsetTo(Label* label);
 
-  // Emit the instruction at pc_.
+  // Literal load offset are in words (32-bit).
+  ptrdiff_t LinkAndGetWordOffsetTo(RawLiteral* literal);
+
+  // Emit the instruction in buffer_.
   void Emit(Instr instruction) {
-    VIXL_STATIC_ASSERT(sizeof(*pc_) == 1);
     VIXL_STATIC_ASSERT(sizeof(instruction) == kInstructionSize);
-    VIXL_ASSERT((pc_ + sizeof(instruction)) <= (buffer_ + buffer_size_));
-
-#ifdef DEBUG
-    finalized_ = false;
-#endif
-
-    memcpy(pc_, &instruction, sizeof(instruction));
-    pc_ += sizeof(instruction);
-    CheckBufferSpace();
+    VIXL_ASSERT(buffer_monitor_ > 0);
+    buffer_->Emit32(instruction);
   }
 
-  // Emit data inline in the instruction stream.
-  void EmitData(void const * data, unsigned size) {
-    VIXL_STATIC_ASSERT(sizeof(*pc_) == 1);
-    VIXL_ASSERT((pc_ + size) <= (buffer_ + buffer_size_));
-
-#ifdef DEBUG
-    finalized_ = false;
-#endif
-
-    // TODO: Record this 'instruction' as data, so that it can be disassembled
-    // correctly.
-    memcpy(pc_, data, size);
-    pc_ += size;
-    CheckBufferSpace();
-  }
-
-  inline void CheckBufferSpace() {
-    VIXL_ASSERT(pc_ < (buffer_ + buffer_size_));
-    if (pc_ > next_literal_pool_check_) {
-      CheckLiteralPool();
-    }
-  }
-
-  // The buffer into which code and relocation info are generated.
-  Instruction* buffer_;
-  // Buffer size, in bytes.
-  size_t buffer_size_;
-  Instruction* pc_;
-  std::list<Literal*> literals_;
-  Instruction* next_literal_pool_check_;
-  unsigned literal_pool_monitor_;
-
+  // Buffer where the code is emitted.
+  CodeBuffer* buffer_;
   PositionIndependentCodeOption pic_;
 
-  friend class Label;
-  friend class BlockLiteralPoolScope;
-
 #ifdef DEBUG
-  bool finalized_;
+  int64_t buffer_monitor_;
 #endif
 };
 
-class BlockLiteralPoolScope {
+
+// All Assembler emits MUST acquire/release the underlying code buffer. The
+// helper scope below will do so and optionally ensure the buffer is big enough
+// to receive the emit. It is possible to request the scope not to perform any
+// checks (kNoCheck) if for example it is known in advance the buffer size is
+// adequate or there is some other size checking mechanism in place.
+class CodeBufferCheckScope {
  public:
-  explicit BlockLiteralPoolScope(Assembler* assm) : assm_(assm) {
-    assm_->BlockLiteralPool();
+  // Tell whether or not the scope needs to ensure the associated CodeBuffer
+  // has enough space for the requested size.
+  enum CheckPolicy {
+    kNoCheck,
+    kCheck
+  };
+
+  // Tell whether or not the scope should assert the amount of code emitted
+  // within the scope is consistent with the requested amount.
+  enum AssertPolicy {
+    kNoAssert,    // No assert required.
+    kExactSize,   // The code emitted must be exactly size bytes.
+    kMaximumSize  // The code emitted must be at most size bytes.
+  };
+
+  CodeBufferCheckScope(Assembler* assm,
+                       size_t size,
+                       CheckPolicy check_policy = kCheck,
+                       AssertPolicy assert_policy = kMaximumSize)
+      : assm_(assm) {
+    if (check_policy == kCheck) assm->EnsureSpaceFor(size);
+#ifdef DEBUG
+    assm->bind(&start_);
+    size_ = size;
+    assert_policy_ = assert_policy;
+    assm->AcquireBuffer();
+#else
+    USE(assert_policy);
+#endif
   }
 
-  ~BlockLiteralPoolScope() {
-    assm_->ReleaseLiteralPool();
+  // This is a shortcut for CodeBufferCheckScope(assm, 0, kNoCheck, kNoAssert).
+  explicit CodeBufferCheckScope(Assembler* assm) : assm_(assm) {
+#ifdef DEBUG
+    size_ = 0;
+    assert_policy_ = kNoAssert;
+    assm->AcquireBuffer();
+#endif
   }
 
- private:
+  ~CodeBufferCheckScope() {
+#ifdef DEBUG
+    assm_->ReleaseBuffer();
+    switch (assert_policy_) {
+      case kNoAssert: break;
+      case kExactSize:
+        VIXL_ASSERT(assm_->SizeOfCodeGeneratedSince(&start_) == size_);
+        break;
+      case kMaximumSize:
+        VIXL_ASSERT(assm_->SizeOfCodeGeneratedSince(&start_) <= size_);
+        break;
+      default:
+        VIXL_UNREACHABLE();
+    }
+#endif
+  }
+
+ protected:
   Assembler* assm_;
+#ifdef DEBUG
+  Label start_;
+  size_t size_;
+  AssertPolicy assert_policy_;
+#endif
 };
+
 }  // namespace vixl
 
 #endif  // VIXL_A64_ASSEMBLER_A64_H_

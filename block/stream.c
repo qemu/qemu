@@ -220,7 +220,7 @@ static const BlockJobDriver stream_job_driver = {
 void stream_start(BlockDriverState *bs, BlockDriverState *base,
                   const char *backing_file_str, int64_t speed,
                   BlockdevOnError on_error,
-                  BlockDriverCompletionFunc *cb,
+                  BlockCompletionFunc *cb,
                   void *opaque, Error **errp)
 {
     StreamBlockJob *s;

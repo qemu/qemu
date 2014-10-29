@@ -40,7 +40,10 @@ static void arm_cpu_set_pc(CPUState *cs, vaddr value)
 
 static bool arm_cpu_has_work(CPUState *cs)
 {
-    return cs->interrupt_request &
+    ARMCPU *cpu = ARM_CPU(cs);
+
+    return !cpu->powered_off
+        && cs->interrupt_request &
         (CPU_INTERRUPT_FIQ | CPU_INTERRUPT_HARD
          | CPU_INTERRUPT_VFIQ | CPU_INTERRUPT_VIRQ
          | CPU_INTERRUPT_EXITTB);
@@ -93,6 +96,9 @@ static void arm_cpu_reset(CPUState *s)
     env->vfp.xregs[ARM_VFP_MVFR1] = cpu->mvfr1;
     env->vfp.xregs[ARM_VFP_MVFR2] = cpu->mvfr2;
 
+    cpu->powered_off = cpu->start_powered_off;
+    s->halted = cpu->start_powered_off;
+
     if (arm_feature(env, ARM_FEATURE_IWMMXT)) {
         env->iwmmxt.cregs[ARM_IWMMXT_wCID] = 0x69051000 | 'Q';
     }
@@ -102,8 +108,8 @@ static void arm_cpu_reset(CPUState *s)
         env->aarch64 = 1;
 #if defined(CONFIG_USER_ONLY)
         env->pstate = PSTATE_MODE_EL0t;
-        /* Userspace expects access to CTL_EL0 and the cache ops */
-        env->cp15.c1_sys |= SCTLR_UCT | SCTLR_UCI;
+        /* Userspace expects access to DC ZVA, CTL_EL0 and the cache ops */
+        env->cp15.c1_sys |= SCTLR_UCT | SCTLR_UCI | SCTLR_DZE;
         /* and to the FP/Neon instructions */
         env->cp15.c1_coproc = deposit64(env->cp15.c1_coproc, 20, 2, 3);
 #else
@@ -328,9 +334,12 @@ static void arm_cpu_initfn(Object *obj)
     cpu->psci_version = 1; /* By default assume PSCI v0.1 */
     cpu->kvm_target = QEMU_KVM_ARM_TARGET_NONE;
 
-    if (tcg_enabled() && !inited) {
-        inited = true;
-        arm_translate_init();
+    if (tcg_enabled()) {
+        cpu->psci_version = 2; /* TCG implements PSCI 0.2 */
+        if (!inited) {
+            inited = true;
+            arm_translate_init();
+        }
     }
 }
 
@@ -1096,6 +1105,7 @@ static const ARMCPUInfo arm_cpus[] = {
 
 static Property arm_cpu_properties[] = {
     DEFINE_PROP_BOOL("start-powered-off", ARMCPU, start_powered_off, false),
+    DEFINE_PROP_UINT32("psci-conduit", ARMCPU, psci_conduit, 0),
     DEFINE_PROP_UINT32("midr", ARMCPU, midr, 0),
     DEFINE_PROP_END_OF_LIST()
 };
@@ -1115,7 +1125,6 @@ static void arm_cpu_class_init(ObjectClass *oc, void *data)
 
     cc->class_by_name = arm_cpu_class_by_name;
     cc->has_work = arm_cpu_has_work;
-    cc->do_interrupt = arm_cpu_do_interrupt;
     cc->cpu_exec_interrupt = arm_cpu_exec_interrupt;
     cc->dump_state = arm_cpu_dump_state;
     cc->set_pc = arm_cpu_set_pc;
@@ -1124,6 +1133,7 @@ static void arm_cpu_class_init(ObjectClass *oc, void *data)
 #ifdef CONFIG_USER_ONLY
     cc->handle_mmu_fault = arm_cpu_handle_mmu_fault;
 #else
+    cc->do_interrupt = arm_cpu_do_interrupt;
     cc->get_phys_page_debug = arm_cpu_get_phys_page_debug;
     cc->vmsd = &vmstate_arm_cpu;
 #endif

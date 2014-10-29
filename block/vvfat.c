@@ -1182,7 +1182,7 @@ static int vvfat_open(BlockDriverState *bs, QDict *options, int flags,
     if (s->qcow) {
         error_set(&s->migration_blocker,
                   QERR_BLOCK_FORMAT_FEATURE_NOT_SUPPORTED,
-                  "vvfat (rw)", bs->device_name, "live migration");
+                  "vvfat (rw)", bdrv_get_device_name(bs), "live migration");
         migrate_add_blocker(s->migration_blocker);
     }
 
@@ -2939,7 +2939,7 @@ static int enable_write_target(BDRVVVFATState *s, Error **errp)
     unlink(s->qcow_filename);
 #endif
 
-    bdrv_set_backing_hd(s->bs, bdrv_new("", &error_abort));
+    bdrv_set_backing_hd(s->bs, bdrv_new());
     s->bs->backing_hd->drv = &vvfat_write_target;
     s->bs->backing_hd->opaque = g_new(void *, 1);
     *(void**)s->bs->backing_hd->opaque = s;

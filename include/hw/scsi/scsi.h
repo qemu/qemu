@@ -2,7 +2,7 @@
 #define QEMU_HW_SCSI_H
 
 #include "hw/qdev.h"
-#include "block/block.h"
+#include "qemu/typedefs.h"
 #include "hw/block/block.h"
 #include "sysemu/sysemu.h"
 #include "qemu/notify.h"
@@ -68,7 +68,7 @@ struct SCSIRequest {
     bool              io_canceled;
     bool              retry;
     bool              dma_started;
-    BlockDriverAIOCB  *aiocb;
+    BlockAIOCB        *aiocb;
     QEMUSGList        *sg;
     QTAILQ_ENTRY(SCSIRequest) next;
 };
@@ -146,8 +146,6 @@ struct SCSIBusInfo {
     void (*transfer_data)(SCSIRequest *req, uint32_t arg);
     void (*complete)(SCSIRequest *req, uint32_t arg, size_t resid);
     void (*cancel)(SCSIRequest *req);
-    void (*hotplug)(SCSIBus *bus, SCSIDevice *dev);
-    void (*hot_unplug)(SCSIBus *bus, SCSIDevice *dev);
     void (*change)(SCSIBus *bus, SCSIDevice *dev, SCSISense sense);
     QEMUSGList *(*get_sg_list)(SCSIRequest *req);
 
@@ -175,7 +173,7 @@ static inline SCSIBus *scsi_bus_from_device(SCSIDevice *d)
     return DO_UPCAST(SCSIBus, qbus, d->qdev.parent_bus);
 }
 
-SCSIDevice *scsi_bus_legacy_add_drive(SCSIBus *bus, BlockDriverState *bdrv,
+SCSIDevice *scsi_bus_legacy_add_drive(SCSIBus *bus, BlockBackend *blk,
                                       int unit, bool removable, int bootindex,
                                       const char *serial, Error **errp);
 void scsi_bus_legacy_handle_cmdline(SCSIBus *bus, Error **errp);

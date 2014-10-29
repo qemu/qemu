@@ -342,30 +342,44 @@ static void nbd_attach_aio_context(BlockDriverState *bs,
 
 static void nbd_refresh_filename(BlockDriverState *bs)
 {
-    BDRVNBDState *s = bs->opaque;
     QDict *opts = qdict_new();
-    const char *path   = qemu_opt_get(s->socket_opts, "path");
-    const char *host   = qemu_opt_get(s->socket_opts, "host");
-    const char *port   = qemu_opt_get(s->socket_opts, "port");
-    const char *export = qemu_opt_get(s->socket_opts, "export");
+    const char *path   = qdict_get_try_str(bs->options, "path");
+    const char *host   = qdict_get_try_str(bs->options, "host");
+    const char *port   = qdict_get_try_str(bs->options, "port");
+    const char *export = qdict_get_try_str(bs->options, "export");
 
     qdict_put_obj(opts, "driver", QOBJECT(qstring_from_str("nbd")));
 
+    if (path && export) {
+        snprintf(bs->exact_filename, sizeof(bs->exact_filename),
+                 "nbd+unix:///%s?socket=%s", export, path);
+    } else if (path && !export) {
+        snprintf(bs->exact_filename, sizeof(bs->exact_filename),
+                 "nbd+unix://?socket=%s", path);
+    } else if (!path && export && port) {
+        snprintf(bs->exact_filename, sizeof(bs->exact_filename),
+                 "nbd://%s:%s/%s", host, port, export);
+    } else if (!path && export && !port) {
+        snprintf(bs->exact_filename, sizeof(bs->exact_filename),
+                 "nbd://%s/%s", host, export);
+    } else if (!path && !export && port) {
+        snprintf(bs->exact_filename, sizeof(bs->exact_filename),
+                 "nbd://%s:%s", host, port);
+    } else if (!path && !export && !port) {
+        snprintf(bs->exact_filename, sizeof(bs->exact_filename),
+                 "nbd://%s", host);
+    }
+
     if (path) {
-        snprintf(bs->exact_filename, sizeof(bs->exact_filename),
-                 "nbd+unix:%s", path);
         qdict_put_obj(opts, "path", QOBJECT(qstring_from_str(path)));
-    } else if (export) {
-        snprintf(bs->exact_filename, sizeof(bs->exact_filename),
-                 "nbd:%s:%s/%s", host, port, export);
-        qdict_put_obj(opts, "host",   QOBJECT(qstring_from_str(host)));
-        qdict_put_obj(opts, "port",   QOBJECT(qstring_from_str(port)));
-        qdict_put_obj(opts, "export", QOBJECT(qstring_from_str(export)));
-    } else {
-        snprintf(bs->exact_filename, sizeof(bs->exact_filename),
-                 "nbd:%s:%s", host, port);
+    } else if (port) {
         qdict_put_obj(opts, "host", QOBJECT(qstring_from_str(host)));
         qdict_put_obj(opts, "port", QOBJECT(qstring_from_str(port)));
+    } else {
+        qdict_put_obj(opts, "host", QOBJECT(qstring_from_str(host)));
+    }
+    if (export) {
+        qdict_put_obj(opts, "export", QOBJECT(qstring_from_str(export)));
     }
 
     bs->full_open_options = opts;

@@ -29,8 +29,8 @@
 #include "a64/decoder-a64.h"
 
 namespace vixl {
-// Top-level instruction decode function.
-void Decoder::Decode(Instruction *instr) {
+
+void Decoder::DecodeInstruction(const Instruction *instr) {
   if (instr->Bits(28, 27) == 0) {
     VisitUnallocated(instr);
   } else {
@@ -109,20 +109,17 @@ void Decoder::Decode(Instruction *instr) {
 }
 
 void Decoder::AppendVisitor(DecoderVisitor* new_visitor) {
-  visitors_.remove(new_visitor);
-  visitors_.push_front(new_visitor);
+  visitors_.push_back(new_visitor);
 }
 
 
 void Decoder::PrependVisitor(DecoderVisitor* new_visitor) {
-  visitors_.remove(new_visitor);
-  visitors_.push_back(new_visitor);
+  visitors_.push_front(new_visitor);
 }
 
 
 void Decoder::InsertVisitorBefore(DecoderVisitor* new_visitor,
                                   DecoderVisitor* registered_visitor) {
-  visitors_.remove(new_visitor);
   std::list<DecoderVisitor*>::iterator it;
   for (it = visitors_.begin(); it != visitors_.end(); it++) {
     if (*it == registered_visitor) {
@@ -139,7 +136,6 @@ void Decoder::InsertVisitorBefore(DecoderVisitor* new_visitor,
 
 void Decoder::InsertVisitorAfter(DecoderVisitor* new_visitor,
                                  DecoderVisitor* registered_visitor) {
-  visitors_.remove(new_visitor);
   std::list<DecoderVisitor*>::iterator it;
   for (it = visitors_.begin(); it != visitors_.end(); it++) {
     if (*it == registered_visitor) {
@@ -160,7 +156,7 @@ void Decoder::RemoveVisitor(DecoderVisitor* visitor) {
 }
 
 
-void Decoder::DecodePCRelAddressing(Instruction* instr) {
+void Decoder::DecodePCRelAddressing(const Instruction* instr) {
   VIXL_ASSERT(instr->Bits(27, 24) == 0x0);
   // We know bit 28 is set, as <b28:b27> = 0 is filtered out at the top level
   // decode.
@@ -169,7 +165,7 @@ void Decoder::DecodePCRelAddressing(Instruction* instr) {
 }
 
 
-void Decoder::DecodeBranchSystemException(Instruction* instr) {
+void Decoder::DecodeBranchSystemException(const Instruction* instr) {
   VIXL_ASSERT((instr->Bits(27, 24) == 0x4) ||
               (instr->Bits(27, 24) == 0x5) ||
               (instr->Bits(27, 24) == 0x6) ||
@@ -270,7 +266,7 @@ void Decoder::DecodeBranchSystemException(Instruction* instr) {
 }
 
 
-void Decoder::DecodeLoadStore(Instruction* instr) {
+void Decoder::DecodeLoadStore(const Instruction* instr) {
   VIXL_ASSERT((instr->Bits(27, 24) == 0x8) ||
               (instr->Bits(27, 24) == 0x9) ||
               (instr->Bits(27, 24) == 0xC) ||
@@ -388,7 +384,7 @@ void Decoder::DecodeLoadStore(Instruction* instr) {
 }
 
 
-void Decoder::DecodeLogical(Instruction* instr) {
+void Decoder::DecodeLogical(const Instruction* instr) {
   VIXL_ASSERT(instr->Bits(27, 24) == 0x2);
 
   if (instr->Mask(0x80400000) == 0x00400000) {
@@ -407,7 +403,7 @@ void Decoder::DecodeLogical(Instruction* instr) {
 }
 
 
-void Decoder::DecodeBitfieldExtract(Instruction* instr) {
+void Decoder::DecodeBitfieldExtract(const Instruction* instr) {
   VIXL_ASSERT(instr->Bits(27, 24) == 0x3);
 
   if ((instr->Mask(0x80400000) == 0x80000000) ||
@@ -432,7 +428,7 @@ void Decoder::DecodeBitfieldExtract(Instruction* instr) {
 }
 
 
-void Decoder::DecodeAddSubImmediate(Instruction* instr) {
+void Decoder::DecodeAddSubImmediate(const Instruction* instr) {
   VIXL_ASSERT(instr->Bits(27, 24) == 0x1);
   if (instr->Bit(23) == 1) {
     VisitUnallocated(instr);
@@ -442,7 +438,7 @@ void Decoder::DecodeAddSubImmediate(Instruction* instr) {
 }
 
 
-void Decoder::DecodeDataProcessing(Instruction* instr) {
+void Decoder::DecodeDataProcessing(const Instruction* instr) {
   VIXL_ASSERT((instr->Bits(27, 24) == 0xA) ||
               (instr->Bits(27, 24) == 0xB));
 
@@ -557,7 +553,7 @@ void Decoder::DecodeDataProcessing(Instruction* instr) {
 }
 
 
-void Decoder::DecodeFP(Instruction* instr) {
+void Decoder::DecodeFP(const Instruction* instr) {
   VIXL_ASSERT((instr->Bits(27, 24) == 0xE) ||
               (instr->Bits(27, 24) == 0xF));
 
@@ -684,14 +680,14 @@ void Decoder::DecodeFP(Instruction* instr) {
 }
 
 
-void Decoder::DecodeAdvSIMDLoadStore(Instruction* instr) {
+void Decoder::DecodeAdvSIMDLoadStore(const Instruction* instr) {
   // TODO: Implement Advanced SIMD load/store instruction decode.
   VIXL_ASSERT(instr->Bits(29, 25) == 0x6);
   VisitUnimplemented(instr);
 }
 
 
-void Decoder::DecodeAdvSIMDDataProcessing(Instruction* instr) {
+void Decoder::DecodeAdvSIMDDataProcessing(const Instruction* instr) {
   // TODO: Implement Advanced SIMD data processing instruction decode.
   VIXL_ASSERT(instr->Bits(27, 25) == 0x7);
   VisitUnimplemented(instr);
@@ -699,7 +695,7 @@ void Decoder::DecodeAdvSIMDDataProcessing(Instruction* instr) {
 
 
 #define DEFINE_VISITOR_CALLERS(A)                                              \
-  void Decoder::Visit##A(Instruction *instr) {                                 \
+  void Decoder::Visit##A(const Instruction *instr) {                           \
     VIXL_ASSERT(instr->Mask(A##FMask) == A##Fixed);                            \
     std::list<DecoderVisitor*>::iterator it;                                   \
     for (it = visitors_.begin(); it != visitors_.end(); it++) {                \

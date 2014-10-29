@@ -354,8 +354,8 @@ static void piix4_device_plug_cb(HotplugHandler *hotplug_dev,
     }
 }
 
-static void piix4_device_unplug_cb(HotplugHandler *hotplug_dev,
-                                   DeviceState *dev, Error **errp)
+static void piix4_device_unplug_request_cb(HotplugHandler *hotplug_dev,
+                                           DeviceState *dev, Error **errp)
 {
     PIIX4PMState *s = PIIX4_PM(hotplug_dev);
 
@@ -615,7 +615,7 @@ static void piix4_pm_class_init(ObjectClass *klass, void *data)
     dc->cannot_instantiate_with_device_add_yet = true;
     dc->hotpluggable = false;
     hc->plug = piix4_device_plug_cb;
-    hc->unplug = piix4_device_unplug_cb;
+    hc->unplug_request = piix4_device_unplug_request_cb;
     adevc->ospm_status = piix4_ospm_status;
 }
 

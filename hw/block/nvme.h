@@ -636,7 +636,7 @@ typedef struct NvmeAsyncEvent {
 
 typedef struct NvmeRequest {
     struct NvmeSQueue       *sq;
-    BlockDriverAIOCB        *aiocb;
+    BlockAIOCB              *aiocb;
     uint16_t                status;
     NvmeCqe                 cqe;
     BlockAcctCookie         acct;

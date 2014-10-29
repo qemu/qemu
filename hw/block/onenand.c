@@ -22,6 +22,7 @@
 #include "hw/hw.h"
 #include "hw/block/flash.h"
 #include "hw/irq.h"
+#include "sysemu/block-backend.h"
 #include "sysemu/blockdev.h"
 #include "exec/memory.h"
 #include "exec/address-spaces.h"
@@ -49,8 +50,8 @@ typedef struct OneNANDState {
     hwaddr base;
     qemu_irq intr;
     qemu_irq rdy;
-    BlockDriverState *bdrv;
-    BlockDriverState *bdrv_cur;
+    BlockBackend *blk;
+    BlockBackend *blk_cur;
     uint8_t *image;
     uint8_t *otp;
     uint8_t *current;
@@ -213,7 +214,7 @@ static void onenand_reset(OneNANDState *s, int cold)
     s->wpstatus = 0x0002;
     s->cycle = 0;
     s->otpmode = 0;
-    s->bdrv_cur = s->bdrv;
+    s->blk_cur = s->blk;
     s->current = s->image;
     s->secs_cur = s->secs;
 
@@ -221,7 +222,7 @@ static void onenand_reset(OneNANDState *s, int cold)
         /* Lock the whole flash */
         memset(s->blockwp, ONEN_LOCK_LOCKED, s->blocks);
 
-        if (s->bdrv_cur && bdrv_read(s->bdrv_cur, 0, s->boot[0], 8) < 0) {
+        if (s->blk_cur && blk_read(s->blk_cur, 0, s->boot[0], 8) < 0) {
             hw_error("%s: Loading the BootRAM failed.\n", __func__);
         }
     }
@@ -237,10 +238,11 @@ static void onenand_system_reset(DeviceState *dev)
 static inline int onenand_load_main(OneNANDState *s, int sec, int secn,
                 void *dest)
 {
-    if (s->bdrv_cur)
-        return bdrv_read(s->bdrv_cur, sec, dest, secn) < 0;
-    else if (sec + secn > s->secs_cur)
+    if (s->blk_cur) {
+        return blk_read(s->blk_cur, sec, dest, secn) < 0;
+    } else if (sec + secn > s->secs_cur) {
         return 1;
+    }
 
     memcpy(dest, s->current + (sec << 9), secn << 9);
 
@@ -256,9 +258,9 @@ static inline int onenand_prog_main(OneNANDState *s, int sec, int secn,
         uint32_t size = (uint32_t)secn * 512;
         const uint8_t *sp = (const uint8_t *)src;
         uint8_t *dp = 0;
-        if (s->bdrv_cur) {
+        if (s->blk_cur) {
             dp = g_malloc(size);
-            if (!dp || bdrv_read(s->bdrv_cur, sec, dp, secn) < 0) {
+            if (!dp || blk_read(s->blk_cur, sec, dp, secn) < 0) {
                 result = 1;
             }
         } else {
@@ -273,11 +275,11 @@ static inline int onenand_prog_main(OneNANDState *s, int sec, int secn,
             for (i = 0; i < size; i++) {
                 dp[i] &= sp[i];
             }
-            if (s->bdrv_cur) {
-                result = bdrv_write(s->bdrv_cur, sec, dp, secn) < 0;
+            if (s->blk_cur) {
+                result = blk_write(s->blk_cur, sec, dp, secn) < 0;
             }
         }
-        if (dp && s->bdrv_cur) {
+        if (dp && s->blk_cur) {
             g_free(dp);
         }
     }
@@ -290,14 +292,16 @@ static inline int onenand_load_spare(OneNANDState *s, int sec, int secn,
 {
     uint8_t buf[512];
 
-    if (s->bdrv_cur) {
-        if (bdrv_read(s->bdrv_cur, s->secs_cur + (sec >> 5), buf, 1) < 0)
+    if (s->blk_cur) {
+        if (blk_read(s->blk_cur, s->secs_cur + (sec >> 5), buf, 1) < 0) {
             return 1;
+        }
         memcpy(dest, buf + ((sec & 31) << 4), secn << 4);
-    } else if (sec + secn > s->secs_cur)
+    } else if (sec + secn > s->secs_cur) {
         return 1;
-    else
+    } else {
         memcpy(dest, s->current + (s->secs_cur << 9) + (sec << 4), secn << 4);
+    }
  
     return 0;
 }
@@ -309,11 +313,10 @@ static inline int onenand_prog_spare(OneNANDState *s, int sec, int secn,
     if (secn > 0) {
         const uint8_t *sp = (const uint8_t *)src;
         uint8_t *dp = 0, *dpp = 0;
-        if (s->bdrv_cur) {
+        if (s->blk_cur) {
             dp = g_malloc(512);
-            if (!dp || bdrv_read(s->bdrv_cur,
-                                 s->secs_cur + (sec >> 5),
-                                 dp, 1) < 0) {
+            if (!dp
+                || blk_read(s->blk_cur, s->secs_cur + (sec >> 5), dp, 1) < 0) {
                 result = 1;
             } else {
                 dpp = dp + ((sec & 31) << 4);
@@ -330,9 +333,9 @@ static inline int onenand_prog_spare(OneNANDState *s, int sec, int secn,
             for (i = 0; i < (secn << 4); i++) {
                 dpp[i] &= sp[i];
             }
-            if (s->bdrv_cur) {
-                result = bdrv_write(s->bdrv_cur, s->secs_cur + (sec >> 5),
-                                    dp, 1) < 0;
+            if (s->blk_cur) {
+                result = blk_write(s->blk_cur, s->secs_cur + (sec >> 5),
+                                   dp, 1) < 0;
             }
         }
         g_free(dp);
@@ -354,16 +357,16 @@ static inline int onenand_erase(OneNANDState *s, int sec, int num)
     }
     memset(blankbuf, 0xff, 512);
     for (; num > 0; num--, sec++) {
-        if (s->bdrv_cur) {
+        if (s->blk_cur) {
             int erasesec = s->secs_cur + (sec >> 5);
-            if (bdrv_write(s->bdrv_cur, sec, blankbuf, 1) < 0) {
+            if (blk_write(s->blk_cur, sec, blankbuf, 1) < 0) {
                 goto fail;
             }
-            if (bdrv_read(s->bdrv_cur, erasesec, tmpbuf, 1) < 0) {
+            if (blk_read(s->blk_cur, erasesec, tmpbuf, 1) < 0) {
                 goto fail;
             }
             memcpy(tmpbuf + ((sec & 31) << 4), blankbuf, 1 << 4);
-            if (bdrv_write(s->bdrv_cur, erasesec, tmpbuf, 1) < 0) {
+            if (blk_write(s->blk_cur, erasesec, tmpbuf, 1) < 0) {
                 goto fail;
             }
         } else {
@@ -576,7 +579,7 @@ static void onenand_command(OneNANDState *s)
 
     case 0x65:	/* OTP Access */
         s->intstatus |= ONEN_INT;
-        s->bdrv_cur = NULL;
+        s->blk_cur = NULL;
         s->current = s->otp;
         s->secs_cur = 1 << (BLOCK_SHIFT - 9);
         s->addr[ONEN_BUF_BLOCK] = 0;
@@ -776,15 +779,15 @@ static int onenand_initfn(SysBusDevice *sbd)
         ? (1 << (6 + ((s->id.dev >> 4) & 7))) : 0;
     memory_region_init_io(&s->iomem, OBJECT(s), &onenand_ops, s, "onenand",
                           0x10000 << s->shift);
-    if (!s->bdrv) {
+    if (!s->blk) {
         s->image = memset(g_malloc(size + (size >> 5)),
                           0xff, size + (size >> 5));
     } else {
-        if (bdrv_is_read_only(s->bdrv)) {
+        if (blk_is_read_only(s->blk)) {
             error_report("Can't use a read-only drive");
             return -1;
         }
-        s->bdrv_cur = s->bdrv;
+        s->blk_cur = s->blk;
     }
     s->otp = memset(g_malloc((64 + 2) << PAGE_SHIFT),
                     0xff, (64 + 2) << PAGE_SHIFT);
@@ -815,7 +818,7 @@ static Property onenand_properties[] = {
     DEFINE_PROP_UINT16("device_id", OneNANDState, id.dev, 0),
     DEFINE_PROP_UINT16("version_id", OneNANDState, id.ver, 0),
     DEFINE_PROP_INT32("shift", OneNANDState, shift, 0),
-    DEFINE_PROP_DRIVE("drive", OneNANDState, bdrv),
+    DEFINE_PROP_DRIVE("drive", OneNANDState, blk),
     DEFINE_PROP_END_OF_LIST(),
 };
 

@@ -25,7 +25,10 @@ read 512/512 bytes at offset 0
 incompatible_features     0x1
 
 == Repairing the image file must succeed ==
-Repairing cluster 5 refcount=0 reference=1
+ERROR cluster 5 refcount=0 reference=1
+Rebuilding refcount structure
+Repairing cluster 1 refcount=1 reference=0
+Repairing cluster 2 refcount=1 reference=0
 The following inconsistencies were found and repaired:
 
     0 leaked clusters
@@ -45,7 +48,10 @@ wrote 512/512 bytes at offset 0
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 ./039: Aborted                 ( ulimit -c 0; exec "$@" )
 incompatible_features     0x1
-Repairing cluster 5 refcount=0 reference=1
+ERROR cluster 5 refcount=0 reference=1
+Rebuilding refcount structure
+Repairing cluster 1 refcount=1 reference=0
+Repairing cluster 2 refcount=1 reference=0
 wrote 512/512 bytes at offset 0
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 incompatible_features     0x0

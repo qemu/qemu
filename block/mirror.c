@@ -567,7 +567,8 @@ static void mirror_complete(BlockJob *job, Error **errp)
         return;
     }
     if (!s->synced) {
-        error_set(errp, QERR_BLOCK_JOB_NOT_READY, job->bs->device_name);
+        error_set(errp, QERR_BLOCK_JOB_NOT_READY,
+                  bdrv_get_device_name(job->bs));
         return;
     }
 
@@ -612,7 +613,7 @@ static void mirror_start_job(BlockDriverState *bs, BlockDriverState *target,
                              int64_t buf_size,
                              BlockdevOnError on_source_error,
                              BlockdevOnError on_target_error,
-                             BlockDriverCompletionFunc *cb,
+                             BlockCompletionFunc *cb,
                              void *opaque, Error **errp,
                              const BlockJobDriver *driver,
                              bool is_none_mode, BlockDriverState *base)
@@ -672,7 +673,7 @@ void mirror_start(BlockDriverState *bs, BlockDriverState *target,
                   int64_t speed, int64_t granularity, int64_t buf_size,
                   MirrorSyncMode mode, BlockdevOnError on_source_error,
                   BlockdevOnError on_target_error,
-                  BlockDriverCompletionFunc *cb,
+                  BlockCompletionFunc *cb,
                   void *opaque, Error **errp)
 {
     bool is_none_mode;
@@ -689,7 +690,7 @@ void mirror_start(BlockDriverState *bs, BlockDriverState *target,
 void commit_active_start(BlockDriverState *bs, BlockDriverState *base,
                          int64_t speed,
                          BlockdevOnError on_error,
-                         BlockDriverCompletionFunc *cb,
+                         BlockCompletionFunc *cb,
                          void *opaque, Error **errp)
 {
     int64_t length, base_length;

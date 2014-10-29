@@ -333,7 +333,6 @@ static int init_event_facility(SCLPEventFacility *event_facility)
     /* Spawn a new bus for SCLP events */
     qbus_create_inplace(&event_facility->sbus, sizeof(event_facility->sbus),
                         TYPE_SCLP_EVENTS_BUS, sdev, NULL);
-    event_facility->sbus.qbus.allow_hotplug = 0;
 
     quiesce = qdev_create(&event_facility->sbus.qbus, "sclpquiesce");
     if (!quiesce) {
@@ -408,7 +407,6 @@ static void event_class_init(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
 
     dc->bus_type = TYPE_SCLP_EVENTS_BUS;
-    dc->unplug = qdev_simple_unplug_cb;
     dc->realize = event_realize;
     dc->unrealize = event_unrealize;
 }

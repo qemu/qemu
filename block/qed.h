@@ -128,7 +128,7 @@ enum {
 };
 
 typedef struct QEDAIOCB {
-    BlockDriverAIOCB common;
+    BlockAIOCB common;
     QEMUBH *bh;
     int bh_ret;                     /* final return status for completion bh */
     QSIMPLEQ_ENTRY(QEDAIOCB) next;  /* next request */
@@ -203,11 +203,11 @@ typedef void QEDFindClusterFunc(void *opaque, int ret, uint64_t offset, size_t l
  * Generic callback for chaining async callbacks
  */
 typedef struct {
-    BlockDriverCompletionFunc *cb;
+    BlockCompletionFunc *cb;
     void *opaque;
 } GenericCB;
 
-void *gencb_alloc(size_t len, BlockDriverCompletionFunc *cb, void *opaque);
+void *gencb_alloc(size_t len, BlockCompletionFunc *cb, void *opaque);
 void gencb_complete(void *opaque, int ret);
 
 /**
@@ -230,16 +230,16 @@ void qed_commit_l2_cache_entry(L2TableCache *l2_cache, CachedL2Table *l2_table);
  */
 int qed_read_l1_table_sync(BDRVQEDState *s);
 void qed_write_l1_table(BDRVQEDState *s, unsigned int index, unsigned int n,
-                        BlockDriverCompletionFunc *cb, void *opaque);
+                        BlockCompletionFunc *cb, void *opaque);
 int qed_write_l1_table_sync(BDRVQEDState *s, unsigned int index,
                             unsigned int n);
 int qed_read_l2_table_sync(BDRVQEDState *s, QEDRequest *request,
                            uint64_t offset);
 void qed_read_l2_table(BDRVQEDState *s, QEDRequest *request, uint64_t offset,
-                       BlockDriverCompletionFunc *cb, void *opaque);
+                       BlockCompletionFunc *cb, void *opaque);
 void qed_write_l2_table(BDRVQEDState *s, QEDRequest *request,
                         unsigned int index, unsigned int n, bool flush,
-                        BlockDriverCompletionFunc *cb, void *opaque);
+                        BlockCompletionFunc *cb, void *opaque);
 int qed_write_l2_table_sync(BDRVQEDState *s, QEDRequest *request,
                             unsigned int index, unsigned int n, bool flush);
 

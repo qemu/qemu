@@ -2172,11 +2172,16 @@ static int vmxnet3_pci_init(PCIDevice *pci_dev)
     register_savevm(dev, "vmxnet3-msix", -1, 1,
                     vmxnet3_msix_save, vmxnet3_msix_load, s);
 
-    add_boot_device_path(s->conf.bootindex, dev, "/ethernet-phy@0");
-
     return 0;
 }
 
+static void vmxnet3_instance_init(Object *obj)
+{
+    VMXNET3State *s = VMXNET3(obj);
+    device_add_bootindex_property(obj, &s->conf.bootindex,
+                                  "bootindex", "/ethernet-phy@0",
+                                  DEVICE(obj), NULL);
+}
 
 static void vmxnet3_pci_uninit(PCIDevice *pci_dev)
 {
@@ -2524,6 +2529,7 @@ static const TypeInfo vmxnet3_info = {
     .parent        = TYPE_PCI_DEVICE,
     .instance_size = sizeof(VMXNET3State),
     .class_init    = vmxnet3_class_init,
+    .instance_init = vmxnet3_instance_init,
 };
 
 static void vmxnet3_register_types(void)

@@ -13,6 +13,7 @@
 #include "net/net.h"
 #include "hw/qdev.h"
 #include "qapi/qmp/qerror.h"
+#include "sysemu/block-backend.h"
 #include "sysemu/blockdev.h"
 #include "hw/block/block.h"
 #include "net/hub.h"
@@ -68,16 +69,16 @@ static void set_pointer(Object *obj, Visitor *v, Property *prop,
 
 static int parse_drive(DeviceState *dev, const char *str, void **ptr)
 {
-    BlockDriverState *bs;
+    BlockBackend *blk;
 
-    bs = bdrv_find(str);
-    if (bs == NULL) {
+    blk = blk_by_name(str);
+    if (!blk) {
         return -ENOENT;
     }
-    if (bdrv_attach_dev(bs, dev) < 0) {
+    if (blk_attach_dev(blk, dev) < 0) {
         return -EEXIST;
     }
-    *ptr = bs;
+    *ptr = blk;
     return 0;
 }
 
@@ -85,17 +86,17 @@ static void release_drive(Object *obj, const char *name, void *opaque)
 {
     DeviceState *dev = DEVICE(obj);
     Property *prop = opaque;
-    BlockDriverState **ptr = qdev_get_prop_ptr(dev, prop);
+    BlockBackend **ptr = qdev_get_prop_ptr(dev, prop);
 
     if (*ptr) {
-        bdrv_detach_dev(*ptr, dev);
+        blk_detach_dev(*ptr, dev);
         blockdev_auto_del(*ptr);
     }
 }
 
 static char *print_drive(void *ptr)
 {
-    return g_strdup(bdrv_get_device_name(ptr));
+    return g_strdup(blk_name(ptr));
 }
 
 static void get_drive(Object *obj, Visitor *v, void *opaque,
@@ -112,7 +113,7 @@ static void set_drive(Object *obj, Visitor *v, void *opaque,
 
 PropertyInfo qdev_prop_drive = {
     .name  = "str",
-    .legacy_name  = "drive",
+    .description = "ID of a drive to use as a backend",
     .get   = get_drive,
     .set   = set_drive,
     .release = release_drive,
@@ -169,7 +170,7 @@ static void set_chr(Object *obj, Visitor *v, void *opaque,
 
 PropertyInfo qdev_prop_chr = {
     .name  = "str",
-    .legacy_name  = "chr",
+    .description = "ID of a chardev to use as a backend",
     .get   = get_chr,
     .set   = set_chr,
     .release = release_chr,
@@ -248,7 +249,7 @@ static void set_netdev(Object *obj, Visitor *v, void *opaque,
 
 PropertyInfo qdev_prop_netdev = {
     .name  = "str",
-    .legacy_name  = "netdev",
+    .description = "ID of a netdev to use as a backend",
     .get   = get_netdev,
     .set   = set_netdev,
 };
@@ -328,19 +329,18 @@ static void set_vlan(Object *obj, Visitor *v, void *opaque,
 
 PropertyInfo qdev_prop_vlan = {
     .name  = "int32",
-    .legacy_name  = "vlan",
+    .description = "Integer VLAN id to connect to",
     .print = print_vlan,
     .get   = get_vlan,
     .set   = set_vlan,
 };
 
 int qdev_prop_set_drive(DeviceState *dev, const char *name,
-                        BlockDriverState *value)
+                        BlockBackend *value)
 {
     Error *err = NULL;
-    const char *bdrv_name = value ? bdrv_get_device_name(value) : "";
-    object_property_set_str(OBJECT(dev), bdrv_name,
-                            name, &err);
+    object_property_set_str(OBJECT(dev),
+                            value ? blk_name(value) : "", name, &err);
     if (err) {
         qerror_report_err(err);
         error_free(err);
@@ -350,7 +350,7 @@ int qdev_prop_set_drive(DeviceState *dev, const char *name,
 }
 
 void qdev_prop_set_drive_nofail(DeviceState *dev, const char *name,
-                                BlockDriverState *value)
+                                BlockBackend *value)
 {
     if (qdev_prop_set_drive(dev, name, value) < 0) {
         exit(1);

@@ -402,6 +402,26 @@ static void fw_cfg_add_bytes_read_callback(FWCfgState *s, uint16_t key,
     s->entries[arch][key].callback_opaque = callback_opaque;
 }
 
+static void *fw_cfg_modify_bytes_read(FWCfgState *s, uint16_t key,
+                                              void *data, size_t len)
+{
+    void *ptr;
+    int arch = !!(key & FW_CFG_ARCH_LOCAL);
+
+    key &= FW_CFG_ENTRY_MASK;
+
+    assert(key < FW_CFG_MAX_ENTRY && len < UINT32_MAX);
+
+    /* return the old data to the function caller, avoid memory leak */
+    ptr = s->entries[arch][key].data;
+    s->entries[arch][key].data = data;
+    s->entries[arch][key].len = len;
+    s->entries[arch][key].callback_opaque = NULL;
+    s->entries[arch][key].callback = NULL;
+
+    return ptr;
+}
+
 void fw_cfg_add_bytes(FWCfgState *s, uint16_t key, void *data, size_t len)
 {
     fw_cfg_add_bytes_read_callback(s, key, NULL, NULL, data, len);
@@ -499,13 +519,42 @@ void fw_cfg_add_file(FWCfgState *s,  const char *filename,
     fw_cfg_add_file_callback(s, filename, NULL, NULL, data, len);
 }
 
-static void fw_cfg_machine_ready(struct Notifier *n, void *data)
+void *fw_cfg_modify_file(FWCfgState *s, const char *filename,
+                        void *data, size_t len)
 {
+    int i, index;
+
+    assert(s->files);
+
+    index = be32_to_cpu(s->files->count);
+    assert(index < FW_CFG_FILE_SLOTS);
+
+    for (i = 0; i < index; i++) {
+        if (strcmp(filename, s->files->f[i].name) == 0) {
+            return fw_cfg_modify_bytes_read(s, FW_CFG_FILE_FIRST + i,
+                                     data, len);
+        }
+    }
+    /* add new one */
+    fw_cfg_add_file_callback(s, filename, NULL, NULL, data, len);
+    return NULL;
+}
+
+static void fw_cfg_machine_reset(void *opaque)
+{
+    void *ptr;
     size_t len;
-    FWCfgState *s = container_of(n, FWCfgState, machine_ready);
+    FWCfgState *s = opaque;
     char *bootindex = get_boot_devices_list(&len, false);
 
-    fw_cfg_add_file(s, "bootorder", (uint8_t*)bootindex, len);
+    ptr = fw_cfg_modify_file(s, "bootorder", (uint8_t *)bootindex, len);
+    g_free(ptr);
+}
+
+static void fw_cfg_machine_ready(struct Notifier *n, void *data)
+{
+    FWCfgState *s = container_of(n, FWCfgState, machine_ready);
+    qemu_register_reset(fw_cfg_machine_reset, s);
 }
 
 FWCfgState *fw_cfg_init(uint32_t ctl_port, uint32_t data_port,

@@ -23,6 +23,7 @@
 #include <stdarg.h>
 #include <sys/types.h>
 #include "qapi/qmp/qdict.h"
+#include "glib-compat.h"
 
 typedef struct QTestState QTestState;
 

@@ -3,6 +3,7 @@
 #include "hw/scsi/scsi.h"
 #include "block/scsi.h"
 #include "hw/qdev.h"
+#include "sysemu/block-backend.h"
 #include "sysemu/blockdev.h"
 #include "trace.h"
 #include "sysemu/dma.h"
@@ -23,9 +24,11 @@ static Property scsi_props[] = {
 static void scsi_bus_class_init(ObjectClass *klass, void *data)
 {
     BusClass *k = BUS_CLASS(klass);
+    HotplugHandlerClass *hc = HOTPLUG_HANDLER_CLASS(klass);
 
     k->get_dev_path = scsibus_get_dev_path;
     k->get_fw_dev_path = scsibus_get_fw_dev_path;
+    hc->unplug = qdev_simple_device_unplug_cb;
 }
 
 static const TypeInfo scsi_bus_info = {
@@ -33,6 +36,10 @@ static const TypeInfo scsi_bus_info = {
     .parent = TYPE_BUS,
     .instance_size = sizeof(SCSIBus),
     .class_init = scsi_bus_class_init,
+    .interfaces = (InterfaceInfo[]) {
+        { TYPE_HOTPLUG_HANDLER },
+        { }
+    }
 };
 static int next_scsi_bus;
 
@@ -92,7 +99,7 @@ void scsi_bus_new(SCSIBus *bus, size_t bus_size, DeviceState *host,
     qbus_create_inplace(bus, bus_size, TYPE_SCSI_BUS, host, bus_name);
     bus->busnr = next_scsi_bus++;
     bus->info = info;
-    bus->qbus.allow_hotplug = 1;
+    qbus_set_bus_hotplug_handler(BUS(bus), &error_abort);
 }
 
 static void scsi_dma_restart_bh(void *opaque)
@@ -202,10 +209,6 @@ static void scsi_qdev_realize(DeviceState *qdev, Error **errp)
     }
     dev->vmsentry = qemu_add_vm_change_state_handler(scsi_dma_restart_cb,
                                                      dev);
-
-    if (bus->info->hotplug) {
-        bus->info->hotplug(bus, dev);
-    }
 }
 
 static void scsi_qdev_unrealize(DeviceState *qdev, Error **errp)
@@ -219,7 +222,7 @@ static void scsi_qdev_unrealize(DeviceState *qdev, Error **errp)
 }
 
 /* handle legacy '-drive if=scsi,...' cmd line args */
-SCSIDevice *scsi_bus_legacy_add_drive(SCSIBus *bus, BlockDriverState *bdrv,
+SCSIDevice *scsi_bus_legacy_add_drive(SCSIBus *bus, BlockBackend *blk,
                                       int unit, bool removable, int bootindex,
                                       const char *serial, Error **errp)
 {
@@ -227,11 +230,12 @@ SCSIDevice *scsi_bus_legacy_add_drive(SCSIBus *bus, BlockDriverState *bdrv,
     DeviceState *dev;
     Error *err = NULL;
 
-    driver = bdrv_is_sg(bdrv) ? "scsi-generic" : "scsi-disk";
+    driver = blk_is_sg(blk) ? "scsi-generic" : "scsi-disk";
     dev = qdev_create(&bus->qbus, driver);
     qdev_prop_set_uint32(dev, "scsi-id", unit);
     if (bootindex >= 0) {
-        qdev_prop_set_int32(dev, "bootindex", bootindex);
+        object_property_set_int(OBJECT(dev), bootindex, "bootindex",
+                                &error_abort);
     }
     if (object_property_find(OBJECT(dev), "removable", NULL)) {
         qdev_prop_set_bit(dev, "removable", removable);
@@ -239,7 +243,7 @@ SCSIDevice *scsi_bus_legacy_add_drive(SCSIBus *bus, BlockDriverState *bdrv,
     if (serial && object_property_find(OBJECT(dev), "serial", NULL)) {
         qdev_prop_set_string(dev, "serial", serial);
     }
-    if (qdev_prop_set_drive(dev, "drive", bdrv) < 0) {
+    if (qdev_prop_set_drive(dev, "drive", blk) < 0) {
         error_setg(errp, "Setting drive property failed");
         object_unparent(OBJECT(dev));
         return NULL;
@@ -267,8 +271,8 @@ void scsi_bus_legacy_handle_cmdline(SCSIBus *bus, Error **errp)
             continue;
         }
         qemu_opts_loc_restore(dinfo->opts);
-        scsi_bus_legacy_add_drive(bus, dinfo->bdrv, unit, false, -1, NULL,
-                                  &err);
+        scsi_bus_legacy_add_drive(bus, blk_by_legacy_dinfo(dinfo),
+                                  unit, false, -1, NULL, &err);
         if (err != NULL) {
             error_report("%s", error_get_pretty(err));
             error_propagate(errp, err);
@@ -1750,7 +1754,7 @@ void scsi_req_cancel_async(SCSIRequest *req, Notifier *notifier)
     scsi_req_dequeue(req);
     req->io_canceled = true;
     if (req->aiocb) {
-        bdrv_aio_cancel_async(req->aiocb);
+        blk_aio_cancel_async(req->aiocb);
     }
 }
 
@@ -1764,7 +1768,7 @@ void scsi_req_cancel(SCSIRequest *req)
     scsi_req_dequeue(req);
     req->io_canceled = true;
     if (req->aiocb) {
-        bdrv_aio_cancel(req->aiocb);
+        blk_aio_cancel(req->aiocb);
     }
 }
 
@@ -1937,17 +1941,6 @@ static int get_scsi_requests(QEMUFile *f, void *pv, size_t size)
     return 0;
 }
 
-static int scsi_qdev_unplug(DeviceState *qdev)
-{
-    SCSIDevice *dev = SCSI_DEVICE(qdev);
-    SCSIBus *bus = DO_UPCAST(SCSIBus, qbus, dev->qdev.parent_bus);
-
-    if (bus->info->hot_unplug) {
-        bus->info->hot_unplug(bus, dev);
-    }
-    return qdev_simple_unplug_cb(qdev);
-}
-
 static const VMStateInfo vmstate_info_scsi_requests = {
     .name = "scsi-requests",
     .get  = get_scsi_requests,
@@ -2011,9 +2004,18 @@ static void scsi_device_class_init(ObjectClass *klass, void *data)
     set_bit(DEVICE_CATEGORY_STORAGE, k->categories);
     k->bus_type  = TYPE_SCSI_BUS;
     k->realize   = scsi_qdev_realize;
-    k->unplug    = scsi_qdev_unplug;
     k->unrealize = scsi_qdev_unrealize;
     k->props     = scsi_props;
+}
+
+static void scsi_dev_instance_init(Object *obj)
+{
+    DeviceState *dev = DEVICE(obj);
+    SCSIDevice *s = DO_UPCAST(SCSIDevice, qdev, dev);
+
+    device_add_bootindex_property(obj, &s->conf.bootindex,
+                                  "bootindex", NULL,
+                                  &s->qdev, NULL);
 }
 
 static const TypeInfo scsi_device_type_info = {
@@ -2023,6 +2025,7 @@ static const TypeInfo scsi_device_type_info = {
     .abstract = true,
     .class_size = sizeof(SCSIDeviceClass),
     .class_init = scsi_device_class_init,
+    .instance_init = scsi_dev_instance_init,
 };
 
 static void scsi_register_types(void)

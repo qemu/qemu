@@ -128,17 +128,17 @@ struct BlockDriver {
     void (*bdrv_refresh_filename)(BlockDriverState *bs);
 
     /* aio */
-    BlockDriverAIOCB *(*bdrv_aio_readv)(BlockDriverState *bs,
+    BlockAIOCB *(*bdrv_aio_readv)(BlockDriverState *bs,
         int64_t sector_num, QEMUIOVector *qiov, int nb_sectors,
-        BlockDriverCompletionFunc *cb, void *opaque);
-    BlockDriverAIOCB *(*bdrv_aio_writev)(BlockDriverState *bs,
+        BlockCompletionFunc *cb, void *opaque);
+    BlockAIOCB *(*bdrv_aio_writev)(BlockDriverState *bs,
         int64_t sector_num, QEMUIOVector *qiov, int nb_sectors,
-        BlockDriverCompletionFunc *cb, void *opaque);
-    BlockDriverAIOCB *(*bdrv_aio_flush)(BlockDriverState *bs,
-        BlockDriverCompletionFunc *cb, void *opaque);
-    BlockDriverAIOCB *(*bdrv_aio_discard)(BlockDriverState *bs,
+        BlockCompletionFunc *cb, void *opaque);
+    BlockAIOCB *(*bdrv_aio_flush)(BlockDriverState *bs,
+        BlockCompletionFunc *cb, void *opaque);
+    BlockAIOCB *(*bdrv_aio_discard)(BlockDriverState *bs,
         int64_t sector_num, int nb_sectors,
-        BlockDriverCompletionFunc *cb, void *opaque);
+        BlockCompletionFunc *cb, void *opaque);
 
     int coroutine_fn (*bdrv_co_readv)(BlockDriverState *bs,
         int64_t sector_num, int nb_sectors, QEMUIOVector *qiov);
@@ -219,9 +219,9 @@ struct BlockDriver {
 
     /* to control generic scsi devices */
     int (*bdrv_ioctl)(BlockDriverState *bs, unsigned long int req, void *buf);
-    BlockDriverAIOCB *(*bdrv_aio_ioctl)(BlockDriverState *bs,
+    BlockAIOCB *(*bdrv_aio_ioctl)(BlockDriverState *bs,
         unsigned long int req, void *buf,
-        BlockDriverCompletionFunc *cb, void *opaque);
+        BlockCompletionFunc *cb, void *opaque);
 
     /* List of options for creating images, terminated by name == NULL */
     QemuOptsList *create_opts;
@@ -325,10 +325,7 @@ struct BlockDriverState {
     BlockDriver *drv; /* NULL means no media */
     void *opaque;
 
-    void *dev;                  /* attached device model, if any */
-    /* TODO change to DeviceState when all users are qdevified */
-    const BlockDevOps *dev_ops;
-    void *dev_opaque;
+    BlockBackend *blk;          /* owning backend, if any */
 
     AioContext *aio_context; /* event loop used for fd handlers, timers, etc */
     /* long-running tasks intended to always use the same AioContext as this
@@ -391,8 +388,6 @@ struct BlockDriverState {
     char node_name[32];
     /* element of the list of named nodes building the graph */
     QTAILQ_ENTRY(BlockDriverState) node_list;
-    /* Device name is the name associated with the "drive" the guest sees */
-    char device_name[32];
     /* element of the list of "drives" the guest sees */
     QTAILQ_ENTRY(BlockDriverState) device_list;
     QLIST_HEAD(, BdrvDirtyBitmap) dirty_bitmaps;
@@ -502,7 +497,7 @@ int is_windows_drive(const char *filename);
  */
 void stream_start(BlockDriverState *bs, BlockDriverState *base,
                   const char *base_id, int64_t speed, BlockdevOnError on_error,
-                  BlockDriverCompletionFunc *cb,
+                  BlockCompletionFunc *cb,
                   void *opaque, Error **errp);
 
 /**
@@ -520,7 +515,7 @@ void stream_start(BlockDriverState *bs, BlockDriverState *base,
  */
 void commit_start(BlockDriverState *bs, BlockDriverState *base,
                  BlockDriverState *top, int64_t speed,
-                 BlockdevOnError on_error, BlockDriverCompletionFunc *cb,
+                 BlockdevOnError on_error, BlockCompletionFunc *cb,
                  void *opaque, const char *backing_file_str, Error **errp);
 /**
  * commit_active_start:
@@ -536,7 +531,7 @@ void commit_start(BlockDriverState *bs, BlockDriverState *base,
 void commit_active_start(BlockDriverState *bs, BlockDriverState *base,
                          int64_t speed,
                          BlockdevOnError on_error,
-                         BlockDriverCompletionFunc *cb,
+                         BlockCompletionFunc *cb,
                          void *opaque, Error **errp);
 /*
  * mirror_start:
@@ -564,7 +559,7 @@ void mirror_start(BlockDriverState *bs, BlockDriverState *target,
                   int64_t speed, int64_t granularity, int64_t buf_size,
                   MirrorSyncMode mode, BlockdevOnError on_source_error,
                   BlockdevOnError on_target_error,
-                  BlockDriverCompletionFunc *cb,
+                  BlockCompletionFunc *cb,
                   void *opaque, Error **errp);
 
 /*
@@ -585,7 +580,14 @@ void backup_start(BlockDriverState *bs, BlockDriverState *target,
                   int64_t speed, MirrorSyncMode sync_mode,
                   BlockdevOnError on_source_error,
                   BlockdevOnError on_target_error,
-                  BlockDriverCompletionFunc *cb, void *opaque,
+                  BlockCompletionFunc *cb, void *opaque,
                   Error **errp);
+
+void blk_dev_change_media_cb(BlockBackend *blk, bool load);
+bool blk_dev_has_removable_media(BlockBackend *blk);
+void blk_dev_eject_request(BlockBackend *blk, bool force);
+bool blk_dev_is_tray_open(BlockBackend *blk);
+bool blk_dev_is_medium_locked(BlockBackend *blk);
+void blk_dev_resize_cb(BlockBackend *blk);
 
 #endif /* BLOCK_INT_H */

@@ -24,6 +24,7 @@
 
 #include <libfdt.h>
 
+#include "sysemu/block-backend.h"
 #include "sysemu/device_tree.h"
 #include "hw/sysbus.h"
 #include "hw/ppc/spapr.h"
@@ -33,7 +34,7 @@ typedef struct sPAPRNVRAM {
     VIOsPAPRDevice sdev;
     uint32_t size;
     uint8_t *buf;
-    BlockDriverState *drive;
+    BlockBackend *blk;
 } sPAPRNVRAM;
 
 #define TYPE_VIO_SPAPR_NVRAM "spapr-nvram"
@@ -77,8 +78,8 @@ static void rtas_nvram_fetch(PowerPCCPU *cpu, sPAPREnvironment *spapr,
     }
 
     membuf = cpu_physical_memory_map(buffer, &len, 1);
-    if (nvram->drive) {
-        alen = bdrv_pread(nvram->drive, offset, membuf, len);
+    if (nvram->blk) {
+        alen = blk_pread(nvram->blk, offset, membuf, len);
     } else {
         assert(nvram->buf);
 
@@ -122,8 +123,8 @@ static void rtas_nvram_store(PowerPCCPU *cpu, sPAPREnvironment *spapr,
     }
 
     membuf = cpu_physical_memory_map(buffer, &len, 0);
-    if (nvram->drive) {
-        alen = bdrv_pwrite(nvram->drive, offset, membuf, len);
+    if (nvram->blk) {
+        alen = blk_pwrite(nvram->blk, offset, membuf, len);
     } else {
         assert(nvram->buf);
 
@@ -140,8 +141,8 @@ static int spapr_nvram_init(VIOsPAPRDevice *dev)
 {
     sPAPRNVRAM *nvram = VIO_SPAPR_NVRAM(dev);
 
-    if (nvram->drive) {
-        nvram->size = bdrv_getlength(nvram->drive);
+    if (nvram->blk) {
+        nvram->size = blk_getlength(nvram->blk);
     } else {
         nvram->size = DEFAULT_NVRAM_SIZE;
         nvram->buf = g_malloc0(nvram->size);
@@ -168,7 +169,7 @@ static int spapr_nvram_devnode(VIOsPAPRDevice *dev, void *fdt, int node_off)
 
 static Property spapr_nvram_properties[] = {
     DEFINE_SPAPR_PROPERTIES(sPAPRNVRAM, sdev),
-    DEFINE_PROP_DRIVE("drive", sPAPRNVRAM, drive),
+    DEFINE_PROP_DRIVE("drive", sPAPRNVRAM, blk),
     DEFINE_PROP_END_OF_LIST(),
 };
 

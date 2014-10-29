@@ -89,7 +89,7 @@
 #define MASK_OP_ABSB_OFF18(op) MASK_OP_ABS_OFF18(op)
 #define MASK_OP_ABSB_OP2(op)   MASK_BITS_SHIFT(op, 26, 27)
 #define MASK_OP_ABSB_B(op)     MASK_BITS_SHIFT(op, 11, 11)
-#define MASK_OP_ABSB_BPOS(op)  MASK_BITS_SHIFT(op, 7, 10)
+#define MASK_OP_ABSB_BPOS(op)  MASK_BITS_SHIFT(op, 8, 10)
 
 /* B Format   */
 #define MASK_OP_B_DISP24(op)   (MASK_BITS_SHIFT(op, 16, 31) + \
@@ -105,6 +105,8 @@
 /* BO Format */
 #define MASK_OP_BO_OFF10(op)   (MASK_BITS_SHIFT(op, 16, 21) + \
                                (MASK_BITS_SHIFT(op, 28, 31) << 6))
+#define MASK_OP_BO_OFF10_SEXT(op)   (MASK_BITS_SHIFT_SEXT(op, 16, 21) + \
+                                    (MASK_BITS_SHIFT_SEXT(op, 28, 31) << 6))
 #define MASK_OP_BO_OP2(op)     MASK_BITS_SHIFT(op, 22, 27)
 #define MASK_OP_BO_S2(op)      MASK_BITS_SHIFT(op, 12, 15)
 #define MASK_OP_BO_S1D(op)     MASK_BITS_SHIFT(op, 8, 11)

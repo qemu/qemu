@@ -38,7 +38,7 @@
 
 #include "hw/hw.h"
 #include "hw/block/flash.h"
-#include "block/block.h"
+#include "sysemu/block-backend.h"
 #include "qemu/timer.h"
 #include "qemu/bitops.h"
 #include "exec/address-spaces.h"
@@ -69,7 +69,7 @@ struct pflash_t {
     SysBusDevice parent_obj;
     /*< public >*/
 
-    BlockDriverState *bs;
+    BlockBackend *blk;
     uint32_t nb_blocs;
     uint64_t sector_len;
     uint8_t bank_width;
@@ -395,13 +395,13 @@ static void pflash_update(pflash_t *pfl, int offset,
                           int size)
 {
     int offset_end;
-    if (pfl->bs) {
+    if (pfl->blk) {
         offset_end = offset + size;
         /* round to sectors */
         offset = offset >> 9;
         offset_end = (offset_end + 511) >> 9;
-        bdrv_write(pfl->bs, offset, pfl->storage + (offset << 9),
-                   offset_end - offset);
+        blk_write(pfl->blk, offset, pfl->storage + (offset << 9),
+                  offset_end - offset);
     }
 }
 
@@ -784,9 +784,9 @@ static void pflash_cfi01_realize(DeviceState *dev, Error **errp)
     pfl->storage = memory_region_get_ram_ptr(&pfl->mem);
     sysbus_init_mmio(SYS_BUS_DEVICE(dev), &pfl->mem);
 
-    if (pfl->bs) {
+    if (pfl->blk) {
         /* read the initial flash content */
-        ret = bdrv_read(pfl->bs, 0, pfl->storage, total_len >> 9);
+        ret = blk_read(pfl->blk, 0, pfl->storage, total_len >> 9);
 
         if (ret < 0) {
             vmstate_unregister_ram(&pfl->mem, DEVICE(pfl));
@@ -795,8 +795,8 @@ static void pflash_cfi01_realize(DeviceState *dev, Error **errp)
         }
     }
 
-    if (pfl->bs) {
-        pfl->ro = bdrv_is_read_only(pfl->bs);
+    if (pfl->blk) {
+        pfl->ro = blk_is_read_only(pfl->blk);
     } else {
         pfl->ro = 0;
     }
@@ -898,7 +898,7 @@ static void pflash_cfi01_realize(DeviceState *dev, Error **errp)
 }
 
 static Property pflash_cfi01_properties[] = {
-    DEFINE_PROP_DRIVE("drive", struct pflash_t, bs),
+    DEFINE_PROP_DRIVE("drive", struct pflash_t, blk),
     /* num-blocks is the number of blocks actually visible to the guest,
      * ie the total size of the device divided by the sector length.
      * If we're emulating flash devices wired in parallel the actual
@@ -962,14 +962,14 @@ type_init(pflash_cfi01_register_types)
 pflash_t *pflash_cfi01_register(hwaddr base,
                                 DeviceState *qdev, const char *name,
                                 hwaddr size,
-                                BlockDriverState *bs,
+                                BlockBackend *blk,
                                 uint32_t sector_len, int nb_blocs,
                                 int bank_width, uint16_t id0, uint16_t id1,
                                 uint16_t id2, uint16_t id3, int be)
 {
     DeviceState *dev = qdev_create(NULL, TYPE_CFI_PFLASH01);
 
-    if (bs && qdev_prop_set_drive(dev, "drive", bs)) {
+    if (blk && qdev_prop_set_drive(dev, "drive", blk)) {
         abort();
     }
     qdev_prop_set_uint32(dev, "num-blocks", nb_blocs);

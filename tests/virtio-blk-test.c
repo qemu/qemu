@@ -45,6 +45,8 @@
 #define PCI_SLOT                0x04
 #define PCI_FN                  0x00
 
+#define PCI_SLOT_HP             0x06
+
 typedef struct QVirtioBlkReq {
     uint32_t type;
     uint32_t ioprio;
@@ -55,7 +57,7 @@ typedef struct QVirtioBlkReq {
 
 static QPCIBus *test_start(void)
 {
-    char cmdline[100];
+    char *cmdline;
     char tmp_path[] = "/tmp/qtest.XXXXXX";
     int fd, ret;
 
@@ -66,11 +68,14 @@ static QPCIBus *test_start(void)
     g_assert_cmpint(ret, ==, 0);
     close(fd);
 
-    snprintf(cmdline, 100, "-drive if=none,id=drive0,file=%s "
-                            "-device virtio-blk-pci,drive=drive0,addr=%x.%x",
-                            tmp_path, PCI_SLOT, PCI_FN);
+    cmdline = g_strdup_printf("-drive if=none,id=drive0,file=%s "
+                              "-drive if=none,id=drive1,file=/dev/null "
+                              "-device virtio-blk-pci,id=drv0,drive=drive0,"
+                              "addr=%x.%x",
+                              tmp_path, PCI_SLOT, PCI_FN);
     qtest_start(cmdline);
     unlink(tmp_path);
+    g_free(cmdline);
 
     return qpci_init_pc();
 }
@@ -80,14 +85,14 @@ static void test_end(void)
     qtest_end();
 }
 
-static QVirtioPCIDevice *virtio_blk_init(QPCIBus *bus)
+static QVirtioPCIDevice *virtio_blk_init(QPCIBus *bus, int slot)
 {
     QVirtioPCIDevice *dev;
 
     dev = qvirtio_pci_device_find(bus, QVIRTIO_BLK_DEVICE_ID);
     g_assert(dev != NULL);
     g_assert_cmphex(dev->vdev.device_type, ==, QVIRTIO_BLK_DEVICE_ID);
-    g_assert_cmphex(dev->pdev->devfn, ==, ((PCI_SLOT << 3) | PCI_FN));
+    g_assert_cmphex(dev->pdev->devfn, ==, ((slot << 3) | PCI_FN));
 
     qvirtio_pci_device_enable(dev);
     qvirtio_reset(&qvirtio_pci, &dev->vdev);
@@ -147,7 +152,7 @@ static void pci_basic(void)
 
     bus = test_start();
 
-    dev = virtio_blk_init(bus);
+    dev = virtio_blk_init(bus, PCI_SLOT);
 
     /* MSI-X is not enabled */
     addr = dev->addr + QVIRTIO_DEVICE_SPECIFIC_NO_MSIX;
@@ -293,7 +298,7 @@ static void pci_indirect(void)
 
     bus = test_start();
 
-    dev = virtio_blk_init(bus);
+    dev = virtio_blk_init(bus, PCI_SLOT);
 
     /* MSI-X is not enabled */
     addr = dev->addr + QVIRTIO_DEVICE_SPECIFIC_NO_MSIX;
@@ -384,7 +389,7 @@ static void pci_config(void)
 
     bus = test_start();
 
-    dev = virtio_blk_init(bus);
+    dev = virtio_blk_init(bus, PCI_SLOT);
 
     /* MSI-X is not enabled */
     addr = dev->addr + QVIRTIO_DEVICE_SPECIFIC_NO_MSIX;
@@ -425,7 +430,7 @@ static void pci_msix(void)
     bus = test_start();
     alloc = pc_alloc_init();
 
-    dev = virtio_blk_init(bus);
+    dev = virtio_blk_init(bus, PCI_SLOT);
     qpci_msix_enable(dev->pdev);
 
     qvirtio_pci_set_msix_configuration_vector(dev, alloc, 0);
@@ -534,7 +539,7 @@ static void pci_idx(void)
     bus = test_start();
     alloc = pc_alloc_init();
 
-    dev = virtio_blk_init(bus);
+    dev = virtio_blk_init(bus, PCI_SLOT);
     qpci_msix_enable(dev->pdev);
 
     qvirtio_pci_set_msix_configuration_vector(dev, alloc, 0);
@@ -637,6 +642,27 @@ static void pci_idx(void)
     test_end();
 }
 
+static void hotplug(void)
+{
+    QPCIBus *bus;
+    QVirtioPCIDevice *dev;
+
+    bus = test_start();
+
+    /* plug secondary disk */
+    qpci_plug_device_test("virtio-blk-pci", "drv1", PCI_SLOT_HP,
+                          "'drive': 'drive1'");
+
+    dev = virtio_blk_init(bus, PCI_SLOT_HP);
+    g_assert(dev);
+    qvirtio_pci_device_disable(dev);
+    g_free(dev);
+
+    /* unplug secondary disk */
+    qpci_unplug_acpi_device_test("drv1", PCI_SLOT_HP);
+    test_end();
+}
+
 int main(int argc, char **argv)
 {
     int ret;
@@ -648,6 +674,7 @@ int main(int argc, char **argv)
     g_test_add_func("/virtio/blk/pci/config", pci_config);
     g_test_add_func("/virtio/blk/pci/msix", pci_msix);
     g_test_add_func("/virtio/blk/pci/idx", pci_idx);
+    g_test_add_func("/virtio/blk/pci/hotplug", hotplug);
 
     ret = g_test_run();
 

@@ -39,6 +39,11 @@ DEF_HELPER_3(macchiu, tl, env, tl, tl)
 DEF_HELPER_3(msachi, tl, env, tl, tl)
 DEF_HELPER_3(msachiu, tl, env, tl, tl)
 
+DEF_HELPER_FLAGS_1(bitswap, TCG_CALL_NO_RWG_SE, tl, tl)
+#ifdef TARGET_MIPS64
+DEF_HELPER_FLAGS_1(dbitswap, TCG_CALL_NO_RWG_SE, tl, tl)
+#endif
+
 #ifndef CONFIG_USER_ONLY
 /* CP0 helpers */
 DEF_HELPER_1(mfc0_mvpcontrol, tl, env)
@@ -197,6 +202,25 @@ DEF_HELPER_2(float_cvtw_d, i32, env, i64)
 DEF_HELPER_3(float_addr_ps, i64, env, i64, i64)
 DEF_HELPER_3(float_mulr_ps, i64, env, i64, i64)
 
+DEF_HELPER_FLAGS_1(float_class_s, TCG_CALL_NO_RWG_SE, i32, i32)
+DEF_HELPER_FLAGS_1(float_class_d, TCG_CALL_NO_RWG_SE, i64, i64)
+
+#define FOP_PROTO(op)                                     \
+DEF_HELPER_4(float_ ## op ## _s, i32, env, i32, i32, i32) \
+DEF_HELPER_4(float_ ## op ## _d, i64, env, i64, i64, i64)
+FOP_PROTO(maddf)
+FOP_PROTO(msubf)
+#undef FOP_PROTO
+
+#define FOP_PROTO(op)                                \
+DEF_HELPER_3(float_ ## op ## _s, i32, env, i32, i32) \
+DEF_HELPER_3(float_ ## op ## _d, i64, env, i64, i64)
+FOP_PROTO(max)
+FOP_PROTO(maxa)
+FOP_PROTO(min)
+FOP_PROTO(mina)
+#undef FOP_PROTO
+
 #define FOP_PROTO(op)                            \
 DEF_HELPER_2(float_ ## op ## l_s, i64, env, i32) \
 DEF_HELPER_2(float_ ## op ## l_d, i64, env, i64) \
@@ -214,6 +238,7 @@ DEF_HELPER_2(float_ ## op ## _d, i64, env, i64)
 FOP_PROTO(sqrt)
 FOP_PROTO(rsqrt)
 FOP_PROTO(recip)
+FOP_PROTO(rint)
 #undef FOP_PROTO
 
 #define FOP_PROTO(op)                       \
@@ -277,6 +302,33 @@ FOP_PROTO(lt)
 FOP_PROTO(nge)
 FOP_PROTO(le)
 FOP_PROTO(ngt)
+#undef FOP_PROTO
+
+#define FOP_PROTO(op) \
+DEF_HELPER_3(r6_cmp_d_ ## op, i64, env, i64, i64) \
+DEF_HELPER_3(r6_cmp_s_ ## op, i32, env, i32, i32)
+FOP_PROTO(af)
+FOP_PROTO(un)
+FOP_PROTO(eq)
+FOP_PROTO(ueq)
+FOP_PROTO(lt)
+FOP_PROTO(ult)
+FOP_PROTO(le)
+FOP_PROTO(ule)
+FOP_PROTO(saf)
+FOP_PROTO(sun)
+FOP_PROTO(seq)
+FOP_PROTO(sueq)
+FOP_PROTO(slt)
+FOP_PROTO(sult)
+FOP_PROTO(sle)
+FOP_PROTO(sule)
+FOP_PROTO(or)
+FOP_PROTO(une)
+FOP_PROTO(ne)
+FOP_PROTO(sor)
+FOP_PROTO(sune)
+FOP_PROTO(sne)
 #undef FOP_PROTO
 
 /* Special functions */

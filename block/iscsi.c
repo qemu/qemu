@@ -80,7 +80,7 @@ typedef struct IscsiTask {
 } IscsiTask;
 
 typedef struct IscsiAIOCB {
-    BlockDriverAIOCB common;
+    BlockAIOCB common;
     QEMUIOVector *qiov;
     QEMUBH *bh;
     IscsiLun *iscsilun;
@@ -227,7 +227,7 @@ iscsi_abort_task_cb(struct iscsi_context *iscsi, int status, void *command_data,
 }
 
 static void
-iscsi_aio_cancel(BlockDriverAIOCB *blockacb)
+iscsi_aio_cancel(BlockAIOCB *blockacb)
 {
     IscsiAIOCB *acb = (IscsiAIOCB *)blockacb;
     IscsiLun *iscsilun = acb->iscsilun;
@@ -663,9 +663,9 @@ iscsi_aio_ioctl_cb(struct iscsi_context *iscsi, int status,
     iscsi_schedule_bh(acb);
 }
 
-static BlockDriverAIOCB *iscsi_aio_ioctl(BlockDriverState *bs,
+static BlockAIOCB *iscsi_aio_ioctl(BlockDriverState *bs,
         unsigned long int req, void *buf,
-        BlockDriverCompletionFunc *cb, void *opaque)
+        BlockCompletionFunc *cb, void *opaque)
 {
     IscsiLun *iscsilun = bs->opaque;
     struct iscsi_context *iscsi = iscsilun->iscsi;
@@ -1519,7 +1519,7 @@ static int iscsi_create(const char *filename, QemuOpts *opts, Error **errp)
     IscsiLun *iscsilun = NULL;
     QDict *bs_options;
 
-    bs = bdrv_new("", &error_abort);
+    bs = bdrv_new();
 
     /* Read out options */
     total_size = DIV_ROUND_UP(qemu_opt_get_size_del(opts, BLOCK_OPT_SIZE, 0),

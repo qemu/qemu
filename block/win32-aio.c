@@ -44,7 +44,7 @@ struct QEMUWin32AIOState {
 };
 
 typedef struct QEMUWin32AIOCB {
-    BlockDriverAIOCB common;
+    BlockAIOCB common;
     struct QEMUWin32AIOState *ctx;
     int nbytes;
     OVERLAPPED ov;
@@ -110,10 +110,10 @@ static const AIOCBInfo win32_aiocb_info = {
     .aiocb_size         = sizeof(QEMUWin32AIOCB),
 };
 
-BlockDriverAIOCB *win32_aio_submit(BlockDriverState *bs,
+BlockAIOCB *win32_aio_submit(BlockDriverState *bs,
         QEMUWin32AIOState *aio, HANDLE hfile,
         int64_t sector_num, QEMUIOVector *qiov, int nb_sectors,
-        BlockDriverCompletionFunc *cb, void *opaque, int type)
+        BlockCompletionFunc *cb, void *opaque, int type)
 {
     struct QEMUWin32AIOCB *waiocb;
     uint64_t offset = sector_num * 512;

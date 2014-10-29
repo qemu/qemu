@@ -136,32 +136,6 @@ static const uint32_t mask16[16] = {
 #define PAT(x) cbswap_32(x)
 #endif
 
-static const uint32_t dmask16[16] = {
-    PAT(0x00000000),
-    PAT(0x000000ff),
-    PAT(0x0000ff00),
-    PAT(0x0000ffff),
-    PAT(0x00ff0000),
-    PAT(0x00ff00ff),
-    PAT(0x00ffff00),
-    PAT(0x00ffffff),
-    PAT(0xff000000),
-    PAT(0xff0000ff),
-    PAT(0xff00ff00),
-    PAT(0xff00ffff),
-    PAT(0xffff0000),
-    PAT(0xffff00ff),
-    PAT(0xffffff00),
-    PAT(0xffffffff),
-};
-
-static const uint32_t dmask4[4] = {
-    PAT(0x00000000),
-    PAT(0x0000ffff),
-    PAT(0xffff0000),
-    PAT(0xffffffff),
-};
-
 static uint32_t expand4[256];
 static uint16_t expand2[256];
 static uint8_t expand4to8[16];

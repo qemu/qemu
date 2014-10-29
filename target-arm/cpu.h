@@ -100,7 +100,7 @@ typedef uint32_t ARMReadCPFunc(void *opaque, int cp_info,
 
 struct arm_boot_info;
 
-#define NB_MMU_MODES 2
+#define NB_MMU_MODES 4
 
 /* We currently assume float and double are IEEE single and double
    precision respectively.
@@ -153,8 +153,8 @@ typedef struct CPUARMState {
 
     /* Banked registers.  */
     uint64_t banked_spsr[8];
-    uint32_t banked_r13[6];
-    uint32_t banked_r14[6];
+    uint32_t banked_r13[8];
+    uint32_t banked_r14[8];
 
     /* These hold r8-r12.  */
     uint32_t usr_regs[5];
@@ -761,14 +761,62 @@ static inline int arm_feature(CPUARMState *env, int feature)
     return (env->features & (1ULL << feature)) != 0;
 }
 
+#if !defined(CONFIG_USER_ONLY)
+/* Return true if exception levels below EL3 are in secure state,
+ * or would be following an exception return to that level.
+ * Unlike arm_is_secure() (which is always a question about the
+ * _current_ state of the CPU) this doesn't care about the current
+ * EL or mode.
+ */
+static inline bool arm_is_secure_below_el3(CPUARMState *env)
+{
+    if (arm_feature(env, ARM_FEATURE_EL3)) {
+        return !(env->cp15.scr_el3 & SCR_NS);
+    } else {
+        /* If EL2 is not supported then the secure state is implementation
+         * defined, in which case QEMU defaults to non-secure.
+         */
+        return false;
+    }
+}
+
+/* Return true if the processor is in secure state */
+static inline bool arm_is_secure(CPUARMState *env)
+{
+    if (arm_feature(env, ARM_FEATURE_EL3)) {
+        if (is_a64(env) && extract32(env->pstate, 2, 2) == 3) {
+            /* CPU currently in AArch64 state and EL3 */
+            return true;
+        } else if (!is_a64(env) &&
+                (env->uncached_cpsr & CPSR_M) == ARM_CPU_MODE_MON) {
+            /* CPU currently in AArch32 state and monitor mode */
+            return true;
+        }
+    }
+    return arm_is_secure_below_el3(env);
+}
+
+#else
+static inline bool arm_is_secure_below_el3(CPUARMState *env)
+{
+    return false;
+}
+
+static inline bool arm_is_secure(CPUARMState *env)
+{
+    return false;
+}
+#endif
+
 /* Return true if the specified exception level is running in AArch64 state. */
 static inline bool arm_el_is_aa64(CPUARMState *env, int el)
 {
-    /* We don't currently support EL2 or EL3, and this isn't valid for EL0
+    /* We don't currently support EL2, and this isn't valid for EL0
      * (if we're in EL0, is_a64() is what you want, and if we're not in EL0
      * then the state of EL0 isn't well defined.)
      */
-    assert(el == 1);
+    assert(el == 1 || el == 3);
+
     /* AArch64-capable CPUs always run with EL1 in AArch64 mode. This
      * is a QEMU-imposed simplification which we may wish to change later.
      * If we in future support EL2 and/or EL3, then the state of lower
@@ -952,19 +1000,32 @@ static inline bool cptype_valid(int cptype)
 #define PL1_RW (PL1_R | PL1_W)
 #define PL0_RW (PL0_R | PL0_W)
 
-static inline int arm_current_pl(CPUARMState *env)
+/* Return the current Exception Level (as per ARMv8; note that this differs
+ * from the ARMv7 Privilege Level).
+ */
+static inline int arm_current_el(CPUARMState *env)
 {
-    if (env->aarch64) {
+    if (is_a64(env)) {
         return extract32(env->pstate, 2, 2);
     }
 
-    if ((env->uncached_cpsr & 0x1f) == ARM_CPU_MODE_USR) {
+    switch (env->uncached_cpsr & 0x1f) {
+    case ARM_CPU_MODE_USR:
         return 0;
+    case ARM_CPU_MODE_HYP:
+        return 2;
+    case ARM_CPU_MODE_MON:
+        return 3;
+    default:
+        if (arm_is_secure(env) && !arm_el_is_aa64(env, 3)) {
+            /* If EL3 is 32-bit then all secure privileged modes run in
+             * EL3
+             */
+            return 3;
+        }
+
+        return 1;
     }
-    /* We don't currently implement the Virtualization or TrustZone
-     * extensions, so PL2 and PL3 don't exist for us.
-     */
-    return 1;
 }
 
 typedef struct ARMCPRegInfo ARMCPRegInfo;
@@ -1125,10 +1186,10 @@ static inline bool cpreg_field_is_64bit(const ARMCPRegInfo *ri)
     return (ri->state == ARM_CP_STATE_AA64) || (ri->type & ARM_CP_64BIT);
 }
 
-static inline bool cp_access_ok(int current_pl,
+static inline bool cp_access_ok(int current_el,
                                 const ARMCPRegInfo *ri, int isread)
 {
-    return (ri->access >> ((current_pl * 2) + isread)) & 1;
+    return (ri->access >> ((current_el * 2) + isread)) & 1;
 }
 
 /**
@@ -1192,7 +1253,7 @@ bool write_cpustate_to_list(ARMCPU *cpu);
 static inline bool arm_excp_unmasked(CPUState *cs, unsigned int excp_idx)
 {
     CPUARMState *env = cs->env_ptr;
-    unsigned int cur_el = arm_current_pl(env);
+    unsigned int cur_el = arm_current_el(env);
     unsigned int target_el = arm_excp_target_el(cs, excp_idx);
     /* FIXME: Use actual secure state.  */
     bool secure = false;
@@ -1264,7 +1325,7 @@ static inline CPUARMState *cpu_init(const char *cpu_model)
 #define MMU_USER_IDX 0
 static inline int cpu_mmu_index (CPUARMState *env)
 {
-    return arm_current_pl(env);
+    return arm_current_el(env);
 }
 
 /* Return the Exception Level targeted by debug exceptions;
@@ -1277,7 +1338,7 @@ static inline int arm_debug_target_el(CPUARMState *env)
 
 static inline bool aa64_generate_debug_exceptions(CPUARMState *env)
 {
-    if (arm_current_pl(env) == arm_debug_target_el(env)) {
+    if (arm_current_el(env) == arm_debug_target_el(env)) {
         if ((extract32(env->cp15.mdscr_el1, 13, 1) == 0)
             || (env->daif & PSTATE_D)) {
             return false;
@@ -1288,10 +1349,10 @@ static inline bool aa64_generate_debug_exceptions(CPUARMState *env)
 
 static inline bool aa32_generate_debug_exceptions(CPUARMState *env)
 {
-    if (arm_current_pl(env) == 0 && arm_el_is_aa64(env, 1)) {
+    if (arm_current_el(env) == 0 && arm_el_is_aa64(env, 1)) {
         return aa64_generate_debug_exceptions(env);
     }
-    return arm_current_pl(env) != 2;
+    return arm_current_el(env) != 2;
 }
 
 /* Return true if debugging exceptions are currently enabled.
@@ -1421,8 +1482,8 @@ static inline void cpu_get_tb_cpu_state(CPUARMState *env, target_ulong *pc,
     if (is_a64(env)) {
         *pc = env->pc;
         *flags = ARM_TBFLAG_AARCH64_STATE_MASK
-            | (arm_current_pl(env) << ARM_TBFLAG_AA64_EL_SHIFT);
-        if (fpen == 3 || (fpen == 1 && arm_current_pl(env) != 0)) {
+            | (arm_current_el(env) << ARM_TBFLAG_AA64_EL_SHIFT);
+        if (fpen == 3 || (fpen == 1 && arm_current_el(env) != 0)) {
             *flags |= ARM_TBFLAG_AA64_FPEN_MASK;
         }
         /* The SS_ACTIVE and PSTATE_SS bits correspond to the state machine
@@ -1458,7 +1519,7 @@ static inline void cpu_get_tb_cpu_state(CPUARMState *env, target_ulong *pc,
             || arm_el_is_aa64(env, 1)) {
             *flags |= ARM_TBFLAG_VFPEN_MASK;
         }
-        if (fpen == 3 || (fpen == 1 && arm_current_pl(env) != 0)) {
+        if (fpen == 3 || (fpen == 1 && arm_current_el(env) != 0)) {
             *flags |= ARM_TBFLAG_CPACR_FPEN_MASK;
         }
         /* The SS_ACTIVE and PSTATE_SS bits correspond to the state machine
@@ -1491,5 +1552,11 @@ static inline void cpu_pc_from_tb(CPUARMState *env, TranslationBlock *tb)
         env->regs[15] = tb->pc;
     }
 }
+
+enum {
+    QEMU_PSCI_CONDUIT_DISABLED = 0,
+    QEMU_PSCI_CONDUIT_SMC = 1,
+    QEMU_PSCI_CONDUIT_HVC = 2,
+};
 
 #endif

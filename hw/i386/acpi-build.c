@@ -774,7 +774,7 @@ static void *acpi_set_bsel(PCIBus *bus, void *opaque)
     unsigned *bsel_alloc = opaque;
     unsigned *bus_bsel;
 
-    if (bus->qbus.allow_hotplug) {
+    if (qbus_is_hotpluggable(BUS(bus))) {
         bus_bsel = g_malloc(sizeof *bus_bsel);
 
         *bus_bsel = (*bsel_alloc)++;

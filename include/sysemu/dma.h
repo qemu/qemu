@@ -197,24 +197,24 @@ void qemu_sglist_add(QEMUSGList *qsg, dma_addr_t base, dma_addr_t len);
 void qemu_sglist_destroy(QEMUSGList *qsg);
 #endif
 
-typedef BlockDriverAIOCB *DMAIOFunc(BlockDriverState *bs, int64_t sector_num,
-                                 QEMUIOVector *iov, int nb_sectors,
-                                 BlockDriverCompletionFunc *cb, void *opaque);
+typedef BlockAIOCB *DMAIOFunc(BlockBackend *blk, int64_t sector_num,
+                              QEMUIOVector *iov, int nb_sectors,
+                              BlockCompletionFunc *cb, void *opaque);
 
-BlockDriverAIOCB *dma_bdrv_io(BlockDriverState *bs,
-                              QEMUSGList *sg, uint64_t sector_num,
-                              DMAIOFunc *io_func, BlockDriverCompletionFunc *cb,
-                              void *opaque, DMADirection dir);
-BlockDriverAIOCB *dma_bdrv_read(BlockDriverState *bs,
-                                QEMUSGList *sg, uint64_t sector,
-                                BlockDriverCompletionFunc *cb, void *opaque);
-BlockDriverAIOCB *dma_bdrv_write(BlockDriverState *bs,
-                                 QEMUSGList *sg, uint64_t sector,
-                                 BlockDriverCompletionFunc *cb, void *opaque);
+BlockAIOCB *dma_blk_io(BlockBackend *blk,
+                       QEMUSGList *sg, uint64_t sector_num,
+                       DMAIOFunc *io_func, BlockCompletionFunc *cb,
+                       void *opaque, DMADirection dir);
+BlockAIOCB *dma_blk_read(BlockBackend *blk,
+                         QEMUSGList *sg, uint64_t sector,
+                         BlockCompletionFunc *cb, void *opaque);
+BlockAIOCB *dma_blk_write(BlockBackend *blk,
+                          QEMUSGList *sg, uint64_t sector,
+                          BlockCompletionFunc *cb, void *opaque);
 uint64_t dma_buf_read(uint8_t *ptr, int32_t len, QEMUSGList *sg);
 uint64_t dma_buf_write(uint8_t *ptr, int32_t len, QEMUSGList *sg);
 
-void dma_acct_start(BlockDriverState *bs, BlockAcctCookie *cookie,
+void dma_acct_start(BlockBackend *blk, BlockAcctCookie *cookie,
                     QEMUSGList *sg, enum BlockAcctType type);
 
 #endif

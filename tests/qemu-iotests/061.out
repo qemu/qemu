@@ -76,8 +76,11 @@ autoclear_features        0x0
 refcount_order            4
 header_length             104
 
-Repairing cluster 5 refcount=0 reference=1
-Repairing cluster 6 refcount=0 reference=1
+ERROR cluster 5 refcount=0 reference=1
+ERROR cluster 6 refcount=0 reference=1
+Rebuilding refcount structure
+Repairing cluster 1 refcount=1 reference=0
+Repairing cluster 2 refcount=1 reference=0
 magic                     0x514649fb
 version                   2
 backing_file_offset       0x0
@@ -87,7 +90,7 @@ size                      67108864
 crypt_method              0
 l1_size                   1
 l1_table_offset           0x30000
-refcount_table_offset     0x10000
+refcount_table_offset     0x80000
 refcount_table_clusters   1
 nb_snapshots              0
 snapshot_offset           0x0
@@ -230,8 +233,11 @@ autoclear_features        0x0
 refcount_order            4
 header_length             104
 
-Repairing cluster 5 refcount=0 reference=1
-Repairing cluster 6 refcount=0 reference=1
+ERROR cluster 5 refcount=0 reference=1
+ERROR cluster 6 refcount=0 reference=1
+Rebuilding refcount structure
+Repairing cluster 1 refcount=1 reference=0
+Repairing cluster 2 refcount=1 reference=0
 magic                     0x514649fb
 version                   3
 backing_file_offset       0x0
@@ -241,7 +247,7 @@ size                      67108864
 crypt_method              0
 l1_size                   1
 l1_table_offset           0x30000
-refcount_table_offset     0x10000
+refcount_table_offset     0x80000
 refcount_table_clusters   1
 nb_snapshots              0
 snapshot_offset           0x0

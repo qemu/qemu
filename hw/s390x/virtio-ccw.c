@@ -10,7 +10,7 @@
  */
 
 #include "hw/hw.h"
-#include "block/block.h"
+#include "sysemu/block-backend.h"
 #include "sysemu/blockdev.h"
 #include "sysemu/sysemu.h"
 #include "net/net.h"
@@ -230,7 +230,7 @@ VirtualCssBus *virtual_css_bus_init(void)
     cbus = VIRTUAL_CSS_BUS(bus);
 
     /* Enable hotplugging */
-    bus->allow_hotplug = 1;
+    qbus_set_hotplug_handler(bus, dev, &error_abort);
 
     return cbus;
 }
@@ -795,6 +795,8 @@ static void virtio_ccw_net_instance_init(Object *obj)
 
     virtio_instance_init_common(obj, &dev->vdev, sizeof(dev->vdev),
                                 TYPE_VIRTIO_NET);
+    object_property_add_alias(obj, "bootindex", OBJECT(&dev->vdev),
+                              "bootindex", &error_abort);
 }
 
 static int virtio_ccw_blk_init(VirtioCcwDevice *ccw_dev)
@@ -817,6 +819,8 @@ static void virtio_ccw_blk_instance_init(Object *obj)
                                 TYPE_VIRTIO_BLK);
     object_property_add_alias(obj, "iothread", OBJECT(&dev->vdev),"iothread",
                               &error_abort);
+    object_property_add_alias(obj, "bootindex", OBJECT(&dev->vdev),
+                              "bootindex", &error_abort);
 }
 
 static int virtio_ccw_serial_init(VirtioCcwDevice *ccw_dev)
@@ -1590,7 +1594,8 @@ static int virtio_ccw_busdev_exit(DeviceState *dev)
     return _info->exit(_dev);
 }
 
-static int virtio_ccw_busdev_unplug(DeviceState *dev)
+static void virtio_ccw_busdev_unplug(HotplugHandler *hotplug_dev,
+                                     DeviceState *dev, Error **errp)
 {
     VirtioCcwDevice *_dev = (VirtioCcwDevice *)dev;
     SubchDev *sch = _dev->sch;
@@ -1609,7 +1614,6 @@ static int virtio_ccw_busdev_unplug(DeviceState *dev)
     css_generate_sch_crws(sch->cssid, sch->ssid, sch->schid, 1, 0);
 
     object_unparent(OBJECT(dev));
-    return 0;
 }
 
 static Property virtio_ccw_properties[] = {
@@ -1624,9 +1628,7 @@ static void virtio_ccw_device_class_init(ObjectClass *klass, void *data)
     dc->props = virtio_ccw_properties;
     dc->init = virtio_ccw_busdev_init;
     dc->exit = virtio_ccw_busdev_exit;
-    dc->unplug = virtio_ccw_busdev_unplug;
     dc->bus_type = TYPE_VIRTUAL_CSS_BUS;
-
 }
 
 static const TypeInfo virtio_ccw_device_info = {
@@ -1650,8 +1652,10 @@ static int virtual_css_bridge_init(SysBusDevice *dev)
 static void virtual_css_bridge_class_init(ObjectClass *klass, void *data)
 {
     SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
+    HotplugHandlerClass *hc = HOTPLUG_HANDLER_CLASS(klass);
 
     k->init = virtual_css_bridge_init;
+    hc->unplug = virtio_ccw_busdev_unplug;
 }
 
 static const TypeInfo virtual_css_bridge_info = {
@@ -1659,6 +1663,10 @@ static const TypeInfo virtual_css_bridge_info = {
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(SysBusDevice),
     .class_init    = virtual_css_bridge_class_init,
+    .interfaces = (InterfaceInfo[]) {
+        { TYPE_HOTPLUG_HANDLER },
+        { }
+    }
 };
 
 /* virtio-ccw-bus */
@@ -1667,13 +1675,10 @@ static void virtio_ccw_bus_new(VirtioBusState *bus, size_t bus_size,
                                VirtioCcwDevice *dev)
 {
     DeviceState *qdev = DEVICE(dev);
-    BusState *qbus;
     char virtio_bus_name[] = "virtio-bus";
 
     qbus_create_inplace(bus, bus_size, TYPE_VIRTIO_CCW_BUS,
                         qdev, virtio_bus_name);
-    qbus = BUS(bus);
-    qbus->allow_hotplug = 1;
 }
 
 static void virtio_ccw_bus_class_init(ObjectClass *klass, void *data)

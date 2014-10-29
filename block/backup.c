@@ -353,7 +353,7 @@ void backup_start(BlockDriverState *bs, BlockDriverState *target,
                   int64_t speed, MirrorSyncMode sync_mode,
                   BlockdevOnError on_source_error,
                   BlockdevOnError on_target_error,
-                  BlockDriverCompletionFunc *cb, void *opaque,
+                  BlockCompletionFunc *cb, void *opaque,
                   Error **errp)
 {
     int64_t len;

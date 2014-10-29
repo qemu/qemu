@@ -119,6 +119,8 @@ see <http://www.gnu.org/licenses/>.  */
 #define OP_SH_IMMEDIATE		0
 #define OP_MASK_DELTA		0xffff
 #define OP_SH_DELTA		0
+#define OP_MASK_DELTA_R6        0x1ff
+#define OP_SH_DELTA_R6          7
 #define OP_MASK_FUNCT		0x3f
 #define OP_SH_FUNCT		0
 #define OP_MASK_SPEC		0x3f
@@ -405,6 +407,12 @@ struct mips_opcode
    "+3" UDI immediate bits 6-20
    "+4" UDI immediate bits 6-25
 
+   R6 immediates/displacements :
+   (adding suffix to 'o' to avoid adding new characters)
+   "+o"  9 bits immediate/displacement (shift = 7)
+   "+o1" 18 bits immediate/displacement (shift = 0)
+   "+o2" 19 bits immediate/displacement (shift = 0)
+
    Other:
    "()" parens surrounding optional value
    ","  separates operands
@@ -521,6 +529,8 @@ struct mips_opcode
 #define INSN_ISA64                0x00000040
 #define INSN_ISA32R2              0x00000080
 #define INSN_ISA64R2              0x00000100
+#define INSN_ISA32R6              0x00000200
+#define INSN_ISA64R6              0x00000400
 
 /* Masks used for MIPS-defined ASEs.  */
 #define INSN_ASE_MASK		  0x0000f000
@@ -585,6 +595,8 @@ struct mips_opcode
 #define       ISA_MIPS32R2    (ISA_MIPS32 | INSN_ISA32R2)
 #define       ISA_MIPS64R2    (ISA_MIPS64 | INSN_ISA32R2 | INSN_ISA64R2)
 
+#define       ISA_MIPS32R6    (ISA_MIPS32R2 | INSN_ISA32R6)
+#define       ISA_MIPS64R6    (ISA_MIPS64R2 | INSN_ISA32R6 | INSN_ISA64R6)
 
 /* CPU defines, use instead of hardcoding processor number. Keep this
    in sync with bfd/archures.c in order for machine selection to work.  */
@@ -1121,6 +1133,8 @@ extern const int bfd_mips16_num_opcodes;
 #define I64     INSN_ISA64
 #define I33	INSN_ISA32R2
 #define I65	INSN_ISA64R2
+#define I32R6   INSN_ISA32R6
+#define I64R6   INSN_ISA64R6
 
 /* MIPS64 MIPS-3D ASE support.  */
 #define I16     INSN_MIPS16
@@ -1209,6 +1223,146 @@ const struct mips_opcode mips_builtin_opcodes[] =
    them first.  The assemblers uses a hash table based on the
    instruction name anyhow.  */
 /* name,    args,	match,	    mask,	pinfo,          	membership */
+{"lwpc",    "s,+o2",    0xec080000, 0xfc180000, WR_d,                 0, I32R6},
+{"lwupc",   "s,+o2",    0xec100000, 0xfc180000, WR_d,                 0, I64R6},
+{"ldpc",    "s,+o1",    0xec180000, 0xfc1c0000, WR_d,                 0, I64R6},
+{"addiupc", "s,+o2",    0xec000000, 0xfc180000, WR_d,                 0, I32R6},
+{"auipc",   "s,u",      0xec1e0000, 0xfc1f0000, WR_d,                 0, I32R6},
+{"aluipc",  "s,u",      0xec1f0000, 0xfc1f0000, WR_d,                 0, I32R6},
+{"daui",    "s,t,u",    0x74000000, 0xfc000000, RD_s|WR_t,            0, I64R6},
+{"dahi",    "s,u",      0x04060000, 0xfc1f0000, RD_s,                 0, I64R6},
+{"dati",    "s,u",      0x041e0000, 0xfc1f0000, RD_s,                 0, I64R6},
+{"lsa",     "d,s,t",    0x00000005, 0xfc00073f, WR_d|RD_s|RD_t,       0, I32R6},
+{"dlsa",    "d,s,t",    0x00000015, 0xfc00073f, WR_d|RD_s|RD_t,       0, I64R6},
+{"clz",     "U,s",      0x00000050, 0xfc1f07ff, WR_d|RD_s,            0, I32R6},
+{"clo",     "U,s",      0x00000051, 0xfc1f07ff, WR_d|RD_s,            0, I32R6},
+{"dclz",    "U,s",      0x00000052, 0xfc1f07ff, WR_d|RD_s,            0, I64R6},
+{"dclo",    "U,s",      0x00000053, 0xfc1f07ff, WR_d|RD_s,            0, I64R6},
+{"sdbbp",   "B",        0x0000000e, 0xfc00003f, TRAP,                 0, I32R6},
+{"mul",     "d,s,t",    0x00000098, 0xfc0007ff, WR_d|RD_s|RD_t,       0, I32R6},
+{"muh",     "d,s,t",    0x000000d8, 0xfc0007ff, WR_d|RD_s|RD_t,       0, I32R6},
+{"mulu",    "d,s,t",    0x00000099, 0xfc0007ff, WR_d|RD_s|RD_t,       0, I32R6},
+{"muhu",    "d,s,t",    0x000000d9, 0xfc0007ff, WR_d|RD_s|RD_t,       0, I32R6},
+{"div",     "d,s,t",    0x0000009a, 0xfc0007ff, WR_d|RD_s|RD_t,       0, I32R6},
+{"mod",     "d,s,t",    0x000000da, 0xfc0007ff, WR_d|RD_s|RD_t,       0, I32R6},
+{"divu",    "d,s,t",    0x0000009b, 0xfc0007ff, WR_d|RD_s|RD_t,       0, I32R6},
+{"modu",    "d,s,t",    0x000000db, 0xfc0007ff, WR_d|RD_s|RD_t,       0, I32R6},
+{"dmul",    "d,s,t",    0x0000009c, 0xfc0007ff, WR_d|RD_s|RD_t,       0, I64R6},
+{"dmuh",    "d,s,t",    0x000000dc, 0xfc0007ff, WR_d|RD_s|RD_t,       0, I64R6},
+{"dmulu",   "d,s,t",    0x0000009d, 0xfc0007ff, WR_d|RD_s|RD_t,       0, I64R6},
+{"dmuhu",   "d,s,t",    0x000000dd, 0xfc0007ff, WR_d|RD_s|RD_t,       0, I64R6},
+{"ddiv",    "d,s,t",    0x0000009e, 0xfc0007ff, WR_d|RD_s|RD_t,       0, I64R6},
+{"dmod",    "d,s,t",    0x000000de, 0xfc0007ff, WR_d|RD_s|RD_t,       0, I64R6},
+{"ddivu",   "d,s,t",    0x0000009f, 0xfc0007ff, WR_d|RD_s|RD_t,       0, I64R6},
+{"dmodu",   "d,s,t",    0x000000df, 0xfc0007ff, WR_d|RD_s|RD_t,       0, I64R6},
+{"ll",      "t,o(b)",   0x7c000036, 0xfc00007f, LDD|RD_b|WR_t,        0, I32R6},
+{"sc",      "t,o(b)",   0x7c000026, 0xfc00007f, LDD|RD_b|WR_t,        0, I32R6},
+{"lld",     "t,o(b)",   0x7c000037, 0xfc00007f, LDD|RD_b|WR_t,        0, I64R6},
+{"scd",     "t,o(b)",   0x7c000027, 0xfc00007f, LDD|RD_b|WR_t,        0, I64R6},
+{"pref",    "h,o(b)",   0x7c000035, 0xfc00007f, RD_b,                 0, I32R6},
+{"cache",   "k,o(b)",   0x7c000025, 0xfc00007f, RD_b,                 0, I32R6},
+{"seleqz",  "d,v,t",    0x00000035, 0xfc0007ff, WR_d|RD_s|RD_t,       0, I32R6},
+{"selnez",  "d,v,t",    0x00000037, 0xfc0007ff, WR_d|RD_s|RD_t,       0, I32R6},
+{"maddf.s", "D,S,T",    0x46000018, 0xffe0003f, WR_D|RD_S|RD_T|FP_S,  0, I32R6},
+{"maddf.d", "D,S,T",    0x46200018, 0xffe0003f, WR_D|RD_S|RD_T|FP_D,  0, I32R6},
+{"msubf.s", "D,S,T",    0x46000019, 0xffe0003f, WR_D|RD_S|RD_T|FP_S,  0, I32R6},
+{"msubf.d", "D,S,T",    0x46200019, 0xffe0003f, WR_D|RD_S|RD_T|FP_D,  0, I32R6},
+{"max.s",   "D,S,T",    0x4600001e, 0xffe0003f, WR_D|RD_S|RD_T|FP_S,  0, I32R6},
+{"max.d",   "D,S,T",    0x4620001e, 0xffe0003f, WR_D|RD_S|RD_T|FP_D,  0, I32R6},
+{"maxa.s",  "D,S,T",    0x4600001f, 0xffe0003f, WR_D|RD_S|RD_T|FP_S,  0, I32R6},
+{"maxa.d",  "D,S,T",    0x4620001f, 0xffe0003f, WR_D|RD_S|RD_T|FP_D,  0, I32R6},
+{"rint.s",  "D,S",      0x4600001a, 0xffff003f, WR_D|RD_S|FP_S,       0, I32R6},
+{"rint.d",  "D,S",      0x4620001a, 0xffff003f, WR_D|RD_S|FP_D,       0, I32R6},
+{"class.s", "D,S",      0x4600001b, 0xffff003f, WR_D|RD_S|FP_S,       0, I32R6},
+{"class.d", "D,S",      0x4620001b, 0xffff003f, WR_D|RD_S|FP_D,       0, I32R6},
+{"min.s",   "D,S,T",    0x4600001c, 0xffe0003f, WR_D|RD_S|RD_T|FP_S,  0, I32R6},
+{"min.d",   "D,S,T",    0x4620001c, 0xffe0003f, WR_D|RD_S|RD_T|FP_D,  0, I32R6},
+{"mina.s",  "D,S,T",    0x4600001d, 0xffe0003f, WR_D|RD_S|RD_T|FP_S,  0, I32R6},
+{"mina.d",  "D,S,T",    0x4620001d, 0xffe0003f, WR_D|RD_S|RD_T|FP_D,  0, I32R6},
+{"sel.s",   "D,S,T",    0x46000010, 0xffe0003f, WR_D|RD_S|RD_T|FP_S,  0, I32R6},
+{"sel.d",   "D,S,T",    0x46200010, 0xffe0003f, WR_D|RD_S|RD_T|FP_D,  0, I32R6},
+{"seleqz.s", "D,S,T",   0x46000014, 0xffe0003f, WR_D|RD_S|RD_T|FP_S,  0, I32R6},
+{"seleqz.d", "D,S,T",   0x46200014, 0xffe0003f, WR_D|RD_S|RD_T|FP_D,  0, I32R6},
+{"selnez.s", "D,S,T",   0x46000017, 0xffe0003f, WR_D|RD_S|RD_T|FP_S,  0, I32R6},
+{"selnez.d", "D,S,T",   0x46200017, 0xffe0003f, WR_D|RD_S|RD_T|FP_D,  0, I32R6},
+{"align",   "d,v,t",    0x7c000220, 0xfc00073f, WR_d|RD_s|RD_t,       0, I32R6},
+{"dalign",  "d,v,t",    0x7c000224, 0xfc00063f, WR_d|RD_s|RD_t,       0, I64R6},
+{"bitswap", "d,w",      0x7c000020, 0xffe007ff, WR_d|RD_t,            0, I32R6},
+{"dbitswap","d,w",      0x7c000024, 0xffe007ff, WR_d|RD_t,            0, I64R6},
+{"balc",    "+p",       0xe8000000, 0xfc000000, UBD|WR_31,            0, I32R6},
+{"bc",      "+p",       0xc8000000, 0xfc000000, UBD|WR_31,            0, I32R6},
+{"jic",     "t,o",      0xd8000000, 0xffe00000, UBD|RD_t,             0, I32R6},
+{"beqzc",   "s,+p",     0xd8000000, 0xfc000000, CBD|RD_s,             0, I32R6},
+{"jialc",   "t,o",      0xf8000000, 0xffe00000, UBD|RD_t,             0, I32R6},
+{"bnezc",   "s,+p",     0xf8000000, 0xfc000000, CBD|RD_s,             0, I32R6},
+{"beqzalc", "s,t,p",    0x20000000, 0xffe00000, CBD|RD_s|RD_t,        0, I32R6},
+{"bovc",    "s,t,p",    0x20000000, 0xfc000000, CBD|RD_s|RD_t,        0, I32R6},
+{"beqc",    "s,t,p",    0x20000000, 0xfc000000, CBD|RD_s|RD_t,        0, I32R6},
+{"bnezalc", "s,t,p",    0x60000000, 0xffe00000, CBD|RD_s|RD_t,        0, I32R6},
+{"bnvc",    "s,t,p",    0x60000000, 0xfc000000, CBD|RD_s|RD_t,        0, I32R6},
+{"bnec",    "s,t,p",    0x60000000, 0xfc000000, CBD|RD_s|RD_t,        0, I32R6},
+{"blezc",   "s,t,p",    0x58000000, 0xffe00000, CBD|RD_s|RD_t,        0, I32R6},
+{"bgezc",   "s,t,p",    0x58000000, 0xfc000000, CBD|RD_s|RD_t,        0, I32R6},
+{"bgec",    "s,t,p",    0x58000000, 0xfc000000, CBD|RD_s|RD_t,        0, I32R6},
+{"bgtzc",   "s,t,p",    0x5c000000, 0xffe00000, CBD|RD_s|RD_t,        0, I32R6},
+{"bltzc",   "s,t,p",    0x5c000000, 0xfc000000, CBD|RD_s|RD_t,        0, I32R6},
+{"bltc",    "s,t,p",    0x5c000000, 0xfc000000, CBD|RD_s|RD_t,        0, I32R6},
+{"blezalc", "s,t,p",    0x18000000, 0xffe00000, CBD|RD_s|RD_t,        0, I32R6},
+{"bgezalc", "s,t,p",    0x18000000, 0xfc000000, CBD|RD_s|RD_t,        0, I32R6},
+{"bgeuc",   "s,t,p",    0x18000000, 0xfc000000, CBD|RD_s|RD_t,        0, I32R6},
+{"bgtzalc", "s,t,p",    0x1c000000, 0xffe00000, CBD|RD_s|RD_t,        0, I32R6},
+{"bltzalc", "s,t,p",    0x1c000000, 0xfc000000, CBD|RD_s|RD_t,        0, I32R6},
+{"bltuc",   "s,t,p",    0x1c000000, 0xfc000000, CBD|RD_s|RD_t,        0, I32R6},
+{"nal",     "p",        0x04100000, 0xffff0000, WR_31,                0, I32R6},
+{"bal",     "p",        0x04110000, 0xffff0000, UBD|WR_31,            0, I32R6},
+{"bc1eqz",  "T,p",      0x45200000, 0xffe00000, CBD|RD_T|FP_S|FP_D,   0, I32R6},
+{"bc1nez",  "T,p",      0x45a00000, 0xffe00000, CBD|RD_T|FP_S|FP_D,   0, I32R6},
+{"bc2eqz",  "E,p",      0x49200000, 0xffe00000, CBD|RD_C2,            0, I32R6},
+{"bc2nez",  "E,p",      0x49a00000, 0xffe00000, CBD|RD_C2,            0, I32R6},
+{"cmp.af.s",   "D,S,T", 0x46800000, 0xffe0003f, RD_S|RD_T|WR_D|FP_S,  0, I32R6},
+{"cmp.un.s",   "D,S,T", 0x46800001, 0xffe0003f, RD_S|RD_T|WR_D|FP_S,  0, I32R6},
+{"cmp.eq.s",   "D,S,T", 0x46800002, 0xffe0003f, RD_S|RD_T|WR_D|FP_S,  0, I32R6},
+{"cmp.ueq.s",  "D,S,T", 0x46800003, 0xffe0003f, RD_S|RD_T|WR_D|FP_S,  0, I32R6},
+{"cmp.lt.s",   "D,S,T", 0x46800004, 0xffe0003f, RD_S|RD_T|WR_D|FP_S,  0, I32R6},
+{"cmp.ult.s",  "D,S,T", 0x46800005, 0xffe0003f, RD_S|RD_T|WR_D|FP_S,  0, I32R6},
+{"cmp.le.s",   "D,S,T", 0x46800006, 0xffe0003f, RD_S|RD_T|WR_D|FP_S,  0, I32R6},
+{"cmp.ule.s",  "D,S,T", 0x46800007, 0xffe0003f, RD_S|RD_T|WR_D|FP_S,  0, I32R6},
+{"cmp.saf.s",  "D,S,T", 0x46800008, 0xffe0003f, RD_S|RD_T|WR_D|FP_S,  0, I32R6},
+{"cmp.sun.s",  "D,S,T", 0x46800009, 0xffe0003f, RD_S|RD_T|WR_D|FP_S,  0, I32R6},
+{"cmp.seq.s",  "D,S,T", 0x4680000a, 0xffe0003f, RD_S|RD_T|WR_D|FP_S,  0, I32R6},
+{"cmp.sueq.s", "D,S,T", 0x4680000b, 0xffe0003f, RD_S|RD_T|WR_D|FP_S,  0, I32R6},
+{"cmp.slt.s",  "D,S,T", 0x4680000c, 0xffe0003f, RD_S|RD_T|WR_D|FP_S,  0, I32R6},
+{"cmp.sult.s", "D,S,T", 0x4680000d, 0xffe0003f, RD_S|RD_T|WR_D|FP_S,  0, I32R6},
+{"cmp.sle.s",  "D,S,T", 0x4680000e, 0xffe0003f, RD_S|RD_T|WR_D|FP_S,  0, I32R6},
+{"cmp.sule.s", "D,S,T", 0x4680000f, 0xffe0003f, RD_S|RD_T|WR_D|FP_S,  0, I32R6},
+{"cmp.or.s",   "D,S,T", 0x46800011, 0xffe0003f, RD_S|RD_T|WR_D|FP_S,  0, I32R6},
+{"cmp.une.s",  "D,S,T", 0x46800012, 0xffe0003f, RD_S|RD_T|WR_D|FP_S,  0, I32R6},
+{"cmp.ne.s",   "D,S,T", 0x46800013, 0xffe0003f, RD_S|RD_T|WR_D|FP_S,  0, I32R6},
+{"cmp.sor.s",  "D,S,T", 0x46800019, 0xffe0003f, RD_S|RD_T|WR_D|FP_S,  0, I32R6},
+{"cmp.sune.s", "D,S,T", 0x4680001a, 0xffe0003f, RD_S|RD_T|WR_D|FP_S,  0, I32R6},
+{"cmp.sne.s",  "D,S,T", 0x4680001b, 0xffe0003f, RD_S|RD_T|WR_D|FP_S,  0, I32R6},
+{"cmp.af.d",   "D,S,T", 0x46a00000, 0xffe0003f, RD_S|RD_T|WR_D|FP_D,  0, I32R6},
+{"cmp.un.d",   "D,S,T", 0x46a00001, 0xffe0003f, RD_S|RD_T|WR_D|FP_D,  0, I32R6},
+{"cmp.eq.d",   "D,S,T", 0x46a00002, 0xffe0003f, RD_S|RD_T|WR_D|FP_D,  0, I32R6},
+{"cmp.ueq.d",  "D,S,T", 0x46a00003, 0xffe0003f, RD_S|RD_T|WR_D|FP_D,  0, I32R6},
+{"cmp.lt.d",   "D,S,T", 0x46a00004, 0xffe0003f, RD_S|RD_T|WR_D|FP_D,  0, I32R6},
+{"cmp.ult.d",  "D,S,T", 0x46a00005, 0xffe0003f, RD_S|RD_T|WR_D|FP_D,  0, I32R6},
+{"cmp.le.d",   "D,S,T", 0x46a00006, 0xffe0003f, RD_S|RD_T|WR_D|FP_D,  0, I32R6},
+{"cmp.ule.d",  "D,S,T", 0x46a00007, 0xffe0003f, RD_S|RD_T|WR_D|FP_D,  0, I32R6},
+{"cmp.saf.d",  "D,S,T", 0x46a00008, 0xffe0003f, RD_S|RD_T|WR_D|FP_D,  0, I32R6},
+{"cmp.sun.d",  "D,S,T", 0x46a00009, 0xffe0003f, RD_S|RD_T|WR_D|FP_D,  0, I32R6},
+{"cmp.seq.d",  "D,S,T", 0x46a0000a, 0xffe0003f, RD_S|RD_T|WR_D|FP_D,  0, I32R6},
+{"cmp.sueq.d", "D,S,T", 0x46a0000b, 0xffe0003f, RD_S|RD_T|WR_D|FP_D,  0, I32R6},
+{"cmp.slt.d",  "D,S,T", 0x46a0000c, 0xffe0003f, RD_S|RD_T|WR_D|FP_D,  0, I32R6},
+{"cmp.sult.d", "D,S,T", 0x46a0000d, 0xffe0003f, RD_S|RD_T|WR_D|FP_D,  0, I32R6},
+{"cmp.sle.d",  "D,S,T", 0x46a0000e, 0xffe0003f, RD_S|RD_T|WR_D|FP_D,  0, I32R6},
+{"cmp.sule.d", "D,S,T", 0x46a0000f, 0xffe0003f, RD_S|RD_T|WR_D|FP_D,  0, I32R6},
+{"cmp.or.d",   "D,S,T", 0x46a00011, 0xffe0003f, RD_S|RD_T|WR_D|FP_D,  0, I32R6},
+{"cmp.une.d",  "D,S,T", 0x46a00012, 0xffe0003f, RD_S|RD_T|WR_D|FP_D,  0, I32R6},
+{"cmp.ne.d",   "D,S,T", 0x46a00013, 0xffe0003f, RD_S|RD_T|WR_D|FP_D,  0, I32R6},
+{"cmp.sor.d",  "D,S,T", 0x46a00019, 0xffe0003f, RD_S|RD_T|WR_D|FP_D,  0, I32R6},
+{"cmp.sune.d", "D,S,T", 0x46a0001a, 0xffe0003f, RD_S|RD_T|WR_D|FP_D,  0, I32R6},
+{"cmp.sne.d",  "D,S,T", 0x46a0001b, 0xffe0003f, RD_S|RD_T|WR_D|FP_D,  0, I32R6},
 {"pref",    "k,o(b)",   0xcc000000, 0xfc000000, RD_b,           	0,		I4|I32|G3	},
 {"prefx",   "h,t(b)",	0x4c00000f, 0xfc0007ff, RD_b|RD_t,		0,		I4|I33	},
 {"nop",     "",         0x00000000, 0xffffffff, 0,              	INSN2_ALIAS,	I1      }, /* sll */
@@ -1753,6 +1907,7 @@ const struct mips_opcode mips_builtin_opcodes[] =
 {"lld",	    "t,o(b)",	0xd0000000, 0xfc000000, LDD|RD_b|WR_t,		0,		I3	},
 {"lld",     "t,A(b)",	0,    (int) M_LLD_AB,	INSN_MACRO,		0,		I3	},
 {"lui",     "t,u",	0x3c000000, 0xffe00000,	WR_t,			0,		I1	},
+{"aui",     "s,t,u",    0x3c000000, 0xfc000000, RD_s|WR_t,            0, I32R6},
 {"luxc1",   "D,t(b)",	0x4c000005, 0xfc00f83f, LDD|WR_D|RD_t|RD_b|FP_D, 0,		I5|I33|N55},
 {"lw",      "t,o(b)",	0x8c000000, 0xfc000000,	LDD|RD_b|WR_t,		0,		I1	},
 {"lw",      "t,A(b)",	0,    (int) M_LW_AB,	INSN_MACRO,		0,		I1	},
@@ -3575,6 +3730,42 @@ print_insn_args (const char *d,
 	      (*info->fprintf_func) (info->stream, "0x%x", msbd + 1);
 	      break;
 
+            case 'o':
+                switch (*(d+1)) {
+                case '1':
+                    d++;
+                    delta = l & ((1 << 18) - 1);
+                    if (delta & 0x20000) {
+                        delta |= ~0x1ffff;
+                    }
+                    break;
+                case '2':
+                    d++;
+                    delta = l & ((1 << 19) - 1);
+                    if (delta & 0x40000) {
+                        delta |= ~0x3ffff;
+                    }
+                    break;
+                default:
+                    delta = (l >> OP_SH_DELTA_R6) & OP_MASK_DELTA_R6;
+                    if (delta & 0x8000) {
+                        delta |= ~0xffff;
+                    }
+                }
+
+                (*info->fprintf_func) (info->stream, "%d", delta);
+                break;
+
+            case 'p':
+                /* Sign extend the displacement with 26 bits.  */
+                delta = (l >> OP_SH_DELTA) & OP_MASK_TARGET;
+                if (delta & 0x2000000) {
+                    delta |= ~0x3FFFFFF;
+                }
+                info->target = (delta << 2) + pc + INSNLEN;
+                (*info->print_address_func) (info->target, info);
+                break;
+
 	    case 't': /* Coprocessor 0 reg name */
 	      (*info->fprintf_func) (info->stream, "%s",
 				     mips_cp0_names[(l >> OP_SH_RT) &
@@ -3726,7 +3917,8 @@ print_insn_args (const char *d,
 
 	case 'j': /* Same as i, but sign-extended.  */
 	case 'o':
-	  delta = (l >> OP_SH_DELTA) & OP_MASK_DELTA;
+            delta = (l >> OP_SH_DELTA) & OP_MASK_DELTA;
+
 	  if (delta & 0x8000)
 	    delta |= ~0xffff;
 	  (*info->fprintf_func) (info->stream, "%d",
@@ -4051,6 +4243,23 @@ print_insn_mips (bfd_vma memaddr,
 	      if (! OPCODE_IS_MEMBER (op, mips_isa, mips_processor)
 		  && strcmp (op->name, "jalx"))
 		continue;
+
+              if (strcmp(op->name, "bovc") == 0
+                  || strcmp(op->name, "bnvc") == 0) {
+                  if (((word >> OP_SH_RS) & OP_MASK_RS) <
+                      ((word >> OP_SH_RT) & OP_MASK_RT)) {
+                      continue;
+                  }
+              }
+              if (strcmp(op->name, "bgezc") == 0
+                  || strcmp(op->name, "bltzc") == 0
+                  || strcmp(op->name, "bgezalc") == 0
+                  || strcmp(op->name, "bltzalc") == 0) {
+                  if (((word >> OP_SH_RS) & OP_MASK_RS) !=
+                      ((word >> OP_SH_RT) & OP_MASK_RT)) {
+                      continue;
+                  }
+              }
 
 	      /* Figure out instruction type and branch delay information.  */
 	      if ((op->pinfo & INSN_UNCOND_BRANCH_DELAY) != 0)

@@ -13,6 +13,7 @@
 
 #include "hw/virtio/virtio-scsi.h"
 #include "qemu/error-report.h"
+#include "sysemu/block-backend.h"
 #include <hw/scsi/scsi.h>
 #include <block/scsi.h>
 #include <hw/virtio/virtio-bus.h>
@@ -205,7 +206,7 @@ void virtio_scsi_dataplane_stop(VirtIOSCSI *s)
         aio_set_event_notifier(s->ctx, &s->cmd_vrings[i]->host_notifier, NULL);
     }
 
-    bdrv_drain_all(); /* ensure there are no in-flight requests */
+    blk_drain_all(); /* ensure there are no in-flight requests */
 
     aio_context_release(s->ctx);
 

@@ -442,7 +442,8 @@ ObjectTypeInfoList *qmp_qom_list_types(bool has_implements,
  */
 static DevicePropertyInfo *make_device_property_info(ObjectClass *klass,
                                                      const char *name,
-                                                     const char *default_type)
+                                                     const char *default_type,
+                                                     const char *description)
 {
     DevicePropertyInfo *info;
     Property *prop;
@@ -465,7 +466,9 @@ static DevicePropertyInfo *make_device_property_info(ObjectClass *klass,
 
             info = g_malloc0(sizeof(*info));
             info->name = g_strdup(prop->name);
-            info->type = g_strdup(prop->info->legacy_name ?: prop->info->name);
+            info->type = g_strdup(prop->info->name);
+            info->has_description = !!prop->info->description;
+            info->description = g_strdup(prop->info->description);
             return info;
         }
         klass = object_class_get_parent(klass);
@@ -475,6 +478,9 @@ static DevicePropertyInfo *make_device_property_info(ObjectClass *klass,
     info = g_malloc0(sizeof(*info));
     info->name = g_strdup(name);
     info->type = g_strdup(default_type);
+    info->has_description = !!description;
+    info->description = g_strdup(description);
+
     return info;
 }
 
@@ -521,7 +527,8 @@ DevicePropertyInfoList *qmp_device_list_properties(const char *typename,
             continue;
         }
 
-        info = make_device_property_info(klass, prop->name, prop->type);
+        info = make_device_property_info(klass, prop->name, prop->type,
+                                         prop->description);
         if (!info) {
             continue;
         }

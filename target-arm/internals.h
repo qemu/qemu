@@ -130,7 +130,7 @@ static inline void aarch64_restore_sp(CPUARMState *env, int el)
 
 static inline void update_spsel(CPUARMState *env, uint32_t imm)
 {
-    unsigned int cur_el = arm_current_pl(env);
+    unsigned int cur_el = arm_current_el(env);
     /* Update PSTATE SPSel bit; this requires us to update the
      * working stack pointer in xregs[31].
      */
@@ -234,6 +234,16 @@ static inline uint32_t syn_aa32_svc(uint32_t imm16, bool is_thumb)
 {
     return (EC_AA32_SVC << ARM_EL_EC_SHIFT) | (imm16 & 0xffff)
         | (is_thumb ? 0 : ARM_EL_IL);
+}
+
+static inline uint32_t syn_aa32_hvc(uint32_t imm16)
+{
+    return (EC_AA32_HVC << ARM_EL_EC_SHIFT) | ARM_EL_IL | (imm16 & 0xffff);
+}
+
+static inline uint32_t syn_aa32_smc(void)
+{
+    return (EC_AA32_SMC << ARM_EL_EC_SHIFT) | ARM_EL_IL;
 }
 
 static inline uint32_t syn_aa64_bkpt(uint32_t imm16)
@@ -355,5 +365,17 @@ void hw_breakpoint_update_all(ARMCPU *cpu);
 
 /* Callback function for when a watchpoint or breakpoint triggers. */
 void arm_debug_excp_handler(CPUState *cs);
+
+#ifdef CONFIG_USER_ONLY
+static inline bool arm_is_psci_call(ARMCPU *cpu, int excp_type)
+{
+    return false;
+}
+#else
+/* Return true if the r0/x0 value indicates that this SMC/HVC is a PSCI call. */
+bool arm_is_psci_call(ARMCPU *cpu, int excp_type);
+/* Actually handle a PSCI call */
+void arm_handle_psci_call(ARMCPU *cpu);
+#endif
 
 #endif

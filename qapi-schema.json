@@ -1615,11 +1615,13 @@
 #
 # @name: the name of the property
 # @type: the typename of the property
+# @description: #optional if specified, the description of the property.
+#               (since 2.2)
 #
 # Since: 1.2
 ##
 { 'type': 'DevicePropertyInfo',
-  'data': { 'name': 'str', 'type': 'str' } }
+  'data': { 'name': 'str', 'type': 'str', '*description': 'str' } }
 
 ##
 # @device-list-properties:

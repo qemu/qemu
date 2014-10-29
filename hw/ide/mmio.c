@@ -24,7 +24,7 @@
  */
 #include "hw/hw.h"
 #include "hw/sysbus.h"
-#include "block/block.h"
+#include "sysemu/block-backend.h"
 #include "sysemu/dma.h"
 
 #include <hw/ide/internal.h>

@@ -369,6 +369,7 @@ static void object_property_del_all(Object *obj)
 
         g_free(prop->name);
         g_free(prop->type);
+        g_free(prop->description);
         g_free(prop);
     }
 }
@@ -803,6 +804,7 @@ void object_property_del(Object *obj, const char *name, Error **errp)
 
     g_free(prop->name);
     g_free(prop->type);
+    g_free(prop->description);
     g_free(prop);
 }
 
@@ -1010,11 +1012,19 @@ char *object_property_print(Object *obj, const char *name, bool human,
                             Error **errp)
 {
     StringOutputVisitor *mo;
-    char *string;
+    char *string = NULL;
+    Error *local_err = NULL;
 
     mo = string_output_visitor_new(human);
-    object_property_get(obj, string_output_get_visitor(mo), name, errp);
+    object_property_get(obj, string_output_get_visitor(mo), name, &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        goto out;
+    }
+
     string = string_output_get_string(mo);
+
+out:
     string_output_visitor_cleanup(mo);
     return string;
 }
@@ -1634,6 +1644,7 @@ void object_property_add_alias(Object *obj, const char *name,
     ObjectProperty *op;
     ObjectProperty *target_prop;
     gchar *prop_type;
+    Error *local_err = NULL;
 
     target_prop = object_property_find(target_obj, target_name, errp);
     if (!target_prop) {
@@ -1655,10 +1666,34 @@ void object_property_add_alias(Object *obj, const char *name,
                              property_get_alias,
                              property_set_alias,
                              property_release_alias,
-                             prop, errp);
+                             prop, &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        g_free(prop);
+        goto out;
+    }
     op->resolve = property_resolve_alias;
 
+    object_property_set_description(obj, name,
+                                    target_prop->description,
+                                    &error_abort);
+
+out:
     g_free(prop_type);
+}
+
+void object_property_set_description(Object *obj, const char *name,
+                                     const char *description, Error **errp)
+{
+    ObjectProperty *op;
+
+    op = object_property_find(obj, name, errp);
+    if (!op) {
+        return;
+    }
+
+    g_free(op->description);
+    op->description = g_strdup(description);
 }
 
 static void object_instance_init(Object *obj)

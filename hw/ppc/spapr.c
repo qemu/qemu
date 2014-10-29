@@ -29,7 +29,7 @@
 #include "hw/fw-path-provider.h"
 #include "elf.h"
 #include "net/net.h"
-#include "sysemu/blockdev.h"
+#include "sysemu/block-backend.h"
 #include "sysemu/cpus.h"
 #include "sysemu/kvm.h"
 #include "kvm_ppc.h"
@@ -925,7 +925,7 @@ static void spapr_create_nvram(sPAPREnvironment *spapr)
     DriveInfo *dinfo = drive_get(IF_PFLASH, 0, 0);
 
     if (dinfo) {
-        qdev_prop_set_drive_nofail(dev, "drive", dinfo->bdrv);
+        qdev_prop_set_drive_nofail(dev, "drive", blk_by_legacy_dinfo(dinfo));
     }
 
     qdev_init_nofail(dev);

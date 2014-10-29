@@ -32,6 +32,7 @@
 #include "hw/loader.h"
 #include "qemu/timer.h"
 #include "sysemu/dma.h"
+#include "sysemu/sysemu.h"
 
 #include "pcnet.h"
 
@@ -344,6 +345,16 @@ static void pci_reset(DeviceState *dev)
     pcnet_h_reset(&d->state);
 }
 
+static void pcnet_instance_init(Object *obj)
+{
+    PCIPCNetState *d = PCI_PCNET(obj);
+    PCNetState *s = &d->state;
+
+    device_add_bootindex_property(obj, &s->conf.bootindex,
+                                  "bootindex", "/ethernet-phy@0",
+                                  DEVICE(obj), NULL);
+}
+
 static Property pcnet_properties[] = {
     DEFINE_NIC_PROPERTIES(PCIPCNetState, state.conf),
     DEFINE_PROP_END_OF_LIST(),
@@ -372,6 +383,7 @@ static const TypeInfo pcnet_info = {
     .parent        = TYPE_PCI_DEVICE,
     .instance_size = sizeof(PCIPCNetState),
     .class_init    = pcnet_class_init,
+    .instance_init = pcnet_instance_init,
 };
 
 static void pci_pcnet_register_types(void)

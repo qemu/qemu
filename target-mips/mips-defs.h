@@ -30,17 +30,21 @@
 #define		ISA_MIPS64	0x00000080
 #define		ISA_MIPS64R2	0x00000100
 #define   ISA_MIPS32R3  0x00000200
-#define   ISA_MIPS32R5  0x00000400
+#define   ISA_MIPS64R3  0x00000400
+#define   ISA_MIPS32R5  0x00000800
+#define   ISA_MIPS64R5  0x00001000
+#define   ISA_MIPS32R6  0x00002000
+#define   ISA_MIPS64R6  0x00004000
 
 /* MIPS ASEs. */
-#define		ASE_MIPS16	0x00001000
-#define		ASE_MIPS3D	0x00002000
-#define		ASE_MDMX	0x00004000
-#define		ASE_DSP		0x00008000
-#define		ASE_DSPR2	0x00010000
-#define		ASE_MT		0x00020000
-#define		ASE_SMARTMIPS	0x00040000
-#define 	ASE_MICROMIPS	0x00080000
+#define   ASE_MIPS16    0x00010000
+#define   ASE_MIPS3D    0x00020000
+#define   ASE_MDMX      0x00040000
+#define   ASE_DSP       0x00080000
+#define   ASE_DSPR2     0x00100000
+#define   ASE_MT        0x00200000
+#define   ASE_SMARTMIPS 0x00400000
+#define   ASE_MICROMIPS 0x00800000
 
 /* Chip specific instructions. */
 #define		INSN_LOONGSON2E  0x20000000
@@ -68,9 +72,15 @@
 
 /* MIPS Technologies "Release 3" */
 #define CPU_MIPS32R3 (CPU_MIPS32R2 | ISA_MIPS32R3)
+#define CPU_MIPS64R3 (CPU_MIPS64R2 | CPU_MIPS32R3 | ISA_MIPS64R3)
 
 /* MIPS Technologies "Release 5" */
 #define CPU_MIPS32R5 (CPU_MIPS32R3 | ISA_MIPS32R5)
+#define CPU_MIPS64R5 (CPU_MIPS64R3 | CPU_MIPS32R5 | ISA_MIPS64R5)
+
+/* MIPS Technologies "Release 6" */
+#define CPU_MIPS32R6 (CPU_MIPS32R5 | ISA_MIPS32R6)
+#define CPU_MIPS64R6 (CPU_MIPS64R5 | CPU_MIPS32R6 | ISA_MIPS64R6)
 
 /* Strictly follow the architecture standard:
    - Disallow "special" instruction handling for PMON/SPIM.

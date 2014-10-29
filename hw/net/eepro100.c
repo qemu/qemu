@@ -1988,9 +1988,15 @@ static int e100_nic_init(PCIDevice *pci_dev)
     s->vmstate->name = qemu_get_queue(s->nic)->model;
     vmstate_register(&pci_dev->qdev, -1, s->vmstate, s);
 
-    add_boot_device_path(s->conf.bootindex, &pci_dev->qdev, "/ethernet-phy@0");
-
     return 0;
+}
+
+static void eepro100_instance_init(Object *obj)
+{
+    EEPRO100State *s = DO_UPCAST(EEPRO100State, dev, PCI_DEVICE(obj));
+    device_add_bootindex_property(obj, &s->conf.bootindex,
+                                  "bootindex", "/ethernet-phy@0",
+                                  DEVICE(s), NULL);
 }
 
 static E100PCIDeviceInfo e100_devices[] = {
@@ -2192,7 +2198,8 @@ static void eepro100_register_types(void)
         type_info.parent = TYPE_PCI_DEVICE;
         type_info.class_init = eepro100_class_init;
         type_info.instance_size = sizeof(EEPRO100State);
-        
+        type_info.instance_init = eepro100_instance_init;
+
         type_register(&type_info);
     }
 }

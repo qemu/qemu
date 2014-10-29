@@ -30,7 +30,7 @@
  */
 
 #include "hw/hw.h"
-#include "block/block.h"
+#include "sysemu/block-backend.h"
 #include "hw/sd.h"
 #include "qemu/bitmap.h"
 
@@ -110,7 +110,7 @@ struct SDState {
     uint8_t data[512];
     qemu_irq readonly_cb;
     qemu_irq inserted_cb;
-    BlockDriverState *bdrv;
+    BlockBackend *blk;
     uint8_t *buf;
 
     bool enable;
@@ -389,13 +389,13 @@ static inline uint64_t sd_addr_to_wpnum(uint64_t addr)
     return addr >> (HWBLOCK_SHIFT + SECTOR_SHIFT + WPGROUP_SHIFT);
 }
 
-static void sd_reset(SDState *sd, BlockDriverState *bdrv)
+static void sd_reset(SDState *sd, BlockBackend *blk)
 {
     uint64_t size;
     uint64_t sect;
 
-    if (bdrv) {
-        bdrv_get_geometry(bdrv, &sect);
+    if (blk) {
+        blk_get_geometry(blk, &sect);
     } else {
         sect = 0;
     }
@@ -412,11 +412,11 @@ static void sd_reset(SDState *sd, BlockDriverState *bdrv)
     sd_set_cardstatus(sd);
     sd_set_sdstatus(sd);
 
-    sd->bdrv = bdrv;
+    sd->blk = blk;
 
     if (sd->wp_groups)
         g_free(sd->wp_groups);
-    sd->wp_switch = bdrv ? bdrv_is_read_only(bdrv) : false;
+    sd->wp_switch = blk ? blk_is_read_only(blk) : false;
     sd->wpgrps_size = sect;
     sd->wp_groups = bitmap_new(sd->wpgrps_size);
     memset(sd->function_group, 0, sizeof(sd->function_group));
@@ -432,9 +432,9 @@ static void sd_cardchange(void *opaque, bool load)
 {
     SDState *sd = opaque;
 
-    qemu_set_irq(sd->inserted_cb, bdrv_is_inserted(sd->bdrv));
-    if (bdrv_is_inserted(sd->bdrv)) {
-        sd_reset(sd, sd->bdrv);
+    qemu_set_irq(sd->inserted_cb, blk_is_inserted(sd->blk));
+    if (blk_is_inserted(sd->blk)) {
+        sd_reset(sd, sd->blk);
         qemu_set_irq(sd->readonly_cb, sd->wp_switch);
     }
 }
@@ -479,23 +479,23 @@ static const VMStateDescription sd_vmstate = {
    whether card should be in SSI or MMC/SD mode.  It is also up to the
    board to ensure that ssi transfers only occur when the chip select
    is asserted.  */
-SDState *sd_init(BlockDriverState *bs, bool is_spi)
+SDState *sd_init(BlockBackend *blk, bool is_spi)
 {
     SDState *sd;
 
-    if (bs && bdrv_is_read_only(bs)) {
+    if (blk && blk_is_read_only(blk)) {
         fprintf(stderr, "sd_init: Cannot use read-only drive\n");
         return NULL;
     }
 
     sd = (SDState *) g_malloc0(sizeof(SDState));
-    sd->buf = qemu_blockalign(bs, 512);
+    sd->buf = blk_blockalign(blk, 512);
     sd->spi = is_spi;
     sd->enable = true;
-    sd_reset(sd, bs);
-    if (sd->bdrv) {
-        bdrv_attach_dev_nofail(sd->bdrv, sd);
-        bdrv_set_dev_ops(sd->bdrv, &sd_block_ops, sd);
+    sd_reset(sd, blk);
+    if (sd->blk) {
+        blk_attach_dev_nofail(sd->blk, sd);
+        blk_set_dev_ops(sd->blk, &sd_block_ops, sd);
     }
     vmstate_register(NULL, -1, &sd_vmstate, sd);
     return sd;
@@ -505,8 +505,8 @@ void sd_set_cb(SDState *sd, qemu_irq readonly, qemu_irq insert)
 {
     sd->readonly_cb = readonly;
     sd->inserted_cb = insert;
-    qemu_set_irq(readonly, sd->bdrv ? bdrv_is_read_only(sd->bdrv) : 0);
-    qemu_set_irq(insert, sd->bdrv ? bdrv_is_inserted(sd->bdrv) : 0);
+    qemu_set_irq(readonly, sd->blk ? blk_is_read_only(sd->blk) : 0);
+    qemu_set_irq(insert, sd->blk ? blk_is_inserted(sd->blk) : 0);
 }
 
 static void sd_erase(SDState *sd)
@@ -680,7 +680,7 @@ static sd_rsp_type_t sd_normal_command(SDState *sd,
 
         default:
             sd->state = sd_idle_state;
-            sd_reset(sd, sd->bdrv);
+            sd_reset(sd, sd->blk);
             return sd->spi ? sd_r1 : sd_r0;
         }
         break;
@@ -1347,7 +1347,7 @@ int sd_do_command(SDState *sd, SDRequest *req,
     sd_rsp_type_t rtype;
     int rsplen;
 
-    if (!sd->bdrv || !bdrv_is_inserted(sd->bdrv) || !sd->enable) {
+    if (!sd->blk || !blk_is_inserted(sd->blk) || !sd->enable) {
         return 0;
     }
 
@@ -1456,7 +1456,7 @@ static void sd_blk_read(SDState *sd, uint64_t addr, uint32_t len)
 
     DPRINTF("sd_blk_read: addr = 0x%08llx, len = %d\n",
             (unsigned long long) addr, len);
-    if (!sd->bdrv || bdrv_read(sd->bdrv, addr >> 9, sd->buf, 1) < 0) {
+    if (!sd->blk || blk_read(sd->blk, addr >> 9, sd->buf, 1) < 0) {
         fprintf(stderr, "sd_blk_read: read error on host side\n");
         return;
     }
@@ -1464,7 +1464,7 @@ static void sd_blk_read(SDState *sd, uint64_t addr, uint32_t len)
     if (end > (addr & ~511) + 512) {
         memcpy(sd->data, sd->buf + (addr & 511), 512 - (addr & 511));
 
-        if (bdrv_read(sd->bdrv, end >> 9, sd->buf, 1) < 0) {
+        if (blk_read(sd->blk, end >> 9, sd->buf, 1) < 0) {
             fprintf(stderr, "sd_blk_read: read error on host side\n");
             return;
         }
@@ -1478,29 +1478,29 @@ static void sd_blk_write(SDState *sd, uint64_t addr, uint32_t len)
     uint64_t end = addr + len;
 
     if ((addr & 511) || len < 512)
-        if (!sd->bdrv || bdrv_read(sd->bdrv, addr >> 9, sd->buf, 1) < 0) {
+        if (!sd->blk || blk_read(sd->blk, addr >> 9, sd->buf, 1) < 0) {
             fprintf(stderr, "sd_blk_write: read error on host side\n");
             return;
         }
 
     if (end > (addr & ~511) + 512) {
         memcpy(sd->buf + (addr & 511), sd->data, 512 - (addr & 511));
-        if (bdrv_write(sd->bdrv, addr >> 9, sd->buf, 1) < 0) {
+        if (blk_write(sd->blk, addr >> 9, sd->buf, 1) < 0) {
             fprintf(stderr, "sd_blk_write: write error on host side\n");
             return;
         }
 
-        if (bdrv_read(sd->bdrv, end >> 9, sd->buf, 1) < 0) {
+        if (blk_read(sd->blk, end >> 9, sd->buf, 1) < 0) {
             fprintf(stderr, "sd_blk_write: read error on host side\n");
             return;
         }
         memcpy(sd->buf, sd->data + 512 - (addr & 511), end & 511);
-        if (bdrv_write(sd->bdrv, end >> 9, sd->buf, 1) < 0) {
+        if (blk_write(sd->blk, end >> 9, sd->buf, 1) < 0) {
             fprintf(stderr, "sd_blk_write: write error on host side\n");
         }
     } else {
         memcpy(sd->buf + (addr & 511), sd->data, len);
-        if (!sd->bdrv || bdrv_write(sd->bdrv, addr >> 9, sd->buf, 1) < 0) {
+        if (!sd->blk || blk_write(sd->blk, addr >> 9, sd->buf, 1) < 0) {
             fprintf(stderr, "sd_blk_write: write error on host side\n");
         }
     }
@@ -1515,7 +1515,7 @@ void sd_write_data(SDState *sd, uint8_t value)
 {
     int i;
 
-    if (!sd->bdrv || !bdrv_is_inserted(sd->bdrv) || !sd->enable)
+    if (!sd->blk || !blk_is_inserted(sd->blk) || !sd->enable)
         return;
 
     if (sd->state != sd_receivingdata_state) {
@@ -1641,7 +1641,7 @@ uint8_t sd_read_data(SDState *sd)
     uint8_t ret;
     int io_len;
 
-    if (!sd->bdrv || !bdrv_is_inserted(sd->bdrv) || !sd->enable)
+    if (!sd->blk || !blk_is_inserted(sd->blk) || !sd->enable)
         return 0x00;
 
     if (sd->state != sd_sendingdata_state) {

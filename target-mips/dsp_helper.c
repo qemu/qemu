@@ -76,15 +76,6 @@ static inline void set_DSPControl_24(uint32_t flag, int len, CPUMIPSState *env)
   env->active_tc.DSPControl |= (target_ulong)flag << 24;
 }
 
-static inline uint32_t get_DSPControl_24(int len, CPUMIPSState *env)
-{
-  uint32_t filter;
-
-  filter = (0x01 << len) - 1;
-
-  return (env->active_tc.DSPControl >> 24) & filter;
-}
-
 static inline void set_DSPControl_pos(uint32_t pos, CPUMIPSState *env)
 {
     target_ulong dspc;
@@ -283,6 +274,7 @@ static inline int32_t mipsdsp_sat32_acc_q31(int32_t acc, int32_t a,
     return result;
 }
 
+#ifdef TARGET_MIPS64
 /* a[0] is LO, a[1] is HI. */
 static inline void mipsdsp_sat64_acc_add_q63(int64_t *ret,
                                              int32_t ac,
@@ -336,6 +328,7 @@ static inline void mipsdsp_sat64_acc_sub_q63(int64_t *ret,
         set_DSPControl_overflow_flag(1, 16 + ac, env);
     }
 }
+#endif
 
 static inline int32_t mipsdsp_mul_i16_i16(int16_t a, int16_t b,
                                           CPUMIPSState *env)
@@ -357,10 +350,12 @@ static inline int32_t mipsdsp_mul_u16_u16(int32_t a, int32_t b)
     return a * b;
 }
 
+#ifdef TARGET_MIPS64
 static inline int32_t mipsdsp_mul_i32_i32(int32_t a, int32_t b)
 {
     return a * b;
 }
+#endif
 
 static inline int32_t mipsdsp_sat16_mul_i16_i16(int16_t a, int16_t b,
                                                 CPUMIPSState *env)
@@ -417,10 +412,12 @@ static inline int16_t mipsdsp_rashift16(int16_t a, target_ulong mov)
     return a >> mov;
 }
 
+#ifdef TARGET_MIPS64
 static inline int32_t mipsdsp_rashift32(int32_t a, target_ulong mov)
 {
     return a >> mov;
 }
+#endif
 
 static inline int16_t mipsdsp_rshift1_add_q16(int16_t a, int16_t b)
 {
@@ -479,6 +476,7 @@ static inline uint8_t mipsdsp_rrshift1_add_u8(uint8_t a, uint8_t b)
     return (temp >> 1) & 0x00FF;
 }
 
+#ifdef TARGET_MIPS64
 static inline uint8_t mipsdsp_rshift1_sub_u8(uint8_t a, uint8_t b)
 {
     uint16_t temp;
@@ -496,6 +494,7 @@ static inline uint8_t mipsdsp_rrshift1_sub_u8(uint8_t a, uint8_t b)
 
     return (temp >> 1) & 0x00FF;
 }
+#endif
 
 /*  128 bits long. p[0] is LO, p[1] is HI. */
 static inline void mipsdsp_rndrashift_short_acc(int64_t *p,
@@ -511,6 +510,7 @@ static inline void mipsdsp_rndrashift_short_acc(int64_t *p,
     p[1] = (acc >> 63) & 0x01;
 }
 
+#ifdef TARGET_MIPS64
 /* 128 bits long. p[0] is LO, p[1] is HI */
 static inline void mipsdsp_rashift_acc(uint64_t *p,
                                        uint32_t ac,
@@ -558,6 +558,7 @@ static inline void mipsdsp_rndrashift_acc(uint64_t *p,
         }
     }
 }
+#endif
 
 static inline int32_t mipsdsp_mul_q15_q15(int32_t ac, uint16_t a, uint16_t b,
                                           CPUMIPSState *env)
@@ -608,10 +609,12 @@ static inline uint16_t mipsdsp_mul_u8_u16(uint8_t a, uint16_t b,
     return tempI & 0x0000FFFF;
 }
 
+#ifdef TARGET_MIPS64
 static inline uint64_t mipsdsp_mul_u32_u32(uint32_t a, uint32_t b)
 {
     return (uint64_t)a * (uint64_t)b;
 }
+#endif
 
 static inline int16_t mipsdsp_rndq15_mul_q15_q15(uint16_t a, uint16_t b,
                                                  CPUMIPSState *env)
@@ -717,7 +720,7 @@ static inline uint16_t mipsdsp_lshift16(uint16_t a, uint8_t s,
     return a << s;
 }
 
-
+#ifdef TARGET_MIPS64
 static inline uint32_t mipsdsp_lshift32(uint32_t a, uint8_t s,
                                         CPUMIPSState *env)
 {
@@ -734,6 +737,7 @@ static inline uint32_t mipsdsp_lshift32(uint32_t a, uint8_t s,
         return a << s;
     }
 }
+#endif
 
 static inline uint16_t mipsdsp_sat16_lshift(uint16_t a, uint8_t s,
                                             CPUMIPSState *env)
@@ -973,6 +977,7 @@ static inline uint8_t mipsdsp_satu8_sub(uint8_t a, uint8_t b, CPUMIPSState *env)
     return temp & 0x00FF;
 }
 
+#ifdef TARGET_MIPS64
 static inline uint32_t mipsdsp_sub32(int32_t a, int32_t b, CPUMIPSState *env)
 {
     int32_t temp;
@@ -997,6 +1002,7 @@ static inline int32_t mipsdsp_add_i32(int32_t a, int32_t b, CPUMIPSState *env)
 
     return temp;
 }
+#endif
 
 static inline int32_t mipsdsp_cmp_eq(int32_t a, int32_t b)
 {

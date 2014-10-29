@@ -104,7 +104,7 @@ struct BlockJob {
     int64_t speed;
 
     /** The completion function that will be called when the job completes.  */
-    BlockDriverCompletionFunc *cb;
+    BlockCompletionFunc *cb;
 
     /** Block other operations when block job is running */
     Error *blocker;
@@ -132,7 +132,7 @@ struct BlockJob {
  * called from a wrapper that is specific to the job type.
  */
 void *block_job_create(const BlockJobDriver *driver, BlockDriverState *bs,
-                       int64_t speed, BlockDriverCompletionFunc *cb,
+                       int64_t speed, BlockCompletionFunc *cb,
                        void *opaque, Error **errp);
 
 /**

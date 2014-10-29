@@ -141,7 +141,7 @@ extern PropertyInfo qdev_prop_arraylen;
 #define DEFINE_PROP_VLAN(_n, _s, _f)             \
     DEFINE_PROP(_n, _s, _f, qdev_prop_vlan, NICPeers)
 #define DEFINE_PROP_DRIVE(_n, _s, _f) \
-    DEFINE_PROP(_n, _s, _f, qdev_prop_drive, BlockDriverState *)
+    DEFINE_PROP(_n, _s, _f, qdev_prop_drive, BlockBackend *)
 #define DEFINE_PROP_MACADDR(_n, _s, _f)         \
     DEFINE_PROP(_n, _s, _f, qdev_prop_macaddr, MACAddr)
 #define DEFINE_PROP_LOSTTICKPOLICY(_n, _s, _f, _d) \
@@ -168,8 +168,10 @@ void qdev_prop_set_uint64(DeviceState *dev, const char *name, uint64_t value);
 void qdev_prop_set_string(DeviceState *dev, const char *name, const char *value);
 void qdev_prop_set_chr(DeviceState *dev, const char *name, CharDriverState *value);
 void qdev_prop_set_netdev(DeviceState *dev, const char *name, NetClientState *value);
-int qdev_prop_set_drive(DeviceState *dev, const char *name, BlockDriverState *value) QEMU_WARN_UNUSED_RESULT;
-void qdev_prop_set_drive_nofail(DeviceState *dev, const char *name, BlockDriverState *value);
+int qdev_prop_set_drive(DeviceState *dev, const char *name,
+                        BlockBackend *value) QEMU_WARN_UNUSED_RESULT;
+void qdev_prop_set_drive_nofail(DeviceState *dev, const char *name,
+                                BlockBackend *value);
 void qdev_prop_set_macaddr(DeviceState *dev, const char *name, uint8_t *value);
 void qdev_prop_set_enum(DeviceState *dev, const char *name, int value);
 /* FIXME: Remove opaque pointer properties.  */

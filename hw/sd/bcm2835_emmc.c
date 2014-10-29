@@ -745,7 +745,7 @@ static int bcm2835_emmc_init(SysBusDevice *sbd)
         fprintf(stderr, "bcm2835_emmc: missing SD card\n");
         exit(1);
     }
-    s->card = sd_init(di->bdrv, 0);
+    s->card = sd_init(blk_by_legacy_dinfo(di), 0);
 
     s->arg2 = 0;
     s->blksizecnt = 0;

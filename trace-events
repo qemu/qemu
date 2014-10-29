@@ -195,8 +195,8 @@ fw_cfg_add_file_dupe(void *s, char *name) "%p %s"
 fw_cfg_add_file(void *s, int index, char *name, size_t len) "%p #%d: %s (%zd bytes)"
 
 # hw/block/hd-geometry.c
-hd_geometry_lchs_guess(void *bs, int cyls, int heads, int secs) "bs %p LCHS %d %d %d"
-hd_geometry_guess(void *bs, uint32_t cyls, uint32_t heads, uint32_t secs, int trans) "bs %p CHS %u %u %u trans %d"
+hd_geometry_lchs_guess(void *blk, int cyls, int heads, int secs) "blk %p LCHS %d %d %d"
+hd_geometry_guess(void *blk, uint32_t cyls, uint32_t heads, uint32_t secs, int trans) "blk %p CHS %u %u %u trans %d"
 
 # hw/display/jazz_led.c
 jazz_led_read(uint64_t addr, uint8_t val) "read addr=0x%"PRIx64": 0x%x"
@@ -1082,10 +1082,10 @@ win_helper_done(uint32_t tl) "tl=%d"
 win_helper_retry(uint32_t tl) "tl=%d"
 
 # dma-helpers.c
-dma_bdrv_io(void *dbs, void *bs, int64_t sector_num, bool to_dev) "dbs=%p bs=%p sector_num=%" PRId64 " to_dev=%d"
+dma_blk_io(void *dbs, void *bs, int64_t sector_num, bool to_dev) "dbs=%p bs=%p sector_num=%" PRId64 " to_dev=%d"
 dma_aio_cancel(void *dbs) "dbs=%p"
 dma_complete(void *dbs, int ret, void *cb) "dbs=%p ret=%d cb=%p"
-dma_bdrv_cb(void *dbs, int ret) "dbs=%p ret=%d"
+dma_blk_cb(void *dbs, int ret) "dbs=%p ret=%d"
 dma_map_wait(void *dbs) "dbs=%p"
 
 # ui/console.c
