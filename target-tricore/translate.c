@@ -869,7 +869,28 @@ static inline void gen_eqany_hi(TCGv ret, TCGv r1, int32_t con)
     tcg_temp_free(h0);
     tcg_temp_free(h1);
 }
+/* mask = ((1 << width) -1) << pos;
+   ret = (r1 & ~mask) | (r2 << pos) & mask); */
+static inline void gen_insert(TCGv ret, TCGv r1, TCGv r2, TCGv width, TCGv pos)
+{
+    TCGv mask = tcg_temp_new();
+    TCGv temp = tcg_temp_new();
+    TCGv temp2 = tcg_temp_new();
 
+    tcg_gen_movi_tl(mask, 1);
+    tcg_gen_shl_tl(mask, mask, width);
+    tcg_gen_subi_tl(mask, mask, 1);
+    tcg_gen_shl_tl(mask, mask, pos);
+
+    tcg_gen_shl_tl(temp, r2, pos);
+    tcg_gen_and_tl(temp, temp, mask);
+    tcg_gen_andc_tl(temp2, r1, mask);
+    tcg_gen_or_tl(ret, temp, temp2);
+
+    tcg_temp_free(mask);
+    tcg_temp_free(temp);
+    tcg_temp_free(temp2);
+}
 
 /* helpers for generating program flow micro-ops */
 
@@ -3128,14 +3149,92 @@ static void decode_rc_mul(CPUTriCoreState *env, DisasContext *ctx)
     }
 }
 
+/* RCPW format */
+static void decode_rcpw_insert(CPUTriCoreState *env, DisasContext *ctx)
+{
+    uint32_t op2;
+    int r1, r2;
+    int32_t pos, width, const4;
+
+    TCGv temp;
+
+    op2    = MASK_OP_RCPW_OP2(ctx->opcode);
+    r1     = MASK_OP_RCPW_S1(ctx->opcode);
+    r2     = MASK_OP_RCPW_D(ctx->opcode);
+    const4 = MASK_OP_RCPW_CONST4(ctx->opcode);
+    width  = MASK_OP_RCPW_WIDTH(ctx->opcode);
+    pos    = MASK_OP_RCPW_POS(ctx->opcode);
+
+    switch (op2) {
+    case OPC2_32_RCPW_IMASK:
+        /* if pos + width > 31 undefined result */
+        if (pos + width <= 31) {
+            tcg_gen_movi_tl(cpu_gpr_d[r2+1], ((1u << width) - 1) << pos);
+            tcg_gen_movi_tl(cpu_gpr_d[r2], (const4 << pos));
+        }
+        break;
+    case OPC2_32_RCPW_INSERT:
+        /* if pos + width > 32 undefined result */
+        if (pos + width <= 32) {
+            temp = tcg_const_i32(const4);
+            tcg_gen_deposit_tl(cpu_gpr_d[r2], cpu_gpr_d[r1], temp, pos, width);
+            tcg_temp_free(temp);
+        }
+        break;
+    }
+}
+
+/* RCRW format */
+
+static void decode_rcrw_insert(CPUTriCoreState *env, DisasContext *ctx)
+{
+    uint32_t op2;
+    int r1, r3, r4;
+    int32_t width, const4;
+
+    TCGv temp, temp2, temp3;
+
+    op2    = MASK_OP_RCRW_OP2(ctx->opcode);
+    r1     = MASK_OP_RCRW_S1(ctx->opcode);
+    r3     = MASK_OP_RCRW_S3(ctx->opcode);
+    r4     = MASK_OP_RCRW_D(ctx->opcode);
+    width  = MASK_OP_RCRW_WIDTH(ctx->opcode);
+    const4 = MASK_OP_RCRW_CONST4(ctx->opcode);
+
+    temp = tcg_temp_new();
+    temp2 = tcg_temp_new();
+
+    switch (op2) {
+    case OPC2_32_RCRW_IMASK:
+        tcg_gen_andi_tl(temp, cpu_gpr_d[r4], 0x1f);
+        tcg_gen_movi_tl(temp2, (1 << width) - 1);
+        tcg_gen_shl_tl(cpu_gpr_d[r3 + 1], temp2, temp);
+        tcg_gen_movi_tl(temp2, const4);
+        tcg_gen_shl_tl(cpu_gpr_d[r3], temp2, temp);
+        break;
+    case OPC2_32_RCRW_INSERT:
+        temp3 = tcg_temp_new();
+
+        tcg_gen_movi_tl(temp, width);
+        tcg_gen_movi_tl(temp2, const4);
+        tcg_gen_andi_tl(temp3, cpu_gpr_d[r4], 0x1f);
+        gen_insert(cpu_gpr_d[r3], cpu_gpr_d[r1], temp2, temp, temp3);
+
+        tcg_temp_free(temp3);
+        break;
+    }
+    tcg_temp_free(temp);
+    tcg_temp_free(temp2);
+}
+
 static void decode_32Bit_opc(CPUTriCoreState *env, DisasContext *ctx)
 {
     int op1;
-    int32_t r1, r2;
-    int32_t address;
+    int32_t r1, r2, r3;
+    int32_t address, const16;
     int8_t b, const4;
     int32_t bpos;
-    TCGv temp, temp2;
+    TCGv temp, temp2, temp3;
 
     op1 = MASK_OP_MAJOR(ctx->opcode);
 
@@ -3308,6 +3407,33 @@ static void decode_32Bit_opc(CPUTriCoreState *env, DisasContext *ctx)
         break;
     case OPCM_32_RC_MUL:
         decode_rc_mul(env, ctx);
+        break;
+/* RCPW Format */
+    case OPCM_32_RCPW_MASK_INSERT:
+        decode_rcpw_insert(env, ctx);
+        break;
+/* RCRR Format */
+    case OPC1_32_RCRR_INSERT:
+        r1 = MASK_OP_RCRR_S1(ctx->opcode);
+        r2 = MASK_OP_RCRR_S3(ctx->opcode);
+        r3 = MASK_OP_RCRR_D(ctx->opcode);
+        const16 = MASK_OP_RCRR_CONST4(ctx->opcode);
+        temp = tcg_const_i32(const16);
+        temp2 = tcg_temp_new(); /* width*/
+        temp3 = tcg_temp_new(); /* pos */
+
+        tcg_gen_andi_tl(temp2, cpu_gpr_d[r3+1], 0x1f);
+        tcg_gen_andi_tl(temp3, cpu_gpr_d[r3], 0x1f);
+
+        gen_insert(cpu_gpr_d[r2], cpu_gpr_d[r1], temp, temp2, temp3);
+
+        tcg_temp_free(temp);
+        tcg_temp_free(temp2);
+        tcg_temp_free(temp3);
+        break;
+/* RCRW Format */
+    case OPCM_32_RCRW_MASK_INSERT:
+        decode_rcrw_insert(env, ctx);
         break;
     }
 }
