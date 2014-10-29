@@ -689,8 +689,7 @@ static int megasas_ctrl_get_info(MegasasState *s, MegasasCmd *cmd)
     struct mfi_ctrl_info info;
     size_t dcmd_size = sizeof(info);
     BusChild *kid;
-    int num_ld_disks = 0;
-    uint16_t sdev_id;
+    int num_pd_disks = 0;
 
     memset(&info, 0x0, cmd->iov_size);
     if (cmd->iov_size < dcmd_size) {
@@ -719,13 +718,14 @@ static int megasas_ctrl_get_info(MegasasState *s, MegasasCmd *cmd)
     info.device.port_count = 8;
     QTAILQ_FOREACH(kid, &s->bus.qbus.children, sibling) {
         SCSIDevice *sdev = DO_UPCAST(SCSIDevice, qdev, kid->child);
+        uint16_t pd_id;
 
-        if (num_ld_disks < 8) {
-            sdev_id = ((sdev->id & 0xFF) >> 8) | (sdev->lun & 0xFF);
-            info.device.port_addr[num_ld_disks] =
-                cpu_to_le64(megasas_get_sata_addr(sdev_id));
+        if (num_pd_disks < 8) {
+            pd_id = ((sdev->id & 0xFF) << 8) | (sdev->lun & 0xFF);
+            info.device.port_addr[num_pd_disks] =
+                cpu_to_le64(megasas_get_sata_addr(pd_id));
         }
-        num_ld_disks++;
+        num_pd_disks++;
     }
 
     memcpy(info.product_name, "MegaRAID SAS 8708EM2", 20);
@@ -751,13 +751,14 @@ static int megasas_ctrl_get_info(MegasasState *s, MegasasCmd *cmd)
     info.max_arms = 32;
     info.max_spans = 8;
     info.max_arrays = MEGASAS_MAX_ARRAYS;
-    info.max_lds = s->fw_luns;
+    info.max_lds = MFI_MAX_LD;
     info.max_cmds = cpu_to_le16(s->fw_cmds);
     info.max_sg_elements = cpu_to_le16(s->fw_sge);
     info.max_request_size = cpu_to_le32(MEGASAS_MAX_SECTORS);
-    info.lds_present = cpu_to_le16(num_ld_disks);
-    info.pd_present = cpu_to_le16(num_ld_disks);
-    info.pd_disks_present = cpu_to_le16(num_ld_disks);
+    if (!megasas_is_jbod(s))
+        info.lds_present = cpu_to_le16(num_pd_disks);
+    info.pd_present = cpu_to_le16(num_pd_disks);
+    info.pd_disks_present = cpu_to_le16(num_pd_disks);
     info.hw_present = cpu_to_le32(MFI_INFO_HW_NVRAM |
                                    MFI_INFO_HW_MEM |
                                    MFI_INFO_HW_FLASH);
@@ -916,7 +917,6 @@ static int megasas_dcmd_pd_get_list(MegasasState *s, MegasasCmd *cmd)
     size_t dcmd_size = sizeof(info);
     BusChild *kid;
     uint32_t offset, dcmd_limit, num_pd_disks = 0, max_pd_disks;
-    uint16_t sdev_id;
 
     memset(&info, 0, dcmd_size);
     offset = 8;
@@ -928,22 +928,25 @@ static int megasas_dcmd_pd_get_list(MegasasState *s, MegasasCmd *cmd)
     }
 
     max_pd_disks = (cmd->iov_size - offset) / sizeof(struct mfi_pd_address);
-    if (max_pd_disks > s->fw_luns) {
-        max_pd_disks = s->fw_luns;
+    if (max_pd_disks > MFI_MAX_SYS_PDS) {
+        max_pd_disks = MFI_MAX_SYS_PDS;
     }
-
     QTAILQ_FOREACH(kid, &s->bus.qbus.children, sibling) {
         SCSIDevice *sdev = DO_UPCAST(SCSIDevice, qdev, kid->child);
+        uint16_t pd_id;
 
-        sdev_id = ((sdev->id & 0xFF) >> 8) | (sdev->lun & 0xFF);
-        info.addr[num_pd_disks].device_id = cpu_to_le16(sdev_id);
+        if (num_pd_disks >= max_pd_disks)
+            break;
+
+        pd_id = ((sdev->id & 0xFF) << 8) | (sdev->lun & 0xFF);
+        info.addr[num_pd_disks].device_id = cpu_to_le16(pd_id);
         info.addr[num_pd_disks].encl_device_id = 0xFFFF;
         info.addr[num_pd_disks].encl_index = 0;
-        info.addr[num_pd_disks].slot_number = (sdev->id & 0xFF);
+        info.addr[num_pd_disks].slot_number = sdev->id & 0xFF;
         info.addr[num_pd_disks].scsi_dev_type = sdev->type;
         info.addr[num_pd_disks].connect_port_bitmap = 0x1;
         info.addr[num_pd_disks].sas_addr[0] =
-            cpu_to_le64(megasas_get_sata_addr(sdev_id));
+            cpu_to_le64(megasas_get_sata_addr(pd_id));
         num_pd_disks++;
         offset += sizeof(struct mfi_pd_address);
     }
@@ -978,7 +981,7 @@ static int megasas_pd_get_info_submit(SCSIDevice *sdev, int lun,
     struct mfi_pd_info *info = cmd->iov_buf;
     size_t dcmd_size = sizeof(struct mfi_pd_info);
     uint64_t pd_size;
-    uint16_t sdev_id = ((sdev->id & 0xFF) >> 8) | (lun & 0xFF);
+    uint16_t pd_id = ((sdev->id & 0xFF) << 8) | (lun & 0xFF);
     uint8_t cmdbuf[6];
     SCSIRequest *req;
     size_t len, resid;
@@ -1034,7 +1037,7 @@ static int megasas_pd_get_info_submit(SCSIDevice *sdev, int lun,
         info->fw_state = cpu_to_le16(MFI_PD_STATE_OFFLINE);
     }
 
-    info->ref.v.device_id = cpu_to_le16(sdev_id);
+    info->ref.v.device_id = cpu_to_le16(pd_id);
     info->state.ddf.pd_type = cpu_to_le16(MFI_PD_DDF_TYPE_IN_VD|
                                           MFI_PD_DDF_TYPE_INTF_SAS);
     blk_get_geometry(sdev->conf.blk, &pd_size);
@@ -1045,7 +1048,7 @@ static int megasas_pd_get_info_submit(SCSIDevice *sdev, int lun,
     info->slot_number = (sdev->id & 0xFF);
     info->path_info.count = 1;
     info->path_info.sas_addr[0] =
-        cpu_to_le64(megasas_get_sata_addr(sdev_id));
+        cpu_to_le64(megasas_get_sata_addr(pd_id));
     info->connected_port_bitmap = 0x1;
     info->device_speed = 1;
     info->link_speed = 1;
@@ -1060,6 +1063,7 @@ static int megasas_dcmd_pd_get_info(MegasasState *s, MegasasCmd *cmd)
 {
     size_t dcmd_size = sizeof(struct mfi_pd_info);
     uint16_t pd_id;
+    uint8_t target_id, lun_id;
     SCSIDevice *sdev = NULL;
     int retval = MFI_STAT_DEVICE_NOT_FOUND;
 
@@ -1069,7 +1073,9 @@ static int megasas_dcmd_pd_get_info(MegasasState *s, MegasasCmd *cmd)
 
     /* mbox0 has the ID */
     pd_id = le16_to_cpu(cmd->frame->dcmd.mbox[0]);
-    sdev = scsi_device_find(&s->bus, 0, pd_id, 0);
+    target_id = (pd_id >> 8) & 0xFF;
+    lun_id = pd_id & 0xFF;
+    sdev = scsi_device_find(&s->bus, 0, target_id, lun_id);
     trace_megasas_dcmd_pd_get_info(cmd->index, pd_id);
 
     if (sdev) {
@@ -1084,7 +1090,7 @@ static int megasas_dcmd_ld_get_list(MegasasState *s, MegasasCmd *cmd)
 {
     struct mfi_ld_list info;
     size_t dcmd_size = sizeof(info), resid;
-    uint32_t num_ld_disks = 0, max_ld_disks = s->fw_luns;
+    uint32_t num_ld_disks = 0, max_ld_disks;
     uint64_t ld_size;
     BusChild *kid;
 
@@ -1095,8 +1101,12 @@ static int megasas_dcmd_ld_get_list(MegasasState *s, MegasasCmd *cmd)
         return MFI_STAT_INVALID_PARAMETER;
     }
 
+    max_ld_disks = (cmd->iov_size - 8) / 16;
     if (megasas_is_jbod(s)) {
         max_ld_disks = 0;
+    }
+    if (max_ld_disks > MFI_MAX_LD) {
+        max_ld_disks = MFI_MAX_LD;
     }
     QTAILQ_FOREACH(kid, &s->bus.qbus.children, sibling) {
         SCSIDevice *sdev = DO_UPCAST(SCSIDevice, qdev, kid->child);
@@ -1107,7 +1117,6 @@ static int megasas_dcmd_ld_get_list(MegasasState *s, MegasasCmd *cmd)
         /* Logical device size is in blocks */
         blk_get_geometry(sdev->conf.blk, &ld_size);
         info.ld_list[num_ld_disks].ld.v.target_id = sdev->id;
-        info.ld_list[num_ld_disks].ld.v.lun_id = sdev->lun;
         info.ld_list[num_ld_disks].state = MFI_LD_STATE_OPTIMAL;
         info.ld_list[num_ld_disks].size = cpu_to_le64(ld_size);
         num_ld_disks++;
@@ -1143,9 +1152,12 @@ static int megasas_dcmd_ld_list_query(MegasasState *s, MegasasCmd *cmd)
         return MFI_STAT_INVALID_PARAMETER;
     }
     dcmd_size = sizeof(uint32_t) * 2 + 3;
-
+    max_ld_disks = cmd->iov_size - dcmd_size;
     if (megasas_is_jbod(s)) {
         max_ld_disks = 0;
+    }
+    if (max_ld_disks > MFI_MAX_LD) {
+        max_ld_disks = MFI_MAX_LD;
     }
     QTAILQ_FOREACH(kid, &s->bus.qbus.children, sibling) {
         SCSIDevice *sdev = DO_UPCAST(SCSIDevice, qdev, kid->child);
@@ -1174,7 +1186,7 @@ static int megasas_ld_get_info_submit(SCSIDevice *sdev, int lun,
     uint8_t cdb[6];
     SCSIRequest *req;
     ssize_t len, resid;
-    uint16_t sdev_id = ((sdev->id & 0xFF) >> 8) | (lun & 0xFF);
+    uint16_t sdev_id = ((sdev->id & 0xFF) << 8) | (lun & 0xFF);
     uint64_t ld_size;
 
     if (!cmd->iov_buf) {
@@ -1290,7 +1302,7 @@ static int megasas_dcmd_cfg_read(MegasasState *s, MegasasCmd *cmd)
 
     QTAILQ_FOREACH(kid, &s->bus.qbus.children, sibling) {
         SCSIDevice *sdev = DO_UPCAST(SCSIDevice, qdev, kid->child);
-        uint16_t sdev_id = ((sdev->id & 0xFF) >> 8) | (sdev->lun & 0xFF);
+        uint16_t sdev_id = ((sdev->id & 0xFF) << 8) | (sdev->lun & 0xFF);
         struct mfi_array *array;
         struct mfi_ld_config *ld;
         uint64_t pd_size;
@@ -1316,7 +1328,7 @@ static int megasas_dcmd_cfg_read(MegasasState *s, MegasasCmd *cmd)
         array_offset += sizeof(struct mfi_array);
         ld = (struct mfi_ld_config *)(data + ld_offset);
         memset(ld, 0, sizeof(struct mfi_ld_config));
-        ld->properties.ld.v.target_id = (sdev->id & 0xFF);
+        ld->properties.ld.v.target_id = sdev->id;
         ld->properties.default_cache_policy = MR_LD_CACHE_READ_AHEAD |
             MR_LD_CACHE_READ_ADAPTIVE;
         ld->properties.current_cache_policy = MR_LD_CACHE_READ_AHEAD |
@@ -1603,10 +1615,18 @@ static int megasas_handle_scsi(MegasasState *s, MegasasCmd *cmd,
 
     cdb = cmd->frame->pass.cdb;
 
-    if (cmd->frame->header.target_id < s->fw_luns) {
-        sdev = scsi_device_find(&s->bus, 0, cmd->frame->header.target_id,
-                                cmd->frame->header.lun_id);
+    if (is_logical) {
+        if (cmd->frame->header.target_id >= MFI_MAX_LD ||
+            cmd->frame->header.lun_id != 0) {
+            trace_megasas_scsi_target_not_present(
+                mfi_frame_desc[cmd->frame->header.frame_cmd], is_logical,
+                cmd->frame->header.target_id, cmd->frame->header.lun_id);
+            return MFI_STAT_DEVICE_NOT_FOUND;
+        }
     }
+    sdev = scsi_device_find(&s->bus, 0, cmd->frame->header.target_id,
+                            cmd->frame->header.lun_id);
+
     cmd->iov_size = le32_to_cpu(cmd->frame->header.data_len);
     trace_megasas_handle_scsi(mfi_frame_desc[cmd->frame->header.frame_cmd],
                               is_logical, cmd->frame->header.target_id,
@@ -1677,7 +1697,8 @@ static int megasas_handle_io(MegasasState *s, MegasasCmd *cmd)
     lba_start_hi = le32_to_cpu(cmd->frame->io.lba_hi);
     lba_start = ((uint64_t)lba_start_hi << 32) | lba_start_lo;
 
-    if (cmd->frame->header.target_id < s->fw_luns) {
+    if (cmd->frame->header.target_id < MFI_MAX_LD &&
+        cmd->frame->header.lun_id == 0) {
         sdev = scsi_device_find(&s->bus, 0, cmd->frame->header.target_id,
                                 cmd->frame->header.lun_id);
     }
@@ -2233,8 +2254,12 @@ static int megasas_scsi_init(PCIDevice *dev)
     }
     trace_megasas_init(s->fw_sge, s->fw_cmds,
                        megasas_is_jbod(s) ? "jbod" : "raid");
-    s->fw_luns = (MFI_MAX_LD > MAX_SCSI_DEVS) ?
-        MAX_SCSI_DEVS : MFI_MAX_LD;
+
+    if (megasas_is_jbod(s)) {
+        s->fw_luns = MFI_MAX_SYS_PDS;
+    } else {
+        s->fw_luns = MFI_MAX_LD;
+    }
     s->producer_pa = 0;
     s->consumer_pa = 0;
     for (i = 0; i < s->fw_cmds; i++) {
