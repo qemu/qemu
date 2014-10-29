@@ -1416,9 +1416,23 @@ static int megasas_ctrl_shutdown(MegasasState *s, MegasasCmd *cmd)
     return MFI_STAT_OK;
 }
 
+/* Some implementations use CLUSTER RESET LD to simulate a device reset */
 static int megasas_cluster_reset_ld(MegasasState *s, MegasasCmd *cmd)
 {
-    return MFI_STAT_INVALID_DCMD;
+    uint16_t target_id;
+    int i;
+
+    /* mbox0 contains the device index */
+    target_id = le16_to_cpu(cmd->frame->dcmd.mbox[0]);
+    trace_megasas_dcmd_reset_ld(cmd->index, target_id);
+    for (i = 0; i < s->fw_cmds; i++) {
+        MegasasCmd *tmp_cmd = &s->frames[i];
+        if (tmp_cmd->req && tmp_cmd->req->dev->id == target_id) {
+            SCSIDevice *d = tmp_cmd->req->dev;
+            qdev_reset_all(&d->qdev);
+        }
+    }
+    return MFI_STAT_OK;
 }
 
 static int megasas_dcmd_set_properties(MegasasState *s, MegasasCmd *cmd)
