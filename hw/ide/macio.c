@@ -25,7 +25,7 @@
 #include "hw/hw.h"
 #include "hw/ppc/mac.h"
 #include "hw/ppc/mac_dbdma.h"
-#include "block/block.h"
+#include "sysemu/block-backend.h"
 #include "sysemu/dma.h"
 
 #include <hw/ide/internal.h>
@@ -134,7 +134,7 @@ static void pmac_ide_atapi_transfer_cb(void *opaque, int ret)
         MACIO_DPRINTF("precopying unaligned %d bytes to %#" HWADDR_PRIx "\n",
                       unaligned, io->addr + io->len - unaligned);
 
-        bdrv_read(s->bs, sector_num + nsector, io->remainder, 1);
+        blk_read(s->blk, sector_num + nsector, io->remainder, 1);
         cpu_physical_memory_write(io->addr + io->len - unaligned,
                                   io->remainder, unaligned);
 
@@ -164,14 +164,14 @@ static void pmac_ide_atapi_transfer_cb(void *opaque, int ret)
                   (s->lba << 2) + (s->io_buffer_index >> 9),
                   s->packet_transfer_size, s->dma_cmd);
 
-    m->aiocb = dma_bdrv_read(s->bs, &s->sg,
-                             (int64_t)(s->lba << 2) + (s->io_buffer_index >> 9),
-                             pmac_ide_atapi_transfer_cb, io);
+    m->aiocb = dma_blk_read(s->blk, &s->sg,
+                            (int64_t)(s->lba << 2) + (s->io_buffer_index >> 9),
+                            pmac_ide_atapi_transfer_cb, io);
     return;
 
 done:
     MACIO_DPRINTF("done DMA\n");
-    block_acct_done(bdrv_get_stats(s->bs), &s->acct);
+    block_acct_done(blk_get_stats(s->blk), &s->acct);
     io->dma_end(opaque);
 }
 
@@ -254,8 +254,8 @@ static void pmac_ide_transfer_cb(void *opaque, int ret)
             qemu_iovec_reset(&io->iov);
             qemu_iovec_add(&io->iov, io->remainder, 0x200);
 
-            m->aiocb = bdrv_aio_writev(s->bs, sector_num - 1, &io->iov, 1,
-                                       pmac_ide_transfer_cb, io);
+            m->aiocb = blk_aio_writev(s->blk, sector_num - 1, &io->iov, 1,
+                                      pmac_ide_transfer_cb, io);
         }
     }
 
@@ -294,8 +294,8 @@ static void pmac_ide_transfer_cb(void *opaque, int ret)
             qemu_iovec_reset(&io->iov);
             qemu_iovec_add(&io->iov, io->remainder, 0x200);
 
-            m->aiocb = bdrv_aio_readv(s->bs, sector_num + nsector, &io->iov, 1,
-                                      pmac_ide_transfer_cb, io);
+            m->aiocb = blk_aio_readv(s->blk, sector_num + nsector, &io->iov, 1,
+                                     pmac_ide_transfer_cb, io);
             break;
         case IDE_DMA_WRITE:
             /* cache the contents in our io struct */
@@ -333,17 +333,17 @@ static void pmac_ide_transfer_cb(void *opaque, int ret)
 
     switch (s->dma_cmd) {
     case IDE_DMA_READ:
-        m->aiocb = dma_bdrv_read(s->bs, &s->sg, sector_num,
-                                 pmac_ide_transfer_cb, io);
+        m->aiocb = dma_blk_read(s->blk, &s->sg, sector_num,
+                                pmac_ide_transfer_cb, io);
         break;
     case IDE_DMA_WRITE:
-        m->aiocb = dma_bdrv_write(s->bs, &s->sg, sector_num,
-                                  pmac_ide_transfer_cb, io);
+        m->aiocb = dma_blk_write(s->blk, &s->sg, sector_num,
+                                 pmac_ide_transfer_cb, io);
         break;
     case IDE_DMA_TRIM:
-        m->aiocb = dma_bdrv_io(s->bs, &s->sg, sector_num,
-                               ide_issue_trim, pmac_ide_transfer_cb, io,
-                               DMA_DIRECTION_TO_DEVICE);
+        m->aiocb = dma_blk_io(s->blk, &s->sg, sector_num,
+                              ide_issue_trim, pmac_ide_transfer_cb, io,
+                              DMA_DIRECTION_TO_DEVICE);
         break;
     }
 
@@ -352,7 +352,7 @@ static void pmac_ide_transfer_cb(void *opaque, int ret)
 
 done:
     if (s->dma_cmd == IDE_DMA_READ || s->dma_cmd == IDE_DMA_WRITE) {
-        block_acct_done(bdrv_get_stats(s->bs), &s->acct);
+        block_acct_done(blk_get_stats(s->blk), &s->acct);
     }
     io->dma_end(io);
 }
@@ -370,7 +370,7 @@ static void pmac_ide_transfer(DBDMA_io *io)
         /* Handle non-block ATAPI DMA transfers */
         if (s->lba == -1) {
             s->io_buffer_size = MIN(io->len, s->packet_transfer_size);
-            block_acct_start(bdrv_get_stats(s->bs), &s->acct, s->io_buffer_size,
+            block_acct_start(blk_get_stats(s->blk), &s->acct, s->io_buffer_size,
                              BLOCK_ACCT_READ);
             MACIO_DPRINTF("non-block ATAPI DMA transfer size: %d\n",
                           s->io_buffer_size);
@@ -382,12 +382,12 @@ static void pmac_ide_transfer(DBDMA_io *io)
             m->dma_active = false;
 
             MACIO_DPRINTF("end of non-block ATAPI DMA transfer\n");
-            block_acct_done(bdrv_get_stats(s->bs), &s->acct);
+            block_acct_done(blk_get_stats(s->blk), &s->acct);
             io->dma_end(io);
             return;
         }
 
-        block_acct_start(bdrv_get_stats(s->bs), &s->acct, io->len,
+        block_acct_start(blk_get_stats(s->blk), &s->acct, io->len,
                          BLOCK_ACCT_READ);
         pmac_ide_atapi_transfer_cb(io, 0);
         return;
@@ -395,11 +395,11 @@ static void pmac_ide_transfer(DBDMA_io *io)
 
     switch (s->dma_cmd) {
     case IDE_DMA_READ:
-        block_acct_start(bdrv_get_stats(s->bs), &s->acct, io->len,
+        block_acct_start(blk_get_stats(s->blk), &s->acct, io->len,
                          BLOCK_ACCT_READ);
         break;
     case IDE_DMA_WRITE:
-        block_acct_start(bdrv_get_stats(s->bs), &s->acct, io->len,
+        block_acct_start(blk_get_stats(s->blk), &s->acct, io->len,
                          BLOCK_ACCT_WRITE);
         break;
     default:
@@ -415,7 +415,7 @@ static void pmac_ide_flush(DBDMA_io *io)
     MACIOIDEState *m = io->opaque;
 
     if (m->aiocb) {
-        bdrv_drain_all();
+        blk_drain_all();
     }
 }
 
@@ -558,7 +558,7 @@ static void ide_nop_restart(void *opaque, int x, RunState y)
 }
 
 static void ide_dbdma_start(IDEDMA *dma, IDEState *s,
-                            BlockDriverCompletionFunc *cb)
+                            BlockCompletionFunc *cb)
 {
     MACIOIDEState *m = container_of(dma, MACIOIDEState, dma);
 

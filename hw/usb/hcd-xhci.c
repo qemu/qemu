@@ -1608,12 +1608,6 @@ static TRBCCode xhci_reset_ep(XHCIState *xhci, unsigned int slotid,
                 "data might be lost\n");
     }
 
-    uint8_t ep = epid>>1;
-
-    if (epid & 1) {
-        ep |= 0x80;
-    }
-
     if (!xhci->slots[slotid-1].uport ||
         !xhci->slots[slotid-1].uport->dev ||
         !xhci->slots[slotid-1].uport->dev->attached) {

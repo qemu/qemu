@@ -1748,8 +1748,6 @@ show information about active capturing
 show list of VM snapshots
 @item info status
 show the current VM status (running|paused)
-@item info pcmcia
-show guest PCMCIA status
 @item info mice
 show which guest mouse is receiving events
 @item info vnc

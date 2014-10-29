@@ -18,6 +18,7 @@
  * with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
+#include "sysemu/block-backend.h"
 #include "sysemu/blockdev.h"
 #include "hw/hw.h"
 #include "hw/arm/arm.h"
@@ -2461,7 +2462,8 @@ struct omap_mpu_state_s *omap2420_mpu_init(MemoryRegion *sysmem,
         fprintf(stderr, "qemu: missing SecureDigital device\n");
         exit(1);
     }
-    s->mmc = omap2_mmc_init(omap_l4tao(s->l4, 9), dinfo->bdrv,
+    s->mmc = omap2_mmc_init(omap_l4tao(s->l4, 9),
+                    blk_by_legacy_dinfo(dinfo),
                     qdev_get_gpio_in(s->ih[0], OMAP_INT_24XX_MMC_IRQ),
                     &s->drq[OMAP24XX_DMA_MMC1_TX],
                     omap_findclk(s, "mmc_fclk"), omap_findclk(s, "mmc_iclk"));

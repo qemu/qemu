@@ -84,9 +84,11 @@ static int qemu_signal_init(void)
     sigaddset(&set, SIGIO);
     sigaddset(&set, SIGALRM);
     sigaddset(&set, SIGBUS);
-    sigaddset(&set, SIGINT);
-    sigaddset(&set, SIGHUP);
-    sigaddset(&set, SIGTERM);
+    /* SIGINT cannot be handled via signalfd, so that ^C can be used
+     * to interrupt QEMU when it is being run under gdb.  SIGHUP and
+     * SIGTERM are also handled asynchronously, even though it is not
+     * strictly necessary, because they use the same handler as SIGINT.
+     */
     pthread_sigmask(SIG_BLOCK, &set, NULL);
 
     sigdelset(&set, SIG_IPI);

@@ -478,7 +478,7 @@ static void do_cpu_reset(void *opaque)
 
 void arm_load_kernel(ARMCPU *cpu, struct arm_boot_info *info)
 {
-    CPUState *cs = CPU(cpu);
+    CPUState *cs;
     int kernel_size;
     int initrd_size;
     int is_linux = 0;
@@ -487,6 +487,15 @@ void arm_load_kernel(ARMCPU *cpu, struct arm_boot_info *info)
     hwaddr entry, kernel_load_offset;
     int big_endian;
     static const ARMInsnFixup *primary_loader;
+
+    /* CPU objects (unlike devices) are not automatically reset on system
+     * reset, so we must always register a handler to do so. If we're
+     * actually loading a kernel, the handler is also responsible for
+     * arranging that we start it correctly.
+     */
+    for (cs = CPU(cpu); cs; cs = CPU_NEXT(cs)) {
+        qemu_register_reset(do_cpu_reset, ARM_CPU(cs));
+    }
 
     /* Load the kernel.  */
     if (!info->kernel_filename) {
@@ -652,9 +661,7 @@ void arm_load_kernel(ARMCPU *cpu, struct arm_boot_info *info)
     }
     info->is_linux = is_linux;
 
-    for (; cs; cs = CPU_NEXT(cs)) {
-        cpu = ARM_CPU(cs);
-        cpu->env.boot_info = info;
-        qemu_register_reset(do_cpu_reset, cpu);
+    for (cs = CPU(cpu); cs; cs = CPU_NEXT(cs)) {
+        ARM_CPU(cs)->env.boot_info = info;
     }
 }

@@ -20,7 +20,7 @@
 #include "hw/boards.h"
 #include "sysemu/sysemu.h"
 #include "hw/block/flash.h"
-#include "sysemu/blockdev.h"
+#include "sysemu/block-backend.h"
 #include "ui/console.h"
 #include "audio/audio.h"
 #include "exec/address-spaces.h"
@@ -336,9 +336,9 @@ static void z2_init(MachineState *machine)
 
     if (!pflash_cfi01_register(Z2_FLASH_BASE,
                                NULL, "z2.flash0", Z2_FLASH_SIZE,
-                               dinfo ? dinfo->bdrv : NULL, sector_len,
-                               Z2_FLASH_SIZE / sector_len, 4, 0, 0, 0, 0,
-                               be)) {
+                               dinfo ? blk_by_legacy_dinfo(dinfo) : NULL,
+                               sector_len, Z2_FLASH_SIZE / sector_len,
+                               4, 0, 0, 0, 0, be)) {
         fprintf(stderr, "qemu: Error registering flash memory.\n");
         exit(1);
     }

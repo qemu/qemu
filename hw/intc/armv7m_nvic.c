@@ -488,7 +488,7 @@ static void armv7m_nvic_realize(DeviceState *dev, Error **errp)
         error_propagate(errp, local_err);
         return;
     }
-    gic_init_irqs_and_distributor(&s->gic, s->num_irq);
+    gic_init_irqs_and_distributor(&s->gic);
     /* The NVIC and system controller register area looks like this:
      *  0..0xff : system control registers, including systick
      *  0x100..0xcff : GIC-like registers

@@ -18,7 +18,7 @@
  */
 
 #include "hw/hw.h"
-#include "block/block.h"
+#include "sysemu/block-backend.h"
 #include "sysemu/sysemu.h"
 #include "hw/boards.h"
 #include "monitor/monitor.h"
@@ -102,7 +102,7 @@ VirtIOS390Bus *s390_virtio_bus_init(ram_addr_t *ram_size)
     bus->next_ring = bus->dev_page + TARGET_PAGE_SIZE;
 
     /* Enable hotplugging */
-    _bus->allow_hotplug = 1;
+    qbus_set_hotplug_handler(_bus, dev, &error_abort);
 
     /* Allocate RAM for VirtIO device pages (descriptors, queues, rings) */
     *ram_size += S390_DEVICE_PAGES * TARGET_PAGE_SIZE;
@@ -162,6 +162,8 @@ static void s390_virtio_net_instance_init(Object *obj)
 
     virtio_instance_init_common(obj, &dev->vdev, sizeof(dev->vdev),
                                 TYPE_VIRTIO_NET);
+    object_property_add_alias(obj, "bootindex", OBJECT(&dev->vdev),
+                              "bootindex", &error_abort);
 }
 
 static int s390_virtio_blk_init(VirtIOS390Device *s390_dev)
@@ -183,6 +185,8 @@ static void s390_virtio_blk_instance_init(Object *obj)
                                 TYPE_VIRTIO_BLK);
     object_property_add_alias(obj, "iothread", OBJECT(&dev->vdev),"iothread",
                               &error_abort);
+    object_property_add_alias(obj, "bootindex", OBJECT(&dev->vdev),
+                              "bootindex", &error_abort);
 }
 
 static int s390_virtio_serial_init(VirtIOS390Device *s390_dev)
@@ -600,7 +604,6 @@ static void virtio_s390_device_class_init(ObjectClass *klass, void *data)
 
     dc->init = s390_virtio_busdev_init;
     dc->bus_type = TYPE_S390_VIRTIO_BUS;
-    dc->unplug = qdev_simple_unplug_cb;
     dc->reset = s390_virtio_busdev_reset;
 }
 
@@ -681,6 +684,10 @@ static const TypeInfo s390_virtio_bridge_info = {
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(SysBusDevice),
     .class_init    = s390_virtio_bridge_class_init,
+    .interfaces = (InterfaceInfo[]) {
+        { TYPE_HOTPLUG_HANDLER },
+        { }
+    }
 };
 
 /* virtio-s390-bus */
@@ -689,13 +696,10 @@ static void virtio_s390_bus_new(VirtioBusState *bus, size_t bus_size,
                                 VirtIOS390Device *dev)
 {
     DeviceState *qdev = DEVICE(dev);
-    BusState *qbus;
     char virtio_bus_name[] = "virtio-bus";
 
     qbus_create_inplace(bus, bus_size, TYPE_VIRTIO_S390_BUS,
                         qdev, virtio_bus_name);
-    qbus = BUS(bus);
-    qbus->allow_hotplug = 1;
 }
 
 static void virtio_s390_bus_class_init(ObjectClass *klass, void *data)

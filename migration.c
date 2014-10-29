@@ -103,7 +103,6 @@ static void process_incoming_migration_co(void *opaque)
     }
     qemu_announce_self();
 
-    bdrv_clear_incoming_migration_all();
     /* Make sure all file formats flush their mutable metadata */
     bdrv_invalidate_cache_all(&local_err);
     if (local_err) {

@@ -26,7 +26,7 @@
 #include "hw/boards.h"
 #include "hw/xen/xen_backend.h"
 #include "xen_domainbuild.h"
-#include "sysemu/blockdev.h"
+#include "sysemu/block-backend.h"
 
 static void xen_init_pv(MachineState *machine)
 {

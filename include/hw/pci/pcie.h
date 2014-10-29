@@ -128,6 +128,6 @@ extern const VMStateDescription vmstate_pcie_device;
 
 void pcie_cap_slot_hotplug_cb(HotplugHandler *hotplug_dev, DeviceState *dev,
                               Error **errp);
-void pcie_cap_slot_hot_unplug_cb(HotplugHandler *hotplug_dev, DeviceState *dev,
-                                 Error **errp);
+void pcie_cap_slot_hot_unplug_request_cb(HotplugHandler *hotplug_dev,
+                                         DeviceState *dev, Error **errp);
 #endif /* QEMU_PCIE_H */

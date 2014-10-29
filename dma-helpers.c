@@ -7,6 +7,7 @@
  * (GNU GPL), version 2 or later.
  */
 
+#include "sysemu/block-backend.h"
 #include "sysemu/dma.h"
 #include "trace.h"
 #include "qemu/range.h"
@@ -67,9 +68,9 @@ void qemu_sglist_destroy(QEMUSGList *qsg)
 }
 
 typedef struct {
-    BlockDriverAIOCB common;
-    BlockDriverState *bs;
-    BlockDriverAIOCB *acb;
+    BlockAIOCB common;
+    BlockBackend *blk;
+    BlockAIOCB *acb;
     QEMUSGList *sg;
     uint64_t sector_num;
     DMADirection dir;
@@ -80,7 +81,7 @@ typedef struct {
     DMAIOFunc *io_func;
 } DMAAIOCB;
 
-static void dma_bdrv_cb(void *opaque, int ret);
+static void dma_blk_cb(void *opaque, int ret);
 
 static void reschedule_dma(void *opaque)
 {
@@ -88,7 +89,7 @@ static void reschedule_dma(void *opaque)
 
     qemu_bh_delete(dbs->bh);
     dbs->bh = NULL;
-    dma_bdrv_cb(dbs, 0);
+    dma_blk_cb(dbs, 0);
 }
 
 static void continue_after_map_failure(void *opaque)
@@ -99,7 +100,7 @@ static void continue_after_map_failure(void *opaque)
     qemu_bh_schedule(dbs->bh);
 }
 
-static void dma_bdrv_unmap(DMAAIOCB *dbs)
+static void dma_blk_unmap(DMAAIOCB *dbs)
 {
     int i;
 
@@ -115,7 +116,7 @@ static void dma_complete(DMAAIOCB *dbs, int ret)
 {
     trace_dma_complete(dbs, ret, dbs->common.cb);
 
-    dma_bdrv_unmap(dbs);
+    dma_blk_unmap(dbs);
     if (dbs->common.cb) {
         dbs->common.cb(dbs->common.opaque, ret);
     }
@@ -127,13 +128,13 @@ static void dma_complete(DMAAIOCB *dbs, int ret)
     qemu_aio_unref(dbs);
 }
 
-static void dma_bdrv_cb(void *opaque, int ret)
+static void dma_blk_cb(void *opaque, int ret)
 {
     DMAAIOCB *dbs = (DMAAIOCB *)opaque;
     dma_addr_t cur_addr, cur_len;
     void *mem;
 
-    trace_dma_bdrv_cb(dbs, ret);
+    trace_dma_blk_cb(dbs, ret);
 
     dbs->acb = NULL;
     dbs->sector_num += dbs->iov.size / 512;
@@ -142,7 +143,7 @@ static void dma_bdrv_cb(void *opaque, int ret)
         dma_complete(dbs, ret);
         return;
     }
-    dma_bdrv_unmap(dbs);
+    dma_blk_unmap(dbs);
 
     while (dbs->sg_cur_index < dbs->sg->nsg) {
         cur_addr = dbs->sg->sg[dbs->sg_cur_index].base + dbs->sg_cur_byte;
@@ -168,19 +169,19 @@ static void dma_bdrv_cb(void *opaque, int ret)
         qemu_iovec_discard_back(&dbs->iov, dbs->iov.size & ~BDRV_SECTOR_MASK);
     }
 
-    dbs->acb = dbs->io_func(dbs->bs, dbs->sector_num, &dbs->iov,
-                            dbs->iov.size / 512, dma_bdrv_cb, dbs);
+    dbs->acb = dbs->io_func(dbs->blk, dbs->sector_num, &dbs->iov,
+                            dbs->iov.size / 512, dma_blk_cb, dbs);
     assert(dbs->acb);
 }
 
-static void dma_aio_cancel(BlockDriverAIOCB *acb)
+static void dma_aio_cancel(BlockAIOCB *acb)
 {
     DMAAIOCB *dbs = container_of(acb, DMAAIOCB, common);
 
     trace_dma_aio_cancel(dbs);
 
     if (dbs->acb) {
-        bdrv_aio_cancel_async(dbs->acb);
+        blk_aio_cancel_async(dbs->acb);
     }
 }
 
@@ -190,17 +191,17 @@ static const AIOCBInfo dma_aiocb_info = {
     .cancel_async       = dma_aio_cancel,
 };
 
-BlockDriverAIOCB *dma_bdrv_io(
-    BlockDriverState *bs, QEMUSGList *sg, uint64_t sector_num,
-    DMAIOFunc *io_func, BlockDriverCompletionFunc *cb,
+BlockAIOCB *dma_blk_io(
+    BlockBackend *blk, QEMUSGList *sg, uint64_t sector_num,
+    DMAIOFunc *io_func, BlockCompletionFunc *cb,
     void *opaque, DMADirection dir)
 {
-    DMAAIOCB *dbs = qemu_aio_get(&dma_aiocb_info, bs, cb, opaque);
+    DMAAIOCB *dbs = blk_aio_get(&dma_aiocb_info, blk, cb, opaque);
 
-    trace_dma_bdrv_io(dbs, bs, sector_num, (dir == DMA_DIRECTION_TO_DEVICE));
+    trace_dma_blk_io(dbs, blk, sector_num, (dir == DMA_DIRECTION_TO_DEVICE));
 
     dbs->acb = NULL;
-    dbs->bs = bs;
+    dbs->blk = blk;
     dbs->sg = sg;
     dbs->sector_num = sector_num;
     dbs->sg_cur_index = 0;
@@ -209,25 +210,25 @@ BlockDriverAIOCB *dma_bdrv_io(
     dbs->io_func = io_func;
     dbs->bh = NULL;
     qemu_iovec_init(&dbs->iov, sg->nsg);
-    dma_bdrv_cb(dbs, 0);
+    dma_blk_cb(dbs, 0);
     return &dbs->common;
 }
 
 
-BlockDriverAIOCB *dma_bdrv_read(BlockDriverState *bs,
-                                QEMUSGList *sg, uint64_t sector,
-                                void (*cb)(void *opaque, int ret), void *opaque)
+BlockAIOCB *dma_blk_read(BlockBackend *blk,
+                         QEMUSGList *sg, uint64_t sector,
+                         void (*cb)(void *opaque, int ret), void *opaque)
 {
-    return dma_bdrv_io(bs, sg, sector, bdrv_aio_readv, cb, opaque,
-                       DMA_DIRECTION_FROM_DEVICE);
+    return dma_blk_io(blk, sg, sector, blk_aio_readv, cb, opaque,
+                      DMA_DIRECTION_FROM_DEVICE);
 }
 
-BlockDriverAIOCB *dma_bdrv_write(BlockDriverState *bs,
-                                 QEMUSGList *sg, uint64_t sector,
-                                 void (*cb)(void *opaque, int ret), void *opaque)
+BlockAIOCB *dma_blk_write(BlockBackend *blk,
+                          QEMUSGList *sg, uint64_t sector,
+                          void (*cb)(void *opaque, int ret), void *opaque)
 {
-    return dma_bdrv_io(bs, sg, sector, bdrv_aio_writev, cb, opaque,
-                       DMA_DIRECTION_TO_DEVICE);
+    return dma_blk_io(blk, sg, sector, blk_aio_writev, cb, opaque,
+                      DMA_DIRECTION_TO_DEVICE);
 }
 
 
@@ -262,8 +263,8 @@ uint64_t dma_buf_write(uint8_t *ptr, int32_t len, QEMUSGList *sg)
     return dma_buf_rw(ptr, len, sg, DMA_DIRECTION_TO_DEVICE);
 }
 
-void dma_acct_start(BlockDriverState *bs, BlockAcctCookie *cookie,
+void dma_acct_start(BlockBackend *blk, BlockAcctCookie *cookie,
                     QEMUSGList *sg, enum BlockAcctType type)
 {
-    block_acct_start(bdrv_get_stats(bs), cookie, sg->size, type);
+    block_acct_start(blk_get_stats(blk), cookie, sg->size, type);
 }

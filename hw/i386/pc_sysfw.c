@@ -23,7 +23,7 @@
  * THE SOFTWARE.
  */
 
-#include "sysemu/blockdev.h"
+#include "sysemu/block-backend.h"
 #include "qemu/error-report.h"
 #include "hw/sysbus.h"
 #include "hw/hw.h"
@@ -103,7 +103,7 @@ static void pc_system_flash_init(MemoryRegion *rom_memory)
 {
     int unit;
     DriveInfo *pflash_drv;
-    BlockDriverState *bdrv;
+    BlockBackend *blk;
     int64_t size;
     char *fatal_errmsg = NULL;
     hwaddr phys_addr = 0x100000000ULL;
@@ -119,8 +119,8 @@ static void pc_system_flash_init(MemoryRegion *rom_memory)
          (unit < FLASH_MAP_UNIT_MAX &&
           (pflash_drv = drive_get(IF_PFLASH, 0, unit)) != NULL);
          ++unit) {
-        bdrv = pflash_drv->bdrv;
-        size = bdrv_getlength(bdrv);
+        blk = blk_by_legacy_dinfo(pflash_drv);
+        size = blk_getlength(blk);
         if (size < 0) {
             fatal_errmsg = g_strdup_printf("failed to get backing file size");
         } else if (size == 0) {
@@ -156,7 +156,7 @@ static void pc_system_flash_init(MemoryRegion *rom_memory)
         /* pflash_cfi01_register() creates a deep copy of the name */
         snprintf(name, sizeof name, "system.flash%d", unit);
         system_flash = pflash_cfi01_register(phys_addr, NULL /* qdev */, name,
-                                             size, bdrv, sector_size,
+                                             size, blk, sector_size,
                                              size >> sector_bits,
                                              1      /* width */,
                                              0x0000 /* id0 */,

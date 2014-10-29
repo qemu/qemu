@@ -24,6 +24,9 @@
 #include <hw/hw.h>
 #include <hw/pci/msix.h>
 #include <hw/pci/pci.h>
+#include "sysemu/sysemu.h"
+#include "qapi/visitor.h"
+#include "sysemu/block-backend.h"
 
 #include "nvme.h"
 
@@ -197,7 +200,7 @@ static void nvme_rw_cb(void *opaque, int ret)
     NvmeCtrl *n = sq->ctrl;
     NvmeCQueue *cq = n->cq[sq->cqid];
 
-    block_acct_done(bdrv_get_stats(n->conf.bs), &req->acct);
+    block_acct_done(blk_get_stats(n->conf.blk), &req->acct);
     if (!ret) {
         req->status = NVME_SUCCESS;
     } else {
@@ -231,11 +234,11 @@ static uint16_t nvme_rw(NvmeCtrl *n, NvmeNamespace *ns, NvmeCmd *cmd,
     }
     assert((nlb << data_shift) == req->qsg.size);
 
-    dma_acct_start(n->conf.bs, &req->acct, &req->qsg, is_write ?
-        BLOCK_ACCT_WRITE : BLOCK_ACCT_READ);
+    dma_acct_start(n->conf.blk, &req->acct, &req->qsg,
+                   is_write ? BLOCK_ACCT_WRITE : BLOCK_ACCT_READ);
     req->aiocb = is_write ?
-        dma_bdrv_write(n->conf.bs, &req->qsg, aio_slba, nvme_rw_cb, req) :
-        dma_bdrv_read(n->conf.bs, &req->qsg, aio_slba, nvme_rw_cb, req);
+        dma_blk_write(n->conf.blk, &req->qsg, aio_slba, nvme_rw_cb, req) :
+        dma_blk_read(n->conf.blk, &req->qsg, aio_slba, nvme_rw_cb, req);
 
     return NVME_NO_COMPLETE;
 }
@@ -288,7 +291,7 @@ static uint16_t nvme_del_sq(NvmeCtrl *n, NvmeCmd *cmd)
     while (!QTAILQ_EMPTY(&sq->out_req_list)) {
         req = QTAILQ_FIRST(&sq->out_req_list);
         assert(req->aiocb);
-        bdrv_aio_cancel(req->aiocb);
+        blk_aio_cancel(req->aiocb);
     }
     if (!nvme_check_cqid(n, sq->cqid)) {
         cq = n->cq[sq->cqid];
@@ -563,7 +566,7 @@ static void nvme_clear_ctrl(NvmeCtrl *n)
         }
     }
 
-    bdrv_flush(n->conf.bs);
+    blk_flush(n->conf.blk);
     n->bar.cc = 0;
 }
 
@@ -748,11 +751,11 @@ static int nvme_init(PCIDevice *pci_dev)
     int64_t bs_size;
     uint8_t *pci_conf;
 
-    if (!(n->conf.bs)) {
+    if (!n->conf.blk) {
         return -1;
     }
 
-    bs_size = bdrv_getlength(n->conf.bs);
+    bs_size = blk_getlength(n->conf.blk);
     if (bs_size < 0) {
         return -1;
     }
@@ -871,11 +874,53 @@ static void nvme_class_init(ObjectClass *oc, void *data)
     dc->vmsd = &nvme_vmstate;
 }
 
+static void nvme_get_bootindex(Object *obj, Visitor *v, void *opaque,
+                                  const char *name, Error **errp)
+{
+    NvmeCtrl *s = NVME(obj);
+
+    visit_type_int32(v, &s->conf.bootindex, name, errp);
+}
+
+static void nvme_set_bootindex(Object *obj, Visitor *v, void *opaque,
+                                  const char *name, Error **errp)
+{
+    NvmeCtrl *s = NVME(obj);
+    int32_t boot_index;
+    Error *local_err = NULL;
+
+    visit_type_int32(v, &boot_index, name, &local_err);
+    if (local_err) {
+        goto out;
+    }
+    /* check whether bootindex is present in fw_boot_order list  */
+    check_boot_index(boot_index, &local_err);
+    if (local_err) {
+        goto out;
+    }
+    /* change bootindex to a new one */
+    s->conf.bootindex = boot_index;
+
+out:
+    if (local_err) {
+        error_propagate(errp, local_err);
+    }
+}
+
+static void nvme_instance_init(Object *obj)
+{
+    object_property_add(obj, "bootindex", "int32",
+                        nvme_get_bootindex,
+                        nvme_set_bootindex, NULL, NULL, NULL);
+    object_property_set_int(obj, -1, "bootindex", NULL);
+}
+
 static const TypeInfo nvme_info = {
     .name          = "nvme",
     .parent        = TYPE_PCI_DEVICE,
     .instance_size = sizeof(NvmeCtrl),
     .class_init    = nvme_class_init,
+    .instance_init = nvme_instance_init,
 };
 
 static void nvme_register_types(void)

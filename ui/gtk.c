@@ -931,6 +931,12 @@ static gboolean gd_key_event(GtkWidget *widget, GdkEventKey *key, void *opaque)
     int qemu_keycode;
     int i;
 
+    if (key->keyval == GDK_KEY_Pause) {
+        qemu_input_event_send_key_qcode(vc->gfx.dcl.con, Q_KEY_CODE_PAUSE,
+                                        key->type == GDK_KEY_PRESS);
+        return TRUE;
+    }
+
     qemu_keycode = gd_map_keycode(s, gtk_widget_get_display(widget),
                                   gdk_keycode);
 
@@ -1809,6 +1815,13 @@ static void gd_set_keycode_type(GtkDisplayState *s)
         } else if (!strstart(keycodes, "xfree86", NULL)) {
             fprintf(stderr, "unknown keycodes `%s', please report to "
                     "qemu-devel@nongnu.org\n", keycodes);
+        }
+
+        if (desc) {
+            XkbFreeKeyboard(desc, XkbGBN_AllComponentsMask, True);
+        }
+        if (keycodes) {
+            XFree(keycodes);
         }
     }
 #endif

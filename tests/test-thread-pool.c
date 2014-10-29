@@ -11,7 +11,7 @@ static ThreadPool *pool;
 static int active;
 
 typedef struct {
-    BlockDriverAIOCB *aiocb;
+    BlockAIOCB *aiocb;
     int n;
     int ret;
 } WorkerTestData;

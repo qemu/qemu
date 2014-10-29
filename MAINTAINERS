@@ -51,6 +51,7 @@ Descriptions of section entries:
 General Project Administration
 ------------------------------
 M: Anthony Liguori <aliguori@amazon.com>
+M: Peter Maydell <peter.maydell@linaro.org>
 
 Responsible Disclosure, Reporting Security Issues
 ------------------------------
@@ -100,7 +101,8 @@ F: hw/microblaze/
 
 MIPS
 M: Aurelien Jarno <aurelien@aurel32.net>
-S: Odd Fixes
+M: Leon Alrae <leon.alrae@imgtec.com>
+S: Maintained
 F: target-mips/
 F: hw/mips/
 
@@ -198,7 +200,9 @@ M: Cornelia Huck <cornelia.huck@de.ibm.com>
 M: Alexander Graf <agraf@suse.de>
 S: Maintained
 F: target-s390x/kvm.c
-F: hw/intc/s390_flic.[hc]
+F: hw/intc/s390_flic.c
+F: hw/intc/s390_flic_kvm.c
+F: include/hw/s390x/s390_flic.h
 
 X86
 M: Marcelo Tosatti <mtosatti@redhat.com>
@@ -521,6 +525,8 @@ F: hw/s390x/s390-virtio-ccw.c
 F: hw/s390x/css.[hc]
 F: hw/s390x/sclp*.[hc]
 F: hw/s390x/ipl*.[hc]
+F: include/hw/s390x/
+F: pc-bios/s390-ccw/
 T: git git://github.com/cohuck/qemu virtio-ccw-upstr
 
 UniCore32 Machines
@@ -706,11 +712,15 @@ Block
 M: Kevin Wolf <kwolf@redhat.com>
 M: Stefan Hajnoczi <stefanha@redhat.com>
 S: Supported
+F: async.c
+F: aio-*.c
 F: block*
 F: block/
 F: hw/block/
 F: qemu-img*
 F: qemu-io*
+F: tests/image-fuzzer/
+F: tests/qemu-iotests/
 T: git git://repo.or.cz/qemu/kevin.git block
 T: git git://github.com/stefanha/qemu.git block
 
@@ -823,6 +833,12 @@ M: Luiz Capitulino <lcapitulino@redhat.com>
 M: Markus Armbruster <armbru@redhat.com>
 S: Supported
 F: qapi-schema.json
+T: git git://repo.or.cz/qemu/qmp-unstable.git queue/qmp
+
+QObject
+M: Luiz Capitulino <lcapitulino@redhat.com>
+S: Maintained
+F: qobject/
 T: git git://repo.or.cz/qemu/qmp-unstable.git queue/qmp
 
 QOM

@@ -972,6 +972,12 @@ NBDExport *nbd_export_new(BlockDriverState *bs, off_t dev_offset,
     exp->ctx = bdrv_get_aio_context(bs);
     bdrv_ref(bs);
     bdrv_add_aio_context_notifier(bs, bs_aio_attached, bs_aio_detach, exp);
+    /*
+     * NBD exports are used for non-shared storage migration.  Make sure
+     * that BDRV_O_INCOMING is cleared and the image is ready for write
+     * access since the export could be available before migration handover.
+     */
+    bdrv_invalidate_cache(bs, NULL);
     return exp;
 }
 

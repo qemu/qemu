@@ -18,11 +18,47 @@
 
 #include <glib.h>
 
+/* GLIB version compatibility flags */
+#if !GLIB_CHECK_VERSION(2, 26, 0)
+#define G_TIME_SPAN_SECOND              (G_GINT64_CONSTANT(1000000))
+#endif
+
 #if !GLIB_CHECK_VERSION(2, 14, 0)
 static inline guint g_timeout_add_seconds(guint interval, GSourceFunc function,
                                           gpointer data)
 {
     return g_timeout_add(interval * 1000, function, data);
+}
+#endif
+
+#if !GLIB_CHECK_VERSION(2, 28, 0)
+static inline gint64 g_get_monotonic_time(void)
+{
+    /* g_get_monotonic_time() is best-effort so we can use the wall clock as a
+     * fallback.
+     */
+
+    GTimeVal time;
+    g_get_current_time(&time);
+
+    return time.tv_sec * G_TIME_SPAN_SECOND + time.tv_usec;
+}
+#endif
+
+#if !GLIB_CHECK_VERSION(2, 16, 0)
+static inline int g_strcmp0(const char *str1, const char *str2)
+{
+    int result;
+
+    if (!str1) {
+        result = -(str1 != str2);
+    } else if (!str2) {
+        result = (str1 != str2);
+    } else {
+        result = strcmp(str1, str2);
+    }
+
+    return result;
 }
 #endif
 

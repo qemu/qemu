@@ -1900,7 +1900,7 @@ static int map_is_allocated(BlockDriverState *bs, int64_t sector_num,
 
         num_checked = MIN(nb_sectors, INT_MAX);
         ret = bdrv_is_allocated(bs, sector_num, num_checked, &num);
-        if (ret == firstret) {
+        if (ret == firstret && num) {
             *pnum += num;
         } else {
             break;
@@ -1926,6 +1926,9 @@ static int map_f(BlockDriverState *bs, int argc, char **argv)
         ret = map_is_allocated(bs, offset, nb_sectors, &num);
         if (ret < 0) {
             error_report("Failed to get allocation status: %s", strerror(-ret));
+            return 0;
+        } else if (!num) {
+            error_report("Unexpected end of image");
             return 0;
         }
 

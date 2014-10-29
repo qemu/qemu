@@ -26,7 +26,7 @@
 #include <hw/i386/pc.h>
 #include <hw/pci/pci.h>
 #include <hw/isa/isa.h>
-#include "block/block.h"
+#include "sysemu/block-backend.h"
 #include "sysemu/dma.h"
 
 #include <hw/ide/pci.h>
@@ -38,7 +38,7 @@
         IDE_RETRY_READ | IDE_RETRY_FLUSH)
 
 static void bmdma_start_dma(IDEDMA *dma, IDEState *s,
-                            BlockDriverCompletionFunc *dma_cb)
+                            BlockCompletionFunc *dma_cb)
 {
     BMDMAState *bm = DO_UPCAST(BMDMAState, dma, dma);
 
@@ -302,7 +302,7 @@ void bmdma_cmd_writeb(BMDMAState *bm, uint32_t val)
              * aio operation with preadv/pwritev.
              */
             if (bm->bus->dma->aiocb) {
-                bdrv_drain_all();
+                blk_drain_all();
                 assert(bm->bus->dma->aiocb == NULL);
             }
             bm->status &= ~BM_STATUS_DMAING;

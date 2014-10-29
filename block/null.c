@@ -78,7 +78,7 @@ static coroutine_fn int null_co_flush(BlockDriverState *bs)
 }
 
 typedef struct {
-    BlockDriverAIOCB common;
+    BlockAIOCB common;
     QEMUBH *bh;
 } NullAIOCB;
 
@@ -94,9 +94,9 @@ static void null_bh_cb(void *opaque)
     qemu_aio_unref(acb);
 }
 
-static inline BlockDriverAIOCB *null_aio_common(BlockDriverState *bs,
-                                                BlockDriverCompletionFunc *cb,
-                                                void *opaque)
+static inline BlockAIOCB *null_aio_common(BlockDriverState *bs,
+                                          BlockCompletionFunc *cb,
+                                          void *opaque)
 {
     NullAIOCB *acb;
 
@@ -106,27 +106,27 @@ static inline BlockDriverAIOCB *null_aio_common(BlockDriverState *bs,
     return &acb->common;
 }
 
-static BlockDriverAIOCB *null_aio_readv(BlockDriverState *bs,
-                                        int64_t sector_num, QEMUIOVector *qiov,
-                                        int nb_sectors,
-                                        BlockDriverCompletionFunc *cb,
-                                        void *opaque)
+static BlockAIOCB *null_aio_readv(BlockDriverState *bs,
+                                  int64_t sector_num, QEMUIOVector *qiov,
+                                  int nb_sectors,
+                                  BlockCompletionFunc *cb,
+                                  void *opaque)
 {
     return null_aio_common(bs, cb, opaque);
 }
 
-static BlockDriverAIOCB *null_aio_writev(BlockDriverState *bs,
-                                         int64_t sector_num, QEMUIOVector *qiov,
-                                         int nb_sectors,
-                                         BlockDriverCompletionFunc *cb,
-                                         void *opaque)
+static BlockAIOCB *null_aio_writev(BlockDriverState *bs,
+                                   int64_t sector_num, QEMUIOVector *qiov,
+                                   int nb_sectors,
+                                   BlockCompletionFunc *cb,
+                                   void *opaque)
 {
     return null_aio_common(bs, cb, opaque);
 }
 
-static BlockDriverAIOCB *null_aio_flush(BlockDriverState *bs,
-                                        BlockDriverCompletionFunc *cb,
-                                        void *opaque)
+static BlockAIOCB *null_aio_flush(BlockDriverState *bs,
+                                  BlockCompletionFunc *cb,
+                                  void *opaque)
 {
     return null_aio_common(bs, cb, opaque);
 }

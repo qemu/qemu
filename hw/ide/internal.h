@@ -319,7 +319,7 @@ typedef enum { IDE_HD, IDE_CD, IDE_CFATA } IDEDriveKind;
 
 typedef void EndTransferFunc(IDEState *);
 
-typedef void DMAStartFunc(IDEDMA *, IDEState *, BlockDriverCompletionFunc *);
+typedef void DMAStartFunc(IDEDMA *, IDEState *, BlockCompletionFunc *);
 typedef void DMAVoidFunc(IDEDMA *);
 typedef int DMAIntFunc(IDEDMA *, int);
 typedef void DMAStopFunc(IDEDMA *, bool);
@@ -373,7 +373,7 @@ struct IDEState {
 
     /* set for lba48 access */
     uint8_t lba48;
-    BlockDriverState *bs;
+    BlockBackend *blk;
     char version[9];
     /* ATAPI specific */
     struct unreported_events events;
@@ -389,7 +389,7 @@ struct IDEState {
     int cd_sector_size;
     int atapi_dma; /* true if dma is requested for the packet cmd */
     BlockAcctCookie acct;
-    BlockDriverAIOCB *pio_aiocb;
+    BlockAIOCB *pio_aiocb;
     struct iovec iov;
     QEMUIOVector qiov;
     /* ATA DMA state */
@@ -442,7 +442,7 @@ struct IDEDMA {
     const struct IDEDMAOps *ops;
     struct iovec iov;
     QEMUIOVector qiov;
-    BlockDriverAIOCB *aiocb;
+    BlockAIOCB *aiocb;
 };
 
 struct IDEBus {
@@ -521,7 +521,7 @@ void ide_bus_reset(IDEBus *bus);
 int64_t ide_get_sector(IDEState *s);
 void ide_set_sector(IDEState *s, int64_t sector_num);
 
-void ide_start_dma(IDEState *s, BlockDriverCompletionFunc *cb);
+void ide_start_dma(IDEState *s, BlockCompletionFunc *cb);
 void ide_dma_error(IDEState *s);
 
 void ide_atapi_cmd_ok(IDEState *s);
@@ -537,7 +537,7 @@ uint32_t ide_data_readw(void *opaque, uint32_t addr);
 void ide_data_writel(void *opaque, uint32_t addr, uint32_t val);
 uint32_t ide_data_readl(void *opaque, uint32_t addr);
 
-int ide_init_drive(IDEState *s, BlockDriverState *bs, IDEDriveKind kind,
+int ide_init_drive(IDEState *s, BlockBackend *blk, IDEDriveKind kind,
                    const char *version, const char *serial, const char *model,
                    uint64_t wwn,
                    uint32_t cylinders, uint32_t heads, uint32_t secs,
@@ -555,9 +555,9 @@ void ide_transfer_start(IDEState *s, uint8_t *buf, int size,
                         EndTransferFunc *end_transfer_func);
 void ide_transfer_stop(IDEState *s);
 void ide_set_inactive(IDEState *s, bool more);
-BlockDriverAIOCB *ide_issue_trim(BlockDriverState *bs,
+BlockAIOCB *ide_issue_trim(BlockBackend *blk,
         int64_t sector_num, QEMUIOVector *qiov, int nb_sectors,
-        BlockDriverCompletionFunc *cb, void *opaque);
+        BlockCompletionFunc *cb, void *opaque);
 
 /* hw/ide/atapi.c */
 void ide_atapi_cmd(IDEState *s);

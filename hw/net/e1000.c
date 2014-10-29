@@ -1569,8 +1569,6 @@ static int pci_e1000_init(PCIDevice *pci_dev)
 
     qemu_format_nic_info_str(qemu_get_queue(d->nic), macaddr);
 
-    add_boot_device_path(d->conf.bootindex, dev, "/ethernet-phy@0");
-
     d->autoneg_timer = timer_new_ms(QEMU_CLOCK_VIRTUAL, e1000_autoneg_timer, d);
     d->mit_timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, e1000_mit_timer, d);
 
@@ -1621,10 +1619,19 @@ static void e1000_class_init(ObjectClass *klass, void *data)
     dc->props = e1000_properties;
 }
 
+static void e1000_instance_init(Object *obj)
+{
+    E1000State *n = E1000(obj);
+    device_add_bootindex_property(obj, &n->conf.bootindex,
+                                  "bootindex", "/ethernet-phy@0",
+                                  DEVICE(n), NULL);
+}
+
 static const TypeInfo e1000_base_info = {
     .name          = TYPE_E1000_BASE,
     .parent        = TYPE_PCI_DEVICE,
     .instance_size = sizeof(E1000State),
+    .instance_init = e1000_instance_init,
     .class_size    = sizeof(E1000BaseClass),
     .abstract      = true,
 };
@@ -1668,6 +1675,7 @@ static void e1000_register_types(void)
         type_info.parent = TYPE_E1000_BASE;
         type_info.class_data = (void *)info;
         type_info.class_init = e1000_class_init;
+        type_info.instance_init = e1000_instance_init;
 
         type_register(&type_info);
     }

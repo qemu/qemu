@@ -25,6 +25,8 @@
 #define QEMU_FILE_H 1
 #include "exec/cpu-common.h"
 
+#include <stdint.h>
+
 /* This function writes a chunk of data to a file at the given position.
  * The pos argument can be ignored if the file is only being used for
  * streaming.  The handler should try to write all of the data it can.
@@ -94,11 +96,19 @@ typedef struct QEMUFileOps {
     QEMURamSaveFunc *save_page;
 } QEMUFileOps;
 
+struct QEMUSizedBuffer {
+    struct iovec *iov;
+    size_t n_iov;
+    size_t size; /* total allocated size in all iov's */
+    size_t used; /* number of used bytes */
+};
+
 QEMUFile *qemu_fopen_ops(void *opaque, const QEMUFileOps *ops);
 QEMUFile *qemu_fopen(const char *filename, const char *mode);
 QEMUFile *qemu_fdopen(int fd, const char *mode);
 QEMUFile *qemu_fopen_socket(int fd, const char *mode);
 QEMUFile *qemu_popen_cmd(const char *command, const char *mode);
+QEMUFile *qemu_bufopen(const char *mode, QEMUSizedBuffer *input);
 int qemu_get_fd(QEMUFile *f);
 int qemu_fclose(QEMUFile *f);
 int64_t qemu_ftell(QEMUFile *f);
@@ -110,6 +120,23 @@ void qemu_put_byte(QEMUFile *f, int v);
  */
 void qemu_put_buffer_async(QEMUFile *f, const uint8_t *buf, int size);
 bool qemu_file_mode_is_not_valid(const char *mode);
+bool qemu_file_is_writable(QEMUFile *f);
+
+QEMUSizedBuffer *qsb_create(const uint8_t *buffer, size_t len);
+QEMUSizedBuffer *qsb_clone(const QEMUSizedBuffer *);
+void qsb_free(QEMUSizedBuffer *);
+size_t qsb_set_length(QEMUSizedBuffer *qsb, size_t length);
+size_t qsb_get_length(const QEMUSizedBuffer *qsb);
+ssize_t qsb_get_buffer(const QEMUSizedBuffer *, off_t start, size_t count,
+                       uint8_t *buf);
+ssize_t qsb_write_at(QEMUSizedBuffer *qsb, const uint8_t *buf,
+                     off_t pos, size_t count);
+
+
+/*
+ * For use on files opened with qemu_bufopen
+ */
+const QEMUSizedBuffer *qemu_buf_get(QEMUFile *f);
 
 static inline void qemu_put_ubyte(QEMUFile *f, unsigned int v)
 {

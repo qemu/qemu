@@ -30,6 +30,7 @@
  * THE SOFTWARE.
  */
 
+#include "sysemu/block-backend.h"
 #include "sysemu/blockdev.h"
 #include "hw/block/block.h"
 #include "block/blockjob.h"
@@ -45,8 +46,6 @@
 #include "qmp-commands.h"
 #include "trace.h"
 #include "sysemu/arch_init.h"
-
-static QTAILQ_HEAD(drivelist, DriveInfo) drives = QTAILQ_HEAD_INITIALIZER(drives);
 
 static const char *const if_name[IF_COUNT] = {
     [IF_NONE] = "none",
@@ -85,13 +84,15 @@ static int if_max_devs[IF_COUNT] = {
  */
 void override_max_devs(BlockInterfaceType type, int max_devs)
 {
+    BlockBackend *blk;
     DriveInfo *dinfo;
 
     if (max_devs <= 0) {
         return;
     }
 
-    QTAILQ_FOREACH(dinfo, &drives, next) {
+    for (blk = blk_next(NULL); blk; blk = blk_next(blk)) {
+        dinfo = blk_legacy_dinfo(blk);
         if (dinfo->type == type) {
             fprintf(stderr, "Cannot override units-per-bus property of"
                     " the %s interface, because a drive of that type has"
@@ -110,28 +111,27 @@ void override_max_devs(BlockInterfaceType type, int max_devs)
  * automatic deletion, and generic qdev code calls blockdev_auto_del()
  * when deletion is actually safe.
  */
-void blockdev_mark_auto_del(BlockDriverState *bs)
+void blockdev_mark_auto_del(BlockBackend *blk)
 {
-    DriveInfo *dinfo = drive_get_by_blockdev(bs);
+    DriveInfo *dinfo = blk_legacy_dinfo(blk);
+    BlockDriverState *bs = blk_bs(blk);
 
-    if (dinfo && !dinfo->enable_auto_del) {
+    if (!dinfo) {
         return;
     }
 
     if (bs->job) {
         block_job_cancel(bs->job);
     }
-    if (dinfo) {
-        dinfo->auto_del = 1;
-    }
+    dinfo->auto_del = 1;
 }
 
-void blockdev_auto_del(BlockDriverState *bs)
+void blockdev_auto_del(BlockBackend *blk)
 {
-    DriveInfo *dinfo = drive_get_by_blockdev(bs);
+    DriveInfo *dinfo = blk_legacy_dinfo(blk);
 
     if (dinfo && dinfo->auto_del) {
-        drive_del(dinfo);
+        blk_unref(blk);
     }
 }
 
@@ -193,15 +193,15 @@ QemuOpts *drive_add(BlockInterfaceType type, int index, const char *file,
 
 DriveInfo *drive_get(BlockInterfaceType type, int bus, int unit)
 {
+    BlockBackend *blk;
     DriveInfo *dinfo;
 
-    /* seek interface, bus and unit */
-
-    QTAILQ_FOREACH(dinfo, &drives, next) {
-        if (dinfo->type == type &&
-	    dinfo->bus == bus &&
-	    dinfo->unit == unit)
+    for (blk = blk_next(NULL); blk; blk = blk_next(blk)) {
+        dinfo = blk_legacy_dinfo(blk);
+        if (dinfo && dinfo->type == type
+            && dinfo->bus == bus && dinfo->unit == unit) {
             return dinfo;
+        }
     }
 
     return NULL;
@@ -209,17 +209,19 @@ DriveInfo *drive_get(BlockInterfaceType type, int bus, int unit)
 
 bool drive_check_orphaned(void)
 {
+    BlockBackend *blk;
     DriveInfo *dinfo;
     bool rs = false;
 
-    QTAILQ_FOREACH(dinfo, &drives, next) {
+    for (blk = blk_next(NULL); blk; blk = blk_next(blk)) {
+        dinfo = blk_legacy_dinfo(blk);
         /* If dinfo->bdrv->dev is NULL, it has no device attached. */
         /* Unless this is a default drive, this may be an oversight. */
-        if (!dinfo->bdrv->dev && !dinfo->is_default &&
+        if (!blk_get_attached_dev(blk) && !dinfo->is_default &&
             dinfo->type != IF_NONE) {
             fprintf(stderr, "Warning: Orphaned drive without device: "
                     "id=%s,file=%s,if=%s,bus=%d,unit=%d\n",
-                    dinfo->id, dinfo->bdrv->filename, if_name[dinfo->type],
+                    blk_name(blk), blk_bs(blk)->filename, if_name[dinfo->type],
                     dinfo->bus, dinfo->unit);
             rs = true;
         }
@@ -238,13 +240,15 @@ DriveInfo *drive_get_by_index(BlockInterfaceType type, int index)
 int drive_get_max_bus(BlockInterfaceType type)
 {
     int max_bus;
+    BlockBackend *blk;
     DriveInfo *dinfo;
 
     max_bus = -1;
-    QTAILQ_FOREACH(dinfo, &drives, next) {
-        if(dinfo->type == type &&
-           dinfo->bus > max_bus)
+    for (blk = blk_next(NULL); blk; blk = blk_next(blk)) {
+        dinfo = blk_legacy_dinfo(blk);
+        if (dinfo && dinfo->type == type && dinfo->bus > max_bus) {
             max_bus = dinfo->bus;
+        }
     }
     return max_bus;
 }
@@ -259,38 +263,9 @@ DriveInfo *drive_get_next(BlockInterfaceType type)
     return drive_get(type, 0, next_block_unit[type]++);
 }
 
-DriveInfo *drive_get_by_blockdev(BlockDriverState *bs)
-{
-    DriveInfo *dinfo;
-
-    QTAILQ_FOREACH(dinfo, &drives, next) {
-        if (dinfo->bdrv == bs) {
-            return dinfo;
-        }
-    }
-    return NULL;
-}
-
 static void bdrv_format_print(void *opaque, const char *name)
 {
     error_printf(" %s", name);
-}
-
-void drive_del(DriveInfo *dinfo)
-{
-    bdrv_unref(dinfo->bdrv);
-}
-
-void drive_info_del(DriveInfo *dinfo)
-{
-    if (!dinfo) {
-        return;
-    }
-    qemu_opts_del(dinfo->opts);
-    g_free(dinfo->id);
-    QTAILQ_REMOVE(&drives, dinfo, next);
-    g_free(dinfo->serial);
-    g_free(dinfo);
 }
 
 typedef struct {
@@ -360,15 +335,15 @@ static bool check_throttle_config(ThrottleConfig *cfg, Error **errp)
 typedef enum { MEDIA_DISK, MEDIA_CDROM } DriveMediaType;
 
 /* Takes the ownership of bs_opts */
-static DriveInfo *blockdev_init(const char *file, QDict *bs_opts,
-                                Error **errp)
+static BlockBackend *blockdev_init(const char *file, QDict *bs_opts,
+                                   Error **errp)
 {
     const char *buf;
     int ro = 0;
     int bdrv_flags = 0;
     int on_read_error, on_write_error;
+    BlockBackend *blk;
     BlockDriverState *bs;
-    DriveInfo *dinfo;
     ThrottleConfig cfg;
     int snapshot = 0;
     bool copy_on_read;
@@ -523,10 +498,11 @@ static DriveInfo *blockdev_init(const char *file, QDict *bs_opts,
     }
 
     /* init */
-    bs = bdrv_new(qemu_opts_id(opts), errp);
-    if (!bs) {
+    blk = blk_new_with_bs(qemu_opts_id(opts), errp);
+    if (!blk) {
         goto early_err;
     }
+    bs = blk_bs(blk);
     bs->open_flags = snapshot ? BDRV_O_SNAPSHOT : 0;
     bs->read_only = ro;
     bs->detect_zeroes = detect_zeroes;
@@ -539,18 +515,13 @@ static DriveInfo *blockdev_init(const char *file, QDict *bs_opts,
         bdrv_set_io_limits(bs, &cfg);
     }
 
-    dinfo = g_malloc0(sizeof(*dinfo));
-    dinfo->id = g_strdup(qemu_opts_id(opts));
-    dinfo->bdrv = bs;
-    QTAILQ_INSERT_TAIL(&drives, dinfo, next);
-
     if (!file || !*file) {
         if (has_driver_specific_opts) {
             file = NULL;
         } else {
             QDECREF(bs_opts);
             qemu_opts_del(opts);
-            return dinfo;
+            return blk;
         }
     }
     if (snapshot) {
@@ -571,11 +542,11 @@ static DriveInfo *blockdev_init(const char *file, QDict *bs_opts,
 
     QINCREF(bs_opts);
     ret = bdrv_open(&bs, file, NULL, bs_opts, bdrv_flags, drv, &error);
-    assert(bs == dinfo->bdrv);
+    assert(bs == blk_bs(blk));
 
     if (ret < 0) {
         error_setg(errp, "could not open disk image %s: %s",
-                   file ?: dinfo->id, error_get_pretty(error));
+                   file ?: blk_name(blk), error_get_pretty(error));
         error_free(error);
         goto err;
     }
@@ -587,10 +558,10 @@ static DriveInfo *blockdev_init(const char *file, QDict *bs_opts,
     QDECREF(bs_opts);
     qemu_opts_del(opts);
 
-    return dinfo;
+    return blk;
 
 err:
-    bdrv_unref(bs);
+    blk_unref(blk);
 early_err:
     qemu_opts_del(opts);
 err_no_opts:
@@ -703,6 +674,7 @@ QemuOptsList qemu_legacy_drive_opts = {
 DriveInfo *drive_new(QemuOpts *all_opts, BlockInterfaceType block_default_type)
 {
     const char *value;
+    BlockBackend *blk;
     DriveInfo *dinfo = NULL;
     QDict *bs_opts;
     QemuOpts *legacy_opts;
@@ -1000,9 +972,9 @@ DriveInfo *drive_new(QemuOpts *all_opts, BlockInterfaceType block_default_type)
     }
 
     /* Actual block device init: Functionality shared with blockdev-add */
-    dinfo = blockdev_init(filename, bs_opts, &local_err);
+    blk = blockdev_init(filename, bs_opts, &local_err);
     bs_opts = NULL;
-    if (dinfo == NULL) {
+    if (!blk) {
         if (local_err) {
             error_report("%s", error_get_pretty(local_err));
             error_free(local_err);
@@ -1012,8 +984,8 @@ DriveInfo *drive_new(QemuOpts *all_opts, BlockInterfaceType block_default_type)
         assert(!local_err);
     }
 
-    /* Set legacy DriveInfo fields */
-    dinfo->enable_auto_del = true;
+    /* Create legacy DriveInfo */
+    dinfo = g_malloc0(sizeof(*dinfo));
     dinfo->opts = all_opts;
 
     dinfo->cyls = cyls;
@@ -1025,8 +997,9 @@ DriveInfo *drive_new(QemuOpts *all_opts, BlockInterfaceType block_default_type)
     dinfo->bus = bus_id;
     dinfo->unit = unit_id;
     dinfo->devaddr = devaddr;
-
     dinfo->serial = g_strdup(serial);
+
+    blk_set_legacy_dinfo(blk, dinfo);
 
     switch(type) {
     case IF_IDE:
@@ -1620,19 +1593,21 @@ exit:
 }
 
 
-static void eject_device(BlockDriverState *bs, int force, Error **errp)
+static void eject_device(BlockBackend *blk, int force, Error **errp)
 {
+    BlockDriverState *bs = blk_bs(blk);
+
     if (bdrv_op_is_blocked(bs, BLOCK_OP_TYPE_EJECT, errp)) {
         return;
     }
-    if (!bdrv_dev_has_removable_media(bs)) {
+    if (!blk_dev_has_removable_media(blk)) {
         error_setg(errp, "Device '%s' is not removable",
                    bdrv_get_device_name(bs));
         return;
     }
 
-    if (bdrv_dev_is_medium_locked(bs) && !bdrv_dev_is_tray_open(bs)) {
-        bdrv_dev_eject_request(bs, force);
+    if (blk_dev_is_medium_locked(blk) && !blk_dev_is_tray_open(blk)) {
+        blk_dev_eject_request(blk, force);
         if (!force) {
             error_setg(errp, "Device '%s' is locked",
                        bdrv_get_device_name(bs));
@@ -1645,15 +1620,15 @@ static void eject_device(BlockDriverState *bs, int force, Error **errp)
 
 void qmp_eject(const char *device, bool has_force, bool force, Error **errp)
 {
-    BlockDriverState *bs;
+    BlockBackend *blk;
 
-    bs = bdrv_find(device);
-    if (!bs) {
+    blk = blk_by_name(device);
+    if (!blk) {
         error_set(errp, QERR_DEVICE_NOT_FOUND, device);
         return;
     }
 
-    eject_device(bs, force, errp);
+    eject_device(blk, force, errp);
 }
 
 void qmp_block_passwd(bool has_device, const char *device,
@@ -1712,16 +1687,18 @@ static void qmp_bdrv_open_encrypted(BlockDriverState *bs, const char *filename,
 void qmp_change_blockdev(const char *device, const char *filename,
                          const char *format, Error **errp)
 {
+    BlockBackend *blk;
     BlockDriverState *bs;
     BlockDriver *drv = NULL;
     int bdrv_flags;
     Error *err = NULL;
 
-    bs = bdrv_find(device);
-    if (!bs) {
+    blk = blk_by_name(device);
+    if (!blk) {
         error_set(errp, QERR_DEVICE_NOT_FOUND, device);
         return;
     }
+    bs = blk_bs(blk);
 
     if (format) {
         drv = bdrv_find_whitelisted_format(format, bs->read_only);
@@ -1731,7 +1708,7 @@ void qmp_change_blockdev(const char *device, const char *filename,
         }
     }
 
-    eject_device(bs, 0, &err);
+    eject_device(blk, 0, &err);
     if (err) {
         error_propagate(errp, err);
         return;
@@ -1829,19 +1806,19 @@ void qmp_block_set_io_throttle(const char *device, int64_t bps, int64_t bps_rd,
 int do_drive_del(Monitor *mon, const QDict *qdict, QObject **ret_data)
 {
     const char *id = qdict_get_str(qdict, "id");
+    BlockBackend *blk;
     BlockDriverState *bs;
-    DriveInfo *dinfo;
     AioContext *aio_context;
     Error *local_err = NULL;
 
-    bs = bdrv_find(id);
-    if (!bs) {
+    blk = blk_by_name(id);
+    if (!blk) {
         error_report("Device '%s' not found", id);
         return -1;
     }
+    bs = blk_bs(blk);
 
-    dinfo = drive_get_by_blockdev(bs);
-    if (dinfo && !dinfo->enable_auto_del) {
+    if (!blk_legacy_dinfo(blk)) {
         error_report("Deleting device added with blockdev-add"
                      " is not supported");
         return -1;
@@ -1867,14 +1844,13 @@ int do_drive_del(Monitor *mon, const QDict *qdict, QObject **ret_data)
      * can be removed.  If this is a drive with no device backing
      * then we can just get rid of the block driver state right here.
      */
-    if (bdrv_get_attached_dev(bs)) {
-        bdrv_make_anon(bs);
-
+    if (blk_get_attached_dev(blk)) {
+        blk_hide_on_behalf_of_do_drive_del(blk);
         /* Further I/O must not pause the guest */
         bdrv_set_on_error(bs, BLOCKDEV_ON_ERROR_REPORT,
                           BLOCKDEV_ON_ERROR_REPORT);
     } else {
-        drive_del(dinfo);
+        blk_unref(blk);
     }
 
     aio_context_release(aio_context);
@@ -2566,7 +2542,7 @@ void qmp_change_backing_file(const char *device,
 void qmp_blockdev_add(BlockdevOptions *options, Error **errp)
 {
     QmpOutputVisitor *ov = qmp_output_visitor_new();
-    DriveInfo *dinfo;
+    BlockBackend *blk;
     QObject *obj;
     QDict *qdict;
     Error *local_err = NULL;
@@ -2604,14 +2580,14 @@ void qmp_blockdev_add(BlockdevOptions *options, Error **errp)
 
     qdict_flatten(qdict);
 
-    dinfo = blockdev_init(NULL, qdict, &local_err);
+    blk = blockdev_init(NULL, qdict, &local_err);
     if (local_err) {
         error_propagate(errp, local_err);
         goto fail;
     }
 
-    if (bdrv_key_required(dinfo->bdrv)) {
-        drive_del(dinfo);
+    if (bdrv_key_required(blk_bs(blk))) {
+        blk_unref(blk);
         error_setg(errp, "blockdev-add doesn't support encrypted devices");
         goto fail;
     }
@@ -2620,26 +2596,21 @@ fail:
     qmp_output_visitor_cleanup(ov);
 }
 
-static void do_qmp_query_block_jobs_one(void *opaque, BlockDriverState *bs)
-{
-    BlockJobInfoList **prev = opaque;
-    BlockJob *job = bs->job;
-
-    if (job) {
-        BlockJobInfoList *elem = g_new0(BlockJobInfoList, 1);
-        elem->value = block_job_query(bs->job);
-        (*prev)->next = elem;
-        *prev = elem;
-    }
-}
-
 BlockJobInfoList *qmp_query_block_jobs(Error **errp)
 {
-    /* Dummy is a fake list element for holding the head pointer */
-    BlockJobInfoList dummy = {};
-    BlockJobInfoList *prev = &dummy;
-    bdrv_iterate(do_qmp_query_block_jobs_one, &prev);
-    return dummy.next;
+    BlockJobInfoList *head = NULL, **p_next = &head;
+    BlockDriverState *bs;
+
+    for (bs = bdrv_next(NULL); bs; bs = bdrv_next(bs)) {
+        if (bs->job) {
+            BlockJobInfoList *elem = g_new0(BlockJobInfoList, 1);
+            elem->value = block_job_query(bs->job);
+            *p_next = elem;
+            p_next = &elem->next;
+        }
+    }
+
+    return head;
 }
 
 QemuOptsList qemu_common_drive_opts = {

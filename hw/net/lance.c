@@ -42,6 +42,7 @@
 #include "hw/sparc/sun4m.h"
 #include "pcnet.h"
 #include "trace.h"
+#include "sysemu/sysemu.h"
 
 #define TYPE_LANCE "lance"
 #define SYSBUS_PCNET(obj) \
@@ -143,6 +144,16 @@ static void lance_reset(DeviceState *dev)
     pcnet_h_reset(&d->state);
 }
 
+static void lance_instance_init(Object *obj)
+{
+    SysBusPCNetState *d = SYSBUS_PCNET(obj);
+    PCNetState *s = &d->state;
+
+    device_add_bootindex_property(obj, &s->conf.bootindex,
+                                  "bootindex", "/ethernet-phy@0",
+                                  DEVICE(obj), NULL);
+}
+
 static Property lance_properties[] = {
     DEFINE_PROP_PTR("dma", SysBusPCNetState, state.dma_opaque),
     DEFINE_NIC_PROPERTIES(SysBusPCNetState, state.conf),
@@ -169,6 +180,7 @@ static const TypeInfo lance_info = {
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(SysBusPCNetState),
     .class_init    = lance_class_init,
+    .instance_init = lance_instance_init,
 };
 
 static void lance_register_types(void)

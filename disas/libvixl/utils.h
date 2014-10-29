@@ -171,7 +171,7 @@ bool IsPowerOf2(int64_t value);
 template<typename T>
 bool IsWordAligned(T pointer) {
   VIXL_ASSERT(sizeof(pointer) == sizeof(intptr_t));   // NOLINT(runtime/sizeof)
-  return (reinterpret_cast<intptr_t>(pointer) & 3) == 0;
+  return ((intptr_t)(pointer) & 3) == 0;
 }
 
 // Increment a pointer until it has the specified alignment.
@@ -203,7 +203,6 @@ T AlignDown(T pointer, size_t alignment) {
 
   return (T)(pointer_raw - align_step);
 }
-
 
 }  // namespace vixl
 

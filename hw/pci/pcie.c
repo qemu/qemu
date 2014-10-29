@@ -262,8 +262,8 @@ void pcie_cap_slot_hotplug_cb(HotplugHandler *hotplug_dev, DeviceState *dev,
                         PCI_EXP_HP_EV_PDC | PCI_EXP_HP_EV_ABP);
 }
 
-void pcie_cap_slot_hot_unplug_cb(HotplugHandler *hotplug_dev, DeviceState *dev,
-                                 Error **errp)
+void pcie_cap_slot_hot_unplug_request_cb(HotplugHandler *hotplug_dev,
+                                         DeviceState *dev, Error **errp)
 {
     uint8_t *exp_cap;
 

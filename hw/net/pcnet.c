@@ -1735,8 +1735,6 @@ int pcnet_common_init(DeviceState *dev, PCNetState *s, NetClientInfo *info)
     s->nic = qemu_new_nic(info, &s->conf, object_get_typename(OBJECT(dev)), dev->id, s);
     qemu_format_nic_info_str(qemu_get_queue(s->nic), s->conf.macaddr.a);
 
-    add_boot_device_path(s->conf.bootindex, dev, "/ethernet-phy@0");
-
     /* Initialize the PROM */
 
     /*

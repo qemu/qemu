@@ -30,7 +30,7 @@
  * THE SOFTWARE.
  */
 
-#include "block/block.h"
+#include "sysemu/block-backend.h"
 #include "hw/block/block.h"
 #include "trace.h"
 
@@ -49,7 +49,7 @@ struct partition {
 
 /* try to guess the disk logical geometry from the MSDOS partition table.
    Return 0 if OK, -1 if could not guess */
-static int guess_disk_lchs(BlockDriverState *bs,
+static int guess_disk_lchs(BlockBackend *blk,
                            int *pcylinders, int *pheads, int *psectors)
 {
     uint8_t buf[BDRV_SECTOR_SIZE];
@@ -58,14 +58,14 @@ static int guess_disk_lchs(BlockDriverState *bs,
     uint32_t nr_sects;
     uint64_t nb_sectors;
 
-    bdrv_get_geometry(bs, &nb_sectors);
+    blk_get_geometry(blk, &nb_sectors);
 
     /**
      * The function will be invoked during startup not only in sync I/O mode,
      * but also in async I/O mode. So the I/O throttling function has to
      * be disabled temporarily here, not permanently.
      */
-    if (bdrv_read_unthrottled(bs, 0, buf, 1) < 0) {
+    if (blk_read_unthrottled(blk, 0, buf, 1) < 0) {
         return -1;
     }
     /* test msdos magic */
@@ -90,20 +90,20 @@ static int guess_disk_lchs(BlockDriverState *bs,
             *pheads = heads;
             *psectors = sectors;
             *pcylinders = cylinders;
-            trace_hd_geometry_lchs_guess(bs, cylinders, heads, sectors);
+            trace_hd_geometry_lchs_guess(blk, cylinders, heads, sectors);
             return 0;
         }
     }
     return -1;
 }
 
-static void guess_chs_for_size(BlockDriverState *bs,
+static void guess_chs_for_size(BlockBackend *blk,
                 uint32_t *pcyls, uint32_t *pheads, uint32_t *psecs)
 {
     uint64_t nb_sectors;
     int cylinders;
 
-    bdrv_get_geometry(bs, &nb_sectors);
+    blk_get_geometry(blk, &nb_sectors);
 
     cylinders = nb_sectors / (16 * 63);
     if (cylinders > 16383) {
@@ -116,21 +116,21 @@ static void guess_chs_for_size(BlockDriverState *bs,
     *psecs = 63;
 }
 
-void hd_geometry_guess(BlockDriverState *bs,
+void hd_geometry_guess(BlockBackend *blk,
                        uint32_t *pcyls, uint32_t *pheads, uint32_t *psecs,
                        int *ptrans)
 {
     int cylinders, heads, secs, translation;
 
-    if (guess_disk_lchs(bs, &cylinders, &heads, &secs) < 0) {
+    if (guess_disk_lchs(blk, &cylinders, &heads, &secs) < 0) {
         /* no LCHS guess: use a standard physical disk geometry  */
-        guess_chs_for_size(bs, pcyls, pheads, psecs);
+        guess_chs_for_size(blk, pcyls, pheads, psecs);
         translation = hd_bios_chs_auto_trans(*pcyls, *pheads, *psecs);
     } else if (heads > 16) {
         /* LCHS guess with heads > 16 means that a BIOS LBA
            translation was active, so a standard physical disk
            geometry is OK */
-        guess_chs_for_size(bs, pcyls, pheads, psecs);
+        guess_chs_for_size(blk, pcyls, pheads, psecs);
         translation = *pcyls * *pheads <= 131072
             ? BIOS_ATA_TRANSLATION_LARGE
             : BIOS_ATA_TRANSLATION_LBA;
@@ -146,7 +146,7 @@ void hd_geometry_guess(BlockDriverState *bs,
     if (ptrans) {
         *ptrans = translation;
     }
-    trace_hd_geometry_guess(bs, *pcyls, *pheads, *psecs, translation);
+    trace_hd_geometry_guess(blk, *pcyls, *pheads, *psecs, translation);
 }
 
 int hd_bios_chs_auto_trans(uint32_t cyls, uint32_t heads, uint32_t secs)

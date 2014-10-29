@@ -36,7 +36,7 @@
 #include "qapi-event.h"
 
 void *block_job_create(const BlockJobDriver *driver, BlockDriverState *bs,
-                       int64_t speed, BlockDriverCompletionFunc *cb,
+                       int64_t speed, BlockCompletionFunc *cb,
                        void *opaque, Error **errp)
 {
     BlockJob *job;
@@ -107,7 +107,8 @@ void block_job_set_speed(BlockJob *job, int64_t speed, Error **errp)
 void block_job_complete(BlockJob *job, Error **errp)
 {
     if (job->paused || job->cancelled || !job->driver->complete) {
-        error_set(errp, QERR_BLOCK_JOB_NOT_READY, job->bs->device_name);
+        error_set(errp, QERR_BLOCK_JOB_NOT_READY,
+                  bdrv_get_device_name(job->bs));
         return;
     }
 
@@ -154,7 +155,7 @@ void block_job_iostatus_reset(BlockJob *job)
 
 struct BlockCancelData {
     BlockJob *job;
-    BlockDriverCompletionFunc *cb;
+    BlockCompletionFunc *cb;
     void *opaque;
     bool cancelled;
     int ret;

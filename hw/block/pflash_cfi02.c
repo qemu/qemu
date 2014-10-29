@@ -38,7 +38,7 @@
 #include "hw/hw.h"
 #include "hw/block/flash.h"
 #include "qemu/timer.h"
-#include "block/block.h"
+#include "sysemu/block-backend.h"
 #include "exec/address-spaces.h"
 #include "qemu/host-utils.h"
 #include "hw/sysbus.h"
@@ -63,7 +63,7 @@ struct pflash_t {
     SysBusDevice parent_obj;
     /*< public >*/
 
-    BlockDriverState *bs;
+    BlockBackend *blk;
     uint32_t sector_len;
     uint32_t nb_blocs;
     uint32_t chip_len;
@@ -249,13 +249,13 @@ static void pflash_update(pflash_t *pfl, int offset,
                           int size)
 {
     int offset_end;
-    if (pfl->bs) {
+    if (pfl->blk) {
         offset_end = offset + size;
         /* round to sectors */
         offset = offset >> 9;
         offset_end = (offset_end + 511) >> 9;
-        bdrv_write(pfl->bs, offset, pfl->storage + (offset << 9),
-                   offset_end - offset);
+        blk_write(pfl->blk, offset, pfl->storage + (offset << 9),
+                  offset_end - offset);
     }
 }
 
@@ -618,9 +618,9 @@ static void pflash_cfi02_realize(DeviceState *dev, Error **errp)
     vmstate_register_ram(&pfl->orig_mem, DEVICE(pfl));
     pfl->storage = memory_region_get_ram_ptr(&pfl->orig_mem);
     pfl->chip_len = chip_len;
-    if (pfl->bs) {
+    if (pfl->blk) {
         /* read the initial flash content */
-        ret = bdrv_read(pfl->bs, 0, pfl->storage, chip_len >> 9);
+        ret = blk_read(pfl->blk, 0, pfl->storage, chip_len >> 9);
         if (ret < 0) {
             vmstate_unregister_ram(&pfl->orig_mem, DEVICE(pfl));
             error_setg(errp, "failed to read the initial flash content");
@@ -632,8 +632,8 @@ static void pflash_cfi02_realize(DeviceState *dev, Error **errp)
     pfl->rom_mode = 1;
     sysbus_init_mmio(SYS_BUS_DEVICE(dev), &pfl->mem);
 
-    if (pfl->bs) {
-        pfl->ro = bdrv_is_read_only(pfl->bs);
+    if (pfl->blk) {
+        pfl->ro = blk_is_read_only(pfl->blk);
     } else {
         pfl->ro = 0;
     }
@@ -722,7 +722,7 @@ static void pflash_cfi02_realize(DeviceState *dev, Error **errp)
 }
 
 static Property pflash_cfi02_properties[] = {
-    DEFINE_PROP_DRIVE("drive", struct pflash_t, bs),
+    DEFINE_PROP_DRIVE("drive", struct pflash_t, blk),
     DEFINE_PROP_UINT32("num-blocks", struct pflash_t, nb_blocs, 0),
     DEFINE_PROP_UINT32("sector-length", struct pflash_t, sector_len, 0),
     DEFINE_PROP_UINT8("width", struct pflash_t, width, 0),
@@ -763,7 +763,7 @@ type_init(pflash_cfi02_register_types)
 pflash_t *pflash_cfi02_register(hwaddr base,
                                 DeviceState *qdev, const char *name,
                                 hwaddr size,
-                                BlockDriverState *bs, uint32_t sector_len,
+                                BlockBackend *blk, uint32_t sector_len,
                                 int nb_blocs, int nb_mappings, int width,
                                 uint16_t id0, uint16_t id1,
                                 uint16_t id2, uint16_t id3,
@@ -772,7 +772,7 @@ pflash_t *pflash_cfi02_register(hwaddr base,
 {
     DeviceState *dev = qdev_create(NULL, TYPE_CFI_PFLASH02);
 
-    if (bs && qdev_prop_set_drive(dev, "drive", bs)) {
+    if (blk && qdev_prop_set_drive(dev, "drive", blk)) {
         abort();
     }
     qdev_prop_set_uint32(dev, "num-blocks", nb_blocs);

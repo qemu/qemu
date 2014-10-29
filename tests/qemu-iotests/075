@@ -39,7 +39,7 @@ trap "_cleanup; exit \$status" 0 1 2 3 15
 . ./common.filter
 
 _supported_fmt cloop
-_supported_proto generic
+_supported_proto file
 _supported_os Linux
 
 block_size_offset=128

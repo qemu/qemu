@@ -301,7 +301,7 @@ enum AIOCBState {
 };
 
 struct SheepdogAIOCB {
-    BlockDriverAIOCB common;
+    BlockAIOCB common;
 
     QEMUIOVector *qiov;
 
@@ -473,7 +473,7 @@ static bool sd_acb_cancelable(const SheepdogAIOCB *acb)
     return true;
 }
 
-static void sd_aio_cancel(BlockDriverAIOCB *blockacb)
+static void sd_aio_cancel(BlockAIOCB *blockacb)
 {
     SheepdogAIOCB *acb = (SheepdogAIOCB *)blockacb;
     BDRVSheepdogState *s = acb->common.bs->opaque;

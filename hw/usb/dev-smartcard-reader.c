@@ -1312,8 +1312,8 @@ static void ccid_realize(USBDevice *dev, Error **errp)
     usb_desc_init(dev);
     qbus_create_inplace(&s->bus, sizeof(s->bus), TYPE_CCID_BUS, DEVICE(dev),
                         NULL);
+    qbus_set_hotplug_handler(BUS(&s->bus), DEVICE(dev), &error_abort);
     s->intr = usb_ep_get(dev, USB_TOKEN_IN, CCID_INT_IN_EP);
-    s->bus.qbus.allow_hotplug = 1;
     s->card = NULL;
     s->migration_state = MIGRATION_NONE;
     s->migration_target_ip = 0;
@@ -1439,6 +1439,7 @@ static void ccid_class_initfn(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     USBDeviceClass *uc = USB_DEVICE_CLASS(klass);
+    HotplugHandlerClass *hc = HOTPLUG_HANDLER_CLASS(klass);
 
     uc->realize        = ccid_realize;
     uc->product_desc   = "QEMU USB CCID";
@@ -1451,6 +1452,7 @@ static void ccid_class_initfn(ObjectClass *klass, void *data)
     dc->vmsd = &ccid_vmstate;
     dc->props = ccid_properties;
     set_bit(DEVICE_CATEGORY_INPUT, dc->categories);
+    hc->unplug = qdev_simple_device_unplug_cb;
 }
 
 static const TypeInfo ccid_info = {
@@ -1458,6 +1460,10 @@ static const TypeInfo ccid_info = {
     .parent        = TYPE_USB_DEVICE,
     .instance_size = sizeof(USBCCIDState),
     .class_init    = ccid_class_initfn,
+    .interfaces = (InterfaceInfo[]) {
+        { TYPE_HOTPLUG_HANDLER },
+        { }
+    }
 };
 
 static void ccid_card_class_init(ObjectClass *klass, void *data)

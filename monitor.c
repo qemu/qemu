@@ -25,7 +25,6 @@
 #include "hw/hw.h"
 #include "monitor/qdev.h"
 #include "hw/usb.h"
-#include "hw/pcmcia.h"
 #include "hw/i386/pc.h"
 #include "hw/pci/pci.h"
 #include "sysemu/watchdog.h"
@@ -206,7 +205,7 @@ struct Monitor {
     ReadLineState *rs;
     MonitorControl *mc;
     CPUState *mon_cpu;
-    BlockDriverCompletionFunc *password_completion_cb;
+    BlockCompletionFunc *password_completion_cb;
     void *password_opaque;
     mon_cmd_t *cmd_table;
     QError *error;
@@ -2792,13 +2791,6 @@ static mon_cmd_t info_cmds[] = {
         .mhandler.cmd = hmp_info_status,
     },
     {
-        .name       = "pcmcia",
-        .args_type  = "",
-        .params     = "",
-        .help       = "show guest PCMCIA status",
-        .mhandler.cmd = pcmcia_info,
-    },
-    {
         .name       = "mice",
         .args_type  = "",
         .params     = "",
@@ -4216,24 +4208,6 @@ static void file_completion(Monitor *mon, const char *input)
     closedir(ffs);
 }
 
-typedef struct MonitorBlockComplete {
-    Monitor *mon;
-    const char *input;
-} MonitorBlockComplete;
-
-static void block_completion_it(void *opaque, BlockDriverState *bs)
-{
-    const char *name = bdrv_get_device_name(bs);
-    MonitorBlockComplete *mbc = opaque;
-    Monitor *mon = mbc->mon;
-    const char *input = mbc->input;
-
-    if (input[0] == '\0' ||
-        !strncmp(name, (char *)input, strlen(input))) {
-        readline_add_completion(mon->rs, name);
-    }
-}
-
 static const char *next_arg_type(const char *typestr)
 {
     const char *p = strchr(typestr, ':');
@@ -4340,23 +4314,29 @@ void object_add_completion(ReadLineState *rs, int nb_args, const char *str)
     g_slist_free(list);
 }
 
-static void device_del_bus_completion(ReadLineState *rs,  BusState *bus,
-                                      const char *str, size_t len)
+static void peripheral_device_del_completion(ReadLineState *rs,
+                                             const char *str, size_t len)
 {
-    BusChild *kid;
+    Object *peripheral;
+    GSList *list = NULL, *item;
 
-    QTAILQ_FOREACH(kid, &bus->children, sibling) {
-        DeviceState *dev = kid->child;
-        BusState *dev_child;
+    peripheral = object_resolve_path("/machine/peripheral/", NULL);
+    if (peripheral == NULL) {
+        return;
+    }
+
+    object_child_foreach(peripheral, qdev_build_hotpluggable_device_list,
+                         &list);
+
+    for (item = list; item; item = g_slist_next(item)) {
+        DeviceState *dev = item->data;
 
         if (dev->id && !strncmp(str, dev->id, len)) {
             readline_add_completion(rs, dev->id);
         }
-
-        QLIST_FOREACH(dev_child, &dev->child_bus, sibling) {
-            device_del_bus_completion(rs, dev_child, str, len);
-        }
     }
+
+    g_slist_free(list);
 }
 
 void chardev_remove_completion(ReadLineState *rs, int nb_args, const char *str)
@@ -4431,7 +4411,7 @@ void device_del_completion(ReadLineState *rs, int nb_args, const char *str)
 
     len = strlen(str);
     readline_set_completion_index(rs, len);
-    device_del_bus_completion(rs, sysbus_get_default(), str, len);
+    peripheral_device_del_completion(rs, str, len);
 }
 
 void object_del_completion(ReadLineState *rs, int nb_args, const char *str)
@@ -4671,9 +4651,9 @@ static void monitor_find_completion_by_table(Monitor *mon,
 {
     const char *cmdname;
     int i;
-    const char *ptype, *str;
+    const char *ptype, *str, *name;
     const mon_cmd_t *cmd;
-    MonitorBlockComplete mbs;
+    BlockDriverState *bs;
 
     if (nb_args <= 1) {
         /* command completion */
@@ -4725,10 +4705,14 @@ static void monitor_find_completion_by_table(Monitor *mon,
             break;
         case 'B':
             /* block device name completion */
-            mbs.mon = mon;
-            mbs.input = str;
             readline_set_completion_index(mon->rs, strlen(str));
-            bdrv_iterate(block_completion_it, &mbs);
+            for (bs = bdrv_next(NULL); bs; bs = bdrv_next(bs)) {
+                name = bdrv_get_device_name(bs);
+                if (str[0] == '\0' ||
+                    !strncmp(name, str, strlen(str))) {
+                    readline_add_completion(mon->rs, name);
+                }
+            }
             break;
         case 's':
         case 'S':
@@ -5388,7 +5372,7 @@ ReadLineState *monitor_get_rs(Monitor *mon)
 }
 
 int monitor_read_bdrv_key_start(Monitor *mon, BlockDriverState *bs,
-                                BlockDriverCompletionFunc *completion_cb,
+                                BlockCompletionFunc *completion_cb,
                                 void *opaque)
 {
     int err;
@@ -5420,7 +5404,7 @@ int monitor_read_bdrv_key_start(Monitor *mon, BlockDriverState *bs,
 }
 
 int monitor_read_block_device_key(Monitor *mon, const char *device,
-                                  BlockDriverCompletionFunc *completion_cb,
+                                  BlockCompletionFunc *completion_cb,
                                   void *opaque)
 {
     BlockDriverState *bs;

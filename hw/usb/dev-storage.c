@@ -16,7 +16,9 @@
 #include "ui/console.h"
 #include "monitor/monitor.h"
 #include "sysemu/sysemu.h"
+#include "sysemu/block-backend.h"
 #include "sysemu/blockdev.h"
+#include "qapi/visitor.h"
 
 //#define DEBUG_MSD
 
@@ -59,6 +61,7 @@ typedef struct {
     /* usb-storage only */
     BlockConf conf;
     uint32_t removable;
+    SCSIDevice *scsi_dev;
 } MSDState;
 
 struct usb_msd_cbw {
@@ -598,11 +601,11 @@ static const struct SCSIBusInfo usb_msd_scsi_info_bot = {
 static void usb_msd_realize_storage(USBDevice *dev, Error **errp)
 {
     MSDState *s = DO_UPCAST(MSDState, dev, dev);
-    BlockDriverState *bs = s->conf.bs;
+    BlockBackend *blk = s->conf.blk;
     SCSIDevice *scsi_dev;
     Error *err = NULL;
 
-    if (!bs) {
+    if (!blk) {
         error_setg(errp, "drive property not set");
         return;
     }
@@ -618,26 +621,27 @@ static void usb_msd_realize_storage(USBDevice *dev, Error **errp)
      *
      * The hack is probably a bad idea.
      */
-    bdrv_detach_dev(bs, &s->dev.qdev);
-    s->conf.bs = NULL;
+    blk_detach_dev(blk, &s->dev.qdev);
+    s->conf.blk = NULL;
 
     usb_desc_create_serial(dev);
     usb_desc_init(dev);
     scsi_bus_new(&s->bus, sizeof(s->bus), DEVICE(dev),
                  &usb_msd_scsi_info_storage, NULL);
-    scsi_dev = scsi_bus_legacy_add_drive(&s->bus, bs, 0, !!s->removable,
+    scsi_dev = scsi_bus_legacy_add_drive(&s->bus, blk, 0, !!s->removable,
                                          s->conf.bootindex, dev->serial,
                                          &err);
     if (!scsi_dev) {
         error_propagate(errp, err);
         return;
     }
-    s->bus.qbus.allow_hotplug = 0;
     usb_msd_handle_reset(dev);
+    s->scsi_dev = scsi_dev;
 
-    if (bdrv_key_required(bs)) {
+    if (bdrv_key_required(blk_bs(blk))) {
         if (cur_mon) {
-            monitor_read_bdrv_key_start(cur_mon, bs, usb_msd_password_cb, s);
+            monitor_read_bdrv_key_start(cur_mon, blk_bs(blk),
+                                        usb_msd_password_cb, s);
             s->dev.auto_attach = 0;
         } else {
             autostart = 0;
@@ -653,7 +657,6 @@ static void usb_msd_realize_bot(USBDevice *dev, Error **errp)
     usb_desc_init(dev);
     scsi_bus_new(&s->bus, sizeof(s->bus), DEVICE(dev),
                  &usb_msd_scsi_info_bot, NULL);
-    s->bus.qbus.allow_hotplug = 0;
     usb_msd_handle_reset(dev);
 }
 
@@ -706,7 +709,8 @@ static USBDevice *usb_msd_init(USBBus *bus, const char *filename)
     if (!dev) {
         return NULL;
     }
-    if (qdev_prop_set_drive(&dev->qdev, "drive", dinfo->bdrv) < 0) {
+    if (qdev_prop_set_drive(&dev->qdev, "drive",
+                            blk_by_legacy_dinfo(dinfo)) < 0) {
         object_unparent(OBJECT(dev));
         return NULL;
     }
@@ -767,12 +771,62 @@ static void usb_msd_class_initfn_storage(ObjectClass *klass, void *data)
     usb_msd_class_initfn_common(klass);
 }
 
+static void usb_msd_get_bootindex(Object *obj, Visitor *v, void *opaque,
+                                  const char *name, Error **errp)
+{
+    USBDevice *dev = USB_DEVICE(obj);
+    MSDState *s = DO_UPCAST(MSDState, dev, dev);
+
+    visit_type_int32(v, &s->conf.bootindex, name, errp);
+}
+
+static void usb_msd_set_bootindex(Object *obj, Visitor *v, void *opaque,
+                                  const char *name, Error **errp)
+{
+    USBDevice *dev = USB_DEVICE(obj);
+    MSDState *s = DO_UPCAST(MSDState, dev, dev);
+    int32_t boot_index;
+    Error *local_err = NULL;
+
+    visit_type_int32(v, &boot_index, name, &local_err);
+    if (local_err) {
+        goto out;
+    }
+    /* check whether bootindex is present in fw_boot_order list  */
+    check_boot_index(boot_index, &local_err);
+    if (local_err) {
+        goto out;
+    }
+    /* change bootindex to a new one */
+    s->conf.bootindex = boot_index;
+
+    if (s->scsi_dev) {
+        object_property_set_int(OBJECT(s->scsi_dev), boot_index, "bootindex",
+                                &error_abort);
+    }
+
+out:
+    if (local_err) {
+        error_propagate(errp, local_err);
+    }
+}
+
+static void usb_msd_instance_init(Object *obj)
+{
+    object_property_add(obj, "bootindex", "int32",
+                        usb_msd_get_bootindex,
+                        usb_msd_set_bootindex, NULL, NULL, NULL);
+    object_property_set_int(obj, -1, "bootindex", NULL);
+}
+
 static void usb_msd_class_initfn_bot(ObjectClass *klass, void *data)
 {
     USBDeviceClass *uc = USB_DEVICE_CLASS(klass);
+    DeviceClass *dc = DEVICE_CLASS(klass);
 
     uc->realize = usb_msd_realize_bot;
     usb_msd_class_initfn_common(klass);
+    dc->hotpluggable = false;
 }
 
 static const TypeInfo msd_info = {
@@ -780,6 +834,7 @@ static const TypeInfo msd_info = {
     .parent        = TYPE_USB_DEVICE,
     .instance_size = sizeof(MSDState),
     .class_init    = usb_msd_class_initfn_storage,
+    .instance_init = usb_msd_instance_init,
 };
 
 static const TypeInfo bot_info = {

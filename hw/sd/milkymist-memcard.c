@@ -26,6 +26,7 @@
 #include "sysemu/sysemu.h"
 #include "trace.h"
 #include "qemu/error-report.h"
+#include "sysemu/block-backend.h"
 #include "sysemu/blockdev.h"
 #include "hw/sd.h"
 
@@ -252,14 +253,16 @@ static int milkymist_memcard_init(SysBusDevice *dev)
 {
     MilkymistMemcardState *s = MILKYMIST_MEMCARD(dev);
     DriveInfo *dinfo;
+    BlockBackend *blk;
 
     dinfo = drive_get_next(IF_SD);
-    s->card = sd_init(dinfo ? dinfo->bdrv : NULL, false);
+    blk = dinfo ? blk_by_legacy_dinfo(dinfo) : NULL;
+    s->card = sd_init(blk, false);
     if (s->card == NULL) {
         return -1;
     }
 
-    s->enabled = dinfo ? bdrv_is_inserted(dinfo->bdrv) : 0;
+    s->enabled = blk && blk_is_inserted(blk);
 
     memory_region_init_io(&s->regs_region, OBJECT(s), &memcard_mmio_ops, s,
             "milkymist-memcard", R_MAX * 4);

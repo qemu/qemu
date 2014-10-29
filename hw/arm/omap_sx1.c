@@ -31,7 +31,7 @@
 #include "hw/boards.h"
 #include "hw/arm/arm.h"
 #include "hw/block/flash.h"
-#include "sysemu/blockdev.h"
+#include "sysemu/block-backend.h"
 #include "sysemu/qtest.h"
 #include "exec/address-spaces.h"
 
@@ -154,8 +154,8 @@ static void sx1_init(MachineState *machine, const int version)
     if ((dinfo = drive_get(IF_PFLASH, 0, fl_idx)) != NULL) {
         if (!pflash_cfi01_register(OMAP_CS0_BASE, NULL,
                                    "omap_sx1.flash0-1", flash_size,
-                                   dinfo->bdrv, sector_size,
-                                   flash_size / sector_size,
+                                   blk_by_legacy_dinfo(dinfo),
+                                   sector_size, flash_size / sector_size,
                                    4, 0, 0, 0, 0, be)) {
             fprintf(stderr, "qemu: Error registering flash memory %d.\n",
                            fl_idx);
@@ -178,8 +178,8 @@ static void sx1_init(MachineState *machine, const int version)
 
         if (!pflash_cfi01_register(OMAP_CS1_BASE, NULL,
                                    "omap_sx1.flash1-1", flash1_size,
-                                   dinfo->bdrv, sector_size,
-                                   flash1_size / sector_size,
+                                   blk_by_legacy_dinfo(dinfo),
+                                   sector_size, flash1_size / sector_size,
                                    4, 0, 0, 0, 0, be)) {
             fprintf(stderr, "qemu: Error registering flash memory %d.\n",
                            fl_idx);

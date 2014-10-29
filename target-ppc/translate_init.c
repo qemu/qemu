@@ -8044,7 +8044,7 @@ static void powerpc_set_compat(Object *obj, Visitor *v,
 
 static PropertyInfo powerpc_compat_propinfo = {
     .name = "str",
-    .legacy_name = "powerpc-server-compat",
+    .description = "compatibility mode, power6/power7/power8",
     .get = powerpc_get_compat,
     .set = powerpc_set_compat,
 };

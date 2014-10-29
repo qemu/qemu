@@ -34,7 +34,7 @@ enum ThreadState {
 };
 
 struct ThreadPoolElement {
-    BlockDriverAIOCB common;
+    BlockAIOCB common;
     ThreadPool *pool;
     ThreadPoolFunc *func;
     void *arg;
@@ -195,7 +195,7 @@ restart:
     }
 }
 
-static void thread_pool_cancel(BlockDriverAIOCB *acb)
+static void thread_pool_cancel(BlockAIOCB *acb)
 {
     ThreadPoolElement *elem = (ThreadPoolElement *)acb;
     ThreadPool *pool = elem->pool;
@@ -220,7 +220,7 @@ static void thread_pool_cancel(BlockDriverAIOCB *acb)
     qemu_mutex_unlock(&pool->lock);
 }
 
-static AioContext *thread_pool_get_aio_context(BlockDriverAIOCB *acb)
+static AioContext *thread_pool_get_aio_context(BlockAIOCB *acb)
 {
     ThreadPoolElement *elem = (ThreadPoolElement *)acb;
     ThreadPool *pool = elem->pool;
@@ -233,9 +233,9 @@ static const AIOCBInfo thread_pool_aiocb_info = {
     .get_aio_context    = thread_pool_get_aio_context,
 };
 
-BlockDriverAIOCB *thread_pool_submit_aio(ThreadPool *pool,
+BlockAIOCB *thread_pool_submit_aio(ThreadPool *pool,
         ThreadPoolFunc *func, void *arg,
-        BlockDriverCompletionFunc *cb, void *opaque)
+        BlockCompletionFunc *cb, void *opaque)
 {
     ThreadPoolElement *req;
 

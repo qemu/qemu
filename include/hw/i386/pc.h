@@ -306,6 +306,22 @@ bool e820_get_entry(int, uint32_t, uint64_t *, uint64_t *);
             .driver   = "intel-hda",\
             .property = "old_msi_addr",\
             .value    = "on",\
+        },{\
+            .driver   = "VGA",\
+            .property = "qemu-extended-regs",\
+            .value    = "off",\
+        },{\
+            .driver   = "secondary-vga",\
+            .property = "qemu-extended-regs",\
+            .value    = "off",\
+        },{\
+            .driver   = "usb-mouse",\
+            .property = "usb_version",\
+            .value    = stringify(1),\
+        },{\
+            .driver   = "usb-kbd",\
+            .property = "usb_version",\
+            .value    = stringify(1),\
         }
 
 #define PC_COMPAT_2_0 \

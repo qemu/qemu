@@ -49,7 +49,7 @@ out:
 }
 
 static void qed_read_table(BDRVQEDState *s, uint64_t offset, QEDTable *table,
-                           BlockDriverCompletionFunc *cb, void *opaque)
+                           BlockCompletionFunc *cb, void *opaque)
 {
     QEDReadTableCB *read_table_cb = gencb_alloc(sizeof(*read_table_cb),
                                                 cb, opaque);
@@ -119,7 +119,7 @@ out:
  */
 static void qed_write_table(BDRVQEDState *s, uint64_t offset, QEDTable *table,
                             unsigned int index, unsigned int n, bool flush,
-                            BlockDriverCompletionFunc *cb, void *opaque)
+                            BlockCompletionFunc *cb, void *opaque)
 {
     QEDWriteTableCB *write_table_cb;
     unsigned int sector_mask = BDRV_SECTOR_SIZE / sizeof(uint64_t) - 1;
@@ -180,7 +180,7 @@ int qed_read_l1_table_sync(BDRVQEDState *s)
 }
 
 void qed_write_l1_table(BDRVQEDState *s, unsigned int index, unsigned int n,
-                        BlockDriverCompletionFunc *cb, void *opaque)
+                        BlockCompletionFunc *cb, void *opaque)
 {
     BLKDBG_EVENT(s->bs->file, BLKDBG_L1_UPDATE);
     qed_write_table(s, s->header.l1_table_offset,
@@ -235,7 +235,7 @@ static void qed_read_l2_table_cb(void *opaque, int ret)
 }
 
 void qed_read_l2_table(BDRVQEDState *s, QEDRequest *request, uint64_t offset,
-                       BlockDriverCompletionFunc *cb, void *opaque)
+                       BlockCompletionFunc *cb, void *opaque)
 {
     QEDReadL2TableCB *read_l2_table_cb;
 
@@ -275,7 +275,7 @@ int qed_read_l2_table_sync(BDRVQEDState *s, QEDRequest *request, uint64_t offset
 
 void qed_write_l2_table(BDRVQEDState *s, QEDRequest *request,
                         unsigned int index, unsigned int n, bool flush,
-                        BlockDriverCompletionFunc *cb, void *opaque)
+                        BlockCompletionFunc *cb, void *opaque)
 {
     BLKDBG_EVENT(s->bs->file, BLKDBG_L2_UPDATE);
     qed_write_table(s, request->l2_table->offset,

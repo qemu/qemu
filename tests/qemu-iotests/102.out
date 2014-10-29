@@ -1,0 +1,10 @@
+QA output created by 102
+
+=== Testing map command on truncated image ===
+
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=65536
+wrote 65536/65536 bytes at offset 0
+64 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+[                       0]      128/     128 sectors     allocated at offset 0 bytes (1)
+Offset          Length          Mapped to       File
+*** done
