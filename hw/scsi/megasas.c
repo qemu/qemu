@@ -115,7 +115,7 @@ typedef struct MegasasState {
     uint64_t producer_pa;
 
     MegasasCmd frames[MEGASAS_MAX_FRAMES];
-
+    DECLARE_BITMAP(frame_map, MEGASAS_MAX_FRAMES);
     SCSIBus bus;
 } MegasasState;
 
@@ -463,34 +463,20 @@ static MegasasCmd *megasas_lookup_frame(MegasasState *s,
     return cmd;
 }
 
-static MegasasCmd *megasas_next_frame(MegasasState *s,
-    hwaddr frame)
+static void megasas_unmap_frame(MegasasState *s, MegasasCmd *cmd)
 {
-    MegasasCmd *cmd = NULL;
-    int num = 0, index;
+    PCIDevice *p = PCI_DEVICE(s);
 
-    cmd = megasas_lookup_frame(s, frame);
-    if (cmd) {
-        trace_megasas_qf_found(cmd->index, cmd->pa);
-        return cmd;
-    }
-    index = s->reply_queue_head;
-    num = 0;
-    while (num < s->fw_cmds) {
-        if (!s->frames[index].pa) {
-            cmd = &s->frames[index];
-            break;
-        }
-        index = megasas_next_index(s, index, s->fw_cmds);
-        num++;
-    }
-    if (!cmd) {
-        trace_megasas_qf_failed(frame);
-    }
-    trace_megasas_qf_new(index, cmd);
-    return cmd;
+    pci_dma_unmap(p, cmd->frame, cmd->pa_size, 0, 0);
+    cmd->frame = NULL;
+    cmd->pa = 0;
+    clear_bit(cmd->index, s->frame_map);
 }
 
+/*
+ * This absolutely needs to be locked if
+ * qemu ever goes multithreaded.
+ */
 static MegasasCmd *megasas_enqueue_frame(MegasasState *s,
     hwaddr frame, uint64_t context, int count)
 {
@@ -498,31 +484,40 @@ static MegasasCmd *megasas_enqueue_frame(MegasasState *s,
     MegasasCmd *cmd = NULL;
     int frame_size = MFI_FRAME_SIZE * 16;
     hwaddr frame_size_p = frame_size;
+    unsigned long index;
 
-    cmd = megasas_next_frame(s, frame);
-    /* All frames busy */
-    if (!cmd) {
+    index = 0;
+    while (index < s->fw_cmds) {
+        index = find_next_zero_bit(s->frame_map, s->fw_cmds, index);
+        if (!s->frames[index].pa)
+            break;
+        /* Busy frame found */
+        trace_megasas_qf_mapped(index);
+    }
+    if (index >= s->fw_cmds) {
+        /* All frames busy */
+        trace_megasas_qf_busy(frame);
         return NULL;
     }
-    if (!cmd->pa) {
-        cmd->pa = frame;
-        /* Map all possible frames */
-        cmd->frame = pci_dma_map(pcid, frame, &frame_size_p, 0);
-        if (frame_size_p != frame_size) {
-            trace_megasas_qf_map_failed(cmd->index, (unsigned long)frame);
-            if (cmd->frame) {
-                pci_dma_unmap(pcid, cmd->frame, frame_size_p, 0, 0);
-                cmd->frame = NULL;
-                cmd->pa = 0;
-            }
-            s->event_count++;
-            return NULL;
+    cmd = &s->frames[index];
+    set_bit(index, s->frame_map);
+    trace_megasas_qf_new(index, frame);
+
+    cmd->pa = frame;
+    /* Map all possible frames */
+    cmd->frame = pci_dma_map(pcid, frame, &frame_size_p, 0);
+    if (frame_size_p != frame_size) {
+        trace_megasas_qf_map_failed(cmd->index, (unsigned long)frame);
+        if (cmd->frame) {
+            megasas_unmap_frame(s, cmd);
         }
-        cmd->pa_size = frame_size_p;
-        cmd->context = context;
-        if (!megasas_use_queue64(s)) {
-            cmd->context &= (uint64_t)0xFFFFFFFF;
-        }
+        s->event_count++;
+        return NULL;
+    }
+    cmd->pa_size = frame_size_p;
+    cmd->context = context;
+    if (!megasas_use_queue64(s)) {
+        cmd->context &= (uint64_t)0xFFFFFFFF;
     }
     cmd->count = count;
     s->busy++;
@@ -544,7 +539,6 @@ static void megasas_complete_frame(MegasasState *s, uint64_t context)
 
     /* Decrement busy count */
     s->busy--;
-
     if (s->reply_queue_pa) {
         /*
          * Put command on the reply queue.
@@ -590,18 +584,16 @@ static void megasas_complete_frame(MegasasState *s, uint64_t context)
 
 static void megasas_reset_frames(MegasasState *s)
 {
-    PCIDevice *pcid = PCI_DEVICE(s);
     int i;
     MegasasCmd *cmd;
 
     for (i = 0; i < s->fw_cmds; i++) {
         cmd = &s->frames[i];
         if (cmd->pa) {
-            pci_dma_unmap(pcid, cmd->frame, cmd->pa_size, 0, 0);
-            cmd->frame = NULL;
-            cmd->pa = 0;
+            megasas_unmap_frame(s, cmd);
         }
     }
+    bitmap_zero(s->frame_map, MEGASAS_MAX_FRAMES);
 }
 
 static void megasas_abort_command(MegasasCmd *cmd)
@@ -1894,6 +1886,7 @@ static void megasas_command_complete(SCSIRequest *req, uint32_t status,
         cmd->req = NULL;
     }
     cmd->frame->header.cmd_status = cmd_status;
+    megasas_unmap_frame(cmd->state, cmd);
     megasas_complete_frame(cmd->state, cmd->context);
 }
 
@@ -1997,6 +1990,7 @@ static void megasas_handle_frame(MegasasState *s, uint64_t frame_addr,
         } else {
             megasas_frame_set_cmd_status(frame_addr, frame_status);
         }
+        megasas_unmap_frame(s, cmd);
         megasas_complete_frame(s, cmd->context);
     }
 }
