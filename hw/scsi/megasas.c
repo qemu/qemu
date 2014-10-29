@@ -1990,6 +1990,7 @@ static uint64_t megasas_mmio_read(void *opaque, hwaddr addr,
     switch (addr) {
     case MFI_IDB:
         retval = 0;
+        trace_megasas_mmio_readl("MFI_IDB", retval);
         break;
     case MFI_OMSG0:
     case MFI_OSP0:
@@ -1997,29 +1998,35 @@ static uint64_t megasas_mmio_read(void *opaque, hwaddr addr,
             (s->fw_state & MFI_FWSTATE_MASK) |
             ((s->fw_sge & 0xff) << 16) |
             (s->fw_cmds & 0xFFFF);
+        trace_megasas_mmio_readl(addr == MFI_OMSG0 ? "MFI_OMSG0" : "MFI_OSP0",
+                                 retval);
         break;
     case MFI_OSTS:
         if (megasas_intr_enabled(s) && s->doorbell) {
             retval = base_class->osts;
         }
+        trace_megasas_mmio_readl("MFI_OSTS", retval);
         break;
     case MFI_OMSK:
         retval = s->intr_mask;
+        trace_megasas_mmio_readl("MFI_OMSK", retval);
         break;
     case MFI_ODCR0:
         retval = s->doorbell;
+        trace_megasas_mmio_readl("MFI_ODCR0", retval);
         break;
     case MFI_DIAG:
         retval = s->diag;
+        trace_megasas_mmio_readl("MFI_DIAG", retval);
         break;
     case MFI_OSP1:
         retval = 15;
+        trace_megasas_mmio_readl("MFI_OSP1", retval);
         break;
     default:
         trace_megasas_mmio_invalid_readl(addr);
         break;
     }
-    trace_megasas_mmio_readl(addr, retval);
     return retval;
 }
 
@@ -2034,9 +2041,9 @@ static void megasas_mmio_write(void *opaque, hwaddr addr,
     uint32_t frame_count;
     int i;
 
-    trace_megasas_mmio_writel(addr, val);
     switch (addr) {
     case MFI_IDB:
+        trace_megasas_mmio_writel("MFI_IDB", val);
         if (val & MFI_FWINIT_ABORT) {
             /* Abort all pending cmds */
             for (i = 0; i < s->fw_cmds; i++) {
@@ -2056,6 +2063,7 @@ static void megasas_mmio_write(void *opaque, hwaddr addr,
         }
         break;
     case MFI_OMSK:
+        trace_megasas_mmio_writel("MFI_OMSK", val);
         s->intr_mask = val;
         if (!megasas_intr_enabled(s) &&
             !msi_enabled(pci_dev) &&
@@ -2077,6 +2085,7 @@ static void megasas_mmio_write(void *opaque, hwaddr addr,
         }
         break;
     case MFI_ODCR0:
+        trace_megasas_mmio_writel("MFI_ODCR0", val);
         s->doorbell = 0;
         if (s->producer_pa && megasas_intr_enabled(s)) {
             /* Update reply queue pointer */
@@ -2090,14 +2099,20 @@ static void megasas_mmio_write(void *opaque, hwaddr addr,
         }
         break;
     case MFI_IQPH:
+        trace_megasas_mmio_writel("MFI_IQPH", val);
         /* Received high 32 bits of a 64 bit MFI frame address */
         s->frame_hi = val;
         break;
     case MFI_IQPL:
+        trace_megasas_mmio_writel("MFI_IQPL", val);
         /* Received low 32 bits of a 64 bit MFI frame address */
         /* Fallthrough */
     case MFI_IQP:
-        /* Received 64 bit MFI frame address */
+        if (addr == MFI_IQP) {
+            trace_megasas_mmio_writel("MFI_IQP", val);
+            /* Received 64 bit MFI frame address */
+            s->frame_hi = 0;
+        }
         frame_addr = (val & ~0x1F);
         /* Add possible 64 bit offset */
         frame_addr |= ((uint64_t)s->frame_hi << 32);
@@ -2106,6 +2121,7 @@ static void megasas_mmio_write(void *opaque, hwaddr addr,
         megasas_handle_frame(s, frame_addr, frame_count);
         break;
     case MFI_SEQ:
+        trace_megasas_mmio_writel("MFI_SEQ", val);
         /* Magic sequence to start ADP reset */
         if (adp_reset_seq[s->adp_reset] == val) {
             s->adp_reset++;
@@ -2118,6 +2134,7 @@ static void megasas_mmio_write(void *opaque, hwaddr addr,
         }
         break;
     case MFI_DIAG:
+        trace_megasas_mmio_writel("MFI_DIAG", val);
         /* ADP reset */
         if ((s->diag & MFI_DIAG_WRITE_ENABLE) &&
             (val & MFI_DIAG_RESET_ADP)) {
