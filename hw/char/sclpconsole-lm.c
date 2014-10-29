@@ -128,6 +128,7 @@ static int get_console_data(SCLPEvent *event, uint8_t *buf, size_t *size,
     cons->length = 0;
     /* data provided and no more data pending */
     event->event_pending = false;
+    qemu_notify_event();
     return 0;
 }
 
