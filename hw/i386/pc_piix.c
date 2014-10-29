@@ -63,6 +63,7 @@ static bool has_acpi_build = true;
 static int legacy_acpi_table_size;
 static bool smbios_defaults = true;
 static bool smbios_legacy_mode;
+static bool smbios_uuid_encoded = true;
 /* Make sure that guest addresses aligned at 1Gbyte boundaries get mapped to
  * host addresses aligned at 1Gbyte boundaries.  This way we can use 1GByte
  * pages in the host.
@@ -172,7 +173,7 @@ static void pc_init1(MachineState *machine,
         MachineClass *mc = MACHINE_GET_CLASS(machine);
         /* These values are guest ABI, do not change */
         smbios_set_defaults("QEMU", "Standard PC (i440FX + PIIX, 1996)",
-                            mc->name, smbios_legacy_mode);
+                            mc->name, smbios_legacy_mode, smbios_uuid_encoded);
     }
 
     /* allocate ram and load rom/bios */
@@ -304,6 +305,7 @@ static void pc_init_pci(MachineState *machine)
 
 static void pc_compat_2_1(MachineState *machine)
 {
+    smbios_uuid_encoded = false;
 }
 
 static void pc_compat_2_0(MachineState *machine)
