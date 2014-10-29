@@ -1552,13 +1552,6 @@ void helper_vlogefp(CPUPPCState *env, ppc_avr_t *r, ppc_avr_t *b)
     }
 }
 
-#if defined(HOST_WORDS_BIGENDIAN)
-#define LEFT 0
-#define RIGHT 1
-#else
-#define LEFT 1
-#define RIGHT 0
-#endif
 /* The specification says that the results are undefined if all of the
  * shift counts are not identical.  We check to make sure that they are
  * to conform to what real hardware appears to do.  */
@@ -1588,11 +1581,9 @@ void helper_vlogefp(CPUPPCState *env, ppc_avr_t *r, ppc_avr_t *b)
             }                                                           \
         }                                                               \
     }
-VSHIFT(l, LEFT)
-VSHIFT(r, RIGHT)
+VSHIFT(l, 1)
+VSHIFT(r, 0)
 #undef VSHIFT
-#undef LEFT
-#undef RIGHT
 
 #define VSL(suffix, element, mask)                                      \
     void helper_vsl##suffix(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b)   \
