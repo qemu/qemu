@@ -1112,6 +1112,7 @@ static int connect_namedsocket(const char *path)
     size = strlen(helper.sun_path) + sizeof(helper.sun_family);
     if (connect(sockfd, (struct sockaddr *)&helper, size) < 0) {
         fprintf(stderr, "socket error\n");
+        close(sockfd);
         return -1;
     }
 
