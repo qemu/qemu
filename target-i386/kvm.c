@@ -1152,6 +1152,7 @@ static void kvm_msr_entry_set(struct kvm_msr_entry *entry,
                               uint32_t index, uint64_t value)
 {
     entry->index = index;
+    entry->reserved = 0;
     entry->data = value;
 }
 
@@ -1170,7 +1171,9 @@ static int kvm_put_tscdeadline_msr(X86CPU *cpu)
 
     kvm_msr_entry_set(&msrs[0], MSR_IA32_TSCDEADLINE, env->tsc_deadline);
 
-    msr_data.info.nmsrs = 1;
+    msr_data.info = (struct kvm_msrs) {
+        .nmsrs = 1,
+    };
 
     return kvm_vcpu_ioctl(CPU(cpu), KVM_SET_MSRS, &msr_data);
 }
@@ -1190,7 +1193,11 @@ static int kvm_put_msr_feature_control(X86CPU *cpu)
 
     kvm_msr_entry_set(&msr_data.entry, MSR_IA32_FEATURE_CONTROL,
                       cpu->env.msr_ia32_feature_control);
-    msr_data.info.nmsrs = 1;
+
+    msr_data.info = (struct kvm_msrs) {
+        .nmsrs = 1,
+    };
+
     return kvm_vcpu_ioctl(CPU(cpu), KVM_SET_MSRS, &msr_data);
 }
 
@@ -1339,7 +1346,9 @@ static int kvm_put_msrs(X86CPU *cpu, int level)
         }
     }
 
-    msr_data.info.nmsrs = n;
+    msr_data.info = (struct kvm_msrs) {
+        .nmsrs = n,
+    };
 
     return kvm_vcpu_ioctl(CPU(cpu), KVM_SET_MSRS, &msr_data);
 
