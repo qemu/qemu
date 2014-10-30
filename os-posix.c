@@ -255,15 +255,6 @@ void os_setup_post(void)
     int fd = 0;
 
     if (daemonize) {
-        uint8_t status = 0;
-        ssize_t len;
-
-        do {        
-            len = write(daemon_pipe, &status, 1);
-        } while (len < 0 && errno == EINTR);
-        if (len != 1) {
-            exit(1);
-        }
         if (chdir("/")) {
             perror("not able to chdir to /");
             exit(1);
@@ -278,11 +269,21 @@ void os_setup_post(void)
     change_process_uid();
 
     if (daemonize) {
+        uint8_t status = 0;
+        ssize_t len;
+
         dup2(fd, 0);
         dup2(fd, 1);
         dup2(fd, 2);
 
         close(fd);
+
+        do {        
+            len = write(daemon_pipe, &status, 1);
+        } while (len < 0 && errno == EINTR);
+        if (len != 1) {
+            exit(1);
+        }
     }
 }
 
