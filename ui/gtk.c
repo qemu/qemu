@@ -1605,13 +1605,13 @@ static void gd_connect_signals(GtkDisplayState *s)
                      G_CALLBACK(gd_change_page), s);
 }
 
-static GtkWidget *gd_create_menu_machine(GtkDisplayState *s, GtkAccelGroup *accel_group)
+static GtkWidget *gd_create_menu_machine(GtkDisplayState *s)
 {
     GtkWidget *machine_menu;
     GtkWidget *separator;
 
     machine_menu = gtk_menu_new();
-    gtk_menu_set_accel_group(GTK_MENU(machine_menu), accel_group);
+    gtk_menu_set_accel_group(GTK_MENU(machine_menu), s->accel_group);
 
     s->pause_item = gtk_check_menu_item_new_with_mnemonic(_("_Pause"));
     gtk_menu_shell_append(GTK_MENU_SHELL(machine_menu), s->pause_item);
@@ -1692,7 +1692,7 @@ static GSList *gd_vc_gfx_init(GtkDisplayState *s, VirtualConsole *vc,
     return group;
 }
 
-static GtkWidget *gd_create_menu_view(GtkDisplayState *s, GtkAccelGroup *accel_group)
+static GtkWidget *gd_create_menu_view(GtkDisplayState *s)
 {
     GSList *group = NULL;
     GtkWidget *view_menu;
@@ -1701,7 +1701,7 @@ static GtkWidget *gd_create_menu_view(GtkDisplayState *s, GtkAccelGroup *accel_g
     int vc;
 
     view_menu = gtk_menu_new();
-    gtk_menu_set_accel_group(GTK_MENU(view_menu), accel_group);
+    gtk_menu_set_accel_group(GTK_MENU(view_menu), s->accel_group);
 
     s->full_screen_item = gtk_menu_item_new_with_mnemonic(_("_Fullscreen"));
     gtk_menu_item_set_accel_path(GTK_MENU_ITEM(s->full_screen_item),
@@ -1783,11 +1783,9 @@ static GtkWidget *gd_create_menu_view(GtkDisplayState *s, GtkAccelGroup *accel_g
 
 static void gd_create_menus(GtkDisplayState *s)
 {
-    GtkAccelGroup *accel_group;
-
-    accel_group = gtk_accel_group_new();
-    s->machine_menu = gd_create_menu_machine(s, accel_group);
-    s->view_menu = gd_create_menu_view(s, accel_group);
+    s->accel_group = gtk_accel_group_new();
+    s->machine_menu = gd_create_menu_machine(s);
+    s->view_menu = gd_create_menu_view(s);
 
     s->machine_menu_item = gtk_menu_item_new_with_mnemonic(_("_Machine"));
     gtk_menu_item_set_submenu(GTK_MENU_ITEM(s->machine_menu_item),
@@ -1798,9 +1796,8 @@ static void gd_create_menus(GtkDisplayState *s)
     gtk_menu_item_set_submenu(GTK_MENU_ITEM(s->view_menu_item), s->view_menu);
     gtk_menu_shell_append(GTK_MENU_SHELL(s->menu_bar), s->view_menu_item);
 
-    g_object_set_data(G_OBJECT(s->window), "accel_group", accel_group);
-    gtk_window_add_accel_group(GTK_WINDOW(s->window), accel_group);
-    s->accel_group = accel_group;
+    g_object_set_data(G_OBJECT(s->window), "accel_group", s->accel_group);
+    gtk_window_add_accel_group(GTK_WINDOW(s->window), s->accel_group);
 }
 
 static void gd_set_keycode_type(GtkDisplayState *s)
