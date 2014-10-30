@@ -63,7 +63,7 @@ typedef struct DisasContext {
     TCGv_i32 sar_m32;
 
     uint32_t ccount_delta;
-    unsigned used_window;
+    unsigned window;
 
     bool debug;
     bool icount;
@@ -311,24 +311,14 @@ static void gen_left_shift_sar(DisasContext *dc, TCGv_i32 sa)
     tcg_temp_free(tmp);
 }
 
-static void gen_advance_ccount_cond(DisasContext *dc)
+static void gen_advance_ccount(DisasContext *dc)
 {
     if (dc->ccount_delta > 0) {
         TCGv_i32 tmp = tcg_const_i32(dc->ccount_delta);
         gen_helper_advance_ccount(cpu_env, tmp);
         tcg_temp_free(tmp);
     }
-}
-
-static void gen_advance_ccount(DisasContext *dc)
-{
-    gen_advance_ccount_cond(dc);
     dc->ccount_delta = 0;
-}
-
-static void reset_used_window(DisasContext *dc)
-{
-    dc->used_window = 0;
 }
 
 static void gen_exception(DisasContext *dc, int excp)
@@ -597,13 +587,15 @@ static void gen_wsr_acchi(DisasContext *dc, uint32_t sr, TCGv_i32 s)
 static void gen_wsr_windowbase(DisasContext *dc, uint32_t sr, TCGv_i32 v)
 {
     gen_helper_wsr_windowbase(cpu_env, v);
-    reset_used_window(dc);
+    /* This can change tb->flags, so exit tb */
+    gen_jumpi_check_loop_end(dc, -1);
 }
 
 static void gen_wsr_windowstart(DisasContext *dc, uint32_t sr, TCGv_i32 v)
 {
     tcg_gen_andi_i32(cpu_SR[sr], v, (1 << dc->config->nareg / 4) - 1);
-    reset_used_window(dc);
+    /* This can change tb->flags, so exit tb */
+    gen_jumpi_check_loop_end(dc, -1);
 }
 
 static void gen_wsr_ptevaddr(DisasContext *dc, uint32_t sr, TCGv_i32 v)
@@ -712,7 +704,6 @@ static void gen_wsr_ps(DisasContext *dc, uint32_t sr, TCGv_i32 v)
         mask |= PS_RING;
     }
     tcg_gen_andi_i32(cpu_SR[sr], v, mask);
-    reset_used_window(dc);
     gen_helper_check_interrupts(cpu_env);
     /* This can change mmu index and tb->flags, so exit tb */
     gen_jumpi_check_loop_end(dc, -1);
@@ -835,32 +826,13 @@ static void gen_waiti(DisasContext *dc, uint32_t imm4)
 
 static void gen_window_check1(DisasContext *dc, unsigned r1)
 {
-    if (dc->tb->flags & XTENSA_TBFLAG_EXCM) {
-        return;
-    }
-    if (option_enabled(dc, XTENSA_OPTION_WINDOWED_REGISTER) &&
-            r1 / 4 > dc->used_window) {
-        int label = gen_new_label();
-        TCGv_i32 ws = tcg_temp_new_i32();
+    if (r1 / 4 > dc->window) {
+        TCGv_i32 pc = tcg_const_i32(dc->pc);
+        TCGv_i32 w = tcg_const_i32(r1 / 4);
 
-        dc->used_window = r1 / 4;
-        tcg_gen_deposit_i32(ws, cpu_SR[WINDOW_START], cpu_SR[WINDOW_START],
-                dc->config->nareg / 4, dc->config->nareg / 4);
-        tcg_gen_shr_i32(ws, ws, cpu_SR[WINDOW_BASE]);
-        tcg_gen_andi_i32(ws, ws, (2 << (r1 / 4)) - 2);
-        tcg_gen_brcondi_i32(TCG_COND_EQ, ws, 0, label);
-        {
-            TCGv_i32 pc = tcg_const_i32(dc->pc);
-            TCGv_i32 w = tcg_const_i32(r1 / 4);
-
-            gen_advance_ccount_cond(dc);
-            gen_helper_window_check(cpu_env, pc, w);
-
-            tcg_temp_free(w);
-            tcg_temp_free(pc);
-        }
-        gen_set_label(label);
-        tcg_temp_free(ws);
+        gen_advance_ccount(dc);
+        gen_helper_window_check(cpu_env, pc, w);
+        dc->is_jmp = DISAS_UPDATE;
     }
 }
 
@@ -1370,7 +1342,8 @@ static void disas_xtensa_insn(CPUXtensaState *env, DisasContext *dc)
                                 RRR_T | ((RRR_T & 8) ? 0xfffffff0 : 0));
                         gen_helper_rotw(cpu_env, tmp);
                         tcg_temp_free(tmp);
-                        reset_used_window(dc);
+                        /* This can change tb->flags, so exit tb */
+                        gen_jumpi_check_loop_end(dc, -1);
                     }
                     break;
 
@@ -2700,7 +2673,8 @@ static void disas_xtensa_insn(CPUXtensaState *env, DisasContext *dc)
                     tcg_temp_free(imm);
                     tcg_temp_free(s);
                     tcg_temp_free(pc);
-                    reset_used_window(dc);
+                    /* This can change tb->flags, so exit tb */
+                    gen_jumpi_check_loop_end(dc, -1);
                 }
                 break;
 
@@ -3029,10 +3003,11 @@ void gen_intermediate_code_internal(XtensaCPU *cpu,
     dc.icount = tb->flags & XTENSA_TBFLAG_ICOUNT;
     dc.cpenable = (tb->flags & XTENSA_TBFLAG_CPENABLE_MASK) >>
         XTENSA_TBFLAG_CPENABLE_SHIFT;
+    dc.window = ((tb->flags & XTENSA_TBFLAG_WINDOW_MASK) >>
+                 XTENSA_TBFLAG_WINDOW_SHIFT);
 
     init_litbase(&dc);
     init_sar_tracker(&dc);
-    reset_used_window(&dc);
     if (dc.icount) {
         dc.next_icount = tcg_temp_local_new_i32();
     }
