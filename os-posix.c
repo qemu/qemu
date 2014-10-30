@@ -221,18 +221,14 @@ void os_daemonize(void)
             do {
                 len = read(fds[0], &status, 1);
             } while (len < 0 && errno == EINTR);
-            if (len != 1) {
-                exit(1);
-            }
-            else if (status == 1) {
-                fprintf(stderr, "Could not acquire pidfile\n");
-                exit(1);
-            } else {
-                exit(0);
-            }
-            } else if (pid < 0) {
-                exit(1);
-            }
+
+            /* only exit successfully if our child actually wrote
+             * a one-byte zero to our pipe, upon successful init */
+            exit(len == 1 && status == 0 ? 0 : 1);
+
+        } else if (pid < 0) {
+            exit(1);
+        }
 
         close(fds[0]);
         daemon_pipe = fds[1];
@@ -288,17 +284,6 @@ void os_setup_post(void)
 
         close(fd);
     }
-}
-
-void os_pidfile_error(void)
-{
-    if (daemonize) {
-        uint8_t status = 1;
-        if (write(daemon_pipe, &status, 1) != 1) {
-            perror("daemonize. Writing to pipe\n");
-        }
-    } else
-        fprintf(stderr, "Could not acquire pid file: %s\n", strerror(errno));
 }
 
 void os_set_line_buffering(void)

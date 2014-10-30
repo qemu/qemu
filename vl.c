@@ -3999,7 +3999,7 @@ int main(int argc, char **argv, char **envp)
 #endif
 
     if (pid_file && qemu_create_pidfile(pid_file) != 0) {
-        os_pidfile_error();
+        fprintf(stderr, "Could not acquire pid file: %s\n", strerror(errno));
         exit(1);
     }
 
