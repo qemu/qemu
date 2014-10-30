@@ -41,11 +41,7 @@ static const TypeInfo system_bus_info = {
 
 void sysbus_connect_irq(SysBusDevice *dev, int n, qemu_irq irq)
 {
-    assert(n >= 0 && n < dev->num_irq);
-    dev->irqs[n] = NULL;
-    if (dev->irqp[n]) {
-        *dev->irqp[n] = irq;
-    }
+    qdev_connect_gpio_out_named(DEVICE(dev), SYSBUS_DEVICE_GPIO_IRQ, n, irq);
 }
 
 static void sysbus_mmio_map_common(SysBusDevice *dev, int n, hwaddr addr,
@@ -89,22 +85,13 @@ void sysbus_mmio_map_overlap(SysBusDevice *dev, int n, hwaddr addr,
 /* Request an IRQ source.  The actual IRQ object may be populated later.  */
 void sysbus_init_irq(SysBusDevice *dev, qemu_irq *p)
 {
-    int n;
-
-    assert(dev->num_irq < QDEV_MAX_IRQ);
-    n = dev->num_irq++;
-    dev->irqp[n] = p;
+    qdev_init_gpio_out_named(DEVICE(dev), p, SYSBUS_DEVICE_GPIO_IRQ, 1);
 }
 
 /* Pass IRQs from a target device.  */
 void sysbus_pass_irq(SysBusDevice *dev, SysBusDevice *target)
 {
-    int i;
-    assert(dev->num_irq == 0);
-    dev->num_irq = target->num_irq;
-    for (i = 0; i < dev->num_irq; i++) {
-        dev->irqp[i] = target->irqp[i];
-    }
+    qdev_pass_gpios(DEVICE(target), DEVICE(dev), SYSBUS_DEVICE_GPIO_IRQ);
 }
 
 void sysbus_init_mmio(SysBusDevice *dev, MemoryRegion *memory)
@@ -210,7 +197,6 @@ static void sysbus_dev_print(Monitor *mon, DeviceState *dev, int indent)
     hwaddr size;
     int i;
 
-    monitor_printf(mon, "%*sirq %d\n", indent, "", s->num_irq);
     for (i = 0; i < s->num_mmio; i++) {
         size = memory_region_size(s->mmio[i].memory);
         monitor_printf(mon, "%*smmio " TARGET_FMT_plx "/" TARGET_FMT_plx "\n",

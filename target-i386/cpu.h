@@ -395,6 +395,9 @@
 #define XSTATE_YMM                      (1ULL << 2)
 #define XSTATE_BNDREGS                  (1ULL << 3)
 #define XSTATE_BNDCSR                   (1ULL << 4)
+#define XSTATE_OPMASK                   (1ULL << 5)
+#define XSTATE_ZMM_Hi256                (1ULL << 6)
+#define XSTATE_Hi16_ZMM                 (1ULL << 7)
 
 
 /* CPUID feature words */
@@ -560,9 +563,13 @@ typedef uint32_t FeatureWordArray[FEATURE_WORDS];
 #define CPUID_7_0_EBX_INVPCID  (1U << 10)
 #define CPUID_7_0_EBX_RTM      (1U << 11)
 #define CPUID_7_0_EBX_MPX      (1U << 14)
+#define CPUID_7_0_EBX_AVX512F  (1U << 16) /* AVX-512 Foundation */
 #define CPUID_7_0_EBX_RDSEED   (1U << 18)
 #define CPUID_7_0_EBX_ADX      (1U << 19)
 #define CPUID_7_0_EBX_SMAP     (1U << 20)
+#define CPUID_7_0_EBX_AVX512PF (1U << 26) /* AVX-512 Prefetch */
+#define CPUID_7_0_EBX_AVX512ER (1U << 27) /* AVX-512 Exponential and Reciprocal */
+#define CPUID_7_0_EBX_AVX512CD (1U << 28) /* AVX-512 Conflict Detection */
 
 /* CPUID[0x80000007].EDX flags: */
 #define CPUID_APM_INVTSC       (1U << 8)
@@ -707,6 +714,24 @@ typedef union {
 } XMMReg;
 
 typedef union {
+    uint8_t _b[32];
+    uint16_t _w[16];
+    uint32_t _l[8];
+    uint64_t _q[4];
+    float32 _s[8];
+    float64 _d[4];
+} YMMReg;
+
+typedef union {
+    uint8_t _b[64];
+    uint16_t _w[32];
+    uint32_t _l[16];
+    uint64_t _q[8];
+    float32 _s[16];
+    float64 _d[8];
+} ZMMReg;
+
+typedef union {
     uint8_t _b[8];
     uint16_t _w[4];
     uint32_t _l[2];
@@ -725,6 +750,20 @@ typedef struct BNDCSReg {
 } BNDCSReg;
 
 #ifdef HOST_WORDS_BIGENDIAN
+#define ZMM_B(n) _b[63 - (n)]
+#define ZMM_W(n) _w[31 - (n)]
+#define ZMM_L(n) _l[15 - (n)]
+#define ZMM_S(n) _s[15 - (n)]
+#define ZMM_Q(n) _q[7 - (n)]
+#define ZMM_D(n) _d[7 - (n)]
+
+#define YMM_B(n) _b[31 - (n)]
+#define YMM_W(n) _w[15 - (n)]
+#define YMM_L(n) _l[7 - (n)]
+#define YMM_S(n) _s[7 - (n)]
+#define YMM_Q(n) _q[3 - (n)]
+#define YMM_D(n) _d[3 - (n)]
+
 #define XMM_B(n) _b[15 - (n)]
 #define XMM_W(n) _w[7 - (n)]
 #define XMM_L(n) _l[3 - (n)]
@@ -737,6 +776,20 @@ typedef struct BNDCSReg {
 #define MMX_L(n) _l[1 - (n)]
 #define MMX_S(n) _s[1 - (n)]
 #else
+#define ZMM_B(n) _b[n]
+#define ZMM_W(n) _w[n]
+#define ZMM_L(n) _l[n]
+#define ZMM_S(n) _s[n]
+#define ZMM_Q(n) _q[n]
+#define ZMM_D(n) _d[n]
+
+#define YMM_B(n) _b[n]
+#define YMM_W(n) _w[n]
+#define YMM_L(n) _l[n]
+#define YMM_S(n) _s[n]
+#define YMM_Q(n) _q[n]
+#define YMM_D(n) _d[n]
+
 #define XMM_B(n) _b[n]
 #define XMM_W(n) _w[n]
 #define XMM_L(n) _l[n]
@@ -774,6 +827,8 @@ typedef struct {
 #define MAX_GP_COUNTERS    (MSR_IA32_PERF_STATUS - MSR_P6_EVNTSEL0)
 
 #define NB_MMU_MODES 3
+
+#define NB_OPMASK_REGS 8
 
 typedef enum TPRAccess {
     TPR_ACCESS_READ,
@@ -838,6 +893,12 @@ typedef struct CPUX86State {
     MMXReg mmx_t0;
 
     XMMReg ymmh_regs[CPU_NB_REGS];
+
+    uint64_t opmask_regs[NB_OPMASK_REGS];
+    YMMReg zmmh_regs[CPU_NB_REGS];
+#ifdef TARGET_X86_64
+    ZMMReg hi16_zmm_regs[CPU_NB_REGS];
+#endif
 
     /* sysenter registers */
     uint32_t sysenter_cs;

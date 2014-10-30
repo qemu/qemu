@@ -651,18 +651,26 @@ sub get_maintainers {
 	$email->[0] = deduplicate_email($email->[0]);
     }
 
-    foreach my $file (@files) {
-	if ($email &&
-	    ($email_git || ($email_git_fallback &&
-			    !$exact_pattern_match_hash{$file}))) {
-	    vcs_file_signoffs($file);
-	}
-	if ($email && $email_git_blame) {
-	    vcs_file_blame($file);
-	}
-    }
-
     if ($email) {
+	if (! $interactive) {
+	    $email_git_fallback = 0 if @email_to > 0 || @list_to > 0 || $email_git || $email_git_blame;
+	    if ($email_git_fallback) {
+	        print STDERR "get_maintainer.pl: No maintainers found, printing recent contributors.\n";
+	        print STDERR "get_maintainer.pl: Do not blindly cc: them on patches!  Use common sense.\n";
+	        print STDERR "\n";
+            }
+        }
+
+	foreach my $file (@files) {
+	    if ($email_git || ($email_git_fallback &&
+			       !$exact_pattern_match_hash{$file})) {
+	        vcs_file_signoffs($file);
+	    }
+	    if ($email_git_blame) {
+	        vcs_file_blame($file);
+	    }
+	}
+
 	foreach my $chief (@penguin_chief) {
 	    if ($chief =~ m/^(.*):(.*)/) {
 		my $email_address;

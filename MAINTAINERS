@@ -62,11 +62,23 @@ L: secalert@redhat.com
 
 Guest CPU cores (TCG):
 ----------------------
+Overall
+L: qemu-devel@nongnu.org
+S: Odd fixes
+F: cpu-exec.c
+F: cputlb.c
+F: softmmu_template.h
+F: translate-all.c
+F: include/exec/cpu_ldst.h
+F: include/exec/cpu_ldst_template.h
+F: include/exec/helper*.h
+
 Alpha
 M: Richard Henderson <rth@twiddle.net>
 S: Maintained
 F: target-alpha/
 F: hw/alpha/
+F: tests/tcg/alpha/
 
 ARM
 M: Peter Maydell <peter.maydell@linaro.org>
@@ -80,6 +92,7 @@ M: Edgar E. Iglesias <edgar.iglesias@gmail.com>
 S: Maintained
 F: target-cris/
 F: hw/cris/
+F: tests/tcg/cris/
 
 LM32
 M: Michael Walle <michael@walle.cc>
@@ -87,6 +100,7 @@ S: Maintained
 F: target-lm32/
 F: hw/lm32/
 F: hw/char/lm32_*
+F: tests/tcg/lm32/
 
 M68K
 S: Orphan
@@ -105,6 +119,7 @@ M: Leon Alrae <leon.alrae@imgtec.com>
 S: Maintained
 F: target-mips/
 F: hw/mips/
+F: tests/tcg/mips/
 
 Moxie
 M: Anthony Green <green@moxielogic.com>
@@ -116,6 +131,7 @@ M: Jia Liu <proljc@gmail.com>
 S: Maintained
 F: target-openrisc/
 F: hw/openrisc/
+F: tests/tcg/openrisc/
 
 PowerPC
 M: Alexander Graf <agraf@suse.de>
@@ -151,7 +167,8 @@ F: target-unicore32/
 F: hw/unicore32/
 
 X86
-M: qemu-devel@nongnu.org
+M: Paolo Bonzini <pbonzini@redhat.com>
+M: Richard Henderson <rth@twiddle.net>
 S: Odd Fixes
 F: target-i386/
 F: hw/i386/
@@ -162,6 +179,7 @@ W: http://wiki.osll.spb.ru/doku.php?id=etc:users:jcmvbkbc:qemu-target-xtensa
 S: Maintained
 F: target-xtensa/
 F: hw/xtensa/
+F: tests/tcg/xtensa/
 
 TriCore
 M: Bastian Koppelmann <kbastian@mail.uni-paderborn.de>
@@ -205,6 +223,7 @@ F: hw/intc/s390_flic_kvm.c
 F: include/hw/s390x/s390_flic.h
 
 X86
+M: Paolo Bonzini <pbonzini@redhat.com>
 M: Marcelo Tosatti <mtosatti@redhat.com>
 L: kvm@vger.kernel.org
 S: Supported
@@ -270,7 +289,7 @@ F: include/hw/arm/digic.h
 F: hw/*/digic*
 
 Gumstix
-M: qemu-devel@nongnu.org
+L: qemu-devel@nongnu.org
 S: Orphan
 F: hw/arm/gumstix.c
 
@@ -286,7 +305,7 @@ S: Maintained
 F: hw/arm/integratorcp.c
 
 Mainstone
-M: qemu-devel@nongnu.org
+L: qemu-devel@nongnu.org
 S: Orphan
 F: hw/arm/mainstone.c
 
@@ -392,7 +411,7 @@ S: Maintained
 F: hw/mips/mips_malta.c
 
 Mipssim
-M: qemu-devel@nongnu.org
+L: qemu-devel@nongnu.org
 S: Orphan
 F: hw/mips/mips_mipssim.c
 
@@ -628,6 +647,12 @@ S: Maintained
 F: hw/usb/*
 F: tests/usb-*-test.c
 
+USB (serial adapter)
+M: Gerd Hoffmann <kraxel@redhat.com>
+M: Samuel Thibault <samuel.thibault@ens-lyon.org>
+S: Maintained
+F: hw/usb/dev-serial.c
+
 VFIO
 M: Alex Williamson <alex.williamson@redhat.com>
 S: Supported
@@ -726,8 +751,16 @@ T: git git://github.com/stefanha/qemu.git block
 
 Character Devices
 M: Anthony Liguori <aliguori@amazon.com>
+M: Paolo Bonzini <pbonzini@redhat.com>
 S: Maintained
 F: qemu-char.c
+F: backends/msmouse.c
+F: backends/testdev.c
+
+Character Devices (Braille)
+M: Samuel Thibault <samuel.thibault@ens-lyon.org>
+S: Maintained
+F: backends/baum.c
 
 CPU
 M: Andreas Färber <afaerber@suse.de>
@@ -749,7 +782,7 @@ S: Maintained
 F: device_tree.[ch]
 
 GDB stub
-M: qemu-devel@nongnu.org
+L: qemu-devel@nongnu.org
 S: Odd Fixes
 F: gdbstub*
 F: gdb-xml/
@@ -786,7 +819,11 @@ F: ui/cocoa.m
 
 Main loop
 M: Anthony Liguori <aliguori@amazon.com>
-S: Supported
+M: Paolo Bonzini <pbonzini@redhat.com>
+S: Maintained
+F: cpus.c
+F: main-loop.c
+F: qemu-timer.c
 F: vl.c
 
 Human Monitor (HMP)
@@ -825,6 +862,7 @@ M: Luiz Capitulino <lcapitulino@redhat.com>
 M: Michael Roth <mdroth@linux.vnet.ibm.com>
 S: Maintained
 F: qapi/
+F: tests/qapi-schema/
 T: git git://repo.or.cz/qemu/qmp-unstable.git queue/qmp
 
 QAPI Schema
@@ -889,6 +927,12 @@ F: include/sysemu/seccomp.h
 
 Usermode Emulation
 ------------------
+Overall
+M: Riku Voipio <riku.voipio@iki.fi>
+S: Maintained
+F: thunk.c
+F: user-exec.c
+
 BSD user
 M: Blue Swirl <blauwirbel@gmail.com>
 S: Maintained
@@ -902,7 +946,6 @@ F: linux-user/
 Tiny Code Generator (TCG)
 -------------------------
 Common code
-M: qemu-devel@nongnu.org
 M: Richard Henderson <rth@twiddle.net>
 S: Maintained
 F: tcg/
@@ -919,7 +962,7 @@ S: Maintained
 F: tcg/arm/
 
 i386 target
-M: qemu-devel@nongnu.org
+L: qemu-devel@nongnu.org
 S: Maintained
 F: tcg/i386/
 

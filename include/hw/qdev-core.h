@@ -136,7 +136,6 @@ struct NamedGPIOList {
     char *name;
     qemu_irq *in;
     int num_in;
-    qemu_irq *out;
     int num_out;
     QLIST_ENTRY(NamedGPIOList) node;
 };
@@ -273,6 +272,8 @@ qemu_irq qdev_get_gpio_in_named(DeviceState *dev, const char *name, int n);
 void qdev_connect_gpio_out(DeviceState *dev, int n, qemu_irq pin);
 void qdev_connect_gpio_out_named(DeviceState *dev, const char *name, int n,
                                  qemu_irq pin);
+qemu_irq qdev_intercept_gpio_out(DeviceState *dev, qemu_irq icpt,
+                                 const char *name, int n);
 
 BusState *qdev_get_child_bus(DeviceState *dev, const char *name);
 
@@ -286,6 +287,9 @@ void qdev_init_gpio_in_named(DeviceState *dev, qemu_irq_handler handler,
                              const char *name, int n);
 void qdev_init_gpio_out_named(DeviceState *dev, qemu_irq *pins,
                               const char *name, int n);
+
+void qdev_pass_gpios(DeviceState *dev, DeviceState *container,
+                     const char *name);
 
 BusState *qdev_get_parent_bus(DeviceState *dev);
 
