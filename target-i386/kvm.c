@@ -1085,7 +1085,7 @@ static int kvm_put_xsave(X86CPU *cpu)
 static int kvm_put_xcrs(X86CPU *cpu)
 {
     CPUX86State *env = &cpu->env;
-    struct kvm_xcrs xcrs;
+    struct kvm_xcrs xcrs = {};
 
     if (!kvm_has_xcrs()) {
         return 0;
