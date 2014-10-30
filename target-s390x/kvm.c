@@ -208,7 +208,7 @@ int kvm_arch_put_registers(CPUState *cs, int level)
     CPUS390XState *env = &cpu->env;
     struct kvm_sregs sregs;
     struct kvm_regs regs;
-    struct kvm_fpu fpu;
+    struct kvm_fpu fpu = {};
     int r;
     int i;
 
