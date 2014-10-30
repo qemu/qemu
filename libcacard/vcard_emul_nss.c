@@ -401,7 +401,7 @@ vcard_emul_login(VCard *card, unsigned char *pin, int pin_len)
 }
 
 void
-vcard_emul_reset(VCard *card, VCardPower power)
+vcard_emul_logout(VCard *card)
 {
     PK11SlotInfo *slot;
 
@@ -409,15 +409,23 @@ vcard_emul_reset(VCard *card, VCardPower power)
         return;
     }
 
+    slot = vcard_emul_card_get_slot(card);
+    if (PK11_IsLoggedIn(slot, NULL)) {
+        PK11_Logout(slot); /* NOTE: ignoring SECStatus return value */
+    }
+}
+
+void
+vcard_emul_reset(VCard *card, VCardPower power)
+{
     /*
      * if we reset the card (either power on or power off), we lose our login
      * state
      */
-    /* TODO: we may also need to send insertion/removal events? */
-    slot = vcard_emul_card_get_slot(card);
-    PK11_Logout(slot); /* NOTE: ignoring SECStatus return value */
-}
+    vcard_emul_logout(card);
 
+    /* TODO: we may also need to send insertion/removal events? */
+}
 
 static VReader *
 vcard_emul_find_vreader_from_slot(PK11SlotInfo *slot)
