@@ -218,11 +218,9 @@ void os_daemonize(void)
 
             close(fds[1]);
 
-        again:
-            len = read(fds[0], &status, 1);
-            if (len == -1 && (errno == EINTR)) {
-                goto again;
-            }
+            do {
+                len = read(fds[0], &status, 1);
+            } while (len < 0 && errno == EINTR);
             if (len != 1) {
                 exit(1);
             }
@@ -264,11 +262,9 @@ void os_setup_post(void)
         uint8_t status = 0;
         ssize_t len;
 
-    again1:
-        len = write(daemon_pipe, &status, 1);
-        if (len == -1 && (errno == EINTR)) {
-            goto again1;
-        }
+        do {        
+            len = write(daemon_pipe, &status, 1);
+        } while (len < 0 && errno == EINTR);
         if (len != 1) {
             exit(1);
         }
