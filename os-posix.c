@@ -47,7 +47,7 @@
 static struct passwd *user_pwd;
 static const char *chroot_dir;
 static int daemonize;
-static int fds[2];
+static int daemon_pipe;
 
 void os_setup_early_signal_handling(void)
 {
@@ -205,6 +205,7 @@ void os_daemonize(void)
 {
     if (daemonize) {
         pid_t pid;
+        int fds[2];
 
         if (pipe(fds) == -1) {
             exit(1);
@@ -236,7 +237,8 @@ void os_daemonize(void)
             }
 
         close(fds[0]);
-        qemu_set_cloexec(fds[1]);
+        daemon_pipe = fds[1];
+        qemu_set_cloexec(daemon_pipe);
 
         setsid();
 
@@ -263,7 +265,7 @@ void os_setup_post(void)
         ssize_t len;
 
     again1:
-        len = write(fds[1], &status, 1);
+        len = write(daemon_pipe, &status, 1);
         if (len == -1 && (errno == EINTR)) {
             goto again1;
         }
@@ -296,7 +298,7 @@ void os_pidfile_error(void)
 {
     if (daemonize) {
         uint8_t status = 1;
-        if (write(fds[1], &status, 1) != 1) {
+        if (write(daemon_pipe, &status, 1) != 1) {
             perror("daemonize. Writing to pipe\n");
         }
     } else
