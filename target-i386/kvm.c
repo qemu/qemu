@@ -1884,7 +1884,7 @@ static int kvm_put_apic(X86CPU *cpu)
 static int kvm_put_vcpu_events(X86CPU *cpu, int level)
 {
     CPUX86State *env = &cpu->env;
-    struct kvm_vcpu_events events;
+    struct kvm_vcpu_events events = {};
 
     if (!kvm_has_vcpu_events()) {
         return 0;
