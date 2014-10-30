@@ -1123,6 +1123,12 @@ static void gd_menu_full_screen(GtkMenuItem *item, void *opaque)
     gd_update_cursor(vc);
 }
 
+static void gd_accel_full_screen(void *opaque)
+{
+    GtkDisplayState *s = opaque;
+    gtk_menu_item_activate(GTK_MENU_ITEM(s->full_screen_item));
+}
+
 static void gd_menu_zoom_in(GtkMenuItem *item, void *opaque)
 {
     GtkDisplayState *s = opaque;
@@ -1704,10 +1710,14 @@ static GtkWidget *gd_create_menu_view(GtkDisplayState *s)
     gtk_menu_set_accel_group(GTK_MENU(view_menu), s->accel_group);
 
     s->full_screen_item = gtk_menu_item_new_with_mnemonic(_("_Fullscreen"));
-    gtk_menu_item_set_accel_path(GTK_MENU_ITEM(s->full_screen_item),
-                                 "<QEMU>/View/Full Screen");
-    gtk_accel_map_add_entry("<QEMU>/View/Full Screen", GDK_KEY_f,
-                            HOTKEY_MODIFIERS);
+
+    gtk_accel_group_connect(s->accel_group, GDK_KEY_f, HOTKEY_MODIFIERS, 0,
+            g_cclosure_new_swap(G_CALLBACK(gd_accel_full_screen), s, NULL));
+#if GTK_CHECK_VERSION(3, 8, 0)
+    gtk_accel_label_set_accel(
+            GTK_ACCEL_LABEL(gtk_bin_get_child(GTK_BIN(s->full_screen_item))),
+            GDK_KEY_f, HOTKEY_MODIFIERS);
+#endif
     gtk_menu_shell_append(GTK_MENU_SHELL(view_menu), s->full_screen_item);
 
     separator = gtk_separator_menu_item_new();
