@@ -1655,7 +1655,10 @@ static int kvm_get_msrs(X86CPU *cpu)
         }
     }
 
-    msr_data.info.nmsrs = n;
+    msr_data.info = (struct kvm_msrs) {
+        .nmsrs = n,
+    };
+
     ret = kvm_vcpu_ioctl(CPU(cpu), KVM_GET_MSRS, &msr_data);
     if (ret < 0) {
         return ret;
