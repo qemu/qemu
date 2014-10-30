@@ -1155,9 +1155,11 @@ static int proxy_init(FsContext *ctx)
         sock_id = atoi(ctx->fs_root);
         if (sock_id < 0) {
             fprintf(stderr, "socket descriptor not initialized\n");
-            g_free(proxy);
-            return -1;
         }
+    }
+    if (sock_id < 0) {
+        g_free(proxy);
+        return -1;
     }
     g_free(ctx->fs_root);
     ctx->fs_root = NULL;
