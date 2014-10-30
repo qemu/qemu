@@ -1020,6 +1020,12 @@ static void gd_menu_switch_vc(GtkMenuItem *item, void *opaque)
     }
 }
 
+static void gd_accel_switch_vc(void *opaque)
+{
+    VirtualConsole *vc = opaque;
+    gtk_check_menu_item_set_active(GTK_CHECK_MENU_ITEM(vc->menu_item), TRUE);
+}
+
 static void gd_menu_show_tabs(GtkMenuItem *item, void *opaque)
 {
     GtkDisplayState *s = opaque;
@@ -1407,19 +1413,21 @@ static gboolean gd_focus_out_event(GtkWidget *widget,
 static GSList *gd_vc_menu_init(GtkDisplayState *s, VirtualConsole *vc,
                                int idx, GSList *group, GtkWidget *view_menu)
 {
-    char path[32];
-
-    snprintf(path, sizeof(path), "<QEMU>/View/VC%d", idx);
-
     vc->menu_item = gtk_radio_menu_item_new_with_mnemonic(group, vc->label);
-    group = gtk_radio_menu_item_get_group(GTK_RADIO_MENU_ITEM(vc->menu_item));
-    gtk_menu_item_set_accel_path(GTK_MENU_ITEM(vc->menu_item), path);
-    gtk_accel_map_add_entry(path, GDK_KEY_1 + idx, HOTKEY_MODIFIERS);
+    gtk_accel_group_connect(s->accel_group, GDK_KEY_1 + idx,
+            HOTKEY_MODIFIERS, 0,
+            g_cclosure_new_swap(G_CALLBACK(gd_accel_switch_vc), vc, NULL));
+#if GTK_CHECK_VERSION(3, 8, 0)
+    gtk_accel_label_set_accel(
+            GTK_ACCEL_LABEL(gtk_bin_get_child(GTK_BIN(vc->menu_item))),
+            GDK_KEY_1 + idx, HOTKEY_MODIFIERS);
+#endif
 
     g_signal_connect(vc->menu_item, "activate",
                      G_CALLBACK(gd_menu_switch_vc), s);
     gtk_menu_shell_append(GTK_MENU_SHELL(view_menu), vc->menu_item);
 
+    group = gtk_radio_menu_item_get_group(GTK_RADIO_MENU_ITEM(vc->menu_item));
     return group;
 }
 
