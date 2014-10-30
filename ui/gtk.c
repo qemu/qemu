@@ -1104,7 +1104,7 @@ static void gd_menu_full_screen(GtkMenuItem *item, void *opaque)
 
     if (!s->full_screen) {
         gtk_notebook_set_show_tabs(GTK_NOTEBOOK(s->notebook), FALSE);
-        gtk_widget_set_size_request(s->menu_bar, 0, 0);
+        gtk_widget_hide(s->menu_bar);
         if (vc->type == GD_VC_GFX) {
             gtk_widget_set_size_request(vc->gfx.drawing_area, -1, -1);
             gtk_check_menu_item_set_active(GTK_CHECK_MENU_ITEM(s->grab_item),
@@ -1115,7 +1115,7 @@ static void gd_menu_full_screen(GtkMenuItem *item, void *opaque)
     } else {
         gtk_window_unfullscreen(GTK_WINDOW(s->window));
         gd_menu_show_tabs(GTK_MENU_ITEM(s->show_tabs_item), s);
-        gtk_widget_set_size_request(s->menu_bar, -1, -1);
+        gtk_widget_show(s->menu_bar);
         s->full_screen = FALSE;
         if (vc->type == GD_VC_GFX) {
             vc->gfx.scale_x = 1.0;
