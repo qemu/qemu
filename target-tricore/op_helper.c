@@ -536,6 +536,17 @@ void helper_stucx(CPUTriCoreState *env, uint32_t ea)
     save_context_upper(env, ea);
 }
 
+void helper_psw_write(CPUTriCoreState *env, uint32_t arg)
+{
+    psw_write(env, arg);
+}
+
+uint32_t helper_psw_read(CPUTriCoreState *env)
+{
+    return psw_read(env);
+}
+
+
 static inline void QEMU_NORETURN do_raise_exception_err(CPUTriCoreState *env,
                                                         uint32_t exception,
                                                         int error_code,

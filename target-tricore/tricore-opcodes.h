@@ -192,6 +192,7 @@
 
 #define MASK_OP_RLC_D(op)       MASK_OP_META_D(op)
 #define MASK_OP_RLC_CONST16(op) MASK_BITS_SHIFT(op, 12, 27)
+#define MASK_OP_RLC_CONST16_SEXT(op) MASK_BITS_SHIFT_SEXT(op, 12, 27)
 #define MASK_OP_RLC_S1(op)      MASK_OP_META_S1(op)
 
 /* RR  Format */

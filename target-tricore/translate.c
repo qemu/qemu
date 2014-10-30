@@ -233,6 +233,63 @@ static void gen_swap(DisasContext *ctx, int reg, TCGv ea)
     tcg_temp_free(temp);
 }
 
+/* We generate loads and store to core special function register (csfr) through
+   the function gen_mfcr and gen_mtcr. To handle access permissions, we use 3
+   makros R, A and E, which allow read-only, all and endinit protected access.
+   These makros also specify in which ISA version the csfr was introduced. */
+#define R(ADDRESS, REG, FEATURE)                                         \
+    case ADDRESS:                                                        \
+        if (tricore_feature(env, FEATURE)) {                             \
+            tcg_gen_ld_tl(ret, cpu_env, offsetof(CPUTriCoreState, REG)); \
+        }                                                                \
+        break;
+#define A(ADDRESS, REG, FEATURE) R(ADDRESS, REG, FEATURE)
+#define E(ADDRESS, REG, FEATURE) R(ADDRESS, REG, FEATURE)
+static inline void gen_mfcr(CPUTriCoreState *env, TCGv ret, int32_t offset)
+{
+    /* since we're caching PSW make this a special case */
+    if (offset == 0xfe04) {
+        gen_helper_psw_read(ret, cpu_env);
+    } else {
+        switch (offset) {
+#include "csfr.def"
+        }
+    }
+}
+#undef R
+#undef A
+#undef E
+
+#define R(ADDRESS, REG, FEATURE) /* don't gen writes to read-only reg,
+                                    since no execption occurs */
+#define A(ADDRESS, REG, FEATURE) R(ADDRESS, REG, FEATURE)                \
+    case ADDRESS:                                                        \
+        if (tricore_feature(env, FEATURE)) {                             \
+            tcg_gen_st_tl(r1, cpu_env, offsetof(CPUTriCoreState, REG));  \
+        }                                                                \
+        break;
+/* Endinit protected registers
+   TODO: Since the endinit bit is in a register of a not yet implemented
+         watchdog device, we handle endinit protected registers like
+         all-access registers for now. */
+#define E(ADDRESS, REG, FEATURE) A(ADDRESS, REG, FEATURE)
+static inline void gen_mtcr(CPUTriCoreState *env, DisasContext *ctx, TCGv r1,
+                            int32_t offset)
+{
+    if (ctx->hflags & TRICORE_HFLAG_SM) {
+        /* since we're caching PSW make this a special case */
+        if (offset == 0xfe04) {
+            gen_helper_psw_write(cpu_env, r1);
+        } else {
+            switch (offset) {
+#include "csfr.def"
+            }
+        }
+    } else {
+        /* generate privilege trap */
+    }
+}
+
 /* Functions for arithmetic instructions  */
 
 static inline void gen_add_d(TCGv ret, TCGv r1, TCGv r2)
@@ -3227,6 +3284,50 @@ static void decode_rcrw_insert(CPUTriCoreState *env, DisasContext *ctx)
     tcg_temp_free(temp2);
 }
 
+/* RLC format */
+
+static void decode_rlc_opc(CPUTriCoreState *env, DisasContext *ctx,
+                           uint32_t op1)
+{
+    int32_t const16;
+    int r1, r2;
+
+    const16 = MASK_OP_RLC_CONST16_SEXT(ctx->opcode);
+    r1      = MASK_OP_RLC_S1(ctx->opcode);
+    r2      = MASK_OP_RLC_D(ctx->opcode);
+
+    switch (op1) {
+    case OPC1_32_RLC_ADDI:
+        gen_addi_CC(cpu_gpr_d[r2], cpu_gpr_d[r1], const16);
+        break;
+    case OPC1_32_RLC_ADDIH:
+        gen_addi_CC(cpu_gpr_d[r2], cpu_gpr_d[r1], const16 << 16);
+        break;
+    case OPC1_32_RLC_ADDIH_A:
+        tcg_gen_addi_tl(cpu_gpr_a[r2], cpu_gpr_a[r1], const16 << 16);
+        break;
+    case OPC1_32_RLC_MFCR:
+        gen_mfcr(env, cpu_gpr_d[r2], const16);
+        break;
+    case OPC1_32_RLC_MOV:
+        tcg_gen_movi_tl(cpu_gpr_d[r2], const16);
+        break;
+    case OPC1_32_RLC_MOV_U:
+        const16 = MASK_OP_RLC_CONST16(ctx->opcode);
+        tcg_gen_movi_tl(cpu_gpr_d[r2], const16);
+        break;
+    case OPC1_32_RLC_MOV_H:
+        tcg_gen_movi_tl(cpu_gpr_d[r2], const16 << 16);
+        break;
+    case OPC1_32_RLC_MOVH_A:
+        tcg_gen_movi_tl(cpu_gpr_a[r2], const16 << 16);
+        break;
+    case OPC1_32_RLC_MTCR:
+        gen_mtcr(env, ctx, cpu_gpr_d[r2], const16);
+        break;
+    }
+}
+
 static void decode_32Bit_opc(CPUTriCoreState *env, DisasContext *ctx)
 {
     int op1;
@@ -3434,6 +3535,18 @@ static void decode_32Bit_opc(CPUTriCoreState *env, DisasContext *ctx)
 /* RCRW Format */
     case OPCM_32_RCRW_MASK_INSERT:
         decode_rcrw_insert(env, ctx);
+        break;
+/* RLC Format */
+    case OPC1_32_RLC_ADDI:
+    case OPC1_32_RLC_ADDIH:
+    case OPC1_32_RLC_ADDIH_A:
+    case OPC1_32_RLC_MFCR:
+    case OPC1_32_RLC_MOV:
+    case OPC1_32_RLC_MOV_U:
+    case OPC1_32_RLC_MOV_H:
+    case OPC1_32_RLC_MOVH_A:
+    case OPC1_32_RLC_MTCR:
+        decode_rlc_opc(env, ctx, op1);
         break;
     }
 }
