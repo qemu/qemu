@@ -3817,6 +3817,11 @@ BlockDriverState *bdrv_next(BlockDriverState *bs)
     return QTAILQ_NEXT(bs, device_list);
 }
 
+const char *bdrv_get_node_name(const BlockDriverState *bs)
+{
+    return bs->node_name;
+}
+
 /* TODO check what callers really want: bs->node_name or blk_name() */
 const char *bdrv_get_device_name(const BlockDriverState *bs)
 {
