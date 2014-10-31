@@ -469,7 +469,7 @@ int virtqueue_pop(VirtQueue *vq, VirtQueueElement *elem)
 
     i = head = virtqueue_get_head(vq, vq->last_avail_idx++);
     if (vdev->guest_features & (1 << VIRTIO_RING_F_EVENT_IDX)) {
-        vring_avail_event(vq, vring_avail_idx(vq));
+        vring_avail_event(vq, vq->last_avail_idx);
     }
 
     if (vring_desc_flags(vdev, desc_pa, i) & VRING_DESC_F_INDIRECT) {
