@@ -403,7 +403,7 @@ void hmp_info_blockstats(Monitor *mon, const QDict *qdict)
 {
     BlockStatsList *stats_list, *stats;
 
-    stats_list = qmp_query_blockstats(NULL);
+    stats_list = qmp_query_blockstats(false, false, NULL);
 
     for (stats = stats_list; stats; stats = stats->next) {
         if (!stats->value->has_device) {

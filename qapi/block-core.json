@@ -427,11 +427,20 @@
 #
 # Query the @BlockStats for all virtual block devices.
 #
+# @query-nodes: #optional If true, the command will query all the block nodes
+#               that have a node name, in a list which will include "parent"
+#               information, but not "backing".
+#               If false or omitted, the behavior is as before - query all the
+#               device backends, recursively including their "parent" and
+#               "backing". (Since 2.3)
+#
 # Returns: A list of @BlockStats for each virtual block devices.
 #
 # Since: 0.14.0
 ##
-{ 'command': 'query-blockstats', 'returns': ['BlockStats'] }
+{ 'command': 'query-blockstats',
+  'data': { '*query-nodes': 'bool' },
+  'returns': ['BlockStats'] }
 
 ##
 # @BlockdevOnError:

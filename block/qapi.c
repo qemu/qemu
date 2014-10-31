@@ -300,7 +300,8 @@ static void bdrv_query_info(BlockBackend *blk, BlockInfo **p_info,
     qapi_free_BlockInfo(info);
 }
 
-static BlockStats *bdrv_query_stats(const BlockDriverState *bs)
+static BlockStats *bdrv_query_stats(const BlockDriverState *bs,
+                                    bool query_backing)
 {
     BlockStats *s;
 
@@ -330,12 +331,12 @@ static BlockStats *bdrv_query_stats(const BlockDriverState *bs)
 
     if (bs->file) {
         s->has_parent = true;
-        s->parent = bdrv_query_stats(bs->file);
+        s->parent = bdrv_query_stats(bs->file, query_backing);
     }
 
-    if (bs->backing_hd) {
+    if (query_backing && bs->backing_hd) {
         s->has_backing = true;
-        s->backing = bdrv_query_stats(bs->backing_hd);
+        s->backing = bdrv_query_stats(bs->backing_hd, query_backing);
     }
 
     return s;
@@ -366,17 +367,22 @@ BlockInfoList *qmp_query_block(Error **errp)
     return NULL;
 }
 
-BlockStatsList *qmp_query_blockstats(Error **errp)
+BlockStatsList *qmp_query_blockstats(bool has_query_nodes,
+                                     bool query_nodes,
+                                     Error **errp)
 {
     BlockStatsList *head = NULL, **p_next = &head;
     BlockDriverState *bs = NULL;
 
-     while ((bs = bdrv_next(bs))) {
+    /* Just to be safe if query_nodes is not always initialized */
+    query_nodes = has_query_nodes && query_nodes;
+
+    while ((bs = query_nodes ? bdrv_next_node(bs) : bdrv_next(bs))) {
         BlockStatsList *info = g_malloc0(sizeof(*info));
         AioContext *ctx = bdrv_get_aio_context(bs);
 
         aio_context_acquire(ctx);
-        info->value = bdrv_query_stats(bs);
+        info->value = bdrv_query_stats(bs, !query_nodes);
         aio_context_release(ctx);
 
         *p_next = info;

@@ -2347,7 +2347,7 @@ EQMP
 
     {
         .name       = "query-blockstats",
-        .args_type  = "",
+        .args_type  = "query-nodes:b?",
         .mhandler.cmd_new = qmp_marshal_input_query_blockstats,
     },
 
