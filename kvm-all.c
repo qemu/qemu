@@ -120,6 +120,7 @@ bool kvm_async_interrupts_allowed;
 bool kvm_halt_in_kernel_allowed;
 bool kvm_eventfds_allowed;
 bool kvm_irqfds_allowed;
+bool kvm_resamplefds_allowed;
 bool kvm_msi_via_irqfd_allowed;
 bool kvm_gsi_routing_allowed;
 bool kvm_gsi_direct_mapping;
@@ -1583,6 +1584,12 @@ static int kvm_init(MachineState *ms)
 
     kvm_eventfds_allowed =
         (kvm_check_extension(s, KVM_CAP_IOEVENTFD) > 0);
+
+    kvm_irqfds_allowed =
+        (kvm_check_extension(s, KVM_CAP_IRQFD) > 0);
+
+    kvm_resamplefds_allowed =
+        (kvm_check_extension(s, KVM_CAP_IRQFD_RESAMPLE) > 0);
 
     ret = kvm_arch_init(s);
     if (ret < 0) {

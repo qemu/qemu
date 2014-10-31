@@ -1294,7 +1294,6 @@ void kvm_arch_init_irq_routing(KVMState *s)
      * have to override the common code kvm_halt_in_kernel_allowed setting.
      */
     if (kvm_check_extension(s, KVM_CAP_IRQ_ROUTING)) {
-        kvm_irqfds_allowed = true;
         kvm_gsi_routing_allowed = true;
         kvm_halt_in_kernel_allowed = false;
     }
