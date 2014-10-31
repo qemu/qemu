@@ -241,9 +241,10 @@ void virtio_scsi_dataplane_start(VirtIOSCSI *s)
         }
     }
 
-    aio_context_release(s->ctx);
     s->dataplane_starting = false;
     s->dataplane_started = true;
+    aio_context_release(s->ctx);
+    return;
 
 fail_vrings:
     virtio_scsi_clear_aio(s);
