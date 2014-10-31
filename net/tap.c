@@ -598,7 +598,6 @@ static int net_init_tap_one(const NetdevTapOptions *tap, NetClientState *peer,
 
     s = net_tap_fd_init(peer, model, name, fd, vnet_hdr);
     if (!s) {
-        close(fd);
         return -1;
     }
 
