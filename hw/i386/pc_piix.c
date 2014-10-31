@@ -305,10 +305,12 @@ static void pc_init_pci(MachineState *machine)
 
 static void pc_compat_2_1(MachineState *machine)
 {
+    PCMachineState *pcms = PC_MACHINE(machine);
     smbios_uuid_encoded = false;
     x86_cpu_compat_set_features("coreduo", FEAT_1_ECX, CPUID_EXT_VMX, 0);
     x86_cpu_compat_set_features("core2duo", FEAT_1_ECX, CPUID_EXT_VMX, 0);
     x86_cpu_compat_kvm_no_autodisable(FEAT_8000_0001_ECX, CPUID_EXT3_SVM);
+    pcms->enforce_aligned_dimm = false;
 }
 
 static void pc_compat_2_0(MachineState *machine)
