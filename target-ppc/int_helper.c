@@ -708,7 +708,7 @@ static inline void vcmpbfp_internal(CPUPPCState *env, ppc_avr_t *r,
         int le_rel = float32_compare_quiet(a->f[i], b->f[i], &env->vec_status);
         if (le_rel == float_relation_unordered) {
             r->u32[i] = 0xc0000000;
-            /* ALL_IN does not need to be updated here.  */
+            all_in = 1;
         } else {
             float32 bneg = float32_chs(b->f[i]);
             int ge_rel = float32_compare_quiet(a->f[i], bneg, &env->vec_status);
