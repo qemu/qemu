@@ -404,7 +404,7 @@ int kvm_arch_get_registers(CPUState *cs)
  * to grow. We also have to use MAP parameters that avoid
  * read-only mapping of guest pages.
  */
-static void *legacy_s390_alloc(size_t size)
+static void *legacy_s390_alloc(size_t size, , uint64_t *align)
 {
     void *mem;
 

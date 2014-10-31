@@ -909,14 +909,15 @@ static int subpage_register (subpage_t *mmio, uint32_t start, uint32_t end,
                              uint16_t section);
 static subpage_t *subpage_init(AddressSpace *as, hwaddr base);
 
-static void *(*phys_mem_alloc)(size_t size) = qemu_anon_ram_alloc;
+static void *(*phys_mem_alloc)(size_t size, uint64_t *align) =
+                               qemu_anon_ram_alloc;
 
 /*
  * Set a custom physical guest memory alloator.
  * Accelerators with unusual needs may need this.  Hopefully, we can
  * get rid of it eventually.
  */
-void phys_mem_set_alloc(void *(*alloc)(size_t))
+void phys_mem_set_alloc(void *(*alloc)(size_t, uint64_t *align))
 {
     phys_mem_alloc = alloc;
 }
@@ -1098,6 +1099,7 @@ static void *file_ram_alloc(RAMBlock *block,
         error_propagate(errp, local_err);
         goto error;
     }
+    block->mr->align = hpagesize;
 
     if (memory < hpagesize) {
         error_setg(errp, "memory size 0x" RAM_ADDR_FMT " must be equal to "
@@ -1309,7 +1311,8 @@ static ram_addr_t ram_block_add(RAMBlock *new_block, Error **errp)
         if (xen_enabled()) {
             xen_ram_alloc(new_block->offset, new_block->length, new_block->mr);
         } else {
-            new_block->host = phys_mem_alloc(new_block->length);
+            new_block->host = phys_mem_alloc(new_block->length,
+                                             &new_block->mr->align);
             if (!new_block->host) {
                 error_setg_errno(errp, errno,
                                  "cannot set up guest memory '%s'",
