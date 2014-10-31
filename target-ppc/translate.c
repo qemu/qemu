@@ -7238,10 +7238,10 @@ GEN_VXFORM_NOA_ENV(vrefp, 5, 4);
 GEN_VXFORM_NOA_ENV(vrsqrtefp, 5, 5);
 GEN_VXFORM_NOA_ENV(vexptefp, 5, 6);
 GEN_VXFORM_NOA_ENV(vlogefp, 5, 7);
-GEN_VXFORM_NOA_ENV(vrfim, 5, 8);
-GEN_VXFORM_NOA_ENV(vrfin, 5, 9);
+GEN_VXFORM_NOA_ENV(vrfim, 5, 11);
+GEN_VXFORM_NOA_ENV(vrfin, 5, 8);
 GEN_VXFORM_NOA_ENV(vrfip, 5, 10);
-GEN_VXFORM_NOA_ENV(vrfiz, 5, 11);
+GEN_VXFORM_NOA_ENV(vrfiz, 5, 9);
 
 #define GEN_VXFORM_SIMM(name, opc2, opc3)                               \
 static void glue(gen_, name)(DisasContext *ctx)                                 \
@@ -10474,10 +10474,10 @@ GEN_VXFORM_NOA(vrefp, 5, 4),
 GEN_VXFORM_NOA(vrsqrtefp, 5, 5),
 GEN_VXFORM_NOA(vexptefp, 5, 6),
 GEN_VXFORM_NOA(vlogefp, 5, 7),
-GEN_VXFORM_NOA(vrfim, 5, 8),
-GEN_VXFORM_NOA(vrfin, 5, 9),
+GEN_VXFORM_NOA(vrfim, 5, 11),
+GEN_VXFORM_NOA(vrfin, 5, 8),
 GEN_VXFORM_NOA(vrfip, 5, 10),
-GEN_VXFORM_NOA(vrfiz, 5, 11),
+GEN_VXFORM_NOA(vrfiz, 5, 9),
 
 #undef GEN_VXFORM_UIMM
 #define GEN_VXFORM_UIMM(name, opc2, opc3)                               \
