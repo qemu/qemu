@@ -139,7 +139,7 @@ static int pc_dimm_built_list(Object *obj, void *opaque)
 
 uint64_t pc_dimm_get_free_addr(uint64_t address_space_start,
                                uint64_t address_space_size,
-                               uint64_t *hint, uint64_t size,
+                               uint64_t *hint, uint64_t align, uint64_t size,
                                Error **errp)
 {
     GSList *list = NULL, *item;
@@ -149,6 +149,18 @@ uint64_t pc_dimm_get_free_addr(uint64_t address_space_start,
     if (!address_space_size) {
         error_setg(errp, "memory hotplug is not enabled, "
                          "please add maxmem option");
+        goto out;
+    }
+
+    if (hint && QEMU_ALIGN_UP(*hint, align) != *hint) {
+        error_setg(errp, "address must be aligned to 0x%" PRIx64 " bytes",
+                   align);
+        goto out;
+    }
+
+    if (QEMU_ALIGN_UP(size, align) != size) {
+        error_setg(errp, "backend memory size must be multiple of 0x%"
+                   PRIx64, align);
         goto out;
     }
 

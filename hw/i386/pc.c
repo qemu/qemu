@@ -1556,6 +1556,7 @@ static void pc_dimm_plug(HotplugHandler *hotplug_dev,
     PCDIMMDevice *dimm = PC_DIMM(dev);
     PCDIMMDeviceClass *ddc = PC_DIMM_GET_CLASS(dimm);
     MemoryRegion *mr = ddc->get_memory_region(dimm);
+    uint64_t align = TARGET_PAGE_SIZE;
     uint64_t addr;
 
     addr = object_property_get_int(OBJECT(dimm), PC_DIMM_ADDR_PROP, &local_err);
@@ -1565,7 +1566,7 @@ static void pc_dimm_plug(HotplugHandler *hotplug_dev,
 
     addr = pc_dimm_get_free_addr(pcms->hotplug_memory_base,
                                  memory_region_size(&pcms->hotplug_memory),
-                                 !addr ? NULL : &addr,
+                                 !addr ? NULL : &addr, align,
                                  memory_region_size(mr), &local_err);
     if (local_err) {
         goto out;
