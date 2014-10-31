@@ -1598,6 +1598,11 @@ static void pc_dimm_plug(HotplugHandler *hotplug_dev,
         goto out;
     }
 
+    if (kvm_enabled() && !kvm_has_free_slot(machine)) {
+        error_setg(&local_err, "hypervisor has no free memory slots left");
+        goto out;
+    }
+
     memory_region_add_subregion(&pcms->hotplug_memory,
                                 addr - pcms->hotplug_memory_base, mr);
     vmstate_register_ram(mr, dev);

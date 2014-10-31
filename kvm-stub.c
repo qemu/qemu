@@ -147,4 +147,9 @@ int kvm_irqchip_remove_irqfd_notifier(KVMState *s, EventNotifier *n, int virq)
 {
     return -ENOSYS;
 }
+
+bool kvm_has_free_slot(MachineState *ms)
+{
+    return false;
+}
 #endif
