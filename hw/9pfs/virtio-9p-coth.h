@@ -21,8 +21,8 @@
 #include <glib.h>
 
 typedef struct V9fsThPool {
-    int rfd;
-    int wfd;
+    EventNotifier e;
+
     GThreadPool *pool;
     GAsyncQueue *completed;
 } V9fsThPool;
