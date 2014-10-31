@@ -592,6 +592,7 @@ static void ide_sector_read_cb(void *opaque, int ret)
 
     ide_set_sector(s, ide_get_sector(s) + n);
     s->nsector -= n;
+    s->io_buffer_offset += 512 * n;
 }
 
 void ide_sector_read(IDEState *s)
@@ -832,6 +833,8 @@ static void ide_sector_write_cb(void *opaque, int ret)
         n = s->req_nb_sectors;
     }
     s->nsector -= n;
+    s->io_buffer_offset += 512 * n;
+
     if (s->nsector == 0) {
         /* no more sectors to write */
         ide_transfer_stop(s);
@@ -1824,6 +1827,7 @@ void ide_exec_cmd(IDEBus *bus, uint32_t val)
 
     s->status = READY_STAT | BUSY_STAT;
     s->error = 0;
+    s->io_buffer_offset = 0;
 
     complete = ide_cmd_table[val].handler(s, val);
     if (complete) {

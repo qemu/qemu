@@ -1093,7 +1093,7 @@ static void ahci_start_transfer(IDEDMA *dma)
         goto out;
     }
 
-    if (!ahci_populate_sglist(ad, &s->sg, 0)) {
+    if (!ahci_populate_sglist(ad, &s->sg, s->io_buffer_offset)) {
         has_sglist = 1;
     }
 
