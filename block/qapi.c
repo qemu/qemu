@@ -311,6 +311,11 @@ static BlockStats *bdrv_query_stats(const BlockDriverState *bs)
         s->device = g_strdup(bdrv_get_device_name(bs));
     }
 
+    if (bdrv_get_node_name(bs)[0]) {
+        s->has_node_name = true;
+        s->node_name = g_strdup(bdrv_get_node_name(bs));
+    }
+
     s->stats = g_malloc0(sizeof(*s->stats));
     s->stats->rd_bytes = bs->stats.nr_bytes[BLOCK_ACCT_READ];
     s->stats->wr_bytes = bs->stats.nr_bytes[BLOCK_ACCT_WRITE];
