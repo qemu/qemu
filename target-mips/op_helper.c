@@ -1589,6 +1589,7 @@ void helper_mtc0_config5(CPUMIPSState *env, target_ulong arg1)
 {
     env->CP0_Config5 = (env->CP0_Config5 & (~env->CP0_Config5_rw_bitmask)) |
                        (arg1 & env->CP0_Config5_rw_bitmask);
+    compute_hflags(env);
 }
 
 void helper_mtc0_lladdr(CPUMIPSState *env, target_ulong arg1)

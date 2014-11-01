@@ -58,12 +58,32 @@ struct CPUMIPSTLBContext {
 };
 #endif
 
+/* MSA Context */
+#define MSA_WRLEN (128)
+
+enum CPUMIPSMSADataFormat {
+    DF_BYTE = 0,
+    DF_HALF,
+    DF_WORD,
+    DF_DOUBLE
+};
+
+typedef union wr_t wr_t;
+union wr_t {
+    int8_t  b[MSA_WRLEN/8];
+    int16_t h[MSA_WRLEN/16];
+    int32_t w[MSA_WRLEN/32];
+    int64_t d[MSA_WRLEN/64];
+};
+
 typedef union fpr_t fpr_t;
 union fpr_t {
     float64  fd;   /* ieee double precision */
     float32  fs[2];/* ieee single precision */
     uint64_t d;    /* binary double fixed-point */
     uint32_t w[2]; /* binary single fixed-point */
+/* FPU/MSA register mapping is not tested on big-endian hosts. */
+    wr_t     wr;   /* vector data */
 };
 /* define FP_ENDIAN_IDX to access the same location
  * in the fpr_t union regardless of the host endianness
@@ -177,6 +197,21 @@ struct TCState {
     target_ulong CP0_TCScheFBack;
     int32_t CP0_Debug_tcstatus;
     target_ulong CP0_UserLocal;
+
+    int32_t msacsr;
+
+#define MSACSR_FS       24
+#define MSACSR_FS_MASK  (1 << MSACSR_FS)
+#define MSACSR_NX       18
+#define MSACSR_NX_MASK  (1 << MSACSR_NX)
+#define MSACSR_CEF      2
+#define MSACSR_CEF_MASK (0xffff << MSACSR_CEF)
+#define MSACSR_RM       0
+#define MSACSR_RM_MASK  (0x3 << MSACSR_RM)
+#define MSACSR_MASK     (MSACSR_RM_MASK | MSACSR_CEF_MASK | MSACSR_NX_MASK | \
+        MSACSR_FS_MASK)
+
+    float_status msa_fp_status;
 };
 
 typedef struct CPUMIPSState CPUMIPSState;
@@ -191,6 +226,10 @@ struct CPUMIPSState {
     uint32_t PABITS;
     target_ulong SEGMask;
     target_ulong PAMask;
+
+    int32_t msair;
+#define MSAIR_ProcID    8
+#define MSAIR_Rev       0
 
     int32_t CP0_Index;
     /* CP0_MVP* are per MVP registers. */
@@ -385,6 +424,7 @@ struct CPUMIPSState {
 #define CP0C2_SA   0
     int32_t CP0_Config3;
 #define CP0C3_M    31
+#define CP0C3_MSAP  28
 #define CP0C3_BP 27
 #define CP0C3_BI 26
 #define CP0C3_ISA_ON_EXC 16
@@ -462,7 +502,7 @@ struct CPUMIPSState {
 #define EXCP_INST_NOTAVAIL 0x2 /* No valid instruction word for BadInstr */
     uint32_t hflags;    /* CPU State */
     /* TMASK defines different execution modes */
-#define MIPS_HFLAG_TMASK  0x5807FF
+#define MIPS_HFLAG_TMASK  0x15807FF
 #define MIPS_HFLAG_MODE   0x00007 /* execution modes                    */
     /* The KSU flags must be the lowest bits in hflags. The flag order
        must be the same as defined for CP0 Status. This allows to use
@@ -508,6 +548,7 @@ struct CPUMIPSState {
 #define MIPS_HFLAG_HWRENA_ULR 0x200000 /* ULR bit from HWREna is set. */
 #define MIPS_HFLAG_SBRI  0x400000 /* R6 SDBBP causes RI excpt. in user mode */
 #define MIPS_HFLAG_FBNSLOT 0x800000 /* Forbidden slot                   */
+#define MIPS_HFLAG_MSA   0x1000000
     target_ulong btarget;        /* Jump / branch target               */
     target_ulong bcond;          /* Branch condition (if needed)       */
 
@@ -663,6 +704,8 @@ enum {
     EXCP_C2E,
     EXCP_CACHE, /* 32 */
     EXCP_DSPDIS,
+    EXCP_MSADIS,
+    EXCP_MSAFPE,
     EXCP_TLBXI,
     EXCP_TLBRI,
 
@@ -764,7 +807,7 @@ static inline void compute_hflags(CPUMIPSState *env)
     env->hflags &= ~(MIPS_HFLAG_COP1X | MIPS_HFLAG_64 | MIPS_HFLAG_CP0 |
                      MIPS_HFLAG_F64 | MIPS_HFLAG_FPU | MIPS_HFLAG_KSU |
                      MIPS_HFLAG_AWRAP | MIPS_HFLAG_DSP | MIPS_HFLAG_DSPR2 |
-                     MIPS_HFLAG_SBRI);
+                     MIPS_HFLAG_SBRI | MIPS_HFLAG_MSA);
     if (!(env->CP0_Status & (1 << CP0St_EXL)) &&
         !(env->CP0_Status & (1 << CP0St_ERL)) &&
         !(env->hflags & MIPS_HFLAG_DM)) {
@@ -835,6 +878,11 @@ static inline void compute_hflags(CPUMIPSState *env)
            would be too restrictive for them.  */
         if (env->CP0_Status & (1U << CP0St_CU3)) {
             env->hflags |= MIPS_HFLAG_COP1X;
+        }
+    }
+    if (env->insn_flags & ASE_MSA) {
+        if (env->CP0_Config5 & (1 << CP0C5_MSAEn)) {
+            env->hflags |= MIPS_HFLAG_MSA;
         }
     }
 }

@@ -45,6 +45,7 @@
 #define   ASE_MT        0x00200000
 #define   ASE_SMARTMIPS 0x00400000
 #define   ASE_MICROMIPS 0x00800000
+#define   ASE_MSA       0x01000000
 
 /* Chip specific instructions. */
 #define		INSN_LOONGSON2E  0x20000000
