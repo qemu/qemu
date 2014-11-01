@@ -17895,6 +17895,164 @@ static void gen_msa_elm(CPUMIPSState *env, DisasContext *ctx)
     gen_msa_elm_df(env, ctx, df, n);
 }
 
+static void gen_msa_3rf(CPUMIPSState *env, DisasContext *ctx)
+{
+#define MASK_MSA_3RF(op)    (MASK_MSA_MINOR(op) | (op & (0xf << 22)))
+    uint8_t df = (ctx->opcode >> 21) & 0x1;
+    uint8_t wt = (ctx->opcode >> 16) & 0x1f;
+    uint8_t ws = (ctx->opcode >> 11) & 0x1f;
+    uint8_t wd = (ctx->opcode >> 6) & 0x1f;
+
+    TCGv_i32 twd = tcg_const_i32(wd);
+    TCGv_i32 tws = tcg_const_i32(ws);
+    TCGv_i32 twt = tcg_const_i32(wt);
+    TCGv_i32 tdf = tcg_temp_new_i32();
+
+    /* adjust df value for floating-point instruction */
+    tcg_gen_movi_i32(tdf, df + 2);
+
+    switch (MASK_MSA_3RF(ctx->opcode)) {
+    case OPC_FCAF_df:
+        gen_helper_msa_fcaf_df(cpu_env, tdf, twd, tws, twt);
+        break;
+    case OPC_FADD_df:
+        gen_helper_msa_fadd_df(cpu_env, tdf, twd, tws, twt);
+        break;
+    case OPC_FCUN_df:
+        gen_helper_msa_fcun_df(cpu_env, tdf, twd, tws, twt);
+        break;
+    case OPC_FSUB_df:
+        gen_helper_msa_fsub_df(cpu_env, tdf, twd, tws, twt);
+        break;
+    case OPC_FCOR_df:
+        gen_helper_msa_fcor_df(cpu_env, tdf, twd, tws, twt);
+        break;
+    case OPC_FCEQ_df:
+        gen_helper_msa_fceq_df(cpu_env, tdf, twd, tws, twt);
+        break;
+    case OPC_FMUL_df:
+        gen_helper_msa_fmul_df(cpu_env, tdf, twd, tws, twt);
+        break;
+    case OPC_FCUNE_df:
+        gen_helper_msa_fcune_df(cpu_env, tdf, twd, tws, twt);
+        break;
+    case OPC_FCUEQ_df:
+        gen_helper_msa_fcueq_df(cpu_env, tdf, twd, tws, twt);
+        break;
+    case OPC_FDIV_df:
+        gen_helper_msa_fdiv_df(cpu_env, tdf, twd, tws, twt);
+        break;
+    case OPC_FCNE_df:
+        gen_helper_msa_fcne_df(cpu_env, tdf, twd, tws, twt);
+        break;
+    case OPC_FCLT_df:
+        gen_helper_msa_fclt_df(cpu_env, tdf, twd, tws, twt);
+        break;
+    case OPC_FMADD_df:
+        gen_helper_msa_fmadd_df(cpu_env, tdf, twd, tws, twt);
+        break;
+    case OPC_MUL_Q_df:
+        tcg_gen_movi_i32(tdf, df + 1);
+        gen_helper_msa_mul_q_df(cpu_env, tdf, twd, tws, twt);
+        break;
+    case OPC_FCULT_df:
+        gen_helper_msa_fcult_df(cpu_env, tdf, twd, tws, twt);
+        break;
+    case OPC_FMSUB_df:
+        gen_helper_msa_fmsub_df(cpu_env, tdf, twd, tws, twt);
+        break;
+    case OPC_MADD_Q_df:
+        tcg_gen_movi_i32(tdf, df + 1);
+        gen_helper_msa_madd_q_df(cpu_env, tdf, twd, tws, twt);
+        break;
+    case OPC_FCLE_df:
+        gen_helper_msa_fcle_df(cpu_env, tdf, twd, tws, twt);
+        break;
+    case OPC_MSUB_Q_df:
+        tcg_gen_movi_i32(tdf, df + 1);
+        gen_helper_msa_msub_q_df(cpu_env, tdf, twd, tws, twt);
+        break;
+    case OPC_FCULE_df:
+        gen_helper_msa_fcule_df(cpu_env, tdf, twd, tws, twt);
+        break;
+    case OPC_FEXP2_df:
+        gen_helper_msa_fexp2_df(cpu_env, tdf, twd, tws, twt);
+        break;
+    case OPC_FSAF_df:
+        gen_helper_msa_fsaf_df(cpu_env, tdf, twd, tws, twt);
+        break;
+    case OPC_FEXDO_df:
+        gen_helper_msa_fexdo_df(cpu_env, tdf, twd, tws, twt);
+        break;
+    case OPC_FSUN_df:
+        gen_helper_msa_fsun_df(cpu_env, tdf, twd, tws, twt);
+        break;
+    case OPC_FSOR_df:
+        gen_helper_msa_fsor_df(cpu_env, tdf, twd, tws, twt);
+        break;
+    case OPC_FSEQ_df:
+        gen_helper_msa_fseq_df(cpu_env, tdf, twd, tws, twt);
+        break;
+    case OPC_FTQ_df:
+        gen_helper_msa_ftq_df(cpu_env, tdf, twd, tws, twt);
+        break;
+    case OPC_FSUNE_df:
+        gen_helper_msa_fsune_df(cpu_env, tdf, twd, tws, twt);
+        break;
+    case OPC_FSUEQ_df:
+        gen_helper_msa_fsueq_df(cpu_env, tdf, twd, tws, twt);
+        break;
+    case OPC_FSNE_df:
+        gen_helper_msa_fsne_df(cpu_env, tdf, twd, tws, twt);
+        break;
+    case OPC_FSLT_df:
+        gen_helper_msa_fslt_df(cpu_env, tdf, twd, tws, twt);
+        break;
+    case OPC_FMIN_df:
+        gen_helper_msa_fmin_df(cpu_env, tdf, twd, tws, twt);
+        break;
+    case OPC_MULR_Q_df:
+        tcg_gen_movi_i32(tdf, df + 1);
+        gen_helper_msa_mulr_q_df(cpu_env, tdf, twd, tws, twt);
+        break;
+    case OPC_FSULT_df:
+        gen_helper_msa_fsult_df(cpu_env, tdf, twd, tws, twt);
+        break;
+    case OPC_FMIN_A_df:
+        gen_helper_msa_fmin_a_df(cpu_env, tdf, twd, tws, twt);
+        break;
+    case OPC_MADDR_Q_df:
+        tcg_gen_movi_i32(tdf, df + 1);
+        gen_helper_msa_maddr_q_df(cpu_env, tdf, twd, tws, twt);
+        break;
+    case OPC_FSLE_df:
+        gen_helper_msa_fsle_df(cpu_env, tdf, twd, tws, twt);
+        break;
+    case OPC_FMAX_df:
+        gen_helper_msa_fmax_df(cpu_env, tdf, twd, tws, twt);
+        break;
+    case OPC_MSUBR_Q_df:
+        tcg_gen_movi_i32(tdf, df + 1);
+        gen_helper_msa_msubr_q_df(cpu_env, tdf, twd, tws, twt);
+        break;
+    case OPC_FSULE_df:
+        gen_helper_msa_fsule_df(cpu_env, tdf, twd, tws, twt);
+        break;
+    case OPC_FMAX_A_df:
+        gen_helper_msa_fmax_a_df(cpu_env, tdf, twd, tws, twt);
+        break;
+    default:
+        MIPS_INVAL("MSA instruction");
+        generate_exception(ctx, EXCP_RI);
+        break;
+    }
+
+    tcg_temp_free_i32(twd);
+    tcg_temp_free_i32(tws);
+    tcg_temp_free_i32(twt);
+    tcg_temp_free_i32(tdf);
+}
+
 static void gen_msa(CPUMIPSState *env, DisasContext *ctx)
 {
     uint32_t opcode = ctx->opcode;
@@ -17928,6 +18086,11 @@ static void gen_msa(CPUMIPSState *env, DisasContext *ctx)
         break;
     case OPC_MSA_ELM:
         gen_msa_elm(env, ctx);
+        break;
+    case OPC_MSA_3RF_1A:
+    case OPC_MSA_3RF_1B:
+    case OPC_MSA_3RF_1C:
+        gen_msa_3rf(env, ctx);
         break;
     default:
         MIPS_INVAL("MSA instruction");
