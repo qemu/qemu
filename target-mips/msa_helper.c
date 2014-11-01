@@ -1108,3 +1108,165 @@ MSA_FN_DF(vshf_df)
 #undef MSA_DO
 #undef MSA_LOOP_COND
 #undef MSA_FN_DF
+
+void helper_msa_sldi_df(CPUMIPSState *env, uint32_t df, uint32_t wd,
+                        uint32_t ws, uint32_t n)
+{
+    wr_t *pwd = &(env->active_fpu.fpr[wd].wr);
+    wr_t *pws = &(env->active_fpu.fpr[ws].wr);
+
+    msa_sld_df(df, pwd, pws, n);
+}
+
+void helper_msa_splati_df(CPUMIPSState *env, uint32_t df, uint32_t wd,
+                          uint32_t ws, uint32_t n)
+{
+    wr_t *pwd = &(env->active_fpu.fpr[wd].wr);
+    wr_t *pws = &(env->active_fpu.fpr[ws].wr);
+
+    msa_splat_df(df, pwd, pws, n);
+}
+
+void helper_msa_copy_s_df(CPUMIPSState *env, uint32_t df, uint32_t rd,
+                          uint32_t ws, uint32_t n)
+{
+    n %= DF_ELEMENTS(df);
+
+    switch (df) {
+    case DF_BYTE:
+        env->active_tc.gpr[rd] = (int8_t)env->active_fpu.fpr[ws].wr.b[n];
+        break;
+    case DF_HALF:
+        env->active_tc.gpr[rd] = (int16_t)env->active_fpu.fpr[ws].wr.h[n];
+        break;
+    case DF_WORD:
+        env->active_tc.gpr[rd] = (int32_t)env->active_fpu.fpr[ws].wr.w[n];
+        break;
+#ifdef TARGET_MIPS64
+    case DF_DOUBLE:
+        env->active_tc.gpr[rd] = (int64_t)env->active_fpu.fpr[ws].wr.d[n];
+        break;
+#endif
+    default:
+        assert(0);
+    }
+}
+
+void helper_msa_copy_u_df(CPUMIPSState *env, uint32_t df, uint32_t rd,
+                          uint32_t ws, uint32_t n)
+{
+    n %= DF_ELEMENTS(df);
+
+    switch (df) {
+    case DF_BYTE:
+        env->active_tc.gpr[rd] = (uint8_t)env->active_fpu.fpr[ws].wr.b[n];
+        break;
+    case DF_HALF:
+        env->active_tc.gpr[rd] = (uint16_t)env->active_fpu.fpr[ws].wr.h[n];
+        break;
+    case DF_WORD:
+        env->active_tc.gpr[rd] = (uint32_t)env->active_fpu.fpr[ws].wr.w[n];
+        break;
+#ifdef TARGET_MIPS64
+    case DF_DOUBLE:
+        env->active_tc.gpr[rd] = (uint64_t)env->active_fpu.fpr[ws].wr.d[n];
+        break;
+#endif
+    default:
+        assert(0);
+    }
+}
+
+void helper_msa_insert_df(CPUMIPSState *env, uint32_t df, uint32_t wd,
+                          uint32_t rs_num, uint32_t n)
+{
+    wr_t *pwd = &(env->active_fpu.fpr[wd].wr);
+    target_ulong rs = env->active_tc.gpr[rs_num];
+
+    switch (df) {
+    case DF_BYTE:
+        pwd->b[n] = (int8_t)rs;
+        break;
+    case DF_HALF:
+        pwd->h[n] = (int16_t)rs;
+        break;
+    case DF_WORD:
+        pwd->w[n] = (int32_t)rs;
+        break;
+    case DF_DOUBLE:
+        pwd->d[n] = (int64_t)rs;
+        break;
+    default:
+        assert(0);
+    }
+}
+
+void helper_msa_insve_df(CPUMIPSState *env, uint32_t df, uint32_t wd,
+                         uint32_t ws, uint32_t n)
+{
+    wr_t *pwd = &(env->active_fpu.fpr[wd].wr);
+    wr_t *pws = &(env->active_fpu.fpr[ws].wr);
+
+    switch (df) {
+    case DF_BYTE:
+        pwd->b[n] = (int8_t)pws->b[0];
+        break;
+    case DF_HALF:
+        pwd->h[n] = (int16_t)pws->h[0];
+        break;
+    case DF_WORD:
+        pwd->w[n] = (int32_t)pws->w[0];
+        break;
+    case DF_DOUBLE:
+        pwd->d[n] = (int64_t)pws->d[0];
+        break;
+    default:
+        assert(0);
+    }
+}
+
+void helper_msa_ctcmsa(CPUMIPSState *env, target_ulong elm, uint32_t cd)
+{
+    switch (cd) {
+    case 0:
+        break;
+    case 1:
+        env->active_tc.msacsr = (int32_t)elm & MSACSR_MASK;
+        /* set float_status rounding mode */
+        set_float_rounding_mode(
+            ieee_rm[(env->active_tc.msacsr & MSACSR_RM_MASK) >> MSACSR_RM],
+            &env->active_tc.msa_fp_status);
+        /* set float_status flush modes */
+        set_flush_to_zero(
+          (env->active_tc.msacsr & MSACSR_FS_MASK) != 0 ? 1 : 0,
+          &env->active_tc.msa_fp_status);
+        set_flush_inputs_to_zero(
+          (env->active_tc.msacsr & MSACSR_FS_MASK) != 0 ? 1 : 0,
+          &env->active_tc.msa_fp_status);
+        /* check exception */
+        if ((GET_FP_ENABLE(env->active_tc.msacsr) | FP_UNIMPLEMENTED)
+            & GET_FP_CAUSE(env->active_tc.msacsr)) {
+            helper_raise_exception(env, EXCP_MSAFPE);
+        }
+        break;
+    }
+}
+
+target_ulong helper_msa_cfcmsa(CPUMIPSState *env, uint32_t cs)
+{
+    switch (cs) {
+    case 0:
+        return env->msair;
+    case 1:
+        return env->active_tc.msacsr & MSACSR_MASK;
+    }
+    return 0;
+}
+
+void helper_msa_move_v(CPUMIPSState *env, uint32_t wd, uint32_t ws)
+{
+    wr_t *pwd = &(env->active_fpu.fpr[wd].wr);
+    wr_t *pws = &(env->active_fpu.fpr[ws].wr);
+
+    msa_move_v(pwd, pws);
+}
