@@ -451,3 +451,660 @@ void helper_msa_ ## helper ## _df(CPUMIPSState *env, uint32_t df,       \
 MSA_TEROP_IMMU_DF(binsli, binsl)
 MSA_TEROP_IMMU_DF(binsri, binsr)
 #undef MSA_TEROP_IMMU_DF
+
+static inline int64_t msa_max_a_df(uint32_t df, int64_t arg1, int64_t arg2)
+{
+    uint64_t abs_arg1 = arg1 >= 0 ? arg1 : -arg1;
+    uint64_t abs_arg2 = arg2 >= 0 ? arg2 : -arg2;
+    return abs_arg1 > abs_arg2 ? arg1 : arg2;
+}
+
+static inline int64_t msa_min_a_df(uint32_t df, int64_t arg1, int64_t arg2)
+{
+    uint64_t abs_arg1 = arg1 >= 0 ? arg1 : -arg1;
+    uint64_t abs_arg2 = arg2 >= 0 ? arg2 : -arg2;
+    return abs_arg1 < abs_arg2 ? arg1 : arg2;
+}
+
+static inline int64_t msa_add_a_df(uint32_t df, int64_t arg1, int64_t arg2)
+{
+    uint64_t abs_arg1 = arg1 >= 0 ? arg1 : -arg1;
+    uint64_t abs_arg2 = arg2 >= 0 ? arg2 : -arg2;
+    return abs_arg1 + abs_arg2;
+}
+
+static inline int64_t msa_adds_a_df(uint32_t df, int64_t arg1, int64_t arg2)
+{
+    uint64_t max_int = (uint64_t)DF_MAX_INT(df);
+    uint64_t abs_arg1 = arg1 >= 0 ? arg1 : -arg1;
+    uint64_t abs_arg2 = arg2 >= 0 ? arg2 : -arg2;
+    if (abs_arg1 > max_int || abs_arg2 > max_int) {
+        return (int64_t)max_int;
+    } else {
+        return (abs_arg1 < max_int - abs_arg2) ? abs_arg1 + abs_arg2 : max_int;
+    }
+}
+
+static inline int64_t msa_adds_s_df(uint32_t df, int64_t arg1, int64_t arg2)
+{
+    int64_t max_int = DF_MAX_INT(df);
+    int64_t min_int = DF_MIN_INT(df);
+    if (arg1 < 0) {
+        return (min_int - arg1 < arg2) ? arg1 + arg2 : min_int;
+    } else {
+        return (arg2 < max_int - arg1) ? arg1 + arg2 : max_int;
+    }
+}
+
+static inline uint64_t msa_adds_u_df(uint32_t df, uint64_t arg1, uint64_t arg2)
+{
+    uint64_t max_uint = DF_MAX_UINT(df);
+    uint64_t u_arg1 = UNSIGNED(arg1, df);
+    uint64_t u_arg2 = UNSIGNED(arg2, df);
+    return (u_arg1 < max_uint - u_arg2) ? u_arg1 + u_arg2 : max_uint;
+}
+
+static inline int64_t msa_ave_s_df(uint32_t df, int64_t arg1, int64_t arg2)
+{
+    /* signed shift */
+    return (arg1 >> 1) + (arg2 >> 1) + (arg1 & arg2 & 1);
+}
+
+static inline uint64_t msa_ave_u_df(uint32_t df, uint64_t arg1, uint64_t arg2)
+{
+    uint64_t u_arg1 = UNSIGNED(arg1, df);
+    uint64_t u_arg2 = UNSIGNED(arg2, df);
+    /* unsigned shift */
+    return (u_arg1 >> 1) + (u_arg2 >> 1) + (u_arg1 & u_arg2 & 1);
+}
+
+static inline int64_t msa_aver_s_df(uint32_t df, int64_t arg1, int64_t arg2)
+{
+    /* signed shift */
+    return (arg1 >> 1) + (arg2 >> 1) + ((arg1 | arg2) & 1);
+}
+
+static inline uint64_t msa_aver_u_df(uint32_t df, uint64_t arg1, uint64_t arg2)
+{
+    uint64_t u_arg1 = UNSIGNED(arg1, df);
+    uint64_t u_arg2 = UNSIGNED(arg2, df);
+    /* unsigned shift */
+    return (u_arg1 >> 1) + (u_arg2 >> 1) + ((u_arg1 | u_arg2) & 1);
+}
+
+static inline int64_t msa_subs_s_df(uint32_t df, int64_t arg1, int64_t arg2)
+{
+    int64_t max_int = DF_MAX_INT(df);
+    int64_t min_int = DF_MIN_INT(df);
+    if (arg2 > 0) {
+        return (min_int + arg2 < arg1) ? arg1 - arg2 : min_int;
+    } else {
+        return (arg1 < max_int + arg2) ? arg1 - arg2 : max_int;
+    }
+}
+
+static inline int64_t msa_subs_u_df(uint32_t df, int64_t arg1, int64_t arg2)
+{
+    uint64_t u_arg1 = UNSIGNED(arg1, df);
+    uint64_t u_arg2 = UNSIGNED(arg2, df);
+    return (u_arg1 > u_arg2) ? u_arg1 - u_arg2 : 0;
+}
+
+static inline int64_t msa_subsus_u_df(uint32_t df, int64_t arg1, int64_t arg2)
+{
+    uint64_t u_arg1 = UNSIGNED(arg1, df);
+    uint64_t max_uint = DF_MAX_UINT(df);
+    if (arg2 >= 0) {
+        uint64_t u_arg2 = (uint64_t)arg2;
+        return (u_arg1 > u_arg2) ?
+            (int64_t)(u_arg1 - u_arg2) :
+            0;
+    } else {
+        uint64_t u_arg2 = (uint64_t)(-arg2);
+        return (u_arg1 < max_uint - u_arg2) ?
+            (int64_t)(u_arg1 + u_arg2) :
+            (int64_t)max_uint;
+    }
+}
+
+static inline int64_t msa_subsuu_s_df(uint32_t df, int64_t arg1, int64_t arg2)
+{
+    uint64_t u_arg1 = UNSIGNED(arg1, df);
+    uint64_t u_arg2 = UNSIGNED(arg2, df);
+    int64_t max_int = DF_MAX_INT(df);
+    int64_t min_int = DF_MIN_INT(df);
+    if (u_arg1 > u_arg2) {
+        return u_arg1 - u_arg2 < (uint64_t)max_int ?
+            (int64_t)(u_arg1 - u_arg2) :
+            max_int;
+    } else {
+        return u_arg2 - u_arg1 < (uint64_t)(-min_int) ?
+            (int64_t)(u_arg1 - u_arg2) :
+            min_int;
+    }
+}
+
+static inline int64_t msa_asub_s_df(uint32_t df, int64_t arg1, int64_t arg2)
+{
+    /* signed compare */
+    return (arg1 < arg2) ?
+        (uint64_t)(arg2 - arg1) : (uint64_t)(arg1 - arg2);
+}
+
+static inline uint64_t msa_asub_u_df(uint32_t df, uint64_t arg1, uint64_t arg2)
+{
+    uint64_t u_arg1 = UNSIGNED(arg1, df);
+    uint64_t u_arg2 = UNSIGNED(arg2, df);
+    /* unsigned compare */
+    return (u_arg1 < u_arg2) ?
+        (uint64_t)(u_arg2 - u_arg1) : (uint64_t)(u_arg1 - u_arg2);
+}
+
+static inline int64_t msa_mulv_df(uint32_t df, int64_t arg1, int64_t arg2)
+{
+    return arg1 * arg2;
+}
+
+static inline int64_t msa_div_s_df(uint32_t df, int64_t arg1, int64_t arg2)
+{
+    if (arg1 == DF_MIN_INT(df) && arg2 == -1) {
+        return DF_MIN_INT(df);
+    }
+    return arg2 ? arg1 / arg2 : 0;
+}
+
+static inline int64_t msa_div_u_df(uint32_t df, int64_t arg1, int64_t arg2)
+{
+    uint64_t u_arg1 = UNSIGNED(arg1, df);
+    uint64_t u_arg2 = UNSIGNED(arg2, df);
+    return u_arg2 ? u_arg1 / u_arg2 : 0;
+}
+
+static inline int64_t msa_mod_s_df(uint32_t df, int64_t arg1, int64_t arg2)
+{
+    if (arg1 == DF_MIN_INT(df) && arg2 == -1) {
+        return 0;
+    }
+    return arg2 ? arg1 % arg2 : 0;
+}
+
+static inline int64_t msa_mod_u_df(uint32_t df, int64_t arg1, int64_t arg2)
+{
+    uint64_t u_arg1 = UNSIGNED(arg1, df);
+    uint64_t u_arg2 = UNSIGNED(arg2, df);
+    return u_arg2 ? u_arg1 % u_arg2 : 0;
+}
+
+#define SIGNED_EVEN(a, df) \
+        ((((int64_t)(a)) << (64 - DF_BITS(df)/2)) >> (64 - DF_BITS(df)/2))
+
+#define UNSIGNED_EVEN(a, df) \
+        ((((uint64_t)(a)) << (64 - DF_BITS(df)/2)) >> (64 - DF_BITS(df)/2))
+
+#define SIGNED_ODD(a, df) \
+        ((((int64_t)(a)) << (64 - DF_BITS(df))) >> (64 - DF_BITS(df)/2))
+
+#define UNSIGNED_ODD(a, df) \
+        ((((uint64_t)(a)) << (64 - DF_BITS(df))) >> (64 - DF_BITS(df)/2))
+
+#define SIGNED_EXTRACT(e, o, a, df)     \
+    do {                                \
+        e = SIGNED_EVEN(a, df);         \
+        o = SIGNED_ODD(a, df);          \
+    } while (0);
+
+#define UNSIGNED_EXTRACT(e, o, a, df)   \
+    do {                                \
+        e = UNSIGNED_EVEN(a, df);       \
+        o = UNSIGNED_ODD(a, df);        \
+    } while (0);
+
+static inline int64_t msa_dotp_s_df(uint32_t df, int64_t arg1, int64_t arg2)
+{
+    int64_t even_arg1;
+    int64_t even_arg2;
+    int64_t odd_arg1;
+    int64_t odd_arg2;
+    SIGNED_EXTRACT(even_arg1, odd_arg1, arg1, df);
+    SIGNED_EXTRACT(even_arg2, odd_arg2, arg2, df);
+    return (even_arg1 * even_arg2) + (odd_arg1 * odd_arg2);
+}
+
+static inline int64_t msa_dotp_u_df(uint32_t df, int64_t arg1, int64_t arg2)
+{
+    int64_t even_arg1;
+    int64_t even_arg2;
+    int64_t odd_arg1;
+    int64_t odd_arg2;
+    UNSIGNED_EXTRACT(even_arg1, odd_arg1, arg1, df);
+    UNSIGNED_EXTRACT(even_arg2, odd_arg2, arg2, df);
+    return (even_arg1 * even_arg2) + (odd_arg1 * odd_arg2);
+}
+
+#define CONCATENATE_AND_SLIDE(s, k)             \
+    do {                                        \
+        for (i = 0; i < s; i++) {               \
+            v[i]     = pws->b[s * k + i];       \
+            v[i + s] = pwd->b[s * k + i];       \
+        }                                       \
+        for (i = 0; i < s; i++) {               \
+            pwd->b[s * k + i] = v[i + n];       \
+        }                                       \
+    } while (0)
+
+static inline void msa_sld_df(uint32_t df, wr_t *pwd,
+                              wr_t *pws, target_ulong rt)
+{
+    uint32_t n = rt % DF_ELEMENTS(df);
+    uint8_t v[64];
+    uint32_t i, k;
+
+    switch (df) {
+    case DF_BYTE:
+        CONCATENATE_AND_SLIDE(DF_ELEMENTS(DF_BYTE), 0);
+        break;
+    case DF_HALF:
+        for (k = 0; k < 2; k++) {
+            CONCATENATE_AND_SLIDE(DF_ELEMENTS(DF_HALF), k);
+        }
+        break;
+    case DF_WORD:
+        for (k = 0; k < 4; k++) {
+            CONCATENATE_AND_SLIDE(DF_ELEMENTS(DF_WORD), k);
+        }
+        break;
+    case DF_DOUBLE:
+        for (k = 0; k < 8; k++) {
+            CONCATENATE_AND_SLIDE(DF_ELEMENTS(DF_DOUBLE), k);
+        }
+        break;
+    default:
+        assert(0);
+    }
+}
+
+static inline int64_t msa_hadd_s_df(uint32_t df, int64_t arg1, int64_t arg2)
+{
+    return SIGNED_ODD(arg1, df) + SIGNED_EVEN(arg2, df);
+}
+
+static inline int64_t msa_hadd_u_df(uint32_t df, int64_t arg1, int64_t arg2)
+{
+    return UNSIGNED_ODD(arg1, df) + UNSIGNED_EVEN(arg2, df);
+}
+
+static inline int64_t msa_hsub_s_df(uint32_t df, int64_t arg1, int64_t arg2)
+{
+    return SIGNED_ODD(arg1, df) - SIGNED_EVEN(arg2, df);
+}
+
+static inline int64_t msa_hsub_u_df(uint32_t df, int64_t arg1, int64_t arg2)
+{
+    return UNSIGNED_ODD(arg1, df) - UNSIGNED_EVEN(arg2, df);
+}
+
+#define MSA_BINOP_DF(func) \
+void helper_msa_ ## func ## _df(CPUMIPSState *env, uint32_t df,         \
+                                uint32_t wd, uint32_t ws, uint32_t wt)  \
+{                                                                       \
+    wr_t *pwd = &(env->active_fpu.fpr[wd].wr);                          \
+    wr_t *pws = &(env->active_fpu.fpr[ws].wr);                          \
+    wr_t *pwt = &(env->active_fpu.fpr[wt].wr);                          \
+    uint32_t i;                                                         \
+                                                                        \
+    switch (df) {                                                       \
+    case DF_BYTE:                                                       \
+        for (i = 0; i < DF_ELEMENTS(DF_BYTE); i++) {                    \
+            pwd->b[i] = msa_ ## func ## _df(df, pws->b[i], pwt->b[i]);  \
+        }                                                               \
+        break;                                                          \
+    case DF_HALF:                                                       \
+        for (i = 0; i < DF_ELEMENTS(DF_HALF); i++) {                    \
+            pwd->h[i] = msa_ ## func ## _df(df, pws->h[i], pwt->h[i]);  \
+        }                                                               \
+        break;                                                          \
+    case DF_WORD:                                                       \
+        for (i = 0; i < DF_ELEMENTS(DF_WORD); i++) {                    \
+            pwd->w[i] = msa_ ## func ## _df(df, pws->w[i], pwt->w[i]);  \
+        }                                                               \
+        break;                                                          \
+    case DF_DOUBLE:                                                     \
+        for (i = 0; i < DF_ELEMENTS(DF_DOUBLE); i++) {                  \
+            pwd->d[i] = msa_ ## func ## _df(df, pws->d[i], pwt->d[i]);  \
+        }                                                               \
+        break;                                                          \
+    default:                                                            \
+        assert(0);                                                      \
+    }                                                                   \
+}
+
+MSA_BINOP_DF(sll)
+MSA_BINOP_DF(sra)
+MSA_BINOP_DF(srl)
+MSA_BINOP_DF(bclr)
+MSA_BINOP_DF(bset)
+MSA_BINOP_DF(bneg)
+MSA_BINOP_DF(addv)
+MSA_BINOP_DF(subv)
+MSA_BINOP_DF(max_s)
+MSA_BINOP_DF(max_u)
+MSA_BINOP_DF(min_s)
+MSA_BINOP_DF(min_u)
+MSA_BINOP_DF(max_a)
+MSA_BINOP_DF(min_a)
+MSA_BINOP_DF(ceq)
+MSA_BINOP_DF(clt_s)
+MSA_BINOP_DF(clt_u)
+MSA_BINOP_DF(cle_s)
+MSA_BINOP_DF(cle_u)
+MSA_BINOP_DF(add_a)
+MSA_BINOP_DF(adds_a)
+MSA_BINOP_DF(adds_s)
+MSA_BINOP_DF(adds_u)
+MSA_BINOP_DF(ave_s)
+MSA_BINOP_DF(ave_u)
+MSA_BINOP_DF(aver_s)
+MSA_BINOP_DF(aver_u)
+MSA_BINOP_DF(subs_s)
+MSA_BINOP_DF(subs_u)
+MSA_BINOP_DF(subsus_u)
+MSA_BINOP_DF(subsuu_s)
+MSA_BINOP_DF(asub_s)
+MSA_BINOP_DF(asub_u)
+MSA_BINOP_DF(mulv)
+MSA_BINOP_DF(div_s)
+MSA_BINOP_DF(div_u)
+MSA_BINOP_DF(mod_s)
+MSA_BINOP_DF(mod_u)
+MSA_BINOP_DF(dotp_s)
+MSA_BINOP_DF(dotp_u)
+MSA_BINOP_DF(srar)
+MSA_BINOP_DF(srlr)
+MSA_BINOP_DF(hadd_s)
+MSA_BINOP_DF(hadd_u)
+MSA_BINOP_DF(hsub_s)
+MSA_BINOP_DF(hsub_u)
+#undef MSA_BINOP_DF
+
+void helper_msa_sld_df(CPUMIPSState *env, uint32_t df, uint32_t wd,
+                       uint32_t ws, uint32_t rt)
+{
+    wr_t *pwd = &(env->active_fpu.fpr[wd].wr);
+    wr_t *pws = &(env->active_fpu.fpr[ws].wr);
+
+    msa_sld_df(df, pwd, pws, env->active_tc.gpr[rt]);
+}
+
+static inline int64_t msa_maddv_df(uint32_t df, int64_t dest, int64_t arg1,
+                                   int64_t arg2)
+{
+    return dest + arg1 * arg2;
+}
+
+static inline int64_t msa_msubv_df(uint32_t df, int64_t dest, int64_t arg1,
+                                   int64_t arg2)
+{
+    return dest - arg1 * arg2;
+}
+
+static inline int64_t msa_dpadd_s_df(uint32_t df, int64_t dest, int64_t arg1,
+                                     int64_t arg2)
+{
+    int64_t even_arg1;
+    int64_t even_arg2;
+    int64_t odd_arg1;
+    int64_t odd_arg2;
+    SIGNED_EXTRACT(even_arg1, odd_arg1, arg1, df);
+    SIGNED_EXTRACT(even_arg2, odd_arg2, arg2, df);
+    return dest + (even_arg1 * even_arg2) + (odd_arg1 * odd_arg2);
+}
+
+static inline int64_t msa_dpadd_u_df(uint32_t df, int64_t dest, int64_t arg1,
+                                     int64_t arg2)
+{
+    int64_t even_arg1;
+    int64_t even_arg2;
+    int64_t odd_arg1;
+    int64_t odd_arg2;
+    UNSIGNED_EXTRACT(even_arg1, odd_arg1, arg1, df);
+    UNSIGNED_EXTRACT(even_arg2, odd_arg2, arg2, df);
+    return dest + (even_arg1 * even_arg2) + (odd_arg1 * odd_arg2);
+}
+
+static inline int64_t msa_dpsub_s_df(uint32_t df, int64_t dest, int64_t arg1,
+                                     int64_t arg2)
+{
+    int64_t even_arg1;
+    int64_t even_arg2;
+    int64_t odd_arg1;
+    int64_t odd_arg2;
+    SIGNED_EXTRACT(even_arg1, odd_arg1, arg1, df);
+    SIGNED_EXTRACT(even_arg2, odd_arg2, arg2, df);
+    return dest - ((even_arg1 * even_arg2) + (odd_arg1 * odd_arg2));
+}
+
+static inline int64_t msa_dpsub_u_df(uint32_t df, int64_t dest, int64_t arg1,
+                                     int64_t arg2)
+{
+    int64_t even_arg1;
+    int64_t even_arg2;
+    int64_t odd_arg1;
+    int64_t odd_arg2;
+    UNSIGNED_EXTRACT(even_arg1, odd_arg1, arg1, df);
+    UNSIGNED_EXTRACT(even_arg2, odd_arg2, arg2, df);
+    return dest - ((even_arg1 * even_arg2) + (odd_arg1 * odd_arg2));
+}
+
+#define MSA_TEROP_DF(func) \
+void helper_msa_ ## func ## _df(CPUMIPSState *env, uint32_t df, uint32_t wd,   \
+                          uint32_t ws, uint32_t wt)                     \
+{                                                                       \
+    wr_t *pwd = &(env->active_fpu.fpr[wd].wr);                          \
+    wr_t *pws = &(env->active_fpu.fpr[ws].wr);                          \
+    wr_t *pwt = &(env->active_fpu.fpr[wt].wr);                          \
+    uint32_t i;                                                         \
+                                                                        \
+    switch (df) {                                                       \
+    case DF_BYTE:                                                       \
+        for (i = 0; i < DF_ELEMENTS(DF_BYTE); i++) {                    \
+            pwd->b[i] = msa_ ## func ## _df(df, pwd->b[i], pws->b[i],   \
+                                            pwt->b[i]);                 \
+        }                                                               \
+        break;                                                          \
+    case DF_HALF:                                                       \
+        for (i = 0; i < DF_ELEMENTS(DF_HALF); i++) {                    \
+            pwd->h[i] = msa_ ## func ## _df(df, pwd->h[i], pws->h[i],   \
+                                            pwt->h[i]);                 \
+        }                                                               \
+        break;                                                          \
+    case DF_WORD:                                                       \
+        for (i = 0; i < DF_ELEMENTS(DF_WORD); i++) {                    \
+            pwd->w[i] = msa_ ## func ## _df(df, pwd->w[i], pws->w[i],   \
+                                            pwt->w[i]);                 \
+        }                                                               \
+        break;                                                          \
+    case DF_DOUBLE:                                                     \
+        for (i = 0; i < DF_ELEMENTS(DF_DOUBLE); i++) {                  \
+            pwd->d[i] = msa_ ## func ## _df(df, pwd->d[i], pws->d[i],   \
+                                            pwt->d[i]);                 \
+        }                                                               \
+        break;                                                          \
+    default:                                                            \
+        assert(0);                                                      \
+    }                                                                   \
+}
+
+MSA_TEROP_DF(maddv)
+MSA_TEROP_DF(msubv)
+MSA_TEROP_DF(dpadd_s)
+MSA_TEROP_DF(dpadd_u)
+MSA_TEROP_DF(dpsub_s)
+MSA_TEROP_DF(dpsub_u)
+MSA_TEROP_DF(binsl)
+MSA_TEROP_DF(binsr)
+#undef MSA_TEROP_DF
+
+static inline void msa_splat_df(uint32_t df, wr_t *pwd,
+                                wr_t *pws, target_ulong rt)
+{
+    uint32_t n = rt % DF_ELEMENTS(df);
+    uint32_t i;
+
+    switch (df) {
+    case DF_BYTE:
+        for (i = 0; i < DF_ELEMENTS(DF_BYTE); i++) {
+            pwd->b[i] = pws->b[n];
+        }
+        break;
+    case DF_HALF:
+        for (i = 0; i < DF_ELEMENTS(DF_HALF); i++) {
+            pwd->h[i] = pws->h[n];
+        }
+        break;
+    case DF_WORD:
+        for (i = 0; i < DF_ELEMENTS(DF_WORD); i++) {
+            pwd->w[i] = pws->w[n];
+        }
+        break;
+    case DF_DOUBLE:
+        for (i = 0; i < DF_ELEMENTS(DF_DOUBLE); i++) {
+            pwd->d[i] = pws->d[n];
+        }
+       break;
+    default:
+        assert(0);
+    }
+}
+
+void helper_msa_splat_df(CPUMIPSState *env, uint32_t df, uint32_t wd,
+                         uint32_t ws, uint32_t rt)
+{
+    wr_t *pwd = &(env->active_fpu.fpr[wd].wr);
+    wr_t *pws = &(env->active_fpu.fpr[ws].wr);
+
+    msa_splat_df(df, pwd, pws, env->active_tc.gpr[rt]);
+}
+
+#define MSA_DO_B MSA_DO(b)
+#define MSA_DO_H MSA_DO(h)
+#define MSA_DO_W MSA_DO(w)
+#define MSA_DO_D MSA_DO(d)
+
+#define MSA_LOOP_B MSA_LOOP(B)
+#define MSA_LOOP_H MSA_LOOP(H)
+#define MSA_LOOP_W MSA_LOOP(W)
+#define MSA_LOOP_D MSA_LOOP(D)
+
+#define MSA_LOOP_COND_B MSA_LOOP_COND(DF_BYTE)
+#define MSA_LOOP_COND_H MSA_LOOP_COND(DF_HALF)
+#define MSA_LOOP_COND_W MSA_LOOP_COND(DF_WORD)
+#define MSA_LOOP_COND_D MSA_LOOP_COND(DF_DOUBLE)
+
+#define MSA_LOOP(DF) \
+        for (i = 0; i < (MSA_LOOP_COND_ ## DF) ; i++) { \
+            MSA_DO_ ## DF \
+        }
+
+#define MSA_FN_DF(FUNC)                                             \
+void helper_msa_##FUNC(CPUMIPSState *env, uint32_t df, uint32_t wd, \
+        uint32_t ws, uint32_t wt)                                   \
+{                                                                   \
+    wr_t *pwd = &(env->active_fpu.fpr[wd].wr);                      \
+    wr_t *pws = &(env->active_fpu.fpr[ws].wr);                      \
+    wr_t *pwt = &(env->active_fpu.fpr[wt].wr);                      \
+    wr_t wx, *pwx = &wx;                                            \
+    uint32_t i;                                                     \
+    switch (df) {                                                   \
+    case DF_BYTE:                                                   \
+        MSA_LOOP_B                                                  \
+        break;                                                      \
+    case DF_HALF:                                                   \
+        MSA_LOOP_H                                                  \
+        break;                                                      \
+    case DF_WORD:                                                   \
+        MSA_LOOP_W                                                  \
+        break;                                                      \
+    case DF_DOUBLE:                                                 \
+        MSA_LOOP_D                                                  \
+       break;                                                       \
+    default:                                                        \
+        assert(0);                                                  \
+    }                                                               \
+    msa_move_v(pwd, pwx);                                           \
+}
+
+#define MSA_LOOP_COND(DF) \
+            (DF_ELEMENTS(DF) / 2)
+
+#define Rb(pwr, i) (pwr->b[i])
+#define Lb(pwr, i) (pwr->b[i + DF_ELEMENTS(DF_BYTE)/2])
+#define Rh(pwr, i) (pwr->h[i])
+#define Lh(pwr, i) (pwr->h[i + DF_ELEMENTS(DF_HALF)/2])
+#define Rw(pwr, i) (pwr->w[i])
+#define Lw(pwr, i) (pwr->w[i + DF_ELEMENTS(DF_WORD)/2])
+#define Rd(pwr, i) (pwr->d[i])
+#define Ld(pwr, i) (pwr->d[i + DF_ELEMENTS(DF_DOUBLE)/2])
+
+#define MSA_DO(DF)                      \
+    do {                                \
+        R##DF(pwx, i) = pwt->DF[2*i];   \
+        L##DF(pwx, i) = pws->DF[2*i];   \
+    } while (0);
+MSA_FN_DF(pckev_df)
+#undef MSA_DO
+
+#define MSA_DO(DF)                      \
+    do {                                \
+        R##DF(pwx, i) = pwt->DF[2*i+1]; \
+        L##DF(pwx, i) = pws->DF[2*i+1]; \
+    } while (0);
+MSA_FN_DF(pckod_df)
+#undef MSA_DO
+
+#define MSA_DO(DF)                      \
+    do {                                \
+        pwx->DF[2*i]   = L##DF(pwt, i); \
+        pwx->DF[2*i+1] = L##DF(pws, i); \
+    } while (0);
+MSA_FN_DF(ilvl_df)
+#undef MSA_DO
+
+#define MSA_DO(DF)                      \
+    do {                                \
+        pwx->DF[2*i]   = R##DF(pwt, i); \
+        pwx->DF[2*i+1] = R##DF(pws, i); \
+    } while (0);
+MSA_FN_DF(ilvr_df)
+#undef MSA_DO
+
+#define MSA_DO(DF)                      \
+    do {                                \
+        pwx->DF[2*i]   = pwt->DF[2*i];  \
+        pwx->DF[2*i+1] = pws->DF[2*i];  \
+    } while (0);
+MSA_FN_DF(ilvev_df)
+#undef MSA_DO
+
+#define MSA_DO(DF)                          \
+    do {                                    \
+        pwx->DF[2*i]   = pwt->DF[2*i+1];    \
+        pwx->DF[2*i+1] = pws->DF[2*i+1];    \
+    } while (0);
+MSA_FN_DF(ilvod_df)
+#undef MSA_DO
+#undef MSA_LOOP_COND
+
+#define MSA_LOOP_COND(DF) \
+            (DF_ELEMENTS(DF))
+
+#define MSA_DO(DF)                                                          \
+    do {                                                                    \
+        uint32_t n = DF_ELEMENTS(df);                                       \
+        uint32_t k = (pwd->DF[i] & 0x3f) % (2 * n);                         \
+        pwx->DF[i] =                                                        \
+            (pwd->DF[i] & 0xc0) ? 0 : k < n ? pwt->DF[k] : pws->DF[k - n];  \
+    } while (0);
+MSA_FN_DF(vshf_df)
+#undef MSA_DO
+#undef MSA_LOOP_COND
+#undef MSA_FN_DF

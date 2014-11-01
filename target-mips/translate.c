@@ -17549,6 +17549,237 @@ static void gen_msa_bit(CPUMIPSState *env, DisasContext *ctx)
     tcg_temp_free_i32(tws);
 }
 
+static void gen_msa_3r(CPUMIPSState *env, DisasContext *ctx)
+{
+#define MASK_MSA_3R(op)    (MASK_MSA_MINOR(op) | (op & (0x7 << 23)))
+    uint8_t df = (ctx->opcode >> 21) & 0x3;
+    uint8_t wt = (ctx->opcode >> 16) & 0x1f;
+    uint8_t ws = (ctx->opcode >> 11) & 0x1f;
+    uint8_t wd = (ctx->opcode >> 6) & 0x1f;
+
+    TCGv_i32 tdf = tcg_const_i32(df);
+    TCGv_i32 twd = tcg_const_i32(wd);
+    TCGv_i32 tws = tcg_const_i32(ws);
+    TCGv_i32 twt = tcg_const_i32(wt);
+
+    switch (MASK_MSA_3R(ctx->opcode)) {
+    case OPC_SLL_df:
+        gen_helper_msa_sll_df(cpu_env, tdf, twd, tws, twt);
+        break;
+    case OPC_ADDV_df:
+        gen_helper_msa_addv_df(cpu_env, tdf, twd, tws, twt);
+        break;
+    case OPC_CEQ_df:
+        gen_helper_msa_ceq_df(cpu_env, tdf, twd, tws, twt);
+        break;
+    case OPC_ADD_A_df:
+        gen_helper_msa_add_a_df(cpu_env, tdf, twd, tws, twt);
+        break;
+    case OPC_SUBS_S_df:
+        gen_helper_msa_subs_s_df(cpu_env, tdf, twd, tws, twt);
+        break;
+    case OPC_MULV_df:
+        gen_helper_msa_mulv_df(cpu_env, tdf, twd, tws, twt);
+        break;
+    case OPC_SLD_df:
+        gen_helper_msa_sld_df(cpu_env, tdf, twd, tws, twt);
+        break;
+    case OPC_VSHF_df:
+        gen_helper_msa_vshf_df(cpu_env, tdf, twd, tws, twt);
+        break;
+    case OPC_SRA_df:
+        gen_helper_msa_sra_df(cpu_env, tdf, twd, tws, twt);
+        break;
+    case OPC_SUBV_df:
+        gen_helper_msa_subv_df(cpu_env, tdf, twd, tws, twt);
+        break;
+    case OPC_ADDS_A_df:
+        gen_helper_msa_adds_a_df(cpu_env, tdf, twd, tws, twt);
+        break;
+    case OPC_SUBS_U_df:
+        gen_helper_msa_subs_u_df(cpu_env, tdf, twd, tws, twt);
+        break;
+    case OPC_MADDV_df:
+        gen_helper_msa_maddv_df(cpu_env, tdf, twd, tws, twt);
+        break;
+    case OPC_SPLAT_df:
+        gen_helper_msa_splat_df(cpu_env, tdf, twd, tws, twt);
+        break;
+    case OPC_SRAR_df:
+        gen_helper_msa_srar_df(cpu_env, tdf, twd, tws, twt);
+        break;
+    case OPC_SRL_df:
+        gen_helper_msa_srl_df(cpu_env, tdf, twd, tws, twt);
+        break;
+    case OPC_MAX_S_df:
+        gen_helper_msa_max_s_df(cpu_env, tdf, twd, tws, twt);
+        break;
+    case OPC_CLT_S_df:
+        gen_helper_msa_clt_s_df(cpu_env, tdf, twd, tws, twt);
+        break;
+    case OPC_ADDS_S_df:
+        gen_helper_msa_adds_s_df(cpu_env, tdf, twd, tws, twt);
+        break;
+    case OPC_SUBSUS_U_df:
+        gen_helper_msa_subsus_u_df(cpu_env, tdf, twd, tws, twt);
+        break;
+    case OPC_MSUBV_df:
+        gen_helper_msa_msubv_df(cpu_env, tdf, twd, tws, twt);
+        break;
+    case OPC_PCKEV_df:
+        gen_helper_msa_pckev_df(cpu_env, tdf, twd, tws, twt);
+        break;
+    case OPC_SRLR_df:
+        gen_helper_msa_srlr_df(cpu_env, tdf, twd, tws, twt);
+        break;
+    case OPC_BCLR_df:
+        gen_helper_msa_bclr_df(cpu_env, tdf, twd, tws, twt);
+        break;
+    case OPC_MAX_U_df:
+        gen_helper_msa_max_u_df(cpu_env, tdf, twd, tws, twt);
+        break;
+    case OPC_CLT_U_df:
+        gen_helper_msa_clt_u_df(cpu_env, tdf, twd, tws, twt);
+        break;
+    case OPC_ADDS_U_df:
+        gen_helper_msa_adds_u_df(cpu_env, tdf, twd, tws, twt);
+        break;
+    case OPC_SUBSUU_S_df:
+        gen_helper_msa_subsuu_s_df(cpu_env, tdf, twd, tws, twt);
+        break;
+    case OPC_PCKOD_df:
+        gen_helper_msa_pckod_df(cpu_env, tdf, twd, tws, twt);
+        break;
+    case OPC_BSET_df:
+        gen_helper_msa_bset_df(cpu_env, tdf, twd, tws, twt);
+        break;
+    case OPC_MIN_S_df:
+        gen_helper_msa_min_s_df(cpu_env, tdf, twd, tws, twt);
+        break;
+    case OPC_CLE_S_df:
+        gen_helper_msa_cle_s_df(cpu_env, tdf, twd, tws, twt);
+        break;
+    case OPC_AVE_S_df:
+        gen_helper_msa_ave_s_df(cpu_env, tdf, twd, tws, twt);
+        break;
+    case OPC_ASUB_S_df:
+        gen_helper_msa_asub_s_df(cpu_env, tdf, twd, tws, twt);
+        break;
+    case OPC_DIV_S_df:
+        gen_helper_msa_div_s_df(cpu_env, tdf, twd, tws, twt);
+        break;
+    case OPC_ILVL_df:
+        gen_helper_msa_ilvl_df(cpu_env, tdf, twd, tws, twt);
+        break;
+    case OPC_BNEG_df:
+        gen_helper_msa_bneg_df(cpu_env, tdf, twd, tws, twt);
+        break;
+    case OPC_MIN_U_df:
+        gen_helper_msa_min_u_df(cpu_env, tdf, twd, tws, twt);
+        break;
+    case OPC_CLE_U_df:
+        gen_helper_msa_cle_u_df(cpu_env, tdf, twd, tws, twt);
+        break;
+    case OPC_AVE_U_df:
+        gen_helper_msa_ave_u_df(cpu_env, tdf, twd, tws, twt);
+        break;
+    case OPC_ASUB_U_df:
+        gen_helper_msa_asub_u_df(cpu_env, tdf, twd, tws, twt);
+        break;
+    case OPC_DIV_U_df:
+        gen_helper_msa_div_u_df(cpu_env, tdf, twd, tws, twt);
+        break;
+    case OPC_ILVR_df:
+        gen_helper_msa_ilvr_df(cpu_env, tdf, twd, tws, twt);
+        break;
+    case OPC_BINSL_df:
+        gen_helper_msa_binsl_df(cpu_env, tdf, twd, tws, twt);
+        break;
+    case OPC_MAX_A_df:
+        gen_helper_msa_max_a_df(cpu_env, tdf, twd, tws, twt);
+        break;
+    case OPC_AVER_S_df:
+        gen_helper_msa_aver_s_df(cpu_env, tdf, twd, tws, twt);
+        break;
+    case OPC_MOD_S_df:
+        gen_helper_msa_mod_s_df(cpu_env, tdf, twd, tws, twt);
+        break;
+    case OPC_ILVEV_df:
+        gen_helper_msa_ilvev_df(cpu_env, tdf, twd, tws, twt);
+        break;
+    case OPC_BINSR_df:
+        gen_helper_msa_binsr_df(cpu_env, tdf, twd, tws, twt);
+        break;
+    case OPC_MIN_A_df:
+        gen_helper_msa_min_a_df(cpu_env, tdf, twd, tws, twt);
+        break;
+    case OPC_AVER_U_df:
+        gen_helper_msa_aver_u_df(cpu_env, tdf, twd, tws, twt);
+        break;
+    case OPC_MOD_U_df:
+        gen_helper_msa_mod_u_df(cpu_env, tdf, twd, tws, twt);
+        break;
+    case OPC_ILVOD_df:
+        gen_helper_msa_ilvod_df(cpu_env, tdf, twd, tws, twt);
+        break;
+
+    case OPC_DOTP_S_df:
+    case OPC_DOTP_U_df:
+    case OPC_DPADD_S_df:
+    case OPC_DPADD_U_df:
+    case OPC_DPSUB_S_df:
+    case OPC_HADD_S_df:
+    case OPC_DPSUB_U_df:
+    case OPC_HADD_U_df:
+    case OPC_HSUB_S_df:
+    case OPC_HSUB_U_df:
+        if (df == DF_BYTE) {
+            generate_exception(ctx, EXCP_RI);
+        }
+        switch (MASK_MSA_3R(ctx->opcode)) {
+        case OPC_DOTP_S_df:
+            gen_helper_msa_dotp_s_df(cpu_env, tdf, twd, tws, twt);
+            break;
+        case OPC_DOTP_U_df:
+            gen_helper_msa_dotp_u_df(cpu_env, tdf, twd, tws, twt);
+            break;
+        case OPC_DPADD_S_df:
+            gen_helper_msa_dpadd_s_df(cpu_env, tdf, twd, tws, twt);
+            break;
+        case OPC_DPADD_U_df:
+            gen_helper_msa_dpadd_u_df(cpu_env, tdf, twd, tws, twt);
+            break;
+        case OPC_DPSUB_S_df:
+            gen_helper_msa_dpsub_s_df(cpu_env, tdf, twd, tws, twt);
+            break;
+        case OPC_HADD_S_df:
+            gen_helper_msa_hadd_s_df(cpu_env, tdf, twd, tws, twt);
+            break;
+        case OPC_DPSUB_U_df:
+            gen_helper_msa_dpsub_u_df(cpu_env, tdf, twd, tws, twt);
+            break;
+        case OPC_HADD_U_df:
+            gen_helper_msa_hadd_u_df(cpu_env, tdf, twd, tws, twt);
+            break;
+        case OPC_HSUB_S_df:
+            gen_helper_msa_hsub_s_df(cpu_env, tdf, twd, tws, twt);
+            break;
+        case OPC_HSUB_U_df:
+            gen_helper_msa_hsub_u_df(cpu_env, tdf, twd, tws, twt);
+            break;
+        }
+        break;
+    default:
+        MIPS_INVAL("MSA instruction");
+        generate_exception(ctx, EXCP_RI);
+        break;
+    }
+    tcg_temp_free_i32(twd);
+    tcg_temp_free_i32(tws);
+    tcg_temp_free_i32(twt);
+    tcg_temp_free_i32(tdf);
+}
+
 static void gen_msa(CPUMIPSState *env, DisasContext *ctx)
 {
     uint32_t opcode = ctx->opcode;
@@ -17568,6 +17799,17 @@ static void gen_msa(CPUMIPSState *env, DisasContext *ctx)
     case OPC_MSA_BIT_09:
     case OPC_MSA_BIT_0A:
         gen_msa_bit(env, ctx);
+        break;
+    case OPC_MSA_3R_0D:
+    case OPC_MSA_3R_0E:
+    case OPC_MSA_3R_0F:
+    case OPC_MSA_3R_10:
+    case OPC_MSA_3R_11:
+    case OPC_MSA_3R_12:
+    case OPC_MSA_3R_13:
+    case OPC_MSA_3R_14:
+    case OPC_MSA_3R_15:
+        gen_msa_3r(env, ctx);
         break;
     default:
         MIPS_INVAL("MSA instruction");
