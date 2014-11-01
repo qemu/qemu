@@ -16319,7 +16319,8 @@ static void decode_opc_special(CPUMIPSState *env, DisasContext *ctx)
         gen_trap(ctx, op1, rs, rt, -1);
         break;
     case OPC_LSA: /* OPC_PMON */
-        if (ctx->insn_flags & ISA_MIPS32R6) {
+        if ((ctx->insn_flags & ISA_MIPS32R6) ||
+            (env->CP0_Config3 & (1 << CP0C3_MSAP))) {
             decode_opc_special_r6(env, ctx);
         } else {
             /* Pmon entry point, also R4010 selsl */
@@ -16415,6 +16416,12 @@ static void decode_opc_special(CPUMIPSState *env, DisasContext *ctx)
         default:
             generate_exception(ctx, EXCP_RI);
             break;
+        }
+        break;
+    case OPC_DLSA:
+        if ((ctx->insn_flags & ISA_MIPS32R6) ||
+            (env->CP0_Config3 & (1 << CP0C3_MSAP))) {
+            decode_opc_special_r6(env, ctx);
         }
         break;
 #endif
@@ -18278,6 +18285,46 @@ static void gen_msa(CPUMIPSState *env, DisasContext *ctx)
         break;
     case OPC_MSA_VEC:
         gen_msa_vec(env, ctx);
+        break;
+    case OPC_LD_B:
+    case OPC_LD_H:
+    case OPC_LD_W:
+    case OPC_LD_D:
+    case OPC_ST_B:
+    case OPC_ST_H:
+    case OPC_ST_W:
+    case OPC_ST_D:
+        {
+            int32_t s10 = sextract32(ctx->opcode, 16, 10);
+            uint8_t rs = (ctx->opcode >> 11) & 0x1f;
+            uint8_t wd = (ctx->opcode >> 6) & 0x1f;
+            uint8_t df = (ctx->opcode >> 0) & 0x3;
+
+            TCGv_i32 tdf = tcg_const_i32(df);
+            TCGv_i32 twd = tcg_const_i32(wd);
+            TCGv_i32 trs = tcg_const_i32(rs);
+            TCGv_i32 ts10 = tcg_const_i32(s10);
+
+            switch (MASK_MSA_MINOR(opcode)) {
+            case OPC_LD_B:
+            case OPC_LD_H:
+            case OPC_LD_W:
+            case OPC_LD_D:
+                gen_helper_msa_ld_df(cpu_env, tdf, twd, trs, ts10);
+                break;
+            case OPC_ST_B:
+            case OPC_ST_H:
+            case OPC_ST_W:
+            case OPC_ST_D:
+                gen_helper_msa_st_df(cpu_env, tdf, twd, trs, ts10);
+                break;
+            }
+
+            tcg_temp_free_i32(twd);
+            tcg_temp_free_i32(tdf);
+            tcg_temp_free_i32(trs);
+            tcg_temp_free_i32(ts10);
+        }
         break;
     default:
         MIPS_INVAL("MSA instruction");

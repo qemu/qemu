@@ -929,3 +929,6 @@ DEF_HELPER_4(msa_ftint_s_df, void, env, i32, i32, i32)
 DEF_HELPER_4(msa_ftint_u_df, void, env, i32, i32, i32)
 DEF_HELPER_4(msa_ffint_s_df, void, env, i32, i32, i32)
 DEF_HELPER_4(msa_ffint_u_df, void, env, i32, i32, i32)
+
+DEF_HELPER_5(msa_ld_df, void, env, i32, i32, i32, s32)
+DEF_HELPER_5(msa_st_df, void, env, i32, i32, i32, s32)
