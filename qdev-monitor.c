@@ -235,12 +235,9 @@ int qdev_device_help(QemuOpts *opts)
         return 0;
     }
 
-    if (!object_class_by_name(driver)) {
-        const char *typename = find_typename_by_alias(driver);
-
-        if (typename) {
-            driver = typename;
-        }
+    qdev_get_device_class(&driver, &local_err);
+    if (local_err) {
+        goto error;
     }
 
     prop_list = qmp_device_list_properties(driver, &local_err);
