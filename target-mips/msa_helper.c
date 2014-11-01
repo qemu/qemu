@@ -255,3 +255,199 @@ void helper_msa_ldi_df(CPUMIPSState *env, uint32_t df, uint32_t wd,
         assert(0);
     }
 }
+
+/* Data format bit position and unsigned values */
+#define BIT_POSITION(x, df) ((uint64_t)(x) % DF_BITS(df))
+
+static inline int64_t msa_sll_df(uint32_t df, int64_t arg1, int64_t arg2)
+{
+    int32_t b_arg2 = BIT_POSITION(arg2, df);
+    return arg1 << b_arg2;
+}
+
+static inline int64_t msa_sra_df(uint32_t df, int64_t arg1, int64_t arg2)
+{
+    int32_t b_arg2 = BIT_POSITION(arg2, df);
+    return arg1 >> b_arg2;
+}
+
+static inline int64_t msa_srl_df(uint32_t df, int64_t arg1, int64_t arg2)
+{
+    uint64_t u_arg1 = UNSIGNED(arg1, df);
+    int32_t b_arg2 = BIT_POSITION(arg2, df);
+    return u_arg1 >> b_arg2;
+}
+
+static inline int64_t msa_bclr_df(uint32_t df, int64_t arg1, int64_t arg2)
+{
+    int32_t b_arg2 = BIT_POSITION(arg2, df);
+    return UNSIGNED(arg1 & (~(1LL << b_arg2)), df);
+}
+
+static inline int64_t msa_bset_df(uint32_t df, int64_t arg1,
+        int64_t arg2)
+{
+    int32_t b_arg2 = BIT_POSITION(arg2, df);
+    return UNSIGNED(arg1 | (1LL << b_arg2), df);
+}
+
+static inline int64_t msa_bneg_df(uint32_t df, int64_t arg1, int64_t arg2)
+{
+    int32_t b_arg2 = BIT_POSITION(arg2, df);
+    return UNSIGNED(arg1 ^ (1LL << b_arg2), df);
+}
+
+static inline int64_t msa_binsl_df(uint32_t df, int64_t dest, int64_t arg1,
+                                   int64_t arg2)
+{
+    uint64_t u_arg1 = UNSIGNED(arg1, df);
+    uint64_t u_dest = UNSIGNED(dest, df);
+    int32_t sh_d = BIT_POSITION(arg2, df) + 1;
+    int32_t sh_a = DF_BITS(df) - sh_d;
+    if (sh_d == DF_BITS(df)) {
+        return u_arg1;
+    } else {
+        return UNSIGNED(UNSIGNED(u_dest << sh_d, df) >> sh_d, df) |
+               UNSIGNED(UNSIGNED(u_arg1 >> sh_a, df) << sh_a, df);
+    }
+}
+
+static inline int64_t msa_binsr_df(uint32_t df, int64_t dest, int64_t arg1,
+                                   int64_t arg2)
+{
+    uint64_t u_arg1 = UNSIGNED(arg1, df);
+    uint64_t u_dest = UNSIGNED(dest, df);
+    int32_t sh_d = BIT_POSITION(arg2, df) + 1;
+    int32_t sh_a = DF_BITS(df) - sh_d;
+    if (sh_d == DF_BITS(df)) {
+        return u_arg1;
+    } else {
+        return UNSIGNED(UNSIGNED(u_dest >> sh_d, df) << sh_d, df) |
+               UNSIGNED(UNSIGNED(u_arg1 << sh_a, df) >> sh_a, df);
+    }
+}
+
+static inline int64_t msa_sat_s_df(uint32_t df, int64_t arg, uint32_t m)
+{
+    return arg < M_MIN_INT(m+1) ? M_MIN_INT(m+1) :
+                                  arg > M_MAX_INT(m+1) ? M_MAX_INT(m+1) :
+                                                         arg;
+}
+
+static inline int64_t msa_sat_u_df(uint32_t df, int64_t arg, uint32_t m)
+{
+    uint64_t u_arg = UNSIGNED(arg, df);
+    return  u_arg < M_MAX_UINT(m+1) ? u_arg :
+                                      M_MAX_UINT(m+1);
+}
+
+static inline int64_t msa_srar_df(uint32_t df, int64_t arg1, int64_t arg2)
+{
+    int32_t b_arg2 = BIT_POSITION(arg2, df);
+    if (b_arg2 == 0) {
+        return arg1;
+    } else {
+        int64_t r_bit = (arg1 >> (b_arg2 - 1)) & 1;
+        return (arg1 >> b_arg2) + r_bit;
+    }
+}
+
+static inline int64_t msa_srlr_df(uint32_t df, int64_t arg1, int64_t arg2)
+{
+    uint64_t u_arg1 = UNSIGNED(arg1, df);
+    int32_t b_arg2 = BIT_POSITION(arg2, df);
+    if (b_arg2 == 0) {
+        return u_arg1;
+    } else {
+        uint64_t r_bit = (u_arg1 >> (b_arg2 - 1)) & 1;
+        return (u_arg1 >> b_arg2) + r_bit;
+    }
+}
+
+#define MSA_BINOP_IMMU_DF(helper, func)                                  \
+void helper_msa_ ## helper ## _df(CPUMIPSState *env, uint32_t df, uint32_t wd, \
+                       uint32_t ws, uint32_t u5)                        \
+{                                                                       \
+    wr_t *pwd = &(env->active_fpu.fpr[wd].wr);                          \
+    wr_t *pws = &(env->active_fpu.fpr[ws].wr);                          \
+    uint32_t i;                                                         \
+                                                                        \
+    switch (df) {                                                       \
+    case DF_BYTE:                                                       \
+        for (i = 0; i < DF_ELEMENTS(DF_BYTE); i++) {                    \
+            pwd->b[i] = msa_ ## func ## _df(df, pws->b[i], u5);         \
+        }                                                               \
+        break;                                                          \
+    case DF_HALF:                                                       \
+        for (i = 0; i < DF_ELEMENTS(DF_HALF); i++) {                    \
+            pwd->h[i] = msa_ ## func ## _df(df, pws->h[i], u5);         \
+        }                                                               \
+        break;                                                          \
+    case DF_WORD:                                                       \
+        for (i = 0; i < DF_ELEMENTS(DF_WORD); i++) {                    \
+            pwd->w[i] = msa_ ## func ## _df(df, pws->w[i], u5);         \
+        }                                                               \
+        break;                                                          \
+    case DF_DOUBLE:                                                     \
+        for (i = 0; i < DF_ELEMENTS(DF_DOUBLE); i++) {                  \
+            pwd->d[i] = msa_ ## func ## _df(df, pws->d[i], u5);         \
+        }                                                               \
+        break;                                                          \
+    default:                                                            \
+        assert(0);                                                      \
+    }                                                                   \
+}
+
+MSA_BINOP_IMMU_DF(slli, sll)
+MSA_BINOP_IMMU_DF(srai, sra)
+MSA_BINOP_IMMU_DF(srli, srl)
+MSA_BINOP_IMMU_DF(bclri, bclr)
+MSA_BINOP_IMMU_DF(bseti, bset)
+MSA_BINOP_IMMU_DF(bnegi, bneg)
+MSA_BINOP_IMMU_DF(sat_s, sat_s)
+MSA_BINOP_IMMU_DF(sat_u, sat_u)
+MSA_BINOP_IMMU_DF(srari, srar)
+MSA_BINOP_IMMU_DF(srlri, srlr)
+#undef MSA_BINOP_IMMU_DF
+
+#define MSA_TEROP_IMMU_DF(helper, func)                                  \
+void helper_msa_ ## helper ## _df(CPUMIPSState *env, uint32_t df,       \
+                                  uint32_t wd, uint32_t ws, uint32_t u5) \
+{                                                                       \
+    wr_t *pwd = &(env->active_fpu.fpr[wd].wr);                          \
+    wr_t *pws = &(env->active_fpu.fpr[ws].wr);                          \
+    uint32_t i;                                                         \
+                                                                        \
+    switch (df) {                                                       \
+    case DF_BYTE:                                                       \
+        for (i = 0; i < DF_ELEMENTS(DF_BYTE); i++) {                    \
+            pwd->b[i] = msa_ ## func ## _df(df, pwd->b[i], pws->b[i],   \
+                                            u5);                        \
+        }                                                               \
+        break;                                                          \
+    case DF_HALF:                                                       \
+        for (i = 0; i < DF_ELEMENTS(DF_HALF); i++) {                    \
+            pwd->h[i] = msa_ ## func ## _df(df, pwd->h[i], pws->h[i],   \
+                                            u5);                        \
+        }                                                               \
+        break;                                                          \
+    case DF_WORD:                                                       \
+        for (i = 0; i < DF_ELEMENTS(DF_WORD); i++) {                    \
+            pwd->w[i] = msa_ ## func ## _df(df, pwd->w[i], pws->w[i],   \
+                                            u5);                        \
+        }                                                               \
+        break;                                                          \
+    case DF_DOUBLE:                                                     \
+        for (i = 0; i < DF_ELEMENTS(DF_DOUBLE); i++) {                  \
+            pwd->d[i] = msa_ ## func ## _df(df, pwd->d[i], pws->d[i],   \
+                                            u5);                        \
+        }                                                               \
+        break;                                                          \
+    default:                                                            \
+        assert(0);                                                      \
+    }                                                                   \
+}
+
+MSA_TEROP_IMMU_DF(binsli, binsl)
+MSA_TEROP_IMMU_DF(binsri, binsr)
+#undef MSA_TEROP_IMMU_DF
