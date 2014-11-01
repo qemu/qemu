@@ -245,9 +245,7 @@ int qdev_device_help(QemuOpts *opts)
 
     prop_list = qmp_device_list_properties(driver, &local_err);
     if (local_err) {
-        error_printf("%s\n", error_get_pretty(local_err));
-        error_free(local_err);
-        return 1;
+        goto error;
     }
 
     for (prop = prop_list; prop; prop = prop->next) {
@@ -262,6 +260,11 @@ int qdev_device_help(QemuOpts *opts)
     }
 
     qapi_free_DevicePropertyInfoList(prop_list);
+    return 1;
+
+error:
+    error_printf("%s\n", error_get_pretty(local_err));
+    error_free(local_err);
     return 1;
 }
 
