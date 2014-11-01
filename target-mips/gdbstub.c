@@ -73,13 +73,6 @@ int mips_cpu_gdb_read_register(CPUState *cs, uint8_t *mem_buf, int n)
     return 0;
 }
 
-/* convert MIPS rounding mode in FCR31 to IEEE library */
-static unsigned int ieee_rm[] = {
-    float_round_nearest_even,
-    float_round_to_zero,
-    float_round_up,
-    float_round_down
-};
 #define RESTORE_ROUNDING_MODE \
     set_float_rounding_mode(ieee_rm[env->active_fpu.fcr31 & 3], \
                             &env->active_fpu.fp_status)

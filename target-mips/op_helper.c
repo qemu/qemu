@@ -2340,7 +2340,7 @@ void mips_cpu_unassigned_access(CPUState *cs, hwaddr addr,
 #define FP_TO_INT64_OVERFLOW 0x7fffffffffffffffULL
 
 /* convert MIPS rounding mode in FCR31 to IEEE library */
-static unsigned int ieee_rm[] = {
+unsigned int ieee_rm[] = {
     float_round_nearest_even,
     float_round_to_zero,
     float_round_up,
@@ -2461,7 +2461,7 @@ void helper_ctc1(CPUMIPSState *env, target_ulong arg1, uint32_t fs, uint32_t rt)
         do_raise_exception(env, EXCP_FPE, GETPC());
 }
 
-static inline int ieee_ex_to_mips(int xcpt)
+int ieee_ex_to_mips(int xcpt)
 {
     int ret = 0;
     if (xcpt) {

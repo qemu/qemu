@@ -760,6 +760,10 @@ hwaddr cpu_mips_translate_address (CPUMIPSState *env, target_ulong address,
 #endif
 target_ulong exception_resume_pc (CPUMIPSState *env);
 
+/* op_helper.c */
+extern unsigned int ieee_rm[];
+int ieee_ex_to_mips(int xcpt);
+
 static inline void cpu_get_tb_cpu_state(CPUMIPSState *env, target_ulong *pc,
                                         target_ulong *cs_base, int *flags)
 {
