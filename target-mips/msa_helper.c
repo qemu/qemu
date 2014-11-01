@@ -114,6 +114,34 @@ void helper_msa_shf_df(CPUMIPSState *env, uint32_t df, uint32_t wd,
     msa_move_v(pwd, pwx);
 }
 
+#define MSA_FN_VECTOR(FUNC, DEST, OPERATION)                            \
+void helper_msa_ ## FUNC(CPUMIPSState *env, uint32_t wd, uint32_t ws,   \
+        uint32_t wt)                                                    \
+{                                                                       \
+    wr_t *pwd = &(env->active_fpu.fpr[wd].wr);                          \
+    wr_t *pws = &(env->active_fpu.fpr[ws].wr);                          \
+    wr_t *pwt = &(env->active_fpu.fpr[wt].wr);                          \
+    uint32_t i;                                                         \
+    for (i = 0; i < DF_ELEMENTS(DF_DOUBLE); i++) {                      \
+        DEST = OPERATION;                                               \
+    }                                                                   \
+}
+
+MSA_FN_VECTOR(and_v, pwd->d[i], pws->d[i] & pwt->d[i])
+MSA_FN_VECTOR(or_v, pwd->d[i], pws->d[i] | pwt->d[i])
+MSA_FN_VECTOR(nor_v, pwd->d[i], ~(pws->d[i] | pwt->d[i]))
+MSA_FN_VECTOR(xor_v, pwd->d[i], pws->d[i] ^ pwt->d[i])
+MSA_FN_VECTOR(bmnz_v, pwd->d[i],
+        BIT_MOVE_IF_NOT_ZERO(pwd->d[i], pws->d[i], pwt->d[i], DF_DOUBLE))
+MSA_FN_VECTOR(bmz_v, pwd->d[i],
+        BIT_MOVE_IF_ZERO(pwd->d[i], pws->d[i], pwt->d[i], DF_DOUBLE))
+MSA_FN_VECTOR(bsel_v, pwd->d[i],
+        BIT_SELECT(pwd->d[i], pws->d[i], pwt->d[i], DF_DOUBLE))
+#undef BIT_MOVE_IF_NOT_ZERO
+#undef BIT_MOVE_IF_ZERO
+#undef BIT_SELECT
+#undef MSA_FN_VECTOR
+
 static inline int64_t msa_addv_df(uint32_t df, int64_t arg1, int64_t arg2)
 {
     return arg1 + arg2;
@@ -1358,6 +1386,118 @@ void helper_msa_move_v(CPUMIPSState *env, uint32_t wd, uint32_t ws)
 
     msa_move_v(pwd, pws);
 }
+
+static inline int64_t msa_pcnt_df(uint32_t df, int64_t arg)
+{
+    uint64_t x;
+
+    x = UNSIGNED(arg, df);
+
+    x = (x & 0x5555555555555555ULL) + ((x >>  1) & 0x5555555555555555ULL);
+    x = (x & 0x3333333333333333ULL) + ((x >>  2) & 0x3333333333333333ULL);
+    x = (x & 0x0F0F0F0F0F0F0F0FULL) + ((x >>  4) & 0x0F0F0F0F0F0F0F0FULL);
+    x = (x & 0x00FF00FF00FF00FFULL) + ((x >>  8) & 0x00FF00FF00FF00FFULL);
+    x = (x & 0x0000FFFF0000FFFFULL) + ((x >> 16) & 0x0000FFFF0000FFFFULL);
+    x = (x & 0x00000000FFFFFFFFULL) + ((x >> 32));
+
+    return x;
+}
+
+static inline int64_t msa_nlzc_df(uint32_t df, int64_t arg)
+{
+    uint64_t x, y;
+    int n, c;
+
+    x = UNSIGNED(arg, df);
+    n = DF_BITS(df);
+    c = DF_BITS(df) / 2;
+
+    do {
+        y = x >> c;
+        if (y != 0) {
+            n = n - c;
+            x = y;
+        }
+        c = c >> 1;
+    } while (c != 0);
+
+    return n - x;
+}
+
+static inline int64_t msa_nloc_df(uint32_t df, int64_t arg)
+{
+    return msa_nlzc_df(df, UNSIGNED((~arg), df));
+}
+
+void helper_msa_fill_df(CPUMIPSState *env, uint32_t df, uint32_t wd,
+                        uint32_t rs)
+{
+    wr_t *pwd = &(env->active_fpu.fpr[wd].wr);
+    uint32_t i;
+
+    switch (df) {
+    case DF_BYTE:
+        for (i = 0; i < DF_ELEMENTS(DF_BYTE); i++) {
+            pwd->b[i] = (int8_t)env->active_tc.gpr[rs];
+        }
+        break;
+    case DF_HALF:
+        for (i = 0; i < DF_ELEMENTS(DF_HALF); i++) {
+            pwd->h[i] = (int16_t)env->active_tc.gpr[rs];
+        }
+        break;
+    case DF_WORD:
+        for (i = 0; i < DF_ELEMENTS(DF_WORD); i++) {
+            pwd->w[i] = (int32_t)env->active_tc.gpr[rs];
+        }
+        break;
+    case DF_DOUBLE:
+        for (i = 0; i < DF_ELEMENTS(DF_DOUBLE); i++) {
+            pwd->d[i] = (int64_t)env->active_tc.gpr[rs];
+        }
+       break;
+    default:
+        assert(0);
+    }
+}
+
+#define MSA_UNOP_DF(func) \
+void helper_msa_ ## func ## _df(CPUMIPSState *env, uint32_t df,         \
+                              uint32_t wd, uint32_t ws)                 \
+{                                                                       \
+    wr_t *pwd = &(env->active_fpu.fpr[wd].wr);                          \
+    wr_t *pws = &(env->active_fpu.fpr[ws].wr);                          \
+    uint32_t i;                                                         \
+                                                                        \
+    switch (df) {                                                       \
+    case DF_BYTE:                                                       \
+        for (i = 0; i < DF_ELEMENTS(DF_BYTE); i++) {                    \
+            pwd->b[i] = msa_ ## func ## _df(df, pws->b[i]);             \
+        }                                                               \
+        break;                                                          \
+    case DF_HALF:                                                       \
+        for (i = 0; i < DF_ELEMENTS(DF_HALF); i++) {                    \
+            pwd->h[i] = msa_ ## func ## _df(df, pws->h[i]);             \
+        }                                                               \
+        break;                                                          \
+    case DF_WORD:                                                       \
+        for (i = 0; i < DF_ELEMENTS(DF_WORD); i++) {                    \
+            pwd->w[i] = msa_ ## func ## _df(df, pws->w[i]);             \
+        }                                                               \
+        break;                                                          \
+    case DF_DOUBLE:                                                     \
+        for (i = 0; i < DF_ELEMENTS(DF_DOUBLE); i++) {                  \
+            pwd->d[i] = msa_ ## func ## _df(df, pws->d[i]);             \
+        }                                                               \
+        break;                                                          \
+    default:                                                            \
+        assert(0);                                                      \
+    }                                                                   \
+}
+
+MSA_UNOP_DF(nlzc)
+MSA_UNOP_DF(nloc)
+MSA_UNOP_DF(pcnt)
 
 #define FLOAT_ONE32 make_float32(0x3f8 << 20)
 #define FLOAT_ONE64 make_float64(0x3ffULL << 52)
