@@ -1356,6 +1356,7 @@ static TCGv cpu_dspctrl, btarget, bcond;
 static TCGv_i32 hflags;
 static TCGv_i32 fpu_fcr0, fpu_fcr31;
 static TCGv_i64 fpu_f64[32];
+static TCGv_i64 msa_wr_d[64];
 
 static uint32_t gen_opc_hflags[OPC_BUF_SIZE];
 static target_ulong gen_opc_btarget[OPC_BUF_SIZE];
@@ -1452,6 +1453,25 @@ static const char * const fregnames[] = {
     "f8",  "f9",  "f10", "f11", "f12", "f13", "f14", "f15",
     "f16", "f17", "f18", "f19", "f20", "f21", "f22", "f23",
     "f24", "f25", "f26", "f27", "f28", "f29", "f30", "f31",
+};
+
+static const char * const msaregnames[] = {
+    "w0.d0",  "w0.d1",  "w1.d0",  "w1.d1",
+    "w2.d0",  "w2.d1",  "w3.d0",  "w3.d1",
+    "w4.d0",  "w4.d1",  "w5.d0",  "w5.d1",
+    "w6.d0",  "w6.d1",  "w7.d0",  "w7.d1",
+    "w8.d0",  "w8.d1",  "w9.d0",  "w9.d1",
+    "w10.d0", "w10.d1", "w11.d0", "w11.d1",
+    "w12.d0", "w12.d1", "w13.d0", "w13.d1",
+    "w14.d0", "w14.d1", "w15.d0", "w15.d1",
+    "w16.d0", "w16.d1", "w17.d0", "w17.d1",
+    "w18.d0", "w18.d1", "w19.d0", "w19.d1",
+    "w20.d0", "w20.d1", "w21.d0", "w21.d1",
+    "w22.d0", "w22.d1", "w23.d0", "w23.d1",
+    "w24.d0", "w24.d1", "w25.d0", "w25.d1",
+    "w26.d0", "w26.d1", "w27.d0", "w27.d1",
+    "w28.d0", "w28.d1", "w29.d0", "w29.d1",
+    "w30.d0", "w30.d1", "w31.d0", "w31.d1",
 };
 
 #define MIPS_DEBUG(fmt, ...)                                                  \
@@ -17206,6 +17226,27 @@ static void decode_opc_special3(CPUMIPSState *env, DisasContext *ctx)
     }
 }
 
+/* MIPS SIMD Architecture (MSA)  */
+static inline int check_msa_access(DisasContext *ctx)
+{
+    if (unlikely((ctx->hflags & MIPS_HFLAG_FPU) &&
+                 !(ctx->hflags & MIPS_HFLAG_F64))) {
+        generate_exception(ctx, EXCP_RI);
+        return 0;
+    }
+
+    if (unlikely(!(ctx->hflags & MIPS_HFLAG_MSA))) {
+        if (ctx->insn_flags & ASE_MSA) {
+            generate_exception(ctx, EXCP_MSADIS);
+            return 0;
+        } else {
+            generate_exception(ctx, EXCP_RI);
+            return 0;
+        }
+    }
+    return 1;
+}
+
 static void decode_opc (CPUMIPSState *env, DisasContext *ctx)
 {
     int32_t offset;
@@ -18136,6 +18177,15 @@ void mips_tcg_init(void)
         fpu_f64[i] = tcg_global_mem_new_i64(TCG_AREG0, off, fregnames[i]);
     }
 
+    for (i = 0; i < 32; i++) {
+        int off = offsetof(CPUMIPSState, active_fpu.fpr[i].wr.d[0]);
+        msa_wr_d[i * 2] =
+                tcg_global_mem_new_i64(TCG_AREG0, off, msaregnames[i * 2]);
+        off = offsetof(CPUMIPSState, active_fpu.fpr[i].wr.d[1]);
+        msa_wr_d[i * 2 + 1] =
+                tcg_global_mem_new_i64(TCG_AREG0, off, msaregnames[i * 2 + 1]);
+    }
+
     cpu_PC = tcg_global_mem_new(TCG_AREG0,
                                 offsetof(CPUMIPSState, active_tc.PC), "PC");
     for (i = 0; i < MIPS_DSP_ACC; i++) {
@@ -18243,6 +18293,7 @@ void cpu_state_reset(CPUMIPSState *env)
     env->CP0_PageGrain_rw_bitmask = env->cpu_model->CP0_PageGrain_rw_bitmask;
     env->CP0_PageGrain = env->cpu_model->CP0_PageGrain;
     env->active_fpu.fcr0 = env->cpu_model->CP1_fcr0;
+    env->msair = env->cpu_model->MSAIR;
     env->insn_flags = env->cpu_model->insn_flags;
 
 #if defined(CONFIG_USER_ONLY)
@@ -18338,6 +18389,11 @@ void cpu_state_reset(CPUMIPSState *env)
         (env->active_fpu.fcr0 & (1 << FCR0_F64))) {
         /* Status.FR = 0 mode in 64-bit FPU not allowed in R6 */
         env->CP0_Status |= (1 << CP0St_FR);
+    }
+
+    /* MSA */
+    if (env->CP0_Config3 & (1 << CP0C3_MSAP)) {
+        msa_reset(env);
     }
 
     compute_hflags(env);

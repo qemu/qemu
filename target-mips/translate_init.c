@@ -84,6 +84,7 @@ struct mips_def_t {
     int32_t CP0_TCStatus_rw_bitmask;
     int32_t CP0_SRSCtl;
     int32_t CP1_fcr0;
+    int32_t MSAIR;
     int32_t SEGBITS;
     int32_t PABITS;
     int32_t CP0_SRSConf0_rw_bitmask;
@@ -728,4 +729,37 @@ static void mvp_init (CPUMIPSState *env, const mips_def_t *def)
     env->mvp->CP0_MVPConf1 = (1U << CP0MVPC1_CIM) | (1 << CP0MVPC1_CIF) |
                              (0x0 << CP0MVPC1_PCX) | (0x0 << CP0MVPC1_PCP2) |
                              (0x1 << CP0MVPC1_PCP1);
+}
+
+static void msa_reset(CPUMIPSState *env)
+{
+#ifdef CONFIG_USER_ONLY
+    /* MSA access enabled */
+    env->CP0_Config5 |= 1 << CP0C5_MSAEn;
+    env->CP0_Status |= (1 << CP0St_CU1) | (1 << CP0St_FR);
+#endif
+
+    /* MSA CSR:
+       - non-signaling floating point exception mode off (NX bit is 0)
+       - Cause, Enables, and Flags are all 0
+       - round to nearest / ties to even (RM bits are 0) */
+    env->active_tc.msacsr = 0;
+
+    /* tininess detected after rounding.*/
+    set_float_detect_tininess(float_tininess_after_rounding,
+                              &env->active_tc.msa_fp_status);
+
+    /* clear float_status exception flags */
+    set_float_exception_flags(0, &env->active_tc.msa_fp_status);
+
+    /* set float_status rounding mode */
+    set_float_rounding_mode(float_round_nearest_even,
+                            &env->active_tc.msa_fp_status);
+
+    /* set float_status flush modes */
+    set_flush_to_zero(0, &env->active_tc.msa_fp_status);
+    set_flush_inputs_to_zero(0, &env->active_tc.msa_fp_status);
+
+    /* clear float_status nan mode */
+    set_default_nan_mode(0, &env->active_tc.msa_fp_status);
 }
