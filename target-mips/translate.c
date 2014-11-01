@@ -18098,6 +18098,77 @@ static void gen_msa_2r(CPUMIPSState *env, DisasContext *ctx)
     tcg_temp_free_i32(tdf);
 }
 
+static void gen_msa_2rf(CPUMIPSState *env, DisasContext *ctx)
+{
+#define MASK_MSA_2RF(op)    (MASK_MSA_MINOR(op) | (op & (0x1f << 21)) | \
+                            (op & (0xf << 17)))
+    uint8_t wt = (ctx->opcode >> 16) & 0x1f;
+    uint8_t ws = (ctx->opcode >> 11) & 0x1f;
+    uint8_t wd = (ctx->opcode >> 6) & 0x1f;
+    uint8_t df = (ctx->opcode >> 16) & 0x1;
+    TCGv_i32 twd = tcg_const_i32(wd);
+    TCGv_i32 tws = tcg_const_i32(ws);
+    TCGv_i32 twt = tcg_const_i32(wt);
+    /* adjust df value for floating-point instruction */
+    TCGv_i32 tdf = tcg_const_i32(df + 2);
+
+    switch (MASK_MSA_2RF(ctx->opcode)) {
+    case OPC_FCLASS_df:
+        gen_helper_msa_fclass_df(cpu_env, tdf, twd, tws);
+        break;
+    case OPC_FTRUNC_S_df:
+        gen_helper_msa_ftrunc_s_df(cpu_env, tdf, twd, tws);
+        break;
+    case OPC_FTRUNC_U_df:
+        gen_helper_msa_ftrunc_u_df(cpu_env, tdf, twd, tws);
+        break;
+    case OPC_FSQRT_df:
+        gen_helper_msa_fsqrt_df(cpu_env, tdf, twd, tws);
+        break;
+    case OPC_FRSQRT_df:
+        gen_helper_msa_frsqrt_df(cpu_env, tdf, twd, tws);
+        break;
+    case OPC_FRCP_df:
+        gen_helper_msa_frcp_df(cpu_env, tdf, twd, tws);
+        break;
+    case OPC_FRINT_df:
+        gen_helper_msa_frint_df(cpu_env, tdf, twd, tws);
+        break;
+    case OPC_FLOG2_df:
+        gen_helper_msa_flog2_df(cpu_env, tdf, twd, tws);
+        break;
+    case OPC_FEXUPL_df:
+        gen_helper_msa_fexupl_df(cpu_env, tdf, twd, tws);
+        break;
+    case OPC_FEXUPR_df:
+        gen_helper_msa_fexupr_df(cpu_env, tdf, twd, tws);
+        break;
+    case OPC_FFQL_df:
+        gen_helper_msa_ffql_df(cpu_env, tdf, twd, tws);
+        break;
+    case OPC_FFQR_df:
+        gen_helper_msa_ffqr_df(cpu_env, tdf, twd, tws);
+        break;
+    case OPC_FTINT_S_df:
+        gen_helper_msa_ftint_s_df(cpu_env, tdf, twd, tws);
+        break;
+    case OPC_FTINT_U_df:
+        gen_helper_msa_ftint_u_df(cpu_env, tdf, twd, tws);
+        break;
+    case OPC_FFINT_S_df:
+        gen_helper_msa_ffint_s_df(cpu_env, tdf, twd, tws);
+        break;
+    case OPC_FFINT_U_df:
+        gen_helper_msa_ffint_u_df(cpu_env, tdf, twd, tws);
+        break;
+    }
+
+    tcg_temp_free_i32(twd);
+    tcg_temp_free_i32(tws);
+    tcg_temp_free_i32(twt);
+    tcg_temp_free_i32(tdf);
+}
+
 static void gen_msa_vec_v(CPUMIPSState *env, DisasContext *ctx)
 {
 #define MASK_MSA_VEC(op)    (MASK_MSA_MINOR(op) | (op & (0x1f << 21)))
@@ -18155,6 +18226,9 @@ static void gen_msa_vec(CPUMIPSState *env, DisasContext *ctx)
         break;
     case OPC_MSA_2R:
         gen_msa_2r(env, ctx);
+        break;
+    case OPC_MSA_2RF:
+        gen_msa_2rf(env, ctx);
         break;
     default:
         MIPS_INVAL("MSA instruction");
