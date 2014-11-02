@@ -253,14 +253,44 @@ class Event(object):
 
 
 def _read_events(fobj):
-    res = []
+    events = []
     for line in fobj:
         if not line.strip():
             continue
         if line.lstrip().startswith('#'):
             continue
-        res.append(Event.build(line))
-    return res
+
+        event = Event.build(line)
+
+        # transform TCG-enabled events
+        if "tcg" not in event.properties:
+            events.append(event)
+        else:
+            event_trans = event.copy()
+            event_trans.name += "_trans"
+            event_trans.properties += ["tcg-trans"]
+            event_trans.fmt = event.fmt[0]
+            args_trans = []
+            for atrans, aorig in zip(
+                    event_trans.transform(tracetool.transform.TCG_2_HOST).args,
+                    event.args):
+                if atrans == aorig:
+                    args_trans.append(atrans)
+            event_trans.args = Arguments(args_trans)
+            event_trans = event_trans.copy()
+
+            event_exec = event.copy()
+            event_exec.name += "_exec"
+            event_exec.properties += ["tcg-exec"]
+            event_exec.fmt = event.fmt[1]
+            event_exec = event_exec.transform(tracetool.transform.TCG_2_HOST)
+
+            new_event = [event_trans, event_exec]
+            event.event_trans, event.event_exec = new_event
+
+            events.extend(new_event)
+
+    return events
 
 
 class TracetoolError (Exception):
@@ -332,36 +362,5 @@ def generate(fevents, format, backends,
     tracetool.backend.dtrace.PROBEPREFIX = probe_prefix
 
     events = _read_events(fevents)
-
-    # transform TCG-enabled events
-    new_events = []
-    for event in events:
-        if "tcg" not in event.properties:
-            new_events.append(event)
-        else:
-            event_trans = event.copy()
-            event_trans.name += "_trans"
-            event_trans.properties += ["tcg-trans"]
-            event_trans.fmt = event.fmt[0]
-            args_trans = []
-            for atrans, aorig in zip(
-                    event_trans.transform(tracetool.transform.TCG_2_HOST).args,
-                    event.args):
-                if atrans == aorig:
-                    args_trans.append(atrans)
-            event_trans.args = Arguments(args_trans)
-            event_trans = event_trans.copy()
-
-            event_exec = event.copy()
-            event_exec.name += "_exec"
-            event_exec.properties += ["tcg-exec"]
-            event_exec.fmt = event.fmt[1]
-            event_exec = event_exec.transform(tracetool.transform.TCG_2_HOST)
-
-            new_event = [event_trans, event_exec]
-            event.event_trans, event.event_exec = new_event
-
-            new_events.extend(new_event)
-    events = new_events
 
     tracetool.format.generate(events, format, backend)
