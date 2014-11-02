@@ -198,6 +198,174 @@ target_ulong helper_absdif_ssov(CPUTriCoreState *env, target_ulong r1,
     SSOV(env, ret, result, 32);
     return ret;
 }
+
+target_ulong helper_madd32_ssov(CPUTriCoreState *env, target_ulong r1,
+                                target_ulong r2, target_ulong r3)
+{
+    target_ulong ret;
+    int64_t t1 = sextract64(r1, 0, 32);
+    int64_t t2 = sextract64(r2, 0, 32);
+    int64_t t3 = sextract64(r3, 0, 32);
+    int64_t result;
+
+    result = t2 + (t1 * t3);
+    SSOV(env, ret, result, 32);
+    return ret;
+}
+
+target_ulong helper_madd32_suov(CPUTriCoreState *env, target_ulong r1,
+                                target_ulong r2, target_ulong r3)
+{
+    target_ulong ret;
+    uint64_t t1 = extract64(r1, 0, 32);
+    uint64_t t2 = extract64(r2, 0, 32);
+    uint64_t t3 = extract64(r3, 0, 32);
+    int64_t result;
+
+    result = t2 + (t1 * t3);
+    SUOV(env, ret, result, 32);
+    return ret;
+}
+
+uint64_t helper_madd64_ssov(CPUTriCoreState *env, target_ulong r1,
+                            uint64_t r2, target_ulong r3)
+{
+    uint64_t ret, ovf;
+    int64_t t1 = sextract64(r1, 0, 32);
+    int64_t t3 = sextract64(r3, 0, 32);
+    int64_t mul;
+
+    mul = t1 * t3;
+    ret = mul + r2;
+    ovf = (ret ^ mul) & ~(mul ^ r2);
+
+    if ((int64_t)ovf < 0) {
+        env->PSW_USB_V = (1 << 31);
+        env->PSW_USB_SV = (1 << 31);
+        /* ext_ret > MAX_INT */
+        if (mul >= 0) {
+            ret = INT64_MAX;
+        /* ext_ret < MIN_INT */
+        } else {
+            ret = INT64_MIN;
+        }
+    } else {
+        env->PSW_USB_V = 0;
+    }
+    t1 = ret >> 32;
+    env->PSW_USB_AV = t1 ^ t1 * 2u;
+    env->PSW_USB_SAV |= env->PSW_USB_AV;
+
+    return ret;
+}
+
+uint64_t helper_madd64_suov(CPUTriCoreState *env, target_ulong r1,
+                            uint64_t r2, target_ulong r3)
+{
+    uint64_t ret, mul;
+    uint64_t t1 = extract64(r1, 0, 32);
+    uint64_t t3 = extract64(r3, 0, 32);
+
+    mul = t1 * t3;
+    ret = mul + r2;
+
+    if (ret < r2) {
+        env->PSW_USB_V = (1 << 31);
+        env->PSW_USB_SV = (1 << 31);
+        /* saturate */
+        ret = UINT64_MAX;
+    } else {
+        env->PSW_USB_V = 0;
+    }
+    t1 = ret >> 32;
+    env->PSW_USB_AV = t1 ^ t1 * 2u;
+    env->PSW_USB_SAV |= env->PSW_USB_AV;
+    return ret;
+}
+
+target_ulong helper_msub32_ssov(CPUTriCoreState *env, target_ulong r1,
+                                target_ulong r2, target_ulong r3)
+{
+    target_ulong ret;
+    int64_t t1 = sextract64(r1, 0, 32);
+    int64_t t2 = sextract64(r2, 0, 32);
+    int64_t t3 = sextract64(r3, 0, 32);
+    int64_t result;
+
+    result = t2 - (t1 * t3);
+    SSOV(env, ret, result, 32);
+    return ret;
+}
+
+target_ulong helper_msub32_suov(CPUTriCoreState *env, target_ulong r1,
+                                target_ulong r2, target_ulong r3)
+{
+    target_ulong ret;
+    int64_t t1 = extract64(r1, 0, 32);
+    int64_t t2 = extract64(r2, 0, 32);
+    int64_t t3 = extract64(r3, 0, 32);
+    int64_t result;
+
+    result = t2 - (t1 * t3);
+    SUOV(env, ret, result, 32);
+    return ret;
+}
+
+uint64_t helper_msub64_ssov(CPUTriCoreState *env, target_ulong r1,
+                            uint64_t r2, target_ulong r3)
+{
+    uint64_t ret, ovf;
+    int64_t t1 = sextract64(r1, 0, 32);
+    int64_t t3 = sextract64(r3, 0, 32);
+    int64_t mul;
+
+    mul = t1 * t3;
+    ret = r2 - mul;
+    ovf = (ret ^ r2) & (mul ^ r2);
+
+    if ((int64_t)ovf < 0) {
+        env->PSW_USB_V = (1 << 31);
+        env->PSW_USB_SV = (1 << 31);
+        /* ext_ret > MAX_INT */
+        if (mul < 0) {
+            ret = INT64_MAX;
+        /* ext_ret < MIN_INT */
+        } else {
+            ret = INT64_MIN;
+        }
+    } else {
+        env->PSW_USB_V = 0;
+    }
+    t1 = ret >> 32;
+    env->PSW_USB_AV = t1 ^ t1 * 2u;
+    env->PSW_USB_SAV |= env->PSW_USB_AV;
+    return ret;
+}
+
+uint64_t helper_msub64_suov(CPUTriCoreState *env, target_ulong r1,
+                            uint64_t r2, target_ulong r3)
+{
+    uint64_t ret, mul;
+    uint64_t t1 = extract64(r1, 0, 32);
+    uint64_t t3 = extract64(r3, 0, 32);
+
+    mul = t1 * t3;
+    ret = r2 - mul;
+
+    if (ret > r2) {
+        env->PSW_USB_V = (1 << 31);
+        env->PSW_USB_SV = (1 << 31);
+        /* saturate */
+        ret = 0;
+    } else {
+        env->PSW_USB_V = 0;
+    }
+    t1 = ret >> 32;
+    env->PSW_USB_AV = t1 ^ t1 * 2u;
+    env->PSW_USB_SAV |= env->PSW_USB_AV;
+    return ret;
+}
+
 /* context save area (CSA) related helpers */
 
 static int cdc_increment(target_ulong *psw)

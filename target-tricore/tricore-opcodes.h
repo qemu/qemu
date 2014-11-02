@@ -169,6 +169,7 @@
 #define MASK_OP_RCR_S3(op)     MASK_BITS_SHIFT(op, 24, 27)
 #define MASK_OP_RCR_OP2(op)    MASK_BITS_SHIFT(op, 21, 23)
 #define MASK_OP_RCR_CONST9(op) MASK_BITS_SHIFT(op, 12, 20)
+#define MASK_OP_RCR_CONST9_SEXT(op) MASK_BITS_SHIFT_SEXT(op, 12, 20)
 #define MASK_OP_RCR_S1(op)     MASK_OP_META_S1(op)
 
 /* RCRR Format */
@@ -945,7 +946,7 @@ enum {
     OPC2_32_RCR_MSUB_64                          = 0x03,
     OPC2_32_RCR_MSUBS_32                         = 0x05,
     OPC2_32_RCR_MSUBS_64                         = 0x07,
-    OPC2_32_RCR_MSUB_U_32                        = 0x02,
+    OPC2_32_RCR_MSUB_U_64                        = 0x02,
     OPC2_32_RCR_MSUBS_U_32                       = 0x04,
     OPC2_32_RCR_MSUBS_U_64                       = 0x06,
 };
