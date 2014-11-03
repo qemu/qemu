@@ -961,38 +961,37 @@ static int handle_cmd(AHCIState *s, int port, int slot)
         return -1;
     }
 
-    cmd = &((AHCICmdHdr *)s->dev[port].lst)[slot];
-
     if (!s->dev[port].lst) {
         DPRINTF(port, "error: lst not given but cmd handled");
         return -1;
     }
-
+    cmd = &((AHCICmdHdr *)s->dev[port].lst)[slot];
     /* remember current slot handle for later */
     s->dev[port].cur_cmd = cmd;
 
-    opts = le32_to_cpu(cmd->opts);
-    tbl_addr = le64_to_cpu(cmd->tbl_addr);
-
-    cmd_len = 0x80;
-    cmd_fis = dma_memory_map(s->as, tbl_addr, &cmd_len,
-                             DMA_DIRECTION_FROM_DEVICE);
-
-    if (!cmd_fis) {
-        DPRINTF(port, "error: guest passed us an invalid cmd fis\n");
+    /* The device we are working for */
+    ide_state = &s->dev[port].port.ifs[0];
+    if (!ide_state->blk) {
+        DPRINTF(port, "error: guest accessed unused port");
         return -1;
     }
 
-    /* The device we are working for */
-    ide_state = &s->dev[port].port.ifs[0];
-
-    if (!ide_state->blk) {
-        DPRINTF(port, "error: guest accessed unused port");
+    opts = le32_to_cpu(cmd->opts);
+    tbl_addr = le64_to_cpu(cmd->tbl_addr);
+    cmd_len = 0x80;
+    cmd_fis = dma_memory_map(s->as, tbl_addr, &cmd_len,
+                             DMA_DIRECTION_FROM_DEVICE);
+    if (!cmd_fis) {
+        DPRINTF(port, "error: guest passed us an invalid cmd fis\n");
+        return -1;
+    } else if (cmd_len != 0x80) {
+        ahci_trigger_irq(s, &s->dev[port], PORT_IRQ_HBUS_ERR);
+        DPRINTF(port, "error: dma_memory_map failed: "
+                "(len(%02"PRIx64") != 0x80)\n",
+                cmd_len);
         goto out;
     }
-
-    debug_print_fis(cmd_fis, 0x90);
-    //debug_print_fis(cmd_fis, (opts & AHCI_CMD_HDR_CMD_FIS_LEN) * 4);
+    debug_print_fis(cmd_fis, 0x80);
 
     switch (cmd_fis[0]) {
         case SATA_FIS_TYPE_REGISTER_H2D:
