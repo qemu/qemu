@@ -1018,7 +1018,8 @@ static int handle_cmd(AHCIState *s, int port, int slot)
             break;
     }
 
-    switch (s->dev[port].port_state) {
+    if (!(cmd_fis[1] & SATA_FIS_REG_H2D_UPDATE_COMMAND_REGISTER)) {
+        switch (s->dev[port].port_state) {
         case STATE_RUN:
             if (cmd_fis[15] & ATA_SRST) {
                 s->dev[port].port_state = STATE_RESET;
@@ -1029,9 +1030,10 @@ static int handle_cmd(AHCIState *s, int port, int slot)
                 ahci_reset_port(s, port);
             }
             break;
+        }
     }
 
-    if (cmd_fis[1] == SATA_FIS_REG_H2D_UPDATE_COMMAND_REGISTER) {
+    else if (cmd_fis[1] & SATA_FIS_REG_H2D_UPDATE_COMMAND_REGISTER) {
 
         /* Check for NCQ command */
         if (is_ncq(cmd_fis[2])) {
@@ -1039,50 +1041,36 @@ static int handle_cmd(AHCIState *s, int port, int slot)
             goto out;
         }
 
-        /* Decompose the FIS  */
-        ide_state->nsector = (int64_t)((cmd_fis[13] << 8) | cmd_fis[12]);
+        /* Decompose the FIS:
+         * AHCI does not interpret FIS packets, it only forwards them.
+         * SATA 1.0 describes how to decode LBA28 and CHS FIS packets.
+         * Later specifications, e.g, SATA 3.2, describe LBA48 FIS packets.
+         *
+         * ATA4 describes sector number for LBA28/CHS commands.
+         * ATA6 describes sector number for LBA48 commands.
+         * ATA8 deprecates CHS fully, describing only LBA28/48.
+         *
+         * We dutifully convert the FIS into IDE registers, and allow the
+         * core layer to interpret them as needed. */
         ide_state->feature = cmd_fis[3];
-        if (!ide_state->nsector) {
-            ide_state->nsector = 256;
-        }
-
-        if (ide_state->drive_kind != IDE_CD) {
-            /*
-             * We set the sector depending on the sector defined in the FIS.
-             * Unfortunately, the spec isn't exactly obvious on this one.
-             *
-             * Apparently LBA48 commands set fis bytes 10,9,8,6,5,4 to the
-             * 48 bit sector number. ATA_CMD_READ_DMA_EXT is an example for
-             * such a command.
-             *
-             * Non-LBA48 commands however use 7[lower 4 bits],6,5,4 to define a
-             * 28-bit sector number. ATA_CMD_READ_DMA is an example for such
-             * a command.
-             *
-             * Since the spec doesn't explicitly state what each field should
-             * do, I simply assume non-used fields as reserved and OR everything
-             * together, independent of the command.
-             */
-            ide_set_sector(ide_state, ((uint64_t)cmd_fis[10] << 40)
-                                    | ((uint64_t)cmd_fis[9] << 32)
-                                    /* This is used for LBA48 commands */
-                                    | ((uint64_t)cmd_fis[8] << 24)
-                                    /* This is used for non-LBA48 commands */
-                                    | ((uint64_t)(cmd_fis[7] & 0xf) << 24)
-                                    | ((uint64_t)cmd_fis[6] << 16)
-                                    | ((uint64_t)cmd_fis[5] << 8)
-                                    | cmd_fis[4]);
-        }
+        ide_state->sector = cmd_fis[4];     /* LBA 7:0 */
+        ide_state->lcyl = cmd_fis[5];       /* LBA 15:8  */
+        ide_state->hcyl = cmd_fis[6];       /* LBA 23:16 */
+        ide_state->select = cmd_fis[7];     /* LBA 27:24 (LBA28) */
+        ide_state->hob_sector = cmd_fis[8]; /* LBA 31:24 */
+        ide_state->hob_lcyl = cmd_fis[9];   /* LBA 39:32 */
+        ide_state->hob_hcyl = cmd_fis[10];  /* LBA 47:40 */
+        ide_state->hob_feature = cmd_fis[11];
+        ide_state->nsector = (int64_t)((cmd_fis[13] << 8) | cmd_fis[12]);
+        /* 14, 16, 17, 18, 19: Reserved (SATA 1.0) */
+        /* 15: Only valid when UPDATE_COMMAND not set. */
 
         /* Copy the ACMD field (ATAPI packet, if any) from the AHCI command
          * table to ide_state->io_buffer
          */
         if (opts & AHCI_CMD_ATAPI) {
             memcpy(ide_state->io_buffer, &cmd_fis[AHCI_COMMAND_TABLE_ACMD], 0x10);
-            ide_state->lcyl = 0x14;
-            ide_state->hcyl = 0xeb;
             debug_print_fis(ide_state->io_buffer, 0x10);
-            ide_state->feature = IDE_FEATURE_DMA;
             s->dev[port].done_atapi_packet = false;
             /* XXX send PIO setup FIS */
         }
