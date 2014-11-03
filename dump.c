@@ -604,10 +604,9 @@ static void dump_iterate(DumpState *s, Error **errp)
 {
     GuestPhysBlock *block;
     int64_t size;
-    int ret;
     Error *local_err = NULL;
 
-    while (1) {
+    do {
         block = s->next_block;
 
         size = block->target_end - block->target_start;
@@ -623,11 +622,9 @@ static void dump_iterate(DumpState *s, Error **errp)
             return;
         }
 
-        ret = get_next_block(s, block);
-        if (ret == 1) {
-            dump_completed(s);
-        }
-    }
+    } while (!get_next_block(s, block));
+
+    dump_completed(s);
 }
 
 static void create_vmcore(DumpState *s, Error **errp)

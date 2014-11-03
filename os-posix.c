@@ -47,7 +47,7 @@
 static struct passwd *user_pwd;
 static const char *chroot_dir;
 static int daemonize;
-static int fds[2];
+static int daemon_pipe;
 
 void os_setup_early_signal_handling(void)
 {
@@ -205,6 +205,7 @@ void os_daemonize(void)
 {
     if (daemonize) {
         pid_t pid;
+        int fds[2];
 
         if (pipe(fds) == -1) {
             exit(1);
@@ -217,26 +218,21 @@ void os_daemonize(void)
 
             close(fds[1]);
 
-        again:
-            len = read(fds[0], &status, 1);
-            if (len == -1 && (errno == EINTR)) {
-                goto again;
-            }
-            if (len != 1) {
-                exit(1);
-            }
-            else if (status == 1) {
-                fprintf(stderr, "Could not acquire pidfile\n");
-                exit(1);
-            } else {
-                exit(0);
-            }
-            } else if (pid < 0) {
-                exit(1);
-            }
+            do {
+                len = read(fds[0], &status, 1);
+            } while (len < 0 && errno == EINTR);
+
+            /* only exit successfully if our child actually wrote
+             * a one-byte zero to our pipe, upon successful init */
+            exit(len == 1 && status == 0 ? 0 : 1);
+
+        } else if (pid < 0) {
+            exit(1);
+        }
 
         close(fds[0]);
-        qemu_set_cloexec(fds[1]);
+        daemon_pipe = fds[1];
+        qemu_set_cloexec(daemon_pipe);
 
         setsid();
 
@@ -259,17 +255,6 @@ void os_setup_post(void)
     int fd = 0;
 
     if (daemonize) {
-        uint8_t status = 0;
-        ssize_t len;
-
-    again1:
-        len = write(fds[1], &status, 1);
-        if (len == -1 && (errno == EINTR)) {
-            goto again1;
-        }
-        if (len != 1) {
-            exit(1);
-        }
         if (chdir("/")) {
             perror("not able to chdir to /");
             exit(1);
@@ -284,23 +269,22 @@ void os_setup_post(void)
     change_process_uid();
 
     if (daemonize) {
+        uint8_t status = 0;
+        ssize_t len;
+
         dup2(fd, 0);
         dup2(fd, 1);
         dup2(fd, 2);
 
         close(fd);
-    }
-}
 
-void os_pidfile_error(void)
-{
-    if (daemonize) {
-        uint8_t status = 1;
-        if (write(fds[1], &status, 1) != 1) {
-            perror("daemonize. Writing to pipe\n");
+        do {        
+            len = write(daemon_pipe, &status, 1);
+        } while (len < 0 && errno == EINTR);
+        if (len != 1) {
+            exit(1);
         }
-    } else
-        fprintf(stderr, "Could not acquire pid file: %s\n", strerror(errno));
+    }
 }
 
 void os_set_line_buffering(void)
@@ -319,8 +303,6 @@ int qemu_create_pidfile(const char *filename)
         return -1;
     }
     if (lockf(fd, F_TLOCK, 0) == -1) {
-        fprintf(stderr, "lock file '%s' failed: %s\n",
-                filename, strerror(errno));
         close(fd);
         return -1;
     }
