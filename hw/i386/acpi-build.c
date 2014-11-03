@@ -249,6 +249,7 @@ static void acpi_get_pci_info(PcPciInfo *info)
 
 #define ACPI_BUILD_TABLE_FILE "etc/acpi/tables"
 #define ACPI_BUILD_RSDP_FILE "etc/acpi/rsdp"
+#define ACPI_BUILD_TPMLOG_FILE "etc/tpm/log"
 
 static void
 build_header(GArray *linker, GArray *table_data,
@@ -1214,27 +1215,28 @@ build_hpet(GArray *table_data, GArray *linker)
 }
 
 static void
-build_tpm_tcpa(GArray *table_data, GArray *linker)
+build_tpm_tcpa(GArray *table_data, GArray *linker, GArray *tcpalog)
 {
     Acpi20Tcpa *tcpa = acpi_data_push(table_data, sizeof *tcpa);
-    /* the log area will come right after the TCPA table */
-    uint64_t log_area_start_address = acpi_data_len(table_data);
+    uint64_t log_area_start_address = acpi_data_len(tcpalog);
 
     tcpa->platform_class = cpu_to_le16(TPM_TCPA_ACPI_CLASS_CLIENT);
     tcpa->log_area_minimum_length = cpu_to_le32(TPM_LOG_AREA_MINIMUM_SIZE);
     tcpa->log_area_start_address = cpu_to_le64(log_area_start_address);
 
+    bios_linker_loader_alloc(linker, ACPI_BUILD_TPMLOG_FILE, 1,
+                             false /* high memory */);
+
     /* log area start address to be filled by Guest linker */
     bios_linker_loader_add_pointer(linker, ACPI_BUILD_TABLE_FILE,
-                                   ACPI_BUILD_TABLE_FILE,
+                                   ACPI_BUILD_TPMLOG_FILE,
                                    table_data, &tcpa->log_area_start_address,
                                    sizeof(tcpa->log_area_start_address));
 
     build_header(linker, table_data,
                  (void *)tcpa, "TCPA", sizeof(*tcpa), 2);
 
-    /* now only get the log area and with that modify table_data */
-    acpi_data_push(table_data, TPM_LOG_AREA_MINIMUM_SIZE);
+    acpi_data_push(tcpalog, TPM_LOG_AREA_MINIMUM_SIZE);
 }
 
 static void
@@ -1485,6 +1487,7 @@ typedef
 struct AcpiBuildTables {
     GArray *table_data;
     GArray *rsdp;
+    GArray *tcpalog;
     GArray *linker;
 } AcpiBuildTables;
 
@@ -1492,17 +1495,17 @@ static inline void acpi_build_tables_init(AcpiBuildTables *tables)
 {
     tables->rsdp = g_array_new(false, true /* clear */, 1);
     tables->table_data = g_array_new(false, true /* clear */, 1);
+    tables->tcpalog = g_array_new(false, true /* clear */, 1);
     tables->linker = bios_linker_loader_init();
 }
 
 static inline void acpi_build_tables_cleanup(AcpiBuildTables *tables, bool mfre)
 {
     void *linker_data = bios_linker_loader_cleanup(tables->linker);
-    if (mfre) {
-        g_free(linker_data);
-    }
+    g_free(linker_data);
     g_array_free(tables->rsdp, mfre);
-    g_array_free(tables->table_data, mfre);
+    g_array_free(tables->table_data, true);
+    g_array_free(tables->tcpalog, mfre);
 }
 
 typedef
@@ -1612,7 +1615,7 @@ void acpi_build(PcGuestInfo *guest_info, AcpiBuildTables *tables)
     }
     if (misc.has_tpm) {
         acpi_add_table(table_offsets, tables->table_data);
-        build_tpm_tcpa(tables->table_data, tables->linker);
+        build_tpm_tcpa(tables->table_data, tables->linker, tables->tcpalog);
 
         acpi_add_table(table_offsets, tables->table_data);
         build_tpm_ssdt(tables->table_data, tables->linker);
@@ -1777,6 +1780,9 @@ void acpi_setup(PcGuestInfo *guest_info)
     build_state->table_size = acpi_data_len(tables.table_data);
 
     acpi_add_rom_blob(NULL, tables.linker, "etc/table-loader");
+
+    fw_cfg_add_file(guest_info->fw_cfg, ACPI_BUILD_TPMLOG_FILE,
+                    tables.tcpalog->data, acpi_data_len(tables.tcpalog));
 
     /*
      * RSDP is small so it's easy to keep it immutable, no need to

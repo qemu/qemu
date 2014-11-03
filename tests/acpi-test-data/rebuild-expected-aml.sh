@@ -23,13 +23,13 @@ else
     exit 1;
 fi
 
-if [ ! -e "tests/acpi-test" ]; then
-    echo "Test: acpi-test is required! Run make check before this script."
+if [ ! -e "tests/bios-tables-test" ]; then
+    echo "Test: bios-tables-test is required! Run make check before this script."
     echo "Run this script from the build directory."
     exit 1;
 fi
 
-TEST_ACPI_REBUILD_AML=y QTEST_QEMU_BINARY=$qemu tests/acpi-test
+TEST_ACPI_REBUILD_AML=y QTEST_QEMU_BINARY=$qemu tests/bios-tables-test
 
 echo "The files were rebuilt and can be added to git."
 echo "However, if new files were created, please copy them manually" \

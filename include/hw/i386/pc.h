@@ -14,6 +14,7 @@
 #include "sysemu/sysemu.h"
 #include "hw/pci/pci.h"
 #include "hw/boards.h"
+#include "hw/compat.h"
 
 #define HPET_INTCAP "hpet-intcap"
 
@@ -33,6 +34,7 @@ struct PCMachineState {
     MemoryRegion hotplug_memory;
 
     HotplugHandler *acpi_dev;
+    ISADevice *rtc;
 
     uint64_t max_ram_below_4g;
     bool vmport;
@@ -212,7 +214,7 @@ void pc_basic_device_init(ISABus *isa_bus, qemu_irq *gsi,
                           uint32 hpet_irqs);
 void pc_init_ne2k_isa(ISABus *bus, NICInfo *nd);
 void pc_cmos_init(ram_addr_t ram_size, ram_addr_t above_4g_mem_size,
-                  const char *boot_device,
+                  const char *boot_device, MachineState *machine,
                   ISADevice *floppy, BusState *ide0, BusState *ide1,
                   ISADevice *s);
 void pc_nic_init(ISABus *isa_bus, PCIBus *pci_bus);
@@ -303,31 +305,8 @@ int e820_add_entry(uint64_t, uint64_t, uint32_t);
 int e820_get_num_entries(void);
 bool e820_get_entry(int, uint32_t, uint64_t *, uint64_t *);
 
-#define PC_COMPAT_2_1 \
-        {\
-            .driver   = "intel-hda",\
-            .property = "old_msi_addr",\
-            .value    = "on",\
-        },{\
-            .driver   = "VGA",\
-            .property = "qemu-extended-regs",\
-            .value    = "off",\
-        },{\
-            .driver   = "secondary-vga",\
-            .property = "qemu-extended-regs",\
-            .value    = "off",\
-        },{\
-            .driver   = "usb-mouse",\
-            .property = "usb_version",\
-            .value    = stringify(1),\
-        },{\
-            .driver   = "usb-kbd",\
-            .property = "usb_version",\
-            .value    = stringify(1),\
-        }
-
 #define PC_COMPAT_2_0 \
-        PC_COMPAT_2_1, \
+        HW_COMPAT_2_1, \
         {\
             .driver   = "virtio-scsi-pci",\
             .property = "any_layout",\

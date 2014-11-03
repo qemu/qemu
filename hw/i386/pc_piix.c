@@ -63,6 +63,7 @@ static bool has_acpi_build = true;
 static int legacy_acpi_table_size;
 static bool smbios_defaults = true;
 static bool smbios_legacy_mode;
+static bool smbios_uuid_encoded = true;
 /* Make sure that guest addresses aligned at 1Gbyte boundaries get mapped to
  * host addresses aligned at 1Gbyte boundaries.  This way we can use 1GByte
  * pages in the host.
@@ -172,7 +173,7 @@ static void pc_init1(MachineState *machine,
         MachineClass *mc = MACHINE_GET_CLASS(machine);
         /* These values are guest ABI, do not change */
         smbios_set_defaults("QEMU", "Standard PC (i440FX + PIIX, 1996)",
-                            mc->name, smbios_legacy_mode);
+                            mc->name, smbios_legacy_mode, smbios_uuid_encoded);
     }
 
     /* allocate ram and load rom/bios */
@@ -266,7 +267,7 @@ static void pc_init1(MachineState *machine,
     }
 
     pc_cmos_init(below_4g_mem_size, above_4g_mem_size, machine->boot_order,
-                 floppy, idebus[0], idebus[1], rtc_state);
+                 machine, floppy, idebus[0], idebus[1], rtc_state);
 
     if (pci_enabled && usb_enabled(false)) {
         pci_create_simple(pci_bus, piix3_devfn + 2, "piix3-usb-uhci");
@@ -302,8 +303,14 @@ static void pc_init_pci(MachineState *machine)
     pc_init1(machine, 1, 1);
 }
 
+static void pc_compat_2_1(MachineState *machine)
+{
+    smbios_uuid_encoded = false;
+}
+
 static void pc_compat_2_0(MachineState *machine)
 {
+    pc_compat_2_1(machine);
     /* This value depends on the actual DSDT and SSDT compiled into
      * the source QEMU; unfortunately it depends on the binary and
      * not on the machine type, so we cannot make pc-i440fx-1.7 work on
@@ -366,6 +373,12 @@ static void pc_compat_1_2(MachineState *machine)
 {
     pc_compat_1_3(machine);
     x86_cpu_compat_disable_kvm_features(FEAT_KVM, KVM_FEATURE_PV_EOI);
+}
+
+static void pc_init_pci_2_1(MachineState *machine)
+{
+    pc_compat_2_1(machine);
+    pc_init_pci(machine);
 }
 
 static void pc_init_pci_2_0(MachineState *machine)
@@ -451,12 +464,14 @@ static void pc_xen_hvm_init(MachineState *machine)
 
 #define PC_I440FX_MACHINE_OPTIONS \
     PC_DEFAULT_MACHINE_OPTIONS, \
+    .family = "pc_piix", \
     .desc = "Standard PC (i440FX + PIIX, 1996)", \
     .hot_add_cpu = pc_hot_add_cpu
 
 #define PC_I440FX_2_2_MACHINE_OPTIONS                           \
     PC_I440FX_MACHINE_OPTIONS,                                  \
-    .default_machine_opts = "firmware=bios-256k.bin"
+    .default_machine_opts = "firmware=bios-256k.bin",           \
+    .default_display = "std"
 
 static QEMUMachine pc_i440fx_machine_v2_2 = {
     PC_I440FX_2_2_MACHINE_OPTIONS,
@@ -466,14 +481,16 @@ static QEMUMachine pc_i440fx_machine_v2_2 = {
     .is_default = 1,
 };
 
-#define PC_I440FX_2_1_MACHINE_OPTIONS PC_I440FX_2_2_MACHINE_OPTIONS
+#define PC_I440FX_2_1_MACHINE_OPTIONS                           \
+    PC_I440FX_MACHINE_OPTIONS,                                  \
+    .default_machine_opts = "firmware=bios-256k.bin"
 
 static QEMUMachine pc_i440fx_machine_v2_1 = {
     PC_I440FX_2_1_MACHINE_OPTIONS,
     .name = "pc-i440fx-2.1",
-    .init = pc_init_pci,
+    .init = pc_init_pci_2_1,
     .compat_props = (GlobalProperty[]) {
-        PC_COMPAT_2_1,
+        HW_COMPAT_2_1,
         { /* end of list */ }
     },
 };
@@ -661,7 +678,7 @@ static QEMUMachine pc_machine_v1_1 = {
             .property = "class",\
             .value    = stringify(PCI_CLASS_MEMORY_RAM),\
         },{\
-            .driver   = "apic",\
+            .driver   = "apic-common",\
             .property = "vapic",\
             .value    = "off",\
         },{\

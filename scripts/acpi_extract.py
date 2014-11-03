@@ -139,13 +139,16 @@ def aml_name_string(offset):
         offset += 1
     return offset;
 
-# Given data offset, find 8 byte buffer offset
-def aml_data_buffer8(offset):
-    #0x08 NameOp NameString DataRef
-    expect = [0x11, 0x0B, 0x0A, 0x08]
+# Given data offset, find variable length byte buffer offset
+def aml_data_buffer(offset, length):
+    #0x11 PkgLength BufferSize ByteList
+    if (length > 63):
+        die( "Name offset 0x%x: expected a one byte PkgLength (length<=63)" %
+             (offset));
+    expect = [0x11, length+3, 0x0A, length]
     if (aml[offset:offset+4] != expect):
         die( "Name offset 0x%x: expected %s actual %s" %
-             (offset, aml[offset:offset+4], expect))
+             (offset, expect, aml[offset:offset+4]))
     return offset + len(expect)
 
 # Given data offset, find dword const offset
@@ -172,9 +175,9 @@ def aml_data_byte_const(offset):
              (offset, aml[offset]));
     return offset + 1;
 
-# Find name'd buffer8
-def aml_name_buffer8(offset):
-    return aml_data_buffer8(aml_name_string(offset) + 4)
+# Find name'd buffer
+def aml_name_buffer(offset, length):
+    return aml_data_buffer(aml_name_string(offset) + 4, length)
 
 # Given name offset, find dword const offset
 def aml_name_dword_const(offset):
@@ -308,7 +311,9 @@ for i in range(len(asl)):
         output[array] = aml
         continue
     if (directive == "ACPI_EXTRACT_NAME_BUFFER8"):
-        offset = aml_name_buffer8(offset)
+        offset = aml_name_buffer(offset, 8)
+    elif (directive == "ACPI_EXTRACT_NAME_BUFFER16"):
+        offset = aml_name_buffer(offset, 16)
     elif (directive == "ACPI_EXTRACT_NAME_DWORD_CONST"):
         offset = aml_name_dword_const(offset)
     elif (directive == "ACPI_EXTRACT_NAME_WORD_CONST"):

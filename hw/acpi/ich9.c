@@ -209,15 +209,6 @@ static void pm_powerdown_req(Notifier *n, void *opaque)
     acpi_pm1_evt_power_down(&pm->acpi_regs);
 }
 
-static void ich9_cpu_added_req(Notifier *n, void *opaque)
-{
-    ICH9LPCPMRegs *pm = container_of(n, ICH9LPCPMRegs, cpu_added_notifier);
-
-    assert(pm != NULL);
-    AcpiCpuHotplug_add(&pm->acpi_regs.gpe, &pm->gpe_cpu, CPU(opaque));
-    acpi_update_sci(&pm->acpi_regs, pm->irq);
-}
-
 void ich9_pm_init(PCIDevice *lpc_pci, ICH9LPCPMRegs *pm,
                   qemu_irq sci_irq)
 {
@@ -244,10 +235,8 @@ void ich9_pm_init(PCIDevice *lpc_pci, ICH9LPCPMRegs *pm,
     pm->powerdown_notifier.notify = pm_powerdown_req;
     qemu_register_powerdown_notifier(&pm->powerdown_notifier);
 
-    AcpiCpuHotplug_init(pci_address_space_io(lpc_pci), OBJECT(lpc_pci),
-                        &pm->gpe_cpu, ICH9_CPU_HOTPLUG_IO_BASE);
-    pm->cpu_added_notifier.notify = ich9_cpu_added_req;
-    qemu_register_cpu_added_notifier(&pm->cpu_added_notifier);
+    acpi_cpu_hotplug_init(pci_address_space_io(lpc_pci), OBJECT(lpc_pci),
+                          &pm->gpe_cpu, ICH9_CPU_HOTPLUG_IO_BASE);
 
     if (pm->acpi_memory_hotplug.is_enabled) {
         acpi_memory_hotplug_init(pci_address_space_io(lpc_pci), OBJECT(lpc_pci),
@@ -304,6 +293,8 @@ void ich9_pm_device_plug_cb(ICH9LPCPMRegs *pm, DeviceState *dev, Error **errp)
         object_dynamic_cast(OBJECT(dev), TYPE_PC_DIMM)) {
         acpi_memory_plug_cb(&pm->acpi_regs, pm->irq, &pm->acpi_memory_hotplug,
                             dev, errp);
+    } else if (object_dynamic_cast(OBJECT(dev), TYPE_CPU)) {
+        acpi_cpu_plug_cb(&pm->acpi_regs, pm->irq, &pm->gpe_cpu, dev, errp);
     } else {
         error_setg(errp, "acpi: device plug request for not supported device"
                    " type: %s", object_get_typename(OBJECT(dev)));
