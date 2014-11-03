@@ -72,7 +72,7 @@ static void cpu_openrisc_load_kernel(ram_addr_t ram_size,
         entry = elf_entry;
         if (kernel_size < 0) {
             kernel_size = load_uimage(kernel_filename,
-                                      &entry, NULL, NULL);
+                                      &entry, NULL, NULL, NULL, NULL);
         }
         if (kernel_size < 0) {
             kernel_size = load_image_targphys(kernel_filename,

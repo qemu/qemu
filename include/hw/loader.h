@@ -30,7 +30,9 @@ int load_elf(const char *filename, uint64_t (*translate_fn)(void *, uint64_t),
 int load_aout(const char *filename, hwaddr addr, int max_sz,
               int bswap_needed, hwaddr target_page_size);
 int load_uimage(const char *filename, hwaddr *ep,
-                hwaddr *loadaddr, int *is_linux);
+                hwaddr *loadaddr, int *is_linux,
+                uint64_t (*translate_fn)(void *, uint64_t),
+                void *translate_opaque);
 
 /**
  * load_ramdisk:
