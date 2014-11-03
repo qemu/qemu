@@ -90,7 +90,7 @@ int mips_cpu_gdb_write_register(CPUState *cs, uint8_t *mem_buf, int n)
         return sizeof(target_ulong);
     }
     if (env->CP0_Config1 & (1 << CP0C1_FP)
-            && n >= 38 && n < 73) {
+            && n >= 38 && n < 72) {
         if (n < 70) {
             if (env->CP0_Status & (1 << CP0St_FR)) {
                 env->active_fpu.fpr[n - 38].d = tmp;
