@@ -105,7 +105,7 @@ int mips_cpu_gdb_write_register(CPUState *cs, uint8_t *mem_buf, int n)
             RESTORE_ROUNDING_MODE;
             break;
         case 71:
-            env->active_fpu.fcr0 = tmp;
+            /* FIR is read-only.  Ignore writes.  */
             break;
         }
         return sizeof(target_ulong);
