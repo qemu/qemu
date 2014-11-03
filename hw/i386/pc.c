@@ -1688,6 +1688,20 @@ static void pc_machine_set_max_ram_below_4g(Object *obj, Visitor *v,
     pcms->max_ram_below_4g = value;
 }
 
+static bool pc_machine_get_vmport(Object *obj, Error **errp)
+{
+    PCMachineState *pcms = PC_MACHINE(obj);
+
+    return pcms->vmport;
+}
+
+static void pc_machine_set_vmport(Object *obj, bool value, Error **errp)
+{
+    PCMachineState *pcms = PC_MACHINE(obj);
+
+    pcms->vmport = value;
+}
+
 static void pc_machine_initfn(Object *obj)
 {
     PCMachineState *pcms = PC_MACHINE(obj);
@@ -1700,6 +1714,11 @@ static void pc_machine_initfn(Object *obj)
                         pc_machine_get_max_ram_below_4g,
                         pc_machine_set_max_ram_below_4g,
                         NULL, NULL, NULL);
+    pcms->vmport = !xen_enabled();
+    object_property_add_bool(obj, PC_MACHINE_VMPORT,
+                             pc_machine_get_vmport,
+                             pc_machine_set_vmport,
+                             NULL);
 }
 
 static void pc_machine_class_init(ObjectClass *oc, void *data)

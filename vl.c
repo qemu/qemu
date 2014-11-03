@@ -376,6 +376,10 @@ static QemuOptsList qemu_machine_opts = {
             .name = PC_MACHINE_MAX_RAM_BELOW_4G,
             .type = QEMU_OPT_SIZE,
             .help = "maximum ram below the 4G boundary (32bit boundary)",
+        }, {
+            .name = PC_MACHINE_VMPORT,
+            .type = QEMU_OPT_BOOL,
+            .help = "Enable vmport (pc & q35)",
         },{
             .name = "iommu",
             .type = QEMU_OPT_BOOL,
@@ -3746,6 +3750,11 @@ int main(int argc, char **argv, char **envp)
                 configure_msg(opts);
                 break;
             case QEMU_OPTION_dump_vmstate:
+                if (vmstate_dump_file) {
+                    fprintf(stderr, "qemu: only one '-dump-vmstate' "
+                            "option may be given\n");
+                    exit(1);
+                }
                 vmstate_dump_file = fopen(optarg, "w");
                 if (vmstate_dump_file == NULL) {
                     fprintf(stderr, "open %s: %s\n", optarg, strerror(errno));

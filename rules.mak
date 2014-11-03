@@ -362,4 +362,9 @@ define unnest-vars
         # Include all the .d files
         $(eval -include $(addsuffix *.d, $(sort $(dir $($v)))))
         $(eval $v := $(filter-out %/,$($v))))
+
+    # For all %.mo objects that are directly added into -y, expand them to %.mo-objs
+    $(foreach v,$2,
+        $(eval $v := $(foreach o,$($v),$(if $($o-objs),$($o-objs),$o))))
+
 endef

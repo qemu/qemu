@@ -804,10 +804,12 @@ void virtio_scsi_common_realize(DeviceState *dev, Error **errp,
     virtio_init(vdev, "virtio-scsi", VIRTIO_ID_SCSI,
                 sizeof(VirtIOSCSIConfig));
 
-    if (s->conf.num_queues <= 0 || s->conf.num_queues > VIRTIO_PCI_QUEUE_MAX) {
-        error_setg(errp, "Invalid number of queues (= %" PRId32 "), "
+    if (s->conf.num_queues == 0 ||
+            s->conf.num_queues > VIRTIO_PCI_QUEUE_MAX - 2) {
+        error_setg(errp, "Invalid number of queues (= %" PRIu32 "), "
                          "must be a positive integer less than %d.",
-                   s->conf.num_queues, VIRTIO_PCI_QUEUE_MAX);
+                   s->conf.num_queues, VIRTIO_PCI_QUEUE_MAX - 2);
+        virtio_cleanup(vdev);
         return;
     }
     s->cmd_vqs = g_malloc0(s->conf.num_queues * sizeof(VirtQueue *));

@@ -33,6 +33,7 @@ DEF("machine", HAS_ARG, QEMU_OPTION_machine, \
     "                property accel=accel1[:accel2[:...]] selects accelerator\n"
     "                supported accelerators are kvm, xen, tcg (default: tcg)\n"
     "                kernel_irqchip=on|off controls accelerated irqchip support\n"
+    "                vmport=on|off controls emulation of vmport (default: on)\n"
     "                kvm_shadow_mem=size of KVM shadow MMU\n"
     "                dump-guest-core=on|off include guest memory in a core dump (default=on)\n"
     "                mem-merge=on|off controls memory merge support (default: on)\n"
@@ -51,6 +52,8 @@ than one accelerator specified, the next one is used if the previous one fails
 to initialize.
 @item kernel_irqchip=on|off
 Enables in-kernel irqchip support for the chosen accelerator when available.
+@item vmport=on|off
+Enables emulation of VMWare IO port, for vmmouse etc. (enabled by default)
 @item kvm_shadow_mem=size
 Defines the size of the KVM shadow MMU.
 @item dump-guest-core=on|off

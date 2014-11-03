@@ -2911,6 +2911,7 @@ static int vfio_mmap_bar(VFIODevice *vdev, VFIOBAR *bar,
         }
 
         memory_region_init_ram_ptr(submem, OBJECT(vdev), name, size, *map);
+        memory_region_set_skip_dump(submem);
     } else {
 empty_region:
         /* Create a zero sized sub-region to make cleanup easy. */

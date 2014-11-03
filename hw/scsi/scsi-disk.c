@@ -1666,7 +1666,7 @@ static void scsi_disk_emulate_write_same(SCSIDiskReq *r, uint8_t *inbuf)
 {
     SCSIRequest *req = &r->req;
     SCSIDiskState *s = DO_UPCAST(SCSIDiskState, qdev, req->dev);
-    uint32_t nb_sectors = scsi_data_cdb_length(r->req.cmd.buf);
+    uint32_t nb_sectors = scsi_data_cdb_xfer(r->req.cmd.buf);
     WriteSameCBData *data;
     uint8_t *buf;
     int i;
@@ -2061,7 +2061,7 @@ static int32_t scsi_disk_dma_command(SCSIRequest *req, uint8_t *buf)
         return 0;
     }
 
-    len = scsi_data_cdb_length(r->req.cmd.buf);
+    len = scsi_data_cdb_xfer(r->req.cmd.buf);
     switch (command) {
     case READ_6:
     case READ_10:
@@ -2136,14 +2136,6 @@ static void scsi_disk_reset(DeviceState *dev)
     /* reset tray statuses */
     s->tray_locked = 0;
     s->tray_open = 0;
-}
-
-static void scsi_unrealize(SCSIDevice *dev, Error **errp)
-{
-    SCSIDiskState *s = DO_UPCAST(SCSIDiskState, qdev, dev);
-
-    scsi_device_purge_requests(&s->qdev, SENSE_CODE(NO_SENSE));
-    blockdev_mark_auto_del(s->qdev.conf.blk);
 }
 
 static void scsi_disk_resize_cb(void *opaque)
@@ -2396,7 +2388,7 @@ static SCSIRequest *scsi_new_request(SCSIDevice *d, uint32_t tag, uint32_t lun,
     DPRINTF("Command: lun=%d tag=0x%x data=0x%02x", lun, tag, buf[0]);
     {
         int i;
-        for (i = 1; i < req->cmd.len; i++) {
+        for (i = 1; i < scsi_cdb_length(buf); i++) {
             printf(" 0x%02x", buf[i]);
         }
         printf("\n");
@@ -2612,7 +2604,6 @@ static void scsi_hd_class_initfn(ObjectClass *klass, void *data)
     SCSIDeviceClass *sc = SCSI_DEVICE_CLASS(klass);
 
     sc->realize      = scsi_hd_realize;
-    sc->unrealize    = scsi_unrealize;
     sc->alloc_req    = scsi_new_request;
     sc->unit_attention_reported = scsi_disk_unit_attention_reported;
     dc->fw_name = "disk";
@@ -2643,7 +2634,6 @@ static void scsi_cd_class_initfn(ObjectClass *klass, void *data)
     SCSIDeviceClass *sc = SCSI_DEVICE_CLASS(klass);
 
     sc->realize      = scsi_cd_realize;
-    sc->unrealize    = scsi_unrealize;
     sc->alloc_req    = scsi_new_request;
     sc->unit_attention_reported = scsi_disk_unit_attention_reported;
     dc->fw_name = "disk";
@@ -2672,7 +2662,6 @@ static void scsi_block_class_initfn(ObjectClass *klass, void *data)
     SCSIDeviceClass *sc = SCSI_DEVICE_CLASS(klass);
 
     sc->realize      = scsi_block_realize;
-    sc->unrealize    = scsi_unrealize;
     sc->alloc_req    = scsi_block_new_request;
     sc->parse_cdb    = scsi_block_parse_cdb;
     dc->fw_name = "disk";
@@ -2710,7 +2699,6 @@ static void scsi_disk_class_initfn(ObjectClass *klass, void *data)
     SCSIDeviceClass *sc = SCSI_DEVICE_CLASS(klass);
 
     sc->realize      = scsi_disk_realize;
-    sc->unrealize    = scsi_unrealize;
     sc->alloc_req    = scsi_new_request;
     sc->unit_attention_reported = scsi_disk_unit_attention_reported;
     dc->fw_name = "disk";

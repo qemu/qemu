@@ -84,7 +84,6 @@ struct SCSIRequest {
 typedef struct SCSIDeviceClass {
     DeviceClass parent_class;
     void (*realize)(SCSIDevice *dev, Error **errp);
-    void (*unrealize)(SCSIDevice *dev, Error **errp);
     int (*parse_cdb)(SCSIDevice *dev, SCSICommand *cmd, uint8_t *buf,
                      void *hba_private);
     SCSIRequest *(*alloc_req)(SCSIDevice *s, uint32_t tag, uint32_t lun,
@@ -239,8 +238,9 @@ extern const struct SCSISense sense_code_SPACE_ALLOC_FAILED;
 
 #define SENSE_CODE(x) sense_code_ ## x
 
-uint32_t scsi_data_cdb_length(uint8_t *buf);
-uint32_t scsi_cdb_length(uint8_t *buf);
+uint32_t scsi_data_cdb_xfer(uint8_t *buf);
+uint32_t scsi_cdb_xfer(uint8_t *buf);
+int scsi_cdb_length(uint8_t *buf);
 int scsi_sense_valid(SCSISense sense);
 int scsi_build_sense(uint8_t *in_buf, int in_len,
                      uint8_t *buf, int len, bool fixed);
@@ -271,6 +271,7 @@ void scsi_req_retry(SCSIRequest *req);
 void scsi_device_purge_requests(SCSIDevice *sdev, SCSISense sense);
 void scsi_device_set_ua(SCSIDevice *sdev, SCSISense sense);
 void scsi_device_report_change(SCSIDevice *dev, SCSISense sense);
+void scsi_device_unit_attention_reported(SCSIDevice *dev);
 int scsi_device_get_sense(SCSIDevice *dev, uint8_t *buf, int len, bool fixed);
 SCSIDevice *scsi_device_find(SCSIBus *bus, int channel, int target, int lun);
 
