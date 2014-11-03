@@ -49,6 +49,9 @@ static int handle_cmd(AHCIState *s,int port,int slot);
 static void ahci_reset_port(AHCIState *s, int port);
 static void ahci_write_fis_d2h(AHCIDevice *ad, uint8_t *cmd_fis);
 static void ahci_init_d2h(AHCIDevice *ad);
+static int ahci_dma_prepare_buf(IDEDMA *dma, int is_write);
+static void ahci_commit_buf(IDEDMA *dma, uint32_t tx_bytes);
+
 
 static uint32_t  ahci_port_read(AHCIState *s, int port, int offset)
 {
@@ -567,24 +570,24 @@ static void ahci_write_fis_sdb(AHCIState *s, int port, uint32_t finished)
     AHCIDevice *ad = &s->dev[port];
     AHCIPortRegs *pr = &ad->port_regs;
     IDEState *ide_state;
-    uint8_t *sdb_fis;
+    SDBFIS *sdb_fis;
 
     if (!s->dev[port].res_fis ||
         !(pr->cmd & PORT_CMD_FIS_RX)) {
         return;
     }
 
-    sdb_fis = &ad->res_fis[RES_FIS_SDBFIS];
+    sdb_fis = (SDBFIS *)&ad->res_fis[RES_FIS_SDBFIS];
     ide_state = &ad->port.ifs[0];
 
-    /* clear memory */
-    *(uint32_t*)sdb_fis = 0;
-
-    /* write values */
-    sdb_fis[0] = ide_state->error;
-    sdb_fis[2] = ide_state->status & 0x77;
+    sdb_fis->type = 0xA1;
+    /* Interrupt pending & Notification bit */
+    sdb_fis->flags = (ad->hba->control_regs.irqstatus ? (1 << 6) : 0);
+    sdb_fis->status = ide_state->status & 0x77;
+    sdb_fis->error = ide_state->error;
+    /* update SAct field in SDB_FIS */
     s->dev[port].finished |= finished;
-    *(uint32_t*)(sdb_fis + 4) = cpu_to_le32(ad->finished);
+    sdb_fis->payload = cpu_to_le32(ad->finished);
 
     /* Update shadow registers (except BSY 0x80 and DRQ 0x08) */
     pr->tfdata = (ad->port.ifs[0].error << 8) |
@@ -600,6 +603,7 @@ static void ahci_write_fis_pio(AHCIDevice *ad, uint16_t len)
     uint8_t *pio_fis, *cmd_fis;
     uint64_t tbl_addr;
     dma_addr_t cmd_len = 0x80;
+    IDEState *s = &ad->port.ifs[0];
 
     if (!ad->res_fis || !(pr->cmd & PORT_CMD_FIS_RX)) {
         return;
@@ -629,21 +633,21 @@ static void ahci_write_fis_pio(AHCIDevice *ad, uint16_t len)
 
     pio_fis[0] = 0x5f;
     pio_fis[1] = (ad->hba->control_regs.irqstatus ? (1 << 6) : 0);
-    pio_fis[2] = ad->port.ifs[0].status;
-    pio_fis[3] = ad->port.ifs[0].error;
+    pio_fis[2] = s->status;
+    pio_fis[3] = s->error;
 
-    pio_fis[4] = cmd_fis[4];
-    pio_fis[5] = cmd_fis[5];
-    pio_fis[6] = cmd_fis[6];
-    pio_fis[7] = cmd_fis[7];
-    pio_fis[8] = cmd_fis[8];
-    pio_fis[9] = cmd_fis[9];
-    pio_fis[10] = cmd_fis[10];
-    pio_fis[11] = cmd_fis[11];
+    pio_fis[4] = s->sector;
+    pio_fis[5] = s->lcyl;
+    pio_fis[6] = s->hcyl;
+    pio_fis[7] = s->select;
+    pio_fis[8] = s->hob_sector;
+    pio_fis[9] = s->hob_lcyl;
+    pio_fis[10] = s->hob_hcyl;
+    pio_fis[11] = 0;
     pio_fis[12] = cmd_fis[12];
     pio_fis[13] = cmd_fis[13];
     pio_fis[14] = 0;
-    pio_fis[15] = ad->port.ifs[0].status;
+    pio_fis[15] = s->status;
     pio_fis[16] = len & 255;
     pio_fis[17] = len >> 8;
     pio_fis[18] = 0;
@@ -670,6 +674,7 @@ static void ahci_write_fis_d2h(AHCIDevice *ad, uint8_t *cmd_fis)
     int i;
     dma_addr_t cmd_len = 0x80;
     int cmd_mapped = 0;
+    IDEState *s = &ad->port.ifs[0];
 
     if (!ad->res_fis || !(pr->cmd & PORT_CMD_FIS_RX)) {
         return;
@@ -687,17 +692,17 @@ static void ahci_write_fis_d2h(AHCIDevice *ad, uint8_t *cmd_fis)
 
     d2h_fis[0] = 0x34;
     d2h_fis[1] = (ad->hba->control_regs.irqstatus ? (1 << 6) : 0);
-    d2h_fis[2] = ad->port.ifs[0].status;
-    d2h_fis[3] = ad->port.ifs[0].error;
+    d2h_fis[2] = s->status;
+    d2h_fis[3] = s->error;
 
-    d2h_fis[4] = cmd_fis[4];
-    d2h_fis[5] = cmd_fis[5];
-    d2h_fis[6] = cmd_fis[6];
-    d2h_fis[7] = cmd_fis[7];
-    d2h_fis[8] = cmd_fis[8];
-    d2h_fis[9] = cmd_fis[9];
-    d2h_fis[10] = cmd_fis[10];
-    d2h_fis[11] = cmd_fis[11];
+    d2h_fis[4] = s->sector;
+    d2h_fis[5] = s->lcyl;
+    d2h_fis[6] = s->hcyl;
+    d2h_fis[7] = s->select;
+    d2h_fis[8] = s->hob_sector;
+    d2h_fis[9] = s->hob_lcyl;
+    d2h_fis[10] = s->hob_hcyl;
+    d2h_fis[11] = 0;
     d2h_fis[12] = cmd_fis[12];
     d2h_fis[13] = cmd_fis[13];
     for (i = 14; i < 20; i++) {
@@ -1103,16 +1108,12 @@ static void ahci_start_transfer(IDEDMA *dma)
         }
     }
 
-    /* update number of transferred bytes */
-    ad->cur_cmd->status = cpu_to_le32(le32_to_cpu(ad->cur_cmd->status) + size);
-
 out:
     /* declare that we processed everything */
     s->data_ptr = s->data_end;
 
-    if (has_sglist) {
-        qemu_sglist_destroy(&s->sg);
-    }
+    /* Update number of transferred bytes, destroy sglist */
+    ahci_commit_buf(dma, size);
 
     s->end_transfer_func(s);
 
@@ -1133,6 +1134,11 @@ static void ahci_start_dma(IDEDMA *dma, IDEState *s,
     dma_cb(s, 0);
 }
 
+/**
+ * Called in DMA R/W chains to read the PRDT, utilizing ahci_populate_sglist.
+ * Not currently invoked by PIO R/W chains,
+ * which invoke ahci_populate_sglist via ahci_start_transfer.
+ */
 static int ahci_dma_prepare_buf(IDEDMA *dma, int is_write)
 {
     AHCIDevice *ad = DO_UPCAST(AHCIDevice, dma, dma);
@@ -1143,6 +1149,24 @@ static int ahci_dma_prepare_buf(IDEDMA *dma, int is_write)
 
     DPRINTF(ad->port_no, "len=%#x\n", s->io_buffer_size);
     return s->io_buffer_size != 0;
+}
+
+/**
+ * Destroys the scatter-gather list,
+ * and updates the command header with a bytes-read value.
+ * called explicitly via ahci_dma_rw_buf (ATAPI DMA),
+ * and ahci_start_transfer (PIO R/W),
+ * and called via callback from ide_dma_cb for DMA R/W paths.
+ */
+static void ahci_commit_buf(IDEDMA *dma, uint32_t tx_bytes)
+{
+    AHCIDevice *ad = DO_UPCAST(AHCIDevice, dma, dma);
+    IDEState *s = &ad->port.ifs[0];
+
+    tx_bytes += le32_to_cpu(ad->cur_cmd->status);
+    ad->cur_cmd->status = cpu_to_le32(tx_bytes);
+
+    qemu_sglist_destroy(&s->sg);
 }
 
 static int ahci_dma_rw_buf(IDEDMA *dma, int is_write)
@@ -1162,11 +1186,9 @@ static int ahci_dma_rw_buf(IDEDMA *dma, int is_write)
         dma_buf_write(p, l, &s->sg);
     }
 
-    /* free sglist that was created in ahci_populate_sglist() */
-    qemu_sglist_destroy(&s->sg);
+    /* free sglist, update byte count */
+    ahci_commit_buf(dma, l);
 
-    /* update number of transferred bytes */
-    ad->cur_cmd->status = cpu_to_le32(le32_to_cpu(ad->cur_cmd->status) + l);
     s->io_buffer_index += l;
     s->io_buffer_offset += l;
 
@@ -1209,6 +1231,7 @@ static const IDEDMAOps ahci_dma_ops = {
     .start_dma = ahci_start_dma,
     .start_transfer = ahci_start_transfer,
     .prepare_buf = ahci_dma_prepare_buf,
+    .commit_buf = ahci_commit_buf,
     .rw_buf = ahci_dma_rw_buf,
     .set_unit = ahci_dma_set_unit,
     .cmd_done = ahci_cmd_done,

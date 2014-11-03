@@ -322,6 +322,7 @@ typedef void EndTransferFunc(IDEState *);
 typedef void DMAStartFunc(IDEDMA *, IDEState *, BlockCompletionFunc *);
 typedef void DMAVoidFunc(IDEDMA *);
 typedef int DMAIntFunc(IDEDMA *, int);
+typedef void DMAu32Func(IDEDMA *, uint32_t);
 typedef void DMAStopFunc(IDEDMA *, bool);
 typedef void DMARestartFunc(void *, int, RunState);
 
@@ -430,6 +431,7 @@ struct IDEDMAOps {
     DMAStartFunc *start_dma;
     DMAVoidFunc *start_transfer;
     DMAIntFunc *prepare_buf;
+    DMAu32Func *commit_buf;
     DMAIntFunc *rw_buf;
     DMAIntFunc *set_unit;
     DMAStopFunc *set_inactive;

@@ -268,7 +268,13 @@ typedef enum {
 
 int bdrv_check(BlockDriverState *bs, BdrvCheckResult *res, BdrvCheckMode fix);
 
-int bdrv_amend_options(BlockDriverState *bs_new, QemuOpts *opts);
+/* The units of offset and total_work_size may be chosen arbitrarily by the
+ * block driver; total_work_size may change during the course of the amendment
+ * operation */
+typedef void BlockDriverAmendStatusCB(BlockDriverState *bs, int64_t offset,
+                                      int64_t total_work_size);
+int bdrv_amend_options(BlockDriverState *bs_new, QemuOpts *opts,
+                       BlockDriverAmendStatusCB *status_cb);
 
 /* external snapshots */
 bool bdrv_recurse_is_first_non_filter(BlockDriverState *bs,
@@ -328,6 +334,7 @@ int bdrv_flush(BlockDriverState *bs);
 int coroutine_fn bdrv_co_flush(BlockDriverState *bs);
 int bdrv_flush_all(void);
 void bdrv_close_all(void);
+void bdrv_drain(BlockDriverState *bs);
 void bdrv_drain_all(void);
 
 int bdrv_discard(BlockDriverState *bs, int64_t sector_num, int nb_sectors);
@@ -497,6 +504,8 @@ typedef enum {
     BLKDBG_PWRITEV,
     BLKDBG_PWRITEV_ZERO,
     BLKDBG_PWRITEV_DONE,
+
+    BLKDBG_EMPTY_IMAGE_PREPARE,
 
     BLKDBG_EVENT_MAX,
 } BlkDebugEvent;

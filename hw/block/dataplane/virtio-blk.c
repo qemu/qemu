@@ -196,6 +196,11 @@ void virtio_blk_data_plane_create(VirtIODevice *vdev, VirtIOBlkConf *conf,
     blk_op_block_all(conf->conf.blk, s->blocker);
     blk_op_unblock(conf->conf.blk, BLOCK_OP_TYPE_RESIZE, s->blocker);
     blk_op_unblock(conf->conf.blk, BLOCK_OP_TYPE_DRIVE_DEL, s->blocker);
+    blk_op_unblock(conf->conf.blk, BLOCK_OP_TYPE_BACKUP_SOURCE, s->blocker);
+    blk_op_unblock(conf->conf.blk, BLOCK_OP_TYPE_COMMIT, s->blocker);
+    blk_op_unblock(conf->conf.blk, BLOCK_OP_TYPE_MIRROR, s->blocker);
+    blk_op_unblock(conf->conf.blk, BLOCK_OP_TYPE_STREAM, s->blocker);
+    blk_op_unblock(conf->conf.blk, BLOCK_OP_TYPE_REPLACE, s->blocker);
 
     *dataplane = s;
 }

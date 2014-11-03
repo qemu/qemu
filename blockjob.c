@@ -50,6 +50,7 @@ void *block_job_create(const BlockJobDriver *driver, BlockDriverState *bs,
     error_setg(&job->blocker, "block device is in use by block job: %s",
                BlockJobType_lookup[driver->job_type]);
     bdrv_op_block_all(bs, job->blocker);
+    bdrv_op_unblock(bs, BLOCK_OP_TYPE_DATAPLANE, job->blocker);
 
     job->driver        = driver;
     job->bs            = bs;
@@ -153,7 +154,7 @@ void block_job_iostatus_reset(BlockJob *job)
     }
 }
 
-struct BlockCancelData {
+struct BlockFinishData {
     BlockJob *job;
     BlockCompletionFunc *cb;
     void *opaque;
@@ -161,19 +162,22 @@ struct BlockCancelData {
     int ret;
 };
 
-static void block_job_cancel_cb(void *opaque, int ret)
+static void block_job_finish_cb(void *opaque, int ret)
 {
-    struct BlockCancelData *data = opaque;
+    struct BlockFinishData *data = opaque;
 
     data->cancelled = block_job_is_cancelled(data->job);
     data->ret = ret;
     data->cb(data->opaque, ret);
 }
 
-int block_job_cancel_sync(BlockJob *job)
+static int block_job_finish_sync(BlockJob *job,
+                                 void (*finish)(BlockJob *, Error **errp),
+                                 Error **errp)
 {
-    struct BlockCancelData data;
+    struct BlockFinishData data;
     BlockDriverState *bs = job->bs;
+    Error *local_err = NULL;
 
     assert(bs->job == job);
 
@@ -184,13 +188,35 @@ int block_job_cancel_sync(BlockJob *job)
     data.cb = job->cb;
     data.opaque = job->opaque;
     data.ret = -EINPROGRESS;
-    job->cb = block_job_cancel_cb;
+    job->cb = block_job_finish_cb;
     job->opaque = &data;
-    block_job_cancel(job);
+    finish(job, &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        return -EBUSY;
+    }
     while (data.ret == -EINPROGRESS) {
         aio_poll(bdrv_get_aio_context(bs), true);
     }
     return (data.cancelled && data.ret == 0) ? -ECANCELED : data.ret;
+}
+
+/* A wrapper around block_job_cancel() taking an Error ** parameter so it may be
+ * used with block_job_finish_sync() without the need for (rather nasty)
+ * function pointer casts there. */
+static void block_job_cancel_err(BlockJob *job, Error **errp)
+{
+    block_job_cancel(job);
+}
+
+int block_job_cancel_sync(BlockJob *job)
+{
+    return block_job_finish_sync(job, &block_job_cancel_err, NULL);
+}
+
+int block_job_complete_sync(BlockJob *job, Error **errp)
+{
+    return block_job_finish_sync(job, &block_job_complete, errp);
 }
 
 void block_job_sleep_ns(BlockJob *job, QEMUClockType type, int64_t ns)
@@ -236,6 +262,7 @@ BlockJobInfo *block_job_query(BlockJob *job)
     info->offset    = job->offset;
     info->speed     = job->speed;
     info->io_status = job->iostatus;
+    info->ready     = job->ready;
     return info;
 }
 
@@ -271,6 +298,8 @@ void block_job_event_completed(BlockJob *job, const char *msg)
 
 void block_job_event_ready(BlockJob *job)
 {
+    job->ready = true;
+
     qapi_event_send_block_job_ready(job->driver->job_type,
                                     bdrv_get_device_name(job->bs),
                                     job->len,
@@ -313,4 +342,49 @@ BlockErrorAction block_job_error_action(BlockJob *job, BlockDriverState *bs,
         }
     }
     return action;
+}
+
+typedef struct {
+    BlockJob *job;
+    QEMUBH *bh;
+    AioContext *aio_context;
+    BlockJobDeferToMainLoopFn *fn;
+    void *opaque;
+} BlockJobDeferToMainLoopData;
+
+static void block_job_defer_to_main_loop_bh(void *opaque)
+{
+    BlockJobDeferToMainLoopData *data = opaque;
+    AioContext *aio_context;
+
+    qemu_bh_delete(data->bh);
+
+    /* Prevent race with block_job_defer_to_main_loop() */
+    aio_context_acquire(data->aio_context);
+
+    /* Fetch BDS AioContext again, in case it has changed */
+    aio_context = bdrv_get_aio_context(data->job->bs);
+    aio_context_acquire(aio_context);
+
+    data->fn(data->job, data->opaque);
+
+    aio_context_release(aio_context);
+
+    aio_context_release(data->aio_context);
+
+    g_free(data);
+}
+
+void block_job_defer_to_main_loop(BlockJob *job,
+                                  BlockJobDeferToMainLoopFn *fn,
+                                  void *opaque)
+{
+    BlockJobDeferToMainLoopData *data = g_malloc(sizeof(*data));
+    data->job = job;
+    data->bh = qemu_bh_new(block_job_defer_to_main_loop_bh, data);
+    data->aio_context = bdrv_get_aio_context(job->bs);
+    data->fn = fn;
+    data->opaque = opaque;
+
+    qemu_bh_schedule(data->bh);
 }

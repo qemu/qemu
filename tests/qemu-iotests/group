@@ -67,7 +67,7 @@
 058 rw auto quick
 059 rw auto quick
 060 rw auto quick
-061 rw auto quick
+061 rw auto
 062 rw auto quick
 063 rw auto quick
 064 rw auto quick
@@ -100,6 +100,8 @@
 091 rw auto quick
 092 rw auto quick
 095 rw auto quick
+097 rw auto backing
+098 rw auto backing quick
 099 rw auto quick
 100 rw auto quick
 101 rw auto quick

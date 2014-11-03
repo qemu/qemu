@@ -1481,12 +1481,12 @@ out:
     return result;
 }
 
-static int64_t try_fiemap(BlockDriverState *bs, off_t start, off_t *data,
-                          off_t *hole, int nb_sectors, int *pnum)
+static int try_fiemap(BlockDriverState *bs, off_t start, off_t *data,
+                      off_t *hole, int nb_sectors)
 {
 #ifdef CONFIG_FIEMAP
     BDRVRawState *s = bs->opaque;
-    int64_t ret = BDRV_BLOCK_DATA | BDRV_BLOCK_OFFSET_VALID | start;
+    int ret = 0;
     struct {
         struct fiemap fm;
         struct fiemap_extent fe;
@@ -1527,18 +1527,14 @@ static int64_t try_fiemap(BlockDriverState *bs, off_t start, off_t *data,
 #endif
 }
 
-static int64_t try_seek_hole(BlockDriverState *bs, off_t start, off_t *data,
-                             off_t *hole, int *pnum)
+static int try_seek_hole(BlockDriverState *bs, off_t start, off_t *data,
+                         off_t *hole)
 {
 #if defined SEEK_HOLE && defined SEEK_DATA
     BDRVRawState *s = bs->opaque;
 
     *hole = lseek(s->fd, start, SEEK_HOLE);
     if (*hole == -1) {
-        /* -ENXIO indicates that sector_num was past the end of the file.
-         * There is a virtual hole there.  */
-        assert(errno != -ENXIO);
-
         return -errno;
     }
 
@@ -1552,7 +1548,7 @@ static int64_t try_seek_hole(BlockDriverState *bs, off_t start, off_t *data,
         }
     }
 
-    return BDRV_BLOCK_DATA | BDRV_BLOCK_OFFSET_VALID | start;
+    return 0;
 #else
     return -ENOTSUP;
 #endif
@@ -1578,7 +1574,8 @@ static int64_t coroutine_fn raw_co_get_block_status(BlockDriverState *bs,
                                                     int nb_sectors, int *pnum)
 {
     off_t start, data = 0, hole = 0;
-    int64_t ret;
+    int64_t total_size;
+    int ret;
 
     ret = fd_open(bs);
     if (ret < 0) {
@@ -1586,29 +1583,38 @@ static int64_t coroutine_fn raw_co_get_block_status(BlockDriverState *bs,
     }
 
     start = sector_num * BDRV_SECTOR_SIZE;
+    total_size = bdrv_getlength(bs);
+    if (total_size < 0) {
+        return total_size;
+    } else if (start >= total_size) {
+        *pnum = 0;
+        return 0;
+    } else if (start + nb_sectors * BDRV_SECTOR_SIZE > total_size) {
+        nb_sectors = DIV_ROUND_UP(total_size - start, BDRV_SECTOR_SIZE);
+    }
 
-    ret = try_seek_hole(bs, start, &data, &hole, pnum);
+    ret = try_seek_hole(bs, start, &data, &hole);
     if (ret < 0) {
-        ret = try_fiemap(bs, start, &data, &hole, nb_sectors, pnum);
+        ret = try_fiemap(bs, start, &data, &hole, nb_sectors);
         if (ret < 0) {
             /* Assume everything is allocated. */
             data = 0;
             hole = start + nb_sectors * BDRV_SECTOR_SIZE;
-            ret = BDRV_BLOCK_DATA | BDRV_BLOCK_OFFSET_VALID | start;
+            ret = 0;
         }
     }
+
+    assert(ret >= 0);
 
     if (data <= start) {
         /* On a data extent, compute sectors to the end of the extent.  */
         *pnum = MIN(nb_sectors, (hole - start) / BDRV_SECTOR_SIZE);
+        return ret | BDRV_BLOCK_DATA | BDRV_BLOCK_OFFSET_VALID | start;
     } else {
         /* On a hole, compute sectors to the beginning of the next extent.  */
         *pnum = MIN(nb_sectors, (data - start) / BDRV_SECTOR_SIZE);
-        ret &= ~BDRV_BLOCK_DATA;
-        ret |= BDRV_BLOCK_ZERO;
+        return ret | BDRV_BLOCK_ZERO | BDRV_BLOCK_OFFSET_VALID | start;
     }
-
-    return ret;
 }
 
 static coroutine_fn BlockAIOCB *raw_aio_discard(BlockDriverState *bs,

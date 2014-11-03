@@ -1,0 +1,122 @@
+#!/bin/bash
+#
+# Commit changes into backing chains and empty the top image if the
+# backing image is not explicitly specified
+#
+# Copyright (C) 2014 Red Hat, Inc.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+
+# creator
+owner=mreitz@redhat.com
+
+seq="$(basename $0)"
+echo "QA output created by $seq"
+
+here="$PWD"
+tmp=/tmp/$$
+status=1	# failure is the default!
+
+_cleanup()
+{
+    _cleanup_test_img
+    _rm_test_img "$TEST_IMG.itmd"
+}
+trap "_cleanup; exit \$status" 0 1 2 3 15
+
+# get standard environment, filters and checks
+. ./common.rc
+. ./common.filter
+. ./common.pattern
+
+# Any format supporting backing files and bdrv_make_empty
+_supported_fmt qcow qcow2
+_supported_proto file
+_supported_os Linux
+
+
+# Four passes:
+#  0: Two-layer backing chain, commit to upper backing file (implicitly)
+#     (in this case, the top image will be emptied)
+#  1: Two-layer backing chain, commit to upper backing file (explicitly)
+#     (in this case, the top image will implicitly stay unchanged)
+#  2: Two-layer backing chain, commit to upper backing file (implicitly with -d)
+#     (in this case, the top image will explicitly stay unchanged)
+#  3: Two-layer backing chain, commit to lower backing file
+#     (in this case, the top image will implicitly stay unchanged)
+#
+# 020 already tests committing, so this only tests whether image chains are
+# working properly and that all images above the base are emptied; therefore,
+# no complicated patterns are necessary
+for i in 0 1 2 3; do
+
+echo
+echo "=== Test pass $i ==="
+echo
+
+TEST_IMG="$TEST_IMG.base" _make_test_img 64M
+TEST_IMG="$TEST_IMG.itmd" _make_test_img -b "$TEST_IMG.base" 64M
+_make_test_img -b "$TEST_IMG.itmd" 64M
+
+$QEMU_IO -c 'write -P 1 0 192k' "$TEST_IMG.base" | _filter_qemu_io
+$QEMU_IO -c 'write -P 2 64k 128k' "$TEST_IMG.itmd" | _filter_qemu_io
+$QEMU_IO -c 'write -P 3 128k 64k' "$TEST_IMG" | _filter_qemu_io
+
+if [ $i -lt 3 ]; then
+    if [ $i == 0 ]; then
+        # -b "$TEST_IMG.itmd" should be the default (that is, committing to the
+        # first backing file in the chain)
+        $QEMU_IMG commit "$TEST_IMG"
+    elif [ $i == 1 ]; then
+        # explicitly specify the commit target (this should imply -d)
+        $QEMU_IMG commit -b "$TEST_IMG.itmd" "$TEST_IMG"
+    else
+        # do not explicitly specify the commit target, but use -d to leave the
+        # top image unchanged
+        $QEMU_IMG commit -d "$TEST_IMG"
+    fi
+
+    # Bottom should be unchanged
+    $QEMU_IO -c 'read -P 1 0 192k' "$TEST_IMG.base" | _filter_qemu_io
+
+    # Intermediate should contain changes from top
+    $QEMU_IO -c 'read -P 1 0 64k' "$TEST_IMG.itmd" | _filter_qemu_io
+    $QEMU_IO -c 'read -P 2 64k 64k' "$TEST_IMG.itmd" | _filter_qemu_io
+    $QEMU_IO -c 'read -P 3 128k 64k' "$TEST_IMG.itmd" | _filter_qemu_io
+
+    # And in pass 0, the top image should be empty, whereas in both other passes
+    # it should be unchanged (which is both checked by qemu-img map)
+else
+    $QEMU_IMG commit -b "$TEST_IMG.base" "$TEST_IMG"
+
+    # Bottom should contain all changes
+    $QEMU_IO -c 'read -P 1 0 64k' "$TEST_IMG.base" | _filter_qemu_io
+    $QEMU_IO -c 'read -P 2 64k 64k' "$TEST_IMG.base" | _filter_qemu_io
+    $QEMU_IO -c 'read -P 3 128k 64k' "$TEST_IMG.base" | _filter_qemu_io
+
+    # Both top and intermediate should be unchanged
+fi
+
+$QEMU_IMG map "$TEST_IMG.base" | _filter_qemu_img_map
+$QEMU_IMG map "$TEST_IMG.itmd" | _filter_qemu_img_map
+$QEMU_IMG map "$TEST_IMG" | _filter_qemu_img_map
+
+done
+
+
+# success, all done
+echo "*** done"
+rm -f $seq.full
+status=0

@@ -519,6 +519,7 @@ void bdrv_refresh_limits(BlockDriverState *bs, Error **errp)
             return;
         }
         bs->bl.opt_transfer_length = bs->file->bl.opt_transfer_length;
+        bs->bl.max_transfer_length = bs->file->bl.max_transfer_length;
         bs->bl.opt_mem_alignment = bs->file->bl.opt_mem_alignment;
     } else {
         bs->bl.opt_mem_alignment = 512;
@@ -533,6 +534,9 @@ void bdrv_refresh_limits(BlockDriverState *bs, Error **errp)
         bs->bl.opt_transfer_length =
             MAX(bs->bl.opt_transfer_length,
                 bs->backing_hd->bl.opt_transfer_length);
+        bs->bl.max_transfer_length =
+            MIN_NON_ZERO(bs->bl.max_transfer_length,
+                         bs->backing_hd->bl.max_transfer_length);
         bs->bl.opt_mem_alignment =
             MAX(bs->bl.opt_mem_alignment,
                 bs->backing_hd->bl.opt_mem_alignment);
@@ -1900,6 +1904,34 @@ static bool bdrv_requests_pending(BlockDriverState *bs)
     return false;
 }
 
+static bool bdrv_drain_one(BlockDriverState *bs)
+{
+    bool bs_busy;
+
+    bdrv_flush_io_queue(bs);
+    bdrv_start_throttled_reqs(bs);
+    bs_busy = bdrv_requests_pending(bs);
+    bs_busy |= aio_poll(bdrv_get_aio_context(bs), bs_busy);
+    return bs_busy;
+}
+
+/*
+ * Wait for pending requests to complete on a single BlockDriverState subtree
+ *
+ * See the warning in bdrv_drain_all().  This function can only be called if
+ * you are sure nothing can generate I/O because you have op blockers
+ * installed.
+ *
+ * Note that unlike bdrv_drain_all(), the caller must hold the BlockDriverState
+ * AioContext.
+ */
+void bdrv_drain(BlockDriverState *bs)
+{
+    while (bdrv_drain_one(bs)) {
+        /* Keep iterating */
+    }
+}
+
 /*
  * Wait for pending requests to complete across all BlockDriverStates
  *
@@ -1923,16 +1955,10 @@ void bdrv_drain_all(void)
 
         QTAILQ_FOREACH(bs, &bdrv_states, device_list) {
             AioContext *aio_context = bdrv_get_aio_context(bs);
-            bool bs_busy;
 
             aio_context_acquire(aio_context);
-            bdrv_flush_io_queue(bs);
-            bdrv_start_throttled_reqs(bs);
-            bs_busy = bdrv_requests_pending(bs);
-            bs_busy |= aio_poll(aio_context, bs_busy);
+            busy |= bdrv_drain_one(bs);
             aio_context_release(aio_context);
-
-            busy |= bs_busy;
         }
     }
 }
@@ -3540,10 +3566,10 @@ static void send_qmp_error_event(BlockDriverState *bs,
                                  BlockErrorAction action,
                                  bool is_read, int error)
 {
-    BlockErrorAction ac;
+    IoOperationType optype;
 
-    ac = is_read ? IO_OPERATION_TYPE_READ : IO_OPERATION_TYPE_WRITE;
-    qapi_event_send_block_io_error(bdrv_get_device_name(bs), ac, action,
+    optype = is_read ? IO_OPERATION_TYPE_READ : IO_OPERATION_TYPE_WRITE;
+    qapi_event_send_block_io_error(bdrv_get_device_name(bs), optype, action,
                                    bdrv_iostatus_is_enabled(bs),
                                    error == ENOSPC, strerror(error),
                                    &error_abort);
@@ -4439,6 +4465,11 @@ static int multiwrite_merge(BlockDriverState *bs, BlockRequest *reqs,
         }
 
         if (reqs[outidx].qiov->niov + reqs[i].qiov->niov + 1 > IOV_MAX) {
+            merge = 0;
+        }
+
+        if (bs->bl.max_transfer_length && reqs[outidx].nb_sectors +
+            reqs[i].nb_sectors > bs->bl.max_transfer_length) {
             merge = 0;
         }
 
@@ -5750,12 +5781,13 @@ void bdrv_add_before_write_notifier(BlockDriverState *bs,
     notifier_with_return_list_add(&bs->before_write_notifiers, notifier);
 }
 
-int bdrv_amend_options(BlockDriverState *bs, QemuOpts *opts)
+int bdrv_amend_options(BlockDriverState *bs, QemuOpts *opts,
+                       BlockDriverAmendStatusCB *status_cb)
 {
     if (!bs->drv->bdrv_amend_options) {
         return -ENOTSUP;
     }
-    return bs->drv->bdrv_amend_options(bs, opts);
+    return bs->drv->bdrv_amend_options(bs, opts, status_cb);
 }
 
 /* This function will be called by the bdrv_recurse_is_first_non_filter method
@@ -5818,13 +5850,19 @@ bool bdrv_is_first_non_filter(BlockDriverState *candidate)
 BlockDriverState *check_to_replace_node(const char *node_name, Error **errp)
 {
     BlockDriverState *to_replace_bs = bdrv_find_node(node_name);
+    AioContext *aio_context;
+
     if (!to_replace_bs) {
         error_setg(errp, "Node name '%s' not found", node_name);
         return NULL;
     }
 
+    aio_context = bdrv_get_aio_context(to_replace_bs);
+    aio_context_acquire(aio_context);
+
     if (bdrv_op_is_blocked(to_replace_bs, BLOCK_OP_TYPE_REPLACE, errp)) {
-        return NULL;
+        to_replace_bs = NULL;
+        goto out;
     }
 
     /* We don't want arbitrary node of the BDS chain to be replaced only the top
@@ -5834,9 +5872,12 @@ BlockDriverState *check_to_replace_node(const char *node_name, Error **errp)
      */
     if (!bdrv_is_first_non_filter(to_replace_bs)) {
         error_setg(errp, "Only top most non filter can be replaced");
-        return NULL;
+        to_replace_bs = NULL;
+        goto out;
     }
 
+out:
+    aio_context_release(aio_context);
     return to_replace_bs;
 }
 

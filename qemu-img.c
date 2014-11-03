@@ -31,6 +31,7 @@
 #include "sysemu/sysemu.h"
 #include "sysemu/block-backend.h"
 #include "block/block_int.h"
+#include "block/blockjob.h"
 #include "block/qapi.h"
 #include <getopt.h>
 
@@ -722,18 +723,54 @@ fail:
     return ret;
 }
 
+typedef struct CommonBlockJobCBInfo {
+    BlockDriverState *bs;
+    Error **errp;
+} CommonBlockJobCBInfo;
+
+static void common_block_job_cb(void *opaque, int ret)
+{
+    CommonBlockJobCBInfo *cbi = opaque;
+
+    if (ret < 0) {
+        error_setg_errno(cbi->errp, -ret, "Block job failed");
+    }
+
+    /* Drop this block job's reference */
+    bdrv_unref(cbi->bs);
+}
+
+static void run_block_job(BlockJob *job, Error **errp)
+{
+    AioContext *aio_context = bdrv_get_aio_context(job->bs);
+
+    do {
+        aio_poll(aio_context, true);
+        qemu_progress_print((float)job->offset / job->len * 100.f, 0);
+    } while (!job->ready);
+
+    block_job_complete_sync(job, errp);
+
+    /* A block job may finish instantaneously without publishing any progress,
+     * so just signal completion here */
+    qemu_progress_print(100.f, 0);
+}
+
 static int img_commit(int argc, char **argv)
 {
     int c, ret, flags;
-    const char *filename, *fmt, *cache;
+    const char *filename, *fmt, *cache, *base;
     BlockBackend *blk;
-    BlockDriverState *bs;
-    bool quiet = false;
+    BlockDriverState *bs, *base_bs;
+    bool progress = false, quiet = false, drop = false;
+    Error *local_err = NULL;
+    CommonBlockJobCBInfo cbi;
 
     fmt = NULL;
     cache = BDRV_DEFAULT_CACHE;
+    base = NULL;
     for(;;) {
-        c = getopt(argc, argv, "f:ht:q");
+        c = getopt(argc, argv, "f:ht:b:dpq");
         if (c == -1) {
             break;
         }
@@ -748,17 +785,34 @@ static int img_commit(int argc, char **argv)
         case 't':
             cache = optarg;
             break;
+        case 'b':
+            base = optarg;
+            /* -b implies -d */
+            drop = true;
+            break;
+        case 'd':
+            drop = true;
+            break;
+        case 'p':
+            progress = true;
+            break;
         case 'q':
             quiet = true;
             break;
         }
     }
+
+    /* Progress is not shown in Quiet mode */
+    if (quiet) {
+        progress = false;
+    }
+
     if (optind != argc - 1) {
         error_exit("Expecting one image file name");
     }
     filename = argv[optind++];
 
-    flags = BDRV_O_RDWR;
+    flags = BDRV_O_RDWR | BDRV_O_UNMAP;
     ret = bdrv_parse_cache_flags(cache, &flags);
     if (ret < 0) {
         error_report("Invalid cache option: %s", cache);
@@ -771,29 +825,76 @@ static int img_commit(int argc, char **argv)
     }
     bs = blk_bs(blk);
 
-    ret = bdrv_commit(bs);
-    switch(ret) {
-    case 0:
-        qprintf(quiet, "Image committed.\n");
-        break;
-    case -ENOENT:
-        error_report("No disk inserted");
-        break;
-    case -EACCES:
-        error_report("Image is read-only");
-        break;
-    case -ENOTSUP:
-        error_report("Image is already committed");
-        break;
-    default:
-        error_report("Error while committing image");
-        break;
+    qemu_progress_init(progress, 1.f);
+    qemu_progress_print(0.f, 100);
+
+    if (base) {
+        base_bs = bdrv_find_backing_image(bs, base);
+        if (!base_bs) {
+            error_set(&local_err, QERR_BASE_NOT_FOUND, base);
+            goto done;
+        }
+    } else {
+        /* This is different from QMP, which by default uses the deepest file in
+         * the backing chain (i.e., the very base); however, the traditional
+         * behavior of qemu-img commit is using the immediate backing file. */
+        base_bs = bs->backing_hd;
+        if (!base_bs) {
+            error_setg(&local_err, "Image does not have a backing file");
+            goto done;
+        }
     }
 
+    cbi = (CommonBlockJobCBInfo){
+        .errp = &local_err,
+        .bs   = bs,
+    };
+
+    commit_active_start(bs, base_bs, 0, BLOCKDEV_ON_ERROR_REPORT,
+                        common_block_job_cb, &cbi, &local_err);
+    if (local_err) {
+        goto done;
+    }
+
+    /* The block job will swap base_bs and bs (which is not what we really want
+     * here, but okay) and unref base_bs (after the swap, i.e., the old top
+     * image). In order to still be able to empty that top image afterwards,
+     * increment the reference counter here preemptively. */
+    if (!drop) {
+        bdrv_ref(base_bs);
+    }
+
+    run_block_job(bs->job, &local_err);
+    if (local_err) {
+        goto unref_backing;
+    }
+
+    if (!drop && base_bs->drv->bdrv_make_empty) {
+        ret = base_bs->drv->bdrv_make_empty(base_bs);
+        if (ret) {
+            error_setg_errno(&local_err, -ret, "Could not empty %s",
+                             filename);
+            goto unref_backing;
+        }
+    }
+
+unref_backing:
+    if (!drop) {
+        bdrv_unref(base_bs);
+    }
+
+done:
+    qemu_progress_end();
+
     blk_unref(blk);
-    if (ret) {
+
+    if (local_err) {
+        qerror_report_err(local_err);
+        error_free(local_err);
         return 1;
     }
+
+    qprintf(quiet, "Image committed.\n");
     return 0;
 }
 
@@ -2770,6 +2871,12 @@ out:
     return 0;
 }
 
+static void amend_status_cb(BlockDriverState *bs,
+                            int64_t offset, int64_t total_work_size)
+{
+    qemu_progress_print(100.f * offset / total_work_size, 0);
+}
+
 static int img_amend(int argc, char **argv)
 {
     int c, ret = 0;
@@ -2778,13 +2885,13 @@ static int img_amend(int argc, char **argv)
     QemuOpts *opts = NULL;
     const char *fmt = NULL, *filename, *cache;
     int flags;
-    bool quiet = false;
+    bool quiet = false, progress = false;
     BlockBackend *blk = NULL;
     BlockDriverState *bs = NULL;
 
     cache = BDRV_DEFAULT_CACHE;
     for (;;) {
-        c = getopt(argc, argv, "ho:f:t:q");
+        c = getopt(argc, argv, "ho:f:t:pq");
         if (c == -1) {
             break;
         }
@@ -2814,6 +2921,9 @@ static int img_amend(int argc, char **argv)
             case 't':
                 cache = optarg;
                 break;
+            case 'p':
+                progress = true;
+                break;
             case 'q':
                 quiet = true;
                 break;
@@ -2824,6 +2934,11 @@ static int img_amend(int argc, char **argv)
         error_exit("Must specify options (-o)");
     }
 
+    if (quiet) {
+        progress = false;
+    }
+    qemu_progress_init(progress, 1.0);
+
     filename = (optind == argc - 1) ? argv[argc - 1] : NULL;
     if (fmt && has_help_option(options)) {
         /* If a format is explicitly specified (and possibly no filename is
@@ -2833,7 +2948,9 @@ static int img_amend(int argc, char **argv)
     }
 
     if (optind != argc - 1) {
-        error_exit("Expecting one image file name");
+        error_report("Expecting one image file name");
+        ret = -1;
+        goto out;
     }
 
     flags = BDRV_O_FLAGS | BDRV_O_RDWR;
@@ -2867,13 +2984,18 @@ static int img_amend(int argc, char **argv)
         goto out;
     }
 
-    ret = bdrv_amend_options(bs, opts);
+    /* In case the driver does not call amend_status_cb() */
+    qemu_progress_print(0.f, 0);
+    ret = bdrv_amend_options(bs, opts, &amend_status_cb);
+    qemu_progress_print(100.f, 0);
     if (ret < 0) {
         error_report("Error while amending options: %s", strerror(-ret));
         goto out;
     }
 
 out:
+    qemu_progress_end();
+
     blk_unref(blk);
     qemu_opts_del(opts);
     qemu_opts_free(create_opts);

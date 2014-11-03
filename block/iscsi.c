@@ -362,6 +362,12 @@ static int coroutine_fn iscsi_co_writev(BlockDriverState *bs,
         return -EINVAL;
     }
 
+    if (bs->bl.max_transfer_length && nb_sectors > bs->bl.max_transfer_length) {
+        error_report("iSCSI Error: Write of %d sectors exceeds max_xfer_len "
+                     "of %d sectors", nb_sectors, bs->bl.max_transfer_length);
+        return -EINVAL;
+    }
+
     lba = sector_qemu2lun(sector_num, iscsilun);
     num_sectors = sector_qemu2lun(nb_sectors, iscsilun);
     iscsi_co_init_iscsitask(iscsilun, &iTask);
@@ -526,6 +532,12 @@ static int coroutine_fn iscsi_co_readv(BlockDriverState *bs,
     uint32_t num_sectors;
 
     if (!is_request_lun_aligned(sector_num, nb_sectors, iscsilun)) {
+        return -EINVAL;
+    }
+
+    if (bs->bl.max_transfer_length && nb_sectors > bs->bl.max_transfer_length) {
+        error_report("iSCSI Error: Read of %d sectors exceeds max_xfer_len "
+                     "of %d sectors", nb_sectors, bs->bl.max_transfer_length);
         return -EINVAL;
     }
 
@@ -1489,31 +1501,44 @@ static void iscsi_close(BlockDriverState *bs)
     memset(iscsilun, 0, sizeof(IscsiLun));
 }
 
+static int sector_limits_lun2qemu(int64_t sector, IscsiLun *iscsilun)
+{
+    return MIN(sector_lun2qemu(sector, iscsilun), INT_MAX / 2 + 1);
+}
+
 static void iscsi_refresh_limits(BlockDriverState *bs, Error **errp)
 {
-    IscsiLun *iscsilun = bs->opaque;
-
     /* We don't actually refresh here, but just return data queried in
      * iscsi_open(): iscsi targets don't change their limits. */
+
+    IscsiLun *iscsilun = bs->opaque;
+    uint32_t max_xfer_len = iscsilun->use_16_for_rw ? 0xffffffff : 0xffff;
+
+    if (iscsilun->bl.max_xfer_len) {
+        max_xfer_len = MIN(max_xfer_len, iscsilun->bl.max_xfer_len);
+    }
+
+    bs->bl.max_transfer_length = sector_limits_lun2qemu(max_xfer_len, iscsilun);
+
     if (iscsilun->lbp.lbpu) {
         if (iscsilun->bl.max_unmap < 0xffffffff) {
-            bs->bl.max_discard = sector_lun2qemu(iscsilun->bl.max_unmap,
-                                                 iscsilun);
+            bs->bl.max_discard =
+                sector_limits_lun2qemu(iscsilun->bl.max_unmap, iscsilun);
         }
-        bs->bl.discard_alignment = sector_lun2qemu(iscsilun->bl.opt_unmap_gran,
-                                                   iscsilun);
+        bs->bl.discard_alignment =
+            sector_limits_lun2qemu(iscsilun->bl.opt_unmap_gran, iscsilun);
     }
 
     if (iscsilun->bl.max_ws_len < 0xffffffff) {
-        bs->bl.max_write_zeroes = sector_lun2qemu(iscsilun->bl.max_ws_len,
-                                                  iscsilun);
+        bs->bl.max_write_zeroes =
+            sector_limits_lun2qemu(iscsilun->bl.max_ws_len, iscsilun);
     }
     if (iscsilun->lbp.lbpws) {
-        bs->bl.write_zeroes_alignment = sector_lun2qemu(iscsilun->bl.opt_unmap_gran,
-                                                        iscsilun);
+        bs->bl.write_zeroes_alignment =
+            sector_limits_lun2qemu(iscsilun->bl.opt_unmap_gran, iscsilun);
     }
-    bs->bl.opt_transfer_length = sector_lun2qemu(iscsilun->bl.opt_xfer_len,
-                                                 iscsilun);
+    bs->bl.opt_transfer_length =
+        sector_limits_lun2qemu(iscsilun->bl.opt_xfer_len, iscsilun);
 }
 
 /* Since iscsi_open() ignores bdrv_flags, there is nothing to do here in
