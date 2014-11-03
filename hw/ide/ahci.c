@@ -1004,17 +1004,18 @@ static int handle_cmd(AHCIState *s, int port, int slot)
             break;
     }
 
-    switch (cmd_fis[1]) {
-        case SATA_FIS_REG_H2D_UPDATE_COMMAND_REGISTER:
-            break;
-        case 0:
-            break;
-        default:
-            DPRINTF(port, "unknown command cmd_fis[0]=%02x cmd_fis[1]=%02x "
-                          "cmd_fis[2]=%02x\n", cmd_fis[0], cmd_fis[1],
-                          cmd_fis[2]);
-            goto out;
-            break;
+    if (cmd_fis[1] & 0x0F) {
+        DPRINTF(port, "Port Multiplier not supported."
+                " cmd_fis[0]=%02x cmd_fis[1]=%02x cmd_fis[2]=%02x\n",
+                cmd_fis[0], cmd_fis[1], cmd_fis[2]);
+        goto out;
+    }
+
+    if (cmd_fis[1] & 0x70) {
+        DPRINTF(port, "Reserved flags set in H2D Register FIS."
+                " cmd_fis[0]=%02x cmd_fis[1]=%02x cmd_fis[2]=%02x\n",
+                cmd_fis[0], cmd_fis[1], cmd_fis[2]);
+        goto out;
     }
 
     if (!(cmd_fis[1] & SATA_FIS_REG_H2D_UPDATE_COMMAND_REGISTER)) {
