@@ -13613,8 +13613,13 @@ static void decode_micromips32_opc (CPUMIPSState *env, DisasContext *ctx,
             check_insn(ctx, ASE_MIPS3D);
             /* Fall through */
         do_cp1branch:
-            gen_compute_branch1(ctx, mips32_op,
-                                (ctx->opcode >> 18) & 0x7, imm << 1);
+            if (env->CP0_Config1 & (1 << CP0C1_FP)) {
+                check_cp1_enabled(ctx);
+                gen_compute_branch1(ctx, mips32_op,
+                                    (ctx->opcode >> 18) & 0x7, imm << 1);
+            } else {
+                generate_exception_err(ctx, EXCP_CpU, 1);
+            }
             break;
         case BPOSGE64:
         case BPOSGE32:
