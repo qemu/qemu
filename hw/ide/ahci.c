@@ -854,6 +854,21 @@ static void ncq_cb(void *opaque, int ret)
     ncq_tfs->used = 0;
 }
 
+static int is_ncq(uint8_t ata_cmd)
+{
+    /* Based on SATA 3.2 section 13.6.3.2 */
+    switch (ata_cmd) {
+    case READ_FPDMA_QUEUED:
+    case WRITE_FPDMA_QUEUED:
+    case NCQ_NON_DATA:
+    case RECEIVE_FPDMA_QUEUED:
+    case SEND_FPDMA_QUEUED:
+        return 1;
+    default:
+        return 0;
+    }
+}
+
 static void process_ncq_command(AHCIState *s, int port, uint8_t *cmd_fis,
                                 int slot)
 {
@@ -919,9 +934,15 @@ static void process_ncq_command(AHCIState *s, int port, uint8_t *cmd_fis,
                                            ncq_cb, ncq_tfs);
             break;
         default:
-            DPRINTF(port, "error: tried to process non-NCQ command as NCQ\n");
+            if (is_ncq(cmd_fis[2])) {
+                DPRINTF(port,
+                        "error: unsupported NCQ command (0x%02x) received\n",
+                        cmd_fis[2]);
+            } else {
+                DPRINTF(port,
+                        "error: tried to process non-NCQ command as NCQ\n");
+            }
             qemu_sglist_destroy(&ncq_tfs->sglist);
-            break;
     }
 }
 
@@ -1013,8 +1034,7 @@ static int handle_cmd(AHCIState *s, int port, int slot)
     if (cmd_fis[1] == SATA_FIS_REG_H2D_UPDATE_COMMAND_REGISTER) {
 
         /* Check for NCQ command */
-        if ((cmd_fis[2] == READ_FPDMA_QUEUED) ||
-            (cmd_fis[2] == WRITE_FPDMA_QUEUED)) {
+        if (is_ncq(cmd_fis[2])) {
             process_ncq_command(s, port, cmd_fis, slot);
             goto out;
         }
