@@ -128,6 +128,7 @@ static inline void gdk_drawable_get_size(GdkWindow *w, gint *ww, gint *wh)
 #define GDK_KEY_q GDK_q
 #define GDK_KEY_plus GDK_plus
 #define GDK_KEY_minus GDK_minus
+#define GDK_KEY_Pause GDK_Pause
 #endif
 
 #define HOTKEY_MODIFIERS        (GDK_CONTROL_MASK | GDK_MOD1_MASK)
