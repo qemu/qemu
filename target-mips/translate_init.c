@@ -334,7 +334,7 @@ static const mips_def_t mips_defs[] =
                        (1 << CP0C1_CA),
         .CP0_Config2 = MIPS_CONFIG2,
         .CP0_Config3 = MIPS_CONFIG3 | (1 << CP0C3_DSP2P) | (1 << CP0C3_DSPP) |
-                       (0 << CP0C3_VInt),
+                       (1 << CP0C3_VInt),
         .CP0_LLAddr_rw_bitmask = 0,
         .CP0_LLAddr_shift = 4,
         .SYNCI_Step = 32,
