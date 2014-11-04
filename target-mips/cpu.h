@@ -424,17 +424,25 @@ struct CPUMIPSState {
 #define CP0C2_SA   0
     int32_t CP0_Config3;
 #define CP0C3_M    31
+#define CP0C3_BPG  30
+#define CP0C3_CMCGR 29
 #define CP0C3_MSAP  28
 #define CP0C3_BP 27
 #define CP0C3_BI 26
+#define CP0C3_IPLW 21
+#define CP0C3_MMAR 18
+#define CP0C3_MCU  17
 #define CP0C3_ISA_ON_EXC 16
+#define CP0C3_ISA  14
 #define CP0C3_ULRI 13
 #define CP0C3_RXI  12
+#define CP0C3_DSP2P 11
 #define CP0C3_DSPP 10
 #define CP0C3_LPA  7
 #define CP0C3_VEIC 6
 #define CP0C3_VInt 5
 #define CP0C3_SP   4
+#define CP0C3_CDMM 3
 #define CP0C3_MT   2
 #define CP0C3_SM   1
 #define CP0C3_TL   0
@@ -443,6 +451,11 @@ struct CPUMIPSState {
 #define CP0C4_M    31
 #define CP0C4_IE   29
 #define CP0C4_KScrExist 16
+#define CP0C4_MMUExtDef 14
+#define CP0C4_FTLBPageSize 8
+#define CP0C4_FTLBWays 4
+#define CP0C4_FTLBSets 0
+#define CP0C4_MMUSizeExt 0
     uint32_t CP0_Config5;
     uint32_t CP0_Config5_rw_bitmask;
 #define CP0C5_M          31
