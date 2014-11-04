@@ -1365,7 +1365,8 @@ void cpu_report_tpr_access(CPUX86State *env, TPRAccess access);
 void x86_cpu_compat_set_features(const char *cpu_model, FeatureWord w,
                                  uint32_t feat_add, uint32_t feat_remove);
 
-void x86_cpu_compat_disable_kvm_features(FeatureWord w, uint32_t features);
+void x86_cpu_compat_kvm_no_autoenable(FeatureWord w, uint32_t features);
+void x86_cpu_compat_kvm_no_autodisable(FeatureWord w, uint32_t features);
 
 
 /* Return name of 32-bit register, from a R_* constant */
