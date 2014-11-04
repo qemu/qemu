@@ -446,8 +446,8 @@ struct CPUMIPSState {
 #define CP0C3_MT   2
 #define CP0C3_SM   1
 #define CP0C3_TL   0
-    uint32_t CP0_Config4;
-    uint32_t CP0_Config4_rw_bitmask;
+    int32_t CP0_Config4;
+    int32_t CP0_Config4_rw_bitmask;
 #define CP0C4_M    31
 #define CP0C4_IE   29
 #define CP0C4_KScrExist 16
@@ -456,8 +456,8 @@ struct CPUMIPSState {
 #define CP0C4_FTLBWays 4
 #define CP0C4_FTLBSets 0
 #define CP0C4_MMUSizeExt 0
-    uint32_t CP0_Config5;
-    uint32_t CP0_Config5_rw_bitmask;
+    int32_t CP0_Config5;
+    int32_t CP0_Config5_rw_bitmask;
 #define CP0C5_M          31
 #define CP0C5_K          30
 #define CP0C5_CV         29
