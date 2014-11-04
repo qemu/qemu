@@ -35,6 +35,7 @@
 #include "hw/boards.h"
 #include "sysemu/hostmem.h"
 #include "qmp-commands.h"
+#include "hw/mem/pc-dimm.h"
 
 QemuOptsList qemu_numa_opts = {
     .name = "numa",
@@ -312,6 +313,43 @@ void memory_region_allocate_system_memory(MemoryRegion *mr, Object *owner,
         memory_region_add_subregion(mr, addr, seg);
         vmstate_register_ram_global(seg);
         addr += size;
+    }
+}
+
+static void numa_stat_memory_devices(uint64_t node_mem[])
+{
+    MemoryDeviceInfoList *info_list = NULL;
+    MemoryDeviceInfoList **prev = &info_list;
+    MemoryDeviceInfoList *info;
+
+    qmp_pc_dimm_device_list(qdev_get_machine(), &prev);
+    for (info = info_list; info; info = info->next) {
+        MemoryDeviceInfo *value = info->value;
+
+        if (value) {
+            switch (value->kind) {
+            case MEMORY_DEVICE_INFO_KIND_DIMM:
+                node_mem[value->dimm->node] += value->dimm->size;
+                break;
+            default:
+                break;
+            }
+        }
+    }
+    qapi_free_MemoryDeviceInfoList(info_list);
+}
+
+void query_numa_node_mem(uint64_t node_mem[])
+{
+    int i;
+
+    if (nb_numa_nodes <= 0) {
+        return;
+    }
+
+    numa_stat_memory_devices(node_mem);
+    for (i = 0; i < nb_numa_nodes; i++) {
+        node_mem[i] += numa_info[i].node_mem;
     }
 }
 
