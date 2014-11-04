@@ -438,7 +438,7 @@ void qemu_spice_display_switch(SimpleSpiceDisplay *ssd,
     ssd->notify++;
 }
 
-void qemu_spice_cursor_refresh_unlocked(SimpleSpiceDisplay *ssd)
+static void qemu_spice_cursor_refresh_unlocked(SimpleSpiceDisplay *ssd)
 {
     if (ssd->cursor) {
         assert(ssd->dcl.con);
@@ -454,6 +454,15 @@ void qemu_spice_cursor_refresh_unlocked(SimpleSpiceDisplay *ssd)
     }
 }
 
+void qemu_spice_cursor_refresh_bh(void *opaque)
+{
+    SimpleSpiceDisplay *ssd = opaque;
+
+    qemu_mutex_lock(&ssd->lock);
+    qemu_spice_cursor_refresh_unlocked(ssd);
+    qemu_mutex_unlock(&ssd->lock);
+}
+
 void qemu_spice_display_refresh(SimpleSpiceDisplay *ssd)
 {
     dprint(3, "%s/%d:\n", __func__, ssd->qxl.id);
@@ -464,7 +473,6 @@ void qemu_spice_display_refresh(SimpleSpiceDisplay *ssd)
         qemu_spice_create_update(ssd);
         ssd->notify++;
     }
-    qemu_spice_cursor_refresh_unlocked(ssd);
     qemu_mutex_unlock(&ssd->lock);
 
     if (ssd->notify) {

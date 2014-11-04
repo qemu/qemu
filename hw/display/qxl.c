@@ -1861,10 +1861,6 @@ static void display_refresh(DisplayChangeListener *dcl)
 
     if (qxl->mode == QXL_MODE_VGA) {
         qemu_spice_display_refresh(&qxl->ssd);
-    } else {
-        qemu_mutex_lock(&qxl->ssd.lock);
-        qemu_spice_cursor_refresh_unlocked(&qxl->ssd);
-        qemu_mutex_unlock(&qxl->ssd.lock);
     }
 }
 
@@ -2025,6 +2021,7 @@ static int qxl_init_common(PCIQXLDevice *qxl)
     qxl_reset_state(qxl);
 
     qxl->update_area_bh = qemu_bh_new(qxl_render_update_area_bh, qxl);
+    qxl->ssd.cursor_bh = qemu_bh_new(qemu_spice_cursor_refresh_bh, &qxl->ssd);
 
     return 0;
 }
