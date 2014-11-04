@@ -1092,6 +1092,7 @@ static void qxl_enter_vga_mode(PCIQXLDevice *d)
     spice_qxl_driver_unload(&d->ssd.qxl);
 #endif
     graphic_console_set_hwops(d->ssd.dcl.con, d->vga.hw_ops, &d->vga);
+    update_displaychangelistener(&d->ssd.dcl, GUI_REFRESH_INTERVAL_DEFAULT);
     qemu_spice_create_host_primary(&d->ssd);
     d->mode = QXL_MODE_VGA;
     vga_dirty_log_start(&d->vga);
@@ -1105,6 +1106,7 @@ static void qxl_exit_vga_mode(PCIQXLDevice *d)
     }
     trace_qxl_exit_vga_mode(d->id);
     graphic_console_set_hwops(d->ssd.dcl.con, &qxl_ops, d);
+    update_displaychangelistener(&d->ssd.dcl, GUI_REFRESH_INTERVAL_IDLE);
     vga_dirty_log_stop(&d->vga);
     qxl_destroy_primary(d, QXL_SYNC);
 }
@@ -1153,6 +1155,7 @@ static void qxl_soft_reset(PCIQXLDevice *d)
         qxl_enter_vga_mode(d);
     } else {
         d->mode = QXL_MODE_UNDEFINED;
+        update_displaychangelistener(&d->ssd.dcl, GUI_REFRESH_INTERVAL_IDLE);
     }
 }
 
