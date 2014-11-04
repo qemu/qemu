@@ -309,6 +309,9 @@
 #endif
     POWERPC_DEF("440-Xilinx",    CPU_POWERPC_440_XILINX,             440x5,
                 "PowerPC 440 Xilinx 5")
+
+    POWERPC_DEF("440-Xilinx-w-dfpu",    CPU_POWERPC_440_XILINX, 440x5wDFPU,
+                "PowerPC 440 Xilinx 5 With a Double Prec. FPU")
 #if defined(TODO)
     POWERPC_DEF("440A5",         CPU_POWERPC_440A5,                  440x5,
                 "PowerPC 440 A5")

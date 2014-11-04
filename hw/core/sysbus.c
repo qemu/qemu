@@ -24,6 +24,51 @@
 static void sysbus_dev_print(Monitor *mon, DeviceState *dev, int indent);
 static char *sysbus_get_fw_dev_path(DeviceState *dev);
 
+typedef struct SysBusFind {
+    void *opaque;
+    FindSysbusDeviceFunc *func;
+} SysBusFind;
+
+/* Run func() for every sysbus device, traverse the tree for everything else */
+static int find_sysbus_device(Object *obj, void *opaque)
+{
+    SysBusFind *find = opaque;
+    Object *dev;
+    SysBusDevice *sbdev;
+
+    dev = object_dynamic_cast(obj, TYPE_SYS_BUS_DEVICE);
+    sbdev = (SysBusDevice *)dev;
+
+    if (!sbdev) {
+        /* Container, traverse it for children */
+        return object_child_foreach(obj, find_sysbus_device, opaque);
+    }
+
+    find->func(sbdev, find->opaque);
+
+    return 0;
+}
+
+/*
+ * Loop through all dynamically created sysbus devices and call
+ * func() for each instance.
+ */
+void foreach_dynamic_sysbus_device(FindSysbusDeviceFunc *func, void *opaque)
+{
+    Object *container;
+    SysBusFind find = {
+        .func = func,
+        .opaque = opaque,
+    };
+
+    /* Loop through all sysbus devices that were spawened outside the machine */
+    container = container_get(qdev_get_machine(), "/peripheral");
+    find_sysbus_device(container, &find);
+    container = container_get(qdev_get_machine(), "/peripheral-anon");
+    find_sysbus_device(container, &find);
+}
+
+
 static void system_bus_class_init(ObjectClass *klass, void *data)
 {
     BusClass *k = BUS_CLASS(klass);
@@ -39,9 +84,36 @@ static const TypeInfo system_bus_info = {
     .class_init = system_bus_class_init,
 };
 
+/* Check whether an IRQ source exists */
+bool sysbus_has_irq(SysBusDevice *dev, int n)
+{
+    char *prop = g_strdup_printf("%s[%d]", SYSBUS_DEVICE_GPIO_IRQ, n);
+    ObjectProperty *r;
+
+    r = object_property_find(OBJECT(dev), prop, NULL);
+    return (r != NULL);
+}
+
+bool sysbus_is_irq_connected(SysBusDevice *dev, int n)
+{
+    return !!sysbus_get_connected_irq(dev, n);
+}
+
+qemu_irq sysbus_get_connected_irq(SysBusDevice *dev, int n)
+{
+    DeviceState *d = DEVICE(dev);
+    return qdev_get_gpio_out_connector(d, SYSBUS_DEVICE_GPIO_IRQ, n);
+}
+
 void sysbus_connect_irq(SysBusDevice *dev, int n, qemu_irq irq)
 {
     qdev_connect_gpio_out_named(DEVICE(dev), SYSBUS_DEVICE_GPIO_IRQ, n, irq);
+}
+
+/* Check whether an MMIO region exists */
+bool sysbus_has_mmio(SysBusDevice *dev, unsigned int n)
+{
+    return (n < dev->num_mmio);
 }
 
 static void sysbus_mmio_map_common(SysBusDevice *dev, int n, hwaddr addr,
@@ -238,13 +310,6 @@ static void sysbus_device_class_init(ObjectClass *klass, void *data)
     DeviceClass *k = DEVICE_CLASS(klass);
     k->init = sysbus_device_init;
     k->bus_type = TYPE_SYSTEM_BUS;
-    /*
-     * device_add plugs devices into suitable bus.  For "real" buses,
-     * that actually connects the device.  For sysbus, the connections
-     * need to be made separately, and device_add can't do that.  The
-     * device would be left unconnected, and could not possibly work.
-     */
-    k->cannot_instantiate_with_device_add_yet = true;
 }
 
 static const TypeInfo sysbus_device_type_info = {

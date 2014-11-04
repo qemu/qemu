@@ -850,10 +850,30 @@ static void spapr_reset_htab(sPAPREnvironment *spapr)
     }
 }
 
+static int find_unknown_sysbus_device(SysBusDevice *sbdev, void *opaque)
+{
+    bool matched = false;
+
+    if (object_dynamic_cast(OBJECT(sbdev), TYPE_SPAPR_PCI_HOST_BRIDGE)) {
+        matched = true;
+    }
+
+    if (!matched) {
+        error_report("Device %s is not supported by this machine yet.",
+                     qdev_fw_name(DEVICE(sbdev)));
+        exit(1);
+    }
+
+    return 0;
+}
+
 static void ppc_spapr_reset(void)
 {
     PowerPCCPU *first_ppc_cpu;
     uint32_t rtas_limit;
+
+    /* Check for unknown sysbus devices */
+    foreach_dynamic_sysbus_device(find_unknown_sysbus_device, NULL);
 
     /* Reset the hash table & recalc the RMA */
     spapr_reset_htab(spapr);
@@ -1660,9 +1680,6 @@ static void spapr_machine_class_init(ObjectClass *oc, void *data)
     FWPathProviderClass *fwc = FW_PATH_PROVIDER_CLASS(oc);
     NMIClass *nc = NMI_CLASS(oc);
 
-    mc->name = "pseries";
-    mc->desc = "pSeries Logical Partition (PAPR compliant)";
-    mc->is_default = 1;
     mc->init = ppc_spapr_init;
     mc->reset = ppc_spapr_reset;
     mc->block_default_type = IF_SCSI;
@@ -1670,6 +1687,7 @@ static void spapr_machine_class_init(ObjectClass *oc, void *data)
     mc->no_parallel = 1;
     mc->default_boot_order = NULL;
     mc->kvm_type = spapr_kvm_type;
+    mc->has_dynamic_sysbus = true;
 
     fwc->get_dev_path = spapr_get_fw_dev_path;
     nc->nmi_monitor_handler = spapr_nmi;
@@ -1678,6 +1696,7 @@ static void spapr_machine_class_init(ObjectClass *oc, void *data)
 static const TypeInfo spapr_machine_info = {
     .name          = TYPE_SPAPR_MACHINE,
     .parent        = TYPE_MACHINE,
+    .abstract      = true,
     .instance_size = sizeof(sPAPRMachineState),
     .instance_init = spapr_machine_initfn,
     .class_init    = spapr_machine_class_init,
@@ -1698,7 +1717,6 @@ static void spapr_machine_2_1_class_init(ObjectClass *oc, void *data)
 
     mc->name = "pseries-2.1";
     mc->desc = "pSeries Logical Partition (PAPR compliant) v2.1";
-    mc->is_default = 0;
     mc->compat_props = compat_props;
 }
 
@@ -1708,10 +1726,27 @@ static const TypeInfo spapr_machine_2_1_info = {
     .class_init    = spapr_machine_2_1_class_init,
 };
 
+static void spapr_machine_2_2_class_init(ObjectClass *oc, void *data)
+{
+    MachineClass *mc = MACHINE_CLASS(oc);
+
+    mc->name = "pseries-2.2";
+    mc->desc = "pSeries Logical Partition (PAPR compliant) v2.2";
+    mc->alias = "pseries";
+    mc->is_default = 1;
+}
+
+static const TypeInfo spapr_machine_2_2_info = {
+    .name          = TYPE_SPAPR_MACHINE "2.2",
+    .parent        = TYPE_SPAPR_MACHINE,
+    .class_init    = spapr_machine_2_2_class_init,
+};
+
 static void spapr_machine_register_types(void)
 {
     type_register_static(&spapr_machine_info);
     type_register_static(&spapr_machine_2_1_info);
+    type_register_static(&spapr_machine_2_2_info);
 }
 
 type_init(spapr_machine_register_types)

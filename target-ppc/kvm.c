@@ -1782,7 +1782,7 @@ static int kvmppc_find_cpu_dt(char *buf, int buf_len)
  * format) */
 static uint64_t kvmppc_read_int_cpu_dt(const char *propname)
 {
-    char buf[PATH_MAX];
+    char buf[PATH_MAX], *tmp;
     union {
         uint32_t v32;
         uint64_t v64;
@@ -1794,10 +1794,10 @@ static uint64_t kvmppc_read_int_cpu_dt(const char *propname)
         return -1;
     }
 
-    strncat(buf, "/", sizeof(buf) - strlen(buf));
-    strncat(buf, propname, sizeof(buf) - strlen(buf));
+    tmp = g_strdup_printf("%s/%s", buf, propname);
 
-    f = fopen(buf, "rb");
+    f = fopen(tmp, "rb");
+    g_free(tmp);
     if (!f) {
         return -1;
     }

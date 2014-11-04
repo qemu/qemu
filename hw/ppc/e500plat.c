@@ -35,6 +35,12 @@ static void e500plat_init(MachineState *machine)
         .pci_nr_slots = PCI_SLOT_MAX - 1,
         .fixup_devtree = e500plat_fixup_devtree,
         .mpic_version = OPENPIC_MODEL_FSL_MPIC_42,
+        .has_mpc8xxx_gpio = true,
+        .has_platform_bus = true,
+        .platform_bus_base = 0xf00000000ULL,
+        .platform_bus_size = (128ULL * 1024 * 1024),
+        .platform_bus_first_irq = 5,
+        .platform_bus_num_irqs = 10,
     };
 
     /* Older KVM versions don't support EPR which breaks guests when we announce
@@ -51,6 +57,7 @@ static QEMUMachine e500plat_machine = {
     .desc = "generic paravirt e500 platform",
     .init = e500plat_init,
     .max_cpus = 32,
+    .has_dynamic_sysbus = true,
 };
 
 static void e500plat_machine_init(void)

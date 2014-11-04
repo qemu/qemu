@@ -2786,7 +2786,7 @@ static void init_excp_BookE (CPUPPCState *env)
     env->excp_vectors[POWERPC_EXCP_DTLB]     = 0x00000000;
     env->excp_vectors[POWERPC_EXCP_ITLB]     = 0x00000000;
     env->excp_vectors[POWERPC_EXCP_DEBUG]    = 0x00000000;
-    env->ivor_mask = 0x0000FFE0UL;
+    env->ivor_mask = 0x0000FFF0UL;
     env->ivpr_mask = 0xFFFF0000UL;
     /* Hardware reset vector */
     env->hreset_vector = 0xFFFFFFFCUL;
@@ -3923,6 +3923,44 @@ POWERPC_FAMILY(440x5)(ObjectClass *oc, void *data)
                  POWERPC_FLAG_DE | POWERPC_FLAG_BUS_CLK;
 }
 
+POWERPC_FAMILY(440x5wDFPU)(ObjectClass *oc, void *data)
+{
+    DeviceClass *dc = DEVICE_CLASS(oc);
+    PowerPCCPUClass *pcc = POWERPC_CPU_CLASS(oc);
+
+    dc->desc = "PowerPC 440x5 with double precision FPU";
+    pcc->init_proc = init_proc_440x5;
+    pcc->check_pow = check_pow_nocheck;
+    pcc->insns_flags = PPC_INSNS_BASE | PPC_STRING |
+                       PPC_FLOAT | PPC_FLOAT_FSQRT |
+                       PPC_FLOAT_STFIWX |
+                       PPC_DCR | PPC_WRTEE | PPC_RFMCI |
+                       PPC_CACHE | PPC_CACHE_ICBI |
+                       PPC_CACHE_DCBZ | PPC_CACHE_DCBA |
+                       PPC_MEM_TLBSYNC | PPC_MFTB |
+                       PPC_BOOKE | PPC_4xx_COMMON | PPC_405_MAC |
+                       PPC_440_SPEC;
+    pcc->insns_flags2 = PPC2_FP_CVT_S64;
+    pcc->msr_mask = (1ull << MSR_POW) |
+                    (1ull << MSR_CE) |
+                    (1ull << MSR_EE) |
+                    (1ull << MSR_PR) |
+                    (1ull << MSR_FP) |
+                    (1ull << MSR_ME) |
+                    (1ull << MSR_FE0) |
+                    (1ull << MSR_DWE) |
+                    (1ull << MSR_DE) |
+                    (1ull << MSR_FE1) |
+                    (1ull << MSR_IR) |
+                    (1ull << MSR_DR);
+    pcc->mmu_model = POWERPC_MMU_BOOKE;
+    pcc->excp_model = POWERPC_EXCP_BOOKE;
+    pcc->bus_model = PPC_FLAGS_INPUT_BookE;
+    pcc->bfd_mach = bfd_mach_ppc_403;
+    pcc->flags = POWERPC_FLAG_CE | POWERPC_FLAG_DWE |
+                 POWERPC_FLAG_DE | POWERPC_FLAG_BUS_CLK;
+}
+
 static void init_proc_460 (CPUPPCState *env)
 {
     /* Time base */
@@ -5010,7 +5048,8 @@ POWERPC_FAMILY(e5500)(ObjectClass *oc, void *data)
                        PPC_FLOAT_STFIWX | PPC_WAIT |
                        PPC_MEM_TLBSYNC | PPC_TLBIVAX | PPC_MEM_SYNC |
                        PPC_64B | PPC_POPCNTB | PPC_POPCNTWD;
-    pcc->insns_flags2 = PPC2_BOOKE206 | PPC2_PRCNTL | PPC2_PERM_ISA206;
+    pcc->insns_flags2 = PPC2_BOOKE206 | PPC2_PRCNTL | PPC2_PERM_ISA206 | \
+                        PPC2_FP_CVT_S64;
     pcc->msr_mask = (1ull << MSR_CM) |
                     (1ull << MSR_GS) |
                     (1ull << MSR_UCLE) |
@@ -7906,6 +7945,7 @@ POWERPC_FAMILY(970)(ObjectClass *oc, void *data)
                        PPC_MEM_TLBIE | PPC_MEM_TLBSYNC |
                        PPC_64B | PPC_ALTIVEC |
                        PPC_SEGMENT_64B | PPC_SLBI;
+    pcc->insns_flags2 = PPC2_FP_CVT_S64;
     pcc->msr_mask = (1ull << MSR_SF) |
                     (1ull << MSR_VR) |
                     (1ull << MSR_POW) |
@@ -7958,6 +7998,7 @@ POWERPC_FAMILY(POWER5P)(ObjectClass *oc, void *data)
                        PPC_MEM_TLBIE | PPC_MEM_TLBSYNC |
                        PPC_64B |
                        PPC_SEGMENT_64B | PPC_SLBI;
+    pcc->insns_flags2 = PPC2_FP_CVT_S64;
     pcc->msr_mask = (1ull << MSR_SF) |
                     (1ull << MSR_VR) |
                     (1ull << MSR_POW) |
@@ -8100,7 +8141,7 @@ POWERPC_FAMILY(POWER7)(ObjectClass *oc, void *data)
     pcc->insns_flags2 = PPC2_VSX | PPC2_DFP | PPC2_DBRX | PPC2_ISA205 |
                         PPC2_PERM_ISA206 | PPC2_DIVE_ISA206 |
                         PPC2_ATOMIC_ISA206 | PPC2_FP_CVT_ISA206 |
-                        PPC2_FP_TST_ISA206;
+                        PPC2_FP_TST_ISA206 | PPC2_FP_CVT_S64;
     pcc->msr_mask = (1ull << MSR_SF) |
                     (1ull << MSR_VR) |
                     (1ull << MSR_VSX) |
@@ -8178,7 +8219,7 @@ POWERPC_FAMILY(POWER8)(ObjectClass *oc, void *data)
                         PPC2_ATOMIC_ISA206 | PPC2_FP_CVT_ISA206 |
                         PPC2_FP_TST_ISA206 | PPC2_BCTAR_ISA207 |
                         PPC2_LSQ_ISA207 | PPC2_ALTIVEC_207 |
-                        PPC2_ISA205 | PPC2_ISA207S;
+                        PPC2_ISA205 | PPC2_ISA207S | PPC2_FP_CVT_S64;
     pcc->msr_mask = (1ull << MSR_SF) |
                     (1ull << MSR_TM) |
                     (1ull << MSR_VR) |
@@ -8432,14 +8473,16 @@ enum {
     PPC_INDIRECT = 1, /* Indirect opcode table */
 };
 
+#define PPC_OPCODE_MASK 0x3
+
 static inline int is_indirect_opcode (void *handler)
 {
-    return ((uintptr_t)handler & 0x03) == PPC_INDIRECT;
+    return ((uintptr_t)handler & PPC_OPCODE_MASK) == PPC_INDIRECT;
 }
 
 static inline opc_handler_t **ind_table(void *handler)
 {
-    return (opc_handler_t **)((uintptr_t)handler & ~3);
+    return (opc_handler_t **)((uintptr_t)handler & ~PPC_OPCODE_MASK);
 }
 
 /* Instruction table creation */
@@ -8456,8 +8499,8 @@ static int create_new_table (opc_handler_t **table, unsigned char idx)
 {
     opc_handler_t **tmp;
 
-    tmp = g_new(opc_handler_t *, 0x20);
-    fill_new_table(tmp, 0x20);
+    tmp = g_new(opc_handler_t *, PPC_CPU_INDIRECT_OPCODES_LEN);
+    fill_new_table(tmp, PPC_CPU_INDIRECT_OPCODES_LEN);
     table[idx] = (opc_handler_t *)((uintptr_t)tmp | PPC_INDIRECT);
 
     return 0;
@@ -8584,7 +8627,8 @@ static int test_opcode_table (opc_handler_t **table, int len)
             table[i] = &invalid_handler;
         if (table[i] != &invalid_handler) {
             if (is_indirect_opcode(table[i])) {
-                tmp = test_opcode_table(ind_table(table[i]), 0x20);
+                tmp = test_opcode_table(ind_table(table[i]),
+                    PPC_CPU_INDIRECT_OPCODES_LEN);
                 if (tmp == 0) {
                     free(table[i]);
                     table[i] = &invalid_handler;
@@ -8602,7 +8646,7 @@ static int test_opcode_table (opc_handler_t **table, int len)
 
 static void fix_opcode_tables (opc_handler_t **ppc_opcodes)
 {
-    if (test_opcode_table(ppc_opcodes, 0x40) == 0)
+    if (test_opcode_table(ppc_opcodes, PPC_CPU_OPCODES_LEN) == 0)
         printf("*** WARNING: no opcode defined !\n");
 }
 
@@ -8613,7 +8657,7 @@ static void create_ppc_opcodes(PowerPCCPU *cpu, Error **errp)
     CPUPPCState *env = &cpu->env;
     opcode_t *opc;
 
-    fill_new_table(env->opcodes, 0x40);
+    fill_new_table(env->opcodes, PPC_CPU_OPCODES_LEN);
     for (opc = opcodes; opc < &opcodes[ARRAY_SIZE(opcodes)]; opc++) {
         if (((opc->handler.type & pcc->insns_flags) != 0) ||
             ((opc->handler.type2 & pcc->insns_flags2) != 0)) {
@@ -8639,12 +8683,12 @@ static void dump_ppc_insns (CPUPPCState *env)
 
     printf("Instructions set:\n");
     /* opc1 is 6 bits long */
-    for (opc1 = 0x00; opc1 < 0x40; opc1++) {
+    for (opc1 = 0x00; opc1 < PPC_CPU_OPCODES_LEN; opc1++) {
         table = env->opcodes;
         handler = table[opc1];
         if (is_indirect_opcode(handler)) {
             /* opc2 is 5 bits long */
-            for (opc2 = 0; opc2 < 0x20; opc2++) {
+            for (opc2 = 0; opc2 < PPC_CPU_INDIRECT_OPCODES_LEN; opc2++) {
                 table = env->opcodes;
                 handler = env->opcodes[opc1];
                 table = ind_table(handler);
@@ -8652,7 +8696,8 @@ static void dump_ppc_insns (CPUPPCState *env)
                 if (is_indirect_opcode(handler)) {
                     table = ind_table(handler);
                     /* opc3 is 5 bits long */
-                    for (opc3 = 0; opc3 < 0x20; opc3++) {
+                    for (opc3 = 0; opc3 < PPC_CPU_INDIRECT_OPCODES_LEN;
+                            opc3++) {
                         handler = table[opc3];
                         if (handler->handler != &gen_invalid) {
                             /* Special hack to properly dump SPE insns */
@@ -9087,11 +9132,24 @@ static void ppc_cpu_unrealizefn(DeviceState *dev, Error **errp)
 {
     PowerPCCPU *cpu = POWERPC_CPU(dev);
     CPUPPCState *env = &cpu->env;
-    int i;
+    opc_handler_t **table;
+    int i, j;
 
     for (i = 0; i < PPC_CPU_OPCODES_LEN; i++) {
-        if (env->opcodes[i] != &invalid_handler) {
-            g_free(env->opcodes[i]);
+        if (env->opcodes[i] == &invalid_handler) {
+            continue;
+        }
+        if (is_indirect_opcode(env->opcodes[i])) {
+            table = ind_table(env->opcodes[i]);
+            for (j = 0; j < PPC_CPU_INDIRECT_OPCODES_LEN; j++) {
+                if (table[j] != &invalid_handler &&
+                        is_indirect_opcode(table[j])) {
+                    g_free((opc_handler_t *)((uintptr_t)table[j] &
+                        ~PPC_INDIRECT));
+                }
+            }
+            g_free((opc_handler_t *)((uintptr_t)env->opcodes[i] &
+                ~PPC_INDIRECT));
         }
     }
 }
@@ -9137,7 +9195,7 @@ int ppc_set_compat(PowerPCCPU *cpu, uint32_t cpu_version)
         break;
     }
 
-    if (kvm_enabled() && kvmppc_set_compat(cpu, cpu->max_compat) < 0) {
+    if (kvm_enabled() && kvmppc_set_compat(cpu, cpu->cpu_version) < 0) {
         error_report("Unable to set compatibility mode in KVM");
         ret = -1;
     }
