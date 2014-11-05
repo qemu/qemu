@@ -871,7 +871,7 @@ static void virtser_port_device_realize(DeviceState *dev, Error **errp)
         return;
     }
 
-    if (find_port_by_name(port->name)) {
+    if (port->name != NULL && find_port_by_name(port->name)) {
         error_setg(errp, "virtio-serial-bus: A port already exists by name %s",
                    port->name);
         return;
