@@ -18340,7 +18340,7 @@ static void gen_msa(CPUMIPSState *env, DisasContext *ctx)
 
 }
 
-static void decode_opc (CPUMIPSState *env, DisasContext *ctx)
+static void decode_opc(CPUMIPSState *env, DisasContext *ctx)
 {
     int32_t offset;
     int rs, rt, rd, sa;
@@ -18506,7 +18506,8 @@ static void decode_opc (CPUMIPSState *env, DisasContext *ctx)
                     save_cpu_state(ctx, 1);
                     gen_helper_di(t0, cpu_env);
                     gen_store_gpr(t0, rt);
-                    /* Stop translation as we may have switched the execution mode */
+                    /* Stop translation as we may have switched
+                       the execution mode.  */
                     ctx->bstate = BS_STOP;
                     break;
                 case OPC_EI:
@@ -18514,7 +18515,8 @@ static void decode_opc (CPUMIPSState *env, DisasContext *ctx)
                     save_cpu_state(ctx, 1);
                     gen_helper_ei(t0, cpu_env);
                     gen_store_gpr(t0, rt);
-                    /* Stop translation as we may have switched the execution mode */
+                    /* Stop translation as we may have switched
+                       the execution mode.  */
                     ctx->bstate = BS_STOP;
                     break;
                 default:            /* Invalid */
@@ -18780,8 +18782,9 @@ static void decode_opc (CPUMIPSState *env, DisasContext *ctx)
                     gen_r6_cmp_d(ctx, ctx->opcode & 0x1f, rt, rd, sa);
                     break;
                 default:
-                    gen_farith(ctx, ctx->opcode & FOP(0x3f, 0x1f), rt, rd, sa,
-                               (imm >> 8) & 0x7);
+                    gen_farith(ctx, ctx->opcode & FOP(0x3f, 0x1f),
+                               rt, rd, sa, (imm >> 8) & 0x7);
+
                     break;
                 }
             } else {
