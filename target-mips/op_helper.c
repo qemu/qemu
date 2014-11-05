@@ -3140,8 +3140,6 @@ uint64_t helper_float_rsqrt1_ps(CPUMIPSState *env, uint64_t fdt0)
     return ((uint64_t)fsth2 << 32) | fst2;
 }
 
-#define FLOAT_OP(name, p) void helper_float_##name##_##p(CPUMIPSState *env)
-
 /* binary operations */
 #define FLOAT_BINOP(name)                                          \
 uint64_t helper_float_ ## name ## _d(CPUMIPSState *env,            \
