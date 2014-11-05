@@ -143,6 +143,12 @@ static void usb_host_attach_kernel(USBHostDevice *s);
 
 /* ------------------------------------------------------------------------ */
 
+#ifndef LIBUSB_LOG_LEVEL_WARNING /* older libusb didn't define these */
+#define LIBUSB_LOG_LEVEL_WARNING 2
+#endif
+
+/* ------------------------------------------------------------------------ */
+
 #define CONTROL_TIMEOUT  10000        /* 10 sec    */
 #define BULK_TIMEOUT         0        /* unlimited */
 #define INTR_TIMEOUT         0        /* unlimited */
