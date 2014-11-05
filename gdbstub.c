@@ -823,7 +823,10 @@ static int gdb_handle_packet(GDBState *s, const char *line_buf)
                 action = *p++;
                 signal = 0;
                 if (action == 'C' || action == 'S') {
-                    signal = strtoul(p, (char **)&p, 16);
+                    signal = gdb_signal_to_target(strtoul(p, (char **)&p, 16));
+                    if (signal == -1) {
+                        signal = 0;
+                    }
                 } else if (action != 'c' && action != 's') {
                     res = 0;
                     break;
