@@ -11099,7 +11099,7 @@ static int decode_extended_mips16_opc (CPUMIPSState *env, DisasContext *ctx)
         break;
 #if defined(TARGET_MIPS64)
     case M16_OPC_LD:
-            check_mips_64(ctx);
+        check_mips_64(ctx);
         gen_ld(ctx, OPC_LD, ry, rx, offset);
         break;
 #endif
