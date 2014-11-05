@@ -2925,6 +2925,18 @@ static ExitStatus op_sacf(DisasContext *s, DisasOps *o)
     /* Addressing mode has changed, so end the block.  */
     return EXIT_PC_STALE;
 }
+
+static ExitStatus op_sam(DisasContext *s, DisasOps *o)
+{
+    int sam = s->insn->data;
+    TCGv_i64 tsam = tcg_const_i64(sam);
+
+    /* Overwrite PSW_MASK_64 and PSW_MASK_32 */
+    tcg_gen_deposit_i64(psw_mask, psw_mask, tsam, 31, 2);
+
+    tcg_temp_free_i64(tsam);
+    return EXIT_PC_STALE;
+}
 #endif
 
 static ExitStatus op_sar(DisasContext *s, DisasOps *o)
