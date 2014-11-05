@@ -533,8 +533,8 @@ void host_cpuid(uint32_t function, uint32_t count,
  * otherwise the string is assumed to sized by a terminating nul.
  * Return lexical ordering of *s1:*s2.
  */
-static int sstrcmp(const char *s1, const char *e1, const char *s2,
-    const char *e2)
+static int sstrcmp(const char *s1, const char *e1,
+                   const char *s2, const char *e2)
 {
     for (;;) {
         if (!*s1 || !*s2 || *s1 != *s2)
@@ -1845,7 +1845,7 @@ static void x86_cpu_parse_featurestr(CPUState *cs, char *features,
  * if flags, suppress names undefined in featureset.
  */
 static void listflags(char *buf, int bufsize, uint32_t fbits,
-    const char **featureset, uint32_t flags)
+                      const char **featureset, uint32_t flags)
 {
     const char **p = &featureset[31];
     char *q, *b, bit;
