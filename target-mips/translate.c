@@ -19112,7 +19112,7 @@ gen_intermediate_code_internal(MIPSCPU *cpu, TranslationBlock *tb,
         gen_io_end();
     }
     if (cs->singlestep_enabled && ctx.bstate != BS_BRANCH) {
-        save_cpu_state(&ctx, ctx.bstate == BS_NONE);
+        save_cpu_state(&ctx, ctx.bstate != BS_EXCP);
         gen_helper_0e0i(raise_exception, EXCP_DEBUG);
     } else {
         switch (ctx.bstate) {
