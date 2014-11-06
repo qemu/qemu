@@ -8104,6 +8104,7 @@ static void gen_compute_branch1_r6(DisasContext *ctx, uint32_t op,
     MIPS_DEBUG("%s: cond %02x target " TARGET_FMT_lx, opn,
                ctx->hflags, btarget);
     ctx->btarget = btarget;
+    ctx->hflags |= MIPS_HFLAG_BDS32;
 
 out:
     tcg_temp_free_i64(t0);
