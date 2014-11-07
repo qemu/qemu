@@ -33,6 +33,9 @@ static void mpc8544ds_init(MachineState *machine)
         .pci_nr_slots = 2,
         .fixup_devtree = mpc8544ds_fixup_devtree,
         .mpic_version = OPENPIC_MODEL_FSL_MPIC_20,
+        .ccsrbar_base = 0xE0000000ULL,
+        .pci_pio_base = 0xE1000000ULL,
+        .spin_base = 0xEF000000ULL,
     };
 
     ppce500_init(machine, &params);
