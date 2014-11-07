@@ -19285,14 +19285,12 @@ void mips_tcg_init(void)
                                         regnames[i]);
 
     for (i = 0; i < 32; i++) {
-        int off = offsetof(CPUMIPSState, active_fpu.fpr[i]);
-        fpu_f64[i] = tcg_global_mem_new_i64(TCG_AREG0, off, fregnames[i]);
-    }
-
-    for (i = 0; i < 32; i++) {
         int off = offsetof(CPUMIPSState, active_fpu.fpr[i].wr.d[0]);
         msa_wr_d[i * 2] =
                 tcg_global_mem_new_i64(TCG_AREG0, off, msaregnames[i * 2]);
+        /* The scalar floating-point unit (FPU) registers are mapped on
+         * the MSA vector registers. */
+        fpu_f64[i] = msa_wr_d[i * 2];
         off = offsetof(CPUMIPSState, active_fpu.fpr[i].wr.d[1]);
         msa_wr_d[i * 2 + 1] =
                 tcg_global_mem_new_i64(TCG_AREG0, off, msaregnames[i * 2 + 1]);
