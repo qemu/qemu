@@ -3249,7 +3249,7 @@
 #
 # Send input event(s) to guest.
 #
-# @console: Which console to send event(s) to.
+# @console: #optional console to send event(s) to.
 #
 # @events: List of InputEvent union.
 #
@@ -3259,7 +3259,7 @@
 #
 ##
 { 'command': 'input-send-event',
-  'data': { 'console':'int', 'events': [ 'InputEvent' ] } }
+  'data': { '*console':'int', 'events': [ 'InputEvent' ] } }
 
 ##
 # @NumaOptions

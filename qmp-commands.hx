@@ -3792,7 +3792,7 @@ EQMP
 
     {
         .name       = "input-send-event",
-        .args_type  = "console:i,events:q",
+        .args_type  = "console:i?,events:q",
         .mhandler.cmd_new = qmp_marshal_input_input_send_event,
     },
 
@@ -3804,7 +3804,7 @@ Send input event to guest.
 
 Arguments:
 
-- "console": console index.
+- "console": console index. (json-int, optional)
 - "events": list of input events.
 
 The consoles are visible in the qom tree, under
