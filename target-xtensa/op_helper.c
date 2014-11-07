@@ -235,6 +235,12 @@ void HELPER(entry)(CPUXtensaState *env, uint32_t pc, uint32_t s, uint32_t imm)
                 pc, env->sregs[PS]);
         HELPER(exception_cause)(env, pc, ILLEGAL_INSTRUCTION_CAUSE);
     } else {
+        uint32_t windowstart = xtensa_replicate_windowstart(env) >>
+            (env->sregs[WINDOW_BASE] + 1);
+
+        if (windowstart & ((1 << callinc) - 1)) {
+            HELPER(window_check)(env, pc, callinc);
+        }
         env->regs[(callinc << 2) | (s & 3)] = env->regs[s] - (imm << 3);
         rotate_window(env, callinc);
         env->sregs[WINDOW_START] |=
