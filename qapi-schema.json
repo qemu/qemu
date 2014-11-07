@@ -3231,6 +3231,11 @@
 #
 # Input event union.
 #
+# @key: Input event of Keyboard
+# @btn: Input event of pointer buttons
+# @rel: Input event of relative pointer motion
+# @abs: Input event of absolute pointer motion
+#
 # Since: 2.0
 ##
 { 'union' : 'InputEvent',
