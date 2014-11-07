@@ -19439,7 +19439,8 @@ void cpu_state_reset(CPUMIPSState *env)
     if (env->hflags & MIPS_HFLAG_BMASK) {
         /* If the exception was raised from a delay slot,
            come back to the jump.  */
-        env->CP0_ErrorEPC = env->active_tc.PC - 4;
+        env->CP0_ErrorEPC = (env->active_tc.PC
+                             - (env->hflags & MIPS_HFLAG_B16 ? 2 : 4));
     } else {
         env->CP0_ErrorEPC = env->active_tc.PC;
     }
