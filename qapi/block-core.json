@@ -1422,7 +1422,9 @@
             'refblock_alloc.write_blocks', 'refblock_alloc.write_table',
             'refblock_alloc.switch_table', 'cluster_alloc',
             'cluster_alloc_bytes', 'cluster_free', 'flush_to_os',
-            'flush_to_disk' ] }
+            'flush_to_disk', 'pwritev_rmw.head', 'pwritev_rmw.after_head',
+            'pwritev_rmw.tail', 'pwritev_rmw.after_tail', 'pwritev',
+            'pwritev_zero', 'pwritev_done', 'empty_image_prepare' ] }
 
 ##
 # @BlkdebugInjectErrorOptions
