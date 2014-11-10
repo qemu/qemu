@@ -1270,8 +1270,7 @@ acpi_build_srat_memory(AcpiSratMemoryAffinity *numamem, uint64_t base,
 }
 
 static void
-build_srat(GArray *table_data, GArray *linker,
-           AcpiCpuInfo *cpu, PcGuestInfo *guest_info)
+build_srat(GArray *table_data, GArray *linker, PcGuestInfo *guest_info)
 {
     AcpiSystemResourceAffinityTable *srat;
     AcpiSratProcessorAffinity *core;
@@ -1301,11 +1300,7 @@ build_srat(GArray *table_data, GArray *linker,
         core->proximity_lo = curnode;
         memset(core->proximity_hi, 0, 3);
         core->local_sapic_eid = 0;
-        if (test_bit(i, cpu->found_cpus)) {
-            core->flags = cpu_to_le32(1);
-        } else {
-            core->flags = cpu_to_le32(0);
-        }
+        core->flags = cpu_to_le32(1);
     }
 
 
@@ -1623,7 +1618,7 @@ void acpi_build(PcGuestInfo *guest_info, AcpiBuildTables *tables)
     }
     if (guest_info->numa_nodes) {
         acpi_add_table(table_offsets, tables->table_data);
-        build_srat(tables->table_data, tables->linker, &cpu, guest_info);
+        build_srat(tables->table_data, tables->linker, guest_info);
     }
     if (acpi_get_mcfg(&mcfg)) {
         acpi_add_table(table_offsets, tables->table_data);
