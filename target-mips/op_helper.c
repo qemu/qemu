@@ -625,40 +625,9 @@ static CPUMIPSState *mips_cpu_map_tc(CPUMIPSState *env, int *tc)
 
    These helper call synchronizes the regs for a given cpu.  */
 
-/* Called for updates to CP0_Status.  */
-static void sync_c0_status(CPUMIPSState *env, CPUMIPSState *cpu, int tc)
-{
-    int32_t tcstatus, *tcst;
-    uint32_t v = cpu->CP0_Status;
-    uint32_t cu, mx, asid, ksu;
-    uint32_t mask = ((1 << CP0TCSt_TCU3)
-                       | (1 << CP0TCSt_TCU2)
-                       | (1 << CP0TCSt_TCU1)
-                       | (1 << CP0TCSt_TCU0)
-                       | (1 << CP0TCSt_TMX)
-                       | (3 << CP0TCSt_TKSU)
-                       | (0xff << CP0TCSt_TASID));
-
-    cu = (v >> CP0St_CU0) & 0xf;
-    mx = (v >> CP0St_MX) & 0x1;
-    ksu = (v >> CP0St_KSU) & 0x3;
-    asid = env->CP0_EntryHi & 0xff;
-
-    tcstatus = cu << CP0TCSt_TCU0;
-    tcstatus |= mx << CP0TCSt_TMX;
-    tcstatus |= ksu << CP0TCSt_TKSU;
-    tcstatus |= asid;
-
-    if (tc == cpu->current_tc) {
-        tcst = &cpu->active_tc.CP0_TCStatus;
-    } else {
-        tcst = &cpu->tcs[tc].CP0_TCStatus;
-    }
-
-    *tcst &= ~mask;
-    *tcst |= tcstatus;
-    compute_hflags(cpu);
-}
+/* Called for updates to CP0_Status.  Defined in "cpu.h" for gdbstub.c.  */
+/* static inline void sync_c0_status(CPUMIPSState *env, CPUMIPSState *cpu,
+                                     int tc);  */
 
 /* Called for updates to CP0_TCStatus.  */
 static void sync_c0_tcstatus(CPUMIPSState *cpu, int tc,
@@ -1420,25 +1389,10 @@ void helper_mtc0_status(CPUMIPSState *env, target_ulong arg1)
 {
     MIPSCPU *cpu = mips_env_get_cpu(env);
     uint32_t val, old;
-    uint32_t mask = env->CP0_Status_rw_bitmask;
 
-    if (env->insn_flags & ISA_MIPS32R6) {
-        bool has_supervisor = extract32(mask, CP0St_KSU, 2) == 0x3;
-
-        if (has_supervisor && extract32(arg1, CP0St_KSU, 2) == 0x3) {
-            mask &= ~(3 << CP0St_KSU);
-        }
-        mask &= ~(((1 << CP0St_SR) | (1 << CP0St_NMI)) & arg1);
-    }
-
-    val = arg1 & mask;
     old = env->CP0_Status;
-    env->CP0_Status = (env->CP0_Status & ~mask) | val;
-    if (env->CP0_Config3 & (1 << CP0C3_MT)) {
-        sync_c0_status(env, env, env->current_tc);
-    } else {
-        compute_hflags(env);
-    }
+    cpu_mips_store_status(env, arg1);
+    val = env->CP0_Status;
 
     if (qemu_loglevel_mask(CPU_LOG_EXEC)) {
         qemu_log("Status %08x (%08x) => %08x (%08x) Cause %08x",
@@ -1477,40 +1431,9 @@ void helper_mtc0_srsctl(CPUMIPSState *env, target_ulong arg1)
     env->CP0_SRSCtl = (env->CP0_SRSCtl & ~mask) | (arg1 & mask);
 }
 
-static void mtc0_cause(CPUMIPSState *cpu, target_ulong arg1)
-{
-    uint32_t mask = 0x00C00300;
-    uint32_t old = cpu->CP0_Cause;
-    int i;
-
-    if (cpu->insn_flags & ISA_MIPS32R2) {
-        mask |= 1 << CP0Ca_DC;
-    }
-    if (cpu->insn_flags & ISA_MIPS32R6) {
-        mask &= ~((1 << CP0Ca_WP) & arg1);
-    }
-
-    cpu->CP0_Cause = (cpu->CP0_Cause & ~mask) | (arg1 & mask);
-
-    if ((old ^ cpu->CP0_Cause) & (1 << CP0Ca_DC)) {
-        if (cpu->CP0_Cause & (1 << CP0Ca_DC)) {
-            cpu_mips_stop_count(cpu);
-        } else {
-            cpu_mips_start_count(cpu);
-        }
-    }
-
-    /* Set/reset software interrupts */
-    for (i = 0 ; i < 2 ; i++) {
-        if ((old ^ cpu->CP0_Cause) & (1 << (CP0Ca_IP + i))) {
-            cpu_mips_soft_irq(cpu, i, cpu->CP0_Cause & (1 << (CP0Ca_IP + i)));
-        }
-    }
-}
-
 void helper_mtc0_cause(CPUMIPSState *env, target_ulong arg1)
 {
-    mtc0_cause(env, arg1);
+    cpu_mips_store_cause(env, arg1);
 }
 
 void helper_mttc0_cause(CPUMIPSState *env, target_ulong arg1)
@@ -1518,7 +1441,7 @@ void helper_mttc0_cause(CPUMIPSState *env, target_ulong arg1)
     int other_tc = env->CP0_VPEControl & (0xff << CP0VPECo_TargTC);
     CPUMIPSState *other = mips_cpu_map_tc(env, &other_tc);
 
-    mtc0_cause(other, arg1);
+    cpu_mips_store_cause(other, arg1);
 }
 
 target_ulong helper_mftc0_epc(CPUMIPSState *env)

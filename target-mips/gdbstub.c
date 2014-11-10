@@ -112,7 +112,9 @@ int mips_cpu_gdb_write_register(CPUState *cs, uint8_t *mem_buf, int n)
     }
     switch (n) {
     case 32:
-        env->CP0_Status = tmp;
+#ifndef CONFIG_USER_ONLY
+        cpu_mips_store_status(env, tmp);
+#endif
         break;
     case 33:
         env->active_tc.LO[0] = tmp;
@@ -124,7 +126,9 @@ int mips_cpu_gdb_write_register(CPUState *cs, uint8_t *mem_buf, int n)
         env->CP0_BadVAddr = tmp;
         break;
     case 36:
-        env->CP0_Cause = tmp;
+#ifndef CONFIG_USER_ONLY
+        cpu_mips_store_cause(env, tmp);
+#endif
         break;
     case 37:
         env->active_tc.PC = tmp & ~(target_ulong)1;
