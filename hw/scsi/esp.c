@@ -364,7 +364,7 @@ void esp_hard_reset(ESPState *s)
 {
     memset(s->rregs, 0, ESP_REGS);
     memset(s->wregs, 0, ESP_REGS);
-    s->rregs[ESP_TCHI] = s->chip_id;
+    s->tchi_written = 0;
     s->ti_size = 0;
     s->ti_rptr = 0;
     s->ti_wptr = 0;
@@ -422,6 +422,11 @@ uint64_t esp_reg_read(ESPState *s, uint32_t saddr)
         esp_lower_irq(s);
 
         return old_val;
+    case ESP_TCHI:
+        /* Return the unique id if the value has never been written */
+        if (!s->tchi_written) {
+            return s->chip_id;
+        }
     default:
         break;
     }
@@ -432,9 +437,11 @@ void esp_reg_write(ESPState *s, uint32_t saddr, uint64_t val)
 {
     trace_esp_mem_writeb(saddr, s->wregs[saddr], val);
     switch (saddr) {
+    case ESP_TCHI:
+        s->tchi_written = true;
+        /* fall through */
     case ESP_TCLO:
     case ESP_TCMID:
-    case ESP_TCHI:
         s->rregs[ESP_RSTAT] &= ~STAT_TC;
         break;
     case ESP_FIFO:
