@@ -8104,6 +8104,7 @@ static void gen_compute_branch1_r6(DisasContext *ctx, uint32_t op,
     MIPS_DEBUG("%s: cond %02x target " TARGET_FMT_lx, opn,
                ctx->hflags, btarget);
     ctx->btarget = btarget;
+    ctx->hflags |= MIPS_HFLAG_BDS32;
 
 out:
     tcg_temp_free_i64(t0);
@@ -13613,8 +13614,13 @@ static void decode_micromips32_opc (CPUMIPSState *env, DisasContext *ctx,
             check_insn(ctx, ASE_MIPS3D);
             /* Fall through */
         do_cp1branch:
-            gen_compute_branch1(ctx, mips32_op,
-                                (ctx->opcode >> 18) & 0x7, imm << 1);
+            if (env->CP0_Config1 & (1 << CP0C1_FP)) {
+                check_cp1_enabled(ctx);
+                gen_compute_branch1(ctx, mips32_op,
+                                    (ctx->opcode >> 18) & 0x7, imm << 1);
+            } else {
+                generate_exception_err(ctx, EXCP_CpU, 1);
+            }
             break;
         case BPOSGE64:
         case BPOSGE32:
@@ -19106,7 +19112,7 @@ gen_intermediate_code_internal(MIPSCPU *cpu, TranslationBlock *tb,
         gen_io_end();
     }
     if (cs->singlestep_enabled && ctx.bstate != BS_BRANCH) {
-        save_cpu_state(&ctx, ctx.bstate == BS_NONE);
+        save_cpu_state(&ctx, ctx.bstate != BS_EXCP);
         gen_helper_0e0i(raise_exception, EXCP_DEBUG);
     } else {
         switch (ctx.bstate) {
@@ -19279,14 +19285,12 @@ void mips_tcg_init(void)
                                         regnames[i]);
 
     for (i = 0; i < 32; i++) {
-        int off = offsetof(CPUMIPSState, active_fpu.fpr[i]);
-        fpu_f64[i] = tcg_global_mem_new_i64(TCG_AREG0, off, fregnames[i]);
-    }
-
-    for (i = 0; i < 32; i++) {
         int off = offsetof(CPUMIPSState, active_fpu.fpr[i].wr.d[0]);
         msa_wr_d[i * 2] =
                 tcg_global_mem_new_i64(TCG_AREG0, off, msaregnames[i * 2]);
+        /* The scalar floating-point unit (FPU) registers are mapped on
+         * the MSA vector registers. */
+        fpu_f64[i] = msa_wr_d[i * 2];
         off = offsetof(CPUMIPSState, active_fpu.fpr[i].wr.d[1]);
         msa_wr_d[i * 2 + 1] =
                 tcg_global_mem_new_i64(TCG_AREG0, off, msaregnames[i * 2 + 1]);
