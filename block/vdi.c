@@ -120,8 +120,18 @@ typedef unsigned char uuid_t[16];
 
 #define VDI_IS_ALLOCATED(X) ((X) < VDI_DISCARDED)
 
-/* max blocks in image is (0xffffffff / 4) */
-#define VDI_BLOCKS_IN_IMAGE_MAX  0x3fffffff
+/* The bmap will take up VDI_BLOCKS_IN_IMAGE_MAX * sizeof(uint32_t) bytes; since
+ * the bmap is read and written in a single operation, its size needs to be
+ * limited to INT_MAX; furthermore, when opening an image, the bmap size is
+ * rounded up to be aligned on BDRV_SECTOR_SIZE.
+ * Therefore this should satisfy the following:
+ * VDI_BLOCKS_IN_IMAGE_MAX * sizeof(uint32_t) + BDRV_SECTOR_SIZE == INT_MAX + 1
+ * (INT_MAX + 1 is the first value not representable as an int)
+ * This guarantees that any value below or equal to the constant will, when
+ * multiplied by sizeof(uint32_t) and rounded up to a BDRV_SECTOR_SIZE boundary,
+ * still be below or equal to INT_MAX. */
+#define VDI_BLOCKS_IN_IMAGE_MAX \
+    ((unsigned)((INT_MAX + 1u - BDRV_SECTOR_SIZE) / sizeof(uint32_t)))
 #define VDI_DISK_SIZE_MAX        ((uint64_t)VDI_BLOCKS_IN_IMAGE_MAX * \
                                   (uint64_t)DEFAULT_CLUSTER_SIZE)
 
