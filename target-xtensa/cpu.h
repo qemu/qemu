@@ -472,6 +472,12 @@ static inline xtensa_tlb_entry *xtensa_tlb_get_entry(CPUXtensaState *env,
         env->itlb[wi] + ei;
 }
 
+static inline uint32_t xtensa_replicate_windowstart(CPUXtensaState *env)
+{
+    return env->sregs[WINDOW_START] |
+        (env->sregs[WINDOW_START] << env->config->nareg / 4);
+}
+
 /* MMU modes definitions */
 #define MMU_MODE0_SUFFIX _ring0
 #define MMU_MODE1_SUFFIX _ring1
