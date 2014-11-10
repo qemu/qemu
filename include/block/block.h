@@ -83,7 +83,9 @@ typedef enum {
 #define BDRV_SECTOR_SIZE   (1ULL << BDRV_SECTOR_BITS)
 #define BDRV_SECTOR_MASK   ~(BDRV_SECTOR_SIZE - 1)
 
-/* BDRV_BLOCK_DATA: data is read from bs->file or another file
+/*
+ * Allocation status flags
+ * BDRV_BLOCK_DATA: data is read from bs->file or another file
  * BDRV_BLOCK_ZERO: sectors read as zero
  * BDRV_BLOCK_OFFSET_VALID: sector stored in bs->file as raw data
  * BDRV_BLOCK_ALLOCATED: the content of the block is determined by this
