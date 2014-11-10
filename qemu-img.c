@@ -1126,7 +1126,6 @@ static int img_compare(int argc, char **argv)
 
     blk1 = img_open("image_1", filename1, fmt1, flags, true, quiet);
     if (!blk1) {
-        error_report("Can't open file %s", filename1);
         ret = 2;
         goto out3;
     }
@@ -1134,7 +1133,6 @@ static int img_compare(int argc, char **argv)
 
     blk2 = img_open("image_2", filename2, fmt2, flags, true, quiet);
     if (!blk2) {
-        error_report("Can't open file %s", filename2);
         ret = 2;
         goto out2;
     }
@@ -1482,7 +1480,6 @@ static int img_convert(int argc, char **argv)
                              true, quiet);
         g_free(id);
         if (!blk[bs_i]) {
-            error_report("Could not open '%s'", argv[optind + bs_i]);
             ret = -1;
             goto out;
         }
@@ -2962,7 +2959,6 @@ static int img_amend(int argc, char **argv)
 
     blk = img_open("image", filename, fmt, flags, true, quiet);
     if (!blk) {
-        error_report("Could not open image '%s'", filename);
         ret = -1;
         goto out;
     }
