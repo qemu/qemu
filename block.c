@@ -2790,8 +2790,8 @@ int bdrv_make_zero(BlockDriverState *bs, BdrvRequestFlags flags)
         if (nb_sectors <= 0) {
             return 0;
         }
-        if (nb_sectors > INT_MAX) {
-            nb_sectors = INT_MAX;
+        if (nb_sectors > INT_MAX / BDRV_SECTOR_SIZE) {
+            nb_sectors = INT_MAX / BDRV_SECTOR_SIZE;
         }
         ret = bdrv_get_block_status(bs, sector_num, nb_sectors, &n);
         if (ret < 0) {
