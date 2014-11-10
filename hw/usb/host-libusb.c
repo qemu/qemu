@@ -749,13 +749,13 @@ static void usb_host_speed_compat(USBHostDevice *s)
 
     udev->speedmask = (1 << udev->speed);
     if (udev->speed == USB_SPEED_SUPER && compat_high) {
-        udev->speedmask |= USB_SPEED_HIGH;
+        udev->speedmask |= USB_SPEED_MASK_HIGH;
     }
     if (udev->speed == USB_SPEED_SUPER && compat_full) {
-        udev->speedmask |= USB_SPEED_FULL;
+        udev->speedmask |= USB_SPEED_MASK_FULL;
     }
     if (udev->speed == USB_SPEED_HIGH && compat_full) {
-        udev->speedmask |= USB_SPEED_FULL;
+        udev->speedmask |= USB_SPEED_MASK_FULL;
     }
 }
 
