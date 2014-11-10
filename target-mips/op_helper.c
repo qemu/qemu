@@ -1423,10 +1423,12 @@ void helper_mtc0_status(CPUMIPSState *env, target_ulong arg1)
     uint32_t mask = env->CP0_Status_rw_bitmask;
 
     if (env->insn_flags & ISA_MIPS32R6) {
-        if (extract32(env->CP0_Status, CP0St_KSU, 2) == 0x3) {
+        bool has_supervisor = extract32(mask, CP0St_KSU, 2) == 0x3;
+
+        if (has_supervisor && extract32(arg1, CP0St_KSU, 2) == 0x3) {
             mask &= ~(3 << CP0St_KSU);
         }
-        mask &= ~(0x00180000 & arg1);
+        mask &= ~(((1 << CP0St_SR) | (1 << CP0St_NMI)) & arg1);
     }
 
     val = arg1 & mask;
