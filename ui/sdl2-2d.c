@@ -36,6 +36,8 @@ void sdl2_2d_update(DisplayChangeListener *dcl,
     DisplaySurface *surf = qemu_console_surface(dcl->con);
     SDL_Rect rect;
 
+    assert(!scon->opengl);
+
     if (!surf) {
         return;
     }
@@ -60,6 +62,8 @@ void sdl2_2d_switch(DisplayChangeListener *dcl,
     struct sdl2_console *scon = container_of(dcl, struct sdl2_console, dcl);
     DisplaySurface *old_surface = scon->surface;
     int format = 0;
+
+    assert(!scon->opengl);
 
     scon->surface = new_surface;
 
@@ -101,12 +105,15 @@ void sdl2_2d_refresh(DisplayChangeListener *dcl)
 {
     struct sdl2_console *scon = container_of(dcl, struct sdl2_console, dcl);
 
+    assert(!scon->opengl);
     graphic_hw_update(dcl->con);
     sdl2_poll_events(scon);
 }
 
 void sdl2_2d_redraw(struct sdl2_console *scon)
 {
+    assert(!scon->opengl);
+
     if (!scon->surface) {
         return;
     }

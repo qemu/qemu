@@ -354,6 +354,7 @@ void surface_gl_setup_viewport(ConsoleGLState *gls,
 #endif
 
 /* sdl.c */
+void sdl_display_early_init(int opengl);
 void sdl_display_init(DisplayState *ds, int full_screen, int no_frame);
 
 /* cocoa.m */
