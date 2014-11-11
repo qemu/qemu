@@ -25,5 +25,6 @@ void sdl2_2d_update(DisplayChangeListener *dcl,
                     int x, int y, int w, int h);
 void sdl2_2d_switch(DisplayChangeListener *dcl,
                     DisplaySurface *new_surface);
+void sdl2_2d_redraw(struct sdl2_console *scon);
 
 #endif /* SDL2_H */

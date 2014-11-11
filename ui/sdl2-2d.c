@@ -100,4 +100,15 @@ void sdl2_2d_switch(DisplayChangeListener *dcl,
                                       SDL_TEXTUREACCESS_STREAMING,
                                       surface_width(new_surface),
                                       surface_height(new_surface));
+    sdl2_2d_redraw(scon);
+}
+
+void sdl2_2d_redraw(struct sdl2_console *scon)
+{
+    if (!scon->surface) {
+        return;
+    }
+    sdl2_2d_update(&scon->dcl, 0, 0,
+                   surface_width(scon->surface),
+                   surface_height(scon->surface));
 }

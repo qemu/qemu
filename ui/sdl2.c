@@ -316,8 +316,7 @@ static void toggle_full_screen(struct sdl2_console *scon)
         }
         SDL_SetWindowFullscreen(scon->real_window, 0);
     }
-    graphic_hw_invalidate(scon->dcl.con);
-    graphic_hw_update(scon->dcl.con);
+    sdl2_2d_redraw(scon);
 }
 
 static void handle_keydown(SDL_Event *ev)
@@ -365,8 +364,8 @@ static void handle_keydown(SDL_Event *ev)
         case SDL_SCANCODE_U:
             sdl2_window_destroy(scon);
             sdl2_window_create(scon);
-            graphic_hw_invalidate(scon->dcl.con);
-            graphic_hw_update(scon->dcl.con);
+            /* re-create texture */
+            sdl2_2d_switch(&scon->dcl, scon->surface);
             gui_keysym = 1;
             break;
 #if 0
@@ -385,8 +384,7 @@ static void handle_keydown(SDL_Event *ev)
                 fprintf(stderr, "%s: scale to %dx%d\n",
                         __func__, width, height);
                 sdl_scale(scon, width, height);
-                graphic_hw_invalidate(NULL);
-                graphic_hw_update(NULL);
+                sdl2_2d_redraw(scon);
                 gui_keysym = 1;
             }
 #endif
@@ -511,7 +509,6 @@ static void handle_mousewheel(SDL_Event *ev)
 
 static void handle_windowevent(DisplayChangeListener *dcl, SDL_Event *ev)
 {
-    int w, h;
     struct sdl2_console *scon = get_scon_from_window(ev->key.windowID);
 
     switch (ev->window.event) {
@@ -523,12 +520,10 @@ static void handle_windowevent(DisplayChangeListener *dcl, SDL_Event *ev)
             info.height = ev->window.data2;
             dpy_set_ui_info(scon->dcl.con, &info);
         }
-        graphic_hw_invalidate(scon->dcl.con);
-        graphic_hw_update(scon->dcl.con);
+        sdl2_2d_redraw(scon);
         break;
     case SDL_WINDOWEVENT_EXPOSED:
-        SDL_GetWindowSize(SDL_GetWindowFromID(ev->window.windowID), &w, &h);
-        sdl2_2d_update(dcl, 0, 0, w, h);
+        sdl2_2d_redraw(scon);
         break;
     case SDL_WINDOWEVENT_FOCUS_GAINED:
     case SDL_WINDOWEVENT_ENTER:
