@@ -68,7 +68,7 @@ static struct sdl2_console *get_scon_from_window(uint32_t window_id)
     return NULL;
 }
 
-static void sdl2_window_create(struct sdl2_console *scon)
+void sdl2_window_create(struct sdl2_console *scon)
 {
     int flags = 0;
 
@@ -95,7 +95,7 @@ static void sdl2_window_create(struct sdl2_console *scon)
     sdl_update_caption(scon);
 }
 
-static void sdl2_window_destroy(struct sdl2_console *scon)
+void sdl2_window_destroy(struct sdl2_console *scon)
 {
     if (!scon->real_window) {
         return;
@@ -107,7 +107,7 @@ static void sdl2_window_destroy(struct sdl2_console *scon)
     scon->real_window = NULL;
 }
 
-static void sdl2_window_resize(struct sdl2_console *scon)
+void sdl2_window_resize(struct sdl2_console *scon)
 {
     if (!scon->real_window) {
         return;
@@ -116,48 +116,6 @@ static void sdl2_window_resize(struct sdl2_console *scon)
     SDL_SetWindowSize(scon->real_window,
                       surface_width(scon->surface),
                       surface_height(scon->surface));
-}
-
-static void sdl_switch(DisplayChangeListener *dcl,
-                       DisplaySurface *new_surface)
-{
-    struct sdl2_console *scon = container_of(dcl, struct sdl2_console, dcl);
-    DisplaySurface *old_surface = scon->surface;
-    int format = 0;
-
-    scon->surface = new_surface;
-
-    if (scon->texture) {
-        SDL_DestroyTexture(scon->texture);
-        scon->texture = NULL;
-    }
-
-    if (!new_surface) {
-        sdl2_window_destroy(scon);
-        return;
-    }
-
-    if (!scon->real_window) {
-        sdl2_window_create(scon);
-    } else if (old_surface &&
-               ((surface_width(old_surface)  != surface_width(new_surface)) ||
-                (surface_height(old_surface) != surface_height(new_surface)))) {
-        sdl2_window_resize(scon);
-    }
-
-    SDL_RenderSetLogicalSize(scon->real_renderer,
-                             surface_width(new_surface),
-                             surface_height(new_surface));
-
-    if (surface_bits_per_pixel(scon->surface) == 16) {
-        format = SDL_PIXELFORMAT_RGB565;
-    } else if (surface_bits_per_pixel(scon->surface) == 32) {
-        format = SDL_PIXELFORMAT_ARGB8888;
-    }
-    scon->texture = SDL_CreateTexture(scon->real_renderer, format,
-                                      SDL_TEXTUREACCESS_STREAMING,
-                                      surface_width(new_surface),
-                                      surface_height(new_surface));
 }
 
 static void sdl_update_caption(struct sdl2_console *scon)
@@ -710,7 +668,7 @@ static void sdl_cleanup(void)
 static const DisplayChangeListenerOps dcl_2d_ops = {
     .dpy_name          = "sdl2-2d",
     .dpy_gfx_update    = sdl2_2d_update,
-    .dpy_gfx_switch    = sdl_switch,
+    .dpy_gfx_switch    = sdl2_2d_switch,
     .dpy_refresh       = sdl_refresh,
     .dpy_mouse_set     = sdl_mouse_warp,
     .dpy_cursor_define = sdl_mouse_define,

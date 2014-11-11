@@ -59,3 +59,45 @@ void sdl2_2d_update(DisplayChangeListener *dcl,
     SDL_RenderCopy(scon->real_renderer, scon->texture, &rect, &rect);
     SDL_RenderPresent(scon->real_renderer);
 }
+
+void sdl2_2d_switch(DisplayChangeListener *dcl,
+                    DisplaySurface *new_surface)
+{
+    struct sdl2_console *scon = container_of(dcl, struct sdl2_console, dcl);
+    DisplaySurface *old_surface = scon->surface;
+    int format = 0;
+
+    scon->surface = new_surface;
+
+    if (scon->texture) {
+        SDL_DestroyTexture(scon->texture);
+        scon->texture = NULL;
+    }
+
+    if (!new_surface) {
+        sdl2_window_destroy(scon);
+        return;
+    }
+
+    if (!scon->real_window) {
+        sdl2_window_create(scon);
+    } else if (old_surface &&
+               ((surface_width(old_surface)  != surface_width(new_surface)) ||
+                (surface_height(old_surface) != surface_height(new_surface)))) {
+        sdl2_window_resize(scon);
+    }
+
+    SDL_RenderSetLogicalSize(scon->real_renderer,
+                             surface_width(new_surface),
+                             surface_height(new_surface));
+
+    if (surface_bits_per_pixel(scon->surface) == 16) {
+        format = SDL_PIXELFORMAT_RGB565;
+    } else if (surface_bits_per_pixel(scon->surface) == 32) {
+        format = SDL_PIXELFORMAT_ARGB8888;
+    }
+    scon->texture = SDL_CreateTexture(scon->real_renderer, format,
+                                      SDL_TEXTUREACCESS_STREAMING,
+                                      surface_width(new_surface),
+                                      surface_height(new_surface));
+}

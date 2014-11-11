@@ -13,11 +13,17 @@ struct sdl2_console {
     int hidden;
 };
 
+void sdl2_window_create(struct sdl2_console *scon);
+void sdl2_window_destroy(struct sdl2_console *scon);
+void sdl2_window_resize(struct sdl2_console *scon);
+
 void sdl2_reset_keys(struct sdl2_console *scon);
 void sdl2_process_key(struct sdl2_console *scon,
                       SDL_KeyboardEvent *ev);
 
 void sdl2_2d_update(DisplayChangeListener *dcl,
                     int x, int y, int w, int h);
+void sdl2_2d_switch(DisplayChangeListener *dcl,
+                    DisplaySurface *new_surface);
 
 #endif /* SDL2_H */
