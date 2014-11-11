@@ -349,6 +349,11 @@ static int apic_get_arb_pri(APICCommonState *s)
 static int apic_irq_pending(APICCommonState *s)
 {
     int irrv, ppr;
+
+    if (!(s->spurious_vec & APIC_SV_ENABLE)) {
+        return 0;
+    }
+
     irrv = get_highest_priority_int(s->irr);
     if (irrv < 0) {
         return 0;
@@ -366,9 +371,6 @@ static void apic_update_irq(APICCommonState *s)
 {
     CPUState *cpu;
 
-    if (!(s->spurious_vec & APIC_SV_ENABLE)) {
-        return;
-    }
     cpu = CPU(s->cpu);
     if (!qemu_cpu_is_self(cpu)) {
         cpu_interrupt(cpu, CPU_INTERRUPT_POLL);
