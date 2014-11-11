@@ -571,7 +571,10 @@ int apic_get_interrupt(DeviceState *dev)
     apic_sync_vapic(s, SYNC_FROM_VAPIC);
     intno = apic_irq_pending(s);
 
-    if (intno == 0) {
+    /* if there is an interrupt from the 8259, let the caller handle
+     * that first since ExtINT interrupts ignore the priority.
+     */
+    if (intno == 0 || apic_check_pic(s)) {
         apic_sync_vapic(s, SYNC_TO_VAPIC);
         return -1;
     } else if (intno < 0) {
@@ -581,9 +584,6 @@ int apic_get_interrupt(DeviceState *dev)
     apic_reset_bit(s->irr, intno);
     apic_set_bit(s->isr, intno);
     apic_sync_vapic(s, SYNC_TO_VAPIC);
-
-    /* re-inject if there is still a pending PIC interrupt */
-    apic_check_pic(s);
 
     apic_update_irq(s);
 
