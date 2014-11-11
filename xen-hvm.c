@@ -993,9 +993,8 @@ static void xen_main_loop_prepare(XenIOState *state)
 static void xen_hvm_change_state_handler(void *opaque, int running,
                                          RunState rstate)
 {
-    XenIOState *xstate = opaque;
     if (running) {
-        xen_main_loop_prepare(xstate);
+        xen_main_loop_prepare((XenIOState *)opaque);
     }
 }
 
