@@ -661,10 +661,6 @@ void qemu_spice_init(void)
     }
     port = qemu_opt_get_number(opts, "port", 0);
     tls_port = qemu_opt_get_number(opts, "tls-port", 0);
-    if (!port && !tls_port) {
-        error_report("neither port nor tls-port specified for spice");
-        exit(1);
-    }
     if (port < 0 || port > 65535) {
         error_report("spice port is out of range");
         exit(1);
