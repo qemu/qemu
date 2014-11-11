@@ -17,4 +17,7 @@ void sdl2_reset_keys(struct sdl2_console *scon);
 void sdl2_process_key(struct sdl2_console *scon,
                       SDL_KeyboardEvent *ev);
 
+void sdl2_2d_update(DisplayChangeListener *dcl,
+                    int x, int y, int w, int h);
+
 #endif /* SDL2_H */

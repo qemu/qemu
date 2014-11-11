@@ -72,31 +72,6 @@ static struct sdl2_console *get_scon_from_window(uint32_t window_id)
     return NULL;
 }
 
-static void sdl_update(DisplayChangeListener *dcl,
-                       int x, int y, int w, int h)
-{
-    struct sdl2_console *scon = container_of(dcl, struct sdl2_console, dcl);
-    SDL_Rect rect;
-    DisplaySurface *surf = qemu_console_surface(dcl->con);
-
-    if (!surf) {
-        return;
-    }
-    if (!scon->texture) {
-        return;
-    }
-
-    rect.x = x;
-    rect.y = y;
-    rect.w = w;
-    rect.h = h;
-
-    SDL_UpdateTexture(scon->texture, NULL, surface_data(surf),
-                      surface_stride(surf));
-    SDL_RenderCopy(scon->real_renderer, scon->texture, &rect, &rect);
-    SDL_RenderPresent(scon->real_renderer);
-}
-
 static void do_sdl_resize(struct sdl2_console *scon, int width, int height,
                           int bpp)
 {
@@ -609,7 +584,7 @@ static void handle_windowevent(DisplayChangeListener *dcl, SDL_Event *ev)
         break;
     case SDL_WINDOWEVENT_EXPOSED:
         SDL_GetWindowSize(SDL_GetWindowFromID(ev->window.windowID), &w, &h);
-        sdl_update(dcl, 0, 0, w, h);
+        sdl2_2d_update(dcl, 0, 0, w, h);
         break;
     case SDL_WINDOWEVENT_FOCUS_GAINED:
     case SDL_WINDOWEVENT_ENTER:
@@ -746,9 +721,9 @@ static void sdl_cleanup(void)
     SDL_QuitSubSystem(SDL_INIT_VIDEO);
 }
 
-static const DisplayChangeListenerOps dcl_ops = {
-    .dpy_name          = "sdl",
-    .dpy_gfx_update    = sdl_update,
+static const DisplayChangeListenerOps dcl_2d_ops = {
+    .dpy_name          = "sdl2-2d",
+    .dpy_gfx_update    = sdl2_2d_update,
     .dpy_gfx_switch    = sdl_switch,
     .dpy_refresh       = sdl_refresh,
     .dpy_mouse_set     = sdl_mouse_warp,
@@ -800,7 +775,7 @@ void sdl_display_init(DisplayState *ds, int full_screen, int no_frame)
         if (!qemu_console_is_graphic(con)) {
             sdl2_console[i].hidden = true;
         }
-        sdl2_console[i].dcl.ops = &dcl_ops;
+        sdl2_console[i].dcl.ops = &dcl_2d_ops;
         sdl2_console[i].dcl.con = con;
         register_displaychangelistener(&sdl2_console[i].dcl);
         sdl2_console[i].idx = i;

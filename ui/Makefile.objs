@@ -20,7 +20,7 @@ ifeq ($(CONFIG_SDLABI),1.2)
 sdl.mo-objs := sdl.o sdl_zoom.o
 endif
 ifeq ($(CONFIG_SDLABI),2.0)
-sdl.mo-objs := sdl2.o sdl2-input.o
+sdl.mo-objs := sdl2.o sdl2-input.o sdl2-2d.o
 endif
 sdl.mo-cflags := $(SDL_CFLAGS)
 
