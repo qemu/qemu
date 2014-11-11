@@ -3903,9 +3903,9 @@ typedef struct BdrvCoGetBlockStatusData {
 } BdrvCoGetBlockStatusData;
 
 /*
- * Returns true iff the specified sector is present in the disk image. Drivers
- * not implementing the functionality are assumed to not support backing files,
- * hence all their sectors are reported as allocated.
+ * Returns the allocation status of the specified sectors.
+ * Drivers not implementing the functionality are assumed to not support
+ * backing files, hence all their sectors are reported as allocated.
  *
  * If 'sector_num' is beyond the end of the disk image the return value is 0
  * and 'pnum' is set to 0.

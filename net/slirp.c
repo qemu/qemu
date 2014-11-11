@@ -523,20 +523,27 @@ static int slirp_smb(SlirpState* s, const char *exported_dir,
     fprintf(f,
             "[global]\n"
             "private dir=%s\n"
-            "socket address=127.0.0.1\n"
+            "interfaces=127.0.0.1\n"
+            "bind interfaces only=yes\n"
             "pid directory=%s\n"
             "lock directory=%s\n"
             "state directory=%s\n"
+            "cache directory=%s\n"
             "ncalrpc dir=%s/ncalrpc\n"
             "log file=%s/log.smbd\n"
             "smb passwd file=%s/smbpasswd\n"
             "security = user\n"
             "map to guest = Bad User\n"
+            "load printers = no\n"
+            "printing = bsd\n"
+            "disable spoolss = yes\n"
+            "usershare max shares = 0\n"
             "[qemu]\n"
             "path=%s\n"
             "read only=no\n"
             "guest ok=yes\n"
             "force user=%s\n",
+            s->smb_dir,
             s->smb_dir,
             s->smb_dir,
             s->smb_dir,
