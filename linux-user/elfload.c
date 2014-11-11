@@ -1824,7 +1824,7 @@ static void load_elf_image(const char *image_name, int image_fd,
             if (a < loaddr) {
                 loaddr = a;
             }
-            a += phdr[i].p_memsz;
+            a = phdr[i].p_vaddr + phdr[i].p_memsz;
             if (a > hiaddr) {
                 hiaddr = a;
             }
