@@ -35,8 +35,6 @@
 #include "ui/sdl2.h"
 #include "sysemu/sysemu.h"
 
-#include "sdl2-keymap.h"
-
 static int sdl2_num_outputs;
 static struct sdl2_console *sdl2_console;
 
@@ -52,7 +50,6 @@ static int gui_noframe;
 static int gui_key_modifier_pressed;
 static int gui_keysym;
 static int gui_grab_code = KMOD_LALT | KMOD_LCTRL;
-static uint8_t modifiers_state[SDL_NUM_SCANCODES];
 static SDL_Cursor *sdl_cursor_normal;
 static SDL_Cursor *sdl_cursor_hidden;
 static int absolute_enabled;
@@ -179,72 +176,6 @@ static void sdl_switch(DisplayChangeListener *dcl,
                                               surface_width(new_surface),
                                               surface_height(new_surface));
         }
-    }
-}
-
-static void reset_keys(struct sdl2_console *scon)
-{
-    QemuConsole *con = scon ? scon->dcl.con : NULL;
-    int i;
-
-    for (i = 0; i < 256; i++) {
-        if (modifiers_state[i]) {
-            int qcode = sdl2_scancode_to_qcode[i];
-            qemu_input_event_send_key_qcode(con, qcode, false);
-            modifiers_state[i] = 0;
-        }
-    }
-}
-
-static void sdl_process_key(struct sdl2_console *scon,
-                            SDL_KeyboardEvent *ev)
-{
-    int qcode = sdl2_scancode_to_qcode[ev->keysym.scancode];
-    QemuConsole *con = scon ? scon->dcl.con : NULL;
-
-    if (!qemu_console_is_graphic(con)) {
-        if (ev->type == SDL_KEYDOWN) {
-            switch (ev->keysym.scancode) {
-            case SDL_SCANCODE_RETURN:
-                kbd_put_keysym_console(con, '\n');
-                break;
-            case SDL_SCANCODE_BACKSPACE:
-                kbd_put_keysym_console(con, QEMU_KEY_BACKSPACE);
-                break;
-            default:
-                kbd_put_qcode_console(con, qcode);
-                break;
-            }
-        }
-        return;
-    }
-
-    switch (ev->keysym.scancode) {
-#if 0
-    case SDL_SCANCODE_NUMLOCKCLEAR:
-    case SDL_SCANCODE_CAPSLOCK:
-        /* SDL does not send the key up event, so we generate it */
-        qemu_input_event_send_key_qcode(con, qcode, true);
-        qemu_input_event_send_key_qcode(con, qcode, false);
-        return;
-#endif
-    case SDL_SCANCODE_LCTRL:
-    case SDL_SCANCODE_LSHIFT:
-    case SDL_SCANCODE_LALT:
-    case SDL_SCANCODE_LGUI:
-    case SDL_SCANCODE_RCTRL:
-    case SDL_SCANCODE_RSHIFT:
-    case SDL_SCANCODE_RALT:
-    case SDL_SCANCODE_RGUI:
-        if (ev->type == SDL_KEYUP) {
-            modifiers_state[ev->keysym.scancode] = 0;
-        } else {
-            modifiers_state[ev->keysym.scancode] = 1;
-        }
-        /* fall though */
-    default:
-        qemu_input_event_send_key_qcode(con, qcode,
-                                        ev->type == SDL_KEYDOWN);
     }
 }
 
@@ -544,7 +475,7 @@ static void handle_keydown(SDL_Event *ev)
         }
     }
     if (!gui_keysym) {
-        sdl_process_key(scon, &ev->key);
+        sdl2_process_key(scon, &ev->key);
     }
 }
 
@@ -569,13 +500,13 @@ static void handle_keyup(SDL_Event *ev)
             }
             /* SDL does not send back all the modifiers key, so we must
              * correct it. */
-            reset_keys(scon);
+            sdl2_reset_keys(scon);
             return;
         }
         gui_keysym = 0;
     }
     if (!gui_keysym) {
-        sdl_process_key(scon, &ev->key);
+        sdl2_process_key(scon, &ev->key);
     }
 }
 

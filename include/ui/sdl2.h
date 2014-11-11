@@ -13,4 +13,8 @@ struct sdl2_console {
     int hidden;
 };
 
+void sdl2_reset_keys(struct sdl2_console *scon);
+void sdl2_process_key(struct sdl2_console *scon,
+                      SDL_KeyboardEvent *ev);
+
 #endif /* SDL2_H */
