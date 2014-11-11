@@ -880,6 +880,12 @@ S: Maintained
 F: qobject/
 T: git git://repo.or.cz/qemu/qmp-unstable.git queue/qmp
 
+QEMU Guest Agent
+M: Michael Roth <mdroth@linux.vnet.ibm.com>
+S: Maintained
+F: qga/
+T: git git://github.com/mdroth/qemu.git qga
+
 QOM
 M: Anthony Liguori <aliguori@amazon.com>
 M: Andreas Färber <afaerber@suse.de>
@@ -919,6 +925,15 @@ Checkpatch
 M: Blue Swirl <blauwirbel@gmail.com>
 S: Odd Fixes
 F: scripts/checkpatch.pl
+
+Migration
+M: Juan Quintela <quintela@redhat.com>
+S: Maintained
+F: include/migration/
+F: migration*
+F: savevm.c
+F: arch_init.c
+F: vmstate.c
 
 Seccomp
 M: Eduardo Otubo <eduardo.otubo@profitbricks.com>
@@ -1078,3 +1093,8 @@ M: Chrysostomos Nanakos <cnanakos@grnet.gr>
 M: Chrysostomos Nanakos <chris@include.gr>
 S: Maintained
 F: block/archipelago.c
+
+Bootdevice
+M: Gonglei <arei.gonglei@huawei.com>
+S: Maintained
+F: bootdevice.c
