@@ -230,7 +230,7 @@ void virtio_scsi_dataplane_start(VirtIOSCSI *s)
     if (!s->event_vring) {
         goto fail_vrings;
     }
-    s->cmd_vrings = g_malloc0(sizeof(VirtIOSCSIVring) * vs->conf.num_queues);
+    s->cmd_vrings = g_new(VirtIOSCSIVring *, vs->conf.num_queues);
     for (i = 0; i < vs->conf.num_queues; i++) {
         s->cmd_vrings[i] =
             virtio_scsi_vring_init(s, vs->cmd_vqs[i],
