@@ -1089,6 +1089,7 @@ static void ahci_start_transfer(IDEDMA *dma)
     if (is_atapi && !ad->done_atapi_packet) {
         /* already prepopulated iobuffer */
         ad->done_atapi_packet = true;
+        size = 0;
         goto out;
     }
 
