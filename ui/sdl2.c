@@ -189,11 +189,11 @@ static void sdl_update_caption(struct sdl2_console *scon)
         status = " [Stopped]";
     } else if (gui_grab) {
         if (alt_grab) {
-            status = " - Press Ctrl-Alt-Shift to exit mouse grab";
+            status = " - Press Ctrl-Alt-Shift to exit grab";
         } else if (ctrl_grab) {
-            status = " - Press Right-Ctrl to exit mouse grab";
+            status = " - Press Right-Ctrl to exit grab";
         } else {
-            status = " - Press Ctrl-Alt to exit mouse grab";
+            status = " - Press Ctrl-Alt to exit grab";
         }
     }
 
@@ -785,6 +785,7 @@ void sdl_display_init(DisplayState *ds, int full_screen, int no_frame)
                 SDL_GetError());
         exit(1);
     }
+    SDL_SetHint(SDL_HINT_GRAB_KEYBOARD, "1");
 
     for (i = 0;; i++) {
         QemuConsole *con = qemu_console_lookup_by_index(i);
