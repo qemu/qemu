@@ -41,9 +41,6 @@ static struct sdl2_console *sdl2_console;
 static SDL_Surface *guest_sprite_surface;
 static int gui_grab; /* if true, all keyboard/mouse events are grabbed */
 
-static bool gui_saved_scaling;
-static int gui_saved_width;
-static int gui_saved_height;
 static int gui_saved_grab;
 static int gui_fullscreen;
 static int gui_noframe;
@@ -56,7 +53,6 @@ static int absolute_enabled;
 static int guest_cursor;
 static int guest_x, guest_y;
 static SDL_Cursor *guest_sprite;
-static int scaling_active;
 static Notifier mouse_mode_notifier;
 
 static void sdl_update_caption(struct sdl2_console *scon);
@@ -72,86 +68,96 @@ static struct sdl2_console *get_scon_from_window(uint32_t window_id)
     return NULL;
 }
 
-static void do_sdl_resize(struct sdl2_console *scon, int width, int height,
-                          int bpp)
+static void sdl2_window_create(struct sdl2_console *scon)
 {
-    int flags;
+    int flags = 0;
 
-    if (scon->real_window && scon->real_renderer) {
-        if (width && height) {
-            SDL_RenderSetLogicalSize(scon->real_renderer, width, height);
-            SDL_SetWindowSize(scon->real_window, width, height);
-        } else {
-            SDL_DestroyRenderer(scon->real_renderer);
-            SDL_DestroyWindow(scon->real_window);
-            scon->real_renderer = NULL;
-            scon->real_window = NULL;
-        }
-    } else {
-        if (!width || !height) {
-            return;
-        }
-        flags = 0;
-        if (gui_fullscreen) {
-            flags |= SDL_WINDOW_FULLSCREEN;
-        } else {
-            flags |= SDL_WINDOW_RESIZABLE;
-        }
-        if (scon->hidden) {
-            flags |= SDL_WINDOW_HIDDEN;
-        }
-
-        scon->real_window = SDL_CreateWindow("", SDL_WINDOWPOS_UNDEFINED,
-                                             SDL_WINDOWPOS_UNDEFINED,
-                                             width, height, flags);
-        scon->real_renderer = SDL_CreateRenderer(scon->real_window, -1, 0);
-        sdl_update_caption(scon);
+    if (!scon->surface) {
+        return;
     }
+    assert(!scon->real_window);
+
+    if (gui_fullscreen) {
+        flags |= SDL_WINDOW_FULLSCREEN_DESKTOP;
+    } else {
+        flags |= SDL_WINDOW_RESIZABLE;
+    }
+    if (scon->hidden) {
+        flags |= SDL_WINDOW_HIDDEN;
+    }
+
+    scon->real_window = SDL_CreateWindow("", SDL_WINDOWPOS_UNDEFINED,
+                                         SDL_WINDOWPOS_UNDEFINED,
+                                         surface_width(scon->surface),
+                                         surface_height(scon->surface),
+                                         flags);
+    scon->real_renderer = SDL_CreateRenderer(scon->real_window, -1, 0);
+    sdl_update_caption(scon);
+}
+
+static void sdl2_window_destroy(struct sdl2_console *scon)
+{
+    if (!scon->real_window) {
+        return;
+    }
+
+    SDL_DestroyRenderer(scon->real_renderer);
+    scon->real_renderer = NULL;
+    SDL_DestroyWindow(scon->real_window);
+    scon->real_window = NULL;
+}
+
+static void sdl2_window_resize(struct sdl2_console *scon)
+{
+    if (!scon->real_window) {
+        return;
+    }
+
+    SDL_SetWindowSize(scon->real_window,
+                      surface_width(scon->surface),
+                      surface_height(scon->surface));
 }
 
 static void sdl_switch(DisplayChangeListener *dcl,
                        DisplaySurface *new_surface)
 {
     struct sdl2_console *scon = container_of(dcl, struct sdl2_console, dcl);
-    int format = 0;
-    int idx = scon->idx;
     DisplaySurface *old_surface = scon->surface;
+    int format = 0;
 
-    /* temporary hack: allows to call sdl_switch to handle scaling changes */
-    if (new_surface) {
-        scon->surface = new_surface;
-    }
+    scon->surface = new_surface;
 
-    if (!new_surface && idx > 0) {
-        scon->surface = NULL;
-    }
-
-    if (new_surface == NULL) {
-        do_sdl_resize(scon, 0, 0, 0);
-    } else {
-        do_sdl_resize(scon, surface_width(scon->surface),
-                      surface_height(scon->surface), 0);
-    }
-
-    if (old_surface && scon->texture) {
+    if (scon->texture) {
         SDL_DestroyTexture(scon->texture);
         scon->texture = NULL;
     }
 
-    if (new_surface) {
-        if (!scon->texture) {
-            if (surface_bits_per_pixel(scon->surface) == 16) {
-                format = SDL_PIXELFORMAT_RGB565;
-            } else if (surface_bits_per_pixel(scon->surface) == 32) {
-                format = SDL_PIXELFORMAT_ARGB8888;
-            }
-
-            scon->texture = SDL_CreateTexture(scon->real_renderer, format,
-                                              SDL_TEXTUREACCESS_STREAMING,
-                                              surface_width(new_surface),
-                                              surface_height(new_surface));
-        }
+    if (!new_surface) {
+        sdl2_window_destroy(scon);
+        return;
     }
+
+    if (!scon->real_window) {
+        sdl2_window_create(scon);
+    } else if (old_surface &&
+               ((surface_width(old_surface)  != surface_width(new_surface)) ||
+                (surface_height(old_surface) != surface_height(new_surface)))) {
+        sdl2_window_resize(scon);
+    }
+
+    SDL_RenderSetLogicalSize(scon->real_renderer,
+                             surface_width(new_surface),
+                             surface_height(new_surface));
+
+    if (surface_bits_per_pixel(scon->surface) == 16) {
+        format = SDL_PIXELFORMAT_RGB565;
+    } else if (surface_bits_per_pixel(scon->surface) == 32) {
+        format = SDL_PIXELFORMAT_ARGB8888;
+    }
+    scon->texture = SDL_CreateTexture(scon->real_renderer, format,
+                                      SDL_TEXTUREACCESS_STREAMING,
+                                      surface_width(new_surface),
+                                      surface_height(new_surface));
 }
 
 static void sdl_update_caption(struct sdl2_console *scon)
@@ -338,39 +344,19 @@ static void sdl_send_mouse_event(struct sdl2_console *scon, int dx, int dy,
     qemu_input_event_sync();
 }
 
-static void sdl_scale(struct sdl2_console *scon, int width, int height)
-{
-    int bpp = 0;
-    do_sdl_resize(scon, width, height, bpp);
-    scaling_active = 1;
-}
-
 static void toggle_full_screen(struct sdl2_console *scon)
 {
-    int width = surface_width(scon->surface);
-    int height = surface_height(scon->surface);
-    int bpp = surface_bits_per_pixel(scon->surface);
-
     gui_fullscreen = !gui_fullscreen;
     if (gui_fullscreen) {
-        SDL_GetWindowSize(scon->real_window,
-                          &gui_saved_width, &gui_saved_height);
-        gui_saved_scaling = scaling_active;
-
-        do_sdl_resize(scon, width, height, bpp);
-        scaling_active = 0;
-
+        SDL_SetWindowFullscreen(scon->real_window,
+                                SDL_WINDOW_FULLSCREEN_DESKTOP);
         gui_saved_grab = gui_grab;
         sdl_grab_start(scon);
     } else {
-        if (gui_saved_scaling) {
-            sdl_scale(scon, gui_saved_width, gui_saved_height);
-        } else {
-            do_sdl_resize(scon, width, height, 0);
-        }
         if (!gui_saved_grab) {
             sdl_grab_end(scon);
         }
+        SDL_SetWindowFullscreen(scon->real_window, 0);
     }
     graphic_hw_invalidate(scon->dcl.con);
     graphic_hw_update(scon->dcl.con);
@@ -419,14 +405,13 @@ static void handle_keydown(SDL_Event *ev)
             gui_keysym = 1;
             break;
         case SDL_SCANCODE_U:
-            if (scaling_active) {
-                scaling_active = 0;
-                sdl_switch(&scon->dcl, NULL);
-                graphic_hw_invalidate(scon->dcl.con);
-                graphic_hw_update(scon->dcl.con);
-            }
+            sdl2_window_destroy(scon);
+            sdl2_window_create(scon);
+            graphic_hw_invalidate(scon->dcl.con);
+            graphic_hw_update(scon->dcl.con);
             gui_keysym = 1;
             break;
+#if 0
         case SDL_SCANCODE_KP_PLUS:
         case SDL_SCANCODE_KP_MINUS:
             if (!gui_fullscreen) {
@@ -439,12 +424,14 @@ static void handle_keydown(SDL_Event *ev)
                             160);
                 height = (surface_height(scon->surface) * width) /
                     surface_width(scon->surface);
-
+                fprintf(stderr, "%s: scale to %dx%d\n",
+                        __func__, width, height);
                 sdl_scale(scon, width, height);
                 graphic_hw_invalidate(NULL);
                 graphic_hw_update(NULL);
                 gui_keysym = 1;
             }
+#endif
         default:
             break;
         }
@@ -571,7 +558,6 @@ static void handle_windowevent(DisplayChangeListener *dcl, SDL_Event *ev)
 
     switch (ev->window.event) {
     case SDL_WINDOWEVENT_RESIZED:
-        sdl_scale(scon, ev->window.data1, ev->window.data2);
         {
             QemuUIInfo info;
             memset(&info, 0, sizeof(info));
