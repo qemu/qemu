@@ -2504,7 +2504,9 @@ static void gen_mffs(DisasContext *ctx)
     }
     gen_reset_fpstatus();
     tcg_gen_extu_tl_i64(cpu_fpr[rD(ctx->opcode)], cpu_fpscr);
-    gen_compute_fprf(cpu_fpr[rD(ctx->opcode)], 0, Rc(ctx->opcode) != 0);
+    if (unlikely(Rc(ctx->opcode))) {
+        gen_set_cr1_from_fpscr(ctx);
+    }
 }
 
 /* mtfsb0 */
