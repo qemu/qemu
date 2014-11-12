@@ -92,9 +92,14 @@ VirtIOSCSIReq *virtio_scsi_pop_req_vring(VirtIOSCSI *s,
 
 void virtio_scsi_vring_push_notify(VirtIOSCSIReq *req)
 {
+    VirtIODevice *vdev = VIRTIO_DEVICE(req->vring->parent);
+
     vring_push(&req->vring->vring, &req->elem,
                req->qsgl.size + req->resp_iov.size);
-    event_notifier_set(&req->vring->guest_notifier);
+
+    if (vring_should_notify(vdev, &req->vring->vring)) {
+        event_notifier_set(&req->vring->guest_notifier);
+    }
 }
 
 static void virtio_scsi_iothread_handle_ctrl(EventNotifier *notifier)
