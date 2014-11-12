@@ -15,6 +15,7 @@
 #include "hw/boards.h"
 #include "sysemu/device_tree.h"
 #include "hw/ppc/openpic.h"
+#include "qemu/error-report.h"
 
 static void mpc8544ds_fixup_devtree(PPCE500Params *params, void *fdt)
 {
@@ -37,6 +38,11 @@ static void mpc8544ds_init(MachineState *machine)
         .pci_pio_base = 0xE1000000ULL,
         .spin_base = 0xEF000000ULL,
     };
+
+    if (machine->ram_size > 0xc0000000) {
+        error_report("The MPC8544DS board only supports up to 3GB of RAM");
+        exit(1);
+    }
 
     ppce500_init(machine, &params);
 }
