@@ -316,6 +316,7 @@ typedef struct RAMBlock {
 static inline void *ramblock_ptr(RAMBlock *block, ram_addr_t offset)
 {
     assert(offset < block->length);
+    assert(block->host);
     return (char *)block->host + offset;
 }
 
