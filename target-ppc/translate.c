@@ -2077,6 +2077,21 @@ static void gen_srd(DisasContext *ctx)
 }
 #endif
 
+#if defined(TARGET_PPC64)
+static void gen_set_cr1_from_fpscr(DisasContext *ctx)
+{
+    TCGv_i32 tmp = tcg_temp_new_i32();
+    tcg_gen_trunc_tl_i32(tmp, cpu_fpscr);
+    tcg_gen_shri_i32(cpu_crf[1], tmp, 28);
+    tcg_temp_free_i32(tmp);
+}
+#else
+static void gen_set_cr1_from_fpscr(DisasContext *ctx)
+{
+    tcg_gen_shri_tl(cpu_crf[1], cpu_fpscr, 28);
+}
+#endif
+
 /***                       Floating-Point arithmetic                       ***/
 #define _GEN_FLOAT_ACB(name, op, op1, op2, isfloat, set_fprf, type)           \
 static void gen_f##name(DisasContext *ctx)                                    \
@@ -2370,7 +2385,9 @@ static void gen_fabs(DisasContext *ctx)
     }
     tcg_gen_andi_i64(cpu_fpr[rD(ctx->opcode)], cpu_fpr[rB(ctx->opcode)],
                      ~(1ULL << 63));
-    gen_compute_fprf(cpu_fpr[rD(ctx->opcode)], 0, Rc(ctx->opcode) != 0);
+    if (unlikely(Rc(ctx->opcode))) {
+        gen_set_cr1_from_fpscr(ctx);
+    }
 }
 
 /* fmr  - fmr. */
@@ -2382,7 +2399,9 @@ static void gen_fmr(DisasContext *ctx)
         return;
     }
     tcg_gen_mov_i64(cpu_fpr[rD(ctx->opcode)], cpu_fpr[rB(ctx->opcode)]);
-    gen_compute_fprf(cpu_fpr[rD(ctx->opcode)], 0, Rc(ctx->opcode) != 0);
+    if (unlikely(Rc(ctx->opcode))) {
+        gen_set_cr1_from_fpscr(ctx);
+    }
 }
 
 /* fnabs */
@@ -2395,7 +2414,9 @@ static void gen_fnabs(DisasContext *ctx)
     }
     tcg_gen_ori_i64(cpu_fpr[rD(ctx->opcode)], cpu_fpr[rB(ctx->opcode)],
                     1ULL << 63);
-    gen_compute_fprf(cpu_fpr[rD(ctx->opcode)], 0, Rc(ctx->opcode) != 0);
+    if (unlikely(Rc(ctx->opcode))) {
+        gen_set_cr1_from_fpscr(ctx);
+    }
 }
 
 /* fneg */
@@ -2408,7 +2429,9 @@ static void gen_fneg(DisasContext *ctx)
     }
     tcg_gen_xori_i64(cpu_fpr[rD(ctx->opcode)], cpu_fpr[rB(ctx->opcode)],
                      1ULL << 63);
-    gen_compute_fprf(cpu_fpr[rD(ctx->opcode)], 0, Rc(ctx->opcode) != 0);
+    if (unlikely(Rc(ctx->opcode))) {
+        gen_set_cr1_from_fpscr(ctx);
+    }
 }
 
 /* fcpsgn: PowerPC 2.05 specification */
@@ -2421,7 +2444,9 @@ static void gen_fcpsgn(DisasContext *ctx)
     }
     tcg_gen_deposit_i64(cpu_fpr[rD(ctx->opcode)], cpu_fpr[rA(ctx->opcode)],
                         cpu_fpr[rB(ctx->opcode)], 0, 63);
-    gen_compute_fprf(cpu_fpr[rD(ctx->opcode)], 0, Rc(ctx->opcode) != 0);
+    if (unlikely(Rc(ctx->opcode))) {
+        gen_set_cr1_from_fpscr(ctx);
+    }
 }
 
 static void gen_fmrgew(DisasContext *ctx)
@@ -8210,21 +8235,6 @@ static inline TCGv_ptr gen_fprp_ptr(int reg)
     tcg_gen_addi_ptr(r, cpu_env, offsetof(CPUPPCState, fpr[reg]));
     return r;
 }
-
-#if defined(TARGET_PPC64)
-static void gen_set_cr1_from_fpscr(DisasContext *ctx)
-{
-    TCGv_i32 tmp = tcg_temp_new_i32();
-    tcg_gen_trunc_tl_i32(tmp, cpu_fpscr);
-    tcg_gen_shri_i32(cpu_crf[1], tmp, 28);
-    tcg_temp_free_i32(tmp);
-}
-#else
-static void gen_set_cr1_from_fpscr(DisasContext *ctx)
-{
-        tcg_gen_shri_tl(cpu_crf[1], cpu_fpscr, 28);
-}
-#endif
 
 #define GEN_DFP_T_A_B_Rc(name)                   \
 static void gen_##name(DisasContext *ctx)        \
