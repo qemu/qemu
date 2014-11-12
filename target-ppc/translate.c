@@ -252,14 +252,8 @@ static inline void gen_reset_fpstatus(void)
 
 static inline void gen_compute_fprf(TCGv_i64 arg)
 {
-    TCGv_i32 t0 = tcg_temp_new_i32();
-
-    /* This case might be optimized later */
-    tcg_gen_movi_i32(t0, 1);
-    gen_helper_compute_fprf(t0, cpu_env, arg, t0);
+    gen_helper_compute_fprf(cpu_env, arg);
     gen_helper_float_check_status(cpu_env);
-
-    tcg_temp_free_i32(t0);
 }
 
 static inline void gen_set_access_type(DisasContext *ctx, int access_type)
