@@ -19,6 +19,9 @@
 #include "cpu.h"
 #include "exec/helper-proto.h"
 
+#define float64_snan_to_qnan(x) ((x) | 0x0008000000000000ULL)
+#define float32_snan_to_qnan(x) ((x) | 0x00400000)
+
 /*****************************************************************************/
 /* Floating point operations helpers */
 uint64_t helper_float32_to_float64(CPUPPCState *env, uint32_t arg)
@@ -920,14 +923,16 @@ uint64_t helper_fsqrt(CPUPPCState *env, uint64_t arg)
 
     farg.ll = arg;
 
-    if (unlikely(float64_is_neg(farg.d) && !float64_is_zero(farg.d))) {
+    if (unlikely(float64_is_any_nan(farg.d))) {
+        if (unlikely(float64_is_signaling_nan(farg.d))) {
+            /* sNaN reciprocal square root */
+            fload_invalid_op_excp(env, POWERPC_EXCP_FP_VXSNAN, 1);
+            farg.ll = float64_snan_to_qnan(farg.ll);
+        }
+    } else if (unlikely(float64_is_neg(farg.d) && !float64_is_zero(farg.d))) {
         /* Square root of a negative nonzero number */
         farg.ll = fload_invalid_op_excp(env, POWERPC_EXCP_FP_VXSQRT, 1);
     } else {
-        if (unlikely(float64_is_signaling_nan(farg.d))) {
-            /* sNaN square root */
-            fload_invalid_op_excp(env, POWERPC_EXCP_FP_VXSNAN, 1);
-        }
         farg.d = float64_sqrt(farg.d, &env->fp_status);
     }
     return farg.ll;
@@ -974,17 +979,20 @@ uint64_t helper_frsqrte(CPUPPCState *env, uint64_t arg)
 
     farg.ll = arg;
 
-    if (unlikely(float64_is_neg(farg.d) && !float64_is_zero(farg.d))) {
-        /* Reciprocal square root of a negative nonzero number */
-        farg.ll = fload_invalid_op_excp(env, POWERPC_EXCP_FP_VXSQRT, 1);
-    } else {
+    if (unlikely(float64_is_any_nan(farg.d))) {
         if (unlikely(float64_is_signaling_nan(farg.d))) {
             /* sNaN reciprocal square root */
             fload_invalid_op_excp(env, POWERPC_EXCP_FP_VXSNAN, 1);
+            farg.ll = float64_snan_to_qnan(farg.ll);
         }
+    } else if (unlikely(float64_is_neg(farg.d) && !float64_is_zero(farg.d))) {
+        /* Reciprocal square root of a negative nonzero number */
+        farg.ll = fload_invalid_op_excp(env, POWERPC_EXCP_FP_VXSQRT, 1);
+    } else {
         farg.d = float64_sqrt(farg.d, &env->fp_status);
         farg.d = float64_div(float64_one, farg.d, &env->fp_status);
     }
+
     return farg.ll;
 }
 
@@ -2381,9 +2389,6 @@ void helper_##op(CPUPPCState *env, uint32_t opcode)                      \
 
 VSX_SCALAR_CMP(xscmpodp, 1)
 VSX_SCALAR_CMP(xscmpudp, 0)
-
-#define float64_snan_to_qnan(x) ((x) | 0x0008000000000000ULL)
-#define float32_snan_to_qnan(x) ((x) | 0x00400000)
 
 /* VSX_MAX_MIN - VSX floating point maximum/minimum
  *   name  - instruction mnemonic
