@@ -35,6 +35,8 @@ static void mpc8544ds_init(MachineState *machine)
         .fixup_devtree = mpc8544ds_fixup_devtree,
         .mpic_version = OPENPIC_MODEL_FSL_MPIC_20,
         .ccsrbar_base = 0xE0000000ULL,
+        .pci_mmio_base = 0xC0000000ULL,
+        .pci_mmio_bus_base = 0xC0000000ULL,
         .pci_pio_base = 0xE1000000ULL,
         .spin_base = 0xEF000000ULL,
     };

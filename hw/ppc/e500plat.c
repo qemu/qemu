@@ -43,6 +43,8 @@ static void e500plat_init(MachineState *machine)
         .platform_bus_num_irqs = 10,
         .ccsrbar_base = 0xFE0000000ULL,
         .pci_pio_base = 0xFE1000000ULL,
+        .pci_mmio_base = 0xC00000000ULL,
+        .pci_mmio_bus_base = 0xE0000000ULL,
         .spin_base = 0xFEF000000ULL,
     };
 

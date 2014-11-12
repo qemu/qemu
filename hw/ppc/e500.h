@@ -19,6 +19,8 @@ typedef struct PPCE500Params {
     int platform_bus_num_irqs;
     hwaddr ccsrbar_base;
     hwaddr pci_pio_base;
+    hwaddr pci_mmio_base;
+    hwaddr pci_mmio_bus_base;
     hwaddr spin_base;
 } PPCE500Params;
 

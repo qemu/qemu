@@ -288,8 +288,8 @@ static int ppce500_load_device_tree(MachineState *machine,
     int len;
     uint32_t pci_ranges[14] =
         {
-            0x2000000, 0x0, 0xc0000000,
-            0x0, 0xc0000000,
+            0x2000000, 0x0, params->pci_mmio_bus_base,
+            params->pci_mmio_base >> 32, params->pci_mmio_base,
             0x0, 0x20000000,
 
             0x1000000, 0x0, 0x0,
@@ -914,8 +914,6 @@ void ppce500_init(MachineState *machine, PPCE500Params *params)
     pci_bus = (PCIBus *)qdev_get_child_bus(dev, "pci.0");
     if (!pci_bus)
         printf("couldn't create PCI controller!\n");
-
-    sysbus_mmio_map(SYS_BUS_DEVICE(dev), 1, params->pci_pio_base);
 
     if (pci_bus) {
         /* Register network interfaces. */
