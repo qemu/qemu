@@ -594,14 +594,6 @@ void sdl2_poll_events(struct sdl2_console *scon)
     }
 }
 
-static void sdl_refresh(DisplayChangeListener *dcl)
-{
-    struct sdl2_console *scon = container_of(dcl, struct sdl2_console, dcl);
-
-    graphic_hw_update(dcl->con);
-    sdl2_poll_events(scon);
-}
-
 static void sdl_mouse_warp(DisplayChangeListener *dcl,
                            int x, int y, int on)
 {
@@ -667,7 +659,7 @@ static const DisplayChangeListenerOps dcl_2d_ops = {
     .dpy_name          = "sdl2-2d",
     .dpy_gfx_update    = sdl2_2d_update,
     .dpy_gfx_switch    = sdl2_2d_switch,
-    .dpy_refresh       = sdl_refresh,
+    .dpy_refresh       = sdl2_2d_refresh,
     .dpy_mouse_set     = sdl_mouse_warp,
     .dpy_cursor_define = sdl_mouse_define,
 };

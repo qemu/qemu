@@ -103,6 +103,14 @@ void sdl2_2d_switch(DisplayChangeListener *dcl,
     sdl2_2d_redraw(scon);
 }
 
+void sdl2_2d_refresh(DisplayChangeListener *dcl)
+{
+    struct sdl2_console *scon = container_of(dcl, struct sdl2_console, dcl);
+
+    graphic_hw_update(dcl->con);
+    sdl2_poll_events(scon);
+}
+
 void sdl2_2d_redraw(struct sdl2_console *scon)
 {
     if (!scon->surface) {
