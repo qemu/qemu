@@ -639,7 +639,7 @@ void helper_fbld_ST0(CPUX86State *env, target_ulong ptr)
     }
     tmp = int64_to_floatx80(val, &env->fp_status);
     if (cpu_ldub_data(env, ptr + 9) & 0x80) {
-        floatx80_chs(tmp);
+        tmp = floatx80_chs(tmp);
     }
     fpush(env);
     ST0 = tmp;
