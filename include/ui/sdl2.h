@@ -16,6 +16,7 @@ struct sdl2_console {
 void sdl2_window_create(struct sdl2_console *scon);
 void sdl2_window_destroy(struct sdl2_console *scon);
 void sdl2_window_resize(struct sdl2_console *scon);
+void sdl2_poll_events(struct sdl2_console *scon);
 
 void sdl2_reset_keys(struct sdl2_console *scon);
 void sdl2_process_key(struct sdl2_console *scon,

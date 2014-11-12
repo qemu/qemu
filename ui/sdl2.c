@@ -507,10 +507,8 @@ static void handle_mousewheel(SDL_Event *ev)
     qemu_input_event_sync();
 }
 
-static void handle_windowevent(DisplayChangeListener *dcl, SDL_Event *ev)
+static void handle_windowevent(struct sdl2_console *scon, SDL_Event *ev)
 {
-    struct sdl2_console *scon = get_scon_from_window(ev->key.windowID);
-
     switch (ev->window.event) {
     case SDL_WINDOWEVENT_RESIZED:
         {
@@ -537,10 +535,10 @@ static void handle_windowevent(DisplayChangeListener *dcl, SDL_Event *ev)
         }
         break;
     case SDL_WINDOWEVENT_RESTORED:
-        update_displaychangelistener(dcl, GUI_REFRESH_INTERVAL_DEFAULT);
+        update_displaychangelistener(&scon->dcl, GUI_REFRESH_INTERVAL_DEFAULT);
         break;
     case SDL_WINDOWEVENT_MINIMIZED:
-        update_displaychangelistener(dcl, 500);
+        update_displaychangelistener(&scon->dcl, 500);
         break;
     case SDL_WINDOWEVENT_CLOSE:
         if (!no_quit) {
@@ -551,17 +549,14 @@ static void handle_windowevent(DisplayChangeListener *dcl, SDL_Event *ev)
     }
 }
 
-static void sdl_refresh(DisplayChangeListener *dcl)
+void sdl2_poll_events(struct sdl2_console *scon)
 {
-    struct sdl2_console *scon = container_of(dcl, struct sdl2_console, dcl);
     SDL_Event ev1, *ev = &ev1;
 
     if (scon->last_vm_running != runstate_is_running()) {
         scon->last_vm_running = runstate_is_running();
         sdl_update_caption(scon);
     }
-
-    graphic_hw_update(dcl->con);
 
     while (SDL_PollEvent(ev)) {
         switch (ev->type) {
@@ -591,12 +586,20 @@ static void sdl_refresh(DisplayChangeListener *dcl)
             handle_mousewheel(ev);
             break;
         case SDL_WINDOWEVENT:
-            handle_windowevent(dcl, ev);
+            handle_windowevent(scon, ev);
             break;
         default:
             break;
         }
     }
+}
+
+static void sdl_refresh(DisplayChangeListener *dcl)
+{
+    struct sdl2_console *scon = container_of(dcl, struct sdl2_console, dcl);
+
+    graphic_hw_update(dcl->con);
+    sdl2_poll_events(scon);
 }
 
 static void sdl_mouse_warp(DisplayChangeListener *dcl,
