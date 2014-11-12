@@ -75,6 +75,11 @@ static MemoryRegion io_mem_unassigned;
 /* RAM is mmap-ed with MAP_SHARED */
 #define RAM_SHARED     (1 << 1)
 
+/* Only a portion of RAM (used_length) is actually used, and migrated.
+ * This used_length size can change across reboots.
+ */
+#define RAM_RESIZEABLE (1 << 2)
+
 #endif
 
 struct CPUTailQ cpus = QTAILQ_HEAD_INITIALIZER(cpus);
@@ -1186,7 +1191,7 @@ static ram_addr_t find_ram_offset(ram_addr_t size)
     QTAILQ_FOREACH(block, &ram_list.blocks, next) {
         ram_addr_t end, next = RAM_ADDR_MAX;
 
-        end = block->offset + block->length;
+        end = block->offset + block->max_length;
 
         QTAILQ_FOREACH(next_block, &ram_list.blocks, next) {
             if (next_block->offset >= end) {
@@ -1214,7 +1219,7 @@ ram_addr_t last_ram_offset(void)
     ram_addr_t last = 0;
 
     QTAILQ_FOREACH(block, &ram_list.blocks, next)
-        last = MAX(last, block->offset + block->length);
+        last = MAX(last, block->offset + block->max_length);
 
     return last;
 }
@@ -1294,6 +1299,49 @@ static int memory_try_enable_merging(void *addr, size_t len)
     }
 
     return qemu_madvise(addr, len, QEMU_MADV_MERGEABLE);
+}
+
+/* Only legal before guest might have detected the memory size: e.g. on
+ * incoming migration, or right after reset.
+ *
+ * As memory core doesn't know how is memory accessed, it is up to
+ * resize callback to update device state and/or add assertions to detect
+ * misuse, if necessary.
+ */
+int qemu_ram_resize(ram_addr_t base, ram_addr_t newsize, Error **errp)
+{
+    RAMBlock *block = find_ram_block(base);
+
+    assert(block);
+
+    if (block->used_length == newsize) {
+        return 0;
+    }
+
+    if (!(block->flags & RAM_RESIZEABLE)) {
+        error_setg_errno(errp, EINVAL,
+                         "Length mismatch: %s: 0x" RAM_ADDR_FMT
+                         " in != 0x" RAM_ADDR_FMT, block->idstr,
+                         newsize, block->used_length);
+        return -EINVAL;
+    }
+
+    if (block->max_length < newsize) {
+        error_setg_errno(errp, EINVAL,
+                         "Length too large: %s: 0x" RAM_ADDR_FMT
+                         " > 0x" RAM_ADDR_FMT, block->idstr,
+                         newsize, block->max_length);
+        return -EINVAL;
+    }
+
+    cpu_physical_memory_clear_dirty_range(block->offset, block->used_length);
+    block->used_length = newsize;
+    cpu_physical_memory_set_dirty_range(block->offset, block->used_length);
+    memory_region_set_size(block->mr, newsize);
+    if (block->resized) {
+        block->resized(block->idstr, newsize, block->host);
+    }
+    return 0;
 }
 
 static ram_addr_t ram_block_add(RAMBlock *new_block, Error **errp)
@@ -1413,7 +1461,12 @@ ram_addr_t qemu_ram_alloc_from_file(ram_addr_t size, MemoryRegion *mr,
 }
 #endif
 
-ram_addr_t qemu_ram_alloc_from_ptr(ram_addr_t size, void *host,
+static
+ram_addr_t qemu_ram_alloc_internal(ram_addr_t size, ram_addr_t max_size,
+                                   void (*resized)(const char*,
+                                                   uint64_t length,
+                                                   void *host),
+                                   void *host, bool resizeable,
                                    MemoryRegion *mr, Error **errp)
 {
     RAMBlock *new_block;
@@ -1421,14 +1474,20 @@ ram_addr_t qemu_ram_alloc_from_ptr(ram_addr_t size, void *host,
     Error *local_err = NULL;
 
     size = TARGET_PAGE_ALIGN(size);
+    max_size = TARGET_PAGE_ALIGN(max_size);
     new_block = g_malloc0(sizeof(*new_block));
     new_block->mr = mr;
+    new_block->resized = resized;
     new_block->used_length = size;
     new_block->max_length = max_size;
+    assert(max_size >= size);
     new_block->fd = -1;
     new_block->host = host;
     if (host) {
         new_block->flags |= RAM_PREALLOC;
+    }
+    if (resizeable) {
+        new_block->flags |= RAM_RESIZEABLE;
     }
     addr = ram_block_add(new_block, &local_err);
     if (local_err) {
@@ -1439,9 +1498,24 @@ ram_addr_t qemu_ram_alloc_from_ptr(ram_addr_t size, void *host,
     return addr;
 }
 
+ram_addr_t qemu_ram_alloc_from_ptr(ram_addr_t size, void *host,
+                                   MemoryRegion *mr, Error **errp)
+{
+    return qemu_ram_alloc_internal(size, size, NULL, host, false, mr, errp);
+}
+
 ram_addr_t qemu_ram_alloc(ram_addr_t size, MemoryRegion *mr, Error **errp)
 {
-    return qemu_ram_alloc_from_ptr(size, NULL, mr, errp);
+    return qemu_ram_alloc_internal(size, size, NULL, NULL, false, mr, errp);
+}
+
+ram_addr_t qemu_ram_alloc_resizeable(ram_addr_t size, ram_addr_t maxsz,
+                                     void (*resized)(const char*,
+                                                     uint64_t length,
+                                                     void *host),
+                                     MemoryRegion *mr, Error **errp)
+{
+    return qemu_ram_alloc_internal(size, maxsz, resized, NULL, true, mr, errp);
 }
 
 void qemu_ram_free_from_ptr(ram_addr_t addr)
