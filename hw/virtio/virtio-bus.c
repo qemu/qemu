@@ -58,7 +58,7 @@ void virtio_bus_reset(VirtioBusState *bus)
 {
     VirtIODevice *vdev = virtio_bus_get_device(bus);
 
-    DPRINTF("%s: reset device.\n", qbus->name);
+    DPRINTF("%s: reset device.\n", BUS(bus)->name);
     if (vdev != NULL) {
         virtio_reset(vdev);
     }
