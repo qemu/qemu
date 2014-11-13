@@ -2206,17 +2206,17 @@ static void decode_bo_addrmode_post_pre_base(CPUTriCoreState *env,
     case OPC2_32_BO_CACHEI_WI_SHORTOFF:
     case OPC2_32_BO_CACHEI_W_SHORTOFF:
         /* TODO: Raise illegal opcode trap,
-                 if tricore_feature(TRICORE_FEATURE_13) */
+                 if !tricore_feature(TRICORE_FEATURE_131) */
         break;
     case OPC2_32_BO_CACHEI_W_POSTINC:
     case OPC2_32_BO_CACHEI_WI_POSTINC:
-        if (!tricore_feature(env, TRICORE_FEATURE_13)) {
+        if (tricore_feature(env, TRICORE_FEATURE_131)) {
             tcg_gen_addi_tl(cpu_gpr_d[r2], cpu_gpr_d[r2], off10);
         } /* TODO: else raise illegal opcode trap */
         break;
     case OPC2_32_BO_CACHEI_W_PREINC:
     case OPC2_32_BO_CACHEI_WI_PREINC:
-        if (!tricore_feature(env, TRICORE_FEATURE_13)) {
+        if (tricore_feature(env, TRICORE_FEATURE_131)) {
             tcg_gen_addi_tl(cpu_gpr_d[r2], cpu_gpr_d[r2], off10);
         } /* TODO: else raise illegal opcode trap */
         break;
