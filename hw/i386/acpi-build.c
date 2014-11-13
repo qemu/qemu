@@ -273,12 +273,12 @@ build_header(GArray *linker, GArray *table_data,
 
 static inline GArray *build_alloc_array(void)
 {
-        return g_array_new(false, true /* clear */, 1);
+    return g_array_new(false, true /* clear */, 1);
 }
 
 static inline void build_free_array(GArray *array)
 {
-        g_array_free(array, true);
+    g_array_free(array, true);
 }
 
 static inline void build_prepend_byte(GArray *array, uint8_t val)
