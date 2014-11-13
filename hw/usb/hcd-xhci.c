@@ -2262,6 +2262,9 @@ static USBPort *xhci_lookup_uport(XHCIState *xhci, uint32_t *slot_ctx)
     int i, pos, port;
 
     port = (slot_ctx[1]>>16) & 0xFF;
+    if (port < 1 || port > xhci->numports) {
+        return NULL;
+    }
     port = xhci->ports[port-1].uport->index+1;
     pos = snprintf(path, sizeof(path), "%d", port);
     for (i = 0; i < 5; i++) {
@@ -3706,6 +3709,12 @@ static int usb_xhci_post_load(void *opaque, int version_id)
             xhci_mask64(ldq_le_pci_dma(pci_dev, dcbaap + 8 * slotid));
         xhci_dma_read_u32s(xhci, slot->ctx, slot_ctx, sizeof(slot_ctx));
         slot->uport = xhci_lookup_uport(xhci, slot_ctx);
+        if (!slot->uport) {
+            /* should not happen, but may trigger on guest bugs */
+            slot->enabled = 0;
+            slot->addressed = 0;
+            continue;
+        }
         assert(slot->uport && slot->uport->dev);
 
         for (epid = 1; epid <= 31; epid++) {
