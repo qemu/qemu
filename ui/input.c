@@ -122,16 +122,19 @@ qemu_input_find_handler(uint32_t mask, QemuConsole *con)
     return NULL;
 }
 
-void qmp_input_send_event(int64_t console, InputEventList *events,
-                          Error **errp)
+void qmp_input_send_event(bool has_console, int64_t console,
+                          InputEventList *events, Error **errp)
 {
     InputEventList *e;
     QemuConsole *con;
 
-    con = qemu_console_lookup_by_index(console);
-    if (!con) {
-        error_setg(errp, "console %" PRId64 " not found", console);
-        return;
+    con = NULL;
+    if (has_console) {
+        con = qemu_console_lookup_by_index(console);
+        if (!con) {
+            error_setg(errp, "console %" PRId64 " not found", console);
+            return;
+        }
     }
 
     if (!runstate_is_running() && !runstate_check(RUN_STATE_SUSPENDED)) {
