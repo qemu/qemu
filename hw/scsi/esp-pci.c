@@ -268,6 +268,9 @@ static void esp_pci_dma_memory_rw(PCIESPState *pci, uint8_t *buf, int len,
     /* update status registers */
     pci->dma_regs[DMA_WBC] -= len;
     pci->dma_regs[DMA_WAC] += len;
+    if (pci->dma_regs[DMA_WBC] == 0) {
+        pci->dma_regs[DMA_STAT] |= DMA_STAT_DONE;
+    }
 }
 
 static void esp_pci_dma_memory_read(void *opaque, uint8_t *buf, int len)

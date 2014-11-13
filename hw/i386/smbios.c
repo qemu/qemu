@@ -645,7 +645,7 @@ static void smbios_build_type_4_table(unsigned instance)
 
 static void smbios_build_type_16_table(unsigned dimm_cnt)
 {
-    ram_addr_t size_kb;
+    uint64_t size_kb;
 
     SMBIOS_BUILD_TABLE_PRE(16, 0x1000, true); /* required */
 
@@ -669,10 +669,10 @@ static void smbios_build_type_16_table(unsigned dimm_cnt)
 #define MAX_T17_STD_SZ 0x7FFF /* (32G - 1M), in Megabytes */
 #define MAX_T17_EXT_SZ 0x80000000 /* 2P, in Megabytes */
 
-static void smbios_build_type_17_table(unsigned instance, ram_addr_t size)
+static void smbios_build_type_17_table(unsigned instance, uint64_t size)
 {
     char loc_str[128];
-    ram_addr_t size_mb;
+    uint64_t size_mb;
 
     SMBIOS_BUILD_TABLE_PRE(17, 0x1100 + instance, true); /* required */
 
@@ -711,9 +711,9 @@ static void smbios_build_type_17_table(unsigned instance, ram_addr_t size)
 }
 
 static void smbios_build_type_19_table(unsigned instance,
-                                       ram_addr_t start, ram_addr_t size)
+                                       uint64_t start, uint64_t size)
 {
-    ram_addr_t end, start_kb, end_kb;
+    uint64_t end, start_kb, end_kb;
 
     SMBIOS_BUILD_TABLE_PRE(19, 0x1300 + instance, true); /* required */
 

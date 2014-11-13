@@ -376,8 +376,11 @@ static void acpi_notify_wakeup(Notifier *notifier, void *data)
 /* ACPI PM1a EVT */
 uint16_t acpi_pm1_evt_get_sts(ACPIREGS *ar)
 {
-    int64_t d = acpi_pm_tmr_get_clock();
-    if (d >= ar->tmr.overflow_time) {
+    /* Compare ns-clock, not PM timer ticks, because
+       acpi_pm_tmr_update function uses ns for setting the timer. */
+    int64_t d = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
+    if (d >= muldiv64(ar->tmr.overflow_time,
+                      get_ticks_per_sec(), PM_TIMER_FREQUENCY)) {
         ar->pm1.evt.sts |= ACPI_BITMASK_TIMER_STATUS;
     }
     return ar->pm1.evt.sts;

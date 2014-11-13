@@ -209,7 +209,8 @@ typedef struct VirtIOSCSIReq {
     /* Note:
      * - fields before elem are initialized by virtio_scsi_init_req;
      * - elem is uninitialized at the time of allocation.
-     * - fields after elem are zeroed by virtio_scsi_init_req.
+     * - fields after elem (except the ending cdb[]) are zeroed by
+     *   virtio_scsi_init_req.
      * */
 
     VirtQueueElement elem;

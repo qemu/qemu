@@ -127,7 +127,21 @@ static void kvmclock_vm_state_change(void *opaque, int running,
         }
 
         cpu_synchronize_all_states();
+        /* In theory, the cpu_synchronize_all_states() call above wouldn't
+         * affect the rest of the code, as the VCPU state inside CPUState
+         * is supposed to always match the VCPU state on the kernel side.
+         *
+         * In practice, calling cpu_synchronize_state() too soon will load the
+         * kernel-side APIC state into X86CPU.apic_state too early, APIC state
+         * won't be reloaded later because CPUState.vcpu_dirty==true, and
+         * outdated APIC state may be migrated to another host.
+         *
+         * The real fix would be to make sure outdated APIC state is read
+         * from the kernel again when necessary. While this is not fixed, we
+         * need the cpu_clean_all_dirty() call below.
+         */
         cpu_clean_all_dirty();
+
         ret = kvm_vm_ioctl(kvm_state, KVM_GET_CLOCK, &data);
         if (ret < 0) {
             fprintf(stderr, "KVM_GET_CLOCK failed: %s\n", strerror(ret));
