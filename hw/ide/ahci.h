@@ -156,7 +156,10 @@
 #define AHCI_SCR_SCTL_DET                 0xf
 
 #define SATA_FIS_TYPE_REGISTER_H2D        0x27
-#define SATA_FIS_REG_H2D_UPDATE_COMMAND_REGISTER 0x80
+#define   SATA_FIS_REG_H2D_UPDATE_COMMAND_REGISTER 0x80
+#define SATA_FIS_TYPE_REGISTER_D2H        0x34
+#define SATA_FIS_TYPE_PIO_SETUP           0x5f
+#define SATA_FIS_TYPE_SDB                 0xA1
 
 #define AHCI_CMD_HDR_CMD_FIS_LEN           0x1f
 #define AHCI_CMD_HDR_PRDT_LEN              16
