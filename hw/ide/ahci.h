@@ -186,6 +186,9 @@
 
 #define READ_FPDMA_QUEUED                  0x60
 #define WRITE_FPDMA_QUEUED                 0x61
+#define NCQ_NON_DATA                       0x63
+#define RECEIVE_FPDMA_QUEUED               0x65
+#define SEND_FPDMA_QUEUED                  0x64
 
 #define RES_FIS_DSFIS                      0x00
 #define RES_FIS_PSFIS                      0x20

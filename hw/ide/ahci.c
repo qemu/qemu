@@ -730,7 +730,8 @@ static int prdt_tbl_entry_size(const AHCI_SG *tbl)
     return (le32_to_cpu(tbl->flags_size) & AHCI_PRDT_SIZE_MASK) + 1;
 }
 
-static int ahci_populate_sglist(AHCIDevice *ad, QEMUSGList *sglist, int offset)
+static int ahci_populate_sglist(AHCIDevice *ad, QEMUSGList *sglist,
+                                int32_t offset)
 {
     AHCICmdHdr *cmd = ad->cur_cmd;
     uint32_t opts = le32_to_cpu(cmd->opts);
@@ -741,12 +742,20 @@ static int ahci_populate_sglist(AHCIDevice *ad, QEMUSGList *sglist, int offset)
     uint8_t *prdt;
     int i;
     int r = 0;
-    int sum = 0;
+    uint64_t sum = 0;
     int off_idx = -1;
-    int off_pos = -1;
+    int64_t off_pos = -1;
     int tbl_entry_size;
     IDEBus *bus = &ad->port;
     BusState *qbus = BUS(bus);
+
+    /*
+     * Note: AHCI PRDT can describe up to 256GiB. SATA/ATA only support
+     * transactions of up to 32MiB as of ATA8-ACS3 rev 1b, assuming a
+     * 512 byte sector size. We limit the PRDT in this implementation to
+     * a reasonably large 2GiB, which can accommodate the maximum transfer
+     * request for sector sizes up to 32K.
+     */
 
     if (!sglist_alloc_hint) {
         DPRINTF(ad->port_no, "no sg list given by guest: 0x%08x\n", opts);
@@ -782,7 +791,7 @@ static int ahci_populate_sglist(AHCIDevice *ad, QEMUSGList *sglist, int offset)
         }
         if ((off_idx == -1) || (off_pos < 0) || (off_pos > tbl_entry_size)) {
             DPRINTF(ad->port_no, "%s: Incorrect offset! "
-                            "off_idx: %d, off_pos: %d\n",
+                            "off_idx: %d, off_pos: %"PRId64"\n",
                             __func__, off_idx, off_pos);
             r = -1;
             goto out;
@@ -797,6 +806,13 @@ static int ahci_populate_sglist(AHCIDevice *ad, QEMUSGList *sglist, int offset)
             /* flags_size is zero-based */
             qemu_sglist_add(sglist, le64_to_cpu(tbl[i].addr),
                             prdt_tbl_entry_size(&tbl[i]));
+            if (sglist->size > INT32_MAX) {
+                error_report("AHCI Physical Region Descriptor Table describes "
+                             "more than 2 GiB.\n");
+                qemu_sglist_destroy(sglist);
+                r = -1;
+                goto out;
+            }
         }
     }
 
@@ -836,6 +852,21 @@ static void ncq_cb(void *opaque, int ret)
                     &ncq_tfs->acct);
     qemu_sglist_destroy(&ncq_tfs->sglist);
     ncq_tfs->used = 0;
+}
+
+static int is_ncq(uint8_t ata_cmd)
+{
+    /* Based on SATA 3.2 section 13.6.3.2 */
+    switch (ata_cmd) {
+    case READ_FPDMA_QUEUED:
+    case WRITE_FPDMA_QUEUED:
+    case NCQ_NON_DATA:
+    case RECEIVE_FPDMA_QUEUED:
+    case SEND_FPDMA_QUEUED:
+        return 1;
+    default:
+        return 0;
+    }
 }
 
 static void process_ncq_command(AHCIState *s, int port, uint8_t *cmd_fis,
@@ -903,16 +934,106 @@ static void process_ncq_command(AHCIState *s, int port, uint8_t *cmd_fis,
                                            ncq_cb, ncq_tfs);
             break;
         default:
-            DPRINTF(port, "error: tried to process non-NCQ command as NCQ\n");
+            if (is_ncq(cmd_fis[2])) {
+                DPRINTF(port,
+                        "error: unsupported NCQ command (0x%02x) received\n",
+                        cmd_fis[2]);
+            } else {
+                DPRINTF(port,
+                        "error: tried to process non-NCQ command as NCQ\n");
+            }
             qemu_sglist_destroy(&ncq_tfs->sglist);
-            break;
     }
+}
+
+static void handle_reg_h2d_fis(AHCIState *s, int port,
+                               int slot, uint8_t *cmd_fis)
+{
+    IDEState *ide_state = &s->dev[port].port.ifs[0];
+    AHCICmdHdr *cmd = s->dev[port].cur_cmd;
+    uint32_t opts = le32_to_cpu(cmd->opts);
+
+    if (cmd_fis[1] & 0x0F) {
+        DPRINTF(port, "Port Multiplier not supported."
+                " cmd_fis[0]=%02x cmd_fis[1]=%02x cmd_fis[2]=%02x\n",
+                cmd_fis[0], cmd_fis[1], cmd_fis[2]);
+        return;
+    }
+
+    if (cmd_fis[1] & 0x70) {
+        DPRINTF(port, "Reserved flags set in H2D Register FIS."
+                " cmd_fis[0]=%02x cmd_fis[1]=%02x cmd_fis[2]=%02x\n",
+                cmd_fis[0], cmd_fis[1], cmd_fis[2]);
+        return;
+    }
+
+    if (!(cmd_fis[1] & SATA_FIS_REG_H2D_UPDATE_COMMAND_REGISTER)) {
+        switch (s->dev[port].port_state) {
+        case STATE_RUN:
+            if (cmd_fis[15] & ATA_SRST) {
+                s->dev[port].port_state = STATE_RESET;
+            }
+            break;
+        case STATE_RESET:
+            if (!(cmd_fis[15] & ATA_SRST)) {
+                ahci_reset_port(s, port);
+            }
+            break;
+        }
+        return;
+    }
+
+    /* Check for NCQ command */
+    if (is_ncq(cmd_fis[2])) {
+        process_ncq_command(s, port, cmd_fis, slot);
+        return;
+    }
+
+    /* Decompose the FIS:
+     * AHCI does not interpret FIS packets, it only forwards them.
+     * SATA 1.0 describes how to decode LBA28 and CHS FIS packets.
+     * Later specifications, e.g, SATA 3.2, describe LBA48 FIS packets.
+     *
+     * ATA4 describes sector number for LBA28/CHS commands.
+     * ATA6 describes sector number for LBA48 commands.
+     * ATA8 deprecates CHS fully, describing only LBA28/48.
+     *
+     * We dutifully convert the FIS into IDE registers, and allow the
+     * core layer to interpret them as needed. */
+    ide_state->feature = cmd_fis[3];
+    ide_state->sector = cmd_fis[4];      /* LBA 7:0 */
+    ide_state->lcyl = cmd_fis[5];        /* LBA 15:8  */
+    ide_state->hcyl = cmd_fis[6];        /* LBA 23:16 */
+    ide_state->select = cmd_fis[7];      /* LBA 27:24 (LBA28) */
+    ide_state->hob_sector = cmd_fis[8];  /* LBA 31:24 */
+    ide_state->hob_lcyl = cmd_fis[9];    /* LBA 39:32 */
+    ide_state->hob_hcyl = cmd_fis[10];   /* LBA 47:40 */
+    ide_state->hob_feature = cmd_fis[11];
+    ide_state->nsector = (int64_t)((cmd_fis[13] << 8) | cmd_fis[12]);
+    /* 14, 16, 17, 18, 19: Reserved (SATA 1.0) */
+    /* 15: Only valid when UPDATE_COMMAND not set. */
+
+    /* Copy the ACMD field (ATAPI packet, if any) from the AHCI command
+     * table to ide_state->io_buffer */
+    if (opts & AHCI_CMD_ATAPI) {
+        memcpy(ide_state->io_buffer, &cmd_fis[AHCI_COMMAND_TABLE_ACMD], 0x10);
+        debug_print_fis(ide_state->io_buffer, 0x10);
+        s->dev[port].done_atapi_packet = false;
+        /* XXX send PIO setup FIS */
+    }
+
+    ide_state->error = 0;
+
+    /* Reset transferred byte counter */
+    cmd->status = 0;
+
+    /* We're ready to process the command in FIS byte 2. */
+    ide_exec_cmd(&s->dev[port].port, cmd_fis[2]);
 }
 
 static int handle_cmd(AHCIState *s, int port, int slot)
 {
     IDEState *ide_state;
-    uint32_t opts;
     uint64_t tbl_addr;
     AHCICmdHdr *cmd;
     uint8_t *cmd_fis;
@@ -924,140 +1045,46 @@ static int handle_cmd(AHCIState *s, int port, int slot)
         return -1;
     }
 
-    cmd = &((AHCICmdHdr *)s->dev[port].lst)[slot];
-
     if (!s->dev[port].lst) {
         DPRINTF(port, "error: lst not given but cmd handled");
         return -1;
     }
-
+    cmd = &((AHCICmdHdr *)s->dev[port].lst)[slot];
     /* remember current slot handle for later */
     s->dev[port].cur_cmd = cmd;
 
-    opts = le32_to_cpu(cmd->opts);
-    tbl_addr = le64_to_cpu(cmd->tbl_addr);
-
-    cmd_len = 0x80;
-    cmd_fis = dma_memory_map(s->as, tbl_addr, &cmd_len,
-                             DMA_DIRECTION_FROM_DEVICE);
-
-    if (!cmd_fis) {
-        DPRINTF(port, "error: guest passed us an invalid cmd fis\n");
+    /* The device we are working for */
+    ide_state = &s->dev[port].port.ifs[0];
+    if (!ide_state->blk) {
+        DPRINTF(port, "error: guest accessed unused port");
         return -1;
     }
 
-    /* The device we are working for */
-    ide_state = &s->dev[port].port.ifs[0];
-
-    if (!ide_state->blk) {
-        DPRINTF(port, "error: guest accessed unused port");
+    tbl_addr = le64_to_cpu(cmd->tbl_addr);
+    cmd_len = 0x80;
+    cmd_fis = dma_memory_map(s->as, tbl_addr, &cmd_len,
+                             DMA_DIRECTION_FROM_DEVICE);
+    if (!cmd_fis) {
+        DPRINTF(port, "error: guest passed us an invalid cmd fis\n");
+        return -1;
+    } else if (cmd_len != 0x80) {
+        ahci_trigger_irq(s, &s->dev[port], PORT_IRQ_HBUS_ERR);
+        DPRINTF(port, "error: dma_memory_map failed: "
+                "(len(%02"PRIx64") != 0x80)\n",
+                cmd_len);
         goto out;
     }
-
-    debug_print_fis(cmd_fis, 0x90);
-    //debug_print_fis(cmd_fis, (opts & AHCI_CMD_HDR_CMD_FIS_LEN) * 4);
+    debug_print_fis(cmd_fis, 0x80);
 
     switch (cmd_fis[0]) {
         case SATA_FIS_TYPE_REGISTER_H2D:
+            handle_reg_h2d_fis(s, port, slot, cmd_fis);
             break;
         default:
             DPRINTF(port, "unknown command cmd_fis[0]=%02x cmd_fis[1]=%02x "
                           "cmd_fis[2]=%02x\n", cmd_fis[0], cmd_fis[1],
                           cmd_fis[2]);
-            goto out;
             break;
-    }
-
-    switch (cmd_fis[1]) {
-        case SATA_FIS_REG_H2D_UPDATE_COMMAND_REGISTER:
-            break;
-        case 0:
-            break;
-        default:
-            DPRINTF(port, "unknown command cmd_fis[0]=%02x cmd_fis[1]=%02x "
-                          "cmd_fis[2]=%02x\n", cmd_fis[0], cmd_fis[1],
-                          cmd_fis[2]);
-            goto out;
-            break;
-    }
-
-    switch (s->dev[port].port_state) {
-        case STATE_RUN:
-            if (cmd_fis[15] & ATA_SRST) {
-                s->dev[port].port_state = STATE_RESET;
-            }
-            break;
-        case STATE_RESET:
-            if (!(cmd_fis[15] & ATA_SRST)) {
-                ahci_reset_port(s, port);
-            }
-            break;
-    }
-
-    if (cmd_fis[1] == SATA_FIS_REG_H2D_UPDATE_COMMAND_REGISTER) {
-
-        /* Check for NCQ command */
-        if ((cmd_fis[2] == READ_FPDMA_QUEUED) ||
-            (cmd_fis[2] == WRITE_FPDMA_QUEUED)) {
-            process_ncq_command(s, port, cmd_fis, slot);
-            goto out;
-        }
-
-        /* Decompose the FIS  */
-        ide_state->nsector = (int64_t)((cmd_fis[13] << 8) | cmd_fis[12]);
-        ide_state->feature = cmd_fis[3];
-        if (!ide_state->nsector) {
-            ide_state->nsector = 256;
-        }
-
-        if (ide_state->drive_kind != IDE_CD) {
-            /*
-             * We set the sector depending on the sector defined in the FIS.
-             * Unfortunately, the spec isn't exactly obvious on this one.
-             *
-             * Apparently LBA48 commands set fis bytes 10,9,8,6,5,4 to the
-             * 48 bit sector number. ATA_CMD_READ_DMA_EXT is an example for
-             * such a command.
-             *
-             * Non-LBA48 commands however use 7[lower 4 bits],6,5,4 to define a
-             * 28-bit sector number. ATA_CMD_READ_DMA is an example for such
-             * a command.
-             *
-             * Since the spec doesn't explicitly state what each field should
-             * do, I simply assume non-used fields as reserved and OR everything
-             * together, independent of the command.
-             */
-            ide_set_sector(ide_state, ((uint64_t)cmd_fis[10] << 40)
-                                    | ((uint64_t)cmd_fis[9] << 32)
-                                    /* This is used for LBA48 commands */
-                                    | ((uint64_t)cmd_fis[8] << 24)
-                                    /* This is used for non-LBA48 commands */
-                                    | ((uint64_t)(cmd_fis[7] & 0xf) << 24)
-                                    | ((uint64_t)cmd_fis[6] << 16)
-                                    | ((uint64_t)cmd_fis[5] << 8)
-                                    | cmd_fis[4]);
-        }
-
-        /* Copy the ACMD field (ATAPI packet, if any) from the AHCI command
-         * table to ide_state->io_buffer
-         */
-        if (opts & AHCI_CMD_ATAPI) {
-            memcpy(ide_state->io_buffer, &cmd_fis[AHCI_COMMAND_TABLE_ACMD], 0x10);
-            ide_state->lcyl = 0x14;
-            ide_state->hcyl = 0xeb;
-            debug_print_fis(ide_state->io_buffer, 0x10);
-            ide_state->feature = IDE_FEATURE_DMA;
-            s->dev[port].done_atapi_packet = false;
-            /* XXX send PIO setup FIS */
-        }
-
-        ide_state->error = 0;
-
-        /* Reset transferred byte counter */
-        cmd->status = 0;
-
-        /* We're ready to process the command in FIS byte 2. */
-        ide_exec_cmd(&s->dev[port].port, cmd_fis[2]);
     }
 
 out:
@@ -1089,10 +1116,11 @@ static void ahci_start_transfer(IDEDMA *dma)
     if (is_atapi && !ad->done_atapi_packet) {
         /* already prepopulated iobuffer */
         ad->done_atapi_packet = true;
+        size = 0;
         goto out;
     }
 
-    if (!ahci_populate_sglist(ad, &s->sg, 0)) {
+    if (ahci_dma_prepare_buf(dma, is_write)) {
         has_sglist = 1;
     }
 
@@ -1139,16 +1167,19 @@ static void ahci_start_dma(IDEDMA *dma, IDEState *s,
  * Not currently invoked by PIO R/W chains,
  * which invoke ahci_populate_sglist via ahci_start_transfer.
  */
-static int ahci_dma_prepare_buf(IDEDMA *dma, int is_write)
+static int32_t ahci_dma_prepare_buf(IDEDMA *dma, int is_write)
 {
     AHCIDevice *ad = DO_UPCAST(AHCIDevice, dma, dma);
     IDEState *s = &ad->port.ifs[0];
 
-    ahci_populate_sglist(ad, &s->sg, 0);
+    if (ahci_populate_sglist(ad, &s->sg, s->io_buffer_offset) == -1) {
+        DPRINTF(ad->port_no, "ahci_dma_prepare_buf failed.\n");
+        return -1;
+    }
     s->io_buffer_size = s->sg.size;
 
     DPRINTF(ad->port_no, "len=%#x\n", s->io_buffer_size);
-    return s->io_buffer_size != 0;
+    return s->io_buffer_size;
 }
 
 /**
