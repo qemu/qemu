@@ -36,6 +36,7 @@
 #include "hw/mem/pc-dimm.h"
 #include "hw/acpi/memory_hotplug.h"
 #include "hw/acpi/acpi_dev_interface.h"
+#include "hw/xen/xen.h"
 
 //#define DEBUG
 
@@ -501,6 +502,9 @@ I2CBus *piix4_pm_init(PCIBus *bus, int devfn, uint32_t smb_io_base,
     s->irq = sci_irq;
     s->smi_irq = smi_irq;
     s->kvm_enabled = kvm_enabled;
+    if (xen_enabled()) {
+        s->use_acpi_pci_hotplug = false;
+    }
 
     qdev_init_nofail(dev);
 
