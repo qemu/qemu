@@ -6848,7 +6848,7 @@ static void gen_mtvscr(DisasContext *ctx)
         gen_exception(ctx, POWERPC_EXCP_VPU);
         return;
     }
-    p = gen_avr_ptr(rD(ctx->opcode));
+    p = gen_avr_ptr(rB(ctx->opcode));
     gen_helper_mtvscr(cpu_env, p);
     tcg_temp_free_ptr(p);
 }
