@@ -1666,10 +1666,9 @@ static GSList *gd_vc_gfx_init(GtkDisplayState *s, VirtualConsole *vc,
                               QemuConsole *con, int idx,
                               GSList *group, GtkWidget *view_menu)
 {
-    Error *local_err = NULL;
     Object *obj;
 
-    obj = object_property_get_link(OBJECT(con), "device", &local_err);
+    obj = object_property_get_link(OBJECT(con), "device", NULL);
     if (obj) {
         vc->label = g_strdup_printf("%s", object_get_typename(obj));
     } else {
