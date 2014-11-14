@@ -59,6 +59,13 @@ struct PersistentGrant {
 
 typedef struct PersistentGrant PersistentGrant;
 
+struct PersistentRegion {
+    void *addr;
+    int num;
+};
+
+typedef struct PersistentRegion PersistentRegion;
+
 struct ioreq {
     blkif_request_t     req;
     int16_t             status;
@@ -118,6 +125,7 @@ struct XenBlkDev {
     gboolean            feature_discard;
     gboolean            feature_persistent;
     GTree               *persistent_gnts;
+    GSList              *persistent_regions;
     unsigned int        persistent_gnt_count;
     unsigned int        max_grants;
 
@@ -175,6 +183,23 @@ static void destroy_grant(gpointer pgnt)
     xen_be_printf(&grant->blkdev->xendev, 3,
                   "unmapped grant %p\n", grant->page);
     g_free(grant);
+}
+
+static void remove_persistent_region(gpointer data, gpointer dev)
+{
+    PersistentRegion *region = data;
+    struct XenBlkDev *blkdev = dev;
+    XenGnttab gnt = blkdev->xendev.gnttabdev;
+
+    if (xc_gnttab_munmap(gnt, region->addr, region->num) != 0) {
+        xen_be_printf(&blkdev->xendev, 0,
+                      "xc_gnttab_munmap region %p failed: %s\n",
+                      region->addr, strerror(errno));
+    }
+    xen_be_printf(&blkdev->xendev, 3,
+                  "unmapped grant region %p with %d pages\n",
+                  region->addr, region->num);
+    g_free(region);
 }
 
 static struct ioreq *ioreq_start(struct XenBlkDev *blkdev)
@@ -343,6 +368,7 @@ static int ioreq_map(struct ioreq *ioreq)
     void *page[BLKIF_MAX_SEGMENTS_PER_REQUEST];
     int i, j, new_maps = 0;
     PersistentGrant *grant;
+    PersistentRegion *region;
     /* domids and refs variables will contain the information necessary
      * to map the grants that are needed to fulfill this request.
      *
@@ -421,7 +447,22 @@ static int ioreq_map(struct ioreq *ioreq)
             }
         }
     }
-    if (ioreq->blkdev->feature_persistent) {
+    if (ioreq->blkdev->feature_persistent && new_maps != 0 &&
+        (!batch_maps || (ioreq->blkdev->persistent_gnt_count + new_maps <=
+        ioreq->blkdev->max_grants))) {
+        /*
+         * If we are using persistent grants and batch mappings only
+         * add the new maps to the list of persistent grants if the whole
+         * area can be persistently mapped.
+         */
+        if (batch_maps) {
+            region = g_malloc0(sizeof(*region));
+            region->addr = ioreq->pages;
+            region->num = new_maps;
+            ioreq->blkdev->persistent_regions = g_slist_append(
+                                            ioreq->blkdev->persistent_regions,
+                                            region);
+        }
         while ((ioreq->blkdev->persistent_gnt_count < ioreq->blkdev->max_grants)
               && new_maps) {
             /* Go through the list of newly mapped grants and add as many
@@ -447,6 +488,7 @@ static int ioreq_map(struct ioreq *ioreq)
                           grant);
             ioreq->blkdev->persistent_gnt_count++;
         }
+        assert(!batch_maps || new_maps == 0);
     }
     for (i = 0; i < ioreq->v.niov; i++) {
         ioreq->v.iov[i].iov_base += (uintptr_t)page[i];
@@ -971,7 +1013,10 @@ static int blk_connect(struct XenDevice *xendev)
         blkdev->max_grants = max_requests * BLKIF_MAX_SEGMENTS_PER_REQUEST;
         blkdev->persistent_gnts = g_tree_new_full((GCompareDataFunc)int_cmp,
                                              NULL, NULL,
+                                             batch_maps ?
+                                             (GDestroyNotify)g_free :
                                              (GDestroyNotify)destroy_grant);
+        blkdev->persistent_regions = NULL;
         blkdev->persistent_gnt_count = 0;
     }
 
@@ -1000,6 +1045,26 @@ static void blk_disconnect(struct XenDevice *xendev)
         blkdev->cnt_map--;
         blkdev->sring = NULL;
     }
+
+    /*
+     * Unmap persistent grants before switching to the closed state
+     * so the frontend can free them.
+     *
+     * In the !batch_maps case g_tree_destroy will take care of unmapping
+     * the grant, but in the batch_maps case we need to iterate over every
+     * region in persistent_regions and unmap it.
+     */
+    if (blkdev->feature_persistent) {
+        g_tree_destroy(blkdev->persistent_gnts);
+        assert(batch_maps || blkdev->persistent_gnt_count == 0);
+        if (batch_maps) {
+            blkdev->persistent_gnt_count = 0;
+            g_slist_foreach(blkdev->persistent_regions,
+                            (GFunc)remove_persistent_region, blkdev);
+            g_slist_free(blkdev->persistent_regions);
+        }
+        blkdev->feature_persistent = false;
+    }
 }
 
 static int blk_free(struct XenDevice *xendev)
@@ -1009,11 +1074,6 @@ static int blk_free(struct XenDevice *xendev)
 
     if (blkdev->blk || blkdev->sring) {
         blk_disconnect(xendev);
-    }
-
-    /* Free persistent grants */
-    if (blkdev->feature_persistent) {
-        g_tree_destroy(blkdev->persistent_gnts);
     }
 
     while (!QLIST_EMPTY(&blkdev->freelist)) {
