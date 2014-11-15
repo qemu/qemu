@@ -197,7 +197,7 @@ mips_mipssim_init(MachineState *machine)
         !kernel_filename && !qtest_enabled()) {
         /* Bail out if we have neither a kernel image nor boot vector code. */
         error_report("Could not load MIPS bios '%s', and no "
-                     "-kernel argument was specified", filename);
+                     "-kernel argument was specified", bios_name);
         exit(1);
     } else {
         /* We have a boot vector start address. */
