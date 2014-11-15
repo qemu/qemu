@@ -80,6 +80,13 @@ int load_image(const char *filename, uint8_t *addr)
     if (fd < 0)
         return -1;
     size = lseek(fd, 0, SEEK_END);
+    if (size == -1) {
+        fprintf(stderr, "file %-20s: get size error: %s\n",
+                filename, strerror(errno));
+        close(fd);
+        return -1;
+    }
+
     lseek(fd, 0, SEEK_SET);
     if (read(fd, addr, size) != size) {
         close(fd);
@@ -748,6 +755,12 @@ int rom_add_file(const char *file, const char *fw_dir,
     }
     rom->addr     = addr;
     rom->romsize  = lseek(fd, 0, SEEK_END);
+    if (rom->romsize == -1) {
+        fprintf(stderr, "rom: file %-20s: get size error: %s\n",
+                rom->name, strerror(errno));
+        goto err;
+    }
+
     rom->datasize = rom->romsize;
     rom->data     = g_malloc0(rom->datasize);
     lseek(fd, 0, SEEK_SET);
