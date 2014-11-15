@@ -516,7 +516,7 @@ static void net_l2tpv3_cleanup(NetClientState *nc)
     qemu_purge_queued_packets(nc);
     l2tpv3_read_poll(s, false);
     l2tpv3_write_poll(s, false);
-    if (s->fd > 0) {
+    if (s->fd >= 0) {
         close(s->fd);
     }
     destroy_vector(s->msgvec, MAX_L2TPV3_MSGCNT, IOVSIZE);
@@ -745,7 +745,7 @@ int net_init_l2tpv3(const NetClientOptions *opts,
     return 0;
 outerr:
     qemu_del_net_client(nc);
-    if (fd > 0) {
+    if (fd >= 0) {
         close(fd);
     }
     if (result) {
