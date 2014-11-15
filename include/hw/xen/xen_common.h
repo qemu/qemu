@@ -164,4 +164,19 @@ void destroy_hvm_domain(bool reboot);
 /* shutdown/destroy current domain because of an error */
 void xen_shutdown_fatal_error(const char *fmt, ...) GCC_FMT_ATTR(1, 2);
 
+#ifdef HVM_PARAM_VMPORT_REGS_PFN
+static inline int xen_get_vmport_regs_pfn(XenXC xc, domid_t dom,
+                                          unsigned long *vmport_regs_pfn)
+{
+    return xc_get_hvm_param(xc, dom, HVM_PARAM_VMPORT_REGS_PFN,
+                            vmport_regs_pfn);
+}
+#else
+static inline int xen_get_vmport_regs_pfn(XenXC xc, domid_t dom,
+                                          unsigned long *vmport_regs_pfn)
+{
+    return -ENOSYS;
+}
+#endif
+
 #endif /* QEMU_HW_XEN_COMMON_H */

@@ -553,6 +553,11 @@ static int ide_nop_int(IDEDMA *dma, int x)
     return 0;
 }
 
+static int32_t ide_nop_int32(IDEDMA *dma, int x)
+{
+    return 0;
+}
+
 static void ide_nop_restart(void *opaque, int x, RunState y)
 {
 }
@@ -569,7 +574,7 @@ static void ide_dbdma_start(IDEDMA *dma, IDEState *s,
 
 static const IDEDMAOps dbdma_ops = {
     .start_dma      = ide_dbdma_start,
-    .prepare_buf    = ide_nop_int,
+    .prepare_buf    = ide_nop_int32,
     .rw_buf         = ide_nop_int,
     .set_unit       = ide_nop_int,
     .restart_cb     = ide_nop_restart,

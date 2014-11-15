@@ -1031,6 +1031,9 @@ static int kvm_put_fpu(X86CPU *cpu)
 #define XSAVE_YMMH_SPACE  144
 #define XSAVE_BNDREGS     240
 #define XSAVE_BNDCSR      256
+#define XSAVE_OPMASK      272
+#define XSAVE_ZMM_Hi256   288
+#define XSAVE_Hi16_ZMM    416
 
 static int kvm_put_xsave(X86CPU *cpu)
 {
@@ -1067,6 +1070,14 @@ static int kvm_put_xsave(X86CPU *cpu)
             sizeof env->bnd_regs);
     memcpy(&xsave->region[XSAVE_BNDCSR], &env->bndcs_regs,
             sizeof(env->bndcs_regs));
+    memcpy(&xsave->region[XSAVE_OPMASK], env->opmask_regs,
+            sizeof env->opmask_regs);
+    memcpy(&xsave->region[XSAVE_ZMM_Hi256], env->zmmh_regs,
+            sizeof env->zmmh_regs);
+#ifdef TARGET_X86_64
+    memcpy(&xsave->region[XSAVE_Hi16_ZMM], env->hi16_zmm_regs,
+            sizeof env->hi16_zmm_regs);
+#endif
     r = kvm_vcpu_ioctl(CPU(cpu), KVM_SET_XSAVE, xsave);
     return r;
 }
@@ -1402,6 +1413,14 @@ static int kvm_get_xsave(X86CPU *cpu)
             sizeof env->bnd_regs);
     memcpy(&env->bndcs_regs, &xsave->region[XSAVE_BNDCSR],
             sizeof(env->bndcs_regs));
+    memcpy(env->opmask_regs, &xsave->region[XSAVE_OPMASK],
+            sizeof env->opmask_regs);
+    memcpy(env->zmmh_regs, &xsave->region[XSAVE_ZMM_Hi256],
+            sizeof env->zmmh_regs);
+#ifdef TARGET_X86_64
+    memcpy(env->hi16_zmm_regs, &xsave->region[XSAVE_Hi16_ZMM],
+            sizeof env->hi16_zmm_regs);
+#endif
     return 0;
 }
 

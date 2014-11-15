@@ -48,6 +48,7 @@ struct smbios_table {
 static uint8_t *smbios_entries;
 static size_t smbios_entries_len;
 static bool smbios_legacy = true;
+static bool smbios_uuid_encoded = true;
 /* end: legacy structures & constants for <= 2.0 machines */
 
 
@@ -391,6 +392,11 @@ static void smbios_build_type_1_fields(void)
     smbios_maybe_add_str(1, offsetof(struct smbios_type_1, family_str),
                          type1.family);
     if (qemu_uuid_set) {
+        /* We don't encode the UUID in the "wire format" here because this
+         * function is for legacy mode and needs to keep the guest ABI, and
+         * because we don't know what's the SMBIOS version advertised by the
+         * BIOS.
+         */
         smbios_add_field(1, offsetof(struct smbios_type_1, uuid),
                          qemu_uuid, 16);
     }
@@ -523,6 +529,19 @@ static void smbios_build_type_0_table(void)
     SMBIOS_BUILD_TABLE_POST;
 }
 
+/* Encode UUID from the big endian encoding described on RFC4122 to the wire
+ * format specified by SMBIOS version 2.6.
+ */
+static void smbios_encode_uuid(struct smbios_uuid *uuid, const uint8_t *buf)
+{
+    memcpy(uuid, buf, 16);
+    if (smbios_uuid_encoded) {
+        uuid->time_low = bswap32(uuid->time_low);
+        uuid->time_mid = bswap16(uuid->time_mid);
+        uuid->time_hi_and_version = bswap16(uuid->time_hi_and_version);
+    }
+}
+
 static void smbios_build_type_1_table(void)
 {
     SMBIOS_BUILD_TABLE_PRE(1, 0x100, true); /* required */
@@ -532,9 +551,9 @@ static void smbios_build_type_1_table(void)
     SMBIOS_TABLE_SET_STR(1, version_str, type1.version);
     SMBIOS_TABLE_SET_STR(1, serial_number_str, type1.serial);
     if (qemu_uuid_set) {
-        memcpy(t->uuid, qemu_uuid, 16);
+        smbios_encode_uuid(&t->uuid, qemu_uuid);
     } else {
-        memset(t->uuid, 0, 16);
+        memset(&t->uuid, 0, 16);
     }
     t->wake_up_type = 0x06; /* power switch */
     SMBIOS_TABLE_SET_STR(1, sku_number_str, type1.sku);
@@ -626,7 +645,7 @@ static void smbios_build_type_4_table(unsigned instance)
 
 static void smbios_build_type_16_table(unsigned dimm_cnt)
 {
-    ram_addr_t size_kb;
+    uint64_t size_kb;
 
     SMBIOS_BUILD_TABLE_PRE(16, 0x1000, true); /* required */
 
@@ -650,10 +669,10 @@ static void smbios_build_type_16_table(unsigned dimm_cnt)
 #define MAX_T17_STD_SZ 0x7FFF /* (32G - 1M), in Megabytes */
 #define MAX_T17_EXT_SZ 0x80000000 /* 2P, in Megabytes */
 
-static void smbios_build_type_17_table(unsigned instance, ram_addr_t size)
+static void smbios_build_type_17_table(unsigned instance, uint64_t size)
 {
     char loc_str[128];
-    ram_addr_t size_mb;
+    uint64_t size_mb;
 
     SMBIOS_BUILD_TABLE_PRE(17, 0x1100 + instance, true); /* required */
 
@@ -692,9 +711,9 @@ static void smbios_build_type_17_table(unsigned instance, ram_addr_t size)
 }
 
 static void smbios_build_type_19_table(unsigned instance,
-                                       ram_addr_t start, ram_addr_t size)
+                                       uint64_t start, uint64_t size)
 {
-    ram_addr_t end, start_kb, end_kb;
+    uint64_t end, start_kb, end_kb;
 
     SMBIOS_BUILD_TABLE_PRE(19, 0x1300 + instance, true); /* required */
 
@@ -746,10 +765,12 @@ void smbios_set_cpuid(uint32_t version, uint32_t features)
     }
 
 void smbios_set_defaults(const char *manufacturer, const char *product,
-                         const char *version, bool legacy_mode)
+                         const char *version, bool legacy_mode,
+                         bool uuid_encoded)
 {
     smbios_have_defaults = true;
     smbios_legacy = legacy_mode;
+    smbios_uuid_encoded = uuid_encoded;
 
     /* drop unwanted version of command-line file blob(s) */
     if (smbios_legacy) {
@@ -821,7 +842,7 @@ void smbios_get_tables(uint8_t **tables, size_t *tables_len,
         smbios_build_type_2_table();
         smbios_build_type_3_table();
 
-        smbios_smp_sockets = smp_cpus / (smp_cores * smp_threads);
+        smbios_smp_sockets = DIV_ROUND_UP(smp_cpus, smp_cores * smp_threads);
         assert(smbios_smp_sockets >= 1);
 
         for (i = 0; i < smbios_smp_sockets; i++) {

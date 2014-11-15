@@ -13,6 +13,7 @@ SIMFLAGS = --xtensa-core=DC_B_232L --exit_with_target_code $(EXTFLAGS)
 SIMDEBUG = --gdbserve=0
 endif
 
+HOST_CC = gcc
 CC      = $(CROSS)gcc
 AS      = $(CROSS)gcc -x assembler-with-cpp
 LD      = $(CROSS)ld
@@ -21,7 +22,7 @@ XTENSA_SRC_PATH = $(SRC_PATH)/tests/tcg/xtensa
 INCLUDE_DIRS = $(XTENSA_SRC_PATH) $(SRC_PATH)/target-xtensa/core-$(CORE)
 XTENSA_INC = $(addprefix -I,$(INCLUDE_DIRS))
 
-LDFLAGS = -T$(XTENSA_SRC_PATH)/linker.ld
+LDFLAGS = -Tlinker.ld
 
 CRT        = crt.o vectors.o
 
@@ -59,13 +60,16 @@ TESTCASES += test_windowed.tst
 
 all: build
 
+linker.ld: $(XTENSA_SRC_PATH)/linker.ld.S
+	$(HOST_CC) $(XTENSA_INC) -E -P $< -o $@
+
 %.o: $(XTENSA_SRC_PATH)/%.c
 	$(CC) $(XTENSA_INC) $(CFLAGS) -c $< -o $@
 
 %.o: $(XTENSA_SRC_PATH)/%.S
 	$(CC) $(XTENSA_INC) $(ASFLAGS) -c $< -o $@
 
-%.tst: %.o $(XTENSA_SRC_PATH)/macros.inc $(CRT) Makefile
+%.tst: %.o linker.ld $(XTENSA_SRC_PATH)/macros.inc $(CRT) Makefile
 	$(LD) $(LDFLAGS) $(NOSTDFLAGS) $(CRT) $< -o $@
 
 build: $(TESTCASES)
@@ -85,4 +89,4 @@ host-debug-%.tst: %.tst
 	gdb --args $(SIM) $(SIMFLAGS) ./$<
 
 clean:
-	$(RM) -fr $(TESTCASES) $(CRT)
+	$(RM) -fr $(TESTCASES) $(CRT) linker.ld

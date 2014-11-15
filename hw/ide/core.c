@@ -592,6 +592,7 @@ static void ide_sector_read_cb(void *opaque, int ret)
 
     ide_set_sector(s, ide_get_sector(s) + n);
     s->nsector -= n;
+    s->io_buffer_offset += 512 * n;
 }
 
 void ide_sector_read(IDEState *s)
@@ -634,8 +635,11 @@ void ide_sector_read(IDEState *s)
                                  ide_sector_read_cb, s);
 }
 
-static void dma_buf_commit(IDEState *s)
+static void dma_buf_commit(IDEState *s, uint32_t tx_bytes)
 {
+    if (s->bus->dma->ops->commit_buf) {
+        s->bus->dma->ops->commit_buf(s->bus->dma, tx_bytes);
+    }
     qemu_sglist_destroy(&s->sg);
 }
 
@@ -650,6 +654,7 @@ void ide_set_inactive(IDEState *s, bool more)
 
 void ide_dma_error(IDEState *s)
 {
+    dma_buf_commit(s, 0);
     ide_abort_command(s);
     ide_set_inactive(s, false);
     ide_set_irq(s->bus);
@@ -665,7 +670,6 @@ static int ide_handle_rw_error(IDEState *s, int error, int op)
         s->bus->error_status = op;
     } else if (action == BLOCK_ERROR_ACTION_REPORT) {
         if (op & IDE_RETRY_DMA) {
-            dma_buf_commit(s);
             ide_dma_error(s);
         } else {
             ide_rw_error(s);
@@ -709,7 +713,8 @@ void ide_dma_cb(void *opaque, int ret)
 
     sector_num = ide_get_sector(s);
     if (n > 0) {
-        dma_buf_commit(s);
+        assert(s->io_buffer_size == s->sg.size);
+        dma_buf_commit(s, s->io_buffer_size);
         sector_num += n;
         ide_set_sector(s, sector_num);
         s->nsector -= n;
@@ -726,10 +731,11 @@ void ide_dma_cb(void *opaque, int ret)
     n = s->nsector;
     s->io_buffer_index = 0;
     s->io_buffer_size = n * 512;
-    if (s->bus->dma->ops->prepare_buf(s->bus->dma, ide_cmd_is_read(s)) == 0) {
+    if (s->bus->dma->ops->prepare_buf(s->bus->dma, ide_cmd_is_read(s)) < 512) {
         /* The PRDs were too short. Reset the Active bit, but don't raise an
          * interrupt. */
         s->status = READY_STAT | SEEK_STAT;
+        dma_buf_commit(s, 0);
         goto eot;
     }
 
@@ -740,7 +746,6 @@ void ide_dma_cb(void *opaque, int ret)
 
     if ((s->dma_cmd == IDE_DMA_READ || s->dma_cmd == IDE_DMA_WRITE) &&
         !ide_sect_range_ok(s, sector_num, n)) {
-        dma_buf_commit(s);
         ide_dma_error(s);
         return;
     }
@@ -829,6 +834,8 @@ static void ide_sector_write_cb(void *opaque, int ret)
         n = s->req_nb_sectors;
     }
     s->nsector -= n;
+    s->io_buffer_offset += 512 * n;
+
     if (s->nsector == 0) {
         /* no more sectors to write */
         ide_transfer_stop(s);
@@ -1821,6 +1828,7 @@ void ide_exec_cmd(IDEBus *bus, uint32_t val)
 
     s->status = READY_STAT | BUSY_STAT;
     s->error = 0;
+    s->io_buffer_offset = 0;
 
     complete = ide_cmd_table[val].handler(s, val);
     if (complete) {
@@ -2306,12 +2314,17 @@ static int ide_nop_int(IDEDMA *dma, int x)
     return 0;
 }
 
+static int32_t ide_nop_int32(IDEDMA *dma, int x)
+{
+    return 0;
+}
+
 static void ide_nop_restart(void *opaque, int x, RunState y)
 {
 }
 
 static const IDEDMAOps ide_dma_nop_ops = {
-    .prepare_buf    = ide_nop_int,
+    .prepare_buf    = ide_nop_int32,
     .rw_buf         = ide_nop_int,
     .set_unit       = ide_nop_int,
     .restart_cb     = ide_nop_restart,

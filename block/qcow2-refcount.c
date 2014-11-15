@@ -91,7 +91,7 @@ static int load_refcount_block(BlockDriverState *bs,
  * return value is the refcount of the cluster, negative values are -errno
  * and indicate an error.
  */
-static int get_refcount(BlockDriverState *bs, int64_t cluster_index)
+int qcow2_get_refcount(BlockDriverState *bs, int64_t cluster_index)
 {
     BDRVQcowState *s = bs->opaque;
     uint64_t refcount_table_index, block_index;
@@ -629,8 +629,7 @@ fail:
 }
 
 /*
- * Increases or decreases the refcount of a given cluster by one.
- * addend must be 1 or -1.
+ * Increases or decreases the refcount of a given cluster.
  *
  * If the return value is non-negative, it is the new refcount of the cluster.
  * If it is negative, it is -errno and indicates an error.
@@ -649,7 +648,7 @@ int qcow2_update_cluster_refcount(BlockDriverState *bs,
         return ret;
     }
 
-    return get_refcount(bs, cluster_index);
+    return qcow2_get_refcount(bs, cluster_index);
 }
 
 
@@ -670,7 +669,7 @@ static int64_t alloc_clusters_noref(BlockDriverState *bs, uint64_t size)
 retry:
     for(i = 0; i < nb_clusters; i++) {
         uint64_t next_cluster_index = s->free_cluster_index++;
-        refcount = get_refcount(bs, next_cluster_index);
+        refcount = qcow2_get_refcount(bs, next_cluster_index);
 
         if (refcount < 0) {
             return refcount;
@@ -734,7 +733,7 @@ int qcow2_alloc_clusters_at(BlockDriverState *bs, uint64_t offset,
         /* Check how many clusters there are free */
         cluster_index = offset >> s->cluster_bits;
         for(i = 0; i < nb_clusters; i++) {
-            refcount = get_refcount(bs, cluster_index++);
+            refcount = qcow2_get_refcount(bs, cluster_index++);
 
             if (refcount < 0) {
                 return refcount;
@@ -981,7 +980,7 @@ int qcow2_update_snapshot_refcount(BlockDriverState *bs,
                                     cluster_index, addend,
                                     QCOW2_DISCARD_SNAPSHOT);
                         } else {
-                            refcount = get_refcount(bs, cluster_index);
+                            refcount = qcow2_get_refcount(bs, cluster_index);
                         }
 
                         if (refcount < 0) {
@@ -1021,7 +1020,7 @@ int qcow2_update_snapshot_refcount(BlockDriverState *bs,
                 refcount = qcow2_update_cluster_refcount(bs, l2_offset >>
                         s->cluster_bits, addend, QCOW2_DISCARD_SNAPSHOT);
             } else {
-                refcount = get_refcount(bs, l2_offset >> s->cluster_bits);
+                refcount = qcow2_get_refcount(bs, l2_offset >> s->cluster_bits);
             }
             if (refcount < 0) {
                 ret = refcount;
@@ -1332,8 +1331,8 @@ fail:
  * Checks the OFLAG_COPIED flag for all L1 and L2 entries.
  *
  * This function does not print an error message nor does it increment
- * check_errors if get_refcount fails (this is because such an error will have
- * been already detected and sufficiently signaled by the calling function
+ * check_errors if qcow2_get_refcount fails (this is because such an error will
+ * have been already detected and sufficiently signaled by the calling function
  * (qcow2_check_refcounts) by the time this function is called).
  */
 static int check_oflag_copied(BlockDriverState *bs, BdrvCheckResult *res,
@@ -1354,7 +1353,7 @@ static int check_oflag_copied(BlockDriverState *bs, BdrvCheckResult *res,
             continue;
         }
 
-        refcount = get_refcount(bs, l2_offset >> s->cluster_bits);
+        refcount = qcow2_get_refcount(bs, l2_offset >> s->cluster_bits);
         if (refcount < 0) {
             /* don't print message nor increment check_errors */
             continue;
@@ -1396,7 +1395,8 @@ static int check_oflag_copied(BlockDriverState *bs, BdrvCheckResult *res,
 
             if ((cluster_type == QCOW2_CLUSTER_NORMAL) ||
                 ((cluster_type == QCOW2_CLUSTER_ZERO) && (data_offset != 0))) {
-                refcount = get_refcount(bs, data_offset >> s->cluster_bits);
+                refcount = qcow2_get_refcount(bs,
+                                              data_offset >> s->cluster_bits);
                 if (refcount < 0) {
                     /* don't print message nor increment check_errors */
                     continue;
@@ -1632,7 +1632,7 @@ static void compare_refcounts(BlockDriverState *bs, BdrvCheckResult *res,
     int refcount1, refcount2, ret;
 
     for (i = 0, *highest_cluster = 0; i < nb_clusters; i++) {
-        refcount1 = get_refcount(bs, i);
+        refcount1 = qcow2_get_refcount(bs, i);
         if (refcount1 < 0) {
             fprintf(stderr, "Can't get refcount for cluster %" PRId64 ": %s\n",
                 i, strerror(-refcount1));

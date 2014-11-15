@@ -190,6 +190,9 @@ int nb_numa_nodes;
 int max_numa_nodeid;
 NodeInfo numa_info[MAX_NODES];
 
+/* The bytes in qemu_uuid[] are in the order specified by RFC4122, _not_ in the
+ * little-endian "wire format" described in the SMBIOS 2.6 specification.
+ */
 uint8_t qemu_uuid[16];
 bool qemu_uuid_set;
 
@@ -376,6 +379,10 @@ static QemuOptsList qemu_machine_opts = {
             .name = PC_MACHINE_MAX_RAM_BELOW_4G,
             .type = QEMU_OPT_SIZE,
             .help = "maximum ram below the 4G boundary (32bit boundary)",
+        }, {
+            .name = PC_MACHINE_VMPORT,
+            .type = QEMU_OPT_BOOL,
+            .help = "Enable vmport (pc & q35)",
         },{
             .name = "iommu",
             .type = QEMU_OPT_BOOL,
@@ -1416,6 +1423,7 @@ static void machine_class_init(ObjectClass *oc, void *data)
     MachineClass *mc = MACHINE_CLASS(oc);
     QEMUMachine *qm = data;
 
+    mc->family = qm->family;
     mc->name = qm->name;
     mc->alias = qm->alias;
     mc->desc = qm->desc;
@@ -1433,9 +1441,11 @@ static void machine_class_init(ObjectClass *oc, void *data)
     mc->no_floppy = qm->no_floppy;
     mc->no_cdrom = qm->no_cdrom;
     mc->no_sdcard = qm->no_sdcard;
+    mc->has_dynamic_sysbus = qm->has_dynamic_sysbus;
     mc->is_default = qm->is_default;
     mc->default_machine_opts = qm->default_machine_opts;
     mc->default_boot_order = qm->default_boot_order;
+    mc->default_display = qm->default_display;
     mc->compat_props = qm->compat_props;
     mc->hw_version = qm->hw_version;
 }
@@ -2488,7 +2498,41 @@ static int debugcon_parse(const char *devname)
     return 0;
 }
 
-static MachineClass *machine_parse(const char *name)
+static gint machine_class_cmp(gconstpointer a, gconstpointer b)
+{
+    const MachineClass *mc1 = a, *mc2 = b;
+    int res;
+
+    if (mc1->family == NULL) {
+        if (mc2->family == NULL) {
+            /* Compare standalone machine types against each other; they sort
+             * in increasing order.
+             */
+            return strcmp(object_class_get_name(OBJECT_CLASS(mc1)),
+                          object_class_get_name(OBJECT_CLASS(mc2)));
+        }
+
+        /* Standalone machine types sort after families. */
+        return 1;
+    }
+
+    if (mc2->family == NULL) {
+        /* Families sort before standalone machine types. */
+        return -1;
+    }
+
+    /* Families sort between each other alphabetically increasingly. */
+    res = strcmp(mc1->family, mc2->family);
+    if (res != 0) {
+        return res;
+    }
+
+    /* Within the same family, machine types sort in decreasing order. */
+    return strcmp(object_class_get_name(OBJECT_CLASS(mc2)),
+                  object_class_get_name(OBJECT_CLASS(mc1)));
+}
+
+ static MachineClass *machine_parse(const char *name)
 {
     MachineClass *mc = NULL;
     GSList *el, *machines = object_class_get_list(TYPE_MACHINE, false);
@@ -2504,6 +2548,7 @@ static MachineClass *machine_parse(const char *name)
         error_printf("Use -machine help to list supported machines!\n");
     } else {
         printf("Supported machines are:\n");
+        machines = g_slist_sort(machines, machine_class_cmp);
         for (el = machines; el; el = el->next) {
             MachineClass *mc = el->data;
             if (mc->alias) {
@@ -3746,6 +3791,11 @@ int main(int argc, char **argv, char **envp)
                 configure_msg(opts);
                 break;
             case QEMU_OPTION_dump_vmstate:
+                if (vmstate_dump_file) {
+                    fprintf(stderr, "qemu: only one '-dump-vmstate' "
+                            "option may be given\n");
+                    exit(1);
+                }
                 vmstate_dump_file = fopen(optarg, "w");
                 if (vmstate_dump_file == NULL) {
                     fprintf(stderr, "open %s: %s\n", optarg, strerror(errno));
@@ -3999,7 +4049,7 @@ int main(int argc, char **argv, char **envp)
 #endif
 
     if (pid_file && qemu_create_pidfile(pid_file) != 0) {
-        os_pidfile_error();
+        fprintf(stderr, "Could not acquire pid file: %s\n", strerror(errno));
         exit(1);
     }
 
@@ -4180,7 +4230,9 @@ int main(int argc, char **argv, char **envp)
 
     /* If no default VGA is requested, the default is "none".  */
     if (default_vga) {
-        if (cirrus_vga_available()) {
+        if (machine_class->default_display) {
+            vga_model = machine_class->default_display;
+        } else if (cirrus_vga_available()) {
             vga_model = "cirrus";
         } else if (vga_available()) {
             vga_model = "std";

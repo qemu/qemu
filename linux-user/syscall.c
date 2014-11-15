@@ -5473,6 +5473,27 @@ static int do_openat(void *cpu_env, int dirfd, const char *pathname, int flags, 
     return get_errno(sys_openat(dirfd, path(pathname), flags, mode));
 }
 
+#define TIMER_MAGIC 0x0caf0000
+#define TIMER_MAGIC_MASK 0xffff0000
+
+/* Convert QEMU provided timer ID back to internal 16bit index format */
+static target_timer_t get_timer_id(abi_long arg)
+{
+    target_timer_t timerid = arg;
+
+    if ((timerid & TIMER_MAGIC_MASK) != TIMER_MAGIC) {
+        return -TARGET_EINVAL;
+    }
+
+    timerid &= 0xffff;
+
+    if (timerid >= ARRAY_SIZE(g_posix_timers)) {
+        return -TARGET_EINVAL;
+    }
+
+    return timerid;
+}
+
 /* do_syscall() should always have a single exit point at the end so
    that actions, such as logging of syscall results, can be performed.
    All errnos that do_syscall() returns must be -TARGET_<errcode>. */
@@ -9579,7 +9600,6 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
         /* args: clockid_t clockid, struct sigevent *sevp, timer_t *timerid */
 
         struct sigevent host_sevp = { {0}, }, *phost_sevp = NULL;
-        struct target_timer_t *ptarget_timer;
 
         int clkid = arg1;
         int timer_index = next_free_host_timer();
@@ -9601,11 +9621,9 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
             if (ret) {
                 phtimer = NULL;
             } else {
-                if (!lock_user_struct(VERIFY_WRITE, ptarget_timer, arg3, 1)) {
+                if (put_user(TIMER_MAGIC | timer_index, arg3, target_timer_t)) {
                     goto efault;
                 }
-                ptarget_timer->ptr = tswap32(0xcafe0000 | timer_index);
-                unlock_user_struct(ptarget_timer, arg3, 1);
             }
         }
         break;
@@ -9617,9 +9635,11 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
     {
         /* args: timer_t timerid, int flags, const struct itimerspec *new_value,
          * struct itimerspec * old_value */
-        target_ulong timerid = arg1;
+        target_timer_t timerid = get_timer_id(arg1);
 
-        if (arg3 == 0 || timerid >= ARRAY_SIZE(g_posix_timers)) {
+        if (timerid < 0) {
+            ret = timerid;
+        } else if (arg3 == 0) {
             ret = -TARGET_EINVAL;
         } else {
             timer_t htimer = g_posix_timers[timerid];
@@ -9638,12 +9658,12 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
     case TARGET_NR_timer_gettime:
     {
         /* args: timer_t timerid, struct itimerspec *curr_value */
-        target_ulong timerid = arg1;
+        target_timer_t timerid = get_timer_id(arg1);
 
-        if (!arg2) {
-            return -TARGET_EFAULT;
-        } else if (timerid >= ARRAY_SIZE(g_posix_timers)) {
-            ret = -TARGET_EINVAL;
+        if (timerid < 0) {
+            ret = timerid;
+        } else if (!arg2) {
+            ret = -TARGET_EFAULT;
         } else {
             timer_t htimer = g_posix_timers[timerid];
             struct itimerspec hspec;
@@ -9661,10 +9681,10 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
     case TARGET_NR_timer_getoverrun:
     {
         /* args: timer_t timerid */
-        target_ulong timerid = arg1;
+        target_timer_t timerid = get_timer_id(arg1);
 
-        if (timerid >= ARRAY_SIZE(g_posix_timers)) {
-            ret = -TARGET_EINVAL;
+        if (timerid < 0) {
+            ret = timerid;
         } else {
             timer_t htimer = g_posix_timers[timerid];
             ret = get_errno(timer_getoverrun(htimer));
@@ -9677,10 +9697,10 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
     case TARGET_NR_timer_delete:
     {
         /* args: timer_t timerid */
-        target_ulong timerid = arg1;
+        target_timer_t timerid = get_timer_id(arg1);
 
-        if (timerid >= ARRAY_SIZE(g_posix_timers)) {
-            ret = -TARGET_EINVAL;
+        if (timerid < 0) {
+            ret = timerid;
         } else {
             timer_t htimer = g_posix_timers[timerid];
             ret = get_errno(timer_delete(htimer));

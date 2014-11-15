@@ -355,30 +355,15 @@ static void pc_cmos_init_late(void *opaque)
     qemu_unregister_reset(pc_cmos_init_late, opaque);
 }
 
-typedef struct RTCCPUHotplugArg {
-    Notifier cpu_added_notifier;
-    ISADevice *rtc_state;
-} RTCCPUHotplugArg;
-
-static void rtc_notify_cpu_added(Notifier *notifier, void *data)
-{
-    RTCCPUHotplugArg *arg = container_of(notifier, RTCCPUHotplugArg,
-                                         cpu_added_notifier);
-    ISADevice *s = arg->rtc_state;
-
-    /* increment the number of CPUs */
-    rtc_set_memory(s, 0x5f, rtc_get_memory(s, 0x5f) + 1);
-}
-
 void pc_cmos_init(ram_addr_t ram_size, ram_addr_t above_4g_mem_size,
-                  const char *boot_device,
+                  const char *boot_device, MachineState *machine,
                   ISADevice *floppy, BusState *idebus0, BusState *idebus1,
                   ISADevice *s)
 {
     int val, nb, i;
     FDriveType fd_type[2] = { FDRIVE_DRV_NONE, FDRIVE_DRV_NONE };
     static pc_cmos_init_late_arg arg;
-    static RTCCPUHotplugArg cpu_hotplug_cb;
+    PCMachineState *pc_machine = PC_MACHINE(machine);
 
     /* various important CMOS locations needed by PC/Bochs bios */
 
@@ -417,10 +402,14 @@ void pc_cmos_init(ram_addr_t ram_size, ram_addr_t above_4g_mem_size,
 
     /* set the number of CPU */
     rtc_set_memory(s, 0x5f, smp_cpus - 1);
-    /* init CPU hotplug notifier */
-    cpu_hotplug_cb.rtc_state = s;
-    cpu_hotplug_cb.cpu_added_notifier.notify = rtc_notify_cpu_added;
-    qemu_register_cpu_added_notifier(&cpu_hotplug_cb.cpu_added_notifier);
+
+    object_property_add_link(OBJECT(machine), "rtc_state",
+                             TYPE_ISA_DEVICE,
+                             (Object **)&pc_machine->rtc,
+                             object_property_allow_set_link,
+                             OBJ_PROP_LINK_UNREF_ON_RELEASE, &error_abort);
+    object_property_set_link(OBJECT(machine), OBJECT(s),
+                             "rtc_state", &error_abort);
 
     if (set_boot_dev(s, boot_device)) {
         exit(1);
@@ -1516,6 +1505,7 @@ static void pc_generic_machine_class_init(ObjectClass *oc, void *data)
     MachineClass *mc = MACHINE_CLASS(oc);
     QEMUMachine *qm = data;
 
+    mc->family = qm->family;
     mc->name = qm->name;
     mc->alias = qm->alias;
     mc->desc = qm->desc;
@@ -1536,6 +1526,7 @@ static void pc_generic_machine_class_init(ObjectClass *oc, void *data)
     mc->is_default = qm->is_default;
     mc->default_machine_opts = qm->default_machine_opts;
     mc->default_boot_order = qm->default_boot_order;
+    mc->default_display = qm->default_display;
     mc->compat_props = qm->compat_props;
     mc->hw_version = qm->hw_version;
 }
@@ -1617,11 +1608,42 @@ out:
     error_propagate(errp, local_err);
 }
 
+static void pc_cpu_plug(HotplugHandler *hotplug_dev,
+                        DeviceState *dev, Error **errp)
+{
+    HotplugHandlerClass *hhc;
+    Error *local_err = NULL;
+    PCMachineState *pcms = PC_MACHINE(hotplug_dev);
+
+    if (!dev->hotplugged) {
+        goto out;
+    }
+
+    if (!pcms->acpi_dev) {
+        error_setg(&local_err,
+                   "cpu hotplug is not enabled: missing acpi device");
+        goto out;
+    }
+
+    hhc = HOTPLUG_HANDLER_GET_CLASS(pcms->acpi_dev);
+    hhc->plug(HOTPLUG_HANDLER(pcms->acpi_dev), dev, &local_err);
+    if (local_err) {
+        goto out;
+    }
+
+    /* increment the number of CPUs */
+    rtc_set_memory(pcms->rtc, 0x5f, rtc_get_memory(pcms->rtc, 0x5f) + 1);
+out:
+    error_propagate(errp, local_err);
+}
+
 static void pc_machine_device_plug_cb(HotplugHandler *hotplug_dev,
                                       DeviceState *dev, Error **errp)
 {
     if (object_dynamic_cast(OBJECT(dev), TYPE_PC_DIMM)) {
         pc_dimm_plug(hotplug_dev, dev, errp);
+    } else if (object_dynamic_cast(OBJECT(dev), TYPE_CPU)) {
+        pc_cpu_plug(hotplug_dev, dev, errp);
     }
 }
 
@@ -1630,7 +1652,8 @@ static HotplugHandler *pc_get_hotpug_handler(MachineState *machine,
 {
     PCMachineClass *pcmc = PC_MACHINE_GET_CLASS(machine);
 
-    if (object_dynamic_cast(OBJECT(dev), TYPE_PC_DIMM)) {
+    if (object_dynamic_cast(OBJECT(dev), TYPE_PC_DIMM) ||
+        object_dynamic_cast(OBJECT(dev), TYPE_CPU)) {
         return HOTPLUG_HANDLER(machine);
     }
 
@@ -1688,6 +1711,20 @@ static void pc_machine_set_max_ram_below_4g(Object *obj, Visitor *v,
     pcms->max_ram_below_4g = value;
 }
 
+static bool pc_machine_get_vmport(Object *obj, Error **errp)
+{
+    PCMachineState *pcms = PC_MACHINE(obj);
+
+    return pcms->vmport;
+}
+
+static void pc_machine_set_vmport(Object *obj, bool value, Error **errp)
+{
+    PCMachineState *pcms = PC_MACHINE(obj);
+
+    pcms->vmport = value;
+}
+
 static void pc_machine_initfn(Object *obj)
 {
     PCMachineState *pcms = PC_MACHINE(obj);
@@ -1700,6 +1737,11 @@ static void pc_machine_initfn(Object *obj)
                         pc_machine_get_max_ram_below_4g,
                         pc_machine_set_max_ram_below_4g,
                         NULL, NULL, NULL);
+    pcms->vmport = !xen_enabled();
+    object_property_add_bool(obj, PC_MACHINE_VMPORT,
+                             pc_machine_get_vmport,
+                             pc_machine_set_vmport,
+                             NULL);
 }
 
 static void pc_machine_class_init(ObjectClass *oc, void *data)

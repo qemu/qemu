@@ -226,7 +226,7 @@ static int vhost_user_call(struct vhost_dev *dev, unsigned long int request,
                 msg.memory.regions[fd_num].memory_size  = reg->memory_size;
                 msg.memory.regions[fd_num].guest_phys_addr = reg->guest_phys_addr;
                 msg.memory.regions[fd_num].mmap_offset = reg->userspace_addr -
-                    (uintptr_t) qemu_get_ram_block_host_ptr(reg->guest_phys_addr);
+                    (uintptr_t) qemu_get_ram_block_host_ptr(ram_addr);
                 assert(fd_num < VHOST_MEMORY_MAX_NREGIONS);
                 fds[fd_num++] = fd;
             }

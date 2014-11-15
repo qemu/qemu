@@ -143,6 +143,12 @@ static void usb_host_attach_kernel(USBHostDevice *s);
 
 /* ------------------------------------------------------------------------ */
 
+#ifndef LIBUSB_LOG_LEVEL_WARNING /* older libusb didn't define these */
+#define LIBUSB_LOG_LEVEL_WARNING 2
+#endif
+
+/* ------------------------------------------------------------------------ */
+
 #define CONTROL_TIMEOUT  10000        /* 10 sec    */
 #define BULK_TIMEOUT         0        /* unlimited */
 #define INTR_TIMEOUT         0        /* unlimited */
@@ -743,13 +749,13 @@ static void usb_host_speed_compat(USBHostDevice *s)
 
     udev->speedmask = (1 << udev->speed);
     if (udev->speed == USB_SPEED_SUPER && compat_high) {
-        udev->speedmask |= USB_SPEED_HIGH;
+        udev->speedmask |= USB_SPEED_MASK_HIGH;
     }
     if (udev->speed == USB_SPEED_SUPER && compat_full) {
-        udev->speedmask |= USB_SPEED_FULL;
+        udev->speedmask |= USB_SPEED_MASK_FULL;
     }
     if (udev->speed == USB_SPEED_HIGH && compat_full) {
-        udev->speedmask |= USB_SPEED_FULL;
+        udev->speedmask |= USB_SPEED_MASK_FULL;
     }
 }
 

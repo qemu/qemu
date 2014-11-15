@@ -161,6 +161,7 @@ typedef struct node_info {
 extern NodeInfo numa_info[MAX_NODES];
 void set_numa_nodes(void);
 void set_numa_modes(void);
+void query_numa_node_mem(uint64_t node_mem[]);
 extern QemuOptsList qemu_numa_opts;
 int numa_init_func(QemuOpts *opts, void *opaque);
 
@@ -183,9 +184,6 @@ void do_pci_device_hot_remove(Monitor *mon, const QDict *qdict);
 
 /* generic hotplug */
 void drive_hot_add(Monitor *mon, const QDict *qdict);
-
-/* CPU hotplug */
-void qemu_register_cpu_added_notifier(Notifier *notifier);
 
 /* pcie aer error injection */
 void pcie_aer_inject_error_print(Monitor *mon, const QObject *data);

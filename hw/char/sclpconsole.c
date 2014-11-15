@@ -36,6 +36,7 @@ typedef struct SCLPConsole {
     uint32_t iov_bs;        /* offset in buf for char layer read operation */
     uint32_t iov_data_len;  /* length of byte stream in buffer             */
     uint32_t iov_sclp_rest; /* length of byte stream not read via SCLP     */
+    bool notify;            /* qemu_notify_event() req'd if true           */
 } SCLPConsole;
 
 /* character layer call-back functions */
@@ -44,8 +45,12 @@ typedef struct SCLPConsole {
 static int chr_can_read(void *opaque)
 {
     SCLPConsole *scon = opaque;
+    int avail = SIZE_BUFFER_VT220 - scon->iov_data_len;
 
-    return SIZE_BUFFER_VT220 - scon->iov_data_len;
+    if (avail == 0) {
+        scon->notify = true;
+    }
+    return avail;
 }
 
 /* Send data from a char device over to the guest */
@@ -112,6 +117,10 @@ static void get_console_data(SCLPEvent *event, uint8_t *buf, size_t *size,
         cons->iov_sclp_rest -= avail;
         cons->iov_sclp += avail;
         /* more data pending */
+    }
+    if (cons->notify) {
+        cons->notify = false;
+        qemu_notify_event();
     }
 }
 
@@ -229,6 +238,7 @@ static void console_reset(DeviceState *dev)
    scon->iov_bs = 0;
    scon->iov_data_len = 0;
    scon->iov_sclp_rest = 0;
+   scon->notify = false;
 }
 
 static int console_exit(SCLPEvent *event)

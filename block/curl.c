@@ -64,6 +64,7 @@ static CURLMcode __curl_multi_socket_action(CURLM *multi_handle,
 #define SECTOR_SIZE     512
 #define READ_AHEAD_DEFAULT (256 * 1024)
 #define CURL_TIMEOUT_DEFAULT 5
+#define CURL_TIMEOUT_MAX 10000
 
 #define FIND_RET_NONE   0
 #define FIND_RET_OK     1
@@ -112,7 +113,7 @@ typedef struct BDRVCURLState {
     char *url;
     size_t readahead_size;
     bool sslverify;
-    int timeout;
+    uint64_t timeout;
     char *cookie;
     bool accept_range;
     AioContext *aio_context;
@@ -390,7 +391,7 @@ static CURLState *curl_init_state(BlockDriverState *bs, BDRVCURLState *s)
         if (s->cookie) {
             curl_easy_setopt(state->curl, CURLOPT_COOKIE, s->cookie);
         }
-        curl_easy_setopt(state->curl, CURLOPT_TIMEOUT, s->timeout);
+        curl_easy_setopt(state->curl, CURLOPT_TIMEOUT, (long)s->timeout);
         curl_easy_setopt(state->curl, CURLOPT_WRITEFUNCTION,
                          (void *)curl_read_cb);
         curl_easy_setopt(state->curl, CURLOPT_WRITEDATA, (void *)state);
@@ -546,6 +547,10 @@ static int curl_open(BlockDriverState *bs, QDict *options, int flags,
 
     s->timeout = qemu_opt_get_number(opts, CURL_BLOCK_OPT_TIMEOUT,
                                      CURL_TIMEOUT_DEFAULT);
+    if (s->timeout > CURL_TIMEOUT_MAX) {
+        error_setg(errp, "timeout parameter is too large or negative");
+        goto out_noclean;
+    }
 
     s->sslverify = qemu_opt_get_bool(opts, CURL_BLOCK_OPT_SSLVERIFY, true);
 

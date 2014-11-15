@@ -52,8 +52,7 @@ class ImageMirroringTestCase(iotests.QMPTestCase):
         event = self.cancel_and_wait(drive=drive)
         self.assertEquals(event['event'], 'BLOCK_JOB_COMPLETED')
         self.assert_qmp(event, 'data/type', 'mirror')
-        self.assert_qmp(event, 'data/offset', self.image_len)
-        self.assert_qmp(event, 'data/len', self.image_len)
+        self.assert_qmp(event, 'data/offset', event['data']['len'])
 
     def complete_and_wait(self, drive='drive0', wait_ready=True):
         '''Complete a block job and wait for it to finish'''
@@ -417,7 +416,6 @@ new_state = "1"
                     self.assert_qmp(event, 'data/type', 'mirror')
                     self.assert_qmp(event, 'data/device', 'drive0')
                     self.assert_qmp(event, 'data/error', 'Input/output error')
-                    self.assert_qmp(event, 'data/len', self.image_len)
                     completed = True
 
         self.assert_no_active_block_jobs()
@@ -568,7 +566,6 @@ new_state = "1"
                     self.assert_qmp(event, 'data/type', 'mirror')
                     self.assert_qmp(event, 'data/device', 'drive0')
                     self.assert_qmp(event, 'data/error', 'Input/output error')
-                    self.assert_qmp(event, 'data/len', self.image_len)
                     completed = True
 
         self.assert_no_active_block_jobs()

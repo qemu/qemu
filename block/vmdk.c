@@ -2137,22 +2137,28 @@ static ImageInfoSpecific *vmdk_get_specific_info(BlockDriverState *bs)
     return spec_info;
 }
 
+static bool vmdk_extents_type_eq(const VmdkExtent *a, const VmdkExtent *b)
+{
+    return a->flat == b->flat &&
+           a->compressed == b->compressed &&
+           (a->flat || a->cluster_sectors == b->cluster_sectors);
+}
+
 static int vmdk_get_info(BlockDriverState *bs, BlockDriverInfo *bdi)
 {
     int i;
     BDRVVmdkState *s = bs->opaque;
     assert(s->num_extents);
+
+    /* See if we have multiple extents but they have different cases */
+    for (i = 1; i < s->num_extents; i++) {
+        if (!vmdk_extents_type_eq(&s->extents[0], &s->extents[i])) {
+            return -ENOTSUP;
+        }
+    }
     bdi->needs_compressed_writes = s->extents[0].compressed;
     if (!s->extents[0].flat) {
         bdi->cluster_size = s->extents[0].cluster_sectors << BDRV_SECTOR_BITS;
-    }
-    /* See if we have multiple extents but they have different cases */
-    for (i = 1; i < s->num_extents; i++) {
-        if (bdi->needs_compressed_writes != s->extents[i].compressed ||
-            (bdi->cluster_size && bdi->cluster_size !=
-                s->extents[i].cluster_sectors << BDRV_SECTOR_BITS)) {
-            return -ENOTSUP;
-        }
     }
     return 0;
 }

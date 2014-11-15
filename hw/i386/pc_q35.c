@@ -52,6 +52,7 @@
 static bool has_acpi_build = true;
 static bool smbios_defaults = true;
 static bool smbios_legacy_mode;
+static bool smbios_uuid_encoded = true;
 /* Make sure that guest addresses aligned at 1Gbyte boundaries get mapped to
  * host addresses aligned at 1Gbyte boundaries.  This way we can use 1GByte
  * pages in the host.
@@ -163,7 +164,7 @@ static void pc_q35_init(MachineState *machine)
         MachineClass *mc = MACHINE_GET_CLASS(machine);
         /* These values are guest ABI, do not change */
         smbios_set_defaults("QEMU", "Standard PC (Q35 + ICH9, 2009)",
-                            mc->name, smbios_legacy_mode);
+                            mc->name, smbios_legacy_mode, smbios_uuid_encoded);
     }
 
     /* allocate ram and load rom/bios */
@@ -242,7 +243,8 @@ static void pc_q35_init(MachineState *machine)
     pc_register_ferr_irq(gsi[13]);
 
     /* init basic PC hardware */
-    pc_basic_device_init(isa_bus, gsi, &rtc_state, &floppy, false, 0xff0104);
+    pc_basic_device_init(isa_bus, gsi, &rtc_state, &floppy,
+                         !pc_machine->vmport, 0xff0104);
 
     /* connect pm stuff to lpc */
     ich9_lpc_pm_init(lpc);
@@ -270,7 +272,7 @@ static void pc_q35_init(MachineState *machine)
                       8, NULL, 0);
 
     pc_cmos_init(below_4g_mem_size, above_4g_mem_size, machine->boot_order,
-                 floppy, idebus[0], idebus[1], rtc_state);
+                 machine, floppy, idebus[0], idebus[1], rtc_state);
 
     /* the rest devices to which pci devfn is automatically assigned */
     pc_vga_init(isa_bus, host_bus);
@@ -280,8 +282,17 @@ static void pc_q35_init(MachineState *machine)
     }
 }
 
+static void pc_compat_2_1(MachineState *machine)
+{
+    smbios_uuid_encoded = false;
+    x86_cpu_compat_set_features("coreduo", FEAT_1_ECX, CPUID_EXT_VMX, 0);
+    x86_cpu_compat_set_features("core2duo", FEAT_1_ECX, CPUID_EXT_VMX, 0);
+    x86_cpu_compat_kvm_no_autodisable(FEAT_8000_0001_ECX, CPUID_EXT3_SVM);
+}
+
 static void pc_compat_2_0(MachineState *machine)
 {
+    pc_compat_2_1(machine);
     smbios_legacy_mode = true;
     has_reserved_memory = false;
     pc_set_legacy_acpi_data_size();
@@ -293,7 +304,7 @@ static void pc_compat_1_7(MachineState *machine)
     smbios_defaults = false;
     gigabyte_align = false;
     option_rom_has_mr = true;
-    x86_cpu_compat_disable_kvm_features(FEAT_1_ECX, CPUID_EXT_X2APIC);
+    x86_cpu_compat_kvm_no_autoenable(FEAT_1_ECX, CPUID_EXT_X2APIC);
 }
 
 static void pc_compat_1_6(MachineState *machine)
@@ -313,6 +324,12 @@ static void pc_compat_1_4(MachineState *machine)
     pc_compat_1_5(machine);
     x86_cpu_compat_set_features("n270", FEAT_1_ECX, 0, CPUID_EXT_MOVBE);
     x86_cpu_compat_set_features("Westmere", FEAT_1_ECX, 0, CPUID_EXT_PCLMULQDQ);
+}
+
+static void pc_q35_init_2_1(MachineState *machine)
+{
+    pc_compat_2_1(machine);
+    pc_q35_init(machine);
 }
 
 static void pc_q35_init_2_0(MachineState *machine)
@@ -347,13 +364,15 @@ static void pc_q35_init_1_4(MachineState *machine)
 
 #define PC_Q35_MACHINE_OPTIONS \
     PC_DEFAULT_MACHINE_OPTIONS, \
+    .family = "pc_q35", \
     .desc = "Standard PC (Q35 + ICH9, 2009)", \
     .hot_add_cpu = pc_hot_add_cpu, \
     .units_per_default_bus = 1
 
 #define PC_Q35_2_2_MACHINE_OPTIONS                      \
     PC_Q35_MACHINE_OPTIONS,                             \
-    .default_machine_opts = "firmware=bios-256k.bin"
+    .default_machine_opts = "firmware=bios-256k.bin",   \
+    .default_display = "std"
 
 static QEMUMachine pc_q35_machine_v2_2 = {
     PC_Q35_2_2_MACHINE_OPTIONS,
@@ -362,14 +381,16 @@ static QEMUMachine pc_q35_machine_v2_2 = {
     .init = pc_q35_init,
 };
 
-#define PC_Q35_2_1_MACHINE_OPTIONS PC_Q35_2_2_MACHINE_OPTIONS
+#define PC_Q35_2_1_MACHINE_OPTIONS                      \
+    PC_Q35_MACHINE_OPTIONS,                             \
+    .default_machine_opts = "firmware=bios-256k.bin"
 
 static QEMUMachine pc_q35_machine_v2_1 = {
     PC_Q35_2_1_MACHINE_OPTIONS,
     .name = "pc-q35-2.1",
-    .init = pc_q35_init,
+    .init = pc_q35_init_2_1,
     .compat_props = (GlobalProperty[]) {
-        PC_COMPAT_2_1,
+        HW_COMPAT_2_1,
         { /* end of list */ }
     },
 };

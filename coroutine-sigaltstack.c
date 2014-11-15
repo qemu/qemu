@@ -155,7 +155,7 @@ Coroutine *qemu_coroutine_new(void)
     stack_t oss;
     sigset_t sigs;
     sigset_t osigs;
-    jmp_buf old_env;
+    sigjmp_buf old_env;
 
     /* The way to manipulate stack is with the sigaltstack function. We
      * prepare a stack, with it delivering a signal to ourselves and then

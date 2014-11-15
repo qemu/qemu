@@ -47,7 +47,6 @@ typedef struct ICH9LPCPMRegs {
     Notifier powerdown_notifier;
 
     AcpiCpuHotplug gpe_cpu;
-    Notifier cpu_added_notifier;
 
     MemHotplugState acpi_memory_hotplug;
 } ICH9LPCPMRegs;

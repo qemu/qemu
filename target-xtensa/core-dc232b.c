@@ -33,7 +33,7 @@
 #include "core-dc232b/core-isa.h"
 #include "overlay_tool.h"
 
-static const XtensaConfig dc232b = {
+static const XtensaConfig dc232b __attribute__((unused)) = {
     .name = "dc232b",
     .gdb_regmap = {
         .num_regs = 120,

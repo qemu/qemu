@@ -34,9 +34,10 @@ _cleanup()
 }
 trap "_cleanup; exit \$status" 0 1 2 3 15
 
-# get standard environment, filters and checks
+# get standard environment, filters and qemu instance handling
 . ./common.rc
 . ./common.filter
+. ./common.qemu
 
 _supported_fmt qcow2
 _supported_proto file
@@ -53,10 +54,26 @@ _make_test_img $IMG_SIZE
 $QEMU_IO -c 'write 0 64k' "$TEST_IMG" | _filter_qemu_io
 # Remove data cluster from image (first cluster: image header, second: reftable,
 # third: refblock, fourth: L1 table, fifth: L2 table)
-truncate -s $((5 * 64 * 1024)) "$TEST_IMG"
+$QEMU_IMG resize -f raw "$TEST_IMG" $((5 * 64 * 1024))
 
 $QEMU_IO -c map "$TEST_IMG"
 $QEMU_IMG map "$TEST_IMG"
+
+echo
+echo '=== Testing map on an image file truncated outside of qemu ==='
+echo
+
+# Same as above, only now we concurrently truncate and map the image
+_make_test_img $IMG_SIZE
+$QEMU_IO -c 'write 0 64k' "$TEST_IMG" | _filter_qemu_io
+
+qemu_comm_method=monitor _launch_qemu -drive if=none,file="$TEST_IMG",id=drv0
+
+$QEMU_IMG resize -f raw "$TEST_IMG" $((5 * 64 * 1024))
+
+_send_qemu_cmd $QEMU_HANDLE 'qemu-io drv0 map' 'allocated' \
+    | sed -e 's/^(qemu).*qemu-io drv0 map...$/(qemu) qemu-io drv0 map/'
+_send_qemu_cmd $QEMU_HANDLE 'quit' ''
 
 # success, all done
 echo '*** done'

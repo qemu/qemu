@@ -167,7 +167,7 @@ this case. @var{backing_file} will never be modified unless you use the
 The size can also be specified using the @var{size} option with @code{-o},
 it doesn't need to be specified separately in this case.
 
-@item commit [-f @var{fmt}] [-t @var{cache}] @var{filename}
+@item commit [-q] [-f @var{fmt}] [-t @var{cache}] [-b @var{base}] [-d] [-p] @var{filename}
 
 Commit the changes recorded in @var{filename} in its base image or backing file.
 If the backing file is smaller than the snapshot, then the backing file will be
@@ -175,6 +175,20 @@ resized to be the same size as the snapshot.  If the snapshot is smaller than
 the backing file, the backing file will not be truncated.  If you want the
 backing file to match the size of the smaller snapshot, you can safely truncate
 it yourself once the commit operation successfully completes.
+
+The image @var{filename} is emptied after the operation has succeeded. If you do
+not need @var{filename} afterwards and intend to drop it, you may skip emptying
+@var{filename} by specifying the @code{-d} flag.
+
+If the backing chain of the given image file @var{filename} has more than one
+layer, the backing file into which the changes will be committed may be
+specified as @var{base} (which has to be part of @var{filename}'s backing
+chain). If @var{base} is not specified, the immediate backing file of the top
+image (which is @var{filename}) will be used. For reasons of consistency,
+explicitly specifying @var{base} will always imply @code{-d} (since emptying an
+image after committing to an indirect backing file would lead to different data
+being read from the image due to content in the intermediate backing chain
+overruling the commit target).
 
 @item compare [-f @var{fmt}] [-F @var{fmt}] [-T @var{src_cache}] [-p] [-s] [-q] @var{filename1} @var{filename2}
 
@@ -398,7 +412,7 @@ After using this command to grow a disk image, you must use file system and
 partitioning tools inside the VM to actually begin using the new space on the
 device.
 
-@item amend [-f @var{fmt}] [-t @var{cache}] -o @var{options} @var{filename}
+@item amend [-p] [-f @var{fmt}] [-t @var{cache}] -o @var{options} @var{filename}
 
 Amends the image format specific @var{options} for the image file
 @var{filename}. Not all file formats support this operation.

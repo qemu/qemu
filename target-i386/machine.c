@@ -60,6 +60,44 @@ static const VMStateDescription vmstate_ymmh_reg = {
 #define VMSTATE_YMMH_REGS_VARS(_field, _state, _n, _v)                         \
     VMSTATE_STRUCT_ARRAY(_field, _state, _n, _v, vmstate_ymmh_reg, XMMReg)
 
+static const VMStateDescription vmstate_zmmh_reg = {
+    .name = "zmmh_reg",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .fields = (VMStateField[]) {
+        VMSTATE_UINT64(YMM_Q(0), YMMReg),
+        VMSTATE_UINT64(YMM_Q(1), YMMReg),
+        VMSTATE_UINT64(YMM_Q(2), YMMReg),
+        VMSTATE_UINT64(YMM_Q(3), YMMReg),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
+#define VMSTATE_ZMMH_REGS_VARS(_field, _state, _n)                             \
+    VMSTATE_STRUCT_ARRAY(_field, _state, _n, 0, vmstate_zmmh_reg, YMMReg)
+
+#ifdef TARGET_X86_64
+static const VMStateDescription vmstate_hi16_zmm_reg = {
+    .name = "hi16_zmm_reg",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .fields = (VMStateField[]) {
+        VMSTATE_UINT64(ZMM_Q(0), ZMMReg),
+        VMSTATE_UINT64(ZMM_Q(1), ZMMReg),
+        VMSTATE_UINT64(ZMM_Q(2), ZMMReg),
+        VMSTATE_UINT64(ZMM_Q(3), ZMMReg),
+        VMSTATE_UINT64(ZMM_Q(4), ZMMReg),
+        VMSTATE_UINT64(ZMM_Q(5), ZMMReg),
+        VMSTATE_UINT64(ZMM_Q(6), ZMMReg),
+        VMSTATE_UINT64(ZMM_Q(7), ZMMReg),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
+#define VMSTATE_Hi16_ZMM_REGS_VARS(_field, _state, _n)                         \
+    VMSTATE_STRUCT_ARRAY(_field, _state, _n, 0, vmstate_hi16_zmm_reg, ZMMReg)
+#endif
+
 static const VMStateDescription vmstate_bnd_regs = {
     .name = "bnd_regs",
     .version_id = 1,
@@ -603,6 +641,52 @@ static const VMStateDescription vmstate_msr_hyperv_time = {
     }
 };
 
+static bool avx512_needed(void *opaque)
+{
+    X86CPU *cpu = opaque;
+    CPUX86State *env = &cpu->env;
+    unsigned int i;
+
+    for (i = 0; i < NB_OPMASK_REGS; i++) {
+        if (env->opmask_regs[i]) {
+            return true;
+        }
+    }
+
+    for (i = 0; i < CPU_NB_REGS; i++) {
+#define ENV_ZMMH(reg, field) (env->zmmh_regs[reg].YMM_Q(field))
+        if (ENV_ZMMH(i, 0) || ENV_ZMMH(i, 1) ||
+            ENV_ZMMH(i, 2) || ENV_ZMMH(i, 3)) {
+            return true;
+        }
+#ifdef TARGET_X86_64
+#define ENV_Hi16_ZMM(reg, field) (env->hi16_zmm_regs[reg].ZMM_Q(field))
+        if (ENV_Hi16_ZMM(i, 0) || ENV_Hi16_ZMM(i, 1) ||
+            ENV_Hi16_ZMM(i, 2) || ENV_Hi16_ZMM(i, 3) ||
+            ENV_Hi16_ZMM(i, 4) || ENV_Hi16_ZMM(i, 5) ||
+            ENV_Hi16_ZMM(i, 6) || ENV_Hi16_ZMM(i, 7)) {
+            return true;
+        }
+#endif
+    }
+
+    return false;
+}
+
+static const VMStateDescription vmstate_avx512 = {
+    .name = "cpu/avx512",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .fields = (VMStateField[]) {
+        VMSTATE_UINT64_ARRAY(env.opmask_regs, X86CPU, NB_OPMASK_REGS),
+        VMSTATE_ZMMH_REGS_VARS(env.zmmh_regs, X86CPU, CPU_NB_REGS),
+#ifdef TARGET_X86_64
+        VMSTATE_Hi16_ZMM_REGS_VARS(env.hi16_zmm_regs, X86CPU, CPU_NB_REGS),
+#endif
+        VMSTATE_END_OF_LIST()
+    }
+};
+
 VMStateDescription vmstate_x86_cpu = {
     .name = "cpu",
     .version_id = 12,
@@ -745,6 +829,9 @@ VMStateDescription vmstate_x86_cpu = {
         }, {
             .vmsd = &vmstate_msr_hyperv_time,
             .needed = hyperv_time_enable_needed,
+        }, {
+            .vmsd = &vmstate_avx512,
+            .needed = avx512_needed,
         } , {
             /* empty */
         }

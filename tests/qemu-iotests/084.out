@@ -17,17 +17,20 @@ file format: IMGFMT
 virtual size: 64M (67108864 bytes)
 cluster_size: 1048576
 disk image file size in bytes: 1024
-Test 1: Maximum size (1024 TB):
-qemu-img: Could not open 'TEST_DIR/t.IMGFMT': Could not open 'TEST_DIR/t.IMGFMT': Invalid argument
+Test 1: Maximum size (512 TB - 128 MB):
+image: TEST_DIR/t.IMGFMT
+file format: IMGFMT
+virtual size: 512T (562949819203584 bytes)
+cluster_size: 1048576
 
-Test 2: Size too large (1024TB + 1)
-qemu-img: Could not open 'TEST_DIR/t.IMGFMT': Unsupported VDI image size (size is 0x3fffffff10000, max supported is 0x3fffffff00000)
+Test 2: Size too large (512 TB - 128 MB + 64 kB)
+qemu-img: Could not open 'TEST_DIR/t.IMGFMT': Unsupported VDI image size (size is 0x1fffff8010000, max supported is 0x1fffff8000000)
 
 Test 3: Size valid (64M), but Blocks In Image too small (63)
 qemu-img: Could not open 'TEST_DIR/t.IMGFMT': unsupported VDI image (disk size 67108864, image bitmap has room for 66060288)
 
 Test 4: Size valid (64M), but Blocks In Image exceeds max allowed
-qemu-img: Could not open 'TEST_DIR/t.IMGFMT': unsupported VDI image (too many blocks 1073741824, max is 1073741823)
+qemu-img: Could not open 'TEST_DIR/t.IMGFMT': unsupported VDI image (too many blocks 536870785, max is 536870784)
 
 Test 5: Valid Image: 64MB, Blocks In Image 64, Block Size 1MB
 image: TEST_DIR/t.IMGFMT

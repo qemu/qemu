@@ -61,6 +61,5 @@ qemu_irq *qemu_irq_proxy(qemu_irq **target, int n);
 /* For internal use in qtest.  Similar to qemu_irq_split, but operating
    on an existing vector of qemu_irq.  */
 void qemu_irq_intercept_in(qemu_irq *gpio_in, qemu_irq_handler handler, int n);
-void qemu_irq_intercept_out(qemu_irq **gpio_out, qemu_irq_handler handler, int n);
 
 #endif

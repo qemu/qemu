@@ -11,6 +11,12 @@ typedef struct PPCE500Params {
     void (*fixup_devtree)(struct PPCE500Params *params, void *fdt);
 
     int mpic_version;
+    bool has_mpc8xxx_gpio;
+    bool has_platform_bus;
+    hwaddr platform_bus_base;
+    hwaddr platform_bus_size;
+    int platform_bus_first_irq;
+    int platform_bus_num_irqs;
 } PPCE500Params;
 
 void ppce500_init(MachineState *machine, PPCE500Params *params);

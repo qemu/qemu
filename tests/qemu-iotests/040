@@ -43,8 +43,7 @@ class ImageCommitTestCase(iotests.QMPTestCase):
                 if event['event'] == 'BLOCK_JOB_COMPLETED':
                     self.assert_qmp(event, 'data/type', 'commit')
                     self.assert_qmp(event, 'data/device', 'drive0')
-                    self.assert_qmp(event, 'data/offset', self.image_len)
-                    self.assert_qmp(event, 'data/len', self.image_len)
+                    self.assert_qmp(event, 'data/offset', event['data']['len'])
                     if need_ready:
                         self.assertTrue(ready, "Expecting BLOCK_JOB_COMPLETED event")
                     completed = True
@@ -52,7 +51,6 @@ class ImageCommitTestCase(iotests.QMPTestCase):
                     ready = True
                     self.assert_qmp(event, 'data/type', 'commit')
                     self.assert_qmp(event, 'data/device', 'drive0')
-                    self.assert_qmp(event, 'data/len', self.image_len)
                     self.vm.qmp('block-job-complete', device='drive0')
 
         self.assert_no_active_block_jobs()

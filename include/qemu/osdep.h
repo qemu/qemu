@@ -68,6 +68,12 @@ typedef signed int              int_fast16_t;
 #define MAX(a, b) (((a) > (b)) ? (a) : (b))
 #endif
 
+/* Minimum function that returns zero only iff both values are zero.
+ * Intended for use with unsigned values only. */
+#ifndef MIN_NON_ZERO
+#define MIN_NON_ZERO(a, b) (((a) != 0 && (a) < (b)) ? (a) : (b))
+#endif
+
 #ifndef ROUND_UP
 #define ROUND_UP(n,d) (((n) + (d) - 1) & -(d))
 #endif
