@@ -266,6 +266,7 @@ typedef enum {
     INTTYPE_TIMER,
     INTTYPE_DEBUG,
     INTTYPE_WRITE_ERR,
+    INTTYPE_PROFILING,
     INTTYPE_MAX
 } interrupt_type;
 
@@ -469,6 +470,12 @@ static inline xtensa_tlb_entry *xtensa_tlb_get_entry(CPUXtensaState *env,
     return dtlb ?
         env->dtlb[wi] + ei :
         env->itlb[wi] + ei;
+}
+
+static inline uint32_t xtensa_replicate_windowstart(CPUXtensaState *env)
+{
+    return env->sregs[WINDOW_START] |
+        (env->sregs[WINDOW_START] << env->config->nareg / 4);
 }
 
 /* MMU modes definitions */

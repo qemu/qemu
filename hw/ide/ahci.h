@@ -186,6 +186,9 @@
 
 #define READ_FPDMA_QUEUED                  0x60
 #define WRITE_FPDMA_QUEUED                 0x61
+#define NCQ_NON_DATA                       0x63
+#define RECEIVE_FPDMA_QUEUED               0x65
+#define SEND_FPDMA_QUEUED                  0x64
 
 #define RES_FIS_DSFIS                      0x00
 #define RES_FIS_PSFIS                      0x20
@@ -326,6 +329,14 @@ typedef struct NCQFrame {
     uint8_t reserved9;
     uint8_t reserved10;
 } QEMU_PACKED NCQFrame;
+
+typedef struct SDBFIS {
+    uint8_t type;
+    uint8_t flags;
+    uint8_t status;
+    uint8_t error;
+    uint32_t payload;
+} QEMU_PACKED SDBFIS;
 
 void ahci_init(AHCIState *s, DeviceState *qdev, AddressSpace *as, int ports);
 void ahci_uninit(AHCIState *s);

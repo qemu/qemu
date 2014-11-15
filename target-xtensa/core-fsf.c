@@ -33,7 +33,7 @@
 #include "core-fsf/core-isa.h"
 #include "overlay_tool.h"
 
-static const XtensaConfig fsf = {
+static const XtensaConfig fsf __attribute__((unused)) = {
     .name = "fsf",
     /* GDB for this core is not supported currently */
     .clock_freq_khz = 10000,

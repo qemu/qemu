@@ -3231,6 +3231,11 @@
 #
 # Input event union.
 #
+# @key: Input event of Keyboard
+# @btn: Input event of pointer buttons
+# @rel: Input event of relative pointer motion
+# @abs: Input event of absolute pointer motion
+#
 # Since: 2.0
 ##
 { 'union' : 'InputEvent',
@@ -3244,7 +3249,7 @@
 #
 # Send input event(s) to guest.
 #
-# @console: Which console to send event(s) to.
+# @console: #optional console to send event(s) to.
 #
 # @events: List of InputEvent union.
 #
@@ -3254,7 +3259,7 @@
 #
 ##
 { 'command': 'input-send-event',
-  'data': { 'console':'int', 'events': [ 'InputEvent' ] } }
+  'data': { '*console':'int', 'events': [ 'InputEvent' ] } }
 
 ##
 # @NumaOptions

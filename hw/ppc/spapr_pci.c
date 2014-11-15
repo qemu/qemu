@@ -704,28 +704,34 @@ static const VMStateDescription vmstate_spapr_pci_msi = {
     },
 };
 
+static void spapr_pci_fill_msi_devs(gpointer key, gpointer value,
+                                    gpointer opaque)
+{
+    sPAPRPHBState *sphb = opaque;
+
+    sphb->msi_devs[sphb->msi_devs_num].key = *(uint32_t *)key;
+    sphb->msi_devs[sphb->msi_devs_num].value = *(spapr_pci_msi *)value;
+    sphb->msi_devs_num++;
+}
+
 static void spapr_pci_pre_save(void *opaque)
 {
     sPAPRPHBState *sphb = opaque;
-    GHashTableIter iter;
-    gpointer key, value;
-    int i;
+    int msi_devs_num;
 
     if (sphb->msi_devs) {
         g_free(sphb->msi_devs);
         sphb->msi_devs = NULL;
     }
-    sphb->msi_devs_num = g_hash_table_size(sphb->msi);
-    if (!sphb->msi_devs_num) {
+    sphb->msi_devs_num = 0;
+    msi_devs_num = g_hash_table_size(sphb->msi);
+    if (!msi_devs_num) {
         return;
     }
-    sphb->msi_devs = g_malloc(sphb->msi_devs_num * sizeof(spapr_pci_msi_mig));
+    sphb->msi_devs = g_malloc(msi_devs_num * sizeof(spapr_pci_msi_mig));
 
-    g_hash_table_iter_init(&iter, sphb->msi);
-    for (i = 0; g_hash_table_iter_next(&iter, &key, &value); ++i) {
-        sphb->msi_devs[i].key = *(uint32_t *) key;
-        sphb->msi_devs[i].value = *(spapr_pci_msi *) value;
-    }
+    g_hash_table_foreach(sphb->msi, spapr_pci_fill_msi_devs, sphb);
+    assert(sphb->msi_devs_num == msi_devs_num);
 }
 
 static int spapr_pci_post_load(void *opaque, int version_id)

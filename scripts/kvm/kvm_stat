@@ -12,7 +12,7 @@
 # the COPYING file in the top-level directory.
 
 import curses
-import sys, os, time, optparse
+import sys, os, time, optparse, ctypes
 
 class DebugfsProvider(object):
     def __init__(self):
@@ -141,61 +141,97 @@ svm_exit_reasons = {
     0x400: 'NPF',
 }
 
-s390_exit_reasons = {
-	0x000: 'UNKNOWN',
-	0x001: 'EXCEPTION',
-	0x002: 'IO',
-	0x003: 'HYPERCALL',
-	0x004: 'DEBUG',
-	0x005: 'HLT',
-	0x006: 'MMIO',
-	0x007: 'IRQ_WINDOW_OPEN',
-	0x008: 'SHUTDOWN',
-	0x009: 'FAIL_ENTRY',
-	0x010: 'INTR',
-	0x011: 'SET_TPR',
-	0x012: 'TPR_ACCESS',
-	0x013: 'S390_SIEIC',
-	0x014: 'S390_RESET',
-	0x015: 'DCR',
-	0x016: 'NMI',
-	0x017: 'INTERNAL_ERROR',
-	0x018: 'OSI',
-	0x019: 'PAPR_HCALL',
+# From include/uapi/linux/kvm.h, KVM_EXIT_xxx
+userspace_exit_reasons = {
+     0: 'UNKNOWN',
+     1: 'EXCEPTION',
+     2: 'IO',
+     3: 'HYPERCALL',
+     4: 'DEBUG',
+     5: 'HLT',
+     6: 'MMIO',
+     7: 'IRQ_WINDOW_OPEN',
+     8: 'SHUTDOWN',
+     9: 'FAIL_ENTRY',
+    10: 'INTR',
+    11: 'SET_TPR',
+    12: 'TPR_ACCESS',
+    13: 'S390_SIEIC',
+    14: 'S390_RESET',
+    15: 'DCR',
+    16: 'NMI',
+    17: 'INTERNAL_ERROR',
+    18: 'OSI',
+    19: 'PAPR_HCALL',
+    20: 'S390_UCONTROL',
+    21: 'WATCHDOG',
+    22: 'S390_TSCH',
+    23: 'EPR',
 }
 
-vendor_exit_reasons = {
+x86_exit_reasons = {
     'vmx': vmx_exit_reasons,
     'svm': svm_exit_reasons,
-    'IBM/S390': s390_exit_reasons,
 }
 
-syscall_numbers = {
-    'IBM/S390': 331,
-}
-
-sc_perf_evt_open = 298
-
+sc_perf_evt_open = None
 exit_reasons = None
 
-for line in file('/proc/cpuinfo').readlines():
-    if line.startswith('flags') or line.startswith('vendor_id'):
-        for flag in line.split():
-            if flag in vendor_exit_reasons:
-                exit_reasons = vendor_exit_reasons[flag]
-            if flag in syscall_numbers:
-                sc_perf_evt_open = syscall_numbers[flag]
-filters = {
-    'kvm_exit': ('exit_reason', exit_reasons)
+ioctl_numbers = {
+    'SET_FILTER' : 0x40082406,
+    'ENABLE'     : 0x00002400,
+    'DISABLE'    : 0x00002401,
 }
+
+def x86_init(flag):
+    globals().update({
+        'sc_perf_evt_open' : 298,
+        'exit_reasons' : x86_exit_reasons[flag],
+    })
+
+def s390_init():
+    globals().update({
+        'sc_perf_evt_open' : 331
+    })
+
+def ppc_init():
+    globals().update({
+        'sc_perf_evt_open' : 319,
+        'ioctl_numbers' : {
+            'SET_FILTER' : 0x80002406 | (ctypes.sizeof(ctypes.c_char_p) << 16),
+            'ENABLE'     : 0x20002400,
+            'DISABLE'    : 0x20002401,
+        }
+    })
+
+def detect_platform():
+    if os.uname()[4].startswith('ppc'):
+        ppc_init()
+        return
+
+    for line in file('/proc/cpuinfo').readlines():
+        if line.startswith('flags'):
+            for flag in line.split():
+                if flag in x86_exit_reasons:
+                    x86_init(flag)
+                    return
+        elif line.startswith('vendor_id'):
+            for flag in line.split():
+                if flag == 'IBM/S390':
+                    s390_init()
+                    return
+
+detect_platform()
 
 def invert(d):
     return dict((x[1], x[0]) for x in d.iteritems())
 
-for f in filters:
-    filters[f] = (filters[f][0], invert(filters[f][1]))
+filters = {}
+filters['kvm_userspace_exit'] = ('reason', invert(userspace_exit_reasons))
+if exit_reasons:
+    filters['kvm_exit'] = ('exit_reason', invert(exit_reasons))
 
-import ctypes, struct, array
+import struct, array
 
 libc = ctypes.CDLL('libc.so.6')
 syscall = libc.syscall
@@ -285,14 +321,14 @@ class Event(object):
             raise Exception('perf_event_open failed')
         if filter:
             import fcntl
-            fcntl.ioctl(fd, 0x40082406, filter)
+            fcntl.ioctl(fd, ioctl_numbers['SET_FILTER'], filter)
         self.fd = fd
     def enable(self):
         import fcntl
-        fcntl.ioctl(self.fd, 0x00002400, 0)
+        fcntl.ioctl(self.fd, ioctl_numbers['ENABLE'], 0)
     def disable(self):
         import fcntl
-        fcntl.ioctl(self.fd, 0x00002401, 0)
+        fcntl.ioctl(self.fd, ioctl_numbers['DISABLE'], 0)
 
 class TracepointProvider(object):
     def __init__(self):
@@ -311,18 +347,30 @@ class TracepointProvider(object):
         self.select(fields)
     def fields(self):
         return self._fields
+
+    def _online_cpus(self):
+        l = []
+        pattern = r'cpu([0-9]+)'
+        basedir = '/sys/devices/system/cpu'
+        for entry in os.listdir(basedir):
+            match = re.match(pattern, entry)
+            if not match:
+                continue
+            path = os.path.join(basedir, entry, 'online')
+            if os.path.exists(path) and open(path).read().strip() != '1':
+                continue
+            l.append(int(match.group(1)))
+        return l
+
     def _setup(self, _fields):
         self._fields = _fields
-        cpure = r'cpu([0-9]+)'
-        self.cpus = [int(re.match(cpure, x).group(1))
-                     for x in os.listdir('/sys/devices/system/cpu')
-                     if re.match(cpure, x)]
+        cpus = self._online_cpus()
         import resource
-        nfiles = len(self.cpus) * 1000
+        nfiles = len(cpus) * 1000
         resource.setrlimit(resource.RLIMIT_NOFILE, (nfiles, nfiles))
         events = []
         self.group_leaders = []
-        for cpu in self.cpus:
+        for cpu in cpus:
             group = Group(cpu)
             for name in _fields:
                 tracepoint = name

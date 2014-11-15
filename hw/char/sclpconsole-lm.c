@@ -52,7 +52,8 @@ typedef struct SCLPConsoleLM {
  * event_pending is set when a newline character is encountered
  *
  * The maximum command line length is limited by the maximum
- * space available in an SCCB
+ * space available in an SCCB. Line mode console input is sent
+ * truncated to the guest in case it doesn't fit into the SCCB.
  */
 
 static int chr_can_read(void *opaque)
@@ -61,10 +62,8 @@ static int chr_can_read(void *opaque)
 
     if (scon->event.event_pending) {
         return 0;
-    } else if (SIZE_CONSOLE_BUFFER - scon->length) {
-        return 1;
     }
-    return 0;
+    return 1;
 }
 
 static void chr_read(void *opaque, const uint8_t *buf, int size)
@@ -76,6 +75,10 @@ static void chr_read(void *opaque, const uint8_t *buf, int size)
     if (*buf == '\r' || *buf == '\n') {
         scon->event.event_pending = true;
         sclp_service_interrupt(0);
+        return;
+    }
+    if (scon->length == SIZE_CONSOLE_BUFFER) {
+        /* Eat the character, but still process CR and LF.  */
         return;
     }
     scon->buf[scon->length] = *buf;
@@ -125,6 +128,7 @@ static int get_console_data(SCLPEvent *event, uint8_t *buf, size_t *size,
     cons->length = 0;
     /* data provided and no more data pending */
     event->event_pending = false;
+    qemu_notify_event();
     return 0;
 }
 

@@ -171,11 +171,11 @@ int pci_piix3_xen_ide_unplug(DeviceState *dev)
 {
     PCIIDEState *pci_ide;
     DriveInfo *di;
-    int i = 0;
+    int i;
 
     pci_ide = PCI_IDE(dev);
 
-    for (; i < 3; i++) {
+    for (i = 0; i < 4; i++) {
         di = drive_get_by_index(IF_IDE, i);
         if (di != NULL && !di->media_cd) {
             BlockBackend *blk = blk_by_legacy_dinfo(di);

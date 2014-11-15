@@ -92,30 +92,6 @@ typedef struct PPC4xxPCIState PPC4xxPCIState;
 
 #define PCI_ALL_SIZE        (PCI_REG_BASE + PCI_REG_SIZE)
 
-static uint64_t pci4xx_cfgaddr_read(void *opaque, hwaddr addr,
-                                    unsigned size)
-{
-    PPC4xxPCIState *ppc4xx_pci = opaque;
-    PCIHostState *phb = PCI_HOST_BRIDGE(ppc4xx_pci);
-
-    return phb->config_reg;
-}
-
-static void pci4xx_cfgaddr_write(void *opaque, hwaddr addr,
-                                  uint64_t value, unsigned size)
-{
-    PPC4xxPCIState *ppc4xx_pci = opaque;
-    PCIHostState *phb = PCI_HOST_BRIDGE(ppc4xx_pci);
-
-    phb->config_reg = value & ~0x3;
-}
-
-static const MemoryRegionOps pci4xx_cfgaddr_ops = {
-    .read = pci4xx_cfgaddr_read,
-    .write = pci4xx_cfgaddr_write,
-    .endianness = DEVICE_LITTLE_ENDIAN,
-};
-
 static void ppc4xx_pci_reg_write4(void *opaque, hwaddr offset,
                                   uint64_t value, unsigned size)
 {

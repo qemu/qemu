@@ -365,6 +365,8 @@ documentation for information about the other types.
 
 === User Defined Types ===
 
+FIXME This example needs to be redone after commit 6d32717
+
 For this example we will write the query-alarm-clock command, which returns
 information about QEMU's timer alarm. For more information about it, please
 check the "-clock" command-line option.

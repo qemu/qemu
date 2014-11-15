@@ -35,9 +35,6 @@
 #include "trace.h"
 #include "qemu/main-loop.h"
 
-//#define DEBUG
-//#define DEBUG_DUMP_DATA
-
 #define FRAME_TIMER_FREQ 1000
 
 #define FRAME_MAX_LOOPS  256

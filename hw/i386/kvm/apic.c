@@ -175,6 +175,9 @@ static void kvm_apic_realize(DeviceState *dev, Error **errp)
 {
     APICCommonState *s = APIC_COMMON(dev);
 
+    /* Not used by KVM, which uses the CPU mp_state instead.  */
+    s->wait_for_sipi = 0;
+
     memory_region_init_io(&s->io_memory, NULL, &kvm_apic_io_ops, s, "kvm-apic-msi",
                           APIC_SPACE_SIZE);
 

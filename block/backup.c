@@ -227,9 +227,25 @@ static BlockErrorAction backup_error_action(BackupBlockJob *job,
     }
 }
 
+typedef struct {
+    int ret;
+} BackupCompleteData;
+
+static void backup_complete(BlockJob *job, void *opaque)
+{
+    BackupBlockJob *s = container_of(job, BackupBlockJob, common);
+    BackupCompleteData *data = opaque;
+
+    bdrv_unref(s->target);
+
+    block_job_completed(job, data->ret);
+    g_free(data);
+}
+
 static void coroutine_fn backup_run(void *opaque)
 {
     BackupBlockJob *job = opaque;
+    BackupCompleteData *data;
     BlockDriverState *bs = job->common.bs;
     BlockDriverState *target = job->target;
     BlockdevOnError on_target_error = job->on_target_error;
@@ -344,9 +360,10 @@ static void coroutine_fn backup_run(void *opaque)
     hbitmap_free(job->bitmap);
 
     bdrv_iostatus_disable(target);
-    bdrv_unref(target);
 
-    block_job_completed(&job->common, ret);
+    data = g_malloc(sizeof(*data));
+    data->ret = ret;
+    block_job_defer_to_main_loop(&job->common, backup_complete, data);
 }
 
 void backup_start(BlockDriverState *bs, BlockDriverState *target,

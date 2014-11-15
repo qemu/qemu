@@ -36,6 +36,9 @@
 #include "exec/address-spaces.h"
 #include "qemu/host-utils.h"
 #include "hw/pci-host/ppce500.h"
+#include "qemu/error-report.h"
+#include "hw/platform-bus.h"
+#include "hw/net/fsl_etsec/etsec.h"
 
 #define EPAPR_MAGIC                (0x45504150)
 #define BINARY_DEVICE_TREE_FILE    "mpc8544ds.dtb"
@@ -61,6 +64,8 @@
 #define MPC8544_PCI_IO             0xE1000000ULL
 #define MPC8544_UTIL_OFFSET        0xe0000ULL
 #define MPC8544_SPIN_BASE          0xEF000000ULL
+#define MPC8XXX_GPIO_OFFSET        0x000FF000ULL
+#define MPC8XXX_GPIO_IRQ           43
 
 struct boot_info
 {
@@ -120,6 +125,142 @@ static void dt_serial_create(void *fdt, unsigned long long offset,
     if (defcon) {
         qemu_fdt_setprop_string(fdt, "/chosen", "linux,stdout-path", ser);
     }
+}
+
+static void create_dt_mpc8xxx_gpio(void *fdt, const char *soc, const char *mpic)
+{
+    hwaddr mmio0 = MPC8XXX_GPIO_OFFSET;
+    int irq0 = MPC8XXX_GPIO_IRQ;
+    gchar *node = g_strdup_printf("%s/gpio@%"PRIx64, soc, mmio0);
+    gchar *poweroff = g_strdup_printf("%s/power-off", soc);
+    int gpio_ph;
+
+    qemu_fdt_add_subnode(fdt, node);
+    qemu_fdt_setprop_string(fdt, node, "compatible", "fsl,qoriq-gpio");
+    qemu_fdt_setprop_cells(fdt, node, "reg", mmio0, 0x1000);
+    qemu_fdt_setprop_cells(fdt, node, "interrupts", irq0, 0x2);
+    qemu_fdt_setprop_phandle(fdt, node, "interrupt-parent", mpic);
+    qemu_fdt_setprop_cells(fdt, node, "#gpio-cells", 2);
+    qemu_fdt_setprop(fdt, node, "gpio-controller", NULL, 0);
+    gpio_ph = qemu_fdt_alloc_phandle(fdt);
+    qemu_fdt_setprop_cell(fdt, node, "phandle", gpio_ph);
+    qemu_fdt_setprop_cell(fdt, node, "linux,phandle", gpio_ph);
+
+    /* Power Off Pin */
+    qemu_fdt_add_subnode(fdt, poweroff);
+    qemu_fdt_setprop_string(fdt, poweroff, "compatible", "gpio-poweroff");
+    qemu_fdt_setprop_cells(fdt, poweroff, "gpios", gpio_ph, 0, 0);
+
+    g_free(node);
+    g_free(poweroff);
+}
+
+typedef struct PlatformDevtreeData {
+    void *fdt;
+    const char *mpic;
+    int irq_start;
+    const char *node;
+    PlatformBusDevice *pbus;
+} PlatformDevtreeData;
+
+static int create_devtree_etsec(SysBusDevice *sbdev, PlatformDevtreeData *data)
+{
+    eTSEC *etsec = ETSEC_COMMON(sbdev);
+    PlatformBusDevice *pbus = data->pbus;
+    hwaddr mmio0 = platform_bus_get_mmio_addr(pbus, sbdev, 0);
+    int irq0 = platform_bus_get_irqn(pbus, sbdev, 0);
+    int irq1 = platform_bus_get_irqn(pbus, sbdev, 1);
+    int irq2 = platform_bus_get_irqn(pbus, sbdev, 2);
+    gchar *node = g_strdup_printf("/platform/ethernet@%"PRIx64, mmio0);
+    gchar *group = g_strdup_printf("%s/queue-group", node);
+    void *fdt = data->fdt;
+
+    assert((int64_t)mmio0 >= 0);
+    assert(irq0 >= 0);
+    assert(irq1 >= 0);
+    assert(irq2 >= 0);
+
+    qemu_fdt_add_subnode(fdt, node);
+    qemu_fdt_setprop_string(fdt, node, "device_type", "network");
+    qemu_fdt_setprop_string(fdt, node, "compatible", "fsl,etsec2");
+    qemu_fdt_setprop_string(fdt, node, "model", "eTSEC");
+    qemu_fdt_setprop(fdt, node, "local-mac-address", etsec->conf.macaddr.a, 6);
+    qemu_fdt_setprop_cells(fdt, node, "fixed-link", 0, 1, 1000, 0, 0);
+
+    qemu_fdt_add_subnode(fdt, group);
+    qemu_fdt_setprop_cells(fdt, group, "reg", mmio0, 0x1000);
+    qemu_fdt_setprop_cells(fdt, group, "interrupts",
+        data->irq_start + irq0, 0x2,
+        data->irq_start + irq1, 0x2,
+        data->irq_start + irq2, 0x2);
+
+    g_free(node);
+    g_free(group);
+
+    return 0;
+}
+
+static int sysbus_device_create_devtree(SysBusDevice *sbdev, void *opaque)
+{
+    PlatformDevtreeData *data = opaque;
+    bool matched = false;
+
+    if (object_dynamic_cast(OBJECT(sbdev), TYPE_ETSEC_COMMON)) {
+        create_devtree_etsec(sbdev, data);
+        matched = true;
+    }
+
+    if (!matched) {
+        error_report("Device %s is not supported by this machine yet.",
+                     qdev_fw_name(DEVICE(sbdev)));
+        exit(1);
+    }
+
+    return 0;
+}
+
+static void platform_bus_create_devtree(PPCE500Params *params, void *fdt,
+                                        const char *mpic)
+{
+    gchar *node = g_strdup_printf("/platform@%"PRIx64, params->platform_bus_base);
+    const char platcomp[] = "qemu,platform\0simple-bus";
+    uint64_t addr = params->platform_bus_base;
+    uint64_t size = params->platform_bus_size;
+    int irq_start = params->platform_bus_first_irq;
+    PlatformBusDevice *pbus;
+    DeviceState *dev;
+
+    /* Create a /platform node that we can put all devices into */
+
+    qemu_fdt_add_subnode(fdt, node);
+    qemu_fdt_setprop(fdt, node, "compatible", platcomp, sizeof(platcomp));
+
+    /* Our platform bus region is less than 32bit big, so 1 cell is enough for
+       address and size */
+    qemu_fdt_setprop_cells(fdt, node, "#size-cells", 1);
+    qemu_fdt_setprop_cells(fdt, node, "#address-cells", 1);
+    qemu_fdt_setprop_cells(fdt, node, "ranges", 0, addr >> 32, addr, size);
+
+    qemu_fdt_setprop_phandle(fdt, node, "interrupt-parent", mpic);
+
+    dev = qdev_find_recursive(sysbus_get_default(), TYPE_PLATFORM_BUS_DEVICE);
+    pbus = PLATFORM_BUS_DEVICE(dev);
+
+    /* We can only create dt nodes for dynamic devices when they're ready */
+    if (pbus->done_gathering) {
+        PlatformDevtreeData data = {
+            .fdt = fdt,
+            .mpic = mpic,
+            .irq_start = irq_start,
+            .node = node,
+            .pbus = pbus,
+        };
+
+        /* Loop through all dynamic sysbus devices and create nodes for them */
+        foreach_dynamic_sysbus_device(sysbus_device_create_devtree, &data);
+    }
+
+    g_free(node);
 }
 
 static int ppce500_load_device_tree(MachineState *machine,
@@ -379,6 +520,14 @@ static int ppce500_load_device_tree(MachineState *machine,
     qemu_fdt_setprop_cell(fdt, pci, "#address-cells", 3);
     qemu_fdt_setprop_string(fdt, "/aliases", "pci0", pci);
 
+    if (params->has_mpc8xxx_gpio) {
+        create_dt_mpc8xxx_gpio(fdt, soc, mpic);
+    }
+
+    if (params->has_platform_bus) {
+        platform_bus_create_devtree(params, fdt, mpic);
+    }
+
     params->fixup_devtree(params, fdt);
 
     if (toplevel_compat) {
@@ -407,6 +556,7 @@ typedef struct DeviceTreeParams {
     hwaddr initrd_size;
     hwaddr kernel_base;
     hwaddr kernel_size;
+    Notifier notifier;
 } DeviceTreeParams;
 
 static void ppce500_reset_device_tree(void *opaque)
@@ -415,6 +565,12 @@ static void ppce500_reset_device_tree(void *opaque)
     ppce500_load_device_tree(p->machine, &p->params, p->addr, p->initrd_base,
                              p->initrd_size, p->kernel_base, p->kernel_size,
                              false);
+}
+
+static void ppce500_init_notify(Notifier *notifier, void *data)
+{
+    DeviceTreeParams *p = container_of(notifier, DeviceTreeParams, notifier);
+    ppce500_reset_device_tree(p);
 }
 
 static int ppce500_prep_device_tree(MachineState *machine,
@@ -435,6 +591,8 @@ static int ppce500_prep_device_tree(MachineState *machine,
     p->kernel_size = kernel_size;
 
     qemu_register_reset(ppce500_reset_device_tree, p);
+    p->notifier.notify = ppce500_init_notify;
+    qemu_add_machine_init_done_notifier(&p->notifier);
 
     /* Issue the device tree loader once, so that we get the size of the blob */
     return ppce500_load_device_tree(machine, params, addr, initrd_base,
@@ -618,6 +776,13 @@ static qemu_irq *ppce500_init_mpic(PPCE500Params *params, MemoryRegion *ccsr,
     return mpic;
 }
 
+static void ppce500_power_off(void *opaque, int line, int on)
+{
+    if (on) {
+        qemu_system_shutdown_request();
+    }
+}
+
 void ppce500_init(MachineState *machine, PPCE500Params *params)
 {
     MemoryRegion *address_space_mem = get_system_memory();
@@ -769,6 +934,40 @@ void ppce500_init(MachineState *machine, PPCE500Params *params)
         cur_base = (32 * 1024 * 1024);
     }
 
+    if (params->has_mpc8xxx_gpio) {
+        qemu_irq poweroff_irq;
+
+        dev = qdev_create(NULL, "mpc8xxx_gpio");
+        s = SYS_BUS_DEVICE(dev);
+        qdev_init_nofail(dev);
+        sysbus_connect_irq(s, 0, mpic[MPC8XXX_GPIO_IRQ]);
+        memory_region_add_subregion(ccsr_addr_space, MPC8XXX_GPIO_OFFSET,
+                                    sysbus_mmio_get_region(s, 0));
+
+        /* Power Off GPIO at Pin 0 */
+        poweroff_irq = qemu_allocate_irq(ppce500_power_off, NULL, 0);
+        qdev_connect_gpio_out(dev, 0, poweroff_irq);
+    }
+
+    /* Platform Bus Device */
+    if (params->has_platform_bus) {
+        dev = qdev_create(NULL, TYPE_PLATFORM_BUS_DEVICE);
+        dev->id = TYPE_PLATFORM_BUS_DEVICE;
+        qdev_prop_set_uint32(dev, "num_irqs", params->platform_bus_num_irqs);
+        qdev_prop_set_uint32(dev, "mmio_size", params->platform_bus_size);
+        qdev_init_nofail(dev);
+        s = SYS_BUS_DEVICE(dev);
+
+        for (i = 0; i < params->platform_bus_num_irqs; i++) {
+            int irqn = params->platform_bus_first_irq + i;
+            sysbus_connect_irq(s, i, mpic[irqn]);
+        }
+
+        memory_region_add_subregion(address_space_mem,
+                                    params->platform_bus_base,
+                                    sysbus_mmio_get_region(s, 0));
+    }
+
     /* Load kernel. */
     if (machine->kernel_filename) {
         kernel_base = cur_base;
@@ -830,7 +1029,8 @@ void ppce500_init(MachineState *machine, PPCE500Params *params)
          * Hrm. No ELF image? Try a uImage, maybe someone is giving us an
          * ePAPR compliant kernel
          */
-        kernel_size = load_uimage(filename, &bios_entry, &loadaddr, NULL);
+        kernel_size = load_uimage(filename, &bios_entry, &loadaddr, NULL,
+                                  NULL, NULL);
         if (kernel_size < 0) {
             fprintf(stderr, "qemu: could not load firmware '%s'\n", filename);
             exit(1);

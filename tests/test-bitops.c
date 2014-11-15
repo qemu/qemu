@@ -8,6 +8,7 @@
 
 #include <glib.h>
 #include <stdint.h>
+#include "qemu/osdep.h"
 #include "qemu/bitops.h"
 
 typedef struct {

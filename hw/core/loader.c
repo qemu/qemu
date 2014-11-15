@@ -477,7 +477,9 @@ static ssize_t gunzip(void *dst, size_t dstlen, uint8_t *src,
 
 /* Load a U-Boot image.  */
 static int load_uboot_image(const char *filename, hwaddr *ep, hwaddr *loadaddr,
-                            int *is_linux, uint8_t image_type)
+                            int *is_linux, uint8_t image_type,
+                            uint64_t (*translate_fn)(void *, uint64_t),
+                            void *translate_opaque)
 {
     int fd;
     int size;
@@ -511,6 +513,9 @@ static int load_uboot_image(const char *filename, hwaddr *ep, hwaddr *loadaddr,
     switch (hdr->ih_type) {
     case IH_TYPE_KERNEL:
         address = hdr->ih_load;
+        if (translate_fn) {
+            address = translate_fn(translate_opaque, address);
+        }
         if (loadaddr) {
             *loadaddr = hdr->ih_load;
         }
@@ -587,15 +592,19 @@ out:
 }
 
 int load_uimage(const char *filename, hwaddr *ep, hwaddr *loadaddr,
-                int *is_linux)
+                int *is_linux,
+                uint64_t (*translate_fn)(void *, uint64_t),
+                void *translate_opaque)
 {
-    return load_uboot_image(filename, ep, loadaddr, is_linux, IH_TYPE_KERNEL);
+    return load_uboot_image(filename, ep, loadaddr, is_linux, IH_TYPE_KERNEL,
+                            translate_fn, translate_opaque);
 }
 
 /* Load a ramdisk.  */
 int load_ramdisk(const char *filename, hwaddr addr, uint64_t max_sz)
 {
-    return load_uboot_image(filename, NULL, &addr, NULL, IH_TYPE_RAMDISK);
+    return load_uboot_image(filename, NULL, &addr, NULL, IH_TYPE_RAMDISK,
+                            NULL, NULL);
 }
 
 /* This simply prevents g_malloc in the function below from allocating

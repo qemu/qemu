@@ -233,7 +233,8 @@ struct BlockDriver {
     int (*bdrv_check)(BlockDriverState* bs, BdrvCheckResult *result,
         BdrvCheckMode fix);
 
-    int (*bdrv_amend_options)(BlockDriverState *bs, QemuOpts *opts);
+    int (*bdrv_amend_options)(BlockDriverState *bs, QemuOpts *opts,
+                              BlockDriverAmendStatusCB *status_cb);
 
     void (*bdrv_debug_event)(BlockDriverState *bs, BlkDebugEvent event);
 
@@ -289,6 +290,9 @@ typedef struct BlockLimits {
 
     /* optimal transfer length in sectors */
     int opt_transfer_length;
+
+    /* maximal transfer length in sectors */
+    int max_transfer_length;
 
     /* memory alignment so that no bounce buffer is needed */
     size_t opt_mem_alignment;

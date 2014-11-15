@@ -91,6 +91,11 @@ struct BlockJob {
      */
     bool busy;
 
+    /**
+     * Set to true when the job is ready to be completed.
+     */
+    bool ready;
+
     /** Status that is published by the query-block-jobs QMP API */
     BlockDeviceIoStatus iostatus;
 
@@ -273,6 +278,21 @@ bool block_job_is_paused(BlockJob *job);
 int block_job_cancel_sync(BlockJob *job);
 
 /**
+ * block_job_complete_sync:
+ * @job: The job to be completed.
+ * @errp: Error object which may be set by block_job_complete(); this is not
+ *        necessarily set on every error, the job return value has to be
+ *        checked as well.
+ *
+ * Synchronously complete the job.  The completion callback is called before the
+ * function returns, unless it is NULL (which is permissible when using this
+ * function).
+ *
+ * Returns the return value from the job.
+ */
+int block_job_complete_sync(BlockJob *job, Error **errp);
+
+/**
  * block_job_iostatus_reset:
  * @job: The job whose I/O status should be reset.
  *
@@ -295,4 +315,23 @@ void block_job_iostatus_reset(BlockJob *job);
 BlockErrorAction block_job_error_action(BlockJob *job, BlockDriverState *bs,
                                         BlockdevOnError on_err,
                                         int is_read, int error);
+
+typedef void BlockJobDeferToMainLoopFn(BlockJob *job, void *opaque);
+
+/**
+ * block_job_defer_to_main_loop:
+ * @job: The job
+ * @fn: The function to run in the main loop
+ * @opaque: The opaque value that is passed to @fn
+ *
+ * Execute a given function in the main loop with the BlockDriverState
+ * AioContext acquired.  Block jobs must call bdrv_unref(), bdrv_close(), and
+ * anything that uses bdrv_drain_all() in the main loop.
+ *
+ * The @job AioContext is held while @fn executes.
+ */
+void block_job_defer_to_main_loop(BlockJob *job,
+                                  BlockJobDeferToMainLoopFn *fn,
+                                  void *opaque);
+
 #endif

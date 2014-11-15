@@ -73,11 +73,11 @@ typedef struct ICCBridgeState {
     MemoryRegion apic_container;
 } ICCBridgeState;
 
-#define ICC_BRIGDE(obj) OBJECT_CHECK(ICCBridgeState, (obj), TYPE_ICC_BRIDGE)
+#define ICC_BRIDGE(obj) OBJECT_CHECK(ICCBridgeState, (obj), TYPE_ICC_BRIDGE)
 
 static void icc_bridge_init(Object *obj)
 {
-    ICCBridgeState *s = ICC_BRIGDE(obj);
+    ICCBridgeState *s = ICC_BRIDGE(obj);
     SysBusDevice *sb = SYS_BUS_DEVICE(obj);
 
     qbus_create_inplace(&s->icc_bus, sizeof(s->icc_bus), TYPE_ICC_BUS,

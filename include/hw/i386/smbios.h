@@ -20,7 +20,8 @@
 void smbios_entry_add(QemuOpts *opts);
 void smbios_set_cpuid(uint32_t version, uint32_t features);
 void smbios_set_defaults(const char *manufacturer, const char *product,
-                         const char *version, bool legacy_mode);
+                         const char *version, bool legacy_mode,
+                         bool uuid_encoded);
 uint8_t *smbios_get_table_legacy(size_t *length);
 void smbios_get_tables(uint8_t **tables, size_t *tables_len,
                        uint8_t **anchor, size_t *anchor_len);
@@ -72,6 +73,18 @@ struct smbios_type_0 {
     uint8_t embedded_controller_minor_release;
 } QEMU_PACKED;
 
+/* UUID encoding. The time_* fields are little-endian, as specified by SMBIOS
+ * version 2.6.
+ */
+struct smbios_uuid {
+    uint32_t time_low;
+    uint16_t time_mid;
+    uint16_t time_hi_and_version;
+    uint8_t clock_seq_hi_and_reserved;
+    uint8_t clock_seq_low;
+    uint8_t node[6];
+} QEMU_PACKED;
+
 /* SMBIOS type 1 - System Information */
 struct smbios_type_1 {
     struct smbios_structure_header header;
@@ -79,7 +92,7 @@ struct smbios_type_1 {
     uint8_t product_name_str;
     uint8_t version_str;
     uint8_t serial_number_str;
-    uint8_t uuid[16];
+    struct smbios_uuid uuid;
     uint8_t wake_up_type;
     uint8_t sku_number_str;
     uint8_t family_str;

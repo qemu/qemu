@@ -1259,18 +1259,6 @@ static inline bool arm_excp_unmasked(CPUState *cs, unsigned int excp_idx)
     bool secure = false;
     /* If in EL1/0, Physical IRQ routing to EL2 only happens from NS state.  */
     bool irq_can_hyp = !secure && cur_el < 2 && target_el == 2;
-    /* ARMv7-M interrupt return works by loading a magic value
-     * into the PC.  On real hardware the load causes the
-     * return to occur.  The qemu implementation performs the
-     * jump normally, then does the exception return when the
-     * CPU tries to execute code at the magic address.
-     * This will cause the magic PC value to be pushed to
-     * the stack if an interrupt occurred at the wrong time.
-     * We avoid this by disabling interrupts when
-     * pc contains a magic address.
-     */
-    bool irq_unmasked = !(env->daif & PSTATE_I)
-                        && (!IS_M(env) || env->regs[15] < 0xfffffff0);
 
     /* Don't take exceptions if they target a lower EL.  */
     if (cur_el > target_el) {
@@ -1287,19 +1275,19 @@ static inline bool arm_excp_unmasked(CPUState *cs, unsigned int excp_idx)
         if (irq_can_hyp && (env->cp15.hcr_el2 & HCR_IMO)) {
             return true;
         }
-        return irq_unmasked;
+        return !(env->daif & PSTATE_I);
     case EXCP_VFIQ:
-        if (!secure && !(env->cp15.hcr_el2 & HCR_FMO)) {
+        if (secure || !(env->cp15.hcr_el2 & HCR_FMO)) {
             /* VFIQs are only taken when hypervized and non-secure.  */
             return false;
         }
         return !(env->daif & PSTATE_F);
     case EXCP_VIRQ:
-        if (!secure && !(env->cp15.hcr_el2 & HCR_IMO)) {
+        if (secure || !(env->cp15.hcr_el2 & HCR_IMO)) {
             /* VIRQs are only taken when hypervized and non-secure.  */
             return false;
         }
-        return irq_unmasked;
+        return !(env->daif & PSTATE_I);
     default:
         g_assert_not_reached();
     }

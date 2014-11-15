@@ -66,15 +66,15 @@ stat -c"disk image file size in bytes: %s" "${TEST_IMG}"
 
 # check for image size too large
 # poke max image size, and appropriate blocks_in_image value
-echo "Test 1: Maximum size (1024 TB):"
-poke_file "$TEST_IMG" "$ds_offset" "\x00\x00\xf0\xff\xff\xff\x03\x00"
-poke_file "$TEST_IMG" "$bii_offset" "\xff\xff\xff\x3f"
+echo "Test 1: Maximum size (512 TB - 128 MB):"
+poke_file "$TEST_IMG" "$ds_offset" "\x00\x00\x00\xf8\xff\xff\x01\x00"
+poke_file "$TEST_IMG" "$bii_offset" "\x80\xff\xff\x1f"
 _img_info
 
 echo
-echo "Test 2: Size too large (1024TB + 1)"
+echo "Test 2: Size too large (512 TB - 128 MB + 64 kB)"
 # This should be too large (-EINVAL):
-poke_file "$TEST_IMG" "$ds_offset" "\x00\x00\xf1\xff\xff\xff\x03\x00"
+poke_file "$TEST_IMG" "$ds_offset" "\x00\x00\x01\xf8\xff\xff\x01\x00"
 _img_info
 
 echo
@@ -89,9 +89,9 @@ _img_info
 
 echo
 echo "Test 4: Size valid (64M), but Blocks In Image exceeds max allowed"
-# Now check the bounds of blocks_in_image - 0x3fffffff should be the max
+# Now check the bounds of blocks_in_image - 0x1fffff80 should be the max
 # value here, and we should get -ENOTSUP
-poke_file "$TEST_IMG" "$bii_offset" "\x00\x00\x00\x40"
+poke_file "$TEST_IMG" "$bii_offset" "\x81\xff\xff\x1f"
 _img_info
 
 # Finally, 1MB is the only block size supported.  Verify that

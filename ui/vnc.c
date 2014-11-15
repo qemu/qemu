@@ -2026,6 +2026,16 @@ static void set_pixel_format(VncState *vs,
         return;
     }
 
+    switch (bits_per_pixel) {
+    case 8:
+    case 16:
+    case 32:
+        break;
+    default:
+        vnc_client_error(vs);
+        return;
+    }
+
     vs->client_pf.rmax = red_max;
     vs->client_pf.rbits = hweight_long(red_max);
     vs->client_pf.rshift = red_shift;
@@ -2768,6 +2778,11 @@ static void vnc_refresh(DisplayChangeListener *dcl)
     VncState *vs, *vn;
     int has_dirty, rects = 0;
 
+    if (QTAILQ_EMPTY(&vd->clients)) {
+        update_displaychangelistener(&vd->dcl, VNC_REFRESH_INTERVAL_MAX);
+        return;
+    }
+
     graphic_hw_update(NULL);
 
     if (vnc_trylock_display(vd)) {
@@ -2781,11 +2796,6 @@ static void vnc_refresh(DisplayChangeListener *dcl)
     QTAILQ_FOREACH_SAFE(vs, &vd->clients, next, vn) {
         rects += vnc_update_client(vs, has_dirty, false);
         /* vs might be free()ed here */
-    }
-
-    if (QTAILQ_EMPTY(&vd->clients)) {
-        update_displaychangelistener(&vd->dcl, VNC_REFRESH_INTERVAL_MAX);
-        return;
     }
 
     if (has_dirty && rects) {

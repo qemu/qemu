@@ -21,6 +21,15 @@
 #include <sys/vfs.h>
 #include <qemu/sockets.h>
 
+/* GLIB version compatibility flags */
+#if !GLIB_CHECK_VERSION(2, 26, 0)
+#define G_TIME_SPAN_SECOND              (G_GINT64_CONSTANT(1000000))
+#endif
+
+#if GLIB_CHECK_VERSION(2, 28, 0)
+#define HAVE_MONOTONIC_TIME
+#endif
+
 #if GLIB_CHECK_VERSION(2, 32, 0)
 #define HAVE_MUTEX_INIT
 #define HAVE_COND_INIT
@@ -107,6 +116,18 @@ static VhostUserMemory memory;
 static GMutex *data_mutex;
 static GCond *data_cond;
 
+static gint64 _get_time(void)
+{
+#ifdef HAVE_MONOTONIC_TIME
+    return g_get_monotonic_time();
+#else
+    GTimeVal time;
+    g_get_current_time(&time);
+
+    return time.tv_sec * G_TIME_SPAN_SECOND + time.tv_usec;
+#endif
+}
+
 static GMutex *_mutex_new(void)
 {
     GMutex *mutex;
@@ -189,7 +210,7 @@ static void read_guest_mem(void)
 
     g_mutex_lock(data_mutex);
 
-    end_time = g_get_monotonic_time() + 5 * G_TIME_SPAN_SECOND;
+    end_time = _get_time() + 5 * G_TIME_SPAN_SECOND;
     while (!fds_num) {
         if (!_cond_wait_until(data_cond, data_mutex, end_time)) {
             /* timeout has passed */

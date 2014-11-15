@@ -1104,14 +1104,15 @@ static int connect_namedsocket(const char *path)
 
     sockfd = socket(AF_UNIX, SOCK_STREAM, 0);
     if (sockfd < 0) {
-        fprintf(stderr, "socket %s\n", strerror(errno));
+        fprintf(stderr, "failed to create socket: %s\n", strerror(errno));
         return -1;
     }
     strcpy(helper.sun_path, path);
     helper.sun_family = AF_UNIX;
     size = strlen(helper.sun_path) + sizeof(helper.sun_family);
     if (connect(sockfd, (struct sockaddr *)&helper, size) < 0) {
-        fprintf(stderr, "socket error\n");
+        fprintf(stderr, "failed to connect to %s: %s\n", path, strerror(errno));
+        close(sockfd);
         return -1;
     }
 
@@ -1154,9 +1155,11 @@ static int proxy_init(FsContext *ctx)
         sock_id = atoi(ctx->fs_root);
         if (sock_id < 0) {
             fprintf(stderr, "socket descriptor not initialized\n");
-            g_free(proxy);
-            return -1;
         }
+    }
+    if (sock_id < 0) {
+        g_free(proxy);
+        return -1;
     }
     g_free(ctx->fs_root);
     ctx->fs_root = NULL;

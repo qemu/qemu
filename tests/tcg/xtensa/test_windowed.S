@@ -299,4 +299,55 @@ test entry
     entry_test 12
 test_end
 
+.macro entry_overflow_test window, free, next_window
+    set_vector window_overflow_4, 0
+    set_vector window_overflow_8, 0
+    set_vector window_overflow_12, 0
+    set_vector window_overflow_\next_window, 10f
+
+    movi    a2, \window
+    movi    a2, \free
+    movi    a2, \next_window
+    reset_window %(1 | ((1 | (1 << ((\next_window) / 4))) << ((\free) / 4)))
+    reset_ps
+    movi    a2, 0x4000f | ((\window) << 14)
+    wsr     a2, ps
+    isync
+    movi    a3, 0x12345678
+    j       1f
+    .align  4
+1:
+    entry   a3, 0x5678
+    test_fail
+    .align  4
+10:
+    rsr     a2, epc1
+    movi    a3, 1b
+    assert  eq, a2, a3
+    movi    a2, 2f
+    wsr     a2, epc1
+
+    rsr     a2, windowbase
+    movi    a3, (\free) / 4
+    assert  eq, a2, a3
+    rfwo
+2:
+.endm
+
+.macro all_entry_overflow_tests
+    .irp window, 4, 8, 12
+    .irp next_window, 4, 8, 12
+    .irp free, 4, 8, 12
+    .if \free <= \window
+    entry_overflow_test \window, \free, \next_window
+    .endif
+    .endr
+    .endr
+    .endr
+.endm
+
+test entry_overflow
+    all_entry_overflow_tests
+test_end
+
 test_suite_end

@@ -2564,10 +2564,7 @@ struct target_ucred {
 
 #endif
 
-
-struct target_timer_t {
-    abi_ulong ptr;
-};
+typedef int32_t target_timer_t;
 
 #define TARGET_SIGEV_MAX_SIZE 64
 

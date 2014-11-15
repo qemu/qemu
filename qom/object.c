@@ -872,9 +872,13 @@ char *object_property_get_str(Object *obj, const char *name,
 void object_property_set_link(Object *obj, Object *value,
                               const char *name, Error **errp)
 {
-    gchar *path = object_get_canonical_path(value);
-    object_property_set_str(obj, path, name, errp);
-    g_free(path);
+    if (value) {
+        gchar *path = object_get_canonical_path(value);
+        object_property_set_str(obj, path, name, errp);
+        g_free(path);
+    } else {
+        object_property_set_str(obj, "", name, errp);
+    }
 }
 
 Object *object_property_get_link(Object *obj, const char *name,
@@ -1085,6 +1089,11 @@ void object_property_add_child(Object *obj, const char *name,
     gchar *type;
     ObjectProperty *op;
 
+    if (child->parent != NULL) {
+        error_setg(errp, "child object is already parented");
+        return;
+    }
+
     type = g_strdup_printf("child<%s>", object_get_typename(OBJECT(child)));
 
     op = object_property_add(obj, name, type, object_get_child_property, NULL,
@@ -1096,7 +1105,6 @@ void object_property_add_child(Object *obj, const char *name,
 
     op->resolve = object_resolve_child_property;
     object_ref(child);
-    g_assert(child->parent == NULL);
     child->parent = obj;
 
 out:

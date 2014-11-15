@@ -744,9 +744,9 @@
 /* SERVICE CALL LOGICAL PROCESSOR (PV hypercall) */
     C(0xb220, SERVC,   RRE,   Z,   r1_o, r2_o, 0, 0, servc, 0)
 /* SET ADDRESSING MODE */
-    /* We only do 64-bit, so accept this as a no-op.
-       Let SAM24 and SAM31 signal illegal instruction.  */
-    C(0x010e, SAM64,   E,     Z,   0, 0, 0, 0, 0, 0)
+    D(0x010c, SAM24,   E,     Z,   0, 0, 0, 0, sam, 0, 0)
+    D(0x010d, SAM31,   E,     Z,   0, 0, 0, 0, sam, 0, 1)
+    D(0x010e, SAM64,   E,     Z,   0, 0, 0, 0, sam, 0, 3)
 /* SET ADDRESS SPACE CONTROL FAST */
     C(0xb279, SACF,    S,     Z,   0, a2, 0, 0, sacf, 0)
 /* SET CLOCK */

@@ -1246,7 +1246,7 @@ int load_vmstate(const char *name)
 void do_delvm(Monitor *mon, const QDict *qdict)
 {
     BlockDriverState *bs;
-    Error *err = NULL;
+    Error *err;
     const char *name = qdict_get_str(qdict, "name");
 
     if (!find_vmstate_bs()) {
@@ -1257,6 +1257,7 @@ void do_delvm(Monitor *mon, const QDict *qdict)
     bs = NULL;
     while ((bs = bdrv_next(bs))) {
         if (bdrv_can_snapshot(bs)) {
+            err = NULL;
             bdrv_snapshot_delete_by_id_or_name(bs, name, &err);
             if (err) {
                 monitor_printf(mon,

@@ -203,15 +203,6 @@ bool arm_cpu_exec_interrupt(CPUState *cs, int interrupt_request)
         cc->do_interrupt(cs);
         ret = true;
     }
-    /* ARMv7-M interrupt return works by loading a magic value
-       into the PC.  On real hardware the load causes the
-       return to occur.  The qemu implementation performs the
-       jump normally, then does the exception return when the
-       CPU tries to execute code at the magic address.
-       This will cause the magic PC value to be pushed to
-       the stack if an interrupt occurred at the wrong time.
-       We avoid this by disabling interrupts when
-       pc contains a magic address.  */
     if (interrupt_request & CPU_INTERRUPT_HARD
         && arm_excp_unmasked(cs, EXCP_IRQ)) {
         cs->exception_index = EXCP_IRQ;
@@ -233,6 +224,42 @@ bool arm_cpu_exec_interrupt(CPUState *cs, int interrupt_request)
 
     return ret;
 }
+
+#if !defined(CONFIG_USER_ONLY) || !defined(TARGET_AARCH64)
+static bool arm_v7m_cpu_exec_interrupt(CPUState *cs, int interrupt_request)
+{
+    CPUClass *cc = CPU_GET_CLASS(cs);
+    ARMCPU *cpu = ARM_CPU(cs);
+    CPUARMState *env = &cpu->env;
+    bool ret = false;
+
+
+    if (interrupt_request & CPU_INTERRUPT_FIQ
+        && !(env->daif & PSTATE_F)) {
+        cs->exception_index = EXCP_FIQ;
+        cc->do_interrupt(cs);
+        ret = true;
+    }
+    /* ARMv7-M interrupt return works by loading a magic value
+     * into the PC.  On real hardware the load causes the
+     * return to occur.  The qemu implementation performs the
+     * jump normally, then does the exception return when the
+     * CPU tries to execute code at the magic address.
+     * This will cause the magic PC value to be pushed to
+     * the stack if an interrupt occurred at the wrong time.
+     * We avoid this by disabling interrupts when
+     * pc contains a magic address.
+     */
+    if (interrupt_request & CPU_INTERRUPT_HARD
+        && !(env->daif & PSTATE_I)
+        && (env->regs[15] < 0xfffffff0)) {
+        cs->exception_index = EXCP_IRQ;
+        cc->do_interrupt(cs);
+        ret = true;
+    }
+    return ret;
+}
+#endif
 
 #ifndef CONFIG_USER_ONLY
 static void arm_cpu_set_irq(void *opaque, int irq, int level)
@@ -681,11 +708,13 @@ static void cortex_m3_initfn(Object *obj)
 
 static void arm_v7m_class_init(ObjectClass *oc, void *data)
 {
-#ifndef CONFIG_USER_ONLY
     CPUClass *cc = CPU_CLASS(oc);
 
+#ifndef CONFIG_USER_ONLY
     cc->do_interrupt = arm_v7m_cpu_do_interrupt;
 #endif
+
+    cc->cpu_exec_interrupt = arm_v7m_cpu_exec_interrupt;
 }
 
 static const ARMCPRegInfo cortexa8_cp_reginfo[] = {

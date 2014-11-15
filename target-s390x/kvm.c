@@ -827,18 +827,18 @@ static int handle_b9(S390CPU *cpu, struct kvm_run *run, uint8_t ipa1)
     return r;
 }
 
-static int handle_eb(S390CPU *cpu, struct kvm_run *run, uint8_t ipa1)
+static int handle_eb(S390CPU *cpu, struct kvm_run *run, uint8_t ipbl)
 {
     int r = 0;
 
-    switch (ipa1) {
+    switch (ipbl) {
     case PRIV_EB_SQBS:
         /* just inject exception */
         r = -1;
         break;
     default:
         r = -1;
-        DPRINTF("KVM: unhandled PRIV: 0xeb%x\n", ipa1);
+        DPRINTF("KVM: unhandled PRIV: 0xeb%x\n", ipbl);
         break;
     }
 
@@ -1039,7 +1039,7 @@ static int handle_instruction(S390CPU *cpu, struct kvm_run *run)
         r = handle_b9(cpu, run, ipa1);
         break;
     case IPA0_EB:
-        r = handle_eb(cpu, run, ipa1);
+        r = handle_eb(cpu, run, run->s390_sieic.ipb & 0xff);
         break;
     case IPA0_DIAG:
         r = handle_diag(cpu, run, run->s390_sieic.ipb);
@@ -1272,7 +1272,7 @@ void kvm_s390_crw_mchk(void)
     struct kvm_s390_irq irq = {
         .type = KVM_S390_MCHK,
         .u.mchk.cr14 = 1 << 28,
-        .u.mchk.mcic = 0x00400f1d40330000,
+        .u.mchk.mcic = 0x00400f1d40330000ULL,
     };
     kvm_s390_floating_interrupt(&irq);
 }

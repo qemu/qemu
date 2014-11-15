@@ -883,32 +883,23 @@ static void do_interrupt64(CPUX86State *env, int intno, int is_int,
     }
     if ((!(e2 & DESC_C_MASK) && dpl < cpl) || ist != 0) {
         /* to inner privilege */
-        if (ist != 0) {
-            esp = get_rsp_from_tss(env, ist + 3);
-        } else {
-            esp = get_rsp_from_tss(env, dpl);
-        }
-        esp &= ~0xfLL; /* align stack */
-        ss = 0;
         new_stack = 1;
+        esp = get_rsp_from_tss(env, ist != 0 ? ist + 3 : dpl);
+        ss = 0;
     } else if ((e2 & DESC_C_MASK) || dpl == cpl) {
         /* to same privilege */
         if (env->eflags & VM_MASK) {
             raise_exception_err(env, EXCP0D_GPF, selector & 0xfffc);
         }
         new_stack = 0;
-        if (ist != 0) {
-            esp = get_rsp_from_tss(env, ist + 3);
-        } else {
-            esp = env->regs[R_ESP];
-        }
-        esp &= ~0xfLL; /* align stack */
+        esp = env->regs[R_ESP];
         dpl = cpl;
     } else {
         raise_exception_err(env, EXCP0D_GPF, selector & 0xfffc);
         new_stack = 0; /* avoid warning */
         esp = 0; /* avoid warning */
     }
+    esp &= ~0xfLL; /* align stack */
 
     PUSHQ(esp, env->segs[R_SS].selector);
     PUSHQ(esp, env->regs[R_ESP]);

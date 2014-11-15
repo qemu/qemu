@@ -267,8 +267,7 @@ class QMPTestCase(unittest.TestCase):
                     self.assert_qmp(event, 'data/device', drive)
                     self.assert_qmp_absent(event, 'data/error')
                     if check_offset:
-                        self.assert_qmp(event, 'data/offset', self.image_len)
-                    self.assert_qmp(event, 'data/len', self.image_len)
+                        self.assert_qmp(event, 'data/offset', event['data']['len'])
                     completed = True
 
         self.assert_no_active_block_jobs()

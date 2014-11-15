@@ -37,7 +37,7 @@
 #define VTD_PCI_DEVFN_MAX           256
 #define VTD_PCI_SLOT(devfn)         (((devfn) >> 3) & 0x1f)
 #define VTD_PCI_FUNC(devfn)         ((devfn) & 0x07)
-#define VTD_SID_TO_BUS(sid)         (((sid) >> 8) && 0xff)
+#define VTD_SID_TO_BUS(sid)         (((sid) >> 8) & 0xff)
 #define VTD_SID_TO_DEVFN(sid)       ((sid) & 0xff)
 
 #define DMAR_REG_SIZE               0x230

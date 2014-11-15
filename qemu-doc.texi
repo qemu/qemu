@@ -1634,7 +1634,7 @@ EOF
 # certtool --generate-certificate \
            --load-ca-certificate ca-cert.pem \
            --load-ca-privkey ca-key.pem \
-           --load-privkey server server-key.pem \
+           --load-privkey server-key.pem \
            --template server.info \
            --outfile server-cert.pem
 @end example
@@ -1657,7 +1657,7 @@ the secure CA private key:
 country = GB
 state = London
 locality = London
-organiazation = Name of your organization
+organization = Name of your organization
 cn = client.foo.example.com
 tls_www_client
 encryption_key

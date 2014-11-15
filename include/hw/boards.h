@@ -19,6 +19,7 @@ typedef void QEMUMachineHotAddCPUFunc(const int64_t id, Error **errp);
 typedef int QEMUMachineGetKvmtypeFunc(const char *arg);
 
 struct QEMUMachine {
+    const char *family; /* NULL iff @name identifies a standalone machtype */
     const char *name;
     const char *alias;
     const char *desc;
@@ -35,10 +36,12 @@ struct QEMUMachine {
         use_sclp:1,
         no_floppy:1,
         no_cdrom:1,
-        no_sdcard:1;
+        no_sdcard:1,
+        has_dynamic_sysbus:1;
     int is_default;
     const char *default_machine_opts;
     const char *default_boot_order;
+    const char *default_display;
     GlobalProperty *compat_props;
     const char *hw_version;
 };
@@ -76,6 +79,7 @@ struct MachineClass {
     ObjectClass parent_class;
     /*< public >*/
 
+    const char *family; /* NULL iff @name identifies a standalone machtype */
     const char *name;
     const char *alias;
     const char *desc;
@@ -94,10 +98,12 @@ struct MachineClass {
         use_sclp:1,
         no_floppy:1,
         no_cdrom:1,
-        no_sdcard:1;
+        no_sdcard:1,
+        has_dynamic_sysbus:1;
     int is_default;
     const char *default_machine_opts;
     const char *default_boot_order;
+    const char *default_display;
     GlobalProperty *compat_props;
     const char *hw_version;
 
@@ -111,6 +117,8 @@ struct MachineClass {
 struct MachineState {
     /*< private >*/
     Object parent_obj;
+    Notifier sysbus_notifier;
+
     /*< public >*/
 
     char *accel;

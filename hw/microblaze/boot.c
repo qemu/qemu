@@ -154,7 +154,8 @@ void microblaze_load_kernel(MicroBlazeCPU *cpu, hwaddr ddr_base,
         if (kernel_size < 0) {
             hwaddr uentry, loadaddr;
 
-            kernel_size = load_uimage(kernel_filename, &uentry, &loadaddr, 0);
+            kernel_size = load_uimage(kernel_filename, &uentry, &loadaddr, 0,
+                                      NULL, NULL);
             boot_info.bootstrap_pc = uentry;
             high = (loadaddr + kernel_size + 3) & ~3;
         }

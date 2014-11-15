@@ -459,6 +459,7 @@ struct XHCIState {
     uint32_t numintrs;
     uint32_t numslots;
     uint32_t flags;
+    uint32_t max_pstreams_mask;
 
     /* Operational Registers */
     uint32_t usbcmd;
@@ -500,6 +501,7 @@ enum xhci_flags {
     XHCI_FLAG_USE_MSI_X,
     XHCI_FLAG_SS_FIRST,
     XHCI_FLAG_FORCE_PCIE_ENDCAP,
+    XHCI_FLAG_ENABLE_STREAMS,
 };
 
 static void xhci_kick_ep(XHCIState *xhci, unsigned int slotid,
@@ -1384,7 +1386,7 @@ static void xhci_init_epctx(XHCIEPContext *epctx,
     epctx->pctx = pctx;
     epctx->max_psize = ctx[1]>>16;
     epctx->max_psize *= 1+((ctx[1]>>8)&0xff);
-    epctx->max_pstreams = (ctx[0] >> 10) & 0xf;
+    epctx->max_pstreams = (ctx[0] >> 10) & epctx->xhci->max_pstreams_mask;
     epctx->lsa = (ctx[0] >> 15) & 1;
     if (epctx->max_pstreams) {
         xhci_alloc_streams(epctx, dequeue);
@@ -2260,6 +2262,9 @@ static USBPort *xhci_lookup_uport(XHCIState *xhci, uint32_t *slot_ctx)
     int i, pos, port;
 
     port = (slot_ctx[1]>>16) & 0xFF;
+    if (port < 1 || port > xhci->numports) {
+        return NULL;
+    }
     port = xhci->ports[port-1].uport->index+1;
     pos = snprintf(path, sizeof(path), "%d", port);
     for (i = 0; i < 5; i++) {
@@ -2956,9 +2961,9 @@ static uint64_t xhci_cap_read(void *ptr, hwaddr reg, unsigned size)
         break;
     case 0x10: /* HCCPARAMS */
         if (sizeof(dma_addr_t) == 4) {
-            ret = 0x00087000;
+            ret = 0x00080000 | (xhci->max_pstreams_mask << 12);
         } else {
-            ret = 0x00087001;
+            ret = 0x00080001 | (xhci->max_pstreams_mask << 12);
         }
         break;
     case 0x14: /* DBOFF */
@@ -3590,6 +3595,11 @@ static int usb_xhci_initfn(struct PCIDevice *dev)
     if (xhci->numslots < 1) {
         xhci->numslots = 1;
     }
+    if (xhci_get_flag(xhci, XHCI_FLAG_ENABLE_STREAMS)) {
+        xhci->max_pstreams_mask = 7; /* == 256 primary streams */
+    } else {
+        xhci->max_pstreams_mask = 0;
+    }
 
     xhci->mfwrap_timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, xhci_mfwrap_timer, xhci);
 
@@ -3699,6 +3709,12 @@ static int usb_xhci_post_load(void *opaque, int version_id)
             xhci_mask64(ldq_le_pci_dma(pci_dev, dcbaap + 8 * slotid));
         xhci_dma_read_u32s(xhci, slot->ctx, slot_ctx, sizeof(slot_ctx));
         slot->uport = xhci_lookup_uport(xhci, slot_ctx);
+        if (!slot->uport) {
+            /* should not happen, but may trigger on guest bugs */
+            slot->enabled = 0;
+            slot->addressed = 0;
+            continue;
+        }
         assert(slot->uport && slot->uport->dev);
 
         for (epid = 1; epid <= 31; epid++) {
@@ -3853,6 +3869,8 @@ static Property xhci_properties[] = {
                     XHCIState, flags, XHCI_FLAG_SS_FIRST, true),
     DEFINE_PROP_BIT("force-pcie-endcap", XHCIState, flags,
                     XHCI_FLAG_FORCE_PCIE_ENDCAP, false),
+    DEFINE_PROP_BIT("streams", XHCIState, flags,
+                    XHCI_FLAG_ENABLE_STREAMS, true),
     DEFINE_PROP_UINT32("intrs", XHCIState, numintrs, MAXINTRS),
     DEFINE_PROP_UINT32("slots", XHCIState, numslots, MAXSLOTS),
     DEFINE_PROP_UINT32("p2",    XHCIState, numports_2, 4),
