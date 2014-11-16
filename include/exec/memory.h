@@ -321,6 +321,30 @@ void memory_region_init_ram(MemoryRegion *mr,
                             uint64_t size,
                             Error **errp);
 
+/**
+ * memory_region_init_resizeable_ram:  Initialize memory region with resizeable
+ *                                     RAM.  Accesses into the region will
+ *                                     modify memory directly.  Only an initial
+ *                                     portion of this RAM is actually used.
+ *                                     The used size can change across reboots.
+ *
+ * @mr: the #MemoryRegion to be initialized.
+ * @owner: the object that tracks the region's reference count
+ * @name: the name of the region.
+ * @size: used size of the region.
+ * @max_size: max size of the region.
+ * @resized: callback to notify owner about used size change.
+ * @errp: pointer to Error*, to store an error if it happens.
+ */
+void memory_region_init_resizeable_ram(MemoryRegion *mr,
+                                       struct Object *owner,
+                                       const char *name,
+                                       uint64_t size,
+                                       uint64_t max_size,
+                                       void (*resized)(const char*,
+                                                       uint64_t length,
+                                                       void *host),
+                                       Error **errp);
 #ifdef __linux__
 /**
  * memory_region_init_ram_from_file:  Initialize RAM memory region with a
