@@ -16,7 +16,6 @@
  */
 
 #include <spice.h>
-#include <spice-experimental.h>
 
 #include <netdb.h>
 #include "sysemu/sysemu.h"
