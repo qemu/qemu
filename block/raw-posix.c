@@ -60,9 +60,6 @@
 #define FS_NOCOW_FL                     0x00800000 /* Do not cow file */
 #endif
 #endif
-#ifdef CONFIG_FIEMAP
-#include <linux/fiemap.h>
-#endif
 #ifdef CONFIG_FALLOCATE_PUNCH_HOLE
 #include <linux/falloc.h>
 #endif
@@ -151,9 +148,6 @@ typedef struct BDRVRawState {
     bool has_write_zeroes:1;
     bool discard_zeroes:1;
     bool needs_alignment;
-#ifdef CONFIG_FIEMAP
-    bool skip_fiemap;
-#endif
 } BDRVRawState;
 
 typedef struct BDRVRawReopenState {
@@ -1481,52 +1475,6 @@ out:
     return result;
 }
 
-static int try_fiemap(BlockDriverState *bs, off_t start, off_t *data,
-                      off_t *hole, int nb_sectors)
-{
-#ifdef CONFIG_FIEMAP
-    BDRVRawState *s = bs->opaque;
-    int ret = 0;
-    struct {
-        struct fiemap fm;
-        struct fiemap_extent fe;
-    } f;
-
-    if (s->skip_fiemap) {
-        return -ENOTSUP;
-    }
-
-    f.fm.fm_start = start;
-    f.fm.fm_length = (int64_t)nb_sectors * BDRV_SECTOR_SIZE;
-    f.fm.fm_flags = FIEMAP_FLAG_SYNC;
-    f.fm.fm_extent_count = 1;
-    f.fm.fm_reserved = 0;
-    if (ioctl(s->fd, FS_IOC_FIEMAP, &f) == -1) {
-        s->skip_fiemap = true;
-        return -errno;
-    }
-
-    if (f.fm.fm_mapped_extents == 0) {
-        /* No extents found, data is beyond f.fm.fm_start + f.fm.fm_length.
-         * f.fm.fm_start + f.fm.fm_length must be clamped to the file size!
-         */
-        off_t length = lseek(s->fd, 0, SEEK_END);
-        *hole = f.fm.fm_start;
-        *data = MIN(f.fm.fm_start + f.fm.fm_length, length);
-    } else {
-        *data = f.fe.fe_logical;
-        *hole = f.fe.fe_logical + f.fe.fe_length;
-        if (f.fe.fe_flags & FIEMAP_EXTENT_UNWRITTEN) {
-            ret |= BDRV_BLOCK_ZERO;
-        }
-    }
-
-    return ret;
-#else
-    return -ENOTSUP;
-#endif
-}
-
 static int try_seek_hole(BlockDriverState *bs, off_t start, off_t *data,
                          off_t *hole)
 {
@@ -1593,13 +1541,10 @@ static int64_t coroutine_fn raw_co_get_block_status(BlockDriverState *bs,
 
     ret = try_seek_hole(bs, start, &data, &hole);
     if (ret < 0) {
-        ret = try_fiemap(bs, start, &data, &hole, nb_sectors);
-        if (ret < 0) {
-            /* Assume everything is allocated. */
-            data = 0;
-            hole = start + nb_sectors * BDRV_SECTOR_SIZE;
-            ret = 0;
-        }
+        /* Assume everything is allocated. */
+        data = 0;
+        hole = start + nb_sectors * BDRV_SECTOR_SIZE;
+        ret = 0;
     }
 
     assert(ret >= 0);
