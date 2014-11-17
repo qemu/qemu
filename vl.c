@@ -2284,7 +2284,7 @@ static int mon_init_func(QemuOpts *opts, void *opaque)
     return 0;
 }
 
-static void monitor_parse(const char *optarg, const char *mode)
+static void monitor_parse(const char *optarg, const char *mode, bool pretty)
 {
     static int monitor_device_index = 0;
     QemuOpts *opts;
@@ -2314,6 +2314,7 @@ static void monitor_parse(const char *optarg, const char *mode)
     }
     qemu_opt_set(opts, "mode", mode);
     qemu_opt_set(opts, "chardev", label);
+    qemu_opt_set_bool(opts, "pretty", pretty);
     if (def)
         qemu_opt_set(opts, "default", "on");
     monitor_device_index++;
@@ -3292,11 +3293,15 @@ int main(int argc, char **argv, char **envp)
             case QEMU_OPTION_monitor:
                 default_monitor = 0;
                 if (strncmp(optarg, "none", 4)) {
-                    monitor_parse(optarg, "readline");
+                    monitor_parse(optarg, "readline", false);
                 }
                 break;
             case QEMU_OPTION_qmp:
-                monitor_parse(optarg, "control");
+                monitor_parse(optarg, "control", false);
+                default_monitor = 0;
+                break;
+            case QEMU_OPTION_qmp_pretty:
+                monitor_parse(optarg, "control", true);
                 default_monitor = 0;
                 break;
             case QEMU_OPTION_mon:
@@ -3994,7 +3999,7 @@ int main(int argc, char **argv, char **envp)
                 add_device_config(DEV_SCLP, "stdio");
             }
             if (default_monitor)
-                monitor_parse("stdio", "readline");
+                monitor_parse("stdio", "readline", false);
         }
     } else {
         if (default_serial)
@@ -4002,7 +4007,7 @@ int main(int argc, char **argv, char **envp)
         if (default_parallel)
             add_device_config(DEV_PARALLEL, "vc:80Cx24C");
         if (default_monitor)
-            monitor_parse("vc:80Cx24C", "readline");
+            monitor_parse("vc:80Cx24C", "readline", false);
         if (default_virtcon)
             add_device_config(DEV_VIRTCON, "vc:80Cx24C");
         if (default_sclp) {
