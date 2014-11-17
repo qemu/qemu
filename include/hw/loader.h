@@ -59,7 +59,7 @@ extern bool rom_file_has_mr;
 int rom_add_file(const char *file, const char *fw_dir,
                  hwaddr addr, int32_t bootindex,
                  bool option_rom);
-void *rom_add_blob(const char *name, const void *blob, size_t len,
+ram_addr_t rom_add_blob(const char *name, const void *blob, size_t len,
                    hwaddr addr, const char *fw_file_name,
                    FWCfgReadCallback fw_callback, void *callback_opaque);
 int rom_add_elf_program(const char *name, void *data, size_t datasize,
