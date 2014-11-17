@@ -25,6 +25,7 @@
 #include "exec/address-spaces.h"
 #include "qapi/visitor.h"
 #include "qapi-event.h"
+#include "trace.h"
 
 #if defined(__linux__)
 #include <sys/mman.h>
@@ -222,6 +223,8 @@ static void virtio_balloon_handle_output(VirtIODevice *vdev, VirtQueue *vq)
             if (!int128_nz(section.size) || !memory_region_is_ram(section.mr))
                 continue;
 
+            trace_virtio_balloon_handle_output(memory_region_name(section.mr),
+                                               pa);
             /* Using memory_region_get_ram_ptr is bending the rules a bit, but
                should be OK because we only want a single page.  */
             addr = section.offset_within_region;
@@ -285,6 +288,7 @@ static void virtio_balloon_get_config(VirtIODevice *vdev, uint8_t *config_data)
     config.num_pages = cpu_to_le32(dev->num_pages);
     config.actual = cpu_to_le32(dev->actual);
 
+    trace_virtio_balloon_get_config(config.num_pages, config.actual);
     memcpy(config_data, &config, sizeof(struct virtio_balloon_config));
 }
 
@@ -303,6 +307,7 @@ static void virtio_balloon_set_config(VirtIODevice *vdev,
                         ((ram_addr_t) dev->actual << VIRTIO_BALLOON_PFN_SHIFT),
                         &error_abort);
     }
+    trace_virtio_balloon_set_config(dev->actual, oldactual);
 }
 
 static uint32_t virtio_balloon_get_features(VirtIODevice *vdev, uint32_t f)
@@ -331,6 +336,7 @@ static void virtio_balloon_to_target(void *opaque, ram_addr_t target)
         dev->num_pages = (vm_ram_size - target) >> VIRTIO_BALLOON_PFN_SHIFT;
         virtio_notify_config(vdev);
     }
+    trace_virtio_balloon_to_target(target, dev->num_pages);
 }
 
 static void virtio_balloon_save(QEMUFile *f, void *opaque)
