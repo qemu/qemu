@@ -603,8 +603,8 @@ static void process_event(JSONMessageParser *parser, QList *tokens)
             error_free(err);
         }
         ret = send_response(s, QOBJECT(qdict));
-        if (ret) {
-            g_warning("error sending error response: %s", strerror(ret));
+        if (ret < 0) {
+            g_warning("error sending error response: %s", strerror(-ret));
         }
     }
 

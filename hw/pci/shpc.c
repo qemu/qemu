@@ -559,8 +559,9 @@ void shpc_device_hot_unplug_request_cb(HotplugHandler *hotplug_dev,
     uint8_t led;
     int slot;
 
-    shpc_device_hotplug_common(PCI_DEVICE(dev), &slot, shpc, errp);
+    shpc_device_hotplug_common(PCI_DEVICE(dev), &slot, shpc, &local_err);
     if (local_err) {
+        error_propagate(errp, local_err);
         return;
     }
 
