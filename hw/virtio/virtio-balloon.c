@@ -294,10 +294,12 @@ static void virtio_balloon_set_config(VirtIODevice *vdev,
     VirtIOBalloon *dev = VIRTIO_BALLOON(vdev);
     struct virtio_balloon_config config;
     uint32_t oldactual = dev->actual;
+    ram_addr_t vm_ram_size = get_current_ram_size();
+
     memcpy(&config, config_data, sizeof(struct virtio_balloon_config));
     dev->actual = le32_to_cpu(config.actual);
     if (dev->actual != oldactual) {
-        qapi_event_send_balloon_change(ram_size -
+        qapi_event_send_balloon_change(vm_ram_size -
                         ((ram_addr_t) dev->actual << VIRTIO_BALLOON_PFN_SHIFT),
                         &error_abort);
     }
@@ -312,20 +314,21 @@ static uint32_t virtio_balloon_get_features(VirtIODevice *vdev, uint32_t f)
 static void virtio_balloon_stat(void *opaque, BalloonInfo *info)
 {
     VirtIOBalloon *dev = opaque;
-    info->actual = ram_size - ((uint64_t) dev->actual <<
-                               VIRTIO_BALLOON_PFN_SHIFT);
+    info->actual = get_current_ram_size() - ((uint64_t) dev->actual <<
+                                             VIRTIO_BALLOON_PFN_SHIFT);
 }
 
 static void virtio_balloon_to_target(void *opaque, ram_addr_t target)
 {
     VirtIOBalloon *dev = VIRTIO_BALLOON(opaque);
     VirtIODevice *vdev = VIRTIO_DEVICE(dev);
+    ram_addr_t vm_ram_size = get_current_ram_size();
 
-    if (target > ram_size) {
-        target = ram_size;
+    if (target > vm_ram_size) {
+        target = vm_ram_size;
     }
     if (target) {
-        dev->num_pages = (ram_size - target) >> VIRTIO_BALLOON_PFN_SHIFT;
+        dev->num_pages = (vm_ram_size - target) >> VIRTIO_BALLOON_PFN_SHIFT;
         virtio_notify_config(vdev);
     }
 }
