@@ -68,6 +68,9 @@
 
 #define ACPI_BUILD_TABLE_SIZE             0x20000
 
+/* Reserve RAM space for tables: add another order of magnitude. */
+#define ACPI_BUILD_TABLE_MAX_SIZE         0x200000
+
 /* #define DEBUG_ACPI_BUILD */
 #ifdef DEBUG_ACPI_BUILD
 #define ACPI_BUILD_DPRINTF(fmt, ...)        \
@@ -1718,6 +1721,11 @@ static void acpi_build_update(void *build_opaque, uint32_t offset)
     acpi_build(build_state->guest_info, &tables);
 
     assert(acpi_data_len(tables.table_data) == build_state->table_size);
+
+    /* Make sure RAM size is correct - in case it got changed by migration */
+    qemu_ram_resize(build_state->table_ram, build_state->table_size,
+                    &error_abort);
+
     memcpy(qemu_get_ram_ptr(build_state->table_ram), tables.table_data->data,
            build_state->table_size);
 
@@ -1734,10 +1742,10 @@ static void acpi_build_reset(void *build_opaque)
 }
 
 static ram_addr_t acpi_add_rom_blob(AcpiBuildState *build_state, GArray *blob,
-                               const char *name)
+                               const char *name, uint64_t max_size)
 {
-    return rom_add_blob(name, blob->data, acpi_data_len(blob), -1, name,
-                        acpi_build_update, build_state);
+    return rom_add_blob(name, blob->data, acpi_data_len(blob), max_size, -1,
+                        name, acpi_build_update, build_state);
 }
 
 static const VMStateDescription vmstate_acpi_build = {
@@ -1781,11 +1789,12 @@ void acpi_setup(PcGuestInfo *guest_info)
 
     /* Now expose it all to Guest */
     build_state->table_ram = acpi_add_rom_blob(build_state, tables.table_data,
-                                               ACPI_BUILD_TABLE_FILE);
+                                               ACPI_BUILD_TABLE_FILE,
+                                               ACPI_BUILD_TABLE_MAX_SIZE);
     assert(build_state->table_ram != RAM_ADDR_MAX);
     build_state->table_size = acpi_data_len(tables.table_data);
 
-    acpi_add_rom_blob(NULL, tables.linker, "etc/table-loader");
+    acpi_add_rom_blob(NULL, tables.linker, "etc/table-loader", 0);
 
     fw_cfg_add_file(guest_info->fw_cfg, ACPI_BUILD_TPMLOG_FILE,
                     tables.tcpalog->data, acpi_data_len(tables.tcpalog));

@@ -712,12 +712,22 @@ static void rom_insert(Rom *rom)
     QTAILQ_INSERT_TAIL(&roms, rom, next);
 }
 
+static void fw_cfg_resized(const char *id, uint64_t length, void *host)
+{
+    if (fw_cfg) {
+        fw_cfg_modify_file(fw_cfg, id + strlen("/rom@"), host, length);
+    }
+}
+
 static void *rom_set_mr(Rom *rom, Object *owner, const char *name)
 {
     void *data;
 
     rom->mr = g_malloc(sizeof(*rom->mr));
-    memory_region_init_ram(rom->mr, owner, name, rom->datasize, &error_abort);
+    memory_region_init_resizeable_ram(rom->mr, owner, name,
+                                      rom->datasize, rom->romsize,
+                                      fw_cfg_resized,
+                                      &error_abort);
     memory_region_set_readonly(rom->mr, true);
     vmstate_register_ram_global(rom->mr);
 
@@ -812,7 +822,7 @@ err:
 }
 
 ram_addr_t rom_add_blob(const char *name, const void *blob, size_t len,
-                   hwaddr addr, const char *fw_file_name,
+                   size_t max_len, hwaddr addr, const char *fw_file_name,
                    FWCfgReadCallback fw_callback, void *callback_opaque)
 {
     Rom *rom;
@@ -821,7 +831,7 @@ ram_addr_t rom_add_blob(const char *name, const void *blob, size_t len,
     rom           = g_malloc0(sizeof(*rom));
     rom->name     = g_strdup(name);
     rom->addr     = addr;
-    rom->romsize  = len;
+    rom->romsize  = max_len ? max_len : len;
     rom->datasize = len;
     rom->data     = g_malloc0(rom->datasize);
     memcpy(rom->data, blob, len);
@@ -841,7 +851,7 @@ ram_addr_t rom_add_blob(const char *name, const void *blob, size_t len,
 
         fw_cfg_add_file_callback(fw_cfg, fw_file_name,
                                  fw_callback, callback_opaque,
-                                 data, rom->romsize);
+                                 data, rom->datasize);
     }
     return ret;
 }
