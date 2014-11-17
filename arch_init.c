@@ -1086,11 +1086,14 @@ static int ram_load(QEMUFile *f, void *opaque, int version_id)
 
                 QTAILQ_FOREACH(block, &ram_list.blocks, next) {
                     if (!strncmp(id, block->idstr, sizeof(id))) {
-                        if (block->used_length != length) {
-                            error_report("Length mismatch: %s: 0x" RAM_ADDR_FMT
-                                         " in != 0x" RAM_ADDR_FMT, id, length,
-                                         block->used_length);
-                            ret =  -EINVAL;
+                        if (length != block->used_length) {
+                            Error *local_err = NULL;
+
+                            ret = qemu_ram_resize(block->offset, length, &local_err);
+                            if (local_err) {
+                                error_report("%s", error_get_pretty(local_err));
+                                error_free(local_err);
+                            }
                         }
                         break;
                     }
