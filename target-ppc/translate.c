@@ -6743,7 +6743,7 @@ static void gen_st##name(DisasContext *ctx)                                   \
     tcg_temp_free(EA);                                                        \
 }
 
-#define GEN_VR_LVE(name, opc2, opc3)                                    \
+#define GEN_VR_LVE(name, opc2, opc3, size)                              \
 static void gen_lve##name(DisasContext *ctx)                            \
     {                                                                   \
         TCGv EA;                                                        \
@@ -6755,13 +6755,16 @@ static void gen_lve##name(DisasContext *ctx)                            \
         gen_set_access_type(ctx, ACCESS_INT);                           \
         EA = tcg_temp_new();                                            \
         gen_addr_reg_index(ctx, EA);                                    \
+        if (size > 1) {                                                 \
+            tcg_gen_andi_tl(EA, EA, ~(size - 1));                       \
+        }                                                               \
         rs = gen_avr_ptr(rS(ctx->opcode));                              \
         gen_helper_lve##name(cpu_env, rs, EA);                          \
         tcg_temp_free(EA);                                              \
         tcg_temp_free_ptr(rs);                                          \
     }
 
-#define GEN_VR_STVE(name, opc2, opc3)                                   \
+#define GEN_VR_STVE(name, opc2, opc3, size)                             \
 static void gen_stve##name(DisasContext *ctx)                           \
     {                                                                   \
         TCGv EA;                                                        \
@@ -6773,6 +6776,9 @@ static void gen_stve##name(DisasContext *ctx)                           \
         gen_set_access_type(ctx, ACCESS_INT);                           \
         EA = tcg_temp_new();                                            \
         gen_addr_reg_index(ctx, EA);                                    \
+        if (size > 1) {                                                 \
+            tcg_gen_andi_tl(EA, EA, ~(size - 1));                       \
+        }                                                               \
         rs = gen_avr_ptr(rS(ctx->opcode));                              \
         gen_helper_stve##name(cpu_env, rs, EA);                         \
         tcg_temp_free(EA);                                              \
@@ -6783,17 +6789,17 @@ GEN_VR_LDX(lvx, 0x07, 0x03);
 /* As we don't emulate the cache, lvxl is stricly equivalent to lvx */
 GEN_VR_LDX(lvxl, 0x07, 0x0B);
 
-GEN_VR_LVE(bx, 0x07, 0x00);
-GEN_VR_LVE(hx, 0x07, 0x01);
-GEN_VR_LVE(wx, 0x07, 0x02);
+GEN_VR_LVE(bx, 0x07, 0x00, 1);
+GEN_VR_LVE(hx, 0x07, 0x01, 2);
+GEN_VR_LVE(wx, 0x07, 0x02, 4);
 
 GEN_VR_STX(svx, 0x07, 0x07);
 /* As we don't emulate the cache, stvxl is stricly equivalent to stvx */
 GEN_VR_STX(svxl, 0x07, 0x0F);
 
-GEN_VR_STVE(bx, 0x07, 0x04);
-GEN_VR_STVE(hx, 0x07, 0x05);
-GEN_VR_STVE(wx, 0x07, 0x06);
+GEN_VR_STVE(bx, 0x07, 0x04, 1);
+GEN_VR_STVE(hx, 0x07, 0x05, 2);
+GEN_VR_STVE(wx, 0x07, 0x06, 4);
 
 static void gen_lvsl(DisasContext *ctx)
 {
