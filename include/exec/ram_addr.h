@@ -172,9 +172,9 @@ static inline void cpu_physical_memory_set_dirty_lebitmap(unsigned long *bitmap,
 }
 #endif /* not _WIN32 */
 
-static inline void cpu_physical_memory_clear_dirty_range(ram_addr_t start,
-                                                         ram_addr_t length,
-                                                         unsigned client)
+static inline void cpu_physical_memory_clear_dirty_range_type(ram_addr_t start,
+                                                              ram_addr_t length,
+                                                              unsigned client)
 {
     unsigned long end, page;
 
@@ -183,6 +183,15 @@ static inline void cpu_physical_memory_clear_dirty_range(ram_addr_t start,
     page = start >> TARGET_PAGE_BITS;
     bitmap_clear(ram_list.dirty_memory[client], page, end - page);
 }
+
+static inline void cpu_physical_memory_clear_dirty_range(ram_addr_t start,
+                                                         ram_addr_t length)
+{
+    cpu_physical_memory_clear_dirty_range_type(start, length, DIRTY_MEMORY_MIGRATION);
+    cpu_physical_memory_clear_dirty_range_type(start, length, DIRTY_MEMORY_VGA);
+    cpu_physical_memory_clear_dirty_range_type(start, length, DIRTY_MEMORY_CODE);
+}
+
 
 void cpu_physical_memory_reset_dirty(ram_addr_t start, ram_addr_t length,
                                      unsigned client);
