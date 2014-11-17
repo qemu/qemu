@@ -819,9 +819,16 @@ static void emulate_spapr_hypercall(PowerPCCPU *cpu)
     }
 }
 
+#define HPTE(_table, _i)   (void *)(((uint64_t *)(_table)) + ((_i) * 2))
+#define HPTE_VALID(_hpte)  (tswap64(*((uint64_t *)(_hpte))) & HPTE64_V_VALID)
+#define HPTE_DIRTY(_hpte)  (tswap64(*((uint64_t *)(_hpte))) & HPTE64_V_HPTE_DIRTY)
+#define CLEAN_HPTE(_hpte)  ((*(uint64_t *)(_hpte)) &= tswap64(~HPTE64_V_HPTE_DIRTY))
+#define DIRTY_HPTE(_hpte)  ((*(uint64_t *)(_hpte)) |= tswap64(HPTE64_V_HPTE_DIRTY))
+
 static void spapr_reset_htab(sPAPREnvironment *spapr)
 {
     long shift;
+    int index;
 
     /* allocate hash page table.  For now we always make this 16mb,
      * later we should probably make it scale to the size of guest
@@ -846,6 +853,10 @@ static void spapr_reset_htab(sPAPREnvironment *spapr)
 
         /* And clear it */
         memset(spapr->htab, 0, HTAB_SIZE(spapr));
+
+        for (index = 0; index < HTAB_SIZE(spapr) / HASH_PTE_SIZE_64; index++) {
+            DIRTY_HPTE(HPTE(spapr->htab, index));
+        }
     }
 
     /* Update the RMA size if necessary */
@@ -1012,11 +1023,6 @@ static const VMStateDescription vmstate_spapr = {
         VMSTATE_END_OF_LIST()
     },
 };
-
-#define HPTE(_table, _i)   (void *)(((uint64_t *)(_table)) + ((_i) * 2))
-#define HPTE_VALID(_hpte)  (tswap64(*((uint64_t *)(_hpte))) & HPTE64_V_VALID)
-#define HPTE_DIRTY(_hpte)  (tswap64(*((uint64_t *)(_hpte))) & HPTE64_V_HPTE_DIRTY)
-#define CLEAN_HPTE(_hpte)  ((*(uint64_t *)(_hpte)) &= tswap64(~HPTE64_V_HPTE_DIRTY))
 
 static int htab_save_setup(QEMUFile *f, void *opaque)
 {
