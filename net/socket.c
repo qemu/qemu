@@ -352,7 +352,7 @@ static NetSocketState *net_socket_fd_init_dgram(NetClientState *peer,
 {
     struct sockaddr_in saddr;
     int newfd;
-    socklen_t saddr_len;
+    socklen_t saddr_len = sizeof(saddr);
     NetClientState *nc;
     NetSocketState *s;
 
