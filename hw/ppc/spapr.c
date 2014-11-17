@@ -1065,7 +1065,7 @@ static void htab_save_first_pass(QEMUFile *f, sPAPREnvironment *spapr,
 
         /* Consume valid HPTEs */
         chunkstart = index;
-        while ((index < htabslots)
+        while ((index < htabslots) && (index - chunkstart < USHRT_MAX)
                && HPTE_VALID(HPTE(spapr->htab, index))) {
             index++;
             CLEAN_HPTE(HPTE(spapr->htab, index));
@@ -1117,7 +1117,7 @@ static int htab_save_later_pass(QEMUFile *f, sPAPREnvironment *spapr,
 
         chunkstart = index;
         /* Consume valid dirty HPTEs */
-        while ((index < htabslots)
+        while ((index < htabslots) && (index - chunkstart < USHRT_MAX)
                && HPTE_DIRTY(HPTE(spapr->htab, index))
                && HPTE_VALID(HPTE(spapr->htab, index))) {
             CLEAN_HPTE(HPTE(spapr->htab, index));
@@ -1127,7 +1127,7 @@ static int htab_save_later_pass(QEMUFile *f, sPAPREnvironment *spapr,
 
         invalidstart = index;
         /* Consume invalid dirty HPTEs */
-        while ((index < htabslots)
+        while ((index < htabslots) && (index - invalidstart < USHRT_MAX)
                && HPTE_DIRTY(HPTE(spapr->htab, index))
                && !HPTE_VALID(HPTE(spapr->htab, index))) {
             CLEAN_HPTE(HPTE(spapr->htab, index));
