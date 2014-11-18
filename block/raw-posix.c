@@ -1454,7 +1454,12 @@ static int raw_create(const char *filename, QemuOpts *opts, Error **errp)
             left -= result;
         }
         if (result >= 0) {
-            fsync(fd);
+            result = fsync(fd);
+            if (result < 0) {
+                result = -errno;
+                error_setg_errno(errp, -result,
+                                 "Could not flush new file to disk");
+            }
         }
         g_free(buf);
         break;
