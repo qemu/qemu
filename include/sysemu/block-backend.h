@@ -135,6 +135,14 @@ void blk_op_block_all(BlockBackend *blk, Error *reason);
 void blk_op_unblock_all(BlockBackend *blk, Error *reason);
 AioContext *blk_get_aio_context(BlockBackend *blk);
 void blk_set_aio_context(BlockBackend *blk, AioContext *new_context);
+void blk_add_aio_context_notifier(BlockBackend *blk,
+        void (*attached_aio_context)(AioContext *new_context, void *opaque),
+        void (*detach_aio_context)(void *opaque), void *opaque);
+void blk_remove_aio_context_notifier(BlockBackend *blk,
+                                     void (*attached_aio_context)(AioContext *,
+                                                                  void *),
+                                     void (*detach_aio_context)(void *),
+                                     void *opaque);
 void blk_io_plug(BlockBackend *blk);
 void blk_io_unplug(BlockBackend *blk);
 BlockAcctStats *blk_get_stats(BlockBackend *blk);

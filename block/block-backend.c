@@ -624,6 +624,24 @@ void blk_set_aio_context(BlockBackend *blk, AioContext *new_context)
     bdrv_set_aio_context(blk->bs, new_context);
 }
 
+void blk_add_aio_context_notifier(BlockBackend *blk,
+        void (*attached_aio_context)(AioContext *new_context, void *opaque),
+        void (*detach_aio_context)(void *opaque), void *opaque)
+{
+    bdrv_add_aio_context_notifier(blk->bs, attached_aio_context,
+                                  detach_aio_context, opaque);
+}
+
+void blk_remove_aio_context_notifier(BlockBackend *blk,
+                                     void (*attached_aio_context)(AioContext *,
+                                                                  void *),
+                                     void (*detach_aio_context)(void *),
+                                     void *opaque)
+{
+    bdrv_remove_aio_context_notifier(blk->bs, attached_aio_context,
+                                     detach_aio_context, opaque);
+}
+
 void blk_io_plug(BlockBackend *blk)
 {
     bdrv_io_plug(blk->bs);
