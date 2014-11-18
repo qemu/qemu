@@ -928,6 +928,7 @@ F: scripts/checkpatch.pl
 
 Migration
 M: Juan Quintela <quintela@redhat.com>
+M: Amit Shah <amit.shah@redhat.com>
 S: Maintained
 F: include/migration/
 F: migration*
