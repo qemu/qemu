@@ -60,9 +60,6 @@
 #define FS_NOCOW_FL                     0x00800000 /* Do not cow file */
 #endif
 #endif
-#ifdef CONFIG_FIEMAP
-#include <linux/fiemap.h>
-#endif
 #ifdef CONFIG_FALLOCATE_PUNCH_HOLE
 #include <linux/falloc.h>
 #endif
@@ -151,9 +148,6 @@ typedef struct BDRVRawState {
     bool has_write_zeroes:1;
     bool discard_zeroes:1;
     bool needs_alignment;
-#ifdef CONFIG_FIEMAP
-    bool skip_fiemap;
-#endif
 } BDRVRawState;
 
 typedef struct BDRVRawReopenState {
@@ -1457,9 +1451,16 @@ static int raw_create(const char *filename, QemuOpts *opts, Error **errp)
                                  "Could not write to the new file");
                 break;
             }
-            left -= num;
+            left -= result;
         }
-        fsync(fd);
+        if (result >= 0) {
+            result = fsync(fd);
+            if (result < 0) {
+                result = -errno;
+                error_setg_errno(errp, -result,
+                                 "Could not flush new file to disk");
+            }
+        }
         g_free(buf);
         break;
     }
@@ -1481,83 +1482,93 @@ out:
     return result;
 }
 
-static int try_fiemap(BlockDriverState *bs, off_t start, off_t *data,
-                      off_t *hole, int nb_sectors)
-{
-#ifdef CONFIG_FIEMAP
-    BDRVRawState *s = bs->opaque;
-    int ret = 0;
-    struct {
-        struct fiemap fm;
-        struct fiemap_extent fe;
-    } f;
-
-    if (s->skip_fiemap) {
-        return -ENOTSUP;
-    }
-
-    f.fm.fm_start = start;
-    f.fm.fm_length = (int64_t)nb_sectors * BDRV_SECTOR_SIZE;
-    f.fm.fm_flags = FIEMAP_FLAG_SYNC;
-    f.fm.fm_extent_count = 1;
-    f.fm.fm_reserved = 0;
-    if (ioctl(s->fd, FS_IOC_FIEMAP, &f) == -1) {
-        s->skip_fiemap = true;
-        return -errno;
-    }
-
-    if (f.fm.fm_mapped_extents == 0) {
-        /* No extents found, data is beyond f.fm.fm_start + f.fm.fm_length.
-         * f.fm.fm_start + f.fm.fm_length must be clamped to the file size!
-         */
-        off_t length = lseek(s->fd, 0, SEEK_END);
-        *hole = f.fm.fm_start;
-        *data = MIN(f.fm.fm_start + f.fm.fm_length, length);
-    } else {
-        *data = f.fe.fe_logical;
-        *hole = f.fe.fe_logical + f.fe.fe_length;
-        if (f.fe.fe_flags & FIEMAP_EXTENT_UNWRITTEN) {
-            ret |= BDRV_BLOCK_ZERO;
-        }
-    }
-
-    return ret;
-#else
-    return -ENOTSUP;
-#endif
-}
-
-static int try_seek_hole(BlockDriverState *bs, off_t start, off_t *data,
-                         off_t *hole)
+/*
+ * Find allocation range in @bs around offset @start.
+ * May change underlying file descriptor's file offset.
+ * If @start is not in a hole, store @start in @data, and the
+ * beginning of the next hole in @hole, and return 0.
+ * If @start is in a non-trailing hole, store @start in @hole and the
+ * beginning of the next non-hole in @data, and return 0.
+ * If @start is in a trailing hole or beyond EOF, return -ENXIO.
+ * If we can't find out, return a negative errno other than -ENXIO.
+ */
+static int find_allocation(BlockDriverState *bs, off_t start,
+                           off_t *data, off_t *hole)
 {
 #if defined SEEK_HOLE && defined SEEK_DATA
     BDRVRawState *s = bs->opaque;
+    off_t offs;
 
-    *hole = lseek(s->fd, start, SEEK_HOLE);
-    if (*hole == -1) {
-        return -errno;
+    /*
+     * SEEK_DATA cases:
+     * D1. offs == start: start is in data
+     * D2. offs > start: start is in a hole, next data at offs
+     * D3. offs < 0, errno = ENXIO: either start is in a trailing hole
+     *                              or start is beyond EOF
+     *     If the latter happens, the file has been truncated behind
+     *     our back since we opened it.  All bets are off then.
+     *     Treating like a trailing hole is simplest.
+     * D4. offs < 0, errno != ENXIO: we learned nothing
+     */
+    offs = lseek(s->fd, start, SEEK_DATA);
+    if (offs < 0) {
+        return -errno;          /* D3 or D4 */
+    }
+    assert(offs >= start);
+
+    if (offs > start) {
+        /* D2: in hole, next data at offs */
+        *hole = start;
+        *data = offs;
+        return 0;
     }
 
-    if (*hole > start) {
+    /* D1: in data, end not yet known */
+
+    /*
+     * SEEK_HOLE cases:
+     * H1. offs == start: start is in a hole
+     *     If this happens here, a hole has been dug behind our back
+     *     since the previous lseek().
+     * H2. offs > start: either start is in data, next hole at offs,
+     *                   or start is in trailing hole, EOF at offs
+     *     Linux treats trailing holes like any other hole: offs ==
+     *     start.  Solaris seeks to EOF instead: offs > start (blech).
+     *     If that happens here, a hole has been dug behind our back
+     *     since the previous lseek().
+     * H3. offs < 0, errno = ENXIO: start is beyond EOF
+     *     If this happens, the file has been truncated behind our
+     *     back since we opened it.  Treat it like a trailing hole.
+     * H4. offs < 0, errno != ENXIO: we learned nothing
+     *     Pretend we know nothing at all, i.e. "forget" about D1.
+     */
+    offs = lseek(s->fd, start, SEEK_HOLE);
+    if (offs < 0) {
+        return -errno;          /* D1 and (H3 or H4) */
+    }
+    assert(offs >= start);
+
+    if (offs > start) {
+        /*
+         * D1 and H2: either in data, next hole at offs, or it was in
+         * data but is now in a trailing hole.  In the latter case,
+         * all bets are off.  Treating it as if it there was data all
+         * the way to EOF is safe, so simply do that.
+         */
         *data = start;
-    } else {
-        /* On a hole.  We need another syscall to find its end.  */
-        *data = lseek(s->fd, start, SEEK_DATA);
-        if (*data == -1) {
-            *data = lseek(s->fd, 0, SEEK_END);
-        }
+        *hole = offs;
+        return 0;
     }
 
-    return 0;
+    /* D1 and H1 */
+    return -EBUSY;
 #else
     return -ENOTSUP;
 #endif
 }
 
 /*
- * Returns true iff the specified sector is present in the disk image. Drivers
- * not implementing the functionality are assumed to not support backing files,
- * hence all their sectors are reported as allocated.
+ * Returns the allocation status of the specified sectors.
  *
  * If 'sector_num' is beyond the end of the disk image the return value is 0
  * and 'pnum' is set to 0.
@@ -1593,28 +1604,26 @@ static int64_t coroutine_fn raw_co_get_block_status(BlockDriverState *bs,
         nb_sectors = DIV_ROUND_UP(total_size - start, BDRV_SECTOR_SIZE);
     }
 
-    ret = try_seek_hole(bs, start, &data, &hole);
-    if (ret < 0) {
-        ret = try_fiemap(bs, start, &data, &hole, nb_sectors);
-        if (ret < 0) {
-            /* Assume everything is allocated. */
-            data = 0;
-            hole = start + nb_sectors * BDRV_SECTOR_SIZE;
-            ret = 0;
-        }
-    }
-
-    assert(ret >= 0);
-
-    if (data <= start) {
+    ret = find_allocation(bs, start, &data, &hole);
+    if (ret == -ENXIO) {
+        /* Trailing hole */
+        *pnum = nb_sectors;
+        ret = BDRV_BLOCK_ZERO;
+    } else if (ret < 0) {
+        /* No info available, so pretend there are no holes */
+        *pnum = nb_sectors;
+        ret = BDRV_BLOCK_DATA;
+    } else if (data == start) {
         /* On a data extent, compute sectors to the end of the extent.  */
         *pnum = MIN(nb_sectors, (hole - start) / BDRV_SECTOR_SIZE);
-        return ret | BDRV_BLOCK_DATA | BDRV_BLOCK_OFFSET_VALID | start;
+        ret = BDRV_BLOCK_DATA;
     } else {
         /* On a hole, compute sectors to the beginning of the next extent.  */
+        assert(hole == start);
         *pnum = MIN(nb_sectors, (data - start) / BDRV_SECTOR_SIZE);
-        return ret | BDRV_BLOCK_ZERO | BDRV_BLOCK_OFFSET_VALID | start;
+        ret = BDRV_BLOCK_ZERO;
     }
+    return ret | BDRV_BLOCK_OFFSET_VALID | start;
 }
 
 static coroutine_fn BlockAIOCB *raw_aio_discard(BlockDriverState *bs,
