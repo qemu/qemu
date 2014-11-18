@@ -697,6 +697,13 @@ S: Supported
 F: hw/char/virtio-serial-bus.c
 F: hw/char/virtio-console.c
 
+virtio-rng
+M: Amit Shah <amit.shah@redhat.com>
+S: Supported
+F: hw/virtio/virtio-rng.c
+F: include/hw/virtio/virtio-rng.h
+F: backends/rng*.c
+
 nvme
 M: Keith Busch <keith.busch@intel.com>
 S: Supported
