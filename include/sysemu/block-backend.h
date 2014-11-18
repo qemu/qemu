@@ -143,6 +143,7 @@ void blk_remove_aio_context_notifier(BlockBackend *blk,
                                                                   void *),
                                      void (*detach_aio_context)(void *),
                                      void *opaque);
+void blk_add_close_notifier(BlockBackend *blk, Notifier *notify);
 void blk_io_plug(BlockBackend *blk);
 void blk_io_unplug(BlockBackend *blk);
 BlockAcctStats *blk_get_stats(BlockBackend *blk);

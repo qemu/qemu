@@ -642,6 +642,11 @@ void blk_remove_aio_context_notifier(BlockBackend *blk,
                                      detach_aio_context, opaque);
 }
 
+void blk_add_close_notifier(BlockBackend *blk, Notifier *notify)
+{
+    bdrv_add_close_notifier(blk->bs, notify);
+}
+
 void blk_io_plug(BlockBackend *blk)
 {
     bdrv_io_plug(blk->bs);
