@@ -730,7 +730,7 @@ int main(int argc, char **argv)
         }
     }
 
-    exp = nbd_export_new(bs, dev_offset, fd_size, nbdflags, nbd_export_closed);
+    exp = nbd_export_new(blk, dev_offset, fd_size, nbdflags, nbd_export_closed);
 
     if (sockpath) {
         fd = unix_socket_incoming(sockpath);

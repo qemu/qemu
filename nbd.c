@@ -19,6 +19,7 @@
 #include "block/nbd.h"
 #include "block/block.h"
 #include "block/block_int.h"
+#include "sysemu/block-backend.h"
 
 #include "block/coroutine.h"
 
@@ -957,10 +958,10 @@ static void bs_aio_detach(void *opaque)
     exp->ctx = NULL;
 }
 
-NBDExport *nbd_export_new(BlockDriverState *bs, off_t dev_offset,
-                          off_t size, uint32_t nbdflags,
-                          void (*close)(NBDExport *))
+NBDExport *nbd_export_new(BlockBackend *blk, off_t dev_offset, off_t size,
+                          uint32_t nbdflags, void (*close)(NBDExport *))
 {
+    BlockDriverState *bs = blk_bs(blk);
     NBDExport *exp = g_malloc0(sizeof(NBDExport));
     exp->refcount = 1;
     QTAILQ_INIT(&exp->clients);
@@ -1056,9 +1057,9 @@ void nbd_export_put(NBDExport *exp)
     }
 }
 
-BlockDriverState *nbd_export_get_blockdev(NBDExport *exp)
+BlockBackend *nbd_export_get_blockdev(NBDExport *exp)
 {
-    return exp->bs;
+    return exp->bs->blk;
 }
 
 void nbd_export_close_all(void)

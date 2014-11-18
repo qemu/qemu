@@ -85,14 +85,13 @@ int nbd_disconnect(int fd);
 typedef struct NBDExport NBDExport;
 typedef struct NBDClient NBDClient;
 
-NBDExport *nbd_export_new(BlockDriverState *bs, off_t dev_offset,
-                          off_t size, uint32_t nbdflags,
-                          void (*close)(NBDExport *));
+NBDExport *nbd_export_new(BlockBackend *blk, off_t dev_offset, off_t size,
+                          uint32_t nbdflags, void (*close)(NBDExport *));
 void nbd_export_close(NBDExport *exp);
 void nbd_export_get(NBDExport *exp);
 void nbd_export_put(NBDExport *exp);
 
-BlockDriverState *nbd_export_get_blockdev(NBDExport *exp);
+BlockBackend *nbd_export_get_blockdev(NBDExport *exp);
 
 NBDExport *nbd_export_find(const char *name);
 void nbd_export_set_name(NBDExport *exp, const char *name);
