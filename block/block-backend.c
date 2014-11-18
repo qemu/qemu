@@ -497,6 +497,16 @@ BlockAIOCB *blk_aio_ioctl(BlockBackend *blk, unsigned long int req, void *buf,
     return bdrv_aio_ioctl(blk->bs, req, buf, cb, opaque);
 }
 
+int blk_co_discard(BlockBackend *blk, int64_t sector_num, int nb_sectors)
+{
+    return bdrv_co_discard(blk->bs, sector_num, nb_sectors);
+}
+
+int blk_co_flush(BlockBackend *blk)
+{
+    return bdrv_co_flush(blk->bs);
+}
+
 int blk_flush(BlockBackend *blk)
 {
     return bdrv_flush(blk->bs);
@@ -547,6 +557,11 @@ int blk_enable_write_cache(BlockBackend *blk)
 void blk_set_enable_write_cache(BlockBackend *blk, bool wce)
 {
     bdrv_set_enable_write_cache(blk->bs, wce);
+}
+
+void blk_invalidate_cache(BlockBackend *blk, Error **errp)
+{
+    bdrv_invalidate_cache(blk->bs, errp);
 }
 
 int blk_is_inserted(BlockBackend *blk)

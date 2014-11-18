@@ -108,6 +108,8 @@ int blk_aio_multiwrite(BlockBackend *blk, BlockRequest *reqs, int num_reqs);
 int blk_ioctl(BlockBackend *blk, unsigned long int req, void *buf);
 BlockAIOCB *blk_aio_ioctl(BlockBackend *blk, unsigned long int req, void *buf,
                           BlockCompletionFunc *cb, void *opaque);
+int blk_co_discard(BlockBackend *blk, int64_t sector_num, int nb_sectors);
+int blk_co_flush(BlockBackend *blk);
 int blk_flush(BlockBackend *blk);
 int blk_flush_all(void);
 void blk_drain_all(void);
@@ -120,6 +122,7 @@ int blk_is_read_only(BlockBackend *blk);
 int blk_is_sg(BlockBackend *blk);
 int blk_enable_write_cache(BlockBackend *blk);
 void blk_set_enable_write_cache(BlockBackend *blk, bool wce);
+void blk_invalidate_cache(BlockBackend *blk, Error **errp);
 int blk_is_inserted(BlockBackend *blk);
 void blk_lock_medium(BlockBackend *blk, bool locked);
 void blk_eject(BlockBackend *blk, bool eject_flag);
