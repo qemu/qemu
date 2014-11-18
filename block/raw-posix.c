@@ -1451,7 +1451,7 @@ static int raw_create(const char *filename, QemuOpts *opts, Error **errp)
                                  "Could not write to the new file");
                 break;
             }
-            left -= num;
+            left -= result;
         }
         fsync(fd);
         g_free(buf);
