@@ -1453,7 +1453,9 @@ static int raw_create(const char *filename, QemuOpts *opts, Error **errp)
             }
             left -= result;
         }
-        fsync(fd);
+        if (result >= 0) {
+            fsync(fd);
+        }
         g_free(buf);
         break;
     }
