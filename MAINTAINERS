@@ -935,6 +935,8 @@ F: migration*
 F: savevm.c
 F: arch_init.c
 F: vmstate.c
+F: scripts/vmstate-static-checker.py
+F: tests/vmstate-static-checker-data/
 
 Seccomp
 M: Eduardo Otubo <eduardo.otubo@profitbricks.com>
