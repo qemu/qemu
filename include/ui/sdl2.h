@@ -1,6 +1,12 @@
 #ifndef SDL2_H
 #define SDL2_H
 
+/* Avoid compiler warning because macro is redefined in SDL_syswm.h. */
+#undef WIN32_LEAN_AND_MEAN
+
+#include <SDL.h>
+#include <SDL_syswm.h>
+
 struct sdl2_console {
     DisplayChangeListener dcl;
     DisplaySurface *surface;
