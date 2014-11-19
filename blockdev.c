@@ -1617,14 +1617,18 @@ exit:
 static void eject_device(BlockBackend *blk, int force, Error **errp)
 {
     BlockDriverState *bs = blk_bs(blk);
+    AioContext *aio_context;
+
+    aio_context = bdrv_get_aio_context(bs);
+    aio_context_acquire(aio_context);
 
     if (bdrv_op_is_blocked(bs, BLOCK_OP_TYPE_EJECT, errp)) {
-        return;
+        goto out;
     }
     if (!blk_dev_has_removable_media(blk)) {
         error_setg(errp, "Device '%s' is not removable",
                    bdrv_get_device_name(bs));
-        return;
+        goto out;
     }
 
     if (blk_dev_is_medium_locked(blk) && !blk_dev_is_tray_open(blk)) {
@@ -1632,11 +1636,14 @@ static void eject_device(BlockBackend *blk, int force, Error **errp)
         if (!force) {
             error_setg(errp, "Device '%s' is locked",
                        bdrv_get_device_name(bs));
-            return;
+            goto out;
         }
     }
 
     bdrv_close(bs);
+
+out:
+    aio_context_release(aio_context);
 }
 
 void qmp_eject(const char *device, bool has_force, bool force, Error **errp)
@@ -1658,6 +1665,7 @@ void qmp_block_passwd(bool has_device, const char *device,
 {
     Error *local_err = NULL;
     BlockDriverState *bs;
+    AioContext *aio_context;
     int err;
 
     bs = bdrv_lookup_bs(has_device ? device : NULL,
@@ -1668,16 +1676,23 @@ void qmp_block_passwd(bool has_device, const char *device,
         return;
     }
 
+    aio_context = bdrv_get_aio_context(bs);
+    aio_context_acquire(aio_context);
+
     err = bdrv_set_key(bs, password);
     if (err == -EINVAL) {
         error_set(errp, QERR_DEVICE_NOT_ENCRYPTED, bdrv_get_device_name(bs));
-        return;
+        goto out;
     } else if (err < 0) {
         error_set(errp, QERR_INVALID_PASSWORD);
-        return;
+        goto out;
     }
+
+out:
+    aio_context_release(aio_context);
 }
 
+/* Assumes AioContext is held */
 static void qmp_bdrv_open_encrypted(BlockDriverState *bs, const char *filename,
                                     int bdrv_flags, BlockDriver *drv,
                                     const char *password, Error **errp)
@@ -1710,6 +1725,7 @@ void qmp_change_blockdev(const char *device, const char *filename,
 {
     BlockBackend *blk;
     BlockDriverState *bs;
+    AioContext *aio_context;
     BlockDriver *drv = NULL;
     int bdrv_flags;
     Error *err = NULL;
@@ -1721,24 +1737,30 @@ void qmp_change_blockdev(const char *device, const char *filename,
     }
     bs = blk_bs(blk);
 
+    aio_context = bdrv_get_aio_context(bs);
+    aio_context_acquire(aio_context);
+
     if (format) {
         drv = bdrv_find_whitelisted_format(format, bs->read_only);
         if (!drv) {
             error_set(errp, QERR_INVALID_BLOCK_FORMAT, format);
-            return;
+            goto out;
         }
     }
 
     eject_device(blk, 0, &err);
     if (err) {
         error_propagate(errp, err);
-        return;
+        goto out;
     }
 
     bdrv_flags = bdrv_is_read_only(bs) ? 0 : BDRV_O_RDWR;
     bdrv_flags |= bdrv_is_snapshot(bs) ? BDRV_O_SNAPSHOT : 0;
 
     qmp_bdrv_open_encrypted(bs, filename, bdrv_flags, drv, NULL, errp);
+
+out:
+    aio_context_release(aio_context);
 }
 
 /* throttling disk I/O limits */

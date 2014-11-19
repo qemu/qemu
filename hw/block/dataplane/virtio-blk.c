@@ -198,6 +198,7 @@ void virtio_blk_data_plane_create(VirtIODevice *vdev, VirtIOBlkConf *conf,
     blk_op_unblock(conf->conf.blk, BLOCK_OP_TYPE_DRIVE_DEL, s->blocker);
     blk_op_unblock(conf->conf.blk, BLOCK_OP_TYPE_BACKUP_SOURCE, s->blocker);
     blk_op_unblock(conf->conf.blk, BLOCK_OP_TYPE_COMMIT, s->blocker);
+    blk_op_unblock(conf->conf.blk, BLOCK_OP_TYPE_EJECT, s->blocker);
     blk_op_unblock(conf->conf.blk, BLOCK_OP_TYPE_INTERNAL_SNAPSHOT_DELETE,
                    s->blocker);
     blk_op_unblock(conf->conf.blk, BLOCK_OP_TYPE_MIRROR, s->blocker);
