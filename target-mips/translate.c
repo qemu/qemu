@@ -10728,6 +10728,7 @@ static void gen_mips16_save (DisasContext *ctx,
 {
     TCGv t0 = tcg_temp_new();
     TCGv t1 = tcg_temp_new();
+    TCGv t2 = tcg_temp_new();
     int args, astatic;
 
     switch (aregs) {
@@ -10786,7 +10787,8 @@ static void gen_mips16_save (DisasContext *ctx,
     gen_load_gpr(t0, 29);
 
 #define DECR_AND_STORE(reg) do {                                 \
-        tcg_gen_subi_tl(t0, t0, 4);                              \
+        tcg_gen_movi_tl(t2, -4);                                 \
+        gen_op_addr_add(ctx, t0, t0, t2);                        \
         gen_load_gpr(t1, reg);                                   \
         tcg_gen_qemu_st_tl(t1, t0, ctx->mem_idx, MO_TEUL); \
     } while (0)
@@ -10870,9 +10872,11 @@ static void gen_mips16_save (DisasContext *ctx,
     }
 #undef DECR_AND_STORE
 
-    tcg_gen_subi_tl(cpu_gpr[29], cpu_gpr[29], framesize);
+    tcg_gen_movi_tl(t2, -framesize);
+    gen_op_addr_add(ctx, cpu_gpr[29], cpu_gpr[29], t2);
     tcg_temp_free(t0);
     tcg_temp_free(t1);
+    tcg_temp_free(t2);
 }
 
 static void gen_mips16_restore (DisasContext *ctx,
@@ -10883,11 +10887,14 @@ static void gen_mips16_restore (DisasContext *ctx,
     int astatic;
     TCGv t0 = tcg_temp_new();
     TCGv t1 = tcg_temp_new();
+    TCGv t2 = tcg_temp_new();
 
-    tcg_gen_addi_tl(t0, cpu_gpr[29], framesize);
+    tcg_gen_movi_tl(t2, framesize);
+    gen_op_addr_add(ctx, t0, cpu_gpr[29], t2);
 
 #define DECR_AND_LOAD(reg) do {                            \
-        tcg_gen_subi_tl(t0, t0, 4);                        \
+        tcg_gen_movi_tl(t2, -4);                           \
+        gen_op_addr_add(ctx, t0, t0, t2);                  \
         tcg_gen_qemu_ld_tl(t1, t0, ctx->mem_idx, MO_TESL); \
         gen_store_gpr(t1, reg);                            \
     } while (0)
@@ -10971,9 +10978,11 @@ static void gen_mips16_restore (DisasContext *ctx,
     }
 #undef DECR_AND_LOAD
 
-    tcg_gen_addi_tl(cpu_gpr[29], cpu_gpr[29], framesize);
+    tcg_gen_movi_tl(t2, framesize);
+    gen_op_addr_add(ctx, cpu_gpr[29], cpu_gpr[29], t2);
     tcg_temp_free(t0);
     tcg_temp_free(t1);
+    tcg_temp_free(t2);
 }
 
 static void gen_addiupc (DisasContext *ctx, int rx, int imm,
