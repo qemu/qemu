@@ -309,7 +309,7 @@ rbd=""
 smartcard_nss=""
 libusb=""
 usb_redir=""
-glx=""
+opengl=""
 zlib="yes"
 lzo=""
 snappy=""
@@ -1027,9 +1027,9 @@ for opt do
   ;;
   --enable-vhost-scsi) vhost_scsi="yes"
   ;;
-  --disable-glx) glx="no"
+  --disable-opengl) opengl="no"
   ;;
-  --enable-glx) glx="yes"
+  --enable-opengl) opengl="yes"
   ;;
   --disable-rbd) rbd="no"
   ;;
@@ -3107,23 +3107,18 @@ fi
 libs_softmmu="$libs_softmmu $fdt_libs"
 
 ##########################################
-# GLX probe, used by milkymist-tmu2
-if test "$glx" != "no" ; then
-  glx_libs="-lGL -lX11"
-  cat > $TMPC << EOF
-#include <X11/Xlib.h>
-#include <GL/gl.h>
-#include <GL/glx.h>
-int main(void) { glBegin(0); glXQueryVersion(0,0,0); return 0; }
-EOF
-  if compile_prog "" "-lGL -lX11" ; then
-    glx=yes
+# opengl probe (for sdl2, milkymist-tmu2)
+if test "$opengl" != "no" ; then
+  opengl_pkgs="gl glx"
+  if $pkg_config $opengl_pkgs; then
+    opengl_libs="$($pkg_config --libs $opengl_pkgs) -lX11"
+    opengl=yes
   else
-    if test "$glx" = "yes" ; then
-      feature_not_found "glx" "Install GL devel (e.g. MESA)"
+    if test "$opengl" = "yes" ; then
+      feature_not_found "opengl" "Install GL devel (e.g. MESA)"
     fi
-    glx_libs=
-    glx=no
+    opengl_libs=""
+    opengl=no
   fi
 fi
 
@@ -4390,7 +4385,7 @@ echo "xfsctl support    $xfs"
 echo "nss used          $smartcard_nss"
 echo "libusb            $libusb"
 echo "usb net redir     $usb_redir"
-echo "GLX support       $glx"
+echo "OpenGL support    $opengl"
 echo "libiscsi support  $libiscsi"
 echo "libnfs support    $libnfs"
 echo "build guest agent $guest_agent"
@@ -4756,9 +4751,9 @@ if test "$usb_redir" = "yes" ; then
   echo "CONFIG_USB_REDIR=y" >> $config_host_mak
 fi
 
-if test "$glx" = "yes" ; then
-  echo "CONFIG_GLX=y" >> $config_host_mak
-  echo "GLX_LIBS=$glx_libs" >> $config_host_mak
+if test "$opengl" = "yes" ; then
+  echo "CONFIG_OPENGL=y" >> $config_host_mak
+  echo "OPENGL_LIBS=$opengl_libs" >> $config_host_mak
 fi
 
 if test "$lzo" = "yes" ; then
