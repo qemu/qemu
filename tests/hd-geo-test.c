@@ -208,7 +208,7 @@ static int setup_ide(int argc, char *argv[], int argv_sz,
 {
     char *s1, *s2, *s3;
 
-    s1 = g_strdup_printf("-drive id=drive%d,if=%s",
+    s1 = g_strdup_printf("-drive id=drive%d,if=%s,format=raw",
                          ide_idx, dev ? "none" : "ide");
     s2 = dev ? g_strdup("") : g_strdup_printf(",index=%d", ide_idx);
 
