@@ -229,7 +229,7 @@ static void pcie_cap_slot_hotplug_common(PCIDevice *hotplug_dev,
         /* the slot is electromechanically locked.
          * This error is propagated up to qdev and then to HMP/QMP.
          */
-        error_setg_errno(errp, -EBUSY, "slot is electromechanically locked");
+        error_setg_errno(errp, EBUSY, "slot is electromechanically locked");
     }
 }
 
