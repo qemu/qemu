@@ -648,11 +648,43 @@ BlockDriver *bdrv_find_protocol(const char *filename,
     return NULL;
 }
 
+/*
+ * Guess image format by probing its contents.
+ * This is not a good idea when your image is raw (CVE-2008-2004), but
+ * we do it anyway for backward compatibility.
+ *
+ * @buf         contains the image's first @buf_size bytes.
+ * @buf_size    is the buffer size in bytes (generally 2048, but can be smaller
+ *              if the image file is smaller)
+ * @filename    is its filename.
+ *
+ * For all block drivers, call the bdrv_probe() method to get its
+ * probing score.
+ * Return the first block driver with the highest probing score.
+ */
+static BlockDriver *bdrv_probe_all(const uint8_t *buf, int buf_size,
+                                   const char *filename)
+{
+    int score_max = 0, score;
+    BlockDriver *drv = NULL, *d;
+
+    QLIST_FOREACH(d, &bdrv_drivers, list) {
+        if (d->bdrv_probe) {
+            score = d->bdrv_probe(buf, buf_size, filename);
+            if (score > score_max) {
+                score_max = score;
+                drv = d;
+            }
+        }
+    }
+
+    return drv;
+}
+
 static int find_image_format(BlockDriverState *bs, const char *filename,
                              BlockDriver **pdrv, Error **errp)
 {
-    int score, score_max;
-    BlockDriver *drv1, *drv;
+    BlockDriver *drv;
     uint8_t buf[2048];
     int ret = 0;
 
@@ -675,17 +707,7 @@ static int find_image_format(BlockDriverState *bs, const char *filename,
         return ret;
     }
 
-    score_max = 0;
-    drv = NULL;
-    QLIST_FOREACH(drv1, &bdrv_drivers, list) {
-        if (drv1->bdrv_probe) {
-            score = drv1->bdrv_probe(buf, ret, filename);
-            if (score > score_max) {
-                score_max = score;
-                drv = drv1;
-            }
-        }
-    }
+    drv = bdrv_probe_all(buf, ret, filename);
     if (!drv) {
         error_setg(errp, "Could not determine image format: No compatible "
                    "driver found");
