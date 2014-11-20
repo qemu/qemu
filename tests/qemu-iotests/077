@@ -52,7 +52,7 @@ echo "== Some concurrent requests involving RMW =="
 
 function test_io()
 {
-echo "open -o file.align=4k blkdebug::$TEST_IMG"
+echo "open -o driver=$IMGFMT,file.align=4k blkdebug::$TEST_IMG"
 # A simple RMW request
 cat  <<EOF
 aio_write -P 10 0x200 0x200

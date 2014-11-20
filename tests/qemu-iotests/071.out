@@ -12,7 +12,7 @@ read 512/512 bytes at offset 229376
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 wrote 512/512 bytes at offset 0
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-blkverify: read sector_num=0 nb_sectors=4 contents mismatch in sector 0
+blkverify: read sector_num=0 nb_sectors=1 contents mismatch in sector 0
 
 === Testing blkverify through file blockref ===
 
@@ -26,7 +26,7 @@ read 512/512 bytes at offset 229376
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 wrote 512/512 bytes at offset 0
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-blkverify: read sector_num=0 nb_sectors=4 contents mismatch in sector 0
+blkverify: read sector_num=0 nb_sectors=1 contents mismatch in sector 0
 
 === Testing blkdebug through filename ===
 
@@ -61,7 +61,7 @@ blkverify: read sector_num=0 nb_sectors=1 contents mismatch in sector 0
 
 === Testing blkverify on existing raw block device ===
 
-Testing: -drive file=TEST_DIR/t.IMGFMT.base,if=none,id=drive0
+Testing: -drive file=TEST_DIR/t.IMGFMT.base,format=raw,if=none,id=drive0
 QMP_VERSION
 {"return": {}}
 {"return": {}}

@@ -391,7 +391,7 @@ BEGIN        { for (t='$start'; t<='$end'; t++) printf "%03d\n",t }' \
 done
 
 # Set qemu-io cache mode with $CACHEMODE we have
-QEMU_IO_OPTIONS="$QEMU_IO_OPTIONS --cache $CACHEMODE"
+QEMU_IO_OPTIONS="$QEMU_IO_OPTIONS -f $IMGFMT --cache $CACHEMODE"
 
 # Set default options for qemu-img create -o if they were not specified
 _set_default_imgopts
