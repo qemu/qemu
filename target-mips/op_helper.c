@@ -1413,9 +1413,10 @@ void helper_mtc0_status(CPUMIPSState *env, target_ulong arg1)
 void helper_mttc0_status(CPUMIPSState *env, target_ulong arg1)
 {
     int other_tc = env->CP0_VPEControl & (0xff << CP0VPECo_TargTC);
+    uint32_t mask = env->CP0_Status_rw_bitmask & ~0xf1000018;
     CPUMIPSState *other = mips_cpu_map_tc(env, &other_tc);
 
-    other->CP0_Status = arg1 & ~0xf1000018;
+    other->CP0_Status = (other->CP0_Status & ~mask) | (arg1 & mask);
     sync_c0_status(env, other, other_tc);
 }
 
