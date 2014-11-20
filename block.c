@@ -654,8 +654,8 @@ BlockDriver *bdrv_find_protocol(const char *filename,
  * we do it anyway for backward compatibility.
  *
  * @buf         contains the image's first @buf_size bytes.
- * @buf_size    is the buffer size in bytes (generally 2048, but can be smaller
- *              if the image file is smaller)
+ * @buf_size    is the buffer size in bytes (generally BLOCK_PROBE_BUF_SIZE,
+ *              but can be smaller if the image file is smaller)
  * @filename    is its filename.
  *
  * For all block drivers, call the bdrv_probe() method to get its
@@ -685,7 +685,7 @@ static int find_image_format(BlockDriverState *bs, const char *filename,
                              BlockDriver **pdrv, Error **errp)
 {
     BlockDriver *drv;
-    uint8_t buf[2048];
+    uint8_t buf[BLOCK_PROBE_BUF_SIZE];
     int ret = 0;
 
     /* Return the raw BlockDriver * to scsi-generic devices or empty drives */
