@@ -326,6 +326,7 @@ struct BlockDriverState {
     int sg;        /* if true, the device is a /dev/sg* */
     int copy_on_read; /* if true, copy read backing sectors into image
                          note this is a reference count */
+    bool probed;
 
     BlockDriver *drv; /* NULL means no media */
     void *opaque;
@@ -414,6 +415,8 @@ struct BlockDriverState {
 };
 
 int get_tmp_filename(char *filename, int size);
+BlockDriver *bdrv_probe_all(const uint8_t *buf, int buf_size,
+                            const char *filename);
 
 void bdrv_set_io_limits(BlockDriverState *bs,
                         ThrottleConfig *cfg);

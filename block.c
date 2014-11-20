@@ -662,8 +662,8 @@ BlockDriver *bdrv_find_protocol(const char *filename,
  * probing score.
  * Return the first block driver with the highest probing score.
  */
-static BlockDriver *bdrv_probe_all(const uint8_t *buf, int buf_size,
-                                   const char *filename)
+BlockDriver *bdrv_probe_all(const uint8_t *buf, int buf_size,
+                            const char *filename)
 {
     int score_max = 0, score;
     BlockDriver *drv = NULL, *d;
@@ -1489,6 +1489,7 @@ int bdrv_open(BlockDriverState **pbs, const char *filename,
     }
 
     /* Image format probing */
+    bs->probed = !drv;
     if (!drv && file) {
         ret = find_image_format(file, filename, &drv, &local_err);
         if (ret < 0) {
