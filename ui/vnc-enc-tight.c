@@ -1489,7 +1489,7 @@ static int send_sub_rect(VncState *vs, int x, int y, int w, int h)
     }
 #endif
 
-    colors = tight_fill_palette(vs, x, y, w * h, &fg, &bg, &palette);
+    colors = tight_fill_palette(vs, x, y, w * h, &bg, &fg, &palette);
 
 #ifdef CONFIG_VNC_JPEG
     if (allow_jpeg && vs->tight.quality != (uint8_t)-1) {
