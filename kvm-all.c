@@ -1277,7 +1277,7 @@ static int kvm_irqchip_assign_irqfd(KVMState *s, int fd, int rfd, int virq,
 
 int kvm_irqchip_add_adapter_route(KVMState *s, AdapterInfo *adapter)
 {
-    struct kvm_irq_routing_entry kroute;
+    struct kvm_irq_routing_entry kroute = {};
     int virq;
 
     if (!kvm_gsi_routing_enabled()) {
