@@ -634,8 +634,10 @@ static void kvm_set_phys_mem(MemoryRegionSection *section, bool add)
     unsigned delta;
 
     /* kvm works in page size chunks, but the function may be called
-       with sub-page size and unaligned start address. */
-    delta = TARGET_PAGE_ALIGN(size) - size;
+       with sub-page size and unaligned start address. Pad the start
+       address to next and truncate size to previous page boundary. */
+    delta = (TARGET_PAGE_SIZE - (start_addr & ~TARGET_PAGE_MASK));
+    delta &= ~TARGET_PAGE_MASK;
     if (delta > size) {
         return;
     }
