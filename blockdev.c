@@ -1250,6 +1250,10 @@ static void internal_snapshot_prepare(BlkTransactionState *common,
         return;
     }
 
+    if (bdrv_op_is_blocked(bs, BLOCK_OP_TYPE_INTERNAL_SNAPSHOT, errp)) {
+        return;
+    }
+
     if (bdrv_is_read_only(bs)) {
         error_set(errp, QERR_DEVICE_IS_READ_ONLY, device);
         return;
