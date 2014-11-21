@@ -1173,7 +1173,7 @@ out_aio_context:
     return NULL;
 }
 
-/* New and old BlockDriverState structs for group snapshots */
+/* New and old BlockDriverState structs for atomic group operations */
 
 typedef struct BlkTransactionState BlkTransactionState;
 
@@ -1544,9 +1544,8 @@ static const BdrvActionOps actions[] = {
 };
 
 /*
- * 'Atomic' group snapshots.  The snapshots are taken as a set, and if any fail
- *  then we do not pivot any of the devices in the group, and abandon the
- *  snapshots
+ * 'Atomic' group operations.  The operations are performed as a set, and if
+ * any fail then we roll back all operations in the group.
  */
 void qmp_transaction(TransactionActionList *dev_list, Error **errp)
 {
@@ -1557,10 +1556,10 @@ void qmp_transaction(TransactionActionList *dev_list, Error **errp)
     QSIMPLEQ_HEAD(snap_bdrv_states, BlkTransactionState) snap_bdrv_states;
     QSIMPLEQ_INIT(&snap_bdrv_states);
 
-    /* drain all i/o before any snapshots */
+    /* drain all i/o before any operations */
     bdrv_drain_all();
 
-    /* We don't do anything in this loop that commits us to the snapshot */
+    /* We don't do anything in this loop that commits us to the operations */
     while (NULL != dev_entry) {
         TransactionAction *dev_info = NULL;
         const BdrvActionOps *ops;
@@ -1595,10 +1594,7 @@ void qmp_transaction(TransactionActionList *dev_list, Error **errp)
     goto exit;
 
 delete_and_fail:
-    /*
-    * failure, and it is all-or-none; abandon each new bs, and keep using
-    * the original bs for all images
-    */
+    /* failure, and it is all-or-none; roll back all operations */
     QSIMPLEQ_FOREACH(state, &snap_bdrv_states, entry) {
         if (state->ops->abort) {
             state->ops->abort(state);
