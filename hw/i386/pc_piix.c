@@ -234,9 +234,14 @@ static void pc_init1(MachineState *machine,
 
     pc_vga_init(isa_bus, pci_enabled ? pci_bus : NULL);
 
+    assert(pc_machine->vmport != ON_OFF_AUTO_MAX);
+    if (pc_machine->vmport == ON_OFF_AUTO_AUTO) {
+        pc_machine->vmport = xen_enabled() ? ON_OFF_AUTO_OFF : ON_OFF_AUTO_ON;
+    }
+
     /* init basic PC hardware */
     pc_basic_device_init(isa_bus, gsi, &rtc_state, &floppy,
-                         !pc_machine->vmport, 0x4);
+                         (pc_machine->vmport != ON_OFF_AUTO_ON), 0x4);
 
     pc_nic_init(isa_bus, pci_bus);
 

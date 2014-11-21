@@ -61,6 +61,7 @@
 #include "hw/mem/pc-dimm.h"
 #include "trace.h"
 #include "qapi/visitor.h"
+#include "qapi-visit.h"
 
 /* debug PC/ISA interrupts */
 //#define DEBUG_IRQ
@@ -1772,18 +1773,21 @@ static void pc_machine_set_max_ram_below_4g(Object *obj, Visitor *v,
     pcms->max_ram_below_4g = value;
 }
 
-static bool pc_machine_get_vmport(Object *obj, Error **errp)
+static void pc_machine_get_vmport(Object *obj, Visitor *v, void *opaque,
+                                  const char *name, Error **errp)
 {
     PCMachineState *pcms = PC_MACHINE(obj);
+    OnOffAuto vmport = pcms->vmport;
 
-    return pcms->vmport;
+    visit_type_OnOffAuto(v, &vmport, name, errp);
 }
 
-static void pc_machine_set_vmport(Object *obj, bool value, Error **errp)
+static void pc_machine_set_vmport(Object *obj, Visitor *v, void *opaque,
+                                  const char *name, Error **errp)
 {
     PCMachineState *pcms = PC_MACHINE(obj);
 
-    pcms->vmport = value;
+    visit_type_OnOffAuto(v, &pcms->vmport, name, errp);
 }
 
 static bool pc_machine_get_aligned_dimm(Object *obj, Error **errp)
@@ -1806,11 +1810,11 @@ static void pc_machine_initfn(Object *obj)
                         pc_machine_set_max_ram_below_4g,
                         NULL, NULL, NULL);
 
-    pcms->vmport = !xen_enabled();
-    object_property_add_bool(obj, PC_MACHINE_VMPORT,
-                             pc_machine_get_vmport,
-                             pc_machine_set_vmport,
-                             NULL);
+    pcms->vmport = ON_OFF_AUTO_AUTO;
+    object_property_add(obj, PC_MACHINE_VMPORT, "OnOffAuto",
+                        pc_machine_get_vmport,
+                        pc_machine_set_vmport,
+                        NULL, NULL, NULL);
 
     pcms->enforce_aligned_dimm = true;
     object_property_add_bool(obj, PC_MACHINE_ENFORCE_ALIGNED_DIMM,

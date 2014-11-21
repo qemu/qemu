@@ -39,7 +39,7 @@ struct PCMachineState {
     ISADevice *rtc;
 
     uint64_t max_ram_below_4g;
-    bool vmport;
+    OnOffAuto vmport;
     bool enforce_aligned_dimm;
 };
 
