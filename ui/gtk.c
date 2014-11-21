@@ -1909,15 +1909,17 @@ void gtk_display_init(DisplayState *ds, bool full_screen, bool grab_on_hover)
 #ifdef VTE_RESIZE_HACK
     {
         VirtualConsole *cur = gd_vc_find_current(s);
-        int i;
+        if (cur) {
+            int i;
 
-        for (i = 0; i < s->nb_vcs; i++) {
-            VirtualConsole *vc = &s->vc[i];
-            if (vc && vc->type == GD_VC_VTE && vc != cur) {
-                gtk_widget_hide(vc->vte.terminal);
+            for (i = 0; i < s->nb_vcs; i++) {
+                VirtualConsole *vc = &s->vc[i];
+                if (vc && vc->type == GD_VC_VTE && vc != cur) {
+                    gtk_widget_hide(vc->vte.terminal);
+                }
             }
+            gd_update_windowsize(cur);
         }
-        gd_update_windowsize(cur);
     }
 #endif
 
