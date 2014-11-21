@@ -1207,6 +1207,7 @@ struct BlkTransactionState {
 typedef struct InternalSnapshotState {
     BlkTransactionState common;
     BlockDriverState *bs;
+    AioContext *aio_context;
     QEMUSnapshotInfo sn;
 } InternalSnapshotState;
 
@@ -1239,6 +1240,10 @@ static void internal_snapshot_prepare(BlkTransactionState *common,
         error_set(errp, QERR_DEVICE_NOT_FOUND, device);
         return;
     }
+
+    /* AioContext is released in .clean() */
+    state->aio_context = bdrv_get_aio_context(bs);
+    aio_context_acquire(state->aio_context);
 
     if (!bdrv_is_inserted(bs)) {
         error_set(errp, QERR_DEVICE_HAS_NO_MEDIUM, device);
@@ -1317,11 +1322,22 @@ static void internal_snapshot_abort(BlkTransactionState *common)
     }
 }
 
+static void internal_snapshot_clean(BlkTransactionState *common)
+{
+    InternalSnapshotState *state = DO_UPCAST(InternalSnapshotState,
+                                             common, common);
+
+    if (state->aio_context) {
+        aio_context_release(state->aio_context);
+    }
+}
+
 /* external snapshot private data */
 typedef struct ExternalSnapshotState {
     BlkTransactionState common;
     BlockDriverState *old_bs;
     BlockDriverState *new_bs;
+    AioContext *aio_context;
 } ExternalSnapshotState;
 
 static void external_snapshot_prepare(BlkTransactionState *common,
@@ -1388,6 +1404,10 @@ static void external_snapshot_prepare(BlkTransactionState *common,
         return;
     }
 
+    /* Acquire AioContext now so any threads operating on old_bs stop */
+    state->aio_context = bdrv_get_aio_context(state->old_bs);
+    aio_context_acquire(state->aio_context);
+
     if (!bdrv_is_inserted(state->old_bs)) {
         error_set(errp, QERR_DEVICE_HAS_NO_MEDIUM, device);
         return;
@@ -1446,6 +1466,8 @@ static void external_snapshot_commit(BlkTransactionState *common)
     ExternalSnapshotState *state =
                              DO_UPCAST(ExternalSnapshotState, common, common);
 
+    bdrv_set_aio_context(state->new_bs, state->aio_context);
+
     /* This removes our old bs and adds the new bs */
     bdrv_append(state->new_bs, state->old_bs);
     /* We don't need (or want) to use the transactional
@@ -1453,6 +1475,8 @@ static void external_snapshot_commit(BlkTransactionState *common)
      * don't want to abort all of them if one of them fails the reopen */
     bdrv_reopen(state->new_bs, state->new_bs->open_flags & ~BDRV_O_RDWR,
                 NULL);
+
+    aio_context_release(state->aio_context);
 }
 
 static void external_snapshot_abort(BlkTransactionState *common)
@@ -1462,22 +1486,37 @@ static void external_snapshot_abort(BlkTransactionState *common)
     if (state->new_bs) {
         bdrv_unref(state->new_bs);
     }
+    if (state->aio_context) {
+        aio_context_release(state->aio_context);
+    }
 }
 
 typedef struct DriveBackupState {
     BlkTransactionState common;
     BlockDriverState *bs;
+    AioContext *aio_context;
     BlockJob *job;
 } DriveBackupState;
 
 static void drive_backup_prepare(BlkTransactionState *common, Error **errp)
 {
     DriveBackupState *state = DO_UPCAST(DriveBackupState, common, common);
+    BlockDriverState *bs;
     DriveBackup *backup;
     Error *local_err = NULL;
 
     assert(common->action->kind == TRANSACTION_ACTION_KIND_DRIVE_BACKUP);
     backup = common->action->drive_backup;
+
+    bs = bdrv_find(backup->device);
+    if (!bs) {
+        error_set(errp, QERR_DEVICE_NOT_FOUND, backup->device);
+        return;
+    }
+
+    /* AioContext is released in .clean() */
+    state->aio_context = bdrv_get_aio_context(bs);
+    aio_context_acquire(state->aio_context);
 
     qmp_drive_backup(backup->device, backup->target,
                      backup->has_format, backup->format,
@@ -1492,7 +1531,7 @@ static void drive_backup_prepare(BlkTransactionState *common, Error **errp)
         return;
     }
 
-    state->bs = bdrv_find(backup->device);
+    state->bs = bs;
     state->job = state->bs->job;
 }
 
@@ -1504,6 +1543,15 @@ static void drive_backup_abort(BlkTransactionState *common)
     /* Only cancel if it's the job we started */
     if (bs && bs->job && bs->job == state->job) {
         block_job_cancel_sync(bs->job);
+    }
+}
+
+static void drive_backup_clean(BlkTransactionState *common)
+{
+    DriveBackupState *state = DO_UPCAST(DriveBackupState, common, common);
+
+    if (state->aio_context) {
+        aio_context_release(state->aio_context);
     }
 }
 
@@ -1528,6 +1576,7 @@ static const BdrvActionOps actions[] = {
         .instance_size = sizeof(DriveBackupState),
         .prepare = drive_backup_prepare,
         .abort = drive_backup_abort,
+        .clean = drive_backup_clean,
     },
     [TRANSACTION_ACTION_KIND_ABORT] = {
         .instance_size = sizeof(BlkTransactionState),
@@ -1538,6 +1587,7 @@ static const BdrvActionOps actions[] = {
         .instance_size = sizeof(InternalSnapshotState),
         .prepare  = internal_snapshot_prepare,
         .abort = internal_snapshot_abort,
+        .clean = internal_snapshot_clean,
     },
 };
 
