@@ -1489,8 +1489,6 @@ static void drive_backup_prepare(BlkTransactionState *common, Error **errp)
                      &local_err);
     if (local_err) {
         error_propagate(errp, local_err);
-        state->bs = NULL;
-        state->job = NULL;
         return;
     }
 
