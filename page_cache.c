@@ -125,24 +125,6 @@ static size_t cache_get_cache_pos(const PageCache *cache,
     return pos;
 }
 
-bool cache_is_cached(const PageCache *cache, uint64_t addr,
-                     uint64_t current_age)
-{
-    size_t pos;
-
-    g_assert(cache);
-    g_assert(cache->page_cache);
-
-    pos = cache_get_cache_pos(cache, addr);
-
-    if (cache->page_cache[pos].it_addr == addr) {
-        /* update the it_age when the cache hit */
-        cache->page_cache[pos].it_age = current_age;
-        return true;
-    }
-    return false;
-}
-
 static CacheItem *cache_get_by_addr(const PageCache *cache, uint64_t addr)
 {
     size_t pos;
@@ -160,14 +142,26 @@ uint8_t *get_cached_data(const PageCache *cache, uint64_t addr)
     return cache_get_by_addr(cache, addr)->it_data;
 }
 
+bool cache_is_cached(const PageCache *cache, uint64_t addr,
+                     uint64_t current_age)
+{
+    CacheItem *it;
+
+    it = cache_get_by_addr(cache, addr);
+
+    if (it->it_addr == addr) {
+        /* update the it_age when the cache hit */
+        it->it_age = current_age;
+        return true;
+    }
+    return false;
+}
+
 int cache_insert(PageCache *cache, uint64_t addr, const uint8_t *pdata,
                  uint64_t current_age)
 {
 
-    CacheItem *it = NULL;
-
-    g_assert(cache);
-    g_assert(cache->page_cache);
+    CacheItem *it;
 
     /* actual update of entry */
     it = cache_get_by_addr(cache, addr);
