@@ -1247,6 +1247,11 @@ FWCfgState *pc_memory_init(MachineState *machine,
         pcms->hotplug_memory_base =
             ROUND_UP(0x100000000ULL + above_4g_mem_size, 1ULL << 30);
 
+        if (pcms->enforce_aligned_dimm) {
+            /* size hotplug region assuming 1G page max alignment per slot */
+            hotplug_mem_size += (1ULL << 30) * machine->ram_slots;
+        }
+
         if ((pcms->hotplug_memory_base + hotplug_mem_size) <
             hotplug_mem_size) {
             error_report("unsupported amount of maximum memory: " RAM_ADDR_FMT,
@@ -1545,6 +1550,37 @@ void qemu_register_pc_machine(QEMUMachine *m)
     g_free(name);
 }
 
+static int pc_dimm_count(Object *obj, void *opaque)
+{
+    int *count = opaque;
+
+    if (object_dynamic_cast(obj, TYPE_PC_DIMM)) {
+        (*count)++;
+    }
+
+    object_child_foreach(obj, pc_dimm_count, opaque);
+    return 0;
+}
+
+static int pc_existing_dimms_capacity(Object *obj, void *opaque)
+{
+    Error *local_err = NULL;
+    uint64_t *size = opaque;
+
+    if (object_dynamic_cast(obj, TYPE_PC_DIMM)) {
+        (*size) += object_property_get_int(obj, PC_DIMM_SIZE_PROP, &local_err);
+
+        if (local_err) {
+            qerror_report_err(local_err);
+            error_free(local_err);
+            return 1;
+        }
+    }
+
+    object_child_foreach(obj, pc_dimm_count, opaque);
+    return 0;
+}
+
 static void pc_dimm_plug(HotplugHandler *hotplug_dev,
                          DeviceState *dev, Error **errp)
 {
@@ -1556,17 +1592,37 @@ static void pc_dimm_plug(HotplugHandler *hotplug_dev,
     PCDIMMDevice *dimm = PC_DIMM(dev);
     PCDIMMDeviceClass *ddc = PC_DIMM_GET_CLASS(dimm);
     MemoryRegion *mr = ddc->get_memory_region(dimm);
-    uint64_t addr = object_property_get_int(OBJECT(dimm), PC_DIMM_ADDR_PROP,
-                                            &local_err);
+    uint64_t existing_dimms_capacity = 0;
+    uint64_t align = TARGET_PAGE_SIZE;
+    uint64_t addr;
+
+    addr = object_property_get_int(OBJECT(dimm), PC_DIMM_ADDR_PROP, &local_err);
     if (local_err) {
         goto out;
     }
 
+    if (memory_region_get_alignment(mr) && pcms->enforce_aligned_dimm) {
+        align = memory_region_get_alignment(mr);
+    }
+
     addr = pc_dimm_get_free_addr(pcms->hotplug_memory_base,
                                  memory_region_size(&pcms->hotplug_memory),
-                                 !addr ? NULL : &addr,
+                                 !addr ? NULL : &addr, align,
                                  memory_region_size(mr), &local_err);
     if (local_err) {
+        goto out;
+    }
+
+    if (pc_existing_dimms_capacity(OBJECT(machine), &existing_dimms_capacity)) {
+        error_setg(&local_err, "failed to get total size of existing DIMMs");
+        goto out;
+    }
+
+    if (existing_dimms_capacity + memory_region_size(mr) >
+        machine->maxram_size - machine->ram_size) {
+        error_setg(&local_err, "not enough space, currently 0x%" PRIx64
+                   " in use of total 0x" RAM_ADDR_FMT,
+                   existing_dimms_capacity, machine->maxram_size);
         goto out;
     }
 
@@ -1595,6 +1651,11 @@ static void pc_dimm_plug(HotplugHandler *hotplug_dev,
     if (!pcms->acpi_dev) {
         error_setg(&local_err,
                    "memory hotplug is not enabled: missing acpi device");
+        goto out;
+    }
+
+    if (kvm_enabled() && !kvm_has_free_slot(machine)) {
+        error_setg(&local_err, "hypervisor has no free memory slots left");
         goto out;
     }
 
@@ -1725,6 +1786,13 @@ static void pc_machine_set_vmport(Object *obj, bool value, Error **errp)
     pcms->vmport = value;
 }
 
+static bool pc_machine_get_aligned_dimm(Object *obj, Error **errp)
+{
+    PCMachineState *pcms = PC_MACHINE(obj);
+
+    return pcms->enforce_aligned_dimm;
+}
+
 static void pc_machine_initfn(Object *obj)
 {
     PCMachineState *pcms = PC_MACHINE(obj);
@@ -1737,11 +1805,17 @@ static void pc_machine_initfn(Object *obj)
                         pc_machine_get_max_ram_below_4g,
                         pc_machine_set_max_ram_below_4g,
                         NULL, NULL, NULL);
+
     pcms->vmport = !xen_enabled();
     object_property_add_bool(obj, PC_MACHINE_VMPORT,
                              pc_machine_get_vmport,
                              pc_machine_set_vmport,
                              NULL);
+
+    pcms->enforce_aligned_dimm = true;
+    object_property_add_bool(obj, PC_MACHINE_ENFORCE_ALIGNED_DIMM,
+                             pc_machine_get_aligned_dimm,
+                             NULL, NULL);
 }
 
 static void pc_machine_class_init(ObjectClass *oc, void *data)

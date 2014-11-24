@@ -88,6 +88,7 @@
 #define READ_BUF_LEN 4096
 #define READ_RETRIES 10
 #define CHR_MAX_FILENAME_SIZE 256
+#define TCP_MAX_FDS 16
 
 /***********************************************************/
 /* Socket address helpers */
@@ -2668,6 +2669,8 @@ static int tcp_get_msgfds(CharDriverState *chr, int *fds, int num)
     TCPCharDriver *s = chr->opaque;
     int to_copy = (s->read_msgfds_num < num) ? s->read_msgfds_num : num;
 
+    assert(num <= TCP_MAX_FDS);
+
     if (to_copy) {
         int i;
 
@@ -2762,7 +2765,7 @@ static ssize_t tcp_chr_recv(CharDriverState *chr, char *buf, size_t len)
     struct iovec iov[1];
     union {
         struct cmsghdr cmsg;
-        char control[CMSG_SPACE(sizeof(int))];
+        char control[CMSG_SPACE(sizeof(int) * TCP_MAX_FDS)];
     } msg_control;
     int flags = 0;
     ssize_t ret;

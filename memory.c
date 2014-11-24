@@ -1749,6 +1749,11 @@ ram_addr_t memory_region_get_ram_addr(MemoryRegion *mr)
     return mr->ram_addr;
 }
 
+uint64_t memory_region_get_alignment(const MemoryRegion *mr)
+{
+    return mr->align;
+}
+
 static int cmp_flatrange_addr(const void *addr_, const void *fr_)
 {
     const AddrRange *addr = addr_;

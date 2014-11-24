@@ -24,6 +24,8 @@
  * address space begins.
  * @hotplug_memory: hotplug memory addess space container
  * @acpi_dev: link to ACPI PM device that performs ACPI hotplug handling
+ * @enforce_aligned_dimm: check that DIMM's address/size is aligned by
+ *                        backend's alignment value if provided
  */
 struct PCMachineState {
     /*< private >*/
@@ -38,12 +40,14 @@ struct PCMachineState {
 
     uint64_t max_ram_below_4g;
     bool vmport;
+    bool enforce_aligned_dimm;
 };
 
 #define PC_MACHINE_ACPI_DEVICE_PROP "acpi-device"
 #define PC_MACHINE_MEMHP_REGION_SIZE "hotplug-memory-region-size"
 #define PC_MACHINE_MAX_RAM_BELOW_4G "max-ram-below-4g"
 #define PC_MACHINE_VMPORT           "vmport"
+#define PC_MACHINE_ENFORCE_ALIGNED_DIMM "enforce-aligned-dimm"
 
 /**
  * PCMachineClass:
