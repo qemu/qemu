@@ -346,7 +346,8 @@ static void xbzrle_cache_zero_page(ram_addr_t current_addr)
 
     /* We don't care if this fails to allocate a new cache page
      * as long as it updated an old one */
-    cache_insert(XBZRLE.cache, current_addr, ZERO_TARGET_PAGE);
+    cache_insert(XBZRLE.cache, current_addr, ZERO_TARGET_PAGE,
+                 bitmap_sync_count);
 }
 
 #define ENCODING_FLAG_XBZRLE 0x1
@@ -358,10 +359,11 @@ static int save_xbzrle_page(QEMUFile *f, uint8_t **current_data,
     int encoded_len = 0, bytes_sent = -1;
     uint8_t *prev_cached_page;
 
-    if (!cache_is_cached(XBZRLE.cache, current_addr)) {
+    if (!cache_is_cached(XBZRLE.cache, current_addr, bitmap_sync_count)) {
         acct_info.xbzrle_cache_miss++;
         if (!last_stage) {
-            if (cache_insert(XBZRLE.cache, current_addr, *current_data) == -1) {
+            if (cache_insert(XBZRLE.cache, current_addr, *current_data,
+                             bitmap_sync_count) == -1) {
                 return -1;
             } else {
                 /* update *current_data when the page has been

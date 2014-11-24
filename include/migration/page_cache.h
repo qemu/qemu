@@ -43,8 +43,10 @@ void cache_fini(PageCache *cache);
  *
  * @cache pointer to the PageCache struct
  * @addr: page addr
+ * @current_age: current bitmap generation
  */
-bool cache_is_cached(const PageCache *cache, uint64_t addr);
+bool cache_is_cached(const PageCache *cache, uint64_t addr,
+                     uint64_t current_age);
 
 /**
  * get_cached_data: Get the data cached for an addr
@@ -60,13 +62,15 @@ uint8_t *get_cached_data(const PageCache *cache, uint64_t addr);
  * cache_insert: insert the page into the cache. the page cache
  * will dup the data on insert. the previous value will be overwritten
  *
- * Returns -1 on error
+ * Returns -1 when the page isn't inserted into cache
  *
  * @cache pointer to the PageCache struct
  * @addr: page address
  * @pdata: pointer to the page
+ * @current_age: current bitmap generation
  */
-int cache_insert(PageCache *cache, uint64_t addr, const uint8_t *pdata);
+int cache_insert(PageCache *cache, uint64_t addr, const uint8_t *pdata,
+                 uint64_t current_age);
 
 /**
  * cache_resize: resize the page cache. In case of size reduction the extra
