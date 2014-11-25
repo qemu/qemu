@@ -1202,7 +1202,6 @@ int bdrv_open_backing_file(BlockDriverState *bs, QDict *options, Error **errp)
 {
     char *backing_filename = g_malloc0(PATH_MAX);
     int ret = 0;
-    BlockDriver *back_drv = NULL;
     BlockDriverState *backing_hd;
     Error *local_err = NULL;
 
@@ -1235,14 +1234,14 @@ int bdrv_open_backing_file(BlockDriverState *bs, QDict *options, Error **errp)
 
     backing_hd = bdrv_new();
 
-    if (bs->backing_format[0] != '\0') {
-        back_drv = bdrv_find_format(bs->backing_format);
+    if (bs->backing_format[0] != '\0' && !qdict_haskey(options, "driver")) {
+        qdict_put(options, "driver", qstring_from_str(bs->backing_format));
     }
 
     assert(bs->backing_hd == NULL);
     ret = bdrv_open(&backing_hd,
                     *backing_filename ? backing_filename : NULL, NULL, options,
-                    bdrv_backing_flags(bs->open_flags), back_drv, &local_err);
+                    bdrv_backing_flags(bs->open_flags), NULL, &local_err);
     if (ret < 0) {
         bdrv_unref(backing_hd);
         backing_hd = NULL;
