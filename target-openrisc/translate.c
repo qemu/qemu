@@ -1675,7 +1675,7 @@ static inline void gen_intermediate_code_internal(OpenRISCCPU *cpu,
         max_insns = CF_COUNT_MASK;
     }
 
-    gen_tb_start();
+    gen_tb_start(tb);
 
     do {
         check_breakpoint(cpu, dc);

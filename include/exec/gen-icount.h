@@ -9,7 +9,7 @@ static TCGArg *icount_arg;
 static int icount_label;
 static int exitreq_label;
 
-static inline void gen_tb_start(void)
+static inline void gen_tb_start(TranslationBlock *tb)
 {
     TCGv_i32 count;
     TCGv_i32 flag;
@@ -21,7 +21,7 @@ static inline void gen_tb_start(void)
     tcg_gen_brcondi_i32(TCG_COND_NE, flag, 0, exitreq_label);
     tcg_temp_free_i32(flag);
 
-    if (!use_icount)
+    if (!(tb->cflags & CF_USE_ICOUNT))
         return;
 
     icount_label = gen_new_label();
@@ -43,7 +43,7 @@ static void gen_tb_end(TranslationBlock *tb, int num_insns)
     gen_set_label(exitreq_label);
     tcg_gen_exit_tb((uintptr_t)tb + TB_EXIT_REQUESTED);
 
-    if (use_icount) {
+    if (tb->cflags & CF_USE_ICOUNT) {
         *icount_arg = num_insns;
         gen_set_label(icount_label);
         tcg_gen_exit_tb((uintptr_t)tb + TB_EXIT_ICOUNT_EXPIRED);

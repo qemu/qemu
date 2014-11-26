@@ -3054,7 +3054,7 @@ void gen_intermediate_code_internal(XtensaCPU *cpu,
         dc.next_icount = tcg_temp_local_new_i32();
     }
 
-    gen_tb_start();
+    gen_tb_start(tb);
 
     if (tb->flags & XTENSA_TBFLAG_EXCEPTION) {
         tcg_gen_movi_i32(cpu_pc, dc.pc);

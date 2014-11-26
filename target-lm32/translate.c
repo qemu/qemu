@@ -1095,7 +1095,7 @@ void gen_intermediate_code_internal(LM32CPU *cpu,
         max_insns = CF_COUNT_MASK;
     }
 
-    gen_tb_start();
+    gen_tb_start(tb);
     do {
         check_breakpoint(env, dc);
 

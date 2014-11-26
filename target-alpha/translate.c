@@ -2828,7 +2828,7 @@ static inline void gen_intermediate_code_internal(AlphaCPU *cpu,
         pc_mask = ~TARGET_PAGE_MASK;
     }
 
-    gen_tb_start();
+    gen_tb_start(tb);
     do {
         if (unlikely(!QTAILQ_EMPTY(&cs->breakpoints))) {
             QTAILQ_FOREACH(bp, &cs->breakpoints, entry) {

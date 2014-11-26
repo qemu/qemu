@@ -4779,7 +4779,7 @@ static inline void gen_intermediate_code_internal(S390CPU *cpu,
         max_insns = CF_COUNT_MASK;
     }
 
-    gen_tb_start();
+    gen_tb_start(tb);
 
     do {
         if (search_pc) {

@@ -10962,7 +10962,7 @@ void gen_intermediate_code_internal_a64(ARMCPU *cpu,
         max_insns = CF_COUNT_MASK;
     }
 
-    gen_tb_start();
+    gen_tb_start(tb);
 
     tcg_clear_temp_count();
 
