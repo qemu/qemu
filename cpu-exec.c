@@ -216,7 +216,7 @@ static void cpu_exec_nocache(CPUArchState *env, int max_cycles,
     /* tb_gen_code can flush our orig_tb, invalidate it now */
     tb_phys_invalidate(orig_tb, -1);
     tb = tb_gen_code(cpu, pc, cs_base, flags,
-                     max_cycles);
+                     max_cycles | CF_NOCACHE);
     cpu->current_tb = tb;
     /* execute the generated code */
     trace_exec_tb_nocache(tb, tb->pc);
