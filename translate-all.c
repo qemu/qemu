@@ -1045,6 +1045,9 @@ TranslationBlock *tb_gen_code(CPUState *cpu,
     int code_gen_size;
 
     phys_pc = get_page_addr_code(env, pc);
+    if (use_icount) {
+        cflags |= CF_USE_ICOUNT;
+    }
     tb = tb_alloc(pc);
     if (!tb) {
         /* flush must be done */
