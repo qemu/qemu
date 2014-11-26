@@ -41,7 +41,8 @@
  *
  * Outside icount mode, this clock is the same as @QEMU_CLOCK_VIRTUAL.
  * In icount mode, this clock counts nanoseconds while the virtual
- * machine is running.
+ * machine is running.  It is used to increase @QEMU_CLOCK_VIRTUAL
+ * while the CPUs are sleeping and thus not executing instructions.
  */
 
 typedef enum {

@@ -352,7 +352,7 @@ static void icount_warp_rt(void *opaque)
 
     seqlock_write_lock(&timers_state.vm_clock_seqlock);
     if (runstate_is_running()) {
-        int64_t clock = qemu_clock_get_ns(QEMU_CLOCK_REALTIME);
+        int64_t clock = cpu_get_clock_locked();
         int64_t warp_delta;
 
         warp_delta = clock - vm_clock_warp_start;
@@ -361,9 +361,8 @@ static void icount_warp_rt(void *opaque)
              * In adaptive mode, do not let QEMU_CLOCK_VIRTUAL run too
              * far ahead of real time.
              */
-            int64_t cur_time = cpu_get_clock_locked();
             int64_t cur_icount = cpu_get_icount_locked();
-            int64_t delta = cur_time - cur_icount;
+            int64_t delta = clock - cur_icount;
             warp_delta = MIN(warp_delta, delta);
         }
         timers_state.qemu_icount_bias += warp_delta;
@@ -426,7 +425,7 @@ void qemu_clock_warp(QEMUClockType type)
     }
 
     /* We want to use the earliest deadline from ALL vm_clocks */
-    clock = qemu_clock_get_ns(QEMU_CLOCK_REALTIME);
+    clock = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL_RT);
     deadline = qemu_clock_deadline_ns_all(QEMU_CLOCK_VIRTUAL);
     if (deadline < 0) {
         return;
@@ -444,8 +443,8 @@ void qemu_clock_warp(QEMUClockType type)
          * sleep in icount mode if there is a pending QEMU_CLOCK_VIRTUAL
          * timer; rather time could just advance to the next QEMU_CLOCK_VIRTUAL
          * event.  Instead, we do stop VCPUs and only advance QEMU_CLOCK_VIRTUAL
-         * after some e"real" time, (related to the time left until the next
-         * event) has passed. The QEMU_CLOCK_REALTIME timer will do this.
+         * after some "real" time, (related to the time left until the next
+         * event) has passed. The QEMU_CLOCK_VIRTUAL_RT clock will do this.
          * This avoids that the warps are visible externally; for example,
          * you will not be sending network packets continuously instead of
          * every 100ms.
@@ -519,8 +518,8 @@ void configure_icount(QemuOpts *opts, Error **errp)
         return;
     }
     icount_align_option = qemu_opt_get_bool(opts, "align", false);
-    icount_warp_timer = timer_new_ns(QEMU_CLOCK_REALTIME,
-                                          icount_warp_rt, NULL);
+    icount_warp_timer = timer_new_ns(QEMU_CLOCK_VIRTUAL_RT,
+                                     icount_warp_rt, NULL);
     if (strcmp(option, "auto") != 0) {
         errno = 0;
         icount_time_shift = strtol(option, &rem_str, 0);
@@ -544,10 +543,10 @@ void configure_icount(QemuOpts *opts, Error **errp)
        the virtual time trigger catches emulated time passing too fast.
        Realtime triggers occur even when idle, so use them less frequently
        than VM triggers.  */
-    icount_rt_timer = timer_new_ms(QEMU_CLOCK_REALTIME,
-                                        icount_adjust_rt, NULL);
+    icount_rt_timer = timer_new_ms(QEMU_CLOCK_VIRTUAL_RT,
+                                   icount_adjust_rt, NULL);
     timer_mod(icount_rt_timer,
-                   qemu_clock_get_ms(QEMU_CLOCK_REALTIME) + 1000);
+                   qemu_clock_get_ms(QEMU_CLOCK_VIRTUAL_RT) + 1000);
     icount_vm_timer = timer_new_ns(QEMU_CLOCK_VIRTUAL,
                                         icount_adjust_vm, NULL);
     timer_mod(icount_vm_timer,
