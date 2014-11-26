@@ -90,8 +90,6 @@ struct Stm32Uart {
     Stm32Gpio **stm32_gpio;
     Stm32Afio *stm32_afio;
 
-    int uart_index;
-
     uint32_t bits_per_sec;
     int64_t ns_per_char;
 
