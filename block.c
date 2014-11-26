@@ -5659,16 +5659,26 @@ void bdrv_img_create(const char *filename, const char *fmt,
     if (size == -1) {
         if (backing_file) {
             BlockDriverState *bs;
+            char *full_backing = g_new0(char, PATH_MAX);
             int64_t size;
             int back_flags;
+
+            bdrv_get_full_backing_filename_from_filename(filename, backing_file,
+                                                         full_backing, PATH_MAX,
+                                                         &local_err);
+            if (local_err) {
+                g_free(full_backing);
+                goto out;
+            }
 
             /* backing files always opened read-only */
             back_flags =
                 flags & ~(BDRV_O_RDWR | BDRV_O_SNAPSHOT | BDRV_O_NO_BACKING);
 
             bs = NULL;
-            ret = bdrv_open(&bs, backing_file, NULL, NULL, back_flags,
+            ret = bdrv_open(&bs, full_backing, NULL, NULL, back_flags,
                             backing_drv, &local_err);
+            g_free(full_backing);
             if (ret < 0) {
                 goto out;
             }
