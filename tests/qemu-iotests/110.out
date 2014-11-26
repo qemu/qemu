@@ -1,0 +1,19 @@
+QA output created by 110
+
+=== Reconstructable filename ===
+
+Formatting 'TEST_DIR/t.IMGFMT.base', fmt=IMGFMT size=67108864
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864 backing_file='t.IMGFMT.base'
+image: TEST_DIR/t.IMGFMT
+file format: IMGFMT
+virtual size: 64M (67108864 bytes)
+backing file: t.IMGFMT.base (actual path: TEST_DIR/t.IMGFMT.base)
+
+=== Non-reconstructable filename ===
+
+qemu-img: Cannot use relative backing file names for 'json:{"driver": "IMGFMT", "file": {"set-state.0.event": "read_aio", "image": {"driver": "file", "filename": "TEST_DIR/t.IMGFMT"}, "driver": "blkdebug", "set-state.0.new_state": 42}}'
+
+=== Backing name is always relative to the backed image ===
+
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864 backing_file='t.IMGFMT.base'
+*** done

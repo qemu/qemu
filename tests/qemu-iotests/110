@@ -1,0 +1,94 @@
+#!/bin/bash
+#
+# Test case for relative backing file names in complex BDS trees
+#
+# Copyright (C) 2014 Red Hat, Inc.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+
+# creator
+owner=mreitz@redhat.com
+
+seq="$(basename $0)"
+echo "QA output created by $seq"
+
+here="$PWD"
+tmp=/tmp/$$
+status=1	# failure is the default!
+
+_cleanup()
+{
+	_cleanup_test_img
+}
+trap "_cleanup; exit \$status" 0 1 2 3 15
+
+# get standard environment, filters and checks
+. ./common.rc
+. ./common.filter
+
+# Any format supporting backing files
+_supported_fmt qed qcow qcow2 vmdk
+_supported_proto file
+_supported_os Linux
+_unsupported_imgopts "subformat=monolithicFlat" "subformat=twoGbMaxExtentFlat"
+
+TEST_IMG_REL=$(basename "$TEST_IMG")
+
+echo
+echo '=== Reconstructable filename ==='
+echo
+
+TEST_IMG="$TEST_IMG.base" _make_test_img 64M
+_make_test_img -b "$TEST_IMG_REL.base" 64M
+# qemu should be able to reconstruct the filename, so relative backing names
+# should work
+TEST_IMG="json:{'driver':'$IMGFMT','file':{'driver':'file','filename':'$TEST_IMG'}}" \
+    _img_info | _filter_img_info
+
+echo
+echo '=== Non-reconstructable filename ==='
+echo
+
+# Across blkdebug without a config file, you cannot reconstruct filenames, so
+# qemu is incapable of knowing the directory of the top image
+TEST_IMG="json:{
+    'driver': '$IMGFMT',
+    'file': {
+        'driver': 'blkdebug',
+        'image': {
+            'driver': 'file',
+            'filename': '$TEST_IMG'
+        },
+        'set-state': [
+            {
+                'event': 'read_aio',
+                'new_state': 42
+            }
+        ]
+    }
+}" _img_info | _filter_img_info
+
+echo
+echo '=== Backing name is always relative to the backed image ==='
+echo
+
+# omit the image size; it should work anyway
+_make_test_img -b "$TEST_IMG_REL.base"
+
+
+# success, all done
+echo '*** done'
+rm -f $seq.full
+status=0
