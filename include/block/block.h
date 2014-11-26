@@ -396,10 +396,11 @@ const char *bdrv_get_encrypted_filename(BlockDriverState *bs);
 void bdrv_get_backing_filename(BlockDriverState *bs,
                                char *filename, int filename_size);
 void bdrv_get_full_backing_filename(BlockDriverState *bs,
-                                    char *dest, size_t sz);
+                                    char *dest, size_t sz, Error **errp);
 void bdrv_get_full_backing_filename_from_filename(const char *backed,
                                                   const char *backing,
-                                                  char *dest, size_t sz);
+                                                  char *dest, size_t sz,
+                                                  Error **errp);
 int bdrv_is_snapshot(BlockDriverState *bs);
 
 int path_has_protocol(const char *path);

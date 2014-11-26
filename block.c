@@ -305,19 +305,28 @@ void path_combine(char *dest, int dest_size,
 
 void bdrv_get_full_backing_filename_from_filename(const char *backed,
                                                   const char *backing,
-                                                  char *dest, size_t sz)
+                                                  char *dest, size_t sz,
+                                                  Error **errp)
 {
-    if (backing[0] == '\0' || path_has_protocol(backing)) {
+    if (backing[0] == '\0' || path_has_protocol(backing) ||
+        path_is_absolute(backing))
+    {
         pstrcpy(dest, sz, backing);
+    } else if (backed[0] == '\0' || strstart(backed, "json:", NULL)) {
+        error_setg(errp, "Cannot use relative backing file names for '%s'",
+                   backed);
     } else {
         path_combine(dest, sz, backed, backing);
     }
 }
 
-void bdrv_get_full_backing_filename(BlockDriverState *bs, char *dest, size_t sz)
+void bdrv_get_full_backing_filename(BlockDriverState *bs, char *dest, size_t sz,
+                                    Error **errp)
 {
-    bdrv_get_full_backing_filename_from_filename(bs->filename, bs->backing_file,
-                                                 dest, sz);
+    char *backed = bs->exact_filename[0] ? bs->exact_filename : bs->filename;
+
+    bdrv_get_full_backing_filename_from_filename(backed, bs->backing_file,
+                                                 dest, sz, errp);
 }
 
 void bdrv_register(BlockDriver *bdrv)
@@ -1225,7 +1234,14 @@ int bdrv_open_backing_file(BlockDriverState *bs, QDict *options, Error **errp)
         QDECREF(options);
         goto free_exit;
     } else {
-        bdrv_get_full_backing_filename(bs, backing_filename, PATH_MAX);
+        bdrv_get_full_backing_filename(bs, backing_filename, PATH_MAX,
+                                       &local_err);
+        if (local_err) {
+            ret = -EINVAL;
+            error_propagate(errp, local_err);
+            QDECREF(options);
+            goto free_exit;
+        }
     }
 
     if (!bs->drv || !bs->drv->supports_backing) {
