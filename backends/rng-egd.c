@@ -169,6 +169,7 @@ static void rng_egd_set_chardev(Object *obj, const char *value, Error **errp)
     if (b->opened) {
         error_set(errp, QERR_PERMISSION_DENIED);
     } else {
+        g_free(s->chr_name);
         s->chr_name = g_strdup(value);
     }
 }

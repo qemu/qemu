@@ -70,7 +70,7 @@ struct sPAPRPHBState {
 
     MemoryRegion memspace, iospace;
     hwaddr mem_win_addr, mem_win_size, io_win_addr, io_win_size;
-    MemoryRegion memwindow, iowindow, msiwindow;
+    MemoryRegion memwindow, iowindow;
 
     uint32_t dma_liobn;
     AddressSpace iommu_as;
