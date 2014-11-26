@@ -358,7 +358,6 @@ int cpu_exec(CPUArchState *env)
     }
 
     cc->cpu_exec_enter(cpu);
-    cpu->exception_index = -1;
 
     /* Calculate difference between guest clock and host clock.
      * This delay includes the delay of the last cycle, so
@@ -378,6 +377,7 @@ int cpu_exec(CPUArchState *env)
                     if (ret == EXCP_DEBUG) {
                         cpu_handle_debug_exception(env);
                     }
+                    cpu->exception_index = -1;
                     break;
                 } else {
 #if defined(CONFIG_USER_ONLY)
@@ -388,6 +388,7 @@ int cpu_exec(CPUArchState *env)
                     cc->do_interrupt(cpu);
 #endif
                     ret = cpu->exception_index;
+                    cpu->exception_index = -1;
                     break;
 #else
                     cc->do_interrupt(cpu);

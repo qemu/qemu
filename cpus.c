@@ -934,6 +934,7 @@ static void *qemu_kvm_cpu_thread_fn(void *arg)
     qemu_mutex_lock(&qemu_global_mutex);
     qemu_thread_get_self(cpu->thread);
     cpu->thread_id = qemu_get_thread_id();
+    cpu->exception_index = -1;
     current_cpu = cpu;
 
     r = kvm_init_vcpu(cpu);
@@ -974,6 +975,7 @@ static void *qemu_dummy_cpu_thread_fn(void *arg)
     qemu_mutex_lock_iothread();
     qemu_thread_get_self(cpu->thread);
     cpu->thread_id = qemu_get_thread_id();
+    cpu->exception_index = -1;
 
     sigemptyset(&waitset);
     sigaddset(&waitset, SIG_IPI);
@@ -1016,6 +1018,7 @@ static void *qemu_tcg_cpu_thread_fn(void *arg)
     CPU_FOREACH(cpu) {
         cpu->thread_id = qemu_get_thread_id();
         cpu->created = true;
+        cpu->exception_index = -1;
     }
     qemu_cond_signal(&qemu_cpu_cond);
 
