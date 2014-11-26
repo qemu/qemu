@@ -1891,8 +1891,19 @@ static int vmdk_create(const char *filename, QemuOpts *opts, Error **errp)
     }
     if (backing_file) {
         BlockDriverState *bs = NULL;
-        ret = bdrv_open(&bs, backing_file, NULL, NULL, BDRV_O_NO_BACKING, NULL,
+        char *full_backing = g_new0(char, PATH_MAX);
+        bdrv_get_full_backing_filename_from_filename(filename, backing_file,
+                                                     full_backing, PATH_MAX,
+                                                     &local_err);
+        if (local_err) {
+            g_free(full_backing);
+            error_propagate(errp, local_err);
+            ret = -ENOENT;
+            goto exit;
+        }
+        ret = bdrv_open(&bs, full_backing, NULL, NULL, BDRV_O_NO_BACKING, NULL,
                         errp);
+        g_free(full_backing);
         if (ret != 0) {
             goto exit;
         }
