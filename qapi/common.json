@@ -87,3 +87,18 @@
 ##
 { 'command': 'query-commands', 'returns': ['CommandInfo'] }
 
+##
+# @OnOffAuto
+#
+# An enumeration of three options: on, off, and auto
+#
+# @auto: QEMU selects the value between on and off
+#
+# @on: Enabled
+#
+# @off: Disabled
+#
+# Since: 2.2
+##
+{ 'enum': 'OnOffAuto',
+  'data': [ 'auto', 'on', 'off' ] }

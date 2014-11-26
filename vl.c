@@ -381,7 +381,7 @@ static QemuOptsList qemu_machine_opts = {
             .help = "maximum ram below the 4G boundary (32bit boundary)",
         }, {
             .name = PC_MACHINE_VMPORT,
-            .type = QEMU_OPT_BOOL,
+            .type = QEMU_OPT_STRING,
             .help = "Enable vmport (pc & q35)",
         },{
             .name = "iommu",
