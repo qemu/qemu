@@ -4321,16 +4321,13 @@ void object_add_completion(ReadLineState *rs, int nb_args, const char *str)
 static void peripheral_device_del_completion(ReadLineState *rs,
                                              const char *str, size_t len)
 {
-    Object *peripheral;
-    GSList *list = NULL, *item;
+    Object *peripheral = container_get(qdev_get_machine(), "/peripheral");
+    GSList *list, *item;
 
-    peripheral = object_resolve_path("/machine/peripheral/", NULL);
-    if (peripheral == NULL) {
+    list = qdev_build_hotpluggable_device_list(peripheral);
+    if (!list) {
         return;
     }
-
-    object_child_foreach(peripheral, qdev_build_hotpluggable_device_list,
-                         &list);
 
     for (item = list; item; item = g_slist_next(item)) {
         DeviceState *dev = item->data;
