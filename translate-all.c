@@ -218,7 +218,7 @@ static int cpu_restore_state_from_tb(CPUState *cpu, TranslationBlock *tb,
 
     gen_intermediate_code_pc(env, tb);
 
-    if (use_icount) {
+    if (tb->cflags & CF_USE_ICOUNT) {
         /* Reset the cycle counter to the start of the block.  */
         cpu->icount_decr.u16.low += tb->icount;
         /* Clear the IO flag.  */

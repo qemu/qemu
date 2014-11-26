@@ -7170,7 +7170,7 @@ static int disas_coproc_insn(DisasContext *s, uint32_t insn)
             break;
         }
 
-        if (use_icount && (ri->type & ARM_CP_IO)) {
+        if ((s->tb->cflags & CF_USE_ICOUNT) && (ri->type & ARM_CP_IO)) {
             gen_io_start();
         }
 
@@ -7261,7 +7261,7 @@ static int disas_coproc_insn(DisasContext *s, uint32_t insn)
             }
         }
 
-        if (use_icount && (ri->type & ARM_CP_IO)) {
+        if ((s->tb->cflags & CF_USE_ICOUNT) && (ri->type & ARM_CP_IO)) {
             /* I/O operations must end the TB here (whether read or write) */
             gen_io_end();
             gen_lookup_tb(s);
