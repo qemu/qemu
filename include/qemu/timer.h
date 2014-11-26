@@ -36,12 +36,19 @@
  * is suspended, and it will reflect system time changes the host may
  * undergo (e.g. due to NTP). The host clock has the same precision as
  * the virtual clock.
+ *
+ * @QEMU_CLOCK_VIRTUAL_RT: realtime clock used for icount warp
+ *
+ * Outside icount mode, this clock is the same as @QEMU_CLOCK_VIRTUAL.
+ * In icount mode, this clock counts nanoseconds while the virtual
+ * machine is running.
  */
 
 typedef enum {
     QEMU_CLOCK_REALTIME = 0,
     QEMU_CLOCK_VIRTUAL = 1,
     QEMU_CLOCK_HOST = 2,
+    QEMU_CLOCK_VIRTUAL_RT = 3,
     QEMU_CLOCK_MAX
 } QEMUClockType;
 
