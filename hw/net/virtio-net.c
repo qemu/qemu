@@ -798,7 +798,7 @@ static void virtio_net_handle_ctrl(VirtIODevice *vdev, VirtQueue *vq)
     virtio_net_ctrl_ack status = VIRTIO_NET_ERR;
     VirtQueueElement elem;
     size_t s;
-    struct iovec *iov;
+    struct iovec *iov, *iov2;
     unsigned int iov_cnt;
 
     while (virtqueue_pop(vq, &elem)) {
@@ -808,8 +808,8 @@ static void virtio_net_handle_ctrl(VirtIODevice *vdev, VirtQueue *vq)
             exit(1);
         }
 
-        iov = elem.out_sg;
         iov_cnt = elem.out_num;
+        iov2 = iov = g_memdup(elem.out_sg, sizeof(struct iovec) * elem.out_num);
         s = iov_to_buf(iov, iov_cnt, 0, &ctrl, sizeof(ctrl));
         iov_discard_front(&iov, &iov_cnt, sizeof(ctrl));
         if (s != sizeof(ctrl)) {
@@ -833,6 +833,7 @@ static void virtio_net_handle_ctrl(VirtIODevice *vdev, VirtQueue *vq)
 
         virtqueue_push(vq, &elem, sizeof(status));
         virtio_notify(vdev, vq);
+        g_free(iov2);
     }
 }
 
