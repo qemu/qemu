@@ -728,6 +728,62 @@ static inline void gen_sub_d(TCGv ret, TCGv r1, TCGv r2)
     tcg_temp_free(result);
 }
 
+static inline void gen_sub_CC(TCGv ret, TCGv r1, TCGv r2)
+{
+    TCGv result = tcg_temp_new();
+    TCGv temp = tcg_temp_new();
+
+    tcg_gen_sub_tl(result, r1, r2);
+    /* calc C bit */
+    tcg_gen_setcond_tl(TCG_COND_GEU, cpu_PSW_C, r1, r2);
+    /* calc V bit */
+    tcg_gen_xor_tl(cpu_PSW_V, result, r1);
+    tcg_gen_xor_tl(temp, r1, r2);
+    tcg_gen_and_tl(cpu_PSW_V, cpu_PSW_V, temp);
+    /* calc SV bit */
+    tcg_gen_or_tl(cpu_PSW_SV, cpu_PSW_SV, cpu_PSW_V);
+    /* Calc AV bit */
+    tcg_gen_add_tl(cpu_PSW_AV, result, result);
+    tcg_gen_xor_tl(cpu_PSW_AV, result, cpu_PSW_AV);
+    /* calc SAV bit */
+    tcg_gen_or_tl(cpu_PSW_SAV, cpu_PSW_SAV, cpu_PSW_AV);
+    /* write back result */
+    tcg_gen_mov_tl(ret, result);
+
+    tcg_temp_free(result);
+    tcg_temp_free(temp);
+}
+
+static inline void gen_subc_CC(TCGv ret, TCGv r1, TCGv r2)
+{
+    TCGv temp = tcg_temp_new();
+    tcg_gen_not_tl(temp, r2);
+    gen_addc_CC(ret, r1, temp);
+    tcg_temp_free(temp);
+}
+
+static inline void gen_abs(TCGv ret, TCGv r1)
+{
+    TCGv temp = tcg_temp_new();
+    TCGv t0 = tcg_const_i32(0);
+
+    tcg_gen_neg_tl(temp, r1);
+    tcg_gen_movcond_tl(TCG_COND_GE, ret, r1, t0, r1, temp);
+    /* overflow can only happen, if r1 = 0x80000000 */
+    tcg_gen_setcondi_tl(TCG_COND_EQ, cpu_PSW_V, r1, 0x80000000);
+    tcg_gen_shli_tl(cpu_PSW_V, cpu_PSW_V, 31);
+    /* calc SV bit */
+    tcg_gen_or_tl(cpu_PSW_SV, cpu_PSW_SV, cpu_PSW_V);
+    /* Calc AV bit */
+    tcg_gen_add_tl(cpu_PSW_AV, ret, ret);
+    tcg_gen_xor_tl(cpu_PSW_AV, ret, cpu_PSW_AV);
+    /* calc SAV bit */
+    tcg_gen_or_tl(cpu_PSW_SAV, cpu_PSW_SAV, cpu_PSW_AV);
+
+    tcg_temp_free(temp);
+    tcg_temp_free(t0);
+}
+
 static inline void gen_absdif(TCGv ret, TCGv r1, TCGv r2)
 {
     TCGv temp = tcg_temp_new_i32();
@@ -1215,6 +1271,13 @@ gen_accumulating_condi(int cond, TCGv ret, TCGv r1, int32_t con,
     TCGv temp = tcg_const_i32(con);
     gen_accumulating_cond(cond, ret, r1, temp, op);
     tcg_temp_free(temp);
+}
+
+/* ret = (r1 cond r2) ? 0xFFFFFFFF ? 0x00000000;*/
+static inline void gen_cond_w(TCGCond cond, TCGv ret, TCGv r1, TCGv r2)
+{
+    tcg_gen_setcond_tl(cond, ret, r1, r2);
+    tcg_gen_neg_tl(ret, ret);
 }
 
 static inline void gen_eqany_bi(TCGv ret, TCGv r1, int32_t con)
@@ -3817,6 +3880,322 @@ static void decode_rlc_opc(CPUTriCoreState *env, DisasContext *ctx,
     }
 }
 
+/* RR format */
+static void decode_rr_accumulator(CPUTriCoreState *env, DisasContext *ctx)
+{
+    uint32_t op2;
+    int r3, r2, r1;
+
+    r3 = MASK_OP_RR_D(ctx->opcode);
+    r2 = MASK_OP_RR_S2(ctx->opcode);
+    r1 = MASK_OP_RR_S1(ctx->opcode);
+    op2 = MASK_OP_RR_OP2(ctx->opcode);
+
+    switch (op2) {
+    case OPC2_32_RR_ABS:
+        gen_abs(cpu_gpr_d[r3], cpu_gpr_d[r2]);
+        break;
+    case OPC2_32_RR_ABS_B:
+        gen_helper_abs_b(cpu_gpr_d[r3], cpu_env, cpu_gpr_d[r2]);
+        break;
+    case OPC2_32_RR_ABS_H:
+        gen_helper_abs_h(cpu_gpr_d[r3], cpu_env, cpu_gpr_d[r2]);
+        break;
+    case OPC2_32_RR_ABSDIF:
+        gen_absdif(cpu_gpr_d[r3], cpu_gpr_d[r1], cpu_gpr_d[r2]);
+        break;
+    case OPC2_32_RR_ABSDIF_B:
+        gen_helper_absdif_b(cpu_gpr_d[r3], cpu_env, cpu_gpr_d[r1],
+                            cpu_gpr_d[r2]);
+        break;
+    case OPC2_32_RR_ABSDIF_H:
+        gen_helper_absdif_h(cpu_gpr_d[r3], cpu_env, cpu_gpr_d[r1],
+                            cpu_gpr_d[r2]);
+        break;
+    case OPC2_32_RR_ABSDIFS:
+        gen_helper_absdif_ssov(cpu_gpr_d[r3], cpu_env, cpu_gpr_d[r1],
+                               cpu_gpr_d[r2]);
+        break;
+    case OPC2_32_RR_ABSDIFS_H:
+        gen_helper_absdif_h_ssov(cpu_gpr_d[r3], cpu_env, cpu_gpr_d[r1],
+                                 cpu_gpr_d[r2]);
+        break;
+    case OPC2_32_RR_ABSS:
+        gen_helper_abs_ssov(cpu_gpr_d[r3], cpu_env, cpu_gpr_d[r2]);
+        break;
+    case OPC2_32_RR_ABSS_H:
+        gen_helper_abs_h_ssov(cpu_gpr_d[r3], cpu_env, cpu_gpr_d[r2]);
+        break;
+    case OPC2_32_RR_ADD:
+        gen_add_d(cpu_gpr_d[r3], cpu_gpr_d[r1], cpu_gpr_d[r2]);
+        break;
+    case OPC2_32_RR_ADD_B:
+        gen_helper_add_b(cpu_gpr_d[r3], cpu_env, cpu_gpr_d[r1], cpu_gpr_d[r2]);
+        break;
+    case OPC2_32_RR_ADD_H:
+        gen_helper_add_h(cpu_gpr_d[r3], cpu_env, cpu_gpr_d[r1], cpu_gpr_d[r2]);
+        break;
+    case OPC2_32_RR_ADDC:
+        gen_addc_CC(cpu_gpr_d[r3], cpu_gpr_d[r1], cpu_gpr_d[r2]);
+        break;
+    case OPC2_32_RR_ADDS:
+        gen_adds(cpu_gpr_d[r3], cpu_gpr_d[r1], cpu_gpr_d[r2]);
+        break;
+    case OPC2_32_RR_ADDS_H:
+        gen_helper_add_h_ssov(cpu_gpr_d[r3], cpu_env, cpu_gpr_d[r1],
+                              cpu_gpr_d[r2]);
+        break;
+    case OPC2_32_RR_ADDS_HU:
+        gen_helper_add_h_suov(cpu_gpr_d[r3], cpu_env, cpu_gpr_d[r1],
+                              cpu_gpr_d[r2]);
+        break;
+    case OPC2_32_RR_ADDS_U:
+        gen_helper_add_suov(cpu_gpr_d[r3], cpu_env, cpu_gpr_d[r1],
+                            cpu_gpr_d[r2]);
+        break;
+    case OPC2_32_RR_ADDX:
+        gen_add_CC(cpu_gpr_d[r3], cpu_gpr_d[r1], cpu_gpr_d[r2]);
+        break;
+    case OPC2_32_RR_AND_EQ:
+        gen_accumulating_cond(TCG_COND_EQ, cpu_gpr_d[r3], cpu_gpr_d[r1],
+                              cpu_gpr_d[r2], &tcg_gen_and_tl);
+        break;
+    case OPC2_32_RR_AND_GE:
+        gen_accumulating_cond(TCG_COND_GE, cpu_gpr_d[r3], cpu_gpr_d[r1],
+                              cpu_gpr_d[r2], &tcg_gen_and_tl);
+        break;
+    case OPC2_32_RR_AND_GE_U:
+        gen_accumulating_cond(TCG_COND_GEU, cpu_gpr_d[r3], cpu_gpr_d[r1],
+                              cpu_gpr_d[r2], &tcg_gen_and_tl);
+        break;
+    case OPC2_32_RR_AND_LT:
+        gen_accumulating_cond(TCG_COND_LT, cpu_gpr_d[r3], cpu_gpr_d[r1],
+                              cpu_gpr_d[r2], &tcg_gen_and_tl);
+        break;
+    case OPC2_32_RR_AND_LT_U:
+        gen_accumulating_cond(TCG_COND_LTU, cpu_gpr_d[r3], cpu_gpr_d[r1],
+                              cpu_gpr_d[r2], &tcg_gen_and_tl);
+        break;
+    case OPC2_32_RR_AND_NE:
+        gen_accumulating_cond(TCG_COND_NE, cpu_gpr_d[r3], cpu_gpr_d[r1],
+                              cpu_gpr_d[r2], &tcg_gen_and_tl);
+        break;
+    case OPC2_32_RR_EQ:
+        tcg_gen_setcond_tl(TCG_COND_EQ, cpu_gpr_d[r3], cpu_gpr_d[r1],
+                           cpu_gpr_d[r2]);
+        break;
+    case OPC2_32_RR_EQ_B:
+        gen_helper_eq_b(cpu_gpr_d[r3], cpu_gpr_d[r1], cpu_gpr_d[r2]);
+        break;
+    case OPC2_32_RR_EQ_H:
+        gen_helper_eq_h(cpu_gpr_d[r3], cpu_gpr_d[r1], cpu_gpr_d[r2]);
+        break;
+    case OPC2_32_RR_EQ_W:
+        gen_cond_w(TCG_COND_EQ, cpu_gpr_d[r3], cpu_gpr_d[r1], cpu_gpr_d[r2]);
+        break;
+    case OPC2_32_RR_EQANY_B:
+        gen_helper_eqany_b(cpu_gpr_d[r3], cpu_gpr_d[r1], cpu_gpr_d[r2]);
+        break;
+    case OPC2_32_RR_EQANY_H:
+        gen_helper_eqany_h(cpu_gpr_d[r3], cpu_gpr_d[r1], cpu_gpr_d[r2]);
+        break;
+    case OPC2_32_RR_GE:
+        tcg_gen_setcond_tl(TCG_COND_GE, cpu_gpr_d[r3], cpu_gpr_d[r1],
+                           cpu_gpr_d[r2]);
+        break;
+    case OPC2_32_RR_GE_U:
+        tcg_gen_setcond_tl(TCG_COND_GEU, cpu_gpr_d[r3], cpu_gpr_d[r1],
+                           cpu_gpr_d[r2]);
+        break;
+    case OPC2_32_RR_LT:
+        tcg_gen_setcond_tl(TCG_COND_LT, cpu_gpr_d[r3], cpu_gpr_d[r1],
+                           cpu_gpr_d[r2]);
+        break;
+    case OPC2_32_RR_LT_U:
+        tcg_gen_setcond_tl(TCG_COND_LTU, cpu_gpr_d[r3], cpu_gpr_d[r1],
+                           cpu_gpr_d[r2]);
+        break;
+    case OPC2_32_RR_LT_B:
+        gen_helper_lt_b(cpu_gpr_d[r3], cpu_gpr_d[r1], cpu_gpr_d[r2]);
+        break;
+    case OPC2_32_RR_LT_BU:
+        gen_helper_lt_bu(cpu_gpr_d[r3], cpu_gpr_d[r1], cpu_gpr_d[r2]);
+        break;
+    case OPC2_32_RR_LT_H:
+        gen_helper_lt_h(cpu_gpr_d[r3], cpu_gpr_d[r1], cpu_gpr_d[r2]);
+        break;
+    case OPC2_32_RR_LT_HU:
+        gen_helper_lt_hu(cpu_gpr_d[r3], cpu_gpr_d[r1], cpu_gpr_d[r2]);
+        break;
+    case OPC2_32_RR_LT_W:
+        gen_cond_w(TCG_COND_LT, cpu_gpr_d[r3], cpu_gpr_d[r1], cpu_gpr_d[r2]);
+        break;
+    case OPC2_32_RR_LT_WU:
+        gen_cond_w(TCG_COND_LTU, cpu_gpr_d[r3], cpu_gpr_d[r1], cpu_gpr_d[r2]);
+        break;
+    case OPC2_32_RR_MAX:
+        tcg_gen_movcond_tl(TCG_COND_GT, cpu_gpr_d[r3], cpu_gpr_d[r1],
+                           cpu_gpr_d[r2], cpu_gpr_d[r1], cpu_gpr_d[r2]);
+        break;
+    case OPC2_32_RR_MAX_U:
+        tcg_gen_movcond_tl(TCG_COND_GTU, cpu_gpr_d[r3], cpu_gpr_d[r1],
+                           cpu_gpr_d[r2], cpu_gpr_d[r1], cpu_gpr_d[r2]);
+        break;
+    case OPC2_32_RR_MAX_B:
+        gen_helper_max_b(cpu_gpr_d[r3], cpu_gpr_d[r1], cpu_gpr_d[r2]);
+        break;
+    case OPC2_32_RR_MAX_BU:
+        gen_helper_max_bu(cpu_gpr_d[r3], cpu_gpr_d[r1], cpu_gpr_d[r2]);
+        break;
+    case OPC2_32_RR_MAX_H:
+        gen_helper_max_h(cpu_gpr_d[r3], cpu_gpr_d[r1], cpu_gpr_d[r2]);
+        break;
+    case OPC2_32_RR_MAX_HU:
+        gen_helper_max_hu(cpu_gpr_d[r3], cpu_gpr_d[r1], cpu_gpr_d[r2]);
+        break;
+    case OPC2_32_RR_MIN:
+        tcg_gen_movcond_tl(TCG_COND_LT, cpu_gpr_d[r3], cpu_gpr_d[r1],
+                           cpu_gpr_d[r2], cpu_gpr_d[r1], cpu_gpr_d[r2]);
+        break;
+    case OPC2_32_RR_MIN_U:
+        tcg_gen_movcond_tl(TCG_COND_LTU, cpu_gpr_d[r3], cpu_gpr_d[r1],
+                           cpu_gpr_d[r2], cpu_gpr_d[r1], cpu_gpr_d[r2]);
+        break;
+    case OPC2_32_RR_MIN_B:
+        gen_helper_min_b(cpu_gpr_d[r3], cpu_gpr_d[r1], cpu_gpr_d[r2]);
+        break;
+    case OPC2_32_RR_MIN_BU:
+        gen_helper_min_bu(cpu_gpr_d[r3], cpu_gpr_d[r1], cpu_gpr_d[r2]);
+        break;
+    case OPC2_32_RR_MIN_H:
+        gen_helper_min_h(cpu_gpr_d[r3], cpu_gpr_d[r1], cpu_gpr_d[r2]);
+        break;
+    case OPC2_32_RR_MIN_HU:
+        gen_helper_min_hu(cpu_gpr_d[r3], cpu_gpr_d[r1], cpu_gpr_d[r2]);
+        break;
+    case OPC2_32_RR_MOV:
+        tcg_gen_mov_tl(cpu_gpr_d[r3], cpu_gpr_d[r2]);
+        break;
+    case OPC2_32_RR_NE:
+        tcg_gen_setcond_tl(TCG_COND_NE, cpu_gpr_d[r3], cpu_gpr_d[r1],
+                           cpu_gpr_d[r2]);
+        break;
+    case OPC2_32_RR_OR_EQ:
+        gen_accumulating_cond(TCG_COND_EQ, cpu_gpr_d[r3], cpu_gpr_d[r1],
+                              cpu_gpr_d[r2], &tcg_gen_or_tl);
+        break;
+    case OPC2_32_RR_OR_GE:
+        gen_accumulating_cond(TCG_COND_GE, cpu_gpr_d[r3], cpu_gpr_d[r1],
+                              cpu_gpr_d[r2], &tcg_gen_or_tl);
+        break;
+    case OPC2_32_RR_OR_GE_U:
+        gen_accumulating_cond(TCG_COND_GEU, cpu_gpr_d[r3], cpu_gpr_d[r1],
+                              cpu_gpr_d[r2], &tcg_gen_or_tl);
+        break;
+    case OPC2_32_RR_OR_LT:
+        gen_accumulating_cond(TCG_COND_LT, cpu_gpr_d[r3], cpu_gpr_d[r1],
+                              cpu_gpr_d[r2], &tcg_gen_or_tl);
+        break;
+    case OPC2_32_RR_OR_LT_U:
+        gen_accumulating_cond(TCG_COND_LTU, cpu_gpr_d[r3], cpu_gpr_d[r1],
+                              cpu_gpr_d[r2], &tcg_gen_or_tl);
+        break;
+    case OPC2_32_RR_OR_NE:
+        gen_accumulating_cond(TCG_COND_NE, cpu_gpr_d[r3], cpu_gpr_d[r1],
+                              cpu_gpr_d[r2], &tcg_gen_or_tl);
+        break;
+    case OPC2_32_RR_SAT_B:
+        gen_saturate(cpu_gpr_d[r3], cpu_gpr_d[r1], 0x7f, -0x80);
+        break;
+    case OPC2_32_RR_SAT_BU:
+        gen_saturate_u(cpu_gpr_d[r3], cpu_gpr_d[r1], 0xff);
+        break;
+    case OPC2_32_RR_SAT_H:
+        gen_saturate(cpu_gpr_d[r3], cpu_gpr_d[r1], 0x7fff, -0x8000);
+        break;
+    case OPC2_32_RR_SAT_HU:
+        gen_saturate_u(cpu_gpr_d[r3], cpu_gpr_d[r1], 0xffff);
+        break;
+    case OPC2_32_RR_SH_EQ:
+        gen_sh_cond(TCG_COND_EQ, cpu_gpr_d[r3], cpu_gpr_d[r1],
+                    cpu_gpr_d[r2]);
+        break;
+    case OPC2_32_RR_SH_GE:
+        gen_sh_cond(TCG_COND_GE, cpu_gpr_d[r3], cpu_gpr_d[r1],
+                    cpu_gpr_d[r2]);
+        break;
+    case OPC2_32_RR_SH_GE_U:
+        gen_sh_cond(TCG_COND_GEU, cpu_gpr_d[r3], cpu_gpr_d[r1],
+                    cpu_gpr_d[r2]);
+        break;
+    case OPC2_32_RR_SH_LT:
+        gen_sh_cond(TCG_COND_LT, cpu_gpr_d[r3], cpu_gpr_d[r1],
+                    cpu_gpr_d[r2]);
+        break;
+    case OPC2_32_RR_SH_LT_U:
+        gen_sh_cond(TCG_COND_LTU, cpu_gpr_d[r3], cpu_gpr_d[r1],
+                    cpu_gpr_d[r2]);
+        break;
+    case OPC2_32_RR_SH_NE:
+        gen_sh_cond(TCG_COND_NE, cpu_gpr_d[r3], cpu_gpr_d[r1],
+                    cpu_gpr_d[r2]);
+        break;
+    case OPC2_32_RR_SUB:
+        gen_sub_d(cpu_gpr_d[r3], cpu_gpr_d[r1], cpu_gpr_d[r2]);
+        break;
+    case OPC2_32_RR_SUB_B:
+        gen_helper_sub_b(cpu_gpr_d[r3], cpu_env, cpu_gpr_d[r1], cpu_gpr_d[r2]);
+        break;
+    case OPC2_32_RR_SUB_H:
+        gen_helper_sub_h(cpu_gpr_d[r3], cpu_env, cpu_gpr_d[r1], cpu_gpr_d[r2]);
+        break;
+    case OPC2_32_RR_SUBC:
+        gen_subc_CC(cpu_gpr_d[r3], cpu_gpr_d[r1], cpu_gpr_d[r2]);
+        break;
+    case OPC2_32_RR_SUBS:
+        gen_subs(cpu_gpr_d[r3], cpu_gpr_d[r1], cpu_gpr_d[r2]);
+        break;
+    case OPC2_32_RR_SUBS_U:
+        gen_subsu(cpu_gpr_d[r3], cpu_gpr_d[r1], cpu_gpr_d[r2]);
+        break;
+    case OPC2_32_RR_SUBS_H:
+        gen_helper_sub_h_ssov(cpu_gpr_d[r3], cpu_env, cpu_gpr_d[r1],
+                              cpu_gpr_d[r2]);
+        break;
+    case OPC2_32_RR_SUBS_HU:
+        gen_helper_sub_h_suov(cpu_gpr_d[r3], cpu_env, cpu_gpr_d[r1],
+                              cpu_gpr_d[r2]);
+        break;
+    case OPC2_32_RR_SUBX:
+        gen_sub_CC(cpu_gpr_d[r3], cpu_gpr_d[r1], cpu_gpr_d[r2]);
+        break;
+    case OPC2_32_RR_XOR_EQ:
+        gen_accumulating_cond(TCG_COND_EQ, cpu_gpr_d[r3], cpu_gpr_d[r1],
+                              cpu_gpr_d[r2], &tcg_gen_xor_tl);
+        break;
+    case OPC2_32_RR_XOR_GE:
+        gen_accumulating_cond(TCG_COND_GE, cpu_gpr_d[r3], cpu_gpr_d[r1],
+                              cpu_gpr_d[r2], &tcg_gen_xor_tl);
+        break;
+    case OPC2_32_RR_XOR_GE_U:
+        gen_accumulating_cond(TCG_COND_GEU, cpu_gpr_d[r3], cpu_gpr_d[r1],
+                              cpu_gpr_d[r2], &tcg_gen_xor_tl);
+        break;
+    case OPC2_32_RR_XOR_LT:
+        gen_accumulating_cond(TCG_COND_LT, cpu_gpr_d[r3], cpu_gpr_d[r1],
+                              cpu_gpr_d[r2], &tcg_gen_xor_tl);
+        break;
+    case OPC2_32_RR_XOR_LT_U:
+        gen_accumulating_cond(TCG_COND_LTU, cpu_gpr_d[r3], cpu_gpr_d[r1],
+                              cpu_gpr_d[r2], &tcg_gen_xor_tl);
+        break;
+    case OPC2_32_RR_XOR_NE:
+        gen_accumulating_cond(TCG_COND_NE, cpu_gpr_d[r3], cpu_gpr_d[r1],
+                              cpu_gpr_d[r2], &tcg_gen_xor_tl);
+        break;
+    }
+}
+
 static void decode_32Bit_opc(CPUTriCoreState *env, DisasContext *ctx)
 {
     int op1;
@@ -4047,6 +4426,10 @@ static void decode_32Bit_opc(CPUTriCoreState *env, DisasContext *ctx)
     case OPC1_32_RLC_MOVH_A:
     case OPC1_32_RLC_MTCR:
         decode_rlc_opc(env, ctx, op1);
+        break;
+/* RR Format */
+    case OPCM_32_RR_ACCUMULATOR:
+        decode_rr_accumulator(env, ctx);
         break;
     }
 }
