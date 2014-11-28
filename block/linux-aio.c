@@ -149,6 +149,8 @@ static void qemu_laio_completion_bh(void *opaque)
     if (!s->io_q.plugged && !QSIMPLEQ_EMPTY(&s->io_q.pending)) {
         ioq_submit(s);
     }
+
+    qemu_bh_cancel(s->completion_bh);
 }
 
 static void qemu_laio_completion_cb(EventNotifier *e)
@@ -156,7 +158,7 @@ static void qemu_laio_completion_cb(EventNotifier *e)
     LinuxAioState *s = container_of(e, LinuxAioState, e);
 
     if (event_notifier_test_and_clear(&s->e)) {
-        qemu_bh_schedule(s->completion_bh);
+        qemu_laio_completion_bh(s);
     }
 }
 
