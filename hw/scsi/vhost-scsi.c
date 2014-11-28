@@ -233,6 +233,7 @@ static void vhost_scsi_realize(DeviceState *dev, Error **errp)
                                vhost_dummy_handle_output);
     if (err != NULL) {
         error_propagate(errp, err);
+        close(vhostfd);
         return;
     }
 
