@@ -4196,6 +4196,81 @@ static void decode_rr_accumulator(CPUTriCoreState *env, DisasContext *ctx)
     }
 }
 
+static void decode_rr_logical_shift(CPUTriCoreState *env, DisasContext *ctx)
+{
+    uint32_t op2;
+    int r3, r2, r1;
+    TCGv temp;
+
+    r3 = MASK_OP_RR_D(ctx->opcode);
+    r2 = MASK_OP_RR_S2(ctx->opcode);
+    r1 = MASK_OP_RR_S1(ctx->opcode);
+
+    temp = tcg_temp_new();
+    op2 = MASK_OP_RR_OP2(ctx->opcode);
+
+    switch (op2) {
+    case OPC2_32_RR_AND:
+        tcg_gen_and_tl(cpu_gpr_d[r3], cpu_gpr_d[r1], cpu_gpr_d[r2]);
+        break;
+    case OPC2_32_RR_ANDN:
+        tcg_gen_andc_tl(cpu_gpr_d[r3], cpu_gpr_d[r1], cpu_gpr_d[r2]);
+        break;
+    case OPC2_32_RR_CLO:
+        gen_helper_clo(cpu_gpr_d[r3], cpu_gpr_d[r1]);
+        break;
+    case OPC2_32_RR_CLO_H:
+        gen_helper_clo_h(cpu_gpr_d[r3], cpu_gpr_d[r1]);
+        break;
+    case OPC2_32_RR_CLS:
+        gen_helper_cls(cpu_gpr_d[r3], cpu_gpr_d[r1]);
+        break;
+    case OPC2_32_RR_CLS_H:
+        gen_helper_cls_h(cpu_gpr_d[r3], cpu_gpr_d[r1]);
+        break;
+    case OPC2_32_RR_CLZ:
+        gen_helper_clz(cpu_gpr_d[r3], cpu_gpr_d[r1]);
+        break;
+    case OPC2_32_RR_CLZ_H:
+        gen_helper_clz_h(cpu_gpr_d[r3], cpu_gpr_d[r1]);
+        break;
+    case OPC2_32_RR_NAND:
+        tcg_gen_nand_tl(cpu_gpr_d[r3], cpu_gpr_d[r1], cpu_gpr_d[r2]);
+        break;
+    case OPC2_32_RR_NOR:
+        tcg_gen_nor_tl(cpu_gpr_d[r3], cpu_gpr_d[r1], cpu_gpr_d[r2]);
+        break;
+    case OPC2_32_RR_OR:
+        tcg_gen_or_tl(cpu_gpr_d[r3], cpu_gpr_d[r1], cpu_gpr_d[r2]);
+        break;
+    case OPC2_32_RR_ORN:
+        tcg_gen_orc_tl(cpu_gpr_d[r3], cpu_gpr_d[r1], cpu_gpr_d[r2]);
+        break;
+    case OPC2_32_RR_SH:
+        gen_helper_sh(cpu_gpr_d[r3], cpu_gpr_d[r1], cpu_gpr_d[r2]);
+        break;
+    case OPC2_32_RR_SH_H:
+        gen_helper_sh_h(cpu_gpr_d[r3], cpu_gpr_d[r1], cpu_gpr_d[r2]);
+        break;
+    case OPC2_32_RR_SHA:
+        gen_helper_sha(cpu_gpr_d[r3], cpu_env, cpu_gpr_d[r1], cpu_gpr_d[r2]);
+        break;
+    case OPC2_32_RR_SHA_H:
+        gen_helper_sha_h(cpu_gpr_d[r3], cpu_gpr_d[r1], cpu_gpr_d[r2]);
+        break;
+    case OPC2_32_RR_SHAS:
+        gen_shas(cpu_gpr_d[r3], cpu_gpr_d[r1], cpu_gpr_d[r2]);
+        break;
+    case OPC2_32_RR_XNOR:
+        tcg_gen_eqv_tl(cpu_gpr_d[r3], cpu_gpr_d[r1], cpu_gpr_d[r2]);
+        break;
+    case OPC2_32_RR_XOR:
+        tcg_gen_xor_tl(cpu_gpr_d[r3], cpu_gpr_d[r1], cpu_gpr_d[r2]);
+        break;
+    }
+    tcg_temp_free(temp);
+}
+
 static void decode_32Bit_opc(CPUTriCoreState *env, DisasContext *ctx)
 {
     int op1;
@@ -4430,6 +4505,9 @@ static void decode_32Bit_opc(CPUTriCoreState *env, DisasContext *ctx)
 /* RR Format */
     case OPCM_32_RR_ACCUMULATOR:
         decode_rr_accumulator(env, ctx);
+        break;
+    case OPCM_32_RR_LOGICAL_SHIFT:
+        decode_rr_logical_shift(env, ctx);
         break;
     }
 }

@@ -873,6 +873,166 @@ EXTREMA_H_B(min, <)
 
 #undef EXTREMA_H_B
 
+uint32_t helper_clo(target_ulong r1)
+{
+    return clo32(r1);
+}
+
+uint32_t helper_clo_h(target_ulong r1)
+{
+    uint32_t ret_hw0 = extract32(r1, 0, 16);
+    uint32_t ret_hw1 = extract32(r1, 16, 16);
+
+    ret_hw0 = clo32(ret_hw0 << 16);
+    ret_hw1 = clo32(ret_hw1 << 16);
+
+    if (ret_hw0 > 16) {
+        ret_hw0 = 16;
+    }
+    if (ret_hw1 > 16) {
+        ret_hw1 = 16;
+    }
+
+    return ret_hw0 | (ret_hw1 << 16);
+}
+
+uint32_t helper_clz(target_ulong r1)
+{
+    return clz32(r1);
+}
+
+uint32_t helper_clz_h(target_ulong r1)
+{
+    uint32_t ret_hw0 = extract32(r1, 0, 16);
+    uint32_t ret_hw1 = extract32(r1, 16, 16);
+
+    ret_hw0 = clz32(ret_hw0 << 16);
+    ret_hw1 = clz32(ret_hw1 << 16);
+
+    if (ret_hw0 > 16) {
+        ret_hw0 = 16;
+    }
+    if (ret_hw1 > 16) {
+        ret_hw1 = 16;
+    }
+
+    return ret_hw0 | (ret_hw1 << 16);
+}
+
+uint32_t helper_cls(target_ulong r1)
+{
+    return clrsb32(r1);
+}
+
+uint32_t helper_cls_h(target_ulong r1)
+{
+    uint32_t ret_hw0 = extract32(r1, 0, 16);
+    uint32_t ret_hw1 = extract32(r1, 16, 16);
+
+    ret_hw0 = clrsb32(ret_hw0 << 16);
+    ret_hw1 = clrsb32(ret_hw1 << 16);
+
+    if (ret_hw0 > 15) {
+        ret_hw0 = 15;
+    }
+    if (ret_hw1 > 15) {
+        ret_hw1 = 15;
+    }
+
+    return ret_hw0 | (ret_hw1 << 16);
+}
+
+uint32_t helper_sh(target_ulong r1, target_ulong r2)
+{
+    int32_t shift_count = sextract32(r2, 0, 6);
+
+    if (shift_count == -32) {
+        return 0;
+    } else if (shift_count < 0) {
+        return r1 >> -shift_count;
+    } else {
+        return r1 << shift_count;
+    }
+}
+
+uint32_t helper_sh_h(target_ulong r1, target_ulong r2)
+{
+    int32_t ret_hw0, ret_hw1;
+    int32_t shift_count;
+
+    shift_count = sextract32(r2, 0, 5);
+
+    if (shift_count == -16) {
+        return 0;
+    } else if (shift_count < 0) {
+        ret_hw0 = extract32(r1, 0, 16) >> -shift_count;
+        ret_hw1 = extract32(r1, 16, 16) >> -shift_count;
+        return (ret_hw0 & 0xffff) | (ret_hw1 << 16);
+    } else {
+        ret_hw0 = extract32(r1, 0, 16) << shift_count;
+        ret_hw1 = extract32(r1, 16, 16) << shift_count;
+        return (ret_hw0 & 0xffff) | (ret_hw1 << 16);
+    }
+}
+
+uint32_t helper_sha(CPUTriCoreState *env, target_ulong r1, target_ulong r2)
+{
+    int32_t shift_count;
+    int64_t result, t1;
+    uint32_t ret;
+
+    shift_count = sextract32(r2, 0, 6);
+    t1 = sextract32(r1, 0, 32);
+
+    if (shift_count == 0) {
+        env->PSW_USB_C = env->PSW_USB_V = 0;
+        ret = r1;
+    } else if (shift_count == -32) {
+        env->PSW_USB_C = r1;
+        env->PSW_USB_V = 0;
+        ret = t1 >> 31;
+    } else if (shift_count > 0) {
+        result = t1 << shift_count;
+        /* calc carry */
+        env->PSW_USB_C = ((result & 0xffffffff00000000) != 0);
+        /* calc v */
+        env->PSW_USB_V = (((result > 0x7fffffffLL) ||
+                           (result < -0x80000000LL)) << 31);
+        /* calc sv */
+        env->PSW_USB_SV |= env->PSW_USB_V;
+        ret = (uint32_t)result;
+    } else {
+        env->PSW_USB_V = 0;
+        env->PSW_USB_C = (r1 & ((1 << -shift_count) - 1));
+        ret = t1 >> -shift_count;
+    }
+
+    env->PSW_USB_AV = ret ^ ret * 2u;
+    env->PSW_USB_SAV |= env->PSW_USB_AV;
+
+    return ret;
+}
+
+uint32_t helper_sha_h(target_ulong r1, target_ulong r2)
+{
+    int32_t shift_count;
+    int32_t ret_hw0, ret_hw1;
+
+    shift_count = sextract32(r2, 0, 5);
+
+    if (shift_count == 0) {
+        return r1;
+    } else if (shift_count < 0) {
+        ret_hw0 = sextract32(r1, 0, 16) >> -shift_count;
+        ret_hw1 = sextract32(r1, 16, 16) >> -shift_count;
+        return (ret_hw0 & 0xffff) | (ret_hw1 << 16);
+    } else {
+        ret_hw0 = sextract32(r1, 0, 16) << shift_count;
+        ret_hw1 = sextract32(r1, 16, 16) << shift_count;
+        return (ret_hw0 & 0xffff) | (ret_hw1 << 16);
+    }
+}
+
 /* context save area (CSA) related helpers */
 
 static int cdc_increment(target_ulong *psw)
