@@ -1,0 +1,15 @@
+QA output created by 113
+
+=== Unsupported image creation in qemu-img create ===
+
+qemu-img: nbd://example.com: Format driver 'IMGFMT' does not support image creation
+
+=== Unsupported image creation in qemu-img convert ===
+
+qemu-img: Format driver 'IMGFMT' does not support image creation
+
+=== Unsupported format in qemu-img amend ===
+
+qemu-img: Format driver 'IMGFMT' does not support any options to amend
+
+*** done
