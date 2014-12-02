@@ -1428,10 +1428,23 @@ static void qcow2_close(BlockDriverState *bs)
     s->l1_table = NULL;
 
     if (!(bs->open_flags & BDRV_O_INCOMING)) {
-        qcow2_cache_flush(bs, s->l2_table_cache);
-        qcow2_cache_flush(bs, s->refcount_block_cache);
+        int ret1, ret2;
 
-        qcow2_mark_clean(bs);
+        ret1 = qcow2_cache_flush(bs, s->l2_table_cache);
+        ret2 = qcow2_cache_flush(bs, s->refcount_block_cache);
+
+        if (ret1) {
+            error_report("Failed to flush the L2 table cache: %s",
+                         strerror(-ret1));
+        }
+        if (ret2) {
+            error_report("Failed to flush the refcount block cache: %s",
+                         strerror(-ret2));
+        }
+
+        if (!ret1 && !ret2) {
+            qcow2_mark_clean(bs);
+        }
     }
 
     qcow2_cache_destroy(bs, s->l2_table_cache);
