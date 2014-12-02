@@ -1782,15 +1782,14 @@ static inline int32 float64_to_q32(float64 a STATUS_PARAM)
 
 #define MSA_FLOAT_COND(DEST, OP, ARG1, ARG2, BITS, QUIET)                   \
     do {                                                                    \
+        float_status *status = &env->active_tc.msa_fp_status;               \
         int c;                                                              \
         int64_t cond;                                                       \
-        set_float_exception_flags(0, &env->active_tc.msa_fp_status);        \
+        set_float_exception_flags(0, status);                               \
         if (!QUIET) {                                                       \
-            cond = float ## BITS ## _ ## OP(ARG1, ARG2,                     \
-                                          &env->active_tc.msa_fp_status);   \
+            cond = float ## BITS ## _ ## OP(ARG1, ARG2, status);            \
         } else {                                                            \
-            cond = float ## BITS ## _ ## OP ## _quiet(ARG1, ARG2,           \
-                                          &env->active_tc.msa_fp_status);   \
+            cond = float ## BITS ## _ ## OP ## _quiet(ARG1, ARG2, status);  \
         }                                                                   \
         DEST = cond ? M_MAX_UINT(BITS) : 0;                                 \
         c = update_msacsr(env, CLEAR_IS_INEXACT, 0);                        \
@@ -2375,11 +2374,11 @@ void helper_msa_fsne_df(CPUMIPSState *env, uint32_t df, uint32_t wd,
 
 #define MSA_FLOAT_BINOP(DEST, OP, ARG1, ARG2, BITS)                         \
     do {                                                                    \
+        float_status *status = &env->active_tc.msa_fp_status;               \
         int c;                                                              \
                                                                             \
-        set_float_exception_flags(0, &env->active_tc.msa_fp_status);        \
-        DEST = float ## BITS ## _ ## OP(ARG1, ARG2,                         \
-                                        &env->active_tc.msa_fp_status);     \
+        set_float_exception_flags(0, status);                               \
+        DEST = float ## BITS ## _ ## OP(ARG1, ARG2, status);                \
         c = update_msacsr(env, 0, IS_DENORMAL(DEST, BITS));                 \
                                                                             \
         if (get_enabled_exceptions(env, c)) {                               \
@@ -2511,11 +2510,11 @@ void helper_msa_fdiv_df(CPUMIPSState *env, uint32_t df, uint32_t wd,
 
 #define MSA_FLOAT_MULADD(DEST, ARG1, ARG2, ARG3, NEGATE, BITS)              \
     do {                                                                    \
+        float_status *status = &env->active_tc.msa_fp_status;               \
         int c;                                                              \
                                                                             \
-        set_float_exception_flags(0, &env->active_tc.msa_fp_status);        \
-        DEST = float ## BITS ## _muladd(ARG2, ARG3, ARG1, NEGATE,           \
-                                        &env->active_tc.msa_fp_status);     \
+        set_float_exception_flags(0, status);                               \
+        DEST = float ## BITS ## _muladd(ARG2, ARG3, ARG1, NEGATE, status);  \
         c = update_msacsr(env, 0, IS_DENORMAL(DEST, BITS));                 \
                                                                             \
         if (get_enabled_exceptions(env, c)) {                               \
@@ -2630,10 +2629,11 @@ void helper_msa_fexp2_df(CPUMIPSState *env, uint32_t df, uint32_t wd,
 
 #define MSA_FLOAT_UNOP(DEST, OP, ARG, BITS)                                 \
     do {                                                                    \
+        float_status *status = &env->active_tc.msa_fp_status;               \
         int c;                                                              \
                                                                             \
-        set_float_exception_flags(0, &env->active_tc.msa_fp_status);        \
-        DEST = float ## BITS ## _ ## OP(ARG, &env->active_tc.msa_fp_status);\
+        set_float_exception_flags(0, status);                               \
+        DEST = float ## BITS ## _ ## OP(ARG, status);                       \
         c = update_msacsr(env, 0, IS_DENORMAL(DEST, BITS));                 \
                                                                             \
         if (get_enabled_exceptions(env, c)) {                               \
@@ -2678,10 +2678,11 @@ void helper_msa_fexdo_df(CPUMIPSState *env, uint32_t df, uint32_t wd,
 
 #define MSA_FLOAT_UNOP_XD(DEST, OP, ARG, BITS, XBITS)                       \
     do {                                                                    \
+        float_status *status = &env->active_tc.msa_fp_status;               \
         int c;                                                              \
                                                                             \
-        set_float_exception_flags(0, &env->active_tc.msa_fp_status);        \
-        DEST = float ## BITS ## _ ## OP(ARG, &env->active_tc.msa_fp_status);\
+        set_float_exception_flags(0, status);                               \
+        DEST = float ## BITS ## _ ## OP(ARG, status);                       \
         c = update_msacsr(env, CLEAR_FS_UNDERFLOW, 0);                      \
                                                                             \
         if (get_enabled_exceptions(env, c)) {                               \
@@ -2728,11 +2729,11 @@ void helper_msa_ftq_df(CPUMIPSState *env, uint32_t df, uint32_t wd,
 
 #define MSA_FLOAT_MAXOP(DEST, OP, ARG1, ARG2, BITS)                         \
     do {                                                                    \
+        float_status *status = &env->active_tc.msa_fp_status;               \
         int c;                                                              \
                                                                             \
-        set_float_exception_flags(0, &env->active_tc.msa_fp_status);        \
-        DEST = float ## BITS ## _ ## OP(ARG1, ARG2,                         \
-                                        &env->active_tc.msa_fp_status);     \
+        set_float_exception_flags(0, status);                               \
+        DEST = float ## BITS ## _ ## OP(ARG1, ARG2, status);                \
         c = update_msacsr(env, 0, 0);                                       \
                                                                             \
         if (get_enabled_exceptions(env, c)) {                               \
@@ -2924,10 +2925,11 @@ void helper_msa_fclass_df(CPUMIPSState *env, uint32_t df,
 
 #define MSA_FLOAT_UNOP0(DEST, OP, ARG, BITS)                                \
     do {                                                                    \
+        float_status *status = &env->active_tc.msa_fp_status;               \
         int c;                                                              \
                                                                             \
-        set_float_exception_flags(0, &env->active_tc.msa_fp_status);        \
-        DEST = float ## BITS ## _ ## OP(ARG, &env->active_tc.msa_fp_status);\
+        set_float_exception_flags(0, status);                               \
+        DEST = float ## BITS ## _ ## OP(ARG, status);                       \
         c = update_msacsr(env, CLEAR_FS_UNDERFLOW, 0);                      \
                                                                             \
         if (get_enabled_exceptions(env, c)) {                               \
@@ -3029,11 +3031,11 @@ void helper_msa_fsqrt_df(CPUMIPSState *env, uint32_t df, uint32_t wd,
 
 #define MSA_FLOAT_RECIPROCAL(DEST, ARG, BITS)                               \
     do {                                                                    \
+        float_status *status = &env->active_tc.msa_fp_status;               \
         int c;                                                              \
                                                                             \
-        set_float_exception_flags(0, &env->active_tc.msa_fp_status);        \
-        DEST = float ## BITS ## _ ## div(FLOAT_ONE ## BITS, ARG,            \
-                                         &env->active_tc.msa_fp_status);    \
+        set_float_exception_flags(0, status);                               \
+        DEST = float ## BITS ## _ ## div(FLOAT_ONE ## BITS, ARG, status);   \
         c = update_msacsr(env, float ## BITS ## _is_infinity(ARG) ||        \
                           float ## BITS ## _is_quiet_nan(DEST) ?            \
                           0 : RECIPROCAL_INEXACT,                           \
@@ -3138,23 +3140,20 @@ void helper_msa_frint_df(CPUMIPSState *env, uint32_t df, uint32_t wd,
 
 #define MSA_FLOAT_LOGB(DEST, ARG, BITS)                                     \
     do {                                                                    \
+        float_status *status = &env->active_tc.msa_fp_status;               \
         int c;                                                              \
                                                                             \
-        set_float_exception_flags(0, &env->active_tc.msa_fp_status);        \
-        set_float_rounding_mode(float_round_down,                           \
-                                &env->active_tc.msa_fp_status);             \
-        DEST = float ## BITS ## _ ## log2(ARG,                              \
-                                          &env->active_tc.msa_fp_status);   \
-        DEST = float ## BITS ## _ ## round_to_int(DEST,                     \
-                                          &env->active_tc.msa_fp_status);   \
+        set_float_exception_flags(0, status);                               \
+        set_float_rounding_mode(float_round_down, status);                  \
+        DEST = float ## BITS ## _ ## log2(ARG, status);                     \
+        DEST = float ## BITS ## _ ## round_to_int(DEST, status);            \
         set_float_rounding_mode(ieee_rm[(env->active_tc.msacsr &            \
                                          MSACSR_RM_MASK) >> MSACSR_RM],     \
-                                &env->active_tc.msa_fp_status);             \
+                                status);                                    \
                                                                             \
-        set_float_exception_flags(                                          \
-            get_float_exception_flags(&env->active_tc.msa_fp_status)        \
-                                                & (~float_flag_inexact),    \
-            &env->active_tc.msa_fp_status);                                 \
+        set_float_exception_flags(get_float_exception_flags(status) &       \
+                                  (~float_flag_inexact),                    \
+                                  status);                                  \
                                                                             \
         c = update_msacsr(env, 0, IS_DENORMAL(DEST, BITS));                 \
                                                                             \
