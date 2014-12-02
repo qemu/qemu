@@ -74,10 +74,6 @@ int mips_cpu_gdb_read_register(CPUState *cs, uint8_t *mem_buf, int n)
     return 0;
 }
 
-#define RESTORE_ROUNDING_MODE \
-    set_float_rounding_mode(ieee_rm[env->active_fpu.fcr31 & 3], \
-                            &env->active_fpu.fp_status)
-
 int mips_cpu_gdb_write_register(CPUState *cs, uint8_t *mem_buf, int n)
 {
     MIPSCPU *cpu = MIPS_CPU(cs);
@@ -95,7 +91,9 @@ int mips_cpu_gdb_write_register(CPUState *cs, uint8_t *mem_buf, int n)
         case 70:
             env->active_fpu.fcr31 = tmp & 0xFF83FFFF;
             /* set rounding mode */
-            RESTORE_ROUNDING_MODE;
+            restore_rounding_mode(env);
+            /* set flush-to-zero mode */
+            restore_flush_mode(env);
             break;
         case 71:
             /* FIR is read-only.  Ignore writes.  */
