@@ -173,7 +173,7 @@ static int raw_probe(const uint8_t *buf, int buf_size, const char *filename)
     return 1;
 }
 
-static BlockDriver bdrv_raw = {
+BlockDriver bdrv_raw = {
     .format_name          = "raw",
     .bdrv_probe           = &raw_probe,
     .bdrv_reopen_prepare  = &raw_reopen_prepare,
