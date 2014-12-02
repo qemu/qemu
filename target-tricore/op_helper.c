@@ -1033,6 +1033,201 @@ uint32_t helper_sha_h(target_ulong r1, target_ulong r2)
     }
 }
 
+uint32_t helper_bmerge(target_ulong r1, target_ulong r2)
+{
+    uint32_t i, ret;
+
+    ret = 0;
+    for (i = 0; i < 16; i++) {
+        ret |= (r1 & 1) << (2 * i + 1);
+        ret |= (r2 & 1) << (2 * i);
+        r1 = r1 >> 1;
+        r2 = r2 >> 1;
+    }
+    return ret;
+}
+
+uint64_t helper_bsplit(uint32_t r1)
+{
+    int32_t i;
+    uint64_t ret;
+
+    ret = 0;
+    for (i = 0; i < 32; i = i + 2) {
+        /* even */
+        ret |= (r1 & 1) << (i/2);
+        r1 = r1 >> 1;
+        /* odd */
+        ret |= (uint64_t)(r1 & 1) << (i/2 + 32);
+        r1 = r1 >> 1;
+    }
+    return ret;
+}
+
+uint32_t helper_parity(target_ulong r1)
+{
+    uint32_t ret;
+    uint32_t nOnes, i;
+
+    ret = 0;
+    nOnes = 0;
+    for (i = 0; i < 8; i++) {
+        ret ^= (r1 & 1);
+        r1 = r1 >> 1;
+    }
+    /* second byte */
+    nOnes = 0;
+    for (i = 0; i < 8; i++) {
+        nOnes ^= (r1 & 1);
+        r1 = r1 >> 1;
+    }
+    ret |= nOnes << 8;
+    /* third byte */
+    nOnes = 0;
+    for (i = 0; i < 8; i++) {
+        nOnes ^= (r1 & 1);
+        r1 = r1 >> 1;
+    }
+    ret |= nOnes << 16;
+    /* fourth byte */
+    nOnes = 0;
+    for (i = 0; i < 8; i++) {
+        nOnes ^= (r1 & 1);
+        r1 = r1 >> 1;
+    }
+    ret |= nOnes << 24;
+
+    return ret;
+}
+
+uint64_t helper_unpack(target_ulong arg1)
+{
+    int32_t fp_exp  = extract32(arg1, 23, 8);
+    int32_t fp_frac = extract32(arg1, 0, 23);
+    uint64_t ret;
+    int32_t int_exp, int_mant;
+
+    if (fp_exp == 255) {
+        int_exp = 255;
+        int_mant = (fp_frac << 7);
+    } else if ((fp_exp == 0) && (fp_frac == 0)) {
+        int_exp  = -127;
+        int_mant = 0;
+    } else if ((fp_exp == 0) && (fp_frac != 0)) {
+        int_exp  = -126;
+        int_mant = (fp_frac << 7);
+    } else {
+        int_exp  = fp_exp - 127;
+        int_mant = (fp_frac << 7);
+        int_mant |= (1 << 30);
+    }
+    ret = int_exp;
+    ret = ret << 32;
+    ret |= int_mant;
+
+    return ret;
+}
+
+uint64_t helper_dvinit_b_13(CPUTriCoreState *env, uint32_t r1, uint32_t r2)
+{
+    uint64_t ret;
+    int32_t abs_sig_dividend, abs_base_dividend, abs_divisor;
+    int32_t quotient_sign;
+
+    ret = sextract32(r1, 0, 32);
+    ret = ret << 24;
+    quotient_sign = 0;
+    if (!((r1 & 0x80000000) == (r2 & 0x80000000))) {
+        ret |= 0xffffff;
+        quotient_sign = 1;
+    }
+
+    abs_sig_dividend = abs(r1) >> 7;
+    abs_base_dividend = abs(r1) & 0x7f;
+    abs_divisor = abs(r1);
+    /* calc overflow */
+    env->PSW_USB_V = 0;
+    if ((quotient_sign) && (abs_divisor)) {
+        env->PSW_USB_V = (((abs_sig_dividend == abs_divisor) &&
+                         (abs_base_dividend >= abs_divisor)) ||
+                         (abs_sig_dividend > abs_divisor));
+    } else {
+        env->PSW_USB_V = (abs_sig_dividend >= abs_divisor);
+    }
+    env->PSW_USB_V = env->PSW_USB_V << 31;
+    env->PSW_USB_SV |= env->PSW_USB_V;
+    env->PSW_USB_AV = 0;
+
+    return ret;
+}
+
+uint64_t helper_dvinit_b_131(CPUTriCoreState *env, uint32_t r1, uint32_t r2)
+{
+    uint64_t ret = sextract32(r1, 0, 32);
+
+    ret = ret << 24;
+    if (!((r1 & 0x80000000) == (r2 & 0x80000000))) {
+        ret |= 0xffffff;
+    }
+    /* calc overflow */
+    env->PSW_USB_V = ((r2 == 0) || ((r2 == 0xffffffff) && (r1 == 0xffffff80)));
+    env->PSW_USB_V = env->PSW_USB_V << 31;
+    env->PSW_USB_SV |= env->PSW_USB_V;
+    env->PSW_USB_AV = 0;
+
+    return ret;
+}
+
+uint64_t helper_dvinit_h_13(CPUTriCoreState *env, uint32_t r1, uint32_t r2)
+{
+    uint64_t ret;
+    int32_t abs_sig_dividend, abs_base_dividend, abs_divisor;
+    int32_t quotient_sign;
+
+    ret = sextract32(r1, 0, 32);
+    ret = ret << 16;
+    quotient_sign = 0;
+    if (!((r1 & 0x80000000) == (r2 & 0x80000000))) {
+        ret |= 0xffff;
+        quotient_sign = 1;
+    }
+
+    abs_sig_dividend = abs(r1) >> 7;
+    abs_base_dividend = abs(r1) & 0x7f;
+    abs_divisor = abs(r1);
+    /* calc overflow */
+    env->PSW_USB_V = 0;
+    if ((quotient_sign) && (abs_divisor)) {
+        env->PSW_USB_V = (((abs_sig_dividend == abs_divisor) &&
+                         (abs_base_dividend >= abs_divisor)) ||
+                         (abs_sig_dividend > abs_divisor));
+    } else {
+        env->PSW_USB_V = (abs_sig_dividend >= abs_divisor);
+    }
+    env->PSW_USB_V = env->PSW_USB_V << 31;
+    env->PSW_USB_SV |= env->PSW_USB_V;
+    env->PSW_USB_AV = 0;
+
+    return ret;
+}
+
+uint64_t helper_dvinit_h_131(CPUTriCoreState *env, uint32_t r1, uint32_t r2)
+{
+    uint64_t ret = sextract32(r1, 0, 32);
+
+    ret = ret << 16;
+    if (!((r1 & 0x80000000) == (r2 & 0x80000000))) {
+        ret |= 0xffff;
+    }
+    /* calc overflow */
+    env->PSW_USB_V = ((r2 == 0) || ((r2 == 0xffffffff) && (r1 == 0xffff8000)));
+    env->PSW_USB_V = env->PSW_USB_V << 31;
+    env->PSW_USB_SV |= env->PSW_USB_V;
+    env->PSW_USB_AV = 0;
+
+    return ret;
+}
+
 /* context save area (CSA) related helpers */
 
 static int cdc_increment(target_ulong *psw)

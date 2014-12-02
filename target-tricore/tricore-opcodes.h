@@ -496,7 +496,7 @@ enum {
     OPCM_32_RR_LOGICAL_SHIFT                         = 0x0f,
     OPCM_32_RR_ACCUMULATOR                           = 0x0b,
     OPCM_32_RR_ADRESS                                = 0x01,
-    OPCM_32_RR_FLOAT                                 = 0x4b,
+    OPCM_32_RR_DIVIDE                                = 0x4b,
     OPCM_32_RR_IDIRECT                               = 0x2d,
 /* RR1 Format */
     OPCM_32_RR1_MUL                                  = 0xb3,

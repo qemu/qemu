@@ -76,6 +76,17 @@ DEF_HELPER_FLAGS_2(sh, TCG_CALL_NO_RWG_SE, i32, i32, i32)
 DEF_HELPER_FLAGS_2(sh_h, TCG_CALL_NO_RWG_SE, i32, i32, i32)
 DEF_HELPER_3(sha, i32, env, i32, i32)
 DEF_HELPER_2(sha_h, i32, i32, i32)
+/* merge/split/parity */
+DEF_HELPER_FLAGS_2(bmerge, TCG_CALL_NO_RWG_SE, i32, i32, i32)
+DEF_HELPER_FLAGS_1(bsplit, TCG_CALL_NO_RWG_SE, i64, i32)
+DEF_HELPER_FLAGS_1(parity, TCG_CALL_NO_RWG_SE, i32, i32)
+/* float */
+DEF_HELPER_1(unpack, i64, i32)
+/* dvinit */
+DEF_HELPER_3(dvinit_b_13, i64, env, i32, i32)
+DEF_HELPER_3(dvinit_b_131, i64, env, i32, i32)
+DEF_HELPER_3(dvinit_h_13, i64, env, i32, i32)
+DEF_HELPER_3(dvinit_h_131, i64, env, i32, i32)
 /* CSA */
 DEF_HELPER_2(call, void, env, i32)
 DEF_HELPER_1(ret, void, env)
