@@ -27,6 +27,7 @@ enum {
 static QSLIST_HEAD(, Coroutine) release_pool = QSLIST_HEAD_INITIALIZER(pool);
 static unsigned int release_pool_size;
 static __thread QSLIST_HEAD(, Coroutine) alloc_pool = QSLIST_HEAD_INITIALIZER(pool);
+static __thread unsigned int alloc_pool_size;
 static __thread Notifier coroutine_pool_cleanup_notifier;
 
 static void coroutine_pool_cleanup(Notifier *n, void *value)
@@ -58,13 +59,14 @@ Coroutine *qemu_coroutine_create(CoroutineEntry *entry)
                  * release_pool_size and the actual size of release_pool.  But
                  * it is just a heuristic, it does not need to be perfect.
                  */
-                release_pool_size = 0;
+                alloc_pool_size = atomic_xchg(&release_pool_size, 0);
                 QSLIST_MOVE_ATOMIC(&alloc_pool, &release_pool);
                 co = QSLIST_FIRST(&alloc_pool);
             }
         }
         if (co) {
             QSLIST_REMOVE_HEAD(&alloc_pool, pool_next);
+            alloc_pool_size--;
         }
     }
 
@@ -85,6 +87,11 @@ static void coroutine_delete(Coroutine *co)
         if (release_pool_size < POOL_BATCH_SIZE * 2) {
             QSLIST_INSERT_HEAD_ATOMIC(&release_pool, co, pool_next);
             atomic_inc(&release_pool_size);
+            return;
+        }
+        if (alloc_pool_size < POOL_BATCH_SIZE) {
+            QSLIST_INSERT_HEAD(&alloc_pool, co, pool_next);
+            alloc_pool_size++;
             return;
         }
     }
