@@ -41,6 +41,7 @@
  * bitmap_set(dst, pos, nbits)			Set specified bit area
  * bitmap_set_atomic(dst, pos, nbits)   Set specified bit area with atomic ops
  * bitmap_clear(dst, pos, nbits)		Clear specified bit area
+ * bitmap_test_and_clear_atomic(dst, pos, nbits)    Test and clear area
  * bitmap_find_next_zero_area(buf, len, pos, n, mask)	Find bit free area
  */
 
@@ -229,6 +230,7 @@ static inline int bitmap_intersects(const unsigned long *src1,
 void bitmap_set(unsigned long *map, long i, long len);
 void bitmap_set_atomic(unsigned long *map, long i, long len);
 void bitmap_clear(unsigned long *map, long start, long nr);
+bool bitmap_test_and_clear_atomic(unsigned long *map, long start, long nr);
 unsigned long bitmap_find_next_zero_area(unsigned long *map,
                                          unsigned long size,
                                          unsigned long start,
