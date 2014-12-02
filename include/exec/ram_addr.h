@@ -224,12 +224,12 @@ uint64_t cpu_physical_memory_sync_dirty_bitmap(unsigned long *dest,
 
         for (k = page; k < page + nr; k++) {
             if (src[k]) {
+                unsigned long bits = atomic_xchg(&src[k], 0);
                 unsigned long new_dirty;
                 new_dirty = ~dest[k];
-                dest[k] |= src[k];
-                new_dirty &= src[k];
+                dest[k] |= bits;
+                new_dirty &= bits;
                 num_dirty += ctpopl(new_dirty);
-                src[k] = 0;
             }
         }
     } else {
