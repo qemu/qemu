@@ -5569,6 +5569,18 @@ void bdrv_img_create(const char *filename, const char *fmt,
         return;
     }
 
+    if (!drv->create_opts) {
+        error_setg(errp, "Format driver '%s' does not support image creation",
+                   drv->format_name);
+        return;
+    }
+
+    if (!proto_drv->create_opts) {
+        error_setg(errp, "Protocol driver '%s' does not support image creation",
+                   proto_drv->format_name);
+        return;
+    }
+
     create_opts = qemu_opts_append(create_opts, drv->create_opts);
     create_opts = qemu_opts_append(create_opts, proto_drv->create_opts);
 
