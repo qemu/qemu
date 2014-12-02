@@ -447,6 +447,7 @@ static int raw_open_common(BlockDriverState *bs, QDict *options,
     s->has_write_zeroes = true;
 
     if (fstat(s->fd, &st) < 0) {
+        ret = -errno;
         error_setg_errno(errp, errno, "Could not stat file");
         goto fail;
     }
