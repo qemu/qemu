@@ -1960,8 +1960,7 @@ static int qcow2_write_compressed(BlockDriverState *bs, int64_t sector_num,
            sector based I/Os */
         cluster_offset = bdrv_getlength(bs->file);
         cluster_offset = (cluster_offset + 511) & ~511;
-        bdrv_truncate(bs->file, cluster_offset);
-        return 0;
+        return bdrv_truncate(bs->file, cluster_offset);
     }
 
     if (nb_sectors != s->cluster_sectors) {
