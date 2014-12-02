@@ -2917,6 +2917,12 @@ static int enable_write_target(BDRVVVFATState *s, Error **errp)
     }
 
     bdrv_qcow = bdrv_find_format("qcow");
+    if (!bdrv_qcow) {
+        error_setg(errp, "Failed to locate qcow driver");
+        ret = -ENOENT;
+        goto err;
+    }
+
     opts = qemu_opts_create(bdrv_qcow->create_opts, NULL, 0, &error_abort);
     qemu_opt_set_number(opts, BLOCK_OPT_SIZE, s->sector_count * 512);
     qemu_opt_set(opts, BLOCK_OPT_BACKING_FILE, "fat:");
