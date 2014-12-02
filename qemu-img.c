@@ -1531,6 +1531,20 @@ static int img_convert(int argc, char **argv)
         goto out;
     }
 
+    if (!drv->create_opts) {
+        error_report("Format driver '%s' does not support image creation",
+                     drv->format_name);
+        ret = -1;
+        goto out;
+    }
+
+    if (!proto_drv->create_opts) {
+        error_report("Protocol driver '%s' does not support image creation",
+                     proto_drv->format_name);
+        ret = -1;
+        goto out;
+    }
+
     create_opts = qemu_opts_append(create_opts, drv->create_opts);
     create_opts = qemu_opts_append(create_opts, proto_drv->create_opts);
 
