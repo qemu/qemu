@@ -4271,6 +4271,97 @@ static void decode_rr_logical_shift(CPUTriCoreState *env, DisasContext *ctx)
     tcg_temp_free(temp);
 }
 
+static void decode_rr_address(CPUTriCoreState *env, DisasContext *ctx)
+{
+    uint32_t op2, n;
+    int r1, r2, r3;
+    TCGv temp;
+
+    op2 = MASK_OP_RR_OP2(ctx->opcode);
+    r3 = MASK_OP_RR_D(ctx->opcode);
+    r2 = MASK_OP_RR_S2(ctx->opcode);
+    r1 = MASK_OP_RR_S1(ctx->opcode);
+    n = MASK_OP_RR_N(ctx->opcode);
+
+    switch (op2) {
+    case OPC2_32_RR_ADD_A:
+        tcg_gen_add_tl(cpu_gpr_a[r3], cpu_gpr_a[r1], cpu_gpr_a[r2]);
+        break;
+    case OPC2_32_RR_ADDSC_A:
+        temp = tcg_temp_new();
+        tcg_gen_shli_tl(temp, cpu_gpr_d[r1], n);
+        tcg_gen_add_tl(cpu_gpr_a[r3], cpu_gpr_a[r2], temp);
+        tcg_temp_free(temp);
+        break;
+    case OPC2_32_RR_ADDSC_AT:
+        temp = tcg_temp_new();
+        tcg_gen_sari_tl(temp, cpu_gpr_d[r1], 3);
+        tcg_gen_add_tl(temp, cpu_gpr_a[r2], temp);
+        tcg_gen_andi_tl(cpu_gpr_a[r3], temp, 0xFFFFFFFC);
+        tcg_temp_free(temp);
+        break;
+    case OPC2_32_RR_EQ_A:
+        tcg_gen_setcond_tl(TCG_COND_EQ, cpu_gpr_d[r3], cpu_gpr_a[r1],
+                           cpu_gpr_a[r2]);
+        break;
+    case OPC2_32_RR_EQZ:
+        tcg_gen_setcondi_tl(TCG_COND_EQ, cpu_gpr_d[r3], cpu_gpr_a[r1], 0);
+        break;
+    case OPC2_32_RR_GE_A:
+        tcg_gen_setcond_tl(TCG_COND_GEU, cpu_gpr_d[r3], cpu_gpr_a[r1],
+                           cpu_gpr_a[r2]);
+        break;
+    case OPC2_32_RR_LT_A:
+        tcg_gen_setcond_tl(TCG_COND_LTU, cpu_gpr_d[r3], cpu_gpr_a[r1],
+                           cpu_gpr_a[r2]);
+        break;
+    case OPC2_32_RR_MOV_A:
+        tcg_gen_mov_tl(cpu_gpr_a[r3], cpu_gpr_d[r2]);
+        break;
+    case OPC2_32_RR_MOV_AA:
+        tcg_gen_mov_tl(cpu_gpr_a[r3], cpu_gpr_a[r2]);
+        break;
+    case OPC2_32_RR_MOV_D:
+        tcg_gen_mov_tl(cpu_gpr_d[r3], cpu_gpr_a[r2]);
+        break;
+    case OPC2_32_RR_NE_A:
+        tcg_gen_setcond_tl(TCG_COND_NE, cpu_gpr_d[r3], cpu_gpr_a[r1],
+                           cpu_gpr_a[r2]);
+        break;
+    case OPC2_32_RR_NEZ_A:
+        tcg_gen_setcondi_tl(TCG_COND_NE, cpu_gpr_d[r3], cpu_gpr_a[r1], 0);
+        break;
+    case OPC2_32_RR_SUB_A:
+        tcg_gen_sub_tl(cpu_gpr_a[r3], cpu_gpr_a[r1], cpu_gpr_a[r2]);
+        break;
+    }
+}
+
+static void decode_rr_idirect(CPUTriCoreState *env, DisasContext *ctx)
+{
+    uint32_t op2;
+    int r1;
+
+    op2 = MASK_OP_RR_OP2(ctx->opcode);
+    r1 = MASK_OP_RR_S1(ctx->opcode);
+
+    switch (op2) {
+    case OPC2_32_RR_JI:
+        tcg_gen_andi_tl(cpu_PC, cpu_gpr_a[r1], ~0x1);
+        break;
+    case OPC2_32_RR_JLI:
+        tcg_gen_movi_tl(cpu_gpr_a[11], ctx->next_pc);
+        tcg_gen_andi_tl(cpu_PC, cpu_gpr_a[r1], ~0x1);
+        break;
+    case OPC2_32_RR_CALLI:
+        gen_helper_1arg(call, ctx->next_pc);
+        tcg_gen_andi_tl(cpu_PC, cpu_gpr_a[r1], ~0x1);
+        break;
+    }
+    tcg_gen_exit_tb(0);
+    ctx->bstate = BS_BRANCH;
+}
+
 static void decode_32Bit_opc(CPUTriCoreState *env, DisasContext *ctx)
 {
     int op1;
@@ -4508,6 +4599,12 @@ static void decode_32Bit_opc(CPUTriCoreState *env, DisasContext *ctx)
         break;
     case OPCM_32_RR_LOGICAL_SHIFT:
         decode_rr_logical_shift(env, ctx);
+        break;
+    case OPCM_32_RR_ADRESS:
+        decode_rr_address(env, ctx);
+        break;
+    case OPCM_32_RR_IDIRECT:
+        decode_rr_idirect(env, ctx);
         break;
     }
 }
