@@ -175,7 +175,9 @@ _cleanup_test_img()
     case "$IMGPROTO" in
 
         nbd)
-            kill $QEMU_NBD_PID
+            if [ -n "$QEMU_NBD_PID" ]; then
+                kill $QEMU_NBD_PID
+            fi
             rm -f "$TEST_IMG_FILE"
             ;;
         file)
