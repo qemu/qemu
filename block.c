@@ -629,7 +629,7 @@ BlockDriver *bdrv_find_protocol(const char *filename,
     }
 
     if (!path_has_protocol(filename) || !allow_protocol_prefix) {
-        return bdrv_find_format("file");
+        return &bdrv_file;
     }
 
     p = strchr(filename, ':');
@@ -690,12 +690,7 @@ static int find_image_format(BlockDriverState *bs, const char *filename,
 
     /* Return the raw BlockDriver * to scsi-generic devices or empty drives */
     if (bs->sg || !bdrv_is_inserted(bs) || bdrv_getlength(bs) == 0) {
-        drv = bdrv_find_format("raw");
-        if (!drv) {
-            error_setg(errp, "Could not find raw image format");
-            ret = -ENOENT;
-        }
-        *pdrv = drv;
+        *pdrv = &bdrv_raw;
         return ret;
     }
 
@@ -1315,7 +1310,6 @@ int bdrv_append_temp_snapshot(BlockDriverState *bs, int flags, Error **errp)
     /* TODO: extra byte is a hack to ensure MAX_PATH space on Windows. */
     char *tmp_filename = g_malloc0(PATH_MAX + 1);
     int64_t total_size;
-    BlockDriver *bdrv_qcow2;
     QemuOpts *opts = NULL;
     QDict *snapshot_options;
     BlockDriverState *bs_snapshot;
@@ -1340,11 +1334,10 @@ int bdrv_append_temp_snapshot(BlockDriverState *bs, int flags, Error **errp)
         goto out;
     }
 
-    bdrv_qcow2 = bdrv_find_format("qcow2");
-    opts = qemu_opts_create(bdrv_qcow2->create_opts, NULL, 0,
+    opts = qemu_opts_create(bdrv_qcow2.create_opts, NULL, 0,
                             &error_abort);
     qemu_opt_set_number(opts, BLOCK_OPT_SIZE, total_size);
-    ret = bdrv_create(bdrv_qcow2, tmp_filename, opts, &local_err);
+    ret = bdrv_create(&bdrv_qcow2, tmp_filename, opts, &local_err);
     qemu_opts_del(opts);
     if (ret < 0) {
         error_setg_errno(errp, -ret, "Could not create temporary overlay "
@@ -1364,7 +1357,7 @@ int bdrv_append_temp_snapshot(BlockDriverState *bs, int flags, Error **errp)
     bs_snapshot = bdrv_new();
 
     ret = bdrv_open(&bs_snapshot, NULL, NULL, snapshot_options,
-                    flags, bdrv_qcow2, &local_err);
+                    flags, &bdrv_qcow2, &local_err);
     if (ret < 0) {
         error_propagate(errp, local_err);
         goto out;
