@@ -2162,8 +2162,7 @@ static int qcow2_write_compressed(BlockDriverState *bs, int64_t sector_num,
         /* align end of file to a sector boundary to ease reading with
            sector based I/Os */
         cluster_offset = bdrv_getlength(bs->file);
-        bdrv_truncate(bs->file, cluster_offset);
-        return 0;
+        return bdrv_truncate(bs->file, cluster_offset);
     }
 
     if (nb_sectors != s->cluster_sectors) {
