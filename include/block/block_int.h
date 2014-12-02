@@ -414,6 +414,14 @@ struct BlockDriverState {
     Error *backing_blocker;
 };
 
+
+/* Essential block drivers which must always be statically linked into qemu, and
+ * which therefore can be accessed without using bdrv_find_format() */
+extern BlockDriver bdrv_file;
+extern BlockDriver bdrv_raw;
+extern BlockDriver bdrv_qcow2;
+
+
 int get_tmp_filename(char *filename, int size);
 BlockDriver *bdrv_probe_all(const uint8_t *buf, int buf_size,
                             const char *filename);

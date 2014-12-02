@@ -540,7 +540,7 @@ static QemuOptsList raw_create_opts = {
     }
 };
 
-static BlockDriver bdrv_file = {
+BlockDriver bdrv_file = {
     .format_name	= "file",
     .protocol_name	= "file",
     .instance_size	= sizeof(BDRVRawState),
