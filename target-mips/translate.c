@@ -19116,7 +19116,7 @@ gen_intermediate_code_internal(MIPSCPU *cpu, TranslationBlock *tb,
     ctx.bp = (env->CP0_Config3 >> CP0C3_BP) & 1;
     /* Restore delay slot state from the tb context.  */
     ctx.hflags = (uint32_t)tb->flags; /* FIXME: maybe use 64 bits here? */
-    ctx.ulri = env->CP0_Config3 & (1 << CP0C3_ULRI);
+    ctx.ulri = (env->CP0_Config3 >> CP0C3_ULRI) & 1;
     restore_cpu_state(env, &ctx);
 #ifdef CONFIG_USER_ONLY
         ctx.mem_idx = MIPS_HFLAG_UM;
