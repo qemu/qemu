@@ -194,29 +194,18 @@ static inline void cpu_physical_memory_set_dirty_lebitmap(unsigned long *bitmap,
 }
 #endif /* not _WIN32 */
 
-static inline void cpu_physical_memory_clear_dirty_range_type(ram_addr_t start,
-                                                              ram_addr_t length,
-                                                              unsigned client)
-{
-    unsigned long end, page;
-
-    assert(client < DIRTY_MEMORY_NUM);
-    end = TARGET_PAGE_ALIGN(start + length) >> TARGET_PAGE_BITS;
-    page = start >> TARGET_PAGE_BITS;
-    bitmap_clear(ram_list.dirty_memory[client], page, end - page);
-}
+bool cpu_physical_memory_test_and_clear_dirty(ram_addr_t start,
+                                              ram_addr_t length,
+                                              unsigned client);
 
 static inline void cpu_physical_memory_clear_dirty_range(ram_addr_t start,
                                                          ram_addr_t length)
 {
-    cpu_physical_memory_clear_dirty_range_type(start, length, DIRTY_MEMORY_MIGRATION);
-    cpu_physical_memory_clear_dirty_range_type(start, length, DIRTY_MEMORY_VGA);
-    cpu_physical_memory_clear_dirty_range_type(start, length, DIRTY_MEMORY_CODE);
+    cpu_physical_memory_test_and_clear_dirty(start, length, DIRTY_MEMORY_MIGRATION);
+    cpu_physical_memory_test_and_clear_dirty(start, length, DIRTY_MEMORY_VGA);
+    cpu_physical_memory_test_and_clear_dirty(start, length, DIRTY_MEMORY_CODE);
 }
 
-
-void cpu_physical_memory_reset_dirty(ram_addr_t start, ram_addr_t length,
-                                     unsigned client);
 
 static inline
 uint64_t cpu_physical_memory_sync_dirty_bitmap(unsigned long *dest,
@@ -245,16 +234,14 @@ uint64_t cpu_physical_memory_sync_dirty_bitmap(unsigned long *dest,
         }
     } else {
         for (addr = 0; addr < length; addr += TARGET_PAGE_SIZE) {
-            if (cpu_physical_memory_get_dirty(start + addr,
-                                              TARGET_PAGE_SIZE,
-                                              DIRTY_MEMORY_MIGRATION)) {
+            if (cpu_physical_memory_test_and_clear_dirty(
+                        start + addr,
+                        TARGET_PAGE_SIZE,
+                        DIRTY_MEMORY_MIGRATION)) {
                 long k = (start + addr) >> TARGET_PAGE_BITS;
                 if (!test_and_set_bit(k, dest)) {
                     num_dirty++;
                 }
-                cpu_physical_memory_reset_dirty(start + addr,
-                                                TARGET_PAGE_SIZE,
-                                                DIRTY_MEMORY_MIGRATION);
             }
         }
     }
