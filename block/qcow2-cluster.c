@@ -1263,7 +1263,7 @@ int qcow2_alloc_cluster_offset(BlockDriverState *bs, uint64_t offset,
 
 again:
     start = offset;
-    remaining = *num << BDRV_SECTOR_BITS;
+    remaining = (uint64_t)*num << BDRV_SECTOR_BITS;
     cluster_offset = 0;
     *host_offset = 0;
     cur_bytes = 0;
