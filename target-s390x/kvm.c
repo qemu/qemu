@@ -252,18 +252,33 @@ int kvm_arch_put_registers(CPUState *cs, int level)
         return 0;
     }
 
-    /*
-     * These ONE_REGS are not protected by a capability. As they are only
-     * necessary for migration we just trace a possible error, but don't
-     * return with an error return code.
-     */
-    kvm_set_one_reg(cs, KVM_REG_S390_CPU_TIMER, &env->cputm);
-    kvm_set_one_reg(cs, KVM_REG_S390_CLOCK_COMP, &env->ckc);
-    kvm_set_one_reg(cs, KVM_REG_S390_TODPR, &env->todpr);
-    kvm_set_one_reg(cs, KVM_REG_S390_GBEA, &env->gbea);
-    kvm_set_one_reg(cs, KVM_REG_S390_PP, &env->pp);
+    if (can_sync_regs(cs, KVM_SYNC_ARCH0)) {
+        cs->kvm_run->s.regs.cputm = env->cputm;
+        cs->kvm_run->s.regs.ckc = env->ckc;
+        cs->kvm_run->s.regs.todpr = env->todpr;
+        cs->kvm_run->s.regs.gbea = env->gbea;
+        cs->kvm_run->s.regs.pp = env->pp;
+        cs->kvm_run->kvm_dirty_regs |= KVM_SYNC_ARCH0;
+    } else {
+        /*
+         * These ONE_REGS are not protected by a capability. As they are only
+         * necessary for migration we just trace a possible error, but don't
+         * return with an error return code.
+         */
+        kvm_set_one_reg(cs, KVM_REG_S390_CPU_TIMER, &env->cputm);
+        kvm_set_one_reg(cs, KVM_REG_S390_CLOCK_COMP, &env->ckc);
+        kvm_set_one_reg(cs, KVM_REG_S390_TODPR, &env->todpr);
+        kvm_set_one_reg(cs, KVM_REG_S390_GBEA, &env->gbea);
+        kvm_set_one_reg(cs, KVM_REG_S390_PP, &env->pp);
+    }
 
-    if (cap_async_pf) {
+    /* pfault parameters */
+    if (can_sync_regs(cs, KVM_SYNC_PFAULT)) {
+        cs->kvm_run->s.regs.pft = env->pfault_token;
+        cs->kvm_run->s.regs.pfs = env->pfault_select;
+        cs->kvm_run->s.regs.pfc = env->pfault_compare;
+        cs->kvm_run->kvm_dirty_regs |= KVM_SYNC_PFAULT;
+    } else if (cap_async_pf) {
         r = kvm_set_one_reg(cs, KVM_REG_S390_PFTOKEN, &env->pfault_token);
         if (r < 0) {
             return r;
@@ -367,18 +382,31 @@ int kvm_arch_get_registers(CPUState *cs)
         env->psa = cs->kvm_run->s.regs.prefix;
     }
 
-    /*
-     * These ONE_REGS are not protected by a capability. As they are only
-     * necessary for migration we just trace a possible error, but don't
-     * return with an error return code.
-     */
-    kvm_get_one_reg(cs, KVM_REG_S390_CPU_TIMER, &env->cputm);
-    kvm_get_one_reg(cs, KVM_REG_S390_CLOCK_COMP, &env->ckc);
-    kvm_get_one_reg(cs, KVM_REG_S390_TODPR, &env->todpr);
-    kvm_get_one_reg(cs, KVM_REG_S390_GBEA, &env->gbea);
-    kvm_get_one_reg(cs, KVM_REG_S390_PP, &env->pp);
+    if (can_sync_regs(cs, KVM_SYNC_ARCH0)) {
+        env->cputm = cs->kvm_run->s.regs.cputm;
+        env->ckc = cs->kvm_run->s.regs.ckc;
+        env->todpr = cs->kvm_run->s.regs.todpr;
+        env->gbea = cs->kvm_run->s.regs.gbea;
+        env->pp = cs->kvm_run->s.regs.pp;
+    } else {
+        /*
+         * These ONE_REGS are not protected by a capability. As they are only
+         * necessary for migration we just trace a possible error, but don't
+         * return with an error return code.
+         */
+        kvm_get_one_reg(cs, KVM_REG_S390_CPU_TIMER, &env->cputm);
+        kvm_get_one_reg(cs, KVM_REG_S390_CLOCK_COMP, &env->ckc);
+        kvm_get_one_reg(cs, KVM_REG_S390_TODPR, &env->todpr);
+        kvm_get_one_reg(cs, KVM_REG_S390_GBEA, &env->gbea);
+        kvm_get_one_reg(cs, KVM_REG_S390_PP, &env->pp);
+    }
 
-    if (cap_async_pf) {
+    /* pfault parameters */
+    if (can_sync_regs(cs, KVM_SYNC_PFAULT)) {
+        env->pfault_token = cs->kvm_run->s.regs.pft;
+        env->pfault_select = cs->kvm_run->s.regs.pfs;
+        env->pfault_compare = cs->kvm_run->s.regs.pfc;
+    } else if (cap_async_pf) {
         r = kvm_get_one_reg(cs, KVM_REG_S390_PFTOKEN, &env->pfault_token);
         if (r < 0) {
             return r;
