@@ -181,7 +181,7 @@ static void ccw_machine_class_init(ObjectClass *oc, void *data)
     mc->no_serial = 1;
     mc->no_parallel = 1;
     mc->no_sdcard = 1;
-    mc->use_sclp = 1,
+    mc->use_sclp = 1;
     mc->max_cpus = 255;
     nc->nmi_monitor_handler = s390_nmi;
 }
