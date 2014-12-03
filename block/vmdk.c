@@ -557,6 +557,14 @@ static char *vmdk_read_desc(BlockDriverState *file, uint64_t desc_offset,
         return NULL;
     }
 
+    if (size < 4) {
+        /* Both descriptor file and sparse image must be much larger than 4
+         * bytes, also callers of vmdk_read_desc want to compare the first 4
+         * bytes with VMDK4_MAGIC, let's error out if less is read. */
+        error_setg(errp, "File is too small, not a valid image");
+        return NULL;
+    }
+
     size = MIN(size, (1 << 20) - 1);  /* avoid unbounded allocation */
     buf = g_malloc(size + 1);
 
