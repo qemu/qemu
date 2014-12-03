@@ -282,7 +282,7 @@ static int boot_device2nibble(char boot_device)
     return 0;
 }
 
-static int set_boot_dev(ISADevice *s, const char *boot_device)
+static void set_boot_dev(ISADevice *s, const char *boot_device, Error **errp)
 {
 #define PC_MAX_BOOT_DEVICES 3
     int nbds, bds[3] = { 0, };
@@ -290,25 +290,24 @@ static int set_boot_dev(ISADevice *s, const char *boot_device)
 
     nbds = strlen(boot_device);
     if (nbds > PC_MAX_BOOT_DEVICES) {
-        error_report("Too many boot devices for PC");
-        return(1);
+        error_setg(errp, "Too many boot devices for PC");
+        return;
     }
     for (i = 0; i < nbds; i++) {
         bds[i] = boot_device2nibble(boot_device[i]);
         if (bds[i] == 0) {
-            error_report("Invalid boot device for PC: '%c'",
-                         boot_device[i]);
-            return(1);
+            error_setg(errp, "Invalid boot device for PC: '%c'",
+                       boot_device[i]);
+            return;
         }
     }
     rtc_set_memory(s, 0x3d, (bds[1] << 4) | bds[0]);
     rtc_set_memory(s, 0x38, (bds[2] << 4) | (fd_bootchk ? 0x0 : 0x1));
-    return(0);
 }
 
-static int pc_boot_set(void *opaque, const char *boot_device)
+static void pc_boot_set(void *opaque, const char *boot_device, Error **errp)
 {
-    return set_boot_dev(opaque, boot_device);
+    set_boot_dev(opaque, boot_device, errp);
 }
 
 typedef struct pc_cmos_init_late_arg {
@@ -365,6 +364,7 @@ void pc_cmos_init(ram_addr_t ram_size, ram_addr_t above_4g_mem_size,
     FDriveType fd_type[2] = { FDRIVE_DRV_NONE, FDRIVE_DRV_NONE };
     static pc_cmos_init_late_arg arg;
     PCMachineState *pc_machine = PC_MACHINE(machine);
+    Error *local_err = NULL;
 
     /* various important CMOS locations needed by PC/Bochs bios */
 
@@ -412,7 +412,9 @@ void pc_cmos_init(ram_addr_t ram_size, ram_addr_t above_4g_mem_size,
     object_property_set_link(OBJECT(machine), OBJECT(s),
                              "rtc_state", &error_abort);
 
-    if (set_boot_dev(s, boot_device)) {
+    set_boot_dev(s, boot_device, &local_err);
+    if (local_err) {
+        error_report("%s", error_get_pretty(local_err));
         exit(1);
     }
 

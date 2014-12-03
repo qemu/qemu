@@ -220,8 +220,8 @@ void restore_boot_order(void *opaque);
 void validate_bootdevices(const char *devices, Error **errp);
 
 /* handler to set the boot_device order for a specific type of QEMUMachine */
-/* return 0 if success */
-typedef int QEMUBootSetHandler(void *opaque, const char *boot_order);
+typedef void QEMUBootSetHandler(void *opaque, const char *boot_order,
+                                Error **errp);
 void qemu_register_boot_set(QEMUBootSetHandler *func, void *opaque);
 void qemu_boot_set(const char *boot_order, Error **errp);
 

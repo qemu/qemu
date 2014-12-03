@@ -63,10 +63,7 @@ void qemu_boot_set(const char *boot_order, Error **errp)
         return;
     }
 
-    if (boot_set_handler(boot_set_opaque, boot_order)) {
-        error_setg(errp, "setting boot device list failed");
-        return;
-    }
+    boot_set_handler(boot_set_opaque, boot_order, errp);
 }
 
 void validate_bootdevices(const char *devices, Error **errp)
