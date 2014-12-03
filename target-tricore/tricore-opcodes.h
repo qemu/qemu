@@ -94,6 +94,8 @@
 /* B Format   */
 #define MASK_OP_B_DISP24(op)   (MASK_BITS_SHIFT(op, 16, 31) + \
                                (MASK_BITS_SHIFT(op, 8, 15) << 16))
+#define MASK_OP_B_DISP24_SEXT(op)   (MASK_BITS_SHIFT(op, 16, 31) + \
+                                    (MASK_BITS_SHIFT_SEXT(op, 8, 15) << 16))
 /* BIT Format */
 #define MASK_OP_BIT_D(op)      MASK_BITS_SHIFT(op, 28, 31)
 #define MASK_OP_BIT_POS2(op)   MASK_BITS_SHIFT(op, 23, 27)

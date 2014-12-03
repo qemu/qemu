@@ -3939,6 +3939,7 @@ static void decode_rlc_opc(CPUTriCoreState *env, DisasContext *ctx,
         tcg_gen_addi_tl(cpu_gpr_a[r2], cpu_gpr_a[r1], const16 << 16);
         break;
     case OPC1_32_RLC_MFCR:
+        const16 = MASK_OP_RLC_CONST16(ctx->opcode);
         gen_mfcr(env, cpu_gpr_d[r2], const16);
         break;
     case OPC1_32_RLC_MOV:
@@ -3966,7 +3967,8 @@ static void decode_rlc_opc(CPUTriCoreState *env, DisasContext *ctx,
         tcg_gen_movi_tl(cpu_gpr_a[r2], const16 << 16);
         break;
     case OPC1_32_RLC_MTCR:
-        gen_mtcr(env, ctx, cpu_gpr_d[r2], const16);
+        const16 = MASK_OP_RLC_CONST16(ctx->opcode);
+        gen_mtcr(env, ctx, cpu_gpr_d[r1], const16);
         break;
     }
 }
@@ -4670,7 +4672,7 @@ static void decode_32Bit_opc(CPUTriCoreState *env, DisasContext *ctx)
     case OPC1_32_B_JA:
     case OPC1_32_B_JL:
     case OPC1_32_B_JLA:
-        address = MASK_OP_B_DISP24(ctx->opcode);
+        address = MASK_OP_B_DISP24_SEXT(ctx->opcode);
         gen_compute_branch(ctx, op1, 0, 0, 0, address);
         break;
 /* Bit-format */
