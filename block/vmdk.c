@@ -914,7 +914,7 @@ exit:
 static int vmdk_open(BlockDriverState *bs, QDict *options, int flags,
                      Error **errp)
 {
-    char *buf = NULL;
+    char *buf;
     int ret;
     BDRVVmdkState *s = bs->opaque;
     uint32_t magic;
