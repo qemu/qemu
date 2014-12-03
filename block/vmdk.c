@@ -833,6 +833,14 @@ static int vmdk_parse_extents(const char *desc, BlockDriverState *bs,
             goto next_line;
         }
 
+        if (!path_is_absolute(fname) && !path_has_protocol(fname) &&
+            !desc_file_path[0])
+        {
+            error_setg(errp, "Cannot use relative extent paths with VMDK "
+                       "descriptor file '%s'", bs->file->filename);
+            return -EINVAL;
+        }
+
         path_combine(extent_path, sizeof(extent_path),
                 desc_file_path, fname);
         extent_file = NULL;
@@ -909,7 +917,7 @@ static int vmdk_open_desc_file(BlockDriverState *bs, int flags, char *buf,
     }
     s->create_type = g_strdup(ct);
     s->desc_offset = 0;
-    ret = vmdk_parse_extents(buf, bs, bs->file->filename, errp);
+    ret = vmdk_parse_extents(buf, bs, bs->file->exact_filename, errp);
 exit:
     return ret;
 }

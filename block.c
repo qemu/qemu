@@ -229,7 +229,7 @@ size_t bdrv_opt_mem_align(BlockDriverState *bs)
 }
 
 /* check if the path starts with "<protocol>:" */
-static int path_has_protocol(const char *path)
+int path_has_protocol(const char *path)
 {
     const char *p;
 
