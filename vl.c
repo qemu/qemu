@@ -4087,16 +4087,25 @@ int main(int argc, char **argv, char **envp)
     if (opts) {
         char *normal_boot_order;
         const char *order, *once;
+        Error *local_err = NULL;
 
         order = qemu_opt_get(opts, "order");
         if (order) {
-            validate_bootdevices(order);
+            validate_bootdevices(order, &local_err);
+            if (local_err) {
+                error_report("%s", error_get_pretty(local_err));
+                exit(1);
+            }
             boot_order = order;
         }
 
         once = qemu_opt_get(opts, "once");
         if (once) {
-            validate_bootdevices(once);
+            validate_bootdevices(once, &local_err);
+            if (local_err) {
+                error_report("%s", error_get_pretty(local_err));
+                exit(1);
+            }
             normal_boot_order = g_strdup(boot_order);
             boot_order = once;
             qemu_register_reset(restore_boot_order, normal_boot_order);

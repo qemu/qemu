@@ -217,7 +217,7 @@ void device_add_bootindex_property(Object *obj, int32_t *bootindex,
                                    const char *name, const char *suffix,
                                    DeviceState *dev, Error **errp);
 void restore_boot_order(void *opaque);
-void validate_bootdevices(const char *devices);
+void validate_bootdevices(const char *devices, Error **errp);
 
 /* handler to set the boot_device order for a specific type of QEMUMachine */
 /* return 0 if success */

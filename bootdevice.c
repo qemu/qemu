@@ -55,7 +55,7 @@ int qemu_boot_set(const char *boot_order)
     return boot_set_handler(boot_set_opaque, boot_order);
 }
 
-void validate_bootdevices(const char *devices)
+void validate_bootdevices(const char *devices, Error **errp)
 {
     /* We just do some generic consistency checks */
     const char *p;
@@ -72,12 +72,12 @@ void validate_bootdevices(const char *devices)
          * features.
          */
         if (*p < 'a' || *p > 'p') {
-            fprintf(stderr, "Invalid boot device '%c'\n", *p);
-            exit(1);
+            error_setg(errp, "Invalid boot device '%c'", *p);
+            return;
         }
         if (bitmap & (1 << (*p - 'a'))) {
-            fprintf(stderr, "Boot device '%c' was given twice\n", *p);
-            exit(1);
+            error_setg(errp, "Boot device '%c' was given twice", *p);
+            return;
         }
         bitmap |= 1 << (*p - 'a');
     }
