@@ -785,10 +785,12 @@ static int vmdk_parse_extents(const char *desc, BlockDriverState *bs,
     VmdkExtent *extent;
 
     while (*p) {
-        /* parse extent line:
+        /* parse extent line in one of below formats:
+         *
          * RW [size in sectors] FLAT "file-name.vmdk" OFFSET
-         * or
          * RW [size in sectors] SPARSE "file-name.vmdk"
+         * RW [size in sectors] VMFS "file-name.vmdk"
+         * RW [size in sectors] VMFSSPARSE "file-name.vmdk"
          */
         flat_offset = -1;
         ret = sscanf(p, "%10s %" SCNd64 " %10s \"%511[^\n\r\"]\" %" SCNd64,
