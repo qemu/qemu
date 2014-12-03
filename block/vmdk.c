@@ -557,8 +557,8 @@ static char *vmdk_read_desc(BlockDriverState *file, uint64_t desc_offset,
         return NULL;
     }
 
-    size = MIN(size, 1 << 20);  /* avoid unbounded allocation */
-    buf = g_malloc0(size + 1);
+    size = MIN(size, (1 << 20) - 1);  /* avoid unbounded allocation */
+    buf = g_malloc(size + 1);
 
     ret = bdrv_pread(file, desc_offset, buf, size);
     if (ret < 0) {
@@ -566,6 +566,7 @@ static char *vmdk_read_desc(BlockDriverState *file, uint64_t desc_offset,
         g_free(buf);
         return NULL;
     }
+    buf[ret] = 0;
 
     return buf;
 }
