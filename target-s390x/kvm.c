@@ -202,6 +202,11 @@ void kvm_s390_reset_vcpu(S390CPU *cpu)
     }
 }
 
+static int can_sync_regs(CPUState *cs, int regs)
+{
+    return cap_sync_regs && (cs->kvm_run->kvm_valid_regs & regs) == regs;
+}
+
 int kvm_arch_put_registers(CPUState *cs, int level)
 {
     S390CPU *cpu = S390_CPU(cs);
@@ -216,7 +221,7 @@ int kvm_arch_put_registers(CPUState *cs, int level)
     cs->kvm_run->psw_addr = env->psw.addr;
     cs->kvm_run->psw_mask = env->psw.mask;
 
-    if (cap_sync_regs && cs->kvm_run->kvm_valid_regs & KVM_SYNC_GPRS) {
+    if (can_sync_regs(cs, KVM_SYNC_GPRS)) {
         for (i = 0; i < 16; i++) {
             cs->kvm_run->s.regs.gprs[i] = env->regs[i];
             cs->kvm_run->kvm_dirty_regs |= KVM_SYNC_GPRS;
@@ -273,9 +278,8 @@ int kvm_arch_put_registers(CPUState *cs, int level)
         }
     }
 
-    if (cap_sync_regs &&
-        cs->kvm_run->kvm_valid_regs & KVM_SYNC_ACRS &&
-        cs->kvm_run->kvm_valid_regs & KVM_SYNC_CRS) {
+    /* access registers and control registers*/
+    if (can_sync_regs(cs, KVM_SYNC_ACRS | KVM_SYNC_CRS)) {
         for (i = 0; i < 16; i++) {
             cs->kvm_run->s.regs.acrs[i] = env->aregs[i];
             cs->kvm_run->s.regs.crs[i] = env->cregs[i];
@@ -294,7 +298,7 @@ int kvm_arch_put_registers(CPUState *cs, int level)
     }
 
     /* Finally the prefix */
-    if (cap_sync_regs && cs->kvm_run->kvm_valid_regs & KVM_SYNC_PREFIX) {
+    if (can_sync_regs(cs, KVM_SYNC_PREFIX)) {
         cs->kvm_run->s.regs.prefix = env->psa;
         cs->kvm_run->kvm_dirty_regs |= KVM_SYNC_PREFIX;
     } else {
@@ -317,7 +321,7 @@ int kvm_arch_get_registers(CPUState *cs)
     env->psw.mask = cs->kvm_run->psw_mask;
 
     /* the GPRS */
-    if (cap_sync_regs && cs->kvm_run->kvm_valid_regs & KVM_SYNC_GPRS) {
+    if (can_sync_regs(cs, KVM_SYNC_GPRS)) {
         for (i = 0; i < 16; i++) {
             env->regs[i] = cs->kvm_run->s.regs.gprs[i];
         }
@@ -332,9 +336,7 @@ int kvm_arch_get_registers(CPUState *cs)
     }
 
     /* The ACRS and CRS */
-    if (cap_sync_regs &&
-        cs->kvm_run->kvm_valid_regs & KVM_SYNC_ACRS &&
-        cs->kvm_run->kvm_valid_regs & KVM_SYNC_CRS) {
+    if (can_sync_regs(cs, KVM_SYNC_ACRS | KVM_SYNC_CRS)) {
         for (i = 0; i < 16; i++) {
             env->aregs[i] = cs->kvm_run->s.regs.acrs[i];
             env->cregs[i] = cs->kvm_run->s.regs.crs[i];
@@ -361,7 +363,7 @@ int kvm_arch_get_registers(CPUState *cs)
     env->fpc = fpu.fpc;
 
     /* The prefix */
-    if (cap_sync_regs && cs->kvm_run->kvm_valid_regs & KVM_SYNC_PREFIX) {
+    if (can_sync_regs(cs, KVM_SYNC_PREFIX)) {
         env->psa = cs->kvm_run->s.regs.prefix;
     }
 
