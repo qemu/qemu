@@ -44,7 +44,8 @@ trap "_cleanup; exit \$status" 0 1 2 3 15
 _supported_fmt qcow qcow2 qed vdi vhdx vmdk vpc
 _supported_proto file
 _supported_os Linux
-
+_unsupported_imgopts "subformat=monolithicFlat" "subformat=twoGbMaxExtentFlat" \
+    "subformat=twoGbMaxExtentSparse"
 
 function do_run_qemu()
 {
