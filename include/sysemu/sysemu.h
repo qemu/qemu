@@ -223,7 +223,7 @@ void validate_bootdevices(const char *devices, Error **errp);
 /* return 0 if success */
 typedef int QEMUBootSetHandler(void *opaque, const char *boot_order);
 void qemu_register_boot_set(QEMUBootSetHandler *func, void *opaque);
-int qemu_boot_set(const char *boot_order);
+void qemu_boot_set(const char *boot_order, Error **errp);
 
 QemuOpts *qemu_get_machine_opts(void);
 

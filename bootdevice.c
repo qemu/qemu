@@ -47,12 +47,18 @@ void qemu_register_boot_set(QEMUBootSetHandler *func, void *opaque)
     boot_set_opaque = opaque;
 }
 
-int qemu_boot_set(const char *boot_order)
+void qemu_boot_set(const char *boot_order, Error **errp)
 {
     if (!boot_set_handler) {
-        return -EINVAL;
+        error_setg(errp, "no function defined to set boot device list for"
+                         " this architecture");
+        return;
     }
-    return boot_set_handler(boot_set_opaque, boot_order);
+
+    if (boot_set_handler(boot_set_opaque, boot_order)) {
+        error_setg(errp, "setting boot device list failed");
+        return;
+    }
 }
 
 void validate_bootdevices(const char *devices, Error **errp)
@@ -94,7 +100,7 @@ void restore_boot_order(void *opaque)
         return;
     }
 
-    qemu_boot_set(normal_boot_order);
+    qemu_boot_set(normal_boot_order, NULL);
 
     qemu_unregister_reset(restore_boot_order, normal_boot_order);
     g_free(normal_boot_order);

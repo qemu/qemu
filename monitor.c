@@ -1494,17 +1494,15 @@ static void do_ioport_write(Monitor *mon, const QDict *qdict)
 
 static void do_boot_set(Monitor *mon, const QDict *qdict)
 {
-    int res;
+    Error *local_err = NULL;
     const char *bootdevice = qdict_get_str(qdict, "bootdevice");
 
-    res = qemu_boot_set(bootdevice);
-    if (res == 0) {
-        monitor_printf(mon, "boot device list now set to %s\n", bootdevice);
-    } else if (res > 0) {
-        monitor_printf(mon, "setting boot device list failed\n");
+    qemu_boot_set(bootdevice, &local_err);
+    if (local_err) {
+        monitor_printf(mon, "%s\n", error_get_pretty(local_err));
+        error_free(local_err);
     } else {
-        monitor_printf(mon, "no function defined to set boot device list for "
-                       "this architecture\n");
+        monitor_printf(mon, "boot device list now set to %s\n", bootdevice);
     }
 }
 
