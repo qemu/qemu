@@ -408,7 +408,6 @@ static FeatureWordInfo feature_word_info[FEATURE_WORDS] = {
         .cpuid_needs_ecx = true, .cpuid_ecx = 1,
         .cpuid_reg = R_EAX,
         .tcg_features = 0,
-        .unmigratable_flags = FEAT_XSAVES,
     },
 };
 

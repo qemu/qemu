@@ -389,6 +389,7 @@
 #define MSR_VM_HSAVE_PA                 0xc0010117
 
 #define MSR_IA32_BNDCFGS                0x00000d90
+#define MSR_IA32_XSS                    0x00000da0
 
 #define XSTATE_FP                       (1ULL << 0)
 #define XSTATE_SSE                      (1ULL << 1)
@@ -1025,6 +1026,7 @@ typedef struct CPUX86State {
     uint64_t xstate_bv;
 
     uint64_t xcr0;
+    uint64_t xss;
 
     TPRAccess tpr_access_type;
 } CPUX86State;
