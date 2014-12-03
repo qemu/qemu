@@ -28,6 +28,7 @@
 #include "qemu/module.h"
 #include "migration/migration.h"
 #include <zlib.h>
+#include <glib.h>
 
 #define VMDK3_MAGIC (('C' << 24) | ('O' << 16) | ('W' << 8) | 'D')
 #define VMDK4_MAGIC (('K' << 24) | ('D' << 16) | ('M' << 8) | 'V')
@@ -1538,7 +1539,7 @@ static int vmdk_write(BlockDriverState *bs, int64_t sector_num,
         /* update CID on the first write every time the virtual disk is
          * opened */
         if (!s->cid_updated) {
-            ret = vmdk_write_cid(bs, time(NULL));
+            ret = vmdk_write_cid(bs, g_random_int());
             if (ret < 0) {
                 return ret;
             }
@@ -1922,7 +1923,7 @@ static int vmdk_create(const char *filename, QemuOpts *opts, Error **errp)
     }
     /* generate descriptor file */
     desc = g_strdup_printf(desc_template,
-                           (uint32_t)time(NULL),
+                           g_random_int(),
                            parent_cid,
                            fmt,
                            parent_desc_line,
