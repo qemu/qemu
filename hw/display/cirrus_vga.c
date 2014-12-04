@@ -173,20 +173,6 @@
 
 #define CIRRUS_PNPMMIO_SIZE         0x1000
 
-#define BLTUNSAFE(s) \
-    ( \
-        ( /* check dst is within bounds */ \
-            (s)->cirrus_blt_height * ABS((s)->cirrus_blt_dstpitch) \
-                + ((s)->cirrus_blt_dstaddr & (s)->cirrus_addr_mask) > \
-                    (s)->vga.vram_size \
-        ) || \
-        ( /* check src is within bounds */ \
-            (s)->cirrus_blt_height * ABS((s)->cirrus_blt_srcpitch) \
-                + ((s)->cirrus_blt_srcaddr & (s)->cirrus_addr_mask) > \
-                    (s)->vga.vram_size \
-        ) \
-    )
-
 struct CirrusVGAState;
 typedef void (*cirrus_bitblt_rop_t) (struct CirrusVGAState *s,
                                      uint8_t * dst, const uint8_t * src,
@@ -278,6 +264,50 @@ static void cirrus_update_memory_access(CirrusVGAState *s);
  *  raster operations
  *
  ***************************************/
+
+static bool blit_region_is_unsafe(struct CirrusVGAState *s,
+                                  int32_t pitch, int32_t addr)
+{
+    if (pitch < 0) {
+        int64_t min = addr
+            + ((int64_t)s->cirrus_blt_height-1) * pitch;
+        int32_t max = addr
+            + s->cirrus_blt_width;
+        if (min < 0 || max >= s->vga.vram_size) {
+            return true;
+        }
+    } else {
+        int64_t max = addr
+            + ((int64_t)s->cirrus_blt_height-1) * pitch
+            + s->cirrus_blt_width;
+        if (max >= s->vga.vram_size) {
+            return true;
+        }
+    }
+    return false;
+}
+
+static bool blit_is_unsafe(struct CirrusVGAState *s)
+{
+    /* should be the case, see cirrus_bitblt_start */
+    assert(s->cirrus_blt_width > 0);
+    assert(s->cirrus_blt_height > 0);
+
+    if (s->cirrus_blt_width > CIRRUS_BLTBUFSIZE) {
+        return true;
+    }
+
+    if (blit_region_is_unsafe(s, s->cirrus_blt_dstpitch,
+                              s->cirrus_blt_dstaddr & s->cirrus_addr_mask)) {
+        return true;
+    }
+    if (blit_region_is_unsafe(s, s->cirrus_blt_srcpitch,
+                              s->cirrus_blt_srcaddr & s->cirrus_addr_mask)) {
+        return true;
+    }
+
+    return false;
+}
 
 static void cirrus_bitblt_rop_nop(CirrusVGAState *s,
                                   uint8_t *dst,const uint8_t *src,
@@ -636,7 +666,7 @@ static int cirrus_bitblt_common_patterncopy(CirrusVGAState * s,
 
     dst = s->vga.vram_ptr + (s->cirrus_blt_dstaddr & s->cirrus_addr_mask);
 
-    if (BLTUNSAFE(s))
+    if (blit_is_unsafe(s))
         return 0;
 
     (*s->cirrus_rop) (s, dst, src,
@@ -654,8 +684,9 @@ static int cirrus_bitblt_solidfill(CirrusVGAState *s, int blt_rop)
 {
     cirrus_fill_t rop_func;
 
-    if (BLTUNSAFE(s))
+    if (blit_is_unsafe(s)) {
         return 0;
+    }
     rop_func = cirrus_fill[rop_to_index[blt_rop]][s->cirrus_blt_pixelwidth - 1];
     rop_func(s, s->vga.vram_ptr + (s->cirrus_blt_dstaddr & s->cirrus_addr_mask),
              s->cirrus_blt_dstpitch,
@@ -752,7 +783,7 @@ static void cirrus_do_copy(CirrusVGAState *s, int dst, int src, int w, int h)
 
 static int cirrus_bitblt_videotovideo_copy(CirrusVGAState * s)
 {
-    if (BLTUNSAFE(s))
+    if (blit_is_unsafe(s))
         return 0;
 
     cirrus_do_copy(s, s->cirrus_blt_dstaddr - s->vga.start_addr,
