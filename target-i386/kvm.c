@@ -278,7 +278,7 @@ static void kvm_hwpoison_page_add(ram_addr_t ram_addr)
             return;
         }
     }
-    page = g_malloc(sizeof(HWPoisonPage));
+    page = g_new(HWPoisonPage, 1);
     page->ram_addr = ram_addr;
     QLIST_INSERT_HEAD(&hwpoison_page_list, page, list);
 }
