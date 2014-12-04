@@ -1736,24 +1736,21 @@ uri_resolve(const char *uri, const char *base) {
 	goto done;
     if ((ref->scheme == NULL) && (ref->path == NULL) &&
 	((ref->authority == NULL) && (ref->server == NULL))) {
-	if (bas->scheme != NULL)
-	    res->scheme = g_strdup(bas->scheme);
+        res->scheme = g_strdup(bas->scheme);
 	if (bas->authority != NULL)
 	    res->authority = g_strdup(bas->authority);
 	else if (bas->server != NULL) {
-	    res->server = g_strdup(bas->server);
-	    if (bas->user != NULL)
-		res->user = g_strdup(bas->user);
-	    res->port = bas->port;
+            res->server = g_strdup(bas->server);
+            res->user = g_strdup(bas->user);
+            res->port = bas->port;
 	}
-	if (bas->path != NULL)
-	    res->path = g_strdup(bas->path);
-	if (ref->query != NULL)
+        res->path = g_strdup(bas->path);
+        if (ref->query != NULL) {
 	    res->query = g_strdup (ref->query);
-	else if (bas->query != NULL)
-	    res->query = g_strdup(bas->query);
-	if (ref->fragment != NULL)
-	    res->fragment = g_strdup(ref->fragment);
+        } else {
+            res->query = g_strdup(bas->query);
+        }
+        res->fragment = g_strdup(ref->fragment);
 	goto step_7;
     }
 
@@ -1767,13 +1764,10 @@ uri_resolve(const char *uri, const char *base) {
 	val = uri_to_string(ref);
 	goto done;
     }
-    if (bas->scheme != NULL)
-	res->scheme = g_strdup(bas->scheme);
+    res->scheme = g_strdup(bas->scheme);
 
-    if (ref->query != NULL)
-	res->query = g_strdup(ref->query);
-    if (ref->fragment != NULL)
-	res->fragment = g_strdup(ref->fragment);
+    res->query = g_strdup(ref->query);
+    res->fragment = g_strdup(ref->fragment);
 
     /*
      * 4) If the authority component is defined, then the reference is a
@@ -1787,20 +1781,17 @@ uri_resolve(const char *uri, const char *base) {
 	    res->authority = g_strdup(ref->authority);
 	else {
 	    res->server = g_strdup(ref->server);
-	    if (ref->user != NULL)
-		res->user = g_strdup(ref->user);
+            res->user = g_strdup(ref->user);
             res->port = ref->port;
 	}
-	if (ref->path != NULL)
-	    res->path = g_strdup(ref->path);
+        res->path = g_strdup(ref->path);
 	goto step_7;
     }
     if (bas->authority != NULL)
 	res->authority = g_strdup(bas->authority);
     else if (bas->server != NULL) {
-	res->server = g_strdup(bas->server);
-	if (bas->user != NULL)
-	    res->user = g_strdup(bas->user);
+        res->server = g_strdup(bas->server);
+        res->user = g_strdup(bas->user);
 	res->port = bas->port;
     }
 
