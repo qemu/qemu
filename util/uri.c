@@ -225,7 +225,7 @@ rfc3986_parse_scheme(URI *uri, const char **str) {
     while (ISA_ALPHA(cur) || ISA_DIGIT(cur) ||
            (*cur == '+') || (*cur == '-') || (*cur == '.')) cur++;
     if (uri != NULL) {
-	if (uri->scheme != NULL) g_free(uri->scheme);
+        g_free(uri->scheme);
 	uri->scheme = g_strndup(*str, cur - *str);
     }
     *str = cur;
@@ -262,8 +262,7 @@ rfc3986_parse_fragment(URI *uri, const char **str)
            ((uri != NULL) && (uri->cleanup & 1) && (IS_UNWISE(cur))))
         NEXT(cur);
     if (uri != NULL) {
-        if (uri->fragment != NULL)
-            g_free(uri->fragment);
+        g_free(uri->fragment);
 	if (uri->cleanup & 2)
 	    uri->fragment = g_strndup(*str, cur - *str);
 	else
@@ -298,8 +297,7 @@ rfc3986_parse_query(URI *uri, const char **str)
            ((uri != NULL) && (uri->cleanup & 1) && (IS_UNWISE(cur))))
         NEXT(cur);
     if (uri != NULL) {
-	if (uri->query != NULL)
-	    g_free (uri->query);
+        g_free(uri->query);
 	uri->query = g_strndup (*str, cur - *str);
     }
     *str = cur;
@@ -360,7 +358,7 @@ rfc3986_parse_user_info(URI *uri, const char **str)
 	NEXT(cur);
     if (*cur == '@') {
 	if (uri != NULL) {
-	    if (uri->user != NULL) g_free(uri->user);
+            g_free(uri->user);
 	    if (uri->cleanup & 2)
 		uri->user = g_strndup(*str, cur - *str);
 	    else
@@ -473,9 +471,9 @@ not_ipv4:
         NEXT(cur);
 found:
     if (uri != NULL) {
-	if (uri->authority != NULL) g_free(uri->authority);
+        g_free(uri->authority);
 	uri->authority = NULL;
-	if (uri->server != NULL) g_free(uri->server);
+        g_free(uri->server);
 	if (cur != host) {
 	    if (uri->cleanup & 2)
 		uri->server = g_strndup(host, cur - host);
@@ -585,7 +583,7 @@ rfc3986_parse_path_ab_empty(URI *uri, const char **str)
 	if (ret != 0) return(ret);
     }
     if (uri != NULL) {
-	if (uri->path != NULL) g_free(uri->path);
+        g_free(uri->path);
         if (*str != cur) {
             if (uri->cleanup & 2)
                 uri->path = g_strndup(*str, cur - *str);
@@ -631,7 +629,7 @@ rfc3986_parse_path_absolute(URI *uri, const char **str)
 	}
     }
     if (uri != NULL) {
-	if (uri->path != NULL) g_free(uri->path);
+        g_free(uri->path);
         if (cur != *str) {
             if (uri->cleanup & 2)
                 uri->path = g_strndup(*str, cur - *str);
@@ -673,7 +671,7 @@ rfc3986_parse_path_rootless(URI *uri, const char **str)
 	if (ret != 0) return(ret);
     }
     if (uri != NULL) {
-	if (uri->path != NULL) g_free(uri->path);
+        g_free(uri->path);
         if (cur != *str) {
             if (uri->cleanup & 2)
                 uri->path = g_strndup(*str, cur - *str);
@@ -715,7 +713,7 @@ rfc3986_parse_path_no_scheme(URI *uri, const char **str)
 	if (ret != 0) return(ret);
     }
     if (uri != NULL) {
-	if (uri->path != NULL) g_free(uri->path);
+        g_free(uri->path);
         if (cur != *str) {
             if (uri->cleanup & 2)
                 uri->path = g_strndup(*str, cur - *str);
@@ -769,7 +767,7 @@ rfc3986_parse_hier_part(URI *uri, const char **str)
     } else {
 	/* path-empty is effectively empty */
 	if (uri != NULL) {
-	    if (uri->path != NULL) g_free(uri->path);
+            g_free(uri->path);
 	    uri->path = NULL;
 	}
     }
@@ -812,7 +810,7 @@ rfc3986_parse_relative_ref(URI *uri, const char *str) {
     } else {
 	/* path-empty is effectively empty */
 	if (uri != NULL) {
-	    if (uri->path != NULL) g_free(uri->path);
+            g_free(uri->path);
 	    uri->path = NULL;
 	}
     }
@@ -1285,21 +1283,21 @@ static void
 uri_clean(URI *uri) {
     if (uri == NULL) return;
 
-    if (uri->scheme != NULL) g_free(uri->scheme);
+    g_free(uri->scheme);
     uri->scheme = NULL;
-    if (uri->server != NULL) g_free(uri->server);
+    g_free(uri->server);
     uri->server = NULL;
-    if (uri->user != NULL) g_free(uri->user);
+    g_free(uri->user);
     uri->user = NULL;
-    if (uri->path != NULL) g_free(uri->path);
+    g_free(uri->path);
     uri->path = NULL;
-    if (uri->fragment != NULL) g_free(uri->fragment);
+    g_free(uri->fragment);
     uri->fragment = NULL;
-    if (uri->opaque != NULL) g_free(uri->opaque);
+    g_free(uri->opaque);
     uri->opaque = NULL;
-    if (uri->authority != NULL) g_free(uri->authority);
+    g_free(uri->authority);
     uri->authority = NULL;
-    if (uri->query != NULL) g_free(uri->query);
+    g_free(uri->query);
     uri->query = NULL;
 }
 
@@ -1711,10 +1709,8 @@ uri_resolve(const char *uri, const char *base) {
 	/*
 	 * the base fragment must be ignored
 	 */
-	if (bas->fragment != NULL) {
-	    g_free(bas->fragment);
-	    bas->fragment = NULL;
-	}
+        g_free(bas->fragment);
+        bas->fragment = NULL;
 	val = uri_to_string(bas);
 	goto done;
     }
