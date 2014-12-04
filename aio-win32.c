@@ -67,7 +67,7 @@ void aio_set_fd_handler(AioContext *ctx,
 
         if (node == NULL) {
             /* Alloc and insert if it's not already there */
-            node = g_malloc0(sizeof(AioHandler));
+            node = g_new0(AioHandler, 1);
             node->pfd.fd = fd;
             QLIST_INSERT_HEAD(&ctx->aio_handlers, node, node);
         }
@@ -129,7 +129,7 @@ void aio_set_event_notifier(AioContext *ctx,
     } else {
         if (node == NULL) {
             /* Alloc and insert if it's not already there */
-            node = g_malloc0(sizeof(AioHandler));
+            node = g_new0(AioHandler, 1);
             node->e = e;
             node->pfd.fd = (uintptr_t)event_notifier_get_handle(e);
             node->pfd.events = G_IO_IN;
