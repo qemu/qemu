@@ -1004,8 +1004,7 @@ URI *
 uri_new(void) {
     URI *ret;
 
-    ret = (URI *) g_malloc(sizeof(URI));
-    memset(ret, 0, sizeof(URI));
+    ret = g_new0(URI, 1);
     return(ret);
 }
 
