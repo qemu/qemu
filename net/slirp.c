@@ -652,7 +652,7 @@ static int slirp_guestfwd(SlirpState *s, const char *config_str,
             return -1;
         }
     } else {
-        fwd = g_malloc(sizeof(struct GuestFwd));
+        fwd = g_new(struct GuestFwd, 1);
         fwd->hd = qemu_chr_new(buf, p, NULL);
         if (!fwd->hd) {
             error_report("could not open guest forwarding device '%s'", buf);

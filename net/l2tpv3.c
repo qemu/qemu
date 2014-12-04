@@ -489,12 +489,12 @@ static struct mmsghdr *build_l2tpv3_vector(NetL2TPV3State *s, int count)
     struct iovec *iov;
     struct mmsghdr *msgvec, *result;
 
-    msgvec = g_malloc(sizeof(struct mmsghdr) * count);
+    msgvec = g_new(struct mmsghdr, count);
     result = msgvec;
     for (i = 0; i < count ; i++) {
         msgvec->msg_hdr.msg_name = NULL;
         msgvec->msg_hdr.msg_namelen = 0;
-        iov =  g_malloc(sizeof(struct iovec) * IOVSIZE);
+        iov =  g_new(struct iovec, IOVSIZE);
         msgvec->msg_hdr.msg_iov = iov;
         iov->iov_base = g_malloc(s->header_size);
         iov->iov_len = s->header_size;
@@ -729,7 +729,7 @@ int net_init_l2tpv3(const NetClientOptions *opts,
     }
 
     s->msgvec = build_l2tpv3_vector(s, MAX_L2TPV3_MSGCNT);
-    s->vec = g_malloc(sizeof(struct iovec) * MAX_L2TPV3_IOVCNT);
+    s->vec = g_new(struct iovec, MAX_L2TPV3_IOVCNT);
     s->header_buf = g_malloc(s->header_size);
 
     qemu_set_nonblock(fd);
