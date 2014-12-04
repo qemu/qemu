@@ -695,8 +695,7 @@ int net_init_l2tpv3(const NetClientOptions *opts,
         goto outerr;
     }
 
-    s->dgram_dst = g_malloc(sizeof(struct sockaddr_storage));
-    memset(s->dgram_dst, '\0' , sizeof(struct sockaddr_storage));
+    s->dgram_dst = g_new0(struct sockaddr_storage, 1);
     memcpy(s->dgram_dst, result->ai_addr, result->ai_addrlen);
     s->dst_size = result->ai_addrlen;
 
