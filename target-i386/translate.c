@@ -115,6 +115,7 @@ typedef struct DisasContext {
     int tf;     /* TF cpu flag */
     int singlestep_enabled; /* "hardware" single step enabled */
     int jmp_opt; /* use direct block chaining for direct jumps */
+    int repz_opt; /* optimize jumps within repz instructions */
     int mem_index; /* select memory access functions */
     uint64_t flags; /* all execution flags */
     struct TranslationBlock *tb;
@@ -1215,7 +1216,7 @@ static inline void gen_repz_ ## op(DisasContext *s, TCGMemOp ot,              \
     gen_op_add_reg_im(s->aflag, R_ECX, -1);                                   \
     /* a loop would cause two single step exceptions if ECX = 1               \
        before rep string_insn */                                              \
-    if (!s->jmp_opt)                                                          \
+    if (s->repz_opt)                                                          \
         gen_op_jz_ecx(s->aflag, l2);                                          \
     gen_jmp(s, cur_eip);                                                      \
 }
@@ -1233,7 +1234,7 @@ static inline void gen_repz_ ## op(DisasContext *s, TCGMemOp ot,              \
     gen_op_add_reg_im(s->aflag, R_ECX, -1);                                   \
     gen_update_cc_op(s);                                                      \
     gen_jcc1(s, (JCC_Z << 1) | (nz ^ 1), l2);                                 \
-    if (!s->jmp_opt)                                                          \
+    if (s->repz_opt)                                                          \
         gen_op_jz_ecx(s->aflag, l2);                                          \
     gen_jmp(s, cur_eip);                                                      \
 }
@@ -7951,6 +7952,17 @@ static inline void gen_intermediate_code_internal(X86CPU *cpu,
                     || (flags & HF_SOFTMMU_MASK)
 #endif
                     );
+    /* Do not optimize repz jumps at all in icount mode, because
+       rep movsS instructions are execured with different paths
+       in !repz_opt and repz_opt modes. The first one was used
+       always except single step mode. And this setting
+       disables jumps optimization and control paths become
+       equivalent in run and single step modes.
+       Now there will be no jump optimization for repz in
+       record/replay modes and there will always be an
+       additional step for ecx=0 when icount is enabled.
+     */
+    dc->repz_opt = !dc->jmp_opt && !use_icount;
 #if 0
     /* check addseg logic */
     if (!dc->addseg && (dc->vm86 || !dc->pe || !dc->code32))
