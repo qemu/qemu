@@ -282,10 +282,15 @@ static void pc_q35_init(MachineState *machine)
     }
 }
 
+static void pc_compat_2_2(MachineState *machine)
+{
+}
+
 static void pc_compat_2_1(MachineState *machine)
 {
     PCMachineState *pcms = PC_MACHINE(machine);
 
+    pc_compat_2_2(machine);
     pcms->enforce_aligned_dimm = false;
     smbios_uuid_encoded = false;
     x86_cpu_compat_set_features("coreduo", FEAT_1_ECX, CPUID_EXT_VMX, 0);
@@ -327,6 +332,12 @@ static void pc_compat_1_4(MachineState *machine)
     pc_compat_1_5(machine);
     x86_cpu_compat_set_features("n270", FEAT_1_ECX, 0, CPUID_EXT_MOVBE);
     x86_cpu_compat_set_features("Westmere", FEAT_1_ECX, 0, CPUID_EXT_PCLMULQDQ);
+}
+
+static void pc_q35_init_2_2(MachineState *machine)
+{
+    pc_compat_2_2(machine);
+    pc_q35_init(machine);
 }
 
 static void pc_q35_init_2_1(MachineState *machine)
@@ -372,16 +383,24 @@ static void pc_q35_init_1_4(MachineState *machine)
     .hot_add_cpu = pc_hot_add_cpu, \
     .units_per_default_bus = 1
 
-#define PC_Q35_2_2_MACHINE_OPTIONS                      \
+#define PC_Q35_2_3_MACHINE_OPTIONS                      \
     PC_Q35_MACHINE_OPTIONS,                             \
     .default_machine_opts = "firmware=bios-256k.bin",   \
     .default_display = "std"
 
+static QEMUMachine pc_q35_machine_v2_3 = {
+    PC_Q35_2_3_MACHINE_OPTIONS,
+    .name = "pc-q35-2.3",
+    .alias = "q35",
+    .init = pc_q35_init,
+};
+
+#define PC_Q35_2_2_MACHINE_OPTIONS PC_Q35_2_3_MACHINE_OPTIONS
+
 static QEMUMachine pc_q35_machine_v2_2 = {
     PC_Q35_2_2_MACHINE_OPTIONS,
     .name = "pc-q35-2.2",
-    .alias = "q35",
-    .init = pc_q35_init,
+    .init = pc_q35_init_2_2,
 };
 
 #define PC_Q35_2_1_MACHINE_OPTIONS                      \
@@ -460,6 +479,7 @@ static QEMUMachine pc_q35_machine_v1_4 = {
 
 static void pc_q35_machine_init(void)
 {
+    qemu_register_pc_machine(&pc_q35_machine_v2_3);
     qemu_register_pc_machine(&pc_q35_machine_v2_2);
     qemu_register_pc_machine(&pc_q35_machine_v2_1);
     qemu_register_pc_machine(&pc_q35_machine_v2_0);
