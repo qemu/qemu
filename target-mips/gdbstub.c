@@ -29,8 +29,13 @@ int mips_cpu_gdb_read_register(CPUState *cs, uint8_t *mem_buf, int n)
     if (n < 32) {
         return gdb_get_regl(mem_buf, env->active_tc.gpr[n]);
     }
-    if (env->CP0_Config1 & (1 << CP0C1_FP)) {
-        if (n >= 38 && n < 70) {
+    if (env->CP0_Config1 & (1 << CP0C1_FP) && n >= 38 && n < 72) {
+        switch (n) {
+        case 70:
+            return gdb_get_regl(mem_buf, (int32_t)env->active_fpu.fcr31);
+        case 71:
+            return gdb_get_regl(mem_buf, (int32_t)env->active_fpu.fcr0);
+        default:
             if (env->CP0_Status & (1 << CP0St_FR)) {
                 return gdb_get_regl(mem_buf,
                     env->active_fpu.fpr[n - 38].d);
@@ -38,12 +43,6 @@ int mips_cpu_gdb_read_register(CPUState *cs, uint8_t *mem_buf, int n)
                 return gdb_get_regl(mem_buf,
                     env->active_fpu.fpr[n - 38].w[FP_ENDIAN_IDX]);
             }
-        }
-        switch (n) {
-        case 70:
-            return gdb_get_regl(mem_buf, (int32_t)env->active_fpu.fcr31);
-        case 71:
-            return gdb_get_regl(mem_buf, (int32_t)env->active_fpu.fcr0);
         }
     }
     switch (n) {
@@ -64,8 +63,10 @@ int mips_cpu_gdb_read_register(CPUState *cs, uint8_t *mem_buf, int n)
         return gdb_get_regl(mem_buf, 0); /* fp */
     case 89:
         return gdb_get_regl(mem_buf, (int32_t)env->CP0_PRid);
-    }
-    if (n >= 73 && n <= 88) {
+    default:
+        if (n > 89) {
+            return 0;
+        }
         /* 16 embedded regs.  */
         return gdb_get_regl(mem_buf, 0);
     }
@@ -89,15 +90,7 @@ int mips_cpu_gdb_write_register(CPUState *cs, uint8_t *mem_buf, int n)
         env->active_tc.gpr[n] = tmp;
         return sizeof(target_ulong);
     }
-    if (env->CP0_Config1 & (1 << CP0C1_FP)
-            && n >= 38 && n < 72) {
-        if (n < 70) {
-            if (env->CP0_Status & (1 << CP0St_FR)) {
-                env->active_fpu.fpr[n - 38].d = tmp;
-            } else {
-                env->active_fpu.fpr[n - 38].w[FP_ENDIAN_IDX] = tmp;
-            }
-        }
+    if (env->CP0_Config1 & (1 << CP0C1_FP) && n >= 38 && n < 72) {
         switch (n) {
         case 70:
             env->active_fpu.fcr31 = tmp & 0xFF83FFFF;
@@ -106,6 +99,13 @@ int mips_cpu_gdb_write_register(CPUState *cs, uint8_t *mem_buf, int n)
             break;
         case 71:
             /* FIR is read-only.  Ignore writes.  */
+            break;
+        default:
+            if (env->CP0_Status & (1 << CP0St_FR)) {
+                env->active_fpu.fpr[n - 38].d = tmp;
+            } else {
+                env->active_fpu.fpr[n - 38].w[FP_ENDIAN_IDX] = tmp;
+            }
             break;
         }
         return sizeof(target_ulong);
