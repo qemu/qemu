@@ -831,9 +831,10 @@ static inline void compute_hflags(CPUMIPSState *env)
         env->hflags |= (env->CP0_Status >> CP0St_KSU) & MIPS_HFLAG_KSU;
     }
 #if defined(TARGET_MIPS64)
-    if (((env->hflags & MIPS_HFLAG_KSU) != MIPS_HFLAG_UM) ||
-        (env->CP0_Status & (1 << CP0St_PX)) ||
-        (env->CP0_Status & (1 << CP0St_UX))) {
+    if ((env->insn_flags & ISA_MIPS3) &&
+        (((env->hflags & MIPS_HFLAG_KSU) != MIPS_HFLAG_UM) ||
+         (env->CP0_Status & (1 << CP0St_PX)) ||
+         (env->CP0_Status & (1 << CP0St_UX)))) {
         env->hflags |= MIPS_HFLAG_64;
     }
 
