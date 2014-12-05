@@ -451,6 +451,12 @@ enum {
     OPC1_32_BOL_LEA_LONGOFF                          = 0xd9,
     OPC1_32_BOL_ST_W_LONGOFF                         = 0x59,
     OPC1_32_BOL_ST_A_LONGOFF                         = 0xb5, /* 1.6 only */
+    OPC1_32_BOL_LD_B_LONGOFF                         = 0x79, /* 1.6 only */
+    OPC1_32_BOL_LD_BU_LONGOFF                        = 0x39, /* 1.6 only */
+    OPC1_32_BOL_LD_H_LONGOFF                         = 0xc9, /* 1.6 only */
+    OPC1_32_BOL_LD_HU_LONGOFF                        = 0xb9, /* 1.6 only */
+    OPC1_32_BOL_ST_B_LONGOFF                         = 0xe9, /* 1.6 only */
+    OPC1_32_BOL_ST_H_LONGOFF                         = 0xf9, /* 1.6 only */
 /* BRC Format */
     OPCM_32_BRC_EQ_NEQ                               = 0xdf,
     OPCM_32_BRC_GE                                   = 0xff,

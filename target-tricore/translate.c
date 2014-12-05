@@ -3344,8 +3344,49 @@ static void decode_bol_opc(CPUTriCoreState *env, DisasContext *ctx, int32_t op1)
     case OPC1_32_BOL_ST_W_LONGOFF:
         gen_offset_st(ctx, cpu_gpr_d[r1], cpu_gpr_a[r2], address, MO_LEUL);
         break;
+    case OPC1_32_BOL_LD_B_LONGOFF:
+        if (tricore_feature(env, TRICORE_FEATURE_16)) {
+            gen_offset_ld(ctx, cpu_gpr_d[r1], cpu_gpr_a[r2], address, MO_SB);
+        } else {
+            /* raise illegal opcode trap */
+        }
+        break;
+    case OPC1_32_BOL_LD_BU_LONGOFF:
+        if (tricore_feature(env, TRICORE_FEATURE_16)) {
+            gen_offset_ld(ctx, cpu_gpr_d[r1], cpu_gpr_a[r2], address, MO_UB);
+        } else {
+            /* raise illegal opcode trap */
+        }
+        break;
+    case OPC1_32_BOL_LD_H_LONGOFF:
+        if (tricore_feature(env, TRICORE_FEATURE_16)) {
+            gen_offset_ld(ctx, cpu_gpr_d[r1], cpu_gpr_a[r2], address, MO_LESW);
+        } else {
+            /* raise illegal opcode trap */
+        }
+        break;
+    case OPC1_32_BOL_LD_HU_LONGOFF:
+        if (tricore_feature(env, TRICORE_FEATURE_16)) {
+            gen_offset_ld(ctx, cpu_gpr_d[r1], cpu_gpr_a[r2], address, MO_LEUW);
+        } else {
+            /* raise illegal opcode trap */
+        }
+        break;
+    case OPC1_32_BOL_ST_B_LONGOFF:
+        if (tricore_feature(env, TRICORE_FEATURE_16)) {
+            gen_offset_st(ctx, cpu_gpr_d[r1], cpu_gpr_a[r2], address, MO_SB);
+        } else {
+            /* raise illegal opcode trap */
+        }
+        break;
+    case OPC1_32_BOL_ST_H_LONGOFF:
+        if (tricore_feature(env, TRICORE_FEATURE_16)) {
+            gen_offset_ld(ctx, cpu_gpr_d[r1], cpu_gpr_a[r2], address, MO_LESW);
+        } else {
+            /* raise illegal opcode trap */
+        }
+        break;
     }
-
 }
 
 /* RC format */
@@ -4679,6 +4720,12 @@ static void decode_32Bit_opc(CPUTriCoreState *env, DisasContext *ctx)
     case OPC1_32_BOL_LEA_LONGOFF:
     case OPC1_32_BOL_ST_W_LONGOFF:
     case OPC1_32_BOL_ST_A_LONGOFF:
+    case OPC1_32_BOL_LD_B_LONGOFF:
+    case OPC1_32_BOL_LD_BU_LONGOFF:
+    case OPC1_32_BOL_LD_H_LONGOFF:
+    case OPC1_32_BOL_LD_HU_LONGOFF:
+    case OPC1_32_BOL_ST_B_LONGOFF:
+    case OPC1_32_BOL_ST_H_LONGOFF:
         decode_bol_opc(env, ctx, op1);
         break;
 /* BRC Format */
