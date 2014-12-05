@@ -476,7 +476,8 @@ static uint16_t nvme_get_feature(NvmeCtrl *n, NvmeCmd *cmd, NvmeRequest *req)
 
     switch (dw10) {
     case NVME_NUMBER_OF_QUEUES:
-        req->cqe.result = cpu_to_le32(n->num_queues);
+        req->cqe.result =
+            cpu_to_le32((n->num_queues - 1) | ((n->num_queues - 1) << 16));
         break;
     default:
         return NVME_INVALID_FIELD | NVME_DNR;
@@ -490,7 +491,8 @@ static uint16_t nvme_set_feature(NvmeCtrl *n, NvmeCmd *cmd, NvmeRequest *req)
 
     switch (dw10) {
     case NVME_NUMBER_OF_QUEUES:
-        req->cqe.result = cpu_to_le32(n->num_queues);
+        req->cqe.result =
+            cpu_to_le32((n->num_queues - 1) | ((n->num_queues - 1) << 16));
         break;
     default:
         return NVME_INVALID_FIELD | NVME_DNR;
