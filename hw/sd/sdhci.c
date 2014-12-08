@@ -1142,9 +1142,8 @@ static inline unsigned int sdhci_get_fifolen(SDHCIState *s)
     }
 }
 
-static void sdhci_initfn(Object *obj)
+static void sdhci_initfn(SDHCIState *s)
 {
-    SDHCIState *s = SDHCI(obj);
     DriveInfo *di;
 
     di = drive_get_next(IF_SD);
@@ -1160,10 +1159,8 @@ static void sdhci_initfn(Object *obj)
     s->transfer_timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, sdhci_data_transfer, s);
 }
 
-static void sdhci_uninitfn(Object *obj)
+static void sdhci_uninitfn(SDHCIState *s)
 {
-    SDHCIState *s = SDHCI(obj);
-
     timer_del(s->insert_timer);
     timer_free(s->insert_timer);
     timer_del(s->transfer_timer);
@@ -1223,9 +1220,21 @@ static Property sdhci_properties[] = {
     DEFINE_PROP_END_OF_LIST(),
 };
 
-static void sdhci_realize(DeviceState *dev, Error ** errp)
+static void sdhci_sysbus_init(Object *obj)
 {
-    SDHCIState *s = SDHCI(dev);
+    SDHCIState *s = SYSBUS_SDHCI(obj);
+    sdhci_initfn(s);
+}
+
+static void sdhci_sysbus_finalize(Object *obj)
+{
+    SDHCIState *s = SYSBUS_SDHCI(obj);
+    sdhci_uninitfn(s);
+}
+
+static void sdhci_sysbus_realize(DeviceState *dev, Error ** errp)
+{
+    SDHCIState *s = SYSBUS_SDHCI(dev);
     SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
 
     s->buf_maxsz = sdhci_get_fifolen(s);
@@ -1236,27 +1245,27 @@ static void sdhci_realize(DeviceState *dev, Error ** errp)
     sysbus_init_mmio(sbd, &s->iomem);
 }
 
-static void sdhci_class_init(ObjectClass *klass, void *data)
+static void sdhci_sysbus_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
     dc->vmsd = &sdhci_vmstate;
     dc->props = sdhci_properties;
-    dc->realize = sdhci_realize;
+    dc->realize = sdhci_sysbus_realize;
 }
 
-static const TypeInfo sdhci_type_info = {
-    .name = TYPE_SDHCI,
+static const TypeInfo sdhci_sysbus_info = {
+    .name = TYPE_SYSBUS_SDHCI,
     .parent = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(SDHCIState),
-    .instance_init = sdhci_initfn,
-    .instance_finalize = sdhci_uninitfn,
-    .class_init = sdhci_class_init,
+    .instance_init = sdhci_sysbus_init,
+    .instance_finalize = sdhci_sysbus_finalize,
+    .class_init = sdhci_sysbus_class_init,
 };
 
 static void sdhci_register_types(void)
 {
-    type_register_static(&sdhci_type_info);
+    type_register_static(&sdhci_sysbus_info);
 }
 
 type_init(sdhci_register_types)

@@ -281,8 +281,8 @@ typedef struct SDHCIState {
 
 extern const VMStateDescription sdhci_vmstate;
 
-#define TYPE_SDHCI            "generic-sdhci"
-#define SDHCI(obj)            \
-     OBJECT_CHECK(SDHCIState, (obj), TYPE_SDHCI)
+#define TYPE_SYSBUS_SDHCI "generic-sdhci"
+#define SYSBUS_SDHCI(obj)                               \
+     OBJECT_CHECK(SDHCIState, (obj), TYPE_SYSBUS_SDHCI)
 
 #endif /* SDHCI_H */
