@@ -1774,7 +1774,7 @@ static int vhdx_create(const char *filename, QemuOpts *opts, Error **errp)
     log_size = qemu_opt_get_size_del(opts, VHDX_BLOCK_OPT_LOG_SIZE, 0);
     block_size = qemu_opt_get_size_del(opts, VHDX_BLOCK_OPT_BLOCK_SIZE, 0);
     type = qemu_opt_get_del(opts, BLOCK_OPT_SUBFMT);
-    use_zero_blocks = qemu_opt_get_bool_del(opts, VHDX_BLOCK_OPT_ZERO, false);
+    use_zero_blocks = qemu_opt_get_bool_del(opts, VHDX_BLOCK_OPT_ZERO, true);
 
     if (image_size > VHDX_MAX_IMAGE_SIZE) {
         error_setg_errno(errp, EINVAL, "Image size too large; max of 64TB");
@@ -1936,7 +1936,9 @@ static QemuOptsList vhdx_create_opts = {
        {
            .name = VHDX_BLOCK_OPT_ZERO,
            .type = QEMU_OPT_BOOL,
-           .help = "Force use of payload blocks of type 'ZERO'.  Non-standard."
+           .help = "Force use of payload blocks of type 'ZERO'. "\
+                   "Non-standard, but default.  Do not set to 'off' when "\
+                   "using 'qemu-img convert' with subformat=dynamic."
        },
        { NULL }
     }
