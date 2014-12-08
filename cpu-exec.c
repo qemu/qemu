@@ -168,7 +168,9 @@ static inline tcg_target_ulong cpu_tb_exec(CPUState *cpu, uint8_t *tb_ptr)
     }
 #endif /* DEBUG_DISAS */
 
+    cpu->can_do_io = 0;
     next_tb = tcg_qemu_tb_exec(env, tb_ptr);
+    cpu->can_do_io = 1;
     trace_exec_tb_exit((void *) (next_tb & ~TB_EXIT_MASK),
                        next_tb & TB_EXIT_MASK);
 
@@ -543,6 +545,7 @@ int cpu_exec(CPUArchState *env)
             cpu = current_cpu;
             env = cpu->env_ptr;
             cc = CPU_GET_CLASS(cpu);
+            cpu->can_do_io = 1;
 #ifdef TARGET_I386
             x86_cpu = X86_CPU(cpu);
 #endif
