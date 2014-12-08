@@ -1220,6 +1220,49 @@ static Property sdhci_properties[] = {
     DEFINE_PROP_END_OF_LIST(),
 };
 
+static int sdhci_pci_init(PCIDevice *dev)
+{
+    SDHCIState *s = PCI_SDHCI(dev);
+    dev->config[PCI_CLASS_PROG] = 0x01; /* Standard Host supported DMA */
+    dev->config[PCI_INTERRUPT_PIN] = 0x01; /* interrupt pin A */
+    sdhci_initfn(s);
+    s->buf_maxsz = sdhci_get_fifolen(s);
+    s->fifo_buffer = g_malloc0(s->buf_maxsz);
+    s->irq = pci_allocate_irq(dev);
+    memory_region_init_io(&s->iomem, OBJECT(s), &sdhci_mmio_ops, s, "sdhci",
+            SDHC_REGISTERS_MAP_SIZE);
+    pci_register_bar(dev, 0, 0, &s->iomem);
+    return 0;
+}
+
+static void sdhci_pci_exit(PCIDevice *dev)
+{
+    SDHCIState *s = PCI_SDHCI(dev);
+    sdhci_uninitfn(s);
+}
+
+static void sdhci_pci_class_init(ObjectClass *klass, void *data)
+{
+    DeviceClass *dc = DEVICE_CLASS(klass);
+    PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
+
+    k->init = sdhci_pci_init;
+    k->exit = sdhci_pci_exit;
+    k->vendor_id = PCI_VENDOR_ID_REDHAT;
+    k->device_id = PCI_DEVICE_ID_REDHAT_SDHCI;
+    k->class_id = PCI_CLASS_SYSTEM_SDHCI;
+    set_bit(DEVICE_CATEGORY_STORAGE, dc->categories);
+    dc->vmsd = &sdhci_vmstate;
+    dc->props = sdhci_properties;
+}
+
+static const TypeInfo sdhci_pci_info = {
+    .name = TYPE_PCI_SDHCI,
+    .parent = TYPE_PCI_DEVICE,
+    .instance_size = sizeof(SDHCIState),
+    .class_init = sdhci_pci_class_init,
+};
+
 static void sdhci_sysbus_init(Object *obj)
 {
     SDHCIState *s = SYSBUS_SDHCI(obj);
@@ -1265,6 +1308,7 @@ static const TypeInfo sdhci_sysbus_info = {
 
 static void sdhci_register_types(void)
 {
+    type_register_static(&sdhci_pci_info);
     type_register_static(&sdhci_sysbus_info);
 }
 

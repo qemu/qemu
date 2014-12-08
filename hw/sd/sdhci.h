@@ -26,6 +26,7 @@
 #define SDHCI_H
 
 #include "qemu-common.h"
+#include "hw/pci/pci.h"
 #include "hw/sysbus.h"
 #include "hw/sd.h"
 
@@ -232,7 +233,10 @@ enum {
 
 /* SD/MMC host controller state */
 typedef struct SDHCIState {
-    SysBusDevice busdev;
+    union {
+        PCIDevice pcidev;
+        SysBusDevice busdev;
+    };
     SDState *card;
     MemoryRegion iomem;
 
@@ -280,6 +284,9 @@ typedef struct SDHCIState {
 } SDHCIState;
 
 extern const VMStateDescription sdhci_vmstate;
+
+#define TYPE_PCI_SDHCI "sdhci-pci"
+#define PCI_SDHCI(obj) OBJECT_CHECK(SDHCIState, (obj), TYPE_PCI_SDHCI)
 
 #define TYPE_SYSBUS_SDHCI "generic-sdhci"
 #define SYSBUS_SDHCI(obj)                               \
