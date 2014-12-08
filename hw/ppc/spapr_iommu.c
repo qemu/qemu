@@ -173,9 +173,9 @@ sPAPRTCETable *spapr_tce_new_table(DeviceState *owner, uint32_t liobn,
     return tcet;
 }
 
-static void spapr_tce_table_finalize(Object *obj)
+static void spapr_tce_table_unrealize(DeviceState *dev, Error **errp)
 {
-    sPAPRTCETable *tcet = SPAPR_TCE_TABLE(obj);
+    sPAPRTCETable *tcet = SPAPR_TCE_TABLE(dev);
 
     QLIST_REMOVE(tcet, list);
 
@@ -420,6 +420,7 @@ static void spapr_tce_table_class_init(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
     dc->init = spapr_tce_table_realize;
     dc->reset = spapr_tce_reset;
+    dc->unrealize = spapr_tce_table_unrealize;
 
     QLIST_INIT(&spapr_tce_tables);
 
@@ -435,7 +436,6 @@ static TypeInfo spapr_tce_table_info = {
     .parent = TYPE_DEVICE,
     .instance_size = sizeof(sPAPRTCETable),
     .class_init = spapr_tce_table_class_init,
-    .instance_finalize = spapr_tce_table_finalize,
 };
 
 static void register_types(void)
