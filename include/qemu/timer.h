@@ -743,6 +743,7 @@ static inline int64_t get_clock(void)
 #endif
 
 /* icount */
+int64_t cpu_get_icount_raw(void);
 int64_t cpu_get_icount(void);
 int64_t cpu_get_clock(void);
 int64_t cpu_get_clock_offset(void);
