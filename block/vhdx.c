@@ -1111,6 +1111,7 @@ static coroutine_fn int vhdx_co_readv(BlockDriverState *bs, int64_t sector_num,
             case PAYLOAD_BLOCK_NOT_PRESENT: /* fall through */
             case PAYLOAD_BLOCK_UNDEFINED:
             case PAYLOAD_BLOCK_UNMAPPED:
+            case PAYLOAD_BLOCK_UNMAPPED_v095:
             case PAYLOAD_BLOCK_ZERO:
                 /* return zero */
                 qemu_iovec_memset(&hd_qiov, 0, 0, sinfo.bytes_avail);
@@ -1277,10 +1278,10 @@ static coroutine_fn int vhdx_co_writev(BlockDriverState *bs, int64_t sector_num,
                         sectors_to_write += iov2.iov_len >> BDRV_SECTOR_BITS;
                     }
                 }
-
                 /* fall through */
             case PAYLOAD_BLOCK_NOT_PRESENT: /* fall through */
             case PAYLOAD_BLOCK_UNMAPPED:
+            case PAYLOAD_BLOCK_UNMAPPED_v095:
             case PAYLOAD_BLOCK_UNDEFINED:
                 bat_prior_offset = sinfo.file_offset;
                 ret = vhdx_allocate_block(bs, s, &sinfo.file_offset);
