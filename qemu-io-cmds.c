@@ -2048,6 +2048,51 @@ static const cmdinfo_t abort_cmd = {
        .oneline        = "simulate a program crash using abort(3)",
 };
 
+static void sigraise_help(void)
+{
+    printf(
+"\n"
+" raises the given signal\n"
+"\n"
+" Example:\n"
+" 'sigraise %i' - raises SIGTERM\n"
+"\n"
+" Invokes raise(signal), where \"signal\" is the mandatory integer argument\n"
+" given to sigraise.\n"
+"\n", SIGTERM);
+}
+
+static int sigraise_f(BlockDriverState *bs, int argc, char **argv);
+
+static const cmdinfo_t sigraise_cmd = {
+    .name       = "sigraise",
+    .cfunc      = sigraise_f,
+    .argmin     = 1,
+    .argmax     = 1,
+    .flags      = CMD_NOFILE_OK,
+    .args       = "signal",
+    .oneline    = "raises a signal",
+    .help       = sigraise_help,
+};
+
+static int sigraise_f(BlockDriverState *bs, int argc, char **argv)
+{
+    int sig = cvtnum(argv[1]);
+    if (sig < 0) {
+        printf("non-numeric signal number argument -- %s\n", argv[1]);
+        return 0;
+    }
+
+    /* Using raise() to kill this process does not necessarily flush all open
+     * streams. At least stdout and stderr (although the latter should be
+     * non-buffered anyway) should be flushed, though. */
+    fflush(stdout);
+    fflush(stderr);
+
+    raise(sig);
+    return 0;
+}
+
 static void sleep_cb(void *opaque)
 {
     bool *expired = opaque;
@@ -2202,4 +2247,5 @@ static void __attribute((constructor)) init_qemuio_commands(void)
     qemuio_add_command(&wait_break_cmd);
     qemuio_add_command(&abort_cmd);
     qemuio_add_command(&sleep_cmd);
+    qemuio_add_command(&sigraise_cmd);
 }
