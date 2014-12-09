@@ -2,7 +2,7 @@ QA output created by 108
 
 === Repairing an image without any refcount table ===
 
-Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864 
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864
 wrote 65536/65536 bytes at offset 0
 64 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 ERROR cluster 0 refcount=0 reference=1
@@ -22,7 +22,7 @@ read 65536/65536 bytes at offset 0
 
 === Repairing unreferenced data cluster in new refblock area ===
 
-Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864 
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864
 wrote 111104/111104 bytes at offset 0
 108.500 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 131072
@@ -49,7 +49,7 @@ read 512/512 bytes at offset 111104
 
 --- Otherwise clean ---
 
-Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864 
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864
 Repairing refcount block 1 is outside image
 The following inconsistencies were found and repaired:
 
@@ -61,7 +61,7 @@ No errors were found on the image.
 
 --- Refblock is unallocated ---
 
-Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864 
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864
 Repairing refcount block 1 is outside image
 ERROR cluster 16 refcount=0 reference=1
 Rebuilding refcount structure
@@ -78,7 +78,7 @@ No errors were found on the image.
 
 --- Signed overflow after the refblock ---
 
-Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864 
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864
 Repairing refcount block 1 is outside image
 ERROR could not resize image: Invalid argument
 Rebuilding refcount structure
@@ -94,7 +94,7 @@ No errors were found on the image.
 
 --- Unsigned overflow after the refblock ---
 
-Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864 
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864
 Repairing refcount block 1 is outside image
 ERROR could not resize image: Invalid argument
 Rebuilding refcount structure

@@ -1,7 +1,7 @@
 QA output created by 023
 Creating new image; cluster size: 1024
 
-Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=8589934592 
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=8589934592
 Testing empty image
 
 At offset 0:
@@ -5664,7 +5664,7 @@ read 3072/3072 bytes at offset 4295491072
 No errors were found on the image.
 Creating another new image
 
-Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=8589934592 
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=8589934592
 More complex patterns
 
 test2: With offset 0
@@ -5887,7 +5887,7 @@ read 2048/2048 bytes at offset 4295001088
 No errors were found on the image.
 Creating new image; cluster size: 4096
 
-Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=8589934592 
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=8589934592
 Testing empty image
 
 At offset 0:
@@ -12270,7 +12270,7 @@ read 12288/12288 bytes at offset 4301256704
 No errors were found on the image.
 Creating another new image
 
-Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=8589934592 
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=8589934592
 More complex patterns
 
 test2: With offset 0
@@ -12493,7 +12493,7 @@ read 8192/8192 bytes at offset 4295102464
 No errors were found on the image.
 Creating new image; cluster size: 16384
 
-Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=8589934592 
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=8589934592
 Testing empty image
 
 At offset 0:
@@ -18876,7 +18876,7 @@ read 49152/49152 bytes at offset 4395622400
 No errors were found on the image.
 Creating another new image
 
-Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=8589934592 
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=8589934592
 More complex patterns
 
 test2: With offset 0
@@ -19099,7 +19099,7 @@ read 32768/32768 bytes at offset 4295507968
 No errors were found on the image.
 Creating new image; cluster size: 65536
 
-Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=8589934592 
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=8589934592
 Testing empty image
 
 At offset 0:
@@ -25482,7 +25482,7 @@ read 196608/196608 bytes at offset 5905547264
 No errors were found on the image.
 Creating another new image
 
-Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=8589934592 
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=8589934592
 More complex patterns
 
 test2: With offset 0

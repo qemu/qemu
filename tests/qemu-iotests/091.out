@@ -1,5 +1,5 @@
 QA output created by 091
-Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=1073741824 
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=1073741824
 
 === Starting QEMU VM1 ===
 

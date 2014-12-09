@@ -1,5 +1,5 @@
 QA output created by 021
-Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=134217728 
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=134217728
 
 == testing writev -P -1 ==
 -1 is not a valid pattern byte

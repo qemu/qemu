@@ -3,14 +3,14 @@ QA output created by 082
 === create: Options specified more than once ===
 
 Testing: create -f foo -f qcow2 TEST_DIR/t.qcow2 128M
-Formatting 'TEST_DIR/t.qcow2', fmt=qcow2 size=134217728 encryption=off cluster_size=65536 lazy_refcounts=off 
+Formatting 'TEST_DIR/t.qcow2', fmt=qcow2 size=134217728 encryption=off cluster_size=65536 lazy_refcounts=off
 image: TEST_DIR/t.IMGFMT
 file format: IMGFMT
 virtual size: 128M (134217728 bytes)
 cluster_size: 65536
 
 Testing: create -f qcow2 -o cluster_size=4k -o lazy_refcounts=on TEST_DIR/t.qcow2 128M
-Formatting 'TEST_DIR/t.qcow2', fmt=qcow2 size=134217728 encryption=off cluster_size=4096 lazy_refcounts=on 
+Formatting 'TEST_DIR/t.qcow2', fmt=qcow2 size=134217728 encryption=off cluster_size=4096 lazy_refcounts=on
 image: TEST_DIR/t.IMGFMT
 file format: IMGFMT
 virtual size: 128M (134217728 bytes)
@@ -21,7 +21,7 @@ Format specific information:
     corrupt: false
 
 Testing: create -f qcow2 -o cluster_size=4k -o lazy_refcounts=on -o cluster_size=8k TEST_DIR/t.qcow2 128M
-Formatting 'TEST_DIR/t.qcow2', fmt=qcow2 size=134217728 encryption=off cluster_size=8192 lazy_refcounts=on 
+Formatting 'TEST_DIR/t.qcow2', fmt=qcow2 size=134217728 encryption=off cluster_size=8192 lazy_refcounts=on
 image: TEST_DIR/t.IMGFMT
 file format: IMGFMT
 virtual size: 128M (134217728 bytes)
@@ -32,7 +32,7 @@ Format specific information:
     corrupt: false
 
 Testing: create -f qcow2 -o cluster_size=4k,cluster_size=8k TEST_DIR/t.qcow2 128M
-Formatting 'TEST_DIR/t.qcow2', fmt=qcow2 size=134217728 encryption=off cluster_size=8192 lazy_refcounts=off 
+Formatting 'TEST_DIR/t.qcow2', fmt=qcow2 size=134217728 encryption=off cluster_size=8192 lazy_refcounts=off
 image: TEST_DIR/t.IMGFMT
 file format: IMGFMT
 virtual size: 128M (134217728 bytes)
@@ -137,10 +137,10 @@ lazy_refcounts   Postpone refcount updates
 nocow            Turn off copy-on-write (valid only on btrfs)
 
 Testing: create -f qcow2 -o backing_file=TEST_DIR/t.qcow2,,help TEST_DIR/t.qcow2 128M
-Formatting 'TEST_DIR/t.qcow2', fmt=qcow2 size=134217728 backing_file='TEST_DIR/t.qcow2,help' encryption=off cluster_size=65536 lazy_refcounts=off 
+Formatting 'TEST_DIR/t.qcow2', fmt=qcow2 size=134217728 backing_file='TEST_DIR/t.qcow2,help' encryption=off cluster_size=65536 lazy_refcounts=off
 
 Testing: create -f qcow2 -o backing_file=TEST_DIR/t.qcow2,,? TEST_DIR/t.qcow2 128M
-Formatting 'TEST_DIR/t.qcow2', fmt=qcow2 size=134217728 backing_file='TEST_DIR/t.qcow2,?' encryption=off cluster_size=65536 lazy_refcounts=off 
+Formatting 'TEST_DIR/t.qcow2', fmt=qcow2 size=134217728 backing_file='TEST_DIR/t.qcow2,?' encryption=off cluster_size=65536 lazy_refcounts=off
 
 Testing: create -f qcow2 -o backing_file=TEST_DIR/t.qcow2, -o help TEST_DIR/t.qcow2 128M
 qemu-img: Invalid option list: backing_file=TEST_DIR/t.qcow2,
@@ -169,7 +169,7 @@ size             Virtual disk size
 === convert: Options specified more than once ===
 
 Testing: create -f qcow2 TEST_DIR/t.qcow2 128M
-Formatting 'TEST_DIR/t.qcow2', fmt=qcow2 size=134217728 encryption=off cluster_size=65536 lazy_refcounts=off 
+Formatting 'TEST_DIR/t.qcow2', fmt=qcow2 size=134217728 encryption=off cluster_size=65536 lazy_refcounts=off
 
 Testing: convert -f foo -f qcow2 TEST_DIR/t.qcow2 TEST_DIR/t.qcow2.base
 image: TEST_DIR/t.IMGFMT.base

@@ -1,5 +1,5 @@
 QA output created by 033
-Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=134217728 
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=134217728
 
 == preparing image ==
 wrote 1024/1024 bytes at offset 512

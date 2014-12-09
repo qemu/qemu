@@ -1,5 +1,5 @@
 QA output created by 008
-Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=134217728 
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=134217728
 
 == reading whole image ==
 read 134217728/134217728 bytes at offset 0
