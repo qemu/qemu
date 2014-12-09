@@ -3440,7 +3440,7 @@ static void gen_compute_branch(DisasContext *ctx, uint32_t opc, int r1,
         break;
     case OPCM_32_BRR_LOOP:
         if (MASK_OP_BRR_OP2(ctx->opcode) == OPC2_32_BRR_LOOP) {
-            gen_loop(ctx, r1, offset * 2);
+            gen_loop(ctx, r2, offset * 2);
         } else {
             /* OPC2_32_BRR_LOOPU */
             gen_goto_tb(ctx, 0, ctx->pc + offset * 2);
