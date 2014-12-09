@@ -385,6 +385,20 @@ static VncDisplay *vnc_display_find(const char *id)
     return NULL;
 }
 
+static VncClientInfoList *qmp_query_client_list(VncDisplay *vd)
+{
+    VncClientInfoList *cinfo, *prev = NULL;
+    VncState *client;
+
+    QTAILQ_FOREACH(client, &vd->clients, next) {
+        cinfo = g_new0(VncClientInfoList, 1);
+        cinfo->value = qmp_query_vnc_client(client);
+        cinfo->next = prev;
+        prev = cinfo;
+    }
+    return prev;
+}
+
 VncInfo *qmp_query_vnc(Error **errp)
 {
     VncInfo *info = g_malloc0(sizeof(*info));
@@ -393,30 +407,16 @@ VncInfo *qmp_query_vnc(Error **errp)
     if (vd == NULL || vd->display == NULL) {
         info->enabled = false;
     } else {
-        VncClientInfoList *cur_item = NULL;
         struct sockaddr_storage sa;
         socklen_t salen = sizeof(sa);
         char host[NI_MAXHOST];
         char serv[NI_MAXSERV];
-        VncState *client;
 
         info->enabled = true;
 
         /* for compatibility with the original command */
         info->has_clients = true;
-
-        QTAILQ_FOREACH(client, &vd->clients, next) {
-            VncClientInfoList *cinfo = g_malloc0(sizeof(*info));
-            cinfo->value = qmp_query_vnc_client(client);
-
-            /* XXX: waiting for the qapi to support GSList */
-            if (!cur_item) {
-                info->clients = cur_item = cinfo;
-            } else {
-                cur_item->next = cinfo;
-                cur_item = cinfo;
-            }
-        }
+        info->clients = qmp_query_client_list(vd);
 
         if (vd->lsock == -1) {
             return info;
