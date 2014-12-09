@@ -124,7 +124,7 @@ QDict *qemu_opts_to_qdict(QemuOpts *opts, QDict *qdict);
 void qemu_opts_absorb_qdict(QemuOpts *opts, QDict *qdict, Error **errp);
 
 typedef int (*qemu_opts_loopfunc)(QemuOpts *opts, void *opaque);
-void qemu_opts_print(QemuOpts *opts);
+void qemu_opts_print(QemuOpts *opts, const char *sep);
 int qemu_opts_foreach(QemuOptsList *list, qemu_opts_loopfunc func, void *opaque,
                       int abort_on_failure);
 void qemu_opts_print_help(QemuOptsList *list);
