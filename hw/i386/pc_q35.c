@@ -284,6 +284,20 @@ static void pc_q35_init(MachineState *machine)
 
 static void pc_compat_2_2(MachineState *machine)
 {
+    x86_cpu_compat_set_features("kvm64", FEAT_1_EDX, 0, CPUID_VME);
+    x86_cpu_compat_set_features("kvm32", FEAT_1_EDX, 0, CPUID_VME);
+    x86_cpu_compat_set_features("Conroe", FEAT_1_EDX, 0, CPUID_VME);
+    x86_cpu_compat_set_features("Penryn", FEAT_1_EDX, 0, CPUID_VME);
+    x86_cpu_compat_set_features("Nehalem", FEAT_1_EDX, 0, CPUID_VME);
+    x86_cpu_compat_set_features("Westmere", FEAT_1_EDX, 0, CPUID_VME);
+    x86_cpu_compat_set_features("SandyBridge", FEAT_1_EDX, 0, CPUID_VME);
+    x86_cpu_compat_set_features("Haswell", FEAT_1_EDX, 0, CPUID_VME);
+    x86_cpu_compat_set_features("Broadwell", FEAT_1_EDX, 0, CPUID_VME);
+    x86_cpu_compat_set_features("Opteron_G1", FEAT_1_EDX, 0, CPUID_VME);
+    x86_cpu_compat_set_features("Opteron_G2", FEAT_1_EDX, 0, CPUID_VME);
+    x86_cpu_compat_set_features("Opteron_G3", FEAT_1_EDX, 0, CPUID_VME);
+    x86_cpu_compat_set_features("Opteron_G4", FEAT_1_EDX, 0, CPUID_VME);
+    x86_cpu_compat_set_features("Opteron_G5", FEAT_1_EDX, 0, CPUID_VME);
 }
 
 static void pc_compat_2_1(MachineState *machine)
