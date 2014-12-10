@@ -388,7 +388,6 @@ hwaddr cpu_mips_translate_address(CPUMIPSState *env, target_ulong address, int r
         return physical;
     }
 }
-#endif
 
 static const char * const excp_names[EXCP_LAST + 1] = {
     [EXCP_RESET] = "reset",
@@ -429,6 +428,7 @@ static const char * const excp_names[EXCP_LAST + 1] = {
     [EXCP_MSADIS] = "MSA disabled",
     [EXCP_MSAFPE] = "MSA floating point",
 };
+#endif
 
 target_ulong exception_resume_pc (CPUMIPSState *env)
 {
