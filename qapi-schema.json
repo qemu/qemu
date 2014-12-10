@@ -672,12 +672,15 @@
 #
 # @family: address family
 #
+# @websocket: true in case the socket is a websocket (since 2.3).
+#
 # Since: 2.1
 ##
 { 'type': 'VncBasicInfo',
   'data': { 'host': 'str',
             'service': 'str',
-            'family': 'NetworkAddressFamily' } }
+            'family': 'NetworkAddressFamily',
+            'websocket': 'bool' } }
 
 ##
 # @VncServerInfo

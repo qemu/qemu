@@ -353,6 +353,9 @@ static VncClientInfo *qmp_query_vnc_client(const VncState *client)
     info->base->host = g_strdup(host);
     info->base->service = g_strdup(serv);
     info->base->family = inet_netfamily(sa.ss_family);
+#ifdef CONFIG_VNC_WS
+    info->base->websocket = client->websocket;
+#endif
 
 #ifdef CONFIG_VNC_TLS
     if (client->tls.session && client->tls.dname) {
@@ -457,6 +460,7 @@ out_error:
 }
 
 static VncBasicInfoList *qmp_query_server_entry(int socket,
+                                                bool websocket,
                                                 VncBasicInfoList *prev)
 {
     VncBasicInfoList *list;
@@ -477,6 +481,7 @@ static VncBasicInfoList *qmp_query_server_entry(int socket,
     info->host = g_strdup(host);
     info->service = g_strdup(serv);
     info->family = inet_netfamily(sa.ss_family);
+    info->websocket = websocket;
 
     list = g_new0(VncBasicInfoList, 1);
     list->value = info;
@@ -572,12 +577,13 @@ VncInfo2List *qmp_query_vnc_servers(Error **errp)
             info->display = g_strdup(dev->id);
         }
         if (vd->lsock != -1) {
-            info->server = qmp_query_server_entry(vd->lsock,
+            info->server = qmp_query_server_entry(vd->lsock, false,
                                                   info->server);
         }
 #ifdef CONFIG_VNC_WS
         if (vd->lwebsock != -1) {
-            /* TODO */
+            info->server = qmp_query_server_entry(vd->lwebsock, true,
+                                                  info->server);
         }
 #endif
 
@@ -3305,10 +3311,13 @@ void vnc_display_open(const char *id, Error **errp)
 {
     VncDisplay *vs = vnc_display_find(id);
     QemuOpts *opts = qemu_opts_find(&qemu_vnc_opts, id);
-    const char *display, *websocket, *share, *device_id;
+    const char *display, *share, *device_id;
     QemuConsole *con;
     int password = 0;
     int reverse = 0;
+#ifdef CONFIG_VNC_WS
+    const char *websocket;
+#endif
 #ifdef CONFIG_VNC_TLS
     int tls = 0, x509 = 0;
     const char *path;
