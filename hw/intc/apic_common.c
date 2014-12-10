@@ -178,6 +178,7 @@ bool apic_next_timer(APICCommonState *s, int64_t current_time)
 void apic_init_reset(DeviceState *dev)
 {
     APICCommonState *s = APIC_COMMON(dev);
+    APICCommonClass *info = APIC_COMMON_GET_CLASS(s);
     int i;
 
     if (!s) {
@@ -206,6 +207,10 @@ void apic_init_reset(DeviceState *dev)
         timer_del(s->timer);
     }
     s->timer_expiry = -1;
+
+    if (info->reset) {
+        info->reset(s);
+    }
 }
 
 void apic_designate_bsp(DeviceState *dev)
