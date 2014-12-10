@@ -1882,10 +1882,8 @@ static inline void gen_r6_cmp_ ## fmt(DisasContext * ctx, int n,        \
 {                                                                       \
     TCGv_i ## bits fp0 = tcg_temp_new_i ## bits();                      \
     TCGv_i ## bits fp1 = tcg_temp_new_i ## bits();                      \
-    switch (ifmt) {                                                     \
-    case FMT_D:                                                         \
+    if (ifmt == FMT_D) {                                                \
         check_cp1_registers(ctx, fs | ft | fd);                         \
-        break;                                                          \
     }                                                                   \
     gen_ldcmp_fpr ## bits(ctx, fp0, fs);                                \
     gen_ldcmp_fpr ## bits(ctx, fp1, ft);                                \
