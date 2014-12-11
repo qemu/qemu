@@ -711,20 +711,20 @@ static uint32_t virtio_blk_get_features(VirtIODevice *vdev, uint32_t features)
 {
     VirtIOBlock *s = VIRTIO_BLK(vdev);
 
-    features |= (1 << VIRTIO_BLK_F_SEG_MAX);
-    features |= (1 << VIRTIO_BLK_F_GEOMETRY);
-    features |= (1 << VIRTIO_BLK_F_TOPOLOGY);
-    features |= (1 << VIRTIO_BLK_F_BLK_SIZE);
-    features |= (1 << VIRTIO_BLK_F_SCSI);
+    virtio_add_feature(&features, VIRTIO_BLK_F_SEG_MAX);
+    virtio_add_feature(&features, VIRTIO_BLK_F_GEOMETRY);
+    virtio_add_feature(&features, VIRTIO_BLK_F_TOPOLOGY);
+    virtio_add_feature(&features, VIRTIO_BLK_F_BLK_SIZE);
+    virtio_add_feature(&features, VIRTIO_BLK_F_SCSI);
 
     if (s->conf.config_wce) {
-        features |= (1 << VIRTIO_BLK_F_CONFIG_WCE);
+        virtio_add_feature(&features, VIRTIO_BLK_F_CONFIG_WCE);
     }
     if (blk_enable_write_cache(s->blk)) {
-        features |= (1 << VIRTIO_BLK_F_WCE);
+        virtio_add_feature(&features, VIRTIO_BLK_F_WCE);
     }
     if (blk_is_read_only(s->blk)) {
-        features |= 1 << VIRTIO_BLK_F_RO;
+        virtio_add_feature(&features, VIRTIO_BLK_F_RO);
     }
 
     return features;

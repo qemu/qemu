@@ -743,8 +743,8 @@ static int virtio_ccw_device_init(VirtioCcwDevice *dev, VirtIODevice *vdev)
     dev->host_features[0] = virtio_bus_get_vdev_features(&dev->bus,
                                                          dev->host_features[0]);
 
-    dev->host_features[0] |= 0x1 << VIRTIO_F_NOTIFY_ON_EMPTY;
-    dev->host_features[0] |= 0x1 << VIRTIO_F_BAD_FEATURE;
+    virtio_add_feature(&dev->host_features[0], VIRTIO_F_NOTIFY_ON_EMPTY);
+    virtio_add_feature(&dev->host_features[0], VIRTIO_F_BAD_FEATURE);
 
     css_generate_sch_crws(sch->cssid, sch->ssid, sch->schid,
                           parent->hotplugged, 1);

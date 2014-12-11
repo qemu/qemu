@@ -446,23 +446,23 @@ static uint32_t virtio_net_get_features(VirtIODevice *vdev, uint32_t features)
     VirtIONet *n = VIRTIO_NET(vdev);
     NetClientState *nc = qemu_get_queue(n->nic);
 
-    features |= (1 << VIRTIO_NET_F_MAC);
+    virtio_add_feature(&features, VIRTIO_NET_F_MAC);
 
     if (!peer_has_vnet_hdr(n)) {
-        features &= ~(0x1 << VIRTIO_NET_F_CSUM);
-        features &= ~(0x1 << VIRTIO_NET_F_HOST_TSO4);
-        features &= ~(0x1 << VIRTIO_NET_F_HOST_TSO6);
-        features &= ~(0x1 << VIRTIO_NET_F_HOST_ECN);
+        virtio_clear_feature(&features, VIRTIO_NET_F_CSUM);
+        virtio_clear_feature(&features, VIRTIO_NET_F_HOST_TSO4);
+        virtio_clear_feature(&features, VIRTIO_NET_F_HOST_TSO6);
+        virtio_clear_feature(&features, VIRTIO_NET_F_HOST_ECN);
 
-        features &= ~(0x1 << VIRTIO_NET_F_GUEST_CSUM);
-        features &= ~(0x1 << VIRTIO_NET_F_GUEST_TSO4);
-        features &= ~(0x1 << VIRTIO_NET_F_GUEST_TSO6);
-        features &= ~(0x1 << VIRTIO_NET_F_GUEST_ECN);
+        virtio_clear_feature(&features, VIRTIO_NET_F_GUEST_CSUM);
+        virtio_clear_feature(&features, VIRTIO_NET_F_GUEST_TSO4);
+        virtio_clear_feature(&features, VIRTIO_NET_F_GUEST_TSO6);
+        virtio_clear_feature(&features, VIRTIO_NET_F_GUEST_ECN);
     }
 
     if (!peer_has_vnet_hdr(n) || !peer_has_ufo(n)) {
-        features &= ~(0x1 << VIRTIO_NET_F_GUEST_UFO);
-        features &= ~(0x1 << VIRTIO_NET_F_HOST_UFO);
+        virtio_clear_feature(&features, VIRTIO_NET_F_GUEST_UFO);
+        virtio_clear_feature(&features, VIRTIO_NET_F_HOST_UFO);
     }
 
     if (!get_vhost_net(nc->peer)) {
@@ -477,11 +477,11 @@ static uint32_t virtio_net_bad_features(VirtIODevice *vdev)
 
     /* Linux kernel 2.6.25.  It understood MAC (as everyone must),
      * but also these: */
-    features |= (1 << VIRTIO_NET_F_MAC);
-    features |= (1 << VIRTIO_NET_F_CSUM);
-    features |= (1 << VIRTIO_NET_F_HOST_TSO4);
-    features |= (1 << VIRTIO_NET_F_HOST_TSO6);
-    features |= (1 << VIRTIO_NET_F_HOST_ECN);
+    virtio_add_feature(&features, VIRTIO_NET_F_MAC);
+    virtio_add_feature(&features, VIRTIO_NET_F_CSUM);
+    virtio_add_feature(&features, VIRTIO_NET_F_HOST_TSO4);
+    virtio_add_feature(&features, VIRTIO_NET_F_HOST_TSO6);
+    virtio_add_feature(&features, VIRTIO_NET_F_HOST_ECN);
 
     return features;
 }
@@ -1552,7 +1552,7 @@ static void virtio_net_guest_notifier_mask(VirtIODevice *vdev, int idx,
 void virtio_net_set_config_size(VirtIONet *n, uint32_t host_features)
 {
     int i, config_size = 0;
-    host_features |= (1 << VIRTIO_NET_F_MAC);
+    virtio_add_feature(&host_features, VIRTIO_NET_F_MAC);
     for (i = 0; feature_sizes[i].flags != 0; i++) {
         if (host_features & feature_sizes[i].flags) {
             config_size = MAX(feature_sizes[i].end, config_size);

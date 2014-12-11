@@ -219,6 +219,18 @@ void virtio_queue_set_host_notifier_fd_handler(VirtQueue *vq, bool assign,
 void virtio_queue_notify_vq(VirtQueue *vq);
 void virtio_irq(VirtQueue *vq);
 
+static inline void virtio_add_feature(uint32_t *features, unsigned int fbit)
+{
+    assert(fbit < 32);
+    *features |= (1 << fbit);
+}
+
+static inline void virtio_clear_feature(uint32_t *features, unsigned int fbit)
+{
+    assert(fbit < 32);
+    *features &= ~(1 << fbit);
+}
+
 static inline bool virtio_is_big_endian(VirtIODevice *vdev)
 {
     assert(vdev->device_endian != VIRTIO_DEVICE_ENDIAN_UNKNOWN);
