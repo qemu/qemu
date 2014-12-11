@@ -3296,23 +3296,59 @@ static void add_cpreg_to_hashtable(ARMCPU *cpu, const ARMCPRegInfo *r,
     uint32_t *key = g_new(uint32_t, 1);
     ARMCPRegInfo *r2 = g_memdup(r, sizeof(ARMCPRegInfo));
     int is64 = (r->type & ARM_CP_64BIT) ? 1 : 0;
-    int ns = (r->secure & ARM_CP_SECSTATE_NS) ? 1 : 0;
-    if (r->state == ARM_CP_STATE_BOTH && state == ARM_CP_STATE_AA32) {
-        /* The AArch32 view of a shared register sees the lower 32 bits
-         * of a 64 bit backing field. It is not migratable as the AArch64
-         * view handles that. AArch64 also handles reset.
-         * We assume it is a cp15 register if the .cp field is left unset.
+    int ns = (secstate & ARM_CP_SECSTATE_NS) ? 1 : 0;
+
+    /* Reset the secure state to the specific incoming state.  This is
+     * necessary as the register may have been defined with both states.
+     */
+    r2->secure = secstate;
+
+    if (r->bank_fieldoffsets[0] && r->bank_fieldoffsets[1]) {
+        /* Register is banked (using both entries in array).
+         * Overwriting fieldoffset as the array is only used to define
+         * banked registers but later only fieldoffset is used.
          */
-        if (r2->cp == 0) {
-            r2->cp = 15;
+        r2->fieldoffset = r->bank_fieldoffsets[ns];
+    }
+
+    if (state == ARM_CP_STATE_AA32) {
+        if (r->bank_fieldoffsets[0] && r->bank_fieldoffsets[1]) {
+            /* If the register is banked then we don't need to migrate or
+             * reset the 32-bit instance in certain cases:
+             *
+             * 1) If the register has both 32-bit and 64-bit instances then we
+             *    can count on the 64-bit instance taking care of the
+             *    non-secure bank.
+             * 2) If ARMv8 is enabled then we can count on a 64-bit version
+             *    taking care of the secure bank.  This requires that separate
+             *    32 and 64-bit definitions are provided.
+             */
+            if ((r->state == ARM_CP_STATE_BOTH && ns) ||
+                (arm_feature(&cpu->env, ARM_FEATURE_V8) && !ns)) {
+                r2->type |= ARM_CP_NO_MIGRATE;
+                r2->resetfn = arm_cp_reset_ignore;
+            }
+        } else if ((secstate != r->secure) && !ns) {
+            /* The register is not banked so we only want to allow migration of
+             * the non-secure instance.
+             */
+            r2->type |= ARM_CP_NO_MIGRATE;
+            r2->resetfn = arm_cp_reset_ignore;
         }
-        r2->type |= ARM_CP_NO_MIGRATE;
-        r2->resetfn = arm_cp_reset_ignore;
+
+        if (r->state == ARM_CP_STATE_BOTH) {
+            /* We assume it is a cp15 register if the .cp field is left unset.
+             */
+            if (r2->cp == 0) {
+                r2->cp = 15;
+            }
+
 #ifdef HOST_WORDS_BIGENDIAN
-        if (r2->fieldoffset) {
-            r2->fieldoffset += sizeof(uint32_t);
-        }
+            if (r2->fieldoffset) {
+                r2->fieldoffset += sizeof(uint32_t);
+            }
 #endif
+        }
     }
     if (state == ARM_CP_STATE_AA64) {
         /* To allow abbreviation of ARMCPRegInfo
@@ -3461,10 +3497,14 @@ void define_one_arm_cp_reg_with_opaque(ARMCPU *cpu,
      */
     if (!(r->type & (ARM_CP_SPECIAL|ARM_CP_CONST))) {
         if (r->access & PL3_R) {
-            assert(r->fieldoffset || r->readfn);
+            assert((r->fieldoffset ||
+                   (r->bank_fieldoffsets[0] && r->bank_fieldoffsets[1])) ||
+                   r->readfn);
         }
         if (r->access & PL3_W) {
-            assert(r->fieldoffset || r->writefn);
+            assert((r->fieldoffset ||
+                   (r->bank_fieldoffsets[0] && r->bank_fieldoffsets[1])) ||
+                   r->writefn);
         }
     }
     /* Bad type field probably means missing sentinel at end of reg list */
@@ -3477,8 +3517,32 @@ void define_one_arm_cp_reg_with_opaque(ARMCPU *cpu,
                     if (r->state != state && r->state != ARM_CP_STATE_BOTH) {
                         continue;
                     }
-                    add_cpreg_to_hashtable(cpu, r, opaque, state,
-                                           ARM_CP_SECSTATE_NS, crm, opc1, opc2);
+                    if (state == ARM_CP_STATE_AA32) {
+                        /* Under AArch32 CP registers can be common
+                         * (same for secure and non-secure world) or banked.
+                         */
+                        switch (r->secure) {
+                        case ARM_CP_SECSTATE_S:
+                        case ARM_CP_SECSTATE_NS:
+                            add_cpreg_to_hashtable(cpu, r, opaque, state,
+                                                   r->secure, crm, opc1, opc2);
+                            break;
+                        default:
+                            add_cpreg_to_hashtable(cpu, r, opaque, state,
+                                                   ARM_CP_SECSTATE_S,
+                                                   crm, opc1, opc2);
+                            add_cpreg_to_hashtable(cpu, r, opaque, state,
+                                                   ARM_CP_SECSTATE_NS,
+                                                   crm, opc1, opc2);
+                            break;
+                        }
+                    } else {
+                        /* AArch64 registers get mapped to non-secure instance
+                         * of AArch32 */
+                        add_cpreg_to_hashtable(cpu, r, opaque, state,
+                                               ARM_CP_SECSTATE_NS,
+                                               crm, opc1, opc2);
+                    }
                 }
             }
         }
