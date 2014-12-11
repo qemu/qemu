@@ -40,7 +40,7 @@ struct qemu_laiocb {
 
 typedef struct {
     int plugged;
-    unsigned int idx;
+    unsigned int n;
     bool blocked;
     QSIMPLEQ_HEAD(, qemu_laiocb) pending;
 } LaioQueue;
@@ -180,7 +180,7 @@ static void ioq_init(LaioQueue *io_q)
 {
     QSIMPLEQ_INIT(&io_q->pending);
     io_q->plugged = 0;
-    io_q->idx = 0;
+    io_q->n = 0;
     io_q->blocked = false;
 }
 
@@ -208,11 +208,11 @@ static int ioq_submit(struct qemu_laio_state *s)
         }
 
         for (i = 0; i < ret; i++) {
-            s->io_q.idx--;
+            s->io_q.n--;
             QSIMPLEQ_REMOVE_HEAD(&s->io_q.pending, next);
         }
     } while (ret == len && !QSIMPLEQ_EMPTY(&s->io_q.pending));
-    s->io_q.blocked = (s->io_q.idx > 0);
+    s->io_q.blocked = (s->io_q.n > 0);
 
     return ret;
 }
@@ -276,9 +276,9 @@ BlockAIOCB *laio_submit(BlockDriverState *bs, void *aio_ctx, int fd,
     io_set_eventfd(&laiocb->iocb, event_notifier_get_fd(&s->e));
 
     QSIMPLEQ_INSERT_TAIL(&s->io_q.pending, laiocb, next);
-    s->io_q.idx++;
+    s->io_q.n++;
     if (!s->io_q.blocked &&
-        (!s->io_q.plugged || s->io_q.idx >= MAX_QUEUED_IO)) {
+        (!s->io_q.plugged || s->io_q.n >= MAX_QUEUED_IO)) {
         ioq_submit(s);
     }
     return &laiocb->common;
