@@ -559,7 +559,8 @@ static const ARMCPRegInfo v6_cp_reginfo[] = {
       .access = PL0_W, .type = ARM_CP_NOP },
     { .name = "IFAR", .cp = 15, .crn = 6, .crm = 0, .opc1 = 0, .opc2 = 2,
       .access = PL1_RW,
-      .fieldoffset = offsetofhigh32(CPUARMState, cp15.far_el[1]),
+      .bank_fieldoffsets = { offsetof(CPUARMState, cp15.ifar_s),
+                             offsetof(CPUARMState, cp15.ifar_ns) },
       .resetvalue = 0, },
     /* Watchpoint Fault Address Register : should actually only be present
      * for 1136, 1176, 11MPCore.
@@ -1682,11 +1683,14 @@ static const ARMCPRegInfo vmsa_cp_reginfo[] = {
       .resetfn = arm_cp_reset_ignore, .raw_writefn = vmsa_ttbcr_raw_write,
       .bank_fieldoffsets = { offsetoflow32(CPUARMState, cp15.tcr_el[3]),
                              offsetoflow32(CPUARMState, cp15.tcr_el[1])} },
-    /* 64-bit FAR; this entry also gives us the AArch32 DFAR */
-    { .name = "FAR_EL1", .state = ARM_CP_STATE_BOTH,
+    { .name = "FAR_EL1", .state = ARM_CP_STATE_AA64,
       .opc0 = 3, .crn = 6, .crm = 0, .opc1 = 0, .opc2 = 0,
       .access = PL1_RW, .fieldoffset = offsetof(CPUARMState, cp15.far_el[1]),
       .resetvalue = 0, },
+    { .name = "DFAR", .cp = 15, .opc1 = 0, .crn = 6, .crm = 0, .opc2 = 0,
+      .access = PL1_RW, .resetvalue = 0,
+      .bank_fieldoffsets = { offsetof(CPUARMState, cp15.dfar_s),
+                             offsetof(CPUARMState, cp15.dfar_ns) } },
     REGINFO_SENTINEL
 };
 
@@ -4330,8 +4334,7 @@ void arm_cpu_do_interrupt(CPUState *cs)
         /* Fall through to prefetch abort.  */
     case EXCP_PREFETCH_ABORT:
         A32_BANKED_CURRENT_REG_SET(env, ifsr, env->exception.fsr);
-        env->cp15.far_el[1] = deposit64(env->cp15.far_el[1], 32, 32,
-                                        env->exception.vaddress);
+        A32_BANKED_CURRENT_REG_SET(env, ifar, env->exception.vaddress);
         qemu_log_mask(CPU_LOG_INT, "...with IFSR 0x%x IFAR 0x%x\n",
                       env->exception.fsr, (uint32_t)env->exception.vaddress);
         new_mode = ARM_CPU_MODE_ABT;
@@ -4341,8 +4344,7 @@ void arm_cpu_do_interrupt(CPUState *cs)
         break;
     case EXCP_DATA_ABORT:
         A32_BANKED_CURRENT_REG_SET(env, dfsr, env->exception.fsr);
-        env->cp15.far_el[1] = deposit64(env->cp15.far_el[1], 0, 32,
-                                        env->exception.vaddress);
+        A32_BANKED_CURRENT_REG_SET(env, dfar, env->exception.vaddress);
         qemu_log_mask(CPU_LOG_INT, "...with DFSR 0x%x DFAR 0x%x\n",
                       env->exception.fsr,
                       (uint32_t)env->exception.vaddress);

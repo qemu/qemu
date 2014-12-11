@@ -261,7 +261,24 @@ typedef struct CPUARMState {
             uint64_t esr_el[4];
         };
         uint32_t c6_region[8]; /* MPU base/size registers.  */
-        uint64_t far_el[4]; /* Fault address registers.  */
+        union { /* Fault address registers. */
+            struct {
+                uint64_t _unused_far0;
+#ifdef HOST_WORDS_BIGENDIAN
+                uint32_t ifar_ns;
+                uint32_t dfar_ns;
+                uint32_t ifar_s;
+                uint32_t dfar_s;
+#else
+                uint32_t dfar_ns;
+                uint32_t ifar_ns;
+                uint32_t dfar_s;
+                uint32_t ifar_s;
+#endif
+                uint64_t _unused_far3;
+            };
+            uint64_t far_el[4];
+        };
         uint64_t par_el1;  /* Translation result. */
         uint32_t c9_insn; /* Cache lockdown registers.  */
         uint32_t c9_data;
