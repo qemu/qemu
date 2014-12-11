@@ -733,7 +733,6 @@ static uint32_t virtio_blk_get_features(VirtIODevice *vdev, uint32_t features)
 static void virtio_blk_set_status(VirtIODevice *vdev, uint8_t status)
 {
     VirtIOBlock *s = VIRTIO_BLK(vdev);
-    uint32_t features;
 
     if (s->dataplane && !(status & (VIRTIO_CONFIG_S_DRIVER |
                                     VIRTIO_CONFIG_S_DRIVER_OK))) {
@@ -743,8 +742,6 @@ static void virtio_blk_set_status(VirtIODevice *vdev, uint8_t status)
     if (!(status & VIRTIO_CONFIG_S_DRIVER_OK)) {
         return;
     }
-
-    features = vdev->guest_features;
 
     /* A guest that supports VIRTIO_BLK_F_CONFIG_WCE must be able to send
      * cache flushes.  Thus, the "auto writethrough" behavior is never
@@ -761,10 +758,10 @@ static void virtio_blk_set_status(VirtIODevice *vdev, uint8_t status)
      *
      * s->blk would erroneously be placed in writethrough mode.
      */
-    if (!(features & (1 << VIRTIO_BLK_F_CONFIG_WCE))) {
+    if (!virtio_has_feature(vdev, VIRTIO_BLK_F_CONFIG_WCE)) {
         aio_context_acquire(blk_get_aio_context(s->blk));
         blk_set_enable_write_cache(s->blk,
-                                   !!(features & (1 << VIRTIO_BLK_F_WCE)));
+                                   virtio_has_feature(vdev, VIRTIO_BLK_F_WCE));
         aio_context_release(blk_get_aio_context(s->blk));
     }
 }

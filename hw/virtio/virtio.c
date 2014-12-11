@@ -217,7 +217,7 @@ static inline void vring_set_avail_event(VirtQueue *vq, uint16_t val)
 void virtio_queue_set_notification(VirtQueue *vq, int enable)
 {
     vq->notification = enable;
-    if (vq->vdev->guest_features & (1 << VIRTIO_RING_F_EVENT_IDX)) {
+    if (virtio_has_feature(vq->vdev, VIRTIO_RING_F_EVENT_IDX)) {
         vring_set_avail_event(vq, vring_avail_idx(vq));
     } else if (enable) {
         vring_used_flags_unset_bit(vq, VRING_USED_F_NO_NOTIFY);
@@ -468,7 +468,7 @@ int virtqueue_pop(VirtQueue *vq, VirtQueueElement *elem)
     max = vq->vring.num;
 
     i = head = virtqueue_get_head(vq, vq->last_avail_idx++);
-    if (vdev->guest_features & (1 << VIRTIO_RING_F_EVENT_IDX)) {
+    if (virtio_has_feature(vdev, VIRTIO_RING_F_EVENT_IDX)) {
         vring_set_avail_event(vq, vq->last_avail_idx);
     }
 
@@ -826,12 +826,12 @@ static bool vring_notify(VirtIODevice *vdev, VirtQueue *vq)
     /* We need to expose used array entries before checking used event. */
     smp_mb();
     /* Always notify when queue is empty (when feature acknowledge) */
-    if (((vdev->guest_features & (1 << VIRTIO_F_NOTIFY_ON_EMPTY)) &&
-         !vq->inuse && vring_avail_idx(vq) == vq->last_avail_idx)) {
+    if (virtio_has_feature(vdev, VIRTIO_F_NOTIFY_ON_EMPTY) &&
+        !vq->inuse && vring_avail_idx(vq) == vq->last_avail_idx) {
         return true;
     }
 
-    if (!(vdev->guest_features & (1 << VIRTIO_RING_F_EVENT_IDX))) {
+    if (!virtio_has_feature(vdev, VIRTIO_RING_F_EVENT_IDX)) {
         return !(vring_avail_flags(vq) & VRING_AVAIL_F_NO_INTERRUPT);
     }
 

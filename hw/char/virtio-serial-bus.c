@@ -76,7 +76,7 @@ static VirtIOSerialPort *find_port_by_name(char *name)
 static bool use_multiport(VirtIOSerial *vser)
 {
     VirtIODevice *vdev = VIRTIO_DEVICE(vser);
-    return vdev->guest_features & (1 << VIRTIO_CONSOLE_F_MULTIPORT);
+    return virtio_has_feature(vdev, VIRTIO_CONSOLE_F_MULTIPORT);
 }
 
 static size_t write_to_port(VirtIOSerialPort *port,

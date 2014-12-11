@@ -86,7 +86,7 @@ static void virtio_net_set_config(VirtIODevice *vdev, const uint8_t *config)
 
     memcpy(&netcfg, config, n->config_size);
 
-    if (!(vdev->guest_features >> VIRTIO_NET_F_CTRL_MAC_ADDR & 1) &&
+    if (!virtio_has_feature(vdev, VIRTIO_NET_F_CTRL_MAC_ADDR) &&
         memcmp(netcfg.mac, n->mac, ETH_ALEN)) {
         memcpy(n->mac, netcfg.mac, ETH_ALEN);
         qemu_format_nic_info_str(qemu_get_queue(n->nic), n->mac);
@@ -305,7 +305,7 @@ static RxFilterInfo *virtio_net_query_rxfilter(NetClientState *nc)
     info->multicast_table = str_list;
     info->vlan_table = get_vlan_table(n);
 
-    if (!((1 << VIRTIO_NET_F_CTRL_VLAN) & vdev->guest_features)) {
+    if (!virtio_has_feature(vdev, VIRTIO_NET_F_CTRL_VLAN)) {
         info->vlan = RX_STATE_ALL;
     } else if (!info->vlan_table) {
         info->vlan = RX_STATE_NONE;
@@ -519,9 +519,12 @@ static void virtio_net_set_features(VirtIODevice *vdev, uint32_t features)
     VirtIONet *n = VIRTIO_NET(vdev);
     int i;
 
-    virtio_net_set_multiqueue(n, !!(features & (1 << VIRTIO_NET_F_MQ)));
+    virtio_net_set_multiqueue(n,
+                              __virtio_has_feature(features, VIRTIO_NET_F_MQ));
 
-    virtio_net_set_mrg_rx_bufs(n, !!(features & (1 << VIRTIO_NET_F_MRG_RXBUF)));
+    virtio_net_set_mrg_rx_bufs(n,
+                               __virtio_has_feature(features,
+                                                    VIRTIO_NET_F_MRG_RXBUF));
 
     if (n->has_vnet_hdr) {
         n->curr_guest_offloads =
@@ -538,7 +541,7 @@ static void virtio_net_set_features(VirtIODevice *vdev, uint32_t features)
         vhost_net_ack_features(get_vhost_net(nc->peer), features);
     }
 
-    if ((1 << VIRTIO_NET_F_CTRL_VLAN) & features) {
+    if (__virtio_has_feature(features, VIRTIO_NET_F_CTRL_VLAN)) {
         memset(n->vlans, 0, MAX_VLAN >> 3);
     } else {
         memset(n->vlans, 0xff, MAX_VLAN >> 3);
@@ -585,7 +588,7 @@ static int virtio_net_handle_offloads(VirtIONet *n, uint8_t cmd,
     uint64_t offloads;
     size_t s;
 
-    if (!((1 << VIRTIO_NET_F_CTRL_GUEST_OFFLOADS) & vdev->guest_features)) {
+    if (!virtio_has_feature(vdev, VIRTIO_NET_F_CTRL_GUEST_OFFLOADS)) {
         return VIRTIO_NET_ERR;
     }
 
@@ -1378,7 +1381,7 @@ static void virtio_net_save_device(VirtIODevice *vdev, QEMUFile *f)
         }
     }
 
-    if ((1 << VIRTIO_NET_F_CTRL_GUEST_OFFLOADS) & vdev->guest_features) {
+    if (virtio_has_feature(vdev, VIRTIO_NET_F_CTRL_GUEST_OFFLOADS)) {
         qemu_put_be64(f, n->curr_guest_offloads);
     }
 }
@@ -1486,7 +1489,7 @@ static int virtio_net_load_device(VirtIODevice *vdev, QEMUFile *f,
         }
     }
 
-    if ((1 << VIRTIO_NET_F_CTRL_GUEST_OFFLOADS) & vdev->guest_features) {
+    if (virtio_has_feature(vdev, VIRTIO_NET_F_CTRL_GUEST_OFFLOADS)) {
         n->curr_guest_offloads = qemu_get_be64(f);
     } else {
         n->curr_guest_offloads = virtio_net_supported_guest_offloads(n);
@@ -1513,8 +1516,8 @@ static int virtio_net_load_device(VirtIODevice *vdev, QEMUFile *f,
         qemu_get_subqueue(n->nic, i)->link_down = link_down;
     }
 
-    if (vdev->guest_features & (0x1 << VIRTIO_NET_F_GUEST_ANNOUNCE) &&
-        vdev->guest_features & (0x1 << VIRTIO_NET_F_CTRL_VQ)) {
+    if (virtio_has_feature(vdev, VIRTIO_NET_F_GUEST_ANNOUNCE) &&
+        virtio_has_feature(vdev, VIRTIO_NET_F_CTRL_VQ)) {
         n->announce_counter = SELF_ANNOUNCE_ROUNDS;
         timer_mod(n->announce_timer, qemu_clock_get_ms(QEMU_CLOCK_VIRTUAL));
     }
