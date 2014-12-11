@@ -3761,6 +3761,101 @@ void switch_mode(CPUARMState *env, int mode)
     env->spsr = env->banked_spsr[i];
 }
 
+/* Physical Interrupt Target EL Lookup Table
+ *
+ * [ From ARM ARM section G1.13.4 (Table G1-15) ]
+ *
+ * The below multi-dimensional table is used for looking up the target
+ * exception level given numerous condition criteria.  Specifically, the
+ * target EL is based on SCR and HCR routing controls as well as the
+ * currently executing EL and secure state.
+ *
+ *    Dimensions:
+ *    target_el_table[2][2][2][2][2][4]
+ *                    |  |  |  |  |  +--- Current EL
+ *                    |  |  |  |  +------ Non-secure(0)/Secure(1)
+ *                    |  |  |  +--------- HCR mask override
+ *                    |  |  +------------ SCR exec state control
+ *                    |  +--------------- SCR mask override
+ *                    +------------------ 32-bit(0)/64-bit(1) EL3
+ *
+ *    The table values are as such:
+ *    0-3 = EL0-EL3
+ *     -1 = Cannot occur
+ *
+ * The ARM ARM target EL table includes entries indicating that an "exception
+ * is not taken".  The two cases where this is applicable are:
+ *    1) An exception is taken from EL3 but the SCR does not have the exception
+ *    routed to EL3.
+ *    2) An exception is taken from EL2 but the HCR does not have the exception
+ *    routed to EL2.
+ * In these two cases, the below table contain a target of EL1.  This value is
+ * returned as it is expected that the consumer of the table data will check
+ * for "target EL >= current EL" to ensure the exception is not taken.
+ *
+ *            SCR     HCR
+ *         64  EA     AMO                 From
+ *        BIT IRQ     IMO      Non-secure         Secure
+ *        EL3 FIQ  RW FMO   EL0 EL1 EL2 EL3   EL0 EL1 EL2 EL3
+ */
+const int8_t target_el_table[2][2][2][2][2][4] = {
+    {{{{/* 0   0   0   0 */{ 1,  1,  2, -1 },{ 3, -1, -1,  3 },},
+       {/* 0   0   0   1 */{ 2,  2,  2, -1 },{ 3, -1, -1,  3 },},},
+      {{/* 0   0   1   0 */{ 1,  1,  2, -1 },{ 3, -1, -1,  3 },},
+       {/* 0   0   1   1 */{ 2,  2,  2, -1 },{ 3, -1, -1,  3 },},},},
+     {{{/* 0   1   0   0 */{ 3,  3,  3, -1 },{ 3, -1, -1,  3 },},
+       {/* 0   1   0   1 */{ 3,  3,  3, -1 },{ 3, -1, -1,  3 },},},
+      {{/* 0   1   1   0 */{ 3,  3,  3, -1 },{ 3, -1, -1,  3 },},
+       {/* 0   1   1   1 */{ 3,  3,  3, -1 },{ 3, -1, -1,  3 },},},},},
+    {{{{/* 1   0   0   0 */{ 1,  1,  2, -1 },{ 1,  1, -1,  1 },},
+       {/* 1   0   0   1 */{ 2,  2,  2, -1 },{ 1,  1, -1,  1 },},},
+      {{/* 1   0   1   0 */{ 1,  1,  1, -1 },{ 1,  1, -1,  1 },},
+       {/* 1   0   1   1 */{ 2,  2,  2, -1 },{ 1,  1, -1,  1 },},},},
+     {{{/* 1   1   0   0 */{ 3,  3,  3, -1 },{ 3,  3, -1,  3 },},
+       {/* 1   1   0   1 */{ 3,  3,  3, -1 },{ 3,  3, -1,  3 },},},
+      {{/* 1   1   1   0 */{ 3,  3,  3, -1 },{ 3,  3, -1,  3 },},
+       {/* 1   1   1   1 */{ 3,  3,  3, -1 },{ 3,  3, -1,  3 },},},},},
+};
+
+/*
+ * Determine the target EL for physical exceptions
+ */
+static inline uint32_t arm_phys_excp_target_el(CPUState *cs, uint32_t excp_idx,
+                                        uint32_t cur_el, bool secure)
+{
+    CPUARMState *env = cs->env_ptr;
+    int rw = ((env->cp15.scr_el3 & SCR_RW) == SCR_RW);
+    int scr;
+    int hcr;
+    int target_el;
+    int is64 = arm_el_is_aa64(env, 3);
+
+    switch (excp_idx) {
+    case EXCP_IRQ:
+        scr = ((env->cp15.scr_el3 & SCR_IRQ) == SCR_IRQ);
+        hcr = ((env->cp15.hcr_el2 & HCR_IMO) == HCR_IMO);
+        break;
+    case EXCP_FIQ:
+        scr = ((env->cp15.scr_el3 & SCR_FIQ) == SCR_FIQ);
+        hcr = ((env->cp15.hcr_el2 & HCR_FMO) == HCR_FMO);
+        break;
+    default:
+        scr = ((env->cp15.scr_el3 & SCR_EA) == SCR_EA);
+        hcr = ((env->cp15.hcr_el2 & HCR_AMO) == HCR_AMO);
+        break;
+    };
+
+    /* If HCR.TGE is set then HCR is treated as being 1 */
+    hcr |= ((env->cp15.hcr_el2 & HCR_TGE) == HCR_TGE);
+
+    /* Perform a table-lookup for the target EL given the current state */
+    target_el = target_el_table[is64][scr][rw][hcr][secure][cur_el];
+
+    assert(target_el > 0);
+
+    return target_el;
+}
+
 /*
  * Determine the target EL for a given exception type.
  */
@@ -3770,13 +3865,7 @@ unsigned int arm_excp_target_el(CPUState *cs, unsigned int excp_idx)
     CPUARMState *env = &cpu->env;
     unsigned int cur_el = arm_current_el(env);
     unsigned int target_el;
-    /* FIXME: Use actual secure state.  */
-    bool secure = false;
-
-    if (!env->aarch64) {
-        /* TODO: Add EL2 and 3 exception handling for AArch32.  */
-        return 1;
-    }
+    bool secure = arm_is_secure(env);
 
     switch (excp_idx) {
     case EXCP_HVC:
@@ -3788,19 +3877,8 @@ unsigned int arm_excp_target_el(CPUState *cs, unsigned int excp_idx)
         break;
     case EXCP_FIQ:
     case EXCP_IRQ:
-    {
-        const uint64_t hcr_mask = excp_idx == EXCP_FIQ ? HCR_FMO : HCR_IMO;
-        const uint32_t scr_mask = excp_idx == EXCP_FIQ ? SCR_FIQ : SCR_IRQ;
-
-        target_el = 1;
-        if (!secure && (env->cp15.hcr_el2 & hcr_mask)) {
-            target_el = 2;
-        }
-        if (env->cp15.scr_el3 & scr_mask) {
-            target_el = 3;
-        }
+        target_el = arm_phys_excp_target_el(cs, excp_idx, cur_el, secure);
         break;
-    }
     case EXCP_VIRQ:
     case EXCP_VFIQ:
         target_el = 1;
