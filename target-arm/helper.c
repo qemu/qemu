@@ -136,6 +136,11 @@ static void raw_write(CPUARMState *env, const ARMCPRegInfo *ri,
     }
 }
 
+static void *raw_ptr(CPUARMState *env, const ARMCPRegInfo *ri)
+{
+    return (char *)env + ri->fieldoffset;
+}
+
 static uint64_t read_raw_cp_reg(CPUARMState *env, const ARMCPRegInfo *ri)
 {
     /* Raw read of a coprocessor register (as needed for migration, etc). */
@@ -1560,6 +1565,7 @@ static const ARMCPRegInfo pmsav5_cp_reginfo[] = {
 static void vmsa_ttbcr_raw_write(CPUARMState *env, const ARMCPRegInfo *ri,
                                  uint64_t value)
 {
+    TCR *tcr = raw_ptr(env, ri);
     int maskshift = extract32(value, 0, 3);
 
     if (!arm_feature(env, ARM_FEATURE_V8)) {
@@ -1578,14 +1584,15 @@ static void vmsa_ttbcr_raw_write(CPUARMState *env, const ARMCPRegInfo *ri,
         }
     }
 
-    /* Note that we always calculate c2_mask and c2_base_mask, but
+    /* Update the masks corresponding to the the TCR bank being written
+     * Note that we always calculate mask and base_mask, but
      * they are only used for short-descriptor tables (ie if EAE is 0);
-     * for long-descriptor tables the TTBCR fields are used differently
-     * and the c2_mask and c2_base_mask values are meaningless.
+     * for long-descriptor tables the TCR fields are used differently
+     * and the mask and base_mask values are meaningless.
      */
-    raw_write(env, ri, value);
-    env->cp15.c2_mask = ~(((uint32_t)0xffffffffu) >> maskshift);
-    env->cp15.c2_base_mask = ~((uint32_t)0x3fffu >> maskshift);
+    tcr->raw_tcr = value;
+    tcr->mask = ~(((uint32_t)0xffffffffu) >> maskshift);
+    tcr->base_mask = ~((uint32_t)0x3fffu >> maskshift);
 }
 
 static void vmsa_ttbcr_write(CPUARMState *env, const ARMCPRegInfo *ri,
@@ -1604,19 +1611,25 @@ static void vmsa_ttbcr_write(CPUARMState *env, const ARMCPRegInfo *ri,
 
 static void vmsa_ttbcr_reset(CPUARMState *env, const ARMCPRegInfo *ri)
 {
-    env->cp15.c2_base_mask = 0xffffc000u;
-    raw_write(env, ri, 0);
-    env->cp15.c2_mask = 0;
+    TCR *tcr = raw_ptr(env, ri);
+
+    /* Reset both the TCR as well as the masks corresponding to the bank of
+     * the TCR being reset.
+     */
+    tcr->raw_tcr = 0;
+    tcr->mask = 0;
+    tcr->base_mask = 0xffffc000u;
 }
 
 static void vmsa_tcr_el1_write(CPUARMState *env, const ARMCPRegInfo *ri,
                                uint64_t value)
 {
     ARMCPU *cpu = arm_env_get_cpu(env);
+    TCR *tcr = raw_ptr(env, ri);
 
     /* For AArch64 the A1 bit could result in a change of ASID, so TLB flush. */
     tlb_flush(CPU(cpu), 1);
-    raw_write(env, ri, value);
+    tcr->raw_tcr = value;
 }
 
 static void vmsa_ttbr_write(CPUARMState *env, const ARMCPRegInfo *ri,
@@ -1659,11 +1672,12 @@ static const ARMCPRegInfo vmsa_cp_reginfo[] = {
       .opc0 = 3, .crn = 2, .crm = 0, .opc1 = 0, .opc2 = 2,
       .access = PL1_RW, .writefn = vmsa_tcr_el1_write,
       .resetfn = vmsa_ttbcr_reset, .raw_writefn = raw_write,
-      .fieldoffset = offsetof(CPUARMState, cp15.c2_control) },
+      .fieldoffset = offsetof(CPUARMState, cp15.tcr_el[1]) },
     { .name = "TTBCR", .cp = 15, .crn = 2, .crm = 0, .opc1 = 0, .opc2 = 2,
       .access = PL1_RW, .type = ARM_CP_NO_MIGRATE, .writefn = vmsa_ttbcr_write,
       .resetfn = arm_cp_reset_ignore, .raw_writefn = vmsa_ttbcr_raw_write,
-      .fieldoffset = offsetoflow32(CPUARMState, cp15.c2_control) },
+      .bank_fieldoffsets = { offsetoflow32(CPUARMState, cp15.tcr_el[3]),
+                             offsetoflow32(CPUARMState, cp15.tcr_el[1])} },
     /* 64-bit FAR; this entry also gives us the AArch32 DFAR */
     { .name = "FAR_EL1", .state = ARM_CP_STATE_BOTH,
       .opc0 = 3, .crn = 6, .crm = 0, .opc1 = 0, .opc2 = 0,
@@ -2349,6 +2363,11 @@ static const ARMCPRegInfo v8_el3_cp_reginfo[] = {
       .opc0 = 3, .opc1 = 6, .crn = 2, .crm = 0, .opc2 = 0,
       .access = PL3_RW, .writefn = vmsa_ttbr_write, .resetvalue = 0,
       .fieldoffset = offsetof(CPUARMState, cp15.ttbr0_el[3]) },
+    { .name = "TCR_EL3", .state = ARM_CP_STATE_AA64,
+      .opc0 = 3, .opc1 = 6, .crn = 2, .crm = 0, .opc2 = 2,
+      .access = PL3_RW, .writefn = vmsa_tcr_el1_write,
+      .resetfn = vmsa_ttbcr_reset, .raw_writefn = raw_write,
+      .fieldoffset = offsetof(CPUARMState, cp15.tcr_el[3]) },
     { .name = "ELR_EL3", .state = ARM_CP_STATE_AA64,
       .type = ARM_CP_NO_MIGRATE,
       .opc0 = 3, .opc1 = 6, .crn = 4, .crm = 0, .opc2 = 1,
@@ -4450,23 +4469,25 @@ static inline int check_ap(CPUARMState *env, int ap, int domain_prot,
 static bool get_level1_table_address(CPUARMState *env, uint32_t *table,
                                          uint32_t address)
 {
+    /* Get the TCR bank based on our security state */
+    TCR *tcr = &env->cp15.tcr_el[arm_is_secure(env) ? 3 : 1];
+
     /* We only get here if EL1 is running in AArch32. If EL3 is running in
      * AArch32 there is a secure and non-secure instance of the translation
      * table registers.
      */
-    if (address & env->cp15.c2_mask) {
-        if ((env->cp15.c2_control & TTBCR_PD1)) {
+    if (address & tcr->mask) {
+        if (tcr->raw_tcr & TTBCR_PD1) {
             /* Translation table walk disabled for TTBR1 */
             return false;
         }
         *table = A32_BANKED_CURRENT_REG_GET(env, ttbr1) & 0xffffc000;
     } else {
-        if ((env->cp15.c2_control & TTBCR_PD0)) {
+        if (tcr->raw_tcr & TTBCR_PD0) {
             /* Translation table walk disabled for TTBR0 */
             return false;
         }
-        *table = A32_BANKED_CURRENT_REG_GET(env, ttbr0) &
-                 env->cp15.c2_base_mask;
+        *table = A32_BANKED_CURRENT_REG_GET(env, ttbr0) & tcr->base_mask;
     }
     *table |= (address >> 18) & 0x3ffc;
     return true;
@@ -4720,13 +4741,14 @@ static int get_phys_addr_lpae(CPUARMState *env, target_ulong address,
     int32_t granule_sz = 9;
     int32_t va_size = 32;
     int32_t tbi = 0;
+    TCR *tcr = &env->cp15.tcr_el[arm_is_secure(env) ? 3 : 1];
 
     if (arm_el_is_aa64(env, 1)) {
         va_size = 64;
         if (extract64(address, 55, 1))
-            tbi = extract64(env->cp15.c2_control, 38, 1);
+            tbi = extract64(tcr->raw_tcr, 38, 1);
         else
-            tbi = extract64(env->cp15.c2_control, 37, 1);
+            tbi = extract64(tcr->raw_tcr, 37, 1);
         tbi *= 8;
     }
 
@@ -4735,12 +4757,12 @@ static int get_phys_addr_lpae(CPUARMState *env, target_ulong address,
      * This is a Non-secure PL0/1 stage 1 translation, so controlled by
      * TTBCR/TTBR0/TTBR1 in accordance with ARM ARM DDI0406C table B-32:
      */
-    uint32_t t0sz = extract32(env->cp15.c2_control, 0, 6);
+    uint32_t t0sz = extract32(tcr->raw_tcr, 0, 6);
     if (arm_el_is_aa64(env, 1)) {
         t0sz = MIN(t0sz, 39);
         t0sz = MAX(t0sz, 16);
     }
-    uint32_t t1sz = extract32(env->cp15.c2_control, 16, 6);
+    uint32_t t1sz = extract32(tcr->raw_tcr, 16, 6);
     if (arm_el_is_aa64(env, 1)) {
         t1sz = MIN(t1sz, 39);
         t1sz = MAX(t1sz, 16);
@@ -4772,10 +4794,10 @@ static int get_phys_addr_lpae(CPUARMState *env, target_ulong address,
      */
     if (ttbr_select == 0) {
         ttbr = A32_BANKED_CURRENT_REG_GET(env, ttbr0);
-        epd = extract32(env->cp15.c2_control, 7, 1);
+        epd = extract32(tcr->raw_tcr, 7, 1);
         tsz = t0sz;
 
-        tg = extract32(env->cp15.c2_control, 14, 2);
+        tg = extract32(tcr->raw_tcr, 14, 2);
         if (tg == 1) { /* 64KB pages */
             granule_sz = 13;
         }
@@ -4784,10 +4806,10 @@ static int get_phys_addr_lpae(CPUARMState *env, target_ulong address,
         }
     } else {
         ttbr = A32_BANKED_CURRENT_REG_GET(env, ttbr1);
-        epd = extract32(env->cp15.c2_control, 23, 1);
+        epd = extract32(tcr->raw_tcr, 23, 1);
         tsz = t1sz;
 
-        tg = extract32(env->cp15.c2_control, 30, 2);
+        tg = extract32(tcr->raw_tcr, 30, 2);
         if (tg == 3)  { /* 64KB pages */
             granule_sz = 13;
         }

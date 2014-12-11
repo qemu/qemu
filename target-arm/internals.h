@@ -153,9 +153,9 @@ static inline void update_spsel(CPUARMState *env, uint32_t imm)
  */
 static inline bool extended_addresses_enabled(CPUARMState *env)
 {
-    return arm_el_is_aa64(env, 1)
-        || ((arm_feature(env, ARM_FEATURE_LPAE)
-             && (env->cp15.c2_control & TTBCR_EAE)));
+    TCR *tcr = &env->cp15.tcr_el[arm_is_secure(env) ? 3 : 1];
+    return arm_el_is_aa64(env, 1) ||
+           (arm_feature(env, ARM_FEATURE_LPAE) && (tcr->raw_tcr & TTBCR_EAE));
 }
 
 /* Valid Syndrome Register EC field values */

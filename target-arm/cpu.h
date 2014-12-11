@@ -120,6 +120,12 @@ typedef struct ARMGenericTimer {
 #define GTIMER_VIRT 1
 #define NUM_GTIMERS 2
 
+typedef struct {
+    uint64_t raw_tcr;
+    uint32_t mask;
+    uint32_t base_mask;
+} TCR;
+
 typedef struct CPUARMState {
     /* Regs for current mode.  */
     uint32_t regs[16];
@@ -217,9 +223,8 @@ typedef struct CPUARMState {
             };
             uint64_t ttbr1_el[4];
         };
-        uint64_t c2_control; /* MMU translation table base control.  */
-        uint32_t c2_mask; /* MMU translation table base selection mask.  */
-        uint32_t c2_base_mask; /* MMU translation table base 0 mask. */
+        /* MMU translation table base control. */
+        TCR tcr_el[4];
         uint32_t c2_data; /* MPU data cachable bits.  */
         uint32_t c2_insn; /* MPU instruction cachable bits.  */
         uint32_t c3; /* MMU domain access control register
