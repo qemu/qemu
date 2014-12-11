@@ -3245,7 +3245,7 @@
               'abs'     : 'InputMoveEvent' } }
 
 ##
-# @input-send-event
+# @x-input-send-event
 #
 # Send input event(s) to guest.
 #
@@ -3257,8 +3257,10 @@
 #
 # Since: 2.2
 #
+# Note: this command is experimental, and not a stable API.
+#
 ##
-{ 'command': 'input-send-event',
+{ 'command': 'x-input-send-event',
   'data': { '*console':'int', 'events': [ 'InputEvent' ] } }
 
 ##

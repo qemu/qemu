@@ -34,7 +34,7 @@ class TestSingleDrive(iotests.QMPTestCase):
         iotests.create_image(backing_img, TestSingleDrive.image_len)
         qemu_img('create', '-f', iotests.imgfmt, '-o', 'backing_file=%s' % backing_img, mid_img)
         qemu_img('create', '-f', iotests.imgfmt, '-o', 'backing_file=%s' % mid_img, test_img)
-        qemu_io('-c', 'write -P 0x1 0 512', backing_img)
+        qemu_io('-f', 'raw', '-c', 'write -P 0x1 0 512', backing_img)
         self.vm = iotests.VM().add_drive("blkdebug::" + test_img)
         self.vm.launch()
 
@@ -55,8 +55,8 @@ class TestSingleDrive(iotests.QMPTestCase):
         self.assert_no_active_block_jobs()
         self.vm.shutdown()
 
-        self.assertEqual(qemu_io('-c', 'map', backing_img),
-                         qemu_io('-c', 'map', test_img),
+        self.assertEqual(qemu_io('-f', 'raw', '-c', 'map', backing_img),
+                         qemu_io('-f', iotests.imgfmt, '-c', 'map', test_img),
                          'image file map does not match backing file after streaming')
 
     def test_stream_pause(self):
@@ -86,8 +86,8 @@ class TestSingleDrive(iotests.QMPTestCase):
         self.assert_no_active_block_jobs()
         self.vm.shutdown()
 
-        self.assertEqual(qemu_io('-c', 'map', backing_img),
-                         qemu_io('-c', 'map', test_img),
+        self.assertEqual(qemu_io('-f', 'raw', '-c', 'map', backing_img),
+                         qemu_io('-f', iotests.imgfmt, '-c', 'map', test_img),
                          'image file map does not match backing file after streaming')
 
     def test_stream_partial(self):
@@ -101,8 +101,8 @@ class TestSingleDrive(iotests.QMPTestCase):
         self.assert_no_active_block_jobs()
         self.vm.shutdown()
 
-        self.assertEqual(qemu_io('-c', 'map', mid_img),
-                         qemu_io('-c', 'map', test_img),
+        self.assertEqual(qemu_io('-f', iotests.imgfmt, '-c', 'map', mid_img),
+                         qemu_io('-f', iotests.imgfmt, '-c', 'map', test_img),
                          'image file map does not match backing file after streaming')
 
     def test_device_not_found(self):
@@ -359,9 +359,9 @@ class TestStreamStop(iotests.QMPTestCase):
 
     def setUp(self):
         qemu_img('create', backing_img, str(TestStreamStop.image_len))
-        qemu_io('-c', 'write -P 0x1 0 32M', backing_img)
+        qemu_io('-f', 'raw', '-c', 'write -P 0x1 0 32M', backing_img)
         qemu_img('create', '-f', iotests.imgfmt, '-o', 'backing_file=%s' % backing_img, test_img)
-        qemu_io('-c', 'write -P 0x1 32M 32M', test_img)
+        qemu_io('-f', iotests.imgfmt, '-c', 'write -P 0x1 32M 32M', test_img)
         self.vm = iotests.VM().add_drive("blkdebug::" + test_img)
         self.vm.launch()
 
@@ -388,9 +388,9 @@ class TestSetSpeed(iotests.QMPTestCase):
 
     def setUp(self):
         qemu_img('create', backing_img, str(TestSetSpeed.image_len))
-        qemu_io('-c', 'write -P 0x1 0 32M', backing_img)
+        qemu_io('-f', 'raw', '-c', 'write -P 0x1 0 32M', backing_img)
         qemu_img('create', '-f', iotests.imgfmt, '-o', 'backing_file=%s' % backing_img, test_img)
-        qemu_io('-c', 'write -P 0x1 32M 32M', test_img)
+        qemu_io('-f', iotests.imgfmt, '-c', 'write -P 0x1 32M 32M', test_img)
         self.vm = iotests.VM().add_drive('blkdebug::' + test_img)
         self.vm.launch()
 

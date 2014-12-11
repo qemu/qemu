@@ -365,7 +365,7 @@ extern int qdev_hotplug;
 
 char *qdev_get_dev_path(DeviceState *dev);
 
-int qdev_build_hotpluggable_device_list(Object *obj, void *opaque);
+GSList *qdev_build_hotpluggable_device_list(Object *peripheral);
 
 void qbus_set_hotplug_handler(BusState *bus, DeviceState *handler,
                               Error **errp);

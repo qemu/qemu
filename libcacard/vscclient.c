@@ -597,7 +597,7 @@ connect_to_qemu(
     const char *port
 ) {
     struct addrinfo hints;
-    struct addrinfo *server;
+    struct addrinfo *server = NULL;
     int ret, sock;
 
     sock = socket(AF_INET, SOCK_STREAM, 0);
@@ -629,9 +629,14 @@ connect_to_qemu(
     if (verbose) {
         printf("Connected (sizeof Header=%zd)!\n", sizeof(VSCMsgHeader));
     }
+
+    freeaddrinfo(server);
     return sock;
 
 cleanup_socket:
+    if (server) {
+        freeaddrinfo(server);
+    }
     closesocket(sock);
     return -1;
 }

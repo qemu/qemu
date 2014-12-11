@@ -234,9 +234,14 @@ static void pc_init1(MachineState *machine,
 
     pc_vga_init(isa_bus, pci_enabled ? pci_bus : NULL);
 
+    assert(pc_machine->vmport != ON_OFF_AUTO_MAX);
+    if (pc_machine->vmport == ON_OFF_AUTO_AUTO) {
+        pc_machine->vmport = xen_enabled() ? ON_OFF_AUTO_OFF : ON_OFF_AUTO_ON;
+    }
+
     /* init basic PC hardware */
     pc_basic_device_init(isa_bus, gsi, &rtc_state, &floppy,
-                         !pc_machine->vmport, 0x4);
+                         (pc_machine->vmport != ON_OFF_AUTO_ON), 0x4);
 
     pc_nic_init(isa_bus, pci_bus);
 
@@ -305,10 +310,12 @@ static void pc_init_pci(MachineState *machine)
 
 static void pc_compat_2_1(MachineState *machine)
 {
+    PCMachineState *pcms = PC_MACHINE(machine);
     smbios_uuid_encoded = false;
     x86_cpu_compat_set_features("coreduo", FEAT_1_ECX, CPUID_EXT_VMX, 0);
     x86_cpu_compat_set_features("core2duo", FEAT_1_ECX, CPUID_EXT_VMX, 0);
     x86_cpu_compat_kvm_no_autodisable(FEAT_8000_0001_ECX, CPUID_EXT3_SVM);
+    pcms->enforce_aligned_dimm = false;
 }
 
 static void pc_compat_2_0(MachineState *machine)

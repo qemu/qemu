@@ -2628,10 +2628,10 @@ static mon_cmd_t info_cmds[] = {
     },
     {
         .name       = "block",
-        .args_type  = "verbose:-v,device:B?",
-        .params     = "[-v] [device]",
+        .args_type  = "nodes:-n,verbose:-v,device:B?",
+        .params     = "[-n] [-v] [device]",
         .help       = "show info of one block device or all block devices "
-                      "(and details of images with -v option)",
+                      "(-n: show named nodes; -v: show details)",
         .mhandler.cmd = hmp_info_block,
     },
     {
@@ -4321,16 +4321,13 @@ void object_add_completion(ReadLineState *rs, int nb_args, const char *str)
 static void peripheral_device_del_completion(ReadLineState *rs,
                                              const char *str, size_t len)
 {
-    Object *peripheral;
-    GSList *list = NULL, *item;
+    Object *peripheral = container_get(qdev_get_machine(), "/peripheral");
+    GSList *list, *item;
 
-    peripheral = object_resolve_path("/machine/peripheral/", NULL);
-    if (peripheral == NULL) {
+    list = qdev_build_hotpluggable_device_list(peripheral);
+    if (!list) {
         return;
     }
-
-    object_child_foreach(peripheral, qdev_build_hotpluggable_device_list,
-                         &list);
 
     for (item = list; item; item = g_slist_next(item)) {
         DeviceState *dev = item->data;
@@ -4698,7 +4695,7 @@ static void monitor_find_completion_by_table(Monitor *mon,
             }
         }
         str = args[nb_args - 1];
-        if (*ptype == '-' && ptype[1] != '\0') {
+        while (*ptype == '-' && ptype[1] != '\0') {
             ptype = next_arg_type(ptype);
         }
         switch(*ptype) {

@@ -49,6 +49,21 @@ static inline bool cpu_physical_memory_get_dirty(ram_addr_t start,
     return next < end;
 }
 
+static inline bool cpu_physical_memory_get_clean(ram_addr_t start,
+                                                 ram_addr_t length,
+                                                 unsigned client)
+{
+    unsigned long end, page, next;
+
+    assert(client < DIRTY_MEMORY_NUM);
+
+    end = TARGET_PAGE_ALIGN(start + length) >> TARGET_PAGE_BITS;
+    page = start >> TARGET_PAGE_BITS;
+    next = find_next_zero_bit(ram_list.dirty_memory[client], end, page);
+
+    return next < end;
+}
+
 static inline bool cpu_physical_memory_get_dirty_flag(ram_addr_t addr,
                                                       unsigned client)
 {
@@ -62,6 +77,16 @@ static inline bool cpu_physical_memory_is_clean(ram_addr_t addr)
     bool migration =
         cpu_physical_memory_get_dirty_flag(addr, DIRTY_MEMORY_MIGRATION);
     return !(vga && code && migration);
+}
+
+static inline bool cpu_physical_memory_range_includes_clean(ram_addr_t start,
+                                                            ram_addr_t length)
+{
+    bool vga = cpu_physical_memory_get_clean(start, length, DIRTY_MEMORY_VGA);
+    bool code = cpu_physical_memory_get_clean(start, length, DIRTY_MEMORY_CODE);
+    bool migration =
+        cpu_physical_memory_get_clean(start, length, DIRTY_MEMORY_MIGRATION);
+    return vga || code || migration;
 }
 
 static inline void cpu_physical_memory_set_dirty_flag(ram_addr_t addr,

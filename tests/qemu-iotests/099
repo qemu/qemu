@@ -44,7 +44,8 @@ trap "_cleanup; exit \$status" 0 1 2 3 15
 _supported_fmt qcow qcow2 qed vdi vhdx vmdk vpc
 _supported_proto file
 _supported_os Linux
-
+_unsupported_imgopts "subformat=monolithicFlat" "subformat=twoGbMaxExtentFlat" \
+    "subformat=twoGbMaxExtentSparse"
 
 function do_run_qemu()
 {
@@ -107,8 +108,21 @@ echo
 # generate a JSON object here as well
 test_qemu "file.driver=blkverify,file.raw.filename=$TEST_IMG.compare,file.test.file.driver=blkdebug,file.test.file.image.filename=$TEST_IMG,file.test.file.inject-error.0.event=l1_update"
 
+echo
+echo '=== Testing plain filename for blkdebug ==='
+echo
 
-rm -f "$TEST_IMG.compare"
+touch "$TEST_DIR/blkdebug.conf"
+test_qemu "file.driver=blkdebug,file.config=$TEST_DIR/blkdebug.conf,file.image.filename=$TEST_IMG"
+
+echo
+echo '=== Testing plain filename for blkdebug without configuration file ==='
+echo
+
+test_qemu "file.driver=blkdebug,file.image.filename=$TEST_IMG"
+
+
+rm -f "$TEST_IMG.compare" "$TEST_DIR/blkdebug.conf"
 
 # success, all done
 echo "*** done"

@@ -80,6 +80,13 @@ int load_image(const char *filename, uint8_t *addr)
     if (fd < 0)
         return -1;
     size = lseek(fd, 0, SEEK_END);
+    if (size == -1) {
+        fprintf(stderr, "file %-20s: get size error: %s\n",
+                filename, strerror(errno));
+        close(fd);
+        return -1;
+    }
+
     lseek(fd, 0, SEEK_SET);
     if (read(fd, addr, size) != size) {
         close(fd);
@@ -748,6 +755,12 @@ int rom_add_file(const char *file, const char *fw_dir,
     }
     rom->addr     = addr;
     rom->romsize  = lseek(fd, 0, SEEK_END);
+    if (rom->romsize == -1) {
+        fprintf(stderr, "rom: file %-20s: get size error: %s\n",
+                rom->name, strerror(errno));
+        goto err;
+    }
+
     rom->datasize = rom->romsize;
     rom->data     = g_malloc0(rom->datasize);
     lseek(fd, 0, SEEK_SET);
@@ -798,12 +811,12 @@ err:
     return -1;
 }
 
-void *rom_add_blob(const char *name, const void *blob, size_t len,
+ram_addr_t rom_add_blob(const char *name, const void *blob, size_t len,
                    hwaddr addr, const char *fw_file_name,
                    FWCfgReadCallback fw_callback, void *callback_opaque)
 {
     Rom *rom;
-    void *data = NULL;
+    ram_addr_t ret = RAM_ADDR_MAX;
 
     rom           = g_malloc0(sizeof(*rom));
     rom->name     = g_strdup(name);
@@ -815,11 +828,13 @@ void *rom_add_blob(const char *name, const void *blob, size_t len,
     rom_insert(rom);
     if (fw_file_name && fw_cfg) {
         char devpath[100];
+        void *data;
 
         snprintf(devpath, sizeof(devpath), "/rom@%s", fw_file_name);
 
         if (rom_file_has_mr) {
             data = rom_set_mr(rom, OBJECT(fw_cfg), devpath);
+            ret = memory_region_get_ram_addr(rom->mr);
         } else {
             data = rom->data;
         }
@@ -828,7 +843,7 @@ void *rom_add_blob(const char *name, const void *blob, size_t len,
                                  fw_callback, callback_opaque,
                                  data, rom->romsize);
     }
-    return data;
+    return ret;
 }
 
 /* This function is specific for elf program because we don't need to allocate

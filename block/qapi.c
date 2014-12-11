@@ -29,13 +29,6 @@
 #include "qapi/qmp-output-visitor.h"
 #include "qapi/qmp/types.h"
 #include "sysemu/block-backend.h"
-#ifdef __linux__
-#include <linux/fs.h>
-#include <sys/ioctl.h>
-#ifndef FS_NOCOW_FL
-#define FS_NOCOW_FL                     0x00800000 /* Do not cow file */
-#endif
-#endif
 
 BlockDeviceInfo *bdrv_block_device_info(BlockDriverState *bs)
 {
@@ -46,6 +39,13 @@ BlockDeviceInfo *bdrv_block_device_info(BlockDriverState *bs)
     info->drv                    = g_strdup(bs->drv->format_name);
     info->encrypted              = bs->encrypted;
     info->encryption_key_missing = bdrv_key_required(bs);
+
+    info->cache = g_new(BlockdevCacheInfo, 1);
+    *info->cache = (BlockdevCacheInfo) {
+        .writeback      = bdrv_enable_write_cache(bs),
+        .direct         = !!(bs->open_flags & BDRV_O_NOCACHE),
+        .no_flush       = !!(bs->open_flags & BDRV_O_NO_FLUSH),
+    };
 
     if (bs->node_name[0]) {
         info->has_node_name = true;
@@ -180,9 +180,6 @@ void bdrv_query_image_info(BlockDriverState *bs,
     int ret;
     Error *err = NULL;
     ImageInfo *info;
-#ifdef __linux__
-    int fd, attr;
-#endif
 
     size = bdrv_getlength(bs);
     if (size < 0) {
@@ -211,18 +208,6 @@ void bdrv_query_image_info(BlockDriverState *bs,
     }
     info->format_specific     = bdrv_get_specific_info(bs);
     info->has_format_specific = info->format_specific != NULL;
-
-#ifdef __linux__
-    /* get NOCOW info */
-    fd = qemu_open(bs->filename, O_RDONLY | O_NONBLOCK);
-    if (fd >= 0) {
-        if (ioctl(fd, FS_IOC_GETFLAGS, &attr) == 0 && (attr & FS_NOCOW_FL)) {
-            info->has_nocow = true;
-            info->nocow = true;
-        }
-        qemu_close(fd);
-    }
-#endif
 
     backing_filename = bs->backing_file;
     if (backing_filename[0] != '\0') {
@@ -322,7 +307,8 @@ static void bdrv_query_info(BlockBackend *blk, BlockInfo **p_info,
     qapi_free_BlockInfo(info);
 }
 
-static BlockStats *bdrv_query_stats(const BlockDriverState *bs)
+static BlockStats *bdrv_query_stats(const BlockDriverState *bs,
+                                    bool query_backing)
 {
     BlockStats *s;
 
@@ -331,6 +317,11 @@ static BlockStats *bdrv_query_stats(const BlockDriverState *bs)
     if (bdrv_get_device_name(bs)[0]) {
         s->has_device = true;
         s->device = g_strdup(bdrv_get_device_name(bs));
+    }
+
+    if (bdrv_get_node_name(bs)[0]) {
+        s->has_node_name = true;
+        s->node_name = g_strdup(bdrv_get_node_name(bs));
     }
 
     s->stats = g_malloc0(sizeof(*s->stats));
@@ -347,12 +338,12 @@ static BlockStats *bdrv_query_stats(const BlockDriverState *bs)
 
     if (bs->file) {
         s->has_parent = true;
-        s->parent = bdrv_query_stats(bs->file);
+        s->parent = bdrv_query_stats(bs->file, query_backing);
     }
 
-    if (bs->backing_hd) {
+    if (query_backing && bs->backing_hd) {
         s->has_backing = true;
-        s->backing = bdrv_query_stats(bs->backing_hd);
+        s->backing = bdrv_query_stats(bs->backing_hd, query_backing);
     }
 
     return s;
@@ -383,17 +374,22 @@ BlockInfoList *qmp_query_block(Error **errp)
     return NULL;
 }
 
-BlockStatsList *qmp_query_blockstats(Error **errp)
+BlockStatsList *qmp_query_blockstats(bool has_query_nodes,
+                                     bool query_nodes,
+                                     Error **errp)
 {
     BlockStatsList *head = NULL, **p_next = &head;
     BlockDriverState *bs = NULL;
 
-     while ((bs = bdrv_next(bs))) {
+    /* Just to be safe if query_nodes is not always initialized */
+    query_nodes = has_query_nodes && query_nodes;
+
+    while ((bs = query_nodes ? bdrv_next_node(bs) : bdrv_next(bs))) {
         BlockStatsList *info = g_malloc0(sizeof(*info));
         AioContext *ctx = bdrv_get_aio_context(bs);
 
         aio_context_acquire(ctx);
-        info->value = bdrv_query_stats(bs);
+        info->value = bdrv_query_stats(bs, !query_nodes);
         aio_context_release(ctx);
 
         *p_next = info;
@@ -654,9 +650,5 @@ void bdrv_image_info_dump(fprintf_function func_fprintf, void *f,
     if (info->has_format_specific) {
         func_fprintf(f, "Format specific information:\n");
         bdrv_image_info_specific_dump(func_fprintf, f, info->format_specific);
-    }
-
-    if (info->has_nocow && info->nocow) {
-        func_fprintf(f, "NOCOW flag: set\n");
     }
 }

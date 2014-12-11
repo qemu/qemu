@@ -167,7 +167,9 @@ _filter_qmp()
 {
     _filter_win32 | \
     sed -e 's#\("\(micro\)\?seconds": \)[0-9]\+#\1 TIMESTAMP#g' \
-        -e 's#^{"QMP":.*}$#QMP_VERSION#'
+        -e 's#^{"QMP":.*}$#QMP_VERSION#' \
+        -e '/^    "QMP": {\s*$/, /^    }\s*$/ c\' \
+        -e '    QMP_VERSION'
 }
 
 # replace driver-specific options in the "Formatting..." line

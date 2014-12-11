@@ -4545,16 +4545,18 @@ static int get_phys_addr_lpae(CPUARMState *env, target_ulong address,
         goto do_fault;
     }
 
-    /* The starting level depends on the virtual address size which can be
-     * up to 48-bits and the translation granule size.
+    /* The starting level depends on the virtual address size (which can be
+     * up to 48 bits) and the translation granule size. It indicates the number
+     * of strides (granule_sz bits at a time) needed to consume the bits
+     * of the input address. In the pseudocode this is:
+     *  level = 4 - RoundUp((inputsize - grainsize) / stride)
+     * where their 'inputsize' is our 'va_size - tsz', 'grainsize' is
+     * our 'granule_sz + 3' and 'stride' is our 'granule_sz'.
+     * Applying the usual "rounded up m/n is (m+n-1)/n" and simplifying:
+     *     = 4 - (va_size - tsz - granule_sz - 3 + granule_sz - 1) / granule_sz
+     *     = 4 - (va_size - tsz - 4) / granule_sz;
      */
-    if ((va_size - tsz) > (granule_sz * 4 + 3)) {
-        level = 0;
-    } else if ((va_size - tsz) > (granule_sz * 3 + 3)) {
-        level = 1;
-    } else {
-        level = 2;
-    }
+    level = 4 - (va_size - tsz - 4) / granule_sz;
 
     /* Clear the vaddr bits which aren't part of the within-region address,
      * so that we don't have to special case things when calculating the

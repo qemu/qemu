@@ -817,10 +817,12 @@ int vhost_dev_init(struct vhost_dev *hdev, void *opaque,
     int i, r;
 
     if (vhost_set_backend_type(hdev, backend_type) < 0) {
+        close((uintptr_t)opaque);
         return -1;
     }
 
     if (hdev->vhost_ops->vhost_backend_init(hdev, opaque) < 0) {
+        close((uintptr_t)opaque);
         return -errno;
     }
 

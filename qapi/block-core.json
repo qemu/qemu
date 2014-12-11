@@ -119,8 +119,6 @@
 # @format-specific: #optional structure supplying additional format-specific
 # information (since 1.7)
 #
-# @nocow: #optional info of whether NOCOW flag is set or not. (since 2.2)
-#
 # Since: 1.3
 #
 ##
@@ -132,8 +130,7 @@
            '*backing-filename': 'str', '*full-backing-filename': 'str',
            '*backing-filename-format': 'str', '*snapshots': ['SnapshotInfo'],
            '*backing-image': 'ImageInfo',
-           '*format-specific': 'ImageInfoSpecific',
-           '*nocow': 'bool' } }
+           '*format-specific': 'ImageInfoSpecific' } }
 
 ##
 # @ImageCheck:
@@ -184,6 +181,22 @@
            '*corruptions-fixed': 'int', '*leaks-fixed': 'int',
            '*total-clusters': 'int', '*allocated-clusters': 'int',
            '*fragmented-clusters': 'int', '*compressed-clusters': 'int' } }
+
+##
+# @BlockdevCacheInfo
+#
+# Cache mode information for a block device
+#
+# @writeback:   true if writeback mode is enabled
+# @direct:      true if the host page cache is bypassed (O_DIRECT)
+# @no-flush:    true if flush requests are ignored for the device
+#
+# Since: 2.3
+##
+{ 'type': 'BlockdevCacheInfo',
+  'data': { 'writeback': 'bool',
+            'direct': 'bool',
+            'no-flush': 'bool' } }
 
 ##
 # @BlockDeviceInfo:
@@ -242,6 +255,8 @@
 #
 # @iops_size: #optional an I/O size in bytes (Since 1.7)
 #
+# @cache: the cache mode used for the block device (since: 2.3)
+#
 # Since: 0.14.0
 #
 ##
@@ -256,7 +271,7 @@
             '*bps_max': 'int', '*bps_rd_max': 'int',
             '*bps_wr_max': 'int', '*iops_max': 'int',
             '*iops_rd_max': 'int', '*iops_wr_max': 'int',
-            '*iops_size': 'int' } }
+            '*iops_size': 'int', 'cache': 'BlockdevCacheInfo' } }
 
 ##
 # @BlockDeviceIoStatus:
@@ -408,6 +423,8 @@
 # @device: #optional If the stats are for a virtual block device, the name
 #          corresponding to the virtual block device.
 #
+# @device: #optional The node name of the device. (Since 2.3)
+#
 # @stats:  A @BlockDeviceStats for the device.
 #
 # @parent: #optional This describes the file block device if it has one.
@@ -418,7 +435,8 @@
 # Since: 0.14.0
 ##
 { 'type': 'BlockStats',
-  'data': {'*device': 'str', 'stats': 'BlockDeviceStats',
+  'data': {'*device': 'str', '*node-name': 'str',
+           'stats': 'BlockDeviceStats',
            '*parent': 'BlockStats',
            '*backing': 'BlockStats'} }
 
@@ -427,11 +445,20 @@
 #
 # Query the @BlockStats for all virtual block devices.
 #
+# @query-nodes: #optional If true, the command will query all the block nodes
+#               that have a node name, in a list which will include "parent"
+#               information, but not "backing".
+#               If false or omitted, the behavior is as before - query all the
+#               device backends, recursively including their "parent" and
+#               "backing". (Since 2.3)
+#
 # Returns: A list of @BlockStats for each virtual block devices.
 #
 # Since: 0.14.0
 ##
-{ 'command': 'query-blockstats', 'returns': ['BlockStats'] }
+{ 'command': 'query-blockstats',
+  'data': { '*query-nodes': 'bool' },
+  'returns': ['BlockStats'] }
 
 ##
 # @BlockdevOnError:

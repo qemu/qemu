@@ -51,7 +51,8 @@ static const cmdinfo_t close_cmd = {
     .oneline    = "close the current open file",
 };
 
-static int openfile(char *name, int flags, int growable, QDict *opts)
+static int openfile(char *name, BlockDriver *drv, int flags, int growable,
+                    QDict *opts)
 {
     Error *local_err = NULL;
 
@@ -68,7 +69,7 @@ static int openfile(char *name, int flags, int growable, QDict *opts)
         flags |= BDRV_O_PROTOCOL;
     }
 
-    if (bdrv_open(&qemuio_bs, name, NULL, opts, flags, NULL, &local_err) < 0) {
+    if (bdrv_open(&qemuio_bs, name, NULL, opts, flags, drv, &local_err) < 0) {
         fprintf(stderr, "%s: can't open%s%s: %s\n", progname,
                 name ? " device " : "", name ?: "",
                 error_get_pretty(local_err));
@@ -169,9 +170,9 @@ static int open_f(BlockDriverState *bs, int argc, char **argv)
     qemu_opts_reset(&empty_opts);
 
     if (optind == argc - 1) {
-        return openfile(argv[optind], flags, growable, opts);
+        return openfile(argv[optind], NULL, flags, growable, opts);
     } else if (optind == argc) {
-        return openfile(NULL, flags, growable, opts);
+        return openfile(NULL, NULL, flags, growable, opts);
     } else {
         QDECREF(opts);
         return qemuio_command_usage(&open_cmd);
@@ -196,11 +197,12 @@ static const cmdinfo_t quit_cmd = {
 static void usage(const char *name)
 {
     printf(
-"Usage: %s [-h] [-V] [-rsnm] [-c STRING] ... [file]\n"
+"Usage: %s [-h] [-V] [-rsnm] [-f FMT] [-c STRING] ... [file]\n"
 "QEMU Disk exerciser\n"
 "\n"
 "  -c, --cmd STRING     execute command with its arguments\n"
 "                       from the given string\n"
+"  -f, --format FMT     specifies the block driver to use\n"
 "  -r, --read-only      export read-only\n"
 "  -s, --snapshot       use snapshot file\n"
 "  -n, --nocache        disable host cache\n"
@@ -364,12 +366,13 @@ int main(int argc, char **argv)
 {
     int readonly = 0;
     int growable = 0;
-    const char *sopt = "hVc:d:rsnmgkt:T:";
+    const char *sopt = "hVc:d:f:rsnmgkt:T:";
     const struct option lopt[] = {
         { "help", 0, NULL, 'h' },
         { "version", 0, NULL, 'V' },
         { "offset", 1, NULL, 'o' },
         { "cmd", 1, NULL, 'c' },
+        { "format", 1, NULL, 'f' },
         { "read-only", 0, NULL, 'r' },
         { "snapshot", 0, NULL, 's' },
         { "nocache", 0, NULL, 'n' },
@@ -384,6 +387,7 @@ int main(int argc, char **argv)
     int c;
     int opt_index = 0;
     int flags = BDRV_O_UNMAP;
+    BlockDriver *drv = NULL;
     Error *local_error = NULL;
 
 #ifdef CONFIG_POSIX
@@ -392,6 +396,8 @@ int main(int argc, char **argv)
 
     progname = basename(argv[0]);
     qemu_init_exec_dir(argv[0]);
+
+    bdrv_init();
 
     while ((c = getopt_long(argc, argv, sopt, lopt, &opt_index)) != -1) {
         switch (c) {
@@ -405,6 +411,13 @@ int main(int argc, char **argv)
             if (bdrv_parse_discard_flags(optarg, &flags) < 0) {
                 error_report("Invalid discard option: %s", optarg);
                 exit(1);
+            }
+            break;
+        case 'f':
+            drv = bdrv_find_format(optarg);
+            if (!drv) {
+                error_report("Invalid format '%s'", optarg);
+                exit(EXIT_FAILURE);
             }
             break;
         case 'c':
@@ -455,7 +468,6 @@ int main(int argc, char **argv)
         error_free(local_error);
         exit(1);
     }
-    bdrv_init();
 
     /* initialize commands */
     qemuio_add_command(&quit_cmd);
@@ -477,7 +489,7 @@ int main(int argc, char **argv)
     }
 
     if ((argc - optind) == 1) {
-        openfile(argv[optind], flags, growable, NULL);
+        openfile(argv[optind], drv, flags, growable, NULL);
     }
     command_loop();
 

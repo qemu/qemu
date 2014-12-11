@@ -39,7 +39,7 @@ _supported_os Linux
 function do_run_qemu()
 {
     echo Testing: "$@"
-    $QEMU -nographic -qmp stdio -serial none "$@"
+    $QEMU -nographic -qmp-pretty stdio -serial none "$@"
     echo
 }
 

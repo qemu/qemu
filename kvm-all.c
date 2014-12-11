@@ -132,7 +132,7 @@ static const KVMCapabilityInfo kvm_required_capabilites[] = {
     KVM_CAP_LAST_INFO
 };
 
-static KVMSlot *kvm_alloc_slot(KVMState *s)
+static KVMSlot *kvm_get_free_slot(KVMState *s)
 {
     int i;
 
@@ -140,6 +140,22 @@ static KVMSlot *kvm_alloc_slot(KVMState *s)
         if (s->slots[i].memory_size == 0) {
             return &s->slots[i];
         }
+    }
+
+    return NULL;
+}
+
+bool kvm_has_free_slot(MachineState *ms)
+{
+    return kvm_get_free_slot(KVM_STATE(ms->accelerator));
+}
+
+static KVMSlot *kvm_alloc_slot(KVMState *s)
+{
+    KVMSlot *slot = kvm_get_free_slot(s);
+
+    if (slot) {
+        return slot;
     }
 
     fprintf(stderr, "%s: no free slot available\n", __func__);
@@ -634,8 +650,10 @@ static void kvm_set_phys_mem(MemoryRegionSection *section, bool add)
     unsigned delta;
 
     /* kvm works in page size chunks, but the function may be called
-       with sub-page size and unaligned start address. */
-    delta = TARGET_PAGE_ALIGN(size) - size;
+       with sub-page size and unaligned start address. Pad the start
+       address to next and truncate size to previous page boundary. */
+    delta = (TARGET_PAGE_SIZE - (start_addr & ~TARGET_PAGE_MASK));
+    delta &= ~TARGET_PAGE_MASK;
     if (delta > size) {
         return;
     }

@@ -68,8 +68,8 @@ static QPCIBus *test_start(void)
     g_assert_cmpint(ret, ==, 0);
     close(fd);
 
-    cmdline = g_strdup_printf("-drive if=none,id=drive0,file=%s "
-                              "-drive if=none,id=drive1,file=/dev/null "
+    cmdline = g_strdup_printf("-drive if=none,id=drive0,file=%s,format=raw "
+                              "-drive if=none,id=drive1,file=/dev/null,format=raw "
                               "-device virtio-blk-pci,id=drv0,drive=drive0,"
                               "addr=%x.%x",
                               tmp_path, PCI_SLOT, PCI_FN);

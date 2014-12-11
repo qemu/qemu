@@ -385,7 +385,7 @@ static void test_bmdma_no_busmaster(void)
 static void test_bmdma_setup(void)
 {
     ide_test_start(
-        "-drive file=%s,if=ide,serial=%s,cache=writeback "
+        "-drive file=%s,if=ide,serial=%s,cache=writeback,format=raw "
         "-global ide-hd.ver=%s",
         tmp_path, "testdisk", "version");
 }
@@ -414,7 +414,7 @@ static void test_identify(void)
     int ret;
 
     ide_test_start(
-        "-drive file=%s,if=ide,serial=%s,cache=writeback "
+        "-drive file=%s,if=ide,serial=%s,cache=writeback,format=raw "
         "-global ide-hd.ver=%s",
         tmp_path, "testdisk", "version");
 
@@ -458,7 +458,7 @@ static void test_flush(void)
     uint8_t data;
 
     ide_test_start(
-        "-drive file=blkdebug::%s,if=ide,cache=writeback",
+        "-drive file=blkdebug::%s,if=ide,cache=writeback,format=raw",
         tmp_path);
 
     /* Delay the completion of the flush request until we explicitly do it */
@@ -526,7 +526,8 @@ static void test_retry_flush(void)
 
     ide_test_start(
         "-vnc none "
-        "-drive file=blkdebug:%s:%s,if=ide,cache=writeback,rerror=stop,werror=stop",
+        "-drive file=blkdebug:%s:%s,if=ide,cache=writeback,format=raw,"
+        "rerror=stop,werror=stop",
         debug_path, tmp_path);
 
     /* FLUSH CACHE command on device 0*/

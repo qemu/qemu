@@ -1775,6 +1775,7 @@ static void rtl8139_transfer_frame(RTL8139State *s, uint8_t *buf, int size,
     int do_interrupt, const uint8_t *dot1q_buf)
 {
     struct iovec *iov = NULL;
+    struct iovec vlan_iov[3];
 
     if (!size)
     {
@@ -1789,6 +1790,9 @@ static void rtl8139_transfer_frame(RTL8139State *s, uint8_t *buf, int size,
             { .iov_base = buf + ETHER_ADDR_LEN * 2,
                 .iov_len = size - ETHER_ADDR_LEN * 2 },
         };
+
+        memcpy(vlan_iov, iov, sizeof(vlan_iov));
+        iov = vlan_iov;
     }
 
     if (TxLoopBack == (s->TxConfig & TxLoopBack))

@@ -145,7 +145,7 @@ void pcie_cap_deverr_init(PCIDevice *dev)
                                PCI_EXP_DEVCTL_FERE | PCI_EXP_DEVCTL_URRE);
     pci_long_test_and_set_mask(dev->w1cmask + pos + PCI_EXP_DEVSTA,
                                PCI_EXP_DEVSTA_CED | PCI_EXP_DEVSTA_NFED |
-                               PCI_EXP_DEVSTA_URD | PCI_EXP_DEVSTA_URD);
+                               PCI_EXP_DEVSTA_FED | PCI_EXP_DEVSTA_URD);
 }
 
 void pcie_cap_deverr_reset(PCIDevice *dev)
@@ -229,7 +229,7 @@ static void pcie_cap_slot_hotplug_common(PCIDevice *hotplug_dev,
         /* the slot is electromechanically locked.
          * This error is propagated up to qdev and then to HMP/QMP.
          */
-        error_setg_errno(errp, -EBUSY, "slot is electromechanically locked");
+        error_setg_errno(errp, EBUSY, "slot is electromechanically locked");
     }
 }
 

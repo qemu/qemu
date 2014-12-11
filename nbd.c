@@ -17,8 +17,7 @@
  */
 
 #include "block/nbd.h"
-#include "block/block.h"
-#include "block/block_int.h"
+#include "sysemu/block-backend.h"
 
 #include "block/coroutine.h"
 
@@ -101,7 +100,7 @@ struct NBDExport {
     int refcount;
     void (*close)(NBDExport *exp);
 
-    BlockDriverState *bs;
+    BlockBackend *blk;
     char *name;
     off_t dev_offset;
     off_t size;
@@ -929,7 +928,7 @@ static void nbd_request_put(NBDRequest *req)
     nbd_client_put(client);
 }
 
-static void bs_aio_attached(AioContext *ctx, void *opaque)
+static void blk_aio_attached(AioContext *ctx, void *opaque)
 {
     NBDExport *exp = opaque;
     NBDClient *client;
@@ -943,7 +942,7 @@ static void bs_aio_attached(AioContext *ctx, void *opaque)
     }
 }
 
-static void bs_aio_detach(void *opaque)
+static void blk_aio_detach(void *opaque)
 {
     NBDExport *exp = opaque;
     NBDClient *client;
@@ -957,27 +956,26 @@ static void bs_aio_detach(void *opaque)
     exp->ctx = NULL;
 }
 
-NBDExport *nbd_export_new(BlockDriverState *bs, off_t dev_offset,
-                          off_t size, uint32_t nbdflags,
-                          void (*close)(NBDExport *))
+NBDExport *nbd_export_new(BlockBackend *blk, off_t dev_offset, off_t size,
+                          uint32_t nbdflags, void (*close)(NBDExport *))
 {
     NBDExport *exp = g_malloc0(sizeof(NBDExport));
     exp->refcount = 1;
     QTAILQ_INIT(&exp->clients);
-    exp->bs = bs;
+    exp->blk = blk;
     exp->dev_offset = dev_offset;
     exp->nbdflags = nbdflags;
-    exp->size = size == -1 ? bdrv_getlength(bs) : size;
+    exp->size = size == -1 ? blk_getlength(blk) : size;
     exp->close = close;
-    exp->ctx = bdrv_get_aio_context(bs);
-    bdrv_ref(bs);
-    bdrv_add_aio_context_notifier(bs, bs_aio_attached, bs_aio_detach, exp);
+    exp->ctx = blk_get_aio_context(blk);
+    blk_ref(blk);
+    blk_add_aio_context_notifier(blk, blk_aio_attached, blk_aio_detach, exp);
     /*
      * NBD exports are used for non-shared storage migration.  Make sure
      * that BDRV_O_INCOMING is cleared and the image is ready for write
      * access since the export could be available before migration handover.
      */
-    bdrv_invalidate_cache(bs, NULL);
+    blk_invalidate_cache(blk, NULL);
     return exp;
 }
 
@@ -1024,11 +1022,11 @@ void nbd_export_close(NBDExport *exp)
     }
     nbd_export_set_name(exp, NULL);
     nbd_export_put(exp);
-    if (exp->bs) {
-        bdrv_remove_aio_context_notifier(exp->bs, bs_aio_attached,
-                                         bs_aio_detach, exp);
-        bdrv_unref(exp->bs);
-        exp->bs = NULL;
+    if (exp->blk) {
+        blk_remove_aio_context_notifier(exp->blk, blk_aio_attached,
+                                        blk_aio_detach, exp);
+        blk_unref(exp->blk);
+        exp->blk = NULL;
     }
 }
 
@@ -1056,9 +1054,9 @@ void nbd_export_put(NBDExport *exp)
     }
 }
 
-BlockDriverState *nbd_export_get_blockdev(NBDExport *exp)
+BlockBackend *nbd_export_get_blockdev(NBDExport *exp)
 {
-    return exp->bs;
+    return exp->blk;
 }
 
 void nbd_export_close_all(void)
@@ -1137,7 +1135,7 @@ static ssize_t nbd_co_receive_request(NBDRequest *req, struct nbd_request *reque
 
     command = request->type & NBD_CMD_MASK_COMMAND;
     if (command == NBD_CMD_READ || command == NBD_CMD_WRITE) {
-        req->data = qemu_blockalign(client->exp->bs, request->len);
+        req->data = blk_blockalign(client->exp->blk, request->len);
     }
     if (command == NBD_CMD_WRITE) {
         TRACE("Reading %u byte(s)", request->len);
@@ -1203,7 +1201,7 @@ static void nbd_trip(void *opaque)
         TRACE("Request type is READ");
 
         if (request.type & NBD_CMD_FLAG_FUA) {
-            ret = bdrv_co_flush(exp->bs);
+            ret = blk_co_flush(exp->blk);
             if (ret < 0) {
                 LOG("flush failed");
                 reply.error = -ret;
@@ -1211,8 +1209,9 @@ static void nbd_trip(void *opaque)
             }
         }
 
-        ret = bdrv_read(exp->bs, (request.from + exp->dev_offset) / 512,
-                        req->data, request.len / 512);
+        ret = blk_read(exp->blk,
+                       (request.from + exp->dev_offset) / BDRV_SECTOR_SIZE,
+                       req->data, request.len / BDRV_SECTOR_SIZE);
         if (ret < 0) {
             LOG("reading from file failed");
             reply.error = -ret;
@@ -1234,8 +1233,9 @@ static void nbd_trip(void *opaque)
 
         TRACE("Writing to device");
 
-        ret = bdrv_write(exp->bs, (request.from + exp->dev_offset) / 512,
-                         req->data, request.len / 512);
+        ret = blk_write(exp->blk,
+                        (request.from + exp->dev_offset) / BDRV_SECTOR_SIZE,
+                        req->data, request.len / BDRV_SECTOR_SIZE);
         if (ret < 0) {
             LOG("writing to file failed");
             reply.error = -ret;
@@ -1243,7 +1243,7 @@ static void nbd_trip(void *opaque)
         }
 
         if (request.type & NBD_CMD_FLAG_FUA) {
-            ret = bdrv_co_flush(exp->bs);
+            ret = blk_co_flush(exp->blk);
             if (ret < 0) {
                 LOG("flush failed");
                 reply.error = -ret;
@@ -1262,7 +1262,7 @@ static void nbd_trip(void *opaque)
     case NBD_CMD_FLUSH:
         TRACE("Request type is FLUSH");
 
-        ret = bdrv_co_flush(exp->bs);
+        ret = blk_co_flush(exp->blk);
         if (ret < 0) {
             LOG("flush failed");
             reply.error = -ret;
@@ -1273,8 +1273,9 @@ static void nbd_trip(void *opaque)
         break;
     case NBD_CMD_TRIM:
         TRACE("Request type is TRIM");
-        ret = bdrv_co_discard(exp->bs, (request.from + exp->dev_offset) / 512,
-                              request.len / 512);
+        ret = blk_co_discard(exp->blk, (request.from + exp->dev_offset)
+                                       / BDRV_SECTOR_SIZE,
+                             request.len / BDRV_SECTOR_SIZE);
         if (ret < 0) {
             LOG("discard failed");
             reply.error = -ret;

@@ -629,7 +629,7 @@ BlockDriver *bdrv_find_protocol(const char *filename,
     }
 
     if (!path_has_protocol(filename) || !allow_protocol_prefix) {
-        return bdrv_find_format("file");
+        return &bdrv_file;
     }
 
     p = strchr(filename, ':');
@@ -648,22 +648,49 @@ BlockDriver *bdrv_find_protocol(const char *filename,
     return NULL;
 }
 
+/*
+ * Guess image format by probing its contents.
+ * This is not a good idea when your image is raw (CVE-2008-2004), but
+ * we do it anyway for backward compatibility.
+ *
+ * @buf         contains the image's first @buf_size bytes.
+ * @buf_size    is the buffer size in bytes (generally BLOCK_PROBE_BUF_SIZE,
+ *              but can be smaller if the image file is smaller)
+ * @filename    is its filename.
+ *
+ * For all block drivers, call the bdrv_probe() method to get its
+ * probing score.
+ * Return the first block driver with the highest probing score.
+ */
+BlockDriver *bdrv_probe_all(const uint8_t *buf, int buf_size,
+                            const char *filename)
+{
+    int score_max = 0, score;
+    BlockDriver *drv = NULL, *d;
+
+    QLIST_FOREACH(d, &bdrv_drivers, list) {
+        if (d->bdrv_probe) {
+            score = d->bdrv_probe(buf, buf_size, filename);
+            if (score > score_max) {
+                score_max = score;
+                drv = d;
+            }
+        }
+    }
+
+    return drv;
+}
+
 static int find_image_format(BlockDriverState *bs, const char *filename,
                              BlockDriver **pdrv, Error **errp)
 {
-    int score, score_max;
-    BlockDriver *drv1, *drv;
-    uint8_t buf[2048];
+    BlockDriver *drv;
+    uint8_t buf[BLOCK_PROBE_BUF_SIZE];
     int ret = 0;
 
     /* Return the raw BlockDriver * to scsi-generic devices or empty drives */
     if (bs->sg || !bdrv_is_inserted(bs) || bdrv_getlength(bs) == 0) {
-        drv = bdrv_find_format("raw");
-        if (!drv) {
-            error_setg(errp, "Could not find raw image format");
-            ret = -ENOENT;
-        }
-        *pdrv = drv;
+        *pdrv = &bdrv_raw;
         return ret;
     }
 
@@ -675,17 +702,7 @@ static int find_image_format(BlockDriverState *bs, const char *filename,
         return ret;
     }
 
-    score_max = 0;
-    drv = NULL;
-    QLIST_FOREACH(drv1, &bdrv_drivers, list) {
-        if (drv1->bdrv_probe) {
-            score = drv1->bdrv_probe(buf, ret, filename);
-            if (score > score_max) {
-                score_max = score;
-                drv = drv1;
-            }
-        }
-    }
+    drv = bdrv_probe_all(buf, ret, filename);
     if (!drv) {
         error_setg(errp, "Could not determine image format: No compatible "
                    "driver found");
@@ -1180,7 +1197,6 @@ int bdrv_open_backing_file(BlockDriverState *bs, QDict *options, Error **errp)
 {
     char *backing_filename = g_malloc0(PATH_MAX);
     int ret = 0;
-    BlockDriver *back_drv = NULL;
     BlockDriverState *backing_hd;
     Error *local_err = NULL;
 
@@ -1213,14 +1229,14 @@ int bdrv_open_backing_file(BlockDriverState *bs, QDict *options, Error **errp)
 
     backing_hd = bdrv_new();
 
-    if (bs->backing_format[0] != '\0') {
-        back_drv = bdrv_find_format(bs->backing_format);
+    if (bs->backing_format[0] != '\0' && !qdict_haskey(options, "driver")) {
+        qdict_put(options, "driver", qstring_from_str(bs->backing_format));
     }
 
     assert(bs->backing_hd == NULL);
     ret = bdrv_open(&backing_hd,
                     *backing_filename ? backing_filename : NULL, NULL, options,
-                    bdrv_backing_flags(bs->open_flags), back_drv, &local_err);
+                    bdrv_backing_flags(bs->open_flags), NULL, &local_err);
     if (ret < 0) {
         bdrv_unref(backing_hd);
         backing_hd = NULL;
@@ -1294,7 +1310,6 @@ int bdrv_append_temp_snapshot(BlockDriverState *bs, int flags, Error **errp)
     /* TODO: extra byte is a hack to ensure MAX_PATH space on Windows. */
     char *tmp_filename = g_malloc0(PATH_MAX + 1);
     int64_t total_size;
-    BlockDriver *bdrv_qcow2;
     QemuOpts *opts = NULL;
     QDict *snapshot_options;
     BlockDriverState *bs_snapshot;
@@ -1319,11 +1334,10 @@ int bdrv_append_temp_snapshot(BlockDriverState *bs, int flags, Error **errp)
         goto out;
     }
 
-    bdrv_qcow2 = bdrv_find_format("qcow2");
-    opts = qemu_opts_create(bdrv_qcow2->create_opts, NULL, 0,
+    opts = qemu_opts_create(bdrv_qcow2.create_opts, NULL, 0,
                             &error_abort);
     qemu_opt_set_number(opts, BLOCK_OPT_SIZE, total_size);
-    ret = bdrv_create(bdrv_qcow2, tmp_filename, opts, &local_err);
+    ret = bdrv_create(&bdrv_qcow2, tmp_filename, opts, &local_err);
     qemu_opts_del(opts);
     if (ret < 0) {
         error_setg_errno(errp, -ret, "Could not create temporary overlay "
@@ -1343,7 +1357,7 @@ int bdrv_append_temp_snapshot(BlockDriverState *bs, int flags, Error **errp)
     bs_snapshot = bdrv_new();
 
     ret = bdrv_open(&bs_snapshot, NULL, NULL, snapshot_options,
-                    flags, bdrv_qcow2, &local_err);
+                    flags, &bdrv_qcow2, &local_err);
     if (ret < 0) {
         error_propagate(errp, local_err);
         goto out;
@@ -1467,6 +1481,7 @@ int bdrv_open(BlockDriverState **pbs, const char *filename,
     }
 
     /* Image format probing */
+    bs->probed = !drv;
     if (!drv && file) {
         ret = find_image_format(file, filename, &drv, &local_err);
         if (ret < 0) {
@@ -3801,12 +3816,25 @@ bool bdrv_chain_contains(BlockDriverState *top, BlockDriverState *base)
     return top != NULL;
 }
 
+BlockDriverState *bdrv_next_node(BlockDriverState *bs)
+{
+    if (!bs) {
+        return QTAILQ_FIRST(&graph_bdrv_states);
+    }
+    return QTAILQ_NEXT(bs, node_list);
+}
+
 BlockDriverState *bdrv_next(BlockDriverState *bs)
 {
     if (!bs) {
         return QTAILQ_FIRST(&bdrv_states);
     }
     return QTAILQ_NEXT(bs, device_list);
+}
+
+const char *bdrv_get_node_name(const BlockDriverState *bs)
+{
+    return bs->node_name;
 }
 
 /* TODO check what callers really want: bs->node_name or blk_name() */
@@ -5538,6 +5566,18 @@ void bdrv_img_create(const char *filename, const char *fmt,
     proto_drv = bdrv_find_protocol(filename, true);
     if (!proto_drv) {
         error_setg(errp, "Unknown protocol '%s'", filename);
+        return;
+    }
+
+    if (!drv->create_opts) {
+        error_setg(errp, "Format driver '%s' does not support image creation",
+                   drv->format_name);
+        return;
+    }
+
+    if (!proto_drv->create_opts) {
+        error_setg(errp, "Protocol driver '%s' does not support image creation",
+                   proto_drv->format_name);
         return;
     }
 

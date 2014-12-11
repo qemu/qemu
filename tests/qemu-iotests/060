@@ -77,7 +77,7 @@ $QEMU_IO -c "$OPEN_RW" -c "write -P 0x2a 0 512" | _filter_qemu_io
 $PYTHON qcow2.py "$TEST_IMG" dump-header | grep incompatible_features
 
 # This information should be available through qemu-img info
-$QEMU_IMG info "$TEST_IMG" | _filter_testdir
+_img_info --format-specific
 
 # Try to open the image R/W (which should fail)
 $QEMU_IO -c "$OPEN_RW" -c "read 0 512" 2>&1 | _filter_qemu_io \
