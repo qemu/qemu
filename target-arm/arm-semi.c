@@ -58,6 +58,10 @@
 #define TARGET_SYS_HEAPINFO    0x16
 #define TARGET_SYS_EXIT        0x18
 
+/* ADP_Stopped_ApplicationExit is used for exit(0),
+ * anything else is implemented as exit(1) */
+#define ADP_Stopped_ApplicationExit     (0x20026)
+
 #ifndef O_BINARY
 #define O_BINARY 0
 #endif
@@ -551,8 +555,11 @@ uint32_t do_arm_semihosting(CPUARMState *env)
             return 0;
         }
     case TARGET_SYS_EXIT:
-        gdb_exit(env, 0);
-        exit(0);
+        /* ARM specifies only Stopped_ApplicationExit as normal
+         * exit, everything else is considered an error */
+        ret = (args == ADP_Stopped_ApplicationExit) ? 0 : 1;
+        gdb_exit(env, ret);
+        exit(ret);
     default:
         fprintf(stderr, "qemu: Unsupported SemiHosting SWI 0x%02x\n", nr);
         cpu_dump_state(cs, stderr, fprintf, 0);
