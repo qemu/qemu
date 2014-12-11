@@ -400,8 +400,7 @@ static int virtio_ccw_cb(SubchDev *sch, CCW1 ccw)
                                        ccw.cda + sizeof(features.features));
             features.features = ldl_le_phys(&address_space_memory, ccw.cda);
             if (features.index < ARRAY_SIZE(dev->host_features)) {
-                virtio_bus_set_vdev_features(&dev->bus, features.features);
-                vdev->guest_features = features.features;
+                virtio_set_features(vdev, features.features);
             } else {
                 /*
                  * If the guest supports more feature bits, assert that it

@@ -84,9 +84,6 @@ size_t virtio_bus_get_vdev_config_len(VirtioBusState *bus);
 /* Get the features of the plugged device. */
 uint32_t virtio_bus_get_vdev_features(VirtioBusState *bus,
                                     uint32_t requested_features);
-/* Set the features of the plugged device. */
-void virtio_bus_set_vdev_features(VirtioBusState *bus,
-                                  uint32_t requested_features);
 /* Get bad features of the plugged device. */
 uint32_t virtio_bus_get_vdev_bad_features(VirtioBusState *bus);
 /* Get config of the plugged device. */
