@@ -59,7 +59,7 @@ struct qemu_laio_state {
     int event_max;
 };
 
-static int ioq_submit(struct qemu_laio_state *s);
+static void ioq_submit(struct qemu_laio_state *s);
 
 static inline ssize_t io_event_ret(struct io_event *ev)
 {
@@ -184,7 +184,7 @@ static void ioq_init(LaioQueue *io_q)
     io_q->blocked = false;
 }
 
-static int ioq_submit(struct qemu_laio_state *s)
+static void ioq_submit(struct qemu_laio_state *s)
 {
     int ret, i, len;
     struct qemu_laiocb *aiocb;
@@ -213,8 +213,6 @@ static int ioq_submit(struct qemu_laio_state *s)
         }
     } while (ret == len && !QSIMPLEQ_EMPTY(&s->io_q.pending));
     s->io_q.blocked = (s->io_q.n > 0);
-
-    return ret;
 }
 
 void laio_io_plug(BlockDriverState *bs, void *aio_ctx)
@@ -224,22 +222,19 @@ void laio_io_plug(BlockDriverState *bs, void *aio_ctx)
     s->io_q.plugged++;
 }
 
-int laio_io_unplug(BlockDriverState *bs, void *aio_ctx, bool unplug)
+void laio_io_unplug(BlockDriverState *bs, void *aio_ctx, bool unplug)
 {
     struct qemu_laio_state *s = aio_ctx;
-    int ret = 0;
 
     assert(s->io_q.plugged > 0 || !unplug);
 
     if (unplug && --s->io_q.plugged > 0) {
-        return 0;
+        return;
     }
 
     if (!s->io_q.blocked && !QSIMPLEQ_EMPTY(&s->io_q.pending)) {
-        ret = ioq_submit(s);
+        ioq_submit(s);
     }
-
-    return ret;
 }
 
 BlockAIOCB *laio_submit(BlockDriverState *bs, void *aio_ctx, int fd,
