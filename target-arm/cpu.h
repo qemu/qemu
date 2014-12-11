@@ -279,7 +279,15 @@ typedef struct CPUARMState {
             };
             uint64_t far_el[4];
         };
-        uint64_t par_el1;  /* Translation result. */
+        union { /* Translation result. */
+            struct {
+                uint64_t _unused_par_0;
+                uint64_t par_ns;
+                uint64_t _unused_par_1;
+                uint64_t par_s;
+            };
+            uint64_t par_el[4];
+        };
         uint32_t c9_insn; /* Cache lockdown registers.  */
         uint32_t c9_data;
         uint64_t c9_pmcr; /* performance monitor control register */
