@@ -186,9 +186,10 @@ static void ioq_init(LaioQueue *io_q)
 
 static void ioq_submit(struct qemu_laio_state *s)
 {
-    int ret, i, len;
+    int ret, len;
     struct qemu_laiocb *aiocb;
     struct iocb *iocbs[MAX_QUEUED_IO];
+    QSIMPLEQ_HEAD(, qemu_laiocb) completed;
 
     do {
         len = 0;
@@ -201,16 +202,15 @@ static void ioq_submit(struct qemu_laio_state *s)
 
         ret = io_submit(s->ctx, len, iocbs);
         if (ret == -EAGAIN) {
-            ret = 0;
+            break;
         }
         if (ret < 0) {
             abort();
         }
 
-        for (i = 0; i < ret; i++) {
-            s->io_q.n--;
-            QSIMPLEQ_REMOVE_HEAD(&s->io_q.pending, next);
-        }
+        s->io_q.n -= ret;
+        aiocb = container_of(iocbs[ret - 1], struct qemu_laiocb, iocb);
+        QSIMPLEQ_SPLIT_AFTER(&s->io_q.pending, aiocb, next, &completed);
     } while (ret == len && !QSIMPLEQ_EMPTY(&s->io_q.pending));
     s->io_q.blocked = (s->io_q.n > 0);
 }
