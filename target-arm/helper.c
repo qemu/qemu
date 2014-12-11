@@ -2344,6 +2344,10 @@ static const ARMCPRegInfo el3_cp_reginfo[] = {
       .cp = 15, .opc1 = 0, .crn = 1, .crm = 1, .opc2 = 0,
       .access = PL3_RW, .fieldoffset = offsetoflow32(CPUARMState, cp15.scr_el3),
       .resetfn = arm_cp_reset_ignore, .writefn = scr_write },
+      /* TODO: Implement NSACR trapping of secure EL1 accesses to EL3 */
+    { .name = "NSACR", .cp = 15, .opc1 = 0, .crn = 1, .crm = 1, .opc2 = 2,
+      .access = PL3_W | PL1_R, .resetvalue = 0,
+      .fieldoffset = offsetof(CPUARMState, cp15.nsacr) },
     REGINFO_SENTINEL
 };
 
