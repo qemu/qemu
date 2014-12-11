@@ -181,6 +181,7 @@ typedef struct CPUARMState {
         uint64_t c1_sys; /* System control register.  */
         uint64_t c1_coproc; /* Coprocessor access register.  */
         uint32_t c1_xscaleauxcr; /* XScale auxiliary control register.  */
+        uint64_t sder; /* Secure debug enable register. */
         uint32_t nsacr; /* Non-secure access control register. */
         uint64_t ttbr0_el1; /* MMU translation table base 0. */
         uint64_t ttbr1_el1; /* MMU translation table base 1. */
