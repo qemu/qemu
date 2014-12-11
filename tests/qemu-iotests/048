@@ -64,7 +64,7 @@ _compare
 _compare -q
 
 # Compare images with different size
-$QEMU_IMG resize "$TEST_IMG" +512M
+$QEMU_IMG resize -f $IMGFMT "$TEST_IMG" +512M
 _compare
 _compare -s
 

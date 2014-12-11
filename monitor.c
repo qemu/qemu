@@ -2628,10 +2628,10 @@ static mon_cmd_t info_cmds[] = {
     },
     {
         .name       = "block",
-        .args_type  = "verbose:-v,device:B?",
-        .params     = "[-v] [device]",
+        .args_type  = "nodes:-n,verbose:-v,device:B?",
+        .params     = "[-n] [-v] [device]",
         .help       = "show info of one block device or all block devices "
-                      "(and details of images with -v option)",
+                      "(-n: show named nodes; -v: show details)",
         .mhandler.cmd = hmp_info_block,
     },
     {
@@ -4695,7 +4695,7 @@ static void monitor_find_completion_by_table(Monitor *mon,
             }
         }
         str = args[nb_args - 1];
-        if (*ptype == '-' && ptype[1] != '\0') {
+        while (*ptype == '-' && ptype[1] != '\0') {
             ptype = next_arg_type(ptype);
         }
         switch(*ptype) {

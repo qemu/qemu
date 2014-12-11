@@ -34,10 +34,10 @@ class TestSingleDrive(iotests.QMPTestCase):
     def setUp(self):
         # Write data to the image so we can compare later
         qemu_img('create', '-f', iotests.imgfmt, test_img, str(TestSingleDrive.image_len))
-        qemu_io('-c', 'write -P0x5d 0 64k', test_img)
-        qemu_io('-c', 'write -P0xd5 1M 32k', test_img)
-        qemu_io('-c', 'write -P0xdc 32M 124k', test_img)
-        qemu_io('-c', 'write -P0xdc 67043328 64k', test_img)
+        qemu_io('-f', iotests.imgfmt, '-c', 'write -P0x5d 0 64k', test_img)
+        qemu_io('-f', iotests.imgfmt, '-c', 'write -P0xd5 1M 32k', test_img)
+        qemu_io('-f', iotests.imgfmt, '-c', 'write -P0xdc 32M 124k', test_img)
+        qemu_io('-f', iotests.imgfmt, '-c', 'write -P0xdc 67043328 64k', test_img)
 
         self.vm = iotests.VM().add_drive(test_img)
         self.vm.launch()
@@ -115,7 +115,7 @@ class TestSetSpeed(iotests.QMPTestCase):
 
     def setUp(self):
         qemu_img('create', '-f', iotests.imgfmt, test_img, str(TestSetSpeed.image_len))
-        qemu_io('-c', 'write -P1 0 512', test_img)
+        qemu_io('-f', iotests.imgfmt, '-c', 'write -P1 0 512', test_img)
         self.vm = iotests.VM().add_drive(test_img)
         self.vm.launch()
 
@@ -186,10 +186,10 @@ class TestSingleTransaction(iotests.QMPTestCase):
 
     def setUp(self):
         qemu_img('create', '-f', iotests.imgfmt, test_img, str(TestSingleTransaction.image_len))
-        qemu_io('-c', 'write -P0x5d 0 64k', test_img)
-        qemu_io('-c', 'write -P0xd5 1M 32k', test_img)
-        qemu_io('-c', 'write -P0xdc 32M 124k', test_img)
-        qemu_io('-c', 'write -P0xdc 67043328 64k', test_img)
+        qemu_io('-f', iotests.imgfmt, '-c', 'write -P0x5d 0 64k', test_img)
+        qemu_io('-f', iotests.imgfmt, '-c', 'write -P0xd5 1M 32k', test_img)
+        qemu_io('-f', iotests.imgfmt, '-c', 'write -P0xdc 32M 124k', test_img)
+        qemu_io('-f', iotests.imgfmt, '-c', 'write -P0xdc 67043328 64k', test_img)
 
         self.vm = iotests.VM().add_drive(test_img)
         self.vm.launch()

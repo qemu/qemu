@@ -117,7 +117,7 @@ static int qcow2_read_extensions(BlockDriverState *bs, uint64_t start_offset,
 #ifdef DEBUG_EXT
         printf("ext.magic = 0x%x\n", ext.magic);
 #endif
-        if (ext.len > end_offset - offset) {
+        if (offset > end_offset || ext.len > end_offset - offset) {
             error_setg(errp, "Header extension too large");
             return -EINVAL;
         }
@@ -1428,10 +1428,23 @@ static void qcow2_close(BlockDriverState *bs)
     s->l1_table = NULL;
 
     if (!(bs->open_flags & BDRV_O_INCOMING)) {
-        qcow2_cache_flush(bs, s->l2_table_cache);
-        qcow2_cache_flush(bs, s->refcount_block_cache);
+        int ret1, ret2;
 
-        qcow2_mark_clean(bs);
+        ret1 = qcow2_cache_flush(bs, s->l2_table_cache);
+        ret2 = qcow2_cache_flush(bs, s->refcount_block_cache);
+
+        if (ret1) {
+            error_report("Failed to flush the L2 table cache: %s",
+                         strerror(-ret1));
+        }
+        if (ret2) {
+            error_report("Failed to flush the refcount block cache: %s",
+                         strerror(-ret2));
+        }
+
+        if (!ret1 && !ret2) {
+            qcow2_mark_clean(bs);
+        }
     }
 
     qcow2_cache_destroy(bs, s->l2_table_cache);
@@ -1915,10 +1928,9 @@ static int qcow2_create2(const char *filename, int64_t total_size,
      * refcount of the cluster that is occupied by the header and the refcount
      * table)
      */
-    BlockDriver* drv = bdrv_find_format("qcow2");
-    assert(drv != NULL);
     ret = bdrv_open(&bs, filename, NULL, NULL,
-        BDRV_O_RDWR | BDRV_O_CACHE_WB | BDRV_O_NO_FLUSH, drv, &local_err);
+                    BDRV_O_RDWR | BDRV_O_CACHE_WB | BDRV_O_NO_FLUSH,
+                    &bdrv_qcow2, &local_err);
     if (ret < 0) {
         error_propagate(errp, local_err);
         goto out;
@@ -1970,7 +1982,7 @@ static int qcow2_create2(const char *filename, int64_t total_size,
     /* Reopen the image without BDRV_O_NO_FLUSH to flush it before returning */
     ret = bdrv_open(&bs, filename, NULL, NULL,
                     BDRV_O_RDWR | BDRV_O_CACHE_WB | BDRV_O_NO_BACKING,
-                    drv, &local_err);
+                    &bdrv_qcow2, &local_err);
     if (local_err) {
         error_propagate(errp, local_err);
         goto out;
@@ -2150,8 +2162,7 @@ static int qcow2_write_compressed(BlockDriverState *bs, int64_t sector_num,
         /* align end of file to a sector boundary to ease reading with
            sector based I/Os */
         cluster_offset = bdrv_getlength(bs->file);
-        bdrv_truncate(bs->file, cluster_offset);
-        return 0;
+        return bdrv_truncate(bs->file, cluster_offset);
     }
 
     if (nb_sectors != s->cluster_sectors) {
@@ -2847,7 +2858,7 @@ static QemuOptsList qcow2_create_opts = {
     }
 };
 
-static BlockDriver bdrv_qcow2 = {
+BlockDriver bdrv_qcow2 = {
     .format_name        = "qcow2",
     .instance_size      = sizeof(BDRVQcowState),
     .bdrv_probe         = qcow2_probe,

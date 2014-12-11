@@ -146,7 +146,7 @@ static void read_partition(uint8_t *p, struct partition_record *r)
     r->nb_sectors_abs = p[12] | p[13] << 8 | p[14] << 16 | p[15] << 24;
 }
 
-static int find_partition(BlockDriverState *bs, int partition,
+static int find_partition(BlockBackend *blk, int partition,
                           off_t *offset, off_t *size)
 {
     struct partition_record mbr[4];
@@ -155,7 +155,7 @@ static int find_partition(BlockDriverState *bs, int partition,
     int ext_partnum = 4;
     int ret;
 
-    if ((ret = bdrv_read(bs, 0, data, 1)) < 0) {
+    if ((ret = blk_read(blk, 0, data, 1)) < 0) {
         errno = -ret;
         err(EXIT_FAILURE, "error while reading");
     }
@@ -175,7 +175,7 @@ static int find_partition(BlockDriverState *bs, int partition,
             uint8_t data1[512];
             int j;
 
-            if ((ret = bdrv_read(bs, mbr[i].start_sector_abs, data1, 1)) < 0) {
+            if ((ret = blk_read(blk, mbr[i].start_sector_abs, data1, 1)) < 0) {
                 errno = -ret;
                 err(EXIT_FAILURE, "error while reading");
             }
@@ -720,17 +720,17 @@ int main(int argc, char **argv)
     }
 
     bs->detect_zeroes = detect_zeroes;
-    fd_size = bdrv_getlength(bs);
+    fd_size = blk_getlength(blk);
 
     if (partition != -1) {
-        ret = find_partition(bs, partition, &dev_offset, &fd_size);
+        ret = find_partition(blk, partition, &dev_offset, &fd_size);
         if (ret < 0) {
             errno = -ret;
             err(EXIT_FAILURE, "Could not find partition %d", partition);
         }
     }
 
-    exp = nbd_export_new(bs, dev_offset, fd_size, nbdflags, nbd_export_closed);
+    exp = nbd_export_new(blk, dev_offset, fd_size, nbdflags, nbd_export_closed);
 
     if (sockpath) {
         fd = unix_socket_incoming(sockpath);

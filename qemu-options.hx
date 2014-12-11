@@ -2790,6 +2790,14 @@ STEXI
 @findex -qmp
 Like -monitor but opens in 'control' mode.
 ETEXI
+DEF("qmp-pretty", HAS_ARG, QEMU_OPTION_qmp_pretty, \
+    "-qmp-pretty dev like -qmp but uses pretty JSON formatting\n",
+    QEMU_ARCH_ALL)
+STEXI
+@item -qmp-pretty @var{dev}
+@findex -qmp-pretty
+Like -qmp but uses pretty JSON formatting.
+ETEXI
 
 DEF("mon", HAS_ARG, QEMU_OPTION_mon, \
     "-mon [chardev=]name[,mode=readline|control][,default]\n", QEMU_ARCH_ALL)

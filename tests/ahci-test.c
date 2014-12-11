@@ -487,7 +487,8 @@ static void qtest_shutdown(void)
  */
 static QPCIDevice *ahci_boot(void)
 {
-    qtest_boot("-drive if=none,id=drive0,file=%s,cache=writeback,serial=%s"
+    qtest_boot("-drive if=none,id=drive0,file=%s,cache=writeback,serial=%s,"
+               "format=raw"
                " -M q35 "
                "-device ide-hd,drive=drive0 "
                "-global ide-hd.ver=%s",

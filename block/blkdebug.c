@@ -721,17 +721,32 @@ static int64_t blkdebug_getlength(BlockDriverState *bs)
 
 static void blkdebug_refresh_filename(BlockDriverState *bs)
 {
-    BDRVBlkdebugState *s = bs->opaque;
-    struct BlkdebugRule *rule;
     QDict *opts;
-    QList *inject_error_list = NULL, *set_state_list = NULL;
-    QList *suspend_list = NULL;
-    int event;
+    const QDictEntry *e;
+    bool force_json = false;
 
-    if (!bs->file->full_open_options) {
+    for (e = qdict_first(bs->options); e; e = qdict_next(bs->options, e)) {
+        if (strcmp(qdict_entry_key(e), "config") &&
+            strcmp(qdict_entry_key(e), "x-image") &&
+            strcmp(qdict_entry_key(e), "image") &&
+            strncmp(qdict_entry_key(e), "image.", strlen("image.")))
+        {
+            force_json = true;
+            break;
+        }
+    }
+
+    if (force_json && !bs->file->full_open_options) {
         /* The config file cannot be recreated, so creating a plain filename
          * is impossible */
         return;
+    }
+
+    if (!force_json && bs->file->exact_filename[0]) {
+        snprintf(bs->exact_filename, sizeof(bs->exact_filename),
+                 "blkdebug:%s:%s",
+                 qdict_get_try_str(bs->options, "config") ?: "",
+                 bs->file->exact_filename);
     }
 
     opts = qdict_new();
@@ -740,72 +755,14 @@ static void blkdebug_refresh_filename(BlockDriverState *bs)
     QINCREF(bs->file->full_open_options);
     qdict_put_obj(opts, "image", QOBJECT(bs->file->full_open_options));
 
-    for (event = 0; event < BLKDBG_EVENT_MAX; event++) {
-        QLIST_FOREACH(rule, &s->rules[event], next) {
-            if (rule->action == ACTION_INJECT_ERROR) {
-                QDict *inject_error = qdict_new();
-
-                qdict_put_obj(inject_error, "event", QOBJECT(qstring_from_str(
-                              BlkdebugEvent_lookup[rule->event])));
-                qdict_put_obj(inject_error, "state",
-                              QOBJECT(qint_from_int(rule->state)));
-                qdict_put_obj(inject_error, "errno", QOBJECT(qint_from_int(
-                              rule->options.inject.error)));
-                qdict_put_obj(inject_error, "sector", QOBJECT(qint_from_int(
-                              rule->options.inject.sector)));
-                qdict_put_obj(inject_error, "once", QOBJECT(qbool_from_int(
-                              rule->options.inject.once)));
-                qdict_put_obj(inject_error, "immediately",
-                              QOBJECT(qbool_from_int(
-                              rule->options.inject.immediately)));
-
-                if (!inject_error_list) {
-                    inject_error_list = qlist_new();
-                }
-
-                qlist_append_obj(inject_error_list, QOBJECT(inject_error));
-            } else if (rule->action == ACTION_SET_STATE) {
-                QDict *set_state = qdict_new();
-
-                qdict_put_obj(set_state, "event", QOBJECT(qstring_from_str(
-                              BlkdebugEvent_lookup[rule->event])));
-                qdict_put_obj(set_state, "state",
-                              QOBJECT(qint_from_int(rule->state)));
-                qdict_put_obj(set_state, "new_state", QOBJECT(qint_from_int(
-                              rule->options.set_state.new_state)));
-
-                if (!set_state_list) {
-                    set_state_list = qlist_new();
-                }
-
-                qlist_append_obj(set_state_list, QOBJECT(set_state));
-            } else if (rule->action == ACTION_SUSPEND) {
-                QDict *suspend = qdict_new();
-
-                qdict_put_obj(suspend, "event", QOBJECT(qstring_from_str(
-                              BlkdebugEvent_lookup[rule->event])));
-                qdict_put_obj(suspend, "state",
-                              QOBJECT(qint_from_int(rule->state)));
-                qdict_put_obj(suspend, "tag", QOBJECT(qstring_from_str(
-                              rule->options.suspend.tag)));
-
-                if (!suspend_list) {
-                    suspend_list = qlist_new();
-                }
-
-                qlist_append_obj(suspend_list, QOBJECT(suspend));
-            }
+    for (e = qdict_first(bs->options); e; e = qdict_next(bs->options, e)) {
+        if (strcmp(qdict_entry_key(e), "x-image") &&
+            strcmp(qdict_entry_key(e), "image") &&
+            strncmp(qdict_entry_key(e), "image.", strlen("image.")))
+        {
+            qobject_incref(qdict_entry_value(e));
+            qdict_put_obj(opts, qdict_entry_key(e), qdict_entry_value(e));
         }
-    }
-
-    if (inject_error_list) {
-        qdict_put_obj(opts, "inject-error", QOBJECT(inject_error_list));
-    }
-    if (set_state_list) {
-        qdict_put_obj(opts, "set-state", QOBJECT(set_state_list));
-    }
-    if (suspend_list) {
-        qdict_put_obj(opts, "suspend", QOBJECT(suspend_list));
     }
 
     bs->full_open_options = opts;

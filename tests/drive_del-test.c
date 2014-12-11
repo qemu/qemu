@@ -103,7 +103,7 @@ static void test_after_failed_device_add(void)
 static void test_drive_del_device_del(void)
 {
     /* Start with a drive used by a device that unplugs instantaneously */
-    qtest_start("-drive if=none,id=drive0,file=/dev/null"
+    qtest_start("-drive if=none,id=drive0,file=/dev/null,format=raw"
                 " -device virtio-scsi-pci"
                 " -device scsi-hd,drive=drive0,id=dev0");
 

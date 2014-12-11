@@ -153,8 +153,9 @@ function _launch_qemu()
     mkfifo "${fifo_out}"
     mkfifo "${fifo_in}"
 
-    "${QEMU}" -nographic -serial none ${comm} -machine accel=qtest "${@}" 2>&1 \
+    "${QEMU}" -nographic -serial none ${comm} -machine accel=qtest "${@}" \
                                                                 >"${fifo_out}" \
+                                                                2>&1 \
                                                                 <"${fifo_in}" &
     QEMU_PID[${_QEMU_HANDLE}]=$!
 

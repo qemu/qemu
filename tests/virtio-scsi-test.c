@@ -52,8 +52,8 @@ int main(int argc, char **argv)
     qtest_add_func("/virtio/scsi/pci/nop", pci_nop);
     qtest_add_func("/virtio/scsi/pci/hotplug", hotplug);
 
-    qtest_start("-drive id=drv0,if=none,file=/dev/null "
-                "-drive id=drv1,if=none,file=/dev/null "
+    qtest_start("-drive id=drv0,if=none,file=/dev/null,format=raw "
+                "-drive id=drv1,if=none,file=/dev/null,format=raw "
                 "-device virtio-scsi-pci,id=vscsi0 "
                 "-device scsi-hd,bus=vscsi0.0,drive=drv0");
     ret = g_test_run();

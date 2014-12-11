@@ -446,6 +446,7 @@ static int raw_open_common(BlockDriverState *bs, QDict *options,
     }
 
     if (fstat(s->fd, &st) < 0) {
+        ret = -errno;
         error_setg_errno(errp, errno, "Could not stat file");
         goto fail;
     }
@@ -1684,7 +1685,7 @@ static QemuOptsList raw_create_opts = {
     }
 };
 
-static BlockDriver bdrv_file = {
+BlockDriver bdrv_file = {
     .format_name = "file",
     .protocol_name = "file",
     .instance_size = sizeof(BDRVRawState),
@@ -1922,7 +1923,7 @@ static int fd_open(BlockDriverState *bs)
         return 0;
     last_media_present = (s->fd >= 0);
     if (s->fd >= 0 &&
-        (get_clock() - s->fd_open_time) >= FD_OPEN_TIMEOUT) {
+        (qemu_clock_get_ns(QEMU_CLOCK_REALTIME) - s->fd_open_time) >= FD_OPEN_TIMEOUT) {
         qemu_close(s->fd);
         s->fd = -1;
 #ifdef DEBUG_FLOPPY
@@ -1931,7 +1932,7 @@ static int fd_open(BlockDriverState *bs)
     }
     if (s->fd < 0) {
         if (s->fd_got_error &&
-            (get_clock() - s->fd_error_time) < FD_OPEN_TIMEOUT) {
+            (qemu_clock_get_ns(QEMU_CLOCK_REALTIME) - s->fd_error_time) < FD_OPEN_TIMEOUT) {
 #ifdef DEBUG_FLOPPY
             printf("No floppy (open delayed)\n");
 #endif
@@ -1939,7 +1940,7 @@ static int fd_open(BlockDriverState *bs)
         }
         s->fd = qemu_open(bs->filename, s->open_flags & ~O_NONBLOCK);
         if (s->fd < 0) {
-            s->fd_error_time = get_clock();
+            s->fd_error_time = qemu_clock_get_ns(QEMU_CLOCK_REALTIME);
             s->fd_got_error = 1;
             if (last_media_present)
                 s->fd_media_changed = 1;
@@ -1954,7 +1955,7 @@ static int fd_open(BlockDriverState *bs)
     }
     if (!last_media_present)
         s->fd_media_changed = 1;
-    s->fd_open_time = get_clock();
+    s->fd_open_time = qemu_clock_get_ns(QEMU_CLOCK_REALTIME);
     s->fd_got_error = 0;
     return 0;
 }

@@ -34,15 +34,15 @@
 #include <hw/ide/pci.h>
 #include <hw/ide/ahci.h>
 
-/* #define DEBUG_AHCI */
+#define DEBUG_AHCI 0
 
-#ifdef DEBUG_AHCI
 #define DPRINTF(port, fmt, ...) \
-do { fprintf(stderr, "ahci: %s: [%d] ", __FUNCTION__, port); \
-     fprintf(stderr, fmt, ## __VA_ARGS__); } while (0)
-#else
-#define DPRINTF(port, fmt, ...) do {} while(0)
-#endif
+do { \
+    if (DEBUG_AHCI) { \
+        fprintf(stderr, "ahci: %s: [%d] ", __func__, port); \
+        fprintf(stderr, fmt, ## __VA_ARGS__); \
+    } \
+} while (0)
 
 static void check_cmd(AHCIState *s, int port);
 static int handle_cmd(AHCIState *s,int port,int slot);
@@ -551,7 +551,7 @@ static void ahci_reset_port(AHCIState *s, int port)
 
 static void debug_print_fis(uint8_t *fis, int cmd_len)
 {
-#ifdef DEBUG_AHCI
+#if DEBUG_AHCI
     int i;
 
     fprintf(stderr, "fis:");
@@ -580,7 +580,7 @@ static void ahci_write_fis_sdb(AHCIState *s, int port, uint32_t finished)
     sdb_fis = (SDBFIS *)&ad->res_fis[RES_FIS_SDBFIS];
     ide_state = &ad->port.ifs[0];
 
-    sdb_fis->type = 0xA1;
+    sdb_fis->type = SATA_FIS_TYPE_SDB;
     /* Interrupt pending & Notification bit */
     sdb_fis->flags = (ad->hba->control_regs.irqstatus ? (1 << 6) : 0);
     sdb_fis->status = ide_state->status & 0x77;
@@ -631,7 +631,7 @@ static void ahci_write_fis_pio(AHCIDevice *ad, uint16_t len)
 
     pio_fis = &ad->res_fis[RES_FIS_PSFIS];
 
-    pio_fis[0] = 0x5f;
+    pio_fis[0] = SATA_FIS_TYPE_PIO_SETUP;
     pio_fis[1] = (ad->hba->control_regs.irqstatus ? (1 << 6) : 0);
     pio_fis[2] = s->status;
     pio_fis[3] = s->error;
@@ -690,7 +690,7 @@ static void ahci_write_fis_d2h(AHCIDevice *ad, uint8_t *cmd_fis)
 
     d2h_fis = &ad->res_fis[RES_FIS_RFIS];
 
-    d2h_fis[0] = 0x34;
+    d2h_fis[0] = SATA_FIS_TYPE_REGISTER_D2H;
     d2h_fis[1] = (ad->hba->control_regs.irqstatus ? (1 << 6) : 0);
     d2h_fis[2] = s->status;
     d2h_fis[3] = s->error;
@@ -1154,9 +1154,7 @@ out:
 static void ahci_start_dma(IDEDMA *dma, IDEState *s,
                            BlockCompletionFunc *dma_cb)
 {
-#ifdef DEBUG_AHCI
     AHCIDevice *ad = DO_UPCAST(AHCIDevice, dma, dma);
-#endif
     DPRINTF(ad->port_no, "\n");
     s->io_buffer_offset = 0;
     dma_cb(s, 0);
