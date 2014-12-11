@@ -224,21 +224,23 @@ static gboolean serial_xmit(GIOChannel *chan, GIOCondition cond, void *opaque)
     SerialState *s = opaque;
 
     do {
+        assert(!(s->lsr & UART_LSR_TEMT));
         if (s->tsr_retry <= 0) {
+            assert(!(s->lsr & UART_LSR_THRE));
+
             if (s->fcr & UART_FCR_FE) {
-                if (fifo8_is_empty(&s->xmit_fifo)) {
-                    return FALSE;
-                }
+                assert(!fifo8_is_empty(&s->xmit_fifo));
                 s->tsr = fifo8_pop(&s->xmit_fifo);
                 if (!s->xmit_fifo.num) {
                     s->lsr |= UART_LSR_THRE;
                 }
-            } else if ((s->lsr & UART_LSR_THRE)) {
-                return FALSE;
             } else {
                 s->tsr = s->thr;
                 s->lsr |= UART_LSR_THRE;
-                s->lsr &= ~UART_LSR_TEMT;
+            }
+            if ((s->lsr & UART_LSR_THRE) && !s->thr_ipending) {
+                s->thr_ipending = 1;
+                serial_update_irq(s);
             }
         }
 
@@ -256,17 +258,13 @@ static gboolean serial_xmit(GIOChannel *chan, GIOCondition cond, void *opaque)
         } else {
             s->tsr_retry = 0;
         }
+
         /* Transmit another byte if it is already available. It is only
            possible when FIFO is enabled and not empty. */
-    } while ((s->fcr & UART_FCR_FE) && !fifo8_is_empty(&s->xmit_fifo));
+    } while (!(s->lsr & UART_LSR_THRE));
 
     s->last_xmit_ts = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
-
-    if (s->lsr & UART_LSR_THRE) {
-        s->lsr |= UART_LSR_TEMT;
-        s->thr_ipending = 1;
-        serial_update_irq(s);
-    }
+    s->lsr |= UART_LSR_TEMT;
 
     return FALSE;
 }
@@ -323,10 +321,10 @@ static void serial_ioport_write(void *opaque, hwaddr addr, uint64_t val,
                     fifo8_pop(&s->xmit_fifo);
                 }
                 fifo8_push(&s->xmit_fifo, s->thr);
-                s->lsr &= ~UART_LSR_TEMT;
             }
             s->thr_ipending = 0;
             s->lsr &= ~UART_LSR_THRE;
+            s->lsr &= ~UART_LSR_TEMT;
             serial_update_irq(s);
             if (s->tsr_retry <= 0) {
                 serial_xmit(NULL, G_IO_OUT, s);
