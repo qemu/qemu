@@ -41,6 +41,7 @@
 #define CCW_CMD_SET_CONF_IND 0x53
 #define CCW_CMD_READ_VQ_CONF 0x32
 #define CCW_CMD_SET_IND_ADAPTER 0x73
+#define CCW_CMD_SET_VIRTIO_REV 0x83
 
 #define TYPE_VIRTIO_CCW_DEVICE "virtio-ccw-device"
 #define VIRTIO_CCW_DEVICE(obj) \
@@ -86,6 +87,7 @@ struct VirtioCcwDevice {
     DeviceState parent_obj;
     SubchDev *sch;
     char *bus_id;
+    int revision;
     VirtioBusState bus;
     bool ioeventfd_started;
     bool ioeventfd_disabled;
@@ -98,6 +100,12 @@ struct VirtioCcwDevice {
     IndAddr *summary_indicator;
     uint64_t ind_bit;
 };
+
+/* The maximum virtio revision we support. */
+static inline int virtio_ccw_rev_max(VirtIODevice *vdev)
+{
+    return 0;
+}
 
 /* virtual css bus type */
 typedef struct VirtualCssBus {
