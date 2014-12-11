@@ -3644,6 +3644,8 @@ uint32_t cpsr_read(CPUARMState *env)
 
 void cpsr_write(CPUARMState *env, uint32_t val, uint32_t mask)
 {
+    uint32_t changed_daif;
+
     if (mask & CPSR_NZCV) {
         env->ZF = (~val) & CPSR_Z;
         env->NF = val;
@@ -3664,6 +3666,58 @@ void cpsr_write(CPUARMState *env, uint32_t val, uint32_t mask)
     }
     if (mask & CPSR_GE) {
         env->GE = (val >> 16) & 0xf;
+    }
+
+    /* In a V7 implementation that includes the security extensions but does
+     * not include Virtualization Extensions the SCR.FW and SCR.AW bits control
+     * whether non-secure software is allowed to change the CPSR_F and CPSR_A
+     * bits respectively.
+     *
+     * In a V8 implementation, it is permitted for privileged software to
+     * change the CPSR A/F bits regardless of the SCR.AW/FW bits.
+     */
+    if (!arm_feature(env, ARM_FEATURE_V8) &&
+        arm_feature(env, ARM_FEATURE_EL3) &&
+        !arm_feature(env, ARM_FEATURE_EL2) &&
+        !arm_is_secure(env)) {
+
+        changed_daif = (env->daif ^ val) & mask;
+
+        if (changed_daif & CPSR_A) {
+            /* Check to see if we are allowed to change the masking of async
+             * abort exceptions from a non-secure state.
+             */
+            if (!(env->cp15.scr_el3 & SCR_AW)) {
+                qemu_log_mask(LOG_GUEST_ERROR,
+                              "Ignoring attempt to switch CPSR_A flag from "
+                              "non-secure world with SCR.AW bit clear\n");
+                mask &= ~CPSR_A;
+            }
+        }
+
+        if (changed_daif & CPSR_F) {
+            /* Check to see if we are allowed to change the masking of FIQ
+             * exceptions from a non-secure state.
+             */
+            if (!(env->cp15.scr_el3 & SCR_FW)) {
+                qemu_log_mask(LOG_GUEST_ERROR,
+                              "Ignoring attempt to switch CPSR_F flag from "
+                              "non-secure world with SCR.FW bit clear\n");
+                mask &= ~CPSR_F;
+            }
+
+            /* Check whether non-maskable FIQ (NMFI) support is enabled.
+             * If this bit is set software is not allowed to mask
+             * FIQs, but is allowed to set CPSR_F to 0.
+             */
+            if ((A32_BANKED_CURRENT_REG_GET(env, sctlr) & SCTLR_NMFI) &&
+                (val & CPSR_F)) {
+                qemu_log_mask(LOG_GUEST_ERROR,
+                              "Ignoring attempt to enable CPSR_F flag "
+                              "(non-maskable FIQ [NMFI] support enabled)\n");
+                mask &= ~CPSR_F;
+            }
+        }
     }
 
     env->daif &= ~(CPSR_AIF & mask);
