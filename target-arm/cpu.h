@@ -242,7 +242,15 @@ typedef struct CPUARMState {
         uint32_t pmsav5_insn_ap; /* PMSAv5 MPU insn access permissions */
         uint64_t hcr_el2; /* Hypervisor configuration register */
         uint64_t scr_el3; /* Secure configuration register.  */
-        uint32_t ifsr_el2; /* Fault status registers.  */
+        union { /* Fault status registers.  */
+            struct {
+                uint64_t ifsr_ns;
+                uint64_t ifsr_s;
+            };
+            struct {
+                uint64_t ifsr32_el2;
+            };
+        };
         uint64_t esr_el[4];
         uint32_t c6_region[8]; /* MPU base/size registers.  */
         uint64_t far_el[4]; /* Fault address registers.  */
