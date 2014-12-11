@@ -817,6 +817,22 @@ static inline bool arm_el_is_aa64(CPUARMState *env, int el)
     return arm_feature(env, ARM_FEATURE_AARCH64);
 }
 
+/* Function for determing whether guest cp register reads and writes should
+ * access the secure or non-secure bank of a cp register.  When EL3 is
+ * operating in AArch32 state, the NS-bit determines whether the secure
+ * instance of a cp register should be used. When EL3 is AArch64 (or if
+ * it doesn't exist at all) then there is no register banking, and all
+ * accesses are to the non-secure version.
+ */
+static inline bool access_secure_reg(CPUARMState *env)
+{
+    bool ret = (arm_feature(env, ARM_FEATURE_EL3) &&
+                !arm_el_is_aa64(env, 3) &&
+                !(env->cp15.scr_el3 & SCR_NS));
+
+    return ret;
+}
+
 /* Macros for accessing a specified CP register bank */
 #define A32_BANKED_REG_GET(_env, _regname, _secure)    \
     ((_secure) ? (_env)->cp15._regname##_s : (_env)->cp15._regname##_ns)
@@ -1467,6 +1483,12 @@ static inline bool arm_singlestep_active(CPUARMState *env)
  */
 #define ARM_TBFLAG_XSCALE_CPAR_SHIFT 20
 #define ARM_TBFLAG_XSCALE_CPAR_MASK (3 << ARM_TBFLAG_XSCALE_CPAR_SHIFT)
+/* Indicates whether cp register reads and writes by guest code should access
+ * the secure or nonsecure bank of banked registers; note that this is not
+ * the same thing as the current security state of the processor!
+ */
+#define ARM_TBFLAG_NS_SHIFT         22
+#define ARM_TBFLAG_NS_MASK          (1 << ARM_TBFLAG_NS_SHIFT)
 
 /* Bit usage when in AArch64 state */
 #define ARM_TBFLAG_AA64_EL_SHIFT    0
@@ -1511,6 +1533,8 @@ static inline bool arm_singlestep_active(CPUARMState *env)
     (((F) & ARM_TBFLAG_AA64_SS_ACTIVE_MASK) >> ARM_TBFLAG_AA64_SS_ACTIVE_SHIFT)
 #define ARM_TBFLAG_AA64_PSTATE_SS(F) \
     (((F) & ARM_TBFLAG_AA64_PSTATE_SS_MASK) >> ARM_TBFLAG_AA64_PSTATE_SS_SHIFT)
+#define ARM_TBFLAG_NS(F) \
+    (((F) & ARM_TBFLAG_NS_MASK) >> ARM_TBFLAG_NS_SHIFT)
 
 static inline void cpu_get_tb_cpu_state(CPUARMState *env, target_ulong *pc,
                                         target_ulong *cs_base, int *flags)
@@ -1559,6 +1583,9 @@ static inline void cpu_get_tb_cpu_state(CPUARMState *env, target_ulong *pc,
         }
         if (privmode) {
             *flags |= ARM_TBFLAG_PRIV_MASK;
+        }
+        if (!(access_secure_reg(env))) {
+            *flags |= ARM_TBFLAG_NS_MASK;
         }
         if (env->vfp.xregs[ARM_VFP_FPEXC] & (1 << 30)
             || arm_el_is_aa64(env, 1)) {
