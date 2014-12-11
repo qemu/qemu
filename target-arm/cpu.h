@@ -199,8 +199,24 @@ typedef struct CPUARMState {
         uint32_t c1_xscaleauxcr; /* XScale auxiliary control register.  */
         uint64_t sder; /* Secure debug enable register. */
         uint32_t nsacr; /* Non-secure access control register. */
-        uint64_t ttbr0_el1; /* MMU translation table base 0. */
-        uint64_t ttbr1_el1; /* MMU translation table base 1. */
+        union { /* MMU translation table base 0. */
+            struct {
+                uint64_t _unused_ttbr0_0;
+                uint64_t ttbr0_ns;
+                uint64_t _unused_ttbr0_1;
+                uint64_t ttbr0_s;
+            };
+            uint64_t ttbr0_el[4];
+        };
+        union { /* MMU translation table base 1. */
+            struct {
+                uint64_t _unused_ttbr1_0;
+                uint64_t ttbr1_ns;
+                uint64_t _unused_ttbr1_1;
+                uint64_t ttbr1_s;
+            };
+            uint64_t ttbr1_el[4];
+        };
         uint64_t c2_control; /* MMU translation table base control.  */
         uint32_t c2_mask; /* MMU translation table base selection mask.  */
         uint32_t c2_base_mask; /* MMU translation table base 0 mask. */
