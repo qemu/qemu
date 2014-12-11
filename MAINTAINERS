@@ -757,6 +757,7 @@ F: aio-*.c
 F: block*
 F: block/
 F: hw/block/
+F: migration/block*
 F: qemu-img*
 F: qemu-io*
 F: tests/image-fuzzer/
