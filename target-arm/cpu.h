@@ -307,11 +307,37 @@ typedef struct CPUARMState {
             uint64_t vbar_el[4];
         };
         uint32_t mvbar; /* (monitor) vector base address register */
-        uint32_t c13_fcse; /* FCSE PID.  */
-        uint64_t contextidr_el1; /* Context ID.  */
-        uint64_t tpidr_el0; /* User RW Thread register.  */
-        uint64_t tpidrro_el0; /* User RO Thread register.  */
-        uint64_t tpidr_el1; /* Privileged Thread register.  */
+        struct { /* FCSE PID. */
+            uint32_t fcseidr_ns;
+            uint32_t fcseidr_s;
+        };
+        union { /* Context ID. */
+            struct {
+                uint64_t _unused_contextidr_0;
+                uint64_t contextidr_ns;
+                uint64_t _unused_contextidr_1;
+                uint64_t contextidr_s;
+            };
+            uint64_t contextidr_el[4];
+        };
+        union { /* User RW Thread register. */
+            struct {
+                uint64_t tpidrurw_ns;
+                uint64_t tpidrprw_ns;
+                uint64_t htpidr;
+                uint64_t _tpidr_el3;
+            };
+            uint64_t tpidr_el[4];
+        };
+        /* The secure banks of these registers don't map anywhere */
+        uint64_t tpidrurw_s;
+        uint64_t tpidrprw_s;
+        uint64_t tpidruro_s;
+
+        union { /* User RO Thread register. */
+            uint64_t tpidruro_ns;
+            uint64_t tpidrro_el[1];
+        };
         uint64_t c14_cntfrq; /* Counter Frequency register */
         uint64_t c14_cntkctl; /* Timer Control register */
         ARMGenericTimer c14_timer[NUM_GTIMERS];

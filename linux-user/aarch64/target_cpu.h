@@ -32,7 +32,7 @@ static inline void cpu_set_tls(CPUARMState *env, target_ulong newtls)
     /* Note that AArch64 Linux keeps the TLS pointer in TPIDR; this is
      * different from AArch32 Linux, which uses TPIDRRO.
      */
-    env->cp15.tpidr_el0 = newtls;
+    env->cp15.tpidr_el[0] = newtls;
 }
 
 #endif

@@ -575,7 +575,7 @@ static bool linked_bp_matches(ARMCPU *cpu, int lbn)
      * short descriptor format (in which case it holds both PROCID and ASID),
      * since we don't implement the optional v7 context ID masking.
      */
-    contextidr = extract64(env->cp15.contextidr_el1, 0, 32);
+    contextidr = extract64(env->cp15.contextidr_el[1], 0, 32);
 
     switch (bt) {
     case 3: /* linked context ID match */
