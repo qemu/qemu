@@ -440,10 +440,12 @@ static const ARMCPRegInfo not_v8_cp_reginfo[] = {
      * definitions that don't use CP_ANY wildcards (mostly in v8_cp_reginfo[]).
      */
     /* MMU Domain access control / MPU write buffer control */
-    { .name = "DACR", .cp = 15,
-      .crn = 3, .crm = CP_ANY, .opc1 = CP_ANY, .opc2 = CP_ANY,
-      .access = PL1_RW, .fieldoffset = offsetof(CPUARMState, cp15.c3),
-      .resetvalue = 0, .writefn = dacr_write, .raw_writefn = raw_write, },
+    { .name = "DACR",
+      .cp = 15, .opc1 = CP_ANY, .crn = 3, .crm = CP_ANY, .opc2 = CP_ANY,
+      .access = PL1_RW, .resetvalue = 0,
+      .writefn = dacr_write, .raw_writefn = raw_write,
+      .bank_fieldoffsets = { offsetoflow32(CPUARMState, cp15.dacr_s),
+                             offsetoflow32(CPUARMState, cp15.dacr_ns) } },
     /* ??? This covers not just the impdef TLB lockdown registers but also
      * some v7VMSA registers relating to TEX remap, so it is overly broad.
      */
@@ -2257,10 +2259,11 @@ static const ARMCPRegInfo v8_cp_reginfo[] = {
     { .name = "DCCISW", .cp = 15, .opc1 = 0, .crn = 7, .crm = 14, .opc2 = 2,
       .type = ARM_CP_NOP, .access = PL1_W },
     /* MMU Domain access control / MPU write buffer control */
-    { .name = "DACR", .cp = 15,
-      .opc1 = 0, .crn = 3, .crm = 0, .opc2 = 0,
-      .access = PL1_RW, .fieldoffset = offsetof(CPUARMState, cp15.c3),
-      .resetvalue = 0, .writefn = dacr_write, .raw_writefn = raw_write, },
+    { .name = "DACR", .cp = 15, .opc1 = 0, .crn = 3, .crm = 0, .opc2 = 0,
+      .access = PL1_RW, .resetvalue = 0,
+      .writefn = dacr_write, .raw_writefn = raw_write,
+      .bank_fieldoffsets = { offsetoflow32(CPUARMState, cp15.dacr_s),
+                             offsetoflow32(CPUARMState, cp15.dacr_ns) } },
     { .name = "ELR_EL1", .state = ARM_CP_STATE_AA64,
       .type = ARM_CP_NO_MIGRATE,
       .opc0 = 3, .opc1 = 0, .crn = 4, .crm = 0, .opc2 = 1,
@@ -2330,6 +2333,11 @@ static const ARMCPRegInfo v8_el2_cp_reginfo[] = {
       .opc0 = 3, .opc1 = 4, .crn = 1, .crm = 1, .opc2 = 0,
       .access = PL2_RW, .fieldoffset = offsetof(CPUARMState, cp15.hcr_el2),
       .writefn = hcr_write },
+    { .name = "DACR32_EL2", .state = ARM_CP_STATE_AA64,
+      .opc0 = 3, .opc1 = 4, .crn = 3, .crm = 0, .opc2 = 0,
+      .access = PL2_RW, .resetvalue = 0,
+      .writefn = dacr_write, .raw_writefn = raw_write,
+      .fieldoffset = offsetof(CPUARMState, cp15.dacr32_el2) },
     { .name = "ELR_EL2", .state = ARM_CP_STATE_AA64,
       .type = ARM_CP_NO_MIGRATE,
       .opc0 = 3, .opc1 = 4, .crn = 4, .crm = 0, .opc2 = 1,
@@ -4517,7 +4525,7 @@ static int get_phys_addr_v5(CPUARMState *env, uint32_t address, int access_type,
     desc = ldl_phys(cs->as, table);
     type = (desc & 3);
     domain = (desc >> 5) & 0x0f;
-    domain_prot = (env->cp15.c3 >> (domain * 2)) & 3;
+    domain_prot = (A32_BANKED_CURRENT_REG_GET(env, dacr) >> (domain * 2)) & 3;
     if (type == 0) {
         /* Section translation fault.  */
         code = 5;
@@ -4629,7 +4637,7 @@ static int get_phys_addr_v6(CPUARMState *env, uint32_t address, int access_type,
         /* Page or Section.  */
         domain = (desc >> 5) & 0x0f;
     }
-    domain_prot = (env->cp15.c3 >> (domain * 2)) & 3;
+    domain_prot = (A32_BANKED_CURRENT_REG_GET(env, dacr) >> (domain * 2)) & 3;
     if (domain_prot == 0 || domain_prot == 2) {
         if (type != 1) {
             code = 9; /* Section domain fault.  */

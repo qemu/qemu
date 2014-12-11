@@ -227,8 +227,17 @@ typedef struct CPUARMState {
         TCR tcr_el[4];
         uint32_t c2_data; /* MPU data cachable bits.  */
         uint32_t c2_insn; /* MPU instruction cachable bits.  */
-        uint32_t c3; /* MMU domain access control register
-                        MPU write buffer control.  */
+        union { /* MMU domain access control register
+                 * MPU write buffer control.
+                 */
+            struct {
+                uint64_t dacr_ns;
+                uint64_t dacr_s;
+            };
+            struct {
+                uint64_t dacr32_el2;
+            };
+        };
         uint32_t pmsav5_data_ap; /* PMSAv5 MPU data access permissions */
         uint32_t pmsav5_insn_ap; /* PMSAv5 MPU insn access permissions */
         uint64_t hcr_el2; /* Hypervisor configuration register */
