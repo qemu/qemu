@@ -51,17 +51,17 @@ bool kvm_arm_get_host_cpu_features(ARMHostCPUClass *ahcc)
     struct kvm_one_reg idregs[] = {
         {
             .id = KVM_REG_ARM | KVM_REG_SIZE_U32
-            | ENCODE_CP_REG(15, 0, 0, 0, 0, 0),
+            | ENCODE_CP_REG(15, 0, 0, 0, 0, 0, 0),
             .addr = (uintptr_t)&midr,
         },
         {
             .id = KVM_REG_ARM | KVM_REG_SIZE_U32
-            | ENCODE_CP_REG(15, 0, 0, 1, 0, 0),
+            | ENCODE_CP_REG(15, 0, 0, 0, 1, 0, 0),
             .addr = (uintptr_t)&id_pfr0,
         },
         {
             .id = KVM_REG_ARM | KVM_REG_SIZE_U32
-            | ENCODE_CP_REG(15, 0, 0, 2, 0, 0),
+            | ENCODE_CP_REG(15, 0, 0, 0, 2, 0, 0),
             .addr = (uintptr_t)&id_isar0,
         },
         {

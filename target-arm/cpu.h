@@ -879,6 +879,7 @@ void armv7m_nvic_complete_irq(void *opaque, int irq);
  *  Crn, Crm, opc1, opc2 fields
  *  32 or 64 bit register (ie is it accessed via MRC/MCR
  *    or via MRRC/MCRR?)
+ *  non-secure/secure bank (AArch32 only)
  * We allow 4 bits for opc1 because MRRC/MCRR have a 4 bit field.
  * (In this case crn and opc2 should be zero.)
  * For AArch64, there is no 32/64 bit size distinction;
@@ -896,9 +897,16 @@ void armv7m_nvic_complete_irq(void *opaque, int irq);
 #define CP_REG_AA64_SHIFT 28
 #define CP_REG_AA64_MASK (1 << CP_REG_AA64_SHIFT)
 
-#define ENCODE_CP_REG(cp, is64, crn, crm, opc1, opc2)   \
-    (((cp) << 16) | ((is64) << 15) | ((crn) << 11) |    \
-     ((crm) << 7) | ((opc1) << 3) | (opc2))
+/* To enable banking of coprocessor registers depending on ns-bit we
+ * add a bit to distinguish between secure and non-secure cpregs in the
+ * hashtable.
+ */
+#define CP_REG_NS_SHIFT 29
+#define CP_REG_NS_MASK (1 << CP_REG_NS_SHIFT)
+
+#define ENCODE_CP_REG(cp, is64, ns, crn, crm, opc1, opc2)   \
+    ((ns) << CP_REG_NS_SHIFT | ((cp) << 16) | ((is64) << 15) |   \
+     ((crn) << 11) | ((crm) << 7) | ((opc1) << 3) | (opc2))
 
 #define ENCODE_AA64_CP_REG(cp, crn, crm, op0, op1, op2) \
     (CP_REG_AA64_MASK |                                 \
@@ -917,8 +925,15 @@ static inline uint32_t kvm_to_cpreg_id(uint64_t kvmid)
     uint32_t cpregid = kvmid;
     if ((kvmid & CP_REG_ARCH_MASK) == CP_REG_ARM64) {
         cpregid |= CP_REG_AA64_MASK;
-    } else if ((kvmid & CP_REG_SIZE_MASK) == CP_REG_SIZE_U64) {
-        cpregid |= (1 << 15);
+    } else {
+        if ((kvmid & CP_REG_SIZE_MASK) == CP_REG_SIZE_U64) {
+            cpregid |= (1 << 15);
+        }
+
+        /* KVM is always non-secure so add the NS flag on AArch32 register
+         * entries.
+         */
+         cpregid |= 1 << CP_REG_NS_SHIFT;
     }
     return cpregid;
 }

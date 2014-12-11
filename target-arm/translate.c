@@ -7091,7 +7091,7 @@ static int disas_coproc_insn(DisasContext *s, uint32_t insn)
     rt = (insn >> 12) & 0xf;
 
     ri = get_arm_cp_reginfo(s->cp_regs,
-                            ENCODE_CP_REG(cpnum, is64, crn, crm, opc1, opc2));
+            ENCODE_CP_REG(cpnum, is64, s->ns, crn, crm, opc1, opc2));
     if (ri) {
         /* Check access permissions */
         if (!cp_access_ok(s->current_el, ri, isread)) {
@@ -7281,12 +7281,16 @@ static int disas_coproc_insn(DisasContext *s, uint32_t insn)
      */
     if (is64) {
         qemu_log_mask(LOG_UNIMP, "%s access to unsupported AArch32 "
-                      "64 bit system register cp:%d opc1: %d crm:%d\n",
-                      isread ? "read" : "write", cpnum, opc1, crm);
+                      "64 bit system register cp:%d opc1: %d crm:%d "
+                      "(%s)\n",
+                      isread ? "read" : "write", cpnum, opc1, crm,
+                      s->ns ? "non-secure" : "secure");
     } else {
         qemu_log_mask(LOG_UNIMP, "%s access to unsupported AArch32 "
-                      "system register cp:%d opc1:%d crn:%d crm:%d opc2:%d\n",
-                      isread ? "read" : "write", cpnum, opc1, crn, crm, opc2);
+                      "system register cp:%d opc1:%d crn:%d crm:%d opc2:%d "
+                      "(%s)\n",
+                      isread ? "read" : "write", cpnum, opc1, crn, crm, opc2,
+                      s->ns ? "non-secure" : "secure");
     }
 
     return 1;
