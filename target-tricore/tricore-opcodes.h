@@ -115,25 +115,31 @@
 #define MASK_OP_BOL_OFF16(op)  ((MASK_BITS_SHIFT(op, 16, 21) +        \
                                (MASK_BITS_SHIFT(op, 28, 31) << 6)) + \
                                (MASK_BITS_SHIFT(op, 22, 27) >> 10))
-
+#define MASK_OP_BOL_OFF16_SEXT(op)  ((MASK_BITS_SHIFT(op, 16, 21) +        \
+                                    (MASK_BITS_SHIFT(op, 28, 31) << 6)) + \
+                                    (MASK_BITS_SHIFT_SEXT(op, 22, 27) << 10))
 #define MASK_OP_BOL_S2(op)     MASK_BITS_SHIFT(op, 12, 15)
 #define MASK_OP_BOL_S1D(op)    MASK_BITS_SHIFT(op, 8, 11)
 
 /* BRC Format */
 #define MASK_OP_BRC_OP2(op)    MASK_BITS_SHIFT(op, 31, 31)
 #define MASK_OP_BRC_DISP15(op) MASK_BITS_SHIFT(op, 16, 30)
+#define MASK_OP_BRC_DISP15_SEXT(op) MASK_BITS_SHIFT_SEXT(op, 16, 30)
 #define MASK_OP_BRC_CONST4(op) MASK_BITS_SHIFT(op, 12, 15)
+#define MASK_OP_BRC_CONST4_SEXT(op) MASK_BITS_SHIFT_SEXT(op, 12, 15)
 #define MASK_OP_BRC_S1(op)     MASK_BITS_SHIFT(op, 8, 11)
 
 /* BRN Format */
 #define MASK_OP_BRN_OP2(op)    MASK_BITS_SHIFT(op, 31, 31)
 #define MASK_OP_BRN_DISP15(op) MASK_BITS_SHIFT(op, 16, 30)
+#define MASK_OP_BRN_DISP15_SEXT(op) MASK_BITS_SHIFT_SEXT(op, 16, 30)
 #define MASK_OP_BRN_N(op)      (MASK_BITS_SHIFT(op, 12, 15) + \
                                (MASK_BITS_SHIFT(op, 7, 7) << 4))
 #define MASK_OP_BRN_S1(op)     MASK_BITS_SHIFT(op, 8, 11)
 /* BRR Format */
 #define MASK_OP_BRR_OP2(op)    MASK_BITS_SHIFT(op, 31, 31)
 #define MASK_OP_BRR_DISP15(op) MASK_BITS_SHIFT(op, 16, 30)
+#define MASK_OP_BRR_DISP15_SEXT(op) MASK_BITS_SHIFT_SEXT(op, 16, 30)
 #define MASK_OP_BRR_S2(op)     MASK_BITS_SHIFT(op, 12, 15)
 #define MASK_OP_BRR_S1(op)     MASK_BITS_SHIFT(op, 8, 11)
 
@@ -145,6 +151,7 @@
 #define MASK_OP_RC_D(op)       MASK_OP_META_D(op)
 #define MASK_OP_RC_OP2(op)     MASK_BITS_SHIFT(op, 21, 27)
 #define MASK_OP_RC_CONST9(op)  MASK_BITS_SHIFT(op, 12, 20)
+#define MASK_OP_RC_CONST9_SEXT(op)  MASK_BITS_SHIFT_SEXT(op, 12, 20)
 #define MASK_OP_RC_S1(op)      MASK_OP_META_S1(op)
 
 /* RCPW Format */
@@ -162,6 +169,7 @@
 #define MASK_OP_RCR_S3(op)     MASK_BITS_SHIFT(op, 24, 27)
 #define MASK_OP_RCR_OP2(op)    MASK_BITS_SHIFT(op, 21, 23)
 #define MASK_OP_RCR_CONST9(op) MASK_BITS_SHIFT(op, 12, 20)
+#define MASK_OP_RCR_CONST9_SEXT(op) MASK_BITS_SHIFT_SEXT(op, 12, 20)
 #define MASK_OP_RCR_S1(op)     MASK_OP_META_S1(op)
 
 /* RCRR Format */
@@ -185,6 +193,7 @@
 
 #define MASK_OP_RLC_D(op)       MASK_OP_META_D(op)
 #define MASK_OP_RLC_CONST16(op) MASK_BITS_SHIFT(op, 12, 27)
+#define MASK_OP_RLC_CONST16_SEXT(op) MASK_BITS_SHIFT_SEXT(op, 12, 27)
 #define MASK_OP_RLC_S1(op)      MASK_OP_META_S1(op)
 
 /* RR  Format */
@@ -763,8 +772,8 @@ enum {
 };
 /* OPCM_32_BRC_GE                                   */
 enum {
-    OP2_BRC_JGE                                  = 0x00,
-    OPC_BRC_JGE_U                                = 0x01,
+    OP2_32_BRC_JGE                               = 0x00,
+    OPC_32_BRC_JGE_U                             = 0x01,
 };
 /* OPCM_32_BRC_JLT                                  */
 enum {
@@ -937,7 +946,7 @@ enum {
     OPC2_32_RCR_MSUB_64                          = 0x03,
     OPC2_32_RCR_MSUBS_32                         = 0x05,
     OPC2_32_RCR_MSUBS_64                         = 0x07,
-    OPC2_32_RCR_MSUB_U_32                        = 0x02,
+    OPC2_32_RCR_MSUB_U_64                        = 0x02,
     OPC2_32_RCR_MSUBS_U_32                       = 0x04,
     OPC2_32_RCR_MSUBS_U_64                       = 0x06,
 };
