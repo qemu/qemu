@@ -442,11 +442,20 @@ bool write_list_to_kvmstate(ARMCPU *cpu)
 
 void kvm_arm_reset_vcpu(ARMCPU *cpu)
 {
+    int ret;
+
     /* Re-init VCPU so that all registers are set to
      * their respective reset values.
      */
-    kvm_arm_vcpu_init(CPU(cpu));
-    write_kvmstate_to_list(cpu);
+    ret = kvm_arm_vcpu_init(CPU(cpu));
+    if (ret < 0) {
+        fprintf(stderr, "kvm_arm_vcpu_init failed: %s\n", strerror(-ret));
+        abort();
+    }
+    if (!write_kvmstate_to_list(cpu)) {
+        fprintf(stderr, "write_kvmstate_to_list failed\n");
+        abort();
+    }
 }
 
 void kvm_arch_pre_run(CPUState *cs, struct kvm_run *run)
