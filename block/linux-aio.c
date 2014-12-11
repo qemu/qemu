@@ -41,6 +41,7 @@ struct qemu_laiocb {
 typedef struct {
     int plugged;
     unsigned int idx;
+    bool blocked;
     QSIMPLEQ_HEAD(, qemu_laiocb) pending;
 } LaioQueue;
 
@@ -180,34 +181,39 @@ static void ioq_init(LaioQueue *io_q)
     QSIMPLEQ_INIT(&io_q->pending);
     io_q->plugged = 0;
     io_q->idx = 0;
+    io_q->blocked = false;
 }
 
 static int ioq_submit(struct qemu_laio_state *s)
 {
-    int ret, i;
-    int len = 0;
+    int ret, i, len;
     struct qemu_laiocb *aiocb;
     struct iocb *iocbs[MAX_QUEUED_IO];
 
-    QSIMPLEQ_FOREACH(aiocb, &s->io_q.pending, next) {
-        iocbs[len++] = &aiocb->iocb;
-        if (len == MAX_QUEUED_IO) {
-            break;
+    do {
+        len = 0;
+        QSIMPLEQ_FOREACH(aiocb, &s->io_q.pending, next) {
+            iocbs[len++] = &aiocb->iocb;
+            if (len == MAX_QUEUED_IO) {
+                break;
+            }
         }
-    }
 
-    ret = io_submit(s->ctx, len, iocbs);
-    if (ret == -EAGAIN) {
-        ret = 0;
-    }
-    if (ret < 0) {
-        abort();
-    }
+        ret = io_submit(s->ctx, len, iocbs);
+        if (ret == -EAGAIN) {
+            ret = 0;
+        }
+        if (ret < 0) {
+            abort();
+        }
 
-    for (i = 0; i < ret; i++) {
-        s->io_q.idx--;
-        QSIMPLEQ_REMOVE_HEAD(&s->io_q.pending, next);
-    }
+        for (i = 0; i < ret; i++) {
+            s->io_q.idx--;
+            QSIMPLEQ_REMOVE_HEAD(&s->io_q.pending, next);
+        }
+    } while (ret == len && !QSIMPLEQ_EMPTY(&s->io_q.pending));
+    s->io_q.blocked = (s->io_q.idx > 0);
+
     return ret;
 }
 
@@ -229,7 +235,7 @@ int laio_io_unplug(BlockDriverState *bs, void *aio_ctx, bool unplug)
         return 0;
     }
 
-    if (!QSIMPLEQ_EMPTY(&s->io_q.pending)) {
+    if (!s->io_q.blocked && !QSIMPLEQ_EMPTY(&s->io_q.pending)) {
         ret = ioq_submit(s);
     }
 
@@ -271,7 +277,8 @@ BlockAIOCB *laio_submit(BlockDriverState *bs, void *aio_ctx, int fd,
 
     QSIMPLEQ_INSERT_TAIL(&s->io_q.pending, laiocb, next);
     s->io_q.idx++;
-    if (s->io_q.idx == (s->io_q.plugged ? MAX_QUEUED_IO : 1)) {
+    if (!s->io_q.blocked &&
+        (!s->io_q.plugged || s->io_q.idx >= MAX_QUEUED_IO)) {
         ioq_submit(s);
     }
     return &laiocb->common;
