@@ -554,6 +554,22 @@ static QemuOptsList qemu_icount_opts = {
     },
 };
 
+static QemuOptsList qemu_semihosting_config_opts = {
+    .name = "semihosting-config",
+    .implied_opt_name = "enable",
+    .head = QTAILQ_HEAD_INITIALIZER(qemu_semihosting_config_opts.head),
+    .desc = {
+        {
+            .name = "enable",
+            .type = QEMU_OPT_BOOL,
+        }, {
+            .name = "target",
+            .type = QEMU_OPT_STRING,
+        },
+        { /* end of list */ }
+    },
+};
+
 /**
  * Get machine options
  *
@@ -2812,6 +2828,7 @@ int main(int argc, char **argv, char **envp)
     qemu_add_opts(&qemu_name_opts);
     qemu_add_opts(&qemu_numa_opts);
     qemu_add_opts(&qemu_icount_opts);
+    qemu_add_opts(&qemu_semihosting_config_opts);
 
     runstate_init();
 
@@ -3623,6 +3640,37 @@ int main(int argc, char **argv, char **envp)
 		break;
             case QEMU_OPTION_semihosting:
                 semihosting_enabled = 1;
+                semihosting_target = SEMIHOSTING_TARGET_AUTO;
+                break;
+            case QEMU_OPTION_semihosting_config:
+                semihosting_enabled = 1;
+                opts = qemu_opts_parse(qemu_find_opts("semihosting-config"),
+                                           optarg, 0);
+                if (opts != NULL) {
+                    semihosting_enabled = qemu_opt_get_bool(opts, "enable",
+                                                            true);
+                    const char *target = qemu_opt_get(opts, "target");
+                    if (target != NULL) {
+                        if (strcmp("native", target) == 0) {
+                            semihosting_target = SEMIHOSTING_TARGET_NATIVE;
+                        } else if (strcmp("gdb", target) == 0) {
+                            semihosting_target = SEMIHOSTING_TARGET_GDB;
+                        } else  if (strcmp("auto", target) == 0) {
+                            semihosting_target = SEMIHOSTING_TARGET_AUTO;
+                        } else {
+                            fprintf(stderr, "Unsupported semihosting-config"
+                                    " %s\n",
+                                optarg);
+                            exit(1);
+                        }
+                    } else {
+                        semihosting_target = SEMIHOSTING_TARGET_AUTO;
+                    }
+                } else {
+                    fprintf(stderr, "Unsupported semihosting-config %s\n",
+                            optarg);
+                    exit(1);
+                }
                 break;
             case QEMU_OPTION_tdf:
                 fprintf(stderr, "Warning: user space PIT time drift fix "
