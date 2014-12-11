@@ -251,7 +251,15 @@ typedef struct CPUARMState {
                 uint64_t ifsr32_el2;
             };
         };
-        uint64_t esr_el[4];
+        union {
+            struct {
+                uint64_t _unused_dfsr;
+                uint64_t dfsr_ns;
+                uint64_t hsr;
+                uint64_t dfsr_s;
+            };
+            uint64_t esr_el[4];
+        };
         uint32_t c6_region[8]; /* MPU base/size registers.  */
         uint64_t far_el[4]; /* Fault address registers.  */
         uint64_t par_el1;  /* Translation result. */
