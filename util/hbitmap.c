@@ -373,7 +373,7 @@ void hbitmap_free(HBitmap *hb)
 
 HBitmap *hbitmap_alloc(uint64_t size, int granularity)
 {
-    HBitmap *hb = g_malloc0(sizeof (struct HBitmap));
+    HBitmap *hb = g_new0(struct HBitmap, 1);
     unsigned i;
 
     assert(granularity >= 0 && granularity < 64);
@@ -384,7 +384,7 @@ HBitmap *hbitmap_alloc(uint64_t size, int granularity)
     hb->granularity = granularity;
     for (i = HBITMAP_LEVELS; i-- > 0; ) {
         size = MAX((size + BITS_PER_LONG - 1) >> BITS_PER_LEVEL, 1);
-        hb->levels[i] = g_malloc0(size * sizeof(unsigned long));
+        hb->levels[i] = g_new0(unsigned long, size);
     }
 
     /* We necessarily have free bits in level 0 due to the definition
