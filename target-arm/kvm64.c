@@ -103,9 +103,21 @@ int kvm_arch_init_vcpu(CPUState *cs)
         return ret;
     }
 
-    /* TODO : support for save/restore/reset of system regs via tuple list */
+    return kvm_arm_init_cpreg_list(cpu);
+}
 
-    return 0;
+bool kvm_arm_reg_syncs_via_cpreg_list(uint64_t regidx)
+{
+    /* Return true if the regidx is a register we should synchronize
+     * via the cpreg_tuples array (ie is not a core reg we sync by
+     * hand in kvm_arch_get/put_registers())
+     */
+    switch (regidx & KVM_REG_ARM_COPROC_MASK) {
+    case KVM_REG_ARM_CORE:
+        return false;
+    default:
+        return true;
+    }
 }
 
 #define AARCH64_CORE_REG(x)   (KVM_REG_ARM64 | KVM_REG_SIZE_U64 | \
@@ -259,12 +271,4 @@ int kvm_arch_get_registers(CPUState *cs)
 
     /* TODO: other registers */
     return ret;
-}
-
-void kvm_arm_reset_vcpu(ARMCPU *cpu)
-{
-    /* Re-init VCPU so that all registers are set to
-     * their respective reset values.
-     */
-    kvm_arm_vcpu_init(CPU(cpu));
 }
