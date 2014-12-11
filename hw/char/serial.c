@@ -377,12 +377,15 @@ static void serial_ioport_write(void *opaque, hwaddr addr, uint64_t val,
         /* FIFO clear */
 
         if (val & UART_FCR_RFR) {
+            s->lsr &= ~(UART_LSR_DR | UART_LSR_BI);
             timer_del(s->fifo_timeout_timer);
             s->timeout_ipending = 0;
             fifo8_reset(&s->recv_fifo);
         }
 
         if (val & UART_FCR_XFR) {
+            s->lsr |= UART_LSR_THRE;
+            s->thr_ipending = 1;
             fifo8_reset(&s->xmit_fifo);
         }
 
