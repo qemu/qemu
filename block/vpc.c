@@ -893,11 +893,6 @@ static QemuOptsList vpc_create_opts = {
                 "Type of virtual hard disk format. Supported formats are "
                 "{dynamic (default) | fixed} "
         },
-        {
-            .name = BLOCK_OPT_NOCOW,
-            .type = QEMU_OPT_BOOL,
-            .help = "Turn off copy-on-write (valid only on btrfs)"
-        },
         { /* end of list */ }
     }
 };

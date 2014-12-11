@@ -852,11 +852,6 @@ static QemuOptsList vdi_create_opts = {
             .def_value_str = "off"
         },
 #endif
-        {
-            .name = BLOCK_OPT_NOCOW,
-            .type = QEMU_OPT_BOOL,
-            .help = "Turn off copy-on-write (valid only on btrfs)"
-        },
         /* TODO: An additional option to set UUID values might be useful. */
         { /* end of list */ }
     }

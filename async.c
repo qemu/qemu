@@ -44,7 +44,7 @@ struct QEMUBH {
 QEMUBH *aio_bh_new(AioContext *ctx, QEMUBHFunc *cb, void *opaque)
 {
     QEMUBH *bh;
-    bh = g_malloc0(sizeof(QEMUBH));
+    bh = g_new0(QEMUBH, 1);
     bh->ctx = ctx;
     bh->cb = cb;
     bh->opaque = opaque;

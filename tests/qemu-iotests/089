@@ -65,7 +65,8 @@ $QEMU_IO -c 'write -P 42 0 512' -c 'write -P 23 512 512' \
 
 $QEMU_IMG convert -f raw -O $IMGFMT "$TEST_IMG.base" "$TEST_IMG"
 
-$QEMU_IO -c 'read -P 42 0 512' -c 'read -P 23 512 512' \
+$QEMU_IO_PROG --cache $CACHEMODE \
+         -c 'read -P 42 0 512' -c 'read -P 23 512 512' \
          -c 'read -P 66 1024 512' "json:{
     \"driver\": \"$IMGFMT\",
     \"file\": {
@@ -91,7 +92,8 @@ $QEMU_IO -c 'write -P 42 0x38000 512' "$TEST_IMG" | _filter_qemu_io
 
 # The "image.filename" part tests whether "a": { "b": "c" } and "a.b": "c" do
 # the same (which they should).
-$QEMU_IO -c 'read -P 42 0x38000 512' "json:{
+$QEMU_IO_PROG --cache $CACHEMODE \
+     -c 'read -P 42 0x38000 512' "json:{
     \"driver\": \"$IMGFMT\",
     \"file\": {
         \"driver\": \"blkdebug\",

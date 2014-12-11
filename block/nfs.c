@@ -409,6 +409,19 @@ out:
     return ret;
 }
 
+static QemuOptsList nfs_create_opts = {
+    .name = "nfs-create-opts",
+    .head = QTAILQ_HEAD_INITIALIZER(nfs_create_opts.head),
+    .desc = {
+        {
+            .name = BLOCK_OPT_SIZE,
+            .type = QEMU_OPT_SIZE,
+            .help = "Virtual disk size"
+        },
+        { /* end of list */ }
+    }
+};
+
 static int nfs_file_create(const char *url, QemuOpts *opts, Error **errp)
 {
     int ret = 0;
@@ -470,6 +483,8 @@ static BlockDriver bdrv_nfs = {
 
     .instance_size                  = sizeof(NFSClient),
     .bdrv_needs_filename            = true,
+    .create_opts                    = &nfs_create_opts,
+
     .bdrv_has_zero_init             = nfs_has_zero_init,
     .bdrv_get_allocated_file_size   = nfs_get_allocated_file_size,
     .bdrv_truncate                  = nfs_file_truncate,

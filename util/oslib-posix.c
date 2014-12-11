@@ -124,7 +124,7 @@ void *qemu_memalign(size_t alignment, size_t size)
 }
 
 /* alloc shared memory pages */
-void *qemu_anon_ram_alloc(size_t size)
+void *qemu_anon_ram_alloc(size_t size, uint64_t *alignment)
 {
     size_t align = QEMU_VMALLOC_ALIGN;
     size_t total = size + align - getpagesize();
@@ -136,6 +136,9 @@ void *qemu_anon_ram_alloc(size_t size)
         return NULL;
     }
 
+    if (alignment) {
+        *alignment = align;
+    }
     ptr += offset;
     total -= offset;
 

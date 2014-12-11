@@ -146,6 +146,7 @@ struct MemoryRegion {
     hwaddr addr;
     void (*destructor)(MemoryRegion *mr);
     ram_addr_t ram_addr;
+    uint64_t align;
     bool subpage;
     bool terminates;
     bool romd_mode;
@@ -838,6 +839,7 @@ void memory_region_add_subregion_overlap(MemoryRegion *mr,
  */
 ram_addr_t memory_region_get_ram_addr(MemoryRegion *mr);
 
+uint64_t memory_region_get_alignment(const MemoryRegion *mr);
 /**
  * memory_region_del_subregion: Remove a subregion.
  *

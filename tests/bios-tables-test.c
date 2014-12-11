@@ -716,7 +716,7 @@ static void test_acpi_one(const char *params, test_data *data)
     int i;
 
     args = g_strdup_printf("-net none -display none %s "
-                           "-drive id=hd0,if=none,file=%s "
+                           "-drive id=hd0,if=none,file=%s,format=raw "
                            "-device ide-hd,drive=hd0 ",
                            params ? params : "", disk);
 

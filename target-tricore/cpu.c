@@ -63,8 +63,17 @@ static bool tricore_cpu_has_work(CPUState *cs)
 static void tricore_cpu_realizefn(DeviceState *dev, Error **errp)
 {
     CPUState *cs = CPU(dev);
+    TriCoreCPU *cpu = TRICORE_CPU(dev);
     TriCoreCPUClass *tcc = TRICORE_CPU_GET_CLASS(dev);
+    CPUTriCoreState *env = &cpu->env;
 
+    /* Some features automatically imply others */
+    if (tricore_feature(env, TRICORE_FEATURE_16)) {
+        set_feature(env, TRICORE_FEATURE_131);
+    }
+    if (tricore_feature(env, TRICORE_FEATURE_131)) {
+        set_feature(env, TRICORE_FEATURE_13);
+    }
     cpu_reset(cs);
     qemu_init_vcpu(cs);
 

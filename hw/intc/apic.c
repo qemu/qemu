@@ -188,7 +188,7 @@ void apic_deliver_pic_intr(DeviceState *dev, int level)
             apic_reset_bit(s->irr, lvt & 0xff);
             /* fall through */
         case APIC_DM_EXTINT:
-            cpu_reset_interrupt(CPU(s->cpu), CPU_INTERRUPT_HARD);
+            apic_update_irq(s);
             break;
         }
     }
@@ -349,6 +349,11 @@ static int apic_get_arb_pri(APICCommonState *s)
 static int apic_irq_pending(APICCommonState *s)
 {
     int irrv, ppr;
+
+    if (!(s->spurious_vec & APIC_SV_ENABLE)) {
+        return 0;
+    }
+
     irrv = get_highest_priority_int(s->irr);
     if (irrv < 0) {
         return 0;
@@ -366,14 +371,13 @@ static void apic_update_irq(APICCommonState *s)
 {
     CPUState *cpu;
 
-    if (!(s->spurious_vec & APIC_SV_ENABLE)) {
-        return;
-    }
     cpu = CPU(s->cpu);
     if (!qemu_cpu_is_self(cpu)) {
         cpu_interrupt(cpu, CPU_INTERRUPT_POLL);
     } else if (apic_irq_pending(s) > 0) {
         cpu_interrupt(cpu, CPU_INTERRUPT_HARD);
+    } else if (!apic_accept_pic_intr(&s->busdev.qdev) || !pic_get_output(isa_pic)) {
+        cpu_reset_interrupt(cpu, CPU_INTERRUPT_HARD);
     }
 }
 
@@ -567,7 +571,10 @@ int apic_get_interrupt(DeviceState *dev)
     apic_sync_vapic(s, SYNC_FROM_VAPIC);
     intno = apic_irq_pending(s);
 
-    if (intno == 0) {
+    /* if there is an interrupt from the 8259, let the caller handle
+     * that first since ExtINT interrupts ignore the priority.
+     */
+    if (intno == 0 || apic_check_pic(s)) {
         apic_sync_vapic(s, SYNC_TO_VAPIC);
         return -1;
     } else if (intno < 0) {
@@ -577,9 +584,6 @@ int apic_get_interrupt(DeviceState *dev)
     apic_reset_bit(s->irr, intno);
     apic_set_bit(s->isr, intno);
     apic_sync_vapic(s, SYNC_TO_VAPIC);
-
-    /* re-inject if there is still a pending PIC interrupt */
-    apic_check_pic(s);
 
     apic_update_irq(s);
 

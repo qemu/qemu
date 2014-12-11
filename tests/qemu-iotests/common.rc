@@ -175,7 +175,9 @@ _cleanup_test_img()
     case "$IMGPROTO" in
 
         nbd)
-            kill $QEMU_NBD_PID
+            if [ -n "$QEMU_NBD_PID" ]; then
+                kill $QEMU_NBD_PID
+            fi
             rm -f "$TEST_IMG_FILE"
             ;;
         file)
@@ -213,6 +215,13 @@ _check_test_img()
 
 _img_info()
 {
+    if [[ "$1" == "--format-specific" ]]; then
+        local format_specific=1
+        shift
+    else
+        local format_specific=0
+    fi
+
     discard=0
     regex_json_spec_start='^ *"format-specific": \{'
     $QEMU_IMG info "$@" "$TEST_IMG" 2>&1 | \
@@ -222,7 +231,9 @@ _img_info()
             -e "/^disk size:/ D" \
             -e "/actual-size/ D" | \
         while IFS='' read line; do
-            if [[ $line == "Format specific information:" ]]; then
+            if [[ $format_specific == 1 ]]; then
+                discard=0
+            elif [[ $line == "Format specific information:" ]]; then
                 discard=1
             elif [[ $line =~ $regex_json_spec_start ]]; then
                 discard=2

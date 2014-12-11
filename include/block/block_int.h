@@ -57,6 +57,8 @@
 #define BLOCK_OPT_REDUNDANCY        "redundancy"
 #define BLOCK_OPT_NOCOW             "nocow"
 
+#define BLOCK_PROBE_BUF_SIZE        512
+
 typedef struct BdrvTrackedRequest {
     BlockDriverState *bs;
     int64_t offset;
@@ -325,6 +327,7 @@ struct BlockDriverState {
     int sg;        /* if true, the device is a /dev/sg* */
     int copy_on_read; /* if true, copy read backing sectors into image
                          note this is a reference count */
+    bool probed;
 
     BlockDriver *drv; /* NULL means no media */
     void *opaque;
@@ -412,7 +415,17 @@ struct BlockDriverState {
     Error *backing_blocker;
 };
 
+
+/* Essential block drivers which must always be statically linked into qemu, and
+ * which therefore can be accessed without using bdrv_find_format() */
+extern BlockDriver bdrv_file;
+extern BlockDriver bdrv_raw;
+extern BlockDriver bdrv_qcow2;
+
+
 int get_tmp_filename(char *filename, int size);
+BlockDriver *bdrv_probe_all(const uint8_t *buf, int buf_size,
+                            const char *filename);
 
 void bdrv_set_io_limits(BlockDriverState *bs,
                         ThrottleConfig *cfg);

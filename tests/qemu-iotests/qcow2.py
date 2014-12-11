@@ -7,6 +7,10 @@ import string
 class QcowHeaderExtension:
 
     def __init__(self, magic, length, data):
+        if length % 8 != 0:
+            padding = 8 - (length % 8)
+            data += "\0" * padding
+
         self.magic  = magic
         self.length = length
         self.data   = data

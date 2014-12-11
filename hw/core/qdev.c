@@ -935,7 +935,7 @@ void qdev_alias_all_properties(DeviceState *target, Object *source)
     } while (class != object_class_by_name(TYPE_DEVICE));
 }
 
-int qdev_build_hotpluggable_device_list(Object *obj, void *opaque)
+static int qdev_add_hotpluggable_device(Object *obj, void *opaque)
 {
     GSList **list = opaque;
     DeviceState *dev = DEVICE(obj);
@@ -944,8 +944,16 @@ int qdev_build_hotpluggable_device_list(Object *obj, void *opaque)
         *list = g_slist_append(*list, dev);
     }
 
-    object_child_foreach(obj, qdev_build_hotpluggable_device_list, opaque);
     return 0;
+}
+
+GSList *qdev_build_hotpluggable_device_list(Object *peripheral)
+{
+    GSList *list = NULL;
+
+    object_child_foreach(peripheral, qdev_add_hotpluggable_device, &list);
+
+    return list;
 }
 
 static bool device_get_realized(Object *obj, Error **errp)

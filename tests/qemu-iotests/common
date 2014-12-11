@@ -289,10 +289,10 @@ testlist options
 
             if [ ! -z "$DISPLAY" ]
             then
-                which xdiff >/dev/null 2>&1 && diff=xdiff
-                which gdiff >/dev/null 2>&1 && diff=gdiff
-                which tkdiff >/dev/null 2>&1 && diff=tkdiff
-                which xxdiff >/dev/null 2>&1 && diff=xxdiff
+                command -v xdiff >/dev/null 2>&1 && diff=xdiff
+                command -v gdiff >/dev/null 2>&1 && diff=gdiff
+                command -v tkdiff >/dev/null 2>&1 && diff=tkdiff
+                command -v xxdiff >/dev/null 2>&1 && diff=xxdiff
             fi
             ;;
 
@@ -391,7 +391,7 @@ BEGIN        { for (t='$start'; t<='$end'; t++) printf "%03d\n",t }' \
 done
 
 # Set qemu-io cache mode with $CACHEMODE we have
-QEMU_IO_OPTIONS="$QEMU_IO_OPTIONS --cache $CACHEMODE"
+QEMU_IO_OPTIONS="$QEMU_IO_OPTIONS -f $IMGFMT --cache $CACHEMODE"
 
 # Set default options for qemu-img create -o if they were not specified
 _set_default_imgopts

@@ -342,8 +342,9 @@ static void test_i440fx_firmware(FirmwareTestFixture *fixture,
     g_assert(fw_pathname != NULL);
 
     /* Better hope the user didn't put metacharacters in TMPDIR and co. */
-    cmdline = g_strdup_printf("-S %s %s",
-                              fixture->is_bios ? "-bios" : "-pflash",
+    cmdline = g_strdup_printf("-S %s%s", fixture->is_bios
+                                         ? "-bios "
+                                         : "-drive if=pflash,format=raw,file=",
                               fw_pathname);
     g_test_message("qemu cmdline: %s", cmdline);
     qtest_start(cmdline);

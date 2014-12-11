@@ -336,7 +336,7 @@ extern uintptr_t tci_tb_ptr;
 
 #if !defined(CONFIG_USER_ONLY)
 
-void phys_mem_set_alloc(void *(*alloc)(size_t));
+void phys_mem_set_alloc(void *(*alloc)(size_t, uint64_t *align));
 
 struct MemoryRegion *iotlb_to_region(AddressSpace *as, hwaddr index);
 bool io_mem_read(struct MemoryRegion *mr, hwaddr addr,

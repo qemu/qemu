@@ -56,6 +56,7 @@
 
 #include "qapi/qmp/qint.h"
 #include "qom/qom-qobject.h"
+#include "exec/ram_addr.h"
 
 /* These are used to size the ACPI tables for -M pc-i440fx-1.7 and
  * -M pc-i440fx-2.0.  Even if the actual amount of AML generated grows
@@ -1269,8 +1270,7 @@ acpi_build_srat_memory(AcpiSratMemoryAffinity *numamem, uint64_t base,
 }
 
 static void
-build_srat(GArray *table_data, GArray *linker,
-           AcpiCpuInfo *cpu, PcGuestInfo *guest_info)
+build_srat(GArray *table_data, GArray *linker, PcGuestInfo *guest_info)
 {
     AcpiSystemResourceAffinityTable *srat;
     AcpiSratProcessorAffinity *core;
@@ -1300,11 +1300,7 @@ build_srat(GArray *table_data, GArray *linker,
         core->proximity_lo = curnode;
         memset(core->proximity_hi, 0, 3);
         core->local_sapic_eid = 0;
-        if (test_bit(i, cpu->found_cpus)) {
-            core->flags = cpu_to_le32(1);
-        } else {
-            core->flags = cpu_to_le32(0);
-        }
+        core->flags = cpu_to_le32(1);
     }
 
 
@@ -1511,7 +1507,7 @@ static inline void acpi_build_tables_cleanup(AcpiBuildTables *tables, bool mfre)
 typedef
 struct AcpiBuildState {
     /* Copy of table in RAM (for patching). */
-    uint8_t *table_ram;
+    ram_addr_t table_ram;
     uint32_t table_size;
     /* Is table patched? */
     uint8_t patched;
@@ -1622,7 +1618,7 @@ void acpi_build(PcGuestInfo *guest_info, AcpiBuildTables *tables)
     }
     if (guest_info->numa_nodes) {
         acpi_add_table(table_offsets, tables->table_data);
-        build_srat(tables->table_data, tables->linker, &cpu, guest_info);
+        build_srat(tables->table_data, tables->linker, guest_info);
     }
     if (acpi_get_mcfg(&mcfg)) {
         acpi_add_table(table_offsets, tables->table_data);
@@ -1716,8 +1712,11 @@ static void acpi_build_update(void *build_opaque, uint32_t offset)
     acpi_build(build_state->guest_info, &tables);
 
     assert(acpi_data_len(tables.table_data) == build_state->table_size);
-    memcpy(build_state->table_ram, tables.table_data->data,
+    memcpy(qemu_get_ram_ptr(build_state->table_ram), tables.table_data->data,
            build_state->table_size);
+
+    cpu_physical_memory_set_dirty_range_nocode(build_state->table_ram,
+                                               build_state->table_size);
 
     acpi_build_tables_cleanup(&tables, true);
 }
@@ -1728,7 +1727,7 @@ static void acpi_build_reset(void *build_opaque)
     build_state->patched = 0;
 }
 
-static void *acpi_add_rom_blob(AcpiBuildState *build_state, GArray *blob,
+static ram_addr_t acpi_add_rom_blob(AcpiBuildState *build_state, GArray *blob,
                                const char *name)
 {
     return rom_add_blob(name, blob->data, acpi_data_len(blob), -1, name,
@@ -1777,6 +1776,7 @@ void acpi_setup(PcGuestInfo *guest_info)
     /* Now expose it all to Guest */
     build_state->table_ram = acpi_add_rom_blob(build_state, tables.table_data,
                                                ACPI_BUILD_TABLE_FILE);
+    assert(build_state->table_ram != RAM_ADDR_MAX);
     build_state->table_size = acpi_data_len(tables.table_data);
 
     acpi_add_rom_blob(NULL, tables.linker, "etc/table-loader");

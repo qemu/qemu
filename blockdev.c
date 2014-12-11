@@ -1105,6 +1105,7 @@ SnapshotInfo *qmp_blockdev_snapshot_delete_internal_sync(const char *device,
                                                          Error **errp)
 {
     BlockDriverState *bs = bdrv_find(device);
+    AioContext *aio_context;
     QEMUSnapshotInfo sn;
     Error *local_err = NULL;
     SnapshotInfo *info = NULL;
@@ -1128,24 +1129,33 @@ SnapshotInfo *qmp_blockdev_snapshot_delete_internal_sync(const char *device,
         return NULL;
     }
 
+    aio_context = bdrv_get_aio_context(bs);
+    aio_context_acquire(aio_context);
+
+    if (bdrv_op_is_blocked(bs, BLOCK_OP_TYPE_INTERNAL_SNAPSHOT_DELETE, errp)) {
+        goto out_aio_context;
+    }
+
     ret = bdrv_snapshot_find_by_id_and_name(bs, id, name, &sn, &local_err);
     if (local_err) {
         error_propagate(errp, local_err);
-        return NULL;
+        goto out_aio_context;
     }
     if (!ret) {
         error_setg(errp,
                    "Snapshot with id '%s' and name '%s' does not exist on "
                    "device '%s'",
                    STR_OR_NULL(id), STR_OR_NULL(name), device);
-        return NULL;
+        goto out_aio_context;
     }
 
     bdrv_snapshot_delete(bs, id, name, &local_err);
     if (local_err) {
         error_propagate(errp, local_err);
-        return NULL;
+        goto out_aio_context;
     }
+
+    aio_context_release(aio_context);
 
     info = g_new0(SnapshotInfo, 1);
     info->id = g_strdup(sn.id_str);
@@ -1157,9 +1167,13 @@ SnapshotInfo *qmp_blockdev_snapshot_delete_internal_sync(const char *device,
     info->vm_clock_sec = sn.vm_clock_nsec / 1000000000;
 
     return info;
+
+out_aio_context:
+    aio_context_release(aio_context);
+    return NULL;
 }
 
-/* New and old BlockDriverState structs for group snapshots */
+/* New and old BlockDriverState structs for atomic group operations */
 
 typedef struct BlkTransactionState BlkTransactionState;
 
@@ -1193,6 +1207,7 @@ struct BlkTransactionState {
 typedef struct InternalSnapshotState {
     BlkTransactionState common;
     BlockDriverState *bs;
+    AioContext *aio_context;
     QEMUSnapshotInfo sn;
 } InternalSnapshotState;
 
@@ -1226,8 +1241,16 @@ static void internal_snapshot_prepare(BlkTransactionState *common,
         return;
     }
 
+    /* AioContext is released in .clean() */
+    state->aio_context = bdrv_get_aio_context(bs);
+    aio_context_acquire(state->aio_context);
+
     if (!bdrv_is_inserted(bs)) {
         error_set(errp, QERR_DEVICE_HAS_NO_MEDIUM, device);
+        return;
+    }
+
+    if (bdrv_op_is_blocked(bs, BLOCK_OP_TYPE_INTERNAL_SNAPSHOT, errp)) {
         return;
     }
 
@@ -1303,11 +1326,22 @@ static void internal_snapshot_abort(BlkTransactionState *common)
     }
 }
 
+static void internal_snapshot_clean(BlkTransactionState *common)
+{
+    InternalSnapshotState *state = DO_UPCAST(InternalSnapshotState,
+                                             common, common);
+
+    if (state->aio_context) {
+        aio_context_release(state->aio_context);
+    }
+}
+
 /* external snapshot private data */
 typedef struct ExternalSnapshotState {
     BlkTransactionState common;
     BlockDriverState *old_bs;
     BlockDriverState *new_bs;
+    AioContext *aio_context;
 } ExternalSnapshotState;
 
 static void external_snapshot_prepare(BlkTransactionState *common,
@@ -1374,6 +1408,10 @@ static void external_snapshot_prepare(BlkTransactionState *common,
         return;
     }
 
+    /* Acquire AioContext now so any threads operating on old_bs stop */
+    state->aio_context = bdrv_get_aio_context(state->old_bs);
+    aio_context_acquire(state->aio_context);
+
     if (!bdrv_is_inserted(state->old_bs)) {
         error_set(errp, QERR_DEVICE_HAS_NO_MEDIUM, device);
         return;
@@ -1432,6 +1470,8 @@ static void external_snapshot_commit(BlkTransactionState *common)
     ExternalSnapshotState *state =
                              DO_UPCAST(ExternalSnapshotState, common, common);
 
+    bdrv_set_aio_context(state->new_bs, state->aio_context);
+
     /* This removes our old bs and adds the new bs */
     bdrv_append(state->new_bs, state->old_bs);
     /* We don't need (or want) to use the transactional
@@ -1439,6 +1479,8 @@ static void external_snapshot_commit(BlkTransactionState *common)
      * don't want to abort all of them if one of them fails the reopen */
     bdrv_reopen(state->new_bs, state->new_bs->open_flags & ~BDRV_O_RDWR,
                 NULL);
+
+    aio_context_release(state->aio_context);
 }
 
 static void external_snapshot_abort(BlkTransactionState *common)
@@ -1448,22 +1490,37 @@ static void external_snapshot_abort(BlkTransactionState *common)
     if (state->new_bs) {
         bdrv_unref(state->new_bs);
     }
+    if (state->aio_context) {
+        aio_context_release(state->aio_context);
+    }
 }
 
 typedef struct DriveBackupState {
     BlkTransactionState common;
     BlockDriverState *bs;
+    AioContext *aio_context;
     BlockJob *job;
 } DriveBackupState;
 
 static void drive_backup_prepare(BlkTransactionState *common, Error **errp)
 {
     DriveBackupState *state = DO_UPCAST(DriveBackupState, common, common);
+    BlockDriverState *bs;
     DriveBackup *backup;
     Error *local_err = NULL;
 
     assert(common->action->kind == TRANSACTION_ACTION_KIND_DRIVE_BACKUP);
     backup = common->action->drive_backup;
+
+    bs = bdrv_find(backup->device);
+    if (!bs) {
+        error_set(errp, QERR_DEVICE_NOT_FOUND, backup->device);
+        return;
+    }
+
+    /* AioContext is released in .clean() */
+    state->aio_context = bdrv_get_aio_context(bs);
+    aio_context_acquire(state->aio_context);
 
     qmp_drive_backup(backup->device, backup->target,
                      backup->has_format, backup->format,
@@ -1475,12 +1532,10 @@ static void drive_backup_prepare(BlkTransactionState *common, Error **errp)
                      &local_err);
     if (local_err) {
         error_propagate(errp, local_err);
-        state->bs = NULL;
-        state->job = NULL;
         return;
     }
 
-    state->bs = bdrv_find(backup->device);
+    state->bs = bs;
     state->job = state->bs->job;
 }
 
@@ -1492,6 +1547,15 @@ static void drive_backup_abort(BlkTransactionState *common)
     /* Only cancel if it's the job we started */
     if (bs && bs->job && bs->job == state->job) {
         block_job_cancel_sync(bs->job);
+    }
+}
+
+static void drive_backup_clean(BlkTransactionState *common)
+{
+    DriveBackupState *state = DO_UPCAST(DriveBackupState, common, common);
+
+    if (state->aio_context) {
+        aio_context_release(state->aio_context);
     }
 }
 
@@ -1516,6 +1580,7 @@ static const BdrvActionOps actions[] = {
         .instance_size = sizeof(DriveBackupState),
         .prepare = drive_backup_prepare,
         .abort = drive_backup_abort,
+        .clean = drive_backup_clean,
     },
     [TRANSACTION_ACTION_KIND_ABORT] = {
         .instance_size = sizeof(BlkTransactionState),
@@ -1526,13 +1591,13 @@ static const BdrvActionOps actions[] = {
         .instance_size = sizeof(InternalSnapshotState),
         .prepare  = internal_snapshot_prepare,
         .abort = internal_snapshot_abort,
+        .clean = internal_snapshot_clean,
     },
 };
 
 /*
- * 'Atomic' group snapshots.  The snapshots are taken as a set, and if any fail
- *  then we do not pivot any of the devices in the group, and abandon the
- *  snapshots
+ * 'Atomic' group operations.  The operations are performed as a set, and if
+ * any fail then we roll back all operations in the group.
  */
 void qmp_transaction(TransactionActionList *dev_list, Error **errp)
 {
@@ -1543,10 +1608,10 @@ void qmp_transaction(TransactionActionList *dev_list, Error **errp)
     QSIMPLEQ_HEAD(snap_bdrv_states, BlkTransactionState) snap_bdrv_states;
     QSIMPLEQ_INIT(&snap_bdrv_states);
 
-    /* drain all i/o before any snapshots */
+    /* drain all i/o before any operations */
     bdrv_drain_all();
 
-    /* We don't do anything in this loop that commits us to the snapshot */
+    /* We don't do anything in this loop that commits us to the operations */
     while (NULL != dev_entry) {
         TransactionAction *dev_info = NULL;
         const BdrvActionOps *ops;
@@ -1581,10 +1646,7 @@ void qmp_transaction(TransactionActionList *dev_list, Error **errp)
     goto exit;
 
 delete_and_fail:
-    /*
-    * failure, and it is all-or-none; abandon each new bs, and keep using
-    * the original bs for all images
-    */
+    /* failure, and it is all-or-none; roll back all operations */
     QSIMPLEQ_FOREACH(state, &snap_bdrv_states, entry) {
         if (state->ops->abort) {
             state->ops->abort(state);
@@ -1603,14 +1665,18 @@ exit:
 static void eject_device(BlockBackend *blk, int force, Error **errp)
 {
     BlockDriverState *bs = blk_bs(blk);
+    AioContext *aio_context;
+
+    aio_context = bdrv_get_aio_context(bs);
+    aio_context_acquire(aio_context);
 
     if (bdrv_op_is_blocked(bs, BLOCK_OP_TYPE_EJECT, errp)) {
-        return;
+        goto out;
     }
     if (!blk_dev_has_removable_media(blk)) {
         error_setg(errp, "Device '%s' is not removable",
                    bdrv_get_device_name(bs));
-        return;
+        goto out;
     }
 
     if (blk_dev_is_medium_locked(blk) && !blk_dev_is_tray_open(blk)) {
@@ -1618,11 +1684,14 @@ static void eject_device(BlockBackend *blk, int force, Error **errp)
         if (!force) {
             error_setg(errp, "Device '%s' is locked",
                        bdrv_get_device_name(bs));
-            return;
+            goto out;
         }
     }
 
     bdrv_close(bs);
+
+out:
+    aio_context_release(aio_context);
 }
 
 void qmp_eject(const char *device, bool has_force, bool force, Error **errp)
@@ -1644,6 +1713,7 @@ void qmp_block_passwd(bool has_device, const char *device,
 {
     Error *local_err = NULL;
     BlockDriverState *bs;
+    AioContext *aio_context;
     int err;
 
     bs = bdrv_lookup_bs(has_device ? device : NULL,
@@ -1654,16 +1724,23 @@ void qmp_block_passwd(bool has_device, const char *device,
         return;
     }
 
+    aio_context = bdrv_get_aio_context(bs);
+    aio_context_acquire(aio_context);
+
     err = bdrv_set_key(bs, password);
     if (err == -EINVAL) {
         error_set(errp, QERR_DEVICE_NOT_ENCRYPTED, bdrv_get_device_name(bs));
-        return;
+        goto out;
     } else if (err < 0) {
         error_set(errp, QERR_INVALID_PASSWORD);
-        return;
+        goto out;
     }
+
+out:
+    aio_context_release(aio_context);
 }
 
+/* Assumes AioContext is held */
 static void qmp_bdrv_open_encrypted(BlockDriverState *bs, const char *filename,
                                     int bdrv_flags, BlockDriver *drv,
                                     const char *password, Error **errp)
@@ -1696,6 +1773,7 @@ void qmp_change_blockdev(const char *device, const char *filename,
 {
     BlockBackend *blk;
     BlockDriverState *bs;
+    AioContext *aio_context;
     BlockDriver *drv = NULL;
     int bdrv_flags;
     Error *err = NULL;
@@ -1707,24 +1785,30 @@ void qmp_change_blockdev(const char *device, const char *filename,
     }
     bs = blk_bs(blk);
 
+    aio_context = bdrv_get_aio_context(bs);
+    aio_context_acquire(aio_context);
+
     if (format) {
         drv = bdrv_find_whitelisted_format(format, bs->read_only);
         if (!drv) {
             error_set(errp, QERR_INVALID_BLOCK_FORMAT, format);
-            return;
+            goto out;
         }
     }
 
     eject_device(blk, 0, &err);
     if (err) {
         error_propagate(errp, err);
-        return;
+        goto out;
     }
 
     bdrv_flags = bdrv_is_read_only(bs) ? 0 : BDRV_O_RDWR;
     bdrv_flags |= bdrv_is_snapshot(bs) ? BDRV_O_SNAPSHOT : 0;
 
     qmp_bdrv_open_encrypted(bs, filename, bdrv_flags, drv, NULL, errp);
+
+out:
+    aio_context_release(aio_context);
 }
 
 /* throttling disk I/O limits */
@@ -2548,6 +2632,7 @@ void qmp_change_backing_file(const char *device,
                              Error **errp)
 {
     BlockDriverState *bs = NULL;
+    AioContext *aio_context;
     BlockDriverState *image_bs = NULL;
     Error *local_err = NULL;
     bool ro;
@@ -2561,34 +2646,37 @@ void qmp_change_backing_file(const char *device,
         return;
     }
 
+    aio_context = bdrv_get_aio_context(bs);
+    aio_context_acquire(aio_context);
+
     image_bs = bdrv_lookup_bs(NULL, image_node_name, &local_err);
     if (local_err) {
         error_propagate(errp, local_err);
-        return;
+        goto out;
     }
 
     if (!image_bs) {
         error_setg(errp, "image file not found");
-        return;
+        goto out;
     }
 
     if (bdrv_find_base(image_bs) == image_bs) {
         error_setg(errp, "not allowing backing file change on an image "
                          "without a backing file");
-        return;
+        goto out;
     }
 
     /* even though we are not necessarily operating on bs, we need it to
      * determine if block ops are currently prohibited on the chain */
     if (bdrv_op_is_blocked(bs, BLOCK_OP_TYPE_CHANGE, errp)) {
-        return;
+        goto out;
     }
 
     /* final sanity check */
     if (!bdrv_chain_contains(bs, image_bs)) {
         error_setg(errp, "'%s' and image file are not in the same chain",
                    device);
-        return;
+        goto out;
     }
 
     /* if not r/w, reopen to make r/w */
@@ -2599,7 +2687,7 @@ void qmp_change_backing_file(const char *device,
         bdrv_reopen(image_bs, open_flags | BDRV_O_RDWR, &local_err);
         if (local_err) {
             error_propagate(errp, local_err);
-            return;
+            goto out;
         }
     }
 
@@ -2619,6 +2707,9 @@ void qmp_change_backing_file(const char *device,
             error_propagate(errp, local_err); /* will preserve prior errp */
         }
     }
+
+out:
+    aio_context_release(aio_context);
 }
 
 void qmp_blockdev_add(BlockdevOptions *options, Error **errp)

@@ -139,12 +139,12 @@ events are not tightly coupled to a specific trace backend, such as LTTng or
 SystemTap.  Support for trace backends can be added by extending the "tracetool"
 script.
 
-The trace backend is chosen at configure time and only one trace backend can
-be built into the binary:
+The trace backends are chosen at configure time:
 
-    ./configure --trace-backends=simple
+    ./configure --enable-trace-backends=simple
 
 For a list of supported trace backends, try ./configure --help or see below.
+If multiple backends are enabled, the trace is sent to them all.
 
 The following subsections describe the supported trace backends.
 
