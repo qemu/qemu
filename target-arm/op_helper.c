@@ -361,7 +361,7 @@ void HELPER(msr_i_pstate)(CPUARMState *env, uint32_t op, uint32_t imm)
      * Note that SPSel is never OK from EL0; we rely on handle_msr_i()
      * to catch that case at translate time.
      */
-    if (arm_current_el(env) == 0 && !(env->cp15.c1_sys & SCTLR_UMA)) {
+    if (arm_current_el(env) == 0 && !(env->cp15.sctlr_el[1] & SCTLR_UMA)) {
         raise_exception(env, EXCP_UDEF);
     }
 

@@ -1908,7 +1908,7 @@ static void aa64_fpsr_write(CPUARMState *env, const ARMCPRegInfo *ri,
 
 static CPAccessResult aa64_daif_access(CPUARMState *env, const ARMCPRegInfo *ri)
 {
-    if (arm_current_el(env) == 0 && !(env->cp15.c1_sys & SCTLR_UMA)) {
+    if (arm_current_el(env) == 0 && !(env->cp15.sctlr_el[1] & SCTLR_UMA)) {
         return CP_ACCESS_TRAP;
     }
     return CP_ACCESS_OK;
@@ -1926,7 +1926,7 @@ static CPAccessResult aa64_cacheop_access(CPUARMState *env,
     /* Cache invalidate/clean: NOP, but EL0 must UNDEF unless
      * SCTLR_EL1.UCI is set.
      */
-    if (arm_current_el(env) == 0 && !(env->cp15.c1_sys & SCTLR_UCI)) {
+    if (arm_current_el(env) == 0 && !(env->cp15.sctlr_el[1] & SCTLR_UCI)) {
         return CP_ACCESS_TRAP;
     }
     return CP_ACCESS_OK;
@@ -2003,7 +2003,7 @@ static CPAccessResult aa64_zva_access(CPUARMState *env, const ARMCPRegInfo *ri)
     /* We don't implement EL2, so the only control on DC ZVA is the
      * bit in the SCTLR which can prohibit access for EL0.
      */
-    if (arm_current_el(env) == 0 && !(env->cp15.c1_sys & SCTLR_DZE)) {
+    if (arm_current_el(env) == 0 && !(env->cp15.sctlr_el[1] & SCTLR_DZE)) {
         return CP_ACCESS_TRAP;
     }
     return CP_ACCESS_OK;
@@ -2040,6 +2040,24 @@ static uint64_t spsel_read(CPUARMState *env, const ARMCPRegInfo *ri)
 static void spsel_write(CPUARMState *env, const ARMCPRegInfo *ri, uint64_t val)
 {
     update_spsel(env, val);
+}
+
+static void sctlr_write(CPUARMState *env, const ARMCPRegInfo *ri,
+                        uint64_t value)
+{
+    ARMCPU *cpu = arm_env_get_cpu(env);
+
+    if (raw_read(env, ri) == value) {
+        /* Skip the TLB flush if nothing actually changed; Linux likes
+         * to do a lot of pointless SCTLR writes.
+         */
+        return;
+    }
+
+    raw_write(env, ri, value);
+    /* ??? Lots of these bits are not implemented.  */
+    /* This may enable/disable the MMU, so do a TLB flush.  */
+    tlb_flush(CPU(cpu), 1);
 }
 
 static const ARMCPRegInfo v8_cp_reginfo[] = {
@@ -2311,6 +2329,10 @@ static const ARMCPRegInfo v8_el2_cp_reginfo[] = {
 };
 
 static const ARMCPRegInfo v8_el3_cp_reginfo[] = {
+    { .name = "SCTLR_EL3", .state = ARM_CP_STATE_AA64,
+      .opc0 = 3, .opc1 = 6, .crn = 1, .crm = 0, .opc2 = 0,
+      .access = PL3_RW, .raw_writefn = raw_write, .writefn = sctlr_write,
+      .fieldoffset = offsetof(CPUARMState, cp15.sctlr_el[3]) },
     { .name = "ELR_EL3", .state = ARM_CP_STATE_AA64,
       .type = ARM_CP_NO_MIGRATE,
       .opc0 = 3, .opc1 = 6, .crn = 4, .crm = 0, .opc2 = 1,
@@ -2362,30 +2384,12 @@ static const ARMCPRegInfo el3_cp_reginfo[] = {
     REGINFO_SENTINEL
 };
 
-static void sctlr_write(CPUARMState *env, const ARMCPRegInfo *ri,
-                        uint64_t value)
-{
-    ARMCPU *cpu = arm_env_get_cpu(env);
-
-    if (raw_read(env, ri) == value) {
-        /* Skip the TLB flush if nothing actually changed; Linux likes
-         * to do a lot of pointless SCTLR writes.
-         */
-        return;
-    }
-
-    raw_write(env, ri, value);
-    /* ??? Lots of these bits are not implemented.  */
-    /* This may enable/disable the MMU, so do a TLB flush.  */
-    tlb_flush(CPU(cpu), 1);
-}
-
 static CPAccessResult ctr_el0_access(CPUARMState *env, const ARMCPRegInfo *ri)
 {
     /* Only accessible in EL0 if SCTLR.UCT is set (and only in AArch64,
      * but the AArch32 CTR has its own reginfo struct)
      */
-    if (arm_current_el(env) == 0 && !(env->cp15.c1_sys & SCTLR_UCT)) {
+    if (arm_current_el(env) == 0 && !(env->cp15.sctlr_el[1] & SCTLR_UCT)) {
         return CP_ACCESS_TRAP;
     }
     return CP_ACCESS_OK;
@@ -3182,8 +3186,10 @@ void register_cp_regs_for_features(ARMCPU *cpu)
     {
         ARMCPRegInfo sctlr = {
             .name = "SCTLR", .state = ARM_CP_STATE_BOTH,
-            .opc0 = 3, .crn = 1, .crm = 0, .opc1 = 0, .opc2 = 0,
-            .access = PL1_RW, .fieldoffset = offsetof(CPUARMState, cp15.c1_sys),
+            .opc0 = 3, .opc1 = 0, .crn = 1, .crm = 0, .opc2 = 0,
+            .access = PL1_RW,
+            .bank_fieldoffsets = { offsetof(CPUARMState, cp15.sctlr_s),
+                                   offsetof(CPUARMState, cp15.sctlr_ns) },
             .writefn = sctlr_write, .resetvalue = cpu->reset_sctlr,
             .raw_writefn = raw_write,
         };
@@ -4278,7 +4284,7 @@ void arm_cpu_do_interrupt(CPUState *cs)
 
     if (new_mode == ARM_CPU_MODE_MON) {
         addr += env->cp15.mvbar;
-    } else if (env->cp15.c1_sys & SCTLR_V) {
+    } else if (A32_BANKED_CURRENT_REG_GET(env, sctlr) & SCTLR_V) {
         /* High vectors. When enabled, base address cannot be remapped. */
         addr += 0xffff0000;
     } else {
@@ -4308,7 +4314,7 @@ void arm_cpu_do_interrupt(CPUState *cs)
     /* this is a lie, as the was no c1_sys on V4T/V5, but who cares
      * and we should just guard the thumb mode on V4 */
     if (arm_feature(env, ARM_FEATURE_V4T)) {
-        env->thumb = (env->cp15.c1_sys & SCTLR_TE) != 0;
+        env->thumb = (A32_BANKED_CURRENT_REG_GET(env, sctlr) & SCTLR_TE) != 0;
     }
     env->regs[14] = env->regs[15] + offset;
     env->regs[15] = addr;
@@ -4339,7 +4345,7 @@ static inline int check_ap(CPUARMState *env, int ap, int domain_prot,
       }
       if (access_type == 1)
           return 0;
-      switch (env->cp15.c1_sys & (SCTLR_S | SCTLR_R)) {
+      switch (A32_BANKED_CURRENT_REG_GET(env, sctlr) & (SCTLR_S | SCTLR_R)) {
       case SCTLR_S:
           return is_user ? 0 : PAGE_READ;
       case SCTLR_R:
@@ -4588,7 +4594,8 @@ static int get_phys_addr_v6(CPUARMState *env, uint32_t address, int access_type,
             goto do_fault;
 
         /* The simplified model uses AP[0] as an access control bit.  */
-        if ((env->cp15.c1_sys & SCTLR_AFE) && (ap & 1) == 0) {
+        if ((A32_BANKED_CURRENT_REG_GET(env, sctlr) & SCTLR_AFE)
+                && (ap & 1) == 0) {
             /* Access flag fault.  */
             code = (code == 15) ? 6 : 3;
             goto do_fault;
@@ -4921,11 +4928,16 @@ static inline int get_phys_addr(CPUARMState *env, target_ulong address,
                                 hwaddr *phys_ptr, int *prot,
                                 target_ulong *page_size)
 {
+    /* This is not entirely correct as get_phys_addr() can also be called
+     * from ats_write() for an address translation of a specific regime.
+     */
+    uint32_t sctlr = A32_BANKED_CURRENT_REG_GET(env, sctlr);
+
     /* Fast Context Switch Extension.  */
     if (address < 0x02000000)
         address += env->cp15.c13_fcse;
 
-    if ((env->cp15.c1_sys & SCTLR_M) == 0) {
+    if ((sctlr & SCTLR_M) == 0) {
         /* MMU/MPU disabled.  */
         *phys_ptr = address;
         *prot = PAGE_READ | PAGE_WRITE | PAGE_EXEC;
@@ -4938,7 +4950,7 @@ static inline int get_phys_addr(CPUARMState *env, target_ulong address,
     } else if (extended_addresses_enabled(env)) {
         return get_phys_addr_lpae(env, address, access_type, is_user, phys_ptr,
                                   prot, page_size);
-    } else if (env->cp15.c1_sys & SCTLR_XP) {
+    } else if (sctlr & SCTLR_XP) {
         return get_phys_addr_v6(env, address, access_type, is_user, phys_ptr,
                                 prot, page_size);
     } else {
