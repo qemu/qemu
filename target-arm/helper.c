@@ -898,9 +898,6 @@ static const ARMCPRegInfo v7_cp_reginfo[] = {
       .access = PL1_RW, .writefn = vbar_write,
       .fieldoffset = offsetof(CPUARMState, cp15.vbar_el[1]),
       .resetvalue = 0 },
-    { .name = "SCR", .cp = 15, .crn = 1, .crm = 1, .opc1 = 0, .opc2 = 0,
-      .access = PL1_RW, .fieldoffset = offsetoflow32(CPUARMState, cp15.scr_el3),
-      .resetvalue = 0, .writefn = scr_write },
     { .name = "CCSIDR", .state = ARM_CP_STATE_BOTH,
       .opc0 = 3, .crn = 0, .crm = 0, .opc1 = 1, .opc2 = 0,
       .access = PL1_R, .readfn = ccsidr_read, .type = ARM_CP_NO_MIGRATE },
@@ -2335,11 +2332,18 @@ static const ARMCPRegInfo v8_el3_cp_reginfo[] = {
       .access = PL3_RW, .writefn = vbar_write,
       .fieldoffset = offsetof(CPUARMState, cp15.vbar_el[3]),
       .resetvalue = 0 },
+    REGINFO_SENTINEL
+};
+
+static const ARMCPRegInfo el3_cp_reginfo[] = {
     { .name = "SCR_EL3", .state = ARM_CP_STATE_AA64,
-      .type = ARM_CP_NO_MIGRATE,
       .opc0 = 3, .opc1 = 6, .crn = 1, .crm = 1, .opc2 = 0,
       .access = PL3_RW, .fieldoffset = offsetof(CPUARMState, cp15.scr_el3),
-      .writefn = scr_write },
+      .resetvalue = 0, .writefn = scr_write },
+    { .name = "SCR",  .type = ARM_CP_NO_MIGRATE,
+      .cp = 15, .opc1 = 0, .crn = 1, .crm = 1, .opc2 = 0,
+      .access = PL3_RW, .fieldoffset = offsetoflow32(CPUARMState, cp15.scr_el3),
+      .resetfn = arm_cp_reset_ignore, .writefn = scr_write },
     REGINFO_SENTINEL
 };
 
@@ -2960,7 +2964,10 @@ void register_cp_regs_for_features(ARMCPU *cpu)
         }
     }
     if (arm_feature(env, ARM_FEATURE_EL3)) {
-        define_arm_cp_regs(cpu, v8_el3_cp_reginfo);
+        if (arm_feature(env, ARM_FEATURE_V8)) {
+            define_arm_cp_regs(cpu, v8_el3_cp_reginfo);
+        }
+        define_arm_cp_regs(cpu, el3_cp_reginfo);
     }
     if (arm_feature(env, ARM_FEATURE_MPU)) {
         /* These are the MPU registers prior to PMSAv6. Any new
