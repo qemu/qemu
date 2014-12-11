@@ -993,6 +993,21 @@ enum {
     ARM_CP_STATE_BOTH = 2,
 };
 
+/* ARM CP register secure state flags.  These flags identify security state
+ * attributes for a given CP register entry.
+ * The existence of both or neither secure and non-secure flags indicates that
+ * the register has both a secure and non-secure hash entry.  A single one of
+ * these flags causes the register to only be hashed for the specified
+ * security state.
+ * Although definitions may have any combination of the S/NS bits, each
+ * registered entry will only have one to identify whether the entry is secure
+ * or non-secure.
+ */
+enum {
+    ARM_CP_SECSTATE_S =   (1 << 0), /* bit[0]: Secure state register */
+    ARM_CP_SECSTATE_NS =  (1 << 1), /* bit[1]: Non-secure state register */
+};
+
 /* Return true if cptype is a valid type field. This is used to try to
  * catch errors where the sentinel has been accidentally left off the end
  * of a list of registers.
@@ -1127,6 +1142,8 @@ struct ARMCPRegInfo {
     int type;
     /* Access rights: PL*_[RW] */
     int access;
+    /* Security state: ARM_CP_SECSTATE_* bits/values */
+    int secure;
     /* The opaque pointer passed to define_arm_cp_regs_with_opaque() when
      * this register was defined: can be used to hand data through to the
      * register read/write functions, since they are passed the ARMCPRegInfo*.
@@ -1136,12 +1153,27 @@ struct ARMCPRegInfo {
      * fieldoffset is non-zero, the reset value of the register.
      */
     uint64_t resetvalue;
-    /* Offset of the field in CPUARMState for this register. This is not
-     * needed if either:
+    /* Offset of the field in CPUARMState for this register.
+     *
+     * This is not needed if either:
      *  1. type is ARM_CP_CONST or one of the ARM_CP_SPECIALs
      *  2. both readfn and writefn are specified
      */
     ptrdiff_t fieldoffset; /* offsetof(CPUARMState, field) */
+
+    /* Offsets of the secure and non-secure fields in CPUARMState for the
+     * register if it is banked.  These fields are only used during the static
+     * registration of a register.  During hashing the bank associated
+     * with a given security state is copied to fieldoffset which is used from
+     * there on out.
+     *
+     * It is expected that register definitions use either fieldoffset or
+     * bank_fieldoffsets in the definition but not both.  It is also expected
+     * that both bank offsets are set when defining a banked register.  This
+     * use indicates that a register is banked.
+     */
+    ptrdiff_t bank_fieldoffsets[2];
+
     /* Function for making any access checks for this register in addition to
      * those specified by the 'access' permissions bits. If NULL, no extra
      * checks required. The access check is performed at runtime, not at
