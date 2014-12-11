@@ -238,11 +238,20 @@ VirtualCssBus *virtual_css_bus_init(void)
 }
 
 /* Communication blocks used by several channel commands. */
-typedef struct VqInfoBlock {
+typedef struct VqInfoBlockLegacy {
     uint64_t queue;
     uint32_t align;
     uint16_t index;
     uint16_t num;
+} QEMU_PACKED VqInfoBlockLegacy;
+
+typedef struct VqInfoBlock {
+    uint64_t desc;
+    uint32_t res0;
+    uint16_t index;
+    uint16_t num;
+    uint64_t avail;
+    uint64_t used;
 } QEMU_PACKED VqInfoBlock;
 
 typedef struct VqConfigBlock {
@@ -269,17 +278,20 @@ typedef struct VirtioRevInfo {
 } QEMU_PACKED VirtioRevInfo;
 
 /* Specify where the virtqueues for the subchannel are in guest memory. */
-static int virtio_ccw_set_vqs(SubchDev *sch, uint64_t addr, uint32_t align,
-                              uint16_t index, uint16_t num)
+static int virtio_ccw_set_vqs(SubchDev *sch, VqInfoBlock *info,
+                              VqInfoBlockLegacy *linfo)
 {
     VirtIODevice *vdev = virtio_ccw_get_vdev(sch);
+    uint16_t index = info ? info->index : linfo->index;
+    uint16_t num = info ? info->num : linfo->num;
+    uint64_t desc = info ? info->desc : linfo->queue;
 
     if (index >= VIRTIO_CCW_QUEUE_MAX) {
         return -EINVAL;
     }
 
     /* Current code in virtio.c relies on 4K alignment. */
-    if (addr && (align != 4096)) {
+    if (linfo && desc && (linfo->align != 4096)) {
         return -EINVAL;
     }
 
@@ -287,8 +299,12 @@ static int virtio_ccw_set_vqs(SubchDev *sch, uint64_t addr, uint32_t align,
         return -EINVAL;
     }
 
-    virtio_queue_set_addr(vdev, index, addr);
-    if (!addr) {
+    if (info) {
+        virtio_queue_set_rings(vdev, index, desc, info->avail, info->used);
+    } else {
+        virtio_queue_set_addr(vdev, index, desc);
+    }
+    if (!desc) {
         virtio_queue_set_vector(vdev, index, VIRTIO_NO_VECTOR);
     } else {
         /* Fail if we don't have a big enough queue. */
@@ -322,10 +338,78 @@ static void virtio_ccw_reset_virtio(VirtioCcwDevice *dev, VirtIODevice *vdev)
     dev->sch->thinint_active = false;
 }
 
-static int virtio_ccw_cb(SubchDev *sch, CCW1 ccw)
+static int virtio_ccw_handle_set_vq(SubchDev *sch, CCW1 ccw, bool check_len,
+                                    bool is_legacy)
 {
     int ret;
     VqInfoBlock info;
+    VqInfoBlockLegacy linfo;
+    size_t info_len = is_legacy ? sizeof(linfo) : sizeof(info);
+
+    if (check_len) {
+        if (ccw.count != info_len) {
+            return -EINVAL;
+        }
+    } else if (ccw.count < info_len) {
+        /* Can't execute command. */
+        return -EINVAL;
+    }
+    if (!ccw.cda) {
+        return -EFAULT;
+    }
+    if (is_legacy) {
+        linfo.queue = address_space_ldq_be(&address_space_memory, ccw.cda,
+                                           MEMTXATTRS_UNSPECIFIED, NULL);
+        linfo.align = address_space_ldl_be(&address_space_memory,
+                                           ccw.cda + sizeof(linfo.queue),
+                                           MEMTXATTRS_UNSPECIFIED,
+                                           NULL);
+        linfo.index = address_space_lduw_be(&address_space_memory,
+                                            ccw.cda + sizeof(linfo.queue)
+                                            + sizeof(linfo.align),
+                                            MEMTXATTRS_UNSPECIFIED,
+                                            NULL);
+        linfo.num = address_space_lduw_be(&address_space_memory,
+                                          ccw.cda + sizeof(linfo.queue)
+                                          + sizeof(linfo.align)
+                                          + sizeof(linfo.index),
+                                          MEMTXATTRS_UNSPECIFIED,
+                                          NULL);
+        ret = virtio_ccw_set_vqs(sch, NULL, &linfo);
+    } else {
+        info.desc = address_space_ldq_be(&address_space_memory, ccw.cda,
+                                           MEMTXATTRS_UNSPECIFIED, NULL);
+        info.index = address_space_lduw_be(&address_space_memory,
+                                           ccw.cda + sizeof(info.desc)
+                                           + sizeof(info.res0),
+                                           MEMTXATTRS_UNSPECIFIED, NULL);
+        info.num = address_space_lduw_be(&address_space_memory,
+                                         ccw.cda + sizeof(info.desc)
+                                         + sizeof(info.res0)
+                                         + sizeof(info.index),
+                                         MEMTXATTRS_UNSPECIFIED, NULL);
+        info.avail = address_space_ldq_be(&address_space_memory,
+                                          ccw.cda + sizeof(info.desc)
+                                          + sizeof(info.res0)
+                                          + sizeof(info.index)
+                                          + sizeof(info.num),
+                                          MEMTXATTRS_UNSPECIFIED, NULL);
+        info.used = address_space_ldq_be(&address_space_memory,
+                                         ccw.cda + sizeof(info.desc)
+                                         + sizeof(info.res0)
+                                         + sizeof(info.index)
+                                         + sizeof(info.num)
+                                         + sizeof(info.avail),
+                                         MEMTXATTRS_UNSPECIFIED, NULL);
+        ret = virtio_ccw_set_vqs(sch, &info, NULL);
+    }
+    sch->curr_status.scsw.count = 0;
+    return ret;
+}
+
+static int virtio_ccw_cb(SubchDev *sch, CCW1 ccw)
+{
+    int ret;
     VirtioRevInfo revinfo;
     uint8_t status;
     VirtioFeatDesc features;
@@ -350,40 +434,7 @@ static int virtio_ccw_cb(SubchDev *sch, CCW1 ccw)
     /* Look at the command. */
     switch (ccw.cmd_code) {
     case CCW_CMD_SET_VQ:
-        if (check_len) {
-            if (ccw.count != sizeof(info)) {
-                ret = -EINVAL;
-                break;
-            }
-        } else if (ccw.count < sizeof(info)) {
-            /* Can't execute command. */
-            ret = -EINVAL;
-            break;
-        }
-        if (!ccw.cda) {
-            ret = -EFAULT;
-        } else {
-            info.queue = address_space_ldq(&address_space_memory, ccw.cda,
-                                           MEMTXATTRS_UNSPECIFIED, NULL);
-            info.align = address_space_ldl(&address_space_memory,
-                                           ccw.cda + sizeof(info.queue),
-                                           MEMTXATTRS_UNSPECIFIED,
-                                           NULL);
-            info.index = address_space_lduw(&address_space_memory,
-                                            ccw.cda + sizeof(info.queue)
-                                            + sizeof(info.align),
-                                            MEMTXATTRS_UNSPECIFIED,
-                                            NULL);
-            info.num = address_space_lduw(&address_space_memory,
-                                          ccw.cda + sizeof(info.queue)
-                                          + sizeof(info.align)
-                                          + sizeof(info.index),
-                                          MEMTXATTRS_UNSPECIFIED,
-                                          NULL);
-            ret = virtio_ccw_set_vqs(sch, info.queue, info.align, info.index,
-                                     info.num);
-            sch->curr_status.scsw.count = 0;
-        }
+        ret = virtio_ccw_handle_set_vq(sch, ccw, check_len, dev->revision < 1);
         break;
     case CCW_CMD_VDEV_RESET:
         virtio_ccw_reset_virtio(dev, vdev);
