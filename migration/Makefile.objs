@@ -1,10 +1,10 @@
-common-obj-y += migration.o migration-tcp.o
+common-obj-y += migration.o tcp.o
 common-obj-y += vmstate.o
 common-obj-y += qemu-file.o qemu-file-unix.o qemu-file-stdio.o
-common-obj-$(CONFIG_RDMA) += migration-rdma.o
 common-obj-y += xbzrle.o
 
-common-obj-$(CONFIG_POSIX) += migration-exec.o migration-unix.o migration-fd.o
+common-obj-$(CONFIG_RDMA) += rdma.o
+common-obj-$(CONFIG_POSIX) += exec.o unix.o fd.o
 
-common-obj-y += block-migration.o
+common-obj-y += block.o
 
