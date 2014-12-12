@@ -3203,7 +3203,7 @@ static void decode_bol_opc(CPUTriCoreState *env, DisasContext *ctx, int32_t op1)
         tcg_gen_qemu_ld_tl(cpu_gpr_a[r1], temp, ctx->mem_idx, MO_LEUL);
         tcg_temp_free(temp);
         break;
-    case OPC1_32_BOL_LD_W_LONFOFF:
+    case OPC1_32_BOL_LD_W_LONGOFF:
         temp = tcg_temp_new();
         tcg_gen_addi_tl(temp, cpu_gpr_a[r2], address);
         tcg_gen_qemu_ld_tl(cpu_gpr_d[r1], temp, ctx->mem_idx, MO_LEUL);
@@ -3930,7 +3930,7 @@ static void decode_32Bit_opc(CPUTriCoreState *env, DisasContext *ctx)
         break;
 /* BOL-format */
     case OPC1_32_BOL_LD_A_LONGOFF:
-    case OPC1_32_BOL_LD_W_LONFOFF:
+    case OPC1_32_BOL_LD_W_LONGOFF:
     case OPC1_32_BOL_LEA_LONGOFF:
     case OPC1_32_BOL_ST_W_LONGOFF:
     case OPC1_32_BOL_ST_A_LONGOFF:

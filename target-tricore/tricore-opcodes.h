@@ -447,7 +447,7 @@ enum {
     OPCM_32_BO_ADDRMODE_LDMST_BITREVERSE_CIRCULAR    = 0x69,
 /* BOL Format */
     OPC1_32_BOL_LD_A_LONGOFF                         = 0x99,
-    OPC1_32_BOL_LD_W_LONFOFF                         = 0x19,
+    OPC1_32_BOL_LD_W_LONGOFF                         = 0x19,
     OPC1_32_BOL_LEA_LONGOFF                          = 0xd9,
     OPC1_32_BOL_ST_W_LONGOFF                         = 0x59,
     OPC1_32_BOL_ST_A_LONGOFF                         = 0xb5, /* 1.6 only */
