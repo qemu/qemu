@@ -111,6 +111,12 @@ $QEMU_IO -f qcow2 -c "write -P 0xb 10240 512" "$TEST_IMG.qcow2" | _filter_qemu_i
 $QEMU_IMG convert -f qcow2 -O vmdk -o subformat=streamOptimized "$TEST_IMG.qcow2" "$TEST_IMG" 2>&1
 
 echo
+echo "=== Testing monolithicFlat with internally generated JSON file name ==="
+IMGOPTS="subformat=monolithicFlat" _make_test_img 64M
+$QEMU_IO -c "open -o driver=$IMGFMT,file.driver=blkdebug,file.image.filename=$TEST_IMG,file.inject-error.0.event=read_aio" 2>&1 \
+    | _filter_testdir | _filter_imgfmt
+
+echo
 echo "=== Testing version 3 ==="
 _use_sample_img iotest-version3.vmdk.bz2
 _img_info

@@ -1,5 +1,5 @@
 QA output created by 067
-Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=134217728 
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=134217728
 
 === -drive/-device and device_del ===
 

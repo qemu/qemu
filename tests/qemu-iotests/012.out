@@ -1,5 +1,5 @@
 QA output created by 012
-Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=134217728 
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=134217728
 
 == mark image read-only
 

@@ -653,6 +653,7 @@ static int block_save_iterate(QEMUFile *f, void *opaque)
 {
     int ret;
     int64_t last_ftell = qemu_ftell(f);
+    int64_t delta_ftell;
 
     DPRINTF("Enter save live iterate submitted %d transferred %d\n",
             block_mig_state.submitted, block_mig_state.transferred);
@@ -702,7 +703,14 @@ static int block_save_iterate(QEMUFile *f, void *opaque)
     }
 
     qemu_put_be64(f, BLK_MIG_FLAG_EOS);
-    return qemu_ftell(f) - last_ftell;
+    delta_ftell = qemu_ftell(f) - last_ftell;
+    if (delta_ftell > 0) {
+        return 1;
+    } else if (delta_ftell < 0) {
+        return -1;
+    } else {
+        return 0;
+    }
 }
 
 /* Called with iothread lock taken.  */

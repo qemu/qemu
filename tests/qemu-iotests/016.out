@@ -1,5 +1,5 @@
 QA output created by 016
-Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=134217728 
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=134217728
 
 == reading at EOF ==
 read 512/512 bytes at offset 134217728

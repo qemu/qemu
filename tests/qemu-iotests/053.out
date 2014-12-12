@@ -1,7 +1,7 @@
 QA output created by 053
 
 == Creating single sector image ==
-Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=512 
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=512
 wrote 512/512 bytes at offset 0
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 

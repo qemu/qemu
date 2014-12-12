@@ -329,8 +329,6 @@ BlockAIOCB *bdrv_aio_ioctl(BlockDriverState *bs,
 void bdrv_invalidate_cache(BlockDriverState *bs, Error **errp);
 void bdrv_invalidate_cache_all(Error **errp);
 
-void bdrv_clear_incoming_migration_all(void);
-
 /* Ensure contents are flushed to disk.  */
 int bdrv_flush(BlockDriverState *bs);
 int coroutine_fn bdrv_co_flush(BlockDriverState *bs);
@@ -401,6 +399,7 @@ void bdrv_get_full_backing_filename(BlockDriverState *bs,
                                     char *dest, size_t sz);
 int bdrv_is_snapshot(BlockDriverState *bs);
 
+int path_has_protocol(const char *path);
 int path_is_absolute(const char *path);
 void path_combine(char *dest, int dest_size,
                   const char *base_path,

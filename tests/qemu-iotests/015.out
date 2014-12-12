@@ -1,7 +1,7 @@
 QA output created by 015
 
 creating image
-Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=37748736 
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=37748736
 creating first snapshot
 wrote 37748736/37748736 bytes at offset 0
 36 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)

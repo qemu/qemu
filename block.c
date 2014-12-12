@@ -229,7 +229,7 @@ size_t bdrv_opt_mem_align(BlockDriverState *bs)
 }
 
 /* check if the path starts with "<protocol>:" */
-static int path_has_protocol(const char *path)
+int path_has_protocol(const char *path)
 {
     const char *p;
 
@@ -5668,8 +5668,8 @@ void bdrv_img_create(const char *filename, const char *fmt,
     }
 
     if (!quiet) {
-        printf("Formatting '%s', fmt=%s ", filename, fmt);
-        qemu_opts_print(opts);
+        printf("Formatting '%s', fmt=%s", filename, fmt);
+        qemu_opts_print(opts, " ");
         puts("");
     }
 

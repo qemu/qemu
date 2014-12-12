@@ -268,6 +268,17 @@ struct {                                                                \
         (head)->sqh_last = &(head)->sqh_first;                          \
 } while (/*CONSTCOND*/0)
 
+#define QSIMPLEQ_SPLIT_AFTER(head, elm, field, removed) do {            \
+    QSIMPLEQ_INIT(removed);                                             \
+    if (((removed)->sqh_first = (head)->sqh_first) != NULL) {           \
+        if (((head)->sqh_first = (elm)->field.sqe_next) == NULL) {      \
+            (head)->sqh_last = &(head)->sqh_first;                      \
+        }                                                               \
+        (removed)->sqh_last = &(elm)->field.sqe_next;                   \
+        (elm)->field.sqe_next = NULL;                                   \
+    }                                                                   \
+} while (/*CONSTCOND*/0)
+
 #define QSIMPLEQ_REMOVE(head, elm, type, field) do {                    \
     if ((head)->sqh_first == (elm)) {                                   \
         QSIMPLEQ_REMOVE_HEAD((head), field);                            \

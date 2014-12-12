@@ -1,5 +1,5 @@
 QA output created by 027
-Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=134217728 
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=134217728
 
 == writing first cluster to populate metadata ==
 wrote 65536/65536 bytes at offset 65536

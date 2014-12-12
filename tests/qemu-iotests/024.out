@@ -1,7 +1,7 @@
 QA output created by 024
 Creating backing file
 
-Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=1073741824 
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=1073741824
 === IO: pattern 0x11
 wrote 65536/65536 bytes at offset 0
 64 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
@@ -21,7 +21,7 @@ wrote 65536/65536 bytes at offset 917504
 64 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 Creating new backing file
 
-Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=1073741824 
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=1073741824
 === IO: pattern 0x22
 wrote 131072/131072 bytes at offset 0
 128 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
@@ -33,7 +33,7 @@ wrote 131072/131072 bytes at offset 786432
 128 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 Creating COW image
 
-Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=1073741824 backing_file='TEST_DIR/t.IMGFMT.base_old' 
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=1073741824 backing_file='TEST_DIR/t.IMGFMT.base_old'
 === IO: pattern 0x33
 wrote 262144/262144 bytes at offset 0
 256 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)

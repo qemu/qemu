@@ -459,7 +459,7 @@ static int qemu_rbd_open(BlockDriverState *bs, QDict *options, int flags,
     clientname = qemu_rbd_parse_clientname(conf, clientname_buf);
     r = rados_create(&s->cluster, clientname);
     if (r < 0) {
-        error_setg(&local_err, "error initializing");
+        error_setg(errp, "error initializing");
         goto failed_opts;
     }
 
@@ -495,19 +495,19 @@ static int qemu_rbd_open(BlockDriverState *bs, QDict *options, int flags,
 
     r = rados_connect(s->cluster);
     if (r < 0) {
-        error_setg(&local_err, "error connecting");
+        error_setg(errp, "error connecting");
         goto failed_shutdown;
     }
 
     r = rados_ioctx_create(s->cluster, pool, &s->io_ctx);
     if (r < 0) {
-        error_setg(&local_err, "error opening pool %s", pool);
+        error_setg(errp, "error opening pool %s", pool);
         goto failed_shutdown;
     }
 
     r = rbd_open(s->io_ctx, s->name, &s->image, s->snap);
     if (r < 0) {
-        error_setg(&local_err, "error reading header from %s", s->name);
+        error_setg(errp, "error reading header from %s", s->name);
         goto failed_open;
     }
 

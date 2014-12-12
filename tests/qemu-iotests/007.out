@@ -1,7 +1,7 @@
 QA output created by 007
 
 creating image
-Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=1048576 
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=1048576
 savevm 1
 savevm 2
 savevm 3
