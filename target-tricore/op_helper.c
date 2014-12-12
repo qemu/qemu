@@ -1228,6 +1228,78 @@ uint64_t helper_dvinit_h_131(CPUTriCoreState *env, uint32_t r1, uint32_t r2)
     return ret;
 }
 
+uint64_t helper_mul_h(uint32_t arg00, uint32_t arg01,
+                      uint32_t arg10, uint32_t arg11, uint32_t n)
+{
+    uint64_t ret;
+    uint32_t result0, result1;
+
+    int32_t sc1 = ((arg00 & 0xffff) == 0x8000) &&
+                  ((arg10 & 0xffff) == 0x8000) && (n == 1);
+    int32_t sc0 = ((arg01 & 0xffff) == 0x8000) &&
+                  ((arg11 & 0xffff) == 0x8000) && (n == 1);
+    if (sc1) {
+        result1 = 0x7fffffff;
+    } else {
+        result1 = (((uint32_t)(arg00 * arg10)) << n);
+    }
+    if (sc0) {
+        result0 = 0x7fffffff;
+    } else {
+        result0 = (((uint32_t)(arg01 * arg11)) << n);
+    }
+    ret = (((uint64_t)result1 << 32)) | result0;
+    return ret;
+}
+
+uint64_t helper_mulm_h(uint32_t arg00, uint32_t arg01,
+                       uint32_t arg10, uint32_t arg11, uint32_t n)
+{
+    uint64_t ret;
+    int64_t result0, result1;
+
+    int32_t sc1 = ((arg00 & 0xffff) == 0x8000) &&
+                  ((arg10 & 0xffff) == 0x8000) && (n == 1);
+    int32_t sc0 = ((arg01 & 0xffff) == 0x8000) &&
+                  ((arg11 & 0xffff) == 0x8000) && (n == 1);
+
+    if (sc1) {
+        result1 = 0x7fffffff;
+    } else {
+        result1 = (((int32_t)arg00 * (int32_t)arg10) << n);
+    }
+    if (sc0) {
+        result0 = 0x7fffffff;
+    } else {
+        result0 = (((int32_t)arg01 * (int32_t)arg11) << n);
+    }
+    ret = (result1 + result0);
+    ret = ret << 16;
+    return ret;
+}
+uint32_t helper_mulr_h(uint32_t arg00, uint32_t arg01,
+                       uint32_t arg10, uint32_t arg11, uint32_t n)
+{
+    uint32_t result0, result1;
+
+    int32_t sc1 = ((arg00 & 0xffff) == 0x8000) &&
+                  ((arg10 & 0xffff) == 0x8000) && (n == 1);
+    int32_t sc0 = ((arg01 & 0xffff) == 0x8000) &&
+                  ((arg11 & 0xffff) == 0x8000) && (n == 1);
+
+    if (sc1) {
+        result1 = 0x7fffffff;
+    } else {
+        result1 = ((arg00 * arg10) << n) + 0x8000;
+    }
+    if (sc0) {
+        result0 = 0x7fffffff;
+    } else {
+        result0 = ((arg01 * arg11) << n) + 0x8000;
+    }
+    return (result1 & 0xffff0000) | (result0 >> 16);
+}
+
 /* context save area (CSA) related helpers */
 
 static int cdc_increment(target_ulong *psw)

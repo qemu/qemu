@@ -87,6 +87,10 @@ DEF_HELPER_3(dvinit_b_13, i64, env, i32, i32)
 DEF_HELPER_3(dvinit_b_131, i64, env, i32, i32)
 DEF_HELPER_3(dvinit_h_13, i64, env, i32, i32)
 DEF_HELPER_3(dvinit_h_131, i64, env, i32, i32)
+/* mulh */
+DEF_HELPER_FLAGS_5(mul_h, TCG_CALL_NO_RWG_SE, i64, i32, i32, i32, i32, i32)
+DEF_HELPER_FLAGS_5(mulm_h, TCG_CALL_NO_RWG_SE, i64, i32, i32, i32, i32, i32)
+DEF_HELPER_FLAGS_5(mulr_h, TCG_CALL_NO_RWG_SE, i32, i32, i32, i32, i32, i32)
 /* CSA */
 DEF_HELPER_2(call, void, env, i32)
 DEF_HELPER_1(ret, void, env)

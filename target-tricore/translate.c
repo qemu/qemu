@@ -124,6 +124,64 @@ void tricore_cpu_dump_state(CPUState *cs, FILE *f,
     tcg_temp_free_i32(helper_tmp);                                \
     } while (0)
 
+#define GEN_HELPER_LL(name, ret, arg0, arg1, n) do {         \
+    TCGv arg00 = tcg_temp_new();                             \
+    TCGv arg01 = tcg_temp_new();                             \
+    TCGv arg11 = tcg_temp_new();                             \
+    tcg_gen_sari_tl(arg00, arg0, 16);                        \
+    tcg_gen_ext16s_tl(arg01, arg0);                          \
+    tcg_gen_ext16s_tl(arg11, arg1);                          \
+    gen_helper_##name(ret, arg00, arg01, arg11, arg11, n);   \
+    tcg_temp_free(arg00);                                    \
+    tcg_temp_free(arg01);                                    \
+    tcg_temp_free(arg11);                                    \
+} while (0)
+
+#define GEN_HELPER_LU(name, ret, arg0, arg1, n) do {         \
+    TCGv arg00 = tcg_temp_new();                             \
+    TCGv arg01 = tcg_temp_new();                             \
+    TCGv arg10 = tcg_temp_new();                             \
+    TCGv arg11 = tcg_temp_new();                             \
+    tcg_gen_sari_tl(arg00, arg0, 16);                        \
+    tcg_gen_ext16s_tl(arg01, arg0);                          \
+    tcg_gen_sari_tl(arg11, arg1, 16);                        \
+    tcg_gen_ext16s_tl(arg10, arg1);                          \
+    gen_helper_##name(ret, arg00, arg01, arg10, arg11, n);   \
+    tcg_temp_free(arg00);                                    \
+    tcg_temp_free(arg01);                                    \
+    tcg_temp_free(arg10);                                    \
+    tcg_temp_free(arg11);                                    \
+} while (0)
+
+#define GEN_HELPER_UL(name, ret, arg0, arg1, n) do {         \
+    TCGv arg00 = tcg_temp_new();                             \
+    TCGv arg01 = tcg_temp_new();                             \
+    TCGv arg10 = tcg_temp_new();                             \
+    TCGv arg11 = tcg_temp_new();                             \
+    tcg_gen_sari_tl(arg00, arg0, 16);                        \
+    tcg_gen_ext16s_tl(arg01, arg0);                          \
+    tcg_gen_sari_tl(arg10, arg1, 16);                        \
+    tcg_gen_ext16s_tl(arg11, arg1);                          \
+    gen_helper_##name(ret, arg00, arg01, arg10, arg11, n);   \
+    tcg_temp_free(arg00);                                    \
+    tcg_temp_free(arg01);                                    \
+    tcg_temp_free(arg10);                                    \
+    tcg_temp_free(arg11);                                    \
+} while (0)
+
+#define GEN_HELPER_UU(name, ret, arg0, arg1, n) do {         \
+    TCGv arg00 = tcg_temp_new();                             \
+    TCGv arg01 = tcg_temp_new();                             \
+    TCGv arg11 = tcg_temp_new();                             \
+    tcg_gen_sari_tl(arg01, arg0, 16);                        \
+    tcg_gen_ext16s_tl(arg00, arg0);                          \
+    tcg_gen_sari_tl(arg11, arg1, 16);                        \
+    gen_helper_##name(ret, arg00, arg01, arg11, arg11, n);   \
+    tcg_temp_free(arg00);                                    \
+    tcg_temp_free(arg01);                                    \
+    tcg_temp_free(arg11);                                    \
+} while (0)
+
 #define EA_ABS_FORMAT(con) (((con & 0x3C000) << 14) + (con & 0x3FFF))
 #define EA_B_ABSOLUT(con) (((offset & 0xf00000) << 8) | \
                            ((offset & 0x0fffff) << 1))
@@ -1404,6 +1462,36 @@ gen_dvinit_h(CPUTriCoreState *env, TCGv rl, TCGv rh, TCGv r1, TCGv r2)
     tcg_gen_extr_i64_i32(rl, rh, ret);
 
     tcg_temp_free_i64(ret);
+}
+
+static void gen_calc_usb_mul_h(TCGv arg_low, TCGv arg_high)
+{
+    TCGv temp = tcg_temp_new();
+    /* calc AV bit */
+    tcg_gen_add_tl(temp, arg_low, arg_low);
+    tcg_gen_xor_tl(temp, temp, arg_low);
+    tcg_gen_add_tl(cpu_PSW_AV, arg_high, arg_high);
+    tcg_gen_xor_tl(cpu_PSW_AV, cpu_PSW_AV, arg_high);
+    tcg_gen_or_tl(cpu_PSW_AV, cpu_PSW_AV, temp);
+    /* calc SAV bit */
+    tcg_gen_or_tl(cpu_PSW_SAV, cpu_PSW_SAV, cpu_PSW_AV);
+    tcg_gen_movi_tl(cpu_PSW_V, 0);
+    tcg_temp_free(temp);
+}
+
+static void gen_calc_usb_mulr_h(TCGv arg)
+{
+    TCGv temp = tcg_temp_new();
+    /* calc AV bit */
+    tcg_gen_add_tl(temp, arg, arg);
+    tcg_gen_xor_tl(temp, temp, arg);
+    tcg_gen_shli_tl(cpu_PSW_AV, temp, 16);
+    tcg_gen_or_tl(cpu_PSW_AV, cpu_PSW_AV, temp);
+    /* calc SAV bit */
+    tcg_gen_or_tl(cpu_PSW_SAV, cpu_PSW_SAV, cpu_PSW_AV);
+    /* clear V bit */
+    tcg_gen_movi_tl(cpu_PSW_V, 0);
+    tcg_temp_free(temp);
 }
 
 /* helpers for generating program flow micro-ops */
@@ -4585,6 +4673,111 @@ static void decode_rr_divide(CPUTriCoreState *env, DisasContext *ctx)
     }
 }
 
+/* RR1 Format */
+static void decode_rr1_mul(CPUTriCoreState *env, DisasContext *ctx)
+{
+    uint32_t op2;
+
+    int r1, r2, r3;
+    TCGv n;
+    TCGv_i64 temp64;
+
+    r1 = MASK_OP_RR1_S1(ctx->opcode);
+    r2 = MASK_OP_RR1_S2(ctx->opcode);
+    r3 = MASK_OP_RR1_D(ctx->opcode);
+    n  = tcg_const_i32(MASK_OP_RR1_N(ctx->opcode));
+    op2 = MASK_OP_RR1_OP2(ctx->opcode);
+
+    switch (op2) {
+    case OPC2_32_RR1_MUL_H_32_LL:
+        temp64 = tcg_temp_new_i64();
+        GEN_HELPER_LL(mul_h, temp64, cpu_gpr_d[r1], cpu_gpr_d[r2], n);
+        tcg_gen_extr_i64_i32(cpu_gpr_d[r3], cpu_gpr_d[r3+1], temp64);
+        gen_calc_usb_mul_h(cpu_gpr_d[r3], cpu_gpr_d[r3+1]);
+        tcg_temp_free_i64(temp64);
+        break;
+    case OPC2_32_RR1_MUL_H_32_LU:
+        temp64 = tcg_temp_new_i64();
+        GEN_HELPER_LU(mul_h, temp64, cpu_gpr_d[r1], cpu_gpr_d[r2], n);
+        tcg_gen_extr_i64_i32(cpu_gpr_d[r3], cpu_gpr_d[r3+1], temp64);
+        gen_calc_usb_mul_h(cpu_gpr_d[r3], cpu_gpr_d[r3+1]);
+        tcg_temp_free_i64(temp64);
+        break;
+    case OPC2_32_RR1_MUL_H_32_UL:
+        temp64 = tcg_temp_new_i64();
+        GEN_HELPER_UL(mul_h, temp64, cpu_gpr_d[r1], cpu_gpr_d[r2], n);
+        tcg_gen_extr_i64_i32(cpu_gpr_d[r3], cpu_gpr_d[r3+1], temp64);
+        gen_calc_usb_mul_h(cpu_gpr_d[r3], cpu_gpr_d[r3+1]);
+        tcg_temp_free_i64(temp64);
+        break;
+    case OPC2_32_RR1_MUL_H_32_UU:
+        temp64 = tcg_temp_new_i64();
+        GEN_HELPER_UU(mul_h, temp64, cpu_gpr_d[r1], cpu_gpr_d[r2], n);
+        tcg_gen_extr_i64_i32(cpu_gpr_d[r3], cpu_gpr_d[r3+1], temp64);
+        gen_calc_usb_mul_h(cpu_gpr_d[r3], cpu_gpr_d[r3+1]);
+        tcg_temp_free_i64(temp64);
+        break;
+    case OPC2_32_RR1_MULM_H_64_LL:
+        temp64 = tcg_temp_new_i64();
+        GEN_HELPER_LL(mulm_h, temp64, cpu_gpr_d[r1], cpu_gpr_d[r2], n);
+        tcg_gen_extr_i64_i32(cpu_gpr_d[r3], cpu_gpr_d[r3+1], temp64);
+        /* reset V bit */
+        tcg_gen_movi_tl(cpu_PSW_V, 0);
+        /* reset AV bit */
+        tcg_gen_mov_tl(cpu_PSW_AV, cpu_PSW_V);
+        tcg_temp_free_i64(temp64);
+        break;
+    case OPC2_32_RR1_MULM_H_64_LU:
+        temp64 = tcg_temp_new_i64();
+        GEN_HELPER_LU(mulm_h, temp64, cpu_gpr_d[r1], cpu_gpr_d[r2], n);
+        tcg_gen_extr_i64_i32(cpu_gpr_d[r3], cpu_gpr_d[r3+1], temp64);
+        /* reset V bit */
+        tcg_gen_movi_tl(cpu_PSW_V, 0);
+        /* reset AV bit */
+        tcg_gen_mov_tl(cpu_PSW_AV, cpu_PSW_V);
+        tcg_temp_free_i64(temp64);
+        break;
+    case OPC2_32_RR1_MULM_H_64_UL:
+        temp64 = tcg_temp_new_i64();
+        GEN_HELPER_UL(mulm_h, temp64, cpu_gpr_d[r1], cpu_gpr_d[r2], n);
+        tcg_gen_extr_i64_i32(cpu_gpr_d[r3], cpu_gpr_d[r3+1], temp64);
+        /* reset V bit */
+        tcg_gen_movi_tl(cpu_PSW_V, 0);
+        /* reset AV bit */
+        tcg_gen_mov_tl(cpu_PSW_AV, cpu_PSW_V);
+        tcg_temp_free_i64(temp64);
+        break;
+    case OPC2_32_RR1_MULM_H_64_UU:
+        temp64 = tcg_temp_new_i64();
+        GEN_HELPER_UU(mulm_h, temp64, cpu_gpr_d[r1], cpu_gpr_d[r2], n);
+        tcg_gen_extr_i64_i32(cpu_gpr_d[r3], cpu_gpr_d[r3+1], temp64);
+        /* reset V bit */
+        tcg_gen_movi_tl(cpu_PSW_V, 0);
+        /* reset AV bit */
+        tcg_gen_mov_tl(cpu_PSW_AV, cpu_PSW_V);
+        tcg_temp_free_i64(temp64);
+
+        break;
+    case OPC2_32_RR1_MULR_H_16_LL:
+        GEN_HELPER_LL(mulr_h, cpu_gpr_d[r3], cpu_gpr_d[r1], cpu_gpr_d[r2], n);
+        gen_calc_usb_mulr_h(cpu_gpr_d[r3]);
+        break;
+    case OPC2_32_RR1_MULR_H_16_LU:
+        GEN_HELPER_LU(mulr_h, cpu_gpr_d[r3], cpu_gpr_d[r1], cpu_gpr_d[r2], n);
+        gen_calc_usb_mulr_h(cpu_gpr_d[r3]);
+        break;
+    case OPC2_32_RR1_MULR_H_16_UL:
+        GEN_HELPER_UL(mulr_h, cpu_gpr_d[r3], cpu_gpr_d[r1], cpu_gpr_d[r2], n);
+        gen_calc_usb_mulr_h(cpu_gpr_d[r3]);
+        break;
+    case OPC2_32_RR1_MULR_H_16_UU:
+        GEN_HELPER_UU(mulr_h, cpu_gpr_d[r3], cpu_gpr_d[r1], cpu_gpr_d[r2], n);
+        gen_calc_usb_mulr_h(cpu_gpr_d[r3]);
+        break;
+    }
+    tcg_temp_free(n);
+}
+
 static void decode_32Bit_opc(CPUTriCoreState *env, DisasContext *ctx)
 {
     int op1;
@@ -4837,6 +5030,10 @@ static void decode_32Bit_opc(CPUTriCoreState *env, DisasContext *ctx)
         break;
     case OPCM_32_RR_DIVIDE:
         decode_rr_divide(env, ctx);
+        break;
+/* RR1 Format */
+    case OPCM_32_RR1_MUL:
+        decode_rr1_mul(env, ctx);
         break;
     }
 }
