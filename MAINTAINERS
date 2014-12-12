@@ -939,10 +939,9 @@ M: Juan Quintela <quintela@redhat.com>
 M: Amit Shah <amit.shah@redhat.com>
 S: Maintained
 F: include/migration/
-F: migration*
+F: migration/
 F: savevm.c
 F: arch_init.c
-F: vmstate.c
 F: scripts/vmstate-static-checker.py
 F: tests/vmstate-static-checker-data/
 
