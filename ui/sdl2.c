@@ -548,6 +548,16 @@ static void handle_windowevent(SDL_Event *ev)
             qemu_system_shutdown_request();
         }
         break;
+    case SDL_WINDOWEVENT_SHOWN:
+        if (scon->hidden) {
+            SDL_HideWindow(scon->real_window);
+        }
+        break;
+    case SDL_WINDOWEVENT_HIDDEN:
+        if (!scon->hidden) {
+            SDL_ShowWindow(scon->real_window);
+        }
+        break;
     }
 }
 
