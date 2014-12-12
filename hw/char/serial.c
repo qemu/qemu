@@ -350,10 +350,24 @@ static void serial_ioport_write(void *opaque, hwaddr addr, uint64_t val,
                      s->poll_msl = 0;
                 }
             }
-            if (s->lsr & UART_LSR_THRE) {
+
+            /* Turning on the THRE interrupt on IER can trigger the interrupt
+             * if LSR.THRE=1, even if it had been masked before by reading IIR.
+             * This is not in the datasheet, but Windows relies on it.  It is
+             * unclear if THRE has to be resampled every time THRI becomes
+             * 1, or only on the rising edge.  Bochs does the latter, and Windows
+             * always toggles IER to all zeroes and back to all ones.  But for
+             * now leave it as it has always been in QEMU.
+             *
+             * If IER.THRI is zero, thr_ipending is not used.  Set it to zero
+             * so that the thr_ipending subsection is not migrated.
+             */
+            if ((s->ier & UART_IER_THRI) && (s->lsr & UART_LSR_THRE)) {
                 s->thr_ipending = 1;
-                serial_update_irq(s);
+            } else {
+                s->thr_ipending = 0;
             }
+            serial_update_irq(s);
         }
         break;
     case 2:
