@@ -3781,6 +3781,17 @@ static void decode_rlc_opc(CPUTriCoreState *env, DisasContext *ctx,
     case OPC1_32_RLC_MOV:
         tcg_gen_movi_tl(cpu_gpr_d[r2], const16);
         break;
+    case OPC1_32_RLC_MOV_64:
+        if (tricore_feature(env, TRICORE_FEATURE_16)) {
+            if ((r2 & 0x1) != 0) {
+                /* TODO: raise OPD trap */
+            }
+            tcg_gen_movi_tl(cpu_gpr_d[r2], const16);
+            tcg_gen_movi_tl(cpu_gpr_d[r2+1], const16 >> 15);
+        } else {
+            /* TODO: raise illegal opcode trap */
+        }
+        break;
     case OPC1_32_RLC_MOV_U:
         const16 = MASK_OP_RLC_CONST16(ctx->opcode);
         tcg_gen_movi_tl(cpu_gpr_d[r2], const16);
@@ -4021,6 +4032,7 @@ static void decode_32Bit_opc(CPUTriCoreState *env, DisasContext *ctx)
     case OPC1_32_RLC_ADDIH_A:
     case OPC1_32_RLC_MFCR:
     case OPC1_32_RLC_MOV:
+    case OPC1_32_RLC_MOV_64:
     case OPC1_32_RLC_MOV_U:
     case OPC1_32_RLC_MOV_H:
     case OPC1_32_RLC_MOVH_A:

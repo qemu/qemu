@@ -487,6 +487,7 @@ enum {
     OPC1_32_RLC_ADDIH_A                              = 0x11,
     OPC1_32_RLC_MFCR                                 = 0x4d,
     OPC1_32_RLC_MOV                                  = 0x3b,
+    OPC1_32_RLC_MOV_64                               = 0xfb, /* 1.6 only */
     OPC1_32_RLC_MOV_U                                = 0xbb,
     OPC1_32_RLC_MOV_H                                = 0x7b,
     OPC1_32_RLC_MOVH_A                               = 0x91,
