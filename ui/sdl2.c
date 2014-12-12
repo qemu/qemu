@@ -507,8 +507,10 @@ static void handle_mousewheel(SDL_Event *ev)
     qemu_input_event_sync();
 }
 
-static void handle_windowevent(struct sdl2_console *scon, SDL_Event *ev)
+static void handle_windowevent(SDL_Event *ev)
 {
+    struct sdl2_console *scon = get_scon_from_window(ev->window.windowID);
+
     switch (ev->window.event) {
     case SDL_WINDOWEVENT_RESIZED:
         {
@@ -586,7 +588,7 @@ void sdl2_poll_events(struct sdl2_console *scon)
             handle_mousewheel(ev);
             break;
         case SDL_WINDOWEVENT:
-            handle_windowevent(scon, ev);
+            handle_windowevent(ev);
             break;
         default:
             break;
