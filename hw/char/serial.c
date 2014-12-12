@@ -336,10 +336,12 @@ static void serial_ioport_write(void *opaque, hwaddr addr, uint64_t val,
             s->divider = (s->divider & 0x00ff) | (val << 8);
             serial_update_parameters(s);
         } else {
+            uint8_t changed = (s->ier ^ val) & 0x0f;
             s->ier = val & 0x0f;
             /* If the backend device is a real serial port, turn polling of the modem
-               status lines on physical port on or off depending on UART_IER_MSI state */
-            if (s->poll_msl >= 0) {
+             * status lines on physical port on or off depending on UART_IER_MSI state.
+             */
+            if ((changed & UART_IER_MSI) && s->poll_msl >= 0) {
                 if (s->ier & UART_IER_MSI) {
                      s->poll_msl = 1;
                      serial_update_msl(s);
@@ -354,18 +356,23 @@ static void serial_ioport_write(void *opaque, hwaddr addr, uint64_t val,
              * This is not in the datasheet, but Windows relies on it.  It is
              * unclear if THRE has to be resampled every time THRI becomes
              * 1, or only on the rising edge.  Bochs does the latter, and Windows
-             * always toggles IER to all zeroes and back to all ones.  But for
-             * now leave it as it has always been in QEMU.
+             * always toggles IER to all zeroes and back to all ones, so do the
+             * same.
              *
              * If IER.THRI is zero, thr_ipending is not used.  Set it to zero
              * so that the thr_ipending subsection is not migrated.
              */
-            if ((s->ier & UART_IER_THRI) && (s->lsr & UART_LSR_THRE)) {
-                s->thr_ipending = 1;
-            } else {
-                s->thr_ipending = 0;
+            if (changed & UART_IER_THRI) {
+                if ((s->ier & UART_IER_THRI) && (s->lsr & UART_LSR_THRE)) {
+                    s->thr_ipending = 1;
+                } else {
+                    s->thr_ipending = 0;
+                }
             }
-            serial_update_irq(s);
+
+            if (changed) {
+                serial_update_irq(s);
+            }
         }
         break;
     case 2:
