@@ -144,7 +144,7 @@ static int virtio_scsi_parse_req(VirtIOSCSIReq *req,
      *
      * TODO: always disable this workaround for virtio 1.0 devices.
      */
-    if ((vdev->guest_features & VIRTIO_F_ANY_LAYOUT) == 0) {
+    if ((vdev->guest_features & (1 << VIRTIO_F_ANY_LAYOUT)) == 0) {
         req_size = req->elem.out_sg[0].iov_len;
         resp_size = req->elem.in_sg[0].iov_len;
     }
