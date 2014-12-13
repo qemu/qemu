@@ -22,7 +22,6 @@
 #include "qemu/host-utils.h"
 
 #define D(x)
-#define DMMU(x)
 
 #if defined(CONFIG_USER_ONLY)
 
@@ -75,13 +74,14 @@ int mb_cpu_handle_mmu_fault(CPUState *cs, vaddr address, int rw,
             vaddr = address & TARGET_PAGE_MASK;
             paddr = lu.paddr + vaddr - lu.vaddr;
 
-            DMMU(qemu_log("MMU map mmu=%d v=%x p=%x prot=%x\n",
-                     mmu_idx, vaddr, paddr, lu.prot));
+            qemu_log_mask(CPU_LOG_MMU, "MMU map mmu=%d v=%x p=%x prot=%x\n",
+                    mmu_idx, vaddr, paddr, lu.prot);
             tlb_set_page(cs, vaddr, paddr, lu.prot, mmu_idx, TARGET_PAGE_SIZE);
             r = 0;
         } else {
             env->sregs[SR_EAR] = address;
-            DMMU(qemu_log("mmu=%d miss v=%x\n", mmu_idx, address));
+            qemu_log_mask(CPU_LOG_MMU, "mmu=%d miss v=%" VADDR_PRIx "\n",
+                                        mmu_idx, address);
 
             switch (lu.err) {
                 case ERR_PROT:

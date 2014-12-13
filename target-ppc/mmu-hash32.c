@@ -28,10 +28,8 @@
 //#define DEBUG_BAT
 
 #ifdef DEBUG_MMU
-#  define LOG_MMU(...) qemu_log(__VA_ARGS__)
 #  define LOG_MMU_STATE(cpu) log_cpu_state((cpu), 0)
 #else
-#  define LOG_MMU(...) do { } while (0)
 #  define LOG_MMU_STATE(cpu) do { } while (0)
 #endif
 
@@ -225,7 +223,7 @@ static int ppc_hash32_direct_store(CPUPPCState *env, target_ulong sr,
     CPUState *cs = CPU(ppc_env_get_cpu(env));
     int key = !!(msr_pr ? (sr & SR32_KP) : (sr & SR32_KS));
 
-    LOG_MMU("direct store...\n");
+    qemu_log_mask(CPU_LOG_MMU, "direct store...\n");
 
     if ((sr & 0x1FF00000) >> 20 == 0x07f) {
         /* Memory-forced I/O controller interface access */
@@ -348,12 +346,13 @@ static hwaddr ppc_hash32_htab_lookup(CPUPPCState *env,
     ptem = (vsid << 7) | (pgidx >> 10);
 
     /* Page address translation */
-    LOG_MMU("htab_base " TARGET_FMT_plx " htab_mask " TARGET_FMT_plx
+    qemu_log_mask(CPU_LOG_MMU, "htab_base " TARGET_FMT_plx
+            " htab_mask " TARGET_FMT_plx
             " hash " TARGET_FMT_plx "\n",
             env->htab_base, env->htab_mask, hash);
 
     /* Primary PTEG lookup */
-    LOG_MMU("0 htab=" TARGET_FMT_plx "/" TARGET_FMT_plx
+    qemu_log_mask(CPU_LOG_MMU, "0 htab=" TARGET_FMT_plx "/" TARGET_FMT_plx
             " vsid=%" PRIx32 " ptem=%" PRIx32
             " hash=" TARGET_FMT_plx "\n",
             env->htab_base, env->htab_mask, vsid, ptem, hash);
@@ -361,7 +360,7 @@ static hwaddr ppc_hash32_htab_lookup(CPUPPCState *env,
     pte_offset = ppc_hash32_pteg_search(env, pteg_off, 0, ptem, pte);
     if (pte_offset == -1) {
         /* Secondary PTEG lookup */
-        LOG_MMU("1 htab=" TARGET_FMT_plx "/" TARGET_FMT_plx
+        qemu_log_mask(CPU_LOG_MMU, "1 htab=" TARGET_FMT_plx "/" TARGET_FMT_plx
                 " vsid=%" PRIx32 " api=%" PRIx32
                 " hash=" TARGET_FMT_plx "\n", env->htab_base,
                 env->htab_mask, vsid, ptem, ~hash);
@@ -476,7 +475,8 @@ int ppc_hash32_handle_mmu_fault(PowerPCCPU *cpu, target_ulong eaddr, int rwx,
 
         return 1;
     }
-    LOG_MMU("found PTE at offset %08" HWADDR_PRIx "\n", pte_offset);
+    qemu_log_mask(CPU_LOG_MMU,
+                "found PTE at offset %08" HWADDR_PRIx "\n", pte_offset);
 
     /* 7. Check access permissions */
 
@@ -484,7 +484,7 @@ int ppc_hash32_handle_mmu_fault(PowerPCCPU *cpu, target_ulong eaddr, int rwx,
 
     if (need_prot[rwx] & ~prot) {
         /* Access right violation */
-        LOG_MMU("PTE access rejected\n");
+        qemu_log_mask(CPU_LOG_MMU, "PTE access rejected\n");
         if (rwx == 2) {
             cs->exception_index = POWERPC_EXCP_ISI;
             env->error_code = 0x08000000;
@@ -501,7 +501,7 @@ int ppc_hash32_handle_mmu_fault(PowerPCCPU *cpu, target_ulong eaddr, int rwx,
         return 1;
     }
 
-    LOG_MMU("PTE access granted !\n");
+    qemu_log_mask(CPU_LOG_MMU, "PTE access granted !\n");
 
     /* 8. Update PTE referenced and changed bits if necessary */
 

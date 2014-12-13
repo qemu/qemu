@@ -341,7 +341,8 @@ int mips_cpu_handle_mmu_fault(CPUState *cs, vaddr address, int rw,
 #if 0
     log_cpu_state(cs, 0);
 #endif
-    qemu_log("%s pc " TARGET_FMT_lx " ad %" VADDR_PRIx " rw %d mmu_idx %d\n",
+    qemu_log_mask(CPU_LOG_MMU,
+              "%s pc " TARGET_FMT_lx " ad %" VADDR_PRIx " rw %d mmu_idx %d\n",
               __func__, env->active_tc.PC, address, rw, mmu_idx);
 
     /* data access */
@@ -351,7 +352,8 @@ int mips_cpu_handle_mmu_fault(CPUState *cs, vaddr address, int rw,
     access_type = ACCESS_INT;
     ret = get_physical_address(env, &physical, &prot,
                                address, rw, access_type);
-    qemu_log("%s address=%" VADDR_PRIx " ret %d physical " TARGET_FMT_plx
+    qemu_log_mask(CPU_LOG_MMU,
+             "%s address=%" VADDR_PRIx " ret %d physical " TARGET_FMT_plx
              " prot %d\n",
              __func__, address, ret, physical, prot);
     if (ret == TLBRET_MATCH) {
