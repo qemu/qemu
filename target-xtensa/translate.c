@@ -887,6 +887,11 @@ static TCGv_i32 gen_mac16_m(TCGv_i32 v, bool hi, bool is_unsigned)
     return m;
 }
 
+static inline unsigned xtensa_op0_insn_len(unsigned op0)
+{
+    return op0 >= 8 ? 2 : 3;
+}
+
 static void disas_xtensa_insn(CPUXtensaState *env, DisasContext *dc)
 {
 #define HAS_OPTION_BITS(opt) do { \
@@ -989,6 +994,7 @@ static void disas_xtensa_insn(CPUXtensaState *env, DisasContext *dc)
     uint8_t b0 = cpu_ldub_code(env, dc->pc);
     uint8_t b1 = cpu_ldub_code(env, dc->pc + 1);
     uint8_t b2 = 0;
+    unsigned len = xtensa_op0_insn_len(OP0);
 
     static const uint32_t B4CONST[] = {
         0xffffffff, 1, 2, 3, 4, 5, 6, 7, 8, 10, 12, 16, 32, 64, 128, 256
@@ -998,13 +1004,19 @@ static void disas_xtensa_insn(CPUXtensaState *env, DisasContext *dc)
         32768, 65536, 2, 3, 4, 5, 6, 7, 8, 10, 12, 16, 32, 64, 128, 256
     };
 
-    if (OP0 >= 8) {
-        dc->next_pc = dc->pc + 2;
+    switch (len) {
+    case 2:
         HAS_OPTION(XTENSA_OPTION_CODE_DENSITY);
-    } else {
-        dc->next_pc = dc->pc + 3;
+        break;
+
+    case 3:
         b2 = cpu_ldub_code(env, dc->pc + 2);
+        break;
+
+    default:
+        RESERVED();
     }
+    dc->next_pc = dc->pc + len;
 
     switch (OP0) {
     case 0: /*QRST*/
@@ -2949,6 +2961,12 @@ invalid_opcode:
 #undef HAS_OPTION
 }
 
+static inline unsigned xtensa_insn_len(CPUXtensaState *env, DisasContext *dc)
+{
+    uint8_t b0 = cpu_ldub_code(env, dc->pc);
+    return xtensa_op0_insn_len(OP0);
+}
+
 static void check_breakpoint(CPUXtensaState *env, DisasContext *dc)
 {
     CPUState *cs = CPU(xtensa_env_get_cpu(env));
@@ -3081,6 +3099,7 @@ void gen_intermediate_code_internal(XtensaCPU *cpu,
     } while (dc.is_jmp == DISAS_NEXT &&
             insn_count < max_insns &&
             dc.pc < next_page_start &&
+            dc.pc + xtensa_insn_len(env, &dc) <= next_page_start &&
             tcg_ctx.gen_opc_ptr < gen_opc_end);
 
     reset_litbase(&dc);
