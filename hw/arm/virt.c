@@ -86,6 +86,23 @@ typedef struct VirtBoardInfo {
     uint32_t clock_phandle;
 } VirtBoardInfo;
 
+typedef struct {
+    MachineClass parent;
+    VirtBoardInfo *daughterboard;
+} VirtMachineClass;
+
+typedef struct {
+    MachineState parent;
+} VirtMachineState;
+
+#define TYPE_VIRT_MACHINE   "virt"
+#define VIRT_MACHINE(obj) \
+    OBJECT_CHECK(VirtMachineState, (obj), TYPE_VIRT_MACHINE)
+#define VIRT_MACHINE_GET_CLASS(obj) \
+    OBJECT_GET_CLASS(VirtMachineClass, obj, TYPE_VIRT_MACHINE)
+#define VIRT_MACHINE_CLASS(klass) \
+    OBJECT_CLASS_CHECK(VirtMachineClass, klass, TYPE_VIRT_MACHINE)
+
 /* Addresses and sizes of our components.
  * 0..128MB is space for a flash device so we can run bootrom code such as UEFI.
  * 128MB..256MB is used for miscellaneous device I/O.
@@ -615,16 +632,27 @@ static void machvirt_init(MachineState *machine)
     arm_load_kernel(ARM_CPU(first_cpu), &vbi->bootinfo);
 }
 
-static QEMUMachine machvirt_a15_machine = {
-    .name = "virt",
-    .desc = "ARM Virtual Machine",
-    .init = machvirt_init,
-    .max_cpus = 8,
+static void virt_class_init(ObjectClass *oc, void *data)
+{
+    MachineClass *mc = MACHINE_CLASS(oc);
+
+    mc->name = TYPE_VIRT_MACHINE;
+    mc->desc = "ARM Virtual Machine",
+    mc->init = machvirt_init;
+    mc->max_cpus = 8;
+}
+
+static const TypeInfo machvirt_info = {
+    .name = TYPE_VIRT_MACHINE,
+    .parent = TYPE_MACHINE,
+    .instance_size = sizeof(VirtMachineState),
+    .class_size = sizeof(VirtMachineClass),
+    .class_init = virt_class_init,
 };
 
 static void machvirt_machine_init(void)
 {
-    qemu_register_machine(&machvirt_a15_machine);
+    type_register_static(&machvirt_info);
 }
 
 machine_init(machvirt_machine_init);
