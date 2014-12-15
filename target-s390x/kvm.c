@@ -208,7 +208,7 @@ int kvm_arch_put_registers(CPUState *cs, int level)
     CPUS390XState *env = &cpu->env;
     struct kvm_sregs sregs;
     struct kvm_regs regs;
-    struct kvm_fpu fpu;
+    struct kvm_fpu fpu = {};
     int r;
     int i;
 
@@ -1294,7 +1294,6 @@ void kvm_arch_init_irq_routing(KVMState *s)
      * have to override the common code kvm_halt_in_kernel_allowed setting.
      */
     if (kvm_check_extension(s, KVM_CAP_IRQ_ROUTING)) {
-        kvm_irqfds_allowed = true;
         kvm_gsi_routing_allowed = true;
         kvm_halt_in_kernel_allowed = false;
     }

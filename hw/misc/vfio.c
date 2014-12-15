@@ -406,7 +406,7 @@ static void vfio_enable_intx_kvm(VFIODevice *vdev)
 
     if (!VFIO_ALLOW_KVM_INTX || !kvm_irqfds_enabled() ||
         vdev->intx.route.mode != PCI_INTX_ENABLED ||
-        !kvm_check_extension(kvm_state, KVM_CAP_IRQFD_RESAMPLE)) {
+        !kvm_resamplefds_enabled()) {
         return;
     }
 
@@ -568,8 +568,7 @@ static int vfio_enable_intx(VFIODevice *vdev)
      * Only conditional to avoid generating error messages on platforms
      * where we won't actually use the result anyway.
      */
-    if (kvm_irqfds_enabled() &&
-        kvm_check_extension(kvm_state, KVM_CAP_IRQFD_RESAMPLE)) {
+    if (kvm_irqfds_enabled() && kvm_resamplefds_enabled()) {
         vdev->intx.route = pci_device_route_intx_to_irq(&vdev->pdev,
                                                         vdev->intx.pin);
     }

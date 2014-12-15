@@ -829,7 +829,7 @@ void virtio_scsi_common_realize(DeviceState *dev, Error **errp,
         virtio_cleanup(vdev);
         return;
     }
-    s->cmd_vqs = g_malloc0(s->conf.num_queues * sizeof(VirtQueue *));
+    s->cmd_vqs = g_new0(VirtQueue *, s->conf.num_queues);
     s->sense_size = VIRTIO_SCSI_SENSE_SIZE;
     s->cdb_size = VIRTIO_SCSI_CDB_SIZE;
 

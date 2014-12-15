@@ -573,6 +573,8 @@ int64_t qemu_clock_get_ns(QEMUClockType type)
             notifier_list_notify(&clock->reset_notifiers, &now);
         }
         return now;
+    case QEMU_CLOCK_VIRTUAL_RT:
+        return cpu_get_clock();
     }
 }
 
