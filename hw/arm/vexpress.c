@@ -164,6 +164,7 @@ typedef struct {
 
 typedef struct {
     MachineState parent;
+    bool secure;
 } VexpressMachineState;
 
 #define TYPE_VEXPRESS_MACHINE   "vexpress"
@@ -701,6 +702,34 @@ static void vexpress_common_init(MachineState *machine)
     arm_load_kernel(ARM_CPU(first_cpu), &daughterboard->bootinfo);
 }
 
+static bool vexpress_get_secure(Object *obj, Error **errp)
+{
+    VexpressMachineState *vms = VEXPRESS_MACHINE(obj);
+
+    return vms->secure;
+}
+
+static void vexpress_set_secure(Object *obj, bool value, Error **errp)
+{
+    VexpressMachineState *vms = VEXPRESS_MACHINE(obj);
+
+    vms->secure = value;
+}
+
+static void vexpress_instance_init(Object *obj)
+{
+    VexpressMachineState *vms = VEXPRESS_MACHINE(obj);
+
+    /* EL3 is enabled by default on vexpress */
+    vms->secure = true;
+    object_property_add_bool(obj, "secure", vexpress_get_secure,
+                             vexpress_set_secure, NULL);
+    object_property_set_description(obj, "secure",
+                                    "Set on/off to enable/disable the ARM "
+                                    "Security Extensions (TrustZone)",
+                                    NULL);
+}
+
 static void vexpress_class_init(ObjectClass *oc, void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
@@ -739,6 +768,7 @@ static const TypeInfo vexpress_info = {
     .parent = TYPE_MACHINE,
     .abstract = true,
     .instance_size = sizeof(VexpressMachineState),
+    .instance_init = vexpress_instance_init,
     .class_size = sizeof(VexpressMachineClass),
     .class_init = vexpress_class_init,
 };
