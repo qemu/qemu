@@ -206,6 +206,18 @@ static void versatile_init(MachineState *machine, int board_id)
 
     cpuobj = object_new(object_class_get_name(cpu_oc));
 
+    /* By default ARM1176 CPUs have EL3 enabled.  This board does not
+     * currently support EL3 so the CPU EL3 property is disabled before
+     * realization.
+     */
+    if (object_property_find(cpuobj, "has_el3", NULL)) {
+        object_property_set_bool(cpuobj, false, "has_el3", &err);
+        if (err) {
+            error_report("%s", error_get_pretty(err));
+            exit(1);
+        }
+    }
+
     object_property_set_bool(cpuobj, true, "realized", &err);
     if (err) {
         error_report("%s", error_get_pretty(err));
