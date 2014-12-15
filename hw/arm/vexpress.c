@@ -177,7 +177,7 @@ typedef struct {
 #define VEXPRESS_MACHINE_CLASS(klass) \
     OBJECT_CLASS_CHECK(VexpressMachineClass, klass, TYPE_VEXPRESS_MACHINE)
 
-typedef void DBoardInitFn(const VEDBoardInfo *daughterboard,
+typedef void DBoardInitFn(const VexpressMachineState *machine,
                           ram_addr_t ram_size,
                           const char *cpu_model,
                           qemu_irq *pic);
@@ -252,7 +252,7 @@ static void init_cpus(const char *cpu_model, const char *privdev,
     }
 }
 
-static void a9_daughterboard_init(const VEDBoardInfo *daughterboard,
+static void a9_daughterboard_init(const VexpressMachineState *vms,
                                   ram_addr_t ram_size,
                                   const char *cpu_model,
                                   qemu_irq *pic)
@@ -342,7 +342,7 @@ static VEDBoardInfo a9_daughterboard = {
     .init = a9_daughterboard_init,
 };
 
-static void a15_daughterboard_init(const VEDBoardInfo *daughterboard,
+static void a15_daughterboard_init(const VexpressMachineState *vms,
                                    ram_addr_t ram_size,
                                    const char *cpu_model,
                                    qemu_irq *pic)
@@ -535,6 +535,7 @@ static pflash_t *ve_pflash_cfi01_register(hwaddr base, const char *name,
 
 static void vexpress_common_init(MachineState *machine)
 {
+    VexpressMachineState *vms = VEXPRESS_MACHINE(machine);
     VexpressMachineClass *vmc = VEXPRESS_MACHINE_GET_CLASS(machine);
     VEDBoardInfo *daughterboard = vmc->daughterboard;;
     DeviceState *dev, *sysctl, *pl041;
@@ -551,8 +552,7 @@ static void vexpress_common_init(MachineState *machine)
     const hwaddr *map = daughterboard->motherboard_map;
     int i;
 
-    daughterboard->init(daughterboard, machine->ram_size, machine->cpu_model,
-                        pic);
+    daughterboard->init(vms, machine->ram_size, machine->cpu_model, pic);
 
     /*
      * If a bios file was provided, attempt to map it into memory
