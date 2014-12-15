@@ -251,16 +251,34 @@ int32_t helper_fist_ST0(CPUX86State *env)
 int32_t helper_fistl_ST0(CPUX86State *env)
 {
     int32_t val;
+    signed char old_exp_flags;
+
+    old_exp_flags = get_float_exception_flags(&env->fp_status);
+    set_float_exception_flags(0, &env->fp_status);
 
     val = floatx80_to_int32(ST0, &env->fp_status);
+    if (get_float_exception_flags(&env->fp_status) & float_flag_invalid) {
+        val = 0x80000000;
+    }
+    set_float_exception_flags(get_float_exception_flags(&env->fp_status)
+                                | old_exp_flags, &env->fp_status);
     return val;
 }
 
 int64_t helper_fistll_ST0(CPUX86State *env)
 {
     int64_t val;
+    signed char old_exp_flags;
 
-    val = floatx80_to_int64(ST0, &env->fp_status);
+    old_exp_flags = get_float_exception_flags(&env->fp_status);
+    set_float_exception_flags(0, &env->fp_status);
+
+    val = floatx80_to_int32(ST0, &env->fp_status);
+    if (get_float_exception_flags(&env->fp_status) & float_flag_invalid) {
+        val = 0x8000000000000000ULL;
+    }
+    set_float_exception_flags(get_float_exception_flags(&env->fp_status)
+                                | old_exp_flags, &env->fp_status);
     return val;
 }
 
@@ -621,7 +639,7 @@ void helper_fbld_ST0(CPUX86State *env, target_ulong ptr)
     }
     tmp = int64_to_floatx80(val, &env->fp_status);
     if (cpu_ldub_data(env, ptr + 9) & 0x80) {
-        floatx80_chs(tmp);
+        tmp = floatx80_chs(tmp);
     }
     fpush(env);
     ST0 = tmp;
