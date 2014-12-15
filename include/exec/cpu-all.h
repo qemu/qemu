@@ -303,7 +303,8 @@ typedef struct RAMBlock {
     struct MemoryRegion *mr;
     uint8_t *host;
     ram_addr_t offset;
-    ram_addr_t length;
+    ram_addr_t used_length;
+    ram_addr_t max_length;
     uint32_t flags;
     char idstr[256];
     /* Reads can take either the iothread or the ramlist lock.

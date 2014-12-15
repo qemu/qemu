@@ -812,11 +812,11 @@ static RAMBlock *qemu_get_ram_block(ram_addr_t addr)
 
     /* The list is protected by the iothread lock here.  */
     block = ram_list.mru_block;
-    if (block && addr - block->offset < block->length) {
+    if (block && addr - block->offset < block->max_length) {
         goto found;
     }
     QTAILQ_FOREACH(block, &ram_list.blocks, next) {
-        if (addr - block->offset < block->length) {
+        if (addr - block->offset < block->max_length) {
             goto found;
         }
     }
@@ -1305,13 +1305,14 @@ static ram_addr_t ram_block_add(RAMBlock *new_block, Error **errp)
 
     /* This assumes the iothread lock is taken here too.  */
     qemu_mutex_lock_ramlist();
-    new_block->offset = find_ram_offset(new_block->length);
+    new_block->offset = find_ram_offset(new_block->max_length);
 
     if (!new_block->host) {
         if (xen_enabled()) {
-            xen_ram_alloc(new_block->offset, new_block->length, new_block->mr);
+            xen_ram_alloc(new_block->offset, new_block->max_length,
+                          new_block->mr);
         } else {
-            new_block->host = phys_mem_alloc(new_block->length,
+            new_block->host = phys_mem_alloc(new_block->max_length,
                                              &new_block->mr->align);
             if (!new_block->host) {
                 error_setg_errno(errp, errno,
@@ -1320,13 +1321,13 @@ static ram_addr_t ram_block_add(RAMBlock *new_block, Error **errp)
                 qemu_mutex_unlock_ramlist();
                 return -1;
             }
-            memory_try_enable_merging(new_block->host, new_block->length);
+            memory_try_enable_merging(new_block->host, new_block->max_length);
         }
     }
 
     /* Keep the list sorted from biggest to smallest block.  */
     QTAILQ_FOREACH(block, &ram_list.blocks, next) {
-        if (block->length < new_block->length) {
+        if (block->max_length < new_block->max_length) {
             break;
         }
     }
@@ -1350,14 +1351,15 @@ static ram_addr_t ram_block_add(RAMBlock *new_block, Error **errp)
                                    old_ram_size, new_ram_size);
        }
     }
-    cpu_physical_memory_set_dirty_range(new_block->offset, new_block->length);
+    cpu_physical_memory_set_dirty_range(new_block->offset,
+                                        new_block->used_length);
 
-    qemu_ram_setup_dump(new_block->host, new_block->length);
-    qemu_madvise(new_block->host, new_block->length, QEMU_MADV_HUGEPAGE);
-    qemu_madvise(new_block->host, new_block->length, QEMU_MADV_DONTFORK);
+    qemu_ram_setup_dump(new_block->host, new_block->max_length);
+    qemu_madvise(new_block->host, new_block->max_length, QEMU_MADV_HUGEPAGE);
+    qemu_madvise(new_block->host, new_block->max_length, QEMU_MADV_DONTFORK);
 
     if (kvm_enabled()) {
-        kvm_setup_guest_memory(new_block->host, new_block->length);
+        kvm_setup_guest_memory(new_block->host, new_block->max_length);
     }
 
     return new_block->offset;
@@ -1391,7 +1393,8 @@ ram_addr_t qemu_ram_alloc_from_file(ram_addr_t size, MemoryRegion *mr,
     size = TARGET_PAGE_ALIGN(size);
     new_block = g_malloc0(sizeof(*new_block));
     new_block->mr = mr;
-    new_block->length = size;
+    new_block->used_length = size;
+    new_block->max_length = size;
     new_block->flags = share ? RAM_SHARED : 0;
     new_block->host = file_ram_alloc(new_block, size,
                                      mem_path, errp);
@@ -1420,7 +1423,8 @@ ram_addr_t qemu_ram_alloc_from_ptr(ram_addr_t size, void *host,
     size = TARGET_PAGE_ALIGN(size);
     new_block = g_malloc0(sizeof(*new_block));
     new_block->mr = mr;
-    new_block->length = size;
+    new_block->used_length = size;
+    new_block->max_length = max_size;
     new_block->fd = -1;
     new_block->host = host;
     if (host) {
@@ -1475,11 +1479,11 @@ void qemu_ram_free(ram_addr_t addr)
                 xen_invalidate_map_cache_entry(block->host);
 #ifndef _WIN32
             } else if (block->fd >= 0) {
-                munmap(block->host, block->length);
+                munmap(block->host, block->max_length);
                 close(block->fd);
 #endif
             } else {
-                qemu_anon_ram_free(block->host, block->length);
+                qemu_anon_ram_free(block->host, block->max_length);
             }
             g_free(block);
             break;
@@ -1499,7 +1503,7 @@ void qemu_ram_remap(ram_addr_t addr, ram_addr_t length)
 
     QTAILQ_FOREACH(block, &ram_list.blocks, next) {
         offset = addr - block->offset;
-        if (offset < block->length) {
+        if (offset < block->max_length) {
             vaddr = ramblock_ptr(block, offset);
             if (block->flags & RAM_PREALLOC) {
                 ;
@@ -1575,7 +1579,7 @@ void *qemu_get_ram_ptr(ram_addr_t addr)
             return xen_map_cache(addr, 0, 0);
         } else if (block->host == NULL) {
             block->host =
-                xen_map_cache(block->offset, block->length, 1);
+                xen_map_cache(block->offset, block->max_length, 1);
         }
     }
     return ramblock_ptr(block, addr - block->offset);
@@ -1594,9 +1598,9 @@ static void *qemu_ram_ptr_length(ram_addr_t addr, hwaddr *size)
         RAMBlock *block;
 
         QTAILQ_FOREACH(block, &ram_list.blocks, next) {
-            if (addr - block->offset < block->length) {
-                if (addr - block->offset + *size > block->length)
-                    *size = block->length - addr + block->offset;
+            if (addr - block->offset < block->max_length) {
+                if (addr - block->offset + *size > block->max_length)
+                    *size = block->max_length - addr + block->offset;
                 return ramblock_ptr(block, addr - block->offset);
             }
         }
@@ -1619,7 +1623,7 @@ MemoryRegion *qemu_ram_addr_from_host(void *ptr, ram_addr_t *ram_addr)
     }
 
     block = ram_list.mru_block;
-    if (block && block->host && host - block->host < block->length) {
+    if (block && block->host && host - block->host < block->max_length) {
         goto found;
     }
 
@@ -1628,7 +1632,7 @@ MemoryRegion *qemu_ram_addr_from_host(void *ptr, ram_addr_t *ram_addr)
         if (block->host == NULL) {
             continue;
         }
-        if (host - block->host < block->length) {
+        if (host - block->host < block->max_length) {
             goto found;
         }
     }
@@ -2873,7 +2877,7 @@ void qemu_ram_foreach_block(RAMBlockIterFunc func, void *opaque)
     RAMBlock *block;
 
     QTAILQ_FOREACH(block, &ram_list.blocks, next) {
-        func(block->host, block->offset, block->length, opaque);
+        func(block->host, block->offset, block->used_length, opaque);
     }
 }
 #endif
