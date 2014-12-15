@@ -388,6 +388,9 @@ static Property arm_cpu_reset_hivecs_property =
 static Property arm_cpu_rvbar_property =
             DEFINE_PROP_UINT64("rvbar", ARMCPU, rvbar, 0);
 
+static Property arm_cpu_has_el3_property =
+            DEFINE_PROP_BOOL("has_el3", ARMCPU, has_el3, true);
+
 static void arm_cpu_post_init(Object *obj)
 {
     ARMCPU *cpu = ARM_CPU(obj);
@@ -405,6 +408,14 @@ static void arm_cpu_post_init(Object *obj)
 
     if (arm_feature(&cpu->env, ARM_FEATURE_AARCH64)) {
         qdev_property_add_static(DEVICE(obj), &arm_cpu_rvbar_property,
+                                 &error_abort);
+    }
+
+    if (arm_feature(&cpu->env, ARM_FEATURE_EL3)) {
+        /* Add the has_el3 state CPU property only if EL3 is allowed.  This will
+         * prevent "has_el3" from existing on CPUs which cannot support EL3.
+         */
+        qdev_property_add_static(DEVICE(obj), &arm_cpu_has_el3_property,
                                  &error_abort);
     }
 }
@@ -474,6 +485,18 @@ static void arm_cpu_realizefn(DeviceState *dev, Error **errp)
 
     if (cpu->reset_hivecs) {
             cpu->reset_sctlr |= (1 << 13);
+    }
+
+    if (!cpu->has_el3) {
+        /* If the has_el3 CPU property is disabled then we need to disable the
+         * feature.
+         */
+        unset_feature(env, ARM_FEATURE_EL3);
+
+        /* Disable the security extension feature bits in the processor feature
+         * register as well.  This is id_pfr1[7:4].
+         */
+        cpu->id_pfr1 &= ~0xf0;
     }
 
     register_cp_regs_for_features(cpu);
