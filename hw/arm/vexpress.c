@@ -157,6 +157,23 @@ static hwaddr motherboard_aseries_map[] = {
 
 typedef struct VEDBoardInfo VEDBoardInfo;
 
+typedef struct {
+    MachineClass parent;
+    VEDBoardInfo *daughterboard;
+} VexpressMachineClass;
+
+typedef struct {
+    MachineState parent;
+} VexpressMachineState;
+
+#define TYPE_VEXPRESS_MACHINE   "vexpress"
+#define VEXPRESS_MACHINE(obj) \
+    OBJECT_CHECK(VexpressMachineState, (obj), TYPE_VEXPRESS_MACHINE)
+#define VEXPRESS_MACHINE_GET_CLASS(obj) \
+    OBJECT_GET_CLASS(VexpressMachineClass, obj, TYPE_VEXPRESS_MACHINE)
+#define VEXPRESS_MACHINE_CLASS(klass) \
+    OBJECT_CLASS_CHECK(VexpressMachineClass, klass, TYPE_VEXPRESS_MACHINE)
+
 typedef void DBoardInitFn(const VEDBoardInfo *daughterboard,
                           ram_addr_t ram_size,
                           const char *cpu_model,
@@ -681,6 +698,13 @@ static void vexpress_common_init(VEDBoardInfo *daughterboard,
     arm_load_kernel(ARM_CPU(first_cpu), &daughterboard->bootinfo);
 }
 
+static void vexpress_init(MachineState *machine)
+{
+    VexpressMachineClass *vmc = VEXPRESS_MACHINE_GET_CLASS(machine);
+
+    vexpress_common_init(vmc->daughterboard, machine);
+}
+
 static void vexpress_a9_init(MachineState *machine)
 {
     vexpress_common_init(&a9_daughterboard, machine);
@@ -690,6 +714,26 @@ static void vexpress_a15_init(MachineState *machine)
 {
     vexpress_common_init(&a15_daughterboard, machine);
 }
+
+static void vexpress_class_init(ObjectClass *oc, void *data)
+{
+    MachineClass *mc = MACHINE_CLASS(oc);
+
+    mc->name = TYPE_VEXPRESS_MACHINE;
+    mc->desc = "ARM Versatile Express";
+    mc->init = vexpress_init;
+    mc->block_default_type = IF_SCSI;
+    mc->max_cpus = 4;
+}
+
+static const TypeInfo vexpress_info = {
+    .name = TYPE_VEXPRESS_MACHINE,
+    .parent = TYPE_MACHINE,
+    .abstract = true,
+    .instance_size = sizeof(VexpressMachineState),
+    .class_size = sizeof(VexpressMachineClass),
+    .class_init = vexpress_class_init,
+};
 
 static QEMUMachine vexpress_a9_machine = {
     .name = "vexpress-a9",
@@ -709,6 +753,7 @@ static QEMUMachine vexpress_a15_machine = {
 
 static void vexpress_machine_init(void)
 {
+    type_register_static(&vexpress_info);
     qemu_register_machine(&vexpress_a9_machine);
     qemu_register_machine(&vexpress_a15_machine);
 }
