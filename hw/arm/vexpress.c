@@ -167,6 +167,8 @@ typedef struct {
 } VexpressMachineState;
 
 #define TYPE_VEXPRESS_MACHINE   "vexpress"
+#define TYPE_VEXPRESS_A9_MACHINE   "vexpress-a9"
+#define TYPE_VEXPRESS_A15_MACHINE   "vexpress-a15"
 #define VEXPRESS_MACHINE(obj) \
     OBJECT_CHECK(VexpressMachineState, (obj), TYPE_VEXPRESS_MACHINE)
 #define VEXPRESS_MACHINE_GET_CLASS(obj) \
@@ -726,6 +728,30 @@ static void vexpress_class_init(ObjectClass *oc, void *data)
     mc->max_cpus = 4;
 }
 
+static void vexpress_a9_class_init(ObjectClass *oc, void *data)
+{
+    MachineClass *mc = MACHINE_CLASS(oc);
+    VexpressMachineClass *vmc = VEXPRESS_MACHINE_CLASS(oc);
+
+    mc->name = TYPE_VEXPRESS_A9_MACHINE;
+    mc->desc = "ARM Versatile Express for Cortex-A9";
+    mc->init = vexpress_a9_init;
+
+    vmc->daughterboard = &a9_daughterboard;;
+}
+
+static void vexpress_a15_class_init(ObjectClass *oc, void *data)
+{
+    MachineClass *mc = MACHINE_CLASS(oc);
+    VexpressMachineClass *vmc = VEXPRESS_MACHINE_CLASS(oc);
+
+    mc->name = TYPE_VEXPRESS_A15_MACHINE;
+    mc->desc = "ARM Versatile Express for Cortex-A15";
+    mc->init = vexpress_a15_init;
+
+    vmc->daughterboard = &a15_daughterboard;
+}
+
 static const TypeInfo vexpress_info = {
     .name = TYPE_VEXPRESS_MACHINE,
     .parent = TYPE_MACHINE,
@@ -735,27 +761,23 @@ static const TypeInfo vexpress_info = {
     .class_init = vexpress_class_init,
 };
 
-static QEMUMachine vexpress_a9_machine = {
-    .name = "vexpress-a9",
-    .desc = "ARM Versatile Express for Cortex-A9",
-    .init = vexpress_a9_init,
-    .block_default_type = IF_SCSI,
-    .max_cpus = 4,
+static const TypeInfo vexpress_a9_info = {
+    .name = TYPE_VEXPRESS_A9_MACHINE,
+    .parent = TYPE_VEXPRESS_MACHINE,
+    .class_init = vexpress_a9_class_init,
 };
 
-static QEMUMachine vexpress_a15_machine = {
-    .name = "vexpress-a15",
-    .desc = "ARM Versatile Express for Cortex-A15",
-    .init = vexpress_a15_init,
-    .block_default_type = IF_SCSI,
-    .max_cpus = 4,
+static const TypeInfo vexpress_a15_info = {
+    .name = TYPE_VEXPRESS_A15_MACHINE,
+    .parent = TYPE_VEXPRESS_MACHINE,
+    .class_init = vexpress_a15_class_init,
 };
 
 static void vexpress_machine_init(void)
 {
     type_register_static(&vexpress_info);
-    qemu_register_machine(&vexpress_a9_machine);
-    qemu_register_machine(&vexpress_a15_machine);
+    type_register_static(&vexpress_a9_info);
+    type_register_static(&vexpress_a15_info);
 }
 
 machine_init(vexpress_machine_init);
