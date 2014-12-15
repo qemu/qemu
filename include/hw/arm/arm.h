@@ -37,6 +37,10 @@ struct arm_boot_info {
     hwaddr gic_cpu_if_addr;
     int nb_cpus;
     int board_id;
+    /* ARM machines that support the ARM Security Extensions use this field to
+     * control whether Linux is booted as secure(true) or non-secure(false).
+     */
+    bool secure_boot;
     int (*atag_board)(const struct arm_boot_info *info, void *p);
     /* multicore boards that use the default secondary core boot functions
      * can ignore these two function calls. If the default functions won't

@@ -457,6 +457,16 @@ static void do_cpu_reset(void *opaque)
                 env->thumb = info->entry & 1;
             }
         } else {
+            /* If we are booting Linux then we need to check whether we are
+             * booting into secure or non-secure state and adjust the state
+             * accordingly.  Out of reset, ARM is defined to be in secure state
+             * (SCR.NS = 0), we change that here if non-secure boot has been
+             * requested.
+             */
+            if (arm_feature(env, ARM_FEATURE_EL3) && !info->secure_boot) {
+                env->cp15.scr_el3 |= SCR_NS;
+            }
+
             if (CPU(cpu) == first_cpu) {
                 if (env->aarch64) {
                     env->pc = info->loader_start;
