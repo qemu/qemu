@@ -532,9 +532,10 @@ static pflash_t *ve_pflash_cfi01_register(hwaddr base, const char *name,
     return OBJECT_CHECK(pflash_t, (dev), "cfi.pflash01");
 }
 
-static void vexpress_common_init(VEDBoardInfo *daughterboard,
-                                 MachineState *machine)
+static void vexpress_common_init(MachineState *machine)
 {
+    VexpressMachineClass *vmc = VEXPRESS_MACHINE_GET_CLASS(machine);
+    VEDBoardInfo *daughterboard = vmc->daughterboard;;
     DeviceState *dev, *sysctl, *pl041;
     qemu_irq pic[64];
     uint32_t sys_id;
@@ -700,30 +701,13 @@ static void vexpress_common_init(VEDBoardInfo *daughterboard,
     arm_load_kernel(ARM_CPU(first_cpu), &daughterboard->bootinfo);
 }
 
-static void vexpress_init(MachineState *machine)
-{
-    VexpressMachineClass *vmc = VEXPRESS_MACHINE_GET_CLASS(machine);
-
-    vexpress_common_init(vmc->daughterboard, machine);
-}
-
-static void vexpress_a9_init(MachineState *machine)
-{
-    vexpress_common_init(&a9_daughterboard, machine);
-}
-
-static void vexpress_a15_init(MachineState *machine)
-{
-    vexpress_common_init(&a15_daughterboard, machine);
-}
-
 static void vexpress_class_init(ObjectClass *oc, void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
 
     mc->name = TYPE_VEXPRESS_MACHINE;
     mc->desc = "ARM Versatile Express";
-    mc->init = vexpress_init;
+    mc->init = vexpress_common_init;
     mc->block_default_type = IF_SCSI;
     mc->max_cpus = 4;
 }
@@ -735,7 +719,6 @@ static void vexpress_a9_class_init(ObjectClass *oc, void *data)
 
     mc->name = TYPE_VEXPRESS_A9_MACHINE;
     mc->desc = "ARM Versatile Express for Cortex-A9";
-    mc->init = vexpress_a9_init;
 
     vmc->daughterboard = &a9_daughterboard;;
 }
@@ -747,7 +730,6 @@ static void vexpress_a15_class_init(ObjectClass *oc, void *data)
 
     mc->name = TYPE_VEXPRESS_A15_MACHINE;
     mc->desc = "ARM Versatile Express for Cortex-A15";
-    mc->init = vexpress_a15_init;
 
     vmc->daughterboard = &a15_daughterboard;
 }
