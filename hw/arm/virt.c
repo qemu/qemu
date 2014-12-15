@@ -93,6 +93,7 @@ typedef struct {
 
 typedef struct {
     MachineState parent;
+    bool secure;
 } VirtMachineState;
 
 #define TYPE_VIRT_MACHINE   "virt"
@@ -632,6 +633,34 @@ static void machvirt_init(MachineState *machine)
     arm_load_kernel(ARM_CPU(first_cpu), &vbi->bootinfo);
 }
 
+static bool virt_get_secure(Object *obj, Error **errp)
+{
+    VirtMachineState *vms = VIRT_MACHINE(obj);
+
+    return vms->secure;
+}
+
+static void virt_set_secure(Object *obj, bool value, Error **errp)
+{
+    VirtMachineState *vms = VIRT_MACHINE(obj);
+
+    vms->secure = value;
+}
+
+static void virt_instance_init(Object *obj)
+{
+    VirtMachineState *vms = VIRT_MACHINE(obj);
+
+    /* EL3 is enabled by default on virt */
+    vms->secure = true;
+    object_property_add_bool(obj, "secure", virt_get_secure,
+                             virt_set_secure, NULL);
+    object_property_set_description(obj, "secure",
+                                    "Set on/off to enable/disable the ARM "
+                                    "Security Extensions (TrustZone)",
+                                    NULL);
+}
+
 static void virt_class_init(ObjectClass *oc, void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
@@ -646,6 +675,7 @@ static const TypeInfo machvirt_info = {
     .name = TYPE_VIRT_MACHINE,
     .parent = TYPE_MACHINE,
     .instance_size = sizeof(VirtMachineState),
+    .instance_init = virt_instance_init,
     .class_size = sizeof(VirtMachineClass),
     .class_init = virt_class_init,
 };
