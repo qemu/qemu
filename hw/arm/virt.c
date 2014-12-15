@@ -547,6 +547,7 @@ static void *machvirt_dtb(const struct arm_boot_info *binfo, int *fdt_size)
 
 static void machvirt_init(MachineState *machine)
 {
+    VirtMachineState *vms = VIRT_MACHINE(machine);
     qemu_irq pic[NUM_IRQS];
     MemoryRegion *sysmem = get_system_memory();
     int n;
@@ -583,6 +584,10 @@ static void machvirt_init(MachineState *machine)
             exit(1);
         }
         cpuobj = object_new(object_class_get_name(oc));
+
+        if (!vms->secure) {
+            object_property_set_bool(cpuobj, false, "has_el3", NULL);
+        }
 
         object_property_set_int(cpuobj, QEMU_PSCI_CONDUIT_HVC, "psci-conduit",
                                 NULL);
