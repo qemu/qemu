@@ -3828,8 +3828,8 @@ static void decode_32Bit_opc(CPUTriCoreState *env, DisasContext *ctx)
 
     op1 = MASK_OP_MAJOR(ctx->opcode);
 
-    /* handle JNZ.T opcode only being 6 bit long */
-    if (unlikely((op1 & 0x3f) == OPCM_32_BRN_JTT)) {
+    /* handle JNZ.T opcode only being 7 bit long */
+    if (unlikely((op1 & 0x7f) == OPCM_32_BRN_JTT)) {
         op1 = OPCM_32_BRN_JTT;
     }
 
