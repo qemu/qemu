@@ -196,7 +196,7 @@ struct VEDBoardInfo {
 };
 
 static void init_cpus(const char *cpu_model, const char *privdev,
-                      hwaddr periphbase, qemu_irq *pic)
+                      hwaddr periphbase, qemu_irq *pic, bool secure)
 {
     ObjectClass *cpu_oc = cpu_class_by_name(TYPE_ARM_CPU, cpu_model);
     DeviceState *dev;
@@ -212,6 +212,10 @@ static void init_cpus(const char *cpu_model, const char *privdev,
     for (n = 0; n < smp_cpus; n++) {
         Object *cpuobj = object_new(object_class_get_name(cpu_oc));
         Error *err = NULL;
+
+        if (!secure) {
+            object_property_set_bool(cpuobj, false, "has_el3", NULL);
+        }
 
         if (object_property_find(cpuobj, "reset-cbar", NULL)) {
             object_property_set_int(cpuobj, periphbase,
@@ -288,7 +292,7 @@ static void a9_daughterboard_init(const VexpressMachineState *vms,
     memory_region_add_subregion(sysmem, 0x60000000, ram);
 
     /* 0x1e000000 A9MPCore (SCU) private memory region */
-    init_cpus(cpu_model, "a9mpcore_priv", 0x1e000000, pic);
+    init_cpus(cpu_model, "a9mpcore_priv", 0x1e000000, pic, vms->secure);
 
     /* Daughterboard peripherals : 0x10020000 .. 0x20000000 */
 
@@ -374,7 +378,7 @@ static void a15_daughterboard_init(const VexpressMachineState *vms,
     memory_region_add_subregion(sysmem, 0x80000000, ram);
 
     /* 0x2c000000 A15MPCore private memory region (GIC) */
-    init_cpus(cpu_model, "a15mpcore_priv", 0x2c000000, pic);
+    init_cpus(cpu_model, "a15mpcore_priv", 0x2c000000, pic, vms->secure);
 
     /* A15 daughterboard peripherals: */
 
@@ -699,6 +703,8 @@ static void vexpress_common_init(MachineState *machine)
     daughterboard->bootinfo.smp_bootreg_addr = map[VE_SYSREGS] + 0x30;
     daughterboard->bootinfo.gic_cpu_if_addr = daughterboard->gic_cpu_if_addr;
     daughterboard->bootinfo.modify_dtb = vexpress_modify_dtb;
+    /* Indicate that when booting Linux we should be in secure state */
+    daughterboard->bootinfo.secure_boot = true;
     arm_load_kernel(ARM_CPU(first_cpu), &daughterboard->bootinfo);
 }
 
