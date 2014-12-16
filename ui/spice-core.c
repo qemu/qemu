@@ -16,7 +16,6 @@
  */
 
 #include <spice.h>
-#include <spice-experimental.h>
 
 #include <netdb.h>
 #include "sysemu/sysemu.h"
@@ -386,10 +385,7 @@ static SpiceChannelList *qmp_query_spice_channels(void)
         struct sockaddr *paddr;
         socklen_t plen;
 
-        if (!(item->info->flags & SPICE_CHANNEL_EVENT_FLAG_ADDR_EXT)) {
-            error_report("invalid channel event");
-            return NULL;
-        }
+        assert(item->info->flags & SPICE_CHANNEL_EVENT_FLAG_ADDR_EXT);
 
         chan = g_malloc0(sizeof(*chan));
         chan->value = g_malloc0(sizeof(*chan->value));
@@ -661,10 +657,6 @@ void qemu_spice_init(void)
     }
     port = qemu_opt_get_number(opts, "port", 0);
     tls_port = qemu_opt_get_number(opts, "tls-port", 0);
-    if (!port && !tls_port) {
-        error_report("neither port nor tls-port specified for spice");
-        exit(1);
-    }
     if (port < 0 || port > 65535) {
         error_report("spice port is out of range");
         exit(1);
