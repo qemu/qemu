@@ -410,10 +410,6 @@ static void net_disconnect(struct XenDevice *xendev)
         xc_gnttab_munmap(netdev->xendev.gnttabdev, netdev->rxs, 1);
         netdev->rxs = NULL;
     }
-    if (netdev->nic) {
-        qemu_del_nic(netdev->nic);
-        netdev->nic = NULL;
-    }
 }
 
 static void net_event(struct XenDevice *xendev)
@@ -427,6 +423,10 @@ static int net_free(struct XenDevice *xendev)
 {
     struct XenNetDev *netdev = container_of(xendev, struct XenNetDev, xendev);
 
+    if (netdev->nic) {
+        qemu_del_nic(netdev->nic);
+        netdev->nic = NULL;
+    }
     g_free(netdev->mac);
     return 0;
 }
