@@ -370,11 +370,16 @@ static int net_connect(struct XenDevice *xendev)
                                           netdev->xendev.dom,
                                           netdev->tx_ring_ref,
                                           PROT_READ | PROT_WRITE);
+    if (!netdev->txs) {
+        return -1;
+    }
     netdev->rxs = xc_gnttab_map_grant_ref(netdev->xendev.gnttabdev,
                                           netdev->xendev.dom,
                                           netdev->rx_ring_ref,
                                           PROT_READ | PROT_WRITE);
-    if (!netdev->txs || !netdev->rxs) {
+    if (!netdev->rxs) {
+        xc_gnttab_munmap(netdev->xendev.gnttabdev, netdev->txs, 1);
+        netdev->txs = NULL;
         return -1;
     }
     BACK_RING_INIT(&netdev->tx_ring, netdev->txs, XC_PAGE_SIZE);
