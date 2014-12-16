@@ -2535,7 +2535,6 @@ static int machine_set_property(const char *name, const char *value,
                                 void *opaque)
 {
     Object *obj = OBJECT(opaque);
-    StringInputVisitor *siv;
     Error *local_err = NULL;
     char *c, *qom_name;
 
@@ -2551,9 +2550,7 @@ static int machine_set_property(const char *name, const char *value,
         }
     }
 
-    siv = string_input_visitor_new(value);
-    object_property_set(obj, string_input_get_visitor(siv), qom_name, &local_err);
-    string_input_visitor_cleanup(siv);
+    object_property_parse(obj, value, qom_name, &local_err);
     g_free(qom_name);
 
     if (local_err) {
