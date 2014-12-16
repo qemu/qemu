@@ -1707,6 +1707,22 @@ void memory_region_set_enabled(MemoryRegion *mr, bool enabled)
     memory_region_transaction_commit();
 }
 
+void memory_region_set_size(MemoryRegion *mr, uint64_t size)
+{
+    Int128 s = int128_make64(size);
+
+    if (size == UINT64_MAX) {
+        s = int128_2_64();
+    }
+    if (int128_eq(s, mr->size)) {
+        return;
+    }
+    memory_region_transaction_begin();
+    mr->size = s;
+    memory_region_update_pending = true;
+    memory_region_transaction_commit();
+}
+
 static void memory_region_readd_subregion(MemoryRegion *mr)
 {
     MemoryRegion *container = mr->container;

@@ -878,6 +878,16 @@ void memory_region_set_enabled(MemoryRegion *mr, bool enabled);
 void memory_region_set_address(MemoryRegion *mr, hwaddr addr);
 
 /*
+ * memory_region_set_size: dynamically update the size of a region.
+ *
+ * Dynamically updates the size of a region.
+ *
+ * @mr: the region to be updated
+ * @size: used size of the region.
+ */
+void memory_region_set_size(MemoryRegion *mr, uint64_t size);
+
+/*
  * memory_region_set_alias_offset: dynamically update a memory alias's offset
  *
  * Dynamically updates the offset into the target region that an alias points
