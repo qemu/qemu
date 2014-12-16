@@ -428,6 +428,7 @@ static int net_free(struct XenDevice *xendev)
         netdev->nic = NULL;
     }
     g_free(netdev->mac);
+    netdev->mac = NULL;
     return 0;
 }
 
