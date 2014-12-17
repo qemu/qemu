@@ -300,6 +300,7 @@ AioContext *aio_context_new(Error **errp)
         error_setg_errno(errp, -ret, "Failed to initialize event notifier");
         return NULL;
     }
+    g_source_set_can_recurse(&ctx->source, true);
     aio_set_event_notifier(ctx, &ctx->notifier,
                            (EventNotifierHandler *)
                            event_notifier_test_and_clear);
