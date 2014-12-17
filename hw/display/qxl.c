@@ -1092,6 +1092,7 @@ static void qxl_enter_vga_mode(PCIQXLDevice *d)
     spice_qxl_driver_unload(&d->ssd.qxl);
 #endif
     graphic_console_set_hwops(d->ssd.dcl.con, d->vga.hw_ops, &d->vga);
+    update_displaychangelistener(&d->ssd.dcl, GUI_REFRESH_INTERVAL_DEFAULT);
     qemu_spice_create_host_primary(&d->ssd);
     d->mode = QXL_MODE_VGA;
     vga_dirty_log_start(&d->vga);
@@ -1105,6 +1106,7 @@ static void qxl_exit_vga_mode(PCIQXLDevice *d)
     }
     trace_qxl_exit_vga_mode(d->id);
     graphic_console_set_hwops(d->ssd.dcl.con, &qxl_ops, d);
+    update_displaychangelistener(&d->ssd.dcl, GUI_REFRESH_INTERVAL_IDLE);
     vga_dirty_log_stop(&d->vga);
     qxl_destroy_primary(d, QXL_SYNC);
 }
@@ -1153,6 +1155,7 @@ static void qxl_soft_reset(PCIQXLDevice *d)
         qxl_enter_vga_mode(d);
     } else {
         d->mode = QXL_MODE_UNDEFINED;
+        update_displaychangelistener(&d->ssd.dcl, GUI_REFRESH_INTERVAL_IDLE);
     }
 }
 
@@ -1861,10 +1864,6 @@ static void display_refresh(DisplayChangeListener *dcl)
 
     if (qxl->mode == QXL_MODE_VGA) {
         qemu_spice_display_refresh(&qxl->ssd);
-    } else {
-        qemu_mutex_lock(&qxl->ssd.lock);
-        qemu_spice_cursor_refresh_unlocked(&qxl->ssd);
-        qemu_mutex_unlock(&qxl->ssd.lock);
     }
 }
 
@@ -2025,6 +2024,7 @@ static int qxl_init_common(PCIQXLDevice *qxl)
     qxl_reset_state(qxl);
 
     qxl->update_area_bh = qemu_bh_new(qxl_render_update_area_bh, qxl);
+    qxl->ssd.cursor_bh = qemu_bh_new(qemu_spice_cursor_refresh_bh, &qxl->ssd);
 
     return 0;
 }

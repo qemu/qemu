@@ -26,6 +26,7 @@
 #define SDHCI_H
 
 #include "qemu-common.h"
+#include "hw/pci/pci.h"
 #include "hw/sysbus.h"
 #include "hw/sd.h"
 
@@ -232,7 +233,10 @@ enum {
 
 /* SD/MMC host controller state */
 typedef struct SDHCIState {
-    SysBusDevice busdev;
+    union {
+        PCIDevice pcidev;
+        SysBusDevice busdev;
+    };
     SDState *card;
     MemoryRegion iomem;
 
@@ -279,34 +283,13 @@ typedef struct SDHCIState {
     /* RO Host Controller Version Register always reads as 0x2401 */
 } SDHCIState;
 
-typedef struct SDHCIClass {
-    SysBusDeviceClass busdev_class;
-
-    void (*reset)(SDHCIState *s);
-    uint32_t (*mem_read)(SDHCIState *s, unsigned int offset, unsigned size);
-    void (*mem_write)(SDHCIState *s, unsigned int offset, uint32_t value,
-            unsigned size);
-    void (*send_command)(SDHCIState *s);
-    bool (*can_issue_command)(SDHCIState *s);
-    void (*data_transfer)(SDHCIState *s);
-    void (*end_data_transfer)(SDHCIState *s);
-    void (*do_sdma_single)(SDHCIState *s);
-    void (*do_sdma_multi)(SDHCIState *s);
-    void (*do_adma)(SDHCIState *s);
-    void (*read_block_from_card)(SDHCIState *s);
-    void (*write_block_to_card)(SDHCIState *s);
-    uint32_t (*bdata_read)(SDHCIState *s, unsigned size);
-    void (*bdata_write)(SDHCIState *s, uint32_t value, unsigned size);
-} SDHCIClass;
-
 extern const VMStateDescription sdhci_vmstate;
 
-#define TYPE_SDHCI            "generic-sdhci"
-#define SDHCI(obj)            \
-     OBJECT_CHECK(SDHCIState, (obj), TYPE_SDHCI)
-#define SDHCI_CLASS(klass)    \
-     OBJECT_CLASS_CHECK(SDHCIClass, (klass), TYPE_SDHCI)
-#define SDHCI_GET_CLASS(obj)  \
-     OBJECT_GET_CLASS(SDHCIClass, (obj), TYPE_SDHCI)
+#define TYPE_PCI_SDHCI "sdhci-pci"
+#define PCI_SDHCI(obj) OBJECT_CHECK(SDHCIState, (obj), TYPE_PCI_SDHCI)
+
+#define TYPE_SYSBUS_SDHCI "generic-sdhci"
+#define SYSBUS_SDHCI(obj)                               \
+     OBJECT_CHECK(SDHCIState, (obj), TYPE_SYSBUS_SDHCI)
 
 #endif /* SDHCI_H */

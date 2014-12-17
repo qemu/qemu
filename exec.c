@@ -840,7 +840,7 @@ static void tlb_reset_dirty_range_all(ram_addr_t start, ram_addr_t length)
 
     block = qemu_get_ram_block(start);
     assert(block == qemu_get_ram_block(end - 1));
-    start1 = (uintptr_t)block->host + (start - block->offset);
+    start1 = (uintptr_t)ramblock_ptr(block, start - block->offset);
     cpu_tlb_reset_dirty_all(start1, length);
 }
 
@@ -1500,7 +1500,7 @@ void qemu_ram_remap(ram_addr_t addr, ram_addr_t length)
     QTAILQ_FOREACH(block, &ram_list.blocks, next) {
         offset = addr - block->offset;
         if (offset < block->length) {
-            vaddr = block->host + offset;
+            vaddr = ramblock_ptr(block, offset);
             if (block->flags & RAM_PREALLOC) {
                 ;
             } else if (xen_enabled()) {
@@ -1551,7 +1551,7 @@ void *qemu_get_ram_block_host_ptr(ram_addr_t addr)
 {
     RAMBlock *block = qemu_get_ram_block(addr);
 
-    return block->host;
+    return ramblock_ptr(block, 0);
 }
 
 /* Return a host pointer to ram allocated with qemu_ram_alloc.
@@ -1578,7 +1578,7 @@ void *qemu_get_ram_ptr(ram_addr_t addr)
                 xen_map_cache(block->offset, block->length, 1);
         }
     }
-    return block->host + (addr - block->offset);
+    return ramblock_ptr(block, addr - block->offset);
 }
 
 /* Return a host pointer to guest's ram. Similar to qemu_get_ram_ptr
@@ -1597,7 +1597,7 @@ static void *qemu_ram_ptr_length(ram_addr_t addr, hwaddr *size)
             if (addr - block->offset < block->length) {
                 if (addr - block->offset + *size > block->length)
                     *size = block->length - addr + block->offset;
-                return block->host + (addr - block->offset);
+                return ramblock_ptr(block, addr - block->offset);
             }
         }
 

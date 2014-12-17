@@ -31,6 +31,7 @@
 
 #define PCI_CLASS_MEMORY_RAM             0x0500
 
+#define PCI_CLASS_SYSTEM_SDHCI           0x0805
 #define PCI_CLASS_SYSTEM_OTHER           0x0880
 
 #define PCI_CLASS_SERIAL_USB             0x0c03

@@ -8034,6 +8034,20 @@ static inline void gen_intermediate_code_internal(X86CPU *cpu,
             gen_eob(dc);
             break;
         }
+        /* Do not cross the boundary of the pages in icount mode,
+           it can cause an exception. Do it only when boundary is
+           crossed by the first instruction in the block.
+           If current instruction already crossed the bound - it's ok,
+           because an exception hasn't stopped this code.
+         */
+        if (use_icount
+            && ((pc_ptr & TARGET_PAGE_MASK)
+                != ((pc_ptr + TARGET_MAX_INSN_SIZE - 1) & TARGET_PAGE_MASK)
+                || (pc_ptr & ~TARGET_PAGE_MASK) == 0)) {
+            gen_jmp_im(pc_ptr - dc->cs_base);
+            gen_eob(dc);
+            break;
+        }
         /* if too long translation, stop generation too */
         if (tcg_ctx.gen_opc_ptr >= gen_opc_end ||
             (pc_ptr - pc_start) >= (TARGET_PAGE_SIZE - 32) ||

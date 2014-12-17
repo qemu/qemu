@@ -49,6 +49,7 @@ do { printf("scsi-disk: " fmt , ## __VA_ARGS__); } while (0)
 
 #define DEFAULT_DISCARD_GRANULARITY 4096
 #define DEFAULT_MAX_UNMAP_SIZE      (1 << 30)   /* 1 GB */
+#define DEFAULT_MAX_IO_SIZE         INT_MAX     /* 2 GB - 1 block */
 
 typedef struct SCSIDiskState SCSIDiskState;
 
@@ -79,6 +80,7 @@ struct SCSIDiskState
     uint64_t port_wwn;
     uint16_t port_index;
     uint64_t max_unmap_size;
+    uint64_t max_io_size;
     QEMUBH *bh;
     char *version;
     char *serial;
@@ -635,6 +637,8 @@ static int scsi_disk_emulate_inquiry(SCSIRequest *req, uint8_t *outbuf)
                     s->qdev.conf.opt_io_size / s->qdev.blocksize;
             unsigned int max_unmap_sectors =
                     s->max_unmap_size / s->qdev.blocksize;
+            unsigned int max_io_sectors =
+                    s->max_io_size / s->qdev.blocksize;
 
             if (s->qdev.type == TYPE_ROM) {
                 DPRINTF("Inquiry (EVPD[%02X] not supported for CDROM\n",
@@ -650,6 +654,12 @@ static int scsi_disk_emulate_inquiry(SCSIRequest *req, uint8_t *outbuf)
             /* optimal transfer length granularity */
             outbuf[6] = (min_io_size >> 8) & 0xff;
             outbuf[7] = min_io_size & 0xff;
+
+            /* maximum transfer length */
+            outbuf[8] = (max_io_sectors >> 24) & 0xff;
+            outbuf[9] = (max_io_sectors >> 16) & 0xff;
+            outbuf[10] = (max_io_sectors >> 8) & 0xff;
+            outbuf[11] = max_io_sectors & 0xff;
 
             /* optimal transfer length */
             outbuf[12] = (opt_io_size >> 24) & 0xff;
@@ -674,6 +684,17 @@ static int scsi_disk_emulate_inquiry(SCSIRequest *req, uint8_t *outbuf)
             outbuf[29] = (unmap_sectors >> 16) & 0xff;
             outbuf[30] = (unmap_sectors >> 8) & 0xff;
             outbuf[31] = unmap_sectors & 0xff;
+
+            /* max write same size */
+            outbuf[36] = 0;
+            outbuf[37] = 0;
+            outbuf[38] = 0;
+            outbuf[39] = 0;
+
+            outbuf[40] = (max_io_sectors >> 24) & 0xff;
+            outbuf[41] = (max_io_sectors >> 16) & 0xff;
+            outbuf[42] = (max_io_sectors >> 8) & 0xff;
+            outbuf[43] = max_io_sectors & 0xff;
             break;
         }
         case 0xb2: /* thin provisioning */
@@ -2579,6 +2600,8 @@ static Property scsi_hd_properties[] = {
     DEFINE_PROP_UINT16("port_index", SCSIDiskState, port_index, 0),
     DEFINE_PROP_UINT64("max_unmap_size", SCSIDiskState, max_unmap_size,
                        DEFAULT_MAX_UNMAP_SIZE),
+    DEFINE_PROP_UINT64("max_io_size", SCSIDiskState, max_io_size,
+                       DEFAULT_MAX_IO_SIZE),
     DEFINE_BLOCK_CHS_PROPERTIES(SCSIDiskState, qdev.conf),
     DEFINE_PROP_END_OF_LIST(),
 };
@@ -2625,6 +2648,8 @@ static Property scsi_cd_properties[] = {
     DEFINE_PROP_UINT64("wwn", SCSIDiskState, wwn, 0),
     DEFINE_PROP_UINT64("port_wwn", SCSIDiskState, port_wwn, 0),
     DEFINE_PROP_UINT16("port_index", SCSIDiskState, port_index, 0),
+    DEFINE_PROP_UINT64("max_io_size", SCSIDiskState, max_io_size,
+                       DEFAULT_MAX_IO_SIZE),
     DEFINE_PROP_END_OF_LIST(),
 };
 
@@ -2690,6 +2715,8 @@ static Property scsi_disk_properties[] = {
     DEFINE_PROP_UINT16("port_index", SCSIDiskState, port_index, 0),
     DEFINE_PROP_UINT64("max_unmap_size", SCSIDiskState, max_unmap_size,
                        DEFAULT_MAX_UNMAP_SIZE),
+    DEFINE_PROP_UINT64("max_io_size", SCSIDiskState, max_io_size,
+                       DEFAULT_MAX_IO_SIZE),
     DEFINE_PROP_END_OF_LIST(),
 };
 

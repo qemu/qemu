@@ -248,7 +248,6 @@ static void kvm_openpic_realize(DeviceState *dev, Error **errp)
         kvm_irqchip_add_irq_route(kvm_state, i, 0, i);
     }
 
-    kvm_irqfds_allowed = true;
     kvm_msi_via_irqfd_allowed = true;
     kvm_gsi_routing_allowed = true;
 

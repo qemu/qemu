@@ -3184,6 +3184,9 @@ migrate-set-capabilities
 Enable/Disable migration capabilities
 
 - "xbzrle": XBZRLE support
+- "rdma-pin-all": pin all pages when using RDMA during migration
+- "auto-converge": throttle down guest to help convergence of migration
+- "zero-blocks": compress zero blocks during block migration
 
 Arguments:
 
@@ -3208,6 +3211,9 @@ Query current migration capabilities
 
 - "capabilities": migration capabilities state
          - "xbzrle" : XBZRLE state (json-bool)
+         - "rdma-pin-all" : RDMA Pin Page state (json-bool)
+         - "auto-converge" : Auto Converge state (json-bool)
+         - "zero-blocks" : Zero Blocks state (json-bool)
 
 Arguments:
 

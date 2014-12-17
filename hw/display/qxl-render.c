@@ -283,12 +283,14 @@ int qxl_render_cursor(PCIQXLDevice *qxl, QXLCommandExt *ext)
         qxl->ssd.mouse_x = cmd->u.set.position.x;
         qxl->ssd.mouse_y = cmd->u.set.position.y;
         qemu_mutex_unlock(&qxl->ssd.lock);
+        qemu_bh_schedule(qxl->ssd.cursor_bh);
         break;
     case QXL_CURSOR_MOVE:
         qemu_mutex_lock(&qxl->ssd.lock);
         qxl->ssd.mouse_x = cmd->u.position.x;
         qxl->ssd.mouse_y = cmd->u.position.y;
         qemu_mutex_unlock(&qxl->ssd.lock);
+        qemu_bh_schedule(qxl->ssd.cursor_bh);
         break;
     }
     return 0;

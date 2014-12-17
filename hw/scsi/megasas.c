@@ -1018,8 +1018,7 @@ static int megasas_pd_get_info_submit(SCSIDevice *sdev, int lun,
     size_t len, resid;
 
     if (!cmd->iov_buf) {
-        cmd->iov_buf = g_malloc(dcmd_size);
-        memset(cmd->iov_buf, 0, dcmd_size);
+        cmd->iov_buf = g_malloc0(dcmd_size);
         info = cmd->iov_buf;
         info->inquiry_data[0] = 0x7f; /* Force PQual 0x3, PType 0x1f */
         info->vpd_page83[0] = 0x7f;
@@ -1221,8 +1220,7 @@ static int megasas_ld_get_info_submit(SCSIDevice *sdev, int lun,
     uint64_t ld_size;
 
     if (!cmd->iov_buf) {
-        cmd->iov_buf = g_malloc(dcmd_size);
-        memset(cmd->iov_buf, 0x0, dcmd_size);
+        cmd->iov_buf = g_malloc0(dcmd_size);
         info = cmd->iov_buf;
         megasas_setup_inquiry(cdb, 0x83, sizeof(info->vpd_page83));
         req = scsi_req_new(sdev, cmd->index, lun, cdb, cmd);

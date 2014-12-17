@@ -2228,7 +2228,7 @@ void glue(helper_aesdeclast, SUFFIX)(CPUX86State *env, Reg *d, Reg *s)
     Reg rk = *s;
 
     for (i = 0; i < 16; i++) {
-        d->B(i) = rk.B(i) ^ (AES_Td4[st.B(AES_ishifts[i])] & 0xff);
+        d->B(i) = rk.B(i) ^ (AES_isbox[st.B(AES_ishifts[i])]);
     }
 }
 
@@ -2253,7 +2253,7 @@ void glue(helper_aesenclast, SUFFIX)(CPUX86State *env, Reg *d, Reg *s)
     Reg rk = *s;
 
     for (i = 0; i < 16; i++) {
-        d->B(i) = rk.B(i) ^ (AES_Te4[st.B(AES_shifts[i])] & 0xff);
+        d->B(i) = rk.B(i) ^ (AES_sbox[st.B(AES_shifts[i])]);
     }
 
 }
@@ -2264,10 +2264,10 @@ void glue(helper_aesimc, SUFFIX)(CPUX86State *env, Reg *d, Reg *s)
     Reg tmp = *s;
 
     for (i = 0 ; i < 4 ; i++) {
-        d->L(i) = bswap32(AES_Td0[AES_Te4[tmp.B(4*i+0)] & 0xff] ^
-                          AES_Td1[AES_Te4[tmp.B(4*i+1)] & 0xff] ^
-                          AES_Td2[AES_Te4[tmp.B(4*i+2)] & 0xff] ^
-                          AES_Td3[AES_Te4[tmp.B(4*i+3)] & 0xff]);
+        d->L(i) = bswap32(AES_imc[tmp.B(4*i+0)][0] ^
+                          AES_imc[tmp.B(4*i+1)][1] ^
+                          AES_imc[tmp.B(4*i+2)][2] ^
+                          AES_imc[tmp.B(4*i+3)][3]);
     }
 }
 
@@ -2278,8 +2278,8 @@ void glue(helper_aeskeygenassist, SUFFIX)(CPUX86State *env, Reg *d, Reg *s,
     Reg tmp = *s;
 
     for (i = 0 ; i < 4 ; i++) {
-        d->B(i) = AES_Te4[tmp.B(i + 4)] & 0xff;
-        d->B(i + 8) = AES_Te4[tmp.B(i + 12)] & 0xff;
+        d->B(i) = AES_sbox[tmp.B(i + 4)];
+        d->B(i + 8) = AES_sbox[tmp.B(i + 12)];
     }
     d->L(1) = (d->L(0) << 24 | d->L(0) >> 8) ^ ctrl;
     d->L(3) = (d->L(2) << 24 | d->L(2) >> 8) ^ ctrl;

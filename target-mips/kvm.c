@@ -439,7 +439,7 @@ static void kvm_mips_update_state(void *opaque, int running, RunState state)
         }
     } else {
         /* Set clock restore time to now */
-        count_resume = get_clock();
+        count_resume = qemu_clock_get_ns(QEMU_CLOCK_REALTIME);
         ret = kvm_mips_put_one_reg64(cs, KVM_REG_MIPS_COUNT_RESUME,
                                      &count_resume);
         if (ret < 0) {

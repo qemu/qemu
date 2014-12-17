@@ -171,12 +171,15 @@ static const MemoryRegionOps kvm_apic_io_ops = {
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
+static void kvm_apic_reset(APICCommonState *s)
+{
+    /* Not used by KVM, which uses the CPU mp_state instead.  */
+    s->wait_for_sipi = 0;
+}
+
 static void kvm_apic_realize(DeviceState *dev, Error **errp)
 {
     APICCommonState *s = APIC_COMMON(dev);
-
-    /* Not used by KVM, which uses the CPU mp_state instead.  */
-    s->wait_for_sipi = 0;
 
     memory_region_init_io(&s->io_memory, NULL, &kvm_apic_io_ops, s, "kvm-apic-msi",
                           APIC_SPACE_SIZE);
@@ -191,6 +194,7 @@ static void kvm_apic_class_init(ObjectClass *klass, void *data)
     APICCommonClass *k = APIC_COMMON_CLASS(klass);
 
     k->realize = kvm_apic_realize;
+    k->reset = kvm_apic_reset;
     k->set_base = kvm_apic_set_base;
     k->set_tpr = kvm_apic_set_tpr;
     k->get_tpr = kvm_apic_get_tpr;

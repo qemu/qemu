@@ -102,6 +102,7 @@ struct SimpleSpiceDisplay {
     /* cursor (with qxl): qxl local renderer -> displaychangelistener */
     QEMUCursor *cursor;
     int mouse_x, mouse_y;
+    QEMUBH *cursor_bh;
 };
 
 struct SimpleSpiceUpdate {
@@ -134,7 +135,7 @@ void qemu_spice_display_update(SimpleSpiceDisplay *ssd,
 void qemu_spice_display_switch(SimpleSpiceDisplay *ssd,
                                DisplaySurface *surface);
 void qemu_spice_display_refresh(SimpleSpiceDisplay *ssd);
-void qemu_spice_cursor_refresh_unlocked(SimpleSpiceDisplay *ssd);
+void qemu_spice_cursor_refresh_bh(void *opaque);
 
 void qemu_spice_add_memslot(SimpleSpiceDisplay *ssd, QXLDevMemSlot *memslot,
                             qxl_async_io async);
