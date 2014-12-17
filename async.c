@@ -44,10 +44,12 @@ struct QEMUBH {
 QEMUBH *aio_bh_new(AioContext *ctx, QEMUBHFunc *cb, void *opaque)
 {
     QEMUBH *bh;
-    bh = g_new0(QEMUBH, 1);
-    bh->ctx = ctx;
-    bh->cb = cb;
-    bh->opaque = opaque;
+    bh = g_new(QEMUBH, 1);
+    *bh = (QEMUBH){
+        .ctx = ctx,
+        .cb = cb,
+        .opaque = opaque,
+    };
     qemu_mutex_lock(&ctx->bh_lock);
     bh->next = ctx->first_bh;
     /* Make sure that the members are ready before putting bh into list */
