@@ -3034,18 +3034,16 @@ static int coroutine_fn bdrv_aligned_preadv(BlockDriverState *bs,
 
         max_nb_sectors = ROUND_UP(MAX(0, total_sectors - sector_num),
                                   align >> BDRV_SECTOR_BITS);
-        if (max_nb_sectors > 0) {
+        if (nb_sectors < max_nb_sectors) {
+            ret = drv->bdrv_co_readv(bs, sector_num, nb_sectors, qiov);
+        } else if (max_nb_sectors > 0) {
             QEMUIOVector local_qiov;
-            size_t local_sectors;
-
-            max_nb_sectors = MIN(max_nb_sectors, SIZE_MAX / BDRV_SECTOR_BITS);
-            local_sectors = MIN(max_nb_sectors, nb_sectors);
 
             qemu_iovec_init(&local_qiov, qiov->niov);
             qemu_iovec_concat(&local_qiov, qiov, 0,
-                              local_sectors * BDRV_SECTOR_SIZE);
+                              max_nb_sectors * BDRV_SECTOR_SIZE);
 
-            ret = drv->bdrv_co_readv(bs, sector_num, local_sectors,
+            ret = drv->bdrv_co_readv(bs, sector_num, max_nb_sectors,
                                      &local_qiov);
 
             qemu_iovec_destroy(&local_qiov);
