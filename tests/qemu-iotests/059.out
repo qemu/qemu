@@ -2053,6 +2053,10 @@ wrote 512/512 bytes at offset 0
 wrote 512/512 bytes at offset 10240
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 
+=== Testing monolithicFlat with internally generated JSON file name ===
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864
+qemu-io: can't open: Cannot use relative extent paths with VMDK descriptor file 'json:{"image": {"driver": "file", "filename": "TEST_DIR/t.IMGFMT"}, "driver": "blkdebug", "inject-error.0.event": "read_aio"}'
+
 === Testing version 3 ===
 image: TEST_DIR/iotest-version3.IMGFMT
 file format: IMGFMT

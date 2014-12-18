@@ -2,7 +2,7 @@ QA output created by 036
 
 === Image with unknown incompatible feature bit ===
 
-Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864 
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864
 magic                     0x514649fb
 version                   3
 backing_file_offset       0x0
@@ -27,7 +27,7 @@ qemu-img: Could not open 'TEST_DIR/t.IMGFMT': 'image' uses a IMGFMT feature whic
 
 === Image with multiple incompatible feature bits ===
 
-Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864 
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864
 qemu-img: Could not open 'TEST_DIR/t.IMGFMT': 'image' uses a IMGFMT feature which is not supported by this qemu version: Unknown incompatible feature: e000000000000000
 qemu-img: Could not open 'TEST_DIR/t.IMGFMT': 'image' uses a IMGFMT feature which is not supported by this qemu version: Test feature, Unknown incompatible feature: 6000000000000000
 qemu-img: Could not open 'TEST_DIR/t.IMGFMT': 'image' uses a IMGFMT feature which is not supported by this qemu version: Test feature, Unknown incompatible feature: c000000000000000
@@ -36,7 +36,7 @@ qemu-img: Could not open 'TEST_DIR/t.IMGFMT': 'image' uses a IMGFMT feature whic
 qemu-img: Could not open 'TEST_DIR/t.IMGFMT': 'image' uses a IMGFMT feature which is not supported by this qemu version: test2, Unknown incompatible feature: a000000000000000
 === Create image with unknown autoclear feature bit ===
 
-Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864 
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864
 magic                     0x514649fb
 version                   3
 backing_file_offset       0x0

@@ -52,7 +52,7 @@ static void realview_init(MachineState *machine,
     CPUARMState *env;
     ObjectClass *cpu_oc;
     MemoryRegion *sysmem = get_system_memory();
-    MemoryRegion *ram_lo = g_new(MemoryRegion, 1);
+    MemoryRegion *ram_lo;
     MemoryRegion *ram_hi = g_new(MemoryRegion, 1);
     MemoryRegion *ram_alias = g_new(MemoryRegion, 1);
     MemoryRegion *ram_hack = g_new(MemoryRegion, 1);
@@ -135,6 +135,7 @@ static void realview_init(MachineState *machine,
 
     if (is_pb && ram_size > 0x20000000) {
         /* Core tile RAM.  */
+        ram_lo = g_new(MemoryRegion, 1);
         low_ram_size = ram_size - 0x20000000;
         ram_size = 0x20000000;
         memory_region_init_ram(ram_lo, NULL, "realview.lowmem", low_ram_size,

@@ -41,7 +41,7 @@ BlockAIOCB *laio_submit(BlockDriverState *bs, void *aio_ctx, int fd,
 void laio_detach_aio_context(void *s, AioContext *old_context);
 void laio_attach_aio_context(void *s, AioContext *new_context);
 void laio_io_plug(BlockDriverState *bs, void *aio_ctx);
-int laio_io_unplug(BlockDriverState *bs, void *aio_ctx, bool unplug);
+void laio_io_unplug(BlockDriverState *bs, void *aio_ctx, bool unplug);
 #endif
 
 #ifdef _WIN32

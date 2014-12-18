@@ -138,7 +138,7 @@ static void kvm_pit_get(PITCommonState *pit)
 static void kvm_pit_put(PITCommonState *pit)
 {
     KVMPITState *s = KVM_PIT(pit);
-    struct kvm_pit_state2 kpit;
+    struct kvm_pit_state2 kpit = {};
     struct kvm_pit_channel_state *kchan;
     struct PITChannelState *sc;
     int i, ret;

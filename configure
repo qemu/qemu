@@ -2727,7 +2727,7 @@ fi
 if test "$modules" = yes; then
     shacmd_probe="sha1sum sha1 shasum"
     for c in $shacmd_probe; do
-        if which $c >/dev/null 2>&1; then
+        if has $c; then
             shacmd="$c"
             break
         fi

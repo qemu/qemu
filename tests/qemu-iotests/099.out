@@ -1,6 +1,6 @@
 QA output created by 099
-Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=131072 
-Formatting 'TEST_DIR/t.IMGFMT.compare', fmt=raw size=131072 
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=131072
+Formatting 'TEST_DIR/t.IMGFMT.compare', fmt=raw size=131072
 
 === Testing simple filename for blkverify ===
 

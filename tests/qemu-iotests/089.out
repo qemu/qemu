@@ -2,7 +2,7 @@ QA output created by 089
 
 === Testing nested image formats ===
 
-Formatting 'TEST_DIR/t.IMGFMT.base', fmt=IMGFMT size=67108864 
+Formatting 'TEST_DIR/t.IMGFMT.base', fmt=IMGFMT size=67108864
 wrote 512/512 bytes at offset 0
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 wrote 512/512 bytes at offset 512
@@ -21,7 +21,7 @@ read 512/512 bytes at offset 0
 
 === Testing blkdebug ===
 
-Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864 
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864
 wrote 512/512 bytes at offset 229376
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 Failed to flush the L2 table cache: Input/output error

@@ -120,6 +120,7 @@ bool kvm_async_interrupts_allowed;
 bool kvm_halt_in_kernel_allowed;
 bool kvm_eventfds_allowed;
 bool kvm_irqfds_allowed;
+bool kvm_resamplefds_allowed;
 bool kvm_msi_via_irqfd_allowed;
 bool kvm_gsi_routing_allowed;
 bool kvm_gsi_direct_mapping;
@@ -416,7 +417,7 @@ static int kvm_physical_sync_dirty_bitmap(MemoryRegionSection *section)
 {
     KVMState *s = kvm_state;
     unsigned long size, allocated_size = 0;
-    KVMDirtyLog d;
+    KVMDirtyLog d = {};
     KVMSlot *mem;
     int ret = 0;
     hwaddr start_addr = section->offset_within_address_space;
@@ -1276,7 +1277,7 @@ static int kvm_irqchip_assign_irqfd(KVMState *s, int fd, int rfd, int virq,
 
 int kvm_irqchip_add_adapter_route(KVMState *s, AdapterInfo *adapter)
 {
-    struct kvm_irq_routing_entry kroute;
+    struct kvm_irq_routing_entry kroute = {};
     int virq;
 
     if (!kvm_gsi_routing_enabled()) {
@@ -1583,6 +1584,12 @@ static int kvm_init(MachineState *ms)
 
     kvm_eventfds_allowed =
         (kvm_check_extension(s, KVM_CAP_IOEVENTFD) > 0);
+
+    kvm_irqfds_allowed =
+        (kvm_check_extension(s, KVM_CAP_IRQFD) > 0);
+
+    kvm_resamplefds_allowed =
+        (kvm_check_extension(s, KVM_CAP_IRQFD_RESAMPLE) > 0);
 
     ret = kvm_arch_init(s);
     if (ret < 0) {

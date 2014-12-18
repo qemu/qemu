@@ -564,7 +564,7 @@ do_kernel_trap(CPUARMState *env)
         end_exclusive();
         break;
     case 0xffff0fe0: /* __kernel_get_tls */
-        env->regs[0] = env->cp15.tpidrro_el0;
+        env->regs[0] = env->cp15.tpidrro_el[0];
         break;
     case 0xffff0f60: /* __kernel_cmpxchg64 */
         arm_kernel_cmpxchg64_helper(env);
@@ -3905,7 +3905,7 @@ int main(int argc, char **argv, char **envp)
 #endif
 #elif defined(TARGET_MIPS)
 #if defined(TARGET_ABI_MIPSN32) || defined(TARGET_ABI_MIPSN64)
-        cpu_model = "20Kc";
+        cpu_model = "5KEf";
 #else
         cpu_model = "24Kf";
 #endif

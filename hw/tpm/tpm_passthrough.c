@@ -400,9 +400,7 @@ static int tpm_passthrough_handle_device_opts(QemuOpts *opts, TPMBackend *tb)
     const char *value;
 
     value = qemu_opt_get(opts, "cancel-path");
-    if (value) {
-        tb->cancel_path = g_strdup(value);
-    }
+    tb->cancel_path = g_strdup(value);
 
     value = qemu_opt_get(opts, "path");
     if (!value) {

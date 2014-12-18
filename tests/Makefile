@@ -48,8 +48,11 @@ check-unit-y += tests/test-hbitmap$(EXESUF)
 check-unit-y += tests/test-x86-cpuid$(EXESUF)
 # all code tested by test-x86-cpuid is inside topology.h
 gcov-files-test-x86-cpuid-y =
+ifeq ($(CONFIG_SOFTMMU),y)
 check-unit-y += tests/test-xbzrle$(EXESUF)
-gcov-files-test-xbzrle-y = xbzrle.c
+gcov-files-test-xbzrle-y = migration/xbzrle.c
+check-unit-$(CONFIG_POSIX) += tests/test-vmstate$(EXESUF)
+endif
 check-unit-y += tests/test-cutils$(EXESUF)
 gcov-files-test-cutils-y += util/cutils.c
 check-unit-y += tests/test-mul64$(EXESUF)
@@ -61,7 +64,6 @@ check-unit-y += tests/test-bitops$(EXESUF)
 check-unit-$(CONFIG_HAS_GLIB_SUBPROCESS_TESTS) += tests/test-qdev-global-props$(EXESUF)
 check-unit-y += tests/check-qom-interface$(EXESUF)
 gcov-files-check-qom-interface-y = qom/object.c
-check-unit-$(CONFIG_POSIX) += tests/test-vmstate$(EXESUF)
 check-unit-y += tests/test-qemu-opts$(EXESUF)
 gcov-files-test-qemu-opts-y = qom/test-qemu-opts.c
 
@@ -247,7 +249,7 @@ tests/test-thread-pool$(EXESUF): tests/test-thread-pool.o $(block-obj-y) libqemu
 tests/test-iov$(EXESUF): tests/test-iov.o libqemuutil.a
 tests/test-hbitmap$(EXESUF): tests/test-hbitmap.o libqemuutil.a libqemustub.a
 tests/test-x86-cpuid$(EXESUF): tests/test-x86-cpuid.o
-tests/test-xbzrle$(EXESUF): tests/test-xbzrle.o xbzrle.o page_cache.o libqemuutil.a
+tests/test-xbzrle$(EXESUF): tests/test-xbzrle.o migration/xbzrle.o page_cache.o libqemuutil.a
 tests/test-cutils$(EXESUF): tests/test-cutils.o util/cutils.o
 tests/test-int128$(EXESUF): tests/test-int128.o
 tests/test-qdev-global-props$(EXESUF): tests/test-qdev-global-props.o \
@@ -258,7 +260,8 @@ tests/test-qdev-global-props$(EXESUF): tests/test-qdev-global-props.o \
 	$(test-qapi-obj-y) \
 	libqemuutil.a libqemustub.a
 tests/test-vmstate$(EXESUF): tests/test-vmstate.o \
-	vmstate.o qemu-file.o qemu-file-unix.o \
+	migration/vmstate.o migration/qemu-file.o migration/qemu-file-buf.o \
+        migration/qemu-file-unix.o \
 	libqemuutil.a libqemustub.a
 
 tests/test-qapi-types.c tests/test-qapi-types.h :\

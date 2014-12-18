@@ -1,5 +1,5 @@
 QA output created by 004
-Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=134217728 
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=134217728
 
 write before image boundary
 wrote 1048576/1048576 bytes at offset 133169152

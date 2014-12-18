@@ -1,7 +1,7 @@
 QA output created by 025
 === Creating image
 
-Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=134217728 
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=134217728
 
 === Writing whole image
 === IO: pattern 0xc5

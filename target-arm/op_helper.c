@@ -361,7 +361,7 @@ void HELPER(msr_i_pstate)(CPUARMState *env, uint32_t op, uint32_t imm)
      * Note that SPSel is never OK from EL0; we rely on handle_msr_i()
      * to catch that case at translate time.
      */
-    if (arm_current_el(env) == 0 && !(env->cp15.c1_sys & SCTLR_UMA)) {
+    if (arm_current_el(env) == 0 && !(env->cp15.sctlr_el[1] & SCTLR_UMA)) {
         raise_exception(env, EXCP_UDEF);
     }
 
@@ -575,7 +575,7 @@ static bool linked_bp_matches(ARMCPU *cpu, int lbn)
      * short descriptor format (in which case it holds both PROCID and ASID),
      * since we don't implement the optional v7 context ID masking.
      */
-    contextidr = extract64(env->cp15.contextidr_el1, 0, 32);
+    contextidr = extract64(env->cp15.contextidr_el[1], 0, 32);
 
     switch (bt) {
     case 3: /* linked context ID match */

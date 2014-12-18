@@ -230,9 +230,6 @@ int virtio_set_features(VirtIODevice *vdev, uint32_t val);
 /* Base devices.  */
 typedef struct VirtIOBlkConf VirtIOBlkConf;
 struct virtio_net_conf;
-VirtIODevice *virtio_net_init(DeviceState *dev, NICConf *conf,
-                              struct virtio_net_conf *net,
-                              uint32_t host_features);
 typedef struct virtio_serial_conf virtio_serial_conf;
 typedef struct VirtIOSCSIConf VirtIOSCSIConf;
 typedef struct VirtIORNGConf VirtIORNGConf;

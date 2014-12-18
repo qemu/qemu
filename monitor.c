@@ -1042,6 +1042,11 @@ static void do_info_jit(Monitor *mon, const QDict *qdict)
     dump_drift_info((FILE *)mon, monitor_fprintf);
 }
 
+static void do_info_opcount(Monitor *mon, const QDict *qdict)
+{
+    dump_opcount_info((FILE *)mon, monitor_fprintf);
+}
+
 static void do_info_history(Monitor *mon, const QDict *qdict)
 {
     int i;
@@ -2737,6 +2742,13 @@ static mon_cmd_t info_cmds[] = {
         .params     = "",
         .help       = "show dynamic compiler info",
         .mhandler.cmd = do_info_jit,
+    },
+    {
+        .name       = "opcount",
+        .args_type  = "",
+        .params     = "",
+        .help       = "show dynamic compiler opcode counters",
+        .mhandler.cmd = do_info_opcount,
     },
     {
         .name       = "kvm",

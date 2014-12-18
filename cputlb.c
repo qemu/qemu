@@ -270,7 +270,8 @@ void tlb_set_page(CPUState *cpu, target_ulong vaddr,
     assert(sz >= TARGET_PAGE_SIZE);
 
 #if defined(DEBUG_TLB)
-    printf("tlb_set_page: vaddr=" TARGET_FMT_lx " paddr=0x" TARGET_FMT_plx
+    qemu_log_mask(CPU_LOG_MMU,
+           "tlb_set_page: vaddr=" TARGET_FMT_lx " paddr=0x" TARGET_FMT_plx
            " prot=%x idx=%d\n",
            vaddr, paddr, prot, mmu_idx);
 #endif

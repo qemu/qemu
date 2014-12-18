@@ -737,14 +737,14 @@ void qemu_opts_del(QemuOpts *opts)
     g_free(opts);
 }
 
-void qemu_opts_print(QemuOpts *opts)
+void qemu_opts_print(QemuOpts *opts, const char *sep)
 {
     QemuOpt *opt;
     QemuOptDesc *desc = opts->list->desc;
 
     if (desc[0].name == NULL) {
         QTAILQ_FOREACH(opt, &opts->head, next) {
-            printf("%s=\"%s\" ", opt->name, opt->str);
+            printf("%s%s=\"%s\"", sep, opt->name, opt->str);
         }
         return;
     }
@@ -757,12 +757,12 @@ void qemu_opts_print(QemuOpts *opts)
             continue;
         }
         if (desc->type == QEMU_OPT_STRING) {
-            printf("%s='%s' ", desc->name, value);
+            printf("%s%s='%s'", sep, desc->name, value);
         } else if ((desc->type == QEMU_OPT_SIZE ||
                     desc->type == QEMU_OPT_NUMBER) && opt) {
-            printf("%s=%" PRId64 " ", desc->name, opt->value.uint);
+            printf("%s%s=%" PRId64, sep, desc->name, opt->value.uint);
         } else {
-            printf("%s=%s ", desc->name, value);
+            printf("%s%s=%s", sep, desc->name, value);
         }
     }
 }

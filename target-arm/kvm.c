@@ -21,6 +21,7 @@
 #include "sysemu/kvm.h"
 #include "kvm_arm.h"
 #include "cpu.h"
+#include "internals.h"
 #include "hw/arm/arm.h"
 
 const KVMCapabilityInfo kvm_arch_required_capabilities[] = {
@@ -279,6 +280,94 @@ void kvm_arm_register_device(MemoryRegion *mr, uint64_t devid, uint64_t group,
     memory_region_ref(kd->mr);
 }
 
+static int compare_u64(const void *a, const void *b)
+{
+    if (*(uint64_t *)a > *(uint64_t *)b) {
+        return 1;
+    }
+    if (*(uint64_t *)a < *(uint64_t *)b) {
+        return -1;
+    }
+    return 0;
+}
+
+/* Initialize the CPUState's cpreg list according to the kernel's
+ * definition of what CPU registers it knows about (and throw away
+ * the previous TCG-created cpreg list).
+ */
+int kvm_arm_init_cpreg_list(ARMCPU *cpu)
+{
+    struct kvm_reg_list rl;
+    struct kvm_reg_list *rlp;
+    int i, ret, arraylen;
+    CPUState *cs = CPU(cpu);
+
+    rl.n = 0;
+    ret = kvm_vcpu_ioctl(cs, KVM_GET_REG_LIST, &rl);
+    if (ret != -E2BIG) {
+        return ret;
+    }
+    rlp = g_malloc(sizeof(struct kvm_reg_list) + rl.n * sizeof(uint64_t));
+    rlp->n = rl.n;
+    ret = kvm_vcpu_ioctl(cs, KVM_GET_REG_LIST, rlp);
+    if (ret) {
+        goto out;
+    }
+    /* Sort the list we get back from the kernel, since cpreg_tuples
+     * must be in strictly ascending order.
+     */
+    qsort(&rlp->reg, rlp->n, sizeof(rlp->reg[0]), compare_u64);
+
+    for (i = 0, arraylen = 0; i < rlp->n; i++) {
+        if (!kvm_arm_reg_syncs_via_cpreg_list(rlp->reg[i])) {
+            continue;
+        }
+        switch (rlp->reg[i] & KVM_REG_SIZE_MASK) {
+        case KVM_REG_SIZE_U32:
+        case KVM_REG_SIZE_U64:
+            break;
+        default:
+            fprintf(stderr, "Can't handle size of register in kernel list\n");
+            ret = -EINVAL;
+            goto out;
+        }
+
+        arraylen++;
+    }
+
+    cpu->cpreg_indexes = g_renew(uint64_t, cpu->cpreg_indexes, arraylen);
+    cpu->cpreg_values = g_renew(uint64_t, cpu->cpreg_values, arraylen);
+    cpu->cpreg_vmstate_indexes = g_renew(uint64_t, cpu->cpreg_vmstate_indexes,
+                                         arraylen);
+    cpu->cpreg_vmstate_values = g_renew(uint64_t, cpu->cpreg_vmstate_values,
+                                        arraylen);
+    cpu->cpreg_array_len = arraylen;
+    cpu->cpreg_vmstate_array_len = arraylen;
+
+    for (i = 0, arraylen = 0; i < rlp->n; i++) {
+        uint64_t regidx = rlp->reg[i];
+        if (!kvm_arm_reg_syncs_via_cpreg_list(regidx)) {
+            continue;
+        }
+        cpu->cpreg_indexes[arraylen] = regidx;
+        arraylen++;
+    }
+    assert(cpu->cpreg_array_len == arraylen);
+
+    if (!write_kvmstate_to_list(cpu)) {
+        /* Shouldn't happen unless kernel is inconsistent about
+         * what registers exist.
+         */
+        fprintf(stderr, "Initial read of kernel register state failed\n");
+        ret = -EINVAL;
+        goto out;
+    }
+
+out:
+    g_free(rlp);
+    return ret;
+}
+
 bool write_kvmstate_to_list(ARMCPU *cpu)
 {
     CPUState *cs = CPU(cpu);
@@ -349,6 +438,24 @@ bool write_list_to_kvmstate(ARMCPU *cpu)
         }
     }
     return ok;
+}
+
+void kvm_arm_reset_vcpu(ARMCPU *cpu)
+{
+    int ret;
+
+    /* Re-init VCPU so that all registers are set to
+     * their respective reset values.
+     */
+    ret = kvm_arm_vcpu_init(CPU(cpu));
+    if (ret < 0) {
+        fprintf(stderr, "kvm_arm_vcpu_init failed: %s\n", strerror(-ret));
+        abort();
+    }
+    if (!write_kvmstate_to_list(cpu)) {
+        fprintf(stderr, "write_kvmstate_to_list failed\n");
+        abort();
+    }
 }
 
 void kvm_arch_pre_run(CPUState *cs, struct kvm_run *run)

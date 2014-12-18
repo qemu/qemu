@@ -68,6 +68,14 @@
 
 #define ACPI_BUILD_TABLE_SIZE             0x20000
 
+/* #define DEBUG_ACPI_BUILD */
+#ifdef DEBUG_ACPI_BUILD
+#define ACPI_BUILD_DPRINTF(fmt, ...)        \
+    do {printf("ACPI_BUILD: " fmt, ## __VA_ARGS__); } while (0)
+#else
+#define ACPI_BUILD_DPRINTF(fmt, ...)
+#endif
+
 typedef struct AcpiCpuInfo {
     DECLARE_BITMAP(found_cpus, ACPI_CPU_HOTPLUG_ID_LIMIT);
 } AcpiCpuInfo;
@@ -246,8 +254,6 @@ static void acpi_get_pci_info(PcPciInfo *info)
 #define ACPI_BUILD_APPNAME6 "BOCHS "
 #define ACPI_BUILD_APPNAME4 "BXPC"
 
-#define ACPI_BUILD_DPRINTF(level, fmt, ...) do {} while (0)
-
 #define ACPI_BUILD_TABLE_FILE "etc/acpi/tables"
 #define ACPI_BUILD_RSDP_FILE "etc/acpi/rsdp"
 #define ACPI_BUILD_TPMLOG_FILE "etc/tpm/log"
@@ -273,12 +279,12 @@ build_header(GArray *linker, GArray *table_data,
 
 static inline GArray *build_alloc_array(void)
 {
-        return g_array_new(false, true /* clear */, 1);
+    return g_array_new(false, true /* clear */, 1);
 }
 
 static inline void build_free_array(GArray *array)
 {
-        g_array_free(array, true);
+    g_array_free(array, true);
 }
 
 static inline void build_prepend_byte(GArray *array, uint8_t val)
@@ -1569,7 +1575,7 @@ void acpi_build(PcGuestInfo *guest_info, AcpiBuildTables *tables)
 
     table_offsets = g_array_new(false, true /* clear */,
                                         sizeof(uint32_t));
-    ACPI_BUILD_DPRINTF(3, "init ACPI tables\n");
+    ACPI_BUILD_DPRINTF("init ACPI tables\n");
 
     bios_linker_loader_alloc(tables->linker, ACPI_BUILD_TABLE_FILE,
                              64 /* Ensure FACS is aligned */,
@@ -1750,17 +1756,17 @@ void acpi_setup(PcGuestInfo *guest_info)
     AcpiBuildState *build_state;
 
     if (!guest_info->fw_cfg) {
-        ACPI_BUILD_DPRINTF(3, "No fw cfg. Bailing out.\n");
+        ACPI_BUILD_DPRINTF("No fw cfg. Bailing out.\n");
         return;
     }
 
     if (!guest_info->has_acpi_build) {
-        ACPI_BUILD_DPRINTF(3, "ACPI build disabled. Bailing out.\n");
+        ACPI_BUILD_DPRINTF("ACPI build disabled. Bailing out.\n");
         return;
     }
 
     if (!acpi_enabled) {
-        ACPI_BUILD_DPRINTF(3, "ACPI disabled. Bailing out.\n");
+        ACPI_BUILD_DPRINTF("ACPI disabled. Bailing out.\n");
         return;
     }
 

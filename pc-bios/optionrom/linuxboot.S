@@ -76,7 +76,31 @@ boot_kernel:
 
 
 copy_kernel:
-	/* Compute initrd address */
+	/* Read info block in low memory (0x10000 or 0x90000) */
+	read_fw		FW_CFG_SETUP_ADDR
+	shr		$4, %eax
+	mov		%eax, %es
+	xor		%edi, %edi
+	read_fw_blob_addr32_edi(FW_CFG_SETUP)
+
+	cmpw            $0x203, %es:0x206      // if protocol >= 0x203
+	jae             1f                     // have initrd_max
+	movl            $0x37ffffff, %es:0x22c // else assume 0x37ffffff
+1:
+
+	/* Check if using kernel-specified initrd address */
+	read_fw		FW_CFG_INITRD_ADDR
+	mov		%eax, %edi             // (load_kernel wants it in %edi)
+	read_fw		FW_CFG_INITRD_SIZE     // find end of initrd
+	add		%edi, %eax
+	xor		%es:0x22c, %eax        // if it matches es:0x22c
+	and		$-4096, %eax           // (apart from padding for page)
+	jz		load_kernel            // then initrd is not at top
+					       // of memory
+
+	/* pc.c placed the initrd at end of memory.  Compute a better
+	 * initrd address based on e801 data.
+	 */
 	mov		$0xe801, %ax
 	xor		%cx, %cx
 	xor		%dx, %dx
@@ -107,7 +131,9 @@ copy_kernel:
 	read_fw         FW_CFG_INITRD_SIZE
 	subl            %eax, %edi
 	andl            $-4096, %edi          /* EDI = start of initrd */
+	movl		%edi, %es:0x218       /* put it in the header */
 
+load_kernel:
 	/* We need to load the kernel into memory we can't access in 16 bit
 	   mode, so let's get into 32 bit mode, write the kernel and jump
 	   back again. */
@@ -139,18 +165,9 @@ copy_kernel:
 	/* We're now running in 16-bit CS, but 32-bit ES! */
 
 	/* Load kernel and initrd */
-	pushl		%edi
 	read_fw_blob_addr32_edi(FW_CFG_INITRD)
 	read_fw_blob_addr32(FW_CFG_KERNEL)
 	read_fw_blob_addr32(FW_CFG_CMDLINE)
-
-	read_fw		FW_CFG_SETUP_ADDR
-	mov		%eax, %edi
-	mov		%eax, %ebx
-	read_fw_blob_addr32_edi(FW_CFG_SETUP)
-
-	/* Update the header with the initrd address we chose above */
-	popl		%es:0x218(%ebx)
 
 	/* And now jump into Linux! */
 	mov		$0, %eax

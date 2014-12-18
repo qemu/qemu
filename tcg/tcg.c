@@ -2401,13 +2401,19 @@ static int tcg_reg_alloc_call(TCGContext *s, const TCGOpDef *def,
 
 static int64_t tcg_table_op_count[NB_OPS];
 
-static void dump_op_count(void)
+void tcg_dump_op_count(FILE *f, fprintf_function cpu_fprintf)
 {
     int i;
 
     for(i = INDEX_op_end; i < NB_OPS; i++) {
-        qemu_log("%s %" PRId64 "\n", tcg_op_defs[i].name, tcg_table_op_count[i]);
+        cpu_fprintf(f, "%s %" PRId64 "\n", tcg_op_defs[i].name,
+                    tcg_table_op_count[i]);
     }
+}
+#else
+void tcg_dump_op_count(FILE *f, fprintf_function cpu_fprintf)
+{
+    cpu_fprintf(f, "[TCG profiler not compiled]\n");
 }
 #endif
 
@@ -2620,8 +2626,6 @@ void tcg_dump_info(FILE *f, fprintf_function cpu_fprintf)
                 s->restore_count);
     cpu_fprintf(f, "  avg cycles        %0.1f\n",
                 s->restore_count ? (double)s->restore_time / s->restore_count : 0);
-
-    dump_op_count();
 }
 #else
 void tcg_dump_info(FILE *f, fprintf_function cpu_fprintf)

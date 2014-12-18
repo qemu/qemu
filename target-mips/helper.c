@@ -341,7 +341,8 @@ int mips_cpu_handle_mmu_fault(CPUState *cs, vaddr address, int rw,
 #if 0
     log_cpu_state(cs, 0);
 #endif
-    qemu_log("%s pc " TARGET_FMT_lx " ad %" VADDR_PRIx " rw %d mmu_idx %d\n",
+    qemu_log_mask(CPU_LOG_MMU,
+              "%s pc " TARGET_FMT_lx " ad %" VADDR_PRIx " rw %d mmu_idx %d\n",
               __func__, env->active_tc.PC, address, rw, mmu_idx);
 
     /* data access */
@@ -351,7 +352,8 @@ int mips_cpu_handle_mmu_fault(CPUState *cs, vaddr address, int rw,
     access_type = ACCESS_INT;
     ret = get_physical_address(env, &physical, &prot,
                                address, rw, access_type);
-    qemu_log("%s address=%" VADDR_PRIx " ret %d physical " TARGET_FMT_plx
+    qemu_log_mask(CPU_LOG_MMU,
+             "%s address=%" VADDR_PRIx " ret %d physical " TARGET_FMT_plx
              " prot %d\n",
              __func__, address, ret, physical, prot);
     if (ret == TLBRET_MATCH) {
@@ -388,7 +390,6 @@ hwaddr cpu_mips_translate_address(CPUMIPSState *env, target_ulong address, int r
         return physical;
     }
 }
-#endif
 
 static const char * const excp_names[EXCP_LAST + 1] = {
     [EXCP_RESET] = "reset",
@@ -429,6 +430,7 @@ static const char * const excp_names[EXCP_LAST + 1] = {
     [EXCP_MSADIS] = "MSA disabled",
     [EXCP_MSAFPE] = "MSA floating point",
 };
+#endif
 
 target_ulong exception_resume_pc (CPUMIPSState *env)
 {
@@ -527,7 +529,10 @@ void mips_cpu_do_interrupt(CPUState *cs)
         env->CP0_DEPC = exception_resume_pc(env);
         env->hflags &= ~MIPS_HFLAG_BMASK;
  enter_debug_mode:
-        env->hflags |= MIPS_HFLAG_DM | MIPS_HFLAG_64 | MIPS_HFLAG_CP0;
+        if (env->insn_flags & ISA_MIPS3) {
+            env->hflags |= MIPS_HFLAG_64;
+        }
+        env->hflags |= MIPS_HFLAG_DM | MIPS_HFLAG_CP0;
         env->hflags &= ~(MIPS_HFLAG_KSU);
         /* EJTAG probe trap enable is not implemented... */
         if (!(env->CP0_Status & (1 << CP0St_EXL)))
@@ -548,7 +553,10 @@ void mips_cpu_do_interrupt(CPUState *cs)
         env->CP0_ErrorEPC = exception_resume_pc(env);
         env->hflags &= ~MIPS_HFLAG_BMASK;
         env->CP0_Status |= (1 << CP0St_ERL) | (1 << CP0St_BEV);
-        env->hflags |= MIPS_HFLAG_64 | MIPS_HFLAG_CP0;
+        if (env->insn_flags & ISA_MIPS3) {
+            env->hflags |= MIPS_HFLAG_64;
+        }
+        env->hflags |= MIPS_HFLAG_CP0;
         env->hflags &= ~(MIPS_HFLAG_KSU);
         if (!(env->CP0_Status & (1 << CP0St_EXL)))
             env->CP0_Cause &= ~(1U << CP0Ca_BD);
@@ -726,7 +734,10 @@ void mips_cpu_do_interrupt(CPUState *cs)
                 env->CP0_Cause &= ~(1U << CP0Ca_BD);
             }
             env->CP0_Status |= (1 << CP0St_EXL);
-            env->hflags |= MIPS_HFLAG_64 | MIPS_HFLAG_CP0;
+            if (env->insn_flags & ISA_MIPS3) {
+                env->hflags |= MIPS_HFLAG_64;
+            }
+            env->hflags |= MIPS_HFLAG_CP0;
             env->hflags &= ~(MIPS_HFLAG_KSU);
         }
         env->hflags &= ~MIPS_HFLAG_BMASK;
