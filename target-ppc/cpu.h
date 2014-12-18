@@ -584,6 +584,8 @@ enum {
     POWERPC_FLAG_CFAR     = 0x00040000,
     /* Has VSX                                                               */
     POWERPC_FLAG_VSX      = 0x00080000,
+    /* Has Transaction Memory (ISA 2.07)                                     */
+    POWERPC_FLAG_TM       = 0x00100000,
 };
 
 /*****************************************************************************/
