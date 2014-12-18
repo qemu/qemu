@@ -308,9 +308,33 @@ static void pc_init_pci(MachineState *machine)
     pc_init1(machine, 1, 1);
 }
 
+static void pc_compat_2_2(MachineState *machine)
+{
+    x86_cpu_compat_set_features("kvm64", FEAT_1_EDX, 0, CPUID_VME);
+    x86_cpu_compat_set_features("kvm32", FEAT_1_EDX, 0, CPUID_VME);
+    x86_cpu_compat_set_features("Conroe", FEAT_1_EDX, 0, CPUID_VME);
+    x86_cpu_compat_set_features("Penryn", FEAT_1_EDX, 0, CPUID_VME);
+    x86_cpu_compat_set_features("Nehalem", FEAT_1_EDX, 0, CPUID_VME);
+    x86_cpu_compat_set_features("Westmere", FEAT_1_EDX, 0, CPUID_VME);
+    x86_cpu_compat_set_features("SandyBridge", FEAT_1_EDX, 0, CPUID_VME);
+    x86_cpu_compat_set_features("Haswell", FEAT_1_EDX, 0, CPUID_VME);
+    x86_cpu_compat_set_features("Broadwell", FEAT_1_EDX, 0, CPUID_VME);
+    x86_cpu_compat_set_features("Opteron_G1", FEAT_1_EDX, 0, CPUID_VME);
+    x86_cpu_compat_set_features("Opteron_G2", FEAT_1_EDX, 0, CPUID_VME);
+    x86_cpu_compat_set_features("Opteron_G3", FEAT_1_EDX, 0, CPUID_VME);
+    x86_cpu_compat_set_features("Opteron_G4", FEAT_1_EDX, 0, CPUID_VME);
+    x86_cpu_compat_set_features("Opteron_G5", FEAT_1_EDX, 0, CPUID_VME);
+    x86_cpu_compat_set_features("Haswell", FEAT_1_ECX, 0, CPUID_EXT_F16C);
+    x86_cpu_compat_set_features("Haswell", FEAT_1_ECX, 0, CPUID_EXT_RDRAND);
+    x86_cpu_compat_set_features("Broadwell", FEAT_1_ECX, 0, CPUID_EXT_F16C);
+    x86_cpu_compat_set_features("Broadwell", FEAT_1_ECX, 0, CPUID_EXT_RDRAND);
+}
+
 static void pc_compat_2_1(MachineState *machine)
 {
     PCMachineState *pcms = PC_MACHINE(machine);
+
+    pc_compat_2_2(machine);
     smbios_uuid_encoded = false;
     x86_cpu_compat_set_features("coreduo", FEAT_1_ECX, CPUID_EXT_VMX, 0);
     x86_cpu_compat_set_features("core2duo", FEAT_1_ECX, CPUID_EXT_VMX, 0);
@@ -383,6 +407,12 @@ static void pc_compat_1_2(MachineState *machine)
 {
     pc_compat_1_3(machine);
     x86_cpu_compat_kvm_no_autoenable(FEAT_KVM, KVM_FEATURE_PV_EOI);
+}
+
+static void pc_init_pci_2_2(MachineState *machine)
+{
+    pc_compat_2_2(machine);
+    pc_init_pci(machine);
 }
 
 static void pc_init_pci_2_1(MachineState *machine)
@@ -478,17 +508,25 @@ static void pc_xen_hvm_init(MachineState *machine)
     .desc = "Standard PC (i440FX + PIIX, 1996)", \
     .hot_add_cpu = pc_hot_add_cpu
 
-#define PC_I440FX_2_2_MACHINE_OPTIONS                           \
+#define PC_I440FX_2_3_MACHINE_OPTIONS                           \
     PC_I440FX_MACHINE_OPTIONS,                                  \
     .default_machine_opts = "firmware=bios-256k.bin",           \
     .default_display = "std"
 
-static QEMUMachine pc_i440fx_machine_v2_2 = {
-    PC_I440FX_2_2_MACHINE_OPTIONS,
-    .name = "pc-i440fx-2.2",
+static QEMUMachine pc_i440fx_machine_v2_3 = {
+    PC_I440FX_2_3_MACHINE_OPTIONS,
+    .name = "pc-i440fx-2.3",
     .alias = "pc",
     .init = pc_init_pci,
     .is_default = 1,
+};
+
+#define PC_I440FX_2_2_MACHINE_OPTIONS PC_I440FX_2_3_MACHINE_OPTIONS
+
+static QEMUMachine pc_i440fx_machine_v2_2 = {
+    PC_I440FX_2_2_MACHINE_OPTIONS,
+    .name = "pc-i440fx-2.2",
+    .init = pc_init_pci_2_2,
 };
 
 #define PC_I440FX_2_1_MACHINE_OPTIONS                           \
@@ -928,6 +966,7 @@ static QEMUMachine xenfv_machine = {
 
 static void pc_machine_init(void)
 {
+    qemu_register_pc_machine(&pc_i440fx_machine_v2_3);
     qemu_register_pc_machine(&pc_i440fx_machine_v2_2);
     qemu_register_pc_machine(&pc_i440fx_machine_v2_1);
     qemu_register_pc_machine(&pc_i440fx_machine_v2_0);

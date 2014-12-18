@@ -335,6 +335,8 @@ static void set_kernel_args_old(const struct arm_boot_info *info)
  * Returns: the size of the device tree image on success,
  *          0 if the image size exceeds the limit,
  *          -1 on errors.
+ *
+ * Note: Must not be called unless have_dtb(binfo) is true.
  */
 static int load_dtb(hwaddr addr, const struct arm_boot_info *binfo,
                     hwaddr addr_limit)
@@ -358,7 +360,7 @@ static int load_dtb(hwaddr addr, const struct arm_boot_info *binfo,
             goto fail;
         }
         g_free(filename);
-    } else if (binfo->get_dtb) {
+    } else {
         fdt = binfo->get_dtb(binfo, &size);
         if (!fdt) {
             fprintf(stderr, "Board was unable to create a dtb blob\n");

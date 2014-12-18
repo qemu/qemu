@@ -3,7 +3,6 @@
 #include "ui/qemu-spice.h"
 #include "sysemu/char.h"
 #include <spice.h>
-#include <spice-experimental.h>
 #include <spice/protocol.h>
 
 #include "qemu/osdep.h"

@@ -81,6 +81,7 @@ static bool has_msr_hv_hypercall;
 static bool has_msr_hv_vapic;
 static bool has_msr_hv_tsc;
 static bool has_msr_mtrr;
+static bool has_msr_xss;
 
 static bool has_msr_architectural_pmu;
 static uint32_t num_architectural_pmu_counters;
@@ -96,7 +97,7 @@ static struct kvm_cpuid2 *try_get_cpuid(KVMState *s, int max)
     int r, size;
 
     size = sizeof(*cpuid) + max * sizeof(*cpuid->entries);
-    cpuid = (struct kvm_cpuid2 *)g_malloc0(size);
+    cpuid = g_malloc0(size);
     cpuid->nent = max;
     r = kvm_ioctl(s, KVM_GET_SUPPORTED_CPUID, cpuid);
     if (r == 0 && cpuid->nent >= max) {
@@ -278,7 +279,7 @@ static void kvm_hwpoison_page_add(ram_addr_t ram_addr)
             return;
         }
     }
-    page = g_malloc(sizeof(HWPoisonPage));
+    page = g_new(HWPoisonPage, 1);
     page->ram_addr = ram_addr;
     QLIST_INSERT_HEAD(&hwpoison_page_list, page, list);
 }
@@ -829,6 +830,10 @@ static int kvm_get_supported_msrs(KVMState *s)
                     has_msr_bndcfgs = true;
                     continue;
                 }
+                if (kvm_msr_list->indices[i] == MSR_IA32_XSS) {
+                    has_msr_xss = true;
+                    continue;
+                }
             }
         }
 
@@ -1088,7 +1093,7 @@ static int kvm_put_xsave(X86CPU *cpu)
 static int kvm_put_xcrs(X86CPU *cpu)
 {
     CPUX86State *env = &cpu->env;
-    struct kvm_xcrs xcrs;
+    struct kvm_xcrs xcrs = {};
 
     if (!kvm_has_xcrs()) {
         return 0;
@@ -1155,6 +1160,7 @@ static void kvm_msr_entry_set(struct kvm_msr_entry *entry,
                               uint32_t index, uint64_t value)
 {
     entry->index = index;
+    entry->reserved = 0;
     entry->data = value;
 }
 
@@ -1173,7 +1179,9 @@ static int kvm_put_tscdeadline_msr(X86CPU *cpu)
 
     kvm_msr_entry_set(&msrs[0], MSR_IA32_TSCDEADLINE, env->tsc_deadline);
 
-    msr_data.info.nmsrs = 1;
+    msr_data.info = (struct kvm_msrs) {
+        .nmsrs = 1,
+    };
 
     return kvm_vcpu_ioctl(CPU(cpu), KVM_SET_MSRS, &msr_data);
 }
@@ -1193,7 +1201,11 @@ static int kvm_put_msr_feature_control(X86CPU *cpu)
 
     kvm_msr_entry_set(&msr_data.entry, MSR_IA32_FEATURE_CONTROL,
                       cpu->env.msr_ia32_feature_control);
-    msr_data.info.nmsrs = 1;
+
+    msr_data.info = (struct kvm_msrs) {
+        .nmsrs = 1,
+    };
+
     return kvm_vcpu_ioctl(CPU(cpu), KVM_SET_MSRS, &msr_data);
 }
 
@@ -1226,6 +1238,9 @@ static int kvm_put_msrs(X86CPU *cpu, int level)
     }
     if (has_msr_bndcfgs) {
         kvm_msr_entry_set(&msrs[n++], MSR_IA32_BNDCFGS, env->msr_bndcfgs);
+    }
+    if (has_msr_xss) {
+        kvm_msr_entry_set(&msrs[n++], MSR_IA32_XSS, env->xss);
     }
 #ifdef TARGET_X86_64
     if (lm_capable_kernel) {
@@ -1342,7 +1357,9 @@ static int kvm_put_msrs(X86CPU *cpu, int level)
         }
     }
 
-    msr_data.info.nmsrs = n;
+    msr_data.info = (struct kvm_msrs) {
+        .nmsrs = n,
+    };
 
     return kvm_vcpu_ioctl(CPU(cpu), KVM_SET_MSRS, &msr_data);
 
@@ -1573,6 +1590,10 @@ static int kvm_get_msrs(X86CPU *cpu)
     if (has_msr_bndcfgs) {
         msrs[n++].index = MSR_IA32_BNDCFGS;
     }
+    if (has_msr_xss) {
+        msrs[n++].index = MSR_IA32_XSS;
+    }
+
 
     if (!env->tsc_valid) {
         msrs[n++].index = MSR_IA32_TSC;
@@ -1649,7 +1670,10 @@ static int kvm_get_msrs(X86CPU *cpu)
         }
     }
 
-    msr_data.info.nmsrs = n;
+    msr_data.info = (struct kvm_msrs) {
+        .nmsrs = n,
+    };
+
     ret = kvm_vcpu_ioctl(CPU(cpu), KVM_GET_MSRS, &msr_data);
     if (ret < 0) {
         return ret;
@@ -1719,6 +1743,9 @@ static int kvm_get_msrs(X86CPU *cpu)
             break;
         case MSR_IA32_BNDCFGS:
             env->msr_bndcfgs = msrs[i].data;
+            break;
+        case MSR_IA32_XSS:
+            env->xss = msrs[i].data;
             break;
         default:
             if (msrs[i].index >= MSR_MC0_CTL &&
@@ -1875,7 +1902,7 @@ static int kvm_put_apic(X86CPU *cpu)
 static int kvm_put_vcpu_events(X86CPU *cpu, int level)
 {
     CPUX86State *env = &cpu->env;
-    struct kvm_vcpu_events events;
+    struct kvm_vcpu_events events = {};
 
     if (!kvm_has_vcpu_events()) {
         return 0;
@@ -2566,7 +2593,6 @@ void kvm_arch_init_irq_routing(KVMState *s)
      * irqchip, so we can use irqfds, and on x86 we know
      * we can use msi via irqfd and GSI routing.
      */
-    kvm_irqfds_allowed = true;
     kvm_msi_via_irqfd_allowed = true;
     kvm_gsi_routing_allowed = true;
 }

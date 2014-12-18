@@ -1,5 +1,5 @@
 QA output created by 077
-Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=134217728 
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=134217728
 
 == Some concurrent requests involving RMW ==
 wrote XXX/XXX bytes at offset XXX

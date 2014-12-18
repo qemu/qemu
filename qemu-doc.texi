@@ -699,7 +699,11 @@ Supported options:
 Specifies which VHDX subformat to use. Valid options are
 @code{dynamic} (default) and @code{fixed}.
 @item block_state_zero
-Force use of payload blocks of type 'ZERO'.
+Force use of payload blocks of type 'ZERO'.  Can be set to @code{on} (default)
+or @code{off}.  When set to @code{off}, new blocks will be created as
+@code{PAYLOAD_BLOCK_NOT_PRESENT}, which means parsers are free to return
+arbitrary data for those blocks.  Do not set to @code{off} when using
+@code{qemu-img convert} with @code{subformat=dynamic}.
 @item block_size
 Block size; min 1 MB, max 256 MB.  0 means auto-calculate based on image size.
 @item log_size

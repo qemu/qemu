@@ -224,21 +224,23 @@ static gboolean serial_xmit(GIOChannel *chan, GIOCondition cond, void *opaque)
     SerialState *s = opaque;
 
     do {
+        assert(!(s->lsr & UART_LSR_TEMT));
         if (s->tsr_retry <= 0) {
+            assert(!(s->lsr & UART_LSR_THRE));
+
             if (s->fcr & UART_FCR_FE) {
-                if (fifo8_is_empty(&s->xmit_fifo)) {
-                    return FALSE;
-                }
+                assert(!fifo8_is_empty(&s->xmit_fifo));
                 s->tsr = fifo8_pop(&s->xmit_fifo);
                 if (!s->xmit_fifo.num) {
                     s->lsr |= UART_LSR_THRE;
                 }
-            } else if ((s->lsr & UART_LSR_THRE)) {
-                return FALSE;
             } else {
                 s->tsr = s->thr;
                 s->lsr |= UART_LSR_THRE;
-                s->lsr &= ~UART_LSR_TEMT;
+            }
+            if ((s->lsr & UART_LSR_THRE) && !s->thr_ipending) {
+                s->thr_ipending = 1;
+                serial_update_irq(s);
             }
         }
 
@@ -256,17 +258,13 @@ static gboolean serial_xmit(GIOChannel *chan, GIOCondition cond, void *opaque)
         } else {
             s->tsr_retry = 0;
         }
+
         /* Transmit another byte if it is already available. It is only
            possible when FIFO is enabled and not empty. */
-    } while ((s->fcr & UART_FCR_FE) && !fifo8_is_empty(&s->xmit_fifo));
+    } while (!(s->lsr & UART_LSR_THRE));
 
     s->last_xmit_ts = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
-
-    if (s->lsr & UART_LSR_THRE) {
-        s->lsr |= UART_LSR_TEMT;
-        s->thr_ipending = 1;
-        serial_update_irq(s);
-    }
+    s->lsr |= UART_LSR_TEMT;
 
     return FALSE;
 }
@@ -327,10 +325,10 @@ static void serial_ioport_write(void *opaque, hwaddr addr, uint64_t val,
                     fifo8_pop(&s->xmit_fifo);
                 }
                 fifo8_push(&s->xmit_fifo, s->thr);
-                s->lsr &= ~UART_LSR_TEMT;
             }
             s->thr_ipending = 0;
             s->lsr &= ~UART_LSR_THRE;
+            s->lsr &= ~UART_LSR_TEMT;
             serial_update_irq(s);
             if (s->tsr_retry <= 0) {
                 serial_xmit(NULL, G_IO_OUT, s);
@@ -342,10 +340,12 @@ static void serial_ioport_write(void *opaque, hwaddr addr, uint64_t val,
             s->divider = (s->divider & 0x00ff) | (val << 8);
             serial_update_parameters(s);
         } else {
+            uint8_t changed = (s->ier ^ val) & 0x0f;
             s->ier = val & 0x0f;
             /* If the backend device is a real serial port, turn polling of the modem
-               status lines on physical port on or off depending on UART_IER_MSI state */
-            if (s->poll_msl >= 0) {
+             * status lines on physical port on or off depending on UART_IER_MSI state.
+             */
+            if ((changed & UART_IER_MSI) && s->poll_msl >= 0) {
                 if (s->ier & UART_IER_MSI) {
                      s->poll_msl = 1;
                      serial_update_msl(s);
@@ -354,8 +354,27 @@ static void serial_ioport_write(void *opaque, hwaddr addr, uint64_t val,
                      s->poll_msl = 0;
                 }
             }
-            if (s->lsr & UART_LSR_THRE) {
-                s->thr_ipending = 1;
+
+            /* Turning on the THRE interrupt on IER can trigger the interrupt
+             * if LSR.THRE=1, even if it had been masked before by reading IIR.
+             * This is not in the datasheet, but Windows relies on it.  It is
+             * unclear if THRE has to be resampled every time THRI becomes
+             * 1, or only on the rising edge.  Bochs does the latter, and Windows
+             * always toggles IER to all zeroes and back to all ones, so do the
+             * same.
+             *
+             * If IER.THRI is zero, thr_ipending is not used.  Set it to zero
+             * so that the thr_ipending subsection is not migrated.
+             */
+            if (changed & UART_IER_THRI) {
+                if ((s->ier & UART_IER_THRI) && (s->lsr & UART_LSR_THRE)) {
+                    s->thr_ipending = 1;
+                } else {
+                    s->thr_ipending = 0;
+                }
+            }
+
+            if (changed) {
                 serial_update_irq(s);
             }
         }
@@ -369,12 +388,15 @@ static void serial_ioport_write(void *opaque, hwaddr addr, uint64_t val,
         /* FIFO clear */
 
         if (val & UART_FCR_RFR) {
+            s->lsr &= ~(UART_LSR_DR | UART_LSR_BI);
             timer_del(s->fifo_timeout_timer);
             s->timeout_ipending = 0;
             fifo8_reset(&s->recv_fifo);
         }
 
         if (val & UART_FCR_XFR) {
+            s->lsr |= UART_LSR_THRE;
+            s->thr_ipending = 1;
             fifo8_reset(&s->xmit_fifo);
         }
 

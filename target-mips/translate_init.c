@@ -334,7 +334,7 @@ static const mips_def_t mips_defs[] =
                        (1 << CP0C1_CA),
         .CP0_Config2 = MIPS_CONFIG2,
         .CP0_Config3 = MIPS_CONFIG3 | (1 << CP0C3_DSP2P) | (1 << CP0C3_DSPP) |
-                       (0 << CP0C3_VInt),
+                       (1 << CP0C3_VInt),
         .CP0_LLAddr_rw_bitmask = 0,
         .CP0_LLAddr_shift = 4,
         .SYNCI_Step = 32,
@@ -345,6 +345,47 @@ static const mips_def_t mips_defs[] =
         .SEGBITS = 32,
         .PABITS = 32,
         .insn_flags = CPU_MIPS32R2 | ASE_MIPS16 | ASE_DSP | ASE_DSPR2,
+        .mmu_type = MMU_TYPE_R4000,
+    },
+    {
+        .name = "M14K",
+        .CP0_PRid = 0x00019b00,
+        /* Config1 implemented, fixed mapping MMU,
+           no virtual icache, uncached coherency. */
+        .CP0_Config0 = MIPS_CONFIG0 | (0x2 << CP0C0_KU) | (0x2 << CP0C0_K23) |
+                       (0x1 << CP0C0_AR) | (MMU_TYPE_FMT << CP0C0_MT),
+        .CP0_Config1 = MIPS_CONFIG1,
+        .CP0_Config2 = MIPS_CONFIG2,
+        .CP0_Config3 = MIPS_CONFIG3 | (0x2 << CP0C3_ISA) | (1 << CP0C3_VInt),
+        .CP0_LLAddr_rw_bitmask = 0,
+        .CP0_LLAddr_shift = 4,
+        .SYNCI_Step = 32,
+        .CCRes = 2,
+        .CP0_Status_rw_bitmask = 0x1258FF17,
+        .SEGBITS = 32,
+        .PABITS = 32,
+        .insn_flags = CPU_MIPS32R2 | ASE_MICROMIPS,
+        .mmu_type = MMU_TYPE_FMT,
+    },
+    {
+        .name = "M14Kc",
+        /* This is the TLB-based MMU core.  */
+        .CP0_PRid = 0x00019c00,
+        .CP0_Config0 = MIPS_CONFIG0 | (0x1 << CP0C0_AR) |
+                       (MMU_TYPE_R4000 << CP0C0_MT),
+        .CP0_Config1 = MIPS_CONFIG1 | (15 << CP0C1_MMU) |
+                       (0 << CP0C1_IS) | (3 << CP0C1_IL) | (1 << CP0C1_IA) |
+                       (0 << CP0C1_DS) | (3 << CP0C1_DL) | (1 << CP0C1_DA),
+        .CP0_Config2 = MIPS_CONFIG2,
+        .CP0_Config3 = MIPS_CONFIG3 | (0x2 << CP0C3_ISA) | (0 << CP0C3_VInt),
+        .CP0_LLAddr_rw_bitmask = 0,
+        .CP0_LLAddr_shift = 4,
+        .SYNCI_Step = 32,
+        .CCRes = 2,
+        .CP0_Status_rw_bitmask = 0x1278FF17,
+        .SEGBITS = 32,
+        .PABITS = 32,
+        .insn_flags = CPU_MIPS32R2 | ASE_MICROMIPS,
         .mmu_type = MMU_TYPE_R4000,
     },
     {
@@ -520,6 +561,51 @@ static const mips_def_t mips_defs[] =
         .mmu_type = MMU_TYPE_R4000,
     },
     {
+        .name = "5KEc",
+        .CP0_PRid = 0x00018900,
+        .CP0_Config0 = MIPS_CONFIG0 | (0x1 << CP0C0_AR) | (0x2 << CP0C0_AT) |
+                       (MMU_TYPE_R4000 << CP0C0_MT),
+        .CP0_Config1 = MIPS_CONFIG1 | (31 << CP0C1_MMU) |
+                       (1 << CP0C1_IS) | (4 << CP0C1_IL) | (1 << CP0C1_IA) |
+                       (1 << CP0C1_DS) | (4 << CP0C1_DL) | (1 << CP0C1_DA) |
+                       (1 << CP0C1_PC) | (1 << CP0C1_WR) | (1 << CP0C1_EP),
+        .CP0_Config2 = MIPS_CONFIG2,
+        .CP0_Config3 = MIPS_CONFIG3,
+        .CP0_LLAddr_rw_bitmask = 0,
+        .CP0_LLAddr_shift = 4,
+        .SYNCI_Step = 32,
+        .CCRes = 2,
+        .CP0_Status_rw_bitmask = 0x32F8FFFF,
+        .SEGBITS = 42,
+        .PABITS = 36,
+        .insn_flags = CPU_MIPS64R2,
+        .mmu_type = MMU_TYPE_R4000,
+    },
+    {
+        .name = "5KEf",
+        .CP0_PRid = 0x00018900,
+        .CP0_Config0 = MIPS_CONFIG0 | (0x1 << CP0C0_AR) | (0x2 << CP0C0_AT) |
+                       (MMU_TYPE_R4000 << CP0C0_MT),
+        .CP0_Config1 = MIPS_CONFIG1 | (1 << CP0C1_FP) | (31 << CP0C1_MMU) |
+                       (1 << CP0C1_IS) | (4 << CP0C1_IL) | (1 << CP0C1_IA) |
+                       (1 << CP0C1_DS) | (4 << CP0C1_DL) | (1 << CP0C1_DA) |
+                       (1 << CP0C1_PC) | (1 << CP0C1_WR) | (1 << CP0C1_EP),
+        .CP0_Config2 = MIPS_CONFIG2,
+        .CP0_Config3 = MIPS_CONFIG3,
+        .CP0_LLAddr_rw_bitmask = 0,
+        .CP0_LLAddr_shift = 4,
+        .SYNCI_Step = 32,
+        .CCRes = 2,
+        .CP0_Status_rw_bitmask = 0x36F8FFFF,
+        .CP1_fcr0 = (1 << FCR0_F64) | (1 << FCR0_L) | (1 << FCR0_W) |
+                    (1 << FCR0_D) | (1 << FCR0_S) |
+                    (0x89 << FCR0_PRID) | (0x0 << FCR0_REV),
+        .SEGBITS = 42,
+        .PABITS = 36,
+        .insn_flags = CPU_MIPS64R2,
+        .mmu_type = MMU_TYPE_R4000,
+    },
+    {
         /* A generic CPU supporting MIPS64 Release 6 ISA.
            FIXME: Support IEEE 754-2008 FP and misaligned memory accesses.
                   Eventually this should be replaced by a real CPU model. */
@@ -559,10 +645,11 @@ static const mips_def_t mips_defs[] =
     {
         .name = "Loongson-2E",
         .CP0_PRid = 0x6302,
-        /*64KB I-cache and d-cache. 4 way with 32 bit cache line size*/
-        .CP0_Config0 = (0x1<<17) | (0x1<<16) | (0x1<<11) | (0x1<<8) | (0x1<<5) |
-                       (0x1<<4) | (0x1<<1),
-        /* Note: Config1 is only used internally, Loongson-2E has only Config0. */
+        /* 64KB I-cache and d-cache. 4 way with 32 bit cache line size.  */
+        .CP0_Config0 = (0x1<<17) | (0x1<<16) | (0x1<<11) | (0x1<<8) |
+                       (0x1<<5) | (0x1<<4) | (0x1<<1),
+        /* Note: Config1 is only used internally,
+           Loongson-2E has only Config0.  */
         .CP0_Config1 = (1 << CP0C1_FP) | (47 << CP0C1_MMU),
         .SYNCI_Step = 16,
         .CCRes = 2,
@@ -574,21 +661,22 @@ static const mips_def_t mips_defs[] =
         .mmu_type = MMU_TYPE_R4000,
     },
     {
-      .name = "Loongson-2F",
-      .CP0_PRid = 0x6303,
-      /*64KB I-cache and d-cache. 4 way with 32 bit cache line size*/
-      .CP0_Config0 = (0x1<<17) | (0x1<<16) | (0x1<<11) | (0x1<<8) | (0x1<<5) |
-                     (0x1<<4) | (0x1<<1),
-      /* Note: Config1 is only used internally, Loongson-2F has only Config0. */
-      .CP0_Config1 = (1 << CP0C1_FP) | (47 << CP0C1_MMU),
-      .SYNCI_Step = 16,
-      .CCRes = 2,
-      .CP0_Status_rw_bitmask = 0xF5D0FF1F,   /*bit5:7 not writable*/
-      .CP1_fcr0 = (0x5 << FCR0_PRID) | (0x1 << FCR0_REV),
-      .SEGBITS = 40,
-      .PABITS = 40,
-      .insn_flags = CPU_LOONGSON2F,
-      .mmu_type = MMU_TYPE_R4000,
+        .name = "Loongson-2F",
+        .CP0_PRid = 0x6303,
+        /* 64KB I-cache and d-cache. 4 way with 32 bit cache line size.  */
+        .CP0_Config0 = (0x1<<17) | (0x1<<16) | (0x1<<11) | (0x1<<8) |
+                       (0x1<<5) | (0x1<<4) | (0x1<<1),
+        /* Note: Config1 is only used internally,
+           Loongson-2F has only Config0.  */
+        .CP0_Config1 = (1 << CP0C1_FP) | (47 << CP0C1_MMU),
+        .SYNCI_Step = 16,
+        .CCRes = 2,
+        .CP0_Status_rw_bitmask = 0xF5D0FF1F,   /* Bits 7:5 not writable.  */
+        .CP1_fcr0 = (0x5 << FCR0_PRID) | (0x1 << FCR0_REV),
+        .SEGBITS = 40,
+        .PABITS = 40,
+        .insn_flags = CPU_LOONGSON2F,
+        .mmu_type = MMU_TYPE_R4000,
     },
     {
         /* A generic CPU providing MIPS64 ASE DSP 2 features.

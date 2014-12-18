@@ -3511,6 +3511,7 @@ struct mips_cp0sel_name
   const char * const name;
 };
 
+#if 0
 /* The mips16 registers.  */
 static const unsigned int mips16_to_32_reg_map[] =
 {
@@ -3518,7 +3519,7 @@ static const unsigned int mips16_to_32_reg_map[] =
 };
 
 #define mips16_reg_names(rn)	mips_gpr_names[mips16_to_32_reg_map[rn]]
-
+#endif
 
 static const char * const mips_gpr_names_numeric[32] =
 {
@@ -3796,13 +3797,6 @@ static const char * const mips_hwr_names_mips3264r2[32] =
 {
   "hwr_cpunum",   "hwr_synci_step", "hwr_cc",     "hwr_ccres",
   "$4",          "$5",            "$6",           "$7",
-  "$8",   "$9",   "$10",  "$11",  "$12",  "$13",  "$14",  "$15",
-  "$16",  "$17",  "$18",  "$19",  "$20",  "$21",  "$22",  "$23",
-  "$24",  "$25",  "$26",  "$27",  "$28",  "$29",  "$30",  "$31"
-};
-
-static const char * const mips_msa_control_names_numeric[32] = {
-  "$0",   "$1",   "$2",   "$3",   "$4",   "$5",   "$6",   "$7",
   "$8",   "$9",   "$10",  "$11",  "$12",  "$13",  "$14",  "$15",
   "$16",  "$17",  "$18",  "$19",  "$20",  "$21",  "$22",  "$23",
   "$24",  "$25",  "$26",  "$27",  "$28",  "$29",  "$30",  "$31"

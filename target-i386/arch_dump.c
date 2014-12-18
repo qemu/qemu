@@ -78,9 +78,7 @@ static int x86_64_write_elf64_note(WriteCoreDumpFunction f,
     descsz = sizeof(x86_64_elf_prstatus);
     note_size = ((sizeof(Elf64_Nhdr) + 3) / 4 + (name_size + 3) / 4 +
                 (descsz + 3) / 4) * 4;
-    note = g_malloc(note_size);
-
-    memset(note, 0, note_size);
+    note = g_malloc0(note_size);
     note->n_namesz = cpu_to_le32(name_size);
     note->n_descsz = cpu_to_le32(descsz);
     note->n_type = cpu_to_le32(NT_PRSTATUS);
@@ -159,9 +157,7 @@ static int x86_write_elf64_note(WriteCoreDumpFunction f, CPUX86State *env,
     descsz = sizeof(x86_elf_prstatus);
     note_size = ((sizeof(Elf64_Nhdr) + 3) / 4 + (name_size + 3) / 4 +
                 (descsz + 3) / 4) * 4;
-    note = g_malloc(note_size);
-
-    memset(note, 0, note_size);
+    note = g_malloc0(note_size);
     note->n_namesz = cpu_to_le32(name_size);
     note->n_descsz = cpu_to_le32(descsz);
     note->n_type = cpu_to_le32(NT_PRSTATUS);
@@ -216,9 +212,7 @@ int x86_cpu_write_elf32_note(WriteCoreDumpFunction f, CPUState *cs,
     descsz = sizeof(x86_elf_prstatus);
     note_size = ((sizeof(Elf32_Nhdr) + 3) / 4 + (name_size + 3) / 4 +
                 (descsz + 3) / 4) * 4;
-    note = g_malloc(note_size);
-
-    memset(note, 0, note_size);
+    note = g_malloc0(note_size);
     note->n_namesz = cpu_to_le32(name_size);
     note->n_descsz = cpu_to_le32(descsz);
     note->n_type = cpu_to_le32(NT_PRSTATUS);
@@ -345,9 +339,7 @@ static inline int cpu_write_qemu_note(WriteCoreDumpFunction f,
     }
     note_size = ((note_head_size + 3) / 4 + (name_size + 3) / 4 +
                 (descsz + 3) / 4) * 4;
-    note = g_malloc(note_size);
-
-    memset(note, 0, note_size);
+    note = g_malloc0(note_size);
     if (type == 0) {
         note32 = note;
         note32->n_namesz = cpu_to_le32(name_size);

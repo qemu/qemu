@@ -3829,9 +3829,7 @@ void qemu_chr_delete(CharDriverState *chr)
     }
     g_free(chr->filename);
     g_free(chr->label);
-    if (chr->opts) {
-        qemu_opts_del(chr->opts);
-    }
+    qemu_opts_del(chr->opts);
     g_free(chr);
 }
 

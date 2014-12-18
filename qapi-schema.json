@@ -1533,7 +1533,7 @@
 #
 # Change the VNC server password.
 #
-# @target:  the new password to use with VNC authentication
+# @password:  the new password to use with VNC authentication
 #
 # Since: 1.1
 #

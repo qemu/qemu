@@ -204,9 +204,7 @@ static void old_pc_system_rom_init(MemoryRegion *rom_memory, bool isapc_ram_fw)
         fprintf(stderr, "qemu: could not load PC BIOS '%s'\n", bios_name);
         exit(1);
     }
-    if (filename) {
-        g_free(filename);
-    }
+    g_free(filename);
 
     /* map the last 128KB of the BIOS in ISA space */
     isa_bios_size = bios_size;

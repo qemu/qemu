@@ -696,6 +696,14 @@ M: Amit Shah <amit.shah@redhat.com>
 S: Supported
 F: hw/char/virtio-serial-bus.c
 F: hw/char/virtio-console.c
+F: include/hw/virtio/virtio-serial.h
+
+virtio-rng
+M: Amit Shah <amit.shah@redhat.com>
+S: Supported
+F: hw/virtio/virtio-rng.c
+F: include/hw/virtio/virtio-rng.h
+F: backends/rng*.c
 
 nvme
 M: Keith Busch <keith.busch@intel.com>
@@ -928,12 +936,14 @@ F: scripts/checkpatch.pl
 
 Migration
 M: Juan Quintela <quintela@redhat.com>
+M: Amit Shah <amit.shah@redhat.com>
 S: Maintained
 F: include/migration/
-F: migration*
+F: migration/
 F: savevm.c
 F: arch_init.c
-F: vmstate.c
+F: scripts/vmstate-static-checker.py
+F: tests/vmstate-static-checker-data/
 
 Seccomp
 M: Eduardo Otubo <eduardo.otubo@profitbricks.com>

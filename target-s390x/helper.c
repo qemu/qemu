@@ -461,8 +461,8 @@ int s390_cpu_handle_mmu_fault(CPUState *cs, vaddr orig_vaddr,
         return 1;
     }
 
-    DPRINTF("%s: set tlb %" PRIx64 " -> %" PRIx64 " (%x)\n", __func__,
-            (uint64_t)vaddr, (uint64_t)raddr, prot);
+    qemu_log_mask(CPU_LOG_MMU, "%s: set tlb %" PRIx64 " -> %" PRIx64 " (%x)\n",
+            __func__, (uint64_t)vaddr, (uint64_t)raddr, prot);
 
     tlb_set_page(cs, orig_vaddr, raddr, prot,
                  mmu_idx, TARGET_PAGE_SIZE);
@@ -648,7 +648,7 @@ static void do_ext_interrupt(CPUS390XState *env)
         cpu_abort(CPU(cpu), "Ext int w/o ext mask\n");
     }
 
-    if (env->ext_index < 0 || env->ext_index > MAX_EXT_QUEUE) {
+    if (env->ext_index < 0 || env->ext_index >= MAX_EXT_QUEUE) {
         cpu_abort(CPU(cpu), "Ext queue overrun: %d\n", env->ext_index);
     }
 
@@ -696,7 +696,7 @@ static void do_io_interrupt(CPUS390XState *env)
         if (env->io_index[isc] < 0) {
             continue;
         }
-        if (env->io_index[isc] > MAX_IO_QUEUE) {
+        if (env->io_index[isc] >= MAX_IO_QUEUE) {
             cpu_abort(CPU(cpu), "I/O queue overrun for isc %d: %d\n",
                       isc, env->io_index[isc]);
         }
@@ -754,7 +754,7 @@ static void do_mchk_interrupt(CPUS390XState *env)
         cpu_abort(CPU(cpu), "Machine check w/o mchk mask\n");
     }
 
-    if (env->mchk_index < 0 || env->mchk_index > MAX_MCHK_QUEUE) {
+    if (env->mchk_index < 0 || env->mchk_index >= MAX_MCHK_QUEUE) {
         cpu_abort(CPU(cpu), "Mchk queue overrun: %d\n", env->mchk_index);
     }
 

@@ -28,6 +28,9 @@
 #define TARGET_LONG_BITS 32
 #endif
 
+/* Maximum instruction code size */
+#define TARGET_MAX_INSN_SIZE 16
+
 /* target supports implicit self modifying code */
 #define TARGET_HAS_SMC
 /* support for self modifying code even if the modified instruction is
@@ -389,6 +392,7 @@
 #define MSR_VM_HSAVE_PA                 0xc0010117
 
 #define MSR_IA32_BNDCFGS                0x00000d90
+#define MSR_IA32_XSS                    0x00000da0
 
 #define XSTATE_FP                       (1ULL << 0)
 #define XSTATE_SSE                      (1ULL << 1)
@@ -411,6 +415,7 @@ typedef enum FeatureWord {
     FEAT_C000_0001_EDX, /* CPUID[C000_0001].EDX */
     FEAT_KVM,           /* CPUID[4000_0001].EAX (KVM_CPUID_FEATURES) */
     FEAT_SVM,           /* CPUID[8000_000A].EDX */
+    FEAT_XSAVE,         /* CPUID[EAX=0xd,ECX=1].EAX */
     FEATURE_WORDS,
 } FeatureWord;
 
@@ -570,6 +575,11 @@ typedef uint32_t FeatureWordArray[FEATURE_WORDS];
 #define CPUID_7_0_EBX_AVX512PF (1U << 26) /* AVX-512 Prefetch */
 #define CPUID_7_0_EBX_AVX512ER (1U << 27) /* AVX-512 Exponential and Reciprocal */
 #define CPUID_7_0_EBX_AVX512CD (1U << 28) /* AVX-512 Conflict Detection */
+
+#define CPUID_XSAVE_XSAVEOPT   (1U << 0)
+#define CPUID_XSAVE_XSAVEC     (1U << 1)
+#define CPUID_XSAVE_XGETBV1    (1U << 2)
+#define CPUID_XSAVE_XSAVES     (1U << 3)
 
 /* CPUID[0x80000007].EDX flags: */
 #define CPUID_APM_INVTSC       (1U << 8)
@@ -1021,6 +1031,7 @@ typedef struct CPUX86State {
     uint64_t xstate_bv;
 
     uint64_t xcr0;
+    uint64_t xss;
 
     TPRAccess tpr_access_type;
 } CPUX86State;

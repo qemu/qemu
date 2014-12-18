@@ -1,7 +1,7 @@
 QA output created by 011
 
 creating image
-Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=6442450944 
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=6442450944
 
 overlapping I/O
 wrote 1048576/1048576 bytes at offset XXX

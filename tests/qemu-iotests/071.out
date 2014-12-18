@@ -2,8 +2,8 @@ QA output created by 071
 
 === Testing blkverify through filename ===
 
-Formatting 'TEST_DIR/t.IMGFMT.base', fmt=IMGFMT size=67108864 
-Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864 
+Formatting 'TEST_DIR/t.IMGFMT.base', fmt=IMGFMT size=67108864
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864
 read 512/512 bytes at offset 0
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 wrote 512/512 bytes at offset 229376
@@ -16,8 +16,8 @@ blkverify: read sector_num=0 nb_sectors=1 contents mismatch in sector 0
 
 === Testing blkverify through file blockref ===
 
-Formatting 'TEST_DIR/t.IMGFMT.base', fmt=IMGFMT size=67108864 
-Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864 
+Formatting 'TEST_DIR/t.IMGFMT.base', fmt=IMGFMT size=67108864
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864
 read 512/512 bytes at offset 0
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 wrote 512/512 bytes at offset 229376

@@ -1,9 +1,9 @@
 QA output created by 081
 
 == creating quorum files ==
-Formatting 'TEST_DIR/1.IMGFMT', fmt=IMGFMT size=10485760 
-Formatting 'TEST_DIR/2.IMGFMT', fmt=IMGFMT size=10485760 
-Formatting 'TEST_DIR/3.IMGFMT', fmt=IMGFMT size=10485760 
+Formatting 'TEST_DIR/1.IMGFMT', fmt=IMGFMT size=10485760
+Formatting 'TEST_DIR/2.IMGFMT', fmt=IMGFMT size=10485760
+Formatting 'TEST_DIR/3.IMGFMT', fmt=IMGFMT size=10485760
 
 == writing images ==
 wrote 10485760/10485760 bytes at offset 0

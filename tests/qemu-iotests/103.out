@@ -1,5 +1,5 @@
 QA output created by 103
-Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=65536 
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=65536
 wrote 65536/65536 bytes at offset 0
 64 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 

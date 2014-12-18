@@ -2,7 +2,7 @@ QA output created by 061
 
 === Testing version downgrade with zero expansion ===
 
-Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864 
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864
 wrote 131072/131072 bytes at offset 0
 128 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 magic                     0x514649fb
@@ -54,7 +54,7 @@ No errors were found on the image.
 
 === Testing dirty version downgrade ===
 
-Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864 
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864
 wrote 131072/131072 bytes at offset 0
 128 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 magic                     0x514649fb
@@ -111,7 +111,7 @@ No errors were found on the image.
 
 === Testing version downgrade with unknown compat/autoclear flags ===
 
-Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864 
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864
 magic                     0x514649fb
 version                   3
 backing_file_offset       0x0
@@ -159,7 +159,7 @@ No errors were found on the image.
 
 === Testing version upgrade and resize ===
 
-Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864 
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864
 wrote 65536/65536 bytes at offset 44040192
 64 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 magic                     0x514649fb
@@ -211,7 +211,7 @@ No errors were found on the image.
 
 === Testing dirty lazy_refcounts=off ===
 
-Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864 
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864
 wrote 131072/131072 bytes at offset 0
 128 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 magic                     0x514649fb
@@ -268,8 +268,8 @@ No errors were found on the image.
 
 === Testing backing file ===
 
-Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864 
-Formatting 'TEST_DIR/t.IMGFMT.base', fmt=IMGFMT size=67108864 
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864
+Formatting 'TEST_DIR/t.IMGFMT.base', fmt=IMGFMT size=67108864
 wrote 131072/131072 bytes at offset 0
 128 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 read 131072/131072 bytes at offset 0
@@ -280,7 +280,7 @@ No errors were found on the image.
 
 === Testing invalid configurations ===
 
-Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864 
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864
 Lazy refcounts only supported with compatibility level 1.1 and above (use compat=1.1 or greater)
 qemu-img: Error while amending options: Invalid argument
 Lazy refcounts only supported with compatibility level 1.1 and above (use compat=1.1 or greater)
@@ -298,7 +298,7 @@ qemu-img: Error while amending options: Operation not supported
 
 === Testing correct handling of unset value ===
 
-Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864 
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864
 Should work:
 Should not work:
 Changing the cluster size is not supported.
@@ -306,7 +306,7 @@ qemu-img: Error while amending options: Operation not supported
 
 === Testing zero expansion on inactive clusters ===
 
-Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864 
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864
 wrote 131072/131072 bytes at offset 0
 128 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 wrote 131072/131072 bytes at offset 0
@@ -320,7 +320,7 @@ read 131072/131072 bytes at offset 0
 
 === Testing zero expansion on shared L2 table ===
 
-Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864 
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864
 wrote 131072/131072 bytes at offset 0
 128 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 No errors were found on the image.
@@ -332,10 +332,10 @@ read 131072/131072 bytes at offset 0
 
 === Testing zero expansion on backed image ===
 
-Formatting 'TEST_DIR/t.IMGFMT.base', fmt=IMGFMT size=67108864 
+Formatting 'TEST_DIR/t.IMGFMT.base', fmt=IMGFMT size=67108864
 wrote 131072/131072 bytes at offset 0
 128 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864 backing_file='TEST_DIR/t.IMGFMT.base' 
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864 backing_file='TEST_DIR/t.IMGFMT.base'
 read 131072/131072 bytes at offset 0
 128 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 wrote 65536/65536 bytes at offset 0
@@ -348,10 +348,10 @@ read 65536/65536 bytes at offset 65536
 
 === Testing zero expansion on backed inactive clusters ===
 
-Formatting 'TEST_DIR/t.IMGFMT.base', fmt=IMGFMT size=67108864 
+Formatting 'TEST_DIR/t.IMGFMT.base', fmt=IMGFMT size=67108864
 wrote 131072/131072 bytes at offset 0
 128 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864 backing_file='TEST_DIR/t.IMGFMT.base' 
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864 backing_file='TEST_DIR/t.IMGFMT.base'
 wrote 65536/65536 bytes at offset 0
 64 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 wrote 131072/131072 bytes at offset 0
@@ -367,10 +367,10 @@ read 65536/65536 bytes at offset 65536
 
 === Testing zero expansion on backed image with shared L2 table ===
 
-Formatting 'TEST_DIR/t.IMGFMT.base', fmt=IMGFMT size=67108864 
+Formatting 'TEST_DIR/t.IMGFMT.base', fmt=IMGFMT size=67108864
 wrote 131072/131072 bytes at offset 0
 128 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864 backing_file='TEST_DIR/t.IMGFMT.base' 
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864 backing_file='TEST_DIR/t.IMGFMT.base'
 wrote 131072/131072 bytes at offset 0
 128 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 No errors were found on the image.
@@ -382,7 +382,7 @@ read 131072/131072 bytes at offset 0
 
 === Testing preallocated zero expansion on full image ===
 
-Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864 
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864
 wrote 67108864/67108864 bytes at offset 0
 64 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 wrote 67108864/67108864 bytes at offset 0
@@ -393,8 +393,8 @@ read 67108864/67108864 bytes at offset 0
 
 === Testing progress report without snapshot ===
 
-Formatting 'TEST_DIR/t.IMGFMT.base', fmt=IMGFMT size=4294967296 
-Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=4294967296 backing_file='TEST_DIR/t.IMGFMT.base' 
+Formatting 'TEST_DIR/t.IMGFMT.base', fmt=IMGFMT size=4294967296
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=4294967296 backing_file='TEST_DIR/t.IMGFMT.base'
 wrote 65536/65536 bytes at offset 0
 64 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 wrote 65536/65536 bytes at offset 1073741824
@@ -408,8 +408,8 @@ No errors were found on the image.
 
 === Testing progress report with snapshot ===
 
-Formatting 'TEST_DIR/t.IMGFMT.base', fmt=IMGFMT size=4294967296 
-Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=4294967296 backing_file='TEST_DIR/t.IMGFMT.base' 
+Formatting 'TEST_DIR/t.IMGFMT.base', fmt=IMGFMT size=4294967296
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=4294967296 backing_file='TEST_DIR/t.IMGFMT.base'
 wrote 65536/65536 bytes at offset 0
 64 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 wrote 65536/65536 bytes at offset 1073741824

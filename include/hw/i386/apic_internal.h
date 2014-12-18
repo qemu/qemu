@@ -89,6 +89,7 @@ typedef struct APICCommonClass
     void (*external_nmi)(APICCommonState *s);
     void (*pre_save)(APICCommonState *s);
     void (*post_load)(APICCommonState *s);
+    void (*reset)(APICCommonState *s);
 } APICCommonClass;
 
 struct APICCommonState {

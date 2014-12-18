@@ -1,7 +1,7 @@
 QA output created by 100
 
 == Single request ==
-Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=134217728 
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=134217728
 wrote 4096/4096 bytes at offset 0
 4 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 
@@ -12,7 +12,7 @@ read 4096/4096 bytes at offset 4096
 4 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 
 == Sequential requests ==
-Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=134217728 
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=134217728
 wrote 8192/8192 bytes at offset 0
 8 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 
@@ -25,7 +25,7 @@ read 4096/4096 bytes at offset 8192
 4 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 
 == Superset overlapping requests ==
-Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=134217728 
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=134217728
 wrote 6144/6144 bytes at offset 0
 6 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 
@@ -38,7 +38,7 @@ read 4096/4096 bytes at offset 4096
 4 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 
 == Subset overlapping requests ==
-Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=134217728 
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=134217728
 wrote 6144/6144 bytes at offset 1024
 6 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 
@@ -51,7 +51,7 @@ read 4096/4096 bytes at offset 4096
 4 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 
 == Head overlapping requests ==
-Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=134217728 
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=134217728
 wrote 6144/6144 bytes at offset 0
 6 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 
@@ -62,7 +62,7 @@ read 4096/4096 bytes at offset 4096
 4 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 
 == Tail overlapping requests ==
-Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=134217728 
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=134217728
 wrote 6144/6144 bytes at offset 2048
 6 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 
@@ -73,7 +73,7 @@ read 4096/4096 bytes at offset 4096
 4 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 
 == Disjoint requests ==
-Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=134217728 
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=134217728
 wrote 8192/8192 bytes at offset 0
 8 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 

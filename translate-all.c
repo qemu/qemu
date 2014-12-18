@@ -264,6 +264,12 @@ bool cpu_restore_state(CPUState *cpu, uintptr_t retaddr)
     tb = tb_find_pc(retaddr);
     if (tb) {
         cpu_restore_state_from_tb(cpu, tb, retaddr);
+        if (tb->cflags & CF_NOCACHE) {
+            /* one-shot translation, invalidate it immediately */
+            cpu->current_tb = NULL;
+            tb_phys_invalidate(tb, -1);
+            tb_free(tb);
+        }
         return true;
     }
     return false;
@@ -1542,7 +1548,7 @@ void cpu_io_recompile(CPUState *cpu, uintptr_t retaddr)
        branch.  */
 #if defined(TARGET_MIPS)
     if ((env->hflags & MIPS_HFLAG_BMASK) != 0 && n > 1) {
-        env->active_tc.PC -= 4;
+        env->active_tc.PC -= (env->hflags & MIPS_HFLAG_B16 ? 2 : 4);
         cpu->icount_decr.u16.low++;
         env->hflags &= ~MIPS_HFLAG_BMASK;
     }
@@ -1651,6 +1657,11 @@ void dump_exec_info(FILE *f, fprintf_function cpu_fprintf)
             tcg_ctx.tb_ctx.tb_phys_invalidate_count);
     cpu_fprintf(f, "TLB flush count     %d\n", tlb_flush_count);
     tcg_dump_info(f, cpu_fprintf);
+}
+
+void dump_opcount_info(FILE *f, fprintf_function cpu_fprintf)
+{
+    tcg_dump_op_count(f, cpu_fprintf);
 }
 
 #else /* CONFIG_USER_ONLY */

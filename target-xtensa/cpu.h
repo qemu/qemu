@@ -497,6 +497,8 @@ static inline int cpu_mmu_index(CPUXtensaState *env)
 #define XTENSA_TBFLAG_CPENABLE_MASK 0x3fc0
 #define XTENSA_TBFLAG_CPENABLE_SHIFT 6
 #define XTENSA_TBFLAG_EXCEPTION 0x4000
+#define XTENSA_TBFLAG_WINDOW_MASK 0x18000
+#define XTENSA_TBFLAG_WINDOW_SHIFT 15
 
 static inline void cpu_get_tb_cpu_state(CPUXtensaState *env, target_ulong *pc,
         target_ulong *cs_base, int *flags)
@@ -527,6 +529,16 @@ static inline void cpu_get_tb_cpu_state(CPUXtensaState *env, target_ulong *pc,
     }
     if (cs->singlestep_enabled && env->exception_taken) {
         *flags |= XTENSA_TBFLAG_EXCEPTION;
+    }
+    if (xtensa_option_enabled(env->config, XTENSA_OPTION_WINDOWED_REGISTER) &&
+        (env->sregs[PS] & (PS_WOE | PS_EXCM)) == PS_WOE) {
+        uint32_t windowstart = xtensa_replicate_windowstart(env) >>
+            (env->sregs[WINDOW_BASE] + 1);
+        uint32_t w = ctz32(windowstart | 0x8);
+
+        *flags |= w << XTENSA_TBFLAG_WINDOW_SHIFT;
+    } else {
+        *flags |= 3 << XTENSA_TBFLAG_WINDOW_SHIFT;
     }
 }
 
