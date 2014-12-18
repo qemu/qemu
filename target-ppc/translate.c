@@ -9674,6 +9674,15 @@ GEN_SPE(efdctsiz,  speundef,  0x1D, 0x0B, 0x00180000, 0xFFFFFFFF, PPC_SPE_DOUBLE
 GEN_SPE(efdtstgt,  efdtstlt,  0x1E, 0x0B, 0x00600000, 0x00600000, PPC_SPE_DOUBLE); //
 GEN_SPE(efdtsteq,  speundef,  0x1F, 0x0B, 0x00600000, 0xFFFFFFFF, PPC_SPE_DOUBLE); //
 
+static void gen_tbegin(DisasContext *ctx)
+{
+    if (unlikely(!ctx->tm_enabled)) {
+        gen_exception_err(ctx, POWERPC_EXCP_FU, FSCR_IC_TM);
+        return;
+    }
+    gen_helper_tbegin(cpu_env);
+}
+
 static opcode_t opcodes[] = {
 GEN_HANDLER(invalid, 0x00, 0x00, 0x00, 0xFFFFFFFF, PPC_NONE),
 GEN_HANDLER(cmp, 0x1F, 0x00, 0x00, 0x00400000, PPC_INTEGER),
@@ -11086,6 +11095,9 @@ GEN_SPEOP_LDST(evstwhe, 0x18, 2),
 GEN_SPEOP_LDST(evstwho, 0x1A, 2),
 GEN_SPEOP_LDST(evstwwe, 0x1C, 2),
 GEN_SPEOP_LDST(evstwwo, 0x1E, 2),
+
+GEN_HANDLER2_E(tbegin, "tbegin", 0x1F, 0x0E, 0x14, 0x01DFF800, \
+               PPC_NONE, PPC2_TM),
 };
 
 #include "helper_regs.h"
