@@ -1091,7 +1091,7 @@ static int handle_diag(S390CPU *cpu, struct kvm_run *run, uint32_t ipb)
         break;
     default:
         DPRINTF("KVM: unknown DIAG: 0x%x\n", func_code);
-        r = -1;
+        enter_pgmcheck(cpu, PGM_SPECIFICATION);
         break;
     }
 
