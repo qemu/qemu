@@ -9683,6 +9683,30 @@ static void gen_tbegin(DisasContext *ctx)
     gen_helper_tbegin(cpu_env);
 }
 
+#define GEN_TM_NOOP(name)                                      \
+static inline void gen_##name(DisasContext *ctx)               \
+{                                                              \
+    if (unlikely(!ctx->tm_enabled)) {                          \
+        gen_exception_err(ctx, POWERPC_EXCP_FU, FSCR_IC_TM);   \
+        return;                                                \
+    }                                                          \
+    /* Because tbegin always fails in QEMU, these user         \
+     * space instructions all have a simple implementation:    \
+     *                                                         \
+     *     CR[0] = 0b0 || MSR[TS] || 0b0                       \
+     *           = 0b0 || 0b00    || 0b0                       \
+     */                                                        \
+    tcg_gen_movi_i32(cpu_crf[0], 0);                           \
+}
+
+GEN_TM_NOOP(tend);
+GEN_TM_NOOP(tabort);
+GEN_TM_NOOP(tabortwc);
+GEN_TM_NOOP(tabortwci);
+GEN_TM_NOOP(tabortdc);
+GEN_TM_NOOP(tabortdci);
+GEN_TM_NOOP(tsr);
+
 static opcode_t opcodes[] = {
 GEN_HANDLER(invalid, 0x00, 0x00, 0x00, 0xFFFFFFFF, PPC_NONE),
 GEN_HANDLER(cmp, 0x1F, 0x00, 0x00, 0x00400000, PPC_INTEGER),
@@ -11097,6 +11121,20 @@ GEN_SPEOP_LDST(evstwwe, 0x1C, 2),
 GEN_SPEOP_LDST(evstwwo, 0x1E, 2),
 
 GEN_HANDLER2_E(tbegin, "tbegin", 0x1F, 0x0E, 0x14, 0x01DFF800, \
+               PPC_NONE, PPC2_TM),
+GEN_HANDLER2_E(tend,   "tend",   0x1F, 0x0E, 0x15, 0x01FFF800, \
+               PPC_NONE, PPC2_TM),
+GEN_HANDLER2_E(tabort, "tabort", 0x1F, 0x0E, 0x1C, 0x03E0F800, \
+               PPC_NONE, PPC2_TM),
+GEN_HANDLER2_E(tabortwc, "tabortwc", 0x1F, 0x0E, 0x18, 0x00000000, \
+               PPC_NONE, PPC2_TM),
+GEN_HANDLER2_E(tabortwci, "tabortwci", 0x1F, 0x0E, 0x1A, 0x00000000, \
+               PPC_NONE, PPC2_TM),
+GEN_HANDLER2_E(tabortdc, "tabortdc", 0x1F, 0x0E, 0x19, 0x00000000, \
+               PPC_NONE, PPC2_TM),
+GEN_HANDLER2_E(tabortdci, "tabortdci", 0x1F, 0x0E, 0x1B, 0x00000000, \
+               PPC_NONE, PPC2_TM),
+GEN_HANDLER2_E(tsr, "tsr", 0x1F, 0x0E, 0x17, 0x03DFF800, \
                PPC_NONE, PPC2_TM),
 };
 
