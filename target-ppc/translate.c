@@ -9707,6 +9707,21 @@ GEN_TM_NOOP(tabortdc);
 GEN_TM_NOOP(tabortdci);
 GEN_TM_NOOP(tsr);
 
+static void gen_tcheck(DisasContext *ctx)
+{
+    if (unlikely(!ctx->tm_enabled)) {
+        gen_exception_err(ctx, POWERPC_EXCP_FU, FSCR_IC_TM);
+        return;
+    }
+    /* Because tbegin always fails, the tcheck implementation
+     * is simple:
+     *
+     * CR[CRF] = TDOOMED || MSR[TS] || 0b0
+     *         = 0b1 || 0b00 || 0b0
+     */
+    tcg_gen_movi_i32(cpu_crf[crfD(ctx->opcode)], 0x8);
+}
+
 static opcode_t opcodes[] = {
 GEN_HANDLER(invalid, 0x00, 0x00, 0x00, 0xFFFFFFFF, PPC_NONE),
 GEN_HANDLER(cmp, 0x1F, 0x00, 0x00, 0x00400000, PPC_INTEGER),
@@ -11135,6 +11150,8 @@ GEN_HANDLER2_E(tabortdc, "tabortdc", 0x1F, 0x0E, 0x19, 0x00000000, \
 GEN_HANDLER2_E(tabortdci, "tabortdci", 0x1F, 0x0E, 0x1B, 0x00000000, \
                PPC_NONE, PPC2_TM),
 GEN_HANDLER2_E(tsr, "tsr", 0x1F, 0x0E, 0x17, 0x03DFF800, \
+               PPC_NONE, PPC2_TM),
+GEN_HANDLER2_E(tcheck, "tcheck", 0x1F, 0x0E, 0x16, 0x007FF800, \
                PPC_NONE, PPC2_TM),
 };
 
