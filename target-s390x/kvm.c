@@ -124,6 +124,7 @@ const KVMCapabilityInfo kvm_arch_required_capabilities[] = {
 static int cap_sync_regs;
 static int cap_async_pf;
 static int cap_mem_op;
+static int cap_s390_irq;
 
 static void *legacy_s390_alloc(size_t size, uint64_t *align);
 
@@ -249,6 +250,7 @@ int kvm_arch_init(MachineState *ms, KVMState *s)
     cap_sync_regs = kvm_check_extension(s, KVM_CAP_SYNC_REGS);
     cap_async_pf = kvm_check_extension(s, KVM_CAP_ASYNC_PF);
     cap_mem_op = kvm_check_extension(s, KVM_CAP_S390_MEM_OP);
+    cap_s390_irq = kvm_check_extension(s, KVM_CAP_S390_INJECT_IRQ);
 
     kvm_s390_enable_cmma(s);
 
@@ -827,10 +829,9 @@ static int s390_kvm_irq_to_interrupt(struct kvm_s390_irq *irq,
     return r;
 }
 
-void kvm_s390_vcpu_interrupt(S390CPU *cpu, struct kvm_s390_irq *irq)
+static void inject_vcpu_irq_legacy(CPUState *cs, struct kvm_s390_irq *irq)
 {
     struct kvm_s390_interrupt kvmint = {};
-    CPUState *cs = CPU(cpu);
     int r;
 
     r = s390_kvm_irq_to_interrupt(irq, &kvmint);
@@ -844,6 +845,23 @@ void kvm_s390_vcpu_interrupt(S390CPU *cpu, struct kvm_s390_irq *irq)
         fprintf(stderr, "KVM failed to inject interrupt\n");
         exit(1);
     }
+}
+
+void kvm_s390_vcpu_interrupt(S390CPU *cpu, struct kvm_s390_irq *irq)
+{
+    CPUState *cs = CPU(cpu);
+    int r;
+
+    if (cap_s390_irq) {
+        r = kvm_vcpu_ioctl(cs, KVM_S390_IRQ, irq);
+        if (!r) {
+            return;
+        }
+        error_report("KVM failed to inject interrupt %llx", irq->type);
+        exit(1);
+    }
+
+    inject_vcpu_irq_legacy(cs, irq);
 }
 
 static void __kvm_s390_floating_interrupt(struct kvm_s390_irq *irq)
