@@ -558,6 +558,26 @@ struct ppc_slb_t {
 #define ESR_VLEMI (1 << (63 - 58)) /* VLE operation                          */
 #define ESR_MIF   (1 << (63 - 62)) /* Misaligned instruction (VLE)           */
 
+/* Transaction EXception And Summary Register bits                           */
+#define TEXASR_FAILURE_PERSISTENT                (63 - 7)
+#define TEXASR_DISALLOWED                        (63 - 8)
+#define TEXASR_NESTING_OVERFLOW                  (63 - 9)
+#define TEXASR_FOOTPRINT_OVERFLOW                (63 - 10)
+#define TEXASR_SELF_INDUCED_CONFLICT             (63 - 11)
+#define TEXASR_NON_TRANSACTIONAL_CONFLICT        (63 - 12)
+#define TEXASR_TRANSACTION_CONFLICT              (63 - 13)
+#define TEXASR_TRANSLATION_INVALIDATION_CONFLICT (63 - 14)
+#define TEXASR_IMPLEMENTATION_SPECIFIC           (63 - 15)
+#define TEXASR_INSTRUCTION_FETCH_CONFLICT        (63 - 16)
+#define TEXASR_ABORT                             (63 - 31)
+#define TEXASR_SUSPENDED                         (63 - 32)
+#define TEXASR_PRIVILEGE_HV                      (63 - 34)
+#define TEXASR_PRIVILEGE_PR                      (63 - 35)
+#define TEXASR_FAILURE_SUMMARY                   (63 - 36)
+#define TEXASR_TFIAR_EXACT                       (63 - 37)
+#define TEXASR_ROT                               (63 - 38)
+#define TEXASR_TRANSACTION_LEVEL                 (63 - 52) /* 12 bits */
+
 enum {
     POWERPC_FLAG_NONE     = 0x00000000,
     /* Flag for MSR bit 25 signification (VRE/SPE)                           */
