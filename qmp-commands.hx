@@ -1094,6 +1094,48 @@ Example:
                                                "sync": "full",
                                                "target": "backup.img" } }
 <- { "return": {} }
+
+EQMP
+
+    {
+        .name       = "blockdev-backup",
+        .args_type  = "sync:s,device:B,target:B,speed:i?,"
+                      "on-source-error:s?,on-target-error:s?",
+        .mhandler.cmd_new = qmp_marshal_input_blockdev_backup,
+    },
+
+SQMP
+blockdev-backup
+---------------
+
+The device version of drive-backup: this command takes an existing named device
+as backup target.
+
+Arguments:
+
+- "device": the name of the device which should be copied.
+            (json-string)
+- "target": the name of the backup target device. (json-string)
+- "sync": what parts of the disk image should be copied to the destination;
+          possibilities include "full" for all the disk, "top" for only the
+          sectors allocated in the topmost image, or "none" to only replicate
+          new I/O (MirrorSyncMode).
+- "speed": the maximum speed, in bytes per second (json-int, optional)
+- "on-source-error": the action to take on an error on the source, default
+                     'report'.  'stop' and 'enospc' can only be used
+                     if the block device supports io-status.
+                     (BlockdevOnError, optional)
+- "on-target-error": the action to take on an error on the target, default
+                     'report' (no limitations, since this applies to
+                     a different block device than device).
+                     (BlockdevOnError, optional)
+
+Example:
+-> { "execute": "blockdev-backup", "arguments": { "device": "src-id",
+                                                  "sync": "full",
+                                                  "target": "tgt-id" } }
+<- { "return": {} }
+
 EQMP
 
     {
