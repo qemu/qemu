@@ -9722,6 +9722,40 @@ static void gen_tcheck(DisasContext *ctx)
     tcg_gen_movi_i32(cpu_crf[crfD(ctx->opcode)], 0x8);
 }
 
+#if defined(CONFIG_USER_ONLY)
+#define GEN_TM_PRIV_NOOP(name)                                 \
+static inline void gen_##name(DisasContext *ctx)               \
+{                                                              \
+    gen_inval_exception(ctx, POWERPC_EXCP_PRIV_OPC);           \
+}
+
+#else
+
+#define GEN_TM_PRIV_NOOP(name)                                 \
+static inline void gen_##name(DisasContext *ctx)               \
+{                                                              \
+    if (unlikely(ctx->pr)) {                                   \
+        gen_inval_exception(ctx, POWERPC_EXCP_PRIV_OPC);       \
+        return;                                                \
+    }                                                          \
+    if (unlikely(!ctx->tm_enabled)) {                          \
+        gen_exception_err(ctx, POWERPC_EXCP_FU, FSCR_IC_TM);   \
+        return;                                                \
+    }                                                          \
+    /* Because tbegin always fails, the implementation is      \
+     * simple:                                                 \
+     *                                                         \
+     *   CR[0] = 0b0 || MSR[TS] || 0b0                         \
+     *         = 0b0 || 0b00 | 0b0                             \
+     */                                                        \
+    tcg_gen_movi_i32(cpu_crf[0], 0);                           \
+}
+
+#endif
+
+GEN_TM_PRIV_NOOP(treclaim);
+GEN_TM_PRIV_NOOP(trechkpt);
+
 static opcode_t opcodes[] = {
 GEN_HANDLER(invalid, 0x00, 0x00, 0x00, 0xFFFFFFFF, PPC_NONE),
 GEN_HANDLER(cmp, 0x1F, 0x00, 0x00, 0x00400000, PPC_INTEGER),
@@ -11152,6 +11186,10 @@ GEN_HANDLER2_E(tabortdci, "tabortdci", 0x1F, 0x0E, 0x1B, 0x00000000, \
 GEN_HANDLER2_E(tsr, "tsr", 0x1F, 0x0E, 0x17, 0x03DFF800, \
                PPC_NONE, PPC2_TM),
 GEN_HANDLER2_E(tcheck, "tcheck", 0x1F, 0x0E, 0x16, 0x007FF800, \
+               PPC_NONE, PPC2_TM),
+GEN_HANDLER2_E(treclaim, "treclaim", 0x1F, 0x0E, 0x1D, 0x03E0F800, \
+               PPC_NONE, PPC2_TM),
+GEN_HANDLER2_E(trechkpt, "trechkpt", 0x1F, 0x0E, 0x1F, 0x03FFF800, \
                PPC_NONE, PPC2_TM),
 };
 
