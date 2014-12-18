@@ -203,6 +203,7 @@ typedef struct DisasContext {
     int altivec_enabled;
     int vsx_enabled;
     int spe_enabled;
+    int tm_enabled;
     ppc_spr_t *spr_cb; /* Needed to check rights for mfspr/mtspr */
     int singlestep_enabled;
     uint64_t insns_flags;
@@ -11342,6 +11343,13 @@ static inline void gen_intermediate_code_internal(PowerPCCPU *cpu,
     } else {
         ctx.vsx_enabled = 0;
     }
+#if defined(TARGET_PPC64)
+    if ((env->flags & POWERPC_FLAG_TM) && msr_tm) {
+        ctx.tm_enabled = msr_tm;
+    } else {
+        ctx.tm_enabled = 0;
+    }
+#endif
     if ((env->flags & POWERPC_FLAG_SE) && msr_se)
         ctx.singlestep_enabled = CPU_SINGLE_STEP;
     else
