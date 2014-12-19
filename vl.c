@@ -1173,8 +1173,14 @@ static void smp_parse(QemuOpts *opts)
         } else if (cores == 0) {
             threads = threads > 0 ? threads : 1;
             cores = cpus / (sockets * threads);
-        } else {
+        } else if (threads == 0) {
             threads = cpus / (cores * sockets);
+        } else if (sockets * cores * threads < cpus) {
+            fprintf(stderr, "cpu topology: error: "
+                    "sockets (%u) * cores (%u) * threads (%u) < "
+                    "smp_cpus (%u)\n",
+                    sockets, cores, threads, cpus);
+            exit(1);
         }
 
         max_cpus = qemu_opt_get_number(opts, "maxcpus", 0);
