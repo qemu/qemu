@@ -2135,7 +2135,7 @@ out:
     return cpu;
 }
 
-X86CPU *cpu_x86_init(const char *cpu_model)
+X86CPU *cpu_x86_init_user(const char *cpu_model)
 {
     Error *error = NULL;
     X86CPU *cpu;
