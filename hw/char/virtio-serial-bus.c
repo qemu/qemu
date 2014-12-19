@@ -559,7 +559,7 @@ static void virtio_serial_save_device(VirtIODevice *vdev, QEMUFile *f)
     qemu_put_be32s(f, &s->config.max_nr_ports);
 
     /* The ports map */
-    max_nr_ports = virtio_tswap32(vdev, s->config.max_nr_ports);
+    max_nr_ports = s->serial.max_virtserial_ports;
     for (i = 0; i < (max_nr_ports + 31) / 32; i++) {
         qemu_put_be32s(f, &s->ports_map[i]);
     }
@@ -715,13 +715,7 @@ static int virtio_serial_load_device(VirtIODevice *vdev, QEMUFile *f,
     qemu_get_be16s(f, (uint16_t *) &tmp);
     qemu_get_be32s(f, &tmp);
 
-    /* Note: this is the only location where we use tswap32() instead of
-     * virtio_tswap32() because:
-     * - virtio_tswap32() only makes sense when the device is fully restored
-     * - the target endianness that was used to populate s->config is
-     *   necessarly the default one
-     */
-    max_nr_ports = tswap32(s->config.max_nr_ports);
+    max_nr_ports = s->serial.max_virtserial_ports;
     for (i = 0; i < (max_nr_ports + 31) / 32; i++) {
         qemu_get_be32s(f, &ports_map);
 
@@ -784,10 +778,9 @@ static void virtser_bus_dev_print(Monitor *mon, DeviceState *qdev, int indent)
 /* This function is only used if a port id is not provided by the user */
 static uint32_t find_free_port_id(VirtIOSerial *vser)
 {
-    VirtIODevice *vdev = VIRTIO_DEVICE(vser);
     unsigned int i, max_nr_ports;
 
-    max_nr_ports = virtio_tswap32(vdev, vser->config.max_nr_ports);
+    max_nr_ports = vser->serial.max_virtserial_ports;
     for (i = 0; i < (max_nr_ports + 31) / 32; i++) {
         uint32_t map, bit;
 
@@ -848,7 +841,6 @@ static void virtser_port_device_realize(DeviceState *dev, Error **errp)
     VirtIOSerialPort *port = VIRTIO_SERIAL_PORT(dev);
     VirtIOSerialPortClass *vsc = VIRTIO_SERIAL_PORT_GET_CLASS(port);
     VirtIOSerialBus *bus = VIRTIO_SERIAL_BUS(qdev_get_parent_bus(dev));
-    VirtIODevice *vdev = VIRTIO_DEVICE(bus->vser);
     int max_nr_ports;
     bool plugging_port0;
     Error *err = NULL;
@@ -890,7 +882,7 @@ static void virtser_port_device_realize(DeviceState *dev, Error **errp)
         }
     }
 
-    max_nr_ports = virtio_tswap32(vdev, port->vser->config.max_nr_ports);
+    max_nr_ports = port->vser->serial.max_virtserial_ports;
     if (port->id >= max_nr_ports) {
         error_setg(errp, "virtio-serial-bus: Out-of-range port id specified, "
                          "max. allowed: %u", max_nr_ports - 1);
