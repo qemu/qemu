@@ -239,8 +239,6 @@ $(test-obj-y): QEMU_INCLUDES += -Itests
 QEMU_CFLAGS += -I$(SRC_PATH)/tests
 qom-core-obj = qom/object.o qom/qom-qobject.o qom/container.o
 
-tests/test-x86-cpuid.o: QEMU_INCLUDES += -I$(SRC_PATH)/target-i386
-
 tests/check-qint$(EXESUF): tests/check-qint.o libqemuutil.a
 tests/check-qstring$(EXESUF): tests/check-qstring.o libqemuutil.a
 tests/check-qdict$(EXESUF): tests/check-qdict.o libqemuutil.a
