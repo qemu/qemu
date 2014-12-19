@@ -2145,6 +2145,12 @@ CPUX86State *cpu_x86_init_user(const char *cpu_model)
         goto error;
     }
 
+    object_property_set_int(OBJECT(cpu), CPU(cpu)->cpu_index, "apic-id",
+                            &error);
+    if (error) {
+        goto error;
+    }
+
     object_property_set_bool(OBJECT(cpu), true, "realized", &error);
     if (error) {
         goto error;
