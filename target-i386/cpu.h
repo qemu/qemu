@@ -944,7 +944,6 @@ typedef struct CPUX86State {
     uint32_t cpuid_version;
     FeatureWordArray features;
     uint32_t cpuid_model[12];
-    uint32_t cpuid_apic_id;
 
     /* MTRRs */
     uint64_t mtrr_fixed[11];
