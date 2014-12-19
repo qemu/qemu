@@ -3713,7 +3713,7 @@ static int vfio_connect_container(VFIOGroup *group, AddressSpace *as)
         container->iommu_data.release = vfio_listener_release;
 
         memory_listener_register(&container->iommu_data.type1.listener,
-                                 &address_space_memory);
+                                 container->space->as);
 
         if (container->iommu_data.type1.error) {
             ret = container->iommu_data.type1.error;
