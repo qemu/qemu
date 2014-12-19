@@ -2142,21 +2142,23 @@ CPUX86State *cpu_x86_init_user(const char *cpu_model)
 
     cpu = cpu_x86_create(cpu_model, NULL, &error);
     if (error) {
-        goto out;
+        goto error;
     }
 
     object_property_set_bool(OBJECT(cpu), true, "realized", &error);
-
-out:
     if (error) {
-        error_report("%s", error_get_pretty(error));
-        error_free(error);
-        if (cpu != NULL) {
-            object_unref(OBJECT(cpu));
-        }
-        return NULL;
+        goto error;
     }
+
     return &cpu->env;
+
+error:
+    error_report("%s", error_get_pretty(error));
+    error_free(error);
+    if (cpu != NULL) {
+        object_unref(OBJECT(cpu));
+    }
+    return NULL;
 }
 
 static void x86_cpu_cpudef_class_init(ObjectClass *oc, void *data)
