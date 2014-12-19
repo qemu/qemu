@@ -3850,9 +3850,9 @@ int main(int argc, char **argv, char **envp)
     smp_parse(qemu_opts_find(qemu_find_opts("smp-opts"), NULL));
 
     machine_class->max_cpus = machine_class->max_cpus ?: 1; /* Default to UP */
-    if (smp_cpus > machine_class->max_cpus) {
+    if (max_cpus > machine_class->max_cpus) {
         fprintf(stderr, "Number of SMP cpus requested (%d), exceeds max cpus "
-                "supported by machine `%s' (%d)\n", smp_cpus,
+                "supported by machine `%s' (%d)\n", max_cpus,
                 machine_class->name, machine_class->max_cpus);
         exit(1);
     }
