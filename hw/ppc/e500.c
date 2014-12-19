@@ -60,7 +60,7 @@
 #define MPC8544_PCI_REGS_SIZE      0x1000ULL
 #define MPC8544_UTIL_OFFSET        0xe0000ULL
 #define MPC8XXX_GPIO_OFFSET        0x000FF000ULL
-#define MPC8XXX_GPIO_IRQ           43
+#define MPC8XXX_GPIO_IRQ           47
 
 struct boot_info
 {
