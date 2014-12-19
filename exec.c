@@ -434,7 +434,7 @@ static int cpu_common_pre_load(void *opaque)
 {
     CPUState *cpu = opaque;
 
-    cpu->exception_index = 0;
+    cpu->exception_index = -1;
 
     return 0;
 }
@@ -443,7 +443,7 @@ static bool cpu_common_exception_index_needed(void *opaque)
 {
     CPUState *cpu = opaque;
 
-    return cpu->exception_index != 0;
+    return tcg_enabled() && cpu->exception_index != -1;
 }
 
 static const VMStateDescription vmstate_cpu_common_exception_index = {
