@@ -39,8 +39,8 @@
 #include "qemu/range.h"
 #include "sysemu/kvm.h"
 #include "sysemu/sysemu.h"
-#include "hw/misc/vfio.h"
 #include "trace.h"
+#include "hw/vfio/vfio.h"
 
 /* Extra debugging, trap acceleration paths for more logging */
 #define VFIO_ALLOW_MMAP 1
