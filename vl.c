@@ -1170,13 +1170,11 @@ static void smp_parse(QemuOpts *opts)
             if (cpus == 0) {
                 cpus = cores * threads * sockets;
             }
+        } else if (cores == 0) {
+            threads = threads > 0 ? threads : 1;
+            cores = cpus / (sockets * threads);
         } else {
-            if (cores == 0) {
-                threads = threads > 0 ? threads : 1;
-                cores = cpus / (sockets * threads);
-            } else {
-                threads = cpus / (cores * sockets);
-            }
+            threads = cpus / (cores * sockets);
         }
 
         max_cpus = qemu_opt_get_number(opts, "maxcpus", 0);
