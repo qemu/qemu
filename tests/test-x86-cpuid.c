@@ -24,7 +24,7 @@
 
 #include <glib.h>
 
-#include "topology.h"
+#include "hw/i386/topology.h"
 
 static void test_topo_bits(void)
 {

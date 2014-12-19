@@ -25,7 +25,7 @@
 #include "sysemu/kvm.h"
 #include "sysemu/cpus.h"
 #include "kvm_i386.h"
-#include "topology.h"
+#include "hw/i386/topology.h"
 
 #include "qemu/option.h"
 #include "qemu/config-file.h"
