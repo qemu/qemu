@@ -2757,6 +2757,11 @@ static void x86_cpu_realizefn(DeviceState *dev, Error **errp)
     Error *local_err = NULL;
     static bool ht_warned;
 
+    if (cpu->apic_id < 0) {
+        error_setg(errp, "apic-id property was not initialized properly");
+        return;
+    }
+
     if (env->features[FEAT_7_0_EBX] && env->cpuid_level < 7) {
         env->cpuid_level = 7;
     }
@@ -2867,6 +2872,11 @@ static void x86_cpu_initfn(Object *obj)
                         NULL, NULL, (void *)cpu->filtered_features, NULL);
 
     cpu->hyperv_spinlock_attempts = HYPERV_SPINLOCK_NEVER_RETRY;
+
+#ifndef CONFIG_USER_ONLY
+    /* Any code creating new X86CPU objects have to set apic-id explicitly */
+    cpu->apic_id = -1;
+#endif
 
     x86_cpu_load_def(cpu, xcc->cpu_def, &error_abort);
 
