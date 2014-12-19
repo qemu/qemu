@@ -40,15 +40,7 @@
 #include "sysemu/kvm.h"
 #include "sysemu/sysemu.h"
 #include "hw/misc/vfio.h"
-
-/* #define DEBUG_VFIO */
-#ifdef DEBUG_VFIO
-#define DPRINTF(fmt, ...) \
-    do { fprintf(stderr, "vfio: " fmt, ## __VA_ARGS__); } while (0)
-#else
-#define DPRINTF(fmt, ...) \
-    do { } while (0)
-#endif
+#include "trace.h"
 
 /* Extra debugging, trap acceleration paths for more logging */
 #define VFIO_ALLOW_MMAP 1
@@ -365,9 +357,9 @@ static void vfio_intx_interrupt(void *opaque)
         return;
     }
 
-    DPRINTF("%s(%04x:%02x:%02x.%x) Pin %c\n", __func__, vdev->host.domain,
-            vdev->host.bus, vdev->host.slot, vdev->host.function,
-            'A' + vdev->intx.pin);
+    trace_vfio_intx_interrupt(vdev->host.domain, vdev->host.bus,
+                              vdev->host.slot, vdev->host.function,
+                              'A' + vdev->intx.pin);
 
     vdev->intx.pending = true;
     pci_irq_assert(&vdev->pdev);
@@ -384,8 +376,8 @@ static void vfio_eoi(VFIODevice *vdev)
         return;
     }
 
-    DPRINTF("%s(%04x:%02x:%02x.%x) EOI\n", __func__, vdev->host.domain,
-            vdev->host.bus, vdev->host.slot, vdev->host.function);
+    trace_vfio_eoi(vdev->host.domain, vdev->host.bus,
+                   vdev->host.slot, vdev->host.function);
 
     vdev->intx.pending = false;
     pci_irq_deassert(&vdev->pdev);
@@ -454,9 +446,8 @@ static void vfio_enable_intx_kvm(VFIODevice *vdev)
 
     vdev->intx.kvm_accel = true;
 
-    DPRINTF("%s(%04x:%02x:%02x.%x) KVM INTx accel enabled\n",
-            __func__, vdev->host.domain, vdev->host.bus,
-            vdev->host.slot, vdev->host.function);
+    trace_vfio_enable_intx_kvm(vdev->host.domain, vdev->host.bus,
+                               vdev->host.slot, vdev->host.function);
 
     return;
 
@@ -508,9 +499,8 @@ static void vfio_disable_intx_kvm(VFIODevice *vdev)
     /* If we've missed an event, let it re-fire through QEMU */
     vfio_unmask_intx(vdev);
 
-    DPRINTF("%s(%04x:%02x:%02x.%x) KVM INTx accel disabled\n",
-            __func__, vdev->host.domain, vdev->host.bus,
-            vdev->host.slot, vdev->host.function);
+    trace_vfio_disable_intx_kvm(vdev->host.domain, vdev->host.bus,
+                                vdev->host.slot, vdev->host.function);
 #endif
 }
 
@@ -529,9 +519,9 @@ static void vfio_update_irq(PCIDevice *pdev)
         return; /* Nothing changed */
     }
 
-    DPRINTF("%s(%04x:%02x:%02x.%x) IRQ moved %d -> %d\n", __func__,
-            vdev->host.domain, vdev->host.bus, vdev->host.slot,
-            vdev->host.function, vdev->intx.route.irq, route.irq);
+    trace_vfio_update_irq(vdev->host.domain, vdev->host.bus,
+                          vdev->host.slot, vdev->host.function,
+                          vdev->intx.route.irq, route.irq);
 
     vfio_disable_intx_kvm(vdev);
 
@@ -606,8 +596,8 @@ static int vfio_enable_intx(VFIODevice *vdev)
 
     vdev->interrupt = VFIO_INT_INTx;
 
-    DPRINTF("%s(%04x:%02x:%02x.%x)\n", __func__, vdev->host.domain,
-            vdev->host.bus, vdev->host.slot, vdev->host.function);
+    trace_vfio_enable_intx(vdev->host.domain, vdev->host.bus,
+                           vdev->host.slot, vdev->host.function);
 
     return 0;
 }
@@ -629,8 +619,8 @@ static void vfio_disable_intx(VFIODevice *vdev)
 
     vdev->interrupt = VFIO_INT_NONE;
 
-    DPRINTF("%s(%04x:%02x:%02x.%x)\n", __func__, vdev->host.domain,
-            vdev->host.bus, vdev->host.slot, vdev->host.function);
+    trace_vfio_disable_intx(vdev->host.domain, vdev->host.bus,
+                            vdev->host.slot, vdev->host.function);
 }
 
 /*
@@ -657,9 +647,9 @@ static void vfio_msi_interrupt(void *opaque)
         abort();
     }
 
-    DPRINTF("%s(%04x:%02x:%02x.%x) vector %d 0x%"PRIx64"/0x%x\n", __func__,
-            vdev->host.domain, vdev->host.bus, vdev->host.slot,
-            vdev->host.function, nr, msg.address, msg.data);
+    trace_vfio_msi_interrupt(vdev->host.domain, vdev->host.bus,
+                             vdev->host.slot, vdev->host.function,
+                             nr, msg.address, msg.data);
 #endif
 
     if (vdev->interrupt == VFIO_INT_MSIX) {
@@ -766,9 +756,9 @@ static int vfio_msix_vector_do_use(PCIDevice *pdev, unsigned int nr,
     VFIOMSIVector *vector;
     int ret;
 
-    DPRINTF("%s(%04x:%02x:%02x.%x) vector %d used\n", __func__,
-            vdev->host.domain, vdev->host.bus, vdev->host.slot,
-            vdev->host.function, nr);
+    trace_vfio_msix_vector_do_use(vdev->host.domain, vdev->host.bus,
+                                  vdev->host.slot, vdev->host.function,
+                                  nr);
 
     vector = &vdev->msi_vectors[nr];
 
@@ -854,9 +844,9 @@ static void vfio_msix_vector_release(PCIDevice *pdev, unsigned int nr)
     VFIODevice *vdev = DO_UPCAST(VFIODevice, pdev, pdev);
     VFIOMSIVector *vector = &vdev->msi_vectors[nr];
 
-    DPRINTF("%s(%04x:%02x:%02x.%x) vector %d released\n", __func__,
-            vdev->host.domain, vdev->host.bus, vdev->host.slot,
-            vdev->host.function, nr);
+    trace_vfio_msix_vector_release(vdev->host.domain, vdev->host.bus,
+                                   vdev->host.slot, vdev->host.function,
+                                   nr);
 
     /*
      * There are still old guests that mask and unmask vectors on every
@@ -919,8 +909,8 @@ static void vfio_enable_msix(VFIODevice *vdev)
         error_report("vfio: msix_set_vector_notifiers failed");
     }
 
-    DPRINTF("%s(%04x:%02x:%02x.%x)\n", __func__, vdev->host.domain,
-            vdev->host.bus, vdev->host.slot, vdev->host.function);
+    trace_vfio_enable_msix(vdev->host.domain, vdev->host.bus,
+                           vdev->host.slot, vdev->host.function);
 }
 
 static void vfio_enable_msi(VFIODevice *vdev)
@@ -996,9 +986,9 @@ retry:
         return;
     }
 
-    DPRINTF("%s(%04x:%02x:%02x.%x) Enabled %d MSI vectors\n", __func__,
-            vdev->host.domain, vdev->host.bus, vdev->host.slot,
-            vdev->host.function, vdev->nr_vectors);
+    trace_vfio_enable_msi(vdev->host.domain, vdev->host.bus,
+                          vdev->host.slot, vdev->host.function,
+                          vdev->nr_vectors);
 }
 
 static void vfio_disable_msi_common(VFIODevice *vdev)
@@ -1048,8 +1038,8 @@ static void vfio_disable_msix(VFIODevice *vdev)
 
     vfio_disable_msi_common(vdev);
 
-    DPRINTF("%s(%04x:%02x:%02x.%x)\n", __func__, vdev->host.domain,
-            vdev->host.bus, vdev->host.slot, vdev->host.function);
+    trace_vfio_disable_msix(vdev->host.domain, vdev->host.bus,
+                            vdev->host.slot, vdev->host.function);
 }
 
 static void vfio_disable_msi(VFIODevice *vdev)
@@ -1057,8 +1047,8 @@ static void vfio_disable_msi(VFIODevice *vdev)
     vfio_disable_irqindex(vdev, VFIO_PCI_MSI_IRQ_INDEX);
     vfio_disable_msi_common(vdev);
 
-    DPRINTF("%s(%04x:%02x:%02x.%x)\n", __func__, vdev->host.domain,
-            vdev->host.bus, vdev->host.slot, vdev->host.function);
+    trace_vfio_disable_msi(vdev->host.domain, vdev->host.bus,
+                           vdev->host.slot, vdev->host.function);
 }
 
 static void vfio_update_msi(VFIODevice *vdev)
@@ -1116,10 +1106,9 @@ static void vfio_bar_write(void *opaque, hwaddr addr,
     {
         VFIODevice *vdev = container_of(bar, VFIODevice, bars[bar->nr]);
 
-        DPRINTF("%s(%04x:%02x:%02x.%x:BAR%d+0x%"HWADDR_PRIx", 0x%"PRIx64
-                ", %d)\n", __func__, vdev->host.domain, vdev->host.bus,
-                vdev->host.slot, vdev->host.function, bar->nr, addr,
-                data, size);
+        trace_vfio_bar_write(vdev->host.domain, vdev->host.bus,
+                             vdev->host.slot, vdev->host.function,
+                             region->nr, addr, data, size);
     }
 #endif
 
@@ -1171,10 +1160,9 @@ static uint64_t vfio_bar_read(void *opaque,
     {
         VFIODevice *vdev = container_of(bar, VFIODevice, bars[bar->nr]);
 
-        DPRINTF("%s(%04x:%02x:%02x.%x:BAR%d+0x%"HWADDR_PRIx
-                ", %d) = 0x%"PRIx64"\n", __func__, vdev->host.domain,
-                vdev->host.bus, vdev->host.slot, vdev->host.function,
-                bar->nr, addr, size, data);
+        trace_vfio_bar_read(vdev->host.domain, vdev->host.bus,
+                            vdev->host.slot, vdev->host.function,
+                            region->nr, addr, size, data);
     }
 #endif
 
@@ -1205,11 +1193,11 @@ static void vfio_pci_load_rom(VFIODevice *vdev)
         return;
     }
 
-    DPRINTF("Device %04x:%02x:%02x.%x ROM:\n", vdev->host.domain,
-            vdev->host.bus, vdev->host.slot, vdev->host.function);
-    DPRINTF("  size: 0x%lx, offset: 0x%lx, flags: 0x%lx\n",
-            (unsigned long)reg_info.size, (unsigned long)reg_info.offset,
-            (unsigned long)reg_info.flags);
+    trace_vfio_pci_load_rom(vdev->host.domain, vdev->host.bus,
+                            vdev->host.slot, vdev->host.function,
+                            (unsigned long)reg_info.size,
+                            (unsigned long)reg_info.offset,
+                            (unsigned long)reg_info.flags);
 
     vdev->rom_size = size = reg_info.size;
     vdev->rom_offset = reg_info.offset;
@@ -1280,9 +1268,9 @@ static uint64_t vfio_rom_read(void *opaque, hwaddr addr, unsigned size)
         break;
     }
 
-    DPRINTF("%s(%04x:%02x:%02x.%x, 0x%"HWADDR_PRIx", 0x%x) = 0x%"PRIx64"\n",
-            __func__, vdev->host.domain, vdev->host.bus, vdev->host.slot,
-            vdev->host.function, addr, size, data);
+    trace_vfio_rom_read(vdev->host.domain, vdev->host.bus,
+                        vdev->host.slot, vdev->host.function,
+                        addr, size, data);
 
     return data;
 }
@@ -1378,8 +1366,9 @@ static void vfio_pci_size_rom(VFIODevice *vdev)
         }
     }
 
-    DPRINTF("%04x:%02x:%02x.%x ROM size 0x%x\n", vdev->host.domain,
-            vdev->host.bus, vdev->host.slot, vdev->host.function, size);
+    trace_vfio_pci_size_rom(vdev->host.domain, vdev->host.bus,
+                            vdev->host.slot, vdev->host.function,
+                            size);
 
     snprintf(name, sizeof(name), "vfio[%04x:%02x:%02x.%x].rom",
              vdev->host.domain, vdev->host.bus, vdev->host.slot,
@@ -1428,8 +1417,7 @@ static void vfio_vga_write(void *opaque, hwaddr addr,
                      __func__, region->offset + addr, data, size);
     }
 
-    DPRINTF("%s(0x%"HWADDR_PRIx", 0x%"PRIx64", %d)\n",
-            __func__, region->offset + addr, data, size);
+    trace_vfio_vga_write(region->offset + addr, data, size);
 }
 
 static uint64_t vfio_vga_read(void *opaque, hwaddr addr, unsigned size)
@@ -1466,8 +1454,7 @@ static uint64_t vfio_vga_read(void *opaque, hwaddr addr, unsigned size)
         break;
     }
 
-    DPRINTF("%s(0x%"HWADDR_PRIx", %d) = 0x%"PRIx64"\n",
-            __func__, region->offset + addr, size, data);
+    trace_vfio_vga_read(region->offset + addr, size, data);
 
     return data;
 }
@@ -1514,10 +1501,13 @@ static uint64_t vfio_generic_window_quirk_read(void *opaque,
         data = vfio_pci_read_config(&vdev->pdev,
                                     quirk->data.address_val + offset, size);
 
-        DPRINTF("%s read(%04x:%02x:%02x.%x:BAR%d+0x%"HWADDR_PRIx", %d) = 0x%"
-                PRIx64"\n", memory_region_name(&quirk->mem), vdev->host.domain,
-                vdev->host.bus, vdev->host.slot, vdev->host.function,
-                quirk->data.bar, addr, size, data);
+        trace_vfio_generic_window_quirk_read(memory_region_name(&quirk->mem),
+                                             vdev->host.domain,
+                                             vdev->host.bus,
+                                             vdev->host.slot,
+                                             vdev->host.function,
+                                             quirk->data.bar,
+                                             addr, size, data);
     } else {
         data = vfio_bar_read(&vdev->bars[quirk->data.bar],
                              addr + quirk->data.base_offset, size);
@@ -1563,10 +1553,14 @@ static void vfio_generic_window_quirk_write(void *opaque, hwaddr addr,
 
         vfio_pci_write_config(&vdev->pdev,
                               quirk->data.address_val + offset, data, size);
-        DPRINTF("%s write(%04x:%02x:%02x.%x:BAR%d+0x%"HWADDR_PRIx", 0x%"
-                PRIx64", %d)\n", memory_region_name(&quirk->mem),
-                vdev->host.domain, vdev->host.bus, vdev->host.slot,
-                vdev->host.function, quirk->data.bar, addr, data, size);
+
+        trace_vfio_generic_window_quirk_write(memory_region_name(&quirk->mem),
+                                             vdev->host.domain,
+                                             vdev->host.bus,
+                                             vdev->host.slot,
+                                             vdev->host.function,
+                                             quirk->data.bar,
+                                             addr, data, size);
         return;
     }
 
@@ -1599,10 +1593,13 @@ static uint64_t vfio_generic_quirk_read(void *opaque,
 
         data = vfio_pci_read_config(&vdev->pdev, addr - offset, size);
 
-        DPRINTF("%s read(%04x:%02x:%02x.%x:BAR%d+0x%"HWADDR_PRIx", %d) = 0x%"
-                PRIx64"\n", memory_region_name(&quirk->mem), vdev->host.domain,
-                vdev->host.bus, vdev->host.slot, vdev->host.function,
-                quirk->data.bar, addr + base, size, data);
+        trace_vfio_generic_quirk_read(memory_region_name(&quirk->mem),
+                                      vdev->host.domain,
+                                      vdev->host.bus,
+                                      vdev->host.slot,
+                                      vdev->host.function,
+                                      quirk->data.bar,
+                                      addr + base, size, data);
     } else {
         data = vfio_bar_read(&vdev->bars[quirk->data.bar], addr + base, size);
     }
@@ -1628,10 +1625,13 @@ static void vfio_generic_quirk_write(void *opaque, hwaddr addr,
 
         vfio_pci_write_config(&vdev->pdev, addr - offset, data, size);
 
-        DPRINTF("%s write(%04x:%02x:%02x.%x:BAR%d+0x%"HWADDR_PRIx", 0x%"
-                PRIx64", %d)\n", memory_region_name(&quirk->mem),
-                vdev->host.domain, vdev->host.bus, vdev->host.slot,
-                vdev->host.function, quirk->data.bar, addr + base, data, size);
+        trace_vfio_generic_quirk_write(memory_region_name(&quirk->mem),
+                                       vdev->host.domain,
+                                       vdev->host.bus,
+                                       vdev->host.slot,
+                                       vdev->host.function,
+                                       quirk->data.bar,
+                                       addr + base, data, size);
     } else {
         vfio_bar_write(&vdev->bars[quirk->data.bar], addr + base, data, size);
     }
@@ -1663,7 +1663,7 @@ static uint64_t vfio_ati_3c3_quirk_read(void *opaque,
     uint64_t data = vfio_pci_read_config(&vdev->pdev,
                                          PCI_BASE_ADDRESS_0 + (4 * 4) + 1,
                                          size);
-    DPRINTF("%s(0x3c3, 1) = 0x%"PRIx64"\n", __func__, data);
+    trace_vfio_ati_3c3_quirk_read(data);
 
     return data;
 }
@@ -1701,9 +1701,8 @@ static void vfio_vga_probe_ati_3c3_quirk(VFIODevice *vdev)
     QLIST_INSERT_HEAD(&vdev->vga.region[QEMU_PCI_VGA_IO_HI].quirks,
                       quirk, next);
 
-    DPRINTF("Enabled ATI/AMD quirk 0x3c3 BAR4for device %04x:%02x:%02x.%x\n",
-            vdev->host.domain, vdev->host.bus, vdev->host.slot,
-            vdev->host.function);
+    trace_vfio_vga_probe_ati_3c3_quirk(vdev->host.domain, vdev->host.bus,
+                                       vdev->host.slot, vdev->host.function);
 }
 
 /*
@@ -1744,9 +1743,10 @@ static void vfio_probe_ati_bar4_window_quirk(VFIODevice *vdev, int nr)
 
     QLIST_INSERT_HEAD(&vdev->bars[nr].quirks, quirk, next);
 
-    DPRINTF("Enabled ATI/AMD BAR4 window quirk for device %04x:%02x:%02x.%x\n",
-            vdev->host.domain, vdev->host.bus, vdev->host.slot,
-            vdev->host.function);
+    trace_vfio_probe_ati_bar4_window_quirk(vdev->host.domain,
+                                           vdev->host.bus,
+                                           vdev->host.slot,
+                                           vdev->host.function);
 }
 
 #define PCI_VENDOR_ID_REALTEK 0x10ec
@@ -1783,9 +1783,10 @@ static uint64_t vfio_rtl8168_window_quirk_read(void *opaque,
     switch (addr) {
     case 4: /* address */
         if (quirk->data.flags) {
-            DPRINTF("%s fake read(%04x:%02x:%02x.%d)\n",
-                    memory_region_name(&quirk->mem), vdev->host.domain,
-                    vdev->host.bus, vdev->host.slot, vdev->host.function);
+            trace_vfio_rtl8168_window_quirk_read_fake(
+                    memory_region_name(&quirk->mem),
+                    vdev->host.domain, vdev->host.bus,
+                    vdev->host.slot, vdev->host.function);
 
             return quirk->data.address_match ^ 0x10000000U;
         }
@@ -1794,9 +1795,11 @@ static uint64_t vfio_rtl8168_window_quirk_read(void *opaque,
         if (quirk->data.flags) {
             uint64_t val;
 
-            DPRINTF("%s MSI-X table read(%04x:%02x:%02x.%d)\n",
-                    memory_region_name(&quirk->mem), vdev->host.domain,
-                    vdev->host.bus, vdev->host.slot, vdev->host.function);
+            trace_vfio_rtl8168_window_quirk_read_table(
+                    memory_region_name(&quirk->mem),
+                    vdev->host.domain, vdev->host.bus,
+                    vdev->host.slot, vdev->host.function
+               );
 
             if (!(vdev->pdev.cap_present & QEMU_PCI_CAP_MSIX)) {
                 return 0;
@@ -1809,9 +1812,10 @@ static uint64_t vfio_rtl8168_window_quirk_read(void *opaque,
         }
     }
 
-    DPRINTF("%s direct read(%04x:%02x:%02x.%d)\n",
-            memory_region_name(&quirk->mem), vdev->host.domain,
-            vdev->host.bus, vdev->host.slot, vdev->host.function);
+    trace_vfio_rtl8168_window_quirk_read_direct(
+                        memory_region_name(&quirk->mem),
+                        vdev->host.domain, vdev->host.bus,
+                        vdev->host.slot, vdev->host.function);
 
     return vfio_bar_read(&vdev->bars[quirk->data.bar], addr + 0x70, size);
 }
@@ -1828,9 +1832,10 @@ static void vfio_rtl8168_window_quirk_write(void *opaque, hwaddr addr,
             if (data & 0x10000000U &&
                 vdev->pdev.cap_present & QEMU_PCI_CAP_MSIX) {
 
-                DPRINTF("%s MSI-X table write(%04x:%02x:%02x.%d)\n",
-                        memory_region_name(&quirk->mem), vdev->host.domain,
-                        vdev->host.bus, vdev->host.slot, vdev->host.function);
+                trace_vfio_rtl8168_window_quirk_write_table(
+                        memory_region_name(&quirk->mem),
+                        vdev->host.domain, vdev->host.bus,
+                        vdev->host.slot, vdev->host.function);
 
                 io_mem_write(&vdev->pdev.msix_table_mmio,
                              (hwaddr)(quirk->data.address_match & 0xfff),
@@ -1849,9 +1854,10 @@ static void vfio_rtl8168_window_quirk_write(void *opaque, hwaddr addr,
         break;
     }
 
-    DPRINTF("%s direct write(%04x:%02x:%02x.%d)\n",
-            memory_region_name(&quirk->mem), vdev->host.domain,
-            vdev->host.bus, vdev->host.slot, vdev->host.function);
+    trace_vfio_rtl8168_window_quirk_write_direct(
+            memory_region_name(&quirk->mem),
+            vdev->host.domain, vdev->host.bus,
+            vdev->host.slot, vdev->host.function);
 
     vfio_bar_write(&vdev->bars[quirk->data.bar], addr + 0x70, data, size);
 }
@@ -1888,9 +1894,10 @@ static void vfio_probe_rtl8168_bar2_window_quirk(VFIODevice *vdev, int nr)
 
     QLIST_INSERT_HEAD(&vdev->bars[nr].quirks, quirk, next);
 
-    DPRINTF("Enabled RTL8168 BAR2 window quirk for device %04x:%02x:%02x.%x\n",
-            vdev->host.domain, vdev->host.bus, vdev->host.slot,
-            vdev->host.function);
+    trace_vfio_probe_rtl8168_bar2_window_quirk(vdev->host.domain,
+                                               vdev->host.bus,
+                                               vdev->host.slot,
+                                               vdev->host.function);
 }
 /*
  * Trap the BAR2 MMIO window to config space as well.
@@ -1922,9 +1929,10 @@ static void vfio_probe_ati_bar2_4000_quirk(VFIODevice *vdev, int nr)
 
     QLIST_INSERT_HEAD(&vdev->bars[nr].quirks, quirk, next);
 
-    DPRINTF("Enabled ATI/AMD BAR2 0x4000 quirk for device %04x:%02x:%02x.%x\n",
-            vdev->host.domain, vdev->host.bus, vdev->host.slot,
-            vdev->host.function);
+    trace_vfio_probe_ati_bar2_4000_quirk(vdev->host.domain,
+                                         vdev->host.bus,
+                                         vdev->host.slot,
+                                         vdev->host.function);
 }
 
 /*
@@ -1970,7 +1978,7 @@ static uint64_t vfio_nvidia_3d0_quirk_read(void *opaque,
 
     if (quirk->data.flags == NV_3D0_READ && addr == quirk->data.data_offset) {
         data = vfio_pci_read_config(pdev, quirk->data.address_val, size);
-        DPRINTF("%s(0x3d0, %d) = 0x%"PRIx64"\n", __func__, size, data);
+        trace_vfio_nvidia_3d0_quirk_read(size, data);
     }
 
     quirk->data.flags = NV_3D0_NONE;
@@ -2013,7 +2021,7 @@ static void vfio_nvidia_3d0_quirk_write(void *opaque, hwaddr addr,
         quirk->data.flags = NV_3D0_NONE;
         if (addr == quirk->data.data_offset) {
             vfio_pci_write_config(pdev, quirk->data.address_val, data, size);
-            DPRINTF("%s(0x3d0, 0x%"PRIx64", %d)\n", __func__, data, size);
+            trace_vfio_nvidia_3d0_quirk_write(data, size);
             return;
         }
         break;
@@ -2057,9 +2065,10 @@ static void vfio_vga_probe_nvidia_3d0_quirk(VFIODevice *vdev)
     QLIST_INSERT_HEAD(&vdev->vga.region[QEMU_PCI_VGA_IO_HI].quirks,
                       quirk, next);
 
-    DPRINTF("Enabled NVIDIA VGA 0x3d0 quirk for device %04x:%02x:%02x.%x\n",
-            vdev->host.domain, vdev->host.bus, vdev->host.slot,
-            vdev->host.function);
+    trace_vfio_vga_probe_nvidia_3d0_quirk(vdev->host.domain,
+                                          vdev->host.bus,
+                                          vdev->host.slot,
+                                          vdev->host.function);
 }
 
 /*
@@ -2147,9 +2156,10 @@ static void vfio_probe_nvidia_bar5_window_quirk(VFIODevice *vdev, int nr)
 
     QLIST_INSERT_HEAD(&vdev->bars[nr].quirks, quirk, next);
 
-    DPRINTF("Enabled NVIDIA BAR5 window quirk for device %04x:%02x:%02x.%x\n",
-            vdev->host.domain, vdev->host.bus, vdev->host.slot,
-            vdev->host.function);
+    trace_vfio_probe_nvidia_bar5_window_quirk(vdev->host.domain,
+                                              vdev->host.bus,
+                                              vdev->host.slot,
+                                              vdev->host.function);
 }
 
 static void vfio_nvidia_88000_quirk_write(void *opaque, hwaddr addr,
@@ -2219,9 +2229,10 @@ static void vfio_probe_nvidia_bar0_88000_quirk(VFIODevice *vdev, int nr)
 
     QLIST_INSERT_HEAD(&vdev->bars[nr].quirks, quirk, next);
 
-    DPRINTF("Enabled NVIDIA BAR0 0x88000 quirk for device %04x:%02x:%02x.%x\n",
-            vdev->host.domain, vdev->host.bus, vdev->host.slot,
-            vdev->host.function);
+    trace_vfio_probe_nvidia_bar0_88000_quirk(vdev->host.domain,
+                                             vdev->host.bus,
+                                             vdev->host.slot,
+                                             vdev->host.function);
 }
 
 /*
@@ -2238,7 +2249,7 @@ static void vfio_probe_nvidia_bar0_1800_quirk(VFIODevice *vdev, int nr)
     }
 
     /* Log the chipset ID */
-    DPRINTF("Nvidia NV%02x\n",
+    trace_vfio_probe_nvidia_bar0_1800_quirk_id(
             (unsigned int)(vfio_bar_read(&vdev->bars[0], 0, 4) >> 20) & 0xff);
 
     quirk = g_malloc0(sizeof(*quirk));
@@ -2257,9 +2268,10 @@ static void vfio_probe_nvidia_bar0_1800_quirk(VFIODevice *vdev, int nr)
 
     QLIST_INSERT_HEAD(&vdev->bars[nr].quirks, quirk, next);
 
-    DPRINTF("Enabled NVIDIA BAR0 0x1800 quirk for device %04x:%02x:%02x.%x\n",
-            vdev->host.domain, vdev->host.bus, vdev->host.slot,
-            vdev->host.function);
+    trace_vfio_probe_nvidia_bar0_1800_quirk(vdev->host.domain,
+                                            vdev->host.bus,
+                                            vdev->host.slot,
+                                            vdev->host.function);
 }
 
 /*
@@ -2345,9 +2357,9 @@ static uint32_t vfio_pci_read_config(PCIDevice *pdev, uint32_t addr, int len)
 
     val = (emu_val & emu_bits) | (phys_val & ~emu_bits);
 
-    DPRINTF("%s(%04x:%02x:%02x.%x, @0x%x, len=0x%x) %x\n", __func__,
-            vdev->host.domain, vdev->host.bus, vdev->host.slot,
-            vdev->host.function, addr, len, val);
+    trace_vfio_pci_read_config(vdev->host.domain, vdev->host.bus,
+                               vdev->host.slot, vdev->host.function,
+                               addr, len, val);
 
     return val;
 }
@@ -2358,9 +2370,9 @@ static void vfio_pci_write_config(PCIDevice *pdev, uint32_t addr,
     VFIODevice *vdev = DO_UPCAST(VFIODevice, pdev, pdev);
     uint32_t val_le = cpu_to_le32(val);
 
-    DPRINTF("%s(%04x:%02x:%02x.%x, @0x%x, 0x%x, len=0x%x)\n", __func__,
-            vdev->host.domain, vdev->host.bus, vdev->host.slot,
-            vdev->host.function, addr, val, len);
+    trace_vfio_pci_write_config(vdev->host.domain, vdev->host.bus,
+                                vdev->host.slot, vdev->host.function,
+                                addr, val, len);
 
     /* Write everything to VFIO, let it filter out what we can't write */
     if (pwrite(vdev->fd, &val_le, len, vdev->config_offset + addr) != len) {
@@ -2422,7 +2434,7 @@ static int vfio_dma_unmap(VFIOContainer *container,
     };
 
     if (ioctl(container->fd, VFIO_IOMMU_UNMAP_DMA, &unmap)) {
-        DPRINTF("VFIO_UNMAP_DMA: %d\n", -errno);
+        error_report("VFIO_UNMAP_DMA: %d\n", -errno);
         return -errno;
     }
 
@@ -2455,7 +2467,7 @@ static int vfio_dma_map(VFIOContainer *container, hwaddr iova,
         return 0;
     }
 
-    DPRINTF("VFIO_MAP_DMA: %d\n", -errno);
+    error_report("VFIO_MAP_DMA: %d\n", -errno);
     return -errno;
 }
 
@@ -2483,8 +2495,8 @@ static void vfio_iommu_map_notify(Notifier *n, void *data)
     void *vaddr;
     int ret;
 
-    DPRINTF("iommu map @ %"HWADDR_PRIx" - %"HWADDR_PRIx"\n",
-            iotlb->iova, iotlb->iova + iotlb->addr_mask);
+    trace_vfio_iommu_map_notify(iotlb->iova,
+                                iotlb->iova + iotlb->addr_mask);
 
     /*
      * The IOMMU TLB entry we have just covers translation through
@@ -2495,7 +2507,7 @@ static void vfio_iommu_map_notify(Notifier *n, void *data)
                                  iotlb->translated_addr,
                                  &xlat, &len, iotlb->perm & IOMMU_WO);
     if (!memory_region_is_ram(mr)) {
-        DPRINTF("iommu map to non memory area %"HWADDR_PRIx"\n",
+        error_report("iommu map to non memory area %"HWADDR_PRIx"\n",
                 xlat);
         return;
     }
@@ -2504,7 +2516,7 @@ static void vfio_iommu_map_notify(Notifier *n, void *data)
      * check that it did not truncate too much.
      */
     if (len & iotlb->addr_mask) {
-        DPRINTF("iommu has granularity incompatible with target AS\n");
+        error_report("iommu has granularity incompatible with target AS\n");
         return;
     }
 
@@ -2542,7 +2554,7 @@ static void vfio_listener_region_add(MemoryListener *listener,
     int ret;
 
     if (vfio_listener_skipped_section(section)) {
-        DPRINTF("SKIPPING region_add %"HWADDR_PRIx" - %"PRIx64"\n",
+        trace_vfio_listener_region_add_skip(
                 section->offset_within_address_space,
                 section->offset_within_address_space +
                 int128_get64(int128_sub(section->size, int128_one())));
@@ -2569,8 +2581,8 @@ static void vfio_listener_region_add(MemoryListener *listener,
     if (memory_region_is_iommu(section->mr)) {
         VFIOGuestIOMMU *giommu;
 
-        DPRINTF("region_add [iommu] %"HWADDR_PRIx" - %"HWADDR_PRIx"\n",
-                iova, int128_get64(int128_sub(llend, int128_one())));
+        trace_vfio_listener_region_add_iommu(iova,
+                    int128_get64(int128_sub(llend, int128_one())));
         /*
          * FIXME: We should do some checking to see if the
          * capabilities of the host VFIO IOMMU are adequate to model
@@ -2612,8 +2624,7 @@ static void vfio_listener_region_add(MemoryListener *listener,
             section->offset_within_region +
             (iova - section->offset_within_address_space);
 
-    DPRINTF("region_add [ram] %"HWADDR_PRIx" - %"HWADDR_PRIx" [%p]\n",
-            iova, end - 1, vaddr);
+    trace_vfio_listener_region_add_ram(iova, end - 1, vaddr);
 
     ret = vfio_dma_map(container, iova, end - iova, vaddr, section->readonly);
     if (ret) {
@@ -2645,7 +2656,7 @@ static void vfio_listener_region_del(MemoryListener *listener,
     int ret;
 
     if (vfio_listener_skipped_section(section)) {
-        DPRINTF("SKIPPING region_del %"HWADDR_PRIx" - %"PRIx64"\n",
+        trace_vfio_listener_region_del_skip(
                 section->offset_within_address_space,
                 section->offset_within_address_space +
                 int128_get64(int128_sub(section->size, int128_one())));
@@ -2687,8 +2698,7 @@ static void vfio_listener_region_del(MemoryListener *listener,
         return;
     }
 
-    DPRINTF("region_del %"HWADDR_PRIx" - %"HWADDR_PRIx"\n",
-            iova, end - 1);
+    trace_vfio_listener_region_del(iova, end - 1);
 
     ret = vfio_dma_unmap(container, iova, end - iova);
     memory_region_unref(section->mr);
@@ -2743,8 +2753,8 @@ static int vfio_setup_msi(VFIODevice *vdev, int pos)
     msi_maskbit = !!(ctrl & PCI_MSI_FLAGS_MASKBIT);
     entries = 1 << ((ctrl & PCI_MSI_FLAGS_QMASK) >> 1);
 
-    DPRINTF("%04x:%02x:%02x.%x PCI MSI CAP @0x%x\n", vdev->host.domain,
-            vdev->host.bus, vdev->host.slot, vdev->host.function, pos);
+    trace_vfio_setup_msi(vdev->host.domain, vdev->host.bus,
+                         vdev->host.slot, vdev->host.function, pos);
 
     ret = msi_init(&vdev->pdev, pos, entries, msi_64bit, msi_maskbit);
     if (ret < 0) {
@@ -2804,11 +2814,11 @@ static int vfio_early_setup_msix(VFIODevice *vdev)
     vdev->msix->pba_offset = pba & ~PCI_MSIX_FLAGS_BIRMASK;
     vdev->msix->entries = (ctrl & PCI_MSIX_FLAGS_QSIZE) + 1;
 
-    DPRINTF("%04x:%02x:%02x.%x "
-            "PCI MSI-X CAP @0x%x, BAR %d, offset 0x%x, entries %d\n",
-            vdev->host.domain, vdev->host.bus, vdev->host.slot,
-            vdev->host.function, pos, vdev->msix->table_bar,
-            vdev->msix->table_offset, vdev->msix->entries);
+    trace_vfio_early_setup_msix(vdev->host.domain, vdev->host.bus,
+                                vdev->host.slot, vdev->host.function,
+                                pos, vdev->msix->table_bar,
+                                vdev->msix->table_offset,
+                                vdev->msix->entries);
 
     return 0;
 }
@@ -3177,9 +3187,8 @@ static void vfio_check_pcie_flr(VFIODevice *vdev, uint8_t pos)
     uint32_t cap = pci_get_long(vdev->pdev.config + pos + PCI_EXP_DEVCAP);
 
     if (cap & PCI_EXP_DEVCAP_FLR) {
-        DPRINTF("%04x:%02x:%02x.%x Supports FLR via PCIe cap\n",
-                vdev->host.domain, vdev->host.bus, vdev->host.slot,
-                vdev->host.function);
+        trace_vfio_check_pcie_flr(vdev->host.domain, vdev->host.bus,
+                                  vdev->host.slot, vdev->host.function);
         vdev->has_flr = true;
     }
 }
@@ -3189,9 +3198,8 @@ static void vfio_check_pm_reset(VFIODevice *vdev, uint8_t pos)
     uint16_t csr = pci_get_word(vdev->pdev.config + pos + PCI_PM_CTRL);
 
     if (!(csr & PCI_PM_CTRL_NO_SOFT_RESET)) {
-        DPRINTF("%04x:%02x:%02x.%x Supports PM reset\n",
-                vdev->host.domain, vdev->host.bus, vdev->host.slot,
-                vdev->host.function);
+        trace_vfio_check_pm_reset(vdev->host.domain, vdev->host.bus,
+                                  vdev->host.slot, vdev->host.function);
         vdev->has_pm_reset = true;
     }
 }
@@ -3201,9 +3209,8 @@ static void vfio_check_af_flr(VFIODevice *vdev, uint8_t pos)
     uint8_t cap = pci_get_byte(vdev->pdev.config + pos + PCI_AF_CAP);
 
     if ((cap & PCI_AF_CAP_TP) && (cap & PCI_AF_CAP_FLR)) {
-        DPRINTF("%04x:%02x:%02x.%x Supports FLR via AF cap\n",
-                vdev->host.domain, vdev->host.bus, vdev->host.slot,
-                vdev->host.function);
+        trace_vfio_check_af_flr(vdev->host.domain, vdev->host.bus,
+                                vdev->host.slot, vdev->host.function);
         vdev->has_flr = true;
     }
 }
@@ -3354,9 +3361,9 @@ static int vfio_pci_hot_reset(VFIODevice *vdev, bool single)
     int ret, i, count;
     bool multi = false;
 
-    DPRINTF("%s(%04x:%02x:%02x.%x) %s\n", __func__, vdev->host.domain,
-            vdev->host.bus, vdev->host.slot, vdev->host.function,
-            single ? "one" : "multi");
+    trace_vfio_pci_hot_reset(vdev->host.domain, vdev->host.bus,
+                             vdev->host.slot, vdev->host.function,
+                             single ? "one" : "multi");
 
     vfio_pci_pre_reset(vdev);
     vdev->needs_reset = false;
@@ -3387,9 +3394,10 @@ static int vfio_pci_hot_reset(VFIODevice *vdev, bool single)
         goto out_single;
     }
 
-    DPRINTF("%04x:%02x:%02x.%x: hot reset dependent devices:\n",
-            vdev->host.domain, vdev->host.bus, vdev->host.slot,
-            vdev->host.function);
+    trace_vfio_pci_hot_reset_has_dep_devices(vdev->host.domain,
+                                             vdev->host.bus,
+                                             vdev->host.slot,
+                                             vdev->host.function);
 
     /* Verify that we have all the groups required */
     for (i = 0; i < info->count; i++) {
@@ -3401,7 +3409,7 @@ static int vfio_pci_hot_reset(VFIODevice *vdev, bool single)
         host.slot = PCI_SLOT(devices[i].devfn);
         host.function = PCI_FUNC(devices[i].devfn);
 
-        DPRINTF("\t%04x:%02x:%02x.%x group %d\n", host.domain,
+        trace_vfio_pci_hot_reset_dep_devices(host.domain,
                 host.bus, host.slot, host.function, devices[i].group_id);
 
         if (vfio_pci_host_match(&host, &vdev->host)) {
@@ -3429,7 +3437,7 @@ static int vfio_pci_hot_reset(VFIODevice *vdev, bool single)
         QLIST_FOREACH(tmp, &group->device_list, next) {
             if (vfio_pci_host_match(&host, &tmp->host)) {
                 if (single) {
-                    DPRINTF("vfio: found another in-use device "
+                    error_report("vfio: found another in-use device "
                             "%04x:%02x:%02x.%x\n", host.domain, host.bus,
                             host.slot, host.function);
                     ret = -EINVAL;
@@ -3444,7 +3452,7 @@ static int vfio_pci_hot_reset(VFIODevice *vdev, bool single)
     }
 
     if (!single && !multi) {
-        DPRINTF("vfio: No other in-use devices for multi hot reset\n");
+        error_report("vfio: No other in-use devices for multi hot reset\n");
         ret = -EINVAL;
         goto out_single;
     }
@@ -3478,9 +3486,11 @@ static int vfio_pci_hot_reset(VFIODevice *vdev, bool single)
     ret = ioctl(vdev->fd, VFIO_DEVICE_PCI_HOT_RESET, reset);
     g_free(reset);
 
-    DPRINTF("%04x:%02x:%02x.%x hot reset: %s\n", vdev->host.domain,
-            vdev->host.bus, vdev->host.slot, vdev->host.function,
-            ret ? "%m" : "Success");
+    trace_vfio_pci_hot_reset_result(vdev->host.domain,
+                                    vdev->host.bus,
+                                    vdev->host.slot,
+                                    vdev->host.function,
+                                    ret ? "%m" : "Success");
 
 out:
     /* Re-enable INTx on affected devices */
@@ -3587,7 +3597,7 @@ static void vfio_kvm_device_add_group(VFIOGroup *group)
         };
 
         if (kvm_vm_ioctl(kvm_state, KVM_CREATE_DEVICE, &cd)) {
-            DPRINTF("KVM_CREATE_DEVICE: %m\n");
+            error_report("KVM_CREATE_DEVICE: %m\n");
             return;
         }
 
@@ -3794,7 +3804,7 @@ static void vfio_disconnect_container(VFIOGroup *group)
             container->iommu_data.release(container);
         }
         QLIST_REMOVE(container, next);
-        DPRINTF("vfio_disconnect_container: close container->fd\n");
+        trace_vfio_disconnect_container(container->fd);
         close(container->fd);
         g_free(container);
 
@@ -3878,7 +3888,7 @@ static void vfio_put_group(VFIOGroup *group)
     vfio_kvm_device_del_group(group);
     vfio_disconnect_container(group);
     QLIST_REMOVE(group, next);
-    DPRINTF("vfio_put_group: close group->fd\n");
+    trace_vfio_put_group(group->fd);
     close(group->fd);
     g_free(group);
 
@@ -3914,8 +3924,8 @@ static int vfio_get_device(VFIOGroup *group, const char *name, VFIODevice *vdev)
         goto error;
     }
 
-    DPRINTF("Device %s flags: %u, regions: %u, irgs: %u\n", name,
-            dev_info.flags, dev_info.num_regions, dev_info.num_irqs);
+    trace_vfio_get_device_irq(name, dev_info.flags,
+                              dev_info.num_regions, dev_info.num_irqs);
 
     if (!(dev_info.flags & VFIO_DEVICE_FLAGS_PCI)) {
         error_report("vfio: Um, this isn't a PCI device");
@@ -3944,10 +3954,10 @@ static int vfio_get_device(VFIOGroup *group, const char *name, VFIODevice *vdev)
             goto error;
         }
 
-        DPRINTF("Device %s region %d:\n", name, i);
-        DPRINTF("  size: 0x%lx, offset: 0x%lx, flags: 0x%lx\n",
-                (unsigned long)reg_info.size, (unsigned long)reg_info.offset,
-                (unsigned long)reg_info.flags);
+        trace_vfio_get_device_region(name, i,
+                                     (unsigned long)reg_info.size,
+                                     (unsigned long)reg_info.offset,
+                                     (unsigned long)reg_info.flags);
 
         vdev->bars[i].flags = reg_info.flags;
         vdev->bars[i].size = reg_info.size;
@@ -3965,10 +3975,9 @@ static int vfio_get_device(VFIOGroup *group, const char *name, VFIODevice *vdev)
         goto error;
     }
 
-    DPRINTF("Device %s config:\n", name);
-    DPRINTF("  size: 0x%lx, offset: 0x%lx, flags: 0x%lx\n",
-            (unsigned long)reg_info.size, (unsigned long)reg_info.offset,
-            (unsigned long)reg_info.flags);
+    trace_vfio_get_device_config(name, (unsigned long)reg_info.size,
+                                 (unsigned long)reg_info.offset,
+                                 (unsigned long)reg_info.flags);
 
     vdev->config_size = reg_info.size;
     if (vdev->config_size == PCI_CONFIG_SPACE_SIZE) {
@@ -4021,7 +4030,7 @@ static int vfio_get_device(VFIOGroup *group, const char *name, VFIODevice *vdev)
     ret = ioctl(vdev->fd, VFIO_DEVICE_GET_IRQ_INFO, &irq_info);
     if (ret) {
         /* This can fail for an old kernel or legacy PCI dev */
-        DPRINTF("VFIO_DEVICE_GET_IRQ_INFO failure: %m\n");
+        trace_vfio_get_device_get_irq_info_failure();
         ret = 0;
     } else if (irq_info.count == 1) {
         vdev->pci_aer = true;
@@ -4045,7 +4054,7 @@ static void vfio_put_device(VFIODevice *vdev)
 {
     QLIST_REMOVE(vdev, next);
     vdev->group = NULL;
-    DPRINTF("vfio_put_device: close vdev->fd\n");
+    trace_vfio_put_device(vdev->fd);
     close(vdev->fd);
     if (vdev->msix) {
         g_free(vdev->msix);
@@ -4194,8 +4203,8 @@ static int vfio_initfn(PCIDevice *pdev)
         return -errno;
     }
 
-    DPRINTF("%s(%04x:%02x:%02x.%x) group %d\n", __func__, vdev->host.domain,
-            vdev->host.bus, vdev->host.slot, vdev->host.function, groupid);
+    trace_vfio_initfn(vdev->host.domain, vdev->host.bus,
+                      vdev->host.slot, vdev->host.function, groupid);
 
     group = vfio_get_group(groupid, pci_device_iommu_address_space(pdev));
     if (!group) {
@@ -4335,15 +4344,15 @@ static void vfio_pci_reset(DeviceState *dev)
     PCIDevice *pdev = DO_UPCAST(PCIDevice, qdev, dev);
     VFIODevice *vdev = DO_UPCAST(VFIODevice, pdev, pdev);
 
-    DPRINTF("%s(%04x:%02x:%02x.%x)\n", __func__, vdev->host.domain,
-            vdev->host.bus, vdev->host.slot, vdev->host.function);
+    trace_vfio_pci_reset(vdev->host.domain, vdev->host.bus,
+                         vdev->host.slot, vdev->host.function);
 
     vfio_pci_pre_reset(vdev);
 
     if (vdev->reset_works && (vdev->has_flr || !vdev->has_pm_reset) &&
         !ioctl(vdev->fd, VFIO_DEVICE_RESET)) {
-        DPRINTF("%04x:%02x:%02x.%x FLR/VFIO_DEVICE_RESET\n", vdev->host.domain,
-            vdev->host.bus, vdev->host.slot, vdev->host.function);
+        trace_vfio_pci_reset_flr(vdev->host.domain, vdev->host.bus,
+                                  vdev->host.slot, vdev->host.function);
         goto post_reset;
     }
 
@@ -4355,8 +4364,8 @@ static void vfio_pci_reset(DeviceState *dev)
     /* If nothing else works and the device supports PM reset, use it */
     if (vdev->reset_works && vdev->has_pm_reset &&
         !ioctl(vdev->fd, VFIO_DEVICE_RESET)) {
-        DPRINTF("%04x:%02x:%02x.%x PCI PM Reset\n", vdev->host.domain,
-            vdev->host.bus, vdev->host.slot, vdev->host.function);
+        trace_vfio_pci_reset_pm(vdev->host.domain, vdev->host.bus,
+                                vdev->host.slot, vdev->host.function);
         goto post_reset;
     }
 
