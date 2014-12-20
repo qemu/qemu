@@ -177,42 +177,69 @@ PropertyInfo qdev_prop_chr = {
 };
 
 /* --- netdev device --- */
-
-static int parse_netdev(DeviceState *dev, const char *str, void **ptr)
+static void get_netdev(Object *obj, Visitor *v, void *opaque,
+                       const char *name, Error **errp)
 {
-    NICPeers *peers_ptr = (NICPeers *)ptr;
+    DeviceState *dev = DEVICE(obj);
+    Property *prop = opaque;
+    NICPeers *peers_ptr = qdev_get_prop_ptr(dev, prop);
+    char *p = g_strdup(peers_ptr->ncs[0] ? peers_ptr->ncs[0]->name : "");
+
+    visit_type_str(v, &p, name, errp);
+    g_free(p);
+}
+
+static void set_netdev(Object *obj, Visitor *v, void *opaque,
+                       const char *name, Error **errp)
+{
+    DeviceState *dev = DEVICE(obj);
+    Property *prop = opaque;
+    NICPeers *peers_ptr = qdev_get_prop_ptr(dev, prop);
     NetClientState **ncs = peers_ptr->ncs;
     NetClientState *peers[MAX_QUEUE_NUM];
-    int queues, i = 0;
-    int ret;
+    Error *local_err = NULL;
+    int queues, err = 0, i = 0;
+    char *str;
+
+    if (dev->realized) {
+        qdev_prop_set_after_realize(dev, name, errp);
+        return;
+    }
+
+    visit_type_str(v, &str, name, &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        return;
+    }
 
     queues = qemu_find_net_clients_except(str, peers,
                                           NET_CLIENT_OPTIONS_KIND_NIC,
                                           MAX_QUEUE_NUM);
     if (queues == 0) {
-        ret = -ENOENT;
-        goto err;
+        err = -ENOENT;
+        goto out;
     }
 
     if (queues > MAX_QUEUE_NUM) {
-        ret = -E2BIG;
-        goto err;
+        error_setg(errp, "queues of backend '%s'(%d) exceeds QEMU limitation(%d)",
+                   str, queues, MAX_QUEUE_NUM);
+        goto out;
     }
 
     for (i = 0; i < queues; i++) {
         if (peers[i] == NULL) {
-            ret = -ENOENT;
-            goto err;
+            err = -ENOENT;
+            goto out;
         }
 
         if (peers[i]->peer) {
-            ret = -EEXIST;
-            goto err;
+            err = -EEXIST;
+            goto out;
         }
 
         if (ncs[i]) {
-            ret = -EINVAL;
-            goto err;
+            err = -EINVAL;
+            goto out;
         }
 
         ncs[i] = peers[i];
@@ -221,30 +248,9 @@ static int parse_netdev(DeviceState *dev, const char *str, void **ptr)
 
     peers_ptr->queues = queues;
 
-    return 0;
-
-err:
-    return ret;
-}
-
-static char *print_netdev(void *ptr)
-{
-    NetClientState *netdev = ptr;
-    const char *val = netdev->name ? netdev->name : "";
-
-    return g_strdup(val);
-}
-
-static void get_netdev(Object *obj, Visitor *v, void *opaque,
-                       const char *name, Error **errp)
-{
-    get_pointer(obj, v, opaque, print_netdev, name, errp);
-}
-
-static void set_netdev(Object *obj, Visitor *v, void *opaque,
-                       const char *name, Error **errp)
-{
-    set_pointer(obj, v, opaque, parse_netdev, name, errp);
+out:
+    error_set_from_qdev_prop_error(errp, err, dev, prop, str);
+    g_free(str);
 }
 
 PropertyInfo qdev_prop_netdev = {
