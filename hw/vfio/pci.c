@@ -386,9 +386,7 @@ static void vfio_intx_interrupt(void *opaque)
         return;
     }
 
-    trace_vfio_intx_interrupt(vdev->host.domain, vdev->host.bus,
-                              vdev->host.slot, vdev->host.function,
-                              'A' + vdev->intx.pin);
+    trace_vfio_intx_interrupt(vdev->vbasedev.name, 'A' + vdev->intx.pin);
 
     vdev->intx.pending = true;
     pci_irq_assert(&vdev->pdev);
@@ -407,8 +405,7 @@ static void vfio_eoi(VFIODevice *vbasedev)
         return;
     }
 
-    trace_vfio_eoi(vdev->host.domain, vdev->host.bus,
-                   vdev->host.slot, vdev->host.function);
+    trace_vfio_eoi(vbasedev->name);
 
     vdev->intx.pending = false;
     pci_irq_deassert(&vdev->pdev);
@@ -477,8 +474,7 @@ static void vfio_enable_intx_kvm(VFIOPCIDevice *vdev)
 
     vdev->intx.kvm_accel = true;
 
-    trace_vfio_enable_intx_kvm(vdev->host.domain, vdev->host.bus,
-                               vdev->host.slot, vdev->host.function);
+    trace_vfio_enable_intx_kvm(vdev->vbasedev.name);
 
     return;
 
@@ -530,8 +526,7 @@ static void vfio_disable_intx_kvm(VFIOPCIDevice *vdev)
     /* If we've missed an event, let it re-fire through QEMU */
     vfio_unmask_single_irqindex(&vdev->vbasedev, VFIO_PCI_INTX_IRQ_INDEX);
 
-    trace_vfio_disable_intx_kvm(vdev->host.domain, vdev->host.bus,
-                                vdev->host.slot, vdev->host.function);
+    trace_vfio_disable_intx_kvm(vdev->vbasedev.name);
 #endif
 }
 
@@ -550,8 +545,7 @@ static void vfio_update_irq(PCIDevice *pdev)
         return; /* Nothing changed */
     }
 
-    trace_vfio_update_irq(vdev->host.domain, vdev->host.bus,
-                          vdev->host.slot, vdev->host.function,
+    trace_vfio_update_irq(vdev->vbasedev.name,
                           vdev->intx.route.irq, route.irq);
 
     vfio_disable_intx_kvm(vdev);
@@ -627,8 +621,7 @@ static int vfio_enable_intx(VFIOPCIDevice *vdev)
 
     vdev->interrupt = VFIO_INT_INTx;
 
-    trace_vfio_enable_intx(vdev->host.domain, vdev->host.bus,
-                           vdev->host.slot, vdev->host.function);
+    trace_vfio_enable_intx(vdev->vbasedev.name);
 
     return 0;
 }
@@ -650,8 +643,7 @@ static void vfio_disable_intx(VFIOPCIDevice *vdev)
 
     vdev->interrupt = VFIO_INT_NONE;
 
-    trace_vfio_disable_intx(vdev->host.domain, vdev->host.bus,
-                            vdev->host.slot, vdev->host.function);
+    trace_vfio_disable_intx(vdev->vbasedev.name);
 }
 
 /*
@@ -678,9 +670,7 @@ static void vfio_msi_interrupt(void *opaque)
         abort();
     }
 
-    trace_vfio_msi_interrupt(vdev->host.domain, vdev->host.bus,
-                             vdev->host.slot, vdev->host.function,
-                             nr, msg.address, msg.data);
+    trace_vfio_msi_interrupt(vbasedev->name, nr, msg.address, msg.data);
 #endif
 
     if (vdev->interrupt == VFIO_INT_MSIX) {
@@ -787,9 +777,7 @@ static int vfio_msix_vector_do_use(PCIDevice *pdev, unsigned int nr,
     VFIOMSIVector *vector;
     int ret;
 
-    trace_vfio_msix_vector_do_use(vdev->host.domain, vdev->host.bus,
-                                  vdev->host.slot, vdev->host.function,
-                                  nr);
+    trace_vfio_msix_vector_do_use(vdev->vbasedev.name, nr);
 
     vector = &vdev->msi_vectors[nr];
 
@@ -875,9 +863,7 @@ static void vfio_msix_vector_release(PCIDevice *pdev, unsigned int nr)
     VFIOPCIDevice *vdev = DO_UPCAST(VFIOPCIDevice, pdev, pdev);
     VFIOMSIVector *vector = &vdev->msi_vectors[nr];
 
-    trace_vfio_msix_vector_release(vdev->host.domain, vdev->host.bus,
-                                   vdev->host.slot, vdev->host.function,
-                                   nr);
+    trace_vfio_msix_vector_release(vdev->vbasedev.name, nr);
 
     /*
      * There are still old guests that mask and unmask vectors on every
@@ -940,8 +926,7 @@ static void vfio_enable_msix(VFIOPCIDevice *vdev)
         error_report("vfio: msix_set_vector_notifiers failed");
     }
 
-    trace_vfio_enable_msix(vdev->host.domain, vdev->host.bus,
-                           vdev->host.slot, vdev->host.function);
+    trace_vfio_enable_msix(vdev->vbasedev.name);
 }
 
 static void vfio_enable_msi(VFIOPCIDevice *vdev)
@@ -1017,9 +1002,7 @@ retry:
         return;
     }
 
-    trace_vfio_enable_msi(vdev->host.domain, vdev->host.bus,
-                          vdev->host.slot, vdev->host.function,
-                          vdev->nr_vectors);
+    trace_vfio_enable_msi(vdev->vbasedev.name, vdev->nr_vectors);
 }
 
 static void vfio_disable_msi_common(VFIOPCIDevice *vdev)
@@ -1069,8 +1052,7 @@ static void vfio_disable_msix(VFIOPCIDevice *vdev)
 
     vfio_disable_msi_common(vdev);
 
-    trace_vfio_disable_msix(vdev->host.domain, vdev->host.bus,
-                            vdev->host.slot, vdev->host.function);
+    trace_vfio_disable_msix(vdev->vbasedev.name);
 }
 
 static void vfio_disable_msi(VFIOPCIDevice *vdev)
@@ -1078,8 +1060,7 @@ static void vfio_disable_msi(VFIOPCIDevice *vdev)
     vfio_disable_irqindex(&vdev->vbasedev, VFIO_PCI_MSI_IRQ_INDEX);
     vfio_disable_msi_common(vdev);
 
-    trace_vfio_disable_msi(vdev->host.domain, vdev->host.bus,
-                           vdev->host.slot, vdev->host.function);
+    trace_vfio_disable_msi(vdev->vbasedev.name);
 }
 
 static void vfio_update_msi(VFIOPCIDevice *vdev)
@@ -1213,9 +1194,7 @@ static void vfio_pci_load_rom(VFIOPCIDevice *vdev)
         return;
     }
 
-    trace_vfio_pci_load_rom(vdev->host.domain, vdev->host.bus,
-                            vdev->host.slot, vdev->host.function,
-                            (unsigned long)reg_info.size,
+    trace_vfio_pci_load_rom(vdev->vbasedev.name, (unsigned long)reg_info.size,
                             (unsigned long)reg_info.offset,
                             (unsigned long)reg_info.flags);
 
@@ -1225,9 +1204,7 @@ static void vfio_pci_load_rom(VFIOPCIDevice *vdev)
     if (!vdev->rom_size) {
         vdev->rom_read_failed = true;
         error_report("vfio-pci: Cannot read device rom at "
-                    "%04x:%02x:%02x.%x",
-                    vdev->host.domain, vdev->host.bus, vdev->host.slot,
-                    vdev->host.function);
+                    "%s", vdev->vbasedev.name);
         error_printf("Device option ROM contents are probably invalid "
                     "(check dmesg).\nSkip option ROM probe with rombar=0, "
                     "or load from file with romfile=\n");
@@ -1289,9 +1266,7 @@ static uint64_t vfio_rom_read(void *opaque, hwaddr addr, unsigned size)
         break;
     }
 
-    trace_vfio_rom_read(vdev->host.domain, vdev->host.bus,
-                        vdev->host.slot, vdev->host.function,
-                        addr, size, data);
+    trace_vfio_rom_read(vdev->vbasedev.name, addr, size, data);
 
     return data;
 }
@@ -1388,9 +1363,7 @@ static void vfio_pci_size_rom(VFIOPCIDevice *vdev)
         }
     }
 
-    trace_vfio_pci_size_rom(vdev->host.domain, vdev->host.bus,
-                            vdev->host.slot, vdev->host.function,
-                            size);
+    trace_vfio_pci_size_rom(vdev->vbasedev.name, size);
 
     snprintf(name, sizeof(name), "vfio[%04x:%02x:%02x.%x].rom",
              vdev->host.domain, vdev->host.bus, vdev->host.slot,
@@ -1524,10 +1497,7 @@ static uint64_t vfio_generic_window_quirk_read(void *opaque,
                                     quirk->data.address_val + offset, size);
 
         trace_vfio_generic_window_quirk_read(memory_region_name(&quirk->mem),
-                                             vdev->host.domain,
-                                             vdev->host.bus,
-                                             vdev->host.slot,
-                                             vdev->host.function,
+                                             vdev->vbasedev.name,
                                              quirk->data.bar,
                                              addr, size, data);
     } else {
@@ -1575,14 +1545,10 @@ static void vfio_generic_window_quirk_write(void *opaque, hwaddr addr,
 
         vfio_pci_write_config(&vdev->pdev,
                               quirk->data.address_val + offset, data, size);
-
         trace_vfio_generic_window_quirk_write(memory_region_name(&quirk->mem),
-                                             vdev->host.domain,
-                                             vdev->host.bus,
-                                             vdev->host.slot,
-                                             vdev->host.function,
-                                             quirk->data.bar,
-                                             addr, data, size);
+                                              vdev->vbasedev.name,
+                                              quirk->data.bar,
+                                              addr, data, size);
         return;
     }
 
@@ -1616,11 +1582,7 @@ static uint64_t vfio_generic_quirk_read(void *opaque,
         data = vfio_pci_read_config(&vdev->pdev, addr - offset, size);
 
         trace_vfio_generic_quirk_read(memory_region_name(&quirk->mem),
-                                      vdev->host.domain,
-                                      vdev->host.bus,
-                                      vdev->host.slot,
-                                      vdev->host.function,
-                                      quirk->data.bar,
+                                      vdev->vbasedev.name, quirk->data.bar,
                                       addr + base, size, data);
     } else {
         data = vfio_region_read(&vdev->bars[quirk->data.bar].region,
@@ -1649,11 +1611,7 @@ static void vfio_generic_quirk_write(void *opaque, hwaddr addr,
         vfio_pci_write_config(&vdev->pdev, addr - offset, data, size);
 
         trace_vfio_generic_quirk_write(memory_region_name(&quirk->mem),
-                                       vdev->host.domain,
-                                       vdev->host.bus,
-                                       vdev->host.slot,
-                                       vdev->host.function,
-                                       quirk->data.bar,
+                                       vdev->vbasedev.name, quirk->data.bar,
                                        addr + base, data, size);
     } else {
         vfio_region_write(&vdev->bars[quirk->data.bar].region,
@@ -1725,8 +1683,7 @@ static void vfio_vga_probe_ati_3c3_quirk(VFIOPCIDevice *vdev)
     QLIST_INSERT_HEAD(&vdev->vga.region[QEMU_PCI_VGA_IO_HI].quirks,
                       quirk, next);
 
-    trace_vfio_vga_probe_ati_3c3_quirk(vdev->host.domain, vdev->host.bus,
-                                       vdev->host.slot, vdev->host.function);
+    trace_vfio_vga_probe_ati_3c3_quirk(vdev->vbasedev.name);
 }
 
 /*
@@ -1767,10 +1724,7 @@ static void vfio_probe_ati_bar4_window_quirk(VFIOPCIDevice *vdev, int nr)
 
     QLIST_INSERT_HEAD(&vdev->bars[nr].quirks, quirk, next);
 
-    trace_vfio_probe_ati_bar4_window_quirk(vdev->host.domain,
-                                           vdev->host.bus,
-                                           vdev->host.slot,
-                                           vdev->host.function);
+    trace_vfio_probe_ati_bar4_window_quirk(vdev->vbasedev.name);
 }
 
 #define PCI_VENDOR_ID_REALTEK 0x10ec
@@ -1809,8 +1763,7 @@ static uint64_t vfio_rtl8168_window_quirk_read(void *opaque,
         if (quirk->data.flags) {
             trace_vfio_rtl8168_window_quirk_read_fake(
                     memory_region_name(&quirk->mem),
-                    vdev->host.domain, vdev->host.bus,
-                    vdev->host.slot, vdev->host.function);
+                    vdev->vbasedev.name);
 
             return quirk->data.address_match ^ 0x10000000U;
         }
@@ -1821,9 +1774,7 @@ static uint64_t vfio_rtl8168_window_quirk_read(void *opaque,
 
             trace_vfio_rtl8168_window_quirk_read_table(
                     memory_region_name(&quirk->mem),
-                    vdev->host.domain, vdev->host.bus,
-                    vdev->host.slot, vdev->host.function
-               );
+                    vdev->vbasedev.name);
 
             if (!(vdev->pdev.cap_present & QEMU_PCI_CAP_MSIX)) {
                 return 0;
@@ -1836,10 +1787,8 @@ static uint64_t vfio_rtl8168_window_quirk_read(void *opaque,
         }
     }
 
-    trace_vfio_rtl8168_window_quirk_read_direct(
-                        memory_region_name(&quirk->mem),
-                        vdev->host.domain, vdev->host.bus,
-                        vdev->host.slot, vdev->host.function);
+    trace_vfio_rtl8168_window_quirk_read_direct(memory_region_name(&quirk->mem),
+                                                vdev->vbasedev.name);
 
     return vfio_region_read(&vdev->bars[quirk->data.bar].region,
                             addr + 0x70, size);
@@ -1859,8 +1808,7 @@ static void vfio_rtl8168_window_quirk_write(void *opaque, hwaddr addr,
 
                 trace_vfio_rtl8168_window_quirk_write_table(
                         memory_region_name(&quirk->mem),
-                        vdev->host.domain, vdev->host.bus,
-                        vdev->host.slot, vdev->host.function);
+                        vdev->vbasedev.name);
 
                 io_mem_write(&vdev->pdev.msix_table_mmio,
                              (hwaddr)(quirk->data.address_match & 0xfff),
@@ -1881,8 +1829,7 @@ static void vfio_rtl8168_window_quirk_write(void *opaque, hwaddr addr,
 
     trace_vfio_rtl8168_window_quirk_write_direct(
             memory_region_name(&quirk->mem),
-            vdev->host.domain, vdev->host.bus,
-            vdev->host.slot, vdev->host.function);
+            vdev->vbasedev.name);
 
     vfio_region_write(&vdev->bars[quirk->data.bar].region,
                       addr + 0x70, data, size);
@@ -1920,10 +1867,7 @@ static void vfio_probe_rtl8168_bar2_window_quirk(VFIOPCIDevice *vdev, int nr)
 
     QLIST_INSERT_HEAD(&vdev->bars[nr].quirks, quirk, next);
 
-    trace_vfio_probe_rtl8168_bar2_window_quirk(vdev->host.domain,
-                                               vdev->host.bus,
-                                               vdev->host.slot,
-                                               vdev->host.function);
+    trace_vfio_probe_rtl8168_bar2_window_quirk(vdev->vbasedev.name);
 }
 /*
  * Trap the BAR2 MMIO window to config space as well.
@@ -1955,10 +1899,7 @@ static void vfio_probe_ati_bar2_4000_quirk(VFIOPCIDevice *vdev, int nr)
 
     QLIST_INSERT_HEAD(&vdev->bars[nr].quirks, quirk, next);
 
-    trace_vfio_probe_ati_bar2_4000_quirk(vdev->host.domain,
-                                         vdev->host.bus,
-                                         vdev->host.slot,
-                                         vdev->host.function);
+    trace_vfio_probe_ati_bar2_4000_quirk(vdev->vbasedev.name);
 }
 
 /*
@@ -2091,10 +2032,7 @@ static void vfio_vga_probe_nvidia_3d0_quirk(VFIOPCIDevice *vdev)
     QLIST_INSERT_HEAD(&vdev->vga.region[QEMU_PCI_VGA_IO_HI].quirks,
                       quirk, next);
 
-    trace_vfio_vga_probe_nvidia_3d0_quirk(vdev->host.domain,
-                                          vdev->host.bus,
-                                          vdev->host.slot,
-                                          vdev->host.function);
+    trace_vfio_vga_probe_nvidia_3d0_quirk(vdev->vbasedev.name);
 }
 
 /*
@@ -2183,10 +2121,7 @@ static void vfio_probe_nvidia_bar5_window_quirk(VFIOPCIDevice *vdev, int nr)
 
     QLIST_INSERT_HEAD(&vdev->bars[nr].quirks, quirk, next);
 
-    trace_vfio_probe_nvidia_bar5_window_quirk(vdev->host.domain,
-                                              vdev->host.bus,
-                                              vdev->host.slot,
-                                              vdev->host.function);
+    trace_vfio_probe_nvidia_bar5_window_quirk(vdev->vbasedev.name);
 }
 
 static void vfio_nvidia_88000_quirk_write(void *opaque, hwaddr addr,
@@ -2257,10 +2192,7 @@ static void vfio_probe_nvidia_bar0_88000_quirk(VFIOPCIDevice *vdev, int nr)
 
     QLIST_INSERT_HEAD(&vdev->bars[nr].quirks, quirk, next);
 
-    trace_vfio_probe_nvidia_bar0_88000_quirk(vdev->host.domain,
-                                             vdev->host.bus,
-                                             vdev->host.slot,
-                                             vdev->host.function);
+    trace_vfio_probe_nvidia_bar0_88000_quirk(vdev->vbasedev.name);
 }
 
 /*
@@ -2297,10 +2229,7 @@ static void vfio_probe_nvidia_bar0_1800_quirk(VFIOPCIDevice *vdev, int nr)
 
     QLIST_INSERT_HEAD(&vdev->bars[nr].quirks, quirk, next);
 
-    trace_vfio_probe_nvidia_bar0_1800_quirk(vdev->host.domain,
-                                            vdev->host.bus,
-                                            vdev->host.slot,
-                                            vdev->host.function);
+    trace_vfio_probe_nvidia_bar0_1800_quirk(vdev->vbasedev.name);
 }
 
 /*
@@ -2387,9 +2316,7 @@ static uint32_t vfio_pci_read_config(PCIDevice *pdev, uint32_t addr, int len)
 
     val = (emu_val & emu_bits) | (phys_val & ~emu_bits);
 
-    trace_vfio_pci_read_config(vdev->host.domain, vdev->host.bus,
-                               vdev->host.slot, vdev->host.function,
-                               addr, len, val);
+    trace_vfio_pci_read_config(vdev->vbasedev.name, addr, len, val);
 
     return val;
 }
@@ -2400,9 +2327,7 @@ static void vfio_pci_write_config(PCIDevice *pdev, uint32_t addr,
     VFIOPCIDevice *vdev = DO_UPCAST(VFIOPCIDevice, pdev, pdev);
     uint32_t val_le = cpu_to_le32(val);
 
-    trace_vfio_pci_write_config(vdev->host.domain, vdev->host.bus,
-                                vdev->host.slot, vdev->host.function,
-                                addr, val, len);
+    trace_vfio_pci_write_config(vdev->vbasedev.name, addr, val, len);
 
     /* Write everything to VFIO, let it filter out what we can't write */
     if (pwrite(vdev->vbasedev.fd, &val_le, len, vdev->config_offset + addr)
@@ -2539,7 +2464,7 @@ static void vfio_iommu_map_notify(Notifier *n, void *data)
                                  &xlat, &len, iotlb->perm & IOMMU_WO);
     if (!memory_region_is_ram(mr)) {
         error_report("iommu map to non memory area %"HWADDR_PRIx"\n",
-                xlat);
+                     xlat);
         return;
     }
     /*
@@ -2784,8 +2709,7 @@ static int vfio_setup_msi(VFIOPCIDevice *vdev, int pos)
     msi_maskbit = !!(ctrl & PCI_MSI_FLAGS_MASKBIT);
     entries = 1 << ((ctrl & PCI_MSI_FLAGS_QMASK) >> 1);
 
-    trace_vfio_setup_msi(vdev->host.domain, vdev->host.bus,
-                         vdev->host.slot, vdev->host.function, pos);
+    trace_vfio_setup_msi(vdev->vbasedev.name, pos);
 
     ret = msi_init(&vdev->pdev, pos, entries, msi_64bit, msi_maskbit);
     if (ret < 0) {
@@ -2846,9 +2770,8 @@ static int vfio_early_setup_msix(VFIOPCIDevice *vdev)
     vdev->msix->pba_offset = pba & ~PCI_MSIX_FLAGS_BIRMASK;
     vdev->msix->entries = (ctrl & PCI_MSIX_FLAGS_QSIZE) + 1;
 
-    trace_vfio_early_setup_msix(vdev->host.domain, vdev->host.bus,
-                                vdev->host.slot, vdev->host.function,
-                                pos, vdev->msix->table_bar,
+    trace_vfio_early_setup_msix(vdev->vbasedev.name, pos,
+                                vdev->msix->table_bar,
                                 vdev->msix->table_offset,
                                 vdev->msix->entries);
 
@@ -3224,8 +3147,7 @@ static void vfio_check_pcie_flr(VFIOPCIDevice *vdev, uint8_t pos)
     uint32_t cap = pci_get_long(vdev->pdev.config + pos + PCI_EXP_DEVCAP);
 
     if (cap & PCI_EXP_DEVCAP_FLR) {
-        trace_vfio_check_pcie_flr(vdev->host.domain, vdev->host.bus,
-                                  vdev->host.slot, vdev->host.function);
+        trace_vfio_check_pcie_flr(vdev->vbasedev.name);
         vdev->has_flr = true;
     }
 }
@@ -3235,8 +3157,7 @@ static void vfio_check_pm_reset(VFIOPCIDevice *vdev, uint8_t pos)
     uint16_t csr = pci_get_word(vdev->pdev.config + pos + PCI_PM_CTRL);
 
     if (!(csr & PCI_PM_CTRL_NO_SOFT_RESET)) {
-        trace_vfio_check_pm_reset(vdev->host.domain, vdev->host.bus,
-                                  vdev->host.slot, vdev->host.function);
+        trace_vfio_check_pm_reset(vdev->vbasedev.name);
         vdev->has_pm_reset = true;
     }
 }
@@ -3246,8 +3167,7 @@ static void vfio_check_af_flr(VFIOPCIDevice *vdev, uint8_t pos)
     uint8_t cap = pci_get_byte(vdev->pdev.config + pos + PCI_AF_CAP);
 
     if ((cap & PCI_AF_CAP_TP) && (cap & PCI_AF_CAP_FLR)) {
-        trace_vfio_check_af_flr(vdev->host.domain, vdev->host.bus,
-                                vdev->host.slot, vdev->host.function);
+        trace_vfio_check_af_flr(vdev->vbasedev.name);
         vdev->has_flr = true;
     }
 }
@@ -3398,9 +3318,7 @@ static int vfio_pci_hot_reset(VFIOPCIDevice *vdev, bool single)
     int ret, i, count;
     bool multi = false;
 
-    trace_vfio_pci_hot_reset(vdev->host.domain, vdev->host.bus,
-                             vdev->host.slot, vdev->host.function,
-                             single ? "one" : "multi");
+    trace_vfio_pci_hot_reset(vdev->vbasedev.name, single ? "one" : "multi");
 
     vfio_pci_pre_reset(vdev);
     vdev->vbasedev.needs_reset = false;
@@ -3431,10 +3349,7 @@ static int vfio_pci_hot_reset(VFIOPCIDevice *vdev, bool single)
         goto out_single;
     }
 
-    trace_vfio_pci_hot_reset_has_dep_devices(vdev->host.domain,
-                                             vdev->host.bus,
-                                             vdev->host.slot,
-                                             vdev->host.function);
+    trace_vfio_pci_hot_reset_has_dep_devices(vdev->vbasedev.name);
 
     /* Verify that we have all the groups required */
     for (i = 0; i < info->count; i++) {
@@ -3462,10 +3377,9 @@ static int vfio_pci_hot_reset(VFIOPCIDevice *vdev, bool single)
 
         if (!group) {
             if (!vdev->has_pm_reset) {
-                error_report("vfio: Cannot reset device %04x:%02x:%02x.%x, "
+                error_report("vfio: Cannot reset device %s, "
                              "depends on group %d which is not owned.",
-                             vdev->host.domain, vdev->host.bus, vdev->host.slot,
-                             vdev->host.function, devices[i].group_id);
+                             vdev->vbasedev.name, devices[i].group_id);
             }
             ret = -EPERM;
             goto out;
@@ -3480,8 +3394,7 @@ static int vfio_pci_hot_reset(VFIOPCIDevice *vdev, bool single)
             if (vfio_pci_host_match(&host, &tmp->host)) {
                 if (single) {
                     error_report("vfio: found another in-use device "
-                            "%04x:%02x:%02x.%x\n", host.domain, host.bus,
-                            host.slot, host.function);
+                            "%s\n", vbasedev_iter->name);
                     ret = -EINVAL;
                     goto out_single;
                 }
@@ -3528,10 +3441,7 @@ static int vfio_pci_hot_reset(VFIOPCIDevice *vdev, bool single)
     ret = ioctl(vdev->vbasedev.fd, VFIO_DEVICE_PCI_HOT_RESET, reset);
     g_free(reset);
 
-    trace_vfio_pci_hot_reset_result(vdev->host.domain,
-                                    vdev->host.bus,
-                                    vdev->host.slot,
-                                    vdev->host.function,
+    trace_vfio_pci_hot_reset_result(vdev->vbasedev.name,
                                     ret ? "%m" : "Success");
 
 out:
@@ -4073,10 +3983,9 @@ static int vfio_populate_device(VFIODevice *vbasedev)
     } else if (irq_info.count == 1) {
         vdev->pci_aer = true;
     } else {
-        error_report("vfio: %04x:%02x:%02x.%x "
+        error_report("vfio: %s "
                      "Could not enable error recovery for the device",
-                     vdev->host.domain, vdev->host.bus, vdev->host.slot,
-                     vdev->host.function);
+                     vbasedev->name);
     }
 
 error:
@@ -4293,8 +4202,7 @@ static int vfio_initfn(PCIDevice *pdev)
         return -errno;
     }
 
-    trace_vfio_initfn(vdev->host.domain, vdev->host.bus,
-                      vdev->host.slot, vdev->host.function, groupid);
+    trace_vfio_initfn(vdev->vbasedev.name, groupid);
 
     group = vfio_get_group(groupid, pci_device_iommu_address_space(pdev));
     if (!group) {
@@ -4430,16 +4338,14 @@ static void vfio_pci_reset(DeviceState *dev)
     PCIDevice *pdev = DO_UPCAST(PCIDevice, qdev, dev);
     VFIOPCIDevice *vdev = DO_UPCAST(VFIOPCIDevice, pdev, pdev);
 
-    trace_vfio_pci_reset(vdev->host.domain, vdev->host.bus,
-                         vdev->host.slot, vdev->host.function);
+    trace_vfio_pci_reset(vdev->vbasedev.name);
 
     vfio_pci_pre_reset(vdev);
 
     if (vdev->vbasedev.reset_works &&
         (vdev->has_flr || !vdev->has_pm_reset) &&
         !ioctl(vdev->vbasedev.fd, VFIO_DEVICE_RESET)) {
-        trace_vfio_pci_reset_flr(vdev->host.domain, vdev->host.bus,
-                                  vdev->host.slot, vdev->host.function);
+        trace_vfio_pci_reset_flr(vdev->vbasedev.name);
         goto post_reset;
     }
 
@@ -4451,8 +4357,7 @@ static void vfio_pci_reset(DeviceState *dev)
     /* If nothing else works and the device supports PM reset, use it */
     if (vdev->vbasedev.reset_works && vdev->has_pm_reset &&
         !ioctl(vdev->vbasedev.fd, VFIO_DEVICE_RESET)) {
-        trace_vfio_pci_reset_pm(vdev->host.domain, vdev->host.bus,
-                                vdev->host.slot, vdev->host.function);
+        trace_vfio_pci_reset_pm(vdev->vbasedev.name);
         goto post_reset;
     }
 
