@@ -68,6 +68,7 @@ enum {
     VIRT_UART,
     VIRT_MMIO,
     VIRT_RTC,
+    VIRT_FW_CFG,
 };
 
 typedef struct MemMapEntry {
@@ -125,6 +126,7 @@ static const MemMapEntry a15memmap[] = {
     [VIRT_GIC_CPU] =    { 0x08010000, 0x00010000 },
     [VIRT_UART] =       { 0x09000000, 0x00001000 },
     [VIRT_RTC] =        { 0x09010000, 0x00001000 },
+    [VIRT_FW_CFG] =     { 0x09020000, 0x0000000a },
     [VIRT_MMIO] =       { 0x0a000000, 0x00000200 },
     /* ...repeating for a total of NUM_VIRTIO_TRANSPORTS, each of that size */
     /* 0x10000000 .. 0x40000000 reserved for PCI */
@@ -537,6 +539,23 @@ static void create_flash(const VirtBoardInfo *vbi)
     g_free(nodename);
 }
 
+static void create_fw_cfg(const VirtBoardInfo *vbi)
+{
+    hwaddr base = vbi->memmap[VIRT_FW_CFG].base;
+    hwaddr size = vbi->memmap[VIRT_FW_CFG].size;
+    char *nodename;
+
+    fw_cfg_init_mem_wide(base + 8, base, 8);
+
+    nodename = g_strdup_printf("/fw-cfg@%" PRIx64, base);
+    qemu_fdt_add_subnode(vbi->fdt, nodename);
+    qemu_fdt_setprop_string(vbi->fdt, nodename,
+                            "compatible", "qemu,fw-cfg-mmio");
+    qemu_fdt_setprop_sized_cells(vbi->fdt, nodename, "reg",
+                                 2, base, 2, size);
+    g_free(nodename);
+}
+
 static void *machvirt_dtb(const struct arm_boot_info *binfo, int *fdt_size)
 {
     const VirtBoardInfo *board = (const VirtBoardInfo *)binfo;
@@ -626,6 +645,8 @@ static void machvirt_init(MachineState *machine)
      * no backend is created the transport will just sit harmlessly idle.
      */
     create_virtio_devices(vbi, pic);
+
+    create_fw_cfg(vbi);
 
     vbi->bootinfo.ram_size = machine->ram_size;
     vbi->bootinfo.kernel_filename = machine->kernel_filename;
