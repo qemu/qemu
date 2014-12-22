@@ -5091,7 +5091,7 @@ static void setup_frame(int sig, struct target_sigaction *ka,
     /* moveq #,d0; trap #0 */
 
     __put_user(0x70004e40 + (TARGET_NR_sigreturn << 16),
-                      (long *)(frame->retcode));
+                      (uint32_t *)(frame->retcode));
 
     /* Set up to return from userspace */
 
@@ -5225,8 +5225,8 @@ static void setup_rt_frame(int sig, struct target_sigaction *ka,
     /* moveq #,d0; notb d0; trap #0 */
 
     __put_user(0x70004600 + ((TARGET_NR_rt_sigreturn ^ 0xff) << 16),
-               (long *)(frame->retcode + 0));
-    __put_user(0x4e40, (short *)(frame->retcode + 4));
+               (uint32_t *)(frame->retcode + 0));
+    __put_user(0x4e40, (uint16_t *)(frame->retcode + 4));
 
     if (err)
         goto give_sigsegv;
