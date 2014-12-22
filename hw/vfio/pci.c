@@ -282,7 +282,7 @@ static const VFIORomBlacklistEntry romblacklist[] = {
 #define MSIX_CAP_LENGTH 12
 
 static QLIST_HEAD(, VFIOGroup)
-    group_list = QLIST_HEAD_INITIALIZER(group_list);
+    vfio_group_list = QLIST_HEAD_INITIALIZER(vfio_group_list);
 
 #ifdef CONFIG_KVM
 /*
@@ -3454,7 +3454,7 @@ static int vfio_pci_hot_reset(VFIOPCIDevice *vdev, bool single)
             continue;
         }
 
-        QLIST_FOREACH(group, &group_list, next) {
+        QLIST_FOREACH(group, &vfio_group_list, next) {
             if (group->groupid == devices[i].group_id) {
                 break;
             }
@@ -3501,7 +3501,7 @@ static int vfio_pci_hot_reset(VFIOPCIDevice *vdev, bool single)
 
     /* Determine how many group fds need to be passed */
     count = 0;
-    QLIST_FOREACH(group, &group_list, next) {
+    QLIST_FOREACH(group, &vfio_group_list, next) {
         for (i = 0; i < info->count; i++) {
             if (group->groupid == devices[i].group_id) {
                 count++;
@@ -3515,7 +3515,7 @@ static int vfio_pci_hot_reset(VFIOPCIDevice *vdev, bool single)
     fds = &reset->group_fds[0];
 
     /* Fill in group fds */
-    QLIST_FOREACH(group, &group_list, next) {
+    QLIST_FOREACH(group, &vfio_group_list, next) {
         for (i = 0; i < info->count; i++) {
             if (group->groupid == devices[i].group_id) {
                 fds[reset->count++] = group->fd;
@@ -3550,7 +3550,7 @@ out:
             continue;
         }
 
-        QLIST_FOREACH(group, &group_list, next) {
+        QLIST_FOREACH(group, &vfio_group_list, next) {
             if (group->groupid == devices[i].group_id) {
                 break;
             }
@@ -3624,13 +3624,13 @@ static void vfio_reset_handler(void *opaque)
     VFIOGroup *group;
     VFIODevice *vbasedev;
 
-    QLIST_FOREACH(group, &group_list, next) {
+    QLIST_FOREACH(group, &vfio_group_list, next) {
         QLIST_FOREACH(vbasedev, &group->device_list, next) {
             vbasedev->ops->vfio_compute_needs_reset(vbasedev);
         }
     }
 
-    QLIST_FOREACH(group, &group_list, next) {
+    QLIST_FOREACH(group, &vfio_group_list, next) {
         QLIST_FOREACH(vbasedev, &group->device_list, next) {
             if (vbasedev->needs_reset) {
                 vbasedev->ops->vfio_hot_reset_multi(vbasedev);
@@ -3879,7 +3879,7 @@ static VFIOGroup *vfio_get_group(int groupid, AddressSpace *as)
     char path[32];
     struct vfio_group_status status = { .argsz = sizeof(status) };
 
-    QLIST_FOREACH(group, &group_list, next) {
+    QLIST_FOREACH(group, &vfio_group_list, next) {
         if (group->groupid == groupid) {
             /* Found it.  Now is it already in the right context? */
             if (group->container->space->as == as) {
@@ -3921,11 +3921,11 @@ static VFIOGroup *vfio_get_group(int groupid, AddressSpace *as)
         goto close_fd_exit;
     }
 
-    if (QLIST_EMPTY(&group_list)) {
+    if (QLIST_EMPTY(&vfio_group_list)) {
         qemu_register_reset(vfio_reset_handler, NULL);
     }
 
-    QLIST_INSERT_HEAD(&group_list, group, next);
+    QLIST_INSERT_HEAD(&vfio_group_list, group, next);
 
     vfio_kvm_device_add_group(group);
 
@@ -3953,7 +3953,7 @@ static void vfio_put_group(VFIOGroup *group)
     close(group->fd);
     g_free(group);
 
-    if (QLIST_EMPTY(&group_list)) {
+    if (QLIST_EMPTY(&vfio_group_list)) {
         qemu_unregister_reset(vfio_reset_handler, NULL);
     }
 }
