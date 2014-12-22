@@ -31,7 +31,6 @@
 #include "qemu/config-file.h"
 
 #define FW_CFG_SIZE 2
-#define FW_CFG_DATA_SIZE 1
 #define FW_CFG_NAME "fw_cfg"
 #define FW_CFG_PATH "/machine/" FW_CFG_NAME
 
@@ -694,7 +693,8 @@ static void fw_cfg_mem_realize(DeviceState *dev, Error **errp)
     sysbus_init_mmio(sbd, &s->ctl_iomem);
 
     memory_region_init_io(&s->data_iomem, OBJECT(s), &fw_cfg_data_mem_ops,
-                          FW_CFG(s), "fwcfg.data", FW_CFG_DATA_SIZE);
+                          FW_CFG(s), "fwcfg.data",
+                          fw_cfg_data_mem_ops.valid.max_access_size);
     sysbus_init_mmio(sbd, &s->data_iomem);
 }
 
