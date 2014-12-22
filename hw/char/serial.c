@@ -645,8 +645,17 @@ static int serial_post_load(void *opaque, int version_id)
 static bool serial_thr_ipending_needed(void *opaque)
 {
     SerialState *s = opaque;
-    bool expected_value = ((s->iir & UART_IIR_ID) == UART_IIR_THRI);
-    return s->thr_ipending != expected_value;
+
+    if (s->ier & UART_IER_THRI) {
+        bool expected_value = ((s->iir & UART_IIR_ID) == UART_IIR_THRI);
+        return s->thr_ipending != expected_value;
+    } else {
+        /* LSR.THRE will be sampled again when the interrupt is
+         * enabled.  thr_ipending is not used in this case, do
+         * not migrate it.
+         */
+        return false;
+    }
 }
 
 const VMStateDescription vmstate_serial_thr_ipending = {
