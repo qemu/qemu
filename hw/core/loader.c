@@ -614,14 +614,9 @@ int load_ramdisk(const char *filename, hwaddr addr, uint64_t max_sz)
                             NULL, NULL);
 }
 
-/* This simply prevents g_malloc in the function below from allocating
- * a huge amount of memory, by placing a limit on the maximum
- * uncompressed image size that load_image_gzipped will read.
- */
-#define LOAD_IMAGE_MAX_GUNZIP_BYTES (256 << 20)
-
-/* Load a gzip-compressed kernel. */
-int load_image_gzipped(const char *filename, hwaddr addr, uint64_t max_sz)
+/* Load a gzip-compressed kernel to a dynamically allocated buffer. */
+int load_image_gzipped_buffer(const char *filename, uint64_t max_sz,
+                              uint8_t **buffer)
 {
     uint8_t *compressed_data = NULL;
     uint8_t *data = NULL;
@@ -653,13 +648,30 @@ int load_image_gzipped(const char *filename, hwaddr addr, uint64_t max_sz)
         goto out;
     }
 
-    rom_add_blob_fixed(filename, data, bytes, addr);
+    /* trim to actual size and return to caller */
+    *buffer = g_realloc(data, bytes);
     ret = bytes;
+    /* ownership has been transferred to caller */
+    data = NULL;
 
  out:
     g_free(compressed_data);
     g_free(data);
     return ret;
+}
+
+/* Load a gzip-compressed kernel. */
+int load_image_gzipped(const char *filename, hwaddr addr, uint64_t max_sz)
+{
+    int bytes;
+    uint8_t *data;
+
+    bytes = load_image_gzipped_buffer(filename, max_sz, &data);
+    if (bytes != -1) {
+        rom_add_blob_fixed(filename, data, bytes, addr);
+        g_free(data);
+    }
+    return bytes;
 }
 
 /*

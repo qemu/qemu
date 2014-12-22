@@ -16,6 +16,15 @@ int load_image(const char *filename, uint8_t *addr); /* deprecated */
 ssize_t load_image_size(const char *filename, void *addr, size_t size);
 int load_image_targphys(const char *filename, hwaddr,
                         uint64_t max_sz);
+
+/* This is the limit on the maximum uncompressed image size that
+ * load_image_gzipped_buffer() and load_image_gzipped() will read. It prevents
+ * g_malloc() in those functions from allocating a huge amount of memory.
+ */
+#define LOAD_IMAGE_MAX_GUNZIP_BYTES (256 << 20)
+
+int load_image_gzipped_buffer(const char *filename, uint64_t max_sz,
+                              uint8_t **buffer);
 int load_image_gzipped(const char *filename, hwaddr addr, uint64_t max_sz);
 
 #define ELF_LOAD_FAILED       -1
