@@ -1403,10 +1403,10 @@ vfio_pci_hot_reset(int domain, int bus, int slot, int fn, const char *type) " (%
 vfio_pci_hot_reset_has_dep_devices(int domain, int bus, int slot, int fn) "%04x:%02x:%02x.%x: hot reset dependent devices:"
 vfio_pci_hot_reset_dep_devices(int domain, int bus, int slot, int function, int group_id) "\t%04x:%02x:%02x.%x group %d"
 vfio_pci_hot_reset_result(int domain, int bus, int slot, int fn, const char *result) "%04x:%02x:%02x.%x hot reset: %s"
-vfio_get_device_region(const char *region_name, int index, unsigned long size, unsigned long offset, unsigned long flags) "Device %s region %d:\n  size: 0x%lx, offset: 0x%lx, flags: 0x%lx"
-vfio_get_device_config(const char *name, unsigned long size, unsigned long offset, unsigned long flags) "Device %s config:\n  size: 0x%lx, offset: 0x%lx, flags: 0x%lx"
-vfio_get_device_get_irq_info_failure(void) "VFIO_DEVICE_GET_IRQ_INFO failure: %m"
-vfio_get_device_irq(const char *name, unsigned flags, unsigned num_regions, unsigned num_irqs) "Device %s flags: %u, regions: %u, irgs: %u"
+vfio_populate_device_region(const char *region_name, int index, unsigned long size, unsigned long offset, unsigned long flags) "Device %s region %d:\n  size: 0x%lx, offset: 0x%lx, flags: 0x%lx"
+vfio_populate_device_config(const char *name, unsigned long size, unsigned long offset, unsigned long flags) "Device %s config:\n  size: 0x%lx, offset: 0x%lx, flags: 0x%lx"
+vfio_populate_device_get_irq_info_failure(void) "VFIO_DEVICE_GET_IRQ_INFO failure: %m"
+vfio_get_device(const char *name, unsigned flags, unsigned num_regions, unsigned num_irqs) "Device %s flags: %u, regions: %u, irgs: %u"
 vfio_initfn(int domain, int bus, int slot, int fn, int group_id) " (%04x:%02x:%02x.%x) group %d"
 vfio_pci_reset(int domain, int bus, int slot, int fn) " (%04x:%02x:%02x.%x)"
 vfio_pci_reset_flr(int domain, int bus, int slot, int fn) "%04x:%02x:%02x.%x FLR/VFIO_DEVICE_RESET"
@@ -1422,7 +1422,7 @@ vfio_listener_region_del_skip(uint64_t start, uint64_t end) "SKIPPING region_del
 vfio_listener_region_del(uint64_t start, uint64_t end) "region_del %"PRIx64" - %"PRIx64
 vfio_disconnect_container(int fd) "close container->fd=%d"
 vfio_put_group(int fd) "close group->fd=%d"
-vfio_put_device(int fd) "close vdev->fd=%d"
+vfio_put_base_device(int fd) "close vdev->fd=%d"
 
 #hw/acpi/memory_hotplug.c
 mhp_acpi_invalid_slot_selected(uint32_t slot) "0x%"PRIx32

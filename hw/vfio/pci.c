@@ -204,12 +204,16 @@ typedef struct VFIODevice {
     bool reset_works;
     bool needs_reset;
     VFIODeviceOps *ops;
+    unsigned int num_irqs;
+    unsigned int num_regions;
+    unsigned int flags;
 } VFIODevice;
 
 struct VFIODeviceOps {
     void (*vfio_compute_needs_reset)(VFIODevice *vdev);
     int (*vfio_hot_reset_multi)(VFIODevice *vdev);
     void (*vfio_eoi)(VFIODevice *vdev);
+    int (*vfio_populate_device)(VFIODevice *vdev);
 };
 
 typedef struct VFIOPCIDevice {
@@ -296,6 +300,8 @@ static uint32_t vfio_pci_read_config(PCIDevice *pdev, uint32_t addr, int len);
 static void vfio_pci_write_config(PCIDevice *pdev, uint32_t addr,
                                   uint32_t val, int len);
 static void vfio_mmap_set_enabled(VFIOPCIDevice *vdev, bool enabled);
+static void vfio_put_base_device(VFIODevice *vbasedev);
+static int vfio_populate_device(VFIODevice *vbasedev);
 
 /*
  * Common VFIO interrupt disable
@@ -3610,6 +3616,7 @@ static VFIODeviceOps vfio_pci_ops = {
     .vfio_compute_needs_reset = vfio_pci_compute_needs_reset,
     .vfio_hot_reset_multi = vfio_pci_hot_reset_multi,
     .vfio_eoi = vfio_eoi,
+    .vfio_populate_device = vfio_populate_device,
 };
 
 static void vfio_reset_handler(void *opaque)
@@ -3951,70 +3958,45 @@ static void vfio_put_group(VFIOGroup *group)
     }
 }
 
-static int vfio_get_device(VFIOGroup *group, const char *name,
-                           VFIOPCIDevice *vdev)
+static int vfio_populate_device(VFIODevice *vbasedev)
 {
-    struct vfio_device_info dev_info = { .argsz = sizeof(dev_info) };
+    VFIOPCIDevice *vdev = container_of(vbasedev, VFIOPCIDevice, vbasedev);
     struct vfio_region_info reg_info = { .argsz = sizeof(reg_info) };
     struct vfio_irq_info irq_info = { .argsz = sizeof(irq_info) };
-    int ret, i;
-
-    ret = ioctl(group->fd, VFIO_GROUP_GET_DEVICE_FD, name);
-    if (ret < 0) {
-        error_report("vfio: error getting device %s from group %d: %m",
-                     name, group->groupid);
-        error_printf("Verify all devices in group %d are bound to vfio-pci "
-                     "or pci-stub and not already in use\n", group->groupid);
-        return ret;
-    }
-
-    vdev->vbasedev.fd = ret;
-    vdev->vbasedev.group = group;
-    QLIST_INSERT_HEAD(&group->device_list, &vdev->vbasedev, next);
+    int i, ret = -1;
 
     /* Sanity check device */
-    ret = ioctl(vdev->vbasedev.fd, VFIO_DEVICE_GET_INFO, &dev_info);
-    if (ret) {
-        error_report("vfio: error getting device info: %m");
-        goto error;
-    }
-
-    trace_vfio_get_device_irq(name, dev_info.flags,
-                              dev_info.num_regions, dev_info.num_irqs);
-
-    if (!(dev_info.flags & VFIO_DEVICE_FLAGS_PCI)) {
+    if (!(vbasedev->flags & VFIO_DEVICE_FLAGS_PCI)) {
         error_report("vfio: Um, this isn't a PCI device");
         goto error;
     }
 
-    vdev->vbasedev.reset_works = !!(dev_info.flags & VFIO_DEVICE_FLAGS_RESET);
-
-    if (dev_info.num_regions < VFIO_PCI_CONFIG_REGION_INDEX + 1) {
+    if (vbasedev->num_regions < VFIO_PCI_CONFIG_REGION_INDEX + 1) {
         error_report("vfio: unexpected number of io regions %u",
-                     dev_info.num_regions);
+                     vbasedev->num_regions);
         goto error;
     }
 
-    if (dev_info.num_irqs < VFIO_PCI_MSIX_IRQ_INDEX + 1) {
-        error_report("vfio: unexpected number of irqs %u", dev_info.num_irqs);
+    if (vbasedev->num_irqs < VFIO_PCI_MSIX_IRQ_INDEX + 1) {
+        error_report("vfio: unexpected number of irqs %u", vbasedev->num_irqs);
         goto error;
     }
 
     for (i = VFIO_PCI_BAR0_REGION_INDEX; i < VFIO_PCI_ROM_REGION_INDEX; i++) {
         reg_info.index = i;
 
-        ret = ioctl(vdev->vbasedev.fd, VFIO_DEVICE_GET_REGION_INFO, &reg_info);
+        ret = ioctl(vbasedev->fd, VFIO_DEVICE_GET_REGION_INFO, &reg_info);
         if (ret) {
             error_report("vfio: Error getting region %d info: %m", i);
             goto error;
         }
 
-        trace_vfio_get_device_region(name, i,
-                                     (unsigned long)reg_info.size,
-                                     (unsigned long)reg_info.offset,
-                                     (unsigned long)reg_info.flags);
+        trace_vfio_populate_device_region(vbasedev->name, i,
+                                          (unsigned long)reg_info.size,
+                                          (unsigned long)reg_info.offset,
+                                          (unsigned long)reg_info.flags);
 
-        vdev->bars[i].region.vbasedev = &vdev->vbasedev;
+        vdev->bars[i].region.vbasedev = vbasedev;
         vdev->bars[i].region.flags = reg_info.flags;
         vdev->bars[i].region.size = reg_info.size;
         vdev->bars[i].region.fd_offset = reg_info.offset;
@@ -4030,9 +4012,10 @@ static int vfio_get_device(VFIOGroup *group, const char *name,
         goto error;
     }
 
-    trace_vfio_get_device_config(name, (unsigned long)reg_info.size,
-                                 (unsigned long)reg_info.offset,
-                                 (unsigned long)reg_info.flags);
+    trace_vfio_populate_device_config(vdev->vbasedev.name,
+                                      (unsigned long)reg_info.size,
+                                      (unsigned long)reg_info.offset,
+                                      (unsigned long)reg_info.flags);
 
     vdev->config_size = reg_info.size;
     if (vdev->config_size == PCI_CONFIG_SPACE_SIZE) {
@@ -4041,7 +4024,7 @@ static int vfio_get_device(VFIOGroup *group, const char *name,
     vdev->config_offset = reg_info.offset;
 
     if ((vdev->features & VFIO_FEATURE_ENABLE_VGA) &&
-        dev_info.num_regions > VFIO_PCI_VGA_REGION_INDEX) {
+        vbasedev->num_regions > VFIO_PCI_VGA_REGION_INDEX) {
         struct vfio_region_info vga_info = {
             .argsz = sizeof(vga_info),
             .index = VFIO_PCI_VGA_REGION_INDEX,
@@ -4085,7 +4068,7 @@ static int vfio_get_device(VFIOGroup *group, const char *name,
     ret = ioctl(vdev->vbasedev.fd, VFIO_DEVICE_GET_IRQ_INFO, &irq_info);
     if (ret) {
         /* This can fail for an old kernel or legacy PCI dev */
-        trace_vfio_get_device_get_irq_info_failure();
+        trace_vfio_populate_device_get_irq_info_failure();
         ret = 0;
     } else if (irq_info.count == 1) {
         vdev->pci_aer = true;
@@ -4097,25 +4080,68 @@ static int vfio_get_device(VFIOGroup *group, const char *name,
     }
 
 error:
+    return ret;
+}
+
+static int vfio_get_device(VFIOGroup *group, const char *name,
+                           VFIODevice *vbasedev)
+{
+    struct vfio_device_info dev_info = { .argsz = sizeof(dev_info) };
+    int ret;
+
+    ret = ioctl(group->fd, VFIO_GROUP_GET_DEVICE_FD, name);
+    if (ret < 0) {
+        error_report("vfio: error getting device %s from group %d: %m",
+                     name, group->groupid);
+        error_printf("Verify all devices in group %d are bound to vfio-<bus> "
+                     "or pci-stub and not already in use\n", group->groupid);
+        return ret;
+    }
+
+    vbasedev->fd = ret;
+    vbasedev->group = group;
+    QLIST_INSERT_HEAD(&group->device_list, vbasedev, next);
+
+    ret = ioctl(vbasedev->fd, VFIO_DEVICE_GET_INFO, &dev_info);
     if (ret) {
-        QLIST_REMOVE(&vdev->vbasedev, next);
-        vdev->vbasedev.group = NULL;
-        close(vdev->vbasedev.fd);
+        error_report("vfio: error getting device info: %m");
+        goto error;
+    }
+
+    vbasedev->num_irqs = dev_info.num_irqs;
+    vbasedev->num_regions = dev_info.num_regions;
+    vbasedev->flags = dev_info.flags;
+
+    trace_vfio_get_device(name, dev_info.flags,
+                          dev_info.num_regions, dev_info.num_irqs);
+
+    vbasedev->reset_works = !!(dev_info.flags & VFIO_DEVICE_FLAGS_RESET);
+
+    ret = vbasedev->ops->vfio_populate_device(vbasedev);
+
+error:
+    if (ret) {
+        vfio_put_base_device(vbasedev);
     }
     return ret;
 }
 
+void vfio_put_base_device(VFIODevice *vbasedev)
+{
+    QLIST_REMOVE(vbasedev, next);
+    vbasedev->group = NULL;
+    trace_vfio_put_base_device(vbasedev->fd);
+    close(vbasedev->fd);
+}
+
 static void vfio_put_device(VFIOPCIDevice *vdev)
 {
-    QLIST_REMOVE(&vdev->vbasedev, next);
-    vdev->vbasedev.group = NULL;
-    trace_vfio_put_device(vdev->vbasedev.fd);
-    close(vdev->vbasedev.fd);
     g_free(vdev->vbasedev.name);
     if (vdev->msix) {
         g_free(vdev->msix);
         vdev->msix = NULL;
     }
+    vfio_put_base_device(&vdev->vbasedev);
 }
 
 static void vfio_err_notifier_handler(void *opaque)
@@ -4288,7 +4314,7 @@ static int vfio_initfn(PCIDevice *pdev)
         }
     }
 
-    ret = vfio_get_device(group, path, vdev);
+    ret = vfio_get_device(group, path, &vdev->vbasedev);
     if (ret) {
         error_report("vfio: failed to get device %s", path);
         vfio_put_group(group);
