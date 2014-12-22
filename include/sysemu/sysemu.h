@@ -216,6 +216,14 @@ void del_boot_device_path(DeviceState *dev, const char *suffix);
 void device_add_bootindex_property(Object *obj, int32_t *bootindex,
                                    const char *name, const char *suffix,
                                    DeviceState *dev, Error **errp);
+void restore_boot_order(void *opaque);
+void validate_bootdevices(const char *devices, Error **errp);
+
+/* handler to set the boot_device order for a specific type of QEMUMachine */
+typedef void QEMUBootSetHandler(void *opaque, const char *boot_order,
+                                Error **errp);
+void qemu_register_boot_set(QEMUBootSetHandler *func, void *opaque);
+void qemu_boot_set(const char *boot_order, Error **errp);
 
 QemuOpts *qemu_get_machine_opts(void);
 

@@ -49,12 +49,11 @@
 #define CLOCKFREQ 266000000UL
 #define BUSFREQ 66000000UL
 
-static int fw_cfg_boot_set(void *opaque, const char *boot_device)
+static void fw_cfg_boot_set(void *opaque, const char *boot_device,
+                            Error **errp)
 {
     fw_cfg_add_i16(opaque, FW_CFG_BOOT_DEVICE, boot_device[0]);
-    return 0;
 }
-
 
 static uint64_t translate_kernel_address(void *opaque, uint64_t addr)
 {

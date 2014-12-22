@@ -196,9 +196,6 @@ NodeInfo numa_info[MAX_NODES];
 uint8_t qemu_uuid[16];
 bool qemu_uuid_set;
 
-static QEMUBootSetHandler *boot_set_handler;
-static void *boot_set_opaque;
-
 static NotifierList exit_notifiers =
     NOTIFIER_LIST_INITIALIZER(exit_notifiers);
 
@@ -1196,65 +1193,6 @@ static void default_drive(int enable, int snapshot, BlockInterfaceType type,
     }
     dinfo->is_default = true;
 
-}
-
-void qemu_register_boot_set(QEMUBootSetHandler *func, void *opaque)
-{
-    boot_set_handler = func;
-    boot_set_opaque = opaque;
-}
-
-int qemu_boot_set(const char *boot_order)
-{
-    if (!boot_set_handler) {
-        return -EINVAL;
-    }
-    return boot_set_handler(boot_set_opaque, boot_order);
-}
-
-static void validate_bootdevices(const char *devices)
-{
-    /* We just do some generic consistency checks */
-    const char *p;
-    int bitmap = 0;
-
-    for (p = devices; *p != '\0'; p++) {
-        /* Allowed boot devices are:
-         * a-b: floppy disk drives
-         * c-f: IDE disk drives
-         * g-m: machine implementation dependent drives
-         * n-p: network devices
-         * It's up to each machine implementation to check if the given boot
-         * devices match the actual hardware implementation and firmware
-         * features.
-         */
-        if (*p < 'a' || *p > 'p') {
-            fprintf(stderr, "Invalid boot device '%c'\n", *p);
-            exit(1);
-        }
-        if (bitmap & (1 << (*p - 'a'))) {
-            fprintf(stderr, "Boot device '%c' was given twice\n", *p);
-            exit(1);
-        }
-        bitmap |= 1 << (*p - 'a');
-    }
-}
-
-static void restore_boot_order(void *opaque)
-{
-    char *normal_boot_order = opaque;
-    static int first = 1;
-
-    /* Restore boot order and remove ourselves after the first boot */
-    if (first) {
-        first = 0;
-        return;
-    }
-
-    qemu_boot_set(normal_boot_order);
-
-    qemu_unregister_reset(restore_boot_order, normal_boot_order);
-    g_free(normal_boot_order);
 }
 
 static QemuOptsList qemu_smp_opts = {
@@ -4149,16 +4087,25 @@ int main(int argc, char **argv, char **envp)
     if (opts) {
         char *normal_boot_order;
         const char *order, *once;
+        Error *local_err = NULL;
 
         order = qemu_opt_get(opts, "order");
         if (order) {
-            validate_bootdevices(order);
+            validate_bootdevices(order, &local_err);
+            if (local_err) {
+                error_report("%s", error_get_pretty(local_err));
+                exit(1);
+            }
             boot_order = order;
         }
 
         once = qemu_opt_get(opts, "once");
         if (once) {
-            validate_bootdevices(once);
+            validate_bootdevices(once, &local_err);
+            if (local_err) {
+                error_report("%s", error_get_pretty(local_err));
+                exit(1);
+            }
             normal_boot_order = g_strdup(boot_order);
             boot_order = once;
             qemu_register_reset(restore_boot_order, normal_boot_order);
