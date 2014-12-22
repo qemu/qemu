@@ -1768,7 +1768,7 @@ static uint64_t subpage_read(void *opaque, hwaddr addr,
                              unsigned len)
 {
     subpage_t *subpage = opaque;
-    uint8_t buf[4];
+    uint8_t buf[8];
 
 #if defined(DEBUG_SUBPAGE)
     printf("%s: subpage %p len %u addr " TARGET_FMT_plx "\n", __func__,
@@ -1782,6 +1782,8 @@ static uint64_t subpage_read(void *opaque, hwaddr addr,
         return lduw_p(buf);
     case 4:
         return ldl_p(buf);
+    case 8:
+        return ldq_p(buf);
     default:
         abort();
     }
@@ -1791,7 +1793,7 @@ static void subpage_write(void *opaque, hwaddr addr,
                           uint64_t value, unsigned len)
 {
     subpage_t *subpage = opaque;
-    uint8_t buf[4];
+    uint8_t buf[8];
 
 #if defined(DEBUG_SUBPAGE)
     printf("%s: subpage %p len %u addr " TARGET_FMT_plx
@@ -1807,6 +1809,9 @@ static void subpage_write(void *opaque, hwaddr addr,
         break;
     case 4:
         stl_p(buf, value);
+        break;
+    case 8:
+        stq_p(buf, value);
         break;
     default:
         abort();
@@ -1830,6 +1835,10 @@ static bool subpage_accepts(void *opaque, hwaddr addr,
 static const MemoryRegionOps subpage_ops = {
     .read = subpage_read,
     .write = subpage_write,
+    .impl.min_access_size = 1,
+    .impl.max_access_size = 8,
+    .valid.min_access_size = 1,
+    .valid.max_access_size = 8,
     .valid.accepts = subpage_accepts,
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
