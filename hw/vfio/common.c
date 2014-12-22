@@ -566,7 +566,7 @@ static void vfio_kvm_device_add_group(VFIOGroup *group)
         };
 
         if (kvm_vm_ioctl(kvm_state, KVM_CREATE_DEVICE, &cd)) {
-            error_report("KVM_CREATE_DEVICE: %m\n");
+            error_report("Failed to create KVM VFIO device: %m\n");
             return;
         }
 

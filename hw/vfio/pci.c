@@ -2801,8 +2801,6 @@ static int vfio_pci_hot_reset(VFIOPCIDevice *vdev, bool single)
             tmp = container_of(vbasedev_iter, VFIOPCIDevice, vbasedev);
             if (vfio_pci_host_match(&host, &tmp->host)) {
                 if (single) {
-                    error_report("vfio: found another in-use device "
-                            "%s\n", vbasedev_iter->name);
                     ret = -EINVAL;
                     goto out_single;
                 }
@@ -2815,7 +2813,6 @@ static int vfio_pci_hot_reset(VFIOPCIDevice *vdev, bool single)
     }
 
     if (!single && !multi) {
-        error_report("vfio: No other in-use devices for multi hot reset\n");
         ret = -EINVAL;
         goto out_single;
     }
