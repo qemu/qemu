@@ -332,14 +332,14 @@ static bool fw_cfg_comb_valid(void *opaque, hwaddr addr,
 
 static const MemoryRegionOps fw_cfg_ctl_mem_ops = {
     .write = fw_cfg_ctl_mem_write,
-    .endianness = DEVICE_NATIVE_ENDIAN,
+    .endianness = DEVICE_BIG_ENDIAN,
     .valid.accepts = fw_cfg_ctl_mem_valid,
 };
 
 static const MemoryRegionOps fw_cfg_data_mem_ops = {
     .read = fw_cfg_data_mem_read,
     .write = fw_cfg_data_mem_write,
-    .endianness = DEVICE_NATIVE_ENDIAN,
+    .endianness = DEVICE_BIG_ENDIAN,
     .valid = {
         .min_access_size = 1,
         .max_access_size = 1,
