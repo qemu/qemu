@@ -663,14 +663,14 @@ FWCfgState *fw_cfg_init_io(uint32_t iobase)
     return FW_CFG(dev);
 }
 
-FWCfgState *fw_cfg_init_mem(hwaddr ctl_addr, hwaddr data_addr)
+FWCfgState *fw_cfg_init_mem_wide(hwaddr ctl_addr, hwaddr data_addr,
+                                 uint32_t data_width)
 {
     DeviceState *dev;
     SysBusDevice *sbd;
 
     dev = qdev_create(NULL, TYPE_FW_CFG_MEM);
-    qdev_prop_set_uint32(dev, "data_width",
-                         fw_cfg_data_mem_ops.valid.max_access_size);
+    qdev_prop_set_uint32(dev, "data_width", data_width);
 
     fw_cfg_init1(dev);
 
@@ -679,6 +679,12 @@ FWCfgState *fw_cfg_init_mem(hwaddr ctl_addr, hwaddr data_addr)
     sysbus_mmio_map(sbd, 1, data_addr);
 
     return FW_CFG(dev);
+}
+
+FWCfgState *fw_cfg_init_mem(hwaddr ctl_addr, hwaddr data_addr)
+{
+    return fw_cfg_init_mem_wide(ctl_addr, data_addr,
+                                fw_cfg_data_mem_ops.valid.max_access_size);
 }
 
 
