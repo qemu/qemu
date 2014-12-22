@@ -649,7 +649,7 @@ static FWCfgState *bochs_bios_init(void)
     int i, j;
     unsigned int apic_id_limit = pc_apic_id_limit(max_cpus);
 
-    fw_cfg = fw_cfg_init(BIOS_CFG_IOPORT, BIOS_CFG_IOPORT + 1, 0, 0);
+    fw_cfg = fw_cfg_init_io(BIOS_CFG_IOPORT);
     /* FW_CFG_MAX_CPUS is a bit confusing/problematic on x86:
      *
      * SeaBIOS needs FW_CFG_MAX_CPUS for CPU hotplug, but the CPU hotplug
@@ -1170,7 +1170,7 @@ FWCfgState *xen_load_linux(const char *kernel_filename,
 
     assert(kernel_filename != NULL);
 
-    fw_cfg = fw_cfg_init(BIOS_CFG_IOPORT, BIOS_CFG_IOPORT + 1, 0, 0);
+    fw_cfg = fw_cfg_init_io(BIOS_CFG_IOPORT);
     rom_set_fw(fw_cfg);
 
     load_linux(fw_cfg, kernel_filename, initrd_filename,

@@ -632,20 +632,6 @@ FWCfgState *fw_cfg_init_mem(hwaddr ctl_addr, hwaddr data_addr)
 }
 
 
-FWCfgState *fw_cfg_init(uint32_t ctl_port, uint32_t data_port,
-                        hwaddr crl_addr, hwaddr data_addr)
-{
-    if (ctl_port + 1 == data_port && crl_addr == 0 && data_addr == 0) {
-        return fw_cfg_init_io(ctl_port);
-    }
-    if (ctl_port == 0 && data_port == 0 && crl_addr != 0 && data_addr != 0) {
-        return fw_cfg_init_mem(crl_addr, data_addr);
-    }
-    assert(false);
-    return NULL;
-}
-
-
 FWCfgState *fw_cfg_find(void)
 {
     return FW_CFG(object_resolve_path(FW_CFG_PATH, NULL));
