@@ -1412,8 +1412,8 @@ vfio_pci_reset(int domain, int bus, int slot, int fn) " (%04x:%02x:%02x.%x)"
 vfio_pci_reset_flr(int domain, int bus, int slot, int fn) "%04x:%02x:%02x.%x FLR/VFIO_DEVICE_RESET"
 vfio_pci_reset_pm(int domain, int bus, int slot, int fn) "%04x:%02x:%02x.%x PCI PM Reset"
 
-vfio_bar_write(int domain, int bus, int slot, int fn, int index, uint64_t addr, uint64_t data, unsigned size) " (%04x:%02x:%02x.%x:region%d+0x%"PRIx64", 0x%"PRIx64 ", %d)"
-vfio_bar_read(int domain, int bus, int slot, int fn, int index, uint64_t addr, unsigned size, uint64_t data) " (%04x:%02x:%02x.%x:region%d+0x%"PRIx64", %d) = 0x%"PRIx64
+vfio_region_write(const char *name, int index, uint64_t addr, uint64_t data, unsigned size) " (%s:region%d+0x%"PRIx64", 0x%"PRIx64 ", %d)"
+vfio_region_read(const char *name, int index, uint64_t addr, unsigned size, uint64_t data) " (%s:region%d+0x%"PRIx64", %d) = 0x%"PRIx64
 vfio_iommu_map_notify(uint64_t iova_start, uint64_t iova_end) "iommu map @ %"PRIx64" - %"PRIx64
 vfio_listener_region_add_skip(uint64_t start, uint64_t end) "SKIPPING region_add %"PRIx64" - %"PRIx64
 vfio_listener_region_add_iommu(uint64_t start, uint64_t end) "region_add [iommu] %"PRIx64" - %"PRIx64
