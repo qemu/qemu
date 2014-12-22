@@ -22,6 +22,8 @@ typedef struct DisplayState DisplayState;
 typedef struct DisplaySurface DisplaySurface;
 typedef struct DriveInfo DriveInfo;
 typedef struct EventNotifier EventNotifier;
+typedef struct FWCfgIoState FWCfgIoState;
+typedef struct FWCfgMemState FWCfgMemState;
 typedef struct FWCfgState FWCfgState;
 typedef struct HCIInfo HCIInfo;
 typedef struct I2CBus I2CBus;
