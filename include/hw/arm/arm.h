@@ -70,6 +70,11 @@ struct arm_boot_info {
     hwaddr initrd_start;
     hwaddr initrd_size;
     hwaddr entry;
+
+    /* Boot firmware has been loaded, typically at address 0, with -bios or
+     * -pflash. It also implies that fw_cfg_find() will succeed.
+     */
+    bool firmware_loaded;
 };
 void arm_load_kernel(ARMCPU *cpu, struct arm_boot_info *info);
 
