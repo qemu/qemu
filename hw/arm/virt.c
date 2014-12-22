@@ -656,6 +656,7 @@ static void machvirt_init(MachineState *machine)
     vbi->bootinfo.board_id = -1;
     vbi->bootinfo.loader_start = vbi->memmap[VIRT_MEM].base;
     vbi->bootinfo.get_dtb = machvirt_dtb;
+    vbi->bootinfo.firmware_loaded = bios_name || drive_get(IF_PFLASH, 0, 0);
     arm_load_kernel(ARM_CPU(first_cpu), &vbi->bootinfo);
 }
 
