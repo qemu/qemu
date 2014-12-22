@@ -48,6 +48,10 @@
 #define VFIO_ALLOW_KVM_MSI 1
 #define VFIO_ALLOW_KVM_MSIX 1
 
+enum {
+    VFIO_DEVICE_TYPE_PCI = 0,
+};
+
 struct VFIOPCIDevice;
 
 typedef struct VFIOQuirk {
@@ -186,7 +190,10 @@ typedef struct VFIOMSIXInfo {
 } VFIOMSIXInfo;
 
 typedef struct VFIODevice {
+    struct VFIOGroup *group;
+    char *name;
     int fd;
+    int type;
 } VFIODevice;
 
 typedef struct VFIOPCIDevice {
@@ -208,7 +215,6 @@ typedef struct VFIOPCIDevice {
     VFIOVGA vga; /* 0xa0000, 0x3b0, 0x3c0 */
     PCIHostDeviceAddress host;
     QLIST_ENTRY(VFIOPCIDevice) next;
-    struct VFIOGroup *group;
     EventNotifier err_notifier;
     uint32_t features;
 #define VFIO_FEATURE_ENABLE_VGA_BIT 0
@@ -3924,7 +3930,7 @@ static int vfio_get_device(VFIOGroup *group, const char *name,
     }
 
     vdev->vbasedev.fd = ret;
-    vdev->group = group;
+    vdev->vbasedev.group = group;
     QLIST_INSERT_HEAD(&group->device_list, vdev, next);
 
     /* Sanity check device */
@@ -4054,7 +4060,7 @@ static int vfio_get_device(VFIOGroup *group, const char *name,
 error:
     if (ret) {
         QLIST_REMOVE(vdev, next);
-        vdev->group = NULL;
+        vdev->vbasedev.group = NULL;
         close(vdev->vbasedev.fd);
     }
     return ret;
@@ -4063,9 +4069,10 @@ error:
 static void vfio_put_device(VFIOPCIDevice *vdev)
 {
     QLIST_REMOVE(vdev, next);
-    vdev->group = NULL;
+    vdev->vbasedev.group = NULL;
     trace_vfio_put_device(vdev->vbasedev.fd);
     close(vdev->vbasedev.fd);
+    g_free(vdev->vbasedev.name);
     if (vdev->msix) {
         g_free(vdev->msix);
         vdev->msix = NULL;
@@ -4197,6 +4204,11 @@ static int vfio_initfn(PCIDevice *pdev)
         return -errno;
     }
 
+    vdev->vbasedev.type = VFIO_DEVICE_TYPE_PCI;
+    vdev->vbasedev.name = g_strdup_printf("%04x:%02x:%02x.%01x",
+                                          vdev->host.domain, vdev->host.bus,
+                                          vdev->host.slot, vdev->host.function);
+
     strncat(path, "iommu_group", sizeof(path) - strlen(path) - 1);
 
     len = readlink(path, iommu_group_path, sizeof(path));
@@ -4227,10 +4239,7 @@ static int vfio_initfn(PCIDevice *pdev)
             vdev->host.function);
 
     QLIST_FOREACH(pvdev, &group->device_list, next) {
-        if (pvdev->host.domain == vdev->host.domain &&
-            pvdev->host.bus == vdev->host.bus &&
-            pvdev->host.slot == vdev->host.slot &&
-            pvdev->host.function == vdev->host.function) {
+        if (strcmp(pvdev->vbasedev.name, vdev->vbasedev.name) == 0) {
 
             error_report("vfio: error: device %s is already attached", path);
             vfio_put_group(group);
@@ -4333,7 +4342,7 @@ out_put:
 static void vfio_exitfn(PCIDevice *pdev)
 {
     VFIOPCIDevice *vdev = DO_UPCAST(VFIOPCIDevice, pdev, pdev);
-    VFIOGroup *group = vdev->group;
+    VFIOGroup *group = vdev->vbasedev.group;
 
     vfio_unregister_err_notifier(vdev);
     pci_device_set_intx_routing_notifier(&vdev->pdev, NULL);
