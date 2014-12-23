@@ -649,7 +649,7 @@ static FWCfgState *bochs_bios_init(void)
     int i, j;
     unsigned int apic_id_limit = pc_apic_id_limit(max_cpus);
 
-    fw_cfg = fw_cfg_init(BIOS_CFG_IOPORT, BIOS_CFG_IOPORT + 1, 0, 0);
+    fw_cfg = fw_cfg_init_io(BIOS_CFG_IOPORT);
     /* FW_CFG_MAX_CPUS is a bit confusing/problematic on x86:
      *
      * SeaBIOS needs FW_CFG_MAX_CPUS for CPU hotplug, but the CPU hotplug
@@ -1170,7 +1170,7 @@ FWCfgState *xen_load_linux(const char *kernel_filename,
 
     assert(kernel_filename != NULL);
 
-    fw_cfg = fw_cfg_init(BIOS_CFG_IOPORT, BIOS_CFG_IOPORT + 1, 0, 0);
+    fw_cfg = fw_cfg_init_io(BIOS_CFG_IOPORT);
     rom_set_fw(fw_cfg);
 
     load_linux(fw_cfg, kernel_filename, initrd_filename,
@@ -1805,17 +1805,24 @@ static void pc_machine_initfn(Object *obj)
     object_property_add(obj, PC_MACHINE_MEMHP_REGION_SIZE, "int",
                         pc_machine_get_hotplug_memory_region_size,
                         NULL, NULL, NULL, NULL);
+
     pcms->max_ram_below_4g = 1ULL << 32; /* 4G */
     object_property_add(obj, PC_MACHINE_MAX_RAM_BELOW_4G, "size",
                         pc_machine_get_max_ram_below_4g,
                         pc_machine_set_max_ram_below_4g,
                         NULL, NULL, NULL);
+    object_property_set_description(obj, PC_MACHINE_MAX_RAM_BELOW_4G,
+                                    "Maximum ram below the 4G boundary (32bit boundary)",
+                                    NULL);
 
     pcms->vmport = ON_OFF_AUTO_AUTO;
     object_property_add(obj, PC_MACHINE_VMPORT, "OnOffAuto",
                         pc_machine_get_vmport,
                         pc_machine_set_vmport,
                         NULL, NULL, NULL);
+    object_property_set_description(obj, PC_MACHINE_VMPORT,
+                                    "Enable vmport (pc & q35)",
+                                    NULL);
 
     pcms->enforce_aligned_dimm = true;
     object_property_add_bool(obj, PC_MACHINE_ENFORCE_ALIGNED_DIMM,

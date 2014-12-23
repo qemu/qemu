@@ -327,6 +327,11 @@ static inline void set_feature(CPUARMState *env, int feature)
     env->features |= 1ULL << feature;
 }
 
+static inline void unset_feature(CPUARMState *env, int feature)
+{
+    env->features &= ~(1ULL << feature);
+}
+
 static void arm_cpu_initfn(Object *obj)
 {
     CPUState *cs = CPU(obj);
@@ -383,6 +388,9 @@ static Property arm_cpu_reset_hivecs_property =
 static Property arm_cpu_rvbar_property =
             DEFINE_PROP_UINT64("rvbar", ARMCPU, rvbar, 0);
 
+static Property arm_cpu_has_el3_property =
+            DEFINE_PROP_BOOL("has_el3", ARMCPU, has_el3, true);
+
 static void arm_cpu_post_init(Object *obj)
 {
     ARMCPU *cpu = ARM_CPU(obj);
@@ -400,6 +408,14 @@ static void arm_cpu_post_init(Object *obj)
 
     if (arm_feature(&cpu->env, ARM_FEATURE_AARCH64)) {
         qdev_property_add_static(DEVICE(obj), &arm_cpu_rvbar_property,
+                                 &error_abort);
+    }
+
+    if (arm_feature(&cpu->env, ARM_FEATURE_EL3)) {
+        /* Add the has_el3 state CPU property only if EL3 is allowed.  This will
+         * prevent "has_el3" from existing on CPUs which cannot support EL3.
+         */
+        qdev_property_add_static(DEVICE(obj), &arm_cpu_has_el3_property,
                                  &error_abort);
     }
 }
@@ -469,6 +485,18 @@ static void arm_cpu_realizefn(DeviceState *dev, Error **errp)
 
     if (cpu->reset_hivecs) {
             cpu->reset_sctlr |= (1 << 13);
+    }
+
+    if (!cpu->has_el3) {
+        /* If the has_el3 CPU property is disabled then we need to disable the
+         * feature.
+         */
+        unset_feature(env, ARM_FEATURE_EL3);
+
+        /* Disable the security extension feature bits in the processor feature
+         * register as well.  This is id_pfr1[7:4].
+         */
+        cpu->id_pfr1 &= ~0xf0;
     }
 
     register_cp_regs_for_features(cpu);
@@ -640,6 +668,7 @@ static void arm1176_initfn(Object *obj)
     set_feature(&cpu->env, ARM_FEATURE_DUMMY_C15_REGS);
     set_feature(&cpu->env, ARM_FEATURE_CACHE_DIRTY_REG);
     set_feature(&cpu->env, ARM_FEATURE_CACHE_BLOCK_OPS);
+    set_feature(&cpu->env, ARM_FEATURE_EL3);
     cpu->midr = 0x410fb767;
     cpu->reset_fpsid = 0x410120b5;
     cpu->mvfr0 = 0x11111111;
@@ -728,6 +757,7 @@ static void cortex_a8_initfn(Object *obj)
     set_feature(&cpu->env, ARM_FEATURE_NEON);
     set_feature(&cpu->env, ARM_FEATURE_THUMB2EE);
     set_feature(&cpu->env, ARM_FEATURE_DUMMY_C15_REGS);
+    set_feature(&cpu->env, ARM_FEATURE_EL3);
     cpu->midr = 0x410fc080;
     cpu->reset_fpsid = 0x410330c0;
     cpu->mvfr0 = 0x11110222;
@@ -795,6 +825,7 @@ static void cortex_a9_initfn(Object *obj)
     set_feature(&cpu->env, ARM_FEATURE_VFP_FP16);
     set_feature(&cpu->env, ARM_FEATURE_NEON);
     set_feature(&cpu->env, ARM_FEATURE_THUMB2EE);
+    set_feature(&cpu->env, ARM_FEATURE_EL3);
     /* Note that A9 supports the MP extensions even for
      * A9UP and single-core A9MP (which are both different
      * and valid configurations; we don't model A9UP).
@@ -862,6 +893,7 @@ static void cortex_a15_initfn(Object *obj)
     set_feature(&cpu->env, ARM_FEATURE_DUMMY_C15_REGS);
     set_feature(&cpu->env, ARM_FEATURE_CBAR_RO);
     set_feature(&cpu->env, ARM_FEATURE_LPAE);
+    set_feature(&cpu->env, ARM_FEATURE_EL3);
     cpu->kvm_target = QEMU_KVM_ARM_TARGET_CORTEX_A15;
     cpu->midr = 0x412fc0f1;
     cpu->reset_fpsid = 0x410430f0;

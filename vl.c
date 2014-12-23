@@ -308,84 +308,12 @@ static QemuOptsList qemu_machine_opts = {
     .merge_lists = true,
     .head = QTAILQ_HEAD_INITIALIZER(qemu_machine_opts.head),
     .desc = {
-        {
-            .name = "type",
-            .type = QEMU_OPT_STRING,
-            .help = "emulated machine"
-        }, {
-            .name = "accel",
-            .type = QEMU_OPT_STRING,
-            .help = "accelerator list",
-        }, {
-            .name = "kernel_irqchip",
-            .type = QEMU_OPT_BOOL,
-            .help = "use KVM in-kernel irqchip",
-        }, {
-            .name = "kvm_shadow_mem",
-            .type = QEMU_OPT_SIZE,
-            .help = "KVM shadow MMU size",
-        }, {
-            .name = "kernel",
-            .type = QEMU_OPT_STRING,
-            .help = "Linux kernel image file",
-        }, {
-            .name = "initrd",
-            .type = QEMU_OPT_STRING,
-            .help = "Linux initial ramdisk file",
-        }, {
-            .name = "append",
-            .type = QEMU_OPT_STRING,
-            .help = "Linux kernel command line",
-        }, {
-            .name = "dtb",
-            .type = QEMU_OPT_STRING,
-            .help = "Linux kernel device tree file",
-        }, {
-            .name = "dumpdtb",
-            .type = QEMU_OPT_STRING,
-            .help = "Dump current dtb to a file and quit",
-        }, {
-            .name = "phandle_start",
-            .type = QEMU_OPT_NUMBER,
-            .help = "The first phandle ID we may generate dynamically",
-        }, {
-            .name = "dt_compatible",
-            .type = QEMU_OPT_STRING,
-            .help = "Overrides the \"compatible\" property of the dt root node",
-        }, {
-            .name = "dump-guest-core",
-            .type = QEMU_OPT_BOOL,
-            .help = "Include guest memory in  a core dump",
-        }, {
-            .name = "mem-merge",
-            .type = QEMU_OPT_BOOL,
-            .help = "enable/disable memory merge support",
-        },{
-            .name = "usb",
-            .type = QEMU_OPT_BOOL,
-            .help = "Set on/off to enable/disable usb",
-        },{
-            .name = "firmware",
-            .type = QEMU_OPT_STRING,
-            .help = "firmware image",
-        },{
-            .name = "kvm-type",
-            .type = QEMU_OPT_STRING,
-            .help = "Specifies the KVM virtualization mode (HV, PR)",
-        },{
-            .name = PC_MACHINE_MAX_RAM_BELOW_4G,
-            .type = QEMU_OPT_SIZE,
-            .help = "maximum ram below the 4G boundary (32bit boundary)",
-        }, {
-            .name = PC_MACHINE_VMPORT,
-            .type = QEMU_OPT_STRING,
-            .help = "Enable vmport (pc & q35)",
-        },{
-            .name = "iommu",
-            .type = QEMU_OPT_BOOL,
-            .help = "Set on/off to enable/disable Intel IOMMU (VT-d)",
-        },
-        { /* End of list */ }
+        /*
+         * no elements => accept any
+         * sanity checking will happen later
+         * when setting machine properties
+         */
+        { }
     },
 };
 
@@ -1493,6 +1421,31 @@ MachineInfoList *qmp_query_machines(Error **errp)
 
     g_slist_free(machines);
     return mach_list;
+}
+
+static int machine_help_func(QemuOpts *opts, MachineState *machine)
+{
+    ObjectProperty *prop;
+
+    if (!qemu_opt_has_help_opt(opts)) {
+        return 0;
+    }
+
+    QTAILQ_FOREACH(prop, &OBJECT(machine)->properties, node) {
+        if (!prop->set) {
+            continue;
+        }
+
+        error_printf("%s.%s=%s", MACHINE_GET_CLASS(machine)->name,
+                     prop->name, prop->type);
+        if (prop->description) {
+            error_printf(" (%s)\n", prop->description);
+        } else {
+            error_printf("\n");
+        }
+    }
+
+    return 1;
 }
 
 /***********************************************************/
@@ -2607,7 +2560,6 @@ static int machine_set_property(const char *name, const char *value,
                                 void *opaque)
 {
     Object *obj = OBJECT(opaque);
-    StringInputVisitor *siv;
     Error *local_err = NULL;
     char *c, *qom_name;
 
@@ -2623,9 +2575,7 @@ static int machine_set_property(const char *name, const char *value,
         }
     }
 
-    siv = string_input_visitor_new(value);
-    object_property_set(obj, string_input_get_visitor(siv), qom_name, &local_err);
-    string_input_visitor_cleanup(siv);
+    object_property_parse(obj, value, qom_name, &local_err);
     g_free(qom_name);
 
     if (local_err) {
@@ -3833,6 +3783,9 @@ int main(int argc, char **argv, char **envp)
 
     current_machine = MACHINE(object_new(object_class_get_name(
                           OBJECT_CLASS(machine_class))));
+    if (machine_help_func(qemu_get_machine_opts(), current_machine)) {
+        exit(0);
+    }
     object_property_add_child(object_get_root(), "machine",
                               OBJECT(current_machine), &error_abort);
     cpu_exec_init_all();

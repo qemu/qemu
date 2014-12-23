@@ -31,11 +31,16 @@
 #include "qemu/config-file.h"
 
 #define FW_CFG_SIZE 2
-#define FW_CFG_DATA_SIZE 1
-#define TYPE_FW_CFG "fw_cfg"
 #define FW_CFG_NAME "fw_cfg"
 #define FW_CFG_PATH "/machine/" FW_CFG_NAME
-#define FW_CFG(obj) OBJECT_CHECK(FWCfgState, (obj), TYPE_FW_CFG)
+
+#define TYPE_FW_CFG     "fw_cfg"
+#define TYPE_FW_CFG_IO  "fw_cfg_io"
+#define TYPE_FW_CFG_MEM "fw_cfg_mem"
+
+#define FW_CFG(obj)     OBJECT_CHECK(FWCfgState,    (obj), TYPE_FW_CFG)
+#define FW_CFG_IO(obj)  OBJECT_CHECK(FWCfgIoState,  (obj), TYPE_FW_CFG_IO)
+#define FW_CFG_MEM(obj) OBJECT_CHECK(FWCfgMemState, (obj), TYPE_FW_CFG_MEM)
 
 typedef struct FWCfgEntry {
     uint32_t len;
@@ -50,13 +55,30 @@ struct FWCfgState {
     SysBusDevice parent_obj;
     /*< public >*/
 
-    MemoryRegion ctl_iomem, data_iomem, comb_iomem;
-    uint32_t ctl_iobase, data_iobase;
     FWCfgEntry entries[2][FW_CFG_MAX_ENTRY];
     FWCfgFiles *files;
     uint16_t cur_entry;
     uint32_t cur_offset;
     Notifier machine_ready;
+};
+
+struct FWCfgIoState {
+    /*< private >*/
+    FWCfgState parent_obj;
+    /*< public >*/
+
+    MemoryRegion comb_iomem;
+    uint32_t iobase;
+};
+
+struct FWCfgMemState {
+    /*< private >*/
+    FWCfgState parent_obj;
+    /*< public >*/
+
+    MemoryRegion ctl_iomem, data_iomem;
+    uint32_t data_width;
+    MemoryRegionOps wide_data_ops;
 };
 
 #define JPG_FILE 0
@@ -264,13 +286,58 @@ static uint8_t fw_cfg_read(FWCfgState *s)
 static uint64_t fw_cfg_data_mem_read(void *opaque, hwaddr addr,
                                      unsigned size)
 {
-    return fw_cfg_read(opaque);
+    FWCfgState *s = opaque;
+    uint8_t buf[8];
+    unsigned i;
+
+    for (i = 0; i < size; ++i) {
+        buf[i] = fw_cfg_read(s);
+    }
+    switch (size) {
+    case 1:
+        return buf[0];
+    case 2:
+        return lduw_he_p(buf);
+    case 4:
+        return (uint32_t)ldl_he_p(buf);
+    case 8:
+        return ldq_he_p(buf);
+    }
+    abort();
 }
 
 static void fw_cfg_data_mem_write(void *opaque, hwaddr addr,
                                   uint64_t value, unsigned size)
 {
-    fw_cfg_write(opaque, (uint8_t)value);
+    FWCfgState *s = opaque;
+    uint8_t buf[8];
+    unsigned i;
+
+    switch (size) {
+    case 1:
+        buf[0] = value;
+        break;
+    case 2:
+        stw_he_p(buf, value);
+        break;
+    case 4:
+        stl_he_p(buf, value);
+        break;
+    case 8:
+        stq_he_p(buf, value);
+        break;
+    default:
+        abort();
+    }
+    for (i = 0; i < size; ++i) {
+        fw_cfg_write(s, buf[i]);
+    }
+}
+
+static bool fw_cfg_data_mem_valid(void *opaque, hwaddr addr,
+                                  unsigned size, bool is_write)
+{
+    return addr == 0;
 }
 
 static void fw_cfg_ctl_mem_write(void *opaque, hwaddr addr,
@@ -312,17 +379,18 @@ static bool fw_cfg_comb_valid(void *opaque, hwaddr addr,
 
 static const MemoryRegionOps fw_cfg_ctl_mem_ops = {
     .write = fw_cfg_ctl_mem_write,
-    .endianness = DEVICE_NATIVE_ENDIAN,
+    .endianness = DEVICE_BIG_ENDIAN,
     .valid.accepts = fw_cfg_ctl_mem_valid,
 };
 
 static const MemoryRegionOps fw_cfg_data_mem_ops = {
     .read = fw_cfg_data_mem_read,
     .write = fw_cfg_data_mem_write,
-    .endianness = DEVICE_NATIVE_ENDIAN,
+    .endianness = DEVICE_BIG_ENDIAN,
     .valid = {
         .min_access_size = 1,
         .max_access_size = 1,
+        .accepts = fw_cfg_data_mem_valid,
     },
 };
 
@@ -560,19 +628,11 @@ static void fw_cfg_machine_ready(struct Notifier *n, void *data)
     qemu_register_reset(fw_cfg_machine_reset, s);
 }
 
-FWCfgState *fw_cfg_init(uint32_t ctl_port, uint32_t data_port,
-                        hwaddr ctl_addr, hwaddr data_addr)
+
+
+static void fw_cfg_init1(DeviceState *dev)
 {
-    DeviceState *dev;
-    SysBusDevice *d;
-    FWCfgState *s;
-
-    dev = qdev_create(NULL, TYPE_FW_CFG);
-    qdev_prop_set_uint32(dev, "ctl_iobase", ctl_port);
-    qdev_prop_set_uint32(dev, "data_iobase", data_port);
-    d = SYS_BUS_DEVICE(dev);
-
-    s = FW_CFG(dev);
+    FWCfgState *s = FW_CFG(dev);
 
     assert(!object_resolve_path(FW_CFG_PATH, NULL));
 
@@ -580,12 +640,6 @@ FWCfgState *fw_cfg_init(uint32_t ctl_port, uint32_t data_port,
 
     qdev_init_nofail(dev);
 
-    if (ctl_addr) {
-        sysbus_mmio_map(d, 0, ctl_addr);
-    }
-    if (data_addr) {
-        sysbus_mmio_map(d, 1, data_addr);
-    }
     fw_cfg_add_bytes(s, FW_CFG_SIGNATURE, (char *)"QEMU", 4);
     fw_cfg_add_bytes(s, FW_CFG_UUID, qemu_uuid, 16);
     fw_cfg_add_i16(s, FW_CFG_NOGRAPHIC, (uint16_t)(display_type == DT_NOGRAPHIC));
@@ -596,48 +650,43 @@ FWCfgState *fw_cfg_init(uint32_t ctl_port, uint32_t data_port,
 
     s->machine_ready.notify = fw_cfg_machine_ready;
     qemu_add_machine_init_done_notifier(&s->machine_ready);
-
-    return s;
 }
 
-static void fw_cfg_initfn(Object *obj)
+FWCfgState *fw_cfg_init_io(uint32_t iobase)
 {
-    SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
-    FWCfgState *s = FW_CFG(obj);
+    DeviceState *dev;
 
-    memory_region_init_io(&s->ctl_iomem, OBJECT(s), &fw_cfg_ctl_mem_ops, s,
-                          "fwcfg.ctl", FW_CFG_SIZE);
-    sysbus_init_mmio(sbd, &s->ctl_iomem);
-    memory_region_init_io(&s->data_iomem, OBJECT(s), &fw_cfg_data_mem_ops, s,
-                          "fwcfg.data", FW_CFG_DATA_SIZE);
-    sysbus_init_mmio(sbd, &s->data_iomem);
-    /* In case ctl and data overlap: */
-    memory_region_init_io(&s->comb_iomem, OBJECT(s), &fw_cfg_comb_mem_ops, s,
-                          "fwcfg", FW_CFG_SIZE);
+    dev = qdev_create(NULL, TYPE_FW_CFG_IO);
+    qdev_prop_set_uint32(dev, "iobase", iobase);
+    fw_cfg_init1(dev);
+
+    return FW_CFG(dev);
 }
 
-static void fw_cfg_realize(DeviceState *dev, Error **errp)
+FWCfgState *fw_cfg_init_mem_wide(hwaddr ctl_addr, hwaddr data_addr,
+                                 uint32_t data_width)
 {
-    FWCfgState *s = FW_CFG(dev);
-    SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
+    DeviceState *dev;
+    SysBusDevice *sbd;
 
-    if (s->ctl_iobase + 1 == s->data_iobase) {
-        sysbus_add_io(sbd, s->ctl_iobase, &s->comb_iomem);
-    } else {
-        if (s->ctl_iobase) {
-            sysbus_add_io(sbd, s->ctl_iobase, &s->ctl_iomem);
-        }
-        if (s->data_iobase) {
-            sysbus_add_io(sbd, s->data_iobase, &s->data_iomem);
-        }
-    }
+    dev = qdev_create(NULL, TYPE_FW_CFG_MEM);
+    qdev_prop_set_uint32(dev, "data_width", data_width);
+
+    fw_cfg_init1(dev);
+
+    sbd = SYS_BUS_DEVICE(dev);
+    sysbus_mmio_map(sbd, 0, ctl_addr);
+    sysbus_mmio_map(sbd, 1, data_addr);
+
+    return FW_CFG(dev);
 }
 
-static Property fw_cfg_properties[] = {
-    DEFINE_PROP_UINT32("ctl_iobase", FWCfgState, ctl_iobase, -1),
-    DEFINE_PROP_UINT32("data_iobase", FWCfgState, data_iobase, -1),
-    DEFINE_PROP_END_OF_LIST(),
-};
+FWCfgState *fw_cfg_init_mem(hwaddr ctl_addr, hwaddr data_addr)
+{
+    return fw_cfg_init_mem_wide(ctl_addr, data_addr,
+                                fw_cfg_data_mem_ops.valid.max_access_size);
+}
+
 
 FWCfgState *fw_cfg_find(void)
 {
@@ -648,23 +697,102 @@ static void fw_cfg_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
-    dc->realize = fw_cfg_realize;
     dc->reset = fw_cfg_reset;
     dc->vmsd = &vmstate_fw_cfg;
-    dc->props = fw_cfg_properties;
 }
 
 static const TypeInfo fw_cfg_info = {
     .name          = TYPE_FW_CFG,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(FWCfgState),
-    .instance_init = fw_cfg_initfn,
     .class_init    = fw_cfg_class_init,
 };
+
+
+static Property fw_cfg_io_properties[] = {
+    DEFINE_PROP_UINT32("iobase", FWCfgIoState, iobase, -1),
+    DEFINE_PROP_END_OF_LIST(),
+};
+
+static void fw_cfg_io_realize(DeviceState *dev, Error **errp)
+{
+    FWCfgIoState *s = FW_CFG_IO(dev);
+    SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
+
+    memory_region_init_io(&s->comb_iomem, OBJECT(s), &fw_cfg_comb_mem_ops,
+                          FW_CFG(s), "fwcfg", FW_CFG_SIZE);
+    sysbus_add_io(sbd, s->iobase, &s->comb_iomem);
+}
+
+static void fw_cfg_io_class_init(ObjectClass *klass, void *data)
+{
+    DeviceClass *dc = DEVICE_CLASS(klass);
+
+    dc->realize = fw_cfg_io_realize;
+    dc->props = fw_cfg_io_properties;
+}
+
+static const TypeInfo fw_cfg_io_info = {
+    .name          = TYPE_FW_CFG_IO,
+    .parent        = TYPE_FW_CFG,
+    .instance_size = sizeof(FWCfgIoState),
+    .class_init    = fw_cfg_io_class_init,
+};
+
+
+static Property fw_cfg_mem_properties[] = {
+    DEFINE_PROP_UINT32("data_width", FWCfgMemState, data_width, -1),
+    DEFINE_PROP_END_OF_LIST(),
+};
+
+static void fw_cfg_mem_realize(DeviceState *dev, Error **errp)
+{
+    FWCfgMemState *s = FW_CFG_MEM(dev);
+    SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
+    const MemoryRegionOps *data_ops = &fw_cfg_data_mem_ops;
+
+    memory_region_init_io(&s->ctl_iomem, OBJECT(s), &fw_cfg_ctl_mem_ops,
+                          FW_CFG(s), "fwcfg.ctl", FW_CFG_SIZE);
+    sysbus_init_mmio(sbd, &s->ctl_iomem);
+
+    if (s->data_width > data_ops->valid.max_access_size) {
+        /* memberwise copy because the "old_mmio" member is const */
+        s->wide_data_ops.read       = data_ops->read;
+        s->wide_data_ops.write      = data_ops->write;
+        s->wide_data_ops.endianness = data_ops->endianness;
+        s->wide_data_ops.valid      = data_ops->valid;
+        s->wide_data_ops.impl       = data_ops->impl;
+
+        s->wide_data_ops.valid.max_access_size = s->data_width;
+        s->wide_data_ops.impl.max_access_size  = s->data_width;
+        data_ops = &s->wide_data_ops;
+    }
+    memory_region_init_io(&s->data_iomem, OBJECT(s), data_ops, FW_CFG(s),
+                          "fwcfg.data", data_ops->valid.max_access_size);
+    sysbus_init_mmio(sbd, &s->data_iomem);
+}
+
+static void fw_cfg_mem_class_init(ObjectClass *klass, void *data)
+{
+    DeviceClass *dc = DEVICE_CLASS(klass);
+
+    dc->realize = fw_cfg_mem_realize;
+    dc->props = fw_cfg_mem_properties;
+}
+
+static const TypeInfo fw_cfg_mem_info = {
+    .name          = TYPE_FW_CFG_MEM,
+    .parent        = TYPE_FW_CFG,
+    .instance_size = sizeof(FWCfgMemState),
+    .class_init    = fw_cfg_mem_class_init,
+};
+
 
 static void fw_cfg_register_types(void)
 {
     type_register_static(&fw_cfg_info);
+    type_register_static(&fw_cfg_io_info);
+    type_register_static(&fw_cfg_mem_info);
 }
 
 type_init(fw_cfg_register_types)
