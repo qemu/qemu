@@ -262,11 +262,12 @@ static inline target_ulong address_mask(CPUSPARCState *env1, target_ulong addr)
 }
 #endif
 
+#ifdef TARGET_SPARC64
 /* returns true if access using this ASI is to have address translated by MMU
    otherwise access is to raw physical address */
+/* TODO: check sparc32 bits */
 static inline int is_translating_asi(int asi)
 {
-#ifdef TARGET_SPARC64
     /* Ultrasparc IIi translating asi
        - note this list is defined by cpu implementation
     */
@@ -283,13 +284,8 @@ static inline int is_translating_asi(int asi)
     default:
         return 0;
     }
-#else
-    /* TODO: check sparc32 bits */
-    return 0;
-#endif
 }
 
-#ifdef TARGET_SPARC64
 static inline target_ulong asi_address_mask(CPUSPARCState *env,
                                             int asi, target_ulong addr)
 {
