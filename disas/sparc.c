@@ -80,19 +80,6 @@ typedef struct sparc_opcode_arch
   short supported;
 } sparc_opcode_arch;
 
-static const struct sparc_opcode_arch sparc_opcode_archs[];
-
-/* Return the bitmask of supported architectures for ARCH.  */
-#define SPARC_OPCODE_SUPPORTED(ARCH) (sparc_opcode_archs[ARCH].supported)
-
-/* Non-zero if ARCH1 conflicts with ARCH2.
-   IE: ARCH1 as a supported bit set that ARCH2 doesn't, and vice versa.  */
-#define SPARC_OPCODE_CONFLICT_P(ARCH1, ARCH2) \
- (((SPARC_OPCODE_SUPPORTED (ARCH1) & SPARC_OPCODE_SUPPORTED (ARCH2)) \
-   != SPARC_OPCODE_SUPPORTED (ARCH1)) \
-  && ((SPARC_OPCODE_SUPPORTED (ARCH1) & SPARC_OPCODE_SUPPORTED (ARCH2)) \
-     != SPARC_OPCODE_SUPPORTED (ARCH2)))
-
 /* Structure of an opcode table entry.  */
 
 typedef struct sparc_opcode
@@ -300,25 +287,6 @@ static const char *sparc_decode_sparclet_cpreg (int);
 /* v9a instructions which would appear to be aliases to v9's impdep's
    otherwise.  */
 #define v9notv9a        (MASK_V9)
-
-/* Table of opcode architectures.
-   The order is defined in opcode/sparc.h.  */
-
-static const struct sparc_opcode_arch sparc_opcode_archs[] =
-{
-  { "v6", MASK_V6 },
-  { "v7", MASK_V6 | MASK_V7 },
-  { "v8", MASK_V6 | MASK_V7 | MASK_V8 },
-  { "sparclet", MASK_V6 | MASK_V7 | MASK_V8 | MASK_SPARCLET },
-  { "sparclite", MASK_V6 | MASK_V7 | MASK_V8 | MASK_SPARCLITE },
-  /* ??? Don't some v8 privileged insns conflict with v9?  */
-  { "v9", MASK_V6 | MASK_V7 | MASK_V8 | MASK_V9 },
-  /* v9 with ultrasparc additions */
-  { "v9a", MASK_V6 | MASK_V7 | MASK_V8 | MASK_V9 | MASK_V9A },
-  /* v9 with cheetah additions */
-  { "v9b", MASK_V6 | MASK_V7 | MASK_V8 | MASK_V9 | MASK_V9A | MASK_V9B },
-  { NULL, 0 }
-};
 
 /* Branch condition field.  */
 #define COND(x)         (((x) & 0xf) << 25)
