@@ -994,7 +994,7 @@ uint32_t helper_sha(CPUTriCoreState *env, target_ulong r1, target_ulong r2)
     } else if (shift_count > 0) {
         result = t1 << shift_count;
         /* calc carry */
-        env->PSW_USB_C = ((result & 0xffffffff00000000) != 0);
+        env->PSW_USB_C = ((result & 0xffffffff00000000ULL) != 0);
         /* calc v */
         env->PSW_USB_V = (((result > 0x7fffffffLL) ||
                            (result < -0x80000000LL)) << 31);
