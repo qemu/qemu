@@ -1482,7 +1482,7 @@ static void ppc_spapr_init(MachineState *machine)
     }
     if (spapr->rtas_size > RTAS_MAX_SIZE) {
         hw_error("RTAS too big ! 0x%zx bytes (max is 0x%x)\n",
-                 spapr->rtas_size, RTAS_MAX_SIZE);
+                 (size_t)spapr->rtas_size, RTAS_MAX_SIZE);
         exit(1);
     }
     g_free(filename);
