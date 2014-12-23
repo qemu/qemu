@@ -331,11 +331,13 @@ static inline void gen_stop_exception(DisasContext *ctx)
     ctx->exception = POWERPC_EXCP_STOP;
 }
 
+#ifndef CONFIG_USER_ONLY
 /* No need to update nip here, as execution flow will change */
 static inline void gen_sync_exception(DisasContext *ctx)
 {
     ctx->exception = POWERPC_EXCP_SYNC;
 }
+#endif
 
 #define GEN_HANDLER(name, opc1, opc2, opc3, inval, type)                      \
 GEN_OPCODE(name, opc1, opc2, opc3, inval, type, PPC_NONE)
@@ -437,7 +439,10 @@ EXTRACT_HELPER(ME, 1, 5);
 EXTRACT_HELPER(TO, 21, 5);
 
 EXTRACT_HELPER(CRM, 12, 8);
+
+#ifndef CONFIG_USER_ONLY
 EXTRACT_HELPER(SR, 16, 4);
+#endif
 
 /* mtfsf/mtfsfi */
 EXTRACT_HELPER(FPBF, 23, 3);
