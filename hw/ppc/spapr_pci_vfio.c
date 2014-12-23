@@ -20,7 +20,7 @@
 #include "hw/ppc/spapr.h"
 #include "hw/pci-host/spapr.h"
 #include "linux/vfio.h"
-#include "hw/misc/vfio.h"
+#include "hw/vfio/vfio.h"
 
 static Property spapr_phb_vfio_properties[] = {
     DEFINE_PROP_INT32("iommu", sPAPRPHBVFIOState, iommugroupid, -1),

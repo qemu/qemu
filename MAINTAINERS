@@ -657,7 +657,7 @@ F: hw/usb/dev-serial.c
 VFIO
 M: Alex Williamson <alex.williamson@redhat.com>
 S: Supported
-F: hw/misc/vfio.c
+F: hw/vfio/*
 
 vhost
 M: Michael S. Tsirkin <mst@redhat.com>
