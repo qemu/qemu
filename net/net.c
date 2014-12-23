@@ -324,6 +324,8 @@ void qemu_del_net_client(NetClientState *nc)
     NetClientState *ncs[MAX_QUEUE_NUM];
     int queues, i;
 
+    assert(nc->info->type != NET_CLIENT_OPTIONS_KIND_NIC);
+
     /* If the NetClientState belongs to a multiqueue backend, we will change all
      * other NetClientStates also.
      */
@@ -354,8 +356,6 @@ void qemu_del_net_client(NetClientState *nc)
 
         return;
     }
-
-    assert(nc->info->type != NET_CLIENT_OPTIONS_KIND_NIC);
 
     for (i = 0; i < queues; i++) {
         qemu_cleanup_net_client(ncs[i]);
@@ -991,7 +991,7 @@ void hmp_host_net_remove(Monitor *mon, const QDict *qdict)
                      device, vlan_id);
         return;
     }
-    if (!net_host_check_device(nc->model)) {
+    if (nc->info->type == NET_CLIENT_OPTIONS_KIND_NIC) {
         error_report("invalid host network device '%s'", device);
         return;
     }
