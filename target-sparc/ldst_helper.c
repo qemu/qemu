@@ -250,6 +250,7 @@ static void replace_tlb_1bit_lru(SparcTLBEntry *tlb,
 
 #endif
 
+#if defined(TARGET_SPARC64) || defined(CONFIG_USER_ONLY)
 static inline target_ulong address_mask(CPUSPARCState *env1, target_ulong addr)
 {
 #ifdef TARGET_SPARC64
@@ -259,6 +260,7 @@ static inline target_ulong address_mask(CPUSPARCState *env1, target_ulong addr)
 #endif
     return addr;
 }
+#endif
 
 /* returns true if access using this ASI is to have address translated by MMU
    otherwise access is to raw physical address */
@@ -287,6 +289,7 @@ static inline int is_translating_asi(int asi)
 #endif
 }
 
+#ifdef TARGET_SPARC64
 static inline target_ulong asi_address_mask(CPUSPARCState *env,
                                             int asi, target_ulong addr)
 {
@@ -296,6 +299,7 @@ static inline target_ulong asi_address_mask(CPUSPARCState *env,
         return addr;
     }
 }
+#endif
 
 void helper_check_align(CPUSPARCState *env, target_ulong addr, uint32_t align)
 {
