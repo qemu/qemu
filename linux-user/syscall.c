@@ -1214,16 +1214,26 @@ static inline abi_long target_to_host_cmsg(struct msghdr *msgh,
         cmsg->cmsg_type = tswap32(target_cmsg->cmsg_type);
         cmsg->cmsg_len = CMSG_LEN(len);
 
-        if (cmsg->cmsg_level != SOL_SOCKET || cmsg->cmsg_type != SCM_RIGHTS) {
-            gemu_log("Unsupported ancillary data: %d/%d\n", cmsg->cmsg_level, cmsg->cmsg_type);
-            memcpy(data, target_data, len);
-        } else {
+        if (cmsg->cmsg_level == SOL_SOCKET && cmsg->cmsg_type == SCM_RIGHTS) {
             int *fd = (int *)data;
             int *target_fd = (int *)target_data;
             int i, numfds = len / sizeof(int);
 
             for (i = 0; i < numfds; i++)
                 fd[i] = tswap32(target_fd[i]);
+        } else if (cmsg->cmsg_level == SOL_SOCKET
+               &&  cmsg->cmsg_type == SCM_CREDENTIALS) {
+            struct ucred *cred = (struct ucred *)data;
+            struct target_ucred *target_cred =
+                (struct target_ucred *)target_data;
+
+            __put_user(target_cred->pid, &cred->pid);
+            __put_user(target_cred->uid, &cred->uid);
+            __put_user(target_cred->gid, &cred->gid);
+        } else {
+            gemu_log("Unsupported ancillary data: %d/%d\n",
+                                        cmsg->cmsg_level, cmsg->cmsg_type);
+            memcpy(data, target_data, len);
         }
 
         cmsg = CMSG_NXTHDR(msgh, cmsg);
