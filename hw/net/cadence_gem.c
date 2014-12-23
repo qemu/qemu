@@ -1209,14 +1209,6 @@ static const MemoryRegionOps gem_ops = {
     .endianness = DEVICE_LITTLE_ENDIAN,
 };
 
-static void gem_cleanup(NetClientState *nc)
-{
-    GemState *s = qemu_get_nic_opaque(nc);
-
-    DB_PRINT("\n");
-    s->nic = NULL;
-}
-
 static void gem_set_link(NetClientState *nc)
 {
     DB_PRINT("\n");
@@ -1228,7 +1220,6 @@ static NetClientInfo net_gem_info = {
     .size = sizeof(NICState),
     .can_receive = gem_can_receive,
     .receive = gem_receive,
-    .cleanup = gem_cleanup,
     .link_status_changed = gem_set_link,
 };
 

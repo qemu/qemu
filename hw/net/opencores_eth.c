@@ -472,16 +472,11 @@ static ssize_t open_eth_receive(NetClientState *nc,
     return size;
 }
 
-static void open_eth_cleanup(NetClientState *nc)
-{
-}
-
 static NetClientInfo net_open_eth_info = {
     .type = NET_CLIENT_OPTIONS_KIND_NIC,
     .size = sizeof(NICState),
     .can_receive = open_eth_can_receive,
     .receive = open_eth_receive,
-    .cleanup = open_eth_cleanup,
     .link_status_changed = open_eth_set_link_status,
 };
 

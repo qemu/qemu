@@ -1522,19 +1522,11 @@ static int virtio_net_load_device(VirtIODevice *vdev, QEMUFile *f,
     return 0;
 }
 
-static void virtio_net_cleanup(NetClientState *nc)
-{
-    VirtIONet *n = qemu_get_nic_opaque(nc);
-
-    n->nic = NULL;
-}
-
 static NetClientInfo net_virtio_info = {
     .type = NET_CLIENT_OPTIONS_KIND_NIC,
     .size = sizeof(NICState),
     .can_receive = virtio_net_can_receive,
     .receive = virtio_net_receive,
-    .cleanup = virtio_net_cleanup,
     .link_status_changed = virtio_net_set_link_status,
     .query_rx_filter = virtio_net_query_rxfilter,
 };

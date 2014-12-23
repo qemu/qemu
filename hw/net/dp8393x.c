@@ -859,22 +859,11 @@ static void nic_reset(void *opaque)
     dp8393x_update_irq(s);
 }
 
-static void nic_cleanup(NetClientState *nc)
-{
-    dp8393xState *s = qemu_get_nic_opaque(nc);
-
-    timer_del(s->watchdog);
-    timer_free(s->watchdog);
-
-    g_free(s);
-}
-
 static NetClientInfo net_dp83932_info = {
     .type = NET_CLIENT_OPTIONS_KIND_NIC,
     .size = sizeof(NICState),
     .can_receive = nic_can_receive,
     .receive = nic_receive,
-    .cleanup = nic_cleanup,
 };
 
 void dp83932_init(NICInfo *nd, hwaddr base, int it_shift,
