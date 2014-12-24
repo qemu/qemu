@@ -342,6 +342,12 @@ void timer_init_tl(QEMUTimer *ts,
     ts->expire_time = -1;
 }
 
+void timer_deinit(QEMUTimer *ts)
+{
+    assert(ts->expire_time == -1);
+    ts->timer_list = NULL;
+}
+
 void timer_free(QEMUTimer *ts)
 {
     g_free(ts);
@@ -398,9 +404,11 @@ void timer_del(QEMUTimer *ts)
 {
     QEMUTimerList *timer_list = ts->timer_list;
 
-    qemu_mutex_lock(&timer_list->active_timers_lock);
-    timer_del_locked(timer_list, ts);
-    qemu_mutex_unlock(&timer_list->active_timers_lock);
+    if (timer_list) {
+        qemu_mutex_lock(&timer_list->active_timers_lock);
+        timer_del_locked(timer_list, ts);
+        qemu_mutex_unlock(&timer_list->active_timers_lock);
+    }
 }
 
 /* modify the current timer so that it will be fired when current_time

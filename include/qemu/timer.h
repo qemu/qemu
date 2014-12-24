@@ -595,6 +595,17 @@ static inline QEMUTimer *timer_new_ms(QEMUClockType type, QEMUTimerCB *cb,
 }
 
 /**
+ * timer_deinit:
+ * @ts: the timer to be de-initialised
+ *
+ * Deassociate the timer from any timerlist.  You should
+ * call timer_del before.  After this call, any further
+ * timer_del call cannot cause dangling pointer accesses
+ * even if the previously used timerlist is freed.
+ */
+void timer_deinit(QEMUTimer *ts);
+
+/**
  * timer_free:
  * @ts: the timer
  *
