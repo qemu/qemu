@@ -815,25 +815,40 @@ uint32_t vga_mem_readb(VGACommonState *s, hwaddr addr)
     }
 
     if (sr(s, VGA_SEQ_MEMORY_MODE) & VGA_SR04_CHN_4M) {
-        /* chain 4 mode : simplest access (but it should use the same
-         * algorithms as below; see e.g. vga_mem_writeb's plane mask check).
-         */
-        assert(addr < s->vram_size);
-        return s->vram_ptr[addr];
-    }
-
-    if (s->gr[VGA_GFX_MODE] & 0x10) {
+        /* chain4 mode */
+        plane = addr & 3;
+        addr &= ~3;
+    } else if (s->gr[VGA_GFX_MODE] & VGA_GR05_HOST_ODD_EVEN) {
         /* odd/even mode (aka text mode mapping) */
         plane = (s->gr[VGA_GFX_PLANE_READ] & 2) | (addr & 1);
-        addr >>= 1;
     } else {
         /* standard VGA latched access */
         plane = s->gr[VGA_GFX_PLANE_READ];
     }
 
+    if (s->gr[VGA_GFX_MISC] & VGA_GR06_CHAIN_ODD_EVEN) {
+        addr &= ~1;
+    }
+
+    /* Doubleword/word mode.  See comment in vga_mem_writeb */
+    if (s->cr[VGA_CRTC_UNDERLINE] & VGA_CR14_DW) {
+        addr >>= 2;
+    } else if ((s->gr[VGA_GFX_MODE] & VGA_GR05_HOST_ODD_EVEN) &&
+               (s->cr[VGA_CRTC_MODE] & VGA_CR17_WORD_BYTE) == 0) {
+        addr >>= 1;
+    }
+
     if (addr * sizeof(uint32_t) >= s->vram_size) {
         return 0xff;
     }
+
+    if (s->sr[VGA_SEQ_MEMORY_MODE] & VGA_SR04_CHN_4M) {
+        /* chain 4 mode: simplified access (but it should use the same
+         * algorithms as below, see e.g. vga_mem_writeb's plane mask check).
+         */
+        return s->vram_ptr[(addr << 2) | plane];
+    }
+
     s->latch = ((uint32_t *)s->vram_ptr)[addr];
     if (!(s->gr[VGA_GFX_MODE] & 0x08)) {
         /* read mode 0 */
@@ -853,8 +868,9 @@ uint32_t vga_mem_readb(VGACommonState *s, hwaddr addr)
 /* called for accesses between 0xa0000 and 0xc0000 */
 void vga_mem_writeb(VGACommonState *s, hwaddr addr, uint32_t val)
 {
-    int memory_map_mode, plane, write_mode, b, func_select, mask;
+    int memory_map_mode, write_mode, b, func_select, mask;
     uint32_t write_mask, bit_mask, set_mask;
+    int plane = 0;
 
 #ifdef DEBUG_VGA_MEM
     printf("vga: [0x" HWADDR_FMT_plx "] = 0x%02x\n", addr, val);
@@ -888,9 +904,46 @@ void vga_mem_writeb(VGACommonState *s, hwaddr addr, uint32_t val)
         /* chain 4 mode : simplest access */
         plane = addr & 3;
         mask &= (1 << plane);
+        addr &= ~3;
+    } else {
+        if ((sr(s, VGA_SEQ_MEMORY_MODE) & VGA_SR04_SEQ_MODE) == 0) {
+            mask &= (addr & 1) ? 0x0a : 0x05;
+        }
+        if (s->gr[VGA_GFX_MISC] & VGA_GR06_CHAIN_ODD_EVEN) {
+            addr &= ~1;
+        }
+    }
+
+    /* Doubleword/word mode.  These should be honored when displaying,
+     * not when reading/writing to memory!  For example, chain4 modes
+     * use double-word mode and, on real hardware, would fetch bytes
+     * 0,1,2,3, 16,17,18,19, 32,33,34,35, etc.  Text modes use word
+     * mode and, on real hardware, would fetch bytes 0,1, 8,9, etc.
+     *
+     * QEMU instead shifted addresses on memory accesses because it
+     * allows more optimizations (e.g. chain4_alias) and simplifies
+     * the draw_line handlers. Unfortunately, there is one case where
+     * the difference shows.  When fetching font data, accesses are
+     * always in consecutive bytes, even if the text/attribute pairs
+     * are done in word mode.  Hence, doing a right shift when operating
+     * on font data is wrong.  So check the odd/even mode bits together with
+     * word mode bit.  The odd/even read bit is 0 when reading font data,
+     * and the odd/even write bit is 1 when writing it.
+     */
+    if (s->cr[VGA_CRTC_UNDERLINE] & VGA_CR14_DW) {
+        addr >>= 2;
+    } else if ((sr(s, VGA_SEQ_MEMORY_MODE) & VGA_SR04_SEQ_MODE) == 0 &&
+               (s->cr[VGA_CRTC_MODE] & VGA_CR17_WORD_BYTE) == 0) {
+        addr >>= 1;
+    }
+
+    if (addr * sizeof(uint32_t) >= s->vram_size) {
+        return;
+    }
+
+    if (sr(s, VGA_SEQ_MEMORY_MODE) & VGA_SR04_CHN_4M) {
         if (mask) {
-            assert(addr < s->vram_size);
-            s->vram_ptr[addr] = val;
+            s->vram_ptr[(addr << 2) | plane] = val;
 #ifdef DEBUG_VGA_MEM
             printf("vga: chain4: [0x" HWADDR_FMT_plx "]\n", addr);
 #endif
@@ -898,15 +951,6 @@ void vga_mem_writeb(VGACommonState *s, hwaddr addr, uint32_t val)
             memory_region_set_dirty(&s->vram, addr, 1);
         }
         return;
-    }
-
-    if ((sr(s, VGA_SEQ_MEMORY_MODE) & VGA_SR04_SEQ_MODE) == 0) {
-        mask &= (addr & 1) ? 0x0a : 0x05;
-    }
-
-    if (s->gr[VGA_GFX_MODE] & 0x10) {
-        /* odd/even mode (aka text mode mapping) */
-        addr >>= 1;
     }
 
     /* standard VGA latched access */
@@ -973,9 +1017,6 @@ do_write:
     /* mask data according to sr[2] */
     s->plane_updated |= mask; /* only used to detect font change */
     write_mask = mask16[mask];
-    if (addr * sizeof(uint32_t) >= s->vram_size) {
-        return;
-    }
     ((uint32_t *)s->vram_ptr)[addr] =
         (((uint32_t *)s->vram_ptr)[addr] & ~write_mask) |
         (val & write_mask);
