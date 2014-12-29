@@ -50,6 +50,13 @@ bool have_vga = true;
 /* Address mask for non-VESA modes.  */
 #define VGA_VRAM_SIZE                   (256 * KiB)
 
+/* This value corresponds to a shift of zero pixels
+ * in 9-dot text mode.  In other modes, bit 3 is undefined;
+ * we just ignore it, so that 8 corresponds to zero pixels
+ * in all modes.
+ */
+#define VGA_HPEL_NEUTRAL		8
+
 /*
  * Video Graphics Array (VGA)
  *
@@ -984,8 +991,8 @@ void vga_mem_writeb(VGACommonState *s, hwaddr addr, uint32_t val)
     }
 }
 
-typedef void vga_draw_line_func(VGACommonState *s1, uint8_t *d,
-                                uint32_t srcaddr, int width);
+typedef void *vga_draw_line_func(VGACommonState *s1, uint8_t *d,
+                                 uint32_t srcaddr, int width, int hpel);
 
 #include "vga-access.h"
 #include "vga-helpers.h"
@@ -1052,6 +1059,8 @@ static void vga_get_params(VGACommonState *s,
         params->line_offset = s->vbe_line_offset;
         params->start_addr = s->vbe_start_addr;
         params->line_compare = 65535;
+        params->hpel = VGA_HPEL_NEUTRAL;
+        params->hpel_split = false;
     } else {
         /* compute line_offset in bytes */
         params->line_offset = s->cr[VGA_CRTC_OFFSET] << 3;
@@ -1064,6 +1073,9 @@ static void vga_get_params(VGACommonState *s,
         params->line_compare = s->cr[VGA_CRTC_LINE_COMPARE] |
             ((s->cr[VGA_CRTC_OVERFLOW] & 0x10) << 4) |
             ((s->cr[VGA_CRTC_MAX_SCAN] & 0x40) << 3);
+
+        params->hpel = s->ar[VGA_ATC_PEL];
+        params->hpel_split = s->ar[VGA_ATC_MODE] & 0x20;
     }
 }
 
@@ -1435,6 +1447,7 @@ static void vga_draw_graphic(VGACommonState *s, int full_update)
     ram_addr_t page0, page1, region_start, region_end;
     DirtyBitmapSnapshot *snap = NULL;
     int disp_width, multi_scan, multi_run;
+    int hpel;
     uint8_t *d;
     uint32_t v, addr1, addr;
     vga_draw_line_func *vga_draw_line = NULL;
@@ -1534,6 +1547,9 @@ static void vga_draw_graphic(VGACommonState *s, int full_update)
         s->last_line_offset = s->params.line_offset;
         s->last_depth = depth;
         s->last_byteswap = byteswap;
+        /* 16 extra pixels are needed for double-width planar modes.  */
+        s->panning_buf = g_realloc(s->panning_buf,
+                                   (disp_width + 16) * sizeof(uint32_t));
         full_update = 1;
     }
     if (surface_data(surface) != s->vram_ptr + (s->params.start_addr * 4)
@@ -1613,8 +1629,12 @@ static void vga_draw_graphic(VGACommonState *s, int full_update)
            width, height, v, line_offset, s->cr[9], s->cr[VGA_CRTC_MODE],
            s->params.line_compare, sr(s, VGA_SEQ_CLOCK_MODE));
 #endif
+    hpel = bits <= 8 ? s->params.hpel : 0;
     addr1 = (s->params.start_addr * 4);
     bwidth = DIV_ROUND_UP(width * bits, 8);
+    if (hpel) {
+        bwidth += 4;
+    }
     y_start = -1;
     d = surface_data(surface);
     linesize = surface_stride(surface);
@@ -1662,7 +1682,11 @@ static void vga_draw_graphic(VGACommonState *s, int full_update)
             if (y_start < 0)
                 y_start = y;
             if (!(is_buffer_shared(surface))) {
-                vga_draw_line(s, d, addr, width);
+                uint8_t *p;
+                p = vga_draw_line(s, d, addr, width, hpel);
+                if (p) {
+                    memcpy(d, p, disp_width * sizeof(uint32_t));
+                }
                 if (s->cursor_draw_line)
                     s->cursor_draw_line(s, d, y);
             }
@@ -1684,8 +1708,12 @@ static void vga_draw_graphic(VGACommonState *s, int full_update)
             multi_run--;
         }
         /* line compare acts on the displayed lines */
-        if (y == s->params.line_compare)
+        if (y == s->params.line_compare) {
+            if (s->params.hpel_split) {
+                hpel = VGA_HPEL_NEUTRAL;
+            }
             addr1 = 0;
+        }
         d += linesize;
     }
     if (y_start >= 0) {
