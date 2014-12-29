@@ -47,6 +47,9 @@ bool have_vga = true;
 /* 16 state changes per vertical frame @60 Hz */
 #define VGA_TEXT_CURSOR_PERIOD_MS       (1000 * 2 * 16 / 60)
 
+/* Address mask for non-VESA modes.  */
+#define VGA_VRAM_SIZE                   (256 * KiB)
+
 /*
  * Video Graphics Array (VGA)
  *

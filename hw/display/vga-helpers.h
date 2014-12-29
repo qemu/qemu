@@ -108,7 +108,7 @@ static void vga_draw_line2(VGACommonState *vga, uint8_t *d,
     plane_mask = mask16[vga->ar[VGA_ATC_PLANE_ENABLE] & 0xf];
     width >>= 3;
     for(x = 0; x < width; x++) {
-        data = vga_read_dword_le(vga, addr);
+        data = vga_read_dword_le(vga, addr & (VGA_VRAM_SIZE - 1));
         data &= plane_mask;
         v = expand2[GET_PLANE(data, 0)];
         v |= expand2[GET_PLANE(data, 2)] << 2;
@@ -144,7 +144,7 @@ static void vga_draw_line2d2(VGACommonState *vga, uint8_t *d,
     plane_mask = mask16[vga->ar[VGA_ATC_PLANE_ENABLE] & 0xf];
     width >>= 3;
     for(x = 0; x < width; x++) {
-        data = vga_read_dword_le(vga, addr);
+        data = vga_read_dword_le(vga, addr & (VGA_VRAM_SIZE - 1));
         data &= plane_mask;
         v = expand2[GET_PLANE(data, 0)];
         v |= expand2[GET_PLANE(data, 2)] << 2;
@@ -177,7 +177,7 @@ static void vga_draw_line4(VGACommonState *vga, uint8_t *d,
     plane_mask = mask16[vga->ar[VGA_ATC_PLANE_ENABLE] & 0xf];
     width >>= 3;
     for(x = 0; x < width; x++) {
-        data = vga_read_dword_le(vga, addr);
+        data = vga_read_dword_le(vga, addr & (VGA_VRAM_SIZE - 1));
         data &= plane_mask;
         v = expand4[GET_PLANE(data, 0)];
         v |= expand4[GET_PLANE(data, 1)] << 1;
@@ -209,7 +209,7 @@ static void vga_draw_line4d2(VGACommonState *vga, uint8_t *d,
     plane_mask = mask16[vga->ar[VGA_ATC_PLANE_ENABLE] & 0xf];
     width >>= 3;
     for(x = 0; x < width; x++) {
-        data = vga_read_dword_le(vga, addr);
+        data = vga_read_dword_le(vga, addr & (VGA_VRAM_SIZE - 1));
         data &= plane_mask;
         v = expand4[GET_PLANE(data, 0)];
         v |= expand4[GET_PLANE(data, 1)] << 1;
@@ -242,6 +242,7 @@ static void vga_draw_line8d2(VGACommonState *vga, uint8_t *d,
     palette = vga->last_palette;
     width >>= 3;
     for(x = 0; x < width; x++) {
+        addr &= VGA_VRAM_SIZE - 1;
         PUT_PIXEL2(d, 0, palette[vga_read_byte(vga, addr + 0)]);
         PUT_PIXEL2(d, 1, palette[vga_read_byte(vga, addr + 1)]);
         PUT_PIXEL2(d, 2, palette[vga_read_byte(vga, addr + 2)]);
