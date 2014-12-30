@@ -815,37 +815,41 @@ uint32_t vga_mem_readb(VGACommonState *s, hwaddr addr)
     }
 
     if (sr(s, VGA_SEQ_MEMORY_MODE) & VGA_SR04_CHN_4M) {
-        /* chain 4 mode : simplest access */
+        /* chain 4 mode : simplest access (but it should use the same
+         * algorithms as below; see e.g. vga_mem_writeb's plane mask check).
+         */
         assert(addr < s->vram_size);
-        ret = s->vram_ptr[addr];
-    } else if (s->gr[VGA_GFX_MODE] & 0x10) {
+        return s->vram_ptr[addr];
+    }
+
+    if (s->gr[VGA_GFX_MODE] & 0x10) {
         /* odd/even mode (aka text mode mapping) */
         plane = (s->gr[VGA_GFX_PLANE_READ] & 2) | (addr & 1);
         addr = ((addr & ~1) << 1) | plane;
         if (addr >= s->vram_size) {
             return 0xff;
         }
-        ret = s->vram_ptr[addr];
-    } else {
-        /* standard VGA latched access */
-        if (addr * sizeof(uint32_t) >= s->vram_size) {
-            return 0xff;
-        }
-        s->latch = ((uint32_t *)s->vram_ptr)[addr];
-
-        if (!(s->gr[VGA_GFX_MODE] & 0x08)) {
-            /* read mode 0 */
-            plane = s->gr[VGA_GFX_PLANE_READ];
-            ret = GET_PLANE(s->latch, plane);
-        } else {
-            /* read mode 1 */
-            ret = (s->latch ^ mask16[s->gr[VGA_GFX_COMPARE_VALUE]]) &
-                mask16[s->gr[VGA_GFX_COMPARE_MASK]];
-            ret |= ret >> 16;
-            ret |= ret >> 8;
-            ret = (~ret) & 0xff;
-        }
+        return s->vram_ptr[addr];
     }
+
+    /* standard VGA latched access */
+    plane = s->gr[VGA_GFX_PLANE_READ];
+    if (addr * sizeof(uint32_t) >= s->vram_size) {
+        return 0xff;
+    }
+    s->latch = ((uint32_t *)s->vram_ptr)[addr];
+    if (!(s->gr[VGA_GFX_MODE] & 0x08)) {
+        /* read mode 0 */
+        ret = GET_PLANE(s->latch, plane);
+    } else {
+        /* read mode 1 */
+        ret = (s->latch ^ mask16[s->gr[VGA_GFX_COMPARE_VALUE]]) &
+            mask16[s->gr[VGA_GFX_COMPARE_MASK]];
+        ret |= ret >> 16;
+        ret |= ret >> 8;
+        ret = (~ret) & 0xff;
+    }
+
     return ret;
 }
 
@@ -895,7 +899,10 @@ void vga_mem_writeb(VGACommonState *s, hwaddr addr, uint32_t val)
             s->plane_updated |= mask; /* only used to detect font change */
             memory_region_set_dirty(&s->vram, addr, 1);
         }
-    } else if (s->gr[VGA_GFX_MODE] & 0x10) {
+        return;
+    }
+
+    if (s->gr[VGA_GFX_MODE] & 0x10) {
         /* odd/even mode (aka text mode mapping) */
         plane = (s->gr[VGA_GFX_PLANE_READ] & 2) | (addr & 1);
         mask = (1 << plane);
@@ -911,84 +918,86 @@ void vga_mem_writeb(VGACommonState *s, hwaddr addr, uint32_t val)
             s->plane_updated |= mask; /* only used to detect font change */
             memory_region_set_dirty(&s->vram, addr, 1);
         }
-    } else {
-        /* standard VGA latched access */
-        write_mode = s->gr[VGA_GFX_MODE] & 3;
-        switch(write_mode) {
-        default:
-        case 0:
-            /* rotate */
-            b = s->gr[VGA_GFX_DATA_ROTATE] & 7;
-            val = ((val >> b) | (val << (8 - b))) & 0xff;
-            val |= val << 8;
-            val |= val << 16;
-
-            /* apply set/reset mask */
-            set_mask = mask16[s->gr[VGA_GFX_SR_ENABLE]];
-            val = (val & ~set_mask) |
-                (mask16[s->gr[VGA_GFX_SR_VALUE]] & set_mask);
-            bit_mask = s->gr[VGA_GFX_BIT_MASK];
-            break;
-        case 1:
-            val = s->latch;
-            goto do_write;
-        case 2:
-            val = mask16[val & 0x0f];
-            bit_mask = s->gr[VGA_GFX_BIT_MASK];
-            break;
-        case 3:
-            /* rotate */
-            b = s->gr[VGA_GFX_DATA_ROTATE] & 7;
-            val = (val >> b) | (val << (8 - b));
-
-            bit_mask = s->gr[VGA_GFX_BIT_MASK] & val;
-            val = mask16[s->gr[VGA_GFX_SR_VALUE]];
-            break;
-        }
-
-        /* apply logical operation */
-        func_select = s->gr[VGA_GFX_DATA_ROTATE] >> 3;
-        switch(func_select) {
-        case 0:
-        default:
-            /* nothing to do */
-            break;
-        case 1:
-            /* and */
-            val &= s->latch;
-            break;
-        case 2:
-            /* or */
-            val |= s->latch;
-            break;
-        case 3:
-            /* xor */
-            val ^= s->latch;
-            break;
-        }
-
-        /* apply bit mask */
-        bit_mask |= bit_mask << 8;
-        bit_mask |= bit_mask << 16;
-        val = (val & bit_mask) | (s->latch & ~bit_mask);
-
-    do_write:
-        /* mask data according to sr[2] */
-        mask = sr(s, VGA_SEQ_PLANE_WRITE);
-        s->plane_updated |= mask; /* only used to detect font change */
-        write_mask = mask16[mask];
-        if (addr * sizeof(uint32_t) >= s->vram_size) {
-            return;
-        }
-        ((uint32_t *)s->vram_ptr)[addr] =
-            (((uint32_t *)s->vram_ptr)[addr] & ~write_mask) |
-            (val & write_mask);
-#ifdef DEBUG_VGA_MEM
-        printf("vga: latch: [0x" HWADDR_FMT_plx "] mask=0x%08x val=0x%08x\n",
-               addr * 4, write_mask, val);
-#endif
-        memory_region_set_dirty(&s->vram, addr << 2, sizeof(uint32_t));
+        return;
     }
+
+    mask = sr(s, VGA_SEQ_PLANE_WRITE);
+
+    /* standard VGA latched access */
+    write_mode = s->gr[VGA_GFX_MODE] & 3;
+    switch(write_mode) {
+    default:
+    case 0:
+        /* rotate */
+        b = s->gr[VGA_GFX_DATA_ROTATE] & 7;
+        val = ((val >> b) | (val << (8 - b))) & 0xff;
+        val |= val << 8;
+        val |= val << 16;
+
+        /* apply set/reset mask */
+        set_mask = mask16[s->gr[VGA_GFX_SR_ENABLE]];
+        val = (val & ~set_mask) |
+            (mask16[s->gr[VGA_GFX_SR_VALUE]] & set_mask);
+        bit_mask = s->gr[VGA_GFX_BIT_MASK];
+        break;
+    case 1:
+        val = s->latch;
+        goto do_write;
+    case 2:
+        val = mask16[val & 0x0f];
+        bit_mask = s->gr[VGA_GFX_BIT_MASK];
+        break;
+    case 3:
+        /* rotate */
+        b = s->gr[VGA_GFX_DATA_ROTATE] & 7;
+        val = (val >> b) | (val << (8 - b));
+
+        bit_mask = s->gr[VGA_GFX_BIT_MASK] & val;
+        val = mask16[s->gr[VGA_GFX_SR_VALUE]];
+        break;
+    }
+
+    /* apply logical operation */
+    func_select = s->gr[VGA_GFX_DATA_ROTATE] >> 3;
+    switch(func_select) {
+    case 0:
+    default:
+        /* nothing to do */
+        break;
+    case 1:
+        /* and */
+        val &= s->latch;
+        break;
+    case 2:
+        /* or */
+        val |= s->latch;
+        break;
+    case 3:
+        /* xor */
+        val ^= s->latch;
+        break;
+    }
+
+    /* apply bit mask */
+    bit_mask |= bit_mask << 8;
+    bit_mask |= bit_mask << 16;
+    val = (val & bit_mask) | (s->latch & ~bit_mask);
+
+do_write:
+    /* mask data according to sr[2] */
+    s->plane_updated |= mask; /* only used to detect font change */
+    write_mask = mask16[mask];
+    if (addr * sizeof(uint32_t) >= s->vram_size) {
+        return;
+    }
+    ((uint32_t *)s->vram_ptr)[addr] =
+        (((uint32_t *)s->vram_ptr)[addr] & ~write_mask) |
+        (val & write_mask);
+#ifdef DEBUG_VGA_MEM
+    printf("vga: latch: [0x" HWADDR_FMT_plx "] mask=0x%08x val=0x%08x\n",
+           addr * 4, write_mask, val);
+#endif
+    memory_region_set_dirty(&s->vram, addr << 2, sizeof(uint32_t));
 }
 
 typedef void *vga_draw_line_func(VGACommonState *s1, uint8_t *d,
