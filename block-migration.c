@@ -765,8 +765,8 @@ static uint64_t block_save_pending(QEMUFile *f, void *opaque, uint64_t max_size)
                        block_mig_state.read_done * BLOCK_SIZE;
 
     /* Report at least one block pending during bulk phase */
-    if (pending == 0 && !block_mig_state.bulk_completed) {
-        pending = BLOCK_SIZE;
+    if (pending <= max_size && !block_mig_state.bulk_completed) {
+        pending = max_size + BLOCK_SIZE;
     }
     blk_mig_unlock();
     qemu_mutex_unlock_iothread();
