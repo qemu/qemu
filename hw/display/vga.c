@@ -825,15 +825,12 @@ uint32_t vga_mem_readb(VGACommonState *s, hwaddr addr)
     if (s->gr[VGA_GFX_MODE] & 0x10) {
         /* odd/even mode (aka text mode mapping) */
         plane = (s->gr[VGA_GFX_PLANE_READ] & 2) | (addr & 1);
-        addr = ((addr & ~1) << 1) | plane;
-        if (addr >= s->vram_size) {
-            return 0xff;
-        }
-        return s->vram_ptr[addr];
+        addr >>= 1;
+    } else {
+        /* standard VGA latched access */
+        plane = s->gr[VGA_GFX_PLANE_READ];
     }
 
-    /* standard VGA latched access */
-    plane = s->gr[VGA_GFX_PLANE_READ];
     if (addr * sizeof(uint32_t) >= s->vram_size) {
         return 0xff;
     }
@@ -886,11 +883,12 @@ void vga_mem_writeb(VGACommonState *s, hwaddr addr, uint32_t val)
         break;
     }
 
+    mask = sr(s, VGA_SEQ_PLANE_WRITE);
     if (sr(s, VGA_SEQ_MEMORY_MODE) & VGA_SR04_CHN_4M) {
         /* chain 4 mode : simplest access */
         plane = addr & 3;
-        mask = (1 << plane);
-        if (sr(s, VGA_SEQ_PLANE_WRITE) & mask) {
+        mask &= (1 << plane);
+        if (mask) {
             assert(addr < s->vram_size);
             s->vram_ptr[addr] = val;
 #ifdef DEBUG_VGA_MEM
@@ -902,26 +900,14 @@ void vga_mem_writeb(VGACommonState *s, hwaddr addr, uint32_t val)
         return;
     }
 
-    if (s->gr[VGA_GFX_MODE] & 0x10) {
-        /* odd/even mode (aka text mode mapping) */
-        plane = (s->gr[VGA_GFX_PLANE_READ] & 2) | (addr & 1);
-        mask = (1 << plane);
-        if (sr(s, VGA_SEQ_PLANE_WRITE) & mask) {
-            addr = ((addr & ~1) << 1) | plane;
-            if (addr >= s->vram_size) {
-                return;
-            }
-            s->vram_ptr[addr] = val;
-#ifdef DEBUG_VGA_MEM
-            printf("vga: odd/even: [0x" HWADDR_FMT_plx "]\n", addr);
-#endif
-            s->plane_updated |= mask; /* only used to detect font change */
-            memory_region_set_dirty(&s->vram, addr, 1);
-        }
-        return;
+    if ((sr(s, VGA_SEQ_MEMORY_MODE) & VGA_SR04_SEQ_MODE) == 0) {
+        mask &= (addr & 1) ? 0x0a : 0x05;
     }
 
-    mask = sr(s, VGA_SEQ_PLANE_WRITE);
+    if (s->gr[VGA_GFX_MODE] & 0x10) {
+        /* odd/even mode (aka text mode mapping) */
+        addr >>= 1;
+    }
 
     /* standard VGA latched access */
     write_mode = s->gr[VGA_GFX_MODE] & 3;
