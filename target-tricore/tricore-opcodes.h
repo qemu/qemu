@@ -503,7 +503,7 @@ enum {
 /* RR Format */
     OPCM_32_RR_LOGICAL_SHIFT                         = 0x0f,
     OPCM_32_RR_ACCUMULATOR                           = 0x0b,
-    OPCM_32_RR_ADRESS                                = 0x01,
+    OPCM_32_RR_ADDRESS                               = 0x01,
     OPCM_32_RR_DIVIDE                                = 0x4b,
     OPCM_32_RR_IDIRECT                               = 0x2d,
 /* RR1 Format */
@@ -1082,7 +1082,7 @@ enum {
     OPC2_32_RR_XOR_LT_U                          = 0x32,
     OPC2_32_RR_XOR_NE                            = 0x30,
 };
-/* OPCM_32_RR_ADRESS                                */
+/* OPCM_32_RR_ADDRESS                               */
 enum {
     OPC2_32_RR_ADD_A                             = 0x01,
     OPC2_32_RR_ADDSC_A                           = 0x60,

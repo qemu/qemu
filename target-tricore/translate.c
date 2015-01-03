@@ -5022,7 +5022,7 @@ static void decode_32Bit_opc(CPUTriCoreState *env, DisasContext *ctx)
     case OPCM_32_RR_LOGICAL_SHIFT:
         decode_rr_logical_shift(env, ctx);
         break;
-    case OPCM_32_RR_ADRESS:
+    case OPCM_32_RR_ADDRESS:
         decode_rr_address(env, ctx);
         break;
     case OPCM_32_RR_IDIRECT:
