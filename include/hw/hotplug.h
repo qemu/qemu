@@ -52,7 +52,7 @@ typedef void (*hotplug_fn)(HotplugHandler *plug_handler,
  *                  require asynchronous unplug handling.
  * @unplug: unplug callback.
  *          Used for device removal with devices that implement
- *          asynchronous and synchronous (suprise) removal.
+ *          asynchronous and synchronous (surprise) removal.
  */
 typedef struct HotplugHandlerClass {
     /* <private> */
