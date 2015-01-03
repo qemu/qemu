@@ -972,7 +972,7 @@ static const ARMCPRegInfo v7_cp_reginfo[] = {
      * The override is necessary because of the overly-broad TLB_LOCKDOWN
      * definition.
      */
-     /* MAIR0/1 are defined seperately from their 64-bit counterpart which
+     /* MAIR0/1 are defined separately from their 64-bit counterpart which
       * allows them to assign the correct fieldoffset based on the endianness
       * handled in the field definitions.
       */
