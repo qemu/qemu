@@ -490,4 +490,4 @@ _die()
 }
 
 # make sure this script returns success
-/bin/true
+true
