@@ -3244,6 +3244,9 @@ static int coroutine_fn bdrv_co_do_write_zeroes(BlockDriverState *bs,
 
         if (ret == -ENOTSUP) {
             /* Fall back to bounce buffer if write zeroes is unsupported */
+            int max_xfer_len = MIN_NON_ZERO(bs->bl.max_transfer_length,
+                                            MAX_WRITE_ZEROES_DEFAULT);
+            num = MIN(num, max_xfer_len);
             iov.iov_len = num * BDRV_SECTOR_SIZE;
             if (iov.iov_base == NULL) {
                 iov.iov_base = qemu_try_blockalign(bs, num * BDRV_SECTOR_SIZE);
@@ -3260,7 +3263,7 @@ static int coroutine_fn bdrv_co_do_write_zeroes(BlockDriverState *bs,
             /* Keep bounce buffer around if it is big enough for all
              * all future requests.
              */
-            if (num < max_write_zeroes) {
+            if (num < max_xfer_len) {
                 qemu_vfree(iov.iov_base);
                 iov.iov_base = NULL;
             }
