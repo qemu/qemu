@@ -65,6 +65,8 @@ int qemu_register_machine(QEMUMachine *m);
 MachineClass *find_default_machine(void);
 extern MachineState *current_machine;
 
+bool machine_usb(MachineState *machine);
+
 /**
  * MachineClass:
  * @qemu_machine: #QEMUMachine
