@@ -304,7 +304,7 @@ static void ppc_heathrow_init(MachineState *machine)
     dev = qdev_create(adb_bus, TYPE_ADB_MOUSE);
     qdev_init_nofail(dev);
 
-    if (usb_enabled(false)) {
+    if (usb_enabled()) {
         pci_create_simple(pci_bus, -1, "pci-ohci");
     }
 
