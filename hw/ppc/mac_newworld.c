@@ -371,6 +371,7 @@ static void ppc_core99_init(MachineState *machine)
         /* 970 gets a U3 bus */
         pci_bus = pci_pmac_u3_init(pic, get_system_memory(), get_system_io());
         machine_arch = ARCH_MAC99_U3;
+        machine->usb |= defaults_enabled();
     } else {
         pci_bus = pci_pmac_init(pic, get_system_memory(), get_system_io());
         machine_arch = ARCH_MAC99;
@@ -417,8 +418,7 @@ static void ppc_core99_init(MachineState *machine)
     dev = qdev_create(adb_bus, TYPE_ADB_MOUSE);
     qdev_init_nofail(dev);
 
-    if ((machine_arch == ARCH_MAC99_U3 && defaults_enabled()) ||
-        usb_enabled()) {
+    if (machine->usb) {
         pci_create_simple(pci_bus, -1, "pci-ohci");
         /* U3 needs to use USB for input because Linux doesn't support via-cuda
         on PPC64 */
