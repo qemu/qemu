@@ -502,18 +502,27 @@ static int core99_kvm_type(const char *arg)
     return 2;
 }
 
-static QEMUMachine core99_machine = {
-    .name = "mac99",
-    .desc = "Mac99 based PowerMAC",
-    .init = ppc_core99_init,
-    .max_cpus = MAX_CPUS,
-    .default_boot_order = "cd",
-    .kvm_type = core99_kvm_type,
-};
-
-static void core99_machine_init(void)
+static void core99_machine_class_init(ObjectClass *oc, void *data)
 {
-    qemu_register_machine(&core99_machine);
+    MachineClass *mc = MACHINE_CLASS(oc);
+
+    mc->name = "mac99";
+    mc->desc = "Mac99 based PowerMAC";
+    mc->init = ppc_core99_init;
+    mc->max_cpus = MAX_CPUS;
+    mc->default_boot_order = "cd";
+    mc->kvm_type = core99_kvm_type;
 }
 
-machine_init(core99_machine_init);
+static const TypeInfo core99_machine_info = {
+    .name          = "mac99-machine",
+    .parent        = TYPE_MACHINE,
+    .class_init    = core99_machine_class_init,
+};
+
+static void mac_machine_register_types(void)
+{
+    type_register_static(&core99_machine_info);
+}
+
+type_init(mac_machine_register_types)
