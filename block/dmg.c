@@ -137,7 +137,9 @@ static void update_max_chunk_size(BDRVDMGState *s, uint32_t chunk,
         uncompressed_sectors = (s->lengths[chunk] + 511) / 512;
         break;
     case 2: /* zero */
-        uncompressed_sectors = s->sectorcounts[chunk];
+        /* as the all-zeroes block may be large, it is treated specially: the
+         * sector is not copied from a large buffer, a simple memset is used
+         * instead. Therefore uncompressed_sectors does not need to be set. */
         break;
     }
 
@@ -267,7 +269,9 @@ static int dmg_read_mish_block(BDRVDMGState *s, DmgHeaderState *ds,
         /* sector count */
         s->sectorcounts[i] = buff_read_uint64(buffer, offset + 0x10);
 
-        if (s->sectorcounts[i] > DMG_SECTORCOUNTS_MAX) {
+        /* all-zeroes sector (type 2) does not need to be "uncompressed" and can
+         * therefore be unbounded. */
+        if (s->types[i] != 2 && s->sectorcounts[i] > DMG_SECTORCOUNTS_MAX) {
             error_report("sector count %" PRIu64 " for chunk %" PRIu32
                          " is larger than max (%u)",
                          s->sectorcounts[i], i, DMG_SECTORCOUNTS_MAX);
@@ -643,7 +647,8 @@ static inline int dmg_read_chunk(BlockDriverState *bs, uint64_t sector_num)
             }
             break;
         case 2: /* zero */
-            memset(s->uncompressed_chunk, 0, 512 * s->sectorcounts[chunk]);
+            /* see dmg_read, it is treated specially. No buffer needs to be
+             * pre-filled, the zeroes can be set directly. */
             break;
         }
         s->current_chunk = chunk;
@@ -661,6 +666,13 @@ static int dmg_read(BlockDriverState *bs, int64_t sector_num,
         uint32_t sector_offset_in_chunk;
         if (dmg_read_chunk(bs, sector_num + i) != 0) {
             return -1;
+        }
+        /* Special case: current chunk is all zeroes. Do not perform a memcpy as
+         * s->uncompressed_chunk may be too small to cover the large all-zeroes
+         * section. dmg_read_chunk is called to find s->current_chunk */
+        if (s->types[s->current_chunk] == 2) { /* all zeroes block entry */
+            memset(buf + i * 512, 0, 512);
+            continue;
         }
         sector_offset_in_chunk = sector_num + i - s->sectors[s->current_chunk];
         memcpy(buf + i * 512,
