@@ -26,6 +26,7 @@
 #include "qemu/bswap.h"
 #include "qemu/module.h"
 #include <zlib.h>
+#include <glib.h>
 
 enum {
     /* Limit chunk sizes to prevent unreasonable amounts of memory being used
@@ -343,12 +344,67 @@ fail:
     return ret;
 }
 
+static int dmg_read_plist_xml(BlockDriverState *bs, DmgHeaderState *ds,
+                              uint64_t info_begin, uint64_t info_length)
+{
+    BDRVDMGState *s = bs->opaque;
+    int ret;
+    uint8_t *buffer = NULL;
+    char *data_begin, *data_end;
+
+    /* Have at least some length to avoid NULL for g_malloc. Attempt to set a
+     * safe upper cap on the data length. A test sample had a XML length of
+     * about 1 MiB. */
+    if (info_length == 0 || info_length > 16 * 1024 * 1024) {
+        ret = -EINVAL;
+        goto fail;
+    }
+
+    buffer = g_malloc(info_length + 1);
+    buffer[info_length] = '\0';
+    ret = bdrv_pread(bs->file, info_begin, buffer, info_length);
+    if (ret != info_length) {
+        ret = -EINVAL;
+        goto fail;
+    }
+
+    /* look for <data>...</data>. The data is 284 (0x11c) bytes after base64
+     * decode. The actual data element has 431 (0x1af) bytes which includes tabs
+     * and line feeds. */
+    data_end = (char *)buffer;
+    while ((data_begin = strstr(data_end, "<data>")) != NULL) {
+        guchar *mish;
+        gsize out_len = 0;
+
+        data_begin += 6;
+        data_end = strstr(data_begin, "</data>");
+        /* malformed XML? */
+        if (data_end == NULL) {
+            ret = -EINVAL;
+            goto fail;
+        }
+        *data_end++ = '\0';
+        mish = g_base64_decode(data_begin, &out_len);
+        ret = dmg_read_mish_block(s, ds, mish, (uint32_t)out_len);
+        g_free(mish);
+        if (ret < 0) {
+            goto fail;
+        }
+    }
+    ret = 0;
+
+fail:
+    g_free(buffer);
+    return ret;
+}
+
 static int dmg_open(BlockDriverState *bs, QDict *options, int flags,
                     Error **errp)
 {
     BDRVDMGState *s = bs->opaque;
     DmgHeaderState ds;
     uint64_t rsrc_fork_offset, rsrc_fork_length;
+    uint64_t plist_xml_offset, plist_xml_length;
     int64_t offset;
     int ret;
 
@@ -382,9 +438,28 @@ static int dmg_open(BlockDriverState *bs, QDict *options, int flags,
         ret = -EINVAL;
         goto fail;
     }
+    /* offset of property list (XMLOffset) */
+    ret = read_uint64(bs, offset + 0xd8, &plist_xml_offset);
+    if (ret < 0) {
+        goto fail;
+    }
+    ret = read_uint64(bs, offset + 0xe0, &plist_xml_length);
+    if (ret < 0) {
+        goto fail;
+    }
+    if (plist_xml_offset >= offset ||
+        plist_xml_length > offset - plist_xml_offset) {
+        ret = -EINVAL;
+        goto fail;
+    }
     if (rsrc_fork_length != 0) {
         ret = dmg_read_resource_fork(bs, &ds,
                                      rsrc_fork_offset, rsrc_fork_length);
+        if (ret < 0) {
+            goto fail;
+        }
+    } else if (plist_xml_length != 0) {
+        ret = dmg_read_plist_xml(bs, &ds, plist_xml_offset, plist_xml_length);
         if (ret < 0) {
             goto fail;
         }
