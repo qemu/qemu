@@ -192,6 +192,18 @@ typedef struct DmgHeaderState {
     uint32_t max_sectors_per_chunk;
 } DmgHeaderState;
 
+static bool dmg_is_known_block_type(uint32_t entry_type)
+{
+    switch (entry_type) {
+    case 0x00000001:    /* uncompressed */
+    case 0x00000002:    /* zeroes */
+    case 0x80000005:    /* zlib */
+        return true;
+    default:
+        return false;
+    }
+}
+
 static int dmg_read_mish_block(BDRVDMGState *s, DmgHeaderState *ds,
                                uint8_t *buffer, uint32_t count)
 {
@@ -231,22 +243,19 @@ static int dmg_read_mish_block(BDRVDMGState *s, DmgHeaderState *ds,
 
     for (i = s->n_chunks; i < s->n_chunks + chunk_count; i++) {
         s->types[i] = buff_read_uint32(buffer, offset);
-        offset += 4;
-        if (s->types[i] != 0x80000005 && s->types[i] != 1 &&
-            s->types[i] != 2) {
+        if (!dmg_is_known_block_type(s->types[i])) {
             chunk_count--;
             i--;
-            offset += 36;
+            offset += 40;
             continue;
         }
-        offset += 4;
 
-        s->sectors[i] = buff_read_uint64(buffer, offset);
+        /* sector number */
+        s->sectors[i] = buff_read_uint64(buffer, offset + 8);
         s->sectors[i] += out_offset;
-        offset += 8;
 
-        s->sectorcounts[i] = buff_read_uint64(buffer, offset);
-        offset += 8;
+        /* sector count */
+        s->sectorcounts[i] = buff_read_uint64(buffer, offset + 0x10);
 
         if (s->sectorcounts[i] > DMG_SECTORCOUNTS_MAX) {
             error_report("sector count %" PRIu64 " for chunk %" PRIu32
@@ -256,12 +265,12 @@ static int dmg_read_mish_block(BDRVDMGState *s, DmgHeaderState *ds,
             goto fail;
         }
 
-        s->offsets[i] = buff_read_uint64(buffer, offset);
+        /* offset in (compressed) data fork */
+        s->offsets[i] = buff_read_uint64(buffer, offset + 0x18);
         s->offsets[i] += in_offset;
-        offset += 8;
 
-        s->lengths[i] = buff_read_uint64(buffer, offset);
-        offset += 8;
+        /* length in (compressed) data fork */
+        s->lengths[i] = buff_read_uint64(buffer, offset + 0x20);
 
         if (s->lengths[i] > DMG_LENGTHS_MAX) {
             error_report("length %" PRIu64 " for chunk %" PRIu32
@@ -273,6 +282,7 @@ static int dmg_read_mish_block(BDRVDMGState *s, DmgHeaderState *ds,
 
         update_max_chunk_size(s, i, &ds->max_compressed_size,
                               &ds->max_sectors_per_chunk);
+        offset += 40;
     }
     s->n_chunks += chunk_count;
     return 0;
