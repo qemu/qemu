@@ -131,6 +131,46 @@ static void update_max_chunk_size(BDRVDMGState *s, uint32_t chunk,
     }
 }
 
+static int64_t dmg_find_koly_offset(BlockDriverState *file_bs, Error **errp)
+{
+    int64_t length;
+    int64_t offset = 0;
+    uint8_t buffer[515];
+    int i, ret;
+
+    /* bdrv_getlength returns a multiple of block size (512), rounded up. Since
+     * dmg images can have odd sizes, try to look for the "koly" magic which
+     * marks the begin of the UDIF trailer (512 bytes). This magic can be found
+     * in the last 511 bytes of the second-last sector or the first 4 bytes of
+     * the last sector (search space: 515 bytes) */
+    length = bdrv_getlength(file_bs);
+    if (length < 0) {
+        error_setg_errno(errp, -length,
+            "Failed to get file size while reading UDIF trailer");
+        return length;
+    } else if (length < 512) {
+        error_setg(errp, "dmg file must be at least 512 bytes long");
+        return -EINVAL;
+    }
+    if (length > 511 + 512) {
+        offset = length - 511 - 512;
+    }
+    length = length < 515 ? length : 515;
+    ret = bdrv_pread(file_bs, offset, buffer, length);
+    if (ret < 0) {
+        error_setg_errno(errp, -ret, "Failed while reading UDIF trailer");
+        return ret;
+    }
+    for (i = 0; i < length - 3; i++) {
+        if (buffer[i] == 'k' && buffer[i+1] == 'o' &&
+            buffer[i+2] == 'l' && buffer[i+3] == 'y') {
+            return offset + i;
+        }
+    }
+    error_setg(errp, "Could not locate UDIF trailer in dmg file");
+    return -EINVAL;
+}
+
 static int dmg_open(BlockDriverState *bs, QDict *options, int flags,
                     Error **errp)
 {
@@ -145,15 +185,14 @@ static int dmg_open(BlockDriverState *bs, QDict *options, int flags,
     s->n_chunks = 0;
     s->offsets = s->lengths = s->sectors = s->sectorcounts = NULL;
 
-    /* read offset of info blocks */
-    offset = bdrv_getlength(bs->file);
+    /* locate the UDIF trailer */
+    offset = dmg_find_koly_offset(bs->file, errp);
     if (offset < 0) {
         ret = offset;
         goto fail;
     }
-    offset -= 0x1d8;
 
-    ret = read_uint64(bs, offset, &info_begin);
+    ret = read_uint64(bs, offset + 0x28, &info_begin);
     if (ret < 0) {
         goto fail;
     } else if (info_begin == 0) {
