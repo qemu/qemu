@@ -171,19 +171,138 @@ static int64_t dmg_find_koly_offset(BlockDriverState *file_bs, Error **errp)
     return -EINVAL;
 }
 
+/* used when building the sector table */
+typedef struct DmgHeaderState {
+    /* used internally by dmg_read_mish_block to remember offsets of blocks
+     * across calls */
+    uint64_t last_in_offset;
+    uint64_t last_out_offset;
+    /* exported for dmg_open */
+    uint32_t max_compressed_size;
+    uint32_t max_sectors_per_chunk;
+} DmgHeaderState;
+
+static int dmg_read_mish_block(BlockDriverState *bs, DmgHeaderState *ds,
+                               int64_t offset, uint32_t count)
+{
+    BDRVDMGState *s = bs->opaque;
+    uint32_t type, i;
+    int ret;
+    size_t new_size;
+    uint32_t chunk_count;
+
+    ret = read_uint32(bs, offset, &type);
+    if (ret < 0) {
+        goto fail;
+    }
+
+    /* skip data that is not a valid MISH block (invalid magic or too small) */
+    if (type != 0x6d697368 || count < 244) {
+        /* assume success for now */
+        return 0;
+    }
+
+    offset += 4;
+    offset += 200;
+
+    chunk_count = (count - 204) / 40;
+    new_size = sizeof(uint64_t) * (s->n_chunks + chunk_count);
+    s->types = g_realloc(s->types, new_size / 2);
+    s->offsets = g_realloc(s->offsets, new_size);
+    s->lengths = g_realloc(s->lengths, new_size);
+    s->sectors = g_realloc(s->sectors, new_size);
+    s->sectorcounts = g_realloc(s->sectorcounts, new_size);
+
+    for (i = s->n_chunks; i < s->n_chunks + chunk_count; i++) {
+        ret = read_uint32(bs, offset, &s->types[i]);
+        if (ret < 0) {
+            goto fail;
+        }
+        offset += 4;
+        if (s->types[i] != 0x80000005 && s->types[i] != 1 &&
+            s->types[i] != 2) {
+            if (s->types[i] == 0xffffffff && i > 0) {
+                ds->last_in_offset = s->offsets[i - 1] + s->lengths[i - 1];
+                ds->last_out_offset = s->sectors[i - 1] +
+                                      s->sectorcounts[i - 1];
+            }
+            chunk_count--;
+            i--;
+            offset += 36;
+            continue;
+        }
+        offset += 4;
+
+        ret = read_uint64(bs, offset, &s->sectors[i]);
+        if (ret < 0) {
+            goto fail;
+        }
+        s->sectors[i] += ds->last_out_offset;
+        offset += 8;
+
+        ret = read_uint64(bs, offset, &s->sectorcounts[i]);
+        if (ret < 0) {
+            goto fail;
+        }
+        offset += 8;
+
+        if (s->sectorcounts[i] > DMG_SECTORCOUNTS_MAX) {
+            error_report("sector count %" PRIu64 " for chunk %" PRIu32
+                         " is larger than max (%u)",
+                         s->sectorcounts[i], i, DMG_SECTORCOUNTS_MAX);
+            ret = -EINVAL;
+            goto fail;
+        }
+
+        ret = read_uint64(bs, offset, &s->offsets[i]);
+        if (ret < 0) {
+            goto fail;
+        }
+        s->offsets[i] += ds->last_in_offset;
+        offset += 8;
+
+        ret = read_uint64(bs, offset, &s->lengths[i]);
+        if (ret < 0) {
+            goto fail;
+        }
+        offset += 8;
+
+        if (s->lengths[i] > DMG_LENGTHS_MAX) {
+            error_report("length %" PRIu64 " for chunk %" PRIu32
+                         " is larger than max (%u)",
+                         s->lengths[i], i, DMG_LENGTHS_MAX);
+            ret = -EINVAL;
+            goto fail;
+        }
+
+        update_max_chunk_size(s, i, &ds->max_compressed_size,
+                              &ds->max_sectors_per_chunk);
+    }
+    s->n_chunks += chunk_count;
+    return 0;
+
+fail:
+    return ret;
+}
+
 static int dmg_open(BlockDriverState *bs, QDict *options, int flags,
                     Error **errp)
 {
     BDRVDMGState *s = bs->opaque;
-    uint64_t info_begin, info_end, last_in_offset, last_out_offset;
-    uint32_t count, tmp;
-    uint32_t max_compressed_size = 1, max_sectors_per_chunk = 1, i;
+    DmgHeaderState ds;
+    uint64_t info_begin, info_end;
+    uint32_t count, rsrc_data_offset;
     int64_t offset;
     int ret;
 
     bs->read_only = 1;
     s->n_chunks = 0;
     s->offsets = s->lengths = s->sectors = s->sectorcounts = NULL;
+    /* used by dmg_read_mish_block to keep track of the current I/O position */
+    ds.last_in_offset = 0;
+    ds.last_out_offset = 0;
+    ds.max_compressed_size = 1;
+    ds.max_sectors_per_chunk = 1;
 
     /* locate the UDIF trailer */
     offset = dmg_find_koly_offset(bs->file, errp);
@@ -200,10 +319,10 @@ static int dmg_open(BlockDriverState *bs, QDict *options, int flags,
         goto fail;
     }
 
-    ret = read_uint32(bs, info_begin, &tmp);
+    ret = read_uint32(bs, info_begin, &rsrc_data_offset);
     if (ret < 0) {
         goto fail;
-    } else if (tmp != 0x100) {
+    } else if (rsrc_data_offset != 0x100) {
         ret = -EINVAL;
         goto fail;
     }
@@ -215,15 +334,15 @@ static int dmg_open(BlockDriverState *bs, QDict *options, int flags,
         ret = -EINVAL;
         goto fail;
     }
+    /* end of resource data, ignoring the following resource map */
     info_end = info_begin + count;
 
+    /* begin of resource data (consisting of one or more resources) */
     offset = info_begin + 0x100;
 
-    /* read offsets */
-    last_in_offset = last_out_offset = 0;
+    /* read offsets (mish blocks) from one or more resources in resource data */
     while (offset < info_end) {
-        uint32_t type;
-
+        /* size of following resource */
         ret = read_uint32(bs, offset, &count);
         if (ret < 0) {
             goto fail;
@@ -233,100 +352,19 @@ static int dmg_open(BlockDriverState *bs, QDict *options, int flags,
         }
         offset += 4;
 
-        ret = read_uint32(bs, offset, &type);
+        ret = dmg_read_mish_block(bs, &ds, offset, count);
         if (ret < 0) {
             goto fail;
         }
-
-        if (type == 0x6d697368 && count >= 244) {
-            size_t new_size;
-            uint32_t chunk_count;
-
-            offset += 4;
-            offset += 200;
-
-            chunk_count = (count - 204) / 40;
-            new_size = sizeof(uint64_t) * (s->n_chunks + chunk_count);
-            s->types = g_realloc(s->types, new_size / 2);
-            s->offsets = g_realloc(s->offsets, new_size);
-            s->lengths = g_realloc(s->lengths, new_size);
-            s->sectors = g_realloc(s->sectors, new_size);
-            s->sectorcounts = g_realloc(s->sectorcounts, new_size);
-
-            for (i = s->n_chunks; i < s->n_chunks + chunk_count; i++) {
-                ret = read_uint32(bs, offset, &s->types[i]);
-                if (ret < 0) {
-                    goto fail;
-                }
-                offset += 4;
-                if (s->types[i] != 0x80000005 && s->types[i] != 1 &&
-                    s->types[i] != 2) {
-                    if (s->types[i] == 0xffffffff && i > 0) {
-                        last_in_offset = s->offsets[i - 1] + s->lengths[i - 1];
-                        last_out_offset = s->sectors[i - 1] +
-                                          s->sectorcounts[i - 1];
-                    }
-                    chunk_count--;
-                    i--;
-                    offset += 36;
-                    continue;
-                }
-                offset += 4;
-
-                ret = read_uint64(bs, offset, &s->sectors[i]);
-                if (ret < 0) {
-                    goto fail;
-                }
-                s->sectors[i] += last_out_offset;
-                offset += 8;
-
-                ret = read_uint64(bs, offset, &s->sectorcounts[i]);
-                if (ret < 0) {
-                    goto fail;
-                }
-                offset += 8;
-
-                if (s->sectorcounts[i] > DMG_SECTORCOUNTS_MAX) {
-                    error_report("sector count %" PRIu64 " for chunk %" PRIu32
-                                 " is larger than max (%u)",
-                                 s->sectorcounts[i], i, DMG_SECTORCOUNTS_MAX);
-                    ret = -EINVAL;
-                    goto fail;
-                }
-
-                ret = read_uint64(bs, offset, &s->offsets[i]);
-                if (ret < 0) {
-                    goto fail;
-                }
-                s->offsets[i] += last_in_offset;
-                offset += 8;
-
-                ret = read_uint64(bs, offset, &s->lengths[i]);
-                if (ret < 0) {
-                    goto fail;
-                }
-                offset += 8;
-
-                if (s->lengths[i] > DMG_LENGTHS_MAX) {
-                    error_report("length %" PRIu64 " for chunk %" PRIu32
-                                 " is larger than max (%u)",
-                                 s->lengths[i], i, DMG_LENGTHS_MAX);
-                    ret = -EINVAL;
-                    goto fail;
-                }
-
-                update_max_chunk_size(s, i, &max_compressed_size,
-                                      &max_sectors_per_chunk);
-            }
-            s->n_chunks += chunk_count;
-        }
+        /* advance offset by size of resource */
+        offset += count;
     }
 
     /* initialize zlib engine */
     s->compressed_chunk = qemu_try_blockalign(bs->file,
-                                              max_compressed_size + 1);
+                                              ds.max_compressed_size + 1);
     s->uncompressed_chunk = qemu_try_blockalign(bs->file,
-                                                512 * max_sectors_per_chunk);
+                                                512 * ds.max_sectors_per_chunk);
     if (s->compressed_chunk == NULL || s->uncompressed_chunk == NULL) {
         ret = -ENOMEM;
         goto fail;
