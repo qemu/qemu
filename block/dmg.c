@@ -187,7 +187,6 @@ typedef struct DmgHeaderState {
     /* used internally by dmg_read_mish_block to remember offsets of blocks
      * across calls */
     uint64_t data_fork_offset;
-    uint64_t last_out_offset;
     /* exported for dmg_open */
     uint32_t max_compressed_size;
     uint32_t max_sectors_per_chunk;
@@ -203,6 +202,7 @@ static int dmg_read_mish_block(BDRVDMGState *s, DmgHeaderState *ds,
     int64_t offset = 0;
     uint64_t data_offset;
     uint64_t in_offset = ds->data_fork_offset;
+    uint64_t out_offset;
 
     type = buff_read_uint32(buffer, offset);
     /* skip data that is not a valid MISH block (invalid magic or too small) */
@@ -210,6 +210,9 @@ static int dmg_read_mish_block(BDRVDMGState *s, DmgHeaderState *ds,
         /* assume success for now */
         return 0;
     }
+
+    /* chunk offsets are relative to this sector number */
+    out_offset = buff_read_uint64(buffer, offset + 8);
 
     /* location in data fork for (compressed) blob (in bytes) */
     data_offset = buff_read_uint64(buffer, offset + 0x18);
@@ -231,10 +234,6 @@ static int dmg_read_mish_block(BDRVDMGState *s, DmgHeaderState *ds,
         offset += 4;
         if (s->types[i] != 0x80000005 && s->types[i] != 1 &&
             s->types[i] != 2) {
-            if (s->types[i] == 0xffffffff && i > 0) {
-                ds->last_out_offset = s->sectors[i - 1] +
-                                      s->sectorcounts[i - 1];
-            }
             chunk_count--;
             i--;
             offset += 36;
@@ -243,7 +242,7 @@ static int dmg_read_mish_block(BDRVDMGState *s, DmgHeaderState *ds,
         offset += 4;
 
         s->sectors[i] = buff_read_uint64(buffer, offset);
-        s->sectors[i] += ds->last_out_offset;
+        s->sectors[i] += out_offset;
         offset += 8;
 
         s->sectorcounts[i] = buff_read_uint64(buffer, offset);
@@ -418,7 +417,6 @@ static int dmg_open(BlockDriverState *bs, QDict *options, int flags,
     s->offsets = s->lengths = s->sectors = s->sectorcounts = NULL;
     /* used by dmg_read_mish_block to keep track of the current I/O position */
     ds.data_fork_offset = 0;
-    ds.last_out_offset = 0;
     ds.max_compressed_size = 1;
     ds.max_sectors_per_chunk = 1;
 
