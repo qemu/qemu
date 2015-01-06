@@ -100,6 +100,16 @@ static int read_uint32(BlockDriverState *bs, int64_t offset, uint32_t *result)
     return 0;
 }
 
+static inline uint64_t buff_read_uint64(const uint8_t *buffer, int64_t offset)
+{
+    return be64_to_cpu(*(uint64_t *)&buffer[offset]);
+}
+
+static inline uint32_t buff_read_uint32(const uint8_t *buffer, int64_t offset)
+{
+    return be32_to_cpu(*(uint32_t *)&buffer[offset]);
+}
+
 /* Increase max chunk sizes, if necessary.  This function is used to calculate
  * the buffer sizes needed for compressed/uncompressed chunk I/O.
  */
@@ -182,20 +192,16 @@ typedef struct DmgHeaderState {
     uint32_t max_sectors_per_chunk;
 } DmgHeaderState;
 
-static int dmg_read_mish_block(BlockDriverState *bs, DmgHeaderState *ds,
-                               int64_t offset, uint32_t count)
+static int dmg_read_mish_block(BDRVDMGState *s, DmgHeaderState *ds,
+                               uint8_t *buffer, uint32_t count)
 {
-    BDRVDMGState *s = bs->opaque;
     uint32_t type, i;
     int ret;
     size_t new_size;
     uint32_t chunk_count;
+    int64_t offset = 0;
 
-    ret = read_uint32(bs, offset, &type);
-    if (ret < 0) {
-        goto fail;
-    }
-
+    type = buff_read_uint32(buffer, offset);
     /* skip data that is not a valid MISH block (invalid magic or too small) */
     if (type != 0x6d697368 || count < 244) {
         /* assume success for now */
@@ -214,10 +220,7 @@ static int dmg_read_mish_block(BlockDriverState *bs, DmgHeaderState *ds,
     s->sectorcounts = g_realloc(s->sectorcounts, new_size);
 
     for (i = s->n_chunks; i < s->n_chunks + chunk_count; i++) {
-        ret = read_uint32(bs, offset, &s->types[i]);
-        if (ret < 0) {
-            goto fail;
-        }
+        s->types[i] = buff_read_uint32(buffer, offset);
         offset += 4;
         if (s->types[i] != 0x80000005 && s->types[i] != 1 &&
             s->types[i] != 2) {
@@ -233,17 +236,11 @@ static int dmg_read_mish_block(BlockDriverState *bs, DmgHeaderState *ds,
         }
         offset += 4;
 
-        ret = read_uint64(bs, offset, &s->sectors[i]);
-        if (ret < 0) {
-            goto fail;
-        }
+        s->sectors[i] = buff_read_uint64(buffer, offset);
         s->sectors[i] += ds->last_out_offset;
         offset += 8;
 
-        ret = read_uint64(bs, offset, &s->sectorcounts[i]);
-        if (ret < 0) {
-            goto fail;
-        }
+        s->sectorcounts[i] = buff_read_uint64(buffer, offset);
         offset += 8;
 
         if (s->sectorcounts[i] > DMG_SECTORCOUNTS_MAX) {
@@ -254,17 +251,11 @@ static int dmg_read_mish_block(BlockDriverState *bs, DmgHeaderState *ds,
             goto fail;
         }
 
-        ret = read_uint64(bs, offset, &s->offsets[i]);
-        if (ret < 0) {
-            goto fail;
-        }
+        s->offsets[i] = buff_read_uint64(buffer, offset);
         s->offsets[i] += ds->last_in_offset;
         offset += 8;
 
-        ret = read_uint64(bs, offset, &s->lengths[i]);
-        if (ret < 0) {
-            goto fail;
-        }
+        s->lengths[i] = buff_read_uint64(buffer, offset);
         offset += 8;
 
         if (s->lengths[i] > DMG_LENGTHS_MAX) {
@@ -288,8 +279,10 @@ fail:
 static int dmg_read_resource_fork(BlockDriverState *bs, DmgHeaderState *ds,
                                   uint64_t info_begin, uint64_t info_length)
 {
+    BDRVDMGState *s = bs->opaque;
     int ret;
     uint32_t count, rsrc_data_offset;
+    uint8_t *buffer = NULL;
     uint64_t info_end;
     uint64_t offset;
 
@@ -330,16 +323,23 @@ static int dmg_read_resource_fork(BlockDriverState *bs, DmgHeaderState *ds,
         }
         offset += 4;
 
-        ret = dmg_read_mish_block(bs, ds, offset, count);
+        buffer = g_realloc(buffer, count);
+        ret = bdrv_pread(bs->file, offset, buffer, count);
+        if (ret < 0) {
+            goto fail;
+        }
+
+        ret = dmg_read_mish_block(s, ds, buffer, count);
         if (ret < 0) {
             goto fail;
         }
         /* advance offset by size of resource */
         offset += count;
     }
-    return 0;
+    ret = 0;
 
 fail:
+    g_free(buffer);
     return ret;
 }
 
