@@ -997,10 +997,15 @@ static int parse_name(QemuOpts *opts, void *opaque)
     return 0;
 }
 
+bool defaults_enabled(void)
+{
+    return has_defaults;
+}
+
 bool usb_enabled(bool default_usb)
 {
     return qemu_opt_get_bool(qemu_get_machine_opts(), "usb",
-                             has_defaults && default_usb);
+                             default_usb);
 }
 
 #ifndef _WIN32
