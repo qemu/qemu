@@ -398,6 +398,11 @@ static void machine_finalize(Object *obj)
     g_free(ms->firmware);
 }
 
+bool machine_usb(MachineState *machine)
+{
+    return machine->usb;
+}
+
 static const TypeInfo machine_info = {
     .name = TYPE_MACHINE,
     .parent = TYPE_OBJECT,
