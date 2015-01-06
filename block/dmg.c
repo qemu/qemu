@@ -317,7 +317,7 @@ static int dmg_read_resource_fork(BlockDriverState *bs, DmgHeaderState *ds,
         ret = read_uint32(bs, offset, &count);
         if (ret < 0) {
             goto fail;
-        } else if (count == 0) {
+        } else if (count == 0 || count > info_end - offset) {
             ret = -EINVAL;
             goto fail;
         }
@@ -375,6 +375,11 @@ static int dmg_open(BlockDriverState *bs, QDict *options, int flags,
     }
     ret = read_uint64(bs, offset + 0x30, &rsrc_fork_length);
     if (ret < 0) {
+        goto fail;
+    }
+    if (rsrc_fork_offset >= offset ||
+        rsrc_fork_length > offset - rsrc_fork_offset) {
+        ret = -EINVAL;
         goto fail;
     }
     if (rsrc_fork_length != 0) {
