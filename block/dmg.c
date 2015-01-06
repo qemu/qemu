@@ -26,6 +26,9 @@
 #include "qemu/bswap.h"
 #include "qemu/module.h"
 #include <zlib.h>
+#ifdef CONFIG_BZIP2
+#include <bzlib.h>
+#endif
 #include <glib.h>
 
 enum {
@@ -56,6 +59,9 @@ typedef struct BDRVDMGState {
     uint8_t *compressed_chunk;
     uint8_t *uncompressed_chunk;
     z_stream zstream;
+#ifdef CONFIG_BZIP2
+    bz_stream bzstream;
+#endif
 } BDRVDMGState;
 
 static int dmg_probe(const uint8_t *buf, int buf_size, const char *filename)
@@ -123,6 +129,7 @@ static void update_max_chunk_size(BDRVDMGState *s, uint32_t chunk,
 
     switch (s->types[chunk]) {
     case 0x80000005: /* zlib compressed */
+    case 0x80000006: /* bzip2 compressed */
         compressed_size = s->lengths[chunk];
         uncompressed_sectors = s->sectorcounts[chunk];
         break;
@@ -198,6 +205,9 @@ static bool dmg_is_known_block_type(uint32_t entry_type)
     case 0x00000001:    /* uncompressed */
     case 0x00000002:    /* zeroes */
     case 0x80000005:    /* zlib */
+#ifdef CONFIG_BZIP2
+    case 0x80000006:    /* bzip2 */
+#endif
         return true;
     default:
         return false;
@@ -564,13 +574,16 @@ static inline int dmg_read_chunk(BlockDriverState *bs, uint64_t sector_num)
     if (!is_sector_in_chunk(s, s->current_chunk, sector_num)) {
         int ret;
         uint32_t chunk = search_chunk(s, sector_num);
+#ifdef CONFIG_BZIP2
+        uint64_t total_out;
+#endif
 
         if (chunk >= s->n_chunks) {
             return -1;
         }
 
         s->current_chunk = s->n_chunks;
-        switch (s->types[chunk]) {
+        switch (s->types[chunk]) { /* block entry type */
         case 0x80000005: { /* zlib compressed */
             /* we need to buffer, because only the chunk as whole can be
              * inflated. */
@@ -594,6 +607,34 @@ static inline int dmg_read_chunk(BlockDriverState *bs, uint64_t sector_num)
                 return -1;
             }
             break; }
+#ifdef CONFIG_BZIP2
+        case 0x80000006: /* bzip2 compressed */
+            /* we need to buffer, because only the chunk as whole can be
+             * inflated. */
+            ret = bdrv_pread(bs->file, s->offsets[chunk],
+                             s->compressed_chunk, s->lengths[chunk]);
+            if (ret != s->lengths[chunk]) {
+                return -1;
+            }
+
+            ret = BZ2_bzDecompressInit(&s->bzstream, 0, 0);
+            if (ret != BZ_OK) {
+                return -1;
+            }
+            s->bzstream.next_in = (char *)s->compressed_chunk;
+            s->bzstream.avail_in = (unsigned int) s->lengths[chunk];
+            s->bzstream.next_out = (char *)s->uncompressed_chunk;
+            s->bzstream.avail_out = (unsigned int) 512 * s->sectorcounts[chunk];
+            ret = BZ2_bzDecompress(&s->bzstream);
+            total_out = ((uint64_t)s->bzstream.total_out_hi32 << 32) +
+                        s->bzstream.total_out_lo32;
+            BZ2_bzDecompressEnd(&s->bzstream);
+            if (ret != BZ_STREAM_END ||
+                total_out != 512 * s->sectorcounts[chunk]) {
+                return -1;
+            }
+            break;
+#endif /* CONFIG_BZIP2 */
         case 1: /* copy */
             ret = bdrv_pread(bs->file, s->offsets[chunk],
                              s->uncompressed_chunk, s->lengths[chunk]);

@@ -37,5 +37,6 @@ gluster.o-libs     := $(GLUSTERFS_LIBS)
 ssh.o-cflags       := $(LIBSSH2_CFLAGS)
 ssh.o-libs         := $(LIBSSH2_LIBS)
 archipelago.o-libs := $(ARCHIPELAGO_LIBS)
+dmg.o-libs         := $(BZIP2_LIBS)
 qcow.o-libs        := -lz
 linux-aio.o-libs   := -laio

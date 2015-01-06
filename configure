@@ -313,6 +313,7 @@ glx=""
 zlib="yes"
 lzo=""
 snappy=""
+bzip2=""
 guest_agent=""
 guest_agent_with_vss="no"
 vss_win32_sdk=""
@@ -1060,6 +1061,10 @@ for opt do
   ;;
   --enable-snappy) snappy="yes"
   ;;
+  --disable-bzip2) bzip2="no"
+  ;;
+  --enable-bzip2) bzip2="yes"
+  ;;
   --enable-guest-agent) guest_agent="yes"
   ;;
   --disable-guest-agent) guest_agent="no"
@@ -1374,6 +1379,8 @@ Advanced options (experts only):
   --enable-usb-redir       enable usb network redirection support
   --enable-lzo             enable the support of lzo compression library
   --enable-snappy          enable the support of snappy compression library
+  --enable-bzip2           enable the support of bzip2 compression library (for
+                           reading bzip2-compressed dmg images)
   --disable-guest-agent    disable building of the QEMU Guest Agent
   --enable-guest-agent     enable building of the QEMU Guest Agent
   --with-vss-sdk=SDK-path  enable Windows VSS support in QEMU Guest Agent
@@ -1816,6 +1823,24 @@ EOF
             feature_not_found "libsnappy" "Install libsnappy devel"
         fi
         snappy="no"
+    fi
+fi
+
+##########################################
+# bzip2 check
+
+if test "$bzip2" != "no" ; then
+    cat > $TMPC << EOF
+#include <bzlib.h>
+int main(void) { BZ2_bzlibVersion(); return 0; }
+EOF
+    if compile_prog "" "-lbz2" ; then
+        bzip2="yes"
+    else
+        if test "$bzip2" = "yes"; then
+            feature_not_found "libbzip2" "Install libbzip2 devel"
+        fi
+        bzip2="no"
     fi
 fi
 
@@ -4385,6 +4410,7 @@ echo "vhdx              $vhdx"
 echo "Quorum            $quorum"
 echo "lzo support       $lzo"
 echo "snappy support    $snappy"
+echo "bzip2 support     $bzip2"
 echo "NUMA host support $numa"
 
 if test "$sdl_too_old" = "yes"; then
@@ -4741,6 +4767,11 @@ fi
 
 if test "$snappy" = "yes" ; then
   echo "CONFIG_SNAPPY=y" >> $config_host_mak
+fi
+
+if test "$bzip2" = "yes" ; then
+  echo "CONFIG_BZIP2=y" >> $config_host_mak
+  echo "BZIP2_LIBS=-lbz2" >> $config_host_mak
 fi
 
 if test "$libiscsi" = "yes" ; then
