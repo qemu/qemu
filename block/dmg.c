@@ -186,7 +186,7 @@ static int64_t dmg_find_koly_offset(BlockDriverState *file_bs, Error **errp)
 typedef struct DmgHeaderState {
     /* used internally by dmg_read_mish_block to remember offsets of blocks
      * across calls */
-    uint64_t last_in_offset;
+    uint64_t data_fork_offset;
     uint64_t last_out_offset;
     /* exported for dmg_open */
     uint32_t max_compressed_size;
@@ -201,6 +201,8 @@ static int dmg_read_mish_block(BDRVDMGState *s, DmgHeaderState *ds,
     size_t new_size;
     uint32_t chunk_count;
     int64_t offset = 0;
+    uint64_t data_offset;
+    uint64_t in_offset = ds->data_fork_offset;
 
     type = buff_read_uint32(buffer, offset);
     /* skip data that is not a valid MISH block (invalid magic or too small) */
@@ -209,8 +211,12 @@ static int dmg_read_mish_block(BDRVDMGState *s, DmgHeaderState *ds,
         return 0;
     }
 
-    offset += 4;
-    offset += 200;
+    /* location in data fork for (compressed) blob (in bytes) */
+    data_offset = buff_read_uint64(buffer, offset + 0x18);
+    in_offset += data_offset;
+
+    /* move to begin of chunk entries */
+    offset += 204;
 
     chunk_count = (count - 204) / 40;
     new_size = sizeof(uint64_t) * (s->n_chunks + chunk_count);
@@ -226,7 +232,6 @@ static int dmg_read_mish_block(BDRVDMGState *s, DmgHeaderState *ds,
         if (s->types[i] != 0x80000005 && s->types[i] != 1 &&
             s->types[i] != 2) {
             if (s->types[i] == 0xffffffff && i > 0) {
-                ds->last_in_offset = s->offsets[i - 1] + s->lengths[i - 1];
                 ds->last_out_offset = s->sectors[i - 1] +
                                       s->sectorcounts[i - 1];
             }
@@ -253,7 +258,7 @@ static int dmg_read_mish_block(BDRVDMGState *s, DmgHeaderState *ds,
         }
 
         s->offsets[i] = buff_read_uint64(buffer, offset);
-        s->offsets[i] += ds->last_in_offset;
+        s->offsets[i] += in_offset;
         offset += 8;
 
         s->lengths[i] = buff_read_uint64(buffer, offset);
@@ -412,7 +417,7 @@ static int dmg_open(BlockDriverState *bs, QDict *options, int flags,
     s->n_chunks = 0;
     s->offsets = s->lengths = s->sectors = s->sectorcounts = NULL;
     /* used by dmg_read_mish_block to keep track of the current I/O position */
-    ds.last_in_offset = 0;
+    ds.data_fork_offset = 0;
     ds.last_out_offset = 0;
     ds.max_compressed_size = 1;
     ds.max_sectors_per_chunk = 1;
@@ -421,6 +426,15 @@ static int dmg_open(BlockDriverState *bs, QDict *options, int flags,
     offset = dmg_find_koly_offset(bs->file, errp);
     if (offset < 0) {
         ret = offset;
+        goto fail;
+    }
+
+    /* offset of data fork (DataForkOffset) */
+    ret = read_uint64(bs, offset + 0x18, &ds.data_fork_offset);
+    if (ret < 0) {
+        goto fail;
+    } else if (ds.data_fork_offset > offset) {
+        ret = -EINVAL;
         goto fail;
     }
 
