@@ -285,13 +285,70 @@ fail:
     return ret;
 }
 
+static int dmg_read_resource_fork(BlockDriverState *bs, DmgHeaderState *ds,
+                                  uint64_t info_begin, uint64_t info_length)
+{
+    int ret;
+    uint32_t count, rsrc_data_offset;
+    uint64_t info_end;
+    uint64_t offset;
+
+    /* read offset from begin of resource fork (info_begin) to resource data */
+    ret = read_uint32(bs, info_begin, &rsrc_data_offset);
+    if (ret < 0) {
+        goto fail;
+    } else if (rsrc_data_offset > info_length) {
+        ret = -EINVAL;
+        goto fail;
+    }
+
+    /* read length of resource data */
+    ret = read_uint32(bs, info_begin + 8, &count);
+    if (ret < 0) {
+        goto fail;
+    } else if (count == 0 || rsrc_data_offset + count > info_length) {
+        ret = -EINVAL;
+        goto fail;
+    }
+
+    /* begin of resource data (consisting of one or more resources) */
+    offset = info_begin + rsrc_data_offset;
+
+    /* end of resource data (there is possibly a following resource map
+     * which will be ignored). */
+    info_end = offset + count;
+
+    /* read offsets (mish blocks) from one or more resources in resource data */
+    while (offset < info_end) {
+        /* size of following resource */
+        ret = read_uint32(bs, offset, &count);
+        if (ret < 0) {
+            goto fail;
+        } else if (count == 0) {
+            ret = -EINVAL;
+            goto fail;
+        }
+        offset += 4;
+
+        ret = dmg_read_mish_block(bs, ds, offset, count);
+        if (ret < 0) {
+            goto fail;
+        }
+        /* advance offset by size of resource */
+        offset += count;
+    }
+    return 0;
+
+fail:
+    return ret;
+}
+
 static int dmg_open(BlockDriverState *bs, QDict *options, int flags,
                     Error **errp)
 {
     BDRVDMGState *s = bs->opaque;
     DmgHeaderState ds;
-    uint64_t info_begin, info_end;
-    uint32_t count, rsrc_data_offset;
+    uint64_t rsrc_fork_offset, rsrc_fork_length;
     int64_t offset;
     int ret;
 
@@ -311,53 +368,24 @@ static int dmg_open(BlockDriverState *bs, QDict *options, int flags,
         goto fail;
     }
 
-    ret = read_uint64(bs, offset + 0x28, &info_begin);
+    /* offset of resource fork (RsrcForkOffset) */
+    ret = read_uint64(bs, offset + 0x28, &rsrc_fork_offset);
     if (ret < 0) {
         goto fail;
-    } else if (info_begin == 0) {
-        ret = -EINVAL;
-        goto fail;
     }
-
-    ret = read_uint32(bs, info_begin, &rsrc_data_offset);
+    ret = read_uint64(bs, offset + 0x30, &rsrc_fork_length);
     if (ret < 0) {
         goto fail;
-    } else if (rsrc_data_offset != 0x100) {
-        ret = -EINVAL;
-        goto fail;
     }
-
-    ret = read_uint32(bs, info_begin + 4, &count);
-    if (ret < 0) {
-        goto fail;
-    } else if (count == 0) {
-        ret = -EINVAL;
-        goto fail;
-    }
-    /* end of resource data, ignoring the following resource map */
-    info_end = info_begin + count;
-
-    /* begin of resource data (consisting of one or more resources) */
-    offset = info_begin + 0x100;
-
-    /* read offsets (mish blocks) from one or more resources in resource data */
-    while (offset < info_end) {
-        /* size of following resource */
-        ret = read_uint32(bs, offset, &count);
-        if (ret < 0) {
-            goto fail;
-        } else if (count == 0) {
-            ret = -EINVAL;
-            goto fail;
-        }
-        offset += 4;
-
-        ret = dmg_read_mish_block(bs, &ds, offset, count);
+    if (rsrc_fork_length != 0) {
+        ret = dmg_read_resource_fork(bs, &ds,
+                                     rsrc_fork_offset, rsrc_fork_length);
         if (ret < 0) {
             goto fail;
         }
-        /* advance offset by size of resource */
-        offset += count;
+    } else {
+        ret = -EINVAL;
+        goto fail;
     }
 
     /* initialize zlib engine */
