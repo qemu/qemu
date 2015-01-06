@@ -1002,10 +1002,9 @@ bool defaults_enabled(void)
     return has_defaults;
 }
 
-bool usb_enabled(bool default_usb)
+bool usb_enabled(void)
 {
-    return qemu_opt_get_bool(qemu_get_machine_opts(), "usb",
-                             default_usb);
+    return machine_usb(current_machine);
 }
 
 #ifndef _WIN32
@@ -1229,7 +1228,7 @@ static int usb_device_add(const char *devname)
     const char *p;
 #endif
 
-    if (!usb_enabled(false)) {
+    if (!usb_enabled()) {
         return -1;
     }
 
@@ -1261,7 +1260,7 @@ static int usb_device_del(const char *devname)
         return -1;
     }
 
-    if (!usb_enabled(false)) {
+    if (!usb_enabled()) {
         return -1;
     }
 
@@ -4230,7 +4229,7 @@ int main(int argc, char **argv, char **envp)
     set_numa_modes();
 
     /* init USB devices */
-    if (usb_enabled(false)) {
+    if (usb_enabled()) {
         if (foreach_device_config(DEV_USB, usb_parse) < 0)
             exit(1);
     }
