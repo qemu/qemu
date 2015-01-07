@@ -850,7 +850,8 @@ void smbios_get_tables(uint8_t **tables, size_t *tables_len,
         }
 
 #define MAX_DIMM_SZ (16ll * ONE_GB)
-#define GET_DIMM_SZ ((i < dimm_cnt - 1) ? MAX_DIMM_SZ : ram_size % MAX_DIMM_SZ)
+#define GET_DIMM_SZ ((i < dimm_cnt - 1) ? MAX_DIMM_SZ \
+                                        : ((ram_size - 1) % MAX_DIMM_SZ) + 1)
 
         dimm_cnt = QEMU_ALIGN_UP(ram_size, MAX_DIMM_SZ) / MAX_DIMM_SZ;
 
