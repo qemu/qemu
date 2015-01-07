@@ -3074,7 +3074,8 @@ static void gen_sse(CPUX86State *env, DisasContext *s, int b,
                 goto illegal_op;
             gen_lea_modrm(env, s, modrm);
             if (b1 & 1) {
-                gen_stq_env_A0(s, offsetof(CPUX86State, xmm_regs[reg]));
+                gen_stq_env_A0(s, offsetof(CPUX86State,
+                                           xmm_regs[reg].XMM_Q(0)));
             } else {
                 tcg_gen_ld32u_tl(cpu_T[0], cpu_env, offsetof(CPUX86State,
                     xmm_regs[reg].XMM_L(0)));
