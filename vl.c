@@ -2886,9 +2886,6 @@ int main(int argc, char **argv, char **envp)
                 exit(1);
             }
             switch(popt->index) {
-            case QEMU_OPTION_M:
-                machine_class = machine_parse(optarg);
-                break;
             case QEMU_OPTION_no_kvm_irqchip: {
                 olist = qemu_find_opts("machine");
                 qemu_opts_parse(olist, "kernel_irqchip=off", 0);
@@ -3506,15 +3503,12 @@ int main(int argc, char **argv, char **envp)
                 olist = qemu_find_opts("machine");
                 qemu_opts_parse(olist, "accel=kvm", 0);
                 break;
+            case QEMU_OPTION_M:
             case QEMU_OPTION_machine:
                 olist = qemu_find_opts("machine");
                 opts = qemu_opts_parse(olist, optarg, 1);
                 if (!opts) {
                     exit(1);
-                }
-                optarg = qemu_opt_get(opts, "type");
-                if (optarg) {
-                    machine_class = machine_parse(optarg);
                 }
                 break;
              case QEMU_OPTION_no_kvm:
@@ -3807,6 +3801,13 @@ int main(int argc, char **argv, char **envp)
             }
         }
     }
+
+    opts = qemu_get_machine_opts();
+    optarg = qemu_opt_get(opts, "type");
+    if (optarg) {
+        machine_class = machine_parse(optarg);
+    }
+
     loc_set_none();
 
     os_daemonize();
