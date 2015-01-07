@@ -189,7 +189,7 @@ extern const VMStateInfo vmstate_info_bitmap;
      type_check_2darray(_type, typeof_field(_state, _field), _n1, _n2))
 
 #define vmstate_offset_sub_array(_state, _field, _type, _start)      \
-    (offsetof(_state, _field[_start]))
+    vmstate_offset_value(_state, _field[_start], _type)
 
 #define vmstate_offset_buffer(_state, _field)                        \
     vmstate_offset_array(_state, _field, uint8_t,                    \
