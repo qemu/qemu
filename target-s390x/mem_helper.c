@@ -490,8 +490,16 @@ uint32_t HELPER(ex)(CPUS390XState *env, uint32_t cc, uint64_t v1,
             helper_mvc(env, l, get_address(env, 0, b1, d1),
                        get_address(env, 0, b2, d2));
             break;
+        case 0x400:
+            cc = helper_nc(env, l, get_address(env, 0, b1, d1),
+                            get_address(env, 0, b2, d2));
+            break;
         case 0x500:
             cc = helper_clc(env, l, get_address(env, 0, b1, d1),
+                            get_address(env, 0, b2, d2));
+            break;
+        case 0x600:
+            cc = helper_oc(env, l, get_address(env, 0, b1, d1),
                             get_address(env, 0, b2, d2));
             break;
         case 0x700:
