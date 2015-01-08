@@ -169,7 +169,7 @@ static inline void start_exclusive(void)
 }
 
 /* Finish an exclusive operation.  */
-static inline void end_exclusive(void)
+static inline void __attribute__((unused)) end_exclusive(void)
 {
     pending_cpus = 0;
     pthread_cond_broadcast(&exclusive_resume);
