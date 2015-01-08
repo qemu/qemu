@@ -30,6 +30,18 @@
 #include "migration/qemu-file-internal.h"
 #include "trace.h"
 
+/*
+ * Stop a file from being read/written - not all backing files can do this
+ * typically only sockets can.
+ */
+int qemu_file_shutdown(QEMUFile *f)
+{
+    if (!f->ops->shut_down) {
+        return -ENOSYS;
+    }
+    return f->ops->shut_down(f->opaque, true, true);
+}
+
 bool qemu_file_mode_is_not_valid(const char *mode)
 {
     if (mode == NULL ||
