@@ -2437,7 +2437,7 @@ const VMStateDescription vmstate_ehci = {
         VMSTATE_UINT32(portsc[4], EHCIState),
         VMSTATE_UINT32(portsc[5], EHCIState),
         /* frame timer */
-        VMSTATE_TIMER(frame_timer, EHCIState),
+        VMSTATE_TIMER_PTR(frame_timer, EHCIState),
         VMSTATE_UINT64(last_run_ns, EHCIState),
         VMSTATE_UINT32(async_stepdown, EHCIState),
         /* schedule state */

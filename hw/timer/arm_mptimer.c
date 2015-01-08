@@ -246,7 +246,7 @@ static const VMStateDescription vmstate_timerblock = {
         VMSTATE_UINT32(control, TimerBlock),
         VMSTATE_UINT32(status, TimerBlock),
         VMSTATE_INT64(tick, TimerBlock),
-        VMSTATE_TIMER(timer, TimerBlock),
+        VMSTATE_TIMER_PTR(timer, TimerBlock),
         VMSTATE_END_OF_LIST()
     }
 };

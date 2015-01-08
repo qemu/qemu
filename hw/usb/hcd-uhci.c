@@ -419,7 +419,7 @@ static const VMStateDescription vmstate_uhci = {
         VMSTATE_UINT32(fl_base_addr, UHCIState),
         VMSTATE_UINT8(sof_timing, UHCIState),
         VMSTATE_UINT8(status2, UHCIState),
-        VMSTATE_TIMER(frame_timer, UHCIState),
+        VMSTATE_TIMER_PTR(frame_timer, UHCIState),
         VMSTATE_INT64_V(expire_time, UHCIState, 2),
         VMSTATE_UINT32_V(pending_int_mask, UHCIState, 3),
         VMSTATE_END_OF_LIST()

@@ -328,7 +328,7 @@ static const VMStateDescription vmstate_a9_gtimer = {
     .version_id = 1,
     .minimum_version_id = 1,
     .fields = (VMStateField[]) {
-        VMSTATE_TIMER(timer, A9GTimerState),
+        VMSTATE_TIMER_PTR(timer, A9GTimerState),
         VMSTATE_UINT64(counter, A9GTimerState),
         VMSTATE_UINT64(ref_counter, A9GTimerState),
         VMSTATE_UINT64(cpu_ref_time, A9GTimerState),
