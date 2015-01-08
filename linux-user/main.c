@@ -283,7 +283,9 @@ void cpu_loop(CPUX86State *env)
     target_siginfo_t info;
 
     for(;;) {
+        cpu_exec_start(cs);
         trapnr = cpu_x86_exec(env);
+        cpu_exec_end(cs);
         switch(trapnr) {
         case 0x80:
             /* linux syscall from int $0x80 */
@@ -1288,7 +1290,9 @@ void cpu_loop (CPUSPARCState *env)
     target_siginfo_t info;
 
     while (1) {
+        cpu_exec_start(cs);
         trapnr = cpu_sparc_exec (env);
+        cpu_exec_end(cs);
 
         /* Compute PSR before exposing state.  */
         if (env->cc_op != CC_OP_FLAGS) {
@@ -2656,7 +2660,9 @@ void cpu_loop(CPUOpenRISCState *env)
     int trapnr, gdbsig;
 
     for (;;) {
+        cpu_exec_start(cs);
         trapnr = cpu_exec(env);
+        cpu_exec_end(cs);
         gdbsig = 0;
 
         switch (trapnr) {
@@ -2744,7 +2750,9 @@ void cpu_loop(CPUSH4State *env)
     target_siginfo_t info;
 
     while (1) {
+        cpu_exec_start(cs);
         trapnr = cpu_sh4_exec (env);
+        cpu_exec_end(cs);
 
         switch (trapnr) {
         case 0x160:
@@ -2804,7 +2812,9 @@ void cpu_loop(CPUCRISState *env)
     target_siginfo_t info;
     
     while (1) {
+        cpu_exec_start(cs);
         trapnr = cpu_cris_exec (env);
+        cpu_exec_end(cs);
         switch (trapnr) {
         case 0xaa:
             {
@@ -2863,7 +2873,9 @@ void cpu_loop(CPUMBState *env)
     target_siginfo_t info;
     
     while (1) {
+        cpu_exec_start(cs);
         trapnr = cpu_mb_exec (env);
+        cpu_exec_end(cs);
         switch (trapnr) {
         case 0xaa:
             {
@@ -2966,7 +2978,9 @@ void cpu_loop(CPUM68KState *env)
     TaskState *ts = cs->opaque;
 
     for(;;) {
+        cpu_exec_start(cs);
         trapnr = cpu_m68k_exec(env);
+        cpu_exec_end(cs);
         switch(trapnr) {
         case EXCP_ILLEGAL:
             {
@@ -3103,7 +3117,9 @@ void cpu_loop(CPUAlphaState *env)
     abi_long sysret;
 
     while (1) {
+        cpu_exec_start(cs);
         trapnr = cpu_alpha_exec (env);
+        cpu_exec_end(cs);
 
         /* All of the traps imply a transition through PALcode, which
            implies an REI instruction has been executed.  Which means
@@ -3289,7 +3305,9 @@ void cpu_loop(CPUS390XState *env)
     target_ulong addr;
 
     while (1) {
+        cpu_exec_start(cs);
         trapnr = cpu_s390x_exec(env);
+        cpu_exec_end(cs);
         switch (trapnr) {
         case EXCP_INTERRUPT:
             /* Just indicate that signals should be handled asap.  */
