@@ -40,6 +40,7 @@
 #include "exec/gdbstub.h"
 #include "trace.h"
 #include "qapi-event.h"
+#include "hw/s390x/s390-pci-inst.h"
 
 /* #define DEBUG_KVM */
 
@@ -56,6 +57,7 @@
 #define IPA0_B2                         0xb200
 #define IPA0_B9                         0xb900
 #define IPA0_EB                         0xeb00
+#define IPA0_E3                         0xe300
 
 #define PRIV_B2_SCLP_CALL               0x20
 #define PRIV_B2_CSCH                    0x30
@@ -76,8 +78,17 @@
 #define PRIV_B2_XSCH                    0x76
 
 #define PRIV_EB_SQBS                    0x8a
+#define PRIV_EB_PCISTB                  0xd0
+#define PRIV_EB_SIC                     0xd1
 
 #define PRIV_B9_EQBS                    0x9c
+#define PRIV_B9_CLP                     0xa0
+#define PRIV_B9_PCISTG                  0xd0
+#define PRIV_B9_PCILG                   0xd2
+#define PRIV_B9_RPCIT                   0xd3
+
+#define PRIV_E3_MPCIFC                  0xd0
+#define PRIV_E3_STPCIFC                 0xd4
 
 #define DIAG_IPL                        0x308
 #define DIAG_KVM_HYPERCALL              0x500
@@ -839,11 +850,124 @@ static int handle_b2(S390CPU *cpu, struct kvm_run *run, uint8_t ipa1)
     return rc;
 }
 
+static uint64_t get_base_disp_rxy(S390CPU *cpu, struct kvm_run *run)
+{
+    CPUS390XState *env = &cpu->env;
+    uint32_t x2 = (run->s390_sieic.ipa & 0x000f);
+    uint32_t base2 = run->s390_sieic.ipb >> 28;
+    uint32_t disp2 = ((run->s390_sieic.ipb & 0x0fff0000) >> 16) +
+                     ((run->s390_sieic.ipb & 0xff00) << 4);
+
+    if (disp2 & 0x80000) {
+        disp2 += 0xfff00000;
+    }
+
+    return (base2 ? env->regs[base2] : 0) +
+           (x2 ? env->regs[x2] : 0) + (long)(int)disp2;
+}
+
+static uint64_t get_base_disp_rsy(S390CPU *cpu, struct kvm_run *run)
+{
+    CPUS390XState *env = &cpu->env;
+    uint32_t base2 = run->s390_sieic.ipb >> 28;
+    uint32_t disp2 = ((run->s390_sieic.ipb & 0x0fff0000) >> 16) +
+                     ((run->s390_sieic.ipb & 0xff00) << 4);
+
+    if (disp2 & 0x80000) {
+        disp2 += 0xfff00000;
+    }
+
+    return (base2 ? env->regs[base2] : 0) + (long)(int)disp2;
+}
+
+static int kvm_clp_service_call(S390CPU *cpu, struct kvm_run *run)
+{
+    uint8_t r2 = (run->s390_sieic.ipb & 0x000f0000) >> 16;
+
+    return clp_service_call(cpu, r2);
+}
+
+static int kvm_pcilg_service_call(S390CPU *cpu, struct kvm_run *run)
+{
+    uint8_t r1 = (run->s390_sieic.ipb & 0x00f00000) >> 20;
+    uint8_t r2 = (run->s390_sieic.ipb & 0x000f0000) >> 16;
+
+    return pcilg_service_call(cpu, r1, r2);
+}
+
+static int kvm_pcistg_service_call(S390CPU *cpu, struct kvm_run *run)
+{
+    uint8_t r1 = (run->s390_sieic.ipb & 0x00f00000) >> 20;
+    uint8_t r2 = (run->s390_sieic.ipb & 0x000f0000) >> 16;
+
+    return pcistg_service_call(cpu, r1, r2);
+}
+
+static int kvm_stpcifc_service_call(S390CPU *cpu, struct kvm_run *run)
+{
+    uint8_t r1 = (run->s390_sieic.ipa & 0x00f0) >> 4;
+    uint64_t fiba;
+
+    cpu_synchronize_state(CPU(cpu));
+    fiba = get_base_disp_rxy(cpu, run);
+
+    return stpcifc_service_call(cpu, r1, fiba);
+}
+
+static int kvm_sic_service_call(S390CPU *cpu, struct kvm_run *run)
+{
+    /* NOOP */
+    return 0;
+}
+
+static int kvm_rpcit_service_call(S390CPU *cpu, struct kvm_run *run)
+{
+    uint8_t r1 = (run->s390_sieic.ipb & 0x00f00000) >> 20;
+    uint8_t r2 = (run->s390_sieic.ipb & 0x000f0000) >> 16;
+
+    return rpcit_service_call(cpu, r1, r2);
+}
+
+static int kvm_pcistb_service_call(S390CPU *cpu, struct kvm_run *run)
+{
+    uint8_t r1 = (run->s390_sieic.ipa & 0x00f0) >> 4;
+    uint8_t r3 = run->s390_sieic.ipa & 0x000f;
+    uint64_t gaddr;
+
+    cpu_synchronize_state(CPU(cpu));
+    gaddr = get_base_disp_rsy(cpu, run);
+
+    return pcistb_service_call(cpu, r1, r3, gaddr);
+}
+
+static int kvm_mpcifc_service_call(S390CPU *cpu, struct kvm_run *run)
+{
+    uint8_t r1 = (run->s390_sieic.ipa & 0x00f0) >> 4;
+    uint64_t fiba;
+
+    cpu_synchronize_state(CPU(cpu));
+    fiba = get_base_disp_rxy(cpu, run);
+
+    return mpcifc_service_call(cpu, r1, fiba);
+}
+
 static int handle_b9(S390CPU *cpu, struct kvm_run *run, uint8_t ipa1)
 {
     int r = 0;
 
     switch (ipa1) {
+    case PRIV_B9_CLP:
+        r = kvm_clp_service_call(cpu, run);
+        break;
+    case PRIV_B9_PCISTG:
+        r = kvm_pcistg_service_call(cpu, run);
+        break;
+    case PRIV_B9_PCILG:
+        r = kvm_pcilg_service_call(cpu, run);
+        break;
+    case PRIV_B9_RPCIT:
+        r = kvm_rpcit_service_call(cpu, run);
+        break;
     case PRIV_B9_EQBS:
         /* just inject exception */
         r = -1;
@@ -862,6 +986,12 @@ static int handle_eb(S390CPU *cpu, struct kvm_run *run, uint8_t ipbl)
     int r = 0;
 
     switch (ipbl) {
+    case PRIV_EB_PCISTB:
+        r = kvm_pcistb_service_call(cpu, run);
+        break;
+    case PRIV_EB_SIC:
+        r = kvm_sic_service_call(cpu, run);
+        break;
     case PRIV_EB_SQBS:
         /* just inject exception */
         r = -1;
@@ -869,6 +999,26 @@ static int handle_eb(S390CPU *cpu, struct kvm_run *run, uint8_t ipbl)
     default:
         r = -1;
         DPRINTF("KVM: unhandled PRIV: 0xeb%x\n", ipbl);
+        break;
+    }
+
+    return r;
+}
+
+static int handle_e3(S390CPU *cpu, struct kvm_run *run, uint8_t ipbl)
+{
+    int r = 0;
+
+    switch (ipbl) {
+    case PRIV_E3_MPCIFC:
+        r = kvm_mpcifc_service_call(cpu, run);
+        break;
+    case PRIV_E3_STPCIFC:
+        r = kvm_stpcifc_service_call(cpu, run);
+        break;
+    default:
+        r = -1;
+        DPRINTF("KVM: unhandled PRIV: 0xe3%x\n", ipbl);
         break;
     }
 
@@ -1070,6 +1220,9 @@ static int handle_instruction(S390CPU *cpu, struct kvm_run *run)
         break;
     case IPA0_EB:
         r = handle_eb(cpu, run, run->s390_sieic.ipb & 0xff);
+        break;
+    case IPA0_E3:
+        r = handle_e3(cpu, run, run->s390_sieic.ipb & 0xff);
         break;
     case IPA0_DIAG:
         r = handle_diag(cpu, run, run->s390_sieic.ipb);
