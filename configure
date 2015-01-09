@@ -3142,7 +3142,7 @@ else
 fi
 
 if test "$opengl" != "no" ; then
-  opengl_pkgs="gl"
+  opengl_pkgs="gl glesv2"
   if $pkg_config $opengl_pkgs x11 && test "$have_glx" = "yes"; then
     opengl_cflags="$($pkg_config --cflags $opengl_pkgs) $x11_cflags"
     opengl_libs="$($pkg_config --libs $opengl_pkgs) $x11_libs"

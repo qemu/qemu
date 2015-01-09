@@ -9,6 +9,11 @@
 #include "qapi-types.h"
 #include "qapi/error.h"
 
+#ifdef CONFIG_OPENGL
+# include <GLES2/gl2.h>
+# include <GLES2/gl2ext.h>
+#endif
+
 /* keyboard/mouse support */
 
 #define MOUSE_EVENT_LBUTTON 0x01
@@ -117,6 +122,11 @@ struct DisplaySurface {
     pixman_format_code_t format;
     pixman_image_t *image;
     uint8_t flags;
+#ifdef CONFIG_OPENGL
+    GLenum glformat;
+    GLenum gltype;
+    GLuint texture;
+#endif
 };
 
 typedef struct QemuUIInfo {
@@ -321,6 +331,27 @@ void qemu_console_resize(QemuConsole *con, int width, int height);
 void qemu_console_copy(QemuConsole *con, int src_x, int src_y,
                        int dst_x, int dst_y, int w, int h);
 DisplaySurface *qemu_console_surface(QemuConsole *con);
+
+/* console-gl.c */
+typedef struct ConsoleGLState ConsoleGLState;
+#ifdef CONFIG_OPENGL
+ConsoleGLState *console_gl_init_context(void);
+void console_gl_fini_context(ConsoleGLState *gls);
+bool console_gl_check_format(DisplayChangeListener *dcl,
+                             pixman_format_code_t format);
+void surface_gl_create_texture(ConsoleGLState *gls,
+                               DisplaySurface *surface);
+void surface_gl_update_texture(ConsoleGLState *gls,
+                               DisplaySurface *surface,
+                               int x, int y, int w, int h);
+void surface_gl_render_texture(ConsoleGLState *gls,
+                               DisplaySurface *surface);
+void surface_gl_destroy_texture(ConsoleGLState *gls,
+                               DisplaySurface *surface);
+void surface_gl_setup_viewport(ConsoleGLState *gls,
+                               DisplaySurface *surface,
+                               int ww, int wh);
+#endif
 
 /* sdl.c */
 void sdl_display_init(DisplayState *ds, int full_screen, int no_frame);

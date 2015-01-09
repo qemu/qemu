@@ -29,6 +29,25 @@
 
 /* ---------------------------------------------------------------------- */
 
+void qemu_gl_run_texture_blit(GLint texture_blit_prog)
+{
+    GLfloat in_position[] = {
+        -1, -1,
+        1,  -1,
+        -1,  1,
+        1,   1,
+    };
+    GLint l_position;
+
+    glUseProgram(texture_blit_prog);
+    l_position = glGetAttribLocation(texture_blit_prog, "in_position");
+    glVertexAttribPointer(l_position, 2, GL_FLOAT, GL_FALSE, 0, in_position);
+    glEnableVertexAttribArray(l_position);
+    glDrawArrays(GL_TRIANGLE_STRIP, l_position, 4);
+}
+
+/* ---------------------------------------------------------------------- */
+
 GLuint qemu_gl_create_compile_shader(GLenum type, const GLchar *src)
 {
     GLuint shader;
