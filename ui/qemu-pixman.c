@@ -125,6 +125,33 @@ pixman_format_code_t qemu_pixman_get_format(PixelFormat *pf)
     return format;
 }
 
+/*
+ * Return true for known-good pixman conversions.
+ *
+ * UIs using pixman for format conversion can hook this into
+ * DisplayChangeListenerOps->dpy_gfx_check_format
+ */
+bool qemu_pixman_check_format(DisplayChangeListener *dcl,
+                              pixman_format_code_t format)
+{
+    switch (format) {
+    /* 32 bpp */
+    case PIXMAN_x8r8g8b8:
+    case PIXMAN_a8r8g8b8:
+    case PIXMAN_b8g8r8x8:
+    case PIXMAN_b8g8r8a8:
+    /* 24 bpp */
+    case PIXMAN_r8g8b8:
+    case PIXMAN_b8g8r8:
+    /* 16 bpp */
+    case PIXMAN_x1r5g5b5:
+    case PIXMAN_r5g6b5:
+        return true;
+    default:
+        return false;
+    }
+}
+
 pixman_image_t *qemu_pixman_linebuf_create(pixman_format_code_t format,
                                            int width)
 {
