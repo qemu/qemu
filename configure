@@ -2085,6 +2085,15 @@ if test "$sparse" != "no" ; then
 fi
 
 ##########################################
+# X11 probe
+x11_cflags=
+x11_libs=-lX11
+if $pkg_config --exists "x11"; then
+    x11_cflags=`$pkg_config --cflags x11`
+    x11_libs=`$pkg_config --libs x11`
+fi
+
+##########################################
 # GTK probe
 
 if test "$gtkabi" = ""; then
@@ -2111,7 +2120,8 @@ if test "$gtk" != "no"; then
         gtk_cflags=`$pkg_config --cflags $gtkpackage`
         gtk_libs=`$pkg_config --libs $gtkpackage`
         if $pkg_config --exists "$gtkx11package >= $gtkversion"; then
-            gtk_libs="$gtk_libs -lX11"
+            gtk_cflags="$gtk_cflags $x11_cflags"
+            gtk_libs="$gtk_libs $x11_libs"
         fi
         libs_softmmu="$gtk_libs $libs_softmmu"
         gtk="yes"
@@ -2236,8 +2246,9 @@ if test "$sdl" = "yes" ; then
 #endif
 int main(void) { return 0; }
 EOF
-  if compile_prog "$sdl_cflags" "$sdl_libs" ; then
-    sdl_libs="$sdl_libs -lX11"
+  if compile_prog "$sdl_cflags $x11_cflags" "$sdl_libs $x11_libs" ; then
+    sdl_cflags="$sdl_cflags $x11_cflags"
+    sdl_libs="$sdl_libs $x11_libs"
   fi
   libs_softmmu="$sdl_libs $libs_softmmu"
 fi
@@ -3110,13 +3121,15 @@ libs_softmmu="$libs_softmmu $fdt_libs"
 # opengl probe (for sdl2, milkymist-tmu2)
 if test "$opengl" != "no" ; then
   opengl_pkgs="gl glx"
-  if $pkg_config $opengl_pkgs; then
-    opengl_libs="$($pkg_config --libs $opengl_pkgs) -lX11"
+  if $pkg_config $opengl_pkgs x11; then
+    opengl_cflags="$($pkg_config --cflags $opengl_pkgs) $x11_cflags"
+    opengl_libs="$($pkg_config --libs $opengl_pkgs) $x11_libs"
     opengl=yes
   else
     if test "$opengl" = "yes" ; then
       feature_not_found "opengl" "Install GL devel (e.g. MESA)"
     fi
+    opengl_cflags=""
     opengl_libs=""
     opengl=no
   fi
@@ -4753,6 +4766,7 @@ fi
 
 if test "$opengl" = "yes" ; then
   echo "CONFIG_OPENGL=y" >> $config_host_mak
+  echo "OPENGL_CFLAGS=$opengl_cflags" >> $config_host_mak
   echo "OPENGL_LIBS=$opengl_libs" >> $config_host_mak
 fi
 
