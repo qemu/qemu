@@ -122,11 +122,11 @@
 #endif
 
 #ifndef atomic_read
-#define atomic_read(ptr)       (*(__typeof__(*ptr) *volatile) (ptr))
+#define atomic_read(ptr)       (*(__typeof__(*ptr) volatile*) (ptr))
 #endif
 
 #ifndef atomic_set
-#define atomic_set(ptr, i)     ((*(__typeof__(*ptr) *volatile) (ptr)) = (i))
+#define atomic_set(ptr, i)     ((*(__typeof__(*ptr) volatile*) (ptr)) = (i))
 #endif
 
 /* These have the same semantics as Java volatile variables.

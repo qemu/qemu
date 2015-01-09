@@ -320,6 +320,7 @@ typedef struct opc_handler_t opc_handler_t;
 /*****************************************************************************/
 /* Types used to describe some PowerPC registers */
 typedef struct CPUPPCState CPUPPCState;
+typedef struct DisasContext DisasContext;
 typedef struct ppc_tb_t ppc_tb_t;
 typedef struct ppc_spr_t ppc_spr_t;
 typedef struct ppc_dcr_t ppc_dcr_t;
@@ -328,13 +329,13 @@ typedef union ppc_tlb_t ppc_tlb_t;
 
 /* SPR access micro-ops generations callbacks */
 struct ppc_spr_t {
-    void (*uea_read)(void *opaque, int gpr_num, int spr_num);
-    void (*uea_write)(void *opaque, int spr_num, int gpr_num);
+    void (*uea_read)(DisasContext *ctx, int gpr_num, int spr_num);
+    void (*uea_write)(DisasContext *ctx, int spr_num, int gpr_num);
 #if !defined(CONFIG_USER_ONLY)
-    void (*oea_read)(void *opaque, int gpr_num, int spr_num);
-    void (*oea_write)(void *opaque, int spr_num, int gpr_num);
-    void (*hea_read)(void *opaque, int gpr_num, int spr_num);
-    void (*hea_write)(void *opaque, int spr_num, int gpr_num);
+    void (*oea_read)(DisasContext *ctx, int gpr_num, int spr_num);
+    void (*oea_write)(DisasContext *ctx, int spr_num, int gpr_num);
+    void (*hea_read)(DisasContext *ctx, int gpr_num, int spr_num);
+    void (*hea_write)(DisasContext *ctx, int spr_num, int gpr_num);
 #endif
     const char *name;
     target_ulong default_value;

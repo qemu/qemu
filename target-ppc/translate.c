@@ -183,7 +183,7 @@ void ppc_translate_init(void)
 }
 
 /* internal defines */
-typedef struct DisasContext {
+struct DisasContext {
     struct TranslationBlock *tb;
     target_ulong nip;
     uint32_t opcode;
@@ -207,7 +207,7 @@ typedef struct DisasContext {
     int singlestep_enabled;
     uint64_t insns_flags;
     uint64_t insns_flags2;
-} DisasContext;
+};
 
 /* Return true iff byteswap is needed in a scalar memop */
 static inline bool need_byteswap(const DisasContext *ctx)
@@ -4206,7 +4206,7 @@ static void gen_mfmsr(DisasContext *ctx)
 #endif
 }
 
-static void spr_noaccess(void *opaque, int gprn, int sprn)
+static void spr_noaccess(DisasContext *ctx, int gprn, int sprn)
 {
 #if 0
     sprn = ((sprn >> 5) & 0x1F) | ((sprn & 0x1F) << 5);
@@ -4218,7 +4218,7 @@ static void spr_noaccess(void *opaque, int gprn, int sprn)
 /* mfspr */
 static inline void gen_op_mfspr(DisasContext *ctx)
 {
-    void (*read_cb)(void *opaque, int gprn, int sprn);
+    void (*read_cb)(DisasContext *ctx, int gprn, int sprn);
     uint32_t sprn = SPR(ctx->opcode);
 
 #if !defined(CONFIG_USER_ONLY)
@@ -4369,7 +4369,7 @@ static void gen_mtmsr(DisasContext *ctx)
 /* mtspr */
 static void gen_mtspr(DisasContext *ctx)
 {
-    void (*write_cb)(void *opaque, int sprn, int gprn);
+    void (*write_cb)(DisasContext *ctx, int sprn, int gprn);
     uint32_t sprn = SPR(ctx->opcode);
 
 #if !defined(CONFIG_USER_ONLY)
@@ -11329,7 +11329,7 @@ static inline void gen_intermediate_code_internal(PowerPCCPU *cpu,
     if (max_insns == 0)
         max_insns = CF_COUNT_MASK;
 
-    gen_tb_start();
+    gen_tb_start(tb);
     tcg_clear_temp_count();
     /* Set env in case of segfault during code fetch */
     while (ctx.exception == POWERPC_EXCP_NONE

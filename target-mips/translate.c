@@ -5123,10 +5123,11 @@ static void gen_mfc0(DisasContext *ctx, TCGv arg, int reg, int sel)
         switch (sel) {
         case 0:
             /* Mark as an IO operation because we read the time.  */
-            if (use_icount)
+            if (ctx->tb->cflags & CF_USE_ICOUNT) {
                 gen_io_start();
+	    }
             gen_helper_mfc0_count(arg, cpu_env);
-            if (use_icount) {
+            if (ctx->tb->cflags & CF_USE_ICOUNT) {
                 gen_io_end();
             }
             /* Break the TB to be able to take timer interrupts immediately
@@ -5499,8 +5500,9 @@ static void gen_mtc0(DisasContext *ctx, TCGv arg, int reg, int sel)
     if (sel != 0)
         check_insn(ctx, ISA_MIPS32);
 
-    if (use_icount)
+    if (ctx->tb->cflags & CF_USE_ICOUNT) {
         gen_io_start();
+    }
 
     switch (reg) {
     case 0:
@@ -6118,7 +6120,7 @@ static void gen_mtc0(DisasContext *ctx, TCGv arg, int reg, int sel)
     (void)rn; /* avoid a compiler warning */
     LOG_DISAS("mtc0 %s (reg %d sel %d)\n", rn, reg, sel);
     /* For simplicity assume that all writes can cause interrupts.  */
-    if (use_icount) {
+    if (ctx->tb->cflags & CF_USE_ICOUNT) {
         gen_io_end();
         ctx->bstate = BS_STOP;
     }
@@ -6369,10 +6371,11 @@ static void gen_dmfc0(DisasContext *ctx, TCGv arg, int reg, int sel)
         switch (sel) {
         case 0:
             /* Mark as an IO operation because we read the time.  */
-            if (use_icount)
+            if (ctx->tb->cflags & CF_USE_ICOUNT) {
                 gen_io_start();
+            }
             gen_helper_mfc0_count(arg, cpu_env);
-            if (use_icount) {
+            if (ctx->tb->cflags & CF_USE_ICOUNT) {
                 gen_io_end();
             }
             /* Break the TB to be able to take timer interrupts immediately
@@ -6738,8 +6741,9 @@ static void gen_dmtc0(DisasContext *ctx, TCGv arg, int reg, int sel)
     if (sel != 0)
         check_insn(ctx, ISA_MIPS64);
 
-    if (use_icount)
+    if (ctx->tb->cflags & CF_USE_ICOUNT) {
         gen_io_start();
+    }
 
     switch (reg) {
     case 0:
@@ -7045,11 +7049,11 @@ static void gen_dmtc0(DisasContext *ctx, TCGv arg, int reg, int sel)
             save_cpu_state(ctx, 1);
             /* Mark as an IO operation because we may trigger a software
                interrupt.  */
-            if (use_icount) {
+            if (ctx->tb->cflags & CF_USE_ICOUNT) {
                 gen_io_start();
             }
             gen_helper_mtc0_cause(cpu_env, arg);
-            if (use_icount) {
+            if (ctx->tb->cflags & CF_USE_ICOUNT) {
                 gen_io_end();
             }
             /* Stop translation as we may have triggered an intetrupt */
@@ -7358,7 +7362,7 @@ static void gen_dmtc0(DisasContext *ctx, TCGv arg, int reg, int sel)
     (void)rn; /* avoid a compiler warning */
     LOG_DISAS("dmtc0 %s (reg %d sel %d)\n", rn, reg, sel);
     /* For simplicity assume that all writes can cause interrupts.  */
-    if (use_icount) {
+    if (ctx->tb->cflags & CF_USE_ICOUNT) {
         gen_io_end();
         ctx->bstate = BS_STOP;
     }
@@ -19126,7 +19130,7 @@ gen_intermediate_code_internal(MIPSCPU *cpu, TranslationBlock *tb,
     if (max_insns == 0)
         max_insns = CF_COUNT_MASK;
     LOG_DISAS("\ntb %p idx %d hflags %04x\n", tb, ctx.mem_idx, ctx.hflags);
-    gen_tb_start();
+    gen_tb_start(tb);
     while (ctx.bstate == BS_NONE) {
         if (unlikely(!QTAILQ_EMPTY(&cs->breakpoints))) {
             QTAILQ_FOREACH(bp, &cs->breakpoints, entry) {

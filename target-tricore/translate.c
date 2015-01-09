@@ -5077,7 +5077,7 @@ gen_intermediate_code_internal(TriCoreCPU *cpu, struct TranslationBlock *tb,
     ctx.mem_idx = cpu_mmu_index(env);
 
     tcg_clear_temp_count();
-    gen_tb_start();
+    gen_tb_start(tb);
     while (ctx.bstate == BS_NONE) {
         ctx.opcode = cpu_ldl_code(env, ctx.pc);
         decode_opc(env, &ctx, 0);

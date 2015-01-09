@@ -843,7 +843,7 @@ gen_intermediate_code_internal(MoxieCPU *cpu, TranslationBlock *tb,
     ctx.bstate = BS_NONE;
     num_insns = 0;
 
-    gen_tb_start();
+    gen_tb_start(tb);
     do {
         if (unlikely(!QTAILQ_EMPTY(&cs->breakpoints))) {
             QTAILQ_FOREACH(bp, &cs->breakpoints, entry) {
