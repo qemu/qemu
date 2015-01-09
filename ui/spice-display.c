@@ -760,12 +760,13 @@ static void display_mouse_define(DisplayChangeListener *dcl,
 }
 
 static const DisplayChangeListenerOps display_listener_ops = {
-    .dpy_name          = "spice",
-    .dpy_gfx_update    = display_update,
-    .dpy_gfx_switch    = display_switch,
-    .dpy_refresh       = display_refresh,
-    .dpy_mouse_set     = display_mouse_set,
-    .dpy_cursor_define = display_mouse_define,
+    .dpy_name             = "spice",
+    .dpy_gfx_update       = display_update,
+    .dpy_gfx_switch       = display_switch,
+    .dpy_gfx_check_format = qemu_pixman_check_format,
+    .dpy_refresh          = display_refresh,
+    .dpy_mouse_set        = display_mouse_set,
+    .dpy_cursor_define    = display_mouse_define,
 };
 
 static void qemu_spice_display_init_one(QemuConsole *con)
