@@ -688,3 +688,9 @@ int kvm_arch_get_registers(CPUState *cs)
 
     return ret;
 }
+
+int kvm_arch_fixup_msi_route(struct kvm_irq_routing_entry *route,
+                             uint64_t address, uint32_t data)
+{
+    return 0;
+}
