@@ -21,7 +21,6 @@
 #include "qemu-common.h"
 #include "ui/console.h"
 #include "hw/devices.h"
-#include "vga_int.h"
 #include "ui/pixel_ops.h"
 
 typedef void (*blizzard_fn_t)(uint8_t *, const uint8_t *, unsigned int);
