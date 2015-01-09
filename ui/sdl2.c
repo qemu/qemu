@@ -668,12 +668,13 @@ static void sdl_cleanup(void)
 }
 
 static const DisplayChangeListenerOps dcl_2d_ops = {
-    .dpy_name          = "sdl2-2d",
-    .dpy_gfx_update    = sdl2_2d_update,
-    .dpy_gfx_switch    = sdl2_2d_switch,
-    .dpy_refresh       = sdl2_2d_refresh,
-    .dpy_mouse_set     = sdl_mouse_warp,
-    .dpy_cursor_define = sdl_mouse_define,
+    .dpy_name             = "sdl2-2d",
+    .dpy_gfx_update       = sdl2_2d_update,
+    .dpy_gfx_switch       = sdl2_2d_switch,
+    .dpy_gfx_check_format = sdl2_2d_check_format,
+    .dpy_refresh          = sdl2_2d_refresh,
+    .dpy_mouse_set        = sdl_mouse_warp,
+    .dpy_cursor_define    = sdl_mouse_define,
 };
 
 void sdl_display_init(DisplayState *ds, int full_screen, int no_frame)
