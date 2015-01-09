@@ -2301,7 +2301,7 @@ static void vfio_unmap_bar(VFIOPCIDevice *vdev, int nr)
 static void vfio_map_bar(VFIOPCIDevice *vdev, int nr)
 {
     VFIOBAR *bar = &vdev->bars[nr];
-    unsigned size = bar->region.size;
+    uint64_t size = bar->region.size;
     char name[64];
     uint32_t pci_bar;
     uint8_t type;
@@ -2351,7 +2351,7 @@ static void vfio_map_bar(VFIOPCIDevice *vdev, int nr)
     }
 
     if (vdev->msix && vdev->msix->table_bar == nr) {
-        unsigned start;
+        uint64_t start;
 
         start = HOST_PAGE_ALIGN(vdev->msix->table_offset +
                                 (vdev->msix->entries * PCI_MSIX_ENTRY_SIZE));
