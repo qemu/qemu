@@ -149,7 +149,7 @@ static void virtio_rng_device_realize(DeviceState *dev, Error **errp)
     VirtIORNG *vrng = VIRTIO_RNG(dev);
     Error *local_err = NULL;
 
-    if (!vrng->conf.period_ms > 0) {
+    if (vrng->conf.period_ms <= 0) {
         error_setg(errp, "'period' parameter expects a positive integer");
         return;
     }
