@@ -207,8 +207,6 @@ struct VirtIOSerial {
     /* bitmap for identifying active ports */
     uint32_t *ports_map;
 
-    struct virtio_console_config config;
-
     struct VirtIOSerialPostLoad *post_load;
 
     virtio_serial_conf serial;

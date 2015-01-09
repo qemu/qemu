@@ -482,10 +482,14 @@ static uint32_t get_features(VirtIODevice *vdev, uint32_t features)
 /* Guest requested config info */
 static void get_config(VirtIODevice *vdev, uint8_t *config_data)
 {
-    VirtIOSerial *vser;
+    VirtIOSerial *vser = VIRTIO_SERIAL(vdev);
+    struct virtio_console_config *config =
+        (struct virtio_console_config *)config_data;
 
-    vser = VIRTIO_SERIAL(vdev);
-    memcpy(config_data, &vser->config, sizeof(struct virtio_console_config));
+    config->cols = 0;
+    config->rows = 0;
+    config->max_nr_ports = virtio_tswap32(vdev,
+                                          vser->serial.max_virtserial_ports);
 }
 
 static void guest_reset(VirtIOSerial *vser)
@@ -533,10 +537,6 @@ static void vser_reset(VirtIODevice *vdev)
 
     vser = VIRTIO_SERIAL(vdev);
     guest_reset(vser);
-
-    /* In case we have switched endianness */
-    vser->config.max_nr_ports =
-        virtio_tswap32(vdev, vser->serial.max_virtserial_ports);
 }
 
 static void virtio_serial_save(QEMUFile *f, void *opaque)
@@ -551,15 +551,16 @@ static void virtio_serial_save_device(VirtIODevice *vdev, QEMUFile *f)
     VirtIOSerialPort *port;
     uint32_t nr_active_ports;
     unsigned int i, max_nr_ports;
+    struct virtio_console_config config;
 
-    /* The config space */
-    qemu_put_be16s(f, &s->config.cols);
-    qemu_put_be16s(f, &s->config.rows);
-
-    qemu_put_be32s(f, &s->config.max_nr_ports);
+    /* The config space (ignored on the far end in current versions) */
+    get_config(vdev, (uint8_t *)&config);
+    qemu_put_be16s(f, &config.cols);
+    qemu_put_be16s(f, &config.rows);
+    qemu_put_be32s(f, &config.max_nr_ports);
 
     /* The ports map */
-    max_nr_ports = virtio_tswap32(vdev, s->config.max_nr_ports);
+    max_nr_ports = s->serial.max_virtserial_ports;
     for (i = 0; i < (max_nr_ports + 31) / 32; i++) {
         qemu_put_be32s(f, &s->ports_map[i]);
     }
@@ -715,13 +716,7 @@ static int virtio_serial_load_device(VirtIODevice *vdev, QEMUFile *f,
     qemu_get_be16s(f, (uint16_t *) &tmp);
     qemu_get_be32s(f, &tmp);
 
-    /* Note: this is the only location where we use tswap32() instead of
-     * virtio_tswap32() because:
-     * - virtio_tswap32() only makes sense when the device is fully restored
-     * - the target endianness that was used to populate s->config is
-     *   necessarly the default one
-     */
-    max_nr_ports = tswap32(s->config.max_nr_ports);
+    max_nr_ports = s->serial.max_virtserial_ports;
     for (i = 0; i < (max_nr_ports + 31) / 32; i++) {
         qemu_get_be32s(f, &ports_map);
 
@@ -784,10 +779,9 @@ static void virtser_bus_dev_print(Monitor *mon, DeviceState *qdev, int indent)
 /* This function is only used if a port id is not provided by the user */
 static uint32_t find_free_port_id(VirtIOSerial *vser)
 {
-    VirtIODevice *vdev = VIRTIO_DEVICE(vser);
     unsigned int i, max_nr_ports;
 
-    max_nr_ports = virtio_tswap32(vdev, vser->config.max_nr_ports);
+    max_nr_ports = vser->serial.max_virtserial_ports;
     for (i = 0; i < (max_nr_ports + 31) / 32; i++) {
         uint32_t map, bit;
 
@@ -848,7 +842,6 @@ static void virtser_port_device_realize(DeviceState *dev, Error **errp)
     VirtIOSerialPort *port = VIRTIO_SERIAL_PORT(dev);
     VirtIOSerialPortClass *vsc = VIRTIO_SERIAL_PORT_GET_CLASS(port);
     VirtIOSerialBus *bus = VIRTIO_SERIAL_BUS(qdev_get_parent_bus(dev));
-    VirtIODevice *vdev = VIRTIO_DEVICE(bus->vser);
     int max_nr_ports;
     bool plugging_port0;
     Error *err = NULL;
@@ -890,7 +883,7 @@ static void virtser_port_device_realize(DeviceState *dev, Error **errp)
         }
     }
 
-    max_nr_ports = virtio_tswap32(vdev, port->vser->config.max_nr_ports);
+    max_nr_ports = port->vser->serial.max_virtserial_ports;
     if (port->id >= max_nr_ports) {
         error_setg(errp, "virtio-serial-bus: Out-of-range port id specified, "
                          "max. allowed: %u", max_nr_ports - 1);
@@ -995,8 +988,6 @@ static void virtio_serial_device_realize(DeviceState *dev, Error **errp)
         vser->ovqs[i] = virtio_add_queue(vdev, 128, handle_output);
     }
 
-    vser->config.max_nr_ports =
-        virtio_tswap32(vdev, vser->serial.max_virtserial_ports);
     vser->ports_map = g_malloc0(((vser->serial.max_virtserial_ports + 31) / 32)
         * sizeof(vser->ports_map[0]));
     /*
