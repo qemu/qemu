@@ -819,9 +819,16 @@ static void emulate_spapr_hypercall(PowerPCCPU *cpu)
     }
 }
 
+#define HPTE(_table, _i)   (void *)(((uint64_t *)(_table)) + ((_i) * 2))
+#define HPTE_VALID(_hpte)  (tswap64(*((uint64_t *)(_hpte))) & HPTE64_V_VALID)
+#define HPTE_DIRTY(_hpte)  (tswap64(*((uint64_t *)(_hpte))) & HPTE64_V_HPTE_DIRTY)
+#define CLEAN_HPTE(_hpte)  ((*(uint64_t *)(_hpte)) &= tswap64(~HPTE64_V_HPTE_DIRTY))
+#define DIRTY_HPTE(_hpte)  ((*(uint64_t *)(_hpte)) |= tswap64(HPTE64_V_HPTE_DIRTY))
+
 static void spapr_reset_htab(sPAPREnvironment *spapr)
 {
     long shift;
+    int index;
 
     /* allocate hash page table.  For now we always make this 16mb,
      * later we should probably make it scale to the size of guest
@@ -833,6 +840,11 @@ static void spapr_reset_htab(sPAPREnvironment *spapr)
         /* Kernel handles htab, we don't need to allocate one */
         spapr->htab_shift = shift;
         kvmppc_kern_htab = true;
+
+        /* Tell readers to update their file descriptor */
+        if (spapr->htab_fd >= 0) {
+            spapr->htab_fd_stale = true;
+        }
     } else {
         if (!spapr->htab) {
             /* Allocate an htab if we don't yet have one */
@@ -841,6 +853,10 @@ static void spapr_reset_htab(sPAPREnvironment *spapr)
 
         /* And clear it */
         memset(spapr->htab, 0, HTAB_SIZE(spapr));
+
+        for (index = 0; index < HTAB_SIZE(spapr) / HASH_PTE_SIZE_64; index++) {
+            DIRTY_HPTE(HPTE(spapr->htab, index));
+        }
     }
 
     /* Update the RMA size if necessary */
@@ -865,6 +881,28 @@ static int find_unknown_sysbus_device(SysBusDevice *sbdev, void *opaque)
     }
 
     return 0;
+}
+
+/*
+ * A guest reset will cause spapr->htab_fd to become stale if being used.
+ * Reopen the file descriptor to make sure the whole HTAB is properly read.
+ */
+static int spapr_check_htab_fd(sPAPREnvironment *spapr)
+{
+    int rc = 0;
+
+    if (spapr->htab_fd_stale) {
+        close(spapr->htab_fd);
+        spapr->htab_fd = kvmppc_get_htab_fd(false);
+        if (spapr->htab_fd < 0) {
+            error_report("Unable to open fd for reading hash table from KVM: "
+                    "%s", strerror(errno));
+            rc = -1;
+        }
+        spapr->htab_fd_stale = false;
+    }
+
+    return rc;
 }
 
 static void ppc_spapr_reset(void)
@@ -986,11 +1024,6 @@ static const VMStateDescription vmstate_spapr = {
     },
 };
 
-#define HPTE(_table, _i)   (void *)(((uint64_t *)(_table)) + ((_i) * 2))
-#define HPTE_VALID(_hpte)  (tswap64(*((uint64_t *)(_hpte))) & HPTE64_V_VALID)
-#define HPTE_DIRTY(_hpte)  (tswap64(*((uint64_t *)(_hpte))) & HPTE64_V_HPTE_DIRTY)
-#define CLEAN_HPTE(_hpte)  ((*(uint64_t *)(_hpte)) &= tswap64(~HPTE64_V_HPTE_DIRTY))
-
 static int htab_save_setup(QEMUFile *f, void *opaque)
 {
     sPAPREnvironment *spapr = opaque;
@@ -1005,6 +1038,7 @@ static int htab_save_setup(QEMUFile *f, void *opaque)
         assert(kvm_enabled());
 
         spapr->htab_fd = kvmppc_get_htab_fd(false);
+        spapr->htab_fd_stale = false;
         if (spapr->htab_fd < 0) {
             fprintf(stderr, "Unable to open fd for reading hash table from KVM: %s\n",
                     strerror(errno));
@@ -1037,7 +1071,7 @@ static void htab_save_first_pass(QEMUFile *f, sPAPREnvironment *spapr,
 
         /* Consume valid HPTEs */
         chunkstart = index;
-        while ((index < htabslots)
+        while ((index < htabslots) && (index - chunkstart < USHRT_MAX)
                && HPTE_VALID(HPTE(spapr->htab, index))) {
             index++;
             CLEAN_HPTE(HPTE(spapr->htab, index));
@@ -1089,7 +1123,7 @@ static int htab_save_later_pass(QEMUFile *f, sPAPREnvironment *spapr,
 
         chunkstart = index;
         /* Consume valid dirty HPTEs */
-        while ((index < htabslots)
+        while ((index < htabslots) && (index - chunkstart < USHRT_MAX)
                && HPTE_DIRTY(HPTE(spapr->htab, index))
                && HPTE_VALID(HPTE(spapr->htab, index))) {
             CLEAN_HPTE(HPTE(spapr->htab, index));
@@ -1099,7 +1133,7 @@ static int htab_save_later_pass(QEMUFile *f, sPAPREnvironment *spapr,
 
         invalidstart = index;
         /* Consume invalid dirty HPTEs */
-        while ((index < htabslots)
+        while ((index < htabslots) && (index - invalidstart < USHRT_MAX)
                && HPTE_DIRTY(HPTE(spapr->htab, index))
                && !HPTE_VALID(HPTE(spapr->htab, index))) {
             CLEAN_HPTE(HPTE(spapr->htab, index));
@@ -1157,6 +1191,11 @@ static int htab_save_iterate(QEMUFile *f, void *opaque)
     if (!spapr->htab) {
         assert(kvm_enabled());
 
+        rc = spapr_check_htab_fd(spapr);
+        if (rc < 0) {
+            return rc;
+        }
+
         rc = kvmppc_save_htab(f, spapr->htab_fd,
                               MAX_KVM_BUF_SIZE, MAX_ITERATION_NS);
         if (rc < 0) {
@@ -1187,6 +1226,11 @@ static int htab_save_complete(QEMUFile *f, void *opaque)
         int rc;
 
         assert(kvm_enabled());
+
+        rc = spapr_check_htab_fd(spapr);
+        if (rc < 0) {
+            return rc;
+        }
 
         rc = kvmppc_save_htab(f, spapr->htab_fd, MAX_KVM_BUF_SIZE, -1);
         if (rc < 0) {
@@ -1438,7 +1482,7 @@ static void ppc_spapr_init(MachineState *machine)
     }
     if (spapr->rtas_size > RTAS_MAX_SIZE) {
         hw_error("RTAS too big ! 0x%zx bytes (max is 0x%x)\n",
-                 spapr->rtas_size, RTAS_MAX_SIZE);
+                 (size_t)spapr->rtas_size, RTAS_MAX_SIZE);
         exit(1);
     }
     g_free(filename);

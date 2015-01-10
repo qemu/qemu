@@ -844,7 +844,7 @@ static void timebase_pre_save(void *opaque)
         return;
     }
 
-    tb->time_of_the_day_ns = get_clock_realtime();
+    tb->time_of_the_day_ns = qemu_clock_get_ns(QEMU_CLOCK_HOST);
     /*
      * tb_offset is only expected to be changed by migration so
      * there is no need to update it from KVM here
@@ -873,7 +873,7 @@ static int timebase_post_load(void *opaque, int version_id)
      * We try to adjust timebase by downtime if host clocks are not
      * too much out of sync (1 second for now).
      */
-    host_ns = get_clock_realtime();
+    host_ns = qemu_clock_get_ns(QEMU_CLOCK_HOST);
     ns_diff = MAX(0, host_ns - tb_remote->time_of_the_day_ns);
     migration_duration_ns = MIN(NSEC_PER_SEC, ns_diff);
     migration_duration_tb = muldiv64(migration_duration_ns, freq, NSEC_PER_SEC);

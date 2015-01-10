@@ -559,6 +559,26 @@ struct ppc_slb_t {
 #define ESR_VLEMI (1 << (63 - 58)) /* VLE operation                          */
 #define ESR_MIF   (1 << (63 - 62)) /* Misaligned instruction (VLE)           */
 
+/* Transaction EXception And Summary Register bits                           */
+#define TEXASR_FAILURE_PERSISTENT                (63 - 7)
+#define TEXASR_DISALLOWED                        (63 - 8)
+#define TEXASR_NESTING_OVERFLOW                  (63 - 9)
+#define TEXASR_FOOTPRINT_OVERFLOW                (63 - 10)
+#define TEXASR_SELF_INDUCED_CONFLICT             (63 - 11)
+#define TEXASR_NON_TRANSACTIONAL_CONFLICT        (63 - 12)
+#define TEXASR_TRANSACTION_CONFLICT              (63 - 13)
+#define TEXASR_TRANSLATION_INVALIDATION_CONFLICT (63 - 14)
+#define TEXASR_IMPLEMENTATION_SPECIFIC           (63 - 15)
+#define TEXASR_INSTRUCTION_FETCH_CONFLICT        (63 - 16)
+#define TEXASR_ABORT                             (63 - 31)
+#define TEXASR_SUSPENDED                         (63 - 32)
+#define TEXASR_PRIVILEGE_HV                      (63 - 34)
+#define TEXASR_PRIVILEGE_PR                      (63 - 35)
+#define TEXASR_FAILURE_SUMMARY                   (63 - 36)
+#define TEXASR_TFIAR_EXACT                       (63 - 37)
+#define TEXASR_ROT                               (63 - 38)
+#define TEXASR_TRANSACTION_LEVEL                 (63 - 52) /* 12 bits */
+
 enum {
     POWERPC_FLAG_NONE     = 0x00000000,
     /* Flag for MSR bit 25 signification (VRE/SPE)                           */
@@ -585,6 +605,8 @@ enum {
     POWERPC_FLAG_CFAR     = 0x00040000,
     /* Has VSX                                                               */
     POWERPC_FLAG_VSX      = 0x00080000,
+    /* Has Transaction Memory (ISA 2.07)                                     */
+    POWERPC_FLAG_TM       = 0x00100000,
 };
 
 /*****************************************************************************/
@@ -2011,6 +2033,8 @@ enum {
     PPC2_ISA207S       = 0x0000000000008000ULL,
     /* Double precision floating point conversion for signed integer 64      */
     PPC2_FP_CVT_S64    = 0x0000000000010000ULL,
+    /* Transactional Memory (ISA 2.07, Book II)                              */
+    PPC2_TM            = 0x0000000000020000ULL,
 
 #define PPC_TCG_INSNS2 (PPC2_BOOKE206 | PPC2_VSX | PPC2_PRCNTL | PPC2_DBRX | \
                         PPC2_ISA205 | PPC2_VSX207 | PPC2_PERM_ISA206 | \
@@ -2018,7 +2042,7 @@ enum {
                         PPC2_FP_CVT_ISA206 | PPC2_FP_TST_ISA206 | \
                         PPC2_BCTAR_ISA207 | PPC2_LSQ_ISA207 | \
                         PPC2_ALTIVEC_207 | PPC2_ISA207S | PPC2_DFP | \
-                        PPC2_FP_CVT_S64)
+                        PPC2_FP_CVT_S64 | PPC2_TM)
 };
 
 /*****************************************************************************/

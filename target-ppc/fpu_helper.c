@@ -19,6 +19,9 @@
 #include "cpu.h"
 #include "exec/helper-proto.h"
 
+#define float64_snan_to_qnan(x) ((x) | 0x0008000000000000ULL)
+#define float32_snan_to_qnan(x) ((x) | 0x00400000)
+
 /*****************************************************************************/
 /* Floating point operations helpers */
 uint64_t helper_float32_to_float64(CPUPPCState *env, uint32_t arg)
@@ -60,59 +63,55 @@ static inline int ppc_float64_get_unbiased_exp(float64 f)
     return ((f >> 52) & 0x7FF) - 1023;
 }
 
-uint32_t helper_compute_fprf(CPUPPCState *env, uint64_t arg, uint32_t set_fprf)
+void helper_compute_fprf(CPUPPCState *env, uint64_t arg)
 {
     CPU_DoubleU farg;
     int isneg;
-    int ret;
+    int fprf;
 
     farg.ll = arg;
     isneg = float64_is_neg(farg.d);
     if (unlikely(float64_is_any_nan(farg.d))) {
         if (float64_is_signaling_nan(farg.d)) {
             /* Signaling NaN: flags are undefined */
-            ret = 0x00;
+            fprf = 0x00;
         } else {
             /* Quiet NaN */
-            ret = 0x11;
+            fprf = 0x11;
         }
     } else if (unlikely(float64_is_infinity(farg.d))) {
         /* +/- infinity */
         if (isneg) {
-            ret = 0x09;
+            fprf = 0x09;
         } else {
-            ret = 0x05;
+            fprf = 0x05;
         }
     } else {
         if (float64_is_zero(farg.d)) {
             /* +/- zero */
             if (isneg) {
-                ret = 0x12;
+                fprf = 0x12;
             } else {
-                ret = 0x02;
+                fprf = 0x02;
             }
         } else {
             if (isden(farg.d)) {
                 /* Denormalized numbers */
-                ret = 0x10;
+                fprf = 0x10;
             } else {
                 /* Normalized numbers */
-                ret = 0x00;
+                fprf = 0x00;
             }
             if (isneg) {
-                ret |= 0x08;
+                fprf |= 0x08;
             } else {
-                ret |= 0x04;
+                fprf |= 0x04;
             }
         }
     }
-    if (set_fprf) {
-        /* We update FPSCR_FPRF */
-        env->fpscr &= ~(0x1F << FPSCR_FPRF);
-        env->fpscr |= ret << FPSCR_FPRF;
-    }
-    /* We just need fpcc to update Rc1 */
-    return ret & 0xF;
+    /* We update FPSCR_FPRF */
+    env->fpscr &= ~(0x1F << FPSCR_FPRF);
+    env->fpscr |= fprf << FPSCR_FPRF;
 }
 
 /* Floating-point invalid operations exception */
@@ -920,14 +919,16 @@ uint64_t helper_fsqrt(CPUPPCState *env, uint64_t arg)
 
     farg.ll = arg;
 
-    if (unlikely(float64_is_neg(farg.d) && !float64_is_zero(farg.d))) {
+    if (unlikely(float64_is_any_nan(farg.d))) {
+        if (unlikely(float64_is_signaling_nan(farg.d))) {
+            /* sNaN reciprocal square root */
+            fload_invalid_op_excp(env, POWERPC_EXCP_FP_VXSNAN, 1);
+            farg.ll = float64_snan_to_qnan(farg.ll);
+        }
+    } else if (unlikely(float64_is_neg(farg.d) && !float64_is_zero(farg.d))) {
         /* Square root of a negative nonzero number */
         farg.ll = fload_invalid_op_excp(env, POWERPC_EXCP_FP_VXSQRT, 1);
     } else {
-        if (unlikely(float64_is_signaling_nan(farg.d))) {
-            /* sNaN square root */
-            fload_invalid_op_excp(env, POWERPC_EXCP_FP_VXSNAN, 1);
-        }
         farg.d = float64_sqrt(farg.d, &env->fp_status);
     }
     return farg.ll;
@@ -974,17 +975,20 @@ uint64_t helper_frsqrte(CPUPPCState *env, uint64_t arg)
 
     farg.ll = arg;
 
-    if (unlikely(float64_is_neg(farg.d) && !float64_is_zero(farg.d))) {
-        /* Reciprocal square root of a negative nonzero number */
-        farg.ll = fload_invalid_op_excp(env, POWERPC_EXCP_FP_VXSQRT, 1);
-    } else {
+    if (unlikely(float64_is_any_nan(farg.d))) {
         if (unlikely(float64_is_signaling_nan(farg.d))) {
             /* sNaN reciprocal square root */
             fload_invalid_op_excp(env, POWERPC_EXCP_FP_VXSNAN, 1);
+            farg.ll = float64_snan_to_qnan(farg.ll);
         }
+    } else if (unlikely(float64_is_neg(farg.d) && !float64_is_zero(farg.d))) {
+        /* Reciprocal square root of a negative nonzero number */
+        farg.ll = fload_invalid_op_excp(env, POWERPC_EXCP_FP_VXSQRT, 1);
+    } else {
         farg.d = float64_sqrt(farg.d, &env->fp_status);
         farg.d = float64_div(float64_one, farg.d, &env->fp_status);
     }
+
     return farg.ll;
 }
 
@@ -1845,7 +1849,7 @@ void helper_##name(CPUPPCState *env, uint32_t opcode)                        \
         }                                                                    \
                                                                              \
         if (sfprf) {                                                         \
-            helper_compute_fprf(env, xt.fld, sfprf);                         \
+            helper_compute_fprf(env, xt.fld);                                \
         }                                                                    \
     }                                                                        \
     putVSR(xT(opcode), &xt, env);                                            \
@@ -1900,7 +1904,7 @@ void helper_##op(CPUPPCState *env, uint32_t opcode)                          \
         }                                                                    \
                                                                              \
         if (sfprf) {                                                         \
-            helper_compute_fprf(env, xt.fld, sfprf);                         \
+            helper_compute_fprf(env, xt.fld);                                \
         }                                                                    \
     }                                                                        \
                                                                              \
@@ -1954,7 +1958,7 @@ void helper_##op(CPUPPCState *env, uint32_t opcode)                           \
         }                                                                     \
                                                                               \
         if (sfprf) {                                                          \
-            helper_compute_fprf(env, xt.fld, sfprf);                          \
+            helper_compute_fprf(env, xt.fld);                                 \
         }                                                                     \
     }                                                                         \
                                                                               \
@@ -1995,7 +1999,7 @@ void helper_##op(CPUPPCState *env, uint32_t opcode)                           \
         }                                                                     \
                                                                               \
         if (sfprf) {                                                          \
-            helper_compute_fprf(env, xt.fld, sfprf);                          \
+            helper_compute_fprf(env, xt.fld);                                 \
         }                                                                     \
     }                                                                         \
                                                                               \
@@ -2044,7 +2048,7 @@ void helper_##op(CPUPPCState *env, uint32_t opcode)                          \
         }                                                                    \
                                                                              \
         if (sfprf) {                                                         \
-            helper_compute_fprf(env, xt.fld, sfprf);                         \
+            helper_compute_fprf(env, xt.fld);                                \
         }                                                                    \
     }                                                                        \
                                                                              \
@@ -2094,7 +2098,7 @@ void helper_##op(CPUPPCState *env, uint32_t opcode)                          \
         }                                                                    \
                                                                              \
         if (sfprf) {                                                         \
-            helper_compute_fprf(env, xt.fld, sfprf);                         \
+            helper_compute_fprf(env, xt.fld);                                \
         }                                                                    \
     }                                                                        \
                                                                              \
@@ -2294,7 +2298,7 @@ void helper_##op(CPUPPCState *env, uint32_t opcode)                           \
         }                                                                     \
                                                                               \
         if (sfprf) {                                                          \
-            helper_compute_fprf(env, xt_out.fld, sfprf);                      \
+            helper_compute_fprf(env, xt_out.fld);                             \
         }                                                                     \
     }                                                                         \
     putVSR(xT(opcode), &xt_out, env);                                         \
@@ -2381,9 +2385,6 @@ void helper_##op(CPUPPCState *env, uint32_t opcode)                      \
 
 VSX_SCALAR_CMP(xscmpodp, 1)
 VSX_SCALAR_CMP(xscmpudp, 0)
-
-#define float64_snan_to_qnan(x) ((x) | 0x0008000000000000ULL)
-#define float32_snan_to_qnan(x) ((x) | 0x00400000)
 
 /* VSX_MAX_MIN - VSX floating point maximum/minimum
  *   name  - instruction mnemonic
@@ -2504,7 +2505,7 @@ void helper_##op(CPUPPCState *env, uint32_t opcode)                \
         }                                                          \
         if (sfprf) {                                               \
             helper_compute_fprf(env, ttp##_to_float64(xt.tfld,     \
-                                &env->fp_status), sfprf);          \
+                                &env->fp_status));                 \
         }                                                          \
     }                                                              \
                                                                    \
@@ -2614,7 +2615,7 @@ void helper_##op(CPUPPCState *env, uint32_t opcode)                     \
             xt.tfld = helper_frsp(env, xt.tfld);                        \
         }                                                               \
         if (sfprf) {                                                    \
-            helper_compute_fprf(env, xt.tfld, sfprf);                   \
+            helper_compute_fprf(env, xt.tfld);                          \
         }                                                               \
     }                                                                   \
                                                                         \
@@ -2669,7 +2670,7 @@ void helper_##op(CPUPPCState *env, uint32_t opcode)                    \
             xt.fld = tp##_round_to_int(xb.fld, &env->fp_status);       \
         }                                                              \
         if (sfprf) {                                                   \
-            helper_compute_fprf(env, xt.fld, sfprf);                   \
+            helper_compute_fprf(env, xt.fld);                          \
         }                                                              \
     }                                                                  \
                                                                        \
@@ -2709,7 +2710,7 @@ uint64_t helper_xsrsp(CPUPPCState *env, uint64_t xb)
 
     uint64_t xt = helper_frsp(env, xb);
 
-    helper_compute_fprf(env, xt, 1);
+    helper_compute_fprf(env, xt);
     helper_float_check_status(env);
     return xt;
 }

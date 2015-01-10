@@ -2246,8 +2246,23 @@ int kvmppc_save_htab(QEMUFile *f, int fd, size_t bufsize, int64_t max_ns)
                     strerror(errno));
             return rc;
         } else if (rc) {
-            /* Kernel already retuns data in BE format for the file */
-            qemu_put_buffer(f, buf, rc);
+            uint8_t *buffer = buf;
+            ssize_t n = rc;
+            while (n) {
+                struct kvm_get_htab_header *head =
+                    (struct kvm_get_htab_header *) buffer;
+                size_t chunksize = sizeof(*head) +
+                     HASH_PTE_SIZE_64 * head->n_valid;
+
+                qemu_put_be32(f, head->index);
+                qemu_put_be16(f, head->n_valid);
+                qemu_put_be16(f, head->n_invalid);
+                qemu_put_buffer(f, (void *)(head + 1),
+                                HASH_PTE_SIZE_64 * head->n_valid);
+
+                buffer += chunksize;
+                n -= chunksize;
+            }
         }
     } while ((rc != 0)
              && ((max_ns < 0)
@@ -2264,7 +2279,6 @@ int kvmppc_load_htab_chunk(QEMUFile *f, int fd, uint32_t index,
     ssize_t rc;
 
     buf = alloca(chunksize);
-    /* This is KVM on ppc, so this is all big-endian */
     buf->index = index;
     buf->n_valid = n_valid;
     buf->n_invalid = n_invalid;
