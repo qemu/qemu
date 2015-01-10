@@ -1152,6 +1152,23 @@ void memory_region_init_ram(MemoryRegion *mr,
     mr->ram_addr = qemu_ram_alloc(size, mr, errp);
 }
 
+void memory_region_init_resizeable_ram(MemoryRegion *mr,
+                                       Object *owner,
+                                       const char *name,
+                                       uint64_t size,
+                                       uint64_t max_size,
+                                       void (*resized)(const char*,
+                                                       uint64_t length,
+                                                       void *host),
+                                       Error **errp)
+{
+    memory_region_init(mr, owner, name, size);
+    mr->ram = true;
+    mr->terminates = true;
+    mr->destructor = memory_region_destructor_ram;
+    mr->ram_addr = qemu_ram_alloc_resizeable(size, max_size, resized, mr, errp);
+}
+
 #ifdef __linux__
 void memory_region_init_ram_from_file(MemoryRegion *mr,
                                       struct Object *owner,
@@ -1703,6 +1720,22 @@ void memory_region_set_enabled(MemoryRegion *mr, bool enabled)
     }
     memory_region_transaction_begin();
     mr->enabled = enabled;
+    memory_region_update_pending = true;
+    memory_region_transaction_commit();
+}
+
+void memory_region_set_size(MemoryRegion *mr, uint64_t size)
+{
+    Int128 s = int128_make64(size);
+
+    if (size == UINT64_MAX) {
+        s = int128_2_64();
+    }
+    if (int128_eq(s, mr->size)) {
+        return;
+    }
+    memory_region_transaction_begin();
+    mr->size = s;
     memory_region_update_pending = true;
     memory_region_transaction_commit();
 }
