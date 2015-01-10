@@ -2129,16 +2129,19 @@ static void vfio_pci_write_config(PCIDevice *pdev, uint32_t addr,
  */
 static void vfio_disable_interrupts(VFIOPCIDevice *vdev)
 {
-    switch (vdev->interrupt) {
-    case VFIO_INT_INTx:
-        vfio_disable_intx(vdev);
-        break;
-    case VFIO_INT_MSI:
-        vfio_disable_msi(vdev);
-        break;
-    case VFIO_INT_MSIX:
+    /*
+     * More complicated than it looks.  Disabling MSI/X transitions the
+     * device to INTx mode (if supported).  Therefore we need to first
+     * disable MSI/X and then cleanup by disabling INTx.
+     */
+    if (vdev->interrupt == VFIO_INT_MSIX) {
         vfio_disable_msix(vdev);
-        break;
+    } else if (vdev->interrupt == VFIO_INT_MSI) {
+        vfio_disable_msi(vdev);
+    }
+
+    if (vdev->interrupt == VFIO_INT_INTx) {
+        vfio_disable_intx(vdev);
     }
 }
 
@@ -2301,7 +2304,7 @@ static void vfio_unmap_bar(VFIOPCIDevice *vdev, int nr)
 static void vfio_map_bar(VFIOPCIDevice *vdev, int nr)
 {
     VFIOBAR *bar = &vdev->bars[nr];
-    unsigned size = bar->region.size;
+    uint64_t size = bar->region.size;
     char name[64];
     uint32_t pci_bar;
     uint8_t type;
@@ -2351,7 +2354,7 @@ static void vfio_map_bar(VFIOPCIDevice *vdev, int nr)
     }
 
     if (vdev->msix && vdev->msix->table_bar == nr) {
-        unsigned start;
+        uint64_t start;
 
         start = HOST_PAGE_ALIGN(vdev->msix->table_offset +
                                 (vdev->msix->entries * PCI_MSIX_ENTRY_SIZE));
