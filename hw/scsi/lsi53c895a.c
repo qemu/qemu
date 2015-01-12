@@ -277,6 +277,7 @@ typedef struct {
     uint32_t csbc;
     uint32_t scratch[18]; /* SCRATCHA-SCRATCHR */
     uint8_t sbr;
+    uint32_t adder;
 
     /* Script ram is stored as 32-bit words in host byteorder.  */
     uint32_t script_ram[2048];
@@ -1389,6 +1390,7 @@ again:
                 switch ((insn >> 27) & 7) {
                 case 0: /* Jump */
                     DPRINTF("Jump to 0x%08x\n", addr);
+                    s->adder = addr;
                     s->dsp = addr;
                     break;
                 case 1: /* Call */
@@ -1513,6 +1515,8 @@ static uint8_t lsi_reg_readb(LSIState *s, int offset)
         return 0x7f;
     case 0x08: /* Revision ID */
         return 0x00;
+    case 0x09: /* SOCL */
+        return s->socl;
     case 0xa: /* SSID */
         return s->ssid;
     case 0xb: /* SBCL */
@@ -1577,6 +1581,8 @@ static uint8_t lsi_reg_readb(LSIState *s, int offset)
         return s->sbr;
     case 0x3b: /* DCNTL */
         return s->dcntl;
+    /* ADDER Output (Debug of relative jump address) */
+    CASE_GET_REG32(adder, 0x3c)
     case 0x40: /* SIEN0 */
         return s->sien0;
     case 0x41: /* SIEN1 */
