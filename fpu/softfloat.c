@@ -1302,27 +1302,6 @@ float32 int64_to_float32(int64_t a STATUS_PARAM)
 
 }
 
-float32 uint64_to_float32(uint64_t a STATUS_PARAM)
-{
-    int8 shiftCount;
-
-    if ( a == 0 ) return float32_zero;
-    shiftCount = countLeadingZeros64( a ) - 40;
-    if ( 0 <= shiftCount ) {
-        return packFloat32(0, 0x95 - shiftCount, a<<shiftCount);
-    }
-    else {
-        shiftCount += 7;
-        if ( shiftCount < 0 ) {
-            shift64RightJamming( a, - shiftCount, &a );
-        }
-        else {
-            a <<= shiftCount;
-        }
-        return roundAndPackFloat32(0, 0x9C - shiftCount, a STATUS_VAR);
-    }
-}
-
 /*----------------------------------------------------------------------------
 | Returns the result of converting the 64-bit two's complement integer `a'
 | to the double-precision floating-point format.  The conversion is performed
@@ -1340,20 +1319,6 @@ float64 int64_to_float64(int64_t a STATUS_PARAM)
     zSign = ( a < 0 );
     return normalizeRoundAndPackFloat64( zSign, 0x43C, zSign ? - a : a STATUS_VAR );
 
-}
-
-float64 uint64_to_float64(uint64_t a STATUS_PARAM)
-{
-    int exp =  0x43C;
-
-    if (a == 0) {
-        return float64_zero;
-    }
-    if ((int64_t)a < 0) {
-        shift64RightJamming(a, 1, &a);
-        exp += 1;
-    }
-    return normalizeRoundAndPackFloat64(0, exp, a STATUS_VAR);
 }
 
 /*----------------------------------------------------------------------------
@@ -1409,6 +1374,71 @@ float128 int64_to_float128(int64_t a STATUS_PARAM)
     return packFloat128( zSign, zExp, zSig0, zSig1 );
 
 }
+
+/*----------------------------------------------------------------------------
+| Returns the result of converting the 64-bit unsigned integer `a'
+| to the single-precision floating-point format.  The conversion is performed
+| according to the IEC/IEEE Standard for Binary Floating-Point Arithmetic.
+*----------------------------------------------------------------------------*/
+
+float32 uint64_to_float32(uint64_t a STATUS_PARAM)
+{
+    int shiftcount;
+
+    if (a == 0) {
+        return float32_zero;
+    }
+
+    /* Determine (left) shift needed to put first set bit into bit posn 23
+     * (since packFloat32() expects the binary point between bits 23 and 22);
+     * this is the fast case for smallish numbers.
+     */
+    shiftcount = countLeadingZeros64(a) - 40;
+    if (shiftcount >= 0) {
+        return packFloat32(0, 0x95 - shiftcount, a << shiftcount);
+    }
+    /* Otherwise we need to do a round-and-pack. roundAndPackFloat32()
+     * expects the binary point between bits 30 and 29, hence the + 7.
+     */
+    shiftcount += 7;
+    if (shiftcount < 0) {
+        shift64RightJamming(a, -shiftcount, &a);
+    } else {
+        a <<= shiftcount;
+    }
+
+    return roundAndPackFloat32(0, 0x9c - shiftcount, a STATUS_VAR);
+}
+
+/*----------------------------------------------------------------------------
+| Returns the result of converting the 64-bit unsigned integer `a'
+| to the double-precision floating-point format.  The conversion is performed
+| according to the IEC/IEEE Standard for Binary Floating-Point Arithmetic.
+*----------------------------------------------------------------------------*/
+
+float64 uint64_to_float64(uint64_t a STATUS_PARAM)
+{
+    int exp = 0x43C;
+    int shiftcount;
+
+    if (a == 0) {
+        return float64_zero;
+    }
+
+    shiftcount = countLeadingZeros64(a) - 1;
+    if (shiftcount < 0) {
+        shift64RightJamming(a, -shiftcount, &a);
+    } else {
+        a <<= shiftcount;
+    }
+    return roundAndPackFloat64(0, exp - shiftcount, a STATUS_VAR);
+}
+
+/*----------------------------------------------------------------------------
+| Returns the result of converting the 64-bit unsigned integer `a'
+| to the quadruple-precision floating-point format.  The conversion is performed
+| according to the IEC/IEEE Standard for Binary Floating-Point Arithmetic.
+*----------------------------------------------------------------------------*/
 
 float128 uint64_to_float128(uint64_t a STATUS_PARAM)
 {
