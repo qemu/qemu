@@ -368,19 +368,11 @@ out:
     return ret;
 }
 
-static void eth_cleanup(NetClientState *nc)
-{
-    XgmacState *s = qemu_get_nic_opaque(nc);
-
-    s->nic = NULL;
-}
-
 static NetClientInfo net_xgmac_enet_info = {
     .type = NET_CLIENT_OPTIONS_KIND_NIC,
     .size = sizeof(NICState),
     .can_receive = eth_can_rx,
     .receive = eth_rx,
-    .cleanup = eth_cleanup,
 };
 
 static int xgmac_enet_init(SysBusDevice *sbd)

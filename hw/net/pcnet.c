@@ -1724,11 +1724,6 @@ const VMStateDescription vmstate_pcnet = {
     }
 };
 
-void pcnet_common_cleanup(PCNetState *d)
-{
-    d->nic = NULL;
-}
-
 int pcnet_common_init(DeviceState *dev, PCNetState *s, NetClientInfo *info)
 {
     int i;

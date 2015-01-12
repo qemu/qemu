@@ -1912,12 +1912,6 @@ vmxnet3_receive(NetClientState *nc, const uint8_t *buf, size_t size)
     return bytes_indicated;
 }
 
-static void vmxnet3_cleanup(NetClientState *nc)
-{
-    VMXNET3State *s = qemu_get_nic_opaque(nc);
-    s->nic = NULL;
-}
-
 static void vmxnet3_set_link_status(NetClientState *nc)
 {
     VMXNET3State *s = qemu_get_nic_opaque(nc);
@@ -1937,7 +1931,6 @@ static NetClientInfo net_vmxnet3_info = {
         .size = sizeof(NICState),
         .can_receive = vmxnet3_can_receive,
         .receive = vmxnet3_receive,
-        .cleanup = vmxnet3_cleanup,
         .link_status_changed = vmxnet3_set_link_status,
 };
 

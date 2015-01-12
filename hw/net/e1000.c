@@ -1503,14 +1503,6 @@ e1000_mmio_setup(E1000State *d)
 }
 
 static void
-e1000_cleanup(NetClientState *nc)
-{
-    E1000State *s = qemu_get_nic_opaque(nc);
-
-    s->nic = NULL;
-}
-
-static void
 pci_e1000_uninit(PCIDevice *dev)
 {
     E1000State *d = E1000(dev);
@@ -1528,7 +1520,6 @@ static NetClientInfo net_e1000_info = {
     .can_receive = e1000_can_receive,
     .receive = e1000_receive,
     .receive_iov = e1000_receive_iov,
-    .cleanup = e1000_cleanup,
     .link_status_changed = e1000_set_link_status,
 };
 

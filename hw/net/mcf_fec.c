@@ -439,19 +439,11 @@ static const MemoryRegionOps mcf_fec_ops = {
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
-static void mcf_fec_cleanup(NetClientState *nc)
-{
-    mcf_fec_state *s = qemu_get_nic_opaque(nc);
-
-    g_free(s);
-}
-
 static NetClientInfo net_mcf_fec_info = {
     .type = NET_CLIENT_OPTIONS_KIND_NIC,
     .size = sizeof(NICState),
     .can_receive = mcf_fec_can_receive,
     .receive = mcf_fec_receive,
-    .cleanup = mcf_fec_cleanup,
 };
 
 void mcf_fec_init(MemoryRegion *sysmem, NICInfo *nd,
