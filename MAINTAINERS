@@ -538,6 +538,7 @@ S390 Virtio
 M: Alexander Graf <agraf@suse.de>
 S: Maintained
 F: hw/s390x/s390-*.c
+X: hw/s390x/*pci*.[hc]
 
 S390 Virtio-ccw
 M: Cornelia Huck <cornelia.huck@de.ibm.com>
@@ -548,6 +549,7 @@ F: hw/s390x/s390-virtio-ccw.c
 F: hw/s390x/css.[hc]
 F: hw/s390x/sclp*.[hc]
 F: hw/s390x/ipl*.[hc]
+F: hw/s390x/*pci*.[hc]
 F: include/hw/s390x/
 F: pc-bios/s390-ccw/
 T: git git://github.com/cohuck/qemu virtio-ccw-upstr

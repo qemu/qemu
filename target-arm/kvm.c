@@ -548,3 +548,9 @@ int kvm_arch_irqchip_create(KVMState *s)
 
     return 0;
 }
+
+int kvm_arch_fixup_msi_route(struct kvm_irq_routing_entry *route,
+                             uint64_t address, uint32_t data)
+{
+    return 0;
+}

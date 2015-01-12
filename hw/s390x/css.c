@@ -1299,6 +1299,11 @@ void css_generate_chp_crws(uint8_t cssid, uint8_t chpid)
     /* TODO */
 }
 
+void css_generate_css_crws(uint8_t cssid)
+{
+    css_queue_crw(CRW_RSC_CSS, 0, 0, cssid);
+}
+
 int css_enable_mcsse(void)
 {
     trace_css_enable_facility("mcsse");

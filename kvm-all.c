@@ -1225,6 +1225,10 @@ int kvm_irqchip_add_msi_route(KVMState *s, MSIMessage msg)
     kroute.u.msi.address_lo = (uint32_t)msg.address;
     kroute.u.msi.address_hi = msg.address >> 32;
     kroute.u.msi.data = le32_to_cpu(msg.data);
+    if (kvm_arch_fixup_msi_route(&kroute, msg.address, msg.data)) {
+        kvm_irqchip_release_virq(s, virq);
+        return -EINVAL;
+    }
 
     kvm_add_routing_entry(s, &kroute);
     kvm_irqchip_commit_routes(s);
@@ -1250,6 +1254,9 @@ int kvm_irqchip_update_msi_route(KVMState *s, int virq, MSIMessage msg)
     kroute.u.msi.address_lo = (uint32_t)msg.address;
     kroute.u.msi.address_hi = msg.address >> 32;
     kroute.u.msi.data = le32_to_cpu(msg.data);
+    if (kvm_arch_fixup_msi_route(&kroute, msg.address, msg.data)) {
+        return -EINVAL;
+    }
 
     return kvm_update_routing_entry(s, &kroute);
 }

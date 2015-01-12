@@ -2402,3 +2402,9 @@ out_close:
 error_out:
     return;
 }
+
+int kvm_arch_fixup_msi_route(struct kvm_irq_routing_entry *route,
+                             uint64_t address, uint32_t data)
+{
+    return 0;
+}

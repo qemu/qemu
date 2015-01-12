@@ -8,3 +8,4 @@ obj-y += ipl.o
 obj-y += css.o
 obj-y += s390-virtio-ccw.o
 obj-y += virtio-ccw.o
+obj-y += s390-pci-bus.o s390-pci-inst.o
