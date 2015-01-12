@@ -1,0 +1,37 @@
+QA output created by 116
+
+== truncated header cluster ==
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=134217728
+qemu-io: can't open device TEST_DIR/t.qed: Could not open 'TEST_DIR/t.qed': Invalid argument
+no file open, try 'help open'
+
+== invalid header magic ==
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=134217728
+qemu-io: can't open device TEST_DIR/t.qed: Image not in QED format
+no file open, try 'help open'
+
+== invalid cluster size ==
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=134217728
+qemu-io: can't open device TEST_DIR/t.qed: Could not open 'TEST_DIR/t.qed': Invalid argument
+no file open, try 'help open'
+
+== invalid table size ==
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=134217728
+qemu-io: can't open device TEST_DIR/t.qed: Could not open 'TEST_DIR/t.qed': Invalid argument
+no file open, try 'help open'
+
+== invalid header size ==
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=134217728
+qemu-io: can't open device TEST_DIR/t.qed: Could not open 'TEST_DIR/t.qed': Invalid argument
+no file open, try 'help open'
+
+== invalid L1 table offset ==
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=134217728
+qemu-io: can't open device TEST_DIR/t.qed: Could not open 'TEST_DIR/t.qed': Invalid argument
+no file open, try 'help open'
+
+== invalid image size ==
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=134217728
+qemu-io: can't open device TEST_DIR/t.qed: Could not open 'TEST_DIR/t.qed': Invalid argument
+no file open, try 'help open'
+*** done
