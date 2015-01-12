@@ -24,6 +24,7 @@
 
 #include "block/qapi.h"
 #include "block/block_int.h"
+#include "block/write-threshold.h"
 #include "qmp-commands.h"
 #include "qapi-visit.h"
 #include "qapi/qmp-output-visitor.h"
@@ -88,6 +89,8 @@ BlockDeviceInfo *bdrv_block_device_info(BlockDriverState *bs)
         info->has_iops_size = cfg.op_size;
         info->iops_size = cfg.op_size;
     }
+
+    info->write_threshold = bdrv_write_threshold_get(bs);
 
     return info;
 }

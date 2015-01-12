@@ -412,6 +412,10 @@ struct BlockDriverState {
 
     /* The error object in use for blocking operations on backing_hd */
     Error *backing_blocker;
+
+    /* threshold limit for writes, in bytes. "High water mark". */
+    uint64_t write_threshold_offset;
+    NotifierWithReturn write_threshold_notifier;
 };
 
 
