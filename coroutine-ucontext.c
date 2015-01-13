@@ -25,7 +25,6 @@
 #include <stdlib.h>
 #include <setjmp.h>
 #include <stdint.h>
-#include <pthread.h>
 #include <ucontext.h>
 #include "qemu-common.h"
 #include "block/coroutine_int.h"
@@ -48,15 +47,8 @@ typedef struct {
 /**
  * Per-thread coroutine bookkeeping
  */
-typedef struct {
-    /** Currently executing coroutine */
-    Coroutine *current;
-
-    /** The default coroutine */
-    CoroutineUContext leader;
-} CoroutineThreadState;
-
-static pthread_key_t thread_state_key;
+static __thread CoroutineUContext leader;
+static __thread Coroutine *current;
 
 /*
  * va_args to makecontext() must be type 'int', so passing
@@ -67,36 +59,6 @@ union cc_arg {
     void *p;
     int i[2];
 };
-
-static CoroutineThreadState *coroutine_get_thread_state(void)
-{
-    CoroutineThreadState *s = pthread_getspecific(thread_state_key);
-
-    if (!s) {
-        s = g_malloc0(sizeof(*s));
-        s->current = &s->leader.base;
-        pthread_setspecific(thread_state_key, s);
-    }
-    return s;
-}
-
-static void qemu_coroutine_thread_cleanup(void *opaque)
-{
-    CoroutineThreadState *s = opaque;
-
-    g_free(s);
-}
-
-static void __attribute__((constructor)) coroutine_init(void)
-{
-    int ret;
-
-    ret = pthread_key_create(&thread_state_key, qemu_coroutine_thread_cleanup);
-    if (ret != 0) {
-        fprintf(stderr, "unable to create leader key: %s\n", strerror(errno));
-        abort();
-    }
-}
 
 static void coroutine_trampoline(int i0, int i1)
 {
@@ -193,15 +155,23 @@ void qemu_coroutine_delete(Coroutine *co_)
     g_free(co);
 }
 
-CoroutineAction qemu_coroutine_switch(Coroutine *from_, Coroutine *to_,
-                                      CoroutineAction action)
+/* This function is marked noinline to prevent GCC from inlining it
+ * into coroutine_trampoline(). If we allow it to do that then it
+ * hoists the code to get the address of the TLS variable "current"
+ * out of the while() loop. This is an invalid transformation because
+ * the sigsetjmp() call may be called when running thread A but
+ * return in thread B, and so we might be in a different thread
+ * context each time round the loop.
+ */
+CoroutineAction __attribute__((noinline))
+qemu_coroutine_switch(Coroutine *from_, Coroutine *to_,
+                      CoroutineAction action)
 {
     CoroutineUContext *from = DO_UPCAST(CoroutineUContext, base, from_);
     CoroutineUContext *to = DO_UPCAST(CoroutineUContext, base, to_);
-    CoroutineThreadState *s = coroutine_get_thread_state();
     int ret;
 
-    s->current = to_;
+    current = to_;
 
     ret = sigsetjmp(from->env, 0);
     if (ret == 0) {
@@ -212,14 +182,13 @@ CoroutineAction qemu_coroutine_switch(Coroutine *from_, Coroutine *to_,
 
 Coroutine *qemu_coroutine_self(void)
 {
-    CoroutineThreadState *s = coroutine_get_thread_state();
-
-    return s->current;
+    if (!current) {
+        current = &leader.base;
+    }
+    return current;
 }
 
 bool qemu_in_coroutine(void)
 {
-    CoroutineThreadState *s = pthread_getspecific(thread_state_key);
-
-    return s && s->current->caller;
+    return current && current->caller;
 }

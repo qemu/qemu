@@ -21,7 +21,6 @@ QMP_VERSION
 {"return": {}}
 {"error": {"class": "GenericError", "desc": "Device with id 'disk' already exists"}}
 {"error": {"class": "GenericError", "desc": "Device name 'test-node' conflicts with an existing node name"}}
-main-loop: WARNING: I/O thread spun for 1000 iterations
 {"error": {"class": "GenericError", "desc": "could not open disk image disk2: node-name=disk is conflicting with a device id"}}
 {"error": {"class": "GenericError", "desc": "could not open disk image disk2: Duplicate node name"}}
 {"error": {"class": "GenericError", "desc": "could not open disk image disk3: node-name=disk3 is conflicting with a device id"}}

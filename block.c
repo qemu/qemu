@@ -97,6 +97,10 @@ static QTAILQ_HEAD(, BlockDriverState) graph_bdrv_states =
 static QLIST_HEAD(, BlockDriver) bdrv_drivers =
     QLIST_HEAD_INITIALIZER(bdrv_drivers);
 
+static void bdrv_set_dirty(BlockDriverState *bs, int64_t cur_sector,
+                           int nr_sectors);
+static void bdrv_reset_dirty(BlockDriverState *bs, int64_t cur_sector,
+                             int nr_sectors);
 /* If non-zero, use only whitelisted block drivers */
 static int use_bdrv_whitelist;
 
@@ -303,13 +307,30 @@ void path_combine(char *dest, int dest_size,
     }
 }
 
-void bdrv_get_full_backing_filename(BlockDriverState *bs, char *dest, size_t sz)
+void bdrv_get_full_backing_filename_from_filename(const char *backed,
+                                                  const char *backing,
+                                                  char *dest, size_t sz,
+                                                  Error **errp)
 {
-    if (bs->backing_file[0] == '\0' || path_has_protocol(bs->backing_file)) {
-        pstrcpy(dest, sz, bs->backing_file);
+    if (backing[0] == '\0' || path_has_protocol(backing) ||
+        path_is_absolute(backing))
+    {
+        pstrcpy(dest, sz, backing);
+    } else if (backed[0] == '\0' || strstart(backed, "json:", NULL)) {
+        error_setg(errp, "Cannot use relative backing file names for '%s'",
+                   backed);
     } else {
-        path_combine(dest, sz, bs->filename, bs->backing_file);
+        path_combine(dest, sz, backed, backing);
     }
+}
+
+void bdrv_get_full_backing_filename(BlockDriverState *bs, char *dest, size_t sz,
+                                    Error **errp)
+{
+    char *backed = bs->exact_filename[0] ? bs->exact_filename : bs->filename;
+
+    bdrv_get_full_backing_filename_from_filename(backed, bs->backing_file,
+                                                 dest, sz, errp);
 }
 
 void bdrv_register(BlockDriver *bdrv)
@@ -1179,7 +1200,7 @@ void bdrv_set_backing_hd(BlockDriverState *bs, BlockDriverState *backing_hd)
 
     bdrv_op_block_all(bs->backing_hd, bs->backing_blocker);
     /* Otherwise we won't be able to commit due to check in bdrv_commit */
-    bdrv_op_unblock(bs->backing_hd, BLOCK_OP_TYPE_COMMIT,
+    bdrv_op_unblock(bs->backing_hd, BLOCK_OP_TYPE_COMMIT_TARGET,
                     bs->backing_blocker);
 out:
     bdrv_refresh_limits(bs, NULL);
@@ -1217,7 +1238,14 @@ int bdrv_open_backing_file(BlockDriverState *bs, QDict *options, Error **errp)
         QDECREF(options);
         goto free_exit;
     } else {
-        bdrv_get_full_backing_filename(bs, backing_filename, PATH_MAX);
+        bdrv_get_full_backing_filename(bs, backing_filename, PATH_MAX,
+                                       &local_err);
+        if (local_err) {
+            ret = -EINVAL;
+            error_propagate(errp, local_err);
+            QDECREF(options);
+            goto free_exit;
+        }
     }
 
     if (!bs->drv || !bs->drv->supports_backing) {
@@ -2188,8 +2216,8 @@ int bdrv_commit(BlockDriverState *bs)
         return -ENOTSUP;
     }
 
-    if (bdrv_op_is_blocked(bs, BLOCK_OP_TYPE_COMMIT, NULL) ||
-        bdrv_op_is_blocked(bs->backing_hd, BLOCK_OP_TYPE_COMMIT, NULL)) {
+    if (bdrv_op_is_blocked(bs, BLOCK_OP_TYPE_COMMIT_SOURCE, NULL) ||
+        bdrv_op_is_blocked(bs->backing_hd, BLOCK_OP_TYPE_COMMIT_TARGET, NULL)) {
         return -EBUSY;
     }
 
@@ -3034,18 +3062,16 @@ static int coroutine_fn bdrv_aligned_preadv(BlockDriverState *bs,
 
         max_nb_sectors = ROUND_UP(MAX(0, total_sectors - sector_num),
                                   align >> BDRV_SECTOR_BITS);
-        if (max_nb_sectors > 0) {
+        if (nb_sectors < max_nb_sectors) {
+            ret = drv->bdrv_co_readv(bs, sector_num, nb_sectors, qiov);
+        } else if (max_nb_sectors > 0) {
             QEMUIOVector local_qiov;
-            size_t local_sectors;
-
-            max_nb_sectors = MIN(max_nb_sectors, SIZE_MAX / BDRV_SECTOR_BITS);
-            local_sectors = MIN(max_nb_sectors, nb_sectors);
 
             qemu_iovec_init(&local_qiov, qiov->niov);
             qemu_iovec_concat(&local_qiov, qiov, 0,
-                              local_sectors * BDRV_SECTOR_SIZE);
+                              max_nb_sectors * BDRV_SECTOR_SIZE);
 
-            ret = drv->bdrv_co_readv(bs, sector_num, local_sectors,
+            ret = drv->bdrv_co_readv(bs, sector_num, max_nb_sectors,
                                      &local_qiov);
 
             qemu_iovec_destroy(&local_qiov);
@@ -3218,6 +3244,9 @@ static int coroutine_fn bdrv_co_do_write_zeroes(BlockDriverState *bs,
 
         if (ret == -ENOTSUP) {
             /* Fall back to bounce buffer if write zeroes is unsupported */
+            int max_xfer_len = MIN_NON_ZERO(bs->bl.max_transfer_length,
+                                            MAX_WRITE_ZEROES_DEFAULT);
+            num = MIN(num, max_xfer_len);
             iov.iov_len = num * BDRV_SECTOR_SIZE;
             if (iov.iov_base == NULL) {
                 iov.iov_base = qemu_try_blockalign(bs, num * BDRV_SECTOR_SIZE);
@@ -3234,7 +3263,7 @@ static int coroutine_fn bdrv_co_do_write_zeroes(BlockDriverState *bs,
             /* Keep bounce buffer around if it is big enough for all
              * all future requests.
              */
-            if (num < max_write_zeroes) {
+            if (num < max_xfer_len) {
                 qemu_vfree(iov.iov_base);
                 iov.iov_base = NULL;
             }
@@ -5389,8 +5418,20 @@ void bdrv_dirty_iter_init(BlockDriverState *bs,
     hbitmap_iter_init(hbi, bitmap->bitmap, 0);
 }
 
-void bdrv_set_dirty(BlockDriverState *bs, int64_t cur_sector,
-                    int nr_sectors)
+void bdrv_set_dirty_bitmap(BlockDriverState *bs, BdrvDirtyBitmap *bitmap,
+                           int64_t cur_sector, int nr_sectors)
+{
+    hbitmap_set(bitmap->bitmap, cur_sector, nr_sectors);
+}
+
+void bdrv_reset_dirty_bitmap(BlockDriverState *bs, BdrvDirtyBitmap *bitmap,
+                             int64_t cur_sector, int nr_sectors)
+{
+    hbitmap_reset(bitmap->bitmap, cur_sector, nr_sectors);
+}
+
+static void bdrv_set_dirty(BlockDriverState *bs, int64_t cur_sector,
+                           int nr_sectors)
 {
     BdrvDirtyBitmap *bitmap;
     QLIST_FOREACH(bitmap, &bs->dirty_bitmaps, list) {
@@ -5398,7 +5439,8 @@ void bdrv_set_dirty(BlockDriverState *bs, int64_t cur_sector,
     }
 }
 
-void bdrv_reset_dirty(BlockDriverState *bs, int64_t cur_sector, int nr_sectors)
+static void bdrv_reset_dirty(BlockDriverState *bs, int64_t cur_sector,
+                             int nr_sectors)
 {
     BdrvDirtyBitmap *bitmap;
     QLIST_FOREACH(bitmap, &bs->dirty_bitmaps, list) {
@@ -5637,16 +5679,26 @@ void bdrv_img_create(const char *filename, const char *fmt,
     if (size == -1) {
         if (backing_file) {
             BlockDriverState *bs;
+            char *full_backing = g_new0(char, PATH_MAX);
             int64_t size;
             int back_flags;
+
+            bdrv_get_full_backing_filename_from_filename(filename, backing_file,
+                                                         full_backing, PATH_MAX,
+                                                         &local_err);
+            if (local_err) {
+                g_free(full_backing);
+                goto out;
+            }
 
             /* backing files always opened read-only */
             back_flags =
                 flags & ~(BDRV_O_RDWR | BDRV_O_SNAPSHOT | BDRV_O_NO_BACKING);
 
             bs = NULL;
-            ret = bdrv_open(&bs, backing_file, NULL, NULL, back_flags,
+            ret = bdrv_open(&bs, full_backing, NULL, NULL, back_flags,
                             backing_drv, &local_err);
+            g_free(full_backing);
             if (ret < 0) {
                 goto out;
             }

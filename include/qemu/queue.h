@@ -191,8 +191,19 @@ struct {                                                                \
 } while (/*CONSTCOND*/0)
 
 #define QSLIST_INSERT_HEAD(head, elm, field) do {                        \
-        (elm)->field.sle_next = (head)->slh_first;                      \
-        (head)->slh_first = (elm);                                      \
+        (elm)->field.sle_next = (head)->slh_first;                       \
+        (head)->slh_first = (elm);                                       \
+} while (/*CONSTCOND*/0)
+
+#define QSLIST_INSERT_HEAD_ATOMIC(head, elm, field) do {                   \
+        do {                                                               \
+            (elm)->field.sle_next = (head)->slh_first;                     \
+        } while (atomic_cmpxchg(&(head)->slh_first, (elm)->field.sle_next, \
+                               (elm)) != (elm)->field.sle_next);           \
+} while (/*CONSTCOND*/0)
+
+#define QSLIST_MOVE_ATOMIC(dest, src) do {                               \
+        (dest)->slh_first = atomic_xchg(&(src)->slh_first, NULL);        \
 } while (/*CONSTCOND*/0)
 
 #define QSLIST_REMOVE_HEAD(head, field) do {                             \

@@ -214,7 +214,12 @@ void bdrv_query_image_info(BlockDriverState *bs,
         info->backing_filename = g_strdup(backing_filename);
         info->has_backing_filename = true;
         bdrv_get_full_backing_filename(bs, backing_filename2,
-                                       sizeof(backing_filename2));
+                                       sizeof(backing_filename2), &err);
+        if (err) {
+            error_propagate(errp, err);
+            qapi_free_ImageInfo(info);
+            return;
+        }
 
         if (strcmp(backing_filename, backing_filename2) != 0) {
             info->full_backing_filename =

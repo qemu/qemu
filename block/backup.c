@@ -360,6 +360,7 @@ static void coroutine_fn backup_run(void *opaque)
     hbitmap_free(job->bitmap);
 
     bdrv_iostatus_disable(target);
+    bdrv_op_unblock_all(target, job->common.blocker);
 
     data = g_malloc(sizeof(*data));
     data->ret = ret;
@@ -379,10 +380,35 @@ void backup_start(BlockDriverState *bs, BlockDriverState *target,
     assert(target);
     assert(cb);
 
+    if (bs == target) {
+        error_setg(errp, "Source and target cannot be the same");
+        return;
+    }
+
     if ((on_source_error == BLOCKDEV_ON_ERROR_STOP ||
          on_source_error == BLOCKDEV_ON_ERROR_ENOSPC) &&
         !bdrv_iostatus_is_enabled(bs)) {
         error_set(errp, QERR_INVALID_PARAMETER, "on-source-error");
+        return;
+    }
+
+    if (!bdrv_is_inserted(bs)) {
+        error_setg(errp, "Device is not inserted: %s",
+                   bdrv_get_device_name(bs));
+        return;
+    }
+
+    if (!bdrv_is_inserted(target)) {
+        error_setg(errp, "Device is not inserted: %s",
+                   bdrv_get_device_name(target));
+        return;
+    }
+
+    if (bdrv_op_is_blocked(bs, BLOCK_OP_TYPE_BACKUP_SOURCE, errp)) {
+        return;
+    }
+
+    if (bdrv_op_is_blocked(target, BLOCK_OP_TYPE_BACKUP_TARGET, errp)) {
         return;
     }
 
@@ -398,6 +424,8 @@ void backup_start(BlockDriverState *bs, BlockDriverState *target,
     if (!job) {
         return;
     }
+
+    bdrv_op_block_all(target, job->common.blocker);
 
     job->on_source_error = on_source_error;
     job->on_target_error = on_target_error;

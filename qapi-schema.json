@@ -1254,11 +1254,19 @@
 #
 # A discriminated record of operations that can be performed with
 # @transaction.
+#
+# Since 1.1
+#
+# drive-backup since 1.6
+# abort since 1.6
+# blockdev-snapshot-internal-sync since 1.7
+# blockdev-backup since 2.3
 ##
 { 'union': 'TransactionAction',
   'data': {
        'blockdev-snapshot-sync': 'BlockdevSnapshot',
        'drive-backup': 'DriveBackup',
+       'blockdev-backup': 'BlockdevBackup',
        'abort': 'Abort',
        'blockdev-snapshot-internal-sync': 'BlockdevSnapshotInternal'
    } }

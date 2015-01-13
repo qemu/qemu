@@ -337,7 +337,7 @@ static void perf_cost(void)
                    "%luns per coroutine",
                    maxcycles,
                    duration, ops,
-                   (unsigned long)(1000000000 * duration) / maxcycles);
+                   (unsigned long)(1000000000.0 * duration / maxcycles));
 }
 
 int main(int argc, char **argv)

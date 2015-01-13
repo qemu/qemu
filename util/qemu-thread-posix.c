@@ -26,6 +26,7 @@
 #endif
 #include "qemu/thread.h"
 #include "qemu/atomic.h"
+#include "qemu/notify.h"
 
 static bool name_threads;
 
@@ -400,6 +401,42 @@ void qemu_event_wait(QemuEvent *ev)
         futex_wait(ev, EV_BUSY);
     }
 }
+
+static pthread_key_t exit_key;
+
+union NotifierThreadData {
+    void *ptr;
+    NotifierList list;
+};
+QEMU_BUILD_BUG_ON(sizeof(union NotifierThreadData) != sizeof(void *));
+
+void qemu_thread_atexit_add(Notifier *notifier)
+{
+    union NotifierThreadData ntd;
+    ntd.ptr = pthread_getspecific(exit_key);
+    notifier_list_add(&ntd.list, notifier);
+    pthread_setspecific(exit_key, ntd.ptr);
+}
+
+void qemu_thread_atexit_remove(Notifier *notifier)
+{
+    union NotifierThreadData ntd;
+    ntd.ptr = pthread_getspecific(exit_key);
+    notifier_remove(notifier);
+    pthread_setspecific(exit_key, ntd.ptr);
+}
+
+static void qemu_thread_atexit_run(void *arg)
+{
+    union NotifierThreadData ntd = { .ptr = arg };
+    notifier_list_notify(&ntd.list, NULL);
+}
+
+static void __attribute__((constructor)) qemu_thread_atexit_init(void)
+{
+    pthread_key_create(&exit_key, qemu_thread_atexit_run);
+}
+
 
 /* Attempt to set the threads name; note that this is for debug, so
  * we're not going to fail if we can't set it.
