@@ -5081,7 +5081,8 @@ static void handle_qmp_command(JSONMessageParser *parser, QList *tokens)
     trace_handle_qmp_command(mon, cmd_name);
     cmd = qmp_find_cmd(cmd_name);
     if (!cmd || invalid_qmp_mode(mon, cmd)) {
-        qerror_report(QERR_COMMAND_NOT_FOUND, cmd_name);
+        qerror_report(ERROR_CLASS_COMMAND_NOT_FOUND,
+                      "The command %s has not been found", cmd_name);
         goto err_out;
     }
 

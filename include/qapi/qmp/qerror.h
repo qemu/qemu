@@ -52,9 +52,6 @@ void qerror_report_err(Error *err);
 #define QERR_BUS_NOT_FOUND \
     ERROR_CLASS_GENERIC_ERROR, "Bus '%s' not found"
 
-#define QERR_COMMAND_NOT_FOUND \
-    ERROR_CLASS_COMMAND_NOT_FOUND, "The command %s has not been found"
-
 #define QERR_DEVICE_ENCRYPTED \
     ERROR_CLASS_DEVICE_ENCRYPTED, "'%s' (%s) is encrypted"
 
