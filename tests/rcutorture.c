@@ -255,9 +255,11 @@ static void *rcu_read_stress_test(void *arg)
         if (p->mbtest == 0) {
             n_mberror++;
         }
+        rcu_read_lock();
         for (i = 0; i < 100; i++) {
             garbage++;
         }
+        rcu_read_unlock();
         pc = p->pipe_count;
         rcu_read_unlock();
         if ((pc > RCU_STRESS_PIPE_LEN) || (pc < 0)) {

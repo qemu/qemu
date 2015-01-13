@@ -68,6 +68,9 @@ struct rcu_reader_data {
     unsigned long ctr;
     bool waiting;
 
+    /* Data used by reader only */
+    unsigned depth;
+
     /* Data used for registry, protected by rcu_gp_lock */
     QLIST_ENTRY(rcu_reader_data) node;
 };
@@ -77,8 +80,13 @@ extern __thread struct rcu_reader_data rcu_reader;
 static inline void rcu_read_lock(void)
 {
     struct rcu_reader_data *p_rcu_reader = &rcu_reader;
+    unsigned ctr;
 
-    unsigned ctr = atomic_read(&rcu_gp_ctr);
+    if (p_rcu_reader->depth++ > 0) {
+        return;
+    }
+
+    ctr = atomic_read(&rcu_gp_ctr);
     atomic_xchg(&p_rcu_reader->ctr, ctr);
     if (atomic_read(&p_rcu_reader->waiting)) {
         atomic_set(&p_rcu_reader->waiting, false);
@@ -89,6 +97,11 @@ static inline void rcu_read_lock(void)
 static inline void rcu_read_unlock(void)
 {
     struct rcu_reader_data *p_rcu_reader = &rcu_reader;
+
+    assert(p_rcu_reader->depth != 0);
+    if (--p_rcu_reader->depth > 0) {
+        return;
+    }
 
     atomic_xchg(&p_rcu_reader->ctr, 0);
     if (atomic_read(&p_rcu_reader->waiting)) {
