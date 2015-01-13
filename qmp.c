@@ -287,9 +287,7 @@ void qmp_set_password(const char *protocol, const char *password,
     }
 
     if (strcmp(protocol, "spice") == 0) {
-        if (!using_spice) {
-            /* correct one? spice isn't a device ,,, */
-            error_set(errp, QERR_DEVICE_NOT_ACTIVE, "spice");
+        if (!qemu_using_spice(errp)) {
             return;
         }
         rc = qemu_spice_set_passwd(password, fail_if_connected,
@@ -335,9 +333,7 @@ void qmp_expire_password(const char *protocol, const char *whenstr,
     }
 
     if (strcmp(protocol, "spice") == 0) {
-        if (!using_spice) {
-            /* correct one? spice isn't a device ,,, */
-            error_set(errp, QERR_DEVICE_NOT_ACTIVE, "spice");
+        if (!qemu_using_spice(errp)) {
             return;
         }
         rc = qemu_spice_set_pw_expire(when);
@@ -575,8 +571,7 @@ void qmp_add_client(const char *protocol, const char *fdname,
     }
 
     if (strcmp(protocol, "spice") == 0) {
-        if (!using_spice) {
-            error_set(errp, QERR_DEVICE_NOT_ACTIVE, "spice");
+        if (!qemu_using_spice(errp)) {
             close(fd);
             return;
         }

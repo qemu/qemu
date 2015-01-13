@@ -1095,11 +1095,12 @@ static int client_migrate_info(Monitor *mon, const QDict *qdict,
     const char *subject  = qdict_get_try_str(qdict, "cert-subject");
     int port             = qdict_get_try_int(qdict, "port", -1);
     int tls_port         = qdict_get_try_int(qdict, "tls-port", -1);
+    Error *err;
     int ret;
 
     if (strcmp(protocol, "spice") == 0) {
-        if (!using_spice) {
-            qerror_report(QERR_DEVICE_NOT_ACTIVE, "spice");
+        if (!qemu_using_spice(&err)) {
+            qerror_report_err(err);
             return -1;
         }
 
