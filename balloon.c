@@ -39,11 +39,13 @@ static void *balloon_opaque;
 static bool have_ballon(Error **errp)
 {
     if (kvm_enabled() && !kvm_has_sync_mmu()) {
-        error_set(errp, QERR_KVM_MISSING_CAP, "synchronous MMU", "balloon");
+        error_set(errp, ERROR_CLASS_KVM_MISSING_CAP,
+                  "Using KVM without synchronous MMU, balloon unavailable");
         return false;
     }
     if (!balloon_event_fn) {
-        error_set(errp, QERR_DEVICE_NOT_ACTIVE, "balloon");
+        error_set(errp, ERROR_CLASS_DEVICE_NOT_ACTIVE,
+                  "No balloon device has been activated");
         return false;
     }
     return true;

@@ -70,9 +70,6 @@ void qerror_report_err(Error *err);
 #define QERR_DEVICE_NO_HOTPLUG \
     ERROR_CLASS_GENERIC_ERROR, "Device '%s' does not support hotplugging"
 
-#define QERR_DEVICE_NOT_ACTIVE \
-    ERROR_CLASS_DEVICE_NOT_ACTIVE, "No %s device has been activated"
-
 #define QERR_DEVICE_NOT_ENCRYPTED \
     ERROR_CLASS_GENERIC_ERROR, "Device '%s' is not encrypted"
 
@@ -108,9 +105,6 @@ void qerror_report_err(Error *err);
 
 #define QERR_JSON_PARSING \
     ERROR_CLASS_GENERIC_ERROR, "Invalid JSON syntax"
-
-#define QERR_KVM_MISSING_CAP \
-    ERROR_CLASS_KVM_MISSING_CAP, "Using KVM without %s, %s unavailable"
 
 #define QERR_MIGRATION_ACTIVE \
     ERROR_CLASS_GENERIC_ERROR, "There's a migration process in progress"
