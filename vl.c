@@ -2195,6 +2195,7 @@ static int mon_init_func(QemuOpts *opts, void *opaque)
 static void monitor_parse(const char *optarg, const char *mode, bool pretty)
 {
     static int monitor_device_index = 0;
+    Error *local_err = NULL;
     QemuOpts *opts;
     const char *p;
     char label[32];
@@ -2215,9 +2216,10 @@ static void monitor_parse(const char *optarg, const char *mode, bool pretty)
         }
     }
 
-    opts = qemu_opts_create(qemu_find_opts("mon"), label, 1, NULL);
+    opts = qemu_opts_create(qemu_find_opts("mon"), label, 1, &local_err);
     if (!opts) {
-        fprintf(stderr, "duplicate chardev: %s\n", label);
+        error_report("%s", error_get_pretty(local_err));
+        error_free(local_err);
         exit(1);
     }
     qemu_opt_set(opts, "mode", mode);
