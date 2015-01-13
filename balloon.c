@@ -62,25 +62,6 @@ void qemu_remove_balloon_handler(void *opaque)
     balloon_opaque = NULL;
 }
 
-static int qemu_balloon(ram_addr_t target)
-{
-    if (!balloon_event_fn) {
-        return 0;
-    }
-    trace_balloon_event(balloon_opaque, target);
-    balloon_event_fn(balloon_opaque, target);
-    return 1;
-}
-
-static int qemu_balloon_status(BalloonInfo *info)
-{
-    if (!balloon_stat_fn) {
-        return 0;
-    }
-    balloon_stat_fn(balloon_opaque, info);
-    return 1;
-}
-
 BalloonInfo *qmp_query_balloon(Error **errp)
 {
     BalloonInfo *info;
@@ -90,30 +71,33 @@ BalloonInfo *qmp_query_balloon(Error **errp)
         return NULL;
     }
 
-    info = g_malloc0(sizeof(*info));
-
-    if (qemu_balloon_status(info) == 0) {
+    if (!balloon_stat_fn) {
         error_set(errp, QERR_DEVICE_NOT_ACTIVE, "balloon");
-        qapi_free_BalloonInfo(info);
         return NULL;
     }
 
+    info = g_malloc0(sizeof(*info));
+    balloon_stat_fn(balloon_opaque, info);
     return info;
 }
 
-void qmp_balloon(int64_t value, Error **errp)
+void qmp_balloon(int64_t target, Error **errp)
 {
     if (kvm_enabled() && !kvm_has_sync_mmu()) {
         error_set(errp, QERR_KVM_MISSING_CAP, "synchronous MMU", "balloon");
         return;
     }
 
-    if (value <= 0) {
+    if (target <= 0) {
         error_set(errp, QERR_INVALID_PARAMETER_VALUE, "target", "a size");
         return;
     }
     
-    if (qemu_balloon(value) == 0) {
+    if (!balloon_event_fn) {
         error_set(errp, QERR_DEVICE_NOT_ACTIVE, "balloon");
+        return;
     }
+
+    trace_balloon_event(balloon_opaque, target);
+    balloon_event_fn(balloon_opaque, target);
 }
