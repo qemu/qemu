@@ -535,6 +535,7 @@ out:
     qapi_free_VncInfo(info);
 }
 
+#ifdef CONFIG_SPICE
 void hmp_info_spice(Monitor *mon, const QDict *qdict)
 {
     SpiceChannelList *chan;
@@ -581,6 +582,7 @@ void hmp_info_spice(Monitor *mon, const QDict *qdict)
 out:
     qapi_free_SpiceInfo(info);
 }
+#endif
 
 void hmp_info_balloon(Monitor *mon, const QDict *qdict)
 {
