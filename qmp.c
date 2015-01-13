@@ -137,14 +137,18 @@ VncInfo *qmp_query_vnc(Error **errp)
 #endif
 
 #ifndef CONFIG_SPICE
-/* If SPICE support is enabled, the "true" query-spice command is
-   defined in the SPICE subsystem. Also note that we use a small
-   trick to maintain query-spice's original behavior, which is not
-   to be available in the namespace if SPICE is not compiled in */
+/*
+ * qmp-commands.hx ensures that QMP command query-spice exists only
+ * #ifdef CONFIG_SPICE.  Necessary for an accurate query-commands
+ * result.  However, the QAPI schema is blissfully unaware of that,
+ * and the QAPI code generator happily generates a dead
+ * qmp_marshal_input_query_spice() that calls qmp_query_spice().
+ * Provide it one, or else linking fails.
+ * FIXME Educate the QAPI schema on CONFIG_SPICE.
+ */
 SpiceInfo *qmp_query_spice(Error **errp)
 {
-    error_set(errp, QERR_COMMAND_NOT_FOUND, "query-spice");
-    return NULL;
+    abort();
 };
 #endif
 
