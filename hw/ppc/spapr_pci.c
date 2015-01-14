@@ -501,6 +501,12 @@ static void spapr_phb_realize(DeviceState *dev, Error **errp)
             return;
         }
 
+        if (sphb->index > SPAPR_PCI_MAX_INDEX) {
+            error_setg(errp, "\"index\" for PAPR PHB is too large (max %u)",
+                       SPAPR_PCI_MAX_INDEX);
+            return;
+        }
+
         sphb->buid = SPAPR_PCI_BASE_BUID + sphb->index;
         sphb->dma_liobn = SPAPR_PCI_BASE_LIOBN + sphb->index;
 
@@ -669,7 +675,7 @@ static void spapr_phb_reset(DeviceState *qdev)
 }
 
 static Property spapr_phb_properties[] = {
-    DEFINE_PROP_INT32("index", sPAPRPHBState, index, -1),
+    DEFINE_PROP_UINT32("index", sPAPRPHBState, index, -1),
     DEFINE_PROP_UINT64("buid", sPAPRPHBState, buid, -1),
     DEFINE_PROP_UINT32("liobn", sPAPRPHBState, dma_liobn, -1),
     DEFINE_PROP_UINT64("mem_win_addr", sPAPRPHBState, mem_win_addr, -1),

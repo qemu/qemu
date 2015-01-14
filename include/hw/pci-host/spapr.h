@@ -64,7 +64,7 @@ typedef struct spapr_pci_msi_mig {
 struct sPAPRPHBState {
     PCIHostState parent_obj;
 
-    int32_t index;
+    uint32_t index;
     uint64_t buid;
     char *dtbusname;
 
@@ -93,6 +93,8 @@ struct sPAPRPHBVFIOState {
 
     int32_t iommugroupid;
 };
+
+#define SPAPR_PCI_MAX_INDEX          255
 
 #define SPAPR_PCI_BASE_BUID          0x800000020000000ULL
 
