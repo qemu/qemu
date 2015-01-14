@@ -406,7 +406,7 @@ static void pc_compat_1_3(MachineState *machine)
 static void pc_compat_1_2(MachineState *machine)
 {
     pc_compat_1_3(machine);
-    x86_cpu_compat_kvm_no_autoenable(FEAT_KVM, KVM_FEATURE_PV_EOI);
+    x86_cpu_compat_kvm_no_autoenable(FEAT_KVM, 1 << KVM_FEATURE_PV_EOI);
 }
 
 static void pc_init_pci_2_2(MachineState *machine)
@@ -483,7 +483,7 @@ static void pc_init_isa(MachineState *machine)
     if (!machine->cpu_model) {
         machine->cpu_model = "486";
     }
-    x86_cpu_compat_kvm_no_autoenable(FEAT_KVM, KVM_FEATURE_PV_EOI);
+    x86_cpu_compat_kvm_no_autoenable(FEAT_KVM, 1 << KVM_FEATURE_PV_EOI);
     enable_compat_apic_id_mode();
     pc_init1(machine, 0, 1);
 }
