@@ -1373,6 +1373,28 @@ static void sigp_stop(void *arg)
     si->cc = SIGP_CC_ORDER_CODE_ACCEPTED;
 }
 
+#define ADTL_SAVE_AREA_SIZE 1024
+static int kvm_s390_store_adtl_status(S390CPU *cpu, hwaddr addr)
+{
+    void *mem;
+    hwaddr len = ADTL_SAVE_AREA_SIZE;
+
+    mem = cpu_physical_memory_map(addr, &len, 1);
+    if (!mem) {
+        return -EFAULT;
+    }
+    if (len != ADTL_SAVE_AREA_SIZE) {
+        cpu_physical_memory_unmap(mem, len, 1, 0);
+        return -EFAULT;
+    }
+
+    memcpy(mem, &cpu->env.vregs, 512);
+
+    cpu_physical_memory_unmap(mem, len, 1, len);
+
+    return 0;
+}
+
 #define KVM_S390_STORE_STATUS_DEF_ADDR offsetof(LowCore, floating_pt_save_area)
 #define SAVE_AREA_SIZE 512
 static int kvm_s390_store_status(S390CPU *cpu, hwaddr addr, bool store_arch)
@@ -1455,6 +1477,36 @@ static void sigp_store_status_at_address(void *arg)
     cpu_synchronize_state(CPU(si->cpu));
 
     if (kvm_s390_store_status(si->cpu, address, false)) {
+        set_sigp_status(si, SIGP_STAT_INVALID_PARAMETER);
+        return;
+    }
+    si->cc = SIGP_CC_ORDER_CODE_ACCEPTED;
+}
+
+static void sigp_store_adtl_status(void *arg)
+{
+    SigpInfo *si = arg;
+
+    if (!kvm_check_extension(kvm_state, KVM_CAP_S390_VECTOR_REGISTERS)) {
+        set_sigp_status(si, SIGP_STAT_INVALID_ORDER);
+        return;
+    }
+
+    /* cpu has to be stopped */
+    if (s390_cpu_get_state(si->cpu) != CPU_STATE_STOPPED) {
+        set_sigp_status(si, SIGP_STAT_INCORRECT_STATE);
+        return;
+    }
+
+    /* parameter must be aligned to 1024-byte boundary */
+    if (si->param & 0x3ff) {
+        set_sigp_status(si, SIGP_STAT_INVALID_PARAMETER);
+        return;
+    }
+
+    cpu_synchronize_state(CPU(si->cpu));
+
+    if (kvm_s390_store_adtl_status(si->cpu, si->param)) {
         set_sigp_status(si, SIGP_STAT_INVALID_PARAMETER);
         return;
     }
@@ -1577,6 +1629,9 @@ static int handle_sigp_single_dst(S390CPU *dst_cpu, uint8_t order,
         break;
     case SIGP_STORE_STATUS_ADDR:
         run_on_cpu(CPU(dst_cpu), sigp_store_status_at_address, &si);
+        break;
+    case SIGP_STORE_ADTL_STATUS:
+        run_on_cpu(CPU(dst_cpu), sigp_store_adtl_status, &si);
         break;
     case SIGP_SET_PREFIX:
         run_on_cpu(CPU(dst_cpu), sigp_set_prefix, &si);
