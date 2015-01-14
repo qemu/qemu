@@ -314,7 +314,7 @@ static inline void aio_timer_init(AioContext *ctx,
                                   int scale,
                                   QEMUTimerCB *cb, void *opaque)
 {
-    timer_init(ts, ctx->tlg.tl[type], scale, cb, opaque);
+    timer_init_tl(ts, ctx->tlg.tl[type], scale, cb, opaque);
 }
 
 /**

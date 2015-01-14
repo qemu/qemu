@@ -331,9 +331,9 @@ int qemu_poll_ns(GPollFD *fds, guint nfds, int64_t timeout)
 }
 
 
-void timer_init(QEMUTimer *ts,
-                QEMUTimerList *timer_list, int scale,
-                QEMUTimerCB *cb, void *opaque)
+void timer_init_tl(QEMUTimer *ts,
+                   QEMUTimerList *timer_list, int scale,
+                   QEMUTimerCB *cb, void *opaque)
 {
     ts->timer_list = timer_list;
     ts->cb = cb;

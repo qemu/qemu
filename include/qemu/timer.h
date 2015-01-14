@@ -410,7 +410,7 @@ int64_t timerlistgroup_deadline_ns(QEMUTimerListGroup *tlg);
  */
 
 /**
- * timer_init:
+ * timer_init_tl:
  * @ts: the timer to be initialised
  * @timer_list: the timer list to attach the timer to
  * @scale: the scale value for the timer
@@ -423,9 +423,9 @@ int64_t timerlistgroup_deadline_ns(QEMUTimerListGroup *tlg);
  * You need not call an explicit deinit call. Simply make
  * sure it is not on a list with timer_del.
  */
-void timer_init(QEMUTimer *ts,
-                QEMUTimerList *timer_list, int scale,
-                QEMUTimerCB *cb, void *opaque);
+void timer_init_tl(QEMUTimer *ts,
+                   QEMUTimerList *timer_list, int scale,
+                   QEMUTimerCB *cb, void *opaque);
 
 /**
  * timer_new_tl:
@@ -448,7 +448,7 @@ static inline QEMUTimer *timer_new_tl(QEMUTimerList *timer_list,
                                       void *opaque)
 {
     QEMUTimer *ts = g_malloc0(sizeof(QEMUTimer));
-    timer_init(ts, timer_list, scale, cb, opaque);
+    timer_init_tl(ts, timer_list, scale, cb, opaque);
     return ts;
 }
 

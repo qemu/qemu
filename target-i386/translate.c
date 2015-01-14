@@ -2621,10 +2621,10 @@ static inline void gen_sto_env_A0(DisasContext *s, int offset)
 
 static inline void gen_op_movo(int d_offset, int s_offset)
 {
-    tcg_gen_ld_i64(cpu_tmp1_i64, cpu_env, s_offset);
-    tcg_gen_st_i64(cpu_tmp1_i64, cpu_env, d_offset);
-    tcg_gen_ld_i64(cpu_tmp1_i64, cpu_env, s_offset + 8);
-    tcg_gen_st_i64(cpu_tmp1_i64, cpu_env, d_offset + 8);
+    tcg_gen_ld_i64(cpu_tmp1_i64, cpu_env, s_offset + offsetof(XMMReg, XMM_Q(0)));
+    tcg_gen_st_i64(cpu_tmp1_i64, cpu_env, d_offset + offsetof(XMMReg, XMM_Q(0)));
+    tcg_gen_ld_i64(cpu_tmp1_i64, cpu_env, s_offset + offsetof(XMMReg, XMM_Q(1)));
+    tcg_gen_st_i64(cpu_tmp1_i64, cpu_env, d_offset + offsetof(XMMReg, XMM_Q(1)));
 }
 
 static inline void gen_op_movq(int d_offset, int s_offset)
@@ -3074,7 +3074,8 @@ static void gen_sse(CPUX86State *env, DisasContext *s, int b,
                 goto illegal_op;
             gen_lea_modrm(env, s, modrm);
             if (b1 & 1) {
-                gen_stq_env_A0(s, offsetof(CPUX86State, xmm_regs[reg]));
+                gen_stq_env_A0(s, offsetof(CPUX86State,
+                                           xmm_regs[reg].XMM_Q(0)));
             } else {
                 tcg_gen_ld32u_tl(cpu_T[0], cpu_env, offsetof(CPUX86State,
                     xmm_regs[reg].XMM_L(0)));

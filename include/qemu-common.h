@@ -370,6 +370,12 @@ static inline uint8_t from_bcd(uint8_t val)
 }
 
 /* compute with 96 bit intermediate result: (a*b)/c */
+#ifdef CONFIG_INT128
+static inline uint64_t muldiv64(uint64_t a, uint32_t b, uint32_t c)
+{
+    return (__int128_t)a * b / c;
+}
+#else
 static inline uint64_t muldiv64(uint64_t a, uint32_t b, uint32_t c)
 {
     union {
@@ -392,6 +398,7 @@ static inline uint64_t muldiv64(uint64_t a, uint32_t b, uint32_t c)
     res.l.low = (((rh % c) << 32) + (rl & 0xffffffff)) / c;
     return res.ll;
 }
+#endif
 
 /* Round number down to multiple */
 #define QEMU_ALIGN_DOWN(n, m) ((n) / (m) * (m))
