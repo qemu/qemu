@@ -438,9 +438,6 @@ void qemu_spice_display_switch(SimpleSpiceDisplay *ssd,
     qemu_mutex_lock(&ssd->lock);
     need_destroy = (ssd->ds != NULL);
     ssd->ds = surface;
-    ssd->surface = pixman_image_ref(ssd->ds->image);
-    ssd->mirror  = qemu_pixman_mirror_create(ssd->ds->format,
-                                             ssd->ds->image);
     while ((update = QTAILQ_FIRST(&ssd->updates)) != NULL) {
         QTAILQ_REMOVE(&ssd->updates, update, next);
         qemu_spice_destroy_update(ssd, update);
@@ -450,6 +447,9 @@ void qemu_spice_display_switch(SimpleSpiceDisplay *ssd,
         qemu_spice_destroy_host_primary(ssd);
     }
     if (ssd->ds) {
+        ssd->surface = pixman_image_ref(ssd->ds->image);
+        ssd->mirror  = qemu_pixman_mirror_create(ssd->ds->format,
+                                                 ssd->ds->image);
         qemu_spice_create_host_primary(ssd);
     }
 
