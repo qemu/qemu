@@ -141,6 +141,12 @@ void cpu_resume_from_signal(CPUState *cpu, void *puc)
     cpu->exception_index = -1;
     siglongjmp(cpu->jmp_env, 1);
 }
+
+void cpu_reload_memory_map(CPUState *cpu)
+{
+    /* The TLB is protected by the iothread lock.  */
+    tlb_flush(cpu, 1);
+}
 #endif
 
 /* Execute a TB, and fix up the CPU state afterwards if necessary */
