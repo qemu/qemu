@@ -22,8 +22,6 @@
 #include "qemu-common.h"
 #include "libqtest.h"
 
-static const char test_image[] = "/tmp/qtest.XXXXXX";
-
 static char *create_test_img(int secs)
 {
     char *template = strdup("/tmp/qtest.XXXXXX");
