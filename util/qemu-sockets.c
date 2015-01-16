@@ -512,8 +512,8 @@ InetSocketAddress *inet_parse(const char *str, Error **errp)
 {
     InetSocketAddress *addr;
     const char *optstr, *h;
-    char host[64];
-    char port[33];
+    char host[64+1];
+    char port[32+1];
     int to;
     int pos;
 
