@@ -1182,30 +1182,43 @@ out:
 /*
  * Opens the backing file for a BlockDriverState if not yet open
  *
- * options is a QDict of options to pass to the block drivers, or NULL for an
- * empty set of options. The reference to the QDict is transferred to this
- * function (even on failure), so if the caller intends to reuse the dictionary,
- * it needs to use QINCREF() before calling bdrv_file_open.
+ * bdref_key specifies the key for the image's BlockdevRef in the options QDict.
+ * That QDict has to be flattened; therefore, if the BlockdevRef is a QDict
+ * itself, all options starting with "${bdref_key}." are considered part of the
+ * BlockdevRef.
+ *
+ * TODO Can this be unified with bdrv_open_image()?
  */
-int bdrv_open_backing_file(BlockDriverState *bs, QDict *options, Error **errp)
+int bdrv_open_backing_file(BlockDriverState *bs, QDict *parent_options,
+                           const char *bdref_key, Error **errp)
 {
     char *backing_filename = g_malloc0(PATH_MAX);
+    char *bdref_key_dot;
+    const char *reference = NULL;
     int ret = 0;
     BlockDriverState *backing_hd;
+    QDict *options;
+    QDict *tmp_parent_options = NULL;
     Error *local_err = NULL;
 
     if (bs->backing != NULL) {
-        QDECREF(options);
         goto free_exit;
     }
 
     /* NULL means an empty set of options */
-    if (options == NULL) {
-        options = qdict_new();
+    if (parent_options == NULL) {
+        tmp_parent_options = qdict_new();
+        parent_options = tmp_parent_options;
     }
 
     bs->open_flags &= ~BDRV_O_NO_BACKING;
-    if (qdict_haskey(options, "file.filename")) {
+
+    bdref_key_dot = g_strdup_printf("%s.", bdref_key);
+    qdict_extract_subqdict(parent_options, &options, bdref_key_dot);
+    g_free(bdref_key_dot);
+
+    reference = qdict_get_try_str(parent_options, bdref_key);
+    if (reference || qdict_haskey(options, "file.filename")) {
         backing_filename[0] = '\0';
     } else if (bs->backing_file[0] == '\0' && qdict_size(options) == 0) {
         QDECREF(options);
@@ -1228,19 +1241,16 @@ int bdrv_open_backing_file(BlockDriverState *bs, QDict *options, Error **errp)
         goto free_exit;
     }
 
-    backing_hd = bdrv_new();
-
     if (bs->backing_format[0] != '\0' && !qdict_haskey(options, "driver")) {
         qdict_put(options, "driver", qstring_from_str(bs->backing_format));
     }
 
-    assert(bs->backing == NULL);
+    backing_hd = NULL;
     ret = bdrv_open_inherit(&backing_hd,
                             *backing_filename ? backing_filename : NULL,
-                            NULL, options, 0, bs, &child_backing, &local_err);
+                            reference, options, 0, bs, &child_backing,
+                            &local_err);
     if (ret < 0) {
-        bdrv_unref(backing_hd);
-        backing_hd = NULL;
         bs->open_flags |= BDRV_O_NO_BACKING;
         error_setg(errp, "Could not open backing file: %s",
                    error_get_pretty(local_err));
@@ -1253,8 +1263,11 @@ int bdrv_open_backing_file(BlockDriverState *bs, QDict *options, Error **errp)
     bdrv_set_backing_hd(bs, backing_hd);
     bdrv_unref(backing_hd);
 
+    qdict_del(parent_options, bdref_key);
+
 free_exit:
     g_free(backing_filename);
+    QDECREF(tmp_parent_options);
     return ret;
 }
 
@@ -1537,10 +1550,7 @@ static int bdrv_open_inherit(BlockDriverState **pbs, const char *filename,
 
     /* If there is a backing file, use it */
     if ((flags & BDRV_O_NO_BACKING) == 0) {
-        QDict *backing_options;
-
-        qdict_extract_subqdict(options, &backing_options, "backing.");
-        ret = bdrv_open_backing_file(bs, backing_options, &local_err);
+        ret = bdrv_open_backing_file(bs, options, "backing", &local_err);
         if (ret < 0) {
             goto close_and_fail;
         }

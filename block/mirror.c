@@ -652,7 +652,7 @@ static void mirror_complete(BlockJob *job, Error **errp)
     Error *local_err = NULL;
     int ret;
 
-    ret = bdrv_open_backing_file(s->target, NULL, &local_err);
+    ret = bdrv_open_backing_file(s->target, NULL, "backing", &local_err);
     if (ret < 0) {
         error_propagate(errp, local_err);
         return;
