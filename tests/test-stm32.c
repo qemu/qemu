@@ -271,6 +271,10 @@ static void test_uart(void)
     // so that we did not need to add test logic into the UART itself.....
 }
 
+static void test_timer(void)
+{
+}
+
 int main(int argc, char **argv)
 {
     QTestState *s = NULL;
@@ -297,6 +301,7 @@ int main(int argc, char **argv)
     qtest_add_func("/stm32/gpio/write", test_gpio_write);
     qtest_add_func("/stm32/gpio/interrupt", test_gpio_interrupt);
     qtest_add_func("/stm32/uart", test_uart);
+    qtest_add_func("/stm32/timer", test_timer);
 
     ret = g_test_run();
 
