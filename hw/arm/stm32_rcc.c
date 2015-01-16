@@ -881,14 +881,14 @@ static void stm32_rcc_init_clk(Stm32Rcc *s)
     s->PERIPHCLK[STM32_UART4] = clktree_create_clk("UART4", 1, 1, false, CLKTREE_NO_MAX_FREQ, 0, s->PCLK1, NULL);
     s->PERIPHCLK[STM32_UART5] = clktree_create_clk("UART5", 1, 1, false, CLKTREE_NO_MAX_FREQ, 0, s->PCLK1, NULL);
 
-    s->PERIPHCLK[STM32_TIM1] = stm32_clktree_create_clk("TIM1", 1, 1, false, CLKTREE_NO_MAX_FREQ, 0, s->PCLK2, NULL);
-    s->PERIPHCLK[STM32_TIM2] = stm32_clktree_create_clk("TIM2", 1, 1, false, CLKTREE_NO_MAX_FREQ, 0, s->PCLK1, NULL);
-    s->PERIPHCLK[STM32_TIM3] = stm32_clktree_create_clk("TIM3", 1, 1, false, CLKTREE_NO_MAX_FREQ, 0, s->PCLK1, NULL);
-    s->PERIPHCLK[STM32_TIM4] = stm32_clktree_create_clk("TIM4", 1, 1, false, CLKTREE_NO_MAX_FREQ, 0, s->PCLK1, NULL);
-    s->PERIPHCLK[STM32_TIM5] = stm32_clktree_create_clk("TIM5", 1, 1, false, CLKTREE_NO_MAX_FREQ, 0, s->PCLK1, NULL);
-    s->PERIPHCLK[STM32_TIM6] = stm32_clktree_create_clk("TIM6", 1, 1, false, CLKTREE_NO_MAX_FREQ, 0, s->PCLK1, NULL);
-    s->PERIPHCLK[STM32_TIM7] = stm32_clktree_create_clk("TIM7", 1, 1, false, CLKTREE_NO_MAX_FREQ, 0, s->PCLK1, NULL);
-    s->PERIPHCLK[STM32_TIM8] = stm32_clktree_create_clk("TIM8", 1, 1, false, CLKTREE_NO_MAX_FREQ, 0, s->PCLK2, NULL);
+    s->PERIPHCLK[STM32_TIM1] = clktree_create_clk("TIM1", 1, 1, false, CLKTREE_NO_MAX_FREQ, 0, s->PCLK2, NULL);
+    s->PERIPHCLK[STM32_TIM2] = clktree_create_clk("TIM2", 1, 1, false, CLKTREE_NO_MAX_FREQ, 0, s->PCLK1, NULL);
+    s->PERIPHCLK[STM32_TIM3] = clktree_create_clk("TIM3", 1, 1, false, CLKTREE_NO_MAX_FREQ, 0, s->PCLK1, NULL);
+    s->PERIPHCLK[STM32_TIM4] = clktree_create_clk("TIM4", 1, 1, false, CLKTREE_NO_MAX_FREQ, 0, s->PCLK1, NULL);
+    s->PERIPHCLK[STM32_TIM5] = clktree_create_clk("TIM5", 1, 1, false, CLKTREE_NO_MAX_FREQ, 0, s->PCLK1, NULL);
+    s->PERIPHCLK[STM32_TIM6] = clktree_create_clk("TIM6", 1, 1, false, CLKTREE_NO_MAX_FREQ, 0, s->PCLK1, NULL);
+    s->PERIPHCLK[STM32_TIM7] = clktree_create_clk("TIM7", 1, 1, false, CLKTREE_NO_MAX_FREQ, 0, s->PCLK1, NULL);
+    s->PERIPHCLK[STM32_TIM8] = clktree_create_clk("TIM8", 1, 1, false, CLKTREE_NO_MAX_FREQ, 0, s->PCLK2, NULL);
 }
 
 

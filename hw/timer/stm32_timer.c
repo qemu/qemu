@@ -72,7 +72,7 @@ enum
 	TIMER_DOWN_COUNT   = 1
 };
 
-typedef struct {
+struct Stm32Timer {
 
     /* Inherited */
     SysBusDevice busdev;
@@ -116,7 +116,7 @@ typedef struct {
 	/* uint32_t dcr;  DMA mode not supported */
 	/* uint32_t dmar; DMA mode not supported */
 
-} Stm32Timer;
+};
 
 static void stm32_timer_freq(Stm32Timer *s)
 {
@@ -419,13 +419,13 @@ static int stm32_timer_init(SysBusDevice *dev)
 {
     QEMUBH *bh;
     qemu_irq *clk_irq;
-    Stm32Timer *s = FROM_SYSBUS(Stm32Timer, dev);
+    Stm32Timer *s = STM32_TIMER(dev);
 
     s->stm32_rcc = (Stm32Rcc *)s->stm32_rcc_prop;
     s->stm32_gpio = (Stm32Gpio **)s->stm32_gpio_prop;
     s->stm32_afio = (Stm32Afio *)s->stm32_afio_prop;
 
-    memory_region_init_io(&s->iomem, &stm32_timer_ops, s, "stm32-timer", 0x1000);
+    memory_region_init_io(&s->iomem, OBJECT(s), &stm32_timer_ops, s, "stm32-timer", 0x1000);
     sysbus_init_mmio(dev, &s->iomem);
 
     sysbus_init_irq(dev, &s->irq);
@@ -456,7 +456,7 @@ static int stm32_timer_init(SysBusDevice *dev)
 
 static void stm32_timer_pre_save(void *opaque)
 {
-    Stm32Timer *s = opaque;
+    //Stm32Timer *s = opaque;
 
     /* tick_offset is base_time - rtc_clock base time.  Instead, we want to
      * store the base time relative to the vm_clock for backwards-compatibility.  */
@@ -466,7 +466,7 @@ static void stm32_timer_pre_save(void *opaque)
 
 static int stm32_timer_post_load(void *opaque, int version_id)
 {
-    Stm32Timer *s = opaque;
+    //Stm32Timer *s = opaque;
 
     //int64_t delta = qemu_get_clock_ns(rtc_clock) - qemu_get_clock_ns(vm_clock);
     //s->tick_offset = s->tick_offset_vmstate - delta / get_ticks_per_sec();
@@ -505,7 +505,7 @@ static void stm32_timer_class_init(ObjectClass *klass, void *data)
     SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
 
     k->init = stm32_timer_init;
-    dc->no_user = 1;
+    //dc->no_user = 1;
     dc->vmsd = &vmstate_stm32;
     dc->props = stm32_timer_properties;
 }

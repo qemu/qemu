@@ -283,6 +283,12 @@ void stm32_uart_connect(Stm32Uart *s, CharDriverState *chr,
                         uint32_t afio_board_map);
 
 
+/* Timer */
+typedef struct Stm32Timer Stm32Timer;
+
+#define TYPE_STM32_TIMER "stm32-timer"
+#define STM32_TIMER(obj) OBJECT_CHECK(Stm32Timer, (obj), TYPE_STM32_TIMER)
+
 
 
 /* STM32 MICROCONTROLLER - GENERAL */
