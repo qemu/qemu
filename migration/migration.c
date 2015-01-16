@@ -330,6 +330,7 @@ void migrate_fd_error(MigrationState *s)
 static void migrate_fd_cancel(MigrationState *s)
 {
     int old_state ;
+    QEMUFile *f = migrate_get_current()->file;
     trace_migrate_fd_cancel();
 
     do {
@@ -339,6 +340,17 @@ static void migrate_fd_cancel(MigrationState *s)
         }
         migrate_set_state(s, old_state, MIG_STATE_CANCELLING);
     } while (s->state != MIG_STATE_CANCELLING);
+
+    /*
+     * If we're unlucky the migration code might be stuck somewhere in a
+     * send/write while the network has failed and is waiting to timeout;
+     * if we've got shutdown(2) available then we can force it to quit.
+     * The outgoing qemu file gets closed in migrate_fd_cleanup that is
+     * called in a bh, so there is no race against this cancel.
+     */
+    if (s->state == MIG_STATE_CANCELLING && f) {
+        qemu_file_shutdown(f);
+    }
 }
 
 void add_migration_state_change_notifier(Notifier *notify)

@@ -26,6 +26,7 @@
 #include "qemu/sockets.h"
 #include "block/coroutine.h"
 #include "migration/qemu-file.h"
+#include "migration/qemu-file-internal.h"
 
 typedef struct QEMUFileSocket {
     int fd;
@@ -82,6 +83,17 @@ static int socket_close(void *opaque)
     closesocket(s->fd);
     g_free(s);
     return 0;
+}
+
+static int socket_shutdown(void *opaque, bool rd, bool wr)
+{
+    QEMUFileSocket *s = opaque;
+
+    if (shutdown(s->fd, rd ? (wr ? SHUT_RDWR : SHUT_RD) : SHUT_WR)) {
+        return -errno;
+    } else {
+        return 0;
+    }
 }
 
 static ssize_t unix_writev_buffer(void *opaque, struct iovec *iov, int iovcnt,
@@ -192,15 +204,18 @@ QEMUFile *qemu_fdopen(int fd, const char *mode)
 }
 
 static const QEMUFileOps socket_read_ops = {
-    .get_fd =     socket_get_fd,
+    .get_fd     = socket_get_fd,
     .get_buffer = socket_get_buffer,
-    .close =      socket_close
+    .close      = socket_close,
+    .shut_down  = socket_shutdown
+
 };
 
 static const QEMUFileOps socket_write_ops = {
-    .get_fd =     socket_get_fd,
+    .get_fd        = socket_get_fd,
     .writev_buffer = socket_writev_buffer,
-    .close =      socket_close
+    .close         = socket_close,
+    .shut_down     = socket_shutdown
 };
 
 QEMUFile *qemu_fopen_socket(int fd, const char *mode)
