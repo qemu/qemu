@@ -225,6 +225,23 @@ slavio_check_interrupts(uint32_t pending, uint32_t intregm_disabled) "pending %x
 slavio_set_irq(uint32_t target_cpu, int irq, uint32_t pil, int level) "Set cpu %d irq %d -> pil %d level %d"
 slavio_set_timer_irq_cpu(int cpu, int level) "Set cpu %d local timer level %d"
 
+# hw/input/ps2.c
+ps2_put_keycode(void *opaque, int keycode) "%p keycode %d"
+ps2_read_data(void *opaque) "%p"
+ps2_set_ledstate(void *s, int ledstate) "%p ledstate %d"
+ps2_reset_keyboard(void *s) "%p"
+ps2_write_keyboard(void *opaque, int val) "%p val %d"
+ps2_keyboard_set_translation(void *opaque, int mode) "%p mode %d"
+ps2_mouse_send_packet(void *s, int dx1, int dy1, int dz1, int b) "%p x %d y %d z %d bs %#x"
+ps2_mouse_event_disabled(void *opaque, int dx, int dy, int dz, int buttons_state, int mouse_dx, int mouse_dy, int mouse_dz) "%p x %d y %d z %d bs %#x mx %d my %d mz %d "
+ps2_mouse_event(void *opaque, int dx, int dy, int dz, int buttons_state, int mouse_dx, int mouse_dy, int mouse_dz) "%p x %d y %d z %d bs %#x mx %d my %d mz %d "
+ps2_mouse_fake_event(void *opaque) "%p"
+ps2_write_mouse(void *opaque, int val) "%p val %d"
+ps2_kbd_reset(void *opaque) "%p"
+ps2_mouse_reset(void *opaque) "%p"
+ps2_kbd_init(void *s) "%p"
+ps2_mouse_init(void *s) "%p"
+
 # hw/misc/slavio_misc.c
 slavio_misc_update_irq_raise(void) "Raise IRQ"
 slavio_misc_update_irq_lower(void) "Lower IRQ"
