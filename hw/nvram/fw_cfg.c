@@ -287,51 +287,24 @@ static uint64_t fw_cfg_data_mem_read(void *opaque, hwaddr addr,
                                      unsigned size)
 {
     FWCfgState *s = opaque;
-    uint8_t buf[8];
+    uint64_t value = 0;
     unsigned i;
 
     for (i = 0; i < size; ++i) {
-        buf[i] = fw_cfg_read(s);
+        value = (value << 8) | fw_cfg_read(s);
     }
-    switch (size) {
-    case 1:
-        return buf[0];
-    case 2:
-        return lduw_he_p(buf);
-    case 4:
-        return (uint32_t)ldl_he_p(buf);
-    case 8:
-        return ldq_he_p(buf);
-    }
-    abort();
+    return value;
 }
 
 static void fw_cfg_data_mem_write(void *opaque, hwaddr addr,
                                   uint64_t value, unsigned size)
 {
     FWCfgState *s = opaque;
-    uint8_t buf[8];
-    unsigned i;
+    unsigned i = size;
 
-    switch (size) {
-    case 1:
-        buf[0] = value;
-        break;
-    case 2:
-        stw_he_p(buf, value);
-        break;
-    case 4:
-        stl_he_p(buf, value);
-        break;
-    case 8:
-        stq_he_p(buf, value);
-        break;
-    default:
-        abort();
-    }
-    for (i = 0; i < size; ++i) {
-        fw_cfg_write(s, buf[i]);
-    }
+    do {
+        fw_cfg_write(s, value >> (8 * --i));
+    } while (i);
 }
 
 static bool fw_cfg_data_mem_valid(void *opaque, hwaddr addr,
