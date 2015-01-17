@@ -745,7 +745,7 @@ static inline void gen_cond_add(TCGCond cond, TCGv r1, TCGv r2, TCGv r3,
     tcg_gen_and_tl(temp, temp, mask);
     tcg_gen_or_tl(cpu_PSW_SAV, temp, cpu_PSW_SAV);
     /* write back result */
-    tcg_gen_movcond_tl(cond, r3, r4, t0, result, r3);
+    tcg_gen_movcond_tl(cond, r3, r4, t0, result, r1);
 
     tcg_temp_free(t0);
     tcg_temp_free(temp);
@@ -3898,7 +3898,7 @@ static void decode_rcr_cond_select(CPUTriCoreState *env, DisasContext *ctx)
     case OPC2_32_RCR_SEL:
         temp = tcg_const_i32(0);
         temp2 = tcg_const_i32(const9);
-        tcg_gen_movcond_tl(TCG_COND_NE, cpu_gpr_d[r3], cpu_gpr_d[r4], temp,
+        tcg_gen_movcond_tl(TCG_COND_NE, cpu_gpr_d[r4], cpu_gpr_d[r3], temp,
                            cpu_gpr_d[r1], temp2);
         tcg_temp_free(temp);
         tcg_temp_free(temp2);
@@ -3906,7 +3906,7 @@ static void decode_rcr_cond_select(CPUTriCoreState *env, DisasContext *ctx)
     case OPC2_32_RCR_SELN:
         temp = tcg_const_i32(0);
         temp2 = tcg_const_i32(const9);
-        tcg_gen_movcond_tl(TCG_COND_EQ, cpu_gpr_d[r3], cpu_gpr_d[r4], temp,
+        tcg_gen_movcond_tl(TCG_COND_EQ, cpu_gpr_d[r4], cpu_gpr_d[r3], temp,
                            cpu_gpr_d[r1], temp2);
         tcg_temp_free(temp);
         tcg_temp_free(temp2);
