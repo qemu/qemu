@@ -16,21 +16,34 @@
  * Launch QEMU with the given command line,
  * and then set up interrupts and our guest malloc interface.
  */
-QOSState *qtest_boot(const char *cmdline_fmt, ...)
+QOSState *qtest_vboot(const char *cmdline_fmt, va_list ap)
 {
-    QOSState *qs = g_malloc(sizeof(QOSState));
     char *cmdline;
-    va_list ap;
 
-    va_start(ap, cmdline_fmt);
+    struct QOSState *qs = g_malloc(sizeof(QOSState));
+
     cmdline = g_strdup_vprintf(cmdline_fmt, ap);
-    va_end(ap);
-
     qs->qts = qtest_start(cmdline);
     qtest_irq_intercept_in(global_qtest, "ioapic");
     qs->alloc = pc_alloc_init();
 
     g_free(cmdline);
+    return qs;
+}
+
+/**
+ * Launch QEMU with the given command line,
+ * and then set up interrupts and our guest malloc interface.
+ */
+QOSState *qtest_boot(const char *cmdline_fmt, ...)
+{
+    QOSState *qs;
+    va_list ap;
+
+    va_start(ap, cmdline_fmt);
+    qs = qtest_vboot(cmdline_fmt, ap);
+    va_end(ap);
+
     return qs;
 }
 

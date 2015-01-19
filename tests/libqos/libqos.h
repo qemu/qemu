@@ -10,6 +10,7 @@ typedef struct QOSState {
     QGuestAllocator *alloc;
 } QOSState;
 
+QOSState *qtest_vboot(const char *cmdline_fmt, va_list ap);
 QOSState *qtest_boot(const char *cmdline_fmt, ...);
 void qtest_shutdown(QOSState *qs);
 
