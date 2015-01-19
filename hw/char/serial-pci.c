@@ -48,7 +48,7 @@ typedef struct PCIMultiSerialState {
     uint8_t      prog_if;
 } PCIMultiSerialState;
 
-static int serial_pci_init(PCIDevice *dev)
+static void serial_pci_realize(PCIDevice *dev, Error **errp)
 {
     PCISerialState *pci = DO_UPCAST(PCISerialState, dev, dev);
     SerialState *s = &pci->state;
@@ -57,9 +57,8 @@ static int serial_pci_init(PCIDevice *dev)
     s->baudbase = 115200;
     serial_realize_core(s, &err);
     if (err != NULL) {
-        qerror_report_err(err);
-        error_free(err);
-        return -1;
+        error_propagate(errp, err);
+        return;
     }
 
     pci->dev.config[PCI_CLASS_PROG] = pci->prog_if;
@@ -68,7 +67,6 @@ static int serial_pci_init(PCIDevice *dev)
 
     memory_region_init_io(&s->io, OBJECT(pci), &serial_io_ops, s, "serial", 8);
     pci_register_bar(&pci->dev, 0, PCI_BASE_ADDRESS_SPACE_IO, &s->io);
-    return 0;
 }
 
 static void multi_serial_irq_mux(void *opaque, int n, int level)
@@ -85,7 +83,7 @@ static void multi_serial_irq_mux(void *opaque, int n, int level)
     pci_set_irq(&pci->dev, pending);
 }
 
-static int multi_serial_pci_init(PCIDevice *dev)
+static void multi_serial_pci_realize(PCIDevice *dev, Error **errp)
 {
     PCIDeviceClass *pc = PCI_DEVICE_GET_CLASS(dev);
     PCIMultiSerialState *pci = DO_UPCAST(PCIMultiSerialState, dev, dev);
@@ -116,9 +114,8 @@ static int multi_serial_pci_init(PCIDevice *dev)
         s->baudbase = 115200;
         serial_realize_core(s, &err);
         if (err != NULL) {
-            qerror_report_err(err);
-            error_free(err);
-            return -1;
+            error_propagate(errp, err);
+            return;
         }
         s->irq = pci->irqs[i];
         pci->name[i] = g_strdup_printf("uart #%d", i+1);
@@ -126,7 +123,6 @@ static int multi_serial_pci_init(PCIDevice *dev)
                               pci->name[i], 8);
         memory_region_add_subregion(&pci->iobar, 8 * i, &s->io);
     }
-    return 0;
 }
 
 static void serial_pci_exit(PCIDevice *dev)
@@ -203,7 +199,7 @@ static void serial_pci_class_initfn(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     PCIDeviceClass *pc = PCI_DEVICE_CLASS(klass);
-    pc->init = serial_pci_init;
+    pc->realize = serial_pci_realize;
     pc->exit = serial_pci_exit;
     pc->vendor_id = PCI_VENDOR_ID_REDHAT;
     pc->device_id = PCI_DEVICE_ID_REDHAT_SERIAL;
@@ -218,7 +214,7 @@ static void multi_2x_serial_pci_class_initfn(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     PCIDeviceClass *pc = PCI_DEVICE_CLASS(klass);
-    pc->init = multi_serial_pci_init;
+    pc->realize = multi_serial_pci_realize;
     pc->exit = multi_serial_pci_exit;
     pc->vendor_id = PCI_VENDOR_ID_REDHAT;
     pc->device_id = PCI_DEVICE_ID_REDHAT_SERIAL2;
@@ -233,7 +229,7 @@ static void multi_4x_serial_pci_class_initfn(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     PCIDeviceClass *pc = PCI_DEVICE_CLASS(klass);
-    pc->init = multi_serial_pci_init;
+    pc->realize = multi_serial_pci_realize;
     pc->exit = multi_serial_pci_exit;
     pc->vendor_id = PCI_VENDOR_ID_REDHAT;
     pc->device_id = PCI_DEVICE_ID_REDHAT_SERIAL4;
