@@ -8,7 +8,6 @@
 #include "libqtest.h"
 #include "libqos/libqos.h"
 #include "libqos/pci.h"
-#include "libqos/malloc-pc.h"
 
 /*** Test Setup & Teardown ***/
 
@@ -16,7 +15,7 @@
  * Launch QEMU with the given command line,
  * and then set up interrupts and our guest malloc interface.
  */
-QOSState *qtest_vboot(const char *cmdline_fmt, va_list ap)
+QOSState *qtest_vboot(QOSOps *ops, const char *cmdline_fmt, va_list ap)
 {
     char *cmdline;
 
@@ -24,8 +23,11 @@ QOSState *qtest_vboot(const char *cmdline_fmt, va_list ap)
 
     cmdline = g_strdup_vprintf(cmdline_fmt, ap);
     qs->qts = qtest_start(cmdline);
+    qs->ops = ops;
     qtest_irq_intercept_in(global_qtest, "ioapic");
-    qs->alloc = pc_alloc_init();
+    if (ops && ops->init_allocator) {
+        qs->alloc = ops->init_allocator(ALLOC_NO_FLAGS);
+    }
 
     g_free(cmdline);
     return qs;
@@ -35,13 +37,13 @@ QOSState *qtest_vboot(const char *cmdline_fmt, va_list ap)
  * Launch QEMU with the given command line,
  * and then set up interrupts and our guest malloc interface.
  */
-QOSState *qtest_boot(const char *cmdline_fmt, ...)
+QOSState *qtest_boot(QOSOps *ops, const char *cmdline_fmt, ...)
 {
     QOSState *qs;
     va_list ap;
 
     va_start(ap, cmdline_fmt);
-    qs = qtest_vboot(cmdline_fmt, ap);
+    qs = qtest_vboot(ops, cmdline_fmt, ap);
     va_end(ap);
 
     return qs;
@@ -52,8 +54,8 @@ QOSState *qtest_boot(const char *cmdline_fmt, ...)
  */
 void qtest_shutdown(QOSState *qs)
 {
-    if (qs->alloc) {
-        pc_alloc_uninit(qs->alloc);
+    if (qs->alloc && qs->ops && qs->ops->uninit_allocator) {
+        qs->ops->uninit_allocator(qs->alloc);
         qs->alloc = NULL;
     }
     qtest_quit(qs->qts);

@@ -29,7 +29,7 @@
 #include <glib.h>
 
 #include "libqtest.h"
-#include "libqos/libqos.h"
+#include "libqos/libqos-pc.h"
 #include "libqos/ahci.h"
 #include "libqos/pci-pc.h"
 #include "libqos/malloc-pc.h"
@@ -151,7 +151,7 @@ static AHCIQState *ahci_boot(void)
         " -M q35 "
         "-device ide-hd,drive=drive0 "
         "-global ide-hd.ver=%s";
-    s->parent = qtest_boot(cli, tmp_path, "testdisk", "version");
+    s->parent = qtest_pc_boot(cli, tmp_path, "testdisk", "version");
 
     /* Verify that we have an AHCI device present. */
     s->dev = get_ahci_device();

@@ -307,9 +307,9 @@ tests/test-mul64$(EXESUF): tests/test-mul64.o libqemuutil.a
 tests/test-bitops$(EXESUF): tests/test-bitops.o libqemuutil.a
 
 libqos-obj-y = tests/libqos/pci.o tests/libqos/fw_cfg.o tests/libqos/malloc.o
-libqos-obj-y += tests/libqos/i2c.o
+libqos-obj-y += tests/libqos/i2c.o tests/libqos/libqos.o
 libqos-pc-obj-y = $(libqos-obj-y) tests/libqos/pci-pc.o
-libqos-pc-obj-y += tests/libqos/malloc-pc.o
+libqos-pc-obj-y += tests/libqos/malloc-pc.o tests/libqos/libqos-pc.o
 libqos-omap-obj-y = $(libqos-obj-y) tests/libqos/i2c-omap.o
 libqos-virtio-obj-y = $(libqos-obj-y) $(libqos-pc-obj-y) tests/libqos/virtio.o tests/libqos/virtio-pci.o
 libqos-usb-obj-y = $(libqos-pc-obj-y) tests/libqos/usb.o
@@ -320,7 +320,7 @@ tests/endianness-test$(EXESUF): tests/endianness-test.o
 tests/spapr-phb-test$(EXESUF): tests/spapr-phb-test.o $(libqos-obj-y)
 tests/fdc-test$(EXESUF): tests/fdc-test.o
 tests/ide-test$(EXESUF): tests/ide-test.o $(libqos-pc-obj-y)
-tests/ahci-test$(EXESUF): tests/ahci-test.o $(libqos-pc-obj-y) tests/libqos/libqos.o
+tests/ahci-test$(EXESUF): tests/ahci-test.o $(libqos-pc-obj-y)
 tests/hd-geo-test$(EXESUF): tests/hd-geo-test.o
 tests/boot-order-test$(EXESUF): tests/boot-order-test.o $(libqos-obj-y)
 tests/bios-tables-test$(EXESUF): tests/bios-tables-test.o $(libqos-obj-y)
