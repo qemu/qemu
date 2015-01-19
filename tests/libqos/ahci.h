@@ -28,7 +28,7 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <stdbool.h>
-
+#include "libqos/libqos.h"
 #include "libqos/pci.h"
 #include "libqos/malloc-pc.h"
 
@@ -422,5 +422,14 @@ static inline void ahci_px_clr(AHCIQState *ahci, uint8_t port,
     ahci_px_wreg(ahci, port, reg_num,
                  ahci_px_rreg(ahci, port, reg_num) & ~mask);
 }
+
+/*** Prototypes ***/
+uint64_t ahci_alloc(AHCIQState *ahci, size_t bytes);
+void ahci_free(AHCIQState *ahci, uint64_t addr);
+QPCIDevice *get_ahci_device(uint32_t *fingerprint);
+void free_ahci_device(QPCIDevice *dev);
+void ahci_pci_enable(AHCIQState *ahci);
+void start_ahci_device(AHCIQState *ahci);
+void ahci_hba_enable(AHCIQState *ahci);
 
 #endif
