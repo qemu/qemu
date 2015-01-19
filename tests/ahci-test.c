@@ -206,7 +206,7 @@ static void ahci_hba_enable(AHCIQState *ahci)
      * PxCMD.FR   "FIS Receive Running"
      * PxCMD.CR   "Command List Running"
      */
-    uint32_t reg, ports_impl, clb, fb;
+    uint32_t reg, ports_impl;
     uint16_t i;
     uint8_t num_cmd_slots;
 
@@ -255,16 +255,20 @@ static void ahci_hba_enable(AHCIQState *ahci)
 
         /* Allocate Memory for the Command List Buffer & FIS Buffer */
         /* PxCLB space ... 0x20 per command, as in 4.2.2 p 36 */
-        clb = ahci_alloc(ahci, num_cmd_slots * 0x20);
-        g_test_message("CLB: 0x%08x", clb);
-        ahci_px_wreg(ahci, i, AHCI_PX_CLB, clb);
-        g_assert_cmphex(clb, ==, ahci_px_rreg(ahci, i, AHCI_PX_CLB));
+        ahci->port[i].clb = ahci_alloc(ahci, num_cmd_slots * 0x20);
+        qmemset(ahci->port[i].clb, 0x00, 0x100);
+        g_test_message("CLB: 0x%08" PRIx64, ahci->port[i].clb);
+        ahci_px_wreg(ahci, i, AHCI_PX_CLB, ahci->port[i].clb);
+        g_assert_cmphex(ahci->port[i].clb, ==,
+                        ahci_px_rreg(ahci, i, AHCI_PX_CLB));
 
         /* PxFB space ... 0x100, as in 4.2.1 p 35 */
-        fb = ahci_alloc(ahci, 0x100);
-        g_test_message("FB: 0x%08x", fb);
-        ahci_px_wreg(ahci, i, AHCI_PX_FB, fb);
-        g_assert_cmphex(fb, ==, ahci_px_rreg(ahci, i, AHCI_PX_FB));
+        ahci->port[i].fb = ahci_alloc(ahci, 0x100);
+        qmemset(ahci->port[i].fb, 0x00, 0x100);
+        g_test_message("FB: 0x%08" PRIx64, ahci->port[i].fb);
+        ahci_px_wreg(ahci, i, AHCI_PX_FB, ahci->port[i].fb);
+        g_assert_cmphex(ahci->port[i].fb, ==,
+                        ahci_px_rreg(ahci, i, AHCI_PX_FB));
 
         /* Clear PxSERR, PxIS, then IS.IPS[x] by writing '1's. */
         ahci_px_wreg(ahci, i, AHCI_PX_SERR, 0xFFFFFFFF);
@@ -883,7 +887,7 @@ static void ahci_test_identify(AHCIQState *ahci)
     RegH2DFIS fis;
     AHCICommand cmd;
     PRD prd;
-    uint32_t ports, reg, clb, table, fb, data_ptr;
+    uint32_t ports, reg, table, data_ptr;
     uint16_t buff[256];
     unsigned i;
     int rc;
@@ -929,9 +933,7 @@ static void ahci_test_identify(AHCIQState *ahci)
     g_assert_cmphex(ahci_px_rreg(ahci, i, AHCI_PX_IS), ==, 0);
 
     /* Wipe the FIS-Receive Buffer */
-    fb = ahci_px_rreg(ahci, i, AHCI_PX_FB);
-    g_assert_cmphex(fb, !=, 0);
-    qmemset(fb, 0x00, 0x100);
+    qmemset(ahci->port[i].fb, 0x00, 0x100);
 
     /* Create a Command Table buffer. 0x80 is the smallest with a PRDTL of 0. */
     /* We need at least one PRD, so round up to the nearest 0x80 multiple.    */
@@ -943,13 +945,9 @@ static void ahci_test_identify(AHCIQState *ahci)
     data_ptr = ahci_alloc(ahci, 512);
     g_assert(data_ptr);
 
-    /* Grab the Command List Buffer pointer */
-    clb = ahci_px_rreg(ahci, i, AHCI_PX_CLB);
-    g_assert(clb);
-
     /* Copy the existing Command #0 structure from the CLB into local memory,
      * and build a new command #0. */
-    memread(clb, &cmd, sizeof(cmd));
+    memread(ahci->port[i].clb, &cmd, sizeof(cmd));
     cmd.b1 = 5;    /* reg_h2d_fis is 5 double-words long */
     cmd.b2 = 0x04; /* clear PxTFD.STS.BSY when done */
     cmd.prdtl = cpu_to_le16(1); /* One PRD table entry. */
@@ -981,7 +979,7 @@ static void ahci_test_identify(AHCIQState *ahci)
     memwrite(table + 0x80, &prd, sizeof(prd));
 
     /* Commit Command #0, pointing to the Table, to the Command List Buffer. */
-    memwrite(clb, &cmd, sizeof(cmd));
+    memwrite(ahci->port[i].clb, &cmd, sizeof(cmd));
 
     /* Everything is in place, but we haven't given the go-ahead yet. */
     g_assert_cmphex(ahci_px_rreg(ahci, i, AHCI_PX_IS), ==, 0);
@@ -1012,12 +1010,12 @@ static void ahci_test_identify(AHCIQState *ahci)
     ASSERT_BIT_CLEAR(reg, AHCI_PX_TFD_ERR);
 
     /* Investigate CMD #0, assert that we read 512 bytes */
-    memread(clb, &cmd, sizeof(cmd));
+    memread(ahci->port[i].clb, &cmd, sizeof(cmd));
     g_assert_cmphex(512, ==, le32_to_cpu(cmd.prdbc));
 
     /* Investigate FIS responses */
-    memread(fb + 0x20, pio, 0x20);
-    memread(fb + 0x40, d2h, 0x20);
+    memread(ahci->port[i].fb + 0x20, pio, 0x20);
+    memread(ahci->port[i].fb + 0x40, d2h, 0x20);
     g_assert_cmphex(pio->fis_type, ==, 0x5f);
     g_assert_cmphex(d2h->fis_type, ==, 0x34);
     g_assert_cmphex(pio->flags, ==, d2h->flags);

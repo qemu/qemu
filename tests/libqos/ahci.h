@@ -245,6 +245,11 @@
 
 /*** Structures ***/
 
+typedef struct AHCIPortQState {
+    uint64_t fb;
+    uint64_t clb;
+} AHCIPortQState;
+
 typedef struct AHCIQState {
     QOSState *parent;
     QPCIDevice *dev;
@@ -253,6 +258,7 @@ typedef struct AHCIQState {
     uint32_t fingerprint;
     uint32_t cap;
     uint32_t cap2;
+    AHCIPortQState port[32];
 } AHCIQState;
 
 /**
