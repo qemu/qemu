@@ -248,6 +248,7 @@
 typedef struct AHCIQState {
     QOSState *parent;
     QPCIDevice *dev;
+    void *hba_base;
 } AHCIQState;
 
 /**

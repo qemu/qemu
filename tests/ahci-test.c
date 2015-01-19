@@ -52,8 +52,9 @@ static bool ahci_pedantic;
 static uint32_t ahci_fingerprint;
 
 /*** IO macros for the AHCI memory registers. ***/
-#define AHCI_READ(OFST) qpci_io_readl(ahci, hba_base + (OFST))
-#define AHCI_WRITE(OFST, VAL) qpci_io_writel(ahci, hba_base + (OFST), (VAL))
+#define AHCI_READ(OFST) qpci_io_readl(ahci->dev, ahci->hba_base + (OFST))
+#define AHCI_WRITE(OFST, VAL) qpci_io_writel(ahci->dev,                 \
+                                             ahci->hba_base + (OFST), (VAL))
 #define AHCI_RREG(regno)      AHCI_READ(4 * (regno))
 #define AHCI_WREG(regno, val) AHCI_WRITE(4 * (regno), (val))
 #define AHCI_SET(regno, mask) AHCI_WREG((regno), AHCI_RREG(regno) | (mask))
@@ -70,16 +71,17 @@ static uint32_t ahci_fingerprint;
 
 /*** Function Declarations ***/
 static QPCIDevice *get_ahci_device(void);
-static QPCIDevice *start_ahci_device(QPCIDevice *dev, void **hba_base);
+static void start_ahci_device(AHCIQState *ahci);
 static void free_ahci_device(QPCIDevice *dev);
-static void ahci_test_port_spec(QPCIDevice *ahci, void *hba_base,
+
+static void ahci_test_port_spec(AHCIQState *ahci,
                                 HBACap *hcap, uint8_t port);
-static void ahci_test_pci_spec(QPCIDevice *ahci);
-static void ahci_test_pci_caps(QPCIDevice *ahci, uint16_t header,
+static void ahci_test_pci_spec(AHCIQState *ahci);
+static void ahci_test_pci_caps(AHCIQState *ahci, uint16_t header,
                                uint8_t offset);
-static void ahci_test_satacap(QPCIDevice *ahci, uint8_t offset);
-static void ahci_test_msicap(QPCIDevice *ahci, uint8_t offset);
-static void ahci_test_pmcap(QPCIDevice *ahci, uint8_t offset);
+static void ahci_test_satacap(AHCIQState *ahci, uint8_t offset);
+static void ahci_test_msicap(AHCIQState *ahci, uint8_t offset);
+static void ahci_test_pmcap(AHCIQState *ahci, uint8_t offset);
 
 /*** Utilities ***/
 
@@ -178,21 +180,21 @@ static void ahci_shutdown(AHCIQState *ahci)
 /**
  * Start the PCI device and sanity-check default operation.
  */
-static void ahci_pci_enable(QPCIDevice *ahci, void **hba_base)
+static void ahci_pci_enable(AHCIQState *ahci)
 {
     uint8_t reg;
 
-    start_ahci_device(ahci, hba_base);
+    start_ahci_device(ahci);
 
     switch (ahci_fingerprint) {
     case AHCI_INTEL_ICH9:
         /* ICH9 has a register at PCI 0x92 that
          * acts as a master port enabler mask. */
-        reg = qpci_config_readb(ahci, 0x92);
+        reg = qpci_config_readb(ahci->dev, 0x92);
         reg |= 0x3F;
-        qpci_config_writeb(ahci, 0x92, reg);
+        qpci_config_writeb(ahci->dev, 0x92, reg);
         /* 0...0111111b -- bit significant, ports 0-5 enabled. */
-        ASSERT_BIT_SET(qpci_config_readb(ahci, 0x92), 0x3F);
+        ASSERT_BIT_SET(qpci_config_readb(ahci->dev, 0x92), 0x3F);
         break;
     }
 
@@ -201,15 +203,13 @@ static void ahci_pci_enable(QPCIDevice *ahci, void **hba_base)
 /**
  * Map BAR5/ABAR, and engage the PCI device.
  */
-static QPCIDevice *start_ahci_device(QPCIDevice *ahci, void **hba_base)
+static void start_ahci_device(AHCIQState *ahci)
 {
     /* Map AHCI's ABAR (BAR5) */
-    *hba_base = qpci_iomap(ahci, 5, &barsize);
+    ahci->hba_base = qpci_iomap(ahci->dev, 5, &barsize);
 
     /* turns on pci.cmd.iose, pci.cmd.mse and pci.cmd.bme */
-    qpci_device_enable(ahci);
-
-    return ahci;
+    qpci_device_enable(ahci->dev);
 }
 
 /**
@@ -217,7 +217,7 @@ static QPCIDevice *start_ahci_device(QPCIDevice *ahci, void **hba_base)
  * Initialize and start any ports with devices attached.
  * Bring the HBA into the idle state.
  */
-static void ahci_hba_enable(QPCIDevice *ahci, void *hba_base)
+static void ahci_hba_enable(AHCIQState *ahci)
 {
     /* Bits of interest in this section:
      * GHC.AE     Global Host Control / AHCI Enable
@@ -230,13 +230,10 @@ static void ahci_hba_enable(QPCIDevice *ahci, void *hba_base)
      */
 
     g_assert(ahci != NULL);
-    g_assert(hba_base != NULL);
 
     uint32_t reg, ports_impl, clb, fb;
     uint16_t i;
     uint8_t num_cmd_slots;
-
-    g_assert(hba_base != 0);
 
     /* Set GHC.AE to 1 */
     AHCI_SET(AHCI_GHC, AHCI_GHC_AE);
@@ -351,14 +348,14 @@ static void ahci_hba_enable(QPCIDevice *ahci, void *hba_base)
 /**
  * Implementation for test_pci_spec. Ensures PCI configuration space is sane.
  */
-static void ahci_test_pci_spec(QPCIDevice *ahci)
+static void ahci_test_pci_spec(AHCIQState *ahci)
 {
     uint8_t datab;
     uint16_t data;
     uint32_t datal;
 
     /* Most of these bits should start cleared until we turn them on. */
-    data = qpci_config_readw(ahci, PCI_COMMAND);
+    data = qpci_config_readw(ahci->dev, PCI_COMMAND);
     ASSERT_BIT_CLEAR(data, PCI_COMMAND_MEMORY);
     ASSERT_BIT_CLEAR(data, PCI_COMMAND_MASTER);
     ASSERT_BIT_CLEAR(data, PCI_COMMAND_SPECIAL);     /* Reserved */
@@ -370,7 +367,7 @@ static void ahci_test_pci_spec(QPCIDevice *ahci)
     ASSERT_BIT_CLEAR(data, PCI_COMMAND_INTX_DISABLE);
     ASSERT_BIT_CLEAR(data, 0xF800);                  /* Reserved */
 
-    data = qpci_config_readw(ahci, PCI_STATUS);
+    data = qpci_config_readw(ahci->dev, PCI_STATUS);
     ASSERT_BIT_CLEAR(data, 0x01 | 0x02 | 0x04);     /* Reserved */
     ASSERT_BIT_CLEAR(data, PCI_STATUS_INTERRUPT);
     ASSERT_BIT_SET(data, PCI_STATUS_CAP_LIST);      /* must be set */
@@ -383,7 +380,7 @@ static void ahci_test_pci_spec(QPCIDevice *ahci)
     ASSERT_BIT_CLEAR(data, PCI_STATUS_DETECTED_PARITY);
 
     /* RID occupies the low byte, CCs occupy the high three. */
-    datal = qpci_config_readl(ahci, PCI_CLASS_REVISION);
+    datal = qpci_config_readl(ahci->dev, PCI_CLASS_REVISION);
     if (ahci_pedantic) {
         /* AHCI 1.3 specifies that at-boot, the RID should reset to 0x00,
          * Though in practice this is likely seldom true. */
@@ -406,38 +403,38 @@ static void ahci_test_pci_spec(QPCIDevice *ahci)
         g_assert_not_reached();
     }
 
-    datab = qpci_config_readb(ahci, PCI_CACHE_LINE_SIZE);
+    datab = qpci_config_readb(ahci->dev, PCI_CACHE_LINE_SIZE);
     g_assert_cmphex(datab, ==, 0);
 
-    datab = qpci_config_readb(ahci, PCI_LATENCY_TIMER);
+    datab = qpci_config_readb(ahci->dev, PCI_LATENCY_TIMER);
     g_assert_cmphex(datab, ==, 0);
 
     /* Only the bottom 7 bits must be off. */
-    datab = qpci_config_readb(ahci, PCI_HEADER_TYPE);
+    datab = qpci_config_readb(ahci->dev, PCI_HEADER_TYPE);
     ASSERT_BIT_CLEAR(datab, 0x7F);
 
     /* BIST is optional, but the low 7 bits must always start off regardless. */
-    datab = qpci_config_readb(ahci, PCI_BIST);
+    datab = qpci_config_readb(ahci->dev, PCI_BIST);
     ASSERT_BIT_CLEAR(datab, 0x7F);
 
     /* BARS 0-4 do not have a boot spec, but ABAR/BAR5 must be clean. */
-    datal = qpci_config_readl(ahci, PCI_BASE_ADDRESS_5);
+    datal = qpci_config_readl(ahci->dev, PCI_BASE_ADDRESS_5);
     g_assert_cmphex(datal, ==, 0);
 
-    qpci_config_writel(ahci, PCI_BASE_ADDRESS_5, 0xFFFFFFFF);
-    datal = qpci_config_readl(ahci, PCI_BASE_ADDRESS_5);
+    qpci_config_writel(ahci->dev, PCI_BASE_ADDRESS_5, 0xFFFFFFFF);
+    datal = qpci_config_readl(ahci->dev, PCI_BASE_ADDRESS_5);
     /* ABAR must be 32-bit, memory mapped, non-prefetchable and
      * must be >= 512 bytes. To that end, bits 0-8 must be off. */
     ASSERT_BIT_CLEAR(datal, 0xFF);
 
     /* Capability list MUST be present, */
-    datal = qpci_config_readl(ahci, PCI_CAPABILITY_LIST);
+    datal = qpci_config_readl(ahci->dev, PCI_CAPABILITY_LIST);
     /* But these bits are reserved. */
     ASSERT_BIT_CLEAR(datal, ~0xFF);
     g_assert_cmphex(datal, !=, 0);
 
     /* Check specification adherence for capability extenstions. */
-    data = qpci_config_readw(ahci, datal);
+    data = qpci_config_readw(ahci->dev, datal);
 
     switch (ahci_fingerprint) {
     case AHCI_INTEL_ICH9:
@@ -452,18 +449,18 @@ static void ahci_test_pci_spec(QPCIDevice *ahci)
     ahci_test_pci_caps(ahci, data, (uint8_t)datal);
 
     /* Reserved. */
-    datal = qpci_config_readl(ahci, PCI_CAPABILITY_LIST + 4);
+    datal = qpci_config_readl(ahci->dev, PCI_CAPABILITY_LIST + 4);
     g_assert_cmphex(datal, ==, 0);
 
     /* IPIN might vary, but ILINE must be off. */
-    datab = qpci_config_readb(ahci, PCI_INTERRUPT_LINE);
+    datab = qpci_config_readb(ahci->dev, PCI_INTERRUPT_LINE);
     g_assert_cmphex(datab, ==, 0);
 }
 
 /**
  * Test PCI capabilities for AHCI specification adherence.
  */
-static void ahci_test_pci_caps(QPCIDevice *ahci, uint16_t header,
+static void ahci_test_pci_caps(AHCIQState *ahci, uint16_t header,
                                uint8_t offset)
 {
     uint8_t cid = header & 0xFF;
@@ -487,14 +484,14 @@ static void ahci_test_pci_caps(QPCIDevice *ahci, uint16_t header,
     }
 
     if (next) {
-        ahci_test_pci_caps(ahci, qpci_config_readw(ahci, next), next);
+        ahci_test_pci_caps(ahci, qpci_config_readw(ahci->dev, next), next);
     }
 }
 
 /**
  * Test SATA PCI capabilitity for AHCI specification adherence.
  */
-static void ahci_test_satacap(QPCIDevice *ahci, uint8_t offset)
+static void ahci_test_satacap(AHCIQState *ahci, uint8_t offset)
 {
     uint16_t dataw;
     uint32_t datal;
@@ -502,11 +499,11 @@ static void ahci_test_satacap(QPCIDevice *ahci, uint8_t offset)
     g_test_message("Verifying SATACAP");
 
     /* Assert that the SATACAP version is 1.0, And reserved bits are empty. */
-    dataw = qpci_config_readw(ahci, offset + 2);
+    dataw = qpci_config_readw(ahci->dev, offset + 2);
     g_assert_cmphex(dataw, ==, 0x10);
 
     /* Grab the SATACR1 register. */
-    datal = qpci_config_readw(ahci, offset + 4);
+    datal = qpci_config_readw(ahci->dev, offset + 4);
 
     switch (datal & 0x0F) {
     case 0x04: /* BAR0 */
@@ -529,30 +526,30 @@ static void ahci_test_satacap(QPCIDevice *ahci, uint8_t offset)
 /**
  * Test MSI PCI capability for AHCI specification adherence.
  */
-static void ahci_test_msicap(QPCIDevice *ahci, uint8_t offset)
+static void ahci_test_msicap(AHCIQState *ahci, uint8_t offset)
 {
     uint16_t dataw;
     uint32_t datal;
 
     g_test_message("Verifying MSICAP");
 
-    dataw = qpci_config_readw(ahci, offset + PCI_MSI_FLAGS);
+    dataw = qpci_config_readw(ahci->dev, offset + PCI_MSI_FLAGS);
     ASSERT_BIT_CLEAR(dataw, PCI_MSI_FLAGS_ENABLE);
     ASSERT_BIT_CLEAR(dataw, PCI_MSI_FLAGS_QSIZE);
     ASSERT_BIT_CLEAR(dataw, PCI_MSI_FLAGS_RESERVED);
 
-    datal = qpci_config_readl(ahci, offset + PCI_MSI_ADDRESS_LO);
+    datal = qpci_config_readl(ahci->dev, offset + PCI_MSI_ADDRESS_LO);
     g_assert_cmphex(datal, ==, 0);
 
     if (dataw & PCI_MSI_FLAGS_64BIT) {
         g_test_message("MSICAP is 64bit");
-        datal = qpci_config_readl(ahci, offset + PCI_MSI_ADDRESS_HI);
+        datal = qpci_config_readl(ahci->dev, offset + PCI_MSI_ADDRESS_HI);
         g_assert_cmphex(datal, ==, 0);
-        dataw = qpci_config_readw(ahci, offset + PCI_MSI_DATA_64);
+        dataw = qpci_config_readw(ahci->dev, offset + PCI_MSI_DATA_64);
         g_assert_cmphex(dataw, ==, 0);
     } else {
         g_test_message("MSICAP is 32bit");
-        dataw = qpci_config_readw(ahci, offset + PCI_MSI_DATA_32);
+        dataw = qpci_config_readw(ahci->dev, offset + PCI_MSI_DATA_32);
         g_assert_cmphex(dataw, ==, 0);
     }
 }
@@ -560,26 +557,26 @@ static void ahci_test_msicap(QPCIDevice *ahci, uint8_t offset)
 /**
  * Test Power Management PCI capability for AHCI specification adherence.
  */
-static void ahci_test_pmcap(QPCIDevice *ahci, uint8_t offset)
+static void ahci_test_pmcap(AHCIQState *ahci, uint8_t offset)
 {
     uint16_t dataw;
 
     g_test_message("Verifying PMCAP");
 
-    dataw = qpci_config_readw(ahci, offset + PCI_PM_PMC);
+    dataw = qpci_config_readw(ahci->dev, offset + PCI_PM_PMC);
     ASSERT_BIT_CLEAR(dataw, PCI_PM_CAP_PME_CLOCK);
     ASSERT_BIT_CLEAR(dataw, PCI_PM_CAP_RESERVED);
     ASSERT_BIT_CLEAR(dataw, PCI_PM_CAP_D1);
     ASSERT_BIT_CLEAR(dataw, PCI_PM_CAP_D2);
 
-    dataw = qpci_config_readw(ahci, offset + PCI_PM_CTRL);
+    dataw = qpci_config_readw(ahci->dev, offset + PCI_PM_CTRL);
     ASSERT_BIT_CLEAR(dataw, PCI_PM_CTRL_STATE_MASK);
     ASSERT_BIT_CLEAR(dataw, PCI_PM_CTRL_RESERVED);
     ASSERT_BIT_CLEAR(dataw, PCI_PM_CTRL_DATA_SEL_MASK);
     ASSERT_BIT_CLEAR(dataw, PCI_PM_CTRL_DATA_SCALE_MASK);
 }
 
-static void ahci_test_hba_spec(QPCIDevice *ahci, void *hba_base)
+static void ahci_test_hba_spec(AHCIQState *ahci)
 {
     HBACap hcap;
     unsigned i;
@@ -588,8 +585,7 @@ static void ahci_test_hba_spec(QPCIDevice *ahci, void *hba_base)
     uint8_t nports_impl;
     uint8_t maxports;
 
-    g_assert(ahci != 0);
-    g_assert(hba_base != 0);
+    g_assert(ahci != NULL);
 
     /*
      * Note that the AHCI spec does expect the BIOS to set up a few things:
@@ -731,7 +727,7 @@ static void ahci_test_hba_spec(QPCIDevice *ahci, void *hba_base)
     for (i = 0; ports || (i < maxports); ports >>= 1, ++i) {
         if (BITSET(ports, 0x1)) {
             g_test_message("Testing port %u for spec", i);
-            ahci_test_port_spec(ahci, hba_base, &hcap, i);
+            ahci_test_port_spec(ahci, &hcap, i);
         } else {
             uint16_t j;
             uint16_t low = AHCI_PORTS + (32 * i);
@@ -750,7 +746,7 @@ static void ahci_test_hba_spec(QPCIDevice *ahci, void *hba_base)
 /**
  * Test the memory space for one port for specification adherence.
  */
-static void ahci_test_port_spec(QPCIDevice *ahci, void *hba_base,
+static void ahci_test_port_spec(AHCIQState *ahci,
                                 HBACap *hcap, uint8_t port)
 {
     uint32_t reg;
@@ -902,7 +898,7 @@ static void ahci_test_port_spec(QPCIDevice *ahci, void *hba_base,
  * Utilizing an initialized AHCI HBA, issue an IDENTIFY command to the first
  * device we see, then read and check the response.
  */
-static void ahci_test_identify(QPCIDevice *ahci, void *hba_base)
+static void ahci_test_identify(AHCIQState *ahci)
 {
     RegD2HFIS *d2h = g_malloc0(0x20);
     RegD2HFIS *pio = g_malloc0(0x20);
@@ -915,7 +911,6 @@ static void ahci_test_identify(QPCIDevice *ahci, void *hba_base)
     int rc;
 
     g_assert(ahci != NULL);
-    g_assert(hba_base != NULL);
 
     /* We need to:
      * (1) Create a Command Table Buffer and update the Command List Slot #0
@@ -1100,7 +1095,7 @@ static void test_pci_spec(void)
 {
     AHCIQState *ahci;
     ahci = ahci_boot();
-    ahci_test_pci_spec(ahci->dev);
+    ahci_test_pci_spec(ahci);
     ahci_shutdown(ahci);
 }
 
@@ -1111,9 +1106,9 @@ static void test_pci_spec(void)
 static void test_pci_enable(void)
 {
     AHCIQState *ahci;
-    void *hba_base;
+
     ahci = ahci_boot();
-    ahci_pci_enable(ahci->dev, &hba_base);
+    ahci_pci_enable(ahci);
     ahci_shutdown(ahci);
 }
 
@@ -1124,11 +1119,10 @@ static void test_pci_enable(void)
 static void test_hba_spec(void)
 {
     AHCIQState *ahci;
-    void *hba_base;
 
     ahci = ahci_boot();
-    ahci_pci_enable(ahci->dev, &hba_base);
-    ahci_test_hba_spec(ahci->dev, hba_base);
+    ahci_pci_enable(ahci);
+    ahci_test_hba_spec(ahci);
     ahci_shutdown(ahci);
 }
 
@@ -1139,11 +1133,10 @@ static void test_hba_spec(void)
 static void test_hba_enable(void)
 {
     AHCIQState *ahci;
-    void *hba_base;
 
     ahci = ahci_boot();
-    ahci_pci_enable(ahci->dev, &hba_base);
-    ahci_hba_enable(ahci->dev, hba_base);
+    ahci_pci_enable(ahci);
+    ahci_hba_enable(ahci);
     ahci_shutdown(ahci);
 }
 
@@ -1154,12 +1147,11 @@ static void test_hba_enable(void)
 static void test_identify(void)
 {
     AHCIQState *ahci;
-    void *hba_base;
 
     ahci = ahci_boot();
-    ahci_pci_enable(ahci->dev, &hba_base);
-    ahci_hba_enable(ahci->dev, hba_base);
-    ahci_test_identify(ahci->dev, hba_base);
+    ahci_pci_enable(ahci);
+    ahci_hba_enable(ahci);
+    ahci_test_identify(ahci);
     ahci_shutdown(ahci);
 }
 
