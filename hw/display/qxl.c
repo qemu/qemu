@@ -1916,7 +1916,7 @@ static void qxl_init_ramsize(PCIQXLDevice *qxl)
     qxl->vram_size = msb_mask(qxl->vram_size * 2 - 1);
 }
 
-static int qxl_init_common(PCIQXLDevice *qxl)
+static void qxl_realize_common(PCIQXLDevice *qxl, Error **errp)
 {
     uint8_t* config = qxl->pci.config;
     uint32_t pci_device_rev;
@@ -1948,9 +1948,9 @@ static int qxl_init_common(PCIQXLDevice *qxl)
         io_size = msb_mask(QXL_IO_RANGE_SIZE * 2 - 1);
         break;
     default:
-        error_report("Invalid revision %d for qxl device (max %d)",
-                     qxl->revision, QXL_DEFAULT_REVISION);
-        return -1;
+        error_setg(errp, "Invalid revision %d for qxl device (max %d)",
+                   qxl->revision, QXL_DEFAULT_REVISION);
+        return;
     }
 
     pci_set_byte(&config[PCI_REVISION_ID], pci_device_rev);
@@ -2014,9 +2014,9 @@ static int qxl_init_common(PCIQXLDevice *qxl)
 
     qxl->ssd.qxl.base.sif = &qxl_interface.base;
     if (qemu_spice_add_display_interface(&qxl->ssd.qxl, qxl->vga.con) != 0) {
-        error_report("qxl interface %d.%d not supported by spice-server",
-                     SPICE_INTERFACE_QXL_MAJOR, SPICE_INTERFACE_QXL_MINOR);
-        return -1;
+        error_setg(errp, "qxl interface %d.%d not supported by spice-server",
+                   SPICE_INTERFACE_QXL_MAJOR, SPICE_INTERFACE_QXL_MINOR);
+        return;
     }
     qemu_add_vm_change_state_handler(qxl_vm_change_state_handler, qxl);
 
@@ -2025,15 +2025,13 @@ static int qxl_init_common(PCIQXLDevice *qxl)
 
     qxl->update_area_bh = qemu_bh_new(qxl_render_update_area_bh, qxl);
     qxl->ssd.cursor_bh = qemu_bh_new(qemu_spice_cursor_refresh_bh, &qxl->ssd);
-
-    return 0;
 }
 
-static int qxl_init_primary(PCIDevice *dev)
+static void qxl_realize_primary(PCIDevice *dev, Error **errp)
 {
     PCIQXLDevice *qxl = DO_UPCAST(PCIQXLDevice, pci, dev);
     VGACommonState *vga = &qxl->vga;
-    int rc;
+    Error *local_err = NULL;
 
     qxl->id = 0;
     qxl_init_ramsize(qxl);
@@ -2050,18 +2048,18 @@ static int qxl_init_primary(PCIDevice *dev)
     vga->con = graphic_console_init(DEVICE(dev), 0, &qxl_ops, qxl);
     qemu_spice_display_init_common(&qxl->ssd);
 
-    rc = qxl_init_common(qxl);
-    if (rc != 0) {
-        return rc;
+    qxl_realize_common(qxl, &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        return;
     }
 
     qxl->ssd.dcl.ops = &display_listener_ops;
     qxl->ssd.dcl.con = vga->con;
     register_displaychangelistener(&qxl->ssd.dcl);
-    return rc;
 }
 
-static int qxl_init_secondary(PCIDevice *dev)
+static void qxl_realize_secondary(PCIDevice *dev, Error **errp)
 {
     static int device_id = 1;
     PCIQXLDevice *qxl = DO_UPCAST(PCIQXLDevice, pci, dev);
@@ -2074,7 +2072,7 @@ static int qxl_init_secondary(PCIDevice *dev)
     qxl->vga.vram_ptr = memory_region_get_ram_ptr(&qxl->vga.vram);
     qxl->vga.con = graphic_console_init(DEVICE(dev), 0, &qxl_ops, qxl);
 
-    return qxl_init_common(qxl);
+    qxl_realize_common(qxl, errp);
 }
 
 static void qxl_pre_save(void *opaque)
@@ -2287,7 +2285,7 @@ static void qxl_primary_class_init(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
 
-    k->init = qxl_init_primary;
+    k->realize = qxl_realize_primary;
     k->romfile = "vgabios-qxl.bin";
     k->vendor_id = REDHAT_PCI_VENDOR_ID;
     k->device_id = QXL_DEVICE_ID_STABLE;
@@ -2312,7 +2310,7 @@ static void qxl_secondary_class_init(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
 
-    k->init = qxl_init_secondary;
+    k->realize = qxl_realize_secondary;
     k->vendor_id = REDHAT_PCI_VENDOR_ID;
     k->device_id = QXL_DEVICE_ID_STABLE;
     k->class_id = PCI_CLASS_DISPLAY_OTHER;
