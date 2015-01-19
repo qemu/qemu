@@ -32,7 +32,6 @@
 #include "libqos/libqos-pc.h"
 #include "libqos/ahci.h"
 #include "libqos/pci-pc.h"
-#include "libqos/malloc-pc.h"
 
 #include "qemu-common.h"
 #include "qemu/host-utils.h"
@@ -44,7 +43,6 @@
 #define TEST_IMAGE_SIZE    (64 * 1024 * 1024)
 
 /*** Globals ***/
-static QGuestAllocator *guest_malloc;
 static char tmp_path[] = "/tmp/qtest.XXXXXX";
 static bool ahci_pedantic;
 
@@ -90,6 +88,11 @@ static void string_bswap16(uint16_t *s, size_t bytes)
         *s = bswap16(*s);
         s++;
     }
+}
+
+static uint64_t ahci_alloc(AHCIQState *ahci, size_t bytes)
+{
+    return qmalloc(ahci->parent, bytes);
 }
 
 /**
@@ -153,9 +156,6 @@ static AHCIQState *ahci_boot(void)
 
     /* Verify that we have an AHCI device present. */
     s->dev = get_ahci_device(&s->fingerprint);
-
-    /* Stopgap: Copy the allocator reference */
-    guest_malloc = s->parent->alloc;
 
     return s;
 }
@@ -272,13 +272,13 @@ static void ahci_hba_enable(AHCIQState *ahci)
 
         /* Allocate Memory for the Command List Buffer & FIS Buffer */
         /* PxCLB space ... 0x20 per command, as in 4.2.2 p 36 */
-        clb = guest_alloc(guest_malloc, num_cmd_slots * 0x20);
+        clb = ahci_alloc(ahci, num_cmd_slots * 0x20);
         g_test_message("CLB: 0x%08x", clb);
         PX_WREG(i, AHCI_PX_CLB, clb);
         g_assert_cmphex(clb, ==, PX_RREG(i, AHCI_PX_CLB));
 
         /* PxFB space ... 0x100, as in 4.2.1 p 35 */
-        fb = guest_alloc(guest_malloc, 0x100);
+        fb = ahci_alloc(ahci, 0x100);
         g_test_message("FB: 0x%08x", fb);
         PX_WREG(i, AHCI_PX_FB, fb);
         g_assert_cmphex(fb, ==, PX_RREG(i, AHCI_PX_FB));
@@ -951,12 +951,12 @@ static void ahci_test_identify(AHCIQState *ahci)
 
     /* Create a Command Table buffer. 0x80 is the smallest with a PRDTL of 0. */
     /* We need at least one PRD, so round up to the nearest 0x80 multiple.    */
-    table = guest_alloc(guest_malloc, CMD_TBL_SIZ(1));
+    table = ahci_alloc(ahci, CMD_TBL_SIZ(1));
     g_assert(table);
     ASSERT_BIT_CLEAR(table, 0x7F);
 
     /* Create a data buffer ... where we will dump the IDENTIFY data to. */
-    data_ptr = guest_alloc(guest_malloc, 512);
+    data_ptr = ahci_alloc(ahci, 512);
     g_assert(data_ptr);
 
     /* Grab the Command List Buffer pointer */
