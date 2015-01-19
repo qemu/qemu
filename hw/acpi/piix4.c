@@ -420,7 +420,7 @@ static void piix4_pm_add_propeties(PIIX4PMState *s)
                                   &s->io_base, NULL);
 }
 
-static int piix4_pm_initfn(PCIDevice *dev)
+static void piix4_pm_realize(PCIDevice *dev, Error **errp)
 {
     PIIX4PMState *s = PIIX4_PM(dev);
     uint8_t *pci_conf;
@@ -470,7 +470,6 @@ static int piix4_pm_initfn(PCIDevice *dev)
     piix4_acpi_system_hot_add_init(pci_address_space_io(dev), dev->bus, s);
 
     piix4_pm_add_propeties(s);
-    return 0;
 }
 
 Object *piix4_pm_find(void)
@@ -593,7 +592,7 @@ static void piix4_pm_class_init(ObjectClass *klass, void *data)
     HotplugHandlerClass *hc = HOTPLUG_HANDLER_CLASS(klass);
     AcpiDeviceIfClass *adevc = ACPI_DEVICE_IF_CLASS(klass);
 
-    k->init = piix4_pm_initfn;
+    k->realize = piix4_pm_realize;
     k->config_write = pm_write_config;
     k->vendor_id = PCI_VENDOR_ID_INTEL;
     k->device_id = PCI_DEVICE_ID_INTEL_82371AB_3;

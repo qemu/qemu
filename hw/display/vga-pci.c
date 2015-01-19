@@ -189,7 +189,7 @@ static const MemoryRegionOps pci_vga_qext_ops = {
     .endianness = DEVICE_LITTLE_ENDIAN,
 };
 
-static int pci_std_vga_initfn(PCIDevice *dev)
+static void pci_std_vga_realize(PCIDevice *dev, Error **errp)
 {
     PCIVGAState *d = DO_UPCAST(PCIVGAState, dev, dev);
     VGACommonState *s = &d->vga;
@@ -232,11 +232,9 @@ static int pci_std_vga_initfn(PCIDevice *dev)
         /* compatibility with pc-0.13 and older */
         vga_init_vbe(s, OBJECT(dev), pci_address_space(dev));
     }
-
-    return 0;
 }
 
-static int pci_secondary_vga_initfn(PCIDevice *dev)
+static void pci_secondary_vga_realize(PCIDevice *dev, Error **errp)
 {
     PCIVGAState *d = DO_UPCAST(PCIVGAState, dev, dev);
     VGACommonState *s = &d->vga;
@@ -268,7 +266,6 @@ static int pci_secondary_vga_initfn(PCIDevice *dev)
     pci_register_bar(&d->dev, 0, PCI_BASE_ADDRESS_MEM_PREFETCH, &s->vram);
     pci_register_bar(&d->dev, 2, PCI_BASE_ADDRESS_SPACE_MEMORY, &d->mmio);
 
-    return 0;
 }
 
 static void pci_secondary_vga_reset(DeviceState *dev)
@@ -298,7 +295,7 @@ static void vga_class_init(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
 
-    k->init = pci_std_vga_initfn;
+    k->realize = pci_std_vga_realize;
     k->romfile = "vgabios-stdvga.bin";
     k->vendor_id = PCI_VENDOR_ID_QEMU;
     k->device_id = PCI_DEVICE_ID_QEMU_VGA;
@@ -314,7 +311,7 @@ static void secondary_class_init(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
 
-    k->init = pci_secondary_vga_initfn;
+    k->realize = pci_secondary_vga_realize;
     k->vendor_id = PCI_VENDOR_ID_QEMU;
     k->device_id = PCI_DEVICE_ID_QEMU_VGA;
     k->class_id = PCI_CLASS_DISPLAY_OTHER;

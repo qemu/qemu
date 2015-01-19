@@ -1537,7 +1537,7 @@ static void e1000_write_config(PCIDevice *pci_dev, uint32_t address,
 }
 
 
-static int pci_e1000_init(PCIDevice *pci_dev)
+static void pci_e1000_realize(PCIDevice *pci_dev, Error **errp)
 {
     DeviceState *dev = DEVICE(pci_dev);
     E1000State *d = E1000(pci_dev);
@@ -1581,8 +1581,6 @@ static int pci_e1000_init(PCIDevice *pci_dev)
 
     d->autoneg_timer = timer_new_ms(QEMU_CLOCK_VIRTUAL, e1000_autoneg_timer, d);
     d->mit_timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, e1000_mit_timer, d);
-
-    return 0;
 }
 
 static void qdev_e1000_reset(DeviceState *dev)
@@ -1614,7 +1612,7 @@ static void e1000_class_init(ObjectClass *klass, void *data)
     E1000BaseClass *e = E1000_DEVICE_CLASS(klass);
     const E1000Info *info = data;
 
-    k->init = pci_e1000_init;
+    k->realize = pci_e1000_realize;
     k->exit = pci_e1000_uninit;
     k->romfile = "efi-e1000.rom";
     k->vendor_id = PCI_VENDOR_ID_INTEL;

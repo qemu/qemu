@@ -705,7 +705,7 @@ static int bonito_pcihost_initfn(SysBusDevice *dev)
     return 0;
 }
 
-static int bonito_initfn(PCIDevice *dev)
+static void bonito_realize(PCIDevice *dev, Error **errp)
 {
     PCIBonitoState *s = DO_UPCAST(PCIBonitoState, dev, dev);
     SysBusDevice *sysbus = SYS_BUS_DEVICE(s->pcihost);
@@ -766,8 +766,6 @@ static int bonito_initfn(PCIDevice *dev)
     pci_set_byte(dev->config + PCI_MAX_LAT, 0x00);
 
     qemu_register_reset(bonito_reset, s);
-
-    return 0;
 }
 
 PCIBus *bonito_init(qemu_irq *pic)
@@ -799,7 +797,7 @@ static void bonito_class_init(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
 
-    k->init = bonito_initfn;
+    k->realize = bonito_realize;
     k->vendor_id = 0xdf53;
     k->device_id = 0x00d5;
     k->revision = 0x01;
