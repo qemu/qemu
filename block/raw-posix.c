@@ -1375,7 +1375,20 @@ again:
         if (size == 0)
 #endif
 #if defined(__APPLE__) && defined(__MACH__)
-        size = LLONG_MAX;
+        {
+            uint64_t sectors = 0;
+            uint32_t sector_size = 0;
+
+            if (ioctl(fd, DKIOCGETBLOCKCOUNT, &sectors) == 0
+               && ioctl(fd, DKIOCGETBLOCKSIZE, &sector_size) == 0) {
+                size = sectors * sector_size;
+            } else {
+                size = lseek(fd, 0LL, SEEK_END);
+                if (size < 0) {
+                    return -errno;
+                }
+            }
+        }
 #else
         size = lseek(fd, 0LL, SEEK_END);
         if (size < 0) {
