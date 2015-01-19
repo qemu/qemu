@@ -185,7 +185,8 @@ typedef struct PCIINTxRoute {
 typedef struct PCIDeviceClass {
     DeviceClass parent_class;
 
-    int (*init)(PCIDevice *dev);
+    void (*realize)(PCIDevice *dev, Error **errp);
+    int (*init)(PCIDevice *dev);/* TODO convert to realize() and remove */
     PCIUnregisterFunc *exit;
     PCIConfigReadFunc *config_read;
     PCIConfigWriteFunc *config_write;

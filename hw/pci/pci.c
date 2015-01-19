@@ -1762,7 +1762,6 @@ static void pci_qdev_realize(DeviceState *qdev, Error **errp)
     PCIDeviceClass *pc = PCI_DEVICE_GET_CLASS(pci_dev);
     Error *local_err = NULL;
     PCIBus *bus;
-    int rc;
     bool is_default_rom;
 
     /* initialize cap_present for pci_is_express() and pci_config_size() */
@@ -1777,11 +1776,11 @@ static void pci_qdev_realize(DeviceState *qdev, Error **errp)
     if (pci_dev == NULL)
         return;
 
-    if (pc->init) {
-        rc = pc->init(pci_dev);
-        if (rc != 0) {
+    if (pc->realize) {
+        pc->realize(pci_dev, &local_err);
+        if (local_err) {
+            error_propagate(errp, local_err);
             do_pci_unregister_device(pci_dev);
-            error_setg(errp, "Device initialization failed");
             return;
         }
     }
@@ -1798,6 +1797,18 @@ static void pci_qdev_realize(DeviceState *qdev, Error **errp)
         error_propagate(errp, local_err);
         pci_qdev_unrealize(DEVICE(pci_dev), NULL);
         return;
+    }
+}
+
+static void pci_default_realize(PCIDevice *dev, Error **errp)
+{
+    PCIDeviceClass *pc = PCI_DEVICE_GET_CLASS(dev);
+
+    if (pc->init) {
+        if (pc->init(dev) < 0) {
+            error_setg(errp, "Device initialization failed");
+            return;
+        }
     }
 }
 
@@ -2296,10 +2307,13 @@ MemoryRegion *pci_address_space_io(PCIDevice *dev)
 static void pci_device_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *k = DEVICE_CLASS(klass);
+    PCIDeviceClass *pc = PCI_DEVICE_CLASS(klass);
+
     k->realize = pci_qdev_realize;
     k->unrealize = pci_qdev_unrealize;
     k->bus_type = TYPE_PCI_BUS;
     k->props = pci_props;
+    pc->realize = pci_default_realize;
 }
 
 AddressSpace *pci_device_iommu_address_space(PCIDevice *dev)
