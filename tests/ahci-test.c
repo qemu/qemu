@@ -29,6 +29,7 @@
 #include <glib.h>
 
 #include "libqtest.h"
+#include "libqos/libqos.h"
 #include "libqos/ahci.h"
 #include "libqos/pci-pc.h"
 #include "libqos/malloc-pc.h"
@@ -136,58 +137,40 @@ static void free_ahci_device(QPCIDevice *ahci)
 /*** Test Setup & Teardown ***/
 
 /**
- * Launch QEMU with the given command line,
- * and then set up interrupts and our guest malloc interface.
- */
-static void qtest_boot(const char *cmdline_fmt, ...)
-{
-    va_list ap;
-    char *cmdline;
-
-    va_start(ap, cmdline_fmt);
-    cmdline = g_strdup_vprintf(cmdline_fmt, ap);
-    va_end(ap);
-
-    qtest_start(cmdline);
-    qtest_irq_intercept_in(global_qtest, "ioapic");
-    guest_malloc = pc_alloc_init();
-
-    g_free(cmdline);
-}
-
-/**
- * Tear down the QEMU instance.
- */
-static void qtest_shutdown(void)
-{
-    g_free(guest_malloc);
-    guest_malloc = NULL;
-    qtest_end();
-}
-
-/**
  * Start a Q35 machine and bookmark a handle to the AHCI device.
  */
-static QPCIDevice *ahci_boot(void)
+static AHCIQState *ahci_boot(void)
 {
-    qtest_boot("-drive if=none,id=drive0,file=%s,cache=writeback,serial=%s,"
-               "format=raw"
-               " -M q35 "
-               "-device ide-hd,drive=drive0 "
-               "-global ide-hd.ver=%s",
-               tmp_path, "testdisk", "version");
+    AHCIQState *s;
+    const char *cli;
+
+    s = g_malloc0(sizeof(AHCIQState));
+
+    cli = "-drive if=none,id=drive0,file=%s,cache=writeback,serial=%s"
+        ",format=raw"
+        " -M q35 "
+        "-device ide-hd,drive=drive0 "
+        "-global ide-hd.ver=%s";
+    s->parent = qtest_boot(cli, tmp_path, "testdisk", "version");
 
     /* Verify that we have an AHCI device present. */
-    return get_ahci_device();
+    s->dev = get_ahci_device();
+
+    /* Stopgap: Copy the allocator reference */
+    guest_malloc = s->parent->alloc;
+
+    return s;
 }
 
 /**
  * Clean up the PCI device, then terminate the QEMU instance.
  */
-static void ahci_shutdown(QPCIDevice *ahci)
+static void ahci_shutdown(AHCIQState *ahci)
 {
-    free_ahci_device(ahci);
-    qtest_shutdown();
+    QOSState *qs = ahci->parent;
+    free_ahci_device(ahci->dev);
+    g_free(ahci);
+    qtest_shutdown(qs);
 }
 
 /*** Logical Device Initialization ***/
@@ -1104,7 +1087,7 @@ static void ahci_test_identify(QPCIDevice *ahci, void *hba_base)
  */
 static void test_sanity(void)
 {
-    QPCIDevice *ahci;
+    AHCIQState *ahci;
     ahci = ahci_boot();
     ahci_shutdown(ahci);
 }
@@ -1115,9 +1098,9 @@ static void test_sanity(void)
  */
 static void test_pci_spec(void)
 {
-    QPCIDevice *ahci;
+    AHCIQState *ahci;
     ahci = ahci_boot();
-    ahci_test_pci_spec(ahci);
+    ahci_test_pci_spec(ahci->dev);
     ahci_shutdown(ahci);
 }
 
@@ -1127,10 +1110,10 @@ static void test_pci_spec(void)
  */
 static void test_pci_enable(void)
 {
-    QPCIDevice *ahci;
+    AHCIQState *ahci;
     void *hba_base;
     ahci = ahci_boot();
-    ahci_pci_enable(ahci, &hba_base);
+    ahci_pci_enable(ahci->dev, &hba_base);
     ahci_shutdown(ahci);
 }
 
@@ -1140,12 +1123,12 @@ static void test_pci_enable(void)
  */
 static void test_hba_spec(void)
 {
-    QPCIDevice *ahci;
+    AHCIQState *ahci;
     void *hba_base;
 
     ahci = ahci_boot();
-    ahci_pci_enable(ahci, &hba_base);
-    ahci_test_hba_spec(ahci, hba_base);
+    ahci_pci_enable(ahci->dev, &hba_base);
+    ahci_test_hba_spec(ahci->dev, hba_base);
     ahci_shutdown(ahci);
 }
 
@@ -1155,12 +1138,12 @@ static void test_hba_spec(void)
  */
 static void test_hba_enable(void)
 {
-    QPCIDevice *ahci;
+    AHCIQState *ahci;
     void *hba_base;
 
     ahci = ahci_boot();
-    ahci_pci_enable(ahci, &hba_base);
-    ahci_hba_enable(ahci, hba_base);
+    ahci_pci_enable(ahci->dev, &hba_base);
+    ahci_hba_enable(ahci->dev, hba_base);
     ahci_shutdown(ahci);
 }
 
@@ -1170,13 +1153,13 @@ static void test_hba_enable(void)
  */
 static void test_identify(void)
 {
-    QPCIDevice *ahci;
+    AHCIQState *ahci;
     void *hba_base;
 
     ahci = ahci_boot();
-    ahci_pci_enable(ahci, &hba_base);
-    ahci_hba_enable(ahci, hba_base);
-    ahci_test_identify(ahci, hba_base);
+    ahci_pci_enable(ahci->dev, &hba_base);
+    ahci_hba_enable(ahci->dev, hba_base);
+    ahci_test_identify(ahci->dev, hba_base);
     ahci_shutdown(ahci);
 }
 

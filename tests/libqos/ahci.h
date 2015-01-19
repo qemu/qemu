@@ -245,6 +245,11 @@
 
 /*** Structures ***/
 
+typedef struct AHCIQState {
+    QOSState *parent;
+    QPCIDevice *dev;
+} AHCIQState;
+
 /**
  * Generic FIS structure.
  */
