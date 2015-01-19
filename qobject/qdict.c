@@ -477,6 +477,39 @@ static void qdict_destroy_obj(QObject *obj)
     g_free(qdict);
 }
 
+/**
+ * qdict_copy_default(): If no entry mapped by 'key' exists in 'dst' yet, the
+ * value of 'key' in 'src' is copied there (and the refcount increased
+ * accordingly).
+ */
+void qdict_copy_default(QDict *dst, QDict *src, const char *key)
+{
+    QObject *val;
+
+    if (qdict_haskey(dst, key)) {
+        return;
+    }
+
+    val = qdict_get(src, key);
+    if (val) {
+        qobject_incref(val);
+        qdict_put_obj(dst, key, val);
+    }
+}
+
+/**
+ * qdict_set_default_str(): If no entry mapped by 'key' exists in 'dst' yet, a
+ * new QString initialised by 'val' is put there.
+ */
+void qdict_set_default_str(QDict *dst, const char *key, const char *val)
+{
+    if (qdict_haskey(dst, key)) {
+        return;
+    }
+
+    qdict_put(dst, key, qstring_from_str(val));
+}
+
 static void qdict_flatten_qdict(QDict *qdict, QDict *target,
                                 const char *prefix);
 
