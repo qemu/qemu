@@ -3006,7 +3006,7 @@ static const TypeInfo isa_cirrus_vga_info = {
  *
  ***************************************/
 
-static int pci_cirrus_vga_initfn(PCIDevice *dev)
+static void pci_cirrus_vga_realize(PCIDevice *dev, Error **errp)
 {
      PCICirrusVGAState *d = DO_UPCAST(PCICirrusVGAState, dev, dev);
      CirrusVGAState *s = &d->cirrus_vga;
@@ -3017,9 +3017,9 @@ static int pci_cirrus_vga_initfn(PCIDevice *dev)
        Also accept 8 MB/16 MB for backward compatibility. */
      if (s->vga.vram_size_mb != 4 && s->vga.vram_size_mb != 8 &&
          s->vga.vram_size_mb != 16) {
-         error_report("Invalid cirrus_vga ram size '%u'",
-                      s->vga.vram_size_mb);
-         return -1;
+         error_setg(errp, "Invalid cirrus_vga ram size '%u'",
+                    s->vga.vram_size_mb);
+         return;
      }
      /* setup VGA */
      vga_common_init(&s->vga, OBJECT(dev), true);
@@ -3044,7 +3044,6 @@ static int pci_cirrus_vga_initfn(PCIDevice *dev)
      if (device_id == CIRRUS_ID_CLGD5446) {
          pci_register_bar(&d->dev, 1, 0, &s->cirrus_mmio_io);
      }
-     return 0;
 }
 
 static Property pci_vga_cirrus_properties[] = {
@@ -3058,7 +3057,7 @@ static void cirrus_vga_class_init(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
 
-    k->init = pci_cirrus_vga_initfn;
+    k->realize = pci_cirrus_vga_realize;
     k->romfile = VGABIOS_CIRRUS_FILENAME;
     k->vendor_id = PCI_VENDOR_ID_CIRRUS;
     k->device_id = CIRRUS_ID_CLGD5446;
