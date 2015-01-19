@@ -45,7 +45,6 @@
 
 /*** Globals ***/
 static QGuestAllocator *guest_malloc;
-static QPCIBus *pcibus;
 static char tmp_path[] = "/tmp/qtest.XXXXXX";
 static bool ahci_pedantic;
 
@@ -100,6 +99,7 @@ static QPCIDevice *get_ahci_device(uint32_t *fingerprint)
 {
     QPCIDevice *ahci;
     uint32_t ahci_fingerprint;
+    QPCIBus *pcibus;
 
     pcibus = qpci_init_pc();
 
@@ -123,15 +123,13 @@ static QPCIDevice *get_ahci_device(uint32_t *fingerprint)
     return ahci;
 }
 
-static void free_ahci_device(QPCIDevice *ahci)
+static void free_ahci_device(QPCIDevice *dev)
 {
-    /* libqos doesn't have a function for this, so free it manually */
-    g_free(ahci);
+    QPCIBus *pcibus = dev ? dev->bus : NULL;
 
-    if (pcibus) {
-        qpci_free_pc(pcibus);
-        pcibus = NULL;
-    }
+    /* libqos doesn't have a function for this, so free it manually */
+    g_free(dev);
+    qpci_free_pc(pcibus);
 }
 
 /*** Test Setup & Teardown ***/
