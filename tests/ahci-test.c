@@ -46,10 +46,8 @@
 /*** Globals ***/
 static QGuestAllocator *guest_malloc;
 static QPCIBus *pcibus;
-static uint64_t barsize;
 static char tmp_path[] = "/tmp/qtest.XXXXXX";
 static bool ahci_pedantic;
-static uint32_t ahci_fingerprint;
 
 /*** IO macros for the AHCI memory registers. ***/
 #define AHCI_READ(OFST) qpci_io_readl(ahci->dev, ahci->hba_base + (OFST))
@@ -70,12 +68,11 @@ static uint32_t ahci_fingerprint;
                                           PX_RREG((port), (reg)) & ~(mask));
 
 /*** Function Declarations ***/
-static QPCIDevice *get_ahci_device(void);
+static QPCIDevice *get_ahci_device(uint32_t *fingerprint);
 static void start_ahci_device(AHCIQState *ahci);
 static void free_ahci_device(QPCIDevice *dev);
 
-static void ahci_test_port_spec(AHCIQState *ahci,
-                                HBACap *hcap, uint8_t port);
+static void ahci_test_port_spec(AHCIQState *ahci, uint8_t port);
 static void ahci_test_pci_spec(AHCIQState *ahci);
 static void ahci_test_pci_caps(AHCIQState *ahci, uint16_t header,
                                uint8_t offset);
@@ -99,9 +96,10 @@ static void string_bswap16(uint16_t *s, size_t bytes)
 /**
  * Locate, verify, and return a handle to the AHCI device.
  */
-static QPCIDevice *get_ahci_device(void)
+static QPCIDevice *get_ahci_device(uint32_t *fingerprint)
 {
     QPCIDevice *ahci;
+    uint32_t ahci_fingerprint;
 
     pcibus = qpci_init_pc();
 
@@ -119,6 +117,9 @@ static QPCIDevice *get_ahci_device(void)
         g_assert_not_reached();
     }
 
+    if (fingerprint) {
+        *fingerprint = ahci_fingerprint;
+    }
     return ahci;
 }
 
@@ -131,9 +132,6 @@ static void free_ahci_device(QPCIDevice *ahci)
         qpci_free_pc(pcibus);
         pcibus = NULL;
     }
-
-    /* Clear our cached barsize information. */
-    barsize = 0;
 }
 
 /*** Test Setup & Teardown ***/
@@ -156,7 +154,7 @@ static AHCIQState *ahci_boot(void)
     s->parent = qtest_pc_boot(cli, tmp_path, "testdisk", "version");
 
     /* Verify that we have an AHCI device present. */
-    s->dev = get_ahci_device();
+    s->dev = get_ahci_device(&s->fingerprint);
 
     /* Stopgap: Copy the allocator reference */
     guest_malloc = s->parent->alloc;
@@ -186,7 +184,7 @@ static void ahci_pci_enable(AHCIQState *ahci)
 
     start_ahci_device(ahci);
 
-    switch (ahci_fingerprint) {
+    switch (ahci->fingerprint) {
     case AHCI_INTEL_ICH9:
         /* ICH9 has a register at PCI 0x92 that
          * acts as a master port enabler mask. */
@@ -206,7 +204,7 @@ static void ahci_pci_enable(AHCIQState *ahci)
 static void start_ahci_device(AHCIQState *ahci)
 {
     /* Map AHCI's ABAR (BAR5) */
-    ahci->hba_base = qpci_iomap(ahci->dev, 5, &barsize);
+    ahci->hba_base = qpci_iomap(ahci->dev, 5, &ahci->barsize);
 
     /* turns on pci.cmd.iose, pci.cmd.mse and pci.cmd.bme */
     qpci_device_enable(ahci->dev);
@@ -228,21 +226,23 @@ static void ahci_hba_enable(AHCIQState *ahci)
      * PxCMD.FR   "FIS Receive Running"
      * PxCMD.CR   "Command List Running"
      */
-
-    g_assert(ahci != NULL);
-
     uint32_t reg, ports_impl, clb, fb;
     uint16_t i;
     uint8_t num_cmd_slots;
+
+    g_assert(ahci != NULL);
 
     /* Set GHC.AE to 1 */
     AHCI_SET(AHCI_GHC, AHCI_GHC_AE);
     reg = AHCI_RREG(AHCI_GHC);
     ASSERT_BIT_SET(reg, AHCI_GHC_AE);
 
+    /* Cache CAP and CAP2. */
+    ahci->cap = AHCI_RREG(AHCI_CAP);
+    ahci->cap2 = AHCI_RREG(AHCI_CAP2);
+
     /* Read CAP.NCS, how many command slots do we have? */
-    reg = AHCI_RREG(AHCI_CAP);
-    num_cmd_slots = ((reg & AHCI_CAP_NCS) >> ctzl(AHCI_CAP_NCS)) + 1;
+    num_cmd_slots = ((ahci->cap & AHCI_CAP_NCS) >> ctzl(AHCI_CAP_NCS)) + 1;
     g_test_message("Number of Command Slots: %u", num_cmd_slots);
 
     /* Determine which ports are implemented. */
@@ -436,7 +436,7 @@ static void ahci_test_pci_spec(AHCIQState *ahci)
     /* Check specification adherence for capability extenstions. */
     data = qpci_config_readw(ahci->dev, datal);
 
-    switch (ahci_fingerprint) {
+    switch (ahci->fingerprint) {
     case AHCI_INTEL_ICH9:
         /* Intel ICH9 Family Datasheet 14.1.19 p.550 */
         g_assert_cmphex((data & 0xFF), ==, PCI_CAP_ID_MSI);
@@ -578,9 +578,8 @@ static void ahci_test_pmcap(AHCIQState *ahci, uint8_t offset)
 
 static void ahci_test_hba_spec(AHCIQState *ahci)
 {
-    HBACap hcap;
     unsigned i;
-    uint32_t cap, cap2, reg;
+    uint32_t reg;
     uint32_t ports;
     uint8_t nports_impl;
     uint8_t maxports;
@@ -608,15 +607,15 @@ static void ahci_test_hba_spec(AHCIQState *ahci)
      */
 
     /* 1 CAP - Capabilities Register */
-    cap = AHCI_RREG(AHCI_CAP);
-    ASSERT_BIT_CLEAR(cap, AHCI_CAP_RESERVED);
+    ahci->cap = AHCI_RREG(AHCI_CAP);
+    ASSERT_BIT_CLEAR(ahci->cap, AHCI_CAP_RESERVED);
 
     /* 2 GHC - Global Host Control */
     reg = AHCI_RREG(AHCI_GHC);
     ASSERT_BIT_CLEAR(reg, AHCI_GHC_HR);
     ASSERT_BIT_CLEAR(reg, AHCI_GHC_IE);
     ASSERT_BIT_CLEAR(reg, AHCI_GHC_MRSM);
-    if (BITSET(cap, AHCI_CAP_SAM)) {
+    if (BITSET(ahci->cap, AHCI_CAP_SAM)) {
         g_test_message("Supports AHCI-Only Mode: GHC_AE is Read-Only.");
         ASSERT_BIT_SET(reg, AHCI_GHC_AE);
     } else {
@@ -634,13 +633,13 @@ static void ahci_test_hba_spec(AHCIQState *ahci)
     g_assert_cmphex(ports, !=, 0);
     /* Ports Implemented must be <= Number of Ports. */
     nports_impl = ctpopl(ports);
-    g_assert_cmpuint(((AHCI_CAP_NP & cap) + 1), >=, nports_impl);
+    g_assert_cmpuint(((AHCI_CAP_NP & ahci->cap) + 1), >=, nports_impl);
 
-    g_assert_cmphex(barsize, >, 0);
     /* Ports must be within the proper range. Given a mapping of SIZE,
      * 256 bytes are used for global HBA control, and the rest is used
      * for ports data, at 0x80 bytes each. */
-    maxports = (barsize - HBA_DATA_REGION_SIZE) / HBA_PORT_DATA_SIZE;
+    g_assert_cmphex(ahci->barsize, >, 0);
+    maxports = (ahci->barsize - HBA_DATA_REGION_SIZE) / HBA_PORT_DATA_SIZE;
     /* e.g, 30 ports for 4K of memory. (4096 - 256) / 128 = 30 */
     g_assert_cmphex((reg >> maxports), ==, 0);
 
@@ -659,7 +658,7 @@ static void ahci_test_hba_spec(AHCIQState *ahci)
 
     /* 6 Command Completion Coalescing Control: depends on CAP.CCCS. */
     reg = AHCI_RREG(AHCI_CCCCTL);
-    if (BITSET(cap, AHCI_CAP_CCCS)) {
+    if (BITSET(ahci->cap, AHCI_CAP_CCCS)) {
         ASSERT_BIT_CLEAR(reg, AHCI_CCCCTL_EN);
         ASSERT_BIT_CLEAR(reg, AHCI_CCCCTL_RESERVED);
         ASSERT_BIT_SET(reg, AHCI_CCCCTL_CC);
@@ -675,13 +674,13 @@ static void ahci_test_hba_spec(AHCIQState *ahci)
 
     /* 8 EM_LOC */
     reg = AHCI_RREG(AHCI_EMLOC);
-    if (BITCLR(cap, AHCI_CAP_EMS)) {
+    if (BITCLR(ahci->cap, AHCI_CAP_EMS)) {
         g_assert_cmphex(reg, ==, 0);
     }
 
     /* 9 EM_CTL */
     reg = AHCI_RREG(AHCI_EMCTL);
-    if (BITSET(cap, AHCI_CAP_EMS)) {
+    if (BITSET(ahci->cap, AHCI_CAP_EMS)) {
         ASSERT_BIT_CLEAR(reg, AHCI_EMCTL_STSMR);
         ASSERT_BIT_CLEAR(reg, AHCI_EMCTL_CTLTM);
         ASSERT_BIT_CLEAR(reg, AHCI_EMCTL_CTLRST);
@@ -691,8 +690,8 @@ static void ahci_test_hba_spec(AHCIQState *ahci)
     }
 
     /* 10 CAP2 -- Capabilities Extended */
-    cap2 = AHCI_RREG(AHCI_CAP2);
-    ASSERT_BIT_CLEAR(cap2, AHCI_CAP2_RESERVED);
+    ahci->cap2 = AHCI_RREG(AHCI_CAP2);
+    ASSERT_BIT_CLEAR(ahci->cap2, AHCI_CAP2_RESERVED);
 
     /* 11 BOHC -- Bios/OS Handoff Control */
     reg = AHCI_RREG(AHCI_BOHC);
@@ -706,7 +705,7 @@ static void ahci_test_hba_spec(AHCIQState *ahci)
     }
 
     /* 24 -- 39: NVMHCI */
-    if (BITCLR(cap2, AHCI_CAP2_NVMP)) {
+    if (BITCLR(ahci->cap2, AHCI_CAP2_NVMP)) {
         g_test_message("Verifying HBA/NVMHCI area is empty.");
         for (i = AHCI_NVMHCI; i < AHCI_VENDOR; ++i) {
             reg = AHCI_RREG(i);
@@ -722,12 +721,10 @@ static void ahci_test_hba_spec(AHCIQState *ahci)
     }
 
     /* 64 -- XX: Port Space */
-    hcap.cap = cap;
-    hcap.cap2 = cap2;
     for (i = 0; ports || (i < maxports); ports >>= 1, ++i) {
         if (BITSET(ports, 0x1)) {
             g_test_message("Testing port %u for spec", i);
-            ahci_test_port_spec(ahci, &hcap, i);
+            ahci_test_port_spec(ahci, i);
         } else {
             uint16_t j;
             uint16_t low = AHCI_PORTS + (32 * i);
@@ -746,8 +743,7 @@ static void ahci_test_hba_spec(AHCIQState *ahci)
 /**
  * Test the memory space for one port for specification adherence.
  */
-static void ahci_test_port_spec(AHCIQState *ahci,
-                                HBACap *hcap, uint8_t port)
+static void ahci_test_port_spec(AHCIQState *ahci, uint8_t port)
 {
     uint32_t reg;
     unsigned i;
@@ -757,7 +753,7 @@ static void ahci_test_port_spec(AHCIQState *ahci,
     ASSERT_BIT_CLEAR(reg, AHCI_PX_CLB_RESERVED);
 
     /* (1) CLBU */
-    if (BITCLR(hcap->cap, AHCI_CAP_S64A)) {
+    if (BITCLR(ahci->cap, AHCI_CAP_S64A)) {
         reg = PX_RREG(port, AHCI_PX_CLBU);
         g_assert_cmphex(reg, ==, 0);
     }
@@ -767,7 +763,7 @@ static void ahci_test_port_spec(AHCIQState *ahci,
     ASSERT_BIT_CLEAR(reg, AHCI_PX_FB_RESERVED);
 
     /* (3) FBU */
-    if (BITCLR(hcap->cap, AHCI_CAP_S64A)) {
+    if (BITCLR(ahci->cap, AHCI_CAP_S64A)) {
         reg = PX_RREG(port, AHCI_PX_FBU);
         g_assert_cmphex(reg, ==, 0);
     }
@@ -803,7 +799,7 @@ static void ahci_test_port_spec(AHCIQState *ahci,
         ASSERT_BIT_CLEAR(reg, AHCI_PX_CMD_MPSS);
     }
     /* If we do not support MPS, MPSS and MPSP must be off. */
-    if (BITCLR(hcap->cap, AHCI_CAP_SMPS)) {
+    if (BITCLR(ahci->cap, AHCI_CAP_SMPS)) {
         ASSERT_BIT_CLEAR(reg, AHCI_PX_CMD_MPSS);
         ASSERT_BIT_CLEAR(reg, AHCI_PX_CMD_MPSP);
     }
@@ -814,7 +810,7 @@ static void ahci_test_port_spec(AHCIQState *ahci,
     /* HPCP and ESP cannot both be active. */
     g_assert(!BITSET(reg, AHCI_PX_CMD_HPCP | AHCI_PX_CMD_ESP));
     /* If CAP.FBSS is not set, FBSCP must not be set. */
-    if (BITCLR(hcap->cap, AHCI_CAP_FBSS)) {
+    if (BITCLR(ahci->cap, AHCI_CAP_FBSS)) {
         ASSERT_BIT_CLEAR(reg, AHCI_PX_CMD_FBSCP);
     }
 
@@ -874,7 +870,7 @@ static void ahci_test_port_spec(AHCIQState *ahci,
     ASSERT_BIT_CLEAR(reg, AHCI_PX_FBS_DEV);
     ASSERT_BIT_CLEAR(reg, AHCI_PX_FBS_DWE);
     ASSERT_BIT_CLEAR(reg, AHCI_PX_FBS_RESERVED);
-    if (BITSET(hcap->cap, AHCI_CAP_FBSS)) {
+    if (BITSET(ahci->cap, AHCI_CAP_FBSS)) {
         /* if Port-Multiplier FIS-based switching avail, ADO must >= 2 */
         g_assert((reg & AHCI_PX_FBS_ADO) >> ctzl(AHCI_PX_FBS_ADO) >= 2);
     }

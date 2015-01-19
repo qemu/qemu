@@ -249,6 +249,10 @@ typedef struct AHCIQState {
     QOSState *parent;
     QPCIDevice *dev;
     void *hba_base;
+    uint64_t barsize;
+    uint32_t fingerprint;
+    uint32_t cap;
+    uint32_t cap2;
 } AHCIQState;
 
 /**
@@ -339,11 +343,6 @@ typedef struct PRD {
     uint32_t res;  /* Reserved */
     uint32_t dbc;  /* Data Byte Count (0-indexed) & Interrupt Flag (bit 2^31) */
 } PRD;
-
-typedef struct HBACap {
-    uint32_t cap;
-    uint32_t cap2;
-} HBACap;
 
 /*** Macro Utilities ***/
 #define BITANY(data, mask) (((data) & (mask)) != 0)
