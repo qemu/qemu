@@ -354,4 +354,67 @@ typedef struct PRD {
 /* For calculating how big the PRD table needs to be: */
 #define CMD_TBL_SIZ(n) ((0x80 + ((n) * sizeof(PRD)) + 0x7F) & ~0x7F)
 
+/* Helpers for reading/writing AHCI HBA register values */
+
+static inline uint32_t ahci_mread(AHCIQState *ahci, size_t offset)
+{
+    return qpci_io_readl(ahci->dev, ahci->hba_base + offset);
+}
+
+static inline void ahci_mwrite(AHCIQState *ahci, size_t offset, uint32_t value)
+{
+    qpci_io_writel(ahci->dev, ahci->hba_base + offset, value);
+}
+
+static inline uint32_t ahci_rreg(AHCIQState *ahci, uint32_t reg_num)
+{
+    return ahci_mread(ahci, 4 * reg_num);
+}
+
+static inline void ahci_wreg(AHCIQState *ahci, uint32_t reg_num, uint32_t value)
+{
+    ahci_mwrite(ahci, 4 * reg_num, value);
+}
+
+static inline void ahci_set(AHCIQState *ahci, uint32_t reg_num, uint32_t mask)
+{
+    ahci_wreg(ahci, reg_num, ahci_rreg(ahci, reg_num) | mask);
+}
+
+static inline void ahci_clr(AHCIQState *ahci, uint32_t reg_num, uint32_t mask)
+{
+    ahci_wreg(ahci, reg_num, ahci_rreg(ahci, reg_num) & ~mask);
+}
+
+static inline size_t ahci_px_offset(uint8_t port, uint32_t reg_num)
+{
+    return AHCI_PORTS + (HBA_PORT_NUM_REG * port) + reg_num;
+}
+
+static inline uint32_t ahci_px_rreg(AHCIQState *ahci, uint8_t port,
+                                    uint32_t reg_num)
+{
+    return ahci_rreg(ahci, ahci_px_offset(port, reg_num));
+}
+
+static inline void ahci_px_wreg(AHCIQState *ahci, uint8_t port,
+                                uint32_t reg_num, uint32_t value)
+{
+    ahci_wreg(ahci, ahci_px_offset(port, reg_num), value);
+}
+
+static inline void ahci_px_set(AHCIQState *ahci, uint8_t port,
+                               uint32_t reg_num, uint32_t mask)
+{
+    ahci_px_wreg(ahci, port, reg_num,
+                 ahci_px_rreg(ahci, port, reg_num) | mask);
+}
+
+static inline void ahci_px_clr(AHCIQState *ahci, uint8_t port,
+                               uint32_t reg_num, uint32_t mask)
+{
+    ahci_px_wreg(ahci, port, reg_num,
+                 ahci_px_rreg(ahci, port, reg_num) & ~mask);
+}
+
 #endif

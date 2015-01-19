@@ -47,22 +47,19 @@ static char tmp_path[] = "/tmp/qtest.XXXXXX";
 static bool ahci_pedantic;
 
 /*** IO macros for the AHCI memory registers. ***/
-#define AHCI_READ(OFST) qpci_io_readl(ahci->dev, ahci->hba_base + (OFST))
-#define AHCI_WRITE(OFST, VAL) qpci_io_writel(ahci->dev,                 \
-                                             ahci->hba_base + (OFST), (VAL))
-#define AHCI_RREG(regno)      AHCI_READ(4 * (regno))
-#define AHCI_WREG(regno, val) AHCI_WRITE(4 * (regno), (val))
-#define AHCI_SET(regno, mask) AHCI_WREG((regno), AHCI_RREG(regno) | (mask))
-#define AHCI_CLR(regno, mask) AHCI_WREG((regno), AHCI_RREG(regno) & ~(mask))
+#define AHCI_READ(OFST)       ahci_mread(ahci, (OFST))
+#define AHCI_WRITE(OFST, VAL) ahci_mwrite(ahci, (OFST), (VAL))
+#define AHCI_RREG(regno)      ahci_rreg(ahci, (regno))
+#define AHCI_WREG(regno, val) ahci_wreg(ahci, (regno), (val))
+#define AHCI_SET(regno, mask) ahci_set(ahci, (regno), (mask))
+#define AHCI_CLR(regno, mask) ahci_clr(ahci, (regno), (mask))
 
 /*** IO macros for port-specific offsets inside of AHCI memory. ***/
-#define PX_OFST(port, regno) (HBA_PORT_NUM_REG * (port) + AHCI_PORTS + (regno))
-#define PX_RREG(port, regno)      AHCI_RREG(PX_OFST((port), (regno)))
-#define PX_WREG(port, regno, val) AHCI_WREG(PX_OFST((port), (regno)), (val))
-#define PX_SET(port, reg, mask)   PX_WREG((port), (reg),                \
-                                          PX_RREG((port), (reg)) | (mask));
-#define PX_CLR(port, reg, mask)   PX_WREG((port), (reg),                \
-                                          PX_RREG((port), (reg)) & ~(mask));
+#define PX_OFST(port, regno)      ahci_px_ofst((port), (regno))
+#define PX_RREG(port, regno)      ahci_px_rreg(ahci, (port), (regno))
+#define PX_WREG(port, regno, val) ahci_px_wreg(ahci, (port), (regno), (val))
+#define PX_SET(port, reg, mask)   ahci_px_set(ahci, (port), (reg), (mask))
+#define PX_CLR(port, reg, mask)   ahci_px_clr(ahci, (port), (reg), (mask))
 
 /*** Function Declarations ***/
 static QPCIDevice *get_ahci_device(uint32_t *fingerprint);
