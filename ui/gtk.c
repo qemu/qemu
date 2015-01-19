@@ -1654,12 +1654,13 @@ static GtkWidget *gd_create_menu_machine(GtkDisplayState *s)
 }
 
 static const DisplayChangeListenerOps dcl_ops = {
-    .dpy_name          = "gtk",
-    .dpy_gfx_update    = gd_update,
-    .dpy_gfx_switch    = gd_switch,
-    .dpy_refresh       = gd_refresh,
-    .dpy_mouse_set     = gd_mouse_set,
-    .dpy_cursor_define = gd_cursor_define,
+    .dpy_name             = "gtk",
+    .dpy_gfx_update       = gd_update,
+    .dpy_gfx_switch       = gd_switch,
+    .dpy_gfx_check_format = qemu_pixman_check_format,
+    .dpy_refresh          = gd_refresh,
+    .dpy_mouse_set        = gd_mouse_set,
+    .dpy_cursor_define    = gd_cursor_define,
 };
 
 static GSList *gd_vc_gfx_init(GtkDisplayState *s, VirtualConsole *vc,

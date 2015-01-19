@@ -120,3 +120,16 @@ void sdl2_2d_redraw(struct sdl2_console *scon)
                    surface_width(scon->surface),
                    surface_height(scon->surface));
 }
+
+bool sdl2_2d_check_format(DisplayChangeListener *dcl,
+                          pixman_format_code_t format)
+{
+    /*
+     * We let SDL convert for us a few more formats than,
+     * the native ones. Thes are the ones I have tested.
+     */
+    return (format == PIXMAN_x8r8g8b8 ||
+            format == PIXMAN_b8g8r8x8 ||
+            format == PIXMAN_x1r5g5b5 ||
+            format == PIXMAN_r5g6b5);
+}

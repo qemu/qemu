@@ -28,5 +28,7 @@ void sdl2_2d_switch(DisplayChangeListener *dcl,
                     DisplaySurface *new_surface);
 void sdl2_2d_refresh(DisplayChangeListener *dcl);
 void sdl2_2d_redraw(struct sdl2_console *scon);
+bool sdl2_2d_check_format(DisplayChangeListener *dcl,
+                          pixman_format_code_t format);
 
 #endif /* SDL2_H */
