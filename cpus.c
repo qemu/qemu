@@ -361,15 +361,19 @@ static void icount_warp_rt(void *opaque)
 void qtest_clock_warp(int64_t dest)
 {
     int64_t clock = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
+    AioContext *aio_context;
     assert(qtest_enabled());
+    aio_context = qemu_get_aio_context();
     while (clock < dest) {
         int64_t deadline = qemu_clock_deadline_ns_all(QEMU_CLOCK_VIRTUAL);
         int64_t warp = qemu_soonest_timeout(dest - clock, deadline);
+
         seqlock_write_lock(&timers_state.vm_clock_seqlock);
         timers_state.qemu_icount_bias += warp;
         seqlock_write_unlock(&timers_state.vm_clock_seqlock);
 
         qemu_clock_run_timers(QEMU_CLOCK_VIRTUAL);
+        timerlist_run_timers(aio_context->tlg.tl[QEMU_CLOCK_VIRTUAL]);
         clock = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
     }
     qemu_clock_notify(QEMU_CLOCK_VIRTUAL);
