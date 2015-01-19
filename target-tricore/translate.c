@@ -182,6 +182,18 @@ void tricore_cpu_dump_state(CPUState *cs, FILE *f,
     tcg_temp_free(arg11);                                    \
 } while (0)
 
+#define GEN_HELPER_RRR(name, rl, rh, al1, ah1, arg2) do {    \
+    TCGv_i64 ret = tcg_temp_new_i64();                       \
+    TCGv_i64 arg1 = tcg_temp_new_i64();                      \
+                                                             \
+    tcg_gen_concat_i32_i64(arg1, al1, ah1);                  \
+    gen_helper_##name(ret, arg1, arg2);                      \
+    tcg_gen_extr_i64_i32(rl, rh, ret);                       \
+                                                             \
+    tcg_temp_free_i64(ret);                                  \
+    tcg_temp_free_i64(arg1);                                 \
+} while (0)
+
 #define EA_ABS_FORMAT(con) (((con & 0x3C000) << 14) + (con & 0x3FFF))
 #define EA_B_ABSOLUT(con) (((offset & 0xf00000) << 8) | \
                            ((offset & 0x0fffff) << 1))
@@ -818,6 +830,45 @@ static inline void gen_subc_CC(TCGv ret, TCGv r1, TCGv r2)
     tcg_gen_not_tl(temp, r2);
     gen_addc_CC(ret, r1, temp);
     tcg_temp_free(temp);
+}
+
+static inline void gen_cond_sub(TCGCond cond, TCGv r1, TCGv r2, TCGv r3,
+                                TCGv r4)
+{
+    TCGv temp = tcg_temp_new();
+    TCGv temp2 = tcg_temp_new();
+    TCGv result = tcg_temp_new();
+    TCGv mask = tcg_temp_new();
+    TCGv t0 = tcg_const_i32(0);
+
+    /* create mask for sticky bits */
+    tcg_gen_setcond_tl(cond, mask, r4, t0);
+    tcg_gen_shli_tl(mask, mask, 31);
+
+    tcg_gen_sub_tl(result, r1, r2);
+    /* Calc PSW_V */
+    tcg_gen_xor_tl(temp, result, r1);
+    tcg_gen_xor_tl(temp2, r1, r2);
+    tcg_gen_and_tl(temp, temp, temp2);
+    tcg_gen_movcond_tl(cond, cpu_PSW_V, r4, t0, temp, cpu_PSW_V);
+    /* Set PSW_SV */
+    tcg_gen_and_tl(temp, temp, mask);
+    tcg_gen_or_tl(cpu_PSW_SV, temp, cpu_PSW_SV);
+    /* calc AV bit */
+    tcg_gen_add_tl(temp, result, result);
+    tcg_gen_xor_tl(temp, temp, result);
+    tcg_gen_movcond_tl(cond, cpu_PSW_AV, r4, t0, temp, cpu_PSW_AV);
+    /* calc SAV bit */
+    tcg_gen_and_tl(temp, temp, mask);
+    tcg_gen_or_tl(cpu_PSW_SAV, temp, cpu_PSW_SAV);
+    /* write back result */
+    tcg_gen_movcond_tl(cond, r3, r4, t0, result, r1);
+
+    tcg_temp_free(t0);
+    tcg_temp_free(temp);
+    tcg_temp_free(temp2);
+    tcg_temp_free(result);
+    tcg_temp_free(mask);
 }
 
 static inline void gen_abs(TCGv ret, TCGv r1)
@@ -5042,6 +5093,99 @@ static void decode_rrpw_extract_insert(CPUTriCoreState *env, DisasContext *ctx)
     }
 }
 
+/* RRR format */
+static void decode_rrr_cond_select(CPUTriCoreState *env, DisasContext *ctx)
+{
+    uint32_t op2;
+    int r1, r2, r3, r4;
+    TCGv temp;
+
+    op2 = MASK_OP_RRR_OP2(ctx->opcode);
+    r1  = MASK_OP_RRR_S1(ctx->opcode);
+    r2  = MASK_OP_RRR_S2(ctx->opcode);
+    r3  = MASK_OP_RRR_S3(ctx->opcode);
+    r4  = MASK_OP_RRR_D(ctx->opcode);
+
+    switch (op2) {
+    case OPC2_32_RRR_CADD:
+        gen_cond_add(TCG_COND_NE, cpu_gpr_d[r1], cpu_gpr_d[r2],
+                     cpu_gpr_d[r4], cpu_gpr_d[r3]);
+        break;
+    case OPC2_32_RRR_CADDN:
+        gen_cond_add(TCG_COND_EQ, cpu_gpr_d[r1], cpu_gpr_d[r2], cpu_gpr_d[r4],
+                     cpu_gpr_d[r3]);
+        break;
+    case OPC2_32_RRR_CSUB:
+        gen_cond_sub(TCG_COND_NE, cpu_gpr_d[r1], cpu_gpr_d[r2], cpu_gpr_d[r4],
+                     cpu_gpr_d[r3]);
+        break;
+    case OPC2_32_RRR_CSUBN:
+        gen_cond_sub(TCG_COND_EQ, cpu_gpr_d[r1], cpu_gpr_d[r2], cpu_gpr_d[r4],
+                     cpu_gpr_d[r3]);
+        break;
+    case OPC2_32_RRR_SEL:
+        temp = tcg_const_i32(0);
+        tcg_gen_movcond_tl(TCG_COND_NE, cpu_gpr_d[r4], cpu_gpr_d[r3], temp,
+                           cpu_gpr_d[r1], cpu_gpr_d[r2]);
+        tcg_temp_free(temp);
+        break;
+    case OPC2_32_RRR_SELN:
+        temp = tcg_const_i32(0);
+        tcg_gen_movcond_tl(TCG_COND_EQ, cpu_gpr_d[r4], cpu_gpr_d[r3], temp,
+                           cpu_gpr_d[r1], cpu_gpr_d[r2]);
+        tcg_temp_free(temp);
+        break;
+    }
+}
+
+static void decode_rrr_divide(CPUTriCoreState *env, DisasContext *ctx)
+{
+    uint32_t op2;
+
+    int r1, r2, r3, r4;
+
+    op2 = MASK_OP_RRR_OP2(ctx->opcode);
+    r1 = MASK_OP_RRR_S1(ctx->opcode);
+    r2 = MASK_OP_RRR_S2(ctx->opcode);
+    r3 = MASK_OP_RRR_S3(ctx->opcode);
+    r4 = MASK_OP_RRR_D(ctx->opcode);
+
+    switch (op2) {
+    case OPC2_32_RRR_DVADJ:
+        GEN_HELPER_RRR(dvadj, cpu_gpr_d[r4], cpu_gpr_d[r4+1], cpu_gpr_d[r3],
+                       cpu_gpr_d[r3+1], cpu_gpr_d[r2]);
+        break;
+    case OPC2_32_RRR_DVSTEP:
+        GEN_HELPER_RRR(dvstep, cpu_gpr_d[r4], cpu_gpr_d[r4+1], cpu_gpr_d[r3],
+                       cpu_gpr_d[r3+1], cpu_gpr_d[r2]);
+        break;
+    case OPC2_32_RRR_DVSTEP_U:
+        GEN_HELPER_RRR(dvstep_u, cpu_gpr_d[r4], cpu_gpr_d[r4+1], cpu_gpr_d[r3],
+                       cpu_gpr_d[r3+1], cpu_gpr_d[r2]);
+        break;
+    case OPC2_32_RRR_IXMAX:
+        GEN_HELPER_RRR(ixmax, cpu_gpr_d[r4], cpu_gpr_d[r4+1], cpu_gpr_d[r3],
+                       cpu_gpr_d[r3+1], cpu_gpr_d[r2]);
+        break;
+    case OPC2_32_RRR_IXMAX_U:
+        GEN_HELPER_RRR(ixmax_u, cpu_gpr_d[r4], cpu_gpr_d[r4+1], cpu_gpr_d[r3],
+                       cpu_gpr_d[r3+1], cpu_gpr_d[r2]);
+        break;
+    case OPC2_32_RRR_IXMIN:
+        GEN_HELPER_RRR(ixmin, cpu_gpr_d[r4], cpu_gpr_d[r4+1], cpu_gpr_d[r3],
+                       cpu_gpr_d[r3+1], cpu_gpr_d[r2]);
+        break;
+    case OPC2_32_RRR_IXMIN_U:
+        GEN_HELPER_RRR(ixmin_u, cpu_gpr_d[r4], cpu_gpr_d[r4+1], cpu_gpr_d[r3],
+                       cpu_gpr_d[r3+1], cpu_gpr_d[r2]);
+        break;
+    case OPC2_32_RRR_PACK:
+        gen_helper_pack(cpu_gpr_d[r4], cpu_PSW_C, cpu_gpr_d[r3],
+                        cpu_gpr_d[r3+1], cpu_gpr_d[r1]);
+        break;
+    }
+}
+
 static void decode_32Bit_opc(CPUTriCoreState *env, DisasContext *ctx)
 {
     int op1;
@@ -5325,6 +5469,12 @@ static void decode_32Bit_opc(CPUTriCoreState *env, DisasContext *ctx)
             tcg_temp_free(temp);
         }
         break;
+/* RRR Format */
+    case OPCM_32_RRR_COND_SELECT:
+        decode_rrr_cond_select(env, ctx);
+        break;
+    case OPCM_32_RRR_DIVIDE:
+        decode_rrr_divide(env, ctx);
     }
 }
 

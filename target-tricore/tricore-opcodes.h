@@ -516,7 +516,7 @@ enum {
     OPC1_32_RRPW_DEXTR                               = 0x77,
 /* RRR Format */
     OPCM_32_RRR_COND_SELECT                          = 0x2b,
-    OPCM_32_RRR_FLOAT                                = 0x6b,
+    OPCM_32_RRR_DIVIDE                               = 0x6b,
 /* RRR1 Format */
     OPCM_32_RRR1_MADD                                = 0x83,
     OPCM_32_RRR1_MADDQ_H                             = 0x43,
