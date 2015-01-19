@@ -50,4 +50,5 @@ void alloc_uninit(QGuestAllocator *allocator);
 uint64_t guest_alloc(QGuestAllocator *allocator, size_t size);
 void guest_free(QGuestAllocator *allocator, uint64_t addr);
 
+QGuestAllocator *alloc_init(uint64_t start, uint64_t end);
 #endif

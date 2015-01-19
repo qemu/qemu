@@ -268,3 +268,20 @@ void guest_free(QGuestAllocator *allocator, uint64_t addr)
         mlist_check(allocator);
     }
 }
+
+QGuestAllocator *alloc_init(uint64_t start, uint64_t end)
+{
+    QGuestAllocator *s = g_malloc0(sizeof(*s));
+    MemBlock *node;
+
+    s->start = start;
+    s->end = end;
+
+    QTAILQ_INIT(&s->used);
+    QTAILQ_INIT(&s->free);
+
+    node = mlist_new(s->start, s->end - s->start);
+    QTAILQ_INSERT_HEAD(&s->free, node, MLIST_ENTNAME);
+
+    return s;
+}

@@ -32,30 +32,18 @@ void pc_alloc_uninit(QGuestAllocator *allocator)
 
 QGuestAllocator *pc_alloc_init_flags(QAllocOpts flags)
 {
-    QGuestAllocator *s = g_malloc0(sizeof(*s));
+    QGuestAllocator *s;
     uint64_t ram_size;
     QFWCFG *fw_cfg = pc_fw_cfg_init();
-    MemBlock *node;
+
+    ram_size = qfw_cfg_get_u64(fw_cfg, FW_CFG_RAM_SIZE);
+    s = alloc_init(1 << 20, MIN(ram_size, 0xE0000000));
 
     s->opts = flags;
     s->page_size = PAGE_SIZE;
 
-    ram_size = qfw_cfg_get_u64(fw_cfg, FW_CFG_RAM_SIZE);
-
-    /* Start at 1MB */
-    s->start = 1 << 20;
-
-    /* Respect PCI hole */
-    s->end = MIN(ram_size, 0xE0000000);
-
     /* clean-up */
     g_free(fw_cfg);
-
-    QTAILQ_INIT(&s->used);
-    QTAILQ_INIT(&s->free);
-
-    node = mlist_new(s->start, s->end - s->start);
-    QTAILQ_INSERT_HEAD(&s->free, node, MLIST_ENTNAME);
 
     return s;
 }
