@@ -4991,6 +4991,57 @@ static void decode_rr2_mul(CPUTriCoreState *env, DisasContext *ctx)
     }
 }
 
+/* RRPW format */
+static void decode_rrpw_extract_insert(CPUTriCoreState *env, DisasContext *ctx)
+{
+    uint32_t op2;
+    int r1, r2, r3;
+    int32_t pos, width;
+
+    op2 = MASK_OP_RRPW_OP2(ctx->opcode);
+    r1 = MASK_OP_RRPW_S1(ctx->opcode);
+    r2 = MASK_OP_RRPW_S2(ctx->opcode);
+    r3 = MASK_OP_RRPW_D(ctx->opcode);
+    pos = MASK_OP_RRPW_POS(ctx->opcode);
+    width = MASK_OP_RRPW_WIDTH(ctx->opcode);
+
+    switch (op2) {
+    case OPC2_32_RRPW_EXTR:
+        if (pos + width <= 31) {
+            /* optimize special cases */
+            if ((pos == 0) && (width == 8)) {
+                tcg_gen_ext8s_tl(cpu_gpr_d[r3], cpu_gpr_d[r1]);
+            } else if ((pos == 0) && (width == 16)) {
+                tcg_gen_ext16s_tl(cpu_gpr_d[r3], cpu_gpr_d[r1]);
+            } else {
+                tcg_gen_shli_tl(cpu_gpr_d[r3], cpu_gpr_d[r1], 32 - pos - width);
+                tcg_gen_sari_tl(cpu_gpr_d[r3], cpu_gpr_d[r3], 32 - width);
+            }
+        }
+        break;
+    case OPC2_32_RRPW_EXTR_U:
+        if (width == 0) {
+            tcg_gen_movi_tl(cpu_gpr_d[r3], 0);
+        } else {
+            tcg_gen_shri_tl(cpu_gpr_d[r3], cpu_gpr_d[r1], pos);
+            tcg_gen_andi_tl(cpu_gpr_d[r3], cpu_gpr_d[r3], ~0u >> (32-width));
+        }
+        break;
+    case OPC2_32_RRPW_IMASK:
+        if (pos + width <= 31) {
+            tcg_gen_movi_tl(cpu_gpr_d[r3+1], ((1u << width) - 1) << pos);
+            tcg_gen_shli_tl(cpu_gpr_d[r3], cpu_gpr_d[r2], pos);
+        }
+        break;
+    case OPC2_32_RRPW_INSERT:
+        if (pos + width <= 31) {
+            tcg_gen_deposit_tl(cpu_gpr_d[r3], cpu_gpr_d[r1], cpu_gpr_d[r2],
+                               width, pos);
+        }
+        break;
+    }
+}
+
 static void decode_32Bit_opc(CPUTriCoreState *env, DisasContext *ctx)
 {
     int op1;
@@ -5254,6 +5305,25 @@ static void decode_32Bit_opc(CPUTriCoreState *env, DisasContext *ctx)
 /* RR2 format */
     case OPCM_32_RR2_MUL:
         decode_rr2_mul(env, ctx);
+        break;
+/* RRPW format */
+    case OPCM_32_RRPW_EXTRACT_INSERT:
+        decode_rrpw_extract_insert(env, ctx);
+        break;
+    case OPC1_32_RRPW_DEXTR:
+        r1 = MASK_OP_RRPW_S1(ctx->opcode);
+        r2 = MASK_OP_RRPW_S2(ctx->opcode);
+        r3 = MASK_OP_RRPW_D(ctx->opcode);
+        const16 = MASK_OP_RRPW_POS(ctx->opcode);
+        if (r1 == r2) {
+            tcg_gen_rotli_tl(cpu_gpr_d[r3], cpu_gpr_d[r1], const16);
+        } else {
+            temp = tcg_temp_new();
+            tcg_gen_shli_tl(cpu_gpr_d[r3], cpu_gpr_d[r2], const16);
+            tcg_gen_shri_tl(temp, cpu_gpr_d[r1], 32 - const16);
+            tcg_gen_or_tl(cpu_gpr_d[r3], cpu_gpr_d[r3], temp);
+            tcg_temp_free(temp);
+        }
         break;
     }
 }
