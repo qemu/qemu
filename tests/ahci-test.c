@@ -46,21 +46,6 @@
 static char tmp_path[] = "/tmp/qtest.XXXXXX";
 static bool ahci_pedantic;
 
-/*** IO macros for the AHCI memory registers. ***/
-#define AHCI_READ(OFST)       ahci_mread(ahci, (OFST))
-#define AHCI_WRITE(OFST, VAL) ahci_mwrite(ahci, (OFST), (VAL))
-#define AHCI_RREG(regno)      ahci_rreg(ahci, (regno))
-#define AHCI_WREG(regno, val) ahci_wreg(ahci, (regno), (val))
-#define AHCI_SET(regno, mask) ahci_set(ahci, (regno), (mask))
-#define AHCI_CLR(regno, mask) ahci_clr(ahci, (regno), (mask))
-
-/*** IO macros for port-specific offsets inside of AHCI memory. ***/
-#define PX_OFST(port, regno)      ahci_px_ofst((port), (regno))
-#define PX_RREG(port, regno)      ahci_px_rreg(ahci, (port), (regno))
-#define PX_WREG(port, regno, val) ahci_px_wreg(ahci, (port), (regno), (val))
-#define PX_SET(port, reg, mask)   ahci_px_set(ahci, (port), (reg), (mask))
-#define PX_CLR(port, reg, mask)   ahci_px_clr(ahci, (port), (reg), (mask))
-
 /*** Function Declarations ***/
 static QPCIDevice *get_ahci_device(uint32_t *fingerprint);
 static void start_ahci_device(AHCIQState *ahci);
@@ -228,20 +213,20 @@ static void ahci_hba_enable(AHCIQState *ahci)
     g_assert(ahci != NULL);
 
     /* Set GHC.AE to 1 */
-    AHCI_SET(AHCI_GHC, AHCI_GHC_AE);
-    reg = AHCI_RREG(AHCI_GHC);
+    ahci_set(ahci, AHCI_GHC, AHCI_GHC_AE);
+    reg = ahci_rreg(ahci, AHCI_GHC);
     ASSERT_BIT_SET(reg, AHCI_GHC_AE);
 
     /* Cache CAP and CAP2. */
-    ahci->cap = AHCI_RREG(AHCI_CAP);
-    ahci->cap2 = AHCI_RREG(AHCI_CAP2);
+    ahci->cap = ahci_rreg(ahci, AHCI_CAP);
+    ahci->cap2 = ahci_rreg(ahci, AHCI_CAP2);
 
     /* Read CAP.NCS, how many command slots do we have? */
     num_cmd_slots = ((ahci->cap & AHCI_CAP_NCS) >> ctzl(AHCI_CAP_NCS)) + 1;
     g_test_message("Number of Command Slots: %u", num_cmd_slots);
 
     /* Determine which ports are implemented. */
-    ports_impl = AHCI_RREG(AHCI_PI);
+    ports_impl = ahci_rreg(ahci, AHCI_PI);
 
     for (i = 0; ports_impl; ports_impl >>= 1, ++i) {
         if (!(ports_impl & 0x01)) {
@@ -250,16 +235,17 @@ static void ahci_hba_enable(AHCIQState *ahci)
 
         g_test_message("Initializing port %u", i);
 
-        reg = PX_RREG(i, AHCI_PX_CMD);
+        reg = ahci_px_rreg(ahci, i, AHCI_PX_CMD);
         if (BITCLR(reg, AHCI_PX_CMD_ST | AHCI_PX_CMD_CR |
                    AHCI_PX_CMD_FRE | AHCI_PX_CMD_FR)) {
             g_test_message("port is idle");
         } else {
             g_test_message("port needs to be idled");
-            PX_CLR(i, AHCI_PX_CMD, (AHCI_PX_CMD_ST | AHCI_PX_CMD_FRE));
+            ahci_px_clr(ahci, i, AHCI_PX_CMD,
+                        (AHCI_PX_CMD_ST | AHCI_PX_CMD_FRE));
             /* The port has 500ms to disengage. */
             usleep(500000);
-            reg = PX_RREG(i, AHCI_PX_CMD);
+            reg = ahci_px_rreg(ahci, i, AHCI_PX_CMD);
             ASSERT_BIT_CLEAR(reg, AHCI_PX_CMD_CR);
             ASSERT_BIT_CLEAR(reg, AHCI_PX_CMD_FR);
             g_test_message("port is now idle");
@@ -271,55 +257,56 @@ static void ahci_hba_enable(AHCIQState *ahci)
         /* PxCLB space ... 0x20 per command, as in 4.2.2 p 36 */
         clb = ahci_alloc(ahci, num_cmd_slots * 0x20);
         g_test_message("CLB: 0x%08x", clb);
-        PX_WREG(i, AHCI_PX_CLB, clb);
-        g_assert_cmphex(clb, ==, PX_RREG(i, AHCI_PX_CLB));
+        ahci_px_wreg(ahci, i, AHCI_PX_CLB, clb);
+        g_assert_cmphex(clb, ==, ahci_px_rreg(ahci, i, AHCI_PX_CLB));
 
         /* PxFB space ... 0x100, as in 4.2.1 p 35 */
         fb = ahci_alloc(ahci, 0x100);
         g_test_message("FB: 0x%08x", fb);
-        PX_WREG(i, AHCI_PX_FB, fb);
-        g_assert_cmphex(fb, ==, PX_RREG(i, AHCI_PX_FB));
+        ahci_px_wreg(ahci, i, AHCI_PX_FB, fb);
+        g_assert_cmphex(fb, ==, ahci_px_rreg(ahci, i, AHCI_PX_FB));
 
         /* Clear PxSERR, PxIS, then IS.IPS[x] by writing '1's. */
-        PX_WREG(i, AHCI_PX_SERR, 0xFFFFFFFF);
-        PX_WREG(i, AHCI_PX_IS, 0xFFFFFFFF);
-        AHCI_WREG(AHCI_IS, (1 << i));
+        ahci_px_wreg(ahci, i, AHCI_PX_SERR, 0xFFFFFFFF);
+        ahci_px_wreg(ahci, i, AHCI_PX_IS, 0xFFFFFFFF);
+        ahci_wreg(ahci, AHCI_IS, (1 << i));
 
         /* Verify Interrupts Cleared */
-        reg = PX_RREG(i, AHCI_PX_SERR);
+        reg = ahci_px_rreg(ahci, i, AHCI_PX_SERR);
         g_assert_cmphex(reg, ==, 0);
 
-        reg = PX_RREG(i, AHCI_PX_IS);
+        reg = ahci_px_rreg(ahci, i, AHCI_PX_IS);
         g_assert_cmphex(reg, ==, 0);
 
-        reg = AHCI_RREG(AHCI_IS);
+        reg = ahci_rreg(ahci, AHCI_IS);
         ASSERT_BIT_CLEAR(reg, (1 << i));
 
         /* Enable All Interrupts: */
-        PX_WREG(i, AHCI_PX_IE, 0xFFFFFFFF);
-        reg = PX_RREG(i, AHCI_PX_IE);
+        ahci_px_wreg(ahci, i, AHCI_PX_IE, 0xFFFFFFFF);
+        reg = ahci_px_rreg(ahci, i, AHCI_PX_IE);
         g_assert_cmphex(reg, ==, ~((uint32_t)AHCI_PX_IE_RESERVED));
 
         /* Enable the FIS Receive Engine. */
-        PX_SET(i, AHCI_PX_CMD, AHCI_PX_CMD_FRE);
-        reg = PX_RREG(i, AHCI_PX_CMD);
+        ahci_px_set(ahci, i, AHCI_PX_CMD, AHCI_PX_CMD_FRE);
+        reg = ahci_px_rreg(ahci, i, AHCI_PX_CMD);
         ASSERT_BIT_SET(reg, AHCI_PX_CMD_FR);
 
         /* AHCI 1.3 spec: if !STS.BSY, !STS.DRQ and PxSSTS.DET indicates
          * physical presence, a device is present and may be started. However,
          * PxSERR.DIAG.X /may/ need to be cleared a priori. */
-        reg = PX_RREG(i, AHCI_PX_SERR);
+        reg = ahci_px_rreg(ahci, i, AHCI_PX_SERR);
         if (BITSET(reg, AHCI_PX_SERR_DIAG_X)) {
-            PX_SET(i, AHCI_PX_SERR, AHCI_PX_SERR_DIAG_X);
+            ahci_px_set(ahci, i, AHCI_PX_SERR, AHCI_PX_SERR_DIAG_X);
         }
 
-        reg = PX_RREG(i, AHCI_PX_TFD);
+        reg = ahci_px_rreg(ahci, i, AHCI_PX_TFD);
         if (BITCLR(reg, AHCI_PX_TFD_STS_BSY | AHCI_PX_TFD_STS_DRQ)) {
-            reg = PX_RREG(i, AHCI_PX_SSTS);
+            reg = ahci_px_rreg(ahci, i, AHCI_PX_SSTS);
             if ((reg & AHCI_PX_SSTS_DET) == SSTS_DET_ESTABLISHED) {
                 /* Device Found: set PxCMD.ST := 1 */
-                PX_SET(i, AHCI_PX_CMD, AHCI_PX_CMD_ST);
-                ASSERT_BIT_SET(PX_RREG(i, AHCI_PX_CMD), AHCI_PX_CMD_CR);
+                ahci_px_set(ahci, i, AHCI_PX_CMD, AHCI_PX_CMD_ST);
+                ASSERT_BIT_SET(ahci_px_rreg(ahci, i, AHCI_PX_CMD),
+                               AHCI_PX_CMD_CR);
                 g_test_message("Started Device %u", i);
             } else if ((reg & AHCI_PX_SSTS_DET)) {
                 /* Device present, but in some unknown state. */
@@ -329,8 +316,8 @@ static void ahci_hba_enable(AHCIQState *ahci)
     }
 
     /* Enable GHC.IE */
-    AHCI_SET(AHCI_GHC, AHCI_GHC_IE);
-    reg = AHCI_RREG(AHCI_GHC);
+    ahci_set(ahci, AHCI_GHC, AHCI_GHC_IE);
+    reg = ahci_rreg(ahci, AHCI_GHC);
     ASSERT_BIT_SET(reg, AHCI_GHC_IE);
 
     /* TODO: The device should now be idling and waiting for commands.
@@ -602,11 +589,11 @@ static void ahci_test_hba_spec(AHCIQState *ahci)
      */
 
     /* 1 CAP - Capabilities Register */
-    ahci->cap = AHCI_RREG(AHCI_CAP);
+    ahci->cap = ahci_rreg(ahci, AHCI_CAP);
     ASSERT_BIT_CLEAR(ahci->cap, AHCI_CAP_RESERVED);
 
     /* 2 GHC - Global Host Control */
-    reg = AHCI_RREG(AHCI_GHC);
+    reg = ahci_rreg(ahci, AHCI_GHC);
     ASSERT_BIT_CLEAR(reg, AHCI_GHC_HR);
     ASSERT_BIT_CLEAR(reg, AHCI_GHC_IE);
     ASSERT_BIT_CLEAR(reg, AHCI_GHC_MRSM);
@@ -619,11 +606,11 @@ static void ahci_test_hba_spec(AHCIQState *ahci)
     }
 
     /* 3 IS - Interrupt Status */
-    reg = AHCI_RREG(AHCI_IS);
+    reg = ahci_rreg(ahci, AHCI_IS);
     g_assert_cmphex(reg, ==, 0);
 
     /* 4 PI - Ports Implemented */
-    ports = AHCI_RREG(AHCI_PI);
+    ports = ahci_rreg(ahci, AHCI_PI);
     /* Ports Implemented must be non-zero. */
     g_assert_cmphex(ports, !=, 0);
     /* Ports Implemented must be <= Number of Ports. */
@@ -639,7 +626,7 @@ static void ahci_test_hba_spec(AHCIQState *ahci)
     g_assert_cmphex((reg >> maxports), ==, 0);
 
     /* 5 AHCI Version */
-    reg = AHCI_RREG(AHCI_VS);
+    reg = ahci_rreg(ahci, AHCI_VS);
     switch (reg) {
     case AHCI_VERSION_0_95:
     case AHCI_VERSION_1_0:
@@ -652,7 +639,7 @@ static void ahci_test_hba_spec(AHCIQState *ahci)
     }
 
     /* 6 Command Completion Coalescing Control: depends on CAP.CCCS. */
-    reg = AHCI_RREG(AHCI_CCCCTL);
+    reg = ahci_rreg(ahci, AHCI_CCCCTL);
     if (BITSET(ahci->cap, AHCI_CAP_CCCS)) {
         ASSERT_BIT_CLEAR(reg, AHCI_CCCCTL_EN);
         ASSERT_BIT_CLEAR(reg, AHCI_CCCCTL_RESERVED);
@@ -663,18 +650,18 @@ static void ahci_test_hba_spec(AHCIQState *ahci)
     }
 
     /* 7 CCC_PORTS */
-    reg = AHCI_RREG(AHCI_CCCPORTS);
+    reg = ahci_rreg(ahci, AHCI_CCCPORTS);
     /* Must be zeroes initially regardless of CAP.CCCS */
     g_assert_cmphex(reg, ==, 0);
 
     /* 8 EM_LOC */
-    reg = AHCI_RREG(AHCI_EMLOC);
+    reg = ahci_rreg(ahci, AHCI_EMLOC);
     if (BITCLR(ahci->cap, AHCI_CAP_EMS)) {
         g_assert_cmphex(reg, ==, 0);
     }
 
     /* 9 EM_CTL */
-    reg = AHCI_RREG(AHCI_EMCTL);
+    reg = ahci_rreg(ahci, AHCI_EMCTL);
     if (BITSET(ahci->cap, AHCI_CAP_EMS)) {
         ASSERT_BIT_CLEAR(reg, AHCI_EMCTL_STSMR);
         ASSERT_BIT_CLEAR(reg, AHCI_EMCTL_CTLTM);
@@ -685,17 +672,17 @@ static void ahci_test_hba_spec(AHCIQState *ahci)
     }
 
     /* 10 CAP2 -- Capabilities Extended */
-    ahci->cap2 = AHCI_RREG(AHCI_CAP2);
+    ahci->cap2 = ahci_rreg(ahci, AHCI_CAP2);
     ASSERT_BIT_CLEAR(ahci->cap2, AHCI_CAP2_RESERVED);
 
     /* 11 BOHC -- Bios/OS Handoff Control */
-    reg = AHCI_RREG(AHCI_BOHC);
+    reg = ahci_rreg(ahci, AHCI_BOHC);
     g_assert_cmphex(reg, ==, 0);
 
     /* 12 -- 23: Reserved */
     g_test_message("Verifying HBA reserved area is empty.");
     for (i = AHCI_RESERVED; i < AHCI_NVMHCI; ++i) {
-        reg = AHCI_RREG(i);
+        reg = ahci_rreg(ahci, i);
         g_assert_cmphex(reg, ==, 0);
     }
 
@@ -703,7 +690,7 @@ static void ahci_test_hba_spec(AHCIQState *ahci)
     if (BITCLR(ahci->cap2, AHCI_CAP2_NVMP)) {
         g_test_message("Verifying HBA/NVMHCI area is empty.");
         for (i = AHCI_NVMHCI; i < AHCI_VENDOR; ++i) {
-            reg = AHCI_RREG(i);
+            reg = ahci_rreg(ahci, i);
             g_assert_cmphex(reg, ==, 0);
         }
     }
@@ -711,7 +698,7 @@ static void ahci_test_hba_spec(AHCIQState *ahci)
     /* 40 -- 63: Vendor */
     g_test_message("Verifying HBA/Vendor area is empty.");
     for (i = AHCI_VENDOR; i < AHCI_PORTS; ++i) {
-        reg = AHCI_RREG(i);
+        reg = ahci_rreg(ahci, i);
         g_assert_cmphex(reg, ==, 0);
     }
 
@@ -728,7 +715,7 @@ static void ahci_test_hba_spec(AHCIQState *ahci)
                            "(reg [%u-%u]) is empty.",
                            i, low, high - 1);
             for (j = low; j < high; ++j) {
-                reg = AHCI_RREG(j);
+                reg = ahci_rreg(ahci, j);
                 g_assert_cmphex(reg, ==, 0);
             }
         }
@@ -744,35 +731,35 @@ static void ahci_test_port_spec(AHCIQState *ahci, uint8_t port)
     unsigned i;
 
     /* (0) CLB */
-    reg = PX_RREG(port, AHCI_PX_CLB);
+    reg = ahci_px_rreg(ahci, port, AHCI_PX_CLB);
     ASSERT_BIT_CLEAR(reg, AHCI_PX_CLB_RESERVED);
 
     /* (1) CLBU */
     if (BITCLR(ahci->cap, AHCI_CAP_S64A)) {
-        reg = PX_RREG(port, AHCI_PX_CLBU);
+        reg = ahci_px_rreg(ahci, port, AHCI_PX_CLBU);
         g_assert_cmphex(reg, ==, 0);
     }
 
     /* (2) FB */
-    reg = PX_RREG(port, AHCI_PX_FB);
+    reg = ahci_px_rreg(ahci, port, AHCI_PX_FB);
     ASSERT_BIT_CLEAR(reg, AHCI_PX_FB_RESERVED);
 
     /* (3) FBU */
     if (BITCLR(ahci->cap, AHCI_CAP_S64A)) {
-        reg = PX_RREG(port, AHCI_PX_FBU);
+        reg = ahci_px_rreg(ahci, port, AHCI_PX_FBU);
         g_assert_cmphex(reg, ==, 0);
     }
 
     /* (4) IS */
-    reg = PX_RREG(port, AHCI_PX_IS);
+    reg = ahci_px_rreg(ahci, port, AHCI_PX_IS);
     g_assert_cmphex(reg, ==, 0);
 
     /* (5) IE */
-    reg = PX_RREG(port, AHCI_PX_IE);
+    reg = ahci_px_rreg(ahci, port, AHCI_PX_IE);
     g_assert_cmphex(reg, ==, 0);
 
     /* (6) CMD */
-    reg = PX_RREG(port, AHCI_PX_CMD);
+    reg = ahci_px_rreg(ahci, port, AHCI_PX_CMD);
     ASSERT_BIT_CLEAR(reg, AHCI_PX_CMD_FRE);
     ASSERT_BIT_CLEAR(reg, AHCI_PX_CMD_RESERVED);
     ASSERT_BIT_CLEAR(reg, AHCI_PX_CMD_CCS);
@@ -810,11 +797,11 @@ static void ahci_test_port_spec(AHCIQState *ahci, uint8_t port)
     }
 
     /* (7) RESERVED */
-    reg = PX_RREG(port, AHCI_PX_RES1);
+    reg = ahci_px_rreg(ahci, port, AHCI_PX_RES1);
     g_assert_cmphex(reg, ==, 0);
 
     /* (8) TFD */
-    reg = PX_RREG(port, AHCI_PX_TFD);
+    reg = ahci_px_rreg(ahci, port, AHCI_PX_TFD);
     /* At boot, prior to an FIS being received, the TFD register should be 0x7F,
      * which breaks down as follows, as seen in AHCI 1.3 sec 3.3.8, p. 27. */
     ASSERT_BIT_SET(reg, AHCI_PX_TFD_STS_ERR);
@@ -832,33 +819,33 @@ static void ahci_test_port_spec(AHCIQState *ahci, uint8_t port)
      * so we cannot expect a value here. AHCI 1.3, sec 3.3.9, pp 27-28 */
 
     /* (10) SSTS / SCR0: SStatus */
-    reg = PX_RREG(port, AHCI_PX_SSTS);
+    reg = ahci_px_rreg(ahci, port, AHCI_PX_SSTS);
     ASSERT_BIT_CLEAR(reg, AHCI_PX_SSTS_RESERVED);
     /* Even though the register should be 0 at boot, it is asynchronous and
      * prone to change, so we cannot test any well known value. */
 
     /* (11) SCTL / SCR2: SControl */
-    reg = PX_RREG(port, AHCI_PX_SCTL);
+    reg = ahci_px_rreg(ahci, port, AHCI_PX_SCTL);
     g_assert_cmphex(reg, ==, 0);
 
     /* (12) SERR / SCR1: SError */
-    reg = PX_RREG(port, AHCI_PX_SERR);
+    reg = ahci_px_rreg(ahci, port, AHCI_PX_SERR);
     g_assert_cmphex(reg, ==, 0);
 
     /* (13) SACT / SCR3: SActive */
-    reg = PX_RREG(port, AHCI_PX_SACT);
+    reg = ahci_px_rreg(ahci, port, AHCI_PX_SACT);
     g_assert_cmphex(reg, ==, 0);
 
     /* (14) CI */
-    reg = PX_RREG(port, AHCI_PX_CI);
+    reg = ahci_px_rreg(ahci, port, AHCI_PX_CI);
     g_assert_cmphex(reg, ==, 0);
 
     /* (15) SNTF */
-    reg = PX_RREG(port, AHCI_PX_SNTF);
+    reg = ahci_px_rreg(ahci, port, AHCI_PX_SNTF);
     g_assert_cmphex(reg, ==, 0);
 
     /* (16) FBS */
-    reg = PX_RREG(port, AHCI_PX_FBS);
+    reg = ahci_px_rreg(ahci, port, AHCI_PX_FBS);
     ASSERT_BIT_CLEAR(reg, AHCI_PX_FBS_EN);
     ASSERT_BIT_CLEAR(reg, AHCI_PX_FBS_DEC);
     ASSERT_BIT_CLEAR(reg, AHCI_PX_FBS_SDE);
@@ -872,13 +859,13 @@ static void ahci_test_port_spec(AHCIQState *ahci, uint8_t port)
 
     /* [17 -- 27] RESERVED */
     for (i = AHCI_PX_RES2; i < AHCI_PX_VS; ++i) {
-        reg = PX_RREG(port, i);
+        reg = ahci_px_rreg(ahci, port, i);
         g_assert_cmphex(reg, ==, 0);
     }
 
     /* [28 -- 31] Vendor-Specific */
     for (i = AHCI_PX_VS; i < 32; ++i) {
-        reg = PX_RREG(port, i);
+        reg = ahci_px_rreg(ahci, port, i);
         if (reg) {
             g_test_message("INFO: Vendor register %u non-empty", i);
         }
@@ -918,7 +905,7 @@ static void ahci_test_identify(AHCIQState *ahci)
      */
 
     /* Pick the first implemented and running port */
-    ports = AHCI_RREG(AHCI_PI);
+    ports = ahci_rreg(ahci, AHCI_PI);
     for (i = 0; i < 32; ports >>= 1, ++i) {
         if (ports == 0) {
             i = 32;
@@ -928,7 +915,7 @@ static void ahci_test_identify(AHCIQState *ahci)
             continue;
         }
 
-        reg = PX_RREG(i, AHCI_PX_CMD);
+        reg = ahci_px_rreg(ahci, i, AHCI_PX_CMD);
         if (BITSET(reg, AHCI_PX_CMD_ST)) {
             break;
         }
@@ -937,12 +924,12 @@ static void ahci_test_identify(AHCIQState *ahci)
     g_test_message("Selected port %u for test", i);
 
     /* Clear out this port's interrupts (ignore the init register d2h fis) */
-    reg = PX_RREG(i, AHCI_PX_IS);
-    PX_WREG(i, AHCI_PX_IS, reg);
-    g_assert_cmphex(PX_RREG(i, AHCI_PX_IS), ==, 0);
+    reg = ahci_px_rreg(ahci, i, AHCI_PX_IS);
+    ahci_px_wreg(ahci, i, AHCI_PX_IS, reg);
+    g_assert_cmphex(ahci_px_rreg(ahci, i, AHCI_PX_IS), ==, 0);
 
     /* Wipe the FIS-Receive Buffer */
-    fb = PX_RREG(i, AHCI_PX_FB);
+    fb = ahci_px_rreg(ahci, i, AHCI_PX_FB);
     g_assert_cmphex(fb, !=, 0);
     qmemset(fb, 0x00, 0x100);
 
@@ -957,7 +944,7 @@ static void ahci_test_identify(AHCIQState *ahci)
     g_assert(data_ptr);
 
     /* Grab the Command List Buffer pointer */
-    clb = PX_RREG(i, AHCI_PX_CLB);
+    clb = ahci_px_rreg(ahci, i, AHCI_PX_CLB);
     g_assert(clb);
 
     /* Copy the existing Command #0 structure from the CLB into local memory,
@@ -985,7 +972,7 @@ static void ahci_test_identify(AHCIQState *ahci)
     fis.flags = 0x80;    /* Indicate this is a command FIS */
 
     /* We've committed nothing yet, no interrupts should be posted yet. */
-    g_assert_cmphex(PX_RREG(i, AHCI_PX_IS), ==, 0);
+    g_assert_cmphex(ahci_px_rreg(ahci, i, AHCI_PX_IS), ==, 0);
 
     /* Commit the Command FIS to the Command Table */
     memwrite(table, &fis, sizeof(fis));
@@ -997,29 +984,30 @@ static void ahci_test_identify(AHCIQState *ahci)
     memwrite(clb, &cmd, sizeof(cmd));
 
     /* Everything is in place, but we haven't given the go-ahead yet. */
-    g_assert_cmphex(PX_RREG(i, AHCI_PX_IS), ==, 0);
+    g_assert_cmphex(ahci_px_rreg(ahci, i, AHCI_PX_IS), ==, 0);
 
     /* Issue Command #0 via PxCI */
-    PX_WREG(i, AHCI_PX_CI, (1 << 0));
-    while (BITSET(PX_RREG(i, AHCI_PX_TFD), AHCI_PX_TFD_STS_BSY)) {
+    ahci_px_wreg(ahci, i, AHCI_PX_CI, (1 << 0));
+    while (BITSET(ahci_px_rreg(ahci, i, AHCI_PX_TFD), AHCI_PX_TFD_STS_BSY)) {
         usleep(50);
     }
 
     /* Check for expected interrupts */
-    reg = PX_RREG(i, AHCI_PX_IS);
+    reg = ahci_px_rreg(ahci, i, AHCI_PX_IS);
     ASSERT_BIT_SET(reg, AHCI_PX_IS_DHRS);
     ASSERT_BIT_SET(reg, AHCI_PX_IS_PSS);
     /* BUG: we expect AHCI_PX_IS_DPS to be set. */
     ASSERT_BIT_CLEAR(reg, AHCI_PX_IS_DPS);
 
     /* Clear expected interrupts and assert all interrupts now cleared. */
-    PX_WREG(i, AHCI_PX_IS, AHCI_PX_IS_DHRS | AHCI_PX_IS_PSS | AHCI_PX_IS_DPS);
-    g_assert_cmphex(PX_RREG(i, AHCI_PX_IS), ==, 0);
+    ahci_px_wreg(ahci, i, AHCI_PX_IS,
+                 AHCI_PX_IS_DHRS | AHCI_PX_IS_PSS | AHCI_PX_IS_DPS);
+    g_assert_cmphex(ahci_px_rreg(ahci, i, AHCI_PX_IS), ==, 0);
 
     /* Check for errors. */
-    reg = PX_RREG(i, AHCI_PX_SERR);
+    reg = ahci_px_rreg(ahci, i, AHCI_PX_SERR);
     g_assert_cmphex(reg, ==, 0);
-    reg = PX_RREG(i, AHCI_PX_TFD);
+    reg = ahci_px_rreg(ahci, i, AHCI_PX_TFD);
     ASSERT_BIT_CLEAR(reg, AHCI_PX_TFD_STS_ERR);
     ASSERT_BIT_CLEAR(reg, AHCI_PX_TFD_ERR);
 
@@ -1036,7 +1024,7 @@ static void ahci_test_identify(AHCIQState *ahci)
     g_assert_cmphex(pio->status, ==, d2h->status);
     g_assert_cmphex(pio->error, ==, d2h->error);
 
-    reg = PX_RREG(i, AHCI_PX_TFD);
+    reg = ahci_px_rreg(ahci, i, AHCI_PX_TFD);
     g_assert_cmphex((reg & AHCI_PX_TFD_ERR), ==, pio->error);
     g_assert_cmphex((reg & AHCI_PX_TFD_STS), ==, pio->status);
     /* The PIO Setup FIS contains a "bytes read" field, which is a
