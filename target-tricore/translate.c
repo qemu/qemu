@@ -4958,6 +4958,39 @@ static void decode_rr1_mulq(CPUTriCoreState *env, DisasContext *ctx)
     tcg_temp_free(temp2);
 }
 
+/* RR2 format */
+static void decode_rr2_mul(CPUTriCoreState *env, DisasContext *ctx)
+{
+    uint32_t op2;
+    int r1, r2, r3;
+
+    op2 = MASK_OP_RR2_OP2(ctx->opcode);
+    r1  = MASK_OP_RR2_S1(ctx->opcode);
+    r2  = MASK_OP_RR2_S2(ctx->opcode);
+    r3  = MASK_OP_RR2_D(ctx->opcode);
+    switch (op2) {
+    case OPC2_32_RR2_MUL_32:
+        gen_mul_i32s(cpu_gpr_d[r3], cpu_gpr_d[r1], cpu_gpr_d[r2]);
+        break;
+    case OPC2_32_RR2_MUL_64:
+        gen_mul_i64s(cpu_gpr_d[r3], cpu_gpr_d[r3+1], cpu_gpr_d[r1],
+                     cpu_gpr_d[r2]);
+        break;
+    case OPC2_32_RR2_MULS_32:
+        gen_helper_mul_ssov(cpu_gpr_d[r3], cpu_env, cpu_gpr_d[r1],
+                            cpu_gpr_d[r2]);
+        break;
+    case OPC2_32_RR2_MUL_U_64:
+        gen_mul_i64u(cpu_gpr_d[r3], cpu_gpr_d[r3+1], cpu_gpr_d[r1],
+                     cpu_gpr_d[r2]);
+        break;
+    case OPC2_32_RR2_MULS_U_32:
+        gen_helper_mul_suov(cpu_gpr_d[r3], cpu_env, cpu_gpr_d[r1],
+                            cpu_gpr_d[r2]);
+        break;
+    }
+}
+
 static void decode_32Bit_opc(CPUTriCoreState *env, DisasContext *ctx)
 {
     int op1;
@@ -5217,6 +5250,10 @@ static void decode_32Bit_opc(CPUTriCoreState *env, DisasContext *ctx)
         break;
     case OPCM_32_RR1_MULQ:
         decode_rr1_mulq(env, ctx);
+        break;
+/* RR2 format */
+    case OPCM_32_RR2_MUL:
+        decode_rr2_mul(env, ctx);
         break;
     }
 }
