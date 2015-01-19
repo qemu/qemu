@@ -37,9 +37,7 @@ QGuestAllocator *pc_alloc_init_flags(QAllocOpts flags)
     QFWCFG *fw_cfg = pc_fw_cfg_init();
 
     ram_size = qfw_cfg_get_u64(fw_cfg, FW_CFG_RAM_SIZE);
-    s = alloc_init(1 << 20, MIN(ram_size, 0xE0000000));
-
-    s->opts = flags;
+    s = alloc_init_flags(flags, 1 << 20, MIN(ram_size, 0xE0000000));
     s->page_size = PAGE_SIZE;
 
     /* clean-up */

@@ -285,3 +285,11 @@ QGuestAllocator *alloc_init(uint64_t start, uint64_t end)
 
     return s;
 }
+
+QGuestAllocator *alloc_init_flags(QAllocOpts opts,
+                                  uint64_t start, uint64_t end)
+{
+    QGuestAllocator *s = alloc_init(start, end);
+    s->opts = opts;
+    return s;
+}
