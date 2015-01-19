@@ -126,7 +126,8 @@ static int lance_init(SysBusDevice *sbd)
 
     s->phys_mem_read = ledma_memory_read;
     s->phys_mem_write = ledma_memory_write;
-    return pcnet_common_init(dev, s, &net_lance_info);
+    pcnet_common_init(dev, s, &net_lance_info);
+    return 0;
 }
 
 static void lance_reset(DeviceState *dev)
