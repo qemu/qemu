@@ -82,20 +82,6 @@
 #if defined(CONFIG_USER_ONLY)
 
 /* if user mode, no other memory access functions */
-#define ldub(p) ldub_raw(p)
-#define ldsb(p) ldsb_raw(p)
-#define lduw(p) lduw_raw(p)
-#define ldsw(p) ldsw_raw(p)
-#define ldl(p) ldl_raw(p)
-#define ldq(p) ldq_raw(p)
-#define ldfl(p) ldfl_raw(p)
-#define ldfq(p) ldfq_raw(p)
-#define stb(p, v) stb_raw(p, v)
-#define stw(p, v) stw_raw(p, v)
-#define stl(p, v) stl_raw(p, v)
-#define stq(p, v) stq_raw(p, v)
-#define stfl(p, v) stfl_raw(p, v)
-#define stfq(p, v) stfq_raw(p, v)
 
 #define cpu_ldub_code(env1, p) ldub_raw(p)
 #define cpu_ldsb_code(env1, p) ldsb_raw(p)
@@ -286,18 +272,6 @@ uint64_t helper_ldq_cmmu(CPUArchState *env, target_ulong addr, int mmu_idx);
 #include "exec/cpu_ldst_template.h"
 #undef CPU_MMU_INDEX
 #undef MEMSUFFIX
-
-#define ldub(p) ldub_data(p)
-#define ldsb(p) ldsb_data(p)
-#define lduw(p) lduw_data(p)
-#define ldsw(p) ldsw_data(p)
-#define ldl(p) ldl_data(p)
-#define ldq(p) ldq_data(p)
-
-#define stb(p, v) stb_data(p, v)
-#define stw(p, v) stw_data(p, v)
-#define stl(p, v) stl_data(p, v)
-#define stq(p, v) stq_data(p, v)
 
 #define CPU_MMU_INDEX (cpu_mmu_index(env))
 #define MEMSUFFIX _code
