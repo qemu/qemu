@@ -53,30 +53,7 @@
     h2g_nocheck(x); \
 })
 
-#define saddr(x) g2h(x)
-#define laddr(x) g2h(x)
-
-#else /* !CONFIG_USER_ONLY */
-/* NOTE: we use double casts if pointers and target_ulong have
-   different sizes */
-#define saddr(x) (uint8_t *)(intptr_t)(x)
-#define laddr(x) (uint8_t *)(intptr_t)(x)
 #endif
-
-#define ldub_raw(p) ldub_p(laddr((p)))
-#define ldsb_raw(p) ldsb_p(laddr((p)))
-#define lduw_raw(p) lduw_p(laddr((p)))
-#define ldsw_raw(p) ldsw_p(laddr((p)))
-#define ldl_raw(p) ldl_p(laddr((p)))
-#define ldq_raw(p) ldq_p(laddr((p)))
-#define ldfl_raw(p) ldfl_p(laddr((p)))
-#define ldfq_raw(p) ldfq_p(laddr((p)))
-#define stb_raw(p, v) stb_p(saddr((p)), v)
-#define stw_raw(p, v) stw_p(saddr((p)), v)
-#define stl_raw(p, v) stl_p(saddr((p)), v)
-#define stq_raw(p, v) stq_p(saddr((p)), v)
-#define stfl_raw(p, v) stfl_p(saddr((p)), v)
-#define stfq_raw(p, v) stfq_p(saddr((p)), v)
 
 #if defined(CONFIG_USER_ONLY)
 
