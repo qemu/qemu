@@ -26,8 +26,6 @@
 
 #define CPUArchState struct CPUMoxieState
 
-#define TARGET_HAS_ICE 1
-
 #define ELF_MACHINE     0xFEED /* EM_MOXIE */
 
 #define MOXIE_EX_DIV0        0

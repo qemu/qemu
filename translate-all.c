@@ -1451,7 +1451,7 @@ static TranslationBlock *tb_find_pc(uintptr_t tc_ptr)
     return &tcg_ctx.tb_ctx.tbs[m_max];
 }
 
-#if defined(TARGET_HAS_ICE) && !defined(CONFIG_USER_ONLY)
+#if !defined(CONFIG_USER_ONLY)
 void tb_invalidate_phys_addr(AddressSpace *as, hwaddr addr)
 {
     ram_addr_t ram_addr;
@@ -1467,7 +1467,7 @@ void tb_invalidate_phys_addr(AddressSpace *as, hwaddr addr)
         + addr;
     tb_invalidate_phys_page_range(ram_addr, ram_addr + 1, 0);
 }
-#endif /* TARGET_HAS_ICE && !defined(CONFIG_USER_ONLY) */
+#endif /* !defined(CONFIG_USER_ONLY) */
 
 void tb_check_watchpoint(CPUState *cpu)
 {
