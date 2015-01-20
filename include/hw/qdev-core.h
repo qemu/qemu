@@ -165,6 +165,12 @@ struct DeviceState {
     int alias_required_for_version;
 };
 
+struct DeviceListener {
+    void (*realize)(DeviceListener *listener, DeviceState *dev);
+    void (*unrealize)(DeviceListener *listener, DeviceState *dev);
+    QTAILQ_ENTRY(DeviceListener) link;
+};
+
 #define TYPE_BUS "bus"
 #define BUS(obj) OBJECT_CHECK(BusState, (obj), TYPE_BUS)
 #define BUS_CLASS(klass) OBJECT_CLASS_CHECK(BusClass, (klass), TYPE_BUS)
@@ -376,4 +382,8 @@ static inline bool qbus_is_hotpluggable(BusState *bus)
 {
    return bus->hotplug_handler;
 }
+
+void device_listener_register(DeviceListener *listener);
+void device_listener_unregister(DeviceListener *listener);
+
 #endif
