@@ -99,6 +99,14 @@ struct %(name)s
 
     ret += generate_struct_fields(members)
 
+    # Make sure that all structs have at least one field; this avoids
+    # potential issues with attempting to malloc space for zero-length structs
+    # in C, and also incompatibility with C++ (where an empty struct is size 1).
+    if not base and not members:
+            ret += mcgen('''
+    char qapi_dummy_field_for_empty_struct;
+''')
+
     if len(fieldname):
         fieldname = " " + fieldname
     ret += mcgen('''

@@ -1292,16 +1292,16 @@ static void memory_dump(Monitor *mon, int count, int format, int wsize,
             switch(wsize) {
             default:
             case 1:
-                v = ldub_raw(buf + i);
+                v = ldub_p(buf + i);
                 break;
             case 2:
-                v = lduw_raw(buf + i);
+                v = lduw_p(buf + i);
                 break;
             case 4:
-                v = (uint32_t)ldl_raw(buf + i);
+                v = (uint32_t)ldl_p(buf + i);
                 break;
             case 8:
-                v = ldq_raw(buf + i);
+                v = ldq_p(buf + i);
                 break;
             }
             monitor_printf(mon, " ");

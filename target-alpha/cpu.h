@@ -32,8 +32,6 @@
 
 #include "fpu/softfloat.h"
 
-#define TARGET_HAS_ICE 1
-
 #define ELF_MACHINE     EM_ALPHA
 
 #define ICACHE_LINE_SIZE 32

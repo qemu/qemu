@@ -115,43 +115,9 @@ static inline void tswap64s(uint64_t *s)
 #define bswaptls(s) bswap64s(s)
 #endif
 
-/* CPU memory access without any memory or io remapping */
-
-/*
- * the generic syntax for the memory accesses is:
- *
- * load: ld{type}{sign}{size}{endian}_{access_type}(ptr)
- *
- * store: st{type}{size}{endian}_{access_type}(ptr, val)
- *
- * type is:
- * (empty): integer access
- *   f    : float access
- *
- * sign is:
- * (empty): for floats or 32 bit size
- *   u    : unsigned
- *   s    : signed
- *
- * size is:
- *   b: 8 bits
- *   w: 16 bits
- *   l: 32 bits
- *   q: 64 bits
- *
- * endian is:
- * (empty): target cpu endianness or 8 bit access
- *   r    : reversed target cpu endianness (not implemented yet)
- *   be   : big endian (not implemented yet)
- *   le   : little endian (not implemented yet)
- *
- * access_type is:
- *   raw    : host memory access
- *   user   : user mode access using soft MMU
- *   kernel : kernel mode access using soft MMU
+/* Target-endianness CPU memory access functions. These fit into the
+ * {ld,st}{type}{sign}{size}{endian}_p naming scheme described in bswap.h.
  */
-
-/* target-endianness CPU memory access functions */
 #if defined(TARGET_WORDS_BIGENDIAN)
 #define lduw_p(p) lduw_be_p(p)
 #define ldsw_p(p) ldsw_be_p(p)

@@ -79,8 +79,6 @@
 
 #include "fpu/softfloat.h"
 
-#define TARGET_HAS_ICE 1
-
 #if defined (TARGET_PPC64)
 #define ELF_MACHINE     EM_PPC64
 #else

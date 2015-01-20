@@ -886,8 +886,6 @@ int sclp_service_call(CPUS390XState *env, uint64_t sccb, uint32_t code);
 uint32_t calc_cc(CPUS390XState *env, uint32_t cc_op, uint64_t src, uint64_t dst,
                  uint64_t vr);
 
-#define TARGET_HAS_ICE 1
-
 /* The value of the TOD clock for 1.1.1970. */
 #define TOD_UNIX_EPOCH 0x7d91048bca000000ULL
 

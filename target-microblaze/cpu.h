@@ -34,8 +34,6 @@ typedef struct CPUMBState CPUMBState;
 #include "mmu.h"
 #endif
 
-#define TARGET_HAS_ICE 1
-
 #define ELF_MACHINE	EM_MICROBLAZE
 
 #define EXCP_NMI        1
