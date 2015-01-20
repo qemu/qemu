@@ -74,7 +74,7 @@ void helper_raise_exception(CPUMIPSState *env, uint32_t exception)
 static inline type do_##name(CPUMIPSState *env, target_ulong addr,      \
                              int mem_idx)                               \
 {                                                                       \
-    return (type) insn##_raw(addr);                                     \
+    return (type) cpu_##insn##_data(env, addr);                         \
 }
 #else
 #define HELPER_LD(name, insn, type)                                     \
@@ -101,7 +101,7 @@ HELPER_LD(ld, ldq, int64_t)
 static inline void do_##name(CPUMIPSState *env, target_ulong addr,      \
                              type val, int mem_idx)                     \
 {                                                                       \
-    insn##_raw(addr, val);                                              \
+    cpu_##insn##_data(env, addr, val);                                  \
 }
 #else
 #define HELPER_ST(name, insn, type)                                     \
