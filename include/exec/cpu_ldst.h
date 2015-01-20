@@ -23,7 +23,26 @@
  *
  * Used by target op helpers.
  *
- * MMU mode suffixes are defined in target cpu.h.
+ * The syntax for the accessors is:
+ *
+ * load: cpu_ld{sign}{size}_{mmusuffix}(env, ptr)
+ *
+ * store: cpu_st{sign}{size}_{mmusuffix}(env, ptr, val)
+ *
+ * sign is:
+ * (empty): for 32 and 64 bit sizes
+ *   u    : unsigned
+ *   s    : signed
+ *
+ * size is:
+ *   b: 8 bits
+ *   w: 16 bits
+ *   l: 32 bits
+ *   q: 64 bits
+ *
+ * mmusuffix is one of the generic suffixes "data" or "code", or
+ * (for softmmu configs)  a target-specific MMU mode suffix as defined
+ * in target cpu.h.
  */
 #ifndef CPU_LDST_H
 #define CPU_LDST_H
