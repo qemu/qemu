@@ -127,12 +127,13 @@ static VirtIOBlockReq *virtio_blk_get_request(VirtIOBlock *s)
     return req;
 }
 
-int virtio_blk_handle_scsi_req(VirtIOBlock *blk,
-                               VirtQueueElement *elem)
+static int virtio_blk_handle_scsi_req(VirtIOBlockReq *req)
 {
     int status = VIRTIO_BLK_S_OK;
     struct virtio_scsi_inhdr *scsi = NULL;
-    VirtIODevice *vdev = VIRTIO_DEVICE(blk);
+    VirtIODevice *vdev = VIRTIO_DEVICE(req->dev);
+    VirtQueueElement *elem = &req->elem;
+    VirtIOBlock *blk = req->dev;
 
 #ifdef __linux__
     int i;
@@ -252,7 +253,7 @@ static void virtio_blk_handle_scsi(VirtIOBlockReq *req)
 {
     int status;
 
-    status = virtio_blk_handle_scsi_req(req->dev, &req->elem);
+    status = virtio_blk_handle_scsi_req(req);
     virtio_blk_req_complete(req, status);
     virtio_blk_free_request(req);
 }
