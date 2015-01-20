@@ -22,6 +22,10 @@
 #include <X11/XKBlib.h>
 #endif
 
+#if defined(CONFIG_OPENGL)
+#include "ui/egl-helpers.h"
+#endif
+
 /* Compatibility define to let us build on both Gtk2 and Gtk3 */
 #if GTK_CHECK_VERSION(3, 0, 0)
 static inline void gdk_drawable_get_size(GdkWindow *w, gint *ww, gint *wh)
@@ -41,6 +45,12 @@ typedef struct VirtualGfxConsole {
     cairo_surface_t *surface;
     double scale_x;
     double scale_y;
+#if defined(CONFIG_OPENGL)
+    ConsoleGLState *gls;
+    EGLContext ectx;
+    EGLSurface esurface;
+    int glupdates;
+#endif
 } VirtualGfxConsole;
 
 #if defined(CONFIG_VTE)
@@ -72,5 +82,18 @@ typedef struct VirtualConsole {
 #endif
     };
 } VirtualConsole;
+
+/* ui/gtk.c */
+void gd_update_windowsize(VirtualConsole *vc);
+
+/* ui/gtk-egl.c */
+void gd_egl_init(VirtualConsole *vc);
+void gd_egl_draw(VirtualConsole *vc);
+void gd_egl_update(DisplayChangeListener *dcl,
+                   int x, int y, int w, int h);
+void gd_egl_refresh(DisplayChangeListener *dcl);
+void gd_egl_switch(DisplayChangeListener *dcl,
+                   DisplaySurface *surface);
+void gtk_egl_init(void);
 
 #endif /* UI_GTK_H */

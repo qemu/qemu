@@ -2047,6 +2047,15 @@ static DisplayType select_display(const char *p)
                 } else {
                     goto invalid_gtk_args;
                 }
+            } else if (strstart(opts, ",gl=", &nextopt)) {
+                opts = nextopt;
+                if (strstart(opts, "on", &nextopt)) {
+                    request_opengl = 1;
+                } else if (strstart(opts, "off", &nextopt)) {
+                    request_opengl = 0;
+                } else {
+                    goto invalid_gtk_args;
+                }
             } else {
             invalid_gtk_args:
                 fprintf(stderr, "Invalid GTK option string: %s\n", p);
@@ -4012,7 +4021,7 @@ int main(int argc, char **argv, char **envp)
 
 #if defined(CONFIG_GTK)
     if (display_type == DT_GTK) {
-        early_gtk_display_init();
+        early_gtk_display_init(request_opengl);
     }
 #endif
 #if defined(CONFIG_SDL)

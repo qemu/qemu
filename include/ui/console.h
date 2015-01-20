@@ -393,7 +393,7 @@ void curses_display_init(DisplayState *ds, int full_screen);
 int index_from_key(const char *key);
 
 /* gtk.c */
-void early_gtk_display_init(void);
+void early_gtk_display_init(int opengl);
 void gtk_display_init(DisplayState *ds, bool full_screen, bool grab_on_hover);
 
 #endif
