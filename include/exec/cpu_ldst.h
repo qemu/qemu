@@ -132,6 +132,7 @@ uint16_t helper_ldw_cmmu(CPUArchState *env, target_ulong addr, int mmu_idx);
 uint32_t helper_ldl_cmmu(CPUArchState *env, target_ulong addr, int mmu_idx);
 uint64_t helper_ldq_cmmu(CPUArchState *env, target_ulong addr, int mmu_idx);
 
+#ifdef MMU_MODE0_SUFFIX
 #define CPU_MMU_INDEX 0
 #define MEMSUFFIX MMU_MODE0_SUFFIX
 #define DATA_SIZE 1
@@ -147,7 +148,9 @@ uint64_t helper_ldq_cmmu(CPUArchState *env, target_ulong addr, int mmu_idx);
 #include "exec/cpu_ldst_template.h"
 #undef CPU_MMU_INDEX
 #undef MEMSUFFIX
+#endif
 
+#if (NB_MMU_MODES >= 2) && defined(MMU_MODE1_SUFFIX)
 #define CPU_MMU_INDEX 1
 #define MEMSUFFIX MMU_MODE1_SUFFIX
 #define DATA_SIZE 1
@@ -163,8 +166,9 @@ uint64_t helper_ldq_cmmu(CPUArchState *env, target_ulong addr, int mmu_idx);
 #include "exec/cpu_ldst_template.h"
 #undef CPU_MMU_INDEX
 #undef MEMSUFFIX
+#endif
 
-#if (NB_MMU_MODES >= 3)
+#if (NB_MMU_MODES >= 3) && defined(MMU_MODE2_SUFFIX)
 
 #define CPU_MMU_INDEX 2
 #define MEMSUFFIX MMU_MODE2_SUFFIX
@@ -183,7 +187,7 @@ uint64_t helper_ldq_cmmu(CPUArchState *env, target_ulong addr, int mmu_idx);
 #undef MEMSUFFIX
 #endif /* (NB_MMU_MODES >= 3) */
 
-#if (NB_MMU_MODES >= 4)
+#if (NB_MMU_MODES >= 4) && defined(MMU_MODE3_SUFFIX)
 
 #define CPU_MMU_INDEX 3
 #define MEMSUFFIX MMU_MODE3_SUFFIX
@@ -202,7 +206,7 @@ uint64_t helper_ldq_cmmu(CPUArchState *env, target_ulong addr, int mmu_idx);
 #undef MEMSUFFIX
 #endif /* (NB_MMU_MODES >= 4) */
 
-#if (NB_MMU_MODES >= 5)
+#if (NB_MMU_MODES >= 5) && defined(MMU_MODE4_SUFFIX)
 
 #define CPU_MMU_INDEX 4
 #define MEMSUFFIX MMU_MODE4_SUFFIX
@@ -221,7 +225,7 @@ uint64_t helper_ldq_cmmu(CPUArchState *env, target_ulong addr, int mmu_idx);
 #undef MEMSUFFIX
 #endif /* (NB_MMU_MODES >= 5) */
 
-#if (NB_MMU_MODES >= 6)
+#if (NB_MMU_MODES >= 6) && defined(MMU_MODE5_SUFFIX)
 
 #define CPU_MMU_INDEX 5
 #define MEMSUFFIX MMU_MODE5_SUFFIX
