@@ -22,13 +22,9 @@
  * THE SOFTWARE.
  */
 
-#include "sysemu/sysemu.h"
-#include "monitor/monitor.h"
-#include "ui/console.h"
-
-#include "hw/hw.h"
-
+#include "qemu/main-loop.h"
 #include "qemu/timer.h"
+
 #ifdef CONFIG_POSIX
 #include <pthread.h>
 #endif
