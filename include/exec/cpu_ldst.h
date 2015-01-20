@@ -78,47 +78,39 @@
 #define stfl_raw(p, v) stfl_p(saddr((p)), v)
 #define stfq_raw(p, v) stfq_p(saddr((p)), v)
 
-
 #if defined(CONFIG_USER_ONLY)
 
-/* if user mode, no other memory access functions */
+/* In user-only mode we provide only the _code and _data accessors. */
 
-#define cpu_ldub_code(env1, p) ldub_raw(p)
-#define cpu_ldsb_code(env1, p) ldsb_raw(p)
-#define cpu_lduw_code(env1, p) lduw_raw(p)
-#define cpu_ldsw_code(env1, p) ldsw_raw(p)
-#define cpu_ldl_code(env1, p) ldl_raw(p)
-#define cpu_ldq_code(env1, p) ldq_raw(p)
+#define MEMSUFFIX _data
+#define DATA_SIZE 1
+#include "exec/cpu_ldst_useronly_template.h"
 
-#define cpu_ldub_data(env, addr) ldub_raw(addr)
-#define cpu_lduw_data(env, addr) lduw_raw(addr)
-#define cpu_ldsw_data(env, addr) ldsw_raw(addr)
-#define cpu_ldl_data(env, addr) ldl_raw(addr)
-#define cpu_ldq_data(env, addr) ldq_raw(addr)
+#define DATA_SIZE 2
+#include "exec/cpu_ldst_useronly_template.h"
 
-#define cpu_stb_data(env, addr, data) stb_raw(addr, data)
-#define cpu_stw_data(env, addr, data) stw_raw(addr, data)
-#define cpu_stl_data(env, addr, data) stl_raw(addr, data)
-#define cpu_stq_data(env, addr, data) stq_raw(addr, data)
+#define DATA_SIZE 4
+#include "exec/cpu_ldst_useronly_template.h"
 
-#define cpu_ldub_kernel(env, addr) ldub_raw(addr)
-#define cpu_lduw_kernel(env, addr) lduw_raw(addr)
-#define cpu_ldsw_kernel(env, addr) ldsw_raw(addr)
-#define cpu_ldl_kernel(env, addr) ldl_raw(addr)
-#define cpu_ldq_kernel(env, addr) ldq_raw(addr)
+#define DATA_SIZE 8
+#include "exec/cpu_ldst_useronly_template.h"
+#undef MEMSUFFIX
 
-#define cpu_stb_kernel(env, addr, data) stb_raw(addr, data)
-#define cpu_stw_kernel(env, addr, data) stw_raw(addr, data)
-#define cpu_stl_kernel(env, addr, data) stl_raw(addr, data)
-#define cpu_stq_kernel(env, addr, data) stq_raw(addr, data)
+#define MEMSUFFIX _code
+#define CODE_ACCESS
+#define DATA_SIZE 1
+#include "exec/cpu_ldst_useronly_template.h"
 
-#define cpu_ldub_data(env, addr) ldub_raw(addr)
-#define cpu_lduw_data(env, addr) lduw_raw(addr)
-#define cpu_ldl_data(env, addr) ldl_raw(addr)
+#define DATA_SIZE 2
+#include "exec/cpu_ldst_useronly_template.h"
 
-#define cpu_stb_data(env, addr, data) stb_raw(addr, data)
-#define cpu_stw_data(env, addr, data) stw_raw(addr, data)
-#define cpu_stl_data(env, addr, data) stl_raw(addr, data)
+#define DATA_SIZE 4
+#include "exec/cpu_ldst_useronly_template.h"
+
+#define DATA_SIZE 8
+#include "exec/cpu_ldst_useronly_template.h"
+#undef MEMSUFFIX
+#undef CODE_ACCESS
 
 #else
 
