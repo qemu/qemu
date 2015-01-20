@@ -2972,7 +2972,7 @@ void cpu_loop(CPUM68KState *env)
             {
                 if (ts->sim_syscalls) {
                     uint16_t nr;
-                    nr = lduw(env->pc + 2);
+                    get_user_u16(nr, env->pc + 2);
                     env->pc += 4;
                     do_m68k_simcall(env, nr);
                 } else {
