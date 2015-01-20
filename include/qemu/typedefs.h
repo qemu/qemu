@@ -17,6 +17,7 @@ typedef struct BusState BusState;
 typedef struct CharDriverState CharDriverState;
 typedef struct CompatProperty CompatProperty;
 typedef struct DeviceState DeviceState;
+typedef struct DeviceListener DeviceListener;
 typedef struct DisplayChangeListener DisplayChangeListener;
 typedef struct DisplayState DisplayState;
 typedef struct DisplaySurface DisplaySurface;
