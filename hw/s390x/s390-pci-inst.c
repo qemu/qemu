@@ -784,10 +784,10 @@ int stpcifc_service_call(S390CPU *cpu, uint8_t r1, uint64_t fiba)
     stq_p(&fib.aisb, pbdev->routes.adapter.summary_addr);
     stq_p(&fib.fmb_addr, pbdev->fmb_addr);
 
-    data = (pbdev->isc << 28) | (pbdev->noi << 16) |
-           (pbdev->routes.adapter.ind_offset << 8) | (pbdev->sum << 7) |
-           pbdev->routes.adapter.summary_offset;
-    stw_p(&fib.data, data);
+    data = ((uint32_t)pbdev->isc << 28) | ((uint32_t)pbdev->noi << 16) |
+           ((uint32_t)pbdev->routes.adapter.ind_offset << 8) |
+           ((uint32_t)pbdev->sum << 7) | pbdev->routes.adapter.summary_offset;
+    stl_p(&fib.data, data);
 
     if (pbdev->fh >> ENABLE_BIT_OFFSET) {
         fib.fc |= 0x80;
