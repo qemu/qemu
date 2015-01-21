@@ -108,16 +108,16 @@ shape and this command should mostly work."""
         assert (val["hi"] == 0)
         return val["lo"]
 
-    def qtailq_foreach(self, head, field_str):
-        var_p = head["tqh_first"]
+    def qlist_foreach(self, head, field_str):
+        var_p = head["lh_first"]
         while (var_p != 0):
             var = var_p.dereference()
             yield var
-            var_p = var[field_str]["tqe_next"]
+            var_p = var[field_str]["le_next"]
 
     def qemu_get_ram_block(self, ram_addr):
         ram_blocks = gdb.parse_and_eval("ram_list.blocks")
-        for block in self.qtailq_foreach(ram_blocks, "next"):
+        for block in self.qlist_foreach(ram_blocks, "next"):
             if (ram_addr - block["offset"] < block["length"]):
                 return block
         raise gdb.GdbError("Bad ram offset %x" % ram_addr)

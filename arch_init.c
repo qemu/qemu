@@ -523,7 +523,7 @@ static void migration_bitmap_sync(void)
     trace_migration_bitmap_sync_start();
     address_space_sync_dirty_bitmap(&address_space_memory);
 
-    QTAILQ_FOREACH(block, &ram_list.blocks, next) {
+    QLIST_FOREACH(block, &ram_list.blocks, next) {
         migration_bitmap_sync_range(block->mr->ram_addr, block->used_length);
     }
     trace_migration_bitmap_sync_end(migration_dirty_pages
@@ -661,7 +661,7 @@ static int ram_find_and_save_block(QEMUFile *f, bool last_stage)
     MemoryRegion *mr;
 
     if (!block)
-        block = QTAILQ_FIRST(&ram_list.blocks);
+        block = QLIST_FIRST(&ram_list.blocks);
 
     while (true) {
         mr = block->mr;
@@ -672,9 +672,9 @@ static int ram_find_and_save_block(QEMUFile *f, bool last_stage)
         }
         if (offset >= block->used_length) {
             offset = 0;
-            block = QTAILQ_NEXT(block, next);
+            block = QLIST_NEXT(block, next);
             if (!block) {
-                block = QTAILQ_FIRST(&ram_list.blocks);
+                block = QLIST_FIRST(&ram_list.blocks);
                 complete_round = true;
                 ram_bulk_stage = false;
             }
@@ -728,8 +728,9 @@ uint64_t ram_bytes_total(void)
     RAMBlock *block;
     uint64_t total = 0;
 
-    QTAILQ_FOREACH(block, &ram_list.blocks, next)
+    QLIST_FOREACH(block, &ram_list.blocks, next) {
         total += block->used_length;
+    }
 
     return total;
 }
@@ -831,7 +832,7 @@ static int ram_save_setup(QEMUFile *f, void *opaque)
      * gaps due to alignment or unplugs.
      */
     migration_dirty_pages = 0;
-    QTAILQ_FOREACH(block, &ram_list.blocks, next) {
+    QLIST_FOREACH(block, &ram_list.blocks, next) {
         uint64_t block_pages;
 
         block_pages = block->used_length >> TARGET_PAGE_BITS;
@@ -844,7 +845,7 @@ static int ram_save_setup(QEMUFile *f, void *opaque)
 
     qemu_put_be64(f, ram_bytes_total() | RAM_SAVE_FLAG_MEM_SIZE);
 
-    QTAILQ_FOREACH(block, &ram_list.blocks, next) {
+    QLIST_FOREACH(block, &ram_list.blocks, next) {
         qemu_put_byte(f, strlen(block->idstr));
         qemu_put_buffer(f, (uint8_t *)block->idstr, strlen(block->idstr));
         qemu_put_be64(f, block->used_length);
@@ -1031,7 +1032,7 @@ static inline void *host_from_stream_offset(QEMUFile *f,
     qemu_get_buffer(f, (uint8_t *)id, len);
     id[len] = 0;
 
-    QTAILQ_FOREACH(block, &ram_list.blocks, next) {
+    QLIST_FOREACH(block, &ram_list.blocks, next) {
         if (!strncmp(id, block->idstr, sizeof(id)) &&
             block->max_length > offset) {
             return memory_region_get_ram_ptr(block->mr) + offset;
@@ -1088,7 +1089,7 @@ static int ram_load(QEMUFile *f, void *opaque, int version_id)
                 id[len] = 0;
                 length = qemu_get_be64(f);
 
-                QTAILQ_FOREACH(block, &ram_list.blocks, next) {
+                QLIST_FOREACH(block, &ram_list.blocks, next) {
                     if (!strncmp(id, block->idstr, sizeof(id))) {
                         if (length != block->used_length) {
                             Error *local_err = NULL;

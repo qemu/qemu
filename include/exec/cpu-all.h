@@ -282,7 +282,7 @@ struct RAMBlock {
     /* Reads can take either the iothread or the ramlist lock.
      * Writes must take both locks.
      */
-    QTAILQ_ENTRY(RAMBlock) next;
+    QLIST_ENTRY(RAMBlock) next;
     int fd;
 };
 
@@ -299,7 +299,7 @@ typedef struct RAMList {
     unsigned long *dirty_memory[DIRTY_MEMORY_NUM];
     RAMBlock *mru_block;
     /* Protected by the ramlist lock.  */
-    QTAILQ_HEAD(, RAMBlock) blocks;
+    QLIST_HEAD(, RAMBlock) blocks;
     uint32_t version;
 } RAMList;
 extern RAMList ram_list;
