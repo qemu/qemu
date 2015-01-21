@@ -371,6 +371,10 @@ uint64_t helper_madd64_ssov(CPUTriCoreState *env, target_ulong r1,
     ret = mul + r2;
     ovf = (ret ^ mul) & ~(mul ^ r2);
 
+    t1 = ret >> 32;
+    env->PSW_USB_AV = t1 ^ t1 * 2u;
+    env->PSW_USB_SAV |= env->PSW_USB_AV;
+
     if ((int64_t)ovf < 0) {
         env->PSW_USB_V = (1 << 31);
         env->PSW_USB_SV = (1 << 31);
@@ -384,9 +388,6 @@ uint64_t helper_madd64_ssov(CPUTriCoreState *env, target_ulong r1,
     } else {
         env->PSW_USB_V = 0;
     }
-    t1 = ret >> 32;
-    env->PSW_USB_AV = t1 ^ t1 * 2u;
-    env->PSW_USB_SAV |= env->PSW_USB_AV;
 
     return ret;
 }
@@ -401,6 +402,10 @@ uint64_t helper_madd64_suov(CPUTriCoreState *env, target_ulong r1,
     mul = t1 * t3;
     ret = mul + r2;
 
+    t1 = ret >> 32;
+    env->PSW_USB_AV = t1 ^ t1 * 2u;
+    env->PSW_USB_SAV |= env->PSW_USB_AV;
+
     if (ret < r2) {
         env->PSW_USB_V = (1 << 31);
         env->PSW_USB_SV = (1 << 31);
@@ -409,9 +414,6 @@ uint64_t helper_madd64_suov(CPUTriCoreState *env, target_ulong r1,
     } else {
         env->PSW_USB_V = 0;
     }
-    t1 = ret >> 32;
-    env->PSW_USB_AV = t1 ^ t1 * 2u;
-    env->PSW_USB_SAV |= env->PSW_USB_AV;
     return ret;
 }
 
@@ -451,6 +453,10 @@ uint64_t helper_msub64_ssov(CPUTriCoreState *env, target_ulong r1,
     ret = r2 - mul;
     ovf = (ret ^ r2) & (mul ^ r2);
 
+    t1 = ret >> 32;
+    env->PSW_USB_AV = t1 ^ t1 * 2u;
+    env->PSW_USB_SAV |= env->PSW_USB_AV;
+
     if ((int64_t)ovf < 0) {
         env->PSW_USB_V = (1 << 31);
         env->PSW_USB_SV = (1 << 31);
@@ -464,9 +470,6 @@ uint64_t helper_msub64_ssov(CPUTriCoreState *env, target_ulong r1,
     } else {
         env->PSW_USB_V = 0;
     }
-    t1 = ret >> 32;
-    env->PSW_USB_AV = t1 ^ t1 * 2u;
-    env->PSW_USB_SAV |= env->PSW_USB_AV;
     return ret;
 }
 
@@ -480,6 +483,10 @@ uint64_t helper_msub64_suov(CPUTriCoreState *env, target_ulong r1,
     mul = t1 * t3;
     ret = r2 - mul;
 
+    t1 = ret >> 32;
+    env->PSW_USB_AV = t1 ^ t1 * 2u;
+    env->PSW_USB_SAV |= env->PSW_USB_AV;
+
     if (ret > r2) {
         env->PSW_USB_V = (1 << 31);
         env->PSW_USB_SV = (1 << 31);
@@ -488,9 +495,6 @@ uint64_t helper_msub64_suov(CPUTriCoreState *env, target_ulong r1,
     } else {
         env->PSW_USB_V = 0;
     }
-    t1 = ret >> 32;
-    env->PSW_USB_AV = t1 ^ t1 * 2u;
-    env->PSW_USB_SAV |= env->PSW_USB_AV;
     return ret;
 }
 
