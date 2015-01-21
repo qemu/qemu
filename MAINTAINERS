@@ -599,6 +599,11 @@ F: hw/net/opencores_eth.c
 
 Devices
 -------
+EDU
+M: Jiri Slaby <jslaby@suse.cz>
+S: Maintained
+F: hw/misc/edu.c
+
 IDE
 M: Kevin Wolf <kwolf@redhat.com>
 M: Stefan Hajnoczi <stefanha@redhat.com>
