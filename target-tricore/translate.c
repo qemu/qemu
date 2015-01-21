@@ -1152,15 +1152,33 @@ static void gen_mulr_q(TCGv ret, TCGv arg1, TCGv arg2, uint32_t n)
 }
 
 static inline void
+gen_madds_64(TCGv ret_low, TCGv ret_high, TCGv r1, TCGv r2_low, TCGv r2_high,
+             TCGv r3)
+{
+    TCGv_i64 temp64 = tcg_temp_new_i64();
+    tcg_gen_concat_i32_i64(temp64, r2_low, r2_high);
+    gen_helper_madd64_ssov(temp64, cpu_env, r1, temp64, r3);
+    tcg_gen_extr_i64_i32(ret_low, ret_high, temp64);
+    tcg_temp_free_i64(temp64);
+}
+
+static inline void
 gen_maddsi_64(TCGv ret_low, TCGv ret_high, TCGv r1, TCGv r2_low, TCGv r2_high,
               int32_t con)
 {
     TCGv temp = tcg_const_i32(con);
+    gen_madds_64(ret_low, ret_high, r1, r2_low, r2_high, temp);
+    tcg_temp_free(temp);
+}
+
+static inline void
+gen_maddsu_64(TCGv ret_low, TCGv ret_high, TCGv r1, TCGv r2_low, TCGv r2_high,
+             TCGv r3)
+{
     TCGv_i64 temp64 = tcg_temp_new_i64();
     tcg_gen_concat_i32_i64(temp64, r2_low, r2_high);
-    gen_helper_madd64_ssov(temp64, cpu_env, r1, temp64, temp);
+    gen_helper_madd64_suov(temp64, cpu_env, r1, temp64, r3);
     tcg_gen_extr_i64_i32(ret_low, ret_high, temp64);
-    tcg_temp_free(temp);
     tcg_temp_free_i64(temp64);
 }
 
@@ -1169,12 +1187,8 @@ gen_maddsui_64(TCGv ret_low, TCGv ret_high, TCGv r1, TCGv r2_low, TCGv r2_high,
                int32_t con)
 {
     TCGv temp = tcg_const_i32(con);
-    TCGv_i64 temp64 = tcg_temp_new_i64();
-    tcg_gen_concat_i32_i64(temp64, r2_low, r2_high);
-    gen_helper_madd64_suov(temp64, cpu_env, r1, temp64, temp);
-    tcg_gen_extr_i64_i32(ret_low, ret_high, temp64);
+    gen_maddsu_64(ret_low, ret_high, r1, r2_low, r2_high, temp);
     tcg_temp_free(temp);
-    tcg_temp_free_i64(temp64);
 }
 
 static inline void gen_msubsi_32(TCGv ret, TCGv r1, TCGv r2, int32_t con)
@@ -1192,15 +1206,33 @@ static inline void gen_msubsui_32(TCGv ret, TCGv r1, TCGv r2, int32_t con)
 }
 
 static inline void
+gen_msubs_64(TCGv ret_low, TCGv ret_high, TCGv r1, TCGv r2_low, TCGv r2_high,
+             TCGv r3)
+{
+    TCGv_i64 temp64 = tcg_temp_new_i64();
+    tcg_gen_concat_i32_i64(temp64, r2_low, r2_high);
+    gen_helper_msub64_ssov(temp64, cpu_env, r1, temp64, r3);
+    tcg_gen_extr_i64_i32(ret_low, ret_high, temp64);
+    tcg_temp_free_i64(temp64);
+}
+
+static inline void
 gen_msubsi_64(TCGv ret_low, TCGv ret_high, TCGv r1, TCGv r2_low, TCGv r2_high,
               int32_t con)
 {
     TCGv temp = tcg_const_i32(con);
+    gen_msubs_64(ret_low, ret_high, r1, r2_low, r2_high, temp);
+    tcg_temp_free(temp);
+}
+
+static inline void
+gen_msubsu_64(TCGv ret_low, TCGv ret_high, TCGv r1, TCGv r2_low, TCGv r2_high,
+             TCGv r3)
+{
     TCGv_i64 temp64 = tcg_temp_new_i64();
     tcg_gen_concat_i32_i64(temp64, r2_low, r2_high);
-    gen_helper_msub64_ssov(temp64, cpu_env, r1, temp64, temp);
+    gen_helper_msub64_suov(temp64, cpu_env, r1, temp64, r3);
     tcg_gen_extr_i64_i32(ret_low, ret_high, temp64);
-    tcg_temp_free(temp);
     tcg_temp_free_i64(temp64);
 }
 
@@ -1209,12 +1241,8 @@ gen_msubsui_64(TCGv ret_low, TCGv ret_high, TCGv r1, TCGv r2_low, TCGv r2_high,
                int32_t con)
 {
     TCGv temp = tcg_const_i32(con);
-    TCGv_i64 temp64 = tcg_temp_new_i64();
-    tcg_gen_concat_i32_i64(temp64, r2_low, r2_high);
-    gen_helper_msub64_suov(temp64, cpu_env, r1, temp64, temp);
-    tcg_gen_extr_i64_i32(ret_low, ret_high, temp64);
+    gen_msubsu_64(ret_low, ret_high, r1, r2_low, r2_high, temp);
     tcg_temp_free(temp);
-    tcg_temp_free_i64(temp64);
 }
 
 static void gen_saturate(TCGv ret, TCGv arg, int32_t up, int32_t low)
@@ -5186,6 +5214,92 @@ static void decode_rrr_divide(CPUTriCoreState *env, DisasContext *ctx)
     }
 }
 
+/* RRR2 format */
+static void decode_rrr2_madd(CPUTriCoreState *env, DisasContext *ctx)
+{
+    uint32_t op2;
+    uint32_t r1, r2, r3, r4;
+
+    op2 = MASK_OP_RRR2_OP2(ctx->opcode);
+    r1 = MASK_OP_RRR2_S1(ctx->opcode);
+    r2 = MASK_OP_RRR2_S2(ctx->opcode);
+    r3 = MASK_OP_RRR2_S3(ctx->opcode);
+    r4 = MASK_OP_RRR2_D(ctx->opcode);
+    switch (op2) {
+    case OPC2_32_RRR2_MADD_32:
+        gen_madd32_d(cpu_gpr_d[r4], cpu_gpr_d[r1], cpu_gpr_d[r3],
+                     cpu_gpr_d[r2]);
+        break;
+    case OPC2_32_RRR2_MADD_64:
+        gen_madd64_d(cpu_gpr_d[r4], cpu_gpr_d[r4+1], cpu_gpr_d[r1],
+                     cpu_gpr_d[r3], cpu_gpr_d[r3+1], cpu_gpr_d[r2]);
+        break;
+    case OPC2_32_RRR2_MADDS_32:
+        gen_helper_madd32_ssov(cpu_gpr_d[r4], cpu_env, cpu_gpr_d[r1],
+                               cpu_gpr_d[r3], cpu_gpr_d[r2]);
+        break;
+    case OPC2_32_RRR2_MADDS_64:
+        gen_madds_64(cpu_gpr_d[r4], cpu_gpr_d[r4+1], cpu_gpr_d[r1],
+                     cpu_gpr_d[r3], cpu_gpr_d[r3+1], cpu_gpr_d[r2]);
+        break;
+    case OPC2_32_RRR2_MADD_U_64:
+        gen_maddu64_d(cpu_gpr_d[r4], cpu_gpr_d[r4+1], cpu_gpr_d[r1],
+                      cpu_gpr_d[r3], cpu_gpr_d[r3+1], cpu_gpr_d[r2]);
+        break;
+    case OPC2_32_RRR2_MADDS_U_32:
+        gen_helper_madd32_suov(cpu_gpr_d[r4], cpu_env, cpu_gpr_d[r1],
+                               cpu_gpr_d[r3], cpu_gpr_d[r2]);
+        break;
+    case OPC2_32_RRR2_MADDS_U_64:
+        gen_maddsu_64(cpu_gpr_d[r4], cpu_gpr_d[r4+1], cpu_gpr_d[r1],
+                      cpu_gpr_d[r3], cpu_gpr_d[r3+1], cpu_gpr_d[r2]);
+        break;
+    }
+}
+
+static void decode_rrr2_msub(CPUTriCoreState *env, DisasContext *ctx)
+{
+    uint32_t op2;
+    uint32_t r1, r2, r3, r4;
+
+    op2 = MASK_OP_RRR2_OP2(ctx->opcode);
+    r1 = MASK_OP_RRR2_S1(ctx->opcode);
+    r2 = MASK_OP_RRR2_S2(ctx->opcode);
+    r3 = MASK_OP_RRR2_S3(ctx->opcode);
+    r4 = MASK_OP_RRR2_D(ctx->opcode);
+
+    switch (op2) {
+    case OPC2_32_RRR2_MSUB_32:
+        gen_msub32_d(cpu_gpr_d[r4], cpu_gpr_d[r1], cpu_gpr_d[r3],
+                      cpu_gpr_d[r2]);
+        break;
+    case OPC2_32_RRR2_MSUB_64:
+        gen_msub64_d(cpu_gpr_d[r4], cpu_gpr_d[r4+1], cpu_gpr_d[r1],
+                     cpu_gpr_d[r3], cpu_gpr_d[r3+1], cpu_gpr_d[r2]);
+        break;
+    case OPC2_32_RRR2_MSUBS_32:
+        gen_helper_msub32_ssov(cpu_gpr_d[r4], cpu_env, cpu_gpr_d[r1],
+                               cpu_gpr_d[r3], cpu_gpr_d[r2]);
+        break;
+    case OPC2_32_RRR2_MSUBS_64:
+        gen_msubs_64(cpu_gpr_d[r4], cpu_gpr_d[r4+1], cpu_gpr_d[r1],
+                     cpu_gpr_d[r3], cpu_gpr_d[r3+1], cpu_gpr_d[r2]);
+        break;
+    case OPC2_32_RRR2_MSUB_U_64:
+        gen_msubu64_d(cpu_gpr_d[r4], cpu_gpr_d[r4+1], cpu_gpr_d[r1],
+                      cpu_gpr_d[r3], cpu_gpr_d[r3+1], cpu_gpr_d[r2]);
+        break;
+    case OPC2_32_RRR2_MSUBS_U_32:
+        gen_helper_msub32_suov(cpu_gpr_d[r4], cpu_env, cpu_gpr_d[r1],
+                               cpu_gpr_d[r3], cpu_gpr_d[r2]);
+        break;
+    case OPC2_32_RRR2_MSUBS_U_64:
+        gen_msubsu_64(cpu_gpr_d[r4], cpu_gpr_d[r4+1], cpu_gpr_d[r1],
+                      cpu_gpr_d[r3], cpu_gpr_d[r3+1], cpu_gpr_d[r2]);
+        break;
+    }
+}
+
 static void decode_32Bit_opc(CPUTriCoreState *env, DisasContext *ctx)
 {
     int op1;
@@ -5475,6 +5589,13 @@ static void decode_32Bit_opc(CPUTriCoreState *env, DisasContext *ctx)
         break;
     case OPCM_32_RRR_DIVIDE:
         decode_rrr_divide(env, ctx);
+/* RRR2 Format */
+    case OPCM_32_RRR2_MADD:
+        decode_rrr2_madd(env, ctx);
+        break;
+    case OPCM_32_RRR2_MSUB:
+        decode_rrr2_msub(env, ctx);
+        break;
     }
 }
 

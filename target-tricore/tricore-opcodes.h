@@ -1371,7 +1371,7 @@ enum {
     OPC2_32_RRR2_MADD_64                         = 0x6a,
     OPC2_32_RRR2_MADDS_32                        = 0x8a,
     OPC2_32_RRR2_MADDS_64                        = 0xea,
-    OPC2_32_RRR2_MADD_U_32                       = 0x68,
+    OPC2_32_RRR2_MADD_U_64                       = 0x68,
     OPC2_32_RRR2_MADDS_U_32                      = 0x88,
     OPC2_32_RRR2_MADDS_U_64                      = 0xe8,
 };
