@@ -343,7 +343,7 @@ static inline void gen_mfcr(CPUTriCoreState *env, TCGv ret, int32_t offset)
 static inline void gen_mtcr(CPUTriCoreState *env, DisasContext *ctx, TCGv r1,
                             int32_t offset)
 {
-    if (ctx->hflags & TRICORE_HFLAG_SM) {
+    if ((ctx->hflags & TRICORE_HFLAG_KUU) == TRICORE_HFLAG_SM) {
         /* since we're caching PSW make this a special case */
         if (offset == 0xfe04) {
             gen_helper_psw_write(cpu_env, r1);
@@ -1647,6 +1647,7 @@ static void gen_compute_branch(DisasContext *ctx, uint32_t opc, int r1,
         break;
     case OPC1_32_B_JLA:
         tcg_gen_movi_tl(cpu_gpr_a[11], ctx->next_pc);
+        /* fall through */
     case OPC1_32_B_JA:
         gen_goto_tb(ctx, 0, EA_B_ABSOLUT(offset));
         break;
