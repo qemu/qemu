@@ -883,16 +883,20 @@ int qemu_loadvm_state(QEMUFile *f)
     QLIST_HEAD(, LoadStateEntry) loadvm_handlers =
         QLIST_HEAD_INITIALIZER(loadvm_handlers);
     LoadStateEntry *le, *new_le;
+    Error *local_err = NULL;
     uint8_t section_type;
     unsigned int v;
     int ret;
 
-    if (qemu_savevm_state_blocked(NULL)) {
+    if (qemu_savevm_state_blocked(&local_err)) {
+        error_report("%s", error_get_pretty(local_err));
+        error_free(local_err);
         return -EINVAL;
     }
 
     v = qemu_get_be32(f);
     if (v != QEMU_VM_FILE_MAGIC) {
+        error_report("Not a migration stream");
         return -EINVAL;
     }
 
@@ -902,6 +906,7 @@ int qemu_loadvm_state(QEMUFile *f)
         return -ENOTSUP;
     }
     if (v != QEMU_VM_FILE_VERSION) {
+        error_report("Unsupported migration stream version");
         return -ENOTSUP;
     }
 
