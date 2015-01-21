@@ -204,9 +204,17 @@ def ppc_init():
         }
     })
 
+def aarch64_init():
+    globals().update({
+        'sc_perf_evt_open' : 241
+    })
+
 def detect_platform():
     if os.uname()[4].startswith('ppc'):
         ppc_init()
+        return
+    elif os.uname()[4].startswith('aarch64'):
+        aarch64_init()
         return
 
     for line in file('/proc/cpuinfo').readlines():
