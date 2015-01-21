@@ -65,6 +65,8 @@ vmx_exit_reasons = {
     49: 'EPT_MISCONFIG',
     54: 'WBINVD',
     55: 'XSETBV',
+    56: 'APIC_WRITE',
+    58: 'INVPCID',
 }
 
 svm_exit_reasons = {
@@ -138,6 +140,7 @@ svm_exit_reasons = {
     0x08a: 'MONITOR',
     0x08b: 'MWAIT',
     0x08c: 'MWAIT_COND',
+    0x08d: 'XSETBV',
     0x400: 'NPF',
 }
 
@@ -167,6 +170,7 @@ userspace_exit_reasons = {
     21: 'WATCHDOG',
     22: 'S390_TSCH',
     23: 'EPR',
+    24: 'SYSTEM_EVENT',
 }
 
 x86_exit_reasons = {
