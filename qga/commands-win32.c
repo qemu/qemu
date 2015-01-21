@@ -625,31 +625,31 @@ void qmp_guest_set_time(bool has_time, int64_t time_ns, Error **errp)
     FILETIME tf;
     LONGLONG time;
 
-    if (has_time) {
-        /* Okay, user passed a time to set. Validate it. */
-        if (time_ns < 0 || time_ns / 100 > INT64_MAX - W32_FT_OFFSET) {
-            error_setg(errp, "Time %" PRId64 "is invalid", time_ns);
-            return;
-        }
+    if (!has_time) {
+        /* Unfortunately, Windows libraries don't provide an easy way to access
+         * RTC yet:
+         *
+         * https://msdn.microsoft.com/en-us/library/aa908981.aspx
+         */
+        error_setg(errp, "Time argument is required on this platform");
+        return;
+    }
 
-        time = time_ns / 100 + W32_FT_OFFSET;
+    /* Validate time passed by user. */
+    if (time_ns < 0 || time_ns / 100 > INT64_MAX - W32_FT_OFFSET) {
+        error_setg(errp, "Time %" PRId64 "is invalid", time_ns);
+        return;
+    }
 
-        tf.dwLowDateTime = (DWORD) time;
-        tf.dwHighDateTime = (DWORD) (time >> 32);
+    time = time_ns / 100 + W32_FT_OFFSET;
 
-        if (!FileTimeToSystemTime(&tf, &ts)) {
-            error_setg(errp, "Failed to convert system time %d",
-                       (int)GetLastError());
-            return;
-        }
-    } else {
-        /* Otherwise read the time from RTC which contains the correct value.
-         * Hopefully. */
-        GetSystemTime(&ts);
-        if (ts.wYear < 1601 || ts.wYear > 30827) {
-            error_setg(errp, "Failed to get time");
-            return;
-        }
+    tf.dwLowDateTime = (DWORD) time;
+    tf.dwHighDateTime = (DWORD) (time >> 32);
+
+    if (!FileTimeToSystemTime(&tf, &ts)) {
+        error_setg(errp, "Failed to convert system time %d",
+                   (int)GetLastError());
+        return;
     }
 
     acquire_privilege(SE_SYSTEMTIME_NAME, &local_err);

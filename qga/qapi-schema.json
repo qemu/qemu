@@ -121,7 +121,10 @@
 # given value, then sets the Hardware Clock (RTC) to the
 # current System Time. This will make it easier for a guest
 # to resynchronize without waiting for NTP. If no @time is
-# specified, then the time to set is read from RTC.
+# specified, then the time to set is read from RTC. However,
+# this may not be supported on all platforms (i.e. Windows).
+# If that's the case users are advised to always pass a
+# value.
 #
 # @time: #optional time of nanoseconds, relative to the Epoch
 #        of 1970-01-01 in UTC.
