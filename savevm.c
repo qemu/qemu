@@ -898,7 +898,7 @@ int qemu_loadvm_state(QEMUFile *f)
 
     v = qemu_get_be32(f);
     if (v == QEMU_VM_FILE_VERSION_COMPAT) {
-        fprintf(stderr, "SaveVM v2 format is obsolete and don't work anymore\n");
+        error_report("SaveVM v2 format is obsolete and don't work anymore");
         return -ENOTSUP;
     }
     if (v != QEMU_VM_FILE_VERSION) {
@@ -925,15 +925,16 @@ int qemu_loadvm_state(QEMUFile *f)
             /* Find savevm section */
             se = find_se(idstr, instance_id);
             if (se == NULL) {
-                fprintf(stderr, "Unknown savevm section or instance '%s' %d\n", idstr, instance_id);
+                error_report("Unknown savevm section or instance '%s' %d",
+                             idstr, instance_id);
                 ret = -EINVAL;
                 goto out;
             }
 
             /* Validate version */
             if (version_id > se->version_id) {
-                fprintf(stderr, "savevm: unsupported version %d for '%s' v%d\n",
-                        version_id, idstr, se->version_id);
+                error_report("savevm: unsupported version %d for '%s' v%d",
+                             version_id, idstr, se->version_id);
                 ret = -EINVAL;
                 goto out;
             }
@@ -948,8 +949,8 @@ int qemu_loadvm_state(QEMUFile *f)
 
             ret = vmstate_load(f, le->se, le->version_id);
             if (ret < 0) {
-                fprintf(stderr, "qemu: warning: error while loading state for instance 0x%x of device '%s'\n",
-                        instance_id, idstr);
+                error_report("error while loading state for instance 0x%x of"
+                             " device '%s'", instance_id, idstr);
                 goto out;
             }
             break;
@@ -963,20 +964,20 @@ int qemu_loadvm_state(QEMUFile *f)
                 }
             }
             if (le == NULL) {
-                fprintf(stderr, "Unknown savevm section %d\n", section_id);
+                error_report("Unknown savevm section %d", section_id);
                 ret = -EINVAL;
                 goto out;
             }
 
             ret = vmstate_load(f, le->se, le->version_id);
             if (ret < 0) {
-                fprintf(stderr, "qemu: warning: error while loading state section id %d\n",
-                        section_id);
+                error_report("error while loading state section id %d(%s)",
+                             section_id, le->se->idstr);
                 goto out;
             }
             break;
         default:
-            fprintf(stderr, "Unknown savevm section type %d\n", section_type);
+            error_report("Unknown savevm section type %d", section_type);
             ret = -EINVAL;
             goto out;
         }

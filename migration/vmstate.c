@@ -3,6 +3,7 @@
 #include "migration/qemu-file.h"
 #include "migration/vmstate.h"
 #include "qemu/bitops.h"
+#include "qemu/error-report.h"
 #include "trace.h"
 
 static void vmstate_subsection_save(QEMUFile *f, const VMStateDescription *vmsd,
@@ -122,8 +123,8 @@ int vmstate_load_state(QEMUFile *f, const VMStateDescription *vmsd,
                 }
             }
         } else if (field->flags & VMS_MUST_EXIST) {
-            fprintf(stderr, "Input validation failed: %s/%s\n",
-                    vmsd->name, field->name);
+            error_report("Input validation failed: %s/%s",
+                         vmsd->name, field->name);
             return -1;
         }
         field++;
@@ -167,7 +168,7 @@ void vmstate_save_state(QEMUFile *f, const VMStateDescription *vmsd,
             }
         } else {
             if (field->flags & VMS_MUST_EXIST) {
-                fprintf(stderr, "Output state validation failed: %s/%s\n",
+                error_report("Output state validation failed: %s/%s",
                         vmsd->name, field->name);
                 assert(!(field->flags & VMS_MUST_EXIST));
             }
