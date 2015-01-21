@@ -866,25 +866,18 @@ static int quorum_open(BlockDriverState *bs, QDict *options, int flags,
     Error *local_err = NULL;
     QemuOpts *opts = NULL;
     bool *opened;
-    QDict *sub = NULL;
-    QList *list = NULL;
-    const QListEntry *lentry;
     int i;
     int ret = 0;
 
     qdict_flatten(options);
-    qdict_extract_subqdict(options, &sub, "children.");
-    qdict_array_split(sub, &list);
 
-    if (qdict_size(sub)) {
-        error_setg(&local_err, "Invalid option children.%s",
-                   qdict_first(sub)->key);
+    /* count how many different children are present */
+    s->num_children = qdict_array_entries(options, "children.");
+    if (s->num_children < 0) {
+        error_setg(&local_err, "Option children is not a valid array");
         ret = -EINVAL;
         goto exit;
     }
-
-    /* count how many different children are present */
-    s->num_children = qlist_size(list);
     if (s->num_children < 2) {
         error_setg(&local_err,
                    "Number of provided children must be greater than 1");
@@ -937,37 +930,17 @@ static int quorum_open(BlockDriverState *bs, QDict *options, int flags,
     s->bs = g_new0(BlockDriverState *, s->num_children);
     opened = g_new0(bool, s->num_children);
 
-    for (i = 0, lentry = qlist_first(list); lentry;
-         lentry = qlist_next(lentry), i++) {
-        QDict *d;
-        QString *string;
+    for (i = 0; i < s->num_children; i++) {
+        char indexstr[32];
+        ret = snprintf(indexstr, 32, "children.%d", i);
+        assert(ret < 32);
 
-        switch (qobject_type(lentry->value))
-        {
-            /* List of options */
-            case QTYPE_QDICT:
-                d = qobject_to_qdict(lentry->value);
-                QINCREF(d);
-                ret = bdrv_open(&s->bs[i], NULL, NULL, d, flags, NULL,
-                                &local_err);
-                break;
-
-            /* QMP reference */
-            case QTYPE_QSTRING:
-                string = qobject_to_qstring(lentry->value);
-                ret = bdrv_open(&s->bs[i], NULL, qstring_get_str(string), NULL,
-                                flags, NULL, &local_err);
-                break;
-
-            default:
-                error_setg(&local_err, "Specification of child block device %i "
-                           "is invalid", i);
-                ret = -EINVAL;
-        }
-
+        ret = bdrv_open_image(&s->bs[i], NULL, options, indexstr, flags,
+                              false, &local_err);
         if (ret < 0) {
             goto close_exit;
         }
+
         opened[i] = true;
     }
 
@@ -990,8 +963,6 @@ exit:
     if (local_err) {
         error_propagate(errp, local_err);
     }
-    QDECREF(list);
-    QDECREF(sub);
     return ret;
 }
 
