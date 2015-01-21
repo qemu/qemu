@@ -674,7 +674,7 @@ int qemu_savevm_state_iterate(QEMUFile *f)
         qemu_put_be32(f, se->section_id);
 
         ret = se->ops->save_live_iterate(f, se->opaque);
-        trace_savevm_section_end(se->idstr, se->section_id);
+        trace_savevm_section_end(se->idstr, se->section_id, ret);
 
         if (ret < 0) {
             qemu_file_set_error(f, ret);
@@ -714,7 +714,7 @@ void qemu_savevm_state_complete(QEMUFile *f)
         qemu_put_be32(f, se->section_id);
 
         ret = se->ops->save_live_complete(f, se->opaque);
-        trace_savevm_section_end(se->idstr, se->section_id);
+        trace_savevm_section_end(se->idstr, se->section_id, ret);
         if (ret < 0) {
             qemu_file_set_error(f, ret);
             return;
@@ -741,7 +741,7 @@ void qemu_savevm_state_complete(QEMUFile *f)
         qemu_put_be32(f, se->version_id);
 
         vmstate_save(f, se);
-        trace_savevm_section_end(se->idstr, se->section_id);
+        trace_savevm_section_end(se->idstr, se->section_id, 0);
     }
 
     qemu_put_byte(f, QEMU_VM_EOF);
@@ -911,6 +911,7 @@ int qemu_loadvm_state(QEMUFile *f)
         char idstr[257];
         int len;
 
+        trace_qemu_loadvm_state_section(section_type);
         switch (section_type) {
         case QEMU_VM_SECTION_START:
         case QEMU_VM_SECTION_FULL:
@@ -922,6 +923,8 @@ int qemu_loadvm_state(QEMUFile *f)
             instance_id = qemu_get_be32(f);
             version_id = qemu_get_be32(f);
 
+            trace_qemu_loadvm_state_section_startfull(section_id, idstr,
+                                                      instance_id, version_id);
             /* Find savevm section */
             se = find_se(idstr, instance_id);
             if (se == NULL) {
@@ -958,6 +961,7 @@ int qemu_loadvm_state(QEMUFile *f)
         case QEMU_VM_SECTION_END:
             section_id = qemu_get_be32(f);
 
+            trace_qemu_loadvm_state_section_partend(section_id);
             QLIST_FOREACH(le, &loadvm_handlers, entry) {
                 if (le->section_id == section_id) {
                     break;

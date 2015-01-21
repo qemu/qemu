@@ -1142,8 +1142,11 @@ vmware_scratch_write(uint32_t index, uint32_t value) "index %d, value 0x%x"
 vmware_setmode(uint32_t w, uint32_t h, uint32_t bpp) "%dx%d @ %d bpp"
 
 # savevm.c
+qemu_loadvm_state_section(unsigned int section_type) "%d"
+qemu_loadvm_state_section_partend(uint32_t section_id) "%u"
+qemu_loadvm_state_section_startfull(uint32_t section_id, const char *idstr, uint32_t instance_id, uint32_t version_id) "%u(%s) %u %u"
 savevm_section_start(const char *id, unsigned int section_id) "%s, section_id %u"
-savevm_section_end(const char *id, unsigned int section_id) "%s, section_id %u"
+savevm_section_end(const char *id, unsigned int section_id, int ret) "%s, section_id %u -> %d"
 savevm_state_begin(void) ""
 savevm_state_iterate(void) ""
 savevm_state_complete(void) ""
@@ -1154,6 +1157,12 @@ qemu_announce_self_iter(const char *mac) "%s"
 
 # vmstate.c
 vmstate_load_field_error(const char *field, int ret) "field \"%s\" load failed, ret = %d"
+vmstate_load_state(const char *name, int version_id) "%s v%d"
+vmstate_load_state_end(const char *name, const char *reason, int val) "%s %s/%d"
+vmstate_load_state_field(const char *name, const char *field) "%s:%s"
+vmstate_subsection_load(const char *parent) "%s"
+vmstate_subsection_load_bad(const char *parent,  const char *sub) "%s: %s"
+vmstate_subsection_load_good(const char *parent) "%s"
 
 # qemu-file.c
 qemu_file_fclose(void) ""

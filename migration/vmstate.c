@@ -73,16 +73,21 @@ int vmstate_load_state(QEMUFile *f, const VMStateDescription *vmsd,
                        void *opaque, int version_id)
 {
     VMStateField *field = vmsd->fields;
-    int ret;
+    int ret = 0;
 
+    trace_vmstate_load_state(vmsd->name, version_id);
     if (version_id > vmsd->version_id) {
+        trace_vmstate_load_state_end(vmsd->name, "too new", -EINVAL);
         return -EINVAL;
     }
     if  (version_id < vmsd->minimum_version_id) {
         if (vmsd->load_state_old &&
             version_id >= vmsd->minimum_version_id_old) {
-            return vmsd->load_state_old(f, opaque, version_id);
+            ret = vmsd->load_state_old(f, opaque, version_id);
+            trace_vmstate_load_state_end(vmsd->name, "old path", ret);
+            return ret;
         }
+        trace_vmstate_load_state_end(vmsd->name, "too old", -EINVAL);
         return -EINVAL;
     }
     if (vmsd->pre_load) {
@@ -92,6 +97,7 @@ int vmstate_load_state(QEMUFile *f, const VMStateDescription *vmsd,
         }
     }
     while (field->name) {
+        trace_vmstate_load_state_field(vmsd->name, field->name);
         if ((field->field_exists &&
              field->field_exists(opaque, version_id)) ||
             (!field->field_exists &&
@@ -134,9 +140,10 @@ int vmstate_load_state(QEMUFile *f, const VMStateDescription *vmsd,
         return ret;
     }
     if (vmsd->post_load) {
-        return vmsd->post_load(opaque, version_id);
+        ret = vmsd->post_load(opaque, version_id);
     }
-    return 0;
+    trace_vmstate_load_state_end(vmsd->name, "end", ret);
+    return ret;
 }
 
 void vmstate_save_state(QEMUFile *f, const VMStateDescription *vmsd,
@@ -193,6 +200,8 @@ static const VMStateDescription *
 static int vmstate_subsection_load(QEMUFile *f, const VMStateDescription *vmsd,
                                    void *opaque)
 {
+    trace_vmstate_subsection_load(vmsd->name);
+
     while (qemu_peek_byte(f, 0) == QEMU_VM_SUBSECTION) {
         char idstr[256];
         int ret;
@@ -202,20 +211,24 @@ static int vmstate_subsection_load(QEMUFile *f, const VMStateDescription *vmsd,
         len = qemu_peek_byte(f, 1);
         if (len < strlen(vmsd->name) + 1) {
             /* subsection name has be be "section_name/a" */
+            trace_vmstate_subsection_load_bad(vmsd->name, "(short)");
             return 0;
         }
         size = qemu_peek_buffer(f, (uint8_t *)idstr, len, 2);
         if (size != len) {
+            trace_vmstate_subsection_load_bad(vmsd->name, "(peek fail)");
             return 0;
         }
         idstr[size] = 0;
 
         if (strncmp(vmsd->name, idstr, strlen(vmsd->name)) != 0) {
+            trace_vmstate_subsection_load_bad(vmsd->name, idstr);
             /* it don't have a valid subsection name */
             return 0;
         }
         sub_vmsd = vmstate_get_subsection(vmsd->subsections, idstr);
         if (sub_vmsd == NULL) {
+            trace_vmstate_subsection_load_bad(vmsd->name, "(lookup)");
             return -ENOENT;
         }
         qemu_file_skip(f, 1); /* subsection */
@@ -225,9 +238,12 @@ static int vmstate_subsection_load(QEMUFile *f, const VMStateDescription *vmsd,
 
         ret = vmstate_load_state(f, sub_vmsd, opaque, version_id);
         if (ret) {
+            trace_vmstate_subsection_load_bad(vmsd->name, "(child)");
             return ret;
         }
     }
+
+    trace_vmstate_subsection_load_good(vmsd->name);
     return 0;
 }
 
