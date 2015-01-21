@@ -53,6 +53,8 @@ def check_fields_match(name, s_field, d_field):
                                        'parent_obj.parent_obj.parent_obj',
                                        'port.br.dev.exp.aer_log',
                                 'parent_obj.parent_obj.parent_obj.exp.aer_log'],
+        'cirrus_vga': ['hw_cursor_x', 'vga.hw_cursor_x',
+                       'hw_cursor_y', 'vga.hw_cursor_y'],
         'lsiscsi': ['dev', 'parent_obj'],
         'mch': ['d', 'parent_obj'],
         'pci_bridge': ['bridge.dev', 'parent_obj', 'bridge.dev.shpc', 'shpc'],
