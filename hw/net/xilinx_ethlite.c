@@ -146,6 +146,7 @@ eth_write(void *opaque, hwaddr addr,
             if (!(value & CTRL_S)) {
                 qemu_flush_queued_packets(qemu_get_queue(s->nic));
             }
+            /* fall through */
         case R_TX_LEN0:
         case R_TX_LEN1:
         case R_TX_GIE0:
