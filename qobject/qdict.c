@@ -597,17 +597,21 @@ void qdict_extract_subqdict(QDict *src, QDict **dst, const char *start)
     }
 }
 
-static bool qdict_has_prefixed_entries(const QDict *src, const char *start)
+static int qdict_count_prefixed_entries(const QDict *src, const char *start)
 {
     const QDictEntry *entry;
+    int count = 0;
 
     for (entry = qdict_first(src); entry; entry = qdict_next(src, entry)) {
         if (strstart(entry->key, start, NULL)) {
-            return true;
+            if (count == INT_MAX) {
+                return -ERANGE;
+            }
+            count++;
         }
     }
 
-    return false;
+    return count;
 }
 
 /**
@@ -646,7 +650,8 @@ void qdict_array_split(QDict *src, QList **dst)
         snprintf_ret = snprintf(prefix, 32, "%u.", i);
         assert(snprintf_ret < 32);
 
-        is_subqdict = qdict_has_prefixed_entries(src, prefix);
+        /* Overflow is the same as positive non-zero results */
+        is_subqdict = qdict_count_prefixed_entries(src, prefix);
 
         // There may be either a single subordinate object (named "%u") or
         // multiple objects (each with a key prefixed "%u."), but not both.
@@ -664,6 +669,71 @@ void qdict_array_split(QDict *src, QList **dst)
 
         qlist_append_obj(*dst, subqobj ?: QOBJECT(subqdict));
     }
+}
+
+/**
+ * qdict_array_entries(): Returns the number of direct array entries if the
+ * sub-QDict of src specified by the prefix in subqdict (or src itself for
+ * prefix == "") is valid as an array, i.e. the length of the created list if
+ * the sub-QDict would become empty after calling qdict_array_split() on it. If
+ * the array is not valid, -EINVAL is returned.
+ */
+int qdict_array_entries(QDict *src, const char *subqdict)
+{
+    const QDictEntry *entry;
+    unsigned i;
+    unsigned entries = 0;
+    size_t subqdict_len = strlen(subqdict);
+
+    assert(!subqdict_len || subqdict[subqdict_len - 1] == '.');
+
+    /* qdict_array_split() loops until UINT_MAX, but as we want to return
+     * negative errors, we only have a signed return value here. Any additional
+     * entries will lead to -EINVAL. */
+    for (i = 0; i < INT_MAX; i++) {
+        QObject *subqobj;
+        int subqdict_entries;
+        size_t slen = 32 + subqdict_len;
+        char indexstr[slen], prefix[slen];
+        size_t snprintf_ret;
+
+        snprintf_ret = snprintf(indexstr, slen, "%s%u", subqdict, i);
+        assert(snprintf_ret < slen);
+
+        subqobj = qdict_get(src, indexstr);
+
+        snprintf_ret = snprintf(prefix, slen, "%s%u.", subqdict, i);
+        assert(snprintf_ret < slen);
+
+        subqdict_entries = qdict_count_prefixed_entries(src, prefix);
+        if (subqdict_entries < 0) {
+            return subqdict_entries;
+        }
+
+        /* There may be either a single subordinate object (named "%u") or
+         * multiple objects (each with a key prefixed "%u."), but not both. */
+        if (subqobj && subqdict_entries) {
+            return -EINVAL;
+        } else if (!subqobj && !subqdict_entries) {
+            break;
+        }
+
+        entries += subqdict_entries ? subqdict_entries : 1;
+    }
+
+    /* Consider everything handled that isn't part of the given sub-QDict */
+    for (entry = qdict_first(src); entry; entry = qdict_next(src, entry)) {
+        if (!strstart(qdict_entry_key(entry), subqdict, NULL)) {
+            entries++;
+        }
+    }
+
+    /* Anything left in the sub-QDict that wasn't handled? */
+    if (qdict_size(src) != entries) {
+        return -EINVAL;
+    }
+
+    return i;
 }
 
 /**
