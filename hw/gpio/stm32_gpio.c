@@ -83,6 +83,7 @@ static void stm32_gpio_in_trigger(void *opaque, int irq, int level)
     assert(pin < STM32_GPIO_PIN_COUNT);
 
     /* Update internal pin state. */
+    s->in &= ~(1 << pin);
     s->in |= (level ? 1 : 0) << pin;
 
     /* Propagate the trigger to the input IRQs. */
@@ -125,6 +126,7 @@ static void stm32_gpio_update_dir(Stm32Gpio *s, int cr_index)
         /* If the mode is 0, the pin is input.  Otherwise, it
          * is output.
          */
+        s->dir_mask &= ~(1 << pin);
         s->dir_mask |= (pin_dir ? 1 : 0) << pin;
     }
 }
