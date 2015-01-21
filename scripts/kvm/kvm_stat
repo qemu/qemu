@@ -13,6 +13,7 @@
 
 import curses
 import sys, os, time, optparse, ctypes
+from ctypes import *
 
 class DebugfsProvider(object):
     def __init__(self):
@@ -247,6 +248,9 @@ import struct, array
 
 libc = ctypes.CDLL('libc.so.6')
 syscall = libc.syscall
+get_errno = libc.__errno_location
+get_errno.restype = POINTER(c_int)
+
 class perf_event_attr(ctypes.Structure):
     _fields_ = [('type', ctypes.c_uint32),
                 ('size', ctypes.c_uint32),
@@ -330,7 +334,8 @@ class Event(object):
             group_leader = group.events[0].fd
         fd = _perf_event_open(attr, -1, group.cpu, group_leader, 0)
         if fd == -1:
-            raise Exception('perf_event_open failed')
+            err = get_errno()[0]
+            raise Exception('perf_event_open failed, errno = ' + err.__str__())
         if filter:
             import fcntl
             fcntl.ioctl(fd, ioctl_numbers['SET_FILTER'], filter)
