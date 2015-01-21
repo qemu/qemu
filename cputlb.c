@@ -243,8 +243,12 @@ static void tlb_add_large_page(CPUArchState *env, target_ulong vaddr,
 }
 
 /* Add a new TLB entry. At most one entry for a given virtual address
-   is permitted. Only a single TARGET_PAGE_SIZE region is mapped, the
-   supplied size is only used by tlb_flush_page.  */
+ * is permitted. Only a single TARGET_PAGE_SIZE region is mapped, the
+ * supplied size is only used by tlb_flush_page.
+ *
+ * Called from TCG-generated code, which is under an RCU read-side
+ * critical section.
+ */
 void tlb_set_page(CPUState *cpu, target_ulong vaddr,
                   hwaddr paddr, int prot,
                   int mmu_idx, target_ulong size)

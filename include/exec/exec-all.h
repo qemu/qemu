@@ -96,6 +96,7 @@ void tb_invalidate_phys_page_range(tb_page_addr_t start, tb_page_addr_t end,
 void tb_invalidate_phys_range(tb_page_addr_t start, tb_page_addr_t end,
                               int is_cpu_write_access);
 #if !defined(CONFIG_USER_ONLY)
+bool qemu_in_vcpu_thread(void);
 void cpu_reload_memory_map(CPUState *cpu);
 void tcg_cpu_address_space_init(CPUState *cpu, AddressSpace *as);
 /* cputlb.c */

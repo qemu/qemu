@@ -745,6 +745,9 @@ static inline bool vtd_is_interrupt_addr(hwaddr addr)
 
 /* Map dev to context-entry then do a paging-structures walk to do a iommu
  * translation.
+ *
+ * Called from RCU critical section.
+ *
  * @bus_num: The bus number
  * @devfn: The devfn, which is the  combined of device and function number
  * @is_write: The access is a write operation

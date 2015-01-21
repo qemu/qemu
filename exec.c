@@ -115,6 +115,8 @@ struct PhysPageEntry {
 typedef PhysPageEntry Node[P_L2_SIZE];
 
 typedef struct PhysPageMap {
+    struct rcu_head rcu;
+
     unsigned sections_nb;
     unsigned sections_nb_alloc;
     unsigned nodes_nb;
@@ -124,6 +126,8 @@ typedef struct PhysPageMap {
 } PhysPageMap;
 
 struct AddressSpaceDispatch {
+    struct rcu_head rcu;
+
     /* This is a multi-level map on the physical address space.
      * The bottom level has pointers to MemoryRegionSections.
      */
@@ -315,6 +319,7 @@ bool memory_region_is_unassigned(MemoryRegion *mr)
         && mr != &io_mem_watch;
 }
 
+/* Called from RCU critical section */
 static MemoryRegionSection *address_space_lookup_region(AddressSpaceDispatch *d,
                                                         hwaddr addr,
                                                         bool resolve_subpage)
@@ -330,6 +335,7 @@ static MemoryRegionSection *address_space_lookup_region(AddressSpaceDispatch *d,
     return section;
 }
 
+/* Called from RCU critical section */
 static MemoryRegionSection *
 address_space_translate_internal(AddressSpaceDispatch *d, hwaddr addr, hwaddr *xlat,
                                  hwaddr *plen, bool resolve_subpage)
@@ -370,8 +376,10 @@ MemoryRegion *address_space_translate(AddressSpace *as, hwaddr addr,
     MemoryRegion *mr;
     hwaddr len = *plen;
 
+    rcu_read_lock();
     for (;;) {
-        section = address_space_translate_internal(as->dispatch, addr, &addr, plen, true);
+        AddressSpaceDispatch *d = atomic_rcu_read(&as->dispatch);
+        section = address_space_translate_internal(d, addr, &addr, plen, true);
         mr = section->mr;
 
         if (!mr->iommu_ops) {
@@ -397,9 +405,11 @@ MemoryRegion *address_space_translate(AddressSpace *as, hwaddr addr,
 
     *plen = len;
     *xlat = addr;
+    rcu_read_unlock();
     return mr;
 }
 
+/* Called from RCU critical section */
 MemoryRegionSection *
 address_space_translate_for_iotlb(CPUState *cpu, hwaddr addr,
                                   hwaddr *xlat, hwaddr *plen)
@@ -852,6 +862,7 @@ static void cpu_physical_memory_set_dirty_tracking(bool enable)
     in_migration = enable;
 }
 
+/* Called from RCU critical section */
 hwaddr memory_region_section_get_iotlb(CPUState *cpu,
                                        MemoryRegionSection *section,
                                        target_ulong vaddr,
@@ -1964,7 +1975,8 @@ static uint16_t dummy_section(PhysPageMap *map, AddressSpace *as,
 
 MemoryRegion *iotlb_to_region(CPUState *cpu, hwaddr index)
 {
-    MemoryRegionSection *sections = cpu->memory_dispatch->map.sections;
+    AddressSpaceDispatch *d = atomic_rcu_read(&cpu->memory_dispatch);
+    MemoryRegionSection *sections = d->map.sections;
 
     return sections[index & ~TARGET_PAGE_MASK].mr;
 }
@@ -2000,6 +2012,12 @@ static void mem_begin(MemoryListener *listener)
     as->next_dispatch = d;
 }
 
+static void address_space_dispatch_free(AddressSpaceDispatch *d)
+{
+    phys_sections_free(&d->map);
+    g_free(d);
+}
+
 static void mem_commit(MemoryListener *listener)
 {
     AddressSpace *as = container_of(listener, AddressSpace, dispatch_listener);
@@ -2008,11 +2026,9 @@ static void mem_commit(MemoryListener *listener)
 
     phys_page_compact_all(next, next->map.nodes_nb);
 
-    as->dispatch = next;
-
+    atomic_rcu_set(&as->dispatch, next);
     if (cur) {
-        phys_sections_free(&cur->map);
-        g_free(cur);
+        call_rcu(cur, address_space_dispatch_free, rcu);
     }
 }
 
@@ -2071,8 +2087,10 @@ void address_space_destroy_dispatch(AddressSpace *as)
 {
     AddressSpaceDispatch *d = as->dispatch;
 
-    g_free(d);
-    as->dispatch = NULL;
+    atomic_rcu_set(&as->dispatch, NULL);
+    if (d) {
+        call_rcu(d, address_space_dispatch_free, rcu);
+    }
 }
 
 static void memory_map_init(void)
