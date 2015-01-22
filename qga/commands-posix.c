@@ -1992,6 +1992,25 @@ out:
     }
 }
 
+GuestMemoryBlockList *qmp_guest_get_memory_blocks(Error **errp)
+{
+    error_set(errp, QERR_UNSUPPORTED);
+    return NULL;
+}
+
+GuestMemoryBlockResponseList *
+qmp_guest_set_memory_blocks(GuestMemoryBlockList *mem_blks, Error **errp)
+{
+    error_set(errp, QERR_UNSUPPORTED);
+    return NULL;
+}
+
+GuestMemoryBlockInfo *qmp_guest_get_memory_block_info(Error **errp)
+{
+    error_set(errp, QERR_UNSUPPORTED);
+    return NULL;
+}
+
 #else /* defined(__linux__) */
 
 void qmp_guest_suspend_disk(Error **errp)
@@ -2033,6 +2052,25 @@ void qmp_guest_set_user_password(const char *username,
                                  Error **errp)
 {
     error_set(errp, QERR_UNSUPPORTED);
+}
+
+GuestMemoryBlockList *qmp_guest_get_memory_blocks(Error **errp)
+{
+    error_set(errp, QERR_UNSUPPORTED);
+    return NULL;
+}
+
+GuestMemoryBlockResponseList *
+qmp_guest_set_memory_blocks(GuestMemoryBlockList *mem_blks, Error **errp)
+{
+    error_set(errp, QERR_UNSUPPORTED);
+    return NULL;
+}
+
+GuestMemoryBlockInfo *qmp_guest_get_memory_block_info(Error **errp)
+{
+    error_set(errp, QERR_UNSUPPORTED);
+    return NULL;
 }
 
 #endif
