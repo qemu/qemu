@@ -378,7 +378,8 @@ static void coroutine_fn mirror_run(void *opaque)
     int64_t sector_num, end, sectors_per_chunk, length;
     uint64_t last_pause_ns;
     BlockDriverInfo bdi;
-    char backing_filename[1024];
+    char backing_filename[2]; /* we only need 2 characters because we are only
+                                 checking for a NULL string */
     int ret = 0;
     int n;
 
