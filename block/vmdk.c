@@ -785,6 +785,7 @@ static int vmdk_parse_extents(const char *desc, BlockDriverState *bs,
                               const char *desc_file_path, Error **errp)
 {
     int ret;
+    int matches;
     char access[11];
     char type[11];
     char fname[512];
@@ -796,6 +797,7 @@ static int vmdk_parse_extents(const char *desc, BlockDriverState *bs,
     BDRVVmdkState *s = bs->opaque;
     VmdkExtent *extent;
 
+
     while (*p) {
         /* parse extent line in one of below formats:
          *
@@ -805,23 +807,23 @@ static int vmdk_parse_extents(const char *desc, BlockDriverState *bs,
          * RW [size in sectors] VMFSSPARSE "file-name.vmdk"
          */
         flat_offset = -1;
-        ret = sscanf(p, "%10s %" SCNd64 " %10s \"%511[^\n\r\"]\" %" SCNd64,
-                access, &sectors, type, fname, &flat_offset);
-        if (ret < 4 || strcmp(access, "RW")) {
+        matches = sscanf(p, "%10s %" SCNd64 " %10s \"%511[^\n\r\"]\" %" SCNd64,
+                         access, &sectors, type, fname, &flat_offset);
+        if (matches < 4 || strcmp(access, "RW")) {
             goto next_line;
         } else if (!strcmp(type, "FLAT")) {
-            if (ret != 5 || flat_offset < 0) {
+            if (matches != 5 || flat_offset < 0) {
                 error_setg(errp, "Invalid extent lines: \n%s", p);
                 return -EINVAL;
             }
         } else if (!strcmp(type, "VMFS")) {
-            if (ret == 4) {
+            if (matches == 4) {
                 flat_offset = 0;
             } else {
                 error_setg(errp, "Invalid extent lines:\n%s", p);
                 return -EINVAL;
             }
-        } else if (ret != 4) {
+        } else if (matches != 4) {
             error_setg(errp, "Invalid extent lines:\n%s", p);
             return -EINVAL;
         }
