@@ -672,12 +672,15 @@
 #
 # @family: address family
 #
+# @websocket: true in case the socket is a websocket (since 2.3).
+#
 # Since: 2.1
 ##
 { 'type': 'VncBasicInfo',
   'data': { 'host': 'str',
             'service': 'str',
-            'family': 'NetworkAddressFamily' } }
+            'family': 'NetworkAddressFamily',
+            'websocket': 'bool' } }
 
 ##
 # @VncServerInfo
@@ -751,6 +754,63 @@
            '*service': 'str', '*auth': 'str', '*clients': ['VncClientInfo']} }
 
 ##
+# @VncPriAuth:
+#
+# vnc primary authentication method.
+#
+# Since: 2.3
+##
+{ 'enum': 'VncPrimaryAuth',
+  'data': [ 'none', 'vnc', 'ra2', 'ra2ne', 'tight', 'ultra',
+            'tls', 'vencrypt', 'sasl' ] }
+
+##
+# @VncVencryptSubAuth:
+#
+# vnc sub authentication method with vencrypt.
+#
+# Since: 2.3
+##
+{ 'enum': 'VncVencryptSubAuth',
+  'data': [ 'plain',
+            'tls-none',  'x509-none',
+            'tls-vnc',   'x509-vnc',
+            'tls-plain', 'x509-plain',
+            'tls-sasl',  'x509-sasl' ] }
+
+##
+# @VncInfo2:
+#
+# Information about a vnc server
+#
+# @id: vnc server name.
+#
+# @server: A list of @VncBasincInfo describing all listening sockets.
+#          The list can be empty (in case the vnc server is disabled).
+#          It also may have multiple entries: normal + websocket,
+#          possibly also ipv4 + ipv6 in the future.
+#
+# @clients: A list of @VncClientInfo of all currently connected clients.
+#           The list can be empty, for obvious reasons.
+#
+# @auth: The current authentication type used by the server
+#
+# @vencrypt: #optional The vencrypt sub authentication type used by the server,
+#            only specified in case auth == vencrypt.
+#
+# @display: #optional The display device the vnc server is linked to.
+#
+# Since: 2.3
+##
+{ 'type': 'VncInfo2',
+  'data': { 'id'        : 'str',
+            'server'    : ['VncBasicInfo'],
+            'clients'   : ['VncClientInfo'],
+            'auth'      : 'VncPrimaryAuth',
+            '*vencrypt' : 'VncVencryptSubAuth',
+            '*display'  : 'str' } }
+
+##
 # @query-vnc:
 #
 # Returns information about the current VNC server
@@ -760,6 +820,17 @@
 # Since: 0.14.0
 ##
 { 'command': 'query-vnc', 'returns': 'VncInfo' }
+
+##
+# @query-vnc-servers:
+#
+# Returns a list of vnc servers.  The list can be empty.
+#
+# Returns: a list of @VncInfo2
+#
+# Since: 2.3
+##
+{ 'command': 'query-vnc-servers', 'returns': ['VncInfo2'] }
 
 ##
 # @SpiceBasicInfo

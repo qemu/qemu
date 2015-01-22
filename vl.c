@@ -158,9 +158,6 @@ int smp_cpus = 1;
 int max_cpus = 0;
 int smp_cores = 1;
 int smp_threads = 1;
-#ifdef CONFIG_VNC
-const char *vnc_display;
-#endif
 int acpi_enabled = 1;
 int no_hpet = 0;
 int fd_bootchk = 1;
@@ -2002,16 +1999,12 @@ static DisplayType select_display(const char *p)
 #endif
     } else if (strstart(p, "vnc", &opts)) {
 #ifdef CONFIG_VNC
-        display_remote++;
-
-        if (*opts) {
-            const char *nextopt;
-
-            if (strstart(opts, "=", &nextopt)) {
-                vnc_display = nextopt;
+        if (*opts == '=') {
+            display_remote++;
+            if (vnc_parse_func(opts+1) == NULL) {
+                exit(1);
             }
-        }
-        if (!vnc_display) {
+        } else {
             fprintf(stderr, "VNC requires a display argument vnc=<display>\n");
             exit(1);
         }
@@ -3479,7 +3472,9 @@ int main(int argc, char **argv, char **envp)
             case QEMU_OPTION_vnc:
 #ifdef CONFIG_VNC
                 display_remote++;
-                vnc_display = optarg;
+                if (vnc_parse_func(optarg) == NULL) {
+                    exit(1);
+                }
 #else
                 fprintf(stderr, "VNC support is disabled\n");
                 exit(1);
@@ -3975,7 +3970,7 @@ int main(int argc, char **argv, char **envp)
 #elif defined(CONFIG_SDL) || defined(CONFIG_COCOA)
         display_type = DT_SDL;
 #elif defined(CONFIG_VNC)
-        vnc_display = "localhost:0,to=99";
+        vnc_parse_func("localhost:0,to=99,id=default");
         show_vnc_port = 1;
 #else
         display_type = DT_NONE;
@@ -4286,20 +4281,10 @@ int main(int argc, char **argv, char **envp)
 
 #ifdef CONFIG_VNC
     /* init remote displays */
-    if (vnc_display) {
-        Error *local_err = NULL;
-        vnc_display_init(ds);
-        vnc_display_open(ds, vnc_display, &local_err);
-        if (local_err != NULL) {
-            error_report("Failed to start VNC server on `%s': %s",
-                         vnc_display, error_get_pretty(local_err));
-            error_free(local_err);
-            exit(1);
-        }
-
-        if (show_vnc_port) {
-            printf("VNC server running on `%s'\n", vnc_display_local_addr(ds));
-        }
+    qemu_opts_foreach(qemu_find_opts("vnc"), vnc_init_func, NULL, 0);
+    if (show_vnc_port) {
+        printf("VNC server running on `%s'\n",
+               vnc_display_local_addr("default"));
     }
 #endif
 #ifdef CONFIG_SPICE

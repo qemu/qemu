@@ -331,19 +331,21 @@ void sdl_display_init(DisplayState *ds, int full_screen, int no_frame);
 void cocoa_display_init(DisplayState *ds, int full_screen);
 
 /* vnc.c */
-void vnc_display_init(DisplayState *ds);
-void vnc_display_open(DisplayState *ds, const char *display, Error **errp);
-void vnc_display_add_client(DisplayState *ds, int csock, bool skipauth);
-char *vnc_display_local_addr(DisplayState *ds);
+void vnc_display_init(const char *id);
+void vnc_display_open(const char *id, Error **errp);
+void vnc_display_add_client(const char *id, int csock, bool skipauth);
+char *vnc_display_local_addr(const char *id);
 #ifdef CONFIG_VNC
-int vnc_display_password(DisplayState *ds, const char *password);
-int vnc_display_pw_expire(DisplayState *ds, time_t expires);
+int vnc_display_password(const char *id, const char *password);
+int vnc_display_pw_expire(const char *id, time_t expires);
+QemuOpts *vnc_parse_func(const char *str);
+int vnc_init_func(QemuOpts *opts, void *opaque);
 #else
-static inline int vnc_display_password(DisplayState *ds, const char *password)
+static inline int vnc_display_password(const char *id, const char *password)
 {
     return -ENODEV;
 }
-static inline int vnc_display_pw_expire(DisplayState *ds, time_t expires)
+static inline int vnc_display_pw_expire(const char *id, time_t expires)
 {
     return -ENODEV;
 };
