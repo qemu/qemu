@@ -250,6 +250,7 @@ static void replace_tlb_1bit_lru(SparcTLBEntry *tlb,
 
 #endif
 
+#if defined(TARGET_SPARC64) || defined(CONFIG_USER_ONLY)
 static inline target_ulong address_mask(CPUSPARCState *env1, target_ulong addr)
 {
 #ifdef TARGET_SPARC64
@@ -259,12 +260,14 @@ static inline target_ulong address_mask(CPUSPARCState *env1, target_ulong addr)
 #endif
     return addr;
 }
+#endif
 
+#ifdef TARGET_SPARC64
 /* returns true if access using this ASI is to have address translated by MMU
    otherwise access is to raw physical address */
+/* TODO: check sparc32 bits */
 static inline int is_translating_asi(int asi)
 {
-#ifdef TARGET_SPARC64
     /* Ultrasparc IIi translating asi
        - note this list is defined by cpu implementation
     */
@@ -281,10 +284,6 @@ static inline int is_translating_asi(int asi)
     default:
         return 0;
     }
-#else
-    /* TODO: check sparc32 bits */
-    return 0;
-#endif
 }
 
 static inline target_ulong asi_address_mask(CPUSPARCState *env,
@@ -296,6 +295,7 @@ static inline target_ulong asi_address_mask(CPUSPARCState *env,
         return addr;
     }
 }
+#endif
 
 void helper_check_align(CPUSPARCState *env, target_ulong addr, uint32_t align)
 {

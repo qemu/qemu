@@ -363,14 +363,6 @@ static inline void gen_mov_reg_C(TCGv reg, TCGv_i32 src)
     tcg_gen_andi_tl(reg, reg, 0x1);
 }
 
-static inline void gen_op_addi_cc(TCGv dst, TCGv src1, target_long src2)
-{
-    tcg_gen_mov_tl(cpu_cc_src, src1);
-    tcg_gen_movi_tl(cpu_cc_src2, src2);
-    tcg_gen_addi_tl(cpu_cc_dst, cpu_cc_src, src2);
-    tcg_gen_mov_tl(dst, cpu_cc_dst);
-}
-
 static inline void gen_op_add_cc(TCGv dst, TCGv src1, TCGv src2)
 {
     tcg_gen_mov_tl(cpu_cc_src, src1);
@@ -500,22 +492,6 @@ static void gen_op_addx_int(DisasContext *dc, TCGv dst, TCGv src1,
         tcg_gen_movi_i32(cpu_cc_op, CC_OP_ADDX);
         dc->cc_op = CC_OP_ADDX;
     }
-}
-
-static inline void gen_op_subi_cc(TCGv dst, TCGv src1, target_long src2, DisasContext *dc)
-{
-    tcg_gen_mov_tl(cpu_cc_src, src1);
-    tcg_gen_movi_tl(cpu_cc_src2, src2);
-    if (src2 == 0) {
-        tcg_gen_mov_tl(cpu_cc_dst, src1);
-        tcg_gen_movi_i32(cpu_cc_op, CC_OP_LOGIC);
-        dc->cc_op = CC_OP_LOGIC;
-    } else {
-        tcg_gen_subi_tl(cpu_cc_dst, cpu_cc_src, src2);
-        tcg_gen_movi_i32(cpu_cc_op, CC_OP_SUB);
-        dc->cc_op = CC_OP_SUB;
-    }
-    tcg_gen_mov_tl(dst, cpu_cc_dst);
 }
 
 static inline void gen_op_sub_cc(TCGv dst, TCGv src1, TCGv src2)
@@ -2324,6 +2300,7 @@ static void gen_fmovq(DisasContext *dc, DisasCompare *cmp, int rd, int rs)
     gen_update_fprs_dirty(qd);
 }
 
+#ifndef CONFIG_USER_ONLY
 static inline void gen_load_trap_state_at_tl(TCGv_ptr r_tsptr, TCGv_ptr cpu_env)
 {
     TCGv_i32 r_tl = tcg_temp_new_i32();
@@ -2348,6 +2325,7 @@ static inline void gen_load_trap_state_at_tl(TCGv_ptr r_tsptr, TCGv_ptr cpu_env)
 
     tcg_temp_free_i32(r_tl);
 }
+#endif
 
 static void gen_edge(DisasContext *dc, TCGv dst, TCGv s1, TCGv s2,
                      int width, bool cc, bool left)
