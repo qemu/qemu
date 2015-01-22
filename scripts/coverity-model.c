@@ -90,7 +90,8 @@ static int get_keysym(const name2keysym_t *table,
     }
 }
 
-/* glib memory allocation functions.
+/*
+ * GLib memory allocation functions.
  *
  * Note that we ignore the fact that g_malloc of 0 bytes returns NULL,
  * and g_realloc of 0 bytes frees the pointer.
@@ -107,60 +108,128 @@ static int get_keysym(const name2keysym_t *table,
  * we'll get a buffer overflow reported anyway.
  */
 
-void *malloc(size_t);
-void *calloc(size_t, size_t);
-void *realloc(void *, size_t);
-void free(void *);
+/*
+ * Allocation primitives, cannot return NULL
+ * See also Coverity's library/generic/libc/all/all.c
+ */
 
-void *
-g_malloc(size_t n_bytes)
+void *g_malloc_n(size_t nmemb, size_t size)
 {
-    void *mem;
-    __coverity_negative_sink__(n_bytes);
-    mem = malloc(n_bytes == 0 ? 1 : n_bytes);
-    if (!mem) __coverity_panic__();
-    return mem;
+    size_t sz;
+    void *ptr;
+
+    __coverity_negative_sink__(nmemb);
+    __coverity_negative_sink__(size);
+    sz = nmemb * size;
+    ptr = __coverity_alloc__(size);
+    __coverity_mark_as_uninitialized_buffer__(ptr);
+    __coverity_mark_as_afm_allocated__(ptr, AFM_free);
+    return ptr;
 }
 
-void *
-g_malloc0(size_t n_bytes)
+void *g_malloc0_n(size_t nmemb, size_t size)
 {
-    void *mem;
-    __coverity_negative_sink__(n_bytes);
-    mem = calloc(1, n_bytes == 0 ? 1 : n_bytes);
-    if (!mem) __coverity_panic__();
-    return mem;
+    size_t sz;
+    void *ptr;
+
+    __coverity_negative_sink__(nmemb);
+    __coverity_negative_sink__(size);
+    sz = nmemb * size;
+    ptr = __coverity_alloc__(size);
+    __coverity_writeall0__(ptr);
+    __coverity_mark_as_afm_allocated__(ptr, AFM_free);
+    return ptr;
 }
 
-void g_free(void *mem)
+void *g_realloc_n(void *ptr, size_t nmemb, size_t size)
 {
-    free(mem);
+    size_t sz;
+
+    __coverity_negative_sink__(nmemb);
+    __coverity_negative_sink__(size);
+    sz = nmemb * size;
+    __coverity_escape__(ptr);
+    ptr = __coverity_alloc__(size);
+    /*
+     * Memory beyond the old size isn't actually initialized.  Can't
+     * model that.  See Coverity's realloc() model
+     */
+    __coverity_writeall__(ptr);
+    __coverity_mark_as_afm_allocated__(ptr, AFM_free);
+    return ptr;
 }
 
-void *g_realloc(void * mem, size_t n_bytes)
+void g_free(void *ptr)
 {
-    __coverity_negative_sink__(n_bytes);
-    mem = realloc(mem, n_bytes == 0 ? 1 : n_bytes);
-    if (!mem) __coverity_panic__();
-    return mem;
+    __coverity_free__(ptr);
+    __coverity_mark_as_afm_freed__(ptr, AFM_free);
 }
 
-void *g_try_malloc(size_t n_bytes)
+/*
+ * Derive the g_try_FOO_n() from the g_FOO_n() by adding indeterminate
+ * out of memory conditions
+ */
+
+void *g_try_malloc_n(size_t nmemb, size_t size)
 {
-    __coverity_negative_sink__(n_bytes);
-    return malloc(n_bytes == 0 ? 1 : n_bytes);
+    int nomem;
+
+    if (nomem) {
+        return NULL;
+    }
+    return g_malloc_n(nmemb, size);
 }
 
-void *g_try_malloc0(size_t n_bytes)
+void *g_try_malloc0_n(size_t nmemb, size_t size)
 {
-    __coverity_negative_sink__(n_bytes);
-    return calloc(1, n_bytes == 0 ? 1 : n_bytes);
+    int nomem;
+
+    if (nomem) {
+        return NULL;
+    }
+    return g_malloc0_n(nmemb, size);
 }
 
-void *g_try_realloc(void *mem, size_t n_bytes)
+void *g_try_realloc_n(void *ptr, size_t nmemb, size_t size)
 {
-    __coverity_negative_sink__(n_bytes);
-    return realloc(mem, n_bytes == 0 ? 1 : n_bytes);
+    int nomem;
+
+    if (nomem) {
+        return NULL;
+    }
+    return g_realloc_n(ptr, nmemb, size);
+}
+
+/* Trivially derive the g_FOO() from the g_FOO_n() */
+
+void *g_malloc(size_t size)
+{
+    return g_malloc_n(1, size);
+}
+
+void *g_malloc0(size_t size)
+{
+    return g_malloc0_n(1, size);
+}
+
+void *g_realloc(void *ptr, size_t size)
+{
+    return g_realloc_n(ptr, 1, size);
+}
+
+void *g_try_malloc(size_t size)
+{
+    return g_try_malloc_n(1, size);
+}
+
+void *g_try_malloc0(size_t size)
+{
+    return g_try_malloc0_n(1, size);
+}
+
+void *g_try_realloc(void *ptr, size_t size)
+{
+    return g_try_realloc_n(ptr, 1, size);
 }
 
 /* Other glib functions */
