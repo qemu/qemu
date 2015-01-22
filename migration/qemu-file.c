@@ -452,6 +452,22 @@ int qemu_get_byte(QEMUFile *f)
     return result;
 }
 
+int64_t qemu_ftell_fast(QEMUFile *f)
+{
+    int64_t ret = f->pos;
+    int i;
+
+    if (f->ops->writev_buffer) {
+        for (i = 0; i < f->iovcnt; i++) {
+            ret += f->iov[i].iov_len;
+        }
+    } else {
+        ret += f->buf_index;
+    }
+
+    return ret;
+}
+
 int64_t qemu_ftell(QEMUFile *f)
 {
     qemu_fflush(f);
