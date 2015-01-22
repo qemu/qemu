@@ -3329,6 +3329,18 @@
 # Send input event(s) to guest.
 #
 # @console: #optional console to send event(s) to.
+#           This parameter can be used to send the input event to
+#           specific input devices in case (a) multiple input devices
+#           of the same kind are added to the virtual machine and (b)
+#           you have configured input routing (see docs/multiseat.txt)
+#           for those input devices.  If input routing is not
+#           configured this parameter has no effect.
+#           If @console is missing, only devices that aren't associated
+#           with a console are admissible.
+#           If @console is specified, it must exist, and both devices
+#           associated with that console and devices not associated with a
+#           console are admissible, but the former take precedence.
+
 #
 # @events: List of InputEvent union.
 #
