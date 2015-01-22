@@ -33,7 +33,7 @@ typedef struct ResetInfo {
     uint32_t ipl_continue;
 } ResetInfo;
 
-ResetInfo save;
+static ResetInfo save;
 
 static void jump_to_IPL_2(void)
 {
@@ -80,7 +80,7 @@ static void jump_to_IPL_code(uint64_t address)
  */
 
 static unsigned char _bprs[8*1024]; /* guessed "max" ECKD sector size */
-const int max_bprs_entries = sizeof(_bprs) / sizeof(ExtEckdBlockPtr);
+static const int max_bprs_entries = sizeof(_bprs) / sizeof(ExtEckdBlockPtr);
 
 static inline void verify_boot_info(BootInfo *bip)
 {
