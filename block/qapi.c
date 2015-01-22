@@ -210,10 +210,10 @@ void bdrv_query_image_info(BlockDriverState *bs,
 
     backing_filename = bs->backing_file;
     if (backing_filename[0] != '\0') {
-        char *backing_filename2 = g_malloc0(1024);
+        char *backing_filename2 = g_malloc0(PATH_MAX);
         info->backing_filename = g_strdup(backing_filename);
         info->has_backing_filename = true;
-        bdrv_get_full_backing_filename(bs, backing_filename2, 1024, &err);
+        bdrv_get_full_backing_filename(bs, backing_filename2, PATH_MAX, &err);
         if (err) {
             error_propagate(errp, err);
             qapi_free_ImageInfo(info);
