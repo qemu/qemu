@@ -955,7 +955,7 @@ void virtio_save(VirtIODevice *vdev, QEMUFile *f)
     }
 
     /* Subsections */
-    vmstate_save_state(f, &vmstate_virtio, vdev);
+    vmstate_save_state(f, &vmstate_virtio, vdev, NULL);
 }
 
 int virtio_set_features(VirtIODevice *vdev, uint32_t val)

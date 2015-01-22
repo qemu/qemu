@@ -572,14 +572,34 @@ static int vmstate_load(QEMUFile *f, SaveStateEntry *se, int version_id)
     return vmstate_load_state(f, se->vmsd, se->opaque, version_id);
 }
 
-static void vmstate_save(QEMUFile *f, SaveStateEntry *se)
+static void vmstate_save_old_style(QEMUFile *f, SaveStateEntry *se, QJSON *vmdesc)
+{
+    int64_t old_offset, size;
+
+    old_offset = qemu_ftell_fast(f);
+    se->ops->save_state(f, se->opaque);
+    size = qemu_ftell_fast(f) - old_offset;
+
+    if (vmdesc) {
+        json_prop_int(vmdesc, "size", size);
+        json_start_array(vmdesc, "fields");
+        json_start_object(vmdesc, NULL);
+        json_prop_str(vmdesc, "name", "data");
+        json_prop_int(vmdesc, "size", size);
+        json_prop_str(vmdesc, "type", "buffer");
+        json_end_object(vmdesc);
+        json_end_array(vmdesc);
+    }
+}
+
+static void vmstate_save(QEMUFile *f, SaveStateEntry *se, QJSON *vmdesc)
 {
     trace_vmstate_save(se->idstr, se->vmsd ? se->vmsd->name : "(old)");
-    if (!se->vmsd) {         /* Old style */
-        se->ops->save_state(f, se->opaque);
+    if (!se->vmsd) {
+        vmstate_save_old_style(f, se, vmdesc);
         return;
     }
-    vmstate_save_state(f, se->vmsd, se->opaque);
+    vmstate_save_state(f, se->vmsd, se->opaque, vmdesc);
 }
 
 bool qemu_savevm_state_blocked(Error **errp)
@@ -692,6 +712,8 @@ int qemu_savevm_state_iterate(QEMUFile *f)
 
 void qemu_savevm_state_complete(QEMUFile *f)
 {
+    QJSON *vmdesc;
+    int vmdesc_len;
     SaveStateEntry *se;
     int ret;
 
@@ -721,6 +743,9 @@ void qemu_savevm_state_complete(QEMUFile *f)
         }
     }
 
+    vmdesc = qjson_new();
+    json_prop_int(vmdesc, "page_size", TARGET_PAGE_SIZE);
+    json_start_array(vmdesc, "devices");
     QTAILQ_FOREACH(se, &savevm_handlers, entry) {
         int len;
 
@@ -728,6 +753,11 @@ void qemu_savevm_state_complete(QEMUFile *f)
             continue;
         }
         trace_savevm_section_start(se->idstr, se->section_id);
+
+        json_start_object(vmdesc, NULL);
+        json_prop_str(vmdesc, "name", se->idstr);
+        json_prop_int(vmdesc, "instance_id", se->instance_id);
+
         /* Section type */
         qemu_put_byte(f, QEMU_VM_SECTION_FULL);
         qemu_put_be32(f, se->section_id);
@@ -740,11 +770,23 @@ void qemu_savevm_state_complete(QEMUFile *f)
         qemu_put_be32(f, se->instance_id);
         qemu_put_be32(f, se->version_id);
 
-        vmstate_save(f, se);
+        vmstate_save(f, se, vmdesc);
+
+        json_end_object(vmdesc);
         trace_savevm_section_end(se->idstr, se->section_id, 0);
     }
 
     qemu_put_byte(f, QEMU_VM_EOF);
+
+    json_end_array(vmdesc);
+    qjson_finish(vmdesc);
+    vmdesc_len = strlen(qjson_get_str(vmdesc));
+
+    qemu_put_byte(f, QEMU_VM_VMDESCRIPTION);
+    qemu_put_be32(f, vmdesc_len);
+    qemu_put_buffer(f, (uint8_t *)qjson_get_str(vmdesc), vmdesc_len);
+    object_unref(OBJECT(vmdesc));
+
     qemu_fflush(f);
 }
 
@@ -843,7 +885,7 @@ static int qemu_save_device_state(QEMUFile *f)
         qemu_put_be32(f, se->instance_id);
         qemu_put_be32(f, se->version_id);
 
-        vmstate_save(f, se);
+        vmstate_save(f, se, NULL);
     }
 
     qemu_put_byte(f, QEMU_VM_EOF);
