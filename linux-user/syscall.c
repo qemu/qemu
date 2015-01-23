@@ -1883,6 +1883,11 @@ static struct iovec *lock_iovec(int type, abi_ulong target_addr,
     return vec;
 
  fail:
+    while (--i >= 0) {
+        if (tswapal(target_vec[i].iov_len) > 0) {
+            unlock_user(vec[i].iov_base, tswapal(target_vec[i].iov_base), 0);
+        }
+    }
     unlock_user(target_vec, target_addr, 0);
  fail2:
     free(vec);
