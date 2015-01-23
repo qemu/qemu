@@ -168,14 +168,19 @@ void xen_shutdown_fatal_error(const char *fmt, ...) GCC_FMT_ATTR(1, 2);
 
 #ifdef HVM_PARAM_VMPORT_REGS_PFN
 static inline int xen_get_vmport_regs_pfn(XenXC xc, domid_t dom,
-                                          unsigned long *vmport_regs_pfn)
+                                          xen_pfn_t *vmport_regs_pfn)
 {
-    return xc_get_hvm_param(xc, dom, HVM_PARAM_VMPORT_REGS_PFN,
-                            vmport_regs_pfn);
+    int rc;
+    uint64_t value;
+    rc = xc_hvm_param_get(xc, dom, HVM_PARAM_VMPORT_REGS_PFN, &value);
+    if (rc >= 0) {
+        *vmport_regs_pfn = (xen_pfn_t) value;
+    }
+    return rc;
 }
 #else
 static inline int xen_get_vmport_regs_pfn(XenXC xc, domid_t dom,
-                                          unsigned long *vmport_regs_pfn)
+                                          xen_pfn_t *vmport_regs_pfn)
 {
     return -ENOSYS;
 }
