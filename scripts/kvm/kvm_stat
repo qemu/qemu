@@ -186,6 +186,7 @@ ioctl_numbers = {
     'SET_FILTER' : 0x40082406,
     'ENABLE'     : 0x00002400,
     'DISABLE'    : 0x00002401,
+    'RESET'      : 0x00002403,
 }
 
 def x86_init(flag):
@@ -346,6 +347,9 @@ class Event(object):
     def disable(self):
         import fcntl
         fcntl.ioctl(self.fd, ioctl_numbers['DISABLE'], 0)
+    def reset(self):
+        import fcntl
+        fcntl.ioctl(self.fd, ioctl_numbers['RESET'], 0)
 
 class TracepointProvider(object):
     def __init__(self):
@@ -405,6 +409,7 @@ class TracepointProvider(object):
         for group in self.group_leaders:
             for event in group.events:
                 if event.name in fields:
+                    event.reset()
                     event.enable()
                 else:
                     event.disable()
