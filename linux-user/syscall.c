@@ -1906,7 +1906,7 @@ static void unlock_iovec(struct iovec *vec, abi_ulong target_addr,
     if (target_vec) {
         for (i = 0; i < count; i++) {
             abi_ulong base = tswapal(target_vec[i].iov_base);
-            abi_long len = tswapal(target_vec[i].iov_base);
+            abi_long len = tswapal(target_vec[i].iov_len);
             if (len < 0) {
                 break;
             }
