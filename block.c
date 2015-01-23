@@ -2207,7 +2207,6 @@ int bdrv_commit(BlockDriverState *bs)
     int n, ro, open_flags;
     int ret = 0;
     uint8_t *buf = NULL;
-    char filename[PATH_MAX];
 
     if (!drv)
         return -ENOMEDIUM;
@@ -2222,8 +2221,6 @@ int bdrv_commit(BlockDriverState *bs)
     }
 
     ro = bs->backing_hd->read_only;
-    /* Use pstrcpy (not strncpy): filename must be NUL-terminated. */
-    pstrcpy(filename, sizeof(filename), bs->backing_hd->filename);
     open_flags =  bs->backing_hd->open_flags;
 
     if (ro) {

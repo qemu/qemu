@@ -186,6 +186,12 @@ $QEMU_IO -c "write 0 64k" "$TEST_IMG" | _filter_qemu_io
 poke_file "$TEST_IMG" "$l1_offset" "\x80\x00\x00\x00\x00\x04\x2a\x00"
 $QEMU_IO -c "read 0 64k" "$TEST_IMG" | _filter_qemu_io
 
+# Test how well zero cluster expansion can cope with this
+_make_test_img 64M
+$QEMU_IO -c "write 0 64k" "$TEST_IMG" | _filter_qemu_io
+poke_file "$TEST_IMG" "$l1_offset" "\x80\x00\x00\x00\x00\x04\x2a\x00"
+$QEMU_IMG amend -o compat=0.10 "$TEST_IMG"
+
 echo
 echo "=== Testing unaligned L2 entry ==="
 echo
@@ -193,6 +199,15 @@ _make_test_img 64M
 $QEMU_IO -c "write 0 64k" "$TEST_IMG" | _filter_qemu_io
 poke_file "$TEST_IMG" "$l2_offset" "\x80\x00\x00\x00\x00\x05\x2a\x00"
 $QEMU_IO -c "read 0 64k" "$TEST_IMG" | _filter_qemu_io
+
+echo
+echo "=== Testing unaligned pre-allocated zero cluster ==="
+echo
+_make_test_img 64M
+$QEMU_IO -c "write 0 64k" "$TEST_IMG" | _filter_qemu_io
+poke_file "$TEST_IMG" "$l2_offset" "\x80\x00\x00\x00\x00\x05\x2a\x01"
+# zero cluster expansion
+$QEMU_IMG amend -o compat=0.10 "$TEST_IMG"
 
 echo
 echo "=== Testing unaligned reftable entry ==="
