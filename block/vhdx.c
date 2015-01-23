@@ -1174,7 +1174,18 @@ static void vhdx_update_bat_table_entry(BlockDriverState *bs, BDRVVHDXState *s,
 {
     /* The BAT entry is a uint64, with 44 bits for the file offset in units of
      * 1MB, and 3 bits for the block state. */
-    s->bat[sinfo->bat_idx]  = sinfo->file_offset;
+    if ((state == PAYLOAD_BLOCK_ZERO)        ||
+        (state == PAYLOAD_BLOCK_UNDEFINED)   ||
+        (state == PAYLOAD_BLOCK_NOT_PRESENT) ||
+        (state == PAYLOAD_BLOCK_UNMAPPED)) {
+        s->bat[sinfo->bat_idx]  = 0;  /* For PAYLOAD_BLOCK_ZERO, the
+                                         FileOffsetMB field is denoted as
+                                         'reserved' in the v1.0 spec.  If it is
+                                         non-zero, MS Hyper-V will fail to read
+                                         the disk image */
+    } else {
+        s->bat[sinfo->bat_idx]  = sinfo->file_offset;
+    }
 
     s->bat[sinfo->bat_idx] |= state & VHDX_BAT_STATE_BIT_MASK;
 
