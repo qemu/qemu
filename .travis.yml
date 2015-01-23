@@ -98,3 +98,6 @@ matrix:
           EXTRA_PKGS="liblttng-ust-dev liburcu-dev"
           EXTRA_CONFIG="--enable-trace-backends=ust"
       compiler: gcc
+    - env: TARGETS=i386-softmmu,x86_64-softmmu
+           EXTRA_CONFIG="--enable-modules"
+      compiler: gcc
