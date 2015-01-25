@@ -3576,6 +3576,7 @@ static abi_long do_ioctl_dm(const IOCTLEntry *ie, uint8_t *buf_temp, int fd,
     }
     default:
         ret = -TARGET_EINVAL;
+        unlock_user(argptr, guest_data, 0);
         goto out;
     }
     unlock_user(argptr, guest_data, 0);
@@ -3695,6 +3696,7 @@ static abi_long do_ioctl_dm(const IOCTLEntry *ie, uint8_t *buf_temp, int fd,
             break;
         }
         default:
+            unlock_user(argptr, guest_data, 0);
             ret = -TARGET_EINVAL;
             goto out;
         }
