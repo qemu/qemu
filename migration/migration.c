@@ -1674,7 +1674,7 @@ static void *migration_thread(void *opaque)
         if (current_time >= initial_time + BUFFER_DELAY) {
             uint64_t transferred_bytes = qemu_ftell(s->file) - initial_bytes;
             uint64_t time_spent = current_time - initial_time;
-            double bandwidth = transferred_bytes / time_spent;
+            double bandwidth = (double)transferred_bytes / time_spent;
             max_size = bandwidth * migrate_max_downtime() / 1000000;
 
             s->mbps = time_spent ? (((double) transferred_bytes * 8.0) /
