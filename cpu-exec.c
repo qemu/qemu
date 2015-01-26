@@ -494,7 +494,6 @@ int cpu_exec(CPUArchState *env)
                          * interrupt_request) which we will handle
                          * next time around the loop.
                          */
-                        tb = (TranslationBlock *)(next_tb & ~TB_EXIT_MASK);
                         next_tb = 0;
                         break;
                     case TB_EXIT_ICOUNT_EXPIRED:
