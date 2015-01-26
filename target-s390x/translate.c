@@ -317,12 +317,14 @@ static inline void gen_illegal_opcode(DisasContext *s)
     gen_program_exception(s, PGM_SPECIFICATION);
 }
 
-static inline void check_privileged(DisasContext *s)
+#ifndef CONFIG_USER_ONLY
+static void check_privileged(DisasContext *s)
 {
     if (s->tb->flags & (PSW_MASK_PSTATE >> 32)) {
         gen_program_exception(s, PGM_PRIVILEGED);
     }
 }
+#endif
 
 static TCGv_i64 get_address(DisasContext *s, int x2, int b2, int d2)
 {
