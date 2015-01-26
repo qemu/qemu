@@ -4947,7 +4947,7 @@ static void gen_mfc0(DisasContext *ctx, TCGv arg, int reg, int sel)
 #if defined(TARGET_MIPS64)
             if (ctx->rxi) {
                 TCGv tmp = tcg_temp_new();
-                tcg_gen_andi_tl(tmp, arg, (3ull << 62));
+                tcg_gen_andi_tl(tmp, arg, (3ull << CP0EnLo_XI));
                 tcg_gen_shri_tl(tmp, tmp, 32);
                 tcg_gen_or_tl(arg, arg, tmp);
                 tcg_temp_free(tmp);
@@ -5002,7 +5002,7 @@ static void gen_mfc0(DisasContext *ctx, TCGv arg, int reg, int sel)
 #if defined(TARGET_MIPS64)
             if (ctx->rxi) {
                 TCGv tmp = tcg_temp_new();
-                tcg_gen_andi_tl(tmp, arg, (3ull << 62));
+                tcg_gen_andi_tl(tmp, arg, (3ull << CP0EnLo_XI));
                 tcg_gen_shri_tl(tmp, tmp, 32);
                 tcg_gen_or_tl(arg, arg, tmp);
                 tcg_temp_free(tmp);
