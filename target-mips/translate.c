@@ -13653,7 +13653,7 @@ static void decode_micromips32_opc (CPUMIPSState *env, DisasContext *ctx,
                target. */
             break;
         case LUI:
-            gen_logic_imm(ctx, OPC_LUI, rs, -1, imm);
+            gen_logic_imm(ctx, OPC_LUI, rs, 0, imm);
             break;
         case SYNCI:
             /* Break the TB to be able to sync copied instructions
