@@ -45,6 +45,7 @@
 # define TARGET_VIRT_ADDR_SPACE_BITS 64
 #endif
 
+#define TARGET_PAGE_BITS_64K 16
 #define TARGET_PAGE_BITS_16M 24
 
 #else /* defined (TARGET_PPC64) */

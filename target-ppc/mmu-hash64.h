@@ -37,6 +37,9 @@ void ppc_hash64_store_hpte(CPUPPCState *env, target_ulong index,
 #define SLB_VSID_C              0x0000000000000080ULL /* class */
 #define SLB_VSID_LP             0x0000000000000030ULL
 #define SLB_VSID_ATTR           0x0000000000000FFFULL
+#define SLB_VSID_LLP_MASK       (SLB_VSID_L | SLB_VSID_LP)
+#define SLB_VSID_4K             0x0000000000000000ULL
+#define SLB_VSID_64K            0x0000000000000110ULL
 
 /*
  * Hash page table definitions
