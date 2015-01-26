@@ -19095,6 +19095,7 @@ gen_intermediate_code_internal(MIPSCPU *cpu, TranslationBlock *tb,
     CPUMIPSState *env = &cpu->env;
     DisasContext ctx;
     target_ulong pc_start;
+    target_ulong next_page_start;
     CPUBreakpoint *bp;
     int j, lj = -1;
     int num_insns;
@@ -19106,6 +19107,7 @@ gen_intermediate_code_internal(MIPSCPU *cpu, TranslationBlock *tb,
         qemu_log("search pc %d\n", search_pc);
 
     pc_start = tb->pc;
+    next_page_start = (pc_start & TARGET_PAGE_MASK) + TARGET_PAGE_SIZE;
     ctx.pc = pc_start;
     ctx.saved_pc = -1;
     ctx.singlestep_enabled = cs->singlestep_enabled;
@@ -19204,8 +19206,9 @@ gen_intermediate_code_internal(MIPSCPU *cpu, TranslationBlock *tb,
             break;
         }
 
-        if ((ctx.pc & (TARGET_PAGE_SIZE - 1)) == 0)
+        if (ctx.pc >= next_page_start) {
             break;
+        }
 
         if (tcg_op_buf_full()) {
             break;
