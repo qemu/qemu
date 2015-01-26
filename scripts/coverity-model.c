@@ -40,6 +40,8 @@ typedef unsigned long long uint64_t;
 typedef long long int64_t;
 typedef _Bool bool;
 
+typedef struct va_list_str *va_list;
+
 /* exec.c */
 
 typedef struct AddressSpace AddressSpace;
@@ -230,6 +232,93 @@ void *g_try_malloc0(size_t size)
 void *g_try_realloc(void *ptr, size_t size)
 {
     return g_try_realloc_n(ptr, 1, size);
+}
+
+/*
+ * GLib string allocation functions
+ */
+
+char *g_strdup(const char *s)
+{
+    char *dup;
+    size_t i;
+
+    if (!s) {
+        return NULL;
+    }
+
+    __coverity_string_null_sink__(s);
+    __coverity_string_size_sink__(s);
+    dup = __coverity_alloc_nosize__();
+    __coverity_mark_as_afm_allocated__(dup, AFM_free);
+    for (i = 0; (dup[i] = s[i]); i++) ;
+    return dup;
+}
+
+char *g_strndup(const char *s, size_t n)
+{
+    char *dup;
+    size_t i;
+
+    __coverity_negative_sink__(n);
+
+    if (!s) {
+        return NULL;
+    }
+
+    dup = g_malloc(n + 1);
+    for (i = 0; i < n && (dup[i] = s[i]); i++) ;
+    dup[i] = 0;
+    return dup;
+}
+
+char *g_strdup_printf(const char *format, ...)
+{
+    char ch, *s;
+    size_t len;
+
+    __coverity_string_null_sink__(format);
+    __coverity_string_size_sink__(format);
+
+    ch = *format;
+
+    s = __coverity_alloc_nosize__();
+    __coverity_writeall__(s);
+    __coverity_mark_as_afm_allocated__(s, AFM_free);
+    return s;
+}
+
+char *g_strdup_vprintf(const char *format, va_list ap)
+{
+    char ch, *s;
+    size_t len;
+
+    __coverity_string_null_sink__(format);
+    __coverity_string_size_sink__(format);
+
+    ch = *format;
+    ch = *(char *)ap;
+
+    s = __coverity_alloc_nosize__();
+    __coverity_writeall__(s);
+    __coverity_mark_as_afm_allocated__(s, AFM_free);
+
+    return len;
+}
+
+char *g_strconcat(const char *s, ...)
+{
+    char *s;
+
+    /*
+     * Can't model: last argument must be null, the others
+     * null-terminated strings
+     */
+
+    s = __coverity_alloc_nosize__();
+    __coverity_writeall__(s);
+    __coverity_mark_as_afm_allocated__(s, AFM_free);
+    return s;
 }
 
 /* Other glib functions */
