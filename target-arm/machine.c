@@ -277,8 +277,8 @@ const VMStateDescription vmstate_arm_cpu = {
         VMSTATE_UINT32(env.exception.syndrome, ARMCPU),
         VMSTATE_UINT32(env.exception.fsr, ARMCPU),
         VMSTATE_UINT64(env.exception.vaddress, ARMCPU),
-        VMSTATE_TIMER(gt_timer[GTIMER_PHYS], ARMCPU),
-        VMSTATE_TIMER(gt_timer[GTIMER_VIRT], ARMCPU),
+        VMSTATE_TIMER_PTR(gt_timer[GTIMER_PHYS], ARMCPU),
+        VMSTATE_TIMER_PTR(gt_timer[GTIMER_VIRT], ARMCPU),
         VMSTATE_BOOL(powered_off, ARMCPU),
         VMSTATE_END_OF_LIST()
     },

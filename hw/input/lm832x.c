@@ -455,7 +455,7 @@ static const VMStateDescription vmstate_lm_kbd = {
         VMSTATE_UINT16_ARRAY(pwm.file, LM823KbdState, 256),
         VMSTATE_UINT8(pwm.faddr, LM823KbdState),
         VMSTATE_BUFFER(pwm.addr, LM823KbdState),
-        VMSTATE_TIMER_ARRAY(pwm.tm, LM823KbdState, 3),
+        VMSTATE_TIMER_PTR_ARRAY(pwm.tm, LM823KbdState, 3),
         VMSTATE_END_OF_LIST()
     }
 };

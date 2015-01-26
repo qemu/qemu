@@ -730,7 +730,7 @@ const VMStateDescription vmstate_serial_fifo_timeout_timer = {
     .version_id = 1,
     .minimum_version_id = 1,
     .fields = (VMStateField[]) {
-        VMSTATE_TIMER(fifo_timeout_timer, SerialState),
+        VMSTATE_TIMER_PTR(fifo_timeout_timer, SerialState),
         VMSTATE_END_OF_LIST()
     }
 };
@@ -763,7 +763,7 @@ const VMStateDescription vmstate_serial_poll = {
     .minimum_version_id = 1,
     .fields = (VMStateField[]) {
         VMSTATE_INT32(poll_msl, SerialState),
-        VMSTATE_TIMER(modem_status_poll, SerialState),
+        VMSTATE_TIMER_PTR(modem_status_poll, SerialState),
         VMSTATE_END_OF_LIST()
     }
 };

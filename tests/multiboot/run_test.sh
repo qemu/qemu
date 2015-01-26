@@ -48,10 +48,17 @@ mmap() {
     run_qemu mmap.elf -m 8G
 }
 
+modules() {
+    run_qemu modules.elf
+    run_qemu modules.elf -initrd module.txt
+    run_qemu modules.elf -initrd "module.txt argument"
+    run_qemu modules.elf -initrd "module.txt argument,,with,,commas"
+    run_qemu modules.elf -initrd "module.txt,module.txt argument,module.txt"
+}
 
 make all
 
-for t in mmap; do
+for t in mmap modules; do
 
     echo > test.log
     $t

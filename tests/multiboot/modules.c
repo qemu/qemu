@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013 Kevin Wolf <kwolf@redhat.com>
+ * Copyright (c) 2015 Kevin Wolf <kwolf@redhat.com>
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -20,43 +20,36 @@
  * THE SOFTWARE.
  */
 
-#ifndef LIBC_H
-#define LIBC_H
+#include "libc.h"
+#include "multiboot.h"
 
-/* Integer types */
-
-typedef unsigned long long uint64_t;
-typedef unsigned int uint32_t;
-typedef unsigned short uint16_t;
-typedef unsigned char uint8_t;
-
-typedef signed long long int64_t;
-typedef signed int int32_t;
-typedef signed short int16_t;
-typedef signed char int8_t;
-
-typedef uint32_t uintptr_t;
-
-
-/* stdarg.h */
-
-typedef __builtin_va_list       va_list;
-#define va_start(ap, X)         __builtin_va_start(ap, X)
-#define va_arg(ap, type)        __builtin_va_arg(ap, type)
-#define va_end(ap)              __builtin_va_end(ap)
-
-
-/* Port I/O functions */
-
-static inline void outb(uint16_t port, uint8_t data)
+int test_main(uint32_t magic, struct mb_info *mbi)
 {
-    asm volatile ("outb %0, %1" : : "a" (data), "Nd" (port));
+    struct mb_module *mod;
+    unsigned int i;
+
+    (void) magic;
+
+    printf("Module list with %d entries at %x\n",
+           mbi->mods_count, mbi->mods_addr);
+
+    for (i = 0, mod = (struct mb_module*) mbi->mods_addr;
+         i < mbi->mods_count;
+         i++, mod++)
+    {
+        char buf[1024];
+        unsigned int size = mod->mod_end - mod->mod_start;
+
+        printf("[%p] Module: %x - %x (%d bytes) '%s'\n",
+               mod, mod->mod_start, mod->mod_end, size, mod->string);
+
+        /* Print test file, but remove the newline at the end */
+        if (size < sizeof(buf)) {
+            memcpy(buf, (void*) mod->mod_start, size);
+            buf[size - 1] = '\0';
+            printf("         Content: '%s'\n", buf);
+        }
+    }
+
+    return 0;
 }
-
-
-/* Misc functions */
-
-void printf(const char *fmt, ...);
-void* memcpy(void *dest, const void *src, int n);
-
-#endif

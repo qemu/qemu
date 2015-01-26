@@ -166,7 +166,7 @@ const VMStateDescription vmstate_ich9_pm = {
         VMSTATE_UINT16(acpi_regs.pm1.evt.sts, ICH9LPCPMRegs),
         VMSTATE_UINT16(acpi_regs.pm1.evt.en, ICH9LPCPMRegs),
         VMSTATE_UINT16(acpi_regs.pm1.cnt.cnt, ICH9LPCPMRegs),
-        VMSTATE_TIMER(acpi_regs.tmr.timer, ICH9LPCPMRegs),
+        VMSTATE_TIMER_PTR(acpi_regs.tmr.timer, ICH9LPCPMRegs),
         VMSTATE_INT64(acpi_regs.tmr.overflow_time, ICH9LPCPMRegs),
         VMSTATE_GPE_ARRAY(acpi_regs.gpe.sts, ICH9LPCPMRegs),
         VMSTATE_GPE_ARRAY(acpi_regs.gpe.en, ICH9LPCPMRegs),

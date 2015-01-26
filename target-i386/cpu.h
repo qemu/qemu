@@ -713,31 +713,13 @@ typedef struct SegmentCache {
 } SegmentCache;
 
 typedef union {
-    uint8_t _b[16];
-    uint16_t _w[8];
-    uint32_t _l[4];
-    uint64_t _q[2];
-    float32 _s[4];
-    float64 _d[2];
-} XMMReg;
-
-typedef union {
-    uint8_t _b[32];
-    uint16_t _w[16];
-    uint32_t _l[8];
-    uint64_t _q[4];
-    float32 _s[8];
-    float64 _d[4];
-} YMMReg;
-
-typedef union {
     uint8_t _b[64];
     uint16_t _w[32];
     uint32_t _l[16];
     uint64_t _q[8];
     float32 _s[16];
     float64 _d[8];
-} ZMMReg;
+} XMMReg; /* really zmm */
 
 typedef union {
     uint8_t _b[8];
@@ -758,46 +740,18 @@ typedef struct BNDCSReg {
 } BNDCSReg;
 
 #ifdef HOST_WORDS_BIGENDIAN
-#define ZMM_B(n) _b[63 - (n)]
-#define ZMM_W(n) _w[31 - (n)]
-#define ZMM_L(n) _l[15 - (n)]
-#define ZMM_S(n) _s[15 - (n)]
-#define ZMM_Q(n) _q[7 - (n)]
-#define ZMM_D(n) _d[7 - (n)]
-
-#define YMM_B(n) _b[31 - (n)]
-#define YMM_W(n) _w[15 - (n)]
-#define YMM_L(n) _l[7 - (n)]
-#define YMM_S(n) _s[7 - (n)]
-#define YMM_Q(n) _q[3 - (n)]
-#define YMM_D(n) _d[3 - (n)]
-
-#define XMM_B(n) _b[15 - (n)]
-#define XMM_W(n) _w[7 - (n)]
-#define XMM_L(n) _l[3 - (n)]
-#define XMM_S(n) _s[3 - (n)]
-#define XMM_Q(n) _q[1 - (n)]
-#define XMM_D(n) _d[1 - (n)]
+#define XMM_B(n) _b[63 - (n)]
+#define XMM_W(n) _w[31 - (n)]
+#define XMM_L(n) _l[15 - (n)]
+#define XMM_S(n) _s[15 - (n)]
+#define XMM_Q(n) _q[7 - (n)]
+#define XMM_D(n) _d[7 - (n)]
 
 #define MMX_B(n) _b[7 - (n)]
 #define MMX_W(n) _w[3 - (n)]
 #define MMX_L(n) _l[1 - (n)]
 #define MMX_S(n) _s[1 - (n)]
 #else
-#define ZMM_B(n) _b[n]
-#define ZMM_W(n) _w[n]
-#define ZMM_L(n) _l[n]
-#define ZMM_S(n) _s[n]
-#define ZMM_Q(n) _q[n]
-#define ZMM_D(n) _d[n]
-
-#define YMM_B(n) _b[n]
-#define YMM_W(n) _w[n]
-#define YMM_L(n) _l[n]
-#define YMM_S(n) _s[n]
-#define YMM_Q(n) _q[n]
-#define YMM_D(n) _d[n]
-
 #define XMM_B(n) _b[n]
 #define XMM_W(n) _w[n]
 #define XMM_L(n) _l[n]
@@ -896,17 +850,11 @@ typedef struct CPUX86State {
     float_status mmx_status; /* for 3DNow! float ops */
     float_status sse_status;
     uint32_t mxcsr;
-    XMMReg xmm_regs[CPU_NB_REGS];
+    XMMReg xmm_regs[CPU_NB_REGS == 8 ? 8 : 32];
     XMMReg xmm_t0;
     MMXReg mmx_t0;
 
-    XMMReg ymmh_regs[CPU_NB_REGS];
-
     uint64_t opmask_regs[NB_OPMASK_REGS];
-    YMMReg zmmh_regs[CPU_NB_REGS];
-#ifdef TARGET_X86_64
-    ZMMReg hi16_zmm_regs[CPU_NB_REGS];
-#endif
 
     /* sysenter registers */
     uint32_t sysenter_cs;

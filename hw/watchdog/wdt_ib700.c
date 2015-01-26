@@ -93,7 +93,7 @@ static const VMStateDescription vmstate_ib700 = {
     .version_id = 0,
     .minimum_version_id = 0,
     .fields = (VMStateField[]) {
-        VMSTATE_TIMER(timer, IB700State),
+        VMSTATE_TIMER_PTR(timer, IB700State),
         VMSTATE_END_OF_LIST()
     }
 };

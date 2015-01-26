@@ -1386,12 +1386,13 @@ static ram_addr_t ram_block_add(RAMBlock *new_block, Error **errp)
     cpu_physical_memory_set_dirty_range(new_block->offset,
                                         new_block->used_length);
 
-    qemu_ram_setup_dump(new_block->host, new_block->max_length);
-    qemu_madvise(new_block->host, new_block->max_length, QEMU_MADV_HUGEPAGE);
-    qemu_madvise(new_block->host, new_block->max_length, QEMU_MADV_DONTFORK);
-
-    if (kvm_enabled()) {
-        kvm_setup_guest_memory(new_block->host, new_block->max_length);
+    if (new_block->host) {
+        qemu_ram_setup_dump(new_block->host, new_block->max_length);
+        qemu_madvise(new_block->host, new_block->max_length, QEMU_MADV_HUGEPAGE);
+        qemu_madvise(new_block->host, new_block->max_length, QEMU_MADV_DONTFORK);
+        if (kvm_enabled()) {
+            kvm_setup_guest_memory(new_block->host, new_block->max_length);
+        }
     }
 
     return new_block->offset;

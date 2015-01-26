@@ -299,7 +299,7 @@ static const VMStateDescription vmstate_hpet_timer = {
         VMSTATE_UINT64(fsb, HPETTimer),
         VMSTATE_UINT64(period, HPETTimer),
         VMSTATE_UINT8(wrap_flag, HPETTimer),
-        VMSTATE_TIMER(qemu_timer, HPETTimer),
+        VMSTATE_TIMER_PTR(qemu_timer, HPETTimer),
         VMSTATE_END_OF_LIST()
     }
 };

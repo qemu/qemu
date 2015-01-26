@@ -328,6 +328,10 @@ static void pc_compat_2_2(MachineState *machine)
     x86_cpu_compat_set_features("Haswell", FEAT_1_ECX, 0, CPUID_EXT_RDRAND);
     x86_cpu_compat_set_features("Broadwell", FEAT_1_ECX, 0, CPUID_EXT_F16C);
     x86_cpu_compat_set_features("Broadwell", FEAT_1_ECX, 0, CPUID_EXT_RDRAND);
+    x86_cpu_compat_set_features("Haswell", FEAT_7_0_EBX,
+                                CPUID_7_0_EBX_HLE | CPUID_7_0_EBX_RTM, 0);
+    x86_cpu_compat_set_features("Broadwell", FEAT_7_0_EBX,
+                                CPUID_7_0_EBX_HLE | CPUID_7_0_EBX_RTM, 0);
 }
 
 static void pc_compat_2_1(MachineState *machine)
@@ -406,7 +410,7 @@ static void pc_compat_1_3(MachineState *machine)
 static void pc_compat_1_2(MachineState *machine)
 {
     pc_compat_1_3(machine);
-    x86_cpu_compat_kvm_no_autoenable(FEAT_KVM, KVM_FEATURE_PV_EOI);
+    x86_cpu_compat_kvm_no_autoenable(FEAT_KVM, 1 << KVM_FEATURE_PV_EOI);
 }
 
 static void pc_init_pci_2_2(MachineState *machine)
@@ -483,7 +487,7 @@ static void pc_init_isa(MachineState *machine)
     if (!machine->cpu_model) {
         machine->cpu_model = "486";
     }
-    x86_cpu_compat_kvm_no_autoenable(FEAT_KVM, KVM_FEATURE_PV_EOI);
+    x86_cpu_compat_kvm_no_autoenable(FEAT_KVM, 1 << KVM_FEATURE_PV_EOI);
     enable_compat_apic_id_mode();
     pc_init1(machine, 0, 1);
 }

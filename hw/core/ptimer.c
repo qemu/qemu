@@ -214,7 +214,7 @@ const VMStateDescription vmstate_ptimer = {
         VMSTATE_INT64(period, ptimer_state),
         VMSTATE_INT64(last_event, ptimer_state),
         VMSTATE_INT64(next_event, ptimer_state),
-        VMSTATE_TIMER(timer, ptimer_state),
+        VMSTATE_TIMER_PTR(timer, ptimer_state),
         VMSTATE_END_OF_LIST()
     }
 };

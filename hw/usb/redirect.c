@@ -2438,7 +2438,7 @@ static const VMStateDescription usbredir_vmstate = {
     .post_load = usbredir_post_load,
     .fields = (VMStateField[]) {
         VMSTATE_USB_DEVICE(dev, USBRedirDevice),
-        VMSTATE_TIMER(attach_timer, USBRedirDevice),
+        VMSTATE_TIMER_PTR(attach_timer, USBRedirDevice),
         {
             .name         = "parser",
             .version_id   = 0,
