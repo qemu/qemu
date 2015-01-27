@@ -1049,14 +1049,12 @@ uri_to_string(URI *uri) {
 	while (*p != 0) {
 	    if (len >= max) {
                 temp = realloc2n(ret, &max);
-                if (temp == NULL) goto mem_error;
 		ret = temp;
 	    }
 	    ret[len++] = *p++;
 	}
 	if (len >= max) {
             temp = realloc2n(ret, &max);
-            if (temp == NULL) goto mem_error;
             ret = temp;
 	}
 	ret[len++] = ':';
@@ -1066,7 +1064,6 @@ uri_to_string(URI *uri) {
 	while (*p != 0) {
 	    if (len + 3 >= max) {
                 temp = realloc2n(ret, &max);
-                if (temp == NULL) goto mem_error;
                 ret = temp;
 	    }
 	    if (IS_RESERVED(*(p)) || IS_UNRESERVED(*(p)))
@@ -1083,7 +1080,6 @@ uri_to_string(URI *uri) {
 	if (uri->server != NULL) {
 	    if (len + 3 >= max) {
                 temp = realloc2n(ret, &max);
-                if (temp == NULL) goto mem_error;
                 ret = temp;
 	    }
 	    ret[len++] = '/';
@@ -1093,7 +1089,6 @@ uri_to_string(URI *uri) {
 		while (*p != 0) {
 		    if (len + 3 >= max) {
                         temp = realloc2n(ret, &max);
-                        if (temp == NULL) goto mem_error;
                         ret = temp;
 		    }
 		    if ((IS_UNRESERVED(*(p))) ||
@@ -1112,7 +1107,6 @@ uri_to_string(URI *uri) {
 		}
 		if (len + 3 >= max) {
                     temp = realloc2n(ret, &max);
-                    if (temp == NULL) goto mem_error;
                     ret = temp;
 		}
 		ret[len++] = '@';
@@ -1121,7 +1115,6 @@ uri_to_string(URI *uri) {
 	    while (*p != 0) {
 		if (len >= max) {
                     temp = realloc2n(ret, &max);
-                    if (temp == NULL) goto mem_error;
                     ret = temp;
 		}
 		ret[len++] = *p++;
@@ -1129,7 +1122,6 @@ uri_to_string(URI *uri) {
 	    if (uri->port > 0) {
 		if (len + 10 >= max) {
                     temp = realloc2n(ret, &max);
-                    if (temp == NULL) goto mem_error;
                     ret = temp;
 		}
 		len += snprintf(&ret[len], max - len, ":%d", uri->port);
@@ -1137,7 +1129,6 @@ uri_to_string(URI *uri) {
 	} else if (uri->authority != NULL) {
 	    if (len + 3 >= max) {
                 temp = realloc2n(ret, &max);
-                if (temp == NULL) goto mem_error;
                 ret = temp;
 	    }
 	    ret[len++] = '/';
@@ -1146,7 +1137,6 @@ uri_to_string(URI *uri) {
 	    while (*p != 0) {
 		if (len + 3 >= max) {
                     temp = realloc2n(ret, &max);
-                    if (temp == NULL) goto mem_error;
                     ret = temp;
 		}
 		if ((IS_UNRESERVED(*(p))) ||
@@ -1165,7 +1155,6 @@ uri_to_string(URI *uri) {
 	} else if (uri->scheme != NULL) {
 	    if (len + 3 >= max) {
                 temp = realloc2n(ret, &max);
-                if (temp == NULL) goto mem_error;
                 ret = temp;
 	    }
 	    ret[len++] = '/';
@@ -1185,7 +1174,6 @@ uri_to_string(URI *uri) {
 	        (!strcmp(uri->scheme, "file"))) {
 		if (len + 3 >= max) {
                     temp = realloc2n(ret, &max);
-                    if (temp == NULL) goto mem_error;
                     ret = temp;
 		}
 		ret[len++] = *p++;
@@ -1195,7 +1183,6 @@ uri_to_string(URI *uri) {
 	    while (*p != 0) {
 		if (len + 3 >= max) {
                     temp = realloc2n(ret, &max);
-                    if (temp == NULL) goto mem_error;
                     ret = temp;
 		}
 		if ((IS_UNRESERVED(*(p))) || ((*(p) == '/')) ||
@@ -1215,7 +1202,6 @@ uri_to_string(URI *uri) {
 	if (uri->query != NULL) {
 	    if (len + 1 >= max) {
                 temp = realloc2n(ret, &max);
-                if (temp == NULL) goto mem_error;
                 ret = temp;
 	    }
 	    ret[len++] = '?';
@@ -1223,7 +1209,6 @@ uri_to_string(URI *uri) {
 	    while (*p != 0) {
 		if (len + 1 >= max) {
                     temp = realloc2n(ret, &max);
-                    if (temp == NULL) goto mem_error;
                     ret = temp;
 		}
 		ret[len++] = *p++;
@@ -1233,7 +1218,6 @@ uri_to_string(URI *uri) {
     if (uri->fragment != NULL) {
 	if (len + 3 >= max) {
             temp = realloc2n(ret, &max);
-            if (temp == NULL) goto mem_error;
             ret = temp;
 	}
 	ret[len++] = '#';
@@ -1241,7 +1225,6 @@ uri_to_string(URI *uri) {
 	while (*p != 0) {
 	    if (len + 3 >= max) {
                 temp = realloc2n(ret, &max);
-                if (temp == NULL) goto mem_error;
                 ret = temp;
 	    }
 	    if ((IS_UNRESERVED(*(p))) || (IS_RESERVED(*(p))))
@@ -1257,15 +1240,10 @@ uri_to_string(URI *uri) {
     }
     if (len >= max) {
         temp = realloc2n(ret, &max);
-        if (temp == NULL) goto mem_error;
         ret = temp;
     }
     ret[len] = 0;
     return(ret);
-
-mem_error:
-    g_free(ret);
-    return(NULL);
 }
 
 /**
