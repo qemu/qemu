@@ -62,8 +62,7 @@ no file open, try 'help open'
 === Check disconnect after neg2 ===
 
 
-qemu-io: can't open device nbd:127.0.0.1:PORT:exportname=foo: Could not read image for determining its format: Input/output error
-no file open, try 'help open'
+read failed: Input/output error
 
 === Check disconnect 8 neg2 ===
 
@@ -80,49 +79,43 @@ no file open, try 'help open'
 === Check disconnect before request ===
 
 
-qemu-io: can't open device nbd:127.0.0.1:PORT:exportname=foo: Could not read image for determining its format: Input/output error
-no file open, try 'help open'
+read failed: Input/output error
 
 === Check disconnect after request ===
 
 
-qemu-io: can't open device nbd:127.0.0.1:PORT:exportname=foo: Could not read image for determining its format: Input/output error
-no file open, try 'help open'
+read failed: Input/output error
 
 === Check disconnect before reply ===
 
 
-qemu-io: can't open device nbd:127.0.0.1:PORT:exportname=foo: Could not read image for determining its format: Input/output error
-no file open, try 'help open'
+read failed: Input/output error
 
 === Check disconnect after reply ===
 
 
-qemu-io: can't open device nbd:127.0.0.1:PORT:exportname=foo: Could not read image for determining its format: Input/output error
-no file open, try 'help open'
+read failed: Input/output error
 
 === Check disconnect 4 reply ===
 
 
-qemu-io: can't open device nbd:127.0.0.1:PORT:exportname=foo: Could not read image for determining its format: Input/output error
-no file open, try 'help open'
+read failed: Input/output error
 
 === Check disconnect 8 reply ===
 
 
-qemu-io: can't open device nbd:127.0.0.1:PORT:exportname=foo: Could not read image for determining its format: Input/output error
-no file open, try 'help open'
+read failed: Input/output error
 
 === Check disconnect before data ===
 
 
-qemu-io: can't open device nbd:127.0.0.1:PORT:exportname=foo: Could not read image for determining its format: Input/output error
-no file open, try 'help open'
+read failed: Input/output error
 
 === Check disconnect after data ===
 
 
-read failed: Input/output error
+read 512/512 bytes at offset 0
+512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 
 === Check disconnect before neg-classic ===
 
@@ -157,7 +150,6 @@ no file open, try 'help open'
 === Check disconnect after neg-classic ===
 
 
-qemu-io: can't open device nbd:127.0.0.1:PORT: Could not read image for determining its format: Input/output error
-no file open, try 'help open'
+read failed: Input/output error
 
 *** done
