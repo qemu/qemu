@@ -22,6 +22,31 @@
 #include "qemu/config-file.h"
 #include "qapi/visitor.h"
 #include "qemu/range.h"
+#include "qapi/qmp/qerror.h"
+
+int pc_existing_dimms_capacity(Object *obj, void *opaque)
+{
+    Error *local_err = NULL;
+    uint64_t *size = opaque;
+
+    if (object_dynamic_cast(obj, TYPE_PC_DIMM)) {
+        DeviceState *dev = DEVICE(obj);
+
+        if (dev->realized) {
+            (*size) += object_property_get_int(obj, PC_DIMM_SIZE_PROP,
+                &local_err);
+        }
+
+        if (local_err) {
+            qerror_report_err(local_err);
+            error_free(local_err);
+            return 1;
+        }
+    }
+
+    object_child_foreach(obj, pc_existing_dimms_capacity, opaque);
+    return 0;
+}
 
 int qmp_pc_dimm_device_list(Object *obj, void *opaque)
 {
