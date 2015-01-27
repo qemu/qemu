@@ -36,7 +36,7 @@ typedef struct NbdClientSession {
 } NbdClientSession;
 
 int nbd_client_session_init(NbdClientSession *client, BlockDriverState *bs,
-                            int sock, const char *export_name);
+                            int sock, const char *export_name, Error **errp);
 void nbd_client_session_close(NbdClientSession *client);
 
 int nbd_client_session_co_discard(NbdClientSession *client, int64_t sector_num,

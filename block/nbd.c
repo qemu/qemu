@@ -271,7 +271,7 @@ static int nbd_open(BlockDriverState *bs, QDict *options, int flags,
     }
 
     /* NBD handshake */
-    result = nbd_client_session_init(&s->client, bs, sock, export);
+    result = nbd_client_session_init(&s->client, bs, sock, export, errp);
     g_free(export);
     return result;
 }

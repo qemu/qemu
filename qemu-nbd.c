@@ -284,6 +284,7 @@ static void *nbd_client_thread(void *arg)
     int fd, sock;
     int ret;
     pthread_t show_parts_thread;
+    Error *local_error = NULL;
 
     sock = unix_socket_outgoing(sockpath);
     if (sock < 0) {
@@ -291,8 +292,12 @@ static void *nbd_client_thread(void *arg)
     }
 
     ret = nbd_receive_negotiate(sock, NULL, &nbdflags,
-                                &size, &blocksize);
+                                &size, &blocksize, &local_error);
     if (ret < 0) {
+        if (local_error) {
+            fprintf(stderr, "%s\n", error_get_pretty(local_error));
+            error_free(local_error);
+        }
         goto out_socket;
     }
 
