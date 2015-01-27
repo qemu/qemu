@@ -1935,7 +1935,8 @@ uri_resolve_relative (const char *uri, const char * base)
 	val = g_strdup (uri);
 	goto done;
     }
-    if (!strcmp(bas->path, ref->path)) {
+    if (bas->path == ref->path ||
+        (bas->path && ref->path && !strcmp(bas->path, ref->path))) {
 	val = g_strdup("");
 	goto done;
     }
