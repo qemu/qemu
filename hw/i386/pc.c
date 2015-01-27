@@ -1584,8 +1584,8 @@ static void pc_dimm_plug(HotplugHandler *hotplug_dev,
         goto out;
     }
 
-    if (pc_existing_dimms_capacity(OBJECT(machine), &existing_dimms_capacity)) {
-        error_setg(&local_err, "failed to get total size of existing DIMMs");
+    existing_dimms_capacity = pc_existing_dimms_capacity(&local_err);
+    if (local_err) {
         goto out;
     }
 
