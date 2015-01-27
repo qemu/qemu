@@ -732,18 +732,6 @@ int do_sigaction(int sig, const struct target_sigaction *act,
     return ret;
 }
 
-static inline void copy_siginfo_to_user(target_siginfo_t *tinfo,
-                                       const target_siginfo_t *info)
-{
-    tswap_siginfo(tinfo, info);
-}
-
-static inline int current_exec_domain_sig(int sig)
-{
-    return /* current->exec_domain && current->exec_domain->signal_invmap
-	      && sig < 32 ? current->exec_domain->signal_invmap[sig] : */ sig;
-}
-
 #if defined(TARGET_I386) && TARGET_ABI_BITS == 32
 
 /* from the Linux kernel */
@@ -926,8 +914,7 @@ static void setup_frame(int sig, struct target_sigaction *ka,
 	if (!lock_user_struct(VERIFY_WRITE, frame, frame_addr, 0))
 		goto give_sigsegv;
 
-    __put_user(current_exec_domain_sig(sig),
-               &frame->sig);
+    __put_user(sig, &frame->sig);
 
 	setup_sigcontext(&frame->sc, &frame->fpstate, env, set->sig[0],
                          frame_addr + offsetof(struct sigframe, fpstate));
@@ -988,12 +975,12 @@ static void setup_rt_frame(int sig, struct target_sigaction *ka,
 	if (!lock_user_struct(VERIFY_WRITE, frame, frame_addr, 0))
 		goto give_sigsegv;
 
-    __put_user(current_exec_domain_sig(sig), &frame->sig);
+    __put_user(sig, &frame->sig);
         addr = frame_addr + offsetof(struct rt_sigframe, info);
     __put_user(addr, &frame->pinfo);
         addr = frame_addr + offsetof(struct rt_sigframe, uc);
     __put_user(addr, &frame->puc);
-	copy_siginfo_to_user(&frame->info, info);
+    tswap_siginfo(&frame->info, info);
 
 	/* Create the ucontext.  */
     __put_user(0, &frame->uc.tuc_flags);
@@ -1360,7 +1347,7 @@ static void target_setup_frame(int usig, struct target_sigaction *ka,
     env->pc = ka->_sa_handler;
     env->xregs[30] = return_addr;
     if (info) {
-        copy_siginfo_to_user(&frame->info, info);
+        tswap_siginfo(&frame->info, info);
         env->xregs[1] = frame_addr + offsetof(struct target_rt_sigframe, info);
         env->xregs[2] = frame_addr + offsetof(struct target_rt_sigframe, uc);
     }
@@ -1777,7 +1764,7 @@ static void setup_rt_frame_v1(int usig, struct target_sigaction *ka,
 	__put_user(info_addr, &frame->pinfo);
         uc_addr = frame_addr + offsetof(struct rt_sigframe_v1, uc);
 	__put_user(uc_addr, &frame->puc);
-	copy_siginfo_to_user(&frame->info, info);
+        tswap_siginfo(&frame->info, info);
 
 	/* Clear all the bits of the ucontext we don't use.  */
 	memset(&frame->uc, 0, offsetof(struct target_ucontext_v1, tuc_mcontext));
@@ -1815,7 +1802,7 @@ static void setup_rt_frame_v2(int usig, struct target_sigaction *ka,
 
         info_addr = frame_addr + offsetof(struct rt_sigframe_v2, info);
         uc_addr = frame_addr + offsetof(struct rt_sigframe_v2, uc);
-	copy_siginfo_to_user(&frame->info, info);
+        tswap_siginfo(&frame->info, info);
 
         setup_sigframe_v2(&frame->uc, set, env);
 
@@ -3017,7 +3004,7 @@ static void setup_rt_frame(int sig, struct target_sigaction *ka,
 
     install_sigtramp(frame->rs_code, TARGET_NR_rt_sigreturn);
 
-    copy_siginfo_to_user(&frame->rs_info, info);
+    tswap_siginfo(&frame->rs_info, info);
 
     __put_user(0, &frame->rs_uc.tuc_flags);
     __put_user(0, &frame->rs_uc.tuc_link);
@@ -3228,13 +3215,10 @@ static void setup_frame(int sig, struct target_sigaction *ka,
     abi_ulong frame_addr;
     int i;
     int err = 0;
-    int signal;
 
     frame_addr = get_sigframe(ka, regs->gregs[15], sizeof(*frame));
     if (!lock_user_struct(VERIFY_WRITE, frame, frame_addr, 0))
 	goto give_sigsegv;
-
-    signal = current_exec_domain_sig(sig);
 
     setup_sigcontext(&frame->sc, regs, set->sig[0]);
 
@@ -3259,7 +3243,7 @@ static void setup_frame(int sig, struct target_sigaction *ka,
 
     /* Set up registers for signal handler */
     regs->gregs[15] = frame_addr;
-    regs->gregs[4] = signal; /* Arg for signal handler */
+    regs->gregs[4] = sig; /* Arg for signal handler */
     regs->gregs[5] = 0;
     regs->gregs[6] = frame_addr += offsetof(typeof(*frame), sc);
     regs->pc = (unsigned long) ka->_sa_handler;
@@ -3280,15 +3264,12 @@ static void setup_rt_frame(int sig, struct target_sigaction *ka,
     abi_ulong frame_addr;
     int i;
     int err = 0;
-    int signal;
 
     frame_addr = get_sigframe(ka, regs->gregs[15], sizeof(*frame));
     if (!lock_user_struct(VERIFY_WRITE, frame, frame_addr, 0))
 	goto give_sigsegv;
 
-    signal = current_exec_domain_sig(sig);
-
-    copy_siginfo_to_user(&frame->info, info);
+    tswap_siginfo(&frame->info, info);
 
     /* Create the ucontext.  */
     __put_user(0, &frame->uc.tuc_flags);
@@ -3322,7 +3303,7 @@ static void setup_rt_frame(int sig, struct target_sigaction *ka,
 
     /* Set up registers for signal handler */
     regs->gregs[15] = frame_addr;
-    regs->gregs[4] = signal; /* Arg for signal handler */
+    regs->gregs[4] = sig; /* Arg for signal handler */
     regs->gregs[5] = frame_addr + offsetof(typeof(*frame), info);
     regs->gregs[6] = frame_addr + offsetof(typeof(*frame), uc);
     regs->pc = (unsigned long) ka->_sa_handler;
@@ -3947,7 +3928,7 @@ static void setup_rt_frame(int sig, struct target_sigaction *ka,
     __put_user(uc_addr, &frame->puc);
 
     if (ka->sa_flags & SA_SIGINFO) {
-        copy_siginfo_to_user(&frame->info, info);
+        tswap_siginfo(&frame->info, info);
     }
 
     /*err |= __clear_user(&frame->uc, offsetof(struct ucontext, uc_mcontext));*/
@@ -4195,7 +4176,7 @@ static void setup_rt_frame(int sig, struct target_sigaction *ka,
     }
 
     qemu_log("%s: 1\n", __FUNCTION__);
-    copy_siginfo_to_user(&frame->info, info);
+    tswap_siginfo(&frame->info, info);
 
     /* Create the ucontext.  */
     __put_user(0, &frame->uc.tuc_flags);
@@ -4680,7 +4661,6 @@ static void setup_frame(int sig, struct target_sigaction *ka,
     struct target_sigcontext *sc;
     target_ulong frame_addr, newsp;
     int err = 0;
-    int signal;
 #if defined(TARGET_PPC64)
     struct image_info *image = ((TaskState *)thread_cpu->opaque)->info;
 #endif
@@ -4689,8 +4669,6 @@ static void setup_frame(int sig, struct target_sigaction *ka,
     if (!lock_user_struct(VERIFY_WRITE, frame, frame_addr, 1))
         goto sigsegv;
     sc = &frame->sctx;
-
-    signal = current_exec_domain_sig(sig);
 
     __put_user(ka->_sa_handler, &sc->handler);
     __put_user(set->sig[0], &sc->oldmask);
@@ -4724,7 +4702,7 @@ static void setup_frame(int sig, struct target_sigaction *ka,
 
     /* Set up registers for signal handler.  */
     env->gpr[1] = newsp;
-    env->gpr[3] = signal;
+    env->gpr[3] = sig;
     env->gpr[4] = frame_addr + offsetof(struct target_sigframe, sctx);
 
 #if defined(TARGET_PPC64)
@@ -4765,7 +4743,6 @@ static void setup_rt_frame(int sig, struct target_sigaction *ka,
     struct target_mcontext *mctx = 0;
     target_ulong rt_sf_addr, newsp = 0;
     int i, err = 0;
-    int signal;
 #if defined(TARGET_PPC64)
     struct image_info *image = ((TaskState *)thread_cpu->opaque)->info;
 #endif
@@ -4774,9 +4751,7 @@ static void setup_rt_frame(int sig, struct target_sigaction *ka,
     if (!lock_user_struct(VERIFY_WRITE, rt_sf, rt_sf_addr, 1))
         goto sigsegv;
 
-    signal = current_exec_domain_sig(sig);
-
-    copy_siginfo_to_user(&rt_sf->info, info);
+    tswap_siginfo(&rt_sf->info, info);
 
     __put_user(0, &rt_sf->uc.tuc_flags);
     __put_user(0, &rt_sf->uc.tuc_link);
@@ -4821,7 +4796,7 @@ static void setup_rt_frame(int sig, struct target_sigaction *ka,
 
     /* Set up registers for signal handler.  */
     env->gpr[1] = newsp;
-    env->gpr[3] = (target_ulong) signal;
+    env->gpr[3] = (target_ulong) sig;
     env->gpr[4] = (target_ulong) h2g(&rt_sf->info);
     env->gpr[5] = (target_ulong) h2g(&rt_sf->uc);
     env->gpr[6] = (target_ulong) h2g(rt_sf);
@@ -5091,7 +5066,7 @@ static void setup_frame(int sig, struct target_sigaction *ka,
     /* moveq #,d0; trap #0 */
 
     __put_user(0x70004e40 + (TARGET_NR_sigreturn << 16),
-                      (long *)(frame->retcode));
+                      (uint32_t *)(frame->retcode));
 
     /* Set up to return from userspace */
 
@@ -5196,7 +5171,7 @@ static void setup_rt_frame(int sig, struct target_sigaction *ka,
     uc_addr = frame_addr + offsetof(struct target_rt_sigframe, uc);
     __put_user(uc_addr, &frame->puc);
 
-    copy_siginfo_to_user(&frame->info, info);
+    tswap_siginfo(&frame->info, info);
 
     /* Create the ucontext */
 
@@ -5225,8 +5200,8 @@ static void setup_rt_frame(int sig, struct target_sigaction *ka,
     /* moveq #,d0; notb d0; trap #0 */
 
     __put_user(0x70004600 + ((TARGET_NR_rt_sigreturn ^ 0xff) << 16),
-               (long *)(frame->retcode + 0));
-    __put_user(0x4e40, (short *)(frame->retcode + 4));
+               (uint32_t *)(frame->retcode + 0));
+    __put_user(0x4e40, (uint16_t *)(frame->retcode + 4));
 
     if (err)
         goto give_sigsegv;
@@ -5473,7 +5448,7 @@ static void setup_rt_frame(int sig, struct target_sigaction *ka,
         goto give_sigsegv;
     }
 
-    copy_siginfo_to_user(&frame->info, info);
+    tswap_siginfo(&frame->info, info);
 
     __put_user(0, &frame->uc.tuc_flags);
     __put_user(0, &frame->uc.tuc_link);

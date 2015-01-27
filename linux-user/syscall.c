@@ -1214,16 +1214,26 @@ static inline abi_long target_to_host_cmsg(struct msghdr *msgh,
         cmsg->cmsg_type = tswap32(target_cmsg->cmsg_type);
         cmsg->cmsg_len = CMSG_LEN(len);
 
-        if (cmsg->cmsg_level != SOL_SOCKET || cmsg->cmsg_type != SCM_RIGHTS) {
-            gemu_log("Unsupported ancillary data: %d/%d\n", cmsg->cmsg_level, cmsg->cmsg_type);
-            memcpy(data, target_data, len);
-        } else {
+        if (cmsg->cmsg_level == SOL_SOCKET && cmsg->cmsg_type == SCM_RIGHTS) {
             int *fd = (int *)data;
             int *target_fd = (int *)target_data;
             int i, numfds = len / sizeof(int);
 
             for (i = 0; i < numfds; i++)
                 fd[i] = tswap32(target_fd[i]);
+        } else if (cmsg->cmsg_level == SOL_SOCKET
+               &&  cmsg->cmsg_type == SCM_CREDENTIALS) {
+            struct ucred *cred = (struct ucred *)data;
+            struct target_ucred *target_cred =
+                (struct target_ucred *)target_data;
+
+            __put_user(target_cred->pid, &cred->pid);
+            __put_user(target_cred->uid, &cred->uid);
+            __put_user(target_cred->gid, &cred->gid);
+        } else {
+            gemu_log("Unsupported ancillary data: %d/%d\n",
+                                        cmsg->cmsg_level, cmsg->cmsg_type);
+            memcpy(data, target_data, len);
         }
 
         cmsg = CMSG_NXTHDR(msgh, cmsg);
@@ -3278,7 +3288,7 @@ typedef abi_long do_ioctl_fn(const IOCTLEntry *ie, uint8_t *buf_temp,
                              int fd, abi_long cmd, abi_long arg);
 
 struct IOCTLEntry {
-    unsigned int target_cmd;
+    int target_cmd;
     unsigned int host_cmd;
     const char *name;
     int access;
@@ -9529,6 +9539,7 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
         /* args: pid, resource number, ptr to new rlimit, ptr to old rlimit */
         struct target_rlimit64 *target_rnew, *target_rold;
         struct host_rlimit64 rnew, rold, *rnewp = 0;
+        int resource = target_to_host_resource(arg2);
         if (arg3) {
             if (!lock_user_struct(VERIFY_READ, target_rnew, arg3, 1)) {
                 goto efault;
@@ -9539,7 +9550,7 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
             rnewp = &rnew;
         }
 
-        ret = get_errno(sys_prlimit64(arg1, arg2, rnewp, arg4 ? &rold : 0));
+        ret = get_errno(sys_prlimit64(arg1, resource, rnewp, arg4 ? &rold : 0));
         if (!is_error(ret) && arg4) {
             if (!lock_user_struct(VERIFY_WRITE, target_rold, arg4, 1)) {
                 goto efault;
