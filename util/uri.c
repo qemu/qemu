@@ -928,12 +928,10 @@ uri_parse(const char *str) {
     if (str == NULL)
 	return(NULL);
     uri = uri_new();
-    if (uri != NULL) {
-	ret = rfc3986_parse_uri_reference(uri, str);
-        if (ret) {
-	    uri_free(uri);
-	    return(NULL);
-	}
+    ret = rfc3986_parse_uri_reference(uri, str);
+    if (ret) {
+        uri_free(uri);
+        return(NULL);
     }
     return(uri);
 }
@@ -974,15 +972,13 @@ uri_parse_raw(const char *str, int raw) {
     if (str == NULL)
 	return(NULL);
     uri = uri_new();
-    if (uri != NULL) {
-        if (raw) {
-	    uri->cleanup |= 2;
-	}
-	ret = uri_parse_into(uri, str);
-        if (ret) {
-	    uri_free(uri);
-	    return(NULL);
-	}
+    if (raw) {
+        uri->cleanup |= 2;
+    }
+    ret = uri_parse_into(uri, str);
+    if (ret) {
+        uri_free(uri);
+        return(NULL);
     }
     return(uri);
 }
@@ -1675,8 +1671,6 @@ uri_resolve(const char *uri, const char *base) {
     else {
 	if (*uri) {
 	    ref = uri_new();
-	    if (ref == NULL)
-		goto done;
 	    ret = uri_parse_into(ref, uri);
 	}
 	else
@@ -1695,8 +1689,6 @@ uri_resolve(const char *uri, const char *base) {
 	ret = -1;
     else {
 	bas = uri_new();
-	if (bas == NULL)
-	    goto done;
 	ret = uri_parse_into(bas, base);
     }
     if (ret != 0) {
@@ -1727,8 +1719,6 @@ uri_resolve(const char *uri, const char *base) {
      *    document.
      */
     res = uri_new();
-    if (res == NULL)
-	goto done;
     if ((ref->scheme == NULL) && (ref->path == NULL) &&
 	((ref->authority == NULL) && (ref->server == NULL))) {
         res->scheme = g_strdup(bas->scheme);
@@ -1933,8 +1923,6 @@ uri_resolve_relative (const char *uri, const char * base)
      * First parse URI into a standard form
      */
     ref = uri_new ();
-    if (ref == NULL)
-	return NULL;
     /* If URI not already in "relative" form */
     if (uri[0] != '.') {
 	ret = uri_parse_into (ref, uri);
@@ -1951,8 +1939,6 @@ uri_resolve_relative (const char *uri, const char * base)
 	goto done;
     }
     bas = uri_new ();
-    if (bas == NULL)
-	goto done;
     if (base[0] != '.') {
 	ret = uri_parse_into (bas, base);
 	if (ret != 0)
