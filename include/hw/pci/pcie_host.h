@@ -50,6 +50,7 @@ struct PCIExpressHost {
 };
 
 void pcie_host_mmcfg_unmap(PCIExpressHost *e);
+void pcie_host_mmcfg_init(PCIExpressHost *e, uint32_t size);
 void pcie_host_mmcfg_map(PCIExpressHost *e, hwaddr addr, uint32_t size);
 void pcie_host_mmcfg_update(PCIExpressHost *e,
                             int enable,

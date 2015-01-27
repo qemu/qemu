@@ -23,6 +23,43 @@
 #include "qapi/visitor.h"
 #include "qemu/range.h"
 
+typedef struct pc_dimms_capacity {
+     uint64_t size;
+     Error    **errp;
+} pc_dimms_capacity;
+
+static int pc_existing_dimms_capacity_internal(Object *obj, void *opaque)
+{
+    pc_dimms_capacity *cap = opaque;
+    uint64_t *size = &cap->size;
+
+    if (object_dynamic_cast(obj, TYPE_PC_DIMM)) {
+        DeviceState *dev = DEVICE(obj);
+
+        if (dev->realized) {
+            (*size) += object_property_get_int(obj, PC_DIMM_SIZE_PROP,
+                cap->errp);
+        }
+
+        if (cap->errp && *cap->errp) {
+            return 1;
+        }
+    }
+    object_child_foreach(obj, pc_existing_dimms_capacity_internal, opaque);
+    return 0;
+}
+
+uint64_t pc_existing_dimms_capacity(Error **errp)
+{
+    pc_dimms_capacity cap;
+
+    cap.size = 0;
+    cap.errp = errp;
+
+    pc_existing_dimms_capacity_internal(qdev_get_machine(), &cap);
+    return cap.size;
+}
+
 int qmp_pc_dimm_device_list(Object *obj, void *opaque)
 {
     MemoryDeviceInfoList ***prev = opaque;

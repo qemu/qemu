@@ -36,7 +36,7 @@
 #include "hw/i386/acpi-defs.h"
 #include "hw/acpi/acpi.h"
 #include "hw/nvram/fw_cfg.h"
-#include "bios-linker-loader.h"
+#include "hw/acpi/bios-linker-loader.h"
 #include "hw/loader.h"
 #include "hw/isa/isa.h"
 #include "hw/acpi/memory_hotplug.h"
@@ -305,6 +305,8 @@ static inline void build_append_array(GArray *array, GArray *val)
     g_array_append_vals(array, val->data, val->len);
 }
 
+#define ACPI_NAMESEG_LEN 4
+
 static void GCC_FMT_ATTR(2, 3)
 build_append_nameseg(GArray *array, const char *format, ...)
 {
@@ -317,8 +319,11 @@ build_append_nameseg(GArray *array, const char *format, ...)
     len = vsnprintf(s, sizeof s, format, args);
     va_end(args);
 
-    assert(len == 4);
+    assert(len <= ACPI_NAMESEG_LEN);
+
     g_array_append_vals(array, s, len);
+    /* Pad up to ACPI_NAMESEG_LEN characters if necessary. */
+    g_array_append_vals(array, "____", ACPI_NAMESEG_LEN - len);
 }
 
 /* 5.4 Definition Block Encoding */
@@ -859,7 +864,7 @@ static void build_pci_bus_end(PCIBus *bus, void *bus_state)
 
     if (bus->parent_dev) {
         op = 0x82; /* DeviceOp */
-        build_append_nameseg(bus_table, "S%.02X_",
+        build_append_nameseg(bus_table, "S%.02X",
                              bus->parent_dev->devfn);
         build_append_byte(bus_table, 0x08); /* NameOp */
         build_append_nameseg(bus_table, "_SUN");
@@ -979,7 +984,7 @@ static void build_pci_bus_end(PCIBus *bus, void *bus_state)
             build_append_int(notify, 0x1U << i);
             build_append_byte(notify, 0x00); /* NullName */
             build_append_byte(notify, 0x86); /* NotifyOp */
-            build_append_nameseg(notify, "S%.02X_", PCI_DEVFN(i, 0));
+            build_append_nameseg(notify, "S%.02X", PCI_DEVFN(i, 0));
             build_append_byte(notify, 0x69); /* Arg1Op */
 
             /* Pack it up */
@@ -1036,7 +1041,7 @@ static void build_pci_bus_end(PCIBus *bus, void *bus_state)
         if (bus->parent_dev) {
             build_append_byte(parent->notify_table, '^'); /* ParentPrefixChar */
             build_append_byte(parent->notify_table, 0x2E); /* DualNamePrefix */
-            build_append_nameseg(parent->notify_table, "S%.02X_",
+            build_append_nameseg(parent->notify_table, "S%.02X",
                                  bus->parent_dev->devfn);
             build_append_nameseg(parent->notify_table, "PCNT");
         }
@@ -1106,7 +1111,7 @@ build_ssdt(GArray *table_data, GArray *linker,
         GArray *sb_scope = build_alloc_array();
         uint8_t op = 0x10; /* ScopeOp */
 
-        build_append_nameseg(sb_scope, "_SB_");
+        build_append_nameseg(sb_scope, "_SB");
 
         /* build Processor object for each processor */
         for (i = 0; i < acpi_cpus; i++) {

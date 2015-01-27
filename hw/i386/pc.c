@@ -1552,37 +1552,6 @@ void qemu_register_pc_machine(QEMUMachine *m)
     g_free(name);
 }
 
-static int pc_dimm_count(Object *obj, void *opaque)
-{
-    int *count = opaque;
-
-    if (object_dynamic_cast(obj, TYPE_PC_DIMM)) {
-        (*count)++;
-    }
-
-    object_child_foreach(obj, pc_dimm_count, opaque);
-    return 0;
-}
-
-static int pc_existing_dimms_capacity(Object *obj, void *opaque)
-{
-    Error *local_err = NULL;
-    uint64_t *size = opaque;
-
-    if (object_dynamic_cast(obj, TYPE_PC_DIMM)) {
-        (*size) += object_property_get_int(obj, PC_DIMM_SIZE_PROP, &local_err);
-
-        if (local_err) {
-            qerror_report_err(local_err);
-            error_free(local_err);
-            return 1;
-        }
-    }
-
-    object_child_foreach(obj, pc_dimm_count, opaque);
-    return 0;
-}
-
 static void pc_dimm_plug(HotplugHandler *hotplug_dev,
                          DeviceState *dev, Error **errp)
 {
@@ -1615,16 +1584,17 @@ static void pc_dimm_plug(HotplugHandler *hotplug_dev,
         goto out;
     }
 
-    if (pc_existing_dimms_capacity(OBJECT(machine), &existing_dimms_capacity)) {
-        error_setg(&local_err, "failed to get total size of existing DIMMs");
+    existing_dimms_capacity = pc_existing_dimms_capacity(&local_err);
+    if (local_err) {
         goto out;
     }
 
     if (existing_dimms_capacity + memory_region_size(mr) >
         machine->maxram_size - machine->ram_size) {
         error_setg(&local_err, "not enough space, currently 0x%" PRIx64
-                   " in use of total 0x" RAM_ADDR_FMT,
-                   existing_dimms_capacity, machine->maxram_size);
+                   " in use of total hot pluggable 0x" RAM_ADDR_FMT,
+                   existing_dimms_capacity,
+                   machine->maxram_size - machine->ram_size);
         goto out;
     }
 
