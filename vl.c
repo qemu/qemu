@@ -2452,6 +2452,7 @@ static gint machine_class_cmp(gconstpointer a, gconstpointer b)
         mc = find_machine(name);
     }
     if (mc) {
+        g_slist_free(machines);
         return mc;
     }
     if (name && !is_help_option(name)) {
