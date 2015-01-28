@@ -859,6 +859,9 @@ static void build_pci_bus_end(PCIBus *bus, void *bus_state)
      * to make acpi tables compatible with legacy machine types.
      */
     if (!child->pcihp_bridge_en && bus->parent_dev) {
+        build_free_array(bus_table);
+        build_pci_bus_state_cleanup(child);
+        g_free(child);
         return;
     }
 
