@@ -370,6 +370,13 @@ static void piix4_device_unplug_request_cb(HotplugHandler *hotplug_dev,
     }
 }
 
+static void piix4_device_unplug_cb(HotplugHandler *hotplug_dev,
+                                   DeviceState *dev, Error **errp)
+{
+    error_setg(errp, "acpi: device unplug for not supported device"
+               " type: %s", object_get_typename(OBJECT(dev)));
+}
+
 static void piix4_update_bus_hotplug(PCIBus *pci_bus, void *opaque)
 {
     PIIX4PMState *s = opaque;
@@ -609,6 +616,7 @@ static void piix4_pm_class_init(ObjectClass *klass, void *data)
     dc->hotpluggable = false;
     hc->plug = piix4_device_plug_cb;
     hc->unplug_request = piix4_device_unplug_request_cb;
+    hc->unplug = piix4_device_unplug_cb;
     adevc->ospm_status = piix4_ospm_status;
 }
 
