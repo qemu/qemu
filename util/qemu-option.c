@@ -230,7 +230,7 @@ bool has_help_option(const char *param)
     }
 
 out:
-    free(buf);
+    g_free(buf);
     return result;
 }
 
@@ -255,7 +255,7 @@ bool is_valid_option_list(const char *param)
     }
 
 out:
-    free(buf);
+    g_free(buf);
     return result;
 }
 
