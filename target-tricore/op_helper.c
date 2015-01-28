@@ -443,13 +443,28 @@ target_ulong helper_msub32_ssov(CPUTriCoreState *env, target_ulong r1,
 target_ulong helper_msub32_suov(CPUTriCoreState *env, target_ulong r1,
                                 target_ulong r2, target_ulong r3)
 {
-    int64_t t1 = extract64(r1, 0, 32);
-    int64_t t2 = extract64(r2, 0, 32);
-    int64_t t3 = extract64(r3, 0, 32);
-    int64_t result;
+    uint64_t t1 = extract64(r1, 0, 32);
+    uint64_t t2 = extract64(r2, 0, 32);
+    uint64_t t3 = extract64(r3, 0, 32);
+    uint64_t result;
+    uint64_t mul;
 
-    result = t2 - (t1 * t3);
-    return suov32_neg(env, result);
+    mul = (t1 * t3);
+    result = t2 - mul;
+
+    env->PSW_USB_AV = result ^ result * 2u;
+    env->PSW_USB_SAV |= env->PSW_USB_AV;
+    /* we calculate ovf by hand here, because the multiplication can overflow on
+       the host, which would give false results if we compare to less than
+       zero */
+    if (mul > t2) {
+        env->PSW_USB_V = (1 << 31);
+        env->PSW_USB_SV = (1 << 31);
+        result = 0;
+    } else {
+        env->PSW_USB_V = 0;
+    }
+    return result;
 }
 
 uint64_t helper_msub64_ssov(CPUTriCoreState *env, target_ulong r1,
