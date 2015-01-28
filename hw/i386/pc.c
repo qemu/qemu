@@ -1686,6 +1686,13 @@ static void pc_machine_device_unplug_request_cb(HotplugHandler *hotplug_dev,
                " type: %s", object_get_typename(OBJECT(dev)));
 }
 
+static void pc_machine_device_unplug_cb(HotplugHandler *hotplug_dev,
+                                        DeviceState *dev, Error **errp)
+{
+    error_setg(errp, "acpi: device unplug for not supported device"
+               " type: %s", object_get_typename(OBJECT(dev)));
+}
+
 static HotplugHandler *pc_get_hotpug_handler(MachineState *machine,
                                              DeviceState *dev)
 {
@@ -1816,6 +1823,7 @@ static void pc_machine_class_init(ObjectClass *oc, void *data)
     mc->get_hotplug_handler = pc_get_hotpug_handler;
     hc->plug = pc_machine_device_plug_cb;
     hc->unplug_request = pc_machine_device_unplug_request_cb;
+    hc->unplug = pc_machine_device_unplug_cb;
 }
 
 static const TypeInfo pc_machine_info = {
