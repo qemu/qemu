@@ -610,8 +610,9 @@ static void ich9_device_plug_cb(HotplugHandler *hotplug_dev,
 static void ich9_device_unplug_request_cb(HotplugHandler *hotplug_dev,
                                           DeviceState *dev, Error **errp)
 {
-    error_setg(errp, "acpi: device unplug request for not supported device"
-               " type: %s", object_get_typename(OBJECT(dev)));
+    ICH9LPCState *lpc = ICH9_LPC_DEVICE(hotplug_dev);
+
+    ich9_pm_device_unplug_request_cb(&lpc->pm, dev, errp);
 }
 
 static bool ich9_rst_cnt_needed(void *opaque)
