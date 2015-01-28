@@ -699,8 +699,10 @@ static void build_pci_bus_end(PCIBus *bus, void *bus_state)
     /*
      * Skip bridge subtree creation if bridge hotplug is disabled
      * to make acpi tables compatible with legacy machine types.
+     * Skip creation for hotplugged bridges as well.
      */
-    if (!child->pcihp_bridge_en && bus->parent_dev) {
+    if (bus->parent_dev && (!child->pcihp_bridge_en ||
+                            DEVICE(bus->parent_dev)->hotplugged)) {
         build_free_array(bus_table);
         build_pci_bus_state_cleanup(child);
         g_free(child);
@@ -757,8 +759,10 @@ static void build_pci_bus_end(PCIBus *bus, void *bus_state)
         /* When hotplug for bridges is enabled, bridges are
          * described in ACPI separately (see build_pci_bus_end).
          * In this case they aren't themselves hot-pluggable.
+         * Hotplugged bridges *are* hot-pluggable.
          */
-        bridge_in_acpi = pc->is_bridge && child->pcihp_bridge_en;
+        bridge_in_acpi = pc->is_bridge && child->pcihp_bridge_en &&
+         !DEVICE(pdev)->hotplugged;
 
         if (pc->class_id == PCI_CLASS_BRIDGE_ISA || bridge_in_acpi) {
             set_bit(slot, slot_device_system);
