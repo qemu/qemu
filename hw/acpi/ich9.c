@@ -404,6 +404,13 @@ void ich9_pm_device_unplug_request_cb(ICH9LPCPMRegs *pm, DeviceState *dev,
                " type: %s", object_get_typename(OBJECT(dev)));
 }
 
+void ich9_pm_device_unplug_cb(ICH9LPCPMRegs *pm, DeviceState *dev,
+                              Error **errp)
+{
+    error_setg(errp, "acpi: device unplug for not supported device"
+               " type: %s", object_get_typename(OBJECT(dev)));
+}
+
 void ich9_pm_ospm_status(AcpiDeviceIf *adev, ACPIOSTInfoList ***list)
 {
     ICH9LPCState *s = ICH9_LPC_DEVICE(adev);
