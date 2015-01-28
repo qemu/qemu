@@ -61,8 +61,7 @@ static void align_clocks(SyncClocks *sc, const CPUState *cpu)
         sleep_delay.tv_sec = sc->diff_clk / 1000000000LL;
         sleep_delay.tv_nsec = sc->diff_clk % 1000000000LL;
         if (nanosleep(&sleep_delay, &rem_delay) < 0) {
-            sc->diff_clk -= (sleep_delay.tv_sec - rem_delay.tv_sec) * 1000000000LL;
-            sc->diff_clk -= sleep_delay.tv_nsec - rem_delay.tv_nsec;
+            sc->diff_clk = rem_delay.tv_sec * 1000000000LL + rem_delay.tv_nsec;
         } else {
             sc->diff_clk = 0;
         }
