@@ -2693,29 +2693,27 @@ static void set_memory_options(uint64_t *ram_slots, ram_addr_t *maxram_size)
         uint64_t slots;
 
         sz = qemu_opt_get_size(opts, "maxmem", 0);
-        if (sz < ram_size) {
-            error_report("invalid -m option value: maxmem "
-                    "(0x%" PRIx64 ") <= initial memory (0x"
-                    RAM_ADDR_FMT ")", sz, ram_size);
-            exit(EXIT_FAILURE);
-        }
-
         slots = qemu_opt_get_number(opts, "slots", 0);
-        if ((sz > ram_size) && !slots) {
-            error_report("invalid -m option value: maxmem "
-                    "(0x%" PRIx64 ") more than initial memory (0x"
-                    RAM_ADDR_FMT ") but no hotplug slots where "
-                    "specified", sz, ram_size);
+        if (sz < ram_size) {
+            error_report("invalid value of -m option maxmem: "
+                         "maximum memory size (0x%" PRIx64 ") must be at least "
+                         "the initial memory size (0x" RAM_ADDR_FMT ")",
+                         sz, ram_size);
+            exit(EXIT_FAILURE);
+        } else if (sz > ram_size) {
+            if (!slots) {
+                error_report("invalid value of -m option: maxmem was "
+                             "specified, but no hotplug slots were specified");
+                exit(EXIT_FAILURE);
+            }
+        } else if (slots) {
+            error_report("invalid value of -m option maxmem: "
+                         "memory slots were specified but maximum memory size "
+                         "(0x%" PRIx64 ") is equal to the initial memory size "
+                         "(0x" RAM_ADDR_FMT ")", sz, ram_size);
             exit(EXIT_FAILURE);
         }
 
-        if ((sz <= ram_size) && slots) {
-            error_report("invalid -m option value:  %"
-                    PRIu64 " hotplug slots where specified but "
-                    "maxmem (0x%" PRIx64 ") <= initial memory (0x"
-                    RAM_ADDR_FMT ")", slots, sz, ram_size);
-            exit(EXIT_FAILURE);
-        }
         *maxram_size = sz;
         *ram_slots = slots;
     } else if ((!maxmem_str && slots_str) ||
