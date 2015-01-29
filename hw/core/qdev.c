@@ -818,6 +818,13 @@ static char *qdev_get_fw_dev_path_from_handler(BusState *bus, DeviceState *dev)
     return d;
 }
 
+char *qdev_get_own_fw_dev_path_from_handler(BusState *bus, DeviceState *dev)
+{
+    Object *obj = OBJECT(dev);
+
+    return fw_path_provider_try_get_dev_path(obj, bus, dev);
+}
+
 static int qdev_get_fw_dev_path_helper(DeviceState *dev, char *p, int size)
 {
     int l = 0;

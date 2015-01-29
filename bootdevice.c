@@ -210,7 +210,9 @@ char *get_boot_devices_list(size_t *size, bool ignore_suffixes)
     char *list = NULL;
 
     QTAILQ_FOREACH(i, &fw_boot_order, link) {
-        char *devpath = NULL, *bootpath;
+        char *devpath = NULL,  *suffix = NULL;
+        char *bootpath;
+        char *d;
         size_t len;
 
         if (i->dev) {
@@ -218,20 +220,21 @@ char *get_boot_devices_list(size_t *size, bool ignore_suffixes)
             assert(devpath);
         }
 
-        if (i->suffix && !ignore_suffixes && devpath) {
-            size_t bootpathlen = strlen(devpath) + strlen(i->suffix) + 1;
-
-            bootpath = g_malloc(bootpathlen);
-            snprintf(bootpath, bootpathlen, "%s%s", devpath, i->suffix);
-            g_free(devpath);
-        } else if (devpath) {
-            bootpath = devpath;
-        } else if (!ignore_suffixes) {
-            assert(i->suffix);
-            bootpath = g_strdup(i->suffix);
-        } else {
-            bootpath = g_strdup("");
+        if (!ignore_suffixes) {
+            d = qdev_get_own_fw_dev_path_from_handler(i->dev->parent_bus, i->dev);
+            if (d) {
+                assert(!i->suffix);
+                suffix = d;
+            } else {
+                suffix = g_strdup(i->suffix);
+            }
         }
+
+        bootpath = g_strdup_printf("%s%s",
+                                   devpath ? devpath : "",
+                                   suffix ? suffix : "");
+        g_free(devpath);
+        g_free(suffix);
 
         if (total) {
             list[total-1] = '\n';
