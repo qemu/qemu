@@ -1245,6 +1245,13 @@ FWCfgState *pc_memory_init(MachineState *machine,
             exit(EXIT_FAILURE);
         }
 
+        if (QEMU_ALIGN_UP(machine->maxram_size,
+                          TARGET_PAGE_SIZE) != machine->maxram_size) {
+            error_report("maximum memory size must by aligned to multiple of "
+                         "%d bytes", TARGET_PAGE_SIZE);
+            exit(EXIT_FAILURE);
+        }
+
         pcms->hotplug_memory_base =
             ROUND_UP(0x100000000ULL + above_4g_mem_size, 1ULL << 30);
 
