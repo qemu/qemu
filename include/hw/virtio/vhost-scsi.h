@@ -60,6 +60,7 @@ typedef struct VHostSCSI {
     Error *migration_blocker;
 
     struct vhost_dev dev;
+    int32_t bootindex;
 } VHostSCSI;
 
 #define DEFINE_VHOST_SCSI_PROPERTIES(_state, _conf_field) \

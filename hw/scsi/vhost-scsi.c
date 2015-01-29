@@ -290,11 +290,20 @@ static void vhost_scsi_class_init(ObjectClass *klass, void *data)
     vdc->set_status = vhost_scsi_set_status;
 }
 
+static void vhost_scsi_instance_init(Object *obj)
+{
+    VHostSCSI *dev = VHOST_SCSI(obj);
+
+    device_add_bootindex_property(obj, &dev->bootindex, "bootindex", NULL,
+                                  DEVICE(dev), NULL);
+}
+
 static const TypeInfo vhost_scsi_info = {
     .name = TYPE_VHOST_SCSI,
     .parent = TYPE_VIRTIO_SCSI_COMMON,
     .instance_size = sizeof(VHostSCSI),
     .class_init = vhost_scsi_class_init,
+    .instance_init = vhost_scsi_instance_init,
 };
 
 static void virtio_register_types(void)
