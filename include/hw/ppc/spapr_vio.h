@@ -64,6 +64,8 @@ struct VIOsPAPRDevice {
     target_ulong signal_state;
     VIOsPAPR_CRQ crq;
     AddressSpace as;
+    MemoryRegion mrroot;
+    MemoryRegion mrbypass;
     sPAPRTCETable *tcet;
 };
 
@@ -138,5 +140,7 @@ extern const VMStateDescription vmstate_spapr_vio;
 
 #define VMSTATE_SPAPR_VIO(_f, _s) \
     VMSTATE_STRUCT(_f, _s, 0, vmstate_spapr_vio, VIOsPAPRDevice)
+
+void spapr_vio_set_bypass(VIOsPAPRDevice *dev, bool bypass);
 
 #endif /* _HW_SPAPR_VIO_H */

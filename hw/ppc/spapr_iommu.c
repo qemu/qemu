@@ -25,6 +25,7 @@
 #include "trace.h"
 
 #include "hw/ppc/spapr.h"
+#include "hw/ppc/spapr_vio.h"
 
 #include <libfdt.h>
 
@@ -73,9 +74,7 @@ static IOMMUTLBEntry spapr_tce_translate_iommu(MemoryRegion *iommu, hwaddr addr,
         .perm = IOMMU_NONE,
     };
 
-    if (tcet->bypass) {
-        ret.perm = IOMMU_RW;
-    } else if ((addr >> tcet->page_shift) < tcet->nb_table) {
+    if ((addr >> tcet->page_shift) < tcet->nb_table) {
         /* Check if we are in bound */
         hwaddr page_mask = IOMMU_PAGE_MASK(tcet->page_shift);
 
@@ -91,10 +90,22 @@ static IOMMUTLBEntry spapr_tce_translate_iommu(MemoryRegion *iommu, hwaddr addr,
     return ret;
 }
 
+static int spapr_tce_table_post_load(void *opaque, int version_id)
+{
+    sPAPRTCETable *tcet = SPAPR_TCE_TABLE(opaque);
+
+    if (tcet->vdev) {
+        spapr_vio_set_bypass(tcet->vdev, tcet->bypass);
+    }
+
+    return 0;
+}
+
 static const VMStateDescription vmstate_spapr_tce_table = {
     .name = "spapr_iommu",
     .version_id = 2,
     .minimum_version_id = 2,
+    .post_load = spapr_tce_table_post_load,
     .fields      = (VMStateField []) {
         /* Sanity check */
         VMSTATE_UINT32_EQUAL(liobn, sPAPRTCETable),
@@ -132,7 +143,8 @@ static int spapr_tce_table_realize(DeviceState *dev)
     trace_spapr_iommu_new_table(tcet->liobn, tcet, tcet->table, tcet->fd);
 
     memory_region_init_iommu(&tcet->iommu, OBJECT(dev), &spapr_iommu_ops,
-                             "iommu-spapr", ram_size);
+                             "iommu-spapr",
+                             (uint64_t)tcet->nb_table << tcet->page_shift);
 
     QLIST_INSERT_HEAD(&spapr_tce_tables, tcet, list);
 
@@ -192,17 +204,11 @@ MemoryRegion *spapr_tce_get_iommu(sPAPRTCETable *tcet)
     return &tcet->iommu;
 }
 
-void spapr_tce_set_bypass(sPAPRTCETable *tcet, bool bypass)
-{
-    tcet->bypass = bypass;
-}
-
 static void spapr_tce_reset(DeviceState *dev)
 {
     sPAPRTCETable *tcet = SPAPR_TCE_TABLE(dev);
     size_t table_size = tcet->nb_table * sizeof(uint64_t);
 
-    tcet->bypass = false;
     memset(tcet->table, 0, table_size);
 }
 

@@ -463,6 +463,7 @@ struct sPAPRTCETable {
     bool vfio_accel;
     int fd;
     MemoryRegion iommu;
+    struct VIOsPAPRDevice *vdev; /* for @bypass migration compatibility only */
     QLIST_ENTRY(sPAPRTCETable) list;
 };
 
@@ -475,7 +476,6 @@ sPAPRTCETable *spapr_tce_new_table(DeviceState *owner, uint32_t liobn,
                                    uint32_t nb_table,
                                    bool vfio_accel);
 MemoryRegion *spapr_tce_get_iommu(sPAPRTCETable *tcet);
-void spapr_tce_set_bypass(sPAPRTCETable *tcet, bool bypass);
 int spapr_dma_dt(void *fdt, int node_off, const char *propname,
                  uint32_t liobn, uint64_t window, uint32_t size);
 int spapr_tcet_dma_dt(void *fdt, int node_off, const char *propname,
