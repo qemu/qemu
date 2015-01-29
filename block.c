@@ -3713,6 +3713,35 @@ int bdrv_set_key(BlockDriverState *bs, const char *key)
     return ret;
 }
 
+/*
+ * Provide an encryption key for @bs.
+ * If @key is non-null:
+ *     If @bs is not encrypted, fail.
+ *     Else if the key is invalid, fail.
+ *     Else set @bs's key to @key, replacing the existing key, if any.
+ * If @key is null:
+ *     If @bs is encrypted and still lacks a key, fail.
+ *     Else do nothing.
+ * On failure, store an error object through @errp if non-null.
+ */
+void bdrv_add_key(BlockDriverState *bs, const char *key, Error **errp)
+{
+    if (key) {
+        if (!bdrv_is_encrypted(bs)) {
+            error_set(errp, QERR_DEVICE_NOT_ENCRYPTED,
+                      bdrv_get_device_name(bs));
+        } else if (bdrv_set_key(bs, key) < 0) {
+            error_set(errp, QERR_INVALID_PASSWORD);
+        }
+    } else {
+        if (bdrv_key_required(bs)) {
+            error_set(errp, QERR_DEVICE_ENCRYPTED,
+                      bdrv_get_device_name(bs),
+                      bdrv_get_encrypted_filename(bs));
+        }
+    }
+}
+
 const char *bdrv_get_format_name(BlockDriverState *bs)
 {
     return bs->drv ? bs->drv->format_name : NULL;

@@ -1793,7 +1793,6 @@ void qmp_block_passwd(bool has_device, const char *device,
     Error *local_err = NULL;
     BlockDriverState *bs;
     AioContext *aio_context;
-    int err;
 
     bs = bdrv_lookup_bs(has_device ? device : NULL,
                         has_node_name ? node_name : NULL,
@@ -1806,16 +1805,8 @@ void qmp_block_passwd(bool has_device, const char *device,
     aio_context = bdrv_get_aio_context(bs);
     aio_context_acquire(aio_context);
 
-    err = bdrv_set_key(bs, password);
-    if (err == -EINVAL) {
-        error_set(errp, QERR_DEVICE_NOT_ENCRYPTED, bdrv_get_device_name(bs));
-        goto out;
-    } else if (err < 0) {
-        error_set(errp, QERR_INVALID_PASSWORD);
-        goto out;
-    }
+    bdrv_add_key(bs, password, errp);
 
-out:
     aio_context_release(aio_context);
 }
 
@@ -1833,18 +1824,7 @@ static void qmp_bdrv_open_encrypted(BlockDriverState *bs, const char *filename,
         return;
     }
 
-    if (bdrv_key_required(bs)) {
-        if (password) {
-            if (bdrv_set_key(bs, password) < 0) {
-                error_set(errp, QERR_INVALID_PASSWORD);
-            }
-        } else {
-            error_set(errp, QERR_DEVICE_ENCRYPTED, bdrv_get_device_name(bs),
-                      bdrv_get_encrypted_filename(bs));
-        }
-    } else if (password) {
-        error_set(errp, QERR_DEVICE_NOT_ENCRYPTED, bdrv_get_device_name(bs));
-    }
+    bdrv_add_key(bs, password, errp);
 }
 
 void qmp_change_blockdev(const char *device, const char *filename,

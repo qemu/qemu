@@ -154,6 +154,7 @@ SpiceInfo *qmp_query_spice(Error **errp)
 
 void qmp_cont(Error **errp)
 {
+    Error *local_err = NULL;
     BlockDriverState *bs;
 
     if (runstate_needs_reset()) {
@@ -167,10 +168,9 @@ void qmp_cont(Error **errp)
         bdrv_iostatus_reset(bs);
     }
     for (bs = bdrv_next(NULL); bs; bs = bdrv_next(bs)) {
-        if (bdrv_key_required(bs)) {
-            error_set(errp, QERR_DEVICE_ENCRYPTED,
-                      bdrv_get_device_name(bs),
-                      bdrv_get_encrypted_filename(bs));
+        bdrv_add_key(bs, NULL, &local_err);
+        if (local_err) {
+            error_propagate(errp, local_err);
             return;
         }
     }
