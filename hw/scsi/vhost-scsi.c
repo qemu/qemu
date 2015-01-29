@@ -251,6 +251,12 @@ static void vhost_scsi_realize(DeviceState *dev, Error **errp)
         return;
     }
 
+    /* At present, channel and lun both are 0 for bootable vhost-scsi disk */
+    s->channel = 0;
+    s->lun = 0;
+    /* Note: we can also get the minimum tpgt from kernel */
+    s->target = vs->conf.boot_tpgt;
+
     error_setg(&s->migration_blocker,
             "vhost-scsi does not support migration");
     migrate_add_blocker(s->migration_blocker);
