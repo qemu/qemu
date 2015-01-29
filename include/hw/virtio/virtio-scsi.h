@@ -153,6 +153,7 @@ struct VirtIOSCSIConf {
     uint32_t cmd_per_lun;
     char *vhostfd;
     char *wwpn;
+    uint32_t boot_tpgt;
     IOThread *iothread;
 };
 
