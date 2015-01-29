@@ -898,9 +898,8 @@ static void balloon_ccw_stats_set_poll_interval(Object *obj, struct Visitor *v,
 static void virtio_ccw_balloon_instance_init(Object *obj)
 {
     VirtIOBalloonCcw *dev = VIRTIO_BALLOON_CCW(obj);
-    object_initialize(&dev->vdev, sizeof(dev->vdev), TYPE_VIRTIO_BALLOON);
-    object_property_add_child(obj, "virtio-backend", OBJECT(&dev->vdev), NULL);
-    object_unref(OBJECT(&dev->vdev));
+    virtio_instance_init_common(obj, &dev->vdev, sizeof(dev->vdev),
+                                TYPE_VIRTIO_BALLOON);
     object_property_add(obj, "guest-stats", "guest statistics",
                         balloon_ccw_stats_get_all, NULL, NULL, dev, NULL);
 
