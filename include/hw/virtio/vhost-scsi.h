@@ -61,6 +61,9 @@ typedef struct VHostSCSI {
 
     struct vhost_dev dev;
     int32_t bootindex;
+    int channel;
+    int target;
+    int lun;
 } VHostSCSI;
 
 #define DEFINE_VHOST_SCSI_PROPERTIES(_state, _conf_field) \
