@@ -2674,7 +2674,8 @@ static BlockJob *find_block_job(const char *device, AioContext **aio_context,
     return bs->job;
 
 notfound:
-    error_set(errp, QERR_BLOCK_JOB_NOT_ACTIVE, device);
+    error_set(errp, ERROR_CLASS_DEVICE_NOT_ACTIVE,
+              "No active block job on device '%s'", device);
     *aio_context = NULL;
     return NULL;
 }

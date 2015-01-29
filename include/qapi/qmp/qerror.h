@@ -37,9 +37,6 @@ void qerror_report_err(Error *err);
 #define QERR_BASE_NOT_FOUND \
     ERROR_CLASS_GENERIC_ERROR, "Base '%s' not found"
 
-#define QERR_BLOCK_JOB_NOT_ACTIVE \
-    ERROR_CLASS_DEVICE_NOT_ACTIVE, "No active block job on device '%s'"
-
 #define QERR_BLOCK_JOB_NOT_READY \
     ERROR_CLASS_GENERIC_ERROR, "The active block job for device '%s' cannot be completed"
 
