@@ -286,7 +286,7 @@ static GArray *build_alloc_method(const char *name, uint8_t arg_count)
 {
     GArray *method = build_alloc_array();
 
-    build_append_nameseg(method, "%s", name);
+    build_append_namestring(method, "%s", name);
     build_append_byte(method, arg_count); /* MethodFlags: ArgCount */
 
     return method;
@@ -578,7 +578,7 @@ build_append_notify_method(GArray *device, const char *name,
 
     for (i = 0; i < count; i++) {
         GArray *target = build_alloc_array();
-        build_append_nameseg(target, format, i);
+        build_append_namestring(target, format, i);
         assert(i < 256); /* Fits in 1 byte */
         build_append_notify_target_ifequal(method, target, i, 1);
         build_free_array(target);
@@ -709,24 +709,24 @@ static void build_pci_bus_end(PCIBus *bus, void *bus_state)
 
     if (bus->parent_dev) {
         op = 0x82; /* DeviceOp */
-        build_append_nameseg(bus_table, "S%.02X",
+        build_append_namestring(bus_table, "S%.02X",
                              bus->parent_dev->devfn);
         build_append_byte(bus_table, 0x08); /* NameOp */
-        build_append_nameseg(bus_table, "_SUN");
+        build_append_namestring(bus_table, "_SUN");
         build_append_value(bus_table, PCI_SLOT(bus->parent_dev->devfn), 1);
         build_append_byte(bus_table, 0x08); /* NameOp */
-        build_append_nameseg(bus_table, "_ADR");
+        build_append_namestring(bus_table, "_ADR");
         build_append_value(bus_table, (PCI_SLOT(bus->parent_dev->devfn) << 16) |
                            PCI_FUNC(bus->parent_dev->devfn), 4);
     } else {
         op = 0x10; /* ScopeOp */;
-        build_append_nameseg(bus_table, "PCI0");
+        build_append_namestring(bus_table, "PCI0");
     }
 
     bsel = object_property_get_qobject(OBJECT(bus), ACPI_PCIHP_PROP_BSEL, NULL);
     if (bsel) {
         build_append_byte(bus_table, 0x08); /* NameOp */
-        build_append_nameseg(bus_table, "BSEL");
+        build_append_namestring(bus_table, "BSEL");
         build_append_int(bus_table, qint_get_int(qobject_to_qint(bsel)));
         memset(slot_hotplug_enable, 0xff, sizeof slot_hotplug_enable);
     } else {
@@ -829,7 +829,7 @@ static void build_pci_bus_end(PCIBus *bus, void *bus_state)
             build_append_int(notify, 0x1U << i);
             build_append_byte(notify, 0x00); /* NullName */
             build_append_byte(notify, 0x86); /* NotifyOp */
-            build_append_nameseg(notify, "S%.02X", PCI_DEVFN(i, 0));
+            build_append_namestring(notify, "S%.02X", PCI_DEVFN(i, 0));
             build_append_byte(notify, 0x69); /* Arg1Op */
 
             /* Pack it up */
@@ -853,12 +853,12 @@ static void build_pci_bus_end(PCIBus *bus, void *bus_state)
         if (bsel) {
             build_append_byte(method, 0x70); /* StoreOp */
             build_append_int(method, qint_get_int(qobject_to_qint(bsel)));
-            build_append_nameseg(method, "BNUM");
-            build_append_nameseg(method, "DVNT");
-            build_append_nameseg(method, "PCIU");
+            build_append_namestring(method, "BNUM");
+            build_append_namestring(method, "DVNT");
+            build_append_namestring(method, "PCIU");
             build_append_int(method, 1); /* Device Check */
-            build_append_nameseg(method, "DVNT");
-            build_append_nameseg(method, "PCID");
+            build_append_namestring(method, "DVNT");
+            build_append_namestring(method, "PCID");
             build_append_int(method, 3); /* Eject Request */
         }
 
@@ -884,11 +884,8 @@ static void build_pci_bus_end(PCIBus *bus, void *bus_state)
          * At the moment this is not needed for root as we have a single root.
          */
         if (bus->parent_dev) {
-            build_append_byte(parent->notify_table, '^'); /* ParentPrefixChar */
-            build_append_byte(parent->notify_table, 0x2E); /* DualNamePrefix */
-            build_append_nameseg(parent->notify_table, "S%.02X",
-                                 bus->parent_dev->devfn);
-            build_append_nameseg(parent->notify_table, "PCNT");
+            build_append_namestring(parent->notify_table, "^PCNT.S%.02X",
+                                    bus->parent_dev->devfn);
         }
     }
 
@@ -956,7 +953,7 @@ build_ssdt(GArray *table_data, GArray *linker,
         GArray *sb_scope = build_alloc_array();
         uint8_t op = 0x10; /* ScopeOp */
 
-        build_append_nameseg(sb_scope, "_SB");
+        build_append_namestring(sb_scope, "_SB");
 
         /* build Processor object for each processor */
         for (i = 0; i < acpi_cpus; i++) {
@@ -976,7 +973,7 @@ build_ssdt(GArray *table_data, GArray *linker,
 
         /* build "Name(CPON, Package() { One, One, ..., Zero, Zero, ... })" */
         build_append_byte(sb_scope, 0x08); /* NameOp */
-        build_append_nameseg(sb_scope, "CPON");
+        build_append_namestring(sb_scope, "CPON");
 
         {
             GArray *package = build_alloc_array();

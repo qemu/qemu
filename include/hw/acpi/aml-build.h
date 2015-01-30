@@ -12,7 +12,7 @@ void build_append_byte(GArray *array, uint8_t val);
 void build_append_array(GArray *array, GArray *val);
 
 void GCC_FMT_ATTR(2, 3)
-build_append_nameseg(GArray *array, const char *format, ...);
+build_append_namestring(GArray *array, const char *format, ...);
 
 void build_prepend_package_length(GArray *package, unsigned min_bytes);
 void build_package(GArray *package, uint8_t op, unsigned min_bytes);

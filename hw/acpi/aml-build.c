@@ -23,6 +23,7 @@
 #include <stdarg.h>
 #include <assert.h>
 #include <stdbool.h>
+#include <string.h>
 #include "hw/acpi/aml-build.h"
 
 GArray *build_alloc_array(void)
@@ -52,23 +53,100 @@ void build_append_array(GArray *array, GArray *val)
 
 #define ACPI_NAMESEG_LEN 4
 
-void GCC_FMT_ATTR(2, 3)
-build_append_nameseg(GArray *array, const char *format, ...)
+static void
+build_append_nameseg(GArray *array, const char *seg)
 {
     /* It would be nicer to use g_string_vprintf but it's only there in 2.22 */
-    char s[] = "XXXX";
     int len;
-    va_list args;
 
-    va_start(args, format);
-    len = vsnprintf(s, sizeof s, format, args);
-    va_end(args);
-
+    len = strlen(seg);
     assert(len <= ACPI_NAMESEG_LEN);
 
-    g_array_append_vals(array, s, len);
+    g_array_append_vals(array, seg, len);
     /* Pad up to ACPI_NAMESEG_LEN characters if necessary. */
     g_array_append_vals(array, "____", ACPI_NAMESEG_LEN - len);
+}
+
+static void
+build_append_namestringv(GArray *array, const char *format, va_list ap)
+{
+    /* It would be nicer to use g_string_vprintf but it's only there in 2.22 */
+    char *s;
+    int len;
+    va_list va_len;
+    char **segs;
+    char **segs_iter;
+    int seg_count = 0;
+
+    va_copy(va_len, ap);
+    len = vsnprintf(NULL, 0, format, va_len);
+    va_end(va_len);
+    len += 1;
+    s = g_new(typeof(*s), len);
+
+    len = vsnprintf(s, len, format, ap);
+
+    segs = g_strsplit(s, ".", 0);
+    g_free(s);
+
+    /* count segments */
+    segs_iter = segs;
+    while (*segs_iter) {
+        ++segs_iter;
+        ++seg_count;
+    }
+    /*
+     * ACPI 5.0 spec: 20.2.2 Name Objects Encoding:
+     * "SegCount can be from 1 to 255"
+     */
+    assert(seg_count > 0 && seg_count <= 255);
+
+    /* handle RootPath || PrefixPath */
+    s = *segs;
+    while (*s == '\\' || *s == '^') {
+        build_append_byte(array, *s);
+        ++s;
+    }
+
+    switch (seg_count) {
+    case 1:
+        if (!*s) {
+            build_append_byte(array, 0x0); /* NullName */
+        } else {
+            build_append_nameseg(array, s);
+        }
+        break;
+
+    case 2:
+        build_append_byte(array, 0x2E); /* DualNamePrefix */
+        build_append_nameseg(array, s);
+        build_append_nameseg(array, segs[1]);
+        break;
+    default:
+        build_append_byte(array, 0x2F); /* MultiNamePrefix */
+        build_append_byte(array, seg_count);
+
+        /* handle the 1st segment manually due to prefix/root path */
+        build_append_nameseg(array, s);
+
+        /* add the rest of segments */
+        segs_iter = segs + 1;
+        while (*segs_iter) {
+            build_append_nameseg(array, *segs_iter);
+            ++segs_iter;
+        }
+        break;
+    }
+    g_strfreev(segs);
+}
+
+void build_append_namestring(GArray *array, const char *format, ...)
+{
+    va_list ap;
+
+    va_start(ap, format);
+    build_append_namestringv(array, format, ap);
+    va_end(ap);
 }
 
 /* 5.4 Definition Block Encoding */
