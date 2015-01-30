@@ -3318,8 +3318,8 @@ void vnc_display_open(const char *id, Error **errp)
     QemuOpts *opts = qemu_opts_find(&qemu_vnc_opts, id);
     const char *share, *device_id;
     QemuConsole *con;
-    int password = 0;
-    int reverse = 0;
+    bool password = false;
+    bool reverse = false;
     const char *vnc;
     const char *has_to;
     char *display, *to = NULL;
@@ -3329,11 +3329,11 @@ void vnc_display_open(const char *id, Error **errp)
     const char *websocket;
 #endif
 #ifdef CONFIG_VNC_TLS
-    int tls = 0, x509 = 0;
+    bool tls = false, x509 = false;
     const char *path;
 #endif
 #ifdef CONFIG_VNC_SASL
-    int sasl = 0;
+    bool sasl = false;
     int saslErr;
 #endif
 #if defined(CONFIG_VNC_TLS) || defined(CONFIG_VNC_SASL)
@@ -3385,7 +3385,7 @@ void vnc_display_open(const char *id, Error **errp)
     tls  = qemu_opt_get_bool(opts, "tls", false);
     path = qemu_opt_get(opts, "x509");
     if (path) {
-        x509 = 1;
+        x509 = true;
         vs->tls.x509verify = qemu_opt_get_bool(opts, "x509verify", false);
         if (vnc_tls_set_x509_creds_dir(vs, path) < 0) {
             error_setg(errp, "Failed to find x509 certificates/keys in %s",
