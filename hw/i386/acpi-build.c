@@ -296,7 +296,7 @@ static void build_append_and_cleanup_method(GArray *device, GArray *method)
 {
     uint8_t op = 0x14; /* MethodOp */
 
-    build_package(method, op, 0);
+    build_package(method, op);
 
     build_append_array(device, method);
     build_free_array(method);
@@ -317,7 +317,7 @@ static void build_append_notify_target_ifequal(GArray *method,
     build_append_byte(notify, 0x69); /* Arg1Op */
 
     /* Pack it up */
-    build_package(notify, op, 1);
+    build_package(notify, op);
 
     build_append_array(method, notify);
 
@@ -833,7 +833,7 @@ static void build_pci_bus_end(PCIBus *bus, void *bus_state)
             build_append_byte(notify, 0x69); /* Arg1Op */
 
             /* Pack it up */
-            build_package(notify, op, 0);
+            build_package(notify, op);
 
             build_append_array(method, notify);
 
@@ -874,7 +874,7 @@ static void build_pci_bus_end(PCIBus *bus, void *bus_state)
         if (bus->parent_dev) {
             build_extop_package(bus_table, op);
         } else {
-            build_package(bus_table, op, 0);
+            build_package(bus_table, op);
         }
 
         /* Append our bus description to parent table */
@@ -997,7 +997,7 @@ build_ssdt(GArray *table_data, GArray *linker,
                 build_append_byte(package, b);
             }
 
-            build_package(package, op, 2);
+            build_package(package, op);
             build_append_array(sb_scope, package);
             build_free_array(package);
         }
@@ -1045,8 +1045,7 @@ build_ssdt(GArray *table_data, GArray *linker,
             build_append_array(sb_scope, hotplug_state.device_table);
             build_pci_bus_state_cleanup(&hotplug_state);
         }
-
-        build_package(sb_scope, op, 3);
+        build_package(sb_scope, op);
         build_append_array(table_data, sb_scope);
         build_free_array(sb_scope);
     }

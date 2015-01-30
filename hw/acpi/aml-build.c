@@ -157,7 +157,7 @@ enum {
     PACKAGE_LENGTH_4BYTE_SHIFT = 20,
 };
 
-void build_prepend_package_length(GArray *package, unsigned min_bytes)
+void build_prepend_package_length(GArray *package)
 {
     uint8_t byte;
     unsigned length = package->len;
@@ -172,11 +172,6 @@ void build_prepend_package_length(GArray *package, unsigned min_bytes)
     } else {
         length_bytes = 4;
     }
-
-    /* Force length to at least min_bytes.
-     * This wastes memory but that's how bios did it.
-     */
-    length_bytes = MAX(length_bytes, min_bytes);
 
     /* PkgLength is the length of the inclusive length of the data. */
     length += length_bytes;
@@ -210,15 +205,15 @@ void build_prepend_package_length(GArray *package, unsigned min_bytes)
     build_prepend_byte(package, byte);
 }
 
-void build_package(GArray *package, uint8_t op, unsigned min_bytes)
+void build_package(GArray *package, uint8_t op)
 {
-    build_prepend_package_length(package, min_bytes);
+    build_prepend_package_length(package);
     build_prepend_byte(package, op);
 }
 
 void build_extop_package(GArray *package, uint8_t op)
 {
-    build_package(package, op, 1);
+    build_package(package, op);
     build_prepend_byte(package, 0x5B); /* ExtOpPrefix */
 }
 
@@ -262,4 +257,3 @@ void build_append_int(GArray *table, uint32_t value)
         build_append_value(table, value, 4);
     }
 }
-
