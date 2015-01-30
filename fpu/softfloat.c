@@ -144,7 +144,7 @@ static inline flag extractFloat16Sign(float16 a)
 | positive or negative integer is returned.
 *----------------------------------------------------------------------------*/
 
-static int32 roundAndPackInt32( flag zSign, uint64_t absZ STATUS_PARAM)
+static int32 roundAndPackInt32(flag zSign, uint64_t absZ, float_status *status)
 {
     int8 roundingMode;
     flag roundNearestEven;
@@ -196,7 +196,8 @@ static int32 roundAndPackInt32( flag zSign, uint64_t absZ STATUS_PARAM)
 | returned.
 *----------------------------------------------------------------------------*/
 
-static int64 roundAndPackInt64( flag zSign, uint64_t absZ0, uint64_t absZ1 STATUS_PARAM)
+static int64 roundAndPackInt64(flag zSign, uint64_t absZ0, uint64_t absZ1,
+                               float_status *status)
 {
     int8 roundingMode;
     flag roundNearestEven, increment;
@@ -251,7 +252,7 @@ static int64 roundAndPackInt64( flag zSign, uint64_t absZ0, uint64_t absZ1 STATU
 *----------------------------------------------------------------------------*/
 
 static int64 roundAndPackUint64(flag zSign, uint64_t absZ0,
-                                uint64_t absZ1 STATUS_PARAM)
+                                uint64_t absZ1, float_status *status)
 {
     int8 roundingMode;
     flag roundNearestEven, increment;
@@ -332,7 +333,7 @@ static inline flag extractFloat32Sign( float32 a )
 | If `a' is denormal and we are in flush-to-zero mode then set the
 | input-denormal exception and return zero. Otherwise just return the value.
 *----------------------------------------------------------------------------*/
-float32 float32_squash_input_denormal(float32 a STATUS_PARAM)
+float32 float32_squash_input_denormal(float32 a, float_status *status)
 {
     if (STATUS(flush_inputs_to_zero)) {
         if (extractFloat32Exp(a) == 0 && extractFloat32Frac(a) != 0) {
@@ -402,7 +403,8 @@ static inline float32 packFloat32(flag zSign, int_fast16_t zExp, uint32_t zSig)
 | Binary Floating-Point Arithmetic.
 *----------------------------------------------------------------------------*/
 
-static float32 roundAndPackFloat32(flag zSign, int_fast16_t zExp, uint32_t zSig STATUS_PARAM)
+static float32 roundAndPackFloat32(flag zSign, int_fast16_t zExp, uint32_t zSig,
+                                   float_status *status)
 {
     int8 roundingMode;
     flag roundNearestEven;
@@ -471,7 +473,8 @@ static float32 roundAndPackFloat32(flag zSign, int_fast16_t zExp, uint32_t zSig 
 *----------------------------------------------------------------------------*/
 
 static float32
- normalizeRoundAndPackFloat32(flag zSign, int_fast16_t zExp, uint32_t zSig STATUS_PARAM)
+ normalizeRoundAndPackFloat32(flag zSign, int_fast16_t zExp, uint32_t zSig,
+                              float_status *status)
 {
     int8 shiftCount;
 
@@ -517,7 +520,7 @@ static inline flag extractFloat64Sign( float64 a )
 | If `a' is denormal and we are in flush-to-zero mode then set the
 | input-denormal exception and return zero. Otherwise just return the value.
 *----------------------------------------------------------------------------*/
-float64 float64_squash_input_denormal(float64 a STATUS_PARAM)
+float64 float64_squash_input_denormal(float64 a, float_status *status)
 {
     if (STATUS(flush_inputs_to_zero)) {
         if (extractFloat64Exp(a) == 0 && extractFloat64Frac(a) != 0) {
@@ -587,7 +590,8 @@ static inline float64 packFloat64(flag zSign, int_fast16_t zExp, uint64_t zSig)
 | Binary Floating-Point Arithmetic.
 *----------------------------------------------------------------------------*/
 
-static float64 roundAndPackFloat64(flag zSign, int_fast16_t zExp, uint64_t zSig STATUS_PARAM)
+static float64 roundAndPackFloat64(flag zSign, int_fast16_t zExp, uint64_t zSig,
+                                   float_status *status)
 {
     int8 roundingMode;
     flag roundNearestEven;
@@ -655,7 +659,8 @@ static float64 roundAndPackFloat64(flag zSign, int_fast16_t zExp, uint64_t zSig 
 *----------------------------------------------------------------------------*/
 
 static float64
- normalizeRoundAndPackFloat64(flag zSign, int_fast16_t zExp, uint64_t zSig STATUS_PARAM)
+ normalizeRoundAndPackFloat64(flag zSign, int_fast16_t zExp, uint64_t zSig,
+                              float_status *status)
 {
     int8 shiftCount;
 
@@ -757,10 +762,9 @@ static inline floatx80 packFloatx80( flag zSign, int32 zExp, uint64_t zSig )
 | Floating-Point Arithmetic.
 *----------------------------------------------------------------------------*/
 
-static floatx80
- roundAndPackFloatx80(
-     int8 roundingPrecision, flag zSign, int32 zExp, uint64_t zSig0, uint64_t zSig1
- STATUS_PARAM)
+static floatx80 roundAndPackFloatx80(int8 roundingPrecision, flag zSign,
+                                     int32 zExp, uint64_t zSig0, uint64_t zSig1,
+                                     float_status *status)
 {
     int8 roundingMode;
     flag roundNearestEven, increment, isTiny;
@@ -940,10 +944,10 @@ static floatx80
 | normalized.
 *----------------------------------------------------------------------------*/
 
-static floatx80
- normalizeRoundAndPackFloatx80(
-     int8 roundingPrecision, flag zSign, int32 zExp, uint64_t zSig0, uint64_t zSig1
- STATUS_PARAM)
+static floatx80 normalizeRoundAndPackFloatx80(int8 roundingPrecision,
+                                              flag zSign, int32 zExp,
+                                              uint64_t zSig0, uint64_t zSig1,
+                                              float_status *status)
 {
     int8 shiftCount;
 
@@ -1093,9 +1097,9 @@ static inline float128
 | overflow follows the IEC/IEEE Standard for Binary Floating-Point Arithmetic.
 *----------------------------------------------------------------------------*/
 
-static float128
- roundAndPackFloat128(
-     flag zSign, int32 zExp, uint64_t zSig0, uint64_t zSig1, uint64_t zSig2 STATUS_PARAM)
+static float128 roundAndPackFloat128(flag zSign, int32 zExp,
+                                     uint64_t zSig0, uint64_t zSig1,
+                                     uint64_t zSig2, float_status *status)
 {
     int8 roundingMode;
     flag roundNearestEven, increment, isTiny;
@@ -1206,9 +1210,9 @@ static float128
 | point exponent.
 *----------------------------------------------------------------------------*/
 
-static float128
- normalizeRoundAndPackFloat128(
-     flag zSign, int32 zExp, uint64_t zSig0, uint64_t zSig1 STATUS_PARAM)
+static float128 normalizeRoundAndPackFloat128(flag zSign, int32 zExp,
+                                              uint64_t zSig0, uint64_t zSig1,
+                                              float_status *status)
 {
     int8 shiftCount;
     uint64_t zSig2;
@@ -1238,7 +1242,7 @@ static float128
 | according to the IEC/IEEE Standard for Binary Floating-Point Arithmetic.
 *----------------------------------------------------------------------------*/
 
-float32 int32_to_float32(int32_t a STATUS_PARAM)
+float32 int32_to_float32(int32_t a, float_status *status)
 {
     flag zSign;
 
@@ -1255,7 +1259,7 @@ float32 int32_to_float32(int32_t a STATUS_PARAM)
 | according to the IEC/IEEE Standard for Binary Floating-Point Arithmetic.
 *----------------------------------------------------------------------------*/
 
-float64 int32_to_float64(int32_t a STATUS_PARAM)
+float64 int32_to_float64(int32_t a, float_status *status)
 {
     flag zSign;
     uint32 absA;
@@ -1278,7 +1282,7 @@ float64 int32_to_float64(int32_t a STATUS_PARAM)
 | Arithmetic.
 *----------------------------------------------------------------------------*/
 
-floatx80 int32_to_floatx80(int32_t a STATUS_PARAM)
+floatx80 int32_to_floatx80(int32_t a, float_status *status)
 {
     flag zSign;
     uint32 absA;
@@ -1300,7 +1304,7 @@ floatx80 int32_to_floatx80(int32_t a STATUS_PARAM)
 | according to the IEC/IEEE Standard for Binary Floating-Point Arithmetic.
 *----------------------------------------------------------------------------*/
 
-float128 int32_to_float128(int32_t a STATUS_PARAM)
+float128 int32_to_float128(int32_t a, float_status *status)
 {
     flag zSign;
     uint32 absA;
@@ -1322,7 +1326,7 @@ float128 int32_to_float128(int32_t a STATUS_PARAM)
 | according to the IEC/IEEE Standard for Binary Floating-Point Arithmetic.
 *----------------------------------------------------------------------------*/
 
-float32 int64_to_float32(int64_t a STATUS_PARAM)
+float32 int64_to_float32(int64_t a, float_status *status)
 {
     flag zSign;
     uint64 absA;
@@ -1354,7 +1358,7 @@ float32 int64_to_float32(int64_t a STATUS_PARAM)
 | according to the IEC/IEEE Standard for Binary Floating-Point Arithmetic.
 *----------------------------------------------------------------------------*/
 
-float64 int64_to_float64(int64_t a STATUS_PARAM)
+float64 int64_to_float64(int64_t a, float_status *status)
 {
     flag zSign;
 
@@ -1374,7 +1378,7 @@ float64 int64_to_float64(int64_t a STATUS_PARAM)
 | Arithmetic.
 *----------------------------------------------------------------------------*/
 
-floatx80 int64_to_floatx80(int64_t a STATUS_PARAM)
+floatx80 int64_to_floatx80(int64_t a, float_status *status)
 {
     flag zSign;
     uint64 absA;
@@ -1394,7 +1398,7 @@ floatx80 int64_to_floatx80(int64_t a STATUS_PARAM)
 | according to the IEC/IEEE Standard for Binary Floating-Point Arithmetic.
 *----------------------------------------------------------------------------*/
 
-float128 int64_to_float128(int64_t a STATUS_PARAM)
+float128 int64_to_float128(int64_t a, float_status *status)
 {
     flag zSign;
     uint64 absA;
@@ -1427,7 +1431,7 @@ float128 int64_to_float128(int64_t a STATUS_PARAM)
 | according to the IEC/IEEE Standard for Binary Floating-Point Arithmetic.
 *----------------------------------------------------------------------------*/
 
-float32 uint64_to_float32(uint64_t a STATUS_PARAM)
+float32 uint64_to_float32(uint64_t a, float_status *status)
 {
     int shiftcount;
 
@@ -1462,7 +1466,7 @@ float32 uint64_to_float32(uint64_t a STATUS_PARAM)
 | according to the IEC/IEEE Standard for Binary Floating-Point Arithmetic.
 *----------------------------------------------------------------------------*/
 
-float64 uint64_to_float64(uint64_t a STATUS_PARAM)
+float64 uint64_to_float64(uint64_t a, float_status *status)
 {
     int exp = 0x43C;
     int shiftcount;
@@ -1486,7 +1490,7 @@ float64 uint64_to_float64(uint64_t a STATUS_PARAM)
 | according to the IEC/IEEE Standard for Binary Floating-Point Arithmetic.
 *----------------------------------------------------------------------------*/
 
-float128 uint64_to_float128(uint64_t a STATUS_PARAM)
+float128 uint64_to_float128(uint64_t a, float_status *status)
 {
     if (a == 0) {
         return float128_zero;
@@ -1504,7 +1508,7 @@ float128 uint64_to_float128(uint64_t a STATUS_PARAM)
 | largest integer with the same sign as `a' is returned.
 *----------------------------------------------------------------------------*/
 
-int32 float32_to_int32( float32 a STATUS_PARAM )
+int32 float32_to_int32(float32 a, float_status *status)
 {
     flag aSign;
     int_fast16_t aExp, shiftCount;
@@ -1535,7 +1539,7 @@ int32 float32_to_int32( float32 a STATUS_PARAM )
 | returned.
 *----------------------------------------------------------------------------*/
 
-int32 float32_to_int32_round_to_zero( float32 a STATUS_PARAM )
+int32 float32_to_int32_round_to_zero(float32 a, float_status *status)
 {
     flag aSign;
     int_fast16_t aExp, shiftCount;
@@ -1578,7 +1582,7 @@ int32 float32_to_int32_round_to_zero( float32 a STATUS_PARAM )
 | returned.
 *----------------------------------------------------------------------------*/
 
-int_fast16_t float32_to_int16_round_to_zero(float32 a STATUS_PARAM)
+int_fast16_t float32_to_int16_round_to_zero(float32 a, float_status *status)
 {
     flag aSign;
     int_fast16_t aExp, shiftCount;
@@ -1627,7 +1631,7 @@ int_fast16_t float32_to_int16_round_to_zero(float32 a STATUS_PARAM)
 | largest integer with the same sign as `a' is returned.
 *----------------------------------------------------------------------------*/
 
-int64 float32_to_int64( float32 a STATUS_PARAM )
+int64 float32_to_int64(float32 a, float_status *status)
 {
     flag aSign;
     int_fast16_t aExp, shiftCount;
@@ -1666,7 +1670,7 @@ int64 float32_to_int64( float32 a STATUS_PARAM )
 | raise the inexact exception flag.
 *----------------------------------------------------------------------------*/
 
-uint64 float32_to_uint64(float32 a STATUS_PARAM)
+uint64 float32_to_uint64(float32 a, float_status *status)
 {
     flag aSign;
     int_fast16_t aExp, shiftCount;
@@ -1711,7 +1715,7 @@ uint64 float32_to_uint64(float32 a STATUS_PARAM)
 | not round to zero will raise the inexact flag.
 *----------------------------------------------------------------------------*/
 
-uint64 float32_to_uint64_round_to_zero(float32 a STATUS_PARAM)
+uint64 float32_to_uint64_round_to_zero(float32 a, float_status *status)
 {
     signed char current_rounding_mode = STATUS(float_rounding_mode);
     set_float_rounding_mode(float_round_to_zero STATUS_VAR);
@@ -1730,7 +1734,7 @@ uint64 float32_to_uint64_round_to_zero(float32 a STATUS_PARAM)
 | returned.
 *----------------------------------------------------------------------------*/
 
-int64 float32_to_int64_round_to_zero( float32 a STATUS_PARAM )
+int64 float32_to_int64_round_to_zero(float32 a, float_status *status)
 {
     flag aSign;
     int_fast16_t aExp, shiftCount;
@@ -1774,7 +1778,7 @@ int64 float32_to_int64_round_to_zero( float32 a STATUS_PARAM )
 | Arithmetic.
 *----------------------------------------------------------------------------*/
 
-float64 float32_to_float64( float32 a STATUS_PARAM )
+float64 float32_to_float64(float32 a, float_status *status)
 {
     flag aSign;
     int_fast16_t aExp;
@@ -1804,7 +1808,7 @@ float64 float32_to_float64( float32 a STATUS_PARAM )
 | Arithmetic.
 *----------------------------------------------------------------------------*/
 
-floatx80 float32_to_floatx80( float32 a STATUS_PARAM )
+floatx80 float32_to_floatx80(float32 a, float_status *status)
 {
     flag aSign;
     int_fast16_t aExp;
@@ -1834,7 +1838,7 @@ floatx80 float32_to_floatx80( float32 a STATUS_PARAM )
 | Arithmetic.
 *----------------------------------------------------------------------------*/
 
-float128 float32_to_float128( float32 a STATUS_PARAM )
+float128 float32_to_float128(float32 a, float_status *status)
 {
     flag aSign;
     int_fast16_t aExp;
@@ -1864,7 +1868,7 @@ float128 float32_to_float128( float32 a STATUS_PARAM )
 | Floating-Point Arithmetic.
 *----------------------------------------------------------------------------*/
 
-float32 float32_round_to_int( float32 a STATUS_PARAM)
+float32 float32_round_to_int(float32 a, float_status *status)
 {
     flag aSign;
     int_fast16_t aExp;
@@ -1944,7 +1948,8 @@ float32 float32_round_to_int( float32 a STATUS_PARAM)
 | Floating-Point Arithmetic.
 *----------------------------------------------------------------------------*/
 
-static float32 addFloat32Sigs( float32 a, float32 b, flag zSign STATUS_PARAM)
+static float32 addFloat32Sigs(float32 a, float32 b, flag zSign,
+                              float_status *status)
 {
     int_fast16_t aExp, bExp, zExp;
     uint32_t aSig, bSig, zSig;
@@ -2023,7 +2028,8 @@ static float32 addFloat32Sigs( float32 a, float32 b, flag zSign STATUS_PARAM)
 | Standard for Binary Floating-Point Arithmetic.
 *----------------------------------------------------------------------------*/
 
-static float32 subFloat32Sigs( float32 a, float32 b, flag zSign STATUS_PARAM)
+static float32 subFloat32Sigs(float32 a, float32 b, flag zSign,
+                              float_status *status)
 {
     int_fast16_t aExp, bExp, zExp;
     uint32_t aSig, bSig, zSig;
@@ -2096,7 +2102,7 @@ static float32 subFloat32Sigs( float32 a, float32 b, flag zSign STATUS_PARAM)
 | Binary Floating-Point Arithmetic.
 *----------------------------------------------------------------------------*/
 
-float32 float32_add( float32 a, float32 b STATUS_PARAM )
+float32 float32_add(float32 a, float32 b, float_status *status)
 {
     flag aSign, bSign;
     a = float32_squash_input_denormal(a STATUS_VAR);
@@ -2119,7 +2125,7 @@ float32 float32_add( float32 a, float32 b STATUS_PARAM )
 | for Binary Floating-Point Arithmetic.
 *----------------------------------------------------------------------------*/
 
-float32 float32_sub( float32 a, float32 b STATUS_PARAM )
+float32 float32_sub(float32 a, float32 b, float_status *status)
 {
     flag aSign, bSign;
     a = float32_squash_input_denormal(a STATUS_VAR);
@@ -2142,7 +2148,7 @@ float32 float32_sub( float32 a, float32 b STATUS_PARAM )
 | for Binary Floating-Point Arithmetic.
 *----------------------------------------------------------------------------*/
 
-float32 float32_mul( float32 a, float32 b STATUS_PARAM )
+float32 float32_mul(float32 a, float32 b, float_status *status)
 {
     flag aSign, bSign, zSign;
     int_fast16_t aExp, bExp, zExp;
@@ -2205,7 +2211,7 @@ float32 float32_mul( float32 a, float32 b STATUS_PARAM )
 | IEC/IEEE Standard for Binary Floating-Point Arithmetic.
 *----------------------------------------------------------------------------*/
 
-float32 float32_div( float32 a, float32 b STATUS_PARAM )
+float32 float32_div(float32 a, float32 b, float_status *status)
 {
     flag aSign, bSign, zSign;
     int_fast16_t aExp, bExp, zExp;
@@ -2269,7 +2275,7 @@ float32 float32_div( float32 a, float32 b STATUS_PARAM )
 | according to the IEC/IEEE Standard for Binary Floating-Point Arithmetic.
 *----------------------------------------------------------------------------*/
 
-float32 float32_rem( float32 a, float32 b STATUS_PARAM )
+float32 float32_rem(float32 a, float32 b, float_status *status)
 {
     flag aSign, zSign;
     int_fast16_t aExp, bExp, expDiff;
@@ -2375,7 +2381,8 @@ float32 float32_rem( float32 a, float32 b STATUS_PARAM )
 | externally will flip the sign bit on NaNs.)
 *----------------------------------------------------------------------------*/
 
-float32 float32_muladd(float32 a, float32 b, float32 c, int flags STATUS_PARAM)
+float32 float32_muladd(float32 a, float32 b, float32 c, int flags,
+                       float_status *status)
 {
     flag aSign, bSign, cSign, zSign;
     int_fast16_t aExp, bExp, cExp, pExp, zExp, expDiff;
@@ -2595,7 +2602,7 @@ float32 float32_muladd(float32 a, float32 b, float32 c, int flags STATUS_PARAM)
 | Floating-Point Arithmetic.
 *----------------------------------------------------------------------------*/
 
-float32 float32_sqrt( float32 a STATUS_PARAM )
+float32 float32_sqrt(float32 a, float_status *status)
 {
     flag aSign;
     int_fast16_t aExp, zExp;
@@ -2681,7 +2688,7 @@ static const float64 float32_exp2_coefficients[15] =
     const_float64( 0x3d6ae7f3e733b81fll ), /* 15 */
 };
 
-float32 float32_exp2( float32 a STATUS_PARAM )
+float32 float32_exp2(float32 a, float_status *status)
 {
     flag aSign;
     int_fast16_t aExp;
@@ -2729,7 +2736,7 @@ float32 float32_exp2( float32 a STATUS_PARAM )
 | The operation is performed according to the IEC/IEEE Standard for Binary
 | Floating-Point Arithmetic.
 *----------------------------------------------------------------------------*/
-float32 float32_log2( float32 a STATUS_PARAM )
+float32 float32_log2(float32 a, float_status *status)
 {
     flag aSign, zSign;
     int_fast16_t aExp;
@@ -2779,7 +2786,7 @@ float32 float32_log2( float32 a STATUS_PARAM )
 | according to the IEC/IEEE Standard for Binary Floating-Point Arithmetic.
 *----------------------------------------------------------------------------*/
 
-int float32_eq( float32 a, float32 b STATUS_PARAM )
+int float32_eq(float32 a, float32 b, float_status *status)
 {
     uint32_t av, bv;
     a = float32_squash_input_denormal(a STATUS_VAR);
@@ -2803,7 +2810,7 @@ int float32_eq( float32 a, float32 b STATUS_PARAM )
 | according to the IEC/IEEE Standard for Binary Floating-Point Arithmetic.
 *----------------------------------------------------------------------------*/
 
-int float32_le( float32 a, float32 b STATUS_PARAM )
+int float32_le(float32 a, float32 b, float_status *status)
 {
     flag aSign, bSign;
     uint32_t av, bv;
@@ -2832,7 +2839,7 @@ int float32_le( float32 a, float32 b STATUS_PARAM )
 | to the IEC/IEEE Standard for Binary Floating-Point Arithmetic.
 *----------------------------------------------------------------------------*/
 
-int float32_lt( float32 a, float32 b STATUS_PARAM )
+int float32_lt(float32 a, float32 b, float_status *status)
 {
     flag aSign, bSign;
     uint32_t av, bv;
@@ -2861,7 +2868,7 @@ int float32_lt( float32 a, float32 b STATUS_PARAM )
 | Standard for Binary Floating-Point Arithmetic.
 *----------------------------------------------------------------------------*/
 
-int float32_unordered( float32 a, float32 b STATUS_PARAM )
+int float32_unordered(float32 a, float32 b, float_status *status)
 {
     a = float32_squash_input_denormal(a STATUS_VAR);
     b = float32_squash_input_denormal(b STATUS_VAR);
@@ -2882,7 +2889,7 @@ int float32_unordered( float32 a, float32 b STATUS_PARAM )
 | for Binary Floating-Point Arithmetic.
 *----------------------------------------------------------------------------*/
 
-int float32_eq_quiet( float32 a, float32 b STATUS_PARAM )
+int float32_eq_quiet(float32 a, float32 b, float_status *status)
 {
     a = float32_squash_input_denormal(a STATUS_VAR);
     b = float32_squash_input_denormal(b STATUS_VAR);
@@ -2906,7 +2913,7 @@ int float32_eq_quiet( float32 a, float32 b STATUS_PARAM )
 | IEC/IEEE Standard for Binary Floating-Point Arithmetic.
 *----------------------------------------------------------------------------*/
 
-int float32_le_quiet( float32 a, float32 b STATUS_PARAM )
+int float32_le_quiet(float32 a, float32 b, float_status *status)
 {
     flag aSign, bSign;
     uint32_t av, bv;
@@ -2937,7 +2944,7 @@ int float32_le_quiet( float32 a, float32 b STATUS_PARAM )
 | Standard for Binary Floating-Point Arithmetic.
 *----------------------------------------------------------------------------*/
 
-int float32_lt_quiet( float32 a, float32 b STATUS_PARAM )
+int float32_lt_quiet(float32 a, float32 b, float_status *status)
 {
     flag aSign, bSign;
     uint32_t av, bv;
@@ -2968,7 +2975,7 @@ int float32_lt_quiet( float32 a, float32 b STATUS_PARAM )
 | Floating-Point Arithmetic.
 *----------------------------------------------------------------------------*/
 
-int float32_unordered_quiet( float32 a, float32 b STATUS_PARAM )
+int float32_unordered_quiet(float32 a, float32 b, float_status *status)
 {
     a = float32_squash_input_denormal(a STATUS_VAR);
     b = float32_squash_input_denormal(b STATUS_VAR);
@@ -2994,7 +3001,7 @@ int float32_unordered_quiet( float32 a, float32 b STATUS_PARAM )
 | largest integer with the same sign as `a' is returned.
 *----------------------------------------------------------------------------*/
 
-int32 float64_to_int32( float64 a STATUS_PARAM )
+int32 float64_to_int32(float64 a, float_status *status)
 {
     flag aSign;
     int_fast16_t aExp, shiftCount;
@@ -3022,7 +3029,7 @@ int32 float64_to_int32( float64 a STATUS_PARAM )
 | returned.
 *----------------------------------------------------------------------------*/
 
-int32 float64_to_int32_round_to_zero( float64 a STATUS_PARAM )
+int32 float64_to_int32_round_to_zero(float64 a, float_status *status)
 {
     flag aSign;
     int_fast16_t aExp, shiftCount;
@@ -3069,7 +3076,7 @@ int32 float64_to_int32_round_to_zero( float64 a STATUS_PARAM )
 | returned.
 *----------------------------------------------------------------------------*/
 
-int_fast16_t float64_to_int16_round_to_zero(float64 a STATUS_PARAM)
+int_fast16_t float64_to_int16_round_to_zero(float64 a, float_status *status)
 {
     flag aSign;
     int_fast16_t aExp, shiftCount;
@@ -3120,7 +3127,7 @@ int_fast16_t float64_to_int16_round_to_zero(float64 a STATUS_PARAM)
 | largest integer with the same sign as `a' is returned.
 *----------------------------------------------------------------------------*/
 
-int64 float64_to_int64( float64 a STATUS_PARAM )
+int64 float64_to_int64(float64 a, float_status *status)
 {
     flag aSign;
     int_fast16_t aExp, shiftCount;
@@ -3163,7 +3170,7 @@ int64 float64_to_int64( float64 a STATUS_PARAM )
 | returned.
 *----------------------------------------------------------------------------*/
 
-int64 float64_to_int64_round_to_zero( float64 a STATUS_PARAM )
+int64 float64_to_int64_round_to_zero(float64 a, float_status *status)
 {
     flag aSign;
     int_fast16_t aExp, shiftCount;
@@ -3213,7 +3220,7 @@ int64 float64_to_int64_round_to_zero( float64 a STATUS_PARAM )
 | Arithmetic.
 *----------------------------------------------------------------------------*/
 
-float32 float64_to_float32( float64 a STATUS_PARAM )
+float32 float64_to_float32(float64 a, float_status *status)
 {
     flag aSign;
     int_fast16_t aExp;
@@ -3284,7 +3291,8 @@ static float16 packFloat16(flag zSign, int_fast16_t zExp, uint16_t zSig)
 *----------------------------------------------------------------------------*/
 
 static float32 roundAndPackFloat16(flag zSign, int_fast16_t zExp,
-                                   uint32_t zSig, flag ieee STATUS_PARAM)
+                                   uint32_t zSig, flag ieee,
+                                   float_status *status)
 {
     int maxexp = ieee ? 29 : 30;
     uint32_t mask;
@@ -3380,7 +3388,7 @@ static void normalizeFloat16Subnormal(uint32_t aSig, int_fast16_t *zExpPtr,
 /* Half precision floats come in two formats: standard IEEE and "ARM" format.
    The latter gains extra exponent range by omitting the NaN/Inf encodings.  */
 
-float32 float16_to_float32(float16 a, flag ieee STATUS_PARAM)
+float32 float16_to_float32(float16 a, flag ieee, float_status *status)
 {
     flag aSign;
     int_fast16_t aExp;
@@ -3407,7 +3415,7 @@ float32 float16_to_float32(float16 a, flag ieee STATUS_PARAM)
     return packFloat32( aSign, aExp + 0x70, aSig << 13);
 }
 
-float16 float32_to_float16(float32 a, flag ieee STATUS_PARAM)
+float16 float32_to_float16(float32 a, flag ieee, float_status *status)
 {
     flag aSign;
     int_fast16_t aExp;
@@ -3451,7 +3459,7 @@ float16 float32_to_float16(float32 a, flag ieee STATUS_PARAM)
     return roundAndPackFloat16(aSign, aExp, aSig, ieee STATUS_VAR);
 }
 
-float64 float16_to_float64(float16 a, flag ieee STATUS_PARAM)
+float64 float16_to_float64(float16 a, flag ieee, float_status *status)
 {
     flag aSign;
     int_fast16_t aExp;
@@ -3479,7 +3487,7 @@ float64 float16_to_float64(float16 a, flag ieee STATUS_PARAM)
     return packFloat64(aSign, aExp + 0x3f0, ((uint64_t)aSig) << 42);
 }
 
-float16 float64_to_float16(float64 a, flag ieee STATUS_PARAM)
+float16 float64_to_float16(float64 a, flag ieee, float_status *status)
 {
     flag aSign;
     int_fast16_t aExp;
@@ -3533,7 +3541,7 @@ float16 float64_to_float16(float64 a, flag ieee STATUS_PARAM)
 | Arithmetic.
 *----------------------------------------------------------------------------*/
 
-floatx80 float64_to_floatx80( float64 a STATUS_PARAM )
+floatx80 float64_to_floatx80(float64 a, float_status *status)
 {
     flag aSign;
     int_fast16_t aExp;
@@ -3564,7 +3572,7 @@ floatx80 float64_to_floatx80( float64 a STATUS_PARAM )
 | Arithmetic.
 *----------------------------------------------------------------------------*/
 
-float128 float64_to_float128( float64 a STATUS_PARAM )
+float128 float64_to_float128(float64 a, float_status *status)
 {
     flag aSign;
     int_fast16_t aExp;
@@ -3595,7 +3603,7 @@ float128 float64_to_float128( float64 a STATUS_PARAM )
 | Floating-Point Arithmetic.
 *----------------------------------------------------------------------------*/
 
-float64 float64_round_to_int( float64 a STATUS_PARAM )
+float64 float64_round_to_int(float64 a, float_status *status)
 {
     flag aSign;
     int_fast16_t aExp;
@@ -3669,7 +3677,7 @@ float64 float64_round_to_int( float64 a STATUS_PARAM )
 
 }
 
-float64 float64_trunc_to_int( float64 a STATUS_PARAM)
+float64 float64_trunc_to_int(float64 a, float_status *status)
 {
     int oldmode;
     float64 res;
@@ -3688,7 +3696,8 @@ float64 float64_trunc_to_int( float64 a STATUS_PARAM)
 | Floating-Point Arithmetic.
 *----------------------------------------------------------------------------*/
 
-static float64 addFloat64Sigs( float64 a, float64 b, flag zSign STATUS_PARAM )
+static float64 addFloat64Sigs(float64 a, float64 b, flag zSign,
+                              float_status *status)
 {
     int_fast16_t aExp, bExp, zExp;
     uint64_t aSig, bSig, zSig;
@@ -3767,7 +3776,8 @@ static float64 addFloat64Sigs( float64 a, float64 b, flag zSign STATUS_PARAM )
 | Standard for Binary Floating-Point Arithmetic.
 *----------------------------------------------------------------------------*/
 
-static float64 subFloat64Sigs( float64 a, float64 b, flag zSign STATUS_PARAM )
+static float64 subFloat64Sigs(float64 a, float64 b, flag zSign,
+                              float_status *status)
 {
     int_fast16_t aExp, bExp, zExp;
     uint64_t aSig, bSig, zSig;
@@ -3840,7 +3850,7 @@ static float64 subFloat64Sigs( float64 a, float64 b, flag zSign STATUS_PARAM )
 | Binary Floating-Point Arithmetic.
 *----------------------------------------------------------------------------*/
 
-float64 float64_add( float64 a, float64 b STATUS_PARAM )
+float64 float64_add(float64 a, float64 b, float_status *status)
 {
     flag aSign, bSign;
     a = float64_squash_input_denormal(a STATUS_VAR);
@@ -3863,7 +3873,7 @@ float64 float64_add( float64 a, float64 b STATUS_PARAM )
 | for Binary Floating-Point Arithmetic.
 *----------------------------------------------------------------------------*/
 
-float64 float64_sub( float64 a, float64 b STATUS_PARAM )
+float64 float64_sub(float64 a, float64 b, float_status *status)
 {
     flag aSign, bSign;
     a = float64_squash_input_denormal(a STATUS_VAR);
@@ -3886,7 +3896,7 @@ float64 float64_sub( float64 a, float64 b STATUS_PARAM )
 | for Binary Floating-Point Arithmetic.
 *----------------------------------------------------------------------------*/
 
-float64 float64_mul( float64 a, float64 b STATUS_PARAM )
+float64 float64_mul(float64 a, float64 b, float_status *status)
 {
     flag aSign, bSign, zSign;
     int_fast16_t aExp, bExp, zExp;
@@ -3947,7 +3957,7 @@ float64 float64_mul( float64 a, float64 b STATUS_PARAM )
 | the IEC/IEEE Standard for Binary Floating-Point Arithmetic.
 *----------------------------------------------------------------------------*/
 
-float64 float64_div( float64 a, float64 b STATUS_PARAM )
+float64 float64_div(float64 a, float64 b, float_status *status)
 {
     flag aSign, bSign, zSign;
     int_fast16_t aExp, bExp, zExp;
@@ -4019,7 +4029,7 @@ float64 float64_div( float64 a, float64 b STATUS_PARAM )
 | according to the IEC/IEEE Standard for Binary Floating-Point Arithmetic.
 *----------------------------------------------------------------------------*/
 
-float64 float64_rem( float64 a, float64 b STATUS_PARAM )
+float64 float64_rem(float64 a, float64 b, float_status *status)
 {
     flag aSign, zSign;
     int_fast16_t aExp, bExp, expDiff;
@@ -4110,7 +4120,8 @@ float64 float64_rem( float64 a, float64 b STATUS_PARAM )
 | externally will flip the sign bit on NaNs.)
 *----------------------------------------------------------------------------*/
 
-float64 float64_muladd(float64 a, float64 b, float64 c, int flags STATUS_PARAM)
+float64 float64_muladd(float64 a, float64 b, float64 c, int flags,
+                       float_status *status)
 {
     flag aSign, bSign, cSign, zSign;
     int_fast16_t aExp, bExp, cExp, pExp, zExp, expDiff;
@@ -4351,7 +4362,7 @@ float64 float64_muladd(float64 a, float64 b, float64 c, int flags STATUS_PARAM)
 | Floating-Point Arithmetic.
 *----------------------------------------------------------------------------*/
 
-float64 float64_sqrt( float64 a STATUS_PARAM )
+float64 float64_sqrt(float64 a, float_status *status)
 {
     flag aSign;
     int_fast16_t aExp, zExp;
@@ -4402,7 +4413,7 @@ float64 float64_sqrt( float64 a STATUS_PARAM )
 | The operation is performed according to the IEC/IEEE Standard for Binary
 | Floating-Point Arithmetic.
 *----------------------------------------------------------------------------*/
-float64 float64_log2( float64 a STATUS_PARAM )
+float64 float64_log2(float64 a, float_status *status)
 {
     flag aSign, zSign;
     int_fast16_t aExp;
@@ -4451,7 +4462,7 @@ float64 float64_log2( float64 a STATUS_PARAM )
 | according to the IEC/IEEE Standard for Binary Floating-Point Arithmetic.
 *----------------------------------------------------------------------------*/
 
-int float64_eq( float64 a, float64 b STATUS_PARAM )
+int float64_eq(float64 a, float64 b, float_status *status)
 {
     uint64_t av, bv;
     a = float64_squash_input_denormal(a STATUS_VAR);
@@ -4476,7 +4487,7 @@ int float64_eq( float64 a, float64 b STATUS_PARAM )
 | according to the IEC/IEEE Standard for Binary Floating-Point Arithmetic.
 *----------------------------------------------------------------------------*/
 
-int float64_le( float64 a, float64 b STATUS_PARAM )
+int float64_le(float64 a, float64 b, float_status *status)
 {
     flag aSign, bSign;
     uint64_t av, bv;
@@ -4505,7 +4516,7 @@ int float64_le( float64 a, float64 b STATUS_PARAM )
 | to the IEC/IEEE Standard for Binary Floating-Point Arithmetic.
 *----------------------------------------------------------------------------*/
 
-int float64_lt( float64 a, float64 b STATUS_PARAM )
+int float64_lt(float64 a, float64 b, float_status *status)
 {
     flag aSign, bSign;
     uint64_t av, bv;
@@ -4534,7 +4545,7 @@ int float64_lt( float64 a, float64 b STATUS_PARAM )
 | Standard for Binary Floating-Point Arithmetic.
 *----------------------------------------------------------------------------*/
 
-int float64_unordered( float64 a, float64 b STATUS_PARAM )
+int float64_unordered(float64 a, float64 b, float_status *status)
 {
     a = float64_squash_input_denormal(a STATUS_VAR);
     b = float64_squash_input_denormal(b STATUS_VAR);
@@ -4555,7 +4566,7 @@ int float64_unordered( float64 a, float64 b STATUS_PARAM )
 | for Binary Floating-Point Arithmetic.
 *----------------------------------------------------------------------------*/
 
-int float64_eq_quiet( float64 a, float64 b STATUS_PARAM )
+int float64_eq_quiet(float64 a, float64 b, float_status *status)
 {
     uint64_t av, bv;
     a = float64_squash_input_denormal(a STATUS_VAR);
@@ -4582,7 +4593,7 @@ int float64_eq_quiet( float64 a, float64 b STATUS_PARAM )
 | IEC/IEEE Standard for Binary Floating-Point Arithmetic.
 *----------------------------------------------------------------------------*/
 
-int float64_le_quiet( float64 a, float64 b STATUS_PARAM )
+int float64_le_quiet(float64 a, float64 b, float_status *status)
 {
     flag aSign, bSign;
     uint64_t av, bv;
@@ -4613,7 +4624,7 @@ int float64_le_quiet( float64 a, float64 b STATUS_PARAM )
 | Standard for Binary Floating-Point Arithmetic.
 *----------------------------------------------------------------------------*/
 
-int float64_lt_quiet( float64 a, float64 b STATUS_PARAM )
+int float64_lt_quiet(float64 a, float64 b, float_status *status)
 {
     flag aSign, bSign;
     uint64_t av, bv;
@@ -4644,7 +4655,7 @@ int float64_lt_quiet( float64 a, float64 b STATUS_PARAM )
 | Floating-Point Arithmetic.
 *----------------------------------------------------------------------------*/
 
-int float64_unordered_quiet( float64 a, float64 b STATUS_PARAM )
+int float64_unordered_quiet(float64 a, float64 b, float_status *status)
 {
     a = float64_squash_input_denormal(a STATUS_VAR);
     b = float64_squash_input_denormal(b STATUS_VAR);
@@ -4670,7 +4681,7 @@ int float64_unordered_quiet( float64 a, float64 b STATUS_PARAM )
 | overflows, the largest integer with the same sign as `a' is returned.
 *----------------------------------------------------------------------------*/
 
-int32 floatx80_to_int32( floatx80 a STATUS_PARAM )
+int32 floatx80_to_int32(floatx80 a, float_status *status)
 {
     flag aSign;
     int32 aExp, shiftCount;
@@ -4697,7 +4708,7 @@ int32 floatx80_to_int32( floatx80 a STATUS_PARAM )
 | sign as `a' is returned.
 *----------------------------------------------------------------------------*/
 
-int32 floatx80_to_int32_round_to_zero( floatx80 a STATUS_PARAM )
+int32 floatx80_to_int32_round_to_zero(floatx80 a, float_status *status)
 {
     flag aSign;
     int32 aExp, shiftCount;
@@ -4742,7 +4753,7 @@ int32 floatx80_to_int32_round_to_zero( floatx80 a STATUS_PARAM )
 | overflows, the largest integer with the same sign as `a' is returned.
 *----------------------------------------------------------------------------*/
 
-int64 floatx80_to_int64( floatx80 a STATUS_PARAM )
+int64 floatx80_to_int64(floatx80 a, float_status *status)
 {
     flag aSign;
     int32 aExp, shiftCount;
@@ -4782,7 +4793,7 @@ int64 floatx80_to_int64( floatx80 a STATUS_PARAM )
 | sign as `a' is returned.
 *----------------------------------------------------------------------------*/
 
-int64 floatx80_to_int64_round_to_zero( floatx80 a STATUS_PARAM )
+int64 floatx80_to_int64_round_to_zero(floatx80 a, float_status *status)
 {
     flag aSign;
     int32 aExp, shiftCount;
@@ -4823,7 +4834,7 @@ int64 floatx80_to_int64_round_to_zero( floatx80 a STATUS_PARAM )
 | Floating-Point Arithmetic.
 *----------------------------------------------------------------------------*/
 
-float32 floatx80_to_float32( floatx80 a STATUS_PARAM )
+float32 floatx80_to_float32(floatx80 a, float_status *status)
 {
     flag aSign;
     int32 aExp;
@@ -4851,7 +4862,7 @@ float32 floatx80_to_float32( floatx80 a STATUS_PARAM )
 | Floating-Point Arithmetic.
 *----------------------------------------------------------------------------*/
 
-float64 floatx80_to_float64( floatx80 a STATUS_PARAM )
+float64 floatx80_to_float64(floatx80 a, float_status *status)
 {
     flag aSign;
     int32 aExp;
@@ -4879,7 +4890,7 @@ float64 floatx80_to_float64( floatx80 a STATUS_PARAM )
 | Floating-Point Arithmetic.
 *----------------------------------------------------------------------------*/
 
-float128 floatx80_to_float128( floatx80 a STATUS_PARAM )
+float128 floatx80_to_float128(floatx80 a, float_status *status)
 {
     flag aSign;
     int_fast16_t aExp;
@@ -4903,7 +4914,7 @@ float128 floatx80_to_float128( floatx80 a STATUS_PARAM )
 | Binary Floating-Point Arithmetic.
 *----------------------------------------------------------------------------*/
 
-floatx80 floatx80_round_to_int( floatx80 a STATUS_PARAM )
+floatx80 floatx80_round_to_int(floatx80 a, float_status *status)
 {
     flag aSign;
     int32 aExp;
@@ -4996,7 +5007,8 @@ floatx80 floatx80_round_to_int( floatx80 a STATUS_PARAM )
 | Floating-Point Arithmetic.
 *----------------------------------------------------------------------------*/
 
-static floatx80 addFloatx80Sigs( floatx80 a, floatx80 b, flag zSign STATUS_PARAM)
+static floatx80 addFloatx80Sigs(floatx80 a, floatx80 b, flag zSign,
+                                float_status *status)
 {
     int32 aExp, bExp, zExp;
     uint64_t aSig, bSig, zSig0, zSig1;
@@ -5062,7 +5074,8 @@ static floatx80 addFloatx80Sigs( floatx80 a, floatx80 b, flag zSign STATUS_PARAM
 | Standard for Binary Floating-Point Arithmetic.
 *----------------------------------------------------------------------------*/
 
-static floatx80 subFloatx80Sigs( floatx80 a, floatx80 b, flag zSign STATUS_PARAM )
+static floatx80 subFloatx80Sigs(floatx80 a, floatx80 b, flag zSign,
+                                float_status *status)
 {
     int32 aExp, bExp, zExp;
     uint64_t aSig, bSig, zSig0, zSig1;
@@ -5128,7 +5141,7 @@ static floatx80 subFloatx80Sigs( floatx80 a, floatx80 b, flag zSign STATUS_PARAM
 | Standard for Binary Floating-Point Arithmetic.
 *----------------------------------------------------------------------------*/
 
-floatx80 floatx80_add( floatx80 a, floatx80 b STATUS_PARAM )
+floatx80 floatx80_add(floatx80 a, floatx80 b, float_status *status)
 {
     flag aSign, bSign;
 
@@ -5149,7 +5162,7 @@ floatx80 floatx80_add( floatx80 a, floatx80 b STATUS_PARAM )
 | IEC/IEEE Standard for Binary Floating-Point Arithmetic.
 *----------------------------------------------------------------------------*/
 
-floatx80 floatx80_sub( floatx80 a, floatx80 b STATUS_PARAM )
+floatx80 floatx80_sub(floatx80 a, floatx80 b, float_status *status)
 {
     flag aSign, bSign;
 
@@ -5170,7 +5183,7 @@ floatx80 floatx80_sub( floatx80 a, floatx80 b STATUS_PARAM )
 | IEC/IEEE Standard for Binary Floating-Point Arithmetic.
 *----------------------------------------------------------------------------*/
 
-floatx80 floatx80_mul( floatx80 a, floatx80 b STATUS_PARAM )
+floatx80 floatx80_mul(floatx80 a, floatx80 b, float_status *status)
 {
     flag aSign, bSign, zSign;
     int32 aExp, bExp, zExp;
@@ -5229,7 +5242,7 @@ floatx80 floatx80_mul( floatx80 a, floatx80 b STATUS_PARAM )
 | according to the IEC/IEEE Standard for Binary Floating-Point Arithmetic.
 *----------------------------------------------------------------------------*/
 
-floatx80 floatx80_div( floatx80 a, floatx80 b STATUS_PARAM )
+floatx80 floatx80_div(floatx80 a, floatx80 b, float_status *status)
 {
     flag aSign, bSign, zSign;
     int32 aExp, bExp, zExp;
@@ -5309,7 +5322,7 @@ floatx80 floatx80_div( floatx80 a, floatx80 b STATUS_PARAM )
 | according to the IEC/IEEE Standard for Binary Floating-Point Arithmetic.
 *----------------------------------------------------------------------------*/
 
-floatx80 floatx80_rem( floatx80 a, floatx80 b STATUS_PARAM )
+floatx80 floatx80_rem(floatx80 a, floatx80 b, float_status *status)
 {
     flag aSign, zSign;
     int32 aExp, bExp, expDiff;
@@ -5405,7 +5418,7 @@ floatx80 floatx80_rem( floatx80 a, floatx80 b STATUS_PARAM )
 | for Binary Floating-Point Arithmetic.
 *----------------------------------------------------------------------------*/
 
-floatx80 floatx80_sqrt( floatx80 a STATUS_PARAM )
+floatx80 floatx80_sqrt(floatx80 a, float_status *status)
 {
     flag aSign;
     int32 aExp, zExp;
@@ -5476,7 +5489,7 @@ floatx80 floatx80_sqrt( floatx80 a STATUS_PARAM )
 | according to the IEC/IEEE Standard for Binary Floating-Point Arithmetic.
 *----------------------------------------------------------------------------*/
 
-int floatx80_eq( floatx80 a, floatx80 b STATUS_PARAM )
+int floatx80_eq(floatx80 a, floatx80 b, float_status *status)
 {
 
     if (    (    ( extractFloatx80Exp( a ) == 0x7FFF )
@@ -5504,7 +5517,7 @@ int floatx80_eq( floatx80 a, floatx80 b STATUS_PARAM )
 | Arithmetic.
 *----------------------------------------------------------------------------*/
 
-int floatx80_le( floatx80 a, floatx80 b STATUS_PARAM )
+int floatx80_le(floatx80 a, floatx80 b, float_status *status)
 {
     flag aSign, bSign;
 
@@ -5537,7 +5550,7 @@ int floatx80_le( floatx80 a, floatx80 b STATUS_PARAM )
 | according to the IEC/IEEE Standard for Binary Floating-Point Arithmetic.
 *----------------------------------------------------------------------------*/
 
-int floatx80_lt( floatx80 a, floatx80 b STATUS_PARAM )
+int floatx80_lt(floatx80 a, floatx80 b, float_status *status)
 {
     flag aSign, bSign;
 
@@ -5569,7 +5582,7 @@ int floatx80_lt( floatx80 a, floatx80 b STATUS_PARAM )
 | either operand is a NaN.   The comparison is performed according to the
 | IEC/IEEE Standard for Binary Floating-Point Arithmetic.
 *----------------------------------------------------------------------------*/
-int floatx80_unordered( floatx80 a, floatx80 b STATUS_PARAM )
+int floatx80_unordered(floatx80 a, floatx80 b, float_status *status)
 {
     if (    (    ( extractFloatx80Exp( a ) == 0x7FFF )
               && (uint64_t) ( extractFloatx80Frac( a )<<1 ) )
@@ -5589,7 +5602,7 @@ int floatx80_unordered( floatx80 a, floatx80 b STATUS_PARAM )
 | Standard for Binary Floating-Point Arithmetic.
 *----------------------------------------------------------------------------*/
 
-int floatx80_eq_quiet( floatx80 a, floatx80 b STATUS_PARAM )
+int floatx80_eq_quiet(floatx80 a, floatx80 b, float_status *status)
 {
 
     if (    (    ( extractFloatx80Exp( a ) == 0x7FFF )
@@ -5619,7 +5632,7 @@ int floatx80_eq_quiet( floatx80 a, floatx80 b STATUS_PARAM )
 | to the IEC/IEEE Standard for Binary Floating-Point Arithmetic.
 *----------------------------------------------------------------------------*/
 
-int floatx80_le_quiet( floatx80 a, floatx80 b STATUS_PARAM )
+int floatx80_le_quiet(floatx80 a, floatx80 b, float_status *status)
 {
     flag aSign, bSign;
 
@@ -5655,7 +5668,7 @@ int floatx80_le_quiet( floatx80 a, floatx80 b STATUS_PARAM )
 | IEC/IEEE Standard for Binary Floating-Point Arithmetic.
 *----------------------------------------------------------------------------*/
 
-int floatx80_lt_quiet( floatx80 a, floatx80 b STATUS_PARAM )
+int floatx80_lt_quiet(floatx80 a, floatx80 b, float_status *status)
 {
     flag aSign, bSign;
 
@@ -5690,7 +5703,7 @@ int floatx80_lt_quiet( floatx80 a, floatx80 b STATUS_PARAM )
 | The comparison is performed according to the IEC/IEEE Standard for Binary
 | Floating-Point Arithmetic.
 *----------------------------------------------------------------------------*/
-int floatx80_unordered_quiet( floatx80 a, floatx80 b STATUS_PARAM )
+int floatx80_unordered_quiet(floatx80 a, floatx80 b, float_status *status)
 {
     if (    (    ( extractFloatx80Exp( a ) == 0x7FFF )
               && (uint64_t) ( extractFloatx80Frac( a )<<1 ) )
@@ -5716,7 +5729,7 @@ int floatx80_unordered_quiet( floatx80 a, floatx80 b STATUS_PARAM )
 | largest integer with the same sign as `a' is returned.
 *----------------------------------------------------------------------------*/
 
-int32 float128_to_int32( float128 a STATUS_PARAM )
+int32 float128_to_int32(float128 a, float_status *status)
 {
     flag aSign;
     int32 aExp, shiftCount;
@@ -5745,7 +5758,7 @@ int32 float128_to_int32( float128 a STATUS_PARAM )
 | returned.
 *----------------------------------------------------------------------------*/
 
-int32 float128_to_int32_round_to_zero( float128 a STATUS_PARAM )
+int32 float128_to_int32_round_to_zero(float128 a, float_status *status)
 {
     flag aSign;
     int32 aExp, shiftCount;
@@ -5793,7 +5806,7 @@ int32 float128_to_int32_round_to_zero( float128 a STATUS_PARAM )
 | largest integer with the same sign as `a' is returned.
 *----------------------------------------------------------------------------*/
 
-int64 float128_to_int64( float128 a STATUS_PARAM )
+int64 float128_to_int64(float128 a, float_status *status)
 {
     flag aSign;
     int32 aExp, shiftCount;
@@ -5836,7 +5849,7 @@ int64 float128_to_int64( float128 a STATUS_PARAM )
 | returned.
 *----------------------------------------------------------------------------*/
 
-int64 float128_to_int64_round_to_zero( float128 a STATUS_PARAM )
+int64 float128_to_int64_round_to_zero(float128 a, float_status *status)
 {
     flag aSign;
     int32 aExp, shiftCount;
@@ -5894,7 +5907,7 @@ int64 float128_to_int64_round_to_zero( float128 a STATUS_PARAM )
 | Arithmetic.
 *----------------------------------------------------------------------------*/
 
-float32 float128_to_float32( float128 a STATUS_PARAM )
+float32 float128_to_float32(float128 a, float_status *status)
 {
     flag aSign;
     int32 aExp;
@@ -5929,7 +5942,7 @@ float32 float128_to_float32( float128 a STATUS_PARAM )
 | Arithmetic.
 *----------------------------------------------------------------------------*/
 
-float64 float128_to_float64( float128 a STATUS_PARAM )
+float64 float128_to_float64(float128 a, float_status *status)
 {
     flag aSign;
     int32 aExp;
@@ -5962,7 +5975,7 @@ float64 float128_to_float64( float128 a STATUS_PARAM )
 | Floating-Point Arithmetic.
 *----------------------------------------------------------------------------*/
 
-floatx80 float128_to_floatx80( float128 a STATUS_PARAM )
+floatx80 float128_to_floatx80(float128 a, float_status *status)
 {
     flag aSign;
     int32 aExp;
@@ -5997,7 +6010,7 @@ floatx80 float128_to_floatx80( float128 a STATUS_PARAM )
 | Floating-Point Arithmetic.
 *----------------------------------------------------------------------------*/
 
-float128 float128_round_to_int( float128 a STATUS_PARAM )
+float128 float128_round_to_int(float128 a, float_status *status)
 {
     flag aSign;
     int32 aExp;
@@ -6136,7 +6149,8 @@ float128 float128_round_to_int( float128 a STATUS_PARAM )
 | Floating-Point Arithmetic.
 *----------------------------------------------------------------------------*/
 
-static float128 addFloat128Sigs( float128 a, float128 b, flag zSign STATUS_PARAM)
+static float128 addFloat128Sigs(float128 a, float128 b, flag zSign,
+                                float_status *status)
 {
     int32 aExp, bExp, zExp;
     uint64_t aSig0, aSig1, bSig0, bSig1, zSig0, zSig1, zSig2;
@@ -6222,7 +6236,8 @@ static float128 addFloat128Sigs( float128 a, float128 b, flag zSign STATUS_PARAM
 | Standard for Binary Floating-Point Arithmetic.
 *----------------------------------------------------------------------------*/
 
-static float128 subFloat128Sigs( float128 a, float128 b, flag zSign STATUS_PARAM)
+static float128 subFloat128Sigs(float128 a, float128 b, flag zSign,
+                                float_status *status)
 {
     int32 aExp, bExp, zExp;
     uint64_t aSig0, aSig1, bSig0, bSig1, zSig0, zSig1;
@@ -6304,7 +6319,7 @@ static float128 subFloat128Sigs( float128 a, float128 b, flag zSign STATUS_PARAM
 | for Binary Floating-Point Arithmetic.
 *----------------------------------------------------------------------------*/
 
-float128 float128_add( float128 a, float128 b STATUS_PARAM )
+float128 float128_add(float128 a, float128 b, float_status *status)
 {
     flag aSign, bSign;
 
@@ -6325,7 +6340,7 @@ float128 float128_add( float128 a, float128 b STATUS_PARAM )
 | Standard for Binary Floating-Point Arithmetic.
 *----------------------------------------------------------------------------*/
 
-float128 float128_sub( float128 a, float128 b STATUS_PARAM )
+float128 float128_sub(float128 a, float128 b, float_status *status)
 {
     flag aSign, bSign;
 
@@ -6346,7 +6361,7 @@ float128 float128_sub( float128 a, float128 b STATUS_PARAM )
 | Standard for Binary Floating-Point Arithmetic.
 *----------------------------------------------------------------------------*/
 
-float128 float128_mul( float128 a, float128 b STATUS_PARAM )
+float128 float128_mul(float128 a, float128 b, float_status *status)
 {
     flag aSign, bSign, zSign;
     int32 aExp, bExp, zExp;
@@ -6410,7 +6425,7 @@ float128 float128_mul( float128 a, float128 b STATUS_PARAM )
 | the IEC/IEEE Standard for Binary Floating-Point Arithmetic.
 *----------------------------------------------------------------------------*/
 
-float128 float128_div( float128 a, float128 b STATUS_PARAM )
+float128 float128_div(float128 a, float128 b, float_status *status)
 {
     flag aSign, bSign, zSign;
     int32 aExp, bExp, zExp;
@@ -6494,7 +6509,7 @@ float128 float128_div( float128 a, float128 b STATUS_PARAM )
 | according to the IEC/IEEE Standard for Binary Floating-Point Arithmetic.
 *----------------------------------------------------------------------------*/
 
-float128 float128_rem( float128 a, float128 b STATUS_PARAM )
+float128 float128_rem(float128 a, float128 b, float_status *status)
 {
     flag aSign, zSign;
     int32 aExp, bExp, expDiff;
@@ -6603,7 +6618,7 @@ float128 float128_rem( float128 a, float128 b STATUS_PARAM )
 | Floating-Point Arithmetic.
 *----------------------------------------------------------------------------*/
 
-float128 float128_sqrt( float128 a STATUS_PARAM )
+float128 float128_sqrt(float128 a, float_status *status)
 {
     flag aSign;
     int32 aExp, zExp;
@@ -6673,7 +6688,7 @@ float128 float128_sqrt( float128 a STATUS_PARAM )
 | according to the IEC/IEEE Standard for Binary Floating-Point Arithmetic.
 *----------------------------------------------------------------------------*/
 
-int float128_eq( float128 a, float128 b STATUS_PARAM )
+int float128_eq(float128 a, float128 b, float_status *status)
 {
 
     if (    (    ( extractFloat128Exp( a ) == 0x7FFF )
@@ -6700,7 +6715,7 @@ int float128_eq( float128 a, float128 b STATUS_PARAM )
 | according to the IEC/IEEE Standard for Binary Floating-Point Arithmetic.
 *----------------------------------------------------------------------------*/
 
-int float128_le( float128 a, float128 b STATUS_PARAM )
+int float128_le(float128 a, float128 b, float_status *status)
 {
     flag aSign, bSign;
 
@@ -6733,7 +6748,7 @@ int float128_le( float128 a, float128 b STATUS_PARAM )
 | to the IEC/IEEE Standard for Binary Floating-Point Arithmetic.
 *----------------------------------------------------------------------------*/
 
-int float128_lt( float128 a, float128 b STATUS_PARAM )
+int float128_lt(float128 a, float128 b, float_status *status)
 {
     flag aSign, bSign;
 
@@ -6766,7 +6781,7 @@ int float128_lt( float128 a, float128 b STATUS_PARAM )
 | Standard for Binary Floating-Point Arithmetic.
 *----------------------------------------------------------------------------*/
 
-int float128_unordered( float128 a, float128 b STATUS_PARAM )
+int float128_unordered(float128 a, float128 b, float_status *status)
 {
     if (    (    ( extractFloat128Exp( a ) == 0x7FFF )
               && ( extractFloat128Frac0( a ) | extractFloat128Frac1( a ) ) )
@@ -6786,7 +6801,7 @@ int float128_unordered( float128 a, float128 b STATUS_PARAM )
 | for Binary Floating-Point Arithmetic.
 *----------------------------------------------------------------------------*/
 
-int float128_eq_quiet( float128 a, float128 b STATUS_PARAM )
+int float128_eq_quiet(float128 a, float128 b, float_status *status)
 {
 
     if (    (    ( extractFloat128Exp( a ) == 0x7FFF )
@@ -6816,7 +6831,7 @@ int float128_eq_quiet( float128 a, float128 b STATUS_PARAM )
 | IEC/IEEE Standard for Binary Floating-Point Arithmetic.
 *----------------------------------------------------------------------------*/
 
-int float128_le_quiet( float128 a, float128 b STATUS_PARAM )
+int float128_le_quiet(float128 a, float128 b, float_status *status)
 {
     flag aSign, bSign;
 
@@ -6852,7 +6867,7 @@ int float128_le_quiet( float128 a, float128 b STATUS_PARAM )
 | Standard for Binary Floating-Point Arithmetic.
 *----------------------------------------------------------------------------*/
 
-int float128_lt_quiet( float128 a, float128 b STATUS_PARAM )
+int float128_lt_quiet(float128 a, float128 b, float_status *status)
 {
     flag aSign, bSign;
 
@@ -6888,7 +6903,7 @@ int float128_lt_quiet( float128 a, float128 b STATUS_PARAM )
 | Floating-Point Arithmetic.
 *----------------------------------------------------------------------------*/
 
-int float128_unordered_quiet( float128 a, float128 b STATUS_PARAM )
+int float128_unordered_quiet(float128 a, float128 b, float_status *status)
 {
     if (    (    ( extractFloat128Exp( a ) == 0x7FFF )
               && ( extractFloat128Frac0( a ) | extractFloat128Frac1( a ) ) )
@@ -6905,17 +6920,17 @@ int float128_unordered_quiet( float128 a, float128 b STATUS_PARAM )
 }
 
 /* misc functions */
-float32 uint32_to_float32(uint32_t a STATUS_PARAM)
+float32 uint32_to_float32(uint32_t a, float_status *status)
 {
     return int64_to_float32(a STATUS_VAR);
 }
 
-float64 uint32_to_float64(uint32_t a STATUS_PARAM)
+float64 uint32_to_float64(uint32_t a, float_status *status)
 {
     return int64_to_float64(a STATUS_VAR);
 }
 
-uint32 float32_to_uint32( float32 a STATUS_PARAM )
+uint32 float32_to_uint32(float32 a, float_status *status)
 {
     int64_t v;
     uint32 res;
@@ -6934,7 +6949,7 @@ uint32 float32_to_uint32( float32 a STATUS_PARAM )
     return res;
 }
 
-uint32 float32_to_uint32_round_to_zero( float32 a STATUS_PARAM )
+uint32 float32_to_uint32_round_to_zero(float32 a, float_status *status)
 {
     int64_t v;
     uint32 res;
@@ -6953,7 +6968,7 @@ uint32 float32_to_uint32_round_to_zero( float32 a STATUS_PARAM )
     return res;
 }
 
-int_fast16_t float32_to_int16(float32 a STATUS_PARAM)
+int_fast16_t float32_to_int16(float32 a, float_status *status)
 {
     int32_t v;
     int_fast16_t res;
@@ -6973,7 +6988,7 @@ int_fast16_t float32_to_int16(float32 a STATUS_PARAM)
     return res;
 }
 
-uint_fast16_t float32_to_uint16(float32 a STATUS_PARAM)
+uint_fast16_t float32_to_uint16(float32 a, float_status *status)
 {
     int32_t v;
     uint_fast16_t res;
@@ -6993,7 +7008,7 @@ uint_fast16_t float32_to_uint16(float32 a STATUS_PARAM)
     return res;
 }
 
-uint_fast16_t float32_to_uint16_round_to_zero(float32 a STATUS_PARAM)
+uint_fast16_t float32_to_uint16_round_to_zero(float32 a, float_status *status)
 {
     int64_t v;
     uint_fast16_t res;
@@ -7012,7 +7027,7 @@ uint_fast16_t float32_to_uint16_round_to_zero(float32 a STATUS_PARAM)
     return res;
 }
 
-uint32 float64_to_uint32( float64 a STATUS_PARAM )
+uint32 float64_to_uint32(float64 a, float_status *status)
 {
     uint64_t v;
     uint32 res;
@@ -7029,7 +7044,7 @@ uint32 float64_to_uint32( float64 a STATUS_PARAM )
     return res;
 }
 
-uint32 float64_to_uint32_round_to_zero( float64 a STATUS_PARAM )
+uint32 float64_to_uint32_round_to_zero(float64 a, float_status *status)
 {
     uint64_t v;
     uint32 res;
@@ -7046,7 +7061,7 @@ uint32 float64_to_uint32_round_to_zero( float64 a STATUS_PARAM )
     return res;
 }
 
-int_fast16_t float64_to_int16(float64 a STATUS_PARAM)
+int_fast16_t float64_to_int16(float64 a, float_status *status)
 {
     int64_t v;
     int_fast16_t res;
@@ -7066,7 +7081,7 @@ int_fast16_t float64_to_int16(float64 a STATUS_PARAM)
     return res;
 }
 
-uint_fast16_t float64_to_uint16(float64 a STATUS_PARAM)
+uint_fast16_t float64_to_uint16(float64 a, float_status *status)
 {
     int64_t v;
     uint_fast16_t res;
@@ -7086,7 +7101,7 @@ uint_fast16_t float64_to_uint16(float64 a STATUS_PARAM)
     return res;
 }
 
-uint_fast16_t float64_to_uint16_round_to_zero(float64 a STATUS_PARAM)
+uint_fast16_t float64_to_uint16_round_to_zero(float64 a, float_status *status)
 {
     int64_t v;
     uint_fast16_t res;
@@ -7117,7 +7132,7 @@ uint_fast16_t float64_to_uint16_round_to_zero(float64 a STATUS_PARAM)
 | will raise the inexact exception.
 *----------------------------------------------------------------------------*/
 
-uint64_t float64_to_uint64(float64 a STATUS_PARAM)
+uint64_t float64_to_uint64(float64 a, float_status *status)
 {
     flag aSign;
     int_fast16_t aExp, shiftCount;
@@ -7152,7 +7167,7 @@ uint64_t float64_to_uint64(float64 a STATUS_PARAM)
     return roundAndPackUint64(aSign, aSig, aSigExtra STATUS_VAR);
 }
 
-uint64_t float64_to_uint64_round_to_zero (float64 a STATUS_PARAM)
+uint64_t float64_to_uint64_round_to_zero(float64 a, float_status *status)
 {
     signed char current_rounding_mode = STATUS(float_rounding_mode);
     set_float_rounding_mode(float_round_to_zero STATUS_VAR);
@@ -7162,8 +7177,8 @@ uint64_t float64_to_uint64_round_to_zero (float64 a STATUS_PARAM)
 }
 
 #define COMPARE(s, nan_exp)                                                  \
-static inline int float ## s ## _compare_internal( float ## s a, float ## s b,      \
-                                      int is_quiet STATUS_PARAM )            \
+static inline int float ## s ## _compare_internal(float ## s a, float ## s b,\
+                                      int is_quiet, float_status *status)    \
 {                                                                            \
     flag aSign, bSign;                                                       \
     uint ## s ## _t av, bv;                                                  \
@@ -7201,12 +7216,13 @@ static inline int float ## s ## _compare_internal( float ## s a, float ## s b,  
     }                                                                        \
 }                                                                            \
                                                                              \
-int float ## s ## _compare( float ## s a, float ## s b STATUS_PARAM )        \
+int float ## s ## _compare(float ## s a, float ## s b, float_status *status) \
 {                                                                            \
     return float ## s ## _compare_internal(a, b, 0 STATUS_VAR);              \
 }                                                                            \
                                                                              \
-int float ## s ## _compare_quiet( float ## s a, float ## s b STATUS_PARAM )  \
+int float ## s ## _compare_quiet(float ## s a, float ## s b,                 \
+                                 float_status *status)                       \
 {                                                                            \
     return float ## s ## _compare_internal(a, b, 1 STATUS_VAR);              \
 }
@@ -7214,8 +7230,8 @@ int float ## s ## _compare_quiet( float ## s a, float ## s b STATUS_PARAM )  \
 COMPARE(32, 0xff)
 COMPARE(64, 0x7ff)
 
-static inline int floatx80_compare_internal( floatx80 a, floatx80 b,
-                                      int is_quiet STATUS_PARAM )
+static inline int floatx80_compare_internal(floatx80 a, floatx80 b,
+                                            int is_quiet, float_status *status)
 {
     flag aSign, bSign;
 
@@ -7250,18 +7266,18 @@ static inline int floatx80_compare_internal( floatx80 a, floatx80 b,
     }
 }
 
-int floatx80_compare( floatx80 a, floatx80 b STATUS_PARAM )
+int floatx80_compare(floatx80 a, floatx80 b, float_status *status)
 {
     return floatx80_compare_internal(a, b, 0 STATUS_VAR);
 }
 
-int floatx80_compare_quiet( floatx80 a, floatx80 b STATUS_PARAM )
+int floatx80_compare_quiet(floatx80 a, floatx80 b, float_status *status)
 {
     return floatx80_compare_internal(a, b, 1 STATUS_VAR);
 }
 
-static inline int float128_compare_internal( float128 a, float128 b,
-                                      int is_quiet STATUS_PARAM )
+static inline int float128_compare_internal(float128 a, float128 b,
+                                            int is_quiet, float_status *status)
 {
     flag aSign, bSign;
 
@@ -7294,12 +7310,12 @@ static inline int float128_compare_internal( float128 a, float128 b,
     }
 }
 
-int float128_compare( float128 a, float128 b STATUS_PARAM )
+int float128_compare(float128 a, float128 b, float_status *status)
 {
     return float128_compare_internal(a, b, 0 STATUS_VAR);
 }
 
-int float128_compare_quiet( float128 a, float128 b STATUS_PARAM )
+int float128_compare_quiet(float128 a, float128 b, float_status *status)
 {
     return float128_compare_internal(a, b, 1 STATUS_VAR);
 }
@@ -7321,7 +7337,8 @@ int float128_compare_quiet( float128 a, float128 b STATUS_PARAM )
 #define MINMAX(s)                                                       \
 static inline float ## s float ## s ## _minmax(float ## s a, float ## s b,     \
                                                int ismin, int isieee,   \
-                                               int ismag STATUS_PARAM)  \
+                                               int ismag,               \
+                                               float_status *status)    \
 {                                                                       \
     flag aSign, bSign;                                                  \
     uint ## s ## _t av, bv, aav, abv;                                   \
@@ -7370,32 +7387,38 @@ static inline float ## s float ## s ## _minmax(float ## s a, float ## s b,     \
     }                                                                   \
 }                                                                       \
                                                                         \
-float ## s float ## s ## _min(float ## s a, float ## s b STATUS_PARAM)  \
+float ## s float ## s ## _min(float ## s a, float ## s b,               \
+                              float_status *status)                     \
 {                                                                       \
     return float ## s ## _minmax(a, b, 1, 0, 0 STATUS_VAR);             \
 }                                                                       \
                                                                         \
-float ## s float ## s ## _max(float ## s a, float ## s b STATUS_PARAM)  \
+float ## s float ## s ## _max(float ## s a, float ## s b,               \
+                              float_status *status)                     \
 {                                                                       \
     return float ## s ## _minmax(a, b, 0, 0, 0 STATUS_VAR);             \
 }                                                                       \
                                                                         \
-float ## s float ## s ## _minnum(float ## s a, float ## s b STATUS_PARAM) \
+float ## s float ## s ## _minnum(float ## s a, float ## s b,            \
+                                 float_status *status)                  \
 {                                                                       \
     return float ## s ## _minmax(a, b, 1, 1, 0 STATUS_VAR);             \
 }                                                                       \
                                                                         \
-float ## s float ## s ## _maxnum(float ## s a, float ## s b STATUS_PARAM) \
+float ## s float ## s ## _maxnum(float ## s a, float ## s b,            \
+                                 float_status *status)                  \
 {                                                                       \
     return float ## s ## _minmax(a, b, 0, 1, 0 STATUS_VAR);             \
 }                                                                       \
                                                                         \
-float ## s float ## s ## _minnummag(float ## s a, float ## s b STATUS_PARAM) \
+float ## s float ## s ## _minnummag(float ## s a, float ## s b,         \
+                                    float_status *status)               \
 {                                                                       \
     return float ## s ## _minmax(a, b, 1, 1, 1 STATUS_VAR);             \
 }                                                                       \
                                                                         \
-float ## s float ## s ## _maxnummag(float ## s a, float ## s b STATUS_PARAM) \
+float ## s float ## s ## _maxnummag(float ## s a, float ## s b,         \
+                                    float_status *status)               \
 {                                                                       \
     return float ## s ## _minmax(a, b, 0, 1, 1 STATUS_VAR);             \
 }
@@ -7405,7 +7428,7 @@ MINMAX(64)
 
 
 /* Multiply A by 2 raised to the power N.  */
-float32 float32_scalbn( float32 a, int n STATUS_PARAM )
+float32 float32_scalbn(float32 a, int n, float_status *status)
 {
     flag aSign;
     int16_t aExp;
@@ -7441,7 +7464,7 @@ float32 float32_scalbn( float32 a, int n STATUS_PARAM )
     return normalizeRoundAndPackFloat32( aSign, aExp, aSig STATUS_VAR );
 }
 
-float64 float64_scalbn( float64 a, int n STATUS_PARAM )
+float64 float64_scalbn(float64 a, int n, float_status *status)
 {
     flag aSign;
     int16_t aExp;
@@ -7477,7 +7500,7 @@ float64 float64_scalbn( float64 a, int n STATUS_PARAM )
     return normalizeRoundAndPackFloat64( aSign, aExp, aSig STATUS_VAR );
 }
 
-floatx80 floatx80_scalbn( floatx80 a, int n STATUS_PARAM )
+floatx80 floatx80_scalbn(floatx80 a, int n, float_status *status)
 {
     flag aSign;
     int32_t aExp;
@@ -7512,7 +7535,7 @@ floatx80 floatx80_scalbn( floatx80 a, int n STATUS_PARAM )
                                           aSign, aExp, aSig, 0 STATUS_VAR );
 }
 
-float128 float128_scalbn( float128 a, int n STATUS_PARAM )
+float128 float128_scalbn(float128 a, int n, float_status *status)
 {
     flag aSign;
     int32_t aExp;

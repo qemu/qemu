@@ -108,7 +108,6 @@ typedef int64_t int64;
 
 #define LIT64( a ) a##LL
 
-#define STATUS_PARAM , float_status *status
 #define STATUS(field) status->field
 #define STATUS_VAR , status
 
@@ -224,31 +223,32 @@ typedef struct float_status {
     flag default_nan_mode;
 } float_status;
 
-static inline void set_float_detect_tininess(int val STATUS_PARAM)
+static inline void set_float_detect_tininess(int val, float_status *status)
 {
     STATUS(float_detect_tininess) = val;
 }
-static inline void set_float_rounding_mode(int val STATUS_PARAM)
+static inline void set_float_rounding_mode(int val, float_status *status)
 {
     STATUS(float_rounding_mode) = val;
 }
-static inline void set_float_exception_flags(int val STATUS_PARAM)
+static inline void set_float_exception_flags(int val, float_status *status)
 {
     STATUS(float_exception_flags) = val;
 }
-static inline void set_floatx80_rounding_precision(int val STATUS_PARAM)
+static inline void set_floatx80_rounding_precision(int val,
+                                                   float_status *status)
 {
     STATUS(floatx80_rounding_precision) = val;
 }
-static inline void set_flush_to_zero(flag val STATUS_PARAM)
+static inline void set_flush_to_zero(flag val, float_status *status)
 {
     STATUS(flush_to_zero) = val;
 }
-static inline void set_flush_inputs_to_zero(flag val STATUS_PARAM)
+static inline void set_flush_inputs_to_zero(flag val, float_status *status)
 {
     STATUS(flush_inputs_to_zero) = val;
 }
-static inline void set_default_nan_mode(flag val STATUS_PARAM)
+static inline void set_default_nan_mode(flag val, float_status *status)
 {
     STATUS(default_nan_mode) = val;
 }
@@ -285,14 +285,14 @@ static inline flag get_default_nan_mode(float_status *status)
 | Routine to raise any or all of the software IEC/IEEE floating-point
 | exception flags.
 *----------------------------------------------------------------------------*/
-void float_raise( int8 flags STATUS_PARAM);
+void float_raise(int8 flags, float_status *status);
 
 /*----------------------------------------------------------------------------
 | If `a' is denormal and we are in flush-to-zero mode then set the
 | input-denormal exception and return zero. Otherwise just return the value.
 *----------------------------------------------------------------------------*/
-float32 float32_squash_input_denormal(float32 a STATUS_PARAM);
-float64 float64_squash_input_denormal(float64 a STATUS_PARAM);
+float32 float32_squash_input_denormal(float32 a, float_status *status);
+float64 float64_squash_input_denormal(float64 a, float_status *status);
 
 /*----------------------------------------------------------------------------
 | Options to indicate which negations to perform in float*_muladd()
@@ -312,37 +312,37 @@ enum {
 /*----------------------------------------------------------------------------
 | Software IEC/IEEE integer-to-floating-point conversion routines.
 *----------------------------------------------------------------------------*/
-float32 int32_to_float32(int32_t STATUS_PARAM);
-float64 int32_to_float64(int32_t STATUS_PARAM);
-float32 uint32_to_float32(uint32_t STATUS_PARAM);
-float64 uint32_to_float64(uint32_t STATUS_PARAM);
-floatx80 int32_to_floatx80(int32_t STATUS_PARAM);
-float128 int32_to_float128(int32_t STATUS_PARAM);
-float32 int64_to_float32(int64_t STATUS_PARAM);
-float64 int64_to_float64(int64_t STATUS_PARAM);
-floatx80 int64_to_floatx80(int64_t STATUS_PARAM);
-float128 int64_to_float128(int64_t STATUS_PARAM);
-float32 uint64_to_float32(uint64_t STATUS_PARAM);
-float64 uint64_to_float64(uint64_t STATUS_PARAM);
-float128 uint64_to_float128(uint64_t STATUS_PARAM);
+float32 int32_to_float32(int32_t, float_status *status);
+float64 int32_to_float64(int32_t, float_status *status);
+float32 uint32_to_float32(uint32_t, float_status *status);
+float64 uint32_to_float64(uint32_t, float_status *status);
+floatx80 int32_to_floatx80(int32_t, float_status *status);
+float128 int32_to_float128(int32_t, float_status *status);
+float32 int64_to_float32(int64_t, float_status *status);
+float64 int64_to_float64(int64_t, float_status *status);
+floatx80 int64_to_floatx80(int64_t, float_status *status);
+float128 int64_to_float128(int64_t, float_status *status);
+float32 uint64_to_float32(uint64_t, float_status *status);
+float64 uint64_to_float64(uint64_t, float_status *status);
+float128 uint64_to_float128(uint64_t, float_status *status);
 
 /* We provide the int16 versions for symmetry of API with float-to-int */
-static inline float32 int16_to_float32(int16_t v STATUS_PARAM)
+static inline float32 int16_to_float32(int16_t v, float_status *status)
 {
     return int32_to_float32(v STATUS_VAR);
 }
 
-static inline float32 uint16_to_float32(uint16_t v STATUS_PARAM)
+static inline float32 uint16_to_float32(uint16_t v, float_status *status)
 {
     return uint32_to_float32(v STATUS_VAR);
 }
 
-static inline float64 int16_to_float64(int16_t v STATUS_PARAM)
+static inline float64 int16_to_float64(int16_t v, float_status *status)
 {
     return int32_to_float64(v STATUS_VAR);
 }
 
-static inline float64 uint16_to_float64(uint16_t v STATUS_PARAM)
+static inline float64 uint16_to_float64(uint16_t v, float_status *status)
 {
     return uint32_to_float64(v STATUS_VAR);
 }
@@ -350,10 +350,10 @@ static inline float64 uint16_to_float64(uint16_t v STATUS_PARAM)
 /*----------------------------------------------------------------------------
 | Software half-precision conversion routines.
 *----------------------------------------------------------------------------*/
-float16 float32_to_float16( float32, flag STATUS_PARAM );
-float32 float16_to_float32( float16, flag STATUS_PARAM );
-float16 float64_to_float16(float64 a, flag ieee STATUS_PARAM);
-float64 float16_to_float64(float16 a, flag ieee STATUS_PARAM);
+float16 float32_to_float16(float32, flag, float_status *status);
+float32 float16_to_float32(float16, flag, float_status *status);
+float16 float64_to_float16(float64 a, flag ieee, float_status *status);
+float64 float16_to_float64(float16 a, flag ieee, float_status *status);
 
 /*----------------------------------------------------------------------------
 | Software half-precision operations.
@@ -375,55 +375,55 @@ extern const float16 float16_default_nan;
 /*----------------------------------------------------------------------------
 | Software IEC/IEEE single-precision conversion routines.
 *----------------------------------------------------------------------------*/
-int_fast16_t float32_to_int16(float32 STATUS_PARAM);
-uint_fast16_t float32_to_uint16(float32 STATUS_PARAM);
-int_fast16_t float32_to_int16_round_to_zero(float32 STATUS_PARAM);
-uint_fast16_t float32_to_uint16_round_to_zero(float32 STATUS_PARAM);
-int32 float32_to_int32( float32 STATUS_PARAM );
-int32 float32_to_int32_round_to_zero( float32 STATUS_PARAM );
-uint32 float32_to_uint32( float32 STATUS_PARAM );
-uint32 float32_to_uint32_round_to_zero( float32 STATUS_PARAM );
-int64 float32_to_int64( float32 STATUS_PARAM );
-uint64 float32_to_uint64(float32 STATUS_PARAM);
-uint64 float32_to_uint64_round_to_zero(float32 STATUS_PARAM);
-int64 float32_to_int64_round_to_zero( float32 STATUS_PARAM );
-float64 float32_to_float64( float32 STATUS_PARAM );
-floatx80 float32_to_floatx80( float32 STATUS_PARAM );
-float128 float32_to_float128( float32 STATUS_PARAM );
+int_fast16_t float32_to_int16(float32, float_status *status);
+uint_fast16_t float32_to_uint16(float32, float_status *status);
+int_fast16_t float32_to_int16_round_to_zero(float32, float_status *status);
+uint_fast16_t float32_to_uint16_round_to_zero(float32, float_status *status);
+int32 float32_to_int32(float32, float_status *status);
+int32 float32_to_int32_round_to_zero(float32, float_status *status);
+uint32 float32_to_uint32(float32, float_status *status);
+uint32 float32_to_uint32_round_to_zero(float32, float_status *status);
+int64 float32_to_int64(float32, float_status *status);
+uint64 float32_to_uint64(float32, float_status *status);
+uint64 float32_to_uint64_round_to_zero(float32, float_status *status);
+int64 float32_to_int64_round_to_zero(float32, float_status *status);
+float64 float32_to_float64(float32, float_status *status);
+floatx80 float32_to_floatx80(float32, float_status *status);
+float128 float32_to_float128(float32, float_status *status);
 
 /*----------------------------------------------------------------------------
 | Software IEC/IEEE single-precision operations.
 *----------------------------------------------------------------------------*/
-float32 float32_round_to_int( float32 STATUS_PARAM );
-float32 float32_add( float32, float32 STATUS_PARAM );
-float32 float32_sub( float32, float32 STATUS_PARAM );
-float32 float32_mul( float32, float32 STATUS_PARAM );
-float32 float32_div( float32, float32 STATUS_PARAM );
-float32 float32_rem( float32, float32 STATUS_PARAM );
-float32 float32_muladd(float32, float32, float32, int STATUS_PARAM);
-float32 float32_sqrt( float32 STATUS_PARAM );
-float32 float32_exp2( float32 STATUS_PARAM );
-float32 float32_log2( float32 STATUS_PARAM );
-int float32_eq( float32, float32 STATUS_PARAM );
-int float32_le( float32, float32 STATUS_PARAM );
-int float32_lt( float32, float32 STATUS_PARAM );
-int float32_unordered( float32, float32 STATUS_PARAM );
-int float32_eq_quiet( float32, float32 STATUS_PARAM );
-int float32_le_quiet( float32, float32 STATUS_PARAM );
-int float32_lt_quiet( float32, float32 STATUS_PARAM );
-int float32_unordered_quiet( float32, float32 STATUS_PARAM );
-int float32_compare( float32, float32 STATUS_PARAM );
-int float32_compare_quiet( float32, float32 STATUS_PARAM );
-float32 float32_min(float32, float32 STATUS_PARAM);
-float32 float32_max(float32, float32 STATUS_PARAM);
-float32 float32_minnum(float32, float32 STATUS_PARAM);
-float32 float32_maxnum(float32, float32 STATUS_PARAM);
-float32 float32_minnummag(float32, float32 STATUS_PARAM);
-float32 float32_maxnummag(float32, float32 STATUS_PARAM);
+float32 float32_round_to_int(float32, float_status *status);
+float32 float32_add(float32, float32, float_status *status);
+float32 float32_sub(float32, float32, float_status *status);
+float32 float32_mul(float32, float32, float_status *status);
+float32 float32_div(float32, float32, float_status *status);
+float32 float32_rem(float32, float32, float_status *status);
+float32 float32_muladd(float32, float32, float32, int, float_status *status);
+float32 float32_sqrt(float32, float_status *status);
+float32 float32_exp2(float32, float_status *status);
+float32 float32_log2(float32, float_status *status);
+int float32_eq(float32, float32, float_status *status);
+int float32_le(float32, float32, float_status *status);
+int float32_lt(float32, float32, float_status *status);
+int float32_unordered(float32, float32, float_status *status);
+int float32_eq_quiet(float32, float32, float_status *status);
+int float32_le_quiet(float32, float32, float_status *status);
+int float32_lt_quiet(float32, float32, float_status *status);
+int float32_unordered_quiet(float32, float32, float_status *status);
+int float32_compare(float32, float32, float_status *status);
+int float32_compare_quiet(float32, float32, float_status *status);
+float32 float32_min(float32, float32, float_status *status);
+float32 float32_max(float32, float32, float_status *status);
+float32 float32_minnum(float32, float32, float_status *status);
+float32 float32_maxnum(float32, float32, float_status *status);
+float32 float32_minnummag(float32, float32, float_status *status);
+float32 float32_maxnummag(float32, float32, float_status *status);
 int float32_is_quiet_nan( float32 );
 int float32_is_signaling_nan( float32 );
 float32 float32_maybe_silence_nan( float32 );
-float32 float32_scalbn( float32, int STATUS_PARAM );
+float32 float32_scalbn(float32, int, float_status *status);
 
 static inline float32 float32_abs(float32 a)
 {
@@ -487,55 +487,55 @@ extern const float32 float32_default_nan;
 /*----------------------------------------------------------------------------
 | Software IEC/IEEE double-precision conversion routines.
 *----------------------------------------------------------------------------*/
-int_fast16_t float64_to_int16(float64 STATUS_PARAM);
-uint_fast16_t float64_to_uint16(float64 STATUS_PARAM);
-int_fast16_t float64_to_int16_round_to_zero(float64 STATUS_PARAM);
-uint_fast16_t float64_to_uint16_round_to_zero(float64 STATUS_PARAM);
-int32 float64_to_int32( float64 STATUS_PARAM );
-int32 float64_to_int32_round_to_zero( float64 STATUS_PARAM );
-uint32 float64_to_uint32( float64 STATUS_PARAM );
-uint32 float64_to_uint32_round_to_zero( float64 STATUS_PARAM );
-int64 float64_to_int64( float64 STATUS_PARAM );
-int64 float64_to_int64_round_to_zero( float64 STATUS_PARAM );
-uint64 float64_to_uint64 (float64 a STATUS_PARAM);
-uint64 float64_to_uint64_round_to_zero (float64 a STATUS_PARAM);
-float32 float64_to_float32( float64 STATUS_PARAM );
-floatx80 float64_to_floatx80( float64 STATUS_PARAM );
-float128 float64_to_float128( float64 STATUS_PARAM );
+int_fast16_t float64_to_int16(float64, float_status *status);
+uint_fast16_t float64_to_uint16(float64, float_status *status);
+int_fast16_t float64_to_int16_round_to_zero(float64, float_status *status);
+uint_fast16_t float64_to_uint16_round_to_zero(float64, float_status *status);
+int32 float64_to_int32(float64, float_status *status);
+int32 float64_to_int32_round_to_zero(float64, float_status *status);
+uint32 float64_to_uint32(float64, float_status *status);
+uint32 float64_to_uint32_round_to_zero(float64, float_status *status);
+int64 float64_to_int64(float64, float_status *status);
+int64 float64_to_int64_round_to_zero(float64, float_status *status);
+uint64 float64_to_uint64(float64 a, float_status *status);
+uint64 float64_to_uint64_round_to_zero(float64 a, float_status *status);
+float32 float64_to_float32(float64, float_status *status);
+floatx80 float64_to_floatx80(float64, float_status *status);
+float128 float64_to_float128(float64, float_status *status);
 
 /*----------------------------------------------------------------------------
 | Software IEC/IEEE double-precision operations.
 *----------------------------------------------------------------------------*/
-float64 float64_round_to_int( float64 STATUS_PARAM );
-float64 float64_trunc_to_int( float64 STATUS_PARAM );
-float64 float64_add( float64, float64 STATUS_PARAM );
-float64 float64_sub( float64, float64 STATUS_PARAM );
-float64 float64_mul( float64, float64 STATUS_PARAM );
-float64 float64_div( float64, float64 STATUS_PARAM );
-float64 float64_rem( float64, float64 STATUS_PARAM );
-float64 float64_muladd(float64, float64, float64, int STATUS_PARAM);
-float64 float64_sqrt( float64 STATUS_PARAM );
-float64 float64_log2( float64 STATUS_PARAM );
-int float64_eq( float64, float64 STATUS_PARAM );
-int float64_le( float64, float64 STATUS_PARAM );
-int float64_lt( float64, float64 STATUS_PARAM );
-int float64_unordered( float64, float64 STATUS_PARAM );
-int float64_eq_quiet( float64, float64 STATUS_PARAM );
-int float64_le_quiet( float64, float64 STATUS_PARAM );
-int float64_lt_quiet( float64, float64 STATUS_PARAM );
-int float64_unordered_quiet( float64, float64 STATUS_PARAM );
-int float64_compare( float64, float64 STATUS_PARAM );
-int float64_compare_quiet( float64, float64 STATUS_PARAM );
-float64 float64_min(float64, float64 STATUS_PARAM);
-float64 float64_max(float64, float64 STATUS_PARAM);
-float64 float64_minnum(float64, float64 STATUS_PARAM);
-float64 float64_maxnum(float64, float64 STATUS_PARAM);
-float64 float64_minnummag(float64, float64 STATUS_PARAM);
-float64 float64_maxnummag(float64, float64 STATUS_PARAM);
+float64 float64_round_to_int(float64, float_status *status);
+float64 float64_trunc_to_int(float64, float_status *status);
+float64 float64_add(float64, float64, float_status *status);
+float64 float64_sub(float64, float64, float_status *status);
+float64 float64_mul(float64, float64, float_status *status);
+float64 float64_div(float64, float64, float_status *status);
+float64 float64_rem(float64, float64, float_status *status);
+float64 float64_muladd(float64, float64, float64, int, float_status *status);
+float64 float64_sqrt(float64, float_status *status);
+float64 float64_log2(float64, float_status *status);
+int float64_eq(float64, float64, float_status *status);
+int float64_le(float64, float64, float_status *status);
+int float64_lt(float64, float64, float_status *status);
+int float64_unordered(float64, float64, float_status *status);
+int float64_eq_quiet(float64, float64, float_status *status);
+int float64_le_quiet(float64, float64, float_status *status);
+int float64_lt_quiet(float64, float64, float_status *status);
+int float64_unordered_quiet(float64, float64, float_status *status);
+int float64_compare(float64, float64, float_status *status);
+int float64_compare_quiet(float64, float64, float_status *status);
+float64 float64_min(float64, float64, float_status *status);
+float64 float64_max(float64, float64, float_status *status);
+float64 float64_minnum(float64, float64, float_status *status);
+float64 float64_maxnum(float64, float64, float_status *status);
+float64 float64_minnummag(float64, float64, float_status *status);
+float64 float64_maxnummag(float64, float64, float_status *status);
 int float64_is_quiet_nan( float64 a );
 int float64_is_signaling_nan( float64 );
 float64 float64_maybe_silence_nan( float64 );
-float64 float64_scalbn( float64, int STATUS_PARAM );
+float64 float64_scalbn(float64, int, float_status *status);
 
 static inline float64 float64_abs(float64 a)
 {
@@ -599,38 +599,38 @@ extern const float64 float64_default_nan;
 /*----------------------------------------------------------------------------
 | Software IEC/IEEE extended double-precision conversion routines.
 *----------------------------------------------------------------------------*/
-int32 floatx80_to_int32( floatx80 STATUS_PARAM );
-int32 floatx80_to_int32_round_to_zero( floatx80 STATUS_PARAM );
-int64 floatx80_to_int64( floatx80 STATUS_PARAM );
-int64 floatx80_to_int64_round_to_zero( floatx80 STATUS_PARAM );
-float32 floatx80_to_float32( floatx80 STATUS_PARAM );
-float64 floatx80_to_float64( floatx80 STATUS_PARAM );
-float128 floatx80_to_float128( floatx80 STATUS_PARAM );
+int32 floatx80_to_int32(floatx80, float_status *status);
+int32 floatx80_to_int32_round_to_zero(floatx80, float_status *status);
+int64 floatx80_to_int64(floatx80, float_status *status);
+int64 floatx80_to_int64_round_to_zero(floatx80, float_status *status);
+float32 floatx80_to_float32(floatx80, float_status *status);
+float64 floatx80_to_float64(floatx80, float_status *status);
+float128 floatx80_to_float128(floatx80, float_status *status);
 
 /*----------------------------------------------------------------------------
 | Software IEC/IEEE extended double-precision operations.
 *----------------------------------------------------------------------------*/
-floatx80 floatx80_round_to_int( floatx80 STATUS_PARAM );
-floatx80 floatx80_add( floatx80, floatx80 STATUS_PARAM );
-floatx80 floatx80_sub( floatx80, floatx80 STATUS_PARAM );
-floatx80 floatx80_mul( floatx80, floatx80 STATUS_PARAM );
-floatx80 floatx80_div( floatx80, floatx80 STATUS_PARAM );
-floatx80 floatx80_rem( floatx80, floatx80 STATUS_PARAM );
-floatx80 floatx80_sqrt( floatx80 STATUS_PARAM );
-int floatx80_eq( floatx80, floatx80 STATUS_PARAM );
-int floatx80_le( floatx80, floatx80 STATUS_PARAM );
-int floatx80_lt( floatx80, floatx80 STATUS_PARAM );
-int floatx80_unordered( floatx80, floatx80 STATUS_PARAM );
-int floatx80_eq_quiet( floatx80, floatx80 STATUS_PARAM );
-int floatx80_le_quiet( floatx80, floatx80 STATUS_PARAM );
-int floatx80_lt_quiet( floatx80, floatx80 STATUS_PARAM );
-int floatx80_unordered_quiet( floatx80, floatx80 STATUS_PARAM );
-int floatx80_compare( floatx80, floatx80 STATUS_PARAM );
-int floatx80_compare_quiet( floatx80, floatx80 STATUS_PARAM );
+floatx80 floatx80_round_to_int(floatx80, float_status *status);
+floatx80 floatx80_add(floatx80, floatx80, float_status *status);
+floatx80 floatx80_sub(floatx80, floatx80, float_status *status);
+floatx80 floatx80_mul(floatx80, floatx80, float_status *status);
+floatx80 floatx80_div(floatx80, floatx80, float_status *status);
+floatx80 floatx80_rem(floatx80, floatx80, float_status *status);
+floatx80 floatx80_sqrt(floatx80, float_status *status);
+int floatx80_eq(floatx80, floatx80, float_status *status);
+int floatx80_le(floatx80, floatx80, float_status *status);
+int floatx80_lt(floatx80, floatx80, float_status *status);
+int floatx80_unordered(floatx80, floatx80, float_status *status);
+int floatx80_eq_quiet(floatx80, floatx80, float_status *status);
+int floatx80_le_quiet(floatx80, floatx80, float_status *status);
+int floatx80_lt_quiet(floatx80, floatx80, float_status *status);
+int floatx80_unordered_quiet(floatx80, floatx80, float_status *status);
+int floatx80_compare(floatx80, floatx80, float_status *status);
+int floatx80_compare_quiet(floatx80, floatx80, float_status *status);
 int floatx80_is_quiet_nan( floatx80 );
 int floatx80_is_signaling_nan( floatx80 );
 floatx80 floatx80_maybe_silence_nan( floatx80 );
-floatx80 floatx80_scalbn( floatx80, int STATUS_PARAM );
+floatx80 floatx80_scalbn(floatx80, int, float_status *status);
 
 static inline floatx80 floatx80_abs(floatx80 a)
 {
@@ -684,38 +684,38 @@ extern const floatx80 floatx80_default_nan;
 /*----------------------------------------------------------------------------
 | Software IEC/IEEE quadruple-precision conversion routines.
 *----------------------------------------------------------------------------*/
-int32 float128_to_int32( float128 STATUS_PARAM );
-int32 float128_to_int32_round_to_zero( float128 STATUS_PARAM );
-int64 float128_to_int64( float128 STATUS_PARAM );
-int64 float128_to_int64_round_to_zero( float128 STATUS_PARAM );
-float32 float128_to_float32( float128 STATUS_PARAM );
-float64 float128_to_float64( float128 STATUS_PARAM );
-floatx80 float128_to_floatx80( float128 STATUS_PARAM );
+int32 float128_to_int32(float128, float_status *status);
+int32 float128_to_int32_round_to_zero(float128, float_status *status);
+int64 float128_to_int64(float128, float_status *status);
+int64 float128_to_int64_round_to_zero(float128, float_status *status);
+float32 float128_to_float32(float128, float_status *status);
+float64 float128_to_float64(float128, float_status *status);
+floatx80 float128_to_floatx80(float128, float_status *status);
 
 /*----------------------------------------------------------------------------
 | Software IEC/IEEE quadruple-precision operations.
 *----------------------------------------------------------------------------*/
-float128 float128_round_to_int( float128 STATUS_PARAM );
-float128 float128_add( float128, float128 STATUS_PARAM );
-float128 float128_sub( float128, float128 STATUS_PARAM );
-float128 float128_mul( float128, float128 STATUS_PARAM );
-float128 float128_div( float128, float128 STATUS_PARAM );
-float128 float128_rem( float128, float128 STATUS_PARAM );
-float128 float128_sqrt( float128 STATUS_PARAM );
-int float128_eq( float128, float128 STATUS_PARAM );
-int float128_le( float128, float128 STATUS_PARAM );
-int float128_lt( float128, float128 STATUS_PARAM );
-int float128_unordered( float128, float128 STATUS_PARAM );
-int float128_eq_quiet( float128, float128 STATUS_PARAM );
-int float128_le_quiet( float128, float128 STATUS_PARAM );
-int float128_lt_quiet( float128, float128 STATUS_PARAM );
-int float128_unordered_quiet( float128, float128 STATUS_PARAM );
-int float128_compare( float128, float128 STATUS_PARAM );
-int float128_compare_quiet( float128, float128 STATUS_PARAM );
+float128 float128_round_to_int(float128, float_status *status);
+float128 float128_add(float128, float128, float_status *status);
+float128 float128_sub(float128, float128, float_status *status);
+float128 float128_mul(float128, float128, float_status *status);
+float128 float128_div(float128, float128, float_status *status);
+float128 float128_rem(float128, float128, float_status *status);
+float128 float128_sqrt(float128, float_status *status);
+int float128_eq(float128, float128, float_status *status);
+int float128_le(float128, float128, float_status *status);
+int float128_lt(float128, float128, float_status *status);
+int float128_unordered(float128, float128, float_status *status);
+int float128_eq_quiet(float128, float128, float_status *status);
+int float128_le_quiet(float128, float128, float_status *status);
+int float128_lt_quiet(float128, float128, float_status *status);
+int float128_unordered_quiet(float128, float128, float_status *status);
+int float128_compare(float128, float128, float_status *status);
+int float128_compare_quiet(float128, float128, float_status *status);
 int float128_is_quiet_nan( float128 );
 int float128_is_signaling_nan( float128 );
 float128 float128_maybe_silence_nan( float128 );
-float128 float128_scalbn( float128, int STATUS_PARAM );
+float128 float128_scalbn(float128, int, float_status *status);
 
 static inline float128 float128_abs(float128 a)
 {

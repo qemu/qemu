@@ -170,7 +170,7 @@ const float128 float128_default_nan
 | should be simply `float_exception_flags |= flags;'.
 *----------------------------------------------------------------------------*/
 
-void float_raise( int8 flags STATUS_PARAM )
+void float_raise(int8 flags, float_status *status)
 {
     STATUS(float_exception_flags) |= flags;
 }
@@ -253,7 +253,7 @@ float16 float16_maybe_silence_nan(float16 a_)
 | exception is raised.
 *----------------------------------------------------------------------------*/
 
-static commonNaNT float16ToCommonNaN( float16 a STATUS_PARAM )
+static commonNaNT float16ToCommonNaN(float16 a, float_status *status)
 {
     commonNaNT z;
 
@@ -269,7 +269,7 @@ static commonNaNT float16ToCommonNaN( float16 a STATUS_PARAM )
 | precision floating-point format.
 *----------------------------------------------------------------------------*/
 
-static float16 commonNaNToFloat16(commonNaNT a STATUS_PARAM)
+static float16 commonNaNToFloat16(commonNaNT a, float_status *status)
 {
     uint16_t mantissa = a.high>>54;
 
@@ -356,7 +356,7 @@ float32 float32_maybe_silence_nan( float32 a_ )
 | exception is raised.
 *----------------------------------------------------------------------------*/
 
-static commonNaNT float32ToCommonNaN( float32 a STATUS_PARAM )
+static commonNaNT float32ToCommonNaN(float32 a, float_status *status)
 {
     commonNaNT z;
 
@@ -372,7 +372,7 @@ static commonNaNT float32ToCommonNaN( float32 a STATUS_PARAM )
 | precision floating-point format.
 *----------------------------------------------------------------------------*/
 
-static float32 commonNaNToFloat32( commonNaNT a STATUS_PARAM)
+static float32 commonNaNToFloat32(commonNaNT a, float_status *status)
 {
     uint32_t mantissa = a.high>>41;
 
@@ -507,7 +507,8 @@ static int pickNaN(flag aIsQNaN, flag aIsSNaN, flag bIsQNaN, flag bIsSNaN,
 *----------------------------------------------------------------------------*/
 #if defined(TARGET_ARM)
 static int pickNaNMulAdd(flag aIsQNaN, flag aIsSNaN, flag bIsQNaN, flag bIsSNaN,
-                         flag cIsQNaN, flag cIsSNaN, flag infzero STATUS_PARAM)
+                         flag cIsQNaN, flag cIsSNaN, flag infzero,
+                         float_status *status)
 {
     /* For ARM, the (inf,zero,qnan) case sets InvalidOp and returns
      * the default NaN
@@ -536,7 +537,8 @@ static int pickNaNMulAdd(flag aIsQNaN, flag aIsSNaN, flag bIsQNaN, flag bIsSNaN,
 }
 #elif defined(TARGET_MIPS)
 static int pickNaNMulAdd(flag aIsQNaN, flag aIsSNaN, flag bIsQNaN, flag bIsSNaN,
-                         flag cIsQNaN, flag cIsSNaN, flag infzero STATUS_PARAM)
+                         flag cIsQNaN, flag cIsSNaN, flag infzero,
+                         float_status *status)
 {
     /* For MIPS, the (inf,zero,qnan) case sets InvalidOp and returns
      * the default NaN
@@ -563,7 +565,8 @@ static int pickNaNMulAdd(flag aIsQNaN, flag aIsSNaN, flag bIsQNaN, flag bIsSNaN,
 }
 #elif defined(TARGET_PPC)
 static int pickNaNMulAdd(flag aIsQNaN, flag aIsSNaN, flag bIsQNaN, flag bIsSNaN,
-                         flag cIsQNaN, flag cIsSNaN, flag infzero STATUS_PARAM)
+                         flag cIsQNaN, flag cIsSNaN, flag infzero,
+                         float_status *status)
 {
     /* For PPC, the (inf,zero,qnan) case sets InvalidOp, but we prefer
      * to return an input NaN if we have one (ie c) rather than generating
@@ -590,7 +593,8 @@ static int pickNaNMulAdd(flag aIsQNaN, flag aIsSNaN, flag bIsQNaN, flag bIsSNaN,
  * This is unlikely to actually match any real implementation.
  */
 static int pickNaNMulAdd(flag aIsQNaN, flag aIsSNaN, flag bIsQNaN, flag bIsSNaN,
-                         flag cIsQNaN, flag cIsSNaN, flag infzero STATUS_PARAM)
+                         flag cIsQNaN, flag cIsSNaN, flag infzero,
+                         float_status *status)
 {
     if (aIsSNaN || aIsQNaN) {
         return 0;
@@ -608,7 +612,7 @@ static int pickNaNMulAdd(flag aIsQNaN, flag aIsSNaN, flag bIsQNaN, flag bIsSNaN,
 | signaling NaN, the invalid exception is raised.
 *----------------------------------------------------------------------------*/
 
-static float32 propagateFloat32NaN( float32 a, float32 b STATUS_PARAM)
+static float32 propagateFloat32NaN(float32 a, float32 b, float_status *status)
 {
     flag aIsQuietNaN, aIsSignalingNaN, bIsQuietNaN, bIsSignalingNaN;
     flag aIsLargerSignificand;
@@ -652,7 +656,8 @@ static float32 propagateFloat32NaN( float32 a, float32 b STATUS_PARAM)
 *----------------------------------------------------------------------------*/
 
 static float32 propagateFloat32MulAddNaN(float32 a, float32 b,
-                                         float32 c, flag infzero STATUS_PARAM)
+                                         float32 c, flag infzero,
+                                         float_status *status)
 {
     flag aIsQuietNaN, aIsSignalingNaN, bIsQuietNaN, bIsSignalingNaN,
         cIsQuietNaN, cIsSignalingNaN;
@@ -767,7 +772,7 @@ float64 float64_maybe_silence_nan( float64 a_ )
 | exception is raised.
 *----------------------------------------------------------------------------*/
 
-static commonNaNT float64ToCommonNaN( float64 a STATUS_PARAM)
+static commonNaNT float64ToCommonNaN(float64 a, float_status *status)
 {
     commonNaNT z;
 
@@ -783,7 +788,7 @@ static commonNaNT float64ToCommonNaN( float64 a STATUS_PARAM)
 | precision floating-point format.
 *----------------------------------------------------------------------------*/
 
-static float64 commonNaNToFloat64( commonNaNT a STATUS_PARAM)
+static float64 commonNaNToFloat64(commonNaNT a, float_status *status)
 {
     uint64_t mantissa = a.high>>12;
 
@@ -806,7 +811,7 @@ static float64 commonNaNToFloat64( commonNaNT a STATUS_PARAM)
 | signaling NaN, the invalid exception is raised.
 *----------------------------------------------------------------------------*/
 
-static float64 propagateFloat64NaN( float64 a, float64 b STATUS_PARAM)
+static float64 propagateFloat64NaN(float64 a, float64 b, float_status *status)
 {
     flag aIsQuietNaN, aIsSignalingNaN, bIsQuietNaN, bIsSignalingNaN;
     flag aIsLargerSignificand;
@@ -850,7 +855,8 @@ static float64 propagateFloat64NaN( float64 a, float64 b STATUS_PARAM)
 *----------------------------------------------------------------------------*/
 
 static float64 propagateFloat64MulAddNaN(float64 a, float64 b,
-                                         float64 c, flag infzero STATUS_PARAM)
+                                         float64 c, flag infzero,
+                                         float_status *status)
 {
     flag aIsQuietNaN, aIsSignalingNaN, bIsQuietNaN, bIsSignalingNaN,
         cIsQuietNaN, cIsSignalingNaN;
@@ -975,7 +981,7 @@ floatx80 floatx80_maybe_silence_nan( floatx80 a )
 | invalid exception is raised.
 *----------------------------------------------------------------------------*/
 
-static commonNaNT floatx80ToCommonNaN( floatx80 a STATUS_PARAM)
+static commonNaNT floatx80ToCommonNaN(floatx80 a, float_status *status)
 {
     commonNaNT z;
 
@@ -997,7 +1003,7 @@ static commonNaNT floatx80ToCommonNaN( floatx80 a STATUS_PARAM)
 | double-precision floating-point format.
 *----------------------------------------------------------------------------*/
 
-static floatx80 commonNaNToFloatx80( commonNaNT a STATUS_PARAM)
+static floatx80 commonNaNToFloatx80(commonNaNT a, float_status *status)
 {
     floatx80 z;
 
@@ -1024,7 +1030,8 @@ static floatx80 commonNaNToFloatx80( commonNaNT a STATUS_PARAM)
 | `b' is a signaling NaN, the invalid exception is raised.
 *----------------------------------------------------------------------------*/
 
-static floatx80 propagateFloatx80NaN( floatx80 a, floatx80 b STATUS_PARAM)
+static floatx80 propagateFloatx80NaN(floatx80 a, floatx80 b,
+                                     float_status *status)
 {
     flag aIsQuietNaN, aIsSignalingNaN, bIsQuietNaN, bIsSignalingNaN;
     flag aIsLargerSignificand;
@@ -1134,7 +1141,7 @@ float128 float128_maybe_silence_nan( float128 a )
 | exception is raised.
 *----------------------------------------------------------------------------*/
 
-static commonNaNT float128ToCommonNaN( float128 a STATUS_PARAM)
+static commonNaNT float128ToCommonNaN(float128 a, float_status *status)
 {
     commonNaNT z;
 
@@ -1149,7 +1156,7 @@ static commonNaNT float128ToCommonNaN( float128 a STATUS_PARAM)
 | precision floating-point format.
 *----------------------------------------------------------------------------*/
 
-static float128 commonNaNToFloat128( commonNaNT a STATUS_PARAM)
+static float128 commonNaNToFloat128(commonNaNT a, float_status *status)
 {
     float128 z;
 
@@ -1170,7 +1177,8 @@ static float128 commonNaNToFloat128( commonNaNT a STATUS_PARAM)
 | `b' is a signaling NaN, the invalid exception is raised.
 *----------------------------------------------------------------------------*/
 
-static float128 propagateFloat128NaN( float128 a, float128 b STATUS_PARAM)
+static float128 propagateFloat128NaN(float128 a, float128 b,
+                                     float_status *status)
 {
     flag aIsQuietNaN, aIsSignalingNaN, bIsQuietNaN, bIsSignalingNaN;
     flag aIsLargerSignificand;

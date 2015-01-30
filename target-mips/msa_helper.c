@@ -1614,7 +1614,8 @@ static inline int get_enabled_exceptions(const CPUMIPSState *env, int c)
     return c & enable;
 }
 
-static inline float16 float16_from_float32(int32 a, flag ieee STATUS_PARAM)
+static inline float16 float16_from_float32(int32 a, flag ieee,
+                                           float_status *status)
 {
       float16 f_val;
 
@@ -1624,7 +1625,7 @@ static inline float16 float16_from_float32(int32 a, flag ieee STATUS_PARAM)
       return a < 0 ? (f_val | (1 << 15)) : f_val;
 }
 
-static inline float32 float32_from_float64(int64 a STATUS_PARAM)
+static inline float32 float32_from_float64(int64 a, float_status *status)
 {
       float32 f_val;
 
@@ -1634,7 +1635,8 @@ static inline float32 float32_from_float64(int64 a STATUS_PARAM)
       return a < 0 ? (f_val | (1 << 31)) : f_val;
 }
 
-static inline float32 float32_from_float16(int16_t a, flag ieee STATUS_PARAM)
+static inline float32 float32_from_float16(int16_t a, flag ieee,
+                                           float_status *status)
 {
       float32 f_val;
 
@@ -1644,7 +1646,7 @@ static inline float32 float32_from_float16(int16_t a, flag ieee STATUS_PARAM)
       return a < 0 ? (f_val | (1 << 31)) : f_val;
 }
 
-static inline float64 float64_from_float32(int32 a STATUS_PARAM)
+static inline float64 float64_from_float32(int32 a, float_status *status)
 {
       float64 f_val;
 
@@ -1654,7 +1656,7 @@ static inline float64 float64_from_float32(int32 a STATUS_PARAM)
       return a < 0 ? (f_val | (1ULL << 63)) : f_val;
 }
 
-static inline float32 float32_from_q16(int16_t a STATUS_PARAM)
+static inline float32 float32_from_q16(int16_t a, float_status *status)
 {
     float32 f_val;
 
@@ -1665,7 +1667,7 @@ static inline float32 float32_from_q16(int16_t a STATUS_PARAM)
     return f_val;
 }
 
-static inline float64 float64_from_q32(int32 a STATUS_PARAM)
+static inline float64 float64_from_q32(int32 a, float_status *status)
 {
     float64 f_val;
 
@@ -1676,7 +1678,7 @@ static inline float64 float64_from_q32(int32 a STATUS_PARAM)
     return f_val;
 }
 
-static inline int16_t float32_to_q16(float32 a STATUS_PARAM)
+static inline int16_t float32_to_q16(float32 a, float_status *status)
 {
     int32 q_val;
     int32 q_min = 0xffff8000;
@@ -1728,7 +1730,7 @@ static inline int16_t float32_to_q16(float32 a STATUS_PARAM)
     return (int16_t)q_val;
 }
 
-static inline int32 float64_to_q32(float64 a STATUS_PARAM)
+static inline int32 float64_to_q32(float64 a, float_status *status)
 {
     int64 q_val;
     int64 q_min = 0xffffffff80000000LL;
