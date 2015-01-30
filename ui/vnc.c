@@ -3316,10 +3316,15 @@ void vnc_display_open(const char *id, Error **errp)
 {
     VncDisplay *vs = vnc_display_find(id);
     QemuOpts *opts = qemu_opts_find(&qemu_vnc_opts, id);
-    const char *display, *share, *device_id;
+    const char *share, *device_id;
     QemuConsole *con;
     int password = 0;
     int reverse = 0;
+    const char *vnc;
+    const char *has_to;
+    char *display, *to = NULL;
+    bool has_ipv4 = false;
+    bool has_ipv6 = false;
 #ifdef CONFIG_VNC_WS
     const char *websocket;
 #endif
@@ -3345,10 +3350,21 @@ void vnc_display_open(const char *id, Error **errp)
     if (!opts) {
         return;
     }
-    display = qemu_opt_get(opts, "vnc");
-    if (!display || strcmp(display, "none") == 0) {
+    vnc = qemu_opt_get(opts, "vnc");
+    if (!vnc || strcmp(vnc, "none") == 0) {
         return;
     }
+
+    has_to = qemu_opt_get(opts, "to");
+    if (has_to) {
+        to = g_strdup_printf(",to=%s", has_to);
+    }
+    has_ipv4 = qemu_opt_get_bool(opts, "ipv4", false);
+    has_ipv6 = qemu_opt_get_bool(opts, "ipv6", false);
+    display = g_strdup_printf("%s%s%s%s", vnc,
+                                  has_to ? to : "",
+                                  has_ipv4 ? ",ipv4" : "",
+                                  has_ipv6 ? ",ipv6" : "");
     vs->display = g_strdup(display);
 
     password = qemu_opt_get_bool(opts, "password", false);
@@ -3628,6 +3644,8 @@ void vnc_display_open(const char *id, Error **errp)
             }
 #endif /* CONFIG_VNC_WS */
         }
+        g_free(to);
+        g_free(display);
         g_free(vs->display);
         vs->display = dpy;
         qemu_set_fd_handler2(vs->lsock, NULL,
@@ -3642,6 +3660,8 @@ void vnc_display_open(const char *id, Error **errp)
     return;
 
 fail:
+    g_free(to);
+    g_free(display);
     g_free(vs->display);
     vs->display = NULL;
 #ifdef CONFIG_VNC_WS
