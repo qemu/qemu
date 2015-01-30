@@ -3272,6 +3272,15 @@ static QemuOptsList qemu_vnc_opts = {
             .name = "connections",
             .type = QEMU_OPT_NUMBER,
         },{
+            .name = "to",
+            .type = QEMU_OPT_NUMBER,
+        },{
+            .name = "ipv4",
+            .type = QEMU_OPT_BOOL,
+        },{
+            .name = "ipv6",
+            .type = QEMU_OPT_BOOL,
+        },{
             .name = "password",
             .type = QEMU_OPT_BOOL,
         },{
