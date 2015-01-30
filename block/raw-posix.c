@@ -893,6 +893,15 @@ static int xfs_discard(BDRVRawState *s, int64_t offset, uint64_t bytes)
 }
 #endif
 
+static int translate_err(int err)
+{
+    if (err == -ENODEV || err == -ENOSYS || err == -EOPNOTSUPP ||
+        err == -ENOTTY) {
+        err = -ENOTSUP;
+    }
+    return err;
+}
+
 static ssize_t handle_aiocb_write_zeroes(RawPosixAIOData *aiocb)
 {
     int ret = -EOPNOTSUPP;
@@ -921,10 +930,9 @@ static ssize_t handle_aiocb_write_zeroes(RawPosixAIOData *aiocb)
 #endif
     }
 
-    if (ret == -ENODEV || ret == -ENOSYS || ret == -EOPNOTSUPP ||
-        ret == -ENOTTY) {
+    ret = translate_err(ret);
+    if (ret == -ENOTSUP) {
         s->has_write_zeroes = false;
-        ret = -ENOTSUP;
     }
     return ret;
 }
@@ -968,10 +976,9 @@ static ssize_t handle_aiocb_discard(RawPosixAIOData *aiocb)
 #endif
     }
 
-    if (ret == -ENODEV || ret == -ENOSYS || ret == -EOPNOTSUPP ||
-        ret == -ENOTTY) {
+    ret = translate_err(ret);
+    if (ret == -ENOTSUP) {
         s->has_discard = false;
-        ret = -ENOTSUP;
     }
     return ret;
 }
