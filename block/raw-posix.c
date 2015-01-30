@@ -914,39 +914,47 @@ static int do_fallocate(int fd, int mode, off_t offset, off_t len)
 }
 #endif
 
-static ssize_t handle_aiocb_write_zeroes(RawPosixAIOData *aiocb)
+static ssize_t handle_aiocb_write_zeroes_block(RawPosixAIOData *aiocb)
 {
-    int ret = -EOPNOTSUPP;
+    int ret = -ENOTSUP;
     BDRVRawState *s = aiocb->bs->opaque;
 
-    if (s->has_write_zeroes == 0) {
+    if (!s->has_write_zeroes) {
         return -ENOTSUP;
     }
 
-    if (aiocb->aio_type & QEMU_AIO_BLKDEV) {
 #ifdef BLKZEROOUT
-        do {
-            uint64_t range[2] = { aiocb->aio_offset, aiocb->aio_nbytes };
-            if (ioctl(aiocb->aio_fildes, BLKZEROOUT, range) == 0) {
-                return 0;
-            }
-        } while (errno == EINTR);
-
-        ret = -errno;
-#endif
-    } else {
-#ifdef CONFIG_XFS
-        if (s->is_xfs) {
-            return xfs_write_zeroes(s, aiocb->aio_offset, aiocb->aio_nbytes);
+    do {
+        uint64_t range[2] = { aiocb->aio_offset, aiocb->aio_nbytes };
+        if (ioctl(aiocb->aio_fildes, BLKZEROOUT, range) == 0) {
+            return 0;
         }
-#endif
-    }
+    } while (errno == EINTR);
 
-    ret = translate_err(ret);
+    ret = translate_err(-errno);
+#endif
+
     if (ret == -ENOTSUP) {
         s->has_write_zeroes = false;
     }
     return ret;
+}
+
+static ssize_t handle_aiocb_write_zeroes(RawPosixAIOData *aiocb)
+{
+    BDRVRawState *s = aiocb->bs->opaque;
+
+    if (aiocb->aio_type & QEMU_AIO_BLKDEV) {
+        return handle_aiocb_write_zeroes_block(aiocb);
+    }
+
+#ifdef CONFIG_XFS
+    if (s->is_xfs) {
+        return xfs_write_zeroes(s, aiocb->aio_offset, aiocb->aio_nbytes);
+    }
+#endif
+
+    return -ENOTSUP;
 }
 
 static ssize_t handle_aiocb_discard(RawPosixAIOData *aiocb)
