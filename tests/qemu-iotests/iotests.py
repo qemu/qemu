@@ -185,11 +185,14 @@ class VM(object):
             self._popen = None
 
     underscore_to_dash = string.maketrans('_', '-')
-    def qmp(self, cmd, **args):
+    def qmp(self, cmd, conv_keys=True, **args):
         '''Invoke a QMP command and return the result dict'''
         qmp_args = dict()
         for k in args.keys():
-            qmp_args[k.translate(self.underscore_to_dash)] = args[k]
+            if conv_keys:
+                qmp_args[k.translate(self.underscore_to_dash)] = args[k]
+            else:
+                qmp_args[k] = args[k]
 
         return self._qmp.cmd(cmd, args=qmp_args)
 
