@@ -3335,6 +3335,22 @@ if compile_prog "" "" ; then
   fallocate_punch_hole=yes
 fi
 
+# check that fallocate supports range zeroing inside the file
+fallocate_zero_range=no
+cat > $TMPC << EOF
+#include <fcntl.h>
+#include <linux/falloc.h>
+
+int main(void)
+{
+    fallocate(0, FALLOC_FL_ZERO_RANGE, 0, 0);
+    return 0;
+}
+EOF
+if compile_prog "" "" ; then
+  fallocate_zero_range=yes
+fi
+
 # check for posix_fallocate
 posix_fallocate=no
 cat > $TMPC << EOF
@@ -4566,6 +4582,9 @@ if test "$fallocate" = "yes" ; then
 fi
 if test "$fallocate_punch_hole" = "yes" ; then
   echo "CONFIG_FALLOCATE_PUNCH_HOLE=y" >> $config_host_mak
+fi
+if test "$fallocate_zero_range" = "yes" ; then
+  echo "CONFIG_FALLOCATE_ZERO_RANGE=y" >> $config_host_mak
 fi
 if test "$posix_fallocate" = "yes" ; then
   echo "CONFIG_POSIX_FALLOCATE=y" >> $config_host_mak

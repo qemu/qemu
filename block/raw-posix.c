@@ -60,7 +60,7 @@
 #define FS_NOCOW_FL                     0x00800000 /* Do not cow file */
 #endif
 #endif
-#ifdef CONFIG_FALLOCATE_PUNCH_HOLE
+#if defined(CONFIG_FALLOCATE_PUNCH_HOLE) || defined(CONFIG_FALLOCATE_ZERO_RANGE)
 #include <linux/falloc.h>
 #endif
 #if defined (__FreeBSD__) || defined(__FreeBSD_kernel__)
@@ -902,7 +902,7 @@ static int translate_err(int err)
     return err;
 }
 
-#if defined(CONFIG_FALLOCATE_PUNCH_HOLE)
+#if defined(CONFIG_FALLOCATE_PUNCH_HOLE) || defined(CONFIG_FALLOCATE_ZERO_RANGE)
 static int do_fallocate(int fd, int mode, off_t offset, off_t len)
 {
     do {
@@ -951,6 +951,17 @@ static ssize_t handle_aiocb_write_zeroes(RawPosixAIOData *aiocb)
 #ifdef CONFIG_XFS
     if (s->is_xfs) {
         return xfs_write_zeroes(s, aiocb->aio_offset, aiocb->aio_nbytes);
+    }
+#endif
+
+#ifdef CONFIG_FALLOCATE_ZERO_RANGE
+    if (s->has_write_zeroes) {
+        int ret = do_fallocate(s->fd, FALLOC_FL_ZERO_RANGE,
+                               aiocb->aio_offset, aiocb->aio_nbytes);
+        if (ret == 0 || ret != -ENOTSUP) {
+            return ret;
+        }
+        s->has_write_zeroes = false;
     }
 #endif
 
