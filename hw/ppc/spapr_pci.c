@@ -868,6 +868,10 @@ int spapr_populate_pci_dt(sPAPRPHBState *phb,
     int bus_off, i, j;
     char nodename[256];
     uint32_t bus_range[] = { cpu_to_be32(0), cpu_to_be32(0xff) };
+    const uint64_t mmiosize = memory_region_size(&phb->memwindow);
+    const uint64_t w32max = (1ULL << 32) - SPAPR_PCI_MEM_WIN_BUS_OFFSET;
+    const uint64_t w32size = MIN(w32max, mmiosize);
+    const uint64_t w64size = (mmiosize > w32size) ? (mmiosize - w32size) : 0;
     struct {
         uint32_t hi;
         uint64_t child;
@@ -882,9 +886,15 @@ int spapr_populate_pci_dt(sPAPRPHBState *phb,
         {
             cpu_to_be32(b_ss(2)), cpu_to_be64(SPAPR_PCI_MEM_WIN_BUS_OFFSET),
             cpu_to_be64(phb->mem_win_addr),
-            cpu_to_be64(memory_region_size(&phb->memwindow)),
+            cpu_to_be64(w32size),
+        },
+        {
+            cpu_to_be32(b_ss(3)), cpu_to_be64(1ULL << 32),
+            cpu_to_be64(phb->mem_win_addr + w32size),
+            cpu_to_be64(w64size)
         },
     };
+    const unsigned sizeof_ranges = (w64size ? 3 : 2) * sizeof(ranges[0]);
     uint64_t bus_reg[] = { cpu_to_be64(phb->buid), 0 };
     uint32_t interrupt_map_mask[] = {
         cpu_to_be32(b_ddddd(-1)|b_fff(0)), 0x0, 0x0, cpu_to_be32(-1)};
@@ -913,7 +923,7 @@ int spapr_populate_pci_dt(sPAPRPHBState *phb,
     _FDT(fdt_setprop_cell(fdt, bus_off, "#interrupt-cells", 0x1));
     _FDT(fdt_setprop(fdt, bus_off, "used-by-rtas", NULL, 0));
     _FDT(fdt_setprop(fdt, bus_off, "bus-range", &bus_range, sizeof(bus_range)));
-    _FDT(fdt_setprop(fdt, bus_off, "ranges", &ranges, sizeof(ranges)));
+    _FDT(fdt_setprop(fdt, bus_off, "ranges", &ranges, sizeof_ranges));
     _FDT(fdt_setprop(fdt, bus_off, "reg", &bus_reg, sizeof(bus_reg)));
     _FDT(fdt_setprop_cell(fdt, bus_off, "ibm,pci-config-space-type", 0x1));
     _FDT(fdt_setprop_cell(fdt, bus_off, "ibm,pe-total-#msi", XICS_IRQS));
