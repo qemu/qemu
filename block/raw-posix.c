@@ -147,6 +147,7 @@ typedef struct BDRVRawState {
     bool has_discard:1;
     bool has_write_zeroes:1;
     bool discard_zeroes:1;
+    bool has_fallocate;
     bool needs_alignment;
 } BDRVRawState;
 
@@ -452,6 +453,7 @@ static int raw_open_common(BlockDriverState *bs, QDict *options,
     }
     if (S_ISREG(st.st_mode)) {
         s->discard_zeroes = true;
+        s->has_fallocate = true;
     }
     if (S_ISBLK(st.st_mode)) {
 #ifdef BLKDISCARDZEROES
@@ -902,7 +904,7 @@ static int translate_err(int err)
     return err;
 }
 
-#if defined(CONFIG_FALLOCATE_PUNCH_HOLE) || defined(CONFIG_FALLOCATE_ZERO_RANGE)
+#ifdef CONFIG_FALLOCATE
 static int do_fallocate(int fd, int mode, off_t offset, off_t len)
 {
     do {
@@ -962,6 +964,16 @@ static ssize_t handle_aiocb_write_zeroes(RawPosixAIOData *aiocb)
             return ret;
         }
         s->has_write_zeroes = false;
+    }
+#endif
+
+#ifdef CONFIG_FALLOCATE
+    if (s->has_fallocate && aiocb->aio_offset >= bdrv_getlength(aiocb->bs)) {
+        int ret = do_fallocate(s->fd, 0, aiocb->aio_offset, aiocb->aio_nbytes);
+        if (ret == 0 || ret != -ENOTSUP) {
+            return ret;
+        }
+        s->has_fallocate = false;
     }
 #endif
 
