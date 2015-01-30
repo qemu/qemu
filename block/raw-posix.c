@@ -902,6 +902,18 @@ static int translate_err(int err)
     return err;
 }
 
+#if defined(CONFIG_FALLOCATE_PUNCH_HOLE)
+static int do_fallocate(int fd, int mode, off_t offset, off_t len)
+{
+    do {
+        if (fallocate(fd, mode, offset, len) == 0) {
+            return 0;
+        }
+    } while (errno == EINTR);
+    return translate_err(-errno);
+}
+#endif
+
 static ssize_t handle_aiocb_write_zeroes(RawPosixAIOData *aiocb)
 {
     int ret = -EOPNOTSUPP;
@@ -965,14 +977,8 @@ static ssize_t handle_aiocb_discard(RawPosixAIOData *aiocb)
 #endif
 
 #ifdef CONFIG_FALLOCATE_PUNCH_HOLE
-        do {
-            if (fallocate(s->fd, FALLOC_FL_PUNCH_HOLE | FALLOC_FL_KEEP_SIZE,
-                          aiocb->aio_offset, aiocb->aio_nbytes) == 0) {
-                return 0;
-            }
-        } while (errno == EINTR);
-
-        ret = -errno;
+        ret = do_fallocate(s->fd, FALLOC_FL_PUNCH_HOLE | FALLOC_FL_KEEP_SIZE,
+                           aiocb->aio_offset, aiocb->aio_nbytes);
 #endif
     }
 
