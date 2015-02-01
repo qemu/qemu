@@ -476,7 +476,8 @@ static uint16_t nvme_get_feature(NvmeCtrl *n, NvmeCmd *cmd, NvmeRequest *req)
 
     switch (dw10) {
     case NVME_NUMBER_OF_QUEUES:
-        req->cqe.result = cpu_to_le32(n->num_queues);
+        req->cqe.result =
+            cpu_to_le32((n->num_queues - 1) | ((n->num_queues - 1) << 16));
         break;
     default:
         return NVME_INVALID_FIELD | NVME_DNR;
@@ -490,7 +491,8 @@ static uint16_t nvme_set_feature(NvmeCtrl *n, NvmeCmd *cmd, NvmeRequest *req)
 
     switch (dw10) {
     case NVME_NUMBER_OF_QUEUES:
-        req->cqe.result = cpu_to_le32(n->num_queues);
+        req->cqe.result =
+            cpu_to_le32((n->num_queues - 1) | ((n->num_queues - 1) << 16));
         break;
     default:
         return NVME_INVALID_FIELD | NVME_DNR;
@@ -813,7 +815,7 @@ static int nvme_init(PCIDevice *pci_dev)
     NVME_CAP_SET_CSS(n->bar.cap, 1);
     NVME_CAP_SET_MPSMAX(n->bar.cap, 4);
 
-    n->bar.vs = 0x00010001;
+    n->bar.vs = 0x00010100;
     n->bar.intmc = n->bar.intms = 0;
 
     for (i = 0; i < n->num_namespaces; i++) {

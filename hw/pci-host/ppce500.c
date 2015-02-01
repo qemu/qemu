@@ -62,11 +62,19 @@
 #define PPCE500_PCI_NR_POBS     5
 #define PPCE500_PCI_NR_PIBS     3
 
+#define PIWAR_EN                0x80000000      /* Enable */
+#define PIWAR_PF                0x20000000      /* prefetch */
+#define PIWAR_TGI_LOCAL         0x00f00000      /* target - local memory */
+#define PIWAR_READ_SNOOP        0x00050000
+#define PIWAR_WRITE_SNOOP       0x00005000
+#define PIWAR_SZ_MASK           0x0000003f
+
 struct  pci_outbound {
     uint32_t potar;
     uint32_t potear;
     uint32_t powbar;
     uint32_t powar;
+    MemoryRegion mem;
 };
 
 struct pci_inbound {
@@ -74,6 +82,7 @@ struct pci_inbound {
     uint32_t piwbar;
     uint32_t piwbear;
     uint32_t piwar;
+    MemoryRegion mem;
 };
 
 #define TYPE_PPC_E500_PCI_HOST_BRIDGE "e500-pcihost"
@@ -91,10 +100,13 @@ struct PPCE500PCIState {
     uint32_t irq_num[PCI_NUM_PINS];
     uint32_t first_slot;
     uint32_t first_pin_irq;
+    AddressSpace bm_as;
+    MemoryRegion bm;
     /* mmio maps */
     MemoryRegion container;
     MemoryRegion iomem;
     MemoryRegion pio;
+    MemoryRegion busmem;
 };
 
 #define TYPE_PPC_E500_PCI_BRIDGE "e500-host-bridge"
@@ -181,6 +193,71 @@ static uint64_t pci_reg_read4(void *opaque, hwaddr addr,
     return value;
 }
 
+/* DMA mapping */
+static void e500_update_piw(PPCE500PCIState *pci, int idx)
+{
+    uint64_t tar = ((uint64_t)pci->pib[idx].pitar) << 12;
+    uint64_t wbar = ((uint64_t)pci->pib[idx].piwbar) << 12;
+    uint64_t war = pci->pib[idx].piwar;
+    uint64_t size = 2ULL << (war & PIWAR_SZ_MASK);
+    MemoryRegion *address_space_mem = get_system_memory();
+    MemoryRegion *mem = &pci->pib[idx].mem;
+    MemoryRegion *bm = &pci->bm;
+    char *name;
+
+    if (memory_region_is_mapped(mem)) {
+        /* Before we modify anything, unmap and destroy the region */
+        memory_region_del_subregion(bm, mem);
+        object_unparent(OBJECT(mem));
+    }
+
+    if (!(war & PIWAR_EN)) {
+        /* Not enabled, nothing to do */
+        return;
+    }
+
+    name = g_strdup_printf("PCI Inbound Window %d", idx);
+    memory_region_init_alias(mem, OBJECT(pci), name, address_space_mem, tar,
+                             size);
+    memory_region_add_subregion_overlap(bm, wbar, mem, -1);
+    g_free(name);
+
+    pci_debug("%s: Added window of size=%#lx from PCI=%#lx to CPU=%#lx\n",
+              __func__, size, wbar, tar);
+}
+
+/* BAR mapping */
+static void e500_update_pow(PPCE500PCIState *pci, int idx)
+{
+    uint64_t tar = ((uint64_t)pci->pob[idx].potar) << 12;
+    uint64_t wbar = ((uint64_t)pci->pob[idx].powbar) << 12;
+    uint64_t war = pci->pob[idx].powar;
+    uint64_t size = 2ULL << (war & PIWAR_SZ_MASK);
+    MemoryRegion *mem = &pci->pob[idx].mem;
+    MemoryRegion *address_space_mem = get_system_memory();
+    char *name;
+
+    if (memory_region_is_mapped(mem)) {
+        /* Before we modify anything, unmap and destroy the region */
+        memory_region_del_subregion(address_space_mem, mem);
+        object_unparent(OBJECT(mem));
+    }
+
+    if (!(war & PIWAR_EN)) {
+        /* Not enabled, nothing to do */
+        return;
+    }
+
+    name = g_strdup_printf("PCI Outbound Window %d", idx);
+    memory_region_init_alias(mem, OBJECT(pci), name, &pci->busmem, tar,
+                             size);
+    memory_region_add_subregion(address_space_mem, wbar, mem);
+    g_free(name);
+
+    pci_debug("%s: Added window of size=%#lx from CPU=%#lx to PCI=%#lx\n",
+              __func__, size, wbar, tar);
+}
+
 static void pci_reg_write4(void *opaque, hwaddr addr,
                            uint64_t value, unsigned size)
 {
@@ -199,18 +276,22 @@ static void pci_reg_write4(void *opaque, hwaddr addr,
     case PPCE500_PCI_OW3:
     case PPCE500_PCI_OW4:
         idx = (addr >> 5) & 0x7;
-        switch (addr & 0xC) {
+        switch (addr & 0x1F) {
         case PCI_POTAR:
             pci->pob[idx].potar = value;
+            e500_update_pow(pci, idx);
             break;
         case PCI_POTEAR:
             pci->pob[idx].potear = value;
+            e500_update_pow(pci, idx);
             break;
         case PCI_POWBAR:
             pci->pob[idx].powbar = value;
+            e500_update_pow(pci, idx);
             break;
         case PCI_POWAR:
             pci->pob[idx].powar = value;
+            e500_update_pow(pci, idx);
             break;
         default:
             break;
@@ -221,18 +302,22 @@ static void pci_reg_write4(void *opaque, hwaddr addr,
     case PPCE500_PCI_IW2:
     case PPCE500_PCI_IW1:
         idx = ((addr >> 5) & 0x3) - 1;
-        switch (addr & 0xC) {
+        switch (addr & 0x1F) {
         case PCI_PITAR:
             pci->pib[idx].pitar = value;
+            e500_update_piw(pci, idx);
             break;
         case PCI_PIWBAR:
             pci->pib[idx].piwbar = value;
+            e500_update_piw(pci, idx);
             break;
         case PCI_PIWBEAR:
             pci->pib[idx].piwbear = value;
+            e500_update_piw(pci, idx);
             break;
         case PCI_PIWAR:
             pci->pib[idx].piwar = value;
+            e500_update_piw(pci, idx);
             break;
         default:
             break;
@@ -349,13 +434,20 @@ static int e500_pcihost_bridge_initfn(PCIDevice *d)
     return 0;
 }
 
+static AddressSpace *e500_pcihost_set_iommu(PCIBus *bus, void *opaque,
+                                            int devfn)
+{
+    PPCE500PCIState *s = opaque;
+
+    return &s->bm_as;
+}
+
 static int e500_pcihost_initfn(SysBusDevice *dev)
 {
     PCIHostState *h;
     PPCE500PCIState *s;
     PCIBus *b;
     int i;
-    MemoryRegion *address_space_mem = get_system_memory();
 
     h = PCI_HOST_BRIDGE(dev);
     s = PPC_E500_PCI_HOST_BRIDGE(dev);
@@ -369,11 +461,21 @@ static int e500_pcihost_initfn(SysBusDevice *dev)
     }
 
     memory_region_init(&s->pio, OBJECT(s), "pci-pio", PCIE500_PCI_IOLEN);
+    memory_region_init(&s->busmem, OBJECT(s), "pci bus memory", UINT64_MAX);
+
+    /* PIO lives at the bottom of our bus space */
+    memory_region_add_subregion_overlap(&s->busmem, 0, &s->pio, -2);
 
     b = pci_register_bus(DEVICE(dev), NULL, mpc85xx_pci_set_irq,
-                         mpc85xx_pci_map_irq, s, address_space_mem,
-                         &s->pio, PCI_DEVFN(s->first_slot, 0), 4, TYPE_PCI_BUS);
+                         mpc85xx_pci_map_irq, s, &s->busmem, &s->pio,
+                         PCI_DEVFN(s->first_slot, 0), 4, TYPE_PCI_BUS);
     h->bus = b;
+
+    /* Set up PCI view of memory */
+    memory_region_init(&s->bm, OBJECT(s), "bm-e500", UINT64_MAX);
+    memory_region_add_subregion(&s->bm, 0x0, &s->busmem);
+    address_space_init(&s->bm_as, &s->bm, "pci-bm");
+    pci_setup_iommu(b, e500_pcihost_set_iommu, s);
 
     pci_create_simple(b, 0, "e500-host-bridge");
 
@@ -388,7 +490,6 @@ static int e500_pcihost_initfn(SysBusDevice *dev)
     memory_region_add_subregion(&s->container, PCIE500_CFGDATA, &h->data_mem);
     memory_region_add_subregion(&s->container, PCIE500_REG_BASE, &s->iomem);
     sysbus_init_mmio(dev, &s->container);
-    sysbus_init_mmio(dev, &s->pio);
     pci_bus_set_route_irq_fn(b, e500_route_intx_pin_to_irq);
 
     return 0;

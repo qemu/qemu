@@ -423,7 +423,7 @@
 # @device: #optional If the stats are for a virtual block device, the name
 #          corresponding to the virtual block device.
 #
-# @device: #optional The node name of the device. (Since 2.3)
+# @node-name: #optional The node name of the device. (Since 2.3)
 #
 # @stats:  A @BlockDeviceStats for the device.
 #
@@ -703,6 +703,41 @@
             '*on-target-error': 'BlockdevOnError' } }
 
 ##
+# @BlockdevBackup
+#
+# @device: the name of the device which should be copied.
+#
+# @target: the name of the backup target device.
+#
+# @sync: what parts of the disk image should be copied to the destination
+#        (all the disk, only the sectors allocated in the topmost image, or
+#        only new I/O).
+#
+# @speed: #optional the maximum speed, in bytes per second. The default is 0,
+#         for unlimited.
+#
+# @on-source-error: #optional the action to take on an error on the source,
+#                   default 'report'.  'stop' and 'enospc' can only be used
+#                   if the block device supports io-status (see BlockInfo).
+#
+# @on-target-error: #optional the action to take on an error on the target,
+#                   default 'report' (no limitations, since this applies to
+#                   a different block device than @device).
+#
+# Note that @on-source-error and @on-target-error only affect background I/O.
+# If an error occurs during a guest write request, the device's rerror/werror
+# actions will be used.
+#
+# Since: 2.3
+##
+{ 'type': 'BlockdevBackup',
+  'data': { 'device': 'str', 'target': 'str',
+            'sync': 'MirrorSyncMode',
+            '*speed': 'int',
+            '*on-source-error': 'BlockdevOnError',
+            '*on-target-error': 'BlockdevOnError' } }
+
+##
 # @blockdev-snapshot-sync
 #
 # Generates a synchronous snapshot of a block device.
@@ -820,6 +855,25 @@
 # Since 1.6
 ##
 { 'command': 'drive-backup', 'data': 'DriveBackup' }
+
+##
+# @blockdev-backup
+#
+# Start a point-in-time copy of a block device to a new destination.  The
+# status of ongoing blockdev-backup operations can be checked with
+# query-block-jobs where the BlockJobInfo.type field has the value 'backup'.
+# The operation can be stopped before it has completed using the
+# block-job-cancel command.
+#
+# For the arguments, see the documentation of BlockdevBackup.
+#
+# Returns: Nothing on success.
+#          If @device or @target is not a valid block device, DeviceNotFound.
+#
+# Since 2.3
+##
+{ 'command': 'blockdev-backup', 'data': 'BlockdevBackup' }
+
 
 ##
 # @query-named-block-nodes

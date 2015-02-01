@@ -33,6 +33,7 @@
 #include "sysemu/sysemu.h"
 #include "sysemu/dma.h"
 #include "qemu/iov.h"
+#include "qemu/range.h"
 
 #include "e1000_regs.h"
 
@@ -923,7 +924,9 @@ e1000_can_receive(NetClientState *nc)
     E1000State *s = qemu_get_nic_opaque(nc);
 
     return (s->mac_reg[STATUS] & E1000_STATUS_LU) &&
-        (s->mac_reg[RCTL] & E1000_RCTL_EN) && e1000_has_rxbufs(s, 1);
+        (s->mac_reg[RCTL] & E1000_RCTL_EN) &&
+        (s->parent_obj.config[PCI_COMMAND] & PCI_COMMAND_MASTER) &&
+        e1000_has_rxbufs(s, 1);
 }
 
 static uint64_t rx_desc_base(E1000State *s)
@@ -1500,14 +1503,6 @@ e1000_mmio_setup(E1000State *d)
 }
 
 static void
-e1000_cleanup(NetClientState *nc)
-{
-    E1000State *s = qemu_get_nic_opaque(nc);
-
-    s->nic = NULL;
-}
-
-static void
 pci_e1000_uninit(PCIDevice *dev)
 {
     E1000State *d = E1000(dev);
@@ -1525,9 +1520,22 @@ static NetClientInfo net_e1000_info = {
     .can_receive = e1000_can_receive,
     .receive = e1000_receive,
     .receive_iov = e1000_receive_iov,
-    .cleanup = e1000_cleanup,
     .link_status_changed = e1000_set_link_status,
 };
+
+static void e1000_write_config(PCIDevice *pci_dev, uint32_t address,
+                                uint32_t val, int len)
+{
+    E1000State *s = E1000(pci_dev);
+
+    pci_default_write_config(pci_dev, address, val, len);
+
+    if (range_covers_byte(address, len, PCI_COMMAND) &&
+        (pci_dev->config[PCI_COMMAND] & PCI_COMMAND_MASTER)) {
+        qemu_flush_queued_packets(qemu_get_queue(s->nic));
+    }
+}
+
 
 static int pci_e1000_init(PCIDevice *pci_dev)
 {
@@ -1538,6 +1546,8 @@ static int pci_e1000_init(PCIDevice *pci_dev)
     uint16_t checksum = 0;
     int i;
     uint8_t *macaddr;
+
+    pci_dev->config_write = e1000_write_config;
 
     pci_conf = pci_dev->config;
 

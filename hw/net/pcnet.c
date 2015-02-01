@@ -1719,15 +1719,10 @@ const VMStateDescription vmstate_pcnet = {
         VMSTATE_BUFFER(buffer, PCNetState),
         VMSTATE_UNUSED_TEST(is_version_2, 4),
         VMSTATE_INT32(tx_busy, PCNetState),
-        VMSTATE_TIMER(poll_timer, PCNetState),
+        VMSTATE_TIMER_PTR(poll_timer, PCNetState),
         VMSTATE_END_OF_LIST()
     }
 };
-
-void pcnet_common_cleanup(PCNetState *d)
-{
-    d->nic = NULL;
-}
 
 int pcnet_common_init(DeviceState *dev, PCNetState *s, NetClientInfo *info)
 {

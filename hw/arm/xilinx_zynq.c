@@ -126,6 +126,18 @@ static void zynq_init(MachineState *machine)
 
     cpu = ARM_CPU(object_new(object_class_get_name(cpu_oc)));
 
+    /* By default A9 CPUs have EL3 enabled.  This board does not
+     * currently support EL3 so the CPU EL3 property is disabled before
+     * realization.
+     */
+    if (object_property_find(OBJECT(cpu), "has_el3", NULL)) {
+        object_property_set_bool(OBJECT(cpu), false, "has_el3", &err);
+        if (err) {
+            error_report("%s", error_get_pretty(err));
+            exit(1);
+        }
+    }
+
     object_property_set_int(OBJECT(cpu), ZYNQ_BOARD_MIDR, "midr", &err);
     if (err) {
         error_report("%s", error_get_pretty(err));

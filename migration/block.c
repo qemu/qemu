@@ -303,7 +303,7 @@ static int mig_save_device_bulk(QEMUFile *f, BlkMigDevState *bmds)
     blk->aiocb = bdrv_aio_readv(bs, cur_sector, &blk->qiov,
                                 nr_sectors, blk_mig_read_cb, blk);
 
-    bdrv_reset_dirty(bs, cur_sector, nr_sectors);
+    bdrv_reset_dirty_bitmap(bs, bmds->dirty_bitmap, cur_sector, nr_sectors);
     qemu_mutex_unlock_iothread();
 
     bmds->cur_sector = cur_sector + nr_sectors;
@@ -496,7 +496,8 @@ static int mig_save_device_dirty(QEMUFile *f, BlkMigDevState *bmds,
                 g_free(blk);
             }
 
-            bdrv_reset_dirty(bmds->bs, sector, nr_sectors);
+            bdrv_reset_dirty_bitmap(bmds->bs, bmds->dirty_bitmap, sector,
+                                    nr_sectors);
             break;
         }
         sector += BDRV_SECTORS_PER_DIRTY_CHUNK;
@@ -765,8 +766,8 @@ static uint64_t block_save_pending(QEMUFile *f, void *opaque, uint64_t max_size)
                        block_mig_state.read_done * BLOCK_SIZE;
 
     /* Report at least one block pending during bulk phase */
-    if (pending == 0 && !block_mig_state.bulk_completed) {
-        pending = BLOCK_SIZE;
+    if (pending <= max_size && !block_mig_state.bulk_completed) {
+        pending = max_size + BLOCK_SIZE;
     }
     blk_mig_unlock();
     qemu_mutex_unlock_iothread();

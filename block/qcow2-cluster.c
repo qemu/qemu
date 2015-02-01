@@ -1651,6 +1651,14 @@ static int expand_zero_clusters_in_l1(BlockDriverState *bs, uint64_t *l1_table,
             continue;
         }
 
+        if (offset_into_cluster(s, l2_offset)) {
+            qcow2_signal_corruption(bs, true, -1, -1, "L2 table offset %#"
+                                    PRIx64 " unaligned (L1 index: %#x)",
+                                    l2_offset, i);
+            ret = -EIO;
+            goto fail;
+        }
+
         if (is_active_l1) {
             /* get active L2 tables from cache */
             ret = qcow2_cache_get(bs, s->l2_table_cache, l2_offset,
@@ -1707,6 +1715,19 @@ static int expand_zero_clusters_in_l1(BlockDriverState *bs, uint64_t *l1_table,
                         goto fail;
                     }
                 }
+            }
+
+            if (offset_into_cluster(s, offset)) {
+                qcow2_signal_corruption(bs, true, -1, -1, "Data cluster offset "
+                                        "%#" PRIx64 " unaligned (L2 offset: %#"
+                                        PRIx64 ", L2 index: %#x)", offset,
+                                        l2_offset, j);
+                if (!preallocated) {
+                    qcow2_free_clusters(bs, offset, s->cluster_size,
+                                        QCOW2_DISCARD_ALWAYS);
+                }
+                ret = -EIO;
+                goto fail;
             }
 
             ret = qcow2_pre_write_overlap_check(bs, 0, offset, s->cluster_size);

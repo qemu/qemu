@@ -346,7 +346,8 @@ static void xbzrle_cache_zero_page(ram_addr_t current_addr)
 
     /* We don't care if this fails to allocate a new cache page
      * as long as it updated an old one */
-    cache_insert(XBZRLE.cache, current_addr, ZERO_TARGET_PAGE);
+    cache_insert(XBZRLE.cache, current_addr, ZERO_TARGET_PAGE,
+                 bitmap_sync_count);
 }
 
 #define ENCODING_FLAG_XBZRLE 0x1
@@ -358,10 +359,11 @@ static int save_xbzrle_page(QEMUFile *f, uint8_t **current_data,
     int encoded_len = 0, bytes_sent = -1;
     uint8_t *prev_cached_page;
 
-    if (!cache_is_cached(XBZRLE.cache, current_addr)) {
+    if (!cache_is_cached(XBZRLE.cache, current_addr, bitmap_sync_count)) {
         acct_info.xbzrle_cache_miss++;
         if (!last_stage) {
-            if (cache_insert(XBZRLE.cache, current_addr, *current_data) == -1) {
+            if (cache_insert(XBZRLE.cache, current_addr, *current_data,
+                             bitmap_sync_count) == -1) {
                 return -1;
             } else {
                 /* update *current_data when the page has been
@@ -522,7 +524,7 @@ static void migration_bitmap_sync(void)
     address_space_sync_dirty_bitmap(&address_space_memory);
 
     QTAILQ_FOREACH(block, &ram_list.blocks, next) {
-        migration_bitmap_sync_range(block->mr->ram_addr, block->length);
+        migration_bitmap_sync_range(block->mr->ram_addr, block->used_length);
     }
     trace_migration_bitmap_sync_end(migration_dirty_pages
                                     - num_dirty_pages_init);
@@ -668,7 +670,7 @@ static int ram_find_and_save_block(QEMUFile *f, bool last_stage)
             offset >= last_offset) {
             break;
         }
-        if (offset >= block->length) {
+        if (offset >= block->used_length) {
             offset = 0;
             block = QTAILQ_NEXT(block, next);
             if (!block) {
@@ -727,7 +729,7 @@ uint64_t ram_bytes_total(void)
     uint64_t total = 0;
 
     QTAILQ_FOREACH(block, &ram_list.blocks, next)
-        total += block->length;
+        total += block->used_length;
 
     return total;
 }
@@ -831,7 +833,7 @@ static int ram_save_setup(QEMUFile *f, void *opaque)
     QTAILQ_FOREACH(block, &ram_list.blocks, next) {
         uint64_t block_pages;
 
-        block_pages = block->length >> TARGET_PAGE_BITS;
+        block_pages = block->used_length >> TARGET_PAGE_BITS;
         migration_dirty_pages += block_pages;
     }
 
@@ -844,7 +846,7 @@ static int ram_save_setup(QEMUFile *f, void *opaque)
     QTAILQ_FOREACH(block, &ram_list.blocks, next) {
         qemu_put_byte(f, strlen(block->idstr));
         qemu_put_buffer(f, (uint8_t *)block->idstr, strlen(block->idstr));
-        qemu_put_be64(f, block->length);
+        qemu_put_be64(f, block->used_length);
     }
 
     qemu_mutex_unlock_ramlist();
@@ -1015,7 +1017,7 @@ static inline void *host_from_stream_offset(QEMUFile *f,
     uint8_t len;
 
     if (flags & RAM_SAVE_FLAG_CONTINUE) {
-        if (!block || block->length <= offset) {
+        if (!block || block->max_length <= offset) {
             error_report("Ack, bad migration stream!");
             return NULL;
         }
@@ -1028,7 +1030,8 @@ static inline void *host_from_stream_offset(QEMUFile *f,
     id[len] = 0;
 
     QTAILQ_FOREACH(block, &ram_list.blocks, next) {
-        if (!strncmp(id, block->idstr, sizeof(id)) && block->length > offset) {
+        if (!strncmp(id, block->idstr, sizeof(id)) &&
+            block->max_length > offset) {
             return memory_region_get_ram_ptr(block->mr) + offset;
         }
     }
@@ -1085,11 +1088,14 @@ static int ram_load(QEMUFile *f, void *opaque, int version_id)
 
                 QTAILQ_FOREACH(block, &ram_list.blocks, next) {
                     if (!strncmp(id, block->idstr, sizeof(id))) {
-                        if (block->length != length) {
-                            error_report("Length mismatch: %s: 0x" RAM_ADDR_FMT
-                                         " in != 0x" RAM_ADDR_FMT, id, length,
-                                         block->length);
-                            ret =  -EINVAL;
+                        if (length != block->used_length) {
+                            Error *local_err = NULL;
+
+                            ret = qemu_ram_resize(block->offset, length, &local_err);
+                            if (local_err) {
+                                error_report("%s", error_get_pretty(local_err));
+                                error_free(local_err);
+                            }
                         }
                         break;
                     }

@@ -410,7 +410,7 @@ int64_t timerlistgroup_deadline_ns(QEMUTimerListGroup *tlg);
  */
 
 /**
- * timer_init:
+ * timer_init_tl:
  * @ts: the timer to be initialised
  * @timer_list: the timer list to attach the timer to
  * @scale: the scale value for the timer
@@ -423,9 +423,82 @@ int64_t timerlistgroup_deadline_ns(QEMUTimerListGroup *tlg);
  * You need not call an explicit deinit call. Simply make
  * sure it is not on a list with timer_del.
  */
-void timer_init(QEMUTimer *ts,
-                QEMUTimerList *timer_list, int scale,
-                QEMUTimerCB *cb, void *opaque);
+void timer_init_tl(QEMUTimer *ts,
+                   QEMUTimerList *timer_list, int scale,
+                   QEMUTimerCB *cb, void *opaque);
+
+/**
+ * timer_init:
+ * @type: the clock to associate with the timer
+ * @scale: the scale value for the timer
+ * @cb: the callback to call when the timer expires
+ * @opaque: the opaque pointer to pass to the callback
+ *
+ * Initialize a timer with the given scale on the default timer list
+ * associated with the clock.
+ *
+ * You need not call an explicit deinit call. Simply make
+ * sure it is not on a list with timer_del.
+ */
+static inline void timer_init(QEMUTimer *ts, QEMUClockType type, int scale,
+                              QEMUTimerCB *cb, void *opaque)
+{
+    timer_init_tl(ts, main_loop_tlg.tl[type], scale, cb, opaque);
+}
+
+/**
+ * timer_init_ns:
+ * @type: the clock to associate with the timer
+ * @cb: the callback to call when the timer expires
+ * @opaque: the opaque pointer to pass to the callback
+ *
+ * Initialize a timer with nanosecond scale on the default timer list
+ * associated with the clock.
+ *
+ * You need not call an explicit deinit call. Simply make
+ * sure it is not on a list with timer_del.
+ */
+static inline void timer_init_ns(QEMUTimer *ts, QEMUClockType type,
+                                 QEMUTimerCB *cb, void *opaque)
+{
+    timer_init(ts, type, SCALE_NS, cb, opaque);
+}
+
+/**
+ * timer_init_us:
+ * @type: the clock to associate with the timer
+ * @cb: the callback to call when the timer expires
+ * @opaque: the opaque pointer to pass to the callback
+ *
+ * Initialize a timer with microsecond scale on the default timer list
+ * associated with the clock.
+ *
+ * You need not call an explicit deinit call. Simply make
+ * sure it is not on a list with timer_del.
+ */
+static inline void timer_init_us(QEMUTimer *ts, QEMUClockType type,
+                                 QEMUTimerCB *cb, void *opaque)
+{
+    timer_init(ts, type, SCALE_US, cb, opaque);
+}
+
+/**
+ * timer_init_ms:
+ * @type: the clock to associate with the timer
+ * @cb: the callback to call when the timer expires
+ * @opaque: the opaque pointer to pass to the callback
+ *
+ * Initialize a timer with millisecond scale on the default timer list
+ * associated with the clock.
+ *
+ * You need not call an explicit deinit call. Simply make
+ * sure it is not on a list with timer_del.
+ */
+static inline void timer_init_ms(QEMUTimer *ts, QEMUClockType type,
+                                 QEMUTimerCB *cb, void *opaque)
+{
+    timer_init(ts, type, SCALE_MS, cb, opaque);
+}
 
 /**
  * timer_new_tl:
@@ -448,7 +521,7 @@ static inline QEMUTimer *timer_new_tl(QEMUTimerList *timer_list,
                                       void *opaque)
 {
     QEMUTimer *ts = g_malloc0(sizeof(QEMUTimer));
-    timer_init(ts, timer_list, scale, cb, opaque);
+    timer_init_tl(ts, timer_list, scale, cb, opaque);
     return ts;
 }
 
@@ -520,6 +593,17 @@ static inline QEMUTimer *timer_new_ms(QEMUClockType type, QEMUTimerCB *cb,
 {
     return timer_new(type, SCALE_MS, cb, opaque);
 }
+
+/**
+ * timer_deinit:
+ * @ts: the timer to be de-initialised
+ *
+ * Deassociate the timer from any timerlist.  You should
+ * call timer_del before.  After this call, any further
+ * timer_del call cannot cause dangling pointer accesses
+ * even if the previously used timerlist is freed.
+ */
+void timer_deinit(QEMUTimer *ts);
 
 /**
  * timer_free:

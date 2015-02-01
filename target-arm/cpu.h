@@ -39,8 +39,6 @@
 
 #include "fpu/softfloat.h"
 
-#define TARGET_HAS_ICE 1
-
 #define EXCP_UDEF            1   /* undefined instruction */
 #define EXCP_SWI             2   /* software interrupt */
 #define EXCP_PREFETCH_ABORT  3

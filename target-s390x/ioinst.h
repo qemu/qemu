@@ -204,6 +204,7 @@ typedef struct CRW {
 
 #define CRW_RSC_SUBCH 0x3
 #define CRW_RSC_CHP   0x4
+#define CRW_RSC_CSS   0xb
 
 /* I/O interruption code */
 typedef struct IOIntCode {

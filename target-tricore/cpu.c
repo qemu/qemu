@@ -118,7 +118,7 @@ static void tc1796_initfn(Object *obj)
 {
     TriCoreCPU *cpu = TRICORE_CPU(obj);
 
-    set_feature(&cpu->env, TRICORE_FEATURE_13);
+    set_feature(&cpu->env, TRICORE_FEATURE_131);
 }
 
 static void aurix_initfn(Object *obj)

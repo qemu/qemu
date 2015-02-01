@@ -1289,7 +1289,7 @@ static void ahci_test_identify(QPCIDevice *ahci, void *hba_base)
     PX_WREG(i, AHCI_PX_IS, reg);
     g_assert_cmphex(PX_RREG(i, AHCI_PX_IS), ==, 0);
 
-    /* Wipe the FIS-Recieve Buffer */
+    /* Wipe the FIS-Receive Buffer */
     fb = PX_RREG(i, AHCI_PX_FB);
     g_assert_cmphex(fb, !=, 0);
     qmemset(fb, 0x00, 0x100);

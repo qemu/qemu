@@ -145,10 +145,12 @@ struct TranslationBlock {
     uint64_t flags; /* flags defining in which context the code was generated */
     uint16_t size;      /* size of target code for this block (1 <=
                            size <= TARGET_PAGE_SIZE) */
-    uint16_t cflags;    /* compile flags */
+    uint16_t icount;
+    uint32_t cflags;    /* compile flags */
 #define CF_COUNT_MASK  0x7fff
 #define CF_LAST_IO     0x8000 /* Last insn may be an IO access.  */
 #define CF_NOCACHE     0x10000 /* To be freed after execution */
+#define CF_USE_ICOUNT  0x20000
 
     void *tc_ptr;    /* pointer to the translated code */
     /* next matching tb for physical address. */
@@ -172,7 +174,6 @@ struct TranslationBlock {
        jmp_first */
     struct TranslationBlock *jmp_next[2];
     struct TranslationBlock *jmp_first;
-    uint32_t icount;
 };
 
 #include "exec/spinlock.h"

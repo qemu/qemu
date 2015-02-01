@@ -189,6 +189,56 @@ int qdev_init(DeviceState *dev)
     return 0;
 }
 
+static QTAILQ_HEAD(device_listeners, DeviceListener) device_listeners
+    = QTAILQ_HEAD_INITIALIZER(device_listeners);
+
+enum ListenerDirection { Forward, Reverse };
+
+#define DEVICE_LISTENER_CALL(_callback, _direction, _args...)     \
+    do {                                                          \
+        DeviceListener *_listener;                                \
+                                                                  \
+        switch (_direction) {                                     \
+        case Forward:                                             \
+            QTAILQ_FOREACH(_listener, &device_listeners, link) {  \
+                if (_listener->_callback) {                       \
+                    _listener->_callback(_listener, ##_args);     \
+                }                                                 \
+            }                                                     \
+            break;                                                \
+        case Reverse:                                             \
+            QTAILQ_FOREACH_REVERSE(_listener, &device_listeners,  \
+                                   device_listeners, link) {      \
+                if (_listener->_callback) {                       \
+                    _listener->_callback(_listener, ##_args);     \
+                }                                                 \
+            }                                                     \
+            break;                                                \
+        default:                                                  \
+            abort();                                              \
+        }                                                         \
+    } while (0)
+
+static int device_listener_add(DeviceState *dev, void *opaque)
+{
+    DEVICE_LISTENER_CALL(realize, Forward, dev);
+
+    return 0;
+}
+
+void device_listener_register(DeviceListener *listener)
+{
+    QTAILQ_INSERT_TAIL(&device_listeners, listener, link);
+
+    qbus_walk_children(sysbus_get_default(), NULL, NULL, device_listener_add,
+                       NULL, NULL);
+}
+
+void device_listener_unregister(DeviceListener *listener)
+{
+    QTAILQ_REMOVE(&device_listeners, listener, link);
+}
+
 static void device_realize(DeviceState *dev, Error **errp)
 {
     DeviceClass *dc = DEVICE_GET_CLASS(dev);
@@ -994,6 +1044,8 @@ static void device_set_realized(Object *obj, bool value, Error **errp)
             goto fail;
         }
 
+        DEVICE_LISTENER_CALL(realize, Forward, dev);
+
         hotplug_ctrl = qdev_get_hotplug_handler(dev);
         if (hotplug_ctrl) {
             hotplug_handler_plug(hotplug_ctrl, dev, &local_err);
@@ -1035,6 +1087,7 @@ static void device_set_realized(Object *obj, bool value, Error **errp)
             dc->unrealize(dev, local_errp);
         }
         dev->pending_deleted_event = true;
+        DEVICE_LISTENER_CALL(unrealize, Reverse, dev);
     }
 
     if (local_err != NULL) {

@@ -37,6 +37,10 @@ struct arm_boot_info {
     hwaddr gic_cpu_if_addr;
     int nb_cpus;
     int board_id;
+    /* ARM machines that support the ARM Security Extensions use this field to
+     * control whether Linux is booted as secure(true) or non-secure(false).
+     */
+    bool secure_boot;
     int (*atag_board)(const struct arm_boot_info *info, void *p);
     int32_t atag_revision;
     /* multicore boards that use the default secondary core boot functions
@@ -67,6 +71,11 @@ struct arm_boot_info {
     hwaddr initrd_start;
     hwaddr initrd_size;
     hwaddr entry;
+
+    /* Boot firmware has been loaded, typically at address 0, with -bios or
+     * -pflash. It also implies that fw_cfg_find() will succeed.
+     */
+    bool firmware_loaded;
 };
 void arm_load_kernel(ARMCPU *cpu, struct arm_boot_info *info);
 

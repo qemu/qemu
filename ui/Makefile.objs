@@ -16,7 +16,12 @@ common-obj-$(CONFIG_CURSES) += curses.o
 common-obj-$(CONFIG_VNC) += $(vnc-obj-y)
 common-obj-$(CONFIG_GTK) += gtk.o x_keymap.o
 
-sdl.mo-objs := sdl.o sdl_zoom.o sdl2.o
+ifeq ($(CONFIG_SDLABI),1.2)
+sdl.mo-objs := sdl.o sdl_zoom.o
+endif
+ifeq ($(CONFIG_SDLABI),2.0)
+sdl.mo-objs := sdl2.o sdl2-input.o sdl2-2d.o
+endif
 sdl.mo-cflags := $(SDL_CFLAGS)
 
 gtk.o-cflags := $(GTK_CFLAGS) $(VTE_CFLAGS)

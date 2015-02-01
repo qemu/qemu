@@ -32,8 +32,6 @@
 
 #define MAX_QREGS 32
 
-#define TARGET_HAS_ICE 1
-
 #define ELF_MACHINE	EM_68K
 
 #define EXCP_ACCESS         2   /* Access (MMU) error.  */

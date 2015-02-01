@@ -321,6 +321,7 @@ static void secondary_class_init(ObjectClass *klass, void *data)
     dc->vmsd = &vmstate_vga_pci;
     dc->props = secondary_pci_properties;
     dc->reset = pci_secondary_vga_reset;
+    set_bit(DEVICE_CATEGORY_DISPLAY, dc->categories);
 }
 
 static const TypeInfo vga_info = {

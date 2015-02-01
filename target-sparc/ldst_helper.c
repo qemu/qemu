@@ -250,6 +250,7 @@ static void replace_tlb_1bit_lru(SparcTLBEntry *tlb,
 
 #endif
 
+#if defined(TARGET_SPARC64) || defined(CONFIG_USER_ONLY)
 static inline target_ulong address_mask(CPUSPARCState *env1, target_ulong addr)
 {
 #ifdef TARGET_SPARC64
@@ -259,12 +260,14 @@ static inline target_ulong address_mask(CPUSPARCState *env1, target_ulong addr)
 #endif
     return addr;
 }
+#endif
 
+#ifdef TARGET_SPARC64
 /* returns true if access using this ASI is to have address translated by MMU
    otherwise access is to raw physical address */
+/* TODO: check sparc32 bits */
 static inline int is_translating_asi(int asi)
 {
-#ifdef TARGET_SPARC64
     /* Ultrasparc IIi translating asi
        - note this list is defined by cpu implementation
     */
@@ -281,10 +284,6 @@ static inline int is_translating_asi(int asi)
     default:
         return 0;
     }
-#else
-    /* TODO: check sparc32 bits */
-    return 0;
-#endif
 }
 
 static inline target_ulong asi_address_mask(CPUSPARCState *env,
@@ -296,6 +295,7 @@ static inline target_ulong asi_address_mask(CPUSPARCState *env,
         return addr;
     }
 }
+#endif
 
 void helper_check_align(CPUSPARCState *env, target_ulong addr, uint32_t align)
 {
@@ -1122,17 +1122,17 @@ uint64_t helper_ld_asi(CPUSPARCState *env, target_ulong addr, int asi, int size,
         {
             switch (size) {
             case 1:
-                ret = ldub_raw(addr);
+                ret = cpu_ldub_data(env, addr);
                 break;
             case 2:
-                ret = lduw_raw(addr);
+                ret = cpu_lduw_data(env, addr);
                 break;
             case 4:
-                ret = ldl_raw(addr);
+                ret = cpu_ldl_data(env, addr);
                 break;
             default:
             case 8:
-                ret = ldq_raw(addr);
+                ret = cpu_ldq_data(env, addr);
                 break;
             }
         }
@@ -1239,17 +1239,17 @@ void helper_st_asi(CPUSPARCState *env, target_ulong addr, target_ulong val,
         {
             switch (size) {
             case 1:
-                stb_raw(addr, val);
+                cpu_stb_data(env, addr, val);
                 break;
             case 2:
-                stw_raw(addr, val);
+                cpu_stw_data(env, addr, val);
                 break;
             case 4:
-                stl_raw(addr, val);
+                cpu_stl_data(env, addr, val);
                 break;
             case 8:
             default:
-                stq_raw(addr, val);
+                cpu_stq_data(env, addr, val);
                 break;
             }
         }
@@ -2289,8 +2289,8 @@ void helper_ldqf(CPUSPARCState *env, target_ulong addr, int mem_idx)
         break;
     }
 #else
-    u.ll.upper = ldq_raw(address_mask(env, addr));
-    u.ll.lower = ldq_raw(address_mask(env, addr + 8));
+    u.ll.upper = cpu_ldq_data(env, address_mask(env, addr));
+    u.ll.lower = cpu_ldq_data(env, address_mask(env, addr + 8));
     QT0 = u.q;
 #endif
 }
@@ -2326,8 +2326,8 @@ void helper_stqf(CPUSPARCState *env, target_ulong addr, int mem_idx)
     }
 #else
     u.q = QT0;
-    stq_raw(address_mask(env, addr), u.ll.upper);
-    stq_raw(address_mask(env, addr + 8), u.ll.lower);
+    cpu_stq_data(env, address_mask(env, addr), u.ll.upper);
+    cpu_stq_data(env, address_mask(env, addr + 8), u.ll.lower);
 #endif
 }
 

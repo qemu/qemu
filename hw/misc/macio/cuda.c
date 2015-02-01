@@ -631,7 +631,7 @@ static const VMStateDescription vmstate_cuda_timer = {
         VMSTATE_UINT16(counter_value, CUDATimer),
         VMSTATE_INT64(load_time, CUDATimer),
         VMSTATE_INT64(next_irq_time, CUDATimer),
-        VMSTATE_TIMER_TEST(timer, CUDATimer, cuda_timer_exist),
+        VMSTATE_TIMER_PTR_TEST(timer, CUDATimer, cuda_timer_exist),
         VMSTATE_END_OF_LIST()
     }
 };

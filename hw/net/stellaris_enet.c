@@ -451,19 +451,11 @@ static void stellaris_enet_reset(stellaris_enet_state *s)
     s->tx_fifo_len = 0;
 }
 
-static void stellaris_enet_cleanup(NetClientState *nc)
-{
-    stellaris_enet_state *s = qemu_get_nic_opaque(nc);
-
-    s->nic = NULL;
-}
-
 static NetClientInfo net_stellaris_enet_info = {
     .type = NET_CLIENT_OPTIONS_KIND_NIC,
     .size = sizeof(NICState),
     .can_receive = stellaris_enet_can_receive,
     .receive = stellaris_enet_receive,
-    .cleanup = stellaris_enet_cleanup,
 };
 
 static int stellaris_enet_init(SysBusDevice *sbd)

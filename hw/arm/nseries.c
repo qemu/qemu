@@ -1344,7 +1344,7 @@ static void n8x0_init(MachineState *machine,
     n8x0_dss_setup(s);
     n8x0_cbus_setup(s);
     n8x0_uart_setup(s);
-    if (usb_enabled(false)) {
+    if (usb_enabled()) {
         n8x0_usb_setup(s);
     }
 

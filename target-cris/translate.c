@@ -3201,7 +3201,7 @@ gen_intermediate_code_internal(CRISCPU *cpu, TranslationBlock *tb,
         max_insns = CF_COUNT_MASK;
     }
 
-    gen_tb_start();
+    gen_tb_start(tb);
     do {
         check_breakpoint(env, dc);
 

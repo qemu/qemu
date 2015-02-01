@@ -1917,13 +1917,6 @@ static const VMStateDescription vmstate_eepro100 = {
     }
 };
 
-static void nic_cleanup(NetClientState *nc)
-{
-    EEPRO100State *s = qemu_get_nic_opaque(nc);
-
-    s->nic = NULL;
-}
-
 static void pci_nic_uninit(PCIDevice *pci_dev)
 {
     EEPRO100State *s = DO_UPCAST(EEPRO100State, dev, pci_dev);
@@ -1938,7 +1931,6 @@ static NetClientInfo net_eepro100_info = {
     .size = sizeof(NICState),
     .can_receive = nic_can_receive,
     .receive = nic_receive,
-    .cleanup = nic_cleanup,
 };
 
 static int e100_nic_init(PCIDevice *pci_dev)

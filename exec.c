@@ -75,6 +75,11 @@ static MemoryRegion io_mem_unassigned;
 /* RAM is mmap-ed with MAP_SHARED */
 #define RAM_SHARED     (1 << 1)
 
+/* Only a portion of RAM (used_length) is actually used, and migrated.
+ * This used_length size can change across reboots.
+ */
+#define RAM_RESIZEABLE (1 << 2)
+
 #endif
 
 struct CPUTailQ cpus = QTAILQ_HEAD_INITIALIZER(cpus);
@@ -434,7 +439,7 @@ static int cpu_common_pre_load(void *opaque)
 {
     CPUState *cpu = opaque;
 
-    cpu->exception_index = 0;
+    cpu->exception_index = -1;
 
     return 0;
 }
@@ -443,7 +448,7 @@ static bool cpu_common_exception_index_needed(void *opaque)
 {
     CPUState *cpu = opaque;
 
-    return cpu->exception_index != 0;
+    return tcg_enabled() && cpu->exception_index != -1;
 }
 
 static const VMStateDescription vmstate_cpu_common_exception_index = {
@@ -548,7 +553,6 @@ void cpu_exec_init(CPUArchState *env)
     }
 }
 
-#if defined(TARGET_HAS_ICE)
 #if defined(CONFIG_USER_ONLY)
 static void breakpoint_invalidate(CPUState *cpu, target_ulong pc)
 {
@@ -564,7 +568,6 @@ static void breakpoint_invalidate(CPUState *cpu, target_ulong pc)
     }
 }
 #endif
-#endif /* TARGET_HAS_ICE */
 
 #if defined(CONFIG_USER_ONLY)
 void cpu_watchpoint_remove_all(CPUState *cpu, int mask)
@@ -684,7 +687,6 @@ static inline bool cpu_watchpoint_address_matches(CPUWatchpoint *wp,
 int cpu_breakpoint_insert(CPUState *cpu, vaddr pc, int flags,
                           CPUBreakpoint **breakpoint)
 {
-#if defined(TARGET_HAS_ICE)
     CPUBreakpoint *bp;
 
     bp = g_malloc(sizeof(*bp));
@@ -705,15 +707,11 @@ int cpu_breakpoint_insert(CPUState *cpu, vaddr pc, int flags,
         *breakpoint = bp;
     }
     return 0;
-#else
-    return -ENOSYS;
-#endif
 }
 
 /* Remove a specific breakpoint.  */
 int cpu_breakpoint_remove(CPUState *cpu, vaddr pc, int flags)
 {
-#if defined(TARGET_HAS_ICE)
     CPUBreakpoint *bp;
 
     QTAILQ_FOREACH(bp, &cpu->breakpoints, entry) {
@@ -723,27 +721,21 @@ int cpu_breakpoint_remove(CPUState *cpu, vaddr pc, int flags)
         }
     }
     return -ENOENT;
-#else
-    return -ENOSYS;
-#endif
 }
 
 /* Remove a specific breakpoint by reference.  */
 void cpu_breakpoint_remove_by_ref(CPUState *cpu, CPUBreakpoint *breakpoint)
 {
-#if defined(TARGET_HAS_ICE)
     QTAILQ_REMOVE(&cpu->breakpoints, breakpoint, entry);
 
     breakpoint_invalidate(cpu, breakpoint->pc);
 
     g_free(breakpoint);
-#endif
 }
 
 /* Remove all matching breakpoints. */
 void cpu_breakpoint_remove_all(CPUState *cpu, int mask)
 {
-#if defined(TARGET_HAS_ICE)
     CPUBreakpoint *bp, *next;
 
     QTAILQ_FOREACH_SAFE(bp, &cpu->breakpoints, entry, next) {
@@ -751,14 +743,12 @@ void cpu_breakpoint_remove_all(CPUState *cpu, int mask)
             cpu_breakpoint_remove_by_ref(cpu, bp);
         }
     }
-#endif
 }
 
 /* enable or disable single step mode. EXCP_DEBUG is returned by the
    CPU loop after each instruction */
 void cpu_single_step(CPUState *cpu, int enabled)
 {
-#if defined(TARGET_HAS_ICE)
     if (cpu->singlestep_enabled != enabled) {
         cpu->singlestep_enabled = enabled;
         if (kvm_enabled()) {
@@ -770,7 +760,6 @@ void cpu_single_step(CPUState *cpu, int enabled)
             tb_flush(env);
         }
     }
-#endif
 }
 
 void cpu_abort(CPUState *cpu, const char *fmt, ...)
@@ -812,11 +801,11 @@ static RAMBlock *qemu_get_ram_block(ram_addr_t addr)
 
     /* The list is protected by the iothread lock here.  */
     block = ram_list.mru_block;
-    if (block && addr - block->offset < block->length) {
+    if (block && addr - block->offset < block->max_length) {
         goto found;
     }
     QTAILQ_FOREACH(block, &ram_list.blocks, next) {
-        if (addr - block->offset < block->length) {
+        if (addr - block->offset < block->max_length) {
             goto found;
         }
     }
@@ -850,7 +839,7 @@ void cpu_physical_memory_reset_dirty(ram_addr_t start, ram_addr_t length,
 {
     if (length == 0)
         return;
-    cpu_physical_memory_clear_dirty_range(start, length, client);
+    cpu_physical_memory_clear_dirty_range_type(start, length, client);
 
     if (tcg_enabled()) {
         tlb_reset_dirty_range_all(start, length);
@@ -1186,7 +1175,7 @@ static ram_addr_t find_ram_offset(ram_addr_t size)
     QTAILQ_FOREACH(block, &ram_list.blocks, next) {
         ram_addr_t end, next = RAM_ADDR_MAX;
 
-        end = block->offset + block->length;
+        end = block->offset + block->max_length;
 
         QTAILQ_FOREACH(next_block, &ram_list.blocks, next) {
             if (next_block->offset >= end) {
@@ -1214,7 +1203,7 @@ ram_addr_t last_ram_offset(void)
     ram_addr_t last = 0;
 
     QTAILQ_FOREACH(block, &ram_list.blocks, next)
-        last = MAX(last, block->offset + block->length);
+        last = MAX(last, block->offset + block->max_length);
 
     return last;
 }
@@ -1296,6 +1285,49 @@ static int memory_try_enable_merging(void *addr, size_t len)
     return qemu_madvise(addr, len, QEMU_MADV_MERGEABLE);
 }
 
+/* Only legal before guest might have detected the memory size: e.g. on
+ * incoming migration, or right after reset.
+ *
+ * As memory core doesn't know how is memory accessed, it is up to
+ * resize callback to update device state and/or add assertions to detect
+ * misuse, if necessary.
+ */
+int qemu_ram_resize(ram_addr_t base, ram_addr_t newsize, Error **errp)
+{
+    RAMBlock *block = find_ram_block(base);
+
+    assert(block);
+
+    if (block->used_length == newsize) {
+        return 0;
+    }
+
+    if (!(block->flags & RAM_RESIZEABLE)) {
+        error_setg_errno(errp, EINVAL,
+                         "Length mismatch: %s: 0x" RAM_ADDR_FMT
+                         " in != 0x" RAM_ADDR_FMT, block->idstr,
+                         newsize, block->used_length);
+        return -EINVAL;
+    }
+
+    if (block->max_length < newsize) {
+        error_setg_errno(errp, EINVAL,
+                         "Length too large: %s: 0x" RAM_ADDR_FMT
+                         " > 0x" RAM_ADDR_FMT, block->idstr,
+                         newsize, block->max_length);
+        return -EINVAL;
+    }
+
+    cpu_physical_memory_clear_dirty_range(block->offset, block->used_length);
+    block->used_length = newsize;
+    cpu_physical_memory_set_dirty_range(block->offset, block->used_length);
+    memory_region_set_size(block->mr, newsize);
+    if (block->resized) {
+        block->resized(block->idstr, newsize, block->host);
+    }
+    return 0;
+}
+
 static ram_addr_t ram_block_add(RAMBlock *new_block, Error **errp)
 {
     RAMBlock *block;
@@ -1305,13 +1337,14 @@ static ram_addr_t ram_block_add(RAMBlock *new_block, Error **errp)
 
     /* This assumes the iothread lock is taken here too.  */
     qemu_mutex_lock_ramlist();
-    new_block->offset = find_ram_offset(new_block->length);
+    new_block->offset = find_ram_offset(new_block->max_length);
 
     if (!new_block->host) {
         if (xen_enabled()) {
-            xen_ram_alloc(new_block->offset, new_block->length, new_block->mr);
+            xen_ram_alloc(new_block->offset, new_block->max_length,
+                          new_block->mr);
         } else {
-            new_block->host = phys_mem_alloc(new_block->length,
+            new_block->host = phys_mem_alloc(new_block->max_length,
                                              &new_block->mr->align);
             if (!new_block->host) {
                 error_setg_errno(errp, errno,
@@ -1320,13 +1353,13 @@ static ram_addr_t ram_block_add(RAMBlock *new_block, Error **errp)
                 qemu_mutex_unlock_ramlist();
                 return -1;
             }
-            memory_try_enable_merging(new_block->host, new_block->length);
+            memory_try_enable_merging(new_block->host, new_block->max_length);
         }
     }
 
     /* Keep the list sorted from biggest to smallest block.  */
     QTAILQ_FOREACH(block, &ram_list.blocks, next) {
-        if (block->length < new_block->length) {
+        if (block->max_length < new_block->max_length) {
             break;
         }
     }
@@ -1350,14 +1383,16 @@ static ram_addr_t ram_block_add(RAMBlock *new_block, Error **errp)
                                    old_ram_size, new_ram_size);
        }
     }
-    cpu_physical_memory_set_dirty_range(new_block->offset, new_block->length);
+    cpu_physical_memory_set_dirty_range(new_block->offset,
+                                        new_block->used_length);
 
-    qemu_ram_setup_dump(new_block->host, new_block->length);
-    qemu_madvise(new_block->host, new_block->length, QEMU_MADV_HUGEPAGE);
-    qemu_madvise(new_block->host, new_block->length, QEMU_MADV_DONTFORK);
-
-    if (kvm_enabled()) {
-        kvm_setup_guest_memory(new_block->host, new_block->length);
+    if (new_block->host) {
+        qemu_ram_setup_dump(new_block->host, new_block->max_length);
+        qemu_madvise(new_block->host, new_block->max_length, QEMU_MADV_HUGEPAGE);
+        qemu_madvise(new_block->host, new_block->max_length, QEMU_MADV_DONTFORK);
+        if (kvm_enabled()) {
+            kvm_setup_guest_memory(new_block->host, new_block->max_length);
+        }
     }
 
     return new_block->offset;
@@ -1391,7 +1426,8 @@ ram_addr_t qemu_ram_alloc_from_file(ram_addr_t size, MemoryRegion *mr,
     size = TARGET_PAGE_ALIGN(size);
     new_block = g_malloc0(sizeof(*new_block));
     new_block->mr = mr;
-    new_block->length = size;
+    new_block->used_length = size;
+    new_block->max_length = size;
     new_block->flags = share ? RAM_SHARED : 0;
     new_block->host = file_ram_alloc(new_block, size,
                                      mem_path, errp);
@@ -1410,7 +1446,12 @@ ram_addr_t qemu_ram_alloc_from_file(ram_addr_t size, MemoryRegion *mr,
 }
 #endif
 
-ram_addr_t qemu_ram_alloc_from_ptr(ram_addr_t size, void *host,
+static
+ram_addr_t qemu_ram_alloc_internal(ram_addr_t size, ram_addr_t max_size,
+                                   void (*resized)(const char*,
+                                                   uint64_t length,
+                                                   void *host),
+                                   void *host, bool resizeable,
                                    MemoryRegion *mr, Error **errp)
 {
     RAMBlock *new_block;
@@ -1418,13 +1459,20 @@ ram_addr_t qemu_ram_alloc_from_ptr(ram_addr_t size, void *host,
     Error *local_err = NULL;
 
     size = TARGET_PAGE_ALIGN(size);
+    max_size = TARGET_PAGE_ALIGN(max_size);
     new_block = g_malloc0(sizeof(*new_block));
     new_block->mr = mr;
-    new_block->length = size;
+    new_block->resized = resized;
+    new_block->used_length = size;
+    new_block->max_length = max_size;
+    assert(max_size >= size);
     new_block->fd = -1;
     new_block->host = host;
     if (host) {
         new_block->flags |= RAM_PREALLOC;
+    }
+    if (resizeable) {
+        new_block->flags |= RAM_RESIZEABLE;
     }
     addr = ram_block_add(new_block, &local_err);
     if (local_err) {
@@ -1435,9 +1483,24 @@ ram_addr_t qemu_ram_alloc_from_ptr(ram_addr_t size, void *host,
     return addr;
 }
 
+ram_addr_t qemu_ram_alloc_from_ptr(ram_addr_t size, void *host,
+                                   MemoryRegion *mr, Error **errp)
+{
+    return qemu_ram_alloc_internal(size, size, NULL, host, false, mr, errp);
+}
+
 ram_addr_t qemu_ram_alloc(ram_addr_t size, MemoryRegion *mr, Error **errp)
 {
-    return qemu_ram_alloc_from_ptr(size, NULL, mr, errp);
+    return qemu_ram_alloc_internal(size, size, NULL, NULL, false, mr, errp);
+}
+
+ram_addr_t qemu_ram_alloc_resizeable(ram_addr_t size, ram_addr_t maxsz,
+                                     void (*resized)(const char*,
+                                                     uint64_t length,
+                                                     void *host),
+                                     MemoryRegion *mr, Error **errp)
+{
+    return qemu_ram_alloc_internal(size, maxsz, resized, NULL, true, mr, errp);
 }
 
 void qemu_ram_free_from_ptr(ram_addr_t addr)
@@ -1475,11 +1538,11 @@ void qemu_ram_free(ram_addr_t addr)
                 xen_invalidate_map_cache_entry(block->host);
 #ifndef _WIN32
             } else if (block->fd >= 0) {
-                munmap(block->host, block->length);
+                munmap(block->host, block->max_length);
                 close(block->fd);
 #endif
             } else {
-                qemu_anon_ram_free(block->host, block->length);
+                qemu_anon_ram_free(block->host, block->max_length);
             }
             g_free(block);
             break;
@@ -1499,7 +1562,7 @@ void qemu_ram_remap(ram_addr_t addr, ram_addr_t length)
 
     QTAILQ_FOREACH(block, &ram_list.blocks, next) {
         offset = addr - block->offset;
-        if (offset < block->length) {
+        if (offset < block->max_length) {
             vaddr = ramblock_ptr(block, offset);
             if (block->flags & RAM_PREALLOC) {
                 ;
@@ -1575,7 +1638,7 @@ void *qemu_get_ram_ptr(ram_addr_t addr)
             return xen_map_cache(addr, 0, 0);
         } else if (block->host == NULL) {
             block->host =
-                xen_map_cache(block->offset, block->length, 1);
+                xen_map_cache(block->offset, block->max_length, 1);
         }
     }
     return ramblock_ptr(block, addr - block->offset);
@@ -1594,9 +1657,9 @@ static void *qemu_ram_ptr_length(ram_addr_t addr, hwaddr *size)
         RAMBlock *block;
 
         QTAILQ_FOREACH(block, &ram_list.blocks, next) {
-            if (addr - block->offset < block->length) {
-                if (addr - block->offset + *size > block->length)
-                    *size = block->length - addr + block->offset;
+            if (addr - block->offset < block->max_length) {
+                if (addr - block->offset + *size > block->max_length)
+                    *size = block->max_length - addr + block->offset;
                 return ramblock_ptr(block, addr - block->offset);
             }
         }
@@ -1619,7 +1682,7 @@ MemoryRegion *qemu_ram_addr_from_host(void *ptr, ram_addr_t *ram_addr)
     }
 
     block = ram_list.mru_block;
-    if (block && block->host && host - block->host < block->length) {
+    if (block && block->host && host - block->host < block->max_length) {
         goto found;
     }
 
@@ -1628,7 +1691,7 @@ MemoryRegion *qemu_ram_addr_from_host(void *ptr, ram_addr_t *ram_addr)
         if (block->host == NULL) {
             continue;
         }
-        if (host - block->host < block->length) {
+        if (host - block->host < block->max_length) {
             goto found;
         }
     }
@@ -1768,7 +1831,7 @@ static uint64_t subpage_read(void *opaque, hwaddr addr,
                              unsigned len)
 {
     subpage_t *subpage = opaque;
-    uint8_t buf[4];
+    uint8_t buf[8];
 
 #if defined(DEBUG_SUBPAGE)
     printf("%s: subpage %p len %u addr " TARGET_FMT_plx "\n", __func__,
@@ -1782,6 +1845,8 @@ static uint64_t subpage_read(void *opaque, hwaddr addr,
         return lduw_p(buf);
     case 4:
         return ldl_p(buf);
+    case 8:
+        return ldq_p(buf);
     default:
         abort();
     }
@@ -1791,7 +1856,7 @@ static void subpage_write(void *opaque, hwaddr addr,
                           uint64_t value, unsigned len)
 {
     subpage_t *subpage = opaque;
-    uint8_t buf[4];
+    uint8_t buf[8];
 
 #if defined(DEBUG_SUBPAGE)
     printf("%s: subpage %p len %u addr " TARGET_FMT_plx
@@ -1807,6 +1872,9 @@ static void subpage_write(void *opaque, hwaddr addr,
         break;
     case 4:
         stl_p(buf, value);
+        break;
+    case 8:
+        stq_p(buf, value);
         break;
     default:
         abort();
@@ -1830,6 +1898,10 @@ static bool subpage_accepts(void *opaque, hwaddr addr,
 static const MemoryRegionOps subpage_ops = {
     .read = subpage_read,
     .write = subpage_write,
+    .impl.min_access_size = 1,
+    .impl.max_access_size = 8,
+    .valid.min_access_size = 1,
+    .valid.max_access_size = 8,
     .valid.accepts = subpage_accepts,
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
@@ -2873,7 +2945,7 @@ void qemu_ram_foreach_block(RAMBlockIterFunc func, void *opaque)
     RAMBlock *block;
 
     QTAILQ_FOREACH(block, &ram_list.blocks, next) {
-        func(block->host, block->offset, block->length, opaque);
+        func(block->host, block->offset, block->used_length, opaque);
     }
 }
 #endif

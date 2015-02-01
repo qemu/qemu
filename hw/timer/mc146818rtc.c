@@ -758,7 +758,7 @@ static const VMStateDescription vmstate_rtc = {
         VMSTATE_BUFFER(cmos_data, RTCState),
         VMSTATE_UINT8(cmos_index, RTCState),
         VMSTATE_UNUSED(7*4),
-        VMSTATE_TIMER(periodic_timer, RTCState),
+        VMSTATE_TIMER_PTR(periodic_timer, RTCState),
         VMSTATE_INT64(next_periodic_time, RTCState),
         VMSTATE_UNUSED(3*8),
         VMSTATE_UINT32_V(irq_coalesced, RTCState, 2),
@@ -766,7 +766,7 @@ static const VMStateDescription vmstate_rtc = {
         VMSTATE_UINT64_V(base_rtc, RTCState, 3),
         VMSTATE_UINT64_V(last_update, RTCState, 3),
         VMSTATE_INT64_V(offset, RTCState, 3),
-        VMSTATE_TIMER_V(update_timer, RTCState, 3),
+        VMSTATE_TIMER_PTR_V(update_timer, RTCState, 3),
         VMSTATE_UINT64_V(next_alarm_time, RTCState, 3),
         VMSTATE_END_OF_LIST()
     },

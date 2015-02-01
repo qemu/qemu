@@ -133,12 +133,12 @@ bool vring_should_notify(VirtIODevice *vdev, Vring *vring)
      * interrupts. */
     smp_mb();
 
-    if ((vdev->guest_features & VIRTIO_F_NOTIFY_ON_EMPTY) &&
+    if ((vdev->guest_features & (1 << VIRTIO_F_NOTIFY_ON_EMPTY)) &&
         unlikely(vring->vr.avail->idx == vring->last_avail_idx)) {
         return true;
     }
 
-    if (!(vdev->guest_features & VIRTIO_RING_F_EVENT_IDX)) {
+    if (!(vdev->guest_features & (1 << VIRTIO_RING_F_EVENT_IDX))) {
         return !(vring->vr.avail->flags & VRING_AVAIL_F_NO_INTERRUPT);
     }
     old = vring->signalled_used;

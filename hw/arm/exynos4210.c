@@ -158,6 +158,17 @@ Exynos4210State *exynos4210_init(MemoryRegion *system_mem,
         Object *cpuobj = object_new(object_class_get_name(cpu_oc));
         Error *err = NULL;
 
+        /* By default A9 CPUs have EL3 enabled.  This board does not currently
+         * support EL3 so the CPU EL3 property is disabled before realization.
+         */
+        if (object_property_find(cpuobj, "has_el3", NULL)) {
+            object_property_set_bool(cpuobj, false, "has_el3", &err);
+            if (err) {
+                error_report("%s", error_get_pretty(err));
+                exit(1);
+            }
+        }
+
         s->cpu[n] = ARM_CPU(cpuobj);
         object_property_set_int(cpuobj, EXYNOS4210_SMP_PRIVATE_BASE_ADDR,
                                 "reset-cbar", &error_abort);

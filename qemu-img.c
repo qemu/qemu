@@ -2556,7 +2556,7 @@ static int img_rebase(int argc, char **argv)
 
     /* For safe rebasing we need to compare old and new backing file */
     if (!unsafe) {
-        char backing_name[1024];
+        char backing_name[PATH_MAX];
 
         blk_old_backing = blk_new_with_bs("old_backing", &error_abort);
         bs_old_backing = blk_bs(blk_old_backing);
@@ -2614,7 +2614,7 @@ static int img_rebase(int argc, char **argv)
         }
         old_backing_num_sectors = bdrv_nb_sectors(bs_old_backing);
         if (old_backing_num_sectors < 0) {
-            char backing_name[1024];
+            char backing_name[PATH_MAX];
 
             bdrv_get_backing_filename(bs, backing_name, sizeof(backing_name));
             error_report("Could not get size of '%s': %s",

@@ -457,87 +457,6 @@ int css_enable_mss(void);
 int css_do_rsch(SubchDev *sch);
 int css_do_rchp(uint8_t cssid, uint8_t chpid);
 bool css_present(uint8_t cssid);
-#else
-static inline SubchDev *css_find_subch(uint8_t m, uint8_t cssid, uint8_t ssid,
-                                       uint16_t schid)
-{
-    return NULL;
-}
-static inline bool css_subch_visible(SubchDev *sch)
-{
-    return false;
-}
-static inline void css_conditional_io_interrupt(SubchDev *sch)
-{
-}
-static inline int css_do_stsch(SubchDev *sch, SCHIB *schib)
-{
-    return -ENODEV;
-}
-static inline bool css_schid_final(uint8_t cssid, uint8_t ssid, uint16_t schid)
-{
-    return true;
-}
-static inline int css_do_msch(SubchDev *sch, SCHIB *schib)
-{
-    return -ENODEV;
-}
-static inline int css_do_xsch(SubchDev *sch)
-{
-    return -ENODEV;
-}
-static inline int css_do_csch(SubchDev *sch)
-{
-    return -ENODEV;
-}
-static inline int css_do_hsch(SubchDev *sch)
-{
-    return -ENODEV;
-}
-static inline int css_do_ssch(SubchDev *sch, ORB *orb)
-{
-    return -ENODEV;
-}
-static inline int css_do_tsch(SubchDev *sch, IRB *irb)
-{
-    return -ENODEV;
-}
-static inline int css_do_stcrw(CRW *crw)
-{
-    return 1;
-}
-static inline int css_do_tpi(IOIntCode *int_code, int lowcore)
-{
-    return 0;
-}
-static inline int css_collect_chp_desc(int m, uint8_t cssid, uint8_t f_chpid,
-                                       int rfmt, uint8_t l_chpid, void *buf)
-{
-    return 0;
-}
-static inline void css_do_schm(uint8_t mbk, int update, int dct, uint64_t mbo)
-{
-}
-static inline int css_enable_mss(void)
-{
-    return -EINVAL;
-}
-static inline int css_enable_mcsse(void)
-{
-    return -EINVAL;
-}
-static inline int css_do_rsch(SubchDev *sch)
-{
-    return -ENODEV;
-}
-static inline int css_do_rchp(uint8_t cssid, uint8_t chpid)
-{
-    return -ENODEV;
-}
-static inline bool css_present(uint8_t cssid)
-{
-    return false;
-}
 #endif
 
 #define cpu_init(model) (&cpu_s390x_init(model)->env)
@@ -966,8 +885,6 @@ int mmu_translate(CPUS390XState *env, target_ulong vaddr, int rw, uint64_t asc,
 int sclp_service_call(CPUS390XState *env, uint64_t sccb, uint32_t code);
 uint32_t calc_cc(CPUS390XState *env, uint32_t cc_op, uint64_t src, uint64_t dst,
                  uint64_t vr);
-
-#define TARGET_HAS_ICE 1
 
 /* The value of the TOD clock for 1.1.1970. */
 #define TOD_UNIX_EPOCH 0x7d91048bca000000ULL

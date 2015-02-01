@@ -398,7 +398,7 @@ static const VMStateDescription vmstate_i6300esb = {
         VMSTATE_INT32(free_run, I6300State),
         VMSTATE_INT32(locked, I6300State),
         VMSTATE_INT32(enabled, I6300State),
-        VMSTATE_TIMER(timer, I6300State),
+        VMSTATE_TIMER_PTR(timer, I6300State),
         VMSTATE_UINT32(timer1_preload, I6300State),
         VMSTATE_UINT32(timer2_preload, I6300State),
         VMSTATE_INT32(stage, I6300State),

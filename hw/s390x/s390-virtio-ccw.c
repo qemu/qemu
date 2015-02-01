@@ -18,6 +18,7 @@
 #include "css.h"
 #include "virtio-ccw.h"
 #include "qemu/config-file.h"
+#include "s390-pci-bus.h"
 
 #define TYPE_S390_CCW_MACHINE               "s390-ccw-machine"
 
@@ -91,6 +92,7 @@ static void ccw_init(MachineState *machine)
     uint8_t *storage_keys;
     int ret;
     VirtualCssBus *css_bus;
+    DeviceState *dev;
     QemuOpts *opts = qemu_opts_find(qemu_find_opts("memory"), NULL);
     ram_addr_t pad_size = 0;
     ram_addr_t maxmem = qemu_opt_get_size(opts, "maxmem", my_ram_size);
@@ -126,6 +128,11 @@ static void ccw_init(MachineState *machine)
     s390_init_ipl_dev(machine->kernel_filename, machine->kernel_cmdline,
                       machine->initrd_filename, "s390-ccw.img");
     s390_flic_init();
+
+    dev = qdev_create(NULL, TYPE_S390_PCI_HOST_BRIDGE);
+    object_property_add_child(qdev_get_machine(), TYPE_S390_PCI_HOST_BRIDGE,
+                              OBJECT(dev), NULL);
+    qdev_init_nofail(dev);
 
     /* register hypercalls */
     virtio_ccw_register_hcalls();
@@ -181,7 +188,7 @@ static void ccw_machine_class_init(ObjectClass *oc, void *data)
     mc->no_serial = 1;
     mc->no_parallel = 1;
     mc->no_sdcard = 1;
-    mc->use_sclp = 1,
+    mc->use_sclp = 1;
     mc->max_cpus = 255;
     nc->nmi_monitor_handler = s390_nmi;
 }

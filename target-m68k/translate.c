@@ -3018,7 +3018,7 @@ gen_intermediate_code_internal(M68kCPU *cpu, TranslationBlock *tb,
     if (max_insns == 0)
         max_insns = CF_COUNT_MASK;
 
-    gen_tb_start();
+    gen_tb_start(tb);
     do {
         pc_offset = dc->pc - pc_start;
         gen_throws_exception = NULL;

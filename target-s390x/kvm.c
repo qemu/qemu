@@ -40,6 +40,8 @@
 #include "exec/gdbstub.h"
 #include "trace.h"
 #include "qapi-event.h"
+#include "hw/s390x/s390-pci-inst.h"
+#include "hw/s390x/s390-pci-bus.h"
 
 /* #define DEBUG_KVM */
 
@@ -56,6 +58,7 @@
 #define IPA0_B2                         0xb200
 #define IPA0_B9                         0xb900
 #define IPA0_EB                         0xeb00
+#define IPA0_E3                         0xe300
 
 #define PRIV_B2_SCLP_CALL               0x20
 #define PRIV_B2_CSCH                    0x30
@@ -76,8 +79,17 @@
 #define PRIV_B2_XSCH                    0x76
 
 #define PRIV_EB_SQBS                    0x8a
+#define PRIV_EB_PCISTB                  0xd0
+#define PRIV_EB_SIC                     0xd1
 
 #define PRIV_B9_EQBS                    0x9c
+#define PRIV_B9_CLP                     0xa0
+#define PRIV_B9_PCISTG                  0xd0
+#define PRIV_B9_PCILG                   0xd2
+#define PRIV_B9_RPCIT                   0xd3
+
+#define PRIV_E3_MPCIFC                  0xd0
+#define PRIV_E3_STPCIFC                 0xd4
 
 #define DIAG_IPL                        0x308
 #define DIAG_KVM_HYPERCALL              0x500
@@ -202,6 +214,11 @@ void kvm_s390_reset_vcpu(S390CPU *cpu)
     }
 }
 
+static int can_sync_regs(CPUState *cs, int regs)
+{
+    return cap_sync_regs && (cs->kvm_run->kvm_valid_regs & regs) == regs;
+}
+
 int kvm_arch_put_registers(CPUState *cs, int level)
 {
     S390CPU *cpu = S390_CPU(cs);
@@ -216,7 +233,7 @@ int kvm_arch_put_registers(CPUState *cs, int level)
     cs->kvm_run->psw_addr = env->psw.addr;
     cs->kvm_run->psw_mask = env->psw.mask;
 
-    if (cap_sync_regs && cs->kvm_run->kvm_valid_regs & KVM_SYNC_GPRS) {
+    if (can_sync_regs(cs, KVM_SYNC_GPRS)) {
         for (i = 0; i < 16; i++) {
             cs->kvm_run->s.regs.gprs[i] = env->regs[i];
             cs->kvm_run->kvm_dirty_regs |= KVM_SYNC_GPRS;
@@ -247,18 +264,33 @@ int kvm_arch_put_registers(CPUState *cs, int level)
         return 0;
     }
 
-    /*
-     * These ONE_REGS are not protected by a capability. As they are only
-     * necessary for migration we just trace a possible error, but don't
-     * return with an error return code.
-     */
-    kvm_set_one_reg(cs, KVM_REG_S390_CPU_TIMER, &env->cputm);
-    kvm_set_one_reg(cs, KVM_REG_S390_CLOCK_COMP, &env->ckc);
-    kvm_set_one_reg(cs, KVM_REG_S390_TODPR, &env->todpr);
-    kvm_set_one_reg(cs, KVM_REG_S390_GBEA, &env->gbea);
-    kvm_set_one_reg(cs, KVM_REG_S390_PP, &env->pp);
+    if (can_sync_regs(cs, KVM_SYNC_ARCH0)) {
+        cs->kvm_run->s.regs.cputm = env->cputm;
+        cs->kvm_run->s.regs.ckc = env->ckc;
+        cs->kvm_run->s.regs.todpr = env->todpr;
+        cs->kvm_run->s.regs.gbea = env->gbea;
+        cs->kvm_run->s.regs.pp = env->pp;
+        cs->kvm_run->kvm_dirty_regs |= KVM_SYNC_ARCH0;
+    } else {
+        /*
+         * These ONE_REGS are not protected by a capability. As they are only
+         * necessary for migration we just trace a possible error, but don't
+         * return with an error return code.
+         */
+        kvm_set_one_reg(cs, KVM_REG_S390_CPU_TIMER, &env->cputm);
+        kvm_set_one_reg(cs, KVM_REG_S390_CLOCK_COMP, &env->ckc);
+        kvm_set_one_reg(cs, KVM_REG_S390_TODPR, &env->todpr);
+        kvm_set_one_reg(cs, KVM_REG_S390_GBEA, &env->gbea);
+        kvm_set_one_reg(cs, KVM_REG_S390_PP, &env->pp);
+    }
 
-    if (cap_async_pf) {
+    /* pfault parameters */
+    if (can_sync_regs(cs, KVM_SYNC_PFAULT)) {
+        cs->kvm_run->s.regs.pft = env->pfault_token;
+        cs->kvm_run->s.regs.pfs = env->pfault_select;
+        cs->kvm_run->s.regs.pfc = env->pfault_compare;
+        cs->kvm_run->kvm_dirty_regs |= KVM_SYNC_PFAULT;
+    } else if (cap_async_pf) {
         r = kvm_set_one_reg(cs, KVM_REG_S390_PFTOKEN, &env->pfault_token);
         if (r < 0) {
             return r;
@@ -273,9 +305,8 @@ int kvm_arch_put_registers(CPUState *cs, int level)
         }
     }
 
-    if (cap_sync_regs &&
-        cs->kvm_run->kvm_valid_regs & KVM_SYNC_ACRS &&
-        cs->kvm_run->kvm_valid_regs & KVM_SYNC_CRS) {
+    /* access registers and control registers*/
+    if (can_sync_regs(cs, KVM_SYNC_ACRS | KVM_SYNC_CRS)) {
         for (i = 0; i < 16; i++) {
             cs->kvm_run->s.regs.acrs[i] = env->aregs[i];
             cs->kvm_run->s.regs.crs[i] = env->cregs[i];
@@ -294,7 +325,7 @@ int kvm_arch_put_registers(CPUState *cs, int level)
     }
 
     /* Finally the prefix */
-    if (cap_sync_regs && cs->kvm_run->kvm_valid_regs & KVM_SYNC_PREFIX) {
+    if (can_sync_regs(cs, KVM_SYNC_PREFIX)) {
         cs->kvm_run->s.regs.prefix = env->psa;
         cs->kvm_run->kvm_dirty_regs |= KVM_SYNC_PREFIX;
     } else {
@@ -317,7 +348,7 @@ int kvm_arch_get_registers(CPUState *cs)
     env->psw.mask = cs->kvm_run->psw_mask;
 
     /* the GPRS */
-    if (cap_sync_regs && cs->kvm_run->kvm_valid_regs & KVM_SYNC_GPRS) {
+    if (can_sync_regs(cs, KVM_SYNC_GPRS)) {
         for (i = 0; i < 16; i++) {
             env->regs[i] = cs->kvm_run->s.regs.gprs[i];
         }
@@ -332,9 +363,7 @@ int kvm_arch_get_registers(CPUState *cs)
     }
 
     /* The ACRS and CRS */
-    if (cap_sync_regs &&
-        cs->kvm_run->kvm_valid_regs & KVM_SYNC_ACRS &&
-        cs->kvm_run->kvm_valid_regs & KVM_SYNC_CRS) {
+    if (can_sync_regs(cs, KVM_SYNC_ACRS | KVM_SYNC_CRS)) {
         for (i = 0; i < 16; i++) {
             env->aregs[i] = cs->kvm_run->s.regs.acrs[i];
             env->cregs[i] = cs->kvm_run->s.regs.crs[i];
@@ -361,22 +390,35 @@ int kvm_arch_get_registers(CPUState *cs)
     env->fpc = fpu.fpc;
 
     /* The prefix */
-    if (cap_sync_regs && cs->kvm_run->kvm_valid_regs & KVM_SYNC_PREFIX) {
+    if (can_sync_regs(cs, KVM_SYNC_PREFIX)) {
         env->psa = cs->kvm_run->s.regs.prefix;
     }
 
-    /*
-     * These ONE_REGS are not protected by a capability. As they are only
-     * necessary for migration we just trace a possible error, but don't
-     * return with an error return code.
-     */
-    kvm_get_one_reg(cs, KVM_REG_S390_CPU_TIMER, &env->cputm);
-    kvm_get_one_reg(cs, KVM_REG_S390_CLOCK_COMP, &env->ckc);
-    kvm_get_one_reg(cs, KVM_REG_S390_TODPR, &env->todpr);
-    kvm_get_one_reg(cs, KVM_REG_S390_GBEA, &env->gbea);
-    kvm_get_one_reg(cs, KVM_REG_S390_PP, &env->pp);
+    if (can_sync_regs(cs, KVM_SYNC_ARCH0)) {
+        env->cputm = cs->kvm_run->s.regs.cputm;
+        env->ckc = cs->kvm_run->s.regs.ckc;
+        env->todpr = cs->kvm_run->s.regs.todpr;
+        env->gbea = cs->kvm_run->s.regs.gbea;
+        env->pp = cs->kvm_run->s.regs.pp;
+    } else {
+        /*
+         * These ONE_REGS are not protected by a capability. As they are only
+         * necessary for migration we just trace a possible error, but don't
+         * return with an error return code.
+         */
+        kvm_get_one_reg(cs, KVM_REG_S390_CPU_TIMER, &env->cputm);
+        kvm_get_one_reg(cs, KVM_REG_S390_CLOCK_COMP, &env->ckc);
+        kvm_get_one_reg(cs, KVM_REG_S390_TODPR, &env->todpr);
+        kvm_get_one_reg(cs, KVM_REG_S390_GBEA, &env->gbea);
+        kvm_get_one_reg(cs, KVM_REG_S390_PP, &env->pp);
+    }
 
-    if (cap_async_pf) {
+    /* pfault parameters */
+    if (can_sync_regs(cs, KVM_SYNC_PFAULT)) {
+        env->pfault_token = cs->kvm_run->s.regs.pft;
+        env->pfault_select = cs->kvm_run->s.regs.pfs;
+        env->pfault_compare = cs->kvm_run->s.regs.pfc;
+    } else if (cap_async_pf) {
         r = kvm_get_one_reg(cs, KVM_REG_S390_PFTOKEN, &env->pfault_token);
         if (r < 0) {
             return r;
@@ -809,11 +851,124 @@ static int handle_b2(S390CPU *cpu, struct kvm_run *run, uint8_t ipa1)
     return rc;
 }
 
+static uint64_t get_base_disp_rxy(S390CPU *cpu, struct kvm_run *run)
+{
+    CPUS390XState *env = &cpu->env;
+    uint32_t x2 = (run->s390_sieic.ipa & 0x000f);
+    uint32_t base2 = run->s390_sieic.ipb >> 28;
+    uint32_t disp2 = ((run->s390_sieic.ipb & 0x0fff0000) >> 16) +
+                     ((run->s390_sieic.ipb & 0xff00) << 4);
+
+    if (disp2 & 0x80000) {
+        disp2 += 0xfff00000;
+    }
+
+    return (base2 ? env->regs[base2] : 0) +
+           (x2 ? env->regs[x2] : 0) + (long)(int)disp2;
+}
+
+static uint64_t get_base_disp_rsy(S390CPU *cpu, struct kvm_run *run)
+{
+    CPUS390XState *env = &cpu->env;
+    uint32_t base2 = run->s390_sieic.ipb >> 28;
+    uint32_t disp2 = ((run->s390_sieic.ipb & 0x0fff0000) >> 16) +
+                     ((run->s390_sieic.ipb & 0xff00) << 4);
+
+    if (disp2 & 0x80000) {
+        disp2 += 0xfff00000;
+    }
+
+    return (base2 ? env->regs[base2] : 0) + (long)(int)disp2;
+}
+
+static int kvm_clp_service_call(S390CPU *cpu, struct kvm_run *run)
+{
+    uint8_t r2 = (run->s390_sieic.ipb & 0x000f0000) >> 16;
+
+    return clp_service_call(cpu, r2);
+}
+
+static int kvm_pcilg_service_call(S390CPU *cpu, struct kvm_run *run)
+{
+    uint8_t r1 = (run->s390_sieic.ipb & 0x00f00000) >> 20;
+    uint8_t r2 = (run->s390_sieic.ipb & 0x000f0000) >> 16;
+
+    return pcilg_service_call(cpu, r1, r2);
+}
+
+static int kvm_pcistg_service_call(S390CPU *cpu, struct kvm_run *run)
+{
+    uint8_t r1 = (run->s390_sieic.ipb & 0x00f00000) >> 20;
+    uint8_t r2 = (run->s390_sieic.ipb & 0x000f0000) >> 16;
+
+    return pcistg_service_call(cpu, r1, r2);
+}
+
+static int kvm_stpcifc_service_call(S390CPU *cpu, struct kvm_run *run)
+{
+    uint8_t r1 = (run->s390_sieic.ipa & 0x00f0) >> 4;
+    uint64_t fiba;
+
+    cpu_synchronize_state(CPU(cpu));
+    fiba = get_base_disp_rxy(cpu, run);
+
+    return stpcifc_service_call(cpu, r1, fiba);
+}
+
+static int kvm_sic_service_call(S390CPU *cpu, struct kvm_run *run)
+{
+    /* NOOP */
+    return 0;
+}
+
+static int kvm_rpcit_service_call(S390CPU *cpu, struct kvm_run *run)
+{
+    uint8_t r1 = (run->s390_sieic.ipb & 0x00f00000) >> 20;
+    uint8_t r2 = (run->s390_sieic.ipb & 0x000f0000) >> 16;
+
+    return rpcit_service_call(cpu, r1, r2);
+}
+
+static int kvm_pcistb_service_call(S390CPU *cpu, struct kvm_run *run)
+{
+    uint8_t r1 = (run->s390_sieic.ipa & 0x00f0) >> 4;
+    uint8_t r3 = run->s390_sieic.ipa & 0x000f;
+    uint64_t gaddr;
+
+    cpu_synchronize_state(CPU(cpu));
+    gaddr = get_base_disp_rsy(cpu, run);
+
+    return pcistb_service_call(cpu, r1, r3, gaddr);
+}
+
+static int kvm_mpcifc_service_call(S390CPU *cpu, struct kvm_run *run)
+{
+    uint8_t r1 = (run->s390_sieic.ipa & 0x00f0) >> 4;
+    uint64_t fiba;
+
+    cpu_synchronize_state(CPU(cpu));
+    fiba = get_base_disp_rxy(cpu, run);
+
+    return mpcifc_service_call(cpu, r1, fiba);
+}
+
 static int handle_b9(S390CPU *cpu, struct kvm_run *run, uint8_t ipa1)
 {
     int r = 0;
 
     switch (ipa1) {
+    case PRIV_B9_CLP:
+        r = kvm_clp_service_call(cpu, run);
+        break;
+    case PRIV_B9_PCISTG:
+        r = kvm_pcistg_service_call(cpu, run);
+        break;
+    case PRIV_B9_PCILG:
+        r = kvm_pcilg_service_call(cpu, run);
+        break;
+    case PRIV_B9_RPCIT:
+        r = kvm_rpcit_service_call(cpu, run);
+        break;
     case PRIV_B9_EQBS:
         /* just inject exception */
         r = -1;
@@ -832,6 +987,12 @@ static int handle_eb(S390CPU *cpu, struct kvm_run *run, uint8_t ipbl)
     int r = 0;
 
     switch (ipbl) {
+    case PRIV_EB_PCISTB:
+        r = kvm_pcistb_service_call(cpu, run);
+        break;
+    case PRIV_EB_SIC:
+        r = kvm_sic_service_call(cpu, run);
+        break;
     case PRIV_EB_SQBS:
         /* just inject exception */
         r = -1;
@@ -839,6 +1000,26 @@ static int handle_eb(S390CPU *cpu, struct kvm_run *run, uint8_t ipbl)
     default:
         r = -1;
         DPRINTF("KVM: unhandled PRIV: 0xeb%x\n", ipbl);
+        break;
+    }
+
+    return r;
+}
+
+static int handle_e3(S390CPU *cpu, struct kvm_run *run, uint8_t ipbl)
+{
+    int r = 0;
+
+    switch (ipbl) {
+    case PRIV_E3_MPCIFC:
+        r = kvm_mpcifc_service_call(cpu, run);
+        break;
+    case PRIV_E3_STPCIFC:
+        r = kvm_stpcifc_service_call(cpu, run);
+        break;
+    default:
+        r = -1;
+        DPRINTF("KVM: unhandled PRIV: 0xe3%x\n", ipbl);
         break;
     }
 
@@ -1040,6 +1221,9 @@ static int handle_instruction(S390CPU *cpu, struct kvm_run *run)
         break;
     case IPA0_EB:
         r = handle_eb(cpu, run, run->s390_sieic.ipb & 0xff);
+        break;
+    case IPA0_E3:
+        r = handle_e3(cpu, run, run->s390_sieic.ipb & 0xff);
         break;
     case IPA0_DIAG:
         r = handle_diag(cpu, run, run->s390_sieic.ipb);
@@ -1360,4 +1544,29 @@ int kvm_s390_set_cpu_state(S390CPU *cpu, uint8_t cpu_state)
     }
 
     return ret;
+}
+
+int kvm_arch_fixup_msi_route(struct kvm_irq_routing_entry *route,
+                              uint64_t address, uint32_t data)
+{
+    S390PCIBusDevice *pbdev;
+    uint32_t fid = data >> ZPCI_MSI_VEC_BITS;
+    uint32_t vec = data & ZPCI_MSI_VEC_MASK;
+
+    pbdev = s390_pci_find_dev_by_fid(fid);
+    if (!pbdev) {
+        DPRINTF("add_msi_route no dev\n");
+        return -ENODEV;
+    }
+
+    pbdev->routes.adapter.ind_offset = vec;
+
+    route->type = KVM_IRQ_ROUTING_S390_ADAPTER;
+    route->flags = 0;
+    route->u.adapter.summary_addr = pbdev->routes.adapter.summary_addr;
+    route->u.adapter.ind_addr = pbdev->routes.adapter.ind_addr;
+    route->u.adapter.summary_offset = pbdev->routes.adapter.summary_offset;
+    route->u.adapter.ind_offset = pbdev->routes.adapter.ind_offset;
+    route->u.adapter.adapter_id = pbdev->routes.adapter.adapter_id;
+    return 0;
 }

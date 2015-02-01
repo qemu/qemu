@@ -1286,7 +1286,7 @@ static int iscsi_open(BlockDriverState *bs, QDict *options, int flags,
     QemuOpts *opts;
     Error *local_err = NULL;
     const char *filename;
-    int i, ret;
+    int i, ret = 0;
 
     if ((BDRV_SECTOR_SIZE % 512) != 0) {
         error_setg(errp, "iSCSI: Invalid BDRV_SECTOR_SIZE. "

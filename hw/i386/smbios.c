@@ -618,8 +618,9 @@ static void smbios_build_type_4_table(unsigned instance)
     SMBIOS_TABLE_SET_STR(4, processor_version_str, type4.version);
     t->voltage = 0;
     t->external_clock = cpu_to_le16(0); /* Unknown */
-    t->max_speed = cpu_to_le16(0); /* Unknown */
-    t->current_speed = cpu_to_le16(0); /* Unknown */
+    /* SVVP requires max_speed and current_speed to not be unknown. */
+    t->max_speed = cpu_to_le16(2000); /* 2000 MHz */
+    t->current_speed = cpu_to_le16(2000); /* 2000 MHz */
     t->status = 0x41; /* Socket populated, CPU enabled */
     t->processor_upgrade = 0x01; /* Other */
     t->l1_cache_handle = cpu_to_le16(0xFFFF); /* N/A */
@@ -850,7 +851,8 @@ void smbios_get_tables(uint8_t **tables, size_t *tables_len,
         }
 
 #define MAX_DIMM_SZ (16ll * ONE_GB)
-#define GET_DIMM_SZ ((i < dimm_cnt - 1) ? MAX_DIMM_SZ : ram_size % MAX_DIMM_SZ)
+#define GET_DIMM_SZ ((i < dimm_cnt - 1) ? MAX_DIMM_SZ \
+                                        : ((ram_size - 1) % MAX_DIMM_SZ) + 1)
 
         dimm_cnt = QEMU_ALIGN_UP(ram_size, MAX_DIMM_SZ) / MAX_DIMM_SZ;
 

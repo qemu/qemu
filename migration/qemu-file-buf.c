@@ -395,6 +395,7 @@ QEMUSizedBuffer *qsb_clone(const QEMUSizedBuffer *qsb)
 typedef struct QEMUBuffer {
     QEMUSizedBuffer *qsb;
     QEMUFile *file;
+    bool qsb_allocated;
 } QEMUBuffer;
 
 static int buf_get_buffer(void *opaque, uint8_t *buf, int64_t pos, int size)
@@ -424,7 +425,9 @@ static int buf_close(void *opaque)
 {
     QEMUBuffer *s = opaque;
 
-    qsb_free(s->qsb);
+    if (s->qsb_allocated) {
+        qsb_free(s->qsb);
+    }
 
     g_free(s);
 
@@ -463,12 +466,11 @@ QEMUFile *qemu_bufopen(const char *mode, QEMUSizedBuffer *input)
     }
 
     s = g_malloc0(sizeof(QEMUBuffer));
-    if (mode[0] == 'r') {
-        s->qsb = input;
-    }
+    s->qsb = input;
 
     if (s->qsb == NULL) {
         s->qsb = qsb_create(NULL, 0);
+        s->qsb_allocated = true;
     }
     if (!s->qsb) {
         g_free(s);

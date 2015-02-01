@@ -39,8 +39,6 @@
 #include "exec/cpu-defs.h"
 #include "fpu/softfloat.h"
 
-#define TARGET_HAS_ICE 1
-
 #define NB_MMU_MODES 4
 
 #define TARGET_PHYS_ADDR_SPACE_BITS 32

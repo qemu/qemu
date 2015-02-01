@@ -61,4 +61,8 @@ bool qemu_thread_is_self(QemuThread *thread);
 void qemu_thread_exit(void *retval);
 void qemu_thread_naming(bool enable);
 
+struct Notifier;
+void qemu_thread_atexit_add(struct Notifier *notifier);
+void qemu_thread_atexit_remove(struct Notifier *notifier);
+
 #endif

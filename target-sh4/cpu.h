@@ -23,7 +23,6 @@
 #include "qemu-common.h"
 
 #define TARGET_LONG_BITS 32
-#define TARGET_HAS_ICE 1
 
 #define ELF_MACHINE	EM_SH
 

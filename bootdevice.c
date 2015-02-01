@@ -25,6 +25,7 @@
 #include "sysemu/sysemu.h"
 #include "qapi/visitor.h"
 #include "qemu/error-report.h"
+#include "hw/hw.h"
 
 typedef struct FWBootEntry FWBootEntry;
 
@@ -37,6 +38,78 @@ struct FWBootEntry {
 
 static QTAILQ_HEAD(, FWBootEntry) fw_boot_order =
     QTAILQ_HEAD_INITIALIZER(fw_boot_order);
+static QEMUBootSetHandler *boot_set_handler;
+static void *boot_set_opaque;
+
+void qemu_register_boot_set(QEMUBootSetHandler *func, void *opaque)
+{
+    boot_set_handler = func;
+    boot_set_opaque = opaque;
+}
+
+void qemu_boot_set(const char *boot_order, Error **errp)
+{
+    Error *local_err = NULL;
+
+    if (!boot_set_handler) {
+        error_setg(errp, "no function defined to set boot device list for"
+                         " this architecture");
+        return;
+    }
+
+    validate_bootdevices(boot_order, &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        return;
+    }
+
+    boot_set_handler(boot_set_opaque, boot_order, errp);
+}
+
+void validate_bootdevices(const char *devices, Error **errp)
+{
+    /* We just do some generic consistency checks */
+    const char *p;
+    int bitmap = 0;
+
+    for (p = devices; *p != '\0'; p++) {
+        /* Allowed boot devices are:
+         * a-b: floppy disk drives
+         * c-f: IDE disk drives
+         * g-m: machine implementation dependent drives
+         * n-p: network devices
+         * It's up to each machine implementation to check if the given boot
+         * devices match the actual hardware implementation and firmware
+         * features.
+         */
+        if (*p < 'a' || *p > 'p') {
+            error_setg(errp, "Invalid boot device '%c'", *p);
+            return;
+        }
+        if (bitmap & (1 << (*p - 'a'))) {
+            error_setg(errp, "Boot device '%c' was given twice", *p);
+            return;
+        }
+        bitmap |= 1 << (*p - 'a');
+    }
+}
+
+void restore_boot_order(void *opaque)
+{
+    char *normal_boot_order = opaque;
+    static int first = 1;
+
+    /* Restore boot order and remove ourselves after the first boot */
+    if (first) {
+        first = 0;
+        return;
+    }
+
+    qemu_boot_set(normal_boot_order, NULL);
+
+    qemu_unregister_reset(restore_boot_order, normal_boot_order);
+    g_free(normal_boot_order);
+}
 
 void check_boot_index(int32_t bootindex, Error **errp)
 {

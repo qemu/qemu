@@ -19,7 +19,7 @@
  */
 
 #include "qemu-common.h"
-#include "bios-linker-loader.h"
+#include "hw/acpi/bios-linker-loader.h"
 #include "hw/nvram/fw_cfg.h"
 
 #include "qemu/bswap.h"

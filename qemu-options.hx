@@ -953,7 +953,7 @@ DEF("spice", HAS_ARG, QEMU_OPTION_spice,
     "-spice [port=port][,tls-port=secured-port][,x509-dir=<dir>]\n"
     "       [,x509-key-file=<file>][,x509-key-password=<file>]\n"
     "       [,x509-cert-file=<file>][,x509-cacert-file=<file>]\n"
-    "       [,x509-dh-key-file=<file>][,addr=addr][,ipv4|ipv6]\n"
+    "       [,x509-dh-key-file=<file>][,addr=addr][,ipv4|ipv6|unix]\n"
     "       [,tls-ciphers=<list>]\n"
     "       [,tls-channel=[main|display|cursor|inputs|record|playback]]\n"
     "       [,plaintext-channel=[main|display|cursor|inputs|record|playback]]\n"
@@ -982,6 +982,7 @@ Set the IP address spice is listening on.  Default is any address.
 
 @item ipv4
 @item ipv6
+@item unix
 Force using the specified IP version.
 
 @item password=<secret>

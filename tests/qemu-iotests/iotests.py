@@ -282,11 +282,14 @@ def notrun(reason):
     print '%s not run: %s' % (seq, reason)
     sys.exit(0)
 
-def main(supported_fmts=[]):
+def main(supported_fmts=[], supported_oses=['linux']):
     '''Run tests'''
 
     if supported_fmts and (imgfmt not in supported_fmts):
         notrun('not suitable for this image format: %s' % imgfmt)
+
+    if sys.platform not in supported_oses:
+        notrun('not suitable for this OS: %s' % sys.platform)
 
     # We need to filter out the time taken from the output so that qemu-iotest
     # can reliably diff the results against master output.

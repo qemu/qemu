@@ -128,7 +128,8 @@ static void mirror_write_complete(void *opaque, int ret)
         BlockDriverState *source = s->common.bs;
         BlockErrorAction action;
 
-        bdrv_set_dirty(source, op->sector_num, op->nb_sectors);
+        bdrv_set_dirty_bitmap(source, s->dirty_bitmap, op->sector_num,
+                              op->nb_sectors);
         action = mirror_error_action(s, false, -ret);
         if (action == BLOCK_ERROR_ACTION_REPORT && s->ret >= 0) {
             s->ret = ret;
@@ -145,7 +146,8 @@ static void mirror_read_complete(void *opaque, int ret)
         BlockDriverState *source = s->common.bs;
         BlockErrorAction action;
 
-        bdrv_set_dirty(source, op->sector_num, op->nb_sectors);
+        bdrv_set_dirty_bitmap(source, s->dirty_bitmap, op->sector_num,
+                              op->nb_sectors);
         action = mirror_error_action(s, true, -ret);
         if (action == BLOCK_ERROR_ACTION_REPORT && s->ret >= 0) {
             s->ret = ret;
@@ -286,7 +288,8 @@ static uint64_t coroutine_fn mirror_iteration(MirrorBlockJob *s)
         next_sector += sectors_per_chunk;
     }
 
-    bdrv_reset_dirty(source, sector_num, nb_sectors);
+    bdrv_reset_dirty_bitmap(source, s->dirty_bitmap, sector_num,
+                            nb_sectors);
 
     /* Copy the dirty cluster.  */
     s->in_flight++;
@@ -375,7 +378,8 @@ static void coroutine_fn mirror_run(void *opaque)
     int64_t sector_num, end, sectors_per_chunk, length;
     uint64_t last_pause_ns;
     BlockDriverInfo bdi;
-    char backing_filename[1024];
+    char backing_filename[2]; /* we only need 2 characters because we are only
+                                 checking for a NULL string */
     int ret = 0;
     int n;
 
@@ -442,7 +446,7 @@ static void coroutine_fn mirror_run(void *opaque)
 
             assert(n > 0);
             if (ret == 1) {
-                bdrv_set_dirty(bs, sector_num, n);
+                bdrv_set_dirty_bitmap(bs, s->dirty_bitmap, sector_num, n);
                 sector_num = next;
             } else {
                 sector_num += n;

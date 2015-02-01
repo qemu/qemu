@@ -12,6 +12,7 @@
  */
 #include "qemu-common.h"
 #include "qemu/thread.h"
+#include "qemu/notify.h"
 #include <process.h>
 #include <assert.h>
 #include <limits.h>
@@ -268,6 +269,7 @@ struct QemuThreadData {
     void             *(*start_routine)(void *);
     void             *arg;
     short             mode;
+    NotifierList      exit;
 
     /* Only used for joinable threads. */
     bool              exited;
@@ -275,7 +277,33 @@ struct QemuThreadData {
     CRITICAL_SECTION  cs;
 };
 
+static bool atexit_registered;
+static NotifierList main_thread_exit;
+
 static __thread QemuThreadData *qemu_thread_data;
+
+static void run_main_thread_exit(void)
+{
+    notifier_list_notify(&main_thread_exit, NULL);
+}
+
+void qemu_thread_atexit_add(Notifier *notifier)
+{
+    if (!qemu_thread_data) {
+        if (!atexit_registered) {
+            atexit_registered = true;
+            atexit(run_main_thread_exit);
+        }
+        notifier_list_add(&main_thread_exit, notifier);
+    } else {
+        notifier_list_add(&qemu_thread_data->exit, notifier);
+    }
+}
+
+void qemu_thread_atexit_remove(Notifier *notifier)
+{
+    notifier_remove(notifier);
+}
 
 static unsigned __stdcall win32_start_routine(void *arg)
 {
@@ -283,10 +311,6 @@ static unsigned __stdcall win32_start_routine(void *arg)
     void *(*start_routine)(void *) = data->start_routine;
     void *thread_arg = data->arg;
 
-    if (data->mode == QEMU_THREAD_DETACHED) {
-        g_free(data);
-        data = NULL;
-    }
     qemu_thread_data = data;
     qemu_thread_exit(start_routine(thread_arg));
     abort();
@@ -296,12 +320,14 @@ void qemu_thread_exit(void *arg)
 {
     QemuThreadData *data = qemu_thread_data;
 
-    if (data) {
-        assert(data->mode != QEMU_THREAD_DETACHED);
+    notifier_list_notify(&data->exit, NULL);
+    if (data->mode == QEMU_THREAD_JOINABLE) {
         data->ret = arg;
         EnterCriticalSection(&data->cs);
         data->exited = true;
         LeaveCriticalSection(&data->cs);
+    } else {
+        g_free(data);
     }
     _endthreadex(0);
 }
@@ -313,9 +339,10 @@ void *qemu_thread_join(QemuThread *thread)
     HANDLE handle;
 
     data = thread->data;
-    if (!data) {
+    if (data->mode == QEMU_THREAD_DETACHED) {
         return NULL;
     }
+
     /*
      * Because multiple copies of the QemuThread can exist via
      * qemu_thread_get_self, we need to store a value that cannot
@@ -329,7 +356,6 @@ void *qemu_thread_join(QemuThread *thread)
         CloseHandle(handle);
     }
     ret = data->ret;
-    assert(data->mode != QEMU_THREAD_DETACHED);
     DeleteCriticalSection(&data->cs);
     g_free(data);
     return ret;
@@ -347,6 +373,7 @@ void qemu_thread_create(QemuThread *thread, const char *name,
     data->arg = arg;
     data->mode = mode;
     data->exited = false;
+    notifier_list_init(&data->exit);
 
     if (data->mode != QEMU_THREAD_DETACHED) {
         InitializeCriticalSection(&data->cs);
@@ -358,7 +385,7 @@ void qemu_thread_create(QemuThread *thread, const char *name,
         error_exit(GetLastError(), __func__);
     }
     CloseHandle(hThread);
-    thread->data = (mode == QEMU_THREAD_DETACHED) ? NULL : data;
+    thread->data = data;
 }
 
 void qemu_thread_get_self(QemuThread *thread)
@@ -373,11 +400,10 @@ HANDLE qemu_thread_get_handle(QemuThread *thread)
     HANDLE handle;
 
     data = thread->data;
-    if (!data) {
+    if (data->mode == QEMU_THREAD_DETACHED) {
         return NULL;
     }
 
-    assert(data->mode != QEMU_THREAD_DETACHED);
     EnterCriticalSection(&data->cs);
     if (!data->exited) {
         handle = OpenThread(SYNCHRONIZE | THREAD_SUSPEND_RESUME, FALSE,

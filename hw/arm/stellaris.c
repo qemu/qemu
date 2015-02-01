@@ -306,7 +306,7 @@ static const VMStateDescription vmstate_stellaris_gptm = {
         VMSTATE_UINT32_ARRAY(match_prescale, gptm_state, 2),
         VMSTATE_UINT32(rtc, gptm_state),
         VMSTATE_INT64_ARRAY(tick, gptm_state, 2),
-        VMSTATE_TIMER_ARRAY(timer, gptm_state, 2),
+        VMSTATE_TIMER_PTR_ARRAY(timer, gptm_state, 2),
         VMSTATE_END_OF_LIST()
     }
 };

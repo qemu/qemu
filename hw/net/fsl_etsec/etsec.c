@@ -338,11 +338,6 @@ static void etsec_reset(DeviceState *d)
         MII_SR_100X_FD_CAPS     | MII_SR_100T4_CAPS;
 }
 
-static void etsec_cleanup(NetClientState *nc)
-{
-    /* qemu_log("eTSEC cleanup\n"); */
-}
-
 static int etsec_can_receive(NetClientState *nc)
 {
     eTSEC *etsec = qemu_get_nic_opaque(nc);
@@ -377,7 +372,6 @@ static NetClientInfo net_etsec_info = {
     .size = sizeof(NICState),
     .can_receive = etsec_can_receive,
     .receive = etsec_receive,
-    .cleanup = etsec_cleanup,
     .link_status_changed = etsec_set_link_status,
 };
 

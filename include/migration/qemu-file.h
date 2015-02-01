@@ -84,6 +84,14 @@ typedef size_t (QEMURamSaveFunc)(QEMUFile *f, void *opaque,
                                size_t size,
                                int *bytes_sent);
 
+/*
+ * Stop any read or write (depending on flags) on the underlying
+ * transport on the QEMUFile.
+ * Existing blocking reads/writes must be woken
+ * Returns 0 on success, -err on error
+ */
+typedef int (QEMUFileShutdownFunc)(void *opaque, bool rd, bool wr);
+
 typedef struct QEMUFileOps {
     QEMUFilePutBufferFunc *put_buffer;
     QEMUFileGetBufferFunc *get_buffer;
@@ -94,6 +102,7 @@ typedef struct QEMUFileOps {
     QEMURamHookFunc *after_ram_iterate;
     QEMURamHookFunc *hook_ram_load;
     QEMURamSaveFunc *save_page;
+    QEMUFileShutdownFunc *shut_down;
 } QEMUFileOps;
 
 struct QEMUSizedBuffer {
@@ -177,6 +186,7 @@ void qemu_file_set_rate_limit(QEMUFile *f, int64_t new_rate);
 int64_t qemu_file_get_rate_limit(QEMUFile *f);
 int qemu_file_get_error(QEMUFile *f);
 void qemu_file_set_error(QEMUFile *f, int ret);
+int qemu_file_shutdown(QEMUFile *f);
 void qemu_fflush(QEMUFile *f);
 
 static inline void qemu_put_be64s(QEMUFile *f, const uint64_t *pv)

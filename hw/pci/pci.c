@@ -32,6 +32,7 @@
 #include "hw/loader.h"
 #include "qemu/range.h"
 #include "qmp-commands.h"
+#include "trace.h"
 #include "hw/pci/msi.h"
 #include "hw/pci/msix.h"
 #include "exec/address-spaces.h"
@@ -1106,10 +1107,18 @@ static void pci_update_mappings(PCIDevice *d)
 
         /* now do the real mapping */
         if (r->addr != PCI_BAR_UNMAPPED) {
+            trace_pci_update_mappings_del(d, pci_bus_num(d->bus),
+                                          PCI_FUNC(d->devfn),
+                                          PCI_SLOT(d->devfn),
+                                          i, r->addr, r->size);
             memory_region_del_subregion(r->address_space, r->memory);
         }
         r->addr = new_addr;
         if (r->addr != PCI_BAR_UNMAPPED) {
+            trace_pci_update_mappings_add(d, pci_bus_num(d->bus),
+                                          PCI_FUNC(d->devfn),
+                                          PCI_SLOT(d->devfn),
+                                          i, r->addr, r->size);
             memory_region_add_subregion_overlap(r->address_space,
                                                 r->addr, r->memory, 1);
         }

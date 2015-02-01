@@ -185,6 +185,10 @@
 #define TARGET_NR_osf_utsname	207
 #define TARGET_NR_lchown		208
 #define TARGET_NR_osf_shmat		209
+/* this has the usual shmat semantics so give it the name syscall.c expects
+ * so that our support for it is enabled.
+ */
+#define TARGET_NR_shmat TARGET_NR_osf_shmat
 #define TARGET_NR_shmctl		210
 #define TARGET_NR_shmdt		211
 #define TARGET_NR_shmget		212

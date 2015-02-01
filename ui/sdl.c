@@ -26,8 +26,6 @@
 #undef WIN32_LEAN_AND_MEAN
 
 #include <SDL.h>
-
-#if SDL_MAJOR_VERSION == 1
 #include <SDL_syswm.h>
 
 #include "qemu-common.h"
@@ -151,6 +149,19 @@ static void sdl_switch(DisplayChangeListener *dcl,
          surface_bits_per_pixel(surface), surface_stride(surface),
          pf.rmask, pf.gmask,
          pf.bmask, pf.amask);
+}
+
+static bool sdl_check_format(DisplayChangeListener *dcl,
+                             pixman_format_code_t format)
+{
+    /*
+     * We let SDL convert for us a few more formats than,
+     * the native ones. Thes are the ones I have tested.
+     */
+    return (format == PIXMAN_x8r8g8b8 ||
+            format == PIXMAN_b8g8r8x8 ||
+            format == PIXMAN_x1r5g5b5 ||
+            format == PIXMAN_r5g6b5);
 }
 
 /* generic keyboard conversion */
@@ -867,12 +878,13 @@ static void sdl_cleanup(void)
 }
 
 static const DisplayChangeListenerOps dcl_ops = {
-    .dpy_name          = "sdl",
-    .dpy_gfx_update    = sdl_update,
-    .dpy_gfx_switch    = sdl_switch,
-    .dpy_refresh       = sdl_refresh,
-    .dpy_mouse_set     = sdl_mouse_warp,
-    .dpy_cursor_define = sdl_mouse_define,
+    .dpy_name             = "sdl",
+    .dpy_gfx_update       = sdl_update,
+    .dpy_gfx_switch       = sdl_switch,
+    .dpy_gfx_check_format = sdl_check_format,
+    .dpy_refresh          = sdl_refresh,
+    .dpy_mouse_set        = sdl_mouse_warp,
+    .dpy_cursor_define    = sdl_mouse_define,
 };
 
 void sdl_display_init(DisplayState *ds, int full_screen, int no_frame)
@@ -958,4 +970,3 @@ void sdl_display_init(DisplayState *ds, int full_screen, int no_frame)
 
     atexit(sdl_cleanup);
 }
-#endif

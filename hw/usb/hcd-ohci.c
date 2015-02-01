@@ -2015,7 +2015,7 @@ static const VMStateDescription vmstate_ohci_eof_timer = {
     .minimum_version_id = 1,
     .pre_load = ohci_eof_timer_pre_load,
     .fields = (VMStateField[]) {
-        VMSTATE_TIMER(eof_timer, OHCIState),
+        VMSTATE_TIMER_PTR(eof_timer, OHCIState),
         VMSTATE_END_OF_LIST()
     },
 };

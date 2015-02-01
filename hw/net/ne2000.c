@@ -703,19 +703,11 @@ void ne2000_setup_io(NE2000State *s, DeviceState *dev, unsigned size)
     memory_region_init_io(&s->io, OBJECT(dev), &ne2000_ops, s, "ne2000", size);
 }
 
-static void ne2000_cleanup(NetClientState *nc)
-{
-    NE2000State *s = qemu_get_nic_opaque(nc);
-
-    s->nic = NULL;
-}
-
 static NetClientInfo net_ne2000_info = {
     .type = NET_CLIENT_OPTIONS_KIND_NIC,
     .size = sizeof(NICState),
     .can_receive = ne2000_can_receive,
     .receive = ne2000_receive,
-    .cleanup = ne2000_cleanup,
 };
 
 static int pci_ne2000_init(PCIDevice *pci_dev)

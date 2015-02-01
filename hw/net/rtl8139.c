@@ -3455,13 +3455,6 @@ static void rtl8139_timer(void *opaque)
     rtl8139_set_next_tctr_time(s, qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL));
 }
 
-static void rtl8139_cleanup(NetClientState *nc)
-{
-    RTL8139State *s = qemu_get_nic_opaque(nc);
-
-    s->nic = NULL;
-}
-
 static void pci_rtl8139_uninit(PCIDevice *dev)
 {
     RTL8139State *s = RTL8139(dev);
@@ -3494,7 +3487,6 @@ static NetClientInfo net_rtl8139_info = {
     .size = sizeof(NICState),
     .can_receive = rtl8139_can_receive,
     .receive = rtl8139_receive,
-    .cleanup = rtl8139_cleanup,
     .link_status_changed = rtl8139_set_link_status,
 };
 

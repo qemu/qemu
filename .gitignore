@@ -109,3 +109,4 @@ cscope.*
 tags
 TAGS
 *~
+/tests/qemu-iotests/common.env

@@ -4,7 +4,6 @@
 //#define DEBUG_OP
 
 #define ALIGNED_ONLY
-#define TARGET_HAS_ICE 1
 
 #define ELF_MACHINE	EM_MIPS
 

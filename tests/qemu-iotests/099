@@ -57,7 +57,7 @@ function run_qemu()
     # Get the "file": "foo" entry ($foo may only contain escaped double quotes,
     # which is how we can extract it)
     do_run_qemu "$@" 2>&1 | _filter_testdir | _filter_imgfmt | _filter_qmp \
-        | grep "drv0" \
+        | _filter_qemu | grep "drv0" \
         | sed -e 's/^.*"file": "\(\(\\"\|[^"]\)*\)".*$/\1/' -e 's/\\"/"/g'
 }
 

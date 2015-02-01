@@ -53,7 +53,7 @@ function do_run_qemu()
 
 function run_qemu()
 {
-    do_run_qemu "$@" 2>&1 | _filter_testdir | _filter_qmp | _filter_qemu_io
+    do_run_qemu "$@" 2>&1 | _filter_testdir | _filter_qemu | _filter_qmp | _filter_qemu_io
 }
 
 test_quorum=$($QEMU_IMG --help|grep quorum)
