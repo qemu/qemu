@@ -736,19 +736,11 @@ static const MemoryRegionOps smc91c111_mem_ops = {
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
-static void smc91c111_cleanup(NetClientState *nc)
-{
-    smc91c111_state *s = qemu_get_nic_opaque(nc);
-
-    s->nic = NULL;
-}
-
 static NetClientInfo net_smc91c111_info = {
     .type = NET_CLIENT_OPTIONS_KIND_NIC,
     .size = sizeof(NICState),
     .can_receive = smc91c111_can_receive,
     .receive = smc91c111_receive,
-    .cleanup = smc91c111_cleanup,
 };
 
 static int smc91c111_init1(SysBusDevice *sbd)

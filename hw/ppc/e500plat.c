@@ -41,6 +41,11 @@ static void e500plat_init(MachineState *machine)
         .platform_bus_size = (128ULL * 1024 * 1024),
         .platform_bus_first_irq = 5,
         .platform_bus_num_irqs = 10,
+        .ccsrbar_base = 0xFE0000000ULL,
+        .pci_pio_base = 0xFE1000000ULL,
+        .pci_mmio_base = 0xC00000000ULL,
+        .pci_mmio_bus_base = 0xE0000000ULL,
+        .spin_base = 0xFEF000000ULL,
     };
 
     /* Older KVM versions don't support EPR which breaks guests when we announce

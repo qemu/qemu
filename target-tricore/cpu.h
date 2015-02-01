@@ -238,6 +238,7 @@ struct CPUTriCoreState {
 #define MASK_LCX_LCXS 0x000f0000
 #define MASK_LCX_LCX0 0x0000ffff
 
+#define TRICORE_HFLAG_KUU     0x3
 #define TRICORE_HFLAG_UM0     0x00002 /* user mode-0 flag          */
 #define TRICORE_HFLAG_UM1     0x00001 /* user mode-1 flag          */
 #define TRICORE_HFLAG_SM      0x00000 /* kernel mode flag          */

@@ -614,14 +614,9 @@ int load_ramdisk(const char *filename, hwaddr addr, uint64_t max_sz)
                             NULL, NULL);
 }
 
-/* This simply prevents g_malloc in the function below from allocating
- * a huge amount of memory, by placing a limit on the maximum
- * uncompressed image size that load_image_gzipped will read.
- */
-#define LOAD_IMAGE_MAX_GUNZIP_BYTES (256 << 20)
-
-/* Load a gzip-compressed kernel. */
-int load_image_gzipped(const char *filename, hwaddr addr, uint64_t max_sz)
+/* Load a gzip-compressed kernel to a dynamically allocated buffer. */
+int load_image_gzipped_buffer(const char *filename, uint64_t max_sz,
+                              uint8_t **buffer)
 {
     uint8_t *compressed_data = NULL;
     uint8_t *data = NULL;
@@ -653,13 +648,30 @@ int load_image_gzipped(const char *filename, hwaddr addr, uint64_t max_sz)
         goto out;
     }
 
-    rom_add_blob_fixed(filename, data, bytes, addr);
+    /* trim to actual size and return to caller */
+    *buffer = g_realloc(data, bytes);
     ret = bytes;
+    /* ownership has been transferred to caller */
+    data = NULL;
 
  out:
     g_free(compressed_data);
     g_free(data);
     return ret;
+}
+
+/* Load a gzip-compressed kernel. */
+int load_image_gzipped(const char *filename, hwaddr addr, uint64_t max_sz)
+{
+    int bytes;
+    uint8_t *data;
+
+    bytes = load_image_gzipped_buffer(filename, max_sz, &data);
+    if (bytes != -1) {
+        rom_add_blob_fixed(filename, data, bytes, addr);
+        g_free(data);
+    }
+    return bytes;
 }
 
 /*
@@ -712,12 +724,22 @@ static void rom_insert(Rom *rom)
     QTAILQ_INSERT_TAIL(&roms, rom, next);
 }
 
+static void fw_cfg_resized(const char *id, uint64_t length, void *host)
+{
+    if (fw_cfg) {
+        fw_cfg_modify_file(fw_cfg, id + strlen("/rom@"), host, length);
+    }
+}
+
 static void *rom_set_mr(Rom *rom, Object *owner, const char *name)
 {
     void *data;
 
     rom->mr = g_malloc(sizeof(*rom->mr));
-    memory_region_init_ram(rom->mr, owner, name, rom->datasize, &error_abort);
+    memory_region_init_resizeable_ram(rom->mr, owner, name,
+                                      rom->datasize, rom->romsize,
+                                      fw_cfg_resized,
+                                      &error_abort);
     memory_region_set_readonly(rom->mr, true);
     vmstate_register_ram_global(rom->mr);
 
@@ -812,7 +834,7 @@ err:
 }
 
 ram_addr_t rom_add_blob(const char *name, const void *blob, size_t len,
-                   hwaddr addr, const char *fw_file_name,
+                   size_t max_len, hwaddr addr, const char *fw_file_name,
                    FWCfgReadCallback fw_callback, void *callback_opaque)
 {
     Rom *rom;
@@ -821,7 +843,7 @@ ram_addr_t rom_add_blob(const char *name, const void *blob, size_t len,
     rom           = g_malloc0(sizeof(*rom));
     rom->name     = g_strdup(name);
     rom->addr     = addr;
-    rom->romsize  = len;
+    rom->romsize  = max_len ? max_len : len;
     rom->datasize = len;
     rom->data     = g_malloc0(rom->datasize);
     memcpy(rom->data, blob, len);
@@ -841,7 +863,7 @@ ram_addr_t rom_add_blob(const char *name, const void *blob, size_t len,
 
         fw_cfg_add_file_callback(fw_cfg, fw_file_name,
                                  fw_callback, callback_opaque,
-                                 data, rom->romsize);
+                                 data, rom->datasize);
     }
     return ret;
 }

@@ -241,6 +241,18 @@ static void calxeda_init(MachineState *machine, enum cxmachines machine_id)
         cpuobj = object_new(object_class_get_name(oc));
         cpu = ARM_CPU(cpuobj);
 
+        /* By default A9 and A15 CPUs have EL3 enabled.  This board does not
+         * currently support EL3 so the CPU EL3 property is disabled before
+         * realization.
+         */
+        if (object_property_find(cpuobj, "has_el3", NULL)) {
+            object_property_set_bool(cpuobj, false, "has_el3", &err);
+            if (err) {
+                error_report("%s", error_get_pretty(err));
+                exit(1);
+            }
+        }
+
         if (object_property_find(cpuobj, "reset-cbar", NULL)) {
             object_property_set_int(cpuobj, MPCORE_PERIPHBASE,
                                     "reset-cbar", &error_abort);

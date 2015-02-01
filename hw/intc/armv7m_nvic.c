@@ -450,7 +450,7 @@ static const VMStateDescription vmstate_nvic = {
         VMSTATE_UINT32(systick.control, nvic_state),
         VMSTATE_UINT32(systick.reload, nvic_state),
         VMSTATE_INT64(systick.tick, nvic_state),
-        VMSTATE_TIMER(systick.timer, nvic_state),
+        VMSTATE_TIMER_PTR(systick.timer, nvic_state),
         VMSTATE_END_OF_LIST()
     }
 };

@@ -94,6 +94,7 @@ Scope(\_SB) {
 
     Device(CPU_HOTPLUG_RESOURCE_DEVICE) {
         Name(_HID, EisaId("PNP0A06"))
+        Name(_UID, "CPU hotplug resources")
 
         Name(_CRS, ResourceTemplate() {
             IO(Decode16, CPU_STATUS_BASE, CPU_STATUS_BASE, 0, CPU_STATUS_LEN)

@@ -101,6 +101,18 @@ static void realview_init(MachineState *machine,
         Object *cpuobj = object_new(object_class_get_name(cpu_oc));
         Error *err = NULL;
 
+        /* By default A9,A15 and ARM1176 CPUs have EL3 enabled.  This board
+         * does not currently support EL3 so the CPU EL3 property is disabled
+         * before realization.
+         */
+        if (object_property_find(cpuobj, "has_el3", NULL)) {
+            object_property_set_bool(cpuobj, false, "has_el3", &err);
+            if (err) {
+                error_report("%s", error_get_pretty(err));
+                exit(1);
+            }
+        }
+
         if (is_pb && is_mpcore) {
             object_property_set_int(cpuobj, periphbase, "reset-cbar", &err);
             if (err) {
@@ -249,7 +261,7 @@ static void realview_init(MachineState *machine,
         sysbus_connect_irq(busdev, 2, pic[50]);
         sysbus_connect_irq(busdev, 3, pic[51]);
         pci_bus = (PCIBus *)qdev_get_child_bus(dev, "pci");
-        if (usb_enabled(false)) {
+        if (usb_enabled()) {
             pci_create_simple(pci_bus, -1, "pci-ohci");
         }
         n = drive_get_max_bus(IF_SCSI);

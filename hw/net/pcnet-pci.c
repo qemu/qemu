@@ -271,13 +271,6 @@ static void pci_physical_memory_read(void *dma_opaque, hwaddr addr,
     pci_dma_read(dma_opaque, addr, buf, len);
 }
 
-static void pci_pcnet_cleanup(NetClientState *nc)
-{
-    PCNetState *d = qemu_get_nic_opaque(nc);
-
-    pcnet_common_cleanup(d);
-}
-
 static void pci_pcnet_uninit(PCIDevice *dev)
 {
     PCIPCNetState *d = PCI_PCNET(dev);
@@ -294,7 +287,6 @@ static NetClientInfo net_pci_pcnet_info = {
     .can_receive = pcnet_can_receive,
     .receive = pcnet_receive,
     .link_status_changed = pcnet_set_link_status,
-    .cleanup = pci_pcnet_cleanup,
 };
 
 static int pci_pcnet_init(PCIDevice *pci_dev)

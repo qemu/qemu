@@ -34,7 +34,21 @@
 # define LOG_PCALL_STATE(cpu) do { } while (0)
 #endif
 
-#ifndef CONFIG_USER_ONLY
+#ifdef CONFIG_USER_ONLY
+#define MEMSUFFIX _kernel
+#define DATA_SIZE 1
+#include "exec/cpu_ldst_useronly_template.h"
+
+#define DATA_SIZE 2
+#include "exec/cpu_ldst_useronly_template.h"
+
+#define DATA_SIZE 4
+#include "exec/cpu_ldst_useronly_template.h"
+
+#define DATA_SIZE 8
+#include "exec/cpu_ldst_useronly_template.h"
+#undef MEMSUFFIX
+#else
 #define CPU_MMU_INDEX (cpu_mmu_index_kernel(env))
 #define MEMSUFFIX _kernel
 #define DATA_SIZE 1

@@ -6,9 +6,12 @@ LD=ld
 LDFLAGS=-melf_i386 -T link.ld
 LIBS=$(shell $(CC) $(CCFLAGS) -print-libgcc-file-name)
 
-all: mmap.elf
+all: mmap.elf modules.elf
 
 mmap.elf: start.o mmap.o libc.o
+	$(LD) $(LDFLAGS) -o $@ $^ $(LIBS)
+
+modules.elf: start.o modules.o libc.o
 	$(LD) $(LDFLAGS) -o $@ $^ $(LIBS)
 
 %.o: %.c

@@ -269,3 +269,25 @@ STVE(stvewx, cpu_stl_data, bswap32, u32)
 
 #undef HI_IDX
 #undef LO_IDX
+
+void helper_tbegin(CPUPPCState *env)
+{
+    /* As a degenerate implementation, always fail tbegin.  The reason
+     * given is "Nesting overflow".  The "persistent" bit is set,
+     * providing a hint to the error handler to not retry.  The TFIAR
+     * captures the address of the failure, which is this tbegin
+     * instruction.  Instruction execution will continue with the
+     * next instruction in memory, which is precisely what we want.
+     */
+
+    env->spr[SPR_TEXASR] =
+        (1ULL << TEXASR_FAILURE_PERSISTENT) |
+        (1ULL << TEXASR_NESTING_OVERFLOW) |
+        (msr_hv << TEXASR_PRIVILEGE_HV) |
+        (msr_pr << TEXASR_PRIVILEGE_PR) |
+        (1ULL << TEXASR_FAILURE_SUMMARY) |
+        (1ULL << TEXASR_TFIAR_EXACT);
+    env->spr[SPR_TFIAR] = env->nip | (msr_hv << 1) | msr_pr;
+    env->spr[SPR_TFHAR] = env->nip + 4;
+    env->crf[0] = 0xB; /* 0b1010 = transaction failure */
+}

@@ -22,6 +22,18 @@
 
 #include "libc.h"
 
+void* memcpy(void *dest, const void *src, int n)
+{
+    char *d = dest;
+    const char *s = src;
+
+    while (n--) {
+        *d++ = *s++;
+    }
+
+    return dest;
+}
+
 static void print_char(char c)
 {
     outb(0xe9, c);

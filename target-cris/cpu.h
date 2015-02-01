@@ -29,8 +29,6 @@
 
 #include "exec/cpu-defs.h"
 
-#define TARGET_HAS_ICE 1
-
 #define ELF_MACHINE	EM_CRIS
 
 #define EXCP_NMI        1

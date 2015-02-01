@@ -1372,7 +1372,7 @@ static void handle_sys(DisasContext *s, uint32_t insn, bool isread,
         break;
     }
 
-    if (use_icount && (ri->type & ARM_CP_IO)) {
+    if ((s->tb->cflags & CF_USE_ICOUNT) && (ri->type & ARM_CP_IO)) {
         gen_io_start();
     }
 
@@ -1403,7 +1403,7 @@ static void handle_sys(DisasContext *s, uint32_t insn, bool isread,
         }
     }
 
-    if (use_icount && (ri->type & ARM_CP_IO)) {
+    if ((s->tb->cflags & CF_USE_ICOUNT) && (ri->type & ARM_CP_IO)) {
         /* I/O operations must end the TB here (whether read or write) */
         gen_io_end();
         s->is_jmp = DISAS_UPDATE;
@@ -10962,7 +10962,7 @@ void gen_intermediate_code_internal_a64(ARMCPU *cpu,
         max_insns = CF_COUNT_MASK;
     }
 
-    gen_tb_start();
+    gen_tb_start(tb);
 
     tcg_clear_temp_count();
 

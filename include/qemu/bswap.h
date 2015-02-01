@@ -204,7 +204,7 @@ typedef union {
  *   f    : float access
  *
  * sign is:
- * (empty): for floats or 32 bit size
+ * (empty): for 32 or 64 bit sizes (including floats and doubles)
  *   u    : unsigned
  *   s    : signed
  *
@@ -218,7 +218,16 @@ typedef union {
  *   he   : host endian
  *   be   : big endian
  *   le   : little endian
+ *   te   : target endian
  * (except for byte accesses, which have no endian infix).
+ *
+ * The target endian accessors are obviously only available to source
+ * files which are built per-target; they are defined in cpu-all.h.
+ *
+ * In all cases these functions take a host pointer.
+ * For accessors that take a guest address rather than a
+ * host address, see the cpu_{ld,st}_* accessors defined in
+ * cpu_ldst.h.
  */
 
 static inline int ldub_p(const void *ptr)

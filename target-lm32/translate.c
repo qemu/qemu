@@ -865,24 +865,24 @@ static void dec_wcsr(DisasContext *dc)
         break;
     case CSR_IM:
         /* mark as an io operation because it could cause an interrupt */
-        if (use_icount) {
+        if (dc->tb->cflags & CF_USE_ICOUNT) {
             gen_io_start();
         }
         gen_helper_wcsr_im(cpu_env, cpu_R[dc->r1]);
         tcg_gen_movi_tl(cpu_pc, dc->pc + 4);
-        if (use_icount) {
+        if (dc->tb->cflags & CF_USE_ICOUNT) {
             gen_io_end();
         }
         dc->is_jmp = DISAS_UPDATE;
         break;
     case CSR_IP:
         /* mark as an io operation because it could cause an interrupt */
-        if (use_icount) {
+        if (dc->tb->cflags & CF_USE_ICOUNT) {
             gen_io_start();
         }
         gen_helper_wcsr_ip(cpu_env, cpu_R[dc->r1]);
         tcg_gen_movi_tl(cpu_pc, dc->pc + 4);
-        if (use_icount) {
+        if (dc->tb->cflags & CF_USE_ICOUNT) {
             gen_io_end();
         }
         dc->is_jmp = DISAS_UPDATE;
@@ -1095,7 +1095,7 @@ void gen_intermediate_code_internal(LM32CPU *cpu,
         max_insns = CF_COUNT_MASK;
     }
 
-    gen_tb_start();
+    gen_tb_start(tb);
     do {
         check_breakpoint(env, dc);
 

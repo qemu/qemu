@@ -1112,6 +1112,9 @@ static struct termios oldtty;
 static int old_fd0_flags;
 static bool stdio_in_use;
 static bool stdio_allow_signal;
+static bool stdio_echo_state;
+
+static void qemu_chr_set_echo_stdio(CharDriverState *chr, bool echo);
 
 static void term_exit(void)
 {
@@ -1119,10 +1122,17 @@ static void term_exit(void)
     fcntl(0, F_SETFL, old_fd0_flags);
 }
 
+static void term_stdio_handler(int sig)
+{
+    /* restore echo after resume from suspend. */
+    qemu_chr_set_echo_stdio(NULL, stdio_echo_state);
+}
+
 static void qemu_chr_set_echo_stdio(CharDriverState *chr, bool echo)
 {
     struct termios tty;
 
+    stdio_echo_state = echo;
     tty = oldtty;
     if (!echo) {
         tty.c_iflag &= ~(IGNBRK|BRKINT|PARMRK|ISTRIP
@@ -1149,6 +1159,7 @@ static void qemu_chr_close_stdio(struct CharDriverState *chr)
 static CharDriverState *qemu_chr_open_stdio(ChardevStdio *opts)
 {
     CharDriverState *chr;
+    struct sigaction act;
 
     if (is_daemonized()) {
         error_report("cannot use stdio with -daemonize");
@@ -1165,6 +1176,10 @@ static CharDriverState *qemu_chr_open_stdio(ChardevStdio *opts)
     tcgetattr(0, &oldtty);
     qemu_set_nonblock(0);
     atexit(term_exit);
+
+    memset(&act, 0, sizeof(act));
+    act.sa_handler = term_stdio_handler;
+    sigaction(SIGCONT, &act, NULL);
 
     chr = qemu_chr_open_fd(0, 1);
     chr->chr_close = qemu_chr_close_stdio;
@@ -1387,6 +1402,7 @@ static CharDriverState *qemu_chr_open_pty(const char *id,
     }
 
     close(slave_fd);
+    qemu_set_nonblock(master_fd);
 
     chr = qemu_chr_alloc();
 

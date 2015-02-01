@@ -3855,7 +3855,7 @@ static const VMStateDescription vmstate_xhci = {
 
         /* Runtime Registers & state */
         VMSTATE_INT64(mfindex_start,  XHCIState),
-        VMSTATE_TIMER(mfwrap_timer,   XHCIState),
+        VMSTATE_TIMER_PTR(mfwrap_timer,   XHCIState),
         VMSTATE_STRUCT(cmd_ring, XHCIState, 1, vmstate_xhci_ring, XHCIRing),
 
         VMSTATE_END_OF_LIST()

@@ -20,6 +20,7 @@
 #include "qemu/config-file.h"
 #include "hw/s390x/sclp.h"
 #include "hw/s390x/event-facility.h"
+#include "hw/s390x/s390-pci-bus.h"
 
 static inline SCLPEventFacility *get_event_facility(void)
 {
@@ -62,7 +63,8 @@ static void read_SCP_info(SCCB *sccb)
         read_info->entries[i].type = 0;
     }
 
-    read_info->facilities = cpu_to_be64(SCLP_HAS_CPU_INFO);
+    read_info->facilities = cpu_to_be64(SCLP_HAS_CPU_INFO |
+                                        SCLP_HAS_PCI_RECONFIG);
 
     /*
      * The storage increment size is a multiple of 1M and is a power of 2.
@@ -349,6 +351,12 @@ static void sclp_execute(SCCB *sccb, uint32_t code)
         break;
     case SCLP_UNASSIGN_STORAGE:
         unassign_storage(sccb);
+        break;
+    case SCLP_CMDW_CONFIGURE_PCI:
+        s390_pci_sclp_configure(1, sccb);
+        break;
+    case SCLP_CMDW_DECONFIGURE_PCI:
+        s390_pci_sclp_configure(0, sccb);
         break;
     default:
         efc->command_handler(ef, sccb, code);

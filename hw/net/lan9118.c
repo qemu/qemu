@@ -1309,19 +1309,11 @@ static const MemoryRegionOps lan9118_16bit_mem_ops = {
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
-static void lan9118_cleanup(NetClientState *nc)
-{
-    lan9118_state *s = qemu_get_nic_opaque(nc);
-
-    s->nic = NULL;
-}
-
 static NetClientInfo net_lan9118_info = {
     .type = NET_CLIENT_OPTIONS_KIND_NIC,
     .size = sizeof(NICState),
     .can_receive = lan9118_can_receive,
     .receive = lan9118_receive,
-    .cleanup = lan9118_cleanup,
     .link_status_changed = lan9118_set_link,
 };
 

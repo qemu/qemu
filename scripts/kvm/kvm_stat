@@ -13,6 +13,7 @@
 
 import curses
 import sys, os, time, optparse, ctypes
+from ctypes import *
 
 class DebugfsProvider(object):
     def __init__(self):
@@ -65,6 +66,8 @@ vmx_exit_reasons = {
     49: 'EPT_MISCONFIG',
     54: 'WBINVD',
     55: 'XSETBV',
+    56: 'APIC_WRITE',
+    58: 'INVPCID',
 }
 
 svm_exit_reasons = {
@@ -138,6 +141,7 @@ svm_exit_reasons = {
     0x08a: 'MONITOR',
     0x08b: 'MWAIT',
     0x08c: 'MWAIT_COND',
+    0x08d: 'XSETBV',
     0x400: 'NPF',
 }
 
@@ -167,6 +171,7 @@ userspace_exit_reasons = {
     21: 'WATCHDOG',
     22: 'S390_TSCH',
     23: 'EPR',
+    24: 'SYSTEM_EVENT',
 }
 
 x86_exit_reasons = {
@@ -181,6 +186,7 @@ ioctl_numbers = {
     'SET_FILTER' : 0x40082406,
     'ENABLE'     : 0x00002400,
     'DISABLE'    : 0x00002401,
+    'RESET'      : 0x00002403,
 }
 
 def x86_init(flag):
@@ -204,9 +210,17 @@ def ppc_init():
         }
     })
 
+def aarch64_init():
+    globals().update({
+        'sc_perf_evt_open' : 241
+    })
+
 def detect_platform():
     if os.uname()[4].startswith('ppc'):
         ppc_init()
+        return
+    elif os.uname()[4].startswith('aarch64'):
+        aarch64_init()
         return
 
     for line in file('/proc/cpuinfo').readlines():
@@ -235,6 +249,9 @@ import struct, array
 
 libc = ctypes.CDLL('libc.so.6')
 syscall = libc.syscall
+get_errno = libc.__errno_location
+get_errno.restype = POINTER(c_int)
+
 class perf_event_attr(ctypes.Structure):
     _fields_ = [('type', ctypes.c_uint32),
                 ('size', ctypes.c_uint32),
@@ -318,7 +335,8 @@ class Event(object):
             group_leader = group.events[0].fd
         fd = _perf_event_open(attr, -1, group.cpu, group_leader, 0)
         if fd == -1:
-            raise Exception('perf_event_open failed')
+            err = get_errno()[0]
+            raise Exception('perf_event_open failed, errno = ' + err.__str__())
         if filter:
             import fcntl
             fcntl.ioctl(fd, ioctl_numbers['SET_FILTER'], filter)
@@ -329,6 +347,9 @@ class Event(object):
     def disable(self):
         import fcntl
         fcntl.ioctl(self.fd, ioctl_numbers['DISABLE'], 0)
+    def reset(self):
+        import fcntl
+        fcntl.ioctl(self.fd, ioctl_numbers['RESET'], 0)
 
 class TracepointProvider(object):
     def __init__(self):
@@ -388,6 +409,7 @@ class TracepointProvider(object):
         for group in self.group_leaders:
             for event in group.events:
                 if event.name in fields:
+                    event.reset()
                     event.enable()
                 else:
                     event.disable()

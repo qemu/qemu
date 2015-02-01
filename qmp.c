@@ -368,7 +368,20 @@ void qmp_change_vnc_password(const char *password, Error **errp)
 
 static void qmp_change_vnc_listen(const char *target, Error **errp)
 {
-    vnc_display_open(NULL, target, errp);
+    QemuOptsList *olist = qemu_find_opts("vnc");
+    QemuOpts *opts;
+
+    if (strstr(target, "id=")) {
+        error_setg(errp, "id not supported");
+        return;
+    }
+
+    opts = qemu_opts_find(olist, "default");
+    if (opts) {
+        qemu_opts_del(opts);
+    }
+    opts = vnc_parse_func(target);
+    vnc_display_open("default", errp);
 }
 
 static void qmp_change_vnc(const char *target, bool has_arg, const char *arg,

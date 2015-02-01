@@ -14,6 +14,7 @@
 #include "cpu.h"
 #include "ioinst.h"
 #include "trace.h"
+#include "hw/s390x/s390-pci-bus.h"
 
 int ioinst_disassemble_sch_ident(uint32_t value, int *m, int *cssid, int *ssid,
                                  int *schid)
@@ -398,6 +399,7 @@ typedef struct ChscResp {
 #define CHSC_SCPD 0x0002
 #define CHSC_SCSC 0x0010
 #define CHSC_SDA  0x0031
+#define CHSC_SEI  0x000e
 
 #define CHSC_SCPD_0_M 0x20000000
 #define CHSC_SCPD_0_C 0x10000000
@@ -566,6 +568,53 @@ out:
     res->param = 0;
 }
 
+static int chsc_sei_nt0_get_event(void *res)
+{
+    /* no events yet */
+    return 1;
+}
+
+static int chsc_sei_nt0_have_event(void)
+{
+    /* no events yet */
+    return 0;
+}
+
+#define CHSC_SEI_NT0    (1ULL << 63)
+#define CHSC_SEI_NT2    (1ULL << 61)
+static void ioinst_handle_chsc_sei(ChscReq *req, ChscResp *res)
+{
+    uint64_t selection_mask = ldq_p(&req->param1);
+    uint8_t *res_flags = (uint8_t *)res->data;
+    int have_event = 0;
+    int have_more = 0;
+
+    /* regarding architecture nt0 can not be masked */
+    have_event = !chsc_sei_nt0_get_event(res);
+    have_more = chsc_sei_nt0_have_event();
+
+    if (selection_mask & CHSC_SEI_NT2) {
+        if (!have_event) {
+            have_event = !chsc_sei_nt2_get_event(res);
+        }
+
+        if (!have_more) {
+            have_more = chsc_sei_nt2_have_event();
+        }
+    }
+
+    if (have_event) {
+        res->code = cpu_to_be16(0x0001);
+        if (have_more) {
+            (*res_flags) |= 0x80;
+        } else {
+            (*res_flags) &= ~0x80;
+        }
+    } else {
+        res->code = cpu_to_be16(0x0004);
+    }
+}
+
 static void ioinst_handle_chsc_unimplemented(ChscResp *res)
 {
     res->len = cpu_to_be16(CHSC_MIN_RESP_LEN);
@@ -616,6 +665,9 @@ void ioinst_handle_chsc(S390CPU *cpu, uint32_t ipb)
         break;
     case CHSC_SDA:
         ioinst_handle_chsc_sda(req, res);
+        break;
+    case CHSC_SEI:
+        ioinst_handle_chsc_sei(req, res);
         break;
     default:
         ioinst_handle_chsc_unimplemented(res);

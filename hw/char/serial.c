@@ -645,8 +645,17 @@ static int serial_post_load(void *opaque, int version_id)
 static bool serial_thr_ipending_needed(void *opaque)
 {
     SerialState *s = opaque;
-    bool expected_value = ((s->iir & UART_IIR_ID) == UART_IIR_THRI);
-    return s->thr_ipending != expected_value;
+
+    if (s->ier & UART_IER_THRI) {
+        bool expected_value = ((s->iir & UART_IIR_ID) == UART_IIR_THRI);
+        return s->thr_ipending != expected_value;
+    } else {
+        /* LSR.THRE will be sampled again when the interrupt is
+         * enabled.  thr_ipending is not used in this case, do
+         * not migrate it.
+         */
+        return false;
+    }
 }
 
 const VMStateDescription vmstate_serial_thr_ipending = {
@@ -721,7 +730,7 @@ const VMStateDescription vmstate_serial_fifo_timeout_timer = {
     .version_id = 1,
     .minimum_version_id = 1,
     .fields = (VMStateField[]) {
-        VMSTATE_TIMER(fifo_timeout_timer, SerialState),
+        VMSTATE_TIMER_PTR(fifo_timeout_timer, SerialState),
         VMSTATE_END_OF_LIST()
     }
 };
@@ -754,7 +763,7 @@ const VMStateDescription vmstate_serial_poll = {
     .minimum_version_id = 1,
     .fields = (VMStateField[]) {
         VMSTATE_INT32(poll_msl, SerialState),
-        VMSTATE_TIMER(modem_status_poll, SerialState),
+        VMSTATE_TIMER_PTR(modem_status_poll, SerialState),
         VMSTATE_END_OF_LIST()
     }
 };

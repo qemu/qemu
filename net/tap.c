@@ -189,6 +189,7 @@ static void tap_send(void *opaque)
 {
     TAPState *s = opaque;
     int size;
+    int packets = 0;
 
     while (qemu_can_send_packet(&s->nc)) {
         uint8_t *buf = s->buf;
@@ -208,6 +209,17 @@ static void tap_send(void *opaque)
             tap_read_poll(s, false);
             break;
         } else if (size < 0) {
+            break;
+        }
+
+        /*
+         * When the host keeps receiving more packets while tap_send() is
+         * running we can hog the QEMU global mutex.  Limit the number of
+         * packets that are processed per tap_send() callback to prevent
+         * stalling the guest.
+         */
+        packets++;
+        if (packets >= 50) {
             break;
         }
     }

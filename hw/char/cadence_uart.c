@@ -520,7 +520,7 @@ static const VMStateDescription vmstate_cadence_uart = {
         VMSTATE_UINT32(rx_count, UartState),
         VMSTATE_UINT32(tx_count, UartState),
         VMSTATE_UINT32(rx_wpos, UartState),
-        VMSTATE_TIMER(fifo_trigger_handle, UartState),
+        VMSTATE_TIMER_PTR(fifo_trigger_handle, UartState),
         VMSTATE_END_OF_LIST()
     }
 };

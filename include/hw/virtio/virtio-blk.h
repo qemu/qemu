@@ -153,9 +153,6 @@ VirtIOBlockReq *virtio_blk_alloc_request(VirtIOBlock *s);
 
 void virtio_blk_free_request(VirtIOBlockReq *req);
 
-int virtio_blk_handle_scsi_req(VirtIOBlock *blk,
-                               VirtQueueElement *elem);
-
 void virtio_blk_handle_request(VirtIOBlockReq *req, MultiReqBuffer *mrb);
 
 void virtio_submit_multiwrite(BlockBackend *blk, MultiReqBuffer *mrb);

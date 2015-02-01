@@ -79,8 +79,6 @@
 
 #include "fpu/softfloat.h"
 
-#define TARGET_HAS_ICE 1
-
 #if defined (TARGET_PPC64)
 #define ELF_MACHINE     EM_PPC64
 #else
@@ -320,6 +318,7 @@ typedef struct opc_handler_t opc_handler_t;
 /*****************************************************************************/
 /* Types used to describe some PowerPC registers */
 typedef struct CPUPPCState CPUPPCState;
+typedef struct DisasContext DisasContext;
 typedef struct ppc_tb_t ppc_tb_t;
 typedef struct ppc_spr_t ppc_spr_t;
 typedef struct ppc_dcr_t ppc_dcr_t;
@@ -328,13 +327,13 @@ typedef union ppc_tlb_t ppc_tlb_t;
 
 /* SPR access micro-ops generations callbacks */
 struct ppc_spr_t {
-    void (*uea_read)(void *opaque, int gpr_num, int spr_num);
-    void (*uea_write)(void *opaque, int spr_num, int gpr_num);
+    void (*uea_read)(DisasContext *ctx, int gpr_num, int spr_num);
+    void (*uea_write)(DisasContext *ctx, int spr_num, int gpr_num);
 #if !defined(CONFIG_USER_ONLY)
-    void (*oea_read)(void *opaque, int gpr_num, int spr_num);
-    void (*oea_write)(void *opaque, int spr_num, int gpr_num);
-    void (*hea_read)(void *opaque, int gpr_num, int spr_num);
-    void (*hea_write)(void *opaque, int spr_num, int gpr_num);
+    void (*oea_read)(DisasContext *ctx, int gpr_num, int spr_num);
+    void (*oea_write)(DisasContext *ctx, int spr_num, int gpr_num);
+    void (*hea_read)(DisasContext *ctx, int gpr_num, int spr_num);
+    void (*hea_write)(DisasContext *ctx, int spr_num, int gpr_num);
 #endif
     const char *name;
     target_ulong default_value;
@@ -558,6 +557,26 @@ struct ppc_slb_t {
 #define ESR_VLEMI (1 << (63 - 58)) /* VLE operation                          */
 #define ESR_MIF   (1 << (63 - 62)) /* Misaligned instruction (VLE)           */
 
+/* Transaction EXception And Summary Register bits                           */
+#define TEXASR_FAILURE_PERSISTENT                (63 - 7)
+#define TEXASR_DISALLOWED                        (63 - 8)
+#define TEXASR_NESTING_OVERFLOW                  (63 - 9)
+#define TEXASR_FOOTPRINT_OVERFLOW                (63 - 10)
+#define TEXASR_SELF_INDUCED_CONFLICT             (63 - 11)
+#define TEXASR_NON_TRANSACTIONAL_CONFLICT        (63 - 12)
+#define TEXASR_TRANSACTION_CONFLICT              (63 - 13)
+#define TEXASR_TRANSLATION_INVALIDATION_CONFLICT (63 - 14)
+#define TEXASR_IMPLEMENTATION_SPECIFIC           (63 - 15)
+#define TEXASR_INSTRUCTION_FETCH_CONFLICT        (63 - 16)
+#define TEXASR_ABORT                             (63 - 31)
+#define TEXASR_SUSPENDED                         (63 - 32)
+#define TEXASR_PRIVILEGE_HV                      (63 - 34)
+#define TEXASR_PRIVILEGE_PR                      (63 - 35)
+#define TEXASR_FAILURE_SUMMARY                   (63 - 36)
+#define TEXASR_TFIAR_EXACT                       (63 - 37)
+#define TEXASR_ROT                               (63 - 38)
+#define TEXASR_TRANSACTION_LEVEL                 (63 - 52) /* 12 bits */
+
 enum {
     POWERPC_FLAG_NONE     = 0x00000000,
     /* Flag for MSR bit 25 signification (VRE/SPE)                           */
@@ -584,6 +603,8 @@ enum {
     POWERPC_FLAG_CFAR     = 0x00040000,
     /* Has VSX                                                               */
     POWERPC_FLAG_VSX      = 0x00080000,
+    /* Has Transaction Memory (ISA 2.07)                                     */
+    POWERPC_FLAG_TM       = 0x00100000,
 };
 
 /*****************************************************************************/
@@ -2010,6 +2031,8 @@ enum {
     PPC2_ISA207S       = 0x0000000000008000ULL,
     /* Double precision floating point conversion for signed integer 64      */
     PPC2_FP_CVT_S64    = 0x0000000000010000ULL,
+    /* Transactional Memory (ISA 2.07, Book II)                              */
+    PPC2_TM            = 0x0000000000020000ULL,
 
 #define PPC_TCG_INSNS2 (PPC2_BOOKE206 | PPC2_VSX | PPC2_PRCNTL | PPC2_DBRX | \
                         PPC2_ISA205 | PPC2_VSX207 | PPC2_PERM_ISA206 | \
@@ -2017,7 +2040,7 @@ enum {
                         PPC2_FP_CVT_ISA206 | PPC2_FP_TST_ISA206 | \
                         PPC2_BCTAR_ISA207 | PPC2_LSQ_ISA207 | \
                         PPC2_ALTIVEC_207 | PPC2_ISA207S | PPC2_DFP | \
-                        PPC2_FP_CVT_S64)
+                        PPC2_FP_CVT_S64 | PPC2_TM)
 };
 
 /*****************************************************************************/

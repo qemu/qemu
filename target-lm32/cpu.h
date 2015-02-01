@@ -30,8 +30,6 @@
 struct CPULM32State;
 typedef struct CPULM32State CPULM32State;
 
-#define TARGET_HAS_ICE 1
-
 #define ELF_MACHINE EM_LATTICEMICO32
 
 #define NB_MMU_MODES 1

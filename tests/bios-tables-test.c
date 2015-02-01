@@ -765,7 +765,7 @@ static void test_acpi_one(const char *params, test_data *data)
     g_free(args);
 }
 
-static void test_acpi_tcg(void)
+static void test_acpi_piix4_tcg(void)
 {
     test_data data;
 
@@ -776,6 +776,11 @@ static void test_acpi_tcg(void)
     data.machine = MACHINE_PC;
     test_acpi_one("-machine accel=tcg", &data);
     free_test_data(&data);
+}
+
+static void test_acpi_q35_tcg(void)
+{
+    test_data data;
 
     memset(&data, 0, sizeof(data));
     data.machine = MACHINE_Q35;
@@ -799,7 +804,8 @@ int main(int argc, char *argv[])
     g_test_init(&argc, &argv, NULL);
 
     if (strcmp(arch, "i386") == 0 || strcmp(arch, "x86_64") == 0) {
-        qtest_add_func("acpi/tcg", test_acpi_tcg);
+        qtest_add_func("acpi/piix4/tcg", test_acpi_piix4_tcg);
+        qtest_add_func("acpi/q35/tcg", test_acpi_q35_tcg);
     }
     ret = g_test_run();
     unlink(disk);

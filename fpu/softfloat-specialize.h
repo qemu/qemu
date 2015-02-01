@@ -1,13 +1,24 @@
 /*
  * QEMU float support
  *
- * Derived from SoftFloat.
+ * The code in this source file is derived from release 2a of the SoftFloat
+ * IEC/IEEE Floating-point Arithmetic Package. Those parts of the code (and
+ * some later contributions) are provided under that license, as detailed below.
+ * It has subsequently been modified by contributors to the QEMU Project,
+ * so some portions are provided under:
+ *  the SoftFloat-2a license
+ *  the BSD license
+ *  GPL-v2-or-later
+ *
+ * Any future contributions to this file after December 1st 2014 will be
+ * taken to be licensed under the Softfloat-2a license unless specifically
+ * indicated otherwise.
  */
 
-/*============================================================================
-
+/*
+===============================================================================
 This C source fragment is part of the SoftFloat IEC/IEEE Floating-point
-Arithmetic Package, Release 2b.
+Arithmetic Package, Release 2a.
 
 Written by John R. Hauser.  This work was made possible in part by the
 International Computer Science Institute, located at Suite 600, 1947 Center
@@ -16,29 +27,66 @@ National Science Foundation under grant MIP-9311980.  The original version
 of this code was written as part of a project to build a fixed-point vector
 processor in collaboration with the University of California at Berkeley,
 overseen by Profs. Nelson Morgan and John Wawrzynek.  More information
-is available through the Web page `http://www.cs.berkeley.edu/~jhauser/
+is available through the Web page `http://HTTP.CS.Berkeley.EDU/~jhauser/
 arithmetic/SoftFloat.html'.
 
-THIS SOFTWARE IS DISTRIBUTED AS IS, FOR FREE.  Although reasonable effort has
-been made to avoid it, THIS SOFTWARE MAY CONTAIN FAULTS THAT WILL AT TIMES
-RESULT IN INCORRECT BEHAVIOR.  USE OF THIS SOFTWARE IS RESTRICTED TO PERSONS
-AND ORGANIZATIONS WHO CAN AND WILL TAKE FULL RESPONSIBILITY FOR ALL LOSSES,
-COSTS, OR OTHER PROBLEMS THEY INCUR DUE TO THE SOFTWARE, AND WHO FURTHERMORE
-EFFECTIVELY INDEMNIFY JOHN HAUSER AND THE INTERNATIONAL COMPUTER SCIENCE
-INSTITUTE (possibly via similar legal warning) AGAINST ALL LOSSES, COSTS, OR
-OTHER PROBLEMS INCURRED BY THEIR CUSTOMERS AND CLIENTS DUE TO THE SOFTWARE.
+THIS SOFTWARE IS DISTRIBUTED AS IS, FOR FREE.  Although reasonable effort
+has been made to avoid it, THIS SOFTWARE MAY CONTAIN FAULTS THAT WILL AT
+TIMES RESULT IN INCORRECT BEHAVIOR.  USE OF THIS SOFTWARE IS RESTRICTED TO
+PERSONS AND ORGANIZATIONS WHO CAN AND WILL TAKE FULL RESPONSIBILITY FOR ANY
+AND ALL LOSSES, COSTS, OR OTHER PROBLEMS ARISING FROM ITS USE.
 
 Derivative works are acceptable, even for commercial purposes, so long as
-(1) the source code for the derivative work includes prominent notice that
-the work is derivative, and (2) the source code includes prominent notice with
-these four paragraphs for those parts of this code that are retained.
+(1) they include prominent notice that the work is derivative, and (2) they
+include prominent notice akin to these four paragraphs for those parts of
+this code that are retained.
 
-=============================================================================*/
+===============================================================================
+*/
 
+/* BSD licensing:
+ * Copyright (c) 2006, Fabrice Bellard
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are met:
+ *
+ * 1. Redistributions of source code must retain the above copyright notice,
+ * this list of conditions and the following disclaimer.
+ *
+ * 2. Redistributions in binary form must reproduce the above copyright notice,
+ * this list of conditions and the following disclaimer in the documentation
+ * and/or other materials provided with the distribution.
+ *
+ * 3. Neither the name of the copyright holder nor the names of its contributors
+ * may be used to endorse or promote products derived from this software without
+ * specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
+ * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+ * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+ * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
+ * THE POSSIBILITY OF SUCH DAMAGE.
+ */
+
+/* Portions of this work are licensed under the terms of the GNU GPL,
+ * version 2 or later. See the COPYING file in the top-level directory.
+ */
+
+/* Does the target distinguish signaling NaNs from non-signaling NaNs
+ * by setting the most significant bit of the mantissa for a signaling NaN?
+ * (The more common choice is to have it be zero for SNaN and one for QNaN.)
+ */
 #if defined(TARGET_MIPS) || defined(TARGET_SH4) || defined(TARGET_UNICORE32)
-#define SNAN_BIT_IS_ONE		1
+#define SNAN_BIT_IS_ONE 1
 #else
-#define SNAN_BIT_IS_ONE		0
+#define SNAN_BIT_IS_ONE 0
 #endif
 
 #if defined(TARGET_XTENSA)
@@ -81,7 +129,7 @@ const float64 float64_default_nan = const_float64(LIT64( 0x7FFFFFFFFFFFFFFF ));
 #elif defined(TARGET_PPC) || defined(TARGET_ARM) || defined(TARGET_ALPHA)
 const float64 float64_default_nan = const_float64(LIT64( 0x7FF8000000000000 ));
 #elif SNAN_BIT_IS_ONE
-const float64 float64_default_nan = const_float64(LIT64( 0x7FF7FFFFFFFFFFFF ));
+const float64 float64_default_nan = const_float64(LIT64(0x7FF7FFFFFFFFFFFF));
 #else
 const float64 float64_default_nan = const_float64(LIT64( 0xFFF8000000000000 ));
 #endif
@@ -91,7 +139,7 @@ const float64 float64_default_nan = const_float64(LIT64( 0xFFF8000000000000 ));
 *----------------------------------------------------------------------------*/
 #if SNAN_BIT_IS_ONE
 #define floatx80_default_nan_high 0x7FFF
-#define floatx80_default_nan_low  LIT64( 0xBFFFFFFFFFFFFFFF )
+#define floatx80_default_nan_low  LIT64(0xBFFFFFFFFFFFFFFF)
 #else
 #define floatx80_default_nan_high 0xFFFF
 #define floatx80_default_nan_low  LIT64( 0xC000000000000000 )
@@ -105,8 +153,8 @@ const floatx80 floatx80_default_nan
 | `low' values hold the most- and least-significant bits, respectively.
 *----------------------------------------------------------------------------*/
 #if SNAN_BIT_IS_ONE
-#define float128_default_nan_high LIT64( 0x7FFF7FFFFFFFFFFF )
-#define float128_default_nan_low  LIT64( 0xFFFFFFFFFFFFFFFF )
+#define float128_default_nan_high LIT64(0x7FFF7FFFFFFFFFFF)
+#define float128_default_nan_low  LIT64(0xFFFFFFFFFFFFFFFF)
 #else
 #define float128_default_nan_high LIT64( 0xFFFF800000000000 )
 #define float128_default_nan_low  LIT64( 0x0000000000000000 )
@@ -257,9 +305,9 @@ int float32_is_quiet_nan( float32 a_ )
 {
     uint32_t a = float32_val(a_);
 #if SNAN_BIT_IS_ONE
-    return ( ( ( a>>22 ) & 0x1FF ) == 0x1FE ) && ( a & 0x003FFFFF );
+    return (((a >> 22) & 0x1ff) == 0x1fe) && (a & 0x003fffff);
 #else
-    return ( 0xFF800000 <= (uint32_t) ( a<<1 ) );
+    return ((uint32_t)(a << 1) >= 0xff800000);
 #endif
 }
 
@@ -272,7 +320,7 @@ int float32_is_signaling_nan( float32 a_ )
 {
     uint32_t a = float32_val(a_);
 #if SNAN_BIT_IS_ONE
-    return ( 0xFF800000 <= (uint32_t) ( a<<1 ) );
+    return ((uint32_t)(a << 1) >= 0xff800000);
 #else
     return ( ( ( a>>22 ) & 0x1FF ) == 0x1FE ) && ( a & 0x003FFFFF );
 #endif
@@ -665,11 +713,10 @@ int float64_is_quiet_nan( float64 a_ )
 {
     uint64_t a = float64_val(a_);
 #if SNAN_BIT_IS_ONE
-    return
-           ( ( ( a>>51 ) & 0xFFF ) == 0xFFE )
-        && ( a & LIT64( 0x0007FFFFFFFFFFFF ) );
+    return (((a >> 51) & 0xfff) == 0xffe)
+           && (a & 0x0007ffffffffffffULL);
 #else
-    return ( LIT64( 0xFFF0000000000000 ) <= (uint64_t) ( a<<1 ) );
+    return ((a << 1) >= 0xfff0000000000000ULL);
 #endif
 }
 
@@ -682,7 +729,7 @@ int float64_is_signaling_nan( float64 a_ )
 {
     uint64_t a = float64_val(a_);
 #if SNAN_BIT_IS_ONE
-    return ( LIT64( 0xFFF0000000000000 ) <= (uint64_t) ( a<<1 ) );
+    return ((a << 1) >= 0xfff0000000000000ULL);
 #else
     return
            ( ( ( a>>51 ) & 0xFFF ) == 0xFFE )
@@ -866,11 +913,10 @@ int floatx80_is_quiet_nan( floatx80 a )
 #if SNAN_BIT_IS_ONE
     uint64_t aLow;
 
-    aLow = a.low & ~ LIT64( 0x4000000000000000 );
-    return
-           ( ( a.high & 0x7FFF ) == 0x7FFF )
-        && (uint64_t) ( aLow<<1 )
-        && ( a.low == aLow );
+    aLow = a.low & ~0x4000000000000000ULL;
+    return ((a.high & 0x7fff) == 0x7fff)
+        && (aLow << 1)
+        && (a.low == aLow);
 #else
     return ( ( a.high & 0x7FFF ) == 0x7FFF )
         && (LIT64( 0x8000000000000000 ) <= ((uint64_t) ( a.low<<1 )));
@@ -886,8 +932,8 @@ int floatx80_is_quiet_nan( floatx80 a )
 int floatx80_is_signaling_nan( floatx80 a )
 {
 #if SNAN_BIT_IS_ONE
-    return ( ( a.high & 0x7FFF ) == 0x7FFF )
-        && (LIT64( 0x8000000000000000 ) <= ((uint64_t) ( a.low<<1 )));
+    return ((a.high & 0x7fff) == 0x7fff)
+        && ((a.low << 1) >= 0x8000000000000000ULL);
 #else
     uint64_t aLow;
 
@@ -1031,13 +1077,12 @@ int float128_is_signaling_nan(float128 a_)
 int float128_is_quiet_nan( float128 a )
 {
 #if SNAN_BIT_IS_ONE
-    return
-           ( ( ( a.high>>47 ) & 0xFFFF ) == 0xFFFE )
-        && ( a.low || ( a.high & LIT64( 0x00007FFFFFFFFFFF ) ) );
+    return (((a.high >> 47) & 0xffff) == 0xfffe)
+        && (a.low || (a.high & 0x00007fffffffffffULL));
 #else
     return
-           ( LIT64( 0xFFFE000000000000 ) <= (uint64_t) ( a.high<<1 ) )
-        && ( a.low || ( a.high & LIT64( 0x0000FFFFFFFFFFFF ) ) );
+        ((a.high << 1) >= 0xffff000000000000ULL)
+        && (a.low || (a.high & 0x0000ffffffffffffULL));
 #endif
 }
 
@@ -1050,8 +1095,8 @@ int float128_is_signaling_nan( float128 a )
 {
 #if SNAN_BIT_IS_ONE
     return
-           ( LIT64( 0xFFFE000000000000 ) <= (uint64_t) ( a.high<<1 ) )
-        && ( a.low || ( a.high & LIT64( 0x0000FFFFFFFFFFFF ) ) );
+        ((a.high << 1) >= 0xffff000000000000ULL)
+        && (a.low || (a.high & 0x0000ffffffffffffULL));
 #else
     return
            ( ( ( a.high>>47 ) & 0xFFFF ) == 0xFFFE )

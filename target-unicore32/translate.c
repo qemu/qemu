@@ -1917,7 +1917,7 @@ static inline void gen_intermediate_code_internal(UniCore32CPU *cpu,
     }
 #endif
 
-    gen_tb_start();
+    gen_tb_start(tb);
     do {
         if (unlikely(!QTAILQ_EMPTY(&cs->breakpoints))) {
             QTAILQ_FOREACH(bp, &cs->breakpoints, entry) {

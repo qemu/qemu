@@ -1436,6 +1436,8 @@ static void vga_draw_graphic(VGACommonState *s, int full_update)
     uint8_t *d;
     uint32_t v, addr1, addr;
     vga_draw_line_func *vga_draw_line = NULL;
+    bool share_surface;
+    pixman_format_code_t format;
 #ifdef HOST_WORDS_BIGENDIAN
     bool byteswap = !s->big_endian_fb;
 #else
@@ -1479,21 +1481,42 @@ static void vga_draw_graphic(VGACommonState *s, int full_update)
     }
 
     depth = s->get_bpp(s);
+
+    /*
+     * Check whether we can share the surface with the backend
+     * or whether we need a shadow surface. We share native
+     * endian surfaces for 15bpp and above and byteswapped
+     * surfaces for 24bpp and above.
+     */
+    format = qemu_default_pixman_format(depth, !byteswap);
+    if (format) {
+        share_surface = dpy_gfx_check_format(s->con, format)
+            && !s->force_shadow;
+    } else {
+        share_surface = false;
+    }
     if (s->line_offset != s->last_line_offset ||
         disp_width != s->last_width ||
         height != s->last_height ||
         s->last_depth != depth ||
-        s->last_byteswap != byteswap) {
-        if (depth == 32 || (depth == 16 && !byteswap)) {
-            pixman_format_code_t format =
-                qemu_default_pixman_format(depth, !byteswap);
+        s->last_byteswap != byteswap ||
+        share_surface != is_buffer_shared(surface)) {
+        if (share_surface) {
             surface = qemu_create_displaysurface_from(disp_width,
                     height, format, s->line_offset,
                     s->vram_ptr + (s->start_addr * 4));
             dpy_gfx_replace_surface(s->con, surface);
+#ifdef DEBUG_VGA
+            printf("VGA: Using shared surface for depth=%d swap=%d\n",
+                   depth, byteswap);
+#endif
         } else {
             qemu_console_resize(s->con, disp_width, height);
             surface = qemu_console_surface(s->con);
+#ifdef DEBUG_VGA
+            printf("VGA: Using shadow surface for depth=%d swap=%d\n",
+                   depth, byteswap);
+#endif
         }
         s->last_scr_width = disp_width;
         s->last_scr_height = height;

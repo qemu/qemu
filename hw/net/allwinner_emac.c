@@ -218,13 +218,6 @@ static ssize_t aw_emac_receive(NetClientState *nc, const uint8_t *buf,
     return size;
 }
 
-static void aw_emac_cleanup(NetClientState *nc)
-{
-    AwEmacState *s = qemu_get_nic_opaque(nc);
-
-    s->nic = NULL;
-}
-
 static void aw_emac_reset(DeviceState *dev)
 {
     AwEmacState *s = AW_EMAC(dev);
@@ -433,7 +426,6 @@ static NetClientInfo net_aw_emac_info = {
     .size = sizeof(NICState),
     .can_receive = aw_emac_can_receive,
     .receive = aw_emac_receive,
-    .cleanup = aw_emac_cleanup,
     .link_status_changed = aw_emac_set_link,
 };
 

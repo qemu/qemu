@@ -15,24 +15,39 @@
 
 #include <stdint.h>
 #include <sys/types.h>
+#include "qemu/queue.h"
 
-typedef struct QGuestAllocator QGuestAllocator;
+#define MLIST_ENTNAME entries
 
-struct QGuestAllocator
-{
-    uint64_t (*alloc)(QGuestAllocator *allocator, size_t size);
-    void (*free)(QGuestAllocator *allocator, uint64_t addr);
-};
+typedef enum {
+    ALLOC_NO_FLAGS    = 0x00,
+    ALLOC_LEAK_WARN   = 0x01,
+    ALLOC_LEAK_ASSERT = 0x02,
+    ALLOC_PARANOID    = 0x04
+} QAllocOpts;
+
+typedef QTAILQ_HEAD(MemList, MemBlock) MemList;
+typedef struct MemBlock {
+    QTAILQ_ENTRY(MemBlock) MLIST_ENTNAME;
+    uint64_t size;
+    uint64_t addr;
+} MemBlock;
+
+typedef struct QGuestAllocator {
+    QAllocOpts opts;
+    uint64_t start;
+    uint64_t end;
+    uint32_t page_size;
+
+    MemList used;
+    MemList free;
+} QGuestAllocator;
+
+MemBlock *mlist_new(uint64_t addr, uint64_t size);
+void alloc_uninit(QGuestAllocator *allocator);
 
 /* Always returns page aligned values */
-static inline uint64_t guest_alloc(QGuestAllocator *allocator, size_t size)
-{
-    return allocator->alloc(allocator, size);
-}
-
-static inline void guest_free(QGuestAllocator *allocator, uint64_t addr)
-{
-    allocator->free(allocator, addr);
-}
+uint64_t guest_alloc(QGuestAllocator *allocator, size_t size);
+void guest_free(QGuestAllocator *allocator, uint64_t addr);
 
 #endif

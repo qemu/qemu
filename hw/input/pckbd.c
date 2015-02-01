@@ -101,6 +101,12 @@
 #define KBD_OUT_OBF             0x10    /* Keyboard output buffer full */
 #define KBD_OUT_MOUSE_OBF       0x20    /* Mouse output buffer full */
 
+/* OSes typically write 0xdd/0xdf to turn the A20 line off and on.
+ * We make the default value of the outport include these four bits,
+ * so that the subsection is rarely necessary.
+ */
+#define KBD_OUT_ONES            0xcc
+
 /* Mouse Commands */
 #define AUX_SET_SCALE11		0xE6	/* Set 1:1 scaling */
 #define AUX_SET_SCALE21		0xE7	/* Set 2:1 scaling */
@@ -367,13 +373,13 @@ static void kbd_reset(void *opaque)
 
     s->mode = KBD_MODE_KBD_INT | KBD_MODE_MOUSE_INT;
     s->status = KBD_STAT_CMD | KBD_STAT_UNLOCKED;
-    s->outport = KBD_OUT_RESET | KBD_OUT_A20;
+    s->outport = KBD_OUT_RESET | KBD_OUT_A20 | KBD_OUT_ONES;
     s->outport_present = false;
 }
 
 static uint8_t kbd_outport_default(KBDState *s)
 {
-    return KBD_OUT_RESET | KBD_OUT_A20
+    return KBD_OUT_RESET | KBD_OUT_A20 | KBD_OUT_ONES
            | (s->status & KBD_STAT_OBF ? KBD_OUT_OBF : 0)
            | (s->status & KBD_STAT_MOUSE_OBF ? KBD_OUT_MOUSE_OBF : 0);
 }

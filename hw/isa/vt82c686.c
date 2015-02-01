@@ -36,7 +36,7 @@
 
 typedef struct SuperIOConfig
 {
-    uint8_t config[0xff];
+    uint8_t config[0x100];
     uint8_t index;
     uint8_t data;
 } SuperIOConfig;
@@ -234,7 +234,7 @@ static const VMStateDescription vmstate_acpi = {
         VMSTATE_UINT16(ar.pm1.evt.en, VT686PMState),
         VMSTATE_UINT16(ar.pm1.cnt.cnt, VT686PMState),
         VMSTATE_STRUCT(apm, VT686PMState, 0, vmstate_apm, APMState),
-        VMSTATE_TIMER(ar.tmr.timer, VT686PMState),
+        VMSTATE_TIMER_PTR(ar.tmr.timer, VT686PMState),
         VMSTATE_INT64(ar.tmr.overflow_time, VT686PMState),
         VMSTATE_END_OF_LIST()
     }

@@ -36,7 +36,7 @@
 #include "hw/i386/acpi-defs.h"
 #include "hw/acpi/acpi.h"
 #include "hw/nvram/fw_cfg.h"
-#include "bios-linker-loader.h"
+#include "hw/acpi/bios-linker-loader.h"
 #include "hw/loader.h"
 #include "hw/isa/isa.h"
 #include "hw/acpi/memory_hotplug.h"
@@ -67,6 +67,9 @@
 #define ACPI_BUILD_ALIGN_SIZE             0x1000
 
 #define ACPI_BUILD_TABLE_SIZE             0x20000
+
+/* Reserve RAM space for tables: add another order of magnitude. */
+#define ACPI_BUILD_TABLE_MAX_SIZE         0x200000
 
 /* #define DEBUG_ACPI_BUILD */
 #ifdef DEBUG_ACPI_BUILD
@@ -302,6 +305,8 @@ static inline void build_append_array(GArray *array, GArray *val)
     g_array_append_vals(array, val->data, val->len);
 }
 
+#define ACPI_NAMESEG_LEN 4
+
 static void GCC_FMT_ATTR(2, 3)
 build_append_nameseg(GArray *array, const char *format, ...)
 {
@@ -314,8 +319,11 @@ build_append_nameseg(GArray *array, const char *format, ...)
     len = vsnprintf(s, sizeof s, format, args);
     va_end(args);
 
-    assert(len == 4);
+    assert(len <= ACPI_NAMESEG_LEN);
+
     g_array_append_vals(array, s, len);
+    /* Pad up to ACPI_NAMESEG_LEN characters if necessary. */
+    g_array_append_vals(array, "____", ACPI_NAMESEG_LEN - len);
 }
 
 /* 5.4 Definition Block Encoding */
@@ -856,7 +864,7 @@ static void build_pci_bus_end(PCIBus *bus, void *bus_state)
 
     if (bus->parent_dev) {
         op = 0x82; /* DeviceOp */
-        build_append_nameseg(bus_table, "S%.02X_",
+        build_append_nameseg(bus_table, "S%.02X",
                              bus->parent_dev->devfn);
         build_append_byte(bus_table, 0x08); /* NameOp */
         build_append_nameseg(bus_table, "_SUN");
@@ -976,7 +984,7 @@ static void build_pci_bus_end(PCIBus *bus, void *bus_state)
             build_append_int(notify, 0x1U << i);
             build_append_byte(notify, 0x00); /* NullName */
             build_append_byte(notify, 0x86); /* NotifyOp */
-            build_append_nameseg(notify, "S%.02X_", PCI_DEVFN(i, 0));
+            build_append_nameseg(notify, "S%.02X", PCI_DEVFN(i, 0));
             build_append_byte(notify, 0x69); /* Arg1Op */
 
             /* Pack it up */
@@ -1033,7 +1041,7 @@ static void build_pci_bus_end(PCIBus *bus, void *bus_state)
         if (bus->parent_dev) {
             build_append_byte(parent->notify_table, '^'); /* ParentPrefixChar */
             build_append_byte(parent->notify_table, 0x2E); /* DualNamePrefix */
-            build_append_nameseg(parent->notify_table, "S%.02X_",
+            build_append_nameseg(parent->notify_table, "S%.02X",
                                  bus->parent_dev->devfn);
             build_append_nameseg(parent->notify_table, "PCNT");
         }
@@ -1103,7 +1111,7 @@ build_ssdt(GArray *table_data, GArray *linker,
         GArray *sb_scope = build_alloc_array();
         uint8_t op = 0x10; /* ScopeOp */
 
-        build_append_nameseg(sb_scope, "_SB_");
+        build_append_nameseg(sb_scope, "_SB");
 
         /* build Processor object for each processor */
         for (i = 0; i < acpi_cpus; i++) {
@@ -1718,6 +1726,11 @@ static void acpi_build_update(void *build_opaque, uint32_t offset)
     acpi_build(build_state->guest_info, &tables);
 
     assert(acpi_data_len(tables.table_data) == build_state->table_size);
+
+    /* Make sure RAM size is correct - in case it got changed by migration */
+    qemu_ram_resize(build_state->table_ram, build_state->table_size,
+                    &error_abort);
+
     memcpy(qemu_get_ram_ptr(build_state->table_ram), tables.table_data->data,
            build_state->table_size);
 
@@ -1734,10 +1747,10 @@ static void acpi_build_reset(void *build_opaque)
 }
 
 static ram_addr_t acpi_add_rom_blob(AcpiBuildState *build_state, GArray *blob,
-                               const char *name)
+                               const char *name, uint64_t max_size)
 {
-    return rom_add_blob(name, blob->data, acpi_data_len(blob), -1, name,
-                        acpi_build_update, build_state);
+    return rom_add_blob(name, blob->data, acpi_data_len(blob), max_size, -1,
+                        name, acpi_build_update, build_state);
 }
 
 static const VMStateDescription vmstate_acpi_build = {
@@ -1781,11 +1794,12 @@ void acpi_setup(PcGuestInfo *guest_info)
 
     /* Now expose it all to Guest */
     build_state->table_ram = acpi_add_rom_blob(build_state, tables.table_data,
-                                               ACPI_BUILD_TABLE_FILE);
+                                               ACPI_BUILD_TABLE_FILE,
+                                               ACPI_BUILD_TABLE_MAX_SIZE);
     assert(build_state->table_ram != RAM_ADDR_MAX);
     build_state->table_size = acpi_data_len(tables.table_data);
 
-    acpi_add_rom_blob(NULL, tables.linker, "etc/table-loader");
+    acpi_add_rom_blob(NULL, tables.linker, "etc/table-loader", 0);
 
     fw_cfg_add_file(guest_info->fw_cfg, ACPI_BUILD_TPMLOG_FILE,
                     tables.tcpalog->data, acpi_data_len(tables.tcpalog));

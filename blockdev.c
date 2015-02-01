@@ -1559,6 +1559,79 @@ static void drive_backup_clean(BlkTransactionState *common)
     }
 }
 
+typedef struct BlockdevBackupState {
+    BlkTransactionState common;
+    BlockDriverState *bs;
+    BlockJob *job;
+    AioContext *aio_context;
+} BlockdevBackupState;
+
+static void blockdev_backup_prepare(BlkTransactionState *common, Error **errp)
+{
+    BlockdevBackupState *state = DO_UPCAST(BlockdevBackupState, common, common);
+    BlockdevBackup *backup;
+    BlockDriverState *bs, *target;
+    Error *local_err = NULL;
+
+    assert(common->action->kind == TRANSACTION_ACTION_KIND_BLOCKDEV_BACKUP);
+    backup = common->action->blockdev_backup;
+
+    bs = bdrv_find(backup->device);
+    if (!bs) {
+        error_set(errp, QERR_DEVICE_NOT_FOUND, backup->device);
+        return;
+    }
+
+    target = bdrv_find(backup->target);
+    if (!target) {
+        error_set(errp, QERR_DEVICE_NOT_FOUND, backup->target);
+        return;
+    }
+
+    /* AioContext is released in .clean() */
+    state->aio_context = bdrv_get_aio_context(bs);
+    if (state->aio_context != bdrv_get_aio_context(target)) {
+        state->aio_context = NULL;
+        error_setg(errp, "Backup between two IO threads is not implemented");
+        return;
+    }
+    aio_context_acquire(state->aio_context);
+
+    qmp_blockdev_backup(backup->device, backup->target,
+                        backup->sync,
+                        backup->has_speed, backup->speed,
+                        backup->has_on_source_error, backup->on_source_error,
+                        backup->has_on_target_error, backup->on_target_error,
+                        &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        return;
+    }
+
+    state->bs = bs;
+    state->job = state->bs->job;
+}
+
+static void blockdev_backup_abort(BlkTransactionState *common)
+{
+    BlockdevBackupState *state = DO_UPCAST(BlockdevBackupState, common, common);
+    BlockDriverState *bs = state->bs;
+
+    /* Only cancel if it's the job we started */
+    if (bs && bs->job && bs->job == state->job) {
+        block_job_cancel_sync(bs->job);
+    }
+}
+
+static void blockdev_backup_clean(BlkTransactionState *common)
+{
+    BlockdevBackupState *state = DO_UPCAST(BlockdevBackupState, common, common);
+
+    if (state->aio_context) {
+        aio_context_release(state->aio_context);
+    }
+}
+
 static void abort_prepare(BlkTransactionState *common, Error **errp)
 {
     error_setg(errp, "Transaction aborted using Abort action");
@@ -1581,6 +1654,12 @@ static const BdrvActionOps actions[] = {
         .prepare = drive_backup_prepare,
         .abort = drive_backup_abort,
         .clean = drive_backup_clean,
+    },
+    [TRANSACTION_ACTION_KIND_BLOCKDEV_BACKUP] = {
+        .instance_size = sizeof(BlockdevBackupState),
+        .prepare = blockdev_backup_prepare,
+        .abort = blockdev_backup_abort,
+        .clean = blockdev_backup_clean,
     },
     [TRANSACTION_ACTION_KIND_ABORT] = {
         .instance_size = sizeof(BlkTransactionState),
@@ -2139,7 +2218,7 @@ void qmp_block_commit(const char *device,
     /* drain all i/o before commits */
     bdrv_drain_all();
 
-    if (bdrv_op_is_blocked(bs, BLOCK_OP_TYPE_COMMIT, errp)) {
+    if (bdrv_op_is_blocked(bs, BLOCK_OP_TYPE_COMMIT_SOURCE, errp)) {
         goto out;
     }
 
@@ -2171,6 +2250,10 @@ void qmp_block_commit(const char *device,
     }
 
     assert(bdrv_get_aio_context(base_bs) == aio_context);
+
+    if (bdrv_op_is_blocked(base_bs, BLOCK_OP_TYPE_COMMIT_TARGET, errp)) {
+        goto out;
+    }
 
     /* Do not allow attempts to commit an image into itself */
     if (top_bs == base_bs) {
@@ -2240,6 +2323,8 @@ void qmp_drive_backup(const char *device, const char *target,
     aio_context = bdrv_get_aio_context(bs);
     aio_context_acquire(aio_context);
 
+    /* Although backup_run has this check too, we need to use bs->drv below, so
+     * do an early check redundantly. */
     if (!bdrv_is_inserted(bs)) {
         error_set(errp, QERR_DEVICE_HAS_NO_MEDIUM, device);
         goto out;
@@ -2256,6 +2341,7 @@ void qmp_drive_backup(const char *device, const char *target,
         }
     }
 
+    /* Early check to avoid creating target */
     if (bdrv_op_is_blocked(bs, BLOCK_OP_TYPE_BACKUP_SOURCE, errp)) {
         goto out;
     }
@@ -2321,6 +2407,57 @@ out:
 BlockDeviceInfoList *qmp_query_named_block_nodes(Error **errp)
 {
     return bdrv_named_nodes_list();
+}
+
+void qmp_blockdev_backup(const char *device, const char *target,
+                         enum MirrorSyncMode sync,
+                         bool has_speed, int64_t speed,
+                         bool has_on_source_error,
+                         BlockdevOnError on_source_error,
+                         bool has_on_target_error,
+                         BlockdevOnError on_target_error,
+                         Error **errp)
+{
+    BlockDriverState *bs;
+    BlockDriverState *target_bs;
+    Error *local_err = NULL;
+    AioContext *aio_context;
+
+    if (!has_speed) {
+        speed = 0;
+    }
+    if (!has_on_source_error) {
+        on_source_error = BLOCKDEV_ON_ERROR_REPORT;
+    }
+    if (!has_on_target_error) {
+        on_target_error = BLOCKDEV_ON_ERROR_REPORT;
+    }
+
+    bs = bdrv_find(device);
+    if (!bs) {
+        error_set(errp, QERR_DEVICE_NOT_FOUND, device);
+        return;
+    }
+
+    aio_context = bdrv_get_aio_context(bs);
+    aio_context_acquire(aio_context);
+
+    target_bs = bdrv_find(target);
+    if (!target_bs) {
+        error_set(errp, QERR_DEVICE_NOT_FOUND, target);
+        goto out;
+    }
+
+    bdrv_ref(target_bs);
+    bdrv_set_aio_context(target_bs, aio_context);
+    backup_start(bs, target_bs, speed, sync, on_source_error, on_target_error,
+                 block_job_cb, bs, &local_err);
+    if (local_err != NULL) {
+        bdrv_unref(target_bs);
+        error_propagate(errp, local_err);
+    }
+out:
+    aio_context_release(aio_context);
 }
 
 #define DEFAULT_MIRROR_BUF_SIZE   (10 << 20)

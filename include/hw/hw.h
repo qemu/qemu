@@ -41,12 +41,6 @@ typedef void QEMUResetHandler(void *opaque);
 void qemu_register_reset(QEMUResetHandler *func, void *opaque);
 void qemu_unregister_reset(QEMUResetHandler *func, void *opaque);
 
-/* handler to set the boot_device order for a specific type of QEMUMachine */
-/* return 0 if success */
-typedef int QEMUBootSetHandler(void *opaque, const char *boot_order);
-void qemu_register_boot_set(QEMUBootSetHandler *func, void *opaque);
-int qemu_boot_set(const char *boot_order);
-
 #ifdef NEED_CPU_H
 #if TARGET_LONG_BITS == 64
 #define VMSTATE_UINTTL_V(_f, _s, _v)                                  \

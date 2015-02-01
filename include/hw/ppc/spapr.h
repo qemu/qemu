@@ -37,6 +37,7 @@ typedef struct sPAPREnvironment {
     int htab_save_index;
     bool htab_first_pass;
     int htab_fd;
+    bool htab_fd_stale;
 } sPAPREnvironment;
 
 #define H_SUCCESS         0

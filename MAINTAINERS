@@ -98,8 +98,12 @@ LM32
 M: Michael Walle <michael@walle.cc>
 S: Maintained
 F: target-lm32/
+F: disas/lm32.c
 F: hw/lm32/
-F: hw/char/lm32_*
+F: hw/*/lm32_*
+F: hw/*/milkymist-*
+F: include/hw/char/lm32_juart.h
+F: include/hw/lm32/
 F: tests/tcg/lm32/
 
 M68K
@@ -534,6 +538,7 @@ S390 Virtio
 M: Alexander Graf <agraf@suse.de>
 S: Maintained
 F: hw/s390x/s390-*.c
+X: hw/s390x/*pci*.[hc]
 
 S390 Virtio-ccw
 M: Cornelia Huck <cornelia.huck@de.ibm.com>
@@ -544,6 +549,7 @@ F: hw/s390x/s390-virtio-ccw.c
 F: hw/s390x/css.[hc]
 F: hw/s390x/sclp*.[hc]
 F: hw/s390x/ipl*.[hc]
+F: hw/s390x/*pci*.[hc]
 F: include/hw/s390x/
 F: pc-bios/s390-ccw/
 T: git git://github.com/cohuck/qemu virtio-ccw-upstr
@@ -593,6 +599,11 @@ F: hw/net/opencores_eth.c
 
 Devices
 -------
+EDU
+M: Jiri Slaby <jslaby@suse.cz>
+S: Maintained
+F: hw/misc/edu.c
+
 IDE
 M: Kevin Wolf <kwolf@redhat.com>
 M: Stefan Hajnoczi <stefanha@redhat.com>
@@ -657,7 +668,7 @@ F: hw/usb/dev-serial.c
 VFIO
 M: Alex Williamson <alex.williamson@redhat.com>
 S: Supported
-F: hw/misc/vfio.c
+F: hw/vfio/*
 
 vhost
 M: Michael S. Tsirkin <mst@redhat.com>
@@ -751,6 +762,7 @@ F: aio-*.c
 F: block*
 F: block/
 F: hw/block/
+F: migration/block*
 F: qemu-img*
 F: qemu-io*
 F: tests/image-fuzzer/
@@ -1099,7 +1111,6 @@ S: Supported
 F: block/ssh.c
 
 ARCHIPELAGO
-M: Chrysostomos Nanakos <cnanakos@grnet.gr>
 M: Chrysostomos Nanakos <chris@include.gr>
 S: Maintained
 F: block/archipelago.c

@@ -68,6 +68,7 @@ enum {
     VIRT_UART,
     VIRT_MMIO,
     VIRT_RTC,
+    VIRT_FW_CFG,
 };
 
 typedef struct MemMapEntry {
@@ -85,6 +86,24 @@ typedef struct VirtBoardInfo {
     int fdt_size;
     uint32_t clock_phandle;
 } VirtBoardInfo;
+
+typedef struct {
+    MachineClass parent;
+    VirtBoardInfo *daughterboard;
+} VirtMachineClass;
+
+typedef struct {
+    MachineState parent;
+    bool secure;
+} VirtMachineState;
+
+#define TYPE_VIRT_MACHINE   "virt"
+#define VIRT_MACHINE(obj) \
+    OBJECT_CHECK(VirtMachineState, (obj), TYPE_VIRT_MACHINE)
+#define VIRT_MACHINE_GET_CLASS(obj) \
+    OBJECT_GET_CLASS(VirtMachineClass, obj, TYPE_VIRT_MACHINE)
+#define VIRT_MACHINE_CLASS(klass) \
+    OBJECT_CLASS_CHECK(VirtMachineClass, klass, TYPE_VIRT_MACHINE)
 
 /* Addresses and sizes of our components.
  * 0..128MB is space for a flash device so we can run bootrom code such as UEFI.
@@ -107,6 +126,7 @@ static const MemMapEntry a15memmap[] = {
     [VIRT_GIC_CPU] =    { 0x08010000, 0x00010000 },
     [VIRT_UART] =       { 0x09000000, 0x00001000 },
     [VIRT_RTC] =        { 0x09010000, 0x00001000 },
+    [VIRT_FW_CFG] =     { 0x09020000, 0x0000000a },
     [VIRT_MMIO] =       { 0x0a000000, 0x00000200 },
     /* ...repeating for a total of NUM_VIRTIO_TRANSPORTS, each of that size */
     /* 0x10000000 .. 0x40000000 reserved for PCI */
@@ -519,6 +539,23 @@ static void create_flash(const VirtBoardInfo *vbi)
     g_free(nodename);
 }
 
+static void create_fw_cfg(const VirtBoardInfo *vbi)
+{
+    hwaddr base = vbi->memmap[VIRT_FW_CFG].base;
+    hwaddr size = vbi->memmap[VIRT_FW_CFG].size;
+    char *nodename;
+
+    fw_cfg_init_mem_wide(base + 8, base, 8);
+
+    nodename = g_strdup_printf("/fw-cfg@%" PRIx64, base);
+    qemu_fdt_add_subnode(vbi->fdt, nodename);
+    qemu_fdt_setprop_string(vbi->fdt, nodename,
+                            "compatible", "qemu,fw-cfg-mmio");
+    qemu_fdt_setprop_sized_cells(vbi->fdt, nodename, "reg",
+                                 2, base, 2, size);
+    g_free(nodename);
+}
+
 static void *machvirt_dtb(const struct arm_boot_info *binfo, int *fdt_size)
 {
     const VirtBoardInfo *board = (const VirtBoardInfo *)binfo;
@@ -529,6 +566,7 @@ static void *machvirt_dtb(const struct arm_boot_info *binfo, int *fdt_size)
 
 static void machvirt_init(MachineState *machine)
 {
+    VirtMachineState *vms = VIRT_MACHINE(machine);
     qemu_irq pic[NUM_IRQS];
     MemoryRegion *sysmem = get_system_memory();
     int n;
@@ -565,6 +603,10 @@ static void machvirt_init(MachineState *machine)
             exit(1);
         }
         cpuobj = object_new(object_class_get_name(oc));
+
+        if (!vms->secure) {
+            object_property_set_bool(cpuobj, false, "has_el3", NULL);
+        }
 
         object_property_set_int(cpuobj, QEMU_PSCI_CONDUIT_HVC, "psci-conduit",
                                 NULL);
@@ -604,6 +646,8 @@ static void machvirt_init(MachineState *machine)
      */
     create_virtio_devices(vbi, pic);
 
+    create_fw_cfg(vbi);
+
     vbi->bootinfo.ram_size = machine->ram_size;
     vbi->bootinfo.kernel_filename = machine->kernel_filename;
     vbi->bootinfo.kernel_cmdline = machine->kernel_cmdline;
@@ -612,19 +656,60 @@ static void machvirt_init(MachineState *machine)
     vbi->bootinfo.board_id = -1;
     vbi->bootinfo.loader_start = vbi->memmap[VIRT_MEM].base;
     vbi->bootinfo.get_dtb = machvirt_dtb;
+    vbi->bootinfo.firmware_loaded = bios_name || drive_get(IF_PFLASH, 0, 0);
     arm_load_kernel(ARM_CPU(first_cpu), &vbi->bootinfo);
 }
 
-static QEMUMachine machvirt_a15_machine = {
-    .name = "virt",
-    .desc = "ARM Virtual Machine",
-    .init = machvirt_init,
-    .max_cpus = 8,
+static bool virt_get_secure(Object *obj, Error **errp)
+{
+    VirtMachineState *vms = VIRT_MACHINE(obj);
+
+    return vms->secure;
+}
+
+static void virt_set_secure(Object *obj, bool value, Error **errp)
+{
+    VirtMachineState *vms = VIRT_MACHINE(obj);
+
+    vms->secure = value;
+}
+
+static void virt_instance_init(Object *obj)
+{
+    VirtMachineState *vms = VIRT_MACHINE(obj);
+
+    /* EL3 is enabled by default on virt */
+    vms->secure = true;
+    object_property_add_bool(obj, "secure", virt_get_secure,
+                             virt_set_secure, NULL);
+    object_property_set_description(obj, "secure",
+                                    "Set on/off to enable/disable the ARM "
+                                    "Security Extensions (TrustZone)",
+                                    NULL);
+}
+
+static void virt_class_init(ObjectClass *oc, void *data)
+{
+    MachineClass *mc = MACHINE_CLASS(oc);
+
+    mc->name = TYPE_VIRT_MACHINE;
+    mc->desc = "ARM Virtual Machine",
+    mc->init = machvirt_init;
+    mc->max_cpus = 8;
+}
+
+static const TypeInfo machvirt_info = {
+    .name = TYPE_VIRT_MACHINE,
+    .parent = TYPE_MACHINE,
+    .instance_size = sizeof(VirtMachineState),
+    .instance_init = virt_instance_init,
+    .class_size = sizeof(VirtMachineClass),
+    .class_init = virt_class_init,
 };
 
 static void machvirt_machine_init(void)
 {
-    qemu_register_machine(&machvirt_a15_machine);
+    type_register_static(&machvirt_info);
 }
 
 machine_init(machvirt_machine_init);

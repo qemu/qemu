@@ -286,7 +286,7 @@ static const VMStateDescription vmstate_pl330 = {
                        PL330Queue),
         VMSTATE_STRUCT(write_queue, PL330State, 0, vmstate_pl330_queue,
                        PL330Queue),
-        VMSTATE_TIMER(timer, PL330State),
+        VMSTATE_TIMER_PTR(timer, PL330State),
         VMSTATE_UINT32(inten, PL330State),
         VMSTATE_UINT32(int_status, PL330State),
         VMSTATE_UINT32(ev_status, PL330State),

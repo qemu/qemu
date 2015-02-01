@@ -73,7 +73,8 @@ static inline void hwsetup_free(HWSetup *hw)
 static inline void hwsetup_create_rom(HWSetup *hw,
         hwaddr base)
 {
-    rom_add_blob("hwsetup", hw->data, TARGET_PAGE_SIZE, base, NULL, NULL, NULL);
+    rom_add_blob("hwsetup", hw->data, TARGET_PAGE_SIZE,
+                 TARGET_PAGE_SIZE, base, NULL, NULL, NULL);
 }
 
 static inline void hwsetup_add_u8(HWSetup *hw, uint8_t u)

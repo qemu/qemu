@@ -78,4 +78,5 @@ uint64_t pc_dimm_get_free_addr(uint64_t address_space_start,
 int pc_dimm_get_free_slot(const int *hint, int max_slots, Error **errp);
 
 int qmp_pc_dimm_device_list(Object *obj, void *opaque);
+uint64_t pc_existing_dimms_capacity(Error **errp);
 #endif

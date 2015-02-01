@@ -42,39 +42,42 @@ static const VMStateDescription vmstate_xmm_reg = {
     }
 };
 
-#define VMSTATE_XMM_REGS(_field, _state, _n)                         \
-    VMSTATE_STRUCT_ARRAY(_field, _state, _n, 0, vmstate_xmm_reg, XMMReg)
+#define VMSTATE_XMM_REGS(_field, _state, _start)                         \
+    VMSTATE_STRUCT_SUB_ARRAY(_field, _state, _start, CPU_NB_REGS, 0,     \
+                             vmstate_xmm_reg, XMMReg)
 
-/* YMMH format is the same as XMM */
+/* YMMH format is the same as XMM, but for bits 128-255 */
 static const VMStateDescription vmstate_ymmh_reg = {
     .name = "ymmh_reg",
     .version_id = 1,
     .minimum_version_id = 1,
     .fields = (VMStateField[]) {
-        VMSTATE_UINT64(XMM_Q(0), XMMReg),
-        VMSTATE_UINT64(XMM_Q(1), XMMReg),
+        VMSTATE_UINT64(XMM_Q(2), XMMReg),
+        VMSTATE_UINT64(XMM_Q(3), XMMReg),
         VMSTATE_END_OF_LIST()
     }
 };
 
-#define VMSTATE_YMMH_REGS_VARS(_field, _state, _n, _v)                         \
-    VMSTATE_STRUCT_ARRAY(_field, _state, _n, _v, vmstate_ymmh_reg, XMMReg)
+#define VMSTATE_YMMH_REGS_VARS(_field, _state, _start, _v)               \
+    VMSTATE_STRUCT_SUB_ARRAY(_field, _state, _start, CPU_NB_REGS, _v,    \
+                             vmstate_ymmh_reg, XMMReg)
 
 static const VMStateDescription vmstate_zmmh_reg = {
     .name = "zmmh_reg",
     .version_id = 1,
     .minimum_version_id = 1,
     .fields = (VMStateField[]) {
-        VMSTATE_UINT64(YMM_Q(0), YMMReg),
-        VMSTATE_UINT64(YMM_Q(1), YMMReg),
-        VMSTATE_UINT64(YMM_Q(2), YMMReg),
-        VMSTATE_UINT64(YMM_Q(3), YMMReg),
+        VMSTATE_UINT64(XMM_Q(4), XMMReg),
+        VMSTATE_UINT64(XMM_Q(5), XMMReg),
+        VMSTATE_UINT64(XMM_Q(6), XMMReg),
+        VMSTATE_UINT64(XMM_Q(7), XMMReg),
         VMSTATE_END_OF_LIST()
     }
 };
 
-#define VMSTATE_ZMMH_REGS_VARS(_field, _state, _n)                             \
-    VMSTATE_STRUCT_ARRAY(_field, _state, _n, 0, vmstate_zmmh_reg, YMMReg)
+#define VMSTATE_ZMMH_REGS_VARS(_field, _state, _start)                   \
+    VMSTATE_STRUCT_SUB_ARRAY(_field, _state, _start, CPU_NB_REGS, 0,     \
+                             vmstate_zmmh_reg, XMMReg)
 
 #ifdef TARGET_X86_64
 static const VMStateDescription vmstate_hi16_zmm_reg = {
@@ -82,20 +85,21 @@ static const VMStateDescription vmstate_hi16_zmm_reg = {
     .version_id = 1,
     .minimum_version_id = 1,
     .fields = (VMStateField[]) {
-        VMSTATE_UINT64(ZMM_Q(0), ZMMReg),
-        VMSTATE_UINT64(ZMM_Q(1), ZMMReg),
-        VMSTATE_UINT64(ZMM_Q(2), ZMMReg),
-        VMSTATE_UINT64(ZMM_Q(3), ZMMReg),
-        VMSTATE_UINT64(ZMM_Q(4), ZMMReg),
-        VMSTATE_UINT64(ZMM_Q(5), ZMMReg),
-        VMSTATE_UINT64(ZMM_Q(6), ZMMReg),
-        VMSTATE_UINT64(ZMM_Q(7), ZMMReg),
+        VMSTATE_UINT64(XMM_Q(0), XMMReg),
+        VMSTATE_UINT64(XMM_Q(1), XMMReg),
+        VMSTATE_UINT64(XMM_Q(2), XMMReg),
+        VMSTATE_UINT64(XMM_Q(3), XMMReg),
+        VMSTATE_UINT64(XMM_Q(4), XMMReg),
+        VMSTATE_UINT64(XMM_Q(5), XMMReg),
+        VMSTATE_UINT64(XMM_Q(6), XMMReg),
+        VMSTATE_UINT64(XMM_Q(7), XMMReg),
         VMSTATE_END_OF_LIST()
     }
 };
 
-#define VMSTATE_Hi16_ZMM_REGS_VARS(_field, _state, _n)                         \
-    VMSTATE_STRUCT_ARRAY(_field, _state, _n, 0, vmstate_hi16_zmm_reg, ZMMReg)
+#define VMSTATE_Hi16_ZMM_REGS_VARS(_field, _state, _start)               \
+    VMSTATE_STRUCT_SUB_ARRAY(_field, _state, _start, CPU_NB_REGS, 0,     \
+                             vmstate_hi16_zmm_reg, XMMReg)
 #endif
 
 static const VMStateDescription vmstate_bnd_regs = {
@@ -654,17 +658,16 @@ static bool avx512_needed(void *opaque)
     }
 
     for (i = 0; i < CPU_NB_REGS; i++) {
-#define ENV_ZMMH(reg, field) (env->zmmh_regs[reg].YMM_Q(field))
-        if (ENV_ZMMH(i, 0) || ENV_ZMMH(i, 1) ||
-            ENV_ZMMH(i, 2) || ENV_ZMMH(i, 3)) {
+#define ENV_XMM(reg, field) (env->xmm_regs[reg].XMM_Q(field))
+        if (ENV_XMM(i, 4) || ENV_XMM(i, 6) ||
+            ENV_XMM(i, 5) || ENV_XMM(i, 7)) {
             return true;
         }
 #ifdef TARGET_X86_64
-#define ENV_Hi16_ZMM(reg, field) (env->hi16_zmm_regs[reg].ZMM_Q(field))
-        if (ENV_Hi16_ZMM(i, 0) || ENV_Hi16_ZMM(i, 1) ||
-            ENV_Hi16_ZMM(i, 2) || ENV_Hi16_ZMM(i, 3) ||
-            ENV_Hi16_ZMM(i, 4) || ENV_Hi16_ZMM(i, 5) ||
-            ENV_Hi16_ZMM(i, 6) || ENV_Hi16_ZMM(i, 7)) {
+        if (ENV_XMM(i+16, 0) || ENV_XMM(i+16, 1) ||
+            ENV_XMM(i+16, 2) || ENV_XMM(i+16, 3) ||
+            ENV_XMM(i+16, 4) || ENV_XMM(i+16, 5) ||
+            ENV_XMM(i+16, 6) || ENV_XMM(i+16, 7)) {
             return true;
         }
 #endif
@@ -679,9 +682,9 @@ static const VMStateDescription vmstate_avx512 = {
     .minimum_version_id = 1,
     .fields = (VMStateField[]) {
         VMSTATE_UINT64_ARRAY(env.opmask_regs, X86CPU, NB_OPMASK_REGS),
-        VMSTATE_ZMMH_REGS_VARS(env.zmmh_regs, X86CPU, CPU_NB_REGS),
+        VMSTATE_ZMMH_REGS_VARS(env.xmm_regs, X86CPU, 0),
 #ifdef TARGET_X86_64
-        VMSTATE_Hi16_ZMM_REGS_VARS(env.hi16_zmm_regs, X86CPU, CPU_NB_REGS),
+        VMSTATE_Hi16_ZMM_REGS_VARS(env.xmm_regs, X86CPU, 16),
 #endif
         VMSTATE_END_OF_LIST()
     }
@@ -750,7 +753,7 @@ VMStateDescription vmstate_x86_cpu = {
         VMSTATE_INT32(env.a20_mask, X86CPU),
         /* XMM */
         VMSTATE_UINT32(env.mxcsr, X86CPU),
-        VMSTATE_XMM_REGS(env.xmm_regs, X86CPU, CPU_NB_REGS),
+        VMSTATE_XMM_REGS(env.xmm_regs, X86CPU, 0),
 
 #ifdef TARGET_X86_64
         VMSTATE_UINT64(env.efer, X86CPU),
@@ -803,7 +806,7 @@ VMStateDescription vmstate_x86_cpu = {
         /* XSAVE related fields */
         VMSTATE_UINT64_V(env.xcr0, X86CPU, 12),
         VMSTATE_UINT64_V(env.xstate_bv, X86CPU, 12),
-        VMSTATE_YMMH_REGS_VARS(env.ymmh_regs, X86CPU, CPU_NB_REGS, 12),
+        VMSTATE_YMMH_REGS_VARS(env.xmm_regs, X86CPU, 0, 12),
         VMSTATE_END_OF_LIST()
         /* The above list is not sorted /wrt version numbers, watch out! */
     },

@@ -1,0 +1,38 @@
+
+
+
+=== Running test case: modules.elf  ===
+
+Module list with 0 entries at 102000
+
+
+=== Running test case: modules.elf -initrd module.txt ===
+
+Module list with 1 entries at 102000
+[102000] Module: 103000 - 103038 (56 bytes) 'module.txt'
+         Content: 'This is a test file that is used as a multiboot module.'
+
+
+=== Running test case: modules.elf -initrd module.txt argument ===
+
+Module list with 1 entries at 102000
+[102000] Module: 103000 - 103038 (56 bytes) 'module.txt argument'
+         Content: 'This is a test file that is used as a multiboot module.'
+
+
+=== Running test case: modules.elf -initrd module.txt argument,,with,,commas ===
+
+Module list with 1 entries at 102000
+[102000] Module: 103000 - 103038 (56 bytes) 'module.txt argument,with,commas'
+         Content: 'This is a test file that is used as a multiboot module.'
+
+
+=== Running test case: modules.elf -initrd module.txt,module.txt argument,module.txt ===
+
+Module list with 3 entries at 102000
+[102000] Module: 103000 - 103038 (56 bytes) 'module.txt'
+         Content: 'This is a test file that is used as a multiboot module.'
+[102010] Module: 104000 - 104038 (56 bytes) 'module.txt argument'
+         Content: 'This is a test file that is used as a multiboot module.'
+[102020] Module: 105000 - 105038 (56 bytes) 'module.txt'
+         Content: 'This is a test file that is used as a multiboot module.'
