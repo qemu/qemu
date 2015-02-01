@@ -120,12 +120,12 @@ static void mips_jazz_do_unassigned_access(CPUState *cpu, hwaddr addr,
     (*real_do_unassigned_access)(cpu, addr, is_write, is_exec, opaque, size);
 }
 
-static void mips_jazz_init(MemoryRegion *address_space,
-                           MemoryRegion *address_space_io,
-                           ram_addr_t ram_size,
-                           const char *cpu_model,
+static void mips_jazz_init(MachineState *machine,
                            enum jazz_model_e jazz_model)
 {
+    MemoryRegion *address_space = get_system_memory();
+    MemoryRegion *address_space_io = get_system_io();
+    const char *cpu_model = machine->cpu_model;
     char *filename;
     int bios_size, n;
     MIPSCPU *cpu;
@@ -179,7 +179,8 @@ static void mips_jazz_init(MemoryRegion *address_space,
     cc->do_unassigned_access = mips_jazz_do_unassigned_access;
 
     /* allocate RAM */
-    memory_region_init_ram(ram, NULL, "mips_jazz.ram", ram_size, &error_abort);
+    memory_region_init_ram(ram, NULL, "mips_jazz.ram", machine->ram_size,
+                           &error_abort);
     vmstate_register_ram_global(ram);
     memory_region_add_subregion(address_space, 0, ram);
 
@@ -333,19 +334,13 @@ static void mips_jazz_init(MemoryRegion *address_space,
 static
 void mips_magnum_init(MachineState *machine)
 {
-    ram_addr_t ram_size = machine->ram_size;
-    const char *cpu_model = machine->cpu_model;
-        mips_jazz_init(get_system_memory(), get_system_io(),
-                       ram_size, cpu_model, JAZZ_MAGNUM);
+    mips_jazz_init(machine, JAZZ_MAGNUM);
 }
 
 static
 void mips_pica61_init(MachineState *machine)
 {
-    ram_addr_t ram_size = machine->ram_size;
-    const char *cpu_model = machine->cpu_model;
-    mips_jazz_init(get_system_memory(), get_system_io(),
-                   ram_size, cpu_model, JAZZ_PICA61);
+    mips_jazz_init(machine, JAZZ_PICA61);
 }
 
 static QEMUMachine mips_magnum_machine = {
