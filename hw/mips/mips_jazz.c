@@ -60,13 +60,16 @@ static void main_cpu_reset(void *opaque)
 
 static uint64_t rtc_read(void *opaque, hwaddr addr, unsigned size)
 {
-    return cpu_inw(0x71);
+    uint8_t val;
+    address_space_read(&address_space_memory, 0x90000071, &val, 1);
+    return val;
 }
 
 static void rtc_write(void *opaque, hwaddr addr,
                       uint64_t val, unsigned size)
 {
-    cpu_outw(0x71, val & 0xff);
+    uint8_t buf = val & 0xff;
+    address_space_write(&address_space_memory, 0x90000071, &buf, 1);
 }
 
 static const MemoryRegionOps rtc_ops = {
@@ -124,7 +127,6 @@ static void mips_jazz_init(MachineState *machine,
                            enum jazz_model_e jazz_model)
 {
     MemoryRegion *address_space = get_system_memory();
-    MemoryRegion *address_space_io = get_system_io();
     const char *cpu_model = machine->cpu_model;
     char *filename;
     int bios_size, n;
@@ -134,7 +136,8 @@ static void mips_jazz_init(MachineState *machine,
     qemu_irq *rc4030, *i8259;
     rc4030_dma *dmas;
     void* rc4030_opaque;
-    MemoryRegion *isa = g_new(MemoryRegion, 1);
+    MemoryRegion *isa_mem = g_new(MemoryRegion, 1);
+    MemoryRegion *isa_io = g_new(MemoryRegion, 1);
     MemoryRegion *rtc = g_new(MemoryRegion, 1);
     MemoryRegion *i8042 = g_new(MemoryRegion, 1);
     MemoryRegion *dma_dummy = g_new(MemoryRegion, 1);
@@ -219,20 +222,20 @@ static void mips_jazz_init(MachineState *machine,
     memory_region_init_io(dma_dummy, NULL, &dma_dummy_ops, NULL, "dummy_dma", 0x1000);
     memory_region_add_subregion(address_space, 0x8000d000, dma_dummy);
 
+    /* ISA bus: IO space at 0x90000000, mem space at 0x91000000 */
+    memory_region_init(isa_io, NULL, "isa-io", 0x00010000);
+    memory_region_init(isa_mem, NULL, "isa-mem", 0x01000000);
+    memory_region_add_subregion(address_space, 0x90000000, isa_io);
+    memory_region_add_subregion(address_space, 0x91000000, isa_mem);
+    isa_bus = isa_bus_new(NULL, isa_mem, isa_io);
+
     /* ISA devices */
-    isa_bus = isa_bus_new(NULL, get_system_memory(), address_space_io);
     i8259 = i8259_init(isa_bus, env->irq[4]);
     isa_bus_irqs(isa_bus, i8259);
     cpu_exit_irq = qemu_allocate_irqs(cpu_request_exit, NULL, 1);
     DMA_init(0, cpu_exit_irq);
     pit = pit_init(isa_bus, 0x40, 0, NULL);
     pcspk_init(isa_bus, pit);
-
-    /* ISA IO space at 0x90000000 */
-    memory_region_init_alias(isa, NULL, "isa_mmio",
-                             get_system_io(), 0, 0x01000000);
-    memory_region_add_subregion(address_space, 0x90000000, isa);
-    isa_mem_base = 0x11000000;
 
     /* Video card */
     switch (jazz_model) {
