@@ -575,7 +575,7 @@ static int ich9_lpc_init(PCIDevice *d)
     ICH9LPCState *lpc = ICH9_LPC_DEVICE(d);
     ISABus *isa_bus;
 
-    isa_bus = isa_bus_new(&d->qdev, get_system_io());
+    isa_bus = isa_bus_new(DEVICE(d), get_system_memory(), get_system_io());
 
     pci_set_long(d->wmask + ICH9_LPC_PMBASE,
                  ICH9_LPC_PMBASE_BASE_ADDRESS_MASK);

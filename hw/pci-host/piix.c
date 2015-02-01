@@ -635,7 +635,8 @@ static int piix3_initfn(PCIDevice *dev)
 {
     PIIX3State *d = DO_UPCAST(PIIX3State, dev, dev);
 
-    isa_bus_new(DEVICE(d), pci_address_space_io(dev));
+    isa_bus_new(DEVICE(d), get_system_memory(),
+                pci_address_space_io(dev));
 
     memory_region_init_io(&d->rcr_mem, OBJECT(dev), &rcr_ops, d,
                           "piix3-reset-control", 1);

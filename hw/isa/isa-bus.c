@@ -21,7 +21,6 @@
 #include "hw/sysbus.h"
 #include "sysemu/sysemu.h"
 #include "hw/isa/isa.h"
-#include "exec/address-spaces.h"
 
 static ISABus *isabus;
 hwaddr isa_mem_base = 0;
@@ -44,7 +43,8 @@ static const TypeInfo isa_bus_info = {
     .class_init = isa_bus_class_init,
 };
 
-ISABus *isa_bus_new(DeviceState *dev, MemoryRegion *address_space_io)
+ISABus *isa_bus_new(DeviceState *dev, MemoryRegion* address_space,
+                    MemoryRegion *address_space_io)
 {
     if (isabus) {
         fprintf(stderr, "Can't create a second ISA bus\n");
@@ -56,6 +56,7 @@ ISABus *isa_bus_new(DeviceState *dev, MemoryRegion *address_space_io)
     }
 
     isabus = ISA_BUS(qbus_create(TYPE_ISA_BUS, dev, NULL));
+    isabus->address_space = address_space;
     isabus->address_space_io = address_space_io;
     return isabus;
 }
@@ -250,7 +251,11 @@ static char *isabus_get_fw_dev_path(DeviceState *dev)
 
 MemoryRegion *isa_address_space(ISADevice *dev)
 {
-    return get_system_memory();
+    if (dev) {
+        return isa_bus_from_device(dev)->address_space;
+    }
+
+    return isabus->address_space;
 }
 
 MemoryRegion *isa_address_space_io(ISADevice *dev)
