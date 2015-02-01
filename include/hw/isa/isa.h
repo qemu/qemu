@@ -99,8 +99,6 @@ static inline ISABus *isa_bus_from_device(ISADevice *d)
     return ISA_BUS(qdev_get_parent_bus(DEVICE(d)));
 }
 
-extern hwaddr isa_mem_base;
-
 /* dma.c */
 int DMA_get_channel_mode (int nchan);
 int DMA_read_memory (int nchan, void *buf, int pos, int size);

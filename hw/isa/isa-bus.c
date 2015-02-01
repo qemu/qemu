@@ -23,7 +23,6 @@
 #include "hw/isa/isa.h"
 
 static ISABus *isabus;
-hwaddr isa_mem_base = 0;
 
 static void isabus_dev_print(Monitor *mon, DeviceState *dev, int indent);
 static char *isabus_get_fw_dev_path(DeviceState *dev);
