@@ -33,25 +33,11 @@ static bool memory_region_update_pending;
 static bool ioeventfd_update_pending;
 static bool global_dirty_log = false;
 
-/* flat_view_mutex is taken around reading as->current_map; the critical
- * section is extremely short, so I'm using a single mutex for every AS.
- * We could also RCU for the read-side.
- *
- * The BQL is taken around transaction commits, hence both locks are taken
- * while writing to as->current_map (with the BQL taken outside).
- */
-static QemuMutex flat_view_mutex;
-
 static QTAILQ_HEAD(memory_listeners, MemoryListener) memory_listeners
     = QTAILQ_HEAD_INITIALIZER(memory_listeners);
 
 static QTAILQ_HEAD(, AddressSpace) address_spaces
     = QTAILQ_HEAD_INITIALIZER(address_spaces);
-
-static void memory_init(void)
-{
-    qemu_mutex_init(&flat_view_mutex);
-}
 
 typedef struct AddrRange AddrRange;
 
@@ -242,6 +228,7 @@ struct FlatRange {
  * order.
  */
 struct FlatView {
+    struct rcu_head rcu;
     unsigned ref;
     FlatRange *ranges;
     unsigned nr;
@@ -654,10 +641,10 @@ static FlatView *address_space_get_flatview(AddressSpace *as)
 {
     FlatView *view;
 
-    qemu_mutex_lock(&flat_view_mutex);
-    view = as->current_map;
+    rcu_read_lock();
+    view = atomic_rcu_read(&as->current_map);
     flatview_ref(view);
-    qemu_mutex_unlock(&flat_view_mutex);
+    rcu_read_unlock();
     return view;
 }
 
@@ -766,10 +753,9 @@ static void address_space_update_topology(AddressSpace *as)
     address_space_update_topology_pass(as, old_view, new_view, false);
     address_space_update_topology_pass(as, old_view, new_view, true);
 
-    qemu_mutex_lock(&flat_view_mutex);
-    flatview_unref(as->current_map);
-    as->current_map = new_view;
-    qemu_mutex_unlock(&flat_view_mutex);
+    /* Writes are protected by the BQL.  */
+    atomic_rcu_set(&as->current_map, new_view);
+    call_rcu(old_view, flatview_unref, rcu);
 
     /* Note that all the old MemoryRegions are still alive up to this
      * point.  This relieves most MemoryListeners from the need to
@@ -1263,7 +1249,6 @@ static void memory_region_finalize(Object *obj)
     MemoryRegion *mr = MEMORY_REGION(obj);
 
     assert(QTAILQ_EMPTY(&mr->subregions));
-    assert(memory_region_transaction_depth == 0);
     mr->destructor(mr);
     memory_region_clear_coalescing(mr);
     g_free((char *)mr->name);
@@ -1843,11 +1828,11 @@ MemoryRegionSection memory_region_find(MemoryRegion *mr,
     }
     range = addrrange_make(int128_make64(addr), int128_make64(size));
 
-    view = address_space_get_flatview(as);
+    rcu_read_lock();
+    view = atomic_rcu_read(&as->current_map);
     fr = flatview_lookup(view, range);
     if (!fr) {
-        flatview_unref(view);
-        return ret;
+        goto out;
     }
 
     while (fr > view->ranges && addrrange_intersects(fr[-1].addr, range)) {
@@ -1864,8 +1849,8 @@ MemoryRegionSection memory_region_find(MemoryRegion *mr,
     ret.offset_within_address_space = int128_get64(range.start);
     ret.readonly = fr->readonly;
     memory_region_ref(ret.mr);
-
-    flatview_unref(view);
+out:
+    rcu_read_unlock();
     return ret;
 }
 
@@ -1958,10 +1943,6 @@ void memory_listener_unregister(MemoryListener *listener)
 
 void address_space_init(AddressSpace *as, MemoryRegion *root, const char *name)
 {
-    if (QTAILQ_EMPTY(&address_spaces)) {
-        memory_init();
-    }
-
     memory_region_transaction_begin();
     as->root = root;
     as->current_map = g_new(FlatView, 1);
@@ -1975,15 +1956,10 @@ void address_space_init(AddressSpace *as, MemoryRegion *root, const char *name)
     memory_region_transaction_commit();
 }
 
-void address_space_destroy(AddressSpace *as)
+static void do_address_space_destroy(AddressSpace *as)
 {
     MemoryListener *listener;
 
-    /* Flush out anything from MemoryListeners listening in on this */
-    memory_region_transaction_begin();
-    as->root = NULL;
-    memory_region_transaction_commit();
-    QTAILQ_REMOVE(&address_spaces, as, address_spaces_link);
     address_space_destroy_dispatch(as);
 
     QTAILQ_FOREACH(listener, &memory_listeners, link) {
@@ -1993,6 +1969,21 @@ void address_space_destroy(AddressSpace *as)
     flatview_unref(as->current_map);
     g_free(as->name);
     g_free(as->ioeventfds);
+}
+
+void address_space_destroy(AddressSpace *as)
+{
+    /* Flush out anything from MemoryListeners listening in on this */
+    memory_region_transaction_begin();
+    as->root = NULL;
+    memory_region_transaction_commit();
+    QTAILQ_REMOVE(&address_spaces, as, address_spaces_link);
+
+    /* At this point, as->dispatch and as->current_map are dummy
+     * entries that the guest should never use.  Wait for the old
+     * values to expire before freeing the data.
+     */
+    call_rcu(as, do_address_space_destroy, rcu);
 }
 
 bool io_mem_read(MemoryRegion *mr, hwaddr addr, uint64_t *pval, unsigned size)

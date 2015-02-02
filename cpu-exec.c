@@ -61,8 +61,7 @@ static void align_clocks(SyncClocks *sc, const CPUState *cpu)
         sleep_delay.tv_sec = sc->diff_clk / 1000000000LL;
         sleep_delay.tv_nsec = sc->diff_clk % 1000000000LL;
         if (nanosleep(&sleep_delay, &rem_delay) < 0) {
-            sc->diff_clk -= (sleep_delay.tv_sec - rem_delay.tv_sec) * 1000000000LL;
-            sc->diff_clk -= sleep_delay.tv_nsec - rem_delay.tv_nsec;
+            sc->diff_clk = rem_delay.tv_sec * 1000000000LL + rem_delay.tv_nsec;
         } else {
             sc->diff_clk = 0;
         }
@@ -101,10 +100,8 @@ static void init_delay_params(SyncClocks *sc,
     if (!icount_align_option) {
         return;
     }
-    sc->realtime_clock = qemu_clock_get_ns(QEMU_CLOCK_REALTIME);
-    sc->diff_clk = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) -
-                   sc->realtime_clock +
-                   cpu_get_clock_offset();
+    sc->realtime_clock = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL_RT);
+    sc->diff_clk = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) - sc->realtime_clock;
     sc->last_cpu_icount = cpu->icount_extra + cpu->icount_decr.u16.low;
     if (sc->diff_clk < max_delay) {
         max_delay = sc->diff_clk;

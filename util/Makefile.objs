@@ -17,3 +17,4 @@ util-obj-y += throttle.o
 util-obj-y += getauxval.o
 util-obj-y += readline.o
 util-obj-y += rfifolock.o
+util-obj-y += rcu.o
