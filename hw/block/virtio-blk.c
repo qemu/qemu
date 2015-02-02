@@ -360,7 +360,7 @@ static void virtio_blk_handle_write(VirtIOBlockReq *req, MultiReqBuffer *mrb)
     block_acct_start(blk_get_stats(req->dev->blk), &req->acct, req->qiov.size,
                      BLOCK_ACCT_WRITE);
 
-    if (mrb->num_writes == 32) {
+    if (mrb->num_writes == VIRTIO_BLK_MAX_MERGE_REQS) {
         virtio_submit_multiwrite(req->dev->blk, mrb);
     }
 

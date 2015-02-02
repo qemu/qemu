@@ -134,8 +134,10 @@ typedef struct VirtIOBlock {
     struct VirtIOBlockDataPlane *dataplane;
 } VirtIOBlock;
 
+#define VIRTIO_BLK_MAX_MERGE_REQS 32
+
 typedef struct MultiReqBuffer {
-    BlockRequest        blkreq[32];
+    BlockRequest        blkreq[VIRTIO_BLK_MAX_MERGE_REQS];
     unsigned int        num_writes;
 } MultiReqBuffer;
 
