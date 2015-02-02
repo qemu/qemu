@@ -1335,6 +1335,68 @@ migrate_fd_cancel(void) ""
 migrate_pending(uint64_t size, uint64_t max) "pending size %" PRIu64 " max %" PRIu64
 migrate_transferred(uint64_t tranferred, uint64_t time_spent, double bandwidth, uint64_t size) "transferred %" PRIu64 " time_spent %" PRIu64 " bandwidth %g max_size %" PRId64
 
+# migration/rdma.c
+__qemu_rdma_add_block(int block, uint64_t addr, uint64_t offset, uint64_t len, uint64_t end, uint64_t bits, int chunks) "Added Block: %d, addr: %" PRIu64 ", offset: %" PRIu64 " length: %" PRIu64 " end: %" PRIu64 " bits %" PRIu64 " chunks %d"
+__qemu_rdma_delete_block(int block, uint64_t addr, uint64_t offset, uint64_t len, uint64_t end, uint64_t bits, int chunks) "Deleted Block: %d, addr: %" PRIu64 ", offset: %" PRIu64 " length: %" PRIu64 " end: %" PRIu64 " bits %" PRIu64 " chunks %d"
+qemu_dma_accept_incoming_migration(void) ""
+qemu_dma_accept_incoming_migration_accepted(void) ""
+qemu_rdma_accept_pin_state(bool pin) "%d"
+qemu_rdma_accept_pin_verbsc(void *verbs) "Verbs context after listen: %p"
+qemu_rdma_block_for_wrid_miss(const char *wcompstr, int wcomp, const char *gcompstr, uint64_t req) "A Wanted wrid %s (%d) but got %s (%" PRIu64 ")"
+qemu_rdma_block_for_wrid_miss_b(const char *wcompstr, int wcomp, const char *gcompstr, uint64_t req) "B Wanted wrid %s (%d) but got %s (%" PRIu64 ")"
+qemu_rdma_cleanup_disconnect(void) ""
+qemu_rdma_cleanup_waiting_for_disconnect(void) ""
+qemu_rdma_close(void) ""
+qemu_rdma_connect_pin_all_requested(void) ""
+qemu_rdma_connect_pin_all_outcome(bool pin) "%d"
+qemu_rdma_dest_init_trying(const char *host, const char *ip) "%s => %s"
+qemu_rdma_dump_gid(const char *who, const char *src, const char *dst) "%s Source GID: %s, Dest GID: %s"
+qemu_rdma_exchange_get_response_start(const char *desc) "CONTROL: %s receiving..."
+qemu_rdma_exchange_get_response_none(const char *desc, int type) "Surprise: got %s (%d)"
+qemu_rdma_exchange_send_issue_callback(void) ""
+qemu_rdma_exchange_send_waiting(const char *desc) "Waiting for response %s"
+qemu_rdma_exchange_send_received(const char *desc) "Response %s received."
+qemu_rdma_fill(int64_t control_len, int size) "RDMA %" PRId64 " of %d bytes already in buffer"
+qemu_rdma_init_ram_blocks(int blocks) "Allocated %d local ram block structures"
+qemu_rdma_poll_recv(const char *compstr, int64_t comp, int64_t id, int sent) "completion %s #%" PRId64 " received (%" PRId64 ") left %d"
+qemu_rdma_poll_write(const char *compstr, int64_t comp, int left, uint64_t block, uint64_t chunk, void *local, void *remote) "completions %s (%" PRId64 ") left %d, block %" PRIu64 ", chunk: %" PRIu64 " %p %p"
+qemu_rdma_poll_other(const char *compstr, int64_t comp, int left) "other completion %s (%" PRId64 ") received left %d"
+qemu_rdma_post_send_control(const char *desc) "CONTROL: sending %s.."
+qemu_rdma_register_and_get_keys(uint64_t len, void *start) "Registering %" PRIu64 " bytes @ %p"
+qemu_rdma_registration_handle_compress(int64_t length, int index, int64_t offset) "Zapping zero chunk: %" PRId64 " bytes, index %d, offset %" PRId64
+qemu_rdma_registration_handle_finished(void) ""
+qemu_rdma_registration_handle_ram_blocks(void) ""
+qemu_rdma_registration_handle_register(int requests) "%d requests"
+qemu_rdma_registration_handle_register_loop(int req, int index, uint64_t addr, uint64_t chunks) "Registration request (%d): index %d, current_addr %" PRIu64 " chunks: %" PRIu64
+qemu_rdma_registration_handle_register_rkey(int rkey) "%x"
+qemu_rdma_registration_handle_unregister(int requests) "%d requests"
+qemu_rdma_registration_handle_unregister_loop(int count, int index, uint64_t chunk) "Unregistration request (%d): index %d, chunk %" PRIu64
+qemu_rdma_registration_handle_unregister_success(uint64_t chunk) "%" PRIu64
+qemu_rdma_registration_handle_wait(uint64_t flags) "Waiting for next request %" PRIu64
+qemu_rdma_registration_start(uint64_t flags) "%" PRIu64
+qemu_rdma_registration_stop(uint64_t flags) "%" PRIu64
+qemu_rdma_registration_stop_ram(void) ""
+qemu_rdma_resolve_host_trying(const char *host, const char *ip) "Trying %s => %s"
+qemu_rdma_signal_unregister_append(uint64_t chunk, int pos) "Appending unregister chunk %" PRIu64 " at position %d"
+qemu_rdma_signal_unregister_already(uint64_t chunk) "Unregister chunk %" PRIu64 " already in queue"
+qemu_rdma_unregister_waiting_inflight(uint64_t chunk) "Cannot unregister inflight chunk: %" PRIu64
+qemu_rdma_unregister_waiting_proc(uint64_t chunk, int pos) "Processing unregister for chunk: %" PRIu64 " at position %d"
+qemu_rdma_unregister_waiting_send(uint64_t chunk) "Sending unregister for chunk: %" PRIu64
+qemu_rdma_unregister_waiting_complete(uint64_t chunk) "Unregister for chunk: %" PRIu64 " complete."
+qemu_rdma_write_flush(int sent) "sent total: %d"
+qemu_rdma_write_one_block(int count, int block, uint64_t chunk, uint64_t current, uint64_t len, int nb_sent, int nb_chunks) "(%d) Not clobbering: block: %d chunk %" PRIu64 " current %" PRIu64 " len %" PRIu64 " %d %d"
+qemu_rdma_write_one_post(uint64_t chunk, long addr, long remote, uint32_t len) "Posting chunk: %" PRIu64 ", addr: %lx remote: %lx, bytes %" PRIu32
+qemu_rdma_write_one_queue_full(void) ""
+qemu_rdma_write_one_recvregres(int mykey, int theirkey, uint64_t chunk) "Received registration result: my key: %x their key %x, chunk %" PRIu64
+qemu_rdma_write_one_sendreg(uint64_t chunk, int len, int index, int64_t offset) "Sending registration request chunk %" PRIu64 " for %d bytes, index: %d, offset: %" PRId64
+qemu_rdma_write_one_top(uint64_t chunks, uint64_t size) "Writing %" PRIu64 " chunks, (%" PRIu64 " MB)"
+qemu_rdma_write_one_zero(uint64_t chunk, int len, int index, int64_t offset) "Entire chunk is zero, sending compress: %" PRIu64 " for %d bytes, index: %d, offset: %" PRId64
+rdma_start_incoming_migration(void) ""
+rdma_start_incoming_migration_after_dest_init(void) ""
+rdma_start_incoming_migration_after_rdma_listen(void) ""
+rdma_start_outgoing_migration_after_rdma_connect(void) ""
+rdma_start_outgoing_migration_after_rdma_source_init(void) ""
+
 # kvm-all.c
 kvm_ioctl(int type, void *arg) "type 0x%x, arg %p"
 kvm_vm_ioctl(int type, void *arg) "type 0x%x, arg %p"
