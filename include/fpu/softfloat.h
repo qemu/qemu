@@ -108,8 +108,6 @@ typedef int64_t int64;
 
 #define LIT64( a ) a##LL
 
-#define STATUS(field) status->field
-
 /*----------------------------------------------------------------------------
 | Software IEC/IEEE floating-point ordering relations
 *----------------------------------------------------------------------------*/
@@ -224,60 +222,60 @@ typedef struct float_status {
 
 static inline void set_float_detect_tininess(int val, float_status *status)
 {
-    STATUS(float_detect_tininess) = val;
+    status->float_detect_tininess = val;
 }
 static inline void set_float_rounding_mode(int val, float_status *status)
 {
-    STATUS(float_rounding_mode) = val;
+    status->float_rounding_mode = val;
 }
 static inline void set_float_exception_flags(int val, float_status *status)
 {
-    STATUS(float_exception_flags) = val;
+    status->float_exception_flags = val;
 }
 static inline void set_floatx80_rounding_precision(int val,
                                                    float_status *status)
 {
-    STATUS(floatx80_rounding_precision) = val;
+    status->floatx80_rounding_precision = val;
 }
 static inline void set_flush_to_zero(flag val, float_status *status)
 {
-    STATUS(flush_to_zero) = val;
+    status->flush_to_zero = val;
 }
 static inline void set_flush_inputs_to_zero(flag val, float_status *status)
 {
-    STATUS(flush_inputs_to_zero) = val;
+    status->flush_inputs_to_zero = val;
 }
 static inline void set_default_nan_mode(flag val, float_status *status)
 {
-    STATUS(default_nan_mode) = val;
+    status->default_nan_mode = val;
 }
 static inline int get_float_detect_tininess(float_status *status)
 {
-    return STATUS(float_detect_tininess);
+    return status->float_detect_tininess;
 }
 static inline int get_float_rounding_mode(float_status *status)
 {
-    return STATUS(float_rounding_mode);
+    return status->float_rounding_mode;
 }
 static inline int get_float_exception_flags(float_status *status)
 {
-    return STATUS(float_exception_flags);
+    return status->float_exception_flags;
 }
 static inline int get_floatx80_rounding_precision(float_status *status)
 {
-    return STATUS(floatx80_rounding_precision);
+    return status->floatx80_rounding_precision;
 }
 static inline flag get_flush_to_zero(float_status *status)
 {
-    return STATUS(flush_to_zero);
+    return status->flush_to_zero;
 }
 static inline flag get_flush_inputs_to_zero(float_status *status)
 {
-    return STATUS(flush_inputs_to_zero);
+    return status->flush_inputs_to_zero;
 }
 static inline flag get_default_nan_mode(float_status *status)
 {
-    return STATUS(default_nan_mode);
+    return status->default_nan_mode;
 }
 
 /*----------------------------------------------------------------------------

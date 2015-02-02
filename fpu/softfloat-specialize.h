@@ -172,7 +172,7 @@ const float128 float128_default_nan
 
 void float_raise(int8 flags, float_status *status)
 {
-    STATUS(float_exception_flags) |= flags;
+    status->float_exception_flags |= flags;
 }
 
 /*----------------------------------------------------------------------------
@@ -275,7 +275,7 @@ static float16 commonNaNToFloat16(commonNaNT a, float_status *status)
 {
     uint16_t mantissa = a.high>>54;
 
-    if (STATUS(default_nan_mode)) {
+    if (status->default_nan_mode) {
         return float16_default_nan;
     }
 
@@ -380,7 +380,7 @@ static float32 commonNaNToFloat32(commonNaNT a, float_status *status)
 {
     uint32_t mantissa = a.high>>41;
 
-    if ( STATUS(default_nan_mode) ) {
+    if (status->default_nan_mode) {
         return float32_default_nan;
     }
 
@@ -633,7 +633,7 @@ static float32 propagateFloat32NaN(float32 a, float32 b, float_status *status)
         float_raise(float_flag_invalid, status);
     }
 
-    if ( STATUS(default_nan_mode) )
+    if (status->default_nan_mode)
         return float32_default_nan;
 
     if ((uint32_t)(av<<1) < (uint32_t)(bv<<1)) {
@@ -684,7 +684,7 @@ static float32 propagateFloat32MulAddNaN(float32 a, float32 b,
                           bIsQuietNaN, bIsSignalingNaN,
                           cIsQuietNaN, cIsSignalingNaN, infzero, status);
 
-    if (STATUS(default_nan_mode)) {
+    if (status->default_nan_mode) {
         /* Note that this check is after pickNaNMulAdd so that function
          * has an opportunity to set the Invalid flag.
          */
@@ -800,7 +800,7 @@ static float64 commonNaNToFloat64(commonNaNT a, float_status *status)
 {
     uint64_t mantissa = a.high>>12;
 
-    if ( STATUS(default_nan_mode) ) {
+    if (status->default_nan_mode) {
         return float64_default_nan;
     }
 
@@ -836,7 +836,7 @@ static float64 propagateFloat64NaN(float64 a, float64 b, float_status *status)
         float_raise(float_flag_invalid, status);
     }
 
-    if ( STATUS(default_nan_mode) )
+    if (status->default_nan_mode)
         return float64_default_nan;
 
     if ((uint64_t)(av<<1) < (uint64_t)(bv<<1)) {
@@ -887,7 +887,7 @@ static float64 propagateFloat64MulAddNaN(float64 a, float64 b,
                           bIsQuietNaN, bIsSignalingNaN,
                           cIsQuietNaN, cIsSignalingNaN, infzero, status);
 
-    if (STATUS(default_nan_mode)) {
+    if (status->default_nan_mode) {
         /* Note that this check is after pickNaNMulAdd so that function
          * has an opportunity to set the Invalid flag.
          */
@@ -1019,7 +1019,7 @@ static floatx80 commonNaNToFloatx80(commonNaNT a, float_status *status)
 {
     floatx80 z;
 
-    if ( STATUS(default_nan_mode) ) {
+    if (status->default_nan_mode) {
         z.low = floatx80_default_nan_low;
         z.high = floatx80_default_nan_high;
         return z;
@@ -1057,7 +1057,7 @@ static floatx80 propagateFloatx80NaN(floatx80 a, floatx80 b,
         float_raise(float_flag_invalid, status);
     }
 
-    if ( STATUS(default_nan_mode) ) {
+    if (status->default_nan_mode) {
         a.low = floatx80_default_nan_low;
         a.high = floatx80_default_nan_high;
         return a;
@@ -1176,7 +1176,7 @@ static float128 commonNaNToFloat128(commonNaNT a, float_status *status)
 {
     float128 z;
 
-    if ( STATUS(default_nan_mode) ) {
+    if (status->default_nan_mode) {
         z.low = float128_default_nan_low;
         z.high = float128_default_nan_high;
         return z;
@@ -1208,7 +1208,7 @@ static float128 propagateFloat128NaN(float128 a, float128 b,
         float_raise(float_flag_invalid, status);
     }
 
-    if ( STATUS(default_nan_mode) ) {
+    if (status->default_nan_mode) {
         a.low = float128_default_nan_low;
         a.high = float128_default_nan_high;
         return a;
