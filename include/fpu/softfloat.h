@@ -109,7 +109,6 @@ typedef int64_t int64;
 #define LIT64( a ) a##LL
 
 #define STATUS(field) status->field
-#define STATUS_VAR , status
 
 /*----------------------------------------------------------------------------
 | Software IEC/IEEE floating-point ordering relations
@@ -329,22 +328,22 @@ float128 uint64_to_float128(uint64_t, float_status *status);
 /* We provide the int16 versions for symmetry of API with float-to-int */
 static inline float32 int16_to_float32(int16_t v, float_status *status)
 {
-    return int32_to_float32(v STATUS_VAR);
+    return int32_to_float32(v, status);
 }
 
 static inline float32 uint16_to_float32(uint16_t v, float_status *status)
 {
-    return uint32_to_float32(v STATUS_VAR);
+    return uint32_to_float32(v, status);
 }
 
 static inline float64 int16_to_float64(int16_t v, float_status *status)
 {
-    return int32_to_float64(v STATUS_VAR);
+    return int32_to_float64(v, status);
 }
 
 static inline float64 uint16_to_float64(uint16_t v, float_status *status)
 {
-    return uint32_to_float64(v STATUS_VAR);
+    return uint32_to_float64(v, status);
 }
 
 /*----------------------------------------------------------------------------
