@@ -134,6 +134,12 @@ VncInfo *qmp_query_vnc(Error **errp)
     error_set(errp, QERR_FEATURE_DISABLED, "vnc");
     return NULL;
 };
+
+VncInfo2List *qmp_query_vnc_servers(Error **errp)
+{
+    error_set(errp, QERR_FEATURE_DISABLED, "vnc");
+    return NULL;
+};
 #endif
 
 #ifndef CONFIG_SPICE
