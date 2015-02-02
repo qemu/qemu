@@ -4597,8 +4597,13 @@ void host_net_remove_completion(ReadLineState *rs, int nb_args, const char *str)
         count = qemu_find_net_clients_except(NULL, ncs,
                                              NET_CLIENT_OPTIONS_KIND_NIC, 255);
         for (i = 0; i < count; i++) {
+            int id;
             const char *name;
 
+            if (ncs[i]->info->type == NET_CLIENT_OPTIONS_KIND_HUBPORT ||
+                net_hub_id_for_client(ncs[i], &id)) {
+                continue;
+            }
             name = ncs[i]->name;
             if (!strncmp(str, name, len)) {
                 readline_add_completion(rs, name);
