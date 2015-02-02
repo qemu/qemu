@@ -3192,10 +3192,7 @@ int coroutine_fn bdrv_co_copy_on_readv(BlockDriverState *bs,
                             BDRV_REQ_COPY_ON_READ);
 }
 
-/* if no limit is specified in the BlockLimits use a default
- * of 32768 512-byte sectors (16 MiB) per request.
- */
-#define MAX_WRITE_ZEROES_DEFAULT 32768
+#define MAX_WRITE_ZEROES_BOUNCE_BUFFER 32768
 
 static int coroutine_fn bdrv_co_do_write_zeroes(BlockDriverState *bs,
     int64_t sector_num, int nb_sectors, BdrvRequestFlags flags)
@@ -3206,7 +3203,7 @@ static int coroutine_fn bdrv_co_do_write_zeroes(BlockDriverState *bs,
     int ret = 0;
 
     int max_write_zeroes = bs->bl.max_write_zeroes ?
-                           bs->bl.max_write_zeroes : MAX_WRITE_ZEROES_DEFAULT;
+                           bs->bl.max_write_zeroes : INT_MAX;
 
     while (nb_sectors > 0 && !ret) {
         int num = nb_sectors;
@@ -3242,7 +3239,7 @@ static int coroutine_fn bdrv_co_do_write_zeroes(BlockDriverState *bs,
         if (ret == -ENOTSUP) {
             /* Fall back to bounce buffer if write zeroes is unsupported */
             int max_xfer_len = MIN_NON_ZERO(bs->bl.max_transfer_length,
-                                            MAX_WRITE_ZEROES_DEFAULT);
+                                            MAX_WRITE_ZEROES_BOUNCE_BUFFER);
             num = MIN(num, max_xfer_len);
             iov.iov_len = num * BDRV_SECTOR_SIZE;
             if (iov.iov_base == NULL) {
@@ -5097,11 +5094,6 @@ static void coroutine_fn bdrv_discard_co_entry(void *opaque)
     rwco->ret = bdrv_co_discard(rwco->bs, rwco->sector_num, rwco->nb_sectors);
 }
 
-/* if no limit is specified in the BlockLimits use a default
- * of 32768 512-byte sectors (16 MiB) per request.
- */
-#define MAX_DISCARD_DEFAULT 32768
-
 int coroutine_fn bdrv_co_discard(BlockDriverState *bs, int64_t sector_num,
                                  int nb_sectors)
 {
@@ -5126,7 +5118,7 @@ int coroutine_fn bdrv_co_discard(BlockDriverState *bs, int64_t sector_num,
         return 0;
     }
 
-    max_discard = bs->bl.max_discard ?  bs->bl.max_discard : MAX_DISCARD_DEFAULT;
+    max_discard = bs->bl.max_discard ?  bs->bl.max_discard : INT_MAX;
     while (nb_sectors > 0) {
         int ret;
         int num = nb_sectors;
