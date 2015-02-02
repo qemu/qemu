@@ -996,6 +996,8 @@ void net_host_device_remove(Monitor *mon, const QDict *qdict)
         error_report("invalid host network device '%s'", device);
         return;
     }
+
+    qemu_del_net_client(nc->peer);
     qemu_del_net_client(nc);
 }
 
