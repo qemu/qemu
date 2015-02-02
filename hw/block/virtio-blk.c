@@ -531,7 +531,8 @@ void virtio_blk_handle_request(VirtIOBlockReq *req, MultiReqBuffer *mrb)
         /* merge would exceed maximum number of requests or IO direction
          * changes */
         if (mrb->num_reqs > 0 && (mrb->num_reqs == VIRTIO_BLK_MAX_MERGE_REQS ||
-                                  is_write != mrb->is_write)) {
+                                  is_write != mrb->is_write ||
+                                  !req->dev->conf.request_merging)) {
             virtio_blk_submit_multireq(req->dev->blk, mrb);
         }
 
@@ -950,6 +951,8 @@ static Property virtio_blk_properties[] = {
 #ifdef __linux__
     DEFINE_PROP_BIT("scsi", VirtIOBlock, conf.scsi, 0, true),
 #endif
+    DEFINE_PROP_BIT("request-merging", VirtIOBlock, conf.request_merging, 0,
+                    true),
     DEFINE_PROP_BIT("x-data-plane", VirtIOBlock, conf.data_plane, 0, false),
     DEFINE_PROP_END_OF_LIST(),
 };

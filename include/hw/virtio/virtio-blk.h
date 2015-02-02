@@ -113,6 +113,7 @@ struct VirtIOBlkConf
     uint32_t scsi;
     uint32_t config_wce;
     uint32_t data_plane;
+    uint32_t request_merging;
 };
 
 struct VirtIOBlockDataPlane;
