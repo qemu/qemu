@@ -306,11 +306,13 @@ static inline void futex_wait(QemuEvent *ev, unsigned val)
 #else
 static inline void futex_wake(QemuEvent *ev, int n)
 {
+    pthread_mutex_lock(&ev->lock);
     if (n == 1) {
         pthread_cond_signal(&ev->cond);
     } else {
         pthread_cond_broadcast(&ev->cond);
     }
+    pthread_mutex_unlock(&ev->lock);
 }
 
 static inline void futex_wait(QemuEvent *ev, unsigned val)
