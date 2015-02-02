@@ -1111,6 +1111,12 @@ static int vnc_update_client(VncState *vs, int has_dirty, bool sync)
                 n += vnc_job_add_rect(job, x * VNC_DIRTY_PIXELS_PER_BIT, y,
                                       (x2 - x) * VNC_DIRTY_PIXELS_PER_BIT, h);
             }
+            if (!x && x2 == width / VNC_DIRTY_PIXELS_PER_BIT) {
+                y += h;
+                if (y == height) {
+                    break;
+                }
+            }
         }
 
         vnc_job_push(job);
