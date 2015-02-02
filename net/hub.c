@@ -288,7 +288,6 @@ int net_init_hubport(const NetClientOptions *opts, const char *name,
     assert(opts->kind == NET_CLIENT_OPTIONS_KIND_HUBPORT);
     hubport = opts->hubport;
 
-    /* Treat hub port like a backend, NIC must be the one to peer */
     if (peer) {
         return -EINVAL;
     }
