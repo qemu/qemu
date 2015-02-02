@@ -2303,6 +2303,10 @@ Each json-object contain the following:
     - "flush_total_time_ns": total time spend on cache flushes in nano-seconds (json-int)
     - "wr_highest_offset": Highest offset of a sector written since the
                            BlockDriverState has been opened (json-int)
+    - "rd_merged": number of read requests that have been merged into
+                   another request (json-int)
+    - "wr_merged": number of write requests that have been merged into
+                   another request (json-int)
 - "parent": Contains recursively the statistics of the underlying
             protocol (e.g. the host file for a qcow2 image). If there is
             no underlying protocol, this field is omitted
@@ -2326,6 +2330,8 @@ Example:
                   "rd_total_times_ns":3465673657
                   "flush_total_times_ns":49653
                   "flush_operations":61,
+                  "rd_merged":0,
+                  "wr_merged":0
                }
             },
             "stats":{
@@ -2337,7 +2343,9 @@ Example:
                "flush_operations":51,
                "wr_total_times_ns":313253456
                "rd_total_times_ns":3465673657
-               "flush_total_times_ns":49653
+               "flush_total_times_ns":49653,
+               "rd_merged":0,
+               "wr_merged":0
             }
          },
          {
@@ -2351,7 +2359,9 @@ Example:
                "flush_operations":0,
                "wr_total_times_ns":0
                "rd_total_times_ns":0
-               "flush_total_times_ns":0
+               "flush_total_times_ns":0,
+               "rd_merged":0,
+               "wr_merged":0
             }
          },
          {
@@ -2365,7 +2375,9 @@ Example:
                "flush_operations":0,
                "wr_total_times_ns":0
                "rd_total_times_ns":0
-               "flush_total_times_ns":0
+               "flush_total_times_ns":0,
+               "rd_merged":0,
+               "wr_merged":0
             }
          },
          {
@@ -2379,7 +2391,9 @@ Example:
                "flush_operations":0,
                "wr_total_times_ns":0
                "rd_total_times_ns":0
-               "flush_total_times_ns":0
+               "flush_total_times_ns":0,
+               "rd_merged":0,
+               "wr_merged":0
             }
          }
       ]

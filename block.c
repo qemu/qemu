@@ -4559,6 +4559,8 @@ static int multiwrite_merge(BlockDriverState *bs, BlockRequest *reqs,
         }
     }
 
+    block_acct_merge_done(&bs->stats, BLOCK_ACCT_WRITE, num_reqs - outidx - 1);
+
     return outidx + 1;
 }
 

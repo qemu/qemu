@@ -407,13 +407,20 @@
 #                     growable sparse files (like qcow2) that are used on top
 #                     of a physical device.
 #
+# @rd_merged: Number of read requests that have been merged into another
+#             request (Since 2.3).
+#
+# @wr_merged: Number of write requests that have been merged into another
+#             request (Since 2.3).
+#
 # Since: 0.14.0
 ##
 { 'type': 'BlockDeviceStats',
   'data': {'rd_bytes': 'int', 'wr_bytes': 'int', 'rd_operations': 'int',
            'wr_operations': 'int', 'flush_operations': 'int',
            'flush_total_time_ns': 'int', 'wr_total_time_ns': 'int',
-           'rd_total_time_ns': 'int', 'wr_highest_offset': 'int' } }
+           'rd_total_time_ns': 'int', 'wr_highest_offset': 'int',
+           'rd_merged': 'int', 'wr_merged': 'int' } }
 
 ##
 # @BlockStats:

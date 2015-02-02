@@ -474,6 +474,8 @@ void hmp_info_blockstats(Monitor *mon, const QDict *qdict)
                        " wr_total_time_ns=%" PRId64
                        " rd_total_time_ns=%" PRId64
                        " flush_total_time_ns=%" PRId64
+                       " rd_merged=%" PRId64
+                       " wr_merged=%" PRId64
                        "\n",
                        stats->value->stats->rd_bytes,
                        stats->value->stats->wr_bytes,
@@ -482,7 +484,9 @@ void hmp_info_blockstats(Monitor *mon, const QDict *qdict)
                        stats->value->stats->flush_operations,
                        stats->value->stats->wr_total_time_ns,
                        stats->value->stats->rd_total_time_ns,
-                       stats->value->stats->flush_total_time_ns);
+                       stats->value->stats->flush_total_time_ns,
+                       stats->value->stats->rd_merged,
+                       stats->value->stats->wr_merged);
     }
 
     qapi_free_BlockStatsList(stats_list);
