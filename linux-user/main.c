@@ -3435,11 +3435,18 @@ CPUArchState *cpu_copy(CPUArchState *env)
 {
     CPUState *cpu = ENV_GET_CPU(env);
     CPUArchState *new_env = cpu_init(cpu_model);
-    CPUState *new_cpu = ENV_GET_CPU(new_env);
+    CPUState *new_cpu;
 #if defined(TARGET_HAS_ICE)
     CPUBreakpoint *bp;
     CPUWatchpoint *wp;
 #endif
+
+    if (!new_env) {
+        fprintf(stderr, "cpu_copy: Failed to create new CPU\n");
+        exit(1);
+    }
+
+    new_cpu = ENV_GET_CPU(new_env);
 
     /* Reset non arch specific state */
     cpu_reset(new_cpu);
