@@ -487,7 +487,7 @@ int rpcit_service_call(S390CPU *cpu, uint8_t r1, uint8_t r2)
     CPUS390XState *env = &cpu->env;
     uint32_t fh;
     S390PCIBusDevice *pbdev;
-    ram_addr_t size;
+    hwaddr start, end;
     IOMMUTLBEntry entry;
     MemoryRegion *mr;
 
@@ -504,7 +504,8 @@ int rpcit_service_call(S390CPU *cpu, uint8_t r1, uint8_t r2)
     }
 
     fh = env->regs[r1] >> 32;
-    size = env->regs[r2 + 1];
+    start = env->regs[r2];
+    end = start + env->regs[r2 + 1];
 
     pbdev = s390_pci_find_dev_by_fh(fh);
 
@@ -515,15 +516,18 @@ int rpcit_service_call(S390CPU *cpu, uint8_t r1, uint8_t r2)
     }
 
     mr = pci_device_iommu_address_space(pbdev->pdev)->root;
-    entry = mr->iommu_ops->translate(mr, env->regs[r2], 0);
+    while (start < end) {
+        entry = mr->iommu_ops->translate(mr, start, 0);
 
-    if (!entry.translated_addr) {
-        setcc(cpu, ZPCI_PCI_LS_ERR);
-        goto out;
+        if (!entry.translated_addr) {
+            setcc(cpu, ZPCI_PCI_LS_ERR);
+            goto out;
+        }
+
+        memory_region_notify_iommu(mr, entry);
+        start += entry.addr_mask + 1;
     }
 
-    entry.addr_mask = size - 1;
-    memory_region_notify_iommu(mr, entry);
     setcc(cpu, ZPCI_PCI_LS_OK);
 out:
     return 0;
@@ -784,10 +788,10 @@ int stpcifc_service_call(S390CPU *cpu, uint8_t r1, uint64_t fiba)
     stq_p(&fib.aisb, pbdev->routes.adapter.summary_addr);
     stq_p(&fib.fmb_addr, pbdev->fmb_addr);
 
-    data = (pbdev->isc << 28) | (pbdev->noi << 16) |
-           (pbdev->routes.adapter.ind_offset << 8) | (pbdev->sum << 7) |
-           pbdev->routes.adapter.summary_offset;
-    stw_p(&fib.data, data);
+    data = ((uint32_t)pbdev->isc << 28) | ((uint32_t)pbdev->noi << 16) |
+           ((uint32_t)pbdev->routes.adapter.ind_offset << 8) |
+           ((uint32_t)pbdev->sum << 7) | pbdev->routes.adapter.summary_offset;
+    stl_p(&fib.data, data);
 
     if (pbdev->fh >> ENABLE_BIT_OFFSET) {
         fib.fc |= 0x80;

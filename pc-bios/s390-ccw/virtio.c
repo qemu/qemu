@@ -11,7 +11,7 @@
 #include "s390-ccw.h"
 #include "virtio.h"
 
-struct vring block;
+static struct vring block;
 
 static char chsc_page[PAGE_SIZE] __attribute__((__aligned__(PAGE_SIZE)));
 
