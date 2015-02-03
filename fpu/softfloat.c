@@ -3332,7 +3332,13 @@ static float32 roundAndPackFloat16(flag zSign, int_fast16_t zExp,
     if (zExp > maxexp || (zExp == maxexp && rounding_bumps_exp)) {
         if (ieee) {
             float_raise(float_flag_overflow | float_flag_inexact STATUS_VAR);
-            return packFloat16(zSign, 0x1f, 0);
+            if (STATUS(float_rounding_mode) == float_round_to_zero) {
+                /*overflow_to_inf is FALSE, return FPMaxNormal (Sign)*/
+                return packFloat16(zSign, 0x1e, 0x3ff);
+            } else {
+                /*overflow_to_inf is TRUE, return FPInfinity (Sign)*/
+                return packFloat16(zSign, 0x1f, 0);
+            }
         } else {
             float_raise(float_flag_invalid STATUS_VAR);
             return packFloat16(zSign, 0x1f, 0x3ff);
