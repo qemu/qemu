@@ -490,8 +490,16 @@ uint32_t HELPER(ex)(CPUS390XState *env, uint32_t cc, uint64_t v1,
             helper_mvc(env, l, get_address(env, 0, b1, d1),
                        get_address(env, 0, b2, d2));
             break;
+        case 0x400:
+            cc = helper_nc(env, l, get_address(env, 0, b1, d1),
+                            get_address(env, 0, b2, d2));
+            break;
         case 0x500:
             cc = helper_clc(env, l, get_address(env, 0, b1, d1),
+                            get_address(env, 0, b2, d2));
+            break;
+        case 0x600:
+            cc = helper_oc(env, l, get_address(env, 0, b1, d1),
                             get_address(env, 0, b2, d2));
             break;
         case 0x700:
@@ -1034,12 +1042,34 @@ void HELPER(ptlb)(CPUS390XState *env)
     tlb_flush(CPU(cpu), 1);
 }
 
+/* load using real address */
+uint64_t HELPER(lura)(CPUS390XState *env, uint64_t addr)
+{
+    CPUState *cs = CPU(s390_env_get_cpu(env));
+
+    return (uint32_t)ldl_phys(cs->as, get_address(env, 0, 0, addr));
+}
+
+uint64_t HELPER(lurag)(CPUS390XState *env, uint64_t addr)
+{
+    CPUState *cs = CPU(s390_env_get_cpu(env));
+
+    return ldq_phys(cs->as, get_address(env, 0, 0, addr));
+}
+
 /* store using real address */
 void HELPER(stura)(CPUS390XState *env, uint64_t addr, uint64_t v1)
 {
     CPUState *cs = CPU(s390_env_get_cpu(env));
 
-    stw_phys(cs->as, get_address(env, 0, 0, addr), (uint32_t)v1);
+    stl_phys(cs->as, get_address(env, 0, 0, addr), (uint32_t)v1);
+}
+
+void HELPER(sturg)(CPUS390XState *env, uint64_t addr, uint64_t v1)
+{
+    CPUState *cs = CPU(s390_env_get_cpu(env));
+
+    stq_phys(cs->as, get_address(env, 0, 0, addr), v1);
 }
 
 /* load real address */

@@ -285,8 +285,12 @@
 
 /* EXTRACT ACCESS */
     C(0xb24f, EAR,     RRE,   Z,   0, 0, new, r1_32, ear, 0)
+/* EXTRACT CPU ATTRIBUTE */
+    C(0xeb4c, ECAG,    RSY_a, GIE, 0, a2, r1, 0, ecag, 0)
 /* EXTRACT FPC */
     C(0xb38c, EFPC,    RRE,   Z,   0, 0, new, r1_32, efpc, 0)
+/* EXTRACT PSW */
+    C(0xb98d, EPSW,    RRE,   Z,   0, 0, 0, 0, epsw, 0)
 
 /* FIND LEFTMOST ONE */
     C(0xb983, FLOGR,   RRE,   EI,  0, r2_o, r1_P, 0, flogr, 0)
@@ -566,6 +570,10 @@
 
 /* SET ACCESS */
     C(0xb24e, SAR,     RRE,   Z,   0, r2_o, 0, 0, sar, 0)
+/* SET ADDRESSING MODE */
+    D(0x010c, SAM24,   E,     Z,   0, 0, 0, 0, sam, 0, 0)
+    D(0x010d, SAM31,   E,     Z,   0, 0, 0, 0, sam, 0, 1)
+    D(0x010e, SAM64,   E,     Z,   0, 0, 0, 0, sam, 0, 3)
 /* SET FPC */
     C(0xb384, SFPC,    RRE,   Z,   0, r1_o, 0, 0, sfpc, 0)
 /* SET FPC AND SIGNAL */
@@ -733,6 +741,9 @@
     C(0xb100, LRA,     RX_a,  Z,   0, a2, r1, 0, lra, 0)
     C(0xe313, LRAY,    RXY_a, LD,  0, a2, r1, 0, lra, 0)
     C(0xe303, LRAG,    RXY_a, Z,   0, a2, r1, 0, lra, 0)
+/* LOAD USING REAL ADDRESS */
+    C(0xb24b, LURA,    RRE,   Z,   0, r2, new, r1_32, lura, 0)
+    C(0xb905, LURAG,   RRE,   Z,   0, r2, r1, 0, lurag, 0)
 /* MOVE TO PRIMARY */
     C(0xda00, MVCP,    SS_d,  Z,   la1, a2, 0, 0, mvcp, 0)
 /* MOVE TO SECONDARY */
@@ -743,10 +754,6 @@
     C(0xb22a, RRBE,    RRE,   Z,   0, r2_o, 0, 0, rrbe, 0)
 /* SERVICE CALL LOGICAL PROCESSOR (PV hypercall) */
     C(0xb220, SERVC,   RRE,   Z,   r1_o, r2_o, 0, 0, servc, 0)
-/* SET ADDRESSING MODE */
-    D(0x010c, SAM24,   E,     Z,   0, 0, 0, 0, sam, 0, 0)
-    D(0x010d, SAM31,   E,     Z,   0, 0, 0, 0, sam, 0, 1)
-    D(0x010e, SAM64,   E,     Z,   0, 0, 0, 0, sam, 0, 3)
 /* SET ADDRESS SPACE CONTROL FAST */
     C(0xb279, SACF,    S,     Z,   0, a2, 0, 0, sacf, 0)
 /* SET CLOCK */
@@ -794,6 +801,7 @@
     C(0xad00, STOSM,   SI,    Z,   la1, 0, 0, 0, stnosm, 0)
 /* STORE USING REAL ADDRESS */
     C(0xb246, STURA,   RRE,   Z,   r1_o, r2_o, 0, 0, stura, 0)
+    C(0xb925, STURG,   RRE,   Z,   r1_o, r2_o, 0, 0, sturg, 0)
 /* TEST PROTECTION */
     C(0xe501, TPROT,   SSE,   Z,   la1, a2, 0, 0, tprot, 0)
 
