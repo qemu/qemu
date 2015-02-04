@@ -443,10 +443,7 @@ DeviceState *etsec_create(hwaddr         base,
 
     dev = qdev_create(NULL, "eTSEC");
     qdev_set_nic_properties(dev, nd);
-
-    if (qdev_init(dev)) {
-        return NULL;
-    }
+    qdev_init_nofail(dev);
 
     sysbus_connect_irq(SYS_BUS_DEVICE(dev), 0, tx_irq);
     sysbus_connect_irq(SYS_BUS_DEVICE(dev), 1, rx_irq);
