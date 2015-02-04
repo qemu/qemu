@@ -711,9 +711,6 @@ static USBDevice *usb_msd_init(USBBus *bus, const char *filename)
         object_unparent(OBJECT(dev));
         return NULL;
     }
-    if (qdev_init(&dev->qdev) < 0)
-        return NULL;
-
     return dev;
 }
 
