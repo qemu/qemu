@@ -260,6 +260,7 @@ xfs=""
 vhost_net="no"
 vhost_scsi="no"
 kvm="no"
+colo="yes"
 rdma=""
 gprof="no"
 debug_tcg="no"
@@ -939,6 +940,10 @@ for opt do
   ;;
   --enable-kvm) kvm="yes"
   ;;
+  --disable-colo) colo="no"
+  ;;
+  --enable-colo) colo="yes"
+  ;;
   --disable-tcg-interpreter) tcg_interpreter="no"
   ;;
   --enable-tcg-interpreter) tcg_interpreter="yes"
@@ -1362,6 +1367,7 @@ disabled with --disable-FEATURE, default is enabled if available:
   fdt             fdt device tree
   bluez           bluez stack connectivity
   kvm             KVM acceleration support
+  colo            COarse-grain LOck-stepping VM for Non-stop Service
   rdma            RDMA-based migration support
   uuid            uuid support
   vde             support for vde network
@@ -4804,6 +4810,7 @@ echo "Linux AIO support $linux_aio"
 echo "ATTR/XATTR support $attr"
 echo "Install blobs     $blobs"
 echo "KVM support       $kvm"
+echo "COLO support      $colo"
 echo "RDMA support      $rdma"
 echo "TCG interpreter   $tcg_interpreter"
 echo "fdt support       $fdt"
@@ -5395,6 +5402,10 @@ if have_backend "ftrace"; then
   fi
 fi
 echo "CONFIG_TRACE_FILE=$trace_file" >> $config_host_mak
+
+if test "$colo" = "yes"; then
+  echo "CONFIG_COLO=y" >> $config_host_mak
+fi
 
 if test "$rdma" = "yes" ; then
   echo "CONFIG_RDMA=y" >> $config_host_mak
