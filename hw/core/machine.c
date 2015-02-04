@@ -420,6 +420,11 @@ int machine_kvm_shadow_mem(MachineState *machine)
     return machine->kvm_shadow_mem;
 }
 
+int machine_phandle_start(MachineState *machine)
+{
+    return machine->phandle_start;
+}
+
 static const TypeInfo machine_info = {
     .name = TYPE_MACHINE,
     .parent = TYPE_OBJECT,
