@@ -277,7 +277,6 @@ static void mips_fulong2e_init(MachineState *machine)
     PCIBus *pci_bus;
     ISABus *isa_bus;
     I2CBus *smbus;
-    int i;
     DriveInfo *hd[MAX_IDE_BUS * MAX_IDE_DEVS];
     MIPSCPU *cpu;
     CPUMIPSState *env;
@@ -384,11 +383,7 @@ static void mips_fulong2e_init(MachineState *machine)
 
     rtc_init(isa_bus, 2000, NULL);
 
-    for(i = 0; i < MAX_SERIAL_PORTS; i++) {
-        if (serial_hds[i]) {
-            serial_isa_init(isa_bus, i, serial_hds[i]);
-        }
-    }
+    serial_hds_isa_init(isa_bus, MAX_SERIAL_PORTS);
 
     if (parallel_hds[0]) {
         parallel_init(isa_bus, 0, parallel_hds[0]);

@@ -849,11 +849,8 @@ static void sun4uv_init(MemoryRegion *address_space_mem,
                        NULL, 115200, serial_hds[i], DEVICE_BIG_ENDIAN);
         i++;
     }
-    for(; i < MAX_SERIAL_PORTS; i++) {
-        if (serial_hds[i]) {
-            serial_isa_init(isa_bus, i, serial_hds[i]);
-        }
-    }
+
+    serial_hds_isa_init(isa_bus, MAX_SERIAL_PORTS);
 
     for(i = 0; i < MAX_PARALLEL_PORTS; i++) {
         if (parallel_hds[i]) {

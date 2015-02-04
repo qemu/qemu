@@ -283,11 +283,7 @@ void mips_r4k_init(MachineState *machine)
 
     pit = pit_init(isa_bus, 0x40, 0, NULL);
 
-    for(i = 0; i < MAX_SERIAL_PORTS; i++) {
-        if (serial_hds[i]) {
-            serial_isa_init(isa_bus, i, serial_hds[i]);
-        }
-    }
+    serial_hds_isa_init(isa_bus, MAX_SERIAL_PORTS);
 
     isa_vga_init(isa_bus);
 

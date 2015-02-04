@@ -83,11 +83,7 @@ static void clipper_init(MachineState *machine)
     pci_vga_init(pci_bus);
 
     /* Serial code setup.  */
-    for (i = 0; i < MAX_SERIAL_PORTS; ++i) {
-        if (serial_hds[i]) {
-            serial_isa_init(isa_bus, i, serial_hds[i]);
-        }
-    }
+    serial_hds_isa_init(isa_bus, MAX_SERIAL_PORTS);
 
     /* Network setup.  e1000 is good enough, failing Tulip support.  */
     for (i = 0; i < nb_nics; i++) {
