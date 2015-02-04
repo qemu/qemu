@@ -67,6 +67,8 @@ extern MachineState *current_machine;
 
 bool machine_usb(MachineState *machine);
 bool machine_iommu(MachineState *machine);
+bool machine_kernel_irqchip_allowed(MachineState *machine);
+bool machine_kernel_irqchip_required(MachineState *machine);
 
 /**
  * MachineClass:
@@ -125,7 +127,8 @@ struct MachineState {
     /*< public >*/
 
     char *accel;
-    bool kernel_irqchip;
+    bool kernel_irqchip_allowed;
+    bool kernel_irqchip_required;
     int kvm_shadow_mem;
     char *dtb;
     char *dumpdtb;

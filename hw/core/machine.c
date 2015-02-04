@@ -31,18 +31,12 @@ static void machine_set_accel(Object *obj, const char *value, Error **errp)
     ms->accel = g_strdup(value);
 }
 
-static bool machine_get_kernel_irqchip(Object *obj, Error **errp)
-{
-    MachineState *ms = MACHINE(obj);
-
-    return ms->kernel_irqchip;
-}
-
 static void machine_set_kernel_irqchip(Object *obj, bool value, Error **errp)
 {
     MachineState *ms = MACHINE(obj);
 
-    ms->kernel_irqchip = value;
+    ms->kernel_irqchip_allowed = value;
+    ms->kernel_irqchip_required = value;
 }
 
 static void machine_get_kvm_shadow_mem(Object *obj, Visitor *v,
@@ -289,13 +283,15 @@ static void machine_initfn(Object *obj)
 {
     MachineState *ms = MACHINE(obj);
 
+    ms->kernel_irqchip_allowed = true;
+
     object_property_add_str(obj, "accel",
                             machine_get_accel, machine_set_accel, NULL);
     object_property_set_description(obj, "accel",
                                     "Accelerator list",
                                     NULL);
     object_property_add_bool(obj, "kernel-irqchip",
-                             machine_get_kernel_irqchip,
+                             NULL,
                              machine_set_kernel_irqchip,
                              NULL);
     object_property_set_description(obj, "kernel-irqchip",
@@ -406,6 +402,16 @@ bool machine_usb(MachineState *machine)
 bool machine_iommu(MachineState *machine)
 {
     return machine->iommu;
+}
+
+bool machine_kernel_irqchip_allowed(MachineState *machine)
+{
+    return machine->kernel_irqchip_allowed;
+}
+
+bool machine_kernel_irqchip_required(MachineState *machine)
+{
+    return machine->kernel_irqchip_required;
 }
 
 static const TypeInfo machine_info = {
