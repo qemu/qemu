@@ -420,11 +420,14 @@ static void ppc_core99_init(MachineState *machine)
 
     if (machine->usb) {
         pci_create_simple(pci_bus, -1, "pci-ohci");
+
         /* U3 needs to use USB for input because Linux doesn't support via-cuda
         on PPC64 */
         if (machine_arch == ARCH_MAC99_U3) {
-            usbdevice_create("keyboard");
-            usbdevice_create("mouse");
+            USBBus *usb_bus = usb_bus_find(-1);
+
+            usb_create_simple(usb_bus, "usb-kbd");
+            usb_create_simple(usb_bus, "usb-mouse");
         }
     }
 
