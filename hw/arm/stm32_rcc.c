@@ -265,9 +265,7 @@ struct Stm32Rcc {
     /* Register Values */
     uint32_t
         RCC_APB1ENR,
-        RCC_APB2ENR,
-        RCC_APB1RSTR,
-        RCC_APB2RSTR;
+        RCC_APB2ENR;
 
     /* Register Field Values */
     uint32_t
@@ -500,22 +498,6 @@ static void stm32_rcc_RCC_APB2ENR_write(Stm32Rcc *s, uint32_t new_value,
     s->RCC_APB2ENR = new_value & 0x0000fffd;
 }
 
-static void stm32_rcc_RCC_APB2RSTR_write(Stm32Rcc *s, uint32_t new_value,
-                                        bool init)
-{
-    stm32_rcc_periph_enable(s, new_value, init, STM32_UART1, RCC_APB2RSTR_USART1RST_BIT);
-    stm32_rcc_periph_enable(s, new_value, init, STM32_GPIOE, RCC_APB2RSTR_IOPERST_BIT);
-    stm32_rcc_periph_enable(s, new_value, init, STM32_GPIOD, RCC_APB2RSTR_IOPDRST_BIT);
-    stm32_rcc_periph_enable(s, new_value, init, STM32_GPIOC, RCC_APB2RSTR_IOPCRST_BIT);
-    stm32_rcc_periph_enable(s, new_value, init, STM32_GPIOB, RCC_APB2RSTR_IOPBRST_BIT);
-    stm32_rcc_periph_enable(s, new_value, init, STM32_GPIOA, RCC_APB2RSTR_IOPARST_BIT);
-    stm32_rcc_periph_enable(s, new_value, init, STM32_AFIO_PERIPH, RCC_APB2RSTR_AFIORST_BIT);
-    stm32_rcc_periph_enable(s, new_value, init, STM32_GPIOG, RCC_APB2RSTR_IOPGRST_BIT);
-    stm32_rcc_periph_enable(s, new_value, init, STM32_GPIOF, RCC_APB2RSTR_IOPFRST_BIT);
-
-    s->RCC_APB2RSTR = new_value & 0x0000fffd;
-}
-
 /* Write the APB1 peripheral clock enable register
  * Enables/Disables the peripheral clocks based on each bit. */
 static void stm32_rcc_RCC_APB1ENR_write(Stm32Rcc *s, uint32_t new_value,
@@ -544,21 +526,6 @@ static void stm32_rcc_RCC_APB1ENR_write(Stm32Rcc *s, uint32_t new_value,
                             RCC_APB1ENR_TIM7EN_BIT);
 
     s->RCC_APB1ENR = new_value & 0x00005e7d;
-}
-
-static void stm32_rcc_RCC_APB1RSTR_write(Stm32Rcc *s, uint32_t new_value,
-                    bool init)
-{
-    stm32_rcc_periph_enable(s, new_value, init, STM32_UART5,
-                            RCC_APB1RSTR_UART5RST_BIT);
-    stm32_rcc_periph_enable(s, new_value, init, STM32_UART4,
-                            RCC_APB1RSTR_UART4RST_BIT);
-    stm32_rcc_periph_enable(s, new_value, init, STM32_UART3,
-                            RCC_APB1RSTR_USART3RST_BIT);
-    stm32_rcc_periph_enable(s, new_value, init, STM32_UART2,
-                            RCC_APB1RSTR_USART2RST_BIT);
-
-    s->RCC_APB1RSTR = new_value & 0x00005e7d;
 }
 
 static uint32_t stm32_rcc_RCC_BDCR_read(Stm32Rcc *s)
@@ -603,9 +570,11 @@ static uint64_t stm32_rcc_readw(void *opaque, hwaddr offset)
         case RCC_CIR_OFFSET:
             return 0;
         case RCC_APB2RSTR_OFFSET:
-            return s->RCC_APB2RSTR;
+            STM32_NOT_IMPL_REG(offset, 4);
+            return 0;
         case RCC_APB1RSTR_OFFSET:
-            return s->RCC_APB1RSTR;
+            STM32_NOT_IMPL_REG(offset, 4);
+            return 0;
         case RCC_AHBENR_OFFSET:
             STM32_NOT_IMPL_REG(offset, 4);
             return 0;
@@ -646,10 +615,10 @@ static void stm32_rcc_writew(void *opaque, hwaddr offset,
             /* Allow a write but don't take any action */
             break;
         case RCC_APB2RSTR_OFFSET:
-            stm32_rcc_RCC_APB2RSTR_write(s, value, false);
+            STM32_NOT_IMPL_REG(offset, 4);
             break;
         case RCC_APB1RSTR_OFFSET:
-            stm32_rcc_RCC_APB1RSTR_write(s, value, false);
+            STM32_NOT_IMPL_REG(offset, 4);
             break;
         case RCC_AHBENR_OFFSET:
             STM32_NOT_IMPL_REG(offset, 4);
