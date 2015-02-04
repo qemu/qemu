@@ -890,8 +890,7 @@ int kvm_arch_init(MachineState *ms, KVMState *s)
     }
     qemu_register_reset(kvm_unpoison_all, NULL);
 
-    shadow_mem = qemu_opt_get_size(qemu_get_machine_opts(),
-                                   "kvm_shadow_mem", -1);
+    shadow_mem = machine_kvm_shadow_mem(ms);
     if (shadow_mem != -1) {
         shadow_mem /= 4096;
         ret = kvm_vm_ioctl(s, KVM_SET_NR_MMU_PAGES, shadow_mem);

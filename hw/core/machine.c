@@ -284,6 +284,7 @@ static void machine_initfn(Object *obj)
     MachineState *ms = MACHINE(obj);
 
     ms->kernel_irqchip_allowed = true;
+    ms->kvm_shadow_mem = -1;
 
     object_property_add_str(obj, "accel",
                             machine_get_accel, machine_set_accel, NULL);
@@ -412,6 +413,11 @@ bool machine_kernel_irqchip_allowed(MachineState *machine)
 bool machine_kernel_irqchip_required(MachineState *machine)
 {
     return machine->kernel_irqchip_required;
+}
+
+int machine_kvm_shadow_mem(MachineState *machine)
+{
+    return machine->kvm_shadow_mem;
 }
 
 static const TypeInfo machine_info = {
