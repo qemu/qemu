@@ -88,9 +88,7 @@ ISADevice *isa_ide_init(ISABus *bus, int iobase, int iobase2, int isairq,
     qdev_prop_set_uint32(dev, "iobase",  iobase);
     qdev_prop_set_uint32(dev, "iobase2", iobase2);
     qdev_prop_set_uint32(dev, "irq",     isairq);
-    if (qdev_init(dev) < 0) {
-        return NULL;
-    }
+    qdev_init_nofail(dev);
 
     s = ISA_IDE(dev);
     if (hd0) {
