@@ -840,7 +840,7 @@ static int kvm_get_supported_msrs(KVMState *s)
     return ret;
 }
 
-int kvm_arch_init(KVMState *s)
+int kvm_arch_init(MachineState *ms, KVMState *s)
 {
     uint64_t identity_base = 0xfffbc000;
     uint64_t shadow_mem;

@@ -1598,7 +1598,7 @@ static int kvm_init(MachineState *ms)
     kvm_resamplefds_allowed =
         (kvm_check_extension(s, KVM_CAP_IRQFD_RESAMPLE) > 0);
 
-    ret = kvm_arch_init(s);
+    ret = kvm_arch_init(ms, s);
     if (ret < 0) {
         goto err;
     }
