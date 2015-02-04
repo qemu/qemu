@@ -4049,6 +4049,7 @@ static void vfio_put_device(VFIODevice *vdev)
     DPRINTF("vfio_put_device: close vdev->fd\n");
     close(vdev->fd);
     if (vdev->msix) {
+        object_unparent(OBJECT(&vdev->msix->mmap_mem));
         g_free(vdev->msix);
         vdev->msix = NULL;
     }
