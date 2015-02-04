@@ -339,14 +339,7 @@ static USBDevice *usb_try_create_simple(USBBus *bus, const char *name,
 
 USBDevice *usb_create_simple(USBBus *bus, const char *name)
 {
-    Error *err = NULL;
-    USBDevice *dev = usb_try_create_simple(bus, name, &err);
-
-    if (!dev) {
-        error_report("%s", error_get_pretty(err));
-        error_free(err);
-    }
-    return dev;
+    return usb_try_create_simple(bus, name, &error_abort);
 }
 
 static void usb_fill_port(USBPort *port, void *opaque, int index,
