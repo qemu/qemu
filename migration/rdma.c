@@ -1121,9 +1121,6 @@ static int qemu_rdma_register_and_get_keys(RDMAContext *rdma,
     /* allocate memory to store chunk MRs */
     if (!block->pmr) {
         block->pmr = g_malloc0(block->nb_chunks * sizeof(struct ibv_mr *));
-        if (!block->pmr) {
-            return -1;
-        }
     }
 
     /*
