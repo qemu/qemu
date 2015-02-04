@@ -412,7 +412,7 @@ void usb_claim_port(USBDevice *dev, Error **errp)
             }
         }
         if (port == NULL) {
-            error_setg(errp, "Error: usb port %s (bus %s) not found (in use?)",
+            error_setg(errp, "usb port %s (bus %s) not found (in use?)",
                        dev->port_path, bus->qbus.name);
             return;
         }
@@ -422,7 +422,7 @@ void usb_claim_port(USBDevice *dev, Error **errp)
             usb_create_simple(bus, "usb-hub");
         }
         if (bus->nfree == 0) {
-            error_setg(errp, "Error: tried to attach usb device %s to a bus "
+            error_setg(errp, "tried to attach usb device %s to a bus "
                        "with no free ports", dev->product_desc);
             return;
         }
