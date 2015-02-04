@@ -642,22 +642,16 @@ static void parallel_register_types(void)
 
 type_init(parallel_register_types)
 
-static bool parallel_init(ISABus *bus, int index, CharDriverState *chr)
+static void parallel_init(ISABus *bus, int index, CharDriverState *chr)
 {
     DeviceState *dev;
     ISADevice *isadev;
 
-    isadev = isa_try_create(bus, "isa-parallel");
-    if (!isadev) {
-        return false;
-    }
+    isadev = isa_create(bus, "isa-parallel");
     dev = DEVICE(isadev);
     qdev_prop_set_uint32(dev, "index", index);
     qdev_prop_set_chr(dev, "chardev", chr);
-    if (qdev_init(dev) < 0) {
-        return false;
-    }
-    return true;
+    qdev_init_nofail(dev);
 }
 
 void parallel_hds_isa_init(ISABus *bus, int n)
