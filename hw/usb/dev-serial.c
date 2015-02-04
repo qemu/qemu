@@ -544,9 +544,6 @@ static USBDevice *usb_serial_init(USBBus *bus, const char *filename)
         return NULL;
 
     dev = usb_create(bus, "usb-serial");
-    if (!dev) {
-        return NULL;
-    }
     qdev_prop_set_chr(&dev->qdev, "chardev", cdrv);
     if (vendorid)
         qdev_prop_set_uint16(&dev->qdev, "vendorid", vendorid);

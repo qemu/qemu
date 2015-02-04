@@ -1405,9 +1405,6 @@ static USBDevice *usb_net_init(USBBus *bus, const char *cmdline)
     }
 
     dev = usb_create(bus, "usb-net");
-    if (!dev) {
-        return NULL;
-    }
     qdev_set_nic_properties(&dev->qdev, &nd_table[idx]);
     qdev_init_nofail(&dev->qdev);
     return dev;
