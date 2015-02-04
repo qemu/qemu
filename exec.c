@@ -1326,7 +1326,7 @@ void qemu_ram_unset_idstr(ram_addr_t addr)
 
 static int memory_try_enable_merging(void *addr, size_t len)
 {
-    if (!qemu_opt_get_bool(qemu_get_machine_opts(), "mem-merge", true)) {
+    if (!machine_mem_merge(current_machine)) {
         /* disabled by the user */
         return 0;
     }

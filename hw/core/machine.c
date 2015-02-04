@@ -286,6 +286,7 @@ static void machine_initfn(Object *obj)
     ms->kernel_irqchip_allowed = true;
     ms->kvm_shadow_mem = -1;
     ms->dump_guest_core = true;
+    ms->mem_merge = true;
 
     object_property_add_str(obj, "accel",
                             machine_get_accel, machine_set_accel, NULL);
@@ -429,6 +430,11 @@ int machine_phandle_start(MachineState *machine)
 bool machine_dump_guest_core(MachineState *machine)
 {
     return machine->dump_guest_core;
+}
+
+bool machine_mem_merge(MachineState *machine)
+{
+    return machine->mem_merge;
 }
 
 static const TypeInfo machine_info = {
