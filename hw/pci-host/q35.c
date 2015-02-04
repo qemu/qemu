@@ -415,7 +415,7 @@ static void mch_realize(PCIDevice *d, Error **errp)
                  PAM_EXPAN_BASE + i * PAM_EXPAN_SIZE, PAM_EXPAN_SIZE);
     }
     /* Intel IOMMU (VT-d) */
-    if (qemu_opt_get_bool(qemu_get_machine_opts(), "iommu", false)) {
+    if (machine_iommu(current_machine)) {
         mch_init_dmar(mch);
     }
 }

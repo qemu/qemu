@@ -66,6 +66,7 @@ MachineClass *find_default_machine(void);
 extern MachineState *current_machine;
 
 bool machine_usb(MachineState *machine);
+bool machine_iommu(MachineState *machine);
 
 /**
  * MachineClass:

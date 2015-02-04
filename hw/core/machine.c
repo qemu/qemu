@@ -403,6 +403,11 @@ bool machine_usb(MachineState *machine)
     return machine->usb;
 }
 
+bool machine_iommu(MachineState *machine)
+{
+    return machine->iommu;
+}
+
 static const TypeInfo machine_info = {
     .name = TYPE_MACHINE,
     .parent = TYPE_OBJECT,
