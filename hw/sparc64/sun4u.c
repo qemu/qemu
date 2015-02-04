@@ -851,12 +851,7 @@ static void sun4uv_init(MemoryRegion *address_space_mem,
     }
 
     serial_hds_isa_init(isa_bus, MAX_SERIAL_PORTS);
-
-    for(i = 0; i < MAX_PARALLEL_PORTS; i++) {
-        if (parallel_hds[i]) {
-            parallel_init(isa_bus, i, parallel_hds[i]);
-        }
-    }
+    parallel_hds_isa_init(isa_bus, MAX_PARALLEL_PORTS);
 
     for(i = 0; i < nb_nics; i++)
         pci_nic_init_nofail(&nd_table[i], pci_bus, "ne2k_pci", NULL);

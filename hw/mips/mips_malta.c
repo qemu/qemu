@@ -1173,8 +1173,8 @@ void mips_malta_init(MachineState *machine)
 
     rtc_init(isa_bus, 2000, NULL);
     serial_hds_isa_init(isa_bus, 2);
-    if (parallel_hds[0])
-        parallel_init(isa_bus, 0, parallel_hds[0]);
+    parallel_hds_isa_init(isa_bus, 1);
+
     for(i = 0; i < MAX_FD; i++) {
         fd[i] = drive_get(IF_FLOPPY, 0, i);
     }

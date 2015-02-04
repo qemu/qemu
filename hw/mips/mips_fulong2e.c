@@ -384,10 +384,7 @@ static void mips_fulong2e_init(MachineState *machine)
     rtc_init(isa_bus, 2000, NULL);
 
     serial_hds_isa_init(isa_bus, MAX_SERIAL_PORTS);
-
-    if (parallel_hds[0]) {
-        parallel_init(isa_bus, 0, parallel_hds[0]);
-    }
+    parallel_hds_isa_init(isa_bus, 1);
 
     /* Sound card */
     audio_init(pci_bus);

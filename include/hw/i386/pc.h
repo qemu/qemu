@@ -107,23 +107,8 @@ struct PcGuestInfo {
 };
 
 /* parallel.c */
-static inline bool parallel_init(ISABus *bus, int index, CharDriverState *chr)
-{
-    DeviceState *dev;
-    ISADevice *isadev;
 
-    isadev = isa_try_create(bus, "isa-parallel");
-    if (!isadev) {
-        return false;
-    }
-    dev = DEVICE(isadev);
-    qdev_prop_set_uint32(dev, "index", index);
-    qdev_prop_set_chr(dev, "chardev", chr);
-    if (qdev_init(dev) < 0) {
-        return false;
-    }
-    return true;
-}
+void parallel_hds_isa_init(ISABus *bus, int n);
 
 bool parallel_mm_init(MemoryRegion *address_space,
                       hwaddr base, int it_shift, qemu_irq irq,

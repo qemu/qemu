@@ -1420,12 +1420,7 @@ void pc_basic_device_init(ISABus *isa_bus, qemu_irq *gsi,
     }
 
     serial_hds_isa_init(isa_bus, MAX_SERIAL_PORTS);
-
-    for(i = 0; i < MAX_PARALLEL_PORTS; i++) {
-        if (parallel_hds[i]) {
-            parallel_init(isa_bus, i, parallel_hds[i]);
-        }
-    }
+    parallel_hds_isa_init(isa_bus, MAX_PARALLEL_PORTS);
 
     a20_line = qemu_allocate_irqs(handle_a20_line_change, first_cpu, 2);
     i8042 = isa_create_simple(isa_bus, "i8042");
