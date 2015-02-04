@@ -3065,6 +3065,7 @@ static void vfio_put_device(VFIOPCIDevice *vdev)
 {
     g_free(vdev->vbasedev.name);
     if (vdev->msix) {
+        object_unparent(OBJECT(&vdev->msix->mmap_mem));
         g_free(vdev->msix);
         vdev->msix = NULL;
     }
