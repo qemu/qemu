@@ -315,15 +315,36 @@ USBDevice *usb_create(USBBus *bus, const char *name)
     return USB_DEVICE(dev);
 }
 
+static USBDevice *usb_try_create_simple(USBBus *bus, const char *name,
+                                        Error **errp)
+{
+    Error *err = NULL;
+    USBDevice *dev;
+
+    dev = USB_DEVICE(qdev_try_create(&bus->qbus, name));
+    if (!dev) {
+        error_setg(errp, "Failed to create USB device '%s'", name);
+        return NULL;
+    }
+    object_property_set_bool(OBJECT(dev), true, "realized", &err);
+    if (err) {
+        error_setg(errp, "Failed to initialize USB device '%s': %s",
+                   name, error_get_pretty(err));
+        error_free(err);
+        object_unparent(OBJECT(dev));
+        return NULL;
+    }
+    return dev;
+}
+
 USBDevice *usb_create_simple(USBBus *bus, const char *name)
 {
-    USBDevice *dev = usb_create(bus, name);
-    int rc;
+    Error *err = NULL;
+    USBDevice *dev = usb_try_create_simple(bus, name, &err);
 
-    rc = qdev_init(&dev->qdev);
-    if (rc < 0) {
-        error_report("Failed to initialize USB device '%s'", name);
-        return NULL;
+    if (!dev) {
+        error_report("%s", error_get_pretty(err));
+        error_free(err);
     }
     return dev;
 }
@@ -419,7 +440,7 @@ void usb_claim_port(USBDevice *dev, Error **errp)
     } else {
         if (bus->nfree == 1 && strcmp(object_get_typename(OBJECT(dev)), "usb-hub") != 0) {
             /* Create a new hub and chain it on */
-            usb_create_simple(bus, "usb-hub");
+            usb_try_create_simple(bus, "usb-hub", NULL);
         }
         if (bus->nfree == 0) {
             error_setg(errp, "tried to attach usb device %s to a bus "
