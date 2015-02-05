@@ -293,32 +293,24 @@ static BlockBackend *img_open(const char *id, const char *filename,
 {
     BlockBackend *blk;
     BlockDriverState *bs;
-    BlockDriver *drv;
     char password[256];
     Error *local_err = NULL;
-    int ret;
-
-    blk = blk_new_with_bs(id, &error_abort);
-    bs = blk_bs(blk);
+    QDict *options = NULL;
 
     if (fmt) {
-        drv = bdrv_find_format(fmt);
-        if (!drv) {
-            error_report("Unknown file format '%s'", fmt);
-            goto fail;
-        }
-    } else {
-        drv = NULL;
+        options = qdict_new();
+        qdict_put(options, "driver", qstring_from_str(fmt));
     }
 
-    ret = bdrv_open(&bs, filename, NULL, NULL, flags, drv, &local_err);
-    if (ret < 0) {
+    blk = blk_new_open(id, filename, NULL, options, flags, &local_err);
+    if (!blk) {
         error_report("Could not open '%s': %s", filename,
                      error_get_pretty(local_err));
         error_free(local_err);
         goto fail;
     }
 
+    bs = blk_bs(blk);
     if (bdrv_is_encrypted(bs) && require_io) {
         qprintf(quiet, "Disk image '%s' is encrypted.\n", filename);
         if (read_password(password, sizeof(password)) < 0) {
