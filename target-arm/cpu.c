@@ -113,7 +113,14 @@ static void arm_cpu_reset(CPUState *s)
         /* and to the FP/Neon instructions */
         env->cp15.c1_coproc = deposit64(env->cp15.c1_coproc, 20, 2, 3);
 #else
-        env->pstate = PSTATE_MODE_EL1h;
+        /* Reset into the highest available EL */
+        if (arm_feature(env, ARM_FEATURE_EL3)) {
+            env->pstate = PSTATE_MODE_EL3h;
+        } else if (arm_feature(env, ARM_FEATURE_EL2)) {
+            env->pstate = PSTATE_MODE_EL2h;
+        } else {
+            env->pstate = PSTATE_MODE_EL1h;
+        }
         env->pc = cpu->rvbar;
 #endif
     } else {
