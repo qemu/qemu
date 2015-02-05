@@ -119,6 +119,7 @@ static int aarch64_fpu_gdb_set_reg(CPUARMState *env, uint8_t *buf, int reg)
 
 static uint64_t raw_read(CPUARMState *env, const ARMCPRegInfo *ri)
 {
+    assert(ri->fieldoffset);
     if (cpreg_field_is_64bit(ri)) {
         return CPREG_FIELD64(env, ri);
     } else {
@@ -129,6 +130,7 @@ static uint64_t raw_read(CPUARMState *env, const ARMCPRegInfo *ri)
 static void raw_write(CPUARMState *env, const ARMCPRegInfo *ri,
                       uint64_t value)
 {
+    assert(ri->fieldoffset);
     if (cpreg_field_is_64bit(ri)) {
         CPREG_FIELD64(env, ri) = value;
     } else {
@@ -172,6 +174,27 @@ static void write_raw_cp_reg(CPUARMState *env, const ARMCPRegInfo *ri,
     } else {
         raw_write(env, ri, v);
     }
+}
+
+static bool raw_accessors_invalid(const ARMCPRegInfo *ri)
+{
+   /* Return true if the regdef would cause an assertion if you called
+    * read_raw_cp_reg() or write_raw_cp_reg() on it (ie if it is a
+    * program bug for it not to have the NO_RAW flag).
+    * NB that returning false here doesn't necessarily mean that calling
+    * read/write_raw_cp_reg() is safe, because we can't distinguish "has
+    * read/write access functions which are safe for raw use" from "has
+    * read/write access functions which have side effects but has forgotten
+    * to provide raw access functions".
+    * The tests here line up with the conditions in read/write_raw_cp_reg()
+    * and assertions in raw_read()/raw_write().
+    */
+    if ((ri->type & ARM_CP_CONST) ||
+        ri->fieldoffset ||
+        ((ri->raw_writefn || ri->writefn) && (ri->raw_readfn || ri->readfn))) {
+        return false;
+    }
+    return true;
 }
 
 bool write_cpustate_to_list(ARMCPU *cpu)
@@ -3534,6 +3557,14 @@ static void add_cpreg_to_hashtable(ARMCPU *cpu, const ARMCPRegInfo *r,
         ((r->opc1 == CP_ANY) && opc1 != 0) ||
         ((r->opc2 == CP_ANY) && opc2 != 0)) {
         r2->type |= ARM_CP_ALIAS;
+    }
+
+    /* Check that raw accesses are either forbidden or handled. Note that
+     * we can't assert this earlier because the setup of fieldoffset for
+     * banked registers has to be done first.
+     */
+    if (!(r2->type & ARM_CP_NO_RAW)) {
+        assert(!raw_accessors_invalid(r2));
     }
 
     /* Overriding of an existing definition must be explicitly
