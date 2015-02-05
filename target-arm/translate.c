@@ -11036,8 +11036,10 @@ static inline void gen_intermediate_code_internal(ARMCPU *cpu,
     dc->bswap_code = ARM_TBFLAG_BSWAP_CODE(tb->flags);
     dc->condexec_mask = (ARM_TBFLAG_CONDEXEC(tb->flags) & 0xf) << 1;
     dc->condexec_cond = ARM_TBFLAG_CONDEXEC(tb->flags) >> 4;
+    dc->mmu_idx = ARM_TBFLAG_MMUIDX(tb->flags);
+    dc->current_el = arm_mmu_idx_to_el(dc->mmu_idx);
 #if !defined(CONFIG_USER_ONLY)
-    dc->user = (ARM_TBFLAG_PRIV(tb->flags) == 0);
+    dc->user = (dc->current_el == 0);
 #endif
     dc->ns = ARM_TBFLAG_NS(tb->flags);
     dc->cpacr_fpen = ARM_TBFLAG_CPACR_FPEN(tb->flags);
@@ -11046,7 +11048,6 @@ static inline void gen_intermediate_code_internal(ARMCPU *cpu,
     dc->vec_stride = ARM_TBFLAG_VECSTRIDE(tb->flags);
     dc->c15_cpar = ARM_TBFLAG_XSCALE_CPAR(tb->flags);
     dc->cp_regs = cpu->cp_regs;
-    dc->current_el = arm_current_el(env);
     dc->features = env->features;
 
     /* Single step state. The code-generation logic here is:

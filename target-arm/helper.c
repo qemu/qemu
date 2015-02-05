@@ -5179,7 +5179,8 @@ int arm_cpu_handle_mmu_fault(CPUState *cs, vaddr address,
     uint32_t syn;
     bool same_el = (arm_current_el(env) != 0);
 
-    is_user = mmu_idx == MMU_USER_IDX;
+    /* TODO: pass the translation regime to get_phys_addr */
+    is_user = (arm_mmu_idx_to_el(mmu_idx) == 0);
     ret = get_phys_addr(env, address, access_type, is_user, &phys_addr, &prot,
                         &page_size);
     if (ret == 0) {
