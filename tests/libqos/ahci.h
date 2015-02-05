@@ -436,6 +436,7 @@ void ahci_port_clear(AHCIQState *ahci, uint8_t port);
 void ahci_port_check_error(AHCIQState *ahci, uint8_t port);
 void ahci_port_check_interrupts(AHCIQState *ahci, uint8_t port,
                                 uint32_t intr_mask);
+void ahci_port_check_nonbusy(AHCIQState *ahci, uint8_t port, uint8_t slot);
 void ahci_get_command_header(AHCIQState *ahci, uint8_t port,
                              uint8_t slot, AHCICommandHeader *cmd);
 void ahci_set_command_header(AHCIQState *ahci, uint8_t port,

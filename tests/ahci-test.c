@@ -751,6 +751,7 @@ static void ahci_test_identify(AHCIQState *ahci)
     ahci_port_check_error(ahci, i);
     /* BUG: we expect AHCI_PX_IS_DPS to be set. */
     ahci_port_check_interrupts(ahci, i, AHCI_PX_IS_DHRS | AHCI_PX_IS_PSS);
+    ahci_port_check_nonbusy(ahci, i, cx);
 
     /* Investigate the CMD, assert that we read 512 bytes */
     ahci_get_command_header(ahci, i, cx, &cmd);

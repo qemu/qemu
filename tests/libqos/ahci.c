@@ -347,6 +347,24 @@ void ahci_port_check_interrupts(AHCIQState *ahci, uint8_t port,
     g_assert_cmphex(ahci_px_rreg(ahci, port, AHCI_PX_IS), ==, 0);
 }
 
+void ahci_port_check_nonbusy(AHCIQState *ahci, uint8_t port, uint8_t slot)
+{
+    uint32_t reg;
+
+    /* Assert that the command slot is no longer busy (NCQ) */
+    reg = ahci_px_rreg(ahci, port, AHCI_PX_SACT);
+    ASSERT_BIT_CLEAR(reg, (1 << slot));
+
+    /* Non-NCQ */
+    reg = ahci_px_rreg(ahci, port, AHCI_PX_CI);
+    ASSERT_BIT_CLEAR(reg, (1 << slot));
+
+    /* And assert that we are generally not busy. */
+    reg = ahci_px_rreg(ahci, port, AHCI_PX_TFD);
+    ASSERT_BIT_CLEAR(reg, AHCI_PX_TFD_STS_BSY);
+    ASSERT_BIT_CLEAR(reg, AHCI_PX_TFD_STS_DRQ);
+}
+
 /* Get the command in #slot of port #port. */
 void ahci_get_command_header(AHCIQState *ahci, uint8_t port,
                              uint8_t slot, AHCICommandHeader *cmd)
