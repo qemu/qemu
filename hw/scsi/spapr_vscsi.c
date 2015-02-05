@@ -630,7 +630,7 @@ static void vscsi_save_request(QEMUFile *f, SCSIRequest *sreq)
     vscsi_req *req = sreq->hba_private;
     assert(req->active);
 
-    vmstate_save_state(f, &vmstate_spapr_vscsi_req, req);
+    vmstate_save_state(f, &vmstate_spapr_vscsi_req, req, NULL);
 
     DPRINTF("VSCSI: saving tag=%u, current desc#%d, offset=%x\n",
             req->qtag, req->cur_desc_num, req->cur_desc_offset);

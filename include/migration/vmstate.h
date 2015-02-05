@@ -29,6 +29,7 @@
 #ifndef CONFIG_USER_ONLY
 #include <migration/qemu-file.h>
 #endif
+#include <qjson.h>
 
 typedef void SaveStateHandler(QEMUFile *f, void *opaque);
 typedef int LoadStateHandler(QEMUFile *f, void *opaque, int version_id);
@@ -801,7 +802,7 @@ extern const VMStateInfo vmstate_info_bitmap;
 int vmstate_load_state(QEMUFile *f, const VMStateDescription *vmsd,
                        void *opaque, int version_id);
 void vmstate_save_state(QEMUFile *f, const VMStateDescription *vmsd,
-                        void *opaque);
+                        void *opaque, QJSON *vmdesc);
 
 int vmstate_register_with_alias_id(DeviceState *dev, int instance_id,
                                    const VMStateDescription *vmsd,

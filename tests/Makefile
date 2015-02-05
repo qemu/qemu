@@ -266,7 +266,8 @@ tests/test-qdev-global-props$(EXESUF): tests/test-qdev-global-props.o \
 	libqemuutil.a libqemustub.a
 tests/test-vmstate$(EXESUF): tests/test-vmstate.o \
 	migration/vmstate.o migration/qemu-file.o migration/qemu-file-buf.o \
-        migration/qemu-file-unix.o \
+        migration/qemu-file-unix.o qjson.o \
+	$(qom-core-obj) \
 	libqemuutil.a libqemustub.a
 
 tests/test-qapi-types.c tests/test-qapi-types.h :\

@@ -513,7 +513,7 @@ void pci_device_save(PCIDevice *s, QEMUFile *f)
      * This makes us compatible with old devices
      * which never set or clear this bit. */
     s->config[PCI_STATUS] &= ~PCI_STATUS_INTERRUPT;
-    vmstate_save_state(f, pci_get_vmstate(s), s);
+    vmstate_save_state(f, pci_get_vmstate(s), s, NULL);
     /* Restore the interrupt status bit. */
     pci_update_irq_status(s);
 }
