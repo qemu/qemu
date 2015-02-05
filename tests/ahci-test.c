@@ -663,6 +663,7 @@ static void ahci_test_identify(AHCIQState *ahci)
     uint16_t buff[256];
     unsigned px;
     int rc;
+    uint16_t sect_size;
     const size_t buffsize = 512;
 
     g_assert(ahci != NULL);
@@ -710,6 +711,9 @@ static void ahci_test_identify(AHCIQState *ahci)
     string_bswap16(&buff[23], 8);
     rc = memcmp(&buff[23], "version ", 8);
     g_assert_cmphex(rc, ==, 0);
+
+    sect_size = le16_to_cpu(*((uint16_t *)(&buff[5])));
+    g_assert_cmphex(sect_size, ==, 0x200);
 }
 
 /******************************************************************************/
