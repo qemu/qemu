@@ -1218,6 +1218,10 @@ static inline bool cptype_valid(int cptype)
  */
 static inline int arm_current_el(CPUARMState *env)
 {
+    if (arm_feature(env, ARM_FEATURE_M)) {
+        return !((env->v7m.exception == 0) && (env->v7m.control & 1));
+    }
+
     if (is_a64(env)) {
         return extract32(env->pstate, 2, 2);
     }
