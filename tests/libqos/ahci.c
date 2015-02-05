@@ -592,6 +592,31 @@ static AHCICommandProp *ahci_command_find(uint8_t command_name)
     return NULL;
 }
 
+/* Given a HOST buffer, create a buffer address and perform an IO operation. */
+void ahci_io(AHCIQState *ahci, uint8_t port, uint8_t ide_cmd,
+             void *buffer, size_t bufsize)
+{
+    uint64_t ptr;
+    AHCICommandProp *props;
+
+    props = ahci_command_find(ide_cmd);
+    g_assert(props);
+    ptr = ahci_alloc(ahci, bufsize);
+    g_assert(ptr);
+
+    if (props->write) {
+        memwrite(ptr, buffer, bufsize);
+    }
+
+    ahci_guest_io(ahci, port, ide_cmd, ptr, bufsize);
+
+    if (props->read) {
+        memread(ptr, buffer, bufsize);
+    }
+
+    ahci_free(ahci, ptr);
+}
+
 /**
  * Initializes a basic command header in memory.
  * We assume that this is for an ATA command using RegH2DFIS.

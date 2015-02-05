@@ -657,56 +657,43 @@ static void ahci_test_port_spec(AHCIQState *ahci, uint8_t port)
  */
 static void ahci_test_identify(AHCIQState *ahci)
 {
-    uint32_t data_ptr;
     uint16_t buff[256];
-    unsigned i;
+    unsigned px;
     int rc;
-    AHCICommand *cmd;
+    const size_t buffsize = 512;
 
     g_assert(ahci != NULL);
 
-    /* We need to:
-     * (1) Create a data buffer for the IDENTIFY response to be sent to,
-     * (2) Create a Command Table Buffer
+    /**
+     * This serves as a bit of a tutorial on AHCI device programming:
+     *
+     * (1) Create a data buffer for the IDENTIFY response to be sent to
+     * (2) Create a Command Table buffer, where we will store the
+     *     command and PRDT (Physical Region Descriptor Table)
      * (3) Construct an FIS host-to-device command structure, and write it to
-     *     the top of the command table buffer.
-     * (4) Create a Physical Region Descriptor that points to the data buffer,
-     *     and write it to the bottom (offset 0x80) of the command table.
-     * (5) Obtain a Command List slot, and update this header to point to
-     *     the Command Table we built above.
-     * (6) Now, PxCLB points to the command list, command 0 points to
-     *     our table, and our table contains an FIS instruction and a
-     *     PRD that points to our rx buffer.
-     * (7) We inform the HBA via PxCI that there is a command ready in slot #0.
+     *     the top of the Command Table buffer.
+     * (4) Create one or more Physical Region Descriptors (PRDs) that describe
+     *     a location in memory where data may be stored/retrieved.
+     * (5) Write these PRDTs to the bottom (offset 0x80) of the Command Table.
+     * (6) Each AHCI port has up to 32 command slots. Each slot contains a
+     *     header that points to a Command Table buffer. Pick an unused slot
+     *     and update it to point to the Command Table we have built.
+     * (7) Now: Command #n points to our Command Table, and our Command Table
+     *     contains the FIS (that describes our command) and the PRDTL, which
+     *     describes our buffer.
+     * (8) We inform the HBA via PxCI (Command Issue) that the command in slot
+     *     #n is ready for processing.
      */
 
     /* Pick the first implemented and running port */
-    i = ahci_port_select(ahci);
-    g_test_message("Selected port %u for test", i);
+    px = ahci_port_select(ahci);
+    g_test_message("Selected port %u for test", px);
 
     /* Clear out the FIS Receive area and any pending interrupts. */
-    ahci_port_clear(ahci, i);
+    ahci_port_clear(ahci, px);
 
-    /* Create a data buffer where we will dump the IDENTIFY data to. */
-    data_ptr = ahci_alloc(ahci, 512);
-    g_assert(data_ptr);
-
-    /* Construct the Command Table (FIS and PRDT) and Command Header */
-    cmd = ahci_command_create(CMD_IDENTIFY);
-    ahci_command_set_buffer(cmd, data_ptr);
-    /* Write the command header and PRDT to guest memory */
-    ahci_command_commit(ahci, cmd, i);
-
-    /* Everything is in place, but we haven't given the go-ahead yet,
-     * so we should find that there are no pending interrupts yet. */
-    g_assert_cmphex(ahci_px_rreg(ahci, i, AHCI_PX_IS), ==, 0);
-
-    /* Issue command and sanity check response. */
-    ahci_command_issue(ahci, cmd);
-    ahci_command_verify(ahci, cmd);
-
-    /* Last, but not least: Investigate the IDENTIFY response data. */
-    memread(data_ptr, &buff, 512);
+    /* "Read" 512 bytes using CMD_IDENTIFY into the host buffer. */
+    ahci_io(ahci, px, CMD_IDENTIFY, &buff, buffsize);
 
     /* Check serial number/version in the buffer */
     /* NB: IDENTIFY strings are packed in 16bit little endian chunks.
