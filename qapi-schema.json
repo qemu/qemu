@@ -3746,10 +3746,14 @@
 #
 # @none: nothing is done
 #
+# @inject-nmi: a non-maskable interrupt is injected into the first VCPU (all
+#              VCPUS on x86) (since 2.4)
+#
 # Since: 2.1
 ##
 { 'enum': 'WatchdogExpirationAction',
-  'data': [ 'reset', 'shutdown', 'poweroff', 'pause', 'debug', 'none' ] }
+  'data': [ 'reset', 'shutdown', 'poweroff', 'pause', 'debug', 'none',
+            'inject-nmi' ] }
 
 ##
 # @IoOperationType
