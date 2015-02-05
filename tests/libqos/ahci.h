@@ -329,15 +329,14 @@ typedef struct RegH2DFIS {
  * Command List entry structure.
  * The command list contains between 1-32 of these structures.
  */
-typedef struct AHCICommand {
-    uint8_t b1;
-    uint8_t b2;
+typedef struct AHCICommandHeader {
+    uint16_t flags; /* Cmd-Fis-Len, PMP#, and flags. */
     uint16_t prdtl; /* Phys Region Desc. Table Length */
     uint32_t prdbc; /* Phys Region Desc. Byte Count */
     uint32_t ctba;  /* Command Table Descriptor Base Address */
     uint32_t ctbau; /*                                    '' Upper */
     uint32_t res[4];
-} __attribute__((__packed__)) AHCICommand;
+} __attribute__((__packed__)) AHCICommandHeader;
 
 /**
  * Physical Region Descriptor; pointed to by the Command List Header,

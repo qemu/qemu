@@ -660,7 +660,7 @@ static void ahci_test_identify(AHCIQState *ahci)
     RegD2HFIS *d2h = g_malloc0(0x20);
     RegD2HFIS *pio = g_malloc0(0x20);
     RegH2DFIS fis;
-    AHCICommand cmd;
+    AHCICommandHeader cmd;
     PRD prd;
     uint32_t reg, table, data_ptr;
     uint16_t buff[256];
@@ -703,9 +703,9 @@ static void ahci_test_identify(AHCIQState *ahci)
     /* Copy the existing Command #0 structure from the CLB into local memory,
      * and build a new command #0. */
     memread(ahci->port[i].clb, &cmd, sizeof(cmd));
-    cmd.b1 = 5;    /* reg_h2d_fis is 5 double-words long */
-    cmd.b2 = 0x04; /* clear PxTFD.STS.BSY when done */
-    cmd.prdtl = cpu_to_le16(1); /* One PRD table entry. */
+    cmd.flags = cpu_to_le16(5);      /* reg_h2d_fis is 5 double-words long */
+    cmd.flags |= cpu_to_le16(0x400); /* clear PxTFD.STS.BSY when done */
+    cmd.prdtl = cpu_to_le16(1);      /* One PRD table entry. */
     cmd.prdbc = 0;
     cmd.ctba = cpu_to_le32(table);
     cmd.ctbau = 0;
