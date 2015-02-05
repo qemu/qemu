@@ -229,6 +229,9 @@ float32 HELPER(recpsf_f32)(float32 a, float32 b, void *fpstp)
 {
     float_status *fpst = fpstp;
 
+    a = float32_squash_input_denormal(a, fpst);
+    b = float32_squash_input_denormal(b, fpst);
+
     a = float32_chs(a);
     if ((float32_is_infinity(a) && float32_is_zero(b)) ||
         (float32_is_infinity(b) && float32_is_zero(a))) {
@@ -240,6 +243,9 @@ float32 HELPER(recpsf_f32)(float32 a, float32 b, void *fpstp)
 float64 HELPER(recpsf_f64)(float64 a, float64 b, void *fpstp)
 {
     float_status *fpst = fpstp;
+
+    a = float64_squash_input_denormal(a, fpst);
+    b = float64_squash_input_denormal(b, fpst);
 
     a = float64_chs(a);
     if ((float64_is_infinity(a) && float64_is_zero(b)) ||
@@ -253,6 +259,9 @@ float32 HELPER(rsqrtsf_f32)(float32 a, float32 b, void *fpstp)
 {
     float_status *fpst = fpstp;
 
+    a = float32_squash_input_denormal(a, fpst);
+    b = float32_squash_input_denormal(b, fpst);
+
     a = float32_chs(a);
     if ((float32_is_infinity(a) && float32_is_zero(b)) ||
         (float32_is_infinity(b) && float32_is_zero(a))) {
@@ -264,6 +273,9 @@ float32 HELPER(rsqrtsf_f32)(float32 a, float32 b, void *fpstp)
 float64 HELPER(rsqrtsf_f64)(float64 a, float64 b, void *fpstp)
 {
     float_status *fpst = fpstp;
+
+    a = float64_squash_input_denormal(a, fpst);
+    b = float64_squash_input_denormal(b, fpst);
 
     a = float64_chs(a);
     if ((float64_is_infinity(a) && float64_is_zero(b)) ||
