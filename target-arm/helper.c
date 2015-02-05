@@ -1458,13 +1458,13 @@ static CPAccessResult ats_access(CPUARMState *env, const ARMCPRegInfo *ri)
     return CP_ACCESS_OK;
 }
 
-static void ats_write(CPUARMState *env, const ARMCPRegInfo *ri, uint64_t value)
+static uint64_t do_ats_write(CPUARMState *env, uint64_t value,
+                             int access_type, int is_user)
 {
     hwaddr phys_addr;
     target_ulong page_size;
     int prot;
-    int ret, is_user = ri->opc2 & 2;
-    int access_type = ri->opc2 & 1;
+    int ret;
     uint64_t par64;
 
     ret = get_phys_addr(env, value, access_type, is_user,
@@ -1504,8 +1504,27 @@ static void ats_write(CPUARMState *env, const ARMCPRegInfo *ri, uint64_t value)
                     ((ret & 0xf) << 1) | 1;
         }
     }
+    return par64;
+}
+
+static void ats_write(CPUARMState *env, const ARMCPRegInfo *ri, uint64_t value)
+{
+    int is_user = ri->opc2 & 2;
+    int access_type = ri->opc2 & 1;
+    uint64_t par64;
+
+    par64 = do_ats_write(env, value, access_type, is_user);
 
     A32_BANKED_CURRENT_REG_SET(env, par, par64);
+}
+
+static void ats_write64(CPUARMState *env, const ARMCPRegInfo *ri,
+                        uint64_t value)
+{
+    int is_user = ri->opc2 & 2;
+    int access_type = ri->opc2 & 1;
+
+    env->cp15.par_el[1] = do_ats_write(env, value, access_type, is_user);
 }
 #endif
 
@@ -2280,16 +2299,16 @@ static const ARMCPRegInfo v8_cp_reginfo[] = {
     /* 64 bit address translation operations */
     { .name = "AT_S1E1R", .state = ARM_CP_STATE_AA64,
       .opc0 = 1, .opc1 = 0, .crn = 7, .crm = 8, .opc2 = 0,
-      .access = PL1_W, .type = ARM_CP_NO_RAW, .writefn = ats_write },
+      .access = PL1_W, .type = ARM_CP_NO_RAW, .writefn = ats_write64 },
     { .name = "AT_S1E1W", .state = ARM_CP_STATE_AA64,
       .opc0 = 1, .opc1 = 0, .crn = 7, .crm = 8, .opc2 = 1,
-      .access = PL1_W, .type = ARM_CP_NO_RAW, .writefn = ats_write },
+      .access = PL1_W, .type = ARM_CP_NO_RAW, .writefn = ats_write64 },
     { .name = "AT_S1E0R", .state = ARM_CP_STATE_AA64,
       .opc0 = 1, .opc1 = 0, .crn = 7, .crm = 8, .opc2 = 2,
-      .access = PL1_W, .type = ARM_CP_NO_RAW, .writefn = ats_write },
+      .access = PL1_W, .type = ARM_CP_NO_RAW, .writefn = ats_write64 },
     { .name = "AT_S1E0W", .state = ARM_CP_STATE_AA64,
       .opc0 = 1, .opc1 = 0, .crn = 7, .crm = 8, .opc2 = 3,
-      .access = PL1_W, .type = ARM_CP_NO_RAW, .writefn = ats_write },
+      .access = PL1_W, .type = ARM_CP_NO_RAW, .writefn = ats_write64 },
 #endif
     /* TLB invalidate last level of translation table walk */
     { .name = "TLBIMVALIS", .cp = 15, .opc1 = 0, .crn = 8, .crm = 3, .opc2 = 5,
