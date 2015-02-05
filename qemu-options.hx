@@ -3174,6 +3174,9 @@ iBASE 700 is a very simple ISA watchdog with a single timer.
 @item i6300esb
 Intel 6300ESB I/O controller hub is a much more featureful PCI-based
 dual-timer watchdog.
+@item diag288
+A virtual watchdog for s390x backed by the diagnose 288 hypercall
+(currently KVM only).
 @end table
 ETEXI
 
