@@ -193,9 +193,12 @@ int kvm_arch_put_registers(CPUState *cs, int level)
         }
     }
 
+    if (!write_list_to_kvmstate(cpu)) {
+        return EINVAL;
+    }
+
     /* TODO:
      * FP state
-     * system registers
      */
     return ret;
 }
@@ -268,6 +271,14 @@ int kvm_arch_get_registers(CPUState *cs)
             return ret;
         }
     }
+
+    if (!write_kvmstate_to_list(cpu)) {
+        return EINVAL;
+    }
+    /* Note that it's OK to have registers which aren't in CPUState,
+     * so we can ignore a failure return here.
+     */
+    write_list_to_cpustate(cpu);
 
     /* TODO: other registers */
     return ret;
