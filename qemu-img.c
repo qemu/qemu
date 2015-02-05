@@ -1010,19 +1010,19 @@ static int64_t sectors_to_process(int64_t total, int64_t from)
  * Returns 0 in case sectors are filled with 0, 1 if sectors contain non-zero
  * data and negative value on error.
  *
- * @param bs:  Driver used for accessing file
+ * @param blk:  BlockBackend for the image
  * @param sect_num: Number of first sector to check
  * @param sect_count: Number of sectors to check
  * @param filename: Name of disk file we are checking (logging purpose)
  * @param buffer: Allocated buffer for storing read data
  * @param quiet: Flag for quiet mode
  */
-static int check_empty_sectors(BlockDriverState *bs, int64_t sect_num,
+static int check_empty_sectors(BlockBackend *blk, int64_t sect_num,
                                int sect_count, const char *filename,
                                uint8_t *buffer, bool quiet)
 {
     int pnum, ret = 0;
-    ret = bdrv_read(bs, sect_num, buffer, sect_count);
+    ret = blk_read(blk, sect_num, buffer, sect_count);
     if (ret < 0) {
         error_report("Error while reading offset %" PRId64 " of %s: %s",
                      sectors_to_bytes(sect_num), filename, strerror(-ret));
@@ -1132,16 +1132,16 @@ static int img_compare(int argc, char **argv)
     }
     bs2 = blk_bs(blk2);
 
-    buf1 = qemu_blockalign(bs1, IO_BUF_SIZE);
-    buf2 = qemu_blockalign(bs2, IO_BUF_SIZE);
-    total_sectors1 = bdrv_nb_sectors(bs1);
+    buf1 = blk_blockalign(blk1, IO_BUF_SIZE);
+    buf2 = blk_blockalign(blk2, IO_BUF_SIZE);
+    total_sectors1 = blk_nb_sectors(blk1);
     if (total_sectors1 < 0) {
         error_report("Can't get size of %s: %s",
                      filename1, strerror(-total_sectors1));
         ret = 4;
         goto out;
     }
-    total_sectors2 = bdrv_nb_sectors(bs2);
+    total_sectors2 = blk_nb_sectors(blk2);
     if (total_sectors2 < 0) {
         error_report("Can't get size of %s: %s",
                      filename2, strerror(-total_sectors2));
@@ -1183,7 +1183,7 @@ static int img_compare(int argc, char **argv)
 
         if (allocated1 == allocated2) {
             if (allocated1) {
-                ret = bdrv_read(bs1, sector_num, buf1, nb_sectors);
+                ret = blk_read(blk1, sector_num, buf1, nb_sectors);
                 if (ret < 0) {
                     error_report("Error while reading offset %" PRId64 " of %s:"
                                  " %s", sectors_to_bytes(sector_num), filename1,
@@ -1191,7 +1191,7 @@ static int img_compare(int argc, char **argv)
                     ret = 4;
                     goto out;
                 }
-                ret = bdrv_read(bs2, sector_num, buf2, nb_sectors);
+                ret = blk_read(blk2, sector_num, buf2, nb_sectors);
                 if (ret < 0) {
                     error_report("Error while reading offset %" PRId64
                                  " of %s: %s", sectors_to_bytes(sector_num),
@@ -1218,10 +1218,10 @@ static int img_compare(int argc, char **argv)
             }
 
             if (allocated1) {
-                ret = check_empty_sectors(bs1, sector_num, nb_sectors,
+                ret = check_empty_sectors(blk1, sector_num, nb_sectors,
                                           filename1, buf1, quiet);
             } else {
-                ret = check_empty_sectors(bs2, sector_num, nb_sectors,
+                ret = check_empty_sectors(blk2, sector_num, nb_sectors,
                                           filename2, buf1, quiet);
             }
             if (ret) {
@@ -1238,18 +1238,18 @@ static int img_compare(int argc, char **argv)
     }
 
     if (total_sectors1 != total_sectors2) {
-        BlockDriverState *bs_over;
+        BlockBackend *blk_over;
         int64_t total_sectors_over;
         const char *filename_over;
 
         qprintf(quiet, "Warning: Image size mismatch!\n");
         if (total_sectors1 > total_sectors2) {
             total_sectors_over = total_sectors1;
-            bs_over = bs1;
+            blk_over = blk1;
             filename_over = filename1;
         } else {
             total_sectors_over = total_sectors2;
-            bs_over = bs2;
+            blk_over = blk2;
             filename_over = filename2;
         }
 
@@ -1258,7 +1258,7 @@ static int img_compare(int argc, char **argv)
             if (nb_sectors <= 0) {
                 break;
             }
-            ret = bdrv_is_allocated_above(bs_over, NULL, sector_num,
+            ret = bdrv_is_allocated_above(blk_bs(blk_over), NULL, sector_num,
                                           nb_sectors, &pnum);
             if (ret < 0) {
                 ret = 3;
@@ -1269,7 +1269,7 @@ static int img_compare(int argc, char **argv)
             }
             nb_sectors = pnum;
             if (ret) {
-                ret = check_empty_sectors(bs_over, sector_num, nb_sectors,
+                ret = check_empty_sectors(blk_over, sector_num, nb_sectors,
                                           filename_over, buf1, quiet);
                 if (ret) {
                     if (ret < 0) {
@@ -1478,7 +1478,7 @@ static int img_convert(int argc, char **argv)
             goto out;
         }
         bs[bs_i] = blk_bs(blk[bs_i]);
-        bs_sectors[bs_i] = bdrv_nb_sectors(bs[bs_i]);
+        bs_sectors[bs_i] = blk_nb_sectors(blk[bs_i]);
         if (bs_sectors[bs_i] < 0) {
             error_report("Could not get size of %s: %s",
                          argv[optind + bs_i], strerror(-bs_sectors[bs_i]));
@@ -1630,10 +1630,10 @@ static int img_convert(int argc, char **argv)
                                          out_bs->bl.discard_alignment))
                     );
 
-    buf = qemu_blockalign(out_bs, bufsectors * BDRV_SECTOR_SIZE);
+    buf = blk_blockalign(out_blk, bufsectors * BDRV_SECTOR_SIZE);
 
     if (skip_create) {
-        int64_t output_sectors = bdrv_nb_sectors(out_bs);
+        int64_t output_sectors = blk_nb_sectors(out_blk);
         if (output_sectors < 0) {
             error_report("unable to get output image length: %s\n",
                          strerror(-output_sectors));
@@ -1701,7 +1701,7 @@ static int img_convert(int argc, char **argv)
                 nlow = remainder > bs_sectors[bs_i] - bs_num
                     ? bs_sectors[bs_i] - bs_num : remainder;
 
-                ret = bdrv_read(bs[bs_i], bs_num, buf2, nlow);
+                ret = blk_read(blk[bs_i], bs_num, buf2, nlow);
                 if (ret < 0) {
                     error_report("error while reading sector %" PRId64 ": %s",
                                  bs_num, strerror(-ret));
@@ -1716,7 +1716,7 @@ static int img_convert(int argc, char **argv)
             assert (remainder == 0);
 
             if (!buffer_is_zero(buf, n * BDRV_SECTOR_SIZE)) {
-                ret = bdrv_write_compressed(out_bs, sector_num, buf, n);
+                ret = blk_write_compressed(out_blk, sector_num, buf, n);
                 if (ret != 0) {
                     error_report("error while compressing sector %" PRId64
                                  ": %s", sector_num, strerror(-ret));
@@ -1727,7 +1727,7 @@ static int img_convert(int argc, char **argv)
             qemu_progress_print(100.0 * sector_num / total_sectors, 0);
         }
         /* signal EOF to align */
-        bdrv_write_compressed(out_bs, 0, NULL, 0);
+        blk_write_compressed(out_blk, 0, NULL, 0);
     } else {
         int64_t sectors_to_read, sectors_read, sector_num_next_status;
         bool count_allocated_sectors;
@@ -1828,7 +1828,7 @@ restart:
             }
 
             n1 = n;
-            ret = bdrv_read(bs[bs_i], sector_num - bs_offset, buf, n);
+            ret = blk_read(blk[bs_i], sector_num - bs_offset, buf, n);
             if (ret < 0) {
                 error_report("error while reading sector %" PRId64 ": %s",
                              sector_num - bs_offset, strerror(-ret));
@@ -1841,7 +1841,7 @@ restart:
             while (n > 0) {
                 if (!has_zero_init ||
                     is_allocated_sectors_min(buf1, n, &n1, min_sparse)) {
-                    ret = bdrv_write(out_bs, sector_num, buf1, n1);
+                    ret = blk_write(out_blk, sector_num, buf1, n1);
                     if (ret < 0) {
                         error_report("error while writing sector %" PRId64
                                      ": %s", sector_num, strerror(-ret));
@@ -2265,7 +2265,7 @@ static int img_map(int argc, char **argv)
         printf("%-16s%-16s%-16s%s\n", "Offset", "Length", "Mapped to", "File");
     }
 
-    length = bdrv_getlength(bs);
+    length = blk_getlength(blk);
     while (curr.start + curr.length < length) {
         int64_t nsectors_left;
         int64_t sector_num;
@@ -2434,7 +2434,7 @@ static int img_snapshot(int argc, char **argv)
 static int img_rebase(int argc, char **argv)
 {
     BlockBackend *blk = NULL, *blk_old_backing = NULL, *blk_new_backing = NULL;
-    BlockDriverState *bs = NULL, *bs_old_backing = NULL, *bs_new_backing = NULL;
+    BlockDriverState *bs = NULL;
     char *filename;
     const char *fmt, *cache, *src_cache, *out_basefmt, *out_baseimg;
     int c, flags, src_flags, ret;
@@ -2555,7 +2555,6 @@ static int img_rebase(int argc, char **argv)
             error_free(local_err);
             goto out;
         }
-        bs_old_backing = blk_bs(blk_old_backing);
 
         if (out_baseimg[0]) {
             if (out_basefmt) {
@@ -2573,7 +2572,6 @@ static int img_rebase(int argc, char **argv)
                 error_free(local_err);
                 goto out;
             }
-            bs_new_backing = blk_bs(blk_new_backing);
         }
     }
 
@@ -2596,17 +2594,17 @@ static int img_rebase(int argc, char **argv)
         uint8_t * buf_new;
         float local_progress = 0;
 
-        buf_old = qemu_blockalign(bs, IO_BUF_SIZE);
-        buf_new = qemu_blockalign(bs, IO_BUF_SIZE);
+        buf_old = blk_blockalign(blk, IO_BUF_SIZE);
+        buf_new = blk_blockalign(blk, IO_BUF_SIZE);
 
-        num_sectors = bdrv_nb_sectors(bs);
+        num_sectors = blk_nb_sectors(blk);
         if (num_sectors < 0) {
             error_report("Could not get size of '%s': %s",
                          filename, strerror(-num_sectors));
             ret = -1;
             goto out;
         }
-        old_backing_num_sectors = bdrv_nb_sectors(bs_old_backing);
+        old_backing_num_sectors = blk_nb_sectors(blk_old_backing);
         if (old_backing_num_sectors < 0) {
             char backing_name[PATH_MAX];
 
@@ -2616,8 +2614,8 @@ static int img_rebase(int argc, char **argv)
             ret = -1;
             goto out;
         }
-        if (bs_new_backing) {
-            new_backing_num_sectors = bdrv_nb_sectors(bs_new_backing);
+        if (blk_new_backing) {
+            new_backing_num_sectors = blk_nb_sectors(blk_new_backing);
             if (new_backing_num_sectors < 0) {
                 error_report("Could not get size of '%s': %s",
                              out_baseimg, strerror(-new_backing_num_sectors));
@@ -2662,21 +2660,21 @@ static int img_rebase(int argc, char **argv)
                     n = old_backing_num_sectors - sector;
                 }
 
-                ret = bdrv_read(bs_old_backing, sector, buf_old, n);
+                ret = blk_read(blk_old_backing, sector, buf_old, n);
                 if (ret < 0) {
                     error_report("error while reading from old backing file");
                     goto out;
                 }
             }
 
-            if (sector >= new_backing_num_sectors || !bs_new_backing) {
+            if (sector >= new_backing_num_sectors || !blk_new_backing) {
                 memset(buf_new, 0, n * BDRV_SECTOR_SIZE);
             } else {
                 if (sector + n > new_backing_num_sectors) {
                     n = new_backing_num_sectors - sector;
                 }
 
-                ret = bdrv_read(bs_new_backing, sector, buf_new, n);
+                ret = blk_read(blk_new_backing, sector, buf_new, n);
                 if (ret < 0) {
                     error_report("error while reading from new backing file");
                     goto out;
@@ -2692,8 +2690,8 @@ static int img_rebase(int argc, char **argv)
                 if (compare_sectors(buf_old + written * 512,
                     buf_new + written * 512, n - written, &pnum))
                 {
-                    ret = bdrv_write(bs, sector + written,
-                        buf_old + written * 512, pnum);
+                    ret = blk_write(blk, sector + written,
+                                    buf_old + written * 512, pnum);
                     if (ret < 0) {
                         error_report("Error while writing to COW image: %s",
                             strerror(-ret));
@@ -2758,7 +2756,6 @@ static int img_resize(int argc, char **argv)
     int64_t n, total_size;
     bool quiet = false;
     BlockBackend *blk = NULL;
-    BlockDriverState *bs = NULL;
     QemuOpts *param;
     static QemuOptsList resize_options = {
         .name = "resize_options",
@@ -2840,10 +2837,9 @@ static int img_resize(int argc, char **argv)
         ret = -1;
         goto out;
     }
-    bs = blk_bs(blk);
 
     if (relative) {
-        total_size = bdrv_getlength(bs) + n * relative;
+        total_size = blk_getlength(blk) + n * relative;
     } else {
         total_size = n;
     }
@@ -2853,7 +2849,7 @@ static int img_resize(int argc, char **argv)
         goto out;
     }
 
-    ret = bdrv_truncate(bs, total_size);
+    ret = blk_truncate(blk, total_size);
     switch (ret) {
     case 0:
         qprintf(quiet, "Image resized.\n");
