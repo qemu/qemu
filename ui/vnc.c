@@ -3685,6 +3685,19 @@ QemuOpts *vnc_parse_func(const char *str)
     return qemu_opts_parse(qemu_find_opts("vnc"), str, 1);
 }
 
+void vnc_auto_assign_id(QemuOptsList *olist, QemuOpts *opts)
+{
+    int i = 2;
+    char *id;
+
+    id = g_strdup("default");
+    while (qemu_opts_find(olist, id)) {
+        g_free(id);
+        id = g_strdup_printf("vnc%d", i++);
+    }
+    qemu_opts_set_id(opts, id);
+}
+
 int vnc_init_func(QemuOpts *opts, void *opaque)
 {
     Error *local_err = NULL;
@@ -3693,13 +3706,8 @@ int vnc_init_func(QemuOpts *opts, void *opaque)
 
     if (!id) {
         /* auto-assign id if not present */
-        int i = 2;
-        id = g_strdup("default");
-        while (qemu_opts_find(olist, id)) {
-            g_free(id);
-            id = g_strdup_printf("vnc%d", i++);
-        }
-        qemu_opts_set_id(opts, id);
+        vnc_auto_assign_id(olist, opts);
+        id = (char *)qemu_opts_id(opts);
     }
 
     vnc_display_init(id);
