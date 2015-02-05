@@ -441,10 +441,32 @@ static void create_virtio_devices(const VirtBoardInfo *vbi, qemu_irq *pic)
     int i;
     hwaddr size = vbi->memmap[VIRT_MMIO].size;
 
-    /* Note that we have to create the transports in forwards order
-     * so that command line devices are inserted lowest address first,
-     * and then add dtb nodes in reverse order so that they appear in
-     * the finished device tree lowest address first.
+    /* We create the transports in forwards order. Since qbus_realize()
+     * prepends (not appends) new child buses, the incrementing loop below will
+     * create a list of virtio-mmio buses with decreasing base addresses.
+     *
+     * When a -device option is processed from the command line,
+     * qbus_find_recursive() picks the next free virtio-mmio bus in forwards
+     * order. The upshot is that -device options in increasing command line
+     * order are mapped to virtio-mmio buses with decreasing base addresses.
+     *
+     * When this code was originally written, that arrangement ensured that the
+     * guest Linux kernel would give the lowest "name" (/dev/vda, eth0, etc) to
+     * the first -device on the command line. (The end-to-end order is a
+     * function of this loop, qbus_realize(), qbus_find_recursive(), and the
+     * guest kernel's name-to-address assignment strategy.)
+     *
+     * Meanwhile, the kernel's traversal seems to have been reversed; see eg.
+     * the message, if not necessarily the code, of commit 70161ff336.
+     * Therefore the loop now establishes the inverse of the original intent.
+     *
+     * Unfortunately, we can't counteract the kernel change by reversing the
+     * loop; it would break existing command lines.
+     *
+     * In any case, the kernel makes no guarantee about the stability of
+     * enumeration order of virtio devices (as demonstrated by it changing
+     * between kernel versions). For reliable and stable identification
+     * of disks users must use UUIDs or similar mechanisms.
      */
     for (i = 0; i < NUM_VIRTIO_TRANSPORTS; i++) {
         int irq = vbi->irqmap[VIRT_MMIO] + i;
@@ -453,6 +475,13 @@ static void create_virtio_devices(const VirtBoardInfo *vbi, qemu_irq *pic)
         sysbus_create_simple("virtio-mmio", base, pic[irq]);
     }
 
+    /* We add dtb nodes in reverse order so that they appear in the finished
+     * device tree lowest address first.
+     *
+     * Note that this mapping is independent of the loop above. The previous
+     * loop influences virtio device to virtio transport assignment, whereas
+     * this loop controls how virtio transports are laid out in the dtb.
+     */
     for (i = NUM_VIRTIO_TRANSPORTS - 1; i >= 0; i--) {
         char *nodename;
         int irq = vbi->irqmap[VIRT_MMIO] + i;
