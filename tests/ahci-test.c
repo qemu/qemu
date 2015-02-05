@@ -662,7 +662,7 @@ static void ahci_test_identify(AHCIQState *ahci)
     RegH2DFIS fis;
     AHCICommand cmd;
     PRD prd;
-    uint32_t ports, reg, table, data_ptr;
+    uint32_t reg, table, data_ptr;
     uint16_t buff[256];
     unsigned i;
     int rc;
@@ -684,22 +684,7 @@ static void ahci_test_identify(AHCIQState *ahci)
      */
 
     /* Pick the first implemented and running port */
-    ports = ahci_rreg(ahci, AHCI_PI);
-    for (i = 0; i < 32; ports >>= 1, ++i) {
-        if (ports == 0) {
-            i = 32;
-        }
-
-        if (!(ports & 0x01)) {
-            continue;
-        }
-
-        reg = ahci_px_rreg(ahci, i, AHCI_PX_CMD);
-        if (BITSET(reg, AHCI_PX_CMD_ST)) {
-            break;
-        }
-    }
-    g_assert_cmphex(i, <, 32);
+    i = ahci_port_select(ahci);
     g_test_message("Selected port %u for test", i);
 
     /* Clear out this port's interrupts (ignore the init register d2h fis) */

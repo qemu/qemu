@@ -267,3 +267,30 @@ void ahci_hba_enable(AHCIQState *ahci)
      * In the future, a small test-case to inspect the Register D2H FIS
      * and clear the initial interrupts might be good. */
 }
+
+/**
+ * Pick the first implemented and running port
+ */
+unsigned ahci_port_select(AHCIQState *ahci)
+{
+    uint32_t ports, reg;
+    unsigned i;
+
+    ports = ahci_rreg(ahci, AHCI_PI);
+    for (i = 0; i < 32; ports >>= 1, ++i) {
+        if (ports == 0) {
+            i = 32;
+        }
+
+        if (!(ports & 0x01)) {
+            continue;
+        }
+
+        reg = ahci_px_rreg(ahci, i, AHCI_PX_CMD);
+        if (BITSET(reg, AHCI_PX_CMD_ST)) {
+            break;
+        }
+    }
+    g_assert(i < 32);
+    return i;
+}

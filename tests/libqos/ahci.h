@@ -431,5 +431,6 @@ void free_ahci_device(QPCIDevice *dev);
 void ahci_pci_enable(AHCIQState *ahci);
 void start_ahci_device(AHCIQState *ahci);
 void ahci_hba_enable(AHCIQState *ahci);
+unsigned ahci_port_select(AHCIQState *ahci);
 
 #endif
