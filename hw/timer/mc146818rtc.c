@@ -734,7 +734,7 @@ static int rtc_post_load(void *opaque, int version_id)
 }
 
 static const VMStateDescription vmstate_rtc_irq_reinject_on_ack_count = {
-    .name = "irq_reinject_on_ack_count",
+    .name = "mc146818rtc/irq_reinject_on_ack_count",
     .version_id = 1,
     .minimum_version_id = 1,
     .fields = (VMStateField[]) {
