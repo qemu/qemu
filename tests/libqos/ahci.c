@@ -311,6 +311,28 @@ void ahci_port_clear(AHCIQState *ahci, uint8_t port)
     qmemset(ahci->port[port].fb, 0x00, 0x100);
 }
 
+/**
+ * Check a port for errors.
+ */
+void ahci_port_check_error(AHCIQState *ahci, uint8_t port)
+{
+    uint32_t reg;
+
+    /* The upper 9 bits of the IS register all indicate errors. */
+    reg = ahci_px_rreg(ahci, port, AHCI_PX_IS);
+    reg >>= 23;
+    g_assert_cmphex(reg, ==, 0);
+
+    /* The Sata Error Register should be empty. */
+    reg = ahci_px_rreg(ahci, port, AHCI_PX_SERR);
+    g_assert_cmphex(reg, ==, 0);
+
+    /* The TFD also has two error sections. */
+    reg = ahci_px_rreg(ahci, port, AHCI_PX_TFD);
+    ASSERT_BIT_CLEAR(reg, AHCI_PX_TFD_STS_ERR);
+    ASSERT_BIT_CLEAR(reg, AHCI_PX_TFD_ERR);
+}
+
 /* Get the command in #slot of port #port. */
 void ahci_get_command_header(AHCIQState *ahci, uint8_t port,
                              uint8_t slot, AHCICommandHeader *cmd)

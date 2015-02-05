@@ -433,6 +433,7 @@ void start_ahci_device(AHCIQState *ahci);
 void ahci_hba_enable(AHCIQState *ahci);
 unsigned ahci_port_select(AHCIQState *ahci);
 void ahci_port_clear(AHCIQState *ahci, uint8_t port);
+void ahci_port_check_error(AHCIQState *ahci, uint8_t port);
 void ahci_get_command_header(AHCIQState *ahci, uint8_t port,
                              uint8_t slot, AHCICommandHeader *cmd);
 void ahci_set_command_header(AHCIQState *ahci, uint8_t port,
