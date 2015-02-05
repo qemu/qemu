@@ -2117,7 +2117,7 @@ static coroutine_fn int sd_co_writev(BlockDriverState *bs, int64_t sector_num,
     int64_t offset = (sector_num + nb_sectors) * BDRV_SECTOR_SIZE;
     BDRVSheepdogState *s = bs->opaque;
 
-    if (bs->growable && offset > s->inode.vdi_size) {
+    if (offset > s->inode.vdi_size) {
         ret = sd_truncate(bs, offset);
         if (ret < 0) {
             return ret;

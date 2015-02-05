@@ -972,7 +972,6 @@ static int bdrv_open_common(BlockDriverState *bs, BlockDriverState *file,
     bs->zero_beyond_eof = true;
     open_flags = bdrv_open_flags(bs, flags);
     bs->read_only = !(open_flags & BDRV_O_RDWR);
-    bs->growable = !!(flags & BDRV_O_PROTOCOL);
 
     if (use_bdrv_whitelist && !bdrv_is_whitelisted(drv, bs->read_only)) {
         error_setg(errp,
@@ -1886,7 +1885,6 @@ void bdrv_close(BlockDriverState *bs)
         bs->encrypted = 0;
         bs->valid_key = 0;
         bs->sg = 0;
-        bs->growable = 0;
         bs->zero_beyond_eof = false;
         QDECREF(bs->options);
         bs->options = NULL;
@@ -2646,25 +2644,17 @@ exit:
 static int bdrv_check_byte_request(BlockDriverState *bs, int64_t offset,
                                    size_t size)
 {
-    int64_t len;
-
     if (size > BDRV_REQUEST_MAX_SECTORS << BDRV_SECTOR_BITS) {
         return -EIO;
     }
 
-    if (!bdrv_is_inserted(bs))
+    if (!bdrv_is_inserted(bs)) {
         return -ENOMEDIUM;
+    }
 
-    if (bs->growable)
-        return 0;
-
-    len = bdrv_getlength(bs);
-
-    if (offset < 0)
+    if (offset < 0) {
         return -EIO;
-
-    if ((offset > len) || (len - offset < size))
-        return -EIO;
+    }
 
     return 0;
 }
@@ -3043,10 +3033,10 @@ static int coroutine_fn bdrv_aligned_preadv(BlockDriverState *bs,
     }
 
     /* Forward the request to the BlockDriver */
-    if (!(bs->zero_beyond_eof && bs->growable)) {
+    if (!bs->zero_beyond_eof) {
         ret = drv->bdrv_co_readv(bs, sector_num, nb_sectors, qiov);
     } else {
-        /* Read zeros after EOF of growable BDSes */
+        /* Read zeros after EOF */
         int64_t total_sectors, max_nb_sectors;
 
         total_sectors = bdrv_nb_sectors(bs);
@@ -3323,7 +3313,7 @@ static int coroutine_fn bdrv_aligned_pwritev(BlockDriverState *bs,
 
     block_acct_highest_sector(&bs->stats, sector_num, nb_sectors);
 
-    if (bs->growable && ret >= 0) {
+    if (ret >= 0) {
         bs->total_sectors = MAX(bs->total_sectors, sector_num + nb_sectors);
     }
 

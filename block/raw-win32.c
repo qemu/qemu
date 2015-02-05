@@ -101,7 +101,7 @@ static int aio_worker(void *arg)
     switch (aiocb->aio_type & QEMU_AIO_TYPE_MASK) {
     case QEMU_AIO_READ:
         count = handle_aiocb_rw(aiocb);
-        if (count < aiocb->aio_nbytes && aiocb->bs->growable) {
+        if (count < aiocb->aio_nbytes) {
             /* A short read means that we have reached EOF. Pad the buffer
              * with zeros for bytes after EOF. */
             iov_memset(aiocb->aio_iov, aiocb->aio_niov, count,
