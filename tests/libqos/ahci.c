@@ -464,6 +464,20 @@ void ahci_destroy_command(AHCIQState *ahci, uint8_t port, uint8_t slot)
     ahci->port[port].prdtl[slot] = 0;
 }
 
+void ahci_write_fis(AHCIQState *ahci, RegH2DFIS *fis, uint64_t addr)
+{
+    RegH2DFIS tmp = *fis;
+
+    /* The auxiliary FIS fields are defined per-command and are not
+     * currently implemented in libqos/ahci.o, but may or may not need
+     * to be flipped. */
+
+    /* All other FIS fields are 8 bit and do not need to be flipped. */
+    tmp.count = cpu_to_le16(tmp.count);
+
+    memwrite(addr, &tmp, sizeof(tmp));
+}
+
 unsigned ahci_pick_cmd(AHCIQState *ahci, uint8_t port)
 {
     unsigned i;

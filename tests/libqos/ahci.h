@@ -393,7 +393,7 @@ typedef struct RegH2DFIS {
     uint8_t icc;
     uint8_t control;
     /* DW4 */
-    uint32_t aux;
+    uint8_t aux[4];
 } __attribute__((__packed__)) RegH2DFIS;
 
 /**
@@ -515,6 +515,7 @@ void ahci_get_command_header(AHCIQState *ahci, uint8_t port,
 void ahci_set_command_header(AHCIQState *ahci, uint8_t port,
                              uint8_t slot, AHCICommandHeader *cmd);
 void ahci_destroy_command(AHCIQState *ahci, uint8_t port, uint8_t slot);
+void ahci_write_fis(AHCIQState *ahci, RegH2DFIS *fis, uint64_t addr);
 unsigned ahci_pick_cmd(AHCIQState *ahci, uint8_t port);
 
 #endif

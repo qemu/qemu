@@ -728,7 +728,7 @@ static void ahci_test_identify(AHCIQState *ahci)
     g_assert_cmphex(ahci_px_rreg(ahci, i, AHCI_PX_IS), ==, 0);
 
     /* Commit the Command FIS to the Command Table */
-    memwrite(table, &fis, sizeof(fis));
+    ahci_write_fis(ahci, &fis, table);
 
     /* Commit the PRD entry to the Command Table */
     memwrite(table + 0x80, &prd, sizeof(prd));
