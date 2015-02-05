@@ -294,3 +294,19 @@ unsigned ahci_port_select(AHCIQState *ahci)
     g_assert(i < 32);
     return i;
 }
+
+/**
+ * Clear a port's interrupts and status information prior to a test.
+ */
+void ahci_port_clear(AHCIQState *ahci, uint8_t port)
+{
+    uint32_t reg;
+
+    /* Clear out this port's interrupts (ignore the init register d2h fis) */
+    reg = ahci_px_rreg(ahci, port, AHCI_PX_IS);
+    ahci_px_wreg(ahci, port, AHCI_PX_IS, reg);
+    g_assert_cmphex(ahci_px_rreg(ahci, port, AHCI_PX_IS), ==, 0);
+
+    /* Wipe the FIS-Recieve Buffer */
+    qmemset(ahci->port[port].fb, 0x00, 0x100);
+}

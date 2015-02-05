@@ -432,5 +432,6 @@ void ahci_pci_enable(AHCIQState *ahci);
 void start_ahci_device(AHCIQState *ahci);
 void ahci_hba_enable(AHCIQState *ahci);
 unsigned ahci_port_select(AHCIQState *ahci);
+void ahci_port_clear(AHCIQState *ahci, uint8_t port);
 
 #endif

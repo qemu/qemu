@@ -687,13 +687,8 @@ static void ahci_test_identify(AHCIQState *ahci)
     i = ahci_port_select(ahci);
     g_test_message("Selected port %u for test", i);
 
-    /* Clear out this port's interrupts (ignore the init register d2h fis) */
-    reg = ahci_px_rreg(ahci, i, AHCI_PX_IS);
-    ahci_px_wreg(ahci, i, AHCI_PX_IS, reg);
-    g_assert_cmphex(ahci_px_rreg(ahci, i, AHCI_PX_IS), ==, 0);
-
-    /* Wipe the FIS-Receive Buffer */
-    qmemset(ahci->port[i].fb, 0x00, 0x100);
+    /* Clear out the FIS Receive area and any pending interrupts. */
+    ahci_port_clear(ahci, i);
 
     /* Create a Command Table buffer. 0x80 is the smallest with a PRDTL of 0. */
     /* We need at least one PRD, so round up to the nearest 0x80 multiple.    */
