@@ -123,6 +123,23 @@ void a64_translate_init(void)
 #endif
 }
 
+static inline ARMMMUIdx get_a64_user_mem_index(DisasContext *s)
+{
+    /* Return the mmu_idx to use for A64 "unprivileged load/store" insns:
+     *  if EL1, access as if EL0; otherwise access at current EL
+     */
+    switch (s->mmu_idx) {
+    case ARMMMUIdx_S12NSE1:
+        return ARMMMUIdx_S12NSE0;
+    case ARMMMUIdx_S1SE1:
+        return ARMMMUIdx_S1SE0;
+    case ARMMMUIdx_S2NS:
+        g_assert_not_reached();
+    default:
+        return s->mmu_idx;
+    }
+}
+
 void aarch64_cpu_dump_state(CPUState *cs, FILE *f,
                             fprintf_function cpu_fprintf, int flags)
 {
@@ -2107,7 +2124,7 @@ static void disas_ldst_reg_imm9(DisasContext *s, uint32_t insn)
         }
     } else {
         TCGv_i64 tcg_rt = cpu_reg(s, rt);
-        int memidx = is_unpriv ? 1 : get_mem_index(s);
+        int memidx = is_unpriv ? get_a64_user_mem_index(s) : get_mem_index(s);
 
         if (is_store) {
             do_gpr_st_memidx(s, tcg_rt, tcg_addr, size, memidx);
@@ -10922,14 +10939,15 @@ void gen_intermediate_code_internal_a64(ARMCPU *cpu,
     dc->bswap_code = 0;
     dc->condexec_mask = 0;
     dc->condexec_cond = 0;
+    dc->mmu_idx = ARM_TBFLAG_MMUIDX(tb->flags);
+    dc->current_el = arm_mmu_idx_to_el(dc->mmu_idx);
 #if !defined(CONFIG_USER_ONLY)
-    dc->user = (ARM_TBFLAG_AA64_EL(tb->flags) == 0);
+    dc->user = (dc->current_el == 0);
 #endif
     dc->cpacr_fpen = ARM_TBFLAG_AA64_FPEN(tb->flags);
     dc->vec_len = 0;
     dc->vec_stride = 0;
     dc->cp_regs = cpu->cp_regs;
-    dc->current_el = arm_current_el(env);
     dc->features = env->features;
 
     /* Single step state. The code-generation logic here is:

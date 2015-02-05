@@ -108,7 +108,7 @@ class DecoderVisitor {
   }
 
  private:
-  VisitorConstness constness_;
+  const VisitorConstness constness_;
 };
 
 

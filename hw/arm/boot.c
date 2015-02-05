@@ -463,8 +463,26 @@ static void do_cpu_reset(void *opaque)
              * (SCR.NS = 0), we change that here if non-secure boot has been
              * requested.
              */
-            if (arm_feature(env, ARM_FEATURE_EL3) && !info->secure_boot) {
-                env->cp15.scr_el3 |= SCR_NS;
+            if (arm_feature(env, ARM_FEATURE_EL3)) {
+                /* AArch64 is defined to come out of reset into EL3 if enabled.
+                 * If we are booting Linux then we need to adjust our EL as
+                 * Linux expects us to be in EL2 or EL1.  AArch32 resets into
+                 * SVC, which Linux expects, so no privilege/exception level to
+                 * adjust.
+                 */
+                if (env->aarch64) {
+                    if (arm_feature(env, ARM_FEATURE_EL2)) {
+                        env->pstate = PSTATE_MODE_EL2h;
+                    } else {
+                        env->pstate = PSTATE_MODE_EL1h;
+                    }
+                }
+
+                /* Set to non-secure if not a secure boot */
+                if (!info->secure_boot) {
+                    /* Linux expects non-secure state */
+                    env->cp15.scr_el3 |= SCR_NS;
+                }
             }
 
             if (CPU(cpu) == first_cpu) {

@@ -43,7 +43,7 @@ class Disassembler: public DecoderVisitor {
   char* GetOutput();
 
   // Declare all Visitor functions.
-  #define DECLARE(A)  void Visit##A(const Instruction* instr);
+  #define DECLARE(A) virtual void Visit##A(const Instruction* instr);
   VISITOR_LIST(DECLARE)
   #undef DECLARE
 
@@ -65,22 +65,44 @@ class Disassembler: public DecoderVisitor {
 
   // Prints an address, in the general case. It can be code or data. This is
   // used for example to print the target address of an ADR instruction.
-  virtual void AppendAddressToOutput(const Instruction* instr,
-                                     const void* addr);
+  virtual void AppendCodeRelativeAddressToOutput(const Instruction* instr,
+                                                 const void* addr);
 
   // Prints the address of some code.
   // This is used for example to print the target address of a branch to an
   // immediate offset.
   // A sub-class can for example override this method to lookup the address and
   // print an appropriate name.
-  virtual void AppendCodeAddressToOutput(const Instruction* instr,
-                                         const void* addr);
+  virtual void AppendCodeRelativeCodeAddressToOutput(const Instruction* instr,
+                                                     const void* addr);
 
   // Prints the address of some data.
   // This is used for example to print the source address of a load literal
   // instruction.
+  virtual void AppendCodeRelativeDataAddressToOutput(const Instruction* instr,
+                                                     const void* addr);
+
+  // Same as the above, but for addresses that are not relative to the code
+  // buffer. They are currently not used by VIXL.
+  virtual void AppendAddressToOutput(const Instruction* instr,
+                                     const void* addr);
+  virtual void AppendCodeAddressToOutput(const Instruction* instr,
+                                         const void* addr);
   virtual void AppendDataAddressToOutput(const Instruction* instr,
                                          const void* addr);
+
+ public:
+  // Get/Set the offset that should be added to code addresses when printing
+  // code-relative addresses in the AppendCodeRelative<Type>AddressToOutput()
+  // helpers.
+  // Below is an example of how a branch immediate instruction in memory at
+  // address 0xb010200 would disassemble with different offsets.
+  // Base address | Disassembly
+  //          0x0 | 0xb010200:  b #+0xcc  (addr 0xb0102cc)
+  //      0x10000 | 0xb000200:  b #+0xcc  (addr 0xb0002cc)
+  //    0xb010200 |       0x0:  b #+0xcc  (addr 0xcc)
+  void MapCodeAddress(int64_t base_address, const Instruction* instr_address);
+  int64_t CodeRelativeAddress(const void* instr);
 
  private:
   void Format(
@@ -101,32 +123,40 @@ class Disassembler: public DecoderVisitor {
   int SubstitutePrefetchField(const Instruction* instr, const char* format);
   int SubstituteBarrierField(const Instruction* instr, const char* format);
 
-  inline bool RdIsZROrSP(const Instruction* instr) const {
+  bool RdIsZROrSP(const Instruction* instr) const {
     return (instr->Rd() == kZeroRegCode);
   }
 
-  inline bool RnIsZROrSP(const Instruction* instr) const {
+  bool RnIsZROrSP(const Instruction* instr) const {
     return (instr->Rn() == kZeroRegCode);
   }
 
-  inline bool RmIsZROrSP(const Instruction* instr) const {
+  bool RmIsZROrSP(const Instruction* instr) const {
     return (instr->Rm() == kZeroRegCode);
   }
 
-  inline bool RaIsZROrSP(const Instruction* instr) const {
+  bool RaIsZROrSP(const Instruction* instr) const {
     return (instr->Ra() == kZeroRegCode);
   }
 
   bool IsMovzMovnImm(unsigned reg_size, uint64_t value);
 
+  int64_t code_address_offset() const { return code_address_offset_; }
+
  protected:
   void ResetOutput();
   void AppendToOutput(const char* string, ...) PRINTF_CHECK(2, 3);
+
+  void set_code_address_offset(int64_t code_address_offset) {
+    code_address_offset_ = code_address_offset;
+  }
 
   char* buffer_;
   uint32_t buffer_pos_;
   uint32_t buffer_size_;
   bool own_buffer_;
+
+  int64_t code_address_offset_;
 };
 
 

@@ -58,7 +58,7 @@ const int KBytes = 1024;
 const int MBytes = 1024 * KBytes;
 
 #define VIXL_ABORT() printf("in %s, line %i", __FILE__, __LINE__); abort()
-#ifdef DEBUG
+#ifdef VIXL_DEBUG
   #define VIXL_ASSERT(condition) assert(condition)
   #define VIXL_CHECK(condition) VIXL_ASSERT(condition)
   #define VIXL_UNIMPLEMENTED() printf("UNIMPLEMENTED\t"); VIXL_ABORT()

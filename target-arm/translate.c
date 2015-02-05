@@ -113,6 +113,28 @@ void arm_translate_init(void)
     a64_translate_init();
 }
 
+static inline ARMMMUIdx get_a32_user_mem_index(DisasContext *s)
+{
+    /* Return the mmu_idx to use for A32/T32 "unprivileged load/store"
+     * insns:
+     *  if PL2, UNPREDICTABLE (we choose to implement as if PL0)
+     *  otherwise, access as if at PL0.
+     */
+    switch (s->mmu_idx) {
+    case ARMMMUIdx_S1E2:        /* this one is UNPREDICTABLE */
+    case ARMMMUIdx_S12NSE0:
+    case ARMMMUIdx_S12NSE1:
+        return ARMMMUIdx_S12NSE0;
+    case ARMMMUIdx_S1E3:
+    case ARMMMUIdx_S1SE0:
+    case ARMMMUIdx_S1SE1:
+        return ARMMMUIdx_S1SE0;
+    case ARMMMUIdx_S2NS:
+    default:
+        g_assert_not_reached();
+    }
+}
+
 static inline TCGv_i32 load_cpu_offset(int offset)
 {
     TCGv_i32 tmp = tcg_temp_new_i32();
@@ -8739,6 +8761,10 @@ static void disas_arm_insn(DisasContext *s, unsigned int insn)
                         ARCH(6T2);
                         shift = (insn >> 7) & 0x1f;
                         i = (insn >> 16) & 0x1f;
+                        if (i < shift) {
+                            /* UNPREDICTABLE; we choose to UNDEF */
+                            goto illegal_op;
+                        }
                         i = i + 1 - shift;
                         if (rm == 15) {
                             tmp = tcg_temp_new_i32();
@@ -8793,7 +8819,7 @@ static void disas_arm_insn(DisasContext *s, unsigned int insn)
             tmp2 = load_reg(s, rn);
             if ((insn & 0x01200000) == 0x00200000) {
                 /* ldrt/strt */
-                i = MMU_USER_IDX;
+                i = get_a32_user_mem_index(s);
             } else {
                 i = get_mem_index(s);
             }
@@ -10173,7 +10199,7 @@ static int disas_thumb2_insn(CPUARMState *env, DisasContext *s, uint16_t insn_hw
                     break;
                 case 0xe: /* User privilege.  */
                     tcg_gen_addi_i32(addr, addr, imm);
-                    memidx = MMU_USER_IDX;
+                    memidx = get_a32_user_mem_index(s);
                     break;
                 case 0x9: /* Post-decrement.  */
                     imm = -imm;
@@ -11032,8 +11058,10 @@ static inline void gen_intermediate_code_internal(ARMCPU *cpu,
     dc->bswap_code = ARM_TBFLAG_BSWAP_CODE(tb->flags);
     dc->condexec_mask = (ARM_TBFLAG_CONDEXEC(tb->flags) & 0xf) << 1;
     dc->condexec_cond = ARM_TBFLAG_CONDEXEC(tb->flags) >> 4;
+    dc->mmu_idx = ARM_TBFLAG_MMUIDX(tb->flags);
+    dc->current_el = arm_mmu_idx_to_el(dc->mmu_idx);
 #if !defined(CONFIG_USER_ONLY)
-    dc->user = (ARM_TBFLAG_PRIV(tb->flags) == 0);
+    dc->user = (dc->current_el == 0);
 #endif
     dc->ns = ARM_TBFLAG_NS(tb->flags);
     dc->cpacr_fpen = ARM_TBFLAG_CPACR_FPEN(tb->flags);
@@ -11042,7 +11070,6 @@ static inline void gen_intermediate_code_internal(ARMCPU *cpu,
     dc->vec_stride = ARM_TBFLAG_VECSTRIDE(tb->flags);
     dc->c15_cpar = ARM_TBFLAG_XSCALE_CPAR(tb->flags);
     dc->cp_regs = cpu->cp_regs;
-    dc->current_el = arm_current_el(env);
     dc->features = env->features;
 
     /* Single step state. The code-generation logic here is:

@@ -31,12 +31,6 @@ namespace vixl {
 
 const unsigned kNumberOfRegisters = 32;
 const unsigned kNumberOfFPRegisters = 32;
-// Callee saved registers are x21-x30(lr).
-const int kNumberOfCalleeSavedRegisters = 10;
-const int kFirstCalleeSavedRegisterIndex = 21;
-// Callee saved FP registers are d8-d15.
-const int kNumberOfCalleeSavedFPRegisters = 8;
-const int kFirstCalleeSavedFPRegisterIndex = 8;
 
 #define REGISTER_CODE_LIST(R)                                                  \
 R(0)  R(1)  R(2)  R(3)  R(4)  R(5)  R(6)  R(7)                                 \
@@ -53,7 +47,6 @@ V_(Ra, 14, 10, Bits)                      /* Third source register.       */   \
 V_(Rt, 4, 0, Bits)                        /* Load/store register.         */   \
 V_(Rt2, 14, 10, Bits)                     /* Load/store second register.  */   \
 V_(Rs, 20, 16, Bits)                      /* Exclusive access status.     */   \
-V_(PrefetchMode, 4, 0, Bits)                                                   \
                                                                                \
 /* Common bits */                                                              \
 V_(SixtyFourBits, 31, 31, Bits)                                                \
@@ -109,6 +102,10 @@ V_(ImmLSUnsigned, 21, 10, Bits)                                                \
 V_(ImmLSPair, 21, 15, SignedBits)                                              \
 V_(SizeLS, 31, 30, Bits)                                                       \
 V_(ImmShiftLS, 12, 12, Bits)                                                   \
+V_(ImmPrefetchOperation, 4, 0, Bits)                                           \
+V_(PrefetchHint, 4, 3, Bits)                                                   \
+V_(PrefetchTarget, 2, 1, Bits)                                                 \
+V_(PrefetchStream, 0, 0, Bits)                                                 \
                                                                                \
 /* Other immediates */                                                         \
 V_(ImmUncondBranch, 25, 0, SignedBits)                                         \
@@ -267,6 +264,29 @@ enum BarrierType {
   BarrierReads  = 1,
   BarrierWrites = 2,
   BarrierAll    = 3
+};
+
+enum PrefetchOperation {
+  PLDL1KEEP = 0x00,
+  PLDL1STRM = 0x01,
+  PLDL2KEEP = 0x02,
+  PLDL2STRM = 0x03,
+  PLDL3KEEP = 0x04,
+  PLDL3STRM = 0x05,
+
+  PLIL1KEEP = 0x08,
+  PLIL1STRM = 0x09,
+  PLIL2KEEP = 0x0a,
+  PLIL2STRM = 0x0b,
+  PLIL3KEEP = 0x0c,
+  PLIL3STRM = 0x0d,
+
+  PSTL1KEEP = 0x10,
+  PSTL1STRM = 0x11,
+  PSTL2KEEP = 0x12,
+  PSTL2STRM = 0x13,
+  PSTL3KEEP = 0x14,
+  PSTL3STRM = 0x15
 };
 
 // System/special register names.
@@ -605,6 +625,12 @@ enum LoadStoreAnyOp {
   LoadStoreAnyFixed = 0x08000000
 };
 
+// Any load pair or store pair.
+enum LoadStorePairAnyOp {
+  LoadStorePairAnyFMask = 0x3a000000,
+  LoadStorePairAnyFixed = 0x28000000
+};
+
 #define LOAD_STORE_PAIR_OP_LIST(V)  \
   V(STP, w,   0x00000000),          \
   V(LDP, w,   0x00400000),          \
@@ -703,17 +729,6 @@ enum LoadLiteralOp {
   V(LD, R, d,   0xC4400000)
 
 
-// Load/store unscaled offset.
-enum LoadStoreUnscaledOffsetOp {
-  LoadStoreUnscaledOffsetFixed = 0x38000000,
-  LoadStoreUnscaledOffsetFMask = 0x3B200C00,
-  LoadStoreUnscaledOffsetMask  = 0xFFE00C00,
-  #define LOAD_STORE_UNSCALED(A, B, C, D)  \
-  A##U##B##_##C = LoadStoreUnscaledOffsetFixed | D
-  LOAD_STORE_OP_LIST(LOAD_STORE_UNSCALED)
-  #undef LOAD_STORE_UNSCALED
-};
-
 // Load/store (post, pre, offset and unsigned.)
 enum LoadStoreOp {
   LoadStoreOpMask = 0xC4C00000,
@@ -722,6 +737,18 @@ enum LoadStoreOp {
   LOAD_STORE_OP_LIST(LOAD_STORE),
   #undef LOAD_STORE
   PRFM = 0xC0800000
+};
+
+// Load/store unscaled offset.
+enum LoadStoreUnscaledOffsetOp {
+  LoadStoreUnscaledOffsetFixed = 0x38000000,
+  LoadStoreUnscaledOffsetFMask = 0x3B200C00,
+  LoadStoreUnscaledOffsetMask  = 0xFFE00C00,
+  PRFUM                        = LoadStoreUnscaledOffsetFixed | PRFM,
+  #define LOAD_STORE_UNSCALED(A, B, C, D)  \
+  A##U##B##_##C = LoadStoreUnscaledOffsetFixed | D
+  LOAD_STORE_OP_LIST(LOAD_STORE_UNSCALED)
+  #undef LOAD_STORE_UNSCALED
 };
 
 // Load/store post index.
