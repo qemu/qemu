@@ -548,6 +548,21 @@ inline unsigned size_to_prdtl(unsigned bytes, unsigned bytes_per_prd)
     return (bytes + bytes_per_prd - 1) / bytes_per_prd;
 }
 
+/* Given a guest buffer address, perform an IO operation */
+void ahci_guest_io(AHCIQState *ahci, uint8_t port, uint8_t ide_cmd,
+                   uint64_t buffer, size_t bufsize)
+{
+    AHCICommand *cmd;
+
+    cmd = ahci_command_create(ide_cmd);
+    ahci_command_set_buffer(cmd, buffer);
+    ahci_command_set_size(cmd, bufsize);
+    ahci_command_commit(ahci, cmd, port);
+    ahci_command_issue(ahci, cmd);
+    ahci_command_verify(ahci, cmd);
+    ahci_command_free(cmd);
+}
+
 struct AHCICommand {
     /* Test Management Data */
     uint8_t name;
