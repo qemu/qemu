@@ -440,6 +440,11 @@ void blk_get_geometry(BlockBackend *blk, uint64_t *nb_sectors_ptr)
     bdrv_get_geometry(blk->bs, nb_sectors_ptr);
 }
 
+int64_t blk_nb_sectors(BlockBackend *blk)
+{
+    return bdrv_nb_sectors(blk->bs);
+}
+
 BlockAIOCB *blk_aio_readv(BlockBackend *blk, int64_t sector_num,
                           QEMUIOVector *iov, int nb_sectors,
                           BlockCompletionFunc *cb, void *opaque)
@@ -667,4 +672,37 @@ void *blk_aio_get(const AIOCBInfo *aiocb_info, BlockBackend *blk,
                   BlockCompletionFunc *cb, void *opaque)
 {
     return qemu_aio_get(aiocb_info, blk_bs(blk), cb, opaque);
+}
+
+int coroutine_fn blk_co_write_zeroes(BlockBackend *blk, int64_t sector_num,
+                                     int nb_sectors, BdrvRequestFlags flags)
+{
+    return bdrv_co_write_zeroes(blk->bs, sector_num, nb_sectors, flags);
+}
+
+int blk_write_compressed(BlockBackend *blk, int64_t sector_num,
+                         const uint8_t *buf, int nb_sectors)
+{
+    return bdrv_write_compressed(blk->bs, sector_num, buf, nb_sectors);
+}
+
+int blk_truncate(BlockBackend *blk, int64_t offset)
+{
+    return bdrv_truncate(blk->bs, offset);
+}
+
+int blk_discard(BlockBackend *blk, int64_t sector_num, int nb_sectors)
+{
+    return bdrv_discard(blk->bs, sector_num, nb_sectors);
+}
+
+int blk_save_vmstate(BlockBackend *blk, const uint8_t *buf,
+                     int64_t pos, int size)
+{
+    return bdrv_save_vmstate(blk->bs, buf, pos, size);
+}
+
+int blk_load_vmstate(BlockBackend *blk, uint8_t *buf, int64_t pos, int size)
+{
+    return bdrv_load_vmstate(blk->bs, buf, pos, size);
 }
