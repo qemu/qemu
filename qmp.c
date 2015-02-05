@@ -137,14 +137,18 @@ VncInfo *qmp_query_vnc(Error **errp)
 #endif
 
 #ifndef CONFIG_SPICE
-/* If SPICE support is enabled, the "true" query-spice command is
-   defined in the SPICE subsystem. Also note that we use a small
-   trick to maintain query-spice's original behavior, which is not
-   to be available in the namespace if SPICE is not compiled in */
+/*
+ * qmp-commands.hx ensures that QMP command query-spice exists only
+ * #ifdef CONFIG_SPICE.  Necessary for an accurate query-commands
+ * result.  However, the QAPI schema is blissfully unaware of that,
+ * and the QAPI code generator happily generates a dead
+ * qmp_marshal_input_query_spice() that calls qmp_query_spice().
+ * Provide it one, or else linking fails.
+ * FIXME Educate the QAPI schema on CONFIG_SPICE.
+ */
 SpiceInfo *qmp_query_spice(Error **errp)
 {
-    error_set(errp, QERR_COMMAND_NOT_FOUND, "query-spice");
-    return NULL;
+    abort();
 };
 #endif
 
@@ -287,9 +291,7 @@ void qmp_set_password(const char *protocol, const char *password,
     }
 
     if (strcmp(protocol, "spice") == 0) {
-        if (!using_spice) {
-            /* correct one? spice isn't a device ,,, */
-            error_set(errp, QERR_DEVICE_NOT_ACTIVE, "spice");
+        if (!qemu_using_spice(errp)) {
             return;
         }
         rc = qemu_spice_set_passwd(password, fail_if_connected,
@@ -335,9 +337,7 @@ void qmp_expire_password(const char *protocol, const char *whenstr,
     }
 
     if (strcmp(protocol, "spice") == 0) {
-        if (!using_spice) {
-            /* correct one? spice isn't a device ,,, */
-            error_set(errp, QERR_DEVICE_NOT_ACTIVE, "spice");
+        if (!qemu_using_spice(errp)) {
             return;
         }
         rc = qemu_spice_set_pw_expire(when);
@@ -575,8 +575,7 @@ void qmp_add_client(const char *protocol, const char *fdname,
     }
 
     if (strcmp(protocol, "spice") == 0) {
-        if (!using_spice) {
-            error_set(errp, QERR_DEVICE_NOT_ACTIVE, "spice");
+        if (!qemu_using_spice(errp)) {
             close(fd);
             return;
         }

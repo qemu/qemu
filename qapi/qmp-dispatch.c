@@ -76,7 +76,8 @@ static QObject *do_qmp_dispatch(QObject *request, Error **errp)
     command = qdict_get_str(dict, "execute");
     cmd = qmp_find_command(command);
     if (cmd == NULL) {
-        error_set(errp, QERR_COMMAND_NOT_FOUND, command);
+        error_set(errp, ERROR_CLASS_COMMAND_NOT_FOUND,
+                  "The command %s has not been found", command);
         return NULL;
     }
     if (!cmd->enabled) {
