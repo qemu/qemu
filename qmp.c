@@ -387,6 +387,11 @@ static void qmp_change_vnc_listen(const char *target, Error **errp)
         qemu_opts_del(opts);
     }
     opts = vnc_parse_func(target);
+    if (!opts) {
+        return;
+    }
+
+    vnc_auto_assign_id(olist, opts);
     vnc_display_open("default", errp);
 }
 
