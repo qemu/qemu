@@ -539,3 +539,205 @@ unsigned ahci_pick_cmd(AHCIQState *ahci, uint8_t port)
     g_test_message("All command slots were busy.");
     g_assert_not_reached();
 }
+
+inline unsigned size_to_prdtl(unsigned bytes, unsigned bytes_per_prd)
+{
+    /* Each PRD can describe up to 4MiB */
+    g_assert_cmphex(bytes_per_prd, <=, 4096 * 1024);
+    g_assert_cmphex(bytes_per_prd & 0x01, ==, 0x00);
+    return (bytes + bytes_per_prd - 1) / bytes_per_prd;
+}
+
+struct AHCICommand {
+    /* Test Management Data */
+    uint8_t name;
+    uint8_t port;
+    uint8_t slot;
+    uint32_t interrupts;
+    uint64_t xbytes;
+    uint32_t prd_size;
+    uint64_t buffer;
+    AHCICommandProp *props;
+    /* Data to be transferred to the guest */
+    AHCICommandHeader header;
+    RegH2DFIS fis;
+    void *atapi_cmd;
+};
+
+static AHCICommandProp *ahci_command_find(uint8_t command_name)
+{
+    int i;
+
+    for (i = 0; i < ARRAY_SIZE(ahci_command_properties); i++) {
+        if (ahci_command_properties[i].cmd == command_name) {
+            return &ahci_command_properties[i];
+        }
+    }
+
+    return NULL;
+}
+
+/**
+ * Initializes a basic command header in memory.
+ * We assume that this is for an ATA command using RegH2DFIS.
+ */
+static void command_header_init(AHCICommand *cmd)
+{
+    AHCICommandHeader *hdr = &cmd->header;
+    AHCICommandProp *props = cmd->props;
+
+    hdr->flags = 5;             /* RegH2DFIS is 5 DW long. Must be < 32 */
+    hdr->flags |= CMDH_CLR_BSY; /* Clear the BSY bit when done */
+    if (props->write) {
+        hdr->flags |= CMDH_WRITE;
+    }
+    if (props->atapi) {
+        hdr->flags |= CMDH_ATAPI;
+    }
+    /* Other flags: PREFETCH, RESET, and BIST */
+    hdr->prdtl = size_to_prdtl(cmd->xbytes, cmd->prd_size);
+    hdr->prdbc = 0;
+    hdr->ctba = 0;
+}
+
+static void command_table_init(AHCICommand *cmd)
+{
+    RegH2DFIS *fis = &(cmd->fis);
+
+    fis->fis_type = REG_H2D_FIS;
+    fis->flags = REG_H2D_FIS_CMD; /* "Command" bit */
+    fis->command = cmd->name;
+    cmd->fis.feature_low = 0x00;
+    cmd->fis.feature_high = 0x00;
+    if (cmd->props->lba28 || cmd->props->lba48) {
+        cmd->fis.device = ATA_DEVICE_LBA;
+    }
+    cmd->fis.count = (cmd->xbytes / AHCI_SECTOR_SIZE);
+    cmd->fis.icc = 0x00;
+    cmd->fis.control = 0x00;
+    memset(cmd->fis.aux, 0x00, ARRAY_SIZE(cmd->fis.aux));
+}
+
+AHCICommand *ahci_command_create(uint8_t command_name)
+{
+    AHCICommandProp *props = ahci_command_find(command_name);
+    AHCICommand *cmd;
+
+    g_assert(props);
+    cmd = g_malloc0(sizeof(AHCICommand));
+    g_assert(!(props->dma && props->pio));
+    g_assert(!(props->lba28 && props->lba48));
+    g_assert(!(props->read && props->write));
+    g_assert(!props->size || props->data);
+
+    /* Defaults and book-keeping */
+    cmd->props = props;
+    cmd->name = command_name;
+    cmd->xbytes = props->size;
+    cmd->prd_size = 4096;
+    cmd->buffer = 0xabad1dea;
+
+    cmd->interrupts = AHCI_PX_IS_DHRS;
+    /* BUG: We expect the DPS interrupt for data commands */
+    /* cmd->interrupts |= props->data ? AHCI_PX_IS_DPS : 0; */
+    /* BUG: We expect the DMA Setup interrupt for DMA commands */
+    /* cmd->interrupts |= props->dma ? AHCI_PX_IS_DSS : 0; */
+    cmd->interrupts |= props->pio ? AHCI_PX_IS_PSS : 0;
+
+    command_header_init(cmd);
+    command_table_init(cmd);
+
+    return cmd;
+}
+
+void ahci_command_free(AHCICommand *cmd)
+{
+    g_free(cmd);
+}
+
+void ahci_command_set_buffer(AHCICommand *cmd, uint64_t buffer)
+{
+    cmd->buffer = buffer;
+}
+
+void ahci_command_commit(AHCIQState *ahci, AHCICommand *cmd, uint8_t port)
+{
+    uint16_t i, prdtl;
+    uint64_t table_size, table_ptr, remaining;
+    PRD prd;
+
+    /* This command is now tied to this port/command slot */
+    cmd->port = port;
+    cmd->slot = ahci_pick_cmd(ahci, port);
+
+    /* Create a buffer for the command table */
+    prdtl = size_to_prdtl(cmd->xbytes, cmd->prd_size);
+    table_size = CMD_TBL_SIZ(prdtl);
+    table_ptr = ahci_alloc(ahci, table_size);
+    g_assert(table_ptr);
+    /* AHCI 1.3: Must be aligned to 0x80 */
+    g_assert((table_ptr & 0x7F) == 0x00);
+    cmd->header.ctba = table_ptr;
+
+    /* Commit the command header and command FIS */
+    ahci_set_command_header(ahci, port, cmd->slot, &(cmd->header));
+    ahci_write_fis(ahci, &(cmd->fis), table_ptr);
+
+    /* Construct and write the PRDs to the command table */
+    g_assert_cmphex(prdtl, ==, cmd->header.prdtl);
+    remaining = cmd->xbytes;
+    for (i = 0; i < prdtl; ++i) {
+        prd.dba = cpu_to_le64(cmd->buffer + (cmd->prd_size * i));
+        prd.res = 0;
+        if (remaining > cmd->prd_size) {
+            /* Note that byte count is 0-based. */
+            prd.dbc = cpu_to_le32(cmd->prd_size - 1);
+            remaining -= cmd->prd_size;
+        } else {
+            /* Again, dbc is 0-based. */
+            prd.dbc = cpu_to_le32(remaining - 1);
+            remaining = 0;
+        }
+        prd.dbc |= cpu_to_le32(0x80000000); /* Request DPS Interrupt */
+
+        /* Commit the PRD entry to the Command Table */
+        memwrite(table_ptr + 0x80 + (i * sizeof(PRD)),
+                 &prd, sizeof(PRD));
+    }
+
+    /* Bookmark the PRDTL and CTBA values */
+    ahci->port[port].ctba[cmd->slot] = table_ptr;
+    ahci->port[port].prdtl[cmd->slot] = prdtl;
+}
+
+void ahci_command_issue_async(AHCIQState *ahci, AHCICommand *cmd)
+{
+    if (cmd->props->ncq) {
+        ahci_px_wreg(ahci, cmd->port, AHCI_PX_SACT, (1 << cmd->slot));
+    }
+
+    ahci_px_wreg(ahci, cmd->port, AHCI_PX_CI, (1 << cmd->slot));
+}
+
+void ahci_command_wait(AHCIQState *ahci, AHCICommand *cmd)
+{
+    /* We can't rely on STS_BSY until the command has started processing.
+     * Therefore, we also use the Command Issue bit as indication of
+     * a command in-flight. */
+    while (BITSET(ahci_px_rreg(ahci, cmd->port, AHCI_PX_TFD),
+                  AHCI_PX_TFD_STS_BSY) ||
+           BITSET(ahci_px_rreg(ahci, cmd->port, AHCI_PX_CI), (1 << cmd->slot))) {
+        usleep(50);
+    }
+}
+
+void ahci_command_issue(AHCIQState *ahci, AHCICommand *cmd)
+{
+    ahci_command_issue_async(ahci, cmd);
+    ahci_command_wait(ahci, cmd);
+}
+
+uint8_t ahci_command_slot(AHCICommand *cmd)
+{
+    return cmd->slot;
+}

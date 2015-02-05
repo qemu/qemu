@@ -657,30 +657,28 @@ static void ahci_test_port_spec(AHCIQState *ahci, uint8_t port)
  */
 static void ahci_test_identify(AHCIQState *ahci)
 {
-    RegH2DFIS fis;
-    AHCICommandHeader cmd;
-    PRD prd;
     uint32_t data_ptr;
     uint16_t buff[256];
     unsigned i;
     int rc;
+    AHCICommand *cmd;
     uint8_t cx;
-    uint64_t table;
 
     g_assert(ahci != NULL);
 
     /* We need to:
-     * (1) Create a Command Table Buffer and update the Command List Slot #0
-     *     to point to this buffer.
-     * (2) Construct an FIS host-to-device command structure, and write it to
+     * (1) Create a data buffer for the IDENTIFY response to be sent to,
+     * (2) Create a Command Table Buffer
+     * (3) Construct an FIS host-to-device command structure, and write it to
      *     the top of the command table buffer.
-     * (3) Create a data buffer for the IDENTIFY response to be sent to
      * (4) Create a Physical Region Descriptor that points to the data buffer,
      *     and write it to the bottom (offset 0x80) of the command table.
-     * (5) Now, PxCLB points to the command list, command 0 points to
+     * (5) Obtain a Command List slot, and update this header to point to
+     *     the Command Table we built above.
+     * (6) Now, PxCLB points to the command list, command 0 points to
      *     our table, and our table contains an FIS instruction and a
      *     PRD that points to our rx buffer.
-     * (6) We inform the HBA via PxCI that there is a command ready in slot #0.
+     * (7) We inform the HBA via PxCI that there is a command ready in slot #0.
      */
 
     /* Pick the first implemented and running port */
@@ -690,61 +688,24 @@ static void ahci_test_identify(AHCIQState *ahci)
     /* Clear out the FIS Receive area and any pending interrupts. */
     ahci_port_clear(ahci, i);
 
-    /* Create a Command Table buffer. 0x80 is the smallest with a PRDTL of 0. */
-    /* We need at least one PRD, so round up to the nearest 0x80 multiple.    */
-    table = ahci_alloc(ahci, CMD_TBL_SIZ(1));
-    g_assert(table);
-    ASSERT_BIT_CLEAR(table, 0x7F);
-
-    /* Create a data buffer ... where we will dump the IDENTIFY data to. */
+    /* Create a data buffer where we will dump the IDENTIFY data to. */
     data_ptr = ahci_alloc(ahci, 512);
     g_assert(data_ptr);
 
-    /* pick a command slot (should be 0!) */
-    cx = ahci_pick_cmd(ahci, i);
-
-    /* Construct our Command Header (set_command_header handles endianness.) */
-    memset(&cmd, 0x00, sizeof(cmd));
-    cmd.flags = 5;             /* reg_h2d_fis is 5 double-words long */
-    cmd.flags |= CMDH_CLR_BSY; /* clear PxTFD.STS.BSY when done */
-    cmd.prdtl = 1;             /* One PRD table entry. */
-    cmd.prdbc = 0;
-    cmd.ctba = table;
-
-    /* Construct our PRD, noting that DBC is 0-indexed. */
-    prd.dba = cpu_to_le64(data_ptr);
-    prd.res = 0;
-    /* 511+1 bytes, request DPS interrupt */
-    prd.dbc = cpu_to_le32(511 | 0x80000000);
-
-    /* Construct our Command FIS, Based on http://wiki.osdev.org/AHCI */
-    memset(&fis, 0x00, sizeof(fis));
-    fis.fis_type = REG_H2D_FIS;  /* Register Host-to-Device FIS */
-    fis.command = CMD_IDENTIFY;
-    fis.device = 0;
-    fis.flags = REG_H2D_FIS_CMD; /* Indicate this is a command FIS */
-
-    /* We've committed nothing yet, no interrupts should be posted yet. */
-    g_assert_cmphex(ahci_px_rreg(ahci, i, AHCI_PX_IS), ==, 0);
-
-    /* Commit the Command FIS to the Command Table */
-    ahci_write_fis(ahci, &fis, table);
-
-    /* Commit the PRD entry to the Command Table */
-    memwrite(table + 0x80, &prd, sizeof(prd));
-
-    /* Commit Command #cx, pointing to the Table, to the Command List Buffer. */
-    ahci_set_command_header(ahci, i, cx, &cmd);
+    /* Construct the Command Table (FIS and PRDT) and Command Header */
+    cmd = ahci_command_create(CMD_IDENTIFY);
+    ahci_command_set_buffer(cmd, data_ptr);
+    /* Write the command header and PRDT to guest memory */
+    ahci_command_commit(ahci, cmd, i);
 
     /* Everything is in place, but we haven't given the go-ahead yet,
      * so we should find that there are no pending interrupts yet. */
     g_assert_cmphex(ahci_px_rreg(ahci, i, AHCI_PX_IS), ==, 0);
 
     /* Issue Command #cx via PxCI */
-    ahci_px_wreg(ahci, i, AHCI_PX_CI, (1 << cx));
-    while (BITSET(ahci_px_rreg(ahci, i, AHCI_PX_TFD), AHCI_PX_TFD_STS_BSY)) {
-        usleep(50);
-    }
+    ahci_command_issue(ahci, cmd);
+    cx = ahci_command_slot(cmd);
+
     /* Check registers for post-command consistency */
     ahci_port_check_error(ahci, i);
     /* BUG: we expect AHCI_PX_IS_DPS to be set. */

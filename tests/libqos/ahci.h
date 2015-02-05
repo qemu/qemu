@@ -418,6 +418,9 @@ typedef struct PRD {
     uint32_t dbc;  /* Data Byte Count (0-indexed) & Interrupt Flag (bit 2^31) */
 } __attribute__((__packed__)) PRD;
 
+/* Opaque, defined within ahci.c */
+typedef struct AHCICommand AHCICommand;
+
 /*** Macro Utilities ***/
 #define BITANY(data, mask) (((data) & (mask)) != 0)
 #define BITSET(data, mask) (((data) & (mask)) == (mask))
@@ -517,5 +520,20 @@ void ahci_set_command_header(AHCIQState *ahci, uint8_t port,
 void ahci_destroy_command(AHCIQState *ahci, uint8_t port, uint8_t slot);
 void ahci_write_fis(AHCIQState *ahci, RegH2DFIS *fis, uint64_t addr);
 unsigned ahci_pick_cmd(AHCIQState *ahci, uint8_t port);
+unsigned size_to_prdtl(unsigned bytes, unsigned bytes_per_prd);
+
+/* Command Lifecycle */
+AHCICommand *ahci_command_create(uint8_t command_name);
+void ahci_command_commit(AHCIQState *ahci, AHCICommand *cmd, uint8_t port);
+void ahci_command_issue(AHCIQState *ahci, AHCICommand *cmd);
+void ahci_command_issue_async(AHCIQState *ahci, AHCICommand *cmd);
+void ahci_command_wait(AHCIQState *ahci, AHCICommand *cmd);
+void ahci_command_free(AHCICommand *cmd);
+
+/* Command adjustments */
+void ahci_command_set_buffer(AHCICommand *cmd, uint64_t buffer);
+
+/* Command Misc */
+uint8_t ahci_command_slot(AHCICommand *cmd);
 
 #endif
