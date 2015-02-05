@@ -32,6 +32,8 @@
 #  define ELF_MACHINE EM_ARM
 #endif
 
+#define TARGET_IS_BIENDIAN 1
+
 #define CPUArchState struct CPUARMState
 
 #include "qemu-common.h"

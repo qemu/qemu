@@ -327,6 +327,29 @@ static void arm_cpu_kvm_set_irq(void *opaque, int irq, int level)
     kvm_set_irq(kvm_state, kvm_irq, level ? 1 : 0);
 #endif
 }
+
+static bool arm_cpu_is_big_endian(CPUState *cs)
+{
+    ARMCPU *cpu = ARM_CPU(cs);
+    CPUARMState *env = &cpu->env;
+    int cur_el;
+
+    cpu_synchronize_state(cs);
+
+    /* In 32bit guest endianness is determined by looking at CPSR's E bit */
+    if (!is_a64(env)) {
+        return (env->uncached_cpsr & CPSR_E) ? 1 : 0;
+    }
+
+    cur_el = arm_current_el(env);
+
+    if (cur_el == 0) {
+        return (env->cp15.sctlr_el[1] & SCTLR_E0E) != 0;
+    }
+
+    return (env->cp15.sctlr_el[cur_el] & SCTLR_EE) != 0;
+}
+
 #endif
 
 static inline void set_feature(CPUARMState *env, int feature)
@@ -1196,6 +1219,7 @@ static void arm_cpu_class_init(ObjectClass *oc, void *data)
     cc->do_interrupt = arm_cpu_do_interrupt;
     cc->get_phys_page_debug = arm_cpu_get_phys_page_debug;
     cc->vmsd = &vmstate_arm_cpu;
+    cc->virtio_is_big_endian = arm_cpu_is_big_endian;
 #endif
     cc->gdb_num_core_regs = 26;
     cc->gdb_core_xml_file = "arm-core.xml";
