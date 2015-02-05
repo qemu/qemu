@@ -6526,7 +6526,7 @@ float64 HELPER(recpe_f64)(float64 input, void *fpstp)
         } else {
             return float64_set_sign(float64_maxnorm, float64_is_neg(f64));
         }
-    } else if (f64_exp >= 1023 && fpst->flush_to_zero) {
+    } else if (f64_exp >= 2045 && fpst->flush_to_zero) {
         float_raise(float_flag_underflow, fpst);
         return float64_set_sign(float64_zero, float64_is_neg(f64));
     }
