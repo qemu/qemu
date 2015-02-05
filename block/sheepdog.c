@@ -1730,7 +1730,7 @@ static int sd_create(const char *filename, QemuOpts *opts,
         BlockDriver *drv;
 
         /* Currently, only Sheepdog backing image is supported. */
-        drv = bdrv_find_protocol(backing_file, true);
+        drv = bdrv_find_protocol(backing_file, true, NULL);
         if (!drv || strcmp(drv->protocol_name, "sheepdog") != 0) {
             error_setg(errp, "backing_file must be a sheepdog image");
             ret = -EINVAL;
