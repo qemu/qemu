@@ -13,7 +13,7 @@
 
 #ifndef CONFIG_USER_ONLY
 static inline int get_phys_addr(CPUARMState *env, target_ulong address,
-                                int access_type, int is_user,
+                                int access_type, ARMMMUIdx mmu_idx,
                                 hwaddr *phys_ptr, int *prot,
                                 target_ulong *page_size);
 
@@ -1459,7 +1459,7 @@ static CPAccessResult ats_access(CPUARMState *env, const ARMCPRegInfo *ri)
 }
 
 static uint64_t do_ats_write(CPUARMState *env, uint64_t value,
-                             int access_type, int is_user)
+                             int access_type, ARMMMUIdx mmu_idx)
 {
     hwaddr phys_addr;
     target_ulong page_size;
@@ -1467,7 +1467,7 @@ static uint64_t do_ats_write(CPUARMState *env, uint64_t value,
     int ret;
     uint64_t par64;
 
-    ret = get_phys_addr(env, value, access_type, is_user,
+    ret = get_phys_addr(env, value, access_type, mmu_idx,
                         &phys_addr, &prot, &page_size);
     if (extended_addresses_enabled(env)) {
         /* ret is a DFSR/IFSR value for the long descriptor
@@ -1509,11 +1509,58 @@ static uint64_t do_ats_write(CPUARMState *env, uint64_t value,
 
 static void ats_write(CPUARMState *env, const ARMCPRegInfo *ri, uint64_t value)
 {
-    int is_user = ri->opc2 & 2;
     int access_type = ri->opc2 & 1;
     uint64_t par64;
+    ARMMMUIdx mmu_idx;
+    int el = arm_current_el(env);
+    bool secure = arm_is_secure_below_el3(env);
 
-    par64 = do_ats_write(env, value, access_type, is_user);
+    switch (ri->opc2 & 6) {
+    case 0:
+        /* stage 1 current state PL1: ATS1CPR, ATS1CPW */
+        switch (el) {
+        case 3:
+            mmu_idx = ARMMMUIdx_S1E3;
+            break;
+        case 2:
+            mmu_idx = ARMMMUIdx_S1NSE1;
+            break;
+        case 1:
+            mmu_idx = secure ? ARMMMUIdx_S1SE1 : ARMMMUIdx_S1NSE1;
+            break;
+        default:
+            g_assert_not_reached();
+        }
+        break;
+    case 2:
+        /* stage 1 current state PL0: ATS1CUR, ATS1CUW */
+        switch (el) {
+        case 3:
+            mmu_idx = ARMMMUIdx_S1SE0;
+            break;
+        case 2:
+            mmu_idx = ARMMMUIdx_S1NSE0;
+            break;
+        case 1:
+            mmu_idx = secure ? ARMMMUIdx_S1SE0 : ARMMMUIdx_S1NSE0;
+            break;
+        default:
+            g_assert_not_reached();
+        }
+        break;
+    case 4:
+        /* stage 1+2 NonSecure PL1: ATS12NSOPR, ATS12NSOPW */
+        mmu_idx = ARMMMUIdx_S12NSE1;
+        break;
+    case 6:
+        /* stage 1+2 NonSecure PL0: ATS12NSOUR, ATS12NSOUW */
+        mmu_idx = ARMMMUIdx_S12NSE0;
+        break;
+    default:
+        g_assert_not_reached();
+    }
+
+    par64 = do_ats_write(env, value, access_type, mmu_idx);
 
     A32_BANKED_CURRENT_REG_SET(env, par, par64);
 }
@@ -1521,10 +1568,40 @@ static void ats_write(CPUARMState *env, const ARMCPRegInfo *ri, uint64_t value)
 static void ats_write64(CPUARMState *env, const ARMCPRegInfo *ri,
                         uint64_t value)
 {
-    int is_user = ri->opc2 & 2;
     int access_type = ri->opc2 & 1;
+    ARMMMUIdx mmu_idx;
+    int secure = arm_is_secure_below_el3(env);
 
-    env->cp15.par_el[1] = do_ats_write(env, value, access_type, is_user);
+    switch (ri->opc2 & 6) {
+    case 0:
+        switch (ri->opc1) {
+        case 0: /* AT S1E1R, AT S1E1W */
+            mmu_idx = secure ? ARMMMUIdx_S1SE1 : ARMMMUIdx_S1NSE1;
+            break;
+        case 4: /* AT S1E2R, AT S1E2W */
+            mmu_idx = ARMMMUIdx_S1E2;
+            break;
+        case 6: /* AT S1E3R, AT S1E3W */
+            mmu_idx = ARMMMUIdx_S1E3;
+            break;
+        default:
+            g_assert_not_reached();
+        }
+        break;
+    case 2: /* AT S1E0R, AT S1E0W */
+        mmu_idx = secure ? ARMMMUIdx_S1SE0 : ARMMMUIdx_S1NSE0;
+        break;
+    case 4: /* AT S12E1R, AT S12E1W */
+        mmu_idx = ARMMMUIdx_S12NSE1;
+        break;
+    case 6: /* AT S12E0R, AT S12E0W */
+        mmu_idx = ARMMMUIdx_S12NSE0;
+        break;
+    default:
+        g_assert_not_reached();
+    }
+
+    env->cp15.par_el[1] = do_ats_write(env, value, access_type, mmu_idx);
 }
 #endif
 
@@ -5144,13 +5221,13 @@ static int get_phys_addr_mpu(CPUARMState *env, uint32_t address,
  * @env: CPUARMState
  * @address: virtual address to get physical address for
  * @access_type: 0 for read, 1 for write, 2 for execute
- * @is_user: 0 for privileged access, 1 for user
+ * @mmu_idx: MMU index indicating required translation regime
  * @phys_ptr: set to the physical address corresponding to the virtual address
  * @prot: set to the permissions for the page containing phys_ptr
  * @page_size: set to the size of the page containing phys_ptr
  */
 static inline int get_phys_addr(CPUARMState *env, target_ulong address,
-                                int access_type, int is_user,
+                                int access_type, ARMMMUIdx mmu_idx,
                                 hwaddr *phys_ptr, int *prot,
                                 target_ulong *page_size)
 {
@@ -5158,6 +5235,11 @@ static inline int get_phys_addr(CPUARMState *env, target_ulong address,
      * from ats_write() for an address translation of a specific regime.
      */
     uint32_t sctlr = A32_BANKED_CURRENT_REG_GET(env, sctlr);
+
+    /* This will go away when we handle mmu_idx properly here */
+    int is_user = (mmu_idx == ARMMMUIdx_S12NSE0 ||
+                   mmu_idx == ARMMMUIdx_S1SE0 ||
+                   mmu_idx == ARMMMUIdx_S1NSE0);
 
     /* Fast Context Switch Extension.  */
     if (address < 0x02000000) {
@@ -5194,13 +5276,11 @@ int arm_cpu_handle_mmu_fault(CPUState *cs, vaddr address,
     hwaddr phys_addr;
     target_ulong page_size;
     int prot;
-    int ret, is_user;
+    int ret;
     uint32_t syn;
     bool same_el = (arm_current_el(env) != 0);
 
-    /* TODO: pass the translation regime to get_phys_addr */
-    is_user = (arm_mmu_idx_to_el(mmu_idx) == 0);
-    ret = get_phys_addr(env, address, access_type, is_user, &phys_addr, &prot,
+    ret = get_phys_addr(env, address, access_type, mmu_idx, &phys_addr, &prot,
                         &page_size);
     if (ret == 0) {
         /* Map a single [sub]page.  */
@@ -5236,12 +5316,14 @@ int arm_cpu_handle_mmu_fault(CPUState *cs, vaddr address,
 hwaddr arm_cpu_get_phys_page_debug(CPUState *cs, vaddr addr)
 {
     ARMCPU *cpu = ARM_CPU(cs);
+    CPUARMState *env = &cpu->env;
     hwaddr phys_addr;
     target_ulong page_size;
     int prot;
     int ret;
 
-    ret = get_phys_addr(&cpu->env, addr, 0, 0, &phys_addr, &prot, &page_size);
+    ret = get_phys_addr(env, addr, 0, cpu_mmu_index(env), &phys_addr,
+                        &prot, &page_size);
 
     if (ret != 0) {
         return -1;
