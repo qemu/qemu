@@ -21,9 +21,9 @@ QMP_VERSION
 {"return": {}}
 {"error": {"class": "GenericError", "desc": "Device with id 'disk' already exists"}}
 {"error": {"class": "GenericError", "desc": "Device name 'test-node' conflicts with an existing node name"}}
-{"error": {"class": "GenericError", "desc": "could not open disk image disk2: node-name=disk is conflicting with a device id"}}
-{"error": {"class": "GenericError", "desc": "could not open disk image disk2: Duplicate node name"}}
-{"error": {"class": "GenericError", "desc": "could not open disk image disk3: node-name=disk3 is conflicting with a device id"}}
+{"error": {"class": "GenericError", "desc": "node-name=disk is conflicting with a device id"}}
+{"error": {"class": "GenericError", "desc": "Duplicate node name"}}
+{"error": {"class": "GenericError", "desc": "node-name=disk3 is conflicting with a device id"}}
 {"return": {}}
 {"timestamp": {"seconds":  TIMESTAMP, "microseconds":  TIMESTAMP}, "event": "SHUTDOWN"}
 {"timestamp": {"seconds":  TIMESTAMP, "microseconds":  TIMESTAMP}, "event": "DEVICE_TRAY_MOVED", "data": {"device": "ide1-cd0", "tray-open": true}}
@@ -57,7 +57,7 @@ QMP_VERSION
 Testing:
 QMP_VERSION
 {"return": {}}
-{"error": {"class": "GenericError", "desc": "could not open disk image disk: Guest must be stopped for opening of encrypted image"}}
+{"error": {"class": "GenericError", "desc": "Guest must be stopped for opening of encrypted image"}}
 {"return": {}}
 {"timestamp": {"seconds":  TIMESTAMP, "microseconds":  TIMESTAMP}, "event": "SHUTDOWN"}
 {"timestamp": {"seconds":  TIMESTAMP, "microseconds":  TIMESTAMP}, "event": "DEVICE_TRAY_MOVED", "data": {"device": "ide1-cd0", "tray-open": true}}
