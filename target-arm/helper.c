@@ -2329,6 +2329,10 @@ static const ARMCPRegInfo v8_cp_reginfo[] = {
       .access = PL1_RW, .accessfn = sp_el0_access,
       .type = ARM_CP_NO_MIGRATE,
       .fieldoffset = offsetof(CPUARMState, sp_el[0]) },
+    { .name = "SP_EL1", .state = ARM_CP_STATE_AA64,
+      .opc0 = 3, .opc1 = 4, .crn = 4, .crm = 1, .opc2 = 0,
+      .access = PL2_RW, .type = ARM_CP_NO_MIGRATE,
+      .fieldoffset = offsetof(CPUARMState, sp_el[1]) },
     { .name = "SPSel", .state = ARM_CP_STATE_AA64,
       .opc0 = 3, .opc1 = 0, .crn = 4, .crm = 2, .opc2 = 0,
       .type = ARM_CP_NO_MIGRATE,
@@ -2410,6 +2414,10 @@ static const ARMCPRegInfo v8_el2_cp_reginfo[] = {
       .access = PL2_RW, .writefn = vbar_write,
       .fieldoffset = offsetof(CPUARMState, cp15.vbar_el[2]),
       .resetvalue = 0 },
+    { .name = "SP_EL2", .state = ARM_CP_STATE_AA64,
+      .opc0 = 3, .opc1 = 6, .crn = 4, .crm = 1, .opc2 = 0,
+      .access = PL3_RW, .type = ARM_CP_NO_MIGRATE,
+      .fieldoffset = offsetof(CPUARMState, sp_el[2]) },
     REGINFO_SENTINEL
 };
 
