@@ -28,7 +28,6 @@
 static char *progname;
 
 static BlockBackend *qemuio_blk;
-static BlockDriverState *qemuio_bs;
 
 /* qemu-io commands passed using -c */
 static int ncmdline;
@@ -36,10 +35,9 @@ static char **cmdline;
 
 static ReadLineState *readline_state;
 
-static int close_f(BlockDriverState *bs, int argc, char **argv)
+static int close_f(BlockBackend *blk, int argc, char **argv)
 {
     blk_unref(qemuio_blk);
-    qemuio_bs = NULL;
     qemuio_blk = NULL;
     return 0;
 }
@@ -69,7 +67,6 @@ static int openfile(char *name, int flags, QDict *opts)
         error_free(local_err);
         return 1;
     }
-    qemuio_bs = blk_bs(qemuio_blk);
 
     return 0;
 }
@@ -91,7 +88,7 @@ static void open_help(void)
 "\n");
 }
 
-static int open_f(BlockDriverState *bs, int argc, char **argv);
+static int open_f(BlockBackend *blk, int argc, char **argv);
 
 static const cmdinfo_t open_cmd = {
     .name       = "open",
@@ -115,7 +112,7 @@ static QemuOptsList empty_opts = {
     },
 };
 
-static int open_f(BlockDriverState *bs, int argc, char **argv)
+static int open_f(BlockBackend *blk, int argc, char **argv)
 {
     int flags = 0;
     int readonly = 0;
@@ -165,7 +162,7 @@ static int open_f(BlockDriverState *bs, int argc, char **argv)
     }
 }
 
-static int quit_f(BlockDriverState *bs, int argc, char **argv)
+static int quit_f(BlockBackend *blk, int argc, char **argv)
 {
     return 1;
 }
@@ -302,7 +299,7 @@ static void command_loop(void)
     char *input;
 
     for (i = 0; !done && i < ncmdline; i++) {
-        done = qemuio_command(qemuio_bs, cmdline[i]);
+        done = qemuio_command(qemuio_blk, cmdline[i]);
     }
     if (cmdline) {
         g_free(cmdline);
@@ -327,7 +324,7 @@ static void command_loop(void)
         if (input == NULL) {
             break;
         }
-        done = qemuio_command(qemuio_bs, input);
+        done = qemuio_command(qemuio_blk, input);
         g_free(input);
 
         prompted = 0;
