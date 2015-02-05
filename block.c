@@ -3098,8 +3098,10 @@ static int coroutine_fn bdrv_co_do_preadv(BlockDriverState *bs,
     if (!drv) {
         return -ENOMEDIUM;
     }
-    if (bdrv_check_byte_request(bs, offset, bytes)) {
-        return -EIO;
+
+    ret = bdrv_check_byte_request(bs, offset, bytes);
+    if (ret < 0) {
+        return ret;
     }
 
     if (bs->copy_on_read) {
@@ -3342,8 +3344,10 @@ static int coroutine_fn bdrv_co_do_pwritev(BlockDriverState *bs,
     if (bs->read_only) {
         return -EACCES;
     }
-    if (bdrv_check_byte_request(bs, offset, bytes)) {
-        return -EIO;
+
+    ret = bdrv_check_byte_request(bs, offset, bytes);
+    if (ret < 0) {
+        return ret;
     }
 
     /* throttling disk I/O */
@@ -4197,12 +4201,18 @@ int bdrv_write_compressed(BlockDriverState *bs, int64_t sector_num,
                           const uint8_t *buf, int nb_sectors)
 {
     BlockDriver *drv = bs->drv;
-    if (!drv)
+    int ret;
+
+    if (!drv) {
         return -ENOMEDIUM;
-    if (!drv->bdrv_write_compressed)
+    }
+    if (!drv->bdrv_write_compressed) {
         return -ENOTSUP;
-    if (bdrv_check_request(bs, sector_num, nb_sectors))
-        return -EIO;
+    }
+    ret = bdrv_check_request(bs, sector_num, nb_sectors);
+    if (ret < 0) {
+        return ret;
+    }
 
     assert(QLIST_EMPTY(&bs->dirty_bitmaps));
 
@@ -5117,12 +5127,15 @@ static void coroutine_fn bdrv_discard_co_entry(void *opaque)
 int coroutine_fn bdrv_co_discard(BlockDriverState *bs, int64_t sector_num,
                                  int nb_sectors)
 {
-    int max_discard;
+    int max_discard, ret;
 
     if (!bs->drv) {
         return -ENOMEDIUM;
-    } else if (bdrv_check_request(bs, sector_num, nb_sectors)) {
-        return -EIO;
+    }
+
+    ret = bdrv_check_request(bs, sector_num, nb_sectors);
+    if (ret < 0) {
+        return ret;
     } else if (bs->read_only) {
         return -EROFS;
     }
