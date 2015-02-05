@@ -3055,7 +3055,7 @@ void register_cp_regs_for_features(ARMCPU *cpu)
         };
         ARMCPRegInfo rvbar = {
             .name = "RVBAR_EL1", .state = ARM_CP_STATE_AA64,
-            .opc0 = 3, .opc1 = 0, .crn = 12, .crm = 0, .opc2 = 2,
+            .opc0 = 3, .opc1 = 0, .crn = 12, .crm = 0, .opc2 = 1,
             .type = ARM_CP_CONST, .access = PL1_R, .resetvalue = cpu->rvbar
         };
         define_one_arm_cp_reg(cpu, &rvbar);
