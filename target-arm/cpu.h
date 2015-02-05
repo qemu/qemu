@@ -1110,8 +1110,14 @@ static inline uint64_t cpreg_to_kvm_id(uint32_t cpregid)
  * a register definition to override a previous definition for the
  * same (cp, is64, crn, crm, opc1, opc2) tuple: either the new or the
  * old must have the OVERRIDE bit set.
- * NO_MIGRATE indicates that this register should be ignored for migration;
- * (eg because any state is accessed via some other coprocessor register).
+ * ALIAS indicates that this register is an alias view of some underlying
+ * state which is also visible via another register, and that the other
+ * register is handling migration; registers marked ALIAS will not be migrated
+ * but may have their state set by syncing of register state from KVM.
+ * NO_RAW indicates that this register has no underlying state and does not
+ * support raw access for state saving/loading; it will not be used for either
+ * migration or KVM state synchronization. (Typically this is for "registers"
+ * which are actually used as instructions for cache maintenance and so on.)
  * IO indicates that this register does I/O and therefore its accesses
  * need to be surrounded by gen_io_start()/gen_io_end(). In particular,
  * registers which implement clocks or timers require this.
@@ -1121,8 +1127,9 @@ static inline uint64_t cpreg_to_kvm_id(uint32_t cpregid)
 #define ARM_CP_64BIT 4
 #define ARM_CP_SUPPRESS_TB_END 8
 #define ARM_CP_OVERRIDE 16
-#define ARM_CP_NO_MIGRATE 32
+#define ARM_CP_ALIAS 32
 #define ARM_CP_IO 64
+#define ARM_CP_NO_RAW 128
 #define ARM_CP_NOP (ARM_CP_SPECIAL | (1 << 8))
 #define ARM_CP_WFI (ARM_CP_SPECIAL | (2 << 8))
 #define ARM_CP_NZCV (ARM_CP_SPECIAL | (3 << 8))
@@ -1132,7 +1139,7 @@ static inline uint64_t cpreg_to_kvm_id(uint32_t cpregid)
 /* Used only as a terminator for ARMCPRegInfo lists */
 #define ARM_CP_SENTINEL 0xffff
 /* Mask of only the flag bits in a type field */
-#define ARM_CP_FLAG_MASK 0x7f
+#define ARM_CP_FLAG_MASK 0xff
 
 /* Valid values for ARMCPRegInfo state field, indicating which of
  * the AArch32 and AArch64 execution states this register is visible in.
