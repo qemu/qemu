@@ -113,6 +113,28 @@ void arm_translate_init(void)
     a64_translate_init();
 }
 
+static inline ARMMMUIdx get_a32_user_mem_index(DisasContext *s)
+{
+    /* Return the mmu_idx to use for A32/T32 "unprivileged load/store"
+     * insns:
+     *  if PL2, UNPREDICTABLE (we choose to implement as if PL0)
+     *  otherwise, access as if at PL0.
+     */
+    switch (s->mmu_idx) {
+    case ARMMMUIdx_S1E2:        /* this one is UNPREDICTABLE */
+    case ARMMMUIdx_S12NSE0:
+    case ARMMMUIdx_S12NSE1:
+        return ARMMMUIdx_S12NSE0;
+    case ARMMMUIdx_S1E3:
+    case ARMMMUIdx_S1SE0:
+    case ARMMMUIdx_S1SE1:
+        return ARMMMUIdx_S1SE0;
+    case ARMMMUIdx_S2NS:
+    default:
+        g_assert_not_reached();
+    }
+}
+
 static inline TCGv_i32 load_cpu_offset(int offset)
 {
     TCGv_i32 tmp = tcg_temp_new_i32();
@@ -8797,7 +8819,7 @@ static void disas_arm_insn(DisasContext *s, unsigned int insn)
             tmp2 = load_reg(s, rn);
             if ((insn & 0x01200000) == 0x00200000) {
                 /* ldrt/strt */
-                i = MMU_USER_IDX;
+                i = get_a32_user_mem_index(s);
             } else {
                 i = get_mem_index(s);
             }
@@ -10177,7 +10199,7 @@ static int disas_thumb2_insn(CPUARMState *env, DisasContext *s, uint16_t insn_hw
                     break;
                 case 0xe: /* User privilege.  */
                     tcg_gen_addi_i32(addr, addr, imm);
-                    memidx = MMU_USER_IDX;
+                    memidx = get_a32_user_mem_index(s);
                     break;
                 case 0x9: /* Post-decrement.  */
                     imm = -imm;
