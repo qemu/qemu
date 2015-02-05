@@ -51,7 +51,7 @@ static const cmdinfo_t close_cmd = {
     .oneline    = "close the current open file",
 };
 
-static int openfile(char *name, int flags, int growable, QDict *opts)
+static int openfile(char *name, int flags, QDict *opts)
 {
     Error *local_err = NULL;
 
@@ -59,10 +59,6 @@ static int openfile(char *name, int flags, int growable, QDict *opts)
         fprintf(stderr, "file open already, try 'help close'\n");
         QDECREF(opts);
         return 1;
-    }
-
-    if (growable) {
-        flags |= BDRV_O_PROTOCOL;
     }
 
     qemuio_blk = blk_new_open("hda", name, NULL, opts, flags, &local_err);
@@ -91,7 +87,6 @@ static void open_help(void)
 " -r, -- open file read-only\n"
 " -s, -- use snapshot file\n"
 " -n, -- disable host cache\n"
-" -g, -- allow file to grow (only applies to protocols)\n"
 " -o, -- options to be given to the block driver"
 "\n");
 }
@@ -124,7 +119,6 @@ static int open_f(BlockDriverState *bs, int argc, char **argv)
 {
     int flags = 0;
     int readonly = 0;
-    int growable = 0;
     int c;
     QemuOpts *qopts;
     QDict *opts;
@@ -139,9 +133,6 @@ static int open_f(BlockDriverState *bs, int argc, char **argv)
             break;
         case 'r':
             readonly = 1;
-            break;
-        case 'g':
-            growable = 1;
             break;
         case 'o':
             if (!qemu_opts_parse(&empty_opts, optarg, 0)) {
@@ -165,9 +156,9 @@ static int open_f(BlockDriverState *bs, int argc, char **argv)
     qemu_opts_reset(&empty_opts);
 
     if (optind == argc - 1) {
-        return openfile(argv[optind], flags, growable, opts);
+        return openfile(argv[optind], flags, opts);
     } else if (optind == argc) {
-        return openfile(NULL, flags, growable, opts);
+        return openfile(NULL, flags, opts);
     } else {
         QDECREF(opts);
         return qemuio_command_usage(&open_cmd);
@@ -201,7 +192,6 @@ static void usage(const char *name)
 "  -r, --read-only      export read-only\n"
 "  -s, --snapshot       use snapshot file\n"
 "  -n, --nocache        disable host cache\n"
-"  -g, --growable       allow file to grow (only applies to protocols)\n"
 "  -m, --misalign       misalign allocations for O_DIRECT\n"
 "  -k, --native-aio     use kernel AIO implementation (on Linux only)\n"
 "  -t, --cache=MODE     use the given cache mode for the image\n"
@@ -360,7 +350,6 @@ static void reenable_tty_echo(void)
 int main(int argc, char **argv)
 {
     int readonly = 0;
-    int growable = 0;
     const char *sopt = "hVc:d:f:rsnmgkt:T:";
     const struct option lopt[] = {
         { "help", 0, NULL, 'h' },
@@ -372,7 +361,6 @@ int main(int argc, char **argv)
         { "snapshot", 0, NULL, 's' },
         { "nocache", 0, NULL, 'n' },
         { "misalign", 0, NULL, 'm' },
-        { "growable", 0, NULL, 'g' },
         { "native-aio", 0, NULL, 'k' },
         { "discard", 1, NULL, 'd' },
         { "cache", 1, NULL, 't' },
@@ -422,9 +410,6 @@ int main(int argc, char **argv)
             break;
         case 'm':
             qemuio_misalign = true;
-            break;
-        case 'g':
-            growable = 1;
             break;
         case 'k':
             flags |= BDRV_O_NATIVE_AIO;
@@ -483,7 +468,7 @@ int main(int argc, char **argv)
     }
 
     if ((argc - optind) == 1) {
-        openfile(argv[optind], flags, growable, opts);
+        openfile(argv[optind], flags, opts);
     }
     command_loop();
 
