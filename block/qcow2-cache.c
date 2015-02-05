@@ -253,7 +253,9 @@ static int qcow2_cache_find_entry_to_replace(Qcow2Cache *c)
 
         /* Give newer hits priority */
         /* TODO Check how to optimize the replacement strategy */
-        c->entries[i].cache_hits /= 2;
+        if (c->entries[i].cache_hits > 1) {
+            c->entries[i].cache_hits /= 2;
+        }
     }
 
     if (min_index == -1) {
