@@ -29,6 +29,8 @@
 #define BP_OLED_SSI  0x02
 #define BP_GAMEPAD   0x04
 
+#define NUM_IRQ_LINES 64
+
 typedef const struct {
     const char *name;
     uint32_t did0;
@@ -1239,7 +1241,8 @@ static void stellaris_init(const char *kernel_filename, const char *cpu_model,
     vmstate_register_ram_global(sram);
     memory_region_add_subregion(system_memory, 0x20000000, sram);
 
-    pic = armv7m_init(system_memory, flash_size, kernel_filename, cpu_model);
+    pic = armv7m_init(system_memory, flash_size, NUM_IRQ_LINES,
+                      kernel_filename, cpu_model);
 
     if (board->dc1 & (1 << 16)) {
         dev = sysbus_create_varargs(TYPE_STELLARIS_ADC, 0x40038000,
