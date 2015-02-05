@@ -662,7 +662,6 @@ static void ahci_test_identify(AHCIQState *ahci)
     unsigned i;
     int rc;
     AHCICommand *cmd;
-    uint8_t cx;
 
     g_assert(ahci != NULL);
 
@@ -702,20 +701,9 @@ static void ahci_test_identify(AHCIQState *ahci)
      * so we should find that there are no pending interrupts yet. */
     g_assert_cmphex(ahci_px_rreg(ahci, i, AHCI_PX_IS), ==, 0);
 
-    /* Issue Command #cx via PxCI */
+    /* Issue command and sanity check response. */
     ahci_command_issue(ahci, cmd);
-    cx = ahci_command_slot(cmd);
-
-    /* Check registers for post-command consistency */
-    ahci_port_check_error(ahci, i);
-    /* BUG: we expect AHCI_PX_IS_DPS to be set. */
-    ahci_port_check_interrupts(ahci, i, AHCI_PX_IS_DHRS | AHCI_PX_IS_PSS);
-    ahci_port_check_nonbusy(ahci, i, cx);
-    /* Investigate the CMD, assert that we read 512 bytes */
-    ahci_port_check_cmd_sanity(ahci, i, cx, 512);
-    /* Investigate FIS responses */
-    ahci_port_check_d2h_sanity(ahci, i, cx);
-    ahci_port_check_pio_sanity(ahci, i, cx, 512);
+    ahci_command_verify(ahci, cmd);
 
     /* Last, but not least: Investigate the IDENTIFY response data. */
     memread(data_ptr, &buff, 512);

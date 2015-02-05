@@ -528,6 +528,7 @@ void ahci_command_commit(AHCIQState *ahci, AHCICommand *cmd, uint8_t port);
 void ahci_command_issue(AHCIQState *ahci, AHCICommand *cmd);
 void ahci_command_issue_async(AHCIQState *ahci, AHCICommand *cmd);
 void ahci_command_wait(AHCIQState *ahci, AHCICommand *cmd);
+void ahci_command_verify(AHCIQState *ahci, AHCICommand *cmd);
 void ahci_command_free(AHCICommand *cmd);
 
 /* Command adjustments */

@@ -737,6 +737,21 @@ void ahci_command_issue(AHCIQState *ahci, AHCICommand *cmd)
     ahci_command_wait(ahci, cmd);
 }
 
+void ahci_command_verify(AHCIQState *ahci, AHCICommand *cmd)
+{
+    uint8_t slot = cmd->slot;
+    uint8_t port = cmd->port;
+
+    ahci_port_check_error(ahci, port);
+    ahci_port_check_interrupts(ahci, port, cmd->interrupts);
+    ahci_port_check_nonbusy(ahci, port, slot);
+    ahci_port_check_cmd_sanity(ahci, port, slot, cmd->xbytes);
+    ahci_port_check_d2h_sanity(ahci, port, slot);
+    if (cmd->props->pio) {
+        ahci_port_check_pio_sanity(ahci, port, slot, cmd->xbytes);
+    }
+}
+
 uint8_t ahci_command_slot(AHCICommand *cmd)
 {
     return cmd->slot;
