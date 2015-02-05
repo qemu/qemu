@@ -716,6 +716,46 @@ static void ahci_test_identify(AHCIQState *ahci)
     g_assert_cmphex(sect_size, ==, 0x200);
 }
 
+static void ahci_test_dma_rw_simple(AHCIQState *ahci)
+{
+    uint64_t ptr;
+    uint8_t port;
+    unsigned i;
+    const unsigned bufsize = 4096;
+    unsigned char *tx = g_malloc(bufsize);
+    unsigned char *rx = g_malloc0(bufsize);
+
+    g_assert(ahci != NULL);
+
+    /* Pick the first running port and clear it. */
+    port = ahci_port_select(ahci);
+    ahci_port_clear(ahci, port);
+
+    /*** Create pattern and transfer to guest ***/
+    /* Data buffer in the guest */
+    ptr = ahci_alloc(ahci, bufsize);
+    g_assert(ptr);
+
+    /* Write some indicative pattern to our 4K buffer. */
+    for (i = 0; i < bufsize; i++) {
+        tx[i] = (bufsize - i);
+    }
+    memwrite(ptr, tx, bufsize);
+
+    /* Write this buffer to disk, then read it back to the DMA buffer. */
+    ahci_guest_io(ahci, port, CMD_WRITE_DMA, ptr, bufsize);
+    qmemset(ptr, 0x00, bufsize);
+    ahci_guest_io(ahci, port, CMD_READ_DMA, ptr, bufsize);
+
+    /*** Read back the Data ***/
+    memread(ptr, rx, bufsize);
+    g_assert_cmphex(memcmp(tx, rx, bufsize), ==, 0);
+
+    ahci_free(ahci, ptr);
+    g_free(tx);
+    g_free(rx);
+}
+
 /******************************************************************************/
 /* Test Interfaces                                                            */
 /******************************************************************************/
@@ -798,6 +838,20 @@ static void test_identify(void)
     ahci_shutdown(ahci);
 }
 
+/**
+ * Perform a simple DMA R/W test, using a single PRD and non-NCQ commands.
+ */
+static void test_dma_rw_simple(void)
+{
+    AHCIQState *ahci;
+
+    ahci = ahci_boot();
+    ahci_pci_enable(ahci);
+    ahci_hba_enable(ahci);
+    ahci_test_dma_rw_simple(ahci);
+    ahci_shutdown(ahci);
+}
+
 /******************************************************************************/
 
 int main(int argc, char **argv)
@@ -853,6 +907,7 @@ int main(int argc, char **argv)
     qtest_add_func("/ahci/hba_spec",   test_hba_spec);
     qtest_add_func("/ahci/hba_enable", test_hba_enable);
     qtest_add_func("/ahci/identify",   test_identify);
+    qtest_add_func("/ahci/dma/simple", test_dma_rw_simple);
 
     ret = g_test_run();
 
