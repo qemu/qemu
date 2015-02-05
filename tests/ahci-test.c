@@ -747,19 +747,10 @@ static void ahci_test_identify(AHCIQState *ahci)
     while (BITSET(ahci_px_rreg(ahci, i, AHCI_PX_TFD), AHCI_PX_TFD_STS_BSY)) {
         usleep(50);
     }
+    /* Check registers for post-command consistency */
     ahci_port_check_error(ahci, i);
-
-    /* Check for expected interrupts */
-    reg = ahci_px_rreg(ahci, i, AHCI_PX_IS);
-    ASSERT_BIT_SET(reg, AHCI_PX_IS_DHRS);
-    ASSERT_BIT_SET(reg, AHCI_PX_IS_PSS);
     /* BUG: we expect AHCI_PX_IS_DPS to be set. */
-    ASSERT_BIT_CLEAR(reg, AHCI_PX_IS_DPS);
-
-    /* Clear expected interrupts and assert all interrupts now cleared. */
-    ahci_px_wreg(ahci, i, AHCI_PX_IS,
-                 AHCI_PX_IS_DHRS | AHCI_PX_IS_PSS | AHCI_PX_IS_DPS);
-    g_assert_cmphex(ahci_px_rreg(ahci, i, AHCI_PX_IS), ==, 0);
+    ahci_port_check_interrupts(ahci, i, AHCI_PX_IS_DHRS | AHCI_PX_IS_PSS);
 
     /* Investigate the CMD, assert that we read 512 bytes */
     ahci_get_command_header(ahci, i, cx, &cmd);

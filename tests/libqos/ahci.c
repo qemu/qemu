@@ -333,6 +333,20 @@ void ahci_port_check_error(AHCIQState *ahci, uint8_t port)
     ASSERT_BIT_CLEAR(reg, AHCI_PX_TFD_ERR);
 }
 
+void ahci_port_check_interrupts(AHCIQState *ahci, uint8_t port,
+                                uint32_t intr_mask)
+{
+    uint32_t reg;
+
+    /* Check for expected interrupts */
+    reg = ahci_px_rreg(ahci, port, AHCI_PX_IS);
+    ASSERT_BIT_SET(reg, intr_mask);
+
+    /* Clear expected interrupts and assert all interrupts now cleared. */
+    ahci_px_wreg(ahci, port, AHCI_PX_IS, intr_mask);
+    g_assert_cmphex(ahci_px_rreg(ahci, port, AHCI_PX_IS), ==, 0);
+}
+
 /* Get the command in #slot of port #port. */
 void ahci_get_command_header(AHCIQState *ahci, uint8_t port,
                              uint8_t slot, AHCICommandHeader *cmd)
