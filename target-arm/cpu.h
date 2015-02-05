@@ -1645,8 +1645,6 @@ typedef enum ARMMMUIdx {
     ARMMMUIdx_S1NSE1 = 8,
 } ARMMMUIdx;
 
-#define MMU_MODE0_SUFFIX _user
-#define MMU_MODE1_SUFFIX _kernel
 #define MMU_USER_IDX 0
 
 /* Return the exception level we're running at if this is our mmu_idx */
