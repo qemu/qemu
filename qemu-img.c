@@ -2435,7 +2435,6 @@ static int img_rebase(int argc, char **argv)
 {
     BlockBackend *blk = NULL, *blk_old_backing = NULL, *blk_new_backing = NULL;
     BlockDriverState *bs = NULL, *bs_old_backing = NULL, *bs_new_backing = NULL;
-    BlockDriver *old_backing_drv, *new_backing_drv;
     char *filename;
     const char *fmt, *cache, *src_cache, *out_basefmt, *out_baseimg;
     int c, flags, src_flags, ret;
@@ -2529,22 +2528,8 @@ static int img_rebase(int argc, char **argv)
     }
     bs = blk_bs(blk);
 
-    /* Find the right drivers for the backing files */
-    old_backing_drv = NULL;
-    new_backing_drv = NULL;
-
-    if (!unsafe && bs->backing_format[0] != '\0') {
-        old_backing_drv = bdrv_find_format(bs->backing_format);
-        if (old_backing_drv == NULL) {
-            error_report("Invalid format name: '%s'", bs->backing_format);
-            ret = -1;
-            goto out;
-        }
-    }
-
     if (out_basefmt != NULL) {
-        new_backing_drv = bdrv_find_format(out_basefmt);
-        if (new_backing_drv == NULL) {
+        if (bdrv_find_format(out_basefmt) == NULL) {
             error_report("Invalid format name: '%s'", out_basefmt);
             ret = -1;
             goto out;
@@ -2554,29 +2539,41 @@ static int img_rebase(int argc, char **argv)
     /* For safe rebasing we need to compare old and new backing file */
     if (!unsafe) {
         char backing_name[PATH_MAX];
+        QDict *options = NULL;
 
-        blk_old_backing = blk_new_with_bs("old_backing", &error_abort);
-        bs_old_backing = blk_bs(blk_old_backing);
+        if (bs->backing_format[0] != '\0') {
+            options = qdict_new();
+            qdict_put(options, "driver", qstring_from_str(bs->backing_format));
+        }
+
         bdrv_get_backing_filename(bs, backing_name, sizeof(backing_name));
-        ret = bdrv_open(&bs_old_backing, backing_name, NULL, NULL, src_flags,
-                        old_backing_drv, &local_err);
-        if (ret) {
+        blk_old_backing = blk_new_open("old_backing", backing_name, NULL,
+                                       options, src_flags, &local_err);
+        if (!blk_old_backing) {
             error_report("Could not open old backing file '%s': %s",
                          backing_name, error_get_pretty(local_err));
             error_free(local_err);
             goto out;
         }
+        bs_old_backing = blk_bs(blk_old_backing);
+
         if (out_baseimg[0]) {
-            blk_new_backing = blk_new_with_bs("new_backing", &error_abort);
-            bs_new_backing = blk_bs(blk_new_backing);
-            ret = bdrv_open(&bs_new_backing, out_baseimg, NULL, NULL, src_flags,
-                            new_backing_drv, &local_err);
-            if (ret) {
+            if (out_basefmt) {
+                options = qdict_new();
+                qdict_put(options, "driver", qstring_from_str(out_basefmt));
+            } else {
+                options = NULL;
+            }
+
+            blk_new_backing = blk_new_open("new_backing", out_baseimg, NULL,
+                                           options, src_flags, &local_err);
+            if (!blk_new_backing) {
                 error_report("Could not open new backing file '%s': %s",
                              out_baseimg, error_get_pretty(local_err));
                 error_free(local_err);
                 goto out;
             }
+            bs_new_backing = blk_bs(blk_new_backing);
         }
     }
 
