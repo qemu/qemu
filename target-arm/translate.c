@@ -8739,6 +8739,10 @@ static void disas_arm_insn(DisasContext *s, unsigned int insn)
                         ARCH(6T2);
                         shift = (insn >> 7) & 0x1f;
                         i = (insn >> 16) & 0x1f;
+                        if (i < shift) {
+                            /* UNPREDICTABLE; we choose to UNDEF */
+                            goto illegal_op;
+                        }
                         i = i + 1 - shift;
                         if (rm == 15) {
                             tmp = tcg_temp_new_i32();
