@@ -34,6 +34,45 @@
 #include "hw/pci/pci_ids.h"
 #include "hw/pci/pci_regs.h"
 
+typedef struct AHCICommandProp {
+    uint8_t  cmd;        /* Command Code */
+    bool     data;       /* Data transfer command? */
+    bool     pio;
+    bool     dma;
+    bool     lba28;
+    bool     lba48;
+    bool     read;
+    bool     write;
+    bool     atapi;
+    bool     ncq;
+    uint64_t size;       /* Static transfer size, for commands like IDENTIFY. */
+    uint32_t interrupts; /* Expected interrupts for this command. */
+} AHCICommandProp;
+
+AHCICommandProp ahci_command_properties[] = {
+    { .cmd = CMD_READ_PIO,      .data = true,  .pio = true,
+                                .lba28 = true, .read = true },
+    { .cmd = CMD_WRITE_PIO,     .data = true,  .pio = true,
+                                .lba28 = true, .write = true },
+    { .cmd = CMD_READ_PIO_EXT,  .data = true,  .pio = true,
+                                .lba48 = true, .read = true },
+    { .cmd = CMD_WRITE_PIO_EXT, .data = true,  .pio = true,
+                                .lba48 = true, .write = true },
+    { .cmd = CMD_READ_DMA,      .data = true,  .dma = true,
+                                .lba28 = true, .read = true },
+    { .cmd = CMD_WRITE_DMA,     .data = true,  .dma = true,
+                                .lba28 = true, .write = true },
+    { .cmd = CMD_READ_DMA_EXT,  .data = true,  .dma = true,
+                                .lba48 = true, .read = true },
+    { .cmd = CMD_WRITE_DMA_EXT, .data = true,  .dma = true,
+                                .lba48 = true, .write = true },
+    { .cmd = CMD_IDENTIFY,      .data = true,  .pio = true,
+                                .size = 512,   .read = true },
+    { .cmd = CMD_READ_MAX,      .lba28 = true },
+    { .cmd = CMD_READ_MAX_EXT,  .lba48 = true },
+    { .cmd = CMD_FLUSH_CACHE,   .data = false }
+};
+
 /**
  * Allocate space in the guest using information in the AHCIQState object.
  */
