@@ -62,6 +62,9 @@ typedef struct BlockDevOps {
 
 BlockBackend *blk_new(const char *name, Error **errp);
 BlockBackend *blk_new_with_bs(const char *name, Error **errp);
+BlockBackend *blk_new_open(const char *name, const char *filename,
+                           const char *reference, QDict *options, int flags,
+                           Error **errp);
 void blk_ref(BlockBackend *blk);
 void blk_unref(BlockBackend *blk);
 const char *blk_name(BlockBackend *blk);

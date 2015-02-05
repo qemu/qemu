@@ -91,6 +91,40 @@ BlockBackend *blk_new_with_bs(const char *name, Error **errp)
     return blk;
 }
 
+/*
+ * Calls blk_new_with_bs() and then calls bdrv_open() on the BlockDriverState.
+ *
+ * Just as with bdrv_open(), after having called this function the reference to
+ * @options belongs to the block layer (even on failure).
+ *
+ * TODO: Remove @filename and @flags; it should be possible to specify a whole
+ * BDS tree just by specifying the @options QDict (or @reference,
+ * alternatively). At the time of adding this function, this is not possible,
+ * though, so callers of this function have to be able to specify @filename and
+ * @flags.
+ */
+BlockBackend *blk_new_open(const char *name, const char *filename,
+                           const char *reference, QDict *options, int flags,
+                           Error **errp)
+{
+    BlockBackend *blk;
+    int ret;
+
+    blk = blk_new_with_bs(name, errp);
+    if (!blk) {
+        QDECREF(options);
+        return NULL;
+    }
+
+    ret = bdrv_open(&blk->bs, filename, reference, options, flags, NULL, errp);
+    if (ret < 0) {
+        blk_unref(blk);
+        return NULL;
+    }
+
+    return blk;
+}
+
 static void blk_delete(BlockBackend *blk)
 {
     assert(!blk->refcnt);
