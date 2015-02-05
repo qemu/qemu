@@ -51,34 +51,29 @@ static const cmdinfo_t close_cmd = {
     .oneline    = "close the current open file",
 };
 
-static int openfile(char *name, BlockDriver *drv, int flags, int growable,
-                    QDict *opts)
+static int openfile(char *name, int flags, int growable, QDict *opts)
 {
     Error *local_err = NULL;
 
-    if (qemuio_bs) {
+    if (qemuio_blk) {
         fprintf(stderr, "file open already, try 'help close'\n");
         QDECREF(opts);
         return 1;
     }
 
-    qemuio_blk = blk_new_with_bs("hda", &error_abort);
-    qemuio_bs = blk_bs(qemuio_blk);
-
     if (growable) {
         flags |= BDRV_O_PROTOCOL;
     }
 
-    if (bdrv_open(&qemuio_bs, name, NULL, opts, flags, drv, &local_err) < 0) {
+    qemuio_blk = blk_new_open("hda", name, NULL, opts, flags, &local_err);
+    if (!qemuio_blk) {
         fprintf(stderr, "%s: can't open%s%s: %s\n", progname,
                 name ? " device " : "", name ?: "",
                 error_get_pretty(local_err));
         error_free(local_err);
-        blk_unref(qemuio_blk);
-        qemuio_bs = NULL;
-        qemuio_blk = NULL;
         return 1;
     }
+    qemuio_bs = blk_bs(qemuio_blk);
 
     return 0;
 }
@@ -170,9 +165,9 @@ static int open_f(BlockDriverState *bs, int argc, char **argv)
     qemu_opts_reset(&empty_opts);
 
     if (optind == argc - 1) {
-        return openfile(argv[optind], NULL, flags, growable, opts);
+        return openfile(argv[optind], flags, growable, opts);
     } else if (optind == argc) {
-        return openfile(NULL, NULL, flags, growable, opts);
+        return openfile(NULL, flags, growable, opts);
     } else {
         QDECREF(opts);
         return qemuio_command_usage(&open_cmd);
@@ -387,8 +382,8 @@ int main(int argc, char **argv)
     int c;
     int opt_index = 0;
     int flags = BDRV_O_UNMAP;
-    BlockDriver *drv = NULL;
     Error *local_error = NULL;
+    QDict *opts = NULL;
 
 #ifdef CONFIG_POSIX
     signal(SIGPIPE, SIG_IGN);
@@ -414,11 +409,10 @@ int main(int argc, char **argv)
             }
             break;
         case 'f':
-            drv = bdrv_find_format(optarg);
-            if (!drv) {
-                error_report("Invalid format '%s'", optarg);
-                exit(EXIT_FAILURE);
+            if (!opts) {
+                opts = qdict_new();
             }
+            qdict_put(opts, "driver", qstring_from_str(optarg));
             break;
         case 'c':
             add_user_command(optarg);
@@ -489,7 +483,7 @@ int main(int argc, char **argv)
     }
 
     if ((argc - optind) == 1) {
-        openfile(argv[optind], drv, flags, growable, NULL);
+        openfile(argv[optind], flags, growable, opts);
     }
     command_loop();
 
