@@ -243,6 +243,59 @@
 #define AHCI_VERSION_1_2         (0x00010200)
 #define AHCI_VERSION_1_3         (0x00010300)
 
+#define AHCI_SECTOR_SIZE                (512)
+
+/* FIS types */
+enum {
+    REG_H2D_FIS = 0x27,
+    REG_D2H_FIS = 0x34,
+    DMA_ACTIVATE_FIS = 0x39,
+    DMA_SETUP_FIS = 0x41,
+    DATA_FIS = 0x46,
+    BIST_ACTIVATE_FIS = 0x58,
+    PIO_SETUP_FIS = 0x5F,
+    SDB_FIS = 0xA1
+};
+
+/* FIS flags */
+#define REG_H2D_FIS_CMD  0x80
+
+/* ATA Commands */
+enum {
+    /* DMA */
+    CMD_READ_DMA      = 0xC8,
+    CMD_READ_DMA_EXT  = 0x25,
+    CMD_WRITE_DMA     = 0xCA,
+    CMD_WRITE_DMA_EXT = 0x35,
+    /* PIO */
+    CMD_READ_PIO      = 0x20,
+    CMD_READ_PIO_EXT  = 0x24,
+    CMD_WRITE_PIO     = 0x30,
+    CMD_WRITE_PIO_EXT = 0x34,
+    /* Misc */
+    CMD_READ_MAX      = 0xF8,
+    CMD_READ_MAX_EXT  = 0x27,
+    CMD_FLUSH_CACHE   = 0xE7,
+    CMD_IDENTIFY      = 0xEC
+};
+
+/* AHCI Command Header Flags & Masks*/
+#define CMDH_CFL        (0x1F)
+#define CMDH_ATAPI      (0x20)
+#define CMDH_WRITE      (0x40)
+#define CMDH_PREFETCH   (0x80)
+#define CMDH_RESET     (0x100)
+#define CMDH_BIST      (0x200)
+#define CMDH_CLR_BSY   (0x400)
+#define CMDH_RES       (0x800)
+#define CMDH_PMP      (0xF000)
+
+/* ATA device register masks */
+#define ATA_DEVICE_MAGIC 0xA0
+#define ATA_DEVICE_LBA   0x40
+#define ATA_DEVICE_DRIVE 0x10
+#define ATA_DEVICE_HEAD  0x0F
+
 /*** Structures ***/
 
 typedef struct AHCIPortQState {

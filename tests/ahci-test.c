@@ -705,9 +705,9 @@ static void ahci_test_identify(AHCIQState *ahci)
 
     /* Construct our Command Header (set_command_header handles endianness.) */
     memset(&cmd, 0x00, sizeof(cmd));
-    cmd.flags = 5;      /* reg_h2d_fis is 5 double-words long */
-    cmd.flags |= 0x400; /* clear PxTFD.STS.BSY when done */
-    cmd.prdtl = 1;      /* One PRD table entry. */
+    cmd.flags = 5;             /* reg_h2d_fis is 5 double-words long */
+    cmd.flags |= CMDH_CLR_BSY; /* clear PxTFD.STS.BSY when done */
+    cmd.prdtl = 1;             /* One PRD table entry. */
     cmd.prdbc = 0;
     cmd.ctba = table;
 
@@ -719,10 +719,10 @@ static void ahci_test_identify(AHCIQState *ahci)
 
     /* Construct our Command FIS, Based on http://wiki.osdev.org/AHCI */
     memset(&fis, 0x00, sizeof(fis));
-    fis.fis_type = 0x27; /* Register Host-to-Device FIS */
-    fis.command = 0xEC;  /* IDENTIFY */
+    fis.fis_type = REG_H2D_FIS;  /* Register Host-to-Device FIS */
+    fis.command = CMD_IDENTIFY;
     fis.device = 0;
-    fis.flags = 0x80;    /* Indicate this is a command FIS */
+    fis.flags = REG_H2D_FIS_CMD; /* Indicate this is a command FIS */
 
     /* We've committed nothing yet, no interrupts should be posted yet. */
     g_assert_cmphex(ahci_px_rreg(ahci, i, AHCI_PX_IS), ==, 0);
