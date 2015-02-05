@@ -662,10 +662,12 @@ static void ahci_test_identify(AHCIQState *ahci)
     RegH2DFIS fis;
     AHCICommandHeader cmd;
     PRD prd;
-    uint32_t reg, table, data_ptr;
+    uint32_t reg, data_ptr;
     uint16_t buff[256];
     unsigned i;
     int rc;
+    uint8_t cx;
+    uint64_t table;
 
     g_assert(ahci != NULL);
 
@@ -700,19 +702,19 @@ static void ahci_test_identify(AHCIQState *ahci)
     data_ptr = ahci_alloc(ahci, 512);
     g_assert(data_ptr);
 
-    /* Copy the existing Command #0 structure from the CLB into local memory,
-     * and build a new command #0. */
-    memread(ahci->port[i].clb, &cmd, sizeof(cmd));
-    cmd.flags = cpu_to_le16(5);      /* reg_h2d_fis is 5 double-words long */
-    cmd.flags |= cpu_to_le16(0x400); /* clear PxTFD.STS.BSY when done */
-    cmd.prdtl = cpu_to_le16(1);      /* One PRD table entry. */
+    /* pick a command slot (should be 0!) */
+    cx = ahci_pick_cmd(ahci, i);
+
+    /* Construct our Command Header (set_command_header handles endianness.) */
+    memset(&cmd, 0x00, sizeof(cmd));
+    cmd.flags = 5;      /* reg_h2d_fis is 5 double-words long */
+    cmd.flags |= 0x400; /* clear PxTFD.STS.BSY when done */
+    cmd.prdtl = 1;      /* One PRD table entry. */
     cmd.prdbc = 0;
-    cmd.ctba = cpu_to_le32(table);
-    cmd.ctbau = 0;
+    cmd.ctba = table;
 
     /* Construct our PRD, noting that DBC is 0-indexed. */
-    prd.dba = cpu_to_le32(data_ptr);
-    prd.dbau = 0;
+    prd.dba = cpu_to_le64(data_ptr);
     prd.res = 0;
     /* 511+1 bytes, request DPS interrupt */
     prd.dbc = cpu_to_le32(511 | 0x80000000);
@@ -733,14 +735,15 @@ static void ahci_test_identify(AHCIQState *ahci)
     /* Commit the PRD entry to the Command Table */
     memwrite(table + 0x80, &prd, sizeof(prd));
 
-    /* Commit Command #0, pointing to the Table, to the Command List Buffer. */
-    memwrite(ahci->port[i].clb, &cmd, sizeof(cmd));
+    /* Commit Command #cx, pointing to the Table, to the Command List Buffer. */
+    ahci_set_command_header(ahci, i, cx, &cmd);
 
-    /* Everything is in place, but we haven't given the go-ahead yet. */
+    /* Everything is in place, but we haven't given the go-ahead yet,
+     * so we should find that there are no pending interrupts yet. */
     g_assert_cmphex(ahci_px_rreg(ahci, i, AHCI_PX_IS), ==, 0);
 
-    /* Issue Command #0 via PxCI */
-    ahci_px_wreg(ahci, i, AHCI_PX_CI, (1 << 0));
+    /* Issue Command #cx via PxCI */
+    ahci_px_wreg(ahci, i, AHCI_PX_CI, (1 << cx));
     while (BITSET(ahci_px_rreg(ahci, i, AHCI_PX_TFD), AHCI_PX_TFD_STS_BSY)) {
         usleep(50);
     }
@@ -764,9 +767,9 @@ static void ahci_test_identify(AHCIQState *ahci)
     ASSERT_BIT_CLEAR(reg, AHCI_PX_TFD_STS_ERR);
     ASSERT_BIT_CLEAR(reg, AHCI_PX_TFD_ERR);
 
-    /* Investigate CMD #0, assert that we read 512 bytes */
-    memread(ahci->port[i].clb, &cmd, sizeof(cmd));
-    g_assert_cmphex(512, ==, le32_to_cpu(cmd.prdbc));
+    /* Investigate the CMD, assert that we read 512 bytes */
+    ahci_get_command_header(ahci, i, cx, &cmd);
+    g_assert_cmphex(512, ==, cmd.prdbc);
 
     /* Investigate FIS responses */
     memread(ahci->port[i].fb + 0x20, pio, 0x20);
@@ -783,7 +786,7 @@ static void ahci_test_identify(AHCIQState *ahci)
     /* The PIO Setup FIS contains a "bytes read" field, which is a
      * 16-bit value. The Physical Region Descriptor Byte Count is
      * 32-bit, but for small transfers using one PRD, it should match. */
-    g_assert_cmphex(le16_to_cpu(pio->res4), ==, le32_to_cpu(cmd.prdbc));
+    g_assert_cmphex(le16_to_cpu(pio->res4), ==, cmd.prdbc);
 
     /* Last, but not least: Investigate the IDENTIFY response data. */
     memread(data_ptr, &buff, 512);

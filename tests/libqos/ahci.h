@@ -248,6 +248,9 @@
 typedef struct AHCIPortQState {
     uint64_t fb;
     uint64_t clb;
+    uint64_t ctba[32];
+    uint16_t prdtl[32];
+    uint8_t next; /** Next Command Slot to Use **/
 } AHCIPortQState;
 
 typedef struct AHCIQState {
@@ -333,8 +336,7 @@ typedef struct AHCICommandHeader {
     uint16_t flags; /* Cmd-Fis-Len, PMP#, and flags. */
     uint16_t prdtl; /* Phys Region Desc. Table Length */
     uint32_t prdbc; /* Phys Region Desc. Byte Count */
-    uint32_t ctba;  /* Command Table Descriptor Base Address */
-    uint32_t ctbau; /*                                    '' Upper */
+    uint64_t ctba;  /* Command Table Descriptor Base Address */
     uint32_t res[4];
 } __attribute__((__packed__)) AHCICommandHeader;
 
@@ -343,11 +345,10 @@ typedef struct AHCICommandHeader {
  * struct ahci_command.
  */
 typedef struct PRD {
-    uint32_t dba;  /* Data Base Address */
-    uint32_t dbau; /* Data Base Address Upper */
+    uint64_t dba;  /* Data Base Address */
     uint32_t res;  /* Reserved */
     uint32_t dbc;  /* Data Byte Count (0-indexed) & Interrupt Flag (bit 2^31) */
-} PRD;
+} __attribute__((__packed__)) PRD;
 
 /*** Macro Utilities ***/
 #define BITANY(data, mask) (((data) & (mask)) != 0)
@@ -432,5 +433,11 @@ void start_ahci_device(AHCIQState *ahci);
 void ahci_hba_enable(AHCIQState *ahci);
 unsigned ahci_port_select(AHCIQState *ahci);
 void ahci_port_clear(AHCIQState *ahci, uint8_t port);
+void ahci_get_command_header(AHCIQState *ahci, uint8_t port,
+                             uint8_t slot, AHCICommandHeader *cmd);
+void ahci_set_command_header(AHCIQState *ahci, uint8_t port,
+                             uint8_t slot, AHCICommandHeader *cmd);
+void ahci_destroy_command(AHCIQState *ahci, uint8_t port, uint8_t slot);
+unsigned ahci_pick_cmd(AHCIQState *ahci, uint8_t port);
 
 #endif

@@ -310,3 +310,78 @@ void ahci_port_clear(AHCIQState *ahci, uint8_t port)
     /* Wipe the FIS-Recieve Buffer */
     qmemset(ahci->port[port].fb, 0x00, 0x100);
 }
+
+/* Get the command in #slot of port #port. */
+void ahci_get_command_header(AHCIQState *ahci, uint8_t port,
+                             uint8_t slot, AHCICommandHeader *cmd)
+{
+    uint64_t ba = ahci->port[port].clb;
+    ba += slot * sizeof(AHCICommandHeader);
+    memread(ba, cmd, sizeof(AHCICommandHeader));
+
+    cmd->flags = le16_to_cpu(cmd->flags);
+    cmd->prdtl = le16_to_cpu(cmd->prdtl);
+    cmd->prdbc = le32_to_cpu(cmd->prdbc);
+    cmd->ctba = le64_to_cpu(cmd->ctba);
+}
+
+/* Set the command in #slot of port #port. */
+void ahci_set_command_header(AHCIQState *ahci, uint8_t port,
+                             uint8_t slot, AHCICommandHeader *cmd)
+{
+    AHCICommandHeader tmp;
+    uint64_t ba = ahci->port[port].clb;
+    ba += slot * sizeof(AHCICommandHeader);
+
+    tmp.flags = cpu_to_le16(cmd->flags);
+    tmp.prdtl = cpu_to_le16(cmd->prdtl);
+    tmp.prdbc = cpu_to_le32(cmd->prdbc);
+    tmp.ctba = cpu_to_le64(cmd->ctba);
+
+    memwrite(ba, &tmp, sizeof(AHCICommandHeader));
+}
+
+void ahci_destroy_command(AHCIQState *ahci, uint8_t port, uint8_t slot)
+{
+    AHCICommandHeader cmd;
+
+    /* Obtain the Nth Command Header */
+    ahci_get_command_header(ahci, port, slot, &cmd);
+    if (cmd.ctba == 0) {
+        /* No address in it, so just return -- it's empty. */
+        goto tidy;
+    }
+
+    /* Free the Table */
+    ahci_free(ahci, cmd.ctba);
+
+ tidy:
+    /* NULL the header. */
+    memset(&cmd, 0x00, sizeof(cmd));
+    ahci_set_command_header(ahci, port, slot, &cmd);
+    ahci->port[port].ctba[slot] = 0;
+    ahci->port[port].prdtl[slot] = 0;
+}
+
+unsigned ahci_pick_cmd(AHCIQState *ahci, uint8_t port)
+{
+    unsigned i;
+    unsigned j;
+    uint32_t reg;
+
+    reg = ahci_px_rreg(ahci, port, AHCI_PX_CI);
+
+    /* Pick the least recently used command slot that's available */
+    for (i = 0; i < 32; ++i) {
+        j = ((ahci->port[port].next + i) % 32);
+        if (reg & (1 << j)) {
+            continue;
+        }
+        ahci_destroy_command(ahci, port, i);
+        ahci->port[port].next = (j + 1) % 32;
+        return j;
+    }
+
+    g_test_message("All command slots were busy.");
+    g_assert_not_reached();
+}
