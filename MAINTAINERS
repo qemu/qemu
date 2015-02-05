@@ -783,6 +783,11 @@ M: Samuel Thibault <samuel.thibault@ens-lyon.org>
 S: Maintained
 F: backends/baum.c
 
+Coverity model
+M: Markus Armbruster <armbru@redhat.com>
+S: Supported
+F: scripts/coverity-model.c
+
 CPU
 M: Andreas Färber <afaerber@suse.de>
 S: Supported
