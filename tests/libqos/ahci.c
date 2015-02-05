@@ -365,6 +365,53 @@ void ahci_port_check_nonbusy(AHCIQState *ahci, uint8_t port, uint8_t slot)
     ASSERT_BIT_CLEAR(reg, AHCI_PX_TFD_STS_DRQ);
 }
 
+void ahci_port_check_d2h_sanity(AHCIQState *ahci, uint8_t port, uint8_t slot)
+{
+    RegD2HFIS *d2h = g_malloc0(0x20);
+    uint32_t reg;
+
+    memread(ahci->port[port].fb + 0x40, d2h, 0x20);
+    g_assert_cmphex(d2h->fis_type, ==, 0x34);
+
+    reg = ahci_px_rreg(ahci, port, AHCI_PX_TFD);
+    g_assert_cmphex((reg & AHCI_PX_TFD_ERR) >> 8, ==, d2h->error);
+    g_assert_cmphex((reg & AHCI_PX_TFD_STS), ==, d2h->status);
+
+    g_free(d2h);
+}
+
+void ahci_port_check_pio_sanity(AHCIQState *ahci, uint8_t port,
+                                uint8_t slot, size_t buffsize)
+{
+    PIOSetupFIS *pio = g_malloc0(0x20);
+
+    /* We cannot check the Status or E_Status registers, becuase
+     * the status may have again changed between the PIO Setup FIS
+     * and the conclusion of the command with the D2H Register FIS. */
+    memread(ahci->port[port].fb + 0x20, pio, 0x20);
+    g_assert_cmphex(pio->fis_type, ==, 0x5f);
+
+    /* BUG: PIO Setup FIS as utilized by QEMU tries to fit the entire
+     * transfer size in a uint16_t field. The maximum transfer size can
+     * eclipse this; the field is meant to convey the size of data per
+     * each Data FIS, not the entire operation as a whole. For now,
+     * we will sanity check the broken case where applicable. */
+    if (buffsize <= UINT16_MAX) {
+        g_assert_cmphex(le16_to_cpu(pio->tx_count), ==, buffsize);
+    }
+
+    g_free(pio);
+}
+
+void ahci_port_check_cmd_sanity(AHCIQState *ahci, uint8_t port,
+                                uint8_t slot, size_t buffsize)
+{
+    AHCICommandHeader cmd;
+
+    ahci_get_command_header(ahci, port, slot, &cmd);
+    g_assert_cmphex(buffsize, ==, cmd.prdbc);
+}
+
 /* Get the command in #slot of port #port. */
 void ahci_get_command_header(AHCIQState *ahci, uint8_t port,
                              uint8_t slot, AHCICommandHeader *cmd)

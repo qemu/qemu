@@ -657,12 +657,10 @@ static void ahci_test_port_spec(AHCIQState *ahci, uint8_t port)
  */
 static void ahci_test_identify(AHCIQState *ahci)
 {
-    RegD2HFIS *d2h = g_malloc0(0x20);
-    RegD2HFIS *pio = g_malloc0(0x20);
     RegH2DFIS fis;
     AHCICommandHeader cmd;
     PRD prd;
-    uint32_t reg, data_ptr;
+    uint32_t data_ptr;
     uint16_t buff[256];
     unsigned i;
     int rc;
@@ -752,27 +750,11 @@ static void ahci_test_identify(AHCIQState *ahci)
     /* BUG: we expect AHCI_PX_IS_DPS to be set. */
     ahci_port_check_interrupts(ahci, i, AHCI_PX_IS_DHRS | AHCI_PX_IS_PSS);
     ahci_port_check_nonbusy(ahci, i, cx);
-
     /* Investigate the CMD, assert that we read 512 bytes */
-    ahci_get_command_header(ahci, i, cx, &cmd);
-    g_assert_cmphex(512, ==, cmd.prdbc);
-
+    ahci_port_check_cmd_sanity(ahci, i, cx, 512);
     /* Investigate FIS responses */
-    memread(ahci->port[i].fb + 0x20, pio, 0x20);
-    memread(ahci->port[i].fb + 0x40, d2h, 0x20);
-    g_assert_cmphex(pio->fis_type, ==, 0x5f);
-    g_assert_cmphex(d2h->fis_type, ==, 0x34);
-    g_assert_cmphex(pio->flags, ==, d2h->flags);
-    g_assert_cmphex(pio->status, ==, d2h->status);
-    g_assert_cmphex(pio->error, ==, d2h->error);
-
-    reg = ahci_px_rreg(ahci, i, AHCI_PX_TFD);
-    g_assert_cmphex((reg & AHCI_PX_TFD_ERR), ==, pio->error);
-    g_assert_cmphex((reg & AHCI_PX_TFD_STS), ==, pio->status);
-    /* The PIO Setup FIS contains a "bytes read" field, which is a
-     * 16-bit value. The Physical Region Descriptor Byte Count is
-     * 32-bit, but for small transfers using one PRD, it should match. */
-    g_assert_cmphex(le16_to_cpu(pio->res4), ==, cmd.prdbc);
+    ahci_port_check_d2h_sanity(ahci, i, cx);
+    ahci_port_check_pio_sanity(ahci, i, cx, 512);
 
     /* Last, but not least: Investigate the IDENTIFY response data. */
     memread(data_ptr, &buff, 512);
@@ -789,9 +771,6 @@ static void ahci_test_identify(AHCIQState *ahci)
     string_bswap16(&buff[23], 8);
     rc = memcmp(&buff[23], "version ", 8);
     g_assert_cmphex(rc, ==, 0);
-
-    g_free(d2h);
-    g_free(pio);
 }
 
 /******************************************************************************/

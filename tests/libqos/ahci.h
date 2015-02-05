@@ -283,23 +283,42 @@ typedef struct RegD2HFIS {
     uint8_t status;
     uint8_t error;
     /* DW1 */
-    uint8_t lba_low;
-    uint8_t lba_mid;
-    uint8_t lba_high;
+    uint8_t lba_lo[3];
     uint8_t device;
     /* DW2 */
-    uint8_t lba3;
-    uint8_t lba4;
-    uint8_t lba5;
-    uint8_t res1;
+    uint8_t lba_hi[3];
+    uint8_t res0;
     /* DW3 */
     uint16_t count;
-    uint8_t res2;
-    uint8_t res3;
+    uint16_t res1;
     /* DW4 */
-    uint16_t res4;
-    uint16_t res5;
+    uint32_t res2;
 } __attribute__((__packed__)) RegD2HFIS;
+
+/**
+ * Register device-to-host FIS structure;
+ * PIO Setup variety.
+ */
+typedef struct PIOSetupFIS {
+    /* DW0 */
+    uint8_t fis_type;
+    uint8_t flags;
+    uint8_t status;
+    uint8_t error;
+    /* DW1 */
+    uint8_t lba_lo[3];
+    uint8_t device;
+    /* DW2 */
+    uint8_t lba_hi[3];
+    uint8_t res0;
+    /* DW3 */
+    uint16_t count;
+    uint8_t res1;
+    uint8_t e_status;
+    /* DW4 */
+    uint16_t tx_count;
+    uint16_t res2;
+} __attribute__((__packed__)) PIOSetupFIS;
 
 /**
  * Register host-to-device FIS structure.
@@ -311,14 +330,10 @@ typedef struct RegH2DFIS {
     uint8_t command;
     uint8_t feature_low;
     /* DW1 */
-    uint8_t lba_low;
-    uint8_t lba_mid;
-    uint8_t lba_high;
+    uint8_t lba_lo[3];
     uint8_t device;
     /* DW2 */
-    uint8_t lba3;
-    uint8_t lba4;
-    uint8_t lba5;
+    uint8_t lba_hi[3];
     uint8_t feature_high;
     /* DW3 */
     uint16_t count;
@@ -437,6 +452,11 @@ void ahci_port_check_error(AHCIQState *ahci, uint8_t port);
 void ahci_port_check_interrupts(AHCIQState *ahci, uint8_t port,
                                 uint32_t intr_mask);
 void ahci_port_check_nonbusy(AHCIQState *ahci, uint8_t port, uint8_t slot);
+void ahci_port_check_d2h_sanity(AHCIQState *ahci, uint8_t port, uint8_t slot);
+void ahci_port_check_pio_sanity(AHCIQState *ahci, uint8_t port,
+                                uint8_t slot, size_t buffsize);
+void ahci_port_check_cmd_sanity(AHCIQState *ahci, uint8_t port,
+                                uint8_t slot, size_t buffsize);
 void ahci_get_command_header(AHCIQState *ahci, uint8_t port,
                              uint8_t slot, AHCICommandHeader *cmd);
 void ahci_set_command_header(AHCIQState *ahci, uint8_t port,
