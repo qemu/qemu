@@ -4706,18 +4706,20 @@ static inline int check_ap(CPUARMState *env, ARMMMUIdx mmu_idx,
         return PAGE_READ | PAGE_WRITE;
     }
 
-    if (access_type == 1)
+    if (access_type == 1) {
         prot_ro = 0;
-    else
+    } else {
         prot_ro = PAGE_READ;
+    }
 
     switch (ap) {
     case 0:
         if (arm_feature(env, ARM_FEATURE_V7)) {
             return 0;
         }
-        if (access_type == 1)
+        if (access_type == 1) {
             return 0;
+        }
         switch (regime_sctlr(env, mmu_idx) & (SCTLR_S | SCTLR_R)) {
         case SCTLR_S:
             return is_user ? 0 : PAGE_READ;
@@ -4729,10 +4731,11 @@ static inline int check_ap(CPUARMState *env, ARMMMUIdx mmu_idx,
     case 1:
         return is_user ? 0 : PAGE_READ | PAGE_WRITE;
     case 2:
-        if (is_user)
+        if (is_user) {
             return prot_ro;
-        else
+        } else {
             return PAGE_READ | PAGE_WRITE;
+        }
     case 3:
         return PAGE_READ | PAGE_WRITE;
     case 4: /* Reserved.  */
@@ -4742,8 +4745,9 @@ static inline int check_ap(CPUARMState *env, ARMMMUIdx mmu_idx,
     case 6:
         return prot_ro;
     case 7:
-        if (!arm_feature (env, ARM_FEATURE_V6K))
+        if (!arm_feature(env, ARM_FEATURE_V6K)) {
             return 0;
+        }
         return prot_ro;
     default:
         abort();
@@ -5254,17 +5258,20 @@ static int get_phys_addr_mpu(CPUARMState *env, uint32_t address,
     *phys_ptr = address;
     for (n = 7; n >= 0; n--) {
         base = env->cp15.c6_region[n];
-        if ((base & 1) == 0)
+        if ((base & 1) == 0) {
             continue;
+        }
         mask = 1 << ((base >> 1) & 0x1f);
         /* Keep this shift separate from the above to avoid an
            (undefined) << 32.  */
         mask = (mask << 1) - 1;
-        if (((base ^ address) & ~mask) == 0)
+        if (((base ^ address) & ~mask) == 0) {
             break;
+        }
     }
-    if (n < 0)
+    if (n < 0) {
         return 2;
+    }
 
     if (access_type == 2) {
         mask = env->cp15.pmsav5_insn_ap;
@@ -5276,21 +5283,24 @@ static int get_phys_addr_mpu(CPUARMState *env, uint32_t address,
     case 0:
         return 1;
     case 1:
-        if (is_user)
-          return 1;
+        if (is_user) {
+            return 1;
+        }
         *prot = PAGE_READ | PAGE_WRITE;
         break;
     case 2:
         *prot = PAGE_READ;
-        if (!is_user)
+        if (!is_user) {
             *prot |= PAGE_WRITE;
+        }
         break;
     case 3:
         *prot = PAGE_READ | PAGE_WRITE;
         break;
     case 5:
-        if (is_user)
+        if (is_user) {
             return 1;
+        }
         *prot = PAGE_READ;
         break;
     case 6:
