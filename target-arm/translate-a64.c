@@ -2107,7 +2107,7 @@ static void disas_ldst_reg_imm9(DisasContext *s, uint32_t insn)
         }
     } else {
         TCGv_i64 tcg_rt = cpu_reg(s, rt);
-        int memidx = is_unpriv ? 1 : get_mem_index(s);
+        int memidx = is_unpriv ? MMU_USER_IDX : get_mem_index(s);
 
         if (is_store) {
             do_gpr_st_memidx(s, tcg_rt, tcg_addr, size, memidx);
