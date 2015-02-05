@@ -533,6 +533,10 @@ void ahci_command_free(AHCICommand *cmd);
 
 /* Command adjustments */
 void ahci_command_set_buffer(AHCICommand *cmd, uint64_t buffer);
+void ahci_command_set_size(AHCICommand *cmd, uint64_t xbytes);
+void ahci_command_set_prd_size(AHCICommand *cmd, unsigned prd_size);
+void ahci_command_set_sizes(AHCICommand *cmd, uint64_t xbytes,
+                            unsigned prd_size);
 
 /* Command Misc */
 uint8_t ahci_command_slot(AHCICommand *cmd);

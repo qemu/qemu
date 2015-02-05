@@ -660,6 +660,28 @@ void ahci_command_set_buffer(AHCICommand *cmd, uint64_t buffer)
     cmd->buffer = buffer;
 }
 
+void ahci_command_set_sizes(AHCICommand *cmd, uint64_t xbytes,
+                            unsigned prd_size)
+{
+    /* Each PRD can describe up to 4MiB, and must not be odd. */
+    g_assert_cmphex(prd_size, <=, 4096 * 1024);
+    g_assert_cmphex(prd_size & 0x01, ==, 0x00);
+    cmd->prd_size = prd_size;
+    cmd->xbytes = xbytes;
+    cmd->fis.count = (cmd->xbytes / AHCI_SECTOR_SIZE);
+    cmd->header.prdtl = size_to_prdtl(cmd->xbytes, cmd->prd_size);
+}
+
+void ahci_command_set_size(AHCICommand *cmd, uint64_t xbytes)
+{
+    ahci_command_set_sizes(cmd, xbytes, cmd->prd_size);
+}
+
+void ahci_command_set_prd_size(AHCICommand *cmd, unsigned prd_size)
+{
+    ahci_command_set_sizes(cmd, cmd->xbytes, prd_size);
+}
+
 void ahci_command_commit(AHCIQState *ahci, AHCICommand *cmd, uint8_t port)
 {
     uint16_t i, prdtl;
