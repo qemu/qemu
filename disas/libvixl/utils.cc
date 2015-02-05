@@ -135,4 +135,17 @@ bool IsPowerOf2(int64_t value) {
   return (value != 0) && ((value & (value - 1)) == 0);
 }
 
+
+unsigned CountClearHalfWords(uint64_t imm, unsigned reg_size) {
+  VIXL_ASSERT((reg_size % 8) == 0);
+  int count = 0;
+  for (unsigned i = 0; i < (reg_size / 16); i++) {
+    if ((imm & 0xffff) == 0) {
+      count++;
+    }
+    imm >>= 16;
+  }
+  return count;
+}
+
 }  // namespace vixl

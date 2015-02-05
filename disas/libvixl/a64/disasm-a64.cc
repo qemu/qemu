@@ -34,6 +34,7 @@ Disassembler::Disassembler() {
   buffer_ = reinterpret_cast<char*>(malloc(buffer_size_));
   buffer_pos_ = 0;
   own_buffer_ = true;
+  code_address_offset_ = 0;
 }
 
 
@@ -42,6 +43,7 @@ Disassembler::Disassembler(char* text_buffer, int buffer_size) {
   buffer_ = text_buffer;
   buffer_pos_ = 0;
   own_buffer_ = false;
+  code_address_offset_ = 0;
 }
 
 
@@ -739,9 +741,25 @@ void Disassembler::VisitMoveWideImmediate(const Instruction* instr) {
   // shift calculation.
   switch (instr->Mask(MoveWideImmediateMask)) {
     case MOVN_w:
-    case MOVN_x: mnemonic = "movn"; break;
+    case MOVN_x:
+      if ((instr->ImmMoveWide()) || (instr->ShiftMoveWide() == 0)) {
+        if ((instr->SixtyFourBits() == 0) && (instr->ImmMoveWide() == 0xffff)) {
+          mnemonic = "movn";
+        } else {
+          mnemonic = "mov";
+          form = "'Rd, 'IMoveNeg";
+        }
+      } else {
+        mnemonic = "movn";
+      }
+      break;
     case MOVZ_w:
-    case MOVZ_x: mnemonic = "movz"; break;
+    case MOVZ_x:
+      if ((instr->ImmMoveWide()) || (instr->ShiftMoveWide() == 0))
+        mnemonic = "mov";
+      else
+        mnemonic = "movz";
+      break;
     case MOVK_w:
     case MOVK_x: mnemonic = "movk"; form = "'Rd, 'IMoveLSL"; break;
     default: VIXL_UNREACHABLE();
@@ -806,7 +824,7 @@ void Disassembler::VisitLoadStoreUnsignedOffset(const Instruction* instr) {
     case A##_unsigned: mnemonic = B; form = C ", ['Xns'ILU]"; break;
     LOAD_STORE_LIST(LS_UNSIGNEDOFFSET)
     #undef LS_UNSIGNEDOFFSET
-    case PRFM_unsigned: mnemonic = "prfm"; form = "'PrefOp, ['Xn'ILU]";
+    case PRFM_unsigned: mnemonic = "prfm"; form = "'PrefOp, ['Xns'ILU]";
   }
   Format(instr, mnemonic, form);
 }
@@ -833,6 +851,7 @@ void Disassembler::VisitLoadStoreUnscaledOffset(const Instruction* instr) {
   const char *form_x = "'Xt, ['Xns'ILS]";
   const char *form_s = "'St, ['Xns'ILS]";
   const char *form_d = "'Dt, ['Xns'ILS]";
+  const char *form_prefetch = "'PrefOp, ['Xns'ILS]";
 
   switch (instr->Mask(LoadStoreUnscaledOffsetMask)) {
     case STURB_w:  mnemonic = "sturb"; break;
@@ -852,6 +871,7 @@ void Disassembler::VisitLoadStoreUnscaledOffset(const Instruction* instr) {
     case LDURSH_x: form = form_x;  // Fall through.
     case LDURSH_w: mnemonic = "ldursh"; break;
     case LDURSW_x: mnemonic = "ldursw"; form = form_x; break;
+    case PRFUM:    mnemonic = "prfum"; form = form_prefetch; break;
     default: form = "(LoadStoreUnscaledOffset)";
   }
   Format(instr, mnemonic, form);
@@ -870,6 +890,11 @@ void Disassembler::VisitLoadLiteral(const Instruction* instr) {
     case LDRSW_x_lit: {
       mnemonic = "ldrsw";
       form = "'Xt, 'ILLiteral 'LValue";
+      break;
+    }
+    case PRFM_lit: {
+      mnemonic = "prfm";
+      form = "'PrefOp, 'ILLiteral 'LValue";
       break;
     }
     default: mnemonic = "unimplemented";
@@ -1344,7 +1369,7 @@ void Disassembler::AppendPCRelativeOffsetToOutput(const Instruction* instr,
 void Disassembler::AppendAddressToOutput(const Instruction* instr,
                                          const void* addr) {
   USE(instr);
-  AppendToOutput("(addr %p)", addr);
+  AppendToOutput("(addr 0x%" PRIxPTR ")", reinterpret_cast<uintptr_t>(addr));
 }
 
 
@@ -1357,6 +1382,40 @@ void Disassembler::AppendCodeAddressToOutput(const Instruction* instr,
 void Disassembler::AppendDataAddressToOutput(const Instruction* instr,
                                              const void* addr) {
   AppendAddressToOutput(instr, addr);
+}
+
+
+void Disassembler::AppendCodeRelativeAddressToOutput(const Instruction* instr,
+                                                     const void* addr) {
+  USE(instr);
+  int64_t rel_addr = CodeRelativeAddress(addr);
+  if (rel_addr >= 0) {
+    AppendToOutput("(addr 0x%" PRIx64 ")", rel_addr);
+  } else {
+    AppendToOutput("(addr -0x%" PRIx64 ")", -rel_addr);
+  }
+}
+
+
+void Disassembler::AppendCodeRelativeCodeAddressToOutput(
+    const Instruction* instr, const void* addr) {
+  AppendCodeRelativeAddressToOutput(instr, addr);
+}
+
+
+void Disassembler::AppendCodeRelativeDataAddressToOutput(
+    const Instruction* instr, const void* addr) {
+  AppendCodeRelativeAddressToOutput(instr, addr);
+}
+
+
+void Disassembler::MapCodeAddress(int64_t base_address,
+                                  const Instruction* instr_address) {
+  set_code_address_offset(
+      base_address - reinterpret_cast<intptr_t>(instr_address));
+}
+int64_t Disassembler::CodeRelativeAddress(const void* addr) {
+  return reinterpret_cast<intptr_t>(addr) + code_address_offset();
 }
 
 
@@ -1486,16 +1545,20 @@ int Disassembler::SubstituteImmediateField(const Instruction* instr,
   VIXL_ASSERT(format[0] == 'I');
 
   switch (format[1]) {
-    case 'M': {  // IMoveImm or IMoveLSL.
-      if (format[5] == 'I') {
-        uint64_t imm = instr->ImmMoveWide() << (16 * instr->ShiftMoveWide());
-        AppendToOutput("#0x%" PRIx64, imm);
-      } else {
-        VIXL_ASSERT(format[5] == 'L');
+    case 'M': {  // IMoveImm, IMoveNeg or IMoveLSL.
+      if (format[5] == 'L') {
         AppendToOutput("#0x%" PRIx64, instr->ImmMoveWide());
         if (instr->ShiftMoveWide() > 0) {
           AppendToOutput(", lsl #%" PRId64, 16 * instr->ShiftMoveWide());
         }
+      } else {
+        VIXL_ASSERT((format[5] == 'I') || (format[5] == 'N'));
+        uint64_t imm = instr->ImmMoveWide() << (16 * instr->ShiftMoveWide());
+        if (format[5] == 'N')
+          imm = ~imm;
+        if (!instr->SixtyFourBits())
+          imm &= UINT64_C(0xffffffff);
+        AppendToOutput("#0x%" PRIx64, imm);
       }
       return 8;
     }
@@ -1634,14 +1697,31 @@ int Disassembler::SubstituteLiteralField(const Instruction* instr,
   VIXL_ASSERT(strncmp(format, "LValue", 6) == 0);
   USE(format);
 
+  const void * address = instr->LiteralAddress<const void *>();
   switch (instr->Mask(LoadLiteralMask)) {
     case LDR_w_lit:
     case LDR_x_lit:
     case LDRSW_x_lit:
     case LDR_s_lit:
     case LDR_d_lit:
-      AppendDataAddressToOutput(instr, instr->LiteralAddress());
+      AppendCodeRelativeDataAddressToOutput(instr, address);
       break;
+    case PRFM_lit: {
+      // Use the prefetch hint to decide how to print the address.
+      switch (instr->PrefetchHint()) {
+        case 0x0:     // PLD: prefetch for load.
+        case 0x2:     // PST: prepare for store.
+          AppendCodeRelativeDataAddressToOutput(instr, address);
+          break;
+        case 0x1:     // PLI: preload instructions.
+          AppendCodeRelativeCodeAddressToOutput(instr, address);
+          break;
+        case 0x3:     // Unallocated hint.
+          AppendCodeRelativeAddressToOutput(instr, address);
+          break;
+      }
+      break;
+    }
     default:
       VIXL_UNREACHABLE();
   }
@@ -1701,17 +1781,22 @@ int Disassembler::SubstitutePCRelAddressField(const Instruction* instr,
               (strcmp(format, "AddrPCRelPage") == 0));    // Used by `adrp`.
 
   int64_t offset = instr->ImmPCRel();
-  const Instruction * base = instr;
 
+  // Compute the target address based on the effective address (after applying
+  // code_address_offset). This is required for correct behaviour of adrp.
+  const Instruction* base = instr + code_address_offset();
   if (format[9] == 'P') {
     offset *= kPageSize;
     base = AlignDown(base, kPageSize);
   }
+  // Strip code_address_offset before printing, so we can use the
+  // semantically-correct AppendCodeRelativeAddressToOutput.
+  const void* target =
+      reinterpret_cast<const void*>(base + offset - code_address_offset());
 
-  const void* target = reinterpret_cast<const void*>(base + offset);
   AppendPCRelativeOffsetToOutput(instr, offset);
   AppendToOutput(" ");
-  AppendAddressToOutput(instr, target);
+  AppendCodeRelativeAddressToOutput(instr, target);
   return 13;
 }
 
@@ -1738,7 +1823,7 @@ int Disassembler::SubstituteBranchTargetField(const Instruction* instr,
 
   AppendPCRelativeOffsetToOutput(instr, offset);
   AppendToOutput(" ");
-  AppendCodeAddressToOutput(instr, target_address);
+  AppendCodeRelativeCodeAddressToOutput(instr, target_address);
 
   return 8;
 }
@@ -1805,13 +1890,26 @@ int Disassembler::SubstitutePrefetchField(const Instruction* instr,
   VIXL_ASSERT(format[0] == 'P');
   USE(format);
 
-  int prefetch_mode = instr->PrefetchMode();
+  static const char* hints[] = {"ld", "li", "st"};
+  static const char* stream_options[] = {"keep", "strm"};
 
-  const char* ls = (prefetch_mode & 0x10) ? "st" : "ld";
-  int level = (prefetch_mode >> 1) + 1;
-  const char* ks = (prefetch_mode & 1) ? "strm" : "keep";
+  unsigned hint = instr->PrefetchHint();
+  unsigned target = instr->PrefetchTarget() + 1;
+  unsigned stream = instr->PrefetchStream();
 
-  AppendToOutput("p%sl%d%s", ls, level, ks);
+  if ((hint >= (sizeof(hints) / sizeof(hints[0]))) || (target > 3)) {
+    // Unallocated prefetch operations.
+    int prefetch_mode = instr->ImmPrefetchOperation();
+    AppendToOutput("#0b%c%c%c%c%c",
+                   (prefetch_mode & (1 << 4)) ? '1' : '0',
+                   (prefetch_mode & (1 << 3)) ? '1' : '0',
+                   (prefetch_mode & (1 << 2)) ? '1' : '0',
+                   (prefetch_mode & (1 << 1)) ? '1' : '0',
+                   (prefetch_mode & (1 << 0)) ? '1' : '0');
+  } else {
+    VIXL_ASSERT(stream < (sizeof(stream_options) / sizeof(stream_options[0])));
+    AppendToOutput("p%sl%d%s", hints[hint], target, stream_options[stream]);
+  }
   return 6;
 }
 
