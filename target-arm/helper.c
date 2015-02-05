@@ -4616,13 +4616,91 @@ void arm_cpu_do_interrupt(CPUState *cs)
     cs->interrupt_request |= CPU_INTERRUPT_EXITTB;
 }
 
+
+/* Return the exception level which controls this address translation regime */
+static inline uint32_t regime_el(CPUARMState *env, ARMMMUIdx mmu_idx)
+{
+    switch (mmu_idx) {
+    case ARMMMUIdx_S2NS:
+    case ARMMMUIdx_S1E2:
+        return 2;
+    case ARMMMUIdx_S1E3:
+        return 3;
+    case ARMMMUIdx_S1SE0:
+        return arm_el_is_aa64(env, 3) ? 1 : 3;
+    case ARMMMUIdx_S1SE1:
+    case ARMMMUIdx_S1NSE0:
+    case ARMMMUIdx_S1NSE1:
+        return 1;
+    default:
+        g_assert_not_reached();
+    }
+}
+
+/* Return the SCTLR value which controls this address translation regime */
+static inline uint32_t regime_sctlr(CPUARMState *env, ARMMMUIdx mmu_idx)
+{
+    return env->cp15.sctlr_el[regime_el(env, mmu_idx)];
+}
+
+/* Return true if the specified stage of address translation is disabled */
+static inline bool regime_translation_disabled(CPUARMState *env,
+                                               ARMMMUIdx mmu_idx)
+{
+    if (mmu_idx == ARMMMUIdx_S2NS) {
+        return (env->cp15.hcr_el2 & HCR_VM) == 0;
+    }
+    return (regime_sctlr(env, mmu_idx) & SCTLR_M) == 0;
+}
+
+/* Return the TCR controlling this translation regime */
+static inline TCR *regime_tcr(CPUARMState *env, ARMMMUIdx mmu_idx)
+{
+    if (mmu_idx == ARMMMUIdx_S2NS) {
+        /* TODO: return VTCR_EL2 */
+        g_assert_not_reached();
+    }
+    return &env->cp15.tcr_el[regime_el(env, mmu_idx)];
+}
+
+/* Return true if the translation regime is using LPAE format page tables */
+static inline bool regime_using_lpae_format(CPUARMState *env,
+                                            ARMMMUIdx mmu_idx)
+{
+    int el = regime_el(env, mmu_idx);
+    if (el == 2 || arm_el_is_aa64(env, el)) {
+        return true;
+    }
+    if (arm_feature(env, ARM_FEATURE_LPAE)
+        && (regime_tcr(env, mmu_idx)->raw_tcr & TTBCR_EAE)) {
+        return true;
+    }
+    return false;
+}
+
+static inline bool regime_is_user(CPUARMState *env, ARMMMUIdx mmu_idx)
+{
+    switch (mmu_idx) {
+    case ARMMMUIdx_S1SE0:
+    case ARMMMUIdx_S1NSE0:
+        return true;
+    default:
+        return false;
+    case ARMMMUIdx_S12NSE0:
+    case ARMMMUIdx_S12NSE1:
+        g_assert_not_reached();
+    }
+}
+
 /* Check section/page access permissions.
    Returns the page protection flags, or zero if the access is not
    permitted.  */
-static inline int check_ap(CPUARMState *env, int ap, int domain_prot,
-                           int access_type, int is_user)
+static inline int check_ap(CPUARMState *env, ARMMMUIdx mmu_idx,
+                           int ap, int domain_prot,
+                           int access_type)
 {
   int prot_ro;
+  bool is_user = regime_is_user(env, mmu_idx);
 
   if (domain_prot == 3) {
     return PAGE_READ | PAGE_WRITE;
@@ -4640,7 +4718,7 @@ static inline int check_ap(CPUARMState *env, int ap, int domain_prot,
       }
       if (access_type == 1)
           return 0;
-      switch (A32_BANKED_CURRENT_REG_GET(env, sctlr) & (SCTLR_S | SCTLR_R)) {
+      switch (regime_sctlr(env, mmu_idx) & (SCTLR_S | SCTLR_R)) {
       case SCTLR_S:
           return is_user ? 0 : PAGE_READ;
       case SCTLR_R:
@@ -4672,35 +4750,32 @@ static inline int check_ap(CPUARMState *env, int ap, int domain_prot,
   }
 }
 
-static bool get_level1_table_address(CPUARMState *env, uint32_t *table,
-                                         uint32_t address)
+static bool get_level1_table_address(CPUARMState *env, ARMMMUIdx mmu_idx,
+                                     uint32_t *table, uint32_t address)
 {
-    /* Get the TCR bank based on our security state */
-    TCR *tcr = &env->cp15.tcr_el[arm_is_secure(env) ? 3 : 1];
+    /* Note that we can only get here for an AArch32 PL0/PL1 lookup */
+    int el = regime_el(env, mmu_idx);
+    TCR *tcr = regime_tcr(env, mmu_idx);
 
-    /* We only get here if EL1 is running in AArch32. If EL3 is running in
-     * AArch32 there is a secure and non-secure instance of the translation
-     * table registers.
-     */
     if (address & tcr->mask) {
         if (tcr->raw_tcr & TTBCR_PD1) {
             /* Translation table walk disabled for TTBR1 */
             return false;
         }
-        *table = A32_BANKED_CURRENT_REG_GET(env, ttbr1) & 0xffffc000;
+        *table = env->cp15.ttbr1_el[el] & 0xffffc000;
     } else {
         if (tcr->raw_tcr & TTBCR_PD0) {
             /* Translation table walk disabled for TTBR0 */
             return false;
         }
-        *table = A32_BANKED_CURRENT_REG_GET(env, ttbr0) & tcr->base_mask;
+        *table = env->cp15.ttbr0_el[el] & tcr->base_mask;
     }
     *table |= (address >> 18) & 0x3ffc;
     return true;
 }
 
 static int get_phys_addr_v5(CPUARMState *env, uint32_t address, int access_type,
-                            int is_user, hwaddr *phys_ptr,
+                            ARMMMUIdx mmu_idx, hwaddr *phys_ptr,
                             int *prot, target_ulong *page_size)
 {
     CPUState *cs = CPU(arm_env_get_cpu(env));
@@ -4712,10 +4787,11 @@ static int get_phys_addr_v5(CPUARMState *env, uint32_t address, int access_type,
     int domain = 0;
     int domain_prot;
     hwaddr phys_addr;
+    uint32_t dacr;
 
     /* Pagetable walk.  */
     /* Lookup l1 descriptor.  */
-    if (!get_level1_table_address(env, &table, address)) {
+    if (!get_level1_table_address(env, mmu_idx, &table, address)) {
         /* Section translation fault if page walk is disabled by PD0 or PD1 */
         code = 5;
         goto do_fault;
@@ -4723,7 +4799,12 @@ static int get_phys_addr_v5(CPUARMState *env, uint32_t address, int access_type,
     desc = ldl_phys(cs->as, table);
     type = (desc & 3);
     domain = (desc >> 5) & 0x0f;
-    domain_prot = (A32_BANKED_CURRENT_REG_GET(env, dacr) >> (domain * 2)) & 3;
+    if (regime_el(env, mmu_idx) == 1) {
+        dacr = env->cp15.dacr_ns;
+    } else {
+        dacr = env->cp15.dacr_s;
+    }
+    domain_prot = (dacr >> (domain * 2)) & 3;
     if (type == 0) {
         /* Section translation fault.  */
         code = 5;
@@ -4787,7 +4868,7 @@ static int get_phys_addr_v5(CPUARMState *env, uint32_t address, int access_type,
         }
         code = 15;
     }
-    *prot = check_ap(env, ap, domain_prot, access_type, is_user);
+    *prot = check_ap(env, mmu_idx, ap, domain_prot, access_type);
     if (!*prot) {
         /* Access permission fault.  */
         goto do_fault;
@@ -4800,7 +4881,7 @@ do_fault:
 }
 
 static int get_phys_addr_v6(CPUARMState *env, uint32_t address, int access_type,
-                            int is_user, hwaddr *phys_ptr,
+                            ARMMMUIdx mmu_idx, hwaddr *phys_ptr,
                             int *prot, target_ulong *page_size)
 {
     CPUState *cs = CPU(arm_env_get_cpu(env));
@@ -4814,10 +4895,11 @@ static int get_phys_addr_v6(CPUARMState *env, uint32_t address, int access_type,
     int domain = 0;
     int domain_prot;
     hwaddr phys_addr;
+    uint32_t dacr;
 
     /* Pagetable walk.  */
     /* Lookup l1 descriptor.  */
-    if (!get_level1_table_address(env, &table, address)) {
+    if (!get_level1_table_address(env, mmu_idx, &table, address)) {
         /* Section translation fault if page walk is disabled by PD0 or PD1 */
         code = 5;
         goto do_fault;
@@ -4835,7 +4917,12 @@ static int get_phys_addr_v6(CPUARMState *env, uint32_t address, int access_type,
         /* Page or Section.  */
         domain = (desc >> 5) & 0x0f;
     }
-    domain_prot = (A32_BANKED_CURRENT_REG_GET(env, dacr) >> (domain * 2)) & 3;
+    if (regime_el(env, mmu_idx) == 1) {
+        dacr = env->cp15.dacr_ns;
+    } else {
+        dacr = env->cp15.dacr_s;
+    }
+    domain_prot = (dacr >> (domain * 2)) & 3;
     if (domain_prot == 0 || domain_prot == 2) {
         if (type != 1) {
             code = 9; /* Section domain fault.  */
@@ -4889,20 +4976,20 @@ static int get_phys_addr_v6(CPUARMState *env, uint32_t address, int access_type,
     if (domain_prot == 3) {
         *prot = PAGE_READ | PAGE_WRITE | PAGE_EXEC;
     } else {
-        if (pxn && !is_user) {
+        if (pxn && !regime_is_user(env, mmu_idx)) {
             xn = 1;
         }
         if (xn && access_type == 2)
             goto do_fault;
 
         /* The simplified model uses AP[0] as an access control bit.  */
-        if ((A32_BANKED_CURRENT_REG_GET(env, sctlr) & SCTLR_AFE)
+        if ((regime_sctlr(env, mmu_idx) & SCTLR_AFE)
                 && (ap & 1) == 0) {
             /* Access flag fault.  */
             code = (code == 15) ? 6 : 3;
             goto do_fault;
         }
-        *prot = check_ap(env, ap, domain_prot, access_type, is_user);
+        *prot = check_ap(env, mmu_idx, ap, domain_prot, access_type);
         if (!*prot) {
             /* Access permission fault.  */
             goto do_fault;
@@ -4927,7 +5014,7 @@ typedef enum {
 } MMUFaultType;
 
 static int get_phys_addr_lpae(CPUARMState *env, target_ulong address,
-                              int access_type, int is_user,
+                              int access_type, ARMMMUIdx mmu_idx,
                               hwaddr *phys_ptr, int *prot,
                               target_ulong *page_size_ptr)
 {
@@ -4947,9 +5034,17 @@ static int get_phys_addr_lpae(CPUARMState *env, target_ulong address,
     int32_t granule_sz = 9;
     int32_t va_size = 32;
     int32_t tbi = 0;
-    TCR *tcr = &env->cp15.tcr_el[arm_is_secure(env) ? 3 : 1];
+    bool is_user;
+    TCR *tcr = regime_tcr(env, mmu_idx);
 
-    if (arm_el_is_aa64(env, 1)) {
+    /* TODO:
+     * This code assumes we're either a 64-bit EL1 or a 32-bit PL1;
+     * it doesn't handle the different format TCR for TCR_EL2, TCR_EL3,
+     * and VTCR_EL2, or the fact that those regimes don't have a split
+     * TTBR0/TTBR1. Attribute and permission bit handling should also
+     * be checked when adding support for those page table walks.
+     */
+    if (arm_el_is_aa64(env, regime_el(env, mmu_idx))) {
         va_size = 64;
         if (extract64(address, 55, 1))
             tbi = extract64(tcr->raw_tcr, 38, 1);
@@ -4964,12 +5059,12 @@ static int get_phys_addr_lpae(CPUARMState *env, target_ulong address,
      * TTBCR/TTBR0/TTBR1 in accordance with ARM ARM DDI0406C table B-32:
      */
     uint32_t t0sz = extract32(tcr->raw_tcr, 0, 6);
-    if (arm_el_is_aa64(env, 1)) {
+    if (va_size == 64) {
         t0sz = MIN(t0sz, 39);
         t0sz = MAX(t0sz, 16);
     }
     uint32_t t1sz = extract32(tcr->raw_tcr, 16, 6);
-    if (arm_el_is_aa64(env, 1)) {
+    if (va_size == 64) {
         t1sz = MIN(t1sz, 39);
         t1sz = MAX(t1sz, 16);
     }
@@ -5023,6 +5118,10 @@ static int get_phys_addr_lpae(CPUARMState *env, target_ulong address,
             granule_sz = 11;
         }
     }
+
+    /* Here we should have set up all the parameters for the translation:
+     * va_size, ttbr, epd, tsz, granule_sz, tbi
+     */
 
     if (epd) {
         /* Translation table walk disabled => Translation fault on TLB miss */
@@ -5109,6 +5208,7 @@ static int get_phys_addr_lpae(CPUARMState *env, target_ulong address,
         goto do_fault;
     }
     fault_type = permission_fault;
+    is_user = regime_is_user(env, mmu_idx);
     if (is_user && !(attrs & (1 << 4))) {
         /* Unprivileged access not enabled */
         goto do_fault;
@@ -5143,12 +5243,13 @@ do_fault:
 }
 
 static int get_phys_addr_mpu(CPUARMState *env, uint32_t address,
-                             int access_type, int is_user,
+                             int access_type, ARMMMUIdx mmu_idx,
                              hwaddr *phys_ptr, int *prot)
 {
     int n;
     uint32_t mask;
     uint32_t base;
+    bool is_user = regime_is_user(env, mmu_idx);
 
     *phys_ptr = address;
     for (n = 7; n >= 0; n--) {
@@ -5231,39 +5332,50 @@ static inline int get_phys_addr(CPUARMState *env, target_ulong address,
                                 hwaddr *phys_ptr, int *prot,
                                 target_ulong *page_size)
 {
-    /* This is not entirely correct as get_phys_addr() can also be called
-     * from ats_write() for an address translation of a specific regime.
-     */
-    uint32_t sctlr = A32_BANKED_CURRENT_REG_GET(env, sctlr);
-
-    /* This will go away when we handle mmu_idx properly here */
-    int is_user = (mmu_idx == ARMMMUIdx_S12NSE0 ||
-                   mmu_idx == ARMMMUIdx_S1SE0 ||
-                   mmu_idx == ARMMMUIdx_S1NSE0);
-
-    /* Fast Context Switch Extension.  */
-    if (address < 0x02000000) {
-        address += A32_BANKED_CURRENT_REG_GET(env, fcseidr);
+    if (mmu_idx == ARMMMUIdx_S12NSE0 || mmu_idx == ARMMMUIdx_S12NSE1) {
+        /* TODO: when we support EL2 we should here call ourselves recursively
+         * to do the stage 1 and then stage 2 translations. The ldl_phys
+         * calls for stage 1 will also need changing.
+         * For non-EL2 CPUs a stage1+stage2 translation is just stage 1.
+         */
+        assert(!arm_feature(env, ARM_FEATURE_EL2));
+        mmu_idx += ARMMMUIdx_S1NSE0;
     }
 
-    if ((sctlr & SCTLR_M) == 0) {
+    /* Fast Context Switch Extension. This doesn't exist at all in v8.
+     * In v7 and earlier it affects all stage 1 translations.
+     */
+    if (address < 0x02000000 && mmu_idx != ARMMMUIdx_S2NS
+        && !arm_feature(env, ARM_FEATURE_V8)) {
+        if (regime_el(env, mmu_idx) == 3) {
+            address += env->cp15.fcseidr_s;
+        } else {
+            address += env->cp15.fcseidr_ns;
+        }
+    }
+
+    if (regime_translation_disabled(env, mmu_idx)) {
         /* MMU/MPU disabled.  */
         *phys_ptr = address;
         *prot = PAGE_READ | PAGE_WRITE | PAGE_EXEC;
         *page_size = TARGET_PAGE_SIZE;
         return 0;
-    } else if (arm_feature(env, ARM_FEATURE_MPU)) {
+    }
+
+    if (arm_feature(env, ARM_FEATURE_MPU)) {
         *page_size = TARGET_PAGE_SIZE;
-	return get_phys_addr_mpu(env, address, access_type, is_user, phys_ptr,
-				 prot);
-    } else if (extended_addresses_enabled(env)) {
-        return get_phys_addr_lpae(env, address, access_type, is_user, phys_ptr,
+        return get_phys_addr_mpu(env, address, access_type, mmu_idx, phys_ptr,
+                                 prot);
+    }
+
+    if (regime_using_lpae_format(env, mmu_idx)) {
+        return get_phys_addr_lpae(env, address, access_type, mmu_idx, phys_ptr,
                                   prot, page_size);
-    } else if (sctlr & SCTLR_XP) {
-        return get_phys_addr_v6(env, address, access_type, is_user, phys_ptr,
+    } else if (regime_sctlr(env, mmu_idx) & SCTLR_XP) {
+        return get_phys_addr_v6(env, address, access_type, mmu_idx, phys_ptr,
                                 prot, page_size);
     } else {
-        return get_phys_addr_v5(env, address, access_type, is_user, phys_ptr,
+        return get_phys_addr_v5(env, address, access_type, mmu_idx, phys_ptr,
                                 prot, page_size);
     }
 }
