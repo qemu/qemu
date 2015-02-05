@@ -110,17 +110,20 @@ struct sPAPRMachineState {
 sPAPREnvironment *spapr;
 
 static XICSState *try_create_xics(const char *type, int nr_servers,
-                                  int nr_irqs)
+                                  int nr_irqs, Error **errp)
 {
+    Error *err = NULL;
     DeviceState *dev;
 
     dev = qdev_create(NULL, type);
     qdev_prop_set_uint32(dev, "nr_servers", nr_servers);
     qdev_prop_set_uint32(dev, "nr_irqs", nr_irqs);
-    if (qdev_init(dev) < 0) {
+    object_property_set_bool(OBJECT(dev), true, "realized", &err);
+    if (err) {
+        error_propagate(errp, err);
+        object_unparent(OBJECT(dev));
         return NULL;
     }
-
     return XICS_COMMON(dev);
 }
 
@@ -134,23 +137,19 @@ static XICSState *xics_system_init(int nr_servers, int nr_irqs)
                                                 "kernel_irqchip", true);
         bool irqchip_required = qemu_opt_get_bool(machine_opts,
                                                   "kernel_irqchip", false);
+        Error *err = NULL;
+
         if (irqchip_allowed) {
-            icp = try_create_xics(TYPE_KVM_XICS, nr_servers, nr_irqs);
+            icp = try_create_xics(TYPE_KVM_XICS, nr_servers, nr_irqs, &err);
         }
-
         if (irqchip_required && !icp) {
-            perror("Failed to create in-kernel XICS\n");
-            abort();
+            error_report("kernel_irqchip requested but unavailable: %s",
+                         error_get_pretty(err));
         }
     }
 
     if (!icp) {
-        icp = try_create_xics(TYPE_XICS, nr_servers, nr_irqs);
-    }
-
-    if (!icp) {
-        perror("Failed to create XICS\n");
-        abort();
+        icp = try_create_xics(TYPE_XICS, nr_servers, nr_irqs, &error_abort);
     }
 
     return icp;
