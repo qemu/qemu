@@ -135,6 +135,9 @@ float32 HELPER(vfp_mulxs)(float32 a, float32 b, void *fpstp)
 {
     float_status *fpst = fpstp;
 
+    a = float32_squash_input_denormal(a, fpst);
+    b = float32_squash_input_denormal(b, fpst);
+
     if ((float32_is_zero(a) && float32_is_infinity(b)) ||
         (float32_is_infinity(a) && float32_is_zero(b))) {
         /* 2.0 with the sign bit set to sign(A) XOR sign(B) */
@@ -147,6 +150,9 @@ float32 HELPER(vfp_mulxs)(float32 a, float32 b, void *fpstp)
 float64 HELPER(vfp_mulxd)(float64 a, float64 b, void *fpstp)
 {
     float_status *fpst = fpstp;
+
+    a = float64_squash_input_denormal(a, fpst);
+    b = float64_squash_input_denormal(b, fpst);
 
     if ((float64_is_zero(a) && float64_is_infinity(b)) ||
         (float64_is_infinity(a) && float64_is_zero(b))) {
