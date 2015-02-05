@@ -86,6 +86,7 @@ static AHCIQState *ahci_boot(void)
         "-device ide-hd,drive=drive0 "
         "-global ide-hd.ver=%s";
     s->parent = qtest_pc_boot(cli, tmp_path, "testdisk", "version");
+    alloc_set_flags(s->parent->alloc, ALLOC_LEAK_ASSERT);
 
     /* Verify that we have an AHCI device present. */
     s->dev = get_ahci_device(&s->fingerprint);
@@ -99,6 +100,8 @@ static AHCIQState *ahci_boot(void)
 static void ahci_shutdown(AHCIQState *ahci)
 {
     QOSState *qs = ahci->parent;
+
+    ahci_clean_mem(ahci);
     free_ahci_device(ahci->dev);
     g_free(ahci);
     qtest_shutdown(qs);

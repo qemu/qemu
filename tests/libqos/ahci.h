@@ -499,6 +499,7 @@ uint64_t ahci_alloc(AHCIQState *ahci, size_t bytes);
 void ahci_free(AHCIQState *ahci, uint64_t addr);
 QPCIDevice *get_ahci_device(uint32_t *fingerprint);
 void free_ahci_device(QPCIDevice *dev);
+void ahci_clean_mem(AHCIQState *ahci);
 void ahci_pci_enable(AHCIQState *ahci);
 void start_ahci_device(AHCIQState *ahci);
 void ahci_hba_enable(AHCIQState *ahci);

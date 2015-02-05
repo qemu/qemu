@@ -36,5 +36,6 @@ QGuestAllocator *alloc_init(uint64_t start, uint64_t end);
 QGuestAllocator *alloc_init_flags(QAllocOpts flags,
                                   uint64_t start, uint64_t end);
 void alloc_set_page_size(QGuestAllocator *allocator, size_t page_size);
+void alloc_set_flags(QGuestAllocator *allocator, QAllocOpts opts);
 
 #endif

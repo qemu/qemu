@@ -130,6 +130,24 @@ void free_ahci_device(QPCIDevice *dev)
     qpci_free_pc(pcibus);
 }
 
+/* Free all memory in-use by the AHCI device. */
+void ahci_clean_mem(AHCIQState *ahci)
+{
+    uint8_t port, slot;
+
+    for (port = 0; port < 32; ++port) {
+        if (ahci->port[port].fb) {
+            ahci_free(ahci, ahci->port[port].fb);
+        }
+        if (ahci->port[port].clb) {
+            for (slot = 0; slot < 32; slot++) {
+                ahci_destroy_command(ahci, port, slot);
+            }
+            ahci_free(ahci, ahci->port[port].clb);
+        }
+    }
+}
+
 /*** Logical Device Initialization ***/
 
 /**

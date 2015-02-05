@@ -324,3 +324,8 @@ void alloc_set_page_size(QGuestAllocator *allocator, size_t page_size)
     g_assert(is_power_of_2(page_size));
     allocator->page_size = page_size;
 }
+
+void alloc_set_flags(QGuestAllocator *allocator, QAllocOpts opts)
+{
+    allocator->opts |= opts;
+}
