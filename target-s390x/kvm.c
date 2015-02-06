@@ -123,6 +123,7 @@ const KVMCapabilityInfo kvm_arch_required_capabilities[] = {
 
 static int cap_sync_regs;
 static int cap_async_pf;
+static int cap_mem_op;
 
 static void *legacy_s390_alloc(size_t size, uint64_t *align);
 
@@ -247,6 +248,7 @@ int kvm_arch_init(MachineState *ms, KVMState *s)
 {
     cap_sync_regs = kvm_check_extension(s, KVM_CAP_SYNC_REGS);
     cap_async_pf = kvm_check_extension(s, KVM_CAP_ASYNC_PF);
+    cap_mem_op = kvm_check_extension(s, KVM_CAP_S390_MEM_OP);
 
     kvm_s390_enable_cmma(s);
 
@@ -548,6 +550,44 @@ int kvm_s390_set_clock(uint8_t *tod_high, uint64_t *tod_low)
     attr.attr = KVM_S390_VM_TOD_HIGH;
     attr.addr = (uint64_t)tod_high;
     return kvm_vm_ioctl(kvm_state, KVM_SET_DEVICE_ATTR, &attr);
+}
+
+/**
+ * kvm_s390_mem_op:
+ * @addr:      the logical start address in guest memory
+ * @hostbuf:   buffer in host memory. NULL = do only checks w/o copying
+ * @len:       length that should be transfered
+ * @is_write:  true = write, false = read
+ * Returns:    0 on success, non-zero if an exception or error occured
+ *
+ * Use KVM ioctl to read/write from/to guest memory. An access exception
+ * is injected into the vCPU in case of translation errors.
+ */
+int kvm_s390_mem_op(S390CPU *cpu, vaddr addr, void *hostbuf, int len,
+                    bool is_write)
+{
+    struct kvm_s390_mem_op mem_op = {
+        .gaddr = addr,
+        .flags = KVM_S390_MEMOP_F_INJECT_EXCEPTION,
+        .size = len,
+        .op = is_write ? KVM_S390_MEMOP_LOGICAL_WRITE
+                       : KVM_S390_MEMOP_LOGICAL_READ,
+        .buf = (uint64_t)hostbuf,
+    };
+    int ret;
+
+    if (!cap_mem_op) {
+        return -ENOSYS;
+    }
+    if (!hostbuf) {
+        mem_op.flags |= KVM_S390_MEMOP_F_CHECK_ONLY;
+    }
+
+    ret = kvm_vcpu_ioctl(CPU(cpu), KVM_S390_MEM_OP, &mem_op);
+    if (ret < 0) {
+        error_printf("KVM_S390_MEM_OP failed: %s\n", strerror(-ret));
+    }
+    return ret;
 }
 
 /*

@@ -450,6 +450,13 @@ int s390_cpu_virt_mem_rw(S390CPU *cpu, vaddr laddr, void *hostbuf,
     target_ulong *pages;
     int ret;
 
+    if (kvm_enabled()) {
+        ret = kvm_s390_mem_op(cpu, laddr, hostbuf, len, is_write);
+        if (ret >= 0) {
+            return ret;
+        }
+    }
+
     nr_pages = (((laddr & ~TARGET_PAGE_MASK) + len - 1) >> TARGET_PAGE_BITS)
                + 1;
     pages = g_malloc(nr_pages * sizeof(*pages));
