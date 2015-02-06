@@ -36,7 +36,7 @@ static void rtas_get_time_of_day(PowerPCCPU *cpu, sPAPREnvironment *spapr,
 {
     struct tm tm;
 
-    if (nret != 8) {
+    if ((nargs != 0) || (nret != 8)) {
         rtas_st(rets, 0, RTAS_OUT_PARAM_ERROR);
         return;
     }
@@ -59,6 +59,11 @@ static void rtas_set_time_of_day(PowerPCCPU *cpu, sPAPREnvironment *spapr,
                                  uint32_t nret, target_ulong rets)
 {
     struct tm tm;
+
+    if ((nargs != 7) || (nret != 1)) {
+        rtas_st(rets, 0, RTAS_OUT_PARAM_ERROR);
+        return;
+    }
 
     tm.tm_year = rtas_ld(args, 0) - 1900;
     tm.tm_mon = rtas_ld(args, 1) - 1;
