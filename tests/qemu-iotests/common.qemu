@@ -187,13 +187,23 @@ function _launch_qemu()
 
 
 # Silenty kills the QEMU process
+#
+# If $wait is set to anything other than the empty string, the process will not
+# be killed but only waited for, and any output will be forwarded to stdout. If
+# $wait is empty, the process will be killed and all output will be suppressed.
 function _cleanup_qemu()
 {
     # QEMU_PID[], QEMU_IN[], QEMU_OUT[] all use same indices
     for i in "${!QEMU_OUT[@]}"
     do
-        kill -KILL ${QEMU_PID[$i]} 2>/dev/null
+        if [ -z "${wait}" ]; then
+            kill -KILL ${QEMU_PID[$i]} 2>/dev/null
+        fi
         wait ${QEMU_PID[$i]} 2>/dev/null # silent kill
+        if [ -n "${wait}" ]; then
+            cat <&${QEMU_OUT[$i]} | _filter_testdir | _filter_qemu \
+                                  | _filter_qemu_io | _filter_qmp
+        fi
         rm -f "${QEMU_FIFO_IN}_${i}" "${QEMU_FIFO_OUT}_${i}"
         eval "exec ${QEMU_IN[$i]}<&-"   # close file descriptors
         eval "exec ${QEMU_OUT[$i]}<&-"
