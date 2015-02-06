@@ -472,12 +472,14 @@ static BlockAIOCB *inject_error(BlockDriverState *bs,
     int error = rule->options.inject.error;
     struct BlkdebugAIOCB *acb;
     QEMUBH *bh;
+    bool immediately = rule->options.inject.immediately;
 
     if (rule->options.inject.once) {
-        QSIMPLEQ_INIT(&s->active_rules);
+        QSIMPLEQ_REMOVE(&s->active_rules, rule, BlkdebugRule, active_next);
+        remove_rule(rule);
     }
 
-    if (rule->options.inject.immediately) {
+    if (immediately) {
         return NULL;
     }
 
