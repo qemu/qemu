@@ -83,6 +83,11 @@ Error *error_copy(const Error *err);
 const char *error_get_pretty(Error *err);
 
 /**
+ * Convenience function to error_report() and free an error object.
+ */
+void error_report_err(Error *);
+
+/**
  * Propagate an error to an indirect pointer to an error.  This function will
  * always transfer ownership of the error reference and handles the case where
  * dst_err is NULL correctly.  Errors after the first are discarded.

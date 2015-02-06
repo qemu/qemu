@@ -152,6 +152,12 @@ const char *error_get_pretty(Error *err)
     return err->msg;
 }
 
+void error_report_err(Error *err)
+{
+    error_report("%s", error_get_pretty(err));
+    error_free(err);
+}
+
 void error_free(Error *err)
 {
     if (err) {
