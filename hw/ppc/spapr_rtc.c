@@ -26,14 +26,24 @@
  *
  */
 #include "cpu.h"
+#include "sysemu/sysemu.h"
 #include "hw/ppc/spapr.h"
 #include "qapi-event.h"
 
+#define NSEC_PER_SEC    1000000000LL
+
 void spapr_rtc_read(sPAPREnvironment *spapr, struct tm *tm, uint32_t *ns)
 {
-    qemu_get_timedate(tm, spapr->rtc_offset);
+    int64_t host_ns = qemu_clock_get_ns(rtc_clock);
+    time_t guest_s;
+
+    guest_s = host_ns / NSEC_PER_SEC + spapr->rtc_offset;
+
+    if (tm) {
+        gmtime_r(&guest_s, tm);
+    }
     if (ns) {
-        *ns = 0; /* we don't do nanoseconds, yet */
+        *ns = host_ns % NSEC_PER_SEC;
     }
 }
 
@@ -68,6 +78,8 @@ static void rtas_set_time_of_day(PowerPCCPU *cpu, sPAPREnvironment *spapr,
                                  uint32_t nret, target_ulong rets)
 {
     struct tm tm;
+    time_t new_s;
+    int64_t host_ns;
 
     if ((nargs != 7) || (nret != 1)) {
         rtas_st(rets, 0, RTAS_OUT_PARAM_ERROR);
@@ -81,15 +93,35 @@ static void rtas_set_time_of_day(PowerPCCPU *cpu, sPAPREnvironment *spapr,
     tm.tm_min = rtas_ld(args, 4);
     tm.tm_sec = rtas_ld(args, 5);
 
-    /* Just generate a monitor event for the change */
+    new_s = mktimegm(&tm);
+    if (new_s == -1) {
+        rtas_st(rets, 0, RTAS_OUT_PARAM_ERROR);
+        return;
+    }
+
+    /* Generate a monitor event for the change */
     qapi_event_send_rtc_change(qemu_timedate_diff(&tm), &error_abort);
-    spapr->rtc_offset = qemu_timedate_diff(&tm);
+
+    host_ns = qemu_clock_get_ns(rtc_clock);
+
+    spapr->rtc_offset = new_s - host_ns / NSEC_PER_SEC;
 
     rtas_st(rets, 0, RTAS_OUT_SUCCESS);
 }
 
 void spapr_rtc_init(void)
 {
+    struct tm tm;
+    time_t host_s;
+    int64_t rtc_ns;
+
+    /* Initialize the RTAS RTC from host time */
+
+    qemu_get_timedate(&tm, 0);
+    host_s = mktimegm(&tm);
+    rtc_ns = qemu_clock_get_ns(rtc_clock);
+    spapr->rtc_offset = host_s - rtc_ns / NSEC_PER_SEC;
+
     spapr_rtas_register(RTAS_GET_TIME_OF_DAY, "get-time-of-day",
                         rtas_get_time_of_day);
     spapr_rtas_register(RTAS_SET_TIME_OF_DAY, "set-time-of-day",
