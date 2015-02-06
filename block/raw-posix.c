@@ -60,7 +60,7 @@
 #define FS_NOCOW_FL                     0x00800000 /* Do not cow file */
 #endif
 #endif
-#ifdef CONFIG_FALLOCATE_PUNCH_HOLE
+#if defined(CONFIG_FALLOCATE_PUNCH_HOLE) || defined(CONFIG_FALLOCATE_ZERO_RANGE)
 #include <linux/falloc.h>
 #endif
 #if defined (__FreeBSD__) || defined(__FreeBSD_kernel__)
@@ -147,6 +147,7 @@ typedef struct BDRVRawState {
     bool has_discard:1;
     bool has_write_zeroes:1;
     bool discard_zeroes:1;
+    bool has_fallocate;
     bool needs_alignment;
 } BDRVRawState;
 
@@ -452,6 +453,7 @@ static int raw_open_common(BlockDriverState *bs, QDict *options,
     }
     if (S_ISREG(st.st_mode)) {
         s->discard_zeroes = true;
+        s->has_fallocate = true;
     }
     if (S_ISBLK(st.st_mode)) {
 #ifdef BLKDISCARDZEROES
@@ -893,40 +895,108 @@ static int xfs_discard(BDRVRawState *s, int64_t offset, uint64_t bytes)
 }
 #endif
 
-static ssize_t handle_aiocb_write_zeroes(RawPosixAIOData *aiocb)
+static int translate_err(int err)
 {
-    int ret = -EOPNOTSUPP;
+    if (err == -ENODEV || err == -ENOSYS || err == -EOPNOTSUPP ||
+        err == -ENOTTY) {
+        err = -ENOTSUP;
+    }
+    return err;
+}
+
+#ifdef CONFIG_FALLOCATE
+static int do_fallocate(int fd, int mode, off_t offset, off_t len)
+{
+    do {
+        if (fallocate(fd, mode, offset, len) == 0) {
+            return 0;
+        }
+    } while (errno == EINTR);
+    return translate_err(-errno);
+}
+#endif
+
+static ssize_t handle_aiocb_write_zeroes_block(RawPosixAIOData *aiocb)
+{
+    int ret = -ENOTSUP;
     BDRVRawState *s = aiocb->bs->opaque;
 
-    if (s->has_write_zeroes == 0) {
+    if (!s->has_write_zeroes) {
         return -ENOTSUP;
     }
 
-    if (aiocb->aio_type & QEMU_AIO_BLKDEV) {
 #ifdef BLKZEROOUT
-        do {
-            uint64_t range[2] = { aiocb->aio_offset, aiocb->aio_nbytes };
-            if (ioctl(aiocb->aio_fildes, BLKZEROOUT, range) == 0) {
-                return 0;
-            }
-        } while (errno == EINTR);
-
-        ret = -errno;
-#endif
-    } else {
-#ifdef CONFIG_XFS
-        if (s->is_xfs) {
-            return xfs_write_zeroes(s, aiocb->aio_offset, aiocb->aio_nbytes);
+    do {
+        uint64_t range[2] = { aiocb->aio_offset, aiocb->aio_nbytes };
+        if (ioctl(aiocb->aio_fildes, BLKZEROOUT, range) == 0) {
+            return 0;
         }
-#endif
-    }
+    } while (errno == EINTR);
 
-    if (ret == -ENODEV || ret == -ENOSYS || ret == -EOPNOTSUPP ||
-        ret == -ENOTTY) {
+    ret = translate_err(-errno);
+#endif
+
+    if (ret == -ENOTSUP) {
         s->has_write_zeroes = false;
-        ret = -ENOTSUP;
     }
     return ret;
+}
+
+static ssize_t handle_aiocb_write_zeroes(RawPosixAIOData *aiocb)
+{
+    BDRVRawState *s = aiocb->bs->opaque;
+
+    if (aiocb->aio_type & QEMU_AIO_BLKDEV) {
+        return handle_aiocb_write_zeroes_block(aiocb);
+    }
+
+#ifdef CONFIG_XFS
+    if (s->is_xfs) {
+        return xfs_write_zeroes(s, aiocb->aio_offset, aiocb->aio_nbytes);
+    }
+#endif
+
+#ifdef CONFIG_FALLOCATE_ZERO_RANGE
+    if (s->has_write_zeroes) {
+        int ret = do_fallocate(s->fd, FALLOC_FL_ZERO_RANGE,
+                               aiocb->aio_offset, aiocb->aio_nbytes);
+        if (ret == 0 || ret != -ENOTSUP) {
+            return ret;
+        }
+        s->has_write_zeroes = false;
+    }
+#endif
+
+#ifdef CONFIG_FALLOCATE_PUNCH_HOLE
+    if (s->has_discard && s->has_fallocate) {
+        int ret = do_fallocate(s->fd,
+                               FALLOC_FL_PUNCH_HOLE | FALLOC_FL_KEEP_SIZE,
+                               aiocb->aio_offset, aiocb->aio_nbytes);
+        if (ret == 0) {
+            ret = do_fallocate(s->fd, 0, aiocb->aio_offset, aiocb->aio_nbytes);
+            if (ret == 0 || ret != -ENOTSUP) {
+                return ret;
+            }
+            s->has_fallocate = false;
+        } else if (ret != -ENOTSUP) {
+            return ret;
+        } else {
+            s->has_discard = false;
+        }
+    }
+#endif
+
+#ifdef CONFIG_FALLOCATE
+    if (s->has_fallocate && aiocb->aio_offset >= bdrv_getlength(aiocb->bs)) {
+        int ret = do_fallocate(s->fd, 0, aiocb->aio_offset, aiocb->aio_nbytes);
+        if (ret == 0 || ret != -ENOTSUP) {
+            return ret;
+        }
+        s->has_fallocate = false;
+    }
+#endif
+
+    return -ENOTSUP;
 }
 
 static ssize_t handle_aiocb_discard(RawPosixAIOData *aiocb)
@@ -957,21 +1027,14 @@ static ssize_t handle_aiocb_discard(RawPosixAIOData *aiocb)
 #endif
 
 #ifdef CONFIG_FALLOCATE_PUNCH_HOLE
-        do {
-            if (fallocate(s->fd, FALLOC_FL_PUNCH_HOLE | FALLOC_FL_KEEP_SIZE,
-                          aiocb->aio_offset, aiocb->aio_nbytes) == 0) {
-                return 0;
-            }
-        } while (errno == EINTR);
-
-        ret = -errno;
+        ret = do_fallocate(s->fd, FALLOC_FL_PUNCH_HOLE | FALLOC_FL_KEEP_SIZE,
+                           aiocb->aio_offset, aiocb->aio_nbytes);
 #endif
     }
 
-    if (ret == -ENODEV || ret == -ENOSYS || ret == -EOPNOTSUPP ||
-        ret == -ENOTTY) {
+    ret = translate_err(ret);
+    if (ret == -ENOTSUP) {
         s->has_discard = false;
-        ret = -ENOTSUP;
     }
     return ret;
 }
@@ -1312,7 +1375,20 @@ again:
         if (size == 0)
 #endif
 #if defined(__APPLE__) && defined(__MACH__)
-        size = LLONG_MAX;
+        {
+            uint64_t sectors = 0;
+            uint32_t sector_size = 0;
+
+            if (ioctl(fd, DKIOCGETBLOCKCOUNT, &sectors) == 0
+               && ioctl(fd, DKIOCGETBLOCKSIZE, &sector_size) == 0) {
+                size = sectors * sector_size;
+            } else {
+                size = lseek(fd, 0LL, SEEK_END);
+                if (size < 0) {
+                    return -errno;
+                }
+            }
+        }
 #else
         size = lseek(fd, 0LL, SEEK_END);
         if (size < 0) {

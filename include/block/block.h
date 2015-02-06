@@ -83,6 +83,9 @@ typedef enum {
 #define BDRV_SECTOR_SIZE   (1ULL << BDRV_SECTOR_BITS)
 #define BDRV_SECTOR_MASK   ~(BDRV_SECTOR_SIZE - 1)
 
+#define BDRV_REQUEST_MAX_SECTORS MIN(SIZE_MAX >> BDRV_SECTOR_BITS, \
+                                     INT_MAX >> BDRV_SECTOR_BITS)
+
 /*
  * Allocation status flags
  * BDRV_BLOCK_DATA: data is read from bs->file or another file
@@ -378,6 +381,7 @@ BlockDriverState *bdrv_next(BlockDriverState *bs);
 int bdrv_is_encrypted(BlockDriverState *bs);
 int bdrv_key_required(BlockDriverState *bs);
 int bdrv_set_key(BlockDriverState *bs, const char *key);
+void bdrv_add_key(BlockDriverState *bs, const char *key, Error **errp);
 int bdrv_query_missing_keys(void);
 void bdrv_iterate_format(void (*it)(void *opaque, const char *name),
                          void *opaque);

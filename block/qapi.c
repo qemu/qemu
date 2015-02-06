@@ -24,6 +24,7 @@
 
 #include "block/qapi.h"
 #include "block/block_int.h"
+#include "block/write-threshold.h"
 #include "qmp-commands.h"
 #include "qapi-visit.h"
 #include "qapi/qmp-output-visitor.h"
@@ -88,6 +89,8 @@ BlockDeviceInfo *bdrv_block_device_info(BlockDriverState *bs)
         info->has_iops_size = cfg.op_size;
         info->iops_size = cfg.op_size;
     }
+
+    info->write_threshold = bdrv_write_threshold_get(bs);
 
     return info;
 }
@@ -335,6 +338,8 @@ static BlockStats *bdrv_query_stats(const BlockDriverState *bs,
     s->stats->wr_bytes = bs->stats.nr_bytes[BLOCK_ACCT_WRITE];
     s->stats->rd_operations = bs->stats.nr_ops[BLOCK_ACCT_READ];
     s->stats->wr_operations = bs->stats.nr_ops[BLOCK_ACCT_WRITE];
+    s->stats->rd_merged = bs->stats.merged[BLOCK_ACCT_READ];
+    s->stats->wr_merged = bs->stats.merged[BLOCK_ACCT_WRITE];
     s->stats->wr_highest_offset =
         bs->stats.wr_highest_sector * BDRV_SECTOR_SIZE;
     s->stats->flush_operations = bs->stats.nr_ops[BLOCK_ACCT_FLUSH];

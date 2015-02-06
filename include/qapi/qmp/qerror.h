@@ -37,9 +37,6 @@ void qerror_report_err(Error *err);
 #define QERR_BASE_NOT_FOUND \
     ERROR_CLASS_GENERIC_ERROR, "Base '%s' not found"
 
-#define QERR_BLOCK_JOB_NOT_ACTIVE \
-    ERROR_CLASS_DEVICE_NOT_ACTIVE, "No active block job on device '%s'"
-
 #define QERR_BLOCK_JOB_NOT_READY \
     ERROR_CLASS_GENERIC_ERROR, "The active block job for device '%s' cannot be completed"
 
@@ -51,9 +48,6 @@ void qerror_report_err(Error *err);
 
 #define QERR_BUS_NOT_FOUND \
     ERROR_CLASS_GENERIC_ERROR, "Bus '%s' not found"
-
-#define QERR_DEVICE_ENCRYPTED \
-    ERROR_CLASS_DEVICE_ENCRYPTED, "'%s' (%s) is encrypted"
 
 #define QERR_DEVICE_HAS_NO_MEDIUM \
     ERROR_CLASS_GENERIC_ERROR, "Device '%s' has no medium"
@@ -69,9 +63,6 @@ void qerror_report_err(Error *err);
 
 #define QERR_DEVICE_NO_HOTPLUG \
     ERROR_CLASS_GENERIC_ERROR, "Device '%s' does not support hotplugging"
-
-#define QERR_DEVICE_NOT_ENCRYPTED \
-    ERROR_CLASS_GENERIC_ERROR, "Device '%s' is not encrypted"
 
 #define QERR_DEVICE_NOT_FOUND \
     ERROR_CLASS_DEVICE_NOT_FOUND, "Device '%s' not found"

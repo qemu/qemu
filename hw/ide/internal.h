@@ -289,6 +289,7 @@ typedef struct IDEDMAOps IDEDMAOps;
 #define ATAPI_INT_REASON_TAG            0xf8
 
 /* same constants as bochs */
+#define ASC_NO_SEEK_COMPLETE                 0x02
 #define ASC_ILLEGAL_OPCODE                   0x20
 #define ASC_LOGICAL_BLOCK_OOR                0x21
 #define ASC_INV_FIELD_IN_CMD_PACKET          0x24
@@ -530,6 +531,7 @@ void ide_dma_error(IDEState *s);
 
 void ide_atapi_cmd_ok(IDEState *s);
 void ide_atapi_cmd_error(IDEState *s, int sense_key, int asc);
+void ide_atapi_dma_restart(IDEState *s);
 void ide_atapi_io_error(IDEState *s, int ret);
 
 void ide_ioport_write(void *opaque, uint32_t addr, uint32_t val);

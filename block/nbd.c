@@ -271,7 +271,7 @@ static int nbd_open(BlockDriverState *bs, QDict *options, int flags,
     }
 
     /* NBD handshake */
-    result = nbd_client_session_init(&s->client, bs, sock, export);
+    result = nbd_client_session_init(&s->client, bs, sock, export, errp);
     g_free(export);
     return result;
 }
@@ -299,6 +299,12 @@ static int nbd_co_flush(BlockDriverState *bs)
     BDRVNBDState *s = bs->opaque;
 
     return nbd_client_session_co_flush(&s->client);
+}
+
+static void nbd_refresh_limits(BlockDriverState *bs, Error **errp)
+{
+    bs->bl.max_discard = UINT32_MAX >> BDRV_SECTOR_BITS;
+    bs->bl.max_transfer_length = UINT32_MAX >> BDRV_SECTOR_BITS;
 }
 
 static int nbd_co_discard(BlockDriverState *bs, int64_t sector_num,
@@ -396,6 +402,7 @@ static BlockDriver bdrv_nbd = {
     .bdrv_close                 = nbd_close,
     .bdrv_co_flush_to_os        = nbd_co_flush,
     .bdrv_co_discard            = nbd_co_discard,
+    .bdrv_refresh_limits        = nbd_refresh_limits,
     .bdrv_getlength             = nbd_getlength,
     .bdrv_detach_aio_context    = nbd_detach_aio_context,
     .bdrv_attach_aio_context    = nbd_attach_aio_context,
@@ -413,6 +420,7 @@ static BlockDriver bdrv_nbd_tcp = {
     .bdrv_close                 = nbd_close,
     .bdrv_co_flush_to_os        = nbd_co_flush,
     .bdrv_co_discard            = nbd_co_discard,
+    .bdrv_refresh_limits        = nbd_refresh_limits,
     .bdrv_getlength             = nbd_getlength,
     .bdrv_detach_aio_context    = nbd_detach_aio_context,
     .bdrv_attach_aio_context    = nbd_attach_aio_context,
@@ -430,6 +438,7 @@ static BlockDriver bdrv_nbd_unix = {
     .bdrv_close                 = nbd_close,
     .bdrv_co_flush_to_os        = nbd_co_flush,
     .bdrv_co_discard            = nbd_co_discard,
+    .bdrv_refresh_limits        = nbd_refresh_limits,
     .bdrv_getlength             = nbd_getlength,
     .bdrv_detach_aio_context    = nbd_detach_aio_context,
     .bdrv_attach_aio_context    = nbd_attach_aio_context,

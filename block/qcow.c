@@ -215,7 +215,7 @@ static int qcow_open(BlockDriverState *bs, QDict *options, int flags,
     /* read the backing file name */
     if (header.backing_file_offset != 0) {
         len = header.backing_file_size;
-        if (len > 1023 || len > sizeof(bs->backing_file)) {
+        if (len > 1023 || len >= sizeof(bs->backing_file)) {
             error_setg(errp, "Backing file name too long");
             ret = -EINVAL;
             goto fail;
