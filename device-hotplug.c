@@ -50,7 +50,7 @@ DriveInfo *add_init_drive(const char *optstr)
     return dinfo;
 }
 
-void drive_hot_add(Monitor *mon, const QDict *qdict)
+void hmp_drive_add(Monitor *mon, const QDict *qdict)
 {
     DriveInfo *dinfo = NULL;
     const char *opts = qdict_get_str(qdict, "opts");

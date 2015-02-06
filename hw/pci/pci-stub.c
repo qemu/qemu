@@ -34,7 +34,7 @@ static void pci_error_message(Monitor *mon)
     monitor_printf(mon, "PCI devices not supported\n");
 }
 
-int do_pcie_aer_inject_error(Monitor *mon,
+int hmp_pcie_aer_inject_error(Monitor *mon,
                              const QDict *qdict, QObject **ret_data)
 {
     pci_error_message(mon);

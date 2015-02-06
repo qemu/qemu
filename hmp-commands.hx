@@ -28,7 +28,7 @@ ETEXI
         .args_type  = "device:B",
         .params     = "device|all",
         .help       = "commit changes to the disk images (if -snapshot is used) or backing files",
-        .mhandler.cmd = do_commit,
+        .mhandler.cmd = hmp_commit,
     },
 
 STEXI
@@ -180,7 +180,7 @@ ETEXI
         .params     = "device",
         .help       = "remove host block device",
         .user_print = monitor_user_noop,
-        .mhandler.cmd_new = do_drive_del,
+        .mhandler.cmd_new = hmp_drive_del,
     },
 
 STEXI
@@ -245,7 +245,7 @@ ETEXI
         .args_type  = "filename:F",
         .params     = "filename",
         .help       = "save screen into PPM image 'filename'",
-        .mhandler.cmd = hmp_screen_dump,
+        .mhandler.cmd = hmp_screendump,
     },
 
 STEXI
@@ -259,7 +259,7 @@ ETEXI
         .args_type  = "filename:F",
         .params     = "filename",
         .help       = "output logs to 'filename'",
-        .mhandler.cmd = do_logfile,
+        .mhandler.cmd = hmp_logfile,
     },
 
 STEXI
@@ -273,7 +273,7 @@ ETEXI
         .args_type  = "name:s,option:b",
         .params     = "name on|off",
         .help       = "changes status of a specific trace event",
-        .mhandler.cmd = do_trace_event_set_state,
+        .mhandler.cmd = hmp_trace_event,
     },
 
 STEXI
@@ -288,7 +288,7 @@ ETEXI
         .args_type  = "op:s?,arg:F?",
         .params     = "on|off|flush|set [arg]",
         .help       = "open, close, or flush trace file, or set a new file name",
-        .mhandler.cmd = do_trace_file,
+        .mhandler.cmd = hmp_trace_file,
     },
 
 STEXI
@@ -303,7 +303,7 @@ ETEXI
         .args_type  = "items:s",
         .params     = "item1[,...]",
         .help       = "activate logging of the specified items",
-        .mhandler.cmd = do_log,
+        .mhandler.cmd = hmp_log,
     },
 
 STEXI
@@ -317,7 +317,7 @@ ETEXI
         .args_type  = "name:s?",
         .params     = "[tag|id]",
         .help       = "save a VM snapshot. If no tag or id are provided, a new snapshot is created",
-        .mhandler.cmd = do_savevm,
+        .mhandler.cmd = hmp_savevm,
     },
 
 STEXI
@@ -334,7 +334,7 @@ ETEXI
         .args_type  = "name:s",
         .params     = "tag|id",
         .help       = "restore a VM snapshot from its tag or id",
-        .mhandler.cmd = do_loadvm,
+        .mhandler.cmd = hmp_loadvm,
         .command_completion = loadvm_completion,
     },
 
@@ -350,7 +350,7 @@ ETEXI
         .args_type  = "name:s",
         .params     = "tag|id",
         .help       = "delete a VM snapshot from its tag or id",
-        .mhandler.cmd = do_delvm,
+        .mhandler.cmd = hmp_delvm,
         .command_completion = delvm_completion,
     },
 
@@ -365,7 +365,7 @@ ETEXI
         .args_type  = "option:s?",
         .params     = "[on|off]",
         .help       = "run emulation in singlestep mode or switch to normal mode",
-        .mhandler.cmd = do_singlestep,
+        .mhandler.cmd = hmp_singlestep,
     },
 
 STEXI
@@ -422,7 +422,7 @@ ETEXI
         .args_type  = "device:s?",
         .params     = "[device]",
         .help       = "start gdbserver on given device (default 'tcp::1234'), stop with 'none'",
-        .mhandler.cmd = do_gdbserver,
+        .mhandler.cmd = hmp_gdbserver,
     },
 
 STEXI
@@ -436,7 +436,7 @@ ETEXI
         .args_type  = "fmt:/,addr:l",
         .params     = "/fmt addr",
         .help       = "virtual memory dump starting at 'addr'",
-        .mhandler.cmd = do_memory_dump,
+        .mhandler.cmd = hmp_memory_dump,
     },
 
 STEXI
@@ -450,7 +450,7 @@ ETEXI
         .args_type  = "fmt:/,addr:l",
         .params     = "/fmt addr",
         .help       = "physical memory dump starting at 'addr'",
-        .mhandler.cmd = do_physical_memory_dump,
+        .mhandler.cmd = hmp_physical_memory_dump,
     },
 
 STEXI
@@ -533,7 +533,7 @@ ETEXI
         .args_type  = "fmt:/,addr:i,index:i.",
         .params     = "/fmt addr",
         .help       = "I/O port read",
-        .mhandler.cmd = do_ioport_read,
+        .mhandler.cmd = hmp_ioport_read,
     },
 
 STEXI
@@ -545,7 +545,7 @@ ETEXI
         .args_type  = "fmt:/,addr:i,val:i",
         .params     = "/fmt addr value",
         .help       = "I/O port write",
-        .mhandler.cmd = do_ioport_write,
+        .mhandler.cmd = hmp_ioport_write,
     },
 
 STEXI
@@ -557,7 +557,7 @@ ETEXI
         .args_type  = "keys:s,hold-time:i?",
         .params     = "keys [hold_ms]",
         .help       = "send keys to the VM (e.g. 'sendkey ctrl-alt-f1', default hold time=100 ms)",
-        .mhandler.cmd = hmp_send_key,
+        .mhandler.cmd = hmp_sendkey,
         .command_completion = sendkey_completion,
     },
 
@@ -611,7 +611,7 @@ ETEXI
         .args_type  = "start:i,size:i",
         .params     = "addr size",
         .help       = "compute the checksum of a memory region",
-        .mhandler.cmd = do_sum,
+        .mhandler.cmd = hmp_sum,
     },
 
 STEXI
@@ -626,7 +626,7 @@ ETEXI
         .args_type  = "devname:s",
         .params     = "device",
         .help       = "add USB device (e.g. 'host:bus.addr' or 'host:vendor_id:product_id')",
-        .mhandler.cmd = do_usb_add,
+        .mhandler.cmd = hmp_usb_add,
     },
 
 STEXI
@@ -642,7 +642,7 @@ ETEXI
         .args_type  = "devname:s",
         .params     = "device",
         .help       = "remove USB device 'bus.addr'",
-        .mhandler.cmd = do_usb_del,
+        .mhandler.cmd = hmp_usb_del,
     },
 
 STEXI
@@ -706,7 +706,7 @@ ETEXI
         .args_type  = "dx_str:s,dy_str:s,dz_str:s?",
         .params     = "dx dy [dz]",
         .help       = "send mouse move events",
-        .mhandler.cmd = do_mouse_move,
+        .mhandler.cmd = hmp_mouse_move,
     },
 
 STEXI
@@ -721,7 +721,7 @@ ETEXI
         .args_type  = "button_state:i",
         .params     = "state",
         .help       = "change mouse button state (1=L, 2=M, 4=R)",
-        .mhandler.cmd = do_mouse_button,
+        .mhandler.cmd = hmp_mouse_button,
     },
 
 STEXI
@@ -735,7 +735,7 @@ ETEXI
         .args_type  = "index:i",
         .params     = "index",
         .help       = "set which mouse device receives events",
-        .mhandler.cmd = do_mouse_set,
+        .mhandler.cmd = hmp_mouse_set,
     },
 
 STEXI
@@ -753,7 +753,7 @@ ETEXI
         .args_type  = "path:F,freq:i?,bits:i?,nchannels:i?",
         .params     = "path [frequency [bits [channels]]]",
         .help       = "capture audio to a wave file (default frequency=44100 bits=16 channels=2)",
-        .mhandler.cmd = do_wav_capture,
+        .mhandler.cmd = hmp_wavcapture,
     },
 STEXI
 @item wavcapture @var{filename} [@var{frequency} [@var{bits} [@var{channels}]]]
@@ -774,7 +774,7 @@ ETEXI
         .args_type  = "n:i",
         .params     = "capture index",
         .help       = "stop capture",
-        .mhandler.cmd = do_stop_capture,
+        .mhandler.cmd = hmp_stopcapture,
     },
 STEXI
 @item stopcapture @var{index}
@@ -818,7 +818,7 @@ ETEXI
         .args_type  = "bootdevice:s",
         .params     = "bootdevice",
         .help       = "define new values for the boot device list",
-        .mhandler.cmd = do_boot_set,
+        .mhandler.cmd = hmp_boot_set,
     },
 
 STEXI
@@ -837,7 +837,7 @@ ETEXI
         .args_type  = "",
         .params     = "",
         .help       = "inject an NMI",
-        .mhandler.cmd = hmp_inject_nmi,
+        .mhandler.cmd = hmp_nmi,
     },
 STEXI
 @item nmi @var{cpu}
@@ -1140,7 +1140,7 @@ ETEXI
                       "[,snapshot=on|off][,cache=on|off]\n"
                       "[,readonly=on|off][,copy-on-read=on|off]",
         .help       = "add drive to PCI storage controller",
-        .mhandler.cmd = drive_hot_add,
+        .mhandler.cmd = hmp_drive_add,
     },
 
 STEXI
@@ -1155,7 +1155,7 @@ ETEXI
         .args_type  = "pci_addr:s,type:s,opts:s?",
         .params     = "auto|[[<domain>:]<bus>:]<slot> nic|storage [[vlan=n][,macaddr=addr][,model=type]] [file=file][,if=type][,bus=nr]...",
         .help       = "hot-add PCI device",
-        .mhandler.cmd = pci_device_hot_add,
+        .mhandler.cmd = hmp_pci_add,
     },
 #endif
 
@@ -1171,7 +1171,7 @@ ETEXI
         .args_type  = "pci_addr:s",
         .params     = "[[<domain>:]<bus>:]<slot>",
         .help       = "hot remove PCI device",
-        .mhandler.cmd = do_pci_device_hot_remove,
+        .mhandler.cmd = hmp_pci_del,
     },
 #endif
 
@@ -1197,7 +1197,7 @@ ETEXI
                       "<tlb header> = 32bit x 4\n\t\t\t"
                       "<tlb header prefix> = 32bit x 4",
         .user_print  = pcie_aer_inject_error_print,
-        .mhandler.cmd_new = do_pcie_aer_inject_error,
+        .mhandler.cmd_new = hmp_pcie_aer_inject_error,
     },
 
 STEXI
@@ -1211,7 +1211,7 @@ ETEXI
         .args_type  = "device:s,opts:s?",
         .params     = "tap|user|socket|vde|netmap|bridge|vhost-user|dump [options]",
         .help       = "add host VLAN client",
-        .mhandler.cmd = net_host_device_add,
+        .mhandler.cmd = hmp_host_net_add,
         .command_completion = host_net_add_completion,
     },
 
@@ -1226,7 +1226,7 @@ ETEXI
         .args_type  = "vlan_id:i,device:s",
         .params     = "vlan_id name",
         .help       = "remove host VLAN client",
-        .mhandler.cmd = net_host_device_remove,
+        .mhandler.cmd = hmp_host_net_remove,
         .command_completion = host_net_remove_completion,
     },
 
@@ -1302,7 +1302,7 @@ ETEXI
         .args_type  = "arg1:s,arg2:s?,arg3:s?",
         .params     = "[vlan_id name] [tcp|udp]:[hostaddr]:hostport-[guestaddr]:guestport",
         .help       = "redirect TCP or UDP connections from host to guest (requires -net user)",
-        .mhandler.cmd = net_slirp_hostfwd_add,
+        .mhandler.cmd = hmp_hostfwd_add,
     },
 #endif
 STEXI
@@ -1317,7 +1317,7 @@ ETEXI
         .args_type  = "arg1:s,arg2:s?,arg3:s?",
         .params     = "[vlan_id name] [tcp|udp]:[hostaddr]:hostport",
         .help       = "remove host-to-guest TCP or UDP redirection",
-        .mhandler.cmd = net_slirp_hostfwd_remove,
+        .mhandler.cmd = hmp_hostfwd_remove,
     },
 
 #endif
@@ -1361,7 +1361,7 @@ ETEXI
         .args_type  = "action:s",
         .params     = "[reset|shutdown|poweroff|pause|debug|none]",
         .help       = "change watchdog action",
-        .mhandler.cmd = do_watchdog_action,
+        .mhandler.cmd = hmp_watchdog_action,
         .command_completion = watchdog_action_completion,
     },
 
@@ -1376,7 +1376,7 @@ ETEXI
         .args_type  = "aclname:s",
         .params     = "aclname",
         .help       = "list rules in the access control list",
-        .mhandler.cmd = do_acl_show,
+        .mhandler.cmd = hmp_acl_show,
     },
 
 STEXI
@@ -1393,7 +1393,7 @@ ETEXI
         .args_type  = "aclname:s,policy:s",
         .params     = "aclname allow|deny",
         .help       = "set default access control list policy",
-        .mhandler.cmd = do_acl_policy,
+        .mhandler.cmd = hmp_acl_policy,
     },
 
 STEXI
@@ -1409,7 +1409,7 @@ ETEXI
         .args_type  = "aclname:s,match:s,policy:s,index:i?",
         .params     = "aclname match allow|deny [index]",
         .help       = "add a match rule to the access control list",
-        .mhandler.cmd = do_acl_add,
+        .mhandler.cmd = hmp_acl_add,
     },
 
 STEXI
@@ -1428,7 +1428,7 @@ ETEXI
         .args_type  = "aclname:s,match:s",
         .params     = "aclname match",
         .help       = "remove a match rule from the access control list",
-        .mhandler.cmd = do_acl_remove,
+        .mhandler.cmd = hmp_acl_remove,
     },
 
 STEXI
@@ -1442,7 +1442,7 @@ ETEXI
         .args_type  = "aclname:s",
         .params     = "aclname",
         .help       = "reset the access control list",
-        .mhandler.cmd = do_acl_reset,
+        .mhandler.cmd = hmp_acl_reset,
     },
 
 STEXI
@@ -1504,7 +1504,7 @@ ETEXI
         .args_type  = "broadcast:-b,cpu_index:i,bank:i,status:l,mcg_status:l,addr:l,misc:l",
         .params     = "[-b] cpu bank status mcgstatus addr misc",
         .help       = "inject a MCE on the given CPU [and broadcast to other CPUs with -b option]",
-        .mhandler.cmd = do_inject_mce,
+        .mhandler.cmd = hmp_mce,
     },
 
 #endif
@@ -1694,7 +1694,7 @@ ETEXI
         .args_type  = "item:s?",
         .params     = "[subcommand]",
         .help       = "show various information about the system state",
-        .mhandler.cmd = do_info_help,
+        .mhandler.cmd = hmp_info_help,
         .sub_table = info_cmds,
     },
 

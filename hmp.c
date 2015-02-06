@@ -923,7 +923,7 @@ void hmp_system_wakeup(Monitor *mon, const QDict *qdict)
     qmp_system_wakeup(NULL);
 }
 
-void hmp_inject_nmi(Monitor *mon, const QDict *qdict)
+void hmp_nmi(Monitor *mon, const QDict *qdict)
 {
     Error *err = NULL;
 
@@ -1532,7 +1532,7 @@ void hmp_closefd(Monitor *mon, const QDict *qdict)
     hmp_handle_error(mon, &err);
 }
 
-void hmp_send_key(Monitor *mon, const QDict *qdict)
+void hmp_sendkey(Monitor *mon, const QDict *qdict)
 {
     const char *keys = qdict_get_str(qdict, "keys");
     KeyValueList *keylist, *head = NULL, *tmp = NULL;
@@ -1601,7 +1601,7 @@ err_out:
     goto out;
 }
 
-void hmp_screen_dump(Monitor *mon, const QDict *qdict)
+void hmp_screendump(Monitor *mon, const QDict *qdict)
 {
     const char *filename = qdict_get_str(qdict, "filename");
     Error *err = NULL;

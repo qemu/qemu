@@ -881,7 +881,7 @@ static void do_help_cmd(Monitor *mon, const QDict *qdict)
     help_cmd(mon, qdict_get_try_str(qdict, "name"));
 }
 
-static void do_trace_event_set_state(Monitor *mon, const QDict *qdict)
+static void hmp_trace_event(Monitor *mon, const QDict *qdict)
 {
     const char *tp_name = qdict_get_str(qdict, "name");
     bool new_state = qdict_get_bool(qdict, "option");
@@ -895,7 +895,7 @@ static void do_trace_event_set_state(Monitor *mon, const QDict *qdict)
 }
 
 #ifdef CONFIG_TRACE_SIMPLE
-static void do_trace_file(Monitor *mon, const QDict *qdict)
+static void hmp_trace_file(Monitor *mon, const QDict *qdict)
 {
     const char *op = qdict_get_try_str(qdict, "op");
     const char *arg = qdict_get_try_str(qdict, "arg");
@@ -958,7 +958,7 @@ static void user_async_cmd_handler(Monitor *mon, const mon_cmd_t *cmd,
     }
 }
 
-static void do_info_help(Monitor *mon, const QDict *qdict)
+static void hmp_info_help(Monitor *mon, const QDict *qdict)
 {
     help_cmd(mon, "info");
 }
@@ -1122,12 +1122,12 @@ static int client_migrate_info(Monitor *mon, const QDict *qdict,
     return -1;
 }
 
-static void do_logfile(Monitor *mon, const QDict *qdict)
+static void hmp_logfile(Monitor *mon, const QDict *qdict)
 {
     qemu_set_log_filename(qdict_get_str(qdict, "filename"));
 }
 
-static void do_log(Monitor *mon, const QDict *qdict)
+static void hmp_log(Monitor *mon, const QDict *qdict)
 {
     int mask;
     const char *items = qdict_get_str(qdict, "items");
@@ -1144,7 +1144,7 @@ static void do_log(Monitor *mon, const QDict *qdict)
     qemu_set_log(mask);
 }
 
-static void do_singlestep(Monitor *mon, const QDict *qdict)
+static void hmp_singlestep(Monitor *mon, const QDict *qdict)
 {
     const char *option = qdict_get_try_str(qdict, "option");
     if (!option || !strcmp(option, "on")) {
@@ -1156,7 +1156,7 @@ static void do_singlestep(Monitor *mon, const QDict *qdict)
     }
 }
 
-static void do_gdbserver(Monitor *mon, const QDict *qdict)
+static void hmp_gdbserver(Monitor *mon, const QDict *qdict)
 {
     const char *device = qdict_get_try_str(qdict, "device");
     if (!device)
@@ -1172,7 +1172,7 @@ static void do_gdbserver(Monitor *mon, const QDict *qdict)
     }
 }
 
-static void do_watchdog_action(Monitor *mon, const QDict *qdict)
+static void hmp_watchdog_action(Monitor *mon, const QDict *qdict)
 {
     const char *action = qdict_get_str(qdict, "action");
     if (select_watchdog_action(action) == -1) {
@@ -1331,7 +1331,7 @@ static void memory_dump(Monitor *mon, int count, int format, int wsize,
     }
 }
 
-static void do_memory_dump(Monitor *mon, const QDict *qdict)
+static void hmp_memory_dump(Monitor *mon, const QDict *qdict)
 {
     int count = qdict_get_int(qdict, "count");
     int format = qdict_get_int(qdict, "format");
@@ -1341,7 +1341,7 @@ static void do_memory_dump(Monitor *mon, const QDict *qdict)
     memory_dump(mon, count, format, size, addr, 0);
 }
 
-static void do_physical_memory_dump(Monitor *mon, const QDict *qdict)
+static void hmp_physical_memory_dump(Monitor *mon, const QDict *qdict)
 {
     int count = qdict_get_int(qdict, "count");
     int format = qdict_get_int(qdict, "format");
@@ -1377,7 +1377,7 @@ static void do_print(Monitor *mon, const QDict *qdict)
     monitor_printf(mon, "\n");
 }
 
-static void do_sum(Monitor *mon, const QDict *qdict)
+static void hmp_sum(Monitor *mon, const QDict *qdict)
 {
     uint32_t addr;
     uint16_t sum;
@@ -1396,7 +1396,7 @@ static void do_sum(Monitor *mon, const QDict *qdict)
 
 static int mouse_button_state;
 
-static void do_mouse_move(Monitor *mon, const QDict *qdict)
+static void hmp_mouse_move(Monitor *mon, const QDict *qdict)
 {
     int dx, dy, dz, button;
     const char *dx_str = qdict_get_str(qdict, "dx_str");
@@ -1420,7 +1420,7 @@ static void do_mouse_move(Monitor *mon, const QDict *qdict)
     qemu_input_event_sync();
 }
 
-static void do_mouse_button(Monitor *mon, const QDict *qdict)
+static void hmp_mouse_button(Monitor *mon, const QDict *qdict)
 {
     static uint32_t bmap[INPUT_BUTTON_MAX] = {
         [INPUT_BUTTON_LEFT]       = MOUSE_EVENT_LBUTTON,
@@ -1437,7 +1437,7 @@ static void do_mouse_button(Monitor *mon, const QDict *qdict)
     mouse_button_state = button_state;
 }
 
-static void do_ioport_read(Monitor *mon, const QDict *qdict)
+static void hmp_ioport_read(Monitor *mon, const QDict *qdict)
 {
     int size = qdict_get_int(qdict, "size");
     int addr = qdict_get_int(qdict, "addr");
@@ -1471,7 +1471,7 @@ static void do_ioport_read(Monitor *mon, const QDict *qdict)
                    suffix, addr, size * 2, val);
 }
 
-static void do_ioport_write(Monitor *mon, const QDict *qdict)
+static void hmp_ioport_write(Monitor *mon, const QDict *qdict)
 {
     int size = qdict_get_int(qdict, "size");
     int addr = qdict_get_int(qdict, "addr");
@@ -1493,7 +1493,7 @@ static void do_ioport_write(Monitor *mon, const QDict *qdict)
     }
 }
 
-static void do_boot_set(Monitor *mon, const QDict *qdict)
+static void hmp_boot_set(Monitor *mon, const QDict *qdict)
 {
     Error *local_err = NULL;
     const char *bootdevice = qdict_get_str(qdict, "bootdevice");
@@ -2006,7 +2006,7 @@ static void do_info_capture(Monitor *mon, const QDict *qdict)
     }
 }
 
-static void do_stop_capture(Monitor *mon, const QDict *qdict)
+static void hmp_stopcapture(Monitor *mon, const QDict *qdict)
 {
     int i;
     int n = qdict_get_int(qdict, "n");
@@ -2022,7 +2022,7 @@ static void do_stop_capture(Monitor *mon, const QDict *qdict)
     }
 }
 
-static void do_wav_capture(Monitor *mon, const QDict *qdict)
+static void hmp_wavcapture(Monitor *mon, const QDict *qdict)
 {
     const char *path = qdict_get_str(qdict, "path");
     int has_freq = qdict_haskey(qdict, "freq");
@@ -2057,7 +2057,7 @@ static qemu_acl *find_acl(Monitor *mon, const char *name)
     return acl;
 }
 
-static void do_acl_show(Monitor *mon, const QDict *qdict)
+static void hmp_acl_show(Monitor *mon, const QDict *qdict)
 {
     const char *aclname = qdict_get_str(qdict, "aclname");
     qemu_acl *acl = find_acl(mon, aclname);
@@ -2075,7 +2075,7 @@ static void do_acl_show(Monitor *mon, const QDict *qdict)
     }
 }
 
-static void do_acl_reset(Monitor *mon, const QDict *qdict)
+static void hmp_acl_reset(Monitor *mon, const QDict *qdict)
 {
     const char *aclname = qdict_get_str(qdict, "aclname");
     qemu_acl *acl = find_acl(mon, aclname);
@@ -2086,7 +2086,7 @@ static void do_acl_reset(Monitor *mon, const QDict *qdict)
     }
 }
 
-static void do_acl_policy(Monitor *mon, const QDict *qdict)
+static void hmp_acl_policy(Monitor *mon, const QDict *qdict)
 {
     const char *aclname = qdict_get_str(qdict, "aclname");
     const char *policy = qdict_get_str(qdict, "policy");
@@ -2106,7 +2106,7 @@ static void do_acl_policy(Monitor *mon, const QDict *qdict)
     }
 }
 
-static void do_acl_add(Monitor *mon, const QDict *qdict)
+static void hmp_acl_add(Monitor *mon, const QDict *qdict)
 {
     const char *aclname = qdict_get_str(qdict, "aclname");
     const char *match = qdict_get_str(qdict, "match");
@@ -2137,7 +2137,7 @@ static void do_acl_add(Monitor *mon, const QDict *qdict)
     }
 }
 
-static void do_acl_remove(Monitor *mon, const QDict *qdict)
+static void hmp_acl_remove(Monitor *mon, const QDict *qdict)
 {
     const char *aclname = qdict_get_str(qdict, "aclname");
     const char *match = qdict_get_str(qdict, "match");
@@ -2154,7 +2154,7 @@ static void do_acl_remove(Monitor *mon, const QDict *qdict)
 }
 
 #if defined(TARGET_I386)
-static void do_inject_mce(Monitor *mon, const QDict *qdict)
+static void hmp_mce(Monitor *mon, const QDict *qdict)
 {
     X86CPU *cpu;
     CPUState *cs;
@@ -2232,7 +2232,7 @@ void qmp_closefd(const char *fdname, Error **errp)
     error_set(errp, QERR_FD_NOT_FOUND, fdname);
 }
 
-static void do_loadvm(Monitor *mon, const QDict *qdict)
+static void hmp_loadvm(Monitor *mon, const QDict *qdict)
 {
     int saved_vm_running  = runstate_is_running();
     const char *name = qdict_get_str(qdict, "name");

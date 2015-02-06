@@ -1284,7 +1284,7 @@ static int usb_parse(const char *cmdline)
     return r;
 }
 
-void do_usb_add(Monitor *mon, const QDict *qdict)
+void hmp_usb_add(Monitor *mon, const QDict *qdict)
 {
     const char *devname = qdict_get_str(qdict, "devname");
     if (usb_device_add(devname) < 0) {
@@ -1292,7 +1292,7 @@ void do_usb_add(Monitor *mon, const QDict *qdict)
     }
 }
 
-void do_usb_del(Monitor *mon, const QDict *qdict)
+void hmp_usb_del(Monitor *mon, const QDict *qdict)
 {
     const char *devname = qdict_get_str(qdict, "devname");
     if (usb_device_del(devname) < 0) {

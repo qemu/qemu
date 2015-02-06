@@ -67,6 +67,6 @@ DriveInfo *add_init_drive(const char *opts);
 
 void qmp_change_blockdev(const char *device, const char *filename,
                          const char *format, Error **errp);
-void do_commit(Monitor *mon, const QDict *qdict);
-int do_drive_del(Monitor *mon, const QDict *qdict, QObject **ret_data);
+void hmp_commit(Monitor *mon, const QDict *qdict);
+int hmp_drive_del(Monitor *mon, const QDict *qdict, QObject **ret_data);
 #endif

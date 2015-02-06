@@ -56,7 +56,7 @@ struct MouseTransformInfo {
     int a[7];
 };
 
-void do_mouse_set(Monitor *mon, const QDict *qdict);
+void hmp_mouse_set(Monitor *mon, const QDict *qdict);
 
 /* keysym is a unicode code except for special keys (see QEMU_KEY_xxx
    constants) */

@@ -70,7 +70,7 @@ BlockBackend *blk_next(BlockBackend *blk);
 
 BlockDriverState *blk_bs(BlockBackend *blk);
 
-void blk_hide_on_behalf_of_do_drive_del(BlockBackend *blk);
+void blk_hide_on_behalf_of_hmp_drive_del(BlockBackend *blk);
 
 void blk_iostatus_enable(BlockBackend *blk);
 int blk_attach_dev(BlockBackend *blk, void *dev);

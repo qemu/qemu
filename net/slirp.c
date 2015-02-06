@@ -299,7 +299,7 @@ static SlirpState *slirp_lookup(Monitor *mon, const char *vlan,
     }
 }
 
-void net_slirp_hostfwd_remove(Monitor *mon, const QDict *qdict)
+void hmp_hostfwd_remove(Monitor *mon, const QDict *qdict)
 {
     struct in_addr host_addr = { .s_addr = INADDR_ANY };
     int host_port;
@@ -420,7 +420,7 @@ static int slirp_hostfwd(SlirpState *s, const char *redir_str,
     return -1;
 }
 
-void net_slirp_hostfwd_add(Monitor *mon, const QDict *qdict)
+void hmp_hostfwd_add(Monitor *mon, const QDict *qdict)
 {
     const char *redir_str;
     SlirpState *s;
