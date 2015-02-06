@@ -1019,15 +1019,39 @@ static int spapr_vga_init(PCIBus *pci_bus)
     }
 }
 
+static int spapr_post_load(void *opaque, int version_id)
+{
+    sPAPREnvironment *spapr = (sPAPREnvironment *)opaque;
+    int err = 0;
+
+    /* In earlier versions, there was no seperate qdev for the PAPR
+     * RTC, so the RTC offset was stored directly in sPAPREnvironment.
+     * So when migrating from those versions, poke the incoming offset
+     * value into the RTC device */
+    if (version_id < 3) {
+        err = spapr_rtc_import_offset(spapr->rtc, spapr->rtc_offset);
+    }
+
+    return err;
+}
+
+static bool version_before_3(void *opaque, int version_id)
+{
+    return version_id < 3;
+}
+
 static const VMStateDescription vmstate_spapr = {
     .name = "spapr",
-    .version_id = 2,
+    .version_id = 3,
     .minimum_version_id = 1,
+    .post_load = spapr_post_load,
     .fields = (VMStateField[]) {
-        VMSTATE_UNUSED(4), /* used to be @next_irq */
+        /* used to be @next_irq */
+        VMSTATE_UNUSED_BUFFER(version_before_3, 0, 4),
 
         /* RTC offset */
-        VMSTATE_UINT64(rtc_offset, sPAPREnvironment),
+        VMSTATE_UINT64_TEST(rtc_offset, sPAPREnvironment, version_before_3),
+
         VMSTATE_PPC_TIMEBASE_V(tb, sPAPREnvironment, 2),
         VMSTATE_END_OF_LIST()
     },

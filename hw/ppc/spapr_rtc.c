@@ -37,6 +37,7 @@ typedef struct sPAPRRTCState sPAPRRTCState;
 struct sPAPRRTCState {
     /*< private >*/
     SysBusDevice parent_obj;
+    int64_t ns_offset;
 };
 
 #define NSEC_PER_SEC    1000000000LL
@@ -45,18 +46,35 @@ void spapr_rtc_read(DeviceState *dev, struct tm *tm, uint32_t *ns)
 {
     sPAPRRTCState *rtc = SPAPR_RTC(dev);
     int64_t host_ns = qemu_clock_get_ns(rtc_clock);
+    int64_t guest_ns;
     time_t guest_s;
 
     assert(rtc);
 
-    guest_s = host_ns / NSEC_PER_SEC + spapr->rtc_offset;
+    guest_ns = host_ns + rtc->ns_offset;
+    guest_s = guest_ns / NSEC_PER_SEC;
 
     if (tm) {
         gmtime_r(&guest_s, tm);
     }
     if (ns) {
-        *ns = host_ns % NSEC_PER_SEC;
+        *ns = guest_ns;
     }
+}
+
+int spapr_rtc_import_offset(DeviceState *dev, int64_t legacy_offset)
+{
+    sPAPRRTCState *rtc;
+
+    if (!dev) {
+        return -ENODEV;
+    }
+
+    rtc = SPAPR_RTC(dev);
+
+    rtc->ns_offset = legacy_offset * NSEC_PER_SEC;
+
+    return 0;
 }
 
 static void rtas_get_time_of_day(PowerPCCPU *cpu, sPAPREnvironment *spapr,
@@ -94,6 +112,7 @@ static void rtas_set_time_of_day(PowerPCCPU *cpu, sPAPREnvironment *spapr,
                                  target_ulong args,
                                  uint32_t nret, target_ulong rets)
 {
+    sPAPRRTCState *rtc;
     struct tm tm;
     time_t new_s;
     int64_t host_ns;
@@ -124,15 +143,18 @@ static void rtas_set_time_of_day(PowerPCCPU *cpu, sPAPREnvironment *spapr,
     /* Generate a monitor event for the change */
     qapi_event_send_rtc_change(qemu_timedate_diff(&tm), &error_abort);
 
+    rtc = SPAPR_RTC(spapr->rtc);
+
     host_ns = qemu_clock_get_ns(rtc_clock);
 
-    spapr->rtc_offset = new_s - host_ns / NSEC_PER_SEC;
+    rtc->ns_offset = (new_s * NSEC_PER_SEC) - host_ns;
 
     rtas_st(rets, 0, RTAS_OUT_SUCCESS);
 }
 
 static void spapr_rtc_realize(DeviceState *dev, Error **errp)
 {
+    sPAPRRTCState *rtc = SPAPR_RTC(dev);
     struct tm tm;
     time_t host_s;
     int64_t rtc_ns;
@@ -142,14 +164,25 @@ static void spapr_rtc_realize(DeviceState *dev, Error **errp)
     qemu_get_timedate(&tm, 0);
     host_s = mktimegm(&tm);
     rtc_ns = qemu_clock_get_ns(rtc_clock);
-    spapr->rtc_offset = host_s - rtc_ns / NSEC_PER_SEC;
+    rtc->ns_offset = host_s * NSEC_PER_SEC - rtc_ns;
 }
+
+static const VMStateDescription vmstate_spapr_rtc = {
+    .name = "spapr/rtc",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .fields = (VMStateField[]) {
+        VMSTATE_INT64(ns_offset, sPAPRRTCState),
+        VMSTATE_END_OF_LIST()
+    },
+};
 
 static void spapr_rtc_class_init(ObjectClass *oc, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(oc);
 
     dc->realize = spapr_rtc_realize;
+    dc->vmsd = &vmstate_spapr_rtc;
 
     spapr_rtas_register(RTAS_GET_TIME_OF_DAY, "get-time-of-day",
                         rtas_get_time_of_day);

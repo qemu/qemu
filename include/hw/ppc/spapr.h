@@ -27,7 +27,7 @@ typedef struct sPAPREnvironment {
     void *rtas_blob;
     void *fdt_skel;
     target_ulong entry_point;
-    uint64_t rtc_offset;
+    uint64_t rtc_offset; /* Now used only during incoming migration */
     struct PPCTimebase tb;
     bool has_graphics;
 
@@ -485,5 +485,6 @@ int spapr_tcet_dma_dt(void *fdt, int node_off, const char *propname,
 #define TYPE_SPAPR_RTC "spapr-rtc"
 
 void spapr_rtc_read(DeviceState *dev, struct tm *tm, uint32_t *ns);
+int spapr_rtc_import_offset(DeviceState *dev, int64_t legacy_offset);
 
 #endif /* !defined (__HW_SPAPR_H__) */
