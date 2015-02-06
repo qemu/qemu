@@ -73,7 +73,7 @@
 #include "qapi/qmp-event.h"
 #include "qapi-event.h"
 
-/* for pic/irq_info */
+/* for hmp_info_irq/pic */
 #if defined(TARGET_SPARC)
 #include "hw/sparc/sun4m.h"
 #endif
@@ -1027,7 +1027,7 @@ int monitor_get_cpu_index(void)
     return cpu->cpu_index;
 }
 
-static void do_info_registers(Monitor *mon, const QDict *qdict)
+static void hmp_info_registers(Monitor *mon, const QDict *qdict)
 {
     CPUState *cpu;
     CPUArchState *env;
@@ -1036,18 +1036,18 @@ static void do_info_registers(Monitor *mon, const QDict *qdict)
     cpu_dump_state(cpu, (FILE *)mon, monitor_fprintf, CPU_DUMP_FPU);
 }
 
-static void do_info_jit(Monitor *mon, const QDict *qdict)
+static void hmp_info_jit(Monitor *mon, const QDict *qdict)
 {
     dump_exec_info((FILE *)mon, monitor_fprintf);
     dump_drift_info((FILE *)mon, monitor_fprintf);
 }
 
-static void do_info_opcount(Monitor *mon, const QDict *qdict)
+static void hmp_info_opcount(Monitor *mon, const QDict *qdict)
 {
     dump_opcount_info((FILE *)mon, monitor_fprintf);
 }
 
-static void do_info_history(Monitor *mon, const QDict *qdict)
+static void hmp_info_history(Monitor *mon, const QDict *qdict)
 {
     int i;
     const char *str;
@@ -1064,7 +1064,7 @@ static void do_info_history(Monitor *mon, const QDict *qdict)
     }
 }
 
-static void do_info_cpu_stats(Monitor *mon, const QDict *qdict)
+static void hmp_info_cpustats(Monitor *mon, const QDict *qdict)
 {
     CPUState *cpu;
     CPUArchState *env;
@@ -1074,7 +1074,7 @@ static void do_info_cpu_stats(Monitor *mon, const QDict *qdict)
     cpu_dump_statistics(cpu, (FILE *)mon, &monitor_fprintf, 0);
 }
 
-static void do_trace_print_events(Monitor *mon, const QDict *qdict)
+static void hmp_info_trace_events(Monitor *mon, const QDict *qdict)
 {
     TraceEventInfoList *events = qmp_trace_event_get_state("*", NULL);
     TraceEventInfoList *elem;
@@ -1657,7 +1657,7 @@ static void tlb_info_64(Monitor *mon, CPUArchState *env)
 }
 #endif
 
-static void tlb_info(Monitor *mon, const QDict *qdict)
+static void hmp_info_tlb(Monitor *mon, const QDict *qdict)
 {
     CPUArchState *env;
 
@@ -1880,7 +1880,7 @@ static void mem_info_64(Monitor *mon, CPUArchState *env)
 }
 #endif
 
-static void mem_info(Monitor *mon, const QDict *qdict)
+static void hmp_info_mem(Monitor *mon, const QDict *qdict)
 {
     CPUArchState *env;
 
@@ -1919,7 +1919,7 @@ static void print_tlb(Monitor *mon, int idx, tlb_t *tlb)
                    tlb->d, tlb->wt);
 }
 
-static void tlb_info(Monitor *mon, const QDict *qdict)
+static void hmp_info_tlb(Monitor *mon, const QDict *qdict)
 {
     CPUArchState *env = mon_get_cpu();
     int i;
@@ -1935,7 +1935,7 @@ static void tlb_info(Monitor *mon, const QDict *qdict)
 #endif
 
 #if defined(TARGET_SPARC) || defined(TARGET_PPC) || defined(TARGET_XTENSA)
-static void tlb_info(Monitor *mon, const QDict *qdict)
+static void hmp_info_tlb(Monitor *mon, const QDict *qdict)
 {
     CPUArchState *env1 = mon_get_cpu();
 
@@ -1943,12 +1943,12 @@ static void tlb_info(Monitor *mon, const QDict *qdict)
 }
 #endif
 
-static void do_info_mtree(Monitor *mon, const QDict *qdict)
+static void hmp_info_mtree(Monitor *mon, const QDict *qdict)
 {
     mtree_info((fprintf_function)monitor_printf, mon);
 }
 
-static void do_info_numa(Monitor *mon, const QDict *qdict)
+static void hmp_info_numa(Monitor *mon, const QDict *qdict)
 {
     int i;
     CPUState *cpu;
@@ -1976,7 +1976,7 @@ static void do_info_numa(Monitor *mon, const QDict *qdict)
 int64_t qemu_time;
 int64_t dev_time;
 
-static void do_info_profile(Monitor *mon, const QDict *qdict)
+static void hmp_info_profile(Monitor *mon, const QDict *qdict)
 {
     monitor_printf(mon, "async time  %" PRId64 " (%0.3f)\n",
                    dev_time, dev_time / (double)get_ticks_per_sec());
@@ -1986,7 +1986,7 @@ static void do_info_profile(Monitor *mon, const QDict *qdict)
     dev_time = 0;
 }
 #else
-static void do_info_profile(Monitor *mon, const QDict *qdict)
+static void hmp_info_profile(Monitor *mon, const QDict *qdict)
 {
     monitor_printf(mon, "Internal profiler not compiled\n");
 }
@@ -1995,7 +1995,7 @@ static void do_info_profile(Monitor *mon, const QDict *qdict)
 /* Capture support */
 static QLIST_HEAD (capture_list_head, CaptureState) capture_head;
 
-static void do_info_capture(Monitor *mon, const QDict *qdict)
+static void hmp_info_capture(Monitor *mon, const QDict *qdict)
 {
     int i;
     CaptureState *s;
@@ -2621,7 +2621,7 @@ static mon_cmd_t info_cmds[] = {
         .args_type  = "",
         .params     = "",
         .help       = "show the network state",
-        .mhandler.cmd = do_info_network,
+        .mhandler.cmd = hmp_info_network,
     },
     {
         .name       = "chardev",
@@ -2657,7 +2657,7 @@ static mon_cmd_t info_cmds[] = {
         .args_type  = "",
         .params     = "",
         .help       = "show the cpu registers",
-        .mhandler.cmd = do_info_registers,
+        .mhandler.cmd = hmp_info_registers,
     },
     {
         .name       = "cpus",
@@ -2671,7 +2671,7 @@ static mon_cmd_t info_cmds[] = {
         .args_type  = "",
         .params     = "",
         .help       = "show the command line history",
-        .mhandler.cmd = do_info_history,
+        .mhandler.cmd = hmp_info_history,
     },
 #if defined(TARGET_I386) || defined(TARGET_PPC) || defined(TARGET_MIPS) || \
     defined(TARGET_LM32) || (defined(TARGET_SPARC) && !defined(TARGET_SPARC64))
@@ -2681,11 +2681,11 @@ static mon_cmd_t info_cmds[] = {
         .params     = "",
         .help       = "show the interrupts statistics (if available)",
 #ifdef TARGET_SPARC
-        .mhandler.cmd = sun4m_irq_info,
+        .mhandler.cmd = sun4m_hmp_info_irq,
 #elif defined(TARGET_LM32)
-        .mhandler.cmd = lm32_irq_info,
+        .mhandler.cmd = lm32_hmp_info_irq,
 #else
-        .mhandler.cmd = irq_info,
+        .mhandler.cmd = hmp_info_irq,
 #endif
     },
     {
@@ -2694,11 +2694,11 @@ static mon_cmd_t info_cmds[] = {
         .params     = "",
         .help       = "show i8259 (PIC) state",
 #ifdef TARGET_SPARC
-        .mhandler.cmd = sun4m_pic_info,
+        .mhandler.cmd = sun4m_hmp_info_pic,
 #elif defined(TARGET_LM32)
-        .mhandler.cmd = lm32_do_pic_info,
+        .mhandler.cmd = lm32_hmp_info_pic,
 #else
-        .mhandler.cmd = pic_info,
+        .mhandler.cmd = hmp_info_pic,
 #endif
     },
 #endif
@@ -2716,7 +2716,7 @@ static mon_cmd_t info_cmds[] = {
         .args_type  = "",
         .params     = "",
         .help       = "show virtual to physical memory mappings",
-        .mhandler.cmd = tlb_info,
+        .mhandler.cmd = hmp_info_tlb,
     },
 #endif
 #if defined(TARGET_I386)
@@ -2725,7 +2725,7 @@ static mon_cmd_t info_cmds[] = {
         .args_type  = "",
         .params     = "",
         .help       = "show the active virtual memory mappings",
-        .mhandler.cmd = mem_info,
+        .mhandler.cmd = hmp_info_mem,
     },
 #endif
     {
@@ -2733,21 +2733,21 @@ static mon_cmd_t info_cmds[] = {
         .args_type  = "",
         .params     = "",
         .help       = "show memory tree",
-        .mhandler.cmd = do_info_mtree,
+        .mhandler.cmd = hmp_info_mtree,
     },
     {
         .name       = "jit",
         .args_type  = "",
         .params     = "",
         .help       = "show dynamic compiler info",
-        .mhandler.cmd = do_info_jit,
+        .mhandler.cmd = hmp_info_jit,
     },
     {
         .name       = "opcount",
         .args_type  = "",
         .params     = "",
         .help       = "show dynamic compiler opcode counters",
-        .mhandler.cmd = do_info_opcount,
+        .mhandler.cmd = hmp_info_opcount,
     },
     {
         .name       = "kvm",
@@ -2761,42 +2761,42 @@ static mon_cmd_t info_cmds[] = {
         .args_type  = "",
         .params     = "",
         .help       = "show NUMA information",
-        .mhandler.cmd = do_info_numa,
+        .mhandler.cmd = hmp_info_numa,
     },
     {
         .name       = "usb",
         .args_type  = "",
         .params     = "",
         .help       = "show guest USB devices",
-        .mhandler.cmd = usb_info,
+        .mhandler.cmd = hmp_info_usb,
     },
     {
         .name       = "usbhost",
         .args_type  = "",
         .params     = "",
         .help       = "show host USB devices",
-        .mhandler.cmd = usb_host_info,
+        .mhandler.cmd = hmp_info_usbhost,
     },
     {
         .name       = "profile",
         .args_type  = "",
         .params     = "",
         .help       = "show profiling information",
-        .mhandler.cmd = do_info_profile,
+        .mhandler.cmd = hmp_info_profile,
     },
     {
         .name       = "capture",
         .args_type  = "",
         .params     = "",
         .help       = "show capture information",
-        .mhandler.cmd = do_info_capture,
+        .mhandler.cmd = hmp_info_capture,
     },
     {
         .name       = "snapshots",
         .args_type  = "",
         .params     = "",
         .help       = "show the currently saved VM snapshots",
-        .mhandler.cmd = do_info_snapshots,
+        .mhandler.cmd = hmp_info_snapshots,
     },
     {
         .name       = "status",
@@ -2847,7 +2847,7 @@ static mon_cmd_t info_cmds[] = {
         .args_type  = "",
         .params     = "",
         .help       = "show CPU statistics",
-        .mhandler.cmd = do_info_cpu_stats,
+        .mhandler.cmd = hmp_info_cpustats,
     },
 #if defined(CONFIG_SLIRP)
     {
@@ -2855,7 +2855,7 @@ static mon_cmd_t info_cmds[] = {
         .args_type  = "",
         .params     = "",
         .help       = "show user network stack connection states",
-        .mhandler.cmd = do_info_usernet,
+        .mhandler.cmd = hmp_info_usernet,
     },
 #endif
     {
@@ -2891,28 +2891,28 @@ static mon_cmd_t info_cmds[] = {
         .args_type  = "",
         .params     = "",
         .help       = "show device tree",
-        .mhandler.cmd = do_info_qtree,
+        .mhandler.cmd = hmp_info_qtree,
     },
     {
         .name       = "qdm",
         .args_type  = "",
         .params     = "",
         .help       = "show qdev device model list",
-        .mhandler.cmd = do_info_qdm,
+        .mhandler.cmd = hmp_info_qdm,
     },
     {
         .name       = "roms",
         .args_type  = "",
         .params     = "",
         .help       = "show roms",
-        .mhandler.cmd = do_info_roms,
+        .mhandler.cmd = hmp_info_roms,
     },
     {
         .name       = "trace-events",
         .args_type  = "",
         .params     = "",
         .help       = "show available trace-events & their state",
-        .mhandler.cmd = do_trace_print_events,
+        .mhandler.cmd = hmp_info_trace_events,
     },
     {
         .name       = "tpm",

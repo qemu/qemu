@@ -77,7 +77,7 @@ void qemu_add_machine_init_done_notifier(Notifier *notify);
 void hmp_savevm(Monitor *mon, const QDict *qdict);
 int load_vmstate(const char *name);
 void hmp_delvm(Monitor *mon, const QDict *qdict);
-void do_info_snapshots(Monitor *mon, const QDict *qdict);
+void hmp_info_snapshots(Monitor *mon, const QDict *qdict);
 
 void qemu_announce_self(void);
 
@@ -201,7 +201,7 @@ extern CharDriverState *parallel_hds[MAX_PARALLEL_PORTS];
 
 void hmp_usb_add(Monitor *mon, const QDict *qdict);
 void hmp_usb_del(Monitor *mon, const QDict *qdict);
-void usb_info(Monitor *mon, const QDict *qdict);
+void hmp_info_usb(Monitor *mon, const QDict *qdict);
 
 void add_boot_device_path(int32_t bootindex, DeviceState *dev,
                           const char *suffix);

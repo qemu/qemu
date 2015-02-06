@@ -1323,7 +1323,7 @@ void hmp_delvm(Monitor *mon, const QDict *qdict)
     }
 }
 
-void do_info_snapshots(Monitor *mon, const QDict *qdict)
+void hmp_info_snapshots(Monitor *mon, const QDict *qdict)
 {
     BlockDriverState *bs, *bs1;
     QEMUSnapshotInfo *sn_tab, *sn, s, *sn_info = &s;

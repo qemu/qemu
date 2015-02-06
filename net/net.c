@@ -1117,7 +1117,7 @@ RxFilterInfoList *qmp_query_rx_filter(bool has_name, const char *name,
     return filter_list;
 }
 
-void do_info_network(Monitor *mon, const QDict *qdict)
+void hmp_info_network(Monitor *mon, const QDict *qdict)
 {
     NetClientState *nc, *peer;
     NetClientOptionsKind type;

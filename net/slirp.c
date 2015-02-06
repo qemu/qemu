@@ -681,7 +681,7 @@ static int slirp_guestfwd(SlirpState *s, const char *config_str,
     return -1;
 }
 
-void do_info_usernet(Monitor *mon, const QDict *qdict)
+void hmp_info_usernet(Monitor *mon, const QDict *qdict)
 {
     SlirpState *s;
 
