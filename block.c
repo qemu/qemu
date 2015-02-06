@@ -2647,7 +2647,7 @@ static int bdrv_check_byte_request(BlockDriverState *bs, int64_t offset,
 {
     int64_t len;
 
-    if (size > INT_MAX) {
+    if (size > BDRV_REQUEST_MAX_SECTORS << BDRV_SECTOR_BITS) {
         return -EIO;
     }
 
@@ -2671,7 +2671,7 @@ static int bdrv_check_byte_request(BlockDriverState *bs, int64_t offset,
 static int bdrv_check_request(BlockDriverState *bs, int64_t sector_num,
                               int nb_sectors)
 {
-    if (nb_sectors < 0 || nb_sectors > INT_MAX / BDRV_SECTOR_SIZE) {
+    if (nb_sectors < 0 || nb_sectors > BDRV_REQUEST_MAX_SECTORS) {
         return -EIO;
     }
 
@@ -2758,7 +2758,7 @@ static int bdrv_rw_co(BlockDriverState *bs, int64_t sector_num, uint8_t *buf,
         .iov_len = nb_sectors * BDRV_SECTOR_SIZE,
     };
 
-    if (nb_sectors < 0 || nb_sectors > INT_MAX / BDRV_SECTOR_SIZE) {
+    if (nb_sectors < 0 || nb_sectors > BDRV_REQUEST_MAX_SECTORS) {
         return -EINVAL;
     }
 
@@ -2826,12 +2826,9 @@ int bdrv_make_zero(BlockDriverState *bs, BdrvRequestFlags flags)
     }
 
     for (;;) {
-        nb_sectors = target_sectors - sector_num;
+        nb_sectors = MIN(target_sectors - sector_num, BDRV_REQUEST_MAX_SECTORS);
         if (nb_sectors <= 0) {
             return 0;
-        }
-        if (nb_sectors > INT_MAX / BDRV_SECTOR_SIZE) {
-            nb_sectors = INT_MAX / BDRV_SECTOR_SIZE;
         }
         ret = bdrv_get_block_status(bs, sector_num, nb_sectors, &n);
         if (ret < 0) {
@@ -3167,7 +3164,7 @@ static int coroutine_fn bdrv_co_do_readv(BlockDriverState *bs,
     int64_t sector_num, int nb_sectors, QEMUIOVector *qiov,
     BdrvRequestFlags flags)
 {
-    if (nb_sectors < 0 || nb_sectors > (UINT_MAX >> BDRV_SECTOR_BITS)) {
+    if (nb_sectors < 0 || nb_sectors > BDRV_REQUEST_MAX_SECTORS) {
         return -EINVAL;
     }
 
@@ -3202,8 +3199,8 @@ static int coroutine_fn bdrv_co_do_write_zeroes(BlockDriverState *bs,
     struct iovec iov = {0};
     int ret = 0;
 
-    int max_write_zeroes = bs->bl.max_write_zeroes ?
-                           bs->bl.max_write_zeroes : INT_MAX;
+    int max_write_zeroes = MIN_NON_ZERO(bs->bl.max_write_zeroes,
+                                        BDRV_REQUEST_MAX_SECTORS);
 
     while (nb_sectors > 0 && !ret) {
         int num = nb_sectors;
@@ -3458,7 +3455,7 @@ static int coroutine_fn bdrv_co_do_writev(BlockDriverState *bs,
     int64_t sector_num, int nb_sectors, QEMUIOVector *qiov,
     BdrvRequestFlags flags)
 {
-    if (nb_sectors < 0 || nb_sectors > (INT_MAX >> BDRV_SECTOR_BITS)) {
+    if (nb_sectors < 0 || nb_sectors > BDRV_REQUEST_MAX_SECTORS) {
         return -EINVAL;
     }
 
@@ -5120,7 +5117,7 @@ int coroutine_fn bdrv_co_discard(BlockDriverState *bs, int64_t sector_num,
         return 0;
     }
 
-    max_discard = bs->bl.max_discard ?  bs->bl.max_discard : INT_MAX;
+    max_discard = MIN_NON_ZERO(bs->bl.max_discard, BDRV_REQUEST_MAX_SECTORS);
     while (nb_sectors > 0) {
         int ret;
         int num = nb_sectors;

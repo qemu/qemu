@@ -381,7 +381,7 @@ void virtio_blk_submit_multireq(BlockBackend *blk, MultiReqBuffer *mrb)
     }
 
     max_xfer_len = blk_get_max_transfer_length(mrb->reqs[0]->dev->blk);
-    max_xfer_len = MIN_NON_ZERO(max_xfer_len, INT_MAX);
+    max_xfer_len = MIN_NON_ZERO(max_xfer_len, BDRV_REQUEST_MAX_SECTORS);
 
     qsort(mrb->reqs, mrb->num_reqs, sizeof(*mrb->reqs),
           &multireq_compare);
@@ -447,7 +447,7 @@ static bool virtio_blk_sect_range_ok(VirtIOBlock *dev,
     uint64_t nb_sectors = size >> BDRV_SECTOR_BITS;
     uint64_t total_sectors;
 
-    if (nb_sectors > INT_MAX) {
+    if (nb_sectors > BDRV_REQUEST_MAX_SECTORS) {
         return false;
     }
     if (sector & dev->sector_mask) {

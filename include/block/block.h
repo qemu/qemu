@@ -83,6 +83,9 @@ typedef enum {
 #define BDRV_SECTOR_SIZE   (1ULL << BDRV_SECTOR_BITS)
 #define BDRV_SECTOR_MASK   ~(BDRV_SECTOR_SIZE - 1)
 
+#define BDRV_REQUEST_MAX_SECTORS MIN(SIZE_MAX >> BDRV_SECTOR_BITS, \
+                                     INT_MAX >> BDRV_SECTOR_BITS)
+
 /*
  * Allocation status flags
  * BDRV_BLOCK_DATA: data is read from bs->file or another file
