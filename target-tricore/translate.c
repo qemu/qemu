@@ -4183,10 +4183,10 @@ static void decode_rlc_opc(CPUTriCoreState *env, DisasContext *ctx,
 
     switch (op1) {
     case OPC1_32_RLC_ADDI:
-        gen_addi_CC(cpu_gpr_d[r2], cpu_gpr_d[r1], const16);
+        gen_addi_d(cpu_gpr_d[r2], cpu_gpr_d[r1], const16);
         break;
     case OPC1_32_RLC_ADDIH:
-        gen_addi_CC(cpu_gpr_d[r2], cpu_gpr_d[r1], const16 << 16);
+        gen_addi_d(cpu_gpr_d[r2], cpu_gpr_d[r1], const16 << 16);
         break;
     case OPC1_32_RLC_ADDIH_A:
         tcg_gen_addi_tl(cpu_gpr_a[r2], cpu_gpr_a[r1], const16 << 16);
