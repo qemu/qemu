@@ -658,7 +658,7 @@ static bool serial_thr_ipending_needed(void *opaque)
     }
 }
 
-const VMStateDescription vmstate_serial_thr_ipending = {
+static const VMStateDescription vmstate_serial_thr_ipending = {
     .name = "serial/thr_ipending",
     .version_id = 1,
     .minimum_version_id = 1,
@@ -674,7 +674,7 @@ static bool serial_tsr_needed(void *opaque)
     return s->tsr_retry != 0;
 }
 
-const VMStateDescription vmstate_serial_tsr = {
+static const VMStateDescription vmstate_serial_tsr = {
     .name = "serial/tsr",
     .version_id = 1,
     .minimum_version_id = 1,
@@ -693,7 +693,7 @@ static bool serial_recv_fifo_needed(void *opaque)
 
 }
 
-const VMStateDescription vmstate_serial_recv_fifo = {
+static const VMStateDescription vmstate_serial_recv_fifo = {
     .name = "serial/recv_fifo",
     .version_id = 1,
     .minimum_version_id = 1,
@@ -709,7 +709,7 @@ static bool serial_xmit_fifo_needed(void *opaque)
     return !fifo8_is_empty(&s->xmit_fifo);
 }
 
-const VMStateDescription vmstate_serial_xmit_fifo = {
+static const VMStateDescription vmstate_serial_xmit_fifo = {
     .name = "serial/xmit_fifo",
     .version_id = 1,
     .minimum_version_id = 1,
@@ -725,7 +725,7 @@ static bool serial_fifo_timeout_timer_needed(void *opaque)
     return timer_pending(s->fifo_timeout_timer);
 }
 
-const VMStateDescription vmstate_serial_fifo_timeout_timer = {
+static const VMStateDescription vmstate_serial_fifo_timeout_timer = {
     .name = "serial/fifo_timeout_timer",
     .version_id = 1,
     .minimum_version_id = 1,
@@ -741,7 +741,7 @@ static bool serial_timeout_ipending_needed(void *opaque)
     return s->timeout_ipending != 0;
 }
 
-const VMStateDescription vmstate_serial_timeout_ipending = {
+static const VMStateDescription vmstate_serial_timeout_ipending = {
     .name = "serial/timeout_ipending",
     .version_id = 1,
     .minimum_version_id = 1,
@@ -757,7 +757,7 @@ static bool serial_poll_needed(void *opaque)
     return s->poll_msl >= 0;
 }
 
-const VMStateDescription vmstate_serial_poll = {
+static const VMStateDescription vmstate_serial_poll = {
     .name = "serial/poll",
     .version_id = 1,
     .minimum_version_id = 1,
