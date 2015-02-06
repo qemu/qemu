@@ -30,12 +30,24 @@
 #include "hw/ppc/spapr.h"
 #include "qapi-event.h"
 
+#define SPAPR_RTC(obj) \
+    OBJECT_CHECK(sPAPRRTCState, (obj), TYPE_SPAPR_RTC)
+
+typedef struct sPAPRRTCState sPAPRRTCState;
+struct sPAPRRTCState {
+    /*< private >*/
+    SysBusDevice parent_obj;
+};
+
 #define NSEC_PER_SEC    1000000000LL
 
-void spapr_rtc_read(sPAPREnvironment *spapr, struct tm *tm, uint32_t *ns)
+void spapr_rtc_read(DeviceState *dev, struct tm *tm, uint32_t *ns)
 {
+    sPAPRRTCState *rtc = SPAPR_RTC(dev);
     int64_t host_ns = qemu_clock_get_ns(rtc_clock);
     time_t guest_s;
+
+    assert(rtc);
 
     guest_s = host_ns / NSEC_PER_SEC + spapr->rtc_offset;
 
@@ -60,7 +72,12 @@ static void rtas_get_time_of_day(PowerPCCPU *cpu, sPAPREnvironment *spapr,
         return;
     }
 
-    spapr_rtc_read(spapr, &tm, &ns);
+    if (!spapr->rtc) {
+        rtas_st(rets, 0, RTAS_OUT_HW_ERROR);
+        return;
+    }
+
+    spapr_rtc_read(spapr->rtc, &tm, &ns);
 
     rtas_st(rets, 0, RTAS_OUT_SUCCESS);
     rtas_st(rets, 1, tm.tm_year + 1900);
@@ -83,6 +100,11 @@ static void rtas_set_time_of_day(PowerPCCPU *cpu, sPAPREnvironment *spapr,
 
     if ((nargs != 7) || (nret != 1)) {
         rtas_st(rets, 0, RTAS_OUT_PARAM_ERROR);
+        return;
+    }
+
+    if (!spapr->rtc) {
+        rtas_st(rets, 0, RTAS_OUT_HW_ERROR);
         return;
     }
 
@@ -109,7 +131,7 @@ static void rtas_set_time_of_day(PowerPCCPU *cpu, sPAPREnvironment *spapr,
     rtas_st(rets, 0, RTAS_OUT_SUCCESS);
 }
 
-void spapr_rtc_init(void)
+static void spapr_rtc_realize(DeviceState *dev, Error **errp)
 {
     struct tm tm;
     time_t host_s;
@@ -121,9 +143,30 @@ void spapr_rtc_init(void)
     host_s = mktimegm(&tm);
     rtc_ns = qemu_clock_get_ns(rtc_clock);
     spapr->rtc_offset = host_s - rtc_ns / NSEC_PER_SEC;
+}
+
+static void spapr_rtc_class_init(ObjectClass *oc, void *data)
+{
+    DeviceClass *dc = DEVICE_CLASS(oc);
+
+    dc->realize = spapr_rtc_realize;
 
     spapr_rtas_register(RTAS_GET_TIME_OF_DAY, "get-time-of-day",
                         rtas_get_time_of_day);
     spapr_rtas_register(RTAS_SET_TIME_OF_DAY, "set-time-of-day",
                         rtas_set_time_of_day);
 }
+
+static const TypeInfo spapr_rtc_info = {
+    .name          = TYPE_SPAPR_RTC,
+    .parent        = TYPE_SYS_BUS_DEVICE,
+    .instance_size = sizeof(sPAPRRTCState),
+    .class_size = sizeof(XICSStateClass),
+    .class_init    = spapr_rtc_class_init,
+};
+
+static void spapr_rtc_register_types(void)
+{
+    type_register_static(&spapr_rtc_info);
+}
+type_init(spapr_rtc_register_types)

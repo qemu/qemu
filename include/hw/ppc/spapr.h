@@ -15,6 +15,7 @@ typedef struct sPAPREnvironment {
     QLIST_HEAD(, sPAPRPHBState) phbs;
     struct sPAPRNVRAM *nvram;
     XICSState *icp;
+    DeviceState *rtc;
 
     hwaddr ram_limit;
     void *htab;
@@ -480,7 +481,9 @@ int spapr_dma_dt(void *fdt, int node_off, const char *propname,
                  uint32_t liobn, uint64_t window, uint32_t size);
 int spapr_tcet_dma_dt(void *fdt, int node_off, const char *propname,
                       sPAPRTCETable *tcet);
-void spapr_rtc_init(void);
-void spapr_rtc_read(sPAPREnvironment *spapr, struct tm *tm, uint32_t *ns);
+
+#define TYPE_SPAPR_RTC "spapr-rtc"
+
+void spapr_rtc_read(DeviceState *dev, struct tm *tm, uint32_t *ns);
 
 #endif /* !defined (__HW_SPAPR_H__) */

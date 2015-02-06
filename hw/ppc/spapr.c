@@ -994,6 +994,14 @@ static void spapr_create_nvram(sPAPREnvironment *spapr)
     spapr->nvram = (struct sPAPRNVRAM *)dev;
 }
 
+static void spapr_rtc_create(sPAPREnvironment *spapr)
+{
+    DeviceState *dev = qdev_create(NULL, TYPE_SPAPR_RTC);
+
+    qdev_init_nofail(dev);
+    spapr->rtc = dev;
+}
+
 /* Returns whether we want to use VGA or not */
 static int spapr_vga_init(PCIBus *pci_bus)
 {
@@ -1492,7 +1500,7 @@ static void ppc_spapr_init(MachineState *machine)
     spapr_events_init(spapr);
 
     /* Set up the RTC RTAS interfaces */
-    spapr_rtc_init();
+    spapr_rtc_create(spapr);
 
     /* Set up VIO bus */
     spapr->vio_bus = spapr_vio_bus_init();
