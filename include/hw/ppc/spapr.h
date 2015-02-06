@@ -480,5 +480,6 @@ int spapr_dma_dt(void *fdt, int node_off, const char *propname,
                  uint32_t liobn, uint64_t window, uint32_t size);
 int spapr_tcet_dma_dt(void *fdt, int node_off, const char *propname,
                       sPAPRTCETable *tcet);
+void spapr_rtc_init(void);
 
 #endif /* !defined (__HW_SPAPR_H__) */
