@@ -45,9 +45,6 @@ int qemu_spice_migrate_info(const char *hostname, int port, int tls_port,
                             const char *subject,
                             MonitorCompletion cb, void *opaque);
 
-void do_info_spice_print(Monitor *mon, const QObject *data);
-void do_info_spice(Monitor *mon, QObject **ret_data);
-
 CharDriverState *qemu_chr_open_spice_vmc(const char *type);
 #if SPICE_SERVER_VERSION >= 0x000c02
 CharDriverState *qemu_chr_open_spice_port(const char *name);

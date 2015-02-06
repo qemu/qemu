@@ -71,10 +71,6 @@ void qemu_start_incoming_migration(const char *uri, Error **errp);
 
 uint64_t migrate_max_downtime(void);
 
-void do_info_migrate_print(Monitor *mon, const QObject *data);
-
-void do_info_migrate(Monitor *mon, QObject **ret_data);
-
 void exec_start_incoming_migration(const char *host_port, Error **errp);
 
 void exec_start_outgoing_migration(MigrationState *s, const char *host_port, Error **errp);
