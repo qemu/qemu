@@ -246,7 +246,7 @@ static void spapr_powerdown_req(Notifier *n, void *opaque)
     maina->hdr.section_id = cpu_to_be16(RTAS_LOG_V6_SECTION_ID_MAINA);
     maina->hdr.section_length = cpu_to_be16(sizeof(*maina));
     /* FIXME: section version, subtype and creator id? */
-    qemu_get_timedate(&tm, spapr->rtc_offset);
+    spapr_rtc_read(spapr, &tm, NULL);
     year = tm.tm_year + 1900;
     maina->creation_date = cpu_to_be32((to_bcd(year / 100) << 24)
                                        | (to_bcd(year % 100) << 16)

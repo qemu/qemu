@@ -29,19 +29,28 @@
 #include "hw/ppc/spapr.h"
 #include "qapi-event.h"
 
+void spapr_rtc_read(sPAPREnvironment *spapr, struct tm *tm, uint32_t *ns)
+{
+    qemu_get_timedate(tm, spapr->rtc_offset);
+    if (ns) {
+        *ns = 0; /* we don't do nanoseconds, yet */
+    }
+}
+
 static void rtas_get_time_of_day(PowerPCCPU *cpu, sPAPREnvironment *spapr,
                                  uint32_t token, uint32_t nargs,
                                  target_ulong args,
                                  uint32_t nret, target_ulong rets)
 {
     struct tm tm;
+    uint32_t ns;
 
     if ((nargs != 0) || (nret != 8)) {
         rtas_st(rets, 0, RTAS_OUT_PARAM_ERROR);
         return;
     }
 
-    qemu_get_timedate(&tm, spapr->rtc_offset);
+    spapr_rtc_read(spapr, &tm, &ns);
 
     rtas_st(rets, 0, RTAS_OUT_SUCCESS);
     rtas_st(rets, 1, tm.tm_year + 1900);
@@ -50,7 +59,7 @@ static void rtas_get_time_of_day(PowerPCCPU *cpu, sPAPREnvironment *spapr,
     rtas_st(rets, 4, tm.tm_hour);
     rtas_st(rets, 5, tm.tm_min);
     rtas_st(rets, 6, tm.tm_sec);
-    rtas_st(rets, 7, 0); /* we don't do nanoseconds */
+    rtas_st(rets, 7, ns);
 }
 
 static void rtas_set_time_of_day(PowerPCCPU *cpu, sPAPREnvironment *spapr,
