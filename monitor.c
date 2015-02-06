@@ -5368,9 +5368,12 @@ static void bdrv_password_cb(void *opaque, const char *password,
     Monitor *mon = opaque;
     BlockDriverState *bs = readline_opaque;
     int ret = 0;
+    Error *local_err = NULL;
 
-    if (bdrv_set_key(bs, password) != 0) {
-        monitor_printf(mon, "invalid password\n");
+    bdrv_add_key(bs, password, &local_err);
+    if (local_err) {
+        monitor_printf(mon, "%s\n", error_get_pretty(local_err));
+        error_free(local_err);
         ret = -EPERM;
     }
     if (mon->password_completion_cb)
@@ -5388,17 +5391,20 @@ int monitor_read_bdrv_key_start(Monitor *mon, BlockDriverState *bs,
                                 BlockCompletionFunc *completion_cb,
                                 void *opaque)
 {
+    Error *local_err = NULL;
     int err;
 
-    if (!bdrv_key_required(bs)) {
+    bdrv_add_key(bs, NULL, &local_err);
+    if (!local_err) {
         if (completion_cb)
             completion_cb(opaque, 0);
         return 0;
     }
 
+    /* Need a key for @bs */
+
     if (monitor_ctrl_mode(mon)) {
-        qerror_report(QERR_DEVICE_ENCRYPTED, bdrv_get_device_name(bs),
-                      bdrv_get_encrypted_filename(bs));
+        qerror_report_err(local_err);
         return -1;
     }
 
