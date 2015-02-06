@@ -376,13 +376,33 @@ safe_open_or_create(const char *path, const char *mode, Error **errp)
     return NULL;
 }
 
+static int guest_file_toggle_flags(int fd, int flags, bool set, Error **err)
+{
+    int ret, old_flags;
+
+    old_flags = fcntl(fd, F_GETFL);
+    if (old_flags == -1) {
+        error_set_errno(err, errno, QERR_QGA_COMMAND_FAILED,
+                        "failed to fetch filehandle flags");
+        return -1;
+    }
+
+    ret = fcntl(fd, F_SETFL, set ? (old_flags | flags) : (old_flags & ~flags));
+    if (ret == -1) {
+        error_set_errno(err, errno, QERR_QGA_COMMAND_FAILED,
+                        "failed to set filehandle flags");
+        return -1;
+    }
+
+    return ret;
+}
+
 int64_t qmp_guest_file_open(const char *path, bool has_mode, const char *mode,
                             Error **errp)
 {
     FILE *fh;
     Error *local_err = NULL;
-    int fd;
-    int64_t ret = -1, handle;
+    int64_t handle;
 
     if (!has_mode) {
         mode = "r";
@@ -397,12 +417,7 @@ int64_t qmp_guest_file_open(const char *path, bool has_mode, const char *mode,
     /* set fd non-blocking to avoid common use cases (like reading from a
      * named pipe) from hanging the agent
      */
-    fd = fileno(fh);
-    ret = fcntl(fd, F_GETFL);
-    ret = fcntl(fd, F_SETFL, ret | O_NONBLOCK);
-    if (ret == -1) {
-        error_setg_errno(errp, errno, "failed to make file '%s' non-blocking",
-                         path);
+    if (guest_file_toggle_flags(fileno(fh), O_NONBLOCK, true, errp) < 0) {
         fclose(fh);
         return -1;
     }
