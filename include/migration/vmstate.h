@@ -635,6 +635,18 @@ extern const VMStateInfo vmstate_info_bitmap;
 #define VMSTATE_INT32_POSITIVE_LE(_f, _s)                             \
     VMSTATE_SINGLE(_f, _s, 0, vmstate_info_int32_le, int32_t)
 
+#define VMSTATE_INT8_TEST(_f, _s, _t)                               \
+    VMSTATE_SINGLE_TEST(_f, _s, _t, 0, vmstate_info_int8, int8_t)
+
+#define VMSTATE_INT16_TEST(_f, _s, _t)                               \
+    VMSTATE_SINGLE_TEST(_f, _s, _t, 0, vmstate_info_int16, int16_t)
+
+#define VMSTATE_INT32_TEST(_f, _s, _t)                                  \
+    VMSTATE_SINGLE_TEST(_f, _s, _t, 0, vmstate_info_int32, int32_t)
+
+#define VMSTATE_INT64_TEST(_f, _s, _t)                                  \
+    VMSTATE_SINGLE_TEST(_f, _s, _t, 0, vmstate_info_int64, int64_t)
+
 #define VMSTATE_UINT8_TEST(_f, _s, _t)                               \
     VMSTATE_SINGLE_TEST(_f, _s, _t, 0, vmstate_info_uint8, uint8_t)
 
@@ -643,6 +655,9 @@ extern const VMStateInfo vmstate_info_bitmap;
 
 #define VMSTATE_UINT32_TEST(_f, _s, _t)                                  \
     VMSTATE_SINGLE_TEST(_f, _s, _t, 0, vmstate_info_uint32, uint32_t)
+
+#define VMSTATE_UINT64_TEST(_f, _s, _t)                                  \
+    VMSTATE_SINGLE_TEST(_f, _s, _t, 0, vmstate_info_uint64, uint64_t)
 
 
 #define VMSTATE_FLOAT64_V(_f, _s, _v)                                 \
