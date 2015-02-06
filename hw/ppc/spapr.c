@@ -1000,6 +1000,9 @@ static void spapr_rtc_create(sPAPREnvironment *spapr)
 
     qdev_init_nofail(dev);
     spapr->rtc = dev;
+
+    object_property_add_alias(qdev_get_machine(), "rtc-time",
+                              OBJECT(spapr->rtc), "date", NULL);
 }
 
 /* Returns whether we want to use VGA or not */

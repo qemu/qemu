@@ -152,6 +152,11 @@ static void rtas_set_time_of_day(PowerPCCPU *cpu, sPAPREnvironment *spapr,
     rtas_st(rets, 0, RTAS_OUT_SUCCESS);
 }
 
+static void spapr_rtc_qom_date(Object *obj, struct tm *current_tm, Error **errp)
+{
+    spapr_rtc_read(DEVICE(obj), current_tm, NULL);
+}
+
 static void spapr_rtc_realize(DeviceState *dev, Error **errp)
 {
     sPAPRRTCState *rtc = SPAPR_RTC(dev);
@@ -165,6 +170,8 @@ static void spapr_rtc_realize(DeviceState *dev, Error **errp)
     host_s = mktimegm(&tm);
     rtc_ns = qemu_clock_get_ns(rtc_clock);
     rtc->ns_offset = host_s * NSEC_PER_SEC - rtc_ns;
+
+    object_property_add_tm(OBJECT(rtc), "date", spapr_rtc_qom_date, NULL);
 }
 
 static const VMStateDescription vmstate_spapr_rtc = {
