@@ -247,7 +247,7 @@ class HTABSection(object):
             if index == 0 and n_valid == 0 and n_invalid == 0:
                 break
 
-            self.file.readvar(n_valid * HASH_PTE_SIZE_64)
+            self.file.readvar(n_valid * self.HASH_PTE_SIZE_64)
 
     def getDict(self):
         return ""
