@@ -41,6 +41,12 @@
 #include "qemu/sockets.h"
 #include "sysemu/kvm.h"
 
+#ifdef CONFIG_USER_ONLY
+#define GDB_ATTACHED "0"
+#else
+#define GDB_ATTACHED "1"
+#endif
+
 static inline int target_memory_rw_debug(CPUState *cpu, target_ulong addr,
                                          uint8_t *buf, int len, bool is_write)
 {
@@ -1193,6 +1199,10 @@ static int gdb_handle_packet(GDBState *s, const char *line_buf)
                 len = memtox(buf + 1, xml + addr, total_len - addr);
             }
             put_packet_binary(s, buf, len + 1);
+            break;
+        }
+        if (is_query_packet(p, "Attached", ':')) {
+            put_packet(s, GDB_ATTACHED);
             break;
         }
         /* Unrecognised 'q' command.  */
