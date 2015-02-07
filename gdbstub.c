@@ -1107,7 +1107,7 @@ static int gdb_handle_packet(GDBState *s, const char *line_buf)
             break;
         }
 #ifdef CONFIG_USER_ONLY
-        else if (strncmp(p, "Offsets", 7) == 0) {
+        else if (strcmp(p, "Offsets") == 0) {
             TaskState *ts = s->c_cpu->opaque;
 
             snprintf(buf, sizeof(buf),
