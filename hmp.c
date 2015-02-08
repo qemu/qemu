@@ -411,7 +411,7 @@ void hmp_info_block(Monitor *mon, const QDict *qdict)
 
     /* Print BlockBackend information */
     if (!nodes) {
-        block_list = qmp_query_block(false);
+        block_list = qmp_query_block(NULL);
     } else {
         block_list = NULL;
     }
