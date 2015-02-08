@@ -8,9 +8,6 @@
 #include "sysemu/hostmem.h"
 
 extern int nb_numa_nodes;   /* Number of NUMA nodes */
-extern int max_numa_nodeid; /* Highest specified NUMA node ID, plus one.
-                             * For all nodes, nodeid < max_numa_nodeid
-                             */
 
 typedef struct node_info {
     uint64_t node_mem;
