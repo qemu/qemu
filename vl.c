@@ -4157,11 +4157,6 @@ int main(int argc, char **argv, char **envp)
     default_drive(default_floppy, snapshot, IF_FLOPPY, 0, FD_OPTS);
     default_drive(default_sdcard, snapshot, IF_SD, 0, SD_OPTS);
 
-    if (qemu_opts_foreach(qemu_find_opts("numa"), numa_init_func,
-                          NULL, 1) != 0) {
-        exit(1);
-    }
-
     set_numa_nodes();
 
     if (qemu_opts_foreach(qemu_find_opts("mon"), mon_init_func, NULL, 1) != 0) {

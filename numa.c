@@ -36,6 +36,8 @@
 #include "sysemu/hostmem.h"
 #include "qmp-commands.h"
 #include "hw/mem/pc-dimm.h"
+#include "qemu/option.h"
+#include "qemu/config-file.h"
 
 QemuOptsList qemu_numa_opts = {
     .name = "numa",
@@ -121,7 +123,7 @@ static void numa_node_parse(NumaNodeOptions *node, QemuOpts *opts, Error **errp)
     max_numa_nodeid = MAX(max_numa_nodeid, nodenr + 1);
 }
 
-int numa_init_func(QemuOpts *opts, void *opaque)
+static int numa_init_func(QemuOpts *opts, void *opaque)
 {
     NumaOptions *object = NULL;
     Error *err = NULL;
@@ -167,6 +169,11 @@ error:
 void set_numa_nodes(void)
 {
     int i;
+
+    if (qemu_opts_foreach(qemu_find_opts("numa"), numa_init_func,
+                          NULL, 1) != 0) {
+        exit(1);
+    }
 
     assert(max_numa_nodeid <= MAX_NODES);
 
