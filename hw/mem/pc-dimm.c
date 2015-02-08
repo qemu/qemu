@@ -22,6 +22,7 @@
 #include "qemu/config-file.h"
 #include "qapi/visitor.h"
 #include "qemu/range.h"
+#include "sysemu/numa.h"
 
 typedef struct pc_dimms_capacity {
      uint64_t size;

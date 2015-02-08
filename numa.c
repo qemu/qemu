@@ -22,7 +22,7 @@
  * THE SOFTWARE.
  */
 
-#include "sysemu/sysemu.h"
+#include "sysemu/numa.h"
 #include "exec/cpu-common.h"
 #include "qemu/bitmap.h"
 #include "qom/cpu.h"

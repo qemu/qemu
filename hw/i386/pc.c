@@ -41,6 +41,7 @@
 #include "hw/pci/msi.h"
 #include "hw/sysbus.h"
 #include "sysemu/sysemu.h"
+#include "sysemu/numa.h"
 #include "sysemu/kvm.h"
 #include "kvm_i386.h"
 #include "hw/xen/xen.h"

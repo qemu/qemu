@@ -35,6 +35,7 @@
 #include "sysemu/char.h"
 #include "ui/qemu-spice.h"
 #include "sysemu/sysemu.h"
+#include "sysemu/numa.h"
 #include "monitor/monitor.h"
 #include "qemu/readline.h"
 #include "ui/console.h"

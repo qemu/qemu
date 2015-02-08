@@ -78,6 +78,7 @@ int main(int argc, char **argv)
 #include "monitor/monitor.h"
 #include "ui/console.h"
 #include "sysemu/sysemu.h"
+#include "sysemu/numa.h"
 #include "exec/gdbstub.h"
 #include "qemu/timer.h"
 #include "sysemu/char.h"
