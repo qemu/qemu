@@ -2821,14 +2821,6 @@ int main(int argc, char **argv, char **envp)
     cyls = heads = secs = 0;
     translation = BIOS_ATA_TRANSLATION_AUTO;
 
-    for (i = 0; i < MAX_NODES; i++) {
-        numa_info[i].node_mem = 0;
-        numa_info[i].present = false;
-        bitmap_zero(numa_info[i].node_cpu, MAX_CPUMASK_BITS);
-    }
-
-    nb_numa_nodes = 0;
-    max_numa_nodeid = 0;
     nb_nics = 0;
 
     bdrv_init_with_whitelist();
