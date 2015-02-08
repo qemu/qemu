@@ -16,7 +16,7 @@ typedef struct node_info {
     bool present;
 } NodeInfo;
 extern NodeInfo numa_info[MAX_NODES];
-void set_numa_nodes(void);
+void parse_numa_opts(void);
 void set_numa_modes(void);
 void query_numa_node_mem(uint64_t node_mem[]);
 extern QemuOptsList qemu_numa_opts;
