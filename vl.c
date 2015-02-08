@@ -4216,7 +4216,7 @@ int main(int argc, char **argv, char **envp)
 
     cpu_synchronize_all_post_init();
 
-    set_numa_modes();
+    numa_post_machine_init();
 
     /* init USB devices */
     if (usb_enabled()) {

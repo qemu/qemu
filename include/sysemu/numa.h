@@ -17,7 +17,7 @@ typedef struct node_info {
 } NodeInfo;
 extern NodeInfo numa_info[MAX_NODES];
 void parse_numa_opts(void);
-void set_numa_modes(void);
+void numa_post_machine_init(void);
 void query_numa_node_mem(uint64_t node_mem[]);
 extern QemuOptsList qemu_numa_opts;
 

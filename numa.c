@@ -246,7 +246,7 @@ void parse_numa_opts(void)
     }
 }
 
-void set_numa_modes(void)
+void numa_post_machine_init(void)
 {
     CPUState *cpu;
     int i;
