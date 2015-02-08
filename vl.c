@@ -184,10 +184,6 @@ uint8_t qemu_extra_params_fw[2];
 
 int icount_align_option;
 
-int nb_numa_nodes;
-int max_numa_nodeid;
-NodeInfo numa_info[MAX_NODES];
-
 /* The bytes in qemu_uuid[] are in the order specified by RFC4122, _not_ in the
  * little-endian "wire format" described in the SMBIOS 2.6 specification.
  */

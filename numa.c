@@ -45,6 +45,9 @@ QemuOptsList qemu_numa_opts = {
 };
 
 static int have_memdevs = -1;
+int nb_numa_nodes;
+int max_numa_nodeid;
+NodeInfo numa_info[MAX_NODES];
 
 static void numa_node_parse(NumaNodeOptions *node, QemuOpts *opts, Error **errp)
 {
