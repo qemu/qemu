@@ -1367,6 +1367,7 @@ struct AcpiBuildState {
     /* Is table patched? */
     uint8_t patched;
     PcGuestInfo *guest_info;
+    void *rsdp;
 } AcpiBuildState;
 
 static bool acpi_get_mcfg(AcpiMcfgInfo *mcfg)
@@ -1501,8 +1502,6 @@ void acpi_build(PcGuestInfo *guest_info, AcpiBuildTables *tables)
 
     /* We'll expose it all to Guest so we want to reduce
      * chance of size changes.
-     * RSDP is small so it's easy to keep it immutable, no need to
-     * bother with alignment.
      *
      * We used to align the tables to 4k, but of course this would
      * too simple to be enough.  4k turned out to be too small an
@@ -1574,6 +1573,7 @@ static void acpi_build_update(void *build_opaque, uint32_t offset)
 
     memcpy(qemu_get_ram_ptr(build_state->table_ram), tables.table_data->data,
            build_state->table_size);
+    memcpy(build_state->rsdp, tables.rsdp->data, acpi_data_len(tables.rsdp));
 
     cpu_physical_memory_set_dirty_range_nocode(build_state->table_ram,
                                                build_state->table_size);
@@ -1646,11 +1646,14 @@ void acpi_setup(PcGuestInfo *guest_info)
                     tables.tcpalog->data, acpi_data_len(tables.tcpalog));
 
     /*
-     * RSDP is small so it's easy to keep it immutable, no need to
-     * bother with ROM blobs.
+     * Though RSDP is small, its contents isn't immutable, so
+     * update it along with the rest of tables on guest access.
      */
-    fw_cfg_add_file(guest_info->fw_cfg, ACPI_BUILD_RSDP_FILE,
-                    tables.rsdp->data, acpi_data_len(tables.rsdp));
+    fw_cfg_add_file_callback(guest_info->fw_cfg, ACPI_BUILD_RSDP_FILE,
+                             acpi_build_update, build_state,
+                             tables.rsdp->data, acpi_data_len(tables.rsdp));
+
+    build_state->rsdp = tables.rsdp->data;
 
     qemu_register_reset(acpi_build_reset, build_state);
     acpi_build_reset(build_state);
