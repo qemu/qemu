@@ -11,6 +11,7 @@
  */
 
 #include <unistd.h>
+#include "qemu/timer.h"
 #include "sysemu/sysemu.h"
 #include "migration/colo.h"
 #include "trace.h"
@@ -230,6 +231,7 @@ out:
 static void colo_process_checkpoint(MigrationState *s)
 {
     QEMUSizedBuffer *buffer = NULL;
+    int64_t current_time, checkpoint_time = qemu_clock_get_ms(QEMU_CLOCK_HOST);
     Error *local_err = NULL;
     int ret;
 
@@ -261,11 +263,21 @@ static void colo_process_checkpoint(MigrationState *s)
     trace_colo_vm_state_change("stop", "run");
 
     while (s->state == MIGRATION_STATUS_COLO) {
+        current_time = qemu_clock_get_ms(QEMU_CLOCK_HOST);
+        if (current_time - checkpoint_time <
+            s->parameters[MIGRATION_PARAMETER_X_CHECKPOINT_DELAY]) {
+            int64_t delay_ms;
+
+            delay_ms = s->parameters[MIGRATION_PARAMETER_X_CHECKPOINT_DELAY] -
+                       (current_time - checkpoint_time);
+            g_usleep(delay_ms * 1000);
+        }
         /* start a colo checkpoint */
         ret = colo_do_checkpoint_transaction(s, buffer);
         if (ret < 0) {
             goto out;
         }
+        checkpoint_time = qemu_clock_get_ms(QEMU_CLOCK_HOST);
     }
 
 out:
