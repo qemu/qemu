@@ -1421,6 +1421,7 @@ void acpi_build(PcGuestInfo *guest_info, AcpiBuildTables *tables)
     PcPciInfo pci;
     uint8_t *u;
     size_t aml_len = 0;
+    GArray *tables_blob = tables->table_data;
 
     acpi_get_cpu_info(&cpu);
     acpi_get_pm_info(&pm);
@@ -1441,66 +1442,66 @@ void acpi_build(PcGuestInfo *guest_info, AcpiBuildTables *tables)
      * We place it first since it's the only table that has alignment
      * requirements.
      */
-    facs = tables->table_data->len;
-    build_facs(tables->table_data, tables->linker, guest_info);
+    facs = tables_blob->len;
+    build_facs(tables_blob, tables->linker, guest_info);
 
     /* DSDT is pointed to by FADT */
-    dsdt = tables->table_data->len;
-    build_dsdt(tables->table_data, tables->linker, &misc);
+    dsdt = tables_blob->len;
+    build_dsdt(tables_blob, tables->linker, &misc);
 
     /* Count the size of the DSDT and SSDT, we will need it for legacy
      * sizing of ACPI tables.
      */
-    aml_len += tables->table_data->len - dsdt;
+    aml_len += tables_blob->len - dsdt;
 
     /* ACPI tables pointed to by RSDT */
-    acpi_add_table(table_offsets, tables->table_data);
-    build_fadt(tables->table_data, tables->linker, &pm, facs, dsdt);
+    acpi_add_table(table_offsets, tables_blob);
+    build_fadt(tables_blob, tables->linker, &pm, facs, dsdt);
 
-    ssdt = tables->table_data->len;
-    acpi_add_table(table_offsets, tables->table_data);
-    build_ssdt(tables->table_data, tables->linker, &cpu, &pm, &misc, &pci,
+    ssdt = tables_blob->len;
+    acpi_add_table(table_offsets, tables_blob);
+    build_ssdt(tables_blob, tables->linker, &cpu, &pm, &misc, &pci,
                guest_info);
-    aml_len += tables->table_data->len - ssdt;
+    aml_len += tables_blob->len - ssdt;
 
-    acpi_add_table(table_offsets, tables->table_data);
-    build_madt(tables->table_data, tables->linker, &cpu, guest_info);
+    acpi_add_table(table_offsets, tables_blob);
+    build_madt(tables_blob, tables->linker, &cpu, guest_info);
 
     if (misc.has_hpet) {
-        acpi_add_table(table_offsets, tables->table_data);
-        build_hpet(tables->table_data, tables->linker);
+        acpi_add_table(table_offsets, tables_blob);
+        build_hpet(tables_blob, tables->linker);
     }
     if (misc.has_tpm) {
-        acpi_add_table(table_offsets, tables->table_data);
-        build_tpm_tcpa(tables->table_data, tables->linker, tables->tcpalog);
+        acpi_add_table(table_offsets, tables_blob);
+        build_tpm_tcpa(tables_blob, tables->linker, tables->tcpalog);
 
-        acpi_add_table(table_offsets, tables->table_data);
-        build_tpm_ssdt(tables->table_data, tables->linker);
+        acpi_add_table(table_offsets, tables_blob);
+        build_tpm_ssdt(tables_blob, tables->linker);
     }
     if (guest_info->numa_nodes) {
-        acpi_add_table(table_offsets, tables->table_data);
-        build_srat(tables->table_data, tables->linker, guest_info);
+        acpi_add_table(table_offsets, tables_blob);
+        build_srat(tables_blob, tables->linker, guest_info);
     }
     if (acpi_get_mcfg(&mcfg)) {
-        acpi_add_table(table_offsets, tables->table_data);
-        build_mcfg_q35(tables->table_data, tables->linker, &mcfg);
+        acpi_add_table(table_offsets, tables_blob);
+        build_mcfg_q35(tables_blob, tables->linker, &mcfg);
     }
     if (acpi_has_iommu()) {
-        acpi_add_table(table_offsets, tables->table_data);
-        build_dmar_q35(tables->table_data, tables->linker);
+        acpi_add_table(table_offsets, tables_blob);
+        build_dmar_q35(tables_blob, tables->linker);
     }
 
     /* Add tables supplied by user (if any) */
     for (u = acpi_table_first(); u; u = acpi_table_next(u)) {
         unsigned len = acpi_table_len(u);
 
-        acpi_add_table(table_offsets, tables->table_data);
-        g_array_append_vals(tables->table_data, u, len);
+        acpi_add_table(table_offsets, tables_blob);
+        g_array_append_vals(tables_blob, u, len);
     }
 
     /* RSDT is pointed to by RSDP */
-    rsdt = tables->table_data->len;
-    build_rsdt(tables->table_data, tables->linker, table_offsets);
+    rsdt = tables_blob->len;
+    build_rsdt(tables_blob, tables->linker, table_offsets);
 
     /* RSDP is in FSEG memory, so allocate it separately */
     build_rsdp(tables->rsdp, tables->linker, rsdt);
@@ -1530,23 +1531,23 @@ void acpi_build(PcGuestInfo *guest_info, AcpiBuildTables *tables)
             guest_info->legacy_acpi_table_size +
             ACPI_BUILD_LEGACY_CPU_AML_SIZE * max_cpus;
         int legacy_table_size =
-            ROUND_UP(tables->table_data->len - aml_len + legacy_aml_len,
+            ROUND_UP(tables_blob->len - aml_len + legacy_aml_len,
                      ACPI_BUILD_ALIGN_SIZE);
-        if (tables->table_data->len > legacy_table_size) {
+        if (tables_blob->len > legacy_table_size) {
             /* Should happen only with PCI bridges and -M pc-i440fx-2.0.  */
             error_report("Warning: migration may not work.");
         }
-        g_array_set_size(tables->table_data, legacy_table_size);
+        g_array_set_size(tables_blob, legacy_table_size);
     } else {
         /* Make sure we have a buffer in case we need to resize the tables. */
-        if (tables->table_data->len > ACPI_BUILD_TABLE_SIZE / 2) {
+        if (tables_blob->len > ACPI_BUILD_TABLE_SIZE / 2) {
             /* As of QEMU 2.1, this fires with 160 VCPUs and 255 memory slots.  */
             error_report("Warning: ACPI tables are larger than 64k.");
             error_report("Warning: migration may not work.");
             error_report("Warning: please remove CPUs, NUMA nodes, "
                          "memory slots or PCI bridges.");
         }
-        acpi_align_size(tables->table_data, ACPI_BUILD_TABLE_SIZE);
+        acpi_align_size(tables_blob, ACPI_BUILD_TABLE_SIZE);
     }
 
     acpi_align_size(tables->linker, ACPI_BUILD_ALIGN_SIZE);
