@@ -639,6 +639,9 @@ MigrationInfo *qmp_query_migrate(Error **errp)
         }
 
         get_xbzrle_cache_stats(info);
+    case MIGRATION_STATUS_COLO:
+        info->has_status = true;
+        /* TODO: display COLO specific information (checkpoint info etc.) */
         break;
     case MIGRATION_STATUS_COMPLETED:
         get_xbzrle_cache_stats(info);
@@ -999,7 +1002,8 @@ void qmp_migrate(const char *uri, bool has_blk, bool blk,
     params.shared = has_inc && inc;
 
     if (migration_is_setup_or_active(s->state) ||
-        s->state == MIGRATION_STATUS_CANCELLING) {
+        s->state == MIGRATION_STATUS_CANCELLING ||
+        s->state == MIGRATION_STATUS_COLO) {
         error_setg(errp, QERR_MIGRATION_ACTIVE);
         return;
     }
@@ -1591,8 +1595,11 @@ static void migration_completion(MigrationState *s, int current_active_state,
         goto fail;
     }
 
-    migrate_set_state(&s->state, current_active_state,
-                      MIGRATION_STATUS_COMPLETED);
+    if (!migrate_colo_enabled()) {
+        migrate_set_state(&s->state, current_active_state,
+                          MIGRATION_STATUS_COMPLETED);
+    }
+
     return;
 
 fail:
@@ -1624,6 +1631,7 @@ static void *migration_thread(void *opaque)
     bool entered_postcopy = false;
     /* The active state we expect to be in; ACTIVE or POSTCOPY_ACTIVE */
     enum MigrationStatus current_active_state = MIGRATION_STATUS_ACTIVE;
+    bool enable_colo = migrate_colo_enabled();
 
     rcu_register_thread();
 
@@ -1731,7 +1739,11 @@ static void *migration_thread(void *opaque)
     end_time = qemu_clock_get_ms(QEMU_CLOCK_REALTIME);
 
     qemu_mutex_lock_iothread();
-    qemu_savevm_state_cleanup();
+    /* The resource has been allocated by migration will be reused in COLO
+      process, so don't release them. */
+    if (!enable_colo) {
+        qemu_savevm_state_cleanup();
+    }
     if (s->state == MIGRATION_STATUS_COMPLETED) {
         uint64_t transferred_bytes = qemu_ftell(s->file);
         s->total_time = end_time - s->total_time;
@@ -1744,7 +1756,11 @@ static void *migration_thread(void *opaque)
         }
         runstate_set(RUN_STATE_POSTMIGRATE);
     } else {
-        if (old_vm_running && !entered_postcopy) {
+        if (s->state == MIGRATION_STATUS_ACTIVE && enable_colo) {
+            migrate_start_colo_process(s);
+            qemu_savevm_state_cleanup();
+        }
+        if ((old_vm_running && !entered_postcopy) || enable_colo) {
             vm_start();
         }
     }
