@@ -1368,6 +1368,8 @@ struct AcpiBuildState {
     uint8_t patched;
     PcGuestInfo *guest_info;
     void *rsdp;
+    ram_addr_t linker_ram;
+    uint32_t linker_size;
 } AcpiBuildState;
 
 static bool acpi_get_mcfg(AcpiMcfgInfo *mcfg)
@@ -1574,6 +1576,8 @@ static void acpi_build_update(void *build_opaque, uint32_t offset)
     memcpy(qemu_get_ram_ptr(build_state->table_ram), tables.table_data->data,
            build_state->table_size);
     memcpy(build_state->rsdp, tables.rsdp->data, acpi_data_len(tables.rsdp));
+    memcpy(qemu_get_ram_ptr(build_state->linker_ram), tables.linker->data,
+           build_state->linker_size);
 
     cpu_physical_memory_set_dirty_range_nocode(build_state->table_ram,
                                                build_state->table_size);
@@ -1640,7 +1644,9 @@ void acpi_setup(PcGuestInfo *guest_info)
     assert(build_state->table_ram != RAM_ADDR_MAX);
     build_state->table_size = acpi_data_len(tables.table_data);
 
-    acpi_add_rom_blob(NULL, tables.linker, "etc/table-loader", 0);
+    build_state->linker_ram =
+        acpi_add_rom_blob(build_state, tables.linker, "etc/table-loader", 0);
+    build_state->linker_size = acpi_data_len(tables.linker);
 
     fw_cfg_add_file(guest_info->fw_cfg, ACPI_BUILD_TPMLOG_FILE,
                     tables.tcpalog->data, acpi_data_len(tables.tcpalog));
