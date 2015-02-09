@@ -1651,15 +1651,21 @@ void acpi_setup(PcGuestInfo *guest_info)
     fw_cfg_add_file(guest_info->fw_cfg, ACPI_BUILD_TPMLOG_FILE,
                     tables.tcpalog->data, acpi_data_len(tables.tcpalog));
 
-    /*
-     * Though RSDP is small, its contents isn't immutable, so
-     * update it along with the rest of tables on guest access.
-     */
-    fw_cfg_add_file_callback(guest_info->fw_cfg, ACPI_BUILD_RSDP_FILE,
-                             acpi_build_update, build_state,
-                             tables.rsdp->data, acpi_data_len(tables.rsdp));
-
-    build_state->rsdp = tables.rsdp->data;
+    if (guest_info->has_immutable_rsdp) {
+        /*
+         * Keep for compatibility with old machine types.
+         * Though RSDP is small, its contents isn't immutable, so
+         * update it along with the rest of tables on guest access.
+         */
+        fw_cfg_add_file_callback(guest_info->fw_cfg, ACPI_BUILD_RSDP_FILE,
+                                 acpi_build_update, build_state,
+                                 tables.rsdp->data, acpi_data_len(tables.rsdp));
+        build_state->rsdp = tables.rsdp->data;
+    } else {
+        build_state->rsdp = qemu_get_ram_ptr(
+            acpi_add_rom_blob(build_state, tables.rsdp, ACPI_BUILD_RSDP_FILE, 0)
+        );
+    }
 
     qemu_register_reset(acpi_build_reset, build_state);
     acpi_build_reset(build_state);
