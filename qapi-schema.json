@@ -436,6 +436,8 @@
 #
 # @failed: some error occurred during migration process.
 #
+# @colo: VM is in the process of fault tolerance. (since 2.6)
+#
 # Since: 2.3
 #
 ##
