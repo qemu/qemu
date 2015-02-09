@@ -2570,20 +2570,7 @@ void monitor_fdset_dup_fd_remove(int dup_fd)
     monitor_fdset_dup_fd_find_remove(dup_fd, true);
 }
 
-int monitor_handle_fd_param(Monitor *mon, const char *fdname)
-{
-    int fd;
-    Error *local_err = NULL;
-
-    fd = monitor_handle_fd_param2(mon, fdname, &local_err);
-    if (local_err) {
-        qerror_report_err(local_err);
-        error_free(local_err);
-    }
-    return fd;
-}
-
-int monitor_handle_fd_param2(Monitor *mon, const char *fdname, Error **errp)
+int monitor_fd_param(Monitor *mon, const char *fdname, Error **errp)
 {
     int fd;
     Error *local_err = NULL;

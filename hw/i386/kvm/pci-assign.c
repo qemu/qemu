@@ -552,9 +552,8 @@ static void get_real_device(AssignedDevice *pci_dev, Error **errp)
     snprintf(name, sizeof(name), "%sconfig", dir);
 
     if (pci_dev->configfd_name && *pci_dev->configfd_name) {
-        dev->config_fd = monitor_handle_fd_param2(cur_mon,
-                                                  pci_dev->configfd_name,
-                                                  &local_err);
+        dev->config_fd = monitor_fd_param(cur_mon, pci_dev->configfd_name,
+                                          &local_err);
         if (local_err) {
             error_propagate(errp, local_err);
             return;

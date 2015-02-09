@@ -695,6 +695,7 @@ static int net_socket_udp_init(NetClientState *peer,
 int net_init_socket(const NetClientOptions *opts, const char *name,
                     NetClientState *peer)
 {
+    Error *err = NULL;
     const NetdevSocketOptions *sock;
 
     assert(opts->kind == NET_CLIENT_OPTIONS_KIND_SOCKET);
@@ -715,8 +716,9 @@ int net_init_socket(const NetClientOptions *opts, const char *name,
     if (sock->has_fd) {
         int fd;
 
-        fd = monitor_handle_fd_param(cur_mon, sock->fd);
+        fd = monitor_fd_param(cur_mon, sock->fd, &err);
         if (fd == -1) {
+            error_report_err(err);
             return -1;
         }
         qemu_set_nonblock(fd);
