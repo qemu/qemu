@@ -167,6 +167,41 @@ error:
     return -1;
 }
 
+static char *enumerate_cpus(unsigned long *cpus, int max_cpus)
+{
+    int cpu;
+    bool first = true;
+    GString *s = g_string_new(NULL);
+
+    for (cpu = find_first_bit(cpus, max_cpus);
+        cpu < max_cpus;
+        cpu = find_next_bit(cpus, max_cpus, cpu + 1)) {
+        g_string_append_printf(s, "%s%d", first ? "" : " ", cpu);
+        first = false;
+    }
+    return g_string_free(s, FALSE);
+}
+
+static void validate_numa_cpus(void)
+{
+    int i;
+    DECLARE_BITMAP(seen_cpus, MAX_CPUMASK_BITS);
+
+    bitmap_zero(seen_cpus, MAX_CPUMASK_BITS);
+    for (i = 0; i < nb_numa_nodes; i++) {
+        if (bitmap_intersects(seen_cpus, numa_info[i].node_cpu,
+                              MAX_CPUMASK_BITS)) {
+            bitmap_and(seen_cpus, seen_cpus,
+                       numa_info[i].node_cpu, MAX_CPUMASK_BITS);
+            error_report("CPU(s) present in multiple NUMA nodes: %s",
+                         enumerate_cpus(seen_cpus, max_cpus));;
+            exit(EXIT_FAILURE);
+        }
+        bitmap_or(seen_cpus, seen_cpus,
+                  numa_info[i].node_cpu, MAX_CPUMASK_BITS);
+    }
+}
+
 void parse_numa_opts(void)
 {
     int i;
@@ -244,6 +279,8 @@ void parse_numa_opts(void)
                 set_bit(i, numa_info[i % nb_numa_nodes].node_cpu);
             }
         }
+
+        validate_numa_cpus();
     }
 }
 
