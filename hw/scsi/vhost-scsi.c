@@ -214,9 +214,11 @@ static void vhost_scsi_realize(DeviceState *dev, Error **errp)
     }
 
     if (vs->conf.vhostfd) {
-        vhostfd = monitor_handle_fd_param(cur_mon, vs->conf.vhostfd);
+        vhostfd = monitor_handle_fd_param2(cur_mon, vs->conf.vhostfd, &err);
         if (vhostfd == -1) {
-            error_setg(errp, "vhost-scsi: unable to parse vhostfd");
+            error_setg(errp, "vhost-scsi: unable to parse vhostfd: %s",
+                       error_get_pretty(err));
+            error_free(err);
             return;
         }
     } else {
