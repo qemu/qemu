@@ -1366,7 +1366,7 @@ static int openpic_load(QEMUFile* f, void *opaque, int version_id)
     OpenPICState *opp = (OpenPICState *)opaque;
     unsigned int i, nb_cpus;
 
-    if (version_id != 1) {
+    if (version_id != 2) {
         return -EINVAL;
     }
 
@@ -1399,12 +1399,10 @@ static int openpic_load(QEMUFile* f, void *opaque, int version_id)
         uint32_t val;
 
         val = qemu_get_be32(f);
-        write_IRQreg_idr(opp, i, val);
-        val = qemu_get_be32(f);
         write_IRQreg_ivpr(opp, i, val);
+        val = qemu_get_be32(f);
+        write_IRQreg_idr(opp, i, val);
 
-        qemu_get_be32s(f, &opp->src[i].ivpr);
-        qemu_get_be32s(f, &opp->src[i].idr);
         qemu_get_be32s(f, &opp->src[i].destmask);
         qemu_get_sbe32s(f, &opp->src[i].last_cpu);
         qemu_get_sbe32s(f, &opp->src[i].pending);
