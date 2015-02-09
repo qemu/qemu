@@ -76,9 +76,11 @@ static void numa_node_parse(NumaNodeOptions *node, QemuOpts *opts, Error **errp)
     }
 
     for (cpus = node->cpus; cpus; cpus = cpus->next) {
-        if (cpus->value >= MAX_CPUMASK_BITS) {
-            error_setg(errp, "CPU number %" PRIu16 " is bigger than %d",
-                       cpus->value, MAX_CPUMASK_BITS - 1);
+        if (cpus->value >= max_cpus) {
+            error_setg(errp,
+                       "CPU index (%" PRIu16 ")"
+                       " should be smaller than maxcpus (%d)",
+                       cpus->value, max_cpus);
             return;
         }
         bitmap_set(numa_info[nodenr].node_cpu, cpus->value, 1);
