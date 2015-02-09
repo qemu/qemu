@@ -1335,7 +1335,7 @@ static void openpic_save(QEMUFile* f, void *opaque)
     for (i = 0; i < opp->max_irq; i++) {
         qemu_put_be32s(f, &opp->src[i].ivpr);
         qemu_put_be32s(f, &opp->src[i].idr);
-        qemu_get_be32s(f, &opp->src[i].destmask);
+        qemu_put_be32s(f, &opp->src[i].destmask);
         qemu_put_sbe32s(f, &opp->src[i].last_cpu);
         qemu_put_sbe32s(f, &opp->src[i].pending);
     }
