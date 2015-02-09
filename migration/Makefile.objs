@@ -1,4 +1,5 @@
 common-obj-y += migration.o tcp.o
+common-obj-$(CONFIG_COLO) += colo.o
 common-obj-y += vmstate.o
 common-obj-y += qemu-file.o qemu-file-buf.o qemu-file-unix.o qemu-file-stdio.o
 common-obj-y += xbzrle.o postcopy-ram.o
