@@ -200,11 +200,13 @@ typedef enum IRQType {
     IRQ_TYPE_FSLSPECIAL,    /* FSL timer/IPI interrupt, edge, no polarity */
 } IRQType;
 
+/* Round up to the nearest 64 IRQs so that the queue length
+ * won't change when moving between 32 and 64 bit hosts.
+ */
+#define IRQQUEUE_SIZE_BITS ((OPENPIC_MAX_IRQ + 63) & ~63)
+
 typedef struct IRQQueue {
-    /* Round up to the nearest 64 IRQs so that the queue length
-     * won't change when moving between 32 and 64 bit hosts.
-     */
-    unsigned long queue[BITS_TO_LONGS((OPENPIC_MAX_IRQ + 63) & ~63)];
+    unsigned long *queue;
     int next;
     int priority;
 } IRQQueue;
@@ -1291,7 +1293,7 @@ static void openpic_save_IRQ_queue(QEMUFile* f, IRQQueue *q)
 {
     unsigned int i;
 
-    for (i = 0; i < ARRAY_SIZE(q->queue); i++) {
+    for (i = 0; i < BITS_TO_LONGS(IRQQUEUE_SIZE_BITS); i++) {
         /* Always put the lower half of a 64-bit long first, in case we
          * restore on a 32-bit host.  The least significant bits correspond
          * to lower IRQ numbers in the bitmap.
@@ -1345,7 +1347,7 @@ static void openpic_load_IRQ_queue(QEMUFile* f, IRQQueue *q)
 {
     unsigned int i;
 
-    for (i = 0; i < ARRAY_SIZE(q->queue); i++) {
+    for (i = 0; i < BITS_TO_LONGS(IRQQUEUE_SIZE_BITS); i++) {
         unsigned long val;
 
         val = qemu_get_be32(f);
@@ -1444,12 +1446,14 @@ static void openpic_reset(DeviceState *d)
         write_IRQreg_idr(opp, i, opp->idr_reset);
     }
     /* Initialise IRQ destinations */
-    for (i = 0; i < MAX_CPU; i++) {
+    for (i = 0; i < opp->nb_cpus; i++) {
         opp->dst[i].ctpr      = 15;
-        memset(&opp->dst[i].raised, 0, sizeof(IRQQueue));
         opp->dst[i].raised.next = -1;
-        memset(&opp->dst[i].servicing, 0, sizeof(IRQQueue));
+        opp->dst[i].raised.priority = 0;
+        bitmap_clear(opp->dst[i].raised.queue, 0, IRQQUEUE_SIZE_BITS);
         opp->dst[i].servicing.next = -1;
+        opp->dst[i].servicing.priority = 0;
+        bitmap_clear(opp->dst[i].servicing.queue, 0, IRQQUEUE_SIZE_BITS);
     }
     /* Initialise timers */
     for (i = 0; i < OPENPIC_MAX_TMR; i++) {
@@ -1629,6 +1633,9 @@ static void openpic_realize(DeviceState *dev, Error **errp)
         for (j = 0; j < OPENPIC_OUTPUT_NB; j++) {
             sysbus_init_irq(d, &opp->dst[i].irqs[j]);
         }
+
+        opp->dst[i].raised.queue = bitmap_new(IRQQUEUE_SIZE_BITS);
+        opp->dst[i].servicing.queue = bitmap_new(IRQQUEUE_SIZE_BITS);
     }
 
     register_savevm(dev, "openpic", 0, 2,
