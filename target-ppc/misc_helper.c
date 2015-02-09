@@ -77,8 +77,13 @@ void helper_msr_facility_check(CPUPPCState *env, uint32_t bit,
 
 void helper_store_sdr1(CPUPPCState *env, target_ulong val)
 {
+    PowerPCCPU *cpu = ppc_env_get_cpu(env);
+
     if (!env->external_htab) {
-        ppc_store_sdr1(env, val);
+        if (env->spr[SPR_SDR1] != val) {
+            ppc_store_sdr1(env, val);
+            tlb_flush(CPU(cpu), 1);
+        }
     }
 }
 
