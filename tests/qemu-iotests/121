@@ -1,0 +1,102 @@
+#!/bin/bash
+#
+# Test cases for qcow2 refcount table growth
+#
+# Copyright (C) 2015 Red Hat, Inc.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+
+# creator
+owner=mreitz@redhat.com
+
+seq="$(basename $0)"
+echo "QA output created by $seq"
+
+here="$PWD"
+tmp=/tmp/$$
+status=1	# failure is the default!
+
+_cleanup()
+{
+	_cleanup_test_img
+}
+trap "_cleanup; exit \$status" 0 1 2 3 15
+
+# get standard environment, filters and checks
+. ./common.rc
+. ./common.filter
+
+_supported_fmt qcow2
+_supported_proto file
+_supported_os Linux
+
+echo
+echo '=== New refcount structures may not conflict with existing structures ==='
+
+echo
+echo '--- Test 1 ---'
+echo
+
+# Preallocation speeds up the write operation, but preallocating everything will
+# destroy the purpose of the write; so preallocate one KB less than what would
+# cause a reftable growth...
+IMGOPTS='preallocation=metadata,cluster_size=1k' _make_test_img 64512K
+# ...and make the image the desired size afterwards.
+$QEMU_IMG resize "$TEST_IMG" 65M
+
+# The first write results in a growth of the refcount table during an allocation
+# which has precisely the required size so that the new refcount block allocated
+# in alloc_refcount_block() is right after cluster_index; this did lead to a
+# different refcount block being written to disk (a zeroed cluster) than what is
+# cached (a refblock with one entry having a refcount of 1), and the second
+# write would then result in that cached cluster being marked dirty and then
+# in it being written to disk.
+# This should not happen, the new refcount structures may not conflict with
+# new_block.
+# (Note that for some reason, 'write 63M 1K' does not trigger the problem)
+$QEMU_IO -c 'write 62M 1025K' -c 'write 64M 1M' "$TEST_IMG" | _filter_qemu_io
+
+_check_test_img
+
+
+echo
+echo '--- Test 2 ---'
+echo
+
+IMGOPTS='preallocation=metadata,cluster_size=1k' _make_test_img 64513K
+# This results in an L1 table growth which in turn results in some clusters at
+# the start of the image becoming free
+$QEMU_IMG resize "$TEST_IMG" 65M
+
+# This write results in a refcount table growth; but the refblock allocated
+# immediately before that (new_block) takes cluster index 4 (which is now free)
+# and is thus not self-describing (in contrast to test 1, where new_block was
+# self-describing). The refcount table growth algorithm then used to place the
+# new refcount structures at cluster index 65536 (which is the same as the
+# cluster_index parameter in this case), allocating a new refcount block for
+# that cluster while new_block already existed, leaking new_block.
+# Therefore, the new refcount structures may not be put at cluster_index
+# (because new_block already describes that cluster, and the new structures try
+# to be self-describing).
+$QEMU_IO -c 'write 63M 130K' "$TEST_IMG" | _filter_qemu_io
+
+_check_test_img
+
+
+# success, all done
+echo
+echo '*** done'
+rm -f $seq.full
+status=0
