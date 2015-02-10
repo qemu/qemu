@@ -1640,7 +1640,7 @@ static int expand_zero_clusters_in_l1(BlockDriverState *bs, uint64_t *l1_table,
     for (i = 0; i < l1_size; i++) {
         uint64_t l2_offset = l1_table[i] & L1E_OFFSET_MASK;
         bool l2_dirty = false;
-        uint16_t l2_refcount;
+        uint64_t l2_refcount;
 
         if (!l2_offset) {
             /* unallocated */
