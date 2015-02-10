@@ -438,7 +438,7 @@ static int xen_pt_bar_reg_read(XenPCIPassthroughState *s, XenPTReg *cfg_entry,
 
     /* get BAR index */
     index = xen_pt_bar_offset_to_index(reg->offset);
-    if (index < 0 || index >= PCI_NUM_REGIONS) {
+    if (index < 0 || index >= PCI_NUM_REGIONS - 1) {
         XEN_PT_ERR(&s->dev, "Internal error: Invalid BAR index [%d].\n", index);
         return -1;
     }
