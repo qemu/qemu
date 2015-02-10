@@ -108,11 +108,22 @@ static int nbd_co_send_request(BlockDriverState *bs,
 {
     NbdClientSession *s = nbd_get_client_session(bs);
     AioContext *aio_context;
-    int rc, ret;
+    int rc, ret, i;
 
     qemu_co_mutex_lock(&s->send_mutex);
+
+    for (i = 0; i < MAX_NBD_REQUESTS; i++) {
+        if (s->recv_coroutine[i] == NULL) {
+            s->recv_coroutine[i] = qemu_coroutine_self();
+            break;
+        }
+    }
+
+    assert(i < MAX_NBD_REQUESTS);
+    request->handle = INDEX_TO_HANDLE(s, i);
     s->send_coroutine = qemu_coroutine_self();
     aio_context = bdrv_get_aio_context(bs);
+
     aio_set_fd_handler(aio_context, s->sock,
                        nbd_reply_ready, nbd_restart_write, bs);
     if (qiov) {
@@ -168,8 +179,6 @@ static void nbd_co_receive_reply(NbdClientSession *s,
 static void nbd_coroutine_start(NbdClientSession *s,
    struct nbd_request *request)
 {
-    int i;
-
     /* Poor man semaphore.  The free_sema is locked when no other request
      * can be accepted, and unlocked after receiving one reply.  */
     if (s->in_flight >= MAX_NBD_REQUESTS - 1) {
@@ -178,15 +187,7 @@ static void nbd_coroutine_start(NbdClientSession *s,
     }
     s->in_flight++;
 
-    for (i = 0; i < MAX_NBD_REQUESTS; i++) {
-        if (s->recv_coroutine[i] == NULL) {
-            s->recv_coroutine[i] = qemu_coroutine_self();
-            break;
-        }
-    }
-
-    assert(i < MAX_NBD_REQUESTS);
-    request->handle = INDEX_TO_HANDLE(s, i);
+    /* s->recv_coroutine[i] is set as soon as we get the send_lock.  */
 }
 
 static void nbd_coroutine_end(NbdClientSession *s,
