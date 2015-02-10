@@ -3306,8 +3306,7 @@ QemuOpts *qemu_chr_parse_compat(const char *label, const char *filename)
 
     opts = qemu_opts_create(qemu_find_opts("chardev"), label, 1, &local_err);
     if (local_err) {
-        qerror_report_err(local_err);
-        error_free(local_err);
+        error_report_err(local_err);
         return NULL;
     }
 
