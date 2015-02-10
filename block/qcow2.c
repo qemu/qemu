@@ -677,10 +677,10 @@ static int qcow2_open(BlockDriverState *bs, QDict *options, int flags,
     }
 
     /* Check support for various header values */
-    if (header.refcount_order != 4) {
-        report_unsupported(bs, errp, "%d bit reference counts",
-                           1 << header.refcount_order);
-        ret = -ENOTSUP;
+    if (header.refcount_order > 6) {
+        error_setg(errp, "Reference count entry width too large; may not "
+                   "exceed 64 bits");
+        ret = -EINVAL;
         goto fail;
     }
     s->refcount_order = header.refcount_order;
