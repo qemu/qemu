@@ -36,7 +36,7 @@ static QEMUBalloonEvent *balloon_event_fn;
 static QEMUBalloonStatus *balloon_stat_fn;
 static void *balloon_opaque;
 
-static bool have_ballon(Error **errp)
+static bool have_balloon(Error **errp)
 {
     if (kvm_enabled() && !kvm_has_sync_mmu()) {
         error_set(errp, ERROR_CLASS_KVM_MISSING_CAP,
@@ -81,7 +81,7 @@ BalloonInfo *qmp_query_balloon(Error **errp)
 {
     BalloonInfo *info;
 
-    if (!have_ballon(errp)) {
+    if (!have_balloon(errp)) {
         return NULL;
     }
 
@@ -92,7 +92,7 @@ BalloonInfo *qmp_query_balloon(Error **errp)
 
 void qmp_balloon(int64_t target, Error **errp)
 {
-    if (!have_ballon(errp)) {
+    if (!have_balloon(errp)) {
         return;
     }
 
