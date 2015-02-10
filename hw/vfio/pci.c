@@ -3248,7 +3248,7 @@ static int vfio_initfn(PCIDevice *pdev)
 
     ret = vfio_populate_device(vdev);
     if (ret) {
-        goto out_put;
+        return ret;
     }
 
     /* Get a copy of config space */
@@ -3258,7 +3258,7 @@ static int vfio_initfn(PCIDevice *pdev)
     if (ret < (int)MIN(pci_config_size(&vdev->pdev), vdev->config_size)) {
         ret = ret < 0 ? -errno : -EFAULT;
         error_report("vfio: Failed to read device config space");
-        goto out_put;
+        return ret;
     }
 
     /* vfio emulates a lot for us, but some bits need extra love */
@@ -3290,7 +3290,7 @@ static int vfio_initfn(PCIDevice *pdev)
 
     ret = vfio_early_setup_msix(vdev);
     if (ret) {
-        goto out_put;
+        return ret;
     }
 
     vfio_map_bars(vdev);
@@ -3329,17 +3329,24 @@ out_teardown:
     pci_device_set_intx_routing_notifier(&vdev->pdev, NULL);
     vfio_teardown_msi(vdev);
     vfio_unmap_bars(vdev);
-out_put:
+    return ret;
+}
+
+static void vfio_instance_finalize(Object *obj)
+{
+    PCIDevice *pci_dev = PCI_DEVICE(obj);
+    VFIOPCIDevice *vdev = DO_UPCAST(VFIOPCIDevice, pdev, pci_dev);
+    VFIOGroup *group = vdev->vbasedev.group;
+
     g_free(vdev->emulated_config_bits);
+    g_free(vdev->rom);
     vfio_put_device(vdev);
     vfio_put_group(group);
-    return ret;
 }
 
 static void vfio_exitfn(PCIDevice *pdev)
 {
     VFIOPCIDevice *vdev = DO_UPCAST(VFIOPCIDevice, pdev, pdev);
-    VFIOGroup *group = vdev->vbasedev.group;
 
     vfio_unregister_err_notifier(vdev);
     pci_device_set_intx_routing_notifier(&vdev->pdev, NULL);
@@ -3349,10 +3356,6 @@ static void vfio_exitfn(PCIDevice *pdev)
     }
     vfio_teardown_msi(vdev);
     vfio_unmap_bars(vdev);
-    g_free(vdev->emulated_config_bits);
-    g_free(vdev->rom);
-    vfio_put_device(vdev);
-    vfio_put_group(group);
 }
 
 static void vfio_pci_reset(DeviceState *dev)
@@ -3440,6 +3443,7 @@ static const TypeInfo vfio_pci_dev_info = {
     .instance_size = sizeof(VFIOPCIDevice),
     .class_init = vfio_pci_dev_class_init,
     .instance_init = vfio_instance_init,
+    .instance_finalize = vfio_instance_finalize,
 };
 
 static void register_vfio_pci_dev_type(void)
