@@ -889,8 +889,7 @@ done:
     blk_unref(blk);
 
     if (local_err) {
-        qerror_report_err(local_err);
-        error_free(local_err);
+        error_report_err(local_err);
         return 1;
     }
 
