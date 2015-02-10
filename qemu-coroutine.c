@@ -135,7 +135,7 @@ void coroutine_fn qemu_coroutine_yield(void)
     }
 
     self->caller = NULL;
-    coroutine_swap(self, to);
+    qemu_coroutine_switch(self, to, COROUTINE_YIELD);
 }
 
 void qemu_coroutine_adjust_pool_size(int n)
