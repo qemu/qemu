@@ -223,6 +223,7 @@ static RAMBlock *last_sent_block;
 static ram_addr_t last_offset;
 static QemuMutex migration_bitmap_mutex;
 static uint64_t migration_dirty_pages;
+static bool ram_cache_enable;
 static uint32_t last_version;
 static bool ram_bulk_stage;
 
@@ -2150,7 +2151,11 @@ static inline void *host_from_stream_offset(QEMUFile *f,
             return NULL;
         }
 
-        return block->host + offset;
+        if (ram_cache_enable) {
+            return block->colo_cache + offset;
+        } else {
+            return block->host + offset;
+        }
     }
 
     len = qemu_get_byte(f);
@@ -2159,7 +2164,11 @@ static inline void *host_from_stream_offset(QEMUFile *f,
 
     block = qemu_ram_block_by_name(id);
     if (block && block->max_length > offset) {
-        return block->host + offset;
+        if (!ram_cache_enable) {
+            return block->host + offset;
+        } else {
+            return block->colo_cache + offset;
+        }
     }
 
     error_report("Can't find block %s", id);
@@ -2535,6 +2544,57 @@ static int ram_load(QEMUFile *f, void *opaque, int version_id)
     DPRINTF("Completed load of VM with exit code %d seq iteration "
             "%" PRIu64 "\n", ret, seq_iter);
     return ret;
+}
+
+/*
+ * colo cache: this is for secondary VM, we cache the whole
+ * memory of the secondary VM, it will be called after first migration.
+ */
+int colo_init_ram_cache(void)
+{
+    RAMBlock *block;
+
+    rcu_read_lock();
+    QLIST_FOREACH_RCU(block, &ram_list.blocks, next) {
+        block->colo_cache = qemu_anon_ram_alloc(block->used_length, NULL);
+        if (!block->colo_cache) {
+            error_report("%s: Can't alloc memory for colo cache of block %s,"
+                         "size %zu", __func__, block->idstr,
+                         block->used_length);
+            goto out_locked;
+        }
+        memcpy(block->colo_cache, block->host, block->used_length);
+    }
+    rcu_read_unlock();
+    ram_cache_enable = true;
+    return 0;
+
+out_locked:
+    QLIST_FOREACH_RCU(block, &ram_list.blocks, next) {
+        if (block->colo_cache) {
+            qemu_anon_ram_free(block->colo_cache, block->used_length);
+            block->colo_cache = NULL;
+        }
+    }
+
+    rcu_read_unlock();
+    return -errno;
+}
+
+void colo_release_ram_cache(void)
+{
+    RAMBlock *block;
+
+    ram_cache_enable = false;
+
+    rcu_read_lock();
+    QLIST_FOREACH_RCU(block, &ram_list.blocks, next) {
+        if (block->colo_cache) {
+            qemu_anon_ram_free(block->colo_cache, block->used_length);
+            block->colo_cache = NULL;
+        }
+    }
+    rcu_read_unlock();
 }
 
 static SaveVMHandlers savevm_ram_handlers = {

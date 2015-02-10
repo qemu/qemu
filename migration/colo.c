@@ -304,6 +304,12 @@ void *colo_process_incoming_thread(void *opaque)
     qemu_set_block(qemu_get_fd(mis->from_src_file));
 
 
+    ret = colo_init_ram_cache();
+    if (ret < 0) {
+        error_report("Failed to initialize ram cache");
+        goto out;
+    }
+
     ret = colo_ctl_put(mis->to_src_file, COLO_COMMAND_CHECKPOINT_READY, 0);
     if (ret < 0) {
         goto out;
@@ -352,6 +358,10 @@ out:
         error_report("colo incoming thread will exit, detect error: %s",
                      strerror(-ret));
     }
+
+    qemu_mutex_lock_iothread();
+    colo_release_ram_cache();
+    qemu_mutex_unlock_iothread();
 
     if (mis->to_src_file) {
         qemu_fclose(mis->to_src_file);
