@@ -114,6 +114,28 @@ static void colo_get_check_cmd(QEMUFile *f, COLOCommand expect_cmd,
     }
 }
 
+static uint64_t colo_get_cmd_value(QEMUFile *f, uint32_t expect_cmd,
+                                   Error **errp)
+{
+    Error *local_err = NULL;
+    uint64_t value;
+    int ret;
+
+    colo_get_check_cmd(f, expect_cmd, &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        return 0;
+    }
+
+    value = qemu_get_be64(f);
+    ret = qemu_file_get_error(f);
+    if (ret < 0) {
+        error_setg_errno(errp, -ret, "Failed to get value for COlO commnd: %s",
+                         COLOCommand_lookup[expect_cmd]);
+    }
+    return value;
+}
+
 static int colo_do_checkpoint_transaction(MigrationState *s,
                                           QEMUSizedBuffer *buffer)
 {
@@ -297,6 +319,10 @@ static void colo_wait_handle_cmd(QEMUFile *f, int *checkpoint_request,
 void *colo_process_incoming_thread(void *opaque)
 {
     MigrationIncomingState *mis = opaque;
+    QEMUFile *fb = NULL;
+    QEMUSizedBuffer *buffer = NULL; /* Cache incoming device state */
+    uint64_t total_size;
+    uint64_t value;
     Error *local_err = NULL;
     int ret;
 
@@ -317,6 +343,12 @@ void *colo_process_incoming_thread(void *opaque)
     ret = colo_init_ram_cache();
     if (ret < 0) {
         error_report("Failed to initialize ram cache");
+        goto out;
+    }
+
+    buffer = qsb_create(NULL, COLO_BUFFER_BASE_SIZE);
+    if (buffer == NULL) {
+        error_report("Failed to allocate colo buffer!");
         goto out;
     }
 
@@ -347,7 +379,21 @@ void *colo_process_incoming_thread(void *opaque)
             goto out;
         }
 
-        /* TODO: read migration data into colo buffer */
+        /* read the VM state total size first */
+        value = colo_get_cmd_value(mis->from_src_file,
+                                 COLO_COMMAND_VMSTATE_SIZE, &local_err);
+        if (local_err) {
+            goto out;
+        }
+
+        /* read vm device state into colo buffer */
+        total_size = qsb_fill_buffer(buffer, mis->from_src_file, value);
+        if (total_size != value) {
+            error_report("Got %lu VMState data, less than expected %lu",
+                         total_size, value);
+            ret = -EINVAL;
+            goto out;
+        }
 
         colo_put_cmd(mis->to_src_file, COLO_COMMAND_VMSTATE_RECEIVED,
                      &local_err);
@@ -355,13 +401,32 @@ void *colo_process_incoming_thread(void *opaque)
             goto out;
         }
 
-        /* TODO: load vm state */
+        /* open colo buffer for read */
+        fb = qemu_bufopen("r", buffer);
+        if (!fb) {
+            error_report("Can't open colo buffer for read");
+            goto out;
+        }
+
+        qemu_mutex_lock_iothread();
+        qemu_system_reset(VMRESET_SILENT);
+        if (qemu_loadvm_state(fb) < 0) {
+            error_report("COLO: loadvm failed");
+            qemu_mutex_unlock_iothread();
+            goto out;
+        }
+        qemu_mutex_unlock_iothread();
+
+        /* TODO: flush vm state */
 
         colo_put_cmd(mis->to_src_file, COLO_COMMAND_VMSTATE_LOADED,
                      &local_err);
         if (local_err) {
             goto out;
         }
+
+        qemu_fclose(fb);
+        fb = NULL;
     }
 
 out:
@@ -369,6 +434,11 @@ out:
     if (local_err) {
         error_report_err(local_err);
     }
+
+    if (fb) {
+        qemu_fclose(fb);
+    }
+    qsb_free(buffer);
 
     qemu_mutex_lock_iothread();
     colo_release_ram_cache();
