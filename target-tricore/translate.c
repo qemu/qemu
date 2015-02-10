@@ -8044,8 +8044,8 @@ static void decode_32Bit_opc(CPUTriCoreState *env, DisasContext *ctx)
             tcg_gen_rotli_tl(cpu_gpr_d[r3], cpu_gpr_d[r1], const16);
         } else {
             temp = tcg_temp_new();
-            tcg_gen_shli_tl(cpu_gpr_d[r3], cpu_gpr_d[r2], const16);
-            tcg_gen_shri_tl(temp, cpu_gpr_d[r1], 32 - const16);
+            tcg_gen_shli_tl(temp, cpu_gpr_d[r1], const16);
+            tcg_gen_shri_tl(cpu_gpr_d[r3], cpu_gpr_d[r2], 32 - const16);
             tcg_gen_or_tl(cpu_gpr_d[r3], cpu_gpr_d[r3], temp);
             tcg_temp_free(temp);
         }
