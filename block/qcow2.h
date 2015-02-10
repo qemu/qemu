@@ -213,6 +213,11 @@ typedef struct Qcow2DiscardRegion {
     QTAILQ_ENTRY(Qcow2DiscardRegion) next;
 } Qcow2DiscardRegion;
 
+typedef uint64_t Qcow2GetRefcountFunc(const void *refcount_array,
+                                      uint64_t index);
+typedef void Qcow2SetRefcountFunc(void *refcount_array,
+                                  uint64_t index, uint64_t value);
+
 typedef struct BDRVQcowState {
     int cluster_bits;
     int cluster_size;
@@ -260,6 +265,9 @@ typedef struct BDRVQcowState {
     int refcount_order;
     int refcount_bits;
     uint64_t refcount_max;
+
+    Qcow2GetRefcountFunc *get_refcount;
+    Qcow2SetRefcountFunc *set_refcount;
 
     bool discard_passthrough[QCOW2_DISCARD_MAX];
 
