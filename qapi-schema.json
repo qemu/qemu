@@ -756,12 +756,14 @@
 #
 # @vmstate-loaded: VM's state has been loaded by SVM
 #
+# @guest-shutdown: shutdown require from PVM to SVM
+#
 # Since: 2.5
 ##
 { 'enum': 'COLOCommand',
   'data': [ 'invalid', 'checkpoint-ready', 'checkpoint-request',
             'checkpoint-reply', 'vmstate-send', 'vmstate-size',
-            'vmstate-received', 'vmstate-loaded' ] }
+            'vmstate-received', 'vmstate-loaded', 'guest-shutdown' ] }
 
 ##
 # @COLOMode

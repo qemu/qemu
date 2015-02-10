@@ -206,6 +206,7 @@ static int colo_do_checkpoint_transaction(MigrationState *s,
 {
     int ret;
     uint64_t value;
+    int colo_shutdown;
     size_t size;
     QEMUFile *trans = NULL;
 
@@ -233,6 +234,7 @@ static int colo_do_checkpoint_transaction(MigrationState *s,
         ret = -1;
         goto out;
     }
+    colo_shutdown = colo_shutdown_requested;
     vm_stop_force_state(RUN_STATE_COLO);
     qemu_mutex_unlock_iothread();
     trace_colo_vm_state_change("run", "stop");
@@ -284,6 +286,15 @@ static int colo_do_checkpoint_transaction(MigrationState *s,
                        COLO_COMMAND_VMSTATE_LOADED, &value);
     if (ret < 0) {
         goto out;
+    }
+
+    if (colo_shutdown) {
+        colo_ctl_put(s->to_dst_file, COLO_COMMAND_GUEST_SHUTDOWN, 0);
+        qemu_fflush(s->to_dst_file);
+        colo_shutdown_requested = 0;
+        qemu_system_shutdown_request_core();
+        /* Fix me: Just let the colo thread exit ? */
+        qemu_thread_exit(0);
     }
 
     ret = 0;
@@ -347,8 +358,9 @@ static void colo_process_checkpoint(MigrationState *s)
         }
 
         current_time = qemu_clock_get_ms(QEMU_CLOCK_HOST);
-        if (current_time - checkpoint_time <
-            s->parameters[MIGRATION_PARAMETER_CHECKPOINT_DELAY]) {
+        if ((current_time - checkpoint_time <
+            s->parameters[MIGRATION_PARAMETER_CHECKPOINT_DELAY]) &&
+            !colo_shutdown_requested) {
             int64_t delay_ms;
 
             delay_ms = s->parameters[MIGRATION_PARAMETER_CHECKPOINT_DELAY] -
@@ -443,6 +455,15 @@ static int colo_wait_handle_cmd(QEMUFile *f, int *checkpoint_request)
     case COLO_COMMAND_CHECKPOINT_REQUEST:
         *checkpoint_request = 1;
         return 0;
+    case COLO_COMMAND_GUEST_SHUTDOWN:
+        qemu_mutex_lock_iothread();
+        vm_stop_force_state(RUN_STATE_COLO);
+        qemu_system_shutdown_request_core();
+        qemu_mutex_unlock_iothread();
+        /* the main thread will exit and termiante the whole
+        * process, do we need some cleanup?
+        */
+        qemu_thread_exit(0);
     default:
         return -EINVAL;
     }
