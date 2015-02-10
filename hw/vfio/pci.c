@@ -1996,12 +1996,23 @@ static void vfio_vga_quirk_setup(VFIOPCIDevice *vdev)
 
 static void vfio_vga_quirk_teardown(VFIOPCIDevice *vdev)
 {
+    VFIOQuirk *quirk;
+    int i;
+
+    for (i = 0; i < ARRAY_SIZE(vdev->vga.region); i++) {
+        QLIST_FOREACH(quirk, &vdev->vga.region[i].quirks, next) {
+            memory_region_del_subregion(&vdev->vga.region[i].mem, &quirk->mem);
+        }
+    }
+}
+
+static void vfio_vga_quirk_free(VFIOPCIDevice *vdev)
+{
     int i;
 
     for (i = 0; i < ARRAY_SIZE(vdev->vga.region); i++) {
         while (!QLIST_EMPTY(&vdev->vga.region[i].quirks)) {
             VFIOQuirk *quirk = QLIST_FIRST(&vdev->vga.region[i].quirks);
-            memory_region_del_subregion(&vdev->vga.region[i].mem, &quirk->mem);
             object_unparent(OBJECT(&quirk->mem));
             QLIST_REMOVE(quirk, next);
             g_free(quirk);
@@ -2022,10 +2033,19 @@ static void vfio_bar_quirk_setup(VFIOPCIDevice *vdev, int nr)
 static void vfio_bar_quirk_teardown(VFIOPCIDevice *vdev, int nr)
 {
     VFIOBAR *bar = &vdev->bars[nr];
+    VFIOQuirk *quirk;
+
+    QLIST_FOREACH(quirk, &bar->quirks, next) {
+        memory_region_del_subregion(&bar->region.mem, &quirk->mem);
+    }
+}
+
+static void vfio_bar_quirk_free(VFIOPCIDevice *vdev, int nr)
+{
+    VFIOBAR *bar = &vdev->bars[nr];
 
     while (!QLIST_EMPTY(&bar->quirks)) {
         VFIOQuirk *quirk = QLIST_FIRST(&bar->quirks);
-        memory_region_del_subregion(&bar->region.mem, &quirk->mem);
         object_unparent(OBJECT(&quirk->mem));
         QLIST_REMOVE(quirk, next);
         g_free(quirk);
@@ -2281,7 +2301,7 @@ static void vfio_mmap_set_enabled(VFIOPCIDevice *vdev, bool enabled)
     }
 }
 
-static void vfio_unmap_bar(VFIOPCIDevice *vdev, int nr)
+static void vfio_unregister_bar(VFIOPCIDevice *vdev, int nr)
 {
     VFIOBAR *bar = &vdev->bars[nr];
 
@@ -2292,10 +2312,25 @@ static void vfio_unmap_bar(VFIOPCIDevice *vdev, int nr)
     vfio_bar_quirk_teardown(vdev, nr);
 
     memory_region_del_subregion(&bar->region.mem, &bar->region.mmap_mem);
-    munmap(bar->region.mmap, memory_region_size(&bar->region.mmap_mem));
 
     if (vdev->msix && vdev->msix->table_bar == nr) {
         memory_region_del_subregion(&bar->region.mem, &vdev->msix->mmap_mem);
+    }
+}
+
+static void vfio_unmap_bar(VFIOPCIDevice *vdev, int nr)
+{
+    VFIOBAR *bar = &vdev->bars[nr];
+
+    if (!bar->region.size) {
+        return;
+    }
+
+    vfio_bar_quirk_free(vdev, nr);
+
+    munmap(bar->region.mmap, memory_region_size(&bar->region.mmap_mem));
+
+    if (vdev->msix && vdev->msix->table_bar == nr) {
         munmap(vdev->msix->mmap, memory_region_size(&vdev->msix->mmap_mem));
     }
 }
@@ -2403,6 +2438,20 @@ static void vfio_map_bars(VFIOPCIDevice *vdev)
     }
 }
 
+static void vfio_unregister_bars(VFIOPCIDevice *vdev)
+{
+    int i;
+
+    for (i = 0; i < PCI_ROM_SLOT; i++) {
+        vfio_unregister_bar(vdev, i);
+    }
+
+    if (vdev->has_vga) {
+        vfio_vga_quirk_teardown(vdev);
+        pci_unregister_vga(&vdev->pdev);
+    }
+}
+
 static void vfio_unmap_bars(VFIOPCIDevice *vdev)
 {
     int i;
@@ -2412,8 +2461,7 @@ static void vfio_unmap_bars(VFIOPCIDevice *vdev)
     }
 
     if (vdev->has_vga) {
-        vfio_vga_quirk_teardown(vdev);
-        pci_unregister_vga(&vdev->pdev);
+        vfio_vga_quirk_free(vdev);
     }
 }
 
@@ -3328,7 +3376,7 @@ static int vfio_initfn(PCIDevice *pdev)
 out_teardown:
     pci_device_set_intx_routing_notifier(&vdev->pdev, NULL);
     vfio_teardown_msi(vdev);
-    vfio_unmap_bars(vdev);
+    vfio_unregister_bars(vdev);
     return ret;
 }
 
@@ -3338,6 +3386,7 @@ static void vfio_instance_finalize(Object *obj)
     VFIOPCIDevice *vdev = DO_UPCAST(VFIOPCIDevice, pdev, pci_dev);
     VFIOGroup *group = vdev->vbasedev.group;
 
+    vfio_unmap_bars(vdev);
     g_free(vdev->emulated_config_bits);
     g_free(vdev->rom);
     vfio_put_device(vdev);
@@ -3355,7 +3404,7 @@ static void vfio_exitfn(PCIDevice *pdev)
         timer_free(vdev->intx.mmap_timer);
     }
     vfio_teardown_msi(vdev);
-    vfio_unmap_bars(vdev);
+    vfio_unregister_bars(vdev);
 }
 
 static void vfio_pci_reset(DeviceState *dev)
