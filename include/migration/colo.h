@@ -32,4 +32,5 @@ bool migration_incoming_in_colo_state(void);
 /* ram cache */
 int colo_init_ram_cache(void);
 void colo_release_ram_cache(void);
+void colo_flush_ram_cache(void);
 #endif

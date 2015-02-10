@@ -2448,6 +2448,7 @@ static int ram_load(QEMUFile *f, void *opaque, int version_id)
      * be atomic
      */
     bool postcopy_running = postcopy_state_get() >= POSTCOPY_INCOMING_LISTENING;
+    bool need_flush = false;
 
     seq_iter++;
 
@@ -2482,6 +2483,7 @@ static int ram_load(QEMUFile *f, void *opaque, int version_id)
             /* After going into COLO, we should load the Page into colo_cache */
             if (ram_cache_enable) {
                 host = colo_cache_from_block_offset(block, addr);
+                need_flush = true;
             } else {
                 host = host_from_ram_block_offset(block, addr);
             }
@@ -2575,6 +2577,10 @@ static int ram_load(QEMUFile *f, void *opaque, int version_id)
     }
 
     rcu_read_unlock();
+
+    if (!ret  && ram_cache_enable && need_flush) {
+        colo_flush_ram_cache();
+    }
     DPRINTF("Completed load of VM with exit code %d seq iteration "
             "%" PRIu64 "\n", ret, seq_iter);
     return ret;
@@ -2645,6 +2651,37 @@ void colo_release_ram_cache(void)
         }
     }
     rcu_read_unlock();
+}
+
+/*
+ * Flush content of RAM cache into SVM's memory.
+ * Only flush the pages that be dirtied by PVM or SVM or both.
+ */
+void colo_flush_ram_cache(void)
+{
+    RAMBlock *block = NULL;
+    void *dst_host;
+    void *src_host;
+    ram_addr_t  offset = 0;
+
+    trace_colo_flush_ram_cache(migration_dirty_pages);
+    rcu_read_lock();
+    block = QLIST_FIRST_RCU(&ram_list.blocks);
+    while (block) {
+        ram_addr_t ram_addr_abs;
+        offset = migration_bitmap_find_dirty(block, offset, &ram_addr_abs);
+        migration_bitmap_clear_dirty(ram_addr_abs);
+        if (offset >= block->used_length) {
+            offset = 0;
+            block = QLIST_NEXT_RCU(block, next);
+        } else {
+            dst_host = block->host + offset;
+            src_host = block->colo_cache + offset;
+            memcpy(dst_host, src_host, TARGET_PAGE_SIZE);
+        }
+    }
+    rcu_read_unlock();
+    assert(migration_dirty_pages == 0);
 }
 
 static SaveVMHandlers savevm_ram_handlers = {
