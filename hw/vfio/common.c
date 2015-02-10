@@ -662,7 +662,10 @@ static int vfio_connect_container(VFIOGroup *group, AddressSpace *as)
     container = g_malloc0(sizeof(*container));
     container->space = space;
     container->fd = fd;
-    if (ioctl(fd, VFIO_CHECK_EXTENSION, VFIO_TYPE1_IOMMU)) {
+    if (ioctl(fd, VFIO_CHECK_EXTENSION, VFIO_TYPE1_IOMMU) ||
+        ioctl(fd, VFIO_CHECK_EXTENSION, VFIO_TYPE1v2_IOMMU)) {
+        bool v2 = !!ioctl(fd, VFIO_CHECK_EXTENSION, VFIO_TYPE1v2_IOMMU);
+
         ret = ioctl(group->fd, VFIO_GROUP_SET_CONTAINER, &fd);
         if (ret) {
             error_report("vfio: failed to set group container: %m");
@@ -670,7 +673,8 @@ static int vfio_connect_container(VFIOGroup *group, AddressSpace *as)
             goto free_container_exit;
         }
 
-        ret = ioctl(fd, VFIO_SET_IOMMU, VFIO_TYPE1_IOMMU);
+        ret = ioctl(fd, VFIO_SET_IOMMU,
+                    v2 ? VFIO_TYPE1v2_IOMMU : VFIO_TYPE1_IOMMU);
         if (ret) {
             error_report("vfio: failed to set iommu for container: %m");
             ret = -errno;
