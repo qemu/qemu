@@ -478,7 +478,8 @@ void qcow2_signal_corruption(BlockDriverState *bs, bool fatal, int64_t offset,
 int qcow2_refcount_init(BlockDriverState *bs);
 void qcow2_refcount_close(BlockDriverState *bs);
 
-int qcow2_get_refcount(BlockDriverState *bs, int64_t cluster_index);
+int qcow2_get_refcount(BlockDriverState *bs, int64_t cluster_index,
+                       uint16_t *refcount);
 
 int qcow2_update_cluster_refcount(BlockDriverState *bs, int64_t cluster_index,
                                   int addend, enum qcow2_discard_type type);
