@@ -195,7 +195,6 @@ static uint32_t vfio_pci_read_config(PCIDevice *pdev, uint32_t addr, int len);
 static void vfio_pci_write_config(PCIDevice *pdev, uint32_t addr,
                                   uint32_t val, int len);
 static void vfio_mmap_set_enabled(VFIOPCIDevice *vdev, bool enabled);
-static int vfio_populate_device(VFIODevice *vbasedev);
 
 /*
  * Disabling BAR mmaping can be slow, but toggling it around INTx can
@@ -2934,12 +2933,11 @@ static VFIODeviceOps vfio_pci_ops = {
     .vfio_compute_needs_reset = vfio_pci_compute_needs_reset,
     .vfio_hot_reset_multi = vfio_pci_hot_reset_multi,
     .vfio_eoi = vfio_eoi,
-    .vfio_populate_device = vfio_populate_device,
 };
 
-static int vfio_populate_device(VFIODevice *vbasedev)
+static int vfio_populate_device(VFIOPCIDevice *vdev)
 {
-    VFIOPCIDevice *vdev = container_of(vbasedev, VFIOPCIDevice, vbasedev);
+    VFIODevice *vbasedev = &vdev->vbasedev;
     struct vfio_region_info reg_info = { .argsz = sizeof(reg_info) };
     struct vfio_irq_info irq_info = { .argsz = sizeof(irq_info) };
     int i, ret = -1;
@@ -3246,6 +3244,11 @@ static int vfio_initfn(PCIDevice *pdev)
         error_report("vfio: failed to get device %s", path);
         vfio_put_group(group);
         return ret;
+    }
+
+    ret = vfio_populate_device(vdev);
+    if (ret) {
+        goto out_put;
     }
 
     /* Get a copy of config space */

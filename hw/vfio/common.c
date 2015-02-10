@@ -867,26 +867,27 @@ int vfio_get_device(VFIOGroup *group, const char *name,
                        VFIODevice *vbasedev)
 {
     struct vfio_device_info dev_info = { .argsz = sizeof(dev_info) };
-    int ret;
+    int ret, fd;
 
-    ret = ioctl(group->fd, VFIO_GROUP_GET_DEVICE_FD, name);
-    if (ret < 0) {
+    fd = ioctl(group->fd, VFIO_GROUP_GET_DEVICE_FD, name);
+    if (fd < 0) {
         error_report("vfio: error getting device %s from group %d: %m",
                      name, group->groupid);
         error_printf("Verify all devices in group %d are bound to vfio-<bus> "
                      "or pci-stub and not already in use\n", group->groupid);
+        return fd;
+    }
+
+    ret = ioctl(fd, VFIO_DEVICE_GET_INFO, &dev_info);
+    if (ret) {
+        error_report("vfio: error getting device info: %m");
+        close(fd);
         return ret;
     }
 
-    vbasedev->fd = ret;
+    vbasedev->fd = fd;
     vbasedev->group = group;
     QLIST_INSERT_HEAD(&group->device_list, vbasedev, next);
-
-    ret = ioctl(vbasedev->fd, VFIO_DEVICE_GET_INFO, &dev_info);
-    if (ret) {
-        error_report("vfio: error getting device info: %m");
-        goto error;
-    }
 
     vbasedev->num_irqs = dev_info.num_irqs;
     vbasedev->num_regions = dev_info.num_regions;
@@ -896,14 +897,7 @@ int vfio_get_device(VFIOGroup *group, const char *name,
                           dev_info.num_irqs);
 
     vbasedev->reset_works = !!(dev_info.flags & VFIO_DEVICE_FLAGS_RESET);
-
-    ret = vbasedev->ops->vfio_populate_device(vbasedev);
-
-error:
-    if (ret) {
-        vfio_put_base_device(vbasedev);
-    }
-    return ret;
+    return 0;
 }
 
 void vfio_put_base_device(VFIODevice *vbasedev)
