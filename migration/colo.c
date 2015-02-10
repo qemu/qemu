@@ -417,8 +417,6 @@ void *colo_process_incoming_thread(void *opaque)
         }
         qemu_mutex_unlock_iothread();
 
-        /* TODO: flush vm state */
-
         colo_put_cmd(mis->to_src_file, COLO_COMMAND_VMSTATE_LOADED,
                      &local_err);
         if (local_err) {
