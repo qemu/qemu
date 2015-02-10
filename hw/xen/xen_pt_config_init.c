@@ -360,15 +360,13 @@ static uint64_t xen_pt_get_bar_size(PCIIORegion *r)
 }
 
 static XenPTBarFlag xen_pt_bar_reg_parse(XenPCIPassthroughState *s,
-                                         XenPTRegInfo *reg)
+                                         int index)
 {
     PCIDevice *d = &s->dev;
     XenPTRegion *region = NULL;
     PCIIORegion *r;
-    int index = 0;
 
     /* check 64bit BAR */
-    index = xen_pt_bar_offset_to_index(reg->offset);
     if ((0 < index) && (index < PCI_ROM_SLOT)) {
         int type = s->real_device.io_regions[index - 1].type;
 
@@ -422,7 +420,7 @@ static int xen_pt_bar_reg_init(XenPCIPassthroughState *s, XenPTRegInfo *reg,
     }
 
     /* set BAR flag */
-    s->bases[index].bar_flag = xen_pt_bar_reg_parse(s, reg);
+    s->bases[index].bar_flag = xen_pt_bar_reg_parse(s, index);
     if (s->bases[index].bar_flag == XEN_PT_BAR_FLAG_UNUSED) {
         reg_field = XEN_PT_INVALID_REG;
     }
