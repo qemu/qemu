@@ -2581,8 +2581,7 @@ static int machine_set_property(const char *name, const char *value,
     g_free(qom_name);
 
     if (local_err) {
-        qerror_report_err(local_err);
-        error_free(local_err);
+        error_report_err(local_err);
         return -1;
     }
 
@@ -2635,8 +2634,7 @@ out:
     g_free(type);
     g_free(dummy);
     if (err) {
-        qerror_report_err(err);
-        error_free(err);
+        error_report_err(err);
         return -1;
     }
     return 0;
