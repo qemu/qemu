@@ -3207,12 +3207,30 @@ Set TB size.
 ETEXI
 
 DEF("incoming", HAS_ARG, QEMU_OPTION_incoming, \
-    "-incoming p     prepare for incoming migration, listen on port p\n",
+    "-incoming tcp:[host]:port[,to=maxport][,ipv4][,ipv6]\n" \
+    "-incoming rdma:host:port[,ipv4][,ipv6]\n" \
+    "-incoming unix:socketpath\n" \
+    "                prepare for incoming migration, listen on\n" \
+    "                specified protocol and socket address\n" \
+    "-incoming fd:fd\n" \
+    "-incoming exec:cmdline\n" \
+    "                accept incoming migration on given file descriptor\n" \
+    "                or from given external command\n",
     QEMU_ARCH_ALL)
 STEXI
-@item -incoming @var{port}
+@item -incoming tcp:[@var{host}]:@var{port}[,to=@var{maxport}][,ipv4][,ipv6]
+@item -incoming rdma:@var{host}:@var{port}[,ipv4][,ipv6]
 @findex -incoming
-Prepare for incoming migration, listen on @var{port}.
+Prepare for incoming migration, listen on a given tcp port.
+
+@item -incoming unix:@var{socketpath}
+Prepare for incoming migration, listen on a given unix socket.
+
+@item -incoming fd:@var{fd}
+Accept incoming migration from a given filedescriptor.
+
+@item -incoming exec:@var{cmdline}
+Accept incoming migration as an output from specified external command.
 ETEXI
 
 DEF("nodefaults", 0, QEMU_OPTION_nodefaults, \
