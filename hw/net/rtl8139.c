@@ -2075,20 +2075,6 @@ static int rtl8139_cplus_transmit_one(RTL8139State *s)
                 "length to %d\n", txsize);
     }
 
-    if (!s->cplus_txbuffer)
-    {
-        /* out of memory */
-
-        DPRINTF("+++ C+ mode transmiter failed to reallocate %d bytes\n",
-            s->cplus_txbuffer_len);
-
-        /* update tally counter */
-        ++s->tally_counters.TxERR;
-        ++s->tally_counters.TxAbt;
-
-        return 0;
-    }
-
     /* append more data to the packet */
 
     DPRINTF("+++ C+ mode transmit reading %d bytes from host memory at "

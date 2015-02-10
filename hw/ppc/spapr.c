@@ -1625,7 +1625,7 @@ static int spapr_kvm_type(const char *vm_type)
 }
 
 /*
- * Implementation of an interface to adjust firmware patch
+ * Implementation of an interface to adjust firmware path
  * for the bootindex property handling.
  */
 static char *spapr_get_fw_dev_path(FWPathProvider *p, BusState *bus,

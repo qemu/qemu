@@ -203,6 +203,10 @@ hd_geometry_guess(void *blk, uint32_t cyls, uint32_t heads, uint32_t secs, int t
 jazz_led_read(uint64_t addr, uint8_t val) "read addr=0x%"PRIx64": 0x%x"
 jazz_led_write(uint64_t addr, uint8_t new) "write addr=0x%"PRIx64": 0x%x"
 
+# hw/display/xenfb.c
+xenfb_mouse_event(void *opaque, int dx, int dy, int dz, int button_state, int abs_pointer_wanted) "%p x %d y %d z %d bs %#x abs %d"
+xenfb_input_connected(void *xendev, int abs_pointer_wanted) "%p abs %d"
+
 # hw/net/lance.c
 lance_mem_readw(uint64_t addr, uint32_t ret) "addr=%"PRIx64"val=0x%04x"
 lance_mem_writew(uint64_t addr, uint32_t val) "addr=%"PRIx64"val=0x%04x"
@@ -220,6 +224,23 @@ slavio_intctlm_mem_writel_target(uint32_t cpu) "Set master irq cpu %d"
 slavio_check_interrupts(uint32_t pending, uint32_t intregm_disabled) "pending %x disabled %x"
 slavio_set_irq(uint32_t target_cpu, int irq, uint32_t pil, int level) "Set cpu %d irq %d -> pil %d level %d"
 slavio_set_timer_irq_cpu(int cpu, int level) "Set cpu %d local timer level %d"
+
+# hw/input/ps2.c
+ps2_put_keycode(void *opaque, int keycode) "%p keycode %d"
+ps2_read_data(void *opaque) "%p"
+ps2_set_ledstate(void *s, int ledstate) "%p ledstate %d"
+ps2_reset_keyboard(void *s) "%p"
+ps2_write_keyboard(void *opaque, int val) "%p val %d"
+ps2_keyboard_set_translation(void *opaque, int mode) "%p mode %d"
+ps2_mouse_send_packet(void *s, int dx1, int dy1, int dz1, int b) "%p x %d y %d z %d bs %#x"
+ps2_mouse_event_disabled(void *opaque, int dx, int dy, int dz, int buttons_state, int mouse_dx, int mouse_dy, int mouse_dz) "%p x %d y %d z %d bs %#x mx %d my %d mz %d "
+ps2_mouse_event(void *opaque, int dx, int dy, int dz, int buttons_state, int mouse_dx, int mouse_dy, int mouse_dz) "%p x %d y %d z %d bs %#x mx %d my %d mz %d "
+ps2_mouse_fake_event(void *opaque) "%p"
+ps2_write_mouse(void *opaque, int val) "%p val %d"
+ps2_kbd_reset(void *opaque) "%p"
+ps2_mouse_reset(void *opaque) "%p"
+ps2_kbd_init(void *s) "%p"
+ps2_mouse_init(void *s) "%p"
 
 # hw/misc/slavio_misc.c
 slavio_misc_update_irq_raise(void) "Raise IRQ"
@@ -1260,6 +1281,26 @@ spapr_pci_msi_retry(unsigned config_addr, unsigned req_num, unsigned max_irqs) "
 # hw/pci/pci.c
 pci_update_mappings_del(void *d, uint32_t bus, uint32_t func, uint32_t slot, int bar, uint64_t addr, uint64_t size) "d=%p %02x:%02x.%x %d,%#"PRIx64"+%#"PRIx64
 pci_update_mappings_add(void *d, uint32_t bus, uint32_t func, uint32_t slot, int bar, uint64_t addr, uint64_t size) "d=%p %02x:%02x.%x %d,%#"PRIx64"+%#"PRIx64
+
+# hw/net/pcnet.c
+pcnet_s_reset(void *s) "s=%p"
+pcnet_user_int(void *s) "s=%p"
+pcnet_isr_change(void *s, uint32_t isr, uint32_t isr_old) "s=%p INTA=%d<=%d"
+pcnet_init(void *s, uint64_t init_addr) "s=%p init_addr=%#"PRIx64
+pcnet_rlen_tlen(void *s, uint32_t rlen, uint32_t tlen) "s=%p rlen=%d tlen=%d"
+pcnet_ss32_rdra_tdra(void *s, uint32_t ss32, uint32_t rdra, uint32_t rcvrl, uint32_t tdra, uint32_t xmtrl) "s=%p ss32=%d rdra=0x%08x[%d] tdra=0x%08x[%d]"
+
+# hw/net/pcnet-pci.c
+pcnet_aprom_writeb(void *opaque, uint32_t addr, uint32_t val) "opaque=%p addr=0x%08x val=0x%02x"
+pcnet_aprom_readb(void *opaque, uint32_t addr, uint32_t val) "opaque=%p addr=0x%08x val=0x%02x"
+pcnet_ioport_read(void *opaque, uint64_t addr, unsigned size) "opaque=%p addr=%#"PRIx64" size=%d"
+pcnet_ioport_write(void *opaque, uint64_t addr, uint64_t data, unsigned size) "opaque=%p addr=%#"PRIx64" data=%#"PRIx64" size=%d"
+pcnet_mmio_writeb(void *opaque, uint64_t addr, uint32_t val) "opaque=%p addr=%#"PRIx64" val=0x%x"
+pcnet_mmio_writew(void *opaque, uint64_t addr, uint32_t val) "opaque=%p addr=%#"PRIx64" val=0x%x"
+pcnet_mmio_writel(void *opaque, uint64_t addr, uint32_t val) "opaque=%p addr=%#"PRIx64" val=0x%x"
+pcnet_mmio_readb(void *opaque, uint64_t addr, uint32_t val) "opaque=%p addr=%#"PRIx64" val=0x%x"
+pcnet_mmio_readw(void *opaque, uint64_t addr, uint32_t val) "opaque=%p addr=%#"PRIx64" val=0x%x"
+pcnet_mmio_readl(void *opaque, uint64_t addr, uint32_t val) "opaque=%p addr=%#"PRIx64" val=0x%x"
 
 # hw/intc/xics.c
 xics_icp_check_ipi(int server, uint8_t mfrr) "CPU %d can take IPI mfrr=%#x"

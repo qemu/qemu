@@ -648,7 +648,7 @@ int spapr_populate_vdevice(VIOsPAPRBus *bus, void *fdt)
 
     ret = 0;
 out:
-    free(qdevs);
+    g_free(qdevs);
 
     return ret;
 }

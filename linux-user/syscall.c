@@ -1883,6 +1883,11 @@ static struct iovec *lock_iovec(int type, abi_ulong target_addr,
     return vec;
 
  fail:
+    while (--i >= 0) {
+        if (tswapal(target_vec[i].iov_len) > 0) {
+            unlock_user(vec[i].iov_base, tswapal(target_vec[i].iov_base), 0);
+        }
+    }
     unlock_user(target_vec, target_addr, 0);
  fail2:
     free(vec);
@@ -1901,7 +1906,7 @@ static void unlock_iovec(struct iovec *vec, abi_ulong target_addr,
     if (target_vec) {
         for (i = 0; i < count; i++) {
             abi_ulong base = tswapal(target_vec[i].iov_base);
-            abi_long len = tswapal(target_vec[i].iov_base);
+            abi_long len = tswapal(target_vec[i].iov_len);
             if (len < 0) {
                 break;
             }
@@ -3571,6 +3576,7 @@ static abi_long do_ioctl_dm(const IOCTLEntry *ie, uint8_t *buf_temp, int fd,
     }
     default:
         ret = -TARGET_EINVAL;
+        unlock_user(argptr, guest_data, 0);
         goto out;
     }
     unlock_user(argptr, guest_data, 0);
@@ -3690,6 +3696,7 @@ static abi_long do_ioctl_dm(const IOCTLEntry *ie, uint8_t *buf_temp, int fd,
             break;
         }
         default:
+            unlock_user(argptr, guest_data, 0);
             ret = -TARGET_EINVAL;
             goto out;
         }

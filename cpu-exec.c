@@ -494,28 +494,22 @@ int cpu_exec(CPUArchState *env)
                          * interrupt_request) which we will handle
                          * next time around the loop.
                          */
-                        tb = (TranslationBlock *)(next_tb & ~TB_EXIT_MASK);
                         next_tb = 0;
                         break;
                     case TB_EXIT_ICOUNT_EXPIRED:
                     {
                         /* Instruction counter expired.  */
-                        int insns_left;
-                        tb = (TranslationBlock *)(next_tb & ~TB_EXIT_MASK);
-                        insns_left = cpu->icount_decr.u32;
+                        int insns_left = cpu->icount_decr.u32;
                         if (cpu->icount_extra && insns_left >= 0) {
                             /* Refill decrementer and continue execution.  */
                             cpu->icount_extra += insns_left;
-                            if (cpu->icount_extra > 0xffff) {
-                                insns_left = 0xffff;
-                            } else {
-                                insns_left = cpu->icount_extra;
-                            }
+                            insns_left = MIN(0xffff, cpu->icount_extra);
                             cpu->icount_extra -= insns_left;
                             cpu->icount_decr.u16.low = insns_left;
                         } else {
                             if (insns_left > 0) {
                                 /* Execute remaining instructions.  */
+                                tb = (TranslationBlock *)(next_tb & ~TB_EXIT_MASK);
                                 cpu_exec_nocache(env, insns_left, tb);
                                 align_clocks(&sc, cpu);
                             }

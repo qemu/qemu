@@ -2032,7 +2032,7 @@ static bool vga_endian_state_needed(void *opaque)
     return s->default_endian_fb != s->big_endian_fb;
 }
 
-const VMStateDescription vmstate_vga_endian = {
+static const VMStateDescription vmstate_vga_endian = {
     .name = "vga.endian",
     .version_id = 1,
     .minimum_version_id = 1,

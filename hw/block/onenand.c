@@ -346,15 +346,9 @@ static inline int onenand_prog_spare(OneNANDState *s, int sec, int secn,
 static inline int onenand_erase(OneNANDState *s, int sec, int num)
 {
     uint8_t *blankbuf, *tmpbuf;
+
     blankbuf = g_malloc(512);
-    if (!blankbuf) {
-        return 1;
-    }
     tmpbuf = g_malloc(512);
-    if (!tmpbuf) {
-        g_free(blankbuf);
-        return 1;
-    }
     memset(blankbuf, 0xff, 512);
     for (; num > 0; num--, sec++) {
         if (s->blk_cur) {

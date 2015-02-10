@@ -121,7 +121,7 @@ enum {
     RDMA_WRID_RECV_CONTROL = 4000,
 };
 
-const char *wrid_desc[] = {
+static const char *wrid_desc[] = {
     [RDMA_WRID_NONE] = "NONE",
     [RDMA_WRID_RDMA_WRITE] = "WRITE RDMA",
     [RDMA_WRID_SEND_CONTROL] = "CONTROL SEND",
@@ -160,7 +160,7 @@ enum {
     RDMA_CONTROL_UNREGISTER_FINISHED, /* unpinning finished */
 };
 
-const char *control_desc[] = {
+static const char *control_desc[] = {
     [RDMA_CONTROL_NONE] = "NONE",
     [RDMA_CONTROL_ERROR] = "ERROR",
     [RDMA_CONTROL_READY] = "READY",
@@ -1121,9 +1121,6 @@ static int qemu_rdma_register_and_get_keys(RDMAContext *rdma,
     /* allocate memory to store chunk MRs */
     if (!block->pmr) {
         block->pmr = g_malloc0(block->nb_chunks * sizeof(struct ibv_mr *));
-        if (!block->pmr) {
-            return -1;
-        }
     }
 
     /*
@@ -3253,14 +3250,14 @@ static int qemu_rdma_get_fd(void *opaque)
     return rdma->comp_channel->fd;
 }
 
-const QEMUFileOps rdma_read_ops = {
+static const QEMUFileOps rdma_read_ops = {
     .get_buffer    = qemu_rdma_get_buffer,
     .get_fd        = qemu_rdma_get_fd,
     .close         = qemu_rdma_close,
     .hook_ram_load = qemu_rdma_registration_handle,
 };
 
-const QEMUFileOps rdma_write_ops = {
+static const QEMUFileOps rdma_write_ops = {
     .put_buffer         = qemu_rdma_put_buffer,
     .close              = qemu_rdma_close,
     .before_ram_iterate = qemu_rdma_registration_start,

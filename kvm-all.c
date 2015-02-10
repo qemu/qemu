@@ -2070,10 +2070,6 @@ int kvm_insert_breakpoint(CPUState *cpu, target_ulong addr,
         }
 
         bp = g_malloc(sizeof(struct kvm_sw_breakpoint));
-        if (!bp) {
-            return -ENOMEM;
-        }
-
         bp->pc = addr;
         bp->use_count = 1;
         err = kvm_arch_insert_sw_breakpoint(cpu, bp);
