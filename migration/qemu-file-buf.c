@@ -366,6 +366,68 @@ ssize_t qsb_write_at(QEMUSizedBuffer *qsb, const uint8_t *source,
     return count;
 }
 
+
+/**
+ * Put the content of a given QEMUSizedBuffer into QEMUFile.
+ *
+ * @f: A QEMUFile
+ * @qsb: A QEMUSizedBuffer
+ * @size: size of content to write
+ */
+void qsb_put_buffer(QEMUFile *f, QEMUSizedBuffer *qsb, size_t size)
+{
+    size_t l;
+    int i;
+
+    for (i = 0; i < qsb->n_iov && size > 0; i++) {
+        l = MIN(qsb->iov[i].iov_len, size);
+        qemu_put_buffer(f, qsb->iov[i].iov_base, l);
+        size -= l;
+    }
+}
+
+/*
+ * Read 'size' bytes of data from the file into qsb.
+ * always fill from pos 0 and used after qsb_create().
+ *
+ * It will return size bytes unless there was an error, in which case it will
+ * return as many as it managed to read (assuming blocking fd's which
+ * all current QEMUFile are)
+ */
+size_t qsb_fill_buffer(QEMUSizedBuffer *qsb, QEMUFile *f, size_t size)
+{
+    ssize_t rc = qsb_grow(qsb, size);
+    ssize_t pending = size;
+    int i;
+    uint8_t *buf = NULL;
+
+    qsb->used = 0;
+
+    if (rc < 0) {
+        return rc;
+    }
+
+    for (i = 0; i < qsb->n_iov && pending > 0; i++) {
+        size_t doneone = 0;
+        /* read until iov full */
+        while (doneone < qsb->iov[i].iov_len && pending > 0) {
+            size_t readone = 0;
+
+            buf = qsb->iov[i].iov_base;
+            readone = qemu_get_buffer(f, buf,
+                                MIN(qsb->iov[i].iov_len - doneone, pending));
+            if (readone == 0) {
+                return qsb->used;
+            }
+            buf += readone;
+            doneone += readone;
+            pending -= readone;
+            qsb->used += readone;
+        }
+    }
+    return qsb->used;
+}
+
 typedef struct QEMUBuffer {
     QEMUSizedBuffer *qsb;
     QEMUFile *file;
