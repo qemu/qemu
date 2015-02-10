@@ -29,8 +29,8 @@
 
 static int64_t alloc_clusters_noref(BlockDriverState *bs, uint64_t size);
 static int QEMU_WARN_UNUSED_RESULT update_refcount(BlockDriverState *bs,
-                            int64_t offset, int64_t length,
-                            int addend, enum qcow2_discard_type type);
+                            int64_t offset, int64_t length, uint16_t addend,
+                            bool decrease, enum qcow2_discard_type type);
 
 
 /*********************************************************/
@@ -263,7 +263,7 @@ static int alloc_refcount_block(BlockDriverState *bs,
     } else {
         /* Described somewhere else. This can recurse at most twice before we
          * arrive at a block that describes itself. */
-        ret = update_refcount(bs, new_block, s->cluster_size, 1,
+        ret = update_refcount(bs, new_block, s->cluster_size, 1, false,
                               QCOW2_DISCARD_NEVER);
         if (ret < 0) {
             goto fail_block;
@@ -530,8 +530,14 @@ found:
 }
 
 /* XXX: cache several refcount block clusters ? */
+/* @addend is the absolute value of the addend; if @decrease is set, @addend
+ * will be subtracted from the current refcount, otherwise it will be added */
 static int QEMU_WARN_UNUSED_RESULT update_refcount(BlockDriverState *bs,
-    int64_t offset, int64_t length, int addend, enum qcow2_discard_type type)
+                                                   int64_t offset,
+                                                   int64_t length,
+                                                   uint16_t addend,
+                                                   bool decrease,
+                                                   enum qcow2_discard_type type)
 {
     BDRVQcowState *s = bs->opaque;
     int64_t start, last, cluster_offset;
@@ -540,8 +546,9 @@ static int QEMU_WARN_UNUSED_RESULT update_refcount(BlockDriverState *bs,
     int ret;
 
 #ifdef DEBUG_ALLOC2
-    fprintf(stderr, "update_refcount: offset=%" PRId64 " size=%" PRId64 " addend=%d\n",
-           offset, length, addend);
+    fprintf(stderr, "update_refcount: offset=%" PRId64 " size=%" PRId64
+            " addend=%s%" PRIu16 "\n", offset, length, decrease ? "-" : "",
+            addend);
 #endif
     if (length < 0) {
         return -EINVAL;
@@ -549,7 +556,7 @@ static int QEMU_WARN_UNUSED_RESULT update_refcount(BlockDriverState *bs,
         return 0;
     }
 
-    if (addend < 0) {
+    if (decrease) {
         qcow2_cache_set_dependency(bs, s->refcount_block_cache,
             s->l2_table_cache);
     }
@@ -559,7 +566,8 @@ static int QEMU_WARN_UNUSED_RESULT update_refcount(BlockDriverState *bs,
     for(cluster_offset = start; cluster_offset <= last;
         cluster_offset += s->cluster_size)
     {
-        int block_index, refcount;
+        int block_index;
+        uint16_t refcount;
         int64_t cluster_index = cluster_offset >> s->cluster_bits;
         int64_t table_index = cluster_index >> s->refcount_block_bits;
 
@@ -586,10 +594,17 @@ static int QEMU_WARN_UNUSED_RESULT update_refcount(BlockDriverState *bs,
         block_index = cluster_index & (s->refcount_block_size - 1);
 
         refcount = be16_to_cpu(refcount_block[block_index]);
-        refcount += addend;
-        if (refcount < 0 || refcount > s->refcount_max) {
+        if (decrease ? ((uint16_t)(refcount - addend) > refcount)
+                     : ((uint16_t)(refcount + addend) < refcount ||
+                        (uint16_t)(refcount + addend) > s->refcount_max))
+        {
             ret = -EINVAL;
             goto fail;
+        }
+        if (decrease) {
+            refcount -= addend;
+        } else {
+            refcount += addend;
         }
         if (refcount == 0 && cluster_index < s->free_cluster_index) {
             s->free_cluster_index = cluster_index;
@@ -623,8 +638,8 @@ fail:
      */
     if (ret < 0) {
         int dummy;
-        dummy = update_refcount(bs, offset, cluster_offset - offset, -addend,
-                                QCOW2_DISCARD_NEVER);
+        dummy = update_refcount(bs, offset, cluster_offset - offset, addend,
+                                !decrease, QCOW2_DISCARD_NEVER);
         (void)dummy;
     }
 
@@ -634,18 +649,21 @@ fail:
 /*
  * Increases or decreases the refcount of a given cluster.
  *
+ * @addend is the absolute value of the addend; if @decrease is set, @addend
+ * will be subtracted from the current refcount, otherwise it will be added.
+ *
  * On success 0 is returned; on failure -errno is returned.
  */
 int qcow2_update_cluster_refcount(BlockDriverState *bs,
                                   int64_t cluster_index,
-                                  int addend,
+                                  uint16_t addend, bool decrease,
                                   enum qcow2_discard_type type)
 {
     BDRVQcowState *s = bs->opaque;
     int ret;
 
     ret = update_refcount(bs, cluster_index << s->cluster_bits, 1, addend,
-                          type);
+                          decrease, type);
     if (ret < 0) {
         return ret;
     }
@@ -709,7 +727,7 @@ int64_t qcow2_alloc_clusters(BlockDriverState *bs, uint64_t size)
             return offset;
         }
 
-        ret = update_refcount(bs, offset, size, 1, QCOW2_DISCARD_NEVER);
+        ret = update_refcount(bs, offset, size, 1, false, QCOW2_DISCARD_NEVER);
     } while (ret == -EAGAIN);
 
     if (ret < 0) {
@@ -746,7 +764,7 @@ int qcow2_alloc_clusters_at(BlockDriverState *bs, uint64_t offset,
         }
 
         /* And then allocate them */
-        ret = update_refcount(bs, offset, i << s->cluster_bits, 1,
+        ret = update_refcount(bs, offset, i << s->cluster_bits, 1, false,
                               QCOW2_DISCARD_NEVER);
     } while (ret == -EAGAIN);
 
@@ -797,7 +815,7 @@ int64_t qcow2_alloc_bytes(BlockDriverState *bs, int size)
     }
 
     assert(offset);
-    ret = update_refcount(bs, offset, size, 1, QCOW2_DISCARD_NEVER);
+    ret = update_refcount(bs, offset, size, 1, false, QCOW2_DISCARD_NEVER);
     if (ret < 0) {
         return ret;
     }
@@ -821,7 +839,7 @@ void qcow2_free_clusters(BlockDriverState *bs,
     int ret;
 
     BLKDBG_EVENT(bs->file, BLKDBG_CLUSTER_FREE);
-    ret = update_refcount(bs, offset, size, -1, type);
+    ret = update_refcount(bs, offset, size, 1, true, type);
     if (ret < 0) {
         fprintf(stderr, "qcow2_free_clusters failed: %s\n", strerror(-ret));
         /* TODO Remember the clusters to free them later and avoid leaking */
@@ -887,6 +905,8 @@ int qcow2_update_snapshot_refcount(BlockDriverState *bs,
     uint16_t refcount;
     int ret;
 
+    assert(addend >= -1 && addend <= 1);
+
     l2_table = NULL;
     l1_table = NULL;
     l1_size2 = l1_size * sizeof(uint64_t);
@@ -951,7 +971,7 @@ int qcow2_update_snapshot_refcount(BlockDriverState *bs,
                         if (addend != 0) {
                             ret = update_refcount(bs,
                                 (offset & s->cluster_offset_mask) & ~511,
-                                nb_csectors * 512, addend,
+                                nb_csectors * 512, abs(addend), addend < 0,
                                 QCOW2_DISCARD_SNAPSHOT);
                             if (ret < 0) {
                                 goto fail;
@@ -982,7 +1002,7 @@ int qcow2_update_snapshot_refcount(BlockDriverState *bs,
                         }
                         if (addend != 0) {
                             ret = qcow2_update_cluster_refcount(bs,
-                                    cluster_index, addend,
+                                    cluster_index, abs(addend), addend < 0,
                                     QCOW2_DISCARD_SNAPSHOT);
                             if (ret < 0) {
                                 goto fail;
@@ -1025,7 +1045,7 @@ int qcow2_update_snapshot_refcount(BlockDriverState *bs,
             if (addend != 0) {
                 ret = qcow2_update_cluster_refcount(bs, l2_offset >>
                                                         s->cluster_bits,
-                                                    addend,
+                                                    abs(addend), addend < 0,
                                                     QCOW2_DISCARD_SNAPSHOT);
                 if (ret < 0) {
                     goto fail;
@@ -1678,7 +1698,8 @@ static void compare_refcounts(BlockDriverState *bs, BdrvCheckResult *res,
 
             if (num_fixed) {
                 ret = update_refcount(bs, i << s->cluster_bits, 1,
-                                      (int)refcount2 - (int)refcount1,
+                                      refcount_diff(refcount1, refcount2),
+                                      refcount1 > refcount2,
                                       QCOW2_DISCARD_ALWAYS);
                 if (ret >= 0) {
                     (*num_fixed)++;

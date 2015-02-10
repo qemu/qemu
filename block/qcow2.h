@@ -459,6 +459,11 @@ static inline uint64_t l2meta_cow_end(QCowL2Meta *m)
         + (m->cow_end.nb_sectors << BDRV_SECTOR_BITS);
 }
 
+static inline uint16_t refcount_diff(uint16_t r1, uint16_t r2)
+{
+    return r1 > r2 ? r1 - r2 : r2 - r1;
+}
+
 // FIXME Need qcow2_ prefix to global functions
 
 /* qcow2.c functions */
@@ -482,7 +487,8 @@ int qcow2_get_refcount(BlockDriverState *bs, int64_t cluster_index,
                        uint16_t *refcount);
 
 int qcow2_update_cluster_refcount(BlockDriverState *bs, int64_t cluster_index,
-                                  int addend, enum qcow2_discard_type type);
+                                  uint16_t addend, bool decrease,
+                                  enum qcow2_discard_type type);
 
 int64_t qcow2_alloc_clusters(BlockDriverState *bs, uint64_t size);
 int qcow2_alloc_clusters_at(BlockDriverState *bs, uint64_t offset,
