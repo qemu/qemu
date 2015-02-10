@@ -20,6 +20,8 @@ typedef enum COLOFailoverStatus {
     FAILOVER_STATUS_REQUEST = 1, /* Request but not handled */
     FAILOVER_STATUS_HANDLING = 2, /* In the process of handling failover */
     FAILOVER_STATUS_COMPLETED = 3, /* Finish the failover process */
+    /* Optional, Relaunch the failover process, again 'NONE' -> 'COMPLETED' */
+    FAILOVER_STATUS_RELAUNCH = 4,
 } COLOFailoverStatus;
 
 void failover_init_state(void);

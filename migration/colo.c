@@ -19,6 +19,8 @@
 #include "migration/failover.h"
 #include "qapi-event.h"
 
+static bool vmstate_loading;
+
 /* colo buffer */
 #define COLO_BUFFER_BASE_SIZE (4 * 1024 * 1024)
 
@@ -50,6 +52,19 @@ static void secondary_vm_do_failover(void)
 {
     int old_state;
     MigrationIncomingState *mis = migration_incoming_get_current();
+
+    /* Can not do failover during the process of VM's loading VMstate, Or
+      * it will break the secondary VM.
+      */
+    if (vmstate_loading) {
+        old_state = failover_set_state(FAILOVER_STATUS_HANDLING,
+                                       FAILOVER_STATUS_RELAUNCH);
+        if (old_state != FAILOVER_STATUS_HANDLING) {
+            error_report("Unknown error while do failover for secondary VM,"
+                         "old_state: %d", old_state);
+        }
+        return;
+    }
 
     migrate_set_state(&mis->state, MIGRATION_STATUS_COLO,
                       MIGRATION_STATUS_COMPLETED);
@@ -560,12 +575,22 @@ void *colo_process_incoming_thread(void *opaque)
 
         qemu_mutex_lock_iothread();
         qemu_system_reset(VMRESET_SILENT);
+        vmstate_loading = true;
         if (qemu_loadvm_state(fb) < 0) {
             error_report("COLO: loadvm failed");
+            vmstate_loading = false;
             qemu_mutex_unlock_iothread();
             goto out;
         }
+
+        vmstate_loading = false;
         qemu_mutex_unlock_iothread();
+
+        if (failover_get_state() == FAILOVER_STATUS_RELAUNCH) {
+            failover_set_state(FAILOVER_STATUS_RELAUNCH, FAILOVER_STATUS_NONE);
+            failover_request_active(NULL);
+            goto out;
+        }
 
         colo_put_cmd(mis->to_src_file, COLO_COMMAND_VMSTATE_LOADED,
                      &local_err);
