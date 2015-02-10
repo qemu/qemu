@@ -181,6 +181,20 @@ static void pci_vga_qext_write(void *ptr, hwaddr addr,
     }
 }
 
+static bool vga_get_big_endian_fb(Object *obj, Error **errp)
+{
+    PCIVGAState *d = DO_UPCAST(PCIVGAState, dev, PCI_DEVICE(obj));
+
+    return d->vga.big_endian_fb;
+}
+
+static void vga_set_big_endian_fb(Object *obj, bool value, Error **errp)
+{
+    PCIVGAState *d = DO_UPCAST(PCIVGAState, dev, PCI_DEVICE(obj));
+
+    d->vga.big_endian_fb = value;
+}
+
 static const MemoryRegionOps pci_vga_qext_ops = {
     .read = pci_vga_qext_read,
     .write = pci_vga_qext_write,
@@ -234,6 +248,13 @@ static void pci_std_vga_realize(PCIDevice *dev, Error **errp)
     }
 }
 
+static void pci_std_vga_init(Object *obj)
+{
+    /* Expose framebuffer byteorder via QOM */
+    object_property_add_bool(obj, "big-endian-framebuffer",
+                             vga_get_big_endian_fb, vga_set_big_endian_fb, NULL);
+}
+
 static void pci_secondary_vga_realize(PCIDevice *dev, Error **errp)
 {
     PCIVGAState *d = DO_UPCAST(PCIVGAState, dev, dev);
@@ -265,7 +286,13 @@ static void pci_secondary_vga_realize(PCIDevice *dev, Error **errp)
 
     pci_register_bar(&d->dev, 0, PCI_BASE_ADDRESS_MEM_PREFETCH, &s->vram);
     pci_register_bar(&d->dev, 2, PCI_BASE_ADDRESS_SPACE_MEMORY, &d->mmio);
+}
 
+static void pci_secondary_vga_init(Object *obj)
+{
+    /* Expose framebuffer byteorder via QOM */
+    object_property_add_bool(obj, "big-endian-framebuffer",
+                             vga_get_big_endian_fb, vga_set_big_endian_fb, NULL);
 }
 
 static void pci_secondary_vga_reset(DeviceState *dev)
@@ -324,6 +351,7 @@ static void secondary_class_init(ObjectClass *klass, void *data)
 static const TypeInfo vga_info = {
     .name          = "VGA",
     .parent        = TYPE_PCI_DEVICE,
+    .instance_init = pci_std_vga_init,
     .instance_size = sizeof(PCIVGAState),
     .class_init    = vga_class_init,
 };
@@ -331,6 +359,7 @@ static const TypeInfo vga_info = {
 static const TypeInfo secondary_info = {
     .name          = "secondary-vga",
     .parent        = TYPE_PCI_DEVICE,
+    .instance_init = pci_secondary_vga_init,
     .instance_size = sizeof(PCIVGAState),
     .class_init    = secondary_class_init,
 };
