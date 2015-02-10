@@ -516,7 +516,7 @@ static void vfio_msi_interrupt(void *opaque)
         abort();
     }
 
-    trace_vfio_msi_interrupt(vbasedev->name, nr, msg.address, msg.data);
+    trace_vfio_msi_interrupt(vdev->vbasedev.name, nr, msg.address, msg.data);
 #endif
 
     if (vdev->interrupt == VFIO_INT_MSIX) {
