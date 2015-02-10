@@ -982,3 +982,31 @@ static void spapr_pci_register_types(void)
 }
 
 type_init(spapr_pci_register_types)
+
+static int spapr_switch_one_vga(DeviceState *dev, void *opaque)
+{
+    bool be = *(bool *)opaque;
+
+    if (object_dynamic_cast(OBJECT(dev), "VGA")
+        || object_dynamic_cast(OBJECT(dev), "secondary-vga")) {
+        object_property_set_bool(OBJECT(dev), be, "big-endian-framebuffer",
+                                 &error_abort);
+    }
+    return 0;
+}
+
+void spapr_pci_switch_vga(bool big_endian)
+{
+    sPAPRPHBState *sphb;
+
+    /*
+     * For backward compatibility with existing guests, we switch
+     * the endianness of the VGA controller when changing the guest
+     * interrupt mode
+     */
+    QLIST_FOREACH(sphb, &spapr->phbs, list) {
+        BusState *bus = &PCI_HOST_BRIDGE(sphb)->bus->qbus;
+        qbus_walk_children(bus, spapr_switch_one_vga, NULL, NULL, NULL,
+                           &big_endian);
+    }
+}
