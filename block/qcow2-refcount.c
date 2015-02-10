@@ -584,7 +584,7 @@ static int QEMU_WARN_UNUSED_RESULT update_refcount(BlockDriverState *bs,
 
         refcount = be16_to_cpu(refcount_block[block_index]);
         refcount += addend;
-        if (refcount < 0 || refcount > 0xffff) {
+        if (refcount < 0 || refcount > s->refcount_max) {
             ret = -EINVAL;
             goto fail;
         }
@@ -775,7 +775,7 @@ int64_t qcow2_alloc_bytes(BlockDriverState *bs, int size)
             return refcount;
         }
 
-        if (refcount == 0xffff) {
+        if (refcount == s->refcount_max) {
             offset = 0;
         }
     }

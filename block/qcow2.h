@@ -258,6 +258,8 @@ typedef struct BDRVQcowState {
     int qcow_version;
     bool use_lazy_refcounts;
     int refcount_order;
+    int refcount_bits;
+    uint64_t refcount_max;
 
     bool discard_passthrough[QCOW2_DISCARD_MAX];
 
