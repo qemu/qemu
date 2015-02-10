@@ -631,8 +631,7 @@ fail:
 /*
  * Increases or decreases the refcount of a given cluster.
  *
- * If the return value is non-negative, it is the new refcount of the cluster.
- * If it is negative, it is -errno and indicates an error.
+ * On success 0 is returned; on failure -errno is returned.
  */
 int qcow2_update_cluster_refcount(BlockDriverState *bs,
                                   int64_t cluster_index,
@@ -648,7 +647,7 @@ int qcow2_update_cluster_refcount(BlockDriverState *bs,
         return ret;
     }
 
-    return qcow2_get_refcount(bs, cluster_index);
+    return 0;
 }
 
 
@@ -976,13 +975,15 @@ int qcow2_update_snapshot_refcount(BlockDriverState *bs,
                             break;
                         }
                         if (addend != 0) {
-                            refcount = qcow2_update_cluster_refcount(bs,
+                            ret = qcow2_update_cluster_refcount(bs,
                                     cluster_index, addend,
                                     QCOW2_DISCARD_SNAPSHOT);
-                        } else {
-                            refcount = qcow2_get_refcount(bs, cluster_index);
+                            if (ret < 0) {
+                                goto fail;
+                            }
                         }
 
+                        refcount = qcow2_get_refcount(bs, cluster_index);
                         if (refcount < 0) {
                             ret = refcount;
                             goto fail;
@@ -1017,11 +1018,15 @@ int qcow2_update_snapshot_refcount(BlockDriverState *bs,
 
 
             if (addend != 0) {
-                refcount = qcow2_update_cluster_refcount(bs, l2_offset >>
-                        s->cluster_bits, addend, QCOW2_DISCARD_SNAPSHOT);
-            } else {
-                refcount = qcow2_get_refcount(bs, l2_offset >> s->cluster_bits);
+                ret = qcow2_update_cluster_refcount(bs, l2_offset >>
+                                                        s->cluster_bits,
+                                                    addend,
+                                                    QCOW2_DISCARD_SNAPSHOT);
+                if (ret < 0) {
+                    goto fail;
+                }
             }
+            refcount = qcow2_get_refcount(bs, l2_offset >> s->cluster_bits);
             if (refcount < 0) {
                 ret = refcount;
                 goto fail;
