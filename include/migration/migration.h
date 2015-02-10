@@ -112,6 +112,7 @@ struct MigrationIncomingState {
     QemuThread colo_incoming_thread;
     /* The coroutine we should enter (back) after failover */
     Coroutine *migration_incoming_co;
+    QemuSemaphore colo_incoming_sem;
 
     /* See savevm.c */
     LoadStateEntry_Head loadvm_handlers;
@@ -175,6 +176,8 @@ struct MigrationState
     QSIMPLEQ_HEAD(src_page_requests, MigrationSrcPageRequest) src_page_requests;
     /* The RAMBlock used in the last src_page_request */
     RAMBlock *last_req_rb;
+
+    QemuSemaphore colo_sem;
 };
 
 void migrate_set_state(int *state, int old_state, int new_state);

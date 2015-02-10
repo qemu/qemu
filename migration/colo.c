@@ -59,6 +59,18 @@ static void secondary_vm_do_failover(void)
         /* recover runstate to normal migration finish state */
         autostart = true;
     }
+    /*
+    * Make sure colo incoming thread not block in recv or send,
+    * If mis->from_src_file and mis->to_src_file use the same fd,
+    * The second shutdown() will return -1, we ignore this value,
+    * it is harmless.
+    */
+    if (mis->from_src_file) {
+        qemu_file_shutdown(mis->from_src_file);
+    }
+    if (mis->to_src_file) {
+        qemu_file_shutdown(mis->to_src_file);
+    }
 
     old_state = failover_set_state(FAILOVER_STATUS_HANDLING,
                                    FAILOVER_STATUS_COMPLETED);
@@ -67,6 +79,8 @@ static void secondary_vm_do_failover(void)
                      "secondary VM", old_state);
         return;
     }
+    /* Notify COLO incoming thread that failover work is finished */
+    qemu_sem_post(&mis->colo_incoming_sem);
     /* For Secondary VM, jump to incoming co */
     if (mis->migration_incoming_co) {
         qemu_coroutine_enter(mis->migration_incoming_co, NULL);
@@ -81,6 +95,18 @@ static void primary_vm_do_failover(void)
     migrate_set_state(&s->state, MIGRATION_STATUS_COLO,
                       MIGRATION_STATUS_COMPLETED);
 
+    /*
+    * Make sure colo thread no block in recv or send,
+    * The s->rp_state.from_dst_file and s->to_dst_file may use the
+    * same fd, but we still shutdown the fd for twice, it is harmless.
+    */
+    if (s->to_dst_file) {
+        qemu_file_shutdown(s->to_dst_file);
+    }
+    if (s->rp_state.from_dst_file) {
+        qemu_file_shutdown(s->rp_state.from_dst_file);
+    }
+
     old_state = failover_set_state(FAILOVER_STATUS_HANDLING,
                                    FAILOVER_STATUS_COMPLETED);
     if (old_state != FAILOVER_STATUS_HANDLING) {
@@ -88,6 +114,8 @@ static void primary_vm_do_failover(void)
                      old_state);
         return;
     }
+    /* Notify COLO thread that failover work is finished */
+    qemu_sem_post(&s->colo_sem);
 }
 
 void colo_do_failover(MigrationState *s)
@@ -383,6 +411,14 @@ out:
     qsb_free(buffer);
     buffer = NULL;
 
+    /* Hope this not to be too long to wait here */
+    qemu_sem_wait(&s->colo_sem);
+    qemu_sem_destroy(&s->colo_sem);
+    /*
+    * Must be called after failover BH is completed,
+    * Or the failover BH may shutdown the wrong fd, that
+    * re-used by other thread after we release here.
+    */
     if (s->rp_state.from_dst_file) {
         qemu_fclose(s->rp_state.from_dst_file);
     }
@@ -391,6 +427,7 @@ out:
 void migrate_start_colo_process(MigrationState *s)
 {
     qemu_mutex_unlock_iothread();
+    qemu_sem_init(&s->colo_sem, 0);
     migrate_set_state(&s->state, MIGRATION_STATUS_ACTIVE,
                       MIGRATION_STATUS_COLO);
     colo_process_checkpoint(s);
@@ -429,6 +466,8 @@ void *colo_process_incoming_thread(void *opaque)
     uint64_t value;
     Error *local_err = NULL;
     int ret;
+
+    qemu_sem_init(&mis->colo_incoming_sem, 0);
 
     migrate_set_state(&mis->state, MIGRATION_STATUS_ACTIVE,
                       MIGRATION_STATUS_COLO);
@@ -561,6 +600,10 @@ out:
     */
     colo_release_ram_cache();
 
+    /* Hope this not to be too long to loop here */
+    qemu_sem_wait(&mis->colo_incoming_sem);
+    qemu_sem_destroy(&mis->colo_incoming_sem);
+    /* Must be called after failover BH is completed */
     if (mis->to_src_file) {
         qemu_fclose(mis->to_src_file);
     }
