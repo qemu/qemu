@@ -35,4 +35,6 @@ COLOMode get_colo_mode(void);
 
 /* failover */
 void colo_do_failover(MigrationState *s);
+
+bool colo_shutdown(void);
 #endif

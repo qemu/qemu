@@ -248,6 +248,7 @@ static uint64_t colo_get_cmd_value(QEMUFile *f, uint32_t expect_cmd,
 static int colo_do_checkpoint_transaction(MigrationState *s,
                                           QEMUSizedBuffer *buffer)
 {
+    int colo_shutdown;
     QEMUFile *trans = NULL;
     size_t size;
     Error *local_err = NULL;
@@ -277,6 +278,7 @@ static int colo_do_checkpoint_transaction(MigrationState *s,
         qemu_mutex_unlock_iothread();
         goto out;
     }
+    colo_shutdown = colo_shutdown_requested;
     vm_stop_force_state(RUN_STATE_COLO);
     qemu_mutex_unlock_iothread();
     trace_colo_vm_state_change("run", "stop");
@@ -328,6 +330,18 @@ static int colo_do_checkpoint_transaction(MigrationState *s,
                        COLO_COMMAND_VMSTATE_LOADED, &local_err);
     if (local_err) {
         goto out;
+    }
+
+    if (colo_shutdown) {
+        colo_put_cmd(s->to_dst_file, COLO_COMMAND_GUEST_SHUTDOWN, &local_err);
+        if (local_err) {
+            goto out;
+        }
+        qemu_fflush(s->to_dst_file);
+        colo_shutdown_requested = 0;
+        qemu_system_shutdown_request_core();
+        /* Fix me: Just let the colo thread exit ? */
+        qemu_thread_exit(0);
     }
 
     ret = 0;
@@ -390,8 +404,9 @@ static void colo_process_checkpoint(MigrationState *s)
         }
 
         current_time = qemu_clock_get_ms(QEMU_CLOCK_HOST);
-        if (current_time - checkpoint_time <
-            s->parameters[MIGRATION_PARAMETER_X_CHECKPOINT_DELAY]) {
+        if ((current_time - checkpoint_time <
+            s->parameters[MIGRATION_PARAMETER_X_CHECKPOINT_DELAY]) &&
+            !colo_shutdown_requested) {
             int64_t delay_ms;
 
             delay_ms = s->parameters[MIGRATION_PARAMETER_X_CHECKPOINT_DELAY] -
@@ -465,6 +480,15 @@ static void colo_wait_handle_cmd(QEMUFile *f, int *checkpoint_request,
     case COLO_COMMAND_CHECKPOINT_REQUEST:
         *checkpoint_request = 1;
         break;
+    case COLO_COMMAND_GUEST_SHUTDOWN:
+        qemu_mutex_lock_iothread();
+        vm_stop_force_state(RUN_STATE_COLO);
+        qemu_system_shutdown_request_core();
+        qemu_mutex_unlock_iothread();
+        /* the main thread will exit and terminate the whole
+        * process, do we need some cleanup?
+        */
+        qemu_thread_exit(0);
     default:
         *checkpoint_request = 0;
         error_setg(errp, "Got unknown COLO command: %d", cmd);
@@ -635,4 +659,20 @@ out:
     migration_incoming_exit_colo();
 
     return NULL;
+}
+
+bool colo_shutdown(void)
+{
+    /*
+    * if in colo mode, we need do some significant work before respond
+    * to the shutdown request.
+    */
+    if (migration_incoming_in_colo_state()) {
+        return true; /* primary's responsibility */
+    }
+    if (migration_in_colo_state()) {
+        colo_shutdown_requested = 1;
+        return true;
+    }
+    return false;
 }
