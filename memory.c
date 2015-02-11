@@ -1943,6 +1943,7 @@ void memory_listener_unregister(MemoryListener *listener)
 
 void address_space_init(AddressSpace *as, MemoryRegion *root, const char *name)
 {
+    memory_region_ref(root);
     memory_region_transaction_begin();
     as->root = root;
     as->current_map = g_new(FlatView, 1);
@@ -1969,10 +1970,13 @@ static void do_address_space_destroy(AddressSpace *as)
     flatview_unref(as->current_map);
     g_free(as->name);
     g_free(as->ioeventfds);
+    memory_region_unref(as->root);
 }
 
 void address_space_destroy(AddressSpace *as)
 {
+    MemoryRegion *root = as->root;
+
     /* Flush out anything from MemoryListeners listening in on this */
     memory_region_transaction_begin();
     as->root = NULL;
@@ -1984,6 +1988,7 @@ void address_space_destroy(AddressSpace *as)
      * entries that the guest should never use.  Wait for the old
      * values to expire before freeing the data.
      */
+    as->root = root;
     call_rcu(as, do_address_space_destroy, rcu);
 }
 
