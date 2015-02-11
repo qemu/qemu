@@ -1531,34 +1531,36 @@ static int img_convert(int argc, char **argv)
         goto out;
     }
 
-    if (!drv->create_opts) {
-        error_report("Format driver '%s' does not support image creation",
-                     drv->format_name);
-        ret = -1;
-        goto out;
-    }
+    if (!skip_create) {
+        if (!drv->create_opts) {
+            error_report("Format driver '%s' does not support image creation",
+                         drv->format_name);
+            ret = -1;
+            goto out;
+        }
 
-    if (!proto_drv->create_opts) {
-        error_report("Protocol driver '%s' does not support image creation",
-                     proto_drv->format_name);
-        ret = -1;
-        goto out;
-    }
+        if (!proto_drv->create_opts) {
+            error_report("Protocol driver '%s' does not support image creation",
+                         proto_drv->format_name);
+            ret = -1;
+            goto out;
+        }
 
-    create_opts = qemu_opts_append(create_opts, drv->create_opts);
-    create_opts = qemu_opts_append(create_opts, proto_drv->create_opts);
+        create_opts = qemu_opts_append(create_opts, drv->create_opts);
+        create_opts = qemu_opts_append(create_opts, proto_drv->create_opts);
 
-    opts = qemu_opts_create(create_opts, NULL, 0, &error_abort);
-    if (options && qemu_opts_do_parse(opts, options, NULL)) {
-        error_report("Invalid options for file format '%s'", out_fmt);
-        ret = -1;
-        goto out;
-    }
+        opts = qemu_opts_create(create_opts, NULL, 0, &error_abort);
+        if (options && qemu_opts_do_parse(opts, options, NULL)) {
+            error_report("Invalid options for file format '%s'", out_fmt);
+            ret = -1;
+            goto out;
+        }
 
-    qemu_opt_set_number(opts, BLOCK_OPT_SIZE, total_sectors * 512);
-    ret = add_old_style_options(out_fmt, opts, out_baseimg, NULL);
-    if (ret < 0) {
-        goto out;
+        qemu_opt_set_number(opts, BLOCK_OPT_SIZE, total_sectors * 512);
+        ret = add_old_style_options(out_fmt, opts, out_baseimg, NULL);
+        if (ret < 0) {
+            goto out;
+        }
     }
 
     /* Get backing file name if -o backing_file was used */
