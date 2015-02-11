@@ -2059,11 +2059,15 @@ void address_space_init_dispatch(AddressSpace *as)
     memory_listener_register(&as->dispatch_listener, as);
 }
 
+void address_space_unregister(AddressSpace *as)
+{
+    memory_listener_unregister(&as->dispatch_listener);
+}
+
 void address_space_destroy_dispatch(AddressSpace *as)
 {
     AddressSpaceDispatch *d = as->dispatch;
 
-    memory_listener_unregister(&as->dispatch_listener);
     g_free(d);
     as->dispatch = NULL;
 }
