@@ -738,3 +738,30 @@
 ##
 { 'command': 'guest-get-fsinfo',
   'returns': ['GuestFilesystemInfo'] }
+
+##
+# @guest-set-user-password
+#
+# @username: the user account whose password to change
+# @password: the new password entry string, base64 encoded
+# @crypted: true if password is already crypt()d, false if raw
+#
+# If the @crypted flag is true, it is the caller's responsibility
+# to ensure the correct crypt() encryption scheme is used. This
+# command does not attempt to interpret or report on the encryption
+# scheme. Refer to the documentation of the guest operating system
+# in question to determine what is supported.
+#
+# Note all guest operating systems will support use of the
+# @crypted flag, as they may require the clear-text password
+#
+# The @password parameter must always be base64 encoded before
+# transmission, even if already crypt()d, to ensure it is 8-bit
+# safe when passed as JSON.
+#
+# Returns: Nothing on success.
+#
+# Since 2.3
+##
+{ 'command': 'guest-set-user-password',
+  'data': { 'username': 'str', 'password': 'str', 'crypted': 'bool' } }

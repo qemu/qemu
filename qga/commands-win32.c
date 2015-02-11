@@ -446,6 +446,14 @@ int64_t qmp_guest_set_vcpus(GuestLogicalProcessorList *vcpus, Error **errp)
     return -1;
 }
 
+void qmp_guest_set_user_password(const char *username,
+                                 const char *password,
+                                 bool crypted,
+                                 Error **errp)
+{
+    error_set(errp, QERR_UNSUPPORTED);
+}
+
 /* add unsupported commands to the blacklist */
 GList *ga_command_blacklist_init(GList *blacklist)
 {
@@ -454,6 +462,7 @@ GList *ga_command_blacklist_init(GList *blacklist)
         "guest-file-write", "guest-file-seek", "guest-file-flush",
         "guest-suspend-hybrid", "guest-network-get-interfaces",
         "guest-get-vcpus", "guest-set-vcpus",
+        "guest-set-user-password",
         "guest-fsfreeze-freeze-list", "guest-get-fsinfo",
         "guest-fstrim", NULL};
     char **p = (char **)list_unsupported;
