@@ -597,6 +597,51 @@ static coroutine_fn int vpc_co_write(BlockDriverState *bs, int64_t sector_num,
     return ret;
 }
 
+static int64_t coroutine_fn vpc_co_get_block_status(BlockDriverState *bs,
+        int64_t sector_num, int nb_sectors, int *pnum)
+{
+    BDRVVPCState *s = bs->opaque;
+    VHDFooter *footer = (VHDFooter*) s->footer_buf;
+    int64_t start, offset, next;
+    bool allocated;
+    int n;
+
+    if (be32_to_cpu(footer->type) == VHD_FIXED) {
+        *pnum = nb_sectors;
+        return BDRV_BLOCK_RAW | BDRV_BLOCK_OFFSET_VALID | BDRV_BLOCK_DATA |
+               (sector_num << BDRV_SECTOR_BITS);
+    }
+
+    offset = get_sector_offset(bs, sector_num, 0);
+    start = offset;
+    allocated = (offset != -1);
+    *pnum = 0;
+
+    do {
+        /* All sectors in a block are contiguous (without using the bitmap) */
+        n = ROUND_UP(sector_num + 1, s->block_size / BDRV_SECTOR_SIZE)
+          - sector_num;
+        n = MIN(n, nb_sectors);
+
+        *pnum += n;
+        sector_num += n;
+        nb_sectors -= n;
+        next = start + (*pnum * BDRV_SECTOR_SIZE);
+
+        if (nb_sectors == 0) {
+            break;
+        }
+
+        offset = get_sector_offset(bs, sector_num, 0);
+    } while ((allocated && offset == next) || (!allocated && offset == -1));
+
+    if (allocated) {
+        return BDRV_BLOCK_DATA | BDRV_BLOCK_OFFSET_VALID | start;
+    } else {
+        return 0;
+    }
+}
+
 /*
  * Calculates the number of cylinders, heads and sectors per cylinder
  * based on a given number of sectors. This is the algorithm described
@@ -903,8 +948,9 @@ static BlockDriver bdrv_vpc = {
     .bdrv_reopen_prepare    = vpc_reopen_prepare,
     .bdrv_create            = vpc_create,
 
-    .bdrv_read              = vpc_co_read,
-    .bdrv_write             = vpc_co_write,
+    .bdrv_read                  = vpc_co_read,
+    .bdrv_write                 = vpc_co_write,
+    .bdrv_co_get_block_status   = vpc_co_get_block_status,
 
     .bdrv_get_info          = vpc_get_info,
 
