@@ -801,6 +801,7 @@ static int vpc_create(const char *filename, QemuOpts *opts, Error **errp)
     }
 
     total_sectors = (int64_t) cyls * heads * secs_per_cyl;
+    total_size = total_sectors * BDRV_SECTOR_SIZE;
 
     /* Prepare the Hard Disk Footer */
     memset(buf, 0, 1024);
@@ -822,13 +823,8 @@ static int vpc_create(const char *filename, QemuOpts *opts, Error **errp)
     /* Version of Virtual PC 2007 */
     footer->major = cpu_to_be16(0x0005);
     footer->minor = cpu_to_be16(0x0003);
-    if (disk_type == VHD_DYNAMIC) {
-        footer->orig_size = cpu_to_be64(total_sectors * 512);
-        footer->size = cpu_to_be64(total_sectors * 512);
-    } else {
-        footer->orig_size = cpu_to_be64(total_size);
-        footer->size = cpu_to_be64(total_size);
-    }
+    footer->orig_size = cpu_to_be64(total_size);
+    footer->size = cpu_to_be64(total_size);
     footer->cyls = cpu_to_be16(cyls);
     footer->heads = heads;
     footer->secs_per_cyl = secs_per_cyl;
