@@ -15,6 +15,9 @@
  * GNU General Public License for more details.
  */
 
+#include "qemu/error-report.h"
+#include "exec/address-spaces.h"
+#include "sysemu/kvm.h"
 #include "cpu.h"
 
 /* #define DEBUG_S390 */
@@ -367,4 +370,103 @@ int mmu_translate(CPUS390XState *env, target_ulong vaddr, int rw, uint64_t asc,
     }
 
     return r;
+}
+
+/**
+ * lowprot_enabled: Check whether low-address protection is enabled
+ */
+static bool lowprot_enabled(const CPUS390XState *env)
+{
+    if (!(env->cregs[0] & CR0_LOWPROT)) {
+        return false;
+    }
+    if (!(env->psw.mask & PSW_MASK_DAT)) {
+        return true;
+    }
+
+    /* Check the private-space control bit */
+    switch (env->psw.mask & PSW_MASK_ASC) {
+    case PSW_ASC_PRIMARY:
+        return !(env->cregs[1] & _ASCE_PRIVATE_SPACE);
+    case PSW_ASC_SECONDARY:
+        return !(env->cregs[7] & _ASCE_PRIVATE_SPACE);
+    case PSW_ASC_HOME:
+        return !(env->cregs[13] & _ASCE_PRIVATE_SPACE);
+    default:
+        /* We don't support access register mode */
+        error_report("unsupported addressing mode");
+        exit(1);
+    }
+}
+
+/**
+ * translate_pages: Translate a set of consecutive logical page addresses
+ * to absolute addresses
+ */
+static int translate_pages(S390CPU *cpu, vaddr addr, int nr_pages,
+                           target_ulong *pages, bool is_write)
+{
+    bool lowprot = is_write && lowprot_enabled(&cpu->env);
+    uint64_t asc = cpu->env.psw.mask & PSW_MASK_ASC;
+    CPUS390XState *env = &cpu->env;
+    int ret, i, pflags;
+
+    for (i = 0; i < nr_pages; i++) {
+        /* Low-address protection? */
+        if (lowprot && (addr < 512 || (addr >= 4096 && addr < 4096 + 512))) {
+            trigger_access_exception(env, PGM_PROTECTION, ILEN_LATER_INC, 0);
+            return -EACCES;
+        }
+        ret = mmu_translate(env, addr, is_write, asc, &pages[i], &pflags, true);
+        if (ret) {
+            return ret;
+        }
+        if (!address_space_access_valid(&address_space_memory, pages[i],
+                                        TARGET_PAGE_SIZE, is_write)) {
+            program_interrupt(env, PGM_ADDRESSING, 0);
+            return -EFAULT;
+        }
+        addr += TARGET_PAGE_SIZE;
+    }
+
+    return 0;
+}
+
+/**
+ * s390_cpu_virt_mem_rw:
+ * @laddr:     the logical start address
+ * @hostbuf:   buffer in host memory. NULL = do only checks w/o copying
+ * @len:       length that should be transfered
+ * @is_write:  true = write, false = read
+ * Returns:    0 on success, non-zero if an exception occured
+ *
+ * Copy from/to guest memory using logical addresses. Note that we inject a
+ * program interrupt in case there is an error while accessing the memory.
+ */
+int s390_cpu_virt_mem_rw(S390CPU *cpu, vaddr laddr, void *hostbuf,
+                         int len, bool is_write)
+{
+    int currlen, nr_pages, i;
+    target_ulong *pages;
+    int ret;
+
+    nr_pages = (((laddr & ~TARGET_PAGE_MASK) + len - 1) >> TARGET_PAGE_BITS)
+               + 1;
+    pages = g_malloc(nr_pages * sizeof(*pages));
+
+    ret = translate_pages(cpu, laddr, nr_pages, pages, is_write);
+    if (ret == 0 && hostbuf != NULL) {
+        /* Copy data by stepping through the area page by page */
+        for (i = 0; i < nr_pages; i++) {
+            currlen = MIN(len, TARGET_PAGE_SIZE - (laddr % TARGET_PAGE_SIZE));
+            cpu_physical_memory_rw(pages[i] | (laddr & ~TARGET_PAGE_MASK),
+                                   hostbuf, currlen, is_write);
+            laddr += currlen;
+            hostbuf += currlen;
+            len -= currlen;
+        }
+    }
+
+    g_free(pages);
+    return ret;
 }

@@ -287,6 +287,7 @@ typedef struct CPUS390XState {
 #define FLAG_MASK_32            0x00001000
 
 /* Control register 0 bits */
+#define CR0_LOWPROT             0x0000000010000000ULL
 #define CR0_EDAT                0x0000000000800000ULL
 
 static inline int cpu_mmu_index (CPUS390XState *env)
@@ -896,6 +897,16 @@ int mmu_translate(CPUS390XState *env, target_ulong vaddr, int rw, uint64_t asc,
 int sclp_service_call(CPUS390XState *env, uint64_t sccb, uint32_t code);
 uint32_t calc_cc(CPUS390XState *env, uint32_t cc_op, uint64_t src, uint64_t dst,
                  uint64_t vr);
+
+int s390_cpu_virt_mem_rw(S390CPU *cpu, vaddr laddr, void *hostbuf, int len,
+                         bool is_write);
+
+#define s390_cpu_virt_mem_read(cpu, laddr, dest, len) \
+        s390_cpu_virt_mem_rw(cpu, laddr, dest, len, false)
+#define s390_cpu_virt_mem_write(cpu, laddr, dest, len) \
+        s390_cpu_virt_mem_rw(cpu, laddr, dest, len, true)
+#define s390_cpu_virt_mem_check_write(cpu, laddr, len) \
+        s390_cpu_virt_mem_rw(cpu, laddr, NULL, len, true)
 
 /* The value of the TOD clock for 1.1.1970. */
 #define TOD_UNIX_EPOCH 0x7d91048bca000000ULL
