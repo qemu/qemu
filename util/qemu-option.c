@@ -750,8 +750,8 @@ void qemu_opts_print(QemuOpts *opts, const char *sep)
     }
 }
 
-static int opts_do_parse(QemuOpts *opts, const char *params,
-                         const char *firstname, bool prepend)
+static void opts_do_parse(QemuOpts *opts, const char *params,
+                          const char *firstname, bool prepend, Error **errp)
 {
     char option[128], value[1024];
     const char *p,*pe,*pc;
@@ -789,21 +789,27 @@ static int opts_do_parse(QemuOpts *opts, const char *params,
             /* store and parse */
             opt_set(opts, option, value, prepend, &local_err);
             if (local_err) {
-                qerror_report_err(local_err);
-                error_free(local_err);
-                return -1;
+                error_propagate(errp, local_err);
+                return;
             }
         }
         if (*p != ',') {
             break;
         }
     }
-    return 0;
 }
 
 int qemu_opts_do_parse(QemuOpts *opts, const char *params, const char *firstname)
 {
-    return opts_do_parse(opts, params, firstname, false);
+    Error *err = NULL;
+
+    opts_do_parse(opts, params, firstname, false, &err);
+    if (err) {
+        qerror_report_err(err);
+        error_free(err);
+        return -1;
+    }
+    return 0;
 }
 
 static QemuOpts *opts_parse(QemuOptsList *list, const char *params,
@@ -843,7 +849,10 @@ static QemuOpts *opts_parse(QemuOptsList *list, const char *params,
         return NULL;
     }
 
-    if (opts_do_parse(opts, params, firstname, defaults) != 0) {
+    opts_do_parse(opts, params, firstname, defaults, &local_err);
+    if (local_err) {
+        qerror_report_err(local_err);
+        error_free(local_err);
         qemu_opts_del(opts);
         return NULL;
     }
