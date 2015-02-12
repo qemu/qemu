@@ -188,9 +188,6 @@ static int mmu_translate_region(CPUS390XState *env, target_ulong vaddr,
         return -1;
     }
 
-    /* XXX region protection flags */
-    /* *flags &= ~PAGE_WRITE */
-
     if (level == _ASCE_TYPE_SEGMENT) {
         return mmu_translate_segment(env, vaddr, asc, new_entry, raddr, flags,
                                      rw, exc);
@@ -203,6 +200,10 @@ static int mmu_translate_region(CPUS390XState *env, target_ulong vaddr,
         DPRINTF("%s: invalid offset or len (%lx)\n", __func__, new_entry);
         trigger_page_fault(env, vaddr, pchks[level / 4 - 1], asc, rw, exc);
         return -1;
+    }
+
+    if ((env->cregs[0] & CR0_EDAT) && (new_entry & _REGION_ENTRY_RO)) {
+        *flags &= ~PAGE_WRITE;
     }
 
     /* yet another region */
