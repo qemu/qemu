@@ -252,7 +252,7 @@ static int mmu_translate_asc(CPUS390XState *env, target_ulong vaddr,
         if (vaddr & 0xffe0000000000000ULL) {
             DPRINTF("%s: vaddr doesn't fit 0x%16" PRIx64
                     " 0xffe0000000000000ULL\n", __func__, vaddr);
-            trigger_page_fault(env, vaddr, PGM_TRANS_SPEC, asc, rw, exc);
+            trigger_page_fault(env, vaddr, PGM_ASCE_TYPE, asc, rw, exc);
             return -1;
         }
         if ((vaddr >> 51 & 3) > (asce & _ASCE_TABLE_LENGTH)) {
@@ -264,7 +264,7 @@ static int mmu_translate_asc(CPUS390XState *env, target_ulong vaddr,
         if (vaddr & 0xfffffc0000000000ULL) {
             DPRINTF("%s: vaddr doesn't fit 0x%16" PRIx64
                     " 0xfffffc0000000000ULL\n", __func__, vaddr);
-            trigger_page_fault(env, vaddr, PGM_TRANS_SPEC, asc, rw, exc);
+            trigger_page_fault(env, vaddr, PGM_ASCE_TYPE, asc, rw, exc);
             return -1;
         }
         if ((vaddr >> 40 & 3) > (asce & _ASCE_TABLE_LENGTH)) {
@@ -276,7 +276,7 @@ static int mmu_translate_asc(CPUS390XState *env, target_ulong vaddr,
         if (vaddr & 0xffffffff80000000ULL) {
             DPRINTF("%s: vaddr doesn't fit 0x%16" PRIx64
                     " 0xffffffff80000000ULL\n", __func__, vaddr);
-            trigger_page_fault(env, vaddr, PGM_TRANS_SPEC, asc, rw, exc);
+            trigger_page_fault(env, vaddr, PGM_ASCE_TYPE, asc, rw, exc);
             return -1;
         }
         if ((vaddr >> 29 & 3) > (asce & _ASCE_TABLE_LENGTH)) {
