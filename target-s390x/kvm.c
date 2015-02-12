@@ -1338,19 +1338,14 @@ static int handle_intercept(S390CPU *cpu)
 
 static int handle_tsch(S390CPU *cpu)
 {
-    CPUS390XState *env = &cpu->env;
     CPUState *cs = CPU(cpu);
     struct kvm_run *run = cs->kvm_run;
     int ret;
 
     cpu_synchronize_state(cs);
 
-    ret = ioinst_handle_tsch(env, env->regs[1], run->s390_tsch.ipb);
-    if (ret >= 0) {
-        /* Success; set condition code. */
-        setcc(cpu, ret);
-        ret = 0;
-    } else if (ret < -1) {
+    ret = ioinst_handle_tsch(cpu, cpu->env.regs[1], run->s390_tsch.ipb);
+    if (ret < 0) {
         /*
          * Failure.
          * If an I/O interrupt had been dequeued, we have to reinject it.

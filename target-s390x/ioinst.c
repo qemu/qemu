@@ -336,13 +336,13 @@ void ioinst_handle_stsch(S390CPU *cpu, uint64_t reg1, uint32_t ipb)
     setcc(cpu, cc);
 }
 
-int ioinst_handle_tsch(CPUS390XState *env, uint64_t reg1, uint32_t ipb)
+int ioinst_handle_tsch(S390CPU *cpu, uint64_t reg1, uint32_t ipb)
 {
+    CPUS390XState *env = &cpu->env;
     int cssid, ssid, schid, m;
     SubchDev *sch;
     IRB *irb;
     uint64_t addr;
-    int ret = -ENODEV;
     int cc;
     hwaddr len = sizeof(*irb);
 
@@ -364,12 +364,12 @@ int ioinst_handle_tsch(CPUS390XState *env, uint64_t reg1, uint32_t ipb)
     }
     sch = css_find_subch(m, cssid, ssid, schid);
     if (sch && css_subch_visible(sch)) {
-        ret = css_do_tsch(sch, irb);
+        cc = css_do_tsch(sch, irb);
         /* 0 - status pending, 1 - not status pending */
-        cc = ret;
     } else {
         cc = 3;
     }
+    setcc(cpu, cc);
 out:
     s390_cpu_physical_memory_unmap(env, irb, sizeof(*irb), 1);
     return cc;
