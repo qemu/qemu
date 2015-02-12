@@ -67,6 +67,33 @@ typedef struct S390IPLState {
     uint16_t devno;
 } S390IPLState;
 
+static const VMStateDescription vmstate_iplb = {
+    .name = "ipl/iplb",
+    .version_id = 0,
+    .minimum_version_id = 0,
+    .fields = (VMStateField[]) {
+        VMSTATE_UINT8_ARRAY(reserved1, IplParameterBlock, 110),
+        VMSTATE_UINT16(devno, IplParameterBlock),
+        VMSTATE_UINT8_ARRAY(reserved2, IplParameterBlock, 88),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
+static const VMStateDescription vmstate_ipl = {
+    .name = "ipl",
+    .version_id = 0,
+    .minimum_version_id = 0,
+    .fields = (VMStateField[]) {
+        VMSTATE_UINT64(start_addr, S390IPLState),
+        VMSTATE_UINT64(bios_start_addr, S390IPLState),
+        VMSTATE_STRUCT(iplb, S390IPLState, 0, vmstate_iplb, IplParameterBlock),
+        VMSTATE_BOOL(iplb_valid, S390IPLState),
+        VMSTATE_UINT8(cssid, S390IPLState),
+        VMSTATE_UINT8(ssid, S390IPLState),
+        VMSTATE_UINT16(devno, S390IPLState),
+        VMSTATE_END_OF_LIST()
+     }
+};
 
 static int s390_ipl_init(SysBusDevice *dev)
 {
@@ -273,6 +300,7 @@ static void s390_ipl_class_init(ObjectClass *klass, void *data)
     k->init = s390_ipl_init;
     dc->props = s390_ipl_properties;
     dc->reset = s390_ipl_reset;
+    dc->vmsd = &vmstate_ipl;
 }
 
 static const TypeInfo s390_ipl_info = {
