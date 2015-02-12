@@ -690,19 +690,18 @@ void qemu_opts_loc_restore(QemuOpts *opts)
     loc_restore(&opts->loc);
 }
 
-int qemu_opts_set(QemuOptsList *list, const char *id,
-                  const char *name, const char *value)
+void qemu_opts_set(QemuOptsList *list, const char *id,
+                   const char *name, const char *value, Error **errp)
 {
     QemuOpts *opts;
     Error *local_err = NULL;
 
     opts = qemu_opts_create(list, id, 1, &local_err);
     if (local_err) {
-        qerror_report_err(local_err);
-        error_free(local_err);
-        return -1;
+        error_propagate(errp, local_err);
+        return;
     }
-    return qemu_opt_set(opts, name, value);
+    qemu_opt_set_err(opts, name, value, errp);
 }
 
 const char *qemu_opts_id(QemuOpts *opts)

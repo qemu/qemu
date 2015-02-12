@@ -388,9 +388,9 @@ static void test_qemu_opts_reset(void)
 
 static void test_qemu_opts_set(void)
 {
+    Error *err = NULL;
     QemuOptsList *list;
     QemuOpts *opts;
-    int ret;
     const char *opt;
 
     list = qemu_find_opts("opts_list_01");
@@ -403,8 +403,8 @@ static void test_qemu_opts_set(void)
     g_assert(opts == NULL);
 
     /* implicitly create opts and set str3 value */
-    ret = qemu_opts_set(list, NULL, "str3", "value");
-    g_assert(ret == 0);
+    qemu_opts_set(list, NULL, "str3", "value", &err);
+    g_assert(!err);
     g_assert(!QTAILQ_EMPTY(&list->head));
 
     /* get the just created opts */

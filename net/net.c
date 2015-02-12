@@ -1296,9 +1296,9 @@ int net_init_clients(void)
 
     if (default_net) {
         /* if no clients, we use a default config */
-        qemu_opts_set(net, NULL, "type", "nic");
+        qemu_opts_set(net, NULL, "type", "nic", &error_abort);
 #ifdef CONFIG_SLIRP
-        qemu_opts_set(net, NULL, "type", "user");
+        qemu_opts_set(net, NULL, "type", "user", &error_abort);
 #endif
     }
 
