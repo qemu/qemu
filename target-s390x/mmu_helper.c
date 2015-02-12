@@ -178,9 +178,8 @@ static int mmu_translate_region(CPUS390XState *env, target_ulong vaddr,
                 __func__, origin, offs, new_entry);
 
     if ((new_entry & _REGION_ENTRY_INV) != 0) {
-        /* XXX different regions have different faults */
         DPRINTF("%s: invalid region\n", __func__);
-        trigger_page_fault(env, vaddr, PGM_SEGMENT_TRANS, asc, rw, exc);
+        trigger_page_fault(env, vaddr, pchks[level / 4], asc, rw, exc);
         return -1;
     }
 
