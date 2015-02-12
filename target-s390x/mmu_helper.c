@@ -104,22 +104,22 @@ static target_ulong mmu_real2abs(CPUS390XState *env, target_ulong raddr)
 
 /* Decode page table entry (normal 4KB page) */
 static int mmu_translate_pte(CPUS390XState *env, target_ulong vaddr,
-                             uint64_t asc, uint64_t asce,
+                             uint64_t asc, uint64_t pt_entry,
                              target_ulong *raddr, int *flags, int rw, bool exc)
 {
-    if (asce & _PAGE_INVALID) {
-        DPRINTF("%s: PTE=0x%" PRIx64 " invalid\n", __func__, asce);
+    if (pt_entry & _PAGE_INVALID) {
+        DPRINTF("%s: PTE=0x%" PRIx64 " invalid\n", __func__, pt_entry);
         trigger_page_fault(env, vaddr, PGM_PAGE_TRANS, asc, rw, exc);
         return -1;
     }
 
-    if (asce & _PAGE_RO) {
+    if (pt_entry & _PAGE_RO) {
         *flags &= ~PAGE_WRITE;
     }
 
-    *raddr = asce & _ASCE_ORIGIN;
+    *raddr = pt_entry & _ASCE_ORIGIN;
 
-    PTE_DPRINTF("%s: PTE=0x%" PRIx64 "\n", __func__, asce);
+    PTE_DPRINTF("%s: PTE=0x%" PRIx64 "\n", __func__, pt_entry);
 
     return 0;
 }
