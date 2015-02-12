@@ -737,15 +737,15 @@ DriveInfo *drive_new(QemuOpts *all_opts, BlockInterfaceType block_default_type)
         /* Specific options take precedence */
         if (!qemu_opt_get(all_opts, "cache.writeback")) {
             qemu_opt_set_bool(all_opts, "cache.writeback",
-                              !!(flags & BDRV_O_CACHE_WB));
+                              !!(flags & BDRV_O_CACHE_WB), &error_abort);
         }
         if (!qemu_opt_get(all_opts, "cache.direct")) {
             qemu_opt_set_bool(all_opts, "cache.direct",
-                              !!(flags & BDRV_O_NOCACHE));
+                              !!(flags & BDRV_O_NOCACHE), &error_abort);
         }
         if (!qemu_opt_get(all_opts, "cache.no-flush")) {
             qemu_opt_set_bool(all_opts, "cache.no-flush",
-                              !!(flags & BDRV_O_NO_FLUSH));
+                              !!(flags & BDRV_O_NO_FLUSH), &error_abort);
         }
         qemu_opt_unset(all_opts, "cache");
     }

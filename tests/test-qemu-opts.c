@@ -169,10 +169,10 @@ static void test_qemu_opt_get(void)
 
 static void test_qemu_opt_get_bool(void)
 {
+    Error *err = NULL;
     QemuOptsList *list;
     QemuOpts *opts;
     bool opt;
-    int ret;
 
     list = qemu_find_opts("opts_list_02");
     g_assert(list != NULL);
@@ -192,16 +192,16 @@ static void test_qemu_opt_get_bool(void)
     opt = qemu_opt_get_bool(opts, "bool1", false);
     g_assert(opt == false);
 
-    ret = qemu_opt_set_bool(opts, "bool1", true);
-    g_assert(ret == 0);
+    qemu_opt_set_bool(opts, "bool1", true, &err);
+    g_assert(!err);
 
     /* now we have set bool1, should know about it */
     opt = qemu_opt_get_bool(opts, "bool1", false);
     g_assert(opt == true);
 
     /* having reset the value, opt should be the reset one not defval */
-    ret = qemu_opt_set_bool(opts, "bool1", false);
-    g_assert(ret == 0);
+    qemu_opt_set_bool(opts, "bool1", false, &err);
+    g_assert(!err);
 
     opt = qemu_opt_get_bool(opts, "bool1", true);
     g_assert(opt == false);

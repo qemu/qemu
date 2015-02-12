@@ -2222,7 +2222,7 @@ static void monitor_parse(const char *optarg, const char *mode, bool pretty)
     }
     qemu_opt_set(opts, "mode", mode);
     qemu_opt_set(opts, "chardev", label);
-    qemu_opt_set_bool(opts, "pretty", pretty);
+    qemu_opt_set_bool(opts, "pretty", pretty, &error_abort);
     if (def)
         qemu_opt_set(opts, "default", "on");
     monitor_device_index++;
@@ -3287,7 +3287,8 @@ int main(int argc, char **argv, char **envp)
                 }
 
                 qemu_opt_set_bool(fsdev, "readonly",
-                                qemu_opt_get_bool(opts, "readonly", 0));
+                                  qemu_opt_get_bool(opts, "readonly", 0),
+                                  &error_abort);
                 device = qemu_opts_create(qemu_find_opts("device"), NULL, 0,
                                           &error_abort);
                 qemu_opt_set(device, "driver", "virtio-9p-pci");

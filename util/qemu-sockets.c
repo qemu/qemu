@@ -580,8 +580,8 @@ static void inet_addr_to_opts(QemuOpts *opts, const InetSocketAddress *addr)
     bool ipv6 = addr->ipv6 || !addr->has_ipv6;
 
     if (!ipv4 || !ipv6) {
-        qemu_opt_set_bool(opts, "ipv4", ipv4);
-        qemu_opt_set_bool(opts, "ipv6", ipv6);
+        qemu_opt_set_bool(opts, "ipv4", ipv4, &error_abort);
+        qemu_opt_set_bool(opts, "ipv6", ipv6, &error_abort);
     }
     if (addr->has_to) {
         char to[20];
