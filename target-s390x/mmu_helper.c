@@ -180,13 +180,6 @@ static int mmu_translate_asce(CPUS390XState *env, target_ulong vaddr,
         return -1;
     }
 
-    if (asce & _ASCE_REAL_SPACE) {
-        /* direct mapping */
-
-        *raddr = vaddr;
-        return 0;
-    }
-
     origin = asce & _ASCE_ORIGIN;
 
     switch (level) {
@@ -250,6 +243,12 @@ static int mmu_translate_asc(CPUS390XState *env, target_ulong vaddr,
         PTE_DPRINTF("%s: asc=home\n", __func__);
         asce = env->cregs[13];
         break;
+    }
+
+    if (asce & _ASCE_REAL_SPACE) {
+        /* direct mapping */
+        *raddr = vaddr;
+        return 0;
     }
 
     switch (asce & _ASCE_TYPE_MASK) {
