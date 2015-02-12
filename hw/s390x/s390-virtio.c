@@ -143,6 +143,8 @@ void s390_init_ipl_dev(const char *kernel_filename,
     qdev_prop_set_string(dev, "cmdline", kernel_cmdline);
     qdev_prop_set_string(dev, "firmware", firmware);
     qdev_prop_set_bit(dev, "enforce_bios", enforce_bios);
+    object_property_add_child(qdev_get_machine(), "s390-ipl",
+                              OBJECT(dev), NULL);
     qdev_init_nofail(dev);
 }
 
