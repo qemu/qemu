@@ -1,7 +1,7 @@
 /*
  * I/O instructions for S/390
  *
- * Copyright 2012 IBM Corp.
+ * Copyright 2012, 2015 IBM Corp.
  * Author(s): Cornelia Huck <cornelia.huck@de.ibm.com>
  *
  * This work is licensed under the terms of the GNU GPL, version 2 or (at
@@ -144,11 +144,10 @@ void ioinst_handle_msch(S390CPU *cpu, uint64_t reg1, uint32_t ipb)
 {
     int cssid, ssid, schid, m;
     SubchDev *sch;
-    SCHIB *schib;
+    SCHIB schib;
     uint64_t addr;
     int ret = -ENODEV;
     int cc;
-    hwaddr len = sizeof(*schib);
     CPUS390XState *env = &cpu->env;
 
     addr = decode_basedisp_s(env, ipb);
@@ -156,20 +155,18 @@ void ioinst_handle_msch(S390CPU *cpu, uint64_t reg1, uint32_t ipb)
         program_interrupt(env, PGM_SPECIFICATION, 2);
         return;
     }
-    schib = s390_cpu_physical_memory_map(env, addr, &len, 0);
-    if (!schib || len != sizeof(*schib)) {
-        program_interrupt(env, PGM_ADDRESSING, 2);
-        goto out;
+    if (s390_cpu_virt_mem_read(cpu, addr, &schib, sizeof(schib))) {
+        return;
     }
     if (ioinst_disassemble_sch_ident(reg1, &m, &cssid, &ssid, &schid) ||
-        !ioinst_schib_valid(schib)) {
+        !ioinst_schib_valid(&schib)) {
         program_interrupt(env, PGM_OPERAND, 2);
-        goto out;
+        return;
     }
     trace_ioinst_sch_id("msch", cssid, ssid, schid);
     sch = css_find_subch(m, cssid, ssid, schid);
     if (sch && css_subch_visible(sch)) {
-        ret = css_do_msch(sch, schib);
+        ret = css_do_msch(sch, &schib);
     }
     switch (ret) {
     case -ENODEV:
@@ -186,9 +183,6 @@ void ioinst_handle_msch(S390CPU *cpu, uint64_t reg1, uint32_t ipb)
         break;
     }
     setcc(cpu, cc);
-
-out:
-    s390_cpu_physical_memory_unmap(env, schib, len, 0);
 }
 
 static void copy_orb_from_guest(ORB *dest, const ORB *src)
