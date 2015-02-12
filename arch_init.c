@@ -353,11 +353,27 @@ static void xbzrle_cache_zero_page(ram_addr_t current_addr)
 
 #define ENCODING_FLAG_XBZRLE 0x1
 
+/**
+ * save_xbzrle_page: compress and send current page
+ *
+ * Returns: 1 means that we wrote the page
+ *          0 means that page is identical to the one already sent
+ *          -1 means that xbzrle would be longer than normal
+ *
+ * @f: QEMUFile where to send the data
+ * @current_data:
+ * @current_addr:
+ * @block: block that contains the page we want to send
+ * @offset: offset inside the block for the page
+ * @last_stage: if we are at the completion stage
+ * @bytes_transferred: increase it with the number of transferred bytes
+ */
 static int save_xbzrle_page(QEMUFile *f, uint8_t **current_data,
                             ram_addr_t current_addr, RAMBlock *block,
-                            ram_addr_t offset, int cont, bool last_stage)
+                            ram_addr_t offset, int cont, bool last_stage,
+                            uint64_t *bytes_transferred)
 {
-    int encoded_len = 0, bytes_sent = -1;
+    int encoded_len = 0, bytes_xbzrle;
     uint8_t *prev_cached_page;
 
     if (!cache_is_cached(XBZRLE.cache, current_addr, bitmap_sync_count)) {
@@ -404,15 +420,16 @@ static int save_xbzrle_page(QEMUFile *f, uint8_t **current_data,
     }
 
     /* Send XBZRLE based compressed page */
-    bytes_sent = save_block_hdr(f, block, offset, cont, RAM_SAVE_FLAG_XBZRLE);
+    bytes_xbzrle = save_block_hdr(f, block, offset, cont, RAM_SAVE_FLAG_XBZRLE);
     qemu_put_byte(f, ENCODING_FLAG_XBZRLE);
     qemu_put_be16(f, encoded_len);
     qemu_put_buffer(f, XBZRLE.encoded_buf, encoded_len);
-    bytes_sent += encoded_len + 1 + 2;
+    bytes_xbzrle += encoded_len + 1 + 2;
     acct_info.xbzrle_pages++;
-    acct_info.xbzrle_bytes += bytes_sent;
+    acct_info.xbzrle_bytes += bytes_xbzrle;
+    *bytes_transferred += bytes_xbzrle;
 
-    return bytes_sent;
+    return 1;
 }
 
 static inline
@@ -634,19 +651,8 @@ static int ram_save_page(QEMUFile *f, RAMBlock* block, ram_addr_t offset,
          */
         xbzrle_cache_zero_page(current_addr);
     } else if (!ram_bulk_stage && migrate_use_xbzrle()) {
-        int bytes_sent;
-
-        bytes_sent = save_xbzrle_page(f, &p, current_addr, block,
-                                      offset, cont, last_stage);
-
-        if (bytes_sent > 0) {
-            *bytes_transferred += bytes_sent;
-            pages = 1;
-        } else if (bytes_sent == 0) {
-            pages = 0;
-        } else {
-            pages = -1;
-        }
+        pages = save_xbzrle_page(f, &p, current_addr, block,
+                                 offset, cont, last_stage, bytes_transferred);
         if (!last_stage) {
             /* Can't send this cached data async, since the cache page
              * might get updated before it gets to the wire
