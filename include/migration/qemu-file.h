@@ -82,7 +82,7 @@ typedef size_t (QEMURamSaveFunc)(QEMUFile *f, void *opaque,
                                ram_addr_t block_offset,
                                ram_addr_t offset,
                                size_t size,
-                               int *bytes_sent);
+                               uint64_t *bytes_sent);
 
 /*
  * Stop any read or write (depending on flags) on the underlying

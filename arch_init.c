@@ -584,6 +584,7 @@ static int ram_save_page(QEMUFile *f, RAMBlock* block, ram_addr_t offset,
                          bool last_stage)
 {
     int bytes_sent;
+    uint64_t bytes_xmit;
     int cont;
     ram_addr_t current_addr;
     MemoryRegion *mr = block->mr;
@@ -597,17 +598,21 @@ static int ram_save_page(QEMUFile *f, RAMBlock* block, ram_addr_t offset,
 
     /* In doubt sent page as normal */
     bytes_sent = -1;
+    bytes_xmit = 0;
     ret = ram_control_save_page(f, block->offset,
-                           offset, TARGET_PAGE_SIZE, &bytes_sent);
+                           offset, TARGET_PAGE_SIZE, &bytes_xmit);
+    if (bytes_xmit) {
+        bytes_sent = bytes_xmit;
+    }
 
     XBZRLE_cache_lock();
 
     current_addr = block->offset + offset;
     if (ret != RAM_SAVE_CONTROL_NOT_SUPP) {
         if (ret != RAM_SAVE_CONTROL_DELAYED) {
-            if (bytes_sent > 0) {
+            if (bytes_xmit > 0) {
                 acct_info.norm_pages++;
-            } else if (bytes_sent == 0) {
+            } else if (bytes_xmit == 0) {
                 acct_info.dup_pages++;
             }
         }
