@@ -5660,7 +5660,9 @@ void bdrv_img_create(const char *filename, const char *fmt,
     }
 
     if (base_filename) {
-        if (qemu_opt_set(opts, BLOCK_OPT_BACKING_FILE, base_filename)) {
+        qemu_opt_set_err(opts, BLOCK_OPT_BACKING_FILE, base_filename,
+                         &local_err);
+        if (local_err) {
             error_setg(errp, "Backing file not supported for file format '%s'",
                        fmt);
             goto out;
@@ -5668,7 +5670,8 @@ void bdrv_img_create(const char *filename, const char *fmt,
     }
 
     if (base_fmt) {
-        if (qemu_opt_set(opts, BLOCK_OPT_BACKING_FMT, base_fmt)) {
+        qemu_opt_set_err(opts, BLOCK_OPT_BACKING_FMT, base_fmt, &local_err);
+        if (local_err) {
             error_setg(errp, "Backing file format not supported for file "
                              "format '%s'", fmt);
             goto out;
