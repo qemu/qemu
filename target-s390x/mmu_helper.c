@@ -66,7 +66,7 @@ static int trans_bits(CPUS390XState *env, uint64_t mode)
 }
 
 static void trigger_prot_fault(CPUS390XState *env, target_ulong vaddr,
-                               uint64_t mode)
+                               uint64_t mode, bool exc)
 {
     CPUState *cs = CPU(s390_env_get_cpu(env));
     int ilen = ILEN_LATER_INC;
@@ -74,24 +74,32 @@ static void trigger_prot_fault(CPUS390XState *env, target_ulong vaddr,
 
     DPRINTF("%s: vaddr=%016" PRIx64 " bits=%d\n", __func__, vaddr, bits);
 
+    if (!exc) {
+        return;
+    }
+
     stq_phys(cs->as,
              env->psa + offsetof(LowCore, trans_exc_code), vaddr | bits);
     trigger_pgm_exception(env, PGM_PROTECTION, ilen);
 }
 
 static void trigger_page_fault(CPUS390XState *env, target_ulong vaddr,
-                               uint32_t type, uint64_t asc, int rw)
+                               uint32_t type, uint64_t asc, int rw, bool exc)
 {
     CPUState *cs = CPU(s390_env_get_cpu(env));
     int ilen = ILEN_LATER;
     int bits = trans_bits(env, asc);
 
+    DPRINTF("%s: vaddr=%016" PRIx64 " bits=%d\n", __func__, vaddr, bits);
+
+    if (!exc) {
+        return;
+    }
+
     /* Code accesses have an undefined ilc.  */
     if (rw == 2) {
         ilen = 2;
     }
-
-    DPRINTF("%s: vaddr=%016" PRIx64 " bits=%d\n", __func__, vaddr, bits);
 
     stq_phys(cs->as,
              env->psa + offsetof(LowCore, trans_exc_code), vaddr | bits);
@@ -115,11 +123,11 @@ static target_ulong mmu_real2abs(CPUS390XState *env, target_ulong raddr)
 /* Decode page table entry (normal 4KB page) */
 static int mmu_translate_pte(CPUS390XState *env, target_ulong vaddr,
                              uint64_t asc, uint64_t asce,
-                             target_ulong *raddr, int *flags, int rw)
+                             target_ulong *raddr, int *flags, int rw, bool exc)
 {
     if (asce & _PAGE_INVALID) {
         DPRINTF("%s: PTE=0x%" PRIx64 " invalid\n", __func__, asce);
-        trigger_page_fault(env, vaddr, PGM_PAGE_TRANS, asc, rw);
+        trigger_page_fault(env, vaddr, PGM_PAGE_TRANS, asc, rw, exc);
         return -1;
     }
 
@@ -139,7 +147,8 @@ static int mmu_translate_pte(CPUS390XState *env, target_ulong vaddr,
 /* Decode segment table entry */
 static int mmu_translate_segment(CPUS390XState *env, target_ulong vaddr,
                                  uint64_t asc, uint64_t st_entry,
-                                 target_ulong *raddr, int *flags, int rw)
+                                 target_ulong *raddr, int *flags, int rw,
+                                 bool exc)
 {
     CPUState *cs = CPU(s390_env_get_cpu(env));
     uint64_t origin, offs, pt_entry;
@@ -161,13 +170,14 @@ static int mmu_translate_segment(CPUS390XState *env, target_ulong vaddr,
     pt_entry = ldq_phys(cs->as, origin + offs);
     PTE_DPRINTF("%s: 0x%" PRIx64 " + 0x%" PRIx64 " => 0x%016" PRIx64 "\n",
                 __func__, origin, offs, pt_entry);
-    return mmu_translate_pte(env, vaddr, asc, pt_entry, raddr, flags, rw);
+    return mmu_translate_pte(env, vaddr, asc, pt_entry, raddr, flags, rw, exc);
 }
 
 /* Decode region table entries */
 static int mmu_translate_region(CPUS390XState *env, target_ulong vaddr,
                                 uint64_t asc, uint64_t entry, int level,
-                                target_ulong *raddr, int *flags, int rw)
+                                target_ulong *raddr, int *flags, int rw,
+                                bool exc)
 {
     CPUState *cs = CPU(s390_env_get_cpu(env));
     uint64_t origin, offs, new_entry;
@@ -188,12 +198,12 @@ static int mmu_translate_region(CPUS390XState *env, target_ulong vaddr,
     if ((new_entry & _REGION_ENTRY_INV) != 0) {
         /* XXX different regions have different faults */
         DPRINTF("%s: invalid region\n", __func__);
-        trigger_page_fault(env, vaddr, PGM_SEGMENT_TRANS, asc, rw);
+        trigger_page_fault(env, vaddr, PGM_SEGMENT_TRANS, asc, rw, exc);
         return -1;
     }
 
     if ((new_entry & _REGION_ENTRY_TYPE_MASK) != level) {
-        trigger_page_fault(env, vaddr, PGM_TRANS_SPEC, asc, rw);
+        trigger_page_fault(env, vaddr, PGM_TRANS_SPEC, asc, rw, exc);
         return -1;
     }
 
@@ -202,7 +212,7 @@ static int mmu_translate_region(CPUS390XState *env, target_ulong vaddr,
 
     if (level == _ASCE_TYPE_SEGMENT) {
         return mmu_translate_segment(env, vaddr, asc, new_entry, raddr, flags,
-                                     rw);
+                                     rw, exc);
     }
 
     /* Check region table offset and length */
@@ -210,18 +220,18 @@ static int mmu_translate_region(CPUS390XState *env, target_ulong vaddr,
     if (offs < ((new_entry & _REGION_ENTRY_TF) >> 6)
         || offs > (new_entry & _REGION_ENTRY_LENGTH)) {
         DPRINTF("%s: invalid offset or len (%lx)\n", __func__, new_entry);
-        trigger_page_fault(env, vaddr, pchks[level / 4 - 1], asc, rw);
+        trigger_page_fault(env, vaddr, pchks[level / 4 - 1], asc, rw, exc);
         return -1;
     }
 
     /* yet another region */
     return mmu_translate_region(env, vaddr, asc, new_entry, level - 4,
-                                raddr, flags, rw);
+                                raddr, flags, rw, exc);
 }
 
 static int mmu_translate_asc(CPUS390XState *env, target_ulong vaddr,
                              uint64_t asc, target_ulong *raddr, int *flags,
-                             int rw)
+                             int rw, bool exc)
 {
     uint64_t asce = 0;
     int level;
@@ -252,7 +262,7 @@ static int mmu_translate_asc(CPUS390XState *env, target_ulong vaddr,
     switch (level) {
     case _ASCE_TYPE_REGION1:
         if ((vaddr >> 62) > (asce & _ASCE_TABLE_LENGTH)) {
-            trigger_page_fault(env, vaddr, PGM_REG_FIRST_TRANS, asc, rw);
+            trigger_page_fault(env, vaddr, PGM_REG_FIRST_TRANS, asc, rw, exc);
             return -1;
         }
         break;
@@ -260,11 +270,11 @@ static int mmu_translate_asc(CPUS390XState *env, target_ulong vaddr,
         if (vaddr & 0xffe0000000000000ULL) {
             DPRINTF("%s: vaddr doesn't fit 0x%16" PRIx64
                     " 0xffe0000000000000ULL\n", __func__, vaddr);
-            trigger_page_fault(env, vaddr, PGM_TRANS_SPEC, asc, rw);
+            trigger_page_fault(env, vaddr, PGM_TRANS_SPEC, asc, rw, exc);
             return -1;
         }
         if ((vaddr >> 51 & 3) > (asce & _ASCE_TABLE_LENGTH)) {
-            trigger_page_fault(env, vaddr, PGM_REG_SEC_TRANS, asc, rw);
+            trigger_page_fault(env, vaddr, PGM_REG_SEC_TRANS, asc, rw, exc);
             return -1;
         }
         break;
@@ -272,11 +282,11 @@ static int mmu_translate_asc(CPUS390XState *env, target_ulong vaddr,
         if (vaddr & 0xfffffc0000000000ULL) {
             DPRINTF("%s: vaddr doesn't fit 0x%16" PRIx64
                     " 0xfffffc0000000000ULL\n", __func__, vaddr);
-            trigger_page_fault(env, vaddr, PGM_TRANS_SPEC, asc, rw);
+            trigger_page_fault(env, vaddr, PGM_TRANS_SPEC, asc, rw, exc);
             return -1;
         }
         if ((vaddr >> 40 & 3) > (asce & _ASCE_TABLE_LENGTH)) {
-            trigger_page_fault(env, vaddr, PGM_REG_THIRD_TRANS, asc, rw);
+            trigger_page_fault(env, vaddr, PGM_REG_THIRD_TRANS, asc, rw, exc);
             return -1;
         }
         break;
@@ -284,27 +294,38 @@ static int mmu_translate_asc(CPUS390XState *env, target_ulong vaddr,
         if (vaddr & 0xffffffff80000000ULL) {
             DPRINTF("%s: vaddr doesn't fit 0x%16" PRIx64
                     " 0xffffffff80000000ULL\n", __func__, vaddr);
-            trigger_page_fault(env, vaddr, PGM_TRANS_SPEC, asc, rw);
+            trigger_page_fault(env, vaddr, PGM_TRANS_SPEC, asc, rw, exc);
             return -1;
         }
         if ((vaddr >> 29 & 3) > (asce & _ASCE_TABLE_LENGTH)) {
-            trigger_page_fault(env, vaddr, PGM_SEGMENT_TRANS, asc, rw);
+            trigger_page_fault(env, vaddr, PGM_SEGMENT_TRANS, asc, rw, exc);
             return -1;
         }
         break;
     }
 
-    r = mmu_translate_region(env, vaddr, asc, asce, level, raddr, flags, rw);
+    r = mmu_translate_region(env, vaddr, asc, asce, level, raddr, flags, rw,
+                             exc);
     if ((rw == 1) && !(*flags & PAGE_WRITE)) {
-        trigger_prot_fault(env, vaddr, asc);
+        trigger_prot_fault(env, vaddr, asc, exc);
         return -1;
     }
 
     return r;
 }
 
+/**
+ * Translate a virtual (logical) address into a physical (absolute) address.
+ * @param vaddr  the virtual address
+ * @param rw     0 = read, 1 = write, 2 = code fetch
+ * @param asc    address space control (one of the PSW_ASC_* modes)
+ * @param raddr  the translated address is stored to this pointer
+ * @param flags  the PAGE_READ/WRITE/EXEC flags are stored to this pointer
+ * @param exc    true = inject a program check if a fault occured
+ * @return       0 if the translation was successfull, -1 if a fault occured
+ */
 int mmu_translate(CPUS390XState *env, target_ulong vaddr, int rw, uint64_t asc,
-                  target_ulong *raddr, int *flags)
+                  target_ulong *raddr, int *flags, bool exc)
 {
     int r = -1;
     uint8_t *sk;
@@ -321,7 +342,7 @@ int mmu_translate(CPUS390XState *env, target_ulong vaddr, int rw, uint64_t asc,
     switch (asc) {
     case PSW_ASC_PRIMARY:
     case PSW_ASC_HOME:
-        r = mmu_translate_asc(env, vaddr, asc, raddr, flags, rw);
+        r = mmu_translate_asc(env, vaddr, asc, raddr, flags, rw, exc);
         break;
     case PSW_ASC_SECONDARY:
         /*
@@ -330,11 +351,11 @@ int mmu_translate(CPUS390XState *env, target_ulong vaddr, int rw, uint64_t asc,
          */
         if (rw == 2) {
             r = mmu_translate_asc(env, vaddr, PSW_ASC_PRIMARY, raddr, flags,
-                                  rw);
+                                  rw, exc);
             *flags &= ~(PAGE_READ | PAGE_WRITE);
         } else {
             r = mmu_translate_asc(env, vaddr, PSW_ASC_SECONDARY, raddr, flags,
-                                  rw);
+                                  rw, exc);
             *flags &= ~(PAGE_EXEC);
         }
         break;
