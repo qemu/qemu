@@ -801,7 +801,8 @@ out:
     return ret;
 }
 
-static void copy_irb_to_guest(IRB *dest, const IRB *src, PMCW *pmcw)
+static void copy_irb_to_guest(IRB *dest, const IRB *src, PMCW *pmcw,
+                              int *irb_len)
 {
     int i;
     uint16_t stctl = src->scsw.ctrl & SCSW_CTRL_MASK_STCTL;
@@ -815,6 +816,8 @@ static void copy_irb_to_guest(IRB *dest, const IRB *src, PMCW *pmcw)
     for (i = 0; i < ARRAY_SIZE(dest->ecw); i++) {
         dest->ecw[i] = cpu_to_be32(src->ecw[i]);
     }
+    *irb_len = sizeof(*dest) - sizeof(dest->emw);
+
     /* extended measurements enabled? */
     if ((src->scsw.flags & SCSW_FLAGS_MASK_ESWF) ||
         !(pmcw->flags & PMCW_FLAGS_MASK_TF) ||
@@ -832,26 +835,21 @@ static void copy_irb_to_guest(IRB *dest, const IRB *src, PMCW *pmcw)
             dest->emw[i] = cpu_to_be32(src->emw[i]);
         }
     }
+    *irb_len = sizeof(*dest);
 }
 
-int css_do_tsch(SubchDev *sch, IRB *target_irb)
+int css_do_tsch_get_irb(SubchDev *sch, IRB *target_irb, int *irb_len)
 {
     SCSW *s = &sch->curr_status.scsw;
     PMCW *p = &sch->curr_status.pmcw;
     uint16_t stctl;
-    uint16_t fctl;
-    uint16_t actl;
     IRB irb;
-    int ret;
 
     if (!(p->flags & (PMCW_FLAGS_MASK_DNV | PMCW_FLAGS_MASK_ENA))) {
-        ret = 3;
-        goto out;
+        return 3;
     }
 
     stctl = s->ctrl & SCSW_CTRL_MASK_STCTL;
-    fctl = s->ctrl & SCSW_CTRL_MASK_FCTL;
-    actl = s->ctrl & SCSW_CTRL_MASK_ACTL;
 
     /* Prepare the irb for the guest. */
     memset(&irb, 0, sizeof(IRB));
@@ -876,7 +874,22 @@ int css_do_tsch(SubchDev *sch, IRB *target_irb)
         }
     }
     /* Store the irb to the guest. */
-    copy_irb_to_guest(target_irb, &irb, p);
+    copy_irb_to_guest(target_irb, &irb, p, irb_len);
+
+    return ((stctl & SCSW_STCTL_STATUS_PEND) == 0);
+}
+
+void css_do_tsch_update_subch(SubchDev *sch)
+{
+    SCSW *s = &sch->curr_status.scsw;
+    PMCW *p = &sch->curr_status.pmcw;
+    uint16_t stctl;
+    uint16_t fctl;
+    uint16_t actl;
+
+    stctl = s->ctrl & SCSW_CTRL_MASK_STCTL;
+    fctl = s->ctrl & SCSW_CTRL_MASK_FCTL;
+    actl = s->ctrl & SCSW_CTRL_MASK_ACTL;
 
     /* Clear conditions on subchannel, if applicable. */
     if (stctl & SCSW_STCTL_STATUS_PEND) {
@@ -913,11 +926,6 @@ int css_do_tsch(SubchDev *sch, IRB *target_irb)
             memset(sch->sense_data, 0 , sizeof(sch->sense_data));
         }
     }
-
-    ret = ((stctl & SCSW_STCTL_STATUS_PEND) == 0);
-
-out:
-    return ret;
 }
 
 static void copy_crw_to_guest(CRW *dest, const CRW *src)

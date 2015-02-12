@@ -455,7 +455,8 @@ int css_do_xsch(SubchDev *sch);
 int css_do_csch(SubchDev *sch);
 int css_do_hsch(SubchDev *sch);
 int css_do_ssch(SubchDev *sch, ORB *orb);
-int css_do_tsch(SubchDev *sch, IRB *irb);
+int css_do_tsch_get_irb(SubchDev *sch, IRB *irb, int *irb_len);
+void css_do_tsch_update_subch(SubchDev *sch);
 int css_do_stcrw(CRW *crw);
 int css_do_tpi(IOIntCode *int_code, int lowcore);
 int css_collect_chp_desc(int m, uint8_t cssid, uint8_t f_chpid, uint8_t l_chpid,

@@ -341,10 +341,9 @@ int ioinst_handle_tsch(S390CPU *cpu, uint64_t reg1, uint32_t ipb)
     CPUS390XState *env = &cpu->env;
     int cssid, ssid, schid, m;
     SubchDev *sch;
-    IRB *irb;
+    IRB irb;
     uint64_t addr;
-    int cc;
-    hwaddr len = sizeof(*irb);
+    int cc, irb_len;
 
     if (ioinst_disassemble_sch_ident(reg1, &m, &cssid, &ssid, &schid)) {
         program_interrupt(env, PGM_OPERAND, 2);
@@ -356,23 +355,29 @@ int ioinst_handle_tsch(S390CPU *cpu, uint64_t reg1, uint32_t ipb)
         program_interrupt(env, PGM_SPECIFICATION, 2);
         return -EIO;
     }
-    irb = s390_cpu_physical_memory_map(env, addr, &len, 1);
-    if (!irb || len != sizeof(*irb)) {
-        program_interrupt(env, PGM_ADDRESSING, 2);
-        cc = -EIO;
-        goto out;
-    }
+
     sch = css_find_subch(m, cssid, ssid, schid);
     if (sch && css_subch_visible(sch)) {
-        cc = css_do_tsch(sch, irb);
-        /* 0 - status pending, 1 - not status pending */
+        cc = css_do_tsch_get_irb(sch, &irb, &irb_len);
     } else {
         cc = 3;
     }
+    /* 0 - status pending, 1 - not status pending, 3 - not operational */
+    if (cc != 3) {
+        if (s390_cpu_virt_mem_write(cpu, addr, &irb, irb_len) != 0) {
+            return -EFAULT;
+        }
+        css_do_tsch_update_subch(sch);
+    } else {
+        irb_len = sizeof(irb) - sizeof(irb.emw);
+        /* Access exceptions have a higher priority than cc3 */
+        if (s390_cpu_virt_mem_check_write(cpu, addr, irb_len) != 0) {
+            return -EFAULT;
+        }
+    }
+
     setcc(cpu, cc);
-out:
-    s390_cpu_physical_memory_unmap(env, irb, sizeof(*irb), 1);
-    return cc;
+    return 0;
 }
 
 typedef struct ChscReq {
