@@ -1295,7 +1295,7 @@ static void nbd_trip(void *opaque)
     default:
         LOG("invalid request type (%u) received", request.type);
     invalid_request:
-        reply.error = -EINVAL;
+        reply.error = EINVAL;
     error_reply:
         if (nbd_co_send_reply(req, &reply, 0) < 0) {
             goto out;
