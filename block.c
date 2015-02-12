@@ -1364,7 +1364,7 @@ int bdrv_append_temp_snapshot(BlockDriverState *bs, int flags, Error **errp)
 
     opts = qemu_opts_create(bdrv_qcow2.create_opts, NULL, 0,
                             &error_abort);
-    qemu_opt_set_number(opts, BLOCK_OPT_SIZE, total_size);
+    qemu_opt_set_number(opts, BLOCK_OPT_SIZE, total_size, &error_abort);
     ret = bdrv_create(&bdrv_qcow2, tmp_filename, opts, &local_err);
     qemu_opts_del(opts);
     if (ret < 0) {
@@ -5649,7 +5649,7 @@ void bdrv_img_create(const char *filename, const char *fmt,
 
     /* Create parameter list with default values */
     opts = qemu_opts_create(create_opts, NULL, 0, &error_abort);
-    qemu_opt_set_number(opts, BLOCK_OPT_SIZE, img_size);
+    qemu_opt_set_number(opts, BLOCK_OPT_SIZE, img_size, &error_abort);
 
     /* Parse -o options */
     if (options) {
@@ -5731,7 +5731,7 @@ void bdrv_img_create(const char *filename, const char *fmt,
                 goto out;
             }
 
-            qemu_opt_set_number(opts, BLOCK_OPT_SIZE, size);
+            qemu_opt_set_number(opts, BLOCK_OPT_SIZE, size, &error_abort);
 
             bdrv_unref(bs);
         } else {

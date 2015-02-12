@@ -1550,7 +1550,8 @@ static int img_convert(int argc, char **argv)
             goto out;
         }
 
-        qemu_opt_set_number(opts, BLOCK_OPT_SIZE, total_sectors * 512);
+        qemu_opt_set_number(opts, BLOCK_OPT_SIZE, total_sectors * 512,
+                            &error_abort);
         ret = add_old_style_options(out_fmt, opts, out_baseimg, NULL);
         if (ret < 0) {
             goto out;

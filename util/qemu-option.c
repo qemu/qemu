@@ -589,7 +589,8 @@ void qemu_opt_set_bool(QemuOpts *opts, const char *name, bool val,
     QTAILQ_INSERT_TAIL(&opts->head, opt, next);
 }
 
-int qemu_opt_set_number(QemuOpts *opts, const char *name, int64_t val)
+void qemu_opt_set_number(QemuOpts *opts, const char *name, int64_t val,
+                         Error **errp)
 {
     QemuOpt *opt;
     const QemuOptDesc *desc = opts->list->desc;
@@ -597,9 +598,9 @@ int qemu_opt_set_number(QemuOpts *opts, const char *name, int64_t val)
     opt = g_malloc0(sizeof(*opt));
     opt->desc = find_desc_by_name(desc, name);
     if (!opt->desc && !opts_accepts_any(opts)) {
-        qerror_report(QERR_INVALID_PARAMETER, name);
+        error_set(errp, QERR_INVALID_PARAMETER, name);
         g_free(opt);
-        return -1;
+        return;
     }
 
     opt->name = g_strdup(name);
@@ -607,8 +608,6 @@ int qemu_opt_set_number(QemuOpts *opts, const char *name, int64_t val)
     opt->value.uint = val;
     opt->str = g_strdup_printf("%" PRId64, val);
     QTAILQ_INSERT_TAIL(&opts->head, opt, next);
-
-    return 0;
 }
 
 int qemu_opt_foreach(QemuOpts *opts, qemu_opt_loopfunc func, void *opaque,

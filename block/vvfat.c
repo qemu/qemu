@@ -2924,7 +2924,8 @@ static int enable_write_target(BDRVVVFATState *s, Error **errp)
     }
 
     opts = qemu_opts_create(bdrv_qcow->create_opts, NULL, 0, &error_abort);
-    qemu_opt_set_number(opts, BLOCK_OPT_SIZE, s->sector_count * 512);
+    qemu_opt_set_number(opts, BLOCK_OPT_SIZE, s->sector_count * 512,
+                        &error_abort);
     qemu_opt_set(opts, BLOCK_OPT_BACKING_FILE, "fat:");
 
     ret = bdrv_create(bdrv_qcow, s->qcow_filename, opts, errp);

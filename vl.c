@@ -2684,7 +2684,7 @@ static void set_memory_options(uint64_t *ram_slots, ram_addr_t *maxram_size)
     }
 
     /* store value for the future use */
-    qemu_opt_set_number(opts, "size", ram_size);
+    qemu_opt_set_number(opts, "size", ram_size, &error_abort);
     *maxram_size = ram_size;
 
     maxmem_str = qemu_opt_get(opts, "maxmem");
