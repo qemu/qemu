@@ -654,16 +654,21 @@ static int ram_save_page(QEMUFile *f, RAMBlock* block, ram_addr_t offset,
     return bytes_sent;
 }
 
-/*
- * ram_find_and_save_block: Finds a page to send and sends it to f
+/**
+ * ram_find_and_save_block: Finds a dirty page and sends it to f
  *
  * Called within an RCU critical section.
  *
- * Returns:  The number of bytes written.
+ * Returns:  The number of pages written
  *           0 means no dirty pages
+ *
+ * @f: QEMUFile where to send the data
+ * @last_stage: if we are at the completion stage
+ * @bytes_transferred: increase it with the number of transferred bytes
  */
 
-static int ram_find_and_save_block(QEMUFile *f, bool last_stage)
+static int ram_find_and_save_block(QEMUFile *f, bool last_stage,
+                                   uint64_t *bytes_transferred)
 {
     RAMBlock *block = last_seen_block;
     ram_addr_t offset = last_offset;
@@ -702,7 +707,10 @@ static int ram_find_and_save_block(QEMUFile *f, bool last_stage)
 
     last_seen_block = block;
     last_offset = offset;
-    return bytes_sent;
+
+    *bytes_transferred += bytes_sent;
+
+    return (bytes_sent != 0);
 }
 
 static uint64_t bytes_transferred;
@@ -886,7 +894,7 @@ static int ram_save_iterate(QEMUFile *f, void *opaque)
     int ret;
     int i;
     int64_t t0;
-    int total_sent = 0;
+    int pages_sent = 0;
 
     rcu_read_lock();
     if (ram_list.version != last_version) {
@@ -901,14 +909,14 @@ static int ram_save_iterate(QEMUFile *f, void *opaque)
     t0 = qemu_clock_get_ns(QEMU_CLOCK_REALTIME);
     i = 0;
     while ((ret = qemu_file_rate_limit(f)) == 0) {
-        int bytes_sent;
+        int pages;
 
-        bytes_sent = ram_find_and_save_block(f, false);
-        /* no more blocks to sent */
-        if (bytes_sent == 0) {
+        pages = ram_find_and_save_block(f, false, &bytes_transferred);
+        /* no more pages to sent */
+        if (pages == 0) {
             break;
         }
-        total_sent += bytes_sent;
+        pages_sent += pages;
         acct_info.iterations++;
         check_guest_throttling();
         /* we want to check in the 1st loop, just in case it was the 1st time
@@ -934,12 +942,6 @@ static int ram_save_iterate(QEMUFile *f, void *opaque)
      */
     ram_control_after_iterate(f, RAM_CONTROL_ROUND);
 
-    bytes_transferred += total_sent;
-
-    /*
-     * Do not count these 8 bytes into total_sent, so that we can
-     * return 0 if no page had been dirtied.
-     */
     qemu_put_be64(f, RAM_SAVE_FLAG_EOS);
     bytes_transferred += 8;
 
@@ -948,7 +950,7 @@ static int ram_save_iterate(QEMUFile *f, void *opaque)
         return ret;
     }
 
-    return total_sent;
+    return pages_sent;
 }
 
 /* Called with iothread lock */
@@ -964,14 +966,13 @@ static int ram_save_complete(QEMUFile *f, void *opaque)
 
     /* flush all remaining blocks regardless of rate limiting */
     while (true) {
-        int bytes_sent;
+        int pages;
 
-        bytes_sent = ram_find_and_save_block(f, true);
+        pages = ram_find_and_save_block(f, true, &bytes_transferred);
         /* no more blocks to sent */
-        if (bytes_sent == 0) {
+        if (pages == 0) {
             break;
         }
-        bytes_transferred += bytes_sent;
     }
 
     ram_control_after_iterate(f, RAM_CONTROL_FINISH);
