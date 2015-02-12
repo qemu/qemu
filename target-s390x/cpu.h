@@ -350,10 +350,6 @@ int s390_cpu_handle_mmu_fault(CPUState *cpu, vaddr address, int rw,
 #include "ioinst.h"
 
 #ifndef CONFIG_USER_ONLY
-void *s390_cpu_physical_memory_map(CPUS390XState *env, hwaddr addr, hwaddr *len,
-                                   int is_write);
-void s390_cpu_physical_memory_unmap(CPUS390XState *env, void *addr, hwaddr len,
-                                    int is_write);
 static inline hwaddr decode_basedisp_s(CPUS390XState *env, uint32_t ipb)
 {
     hwaddr addr = 0;
