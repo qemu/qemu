@@ -331,6 +331,7 @@ static inline int get_ilen(uint8_t opc)
    to re-compute the length by examining the insn in memory.  */
 #define ILEN_LATER       0x20
 #define ILEN_LATER_INC   0x21
+void trigger_pgm_exception(CPUS390XState *env, uint32_t code, uint32_t ilen);
 #endif
 
 S390CPU *cpu_s390x_init(const char *cpu_model);
