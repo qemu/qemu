@@ -813,7 +813,7 @@ int qemu_opts_do_parse(QemuOpts *opts, const char *params, const char *firstname
 }
 
 static QemuOpts *opts_parse(QemuOptsList *list, const char *params,
-                            int permit_abbrev, bool defaults)
+                            int permit_abbrev, bool defaults, Error **errp)
 {
     const char *firstname;
     char value[1024], *id = NULL;
@@ -842,17 +842,13 @@ static QemuOpts *opts_parse(QemuOptsList *list, const char *params,
     assert(!defaults || list->merge_lists);
     opts = qemu_opts_create(list, id, !defaults, &local_err);
     if (opts == NULL) {
-        if (local_err) {
-            qerror_report_err(local_err);
-            error_free(local_err);
-        }
+        error_propagate(errp, local_err);
         return NULL;
     }
 
     opts_do_parse(opts, params, firstname, defaults, &local_err);
     if (local_err) {
-        qerror_report_err(local_err);
-        error_free(local_err);
+        error_propagate(errp, local_err);
         qemu_opts_del(opts);
         return NULL;
     }
@@ -860,10 +856,25 @@ static QemuOpts *opts_parse(QemuOptsList *list, const char *params,
     return opts;
 }
 
+/**
+ * Create a QemuOpts in @list and with options parsed from @params.
+ * If @permit_abbrev, the first key=value in @params may omit key=,
+ * and is treated as if key was @list->implied_opt_name.
+ * Report errors with qerror_report_err().
+ * Return the new QemuOpts on success, null pointer on error.
+ */
 QemuOpts *qemu_opts_parse(QemuOptsList *list, const char *params,
                           int permit_abbrev)
 {
-    return opts_parse(list, params, permit_abbrev, false);
+    Error *err = NULL;
+    QemuOpts *opts;
+
+    opts = opts_parse(list, params, permit_abbrev, false, &err);
+    if (!opts) {
+        qerror_report_err(err);
+        error_free(err);
+    }
+    return opts;
 }
 
 void qemu_opts_set_defaults(QemuOptsList *list, const char *params,
@@ -871,7 +882,7 @@ void qemu_opts_set_defaults(QemuOptsList *list, const char *params,
 {
     QemuOpts *opts;
 
-    opts = opts_parse(list, params, permit_abbrev, true);
+    opts = opts_parse(list, params, permit_abbrev, true, NULL);
     assert(opts);
 }
 
