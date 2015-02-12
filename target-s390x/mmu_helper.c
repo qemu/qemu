@@ -42,45 +42,26 @@
     do { } while (0)
 #endif
 
-static int trans_bits(CPUS390XState *env, uint64_t mode)
-{
-    S390CPU *cpu = s390_env_get_cpu(env);
-    int bits = 0;
-
-    switch (mode) {
-    case PSW_ASC_PRIMARY:
-        bits = 1;
-        break;
-    case PSW_ASC_SECONDARY:
-        bits = 2;
-        break;
-    case PSW_ASC_HOME:
-        bits = 3;
-        break;
-    default:
-        cpu_abort(CPU(cpu), "unknown asc mode\n");
-        break;
-    }
-
-    return bits;
-}
+/* Fetch/store bits in the translation exception code: */
+#define FS_READ  0x800
+#define FS_WRITE 0x400
 
 static void trigger_prot_fault(CPUS390XState *env, target_ulong vaddr,
-                               uint64_t mode, bool exc)
+                               uint64_t asc, int rw, bool exc)
 {
     CPUState *cs = CPU(s390_env_get_cpu(env));
-    int ilen = ILEN_LATER_INC;
-    int bits = trans_bits(env, mode) | 4;
+    uint64_t tec;
 
-    DPRINTF("%s: vaddr=%016" PRIx64 " bits=%d\n", __func__, vaddr, bits);
+    tec = vaddr | (rw == 1 ? FS_WRITE : FS_READ) | 4 | asc >> 46;
+
+    DPRINTF("%s: trans_exc_code=%016" PRIx64 "\n", __func__, tec);
 
     if (!exc) {
         return;
     }
 
-    stq_phys(cs->as,
-             env->psa + offsetof(LowCore, trans_exc_code), vaddr | bits);
-    trigger_pgm_exception(env, PGM_PROTECTION, ilen);
+    stq_phys(cs->as, env->psa + offsetof(LowCore, trans_exc_code), tec);
+    trigger_pgm_exception(env, PGM_PROTECTION, ILEN_LATER_INC);
 }
 
 static void trigger_page_fault(CPUS390XState *env, target_ulong vaddr,
@@ -88,7 +69,9 @@ static void trigger_page_fault(CPUS390XState *env, target_ulong vaddr,
 {
     CPUState *cs = CPU(s390_env_get_cpu(env));
     int ilen = ILEN_LATER;
-    int bits = trans_bits(env, asc);
+    uint64_t tec;
+
+    tec = vaddr | (rw == 1 ? FS_WRITE : FS_READ) | asc >> 46;
 
     DPRINTF("%s: vaddr=%016" PRIx64 " bits=%d\n", __func__, vaddr, bits);
 
@@ -101,8 +84,7 @@ static void trigger_page_fault(CPUS390XState *env, target_ulong vaddr,
         ilen = 2;
     }
 
-    stq_phys(cs->as,
-             env->psa + offsetof(LowCore, trans_exc_code), vaddr | bits);
+    stq_phys(cs->as, env->psa + offsetof(LowCore, trans_exc_code), tec);
     trigger_pgm_exception(env, type, ilen);
 }
 
@@ -307,7 +289,7 @@ static int mmu_translate_asc(CPUS390XState *env, target_ulong vaddr,
     r = mmu_translate_region(env, vaddr, asc, asce, level, raddr, flags, rw,
                              exc);
     if ((rw == 1) && !(*flags & PAGE_WRITE)) {
-        trigger_prot_fault(env, vaddr, asc, exc);
+        trigger_prot_fault(env, vaddr, asc, rw, exc);
         return -1;
     }
 
