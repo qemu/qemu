@@ -682,12 +682,13 @@ void ioinst_handle_chsc(S390CPU *cpu, uint32_t ipb)
     }
 }
 
-int ioinst_handle_tpi(CPUS390XState *env, uint32_t ipb)
+int ioinst_handle_tpi(S390CPU *cpu, uint32_t ipb)
 {
+    CPUS390XState *env = &cpu->env;
     uint64_t addr;
     int lowcore;
-    IOIntCode *int_code;
-    hwaddr len, orig_len;
+    IOIntCode int_code;
+    hwaddr len;
     int ret;
 
     trace_ioinst("tpi");
@@ -699,16 +700,10 @@ int ioinst_handle_tpi(CPUS390XState *env, uint32_t ipb)
 
     lowcore = addr ? 0 : 1;
     len = lowcore ? 8 /* two words */ : 12 /* three words */;
-    orig_len = len;
-    int_code = s390_cpu_physical_memory_map(env, addr, &len, 1);
-    if (!int_code || (len != orig_len)) {
-        program_interrupt(env, PGM_ADDRESSING, 2);
-        ret = -EIO;
-        goto out;
+    ret = css_do_tpi(&int_code, lowcore);
+    if (ret == 1) {
+        s390_cpu_virt_mem_write(cpu, lowcore ? 184 : addr, &int_code, len);
     }
-    ret = css_do_tpi(int_code, lowcore);
-out:
-    s390_cpu_physical_memory_unmap(env, int_code, len, 1);
     return ret;
 }
 
