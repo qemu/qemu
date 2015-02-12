@@ -1550,10 +1550,14 @@ static int img_convert(int argc, char **argv)
         create_opts = qemu_opts_append(create_opts, proto_drv->create_opts);
 
         opts = qemu_opts_create(create_opts, NULL, 0, &error_abort);
-        if (options && qemu_opts_do_parse(opts, options, NULL)) {
-            error_report("Invalid options for file format '%s'", out_fmt);
-            ret = -1;
-            goto out;
+        if (options) {
+            qemu_opts_do_parse(opts, options, NULL, &local_err);
+            if (local_err) {
+                error_report("Invalid options for file format '%s'", out_fmt);
+                error_free(local_err);
+                ret = -1;
+                goto out;
+            }
         }
 
         qemu_opt_set_number(opts, BLOCK_OPT_SIZE, total_sectors * 512,
@@ -2887,6 +2891,7 @@ static void amend_status_cb(BlockDriverState *bs,
 
 static int img_amend(int argc, char **argv)
 {
+    Error *err = NULL;
     int c, ret = 0;
     char *options = NULL;
     QemuOptsList *create_opts = NULL;
@@ -2992,10 +2997,14 @@ static int img_amend(int argc, char **argv)
 
     create_opts = qemu_opts_append(create_opts, bs->drv->create_opts);
     opts = qemu_opts_create(create_opts, NULL, 0, &error_abort);
-    if (options && qemu_opts_do_parse(opts, options, NULL)) {
-        error_report("Invalid options for file format '%s'", fmt);
-        ret = -1;
-        goto out;
+    if (options) {
+        qemu_opts_do_parse(opts, options, NULL, &err);
+        if (err) {
+            error_report("Invalid options for file format '%s'", fmt);
+            error_free(err);
+            ret = -1;
+            goto out;
+        }
     }
 
     /* In case the driver does not call amend_status_cb() */

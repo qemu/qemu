@@ -799,17 +799,16 @@ static void opts_do_parse(QemuOpts *opts, const char *params,
     }
 }
 
-int qemu_opts_do_parse(QemuOpts *opts, const char *params, const char *firstname)
+/**
+ * Store options parsed from @params into @opts.
+ * If @firstname is non-null, the first key=value in @params may omit
+ * key=, and is treated as if key was @firstname.
+ * On error, store an error object through @errp if non-null.
+ */
+void qemu_opts_do_parse(QemuOpts *opts, const char *params,
+                       const char *firstname, Error **errp)
 {
-    Error *err = NULL;
-
-    opts_do_parse(opts, params, firstname, false, &err);
-    if (err) {
-        qerror_report_err(err);
-        error_free(err);
-        return -1;
-    }
-    return 0;
+    opts_do_parse(opts, params, firstname, false, errp);
 }
 
 static QemuOpts *opts_parse(QemuOptsList *list, const char *params,
