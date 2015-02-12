@@ -305,23 +305,6 @@ uint64_t xbzrle_mig_pages_overflow(void)
     return acct_info.xbzrle_overflows;
 }
 
-static size_t save_block_hdr(QEMUFile *f, RAMBlock *block, ram_addr_t offset,
-                             int cont, int flag)
-{
-    size_t size;
-
-    qemu_put_be64(f, offset | cont | flag);
-    size = 8;
-
-    if (!cont) {
-        qemu_put_byte(f, strlen(block->idstr));
-        qemu_put_buffer(f, (uint8_t *)block->idstr,
-                        strlen(block->idstr));
-        size += 1 + strlen(block->idstr);
-    }
-    return size;
-}
-
 /* This is the last block that we have visited serching for dirty pages
  */
 static RAMBlock *last_seen_block;
@@ -332,6 +315,28 @@ static unsigned long *migration_bitmap;
 static uint64_t migration_dirty_pages;
 static uint32_t last_version;
 static bool ram_bulk_stage;
+
+static size_t save_block_hdr(QEMUFile *f, RAMBlock *block, ram_addr_t offset,
+                             int flag)
+{
+    size_t size;
+
+    if (block == last_sent_block) {
+        offset |= RAM_SAVE_FLAG_CONTINUE;
+    }
+
+    qemu_put_be64(f, offset | flag);
+    size = 8;
+
+    if (block != last_sent_block) {
+        qemu_put_byte(f, strlen(block->idstr));
+        qemu_put_buffer(f, (uint8_t *)block->idstr,
+                        strlen(block->idstr));
+        size += 1 + strlen(block->idstr);
+        last_sent_block = block;
+    }
+    return size;
+}
 
 /* Update the xbzrle cache to reflect a page that's been sent as all 0.
  * The important thing is that a stale (not-yet-0'd) page be replaced
@@ -370,7 +375,7 @@ static void xbzrle_cache_zero_page(ram_addr_t current_addr)
  */
 static int save_xbzrle_page(QEMUFile *f, uint8_t **current_data,
                             ram_addr_t current_addr, RAMBlock *block,
-                            ram_addr_t offset, int cont, bool last_stage,
+                            ram_addr_t offset, bool last_stage,
                             uint64_t *bytes_transferred)
 {
     int encoded_len = 0, bytes_xbzrle;
@@ -420,7 +425,7 @@ static int save_xbzrle_page(QEMUFile *f, uint8_t **current_data,
     }
 
     /* Send XBZRLE based compressed page */
-    bytes_xbzrle = save_block_hdr(f, block, offset, cont, RAM_SAVE_FLAG_XBZRLE);
+    bytes_xbzrle = save_block_hdr(f, block, offset, RAM_SAVE_FLAG_XBZRLE);
     qemu_put_byte(f, ENCODING_FLAG_XBZRLE);
     qemu_put_be16(f, encoded_len);
     qemu_put_buffer(f, XBZRLE.encoded_buf, encoded_len);
@@ -608,14 +613,11 @@ static int ram_save_page(QEMUFile *f, RAMBlock* block, ram_addr_t offset,
 {
     int pages = -1;
     uint64_t bytes_xmit;
-    int cont;
     ram_addr_t current_addr;
     MemoryRegion *mr = block->mr;
     uint8_t *p;
     int ret;
     bool send_async = true;
-
-    cont = (block == last_sent_block) ? RAM_SAVE_FLAG_CONTINUE : 0;
 
     p = memory_region_get_ram_ptr(mr) + offset;
 
@@ -641,7 +643,7 @@ static int ram_save_page(QEMUFile *f, RAMBlock* block, ram_addr_t offset,
         }
     } else if (is_zero_range(p, TARGET_PAGE_SIZE)) {
         acct_info.dup_pages++;
-        *bytes_transferred += save_block_hdr(f, block, offset, cont,
+        *bytes_transferred += save_block_hdr(f, block, offset,
                                              RAM_SAVE_FLAG_COMPRESS);
         qemu_put_byte(f, 0);
         *bytes_transferred += 1;
@@ -652,7 +654,7 @@ static int ram_save_page(QEMUFile *f, RAMBlock* block, ram_addr_t offset,
         xbzrle_cache_zero_page(current_addr);
     } else if (!ram_bulk_stage && migrate_use_xbzrle()) {
         pages = save_xbzrle_page(f, &p, current_addr, block,
-                                 offset, cont, last_stage, bytes_transferred);
+                                 offset, last_stage, bytes_transferred);
         if (!last_stage) {
             /* Can't send this cached data async, since the cache page
              * might get updated before it gets to the wire
@@ -663,7 +665,7 @@ static int ram_save_page(QEMUFile *f, RAMBlock* block, ram_addr_t offset,
 
     /* XBZRLE overflow or normal page */
     if (pages == -1) {
-        *bytes_transferred += save_block_hdr(f, block, offset, cont,
+        *bytes_transferred += save_block_hdr(f, block, offset,
                                              RAM_SAVE_FLAG_PAGE);
         if (send_async) {
             qemu_put_buffer_async(f, p, TARGET_PAGE_SIZE);
@@ -726,7 +728,6 @@ static int ram_find_and_save_block(QEMUFile *f, bool last_stage,
 
             /* if page is unmodified, continue to the next */
             if (pages > 0) {
-                last_sent_block = block;
                 break;
             }
         }
