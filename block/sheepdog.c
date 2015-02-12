@@ -2339,9 +2339,8 @@ static int sd_snapshot_create(BlockDriverState *bs, QEMUSnapshotInfo *sn_info)
 
     ret = do_sd_create(s, &new_vid, 1, &local_err);
     if (ret < 0) {
-        error_report_err(local_err);
-        error_report("failed to create inode for snapshot. %s",
-                     strerror(errno));
+        error_report("failed to create inode for snapshot: %s",
+                     error_get_pretty(local_err));
         goto cleanup;
     }
 
