@@ -629,8 +629,8 @@ void ioinst_handle_chsc(S390CPU *cpu, uint32_t ipb)
     int reg;
     uint16_t len;
     uint16_t command;
-    hwaddr map_size = TARGET_PAGE_SIZE;
     CPUS390XState *env = &cpu->env;
+    uint8_t buf[TARGET_PAGE_SIZE];
 
     trace_ioinst("chsc");
     reg = (ipb >> 20) & 0x00f;
@@ -640,16 +640,20 @@ void ioinst_handle_chsc(S390CPU *cpu, uint32_t ipb)
         program_interrupt(env, PGM_SPECIFICATION, 2);
         return;
     }
-    req = s390_cpu_physical_memory_map(env, addr, &map_size, 1);
-    if (!req || map_size != TARGET_PAGE_SIZE) {
-        program_interrupt(env, PGM_ADDRESSING, 2);
-        goto out;
+    /*
+     * Reading sizeof(ChscReq) bytes is currently enough for all of our
+     * present CHSC sub-handlers ... if we ever need more, we should take
+     * care of req->len here first.
+     */
+    if (s390_cpu_virt_mem_read(cpu, addr, buf, sizeof(ChscReq))) {
+        return;
     }
+    req = (ChscReq *)buf;
     len = be16_to_cpu(req->len);
     /* Length field valid? */
     if ((len < 16) || (len > 4088) || (len & 7)) {
         program_interrupt(env, PGM_OPERAND, 2);
-        goto out;
+        return;
     }
     memset((char *)req + len, 0, TARGET_PAGE_SIZE - len);
     res = (void *)((char *)req + len);
@@ -673,9 +677,9 @@ void ioinst_handle_chsc(S390CPU *cpu, uint32_t ipb)
         break;
     }
 
-    setcc(cpu, 0);    /* Command execution complete */
-out:
-    s390_cpu_physical_memory_unmap(env, req, map_size, 1);
+    if (!s390_cpu_virt_mem_write(cpu, addr + len, res, be16_to_cpu(res->len))) {
+        setcc(cpu, 0);    /* Command execution complete */
+    }
 }
 
 int ioinst_handle_tpi(CPUS390XState *env, uint32_t ipb)
