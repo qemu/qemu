@@ -94,9 +94,8 @@ uint64_t qemu_opt_get_number_del(QemuOpts *opts, const char *name,
 uint64_t qemu_opt_get_size_del(QemuOpts *opts, const char *name,
                                uint64_t defval);
 int qemu_opt_unset(QemuOpts *opts, const char *name);
-int qemu_opt_set(QemuOpts *opts, const char *name, const char *value);
-void qemu_opt_set_err(QemuOpts *opts, const char *name, const char *value,
-                      Error **errp);
+void qemu_opt_set(QemuOpts *opts, const char *name, const char *value,
+                  Error **errp);
 void qemu_opt_set_bool(QemuOpts *opts, const char *name, bool val,
                        Error **errp);
 void qemu_opt_set_number(QemuOpts *opts, const char *name, int64_t val,

@@ -148,13 +148,13 @@ static void test_qemu_opt_get(void)
     opt = qemu_opt_get(opts, "str2");
     g_assert(opt == NULL);
 
-    qemu_opt_set(opts, "str2", "value");
+    qemu_opt_set(opts, "str2", "value", &error_abort);
 
     /* now we have set str2, should know about it */
     opt = qemu_opt_get(opts, "str2");
     g_assert_cmpstr(opt, ==, "value");
 
-    qemu_opt_set(opts, "str2", "value2");
+    qemu_opt_set(opts, "str2", "value2", &error_abort);
 
     /* having reset the value, the returned should be the reset one */
     opt = qemu_opt_get(opts, "str2");
@@ -331,7 +331,7 @@ static void test_qemu_opt_unset(void)
     g_assert_cmpstr(value, ==, "value");
 
     /* reset it to value2 */
-    qemu_opt_set(opts, "key", "value2");
+    qemu_opt_set(opts, "key", "value2", &error_abort);
 
     value = qemu_opt_get(opts, "key");
     g_assert_cmpstr(value, ==, "value2");

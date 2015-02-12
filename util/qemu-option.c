@@ -548,22 +548,8 @@ static void opt_set(QemuOpts *opts, const char *name, const char *value,
     }
 }
 
-int qemu_opt_set(QemuOpts *opts, const char *name, const char *value)
-{
-    Error *local_err = NULL;
-
-    opt_set(opts, name, value, false, &local_err);
-    if (local_err) {
-        qerror_report_err(local_err);
-        error_free(local_err);
-        return -1;
-    }
-
-    return 0;
-}
-
-void qemu_opt_set_err(QemuOpts *opts, const char *name, const char *value,
-                      Error **errp)
+void qemu_opt_set(QemuOpts *opts, const char *name, const char *value,
+                  Error **errp)
 {
     opt_set(opts, name, value, false, errp);
 }
@@ -701,7 +687,7 @@ void qemu_opts_set(QemuOptsList *list, const char *id,
         error_propagate(errp, local_err);
         return;
     }
-    qemu_opt_set_err(opts, name, value, errp);
+    qemu_opt_set(opts, name, value, errp);
 }
 
 const char *qemu_opts_id(QemuOpts *opts)
@@ -921,7 +907,7 @@ static void qemu_opts_from_qdict_1(const char *key, QObject *obj, void *opaque)
         return;
     }
 
-    qemu_opt_set_err(state->opts, key, value, state->errp);
+    qemu_opt_set(state->opts, key, value, state->errp);
 }
 
 /*

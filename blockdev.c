@@ -187,14 +187,14 @@ QemuOpts *drive_add(BlockInterfaceType type, int index, const char *file,
         return NULL;
     }
     if (type != IF_DEFAULT) {
-        qemu_opt_set(opts, "if", if_name[type]);
+        qemu_opt_set(opts, "if", if_name[type], &error_abort);
     }
     if (index >= 0) {
         snprintf(buf, sizeof(buf), "%d", index);
-        qemu_opt_set(opts, "index", buf);
+        qemu_opt_set(opts, "index", buf, &error_abort);
     }
     if (file)
-        qemu_opt_set(opts, "file", file);
+        qemu_opt_set(opts, "file", file, &error_abort);
     return opts;
 }
 
@@ -584,7 +584,7 @@ static void qemu_opt_rename(QemuOpts *opts, const char *from, const char *to,
 
     /* rename all items in opts */
     while ((value = qemu_opt_get(opts, from))) {
-        qemu_opt_set(opts, to, value);
+        qemu_opt_set(opts, to, value, &error_abort);
         qemu_opt_unset(opts, from);
     }
 }
@@ -935,13 +935,14 @@ DriveInfo *drive_new(QemuOpts *all_opts, BlockInterfaceType block_default_type)
         devopts = qemu_opts_create(qemu_find_opts("device"), NULL, 0,
                                    &error_abort);
         if (arch_type == QEMU_ARCH_S390X) {
-            qemu_opt_set(devopts, "driver", "virtio-blk-s390");
+            qemu_opt_set(devopts, "driver", "virtio-blk-s390", &error_abort);
         } else {
-            qemu_opt_set(devopts, "driver", "virtio-blk-pci");
+            qemu_opt_set(devopts, "driver", "virtio-blk-pci", &error_abort);
         }
-        qemu_opt_set(devopts, "drive", qdict_get_str(bs_opts, "id"));
+        qemu_opt_set(devopts, "drive", qdict_get_str(bs_opts, "id"),
+                     &error_abort);
         if (devaddr) {
-            qemu_opt_set(devopts, "addr", devaddr);
+            qemu_opt_set(devopts, "addr", devaddr, &error_abort);
         }
     }
 

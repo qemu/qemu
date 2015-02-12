@@ -1859,7 +1859,8 @@ static int qcow2_create2(const char *filename, int64_t total_size,
 
         qemu_opt_set_number(opts, BLOCK_OPT_SIZE,
                             aligned_total_size + meta_size, &error_abort);
-        qemu_opt_set(opts, BLOCK_OPT_PREALLOC, PreallocMode_lookup[prealloc]);
+        qemu_opt_set(opts, BLOCK_OPT_PREALLOC, PreallocMode_lookup[prealloc],
+                     &error_abort);
     }
 
     ret = bdrv_create_file(filename, opts, &local_err);

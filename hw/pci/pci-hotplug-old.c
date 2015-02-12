@@ -87,7 +87,7 @@ static PCIDevice *qemu_pci_hot_add_nic(Monitor *mon,
         return NULL;
     }
 
-    qemu_opt_set(opts, "type", "nic");
+    qemu_opt_set(opts, "type", "nic", &error_abort);
 
     ret = net_client_init(opts, 0, &local_err);
     if (local_err) {

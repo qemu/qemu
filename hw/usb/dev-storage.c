@@ -683,7 +683,7 @@ static USBDevice *usb_msd_init(USBBus *bus, const char *filename)
         if (strstart(filename, "format=", &p2)) {
             int len = MIN(p1 - p2, sizeof(fmt));
             pstrcpy(fmt, len, p2);
-            qemu_opt_set(opts, "format", fmt);
+            qemu_opt_set(opts, "format", fmt, &error_abort);
         } else if (*filename != ':') {
             error_report("unrecognized USB mass-storage option %s", filename);
             return NULL;
@@ -694,8 +694,8 @@ static USBDevice *usb_msd_init(USBBus *bus, const char *filename)
         error_report("block device specification needed");
         return NULL;
     }
-    qemu_opt_set(opts, "file", filename);
-    qemu_opt_set(opts, "if", "none");
+    qemu_opt_set(opts, "file", filename, &error_abort);
+    qemu_opt_set(opts, "if", "none", &error_abort);
 
     /* create host drive */
     dinfo = drive_new(opts, 0);

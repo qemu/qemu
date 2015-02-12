@@ -970,7 +970,7 @@ void hmp_host_net_add(Monitor *mon, const QDict *qdict)
         return;
     }
 
-    qemu_opt_set(opts, "type", device);
+    qemu_opt_set(opts, "type", device, &error_abort);
 
     net_client_init(opts, 0, &local_err);
     if (local_err) {
