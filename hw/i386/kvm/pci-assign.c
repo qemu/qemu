@@ -953,8 +953,7 @@ static void assigned_dev_update_irq_routing(PCIDevice *dev)
 
     r = assign_intx(assigned_dev, &err);
     if (r < 0) {
-        error_report("%s", error_get_pretty(err));
-        error_free(err);
+        error_report_err(err);
         err = NULL;
         qdev_unplug(&dev->qdev, &err);
         assert(!err);
@@ -1010,8 +1009,7 @@ static void assigned_dev_update_msi(PCIDevice *pci_dev)
 
         assign_intx(assigned_dev, &local_err);
         if (local_err) {
-            error_report("%s", error_get_pretty(local_err));
-            error_free(local_err);
+            error_report_err(local_err);
         }
     }
 }
@@ -1158,8 +1156,7 @@ static void assigned_dev_update_msix(PCIDevice *pci_dev)
 
         assign_intx(assigned_dev, &local_err);
         if (local_err) {
-            error_report("%s", error_get_pretty(local_err));
-            error_free(local_err);
+            error_report_err(local_err);
         }
     }
 }

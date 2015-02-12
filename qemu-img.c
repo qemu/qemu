@@ -2004,8 +2004,7 @@ static ImageInfoList *collect_image_info_list(const char *filename,
 
         bdrv_query_image_info(bs, &info, &err);
         if (err) {
-            error_report("%s", error_get_pretty(err));
-            error_free(err);
+            error_report_err(err);
             blk_unref(blk);
             goto err;
         }
@@ -3053,8 +3052,7 @@ int main(int argc, char **argv)
     qemu_init_exec_dir(argv[0]);
 
     if (qemu_init_main_loop(&local_error)) {
-        error_report("%s", error_get_pretty(local_error));
-        error_free(local_error);
+        error_report_err(local_error);
         exit(EXIT_FAILURE);
     }
 

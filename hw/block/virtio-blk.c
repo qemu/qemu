@@ -858,8 +858,7 @@ static void virtio_blk_migration_state_changed(Notifier *notifier, void *data)
         virtio_blk_data_plane_create(VIRTIO_DEVICE(s), &s->conf,
                                      &s->dataplane, &err);
         if (err != NULL) {
-            error_report("%s", error_get_pretty(err));
-            error_free(err);
+            error_report_err(err);
         }
     }
 }

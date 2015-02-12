@@ -248,7 +248,7 @@ static void calxeda_init(MachineState *machine, enum cxmachines machine_id)
         if (object_property_find(cpuobj, "has_el3", NULL)) {
             object_property_set_bool(cpuobj, false, "has_el3", &err);
             if (err) {
-                error_report("%s", error_get_pretty(err));
+                error_report_err(err);
                 exit(1);
             }
         }
@@ -259,7 +259,7 @@ static void calxeda_init(MachineState *machine, enum cxmachines machine_id)
         }
         object_property_set_bool(cpuobj, true, "realized", &err);
         if (err) {
-            error_report("%s", error_get_pretty(err));
+            error_report_err(err);
             exit(1);
         }
         cpu_irq[n] = qdev_get_gpio_in(DEVICE(cpu), ARM_CPU_IRQ);

@@ -3753,8 +3753,7 @@ CharDriverState *qemu_chr_new(const char *label, const char *filename, void (*in
 
     chr = qemu_chr_new_from_opts(opts, init, &err);
     if (err) {
-        error_report("%s", error_get_pretty(err));
-        error_free(err);
+        error_report_err(err);
     }
     if (chr && qemu_opt_get_bool(opts, "mux", 0)) {
         qemu_chr_fe_claim_no_fail(chr);

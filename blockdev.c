@@ -728,8 +728,7 @@ DriveInfo *drive_new(QemuOpts *all_opts, BlockInterfaceType block_default_type)
         qemu_opt_rename(all_opts, opt_renames[i].from, opt_renames[i].to,
                         &local_err);
         if (local_err) {
-            error_report("%s", error_get_pretty(local_err));
-            error_free(local_err);
+            error_report_err(local_err);
             return NULL;
         }
     }
@@ -767,8 +766,7 @@ DriveInfo *drive_new(QemuOpts *all_opts, BlockInterfaceType block_default_type)
                                    &error_abort);
     qemu_opts_absorb_qdict(legacy_opts, bs_opts, &local_err);
     if (local_err) {
-        error_report("%s", error_get_pretty(local_err));
-        error_free(local_err);
+        error_report_err(local_err);
         goto fail;
     }
 
@@ -983,8 +981,7 @@ DriveInfo *drive_new(QemuOpts *all_opts, BlockInterfaceType block_default_type)
     bs_opts = NULL;
     if (!blk) {
         if (local_err) {
-            error_report("%s", error_get_pretty(local_err));
-            error_free(local_err);
+            error_report_err(local_err);
         }
         goto fail;
     } else {
@@ -1978,8 +1975,7 @@ int do_drive_del(Monitor *mon, const QDict *qdict, QObject **ret_data)
     aio_context_acquire(aio_context);
 
     if (bdrv_op_is_blocked(bs, BLOCK_OP_TYPE_DRIVE_DEL, &local_err)) {
-        error_report("%s", error_get_pretty(local_err));
-        error_free(local_err);
+        error_report_err(local_err);
         aio_context_release(aio_context);
         return -1;
     }

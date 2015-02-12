@@ -228,8 +228,7 @@ static int tcp_socket_incoming(const char *address, uint16_t port)
     int fd = inet_listen(address_and_port, NULL, 0, SOCK_STREAM, 0, &local_err);
 
     if (local_err != NULL) {
-        error_report("%s", error_get_pretty(local_err));
-        error_free(local_err);
+        error_report_err(local_err);
     }
     return fd;
 }
@@ -240,8 +239,7 @@ static int unix_socket_incoming(const char *path)
     int fd = unix_listen(path, NULL, 0, &local_err);
 
     if (local_err != NULL) {
-        error_report("%s", error_get_pretty(local_err));
-        error_free(local_err);
+        error_report_err(local_err);
     }
     return fd;
 }
@@ -252,8 +250,7 @@ static int unix_socket_outgoing(const char *path)
     int fd = unix_connect(path, &local_err);
 
     if (local_err != NULL) {
-        error_report("%s", error_get_pretty(local_err));
-        error_free(local_err);
+        error_report_err(local_err);
     }
     return fd;
 }
@@ -681,8 +678,7 @@ int main(int argc, char **argv)
     }
 
     if (qemu_init_main_loop(&local_err)) {
-        error_report("%s", error_get_pretty(local_err));
-        error_free(local_err);
+        error_report_err(local_err);
         exit(EXIT_FAILURE);
     }
     bdrv_init();

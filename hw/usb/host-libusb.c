@@ -878,8 +878,7 @@ static int usb_host_open(USBHostDevice *s, libusb_device *dev)
 
     usb_device_attach(udev, &local_err);
     if (local_err) {
-        error_report("%s", error_get_pretty(local_err));
-        error_free(local_err);
+        error_report_err(local_err);
         goto fail;
     }
 

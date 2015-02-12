@@ -906,8 +906,7 @@ SerialState *serial_init(int base, qemu_irq irq, int baudbase,
     s->chr = chr;
     serial_realize_core(s, &err);
     if (err != NULL) {
-        error_report("%s", error_get_pretty(err));
-        error_free(err);
+        error_report_err(err);
         exit(1);
     }
 
@@ -970,8 +969,7 @@ SerialState *serial_mm_init(MemoryRegion *address_space,
 
     serial_realize_core(s, &err);
     if (err != NULL) {
-        error_report("%s", error_get_pretty(err));
-        error_free(err);
+        error_report_err(err);
         exit(1);
     }
     vmstate_register(NULL, base, &vmstate_serial, s);

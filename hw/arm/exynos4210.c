@@ -158,7 +158,7 @@ Exynos4210State *exynos4210_init(MemoryRegion *system_mem,
         if (object_property_find(cpuobj, "has_el3", NULL)) {
             object_property_set_bool(cpuobj, false, "has_el3", &err);
             if (err) {
-                error_report("%s", error_get_pretty(err));
+                error_report_err(err);
                 exit(1);
             }
         }
@@ -168,7 +168,7 @@ Exynos4210State *exynos4210_init(MemoryRegion *system_mem,
                                 "reset-cbar", &error_abort);
         object_property_set_bool(cpuobj, true, "realized", &err);
         if (err) {
-            error_report("%s", error_get_pretty(err));
+            error_report_err(err);
             exit(1);
         }
     }

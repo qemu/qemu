@@ -414,7 +414,7 @@ void pc_cmos_init(ram_addr_t ram_size, ram_addr_t above_4g_mem_size,
 
     set_boot_dev(s, boot_device, &local_err);
     if (local_err) {
-        error_report("%s", error_get_pretty(local_err));
+        error_report_err(local_err);
         exit(1);
     }
 
@@ -1040,8 +1040,7 @@ void pc_cpus_init(const char *cpu_model, DeviceState *icc_bridge)
         cpu = pc_new_cpu(cpu_model, x86_cpu_apic_id_from_index(i),
                          icc_bridge, &error);
         if (error) {
-            error_report("%s", error_get_pretty(error));
-            error_free(error);
+            error_report_err(error);
             exit(1);
         }
     }

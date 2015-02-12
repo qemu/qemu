@@ -2163,8 +2163,7 @@ X86CPU *cpu_x86_init(const char *cpu_model)
 
 out:
     if (error) {
-        error_report("%s", error_get_pretty(error));
-        error_free(error);
+        error_report_err(error);
         if (cpu != NULL) {
             object_unref(OBJECT(cpu));
             cpu = NULL;
