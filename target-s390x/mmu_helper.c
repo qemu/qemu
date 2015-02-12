@@ -214,28 +214,12 @@ static int mmu_translate_region(CPUS390XState *env, target_ulong vaddr,
                                 raddr, flags, rw, exc);
 }
 
-static int mmu_translate_asc(CPUS390XState *env, target_ulong vaddr,
-                             uint64_t asc, target_ulong *raddr, int *flags,
-                             int rw, bool exc)
+static int mmu_translate_asce(CPUS390XState *env, target_ulong vaddr,
+                              uint64_t asc, uint64_t asce, target_ulong *raddr,
+                              int *flags, int rw, bool exc)
 {
-    uint64_t asce = 0;
     int level;
     int r;
-
-    switch (asc) {
-    case PSW_ASC_PRIMARY:
-        PTE_DPRINTF("%s: asc=primary\n", __func__);
-        asce = env->cregs[1];
-        break;
-    case PSW_ASC_SECONDARY:
-        PTE_DPRINTF("%s: asc=secondary\n", __func__);
-        asce = env->cregs[7];
-        break;
-    case PSW_ASC_HOME:
-        PTE_DPRINTF("%s: asc=home\n", __func__);
-        asce = env->cregs[13];
-        break;
-    }
 
     if (asce & _ASCE_REAL_SPACE) {
         /* direct mapping */
@@ -326,21 +310,28 @@ int mmu_translate(CPUS390XState *env, target_ulong vaddr, int rw, uint64_t asc,
 
     switch (asc) {
     case PSW_ASC_PRIMARY:
+        PTE_DPRINTF("%s: asc=primary\n", __func__);
+        r = mmu_translate_asce(env, vaddr, asc, env->cregs[1], raddr, flags,
+                               rw, exc);
+        break;
     case PSW_ASC_HOME:
-        r = mmu_translate_asc(env, vaddr, asc, raddr, flags, rw, exc);
+        PTE_DPRINTF("%s: asc=home\n", __func__);
+        r = mmu_translate_asce(env, vaddr, asc, env->cregs[13], raddr, flags,
+                               rw, exc);
         break;
     case PSW_ASC_SECONDARY:
+        PTE_DPRINTF("%s: asc=secondary\n", __func__);
         /*
          * Instruction: Primary
          * Data: Secondary
          */
         if (rw == 2) {
-            r = mmu_translate_asc(env, vaddr, PSW_ASC_PRIMARY, raddr, flags,
-                                  rw, exc);
+            r = mmu_translate_asce(env, vaddr, PSW_ASC_PRIMARY, env->cregs[1],
+                                   raddr, flags, rw, exc);
             *flags &= ~(PAGE_READ | PAGE_WRITE);
         } else {
-            r = mmu_translate_asc(env, vaddr, PSW_ASC_SECONDARY, raddr, flags,
-                                  rw, exc);
+            r = mmu_translate_asce(env, vaddr, PSW_ASC_SECONDARY, env->cregs[7],
+                                   raddr, flags, rw, exc);
             *flags &= ~(PAGE_EXEC);
         }
         break;
