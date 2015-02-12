@@ -210,11 +210,10 @@ void ioinst_handle_ssch(S390CPU *cpu, uint64_t reg1, uint32_t ipb)
 {
     int cssid, ssid, schid, m;
     SubchDev *sch;
-    ORB *orig_orb, orb;
+    ORB orig_orb, orb;
     uint64_t addr;
     int ret = -ENODEV;
     int cc;
-    hwaddr len = sizeof(*orig_orb);
     CPUS390XState *env = &cpu->env;
 
     addr = decode_basedisp_s(env, ipb);
@@ -222,16 +221,14 @@ void ioinst_handle_ssch(S390CPU *cpu, uint64_t reg1, uint32_t ipb)
         program_interrupt(env, PGM_SPECIFICATION, 2);
         return;
     }
-    orig_orb = s390_cpu_physical_memory_map(env, addr, &len, 0);
-    if (!orig_orb || len != sizeof(*orig_orb)) {
-        program_interrupt(env, PGM_ADDRESSING, 2);
-        goto out;
+    if (s390_cpu_virt_mem_read(cpu, addr, &orig_orb, sizeof(orb))) {
+        return;
     }
-    copy_orb_from_guest(&orb, orig_orb);
+    copy_orb_from_guest(&orb, &orig_orb);
     if (ioinst_disassemble_sch_ident(reg1, &m, &cssid, &ssid, &schid) ||
         !ioinst_orb_valid(&orb)) {
         program_interrupt(env, PGM_OPERAND, 2);
-        goto out;
+        return;
     }
     trace_ioinst_sch_id("ssch", cssid, ssid, schid);
     sch = css_find_subch(m, cssid, ssid, schid);
@@ -253,9 +250,6 @@ void ioinst_handle_ssch(S390CPU *cpu, uint64_t reg1, uint32_t ipb)
         break;
     }
     setcc(cpu, cc);
-
-out:
-    s390_cpu_physical_memory_unmap(env, orig_orb, len, 0);
 }
 
 void ioinst_handle_stcrw(S390CPU *cpu, uint32_t ipb)
