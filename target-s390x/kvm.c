@@ -42,6 +42,7 @@
 #include "qapi-event.h"
 #include "hw/s390x/s390-pci-inst.h"
 #include "hw/s390x/s390-pci-bus.h"
+#include "hw/s390x/ipl.h"
 
 /* #define DEBUG_KVM */
 
@@ -1397,7 +1398,7 @@ int kvm_arch_handle_exit(CPUState *cs, struct kvm_run *run)
             ret = handle_intercept(cpu);
             break;
         case KVM_EXIT_S390_RESET:
-            qemu_system_reset_request();
+            s390_reipl_request();
             break;
         case KVM_EXIT_S390_TSCH:
             ret = handle_tsch(cpu);

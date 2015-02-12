@@ -55,6 +55,7 @@ typedef struct S390IPLState {
     bool enforce_bios;
     IplParameterBlock iplb;
     bool iplb_valid;
+    bool reipl_requested;
 
     /*< public >*/
     char *kernel;
@@ -233,6 +234,15 @@ IplParameterBlock *s390_ipl_get_iplb(void)
     return &ipl->iplb;
 }
 
+void s390_reipl_request(void)
+{
+    S390IPLState *ipl;
+
+    ipl = S390_IPL(object_resolve_path(TYPE_S390_IPL, NULL));
+    ipl->reipl_requested = true;
+    qemu_system_reset_request();
+}
+
 static void s390_ipl_reset(DeviceState *dev)
 {
     S390IPLState *ipl = S390_IPL(dev);
@@ -241,6 +251,11 @@ static void s390_ipl_reset(DeviceState *dev)
 
     env->psw.addr = ipl->start_addr;
     env->psw.mask = IPL_PSW_MASK;
+
+    if (!ipl->reipl_requested) {
+        ipl->iplb_valid = false;
+    }
+    ipl->reipl_requested = false;
 
     if (!ipl->kernel || ipl->iplb_valid) {
         env->psw.addr = ipl->bios_start_addr;
