@@ -97,6 +97,11 @@ static void pci_bridge_dev_exitfn(PCIDevice *dev)
     pci_bridge_exitfn(dev);
 }
 
+static void pci_bridge_dev_instance_finalize(Object *obj)
+{
+    shpc_free(PCI_DEVICE(obj));
+}
+
 static void pci_bridge_dev_write_config(PCIDevice *d,
                                         uint32_t address, uint32_t val, int len)
 {
@@ -154,10 +159,11 @@ static void pci_bridge_dev_class_init(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo pci_bridge_dev_info = {
-    .name          = TYPE_PCI_BRIDGE_DEV,
-    .parent        = TYPE_PCI_BRIDGE,
-    .instance_size = sizeof(PCIBridgeDev),
-    .class_init = pci_bridge_dev_class_init,
+    .name              = TYPE_PCI_BRIDGE_DEV,
+    .parent            = TYPE_PCI_BRIDGE,
+    .instance_size     = sizeof(PCIBridgeDev),
+    .class_init        = pci_bridge_dev_class_init,
+    .instance_finalize = pci_bridge_dev_instance_finalize,
     .interfaces = (InterfaceInfo[]) {
         { TYPE_HOTPLUG_HANDLER },
         { }
