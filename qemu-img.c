@@ -332,17 +332,23 @@ static int add_old_style_options(const char *fmt, QemuOpts *opts,
                                  const char *base_filename,
                                  const char *base_fmt)
 {
+    Error *err = NULL;
+
     if (base_filename) {
-        if (qemu_opt_set(opts, BLOCK_OPT_BACKING_FILE, base_filename)) {
+        qemu_opt_set_err(opts, BLOCK_OPT_BACKING_FILE, base_filename, &err);
+        if (err) {
             error_report("Backing file not supported for file format '%s'",
                          fmt);
+            error_free(err);
             return -1;
         }
     }
     if (base_fmt) {
-        if (qemu_opt_set(opts, BLOCK_OPT_BACKING_FMT, base_fmt)) {
+        qemu_opt_set_err(opts, BLOCK_OPT_BACKING_FMT, base_fmt, &err);
+        if (err) {
             error_report("Backing file format not supported for file "
                          "format '%s'", fmt);
+            error_free(err);
             return -1;
         }
     }
@@ -2750,6 +2756,7 @@ out:
 
 static int img_resize(int argc, char **argv)
 {
+    Error *err = NULL;
     int c, ret, relative;
     const char *filename, *fmt, *size;
     int64_t n, total_size;
@@ -2821,8 +2828,9 @@ static int img_resize(int argc, char **argv)
 
     /* Parse size */
     param = qemu_opts_create(&resize_options, NULL, 0, &error_abort);
-    if (qemu_opt_set(param, BLOCK_OPT_SIZE, size)) {
-        /* Error message already printed when size parsing fails */
+    qemu_opt_set_err(param, BLOCK_OPT_SIZE, size, &err);
+    if (err) {
+        error_report_err(err);
         ret = -1;
         qemu_opts_del(param);
         goto out;
