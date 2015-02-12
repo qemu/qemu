@@ -757,6 +757,18 @@ static void enter_pgmcheck(S390CPU *cpu, uint16_t code)
     kvm_s390_vcpu_interrupt(cpu, &irq);
 }
 
+void kvm_s390_access_exception(S390CPU *cpu, uint16_t code, uint64_t te_code)
+{
+    struct kvm_s390_irq irq = {
+        .type = KVM_S390_PROGRAM_INT,
+        .u.pgm.code = code,
+        .u.pgm.trans_exc_code = te_code,
+        .u.pgm.exc_access_id = te_code & 3,
+    };
+
+    kvm_s390_vcpu_interrupt(cpu, &irq);
+}
+
 static int kvm_sclp_service_call(S390CPU *cpu, struct kvm_run *run,
                                  uint16_t ipbh0)
 {

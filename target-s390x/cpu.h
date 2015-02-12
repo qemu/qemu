@@ -397,11 +397,16 @@ void kvm_s390_service_interrupt(uint32_t parm);
 void kvm_s390_vcpu_interrupt(S390CPU *cpu, struct kvm_s390_irq *irq);
 void kvm_s390_floating_interrupt(struct kvm_s390_irq *irq);
 int kvm_s390_inject_flic(struct kvm_s390_irq *irq);
+void kvm_s390_access_exception(S390CPU *cpu, uint16_t code, uint64_t te_code);
 #else
 static inline void kvm_s390_virtio_irq(int config_change, uint64_t token)
 {
 }
 static inline void kvm_s390_service_interrupt(uint32_t parm)
+{
+}
+static inline void kvm_s390_access_exception(S390CPU *cpu, uint16_t code,
+                                             uint64_t te_code)
 {
 }
 #endif

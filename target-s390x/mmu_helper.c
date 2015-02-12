@@ -46,10 +46,23 @@
 #define FS_READ  0x800
 #define FS_WRITE 0x400
 
+static void trigger_access_exception(CPUS390XState *env, uint32_t type,
+                                     uint32_t ilen, uint64_t tec)
+{
+    S390CPU *cpu = s390_env_get_cpu(env);
+
+    if (kvm_enabled()) {
+        kvm_s390_access_exception(cpu, type, tec);
+    } else {
+        CPUState *cs = CPU(cpu);
+        stq_phys(cs->as, env->psa + offsetof(LowCore, trans_exc_code), tec);
+        trigger_pgm_exception(env, type, ilen);
+    }
+}
+
 static void trigger_prot_fault(CPUS390XState *env, target_ulong vaddr,
                                uint64_t asc, int rw, bool exc)
 {
-    CPUState *cs = CPU(s390_env_get_cpu(env));
     uint64_t tec;
 
     tec = vaddr | (rw == 1 ? FS_WRITE : FS_READ) | 4 | asc >> 46;
@@ -60,14 +73,12 @@ static void trigger_prot_fault(CPUS390XState *env, target_ulong vaddr,
         return;
     }
 
-    stq_phys(cs->as, env->psa + offsetof(LowCore, trans_exc_code), tec);
-    trigger_pgm_exception(env, PGM_PROTECTION, ILEN_LATER_INC);
+    trigger_access_exception(env, PGM_PROTECTION, ILEN_LATER_INC, tec);
 }
 
 static void trigger_page_fault(CPUS390XState *env, target_ulong vaddr,
                                uint32_t type, uint64_t asc, int rw, bool exc)
 {
-    CPUState *cs = CPU(s390_env_get_cpu(env));
     int ilen = ILEN_LATER;
     uint64_t tec;
 
@@ -84,8 +95,7 @@ static void trigger_page_fault(CPUS390XState *env, target_ulong vaddr,
         ilen = 2;
     }
 
-    stq_phys(cs->as, env->psa + offsetof(LowCore, trans_exc_code), tec);
-    trigger_pgm_exception(env, type, ilen);
+    trigger_access_exception(env, type, ilen, tec);
 }
 
 /**
