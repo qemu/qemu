@@ -26,7 +26,8 @@ void s390_init_cpus(const char *cpu_model, uint8_t *storage_keys);
 void s390_init_ipl_dev(const char *kernel_filename,
                        const char *kernel_cmdline,
                        const char *initrd_filename,
-                       const char *firmware);
+                       const char *firmware,
+                       bool enforce_bios);
 void s390_create_virtio_net(BusState *bus, const char *name);
 void s390_nmi(NMIState *n, int cpu_index, Error **errp);
 #endif
