@@ -853,6 +853,7 @@ struct sysib_322 {
 
 #define _PAGE_RO        0x200            /* HW read-only bit  */
 #define _PAGE_INVALID   0x400            /* HW invalid bit    */
+#define _PAGE_RES0      0x800            /* bit must be zero  */
 
 #define SK_C                    (0x1 << 1)
 #define SK_R                    (0x1 << 2)

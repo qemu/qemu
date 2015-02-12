@@ -112,7 +112,10 @@ static int mmu_translate_pte(CPUS390XState *env, target_ulong vaddr,
         trigger_page_fault(env, vaddr, PGM_PAGE_TRANS, asc, rw, exc);
         return -1;
     }
-
+    if (pt_entry & _PAGE_RES0) {
+        trigger_page_fault(env, vaddr, PGM_TRANS_SPEC, asc, rw, exc);
+        return -1;
+    }
     if (pt_entry & _PAGE_RO) {
         *flags &= ~PAGE_WRITE;
     }
