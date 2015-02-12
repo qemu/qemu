@@ -254,10 +254,9 @@ void ioinst_handle_ssch(S390CPU *cpu, uint64_t reg1, uint32_t ipb)
 
 void ioinst_handle_stcrw(S390CPU *cpu, uint32_t ipb)
 {
-    CRW *crw;
+    CRW crw;
     uint64_t addr;
     int cc;
-    hwaddr len = sizeof(*crw);
     CPUS390XState *env = &cpu->env;
 
     addr = decode_basedisp_s(env, ipb);
@@ -265,17 +264,16 @@ void ioinst_handle_stcrw(S390CPU *cpu, uint32_t ipb)
         program_interrupt(env, PGM_SPECIFICATION, 2);
         return;
     }
-    crw = s390_cpu_physical_memory_map(env, addr, &len, 1);
-    if (!crw || len != sizeof(*crw)) {
-        program_interrupt(env, PGM_ADDRESSING, 2);
-        goto out;
-    }
-    cc = css_do_stcrw(crw);
-    /* 0 - crw stored, 1 - zeroes stored */
-    setcc(cpu, cc);
 
-out:
-    s390_cpu_physical_memory_unmap(env, crw, len, 1);
+    cc = css_do_stcrw(&crw);
+    /* 0 - crw stored, 1 - zeroes stored */
+
+    if (s390_cpu_virt_mem_write(cpu, addr, &crw, sizeof(crw)) == 0) {
+        setcc(cpu, cc);
+    } else if (cc == 0) {
+        /* Write failed: requeue CRW since STCRW is a suppressing instruction */
+        css_undo_stcrw(&crw);
+    }
 }
 
 void ioinst_handle_stsch(S390CPU *cpu, uint64_t reg1, uint32_t ipb)

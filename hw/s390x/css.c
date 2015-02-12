@@ -955,6 +955,26 @@ int css_do_stcrw(CRW *crw)
     return ret;
 }
 
+static void copy_crw_from_guest(CRW *dest, const CRW *src)
+{
+    dest->flags = be16_to_cpu(src->flags);
+    dest->rsid = be16_to_cpu(src->rsid);
+}
+
+void css_undo_stcrw(CRW *crw)
+{
+    CrwContainer *crw_cont;
+
+    crw_cont = g_try_malloc0(sizeof(CrwContainer));
+    if (!crw_cont) {
+        channel_subsys->crws_lost = true;
+        return;
+    }
+    copy_crw_from_guest(&crw_cont->crw, crw);
+
+    QTAILQ_INSERT_HEAD(&channel_subsys->pending_crws, crw_cont, sibling);
+}
+
 int css_do_tpi(IOIntCode *int_code, int lowcore)
 {
     /* No pending interrupts for !KVM. */
