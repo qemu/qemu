@@ -1917,7 +1917,7 @@ static void disas_ldst_pair(DisasContext *s, uint32_t insn)
     int rt = extract32(insn, 0, 5);
     int rn = extract32(insn, 5, 5);
     int rt2 = extract32(insn, 10, 5);
-    int64_t offset = sextract32(insn, 15, 7);
+    uint64_t offset = sextract64(insn, 15, 7);
     int index = extract32(insn, 23, 2);
     bool is_vector = extract32(insn, 26, 1);
     bool is_load = extract32(insn, 22, 1);
