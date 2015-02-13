@@ -466,7 +466,6 @@ void aarch64_cpu_do_interrupt(CPUState *cs)
     unsigned int new_el = arm_excp_target_el(cs, cs->exception_index);
     target_ulong addr = env->cp15.vbar_el[new_el];
     unsigned int new_mode = aarch64_pstate_mode(new_el, true);
-    int i;
 
     if (arm_current_el(env) < new_el) {
         if (env->aarch64) {
@@ -530,9 +529,7 @@ void aarch64_cpu_do_interrupt(CPUState *cs)
         }
         env->elr_el[new_el] = env->regs[15];
 
-        for (i = 0; i < 15; i++) {
-            env->xregs[i] = env->regs[i];
-        }
+        aarch64_sync_32_to_64(env);
 
         env->condexec_bits = 0;
     }

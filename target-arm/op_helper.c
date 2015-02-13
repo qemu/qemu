@@ -465,7 +465,7 @@ void HELPER(exception_return)(CPUARMState *env)
     int cur_el = arm_current_el(env);
     unsigned int spsr_idx = aarch64_banked_spsr_index(cur_el);
     uint32_t spsr = env->banked_spsr[spsr_idx];
-    int new_el, i;
+    int new_el;
 
     aarch64_save_sp(env, cur_el);
 
@@ -491,9 +491,7 @@ void HELPER(exception_return)(CPUARMState *env)
         if (!arm_singlestep_active(env)) {
             env->uncached_cpsr &= ~PSTATE_SS;
         }
-        for (i = 0; i < 15; i++) {
-            env->regs[i] = env->xregs[i];
-        }
+        aarch64_sync_64_to_32(env);
 
         env->regs[15] = env->elr_el[1] & ~0x1;
     } else {
