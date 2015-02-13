@@ -2902,6 +2902,10 @@ static void x86_cpu_realizefn(DeviceState *dev, Error **errp)
     }
 
 
+    if (tcg_enabled()) {
+        tcg_x86_init();
+    }
+
 #ifndef CONFIG_USER_ONLY
     qemu_register_reset(x86_cpu_machine_reset_cb, cpu);
 
@@ -3136,11 +3140,6 @@ static void x86_cpu_initfn(Object *obj)
     }
 
     x86_cpu_load_def(cpu, xcc->cpu_def, &error_abort);
-
-    /* init various static tables used in TCG mode */
-    if (tcg_enabled()) {
-        tcg_x86_init();
-    }
 }
 
 static int64_t x86_cpu_get_arch_id(CPUState *cs)
