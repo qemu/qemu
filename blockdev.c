@@ -180,7 +180,6 @@ QemuOpts *drive_add(BlockInterfaceType type, int index, const char *file,
                     const char *optstr)
 {
     QemuOpts *opts;
-    char buf[32];
 
     opts = drive_def(optstr);
     if (!opts) {
@@ -190,8 +189,7 @@ QemuOpts *drive_add(BlockInterfaceType type, int index, const char *file,
         qemu_opt_set(opts, "if", if_name[type], &error_abort);
     }
     if (index >= 0) {
-        snprintf(buf, sizeof(buf), "%d", index);
-        qemu_opt_set(opts, "index", buf, &error_abort);
+        qemu_opt_set_number(opts, "index", index, &error_abort);
     }
     if (file)
         qemu_opt_set(opts, "file", file, &error_abort);

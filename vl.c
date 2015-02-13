@@ -2971,13 +2971,12 @@ int main(int argc, char **argv, char **envp)
                         exit(1);
                     }
                     if (hda_opts != NULL) {
-                        char num[16];
-                        snprintf(num, sizeof(num), "%d", cyls);
-                        qemu_opt_set(hda_opts, "cyls", num, &error_abort);
-                        snprintf(num, sizeof(num), "%d", heads);
-                        qemu_opt_set(hda_opts, "heads", num, &error_abort);
-                        snprintf(num, sizeof(num), "%d", secs);
-                        qemu_opt_set(hda_opts, "secs", num, &error_abort);
+                        qemu_opt_set_number(hda_opts, "cyls", cyls,
+                                            &error_abort);
+                        qemu_opt_set_number(hda_opts, "heads", heads,
+                                            &error_abort);
+                        qemu_opt_set_number(hda_opts, "secs", secs,
+                                            &error_abort);
                         if (translation == BIOS_ATA_TRANSLATION_LARGE) {
                             qemu_opt_set(hda_opts, "trans", "large",
                                          &error_abort);
