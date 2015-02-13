@@ -820,7 +820,7 @@ void qemu_opts_do_parse(QemuOpts *opts, const char *params,
 }
 
 static QemuOpts *opts_parse(QemuOptsList *list, const char *params,
-                            int permit_abbrev, bool defaults, Error **errp)
+                            bool permit_abbrev, bool defaults, Error **errp)
 {
     const char *firstname;
     char value[1024], *id = NULL;
@@ -867,19 +867,32 @@ static QemuOpts *opts_parse(QemuOptsList *list, const char *params,
  * Create a QemuOpts in @list and with options parsed from @params.
  * If @permit_abbrev, the first key=value in @params may omit key=,
  * and is treated as if key was @list->implied_opt_name.
- * Report errors with qerror_report_err().
+ * On error, store an error object through @errp if non-null.
  * Return the new QemuOpts on success, null pointer on error.
  */
 QemuOpts *qemu_opts_parse(QemuOptsList *list, const char *params,
-                          int permit_abbrev)
+                          bool permit_abbrev, Error **errp)
+{
+    return opts_parse(list, params, permit_abbrev, false, errp);
+}
+
+/**
+ * Create a QemuOpts in @list and with options parsed from @params.
+ * If @permit_abbrev, the first key=value in @params may omit key=,
+ * and is treated as if key was @list->implied_opt_name.
+ * Report errors with error_report_err().  This is inappropriate in
+ * QMP context.  Do not use this function there!
+ * Return the new QemuOpts on success, null pointer on error.
+ */
+QemuOpts *qemu_opts_parse_noisily(QemuOptsList *list, const char *params,
+                                  bool permit_abbrev)
 {
     Error *err = NULL;
     QemuOpts *opts;
 
     opts = opts_parse(list, params, permit_abbrev, false, &err);
-    if (!opts) {
-        qerror_report_err(err);
-        error_free(err);
+    if (err) {
+        error_report_err(err);
     }
     return opts;
 }

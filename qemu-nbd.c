@@ -549,7 +549,8 @@ int main(int argc, char **argv)
             break;
         case 'l':
             if (strstart(optarg, SNAPSHOT_OPT_BASE, NULL)) {
-                sn_opts = qemu_opts_parse(&internal_snapshot_opts, optarg, 0);
+                sn_opts = qemu_opts_parse_noisily(&internal_snapshot_opts,
+                                                  optarg, false);
                 if (!sn_opts) {
                     errx(EXIT_FAILURE, "Failed in parsing snapshot param `%s'",
                          optarg);

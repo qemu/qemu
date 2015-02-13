@@ -3749,10 +3749,10 @@ static void vnc_auto_assign_id(QemuOptsList *olist, QemuOpts *opts)
     qemu_opts_set_id(opts, id);
 }
 
-QemuOpts *vnc_parse_func(const char *str)
+QemuOpts *vnc_parse(const char *str, Error **errp)
 {
     QemuOptsList *olist = qemu_find_opts("vnc");
-    QemuOpts *opts = qemu_opts_parse(olist, str, 1);
+    QemuOpts *opts = qemu_opts_parse(olist, str, true, errp);
     const char *id;
 
     if (!opts) {

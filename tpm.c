@@ -228,7 +228,7 @@ int tpm_config_parse(QemuOptsList *opts_list, const char *optarg)
         tpm_display_backend_drivers();
         return -1;
     }
-    opts = qemu_opts_parse(opts_list, optarg, 1);
+    opts = qemu_opts_parse_noisily(opts_list, optarg, true);
     if (!opts) {
         return -1;
     }

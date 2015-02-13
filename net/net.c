@@ -1049,7 +1049,8 @@ void hmp_host_net_add(Monitor *mon, const QDict *qdict)
         return;
     }
 
-    opts = qemu_opts_parse(qemu_find_opts("net"), opts_str ? opts_str : "", 0);
+    opts = qemu_opts_parse_noisily(qemu_find_opts("net"),
+                                   opts_str ? opts_str : "", false);
     if (!opts) {
         return;
     }
@@ -1412,7 +1413,7 @@ int net_client_parse(QemuOptsList *opts_list, const char *optarg)
     }
 #endif
 
-    if (!qemu_opts_parse(opts_list, optarg, 1)) {
+    if (!qemu_opts_parse_noisily(opts_list, optarg, true)) {
         return -1;
     }
 

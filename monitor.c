@@ -3749,7 +3749,7 @@ static QDict *monitor_parse_arguments(Monitor *mon,
                 if (get_str(buf, sizeof(buf), &p) < 0) {
                     goto fail;
                 }
-                opts = qemu_opts_parse(opts_list, buf, 1);
+                opts = qemu_opts_parse_noisily(opts_list, buf, true);
                 if (!opts) {
                     goto fail;
                 }

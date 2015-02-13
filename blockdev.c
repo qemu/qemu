@@ -174,7 +174,7 @@ static int drive_index_to_unit_id(BlockInterfaceType type, int index)
 
 QemuOpts *drive_def(const char *optstr)
 {
-    return qemu_opts_parse(qemu_find_opts("drive"), optstr, 0);
+    return qemu_opts_parse_noisily(qemu_find_opts("drive"), optstr, false);
 }
 
 QemuOpts *drive_add(BlockInterfaceType type, int index, const char *file,

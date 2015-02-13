@@ -119,7 +119,10 @@ void qemu_opts_del(QemuOpts *opts);
 void qemu_opts_validate(QemuOpts *opts, const QemuOptDesc *desc, Error **errp);
 void qemu_opts_do_parse(QemuOpts *opts, const char *params,
                         const char *firstname, Error **errp);
-QemuOpts *qemu_opts_parse(QemuOptsList *list, const char *params, int permit_abbrev);
+QemuOpts *qemu_opts_parse_noisily(QemuOptsList *list, const char *params,
+                                  bool permit_abbrev);
+QemuOpts *qemu_opts_parse(QemuOptsList *list, const char *params,
+                          bool permit_abbrev, Error **errp);
 void qemu_opts_set_defaults(QemuOptsList *list, const char *params,
                             int permit_abbrev);
 QemuOpts *qemu_opts_from_qdict(QemuOptsList *list, const QDict *qdict,

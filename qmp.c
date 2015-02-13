@@ -387,7 +387,7 @@ static void qmp_change_vnc_listen(const char *target, Error **errp)
     if (opts) {
         qemu_opts_del(opts);
     }
-    opts = vnc_parse_func(target);
+    opts = vnc_parse(target, errp);
     if (!opts) {
         return;
     }

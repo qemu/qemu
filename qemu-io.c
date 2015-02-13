@@ -153,7 +153,7 @@ static int open_f(BlockBackend *blk, int argc, char **argv)
             readonly = 1;
             break;
         case 'o':
-            if (!qemu_opts_parse(&empty_opts, optarg, 0)) {
+            if (!qemu_opts_parse_noisily(&empty_opts, optarg, false)) {
                 printf("could not parse option list -- %s\n", optarg);
                 qemu_opts_reset(&empty_opts);
                 return 0;

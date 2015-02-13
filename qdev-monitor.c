@@ -853,7 +853,7 @@ int qemu_global_option(const char *str)
         return 0;
     }
 
-    opts = qemu_opts_parse(&qemu_global_opts, str, false);
+    opts = qemu_opts_parse_noisily(&qemu_global_opts, str, false);
     if (!opts) {
         return -1;
     }
