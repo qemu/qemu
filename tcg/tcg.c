@@ -208,12 +208,10 @@ static __attribute__((unused)) inline void tcg_patch64(tcg_insn_unit *p,
 /* label relocation processing */
 
 static void tcg_out_reloc(TCGContext *s, tcg_insn_unit *code_ptr, int type,
-                          int label_index, intptr_t addend)
+                          TCGLabel *l, intptr_t addend)
 {
-    TCGLabel *l;
     TCGRelocation *r;
 
-    l = &s->labels[label_index];
     if (l->has_value) {
         /* FIXME: This may break relocations on RISC targets that
            modify instruction fields in place.  The caller may not have 
@@ -230,9 +228,8 @@ static void tcg_out_reloc(TCGContext *s, tcg_insn_unit *code_ptr, int type,
     }
 }
 
-static void tcg_out_label(TCGContext *s, int label_index, tcg_insn_unit *ptr)
+static void tcg_out_label(TCGContext *s, TCGLabel *l, tcg_insn_unit *ptr)
 {
-    TCGLabel *l = &s->labels[label_index];
     intptr_t value = (intptr_t)ptr;
     TCGRelocation *r;
 
@@ -2333,7 +2330,7 @@ static inline int tcg_gen_code_common(TCGContext *s,
             break;
         case INDEX_op_set_label:
             tcg_reg_alloc_bb_end(s, s->reserved_regs);
-            tcg_out_label(s, args[0], s->code_ptr);
+            tcg_out_label(s, arg_label(args[0]), s->code_ptr);
             break;
         case INDEX_op_call:
             tcg_reg_alloc_call(s, op->callo, op->calli, args,

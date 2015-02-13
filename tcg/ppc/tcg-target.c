@@ -1100,24 +1100,22 @@ static void tcg_out_setcond(TCGContext *s, TCGType type, TCGCond cond,
     }
 }
 
-static void tcg_out_bc(TCGContext *s, int bc, int label_index)
+static void tcg_out_bc(TCGContext *s, int bc, TCGLabel *l)
 {
-    TCGLabel *l = &s->labels[label_index];
-
     if (l->has_value) {
         tcg_out32(s, bc | reloc_pc14_val(s->code_ptr, l->u.value_ptr));
     } else {
-        tcg_out_reloc(s, s->code_ptr, R_PPC_REL14, label_index, 0);
+        tcg_out_reloc(s, s->code_ptr, R_PPC_REL14, l, 0);
         tcg_out_bc_noaddr(s, bc);
     }
 }
 
 static void tcg_out_brcond(TCGContext *s, TCGCond cond,
                            TCGArg arg1, TCGArg arg2, int const_arg2,
-                           int label_index, TCGType type)
+                           TCGLabel *l, TCGType type)
 {
     tcg_out_cmp(s, cond, arg1, arg2, const_arg2, 7, type);
-    tcg_out_bc(s, tcg_to_bc[cond], label_index);
+    tcg_out_bc(s, tcg_to_bc[cond], l);
 }
 
 static void tcg_out_movcond(TCGContext *s, TCGType type, TCGCond cond,
@@ -1242,7 +1240,7 @@ static void tcg_out_brcond2 (TCGContext *s, const TCGArg *args,
                              const int *const_args)
 {
     tcg_out_cmp2(s, args, const_args);
-    tcg_out_bc(s, BC | BI(7, CR_EQ) | BO_COND_TRUE, args[5]);
+    tcg_out_bc(s, BC | BI(7, CR_EQ) | BO_COND_TRUE, arg_label(args[5]));
 }
 
 void ppc_tb_set_jmp_target(uintptr_t jmp_addr, uintptr_t addr)
@@ -1866,12 +1864,12 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, const TCGArg *args,
         break;
     case INDEX_op_br:
         {
-            TCGLabel *l = &s->labels[args[0]];
+            TCGLabel *l = arg_label(args[0]);
 
             if (l->has_value) {
                 tcg_out_b(s, 0, l->u.value_ptr);
             } else {
-                tcg_out_reloc(s, s->code_ptr, R_PPC_REL24, args[0], 0);
+                tcg_out_reloc(s, s->code_ptr, R_PPC_REL24, l, 0);
                 tcg_out_b_noaddr(s, B);
             }
         }
@@ -2079,11 +2077,11 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, const TCGArg *args,
 
     case INDEX_op_brcond_i32:
         tcg_out_brcond(s, args[2], args[0], args[1], const_args[1],
-                       args[3], TCG_TYPE_I32);
+                       arg_label(args[3]), TCG_TYPE_I32);
         break;
     case INDEX_op_brcond_i64:
         tcg_out_brcond(s, args[2], args[0], args[1], const_args[1],
-                       args[3], TCG_TYPE_I64);
+                       arg_label(args[3]), TCG_TYPE_I64);
         break;
     case INDEX_op_brcond2_i32:
         tcg_out_brcond2(s, args, const_args);

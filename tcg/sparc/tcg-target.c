@@ -569,9 +569,8 @@ static void tcg_out_bpcc0(TCGContext *s, int scond, int flags, int off19)
     tcg_out32(s, INSN_OP(0) | INSN_OP2(1) | INSN_COND(scond) | flags | off19);
 }
 
-static void tcg_out_bpcc(TCGContext *s, int scond, int flags, int label)
+static void tcg_out_bpcc(TCGContext *s, int scond, int flags, TCGLabel *l)
 {
-    TCGLabel *l = &s->labels[label];
     int off19;
 
     if (l->has_value) {
@@ -579,7 +578,7 @@ static void tcg_out_bpcc(TCGContext *s, int scond, int flags, int label)
     } else {
         /* Make sure to preserve destinations during retranslation.  */
         off19 = *s->code_ptr & INSN_OFF19(-1);
-        tcg_out_reloc(s, s->code_ptr, R_SPARC_WDISP19, label, 0);
+        tcg_out_reloc(s, s->code_ptr, R_SPARC_WDISP19, l, 0);
     }
     tcg_out_bpcc0(s, scond, flags, off19);
 }
@@ -590,10 +589,10 @@ static void tcg_out_cmp(TCGContext *s, TCGReg c1, int32_t c2, int c2const)
 }
 
 static void tcg_out_brcond_i32(TCGContext *s, TCGCond cond, TCGReg arg1,
-                               int32_t arg2, int const_arg2, int label)
+                               int32_t arg2, int const_arg2, TCGLabel *l)
 {
     tcg_out_cmp(s, arg1, arg2, const_arg2);
-    tcg_out_bpcc(s, tcg_cond_to_bcond[cond], BPCC_ICC | BPCC_PT, label);
+    tcg_out_bpcc(s, tcg_cond_to_bcond[cond], BPCC_ICC | BPCC_PT, l);
     tcg_out_nop(s);
 }
 
@@ -614,11 +613,10 @@ static void tcg_out_movcond_i32(TCGContext *s, TCGCond cond, TCGReg ret,
 }
 
 static void tcg_out_brcond_i64(TCGContext *s, TCGCond cond, TCGReg arg1,
-                               int32_t arg2, int const_arg2, int label)
+                               int32_t arg2, int const_arg2, TCGLabel *l)
 {
     /* For 64-bit signed comparisons vs zero, we can avoid the compare.  */
     if (arg2 == 0 && !is_unsigned_cond(cond)) {
-        TCGLabel *l = &s->labels[label];
         int off16;
 
         if (l->has_value) {
@@ -626,13 +624,13 @@ static void tcg_out_brcond_i64(TCGContext *s, TCGCond cond, TCGReg arg1,
         } else {
             /* Make sure to preserve destinations during retranslation.  */
             off16 = *s->code_ptr & INSN_OFF16(-1);
-            tcg_out_reloc(s, s->code_ptr, R_SPARC_WDISP16, label, 0);
+            tcg_out_reloc(s, s->code_ptr, R_SPARC_WDISP16, l, 0);
         }
         tcg_out32(s, INSN_OP(0) | INSN_OP2(3) | BPR_PT | INSN_RS1(arg1)
                   | INSN_COND(tcg_cond_to_rcond[cond]) | off16);
     } else {
         tcg_out_cmp(s, arg1, arg2, const_arg2);
-        tcg_out_bpcc(s, tcg_cond_to_bcond[cond], BPCC_XCC | BPCC_PT, label);
+        tcg_out_bpcc(s, tcg_cond_to_bcond[cond], BPCC_XCC | BPCC_PT, l);
     }
     tcg_out_nop(s);
 }
@@ -1243,7 +1241,7 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc,
         s->tb_next_offset[a0] = tcg_current_code_size(s);
         break;
     case INDEX_op_br:
-        tcg_out_bpcc(s, COND_A, BPCC_PT, a0);
+        tcg_out_bpcc(s, COND_A, BPCC_PT, arg_label(a0));
         tcg_out_nop(s);
         break;
 
@@ -1329,7 +1327,7 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc,
         break;
 
     case INDEX_op_brcond_i32:
-        tcg_out_brcond_i32(s, a2, a0, a1, const_args[1], args[3]);
+        tcg_out_brcond_i32(s, a2, a0, a1, const_args[1], arg_label(args[3]));
         break;
     case INDEX_op_setcond_i32:
         tcg_out_setcond_i32(s, args[3], a0, a1, a2, c2);
@@ -1420,7 +1418,7 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc,
         break;
 
     case INDEX_op_brcond_i64:
-        tcg_out_brcond_i64(s, a2, a0, a1, const_args[1], args[3]);
+        tcg_out_brcond_i64(s, a2, a0, a1, const_args[1], arg_label(args[3]));
         break;
     case INDEX_op_setcond_i64:
         tcg_out_setcond_i64(s, args[3], a0, a1, a2, c2);

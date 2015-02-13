@@ -460,14 +460,13 @@ static void tcg_out_ri64(TCGContext *s, int const_arg, TCGArg arg)
 #endif
 
 /* Write label. */
-static void tci_out_label(TCGContext *s, TCGArg arg)
+static void tci_out_label(TCGContext *s, TCGLabel *label)
 {
-    TCGLabel *label = &s->labels[arg];
     if (label->has_value) {
         tcg_out_i(s, label->u.value);
         assert(label->u.value);
     } else {
-        tcg_out_reloc(s, s->code_ptr, sizeof(tcg_target_ulong), arg, 0);
+        tcg_out_reloc(s, s->code_ptr, sizeof(tcg_target_ulong), label, 0);
         s->code_ptr += sizeof(tcg_target_ulong);
     }
 }
@@ -565,7 +564,7 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, const TCGArg *args,
         s->tb_next_offset[args[0]] = tcg_current_code_size(s);
         break;
     case INDEX_op_br:
-        tci_out_label(s, args[0]);
+        tci_out_label(s, arg_label(args[0]));
         break;
     case INDEX_op_setcond_i32:
         tcg_out_r(s, args[0]);
@@ -689,7 +688,7 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, const TCGArg *args,
         tcg_out_r(s, args[0]);
         tcg_out_ri64(s, const_args[1], args[1]);
         tcg_out8(s, args[2]);           /* condition */
-        tci_out_label(s, args[3]);
+        tci_out_label(s, arg_label(args[3]));
         break;
     case INDEX_op_bswap16_i64:  /* Optional (TCG_TARGET_HAS_bswap16_i64). */
     case INDEX_op_bswap32_i64:  /* Optional (TCG_TARGET_HAS_bswap32_i64). */
@@ -742,7 +741,7 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, const TCGArg *args,
         tcg_out_ri32(s, const_args[2], args[2]);
         tcg_out_ri32(s, const_args[3], args[3]);
         tcg_out8(s, args[4]);           /* condition */
-        tci_out_label(s, args[5]);
+        tci_out_label(s, arg_label(args[5]));
         break;
     case INDEX_op_mulu2_i32:
         tcg_out_r(s, args[0]);
@@ -755,7 +754,7 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, const TCGArg *args,
         tcg_out_r(s, args[0]);
         tcg_out_ri32(s, const_args[1], args[1]);
         tcg_out8(s, args[2]);           /* condition */
-        tci_out_label(s, args[3]);
+        tci_out_label(s, arg_label(args[3]));
         break;
     case INDEX_op_qemu_ld_i32:
         tcg_out_r(s, *args++);

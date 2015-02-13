@@ -827,9 +827,8 @@ static inline void tcg_out_movi(TCGContext *s, TCGType type,
                    tcg_opc_x2 (TCG_REG_P0, OPC_MOVL_X2, reg, arg));
 }
 
-static void tcg_out_br(TCGContext *s, int label_index)
+static void tcg_out_br(TCGContext *s, TCGLabel *l)
 {
-    TCGLabel *l = &s->labels[label_index];
     uint64_t imm;
 
     /* We pay attention here to not modify the branch target by reading
@@ -839,7 +838,7 @@ static void tcg_out_br(TCGContext *s, int label_index)
         imm = l->u.value_ptr -  s->code_ptr;
     } else {
         imm = get_reloc_pcrel21b_slot2(s->code_ptr);
-        tcg_out_reloc(s, s->code_ptr, R_IA64_PCREL21B, label_index, 0);
+        tcg_out_reloc(s, s->code_ptr, R_IA64_PCREL21B, l, 0);
     }
 
     tcg_out_bundle(s, mmB,
@@ -1424,9 +1423,8 @@ static inline uint64_t tcg_opc_cmp_a(int qp, TCGCond cond, TCGArg arg1,
 }
 
 static inline void tcg_out_brcond(TCGContext *s, TCGCond cond, TCGReg arg1,
-                                  TCGReg arg2, int label_index, int cmp4)
+                                  TCGReg arg2, TCGLabel *l, int cmp4)
 {
-    TCGLabel *l = &s->labels[label_index];
     uint64_t imm;
 
     /* We pay attention here to not modify the branch target by reading
@@ -1436,7 +1434,7 @@ static inline void tcg_out_brcond(TCGContext *s, TCGCond cond, TCGReg arg1,
         imm = l->u.value_ptr - s->code_ptr;
     } else {
         imm = get_reloc_pcrel21b_slot2(s->code_ptr);
-        tcg_out_reloc(s, s->code_ptr, R_IA64_PCREL21B, label_index, 0);
+        tcg_out_reloc(s, s->code_ptr, R_IA64_PCREL21B, l, 0);
     }
 
     tcg_out_bundle(s, miB,
@@ -1990,7 +1988,7 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc,
         tcg_out_exit_tb(s, args[0]);
         break;
     case INDEX_op_br:
-        tcg_out_br(s, args[0]);
+        tcg_out_br(s, arg_label(args[0]));
         break;
     case INDEX_op_goto_tb:
         tcg_out_goto_tb(s, args[0]);
@@ -2172,10 +2170,10 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc,
         break;
 
     case INDEX_op_brcond_i32:
-        tcg_out_brcond(s, args[2], args[0], args[1], args[3], 1);
+        tcg_out_brcond(s, args[2], args[0], args[1], arg_label(args[3]), 1);
         break;
     case INDEX_op_brcond_i64:
-        tcg_out_brcond(s, args[2], args[0], args[1], args[3], 0);
+        tcg_out_brcond(s, args[2], args[0], args[1], arg_label(args[3]), 0);
         break;
     case INDEX_op_setcond_i32:
         tcg_out_setcond(s, args[3], args[0], args[1], args[2], 1);

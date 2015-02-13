@@ -1038,14 +1038,12 @@ static void tcg_out_call(TCGContext *s, tcg_insn_unit *addr)
     }
 }
 
-static inline void tcg_out_goto_label(TCGContext *s, int cond, int label_index)
+static inline void tcg_out_goto_label(TCGContext *s, int cond, TCGLabel *l)
 {
-    TCGLabel *l = &s->labels[label_index];
-
     if (l->has_value) {
         tcg_out_goto(s, cond, l->u.value_ptr);
     } else {
-        tcg_out_reloc(s, s->code_ptr, R_ARM_PC24, label_index, 0);
+        tcg_out_reloc(s, s->code_ptr, R_ARM_PC24, l, 0);
         tcg_out_b_noaddr(s, cond);
     }
 }
@@ -1657,7 +1655,7 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc,
         s->tb_next_offset[args[0]] = tcg_current_code_size(s);
         break;
     case INDEX_op_br:
-        tcg_out_goto_label(s, COND_AL, args[0]);
+        tcg_out_goto_label(s, COND_AL, arg_label(args[0]));
         break;
 
     case INDEX_op_ld8u_i32:
@@ -1821,7 +1819,8 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc,
     case INDEX_op_brcond_i32:
         tcg_out_dat_rIN(s, COND_AL, ARITH_CMP, ARITH_CMN, 0,
                        args[0], args[1], const_args[1]);
-        tcg_out_goto_label(s, tcg_cond_to_arm_cond[args[2]], args[3]);
+        tcg_out_goto_label(s, tcg_cond_to_arm_cond[args[2]],
+                           arg_label(args[3]));
         break;
     case INDEX_op_brcond2_i32:
         /* The resulting conditions are:
@@ -1836,7 +1835,8 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc,
                         args[1], args[3], const_args[3]);
         tcg_out_dat_rIN(s, COND_EQ, ARITH_CMP, ARITH_CMN, 0,
                         args[0], args[2], const_args[2]);
-        tcg_out_goto_label(s, tcg_cond_to_arm_cond[args[4]], args[5]);
+        tcg_out_goto_label(s, tcg_cond_to_arm_cond[args[4]],
+                           arg_label(args[5]));
         break;
     case INDEX_op_setcond_i32:
         tcg_out_dat_rIN(s, COND_AL, ARITH_CMP, ARITH_CMN, 0,
