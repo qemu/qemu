@@ -2098,13 +2098,13 @@ static DisplayType select_display(const char *p)
                 }
             } else {
             invalid_sdl_args:
-                fprintf(stderr, "Invalid SDL option string: %s\n", p);
+                error_report("Invalid SDL option string");
                 exit(1);
             }
             opts = nextopt;
         }
 #else
-        fprintf(stderr, "SDL support is disabled\n");
+        error_report("SDL support is disabled");
         exit(1);
 #endif
     } else if (strstart(p, "vnc", &opts)) {
@@ -2115,18 +2115,18 @@ static DisplayType select_display(const char *p)
                 exit(1);
             }
         } else {
-            fprintf(stderr, "VNC requires a display argument vnc=<display>\n");
+            error_report("VNC requires a display argument vnc=<display>");
             exit(1);
         }
 #else
-        fprintf(stderr, "VNC support is disabled\n");
+        error_report("VNC support is disabled");
         exit(1);
 #endif
     } else if (strstart(p, "curses", &opts)) {
 #ifdef CONFIG_CURSES
         display = DT_CURSES;
 #else
-        fprintf(stderr, "Curses support is disabled\n");
+        error_report("Curses support is disabled");
         exit(1);
 #endif
     } else if (strstart(p, "gtk", &opts)) {
@@ -2155,19 +2155,19 @@ static DisplayType select_display(const char *p)
                 }
             } else {
             invalid_gtk_args:
-                fprintf(stderr, "Invalid GTK option string: %s\n", p);
+                error_report("Invalid GTK option string");
                 exit(1);
             }
             opts = nextopt;
         }
 #else
-        fprintf(stderr, "GTK support is disabled\n");
+        error_report("GTK support is disabled");
         exit(1);
 #endif
     } else if (strstart(p, "none", &opts)) {
         display = DT_NONE;
     } else {
-        fprintf(stderr, "Unknown display type: %s\n", p);
+        error_report("Unknown display type");
         exit(1);
     }
 
