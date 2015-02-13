@@ -728,15 +728,19 @@ static void machvirt_init(MachineState *machine)
     const char *cpu_model = machine->cpu_model;
     VirtBoardInfo *vbi;
     uint32_t gic_phandle;
+    char **cpustr;
 
     if (!cpu_model) {
         cpu_model = "cortex-a15";
     }
 
-    vbi = find_machine_info(cpu_model);
+    /* Separate the actual CPU model name from any appended features */
+    cpustr = g_strsplit(cpu_model, ",", 2);
+
+    vbi = find_machine_info(cpustr[0]);
 
     if (!vbi) {
-        error_report("mach-virt: CPU %s not supported", cpu_model);
+        error_report("mach-virt: CPU %s not supported", cpustr[0]);
         exit(1);
     }
 
@@ -750,14 +754,23 @@ static void machvirt_init(MachineState *machine)
     create_fdt(vbi);
 
     for (n = 0; n < smp_cpus; n++) {
-        ObjectClass *oc = cpu_class_by_name(TYPE_ARM_CPU, cpu_model);
+        ObjectClass *oc = cpu_class_by_name(TYPE_ARM_CPU, cpustr[0]);
+        CPUClass *cc = CPU_CLASS(oc);
         Object *cpuobj;
+        Error *err = NULL;
 
         if (!oc) {
             fprintf(stderr, "Unable to find CPU definition\n");
             exit(1);
         }
         cpuobj = object_new(object_class_get_name(oc));
+
+        /* Handle any CPU options specified by the user */
+        cc->parse_features(CPU(cpuobj), cpustr[1], &err);
+        if (err) {
+            error_report("%s", error_get_pretty(err));
+            exit(1);
+        }
 
         if (!vms->secure) {
             object_property_set_bool(cpuobj, false, "has_el3", NULL);
@@ -778,6 +791,7 @@ static void machvirt_init(MachineState *machine)
 
         object_property_set_bool(cpuobj, true, "realized", NULL);
     }
+    g_strfreev(cpustr);
     fdt_add_timer_nodes(vbi);
     fdt_add_cpu_nodes(vbi);
     fdt_add_psci_node(vbi);
