@@ -32,6 +32,11 @@ static inline void set_feature(CPUARMState *env, int feature)
     env->features |= 1ULL << feature;
 }
 
+static inline void unset_feature(CPUARMState *env, int feature)
+{
+    env->features &= ~(1ULL << feature);
+}
+
 #ifndef CONFIG_USER_ONLY
 static uint64_t a57_l2ctlr_read(CPUARMState *env, const ARMCPRegInfo *ri)
 {
@@ -170,8 +175,42 @@ static const ARMCPUInfo aarch64_cpus[] = {
     { .name = NULL }
 };
 
+static bool aarch64_cpu_get_aarch64(Object *obj, Error **errp)
+{
+    ARMCPU *cpu = ARM_CPU(obj);
+
+    return arm_feature(&cpu->env, ARM_FEATURE_AARCH64);
+}
+
+static void aarch64_cpu_set_aarch64(Object *obj, bool value, Error **errp)
+{
+    ARMCPU *cpu = ARM_CPU(obj);
+
+    /* At this time, this property is only allowed if KVM is enabled.  This
+     * restriction allows us to avoid fixing up functionality that assumes a
+     * uniform execution state like do_interrupt.
+     */
+    if (!kvm_enabled()) {
+        error_setg(errp, "'aarch64' feature cannot be disabled "
+                         "unless KVM is enabled");
+        return;
+    }
+
+    if (value == false) {
+        unset_feature(&cpu->env, ARM_FEATURE_AARCH64);
+    } else {
+        set_feature(&cpu->env, ARM_FEATURE_AARCH64);
+    }
+}
+
 static void aarch64_cpu_initfn(Object *obj)
 {
+    object_property_add_bool(obj, "aarch64", aarch64_cpu_get_aarch64,
+                             aarch64_cpu_set_aarch64, NULL);
+    object_property_set_description(obj, "aarch64",
+                                    "Set on/off to enable/disable aarch64 "
+                                    "execution state ",
+                                    NULL);
 }
 
 static void aarch64_cpu_finalizefn(Object *obj)

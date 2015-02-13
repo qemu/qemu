@@ -110,4 +110,13 @@ int qemu_fdt_setprop_sized_cells_from_array(void *fdt,
                                                 qdt_tmp);                 \
     })
 
+#define FDT_PCI_RANGE_RELOCATABLE          0x80000000
+#define FDT_PCI_RANGE_PREFETCHABLE         0x40000000
+#define FDT_PCI_RANGE_ALIASED              0x20000000
+#define FDT_PCI_RANGE_TYPE_MASK            0x03000000
+#define FDT_PCI_RANGE_MMIO_64BIT           0x03000000
+#define FDT_PCI_RANGE_MMIO                 0x02000000
+#define FDT_PCI_RANGE_IOPORT               0x01000000
+#define FDT_PCI_RANGE_CONFIG               0x00000000
+
 #endif /* __DEVICE_TREE_H__ */

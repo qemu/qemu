@@ -495,6 +495,8 @@ typedef struct CPUARMState {
 ARMCPU *cpu_arm_init(const char *cpu_model);
 int cpu_arm_exec(CPUARMState *s);
 uint32_t do_arm_semihosting(CPUARMState *env);
+void aarch64_sync_32_to_64(CPUARMState *env);
+void aarch64_sync_64_to_32(CPUARMState *env);
 
 static inline bool is_a64(CPUARMState *env)
 {
