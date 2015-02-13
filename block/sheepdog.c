@@ -37,6 +37,7 @@
 #define SD_OP_READ_VDIS      0x15
 #define SD_OP_FLUSH_VDI      0x16
 #define SD_OP_DEL_VDI        0x17
+#define SD_OP_GET_CLUSTER_DEFAULT   0x18
 
 #define SD_FLAG_CMD_WRITE    0x01
 #define SD_FLAG_CMD_COW      0x02
@@ -91,6 +92,7 @@
 #define SD_NR_VDIS   (1U << 24)
 #define SD_DATA_OBJ_SIZE (UINT64_C(1) << 22)
 #define SD_MAX_VDI_SIZE (SD_DATA_OBJ_SIZE * MAX_DATA_OBJS)
+#define SD_DEFAULT_BLOCK_SIZE_SHIFT 22
 /*
  * For erasure coding, we use at most SD_EC_MAX_STRIP for data strips and
  * (SD_EC_MAX_STRIP - 1) for parity strips
@@ -167,7 +169,8 @@ typedef struct SheepdogVdiReq {
     uint32_t base_vdi_id;
     uint8_t copies;
     uint8_t copy_policy;
-    uint8_t reserved[2];
+    uint8_t store_policy;
+    uint8_t block_size_shift;
     uint32_t snapid;
     uint32_t type;
     uint32_t pad[2];
@@ -185,6 +188,21 @@ typedef struct SheepdogVdiRsp {
     uint32_t vdi_id;
     uint32_t pad[5];
 } SheepdogVdiRsp;
+
+typedef struct SheepdogClusterRsp {
+    uint8_t proto_ver;
+    uint8_t opcode;
+    uint16_t flags;
+    uint32_t epoch;
+    uint32_t id;
+    uint32_t data_length;
+    uint32_t result;
+    uint8_t nr_copies;
+    uint8_t copy_policy;
+    uint8_t block_size_shift;
+    uint8_t __pad1;
+    uint32_t __pad2[6];
+} SheepdogClusterRsp;
 
 typedef struct SheepdogInode {
     char name[SD_MAX_VDI_LEN];
@@ -1541,6 +1559,7 @@ static int do_sd_create(BDRVSheepdogState *s, uint32_t *vdi_id, int snapshot,
     hdr.vdi_size = s->inode.vdi_size;
     hdr.copy_policy = s->inode.copy_policy;
     hdr.copies = s->inode.nr_copies;
+    hdr.block_size_shift = s->inode.block_size_shift;
 
     ret = do_req(fd, s->aio_context, (SheepdogReq *)&hdr, buf, &wlen, &rlen);
 
@@ -1566,9 +1585,12 @@ static int do_sd_create(BDRVSheepdogState *s, uint32_t *vdi_id, int snapshot,
 static int sd_prealloc(const char *filename, Error **errp)
 {
     BlockDriverState *bs = NULL;
+    BDRVSheepdogState *base = NULL;
+    unsigned long buf_size;
     uint32_t idx, max_idx;
+    uint32_t object_size;
     int64_t vdi_size;
-    void *buf = g_malloc0(SD_DATA_OBJ_SIZE);
+    void *buf = NULL;
     int ret;
 
     ret = bdrv_open(&bs, filename, NULL, NULL, BDRV_O_RDWR | BDRV_O_PROTOCOL,
@@ -1582,18 +1604,24 @@ static int sd_prealloc(const char *filename, Error **errp)
         ret = vdi_size;
         goto out;
     }
-    max_idx = DIV_ROUND_UP(vdi_size, SD_DATA_OBJ_SIZE);
+
+    base = bs->opaque;
+    object_size = (UINT32_C(1) << base->inode.block_size_shift);
+    buf_size = MIN(object_size, SD_DATA_OBJ_SIZE);
+    buf = g_malloc0(buf_size);
+
+    max_idx = DIV_ROUND_UP(vdi_size, buf_size);
 
     for (idx = 0; idx < max_idx; idx++) {
         /*
          * The created image can be a cloned image, so we need to read
          * a data from the source image.
          */
-        ret = bdrv_pread(bs, idx * SD_DATA_OBJ_SIZE, buf, SD_DATA_OBJ_SIZE);
+        ret = bdrv_pread(bs, idx * buf_size, buf, buf_size);
         if (ret < 0) {
             goto out;
         }
-        ret = bdrv_pwrite(bs, idx * SD_DATA_OBJ_SIZE, buf, SD_DATA_OBJ_SIZE);
+        ret = bdrv_pwrite(bs, idx * buf_size, buf, buf_size);
         if (ret < 0) {
             goto out;
         }
@@ -1666,6 +1694,27 @@ static int parse_redundancy(BDRVSheepdogState *s, const char *opt)
     return 0;
 }
 
+static int parse_block_size_shift(BDRVSheepdogState *s, QemuOpts *opt)
+{
+    struct SheepdogInode *inode = &s->inode;
+    uint64_t object_size;
+    int obj_order;
+
+    object_size = qemu_opt_get_size_del(opt, BLOCK_OPT_OBJECT_SIZE, 0);
+    if (object_size) {
+        if ((object_size - 1) & object_size) {    /* not a power of 2? */
+            return -EINVAL;
+        }
+        obj_order = ffs(object_size) - 1;
+        if (obj_order < 20 || obj_order > 31) {
+            return -EINVAL;
+        }
+        inode->block_size_shift = (uint8_t)obj_order;
+    }
+
+    return 0;
+}
+
 static int sd_create(const char *filename, QemuOpts *opts,
                      Error **errp)
 {
@@ -1676,6 +1725,7 @@ static int sd_create(const char *filename, QemuOpts *opts,
     BDRVSheepdogState *s;
     char tag[SD_MAX_VDI_TAG_LEN];
     uint32_t snapid;
+    uint64_t max_vdi_size;
     bool prealloc = false;
 
     s = g_new0(BDRVSheepdogState, 1);
@@ -1714,10 +1764,11 @@ static int sd_create(const char *filename, QemuOpts *opts,
             goto out;
         }
     }
-
-    if (s->inode.vdi_size > SD_MAX_VDI_SIZE) {
-        error_setg(errp, "too big image size");
-        ret = -EINVAL;
+    ret = parse_block_size_shift(s, opts);
+    if (ret < 0) {
+        error_setg(errp, "Invalid object_size."
+                         " obect_size needs to be power of 2"
+                         " and be limited from 2^20 to 2^31");
         goto out;
     }
 
@@ -1754,6 +1805,51 @@ static int sd_create(const char *filename, QemuOpts *opts,
     }
 
     s->aio_context = qemu_get_aio_context();
+
+    /* if block_size_shift is not specified, get cluster default value */
+    if (s->inode.block_size_shift == 0) {
+        SheepdogVdiReq hdr;
+        SheepdogClusterRsp *rsp = (SheepdogClusterRsp *)&hdr;
+        Error *local_err = NULL;
+        int fd;
+        unsigned int wlen = 0, rlen = 0;
+
+        fd = connect_to_sdog(s, &local_err);
+        if (fd < 0) {
+            error_report("%s", error_get_pretty(local_err));
+            error_free(local_err);
+            ret = -EIO;
+            goto out;
+        }
+
+        memset(&hdr, 0, sizeof(hdr));
+        hdr.opcode = SD_OP_GET_CLUSTER_DEFAULT;
+        hdr.proto_ver = SD_PROTO_VER;
+
+        ret = do_req(fd, s->aio_context, (SheepdogReq *)&hdr,
+                     NULL, &wlen, &rlen);
+        closesocket(fd);
+        if (ret) {
+            error_setg_errno(errp, -ret, "failed to get cluster default");
+            goto out;
+        }
+        if (rsp->result == SD_RES_SUCCESS) {
+            s->inode.block_size_shift = rsp->block_size_shift;
+        } else {
+            s->inode.block_size_shift = SD_DEFAULT_BLOCK_SIZE_SHIFT;
+        }
+    }
+
+    max_vdi_size = (UINT64_C(1) << s->inode.block_size_shift) * MAX_DATA_OBJS;
+
+    if (s->inode.vdi_size > max_vdi_size) {
+        error_setg(errp, "An image is too large."
+                         " The maximum image size is %"PRIu64 "GB",
+                         max_vdi_size / 1024 / 1024 / 1024);
+        ret = -EINVAL;
+        goto out;
+    }
+
     ret = do_sd_create(s, &vid, 0, errp);
     if (ret) {
         goto out;
@@ -1823,11 +1919,13 @@ static int sd_truncate(BlockDriverState *bs, int64_t offset)
     BDRVSheepdogState *s = bs->opaque;
     int ret, fd;
     unsigned int datalen;
+    uint64_t max_vdi_size;
 
+    max_vdi_size = (UINT64_C(1) << s->inode.block_size_shift) * MAX_DATA_OBJS;
     if (offset < s->inode.vdi_size) {
         error_report("shrinking is not supported");
         return -EINVAL;
-    } else if (offset > SD_MAX_VDI_SIZE) {
+    } else if (offset > max_vdi_size) {
         error_report("too big image size");
         return -EINVAL;
     }
@@ -2005,9 +2103,10 @@ static int coroutine_fn sd_co_rw_vector(void *p)
     SheepdogAIOCB *acb = p;
     int ret = 0;
     unsigned long len, done = 0, total = acb->nb_sectors * BDRV_SECTOR_SIZE;
-    unsigned long idx = acb->sector_num * BDRV_SECTOR_SIZE / SD_DATA_OBJ_SIZE;
+    unsigned long idx;
+    uint32_t object_size;
     uint64_t oid;
-    uint64_t offset = (acb->sector_num * BDRV_SECTOR_SIZE) % SD_DATA_OBJ_SIZE;
+    uint64_t offset;
     BDRVSheepdogState *s = acb->common.bs->opaque;
     SheepdogInode *inode = &s->inode;
     AIOReq *aio_req;
@@ -2024,6 +2123,10 @@ static int coroutine_fn sd_co_rw_vector(void *p)
         }
     }
 
+    object_size = (UINT32_C(1) << inode->block_size_shift);
+    idx = acb->sector_num * BDRV_SECTOR_SIZE / object_size;
+    offset = (acb->sector_num * BDRV_SECTOR_SIZE) % object_size;
+
     /*
      * Make sure we don't free the aiocb before we are done with all requests.
      * This additional reference is dropped at the end of this function.
@@ -2037,7 +2140,7 @@ static int coroutine_fn sd_co_rw_vector(void *p)
 
         oid = vid_to_data_oid(inode->data_vdi_id[idx], idx);
 
-        len = MIN(total - done, SD_DATA_OBJ_SIZE - offset);
+        len = MIN(total - done, object_size - offset);
 
         switch (acb->aiocb_type) {
         case AIOCB_READ_UDATA:
@@ -2061,7 +2164,7 @@ static int coroutine_fn sd_co_rw_vector(void *p)
              * We discard the object only when the whole object is
              * 1) allocated 2) trimmed. Otherwise, simply skip it.
              */
-            if (len != SD_DATA_OBJ_SIZE || inode->data_vdi_id[idx] == 0) {
+            if (len != object_size || inode->data_vdi_id[idx] == 0) {
                 goto done;
             }
             break;
@@ -2414,6 +2517,7 @@ static int do_load_save_vmstate(BDRVSheepdogState *s, uint8_t *data,
     uint64_t offset;
     uint32_t vdi_index;
     uint32_t vdi_id = load ? s->inode.parent_vdi_id : s->inode.vdi_id;
+    uint32_t object_size = (UINT32_C(1) << s->inode.block_size_shift);
 
     fd = connect_to_sdog(s, &local_err);
     if (fd < 0) {
@@ -2422,10 +2526,10 @@ static int do_load_save_vmstate(BDRVSheepdogState *s, uint8_t *data,
     }
 
     while (remaining) {
-        vdi_index = pos / SD_DATA_OBJ_SIZE;
-        offset = pos % SD_DATA_OBJ_SIZE;
+        vdi_index = pos / object_size;
+        offset = pos % object_size;
 
-        data_len = MIN(remaining, SD_DATA_OBJ_SIZE - offset);
+        data_len = MIN(remaining, object_size - offset);
 
         vmstate_oid = vid_to_vmstate_oid(vdi_id, vdi_index);
 
@@ -2512,10 +2616,11 @@ sd_co_get_block_status(BlockDriverState *bs, int64_t sector_num, int nb_sectors,
 {
     BDRVSheepdogState *s = bs->opaque;
     SheepdogInode *inode = &s->inode;
+    uint32_t object_size = (UINT32_C(1) << inode->block_size_shift);
     uint64_t offset = sector_num * BDRV_SECTOR_SIZE;
-    unsigned long start = offset / SD_DATA_OBJ_SIZE,
+    unsigned long start = offset / object_size,
                   end = DIV_ROUND_UP((sector_num + nb_sectors) *
-                                     BDRV_SECTOR_SIZE, SD_DATA_OBJ_SIZE);
+                                     BDRV_SECTOR_SIZE, object_size);
     unsigned long idx;
     int64_t ret = BDRV_BLOCK_DATA | BDRV_BLOCK_OFFSET_VALID | offset;
 
@@ -2534,7 +2639,7 @@ sd_co_get_block_status(BlockDriverState *bs, int64_t sector_num, int nb_sectors,
         }
     }
 
-    *pnum = (idx - start) * SD_DATA_OBJ_SIZE / BDRV_SECTOR_SIZE;
+    *pnum = (idx - start) * object_size / BDRV_SECTOR_SIZE;
     if (*pnum > nb_sectors) {
         *pnum = nb_sectors;
     }
@@ -2545,14 +2650,15 @@ static int64_t sd_get_allocated_file_size(BlockDriverState *bs)
 {
     BDRVSheepdogState *s = bs->opaque;
     SheepdogInode *inode = &s->inode;
-    unsigned long i, last = DIV_ROUND_UP(inode->vdi_size, SD_DATA_OBJ_SIZE);
+    uint32_t object_size = (UINT32_C(1) << inode->block_size_shift);
+    unsigned long i, last = DIV_ROUND_UP(inode->vdi_size, object_size);
     uint64_t size = 0;
 
     for (i = 0; i < last; i++) {
         if (inode->data_vdi_id[i] == 0) {
             continue;
         }
-        size += SD_DATA_OBJ_SIZE;
+        size += object_size;
     }
     return size;
 }
@@ -2580,6 +2686,11 @@ static QemuOptsList sd_create_opts = {
             .name = BLOCK_OPT_REDUNDANCY,
             .type = QEMU_OPT_STRING,
             .help = "Redundancy of the image"
+        },
+        {
+            .name = BLOCK_OPT_OBJECT_SIZE,
+            .type = QEMU_OPT_SIZE,
+            .help = "Object size of the image"
         },
         { /* end of list */ }
     }

@@ -56,6 +56,7 @@
 #define BLOCK_OPT_ADAPTER_TYPE      "adapter_type"
 #define BLOCK_OPT_REDUNDANCY        "redundancy"
 #define BLOCK_OPT_NOCOW             "nocow"
+#define BLOCK_OPT_OBJECT_SIZE       "object_size"
 
 #define BLOCK_PROBE_BUF_SIZE        512
 
