@@ -275,19 +275,19 @@ void tcg_gen_sari_i32(TCGv_i32 ret, TCGv_i32 arg1, unsigned arg2)
     }
 }
 
-void tcg_gen_brcond_i32(TCGCond cond, TCGv_i32 arg1, TCGv_i32 arg2, int label)
+void tcg_gen_brcond_i32(TCGCond cond, TCGv_i32 arg1, TCGv_i32 arg2, TCGLabel *l)
 {
     if (cond == TCG_COND_ALWAYS) {
-        tcg_gen_br(label);
+        tcg_gen_br(l);
     } else if (cond != TCG_COND_NEVER) {
-        tcg_gen_op4ii_i32(INDEX_op_brcond_i32, arg1, arg2, cond, label);
+        tcg_gen_op4ii_i32(INDEX_op_brcond_i32, arg1, arg2, cond, label_arg(l));
     }
 }
 
-void tcg_gen_brcondi_i32(TCGCond cond, TCGv_i32 arg1, int32_t arg2, int label)
+void tcg_gen_brcondi_i32(TCGCond cond, TCGv_i32 arg1, int32_t arg2, TCGLabel *l)
 {
     TCGv_i32 t0 = tcg_const_i32(arg2);
-    tcg_gen_brcond_i32(cond, arg1, t0, label);
+    tcg_gen_brcond_i32(cond, arg1, t0, l);
     tcg_temp_free_i32(t0);
 }
 
@@ -1084,28 +1084,29 @@ void tcg_gen_sari_i64(TCGv_i64 ret, TCGv_i64 arg1, unsigned arg2)
     }
 }
 
-void tcg_gen_brcond_i64(TCGCond cond, TCGv_i64 arg1, TCGv_i64 arg2, int label)
+void tcg_gen_brcond_i64(TCGCond cond, TCGv_i64 arg1, TCGv_i64 arg2, TCGLabel *l)
 {
     if (cond == TCG_COND_ALWAYS) {
-        tcg_gen_br(label);
+        tcg_gen_br(l);
     } else if (cond != TCG_COND_NEVER) {
         if (TCG_TARGET_REG_BITS == 32) {
             tcg_gen_op6ii_i32(INDEX_op_brcond2_i32, TCGV_LOW(arg1),
                               TCGV_HIGH(arg1), TCGV_LOW(arg2),
-                              TCGV_HIGH(arg2), cond, label);
+                              TCGV_HIGH(arg2), cond, label_arg(l));
         } else {
-            tcg_gen_op4ii_i64(INDEX_op_brcond_i64, arg1, arg2, cond, label);
+            tcg_gen_op4ii_i64(INDEX_op_brcond_i64, arg1, arg2, cond,
+                              label_arg(l));
         }
     }
 }
 
-void tcg_gen_brcondi_i64(TCGCond cond, TCGv_i64 arg1, int64_t arg2, int label)
+void tcg_gen_brcondi_i64(TCGCond cond, TCGv_i64 arg1, int64_t arg2, TCGLabel *l)
 {
     if (cond == TCG_COND_ALWAYS) {
-        tcg_gen_br(label);
+        tcg_gen_br(l);
     } else if (cond != TCG_COND_NEVER) {
         TCGv_i64 t0 = tcg_const_i64(arg2);
-        tcg_gen_brcond_i64(cond, arg1, t0, label);
+        tcg_gen_brcond_i64(cond, arg1, t0, l);
         tcg_temp_free_i64(t0);
     }
 }

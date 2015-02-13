@@ -311,9 +311,7 @@ static void t_gen_asr(TCGv d, TCGv a, TCGv b)
 
 static void t_gen_cris_dstep(TCGv d, TCGv a, TCGv b)
 {
-    int l1;
-
-    l1 = gen_new_label();
+    TCGLabel *l1 = gen_new_label();
 
     /*
      * d <<= 1
@@ -509,9 +507,7 @@ static inline void t_gen_swapr(TCGv d, TCGv s)
 
 static void t_gen_cc_jmp(TCGv pc_true, TCGv pc_false)
 {
-    int l1;
-
-    l1 = gen_new_label();
+    TCGLabel *l1 = gen_new_label();
 
     /* Conditional jmp.  */
     tcg_gen_mov_tl(env_pc, pc_false);
@@ -774,8 +770,7 @@ static void cris_alu_op_exec(DisasContext *dc, int op,
         break;
     case CC_OP_BOUND:
     {
-        int l1;
-        l1 = gen_new_label();
+        TCGLabel *l1 = gen_new_label();
         tcg_gen_mov_tl(dst, a);
         tcg_gen_brcond_tl(TCG_COND_LEU, a, b, l1);
         tcg_gen_mov_tl(dst, b);
@@ -1488,10 +1483,8 @@ static int dec_scc_r(CPUCRISState *env, DisasContext *dc)
             cc_name(cond), dc->op1);
 
     if (cond != CC_A) {
-        int l1;
-
+        TCGLabel *l1 = gen_new_label();
         gen_tst_cc(dc, cpu_R[dc->op1], cond);
-        l1 = gen_new_label();
         tcg_gen_brcondi_tl(TCG_COND_EQ, cpu_R[dc->op1], 0, l1);
         tcg_gen_movi_tl(cpu_R[dc->op1], 1);
         gen_set_label(l1);
@@ -3040,9 +3033,7 @@ static unsigned int crisv32_decoder(CPUCRISState *env, DisasContext *dc)
 #if !defined(CONFIG_USER_ONLY)
     /* Single-stepping ?  */
     if (dc->tb_flags & S_FLAG) {
-        int l1;
-
-        l1 = gen_new_label();
+        TCGLabel *l1 = gen_new_label();
         tcg_gen_brcondi_tl(TCG_COND_NE, cpu_PR[PR_SPC], dc->pc, l1);
         /* We treat SPC as a break with an odd trap vector.  */
         cris_evaluate_flags(dc);
@@ -3256,9 +3247,7 @@ gen_intermediate_code_internal(CRISCPU *cpu, TranslationBlock *tb,
                 }
 
                 if (dc->jmp == JMP_DIRECT_CC) {
-                    int l1;
-
-                    l1 = gen_new_label();
+                    TCGLabel *l1 = gen_new_label();
                     cris_evaluate_flags(dc);
 
                     /* Conditional jmp.  */

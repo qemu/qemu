@@ -169,7 +169,7 @@ static int decode_opc(MoxieCPU *cpu, DisasContext *ctx)
 
 #define BRANCH(cond)                                                         \
     do {                                                                     \
-        int l1 = gen_new_label();                                            \
+        TCGLabel *l1 = gen_new_label();                                      \
         tcg_gen_brcond_i32(cond, cc_a, cc_b, l1);                            \
         gen_goto_tb(env, ctx, 1, ctx->pc+2);                                 \
         gen_set_label(l1);                                                   \

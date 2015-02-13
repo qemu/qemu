@@ -33,7 +33,7 @@ typedef struct DisasContext {
     /* Nonzero if this instruction has been conditionally skipped.  */
     int condjmp;
     /* The label that will be jumped to when the instruction is skipped.  */
-    int condlabel;
+    TCGLabel *condlabel;
     struct TranslationBlock *tb;
     int singlestep_enabled;
 #ifndef CONFIG_USER_ONLY
@@ -419,11 +419,11 @@ static inline void gen_uc32_shift_reg(TCGv var, int shiftop,
     dead_tmp(shift);
 }
 
-static void gen_test_cc(int cc, int label)
+static void gen_test_cc(int cc, TCGLabel *label)
 {
     TCGv tmp;
     TCGv tmp2;
-    int inv;
+    TCGLabel *inv;
 
     switch (cc) {
     case 0: /* eq: Z */

@@ -936,8 +936,8 @@ static void tcg_out_brcond64(TCGContext *s, TCGCond cond,
 static void tcg_out_brcond2(TCGContext *s, const TCGArg *args,
                             const int *const_args, int small)
 {
-    int label_next;
-    label_next = gen_new_label();
+    int label_next = label_arg(gen_new_label());
+
     switch(args[4]) {
     case TCG_COND_EQ:
         tcg_out_brcond32(s, TCG_COND_NE, args[0], args[2], const_args[2],
@@ -1044,8 +1044,8 @@ static void tcg_out_setcond2(TCGContext *s, const TCGArg *args,
         || (!const_args[4] && args[0] == args[4])) {
         /* When the destination overlaps with one of the argument
            registers, don't do anything tricky.  */
-        label_true = gen_new_label();
-        label_over = gen_new_label();
+        label_true = label_arg(gen_new_label());
+        label_over = label_arg(gen_new_label());
 
         new_args[5] = label_true;
         tcg_out_brcond2(s, new_args, const_args+1, 1);
@@ -1063,7 +1063,7 @@ static void tcg_out_setcond2(TCGContext *s, const TCGArg *args,
 
         tcg_out_movi(s, TCG_TYPE_I32, args[0], 0);
 
-        label_over = gen_new_label();
+        label_over = label_arg(gen_new_label());
         new_args[4] = tcg_invert_cond(new_args[4]);
         new_args[5] = label_over;
         tcg_out_brcond2(s, new_args, const_args+1, 1);
@@ -1082,7 +1082,7 @@ static void tcg_out_movcond32(TCGContext *s, TCGCond cond, TCGArg dest,
     if (have_cmov) {
         tcg_out_modrm(s, OPC_CMOVCC | tcg_cond_to_jcc[cond], dest, v1);
     } else {
-        int over = gen_new_label();
+        int over = label_arg(gen_new_label());
         tcg_out_jxx(s, tcg_cond_to_jcc[tcg_invert_cond(cond)], over, 1);
         tcg_out_mov(s, TCG_TYPE_I32, dest, v1);
         tcg_out_label(s, over, s->code_ptr);

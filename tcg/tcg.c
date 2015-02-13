@@ -246,7 +246,7 @@ static void tcg_out_label(TCGContext *s, int label_index, tcg_insn_unit *ptr)
     l->u.value_ptr = ptr;
 }
 
-int gen_new_label(void)
+TCGLabel *gen_new_label(void)
 {
     TCGContext *s = &tcg_ctx;
     int idx;
@@ -258,7 +258,8 @@ int gen_new_label(void)
     l = &s->labels[idx];
     l->has_value = 0;
     l->u.first_reloc = NULL;
-    return idx;
+
+    return l;
 }
 
 #include "tcg-target.c"

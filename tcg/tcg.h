@@ -755,6 +755,36 @@ TCGv_i64 tcg_const_i64(int64_t val);
 TCGv_i32 tcg_const_local_i32(int32_t val);
 TCGv_i64 tcg_const_local_i64(int64_t val);
 
+TCGLabel *gen_new_label(void);
+
+/**
+ * label_arg
+ * @l: label
+ *
+ * Encode a label for storage in the TCG opcode stream.
+ */
+
+static inline TCGArg label_arg(TCGLabel *l)
+{
+    ptrdiff_t idx = l - tcg_ctx.labels;
+    tcg_debug_assert(idx >= 0 && idx < tcg_ctx.nb_labels);
+    return idx;
+}
+
+/**
+ * arg_label
+ * @i: value
+ *
+ * The opposite of label_arg.  Retrieve a label from the
+ * encoding of the TCG opcode stream.
+ */
+
+static inline TCGLabel *arg_label(TCGArg idx)
+{
+    tcg_debug_assert(idx < tcg_ctx.nb_labels);
+    return &tcg_ctx.labels[idx];
+}
+
 /**
  * tcg_ptr_byte_diff
  * @a, @b: addresses to be differenced

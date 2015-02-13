@@ -2491,8 +2491,7 @@ static inline void gen_goto_tb(DisasContext *ctx, int n, target_ulong dest)
 static inline void gen_branch_cond(DisasContext *ctx, TCGCond cond, TCGv r1,
                                    TCGv r2, int16_t address)
 {
-    int jumpLabel;
-    jumpLabel = gen_new_label();
+    TCGLabel *jumpLabel = gen_new_label();
     tcg_gen_brcond_tl(cond, r1, r2, jumpLabel);
 
     gen_goto_tb(ctx, 1, ctx->next_pc);
@@ -2511,8 +2510,7 @@ static inline void gen_branch_condi(DisasContext *ctx, TCGCond cond, TCGv r1,
 
 static void gen_loop(DisasContext *ctx, int r1, int32_t offset)
 {
-    int l1;
-    l1 = gen_new_label();
+    TCGLabel *l1 = gen_new_label();
 
     tcg_gen_subi_tl(cpu_gpr_a[r1], cpu_gpr_a[r1], 1);
     tcg_gen_brcondi_tl(TCG_COND_EQ, cpu_gpr_a[r1], -1, l1);
