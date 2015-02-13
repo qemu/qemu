@@ -19095,7 +19095,6 @@ gen_intermediate_code_internal(MIPSCPU *cpu, TranslationBlock *tb,
     CPUMIPSState *env = &cpu->env;
     DisasContext ctx;
     target_ulong pc_start;
-    uint16_t *gen_opc_end;
     CPUBreakpoint *bp;
     int j, lj = -1;
     int num_insns;
@@ -19107,7 +19106,6 @@ gen_intermediate_code_internal(MIPSCPU *cpu, TranslationBlock *tb,
         qemu_log("search pc %d\n", search_pc);
 
     pc_start = tb->pc;
-    gen_opc_end = tcg_ctx.gen_opc_buf + OPC_MAX_SIZE;
     ctx.pc = pc_start;
     ctx.saved_pc = -1;
     ctx.singlestep_enabled = cs->singlestep_enabled;
@@ -19151,7 +19149,7 @@ gen_intermediate_code_internal(MIPSCPU *cpu, TranslationBlock *tb,
         }
 
         if (search_pc) {
-            j = tcg_ctx.gen_opc_ptr - tcg_ctx.gen_opc_buf;
+            j = tcg_op_buf_count();
             if (lj < j) {
                 lj++;
                 while (lj < j)
@@ -19209,7 +19207,7 @@ gen_intermediate_code_internal(MIPSCPU *cpu, TranslationBlock *tb,
         if ((ctx.pc & (TARGET_PAGE_SIZE - 1)) == 0)
             break;
 
-        if (tcg_ctx.gen_opc_ptr >= gen_opc_end) {
+        if (tcg_op_buf_full()) {
             break;
         }
 
@@ -19244,9 +19242,9 @@ gen_intermediate_code_internal(MIPSCPU *cpu, TranslationBlock *tb,
     }
 done_generating:
     gen_tb_end(tb, num_insns);
-    *tcg_ctx.gen_opc_ptr = INDEX_op_end;
+
     if (search_pc) {
-        j = tcg_ctx.gen_opc_ptr - tcg_ctx.gen_opc_buf;
+        j = tcg_op_buf_count();
         lj++;
         while (lj <= j)
             tcg_ctx.gen_opc_instr_start[lj++] = 0;

@@ -11025,7 +11025,6 @@ static inline void gen_intermediate_code_internal(ARMCPU *cpu,
     CPUARMState *env = &cpu->env;
     DisasContext dc1, *dc = &dc1;
     CPUBreakpoint *bp;
-    uint16_t *gen_opc_end;
     int j, lj;
     target_ulong pc_start;
     target_ulong next_page_start;
@@ -11045,8 +11044,6 @@ static inline void gen_intermediate_code_internal(ARMCPU *cpu,
     pc_start = tb->pc;
 
     dc->tb = tb;
-
-    gen_opc_end = tcg_ctx.gen_opc_buf + OPC_MAX_SIZE;
 
     dc->is_jmp = DISAS_NEXT;
     dc->pc = pc_start;
@@ -11182,7 +11179,7 @@ static inline void gen_intermediate_code_internal(ARMCPU *cpu,
             }
         }
         if (search_pc) {
-            j = tcg_ctx.gen_opc_ptr - tcg_ctx.gen_opc_buf;
+            j = tcg_op_buf_count();
             if (lj < j) {
                 lj++;
                 while (lj < j)
@@ -11248,7 +11245,7 @@ static inline void gen_intermediate_code_internal(ARMCPU *cpu,
          * Also stop translation when a page boundary is reached.  This
          * ensures prefetch aborts occur at the right place.  */
         num_insns ++;
-    } while (!dc->is_jmp && tcg_ctx.gen_opc_ptr < gen_opc_end &&
+    } while (!dc->is_jmp && !tcg_op_buf_full() &&
              !cs->singlestep_enabled &&
              !singlestep &&
              !dc->ss_active &&
@@ -11357,7 +11354,6 @@ static inline void gen_intermediate_code_internal(ARMCPU *cpu,
 
 done_generating:
     gen_tb_end(tb, num_insns);
-    *tcg_ctx.gen_opc_ptr = INDEX_op_end;
 
 #ifdef DEBUG_DISAS
     if (qemu_loglevel_mask(CPU_LOG_TB_IN_ASM)) {
@@ -11369,7 +11365,7 @@ done_generating:
     }
 #endif
     if (search_pc) {
-        j = tcg_ctx.gen_opc_ptr - tcg_ctx.gen_opc_buf;
+        j = tcg_op_buf_count();
         lj++;
         while (lj <= j)
             tcg_ctx.gen_opc_instr_start[lj++] = 0;

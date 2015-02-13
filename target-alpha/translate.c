@@ -2790,7 +2790,6 @@ static inline void gen_intermediate_code_internal(AlphaCPU *cpu,
     target_ulong pc_start;
     target_ulong pc_mask;
     uint32_t insn;
-    uint16_t *gen_opc_end;
     CPUBreakpoint *bp;
     int j, lj = -1;
     ExitStatus ret;
@@ -2798,7 +2797,6 @@ static inline void gen_intermediate_code_internal(AlphaCPU *cpu,
     int max_insns;
 
     pc_start = tb->pc;
-    gen_opc_end = tcg_ctx.gen_opc_buf + OPC_MAX_SIZE;
 
     ctx.tb = tb;
     ctx.pc = pc_start;
@@ -2839,11 +2837,12 @@ static inline void gen_intermediate_code_internal(AlphaCPU *cpu,
             }
         }
         if (search_pc) {
-            j = tcg_ctx.gen_opc_ptr - tcg_ctx.gen_opc_buf;
+            j = tcg_op_buf_count();
             if (lj < j) {
                 lj++;
-                while (lj < j)
+                while (lj < j) {
                     tcg_ctx.gen_opc_instr_start[lj++] = 0;
+                }
             }
             tcg_ctx.gen_opc_pc[lj] = ctx.pc;
             tcg_ctx.gen_opc_instr_start[lj] = 1;
@@ -2881,7 +2880,7 @@ static inline void gen_intermediate_code_internal(AlphaCPU *cpu,
            or exhaust instruction count, stop generation.  */
         if (ret == NO_EXIT
             && ((ctx.pc & pc_mask) == 0
-                || tcg_ctx.gen_opc_ptr >= gen_opc_end
+                || tcg_op_buf_full()
                 || num_insns >= max_insns
                 || singlestep
                 || ctx.singlestep_enabled)) {
@@ -2912,12 +2911,13 @@ static inline void gen_intermediate_code_internal(AlphaCPU *cpu,
     }
 
     gen_tb_end(tb, num_insns);
-    *tcg_ctx.gen_opc_ptr = INDEX_op_end;
+
     if (search_pc) {
-        j = tcg_ctx.gen_opc_ptr - tcg_ctx.gen_opc_buf;
+        j = tcg_op_buf_count();
         lj++;
-        while (lj <= j)
+        while (lj <= j) {
             tcg_ctx.gen_opc_instr_start[lj++] = 0;
+        }
     } else {
         tb->size = ctx.pc - pc_start;
         tb->icount = num_insns;

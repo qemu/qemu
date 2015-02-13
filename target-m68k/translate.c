@@ -2980,7 +2980,6 @@ gen_intermediate_code_internal(M68kCPU *cpu, TranslationBlock *tb,
     CPUState *cs = CPU(cpu);
     CPUM68KState *env = &cpu->env;
     DisasContext dc1, *dc = &dc1;
-    uint16_t *gen_opc_end;
     CPUBreakpoint *bp;
     int j, lj;
     target_ulong pc_start;
@@ -2992,8 +2991,6 @@ gen_intermediate_code_internal(M68kCPU *cpu, TranslationBlock *tb,
     pc_start = tb->pc;
 
     dc->tb = tb;
-
-    gen_opc_end = tcg_ctx.gen_opc_buf + OPC_MAX_SIZE;
 
     dc->env = env;
     dc->is_jmp = DISAS_NEXT;
@@ -3026,7 +3023,7 @@ gen_intermediate_code_internal(M68kCPU *cpu, TranslationBlock *tb,
                 break;
         }
         if (search_pc) {
-            j = tcg_ctx.gen_opc_ptr - tcg_ctx.gen_opc_buf;
+            j = tcg_op_buf_count();
             if (lj < j) {
                 lj++;
                 while (lj < j)
@@ -3041,7 +3038,7 @@ gen_intermediate_code_internal(M68kCPU *cpu, TranslationBlock *tb,
         dc->insn_pc = dc->pc;
 	disas_m68k_insn(env, dc);
         num_insns++;
-    } while (!dc->is_jmp && tcg_ctx.gen_opc_ptr < gen_opc_end &&
+    } while (!dc->is_jmp && !tcg_op_buf_full() &&
              !cs->singlestep_enabled &&
              !singlestep &&
              (pc_offset) < (TARGET_PAGE_SIZE - 32) &&
@@ -3075,7 +3072,6 @@ gen_intermediate_code_internal(M68kCPU *cpu, TranslationBlock *tb,
         }
     }
     gen_tb_end(tb, num_insns);
-    *tcg_ctx.gen_opc_ptr = INDEX_op_end;
 
 #ifdef DEBUG_DISAS
     if (qemu_loglevel_mask(CPU_LOG_TB_IN_ASM)) {
@@ -3086,7 +3082,7 @@ gen_intermediate_code_internal(M68kCPU *cpu, TranslationBlock *tb,
     }
 #endif
     if (search_pc) {
-        j = tcg_ctx.gen_opc_ptr - tcg_ctx.gen_opc_buf;
+        j = tcg_op_buf_count();
         lj++;
         while (lj <= j)
             tcg_ctx.gen_opc_instr_start[lj++] = 0;

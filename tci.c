@@ -506,19 +506,6 @@ uintptr_t tcg_qemu_tb_exec(CPUArchState *env, uint8_t *tb_ptr)
         tb_ptr += 2;
 
         switch (opc) {
-        case INDEX_op_end:
-        case INDEX_op_nop:
-            break;
-        case INDEX_op_nop1:
-        case INDEX_op_nop2:
-        case INDEX_op_nop3:
-        case INDEX_op_nopn:
-        case INDEX_op_discard:
-            TODO();
-            break;
-        case INDEX_op_set_label:
-            TODO();
-            break;
         case INDEX_op_call:
             t0 = tci_read_ri(&tb_ptr);
 #if TCG_TARGET_REG_BITS == 32

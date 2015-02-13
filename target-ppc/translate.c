@@ -11415,14 +11415,12 @@ static inline void gen_intermediate_code_internal(PowerPCCPU *cpu,
     DisasContext ctx, *ctxp = &ctx;
     opc_handler_t **table, *handler;
     target_ulong pc_start;
-    uint16_t *gen_opc_end;
     CPUBreakpoint *bp;
     int j, lj = -1;
     int num_insns;
     int max_insns;
 
     pc_start = tb->pc;
-    gen_opc_end = tcg_ctx.gen_opc_buf + OPC_MAX_SIZE;
     ctx.nip = pc_start;
     ctx.tb = tb;
     ctx.exception = POWERPC_EXCP_NONE;
@@ -11481,8 +11479,7 @@ static inline void gen_intermediate_code_internal(PowerPCCPU *cpu,
     gen_tb_start(tb);
     tcg_clear_temp_count();
     /* Set env in case of segfault during code fetch */
-    while (ctx.exception == POWERPC_EXCP_NONE
-            && tcg_ctx.gen_opc_ptr < gen_opc_end) {
+    while (ctx.exception == POWERPC_EXCP_NONE && !tcg_op_buf_full()) {
         if (unlikely(!QTAILQ_EMPTY(&cs->breakpoints))) {
             QTAILQ_FOREACH(bp, &cs->breakpoints, entry) {
                 if (bp->pc == ctx.nip) {
@@ -11492,7 +11489,7 @@ static inline void gen_intermediate_code_internal(PowerPCCPU *cpu,
             }
         }
         if (unlikely(search_pc)) {
-            j = tcg_ctx.gen_opc_ptr - tcg_ctx.gen_opc_buf;
+            j = tcg_op_buf_count();
             if (lj < j) {
                 lj++;
                 while (lj < j)
@@ -11598,9 +11595,9 @@ static inline void gen_intermediate_code_internal(PowerPCCPU *cpu,
         tcg_gen_exit_tb(0);
     }
     gen_tb_end(tb, num_insns);
-    *tcg_ctx.gen_opc_ptr = INDEX_op_end;
+
     if (unlikely(search_pc)) {
-        j = tcg_ctx.gen_opc_ptr - tcg_ctx.gen_opc_buf;
+        j = tcg_op_buf_count();
         lj++;
         while (lj <= j)
             tcg_ctx.gen_opc_instr_start[lj++] = 0;
