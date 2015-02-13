@@ -199,13 +199,13 @@ listen:
         freeaddrinfo(res);
         return -1;
     }
-    snprintf(uport, sizeof(uport), "%d", inet_getport(e) - port_offset);
     qemu_opt_set(opts, "host", uaddr, &error_abort);
-    qemu_opt_set(opts, "port", uport, &error_abort);
-    qemu_opt_set(opts, "ipv6", (e->ai_family == PF_INET6) ? "on" : "off",
-                 &error_abort);
-    qemu_opt_set(opts, "ipv4", (e->ai_family != PF_INET6) ? "on" : "off",
-                 &error_abort);
+    qemu_opt_set_number(opts, "port", inet_getport(e) - port_offset,
+                        &error_abort);
+    qemu_opt_set_bool(opts, "ipv6", e->ai_family == PF_INET6,
+                      &error_abort);
+    qemu_opt_set_bool(opts, "ipv4", e->ai_family != PF_INET6,
+                      &error_abort);
     freeaddrinfo(res);
     return slisten;
 }
@@ -586,9 +586,7 @@ static void inet_addr_to_opts(QemuOpts *opts, const InetSocketAddress *addr)
         qemu_opt_set_bool(opts, "ipv6", ipv6, &error_abort);
     }
     if (addr->has_to) {
-        char to[20];
-        snprintf(to, sizeof(to), "%d", addr->to);
-        qemu_opt_set(opts, "to", to, &error_abort);
+        qemu_opt_set_number(opts, "to", addr->to, &error_abort);
     }
     qemu_opt_set(opts, "host", addr->host, &error_abort);
     qemu_opt_set(opts, "port", addr->port, &error_abort);
