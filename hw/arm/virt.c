@@ -42,6 +42,7 @@
 #include "exec/address-spaces.h"
 #include "qemu/bitops.h"
 #include "qemu/error-report.h"
+#include "hw/pci-host/gpex.h"
 
 #define NUM_VIRTIO_TRANSPORTS 32
 
@@ -69,6 +70,7 @@ enum {
     VIRT_MMIO,
     VIRT_RTC,
     VIRT_FW_CFG,
+    VIRT_PCIE,
 };
 
 typedef struct MemMapEntry {
@@ -129,13 +131,21 @@ static const MemMapEntry a15memmap[] = {
     [VIRT_FW_CFG] =     { 0x09020000, 0x0000000a },
     [VIRT_MMIO] =       { 0x0a000000, 0x00000200 },
     /* ...repeating for a total of NUM_VIRTIO_TRANSPORTS, each of that size */
-    /* 0x10000000 .. 0x40000000 reserved for PCI */
+    /*
+     * PCIE verbose map:
+     *
+     * MMIO window      { 0x10000000, 0x2eff0000 },
+     * PIO window       { 0x3eff0000, 0x00010000 },
+     * ECAM             { 0x3f000000, 0x01000000 },
+     */
+    [VIRT_PCIE] =       { 0x10000000, 0x30000000 },
     [VIRT_MEM] =        { 0x40000000, 30ULL * 1024 * 1024 * 1024 },
 };
 
 static const int a15irqmap[] = {
     [VIRT_UART] = 1,
     [VIRT_RTC] = 2,
+    [VIRT_PCIE] = 3, /* ... to 6 */
     [VIRT_MMIO] = 16, /* ...to 16 + NUM_VIRTIO_TRANSPORTS - 1 */
 };
 
@@ -312,7 +322,7 @@ static void fdt_add_cpu_nodes(const VirtBoardInfo *vbi)
     }
 }
 
-static void fdt_add_gic_node(const VirtBoardInfo *vbi)
+static uint32_t fdt_add_gic_node(const VirtBoardInfo *vbi)
 {
     uint32_t gic_phandle;
 
@@ -331,9 +341,11 @@ static void fdt_add_gic_node(const VirtBoardInfo *vbi)
                                      2, vbi->memmap[VIRT_GIC_CPU].base,
                                      2, vbi->memmap[VIRT_GIC_CPU].size);
     qemu_fdt_setprop_cell(vbi->fdt, "/intc", "phandle", gic_phandle);
+
+    return gic_phandle;
 }
 
-static void create_gic(const VirtBoardInfo *vbi, qemu_irq *pic)
+static uint32_t create_gic(const VirtBoardInfo *vbi, qemu_irq *pic)
 {
     /* We create a standalone GIC v2 */
     DeviceState *gicdev;
@@ -380,7 +392,7 @@ static void create_gic(const VirtBoardInfo *vbi, qemu_irq *pic)
         pic[i] = qdev_get_gpio_in(gicdev, i);
     }
 
-    fdt_add_gic_node(vbi);
+    return fdt_add_gic_node(vbi);
 }
 
 static void create_uart(const VirtBoardInfo *vbi, qemu_irq *pic)
@@ -585,6 +597,119 @@ static void create_fw_cfg(const VirtBoardInfo *vbi)
     g_free(nodename);
 }
 
+static void create_pcie_irq_map(const VirtBoardInfo *vbi, uint32_t gic_phandle,
+                                int first_irq, const char *nodename)
+{
+    int devfn, pin;
+    uint32_t full_irq_map[4 * 4 * 8] = { 0 };
+    uint32_t *irq_map = full_irq_map;
+
+    for (devfn = 0; devfn <= 0x18; devfn += 0x8) {
+        for (pin = 0; pin < 4; pin++) {
+            int irq_type = GIC_FDT_IRQ_TYPE_SPI;
+            int irq_nr = first_irq + ((pin + PCI_SLOT(devfn)) % PCI_NUM_PINS);
+            int irq_level = GIC_FDT_IRQ_FLAGS_LEVEL_HI;
+            int i;
+
+            uint32_t map[] = {
+                devfn << 8, 0, 0,                           /* devfn */
+                pin + 1,                                    /* PCI pin */
+                gic_phandle, irq_type, irq_nr, irq_level }; /* GIC irq */
+
+            /* Convert map to big endian */
+            for (i = 0; i < 8; i++) {
+                irq_map[i] = cpu_to_be32(map[i]);
+            }
+            irq_map += 8;
+        }
+    }
+
+    qemu_fdt_setprop(vbi->fdt, nodename, "interrupt-map",
+                     full_irq_map, sizeof(full_irq_map));
+
+    qemu_fdt_setprop_cells(vbi->fdt, nodename, "interrupt-map-mask",
+                           0x1800, 0, 0, /* devfn (PCI_SLOT(3)) */
+                           0x7           /* PCI irq */);
+}
+
+static void create_pcie(const VirtBoardInfo *vbi, qemu_irq *pic,
+                        uint32_t gic_phandle)
+{
+    hwaddr base = vbi->memmap[VIRT_PCIE].base;
+    hwaddr size = vbi->memmap[VIRT_PCIE].size;
+    hwaddr end = base + size;
+    hwaddr size_mmio;
+    hwaddr size_ioport = 64 * 1024;
+    int nr_pcie_buses = 16;
+    hwaddr size_ecam = PCIE_MMCFG_SIZE_MIN * nr_pcie_buses;
+    hwaddr base_mmio = base;
+    hwaddr base_ioport;
+    hwaddr base_ecam;
+    int irq = vbi->irqmap[VIRT_PCIE];
+    MemoryRegion *mmio_alias;
+    MemoryRegion *mmio_reg;
+    MemoryRegion *ecam_alias;
+    MemoryRegion *ecam_reg;
+    DeviceState *dev;
+    char *nodename;
+    int i;
+
+    base_ecam = QEMU_ALIGN_DOWN(end - size_ecam, size_ecam);
+    base_ioport = QEMU_ALIGN_DOWN(base_ecam - size_ioport, size_ioport);
+    size_mmio = base_ioport - base;
+
+    dev = qdev_create(NULL, TYPE_GPEX_HOST);
+    qdev_init_nofail(dev);
+
+    /* Map only the first size_ecam bytes of ECAM space */
+    ecam_alias = g_new0(MemoryRegion, 1);
+    ecam_reg = sysbus_mmio_get_region(SYS_BUS_DEVICE(dev), 0);
+    memory_region_init_alias(ecam_alias, OBJECT(dev), "pcie-ecam",
+                             ecam_reg, 0, size_ecam);
+    memory_region_add_subregion(get_system_memory(), base_ecam, ecam_alias);
+
+    /* Map the MMIO window into system address space so as to expose
+     * the section of PCI MMIO space which starts at the same base address
+     * (ie 1:1 mapping for that part of PCI MMIO space visible through
+     * the window).
+     */
+    mmio_alias = g_new0(MemoryRegion, 1);
+    mmio_reg = sysbus_mmio_get_region(SYS_BUS_DEVICE(dev), 1);
+    memory_region_init_alias(mmio_alias, OBJECT(dev), "pcie-mmio",
+                             mmio_reg, base_mmio, size_mmio);
+    memory_region_add_subregion(get_system_memory(), base_mmio, mmio_alias);
+
+    /* Map IO port space */
+    sysbus_mmio_map(SYS_BUS_DEVICE(dev), 2, base_ioport);
+
+    for (i = 0; i < GPEX_NUM_IRQS; i++) {
+        sysbus_connect_irq(SYS_BUS_DEVICE(dev), i, pic[irq + i]);
+    }
+
+    nodename = g_strdup_printf("/pcie@%" PRIx64, base);
+    qemu_fdt_add_subnode(vbi->fdt, nodename);
+    qemu_fdt_setprop_string(vbi->fdt, nodename,
+                            "compatible", "pci-host-ecam-generic");
+    qemu_fdt_setprop_string(vbi->fdt, nodename, "device_type", "pci");
+    qemu_fdt_setprop_cell(vbi->fdt, nodename, "#address-cells", 3);
+    qemu_fdt_setprop_cell(vbi->fdt, nodename, "#size-cells", 2);
+    qemu_fdt_setprop_cells(vbi->fdt, nodename, "bus-range", 0,
+                           nr_pcie_buses - 1);
+
+    qemu_fdt_setprop_sized_cells(vbi->fdt, nodename, "reg",
+                                 2, base_ecam, 2, size_ecam);
+    qemu_fdt_setprop_sized_cells(vbi->fdt, nodename, "ranges",
+                                 1, FDT_PCI_RANGE_IOPORT, 2, 0,
+                                 2, base_ioport, 2, size_ioport,
+                                 1, FDT_PCI_RANGE_MMIO, 2, base_mmio,
+                                 2, base_mmio, 2, size_mmio);
+
+    qemu_fdt_setprop_cell(vbi->fdt, nodename, "#interrupt-cells", 1);
+    create_pcie_irq_map(vbi, gic_phandle, irq, nodename);
+
+    g_free(nodename);
+}
+
 static void *machvirt_dtb(const struct arm_boot_info *binfo, int *fdt_size)
 {
     const VirtBoardInfo *board = (const VirtBoardInfo *)binfo;
@@ -602,6 +727,7 @@ static void machvirt_init(MachineState *machine)
     MemoryRegion *ram = g_new(MemoryRegion, 1);
     const char *cpu_model = machine->cpu_model;
     VirtBoardInfo *vbi;
+    uint32_t gic_phandle;
 
     if (!cpu_model) {
         cpu_model = "cortex-a15";
@@ -663,11 +789,13 @@ static void machvirt_init(MachineState *machine)
 
     create_flash(vbi);
 
-    create_gic(vbi, pic);
+    gic_phandle = create_gic(vbi, pic);
 
     create_uart(vbi, pic);
 
     create_rtc(vbi, pic);
+
+    create_pcie(vbi, pic, gic_phandle);
 
     /* Create mmio transports, so the user can create virtio backends
      * (which will be automatically plugged in to the transports). If
