@@ -520,16 +520,13 @@ static void qtest_event(void *opaque, int event)
     }
 }
 
-static void configure_qtest_icount(const char *options)
-{
-    QemuOpts *opts  = qemu_opts_parse(qemu_find_opts("icount"), options, 1);
-    configure_icount(opts, &error_abort);
-    qemu_opts_del(opts);
-}
-
 static int qtest_init_accel(MachineState *ms)
 {
-    configure_qtest_icount("0");
+    QemuOpts *opts = qemu_opts_create(qemu_find_opts("icount"), NULL, 0,
+                                      &error_abort);
+    qemu_opt_set(opts, "shift", "0", &error_abort);
+    configure_icount(opts, &error_abort);
+    qemu_opts_del(opts);
     return 0;
 }
 
