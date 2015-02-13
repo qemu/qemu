@@ -1137,15 +1137,11 @@ void pc_acpi_init(const char *default_dsdt)
     if (filename == NULL) {
         fprintf(stderr, "WARNING: failed to find %s\n", default_dsdt);
     } else {
-        char *arg;
-        QemuOpts *opts;
+        QemuOpts *opts = qemu_opts_create(qemu_find_opts("acpi"), NULL, 0,
+                                          &error_abort);
         Error *err = NULL;
 
-        arg = g_strdup_printf("file=%s", filename);
-
-        /* creates a deep copy of "arg" */
-        opts = qemu_opts_parse(qemu_find_opts("acpi"), arg, 0);
-        g_assert(opts != NULL);
+        qemu_opt_set(opts, "file", filename, &error_abort);
 
         acpi_table_add_builtin(opts, &err);
         if (err) {
@@ -1153,7 +1149,6 @@ void pc_acpi_init(const char *default_dsdt)
                          error_get_pretty(err));
             error_free(err);
         }
-        g_free(arg);
         g_free(filename);
     }
 }
