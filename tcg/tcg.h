@@ -167,7 +167,8 @@ typedef struct TCGRelocation {
 } TCGRelocation; 
 
 typedef struct TCGLabel {
-    int has_value;
+    unsigned has_value : 1;
+    unsigned id : 31;
     union {
         uintptr_t value;
         tcg_insn_unit *value_ptr;
@@ -182,8 +183,6 @@ typedef struct TCGPool {
 } TCGPool;
 
 #define TCG_POOL_CHUNK_SIZE 32768
-
-#define TCG_MAX_LABELS 512
 
 #define TCG_MAX_TEMPS 512
 
@@ -556,8 +555,6 @@ struct TCGContext {
     target_ulong gen_opc_pc[OPC_BUF_SIZE];
     uint16_t gen_opc_icount[OPC_BUF_SIZE];
     uint8_t gen_opc_instr_start[OPC_BUF_SIZE];
-
-    TCGLabel labels[TCG_MAX_LABELS];
 };
 
 extern TCGContext tcg_ctx;
@@ -766,9 +763,7 @@ TCGLabel *gen_new_label(void);
 
 static inline TCGArg label_arg(TCGLabel *l)
 {
-    ptrdiff_t idx = l - tcg_ctx.labels;
-    tcg_debug_assert(idx >= 0 && idx < tcg_ctx.nb_labels);
-    return idx;
+    return (uintptr_t)l;
 }
 
 /**
@@ -779,10 +774,9 @@ static inline TCGArg label_arg(TCGLabel *l)
  * encoding of the TCG opcode stream.
  */
 
-static inline TCGLabel *arg_label(TCGArg idx)
+static inline TCGLabel *arg_label(TCGArg i)
 {
-    tcg_debug_assert(idx < tcg_ctx.nb_labels);
-    return &tcg_ctx.labels[idx];
+    return (TCGLabel *)(uintptr_t)i;
 }
 
 /**
