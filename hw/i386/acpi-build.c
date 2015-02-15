@@ -1363,13 +1363,12 @@ typedef
 struct AcpiBuildState {
     /* Copy of table in RAM (for patching). */
     ram_addr_t table_ram;
-    uint32_t table_size;
     /* Is table patched? */
     uint8_t patched;
     PcGuestInfo *guest_info;
     void *rsdp;
+    ram_addr_t rsdp_ram;
     ram_addr_t linker_ram;
-    uint32_t linker_size;
 } AcpiBuildState;
 
 static bool acpi_get_mcfg(AcpiMcfgInfo *mcfg)
@@ -1552,6 +1551,17 @@ void acpi_build(PcGuestInfo *guest_info, AcpiBuildTables *tables)
     g_array_free(table_offsets, true);
 }
 
+static void acpi_ram_update(ram_addr_t ram, GArray *data)
+{
+    uint32_t size = acpi_data_len(data);
+
+    /* Make sure RAM size is correct - in case it got changed e.g. by migration */
+    qemu_ram_resize(ram, size, &error_abort);
+
+    memcpy(qemu_get_ram_ptr(ram), data->data, size);
+    cpu_physical_memory_set_dirty_range_nocode(ram, size);
+}
+
 static void acpi_build_update(void *build_opaque, uint32_t offset)
 {
     AcpiBuildState *build_state = build_opaque;
@@ -1567,21 +1577,15 @@ static void acpi_build_update(void *build_opaque, uint32_t offset)
 
     acpi_build(build_state->guest_info, &tables);
 
-    assert(acpi_data_len(tables.table_data) == build_state->table_size);
+    acpi_ram_update(build_state->table_ram, tables.table_data);
 
-    /* Make sure RAM size is correct - in case it got changed by migration */
-    qemu_ram_resize(build_state->table_ram, build_state->table_size,
-                    &error_abort);
+    if (build_state->rsdp) {
+        memcpy(build_state->rsdp, tables.rsdp->data, acpi_data_len(tables.rsdp));
+    } else {
+        acpi_ram_update(build_state->rsdp_ram, tables.rsdp);
+    }
 
-    memcpy(qemu_get_ram_ptr(build_state->table_ram), tables.table_data->data,
-           build_state->table_size);
-    memcpy(build_state->rsdp, tables.rsdp->data, acpi_data_len(tables.rsdp));
-    memcpy(qemu_get_ram_ptr(build_state->linker_ram), tables.linker->data,
-           build_state->linker_size);
-
-    cpu_physical_memory_set_dirty_range_nocode(build_state->table_ram,
-                                               build_state->table_size);
-
+    acpi_ram_update(build_state->linker_ram, tables.linker);
     acpi_build_tables_cleanup(&tables, true);
 }
 
@@ -1642,11 +1646,9 @@ void acpi_setup(PcGuestInfo *guest_info)
                                                ACPI_BUILD_TABLE_FILE,
                                                ACPI_BUILD_TABLE_MAX_SIZE);
     assert(build_state->table_ram != RAM_ADDR_MAX);
-    build_state->table_size = acpi_data_len(tables.table_data);
 
     build_state->linker_ram =
         acpi_add_rom_blob(build_state, tables.linker, "etc/table-loader", 0);
-    build_state->linker_size = acpi_data_len(tables.linker);
 
     fw_cfg_add_file(guest_info->fw_cfg, ACPI_BUILD_TPMLOG_FILE,
                     tables.tcpalog->data, acpi_data_len(tables.tcpalog));
@@ -1661,10 +1663,11 @@ void acpi_setup(PcGuestInfo *guest_info)
                                  acpi_build_update, build_state,
                                  tables.rsdp->data, acpi_data_len(tables.rsdp));
         build_state->rsdp = tables.rsdp->data;
+        build_state->rsdp_ram = (ram_addr_t)-1;
     } else {
-        build_state->rsdp = qemu_get_ram_ptr(
-            acpi_add_rom_blob(build_state, tables.rsdp, ACPI_BUILD_RSDP_FILE, 0)
-        );
+        build_state->rsdp = NULL;
+        build_state->rsdp_ram = acpi_add_rom_blob(build_state, tables.rsdp,
+                                                  ACPI_BUILD_RSDP_FILE, 0);
     }
 
     qemu_register_reset(acpi_build_reset, build_state);
