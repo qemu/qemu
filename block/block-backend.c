@@ -892,3 +892,13 @@ int blk_load_vmstate(BlockBackend *blk, uint8_t *buf, int64_t pos, int size)
 {
     return bdrv_load_vmstate(blk->bs, buf, pos, size);
 }
+
+int blk_probe_blocksizes(BlockBackend *blk, BlockSizes *bsz)
+{
+    return bdrv_probe_blocksizes(blk->bs, bsz);
+}
+
+int blk_probe_geometry(BlockBackend *blk, HDGeometry *geo)
+{
+    return bdrv_probe_geometry(blk->bs, geo);
+}
