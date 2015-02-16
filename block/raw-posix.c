@@ -218,11 +218,43 @@ static int raw_normalize_devicepath(const char **filename)
 }
 #endif
 
+/*
+ * Get logical block size via ioctl. On success store it in @sector_size_p.
+ */
+static int probe_logical_blocksize(int fd, unsigned int *sector_size_p)
+{
+    unsigned int sector_size;
+    bool success = false;
+
+    errno = ENOTSUP;
+
+    /* Try a few ioctls to get the right size */
+#ifdef BLKSSZGET
+    if (ioctl(fd, BLKSSZGET, &sector_size) >= 0) {
+        *sector_size_p = sector_size;
+        success = true;
+    }
+#endif
+#ifdef DKIOCGETBLOCKSIZE
+    if (ioctl(fd, DKIOCGETBLOCKSIZE, &sector_size) >= 0) {
+        *sector_size_p = sector_size;
+        success = true;
+    }
+#endif
+#ifdef DIOCGSECTORSIZE
+    if (ioctl(fd, DIOCGSECTORSIZE, &sector_size) >= 0) {
+        *sector_size_p = sector_size;
+        success = true;
+    }
+#endif
+
+    return success ? 0 : -errno;
+}
+
 static void raw_probe_alignment(BlockDriverState *bs, int fd, Error **errp)
 {
     BDRVRawState *s = bs->opaque;
     char *buf;
-    unsigned int sector_size;
 
     /* For /dev/sg devices the alignment is not really used.
        With buffered I/O, we don't have any restrictions. */
@@ -232,25 +264,12 @@ static void raw_probe_alignment(BlockDriverState *bs, int fd, Error **errp)
         return;
     }
 
-    /* Try a few ioctls to get the right size */
     bs->request_alignment = 0;
     s->buf_align = 0;
-
-#ifdef BLKSSZGET
-    if (ioctl(fd, BLKSSZGET, &sector_size) >= 0) {
-        bs->request_alignment = sector_size;
+    /* Let's try to use the logical blocksize for the alignment. */
+    if (probe_logical_blocksize(fd, &bs->request_alignment) < 0) {
+        bs->request_alignment = 0;
     }
-#endif
-#ifdef DKIOCGETBLOCKSIZE
-    if (ioctl(fd, DKIOCGETBLOCKSIZE, &sector_size) >= 0) {
-        bs->request_alignment = sector_size;
-    }
-#endif
-#ifdef DIOCGSECTORSIZE
-    if (ioctl(fd, DIOCGSECTORSIZE, &sector_size) >= 0) {
-        bs->request_alignment = sector_size;
-    }
-#endif
 #ifdef CONFIG_XFS
     if (s->is_xfs) {
         struct dioattr da;
