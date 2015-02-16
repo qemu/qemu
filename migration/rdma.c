@@ -2364,10 +2364,10 @@ err_rdma_source_connect:
 
 static int qemu_rdma_dest_init(RDMAContext *rdma, Error **errp)
 {
-    int ret = -EINVAL, idx;
+    int ret, idx;
     struct rdma_cm_id *listen_id;
     char ip[40] = "unknown";
-    struct rdma_addrinfo *res;
+    struct rdma_addrinfo *res, *e;
     char port_str[16];
 
     for (idx = 0; idx < RDMA_WRID_MAX; idx++) {
@@ -2375,7 +2375,7 @@ static int qemu_rdma_dest_init(RDMAContext *rdma, Error **errp)
         rdma->wr_data[idx].control_curr = NULL;
     }
 
-    if (rdma->host == NULL) {
+    if (!rdma->host || !rdma->host[0]) {
         ERROR(errp, "RDMA host is not set!");
         rdma->error_state = -EINVAL;
         return -1;
@@ -2398,40 +2398,33 @@ static int qemu_rdma_dest_init(RDMAContext *rdma, Error **errp)
     snprintf(port_str, 16, "%d", rdma->port);
     port_str[15] = '\0';
 
-    if (rdma->host && strcmp("", rdma->host)) {
-        struct rdma_addrinfo *e;
-
-        ret = rdma_getaddrinfo(rdma->host, port_str, NULL, &res);
-        if (ret < 0) {
-            ERROR(errp, "could not rdma_getaddrinfo address %s", rdma->host);
-            goto err_dest_init_bind_addr;
-        }
-
-        for (e = res; e != NULL; e = e->ai_next) {
-            inet_ntop(e->ai_family,
-                &((struct sockaddr_in *) e->ai_dst_addr)->sin_addr, ip, sizeof ip);
-            trace_qemu_rdma_dest_init_trying(rdma->host, ip);
-            ret = rdma_bind_addr(listen_id, e->ai_dst_addr);
-            if (!ret) {
-                if (e->ai_family == AF_INET6) {
-                    ret = qemu_rdma_broken_ipv6_kernel(errp, listen_id->verbs);
-                    if (ret) {
-                        continue;
-                    }
-                }
-                    
-                goto listen;
-            }
-        }
-
-        ERROR(errp, "Error: could not rdma_bind_addr!");
-        goto err_dest_init_bind_addr;
-    } else {
-        ERROR(errp, "migration host and port not specified!");
-        ret = -EINVAL;
+    ret = rdma_getaddrinfo(rdma->host, port_str, NULL, &res);
+    if (ret < 0) {
+        ERROR(errp, "could not rdma_getaddrinfo address %s", rdma->host);
         goto err_dest_init_bind_addr;
     }
-listen:
+
+    for (e = res; e != NULL; e = e->ai_next) {
+        inet_ntop(e->ai_family,
+            &((struct sockaddr_in *) e->ai_dst_addr)->sin_addr, ip, sizeof ip);
+        trace_qemu_rdma_dest_init_trying(rdma->host, ip);
+        ret = rdma_bind_addr(listen_id, e->ai_dst_addr);
+        if (ret) {
+            continue;
+        }
+        if (e->ai_family == AF_INET6) {
+            ret = qemu_rdma_broken_ipv6_kernel(errp, listen_id->verbs);
+            if (ret) {
+                continue;
+            }
+        }
+        break;
+    }
+
+    if (!e) {
+        ERROR(errp, "Error: could not rdma_bind_addr!");
+        goto err_dest_init_bind_addr;
+    }
 
     rdma->listen_id = listen_id;
     qemu_rdma_dump_gid("dest_init", listen_id);
