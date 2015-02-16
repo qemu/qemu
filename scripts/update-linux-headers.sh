@@ -91,7 +91,7 @@ done
 
 rm -rf "$output/linux-headers/linux"
 mkdir -p "$output/linux-headers/linux"
-for header in kvm.h kvm_para.h vfio.h vhost.h virtio_config.h virtio_ring.h \
+for header in kvm.h kvm_para.h vfio.h vhost.h \
               psci.h; do
     cp "$tmpdir/include/linux/$header" "$output/linux-headers/linux"
 done
@@ -106,6 +106,12 @@ else
     cp "$linux/COPYING" "$output/linux-headers"
 fi
 
+cat <<EOF >$output/linux-headers/linux/virtio_config.h
+#include "standard-headers/linux/virtio_config.h"
+EOF
+cat <<EOF >$output/linux-headers/linux/virtio_ring.h
+#include "standard-headers/linux/virtio_ring.h"
+EOF
 
 cp_virtio "$tmpdir/include/linux/" "$output/include/standard-headers/linux"
 
