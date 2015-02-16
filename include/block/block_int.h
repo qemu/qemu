@@ -275,6 +275,21 @@ struct BlockDriver {
     void (*bdrv_io_unplug)(BlockDriverState *bs);
     void (*bdrv_flush_io_queue)(BlockDriverState *bs);
 
+    /**
+     * Try to get @bs's logical and physical block size.
+     * On success, store them in @bsz and return zero.
+     * On failure, return negative errno.
+     */
+    int (*bdrv_probe_blocksizes)(BlockDriverState *bs, BlockSizes *bsz);
+    /**
+     * Try to get @bs's geometry (cyls, heads, sectors)
+     * On success, store them in @geo and return 0.
+     * On failure return -errno.
+     * Only drivers that want to override guest geometry implement this
+     * callback; see hd_geometry_guess().
+     */
+    int (*bdrv_probe_geometry)(BlockDriverState *bs, HDGeometry *geo);
+
     QLIST_ENTRY(BlockDriver) list;
 };
 

@@ -568,6 +568,40 @@ void bdrv_refresh_limits(BlockDriverState *bs, Error **errp)
     }
 }
 
+/**
+ * Try to get @bs's logical and physical block size.
+ * On success, store them in @bsz struct and return 0.
+ * On failure return -errno.
+ * @bs must not be empty.
+ */
+int bdrv_probe_blocksizes(BlockDriverState *bs, BlockSizes *bsz)
+{
+    BlockDriver *drv = bs->drv;
+
+    if (drv && drv->bdrv_probe_blocksizes) {
+        return drv->bdrv_probe_blocksizes(bs, bsz);
+    }
+
+    return -ENOTSUP;
+}
+
+/**
+ * Try to get @bs's geometry (cyls, heads, sectors).
+ * On success, store them in @geo struct and return 0.
+ * On failure return -errno.
+ * @bs must not be empty.
+ */
+int bdrv_probe_geometry(BlockDriverState *bs, HDGeometry *geo)
+{
+    BlockDriver *drv = bs->drv;
+
+    if (drv && drv->bdrv_probe_geometry) {
+        return drv->bdrv_probe_geometry(bs, geo);
+    }
+
+    return -ENOTSUP;
+}
+
 /*
  * Create a uniquely-named empty temporary file.
  * Return 0 upon success, otherwise a negative errno value.
