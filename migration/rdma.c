@@ -510,7 +510,7 @@ static inline uint8_t *ram_chunk_end(const RDMALocalBlock *rdma_ram_block,
     return result;
 }
 
-static int __qemu_rdma_add_block(RDMAContext *rdma, void *host_addr,
+static int rdma_add_block(RDMAContext *rdma, void *host_addr,
                          ram_addr_t block_offset, uint64_t length)
 {
     RDMALocalBlocks *local = &rdma->local_ram_blocks;
@@ -551,13 +551,12 @@ static int __qemu_rdma_add_block(RDMAContext *rdma, void *host_addr,
 
     g_hash_table_insert(rdma->blockmap, (void *) block_offset, block);
 
-    trace___qemu_rdma_add_block(local->nb_blocks,
-                           (uint64_t) block->local_host_addr, block->offset,
-                           block->length,
-                           (uint64_t) (block->local_host_addr + block->length),
-                           BITS_TO_LONGS(block->nb_chunks) *
-                               sizeof(unsigned long) * 8,
-                           block->nb_chunks);
+    trace_rdma_add_block(local->nb_blocks, (uint64_t) block->local_host_addr,
+                         block->offset, block->length,
+                         (uint64_t) (block->local_host_addr + block->length),
+                         BITS_TO_LONGS(block->nb_chunks) *
+                             sizeof(unsigned long) * 8,
+                         block->nb_chunks);
 
     local->nb_blocks++;
 
@@ -572,7 +571,7 @@ static int __qemu_rdma_add_block(RDMAContext *rdma, void *host_addr,
 static void qemu_rdma_init_one_block(void *host_addr,
     ram_addr_t block_offset, ram_addr_t length, void *opaque)
 {
-    __qemu_rdma_add_block(opaque, host_addr, block_offset, length);
+    rdma_add_block(opaque, host_addr, block_offset, length);
 }
 
 /*
@@ -595,7 +594,7 @@ static int qemu_rdma_init_ram_blocks(RDMAContext *rdma)
     return 0;
 }
 
-static int __qemu_rdma_delete_block(RDMAContext *rdma, ram_addr_t block_offset)
+static int rdma_delete_block(RDMAContext *rdma, ram_addr_t block_offset)
 {
     RDMALocalBlocks *local = &rdma->local_ram_blocks;
     RDMALocalBlock *block = g_hash_table_lookup(rdma->blockmap,
@@ -657,7 +656,7 @@ static int __qemu_rdma_delete_block(RDMAContext *rdma, ram_addr_t block_offset)
         local->block = NULL;
     }
 
-    trace___qemu_rdma_delete_block(local->nb_blocks,
+    trace_rdma_delete_block(local->nb_blocks,
                            (uint64_t)block->local_host_addr,
                            block->offset, block->length,
                            (uint64_t)(block->local_host_addr + block->length),
@@ -2187,8 +2186,7 @@ static void qemu_rdma_cleanup(RDMAContext *rdma)
 
     if (rdma->local_ram_blocks.block) {
         while (rdma->local_ram_blocks.nb_blocks) {
-            __qemu_rdma_delete_block(rdma,
-                    rdma->local_ram_blocks.block->offset);
+            rdma_delete_block(rdma, rdma->local_ram_blocks.block->offset);
         }
     }
 
