@@ -597,12 +597,6 @@ static void virtio_blk_handle_output(VirtIODevice *vdev, VirtQueue *vq)
     if (mrb.num_reqs) {
         virtio_blk_submit_multireq(s->blk, &mrb);
     }
-
-    /*
-     * FIXME: Want to check for completions before returning to guest mode,
-     * so cached reads and writes are reported as quickly as possible. But
-     * that should be done in the generic block layer.
-     */
 }
 
 static void virtio_blk_dma_restart_bh(void *opaque)
