@@ -28,6 +28,36 @@ if [ -z "$output" ]; then
     output="$PWD"
 fi
 
+cp_virtio() {
+    from=$1
+    to=$2
+    virtio=$(find "$from" -name '*virtio*h')
+    if [ "$virtio" ]; then
+        rm -rf "$to"
+        mkdir -p "$to"
+        for f in $virtio; do
+            if
+                grep '#include' "$f" | grep -v -e 'linux/virtio' \
+                                             -e 'linux/types' \
+                                             -e 'linux/if_ether' \
+                                             > /dev/null
+            then
+                echo "Unexpected #include in input file $f".
+                exit 2
+            fi
+
+            header=$(basename "$f");
+            sed -e 's/__u\([0-9][0-9]*\)/uint\1_t/g' \
+                -e 's/__le\([0-9][0-9]*\)/uint\1_t/g' \
+                -e 's/__be\([0-9][0-9]*\)/uint\1_t/g' \
+                -e 's/<linux\/\([^>]*\)>/"standard-headers\/linux\/\1"/' \
+                -e 's/__bitwise__//' \
+                -e 's/__attribute__((packed))/QEMU_PACKED/' \
+                "$f" > "$to/$header";
+        done
+    fi
+}
+
 # This will pick up non-directories too (eg "Kconfig") but we will
 # ignore them in the next loop.
 ARCHLIST=$(cd "$linux/arch" && echo *)
@@ -75,5 +105,16 @@ if [ -L "$linux/source" ]; then
 else
     cp "$linux/COPYING" "$output/linux-headers"
 fi
+
+
+cp_virtio "$tmpdir/include/linux/" "$output/include/standard-headers/linux"
+
+cat <<EOF >$output/include/standard-headers/linux/types.h
+#include <stdint.h>
+#include "qemu/compiler.h"
+EOF
+cat <<EOF >$output/include/standard-headers/linux/if_ether.h
+#define ETH_ALEN    6
+EOF
 
 rm -rf "$tmpdir"
