@@ -114,7 +114,7 @@ void DMA_hold_DREQ (int nchan) {}
 void DMA_release_DREQ (int nchan) {}
 void DMA_schedule(void) {}
 
-void DMA_init(int high_page_enable, qemu_irq *cpu_request_exit)
+void DMA_init(int high_page_enable)
 {
 }
 
