@@ -56,6 +56,10 @@
 #include <linux/cdrom.h>
 #include <linux/fd.h>
 #include <linux/fs.h>
+#include <linux/hdreg.h>
+#ifdef __s390__
+#include <asm/dasd.h>
+#endif
 #ifndef FS_NOCOW_FL
 #define FS_NOCOW_FL                     0x00800000 /* Do not cow file */
 #endif
@@ -249,6 +253,23 @@ static int probe_logical_blocksize(int fd, unsigned int *sector_size_p)
 #endif
 
     return success ? 0 : -errno;
+}
+
+/**
+ * Get physical block size of @fd.
+ * On success, store it in @blk_size and return 0.
+ * On failure, return -errno.
+ */
+static int probe_physical_blocksize(int fd, unsigned int *blk_size)
+{
+#ifdef BLKPBSZGET
+    if (ioctl(fd, BLKPBSZGET, blk_size) < 0) {
+        return -errno;
+    }
+    return 0;
+#else
+    return -ENOTSUP;
+#endif
 }
 
 static void raw_probe_alignment(BlockDriverState *bs, int fd, Error **errp)
@@ -673,6 +694,86 @@ static void raw_refresh_limits(BlockDriverState *bs, Error **errp)
     raw_probe_alignment(bs, s->fd, errp);
     bs->bl.opt_mem_alignment = s->buf_align;
 }
+
+static int check_for_dasd(int fd)
+{
+#ifdef BIODASDINFO2
+    struct dasd_information2_t info = {0};
+
+    return ioctl(fd, BIODASDINFO2, &info);
+#else
+    return -1;
+#endif
+}
+
+/**
+ * Try to get @bs's logical and physical block size.
+ * On success, store them in @bsz and return zero.
+ * On failure, return negative errno.
+ */
+static int hdev_probe_blocksizes(BlockDriverState *bs, BlockSizes *bsz)
+{
+    BDRVRawState *s = bs->opaque;
+    int ret;
+
+    /* If DASD, get blocksizes */
+    if (check_for_dasd(s->fd) < 0) {
+        return -ENOTSUP;
+    }
+    ret = probe_logical_blocksize(s->fd, &bsz->log);
+    if (ret < 0) {
+        return ret;
+    }
+    return probe_physical_blocksize(s->fd, &bsz->phys);
+}
+
+/**
+ * Try to get @bs's geometry: cyls, heads, sectors.
+ * On success, store them in @geo and return 0.
+ * On failure return -errno.
+ * (Allows block driver to assign default geometry values that guest sees)
+ */
+#ifdef __linux__
+static int hdev_probe_geometry(BlockDriverState *bs, HDGeometry *geo)
+{
+    BDRVRawState *s = bs->opaque;
+    struct hd_geometry ioctl_geo = {0};
+    uint32_t blksize;
+
+    /* If DASD, get its geometry */
+    if (check_for_dasd(s->fd) < 0) {
+        return -ENOTSUP;
+    }
+    if (ioctl(s->fd, HDIO_GETGEO, &ioctl_geo) < 0) {
+        return -errno;
+    }
+    /* HDIO_GETGEO may return success even though geo contains zeros
+       (e.g. certain multipath setups) */
+    if (!ioctl_geo.heads || !ioctl_geo.sectors || !ioctl_geo.cylinders) {
+        return -ENOTSUP;
+    }
+    /* Do not return a geometry for partition */
+    if (ioctl_geo.start != 0) {
+        return -ENOTSUP;
+    }
+    geo->heads = ioctl_geo.heads;
+    geo->sectors = ioctl_geo.sectors;
+    if (!probe_physical_blocksize(s->fd, &blksize)) {
+        /* overwrite cyls: HDIO_GETGEO result is incorrect for big drives */
+        geo->cylinders = bdrv_nb_sectors(bs) / (blksize / BDRV_SECTOR_SIZE)
+                                             / (geo->heads * geo->sectors);
+        return 0;
+    }
+    geo->cylinders = ioctl_geo.cylinders;
+
+    return 0;
+}
+#else /* __linux__ */
+static int hdev_probe_geometry(BlockDriverState *bs, HDGeometry *geo)
+{
+    return -ENOTSUP;
+}
+#endif
 
 static ssize_t handle_aiocb_ioctl(RawPosixAIOData *aiocb)
 {
@@ -2215,6 +2316,8 @@ static BlockDriver bdrv_host_device = {
     .bdrv_get_info = raw_get_info,
     .bdrv_get_allocated_file_size
                         = raw_get_allocated_file_size,
+    .bdrv_probe_blocksizes = hdev_probe_blocksizes,
+    .bdrv_probe_geometry = hdev_probe_geometry,
 
     .bdrv_detach_aio_context = raw_detach_aio_context,
     .bdrv_attach_aio_context = raw_attach_aio_context,
