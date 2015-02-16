@@ -87,6 +87,8 @@ for arch in $ARCHLIST; do
     if [ $arch = powerpc ]; then
         cp "$tmpdir/include/asm/epapr_hcalls.h" "$output/linux-headers/asm-powerpc/"
     fi
+
+    cp_virtio "$tmpdir/include/asm" "$output/include/standard-headers/asm-$arch"
 done
 
 rm -rf "$output/linux-headers/linux"
