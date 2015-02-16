@@ -18,7 +18,7 @@
 #define VRING_H
 
 #include "qemu-common.h"
-#include "hw/virtio/virtio_ring.h"
+#include "standard-headers/linux/virtio_ring.h"
 #include "hw/virtio/virtio.h"
 
 typedef struct {

@@ -1,7 +1,7 @@
 #ifndef VRING_ACCESSORS_H
 #define VRING_ACCESSORS_H
 
-#include "hw/virtio/virtio_ring.h"
+#include "standard-headers/linux/virtio_ring.h"
 #include "hw/virtio/virtio.h"
 #include "hw/virtio/virtio-access.h"
 
