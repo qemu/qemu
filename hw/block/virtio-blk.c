@@ -893,6 +893,7 @@ static void virtio_blk_device_realize(DeviceState *dev, Error **errp)
         error_propagate(errp, err);
         return;
     }
+    blkconf_blocksizes(&conf->conf);
 
     virtio_init(vdev, "virtio-blk", VIRTIO_ID_BLOCK,
                 sizeof(struct virtio_blk_config));

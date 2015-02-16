@@ -25,6 +25,30 @@ void blkconf_serial(BlockConf *conf, char **serial)
     }
 }
 
+void blkconf_blocksizes(BlockConf *conf)
+{
+    BlockBackend *blk = conf->blk;
+    BlockSizes blocksizes;
+    int backend_ret;
+
+    backend_ret = blk_probe_blocksizes(blk, &blocksizes);
+    /* fill in detected values if they are not defined via qemu command line */
+    if (!conf->physical_block_size) {
+        if (!backend_ret) {
+           conf->physical_block_size = blocksizes.phys;
+        } else {
+            conf->physical_block_size = BDRV_SECTOR_SIZE;
+        }
+    }
+    if (!conf->logical_block_size) {
+        if (!backend_ret) {
+            conf->logical_block_size = blocksizes.log;
+        } else {
+            conf->logical_block_size = BDRV_SECTOR_SIZE;
+        }
+    }
+}
+
 void blkconf_geometry(BlockConf *conf, int *ptrans,
                       unsigned cyls_max, unsigned heads_max, unsigned secs_max,
                       Error **errp)

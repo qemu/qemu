@@ -765,6 +765,7 @@ static int nvme_init(PCIDevice *pci_dev)
     if (!n->serial) {
         return -1;
     }
+    blkconf_blocksizes(&n->conf);
 
     pci_conf = pci_dev->config;
     pci_conf[PCI_INTERRUPT_PIN] = 1;

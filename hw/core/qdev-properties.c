@@ -580,7 +580,8 @@ static void set_blocksize(Object *obj, Visitor *v, void *opaque,
         error_propagate(errp, local_err);
         return;
     }
-    if (value < min || value > max) {
+    /* value of 0 means "unset" */
+    if (value && (value < min || value > max)) {
         error_set(errp, QERR_PROPERTY_VALUE_OUT_OF_RANGE,
                   dev->id?:"", name, (int64_t)value, min, max);
         return;

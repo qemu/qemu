@@ -611,6 +611,7 @@ static void usb_msd_realize_storage(USBDevice *dev, Error **errp)
     }
 
     blkconf_serial(&s->conf, &dev->serial);
+    blkconf_blocksizes(&s->conf);
 
     /*
      * Hack alert: this pretends to be a block device, but it's really

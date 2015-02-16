@@ -163,6 +163,7 @@ static int ide_dev_initfn(IDEDevice *dev, IDEDriveKind kind)
         return -1;
     }
 
+    blkconf_blocksizes(&dev->conf);
     if (dev->conf.logical_block_size != 512) {
         error_report("logical_block_size must be 512 for IDE");
         return -1;
