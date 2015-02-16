@@ -667,11 +667,11 @@ static void virtio_blk_update_config(VirtIODevice *vdev, uint8_t *config)
     memset(&blkcfg, 0, sizeof(blkcfg));
     virtio_stq_p(vdev, &blkcfg.capacity, capacity);
     virtio_stl_p(vdev, &blkcfg.seg_max, 128 - 2);
-    virtio_stw_p(vdev, &blkcfg.cylinders, conf->cyls);
+    virtio_stw_p(vdev, &blkcfg.geometry.cylinders, conf->cyls);
     virtio_stl_p(vdev, &blkcfg.blk_size, blk_size);
     virtio_stw_p(vdev, &blkcfg.min_io_size, conf->min_io_size / blk_size);
     virtio_stw_p(vdev, &blkcfg.opt_io_size, conf->opt_io_size / blk_size);
-    blkcfg.heads = conf->heads;
+    blkcfg.geometry.heads = conf->heads;
     /*
      * We must ensure that the block device capacity is a multiple of
      * the logical block size. If that is not the case, let's use
@@ -684,9 +684,9 @@ static void virtio_blk_update_config(VirtIODevice *vdev, uint8_t *config)
      * per track (cylinder).
      */
     if (blk_getlength(s->blk) /  conf->heads / conf->secs % blk_size) {
-        blkcfg.sectors = conf->secs & ~s->sector_mask;
+        blkcfg.geometry.sectors = conf->secs & ~s->sector_mask;
     } else {
-        blkcfg.sectors = conf->secs;
+        blkcfg.geometry.sectors = conf->secs;
     }
     blkcfg.size_max = 0;
     blkcfg.physical_block_exp = get_physical_block_exp(conf);
