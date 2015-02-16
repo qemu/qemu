@@ -17,6 +17,7 @@
 
 #include <inttypes.h>
 
+#include "standard-headers/linux/virtio_pci.h"
 #include "hw/virtio/virtio.h"
 #include "hw/virtio/virtio-blk.h"
 #include "hw/virtio/virtio-net.h"
@@ -35,56 +36,11 @@
 #include "hw/virtio/virtio-bus.h"
 #include "qapi/visitor.h"
 
-/* from Linux's linux/virtio_pci.h */
-
-/* A 32-bit r/o bitmask of the features supported by the host */
-#define VIRTIO_PCI_HOST_FEATURES        0
-
-/* A 32-bit r/w bitmask of features activated by the guest */
-#define VIRTIO_PCI_GUEST_FEATURES       4
-
-/* A 32-bit r/w PFN for the currently selected queue */
-#define VIRTIO_PCI_QUEUE_PFN            8
-
-/* A 16-bit r/o queue size for the currently selected queue */
-#define VIRTIO_PCI_QUEUE_NUM            12
-
-/* A 16-bit r/w queue selector */
-#define VIRTIO_PCI_QUEUE_SEL            14
-
-/* A 16-bit r/w queue notifier */
-#define VIRTIO_PCI_QUEUE_NOTIFY         16
-
-/* An 8-bit device status register.  */
-#define VIRTIO_PCI_STATUS               18
-
-/* An 8-bit r/o interrupt status register.  Reading the value will return the
- * current contents of the ISR and will also clear it.  This is effectively
- * a read-and-acknowledge. */
-#define VIRTIO_PCI_ISR                  19
-
-/* MSI-X registers: only enabled if MSI-X is enabled. */
-/* A 16-bit vector for configuration changes. */
-#define VIRTIO_MSI_CONFIG_VECTOR        20
-/* A 16-bit vector for selected queue notifications. */
-#define VIRTIO_MSI_QUEUE_VECTOR         22
-
-/* Config space size */
-#define VIRTIO_PCI_CONFIG_NOMSI         20
-#define VIRTIO_PCI_CONFIG_MSI           24
-#define VIRTIO_PCI_REGION_SIZE(dev)     (msix_present(dev) ? \
-                                         VIRTIO_PCI_CONFIG_MSI : \
-                                         VIRTIO_PCI_CONFIG_NOMSI)
+#define VIRTIO_PCI_REGION_SIZE(dev)     VIRTIO_PCI_CONFIG_OFF(msix_present(dev))
 
 /* The remaining space is defined by each driver as the per-driver
  * configuration space */
-#define VIRTIO_PCI_CONFIG(dev)          (msix_enabled(dev) ? \
-                                         VIRTIO_PCI_CONFIG_MSI : \
-                                         VIRTIO_PCI_CONFIG_NOMSI)
-
-/* How many bits to shift physical queue address written to QUEUE_PFN.
- * 12 is historical, and due to x86 page size. */
-#define VIRTIO_PCI_QUEUE_ADDR_SHIFT    12
+#define VIRTIO_PCI_CONFIG_SIZE(dev)     VIRTIO_PCI_CONFIG_OFF(msix_enabled(dev))
 
 static void virtio_pci_bus_new(VirtioBusState *bus, size_t bus_size,
                                VirtIOPCIProxy *dev);
@@ -392,7 +348,7 @@ static uint64_t virtio_pci_config_read(void *opaque, hwaddr addr,
 {
     VirtIOPCIProxy *proxy = opaque;
     VirtIODevice *vdev = virtio_bus_get_device(&proxy->bus);
-    uint32_t config = VIRTIO_PCI_CONFIG(&proxy->pci_dev);
+    uint32_t config = VIRTIO_PCI_CONFIG_SIZE(&proxy->pci_dev);
     uint64_t val = 0;
     if (addr < config) {
         return virtio_ioport_read(proxy, addr);
@@ -423,7 +379,7 @@ static void virtio_pci_config_write(void *opaque, hwaddr addr,
                                     uint64_t val, unsigned size)
 {
     VirtIOPCIProxy *proxy = opaque;
-    uint32_t config = VIRTIO_PCI_CONFIG(&proxy->pci_dev);
+    uint32_t config = VIRTIO_PCI_CONFIG_SIZE(&proxy->pci_dev);
     VirtIODevice *vdev = virtio_bus_get_device(&proxy->bus);
     if (addr < config) {
         virtio_ioport_write(proxy, addr, val);
