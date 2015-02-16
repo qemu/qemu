@@ -358,6 +358,7 @@ static void channel_run (int ncont, int ichan)
 }
 
 static QEMUBH *dma_bh;
+static bool dma_bh_scheduled;
 
 static void DMA_run (void)
 {
@@ -390,12 +391,15 @@ static void DMA_run (void)
 
     running = 0;
 out:
-    if (rearm)
+    if (rearm) {
         qemu_bh_schedule_idle(dma_bh);
+        dma_bh_scheduled = true;
+    }
 }
 
 static void DMA_run_bh(void *unused)
 {
+    dma_bh_scheduled = false;
     DMA_run();
 }
 
@@ -458,12 +462,14 @@ int DMA_write_memory (int nchan, void *buf, int pos, int len)
     return len;
 }
 
-/* request the emulator to transfer a new DMA memory block ASAP */
-void DMA_schedule(int nchan)
+/* request the emulator to transfer a new DMA memory block ASAP (even
+ * if the idle bottom half would not have exited the iothread yet).
+ */
+void DMA_schedule(void)
 {
-    struct dma_cont *d = &dma_controllers[nchan > 3];
-
-    qemu_irq_pulse(*d->cpu_request_exit);
+    if (dma_bh_scheduled) {
+        qemu_notify_event();
+    }
 }
 
 static void dma_reset(void *opaque)
