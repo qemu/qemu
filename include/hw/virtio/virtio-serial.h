@@ -15,52 +15,14 @@
 #ifndef _QEMU_VIRTIO_SERIAL_H
 #define _QEMU_VIRTIO_SERIAL_H
 
+#include "standard-headers/linux/virtio_console.h"
 #include "hw/qdev.h"
 #include "hw/virtio/virtio.h"
-
-/* == Interface shared between the guest kernel and qemu == */
-
-/* The Virtio ID for virtio console / serial ports */
-#define VIRTIO_ID_CONSOLE		3
-
-/* Features supported */
-#define VIRTIO_CONSOLE_F_MULTIPORT	1
-
-#define VIRTIO_CONSOLE_BAD_ID           (~(uint32_t)0)
-
-struct virtio_console_config {
-    /*
-     * These two fields are used by VIRTIO_CONSOLE_F_SIZE which
-     * isn't implemented here yet
-     */
-    uint16_t cols;
-    uint16_t rows;
-
-    uint32_t max_nr_ports;
-} QEMU_PACKED;
-
-struct virtio_console_control {
-    uint32_t id;		/* Port number */
-    uint16_t event;		/* The kind of control event (see below) */
-    uint16_t value;		/* Extra information for the key */
-};
 
 struct virtio_serial_conf {
     /* Max. number of ports we can have for a virtio-serial device */
     uint32_t max_virtserial_ports;
 };
-
-/* Some events for the internal messages (control packets) */
-#define VIRTIO_CONSOLE_DEVICE_READY	0
-#define VIRTIO_CONSOLE_PORT_ADD		1
-#define VIRTIO_CONSOLE_PORT_REMOVE	2
-#define VIRTIO_CONSOLE_PORT_READY	3
-#define VIRTIO_CONSOLE_CONSOLE_PORT	4
-#define VIRTIO_CONSOLE_RESIZE		5
-#define VIRTIO_CONSOLE_PORT_OPEN	6
-#define VIRTIO_CONSOLE_PORT_NAME	7
-
-/* == In-qemu interface == */
 
 #define TYPE_VIRTIO_SERIAL_PORT "virtio-serial-port"
 #define VIRTIO_SERIAL_PORT(obj) \

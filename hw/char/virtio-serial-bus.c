@@ -18,6 +18,7 @@
  * GNU GPL, version 2 or (at your option) any later version.
  */
 
+#include "standard-headers/linux/virtio_ids.h"
 #include "qemu/iov.h"
 #include "monitor/monitor.h"
 #include "qemu/queue.h"
