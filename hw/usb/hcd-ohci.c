@@ -1827,10 +1827,10 @@ static USBPortOps ohci_port_ops = {
 static USBBusOps ohci_bus_ops = {
 };
 
-static int usb_ohci_init(OHCIState *ohci, DeviceState *dev,
-                         int num_ports, dma_addr_t localmem_base,
-                         char *masterbus, uint32_t firstport,
-                         AddressSpace *as)
+static void usb_ohci_init(OHCIState *ohci, DeviceState *dev,
+                          int num_ports, dma_addr_t localmem_base,
+                          char *masterbus, uint32_t firstport,
+                          AddressSpace *as, Error **errp)
 {
     Error *err = NULL;
     int i;
@@ -1863,8 +1863,8 @@ static int usb_ohci_init(OHCIState *ohci, DeviceState *dev,
                                USB_SPEED_MASK_LOW | USB_SPEED_MASK_FULL,
                                &err);
         if (err) {
-            error_report_err(err);
-            return -1;
+            error_propagate(errp, err);
+            return;
         }
     } else {
         usb_bus_new(&ohci->bus, sizeof(ohci->bus), &ohci_bus_ops, dev);
@@ -1884,8 +1884,6 @@ static int usb_ohci_init(OHCIState *ohci, DeviceState *dev,
 
     ohci->async_td = 0;
     qemu_register_reset(ohci_reset, ohci);
-
-    return 0;
 }
 
 #define TYPE_PCI_OHCI "pci-ohci"
@@ -1918,22 +1916,24 @@ static void ohci_die(OHCIState *ohci)
                  PCI_STATUS_DETECTED_PARITY);
 }
 
-static int usb_ohci_initfn_pci(PCIDevice *dev)
+static void usb_ohci_realize_pci(PCIDevice *dev, Error **errp)
 {
+    Error *err = NULL;
     OHCIPCIState *ohci = PCI_OHCI(dev);
 
     dev->config[PCI_CLASS_PROG] = 0x10; /* OHCI */
     dev->config[PCI_INTERRUPT_PIN] = 0x01; /* interrupt pin A */
 
-    if (usb_ohci_init(&ohci->state, DEVICE(dev), ohci->num_ports, 0,
-                      ohci->masterbus, ohci->firstport,
-                      pci_get_address_space(dev)) != 0) {
-        return -1;
+    usb_ohci_init(&ohci->state, DEVICE(dev), ohci->num_ports, 0,
+                  ohci->masterbus, ohci->firstport,
+                  pci_get_address_space(dev), &err);
+    if (err) {
+        error_propagate(errp, err);
+        return;
     }
-    ohci->state.irq = pci_allocate_irq(dev);
 
+    ohci->state.irq = pci_allocate_irq(dev);
     pci_register_bar(dev, 0, 0, &ohci->state.mem);
-    return 0;
 }
 
 static void usb_ohci_exit(PCIDevice *dev)
@@ -1975,7 +1975,7 @@ static void ohci_realize_pxa(DeviceState *dev, Error **errp)
 
     /* Cannot fail as we pass NULL for masterbus */
     usb_ohci_init(&s->ohci, dev, s->num_ports, s->dma_offset, NULL, 0,
-                  &address_space_memory);
+                  &address_space_memory, &error_abort);
     sysbus_init_irq(sbd, &s->ohci.irq);
     sysbus_init_mmio(sbd, &s->ohci.mem);
 }
@@ -2091,7 +2091,7 @@ static void ohci_pci_class_init(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
 
-    k->init = usb_ohci_initfn_pci;
+    k->realize = usb_ohci_realize_pci;
     k->exit = usb_ohci_exit;
     k->vendor_id = PCI_VENDOR_ID_APPLE;
     k->device_id = PCI_DEVICE_ID_APPLE_IPID_USB;
