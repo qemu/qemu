@@ -2094,6 +2094,17 @@ static const GraphicHwOps vga_ops = {
     .text_update = vga_update_text,
 };
 
+static inline uint32_t uint_clamp(uint32_t val, uint32_t vmin, uint32_t vmax)
+{
+    if (val < vmin) {
+        return vmin;
+    }
+    if (val > vmax) {
+        return vmax;
+    }
+    return val;
+}
+
 void vga_common_init(VGACommonState *s, Object *obj, bool global_vmstate)
 {
     int i, j, v, b;
@@ -2121,13 +2132,10 @@ void vga_common_init(VGACommonState *s, Object *obj, bool global_vmstate)
         expand4to8[i] = v;
     }
 
-    /* valid range: 1 MB -> 512 MB */
-    s->vram_size = 1024 * 1024;
-    while (s->vram_size < (s->vram_size_mb << 20) &&
-           s->vram_size < (512 << 20)) {
-        s->vram_size <<= 1;
-    }
-    s->vram_size_mb = s->vram_size >> 20;
+    s->vram_size_mb = uint_clamp(s->vram_size_mb, 1, 512);
+    s->vram_size_mb = pow2ceil(s->vram_size_mb);
+    s->vram_size = s->vram_size_mb << 20;
+
     if (!s->vbe_size) {
         s->vbe_size = s->vram_size;
     }
