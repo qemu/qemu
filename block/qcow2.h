@@ -275,17 +275,6 @@ typedef struct BDRVQcowState {
     bool cache_discards;
 } BDRVQcowState;
 
-/* XXX: use std qcow open function ? */
-typedef struct QCowCreateState {
-    int cluster_size;
-    int cluster_bits;
-    uint16_t *refcount_block;
-    uint64_t *refcount_table;
-    int64_t l1_table_offset;
-    int64_t refcount_table_offset;
-    int64_t refcount_block_offset;
-} QCowCreateState;
-
 struct QCowAIOCB;
 
 typedef struct Qcow2COWRegion {
