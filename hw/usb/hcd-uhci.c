@@ -66,7 +66,7 @@ struct UHCIInfo {
     uint16_t   device_id;
     uint8_t    revision;
     uint8_t    irq_pin;
-    int        (*initfn)(PCIDevice *dev);
+    void       (*realize)(PCIDevice *dev, Error **errp);
     bool       unplug;
 };
 
@@ -1190,7 +1190,7 @@ static USBPortOps uhci_port_ops = {
 static USBBusOps uhci_bus_ops = {
 };
 
-static int usb_uhci_common_initfn(PCIDevice *dev)
+static void usb_uhci_common_realize(PCIDevice *dev, Error **errp)
 {
     Error *err = NULL;
     PCIDeviceClass *pc = PCI_DEVICE_GET_CLASS(dev);
@@ -1215,8 +1215,8 @@ static int usb_uhci_common_initfn(PCIDevice *dev)
                                USB_SPEED_MASK_LOW | USB_SPEED_MASK_FULL,
                                &err);
         if (err) {
-            error_report_err(err);
-            return -1;
+            error_propagate(errp, err);
+            return;
         }
     } else {
         usb_bus_new(&s->bus, sizeof(s->bus), &uhci_bus_ops, DEVICE(dev));
@@ -1238,11 +1238,9 @@ static int usb_uhci_common_initfn(PCIDevice *dev)
     /* Use region 4 for consistency with real hardware.  BSD guests seem
        to rely on this.  */
     pci_register_bar(&s->dev, 4, PCI_BASE_ADDRESS_SPACE_IO, &s->io_bar);
-
-    return 0;
 }
 
-static int usb_uhci_vt82c686b_initfn(PCIDevice *dev)
+static void usb_uhci_vt82c686b_realize(PCIDevice *dev, Error **errp)
 {
     UHCIState *s = DO_UPCAST(UHCIState, dev, dev);
     uint8_t *pci_conf = s->dev.config;
@@ -1254,7 +1252,7 @@ static int usb_uhci_vt82c686b_initfn(PCIDevice *dev)
     /* USB legacy support  */
     pci_set_long(pci_conf + 0xc0,0x00002000);
 
-    return usb_uhci_common_initfn(dev);
+    usb_uhci_common_realize(dev, errp);
 }
 
 static void usb_uhci_exit(PCIDevice *dev)
@@ -1300,7 +1298,7 @@ static void uhci_class_init(ObjectClass *klass, void *data)
     UHCIPCIDeviceClass *u = container_of(k, UHCIPCIDeviceClass, parent_class);
     UHCIInfo *info = data;
 
-    k->init = info->initfn ? info->initfn : usb_uhci_common_initfn;
+    k->realize = info->realize ? info->realize : usb_uhci_common_realize;
     k->exit = info->unplug ? usb_uhci_exit : NULL;
     k->vendor_id = info->vendor_id;
     k->device_id = info->device_id;
@@ -1339,7 +1337,7 @@ static UHCIInfo uhci_info[] = {
         .device_id = PCI_DEVICE_ID_VIA_UHCI,
         .revision  = 0x01,
         .irq_pin   = 3,
-        .initfn    = usb_uhci_vt82c686b_initfn,
+        .realize   = usb_uhci_vt82c686b_realize,
         .unplug    = true,
     },{
         .name      = "ich9-usb-uhci1", /* 00:1d.0 */
