@@ -201,6 +201,7 @@ static int virtio_blk_handle_scsi_req(VirtIOBlockReq *req)
 #ifdef __linux__
     int i;
     VirtIOBlockIoctlReq *ioctl_req;
+    BlockAIOCB *acb;
 #endif
 
     /*
@@ -278,8 +279,13 @@ static int virtio_blk_handle_scsi_req(VirtIOBlockReq *req)
     ioctl_req->hdr.sbp = elem->in_sg[elem->in_num - 3].iov_base;
     ioctl_req->hdr.mx_sb_len = elem->in_sg[elem->in_num - 3].iov_len;
 
-    blk_aio_ioctl(blk->blk, SG_IO, &ioctl_req->hdr,
-                  virtio_blk_ioctl_complete, ioctl_req);
+    acb = blk_aio_ioctl(blk->blk, SG_IO, &ioctl_req->hdr,
+                        virtio_blk_ioctl_complete, ioctl_req);
+    if (!acb) {
+        g_free(ioctl_req);
+        status = VIRTIO_BLK_S_UNSUPP;
+        goto fail;
+    }
     return -EINPROGRESS;
 #else
     abort();
