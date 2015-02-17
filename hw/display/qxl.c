@@ -120,9 +120,12 @@ static QXLMode qxl_modes[] = {
     QXL_MODE_EX(2560, 2048),
     QXL_MODE_EX(2800, 2100),
     QXL_MODE_EX(3200, 2400),
+    /* these modes need more than 32 MB video memory */
     QXL_MODE_EX(3840, 2160), /* 4k mainstream */
     QXL_MODE_EX(4096, 2160), /* 4k            */
+    /* these modes need more than 64 MB video memory */
     QXL_MODE_EX(7680, 4320), /* 8k mainstream */
+    /* these modes need more than 128 MB video memory */
     QXL_MODE_EX(8192, 4320), /* 8k            */
 };
 
