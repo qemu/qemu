@@ -769,30 +769,35 @@ static void ehci_wakeup(USBPort *port)
     qemu_bh_schedule(s->async_bh);
 }
 
-static int ehci_register_companion(USBBus *bus, USBPort *ports[],
-                                   uint32_t portcount, uint32_t firstport)
+static void ehci_register_companion(USBBus *bus, USBPort *ports[],
+                                    uint32_t portcount, uint32_t firstport,
+                                    Error **errp)
 {
     EHCIState *s = container_of(bus, EHCIState, bus);
     uint32_t i;
 
     if (firstport + portcount > NB_PORTS) {
-        qerror_report(QERR_INVALID_PARAMETER_VALUE, "firstport",
-                      "firstport on masterbus");
+        error_set(errp, QERR_INVALID_PARAMETER_VALUE, "firstport",
+                  "firstport on masterbus");
+#if 0 /* conversion from qerror_report() to error_set() broke this: */
         error_printf_unless_qmp(
             "firstport value of %u makes companion take ports %u - %u, which "
             "is outside of the valid range of 0 - %u\n", firstport, firstport,
             firstport + portcount - 1, NB_PORTS - 1);
-        return -1;
+#endif
+        return;
     }
 
     for (i = 0; i < portcount; i++) {
         if (s->companion_ports[firstport + i]) {
-            qerror_report(QERR_INVALID_PARAMETER_VALUE, "masterbus",
-                          "an USB masterbus");
+            error_set(errp, QERR_INVALID_PARAMETER_VALUE, "masterbus",
+                      "an USB masterbus");
+#if 0 /* conversion from qerror_report() to error_set() broke this: */
             error_printf_unless_qmp(
                 "port %u on masterbus %s already has a companion assigned\n",
                 firstport + i, bus->qbus.name);
-            return -1;
+#endif
+            return;
         }
     }
 
@@ -806,8 +811,6 @@ static int ehci_register_companion(USBBus *bus, USBPort *ports[],
 
     s->companion_count++;
     s->caps[0x05] = (s->companion_count << 4) | portcount;
-
-    return 0;
 }
 
 static void ehci_wakeup_endpoint(USBBus *bus, USBEndpoint *ep,

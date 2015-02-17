@@ -1832,6 +1832,7 @@ static int usb_ohci_init(OHCIState *ohci, DeviceState *dev,
                          char *masterbus, uint32_t firstport,
                          AddressSpace *as)
 {
+    Error *err = NULL;
     int i;
 
     ohci->as = as;
@@ -1857,9 +1858,12 @@ static int usb_ohci_init(OHCIState *ohci, DeviceState *dev,
         for(i = 0; i < num_ports; i++) {
             ports[i] = &ohci->rhport[i].port;
         }
-        if (usb_register_companion(masterbus, ports, num_ports,
-                firstport, ohci, &ohci_port_ops,
-                USB_SPEED_MASK_LOW | USB_SPEED_MASK_FULL) != 0) {
+        usb_register_companion(masterbus, ports, num_ports,
+                               firstport, ohci, &ohci_port_ops,
+                               USB_SPEED_MASK_LOW | USB_SPEED_MASK_FULL,
+                               &err);
+        if (err) {
+            error_report_err(err);
             return -1;
         }
     } else {

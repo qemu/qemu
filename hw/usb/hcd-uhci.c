@@ -1192,6 +1192,7 @@ static USBBusOps uhci_bus_ops = {
 
 static int usb_uhci_common_initfn(PCIDevice *dev)
 {
+    Error *err = NULL;
     PCIDeviceClass *pc = PCI_DEVICE_GET_CLASS(dev);
     UHCIPCIDeviceClass *u = container_of(pc, UHCIPCIDeviceClass, parent_class);
     UHCIState *s = DO_UPCAST(UHCIState, dev, dev);
@@ -1209,9 +1210,12 @@ static int usb_uhci_common_initfn(PCIDevice *dev)
         for(i = 0; i < NB_PORTS; i++) {
             ports[i] = &s->ports[i].port;
         }
-        if (usb_register_companion(s->masterbus, ports, NB_PORTS,
-                s->firstport, s, &uhci_port_ops,
-                USB_SPEED_MASK_LOW | USB_SPEED_MASK_FULL) != 0) {
+        usb_register_companion(s->masterbus, ports, NB_PORTS,
+                               s->firstport, s, &uhci_port_ops,
+                               USB_SPEED_MASK_LOW | USB_SPEED_MASK_FULL,
+                               &err);
+        if (err) {
+            error_report_err(err);
             return -1;
         }
     } else {
