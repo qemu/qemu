@@ -370,6 +370,8 @@ static void init_qxl_rom(PCIQXLDevice *d)
     num_pages         -= surface0_area_size;
     num_pages          = num_pages / QXL_PAGE_SIZE;
 
+    assert(ram_header_size + surface0_area_size <= d->vga.vram_size);
+
     rom->draw_area_offset   = cpu_to_le32(0);
     rom->surface0_area_size = cpu_to_le32(surface0_area_size);
     rom->pages_offset       = cpu_to_le32(surface0_area_size);
@@ -1882,6 +1884,12 @@ static void qxl_init_ramsize(PCIQXLDevice *qxl)
     /* vga mode framebuffer / primary surface (bar 0, first part) */
     if (qxl->vgamem_size_mb < 8) {
         qxl->vgamem_size_mb = 8;
+    }
+    /* XXX: we round vgamem_size_mb up to a nearest power of two and it must be
+     * less than vga_common_init()'s maximum on qxl->vga.vram_size (512 now).
+     */
+    if (qxl->vgamem_size_mb > 256) {
+        qxl->vgamem_size_mb = 256;
     }
     qxl->vgamem_size = qxl->vgamem_size_mb * 1024 * 1024;
 

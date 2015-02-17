@@ -2121,10 +2121,10 @@ void vga_common_init(VGACommonState *s, Object *obj, bool global_vmstate)
         expand4to8[i] = v;
     }
 
-    /* valid range: 1 MB -> 256 MB */
+    /* valid range: 1 MB -> 512 MB */
     s->vram_size = 1024 * 1024;
     while (s->vram_size < (s->vram_size_mb << 20) &&
-           s->vram_size < (256 << 20)) {
+           s->vram_size < (512 << 20)) {
         s->vram_size <<= 1;
     }
     s->vram_size_mb = s->vram_size >> 20;
