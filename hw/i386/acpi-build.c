@@ -1354,7 +1354,7 @@ static inline void acpi_build_tables_cleanup(AcpiBuildTables *tables, bool mfre)
 {
     void *linker_data = bios_linker_loader_cleanup(tables->linker);
     g_free(linker_data);
-    g_array_free(tables->rsdp, mfre);
+    g_array_free(tables->rsdp, true);
     g_array_free(tables->table_data, true);
     g_array_free(tables->tcpalog, mfre);
 }
@@ -1657,12 +1657,14 @@ void acpi_setup(PcGuestInfo *guest_info)
         /*
          * Keep for compatibility with old machine types.
          * Though RSDP is small, its contents isn't immutable, so
-         * update it along with the rest of tables on guest access.
+         * we'll update it along with the rest of tables on guest access.
          */
+        uint32_t rsdp_size = acpi_data_len(tables.rsdp);
+
+        build_state->rsdp = g_memdup(tables.rsdp->data, rsdp_size);
         fw_cfg_add_file_callback(guest_info->fw_cfg, ACPI_BUILD_RSDP_FILE,
                                  acpi_build_update, build_state,
-                                 tables.rsdp->data, acpi_data_len(tables.rsdp));
-        build_state->rsdp = tables.rsdp->data;
+                                 build_state->rsdp, rsdp_size);
         build_state->rsdp_ram = (ram_addr_t)-1;
     } else {
         build_state->rsdp = NULL;
