@@ -1653,7 +1653,7 @@ void acpi_setup(PcGuestInfo *guest_info)
     fw_cfg_add_file(guest_info->fw_cfg, ACPI_BUILD_TPMLOG_FILE,
                     tables.tcpalog->data, acpi_data_len(tables.tcpalog));
 
-    if (guest_info->has_immutable_rsdp) {
+    if (!guest_info->rsdp_in_ram) {
         /*
          * Keep for compatibility with old machine types.
          * Though RSDP is small, its contents isn't immutable, so
