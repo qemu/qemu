@@ -418,6 +418,9 @@ static inline bool is_power_of_2(uint64_t value)
 /* round down to the nearest power of 2*/
 int64_t pow2floor(int64_t value);
 
+/* round up to the nearest power of 2 (0 if overflow) */
+uint64_t pow2ceil(uint64_t value);
+
 #include "qemu/module.h"
 
 /*

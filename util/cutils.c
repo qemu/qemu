@@ -483,6 +483,20 @@ int64_t pow2floor(int64_t value)
     return value;
 }
 
+/* round up to the nearest power of 2 (0 if overflow) */
+uint64_t pow2ceil(uint64_t value)
+{
+    uint8_t nlz = clz64(value);
+
+    if (is_power_of_2(value)) {
+        return value;
+    }
+    if (!nlz) {
+        return 0;
+    }
+    return 1ULL << (64 - nlz);
+}
+
 /*
  * Implementation of  ULEB128 (http://en.wikipedia.org/wiki/LEB128)
  * Input is limited to 14-bit numbers

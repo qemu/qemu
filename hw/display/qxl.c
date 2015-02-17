@@ -300,19 +300,6 @@ void qxl_spice_reset_cursor(PCIQXLDevice *qxl)
     qxl->ssd.cursor = cursor_builtin_hidden();
 }
 
-
-static inline uint32_t msb_mask(uint32_t val)
-{
-    uint32_t mask;
-
-    do {
-        mask = ~(val - 1) & val;
-        val &= ~mask;
-    } while (mask < val);
-
-    return mask;
-}
-
 static ram_addr_t qxl_rom_size(void)
 {
     uint32_t required_rom_size = sizeof(QXLRom) + sizeof(QXLModes) +
@@ -1921,10 +1908,10 @@ static void qxl_init_ramsize(PCIQXLDevice *qxl)
         qxl->vram32_size = 4096;
         qxl->vram_size = 4096;
     }
-    qxl->vgamem_size = msb_mask(qxl->vgamem_size * 2 - 1);
-    qxl->vga.vram_size = msb_mask(qxl->vga.vram_size * 2 - 1);
-    qxl->vram32_size = msb_mask(qxl->vram32_size * 2 - 1);
-    qxl->vram_size = msb_mask(qxl->vram_size * 2 - 1);
+    qxl->vgamem_size = pow2ceil(qxl->vgamem_size);
+    qxl->vga.vram_size = pow2ceil(qxl->vga.vram_size);
+    qxl->vram32_size = pow2ceil(qxl->vram32_size);
+    qxl->vram_size = pow2ceil(qxl->vram_size);
 }
 
 static int qxl_init_common(PCIQXLDevice *qxl)
@@ -1956,7 +1943,7 @@ static int qxl_init_common(PCIQXLDevice *qxl)
         break;
     case 4: /* qxl-4 */
         pci_device_rev = QXL_REVISION_STABLE_V12;
-        io_size = msb_mask(QXL_IO_RANGE_SIZE * 2 - 1);
+        io_size = pow2ceil(QXL_IO_RANGE_SIZE);
         break;
     default:
         error_report("Invalid revision %d for qxl device (max %d)",
