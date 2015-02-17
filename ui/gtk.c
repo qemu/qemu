@@ -1730,17 +1730,7 @@ static GSList *gd_vc_gfx_init(GtkDisplayState *s, VirtualConsole *vc,
                               QemuConsole *con, int idx,
                               GSList *group, GtkWidget *view_menu)
 {
-    Object *obj;
-
-    obj = object_property_get_link(OBJECT(con), "device", NULL);
-    if (obj) {
-        vc->label = g_strdup_printf("%s", object_get_typename(obj));
-    } else if (qemu_console_is_graphic(con)) {
-        vc->label = g_strdup_printf("VGA");
-    } else {
-        vc->label = g_strdup_printf("vc%d", idx);
-    }
-
+    vc->label = qemu_console_get_label(con);
     vc->s = s;
     vc->gfx.scale_x = 1.0;
     vc->gfx.scale_y = 1.0;
