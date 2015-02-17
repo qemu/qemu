@@ -374,16 +374,14 @@ void usb_register_companion(const char *masterbus, USBPort *ports[],
         }
     }
 
-    if (!bus || !bus->ops->register_companion) {
-        error_set(errp, QERR_INVALID_PARAMETER_VALUE, "masterbus",
-                  "an USB masterbus");
-#if 0 /* conversion from qerror_report() to error_set() broke this: */
-        if (bus) {
-            error_printf_unless_qmp(
-                "USB bus '%s' does not allow companion controllers\n",
-                masterbus);
-        }
-#endif
+    if (!bus) {
+        error_setg(errp, "USB bus '%s' not found", masterbus);
+        return;
+    }
+    if (!bus->ops->register_companion) {
+        error_setg(errp, "Can't use USB bus '%s' as masterbus,"
+                   " it doesn't support companion controllers",
+                   masterbus);
         return;
     }
 

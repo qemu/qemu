@@ -777,26 +777,17 @@ static void ehci_register_companion(USBBus *bus, USBPort *ports[],
     uint32_t i;
 
     if (firstport + portcount > NB_PORTS) {
-        error_set(errp, QERR_INVALID_PARAMETER_VALUE, "firstport",
-                  "firstport on masterbus");
-#if 0 /* conversion from qerror_report() to error_set() broke this: */
-        error_printf_unless_qmp(
-            "firstport value of %u makes companion take ports %u - %u, which "
-            "is outside of the valid range of 0 - %u\n", firstport, firstport,
-            firstport + portcount - 1, NB_PORTS - 1);
-#endif
+        error_setg(errp, "firstport must be between 0 and %u",
+                   NB_PORTS - portcount);
         return;
     }
 
     for (i = 0; i < portcount; i++) {
         if (s->companion_ports[firstport + i]) {
-            error_set(errp, QERR_INVALID_PARAMETER_VALUE, "masterbus",
-                      "an USB masterbus");
-#if 0 /* conversion from qerror_report() to error_set() broke this: */
-            error_printf_unless_qmp(
-                "port %u on masterbus %s already has a companion assigned\n",
-                firstport + i, bus->qbus.name);
-#endif
+            error_setg(errp, "firstport %u asks for ports %u-%u,"
+                       " but port %u has a companion assigned already",
+                       firstport, firstport, firstport + portcount - 1,
+                       firstport + i);
             return;
         }
     }
