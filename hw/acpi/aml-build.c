@@ -650,3 +650,18 @@ Aml *aml_varpackage(uint32_t num_elements)
     build_append_int(var->buf, num_elements);
     return var;
 }
+
+/* ACPI 1.0b: 16.2.5.2 Named Objects Encoding: DefProcessor */
+Aml *aml_processor(uint8_t proc_id, uint32_t pblk_addr, uint8_t pblk_len,
+                   const char *name_format, ...)
+{
+    va_list ap;
+    Aml *var = aml_bundle(0x83 /* ProcessorOp */, AML_EXT_PACKAGE);
+    va_start(ap, name_format);
+    build_append_namestringv(var->buf, name_format, ap);
+    va_end(ap);
+    build_append_byte(var->buf, proc_id); /* ProcID */
+    build_append_int_noprefix(var->buf, pblk_addr, sizeof(pblk_addr));
+    build_append_byte(var->buf, pblk_len); /* PblkLen */
+    return var;
+}
