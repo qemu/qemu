@@ -436,6 +436,48 @@ Aml *aml_notify(Aml *arg1, Aml *arg2)
     return var;
 }
 
+/* helper to call method with 1 argument */
+Aml *aml_call1(const char *method, Aml *arg1)
+{
+    Aml *var = aml_alloc();
+    build_append_namestring(var->buf, "%s", method);
+    aml_append(var, arg1);
+    return var;
+}
+
+/* helper to call method with 2 arguments */
+Aml *aml_call2(const char *method, Aml *arg1, Aml *arg2)
+{
+    Aml *var = aml_alloc();
+    build_append_namestring(var->buf, "%s", method);
+    aml_append(var, arg1);
+    aml_append(var, arg2);
+    return var;
+}
+
+/* helper to call method with 3 arguments */
+Aml *aml_call3(const char *method, Aml *arg1, Aml *arg2, Aml *arg3)
+{
+    Aml *var = aml_alloc();
+    build_append_namestring(var->buf, "%s", method);
+    aml_append(var, arg1);
+    aml_append(var, arg2);
+    aml_append(var, arg3);
+    return var;
+}
+
+/* helper to call method with 4 arguments */
+Aml *aml_call4(const char *method, Aml *arg1, Aml *arg2, Aml *arg3, Aml *arg4)
+{
+    Aml *var = aml_alloc();
+    build_append_namestring(var->buf, "%s", method);
+    aml_append(var, arg1);
+    aml_append(var, arg2);
+    aml_append(var, arg3);
+    aml_append(var, arg4);
+    return var;
+}
+
 /* ACPI 1.0b: 16.2.5.3 Type 1 Opcodes Encoding: DefIfElse */
 Aml *aml_if(Aml *predicate)
 {

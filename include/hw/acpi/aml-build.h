@@ -68,6 +68,10 @@ Aml *aml_arg(int pos);
 Aml *aml_store(Aml *val, Aml *target);
 Aml *aml_and(Aml *arg1, Aml *arg2);
 Aml *aml_notify(Aml *arg1, Aml *arg2);
+Aml *aml_call1(const char *method, Aml *arg1);
+Aml *aml_call2(const char *method, Aml *arg1, Aml *arg2);
+Aml *aml_call3(const char *method, Aml *arg1, Aml *arg2, Aml *arg3);
+Aml *aml_call4(const char *method, Aml *arg1, Aml *arg2, Aml *arg3, Aml *arg4);
 
 /* Block AML object primitives */
 Aml *aml_scope(const char *name_format, ...) GCC_FMT_ATTR(1, 2);
