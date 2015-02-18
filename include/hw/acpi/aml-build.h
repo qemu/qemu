@@ -28,6 +28,11 @@ typedef enum {
     aml_decode16 = 1,
 } AmlIODecode;
 
+typedef enum {
+    aml_system_memory = 0x00,
+    aml_system_io = 0x01,
+} AmlRegionSpace;
+
 /**
  * init_aml_allocator:
  *
@@ -79,6 +84,8 @@ Aml *aml_call3(const char *method, Aml *arg1, Aml *arg2, Aml *arg3);
 Aml *aml_call4(const char *method, Aml *arg1, Aml *arg2, Aml *arg3, Aml *arg4);
 Aml *aml_io(AmlIODecode dec, uint16_t min_base, uint16_t max_base,
             uint8_t aln, uint8_t len);
+Aml *aml_operation_region(const char *name, AmlRegionSpace rs,
+                          uint32_t offset, uint32_t len);
 
 /* Block AML object primitives */
 Aml *aml_scope(const char *name_format, ...) GCC_FMT_ATTR(1, 2);
