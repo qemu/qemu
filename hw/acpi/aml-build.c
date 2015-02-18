@@ -218,44 +218,34 @@ void build_extop_package(GArray *package, uint8_t op)
     build_prepend_byte(package, 0x5B); /* ExtOpPrefix */
 }
 
-void build_append_value(GArray *table, uint32_t value, int size)
+static void build_append_int_noprefix(GArray *table, uint64_t value, int size)
 {
-    uint8_t prefix;
     int i;
 
-    switch (size) {
-    case 1:
-        prefix = 0x0A; /* BytePrefix */
-        break;
-    case 2:
-        prefix = 0x0B; /* WordPrefix */
-        break;
-    case 4:
-        prefix = 0x0C; /* DWordPrefix */
-        break;
-    default:
-        assert(0);
-        return;
-    }
-    build_append_byte(table, prefix);
     for (i = 0; i < size; ++i) {
         build_append_byte(table, value & 0xFF);
         value = value >> 8;
     }
 }
 
-void build_append_int(GArray *table, uint32_t value)
+void build_append_int(GArray *table, uint64_t value)
 {
     if (value == 0x00) {
         build_append_byte(table, 0x00); /* ZeroOp */
     } else if (value == 0x01) {
         build_append_byte(table, 0x01); /* OneOp */
     } else if (value <= 0xFF) {
-        build_append_value(table, value, 1);
+        build_append_byte(table, 0x0A); /* BytePrefix */
+        build_append_int_noprefix(table, value, 1);
     } else if (value <= 0xFFFF) {
-        build_append_value(table, value, 2);
+        build_append_byte(table, 0x0B); /* WordPrefix */
+        build_append_int_noprefix(table, value, 2);
+    } else if (value <= 0xFFFFFFFF) {
+        build_append_byte(table, 0x0C); /* DWordPrefix */
+        build_append_int_noprefix(table, value, 4);
     } else {
-        build_append_value(table, value, 4);
+        build_append_byte(table, 0x0E); /* QWordPrefix */
+        build_append_int_noprefix(table, value, 8);
     }
 }
 
@@ -362,6 +352,17 @@ Aml *aml_scope(const char *name_format, ...)
     va_start(ap, name_format);
     build_append_namestringv(var->buf, name_format, ap);
     va_end(ap);
+    return var;
+}
+
+/*
+ * ACPI 1.0b: 16.2.3 Data Objects Encoding:
+ * encodes: ByteConst, WordConst, DWordConst, QWordConst, ZeroOp, OneOp
+ */
+Aml *aml_int(const uint64_t val)
+{
+    Aml *var = aml_alloc();
+    build_append_int(var->buf, val);
     return var;
 }
 

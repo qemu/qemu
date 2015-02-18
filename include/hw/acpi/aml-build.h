@@ -62,6 +62,7 @@ void aml_append(Aml *parent_ctx, Aml *child);
 /* non block AML object primitives */
 Aml *aml_name(const char *name_format, ...) GCC_FMT_ATTR(1, 2);
 Aml *aml_name_decl(const char *name, Aml *val);
+Aml *aml_int(const uint64_t val);
 
 /* Block AML object primitives */
 Aml *aml_scope(const char *name_format, ...) GCC_FMT_ATTR(1, 2);
@@ -81,8 +82,7 @@ build_append_namestring(GArray *array, const char *format, ...);
 
 void build_prepend_package_length(GArray *package);
 void build_package(GArray *package, uint8_t op);
-void build_append_value(GArray *table, uint32_t value, int size);
-void build_append_int(GArray *table, uint32_t value);
+void build_append_int(GArray *table, uint64_t value);
 void build_extop_package(GArray *package, uint8_t op);
 
 #endif

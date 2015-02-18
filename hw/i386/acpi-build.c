@@ -304,14 +304,14 @@ static void build_append_and_cleanup_method(GArray *device, GArray *method)
 
 static void build_append_notify_target_ifequal(GArray *method,
                                                GArray *target_name,
-                                               uint32_t value, int size)
+                                               uint32_t value)
 {
     GArray *notify = build_alloc_array();
     uint8_t op = 0xA0; /* IfOp */
 
     build_append_byte(notify, 0x93); /* LEqualOp */
     build_append_byte(notify, 0x68); /* Arg0Op */
-    build_append_value(notify, value, size);
+    build_append_int(notify, value);
     build_append_byte(notify, 0x86); /* NotifyOp */
     build_append_array(notify, target_name);
     build_append_byte(notify, 0x69); /* Arg1Op */
@@ -580,7 +580,7 @@ build_append_notify_method(GArray *device, const char *name,
         GArray *target = build_alloc_array();
         build_append_namestring(target, format, i);
         assert(i < 256); /* Fits in 1 byte */
-        build_append_notify_target_ifequal(method, target, i, 1);
+        build_append_notify_target_ifequal(method, target, i);
         build_free_array(target);
     }
 
@@ -715,11 +715,11 @@ static void build_pci_bus_end(PCIBus *bus, void *bus_state)
                              bus->parent_dev->devfn);
         build_append_byte(bus_table, 0x08); /* NameOp */
         build_append_namestring(bus_table, "_SUN");
-        build_append_value(bus_table, PCI_SLOT(bus->parent_dev->devfn), 1);
+        build_append_int(bus_table, PCI_SLOT(bus->parent_dev->devfn));
         build_append_byte(bus_table, 0x08); /* NameOp */
         build_append_namestring(bus_table, "_ADR");
-        build_append_value(bus_table, (PCI_SLOT(bus->parent_dev->devfn) << 16) |
-                           PCI_FUNC(bus->parent_dev->devfn), 4);
+        build_append_int(bus_table, (PCI_SLOT(bus->parent_dev->devfn) << 16) |
+                           PCI_FUNC(bus->parent_dev->devfn));
     } else {
         op = 0x10; /* ScopeOp */;
         build_append_namestring(bus_table, "PCI0");
