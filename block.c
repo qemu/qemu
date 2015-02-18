@@ -2647,7 +2647,7 @@ static int bdrv_check_byte_request(BlockDriverState *bs, int64_t offset,
 {
     int64_t len;
 
-    if (size > INT_MAX) {
+    if (size > BDRV_REQUEST_MAX_SECTORS << BDRV_SECTOR_BITS) {
         return -EIO;
     }
 
@@ -2671,7 +2671,7 @@ static int bdrv_check_byte_request(BlockDriverState *bs, int64_t offset,
 static int bdrv_check_request(BlockDriverState *bs, int64_t sector_num,
                               int nb_sectors)
 {
-    if (nb_sectors < 0 || nb_sectors > INT_MAX / BDRV_SECTOR_SIZE) {
+    if (nb_sectors < 0 || nb_sectors > BDRV_REQUEST_MAX_SECTORS) {
         return -EIO;
     }
 
@@ -2758,7 +2758,7 @@ static int bdrv_rw_co(BlockDriverState *bs, int64_t sector_num, uint8_t *buf,
         .iov_len = nb_sectors * BDRV_SECTOR_SIZE,
     };
 
-    if (nb_sectors < 0 || nb_sectors > INT_MAX / BDRV_SECTOR_SIZE) {
+    if (nb_sectors < 0 || nb_sectors > BDRV_REQUEST_MAX_SECTORS) {
         return -EINVAL;
     }
 
@@ -2826,12 +2826,9 @@ int bdrv_make_zero(BlockDriverState *bs, BdrvRequestFlags flags)
     }
 
     for (;;) {
-        nb_sectors = target_sectors - sector_num;
+        nb_sectors = MIN(target_sectors - sector_num, BDRV_REQUEST_MAX_SECTORS);
         if (nb_sectors <= 0) {
             return 0;
-        }
-        if (nb_sectors > INT_MAX / BDRV_SECTOR_SIZE) {
-            nb_sectors = INT_MAX / BDRV_SECTOR_SIZE;
         }
         ret = bdrv_get_block_status(bs, sector_num, nb_sectors, &n);
         if (ret < 0) {
@@ -3167,7 +3164,7 @@ static int coroutine_fn bdrv_co_do_readv(BlockDriverState *bs,
     int64_t sector_num, int nb_sectors, QEMUIOVector *qiov,
     BdrvRequestFlags flags)
 {
-    if (nb_sectors < 0 || nb_sectors > (UINT_MAX >> BDRV_SECTOR_BITS)) {
+    if (nb_sectors < 0 || nb_sectors > BDRV_REQUEST_MAX_SECTORS) {
         return -EINVAL;
     }
 
@@ -3192,10 +3189,7 @@ int coroutine_fn bdrv_co_copy_on_readv(BlockDriverState *bs,
                             BDRV_REQ_COPY_ON_READ);
 }
 
-/* if no limit is specified in the BlockLimits use a default
- * of 32768 512-byte sectors (16 MiB) per request.
- */
-#define MAX_WRITE_ZEROES_DEFAULT 32768
+#define MAX_WRITE_ZEROES_BOUNCE_BUFFER 32768
 
 static int coroutine_fn bdrv_co_do_write_zeroes(BlockDriverState *bs,
     int64_t sector_num, int nb_sectors, BdrvRequestFlags flags)
@@ -3205,8 +3199,8 @@ static int coroutine_fn bdrv_co_do_write_zeroes(BlockDriverState *bs,
     struct iovec iov = {0};
     int ret = 0;
 
-    int max_write_zeroes = bs->bl.max_write_zeroes ?
-                           bs->bl.max_write_zeroes : MAX_WRITE_ZEROES_DEFAULT;
+    int max_write_zeroes = MIN_NON_ZERO(bs->bl.max_write_zeroes,
+                                        BDRV_REQUEST_MAX_SECTORS);
 
     while (nb_sectors > 0 && !ret) {
         int num = nb_sectors;
@@ -3242,7 +3236,7 @@ static int coroutine_fn bdrv_co_do_write_zeroes(BlockDriverState *bs,
         if (ret == -ENOTSUP) {
             /* Fall back to bounce buffer if write zeroes is unsupported */
             int max_xfer_len = MIN_NON_ZERO(bs->bl.max_transfer_length,
-                                            MAX_WRITE_ZEROES_DEFAULT);
+                                            MAX_WRITE_ZEROES_BOUNCE_BUFFER);
             num = MIN(num, max_xfer_len);
             iov.iov_len = num * BDRV_SECTOR_SIZE;
             if (iov.iov_base == NULL) {
@@ -3461,7 +3455,7 @@ static int coroutine_fn bdrv_co_do_writev(BlockDriverState *bs,
     int64_t sector_num, int nb_sectors, QEMUIOVector *qiov,
     BdrvRequestFlags flags)
 {
-    if (nb_sectors < 0 || nb_sectors > (INT_MAX >> BDRV_SECTOR_BITS)) {
+    if (nb_sectors < 0 || nb_sectors > BDRV_REQUEST_MAX_SECTORS) {
         return -EINVAL;
     }
 
@@ -3717,6 +3711,36 @@ int bdrv_set_key(BlockDriverState *bs, const char *key)
         }
     }
     return ret;
+}
+
+/*
+ * Provide an encryption key for @bs.
+ * If @key is non-null:
+ *     If @bs is not encrypted, fail.
+ *     Else if the key is invalid, fail.
+ *     Else set @bs's key to @key, replacing the existing key, if any.
+ * If @key is null:
+ *     If @bs is encrypted and still lacks a key, fail.
+ *     Else do nothing.
+ * On failure, store an error object through @errp if non-null.
+ */
+void bdrv_add_key(BlockDriverState *bs, const char *key, Error **errp)
+{
+    if (key) {
+        if (!bdrv_is_encrypted(bs)) {
+            error_setg(errp, "Device '%s' is not encrypted",
+                      bdrv_get_device_name(bs));
+        } else if (bdrv_set_key(bs, key) < 0) {
+            error_set(errp, QERR_INVALID_PASSWORD);
+        }
+    } else {
+        if (bdrv_key_required(bs)) {
+            error_set(errp, ERROR_CLASS_DEVICE_ENCRYPTED,
+                      "'%s' (%s) is encrypted",
+                      bdrv_get_device_name(bs),
+                      bdrv_get_encrypted_filename(bs));
+        }
+    }
 }
 
 const char *bdrv_get_format_name(BlockDriverState *bs)
@@ -4562,6 +4586,8 @@ static int multiwrite_merge(BlockDriverState *bs, BlockRequest *reqs,
         }
     }
 
+    block_acct_merge_done(&bs->stats, BLOCK_ACCT_WRITE, num_reqs - outidx - 1);
+
     return outidx + 1;
 }
 
@@ -5097,11 +5123,6 @@ static void coroutine_fn bdrv_discard_co_entry(void *opaque)
     rwco->ret = bdrv_co_discard(rwco->bs, rwco->sector_num, rwco->nb_sectors);
 }
 
-/* if no limit is specified in the BlockLimits use a default
- * of 32768 512-byte sectors (16 MiB) per request.
- */
-#define MAX_DISCARD_DEFAULT 32768
-
 int coroutine_fn bdrv_co_discard(BlockDriverState *bs, int64_t sector_num,
                                  int nb_sectors)
 {
@@ -5126,7 +5147,7 @@ int coroutine_fn bdrv_co_discard(BlockDriverState *bs, int64_t sector_num,
         return 0;
     }
 
-    max_discard = bs->bl.max_discard ?  bs->bl.max_discard : MAX_DISCARD_DEFAULT;
+    max_discard = MIN_NON_ZERO(bs->bl.max_discard, BDRV_REQUEST_MAX_SECTORS);
     while (nb_sectors > 0) {
         int ret;
         int num = nb_sectors;

@@ -19,6 +19,8 @@ vscclient$(EXESUF): libcacard/vscclient.o libcacard.la
 
 libcacard.la: LDFLAGS += -rpath $(libdir) -no-undefined \
 	-export-symbols $(SRC_PATH)/libcacard/libcacard.syms
+# Prevent libcacard.so linking against the entire world of 3rd party libs
+libcacard.la: LIBS =
 libcacard.la: $(libcacard-lobj-y)
 	$(call LINK,$^)
 

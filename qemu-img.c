@@ -35,7 +35,7 @@
 #include "block/qapi.h"
 #include <getopt.h>
 
-#define QEMU_IMG_VERSION "qemu-img version " QEMU_VERSION \
+#define QEMU_IMG_VERSION "qemu-img version " QEMU_VERSION QEMU_PKGVERSION \
                           ", Copyright (c) 2004-2008 Fabrice Bellard\n"
 
 typedef struct img_cmd_t {

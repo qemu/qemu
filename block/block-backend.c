@@ -580,6 +580,11 @@ int blk_get_flags(BlockBackend *blk)
     return bdrv_get_flags(blk->bs);
 }
 
+int blk_get_max_transfer_length(BlockBackend *blk)
+{
+    return blk->bs->bl.max_transfer_length;
+}
+
 void blk_set_guest_block_size(BlockBackend *blk, int align)
 {
     bdrv_set_guest_block_size(blk->bs, align);

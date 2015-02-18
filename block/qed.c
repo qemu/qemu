@@ -440,6 +440,11 @@ static int bdrv_qed_open(BlockDriverState *bs, QDict *options, int flags,
     s->l2_mask = s->table_nelems - 1;
     s->l1_shift = s->l2_shift + ffs(s->table_nelems) - 1;
 
+    /* Header size calculation must not overflow uint32_t */
+    if (s->header.header_size > UINT32_MAX / s->header.cluster_size) {
+        return -EINVAL;
+    }
+
     if ((s->header.features & QED_F_BACKING_FILE)) {
         if ((uint64_t)s->header.backing_filename_offset +
             s->header.backing_filename_size >

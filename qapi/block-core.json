@@ -257,6 +257,9 @@
 #
 # @cache: the cache mode used for the block device (since: 2.3)
 #
+# @write_threshold: configured write threshold for the device.
+#                   0 if disabled. (Since 2.3)
+#
 # Since: 0.14.0
 #
 ##
@@ -271,7 +274,8 @@
             '*bps_max': 'int', '*bps_rd_max': 'int',
             '*bps_wr_max': 'int', '*iops_max': 'int',
             '*iops_rd_max': 'int', '*iops_wr_max': 'int',
-            '*iops_size': 'int', 'cache': 'BlockdevCacheInfo' } }
+            '*iops_size': 'int', 'cache': 'BlockdevCacheInfo',
+            'write_threshold': 'int' } }
 
 ##
 # @BlockDeviceIoStatus:
@@ -407,13 +411,20 @@
 #                     growable sparse files (like qcow2) that are used on top
 #                     of a physical device.
 #
+# @rd_merged: Number of read requests that have been merged into another
+#             request (Since 2.3).
+#
+# @wr_merged: Number of write requests that have been merged into another
+#             request (Since 2.3).
+#
 # Since: 0.14.0
 ##
 { 'type': 'BlockDeviceStats',
   'data': {'rd_bytes': 'int', 'wr_bytes': 'int', 'rd_operations': 'int',
            'wr_operations': 'int', 'flush_operations': 'int',
            'flush_total_time_ns': 'int', 'wr_total_time_ns': 'int',
-           'rd_total_time_ns': 'int', 'wr_highest_offset': 'int' } }
+           'rd_total_time_ns': 'int', 'wr_highest_offset': 'int',
+           'rd_merged': 'int', 'wr_merged': 'int' } }
 
 ##
 # @BlockStats:
@@ -1910,3 +1921,48 @@
 ##
 { 'enum': 'PreallocMode',
   'data': [ 'off', 'metadata', 'falloc', 'full' ] }
+
+##
+# @BLOCK_WRITE_THRESHOLD
+#
+# Emitted when writes on block device reaches or exceeds the
+# configured write threshold. For thin-provisioned devices, this
+# means the device should be extended to avoid pausing for
+# disk exhaustion.
+# The event is one shot. Once triggered, it needs to be
+# re-registered with another block-set-threshold command.
+#
+# @node-name: graph node name on which the threshold was exceeded.
+#
+# @amount-exceeded: amount of data which exceeded the threshold, in bytes.
+#
+# @write-threshold: last configured threshold, in bytes.
+#
+# Since: 2.3
+##
+{ 'event': 'BLOCK_WRITE_THRESHOLD',
+  'data': { 'node-name': 'str',
+            'amount-exceeded': 'uint64',
+            'write-threshold': 'uint64' } }
+
+##
+# @block-set-write-threshold
+#
+# Change the write threshold for a block drive. An event will be delivered
+# if a write to this block drive crosses the configured threshold.
+# This is useful to transparently resize thin-provisioned drives without
+# the guest OS noticing.
+#
+# @node-name: graph node name on which the threshold must be set.
+#
+# @write-threshold: configured threshold for the block device, bytes.
+#                   Use 0 to disable the threshold.
+#
+# Returns: Nothing on success
+#          If @node name is not found on the block device graph,
+#          DeviceNotFound
+#
+# Since: 2.3
+##
+{ 'command': 'block-set-write-threshold',
+  'data': { 'node-name': 'str', 'write-threshold': 'uint64' } }

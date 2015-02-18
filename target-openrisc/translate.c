@@ -1642,7 +1642,6 @@ static inline void gen_intermediate_code_internal(OpenRISCCPU *cpu,
 {
     CPUState *cs = CPU(cpu);
     struct DisasContext ctx, *dc = &ctx;
-    uint16_t *gen_opc_end;
     uint32_t pc_start;
     int j, k;
     uint32_t next_page_start;
@@ -1652,7 +1651,6 @@ static inline void gen_intermediate_code_internal(OpenRISCCPU *cpu,
     pc_start = tb->pc;
     dc->tb = tb;
 
-    gen_opc_end = tcg_ctx.gen_opc_buf + OPC_MAX_SIZE;
     dc->is_jmp = DISAS_NEXT;
     dc->ppc = pc_start;
     dc->pc = pc_start;
@@ -1680,7 +1678,7 @@ static inline void gen_intermediate_code_internal(OpenRISCCPU *cpu,
     do {
         check_breakpoint(cpu, dc);
         if (search_pc) {
-            j = tcg_ctx.gen_opc_ptr - tcg_ctx.gen_opc_buf;
+            j = tcg_op_buf_count();
             if (k < j) {
                 k++;
                 while (k < j) {
@@ -1721,7 +1719,7 @@ static inline void gen_intermediate_code_internal(OpenRISCCPU *cpu,
             }
         }
     } while (!dc->is_jmp
-             && tcg_ctx.gen_opc_ptr < gen_opc_end
+             && !tcg_op_buf_full()
              && !cs->singlestep_enabled
              && !singlestep
              && (dc->pc < next_page_start)
@@ -1759,9 +1757,9 @@ static inline void gen_intermediate_code_internal(OpenRISCCPU *cpu,
     }
 
     gen_tb_end(tb, num_insns);
-    *tcg_ctx.gen_opc_ptr = INDEX_op_end;
+
     if (search_pc) {
-        j = tcg_ctx.gen_opc_ptr - tcg_ctx.gen_opc_buf;
+        j = tcg_op_buf_count();
         k++;
         while (k <= j) {
             tcg_ctx.gen_opc_instr_start[k++] = 0;
@@ -1775,9 +1773,8 @@ static inline void gen_intermediate_code_internal(OpenRISCCPU *cpu,
     if (qemu_loglevel_mask(CPU_LOG_TB_IN_ASM)) {
         qemu_log("\n");
         log_target_disas(&cpu->env, pc_start, dc->pc - pc_start, 0);
-        qemu_log("\nisize=%d osize=%td\n",
-            dc->pc - pc_start, tcg_ctx.gen_opc_ptr -
-            tcg_ctx.gen_opc_buf);
+        qemu_log("\nisize=%d osize=%d\n",
+                 dc->pc - pc_start, tcg_op_buf_count());
     }
 #endif
 }

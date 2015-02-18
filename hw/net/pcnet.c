@@ -40,6 +40,7 @@
 #include "qemu/timer.h"
 #include "qemu/sockets.h"
 #include "sysemu/sysemu.h"
+#include "trace.h"
 
 #include "pcnet.h"
 
@@ -685,9 +686,7 @@ static void pcnet_bcr_writew(PCNetState *s, uint32_t rap, uint32_t val);
 
 static void pcnet_s_reset(PCNetState *s)
 {
-#ifdef PCNET_DEBUG
-    printf("pcnet_s_reset\n");
-#endif
+    trace_pcnet_s_reset(s);
 
     s->rdra = 0;
     s->tdra = 0;
@@ -760,9 +759,7 @@ static void pcnet_update_irq(PCNetState *s)
         s->csr[4] |= 0x0040;
         s->csr[0] |= 0x0080;
         isr = 1;
-#ifdef PCNET_DEBUG
-        printf("pcnet user int\n");
-#endif
+        trace_pcnet_user_int(s);
     }
 
 #if 1
@@ -777,9 +774,7 @@ static void pcnet_update_irq(PCNetState *s)
     }
 
     if (isr != s->isr) {
-#ifdef PCNET_DEBUG
-        printf("pcnet: INTA=%d\n", isr);
-#endif
+        trace_pcnet_isr_change(s, isr, s->isr);
     }
     qemu_set_irq(s->irq, isr);
     s->isr = isr;
@@ -791,9 +786,7 @@ static void pcnet_init(PCNetState *s)
     uint16_t padr[3], ladrf[4], mode;
     uint32_t rdra, tdra;
 
-#ifdef PCNET_DEBUG
-    printf("pcnet_init init_addr=0x%08x\n", PHYSADDR(s,CSR_IADR(s)));
-#endif
+    trace_pcnet_init(s, PHYSADDR(s, CSR_IADR(s)));
 
     if (BCR_SSIZE32(s)) {
         struct pcnet_initblk32 initblk;
@@ -831,9 +824,7 @@ static void pcnet_init(PCNetState *s)
         tdra &= 0x00ffffff;
     }
 
-#if defined(PCNET_DEBUG)
-    printf("rlen=%d tlen=%d\n", rlen, tlen);
-#endif
+    trace_pcnet_rlen_tlen(s, rlen, tlen);
 
     CSR_RCVRL(s) = (rlen < 9) ? (1 << rlen) : 512;
     CSR_XMTRL(s) = (tlen < 9) ? (1 << tlen) : 512;
@@ -852,11 +843,8 @@ static void pcnet_init(PCNetState *s)
     CSR_RCVRC(s) = CSR_RCVRL(s);
     CSR_XMTRC(s) = CSR_XMTRL(s);
 
-#ifdef PCNET_DEBUG
-    printf("pcnet ss32=%d rdra=0x%08x[%d] tdra=0x%08x[%d]\n",
-        BCR_SSIZE32(s),
-        s->rdra, CSR_RCVRL(s), s->tdra, CSR_XMTRL(s));
-#endif
+    trace_pcnet_ss32_rdra_tdra(s, BCR_SSIZE32(s),
+                               s->rdra, CSR_RCVRL(s), s->tdra, CSR_XMTRL(s));
 
     s->csr[0] |= 0x0101;
     s->csr[0] &= ~0x0004;       /* clear STOP bit */

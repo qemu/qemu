@@ -2146,6 +2146,8 @@ Each json-object contain the following:
          - "iops_size": I/O size when limiting by iops (json-int)
          - "detect_zeroes": detect and optimize zero writing (json-string)
              - Possible values: "off", "on", "unmap"
+         - "write_threshold": write offset threshold in bytes, a event will be
+                              emitted if crossed. Zero if disabled (json-int)
          - "image": the detail of the image, it is a json-object containing
             the following:
              - "filename": image file name (json-string)
@@ -2223,6 +2225,7 @@ Example:
                "iops_wr_max": 0,
                "iops_size": 0,
                "detect_zeroes": "on",
+               "write_threshold": 0,
                "image":{
                   "filename":"disks/test.qcow2",
                   "format":"qcow2",
@@ -2303,6 +2306,10 @@ Each json-object contain the following:
     - "flush_total_time_ns": total time spend on cache flushes in nano-seconds (json-int)
     - "wr_highest_offset": Highest offset of a sector written since the
                            BlockDriverState has been opened (json-int)
+    - "rd_merged": number of read requests that have been merged into
+                   another request (json-int)
+    - "wr_merged": number of write requests that have been merged into
+                   another request (json-int)
 - "parent": Contains recursively the statistics of the underlying
             protocol (e.g. the host file for a qcow2 image). If there is
             no underlying protocol, this field is omitted
@@ -2326,6 +2333,8 @@ Example:
                   "rd_total_times_ns":3465673657
                   "flush_total_times_ns":49653
                   "flush_operations":61,
+                  "rd_merged":0,
+                  "wr_merged":0
                }
             },
             "stats":{
@@ -2337,7 +2346,9 @@ Example:
                "flush_operations":51,
                "wr_total_times_ns":313253456
                "rd_total_times_ns":3465673657
-               "flush_total_times_ns":49653
+               "flush_total_times_ns":49653,
+               "rd_merged":0,
+               "wr_merged":0
             }
          },
          {
@@ -2351,7 +2362,9 @@ Example:
                "flush_operations":0,
                "wr_total_times_ns":0
                "rd_total_times_ns":0
-               "flush_total_times_ns":0
+               "flush_total_times_ns":0,
+               "rd_merged":0,
+               "wr_merged":0
             }
          },
          {
@@ -2365,7 +2378,9 @@ Example:
                "flush_operations":0,
                "wr_total_times_ns":0
                "rd_total_times_ns":0
-               "flush_total_times_ns":0
+               "flush_total_times_ns":0,
+               "rd_merged":0,
+               "wr_merged":0
             }
          },
          {
@@ -2379,7 +2394,9 @@ Example:
                "flush_operations":0,
                "wr_total_times_ns":0
                "rd_total_times_ns":0
-               "flush_total_times_ns":0
+               "flush_total_times_ns":0,
+               "rd_merged":0,
+               "wr_merged":0
             }
          }
       ]
@@ -3671,6 +3688,7 @@ Example:
                    "iops_rd_max": 0,
                    "iops_wr_max": 0,
                    "iops_size": 0,
+                   "write_threshold": 0,
                    "image":{
                       "filename":"disks/test.qcow2",
                       "format":"qcow2",
@@ -3904,6 +3922,34 @@ Move mouse pointer to absolute coordinates (20000, 400).
   "arguments": { "console": 0, "events": [
                { "type": "abs", "data" : { "axis": "X", "value" : 20000 } },
                { "type": "abs", "data" : { "axis": "Y", "value" : 400 } } ] } }
+<- { "return": {} }
+
+EQMP
+
+    {
+        .name       = "block-set-write-threshold",
+        .args_type  = "node-name:s,write-threshold:l",
+        .mhandler.cmd_new = qmp_marshal_input_block_set_write_threshold,
+    },
+
+SQMP
+block-set-write-threshold
+------------
+
+Change the write threshold for a block drive. The threshold is an offset,
+thus must be non-negative. Default is no write threshold.
+Setting the threshold to zero disables it.
+
+Arguments:
+
+- "node-name": the node name in the block driver state graph (json-string)
+- "write-threshold": the write threshold in bytes (json-int)
+
+Example:
+
+-> { "execute": "block-set-write-threshold",
+  "arguments": { "node-name": "mydev",
+                 "write-threshold": 17179869184 } }
 <- { "return": {} }
 
 EQMP

@@ -166,6 +166,8 @@ int CountSetBits(uint64_t value, int width);
 uint64_t LowestSetBit(uint64_t value);
 bool IsPowerOf2(int64_t value);
 
+unsigned CountClearHalfWords(uint64_t imm, unsigned reg_size);
+
 // Pointer alignment
 // TODO: rename/refactor to make it specific to instructions.
 template<typename T>
@@ -174,14 +176,14 @@ bool IsWordAligned(T pointer) {
   return ((intptr_t)(pointer) & 3) == 0;
 }
 
-// Increment a pointer until it has the specified alignment.
+// Increment a pointer (up to 64 bits) until it has the specified alignment.
 template<class T>
 T AlignUp(T pointer, size_t alignment) {
   // Use C-style casts to get static_cast behaviour for integral types (T), and
   // reinterpret_cast behaviour for other types.
 
-  uintptr_t pointer_raw = (uintptr_t)pointer;
-  VIXL_STATIC_ASSERT(sizeof(pointer) == sizeof(pointer_raw));
+  uint64_t pointer_raw = (uint64_t)pointer;
+  VIXL_STATIC_ASSERT(sizeof(pointer) <= sizeof(pointer_raw));
 
   size_t align_step = (alignment - pointer_raw) % alignment;
   VIXL_ASSERT((pointer_raw + align_step) % alignment == 0);
@@ -189,14 +191,14 @@ T AlignUp(T pointer, size_t alignment) {
   return (T)(pointer_raw + align_step);
 }
 
-// Decrement a pointer until it has the specified alignment.
+// Decrement a pointer (up to 64 bits) until it has the specified alignment.
 template<class T>
 T AlignDown(T pointer, size_t alignment) {
   // Use C-style casts to get static_cast behaviour for integral types (T), and
   // reinterpret_cast behaviour for other types.
 
-  uintptr_t pointer_raw = (uintptr_t)pointer;
-  VIXL_STATIC_ASSERT(sizeof(pointer) == sizeof(pointer_raw));
+  uint64_t pointer_raw = (uint64_t)pointer;
+  VIXL_STATIC_ASSERT(sizeof(pointer) <= sizeof(pointer_raw));
 
   size_t align_step = pointer_raw % alignment;
   VIXL_ASSERT((pointer_raw - align_step) % alignment == 0);

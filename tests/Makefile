@@ -60,12 +60,16 @@ gcov-files-test-mul64-y = util/host-utils.c
 check-unit-y += tests/test-int128$(EXESUF)
 # all code tested by test-int128 is inside int128.h
 gcov-files-test-int128-y =
+check-unit-y += tests/rcutorture$(EXESUF)
+gcov-files-rcutorture-y = util/rcu.c
 check-unit-y += tests/test-bitops$(EXESUF)
 check-unit-$(CONFIG_HAS_GLIB_SUBPROCESS_TESTS) += tests/test-qdev-global-props$(EXESUF)
 check-unit-y += tests/check-qom-interface$(EXESUF)
 gcov-files-check-qom-interface-y = qom/object.c
 check-unit-y += tests/test-qemu-opts$(EXESUF)
 gcov-files-test-qemu-opts-y = qom/test-qemu-opts.c
+check-unit-y += tests/test-write-threshold$(EXESUF)
+gcov-files-test-write-threshold-y = block/write-threshold.c
 
 check-block-$(CONFIG_POSIX) += tests/qemu-iotests-quick.sh
 
@@ -223,7 +227,8 @@ test-obj-y = tests/check-qint.o tests/check-qstring.o tests/check-qdict.o \
 	tests/test-qmp-input-visitor.o tests/test-qmp-input-strict.o \
 	tests/test-qmp-commands.o tests/test-visitor-serialization.o \
 	tests/test-x86-cpuid.o tests/test-mul64.o tests/test-int128.o \
-	tests/test-opts-visitor.o tests/test-qmp-event.o
+	tests/test-opts-visitor.o tests/test-qmp-event.o \
+	tests/rcutorture.o
 
 test-qapi-obj-y = tests/test-qapi-visit.o tests/test-qapi-types.o \
 		  tests/test-qapi-event.o
@@ -252,6 +257,8 @@ tests/test-x86-cpuid$(EXESUF): tests/test-x86-cpuid.o
 tests/test-xbzrle$(EXESUF): tests/test-xbzrle.o migration/xbzrle.o page_cache.o libqemuutil.a
 tests/test-cutils$(EXESUF): tests/test-cutils.o util/cutils.o
 tests/test-int128$(EXESUF): tests/test-int128.o
+tests/rcutorture$(EXESUF): tests/rcutorture.o libqemuutil.a
+
 tests/test-qdev-global-props$(EXESUF): tests/test-qdev-global-props.o \
 	hw/core/qdev.o hw/core/qdev-properties.o hw/core/hotplug.o\
 	hw/core/irq.o \
@@ -261,7 +268,8 @@ tests/test-qdev-global-props$(EXESUF): tests/test-qdev-global-props.o \
 	libqemuutil.a libqemustub.a
 tests/test-vmstate$(EXESUF): tests/test-vmstate.o \
 	migration/vmstate.o migration/qemu-file.o migration/qemu-file-buf.o \
-        migration/qemu-file-unix.o \
+        migration/qemu-file-unix.o qjson.o \
+	$(qom-core-obj) \
 	libqemuutil.a libqemustub.a
 
 tests/test-qapi-types.c tests/test-qapi-types.h :\
@@ -354,6 +362,7 @@ tests/usb-hcd-xhci-test$(EXESUF): tests/usb-hcd-xhci-test.o $(libqos-usb-obj-y)
 tests/vhost-user-test$(EXESUF): tests/vhost-user-test.o qemu-char.o qemu-timer.o $(qtest-obj-y)
 tests/qemu-iotests/socket_scm_helper$(EXESUF): tests/qemu-iotests/socket_scm_helper.o
 tests/test-qemu-opts$(EXESUF): tests/test-qemu-opts.o libqemuutil.a libqemustub.a
+tests/test-write-threshold$(EXESUF): tests/test-write-threshold.o $(block-obj-y) libqemuutil.a libqemustub.a
 
 ifeq ($(CONFIG_POSIX),y)
 LIBS += -lutil

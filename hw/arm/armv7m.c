@@ -163,29 +163,22 @@ static void armv7m_reset(void *opaque)
 }
 
 /* Init CPU and memory for a v7-M based board.
-   flash_size and sram_size are in kb.
+   mem_size is in bytes.
    Returns the NVIC array.  */
 
-qemu_irq *armv7m_init(MemoryRegion *system_memory,
-                      int flash_size, int sram_size,
+qemu_irq *armv7m_init(MemoryRegion *system_memory, int mem_size, int num_irq,
                       const char *kernel_filename, const char *cpu_model)
 {
     ARMCPU *cpu;
     CPUARMState *env;
     DeviceState *nvic;
-    /* FIXME: make this local state.  */
-    static qemu_irq pic[64];
+    qemu_irq *pic = g_new(qemu_irq, num_irq);
     int image_size;
     uint64_t entry;
     uint64_t lowaddr;
     int i;
     int big_endian;
-    MemoryRegion *sram = g_new(MemoryRegion, 1);
-    MemoryRegion *flash = g_new(MemoryRegion, 1);
     MemoryRegion *hack = g_new(MemoryRegion, 1);
-
-    flash_size *= 1024;
-    sram_size *= 1024;
 
     if (cpu_model == NULL) {
 	cpu_model = "cortex-m3";
@@ -197,35 +190,15 @@ qemu_irq *armv7m_init(MemoryRegion *system_memory,
     }
     env = &cpu->env;
 
-#if 0
-    /* > 32Mb SRAM gets complicated because it overlaps the bitband area.
-       We don't have proper commandline options, so allocate half of memory
-       as SRAM, up to a maximum of 32Mb, and the rest as code.  */
-    if (ram_size > (512 + 32) * 1024 * 1024)
-        ram_size = (512 + 32) * 1024 * 1024;
-    sram_size = (ram_size / 2) & TARGET_PAGE_MASK;
-    if (sram_size > 32 * 1024 * 1024)
-        sram_size = 32 * 1024 * 1024;
-    code_size = ram_size - sram_size;
-#endif
-
-    /* Flash programming is done via the SCU, so pretend it is ROM.  */
-    memory_region_init_ram(flash, NULL, "armv7m.flash", flash_size,
-                           &error_abort);
-    vmstate_register_ram_global(flash);
-    memory_region_set_readonly(flash, true);
-    memory_region_add_subregion(system_memory, 0, flash);
-    memory_region_init_ram(sram, NULL, "armv7m.sram", sram_size, &error_abort);
-    vmstate_register_ram_global(sram);
-    memory_region_add_subregion(system_memory, 0x20000000, sram);
     armv7m_bitband_init();
 
     nvic = qdev_create(NULL, "armv7m_nvic");
+    qdev_prop_set_uint32(nvic, "num-irq", num_irq);
     env->nvic = nvic;
     qdev_init_nofail(nvic);
     sysbus_connect_irq(SYS_BUS_DEVICE(nvic), 0,
                        qdev_get_gpio_in(DEVICE(cpu), ARM_CPU_IRQ));
-    for (i = 0; i < 64; i++) {
+    for (i = 0; i < num_irq; i++) {
         pic[i] = qdev_get_gpio_in(nvic, i);
     }
 
@@ -244,7 +217,7 @@ qemu_irq *armv7m_init(MemoryRegion *system_memory,
         image_size = load_elf(kernel_filename, NULL, NULL, &entry, &lowaddr,
                               NULL, big_endian, ELF_MACHINE, 1);
         if (image_size < 0) {
-            image_size = load_image_targphys(kernel_filename, 0, flash_size);
+            image_size = load_image_targphys(kernel_filename, 0, mem_size);
             lowaddr = 0;
         }
         if (image_size < 0) {

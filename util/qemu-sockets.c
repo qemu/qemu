@@ -512,7 +512,7 @@ InetSocketAddress *inet_parse(const char *str, Error **errp)
 {
     InetSocketAddress *addr;
     const char *optstr, *h;
-    char host[64];
+    char host[65];
     char port[33];
     int to;
     int pos;
@@ -694,7 +694,7 @@ int unix_listen_opts(QemuOpts *opts, Error **errp)
 
     sock = qemu_socket(PF_UNIX, SOCK_STREAM, 0);
     if (sock < 0) {
-        error_setg_errno(errp, errno, "Failed to create socket");
+        error_setg_errno(errp, errno, "Failed to create Unix socket");
         return -1;
     }
 
@@ -703,9 +703,15 @@ int unix_listen_opts(QemuOpts *opts, Error **errp)
     if (path && strlen(path)) {
         snprintf(un.sun_path, sizeof(un.sun_path), "%s", path);
     } else {
-        char *tmpdir = getenv("TMPDIR");
-        snprintf(un.sun_path, sizeof(un.sun_path), "%s/qemu-socket-XXXXXX",
-                 tmpdir ? tmpdir : "/tmp");
+        const char *tmpdir = getenv("TMPDIR");
+        tmpdir = tmpdir ? tmpdir : "/tmp";
+        if (snprintf(un.sun_path, sizeof(un.sun_path), "%s/qemu-socket-XXXXXX",
+                     tmpdir) >= sizeof(un.sun_path)) {
+            error_setg_errno(errp, errno,
+                             "TMPDIR environment variable (%s) too large", tmpdir);
+            goto err;
+        }
+
         /*
          * This dummy fd usage silences the mktemp() unsecure warning.
          * Using mkstemp() doesn't make things more secure here
@@ -713,13 +719,19 @@ int unix_listen_opts(QemuOpts *opts, Error **errp)
          * to unlink first and thus re-open the race window.  The
          * worst case possible is bind() failing, i.e. a DoS attack.
          */
-        fd = mkstemp(un.sun_path); close(fd);
+        fd = mkstemp(un.sun_path);
+        if (fd < 0) {
+            error_setg_errno(errp, errno,
+                             "Failed to make a temporary socket name in %s", tmpdir);
+            goto err;
+        }
+        close(fd);
         qemu_opt_set(opts, "path", un.sun_path);
     }
 
     unlink(un.sun_path);
     if (bind(sock, (struct sockaddr*) &un, sizeof(un)) < 0) {
-        error_setg_errno(errp, errno, "Failed to bind socket");
+        error_setg_errno(errp, errno, "Failed to bind socket to %s", un.sun_path);
         goto err;
     }
     if (listen(sock, 1) < 0) {

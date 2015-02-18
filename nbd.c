@@ -494,7 +494,7 @@ fail:
 }
 
 int nbd_receive_negotiate(int csock, const char *name, uint32_t *flags,
-                          off_t *size, size_t *blocksize)
+                          off_t *size, size_t *blocksize, Error **errp)
 {
     char buf[256];
     uint64_t magic, s;
@@ -506,13 +506,13 @@ int nbd_receive_negotiate(int csock, const char *name, uint32_t *flags,
     rc = -EINVAL;
 
     if (read_sync(csock, buf, 8) != 8) {
-        LOG("read failed");
+        error_setg(errp, "Failed to read data");
         goto fail;
     }
 
     buf[8] = '\0';
     if (strlen(buf) == 0) {
-        LOG("server connection closed");
+        error_setg(errp, "Server connection closed unexpectedly");
         goto fail;
     }
 
@@ -527,12 +527,12 @@ int nbd_receive_negotiate(int csock, const char *name, uint32_t *flags,
           qemu_isprint(buf[7]) ? buf[7] : '.');
 
     if (memcmp(buf, "NBDMAGIC", 8) != 0) {
-        LOG("Invalid magic received");
+        error_setg(errp, "Invalid magic received");
         goto fail;
     }
 
     if (read_sync(csock, &magic, sizeof(magic)) != sizeof(magic)) {
-        LOG("read failed");
+        error_setg(errp, "Failed to read magic");
         goto fail;
     }
     magic = be64_to_cpu(magic);
@@ -545,52 +545,60 @@ int nbd_receive_negotiate(int csock, const char *name, uint32_t *flags,
 
         TRACE("Checking magic (opts_magic)");
         if (magic != NBD_OPTS_MAGIC) {
-            LOG("Bad magic received");
+            if (magic == NBD_CLIENT_MAGIC) {
+                error_setg(errp, "Server does not support export names");
+            } else {
+                error_setg(errp, "Bad magic received");
+            }
             goto fail;
         }
         if (read_sync(csock, &tmp, sizeof(tmp)) != sizeof(tmp)) {
-            LOG("flags read failed");
+            error_setg(errp, "Failed to read server flags");
             goto fail;
         }
         *flags = be16_to_cpu(tmp) << 16;
         /* reserved for future use */
         if (write_sync(csock, &reserved, sizeof(reserved)) !=
             sizeof(reserved)) {
-            LOG("write failed (reserved)");
+            error_setg(errp, "Failed to read reserved field");
             goto fail;
         }
         /* write the export name */
         magic = cpu_to_be64(magic);
         if (write_sync(csock, &magic, sizeof(magic)) != sizeof(magic)) {
-            LOG("write failed (magic)");
+            error_setg(errp, "Failed to send export name magic");
             goto fail;
         }
         opt = cpu_to_be32(NBD_OPT_EXPORT_NAME);
         if (write_sync(csock, &opt, sizeof(opt)) != sizeof(opt)) {
-            LOG("write failed (opt)");
+            error_setg(errp, "Failed to send export name option number");
             goto fail;
         }
         namesize = cpu_to_be32(strlen(name));
         if (write_sync(csock, &namesize, sizeof(namesize)) !=
             sizeof(namesize)) {
-            LOG("write failed (namesize)");
+            error_setg(errp, "Failed to send export name length");
             goto fail;
         }
         if (write_sync(csock, (char*)name, strlen(name)) != strlen(name)) {
-            LOG("write failed (name)");
+            error_setg(errp, "Failed to send export name");
             goto fail;
         }
     } else {
         TRACE("Checking magic (cli_magic)");
 
         if (magic != NBD_CLIENT_MAGIC) {
-            LOG("Bad magic received");
+            if (magic == NBD_OPTS_MAGIC) {
+                error_setg(errp, "Server requires an export name");
+            } else {
+                error_setg(errp, "Bad magic received");
+            }
             goto fail;
         }
     }
 
     if (read_sync(csock, &s, sizeof(s)) != sizeof(s)) {
-        LOG("read failed");
+        error_setg(errp, "Failed to read export length");
         goto fail;
     }
     *size = be64_to_cpu(s);
@@ -599,19 +607,19 @@ int nbd_receive_negotiate(int csock, const char *name, uint32_t *flags,
 
     if (!name) {
         if (read_sync(csock, flags, sizeof(*flags)) != sizeof(*flags)) {
-            LOG("read failed (flags)");
+            error_setg(errp, "Failed to read export flags");
             goto fail;
         }
         *flags = be32_to_cpup(flags);
     } else {
         if (read_sync(csock, &tmp, sizeof(tmp)) != sizeof(tmp)) {
-            LOG("read failed (tmp)");
+            error_setg(errp, "Failed to read export flags");
             goto fail;
         }
         *flags |= be32_to_cpu(tmp);
     }
     if (read_sync(csock, &buf, 124) != 124) {
-        LOG("read failed (buf)");
+        error_setg(errp, "Failed to read reserved block");
         goto fail;
     }
     rc = 0;

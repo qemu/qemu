@@ -235,6 +235,17 @@ static void bmdma_restart_bh(void *opaque)
         }
     } else if (error_status & IDE_RETRY_FLUSH) {
         ide_flush_cache(bmdma_active_if(bm));
+    } else {
+        IDEState *s = bmdma_active_if(bm);
+
+        /*
+         * We've not got any bits to tell us about ATAPI - but
+         * we do have the end_transfer_func that tells us what
+         * we're trying to do.
+         */
+        if (s->end_transfer_func == ide_atapi_cmd) {
+            ide_atapi_dma_restart(s);
+        }
     }
 }
 

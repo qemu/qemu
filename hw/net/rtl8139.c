@@ -508,7 +508,6 @@ typedef struct RTL8139State {
 
     /* PCI interrupt timer */
     QEMUTimer *timer;
-    int64_t TimerExpire;
 
     MemoryRegion bar_io;
     MemoryRegion bar_mem;
@@ -520,7 +519,7 @@ typedef struct RTL8139State {
 /* Writes tally counters to memory via DMA */
 static void RTL8139TallyCounters_dma_write(RTL8139State *s, dma_addr_t tc_addr);
 
-static void rtl8139_set_next_tctr_time(RTL8139State *s, int64_t current_time);
+static void rtl8139_set_next_tctr_time(RTL8139State *s);
 
 static void prom9346_decode_command(EEprom9346 *eeprom, uint8_t command)
 {
@@ -1282,6 +1281,7 @@ static void rtl8139_reset(DeviceState *d)
     s->TCTR = 0;
     s->TimerInt = 0;
     s->TCTR_base = 0;
+    rtl8139_set_next_tctr_time(s);
 
     /* reset tally counters */
     RTL8139TallyCounters_clear(&s->tally_counters);
@@ -2075,20 +2075,6 @@ static int rtl8139_cplus_transmit_one(RTL8139State *s)
                 "length to %d\n", txsize);
     }
 
-    if (!s->cplus_txbuffer)
-    {
-        /* out of memory */
-
-        DPRINTF("+++ C+ mode transmiter failed to reallocate %d bytes\n",
-            s->cplus_txbuffer_len);
-
-        /* update tally counter */
-        ++s->tally_counters.TxERR;
-        ++s->tally_counters.TxAbt;
-
-        return 0;
-    }
-
     /* append more data to the packet */
 
     DPRINTF("+++ C+ mode transmit reading %d bytes from host memory at "
@@ -2652,7 +2638,6 @@ static void rtl8139_IntrMask_write(RTL8139State *s, uint32_t val)
 
     s->IntrMask = val;
 
-    rtl8139_set_next_tctr_time(s, qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL));
     rtl8139_update_irq(s);
 
 }
@@ -2687,13 +2672,7 @@ static void rtl8139_IntrStatus_write(RTL8139State *s, uint32_t val)
     rtl8139_update_irq(s);
 
     s->IntrStatus = newStatus;
-    /*
-     * Computing if we miss an interrupt here is not that correct but
-     * considered that we should have had already an interrupt
-     * and probably emulated is slower is better to assume this resetting was
-     * done before testing on previous rtl8139_update_irq lead to IRQ losing
-     */
-    rtl8139_set_next_tctr_time(s, qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL));
+    rtl8139_set_next_tctr_time(s);
     rtl8139_update_irq(s);
 
 #endif
@@ -2701,8 +2680,6 @@ static void rtl8139_IntrStatus_write(RTL8139State *s, uint32_t val)
 
 static uint32_t rtl8139_IntrStatus_read(RTL8139State *s)
 {
-    rtl8139_set_next_tctr_time(s, qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL));
-
     uint32_t ret = s->IntrStatus;
 
     DPRINTF("IntrStatus read(w) val=0x%04x\n", ret);
@@ -2885,43 +2862,32 @@ static void rtl8139_io_writew(void *opaque, uint8_t addr, uint32_t val)
     }
 }
 
-static void rtl8139_set_next_tctr_time(RTL8139State *s, int64_t current_time)
+static void rtl8139_set_next_tctr_time(RTL8139State *s)
 {
-    int64_t pci_time, next_time;
-    uint32_t low_pci;
+    const uint64_t ns_per_period =
+        muldiv64(0x100000000LL, get_ticks_per_sec(), PCI_FREQUENCY);
 
     DPRINTF("entered rtl8139_set_next_tctr_time\n");
 
-    if (s->TimerExpire && current_time >= s->TimerExpire) {
-        s->IntrStatus |= PCSTimeout;
-        rtl8139_update_irq(s);
-    }
-
-    /* Set QEMU timer only if needed that is
-     * - TimerInt <> 0 (we have a timer)
-     * - mask = 1 (we want an interrupt timer)
-     * - irq = 0  (irq is not already active)
-     * If any of above change we need to compute timer again
-     * Also we must check if timer is passed without QEMU timer
+    /* This function is called at least once per period, so it is a good
+     * place to update the timer base.
+     *
+     * After one iteration of this loop the value in the Timer register does
+     * not change, but the device model is counting up by 2^32 ticks (approx.
+     * 130 seconds).
      */
-    s->TimerExpire = 0;
+    while (s->TCTR_base + ns_per_period <= qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL)) {
+        s->TCTR_base += ns_per_period;
+    }
+
     if (!s->TimerInt) {
-        return;
-    }
-
-    pci_time = muldiv64(current_time - s->TCTR_base, PCI_FREQUENCY,
-                                get_ticks_per_sec());
-    low_pci = pci_time & 0xffffffff;
-    pci_time = pci_time - low_pci + s->TimerInt;
-    if (low_pci >= s->TimerInt) {
-        pci_time += 0x100000000LL;
-    }
-    next_time = s->TCTR_base + muldiv64(pci_time, get_ticks_per_sec(),
-                                                PCI_FREQUENCY);
-    s->TimerExpire = next_time;
-
-    if ((s->IntrMask & PCSTimeout) != 0 && (s->IntrStatus & PCSTimeout) == 0) {
-        timer_mod(s->timer, next_time);
+        timer_del(s->timer);
+    } else {
+        uint64_t delta = muldiv64(s->TimerInt, get_ticks_per_sec(), PCI_FREQUENCY);
+        if (s->TCTR_base + delta <= qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL)) {
+            delta += ns_per_period;
+        }
+        timer_mod(s->timer, s->TCTR_base + delta);
     }
 }
 
@@ -2969,14 +2935,14 @@ static void rtl8139_io_writel(void *opaque, uint8_t addr, uint32_t val)
         case Timer:
             DPRINTF("TCTR Timer reset on write\n");
             s->TCTR_base = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
-            rtl8139_set_next_tctr_time(s, s->TCTR_base);
+            rtl8139_set_next_tctr_time(s);
             break;
 
         case FlashReg:
             DPRINTF("FlashReg TimerInt write val=0x%08x\n", val);
             if (s->TimerInt != val) {
                 s->TimerInt = val;
-                rtl8139_set_next_tctr_time(s, qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL));
+                rtl8139_set_next_tctr_time(s);
             }
             break;
 
@@ -3253,7 +3219,7 @@ static uint32_t rtl8139_mmio_readl(void *opaque, hwaddr addr)
 static int rtl8139_post_load(void *opaque, int version_id)
 {
     RTL8139State* s = opaque;
-    rtl8139_set_next_tctr_time(s, qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL));
+    rtl8139_set_next_tctr_time(s);
     if (version_id < 4) {
         s->cplus_enabled = s->CpCmd != 0;
     }
@@ -3284,8 +3250,7 @@ static void rtl8139_pre_save(void *opaque)
     RTL8139State* s = opaque;
     int64_t current_time = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
 
-    /* set IntrStatus correctly */
-    rtl8139_set_next_tctr_time(s, current_time);
+    /* for migration to older versions */
     s->TCTR = muldiv64(current_time - s->TCTR_base, PCI_FREQUENCY,
                        get_ticks_per_sec());
     s->rtl8139_mmio_io_addr_dummy = 0;
@@ -3452,7 +3417,7 @@ static void rtl8139_timer(void *opaque)
 
     s->IntrStatus |= PCSTimeout;
     rtl8139_update_irq(s);
-    rtl8139_set_next_tctr_time(s, qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL));
+    rtl8139_set_next_tctr_time(s);
 }
 
 static void pci_rtl8139_uninit(PCIDevice *dev)
@@ -3530,9 +3495,7 @@ static int pci_rtl8139_init(PCIDevice *dev)
     s->cplus_txbuffer_len = 0;
     s->cplus_txbuffer_offset = 0;
 
-    s->TimerExpire = 0;
     s->timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, rtl8139_timer, s);
-    rtl8139_set_next_tctr_time(s, qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL));
 
     return 0;
 }

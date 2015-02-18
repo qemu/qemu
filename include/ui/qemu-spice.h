@@ -88,4 +88,14 @@ static inline int qemu_spice_display_add_client(int csock, int skipauth,
 
 #endif /* CONFIG_SPICE */
 
+static inline bool qemu_using_spice(Error **errp)
+{
+    if (!using_spice) {
+        error_set(errp, ERROR_CLASS_DEVICE_NOT_ACTIVE,
+                  "SPICE is not in use");
+        return false;
+    }
+    return true;
+}
+
 #endif /* QEMU_SPICE_H */

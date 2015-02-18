@@ -1161,7 +1161,7 @@ int AES_set_encrypt_key(const unsigned char *userKey, const int bits,
 			rk += 8;
         	}
 	}
-	return 0;
+        abort();
 }
 
 /**

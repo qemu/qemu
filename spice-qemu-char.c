@@ -158,7 +158,7 @@ static gboolean spice_char_source_dispatch(GSource *source,
     return func(NULL, G_IO_OUT, user_data);
 }
 
-GSourceFuncs SpiceCharSourceFuncs = {
+static GSourceFuncs SpiceCharSourceFuncs = {
     .prepare  = spice_char_source_prepare,
     .check    = spice_char_source_check,
     .dispatch = spice_char_source_dispatch,

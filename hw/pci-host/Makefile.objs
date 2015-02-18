@@ -15,3 +15,4 @@ common-obj-$(CONFIG_PCI_APB) += apb.o
 common-obj-$(CONFIG_FULONG) += bonito.o
 common-obj-$(CONFIG_PCI_PIIX) += piix.o
 common-obj-$(CONFIG_PCI_Q35) += q35.o
+common-obj-$(CONFIG_PCI_GENERIC) += gpex.o

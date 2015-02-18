@@ -61,8 +61,7 @@ static void align_clocks(SyncClocks *sc, const CPUState *cpu)
         sleep_delay.tv_sec = sc->diff_clk / 1000000000LL;
         sleep_delay.tv_nsec = sc->diff_clk % 1000000000LL;
         if (nanosleep(&sleep_delay, &rem_delay) < 0) {
-            sc->diff_clk -= (sleep_delay.tv_sec - rem_delay.tv_sec) * 1000000000LL;
-            sc->diff_clk -= sleep_delay.tv_nsec - rem_delay.tv_nsec;
+            sc->diff_clk = rem_delay.tv_sec * 1000000000LL + rem_delay.tv_nsec;
         } else {
             sc->diff_clk = 0;
         }
@@ -101,10 +100,8 @@ static void init_delay_params(SyncClocks *sc,
     if (!icount_align_option) {
         return;
     }
-    sc->realtime_clock = qemu_clock_get_ns(QEMU_CLOCK_REALTIME);
-    sc->diff_clk = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) -
-                   sc->realtime_clock +
-                   cpu_get_clock_offset();
+    sc->realtime_clock = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL_RT);
+    sc->diff_clk = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) - sc->realtime_clock;
     sc->last_cpu_icount = cpu->icount_extra + cpu->icount_decr.u16.low;
     if (sc->diff_clk < max_delay) {
         max_delay = sc->diff_clk;
@@ -497,28 +494,22 @@ int cpu_exec(CPUArchState *env)
                          * interrupt_request) which we will handle
                          * next time around the loop.
                          */
-                        tb = (TranslationBlock *)(next_tb & ~TB_EXIT_MASK);
                         next_tb = 0;
                         break;
                     case TB_EXIT_ICOUNT_EXPIRED:
                     {
                         /* Instruction counter expired.  */
-                        int insns_left;
-                        tb = (TranslationBlock *)(next_tb & ~TB_EXIT_MASK);
-                        insns_left = cpu->icount_decr.u32;
+                        int insns_left = cpu->icount_decr.u32;
                         if (cpu->icount_extra && insns_left >= 0) {
                             /* Refill decrementer and continue execution.  */
                             cpu->icount_extra += insns_left;
-                            if (cpu->icount_extra > 0xffff) {
-                                insns_left = 0xffff;
-                            } else {
-                                insns_left = cpu->icount_extra;
-                            }
+                            insns_left = MIN(0xffff, cpu->icount_extra);
                             cpu->icount_extra -= insns_left;
                             cpu->icount_decr.u16.low = insns_left;
                         } else {
                             if (insns_left > 0) {
                                 /* Execute remaining instructions.  */
+                                tb = (TranslationBlock *)(next_tb & ~TB_EXIT_MASK);
                                 cpu_exec_nocache(env, insns_left, tb);
                                 align_clocks(&sc, cpu);
                             }

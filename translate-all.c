@@ -631,7 +631,7 @@ static inline void *alloc_code_gen_buffer(void)
 #else
 static inline void *alloc_code_gen_buffer(void)
 {
-    void *buf = g_malloc(tcg_ctx.code_gen_buffer_size);
+    void *buf = g_try_malloc(tcg_ctx.code_gen_buffer_size);
 
     if (buf == NULL) {
         return NULL;

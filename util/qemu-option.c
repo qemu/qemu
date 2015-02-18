@@ -213,7 +213,7 @@ void parse_option_size(const char *name, const char *value,
 bool has_help_option(const char *param)
 {
     size_t buflen = strlen(param) + 1;
-    char *buf = g_malloc0(buflen);
+    char *buf = g_malloc(buflen);
     const char *p = param;
     bool result = false;
 
@@ -230,14 +230,14 @@ bool has_help_option(const char *param)
     }
 
 out:
-    free(buf);
+    g_free(buf);
     return result;
 }
 
 bool is_valid_option_list(const char *param)
 {
     size_t buflen = strlen(param) + 1;
-    char *buf = g_malloc0(buflen);
+    char *buf = g_malloc(buflen);
     const char *p = param;
     bool result = true;
 
@@ -255,7 +255,7 @@ bool is_valid_option_list(const char *param)
     }
 
 out:
-    free(buf);
+    g_free(buf);
     return result;
 }
 

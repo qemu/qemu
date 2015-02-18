@@ -32,7 +32,7 @@
 #include "trace.h"
 
 struct vfio_group_head vfio_group_list =
-    QLIST_HEAD_INITIALIZER(vfio_address_spaces);
+    QLIST_HEAD_INITIALIZER(vfio_group_list);
 struct vfio_as_head vfio_address_spaces =
     QLIST_HEAD_INITIALIZER(vfio_address_spaces);
 
@@ -662,7 +662,10 @@ static int vfio_connect_container(VFIOGroup *group, AddressSpace *as)
     container = g_malloc0(sizeof(*container));
     container->space = space;
     container->fd = fd;
-    if (ioctl(fd, VFIO_CHECK_EXTENSION, VFIO_TYPE1_IOMMU)) {
+    if (ioctl(fd, VFIO_CHECK_EXTENSION, VFIO_TYPE1_IOMMU) ||
+        ioctl(fd, VFIO_CHECK_EXTENSION, VFIO_TYPE1v2_IOMMU)) {
+        bool v2 = !!ioctl(fd, VFIO_CHECK_EXTENSION, VFIO_TYPE1v2_IOMMU);
+
         ret = ioctl(group->fd, VFIO_GROUP_SET_CONTAINER, &fd);
         if (ret) {
             error_report("vfio: failed to set group container: %m");
@@ -670,7 +673,8 @@ static int vfio_connect_container(VFIOGroup *group, AddressSpace *as)
             goto free_container_exit;
         }
 
-        ret = ioctl(fd, VFIO_SET_IOMMU, VFIO_TYPE1_IOMMU);
+        ret = ioctl(fd, VFIO_SET_IOMMU,
+                    v2 ? VFIO_TYPE1v2_IOMMU : VFIO_TYPE1_IOMMU);
         if (ret) {
             error_report("vfio: failed to set iommu for container: %m");
             ret = -errno;
@@ -847,7 +851,7 @@ free_group_exit:
 
 void vfio_put_group(VFIOGroup *group)
 {
-    if (!QLIST_EMPTY(&group->device_list)) {
+    if (!group || !QLIST_EMPTY(&group->device_list)) {
         return;
     }
 
@@ -867,26 +871,27 @@ int vfio_get_device(VFIOGroup *group, const char *name,
                        VFIODevice *vbasedev)
 {
     struct vfio_device_info dev_info = { .argsz = sizeof(dev_info) };
-    int ret;
+    int ret, fd;
 
-    ret = ioctl(group->fd, VFIO_GROUP_GET_DEVICE_FD, name);
-    if (ret < 0) {
+    fd = ioctl(group->fd, VFIO_GROUP_GET_DEVICE_FD, name);
+    if (fd < 0) {
         error_report("vfio: error getting device %s from group %d: %m",
                      name, group->groupid);
         error_printf("Verify all devices in group %d are bound to vfio-<bus> "
                      "or pci-stub and not already in use\n", group->groupid);
+        return fd;
+    }
+
+    ret = ioctl(fd, VFIO_DEVICE_GET_INFO, &dev_info);
+    if (ret) {
+        error_report("vfio: error getting device info: %m");
+        close(fd);
         return ret;
     }
 
-    vbasedev->fd = ret;
+    vbasedev->fd = fd;
     vbasedev->group = group;
     QLIST_INSERT_HEAD(&group->device_list, vbasedev, next);
-
-    ret = ioctl(vbasedev->fd, VFIO_DEVICE_GET_INFO, &dev_info);
-    if (ret) {
-        error_report("vfio: error getting device info: %m");
-        goto error;
-    }
 
     vbasedev->num_irqs = dev_info.num_irqs;
     vbasedev->num_regions = dev_info.num_regions;
@@ -896,18 +901,14 @@ int vfio_get_device(VFIOGroup *group, const char *name,
                           dev_info.num_irqs);
 
     vbasedev->reset_works = !!(dev_info.flags & VFIO_DEVICE_FLAGS_RESET);
-
-    ret = vbasedev->ops->vfio_populate_device(vbasedev);
-
-error:
-    if (ret) {
-        vfio_put_base_device(vbasedev);
-    }
-    return ret;
+    return 0;
 }
 
 void vfio_put_base_device(VFIODevice *vbasedev)
 {
+    if (!vbasedev->group) {
+        return;
+    }
     QLIST_REMOVE(vbasedev, next);
     vbasedev->group = NULL;
     trace_vfio_put_base_device(vbasedev->fd);

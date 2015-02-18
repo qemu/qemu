@@ -4,8 +4,6 @@ include pci.mak
 include sound.mak
 include usb.mak
 CONFIG_M48T59=y
-CONFIG_VGA=y
-CONFIG_VGA_PCI=y
 CONFIG_SERIAL=y
 CONFIG_I8257=y
 CONFIG_OPENPIC=y

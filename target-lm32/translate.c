@@ -1062,7 +1062,6 @@ void gen_intermediate_code_internal(LM32CPU *cpu,
     CPUState *cs = CPU(cpu);
     CPULM32State *env = &cpu->env;
     struct DisasContext ctx, *dc = &ctx;
-    uint16_t *gen_opc_end;
     uint32_t pc_start;
     int j, lj;
     uint32_t next_page_start;
@@ -1074,8 +1073,6 @@ void gen_intermediate_code_internal(LM32CPU *cpu,
     dc->num_breakpoints = cpu->num_breakpoints;
     dc->num_watchpoints = cpu->num_watchpoints;
     dc->tb = tb;
-
-    gen_opc_end = tcg_ctx.gen_opc_buf + OPC_MAX_SIZE;
 
     dc->is_jmp = DISAS_NEXT;
     dc->pc = pc_start;
@@ -1100,7 +1097,7 @@ void gen_intermediate_code_internal(LM32CPU *cpu,
         check_breakpoint(env, dc);
 
         if (search_pc) {
-            j = tcg_ctx.gen_opc_ptr - tcg_ctx.gen_opc_buf;
+            j = tcg_op_buf_count();
             if (lj < j) {
                 lj++;
                 while (lj < j) {
@@ -1124,7 +1121,7 @@ void gen_intermediate_code_internal(LM32CPU *cpu,
         num_insns++;
 
     } while (!dc->is_jmp
-         && tcg_ctx.gen_opc_ptr < gen_opc_end
+         && !tcg_op_buf_full()
          && !cs->singlestep_enabled
          && !singlestep
          && (dc->pc < next_page_start)
@@ -1158,9 +1155,9 @@ void gen_intermediate_code_internal(LM32CPU *cpu,
     }
 
     gen_tb_end(tb, num_insns);
-    *tcg_ctx.gen_opc_ptr = INDEX_op_end;
+
     if (search_pc) {
-        j = tcg_ctx.gen_opc_ptr - tcg_ctx.gen_opc_buf;
+        j = tcg_op_buf_count();
         lj++;
         while (lj <= j) {
             tcg_ctx.gen_opc_instr_start[lj++] = 0;
@@ -1174,9 +1171,8 @@ void gen_intermediate_code_internal(LM32CPU *cpu,
     if (qemu_loglevel_mask(CPU_LOG_TB_IN_ASM)) {
         qemu_log("\n");
         log_target_disas(env, pc_start, dc->pc - pc_start, 0);
-        qemu_log("\nisize=%d osize=%td\n",
-            dc->pc - pc_start, tcg_ctx.gen_opc_ptr -
-            tcg_ctx.gen_opc_buf);
+        qemu_log("\nisize=%d osize=%d\n",
+                 dc->pc - pc_start, tcg_op_buf_count());
     }
 #endif
 }

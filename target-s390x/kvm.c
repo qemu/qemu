@@ -1046,7 +1046,7 @@ static void kvm_handle_diag_308(S390CPU *cpu, struct kvm_run *run)
     uint64_t r1, r3;
 
     cpu_synchronize_state(CPU(cpu));
-    r1 = (run->s390_sieic.ipa & 0x00f0) >> 8;
+    r1 = (run->s390_sieic.ipa & 0x00f0) >> 4;
     r3 = run->s390_sieic.ipa & 0x000f;
     handle_diag_308(&cpu->env, r1, r3);
 }
@@ -1091,7 +1091,7 @@ static int handle_diag(S390CPU *cpu, struct kvm_run *run, uint32_t ipb)
         break;
     default:
         DPRINTF("KVM: unknown DIAG: 0x%x\n", func_code);
-        r = -1;
+        enter_pgmcheck(cpu, PGM_SPECIFICATION);
         break;
     }
 

@@ -1095,11 +1095,12 @@ static int client_migrate_info(Monitor *mon, const QDict *qdict,
     const char *subject  = qdict_get_try_str(qdict, "cert-subject");
     int port             = qdict_get_try_int(qdict, "port", -1);
     int tls_port         = qdict_get_try_int(qdict, "tls-port", -1);
+    Error *err;
     int ret;
 
     if (strcmp(protocol, "spice") == 0) {
-        if (!using_spice) {
-            qerror_report(QERR_DEVICE_NOT_ACTIVE, "spice");
+        if (!qemu_using_spice(&err)) {
+            qerror_report_err(err);
             return -1;
         }
 
@@ -4597,8 +4598,13 @@ void host_net_remove_completion(ReadLineState *rs, int nb_args, const char *str)
         count = qemu_find_net_clients_except(NULL, ncs,
                                              NET_CLIENT_OPTIONS_KIND_NIC, 255);
         for (i = 0; i < count; i++) {
+            int id;
             const char *name;
 
+            if (ncs[i]->info->type == NET_CLIENT_OPTIONS_KIND_HUBPORT ||
+                net_hub_id_for_client(ncs[i], &id)) {
+                continue;
+            }
             name = ncs[i]->name;
             if (!strncmp(str, name, len)) {
                 readline_add_completion(rs, name);
@@ -4782,9 +4788,9 @@ static int monitor_can_read(void *opaque)
     return (mon->suspend_cnt == 0) ? 1 : 0;
 }
 
-static int invalid_qmp_mode(const Monitor *mon, const char *cmd_name)
+static int invalid_qmp_mode(const Monitor *mon, const mon_cmd_t *cmd)
 {
-    int is_cap = compare_cmd(cmd_name, "qmp_capabilities");
+    int is_cap = cmd->mhandler.cmd_new == do_qmp_capabilities;
     return (qmp_cmd_mode(mon) ? is_cap : !is_cap);
 }
 
@@ -5078,14 +5084,10 @@ static void handle_qmp_command(JSONMessageParser *parser, QList *tokens)
 
     cmd_name = qdict_get_str(input, "execute");
     trace_handle_qmp_command(mon, cmd_name);
-    if (invalid_qmp_mode(mon, cmd_name)) {
-        qerror_report(QERR_COMMAND_NOT_FOUND, cmd_name);
-        goto err_out;
-    }
-
     cmd = qmp_find_cmd(cmd_name);
-    if (!cmd) {
-        qerror_report(QERR_COMMAND_NOT_FOUND, cmd_name);
+    if (!cmd || invalid_qmp_mode(mon, cmd)) {
+        qerror_report(ERROR_CLASS_COMMAND_NOT_FOUND,
+                      "The command %s has not been found", cmd_name);
         goto err_out;
     }
 
@@ -5366,9 +5368,12 @@ static void bdrv_password_cb(void *opaque, const char *password,
     Monitor *mon = opaque;
     BlockDriverState *bs = readline_opaque;
     int ret = 0;
+    Error *local_err = NULL;
 
-    if (bdrv_set_key(bs, password) != 0) {
-        monitor_printf(mon, "invalid password\n");
+    bdrv_add_key(bs, password, &local_err);
+    if (local_err) {
+        monitor_printf(mon, "%s\n", error_get_pretty(local_err));
+        error_free(local_err);
         ret = -EPERM;
     }
     if (mon->password_completion_cb)
@@ -5386,17 +5391,20 @@ int monitor_read_bdrv_key_start(Monitor *mon, BlockDriverState *bs,
                                 BlockCompletionFunc *completion_cb,
                                 void *opaque)
 {
+    Error *local_err = NULL;
     int err;
 
-    if (!bdrv_key_required(bs)) {
+    bdrv_add_key(bs, NULL, &local_err);
+    if (!local_err) {
         if (completion_cb)
             completion_cb(opaque, 0);
         return 0;
     }
 
+    /* Need a key for @bs */
+
     if (monitor_ctrl_mode(mon)) {
-        qerror_report(QERR_DEVICE_ENCRYPTED, bdrv_get_device_name(bs),
-                      bdrv_get_encrypted_filename(bs));
+        qerror_report_err(local_err);
         return -1;
     }
 

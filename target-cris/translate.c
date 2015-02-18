@@ -3115,7 +3115,6 @@ gen_intermediate_code_internal(CRISCPU *cpu, TranslationBlock *tb,
 {
     CPUState *cs = CPU(cpu);
     CPUCRISState *env = &cpu->env;
-    uint16_t *gen_opc_end;
     uint32_t pc_start;
     unsigned int insn_len;
     int j, lj;
@@ -3140,8 +3139,6 @@ gen_intermediate_code_internal(CRISCPU *cpu, TranslationBlock *tb,
     pc_start = tb->pc & ~1;
     dc->cpu = cpu;
     dc->tb = tb;
-
-    gen_opc_end = tcg_ctx.gen_opc_buf + OPC_MAX_SIZE;
 
     dc->is_jmp = DISAS_NEXT;
     dc->ppc = pc_start;
@@ -3206,7 +3203,7 @@ gen_intermediate_code_internal(CRISCPU *cpu, TranslationBlock *tb,
         check_breakpoint(env, dc);
 
         if (search_pc) {
-            j = tcg_ctx.gen_opc_ptr - tcg_ctx.gen_opc_buf;
+            j = tcg_op_buf_count();
             if (lj < j) {
                 lj++;
                 while (lj < j) {
@@ -3290,7 +3287,7 @@ gen_intermediate_code_internal(CRISCPU *cpu, TranslationBlock *tb,
             break;
         }
     } while (!dc->is_jmp && !dc->cpustate_changed
-            && tcg_ctx.gen_opc_ptr < gen_opc_end
+            && !tcg_op_buf_full()
             && !singlestep
             && (dc->pc < next_page_start)
             && num_insns < max_insns);
@@ -3343,9 +3340,9 @@ gen_intermediate_code_internal(CRISCPU *cpu, TranslationBlock *tb,
         }
     }
     gen_tb_end(tb, num_insns);
-    *tcg_ctx.gen_opc_ptr = INDEX_op_end;
+
     if (search_pc) {
-        j = tcg_ctx.gen_opc_ptr - tcg_ctx.gen_opc_buf;
+        j = tcg_op_buf_count();
         lj++;
         while (lj <= j) {
             tcg_ctx.gen_opc_instr_start[lj++] = 0;
@@ -3360,8 +3357,8 @@ gen_intermediate_code_internal(CRISCPU *cpu, TranslationBlock *tb,
     if (qemu_loglevel_mask(CPU_LOG_TB_IN_ASM)) {
         log_target_disas(env, pc_start, dc->pc - pc_start,
                          env->pregs[PR_VR]);
-        qemu_log("\nisize=%d osize=%td\n",
-            dc->pc - pc_start, tcg_ctx.gen_opc_ptr - tcg_ctx.gen_opc_buf);
+        qemu_log("\nisize=%d osize=%d\n",
+                 dc->pc - pc_start, tcg_op_buf_count());
     }
 #endif
 #endif

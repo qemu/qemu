@@ -749,24 +749,29 @@ static int proxy_socket(const char *path, uid_t uid, gid_t gid)
     if (bind(sock, (struct sockaddr *)&proxy,
             sizeof(struct sockaddr_un)) < 0) {
         do_perror("bind");
-        return -1;
+        goto error;
     }
     if (chown(proxy.sun_path, uid, gid) < 0) {
         do_perror("chown");
-        return -1;
+        goto error;
     }
     if (listen(sock, 1) < 0) {
         do_perror("listen");
-        return -1;
+        goto error;
     }
 
     size = sizeof(qemu);
     client = accept(sock, (struct sockaddr *)&qemu, &size);
     if (client < 0) {
         do_perror("accept");
-        return -1;
+        goto error;
     }
+    close(sock);
     return client;
+
+error:
+    close(sock);
+    return -1;
 }
 
 static void usage(char *prog)

@@ -1614,69 +1614,71 @@ static inline int get_enabled_exceptions(const CPUMIPSState *env, int c)
     return c & enable;
 }
 
-static inline float16 float16_from_float32(int32 a, flag ieee STATUS_PARAM)
+static inline float16 float16_from_float32(int32 a, flag ieee,
+                                           float_status *status)
 {
       float16 f_val;
 
-      f_val = float32_to_float16((float32)a, ieee  STATUS_VAR);
+      f_val = float32_to_float16((float32)a, ieee, status);
       f_val = float16_maybe_silence_nan(f_val);
 
       return a < 0 ? (f_val | (1 << 15)) : f_val;
 }
 
-static inline float32 float32_from_float64(int64 a STATUS_PARAM)
+static inline float32 float32_from_float64(int64 a, float_status *status)
 {
       float32 f_val;
 
-      f_val = float64_to_float32((float64)a STATUS_VAR);
+      f_val = float64_to_float32((float64)a, status);
       f_val = float32_maybe_silence_nan(f_val);
 
       return a < 0 ? (f_val | (1 << 31)) : f_val;
 }
 
-static inline float32 float32_from_float16(int16_t a, flag ieee STATUS_PARAM)
+static inline float32 float32_from_float16(int16_t a, flag ieee,
+                                           float_status *status)
 {
       float32 f_val;
 
-      f_val = float16_to_float32((float16)a, ieee STATUS_VAR);
+      f_val = float16_to_float32((float16)a, ieee, status);
       f_val = float32_maybe_silence_nan(f_val);
 
       return a < 0 ? (f_val | (1 << 31)) : f_val;
 }
 
-static inline float64 float64_from_float32(int32 a STATUS_PARAM)
+static inline float64 float64_from_float32(int32 a, float_status *status)
 {
       float64 f_val;
 
-      f_val = float32_to_float64((float64)a STATUS_VAR);
+      f_val = float32_to_float64((float64)a, status);
       f_val = float64_maybe_silence_nan(f_val);
 
       return a < 0 ? (f_val | (1ULL << 63)) : f_val;
 }
 
-static inline float32 float32_from_q16(int16_t a STATUS_PARAM)
+static inline float32 float32_from_q16(int16_t a, float_status *status)
 {
     float32 f_val;
 
     /* conversion as integer and scaling */
-    f_val = int32_to_float32(a STATUS_VAR);
-    f_val = float32_scalbn(f_val, -15 STATUS_VAR);
+    f_val = int32_to_float32(a, status);
+    f_val = float32_scalbn(f_val, -15, status);
 
     return f_val;
 }
 
-static inline float64 float64_from_q32(int32 a STATUS_PARAM)
+static inline float64 float64_from_q32(int32 a, float_status *status)
 {
     float64 f_val;
 
     /* conversion as integer and scaling */
-    f_val = int32_to_float64(a STATUS_VAR);
-    f_val = float64_scalbn(f_val, -31 STATUS_VAR);
+    f_val = int32_to_float64(a, status);
+    f_val = float64_scalbn(f_val, -31, status);
 
     return f_val;
 }
 
-static inline int16_t float32_to_q16(float32 a STATUS_PARAM)
+static inline int16_t float32_to_q16(float32 a, float_status *status)
 {
     int32 q_val;
     int32 q_min = 0xffff8000;
@@ -1685,50 +1687,50 @@ static inline int16_t float32_to_q16(float32 a STATUS_PARAM)
     int ieee_ex;
 
     if (float32_is_any_nan(a)) {
-        float_raise(float_flag_invalid STATUS_VAR);
+        float_raise(float_flag_invalid, status);
         return 0;
     }
 
     /* scaling */
-    a = float32_scalbn(a, 15 STATUS_VAR);
+    a = float32_scalbn(a, 15, status);
 
     ieee_ex = get_float_exception_flags(status);
     set_float_exception_flags(ieee_ex & (~float_flag_underflow)
-                              STATUS_VAR);
+                             , status);
 
     if (ieee_ex & float_flag_overflow) {
-        float_raise(float_flag_inexact STATUS_VAR);
+        float_raise(float_flag_inexact, status);
         return (int32)a < 0 ? q_min : q_max;
     }
 
     /* conversion to int */
-    q_val = float32_to_int32(a STATUS_VAR);
+    q_val = float32_to_int32(a, status);
 
     ieee_ex = get_float_exception_flags(status);
     set_float_exception_flags(ieee_ex & (~float_flag_underflow)
-                              STATUS_VAR);
+                             , status);
 
     if (ieee_ex & float_flag_invalid) {
         set_float_exception_flags(ieee_ex & (~float_flag_invalid)
-                                STATUS_VAR);
-        float_raise(float_flag_overflow | float_flag_inexact STATUS_VAR);
+                               , status);
+        float_raise(float_flag_overflow | float_flag_inexact, status);
         return (int32)a < 0 ? q_min : q_max;
     }
 
     if (q_val < q_min) {
-        float_raise(float_flag_overflow | float_flag_inexact STATUS_VAR);
+        float_raise(float_flag_overflow | float_flag_inexact, status);
         return (int16_t)q_min;
     }
 
     if (q_max < q_val) {
-        float_raise(float_flag_overflow | float_flag_inexact STATUS_VAR);
+        float_raise(float_flag_overflow | float_flag_inexact, status);
         return (int16_t)q_max;
     }
 
     return (int16_t)q_val;
 }
 
-static inline int32 float64_to_q32(float64 a STATUS_PARAM)
+static inline int32 float64_to_q32(float64 a, float_status *status)
 {
     int64 q_val;
     int64 q_min = 0xffffffff80000000LL;
@@ -1737,43 +1739,43 @@ static inline int32 float64_to_q32(float64 a STATUS_PARAM)
     int ieee_ex;
 
     if (float64_is_any_nan(a)) {
-        float_raise(float_flag_invalid STATUS_VAR);
+        float_raise(float_flag_invalid, status);
         return 0;
     }
 
     /* scaling */
-    a = float64_scalbn(a, 31 STATUS_VAR);
+    a = float64_scalbn(a, 31, status);
 
     ieee_ex = get_float_exception_flags(status);
     set_float_exception_flags(ieee_ex & (~float_flag_underflow)
-            STATUS_VAR);
+           , status);
 
     if (ieee_ex & float_flag_overflow) {
-        float_raise(float_flag_inexact STATUS_VAR);
+        float_raise(float_flag_inexact, status);
         return (int64)a < 0 ? q_min : q_max;
     }
 
     /* conversion to integer */
-    q_val = float64_to_int64(a STATUS_VAR);
+    q_val = float64_to_int64(a, status);
 
     ieee_ex = get_float_exception_flags(status);
     set_float_exception_flags(ieee_ex & (~float_flag_underflow)
-            STATUS_VAR);
+           , status);
 
     if (ieee_ex & float_flag_invalid) {
         set_float_exception_flags(ieee_ex & (~float_flag_invalid)
-                STATUS_VAR);
-        float_raise(float_flag_overflow | float_flag_inexact STATUS_VAR);
+               , status);
+        float_raise(float_flag_overflow | float_flag_inexact, status);
         return (int64)a < 0 ? q_min : q_max;
     }
 
     if (q_val < q_min) {
-        float_raise(float_flag_overflow | float_flag_inexact STATUS_VAR);
+        float_raise(float_flag_overflow | float_flag_inexact, status);
         return (int32)q_min;
     }
 
     if (q_max < q_val) {
-        float_raise(float_flag_overflow | float_flag_inexact STATUS_VAR);
+        float_raise(float_flag_overflow | float_flag_inexact, status);
         return (int32)q_max;
     }
 

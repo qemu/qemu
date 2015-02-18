@@ -195,7 +195,6 @@ static uint32_t vfio_pci_read_config(PCIDevice *pdev, uint32_t addr, int len);
 static void vfio_pci_write_config(PCIDevice *pdev, uint32_t addr,
                                   uint32_t val, int len);
 static void vfio_mmap_set_enabled(VFIOPCIDevice *vdev, bool enabled);
-static int vfio_populate_device(VFIODevice *vbasedev);
 
 /*
  * Disabling BAR mmaping can be slow, but toggling it around INTx can
@@ -517,7 +516,7 @@ static void vfio_msi_interrupt(void *opaque)
         abort();
     }
 
-    trace_vfio_msi_interrupt(vbasedev->name, nr, msg.address, msg.data);
+    trace_vfio_msi_interrupt(vdev->vbasedev.name, nr, msg.address, msg.data);
 #endif
 
     if (vdev->interrupt == VFIO_INT_MSIX) {
@@ -1997,12 +1996,23 @@ static void vfio_vga_quirk_setup(VFIOPCIDevice *vdev)
 
 static void vfio_vga_quirk_teardown(VFIOPCIDevice *vdev)
 {
+    VFIOQuirk *quirk;
+    int i;
+
+    for (i = 0; i < ARRAY_SIZE(vdev->vga.region); i++) {
+        QLIST_FOREACH(quirk, &vdev->vga.region[i].quirks, next) {
+            memory_region_del_subregion(&vdev->vga.region[i].mem, &quirk->mem);
+        }
+    }
+}
+
+static void vfio_vga_quirk_free(VFIOPCIDevice *vdev)
+{
     int i;
 
     for (i = 0; i < ARRAY_SIZE(vdev->vga.region); i++) {
         while (!QLIST_EMPTY(&vdev->vga.region[i].quirks)) {
             VFIOQuirk *quirk = QLIST_FIRST(&vdev->vga.region[i].quirks);
-            memory_region_del_subregion(&vdev->vga.region[i].mem, &quirk->mem);
             object_unparent(OBJECT(&quirk->mem));
             QLIST_REMOVE(quirk, next);
             g_free(quirk);
@@ -2023,10 +2033,19 @@ static void vfio_bar_quirk_setup(VFIOPCIDevice *vdev, int nr)
 static void vfio_bar_quirk_teardown(VFIOPCIDevice *vdev, int nr)
 {
     VFIOBAR *bar = &vdev->bars[nr];
+    VFIOQuirk *quirk;
+
+    QLIST_FOREACH(quirk, &bar->quirks, next) {
+        memory_region_del_subregion(&bar->region.mem, &quirk->mem);
+    }
+}
+
+static void vfio_bar_quirk_free(VFIOPCIDevice *vdev, int nr)
+{
+    VFIOBAR *bar = &vdev->bars[nr];
 
     while (!QLIST_EMPTY(&bar->quirks)) {
         VFIOQuirk *quirk = QLIST_FIRST(&bar->quirks);
-        memory_region_del_subregion(&bar->region.mem, &quirk->mem);
         object_unparent(OBJECT(&quirk->mem));
         QLIST_REMOVE(quirk, next);
         g_free(quirk);
@@ -2282,7 +2301,7 @@ static void vfio_mmap_set_enabled(VFIOPCIDevice *vdev, bool enabled)
     }
 }
 
-static void vfio_unmap_bar(VFIOPCIDevice *vdev, int nr)
+static void vfio_unregister_bar(VFIOPCIDevice *vdev, int nr)
 {
     VFIOBAR *bar = &vdev->bars[nr];
 
@@ -2293,10 +2312,25 @@ static void vfio_unmap_bar(VFIOPCIDevice *vdev, int nr)
     vfio_bar_quirk_teardown(vdev, nr);
 
     memory_region_del_subregion(&bar->region.mem, &bar->region.mmap_mem);
-    munmap(bar->region.mmap, memory_region_size(&bar->region.mmap_mem));
 
     if (vdev->msix && vdev->msix->table_bar == nr) {
         memory_region_del_subregion(&bar->region.mem, &vdev->msix->mmap_mem);
+    }
+}
+
+static void vfio_unmap_bar(VFIOPCIDevice *vdev, int nr)
+{
+    VFIOBAR *bar = &vdev->bars[nr];
+
+    if (!bar->region.size) {
+        return;
+    }
+
+    vfio_bar_quirk_free(vdev, nr);
+
+    munmap(bar->region.mmap, memory_region_size(&bar->region.mmap_mem));
+
+    if (vdev->msix && vdev->msix->table_bar == nr) {
         munmap(vdev->msix->mmap, memory_region_size(&vdev->msix->mmap_mem));
     }
 }
@@ -2404,6 +2438,20 @@ static void vfio_map_bars(VFIOPCIDevice *vdev)
     }
 }
 
+static void vfio_unregister_bars(VFIOPCIDevice *vdev)
+{
+    int i;
+
+    for (i = 0; i < PCI_ROM_SLOT; i++) {
+        vfio_unregister_bar(vdev, i);
+    }
+
+    if (vdev->has_vga) {
+        vfio_vga_quirk_teardown(vdev);
+        pci_unregister_vga(&vdev->pdev);
+    }
+}
+
 static void vfio_unmap_bars(VFIOPCIDevice *vdev)
 {
     int i;
@@ -2413,8 +2461,7 @@ static void vfio_unmap_bars(VFIOPCIDevice *vdev)
     }
 
     if (vdev->has_vga) {
-        vfio_vga_quirk_teardown(vdev);
-        pci_unregister_vga(&vdev->pdev);
+        vfio_vga_quirk_free(vdev);
     }
 }
 
@@ -2934,12 +2981,11 @@ static VFIODeviceOps vfio_pci_ops = {
     .vfio_compute_needs_reset = vfio_pci_compute_needs_reset,
     .vfio_hot_reset_multi = vfio_pci_hot_reset_multi,
     .vfio_eoi = vfio_eoi,
-    .vfio_populate_device = vfio_populate_device,
 };
 
-static int vfio_populate_device(VFIODevice *vbasedev)
+static int vfio_populate_device(VFIOPCIDevice *vdev)
 {
-    VFIOPCIDevice *vdev = container_of(vbasedev, VFIOPCIDevice, vbasedev);
+    VFIODevice *vbasedev = &vdev->vbasedev;
     struct vfio_region_info reg_info = { .argsz = sizeof(reg_info) };
     struct vfio_irq_info irq_info = { .argsz = sizeof(irq_info) };
     int i, ret = -1;
@@ -3065,6 +3111,7 @@ static void vfio_put_device(VFIOPCIDevice *vdev)
 {
     g_free(vdev->vbasedev.name);
     if (vdev->msix) {
+        object_unparent(OBJECT(&vdev->msix->mmap_mem));
         g_free(vdev->msix);
         vdev->msix = NULL;
     }
@@ -3247,6 +3294,11 @@ static int vfio_initfn(PCIDevice *pdev)
         return ret;
     }
 
+    ret = vfio_populate_device(vdev);
+    if (ret) {
+        return ret;
+    }
+
     /* Get a copy of config space */
     ret = pread(vdev->vbasedev.fd, vdev->pdev.config,
                 MIN(pci_config_size(&vdev->pdev), vdev->config_size),
@@ -3254,7 +3306,7 @@ static int vfio_initfn(PCIDevice *pdev)
     if (ret < (int)MIN(pci_config_size(&vdev->pdev), vdev->config_size)) {
         ret = ret < 0 ? -errno : -EFAULT;
         error_report("vfio: Failed to read device config space");
-        goto out_put;
+        return ret;
     }
 
     /* vfio emulates a lot for us, but some bits need extra love */
@@ -3286,7 +3338,7 @@ static int vfio_initfn(PCIDevice *pdev)
 
     ret = vfio_early_setup_msix(vdev);
     if (ret) {
-        goto out_put;
+        return ret;
     }
 
     vfio_map_bars(vdev);
@@ -3324,18 +3376,26 @@ static int vfio_initfn(PCIDevice *pdev)
 out_teardown:
     pci_device_set_intx_routing_notifier(&vdev->pdev, NULL);
     vfio_teardown_msi(vdev);
+    vfio_unregister_bars(vdev);
+    return ret;
+}
+
+static void vfio_instance_finalize(Object *obj)
+{
+    PCIDevice *pci_dev = PCI_DEVICE(obj);
+    VFIOPCIDevice *vdev = DO_UPCAST(VFIOPCIDevice, pdev, pci_dev);
+    VFIOGroup *group = vdev->vbasedev.group;
+
     vfio_unmap_bars(vdev);
-out_put:
     g_free(vdev->emulated_config_bits);
+    g_free(vdev->rom);
     vfio_put_device(vdev);
     vfio_put_group(group);
-    return ret;
 }
 
 static void vfio_exitfn(PCIDevice *pdev)
 {
     VFIOPCIDevice *vdev = DO_UPCAST(VFIOPCIDevice, pdev, pdev);
-    VFIOGroup *group = vdev->vbasedev.group;
 
     vfio_unregister_err_notifier(vdev);
     pci_device_set_intx_routing_notifier(&vdev->pdev, NULL);
@@ -3344,11 +3404,7 @@ static void vfio_exitfn(PCIDevice *pdev)
         timer_free(vdev->intx.mmap_timer);
     }
     vfio_teardown_msi(vdev);
-    vfio_unmap_bars(vdev);
-    g_free(vdev->emulated_config_bits);
-    g_free(vdev->rom);
-    vfio_put_device(vdev);
-    vfio_put_group(group);
+    vfio_unregister_bars(vdev);
 }
 
 static void vfio_pci_reset(DeviceState *dev)
@@ -3436,6 +3492,7 @@ static const TypeInfo vfio_pci_dev_info = {
     .instance_size = sizeof(VFIOPCIDevice),
     .class_init = vfio_pci_dev_class_init,
     .instance_init = vfio_instance_init,
+    .instance_finalize = vfio_instance_finalize,
 };
 
 static void register_vfio_pci_dev_type(void)

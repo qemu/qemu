@@ -1793,7 +1793,6 @@ void qmp_block_passwd(bool has_device, const char *device,
     Error *local_err = NULL;
     BlockDriverState *bs;
     AioContext *aio_context;
-    int err;
 
     bs = bdrv_lookup_bs(has_device ? device : NULL,
                         has_node_name ? node_name : NULL,
@@ -1806,16 +1805,8 @@ void qmp_block_passwd(bool has_device, const char *device,
     aio_context = bdrv_get_aio_context(bs);
     aio_context_acquire(aio_context);
 
-    err = bdrv_set_key(bs, password);
-    if (err == -EINVAL) {
-        error_set(errp, QERR_DEVICE_NOT_ENCRYPTED, bdrv_get_device_name(bs));
-        goto out;
-    } else if (err < 0) {
-        error_set(errp, QERR_INVALID_PASSWORD);
-        goto out;
-    }
+    bdrv_add_key(bs, password, errp);
 
-out:
     aio_context_release(aio_context);
 }
 
@@ -1833,18 +1824,7 @@ static void qmp_bdrv_open_encrypted(BlockDriverState *bs, const char *filename,
         return;
     }
 
-    if (bdrv_key_required(bs)) {
-        if (password) {
-            if (bdrv_set_key(bs, password) < 0) {
-                error_set(errp, QERR_INVALID_PASSWORD);
-            }
-        } else {
-            error_set(errp, QERR_DEVICE_ENCRYPTED, bdrv_get_device_name(bs),
-                      bdrv_get_encrypted_filename(bs));
-        }
-    } else if (password) {
-        error_set(errp, QERR_DEVICE_NOT_ENCRYPTED, bdrv_get_device_name(bs));
-    }
+    bdrv_add_key(bs, password, errp);
 }
 
 void qmp_change_blockdev(const char *device, const char *filename,
@@ -2653,7 +2633,8 @@ out:
 }
 
 /* Get the block job for a given device name and acquire its AioContext */
-static BlockJob *find_block_job(const char *device, AioContext **aio_context)
+static BlockJob *find_block_job(const char *device, AioContext **aio_context,
+                                Error **errp)
 {
     BlockDriverState *bs;
 
@@ -2673,6 +2654,8 @@ static BlockJob *find_block_job(const char *device, AioContext **aio_context)
     return bs->job;
 
 notfound:
+    error_set(errp, ERROR_CLASS_DEVICE_NOT_ACTIVE,
+              "No active block job on device '%s'", device);
     *aio_context = NULL;
     return NULL;
 }
@@ -2680,10 +2663,9 @@ notfound:
 void qmp_block_job_set_speed(const char *device, int64_t speed, Error **errp)
 {
     AioContext *aio_context;
-    BlockJob *job = find_block_job(device, &aio_context);
+    BlockJob *job = find_block_job(device, &aio_context, errp);
 
     if (!job) {
-        error_set(errp, QERR_BLOCK_JOB_NOT_ACTIVE, device);
         return;
     }
 
@@ -2695,10 +2677,9 @@ void qmp_block_job_cancel(const char *device,
                           bool has_force, bool force, Error **errp)
 {
     AioContext *aio_context;
-    BlockJob *job = find_block_job(device, &aio_context);
+    BlockJob *job = find_block_job(device, &aio_context, errp);
 
     if (!job) {
-        error_set(errp, QERR_BLOCK_JOB_NOT_ACTIVE, device);
         return;
     }
 
@@ -2721,10 +2702,9 @@ out:
 void qmp_block_job_pause(const char *device, Error **errp)
 {
     AioContext *aio_context;
-    BlockJob *job = find_block_job(device, &aio_context);
+    BlockJob *job = find_block_job(device, &aio_context, errp);
 
     if (!job) {
-        error_set(errp, QERR_BLOCK_JOB_NOT_ACTIVE, device);
         return;
     }
 
@@ -2736,10 +2716,9 @@ void qmp_block_job_pause(const char *device, Error **errp)
 void qmp_block_job_resume(const char *device, Error **errp)
 {
     AioContext *aio_context;
-    BlockJob *job = find_block_job(device, &aio_context);
+    BlockJob *job = find_block_job(device, &aio_context, errp);
 
     if (!job) {
-        error_set(errp, QERR_BLOCK_JOB_NOT_ACTIVE, device);
         return;
     }
 
@@ -2751,10 +2730,9 @@ void qmp_block_job_resume(const char *device, Error **errp)
 void qmp_block_job_complete(const char *device, Error **errp)
 {
     AioContext *aio_context;
-    BlockJob *job = find_block_job(device, &aio_context);
+    BlockJob *job = find_block_job(device, &aio_context, errp);
 
     if (!job) {
-        error_set(errp, QERR_BLOCK_JOB_NOT_ACTIVE, device);
         return;
     }
 

@@ -3,10 +3,12 @@
 #include "migration/qemu-file.h"
 #include "migration/vmstate.h"
 #include "qemu/bitops.h"
+#include "qemu/error-report.h"
 #include "trace.h"
+#include "qjson.h"
 
 static void vmstate_subsection_save(QEMUFile *f, const VMStateDescription *vmsd,
-                                    void *opaque);
+                                    void *opaque, QJSON *vmdesc);
 static int vmstate_subsection_load(QEMUFile *f, const VMStateDescription *vmsd,
                                    void *opaque);
 
@@ -72,16 +74,21 @@ int vmstate_load_state(QEMUFile *f, const VMStateDescription *vmsd,
                        void *opaque, int version_id)
 {
     VMStateField *field = vmsd->fields;
-    int ret;
+    int ret = 0;
 
+    trace_vmstate_load_state(vmsd->name, version_id);
     if (version_id > vmsd->version_id) {
+        trace_vmstate_load_state_end(vmsd->name, "too new", -EINVAL);
         return -EINVAL;
     }
     if  (version_id < vmsd->minimum_version_id) {
         if (vmsd->load_state_old &&
             version_id >= vmsd->minimum_version_id_old) {
-            return vmsd->load_state_old(f, opaque, version_id);
+            ret = vmsd->load_state_old(f, opaque, version_id);
+            trace_vmstate_load_state_end(vmsd->name, "old path", ret);
+            return ret;
         }
+        trace_vmstate_load_state_end(vmsd->name, "too old", -EINVAL);
         return -EINVAL;
     }
     if (vmsd->pre_load) {
@@ -91,6 +98,7 @@ int vmstate_load_state(QEMUFile *f, const VMStateDescription *vmsd,
         }
     }
     while (field->name) {
+        trace_vmstate_load_state_field(vmsd->name, field->name);
         if ((field->field_exists &&
              field->field_exists(opaque, version_id)) ||
             (!field->field_exists &&
@@ -122,8 +130,8 @@ int vmstate_load_state(QEMUFile *f, const VMStateDescription *vmsd,
                 }
             }
         } else if (field->flags & VMS_MUST_EXIST) {
-            fprintf(stderr, "Input validation failed: %s/%s\n",
-                    vmsd->name, field->name);
+            error_report("Input validation failed: %s/%s",
+                         vmsd->name, field->name);
             return -1;
         }
         field++;
@@ -133,48 +141,203 @@ int vmstate_load_state(QEMUFile *f, const VMStateDescription *vmsd,
         return ret;
     }
     if (vmsd->post_load) {
-        return vmsd->post_load(opaque, version_id);
+        ret = vmsd->post_load(opaque, version_id);
     }
-    return 0;
+    trace_vmstate_load_state_end(vmsd->name, "end", ret);
+    return ret;
+}
+
+static int vmfield_name_num(VMStateField *start, VMStateField *search)
+{
+    VMStateField *field;
+    int found = 0;
+
+    for (field = start; field->name; field++) {
+        if (!strcmp(field->name, search->name)) {
+            if (field == search) {
+                return found;
+            }
+            found++;
+        }
+    }
+
+    return -1;
+}
+
+static bool vmfield_name_is_unique(VMStateField *start, VMStateField *search)
+{
+    VMStateField *field;
+    int found = 0;
+
+    for (field = start; field->name; field++) {
+        if (!strcmp(field->name, search->name)) {
+            found++;
+            /* name found more than once, so it's not unique */
+            if (found > 1) {
+                return false;
+            }
+        }
+    }
+
+    return true;
+}
+
+static const char *vmfield_get_type_name(VMStateField *field)
+{
+    const char *type = "unknown";
+
+    if (field->flags & VMS_STRUCT) {
+        type = "struct";
+    } else if (field->info->name) {
+        type = field->info->name;
+    }
+
+    return type;
+}
+
+static bool vmsd_can_compress(VMStateField *field)
+{
+    if (field->field_exists) {
+        /* Dynamically existing fields mess up compression */
+        return false;
+    }
+
+    if (field->flags & VMS_STRUCT) {
+        VMStateField *sfield = field->vmsd->fields;
+        while (sfield->name) {
+            if (!vmsd_can_compress(sfield)) {
+                /* Child elements can't compress, so can't we */
+                return false;
+            }
+            sfield++;
+        }
+
+        if (field->vmsd->subsections) {
+            /* Subsections may come and go, better don't compress */
+            return false;
+        }
+    }
+
+    return true;
+}
+
+static void vmsd_desc_field_start(const VMStateDescription *vmsd, QJSON *vmdesc,
+                                  VMStateField *field, int i, int max)
+{
+    char *name, *old_name;
+    bool is_array = max > 1;
+    bool can_compress = vmsd_can_compress(field);
+
+    if (!vmdesc) {
+        return;
+    }
+
+    name = g_strdup(field->name);
+
+    /* Field name is not unique, need to make it unique */
+    if (!vmfield_name_is_unique(vmsd->fields, field)) {
+        int num = vmfield_name_num(vmsd->fields, field);
+        old_name = name;
+        name = g_strdup_printf("%s[%d]", name, num);
+        g_free(old_name);
+    }
+
+    json_start_object(vmdesc, NULL);
+    json_prop_str(vmdesc, "name", name);
+    if (is_array) {
+        if (can_compress) {
+            json_prop_int(vmdesc, "array_len", max);
+        } else {
+            json_prop_int(vmdesc, "index", i);
+        }
+    }
+    json_prop_str(vmdesc, "type", vmfield_get_type_name(field));
+
+    if (field->flags & VMS_STRUCT) {
+        json_start_object(vmdesc, "struct");
+    }
+
+    g_free(name);
+}
+
+static void vmsd_desc_field_end(const VMStateDescription *vmsd, QJSON *vmdesc,
+                                VMStateField *field, size_t size, int i)
+{
+    if (!vmdesc) {
+        return;
+    }
+
+    if (field->flags & VMS_STRUCT) {
+        /* We printed a struct in between, close its child object */
+        json_end_object(vmdesc);
+    }
+
+    json_prop_int(vmdesc, "size", size);
+    json_end_object(vmdesc);
 }
 
 void vmstate_save_state(QEMUFile *f, const VMStateDescription *vmsd,
-                        void *opaque)
+                        void *opaque, QJSON *vmdesc)
 {
     VMStateField *field = vmsd->fields;
 
     if (vmsd->pre_save) {
         vmsd->pre_save(opaque);
     }
+
+    if (vmdesc) {
+        json_prop_str(vmdesc, "vmsd_name", vmsd->name);
+        json_prop_int(vmdesc, "version", vmsd->version_id);
+        json_start_array(vmdesc, "fields");
+    }
+
     while (field->name) {
         if (!field->field_exists ||
             field->field_exists(opaque, vmsd->version_id)) {
             void *base_addr = vmstate_base_addr(opaque, field, false);
             int i, n_elems = vmstate_n_elems(opaque, field);
             int size = vmstate_size(opaque, field);
+            int64_t old_offset, written_bytes;
+            QJSON *vmdesc_loop = vmdesc;
 
             for (i = 0; i < n_elems; i++) {
                 void *addr = base_addr + size * i;
+
+                vmsd_desc_field_start(vmsd, vmdesc_loop, field, i, n_elems);
+                old_offset = qemu_ftell_fast(f);
 
                 if (field->flags & VMS_ARRAY_OF_POINTER) {
                     addr = *(void **)addr;
                 }
                 if (field->flags & VMS_STRUCT) {
-                    vmstate_save_state(f, field->vmsd, addr);
+                    vmstate_save_state(f, field->vmsd, addr, vmdesc_loop);
                 } else {
                     field->info->put(f, addr, size);
+                }
+
+                written_bytes = qemu_ftell_fast(f) - old_offset;
+                vmsd_desc_field_end(vmsd, vmdesc_loop, field, written_bytes, i);
+
+                /* Compressed arrays only care about the first element */
+                if (vmdesc_loop && vmsd_can_compress(field)) {
+                    vmdesc_loop = NULL;
                 }
             }
         } else {
             if (field->flags & VMS_MUST_EXIST) {
-                fprintf(stderr, "Output state validation failed: %s/%s\n",
+                error_report("Output state validation failed: %s/%s",
                         vmsd->name, field->name);
                 assert(!(field->flags & VMS_MUST_EXIST));
             }
         }
         field++;
     }
-    vmstate_subsection_save(f, vmsd, opaque);
+
+    if (vmdesc) {
+        json_end_array(vmdesc);
+    }
+
+    vmstate_subsection_save(f, vmsd, opaque, vmdesc);
 }
 
 static const VMStateDescription *
@@ -192,6 +355,8 @@ static const VMStateDescription *
 static int vmstate_subsection_load(QEMUFile *f, const VMStateDescription *vmsd,
                                    void *opaque)
 {
+    trace_vmstate_subsection_load(vmsd->name);
+
     while (qemu_peek_byte(f, 0) == QEMU_VM_SUBSECTION) {
         char idstr[256];
         int ret;
@@ -201,20 +366,24 @@ static int vmstate_subsection_load(QEMUFile *f, const VMStateDescription *vmsd,
         len = qemu_peek_byte(f, 1);
         if (len < strlen(vmsd->name) + 1) {
             /* subsection name has be be "section_name/a" */
+            trace_vmstate_subsection_load_bad(vmsd->name, "(short)");
             return 0;
         }
         size = qemu_peek_buffer(f, (uint8_t *)idstr, len, 2);
         if (size != len) {
+            trace_vmstate_subsection_load_bad(vmsd->name, "(peek fail)");
             return 0;
         }
         idstr[size] = 0;
 
         if (strncmp(vmsd->name, idstr, strlen(vmsd->name)) != 0) {
+            trace_vmstate_subsection_load_bad(vmsd->name, idstr);
             /* it don't have a valid subsection name */
             return 0;
         }
         sub_vmsd = vmstate_get_subsection(vmsd->subsections, idstr);
         if (sub_vmsd == NULL) {
+            trace_vmstate_subsection_load_bad(vmsd->name, "(lookup)");
             return -ENOENT;
         }
         qemu_file_skip(f, 1); /* subsection */
@@ -224,30 +393,52 @@ static int vmstate_subsection_load(QEMUFile *f, const VMStateDescription *vmsd,
 
         ret = vmstate_load_state(f, sub_vmsd, opaque, version_id);
         if (ret) {
+            trace_vmstate_subsection_load_bad(vmsd->name, "(child)");
             return ret;
         }
     }
+
+    trace_vmstate_subsection_load_good(vmsd->name);
     return 0;
 }
 
 static void vmstate_subsection_save(QEMUFile *f, const VMStateDescription *vmsd,
-                                    void *opaque)
+                                    void *opaque, QJSON *vmdesc)
 {
     const VMStateSubsection *sub = vmsd->subsections;
+    bool subsection_found = false;
 
     while (sub && sub->needed) {
         if (sub->needed(opaque)) {
             const VMStateDescription *vmsd = sub->vmsd;
             uint8_t len;
 
+            if (vmdesc) {
+                /* Only create subsection array when we have any */
+                if (!subsection_found) {
+                    json_start_array(vmdesc, "subsections");
+                    subsection_found = true;
+                }
+
+                json_start_object(vmdesc, NULL);
+            }
+
             qemu_put_byte(f, QEMU_VM_SUBSECTION);
             len = strlen(vmsd->name);
             qemu_put_byte(f, len);
             qemu_put_buffer(f, (uint8_t *)vmsd->name, len);
             qemu_put_be32(f, vmsd->version_id);
-            vmstate_save_state(f, vmsd, opaque);
+            vmstate_save_state(f, vmsd, opaque, vmdesc);
+
+            if (vmdesc) {
+                json_end_object(vmdesc);
+            }
         }
         sub++;
+    }
+
+    if (vmdesc && subsection_found) {
+        json_end_array(vmdesc);
     }
 }
 
