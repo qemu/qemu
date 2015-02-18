@@ -36,7 +36,5 @@ DefinitionBlock ("ssdt-misc.aml", "SSDT", 0x01, "BXPC", "BXSSDTSUSP", 0x1)
        Name(P1E, Buffer() { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 })
        ACPI_EXTRACT_NAME_BUFFER8 acpi_pci64_length
        Name(P1L, Buffer() { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 })
-       ACPI_EXTRACT_NAME_DWORD_CONST ssdt_mctrl_nr_slots
-       Name(MEMORY_SLOTS_NUMBER, 0x12345678)
     }
 }

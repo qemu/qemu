@@ -103,6 +103,8 @@ typedef struct AcpiPmInfo {
     uint32_t io_base;
     uint16_t cpu_hp_io_base;
     uint16_t cpu_hp_io_len;
+    uint16_t mem_hp_io_base;
+    uint16_t mem_hp_io_len;
 } AcpiPmInfo;
 
 typedef struct AcpiMiscInfo {
@@ -187,6 +189,9 @@ static void acpi_get_pm_info(AcpiPmInfo *pm)
     assert(obj);
 
     pm->cpu_hp_io_len = ACPI_GPE_PROC_LEN;
+    pm->mem_hp_io_base = ACPI_MEMORY_HOTPLUG_BASE;
+    pm->mem_hp_io_len = ACPI_MEMORY_HOTPLUG_IO_LEN;
+
     /* Fill in optional s3/s4 related properties */
     o = object_property_get_qobject(obj, ACPI_PM_PROP_S3_DISABLED, NULL);
     if (o) {
@@ -887,9 +892,6 @@ build_ssdt(GArray *table_data, GArray *linker,
 
     patch_pci_windows(pci, ssdt_ptr, sizeof(ssdp_misc_aml));
 
-    ACPI_BUILD_SET_LE(ssdt_ptr, sizeof(ssdp_misc_aml),
-                      ssdt_mctrl_nr_slots[0], 32, nr_mem);
-
     /*  create S3_ / S4_ / S5_ packages if necessary */
     scope = aml_scope("\\");
     if (!pm->s3_disabled) {
@@ -1027,6 +1029,55 @@ build_ssdt(GArray *table_data, GArray *linker,
 
         /* build memory devices */
         assert(nr_mem <= ACPI_MAX_RAM_SLOTS);
+        scope = aml_scope("\\_SB.PCI0." stringify(MEMORY_HOTPLUG_DEVICE));
+        aml_append(scope,
+            aml_name_decl(stringify(MEMORY_SLOTS_NUMBER), aml_int(nr_mem))
+        );
+
+        crs = aml_resource_template();
+        aml_append(crs,
+            aml_io(aml_decode16, pm->mem_hp_io_base, pm->mem_hp_io_base, 0,
+                   pm->mem_hp_io_len)
+        );
+        aml_append(scope, aml_name_decl("_CRS", crs));
+
+        aml_append(scope, aml_operation_region(
+            stringify(MEMORY_HOTPLUG_IO_REGION), aml_system_io,
+            pm->mem_hp_io_base, pm->mem_hp_io_len)
+        );
+
+        field = aml_field(stringify(MEMORY_HOTPLUG_IO_REGION), aml_dword_acc);
+        aml_append(field, /* read only */
+            aml_named_field(stringify(MEMORY_SLOT_ADDR_LOW), 32));
+        aml_append(field, /* read only */
+            aml_named_field(stringify(MEMORY_SLOT_ADDR_HIGH), 32));
+        aml_append(field, /* read only */
+            aml_named_field(stringify(MEMORY_SLOT_SIZE_LOW), 32));
+        aml_append(field, /* read only */
+            aml_named_field(stringify(MEMORY_SLOT_SIZE_HIGH), 32));
+        aml_append(field, /* read only */
+            aml_named_field(stringify(MEMORY_SLOT_PROXIMITY), 32));
+        aml_append(scope, field);
+
+        field = aml_field(stringify(MEMORY_HOTPLUG_IO_REGION), aml_byte_acc);
+        aml_append(field, aml_reserved_field(160 /* bits, Offset(20) */));
+        aml_append(field, /* 1 if enabled, read only */
+            aml_named_field(stringify(MEMORY_SLOT_ENABLED), 1));
+        aml_append(field,
+            /*(read) 1 if has a insert event. (write) 1 to clear event */
+            aml_named_field(stringify(MEMORY_SLOT_INSERT_EVENT), 1));
+        aml_append(scope, field);
+
+        field = aml_field(stringify(MEMORY_HOTPLUG_IO_REGION), aml_dword_acc);
+        aml_append(field, /* DIMM selector, write only */
+            aml_named_field(stringify(MEMORY_SLOT_SLECTOR), 32));
+        aml_append(field, /* _OST event code, write only */
+            aml_named_field(stringify(MEMORY_SLOT_OST_EVENT), 32));
+        aml_append(field, /* _OST status code, write only */
+            aml_named_field(stringify(MEMORY_SLOT_OST_STATUS), 32));
+        aml_append(scope, field);
+
+        aml_append(sb_scope, scope);
 
         for (i = 0; i < nr_mem; i++) {
             #define BASEPATH "\\_SB.PCI0." stringify(MEMORY_HOTPLUG_DEVICE) "."
