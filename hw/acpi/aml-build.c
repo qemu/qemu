@@ -598,6 +598,16 @@ Aml *aml_named_field(const char *name, unsigned length)
     return var;
 }
 
+/* ACPI 1.0b: 16.2.5.2 Named Objects Encoding: ReservedField */
+Aml *aml_reserved_field(unsigned length)
+{
+    Aml *var = aml_alloc();
+    /* ReservedField  := 0x00 PkgLength */
+    build_append_byte(var->buf, 0x00);
+    build_append_pkg_length(var->buf, length, false);
+    return var;
+}
+
 /* ACPI 1.0b: 16.2.5.2 Named Objects Encoding: DefField */
 Aml *aml_field(const char *name, AmlFieldFlags flags)
 {

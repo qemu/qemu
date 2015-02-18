@@ -29,7 +29,12 @@ typedef enum {
 } AmlIODecode;
 
 typedef enum {
+    aml_any_acc = 0,
     aml_byte_acc = 1,
+    aml_word_acc = 2,
+    aml_dword_acc = 3,
+    aml_qword_acc = 4,
+    aml_buffer_acc = 5,
 } AmlFieldFlags;
 
 typedef enum {
@@ -91,6 +96,7 @@ Aml *aml_io(AmlIODecode dec, uint16_t min_base, uint16_t max_base,
 Aml *aml_operation_region(const char *name, AmlRegionSpace rs,
                           uint32_t offset, uint32_t len);
 Aml *aml_named_field(const char *name, unsigned length);
+Aml *aml_reserved_field(unsigned length);
 Aml *aml_local(int num);
 Aml *aml_string(const char *name_format, ...) GCC_FMT_ATTR(1, 2);
 Aml *aml_equal(Aml *arg1, Aml *arg2);
