@@ -704,3 +704,164 @@ Aml *aml_eisaid(const char *str)
     build_append_int_noprefix(var->buf, bswap32(id), sizeof(id));
     return var;
 }
+
+/* ACPI 1.0b: 6.4.3.5.5 Word Address Space Descriptor: bytes 3-5 */
+static Aml *aml_as_desc_header(AmlResourceType type, AmlMinFixed min_fixed,
+                               AmlMaxFixed max_fixed, AmlDecode dec,
+                               uint8_t type_flags)
+{
+    uint8_t flags = max_fixed | min_fixed | dec;
+    Aml *var = aml_alloc();
+
+    build_append_byte(var->buf, type);
+    build_append_byte(var->buf, flags);
+    build_append_byte(var->buf, type_flags); /* Type Specific Flags */
+    return var;
+}
+
+/* ACPI 1.0b: 6.4.3.5.5 Word Address Space Descriptor */
+static Aml *aml_word_as_desc(AmlResourceType type, AmlMinFixed min_fixed,
+                             AmlMaxFixed max_fixed, AmlDecode dec,
+                             uint16_t addr_gran, uint16_t addr_min,
+                             uint16_t addr_max, uint16_t addr_trans,
+                             uint16_t len, uint8_t type_flags)
+{
+    Aml *var = aml_alloc();
+
+    build_append_byte(var->buf, 0x88); /* Word Address Space Descriptor */
+    /* minimum length since we do not encode optional fields */
+    build_append_byte(var->buf, 0x0D);
+    build_append_byte(var->buf, 0x0);
+
+    aml_append(var,
+        aml_as_desc_header(type, min_fixed, max_fixed, dec, type_flags));
+    build_append_int_noprefix(var->buf, addr_gran, sizeof(addr_gran));
+    build_append_int_noprefix(var->buf, addr_min, sizeof(addr_min));
+    build_append_int_noprefix(var->buf, addr_max, sizeof(addr_max));
+    build_append_int_noprefix(var->buf, addr_trans, sizeof(addr_trans));
+    build_append_int_noprefix(var->buf, len, sizeof(len));
+    return var;
+}
+
+/* ACPI 1.0b: 6.4.3.5.3 DWord Address Space Descriptor */
+static Aml *aml_dword_as_desc(AmlResourceType type, AmlMinFixed min_fixed,
+                              AmlMaxFixed max_fixed, AmlDecode dec,
+                              uint32_t addr_gran, uint32_t addr_min,
+                              uint32_t addr_max, uint32_t addr_trans,
+                              uint32_t len, uint8_t type_flags)
+{
+    Aml *var = aml_alloc();
+
+    build_append_byte(var->buf, 0x87); /* DWord Address Space Descriptor */
+    /* minimum length since we do not encode optional fields */
+    build_append_byte(var->buf, 23);
+    build_append_byte(var->buf, 0x0);
+
+
+    aml_append(var,
+        aml_as_desc_header(type, min_fixed, max_fixed, dec, type_flags));
+    build_append_int_noprefix(var->buf, addr_gran, sizeof(addr_gran));
+    build_append_int_noprefix(var->buf, addr_min, sizeof(addr_min));
+    build_append_int_noprefix(var->buf, addr_max, sizeof(addr_max));
+    build_append_int_noprefix(var->buf, addr_trans, sizeof(addr_trans));
+    build_append_int_noprefix(var->buf, len, sizeof(len));
+    return var;
+}
+
+/* ACPI 1.0b: 6.4.3.5.1 QWord Address Space Descriptor */
+static Aml *aml_qword_as_desc(AmlResourceType type, AmlMinFixed min_fixed,
+                              AmlMaxFixed max_fixed, AmlDecode dec,
+                              uint64_t addr_gran, uint64_t addr_min,
+                              uint64_t addr_max, uint64_t addr_trans,
+                              uint64_t len, uint8_t type_flags)
+{
+    Aml *var = aml_alloc();
+
+    build_append_byte(var->buf, 0x8A); /* QWord Address Space Descriptor */
+    /* minimum length since we do not encode optional fields */
+    build_append_byte(var->buf, 0x2B);
+    build_append_byte(var->buf, 0x0);
+
+    aml_append(var,
+        aml_as_desc_header(type, min_fixed, max_fixed, dec, type_flags));
+    build_append_int_noprefix(var->buf, addr_gran, sizeof(addr_gran));
+    build_append_int_noprefix(var->buf, addr_min, sizeof(addr_min));
+    build_append_int_noprefix(var->buf, addr_max, sizeof(addr_max));
+    build_append_int_noprefix(var->buf, addr_trans, sizeof(addr_trans));
+    build_append_int_noprefix(var->buf, len, sizeof(len));
+    return var;
+}
+
+/*
+ * ACPI 1.0b: 6.4.3.5.6 ASL Macros for WORD Address Descriptor
+ *
+ * More verbose description at:
+ * ACPI 5.0: 19.5.141 WordBusNumber (Word Bus Number Resource Descriptor Macro)
+ */
+Aml *aml_word_bus_number(AmlMinFixed min_fixed, AmlMaxFixed max_fixed,
+                         AmlDecode dec, uint16_t addr_gran,
+                         uint16_t addr_min, uint16_t addr_max,
+                         uint16_t addr_trans, uint16_t len)
+
+{
+    return aml_word_as_desc(aml_bus_number_range, min_fixed, max_fixed, dec,
+                            addr_gran, addr_min, addr_max, addr_trans, len, 0);
+}
+
+/*
+ * ACPI 1.0b: 6.4.3.5.6 ASL Macros for WORD Address Descriptor
+ *
+ * More verbose description at:
+ * ACPI 5.0: 19.5.142 WordIO (Word IO Resource Descriptor Macro)
+ */
+Aml *aml_word_io(AmlMinFixed min_fixed, AmlMaxFixed max_fixed,
+                 AmlDecode dec, AmlISARanges isa_ranges,
+                 uint16_t addr_gran, uint16_t addr_min,
+                 uint16_t addr_max, uint16_t addr_trans,
+                 uint16_t len)
+
+{
+    return aml_word_as_desc(aml_io_range, min_fixed, max_fixed, dec,
+                            addr_gran, addr_min, addr_max, addr_trans, len,
+                            isa_ranges);
+}
+
+/*
+ * ACPI 1.0b: 6.4.3.5.4 ASL Macros for DWORD Address Space Descriptor
+ *
+ * More verbose description at:
+ * ACPI 5.0: 19.5.34 DWordMemory (DWord Memory Resource Descriptor Macro)
+ */
+Aml *aml_dword_memory(AmlDecode dec, AmlMinFixed min_fixed,
+                      AmlMaxFixed max_fixed, AmlCacheble cacheable,
+                      AmlReadAndWrite read_and_write,
+                      uint32_t addr_gran, uint32_t addr_min,
+                      uint32_t addr_max, uint32_t addr_trans,
+                      uint32_t len)
+{
+    uint8_t flags = read_and_write | (cacheable << 1);
+
+    return aml_dword_as_desc(aml_memory_range, min_fixed, max_fixed,
+                             dec, addr_gran, addr_min, addr_max,
+                             addr_trans, len, flags);
+}
+
+/*
+ * ACPI 1.0b: 6.4.3.5.2 ASL Macros for QWORD Address Space Descriptor
+ *
+ * More verbose description at:
+ * ACPI 5.0: 19.5.102 QWordMemory (QWord Memory Resource Descriptor Macro)
+ */
+Aml *aml_qword_memory(AmlDecode dec, AmlMinFixed min_fixed,
+                      AmlMaxFixed max_fixed, AmlCacheble cacheable,
+                      AmlReadAndWrite read_and_write,
+                      uint64_t addr_gran, uint64_t addr_min,
+                      uint64_t addr_max, uint64_t addr_trans,
+                      uint64_t len)
+{
+    uint8_t flags = read_and_write | (cacheable << 1);
+
+    return aml_qword_as_desc(aml_memory_range, min_fixed, max_fixed,
+                             dec, addr_gran, addr_min, addr_max,
+                             addr_trans, len, flags);
+}

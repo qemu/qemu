@@ -42,6 +42,57 @@ typedef enum {
     aml_system_io = 0x01,
 } AmlRegionSpace;
 
+typedef enum {
+    aml_memory_range = 0,
+    aml_io_range = 1,
+    aml_bus_number_range = 2,
+} AmlResourceType;
+
+typedef enum {
+    aml_sub_decode = 1 << 1,
+    aml_pos_decode = 0
+} AmlDecode;
+
+typedef enum {
+    aml_max_fixed = 1 << 3,
+    aml_max_not_fixed = 0,
+} AmlMaxFixed;
+
+typedef enum {
+    aml_min_fixed = 1 << 2,
+    aml_min_not_fixed = 0
+} AmlMinFixed;
+
+/*
+ * ACPI 1.0b: Table 6-26 I/O Resource Flag (Resource Type = 1) Definitions
+ * _RNG field definition
+ */
+typedef enum {
+    aml_isa_only = 1,
+    aml_non_isa_only = 2,
+    aml_entire_range = 3,
+} AmlISARanges;
+
+/*
+ * ACPI 1.0b: Table 6-25 Memory Resource Flag (Resource Type = 0) Definitions
+ * _MEM field definition
+ */
+typedef enum {
+    aml_non_cacheable = 0,
+    aml_cacheable = 1,
+    aml_write_combining = 2,
+    aml_prefetchable = 3,
+} AmlCacheble;
+
+/*
+ * ACPI 1.0b: Table 6-25 Memory Resource Flag (Resource Type = 0) Definitions
+ * _RW field definition
+ */
+typedef enum {
+    aml_ReadOnly = 0,
+    aml_ReadWrite = 1,
+} AmlReadAndWrite;
+
 /**
  * init_aml_allocator:
  *
@@ -103,6 +154,27 @@ Aml *aml_equal(Aml *arg1, Aml *arg2);
 Aml *aml_processor(uint8_t proc_id, uint32_t pblk_addr, uint8_t pblk_len,
                    const char *name_format, ...) GCC_FMT_ATTR(4, 5);
 Aml *aml_eisaid(const char *str);
+Aml *aml_word_bus_number(AmlMinFixed min_fixed, AmlMaxFixed max_fixed,
+                         AmlDecode dec, uint16_t addr_gran,
+                         uint16_t addr_min, uint16_t addr_max,
+                         uint16_t addr_trans, uint16_t len);
+Aml *aml_word_io(AmlMinFixed min_fixed, AmlMaxFixed max_fixed,
+                 AmlDecode dec, AmlISARanges isa_ranges,
+                 uint16_t addr_gran, uint16_t addr_min,
+                 uint16_t addr_max, uint16_t addr_trans,
+                 uint16_t len);
+Aml *aml_dword_memory(AmlDecode dec, AmlMinFixed min_fixed,
+                      AmlMaxFixed max_fixed, AmlCacheble cacheable,
+                      AmlReadAndWrite read_and_write,
+                      uint32_t addr_gran, uint32_t addr_min,
+                      uint32_t addr_max, uint32_t addr_trans,
+                      uint32_t len);
+Aml *aml_qword_memory(AmlDecode dec, AmlMinFixed min_fixed,
+                      AmlMaxFixed max_fixed, AmlCacheble cacheable,
+                      AmlReadAndWrite read_and_write,
+                      uint64_t addr_gran, uint64_t addr_min,
+                      uint64_t addr_max, uint64_t addr_trans,
+                      uint64_t len);
 
 /* Block AML object primitives */
 Aml *aml_scope(const char *name_format, ...) GCC_FMT_ATTR(1, 2);
