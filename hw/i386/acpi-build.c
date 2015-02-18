@@ -924,7 +924,7 @@ build_ssdt(GArray *table_data, GArray *linker,
     uint32_t nr_mem = machine->ram_slots;
     unsigned acpi_cpus = guest_info->apic_id_limit;
     uint8_t *ssdt_ptr;
-    Aml *ssdt, *sb_scope;
+    Aml *ssdt, *sb_scope, *scope, *pkg;
     int i;
 
     ssdt = init_aml_allocator();
@@ -936,15 +936,6 @@ build_ssdt(GArray *table_data, GArray *linker,
     /* Copy header and patch values in the S3_ / S4_ / S5_ packages */
     ssdt_ptr = acpi_data_push(ssdt->buf, sizeof(ssdp_misc_aml));
     memcpy(ssdt_ptr, ssdp_misc_aml, sizeof(ssdp_misc_aml));
-    if (pm->s3_disabled) {
-        ssdt_ptr[acpi_s3_name[0]] = 'X';
-    }
-    if (pm->s4_disabled) {
-        ssdt_ptr[acpi_s4_name[0]] = 'X';
-    } else {
-        ssdt_ptr[acpi_s4_pkg[0] + 1] = ssdt_ptr[acpi_s4_pkg[0] + 3] =
-            pm->s4_val;
-    }
 
     patch_pci_windows(pci, ssdt_ptr, sizeof(ssdp_misc_aml));
 
@@ -953,6 +944,35 @@ build_ssdt(GArray *table_data, GArray *linker,
 
     ACPI_BUILD_SET_LE(ssdt_ptr, sizeof(ssdp_misc_aml),
                       ssdt_mctrl_nr_slots[0], 32, nr_mem);
+
+    /*  create S3_ / S4_ / S5_ packages if necessary */
+    scope = aml_scope("\\");
+    if (!pm->s3_disabled) {
+        pkg = aml_package(4);
+        aml_append(pkg, aml_int(1)); /* PM1a_CNT.SLP_TYP */
+        aml_append(pkg, aml_int(1)); /* PM1b_CNT.SLP_TYP, FIXME: not impl. */
+        aml_append(pkg, aml_int(0)); /* reserved */
+        aml_append(pkg, aml_int(0)); /* reserved */
+        aml_append(scope, aml_name_decl("_S3", pkg));
+    }
+
+    if (!pm->s4_disabled) {
+        pkg = aml_package(4);
+        aml_append(pkg, aml_int(pm->s4_val)); /* PM1a_CNT.SLP_TYP */
+        /* PM1b_CNT.SLP_TYP, FIXME: not impl. */
+        aml_append(pkg, aml_int(pm->s4_val));
+        aml_append(pkg, aml_int(0)); /* reserved */
+        aml_append(pkg, aml_int(0)); /* reserved */
+        aml_append(scope, aml_name_decl("_S4", pkg));
+    }
+
+    pkg = aml_package(4);
+    aml_append(pkg, aml_int(0)); /* PM1a_CNT.SLP_TYP */
+    aml_append(pkg, aml_int(0)); /* PM1b_CNT.SLP_TYP not impl. */
+    aml_append(pkg, aml_int(0)); /* reserved */
+    aml_append(pkg, aml_int(0)); /* reserved */
+    aml_append(scope, aml_name_decl("_S5", pkg));
+    aml_append(ssdt, scope);
 
     sb_scope = aml_scope("_SB");
     {
