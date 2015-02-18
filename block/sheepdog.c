@@ -545,6 +545,7 @@ static SheepdogAIOCB *sd_aio_setup(BlockDriverState *bs, QEMUIOVector *qiov,
     return acb;
 }
 
+/* Return -EIO in case of error, file descriptor on success */
 static int connect_to_sdog(BDRVSheepdogState *s, Error **errp)
 {
     int fd;
@@ -564,11 +565,14 @@ static int connect_to_sdog(BDRVSheepdogState *s, Error **errp)
 
     if (fd >= 0) {
         qemu_set_nonblock(fd);
+    } else {
+        fd = -EIO;
     }
 
     return fd;
 }
 
+/* Return 0 on success and -errno in case of error */
 static coroutine_fn int send_co_req(int sockfd, SheepdogReq *hdr, void *data,
                                     unsigned int *wlen)
 {
@@ -577,11 +581,13 @@ static coroutine_fn int send_co_req(int sockfd, SheepdogReq *hdr, void *data,
     ret = qemu_co_send(sockfd, hdr, sizeof(*hdr));
     if (ret != sizeof(*hdr)) {
         error_report("failed to send a req, %s", strerror(errno));
+        ret = -socket_error();
         return ret;
     }
 
     ret = qemu_co_send(sockfd, data, *wlen);
     if (ret != *wlen) {
+        ret = -socket_error();
         error_report("failed to send a req, %s", strerror(errno));
     }
 
@@ -656,6 +662,11 @@ out:
     srco->finished = true;
 }
 
+/*
+ * Send the request to the sheep in a synchronous manner.
+ *
+ * Return 0 on success, -errno in case of error.
+ */
 static int do_req(int sockfd, AioContext *aio_context, SheepdogReq *hdr,
                   void *data, unsigned int *wlen, unsigned int *rlen)
 {
