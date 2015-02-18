@@ -80,6 +80,7 @@ Aml *aml_method(const char *name, int arg_count);
 Aml *aml_if(Aml *predicate);
 Aml *aml_package(uint8_t num_elements);
 Aml *aml_buffer(void);
+Aml *aml_resource_template(void);
 
 /* other helpers */
 GArray *build_alloc_array(void);
