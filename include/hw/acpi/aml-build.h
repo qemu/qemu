@@ -99,7 +99,8 @@ void build_append_array(GArray *array, GArray *val);
 void GCC_FMT_ATTR(2, 3)
 build_append_namestring(GArray *array, const char *format, ...);
 
-void build_prepend_package_length(GArray *package);
+void
+build_prepend_package_length(GArray *package, unsigned length, bool incl_self);
 void build_package(GArray *package, uint8_t op);
 void build_append_int(GArray *table, uint64_t value);
 void build_extop_package(GArray *package, uint8_t op);

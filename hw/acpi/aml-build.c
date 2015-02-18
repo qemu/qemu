@@ -158,10 +158,10 @@ enum {
     PACKAGE_LENGTH_4BYTE_SHIFT = 20,
 };
 
-void build_prepend_package_length(GArray *package)
+void
+build_prepend_package_length(GArray *package, unsigned length, bool incl_self)
 {
     uint8_t byte;
-    unsigned length = package->len;
     unsigned length_bytes;
 
     if (length + 1 < (1 << PACKAGE_LENGTH_1BYTE_SHIFT)) {
@@ -174,8 +174,18 @@ void build_prepend_package_length(GArray *package)
         length_bytes = 4;
     }
 
-    /* PkgLength is the length of the inclusive length of the data. */
-    length += length_bytes;
+    /*
+     * NamedField uses PkgLength encoding but it doesn't include length
+     * of PkgLength itself.
+     */
+    if (incl_self) {
+        /*
+         * PkgLength is the length of the inclusive length of the data
+         * and PkgLength's length itself when used for terms with
+         * explitit length.
+         */
+        length += length_bytes;
+    }
 
     switch (length_bytes) {
     case 1:
@@ -208,7 +218,7 @@ void build_prepend_package_length(GArray *package)
 
 void build_package(GArray *package, uint8_t op)
 {
-    build_prepend_package_length(package);
+    build_prepend_package_length(package, package->len, true);
     build_prepend_byte(package, op);
 }
 
