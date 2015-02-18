@@ -307,28 +307,6 @@ static void build_append_and_cleanup_method(GArray *device, GArray *method)
     build_free_array(method);
 }
 
-static void build_append_notify_target_ifequal(GArray *method,
-                                               GArray *target_name,
-                                               uint32_t value)
-{
-    GArray *notify = build_alloc_array();
-    uint8_t op = 0xA0; /* IfOp */
-
-    build_append_byte(notify, 0x93); /* LEqualOp */
-    build_append_byte(notify, 0x68); /* Arg0Op */
-    build_append_int(notify, value);
-    build_append_byte(notify, 0x86); /* NotifyOp */
-    build_append_array(notify, target_name);
-    build_append_byte(notify, 0x69); /* Arg1Op */
-
-    /* Pack it up */
-    build_package(notify, op);
-
-    build_append_array(method, notify);
-
-    build_free_array(notify);
-}
-
 /* End here */
 #define ACPI_PORT_SMI_CMD           0x00b2 /* TODO: this is APM_CNT_IOPORT */
 
@@ -550,38 +528,12 @@ static inline char acpi_get_hex(uint32_t val)
 #define ACPI_PCIQXL_SIZEOF (*ssdt_pciqxl_end - *ssdt_pciqxl_start)
 #define ACPI_PCIQXL_AML (ssdp_pcihp_aml + *ssdt_pciqxl_start)
 
-#include "hw/i386/ssdt-mem.hex"
-
-/* 0x5B 0x82 DeviceOp PkgLength NameString DimmID */
-#define ACPI_MEM_OFFSET_HEX (*ssdt_mem_name - *ssdt_mem_start + 2)
-#define ACPI_MEM_OFFSET_ID (*ssdt_mem_id - *ssdt_mem_start + 7)
-#define ACPI_MEM_SIZEOF (*ssdt_mem_end - *ssdt_mem_start)
-#define ACPI_MEM_AML (ssdm_mem_aml + *ssdt_mem_start)
-
 #define ACPI_SSDT_SIGNATURE 0x54445353 /* SSDT */
 #define ACPI_SSDT_HEADER_LENGTH 36
 
 #include "hw/i386/ssdt-misc.hex"
 #include "hw/i386/ssdt-pcihp.hex"
 #include "hw/i386/ssdt-tpm.hex"
-
-static void
-build_append_notify_method(GArray *device, const char *name,
-                           const char *format, int count)
-{
-    int i;
-    GArray *method = build_alloc_method(name, 2);
-
-    for (i = 0; i < count; i++) {
-        GArray *target = build_alloc_array();
-        build_append_namestring(target, format, i);
-        assert(i < 256); /* Fits in 1 byte */
-        build_append_notify_target_ifequal(method, target, i);
-        build_free_array(target);
-    }
-
-    build_append_and_cleanup_method(device, method);
-}
 
 static void patch_pcihp(int slot, uint8_t *ssdt_ptr)
 {
@@ -1073,26 +1025,54 @@ build_ssdt(GArray *table_data, GArray *linker,
         }
         aml_append(sb_scope, aml_name_decl("CPON", pkg));
 
-        if (nr_mem) {
-            assert(nr_mem <= ACPI_MAX_RAM_SLOTS);
-            /* build memory devices */
-            for (i = 0; i < nr_mem; i++) {
-                char id[3];
-                uint8_t *mem = acpi_data_push(sb_scope->buf, ACPI_MEM_SIZEOF);
+        /* build memory devices */
+        assert(nr_mem <= ACPI_MAX_RAM_SLOTS);
 
-                snprintf(id, sizeof(id), "%02X", i);
-                memcpy(mem, ACPI_MEM_AML, ACPI_MEM_SIZEOF);
-                memcpy(mem + ACPI_MEM_OFFSET_HEX, id, 2);
-                memcpy(mem + ACPI_MEM_OFFSET_ID, id, 2);
-            }
+        for (i = 0; i < nr_mem; i++) {
+            #define BASEPATH "\\_SB.PCI0." stringify(MEMORY_HOTPLUG_DEVICE) "."
+            const char *s;
 
-            /* build Method(MEMORY_SLOT_NOTIFY_METHOD, 2) {
-             *     If (LEqual(Arg0, 0x00)) {Notify(MP00, Arg1)} ...
-             */
-            build_append_notify_method(sb_scope->buf,
-                                       stringify(MEMORY_SLOT_NOTIFY_METHOD),
-                                       "MP%0.02X", nr_mem);
+            dev = aml_device("MP%02X", i);
+            aml_append(dev, aml_name_decl("_UID", aml_string("0x%02X", i)));
+            aml_append(dev, aml_name_decl("_HID", aml_eisaid("PNP0C80")));
+
+            method = aml_method("_CRS", 0);
+            s = BASEPATH stringify(MEMORY_SLOT_CRS_METHOD);
+            aml_append(method, aml_return(aml_call1(s, aml_name("_UID"))));
+            aml_append(dev, method);
+
+            method = aml_method("_STA", 0);
+            s = BASEPATH stringify(MEMORY_SLOT_STATUS_METHOD);
+            aml_append(method, aml_return(aml_call1(s, aml_name("_UID"))));
+            aml_append(dev, method);
+
+            method = aml_method("_PXM", 0);
+            s = BASEPATH stringify(MEMORY_SLOT_PROXIMITY_METHOD);
+            aml_append(method, aml_return(aml_call1(s, aml_name("_UID"))));
+            aml_append(dev, method);
+
+            method = aml_method("_OST", 3);
+            s = BASEPATH stringify(MEMORY_SLOT_OST_METHOD);
+            aml_append(method, aml_return(aml_call4(
+                s, aml_name("_UID"), aml_arg(0), aml_arg(1), aml_arg(2)
+            )));
+            aml_append(dev, method);
+
+            aml_append(sb_scope, dev);
         }
+
+        /* build Method(MEMORY_SLOT_NOTIFY_METHOD, 2) {
+         *     If (LEqual(Arg0, 0x00)) {Notify(MP00, Arg1)} ...
+         */
+        method = aml_method(stringify(MEMORY_SLOT_NOTIFY_METHOD), 2);
+        for (i = 0; i < nr_mem; i++) {
+            ifctx = aml_if(aml_equal(aml_arg(0), aml_int(i)));
+            aml_append(ifctx,
+                aml_notify(aml_name("MP%.02X", i), aml_arg(1))
+            );
+            aml_append(method, ifctx);
+        }
+        aml_append(sb_scope, method);
 
         {
             AcpiBuildPciBusHotplugState hotplug_state;
