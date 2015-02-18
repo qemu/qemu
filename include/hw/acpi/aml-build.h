@@ -29,6 +29,10 @@ typedef enum {
 } AmlIODecode;
 
 typedef enum {
+    aml_byte_acc = 1,
+} AmlFieldFlags;
+
+typedef enum {
     aml_system_memory = 0x00,
     aml_system_io = 0x01,
 } AmlRegionSpace;
@@ -86,6 +90,7 @@ Aml *aml_io(AmlIODecode dec, uint16_t min_base, uint16_t max_base,
             uint8_t aln, uint8_t len);
 Aml *aml_operation_region(const char *name, AmlRegionSpace rs,
                           uint32_t offset, uint32_t len);
+Aml *aml_named_field(const char *name, unsigned length);
 
 /* Block AML object primitives */
 Aml *aml_scope(const char *name_format, ...) GCC_FMT_ATTR(1, 2);
@@ -95,6 +100,7 @@ Aml *aml_if(Aml *predicate);
 Aml *aml_package(uint8_t num_elements);
 Aml *aml_buffer(void);
 Aml *aml_resource_template(void);
+Aml *aml_field(const char *name, AmlFieldFlags flags);
 
 /* other helpers */
 GArray *build_alloc_array(void);

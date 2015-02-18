@@ -216,6 +216,16 @@ build_prepend_package_length(GArray *package, unsigned length, bool incl_self)
     build_prepend_byte(package, byte);
 }
 
+static void
+build_append_pkg_length(GArray *array, unsigned length, bool incl_self)
+{
+    GArray *tmp = build_alloc_array();
+
+    build_prepend_package_length(tmp, length, incl_self);
+    build_append_array(array, tmp);
+    build_free_array(tmp);
+}
+
 void build_package(GArray *package, uint8_t op)
 {
     build_prepend_package_length(package, package->len, true);
@@ -566,5 +576,23 @@ Aml *aml_operation_region(const char *name, AmlRegionSpace rs,
     build_append_byte(var->buf, rs);
     build_append_int(var->buf, offset);
     build_append_int(var->buf, len);
+    return var;
+}
+
+/* ACPI 1.0b: 16.2.5.2 Named Objects Encoding: NamedField */
+Aml *aml_named_field(const char *name, unsigned length)
+{
+    Aml *var = aml_alloc();
+    build_append_nameseg(var->buf, name);
+    build_append_pkg_length(var->buf, length, false);
+    return var;
+}
+
+/* ACPI 1.0b: 16.2.5.2 Named Objects Encoding: DefField */
+Aml *aml_field(const char *name, AmlFieldFlags flags)
+{
+    Aml *var = aml_bundle(0x81 /* FieldOp */, AML_EXT_PACKAGE);
+    build_append_namestring(var->buf, "%s", name);
+    build_append_byte(var->buf, flags);
     return var;
 }
