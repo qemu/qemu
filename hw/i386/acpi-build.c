@@ -105,6 +105,8 @@ typedef struct AcpiPmInfo {
     uint16_t cpu_hp_io_len;
     uint16_t mem_hp_io_base;
     uint16_t mem_hp_io_len;
+    uint16_t pcihp_io_base;
+    uint16_t pcihp_io_len;
 } AcpiPmInfo;
 
 typedef struct AcpiMiscInfo {
@@ -178,9 +180,15 @@ static void acpi_get_pm_info(AcpiPmInfo *pm)
     Object *obj = NULL;
     QObject *o;
 
+    pm->pcihp_io_base = 0;
+    pm->pcihp_io_len = 0;
     if (piix) {
         obj = piix;
         pm->cpu_hp_io_base = PIIX4_CPU_HOTPLUG_IO_BASE;
+        pm->pcihp_io_base =
+            object_property_get_int(obj, ACPI_PCIHP_IO_BASE_PROP, NULL);
+        pm->pcihp_io_len =
+            object_property_get_int(obj, ACPI_PCIHP_IO_LEN_PROP, NULL);
     }
     if (lpc) {
         obj = lpc;
@@ -891,6 +899,25 @@ build_ssdt(GArray *table_data, GArray *linker,
     memcpy(ssdt_ptr, ssdp_misc_aml, sizeof(ssdp_misc_aml));
 
     patch_pci_windows(pci, ssdt_ptr, sizeof(ssdp_misc_aml));
+
+    scope = aml_scope("\\_SB.PCI0");
+    /* reserve PCIHP resources */
+    if (pm->pcihp_io_len) {
+        dev = aml_device("PHPR");
+        aml_append(dev, aml_name_decl("_HID", aml_string("PNP0A06")));
+        aml_append(dev,
+            aml_name_decl("_UID", aml_string("PCI Hotplug resources")));
+        /* device present, functioning, decoding, not shown in UI */
+        aml_append(dev, aml_name_decl("_STA", aml_int(0xB)));
+        crs = aml_resource_template();
+        aml_append(crs,
+            aml_io(aml_decode16, pm->pcihp_io_base, pm->pcihp_io_base, 1,
+                   pm->pcihp_io_len)
+        );
+        aml_append(dev, aml_name_decl("_CRS", crs));
+        aml_append(scope, dev);
+    }
+    aml_append(ssdt, scope);
 
     /*  create S3_ / S4_ / S5_ packages if necessary */
     scope = aml_scope("\\");
