@@ -4765,9 +4765,8 @@ int main(int argc, char **argv, char **envp)
         for (i = 0; i < 32; i++) {
             env->gpr[i] = regs->gpr[i];
         }
-
-        env->sr = regs->sr;
         env->pc = regs->pc;
+        cpu_set_sr(env, regs->sr);
     }
 #elif defined(TARGET_SH4)
     {

@@ -1054,9 +1054,8 @@ static void elf_core_copy_regs(target_elf_gregset_t *regs,
     for (i = 0; i < 32; i++) {
         (*regs)[i] = tswapreg(env->gpr[i]);
     }
-
     (*regs)[32] = tswapreg(env->pc);
-    (*regs)[33] = tswapreg(env->sr);
+    (*regs)[33] = tswapreg(cpu_get_sr(env));
 }
 #define ELF_HWCAP 0
 #define ELF_PLATFORM NULL

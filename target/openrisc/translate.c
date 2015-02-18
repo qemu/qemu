@@ -54,7 +54,7 @@ static TCGv cpu_pc;
 static TCGv jmp_pc;            /* l.jr/l.jalr temp pc */
 static TCGv cpu_npc;
 static TCGv cpu_ppc;
-static TCGv_i32 env_btaken;    /* bf/bnf , F flag taken */
+static TCGv cpu_sr_f;           /* bf/bnf, F flag taken */
 static TCGv cpu_lock_addr;
 static TCGv cpu_lock_value;
 static TCGv_i32 fpcsr;
@@ -88,9 +88,8 @@ void openrisc_translate_init(void)
                                  offsetof(CPUOpenRISCState, ppc), "ppc");
     jmp_pc = tcg_global_mem_new(cpu_env,
                                 offsetof(CPUOpenRISCState, jmp_pc), "jmp_pc");
-    env_btaken = tcg_global_mem_new_i32(cpu_env,
-                                        offsetof(CPUOpenRISCState, btaken),
-                                        "btaken");
+    cpu_sr_f = tcg_global_mem_new(cpu_env,
+                                  offsetof(CPUOpenRISCState, sr_f), "sr_f");
     cpu_lock_addr = tcg_global_mem_new(cpu_env,
                                        offsetof(CPUOpenRISCState, lock_addr),
                                        "lock_addr");
@@ -117,16 +116,6 @@ void openrisc_translate_init(void)
                                       offsetof(CPUOpenRISCState, gpr[i]),
                                       regnames[i]);
     }
-}
-
-/* Writeback SR_F translation space to execution space.  */
-static inline void wb_SR_F(void)
-{
-    TCGLabel *label = gen_new_label();
-    tcg_gen_andi_tl(cpu_sr, cpu_sr, ~SR_F);
-    tcg_gen_brcondi_tl(TCG_COND_EQ, env_btaken, 0, label);
-    tcg_gen_ori_tl(cpu_sr, cpu_sr, SR_F);
-    gen_set_label(label);
 }
 
 static inline void gen_sync_flags(DisasContext *dc)
@@ -220,14 +209,11 @@ static void gen_jump(DisasContext *dc, int32_t n26, uint32_t reg, uint32_t op0)
     case 0x04:     /* l.bf  */
         {
             TCGLabel *lab = gen_new_label();
-            TCGv sr_f = tcg_temp_new();
             tcg_gen_movi_tl(jmp_pc, dc->pc+8);
-            tcg_gen_andi_tl(sr_f, cpu_sr, SR_F);
-            tcg_gen_brcondi_i32(op0 == 0x03 ? TCG_COND_EQ : TCG_COND_NE,
-                                sr_f, SR_F, lab);
+            tcg_gen_brcondi_tl(op0 == 0x03 ? TCG_COND_NE : TCG_COND_EQ,
+                               cpu_sr_f, 0, lab);
             tcg_gen_movi_tl(jmp_pc, tmp_pc);
             gen_set_label(lab);
-            tcg_temp_free(sr_f);
         }
         break;
     case 0x11:     /* l.jr */
@@ -441,17 +427,16 @@ static void gen_swa(DisasContext *dc, TCGv rb, TCGv ra, int32_t ofs)
     val = tcg_temp_new();
     tcg_gen_atomic_cmpxchg_tl(val, cpu_lock_addr, cpu_lock_value,
                               rb, dc->mem_idx, MO_TEUL);
-    tcg_gen_setcond_tl(TCG_COND_EQ, env_btaken, val, cpu_lock_value);
+    tcg_gen_setcond_tl(TCG_COND_EQ, cpu_sr_f, val, cpu_lock_value);
     tcg_temp_free(val);
 
     tcg_gen_br(lab_done);
 
     gen_set_label(lab_fail);
-    tcg_gen_movi_tl(env_btaken, 0);
+    tcg_gen_movi_tl(cpu_sr_f, 0);
 
     gen_set_label(lab_done);
     tcg_gen_movi_tl(cpu_lock_addr, -1);
-    wb_SR_F();
 }
 
 static void dec_calc(DisasContext *dc, uint32_t insn)
@@ -558,14 +543,11 @@ static void dec_calc(DisasContext *dc, uint32_t insn)
             {
                 TCGLabel *lab = gen_new_label();
                 TCGv res = tcg_temp_local_new();
-                TCGv sr_f = tcg_temp_new();
-                tcg_gen_andi_tl(sr_f, cpu_sr, SR_F);
                 tcg_gen_mov_tl(res, cpu_R[rb]);
-                tcg_gen_brcondi_tl(TCG_COND_NE, sr_f, SR_F, lab);
+                tcg_gen_brcondi_tl(TCG_COND_EQ, cpu_sr_f, 0, lab);
                 tcg_gen_mov_tl(res, cpu_R[ra]);
                 gen_set_label(lab);
                 tcg_gen_mov_tl(cpu_R[rd], res);
-                tcg_temp_free(sr_f);
                 tcg_temp_free(res);
             }
             return;
@@ -1046,7 +1028,6 @@ static void dec_comp(DisasContext *dc, uint32_t insn)
     ra = extract32(insn, 16, 5);
     rb = extract32(insn, 11, 5);
 
-    tcg_gen_movi_i32(env_btaken, 0x0);
     /* unsigned integers  */
     tcg_gen_ext32u_tl(cpu_R[ra], cpu_R[ra]);
     tcg_gen_ext32u_tl(cpu_R[rb], cpu_R[rb]);
@@ -1054,59 +1035,58 @@ static void dec_comp(DisasContext *dc, uint32_t insn)
     switch (op0) {
     case 0x0:    /* l.sfeq */
         LOG_DIS("l.sfeq  r%d, r%d\n", ra, rb);
-        tcg_gen_setcond_tl(TCG_COND_EQ, env_btaken, cpu_R[ra], cpu_R[rb]);
+        tcg_gen_setcond_tl(TCG_COND_EQ, cpu_sr_f, cpu_R[ra], cpu_R[rb]);
         break;
 
     case 0x1:    /* l.sfne */
         LOG_DIS("l.sfne  r%d, r%d\n", ra, rb);
-        tcg_gen_setcond_tl(TCG_COND_NE, env_btaken, cpu_R[ra], cpu_R[rb]);
+        tcg_gen_setcond_tl(TCG_COND_NE, cpu_sr_f, cpu_R[ra], cpu_R[rb]);
         break;
 
     case 0x2:    /* l.sfgtu */
         LOG_DIS("l.sfgtu  r%d, r%d\n", ra, rb);
-        tcg_gen_setcond_tl(TCG_COND_GTU, env_btaken, cpu_R[ra], cpu_R[rb]);
+        tcg_gen_setcond_tl(TCG_COND_GTU, cpu_sr_f, cpu_R[ra], cpu_R[rb]);
         break;
 
     case 0x3:    /* l.sfgeu */
         LOG_DIS("l.sfgeu  r%d, r%d\n", ra, rb);
-        tcg_gen_setcond_tl(TCG_COND_GEU, env_btaken, cpu_R[ra], cpu_R[rb]);
+        tcg_gen_setcond_tl(TCG_COND_GEU, cpu_sr_f, cpu_R[ra], cpu_R[rb]);
         break;
 
     case 0x4:    /* l.sfltu */
         LOG_DIS("l.sfltu  r%d, r%d\n", ra, rb);
-        tcg_gen_setcond_tl(TCG_COND_LTU, env_btaken, cpu_R[ra], cpu_R[rb]);
+        tcg_gen_setcond_tl(TCG_COND_LTU, cpu_sr_f, cpu_R[ra], cpu_R[rb]);
         break;
 
     case 0x5:    /* l.sfleu */
         LOG_DIS("l.sfleu  r%d, r%d\n", ra, rb);
-        tcg_gen_setcond_tl(TCG_COND_LEU, env_btaken, cpu_R[ra], cpu_R[rb]);
+        tcg_gen_setcond_tl(TCG_COND_LEU, cpu_sr_f, cpu_R[ra], cpu_R[rb]);
         break;
 
     case 0xa:    /* l.sfgts */
         LOG_DIS("l.sfgts  r%d, r%d\n", ra, rb);
-        tcg_gen_setcond_tl(TCG_COND_GT, env_btaken, cpu_R[ra], cpu_R[rb]);
+        tcg_gen_setcond_tl(TCG_COND_GT, cpu_sr_f, cpu_R[ra], cpu_R[rb]);
         break;
 
     case 0xb:    /* l.sfges */
         LOG_DIS("l.sfges  r%d, r%d\n", ra, rb);
-        tcg_gen_setcond_tl(TCG_COND_GE, env_btaken, cpu_R[ra], cpu_R[rb]);
+        tcg_gen_setcond_tl(TCG_COND_GE, cpu_sr_f, cpu_R[ra], cpu_R[rb]);
         break;
 
     case 0xc:    /* l.sflts */
         LOG_DIS("l.sflts  r%d, r%d\n", ra, rb);
-        tcg_gen_setcond_tl(TCG_COND_LT, env_btaken, cpu_R[ra], cpu_R[rb]);
+        tcg_gen_setcond_tl(TCG_COND_LT, cpu_sr_f, cpu_R[ra], cpu_R[rb]);
         break;
 
     case 0xd:    /* l.sfles */
         LOG_DIS("l.sfles  r%d, r%d\n", ra, rb);
-        tcg_gen_setcond_tl(TCG_COND_LE, env_btaken, cpu_R[ra], cpu_R[rb]);
+        tcg_gen_setcond_tl(TCG_COND_LE, cpu_sr_f, cpu_R[ra], cpu_R[rb]);
         break;
 
     default:
         gen_illegal_exception(dc);
         break;
     }
-    wb_SR_F();
 }
 
 static void dec_compi(DisasContext *dc, uint32_t insn)
@@ -1118,64 +1098,61 @@ static void dec_compi(DisasContext *dc, uint32_t insn)
     ra = extract32(insn, 16, 5);
     I16 = sextract32(insn, 0, 16);
 
-    tcg_gen_movi_i32(env_btaken, 0x0);
-
     switch (op0) {
     case 0x0:    /* l.sfeqi */
         LOG_DIS("l.sfeqi  r%d, %d\n", ra, I16);
-        tcg_gen_setcondi_tl(TCG_COND_EQ, env_btaken, cpu_R[ra], I16);
+        tcg_gen_setcondi_tl(TCG_COND_EQ, cpu_sr_f, cpu_R[ra], I16);
         break;
 
     case 0x1:    /* l.sfnei */
         LOG_DIS("l.sfnei  r%d, %d\n", ra, I16);
-        tcg_gen_setcondi_tl(TCG_COND_NE, env_btaken, cpu_R[ra], I16);
+        tcg_gen_setcondi_tl(TCG_COND_NE, cpu_sr_f, cpu_R[ra], I16);
         break;
 
     case 0x2:    /* l.sfgtui */
         LOG_DIS("l.sfgtui  r%d, %d\n", ra, I16);
-        tcg_gen_setcondi_tl(TCG_COND_GTU, env_btaken, cpu_R[ra], I16);
+        tcg_gen_setcondi_tl(TCG_COND_GTU, cpu_sr_f, cpu_R[ra], I16);
         break;
 
     case 0x3:    /* l.sfgeui */
         LOG_DIS("l.sfgeui  r%d, %d\n", ra, I16);
-        tcg_gen_setcondi_tl(TCG_COND_GEU, env_btaken, cpu_R[ra], I16);
+        tcg_gen_setcondi_tl(TCG_COND_GEU, cpu_sr_f, cpu_R[ra], I16);
         break;
 
     case 0x4:    /* l.sfltui */
         LOG_DIS("l.sfltui  r%d, %d\n", ra, I16);
-        tcg_gen_setcondi_tl(TCG_COND_LTU, env_btaken, cpu_R[ra], I16);
+        tcg_gen_setcondi_tl(TCG_COND_LTU, cpu_sr_f, cpu_R[ra], I16);
         break;
 
     case 0x5:    /* l.sfleui */
         LOG_DIS("l.sfleui  r%d, %d\n", ra, I16);
-        tcg_gen_setcondi_tl(TCG_COND_LEU, env_btaken, cpu_R[ra], I16);
+        tcg_gen_setcondi_tl(TCG_COND_LEU, cpu_sr_f, cpu_R[ra], I16);
         break;
 
     case 0xa:    /* l.sfgtsi */
         LOG_DIS("l.sfgtsi  r%d, %d\n", ra, I16);
-        tcg_gen_setcondi_tl(TCG_COND_GT, env_btaken, cpu_R[ra], I16);
+        tcg_gen_setcondi_tl(TCG_COND_GT, cpu_sr_f, cpu_R[ra], I16);
         break;
 
     case 0xb:    /* l.sfgesi */
         LOG_DIS("l.sfgesi  r%d, %d\n", ra, I16);
-        tcg_gen_setcondi_tl(TCG_COND_GE, env_btaken, cpu_R[ra], I16);
+        tcg_gen_setcondi_tl(TCG_COND_GE, cpu_sr_f, cpu_R[ra], I16);
         break;
 
     case 0xc:    /* l.sfltsi */
         LOG_DIS("l.sfltsi  r%d, %d\n", ra, I16);
-        tcg_gen_setcondi_tl(TCG_COND_LT, env_btaken, cpu_R[ra], I16);
+        tcg_gen_setcondi_tl(TCG_COND_LT, cpu_sr_f, cpu_R[ra], I16);
         break;
 
     case 0xd:    /* l.sflesi */
         LOG_DIS("l.sflesi  r%d, %d\n", ra, I16);
-        tcg_gen_setcondi_tl(TCG_COND_LE, env_btaken, cpu_R[ra], I16);
+        tcg_gen_setcondi_tl(TCG_COND_LE, cpu_sr_f, cpu_R[ra], I16);
         break;
 
     default:
         gen_illegal_exception(dc);
         break;
     }
-    wb_SR_F();
 }
 
 static void dec_sys(DisasContext *dc, uint32_t insn)
@@ -1308,32 +1285,32 @@ static void dec_float(DisasContext *dc, uint32_t insn)
 
     case 0x08:    /* lf.sfeq.s */
         LOG_DIS("lf.sfeq.s r%d, r%d\n", ra, rb);
-        gen_helper_float_eq_s(env_btaken, cpu_env, cpu_R[ra], cpu_R[rb]);
+        gen_helper_float_eq_s(cpu_sr_f, cpu_env, cpu_R[ra], cpu_R[rb]);
         break;
 
     case 0x09:    /* lf.sfne.s */
         LOG_DIS("lf.sfne.s r%d, r%d\n", ra, rb);
-        gen_helper_float_ne_s(env_btaken, cpu_env, cpu_R[ra], cpu_R[rb]);
+        gen_helper_float_ne_s(cpu_sr_f, cpu_env, cpu_R[ra], cpu_R[rb]);
         break;
 
     case 0x0a:    /* lf.sfgt.s */
         LOG_DIS("lf.sfgt.s r%d, r%d\n", ra, rb);
-        gen_helper_float_gt_s(env_btaken, cpu_env, cpu_R[ra], cpu_R[rb]);
+        gen_helper_float_gt_s(cpu_sr_f, cpu_env, cpu_R[ra], cpu_R[rb]);
         break;
 
     case 0x0b:    /* lf.sfge.s */
         LOG_DIS("lf.sfge.s r%d, r%d\n", ra, rb);
-        gen_helper_float_ge_s(env_btaken, cpu_env, cpu_R[ra], cpu_R[rb]);
+        gen_helper_float_ge_s(cpu_sr_f, cpu_env, cpu_R[ra], cpu_R[rb]);
         break;
 
     case 0x0c:    /* lf.sflt.s */
         LOG_DIS("lf.sflt.s r%d, r%d\n", ra, rb);
-        gen_helper_float_lt_s(env_btaken, cpu_env, cpu_R[ra], cpu_R[rb]);
+        gen_helper_float_lt_s(cpu_sr_f, cpu_env, cpu_R[ra], cpu_R[rb]);
         break;
 
     case 0x0d:    /* lf.sfle.s */
         LOG_DIS("lf.sfle.s r%d, r%d\n", ra, rb);
-        gen_helper_float_le_s(env_btaken, cpu_env, cpu_R[ra], cpu_R[rb]);
+        gen_helper_float_le_s(cpu_sr_f, cpu_env, cpu_R[ra], cpu_R[rb]);
         break;
 
 /* not used yet, open it when we need or64.  */
@@ -1394,37 +1371,37 @@ static void dec_float(DisasContext *dc, uint32_t insn)
     case 0x18:     lf.sfeq.d
         LOG_DIS("lf.sfeq.d r%d, r%d\n", ra, rb);
         check_of64s(dc);
-        gen_helper_float_eq_d(env_btaken, cpu_env, cpu_R[ra], cpu_R[rb]);
+        gen_helper_float_eq_d(cpu_sr_f, cpu_env, cpu_R[ra], cpu_R[rb]);
         break;
 
     case 0x1a:     lf.sfgt.d
         LOG_DIS("lf.sfgt.d r%d, r%d\n", ra, rb);
         check_of64s(dc);
-        gen_helper_float_gt_d(env_btaken, cpu_env, cpu_R[ra], cpu_R[rb]);
+        gen_helper_float_gt_d(cpu_sr_f, cpu_env, cpu_R[ra], cpu_R[rb]);
         break;
 
     case 0x1b:     lf.sfge.d
         LOG_DIS("lf.sfge.d r%d, r%d\n", ra, rb);
         check_of64s(dc);
-        gen_helper_float_ge_d(env_btaken, cpu_env, cpu_R[ra], cpu_R[rb]);
+        gen_helper_float_ge_d(cpu_sr_f, cpu_env, cpu_R[ra], cpu_R[rb]);
         break;
 
     case 0x19:     lf.sfne.d
         LOG_DIS("lf.sfne.d r%d, r%d\n", ra, rb);
         check_of64s(dc);
-        gen_helper_float_ne_d(env_btaken, cpu_env, cpu_R[ra], cpu_R[rb]);
+        gen_helper_float_ne_d(cpu_sr_f, cpu_env, cpu_R[ra], cpu_R[rb]);
         break;
 
     case 0x1c:     lf.sflt.d
         LOG_DIS("lf.sflt.d r%d, r%d\n", ra, rb);
         check_of64s(dc);
-        gen_helper_float_lt_d(env_btaken, cpu_env, cpu_R[ra], cpu_R[rb]);
+        gen_helper_float_lt_d(cpu_sr_f, cpu_env, cpu_R[ra], cpu_R[rb]);
         break;
 
     case 0x1d:     lf.sfle.d
         LOG_DIS("lf.sfle.d r%d, r%d\n", ra, rb);
         check_of64s(dc);
-        gen_helper_float_le_d(env_btaken, cpu_env, cpu_R[ra], cpu_R[rb]);
+        gen_helper_float_le_d(cpu_sr_f, cpu_env, cpu_R[ra], cpu_R[rb]);
         break;
 #endif*/
 
@@ -1432,7 +1409,6 @@ static void dec_float(DisasContext *dc, uint32_t insn)
         gen_illegal_exception(dc);
         break;
     }
-    wb_SR_F();
 }
 
 static void disas_openrisc_insn(DisasContext *dc, OpenRISCCPU *cpu)

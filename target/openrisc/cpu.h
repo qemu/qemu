@@ -286,7 +286,8 @@ typedef struct CPUOpenRISCState {
     target_ulong epcr;        /* Exception PC register */
     target_ulong eear;        /* Exception EA register */
 
-    uint32_t sr;              /* Supervisor register */
+    target_ulong sr_f;        /* the SR_F bit, values 0, 1.  */
+    uint32_t sr;              /* Supervisor register, without SR_F */
     uint32_t vr;              /* Version register */
     uint32_t upr;             /* Unit presence register */
     uint32_t cpucfgr;         /* CPU configure register */
@@ -301,7 +302,6 @@ typedef struct CPUOpenRISCState {
 
     uint32_t flags;           /* cpu_flags, we only use it for exception
                                  in solt so far.  */
-    uint32_t btaken;          /* the SR_F bit */
 
     /* Fields up to this point are cleared by a CPU reset */
     struct {} end_reset_fields;
@@ -410,6 +410,17 @@ static inline int cpu_mmu_index(CPUOpenRISCState *env, bool ifetch)
         return MMU_NOMMU_IDX;
     }
     return (env->sr & SR_SM) == 0 ? MMU_USER_IDX : MMU_SUPERVISOR_IDX;
+}
+
+static inline uint32_t cpu_get_sr(const CPUOpenRISCState *env)
+{
+    return env->sr + env->sr_f * SR_F;
+}
+
+static inline void cpu_set_sr(CPUOpenRISCState *env, uint32_t val)
+{
+    env->sr_f = (val & SR_F) != 0;
+    env->sr = (val & ~SR_F) | SR_FO;
 }
 
 #define CPU_INTERRUPT_TIMER   CPU_INTERRUPT_TGT_INT_0
