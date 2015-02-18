@@ -397,6 +397,17 @@ Aml *aml_name_decl(const char *name, Aml *val)
     return var;
 }
 
+/* ACPI 1.0b: 16.2.6.1 Arg Objects Encoding */
+Aml *aml_arg(int pos)
+{
+    Aml *var;
+    uint8_t op = 0x68 /* ARG0 op */ + pos;
+
+    assert(pos <= 6);
+    var = aml_opcode(op);
+    return var;
+}
+
 /* ACPI 1.0b: 16.2.5.3 Type 1 Opcodes Encoding: DefIfElse */
 Aml *aml_if(Aml *predicate)
 {
