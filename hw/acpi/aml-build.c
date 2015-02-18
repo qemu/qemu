@@ -25,6 +25,7 @@
 #include <stdbool.h>
 #include <string.h>
 #include "hw/acpi/aml-build.h"
+#include "qemu/bswap.h"
 
 GArray *build_alloc_array(void)
 {
@@ -256,4 +257,81 @@ void build_append_int(GArray *table, uint32_t value)
     } else {
         build_append_value(table, value, 4);
     }
+}
+
+static GPtrArray *alloc_list;
+
+static Aml *aml_alloc(void)
+{
+    Aml *var = g_new0(typeof(*var), 1);
+
+    g_ptr_array_add(alloc_list, var);
+    var->block_flags = AML_NO_OPCODE;
+    var->buf = build_alloc_array();
+    return var;
+}
+
+static void aml_free(gpointer data)
+{
+    Aml *var = data;
+    build_free_array(var->buf);
+}
+
+Aml *init_aml_allocator(void)
+{
+    Aml *var;
+
+    assert(!alloc_list);
+    alloc_list = g_ptr_array_new_with_free_func(aml_free);
+    var = aml_alloc();
+    return var;
+}
+
+void free_aml_allocator(void)
+{
+    g_ptr_array_free(alloc_list, true);
+    alloc_list = 0;
+}
+
+/* pack data with DefBuffer encoding */
+static void build_buffer(GArray *array, uint8_t op)
+{
+    GArray *data = build_alloc_array();
+
+    build_append_int(data, array->len);
+    g_array_prepend_vals(array, data->data, data->len);
+    build_free_array(data);
+    build_package(array, op);
+}
+
+void aml_append(Aml *parent_ctx, Aml *child)
+{
+    switch (child->block_flags) {
+    case AML_OPCODE:
+        build_append_byte(parent_ctx->buf, child->op);
+        break;
+    case AML_EXT_PACKAGE:
+        build_extop_package(child->buf, child->op);
+        break;
+    case AML_PACKAGE:
+        build_package(child->buf, child->op);
+        break;
+    case AML_RES_TEMPLATE:
+        build_append_byte(child->buf, 0x79); /* EndTag */
+        /*
+         * checksum operations are treated as succeeded if checksum
+         * field is zero. [ACPI Spec 1.0b, 6.4.2.8 End Tag]
+         */
+        build_append_byte(child->buf, 0);
+        /* fall through, to pack resources in buffer */
+    case AML_BUFFER:
+        build_buffer(child->buf, child->op);
+        break;
+    case AML_NO_OPCODE:
+        break;
+    default:
+        assert(0);
+        break;
+    }
+    build_append_array(parent_ctx->buf, child->buf);
 }
