@@ -665,3 +665,32 @@ Aml *aml_processor(uint8_t proc_id, uint32_t pblk_addr, uint8_t pblk_len,
     build_append_byte(var->buf, pblk_len); /* PblkLen */
     return var;
 }
+
+static uint8_t Hex2Digit(char c)
+{
+    if (c >= 'A') {
+        return c - 'A' + 10;
+    }
+
+    return c - '0';
+}
+
+/* ACPI 1.0b: 15.2.3.6.4.1 EISAID Macro - Convert EISA ID String To Integer */
+Aml *aml_eisaid(const char *str)
+{
+    Aml *var = aml_alloc();
+    uint32_t id;
+
+    g_assert(strlen(str) == 7);
+    id = (str[0] - 0x40) << 26 |
+    (str[1] - 0x40) << 21 |
+    (str[2] - 0x40) << 16 |
+    Hex2Digit(str[3]) << 12 |
+    Hex2Digit(str[4]) << 8 |
+    Hex2Digit(str[5]) << 4 |
+    Hex2Digit(str[6]);
+
+    build_append_byte(var->buf, 0x0C); /* DWordPrefix */
+    build_append_int_noprefix(var->buf, bswap32(id), sizeof(id));
+    return var;
+}

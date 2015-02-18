@@ -96,6 +96,7 @@ Aml *aml_string(const char *name_format, ...) GCC_FMT_ATTR(1, 2);
 Aml *aml_equal(Aml *arg1, Aml *arg2);
 Aml *aml_processor(uint8_t proc_id, uint32_t pblk_addr, uint8_t pblk_len,
                    const char *name_format, ...) GCC_FMT_ATTR(4, 5);
+Aml *aml_eisaid(const char *str);
 
 /* Block AML object primitives */
 Aml *aml_scope(const char *name_format, ...) GCC_FMT_ATTR(1, 2);
