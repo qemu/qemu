@@ -271,6 +271,15 @@ static Aml *aml_alloc(void)
     return var;
 }
 
+static Aml *aml_opcode(uint8_t op)
+{
+    Aml *var = aml_alloc();
+
+    var->op  = op;
+    var->block_flags = AML_OPCODE;
+    return var;
+}
+
 static Aml *aml_bundle(uint8_t op, AmlBlockFlags flags)
 {
     Aml *var = aml_alloc();
@@ -353,6 +362,29 @@ Aml *aml_scope(const char *name_format, ...)
     va_start(ap, name_format);
     build_append_namestringv(var->buf, name_format, ap);
     va_end(ap);
+    return var;
+}
+
+/*
+ * helper to construct NameString, which returns Aml object
+ * for using with aml_append or other aml_* terms
+ */
+Aml *aml_name(const char *name_format, ...)
+{
+    va_list ap;
+    Aml *var = aml_alloc();
+    va_start(ap, name_format);
+    build_append_namestringv(var->buf, name_format, ap);
+    va_end(ap);
+    return var;
+}
+
+/* ACPI 1.0b: 16.2.5.1 Namespace Modifier Objects Encoding: DefName */
+Aml *aml_name_decl(const char *name, Aml *val)
+{
+    Aml *var = aml_opcode(0x08 /* NameOp */);
+    build_append_namestring(var->buf, "%s", name);
+    aml_append(var, val);
     return var;
 }
 
