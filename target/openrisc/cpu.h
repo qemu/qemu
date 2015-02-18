@@ -277,8 +277,7 @@ typedef struct CPUOpenRISCState {
     target_ulong ppc;         /* Prev PC */
     target_ulong jmp_pc;      /* Jump PC */
 
-    target_ulong machi;       /* Multiply register MACHI */
-    target_ulong maclo;       /* Multiply register MACLO */
+    uint64_t mac;             /* Multiply registers MACHI:MACLO */
 
     target_ulong fpmaddhi;    /* Multiply and add float register FPMADDHI */
     target_ulong fpmaddlo;    /* Multiply and add float register FPMADDLO */

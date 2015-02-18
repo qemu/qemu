@@ -60,7 +60,7 @@ static TCGv cpu_sr_ov;          /* signed overflow */
 static TCGv cpu_lock_addr;
 static TCGv cpu_lock_value;
 static TCGv_i32 fpcsr;
-static TCGv machi, maclo;
+static TCGv_i64 cpu_mac;        /* MACHI:MACLO */
 static TCGv fpmaddhi, fpmaddlo;
 static TCGv_i32 env_flags;
 #include "exec/gen-icount.h"
@@ -105,12 +105,9 @@ void openrisc_translate_init(void)
     fpcsr = tcg_global_mem_new_i32(cpu_env,
                                    offsetof(CPUOpenRISCState, fpcsr),
                                    "fpcsr");
-    machi = tcg_global_mem_new(cpu_env,
-                               offsetof(CPUOpenRISCState, machi),
-                               "machi");
-    maclo = tcg_global_mem_new(cpu_env,
-                               offsetof(CPUOpenRISCState, maclo),
-                               "maclo");
+    cpu_mac = tcg_global_mem_new_i64(cpu_env,
+                                     offsetof(CPUOpenRISCState, mac),
+                                     "mac");
     fpmaddhi = tcg_global_mem_new(cpu_env,
                                   offsetof(CPUOpenRISCState, fpmaddhi),
                                   "fpmaddhi");
@@ -363,6 +360,58 @@ static void gen_divu(DisasContext *dc, TCGv dest, TCGv srca, TCGv srcb)
     tcg_temp_free(t0);
 
     gen_ove_cy(dc);
+}
+
+static void gen_mac(DisasContext *dc, TCGv srca, TCGv srcb)
+{
+    TCGv_i64 t1 = tcg_temp_new_i64();
+    TCGv_i64 t2 = tcg_temp_new_i64();
+
+    tcg_gen_ext_tl_i64(t1, srca);
+    tcg_gen_ext_tl_i64(t2, srcb);
+    tcg_gen_mul_i64(t1, t1, t2);
+
+    /* Note that overflow is only computed during addition stage.  */
+    tcg_gen_xor_i64(t2, cpu_mac, t1);
+    tcg_gen_add_i64(cpu_mac, cpu_mac, t1);
+    tcg_gen_xor_i64(t1, t1, cpu_mac);
+    tcg_gen_andc_i64(t1, t1, t2);
+    tcg_temp_free_i64(t2);
+
+#if TARGET_LONG_BITS == 32
+    tcg_gen_extrh_i64_i32(cpu_sr_ov, t1);
+#else
+    tcg_gen_mov_i64(cpu_sr_ov, t1);
+#endif
+    tcg_temp_free_i64(t1);
+
+    gen_ove_ov(dc);
+}
+
+static void gen_msb(DisasContext *dc, TCGv srca, TCGv srcb)
+{
+    TCGv_i64 t1 = tcg_temp_new_i64();
+    TCGv_i64 t2 = tcg_temp_new_i64();
+
+    tcg_gen_ext_tl_i64(t1, srca);
+    tcg_gen_ext_tl_i64(t2, srcb);
+    tcg_gen_mul_i64(t1, t1, t2);
+
+    /* Note that overflow is only computed during subtraction stage.  */
+    tcg_gen_xor_i64(t2, cpu_mac, t1);
+    tcg_gen_sub_i64(cpu_mac, cpu_mac, t1);
+    tcg_gen_xor_i64(t1, t1, cpu_mac);
+    tcg_gen_and_i64(t1, t1, t2);
+    tcg_temp_free_i64(t2);
+
+#if TARGET_LONG_BITS == 32
+    tcg_gen_extrh_i64_i32(cpu_sr_ov, t1);
+#else
+    tcg_gen_mov_i64(cpu_sr_ov, t1);
+#endif
+    tcg_temp_free_i64(t1);
+
+    gen_ove_ov(dc);
 }
 
 static void gen_lwa(DisasContext *dc, TCGv rd, TCGv ra, int32_t ofs)
@@ -628,23 +677,9 @@ static void dec_misc(DisasContext *dc, uint32_t insn)
 
     case 0x13:    /* l.maci */
         LOG_DIS("l.maci r%d, %d\n", ra, I16);
-        {
-            TCGv_i64 t1 = tcg_temp_new_i64();
-            TCGv_i64 t2 = tcg_temp_new_i64();
-            TCGv_i32 dst = tcg_temp_new_i32();
-            TCGv ttmp = tcg_const_tl(I16);
-            tcg_gen_mul_tl(dst, cpu_R[ra], ttmp);
-            tcg_gen_ext_i32_i64(t1, dst);
-            tcg_gen_concat_i32_i64(t2, maclo, machi);
-            tcg_gen_add_i64(t2, t2, t1);
-            tcg_gen_extrl_i64_i32(maclo, t2);
-            tcg_gen_shri_i64(t2, t2, 32);
-            tcg_gen_extrl_i64_i32(machi, t2);
-            tcg_temp_free_i32(dst);
-            tcg_temp_free(ttmp);
-            tcg_temp_free_i64(t1);
-            tcg_temp_free_i64(t2);
-        }
+        t0 = tcg_const_tl(I16);
+        gen_mac(dc, cpu_R[ra], t0);
+        tcg_temp_free(t0);
         break;
 
     case 0x09:    /* l.rfe */
@@ -873,40 +908,12 @@ static void dec_mac(DisasContext *dc, uint32_t insn)
     switch (op0) {
     case 0x0001:    /* l.mac */
         LOG_DIS("l.mac r%d, r%d\n", ra, rb);
-        {
-            TCGv_i32 t0 = tcg_temp_new_i32();
-            TCGv_i64 t1 = tcg_temp_new_i64();
-            TCGv_i64 t2 = tcg_temp_new_i64();
-            tcg_gen_mul_tl(t0, cpu_R[ra], cpu_R[rb]);
-            tcg_gen_ext_i32_i64(t1, t0);
-            tcg_gen_concat_i32_i64(t2, maclo, machi);
-            tcg_gen_add_i64(t2, t2, t1);
-            tcg_gen_extrl_i64_i32(maclo, t2);
-            tcg_gen_shri_i64(t2, t2, 32);
-            tcg_gen_extrl_i64_i32(machi, t2);
-            tcg_temp_free_i32(t0);
-            tcg_temp_free_i64(t1);
-            tcg_temp_free_i64(t2);
-        }
+        gen_mac(dc, cpu_R[ra], cpu_R[rb]);
         break;
 
     case 0x0002:    /* l.msb */
         LOG_DIS("l.msb r%d, r%d\n", ra, rb);
-        {
-            TCGv_i32 t0 = tcg_temp_new_i32();
-            TCGv_i64 t1 = tcg_temp_new_i64();
-            TCGv_i64 t2 = tcg_temp_new_i64();
-            tcg_gen_mul_tl(t0, cpu_R[ra], cpu_R[rb]);
-            tcg_gen_ext_i32_i64(t1, t0);
-            tcg_gen_concat_i32_i64(t2, maclo, machi);
-            tcg_gen_sub_i64(t2, t2, t1);
-            tcg_gen_extrl_i64_i32(maclo, t2);
-            tcg_gen_shri_i64(t2, t2, 32);
-            tcg_gen_extrl_i64_i32(machi, t2);
-            tcg_temp_free_i32(t0);
-            tcg_temp_free_i64(t1);
-            tcg_temp_free_i64(t2);
-        }
+        gen_msb(dc, cpu_R[ra], cpu_R[rb]);
         break;
 
     default:
@@ -969,9 +976,8 @@ static void dec_M(DisasContext *dc, uint32_t insn)
 
     case 0x1:    /* l.macrc */
         LOG_DIS("l.macrc  r%d\n", rd);
-        tcg_gen_mov_tl(cpu_R[rd], maclo);
-        tcg_gen_movi_tl(maclo, 0x0);
-        tcg_gen_movi_tl(machi, 0x0);
+        tcg_gen_trunc_i64_tl(cpu_R[rd], cpu_mac);
+        tcg_gen_movi_i64(cpu_mac, 0);
         break;
 
     default:

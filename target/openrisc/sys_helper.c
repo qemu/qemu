@@ -120,6 +120,12 @@ void HELPER(mtspr)(CPUOpenRISCState *env,
     case TO_SPR(2, 1280) ... TO_SPR(2, 1407): /* ITLBW3MR 0-127 */
     case TO_SPR(2, 1408) ... TO_SPR(2, 1535): /* ITLBW3TR 0-127 */
         break;
+    case TO_SPR(5, 1):  /* MACLO */
+        env->mac = deposit64(env->mac, 0, 32, rb);
+        break;
+    case TO_SPR(5, 2):  /* MACHI */
+        env->mac = deposit64(env->mac, 32, 32, rb);
+        break;
     case TO_SPR(9, 0):  /* PICMR */
         env->picmr |= rb;
         break;
@@ -243,6 +249,13 @@ target_ulong HELPER(mfspr)(CPUOpenRISCState *env,
     case TO_SPR(2, 1152) ... TO_SPR(2, 1279): /* ITLBW2TR 0-127 */
     case TO_SPR(2, 1280) ... TO_SPR(2, 1407): /* ITLBW3MR 0-127 */
     case TO_SPR(2, 1408) ... TO_SPR(2, 1535): /* ITLBW3TR 0-127 */
+        break;
+
+    case TO_SPR(5, 1):  /* MACLO */
+        return (uint32_t)env->mac;
+        break;
+    case TO_SPR(5, 2):  /* MACHI */
+        return env->mac >> 32;
         break;
 
     case TO_SPR(9, 0):  /* PICMR */
