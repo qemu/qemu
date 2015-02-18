@@ -23,6 +23,11 @@ struct Aml {
 };
 typedef struct Aml Aml;
 
+typedef enum {
+    aml_decode10 = 0,
+    aml_decode16 = 1,
+} AmlIODecode;
+
 /**
  * init_aml_allocator:
  *
@@ -72,6 +77,8 @@ Aml *aml_call1(const char *method, Aml *arg1);
 Aml *aml_call2(const char *method, Aml *arg1, Aml *arg2);
 Aml *aml_call3(const char *method, Aml *arg1, Aml *arg2, Aml *arg3);
 Aml *aml_call4(const char *method, Aml *arg1, Aml *arg2, Aml *arg3, Aml *arg4);
+Aml *aml_io(AmlIODecode dec, uint16_t min_base, uint16_t max_base,
+            uint8_t aln, uint8_t len);
 
 /* Block AML object primitives */
 Aml *aml_scope(const char *name_format, ...) GCC_FMT_ATTR(1, 2);

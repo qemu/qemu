@@ -478,6 +478,22 @@ Aml *aml_call4(const char *method, Aml *arg1, Aml *arg2, Aml *arg3, Aml *arg4)
     return var;
 }
 
+/* ACPI 1.0b: 6.4.2.5 I/O Port Descriptor */
+Aml *aml_io(AmlIODecode dec, uint16_t min_base, uint16_t max_base,
+            uint8_t aln, uint8_t len)
+{
+    Aml *var = aml_alloc();
+    build_append_byte(var->buf, 0x47); /* IO port descriptor */
+    build_append_byte(var->buf, dec);
+    build_append_byte(var->buf, min_base & 0xff);
+    build_append_byte(var->buf, (min_base >> 8) & 0xff);
+    build_append_byte(var->buf, max_base & 0xff);
+    build_append_byte(var->buf, (max_base >> 8) & 0xff);
+    build_append_byte(var->buf, aln);
+    build_append_byte(var->buf, len);
+    return var;
+}
+
 /* ACPI 1.0b: 16.2.5.3 Type 1 Opcodes Encoding: DefIfElse */
 Aml *aml_if(Aml *predicate)
 {
