@@ -632,3 +632,11 @@ Aml *aml_local(int num)
     var = aml_opcode(op);
     return var;
 }
+
+/* ACPI 2.0a: 17.2.2 Data Objects Encoding: DefVarPackage */
+Aml *aml_varpackage(uint32_t num_elements)
+{
+    Aml *var = aml_bundle(0x13 /* VarPackageOp */, AML_PACKAGE);
+    build_append_int(var->buf, num_elements);
+    return var;
+}

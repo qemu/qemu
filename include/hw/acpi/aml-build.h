@@ -103,6 +103,7 @@ Aml *aml_package(uint8_t num_elements);
 Aml *aml_buffer(void);
 Aml *aml_resource_template(void);
 Aml *aml_field(const char *name, AmlFieldFlags flags);
+Aml *aml_varpackage(uint32_t num_elements);
 
 /* other helpers */
 GArray *build_alloc_array(void);
