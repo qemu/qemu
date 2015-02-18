@@ -66,6 +66,7 @@ Aml *aml_return(Aml *val);
 Aml *aml_int(const uint64_t val);
 Aml *aml_arg(int pos);
 Aml *aml_store(Aml *val, Aml *target);
+Aml *aml_and(Aml *arg1, Aml *arg2);
 
 /* Block AML object primitives */
 Aml *aml_scope(const char *name_format, ...) GCC_FMT_ATTR(1, 2);
