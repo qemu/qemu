@@ -505,3 +505,11 @@ Aml *aml_device(const char *name_format, ...)
     va_end(ap);
     return var;
 }
+
+/* ACPI 1.0b: 16.2.5.4 Type 2 Opcodes Encoding: DefPackage */
+Aml *aml_package(uint8_t num_elements)
+{
+    Aml *var = aml_bundle(0x12 /* PackageOp */, AML_PACKAGE);
+    build_append_byte(var->buf, num_elements);
+    return var;
+}
