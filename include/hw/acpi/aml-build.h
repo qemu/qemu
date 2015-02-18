@@ -62,6 +62,7 @@ void aml_append(Aml *parent_ctx, Aml *child);
 /* Block AML object primitives */
 Aml *aml_scope(const char *name_format, ...) GCC_FMT_ATTR(1, 2);
 Aml *aml_device(const char *name_format, ...) GCC_FMT_ATTR(1, 2);
+Aml *aml_method(const char *name, int arg_count);
 
 /* other helpers */
 GArray *build_alloc_array(void);

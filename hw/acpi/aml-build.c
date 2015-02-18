@@ -356,6 +356,15 @@ Aml *aml_scope(const char *name_format, ...)
     return var;
 }
 
+/* ACPI 1.0b: 16.2.5.2 Named Objects Encoding: DefMethod */
+Aml *aml_method(const char *name, int arg_count)
+{
+    Aml *var = aml_bundle(0x14 /* MethodOp */, AML_PACKAGE);
+    build_append_namestring(var->buf, "%s", name);
+    build_append_byte(var->buf, arg_count); /* MethodFlags: ArgCount */
+    return var;
+}
+
 /* ACPI 1.0b: 16.2.5.2 Named Objects Encoding: DefDevice */
 Aml *aml_device(const char *name_format, ...)
 {
