@@ -923,17 +923,18 @@ build_ssdt(GArray *table_data, GArray *linker,
     MachineState *machine = MACHINE(qdev_get_machine());
     uint32_t nr_mem = machine->ram_slots;
     unsigned acpi_cpus = guest_info->apic_id_limit;
-    int ssdt_start = table_data->len;
     uint8_t *ssdt_ptr;
+    Aml *ssdt, *sb_scope;
     int i;
 
+    ssdt = init_aml_allocator();
     /* The current AML generator can cover the APIC ID range [0..255],
      * inclusive, for VCPU hotplug. */
     QEMU_BUILD_BUG_ON(ACPI_CPU_HOTPLUG_ID_LIMIT > 256);
     g_assert(acpi_cpus <= ACPI_CPU_HOTPLUG_ID_LIMIT);
 
     /* Copy header and patch values in the S3_ / S4_ / S5_ packages */
-    ssdt_ptr = acpi_data_push(table_data, sizeof(ssdp_misc_aml));
+    ssdt_ptr = acpi_data_push(ssdt->buf, sizeof(ssdp_misc_aml));
     memcpy(ssdt_ptr, ssdp_misc_aml, sizeof(ssdp_misc_aml));
     if (pm->s3_disabled) {
         ssdt_ptr[acpi_s3_name[0]] = 'X';
@@ -953,15 +954,11 @@ build_ssdt(GArray *table_data, GArray *linker,
     ACPI_BUILD_SET_LE(ssdt_ptr, sizeof(ssdp_misc_aml),
                       ssdt_mctrl_nr_slots[0], 32, nr_mem);
 
+    sb_scope = aml_scope("_SB");
     {
-        GArray *sb_scope = build_alloc_array();
-        uint8_t op = 0x10; /* ScopeOp */
-
-        build_append_namestring(sb_scope, "_SB");
-
         /* build Processor object for each processor */
         for (i = 0; i < acpi_cpus; i++) {
-            uint8_t *proc = acpi_data_push(sb_scope, ACPI_PROC_SIZEOF);
+            uint8_t *proc = acpi_data_push(sb_scope->buf, ACPI_PROC_SIZEOF);
             memcpy(proc, ACPI_PROC_AML, ACPI_PROC_SIZEOF);
             proc[ACPI_PROC_OFFSET_CPUHEX] = acpi_get_hex(i >> 4);
             proc[ACPI_PROC_OFFSET_CPUHEX+1] = acpi_get_hex(i);
@@ -973,11 +970,12 @@ build_ssdt(GArray *table_data, GArray *linker,
          *   Method(NTFY, 2) {If (LEqual(Arg0, 0x00)) {Notify(CP00, Arg1)} ...}
          */
         /* Arg0 = Processor ID = APIC ID */
-        build_append_notify_method(sb_scope, "NTFY", "CP%0.02X", acpi_cpus);
+        build_append_notify_method(sb_scope->buf, "NTFY",
+                                   "CP%0.02X", acpi_cpus);
 
         /* build "Name(CPON, Package() { One, One, ..., Zero, Zero, ... })" */
-        build_append_byte(sb_scope, 0x08); /* NameOp */
-        build_append_namestring(sb_scope, "CPON");
+        build_append_byte(sb_scope->buf, 0x08); /* NameOp */
+        build_append_namestring(sb_scope->buf, "CPON");
 
         {
             GArray *package = build_alloc_array();
@@ -1002,7 +1000,7 @@ build_ssdt(GArray *table_data, GArray *linker,
             }
 
             build_package(package, op);
-            build_append_array(sb_scope, package);
+            build_append_array(sb_scope->buf, package);
             build_free_array(package);
         }
 
@@ -1011,7 +1009,7 @@ build_ssdt(GArray *table_data, GArray *linker,
             /* build memory devices */
             for (i = 0; i < nr_mem; i++) {
                 char id[3];
-                uint8_t *mem = acpi_data_push(sb_scope, ACPI_MEM_SIZEOF);
+                uint8_t *mem = acpi_data_push(sb_scope->buf, ACPI_MEM_SIZEOF);
 
                 snprintf(id, sizeof(id), "%02X", i);
                 memcpy(mem, ACPI_MEM_AML, ACPI_MEM_SIZEOF);
@@ -1022,7 +1020,7 @@ build_ssdt(GArray *table_data, GArray *linker,
             /* build Method(MEMORY_SLOT_NOTIFY_METHOD, 2) {
              *     If (LEqual(Arg0, 0x00)) {Notify(MP00, Arg1)} ...
              */
-            build_append_notify_method(sb_scope,
+            build_append_notify_method(sb_scope->buf,
                                        stringify(MEMORY_SLOT_NOTIFY_METHOD),
                                        "MP%0.02X", nr_mem);
         }
@@ -1046,17 +1044,18 @@ build_ssdt(GArray *table_data, GArray *linker,
                                              build_pci_bus_end, &hotplug_state);
             }
 
-            build_append_array(sb_scope, hotplug_state.device_table);
+            build_append_array(sb_scope->buf, hotplug_state.device_table);
             build_pci_bus_state_cleanup(&hotplug_state);
         }
-        build_package(sb_scope, op);
-        build_append_array(table_data, sb_scope);
-        build_free_array(sb_scope);
+        aml_append(ssdt, sb_scope);
     }
 
+    /* copy AML table into ACPI tables blob and patch header there */
+    g_array_append_vals(table_data, ssdt->buf->data, ssdt->buf->len);
     build_header(linker, table_data,
-                 (void *)(table_data->data + ssdt_start),
-                 "SSDT", table_data->len - ssdt_start, 1);
+        (void *)(table_data->data + table_data->len - ssdt->buf->len),
+        "SSDT", ssdt->buf->len, 1);
+    free_aml_allocator();
 }
 
 static void
