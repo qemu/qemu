@@ -400,8 +400,8 @@ static inline void cpu_get_tb_cpu_state(CPUOpenRISCState *env,
 {
     *pc = env->pc;
     *cs_base = 0;
-    /* D_FLAG -- branch instruction exception */
-    *flags = (env->flags & D_FLAG);
+    /* D_FLAG -- branch instruction exception, OVE overflow trap enable.  */
+    *flags = (env->flags & D_FLAG) | (env->sr & SR_OVE);
 }
 
 static inline int cpu_mmu_index(CPUOpenRISCState *env, bool ifetch)

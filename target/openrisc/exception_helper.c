@@ -32,7 +32,7 @@ void HELPER(exception)(CPUOpenRISCState *env, uint32_t excp)
 
 void HELPER(ove)(CPUOpenRISCState *env, target_ulong test)
 {
-    if (unlikely(test) && (env->sr & SR_OVE)) {
+    if (unlikely(test)) {
         OpenRISCCPU *cpu = openrisc_env_get_cpu(env);
         CPUState *cs = CPU(cpu);
 

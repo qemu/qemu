@@ -132,8 +132,8 @@ static inline void wb_SR_F(void)
 static inline void gen_sync_flags(DisasContext *dc)
 {
     /* Sync the tb dependent flag between translate and runtime.  */
-    if (dc->tb_flags != dc->synced_flags) {
-        tcg_gen_movi_tl(env_flags, dc->tb_flags);
+    if ((dc->tb_flags ^ dc->synced_flags) & D_FLAG) {
+        tcg_gen_movi_tl(env_flags, dc->tb_flags & D_FLAG);
         dc->synced_flags = dc->tb_flags;
     }
 }
@@ -249,20 +249,26 @@ static void gen_jump(DisasContext *dc, int32_t n26, uint32_t reg, uint32_t op0)
 
 static void gen_ove_cy(DisasContext *dc, TCGv cy)
 {
-    gen_helper_ove(cpu_env, cy);
+    if (dc->tb_flags & SR_OVE) {
+        gen_helper_ove(cpu_env, cy);
+    }
 }
 
 static void gen_ove_ov(DisasContext *dc, TCGv ov)
 {
-    gen_helper_ove(cpu_env, ov);
+    if (dc->tb_flags & SR_OVE) {
+        gen_helper_ove(cpu_env, ov);
+    }
 }
 
 static void gen_ove_cyov(DisasContext *dc, TCGv cy, TCGv ov)
 {
-    TCGv t0 = tcg_temp_new();
-    tcg_gen_or_tl(t0, cy, ov);
-    gen_helper_ove(cpu_env, t0);
-    tcg_temp_free(t0);
+    if (dc->tb_flags & SR_OVE) {
+        TCGv t0 = tcg_temp_new();
+        tcg_gen_or_tl(t0, cy, ov);
+        gen_helper_ove(cpu_env, t0);
+        tcg_temp_free(t0);
+    }
 }
 
 static void gen_add(DisasContext *dc, TCGv dest, TCGv srca, TCGv srcb)
@@ -1606,7 +1612,7 @@ void gen_intermediate_code(CPUOpenRISCState *env, struct TranslationBlock *tb)
     dc->flags = cpu->env.cpucfgr;
     dc->mem_idx = cpu_mmu_index(&cpu->env, false);
     dc->synced_flags = dc->tb_flags = tb->flags;
-    dc->delayed_branch = !!(dc->tb_flags & D_FLAG);
+    dc->delayed_branch = (dc->tb_flags & D_FLAG) != 0;
     dc->singlestep_enabled = cs->singlestep_enabled;
 
     next_page_start = (pc_start & TARGET_PAGE_MASK) + TARGET_PAGE_SIZE;
