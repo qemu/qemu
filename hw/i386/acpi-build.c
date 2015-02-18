@@ -101,6 +101,8 @@ typedef struct AcpiPmInfo {
     uint32_t gpe0_blk;
     uint32_t gpe0_blk_len;
     uint32_t io_base;
+    uint16_t cpu_hp_io_base;
+    uint16_t cpu_hp_io_len;
 } AcpiPmInfo;
 
 typedef struct AcpiMiscInfo {
@@ -176,12 +178,15 @@ static void acpi_get_pm_info(AcpiPmInfo *pm)
 
     if (piix) {
         obj = piix;
+        pm->cpu_hp_io_base = PIIX4_CPU_HOTPLUG_IO_BASE;
     }
     if (lpc) {
         obj = lpc;
+        pm->cpu_hp_io_base = ICH9_CPU_HOTPLUG_IO_BASE;
     }
     assert(obj);
 
+    pm->cpu_hp_io_len = ACPI_GPE_PROC_LEN;
     /* Fill in optional s3/s4 related properties */
     o = object_property_get_qobject(obj, ACPI_PM_PROP_S3_DISABLED, NULL);
     if (o) {
@@ -995,6 +1000,28 @@ build_ssdt(GArray *table_data, GArray *linker,
 
     sb_scope = aml_scope("_SB");
     {
+        /* create PCI0.PRES device and its _CRS to reserve CPU hotplug MMIO */
+        dev = aml_device("PCI0." stringify(CPU_HOTPLUG_RESOURCE_DEVICE));
+        aml_append(dev, aml_name_decl("_HID", aml_eisaid("PNP0A06")));
+        aml_append(dev,
+            aml_name_decl("_UID", aml_string("CPU Hotplug resources"))
+        );
+        /* device present, functioning, decoding, not shown in UI */
+        aml_append(dev, aml_name_decl("_STA", aml_int(0xB)));
+        crs = aml_resource_template();
+        aml_append(crs,
+            aml_io(aml_decode16, pm->cpu_hp_io_base, pm->cpu_hp_io_base, 1,
+                   pm->cpu_hp_io_len)
+        );
+        aml_append(dev, aml_name_decl("_CRS", crs));
+        aml_append(sb_scope, dev);
+        /* declare CPU hotplug MMIO region and PRS field to access it */
+        aml_append(sb_scope, aml_operation_region(
+            "PRST", aml_system_io, pm->cpu_hp_io_base, pm->cpu_hp_io_len));
+        field = aml_field("PRST", aml_byte_acc);
+        aml_append(field, aml_named_field("PRS", 256));
+        aml_append(sb_scope, field);
+
         /* build Processor object for each processor */
         for (i = 0; i < acpi_cpus; i++) {
             dev = aml_processor(i, 0, 0, "CP%.02X", i);
