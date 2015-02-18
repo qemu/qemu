@@ -562,7 +562,7 @@ static void piix4_acpi_system_hot_add_init(MemoryRegion *parent,
                           "acpi-gpe0", GPE_LEN);
     memory_region_add_subregion(parent, GPE_BASE, &s->io_gpe);
 
-    acpi_pcihp_init(&s->acpi_pci_hotplug, bus, parent,
+    acpi_pcihp_init(OBJECT(s), &s->acpi_pci_hotplug, bus, parent,
                     s->use_acpi_pci_hotplug);
 
     acpi_cpu_hotplug_init(parent, OBJECT(s), &s->gpe_cpu,
