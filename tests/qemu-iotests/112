@@ -1,0 +1,187 @@
+#!/bin/bash
+#
+# Test cases for different refcount_bits values
+#
+# Copyright (C) 2015 Red Hat, Inc.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+
+# creator
+owner=mreitz@redhat.com
+
+seq="$(basename $0)"
+echo "QA output created by $seq"
+
+here="$PWD"
+tmp=/tmp/$$
+status=1	# failure is the default!
+
+_cleanup()
+{
+	_cleanup_test_img
+}
+trap "_cleanup; exit \$status" 0 1 2 3 15
+
+# get standard environment, filters and checks
+. ./common.rc
+. ./common.filter
+
+# This tests qcow2-specific low-level functionality
+_supported_fmt qcow2
+_supported_proto file
+_supported_os Linux
+# This test will set refcount_bits on its own which would conflict with the
+# manual setting; compat will be overridden as well
+_unsupported_imgopts refcount_bits 'compat=0.10'
+
+function print_refcount_bits()
+{
+    $QEMU_IMG info "$TEST_IMG" | sed -n '/refcount bits:/ s/^ *//p'
+}
+
+echo
+echo '=== refcount_bits limits ==='
+echo
+
+# Must be positive (non-zero)
+IMGOPTS="$IMGOPTS,refcount_bits=0" _make_test_img 64M
+# Must be positive (non-negative)
+IMGOPTS="$IMGOPTS,refcount_bits=-1" _make_test_img 64M
+# May not exceed 64
+IMGOPTS="$IMGOPTS,refcount_bits=128" _make_test_img 64M
+# Must be a power of two
+IMGOPTS="$IMGOPTS,refcount_bits=42" _make_test_img 64M
+
+# 1 is the minimum
+IMGOPTS="$IMGOPTS,refcount_bits=1" _make_test_img 64M
+print_refcount_bits
+
+# 64 is the maximum
+IMGOPTS="$IMGOPTS,refcount_bits=64" _make_test_img 64M
+print_refcount_bits
+
+# 16 is the default
+_make_test_img 64M
+print_refcount_bits
+
+echo
+echo '=== refcount_bits and compat=0.10 ==='
+echo
+
+# Should work
+IMGOPTS="$IMGOPTS,compat=0.10,refcount_bits=16" _make_test_img 64M
+print_refcount_bits
+
+# Should not work
+IMGOPTS="$IMGOPTS,compat=0.10,refcount_bits=1" _make_test_img 64M
+IMGOPTS="$IMGOPTS,compat=0.10,refcount_bits=64" _make_test_img 64M
+
+
+echo
+echo '=== Snapshot limit on refcount_bits=1 ==='
+echo
+
+IMGOPTS="$IMGOPTS,refcount_bits=1" _make_test_img 64M
+print_refcount_bits
+
+$QEMU_IO -c 'write 0 512' "$TEST_IMG" | _filter_qemu_io
+
+# Should fail for now; in the future, this might be supported by automatically
+# copying all clusters with overflowing refcount
+$QEMU_IMG snapshot -c foo "$TEST_IMG"
+
+# The new L1 table could/should be leaked
+_check_test_img
+
+echo
+echo '=== Snapshot limit on refcount_bits=2 ==='
+echo
+
+IMGOPTS="$IMGOPTS,refcount_bits=2" _make_test_img 64M
+print_refcount_bits
+
+$QEMU_IO -c 'write 0 512' "$TEST_IMG" | _filter_qemu_io
+
+# Should succeed
+$QEMU_IMG snapshot -c foo "$TEST_IMG"
+$QEMU_IMG snapshot -c bar "$TEST_IMG"
+# Should fail (4th reference)
+$QEMU_IMG snapshot -c baz "$TEST_IMG"
+
+# The new L1 table could/should be leaked
+_check_test_img
+
+echo
+echo '=== Compressed clusters with refcount_bits=1 ==='
+echo
+
+IMGOPTS="$IMGOPTS,refcount_bits=1" _make_test_img 64M
+print_refcount_bits
+
+# Both should fit into a single host cluster; instead of failing to increase the
+# refcount of that cluster, qemu should just allocate a new cluster and make
+# this operation succeed
+$QEMU_IO -c 'write -P 0 -c  0  64k' \
+         -c 'write -P 1 -c 64k 64k' \
+         "$TEST_IMG" | _filter_qemu_io
+
+_check_test_img
+
+echo
+echo '=== MSb set in 64 bit refcount ==='
+echo
+
+IMGOPTS="$IMGOPTS,refcount_bits=64" _make_test_img 64M
+print_refcount_bits
+
+$QEMU_IO -c 'write 0 512' "$TEST_IMG" | _filter_qemu_io
+
+# Set the MSb in the refblock entry of the data cluster
+poke_file "$TEST_IMG" $((0x20028)) "\x80\x00\x00\x00\x00\x00\x00\x00"
+
+# Clear OFLAG_COPIED in the L2 entry of the data cluster
+poke_file "$TEST_IMG" $((0x40000)) "\x00\x00\x00\x00\x00\x05\x00\x00"
+
+# Try to write to that cluster (should work, even though the MSb is set)
+$QEMU_IO -c 'write 0 512' "$TEST_IMG" | _filter_qemu_io
+
+echo
+echo '=== Snapshot on maximum 64 bit refcount value ==='
+echo
+
+IMGOPTS="$IMGOPTS,refcount_bits=64" _make_test_img 64M
+print_refcount_bits
+
+$QEMU_IO -c 'write 0 512' "$TEST_IMG" | _filter_qemu_io
+
+# Set the refblock entry to the maximum value possible
+poke_file "$TEST_IMG" $((0x20028)) "\xff\xff\xff\xff\xff\xff\xff\xff"
+
+# Clear OFLAG_COPIED in the L2 entry of the data cluster
+poke_file "$TEST_IMG" $((0x40000)) "\x00\x00\x00\x00\x00\x05\x00\x00"
+
+# Try a snapshot (should correctly identify the overflow; may work in the future
+# by falling back to COW)
+$QEMU_IMG snapshot -c foo "$TEST_IMG"
+
+# The new L1 table could/should be leaked; and obviously the data cluster is
+# leaked (refcount=UINT64_MAX reference=1)
+_check_test_img
+
+
+# success, all done
+echo '*** done'
+rm -f $seq.full
+status=0
