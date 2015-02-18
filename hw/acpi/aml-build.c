@@ -408,6 +408,15 @@ Aml *aml_arg(int pos)
     return var;
 }
 
+/* ACPI 1.0b: 16.2.5.4 Type 2 Opcodes Encoding: DefStore */
+Aml *aml_store(Aml *val, Aml *target)
+{
+    Aml *var = aml_opcode(0x70 /* StoreOp */);
+    aml_append(var, val);
+    aml_append(var, target);
+    return var;
+}
+
 /* ACPI 1.0b: 16.2.5.3 Type 1 Opcodes Encoding: DefIfElse */
 Aml *aml_if(Aml *predicate)
 {
