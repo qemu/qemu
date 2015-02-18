@@ -597,6 +597,31 @@ Aml *aml_field(const char *name, AmlFieldFlags flags)
     return var;
 }
 
+/* ACPI 1.0b: 16.2.3 Data Objects Encoding: String */
+Aml *aml_string(const char *name_format, ...)
+{
+    Aml *var = aml_opcode(0x0D /* StringPrefix */);
+    va_list ap, va_len;
+    char *s;
+    int len;
+
+    va_start(ap, name_format);
+    va_copy(va_len, ap);
+    len = vsnprintf(NULL, 0, name_format, va_len);
+    va_end(va_len);
+    len += 1;
+    s = g_new0(typeof(*s), len);
+
+    len = vsnprintf(s, len, name_format, ap);
+    va_end(ap);
+
+    g_array_append_vals(var->buf, s, len);
+    build_append_byte(var->buf, 0x0); /* NullChar */
+    g_free(s);
+
+    return var;
+}
+
 /* ACPI 1.0b: 16.2.6.2 Local Objects Encoding */
 Aml *aml_local(int num)
 {

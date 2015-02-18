@@ -92,6 +92,7 @@ Aml *aml_operation_region(const char *name, AmlRegionSpace rs,
                           uint32_t offset, uint32_t len);
 Aml *aml_named_field(const char *name, unsigned length);
 Aml *aml_local(int num);
+Aml *aml_string(const char *name_format, ...) GCC_FMT_ATTR(1, 2);
 
 /* Block AML object primitives */
 Aml *aml_scope(const char *name_format, ...) GCC_FMT_ATTR(1, 2);
