@@ -214,12 +214,16 @@ static void gen_jump(DisasContext *dc, int32_t n26, uint32_t reg, uint32_t op0)
     case 0x03:     /* l.bnf */
     case 0x04:     /* l.bf  */
         {
-            TCGLabel *lab = gen_new_label();
-            tcg_gen_movi_tl(jmp_pc, dc->pc+8);
-            tcg_gen_brcondi_tl(op0 == 0x03 ? TCG_COND_NE : TCG_COND_EQ,
-                               cpu_sr_f, 0, lab);
-            tcg_gen_movi_tl(jmp_pc, tmp_pc);
-            gen_set_label(lab);
+            TCGv t_next = tcg_const_tl(dc->pc + 8);
+            TCGv t_true = tcg_const_tl(tmp_pc);
+            TCGv t_zero = tcg_const_tl(0);
+
+            tcg_gen_movcond_tl(op0 == 0x03 ? TCG_COND_EQ : TCG_COND_NE,
+                               jmp_pc, cpu_sr_f, t_zero, t_true, t_next);
+
+            tcg_temp_free(t_next);
+            tcg_temp_free(t_true);
+            tcg_temp_free(t_zero);
         }
         break;
     case 0x11:     /* l.jr */
@@ -502,14 +506,10 @@ static void dec_calc(DisasContext *dc, uint32_t insn)
         case 0xe: /* l.cmov */
             LOG_DIS("l.cmov r%d, r%d, r%d\n", rd, ra, rb);
             {
-                TCGLabel *lab = gen_new_label();
-                TCGv res = tcg_temp_local_new();
-                tcg_gen_mov_tl(res, cpu_R[rb]);
-                tcg_gen_brcondi_tl(TCG_COND_EQ, cpu_sr_f, 0, lab);
-                tcg_gen_mov_tl(res, cpu_R[ra]);
-                gen_set_label(lab);
-                tcg_gen_mov_tl(cpu_R[rd], res);
-                tcg_temp_free(res);
+                TCGv zero = tcg_const_tl(0);
+                tcg_gen_movcond_tl(TCG_COND_NE, cpu_R[rd], cpu_sr_f, zero,
+                                   cpu_R[ra], cpu_R[rb]);
+                tcg_temp_free(zero);
             }
             return;
 
