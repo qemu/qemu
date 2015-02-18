@@ -522,15 +522,6 @@ static inline char acpi_get_hex(uint32_t val)
     return (val <= 9) ? ('0' + val) : ('A' + val - 10);
 }
 
-#include "hw/i386/ssdt-proc.hex"
-
-/* 0x5B 0x83 ProcessorOp PkgLength NameString ProcID */
-#define ACPI_PROC_OFFSET_CPUHEX (*ssdt_proc_name - *ssdt_proc_start + 2)
-#define ACPI_PROC_OFFSET_CPUID1 (*ssdt_proc_name - *ssdt_proc_start + 4)
-#define ACPI_PROC_OFFSET_CPUID2 (*ssdt_proc_id - *ssdt_proc_start)
-#define ACPI_PROC_SIZEOF (*ssdt_proc_end - *ssdt_proc_start)
-#define ACPI_PROC_AML (ssdp_proc_aml + *ssdt_proc_start)
-
 /* 0x5B 0x82 DeviceOp PkgLength NameString */
 #define ACPI_PCIHP_OFFSET_HEX (*ssdt_pcihp_name - *ssdt_pcihp_start + 1)
 #define ACPI_PCIHP_OFFSET_ID (*ssdt_pcihp_id - *ssdt_pcihp_start)
@@ -924,7 +915,7 @@ build_ssdt(GArray *table_data, GArray *linker,
     uint32_t nr_mem = machine->ram_slots;
     unsigned acpi_cpus = guest_info->apic_id_limit;
     uint8_t *ssdt_ptr;
-    Aml *ssdt, *sb_scope, *scope, *pkg, *dev, *method, *crs, *field;
+    Aml *ssdt, *sb_scope, *scope, *pkg, *dev, *method, *crs, *field, *ifctx;
     int i;
 
     ssdt = init_aml_allocator();
@@ -1006,51 +997,54 @@ build_ssdt(GArray *table_data, GArray *linker,
     {
         /* build Processor object for each processor */
         for (i = 0; i < acpi_cpus; i++) {
-            uint8_t *proc = acpi_data_push(sb_scope->buf, ACPI_PROC_SIZEOF);
-            memcpy(proc, ACPI_PROC_AML, ACPI_PROC_SIZEOF);
-            proc[ACPI_PROC_OFFSET_CPUHEX] = acpi_get_hex(i >> 4);
-            proc[ACPI_PROC_OFFSET_CPUHEX+1] = acpi_get_hex(i);
-            proc[ACPI_PROC_OFFSET_CPUID1] = i;
-            proc[ACPI_PROC_OFFSET_CPUID2] = i;
+            dev = aml_processor(i, 0, 0, "CP%.02X", i);
+
+            method = aml_method("_MAT", 0);
+            aml_append(method, aml_return(aml_call1("CPMA", aml_int(i))));
+            aml_append(dev, method);
+
+            method = aml_method("_STA", 0);
+            aml_append(method, aml_return(aml_call1("CPST", aml_int(i))));
+            aml_append(dev, method);
+
+            method = aml_method("_EJ0", 1);
+            aml_append(method,
+                aml_return(aml_call2("CPEJ", aml_int(i), aml_arg(0)))
+            );
+            aml_append(dev, method);
+
+            aml_append(sb_scope, dev);
         }
 
         /* build this code:
          *   Method(NTFY, 2) {If (LEqual(Arg0, 0x00)) {Notify(CP00, Arg1)} ...}
          */
         /* Arg0 = Processor ID = APIC ID */
-        build_append_notify_method(sb_scope->buf, "NTFY",
-                                   "CP%0.02X", acpi_cpus);
-
-        /* build "Name(CPON, Package() { One, One, ..., Zero, Zero, ... })" */
-        build_append_byte(sb_scope->buf, 0x08); /* NameOp */
-        build_append_namestring(sb_scope->buf, "CPON");
-
-        {
-            GArray *package = build_alloc_array();
-            uint8_t op;
-
-            /*
-             * Note: The ability to create variable-sized packages was first introduced in ACPI 2.0. ACPI 1.0 only
-             * allowed fixed-size packages with up to 255 elements.
-             * Windows guests up to win2k8 fail when VarPackageOp is used.
-             */
-            if (acpi_cpus <= 255) {
-                op = 0x12; /* PackageOp */
-                build_append_byte(package, acpi_cpus); /* NumElements */
-            } else {
-                op = 0x13; /* VarPackageOp */
-                build_append_int(package, acpi_cpus); /* VarNumElements */
-            }
-
-            for (i = 0; i < acpi_cpus; i++) {
-                uint8_t b = test_bit(i, cpu->found_cpus) ? 0x01 : 0x00;
-                build_append_byte(package, b);
-            }
-
-            build_package(package, op);
-            build_append_array(sb_scope->buf, package);
-            build_free_array(package);
+        method = aml_method("NTFY", 2);
+        for (i = 0; i < acpi_cpus; i++) {
+            ifctx = aml_if(aml_equal(aml_arg(0), aml_int(i)));
+            aml_append(ifctx,
+                aml_notify(aml_name("CP%.02X", i), aml_arg(1))
+            );
+            aml_append(method, ifctx);
         }
+        aml_append(sb_scope, method);
+
+        /* build "Name(CPON, Package() { One, One, ..., Zero, Zero, ... })"
+         *
+         * Note: The ability to create variable-sized packages was first
+         * ntroduced in ACPI 2.0. ACPI 1.0 only allowed fixed-size packages
+         * ith up to 255 elements. Windows guests up to win2k8 fail when
+         * VarPackageOp is used.
+         */
+        pkg = acpi_cpus <= 255 ? aml_package(acpi_cpus) :
+                                 aml_varpackage(acpi_cpus);
+
+        for (i = 0; i < acpi_cpus; i++) {
+            uint8_t b = test_bit(i, cpu->found_cpus) ? 0x01 : 0x00;
+            aml_append(pkg, aml_int(b));
+        }
+        aml_append(sb_scope, aml_name_decl("CPON", pkg));
 
         if (nr_mem) {
             assert(nr_mem <= ACPI_MAX_RAM_SLOTS);
