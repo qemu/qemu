@@ -355,3 +355,14 @@ Aml *aml_scope(const char *name_format, ...)
     va_end(ap);
     return var;
 }
+
+/* ACPI 1.0b: 16.2.5.2 Named Objects Encoding: DefDevice */
+Aml *aml_device(const char *name_format, ...)
+{
+    va_list ap;
+    Aml *var = aml_bundle(0x82 /* DeviceOp */, AML_EXT_PACKAGE);
+    va_start(ap, name_format);
+    build_append_namestringv(var->buf, name_format, ap);
+    va_end(ap);
+    return var;
+}
