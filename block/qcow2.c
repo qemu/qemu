@@ -2672,8 +2672,8 @@ static int qcow2_amend_options(BlockDriverState *bs, QemuOpts *opts,
             continue;
         }
 
-        if (!strcmp(desc->name, "compat")) {
-            compat = qemu_opt_get(opts, "compat");
+        if (!strcmp(desc->name, BLOCK_OPT_COMPAT_LEVEL)) {
+            compat = qemu_opt_get(opts, BLOCK_OPT_COMPAT_LEVEL);
             if (!compat) {
                 /* preserve default */
             } else if (!strcmp(compat, "0.10")) {
@@ -2684,32 +2684,33 @@ static int qcow2_amend_options(BlockDriverState *bs, QemuOpts *opts,
                 fprintf(stderr, "Unknown compatibility level %s.\n", compat);
                 return -EINVAL;
             }
-        } else if (!strcmp(desc->name, "preallocation")) {
+        } else if (!strcmp(desc->name, BLOCK_OPT_PREALLOC)) {
             fprintf(stderr, "Cannot change preallocation mode.\n");
             return -ENOTSUP;
-        } else if (!strcmp(desc->name, "size")) {
-            new_size = qemu_opt_get_size(opts, "size", 0);
-        } else if (!strcmp(desc->name, "backing_file")) {
-            backing_file = qemu_opt_get(opts, "backing_file");
-        } else if (!strcmp(desc->name, "backing_fmt")) {
-            backing_format = qemu_opt_get(opts, "backing_fmt");
-        } else if (!strcmp(desc->name, "encryption")) {
-            encrypt = qemu_opt_get_bool(opts, "encryption", s->crypt_method);
+        } else if (!strcmp(desc->name, BLOCK_OPT_SIZE)) {
+            new_size = qemu_opt_get_size(opts, BLOCK_OPT_SIZE, 0);
+        } else if (!strcmp(desc->name, BLOCK_OPT_BACKING_FILE)) {
+            backing_file = qemu_opt_get(opts, BLOCK_OPT_BACKING_FILE);
+        } else if (!strcmp(desc->name, BLOCK_OPT_BACKING_FMT)) {
+            backing_format = qemu_opt_get(opts, BLOCK_OPT_BACKING_FMT);
+        } else if (!strcmp(desc->name, BLOCK_OPT_ENCRYPT)) {
+            encrypt = qemu_opt_get_bool(opts, BLOCK_OPT_ENCRYPT,
+                                        s->crypt_method);
             if (encrypt != !!s->crypt_method) {
                 fprintf(stderr, "Changing the encryption flag is not "
                         "supported.\n");
                 return -ENOTSUP;
             }
-        } else if (!strcmp(desc->name, "cluster_size")) {
-            cluster_size = qemu_opt_get_size(opts, "cluster_size",
+        } else if (!strcmp(desc->name, BLOCK_OPT_CLUSTER_SIZE)) {
+            cluster_size = qemu_opt_get_size(opts, BLOCK_OPT_CLUSTER_SIZE,
                                              cluster_size);
             if (cluster_size != s->cluster_size) {
                 fprintf(stderr, "Changing the cluster size is not "
                         "supported.\n");
                 return -ENOTSUP;
             }
-        } else if (!strcmp(desc->name, "lazy_refcounts")) {
-            lazy_refcounts = qemu_opt_get_bool(opts, "lazy_refcounts",
+        } else if (!strcmp(desc->name, BLOCK_OPT_LAZY_REFCOUNTS)) {
+            lazy_refcounts = qemu_opt_get_bool(opts, BLOCK_OPT_LAZY_REFCOUNTS,
                                                lazy_refcounts);
         } else {
             /* if this assertion fails, this probably means a new option was
