@@ -30,13 +30,32 @@ void HELPER(exception)(CPUOpenRISCState *env, uint32_t excp)
     raise_exception(cpu, excp);
 }
 
-void HELPER(ove)(CPUOpenRISCState *env, target_ulong test)
+static void QEMU_NORETURN do_range(CPUOpenRISCState *env, uintptr_t pc)
 {
-    if (unlikely(test)) {
-        OpenRISCCPU *cpu = openrisc_env_get_cpu(env);
-        CPUState *cs = CPU(cpu);
+    OpenRISCCPU *cpu = openrisc_env_get_cpu(env);
+    CPUState *cs = CPU(cpu);
 
-        cs->exception_index = EXCP_RANGE;
-        cpu_loop_exit_restore(cs, GETPC());
+    cs->exception_index = EXCP_RANGE;
+    cpu_loop_exit_restore(cs, pc);
+}
+
+void HELPER(ove_cy)(CPUOpenRISCState *env)
+{
+    if (env->sr_cy) {
+        do_range(env, GETPC());
+    }
+}
+
+void HELPER(ove_ov)(CPUOpenRISCState *env)
+{
+    if (env->sr_ov < 0) {
+        do_range(env, GETPC());
+    }
+}
+
+void HELPER(ove_cyov)(CPUOpenRISCState *env)
+{
+    if (env->sr_cy || env->sr_ov < 0) {
+        do_range(env, GETPC());
     }
 }

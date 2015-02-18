@@ -287,7 +287,9 @@ typedef struct CPUOpenRISCState {
     target_ulong eear;        /* Exception EA register */
 
     target_ulong sr_f;        /* the SR_F bit, values 0, 1.  */
-    uint32_t sr;              /* Supervisor register, without SR_F */
+    target_ulong sr_cy;       /* the SR_CY bit, values 0, 1.  */
+    target_long  sr_ov;       /* the SR_OV bit (in the sign bit only) */
+    uint32_t sr;              /* Supervisor register, without SR_{F,CY,OV} */
     uint32_t vr;              /* Version register */
     uint32_t upr;             /* Unit presence register */
     uint32_t cpucfgr;         /* CPU configure register */
@@ -414,13 +416,18 @@ static inline int cpu_mmu_index(CPUOpenRISCState *env, bool ifetch)
 
 static inline uint32_t cpu_get_sr(const CPUOpenRISCState *env)
 {
-    return env->sr + env->sr_f * SR_F;
+    return (env->sr
+            + env->sr_f * SR_F
+            + env->sr_cy * SR_CY
+            + (env->sr_ov < 0) * SR_OV);
 }
 
 static inline void cpu_set_sr(CPUOpenRISCState *env, uint32_t val)
 {
     env->sr_f = (val & SR_F) != 0;
-    env->sr = (val & ~SR_F) | SR_FO;
+    env->sr_cy = (val & SR_CY) != 0;
+    env->sr_ov = (val & SR_OV ? -1 : 0);
+    env->sr = (val & ~(SR_F | SR_CY | SR_OV)) | SR_FO;
 }
 
 #define CPU_INTERRUPT_TIMER   CPU_INTERRUPT_TGT_INT_0

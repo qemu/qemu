@@ -55,6 +55,8 @@ static TCGv jmp_pc;            /* l.jr/l.jalr temp pc */
 static TCGv cpu_npc;
 static TCGv cpu_ppc;
 static TCGv cpu_sr_f;           /* bf/bnf, F flag taken */
+static TCGv cpu_sr_cy;          /* carry (unsigned overflow) */
+static TCGv cpu_sr_ov;          /* signed overflow */
 static TCGv cpu_lock_addr;
 static TCGv cpu_lock_value;
 static TCGv_i32 fpcsr;
@@ -90,6 +92,10 @@ void openrisc_translate_init(void)
                                 offsetof(CPUOpenRISCState, jmp_pc), "jmp_pc");
     cpu_sr_f = tcg_global_mem_new(cpu_env,
                                   offsetof(CPUOpenRISCState, sr_f), "sr_f");
+    cpu_sr_cy = tcg_global_mem_new(cpu_env,
+                                   offsetof(CPUOpenRISCState, sr_cy), "sr_cy");
+    cpu_sr_ov = tcg_global_mem_new(cpu_env,
+                                   offsetof(CPUOpenRISCState, sr_ov), "sr_ov");
     cpu_lock_addr = tcg_global_mem_new(cpu_env,
                                        offsetof(CPUOpenRISCState, lock_addr),
                                        "lock_addr");
@@ -233,27 +239,24 @@ static void gen_jump(DisasContext *dc, int32_t n26, uint32_t reg, uint32_t op0)
     gen_sync_flags(dc);
 }
 
-static void gen_ove_cy(DisasContext *dc, TCGv cy)
+static void gen_ove_cy(DisasContext *dc)
 {
     if (dc->tb_flags & SR_OVE) {
-        gen_helper_ove(cpu_env, cy);
+        gen_helper_ove_cy(cpu_env);
     }
 }
 
-static void gen_ove_ov(DisasContext *dc, TCGv ov)
+static void gen_ove_ov(DisasContext *dc)
 {
     if (dc->tb_flags & SR_OVE) {
-        gen_helper_ove(cpu_env, ov);
+        gen_helper_ove_ov(cpu_env);
     }
 }
 
-static void gen_ove_cyov(DisasContext *dc, TCGv cy, TCGv ov)
+static void gen_ove_cyov(DisasContext *dc)
 {
     if (dc->tb_flags & SR_OVE) {
-        TCGv t0 = tcg_temp_new();
-        tcg_gen_or_tl(t0, cy, ov);
-        gen_helper_ove(cpu_env, t0);
-        tcg_temp_free(t0);
+        gen_helper_ove_cyov(cpu_env);
     }
 }
 
@@ -261,143 +264,101 @@ static void gen_add(DisasContext *dc, TCGv dest, TCGv srca, TCGv srcb)
 {
     TCGv t0 = tcg_const_tl(0);
     TCGv res = tcg_temp_new();
-    TCGv sr_cy = tcg_temp_new();
-    TCGv sr_ov = tcg_temp_new();
 
-    tcg_gen_add2_tl(res, sr_cy, srca, t0, srcb, t0);
-    tcg_gen_xor_tl(sr_ov, srca, srcb);
+    tcg_gen_add2_tl(res, cpu_sr_cy, srca, t0, srcb, t0);
+    tcg_gen_xor_tl(cpu_sr_ov, srca, srcb);
     tcg_gen_xor_tl(t0, res, srcb);
-    tcg_gen_andc_tl(sr_ov, t0, sr_ov);
+    tcg_gen_andc_tl(cpu_sr_ov, t0, cpu_sr_ov);
     tcg_temp_free(t0);
 
     tcg_gen_mov_tl(dest, res);
     tcg_temp_free(res);
 
-    tcg_gen_shri_tl(sr_ov, sr_ov, TARGET_LONG_BITS - 1);
-    tcg_gen_deposit_tl(cpu_sr, cpu_sr, sr_cy, ctz32(SR_CY), 1);
-    tcg_gen_deposit_tl(cpu_sr, cpu_sr, sr_ov, ctz32(SR_OV), 1);
-
-    gen_ove_cyov(dc, sr_ov, sr_cy);
-    tcg_temp_free(sr_ov);
-    tcg_temp_free(sr_cy);
+    gen_ove_cyov(dc);
 }
 
 static void gen_addc(DisasContext *dc, TCGv dest, TCGv srca, TCGv srcb)
 {
     TCGv t0 = tcg_const_tl(0);
     TCGv res = tcg_temp_new();
-    TCGv sr_cy = tcg_temp_new();
-    TCGv sr_ov = tcg_temp_new();
 
-    tcg_gen_shri_tl(sr_cy, cpu_sr, ctz32(SR_CY));
-    tcg_gen_andi_tl(sr_cy, sr_cy, 1);
-
-    tcg_gen_add2_tl(res, sr_cy, srca, t0, sr_cy, t0);
-    tcg_gen_add2_tl(res, sr_cy, res, sr_cy, srcb, t0);
-    tcg_gen_xor_tl(sr_ov, srca, srcb);
+    tcg_gen_add2_tl(res, cpu_sr_cy, srca, t0, cpu_sr_cy, t0);
+    tcg_gen_add2_tl(res, cpu_sr_cy, res, cpu_sr_cy, srcb, t0);
+    tcg_gen_xor_tl(cpu_sr_ov, srca, srcb);
     tcg_gen_xor_tl(t0, res, srcb);
-    tcg_gen_andc_tl(sr_ov, t0, sr_ov);
+    tcg_gen_andc_tl(cpu_sr_ov, t0, cpu_sr_ov);
     tcg_temp_free(t0);
 
     tcg_gen_mov_tl(dest, res);
     tcg_temp_free(res);
 
-    tcg_gen_shri_tl(sr_ov, sr_ov, TARGET_LONG_BITS - 1);
-    tcg_gen_deposit_tl(cpu_sr, cpu_sr, sr_cy, ctz32(SR_CY), 1);
-    tcg_gen_deposit_tl(cpu_sr, cpu_sr, sr_ov, ctz32(SR_OV), 1);
-
-    gen_ove_cyov(dc, sr_ov, sr_cy);
-    tcg_temp_free(sr_ov);
-    tcg_temp_free(sr_cy);
+    gen_ove_cyov(dc);
 }
 
 static void gen_sub(DisasContext *dc, TCGv dest, TCGv srca, TCGv srcb)
 {
     TCGv res = tcg_temp_new();
-    TCGv sr_cy = tcg_temp_new();
-    TCGv sr_ov = tcg_temp_new();
 
     tcg_gen_sub_tl(res, srca, srcb);
-    tcg_gen_xor_tl(sr_cy, srca, srcb);
-    tcg_gen_xor_tl(sr_ov, res, srcb);
-    tcg_gen_and_tl(sr_ov, sr_ov, sr_cy);
-    tcg_gen_setcond_tl(TCG_COND_LTU, sr_cy, srca, srcb);
+    tcg_gen_xor_tl(cpu_sr_cy, srca, srcb);
+    tcg_gen_xor_tl(cpu_sr_ov, res, srcb);
+    tcg_gen_and_tl(cpu_sr_ov, cpu_sr_ov, cpu_sr_cy);
+    tcg_gen_setcond_tl(TCG_COND_LTU, cpu_sr_cy, srca, srcb);
 
     tcg_gen_mov_tl(dest, res);
     tcg_temp_free(res);
 
-    tcg_gen_shri_tl(sr_ov, sr_ov, TARGET_LONG_BITS - 1);
-    tcg_gen_deposit_tl(cpu_sr, cpu_sr, sr_cy, ctz32(SR_CY), 1);
-    tcg_gen_deposit_tl(cpu_sr, cpu_sr, sr_ov, ctz32(SR_OV), 1);
-
-    gen_ove_cyov(dc, sr_ov, sr_cy);
-    tcg_temp_free(sr_ov);
-    tcg_temp_free(sr_cy);
+    gen_ove_cyov(dc);
 }
 
 static void gen_mul(DisasContext *dc, TCGv dest, TCGv srca, TCGv srcb)
 {
-    TCGv sr_ov = tcg_temp_new();
     TCGv t0 = tcg_temp_new();
 
-    tcg_gen_muls2_tl(dest, sr_ov, srca, srcb);
+    tcg_gen_muls2_tl(dest, cpu_sr_ov, srca, srcb);
     tcg_gen_sari_tl(t0, dest, TARGET_LONG_BITS - 1);
-    tcg_gen_setcond_tl(TCG_COND_NE, sr_ov, sr_ov, t0);
+    tcg_gen_setcond_tl(TCG_COND_NE, cpu_sr_ov, cpu_sr_ov, t0);
     tcg_temp_free(t0);
 
-    tcg_gen_deposit_tl(cpu_sr, cpu_sr, sr_ov, ctz32(SR_OV), 1);
-
-    gen_ove_ov(dc, sr_ov);
-    tcg_temp_free(sr_ov);
+    tcg_gen_neg_tl(cpu_sr_ov, cpu_sr_ov);
+    gen_ove_ov(dc);
 }
 
 static void gen_mulu(DisasContext *dc, TCGv dest, TCGv srca, TCGv srcb)
 {
-    TCGv sr_cy = tcg_temp_new();
+    tcg_gen_muls2_tl(dest, cpu_sr_cy, srca, srcb);
+    tcg_gen_setcondi_tl(TCG_COND_NE, cpu_sr_cy, cpu_sr_cy, 0);
 
-    tcg_gen_muls2_tl(dest, sr_cy, srca, srcb);
-    tcg_gen_setcondi_tl(TCG_COND_NE, sr_cy, sr_cy, 0);
-
-    tcg_gen_deposit_tl(cpu_sr, cpu_sr, sr_cy, ctz32(SR_CY), 1);
-
-    gen_ove_cy(dc, sr_cy);
-    tcg_temp_free(sr_cy);
+    gen_ove_cy(dc);
 }
 
 static void gen_div(DisasContext *dc, TCGv dest, TCGv srca, TCGv srcb)
 {
-    TCGv sr_ov = tcg_temp_new();
     TCGv t0 = tcg_temp_new();
 
-    tcg_gen_setcondi_tl(TCG_COND_EQ, sr_ov, srcb, 0);
+    tcg_gen_setcondi_tl(TCG_COND_EQ, cpu_sr_ov, srcb, 0);
     /* The result of divide-by-zero is undefined.
        Supress the host-side exception by dividing by 1.  */
-    tcg_gen_or_tl(t0, srcb, sr_ov);
+    tcg_gen_or_tl(t0, srcb, cpu_sr_ov);
     tcg_gen_div_tl(dest, srca, t0);
     tcg_temp_free(t0);
 
-    tcg_gen_deposit_tl(cpu_sr, cpu_sr, sr_ov, ctz32(SR_OV), 1);
-
-    gen_ove_ov(dc, sr_ov);
-    tcg_temp_free(sr_ov);
+    tcg_gen_neg_tl(cpu_sr_ov, cpu_sr_ov);
+    gen_ove_ov(dc);
 }
 
 static void gen_divu(DisasContext *dc, TCGv dest, TCGv srca, TCGv srcb)
 {
-    TCGv sr_cy = tcg_temp_new();
     TCGv t0 = tcg_temp_new();
 
-    tcg_gen_setcondi_tl(TCG_COND_EQ, sr_cy, srcb, 0);
+    tcg_gen_setcondi_tl(TCG_COND_EQ, cpu_sr_cy, srcb, 0);
     /* The result of divide-by-zero is undefined.
        Supress the host-side exception by dividing by 1.  */
-    tcg_gen_or_tl(t0, srcb, sr_cy);
+    tcg_gen_or_tl(t0, srcb, cpu_sr_cy);
     tcg_gen_divu_tl(dest, srca, t0);
     tcg_temp_free(t0);
 
-    tcg_gen_deposit_tl(cpu_sr, cpu_sr, sr_cy, ctz32(SR_CY), 1);
-
-    gen_ove_cy(dc, sr_cy);
-    tcg_temp_free(sr_cy);
+    gen_ove_cy(dc);
 }
 
 static void gen_lwa(DisasContext *dc, TCGv rd, TCGv ra, int32_t ofs)
