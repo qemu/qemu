@@ -53,6 +53,7 @@ cp_virtio() {
                 -e 's/<linux\/\([^>]*\)>/"standard-headers\/linux\/\1"/' \
                 -e 's/__bitwise__//' \
                 -e 's/__attribute__((packed))/QEMU_PACKED/' \
+                -e 's/__inline__/inline/' \
                 "$f" > "$to/$header";
         done
     fi
