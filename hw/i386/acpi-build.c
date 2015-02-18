@@ -924,7 +924,7 @@ build_ssdt(GArray *table_data, GArray *linker,
     uint32_t nr_mem = machine->ram_slots;
     unsigned acpi_cpus = guest_info->apic_id_limit;
     uint8_t *ssdt_ptr;
-    Aml *ssdt, *sb_scope, *scope, *pkg;
+    Aml *ssdt, *sb_scope, *scope, *pkg, *dev, *method, *crs, *field;
     int i;
 
     ssdt = init_aml_allocator();
@@ -938,9 +938,6 @@ build_ssdt(GArray *table_data, GArray *linker,
     memcpy(ssdt_ptr, ssdp_misc_aml, sizeof(ssdp_misc_aml));
 
     patch_pci_windows(pci, ssdt_ptr, sizeof(ssdp_misc_aml));
-
-    ACPI_BUILD_SET_LE(ssdt_ptr, sizeof(ssdp_misc_aml),
-                      ssdt_isa_pest[0], 16, misc->pvpanic_port);
 
     ACPI_BUILD_SET_LE(ssdt_ptr, sizeof(ssdp_misc_aml),
                       ssdt_mctrl_nr_slots[0], 32, nr_mem);
@@ -973,6 +970,37 @@ build_ssdt(GArray *table_data, GArray *linker,
     aml_append(pkg, aml_int(0)); /* reserved */
     aml_append(scope, aml_name_decl("_S5", pkg));
     aml_append(ssdt, scope);
+
+    if (misc->pvpanic_port) {
+        scope = aml_scope("\\_SB.PCI0.ISA");
+
+        dev = aml_device("PEVR");
+        aml_append(dev, aml_name_decl("_HID", aml_string("QEMU0002")));
+
+        crs = aml_resource_template();
+        aml_append(crs,
+            aml_io(aml_decode16, misc->pvpanic_port, misc->pvpanic_port, 1, 1)
+        );
+        aml_append(dev, aml_name_decl("_CRS", crs));
+
+        aml_append(dev, aml_operation_region("PEOR", aml_system_io,
+                                              misc->pvpanic_port, 1));
+        field = aml_field("PEOR", aml_byte_acc);
+        aml_append(field, aml_named_field("PEPT", 8));
+        aml_append(dev, field);
+
+        method = aml_method("RDPT", 0);
+        aml_append(method, aml_store(aml_name("PEPT"), aml_local(0)));
+        aml_append(method, aml_return(aml_local(0)));
+        aml_append(dev, method);
+
+        method = aml_method("WRPT", 1);
+        aml_append(method, aml_store(aml_arg(0), aml_name("PEPT")));
+        aml_append(dev, method);
+
+        aml_append(scope, dev);
+        aml_append(ssdt, scope);
+    }
 
     sb_scope = aml_scope("_SB");
     {
