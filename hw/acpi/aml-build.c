@@ -355,6 +355,14 @@ Aml *aml_scope(const char *name_format, ...)
     return var;
 }
 
+/* ACPI 1.0b: 16.2.5.3 Type 1 Opcodes Encoding: DefReturn */
+Aml *aml_return(Aml *val)
+{
+    Aml *var = aml_opcode(0xA4 /* ReturnOp */);
+    aml_append(var, val);
+    return var;
+}
+
 /*
  * ACPI 1.0b: 16.2.3 Data Objects Encoding:
  * encodes: ByteConst, WordConst, DWordConst, QWordConst, ZeroOp, OneOp
