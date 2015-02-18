@@ -356,6 +356,14 @@ Aml *aml_scope(const char *name_format, ...)
     return var;
 }
 
+/* ACPI 1.0b: 16.2.5.3 Type 1 Opcodes Encoding: DefIfElse */
+Aml *aml_if(Aml *predicate)
+{
+    Aml *var = aml_bundle(0xA0 /* IfOp */, AML_PACKAGE);
+    aml_append(var, predicate);
+    return var;
+}
+
 /* ACPI 1.0b: 16.2.5.2 Named Objects Encoding: DefMethod */
 Aml *aml_method(const char *name, int arg_count)
 {
