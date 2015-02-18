@@ -1783,7 +1783,7 @@ static int preallocate(BlockDriverState *bs)
 static int qcow2_create2(const char *filename, int64_t total_size,
                          const char *backing_file, const char *backing_format,
                          int flags, size_t cluster_size, PreallocMode prealloc,
-                         QemuOpts *opts, int version,
+                         QemuOpts *opts, int version, int refcount_order,
                          Error **errp)
 {
     /* Calculate cluster_bits */
@@ -1816,9 +1816,21 @@ static int qcow2_create2(const char *filename, int64_t total_size,
     int ret;
 
     if (prealloc == PREALLOC_MODE_FULL || prealloc == PREALLOC_MODE_FALLOC) {
+        /* Note: The following calculation does not need to be exact; if it is a
+         * bit off, either some bytes will be "leaked" (which is fine) or we
+         * will need to increase the file size by some bytes (which is fine,
+         * too, as long as the bulk is allocated here). Therefore, using
+         * floating point arithmetic is fine. */
         int64_t meta_size = 0;
         uint64_t nreftablee, nrefblocke, nl1e, nl2e;
         int64_t aligned_total_size = align_offset(total_size, cluster_size);
+        int refblock_bits, refblock_size;
+        /* refcount entry size in bytes */
+        double rces = (1 << refcount_order) / 8.;
+
+        /* see qcow2_open() */
+        refblock_bits = cluster_bits - (refcount_order - 3);
+        refblock_size = 1 << refblock_bits;
 
         /* header: 1 cluster */
         meta_size += cluster_size;
@@ -1843,20 +1855,20 @@ static int qcow2_create2(const char *filename, int64_t total_size,
          *   c = cluster size
          *   y1 = number of refcount blocks entries
          *   y2 = meta size including everything
+         *   rces = refcount entry size in bytes
          * then,
          *   y1 = (y2 + a)/c
-         *   y2 = y1 * sizeof(u16) + y1 * sizeof(u16) * sizeof(u64) / c + m
+         *   y2 = y1 * rces + y1 * rces * sizeof(u64) / c + m
          * we can get y1:
-         *   y1 = (a + m) / (c - sizeof(u16) - sizeof(u16) * sizeof(u64) / c)
+         *   y1 = (a + m) / (c - rces - rces * sizeof(u64) / c)
          */
-        nrefblocke = (aligned_total_size + meta_size + cluster_size) /
-            (cluster_size - sizeof(uint16_t) -
-             1.0 * sizeof(uint16_t) * sizeof(uint64_t) / cluster_size);
-        nrefblocke = align_offset(nrefblocke, cluster_size / sizeof(uint16_t));
-        meta_size += nrefblocke * sizeof(uint16_t);
+        nrefblocke = (aligned_total_size + meta_size + cluster_size)
+                   / (cluster_size - rces - rces * sizeof(uint64_t)
+                                                 / cluster_size);
+        meta_size += DIV_ROUND_UP(nrefblocke, refblock_size) * cluster_size;
 
         /* total size of refcount tables */
-        nreftablee = nrefblocke * sizeof(uint16_t) / cluster_size;
+        nreftablee = nrefblocke / refblock_size;
         nreftablee = align_offset(nreftablee, cluster_size / sizeof(uint64_t));
         meta_size += nreftablee * sizeof(uint64_t);
 
@@ -1892,7 +1904,7 @@ static int qcow2_create2(const char *filename, int64_t total_size,
         .l1_size                    = cpu_to_be32(0),
         .refcount_table_offset      = cpu_to_be64(cluster_size),
         .refcount_table_clusters    = cpu_to_be32(1),
-        .refcount_order             = cpu_to_be32(4),
+        .refcount_order             = cpu_to_be32(refcount_order),
         .header_length              = cpu_to_be32(sizeof(*header)),
     };
 
@@ -2011,6 +2023,8 @@ static int qcow2_create(const char *filename, QemuOpts *opts, Error **errp)
     size_t cluster_size = DEFAULT_CLUSTER_SIZE;
     PreallocMode prealloc;
     int version = 3;
+    uint64_t refcount_bits = 16;
+    int refcount_order;
     Error *local_err = NULL;
     int ret;
 
@@ -2065,8 +2079,19 @@ static int qcow2_create(const char *filename, QemuOpts *opts, Error **errp)
         goto finish;
     }
 
+    if (version < 3 && refcount_bits != 16) {
+        error_setg(errp, "Different refcount widths than 16 bits require "
+                   "compatibility level 1.1 or above (use compat=1.1 or "
+                   "greater)");
+        ret = -EINVAL;
+        goto finish;
+    }
+
+    refcount_order = ffs(refcount_bits) - 1;
+
     ret = qcow2_create2(filename, size, backing_file, backing_fmt, flags,
-                        cluster_size, prealloc, opts, version, &local_err);
+                        cluster_size, prealloc, opts, version, refcount_order,
+                        &local_err);
     if (local_err) {
         error_propagate(errp, local_err);
     }
