@@ -59,6 +59,9 @@ void free_aml_allocator(void);
  */
 void aml_append(Aml *parent_ctx, Aml *child);
 
+/* Block AML object primitives */
+Aml *aml_scope(const char *name_format, ...) GCC_FMT_ATTR(1, 2);
+
 /* other helpers */
 GArray *build_alloc_array(void);
 void build_free_array(GArray *array);

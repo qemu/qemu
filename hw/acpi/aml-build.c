@@ -271,6 +271,15 @@ static Aml *aml_alloc(void)
     return var;
 }
 
+static Aml *aml_bundle(uint8_t op, AmlBlockFlags flags)
+{
+    Aml *var = aml_alloc();
+
+    var->op  = op;
+    var->block_flags = flags;
+    return var;
+}
+
 static void aml_free(gpointer data)
 {
     Aml *var = data;
@@ -334,4 +343,15 @@ void aml_append(Aml *parent_ctx, Aml *child)
         break;
     }
     build_append_array(parent_ctx->buf, child->buf);
+}
+
+/* ACPI 1.0b: 16.2.5.1 Namespace Modifier Objects Encoding: DefScope */
+Aml *aml_scope(const char *name_format, ...)
+{
+    va_list ap;
+    Aml *var = aml_bundle(0x10 /* ScopeOp */, AML_PACKAGE);
+    va_start(ap, name_format);
+    build_append_namestringv(var->buf, name_format, ap);
+    va_end(ap);
+    return var;
 }
