@@ -922,6 +922,22 @@ Cancel the current VM migration.
 ETEXI
 
     {
+        .name       = "migrate_incoming",
+        .args_type  = "uri:s",
+        .params     = "uri",
+        .help       = "Continue an incoming migration from an -incoming defer",
+        .mhandler.cmd = hmp_migrate_incoming,
+    },
+
+STEXI
+@item migrate_incoming @var{uri}
+@findex migrate_incoming
+Continue an incoming migration using the @var{uri} (that has the same syntax
+as the -incoming option).
+
+ETEXI
+
+    {
         .name       = "migrate_set_cache_size",
         .args_type  = "value:o",
         .params     = "value",

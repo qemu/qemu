@@ -432,6 +432,25 @@ void migrate_del_blocker(Error *reason)
     migration_blockers = g_slist_remove(migration_blockers, reason);
 }
 
+void qmp_migrate_incoming(const char *uri, Error **errp)
+{
+    Error *local_err = NULL;
+
+    if (!deferred_incoming) {
+        error_setg(errp, "'-incoming defer' is required for migrate_incoming");
+        return;
+    }
+
+    qemu_start_incoming_migration(uri, &local_err);
+
+    if (local_err) {
+        error_propagate(errp, local_err);
+        return;
+    }
+
+    deferred_incoming = false;
+}
+
 void qmp_migrate(const char *uri, bool has_blk, bool blk,
                  bool has_inc, bool inc, bool has_detach, bool detach,
                  Error **errp)
