@@ -2,7 +2,7 @@
 # Construct a target device config file from a default, pulling in any
 # files from include directives.
 
-dest=$1.tmp
+dest=$1
 dep=`dirname $1`-`basename $1`.d
 src=$2
 src_dir=`dirname $src`

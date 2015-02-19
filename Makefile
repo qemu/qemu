@@ -109,8 +109,8 @@ endif
 -include $(SUBDIR_DEVICES_MAK_DEP)
 
 %/config-devices.mak: default-configs/%.mak
-	$(call quiet-command,$(SHELL) $(SRC_PATH)/scripts/make_device_config.sh $@ $<, "  GEN   $@")
-	@if test -f $@; then \
+	$(call quiet-command,$(SHELL) $(SRC_PATH)/scripts/make_device_config.sh $@.tmp $<, "  GEN   $@.tmp")
+	$(call quiet-command, if test -f $@; then \
 	  if cmp -s $@.old $@; then \
 	    mv $@.tmp $@; \
 	    cp -p $@ $@.old; \
@@ -126,7 +126,7 @@ endif
 	 else \
 	  mv $@.tmp $@; \
 	  cp -p $@ $@.old; \
-	 fi
+	 fi, "  GEN  $@");
 
 defconfig:
 	rm -f config-all-devices.mak $(SUBDIR_DEVICES_MAK)
