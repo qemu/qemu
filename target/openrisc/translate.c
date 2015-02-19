@@ -465,133 +465,95 @@ static void dec_calc(DisasContext *dc, uint32_t insn)
     rb = extract32(insn, 11, 5);
     rd = extract32(insn, 21, 5);
 
-    switch (op0) {
-    case 0x0000:
-        switch (op1) {
-        case 0x00:    /* l.add */
+    switch (op1) {
+    case 0:
+        switch (op0) {
+        case 0x0: /* l.add */
             LOG_DIS("l.add r%d, r%d, r%d\n", rd, ra, rb);
             gen_add(dc, cpu_R[rd], cpu_R[ra], cpu_R[rb]);
-            break;
-        default:
-            gen_illegal_exception(dc);
-            break;
-        }
-        break;
+            return;
 
-    case 0x0001:    /* l.addc */
-        switch (op1) {
-        case 0x00:
+        case 0x1: /* l.addc */
             LOG_DIS("l.addc r%d, r%d, r%d\n", rd, ra, rb);
             gen_addc(dc, cpu_R[rd], cpu_R[ra], cpu_R[rb]);
-            break;
-        default:
-            gen_illegal_exception(dc);
-            break;
-        }
-        break;
+            return;
 
-    case 0x0002:    /* l.sub */
-        switch (op1) {
-        case 0x00:
+        case 0x2: /* l.sub */
             LOG_DIS("l.sub r%d, r%d, r%d\n", rd, ra, rb);
             gen_sub(dc, cpu_R[rd], cpu_R[ra], cpu_R[rb]);
-            break;
-        default:
-            gen_illegal_exception(dc);
-            break;
-        }
-        break;
+            return;
 
-    case 0x0003:    /* l.and */
-        switch (op1) {
-        case 0x00:
+        case 0x3: /* l.and */
             LOG_DIS("l.and r%d, r%d, r%d\n", rd, ra, rb);
             tcg_gen_and_tl(cpu_R[rd], cpu_R[ra], cpu_R[rb]);
-            break;
-        default:
-            gen_illegal_exception(dc);
-            break;
-        }
-        break;
+            return;
 
-    case 0x0004:    /* l.or */
-        switch (op1) {
-        case 0x00:
+        case 0x4: /* l.or */
             LOG_DIS("l.or r%d, r%d, r%d\n", rd, ra, rb);
             tcg_gen_or_tl(cpu_R[rd], cpu_R[ra], cpu_R[rb]);
-            break;
-        default:
-            gen_illegal_exception(dc);
-            break;
-        }
-        break;
+            return;
 
-    case 0x0005:
-        switch (op1) {
-        case 0x00:    /* l.xor */
+        case 0x5: /* l.xor */
             LOG_DIS("l.xor r%d, r%d, r%d\n", rd, ra, rb);
             tcg_gen_xor_tl(cpu_R[rd], cpu_R[ra], cpu_R[rb]);
-            break;
-        default:
-            gen_illegal_exception(dc);
-            break;
-        }
-        break;
+            return;
 
-    case 0x0006:
-        switch (op1) {
-        case 0x03:    /* l.mul */
-            LOG_DIS("l.mul r%d, r%d, r%d\n", rd, ra, rb);
-            gen_mul(dc, cpu_R[rd], cpu_R[ra], cpu_R[rb]);
-            break;
-        default:
-            gen_illegal_exception(dc);
-            break;
-        }
-        break;
-
-    case 0x0009:
-        switch (op1) {
-        case 0x03:    /* l.div */
-            LOG_DIS("l.div r%d, r%d, r%d\n", rd, ra, rb);
-            gen_div(dc, cpu_R[rd], cpu_R[ra], cpu_R[rb]);
+        case 0x8:
+            switch (op2) {
+            case 0: /* l.sll */
+                LOG_DIS("l.sll r%d, r%d, r%d\n", rd, ra, rb);
+                tcg_gen_shl_tl(cpu_R[rd], cpu_R[ra], cpu_R[rb]);
+                return;
+            case 1: /* l.srl */
+                LOG_DIS("l.srl r%d, r%d, r%d\n", rd, ra, rb);
+                tcg_gen_shr_tl(cpu_R[rd], cpu_R[ra], cpu_R[rb]);
+                return;
+            case 2: /* l.sra */
+                LOG_DIS("l.sra r%d, r%d, r%d\n", rd, ra, rb);
+                tcg_gen_sar_tl(cpu_R[rd], cpu_R[ra], cpu_R[rb]);
+                return;
+            case 3: /* l.ror */
+                LOG_DIS("l.ror r%d, r%d, r%d\n", rd, ra, rb);
+                tcg_gen_rotr_tl(cpu_R[rd], cpu_R[ra], cpu_R[rb]);
+                return;
+            }
             break;
 
-        default:
-            gen_illegal_exception(dc);
-            break;
-        }
-        break;
-
-    case 0x000a:
-        switch (op1) {
-        case 0x03:    /* l.divu */
-            LOG_DIS("l.divu r%d, r%d, r%d\n", rd, ra, rb);
-            gen_divu(dc, cpu_R[rd], cpu_R[ra], cpu_R[rb]);
-            break;
-
-        default:
-            gen_illegal_exception(dc);
-            break;
-        }
-        break;
-
-    case 0x000b:
-        switch (op1) {
-        case 0x03:    /* l.mulu */
-            LOG_DIS("l.mulu r%d, r%d, r%d\n", rd, ra, rb);
-            gen_mulu(dc, cpu_R[rd], cpu_R[ra], cpu_R[rb]);
+        case 0xc:
+            switch (op2) {
+            case 0: /* l.exths */
+                LOG_DIS("l.exths r%d, r%d\n", rd, ra);
+                tcg_gen_ext16s_tl(cpu_R[rd], cpu_R[ra]);
+                return;
+            case 1: /* l.extbs */
+                LOG_DIS("l.extbs r%d, r%d\n", rd, ra);
+                tcg_gen_ext8s_tl(cpu_R[rd], cpu_R[ra]);
+                return;
+            case 2: /* l.exthz */
+                LOG_DIS("l.exthz r%d, r%d\n", rd, ra);
+                tcg_gen_ext16u_tl(cpu_R[rd], cpu_R[ra]);
+                return;
+            case 3: /* l.extbz */
+                LOG_DIS("l.extbz r%d, r%d\n", rd, ra);
+                tcg_gen_ext8u_tl(cpu_R[rd], cpu_R[ra]);
+                return;
+            }
             break;
 
-        default:
-            gen_illegal_exception(dc);
+        case 0xd:
+            switch (op2) {
+            case 0: /* l.extws */
+                LOG_DIS("l.extws r%d, r%d\n", rd, ra);
+                tcg_gen_ext32s_tl(cpu_R[rd], cpu_R[ra]);
+                return;
+            case 1: /* l.extwz */
+                LOG_DIS("l.extwz r%d, r%d\n", rd, ra);
+                tcg_gen_ext32u_tl(cpu_R[rd], cpu_R[ra]);
+                return;
+            }
             break;
-        }
-        break;
 
-    case 0x000e:
-        switch (op1) {
-        case 0x00:    /* l.cmov */
+        case 0xe: /* l.cmov */
             LOG_DIS("l.cmov r%d, r%d, r%d\n", rd, ra, rb);
             {
                 TCGLabel *lab = gen_new_label();
@@ -606,128 +568,54 @@ static void dec_calc(DisasContext *dc, uint32_t insn)
                 tcg_temp_free(sr_f);
                 tcg_temp_free(res);
             }
-            break;
+            return;
 
-        default:
-            gen_illegal_exception(dc);
-            break;
-        }
-        break;
-
-    case 0x000f:
-        switch (op1) {
-        case 0x00:    /* l.ff1 */
+        case 0xf: /* l.ff1 */
             LOG_DIS("l.ff1 r%d, r%d, r%d\n", rd, ra, rb);
             tcg_gen_ctzi_tl(cpu_R[rd], cpu_R[ra], -1);
             tcg_gen_addi_tl(cpu_R[rd], cpu_R[rd], 1);
-            break;
-        case 0x01:    /* l.fl1 */
+            return;
+        }
+        break;
+
+    case 1:
+        switch (op0) {
+        case 0xf: /* l.fl1 */
             LOG_DIS("l.fl1 r%d, r%d, r%d\n", rd, ra, rb);
             tcg_gen_clzi_tl(cpu_R[rd], cpu_R[ra], TARGET_LONG_BITS);
             tcg_gen_subfi_tl(cpu_R[rd], TARGET_LONG_BITS, cpu_R[rd]);
-            break;
-
-        default:
-            gen_illegal_exception(dc);
-            break;
+            return;
         }
         break;
 
-    case 0x0008:
-        switch (op1) {
-        case 0x00:
-            switch (op2) {
-            case 0x00:    /* l.sll */
-                LOG_DIS("l.sll r%d, r%d, r%d\n", rd, ra, rb);
-                tcg_gen_shl_tl(cpu_R[rd], cpu_R[ra], cpu_R[rb]);
-                break;
-            case 0x01:    /* l.srl */
-                LOG_DIS("l.srl r%d, r%d, r%d\n", rd, ra, rb);
-                tcg_gen_shr_tl(cpu_R[rd], cpu_R[ra], cpu_R[rb]);
-                break;
-            case 0x02:    /* l.sra */
-                LOG_DIS("l.sra r%d, r%d, r%d\n", rd, ra, rb);
-                tcg_gen_sar_tl(cpu_R[rd], cpu_R[ra], cpu_R[rb]);
-                break;
-            case 0x03:    /* l.ror */
-                LOG_DIS("l.ror r%d, r%d, r%d\n", rd, ra, rb);
-                tcg_gen_rotr_tl(cpu_R[rd], cpu_R[ra], cpu_R[rb]);
-                break;
-
-            default:
-                gen_illegal_exception(dc);
-                break;
-            }
-            break;
-
-        default:
-            gen_illegal_exception(dc);
-            break;
-        }
+    case 2:
         break;
 
-    case 0x000c:
-        switch (op1) {
-        case 0x00:
-            switch (op2) {
-            case 0x00:    /* l.exths */
-                LOG_DIS("l.exths r%d, r%d\n", rd, ra);
-                tcg_gen_ext16s_tl(cpu_R[rd], cpu_R[ra]);
-                break;
-            case 0x01:    /* l.extbs */
-                LOG_DIS("l.extbs r%d, r%d\n", rd, ra);
-                tcg_gen_ext8s_tl(cpu_R[rd], cpu_R[ra]);
-                break;
-            case 0x02:    /* l.exthz */
-                LOG_DIS("l.exthz r%d, r%d\n", rd, ra);
-                tcg_gen_ext16u_tl(cpu_R[rd], cpu_R[ra]);
-                break;
-            case 0x03:    /* l.extbz */
-                LOG_DIS("l.extbz r%d, r%d\n", rd, ra);
-                tcg_gen_ext8u_tl(cpu_R[rd], cpu_R[ra]);
-                break;
+    case 3:
+        switch (op0) {
+        case 0x6: /* l.mul */
+            LOG_DIS("l.mul r%d, r%d, r%d\n", rd, ra, rb);
+            gen_mul(dc, cpu_R[rd], cpu_R[ra], cpu_R[rb]);
+            return;
 
-            default:
-                gen_illegal_exception(dc);
-                break;
-            }
-            break;
+        case 0x9: /* l.div */
+            LOG_DIS("l.div r%d, r%d, r%d\n", rd, ra, rb);
+            gen_div(dc, cpu_R[rd], cpu_R[ra], cpu_R[rb]);
+            return;
 
-        default:
-            gen_illegal_exception(dc);
-            break;
+        case 0xa: /* l.divu */
+            LOG_DIS("l.divu r%d, r%d, r%d\n", rd, ra, rb);
+            gen_divu(dc, cpu_R[rd], cpu_R[ra], cpu_R[rb]);
+            return;
+
+        case 0xb: /* l.mulu */
+            LOG_DIS("l.mulu r%d, r%d, r%d\n", rd, ra, rb);
+            gen_mulu(dc, cpu_R[rd], cpu_R[ra], cpu_R[rb]);
+            return;
         }
-        break;
-
-    case 0x000d:
-        switch (op1) {
-        case 0x00:
-            switch (op2) {
-            case 0x00:    /* l.extws */
-                LOG_DIS("l.extws r%d, r%d\n", rd, ra);
-                tcg_gen_ext32s_tl(cpu_R[rd], cpu_R[ra]);
-                break;
-            case 0x01:    /* l.extwz */
-                LOG_DIS("l.extwz r%d, r%d\n", rd, ra);
-                tcg_gen_ext32u_tl(cpu_R[rd], cpu_R[ra]);
-                break;
-
-            default:
-                gen_illegal_exception(dc);
-                break;
-            }
-            break;
-
-        default:
-            gen_illegal_exception(dc);
-            break;
-        }
-        break;
-
-    default:
-        gen_illegal_exception(dc);
         break;
     }
+    gen_illegal_exception(dc);
 }
 
 static void dec_misc(DisasContext *dc, uint32_t insn)
