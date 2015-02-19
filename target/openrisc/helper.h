@@ -29,11 +29,8 @@ DEF_HELPER_FLAGS_2(itofs, TCG_CALL_NO_WG, i32, env, i32)
 DEF_HELPER_FLAGS_2(ftoid, TCG_CALL_NO_WG, i64, env, i64)
 DEF_HELPER_FLAGS_2(ftois, TCG_CALL_NO_WG, i32, env, i32)
 
-#define FOP_MADD(op)                                             \
-DEF_HELPER_FLAGS_3(float_ ## op ## _s, TCG_CALL_NO_WG, i32, env, i32, i32) \
-DEF_HELPER_FLAGS_3(float_ ## op ## _d, TCG_CALL_NO_WG, i64, env, i64, i64)
-FOP_MADD(muladd)
-#undef FOP_MADD
+DEF_HELPER_FLAGS_4(float_madd_s, TCG_CALL_NO_WG, i32, env, i32, i32, i32)
+DEF_HELPER_FLAGS_4(float_madd_d, TCG_CALL_NO_WG, i64, env, i64, i64, i64)
 
 #define FOP_CALC(op)                                            \
 DEF_HELPER_FLAGS_3(float_ ## op ## _s, TCG_CALL_NO_WG, i32, env, i32, i32) \

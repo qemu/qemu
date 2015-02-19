@@ -279,9 +279,6 @@ typedef struct CPUOpenRISCState {
 
     uint64_t mac;             /* Multiply registers MACHI:MACLO */
 
-    target_ulong fpmaddhi;    /* Multiply and add float register FPMADDHI */
-    target_ulong fpmaddlo;    /* Multiply and add float register FPMADDLO */
-
     target_ulong epcr;        /* Exception PC register */
     target_ulong eear;        /* Exception EA register */
 
