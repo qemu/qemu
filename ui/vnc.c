@@ -3627,13 +3627,8 @@ void vnc_display_open(const char *id, Error **errp)
             }
 #ifdef CONFIG_VNC_WS
             if (vs->ws_enabled) {
-                if (ws_display) {
-                    vs->lwebsock = inet_listen(ws_display, NULL, 0,
-                        SOCK_STREAM, 0, errp);
-                } else {
-                    vs->lwebsock = inet_listen(display, NULL, 0,
-                        SOCK_STREAM, 5700, errp);
-                }
+                vs->lwebsock = inet_listen(ws_display, NULL, 0,
+                                           SOCK_STREAM, 0, errp);
                 if (vs->lwebsock < 0) {
                     if (vs->lsock) {
                         close(vs->lsock);
