@@ -49,6 +49,8 @@ enum {
 static NotifierList migration_state_notifiers =
     NOTIFIER_LIST_INITIALIZER(migration_state_notifiers);
 
+static bool deferred_incoming;
+
 /* When we add fault tolerance, we could have several
    migrations at once.  For now we don't need to add
    dynamic creation of migration */
@@ -65,25 +67,40 @@ MigrationState *migrate_get_current(void)
     return &current_migration;
 }
 
+/*
+ * Called on -incoming with a defer: uri.
+ * The migration can be started later after any parameters have been
+ * changed.
+ */
+static void deferred_incoming_migration(Error **errp)
+{
+    if (deferred_incoming) {
+        error_setg(errp, "Incoming migration already deferred");
+    }
+    deferred_incoming = true;
+}
+
 void qemu_start_incoming_migration(const char *uri, Error **errp)
 {
     const char *p;
 
-    if (strstart(uri, "tcp:", &p))
+    if (!strcmp(uri, "defer")) {
+        deferred_incoming_migration(errp);
+    } else if (strstart(uri, "tcp:", &p)) {
         tcp_start_incoming_migration(p, errp);
 #ifdef CONFIG_RDMA
-    else if (strstart(uri, "rdma:", &p))
+    } else if (strstart(uri, "rdma:", &p)) {
         rdma_start_incoming_migration(p, errp);
 #endif
 #if !defined(WIN32)
-    else if (strstart(uri, "exec:", &p))
+    } else if (strstart(uri, "exec:", &p)) {
         exec_start_incoming_migration(p, errp);
-    else if (strstart(uri, "unix:", &p))
+    } else if (strstart(uri, "unix:", &p)) {
         unix_start_incoming_migration(p, errp);
-    else if (strstart(uri, "fd:", &p))
+    } else if (strstart(uri, "fd:", &p)) {
         fd_start_incoming_migration(p, errp);
 #endif
-    else {
+    } else {
         error_setg(errp, "unknown migration protocol: %s", uri);
     }
 }
