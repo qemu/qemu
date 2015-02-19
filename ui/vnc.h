@@ -158,8 +158,7 @@ struct VncDisplay
     int lsock;
 #ifdef CONFIG_VNC_WS
     int lwebsock;
-    bool websocket;
-    char *ws_display;
+    bool ws_enabled;
 #endif
     DisplaySurface *ds;
     DisplayChangeListener dcl;
@@ -176,7 +175,8 @@ struct VncDisplay
 
     const char *id;
     QTAILQ_ENTRY(VncDisplay) next;
-    char *display;
+    bool enabled;
+    bool is_unix;
     char *password;
     time_t expires;
     int auth;

@@ -407,7 +407,7 @@ VncInfo *qmp_query_vnc(Error **errp)
     VncInfo *info = g_malloc0(sizeof(*info));
     VncDisplay *vd = vnc_display_find(NULL);
 
-    if (vd == NULL || vd->display == NULL) {
+    if (vd == NULL || !vd->enabled) {
         info->enabled = false;
     } else {
         struct sockaddr_storage sa;
@@ -3190,16 +3190,15 @@ static void vnc_display_close(VncDisplay *vs)
 {
     if (!vs)
         return;
-    g_free(vs->display);
-    vs->display = NULL;
+    vs->enabled = false;
+    vs->is_unix = false;
     if (vs->lsock != -1) {
         qemu_set_fd_handler2(vs->lsock, NULL, NULL, NULL, NULL);
         close(vs->lsock);
         vs->lsock = -1;
     }
 #ifdef CONFIG_VNC_WS
-    g_free(vs->ws_display);
-    vs->ws_display = NULL;
+    vs->ws_enabled = false;
     if (vs->lwebsock != -1) {
         qemu_set_fd_handler2(vs->lwebsock, NULL, NULL, NULL, NULL);
         close(vs->lwebsock);
@@ -3329,7 +3328,7 @@ void vnc_display_open(const char *id, Error **errp)
     bool reverse = false;
     const char *vnc;
     const char *has_to;
-    char *display, *to = NULL;
+    char *display, *ws_display = NULL, *to = NULL;
     bool has_ipv4 = false;
     bool has_ipv6 = false;
 #ifdef CONFIG_VNC_WS
@@ -3369,10 +3368,9 @@ void vnc_display_open(const char *id, Error **errp)
     has_ipv4 = qemu_opt_get_bool(opts, "ipv4", false);
     has_ipv6 = qemu_opt_get_bool(opts, "ipv6", false);
     display = g_strdup_printf("%s%s%s%s", vnc,
-                                  has_to ? to : "",
-                                  has_ipv4 ? ",ipv4" : "",
-                                  has_ipv6 ? ",ipv6" : "");
-    vs->display = g_strdup(display);
+                              has_to ? to : "",
+                              has_ipv4 ? ",ipv4" : "",
+                              has_ipv6 ? ",ipv6" : "");
 
     password = qemu_opt_get_bool(opts, "password", false);
     if (password && fips_get_state()) {
@@ -3427,7 +3425,7 @@ void vnc_display_open(const char *id, Error **errp)
     if (websocket) {
         /* extract the host specification from display */
         char  *host = NULL, *host_end = NULL;
-        vs->websocket = 1;
+        vs->ws_enabled = true;
 
         /* ipv6 hosts have colons */
         host_end = strrchr(display, ':');
@@ -3436,7 +3434,7 @@ void vnc_display_open(const char *id, Error **errp)
         } else {
             host = g_strdup(":");
         }
-        vs->ws_display = g_strconcat(host, websocket, NULL);
+        ws_display = g_strconcat(host, websocket, NULL);
         g_free(host);
     }
 #endif /* CONFIG_VNC_WS */
@@ -3618,34 +3616,29 @@ void vnc_display_open(const char *id, Error **errp)
         vnc_connect(vs, csock, false, false);
     } else {
         /* listen for connects */
-        char *dpy;
-        dpy = g_malloc(256);
         if (strncmp(display, "unix:", 5) == 0) {
-            pstrcpy(dpy, 256, "unix:");
-            vs->lsock = unix_listen(display+5, dpy+5, 256-5, errp);
+            vs->lsock = unix_listen(display+5, NULL, 0, errp);
+            vs->is_unix = true;
         } else {
-            vs->lsock = inet_listen(display, dpy, 256,
+            vs->lsock = inet_listen(display, NULL, 0,
                                     SOCK_STREAM, 5900, errp);
             if (vs->lsock < 0) {
-                g_free(dpy);
                 goto fail;
             }
 #ifdef CONFIG_VNC_WS
-            if (vs->websocket) {
-                if (vs->ws_display) {
-                    vs->lwebsock = inet_listen(vs->ws_display, NULL, 256,
+            if (vs->ws_enabled) {
+                if (ws_display) {
+                    vs->lwebsock = inet_listen(ws_display, NULL, 0,
                         SOCK_STREAM, 0, errp);
                 } else {
-                    vs->lwebsock = inet_listen(vs->display, NULL, 256,
+                    vs->lwebsock = inet_listen(display, NULL, 0,
                         SOCK_STREAM, 5700, errp);
                 }
-
                 if (vs->lwebsock < 0) {
                     if (vs->lsock) {
                         close(vs->lsock);
                         vs->lsock = -1;
                     }
-                    g_free(dpy);
                     goto fail;
                 }
             }
@@ -3653,12 +3646,12 @@ void vnc_display_open(const char *id, Error **errp)
         }
         g_free(to);
         g_free(display);
-        g_free(vs->display);
-        vs->display = dpy;
+        vs->enabled = true;
         qemu_set_fd_handler2(vs->lsock, NULL,
                 vnc_listen_regular_read, NULL, vs);
 #ifdef CONFIG_VNC_WS
-        if (vs->websocket) {
+        g_free(ws_display);
+        if (vs->ws_enabled) {
             qemu_set_fd_handler2(vs->lwebsock, NULL,
                     vnc_listen_websocket_read, NULL, vs);
         }
@@ -3669,11 +3662,10 @@ void vnc_display_open(const char *id, Error **errp)
 fail:
     g_free(to);
     g_free(display);
-    g_free(vs->display);
-    vs->display = NULL;
+    vs->enabled = false;
 #ifdef CONFIG_VNC_WS
-    g_free(vs->ws_display);
-    vs->ws_display = NULL;
+    g_free(ws_display);
+    vs->ws_enabled = false;
 #endif /* CONFIG_VNC_WS */
 }
 
