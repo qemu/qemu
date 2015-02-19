@@ -1134,52 +1134,20 @@ static void dec_sys(DisasContext *dc, uint32_t insn)
 
     case 0x100:    /* l.trap */
         LOG_DIS("l.trap %d\n", K16);
-#if defined(CONFIG_USER_ONLY)
-        return;
-#else
-        if (dc->mem_idx == MMU_USER_IDX) {
-            gen_illegal_exception(dc);
-            return;
-        }
         tcg_gen_movi_tl(cpu_pc, dc->pc);
         gen_exception(dc, EXCP_TRAP);
-#endif
         break;
 
     case 0x300:    /* l.csync */
         LOG_DIS("l.csync\n");
-#if defined(CONFIG_USER_ONLY)
-        return;
-#else
-        if (dc->mem_idx == MMU_USER_IDX) {
-            gen_illegal_exception(dc);
-            return;
-        }
-#endif
         break;
 
     case 0x200:    /* l.msync */
         LOG_DIS("l.msync\n");
-#if defined(CONFIG_USER_ONLY)
-        return;
-#else
-        if (dc->mem_idx == MMU_USER_IDX) {
-            gen_illegal_exception(dc);
-            return;
-        }
-#endif
         break;
 
     case 0x270:    /* l.psync */
         LOG_DIS("l.psync\n");
-#if defined(CONFIG_USER_ONLY)
-        return;
-#else
-        if (dc->mem_idx == MMU_USER_IDX) {
-            gen_illegal_exception(dc);
-            return;
-        }
-#endif
         break;
 
     default:
