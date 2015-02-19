@@ -34,14 +34,8 @@
 #include "trace-tcg.h"
 #include "exec/log.h"
 
-
-#define OPENRISC_DISAS
-
-#ifdef OPENRISC_DISAS
-#  define LOG_DIS(...) qemu_log_mask(CPU_LOG_TB_IN_ASM, ## __VA_ARGS__)
-#else
-#  define LOG_DIS(...) do { } while (0)
-#endif
+#define LOG_DIS(str, ...) \
+    qemu_log_mask(CPU_LOG_TB_IN_ASM, "%08x: " str, dc->pc, ## __VA_ARGS__)
 
 typedef struct DisasContext {
     TranslationBlock *tb;
@@ -766,9 +760,7 @@ static void dec_misc(DisasContext *dc, uint32_t insn)
 {
     uint32_t op0, op1;
     uint32_t ra, rb, rd;
-#ifdef OPENRISC_DISAS
     uint32_t L6, K5;
-#endif
     uint32_t I16, I5, I11, N26, tmp;
     TCGMemOp mop;
 
@@ -777,10 +769,8 @@ static void dec_misc(DisasContext *dc, uint32_t insn)
     ra = extract32(insn, 16, 5);
     rb = extract32(insn, 11, 5);
     rd = extract32(insn, 21, 5);
-#ifdef OPENRISC_DISAS
     L6 = extract32(insn, 5, 6);
     K5 = extract32(insn, 0, 5);
-#endif
     I16 = extract32(insn, 0, 16);
     I5 = extract32(insn, 21, 5);
     I11 = extract32(insn, 0, 11);
@@ -1387,13 +1377,10 @@ static void dec_compi(DisasContext *dc, uint32_t insn)
 static void dec_sys(DisasContext *dc, uint32_t insn)
 {
     uint32_t op0;
-#ifdef OPENRISC_DISAS
     uint32_t K16;
-#endif
+
     op0 = extract32(insn, 16, 10);
-#ifdef OPENRISC_DISAS
     K16 = extract32(insn, 0, 16);
-#endif
 
     switch (op0) {
     case 0x000:    /* l.sys */
@@ -1723,6 +1710,13 @@ void gen_intermediate_code(CPUOpenRISCState *env, struct TranslationBlock *tb)
         max_insns = TCG_MAX_INSNS;
     }
 
+    if (qemu_loglevel_mask(CPU_LOG_TB_IN_ASM)
+        && qemu_log_in_addr_range(pc_start)) {
+        qemu_log_lock();
+        qemu_log("----------------\n");
+        qemu_log("IN: %s\n", lookup_symbol(pc_start));
+    }
+
     gen_tb_start(tb);
 
     do {
@@ -1807,18 +1801,12 @@ void gen_intermediate_code(CPUOpenRISCState *env, struct TranslationBlock *tb)
     tb->size = dc->pc - pc_start;
     tb->icount = num_insns;
 
-#ifdef DEBUG_DISAS
     if (qemu_loglevel_mask(CPU_LOG_TB_IN_ASM)
         && qemu_log_in_addr_range(pc_start)) {
-        qemu_log_lock();
-        qemu_log("----------------\n");
-        qemu_log("IN: %s\n", lookup_symbol(pc_start));
-        log_target_disas(cs, pc_start, dc->pc - pc_start, 0);
-        qemu_log("\nisize=%d osize=%d\n",
-                 dc->pc - pc_start, tcg_op_buf_count());
+        log_target_disas(cs, pc_start, tb->size, 0);
+        qemu_log("\n");
         qemu_log_unlock();
     }
-#endif
 }
 
 void openrisc_cpu_dump_state(CPUState *cs, FILE *f,
