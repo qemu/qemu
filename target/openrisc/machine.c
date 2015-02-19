@@ -26,18 +26,26 @@
 
 static const VMStateDescription vmstate_env = {
     .name = "env",
-    .version_id = 1,
-    .minimum_version_id = 1,
+    .version_id = 2,
+    .minimum_version_id = 2,
     .fields = (VMStateField[]) {
-        VMSTATE_UINT32_ARRAY(gpr, CPUOpenRISCState, 32),
+        VMSTATE_UINTTL_ARRAY(gpr, CPUOpenRISCState, 32),
+        VMSTATE_UINTTL(pc, CPUOpenRISCState),
+        VMSTATE_UINTTL(npc, CPUOpenRISCState),
+        VMSTATE_UINTTL(ppc, CPUOpenRISCState),
+        VMSTATE_UINTTL(jmp_pc, CPUOpenRISCState),
+        VMSTATE_UINTTL(lock_addr, CPUOpenRISCState),
+        VMSTATE_UINTTL(lock_value, CPUOpenRISCState),
+        VMSTATE_UINTTL(epcr, CPUOpenRISCState),
+        VMSTATE_UINTTL(eear, CPUOpenRISCState),
         VMSTATE_UINT32(sr, CPUOpenRISCState),
-        VMSTATE_UINT32(epcr, CPUOpenRISCState),
-        VMSTATE_UINT32(eear, CPUOpenRISCState),
+        VMSTATE_UINT32(vr, CPUOpenRISCState),
+        VMSTATE_UINT32(upr, CPUOpenRISCState),
+        VMSTATE_UINT32(cpucfgr, CPUOpenRISCState),
+        VMSTATE_UINT32(dmmucfgr, CPUOpenRISCState),
+        VMSTATE_UINT32(immucfgr, CPUOpenRISCState),
         VMSTATE_UINT32(esr, CPUOpenRISCState),
         VMSTATE_UINT32(fpcsr, CPUOpenRISCState),
-        VMSTATE_UINT32(pc, CPUOpenRISCState),
-        VMSTATE_UINT32(npc, CPUOpenRISCState),
-        VMSTATE_UINT32(ppc, CPUOpenRISCState),
         VMSTATE_END_OF_LIST()
     }
 };

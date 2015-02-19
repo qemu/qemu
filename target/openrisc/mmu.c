@@ -174,6 +174,7 @@ static void cpu_openrisc_raise_mmu_exception(OpenRISCCPU *cpu,
 
     cs->exception_index = exception;
     cpu->env.eear = address;
+    cpu->env.lock_addr = -1;
 }
 
 #ifndef CONFIG_USER_ONLY

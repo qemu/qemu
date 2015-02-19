@@ -296,6 +296,9 @@ typedef struct CPUOpenRISCState {
     uint32_t fpcsr;           /* Float register */
     float_status fp_status;
 
+    target_ulong lock_addr;
+    target_ulong lock_value;
+
     uint32_t flags;           /* cpu_flags, we only use it for exception
                                  in solt so far.  */
     uint32_t btaken;          /* the SR_F bit */

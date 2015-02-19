@@ -34,6 +34,7 @@ void HELPER(rfe)(CPUOpenRISCState *env)
     cpu->env.pc = cpu->env.epcr;
     cpu->env.npc = cpu->env.epcr;
     cpu->env.sr = cpu->env.esr;
+    cpu->env.lock_addr = -1;
 
 #ifndef CONFIG_USER_ONLY
     if (cpu->env.sr & SR_DME) {
