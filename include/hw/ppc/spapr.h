@@ -339,6 +339,39 @@ target_ulong spapr_hypercall(PowerPCCPU *cpu, target_ulong opcode,
 int spapr_allocate_irq(int hint, bool lsi);
 int spapr_allocate_irq_block(int num, bool lsi, bool msi);
 
+/* ibm,set-eeh-option */
+#define RTAS_EEH_DISABLE                 0
+#define RTAS_EEH_ENABLE                  1
+#define RTAS_EEH_THAW_IO                 2
+#define RTAS_EEH_THAW_DMA                3
+
+/* ibm,get-config-addr-info2 */
+#define RTAS_GET_PE_ADDR                 0
+#define RTAS_GET_PE_MODE                 1
+#define RTAS_PE_MODE_NONE                0
+#define RTAS_PE_MODE_NOT_SHARED          1
+#define RTAS_PE_MODE_SHARED              2
+
+/* ibm,read-slot-reset-state2 */
+#define RTAS_EEH_PE_STATE_NORMAL         0
+#define RTAS_EEH_PE_STATE_RESET          1
+#define RTAS_EEH_PE_STATE_STOPPED_IO_DMA 2
+#define RTAS_EEH_PE_STATE_STOPPED_DMA    4
+#define RTAS_EEH_PE_STATE_UNAVAIL        5
+#define RTAS_EEH_NOT_SUPPORT             0
+#define RTAS_EEH_SUPPORT                 1
+#define RTAS_EEH_PE_UNAVAIL_INFO         1000
+#define RTAS_EEH_PE_RECOVER_INFO         0
+
+/* ibm,set-slot-reset */
+#define RTAS_SLOT_RESET_DEACTIVATE       0
+#define RTAS_SLOT_RESET_HOT              1
+#define RTAS_SLOT_RESET_FUNDAMENTAL      3
+
+/* ibm,slot-error-detail */
+#define RTAS_SLOT_TEMP_ERR_LOG           1
+#define RTAS_SLOT_PERM_ERR_LOG           2
+
 /* RTAS return codes */
 #define RTAS_OUT_SUCCESS            0
 #define RTAS_OUT_NO_ERRORS_FOUND    1
@@ -383,8 +416,14 @@ int spapr_allocate_irq_block(int num, bool lsi, bool msi);
 #define RTAS_GET_SENSOR_STATE                   (RTAS_TOKEN_BASE + 0x1D)
 #define RTAS_IBM_CONFIGURE_CONNECTOR            (RTAS_TOKEN_BASE + 0x1E)
 #define RTAS_IBM_OS_TERM                        (RTAS_TOKEN_BASE + 0x1F)
+#define RTAS_IBM_SET_EEH_OPTION                 (RTAS_TOKEN_BASE + 0x20)
+#define RTAS_IBM_GET_CONFIG_ADDR_INFO2          (RTAS_TOKEN_BASE + 0x21)
+#define RTAS_IBM_READ_SLOT_RESET_STATE2         (RTAS_TOKEN_BASE + 0x22)
+#define RTAS_IBM_SET_SLOT_RESET                 (RTAS_TOKEN_BASE + 0x23)
+#define RTAS_IBM_CONFIGURE_PE                   (RTAS_TOKEN_BASE + 0x24)
+#define RTAS_IBM_SLOT_ERROR_DETAIL              (RTAS_TOKEN_BASE + 0x25)
 
-#define RTAS_TOKEN_MAX                          (RTAS_TOKEN_BASE + 0x20)
+#define RTAS_TOKEN_MAX                          (RTAS_TOKEN_BASE + 0x26)
 
 /* RTAS ibm,get-system-parameter token values */
 #define RTAS_SYSPARM_SPLPAR_CHARACTERISTICS      20

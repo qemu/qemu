@@ -49,6 +49,10 @@ struct sPAPRPHBClass {
     PCIHostBridgeClass parent_class;
 
     void (*finish_realize)(sPAPRPHBState *sphb, Error **errp);
+    int (*eeh_set_option)(sPAPRPHBState *sphb, unsigned int addr, int option);
+    int (*eeh_get_state)(sPAPRPHBState *sphb, int *state);
+    int (*eeh_reset)(sPAPRPHBState *sphb, int option);
+    int (*eeh_configure)(sPAPRPHBState *sphb);
 };
 
 typedef struct spapr_pci_msi {
