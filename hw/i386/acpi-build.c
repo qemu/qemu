@@ -145,7 +145,7 @@ static void acpi_get_dsdt(AcpiMiscInfo *info)
 
     /* Patch in appropriate value for AppleSMC _STA */
     *(uint8_t *)(info->dsdt_code + *applesmc_sta) =
-        applesmc_find() ? 0x0b : 0x00;
+        applesmc_port() ? 0x0b : 0x00;
 }
 
 static
