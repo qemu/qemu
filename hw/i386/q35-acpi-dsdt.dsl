@@ -150,7 +150,6 @@ DefinitionBlock (
         }
     }
 
-#define DSDT_APPLESMC_STA q35_dsdt_applesmc_sta
 #include "acpi-dsdt-isa.dsl"
 
 

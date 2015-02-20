@@ -85,7 +85,6 @@ DefinitionBlock (
         }
     }
 
-#define DSDT_APPLESMC_STA piix_dsdt_applesmc_sta
 #include "acpi-dsdt-isa.dsl"
 
 

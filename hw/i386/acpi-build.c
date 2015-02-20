@@ -116,6 +116,7 @@ typedef struct AcpiMiscInfo {
     const unsigned char *dsdt_code;
     unsigned dsdt_size;
     uint16_t pvpanic_port;
+    uint16_t applesmc_io_base;
 } AcpiMiscInfo;
 
 typedef struct AcpiBuildPciBusHotplugState {
@@ -127,7 +128,6 @@ typedef struct AcpiBuildPciBusHotplugState {
 
 static void acpi_get_dsdt(AcpiMiscInfo *info)
 {
-    uint16_t *applesmc_sta;
     Object *piix = piix4_pm_find();
     Object *lpc = ich9_lpc_find();
     assert(!!piix != !!lpc);
@@ -135,17 +135,11 @@ static void acpi_get_dsdt(AcpiMiscInfo *info)
     if (piix) {
         info->dsdt_code = AcpiDsdtAmlCode;
         info->dsdt_size = sizeof AcpiDsdtAmlCode;
-        applesmc_sta = piix_dsdt_applesmc_sta;
     }
     if (lpc) {
         info->dsdt_code = Q35AcpiDsdtAmlCode;
         info->dsdt_size = sizeof Q35AcpiDsdtAmlCode;
-        applesmc_sta = q35_dsdt_applesmc_sta;
     }
-
-    /* Patch in appropriate value for AppleSMC _STA */
-    *(uint8_t *)(info->dsdt_code + *applesmc_sta) =
-        applesmc_port() ? 0x0b : 0x00;
 }
 
 static
@@ -248,6 +242,7 @@ static void acpi_get_misc_info(AcpiMiscInfo *info)
     info->has_hpet = hpet_find();
     info->has_tpm = tpm_find();
     info->pvpanic_port = pvpanic_port();
+    info->applesmc_io_base = applesmc_port();
 }
 
 static void acpi_get_pci_info(PcPciInfo *info)
@@ -954,6 +949,26 @@ build_ssdt(GArray *table_data, GArray *linker,
     aml_append(pkg, aml_int(0)); /* reserved */
     aml_append(scope, aml_name_decl("_S5", pkg));
     aml_append(ssdt, scope);
+
+    if (misc->applesmc_io_base) {
+        scope = aml_scope("\\_SB.PCI0.ISA");
+        dev = aml_device("SMC");
+
+        aml_append(dev, aml_name_decl("_HID", aml_eisaid("APP0001")));
+        /* device present, functioning, decoding, not shown in UI */
+        aml_append(dev, aml_name_decl("_STA", aml_int(0xB)));
+
+        crs = aml_resource_template();
+        aml_append(crs,
+            aml_io(aml_decode16, misc->applesmc_io_base, misc->applesmc_io_base,
+                   0x01, APPLESMC_MAX_DATA_LENGTH)
+        );
+        aml_append(crs, aml_irq_no_flags(6));
+        aml_append(dev, aml_name_decl("_CRS", crs));
+
+        aml_append(scope, dev);
+        aml_append(ssdt, scope);
+    }
 
     if (misc->pvpanic_port) {
         scope = aml_scope("\\_SB.PCI0.ISA");

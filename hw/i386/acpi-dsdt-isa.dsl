@@ -16,17 +16,6 @@
 /* Common legacy ISA style devices. */
 Scope(\_SB.PCI0.ISA) {
 
-    Device (SMC) {
-        Name(_HID, EisaId("APP0001"))
-        /* _STA will be patched to 0x0B if AppleSMC is present */
-        ACPI_EXTRACT_NAME_BYTE_CONST DSDT_APPLESMC_STA
-        Name(_STA, 0xF0)
-        Name(_CRS, ResourceTemplate () {
-            IO (Decode16, 0x0300, 0x0300, 0x01, 0x20)
-            IRQNoFlags() { 6 }
-        })
-    }
-
     Device(RTC) {
         Name(_HID, EisaId("PNP0B00"))
         Name(_CRS, ResourceTemplate() {
