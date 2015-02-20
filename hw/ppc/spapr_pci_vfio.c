@@ -76,6 +76,117 @@ static void spapr_phb_vfio_reset(DeviceState *qdev)
     /* Do nothing */
 }
 
+static int spapr_phb_vfio_eeh_set_option(sPAPRPHBState *sphb,
+                                         unsigned int addr, int option)
+{
+    sPAPRPHBVFIOState *svphb = SPAPR_PCI_VFIO_HOST_BRIDGE(sphb);
+    struct vfio_eeh_pe_op op = { .argsz = sizeof(op) };
+    int ret;
+
+    switch (option) {
+    case RTAS_EEH_DISABLE:
+        op.op = VFIO_EEH_PE_DISABLE;
+        break;
+    case RTAS_EEH_ENABLE: {
+        PCIHostState *phb;
+        PCIDevice *pdev;
+
+        /*
+         * The EEH functionality is enabled on basis of PCI device,
+         * instead of PE. We need check the validity of the PCI
+         * device address.
+         */
+        phb = PCI_HOST_BRIDGE(sphb);
+        pdev = pci_find_device(phb->bus,
+                               (addr >> 16) & 0xFF, (addr >> 8) & 0xFF);
+        if (!pdev) {
+            return RTAS_OUT_PARAM_ERROR;
+        }
+
+        op.op = VFIO_EEH_PE_ENABLE;
+        break;
+    }
+    case RTAS_EEH_THAW_IO:
+        op.op = VFIO_EEH_PE_UNFREEZE_IO;
+        break;
+    case RTAS_EEH_THAW_DMA:
+        op.op = VFIO_EEH_PE_UNFREEZE_DMA;
+        break;
+    default:
+        return RTAS_OUT_PARAM_ERROR;
+    }
+
+    ret = vfio_container_ioctl(&svphb->phb.iommu_as, svphb->iommugroupid,
+                               VFIO_EEH_PE_OP, &op);
+    if (ret < 0) {
+        return RTAS_OUT_HW_ERROR;
+    }
+
+    return RTAS_OUT_SUCCESS;
+}
+
+static int spapr_phb_vfio_eeh_get_state(sPAPRPHBState *sphb, int *state)
+{
+    sPAPRPHBVFIOState *svphb = SPAPR_PCI_VFIO_HOST_BRIDGE(sphb);
+    struct vfio_eeh_pe_op op = { .argsz = sizeof(op) };
+    int ret;
+
+    op.op = VFIO_EEH_PE_GET_STATE;
+    ret = vfio_container_ioctl(&svphb->phb.iommu_as, svphb->iommugroupid,
+                               VFIO_EEH_PE_OP, &op);
+    if (ret < 0) {
+        return RTAS_OUT_PARAM_ERROR;
+    }
+
+    *state = ret;
+    return RTAS_OUT_SUCCESS;
+}
+
+static int spapr_phb_vfio_eeh_reset(sPAPRPHBState *sphb, int option)
+{
+    sPAPRPHBVFIOState *svphb = SPAPR_PCI_VFIO_HOST_BRIDGE(sphb);
+    struct vfio_eeh_pe_op op = { .argsz = sizeof(op) };
+    int ret;
+
+    switch (option) {
+    case RTAS_SLOT_RESET_DEACTIVATE:
+        op.op = VFIO_EEH_PE_RESET_DEACTIVATE;
+        break;
+    case RTAS_SLOT_RESET_HOT:
+        op.op = VFIO_EEH_PE_RESET_HOT;
+        break;
+    case RTAS_SLOT_RESET_FUNDAMENTAL:
+        op.op = VFIO_EEH_PE_RESET_FUNDAMENTAL;
+        break;
+    default:
+        return RTAS_OUT_PARAM_ERROR;
+    }
+
+    ret = vfio_container_ioctl(&svphb->phb.iommu_as, svphb->iommugroupid,
+                               VFIO_EEH_PE_OP, &op);
+    if (ret < 0) {
+        return RTAS_OUT_HW_ERROR;
+    }
+
+    return RTAS_OUT_SUCCESS;
+}
+
+static int spapr_phb_vfio_eeh_configure(sPAPRPHBState *sphb)
+{
+    sPAPRPHBVFIOState *svphb = SPAPR_PCI_VFIO_HOST_BRIDGE(sphb);
+    struct vfio_eeh_pe_op op = { .argsz = sizeof(op) };
+    int ret;
+
+    op.op = VFIO_EEH_PE_CONFIGURE;
+    ret = vfio_container_ioctl(&svphb->phb.iommu_as, svphb->iommugroupid,
+                               VFIO_EEH_PE_OP, &op);
+    if (ret < 0) {
+        return RTAS_OUT_PARAM_ERROR;
+    }
+
+    return RTAS_OUT_SUCCESS;
+}
+
 static void spapr_phb_vfio_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
@@ -84,6 +195,10 @@ static void spapr_phb_vfio_class_init(ObjectClass *klass, void *data)
     dc->props = spapr_phb_vfio_properties;
     dc->reset = spapr_phb_vfio_reset;
     spc->finish_realize = spapr_phb_vfio_finish_realize;
+    spc->eeh_set_option = spapr_phb_vfio_eeh_set_option;
+    spc->eeh_get_state = spapr_phb_vfio_eeh_get_state;
+    spc->eeh_reset = spapr_phb_vfio_eeh_reset;
+    spc->eeh_configure = spapr_phb_vfio_eeh_configure;
 }
 
 static const TypeInfo spapr_phb_vfio_info = {
