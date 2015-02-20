@@ -238,6 +238,7 @@ bool aio_poll(AioContext *ctx, bool blocking)
     bool progress;
     int64_t timeout;
 
+    aio_context_acquire(ctx);
     was_dispatching = ctx->dispatching;
     progress = false;
 
@@ -267,7 +268,13 @@ bool aio_poll(AioContext *ctx, bool blocking)
     timeout = blocking ? aio_compute_timeout(ctx) : 0;
 
     /* wait until next event */
+    if (timeout) {
+        aio_context_release(ctx);
+    }
     ret = qemu_poll_ns((GPollFD *)pollfds, npfd, timeout);
+    if (timeout) {
+        aio_context_acquire(ctx);
+    }
 
     /* if we have any readable fds, dispatch event */
     if (ret > 0) {
@@ -286,5 +293,7 @@ bool aio_poll(AioContext *ctx, bool blocking)
     }
 
     aio_set_dispatching(ctx, was_dispatching);
+    aio_context_release(ctx);
+
     return progress;
 }
