@@ -112,7 +112,6 @@ typedef struct AcpiPmInfo {
 typedef struct AcpiMiscInfo {
     bool has_hpet;
     bool has_tpm;
-    DECLARE_BITMAP(slot_hotplug_enable, PCI_SLOT_MAX);
     const unsigned char *dsdt_code;
     unsigned dsdt_size;
     uint16_t pvpanic_port;
@@ -591,74 +590,37 @@ static void acpi_set_pci_info(void)
     }
 }
 
-static void build_pci_bus_state_init(AcpiBuildPciBusHotplugState *state,
-                                     AcpiBuildPciBusHotplugState *parent,
-                                     bool pcihp_bridge_en)
+static void build_append_pcihp_notify_entry(GArray *method, int slot)
 {
-    state->parent = parent;
-    state->device_table = build_alloc_array();
-    state->notify_table = build_alloc_array();
-    state->pcihp_bridge_en = pcihp_bridge_en;
+    GArray *ifctx;
+
+    ifctx = build_alloc_array();
+    build_append_byte(ifctx, 0x7B); /* AndOp */
+    build_append_byte(ifctx, 0x68); /* Arg0Op */
+    build_append_int(ifctx, 0x1U << slot);
+    build_append_byte(ifctx, 0x00); /* NullName */
+    build_append_byte(ifctx, 0x86); /* NotifyOp */
+    build_append_namestring(ifctx, "S%.02X", PCI_DEVFN(slot, 0));
+    build_append_byte(ifctx, 0x69); /* Arg1Op */
+
+    /* Pack it up */
+    build_package(ifctx, 0xA0 /* IfOp */);
+    build_append_array(method, ifctx);
+    build_free_array(ifctx);
 }
 
-static void build_pci_bus_state_cleanup(AcpiBuildPciBusHotplugState *state)
+static void build_append_pci_bus_devices(GArray *parent_scope, PCIBus *bus,
+                                         bool pcihp_bridge_en)
 {
-    build_free_array(state->device_table);
-    build_free_array(state->notify_table);
-}
-
-static void *build_pci_bus_begin(PCIBus *bus, void *parent_state)
-{
-    AcpiBuildPciBusHotplugState *parent = parent_state;
-    AcpiBuildPciBusHotplugState *child = g_malloc(sizeof *child);
-
-    build_pci_bus_state_init(child, parent, parent->pcihp_bridge_en);
-
-    return child;
-}
-
-static void build_pci_bus_end(PCIBus *bus, void *bus_state)
-{
-    AcpiBuildPciBusHotplugState *child = bus_state;
-    AcpiBuildPciBusHotplugState *parent = child->parent;
     GArray *bus_table = build_alloc_array();
-    DECLARE_BITMAP(slot_hotplug_enable, PCI_SLOT_MAX);
-    DECLARE_BITMAP(slot_device_present, PCI_SLOT_MAX);
-    DECLARE_BITMAP(slot_device_system, PCI_SLOT_MAX);
-    DECLARE_BITMAP(slot_device_vga, PCI_SLOT_MAX);
-    DECLARE_BITMAP(slot_device_qxl, PCI_SLOT_MAX);
-    uint8_t op;
-    int i;
+    GArray *method = NULL;
     QObject *bsel;
-    GArray *method;
-    bool bus_hotplug_support = false;
-
-    /*
-     * Skip bridge subtree creation if bridge hotplug is disabled
-     * to make acpi tables compatible with legacy machine types.
-     * Skip creation for hotplugged bridges as well.
-     */
-    if (bus->parent_dev && (!child->pcihp_bridge_en ||
-                            DEVICE(bus->parent_dev)->hotplugged)) {
-        build_free_array(bus_table);
-        build_pci_bus_state_cleanup(child);
-        g_free(child);
-        return;
-    }
+    PCIBus *sec;
+    int i;
 
     if (bus->parent_dev) {
-        op = 0x82; /* DeviceOp */
-        build_append_namestring(bus_table, "S%.02X",
-                             bus->parent_dev->devfn);
-        build_append_byte(bus_table, 0x08); /* NameOp */
-        build_append_namestring(bus_table, "_SUN");
-        build_append_int(bus_table, PCI_SLOT(bus->parent_dev->devfn));
-        build_append_byte(bus_table, 0x08); /* NameOp */
-        build_append_namestring(bus_table, "_ADR");
-        build_append_int(bus_table, (PCI_SLOT(bus->parent_dev->devfn) << 16) |
-                           PCI_FUNC(bus->parent_dev->devfn));
+        build_append_namestring(bus_table, "S%.02X_", bus->parent_dev->devfn);
     } else {
-        op = 0x10; /* ScopeOp */;
         build_append_namestring(bus_table, "PCI0");
     }
 
@@ -667,29 +629,28 @@ static void build_pci_bus_end(PCIBus *bus, void *bus_state)
         build_append_byte(bus_table, 0x08); /* NameOp */
         build_append_namestring(bus_table, "BSEL");
         build_append_int(bus_table, qint_get_int(qobject_to_qint(bsel)));
-        memset(slot_hotplug_enable, 0xff, sizeof slot_hotplug_enable);
-    } else {
-        /* No bsel - no slots are hot-pluggable */
-        memset(slot_hotplug_enable, 0x00, sizeof slot_hotplug_enable);
+        method = build_alloc_method("DVNT", 2);
     }
-
-    memset(slot_device_present, 0x00, sizeof slot_device_present);
-    memset(slot_device_system, 0x00, sizeof slot_device_present);
-    memset(slot_device_vga, 0x00, sizeof slot_device_vga);
-    memset(slot_device_qxl, 0x00, sizeof slot_device_qxl);
 
     for (i = 0; i < ARRAY_SIZE(bus->devices); i += PCI_FUNC_MAX) {
         DeviceClass *dc;
         PCIDeviceClass *pc;
         PCIDevice *pdev = bus->devices[i];
         int slot = PCI_SLOT(i);
+        bool hotplug_enabled_dev;
         bool bridge_in_acpi;
 
         if (!pdev) {
+            if (bsel) { /* add hotplug slots for non present devices */
+                void *pcihp = acpi_data_push(bus_table, ACPI_PCIHP_SIZEOF);
+                memcpy(pcihp, ACPI_PCIHP_AML, ACPI_PCIHP_SIZEOF);
+                patch_pcihp(slot, pcihp);
+
+                build_append_pcihp_notify_entry(method, slot);
+            }
             continue;
         }
 
-        set_bit(slot, slot_device_present);
         pc = PCI_DEVICE_GET_CLASS(pdev);
         dc = DEVICE_GET_CLASS(pdev);
 
@@ -698,142 +659,83 @@ static void build_pci_bus_end(PCIBus *bus, void *bus_state)
          * In this case they aren't themselves hot-pluggable.
          * Hotplugged bridges *are* hot-pluggable.
          */
-        bridge_in_acpi = pc->is_bridge && child->pcihp_bridge_en &&
-         !DEVICE(pdev)->hotplugged;
+        bridge_in_acpi = pc->is_bridge && pcihp_bridge_en &&
+            !DEVICE(pdev)->hotplugged;
 
-        if (pc->class_id == PCI_CLASS_BRIDGE_ISA || bridge_in_acpi) {
-            set_bit(slot, slot_device_system);
+        hotplug_enabled_dev = bsel && dc->hotpluggable && !bridge_in_acpi;
+
+        if (pc->class_id == PCI_CLASS_BRIDGE_ISA) {
+            continue;
         }
 
         if (pc->class_id == PCI_CLASS_DISPLAY_VGA) {
-            set_bit(slot, slot_device_vga);
-
             if (object_dynamic_cast(OBJECT(pdev), "qxl-vga")) {
-                set_bit(slot, slot_device_qxl);
+                void *pcihp = acpi_data_push(bus_table,
+                                             ACPI_PCIQXL_SIZEOF);
+                      memcpy(pcihp, ACPI_PCIQXL_AML, ACPI_PCIQXL_SIZEOF);
+                      patch_pciqxl(slot, pcihp);
+            } else {
+                void *pcihp = acpi_data_push(bus_table,
+                                             ACPI_PCIVGA_SIZEOF);
+                memcpy(pcihp, ACPI_PCIVGA_AML, ACPI_PCIVGA_SIZEOF);
+                patch_pcivga(slot, pcihp);
             }
-        }
+        } else if (hotplug_enabled_dev) {
+            void *pcihp = acpi_data_push(bus_table, ACPI_PCIHP_SIZEOF);
 
-        if (!dc->hotpluggable || bridge_in_acpi) {
-            clear_bit(slot, slot_hotplug_enable);
-        }
-    }
-
-    /* Append Device object for each slot */
-    for (i = 0; i < PCI_SLOT_MAX; i++) {
-        bool can_eject = test_bit(i, slot_hotplug_enable);
-        bool present = test_bit(i, slot_device_present);
-        bool vga = test_bit(i, slot_device_vga);
-        bool qxl = test_bit(i, slot_device_qxl);
-        bool system = test_bit(i, slot_device_system);
-        if (can_eject) {
-            void *pcihp = acpi_data_push(bus_table,
-                                         ACPI_PCIHP_SIZEOF);
             memcpy(pcihp, ACPI_PCIHP_AML, ACPI_PCIHP_SIZEOF);
-            patch_pcihp(i, pcihp);
-            bus_hotplug_support = true;
-        } else if (qxl) {
-            void *pcihp = acpi_data_push(bus_table,
-                                         ACPI_PCIQXL_SIZEOF);
-            memcpy(pcihp, ACPI_PCIQXL_AML, ACPI_PCIQXL_SIZEOF);
-            patch_pciqxl(i, pcihp);
-        } else if (vga) {
-            void *pcihp = acpi_data_push(bus_table,
-                                         ACPI_PCIVGA_SIZEOF);
-            memcpy(pcihp, ACPI_PCIVGA_AML, ACPI_PCIVGA_SIZEOF);
-            patch_pcivga(i, pcihp);
-        } else if (system) {
-            /* Nothing to do: system devices are in DSDT or in SSDT above. */
-        } else if (present) {
-            void *pcihp = acpi_data_push(bus_table,
-                                         ACPI_PCINOHP_SIZEOF);
+            patch_pcihp(slot, pcihp);
+            build_append_pcihp_notify_entry(method, slot);
+        } else if (bridge_in_acpi) {
+            PCIBus *sec_bus = pci_bridge_get_sec_bus(PCI_BRIDGE(pdev));
+            void *pcihp = acpi_data_push(bus_table, ACPI_PCINOHP_SIZEOF);
+
             memcpy(pcihp, ACPI_PCINOHP_AML, ACPI_PCINOHP_SIZEOF);
-            patch_pcinohp(i, pcihp);
+            patch_pcinohp(slot, pcihp);
+            build_append_pci_bus_devices(bus_table, sec_bus, pcihp_bridge_en);
+        } else { /* non hotpluggable present devices */
+            void *pcihp = acpi_data_push(bus_table, ACPI_PCINOHP_SIZEOF);
+
+            memcpy(pcihp, ACPI_PCINOHP_AML, ACPI_PCINOHP_SIZEOF);
+            patch_pcinohp(slot, pcihp);
         }
     }
 
     if (bsel) {
-        method = build_alloc_method("DVNT", 2);
-
-        for (i = 0; i < PCI_SLOT_MAX; i++) {
-            GArray *notify;
-            uint8_t op;
-
-            if (!test_bit(i, slot_hotplug_enable)) {
-                continue;
-            }
-
-            notify = build_alloc_array();
-            op = 0xA0; /* IfOp */
-
-            build_append_byte(notify, 0x7B); /* AndOp */
-            build_append_byte(notify, 0x68); /* Arg0Op */
-            build_append_int(notify, 0x1U << i);
-            build_append_byte(notify, 0x00); /* NullName */
-            build_append_byte(notify, 0x86); /* NotifyOp */
-            build_append_namestring(notify, "S%.02X", PCI_DEVFN(i, 0));
-            build_append_byte(notify, 0x69); /* Arg1Op */
-
-            /* Pack it up */
-            build_package(notify, op);
-
-            build_append_array(method, notify);
-
-            build_free_array(notify);
-        }
-
         build_append_and_cleanup_method(bus_table, method);
     }
 
     /* Append PCNT method to notify about events on local and child buses.
      * Add unconditionally for root since DSDT expects it.
      */
-    if (bus_hotplug_support || child->notify_table->len || !bus->parent_dev) {
-        method = build_alloc_method("PCNT", 0);
+    method = build_alloc_method("PCNT", 0);
 
-        /* If bus supports hotplug select it and notify about local events */
-        if (bsel) {
-            build_append_byte(method, 0x70); /* StoreOp */
-            build_append_int(method, qint_get_int(qobject_to_qint(bsel)));
-            build_append_namestring(method, "BNUM");
-            build_append_namestring(method, "DVNT");
-            build_append_namestring(method, "PCIU");
-            build_append_int(method, 1); /* Device Check */
-            build_append_namestring(method, "DVNT");
-            build_append_namestring(method, "PCID");
-            build_append_int(method, 3); /* Eject Request */
-        }
+    /* If bus supports hotplug select it and notify about local events */
+    if (bsel) {
+        build_append_byte(method, 0x70); /* StoreOp */
+        build_append_int(method, qint_get_int(qobject_to_qint(bsel)));
+        build_append_namestring(method, "BNUM");
+        build_append_namestring(method, "DVNT");
+        build_append_namestring(method, "PCIU");
+        build_append_int(method, 1); /* Device Check */
+        build_append_namestring(method, "DVNT");
+        build_append_namestring(method, "PCID");
+        build_append_int(method, 3); /* Eject Request */
+    }
 
-        /* Notify about child bus events in any case */
-        build_append_array(method, child->notify_table);
-
-        build_append_and_cleanup_method(bus_table, method);
-
-        /* Append description of child buses */
-        build_append_array(bus_table, child->device_table);
-
-        /* Pack it up */
-        if (bus->parent_dev) {
-            build_extop_package(bus_table, op);
-        } else {
-            build_package(bus_table, op);
-        }
-
-        /* Append our bus description to parent table */
-        build_append_array(parent->device_table, bus_table);
-
-        /* Also tell parent how to notify us, invoking PCNT method.
-         * At the moment this is not needed for root as we have a single root.
-         */
-        if (bus->parent_dev) {
-            build_append_namestring(parent->notify_table, "^PCNT.S%.02X",
-                                    bus->parent_dev->devfn);
+    /* Notify about child bus events in any case */
+    if (pcihp_bridge_en) {
+        QLIST_FOREACH(sec, &bus->child, sibling) {
+            build_append_namestring(method, "^S%.02X.PCNT",
+                                    sec->parent_dev->devfn);
         }
     }
 
-    qobject_decref(bsel);
+    build_append_and_cleanup_method(bus_table, method);
+
+    build_package(bus_table, 0x10); /* ScopeOp */
+    build_append_array(parent_scope, bus_table);
     build_free_array(bus_table);
-    build_pci_bus_state_cleanup(child);
-    g_free(child);
 }
 
 static void
@@ -1175,7 +1077,6 @@ build_ssdt(GArray *table_data, GArray *linker,
         aml_append(sb_scope, method);
 
         {
-            AcpiBuildPciBusHotplugState hotplug_state;
             Object *pci_host;
             PCIBus *bus = NULL;
             bool ambiguous;
@@ -1185,16 +1086,11 @@ build_ssdt(GArray *table_data, GArray *linker,
                 bus = PCI_HOST_BRIDGE(pci_host)->bus;
             }
 
-            build_pci_bus_state_init(&hotplug_state, NULL, pm->pcihp_bridge_en);
-
             if (bus) {
                 /* Scan all PCI buses. Generate tables to support hotplug. */
-                pci_for_each_bus_depth_first(bus, build_pci_bus_begin,
-                                             build_pci_bus_end, &hotplug_state);
+                build_append_pci_bus_devices(sb_scope->buf, bus,
+                                             pm->pcihp_bridge_en);
             }
-
-            build_append_array(sb_scope->buf, hotplug_state.device_table);
-            build_pci_bus_state_cleanup(&hotplug_state);
         }
         aml_append(ssdt, sb_scope);
     }
