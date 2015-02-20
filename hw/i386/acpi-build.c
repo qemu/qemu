@@ -526,7 +526,6 @@ static inline char acpi_get_hex(uint32_t val)
 #define ACPI_SSDT_SIGNATURE 0x54445353 /* SSDT */
 #define ACPI_SSDT_HEADER_LENGTH 36
 
-#include "hw/i386/ssdt-misc.hex"
 #include "hw/i386/ssdt-pcihp.hex"
 #include "hw/i386/ssdt-tpm.hex"
 
@@ -850,7 +849,6 @@ build_ssdt(GArray *table_data, GArray *linker,
     MachineState *machine = MACHINE(qdev_get_machine());
     uint32_t nr_mem = machine->ram_slots;
     unsigned acpi_cpus = guest_info->apic_id_limit;
-    uint8_t *ssdt_ptr;
     Aml *ssdt, *sb_scope, *scope, *pkg, *dev, *method, *crs, *field, *ifctx;
     int i;
 
@@ -860,9 +858,8 @@ build_ssdt(GArray *table_data, GArray *linker,
     QEMU_BUILD_BUG_ON(ACPI_CPU_HOTPLUG_ID_LIMIT > 256);
     g_assert(acpi_cpus <= ACPI_CPU_HOTPLUG_ID_LIMIT);
 
-    /* Copy header and patch values in the S3_ / S4_ / S5_ packages */
-    ssdt_ptr = acpi_data_push(ssdt->buf, sizeof(ssdp_misc_aml));
-    memcpy(ssdt_ptr, ssdp_misc_aml, sizeof(ssdp_misc_aml));
+    /* Reserve space for header */
+    acpi_data_push(ssdt->buf, sizeof(AcpiTableHeader));
 
     scope = aml_scope("\\_SB.PCI0");
     /* build PCI0._CRS */
