@@ -82,9 +82,6 @@ struct AioContext {
     /* Used for aio_notify.  */
     EventNotifier notifier;
 
-    /* GPollFDs for aio_poll() */
-    GArray *pollfds;
-
     /* Thread pool for performing work and receiving completion callbacks */
     struct ThreadPool *thread_pool;
 
