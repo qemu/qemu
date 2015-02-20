@@ -346,24 +346,6 @@ static void acpi_align_size(GArray *blob, unsigned align)
     g_array_set_size(blob, ROUND_UP(acpi_data_len(blob), align));
 }
 
-/* Set a value within table in a safe manner */
-#define ACPI_BUILD_SET_LE(table, size, off, bits, val) \
-    do { \
-        uint64_t ACPI_BUILD_SET_LE_val = cpu_to_le64(val); \
-        memcpy(acpi_data_get_ptr(table, size, off, \
-                                 (bits) / BITS_PER_BYTE), \
-               &ACPI_BUILD_SET_LE_val, \
-               (bits) / BITS_PER_BYTE); \
-    } while (0)
-
-static inline void *acpi_data_get_ptr(uint8_t *table_data, unsigned table_size,
-                                      unsigned off, unsigned size)
-{
-    assert(off + size > off);
-    assert(off + size <= table_size);
-    return table_data + off;
-}
-
 static inline void acpi_add_table(GArray *table_offsets, GArray *table_data)
 {
     uint32_t offset = cpu_to_le32(table_data->len);
@@ -860,22 +842,6 @@ static void build_pci_bus_end(PCIBus *bus, void *bus_state)
     g_free(child);
 }
 
-static void patch_pci_windows(PcPciInfo *pci, uint8_t *start, unsigned size)
-{
-    ACPI_BUILD_SET_LE(start, size, acpi_pci32_start[0], 32, pci->w32.begin);
-
-    ACPI_BUILD_SET_LE(start, size, acpi_pci32_end[0], 32, pci->w32.end - 1);
-
-    if (pci->w64.end || pci->w64.begin) {
-        ACPI_BUILD_SET_LE(start, size, acpi_pci64_valid[0], 8, 1);
-        ACPI_BUILD_SET_LE(start, size, acpi_pci64_start[0], 64, pci->w64.begin);
-        ACPI_BUILD_SET_LE(start, size, acpi_pci64_end[0], 64, pci->w64.end - 1);
-        ACPI_BUILD_SET_LE(start, size, acpi_pci64_length[0], 64, pci->w64.end - pci->w64.begin);
-    } else {
-        ACPI_BUILD_SET_LE(start, size, acpi_pci64_valid[0], 8, 0);
-    }
-}
-
 static void
 build_ssdt(GArray *table_data, GArray *linker,
            AcpiCpuInfo *cpu, AcpiPmInfo *pm, AcpiMiscInfo *misc,
@@ -898,9 +864,59 @@ build_ssdt(GArray *table_data, GArray *linker,
     ssdt_ptr = acpi_data_push(ssdt->buf, sizeof(ssdp_misc_aml));
     memcpy(ssdt_ptr, ssdp_misc_aml, sizeof(ssdp_misc_aml));
 
-    patch_pci_windows(pci, ssdt_ptr, sizeof(ssdp_misc_aml));
-
     scope = aml_scope("\\_SB.PCI0");
+    /* build PCI0._CRS */
+    crs = aml_resource_template();
+    aml_append(crs,
+        aml_word_bus_number(aml_min_fixed, aml_max_fixed, aml_pos_decode,
+                            0x0000, 0x0000, 0x00FF, 0x0000, 0x0100));
+    aml_append(crs, aml_io(aml_decode16, 0x0CF8, 0x0CF8, 0x01, 0x08));
+
+    aml_append(crs,
+        aml_word_io(aml_min_fixed, aml_max_fixed,
+                    aml_pos_decode, aml_entire_range,
+                    0x0000, 0x0000, 0x0CF7, 0x0000, 0x0CF8));
+    if (ich9_lpc_find()) { /* Q35 */
+        aml_append(crs,
+            aml_word_io(aml_min_fixed, aml_max_fixed,
+                        aml_pos_decode, aml_entire_range,
+                        0x0000, 0x0D00, 0xFFFF, 0x0000, 0xF300));
+    } else { /* piix4 */
+        aml_append(crs,
+            aml_word_io(aml_min_fixed, aml_max_fixed,
+                        aml_pos_decode, aml_entire_range,
+                        0x0000, 0x0D00, 0xADFF, 0x0000, 0xA100));
+        aml_append(crs,
+            aml_word_io(aml_min_fixed, aml_max_fixed,
+                        aml_pos_decode, aml_entire_range,
+                        0x0000, 0xAE0F, 0xAEFF, 0x0000, 0x00F1));
+        aml_append(crs,
+            aml_word_io(aml_min_fixed, aml_max_fixed,
+                        aml_pos_decode, aml_entire_range,
+                        0x0000, 0xAF20, 0xAFDF, 0x0000, 0x00C0));
+        aml_append(crs,
+            aml_word_io(aml_min_fixed, aml_max_fixed,
+                        aml_pos_decode, aml_entire_range,
+                        0x0000, 0xAFE4, 0xFFFF, 0x0000, 0x501C));
+    }
+    aml_append(crs,
+        aml_dword_memory(aml_pos_decode, aml_min_fixed, aml_max_fixed,
+                         aml_cacheable, aml_ReadWrite,
+                         0, 0x000A0000, 0x000BFFFF, 0, 0x00020000));
+    aml_append(crs,
+        aml_dword_memory(aml_pos_decode, aml_min_fixed, aml_max_fixed,
+                         aml_non_cacheable, aml_ReadWrite,
+                         0, pci->w32.begin, pci->w32.end - 1, 0,
+                         pci->w32.end - pci->w32.begin));
+    if (pci->w64.begin) {
+        aml_append(crs,
+            aml_qword_memory(aml_pos_decode, aml_min_fixed, aml_max_fixed,
+                             aml_cacheable, aml_ReadWrite,
+                             0, pci->w64.begin, pci->w64.end - 1, 0,
+                             pci->w64.end - pci->w64.begin));
+    }
+    aml_append(scope, aml_name_decl("_CRS", crs));
+
     /* reserve PCIHP resources */
     if (pm->pcihp_io_len) {
         dev = aml_device("PHPR");

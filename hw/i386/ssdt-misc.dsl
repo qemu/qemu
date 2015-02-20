@@ -18,23 +18,4 @@ ACPI_EXTRACT_ALL_CODE ssdp_misc_aml
 
 DefinitionBlock ("ssdt-misc.aml", "SSDT", 0x01, "BXPC", "BXSSDTSUSP", 0x1)
 {
-
-/****************************************************************
- * PCI memory ranges
- ****************************************************************/
-
-    Scope(\) {
-       ACPI_EXTRACT_NAME_DWORD_CONST acpi_pci32_start
-       Name(P0S, 0x12345678)
-       ACPI_EXTRACT_NAME_DWORD_CONST acpi_pci32_end
-       Name(P0E, 0x12345678)
-       ACPI_EXTRACT_NAME_BYTE_CONST acpi_pci64_valid
-       Name(P1V, 0x12)
-       ACPI_EXTRACT_NAME_BUFFER8 acpi_pci64_start
-       Name(P1S, Buffer() { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 })
-       ACPI_EXTRACT_NAME_BUFFER8 acpi_pci64_end
-       Name(P1E, Buffer() { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 })
-       ACPI_EXTRACT_NAME_BUFFER8 acpi_pci64_length
-       Name(P1L, Buffer() { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 })
-    }
 }
