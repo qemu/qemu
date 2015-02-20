@@ -885,11 +885,7 @@ build_ssdt(GArray *table_data, GArray *linker,
         aml_append(crs,
             aml_word_io(aml_min_fixed, aml_max_fixed,
                         aml_pos_decode, aml_entire_range,
-                        0x0000, 0x0D00, 0xAEFF, 0x0000, 0xA200));
-        aml_append(crs,
-            aml_word_io(aml_min_fixed, aml_max_fixed,
-                        aml_pos_decode, aml_entire_range,
-                        0x0000, 0xAF20, 0xAFDF, 0x0000, 0x00C0));
+                        0x0000, 0x0D00, 0xAFDF, 0x0000, 0xA2E0));
         aml_append(crs,
             aml_word_io(aml_min_fixed, aml_max_fixed,
                         aml_pos_decode, aml_entire_range,
