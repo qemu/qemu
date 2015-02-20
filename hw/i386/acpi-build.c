@@ -294,26 +294,6 @@ build_header(GArray *linker, GArray *table_data,
                                     table_data->data, h, len, &h->checksum);
 }
 
-static GArray *build_alloc_method(const char *name, uint8_t arg_count)
-{
-    GArray *method = build_alloc_array();
-
-    build_append_namestring(method, "%s", name);
-    build_append_byte(method, arg_count); /* MethodFlags: ArgCount */
-
-    return method;
-}
-
-static void build_append_and_cleanup_method(GArray *device, GArray *method)
-{
-    uint8_t op = 0x14; /* MethodOp */
-
-    build_package(method, op);
-
-    build_append_array(device, method);
-    build_free_array(method);
-}
-
 /* End here */
 #define ACPI_PORT_SMI_CMD           0x00b2 /* TODO: this is APM_CNT_IOPORT */
 
@@ -494,71 +474,12 @@ static inline char acpi_get_hex(uint32_t val)
     return (val <= 9) ? ('0' + val) : ('A' + val - 10);
 }
 
-/* 0x5B 0x82 DeviceOp PkgLength NameString */
-#define ACPI_PCIHP_OFFSET_HEX (*ssdt_pcihp_name - *ssdt_pcihp_start + 1)
-#define ACPI_PCIHP_OFFSET_ID (*ssdt_pcihp_id - *ssdt_pcihp_start)
-#define ACPI_PCIHP_OFFSET_ADR (*ssdt_pcihp_adr - *ssdt_pcihp_start)
-#define ACPI_PCIHP_OFFSET_EJ0 (*ssdt_pcihp_ej0 - *ssdt_pcihp_start)
-#define ACPI_PCIHP_SIZEOF (*ssdt_pcihp_end - *ssdt_pcihp_start)
-#define ACPI_PCIHP_AML (ssdp_pcihp_aml + *ssdt_pcihp_start)
-
-#define ACPI_PCINOHP_OFFSET_HEX (*ssdt_pcinohp_name - *ssdt_pcinohp_start + 1)
-#define ACPI_PCINOHP_OFFSET_ADR (*ssdt_pcinohp_adr - *ssdt_pcinohp_start)
-#define ACPI_PCINOHP_SIZEOF (*ssdt_pcinohp_end - *ssdt_pcinohp_start)
-#define ACPI_PCINOHP_AML (ssdp_pcihp_aml + *ssdt_pcinohp_start)
-
-#define ACPI_PCIVGA_OFFSET_HEX (*ssdt_pcivga_name - *ssdt_pcivga_start + 1)
-#define ACPI_PCIVGA_OFFSET_ADR (*ssdt_pcivga_adr - *ssdt_pcivga_start)
-#define ACPI_PCIVGA_SIZEOF (*ssdt_pcivga_end - *ssdt_pcivga_start)
-#define ACPI_PCIVGA_AML (ssdp_pcihp_aml + *ssdt_pcivga_start)
-
-#define ACPI_PCIQXL_OFFSET_HEX (*ssdt_pciqxl_name - *ssdt_pciqxl_start + 1)
-#define ACPI_PCIQXL_OFFSET_ADR (*ssdt_pciqxl_adr - *ssdt_pciqxl_start)
-#define ACPI_PCIQXL_SIZEOF (*ssdt_pciqxl_end - *ssdt_pciqxl_start)
-#define ACPI_PCIQXL_AML (ssdp_pcihp_aml + *ssdt_pciqxl_start)
 
 #define ACPI_SSDT_SIGNATURE 0x54445353 /* SSDT */
 #define ACPI_SSDT_HEADER_LENGTH 36
 
-#include "hw/i386/ssdt-pcihp.hex"
 #include "hw/i386/ssdt-tpm.hex"
 
-static void patch_pcihp(int slot, uint8_t *ssdt_ptr)
-{
-    unsigned devfn = PCI_DEVFN(slot, 0);
-
-    ssdt_ptr[ACPI_PCIHP_OFFSET_HEX] = acpi_get_hex(devfn >> 4);
-    ssdt_ptr[ACPI_PCIHP_OFFSET_HEX + 1] = acpi_get_hex(devfn);
-    ssdt_ptr[ACPI_PCIHP_OFFSET_ID] = slot;
-    ssdt_ptr[ACPI_PCIHP_OFFSET_ADR + 2] = slot;
-}
-
-static void patch_pcinohp(int slot, uint8_t *ssdt_ptr)
-{
-    unsigned devfn = PCI_DEVFN(slot, 0);
-
-    ssdt_ptr[ACPI_PCINOHP_OFFSET_HEX] = acpi_get_hex(devfn >> 4);
-    ssdt_ptr[ACPI_PCINOHP_OFFSET_HEX + 1] = acpi_get_hex(devfn);
-    ssdt_ptr[ACPI_PCINOHP_OFFSET_ADR + 2] = slot;
-}
-
-static void patch_pcivga(int slot, uint8_t *ssdt_ptr)
-{
-    unsigned devfn = PCI_DEVFN(slot, 0);
-
-    ssdt_ptr[ACPI_PCIVGA_OFFSET_HEX] = acpi_get_hex(devfn >> 4);
-    ssdt_ptr[ACPI_PCIVGA_OFFSET_HEX + 1] = acpi_get_hex(devfn);
-    ssdt_ptr[ACPI_PCIVGA_OFFSET_ADR + 2] = slot;
-}
-
-static void patch_pciqxl(int slot, uint8_t *ssdt_ptr)
-{
-    unsigned devfn = PCI_DEVFN(slot, 0);
-
-    ssdt_ptr[ACPI_PCIQXL_OFFSET_HEX] = acpi_get_hex(devfn >> 4);
-    ssdt_ptr[ACPI_PCIQXL_OFFSET_HEX + 1] = acpi_get_hex(devfn);
-    ssdt_ptr[ACPI_PCIQXL_OFFSET_ADR + 2] = slot;
-}
 
 /* Assign BSEL property to all buses.  In the future, this can be changed
  * to only assign to buses that support hotplug.
@@ -590,46 +511,30 @@ static void acpi_set_pci_info(void)
     }
 }
 
-static void build_append_pcihp_notify_entry(GArray *method, int slot)
+static void build_append_pcihp_notify_entry(Aml *method, int slot)
 {
-    GArray *ifctx;
+    Aml *if_ctx;
+    int32_t devfn = PCI_DEVFN(slot, 0);
 
-    ifctx = build_alloc_array();
-    build_append_byte(ifctx, 0x7B); /* AndOp */
-    build_append_byte(ifctx, 0x68); /* Arg0Op */
-    build_append_int(ifctx, 0x1U << slot);
-    build_append_byte(ifctx, 0x00); /* NullName */
-    build_append_byte(ifctx, 0x86); /* NotifyOp */
-    build_append_namestring(ifctx, "S%.02X", PCI_DEVFN(slot, 0));
-    build_append_byte(ifctx, 0x69); /* Arg1Op */
-
-    /* Pack it up */
-    build_package(ifctx, 0xA0 /* IfOp */);
-    build_append_array(method, ifctx);
-    build_free_array(ifctx);
+    if_ctx = aml_if(aml_and(aml_arg(0), aml_int(0x1U << slot)));
+    aml_append(if_ctx, aml_notify(aml_name("S%.02X", devfn), aml_arg(1)));
+    aml_append(method, if_ctx);
 }
 
-static void build_append_pci_bus_devices(GArray *parent_scope, PCIBus *bus,
+static void build_append_pci_bus_devices(Aml *parent_scope, PCIBus *bus,
                                          bool pcihp_bridge_en)
 {
-    GArray *bus_table = build_alloc_array();
-    GArray *method = NULL;
+    Aml *dev, *notify_method, *method;
     QObject *bsel;
     PCIBus *sec;
     int i;
 
-    if (bus->parent_dev) {
-        build_append_namestring(bus_table, "S%.02X_", bus->parent_dev->devfn);
-    } else {
-        build_append_namestring(bus_table, "PCI0");
-    }
-
     bsel = object_property_get_qobject(OBJECT(bus), ACPI_PCIHP_PROP_BSEL, NULL);
     if (bsel) {
-        build_append_byte(bus_table, 0x08); /* NameOp */
-        build_append_namestring(bus_table, "BSEL");
-        build_append_int(bus_table, qint_get_int(qobject_to_qint(bsel)));
-        method = build_alloc_method("DVNT", 2);
+        int64_t bsel_val = qint_get_int(qobject_to_qint(bsel));
+
+        aml_append(parent_scope, aml_name_decl("BSEL", aml_int(bsel_val)));
+        notify_method = aml_method("DVNT", 2);
     }
 
     for (i = 0; i < ARRAY_SIZE(bus->devices); i += PCI_FUNC_MAX) {
@@ -642,11 +547,17 @@ static void build_append_pci_bus_devices(GArray *parent_scope, PCIBus *bus,
 
         if (!pdev) {
             if (bsel) { /* add hotplug slots for non present devices */
-                void *pcihp = acpi_data_push(bus_table, ACPI_PCIHP_SIZEOF);
-                memcpy(pcihp, ACPI_PCIHP_AML, ACPI_PCIHP_SIZEOF);
-                patch_pcihp(slot, pcihp);
+                dev = aml_device("S%.02X", PCI_DEVFN(slot, 0));
+                aml_append(dev, aml_name_decl("_SUN", aml_int(slot)));
+                aml_append(dev, aml_name_decl("_ADR", aml_int(slot << 16)));
+                method = aml_method("_EJ0", 1);
+                aml_append(method,
+                    aml_call2("PCEJ", aml_name("BSEL"), aml_name("_SUN"))
+                );
+                aml_append(dev, method);
+                aml_append(parent_scope, dev);
 
-                build_append_pcihp_notify_entry(method, slot);
+                build_append_pcihp_notify_entry(notify_method, slot);
             }
             continue;
         }
@@ -668,74 +579,87 @@ static void build_append_pci_bus_devices(GArray *parent_scope, PCIBus *bus,
             continue;
         }
 
+        /* start to compose PCI slot descriptor */
+        dev = aml_device("S%.02X", PCI_DEVFN(slot, 0));
+        aml_append(dev, aml_name_decl("_ADR", aml_int(slot << 16)));
+
         if (pc->class_id == PCI_CLASS_DISPLAY_VGA) {
+            /* add VGA specific AML methods */
+            int s3d;
+
             if (object_dynamic_cast(OBJECT(pdev), "qxl-vga")) {
-                void *pcihp = acpi_data_push(bus_table,
-                                             ACPI_PCIQXL_SIZEOF);
-                      memcpy(pcihp, ACPI_PCIQXL_AML, ACPI_PCIQXL_SIZEOF);
-                      patch_pciqxl(slot, pcihp);
+                s3d = 3;
             } else {
-                void *pcihp = acpi_data_push(bus_table,
-                                             ACPI_PCIVGA_SIZEOF);
-                memcpy(pcihp, ACPI_PCIVGA_AML, ACPI_PCIVGA_SIZEOF);
-                patch_pcivga(slot, pcihp);
+                s3d = 0;
             }
+
+            method = aml_method("_S1D", 0);
+            aml_append(method, aml_return(aml_int(0)));
+            aml_append(dev, method);
+
+            method = aml_method("_S2D", 0);
+            aml_append(method, aml_return(aml_int(0)));
+            aml_append(dev, method);
+
+            method = aml_method("_S3D", 0);
+            aml_append(method, aml_return(aml_int(s3d)));
+            aml_append(dev, method);
         } else if (hotplug_enabled_dev) {
-            void *pcihp = acpi_data_push(bus_table, ACPI_PCIHP_SIZEOF);
+            /* add _SUN/_EJ0 to make slot hotpluggable  */
+            aml_append(dev, aml_name_decl("_SUN", aml_int(slot)));
 
-            memcpy(pcihp, ACPI_PCIHP_AML, ACPI_PCIHP_SIZEOF);
-            patch_pcihp(slot, pcihp);
-            build_append_pcihp_notify_entry(method, slot);
+            method = aml_method("_EJ0", 1);
+            aml_append(method,
+                aml_call2("PCEJ", aml_name("BSEL"), aml_name("_SUN"))
+            );
+            aml_append(dev, method);
+
+            if (bsel) {
+                build_append_pcihp_notify_entry(notify_method, slot);
+            }
         } else if (bridge_in_acpi) {
+            /*
+             * device is coldplugged bridge,
+             * add child device descriptions into its scope
+             */
             PCIBus *sec_bus = pci_bridge_get_sec_bus(PCI_BRIDGE(pdev));
-            void *pcihp = acpi_data_push(bus_table, ACPI_PCINOHP_SIZEOF);
 
-            memcpy(pcihp, ACPI_PCINOHP_AML, ACPI_PCINOHP_SIZEOF);
-            patch_pcinohp(slot, pcihp);
-            build_append_pci_bus_devices(bus_table, sec_bus, pcihp_bridge_en);
-        } else { /* non hotpluggable present devices */
-            void *pcihp = acpi_data_push(bus_table, ACPI_PCINOHP_SIZEOF);
-
-            memcpy(pcihp, ACPI_PCINOHP_AML, ACPI_PCINOHP_SIZEOF);
-            patch_pcinohp(slot, pcihp);
+            build_append_pci_bus_devices(dev, sec_bus, pcihp_bridge_en);
         }
+        /* slot descriptor has been composed, add it into parent context */
+        aml_append(parent_scope, dev);
     }
 
     if (bsel) {
-        build_append_and_cleanup_method(bus_table, method);
+        aml_append(parent_scope, notify_method);
     }
 
     /* Append PCNT method to notify about events on local and child buses.
      * Add unconditionally for root since DSDT expects it.
      */
-    method = build_alloc_method("PCNT", 0);
+    method = aml_method("PCNT", 0);
 
     /* If bus supports hotplug select it and notify about local events */
     if (bsel) {
-        build_append_byte(method, 0x70); /* StoreOp */
-        build_append_int(method, qint_get_int(qobject_to_qint(bsel)));
-        build_append_namestring(method, "BNUM");
-        build_append_namestring(method, "DVNT");
-        build_append_namestring(method, "PCIU");
-        build_append_int(method, 1); /* Device Check */
-        build_append_namestring(method, "DVNT");
-        build_append_namestring(method, "PCID");
-        build_append_int(method, 3); /* Eject Request */
+        int64_t bsel_val = qint_get_int(qobject_to_qint(bsel));
+        aml_append(method, aml_store(aml_int(bsel_val), aml_name("BNUM")));
+        aml_append(method,
+            aml_call2("DVNT", aml_name("PCIU"), aml_int(1) /* Device Check */)
+        );
+        aml_append(method,
+            aml_call2("DVNT", aml_name("PCID"), aml_int(3)/* Eject Request */)
+        );
     }
 
     /* Notify about child bus events in any case */
     if (pcihp_bridge_en) {
         QLIST_FOREACH(sec, &bus->child, sibling) {
-            build_append_namestring(method, "^S%.02X.PCNT",
-                                    sec->parent_dev->devfn);
+            int32_t devfn = sec->parent_dev->devfn;
+
+            aml_append(method, aml_name("^S%.02X.PCNT", devfn));
         }
     }
-
-    build_append_and_cleanup_method(bus_table, method);
-
-    build_package(bus_table, 0x10); /* ScopeOp */
-    build_append_array(parent_scope, bus_table);
-    build_free_array(bus_table);
+    aml_append(parent_scope, method);
 }
 
 static void
@@ -1087,9 +1011,10 @@ build_ssdt(GArray *table_data, GArray *linker,
             }
 
             if (bus) {
+                Aml *scope = aml_scope("PCI0");
                 /* Scan all PCI buses. Generate tables to support hotplug. */
-                build_append_pci_bus_devices(sb_scope->buf, bus,
-                                             pm->pcihp_bridge_en);
+                build_append_pci_bus_devices(scope, bus, pm->pcihp_bridge_en);
+                aml_append(sb_scope, scope);
             }
         }
         aml_append(ssdt, sb_scope);

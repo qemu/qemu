@@ -9,7 +9,6 @@ obj-y += kvmvapic.o
 obj-y += acpi-build.o
 hw/i386/acpi-build.o: hw/i386/acpi-build.c \
 	hw/i386/acpi-dsdt.hex hw/i386/q35-acpi-dsdt.hex \
-	hw/i386/ssdt-pcihp.hex \
 	hw/i386/ssdt-tpm.hex
 
 iasl-option=$(shell if test -z "`$(1) $(2) 2>&1 > /dev/null`" \
