@@ -2,19 +2,39 @@
 
 #include "cpu.h"
 
+static int cpu_post_load(void *opaque, int version_id)
+{
+    MIPSCPU *cpu = opaque;
+    CPUMIPSState *env = &cpu->env;
+
+    restore_fp_status(env);
+    restore_msa_fp_status(env);
+    compute_hflags(env);
+
+    return 0;
+}
+
 /* FPU state */
 
 static int get_fpr(QEMUFile *f, void *pv, size_t size)
 {
+    int i;
     fpr_t *v = pv;
-    qemu_get_be64s(f, &v->d);
+    /* Restore entire MSA vector register */
+    for (i = 0; i < MSA_WRLEN/64; i++) {
+        qemu_get_sbe64s(f, &v->wr.d[i]);
+    }
     return 0;
 }
 
 static void put_fpr(QEMUFile *f, void *pv, size_t size)
 {
+    int i;
     fpr_t *v = pv;
-    qemu_put_be64s(f, &v->d);
+    /* Save entire MSA vector register */
+    for (i = 0; i < MSA_WRLEN/64; i++) {
+        qemu_put_sbe64s(f, &v->wr.d[i]);
+    }
 }
 
 const VMStateInfo vmstate_info_fpr = {
@@ -31,9 +51,6 @@ const VMStateInfo vmstate_info_fpr = {
 
 static VMStateField vmstate_fpu_fields[] = {
     VMSTATE_FPR_ARRAY(fpr, CPUMIPSFPUContext, 32),
-    VMSTATE_INT8(fp_status.float_detect_tininess, CPUMIPSFPUContext),
-    VMSTATE_INT8(fp_status.float_rounding_mode, CPUMIPSFPUContext),
-    VMSTATE_INT8(fp_status.float_exception_flags, CPUMIPSFPUContext),
     VMSTATE_UINT32(fcr0, CPUMIPSFPUContext),
     VMSTATE_UINT32(fcr31, CPUMIPSFPUContext),
     VMSTATE_END_OF_LIST()
@@ -70,6 +87,7 @@ static VMStateField vmstate_tc_fields[] = {
     VMSTATE_UINTTL(CP0_TCScheFBack, TCState),
     VMSTATE_INT32(CP0_Debug_tcstatus, TCState),
     VMSTATE_UINTTL(CP0_UserLocal, TCState),
+    VMSTATE_INT32(msacsr, TCState),
     VMSTATE_END_OF_LIST()
 };
 
@@ -183,8 +201,9 @@ const VMStateDescription vmstate_tlb = {
 
 const VMStateDescription vmstate_mips_cpu = {
     .name = "cpu",
-    .version_id = 5,
-    .minimum_version_id = 5,
+    .version_id = 6,
+    .minimum_version_id = 6,
+    .post_load = cpu_post_load,
     .fields = (VMStateField[]) {
         /* Active TC */
         VMSTATE_STRUCT(env.active_tc, MIPSCPU, 1, vmstate_tc, TCState),
@@ -205,7 +224,6 @@ const VMStateDescription vmstate_mips_cpu = {
         VMSTATE_UINT32(env.current_tc, MIPSCPU),
         VMSTATE_UINT32(env.current_fpu, MIPSCPU),
         VMSTATE_INT32(env.error_code, MIPSCPU),
-        VMSTATE_UINT32(env.hflags, MIPSCPU),
         VMSTATE_UINTTL(env.btarget, MIPSCPU),
         VMSTATE_UINTTL(env.bcond, MIPSCPU),
 

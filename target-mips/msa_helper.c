@@ -1348,17 +1348,7 @@ void helper_msa_ctcmsa(CPUMIPSState *env, target_ulong elm, uint32_t cd)
         break;
     case 1:
         env->active_tc.msacsr = (int32_t)elm & MSACSR_MASK;
-        /* set float_status rounding mode */
-        set_float_rounding_mode(
-            ieee_rm[(env->active_tc.msacsr & MSACSR_RM_MASK) >> MSACSR_RM],
-            &env->active_tc.msa_fp_status);
-        /* set float_status flush modes */
-        set_flush_to_zero(
-          (env->active_tc.msacsr & MSACSR_FS_MASK) != 0 ? 1 : 0,
-          &env->active_tc.msa_fp_status);
-        set_flush_inputs_to_zero(
-          (env->active_tc.msacsr & MSACSR_FS_MASK) != 0 ? 1 : 0,
-          &env->active_tc.msa_fp_status);
+        restore_msa_fp_status(env);
         /* check exception */
         if ((GET_FP_ENABLE(env->active_tc.msacsr) | FP_UNIMPLEMENTED)
             & GET_FP_CAUSE(env->active_tc.msacsr)) {

@@ -835,20 +835,14 @@ static void msa_reset(CPUMIPSState *env)
        - round to nearest / ties to even (RM bits are 0) */
     env->active_tc.msacsr = 0;
 
+    restore_msa_fp_status(env);
+
     /* tininess detected after rounding.*/
     set_float_detect_tininess(float_tininess_after_rounding,
                               &env->active_tc.msa_fp_status);
 
     /* clear float_status exception flags */
     set_float_exception_flags(0, &env->active_tc.msa_fp_status);
-
-    /* set float_status rounding mode */
-    set_float_rounding_mode(float_round_nearest_even,
-                            &env->active_tc.msa_fp_status);
-
-    /* set float_status flush modes */
-    set_flush_to_zero(0, &env->active_tc.msa_fp_status);
-    set_flush_inputs_to_zero(0, &env->active_tc.msa_fp_status);
 
     /* clear float_status nan mode */
     set_default_nan_mode(0, &env->active_tc.msa_fp_status);
