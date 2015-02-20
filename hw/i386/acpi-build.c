@@ -876,21 +876,10 @@ build_ssdt(GArray *table_data, GArray *linker,
         aml_word_io(aml_min_fixed, aml_max_fixed,
                     aml_pos_decode, aml_entire_range,
                     0x0000, 0x0000, 0x0CF7, 0x0000, 0x0CF8));
-    if (ich9_lpc_find()) { /* Q35 */
-        aml_append(crs,
-            aml_word_io(aml_min_fixed, aml_max_fixed,
-                        aml_pos_decode, aml_entire_range,
-                        0x0000, 0x0D00, 0xFFFF, 0x0000, 0xF300));
-    } else { /* piix4 */
-        aml_append(crs,
-            aml_word_io(aml_min_fixed, aml_max_fixed,
-                        aml_pos_decode, aml_entire_range,
-                        0x0000, 0x0D00, 0xAFDF, 0x0000, 0xA2E0));
-        aml_append(crs,
-            aml_word_io(aml_min_fixed, aml_max_fixed,
-                        aml_pos_decode, aml_entire_range,
-                        0x0000, 0xAFE4, 0xFFFF, 0x0000, 0x501C));
-    }
+    aml_append(crs,
+        aml_word_io(aml_min_fixed, aml_max_fixed,
+                    aml_pos_decode, aml_entire_range,
+                    0x0000, 0x0D00, 0xFFFF, 0x0000, 0xF300));
     aml_append(crs,
         aml_dword_memory(aml_pos_decode, aml_min_fixed, aml_max_fixed,
                          aml_cacheable, aml_ReadWrite,
@@ -908,6 +897,19 @@ build_ssdt(GArray *table_data, GArray *linker,
                              pci->w64.end - pci->w64.begin));
     }
     aml_append(scope, aml_name_decl("_CRS", crs));
+
+    /* reserve GPE0 block resources */
+    dev = aml_device("GPE0");
+    aml_append(dev, aml_name_decl("_HID", aml_string("PNP0A06")));
+    aml_append(dev, aml_name_decl("_UID", aml_string("GPE0 resources")));
+    /* device present, functioning, decoding, not shown in UI */
+    aml_append(dev, aml_name_decl("_STA", aml_int(0xB)));
+    crs = aml_resource_template();
+    aml_append(crs,
+        aml_io(aml_decode16, pm->gpe0_blk, pm->gpe0_blk, 1, pm->gpe0_blk_len)
+    );
+    aml_append(dev, aml_name_decl("_CRS", crs));
+    aml_append(scope, dev);
 
     /* reserve PCIHP resources */
     if (pm->pcihp_io_len) {
