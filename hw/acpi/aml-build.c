@@ -514,6 +514,27 @@ Aml *aml_io(AmlIODecode dec, uint16_t min_base, uint16_t max_base,
     return var;
 }
 
+/*
+ * ACPI 1.0b: 6.4.2.1.1 ASL Macro for IRQ Descriptor
+ *
+ * More verbose description at:
+ * ACPI 5.0: 19.5.64 IRQNoFlags (Interrupt Resource Descriptor Macro)
+ *           6.4.2.1 IRQ Descriptor
+ */
+Aml *aml_irq_no_flags(uint8_t irq)
+{
+    uint16_t irq_mask;
+    Aml *var = aml_alloc();
+
+    assert(irq < 16);
+    build_append_byte(var->buf, 0x22); /* IRQ descriptor 2 byte form */
+
+    irq_mask = 1U << irq;
+    build_append_byte(var->buf, irq_mask & 0xFF); /* IRQ mask bits[7:0] */
+    build_append_byte(var->buf, irq_mask >> 8); /* IRQ mask bits[15:8] */
+    return var;
+}
+
 /* ACPI 1.0b: 16.2.5.4 Type 2 Opcodes Encoding: DefLEqual */
 Aml *aml_equal(Aml *arg1, Aml *arg2)
 {
