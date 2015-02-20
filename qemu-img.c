@@ -976,7 +976,8 @@ static int is_allocated_sectors_min(const uint8_t *buf, int n, int *pnum,
 static int compare_sectors(const uint8_t *buf1, const uint8_t *buf2, int n,
     int *pnum)
 {
-    int res, i;
+    bool res;
+    int i;
 
     if (n <= 0) {
         *pnum = 0;
