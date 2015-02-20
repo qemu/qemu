@@ -27,27 +27,27 @@
 #include "hw/acpi/aml-build.h"
 #include "qemu/bswap.h"
 
-GArray *build_alloc_array(void)
+static GArray *build_alloc_array(void)
 {
     return g_array_new(false, true /* clear */, 1);
 }
 
-void build_free_array(GArray *array)
+static void build_free_array(GArray *array)
 {
     g_array_free(array, true);
 }
 
-void build_prepend_byte(GArray *array, uint8_t val)
+static void build_prepend_byte(GArray *array, uint8_t val)
 {
     g_array_prepend_val(array, val);
 }
 
-void build_append_byte(GArray *array, uint8_t val)
+static void build_append_byte(GArray *array, uint8_t val)
 {
     g_array_append_val(array, val);
 }
 
-void build_append_array(GArray *array, GArray *val)
+static void build_append_array(GArray *array, GArray *val)
 {
     g_array_append_vals(array, val->data, val->len);
 }
@@ -141,7 +141,7 @@ build_append_namestringv(GArray *array, const char *format, va_list ap)
     g_strfreev(segs);
 }
 
-void build_append_namestring(GArray *array, const char *format, ...)
+static void build_append_namestring(GArray *array, const char *format, ...)
 {
     va_list ap;
 
@@ -158,7 +158,7 @@ enum {
     PACKAGE_LENGTH_4BYTE_SHIFT = 20,
 };
 
-void
+static void
 build_prepend_package_length(GArray *package, unsigned length, bool incl_self)
 {
     uint8_t byte;
@@ -226,13 +226,13 @@ build_append_pkg_length(GArray *array, unsigned length, bool incl_self)
     build_free_array(tmp);
 }
 
-void build_package(GArray *package, uint8_t op)
+static void build_package(GArray *package, uint8_t op)
 {
     build_prepend_package_length(package, package->len, true);
     build_prepend_byte(package, op);
 }
 
-void build_extop_package(GArray *package, uint8_t op)
+static void build_extop_package(GArray *package, uint8_t op)
 {
     build_package(package, op);
     build_prepend_byte(package, 0x5B); /* ExtOpPrefix */
@@ -248,7 +248,7 @@ static void build_append_int_noprefix(GArray *table, uint64_t value, int size)
     }
 }
 
-void build_append_int(GArray *table, uint64_t value)
+static void build_append_int(GArray *table, uint64_t value)
 {
     if (value == 0x00) {
         build_append_byte(table, 0x00); /* ZeroOp */

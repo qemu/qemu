@@ -188,20 +188,4 @@ Aml *aml_resource_template(void);
 Aml *aml_field(const char *name, AmlFieldFlags flags);
 Aml *aml_varpackage(uint32_t num_elements);
 
-/* other helpers */
-GArray *build_alloc_array(void);
-void build_free_array(GArray *array);
-void build_prepend_byte(GArray *array, uint8_t val);
-void build_append_byte(GArray *array, uint8_t val);
-void build_append_array(GArray *array, GArray *val);
-
-void GCC_FMT_ATTR(2, 3)
-build_append_namestring(GArray *array, const char *format, ...);
-
-void
-build_prepend_package_length(GArray *package, unsigned length, bool incl_self);
-void build_package(GArray *package, uint8_t op);
-void build_append_int(GArray *table, uint64_t value);
-void build_extop_package(GArray *package, uint8_t op);
-
 #endif
