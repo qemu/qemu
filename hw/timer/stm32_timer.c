@@ -194,12 +194,19 @@ static void stm32_timer_update(Stm32Timer *s)
 	}
 }
 
+static void stm32_timer_update_UIF(Stm32Timer *s, uint8_t value) {
+    s->sr &= ~0x1; /* update interrupt flag in status reg */
+    s->sr |= 0x1;
+
+    qemu_set_irq(s->irq, value);
+}
+
 static void stm32_timer_tick(void *opaque)
 {
     Stm32Timer *s = (Stm32Timer *)opaque;
     DPRINTF("%s Alarm raised\n", stm32_periph_name(s->periph));
     s->itr = 1;
-	s->sr |= 0x1; /* update interrupt flag in status reg */
+    stm32_timer_update_UIF(s, 1);
 
 	if (s->countMode == TIMER_UP_COUNT)
 	{
@@ -332,6 +339,7 @@ static void stm32_timer_write(void * opaque, hwaddr offset,
 	case TIMER_SR_OFFSET:
 		s->sr ^= (value ^ 0xFFFF);
 		s->sr &= 0x1eFF;
+		stm32_timer_update_UIF(s, s->sr & 0x1);
         DPRINTF("%s sr = %x\n", stm32_periph_name(s->periph), s->sr);
 		break;
 	case TIMER_EGR_OFFSET:
