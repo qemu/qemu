@@ -54,7 +54,7 @@
 #define TIMER_CCER_OFFSET  0x20
 #define TIMER_CNT_OFFSET   0x24
 #define TIMER_PSC_OFFSET   0x28
-#define TIMER_APR_OFFSET   0x2c
+#define TIMER_ARR_OFFSET   0x2c
 #define TIMER_RCR_OFFSET   0x30
 #define TIMER_CCR1_OFFSET  0x34
 #define TIMER_CCR2_OFFSET  0x38
@@ -106,7 +106,7 @@ struct Stm32Timer {
 	uint32_t ccer;
 	/* uint32_t cnt; Handled by ptimer */
 	uint32_t psc;
-	uint32_t apr;
+	uint32_t arr;
 	/* uint32_t rcr; Repetition count not supported */
 	uint32_t ccr1;
 	uint32_t ccr2;
@@ -137,7 +137,7 @@ static uint32_t stm32_timer_get_count(Stm32Timer *s)
 	uint64_t cnt = ptimer_get_count(s->timer);
 	if (s->countMode == TIMER_UP_COUNT)
 	{
-		return s->apr - (cnt & 0xfffff);
+		return s->arr - (cnt & 0xfffff);
 	}
 	else
 	{
@@ -149,7 +149,7 @@ static void stm32_timer_set_count(Stm32Timer *s, uint32_t cnt)
 {
 	if (s->countMode == TIMER_UP_COUNT)
 	{
-		ptimer_set_count(s->timer, s->apr - (cnt & 0xfffff));
+		ptimer_set_count(s->timer, s->arr - (cnt & 0xfffff));
 	}
 	else
 	{
@@ -207,7 +207,7 @@ static void stm32_timer_tick(void *opaque)
 	}
 	else
 	{
-		stm32_timer_set_count(s, s->apr);
+		stm32_timer_set_count(s, s->arr);
 	}
 
 	if (s->cr1 & 0x0300) /* CMS */
@@ -271,9 +271,9 @@ static uint64_t stm32_timer_read(void *opaque, hwaddr offset,
 	case TIMER_PSC_OFFSET:
         DPRINTF("%s psc = %x\n", stm32_periph_name(s->periph), s->psc);
 		return s->psc;
-	case TIMER_APR_OFFSET:
-        DPRINTF("%s apr = %x\n", stm32_periph_name(s->periph), s->apr);
-		return s->apr;
+	case TIMER_ARR_OFFSET:
+        DPRINTF("%s arr = %x\n", stm32_periph_name(s->periph), s->arr);
+		return s->arr;
 	case TIMER_RCR_OFFSET:
         qemu_log_mask(LOG_GUEST_ERROR, "stm32_timer: RCR not supported");
 		return 0;
@@ -342,7 +342,7 @@ static void stm32_timer_write(void * opaque, hwaddr offset,
 		}
 		if (s->egr & 0x1) {
 			 /* UG bit - reload count */
-			ptimer_set_limit(s->timer, s->apr, 1);
+			ptimer_set_limit(s->timer, s->arr, 1);
 		}
         DPRINTF("%s egr = %x\n", stm32_periph_name(s->periph), s->egr);
 		break;
@@ -367,10 +367,10 @@ static void stm32_timer_write(void * opaque, hwaddr offset,
         DPRINTF("%s psc = %x\n", stm32_periph_name(s->periph), s->psc);
 		stm32_timer_freq(s);
 		break;
-	case TIMER_APR_OFFSET:
-		s->apr = value & 0xffff;
-		ptimer_set_limit(s->timer, s->apr, 1);
-        DPRINTF("%s apr = %x\n", stm32_periph_name(s->periph), s->apr);
+	case TIMER_ARR_OFFSET:
+		s->arr = value & 0xffff;
+		ptimer_set_limit(s->timer, s->arr, 1);
+        DPRINTF("%s arr = %x\n", stm32_periph_name(s->periph), s->arr);
 		break;
 	case TIMER_RCR_OFFSET:
         qemu_log_mask(LOG_GUEST_ERROR, "stm32_timer: RCR not supported");
@@ -445,7 +445,7 @@ static int stm32_timer_init(SysBusDevice *dev)
 	s->ccmr2 = 0;
 	s->ccer  = 0;
 	s->psc   = 0;
-	s->apr   = 0;
+	s->arr   = 0;
 	s->ccr1  = 0;
 	s->ccr2  = 0;
 	s->ccr3  = 0;
