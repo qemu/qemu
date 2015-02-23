@@ -456,6 +456,8 @@ struct IDEBus {
     IDEDevice *master;
     IDEDevice *slave;
     IDEState ifs[2];
+    QEMUBH *bh;
+
     int bus_id;
     int max_units;
     IDEDMA *dma;

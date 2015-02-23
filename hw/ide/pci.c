@@ -194,84 +194,6 @@ static void bmdma_restart_dma(IDEDMA *dma)
     bm->cur_addr = bm->addr;
 }
 
-static void ide_restart_dma(IDEState *s, enum ide_dma_cmd dma_cmd)
-{
-    if (s->bus->dma->ops->restart_dma) {
-        s->bus->dma->ops->restart_dma(s->bus->dma);
-    }
-    s->io_buffer_index = 0;
-    s->io_buffer_size = 0;
-    s->dma_cmd = dma_cmd;
-    ide_start_dma(s, ide_dma_cb);
-}
-
-/* TODO This should be common IDE code */
-static void bmdma_restart_bh(void *opaque)
-{
-    IDEBus *bus = opaque;
-    BMDMAState *bm = DO_UPCAST(BMDMAState, dma, bus->dma);
-    IDEState *s;
-    bool is_read;
-    int error_status;
-
-    qemu_bh_delete(bm->bh);
-    bm->bh = NULL;
-
-    error_status = bus->error_status;
-    if (bus->error_status == 0) {
-        return;
-    }
-
-    s = idebus_active_if(bus);
-    is_read = (bus->error_status & IDE_RETRY_READ) != 0;
-
-    /* The error status must be cleared before resubmitting the request: The
-     * request may fail again, and this case can only be distinguished if the
-     * called function can set a new error status. */
-    bus->error_status = 0;
-
-    if (error_status & IDE_RETRY_DMA) {
-        if (error_status & IDE_RETRY_TRIM) {
-            ide_restart_dma(s, IDE_DMA_TRIM);
-        } else {
-            ide_restart_dma(s, is_read ? IDE_DMA_READ : IDE_DMA_WRITE);
-        }
-    } else if (error_status & IDE_RETRY_PIO) {
-        if (is_read) {
-            ide_sector_read(s);
-        } else {
-            ide_sector_write(s);
-        }
-    } else if (error_status & IDE_RETRY_FLUSH) {
-        ide_flush_cache(s);
-    } else {
-        IDEState *s = bmdma_active_if(bm);
-
-        /*
-         * We've not got any bits to tell us about ATAPI - but
-         * we do have the end_transfer_func that tells us what
-         * we're trying to do.
-         */
-        if (s->end_transfer_func == ide_atapi_cmd) {
-            ide_atapi_dma_restart(s);
-        }
-    }
-}
-
-static void bmdma_restart_cb(void *opaque, int running, RunState state)
-{
-    IDEBus *bus = opaque;
-    BMDMAState *bm = DO_UPCAST(BMDMAState, dma, bus->dma);
-
-    if (!running)
-        return;
-
-    if (!bm->bh) {
-        bm->bh = qemu_bh_new(bmdma_restart_bh, bus);
-        qemu_bh_schedule(bm->bh);
-    }
-}
-
 static void bmdma_cancel(BMDMAState *bm)
 {
     if (bm->status & BM_STATUS_DMAING) {
@@ -535,7 +457,6 @@ static const struct IDEDMAOps bmdma_ops = {
     .set_unit = bmdma_set_unit,
     .restart_dma = bmdma_restart_dma,
     .set_inactive = bmdma_set_inactive,
-    .restart_cb = bmdma_restart_cb,
     .reset = bmdma_reset,
 };
 

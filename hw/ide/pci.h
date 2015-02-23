@@ -28,7 +28,6 @@ typedef struct BMDMAState {
     uint32_t nsector;
     MemoryRegion addr_ioport;
     MemoryRegion extra_io;
-    QEMUBH *bh;
     qemu_irq irq;
 
     /* Bit 0-2 and 7:   BM status register

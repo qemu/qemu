@@ -2314,6 +2314,10 @@ static int ide_nop_int(IDEDMA *dma, int x)
     return 0;
 }
 
+static void ide_nop(IDEDMA *dma)
+{
+}
+
 static int32_t ide_nop_int32(IDEDMA *dma, int x)
 {
     return 0;
@@ -2325,14 +2329,88 @@ static void ide_nop_restart(void *opaque, int x, RunState y)
 
 static const IDEDMAOps ide_dma_nop_ops = {
     .prepare_buf    = ide_nop_int32,
+    .restart_dma    = ide_nop,
     .rw_buf         = ide_nop_int,
     .set_unit       = ide_nop_int,
     .restart_cb     = ide_nop_restart,
 };
 
+static void ide_restart_dma(IDEState *s, enum ide_dma_cmd dma_cmd)
+{
+    s->bus->dma->ops->restart_dma(s->bus->dma);
+    s->io_buffer_index = 0;
+    s->io_buffer_size = 0;
+    s->dma_cmd = dma_cmd;
+    ide_start_dma(s, ide_dma_cb);
+}
+
+static void ide_restart_bh(void *opaque)
+{
+    IDEBus *bus = opaque;
+    IDEState *s;
+    bool is_read;
+    int error_status;
+
+    qemu_bh_delete(bus->bh);
+    bus->bh = NULL;
+
+    error_status = bus->error_status;
+    if (bus->error_status == 0) {
+        return;
+    }
+
+    s = idebus_active_if(bus);
+    is_read = (bus->error_status & IDE_RETRY_READ) != 0;
+
+    /* The error status must be cleared before resubmitting the request: The
+     * request may fail again, and this case can only be distinguished if the
+     * called function can set a new error status. */
+    bus->error_status = 0;
+
+    if (error_status & IDE_RETRY_DMA) {
+        if (error_status & IDE_RETRY_TRIM) {
+            ide_restart_dma(s, IDE_DMA_TRIM);
+        } else {
+            ide_restart_dma(s, is_read ? IDE_DMA_READ : IDE_DMA_WRITE);
+        }
+    } else if (error_status & IDE_RETRY_PIO) {
+        if (is_read) {
+            ide_sector_read(s);
+        } else {
+            ide_sector_write(s);
+        }
+    } else if (error_status & IDE_RETRY_FLUSH) {
+        ide_flush_cache(s);
+    } else {
+        /*
+         * We've not got any bits to tell us about ATAPI - but
+         * we do have the end_transfer_func that tells us what
+         * we're trying to do.
+         */
+        if (s->end_transfer_func == ide_atapi_cmd) {
+            ide_atapi_dma_restart(s);
+        }
+    }
+}
+
+static void ide_restart_cb(void *opaque, int running, RunState state)
+{
+    IDEBus *bus = opaque;
+
+    if (!running)
+        return;
+
+    if (!bus->bh) {
+        bus->bh = qemu_bh_new(ide_restart_bh, bus);
+        qemu_bh_schedule(bus->bh);
+    }
+}
+
 void ide_register_restart_cb(IDEBus *bus)
 {
-    qemu_add_vm_change_state_handler(bus->dma->ops->restart_cb, bus);
+    if (bus->dma->ops->restart_dma) {
+        qemu_add_vm_change_state_handler(ide_restart_cb, bus);
+    }
 }
 
 static IDEDMA ide_dma_nop = {
