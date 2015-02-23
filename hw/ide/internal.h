@@ -526,6 +526,9 @@ extern const VMStateDescription vmstate_ide_drive;
 #define VMSTATE_IDE_DRIVES(_field, _state) \
     VMSTATE_STRUCT_ARRAY(_field, _state, 2, 3, vmstate_ide_drive, IDEState)
 
+#define VMSTATE_IDE_DRIVE(_field, _state) \
+    VMSTATE_STRUCT(_field, _state, 1, vmstate_ide_drive, IDEState)
+
 void ide_bus_reset(IDEBus *bus);
 int64_t ide_get_sector(IDEState *s);
 void ide_set_sector(IDEState *s, int64_t sector_num);

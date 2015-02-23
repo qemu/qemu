@@ -1321,6 +1321,7 @@ static const VMStateDescription vmstate_ahci_device = {
     .version_id = 1,
     .fields = (VMStateField[]) {
         VMSTATE_IDE_BUS(port, AHCIDevice),
+        VMSTATE_IDE_DRIVE(port.ifs[0], AHCIDevice),
         VMSTATE_UINT32(port_state, AHCIDevice),
         VMSTATE_UINT32(finished, AHCIDevice),
         VMSTATE_UINT32(port_regs.lst_addr, AHCIDevice),
