@@ -2323,16 +2323,11 @@ static int32_t ide_nop_int32(IDEDMA *dma, int x)
     return 0;
 }
 
-static void ide_nop_restart(void *opaque, int x, RunState y)
-{
-}
-
 static const IDEDMAOps ide_dma_nop_ops = {
     .prepare_buf    = ide_nop_int32,
     .restart_dma    = ide_nop,
     .rw_buf         = ide_nop_int,
     .set_unit       = ide_nop_int,
-    .restart_cb     = ide_nop_restart,
 };
 
 static void ide_restart_dma(IDEState *s, enum ide_dma_cmd dma_cmd)
