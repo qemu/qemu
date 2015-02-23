@@ -46,8 +46,6 @@ static void bmdma_start_dma(IDEDMA *dma, IDEState *s,
     bm->cur_prd_last = 0;
     bm->cur_prd_addr = 0;
     bm->cur_prd_len = 0;
-    bm->sector_num = ide_get_sector(s);
-    bm->nsector = s->nsector;
 
     if (bm->status & BM_STATUS_DMAING) {
         bm->dma_cb(bmdma_active_if(bm), 0);
@@ -177,10 +175,7 @@ static void bmdma_set_inactive(IDEDMA *dma, bool more)
 static void bmdma_restart_dma(IDEDMA *dma)
 {
     BMDMAState *bm = DO_UPCAST(BMDMAState, dma, dma);
-    IDEState *s = bmdma_active_if(bm);
 
-    ide_set_sector(s, bm->sector_num);
-    s->nsector = bm->nsector;
     bm->cur_addr = bm->addr;
 }
 
@@ -207,8 +202,6 @@ static void bmdma_reset(IDEDMA *dma)
     bm->cur_prd_last = 0;
     bm->cur_prd_addr = 0;
     bm->cur_prd_len = 0;
-    bm->sector_num = 0;
-    bm->nsector = 0;
 }
 
 static void bmdma_irq(void *opaque, int n, int level)
@@ -326,6 +319,8 @@ static void ide_bmdma_pre_save(void *opaque)
     uint8_t abused_bits = BM_MIGRATION_COMPAT_STATUS_BITS;
 
     bm->migration_retry_unit = bm->bus->retry_unit;
+    bm->migration_retry_sector_num = bm->bus->retry_sector_num;
+    bm->migration_retry_nsector = bm->bus->retry_nsector;
     bm->migration_compat_status =
         (bm->status & ~abused_bits) | (bm->bus->error_status & abused_bits);
 }
@@ -343,6 +338,8 @@ static int ide_bmdma_post_load(void *opaque, int version_id)
         bm->bus->error_status |= bm->migration_compat_status & abused_bits;
     }
     if (bm->bus->error_status) {
+        bm->bus->retry_sector_num = bm->migration_retry_sector_num;
+        bm->bus->retry_nsector = bm->migration_retry_nsector;
         bm->bus->retry_unit = bm->migration_retry_unit;
     }
 
@@ -381,8 +378,8 @@ static const VMStateDescription vmstate_bmdma = {
         VMSTATE_UINT8(cmd, BMDMAState),
         VMSTATE_UINT8(migration_compat_status, BMDMAState),
         VMSTATE_UINT32(addr, BMDMAState),
-        VMSTATE_INT64(sector_num, BMDMAState),
-        VMSTATE_UINT32(nsector, BMDMAState),
+        VMSTATE_INT64(migration_retry_sector_num, BMDMAState),
+        VMSTATE_UINT32(migration_retry_nsector, BMDMAState),
         VMSTATE_UINT8(migration_retry_unit, BMDMAState),
         VMSTATE_END_OF_LIST()
     },

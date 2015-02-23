@@ -465,6 +465,8 @@ struct IDEBus {
 
     int error_status;
     uint8_t retry_unit;
+    int64_t retry_sector_num;
+    uint32_t retry_nsector;
 };
 
 #define TYPE_IDE_DEVICE "ide-device"

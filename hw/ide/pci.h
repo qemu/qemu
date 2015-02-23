@@ -22,10 +22,7 @@ typedef struct BMDMAState {
     uint32_t cur_prd_last;
     uint32_t cur_prd_addr;
     uint32_t cur_prd_len;
-    uint8_t unit;
     BlockCompletionFunc *dma_cb;
-    int64_t sector_num;
-    uint32_t nsector;
     MemoryRegion addr_ioport;
     MemoryRegion extra_io;
     qemu_irq irq;
@@ -34,6 +31,8 @@ typedef struct BMDMAState {
      * Bit 3-6:         bus->error_status */
     uint8_t migration_compat_status;
     uint8_t migration_retry_unit;
+    int64_t migration_retry_sector_num;
+    uint32_t migration_retry_nsector;
 
     struct PCIIDEState *pci_dev;
 } BMDMAState;
