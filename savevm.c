@@ -710,6 +710,12 @@ int qemu_savevm_state_iterate(QEMUFile *f)
     return ret;
 }
 
+static bool should_send_vmdesc(void)
+{
+    MachineState *machine = MACHINE(qdev_get_machine());
+    return !machine->suppress_vmdesc;
+}
+
 void qemu_savevm_state_complete(QEMUFile *f)
 {
     QJSON *vmdesc;
@@ -782,9 +788,11 @@ void qemu_savevm_state_complete(QEMUFile *f)
     qjson_finish(vmdesc);
     vmdesc_len = strlen(qjson_get_str(vmdesc));
 
-    qemu_put_byte(f, QEMU_VM_VMDESCRIPTION);
-    qemu_put_be32(f, vmdesc_len);
-    qemu_put_buffer(f, (uint8_t *)qjson_get_str(vmdesc), vmdesc_len);
+    if (should_send_vmdesc()) {
+        qemu_put_byte(f, QEMU_VM_VMDESCRIPTION);
+        qemu_put_be32(f, vmdesc_len);
+        qemu_put_buffer(f, (uint8_t *)qjson_get_str(vmdesc), vmdesc_len);
+    }
     object_unref(OBJECT(vmdesc));
 
     qemu_fflush(f);
