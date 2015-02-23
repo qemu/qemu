@@ -1376,6 +1376,13 @@ static int ahci_state_post_load(void *opaque, int version_id)
          */
         if (ad->busy_slot == -1) {
             check_cmd(s, i);
+        } else {
+            /* We are in the middle of a command, and may need to access
+             * the command header in guest memory again. */
+            if (ad->busy_slot < 0 || ad->busy_slot >= AHCI_MAX_CMDS) {
+                return -1;
+            }
+            ad->cur_cmd = &((AHCICmdHdr *)ad->lst)[ad->busy_slot];
         }
     }
 
