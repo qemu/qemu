@@ -1226,12 +1226,6 @@ static int ahci_dma_rw_buf(IDEDMA *dma, int is_write)
     return 1;
 }
 
-static int ahci_dma_set_unit(IDEDMA *dma, int unit)
-{
-    /* only a single unit per link */
-    return 0;
-}
-
 static void ahci_cmd_done(IDEDMA *dma)
 {
     AHCIDevice *ad = DO_UPCAST(AHCIDevice, dma, dma);
@@ -1258,7 +1252,6 @@ static const IDEDMAOps ahci_dma_ops = {
     .prepare_buf = ahci_dma_prepare_buf,
     .commit_buf = ahci_commit_buf,
     .rw_buf = ahci_dma_rw_buf,
-    .set_unit = ahci_dma_set_unit,
     .cmd_done = ahci_cmd_done,
 };
 

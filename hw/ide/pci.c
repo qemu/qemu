@@ -42,7 +42,6 @@ static void bmdma_start_dma(IDEDMA *dma, IDEState *s,
 {
     BMDMAState *bm = DO_UPCAST(BMDMAState, dma, dma);
 
-    bm->unit = s->unit;
     bm->dma_cb = dma_cb;
     bm->cur_prd_last = 0;
     bm->cur_prd_addr = 0;
@@ -163,20 +162,11 @@ static int bmdma_rw_buf(IDEDMA *dma, int is_write)
     return 1;
 }
 
-static int bmdma_set_unit(IDEDMA *dma, int unit)
-{
-    BMDMAState *bm = DO_UPCAST(BMDMAState, dma, dma);
-    bm->unit = unit;
-
-    return 0;
-}
-
 static void bmdma_set_inactive(IDEDMA *dma, bool more)
 {
     BMDMAState *bm = DO_UPCAST(BMDMAState, dma, dma);
 
     bm->dma_cb = NULL;
-    bm->unit = -1;
     if (more) {
         bm->status |= BM_STATUS_DMAING;
     } else {
@@ -335,6 +325,7 @@ static void ide_bmdma_pre_save(void *opaque)
     BMDMAState *bm = opaque;
     uint8_t abused_bits = BM_MIGRATION_COMPAT_STATUS_BITS;
 
+    bm->migration_retry_unit = bm->bus->retry_unit;
     bm->migration_compat_status =
         (bm->status & ~abused_bits) | (bm->bus->error_status & abused_bits);
 }
@@ -350,6 +341,9 @@ static int ide_bmdma_post_load(void *opaque, int version_id)
     if (bm->status == 0) {
         bm->status = bm->migration_compat_status & ~abused_bits;
         bm->bus->error_status |= bm->migration_compat_status & abused_bits;
+    }
+    if (bm->bus->error_status) {
+        bm->bus->retry_unit = bm->migration_retry_unit;
     }
 
     return 0;
@@ -389,7 +383,7 @@ static const VMStateDescription vmstate_bmdma = {
         VMSTATE_UINT32(addr, BMDMAState),
         VMSTATE_INT64(sector_num, BMDMAState),
         VMSTATE_UINT32(nsector, BMDMAState),
-        VMSTATE_UINT8(unit, BMDMAState),
+        VMSTATE_UINT8(migration_retry_unit, BMDMAState),
         VMSTATE_END_OF_LIST()
     },
     .subsections = (VMStateSubsection []) {
@@ -413,7 +407,7 @@ static int ide_pci_post_load(void *opaque, int version_id)
     for(i = 0; i < 2; i++) {
         /* current versions always store 0/1, but older version
            stored bigger values. We only need last bit */
-        d->bmdma[i].unit &= 1;
+        d->bmdma[i].migration_retry_unit &= 1;
         ide_bmdma_post_load(&d->bmdma[i], -1);
     }
 
@@ -454,7 +448,6 @@ static const struct IDEDMAOps bmdma_ops = {
     .start_dma = bmdma_start_dma,
     .prepare_buf = bmdma_prepare_buf,
     .rw_buf = bmdma_rw_buf,
-    .set_unit = bmdma_set_unit,
     .restart_dma = bmdma_restart_dma,
     .set_inactive = bmdma_set_inactive,
     .reset = bmdma_reset,

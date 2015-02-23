@@ -646,6 +646,7 @@ static void dma_buf_commit(IDEState *s, uint32_t tx_bytes)
 void ide_set_inactive(IDEState *s, bool more)
 {
     s->bus->dma->aiocb = NULL;
+    s->bus->retry_unit = -1;
     if (s->bus->dma->ops->set_inactive) {
         s->bus->dma->ops->set_inactive(s->bus->dma, more);
     }
@@ -666,7 +667,7 @@ static int ide_handle_rw_error(IDEState *s, int error, int op)
     BlockErrorAction action = blk_get_error_action(s->blk, is_read, error);
 
     if (action == BLOCK_ERROR_ACTION_STOP) {
-        s->bus->dma->ops->set_unit(s->bus->dma, s->unit);
+        assert(s->bus->retry_unit == s->unit);
         s->bus->error_status = op;
     } else if (action == BLOCK_ERROR_ACTION_REPORT) {
         if (op & IDE_RETRY_DMA) {
@@ -799,6 +800,7 @@ static void ide_sector_start_dma(IDEState *s, enum ide_dma_cmd dma_cmd)
 
 void ide_start_dma(IDEState *s, BlockCompletionFunc *cb)
 {
+    s->bus->retry_unit = s->unit;
     if (s->bus->dma->ops->start_dma) {
         s->bus->dma->ops->start_dma(s->bus->dma, s, cb);
     }
@@ -2327,11 +2329,11 @@ static const IDEDMAOps ide_dma_nop_ops = {
     .prepare_buf    = ide_nop_int32,
     .restart_dma    = ide_nop,
     .rw_buf         = ide_nop_int,
-    .set_unit       = ide_nop_int,
 };
 
 static void ide_restart_dma(IDEState *s, enum ide_dma_cmd dma_cmd)
 {
+    s->unit = s->bus->retry_unit;
     s->bus->dma->ops->restart_dma(s->bus->dma);
     s->io_buffer_index = 0;
     s->io_buffer_size = 0;

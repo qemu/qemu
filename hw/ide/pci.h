@@ -33,6 +33,8 @@ typedef struct BMDMAState {
     /* Bit 0-2 and 7:   BM status register
      * Bit 3-6:         bus->error_status */
     uint8_t migration_compat_status;
+    uint8_t migration_retry_unit;
+
     struct PCIIDEState *pci_dev;
 } BMDMAState;
 
@@ -61,8 +63,8 @@ typedef struct PCIIDEState {
 
 static inline IDEState *bmdma_active_if(BMDMAState *bmdma)
 {
-    assert(bmdma->unit != (uint8_t)-1);
-    return bmdma->bus->ifs + bmdma->unit;
+    assert(bmdma->bus->retry_unit != (uint8_t)-1);
+    return bmdma->bus->ifs + bmdma->bus->retry_unit;
 }
 
 

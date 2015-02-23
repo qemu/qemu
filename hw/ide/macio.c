@@ -572,7 +572,6 @@ static const IDEDMAOps dbdma_ops = {
     .start_dma      = ide_dbdma_start,
     .prepare_buf    = ide_nop_int32,
     .rw_buf         = ide_nop_int,
-    .set_unit       = ide_nop_int,
 };
 
 static void macio_ide_realizefn(DeviceState *dev, Error **errp)

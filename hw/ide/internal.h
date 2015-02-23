@@ -436,7 +436,6 @@ struct IDEDMAOps {
     DMAInt32Func *prepare_buf;
     DMAu32Func *commit_buf;
     DMAIntFunc *rw_buf;
-    DMAIntFunc *set_unit;
     DMAVoidFunc *restart_dma;
     DMAStopFunc *set_inactive;
     DMAVoidFunc *cmd_done;
@@ -465,6 +464,7 @@ struct IDEBus {
     qemu_irq irq;
 
     int error_status;
+    uint8_t retry_unit;
 };
 
 #define TYPE_IDE_DEVICE "ide-device"
