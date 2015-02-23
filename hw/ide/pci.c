@@ -184,18 +184,24 @@ static void bmdma_set_inactive(IDEDMA *dma, bool more)
     }
 }
 
-static void bmdma_restart_dma(BMDMAState *bm, enum ide_dma_cmd dma_cmd)
+static void bmdma_restart_dma(BMDMAState *bm)
 {
     IDEState *s = bmdma_active_if(bm);
 
     ide_set_sector(s, bm->sector_num);
+    s->nsector = bm->nsector;
+    bm->cur_addr = bm->addr;
+}
+
+static void ide_restart_dma(IDEState *s, enum ide_dma_cmd dma_cmd)
+{
+    BMDMAState *bm = DO_UPCAST(BMDMAState, dma, s->bus->dma);
+
+    bmdma_restart_dma(bm);
     s->io_buffer_index = 0;
     s->io_buffer_size = 0;
-    s->nsector = bm->nsector;
     s->dma_cmd = dma_cmd;
-    bm->cur_addr = bm->addr;
-    bm->dma_cb = ide_dma_cb;
-    bmdma_start_dma(&bm->dma, s, bm->dma_cb);
+    bmdma_start_dma(&bm->dma, s, ide_dma_cb);
 }
 
 /* TODO This should be common IDE code */
@@ -203,6 +209,7 @@ static void bmdma_restart_bh(void *opaque)
 {
     BMDMAState *bm = opaque;
     IDEBus *bus = bm->bus;
+    IDEState *s;
     bool is_read;
     int error_status;
 
@@ -213,6 +220,7 @@ static void bmdma_restart_bh(void *opaque)
         return;
     }
 
+    s = bmdma_active_if(bm);
     is_read = (bus->error_status & IDE_RETRY_READ) != 0;
 
     /* The error status must be cleared before resubmitting the request: The
@@ -223,18 +231,18 @@ static void bmdma_restart_bh(void *opaque)
 
     if (error_status & IDE_RETRY_DMA) {
         if (error_status & IDE_RETRY_TRIM) {
-            bmdma_restart_dma(bm, IDE_DMA_TRIM);
+            ide_restart_dma(s, IDE_DMA_TRIM);
         } else {
-            bmdma_restart_dma(bm, is_read ? IDE_DMA_READ : IDE_DMA_WRITE);
+            ide_restart_dma(s, is_read ? IDE_DMA_READ : IDE_DMA_WRITE);
         }
     } else if (error_status & IDE_RETRY_PIO) {
         if (is_read) {
-            ide_sector_read(bmdma_active_if(bm));
+            ide_sector_read(s);
         } else {
-            ide_sector_write(bmdma_active_if(bm));
+            ide_sector_write(s);
         }
     } else if (error_status & IDE_RETRY_FLUSH) {
-        ide_flush_cache(bmdma_active_if(bm));
+        ide_flush_cache(s);
     } else {
         IDEState *s = bmdma_active_if(bm);
 
