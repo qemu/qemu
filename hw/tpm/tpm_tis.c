@@ -427,6 +427,7 @@ static uint64_t tpm_tis_mmio_read(void *opaque, hwaddr addr,
     uint32_t val = 0xffffffff;
     uint8_t locty = tpm_tis_locality_from_addr(addr);
     uint32_t avail;
+    uint8_t v;
 
     if (tpm_backend_had_startup_error(s->be_driver)) {
         return val;
@@ -476,14 +477,26 @@ static uint64_t tpm_tis_mmio_read(void *opaque, hwaddr addr,
         break;
     case TPM_TIS_REG_DATA_FIFO:
         if (tis->active_locty == locty) {
-            switch (tis->loc[locty].state) {
-            case TPM_TIS_STATE_COMPLETION:
-                val = tpm_tis_data_read(s, locty);
-                break;
-            default:
-                val = TPM_TIS_NO_DATA_BYTE;
-                break;
+            if (size > 4 - (addr & 0x3)) {
+                /* prevent access beyond FIFO */
+                size = 4 - (addr & 0x3);
             }
+            val = 0;
+            shift = 0;
+            while (size > 0) {
+                switch (tis->loc[locty].state) {
+                case TPM_TIS_STATE_COMPLETION:
+                    v = tpm_tis_data_read(s, locty);
+                    break;
+                default:
+                    v = TPM_TIS_NO_DATA_BYTE;
+                    break;
+                }
+                val |= (v << shift);
+                shift += 8;
+                size--;
+            }
+            shift = 0; /* no more adjustments */
         }
         break;
     case TPM_TIS_REG_DID_VID:
@@ -518,11 +531,13 @@ static void tpm_tis_mmio_write_intern(void *opaque, hwaddr addr,
 {
     TPMState *s = opaque;
     TPMTISEmuState *tis = &s->s.tis;
-    uint16_t off = addr & 0xfff;
+    uint16_t off = addr & 0xffc;
+    uint8_t shift = (addr & 0x3) * 8;
     uint8_t locty = tpm_tis_locality_from_addr(addr);
     uint8_t active_locty, l;
     int c, set_new_locty = 1;
     uint16_t len;
+    uint32_t mask = (size == 1) ? 0xff : ((size == 2) ? 0xffff : ~0);
 
     DPRINTF("tpm_tis: write.%u(%08x) = %08x\n", size, (int)addr, (uint32_t)val);
 
@@ -534,6 +549,15 @@ static void tpm_tis_mmio_write_intern(void *opaque, hwaddr addr,
     if (tpm_backend_had_startup_error(s->be_driver)) {
         return;
     }
+
+    val &= mask;
+
+    if (shift) {
+        val <<= shift;
+        mask <<= shift;
+    }
+
+    mask ^= 0xffffffff;
 
     switch (off) {
     case TPM_TIS_REG_ACCESS:
@@ -646,9 +670,10 @@ static void tpm_tis_mmio_write_intern(void *opaque, hwaddr addr,
             break;
         }
 
-        tis->loc[locty].inte = (val & (TPM_TIS_INT_ENABLED |
-                                       TPM_TIS_INT_POLARITY_MASK |
-                                       TPM_TIS_INTERRUPTS_SUPPORTED));
+        tis->loc[locty].inte &= mask;
+        tis->loc[locty].inte |= (val & (TPM_TIS_INT_ENABLED |
+                                        TPM_TIS_INT_POLARITY_MASK |
+                                        TPM_TIS_INTERRUPTS_SUPPORTED));
         break;
     case TPM_TIS_REG_INT_VECTOR:
         /* hard wired -- ignore */
@@ -747,16 +772,25 @@ static void tpm_tis_mmio_write_intern(void *opaque, hwaddr addr,
             tis->loc[locty].state == TPM_TIS_STATE_COMPLETION) {
             /* drop the byte */
         } else {
-            DPRINTF("tpm_tis: Byte to send to TPM: %02x\n", (uint8_t)val);
+            DPRINTF("tpm_tis: Data to send to TPM: %08x (size=%d)\n",
+                    val, size);
             if (tis->loc[locty].state == TPM_TIS_STATE_READY) {
                 tis->loc[locty].state = TPM_TIS_STATE_RECEPTION;
                 tis->loc[locty].sts = TPM_TIS_STS_EXPECT | TPM_TIS_STS_VALID;
             }
 
-            if ((tis->loc[locty].sts & TPM_TIS_STS_EXPECT)) {
+            val >>= shift;
+            if (size > 4 - (addr & 0x3)) {
+                /* prevent access beyond FIFO */
+                size = 4 - (addr & 0x3);
+            }
+
+            while ((tis->loc[locty].sts & TPM_TIS_STS_EXPECT) && size > 0) {
                 if (tis->loc[locty].w_offset < tis->loc[locty].w_buffer.size) {
                     tis->loc[locty].w_buffer.
                         buffer[tis->loc[locty].w_offset++] = (uint8_t)val;
+                    val >>= 8;
+                    size--;
                 } else {
                     tis->loc[locty].sts = TPM_TIS_STS_VALID;
                 }
