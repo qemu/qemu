@@ -184,8 +184,9 @@ static void bmdma_set_inactive(IDEDMA *dma, bool more)
     }
 }
 
-static void bmdma_restart_dma(BMDMAState *bm)
+static void bmdma_restart_dma(IDEDMA *dma)
 {
+    BMDMAState *bm = DO_UPCAST(BMDMAState, dma, dma);
     IDEState *s = bmdma_active_if(bm);
 
     ide_set_sector(s, bm->sector_num);
@@ -195,13 +196,13 @@ static void bmdma_restart_dma(BMDMAState *bm)
 
 static void ide_restart_dma(IDEState *s, enum ide_dma_cmd dma_cmd)
 {
-    BMDMAState *bm = DO_UPCAST(BMDMAState, dma, s->bus->dma);
-
-    bmdma_restart_dma(bm);
+    if (s->bus->dma->ops->restart_dma) {
+        s->bus->dma->ops->restart_dma(s->bus->dma);
+    }
     s->io_buffer_index = 0;
     s->io_buffer_size = 0;
     s->dma_cmd = dma_cmd;
-    bmdma_start_dma(&bm->dma, s, ide_dma_cb);
+    ide_start_dma(s, ide_dma_cb);
 }
 
 /* TODO This should be common IDE code */
@@ -532,6 +533,7 @@ static const struct IDEDMAOps bmdma_ops = {
     .prepare_buf = bmdma_prepare_buf,
     .rw_buf = bmdma_rw_buf,
     .set_unit = bmdma_set_unit,
+    .restart_dma = bmdma_restart_dma,
     .set_inactive = bmdma_set_inactive,
     .restart_cb = bmdma_restart_cb,
     .reset = bmdma_reset,
