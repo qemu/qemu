@@ -14,7 +14,7 @@
  *
  * Implementation of the TIS interface according to specs found at
  * http://www.trustedcomputinggroup.org. This implementation currently
- * supports version 1.21, revision 1.0.
+ * supports version 1.3, 21 March 2013
  * In the developers menu choose the PC Client section then find the TIS
  * specification.
  */
@@ -103,8 +103,15 @@
 
 #endif
 
+#define TPM_TIS_CAP_INTERFACE_VERSION1_3 (2 << 28)
+#define TPM_TIS_CAP_DATA_TRANSFER_64B    (3 << 9)
+#define TPM_TIS_CAP_DATA_TRANSFER_LEGACY (0 << 9)
+#define TPM_TIS_CAP_BURST_COUNT_DYNAMIC  (0 << 8)
 #define TPM_TIS_CAP_INTERRUPT_LOW_LEVEL  (1 << 4) /* support is mandatory */
 #define TPM_TIS_CAPABILITIES_SUPPORTED   (TPM_TIS_CAP_INTERRUPT_LOW_LEVEL | \
+                                          TPM_TIS_CAP_BURST_COUNT_DYNAMIC | \
+                                          TPM_TIS_CAP_DATA_TRANSFER_64B | \
+                                          TPM_TIS_CAP_INTERFACE_VERSION1_3 | \
                                           TPM_TIS_INTERRUPTS_SUPPORTED)
 
 #define TPM_TIS_TPM_DID       0x0001
