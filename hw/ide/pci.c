@@ -217,17 +217,17 @@ static void bmdma_restart_bh(void *opaque)
     qemu_bh_delete(bm->bh);
     bm->bh = NULL;
 
-    if (bm->unit == (uint8_t) -1) {
+    error_status = bus->error_status;
+    if (bus->error_status == 0) {
         return;
     }
 
-    s = bmdma_active_if(bm);
+    s = idebus_active_if(bus);
     is_read = (bus->error_status & IDE_RETRY_READ) != 0;
 
     /* The error status must be cleared before resubmitting the request: The
      * request may fail again, and this case can only be distinguished if the
      * called function can set a new error status. */
-    error_status = bus->error_status;
     bus->error_status = 0;
 
     if (error_status & IDE_RETRY_DMA) {
