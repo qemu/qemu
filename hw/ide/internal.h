@@ -557,10 +557,6 @@ void ide_init_ioport(IDEBus *bus, ISADevice *isa, int iobase, int iobase2);
 void ide_register_restart_cb(IDEBus *bus);
 
 void ide_exec_cmd(IDEBus *bus, uint32_t val);
-void ide_dma_cb(void *opaque, int ret);
-void ide_sector_write(IDEState *s);
-void ide_sector_read(IDEState *s);
-void ide_flush_cache(IDEState *s);
 
 void ide_transfer_start(IDEState *s, uint8_t *buf, int size,
                         EndTransferFunc *end_transfer_func);
