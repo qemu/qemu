@@ -64,6 +64,7 @@
 #define TPM_TIS_STS_TPM_GO                (1 << 5)
 #define TPM_TIS_STS_DATA_AVAILABLE        (1 << 4)
 #define TPM_TIS_STS_EXPECT                (1 << 3)
+#define TPM_TIS_STS_SELFTEST_DONE         (1 << 2)
 #define TPM_TIS_STS_RESPONSE_RETRY        (1 << 1)
 
 #define TPM_TIS_BURST_COUNT_SHIFT         8
@@ -144,6 +145,24 @@ static void tpm_tis_show_buffer(const TPMSizedBuffer *sb, const char *string)
     }
     DPRINTF("\n");
 #endif
+}
+
+/*
+ * Set the given flags in the STS register by clearing the register but
+ * preserving the SELFTEST_DONE flag and then setting the new flags.
+ *
+ * The SELFTEST_DONE flag is acquired from the backend that determines it by
+ * peeking into TPM commands.
+ *
+ * A VM suspend/resume will preserve the flag by storing it into the VM
+ * device state, but the backend will not remember it when QEMU is started
+ * again. Therefore, we cache the flag here. Once set, it will not be unset
+ * except by a reset.
+ */
+static void tpm_tis_sts_set(TPMLocality *l, uint32_t flags)
+{
+    l->sts &= TPM_TIS_STS_SELFTEST_DONE;
+    l->sts |= flags;
 }
 
 /*
@@ -257,7 +276,8 @@ static void tpm_tis_abort(TPMState *s, uint8_t locty)
      */
     if (tis->aborting_locty == tis->next_locty) {
         tis->loc[tis->aborting_locty].state = TPM_TIS_STATE_READY;
-        tis->loc[tis->aborting_locty].sts = TPM_TIS_STS_COMMAND_READY;
+        tpm_tis_sts_set(&tis->loc[tis->aborting_locty],
+                        TPM_TIS_STS_COMMAND_READY);
         tpm_tis_raise_irq(s, tis->aborting_locty, TPM_TIS_INT_COMMAND_READY);
     }
 
@@ -302,7 +322,8 @@ static void tpm_tis_receive_bh(void *opaque)
     TPMTISEmuState *tis = &s->s.tis;
     uint8_t locty = s->locty_number;
 
-    tis->loc[locty].sts = TPM_TIS_STS_VALID | TPM_TIS_STS_DATA_AVAILABLE;
+    tpm_tis_sts_set(&tis->loc[locty],
+                    TPM_TIS_STS_VALID | TPM_TIS_STS_DATA_AVAILABLE);
     tis->loc[locty].state = TPM_TIS_STATE_COMPLETION;
     tis->loc[locty].r_offset = 0;
     tis->loc[locty].w_offset = 0;
@@ -322,11 +343,19 @@ static void tpm_tis_receive_bh(void *opaque)
 /*
  * Callback from the TPM to indicate that the response was received.
  */
-static void tpm_tis_receive_cb(TPMState *s, uint8_t locty)
+static void tpm_tis_receive_cb(TPMState *s, uint8_t locty,
+                               bool is_selftest_done)
 {
     TPMTISEmuState *tis = &s->s.tis;
+    uint8_t l;
 
     assert(s->locty_number == locty);
+
+    if (is_selftest_done) {
+        for (l = 0; l < TPM_TIS_NUM_LOCALITIES; l++) {
+            tis->loc[locty].sts |= TPM_TIS_STS_SELFTEST_DONE;
+        }
+    }
 
     qemu_bh_schedule(tis->bh);
 }
@@ -346,7 +375,7 @@ static uint32_t tpm_tis_data_read(TPMState *s, uint8_t locty)
         ret = tis->loc[locty].r_buffer.buffer[tis->loc[locty].r_offset++];
         if (tis->loc[locty].r_offset >= len) {
             /* got last byte */
-            tis->loc[locty].sts = TPM_TIS_STS_VALID;
+            tpm_tis_sts_set(&tis->loc[locty], TPM_TIS_STS_VALID);
 #ifdef RAISE_STS_IRQ
             tpm_tis_raise_irq(s, locty, TPM_TIS_INT_STS_VALID);
 #endif
@@ -714,7 +743,7 @@ static void tpm_tis_mmio_write_intern(void *opaque, hwaddr addr,
             break;
 
             case TPM_TIS_STATE_IDLE:
-                tis->loc[locty].sts = TPM_TIS_STS_COMMAND_READY;
+                tpm_tis_sts_set(&tis->loc[locty], TPM_TIS_STS_COMMAND_READY);
                 tis->loc[locty].state = TPM_TIS_STATE_READY;
                 tpm_tis_raise_irq(s, locty, TPM_TIS_INT_COMMAND_READY);
             break;
@@ -733,7 +762,8 @@ static void tpm_tis_mmio_write_intern(void *opaque, hwaddr addr,
                 /* shortcut to ready state with C/R set */
                 tis->loc[locty].state = TPM_TIS_STATE_READY;
                 if (!(tis->loc[locty].sts & TPM_TIS_STS_COMMAND_READY)) {
-                    tis->loc[locty].sts   = TPM_TIS_STS_COMMAND_READY;
+                    tpm_tis_sts_set(&tis->loc[locty],
+                                    TPM_TIS_STS_COMMAND_READY);
                     tpm_tis_raise_irq(s, locty, TPM_TIS_INT_COMMAND_READY);
                 }
                 tis->loc[locty].sts &= ~(TPM_TIS_STS_DATA_AVAILABLE);
@@ -755,8 +785,9 @@ static void tpm_tis_mmio_write_intern(void *opaque, hwaddr addr,
             switch (tis->loc[locty].state) {
             case TPM_TIS_STATE_COMPLETION:
                 tis->loc[locty].r_offset = 0;
-                tis->loc[locty].sts = TPM_TIS_STS_VALID |
-                                      TPM_TIS_STS_DATA_AVAILABLE;
+                tpm_tis_sts_set(&tis->loc[locty],
+                                TPM_TIS_STS_VALID|
+                                TPM_TIS_STS_DATA_AVAILABLE);
                 break;
             default:
                 /* ignore */
@@ -780,7 +811,8 @@ static void tpm_tis_mmio_write_intern(void *opaque, hwaddr addr,
                     val, size);
             if (tis->loc[locty].state == TPM_TIS_STATE_READY) {
                 tis->loc[locty].state = TPM_TIS_STATE_RECEPTION;
-                tis->loc[locty].sts = TPM_TIS_STS_EXPECT | TPM_TIS_STS_VALID;
+                tpm_tis_sts_set(&tis->loc[locty],
+                                TPM_TIS_STS_EXPECT | TPM_TIS_STS_VALID);
             }
 
             val >>= shift;
@@ -796,7 +828,7 @@ static void tpm_tis_mmio_write_intern(void *opaque, hwaddr addr,
                     val >>= 8;
                     size--;
                 } else {
-                    tis->loc[locty].sts = TPM_TIS_STS_VALID;
+                    tpm_tis_sts_set(&tis->loc[locty], TPM_TIS_STS_VALID);
                 }
             }
 
@@ -809,11 +841,11 @@ static void tpm_tis_mmio_write_intern(void *opaque, hwaddr addr,
 #endif
                 len = tpm_tis_get_size_from_buffer(&tis->loc[locty].w_buffer);
                 if (len > tis->loc[locty].w_offset) {
-                    tis->loc[locty].sts = TPM_TIS_STS_EXPECT |
-                                          TPM_TIS_STS_VALID;
+                    tpm_tis_sts_set(&tis->loc[locty],
+                                    TPM_TIS_STS_EXPECT | TPM_TIS_STS_VALID);
                 } else {
                     /* packet complete */
-                    tis->loc[locty].sts = TPM_TIS_STS_VALID;
+                    tpm_tis_sts_set(&tis->loc[locty], TPM_TIS_STS_VALID);
                 }
 #ifdef RAISE_STS_IRQ
                 if (needIrq) {
