@@ -2643,10 +2643,13 @@ const VMStateDescription vmstate_ide_drive = {
 
 static const VMStateDescription vmstate_ide_error_status = {
     .name ="ide_bus/error",
-    .version_id = 1,
+    .version_id = 2,
     .minimum_version_id = 1,
     .fields = (VMStateField[]) {
         VMSTATE_INT32(error_status, IDEBus),
+        VMSTATE_INT64_V(retry_sector_num, IDEBus, 2),
+        VMSTATE_UINT32_V(retry_nsector, IDEBus, 2),
+        VMSTATE_UINT8_V(retry_unit, IDEBus, 2),
         VMSTATE_END_OF_LIST()
     }
 };
