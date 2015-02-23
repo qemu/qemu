@@ -51,6 +51,8 @@
 #define TPM_TIS_REG_INTF_CAPABILITY       0x14
 #define TPM_TIS_REG_STS                   0x18
 #define TPM_TIS_REG_DATA_FIFO             0x24
+#define TPM_TIS_REG_DATA_XFIFO            0x80
+#define TPM_TIS_REG_DATA_XFIFO_END        0xbc
 #define TPM_TIS_REG_DID_VID               0xf00
 #define TPM_TIS_REG_RID                   0xf04
 
@@ -476,6 +478,7 @@ static uint64_t tpm_tis_mmio_read(void *opaque, hwaddr addr,
         }
         break;
     case TPM_TIS_REG_DATA_FIFO:
+    case TPM_TIS_REG_DATA_XFIFO ... TPM_TIS_REG_DATA_XFIFO_END:
         if (tis->active_locty == locty) {
             if (size > 4 - (addr & 0x3)) {
                 /* prevent access beyond FIFO */
@@ -762,6 +765,7 @@ static void tpm_tis_mmio_write_intern(void *opaque, hwaddr addr,
         }
         break;
     case TPM_TIS_REG_DATA_FIFO:
+    case TPM_TIS_REG_DATA_XFIFO ... TPM_TIS_REG_DATA_XFIFO_END:
         /* data fifo */
         if (tis->active_locty != locty) {
             break;
