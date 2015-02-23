@@ -2330,6 +2330,11 @@ static const IDEDMAOps ide_dma_nop_ops = {
     .restart_cb     = ide_nop_restart,
 };
 
+void ide_register_restart_cb(IDEBus *bus)
+{
+    qemu_add_vm_change_state_handler(bus->dma->ops->restart_cb, bus->dma);
+}
+
 static IDEDMA ide_dma_nop = {
     .ops = &ide_dma_nop_ops,
     .aiocb = NULL,
