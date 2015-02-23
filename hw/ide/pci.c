@@ -208,8 +208,8 @@ static void ide_restart_dma(IDEState *s, enum ide_dma_cmd dma_cmd)
 /* TODO This should be common IDE code */
 static void bmdma_restart_bh(void *opaque)
 {
-    BMDMAState *bm = opaque;
-    IDEBus *bus = bm->bus;
+    IDEBus *bus = opaque;
+    BMDMAState *bm = DO_UPCAST(BMDMAState, dma, bus->dma);
     IDEState *s;
     bool is_read;
     int error_status;
@@ -260,14 +260,14 @@ static void bmdma_restart_bh(void *opaque)
 
 static void bmdma_restart_cb(void *opaque, int running, RunState state)
 {
-    IDEDMA *dma = opaque;
-    BMDMAState *bm = DO_UPCAST(BMDMAState, dma, dma);
+    IDEBus *bus = opaque;
+    BMDMAState *bm = DO_UPCAST(BMDMAState, dma, bus->dma);
 
     if (!running)
         return;
 
     if (!bm->bh) {
-        bm->bh = qemu_bh_new(bmdma_restart_bh, &bm->dma);
+        bm->bh = qemu_bh_new(bmdma_restart_bh, bus);
         qemu_bh_schedule(bm->bh);
     }
 }
