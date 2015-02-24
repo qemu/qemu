@@ -16,9 +16,11 @@
 #include "libqtest.h"
 #include "libqos/virtio.h"
 #include "libqos/virtio-pci.h"
+#include "libqos/virtio-mmio.h"
 #include "libqos/pci-pc.h"
 #include "libqos/malloc.h"
 #include "libqos/malloc-pc.h"
+#include "libqos/malloc-generic.h"
 #include "qemu/bswap.h"
 
 #define QVIRTIO_BLK_F_BARRIER       0x00000001
@@ -42,10 +44,14 @@
 
 #define TEST_IMAGE_SIZE         (64 * 1024 * 1024)
 #define QVIRTIO_BLK_TIMEOUT_US  (30 * 1000 * 1000)
+#define PCI_SLOT_HP             0x06
 #define PCI_SLOT                0x04
 #define PCI_FN                  0x00
 
-#define PCI_SLOT_HP             0x06
+#define MMIO_PAGE_SIZE          4096
+#define MMIO_DEV_BASE_ADDR      0x0A003E00
+#define MMIO_RAM_ADDR           0x40000000
+#define MMIO_RAM_SIZE           0x20000000
 
 typedef struct QVirtioBlkReq {
     uint32_t type;
@@ -88,6 +94,23 @@ static QPCIBus *pci_test_start(void)
     g_free(cmdline);
 
     return qpci_init_pc();
+}
+
+static void arm_test_start(void)
+{
+    char *cmdline;
+    char *tmp_path;
+
+    tmp_path = drive_create();
+
+    cmdline = g_strdup_printf("-machine virt "
+                                "-drive if=none,id=drive0,file=%s,format=raw "
+                                "-device virtio-blk-device,drive=drive0",
+                                tmp_path);
+    qtest_start(cmdline);
+    unlink(tmp_path);
+    g_free(tmp_path);
+    g_free(cmdline);
 }
 
 static void test_end(void)
@@ -695,18 +718,64 @@ static void pci_hotplug(void)
     test_end();
 }
 
+static void mmio_basic(void)
+{
+    QVirtioMMIODevice *dev;
+    QVirtQueue *vq;
+    QGuestAllocator *alloc;
+    int n_size = TEST_IMAGE_SIZE / 2;
+    uint64_t capacity;
+
+    arm_test_start();
+
+    dev = qvirtio_mmio_init_device(MMIO_DEV_BASE_ADDR, MMIO_PAGE_SIZE);
+    g_assert(dev != NULL);
+    g_assert_cmphex(dev->vdev.device_type, ==, QVIRTIO_BLK_DEVICE_ID);
+
+    qvirtio_reset(&qvirtio_mmio, &dev->vdev);
+    qvirtio_set_acknowledge(&qvirtio_mmio, &dev->vdev);
+    qvirtio_set_driver(&qvirtio_mmio, &dev->vdev);
+
+    alloc = generic_alloc_init(MMIO_RAM_ADDR, MMIO_RAM_SIZE, MMIO_PAGE_SIZE);
+    vq = qvirtqueue_setup(&qvirtio_mmio, &dev->vdev, alloc, 0);
+
+    test_basic(&qvirtio_mmio, &dev->vdev, alloc, vq,
+                            QVIRTIO_MMIO_DEVICE_SPECIFIC);
+
+    qmp("{ 'execute': 'block_resize', 'arguments': { 'device': 'drive0', "
+                                                    " 'size': %d } }", n_size);
+
+    qvirtio_wait_queue_isr(&qvirtio_mmio, &dev->vdev, vq,
+                           QVIRTIO_BLK_TIMEOUT_US);
+
+    capacity = qvirtio_config_readq(&qvirtio_mmio, &dev->vdev,
+                                                QVIRTIO_MMIO_DEVICE_SPECIFIC);
+    g_assert_cmpint(capacity, ==, n_size / 512);
+
+    /* End test */
+    guest_free(alloc, vq->desc);
+    generic_alloc_uninit(alloc);
+    g_free(dev);
+    test_end();
+}
+
 int main(int argc, char **argv)
 {
     int ret;
+    const char *arch = qtest_get_arch();
 
     g_test_init(&argc, &argv, NULL);
 
-    g_test_add_func("/virtio/blk/pci/basic", pci_basic);
-    g_test_add_func("/virtio/blk/pci/indirect", pci_indirect);
-    g_test_add_func("/virtio/blk/pci/config", pci_config);
-    g_test_add_func("/virtio/blk/pci/msix", pci_msix);
-    g_test_add_func("/virtio/blk/pci/idx", pci_idx);
-    g_test_add_func("/virtio/blk/pci/hotplug", pci_hotplug);
+    if (strcmp(arch, "i386") == 0 || strcmp(arch, "x86_64") == 0) {
+        qtest_add_func("/virtio/blk/pci/basic", pci_basic);
+        qtest_add_func("/virtio/blk/pci/indirect", pci_indirect);
+        qtest_add_func("/virtio/blk/pci/config", pci_config);
+        qtest_add_func("/virtio/blk/pci/msix", pci_msix);
+        qtest_add_func("/virtio/blk/pci/idx", pci_idx);
+        qtest_add_func("/virtio/blk/pci/hotplug", pci_hotplug);
+    } else if (strcmp(arch, "arm") == 0) {
+        qtest_add_func("/virtio/blk/mmio/basic", mmio_basic);
+    }
 
     ret = g_test_run();
 
