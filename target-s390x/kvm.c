@@ -1130,6 +1130,11 @@ static void sigp_start(void *arg)
 {
     SigpInfo *si = arg;
 
+    if (s390_cpu_get_state(si->cpu) != CPU_STATE_STOPPED) {
+        si->cc = SIGP_CC_ORDER_CODE_ACCEPTED;
+        return;
+    }
+
     s390_cpu_set_state(CPU_STATE_OPERATING, si->cpu);
     si->cc = SIGP_CC_ORDER_CODE_ACCEPTED;
 }
