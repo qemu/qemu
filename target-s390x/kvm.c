@@ -1178,37 +1178,37 @@ static int handle_sigp(S390CPU *cpu, struct kvm_run *run, uint8_t ipa1)
     cpu_addr = env->regs[ipa1 & 0x0f];
     target_cpu = s390_cpu_addr2state(cpu_addr);
     if (target_cpu == NULL) {
-        cc = 3;    /* not operational */
+        cc = SIGP_CC_NOT_OPERATIONAL;
         goto out;
     }
 
     switch (order_code) {
     case SIGP_START:
         run_on_cpu(CPU(target_cpu), sigp_cpu_start, CPU(target_cpu));
-        cc = 0;
+        cc = SIGP_CC_ORDER_CODE_ACCEPTED;
         break;
     case SIGP_RESTART:
         run_on_cpu(CPU(target_cpu), sigp_cpu_restart, CPU(target_cpu));
-        cc = 0;
+        cc = SIGP_CC_ORDER_CODE_ACCEPTED;
         break;
     case SIGP_SET_ARCH:
         *statusreg &= 0xffffffff00000000UL;
         *statusreg |= SIGP_STAT_INVALID_PARAMETER;
-        cc = 1;   /* status stored */
+        cc = SIGP_CC_STATUS_STORED;
         break;
     case SIGP_INITIAL_CPU_RESET:
         run_on_cpu(CPU(target_cpu), sigp_initial_cpu_reset, CPU(target_cpu));
-        cc = 0;
+        cc = SIGP_CC_ORDER_CODE_ACCEPTED;
         break;
     case SIGP_CPU_RESET:
         run_on_cpu(CPU(target_cpu), sigp_cpu_reset, CPU(target_cpu));
-        cc = 0;
+        cc = SIGP_CC_ORDER_CODE_ACCEPTED;
         break;
     default:
         DPRINTF("KVM: unknown SIGP: 0x%x\n", order_code);
         *statusreg &= 0xffffffff00000000UL;
         *statusreg |= SIGP_STAT_INVALID_ORDER;
-        cc = 1;   /* status stored */
+        cc = SIGP_CC_STATUS_STORED;
         break;
     }
 

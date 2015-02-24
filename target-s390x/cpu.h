@@ -864,6 +864,7 @@ struct sysib_322 {
 #define SK_F                    (0x1 << 3)
 #define SK_ACC_MASK             (0xf << 4)
 
+/* SIGP order codes */
 #define SIGP_SENSE             0x01
 #define SIGP_EXTERNAL_CALL     0x02
 #define SIGP_EMERGENCY         0x03
@@ -877,7 +878,13 @@ struct sysib_322 {
 #define SIGP_STORE_STATUS_ADDR 0x0e
 #define SIGP_SET_ARCH          0x12
 
-/* cpu status bits */
+/* SIGP condition codes */
+#define SIGP_CC_ORDER_CODE_ACCEPTED 0
+#define SIGP_CC_STATUS_STORED       1
+#define SIGP_CC_BUSY                2
+#define SIGP_CC_NOT_OPERATIONAL     3
+
+/* SIGP status bits */
 #define SIGP_STAT_EQUIPMENT_CHECK   0x80000000UL
 #define SIGP_STAT_INCORRECT_STATE   0x00000200UL
 #define SIGP_STAT_INVALID_PARAMETER 0x00000100UL
