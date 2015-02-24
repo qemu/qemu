@@ -191,59 +191,11 @@ static void test_basic(const QVirtioBus *bus, QVirtioDevice *dev,
 
     qvirtio_set_driver_ok(bus, dev);
 
-    /* Write and read with 2 descriptor layout */
-    /* Write request */
-    req.type = QVIRTIO_BLK_T_OUT;
-    req.ioprio = 1;
-    req.sector = 0;
-    req.data = g_malloc0(512);
-    strcpy(req.data, "TEST");
-
-    req_addr = virtio_blk_request(alloc, &req, 512);
-
-    g_free(req.data);
-
-    free_head = qvirtqueue_add(vq, req_addr, 528, false, true);
-    qvirtqueue_add(vq, req_addr + 528, 1, true, false);
-    qvirtqueue_kick(bus, dev, vq, free_head);
-
-    qvirtio_wait_queue_isr(bus, dev, vq, QVIRTIO_BLK_TIMEOUT_US);
-    status = readb(req_addr + 528);
-    g_assert_cmpint(status, ==, 0);
-
-    guest_free(alloc, req_addr);
-
-    /* Read request */
-    req.type = QVIRTIO_BLK_T_IN;
-    req.ioprio = 1;
-    req.sector = 0;
-    req.data = g_malloc0(512);
-
-    req_addr = virtio_blk_request(alloc, &req, 512);
-
-    g_free(req.data);
-
-    free_head = qvirtqueue_add(vq, req_addr, 16, false, true);
-    qvirtqueue_add(vq, req_addr + 16, 513, true, false);
-
-    qvirtqueue_kick(bus, dev, vq, free_head);
-
-    qvirtio_wait_queue_isr(bus, dev, vq, QVIRTIO_BLK_TIMEOUT_US);
-    status = readb(req_addr + 528);
-    g_assert_cmpint(status, ==, 0);
-
-    data = g_malloc0(512);
-    memread(req_addr + 16, data, 512);
-    g_assert_cmpstr(data, ==, "TEST");
-    g_free(data);
-
-    guest_free(alloc, req_addr);
-
     /* Write and read with 3 descriptor layout */
     /* Write request */
     req.type = QVIRTIO_BLK_T_OUT;
     req.ioprio = 1;
-    req.sector = 1;
+    req.sector = 0;
     req.data = g_malloc0(512);
     strcpy(req.data, "TEST");
 
@@ -266,7 +218,7 @@ static void test_basic(const QVirtioBus *bus, QVirtioDevice *dev,
     /* Read request */
     req.type = QVIRTIO_BLK_T_IN;
     req.ioprio = 1;
-    req.sector = 1;
+    req.sector = 0;
     req.data = g_malloc0(512);
 
     req_addr = virtio_blk_request(alloc, &req, 512);
@@ -289,6 +241,56 @@ static void test_basic(const QVirtioBus *bus, QVirtioDevice *dev,
     g_free(data);
 
     guest_free(alloc, req_addr);
+
+    if (features & QVIRTIO_F_ANY_LAYOUT) {
+        /* Write and read with 2 descriptor layout */
+        /* Write request */
+        req.type = QVIRTIO_BLK_T_OUT;
+        req.ioprio = 1;
+        req.sector = 1;
+        req.data = g_malloc0(512);
+        strcpy(req.data, "TEST");
+
+        req_addr = virtio_blk_request(alloc, &req, 512);
+
+        g_free(req.data);
+
+        free_head = qvirtqueue_add(vq, req_addr, 528, false, true);
+        qvirtqueue_add(vq, req_addr + 528, 1, true, false);
+        qvirtqueue_kick(bus, dev, vq, free_head);
+
+        qvirtio_wait_queue_isr(bus, dev, vq, QVIRTIO_BLK_TIMEOUT_US);
+        status = readb(req_addr + 528);
+        g_assert_cmpint(status, ==, 0);
+
+        guest_free(alloc, req_addr);
+
+        /* Read request */
+        req.type = QVIRTIO_BLK_T_IN;
+        req.ioprio = 1;
+        req.sector = 1;
+        req.data = g_malloc0(512);
+
+        req_addr = virtio_blk_request(alloc, &req, 512);
+
+        g_free(req.data);
+
+        free_head = qvirtqueue_add(vq, req_addr, 16, false, true);
+        qvirtqueue_add(vq, req_addr + 16, 513, true, false);
+
+        qvirtqueue_kick(bus, dev, vq, free_head);
+
+        qvirtio_wait_queue_isr(bus, dev, vq, QVIRTIO_BLK_TIMEOUT_US);
+        status = readb(req_addr + 528);
+        g_assert_cmpint(status, ==, 0);
+
+        data = g_malloc0(512);
+        memread(req_addr + 16, data, 512);
+        g_assert_cmpstr(data, ==, "TEST");
+        g_free(data);
+
+        guest_free(alloc, req_addr);
+    }
 }
 
 static void pci_basic(void)
@@ -521,7 +523,8 @@ static void pci_msix(void)
 
     g_free(req.data);
 
-    free_head = qvirtqueue_add(&vqpci->vq, req_addr, 528, false, true);
+    free_head = qvirtqueue_add(&vqpci->vq, req_addr, 16, false, true);
+    qvirtqueue_add(&vqpci->vq, req_addr + 16, 512, false, true);
     qvirtqueue_add(&vqpci->vq, req_addr + 528, 1, true, false);
     qvirtqueue_kick(&qvirtio_pci, &dev->vdev, &vqpci->vq, free_head);
 
@@ -544,7 +547,8 @@ static void pci_msix(void)
     g_free(req.data);
 
     free_head = qvirtqueue_add(&vqpci->vq, req_addr, 16, false, true);
-    qvirtqueue_add(&vqpci->vq, req_addr + 16, 513, true, false);
+    qvirtqueue_add(&vqpci->vq, req_addr + 16, 512, true, true);
+    qvirtqueue_add(&vqpci->vq, req_addr + 528, 1, true, false);
 
     qvirtqueue_kick(&qvirtio_pci, &dev->vdev, &vqpci->vq, free_head);
 
@@ -625,7 +629,8 @@ static void pci_idx(void)
 
     g_free(req.data);
 
-    free_head = qvirtqueue_add(&vqpci->vq, req_addr, 528, false, true);
+    free_head = qvirtqueue_add(&vqpci->vq, req_addr, 16, false, true);
+    qvirtqueue_add(&vqpci->vq, req_addr + 16, 512, false, true);
     qvirtqueue_add(&vqpci->vq, req_addr + 528, 1, true, false);
     qvirtqueue_kick(&qvirtio_pci, &dev->vdev, &vqpci->vq, free_head);
 
@@ -645,7 +650,8 @@ static void pci_idx(void)
 
     /* Notify after processing the third request */
     qvirtqueue_set_used_event(&vqpci->vq, 2);
-    free_head = qvirtqueue_add(&vqpci->vq, req_addr, 528, false, true);
+    free_head = qvirtqueue_add(&vqpci->vq, req_addr, 16, false, true);
+    qvirtqueue_add(&vqpci->vq, req_addr + 16, 512, false, true);
     qvirtqueue_add(&vqpci->vq, req_addr + 528, 1, true, false);
     qvirtqueue_kick(&qvirtio_pci, &dev->vdev, &vqpci->vq, free_head);
 
@@ -668,10 +674,10 @@ static void pci_idx(void)
     g_free(req.data);
 
     free_head = qvirtqueue_add(&vqpci->vq, req_addr, 16, false, true);
-    qvirtqueue_add(&vqpci->vq, req_addr + 16, 513, true, false);
+    qvirtqueue_add(&vqpci->vq, req_addr + 16, 512, true, true);
+    qvirtqueue_add(&vqpci->vq, req_addr + 528, 1, true, false);
 
     qvirtqueue_kick(&qvirtio_pci, &dev->vdev, &vqpci->vq, free_head);
-
 
     qvirtio_wait_queue_isr(&qvirtio_pci, &dev->vdev, &vqpci->vq,
                            QVIRTIO_BLK_TIMEOUT_US);
