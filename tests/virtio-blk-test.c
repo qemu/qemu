@@ -157,6 +157,7 @@ static void test_basic(const QVirtioBus *bus, QVirtioDevice *dev,
     char *data;
 
     capacity = qvirtio_config_readq(bus, dev, device_specific);
+
     g_assert_cmpint(capacity, ==, TEST_IMAGE_SIZE / 512);
 
     features = qvirtio_get_features(bus, dev);
@@ -283,7 +284,7 @@ static void pci_basic(void)
                                                                     alloc, 0);
 
     /* MSI-X is not enabled */
-    addr = dev->addr + QVIRTIO_DEVICE_SPECIFIC_NO_MSIX;
+    addr = dev->addr + QVIRTIO_PCI_DEVICE_SPECIFIC_NO_MSIX;
 
     test_basic(&qvirtio_pci, &dev->vdev, alloc, &vqpci->vq,
                                                     (uint64_t)(uintptr_t)addr);
@@ -318,7 +319,7 @@ static void pci_indirect(void)
     dev = virtio_blk_pci_init(bus, PCI_SLOT);
 
     /* MSI-X is not enabled */
-    addr = dev->addr + QVIRTIO_DEVICE_SPECIFIC_NO_MSIX;
+    addr = dev->addr + QVIRTIO_PCI_DEVICE_SPECIFIC_NO_MSIX;
 
     capacity = qvirtio_config_readq(&qvirtio_pci, &dev->vdev,
                                                     (uint64_t)(uintptr_t)addr);
@@ -412,7 +413,7 @@ static void pci_config(void)
     dev = virtio_blk_pci_init(bus, PCI_SLOT);
 
     /* MSI-X is not enabled */
-    addr = dev->addr + QVIRTIO_DEVICE_SPECIFIC_NO_MSIX;
+    addr = dev->addr + QVIRTIO_PCI_DEVICE_SPECIFIC_NO_MSIX;
 
     capacity = qvirtio_config_readq(&qvirtio_pci, &dev->vdev,
                                                     (uint64_t)(uintptr_t)addr);
@@ -459,7 +460,7 @@ static void pci_msix(void)
     qvirtio_pci_set_msix_configuration_vector(dev, alloc, 0);
 
     /* MSI-X is enabled */
-    addr = dev->addr + QVIRTIO_DEVICE_SPECIFIC_MSIX;
+    addr = dev->addr + QVIRTIO_PCI_DEVICE_SPECIFIC_MSIX;
 
     capacity = qvirtio_config_readq(&qvirtio_pci, &dev->vdev,
                                                     (uint64_t)(uintptr_t)addr);
@@ -572,7 +573,7 @@ static void pci_idx(void)
     qvirtio_pci_set_msix_configuration_vector(dev, alloc, 0);
 
     /* MSI-X is enabled */
-    addr = dev->addr + QVIRTIO_DEVICE_SPECIFIC_MSIX;
+    addr = dev->addr + QVIRTIO_PCI_DEVICE_SPECIFIC_MSIX;
 
     capacity = qvirtio_config_readq(&qvirtio_pci, &dev->vdev,
                                                     (uint64_t)(uintptr_t)addr);
