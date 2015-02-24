@@ -96,6 +96,7 @@ static void s390_cpu_reset(CPUState *s)
 
     env->pfault_token = -1UL;
     scc->parent_reset(s);
+    cpu->env.sigp_order = 0;
     s390_cpu_set_state(CPU_STATE_STOPPED, cpu);
     tlb_flush(s, 1);
 }
@@ -131,6 +132,7 @@ static void s390_cpu_full_reset(CPUState *s)
     CPUS390XState *env = &cpu->env;
 
     scc->parent_reset(s);
+    cpu->env.sigp_order = 0;
     s390_cpu_set_state(CPU_STATE_STOPPED, cpu);
 
     memset(env, 0, offsetof(CPUS390XState, cpu_num));

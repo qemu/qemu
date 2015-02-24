@@ -157,6 +157,9 @@ typedef struct CPUS390XState {
 #define CPU_STATE_LOAD                 0x04
     uint8_t cpu_state;
 
+    /* currently processed sigp order */
+    uint8_t sigp_order;
+
 } CPUS390XState;
 
 #include "cpu-qom.h"
@@ -411,6 +414,10 @@ S390CPU *s390_cpu_addr2state(uint16_t cpu_addr);
 unsigned int s390_cpu_halt(S390CPU *cpu);
 void s390_cpu_unhalt(S390CPU *cpu);
 unsigned int s390_cpu_set_state(uint8_t cpu_state, S390CPU *cpu);
+static inline uint8_t s390_cpu_get_state(S390CPU *cpu)
+{
+    return cpu->env.cpu_state;
+}
 
 /* service interrupts are floating therefore we must not pass an cpustate */
 void s390_sclp_extint(uint32_t parm);
@@ -895,6 +902,11 @@ struct sysib_322 {
 #define SIGP_STAT_INOPERATIVE       0x00000004UL
 #define SIGP_STAT_INVALID_ORDER     0x00000002UL
 #define SIGP_STAT_RECEIVER_CHECK    0x00000001UL
+
+/* SIGP SET ARCHITECTURE modes */
+#define SIGP_MODE_ESA_S390 0
+#define SIGP_MODE_Z_ARCH_TRANS_ALL_PSW 1
+#define SIGP_MODE_Z_ARCH_TRANS_CUR_PSW 2
 
 void load_psw(CPUS390XState *env, uint64_t mask, uint64_t addr);
 int mmu_translate(CPUS390XState *env, target_ulong vaddr, int rw, uint64_t asc,
