@@ -1113,6 +1113,7 @@ static int handle_diag(S390CPU *cpu, struct kvm_run *run, uint32_t ipb)
 
 typedef struct SigpInfo {
     S390CPU *cpu;
+    uint64_t param;
     int cc;
     uint64_t *status_reg;
 } SigpInfo;
@@ -1174,10 +1175,11 @@ static void sigp_cpu_reset(void *arg)
 }
 
 static int handle_sigp_single_dst(S390CPU *dst_cpu, uint8_t order,
-                                  uint64_t *status_reg)
+                                  uint64_t param, uint64_t *status_reg)
 {
     SigpInfo si = {
         .cpu = dst_cpu,
+        .param = param,
         .status_reg = status_reg,
     };
 
@@ -1218,6 +1220,7 @@ static int handle_sigp(S390CPU *cpu, struct kvm_run *run, uint8_t ipa1)
     int ret;
     uint8_t order;
     uint64_t *status_reg;
+    uint64_t param;
     S390CPU *dst_cpu = NULL;
 
     cpu_synchronize_state(CPU(cpu));
@@ -1225,6 +1228,7 @@ static int handle_sigp(S390CPU *cpu, struct kvm_run *run, uint8_t ipa1)
     /* get order code */
     order = decode_basedisp_rs(env, run->s390_sieic.ipb) & SIGP_ORDER_MASK;
     status_reg = &env->regs[r1];
+    param = (r1 % 2) ? env->regs[r1] : env->regs[r1 + 1];
 
     switch (order) {
     case SIGP_SET_ARCH:
@@ -1235,7 +1239,7 @@ static int handle_sigp(S390CPU *cpu, struct kvm_run *run, uint8_t ipa1)
     default:
         /* all other sigp orders target a single vcpu */
         dst_cpu = s390_cpu_addr2state(env->regs[r3]);
-        ret = handle_sigp_single_dst(dst_cpu, order, status_reg);
+        ret = handle_sigp_single_dst(dst_cpu, order, param, status_reg);
     }
 
     if (ret >= 0) {
