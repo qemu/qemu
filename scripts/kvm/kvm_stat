@@ -145,6 +145,45 @@ svm_exit_reasons = {
     0x400: 'NPF',
 }
 
+# EC definition of HSR (from arch/arm64/include/asm/kvm_arm.h)
+aarch64_exit_reasons = {
+    0x00: 'UNKNOWN',
+    0x01: 'WFI',
+    0x03: 'CP15_32',
+    0x04: 'CP15_64',
+    0x05: 'CP14_MR',
+    0x06: 'CP14_LS',
+    0x07: 'FP_ASIMD',
+    0x08: 'CP10_ID',
+    0x0C: 'CP14_64',
+    0x0E: 'ILL_ISS',
+    0x11: 'SVC32',
+    0x12: 'HVC32',
+    0x13: 'SMC32',
+    0x15: 'SVC64',
+    0x16: 'HVC64',
+    0x17: 'SMC64',
+    0x18: 'SYS64',
+    0x20: 'IABT',
+    0x21: 'IABT_HYP',
+    0x22: 'PC_ALIGN',
+    0x24: 'DABT',
+    0x25: 'DABT_HYP',
+    0x26: 'SP_ALIGN',
+    0x28: 'FP_EXC32',
+    0x2C: 'FP_EXC64',
+    0x2F: 'SERROR',
+    0x30: 'BREAKPT',
+    0x31: 'BREAKPT_HYP',
+    0x32: 'SOFTSTP',
+    0x33: 'SOFTSTP_HYP',
+    0x34: 'WATCHPT',
+    0x35: 'WATCHPT_HYP',
+    0x38: 'BKPT32',
+    0x3A: 'VECTOR32',
+    0x3C: 'BRK64',
+}
+
 # From include/uapi/linux/kvm.h, KVM_EXIT_xxx
 userspace_exit_reasons = {
      0: 'UNKNOWN',
@@ -212,7 +251,8 @@ def ppc_init():
 
 def aarch64_init():
     globals().update({
-        'sc_perf_evt_open' : 241
+        'sc_perf_evt_open' : 241,
+        'exit_reasons' : aarch64_exit_reasons,
     })
 
 def detect_platform():

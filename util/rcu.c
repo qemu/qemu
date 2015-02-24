@@ -35,6 +35,7 @@
 #include "qemu/rcu.h"
 #include "qemu/atomic.h"
 #include "qemu/thread.h"
+#include "qemu/main-loop.h"
 
 /*
  * Global grace period counter.  Bit 0 is always one in rcu_gp_ctr.
@@ -223,32 +224,38 @@ static void *call_rcu_thread(void *opaque)
          * Fetch rcu_call_count now, we only must process elements that were
          * added before synchronize_rcu() starts.
          */
-        while (n < RCU_CALL_MIN_SIZE && ++tries <= 5) {
-            g_usleep(100000);
-            qemu_event_reset(&rcu_call_ready_event);
-            n = atomic_read(&rcu_call_count);
-            if (n < RCU_CALL_MIN_SIZE) {
-                qemu_event_wait(&rcu_call_ready_event);
+        while (n == 0 || (n < RCU_CALL_MIN_SIZE && ++tries <= 5)) {
+            g_usleep(10000);
+            if (n == 0) {
+                qemu_event_reset(&rcu_call_ready_event);
                 n = atomic_read(&rcu_call_count);
+                if (n == 0) {
+                    qemu_event_wait(&rcu_call_ready_event);
+                }
             }
+            n = atomic_read(&rcu_call_count);
         }
 
         atomic_sub(&rcu_call_count, n);
         synchronize_rcu();
+        qemu_mutex_lock_iothread();
         while (n > 0) {
             node = try_dequeue();
             while (!node) {
+                qemu_mutex_unlock_iothread();
                 qemu_event_reset(&rcu_call_ready_event);
                 node = try_dequeue();
                 if (!node) {
                     qemu_event_wait(&rcu_call_ready_event);
                     node = try_dequeue();
                 }
+                qemu_mutex_lock_iothread();
             }
 
             n--;
             node->func(node);
         }
+        qemu_mutex_unlock_iothread();
     }
     abort();
 }

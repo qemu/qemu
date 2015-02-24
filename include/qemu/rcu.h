@@ -140,6 +140,14 @@ extern void call_rcu1(struct rcu_head *head, RCUCBFunc *func);
       }),                                                                \
       (RCUCBFunc *)(func))
 
+#define g_free_rcu(obj, field) \
+    call_rcu1(({                                                         \
+        char __attribute__((unused))                                     \
+            offset_must_be_zero[-offsetof(typeof(*(obj)), field)];       \
+        &(obj)->field;                                                   \
+      }),                                                                \
+      (RCUCBFunc *)g_free);
+
 #ifdef __cplusplus
 }
 #endif

@@ -205,6 +205,7 @@ static AddressSpace *pbm_pci_dma_iommu(PCIBus *bus, void *opaque, int devfn)
     return &is->iommu_as;
 }
 
+/* Called from RCU critical section */
 static IOMMUTLBEntry pbm_translate_iommu(MemoryRegion *iommu, hwaddr addr,
                                          bool is_write)
 {

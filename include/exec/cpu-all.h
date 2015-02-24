@@ -24,6 +24,7 @@
 #include "exec/memory.h"
 #include "qemu/thread.h"
 #include "qom/cpu.h"
+#include "qemu/rcu.h"
 
 /* some important defines:
  *
@@ -268,6 +269,7 @@ CPUArchState *cpu_copy(CPUArchState *env);
 typedef struct RAMBlock RAMBlock;
 
 struct RAMBlock {
+    struct rcu_head rcu;
     struct MemoryRegion *mr;
     uint8_t *host;
     ram_addr_t offset;
@@ -275,11 +277,10 @@ struct RAMBlock {
     ram_addr_t max_length;
     void (*resized)(const char*, uint64_t length, void *host);
     uint32_t flags;
+    /* Protected by iothread lock.  */
     char idstr[256];
-    /* Reads can take either the iothread or the ramlist lock.
-     * Writes must take both locks.
-     */
-    QTAILQ_ENTRY(RAMBlock) next;
+    /* RCU-enabled, writes protected by the ramlist lock */
+    QLIST_ENTRY(RAMBlock) next;
     int fd;
 };
 
@@ -295,8 +296,8 @@ typedef struct RAMList {
     /* Protected by the iothread lock.  */
     unsigned long *dirty_memory[DIRTY_MEMORY_NUM];
     RAMBlock *mru_block;
-    /* Protected by the ramlist lock.  */
-    QTAILQ_HEAD(, RAMBlock) blocks;
+    /* RCU-enabled, writes protected by the ramlist lock. */
+    QLIST_HEAD(, RAMBlock) blocks;
     uint32_t version;
 } RAMList;
 extern RAMList ram_list;

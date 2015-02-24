@@ -342,6 +342,7 @@ void qbus_reset_all_fn(void *opaque);
 BusState *sysbus_get_default(void);
 
 char *qdev_get_fw_dev_path(DeviceState *dev);
+char *qdev_get_own_fw_dev_path_from_handler(BusState *bus, DeviceState *dev);
 
 /**
  * @qdev_machine_init

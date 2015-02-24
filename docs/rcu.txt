@@ -120,12 +120,15 @@ The core RCU API is small:
      void call_rcu(T *p,
                    void (*func)(T *p),
                    field-name);
+     void g_free_rcu(T *p,
+                     field-name);
 
-        call_rcu1 is typically used through this macro, in the common case
-        where the "struct rcu_head" is the first field in the struct.  In
-        the above case, one could have written simply:
+        call_rcu1 is typically used through these macro, in the common case
+        where the "struct rcu_head" is the first field in the struct.  If
+        the callback function is g_free, in particular, g_free_rcu can be
+        used.  In the above case, one could have written simply:
 
-            call_rcu(foo_reclaim, g_free, rcu);
+            g_free_rcu(foo_reclaim, rcu);
 
      typeof(*p) atomic_rcu_read(p);
 
