@@ -352,7 +352,10 @@ int s390_cpu_handle_mmu_fault(CPUState *cpu, vaddr address, int rw,
 
 #include "ioinst.h"
 
+
 #ifndef CONFIG_USER_ONLY
+void do_restart_interrupt(CPUS390XState *env);
+
 static inline hwaddr decode_basedisp_s(CPUS390XState *env, uint32_t ipb)
 {
     hwaddr addr = 0;
@@ -671,7 +674,7 @@ typedef struct LowCore
     PSW             mcck_old_psw;             /* 0x160 */
     PSW             io_old_psw;               /* 0x170 */
     uint8_t         pad7[0x1a0-0x180];        /* 0x180 */
-    PSW             restart_psw;              /* 0x1a0 */
+    PSW             restart_new_psw;          /* 0x1a0 */
     PSW             external_new_psw;         /* 0x1b0 */
     PSW             svc_new_psw;              /* 0x1c0 */
     PSW             program_new_psw;          /* 0x1d0 */
