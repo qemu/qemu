@@ -142,8 +142,12 @@ static bool qvirtio_pci_get_queue_isr_status(QVirtioDevice *d, QVirtQueue *vq)
             return qpci_msix_pending(dev->pdev, vqpci->msix_entry);
         } else {
             data = readl(vqpci->msix_addr);
-            writel(vqpci->msix_addr, 0);
-            return data == vqpci->msix_data;
+            if (data == vqpci->msix_data) {
+                writel(vqpci->msix_addr, 0);
+                return true;
+            } else {
+                return false;
+            }
         }
     } else {
         return qpci_io_readb(dev->pdev, dev->addr + QVIRTIO_PCI_ISR_STATUS) & 1;
@@ -162,8 +166,12 @@ static bool qvirtio_pci_get_config_isr_status(QVirtioDevice *d)
             return qpci_msix_pending(dev->pdev, dev->config_msix_entry);
         } else {
             data = readl(dev->config_msix_addr);
-            writel(dev->config_msix_addr, 0);
-            return data == dev->config_msix_data;
+            if (data == dev->config_msix_data) {
+                writel(dev->config_msix_addr, 0);
+                return true;
+            } else {
+                return false;
+            }
         }
     } else {
         return qpci_io_readb(dev->pdev, dev->addr + QVIRTIO_PCI_ISR_STATUS) & 2;
