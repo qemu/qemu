@@ -304,16 +304,20 @@ static inline hwaddr do_translate_address(CPUMIPSState *env,
     }
 }
 
-#define HELPER_LD_ATOMIC(name, insn)                                          \
+#define HELPER_LD_ATOMIC(name, insn, almask)                                  \
 target_ulong helper_##name(CPUMIPSState *env, target_ulong arg, int mem_idx)  \
 {                                                                             \
+    if (arg & almask) {                                                       \
+        env->CP0_BadVAddr = arg;                                              \
+        helper_raise_exception(env, EXCP_AdEL);                               \
+    }                                                                         \
     env->lladdr = do_translate_address(env, arg, 0);                          \
     env->llval = do_##insn(env, arg, mem_idx);                                \
     return env->llval;                                                        \
 }
-HELPER_LD_ATOMIC(ll, lw)
+HELPER_LD_ATOMIC(ll, lw, 0x3)
 #ifdef TARGET_MIPS64
-HELPER_LD_ATOMIC(lld, ld)
+HELPER_LD_ATOMIC(lld, ld, 0x7)
 #endif
 #undef HELPER_LD_ATOMIC
 

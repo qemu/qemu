@@ -75,7 +75,8 @@ static int i82378_initfn(PCIDevice *pci)
 
     pci_config_set_interrupt_pin(pci_conf, 1); /* interrupt pin 0 */
 
-    isabus = isa_bus_new(dev, pci_address_space_io(pci));
+    isabus = isa_bus_new(dev, get_system_memory(),
+                         pci_address_space_io(pci));
 
     /* This device has:
        2 82C59 (irq)

@@ -285,6 +285,10 @@ int cpu_load(QEMUFile *f, void *opaque, int version_id)
     qemu_get_sbe32s(f, &env->CP0_SRSConf4);
     qemu_get_sbe32s(f, &env->CP0_HWREna);
     qemu_get_betls(f, &env->CP0_BadVAddr);
+    if (version_id >= 5) {
+        qemu_get_be32s(f, &env->CP0_BadInstr);
+        qemu_get_be32s(f, &env->CP0_BadInstrP);
+    }
     qemu_get_sbe32s(f, &env->CP0_Count);
     qemu_get_betls(f, &env->CP0_EntryHi);
     qemu_get_sbe32s(f, &env->CP0_Compare);
@@ -319,8 +323,6 @@ int cpu_load(QEMUFile *f, void *opaque, int version_id)
     qemu_get_betls(f, &env->CP0_ErrorEPC);
     qemu_get_sbe32s(f, &env->CP0_DESAVE);
     if (version_id >= 5) {
-        qemu_get_be32s(f, &env->CP0_BadInstr);
-        qemu_get_be32s(f, &env->CP0_BadInstrP);
         for (i = 0; i < MIPS_KSCRATCH_NUM; i++) {
             qemu_get_betls(f, &env->CP0_KScratch[i]);
         }

@@ -36,6 +36,7 @@ struct ISABus {
     BusState parent_obj;
     /*< public >*/
 
+    MemoryRegion *address_space;
     MemoryRegion *address_space_io;
     qemu_irq *irqs;
 };
@@ -50,7 +51,8 @@ struct ISADevice {
     int ioport_id;
 };
 
-ISABus *isa_bus_new(DeviceState *dev, MemoryRegion *address_space_io);
+ISABus *isa_bus_new(DeviceState *dev, MemoryRegion *address_space,
+                    MemoryRegion *address_space_io);
 void isa_bus_irqs(ISABus *bus, qemu_irq *irqs);
 qemu_irq isa_get_irq(ISADevice *dev, int isairq);
 void isa_init_irq(ISADevice *dev, qemu_irq *p, int isairq);
@@ -96,8 +98,6 @@ static inline ISABus *isa_bus_from_device(ISADevice *d)
 {
     return ISA_BUS(qdev_get_parent_bus(DEVICE(d)));
 }
-
-extern hwaddr isa_mem_base;
 
 /* dma.c */
 int DMA_get_channel_mode (int nchan);

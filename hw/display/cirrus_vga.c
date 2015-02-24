@@ -2907,7 +2907,7 @@ static void cirrus_init_common(CirrusVGAState *s, Object *owner,
                                             bank, 1);
     }
     memory_region_add_subregion_overlap(system_memory,
-                                        isa_mem_base + 0x000a0000,
+                                        0x000a0000,
                                         &s->low_mem_container,
                                         1);
     memory_region_set_coalescing(&s->low_mem);

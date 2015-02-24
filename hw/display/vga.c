@@ -177,7 +177,6 @@ static void vga_update_memory_access(VGACommonState *s)
             size = 0x8000;
             break;
         }
-        base += isa_mem_base;
         memory_region_init_alias(&s->chain4_alias, memory_region_owner(&s->vram),
                                  "vga.chain4", &s->vram, offset, size);
         memory_region_add_subregion_overlap(s->legacy_address_space, base,
@@ -2218,7 +2217,7 @@ void vga_init(VGACommonState *s, Object *obj, MemoryRegion *address_space,
 
     vga_io_memory = vga_init_io(s, obj, &vga_ports, &vbe_ports);
     memory_region_add_subregion_overlap(address_space,
-                                        isa_mem_base + 0x000a0000,
+                                        0x000a0000,
                                         vga_io_memory,
                                         1);
     memory_region_set_coalescing(vga_io_memory);

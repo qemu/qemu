@@ -4947,7 +4947,7 @@ static void gen_mfc0(DisasContext *ctx, TCGv arg, int reg, int sel)
 #if defined(TARGET_MIPS64)
             if (ctx->rxi) {
                 TCGv tmp = tcg_temp_new();
-                tcg_gen_andi_tl(tmp, arg, (3ull << 62));
+                tcg_gen_andi_tl(tmp, arg, (3ull << CP0EnLo_XI));
                 tcg_gen_shri_tl(tmp, tmp, 32);
                 tcg_gen_or_tl(arg, arg, tmp);
                 tcg_temp_free(tmp);
@@ -5002,7 +5002,7 @@ static void gen_mfc0(DisasContext *ctx, TCGv arg, int reg, int sel)
 #if defined(TARGET_MIPS64)
             if (ctx->rxi) {
                 TCGv tmp = tcg_temp_new();
-                tcg_gen_andi_tl(tmp, arg, (3ull << 62));
+                tcg_gen_andi_tl(tmp, arg, (3ull << CP0EnLo_XI));
                 tcg_gen_shri_tl(tmp, tmp, 32);
                 tcg_gen_or_tl(arg, arg, tmp);
                 tcg_temp_free(tmp);
@@ -13653,7 +13653,7 @@ static void decode_micromips32_opc (CPUMIPSState *env, DisasContext *ctx,
                target. */
             break;
         case LUI:
-            gen_logic_imm(ctx, OPC_LUI, rs, -1, imm);
+            gen_logic_imm(ctx, OPC_LUI, rs, 0, imm);
             break;
         case SYNCI:
             /* Break the TB to be able to sync copied instructions
@@ -19095,6 +19095,7 @@ gen_intermediate_code_internal(MIPSCPU *cpu, TranslationBlock *tb,
     CPUMIPSState *env = &cpu->env;
     DisasContext ctx;
     target_ulong pc_start;
+    target_ulong next_page_start;
     CPUBreakpoint *bp;
     int j, lj = -1;
     int num_insns;
@@ -19106,6 +19107,7 @@ gen_intermediate_code_internal(MIPSCPU *cpu, TranslationBlock *tb,
         qemu_log("search pc %d\n", search_pc);
 
     pc_start = tb->pc;
+    next_page_start = (pc_start & TARGET_PAGE_MASK) + TARGET_PAGE_SIZE;
     ctx.pc = pc_start;
     ctx.saved_pc = -1;
     ctx.singlestep_enabled = cs->singlestep_enabled;
@@ -19204,8 +19206,9 @@ gen_intermediate_code_internal(MIPSCPU *cpu, TranslationBlock *tb,
             break;
         }
 
-        if ((ctx.pc & (TARGET_PAGE_SIZE - 1)) == 0)
+        if (ctx.pc >= next_page_start) {
             break;
+        }
 
         if (tcg_op_buf_full()) {
             break;
