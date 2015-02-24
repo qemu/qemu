@@ -65,8 +65,6 @@ static uint64_t bcm2835_st_read(void *opaque, hwaddr offset,
 
     assert(size == 4);
 
-    printf("st read %02x\n", (unsigned int)offset);
-
     switch (offset) {
     case 0x00:
         res = s->match;
@@ -109,8 +107,6 @@ static void bcm2835_st_write(void *opaque, hwaddr offset,
     int i;
 
     assert(size == 4);
-
-    printf("st write %02x\n", (unsigned int)offset);
 
     switch (offset) {
     case 0x00:
