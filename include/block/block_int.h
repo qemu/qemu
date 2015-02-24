@@ -369,9 +369,6 @@ struct BlockDriverState {
     /* I/O Limits */
     BlockLimits bl;
 
-    /* Whether the disk can expand beyond total_sectors */
-    int growable;
-
     /* Whether produces zeros when read beyond eof */
     bool zero_beyond_eof;
 

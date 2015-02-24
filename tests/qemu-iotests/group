@@ -22,7 +22,7 @@
 013 rw auto
 014 rw auto
 015 rw snapshot auto
-016 rw auto quick
+# 016 was removed, do not reuse
 017 rw backing auto quick
 018 rw backing auto quick
 019 rw backing auto quick
@@ -99,6 +99,8 @@
 090 rw auto quick
 091 rw auto
 092 rw auto quick
+093 auto
+094 rw auto quick
 095 rw auto quick
 097 rw auto backing
 098 rw auto backing quick
@@ -117,3 +119,4 @@
 113 rw auto quick
 114 rw auto quick
 116 rw auto quick
+123 rw auto quick

@@ -18,7 +18,9 @@
 #include "hw/hw.h"
 #include "exec/memory.h"
 #include "exec/address-spaces.h"
+#include "hw/virtio/virtio-access.h"
 #include "hw/virtio/dataplane/vring.h"
+#include "hw/virtio/dataplane/vring-accessors.h"
 #include "qemu/error-report.h"
 
 /* vring_map can be coupled with vring_unmap or (if you still have the
@@ -83,7 +85,7 @@ bool vring_setup(Vring *vring, VirtIODevice *vdev, int n)
     vring_init(&vring->vr, virtio_queue_get_num(vdev, n), vring_ptr, 4096);
 
     vring->last_avail_idx = virtio_queue_get_last_avail_idx(vdev, n);
-    vring->last_used_idx = vring->vr.used->idx;
+    vring->last_used_idx = vring_get_used_idx(vdev, vring);
     vring->signalled_used = 0;
     vring->signalled_used_valid = false;
 
@@ -104,7 +106,7 @@ void vring_teardown(Vring *vring, VirtIODevice *vdev, int n)
 void vring_disable_notification(VirtIODevice *vdev, Vring *vring)
 {
     if (!(vdev->guest_features & (1 << VIRTIO_RING_F_EVENT_IDX))) {
-        vring->vr.used->flags |= VRING_USED_F_NO_NOTIFY;
+        vring_set_used_flags(vdev, vring, VRING_USED_F_NO_NOTIFY);
     }
 }
 
@@ -117,10 +119,10 @@ bool vring_enable_notification(VirtIODevice *vdev, Vring *vring)
     if (vdev->guest_features & (1 << VIRTIO_RING_F_EVENT_IDX)) {
         vring_avail_event(&vring->vr) = vring->vr.avail->idx;
     } else {
-        vring->vr.used->flags &= ~VRING_USED_F_NO_NOTIFY;
+        vring_clear_used_flags(vdev, vring, VRING_USED_F_NO_NOTIFY);
     }
     smp_mb(); /* ensure update is seen before reading avail_idx */
-    return !vring_more_avail(vring);
+    return !vring_more_avail(vdev, vring);
 }
 
 /* This is stolen from linux/drivers/vhost/vhost.c:vhost_notify() */
@@ -134,12 +136,13 @@ bool vring_should_notify(VirtIODevice *vdev, Vring *vring)
     smp_mb();
 
     if ((vdev->guest_features & (1 << VIRTIO_F_NOTIFY_ON_EMPTY)) &&
-        unlikely(vring->vr.avail->idx == vring->last_avail_idx)) {
+        unlikely(!vring_more_avail(vdev, vring))) {
         return true;
     }
 
     if (!(vdev->guest_features & (1 << VIRTIO_RING_F_EVENT_IDX))) {
-        return !(vring->vr.avail->flags & VRING_AVAIL_F_NO_INTERRUPT);
+        return !(vring_get_avail_flags(vdev, vring) &
+                 VRING_AVAIL_F_NO_INTERRUPT);
     }
     old = vring->signalled_used;
     v = vring->signalled_used_valid;
@@ -202,9 +205,19 @@ static int get_desc(Vring *vring, VirtQueueElement *elem,
     return 0;
 }
 
+static void copy_in_vring_desc(VirtIODevice *vdev,
+                               const struct vring_desc *guest,
+                               struct vring_desc *host)
+{
+    host->addr = virtio_ldq_p(vdev, &guest->addr);
+    host->len = virtio_ldl_p(vdev, &guest->len);
+    host->flags = virtio_lduw_p(vdev, &guest->flags);
+    host->next = virtio_lduw_p(vdev, &guest->next);
+}
+
 /* This is stolen from linux/drivers/vhost/vhost.c. */
-static int get_indirect(Vring *vring, VirtQueueElement *elem,
-                        struct vring_desc *indirect)
+static int get_indirect(VirtIODevice *vdev, Vring *vring,
+                        VirtQueueElement *elem, struct vring_desc *indirect)
 {
     struct vring_desc desc;
     unsigned int i = 0, count, found = 0;
@@ -244,7 +257,7 @@ static int get_indirect(Vring *vring, VirtQueueElement *elem,
             vring->broken = true;
             return -EFAULT;
         }
-        desc = *desc_ptr;
+        copy_in_vring_desc(vdev, desc_ptr, &desc);
         memory_region_unref(mr);
 
         /* Ensure descriptor has been loaded before accessing fields */
@@ -320,7 +333,7 @@ int vring_pop(VirtIODevice *vdev, Vring *vring,
 
     /* Check it isn't doing very strange things with descriptor numbers. */
     last_avail_idx = vring->last_avail_idx;
-    avail_idx = vring->vr.avail->idx;
+    avail_idx = vring_get_avail_idx(vdev, vring);
     barrier(); /* load indices now and not again later */
 
     if (unlikely((uint16_t)(avail_idx - last_avail_idx) > num)) {
@@ -341,7 +354,7 @@ int vring_pop(VirtIODevice *vdev, Vring *vring,
 
     /* Grab the next descriptor number they're advertising, and increment
      * the index we've seen. */
-    head = vring->vr.avail->ring[last_avail_idx % num];
+    head = vring_get_avail_ring(vdev, vring, last_avail_idx % num);
 
     elem->index = head;
 
@@ -365,13 +378,13 @@ int vring_pop(VirtIODevice *vdev, Vring *vring,
             ret = -EFAULT;
             goto out;
         }
-        desc = vring->vr.desc[i];
+        copy_in_vring_desc(vdev, &vring->vr.desc[i], &desc);
 
         /* Ensure descriptor is loaded before accessing fields */
         barrier();
 
         if (desc.flags & VRING_DESC_F_INDIRECT) {
-            ret = get_indirect(vring, elem, &desc);
+            ret = get_indirect(vdev, vring, elem, &desc);
             if (ret < 0) {
                 goto out;
             }
@@ -407,9 +420,9 @@ out:
  *
  * Stolen from linux/drivers/vhost/vhost.c.
  */
-void vring_push(Vring *vring, VirtQueueElement *elem, int len)
+void vring_push(VirtIODevice *vdev, Vring *vring, VirtQueueElement *elem,
+                int len)
 {
-    struct vring_used_elem *used;
     unsigned int head = elem->index;
     uint16_t new;
 
@@ -422,14 +435,16 @@ void vring_push(Vring *vring, VirtQueueElement *elem, int len)
 
     /* The virtqueue contains a ring of used buffers.  Get a pointer to the
      * next entry in that used ring. */
-    used = &vring->vr.used->ring[vring->last_used_idx % vring->vr.num];
-    used->id = head;
-    used->len = len;
+    vring_set_used_ring_id(vdev, vring, vring->last_used_idx % vring->vr.num,
+                           head);
+    vring_set_used_ring_len(vdev, vring, vring->last_used_idx % vring->vr.num,
+                            len);
 
     /* Make sure buffer is written before we update index. */
     smp_wmb();
 
-    new = vring->vr.used->idx = ++vring->last_used_idx;
+    new = ++vring->last_used_idx;
+    vring_set_used_idx(vdev, vring, new);
     if (unlikely((int16_t)(new - vring->signalled_used) < (uint16_t)1)) {
         vring->signalled_used_valid = false;
     }

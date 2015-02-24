@@ -94,7 +94,7 @@ void virtio_scsi_vring_push_notify(VirtIOSCSIReq *req)
 {
     VirtIODevice *vdev = VIRTIO_DEVICE(req->vring->parent);
 
-    vring_push(&req->vring->vring, &req->elem,
+    vring_push(vdev, &req->vring->vring, &req->elem,
                req->qsgl.size + req->resp_iov.size);
 
     if (vring_should_notify(vdev, &req->vring->vring)) {

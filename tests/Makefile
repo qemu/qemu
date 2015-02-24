@@ -307,9 +307,10 @@ tests/test-mul64$(EXESUF): tests/test-mul64.o libqemuutil.a
 tests/test-bitops$(EXESUF): tests/test-bitops.o libqemuutil.a
 
 libqos-obj-y = tests/libqos/pci.o tests/libqos/fw_cfg.o tests/libqos/malloc.o
-libqos-obj-y += tests/libqos/i2c.o
+libqos-obj-y += tests/libqos/i2c.o tests/libqos/libqos.o
 libqos-pc-obj-y = $(libqos-obj-y) tests/libqos/pci-pc.o
-libqos-pc-obj-y += tests/libqos/malloc-pc.o
+libqos-pc-obj-y += tests/libqos/malloc-pc.o tests/libqos/libqos-pc.o
+libqos-pc-obj-y += tests/libqos/ahci.o
 libqos-omap-obj-y = $(libqos-obj-y) tests/libqos/i2c-omap.o
 libqos-virtio-obj-y = $(libqos-obj-y) $(libqos-pc-obj-y) tests/libqos/virtio.o tests/libqos/virtio-pci.o
 libqos-usb-obj-y = $(libqos-pc-obj-y) tests/libqos/usb.o

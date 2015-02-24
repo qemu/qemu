@@ -16,6 +16,7 @@
 #include "hmp.h"
 #include "net/net.h"
 #include "sysemu/char.h"
+#include "sysemu/block-backend.h"
 #include "qemu/option.h"
 #include "qemu/timer.h"
 #include "qmp-commands.h"
@@ -1720,14 +1721,14 @@ void hmp_chardev_remove(Monitor *mon, const QDict *qdict)
 
 void hmp_qemu_io(Monitor *mon, const QDict *qdict)
 {
-    BlockDriverState *bs;
+    BlockBackend *blk;
     const char* device = qdict_get_str(qdict, "device");
     const char* command = qdict_get_str(qdict, "command");
     Error *err = NULL;
 
-    bs = bdrv_find(device);
-    if (bs) {
-        qemuio_command(bs, command);
+    blk = blk_by_name(device);
+    if (blk) {
+        qemuio_command(blk, command);
     } else {
         error_set(&err, QERR_DEVICE_NOT_FOUND, device);
     }

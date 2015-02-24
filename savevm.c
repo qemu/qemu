@@ -821,7 +821,7 @@ void qemu_savevm_state_cancel(void)
     }
 }
 
-static int qemu_savevm_state(QEMUFile *f)
+static int qemu_savevm_state(QEMUFile *f, Error **errp)
 {
     int ret;
     MigrationParams params = {
@@ -829,7 +829,7 @@ static int qemu_savevm_state(QEMUFile *f)
         .shared = 0
     };
 
-    if (qemu_savevm_state_blocked(NULL)) {
+    if (qemu_savevm_state_blocked(errp)) {
         return -EINVAL;
     }
 
@@ -850,6 +850,7 @@ static int qemu_savevm_state(QEMUFile *f)
     }
     if (ret != 0) {
         qemu_savevm_state_cancel();
+        error_setg_errno(errp, -ret, "Error while writing VM state");
     }
     return ret;
 }
@@ -1102,6 +1103,7 @@ void do_savevm(Monitor *mon, const QDict *qdict)
     qemu_timeval tv;
     struct tm tm;
     const char *name = qdict_get_try_str(qdict, "name");
+    Error *local_err = NULL;
 
     /* Verify if there is a device that doesn't support snapshots and is writable */
     bs = NULL;
@@ -1160,11 +1162,12 @@ void do_savevm(Monitor *mon, const QDict *qdict)
         monitor_printf(mon, "Could not open VM state file\n");
         goto the_end;
     }
-    ret = qemu_savevm_state(f);
+    ret = qemu_savevm_state(f, &local_err);
     vm_state_size = qemu_ftell(f);
     qemu_fclose(f);
     if (ret < 0) {
-        monitor_printf(mon, "Error %d while writing VM\n", ret);
+        monitor_printf(mon, "%s\n", error_get_pretty(local_err));
+        error_free(local_err);
         goto the_end;
     }
 

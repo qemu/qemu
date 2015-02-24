@@ -874,7 +874,7 @@ void nbd_client_put(NBDClient *client)
 {
     if (--client->refcount == 0) {
         /* The last reference should be dropped by client->close,
-         * which is called by nbd_client_close.
+         * which is called by client_close.
          */
         assert(client->closing);
 
@@ -889,7 +889,7 @@ void nbd_client_put(NBDClient *client)
     }
 }
 
-void nbd_client_close(NBDClient *client)
+static void client_close(NBDClient *client)
 {
     if (client->closing) {
         return;
@@ -1026,7 +1026,7 @@ void nbd_export_close(NBDExport *exp)
 
     nbd_export_get(exp);
     QTAILQ_FOREACH_SAFE(client, &exp->clients, next, next) {
-        nbd_client_close(client);
+        client_close(client);
     }
     nbd_export_set_name(exp, NULL);
     nbd_export_put(exp);
@@ -1311,7 +1311,7 @@ done:
 
 out:
     nbd_request_put(req);
-    nbd_client_close(client);
+    client_close(client);
 }
 
 static void nbd_read(void *opaque)

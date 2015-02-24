@@ -1047,7 +1047,7 @@ static int aio_worker(void *arg)
     switch (aiocb->aio_type & QEMU_AIO_TYPE_MASK) {
     case QEMU_AIO_READ:
         ret = handle_aiocb_rw(aiocb);
-        if (ret >= 0 && ret < aiocb->aio_nbytes && aiocb->bs->growable) {
+        if (ret >= 0 && ret < aiocb->aio_nbytes) {
             iov_memset(aiocb->aio_iov, aiocb->aio_niov, ret,
                       0, aiocb->aio_nbytes - ret);
 

@@ -391,7 +391,6 @@ int main(int argc, char **argv)
 {
     BlockBackend *blk;
     BlockDriverState *bs;
-    BlockDriver *drv;
     off_t dev_offset = 0;
     uint32_t nbdflags = 0;
     bool disconnect = false;
@@ -434,7 +433,7 @@ int main(int argc, char **argv)
     char *end;
     int flags = BDRV_O_RDWR;
     int partition = -1;
-    int ret;
+    int ret = 0;
     int fd;
     bool seen_cache = false;
     bool seen_discard = false;
@@ -445,6 +444,7 @@ int main(int argc, char **argv)
     const char *fmt = NULL;
     Error *local_err = NULL;
     BlockdevDetectZeroesOptions detect_zeroes = BLOCKDEV_DETECT_ZEROES_OPTIONS_OFF;
+    QDict *options = NULL;
 
     /* The client thread uses SIGTERM to interrupt the server.  A signal
      * handler ensures that "qemu-nbd -v -c" exits with a nice status code.
@@ -689,24 +689,17 @@ int main(int argc, char **argv)
     atexit(bdrv_close_all);
 
     if (fmt) {
-        drv = bdrv_find_format(fmt);
-        if (!drv) {
-            errx(EXIT_FAILURE, "Unknown file format '%s'", fmt);
-        }
-    } else {
-        drv = NULL;
+        options = qdict_new();
+        qdict_put(options, "driver", qstring_from_str(fmt));
     }
-
-    blk = blk_new_with_bs("hda", &error_abort);
-    bs = blk_bs(blk);
 
     srcpath = argv[optind];
-    ret = bdrv_open(&bs, srcpath, NULL, NULL, flags, drv, &local_err);
-    if (ret < 0) {
-        errno = -ret;
-        err(EXIT_FAILURE, "Failed to bdrv_open '%s': %s", argv[optind],
-            error_get_pretty(local_err));
+    blk = blk_new_open("hda", srcpath, NULL, options, flags, &local_err);
+    if (!blk) {
+        errx(EXIT_FAILURE, "Failed to blk_new_open '%s': %s", argv[optind],
+             error_get_pretty(local_err));
     }
+    bs = blk_bs(blk);
 
     if (sn_opts) {
         ret = bdrv_snapshot_load_tmp(bs,

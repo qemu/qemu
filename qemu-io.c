@@ -28,7 +28,6 @@
 static char *progname;
 
 static BlockBackend *qemuio_blk;
-static BlockDriverState *qemuio_bs;
 
 /* qemu-io commands passed using -c */
 static int ncmdline;
@@ -36,10 +35,9 @@ static char **cmdline;
 
 static ReadLineState *readline_state;
 
-static int close_f(BlockDriverState *bs, int argc, char **argv)
+static int close_f(BlockBackend *blk, int argc, char **argv)
 {
     blk_unref(qemuio_blk);
-    qemuio_bs = NULL;
     qemuio_blk = NULL;
     return 0;
 }
@@ -51,32 +49,22 @@ static const cmdinfo_t close_cmd = {
     .oneline    = "close the current open file",
 };
 
-static int openfile(char *name, BlockDriver *drv, int flags, int growable,
-                    QDict *opts)
+static int openfile(char *name, int flags, QDict *opts)
 {
     Error *local_err = NULL;
 
-    if (qemuio_bs) {
+    if (qemuio_blk) {
         fprintf(stderr, "file open already, try 'help close'\n");
         QDECREF(opts);
         return 1;
     }
 
-    qemuio_blk = blk_new_with_bs("hda", &error_abort);
-    qemuio_bs = blk_bs(qemuio_blk);
-
-    if (growable) {
-        flags |= BDRV_O_PROTOCOL;
-    }
-
-    if (bdrv_open(&qemuio_bs, name, NULL, opts, flags, drv, &local_err) < 0) {
+    qemuio_blk = blk_new_open("hda", name, NULL, opts, flags, &local_err);
+    if (!qemuio_blk) {
         fprintf(stderr, "%s: can't open%s%s: %s\n", progname,
                 name ? " device " : "", name ?: "",
                 error_get_pretty(local_err));
         error_free(local_err);
-        blk_unref(qemuio_blk);
-        qemuio_bs = NULL;
-        qemuio_blk = NULL;
         return 1;
     }
 
@@ -96,12 +84,11 @@ static void open_help(void)
 " -r, -- open file read-only\n"
 " -s, -- use snapshot file\n"
 " -n, -- disable host cache\n"
-" -g, -- allow file to grow (only applies to protocols)\n"
 " -o, -- options to be given to the block driver"
 "\n");
 }
 
-static int open_f(BlockDriverState *bs, int argc, char **argv);
+static int open_f(BlockBackend *blk, int argc, char **argv);
 
 static const cmdinfo_t open_cmd = {
     .name       = "open",
@@ -125,11 +112,10 @@ static QemuOptsList empty_opts = {
     },
 };
 
-static int open_f(BlockDriverState *bs, int argc, char **argv)
+static int open_f(BlockBackend *blk, int argc, char **argv)
 {
     int flags = 0;
     int readonly = 0;
-    int growable = 0;
     int c;
     QemuOpts *qopts;
     QDict *opts;
@@ -144,9 +130,6 @@ static int open_f(BlockDriverState *bs, int argc, char **argv)
             break;
         case 'r':
             readonly = 1;
-            break;
-        case 'g':
-            growable = 1;
             break;
         case 'o':
             if (!qemu_opts_parse(&empty_opts, optarg, 0)) {
@@ -170,16 +153,16 @@ static int open_f(BlockDriverState *bs, int argc, char **argv)
     qemu_opts_reset(&empty_opts);
 
     if (optind == argc - 1) {
-        return openfile(argv[optind], NULL, flags, growable, opts);
+        return openfile(argv[optind], flags, opts);
     } else if (optind == argc) {
-        return openfile(NULL, NULL, flags, growable, opts);
+        return openfile(NULL, flags, opts);
     } else {
         QDECREF(opts);
         return qemuio_command_usage(&open_cmd);
     }
 }
 
-static int quit_f(BlockDriverState *bs, int argc, char **argv)
+static int quit_f(BlockBackend *blk, int argc, char **argv)
 {
     return 1;
 }
@@ -206,7 +189,6 @@ static void usage(const char *name)
 "  -r, --read-only      export read-only\n"
 "  -s, --snapshot       use snapshot file\n"
 "  -n, --nocache        disable host cache\n"
-"  -g, --growable       allow file to grow (only applies to protocols)\n"
 "  -m, --misalign       misalign allocations for O_DIRECT\n"
 "  -k, --native-aio     use kernel AIO implementation (on Linux only)\n"
 "  -t, --cache=MODE     use the given cache mode for the image\n"
@@ -317,7 +299,7 @@ static void command_loop(void)
     char *input;
 
     for (i = 0; !done && i < ncmdline; i++) {
-        done = qemuio_command(qemuio_bs, cmdline[i]);
+        done = qemuio_command(qemuio_blk, cmdline[i]);
     }
     if (cmdline) {
         g_free(cmdline);
@@ -342,7 +324,7 @@ static void command_loop(void)
         if (input == NULL) {
             break;
         }
-        done = qemuio_command(qemuio_bs, input);
+        done = qemuio_command(qemuio_blk, input);
         g_free(input);
 
         prompted = 0;
@@ -365,7 +347,6 @@ static void reenable_tty_echo(void)
 int main(int argc, char **argv)
 {
     int readonly = 0;
-    int growable = 0;
     const char *sopt = "hVc:d:f:rsnmgkt:T:";
     const struct option lopt[] = {
         { "help", 0, NULL, 'h' },
@@ -377,7 +358,6 @@ int main(int argc, char **argv)
         { "snapshot", 0, NULL, 's' },
         { "nocache", 0, NULL, 'n' },
         { "misalign", 0, NULL, 'm' },
-        { "growable", 0, NULL, 'g' },
         { "native-aio", 0, NULL, 'k' },
         { "discard", 1, NULL, 'd' },
         { "cache", 1, NULL, 't' },
@@ -387,8 +367,8 @@ int main(int argc, char **argv)
     int c;
     int opt_index = 0;
     int flags = BDRV_O_UNMAP;
-    BlockDriver *drv = NULL;
     Error *local_error = NULL;
+    QDict *opts = NULL;
 
 #ifdef CONFIG_POSIX
     signal(SIGPIPE, SIG_IGN);
@@ -414,11 +394,10 @@ int main(int argc, char **argv)
             }
             break;
         case 'f':
-            drv = bdrv_find_format(optarg);
-            if (!drv) {
-                error_report("Invalid format '%s'", optarg);
-                exit(EXIT_FAILURE);
+            if (!opts) {
+                opts = qdict_new();
             }
+            qdict_put(opts, "driver", qstring_from_str(optarg));
             break;
         case 'c':
             add_user_command(optarg);
@@ -428,9 +407,6 @@ int main(int argc, char **argv)
             break;
         case 'm':
             qemuio_misalign = true;
-            break;
-        case 'g':
-            growable = 1;
             break;
         case 'k':
             flags |= BDRV_O_NATIVE_AIO;
@@ -489,7 +465,7 @@ int main(int argc, char **argv)
     }
 
     if ((argc - optind) == 1) {
-        openfile(argv[optind], drv, flags, growable, NULL);
+        openfile(argv[optind], flags, opts);
     }
     command_loop();
 
