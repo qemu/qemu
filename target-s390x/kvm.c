@@ -1254,8 +1254,17 @@ static void sigp_restart(void *arg)
         .type = KVM_S390_RESTART,
     };
 
-    kvm_s390_vcpu_interrupt(si->cpu, &irq);
-    s390_cpu_set_state(CPU_STATE_OPERATING, si->cpu);
+    switch (s390_cpu_get_state(si->cpu)) {
+    case CPU_STATE_STOPPED:
+        /* the restart irq has to be delivered prior to any other pending irq */
+        cpu_synchronize_state(CPU(si->cpu));
+        do_restart_interrupt(&si->cpu->env);
+        s390_cpu_set_state(CPU_STATE_OPERATING, si->cpu);
+        break;
+    case CPU_STATE_OPERATING:
+        kvm_s390_vcpu_interrupt(si->cpu, &irq);
+        break;
+    }
     si->cc = SIGP_CC_ORDER_CODE_ACCEPTED;
 }
 
