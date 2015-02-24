@@ -1131,7 +1131,6 @@ static void sigp_start(void *arg)
 
     s390_cpu_set_state(CPU_STATE_OPERATING, si->cpu);
     si->cc = SIGP_CC_ORDER_CODE_ACCEPTED;
-    DPRINTF("DONE: KVM cpu start: %p\n", &si->cpu->env);
 }
 
 static void sigp_restart(void *arg)
@@ -1246,6 +1245,9 @@ static int handle_sigp(S390CPU *cpu, struct kvm_run *run, uint8_t ipa1)
         dst_cpu = s390_cpu_addr2state(env->regs[r3]);
         ret = handle_sigp_single_dst(dst_cpu, order, param, status_reg);
     }
+
+    trace_kvm_sigp_finished(order, CPU(cpu)->cpu_index,
+                            dst_cpu ? CPU(dst_cpu)->cpu_index : -1, ret);
 
     if (ret >= 0) {
         setcc(cpu, ret);
