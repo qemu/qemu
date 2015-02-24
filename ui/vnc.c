@@ -1111,6 +1111,12 @@ static int vnc_update_client(VncState *vs, int has_dirty, bool sync)
                 n += vnc_job_add_rect(job, x * VNC_DIRTY_PIXELS_PER_BIT, y,
                                       (x2 - x) * VNC_DIRTY_PIXELS_PER_BIT, h);
             }
+            if (!x && x2 == width / VNC_DIRTY_PIXELS_PER_BIT) {
+                y += h;
+                if (y == height) {
+                    break;
+                }
+            }
         }
 
         vnc_job_push(job);
@@ -3242,6 +3248,7 @@ char *vnc_display_local_addr(const char *id)
 {
     VncDisplay *vs = vnc_display_find(id);
 
+    assert(vs);
     return vnc_socket_local_addr("%s:%s", vs->lsock);
 }
 
@@ -3271,6 +3278,15 @@ static QemuOptsList qemu_vnc_opts = {
         },{
             .name = "connections",
             .type = QEMU_OPT_NUMBER,
+        },{
+            .name = "to",
+            .type = QEMU_OPT_NUMBER,
+        },{
+            .name = "ipv4",
+            .type = QEMU_OPT_BOOL,
+        },{
+            .name = "ipv6",
+            .type = QEMU_OPT_BOOL,
         },{
             .name = "password",
             .type = QEMU_OPT_BOOL,
@@ -3307,19 +3323,24 @@ void vnc_display_open(const char *id, Error **errp)
 {
     VncDisplay *vs = vnc_display_find(id);
     QemuOpts *opts = qemu_opts_find(&qemu_vnc_opts, id);
-    const char *display, *share, *device_id;
+    const char *share, *device_id;
     QemuConsole *con;
-    int password = 0;
-    int reverse = 0;
+    bool password = false;
+    bool reverse = false;
+    const char *vnc;
+    const char *has_to;
+    char *display, *to = NULL;
+    bool has_ipv4 = false;
+    bool has_ipv6 = false;
 #ifdef CONFIG_VNC_WS
     const char *websocket;
 #endif
 #ifdef CONFIG_VNC_TLS
-    int tls = 0, x509 = 0;
+    bool tls = false, x509 = false;
     const char *path;
 #endif
 #ifdef CONFIG_VNC_SASL
-    int sasl = 0;
+    bool sasl = false;
     int saslErr;
 #endif
 #if defined(CONFIG_VNC_TLS) || defined(CONFIG_VNC_SASL)
@@ -3336,10 +3357,21 @@ void vnc_display_open(const char *id, Error **errp)
     if (!opts) {
         return;
     }
-    display = qemu_opt_get(opts, "vnc");
-    if (!display || strcmp(display, "none") == 0) {
+    vnc = qemu_opt_get(opts, "vnc");
+    if (!vnc || strcmp(vnc, "none") == 0) {
         return;
     }
+
+    has_to = qemu_opt_get(opts, "to");
+    if (has_to) {
+        to = g_strdup_printf(",to=%s", has_to);
+    }
+    has_ipv4 = qemu_opt_get_bool(opts, "ipv4", false);
+    has_ipv6 = qemu_opt_get_bool(opts, "ipv6", false);
+    display = g_strdup_printf("%s%s%s%s", vnc,
+                                  has_to ? to : "",
+                                  has_ipv4 ? ",ipv4" : "",
+                                  has_ipv6 ? ",ipv6" : "");
     vs->display = g_strdup(display);
 
     password = qemu_opt_get_bool(opts, "password", false);
@@ -3360,7 +3392,7 @@ void vnc_display_open(const char *id, Error **errp)
     tls  = qemu_opt_get_bool(opts, "tls", false);
     path = qemu_opt_get(opts, "x509");
     if (path) {
-        x509 = 1;
+        x509 = true;
         vs->tls.x509verify = qemu_opt_get_bool(opts, "x509verify", false);
         if (vnc_tls_set_x509_creds_dir(vs, path) < 0) {
             error_setg(errp, "Failed to find x509 certificates/keys in %s",
@@ -3619,6 +3651,8 @@ void vnc_display_open(const char *id, Error **errp)
             }
 #endif /* CONFIG_VNC_WS */
         }
+        g_free(to);
+        g_free(display);
         g_free(vs->display);
         vs->display = dpy;
         qemu_set_fd_handler2(vs->lsock, NULL,
@@ -3633,6 +3667,8 @@ void vnc_display_open(const char *id, Error **errp)
     return;
 
 fail:
+    g_free(to);
+    g_free(display);
     g_free(vs->display);
     vs->display = NULL;
 #ifdef CONFIG_VNC_WS
@@ -3656,6 +3692,19 @@ QemuOpts *vnc_parse_func(const char *str)
     return qemu_opts_parse(qemu_find_opts("vnc"), str, 1);
 }
 
+void vnc_auto_assign_id(QemuOptsList *olist, QemuOpts *opts)
+{
+    int i = 2;
+    char *id;
+
+    id = g_strdup("default");
+    while (qemu_opts_find(olist, id)) {
+        g_free(id);
+        id = g_strdup_printf("vnc%d", i++);
+    }
+    qemu_opts_set_id(opts, id);
+}
+
 int vnc_init_func(QemuOpts *opts, void *opaque)
 {
     Error *local_err = NULL;
@@ -3664,13 +3713,8 @@ int vnc_init_func(QemuOpts *opts, void *opaque)
 
     if (!id) {
         /* auto-assign id if not present */
-        int i = 2;
-        id = g_strdup("default");
-        while (qemu_opts_find(olist, id)) {
-            g_free(id);
-            id = g_strdup_printf("vnc%d", i++);
-        }
-        qemu_opts_set_id(opts, id);
+        vnc_auto_assign_id(olist, opts);
+        id = (char *)qemu_opts_id(opts);
     }
 
     vnc_display_init(id);
