@@ -148,6 +148,8 @@ static uint64_t bcm2835_sbm_read(void *opaque, hwaddr offset,
 
     offset &= 0xff;
 
+    printf("mbox read %02x\n", (unsigned int)offset);
+
     switch (offset) {
     case 0x80:  /* MAIL0_READ */
     case 0x84:
@@ -189,6 +191,8 @@ static void bcm2835_sbm_write(void *opaque, hwaddr offset,
     bcm2835_sbm_state *s = (bcm2835_sbm_state *)opaque;
 
     offset &= 0xff;
+
+    printf("mbox write %02x\n", (unsigned int)offset);
 
     switch (offset) {
     case 0x94:  /* MAIL0_SENDER */

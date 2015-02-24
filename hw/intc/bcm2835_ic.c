@@ -84,6 +84,8 @@ static uint64_t bcm2835_ic_read(void *opaque, hwaddr offset,
     int p = 0;
     uint32_t res = 0;
 
+    printf("ic read %02x\n", (unsigned int)offset);
+
     switch (offset) {
     case 0x00:  /* IRQ basic pending */
         /* bits 0-7 - ARM irqs */
@@ -145,6 +147,8 @@ static void bcm2835_ic_write(void *opaque, hwaddr offset,
     uint64_t val, unsigned size)
 {
     bcm2835_ic_state *s = (bcm2835_ic_state *)opaque;
+
+    printf("ic write %02x\n", (unsigned int)offset);
 
     switch (offset) {
     case 0x0C:  /* FIQ register */

@@ -57,6 +57,7 @@ static void bcm2835_property_mbox_push(bcm2835_property_state *s,
         bufsize = ldl_phys(&address_space_memory, value + 4);
         /* @(value + 8) : Request/response indicator */
         resplen = 0;
+        printf("tag: %08x\n", (unsigned int)tag);
         switch (tag) {
         case 0x00000000: /* End tag */
             break;
