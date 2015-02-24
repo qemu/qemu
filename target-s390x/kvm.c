@@ -1118,6 +1118,13 @@ typedef struct SigpInfo {
     uint64_t *status_reg;
 } SigpInfo;
 
+static void set_sigp_status(SigpInfo *si, uint64_t status)
+{
+    *si->status_reg &= 0xffffffff00000000ULL;
+    *si->status_reg |= status;
+    si->cc = SIGP_CC_STATUS_STORED;
+}
+
 static void sigp_start(void *arg)
 {
     SigpInfo *si = arg;
@@ -1202,9 +1209,7 @@ static int handle_sigp_single_dst(S390CPU *dst_cpu, uint8_t order,
         break;
     default:
         DPRINTF("KVM: unknown SIGP: 0x%x\n", order);
-        *status_reg &= 0xffffffff00000000ULL;
-        *status_reg |= SIGP_STAT_INVALID_ORDER;
-        si.cc = SIGP_CC_STATUS_STORED;
+        set_sigp_status(&si, SIGP_STAT_INVALID_ORDER);
     }
 
     return si.cc;
