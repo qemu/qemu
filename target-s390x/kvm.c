@@ -187,6 +187,9 @@ int kvm_arch_init(KVMState *s)
         || !kvm_check_extension(s, KVM_CAP_S390_COW)) {
         phys_mem_set_alloc(legacy_s390_alloc);
     }
+
+    kvm_vm_enable_cap(s, KVM_CAP_S390_USER_SIGP, 0);
+
     return 0;
 }
 
