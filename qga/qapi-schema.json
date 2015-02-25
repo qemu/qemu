@@ -121,7 +121,10 @@
 # given value, then sets the Hardware Clock (RTC) to the
 # current System Time. This will make it easier for a guest
 # to resynchronize without waiting for NTP. If no @time is
-# specified, then the time to set is read from RTC.
+# specified, then the time to set is read from RTC. However,
+# this may not be supported on all platforms (i.e. Windows).
+# If that's the case users are advised to always pass a
+# value.
 #
 # @time: #optional time of nanoseconds, relative to the Epoch
 #        of 1970-01-01 in UTC.
@@ -738,3 +741,153 @@
 ##
 { 'command': 'guest-get-fsinfo',
   'returns': ['GuestFilesystemInfo'] }
+
+##
+# @guest-set-user-password
+#
+# @username: the user account whose password to change
+# @password: the new password entry string, base64 encoded
+# @crypted: true if password is already crypt()d, false if raw
+#
+# If the @crypted flag is true, it is the caller's responsibility
+# to ensure the correct crypt() encryption scheme is used. This
+# command does not attempt to interpret or report on the encryption
+# scheme. Refer to the documentation of the guest operating system
+# in question to determine what is supported.
+#
+# Note all guest operating systems will support use of the
+# @crypted flag, as they may require the clear-text password
+#
+# The @password parameter must always be base64 encoded before
+# transmission, even if already crypt()d, to ensure it is 8-bit
+# safe when passed as JSON.
+#
+# Returns: Nothing on success.
+#
+# Since 2.3
+##
+{ 'command': 'guest-set-user-password',
+  'data': { 'username': 'str', 'password': 'str', 'crypted': 'bool' } }
+
+# @GuestMemoryBlock:
+#
+# @phys-index: Arbitrary guest-specific unique identifier of the MEMORY BLOCK.
+#
+# @online: Whether the MEMORY BLOCK is enabled in guest.
+#
+# @can-offline: #optional Whether offlining the MEMORY BLOCK is possible.
+#               This member is always filled in by the guest agent when the
+#               structure is returned, and always ignored on input (hence it
+#               can be omitted then).
+#
+# Since: 2.3
+##
+{ 'type': 'GuestMemoryBlock',
+  'data': {'phys-index': 'uint64',
+           'online': 'bool',
+           '*can-offline': 'bool'} }
+
+##
+# @guest-get-memory-blocks:
+#
+# Retrieve the list of the guest's memory blocks.
+#
+# This is a read-only operation.
+#
+# Returns: The list of all memory blocks the guest knows about.
+# Each memory block is put on the list exactly once, but their order
+# is unspecified.
+#
+# Since: 2.3
+##
+{ 'command': 'guest-get-memory-blocks',
+  'returns': ['GuestMemoryBlock'] }
+
+##
+# @GuestMemoryBlockResponseType
+#
+# An enumeration of memory block operation result.
+#
+# @sucess: the operation of online/offline memory block is successful.
+# @not-found: can't find the corresponding memoryXXX directory in sysfs.
+# @operation-not-supported: for some old kernels, it does not support
+#                           online or offline memory block.
+# @operation-failed: the operation of online/offline memory block fails,
+#                    because of some errors happen.
+#
+# Since: 2.3
+##
+{ 'enum': 'GuestMemoryBlockResponseType',
+  'data': ['success', 'not-found', 'operation-not-supported',
+           'operation-failed'] }
+
+##
+# @GuestMemoryBlockResponse:
+#
+# @phys-index: same with the 'phys-index' member of @GuestMemoryBlock.
+#
+# @response: the result of memory block operation.
+#
+# @error-code: #optional the error number.
+#               When memory block operation fails, we assign the value of
+#               'errno' to this member, it indicates what goes wrong.
+#               When the operation succeeds, it will be omitted.
+#
+# Since: 2.3
+##
+{ 'type': 'GuestMemoryBlockResponse',
+  'data': { 'phys-index': 'uint64',
+            'response': 'GuestMemoryBlockResponseType',
+            '*error-code': 'int' }}
+
+##
+# @guest-set-memory-blocks:
+#
+# Attempt to reconfigure (currently: enable/disable) state of memory blocks
+# inside the guest.
+#
+# The input list is processed node by node in order. In each node @phys-index
+# is used to look up the guest MEMORY BLOCK, for which @online specifies the
+# requested state. The set of distinct @phys-index's is only required to be a
+# subset of the guest-supported identifiers. There's no restriction on list
+# length or on repeating the same @phys-index (with possibly different @online
+# field).
+# Preferably the input list should describe a modified subset of
+# @guest-get-memory-blocks' return value.
+#
+# Returns: The operation results, it is a list of @GuestMemoryBlockResponse,
+#          which is corresponding to the input list.
+#
+#          Note: it will return NULL if the @mem-blks list was empty on input,
+#          or there is an error, and in this case, guest state will not be
+#          changed.
+#
+# Since: 2.3
+##
+{ 'command': 'guest-set-memory-blocks',
+  'data':    {'mem-blks': ['GuestMemoryBlock'] },
+  'returns': ['GuestMemoryBlockResponse'] }
+
+# @GuestMemoryBlockInfo:
+#
+# @size: the size (in bytes) of the guest memory blocks,
+#        which are the minimal units of memory block online/offline
+#        operations (also called Logical Memory Hotplug).
+#
+# Since: 2.3
+##
+{ 'type': 'GuestMemoryBlockInfo',
+  'data': {'size': 'uint64'} }
+
+##
+# @guest-get-memory-block-info:
+#
+# Get information relating to guest memory blocks.
+#
+# Returns: memory block size in bytes.
+# Returns: @GuestMemoryBlockInfo
+#
+# Since 2.3
+##
+{ 'command': 'guest-get-memory-block-info',
+  'returns': 'GuestMemoryBlockInfo' }
