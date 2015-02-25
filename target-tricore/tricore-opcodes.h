@@ -523,7 +523,7 @@ enum {
     OPCM_32_RRR1_MADDSU_H                            = 0xc3,
     OPCM_32_RRR1_MSUB_H                              = 0xa3,
     OPCM_32_RRR1_MSUB_Q                              = 0x63,
-    OPCM_32_RRR1_MSUBADS_H                           = 0xe3,
+    OPCM_32_RRR1_MSUBAD_H                            = 0xe3,
 /* RRR2 Format */
     OPCM_32_RRR2_MADD                                = 0x03,
     OPCM_32_RRR2_MSUB                                = 0x23,
@@ -1352,7 +1352,7 @@ enum {
     OPC2_32_RRR1_MSUBADMS_H_64_LL                = 0x3e,
     OPC2_32_RRR1_MSUBADMS_H_64_LU                = 0x3d,
     OPC2_32_RRR1_MSUBADMS_H_64_UL                = 0x3c,
-    OPC2_32_RRR1_MSUBADMS_H_16_UU                = 0x3f,
+    OPC2_32_RRR1_MSUBADMS_H_64_UU                = 0x3f,
     OPC2_32_RRR1_MSUBADR_H_16_LL                 = 0x0e,
     OPC2_32_RRR1_MSUBADR_H_16_LU                 = 0x0d,
     OPC2_32_RRR1_MSUBADR_H_16_UL                 = 0x0c,
