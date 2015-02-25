@@ -495,7 +495,7 @@ fail:
 }
 
 int nbd_receive_negotiate(int csock, const char *name, uint32_t *flags,
-                          off_t *size, size_t *blocksize, Error **errp)
+                          off_t *size, Error **errp)
 {
     char buf[256];
     uint64_t magic, s;
@@ -603,7 +603,6 @@ int nbd_receive_negotiate(int csock, const char *name, uint32_t *flags,
         goto fail;
     }
     *size = be64_to_cpu(s);
-    *blocksize = 1024;
     TRACE("Size is %" PRIu64, *size);
 
     if (!name) {
@@ -630,7 +629,7 @@ fail:
 }
 
 #ifdef __linux__
-int nbd_init(int fd, int csock, uint32_t flags, off_t size, size_t blocksize)
+int nbd_init(int fd, int csock, uint32_t flags, off_t size)
 {
     TRACE("Setting NBD socket");
 
@@ -640,17 +639,17 @@ int nbd_init(int fd, int csock, uint32_t flags, off_t size, size_t blocksize)
         return -serrno;
     }
 
-    TRACE("Setting block size to %lu", (unsigned long)blocksize);
+    TRACE("Setting block size to %lu", (unsigned long)BDRV_SECTOR_SIZE);
 
-    if (ioctl(fd, NBD_SET_BLKSIZE, blocksize) < 0) {
+    if (ioctl(fd, NBD_SET_BLKSIZE, (size_t)BDRV_SECTOR_SIZE) < 0) {
         int serrno = errno;
         LOG("Failed setting NBD block size");
         return -serrno;
     }
 
-        TRACE("Setting size to %zd block(s)", (size_t)(size / blocksize));
+    TRACE("Setting size to %zd block(s)", (size_t)(size / BDRV_SECTOR_SIZE));
 
-    if (ioctl(fd, NBD_SET_SIZE_BLOCKS, size / blocksize) < 0) {
+    if (ioctl(fd, NBD_SET_SIZE_BLOCKS, size / (size_t)BDRV_SECTOR_SIZE) < 0) {
         int serrno = errno;
         LOG("Failed setting size (in blocks)");
         return -serrno;
@@ -715,7 +714,7 @@ int nbd_client(int fd)
     return ret;
 }
 #else
-int nbd_init(int fd, int csock, uint32_t flags, off_t size, size_t blocksize)
+int nbd_init(int fd, int csock, uint32_t flags, off_t size)
 {
     return -ENOTSUP;
 }

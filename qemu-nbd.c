@@ -279,7 +279,6 @@ static void *nbd_client_thread(void *arg)
 {
     char *device = arg;
     off_t size;
-    size_t blocksize;
     uint32_t nbdflags;
     int fd, sock;
     int ret;
@@ -292,7 +291,7 @@ static void *nbd_client_thread(void *arg)
     }
 
     ret = nbd_receive_negotiate(sock, NULL, &nbdflags,
-                                &size, &blocksize, &local_error);
+                                &size, &local_error);
     if (ret < 0) {
         if (local_error) {
             fprintf(stderr, "%s\n", error_get_pretty(local_error));
@@ -308,7 +307,7 @@ static void *nbd_client_thread(void *arg)
         goto out_socket;
     }
 
-    ret = nbd_init(fd, sock, nbdflags, size, blocksize);
+    ret = nbd_init(fd, sock, nbdflags, size);
     if (ret < 0) {
         goto out_fd;
     }

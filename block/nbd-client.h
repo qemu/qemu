@@ -20,7 +20,6 @@ typedef struct NbdClientSession {
     int sock;
     uint32_t nbdflags;
     off_t size;
-    size_t blocksize;
 
     CoMutex send_mutex;
     CoMutex free_sema;

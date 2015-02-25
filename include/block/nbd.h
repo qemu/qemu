@@ -75,8 +75,8 @@ enum {
 
 ssize_t nbd_wr_sync(int fd, void *buffer, size_t size, bool do_read);
 int nbd_receive_negotiate(int csock, const char *name, uint32_t *flags,
-                          off_t *size, size_t *blocksize, Error **errp);
-int nbd_init(int fd, int csock, uint32_t flags, off_t size, size_t blocksize);
+                          off_t *size, Error **errp);
+int nbd_init(int fd, int csock, uint32_t flags, off_t size);
 ssize_t nbd_send_request(int csock, struct nbd_request *request);
 ssize_t nbd_receive_reply(int csock, struct nbd_reply *reply);
 int nbd_client(int fd);
