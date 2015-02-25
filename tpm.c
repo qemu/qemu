@@ -134,7 +134,7 @@ static int configure_tpm(QemuOpts *opts)
     Error *local_err = NULL;
 
     if (!QLIST_EMPTY(&tpm_backends)) {
-        error_report("Only one TPM is allowed.\n");
+        error_report("Only one TPM is allowed.");
         return 1;
     }
 
