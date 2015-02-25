@@ -193,6 +193,26 @@ static ssize_t read_sync(int fd, void *buffer, size_t size)
     return nbd_wr_sync(fd, buffer, size, true);
 }
 
+static ssize_t drop_sync(int fd, size_t size)
+{
+    ssize_t ret, dropped = size;
+    uint8_t *buffer = g_malloc(MIN(65536, size));
+
+    while (size > 0) {
+        ret = read_sync(fd, buffer, MIN(65536, size));
+        if (ret < 0) {
+            g_free(buffer);
+            return ret;
+        }
+
+        assert(ret <= size);
+        size -= ret;
+    }
+
+    g_free(buffer);
+    return dropped;
+}
+
 static ssize_t write_sync(int fd, void *buffer, size_t size)
 {
     int ret;
@@ -303,6 +323,9 @@ static int nbd_handle_list(NBDClient *client, uint32_t length)
 
     csock = client->sock;
     if (length) {
+        if (drop_sync(csock, length) != length) {
+            return -EIO;
+        }
         return nbd_send_rep(csock, NBD_REP_ERR_INVALID, NBD_OPT_LIST);
     }
 
