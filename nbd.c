@@ -966,7 +966,8 @@ static void blk_aio_detach(void *opaque)
 }
 
 NBDExport *nbd_export_new(BlockBackend *blk, off_t dev_offset, off_t size,
-                          uint32_t nbdflags, void (*close)(NBDExport *))
+                          uint32_t nbdflags, void (*close)(NBDExport *),
+                          Error **errp)
 {
     NBDExport *exp = g_malloc0(sizeof(NBDExport));
     exp->refcount = 1;
@@ -974,7 +975,14 @@ NBDExport *nbd_export_new(BlockBackend *blk, off_t dev_offset, off_t size,
     exp->blk = blk;
     exp->dev_offset = dev_offset;
     exp->nbdflags = nbdflags;
-    exp->size = size == -1 ? blk_getlength(blk) : size;
+    exp->size = size < 0 ? blk_getlength(blk) : size;
+    if (exp->size < 0) {
+        error_setg_errno(errp, -exp->size,
+                         "Failed to determine the NBD export's length");
+        goto fail;
+    }
+    exp->size -= exp->size % BDRV_SECTOR_SIZE;
+
     exp->close = close;
     exp->ctx = blk_get_aio_context(blk);
     blk_ref(blk);
@@ -986,6 +994,10 @@ NBDExport *nbd_export_new(BlockBackend *blk, off_t dev_offset, off_t size,
      */
     blk_invalidate_cache(blk, NULL);
     return exp;
+
+fail:
+    g_free(exp);
+    return NULL;
 }
 
 NBDExport *nbd_export_find(const char *name)

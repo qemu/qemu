@@ -717,6 +717,10 @@ int main(int argc, char **argv)
 
     bs->detect_zeroes = detect_zeroes;
     fd_size = blk_getlength(blk);
+    if (fd_size < 0) {
+        errx(EXIT_FAILURE, "Failed to determine the image length: %s",
+             strerror(-fd_size));
+    }
 
     if (partition != -1) {
         ret = find_partition(blk, partition, &dev_offset, &fd_size);
@@ -726,7 +730,11 @@ int main(int argc, char **argv)
         }
     }
 
-    exp = nbd_export_new(blk, dev_offset, fd_size, nbdflags, nbd_export_closed);
+    exp = nbd_export_new(blk, dev_offset, fd_size, nbdflags, nbd_export_closed,
+                         &local_err);
+    if (!exp) {
+        errx(EXIT_FAILURE, "%s", error_get_pretty(local_err));
+    }
 
     if (sockpath) {
         fd = unix_socket_incoming(sockpath);

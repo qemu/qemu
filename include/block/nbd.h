@@ -86,7 +86,8 @@ typedef struct NBDExport NBDExport;
 typedef struct NBDClient NBDClient;
 
 NBDExport *nbd_export_new(BlockBackend *blk, off_t dev_offset, off_t size,
-                          uint32_t nbdflags, void (*close)(NBDExport *));
+                          uint32_t nbdflags, void (*close)(NBDExport *),
+                          Error **errp);
 void nbd_export_close(NBDExport *exp);
 void nbd_export_get(NBDExport *exp);
 void nbd_export_put(NBDExport *exp);
