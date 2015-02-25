@@ -301,7 +301,7 @@ static void r2d_init(MachineState *machine)
                             "rtl8139", i==0 ? "2" : NULL);
 
     /* USB keyboard */
-    usbdevice_create("keyboard");
+    usb_create_simple(usb_bus_find(-1), "usb-kbd");
 
     /* Todo: register on board registers */
     memset(&boot_params, 0, sizeof(boot_params));

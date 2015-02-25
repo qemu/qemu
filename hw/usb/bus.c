@@ -315,21 +315,31 @@ USBDevice *usb_create(USBBus *bus, const char *name)
     return USB_DEVICE(dev);
 }
 
-USBDevice *usb_create_simple(USBBus *bus, const char *name)
+static USBDevice *usb_try_create_simple(USBBus *bus, const char *name,
+                                        Error **errp)
 {
-    USBDevice *dev = usb_create(bus, name);
-    int rc;
+    Error *err = NULL;
+    USBDevice *dev;
 
+    dev = USB_DEVICE(qdev_try_create(&bus->qbus, name));
     if (!dev) {
-        error_report("Failed to create USB device '%s'", name);
+        error_setg(errp, "Failed to create USB device '%s'", name);
         return NULL;
     }
-    rc = qdev_init(&dev->qdev);
-    if (rc < 0) {
-        error_report("Failed to initialize USB device '%s'", name);
+    object_property_set_bool(OBJECT(dev), true, "realized", &err);
+    if (err) {
+        error_setg(errp, "Failed to initialize USB device '%s': %s",
+                   name, error_get_pretty(err));
+        error_free(err);
+        object_unparent(OBJECT(dev));
         return NULL;
     }
     return dev;
+}
+
+USBDevice *usb_create_simple(USBBus *bus, const char *name)
+{
+    return usb_try_create_simple(bus, name, &error_abort);
 }
 
 static void usb_fill_port(USBPort *port, void *opaque, int index,
@@ -416,17 +426,17 @@ void usb_claim_port(USBDevice *dev, Error **errp)
             }
         }
         if (port == NULL) {
-            error_setg(errp, "Error: usb port %s (bus %s) not found (in use?)",
+            error_setg(errp, "usb port %s (bus %s) not found (in use?)",
                        dev->port_path, bus->qbus.name);
             return;
         }
     } else {
         if (bus->nfree == 1 && strcmp(object_get_typename(OBJECT(dev)), "usb-hub") != 0) {
             /* Create a new hub and chain it on */
-            usb_create_simple(bus, "usb-hub");
+            usb_try_create_simple(bus, "usb-hub", NULL);
         }
         if (bus->nfree == 0) {
-            error_setg(errp, "Error: tried to attach usb device %s to a bus "
+            error_setg(errp, "tried to attach usb device %s to a bus "
                        "with no free ports", dev->product_desc);
             return;
         }
@@ -655,10 +665,12 @@ USBDevice *usbdevice_create(const char *cmdline)
 {
     USBBus *bus = usb_bus_find(-1 /* any */);
     LegacyUSBFactory *f = NULL;
+    Error *err = NULL;
     GSList *i;
     char driver[32];
     const char *params;
     int len;
+    USBDevice *dev;
 
     params = strchr(cmdline,':');
     if (params) {
@@ -693,14 +705,28 @@ USBDevice *usbdevice_create(const char *cmdline)
         return NULL;
     }
 
-    if (!f->usbdevice_init) {
+    if (f->usbdevice_init) {
+        dev = f->usbdevice_init(bus, params);
+    } else {
         if (*params) {
             error_report("usbdevice %s accepts no params", driver);
             return NULL;
         }
-        return usb_create_simple(bus, f->name);
+        dev = usb_create(bus, f->name);
     }
-    return f->usbdevice_init(bus, params);
+    if (!dev) {
+        error_report("Failed to create USB device '%s'", f->name);
+        return NULL;
+    }
+    object_property_set_bool(OBJECT(dev), true, "realized", &err);
+    if (err) {
+        error_report("Failed to initialize USB device '%s': %s",
+                     f->name, error_get_pretty(err));
+        error_free(err);
+        object_unparent(OBJECT(dev));
+        return NULL;
+    }
+    return dev;
 }
 
 static void usb_device_class_init(ObjectClass *klass, void *data)

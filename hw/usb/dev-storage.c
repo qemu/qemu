@@ -706,17 +706,11 @@ static USBDevice *usb_msd_init(USBBus *bus, const char *filename)
 
     /* create guest device */
     dev = usb_create(bus, "usb-storage");
-    if (!dev) {
-        return NULL;
-    }
     if (qdev_prop_set_drive(&dev->qdev, "drive",
                             blk_by_legacy_dinfo(dinfo)) < 0) {
         object_unparent(OBJECT(dev));
         return NULL;
     }
-    if (qdev_init(&dev->qdev) < 0)
-        return NULL;
-
     return dev;
 }
 

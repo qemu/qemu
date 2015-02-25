@@ -5,7 +5,8 @@ common-obj-y += libhw.o
 # usb host adapters
 common-obj-$(CONFIG_USB_UHCI) += hcd-uhci.o
 common-obj-$(CONFIG_USB_OHCI) += hcd-ohci.o
-common-obj-$(CONFIG_USB_EHCI) += hcd-ehci.o hcd-ehci-pci.o hcd-ehci-sysbus.o
+common-obj-$(CONFIG_USB_EHCI) += hcd-ehci.o hcd-ehci-pci.o
+common-obj-$(CONFIG_USB_EHCI_SYSBUS) += hcd-ehci-sysbus.o
 common-obj-$(CONFIG_USB_XHCI) += hcd-xhci.o
 common-obj-$(CONFIG_USB_MUSB) += hcd-musb.o
 
