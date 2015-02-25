@@ -207,8 +207,7 @@ static void vncws_send_handshake_response(VncState *vs, const char* key)
     }
 
     response = g_strdup_printf(WS_HANDSHAKE, accept);
-    vnc_write(vs, response, strlen(response));
-    vnc_flush(vs);
+    vnc_client_write_buf(vs, (const uint8_t *)response, strlen(response));
 
     g_free(accept);
     g_free(response);
