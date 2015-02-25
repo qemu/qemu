@@ -65,6 +65,7 @@ typedef struct IscsiLun {
     unsigned long *allocationmap;
     int cluster_sectors;
     bool use_16_for_rw;
+    bool write_protected;
 } IscsiLun;
 
 typedef struct IscsiTask {
@@ -1268,10 +1269,6 @@ out:
 /*
  * We support iscsi url's on the form
  * iscsi://[<username>%<password>@]<host>[:<port>]/<targetname>/<lun>
- *
- * Note: flags are currently not used by iscsi_open.  If this function
- * is changed such that flags are used, please examine iscsi_reopen_prepare()
- * to see if needs to be changed as well.
  */
 static int iscsi_open(BlockDriverState *bs, QDict *options, int flags,
                       Error **errp)
@@ -1385,9 +1382,10 @@ static int iscsi_open(BlockDriverState *bs, QDict *options, int flags,
     scsi_free_scsi_task(task);
     task = NULL;
 
+    iscsilun->write_protected = iscsi_is_write_protected(iscsilun);
     /* Check the write protect flag of the LUN if we want to write */
     if (iscsilun->type == TYPE_DISK && (flags & BDRV_O_RDWR) &&
-        iscsi_is_write_protected(iscsilun)) {
+        iscsilun->write_protected) {
         error_setg(errp, "Cannot open a write protected LUN as read-write");
         ret = -EACCES;
         goto out;
@@ -1541,13 +1539,17 @@ static void iscsi_refresh_limits(BlockDriverState *bs, Error **errp)
         sector_limits_lun2qemu(iscsilun->bl.opt_xfer_len, iscsilun);
 }
 
-/* Since iscsi_open() ignores bdrv_flags, there is nothing to do here in
- * prepare.  Note that this will not re-establish a connection with an iSCSI
- * target - it is effectively a NOP.  */
+/* Note that this will not re-establish a connection with an iSCSI target - it
+ * is effectively a NOP.  */
 static int iscsi_reopen_prepare(BDRVReopenState *state,
                                 BlockReopenQueue *queue, Error **errp)
 {
-    /* NOP */
+    IscsiLun *iscsilun = state->bs->opaque;
+
+    if (state->flags & BDRV_O_RDWR && iscsilun->write_protected) {
+        error_setg(errp, "Cannot open a write protected LUN as read-write");
+        return -EACCES;
+    }
     return 0;
 }
 
