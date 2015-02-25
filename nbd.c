@@ -351,7 +351,7 @@ fail:
 static int nbd_receive_options(NBDClient *client)
 {
     while (1) {
-        int csock = client->sock;
+        int csock = client->sock, ret;
         uint32_t tmp, length;
         uint64_t magic;
 
@@ -398,8 +398,9 @@ static int nbd_receive_options(NBDClient *client)
         TRACE("Checking option");
         switch (be32_to_cpu(tmp)) {
         case NBD_OPT_LIST:
-            if (nbd_handle_list(client, length) < 0) {
-                return 1;
+            ret = nbd_handle_list(client, length);
+            if (ret < 0) {
+                return ret;
             }
             break;
 
