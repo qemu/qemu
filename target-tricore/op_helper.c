@@ -838,6 +838,132 @@ uint64_t helper_msub64_suov(CPUTriCoreState *env, target_ulong r1,
     return ret;
 }
 
+uint32_t
+helper_msub32_q_sub_ssov(CPUTriCoreState *env, uint64_t r1, uint64_t r2)
+{
+    int64_t result;
+    int64_t t1 = (int64_t)r1;
+    int64_t t2 = (int64_t)r2;
+
+    result = t1 - t2;
+
+    env->PSW_USB_AV = (result ^ result * 2u);
+    env->PSW_USB_SAV |= env->PSW_USB_AV;
+
+    /* we do the saturation by hand, since we produce an overflow on the host
+       if the mul before was (0x80000000 * 0x80000000) << 1). If this is the
+       case, we flip the saturated value. */
+    if (r2 == 0x8000000000000000LL) {
+        if (result > 0x7fffffffLL) {
+            env->PSW_USB_V = (1 << 31);
+            env->PSW_USB_SV = (1 << 31);
+            result = INT32_MIN;
+        } else if (result < -0x80000000LL) {
+            env->PSW_USB_V = (1 << 31);
+            env->PSW_USB_SV = (1 << 31);
+            result = INT32_MAX;
+        } else {
+            env->PSW_USB_V = 0;
+        }
+    } else {
+        if (result > 0x7fffffffLL) {
+            env->PSW_USB_V = (1 << 31);
+            env->PSW_USB_SV = (1 << 31);
+            result = INT32_MAX;
+        } else if (result < -0x80000000LL) {
+            env->PSW_USB_V = (1 << 31);
+            env->PSW_USB_SV = (1 << 31);
+            result = INT32_MIN;
+        } else {
+            env->PSW_USB_V = 0;
+        }
+    }
+    return (uint32_t)result;
+}
+
+uint64_t helper_msub64_q_ssov(CPUTriCoreState *env, uint64_t r1, uint32_t r2,
+                              uint32_t r3, uint32_t n)
+{
+    int64_t t1 = (int64_t)r1;
+    int64_t t2 = sextract64(r2, 0, 32);
+    int64_t t3 = sextract64(r3, 0, 32);
+    int64_t result, mul;
+    int64_t ovf;
+
+    mul = (t2 * t3) << n;
+    result = t1 - mul;
+
+    env->PSW_USB_AV = (result ^ result * 2u) >> 32;
+    env->PSW_USB_SAV |= env->PSW_USB_AV;
+
+    ovf = (result ^ t1) & (t1 ^ mul);
+    /* we do the saturation by hand, since we produce an overflow on the host
+       if the mul before was (0x80000000 * 0x80000000) << 1). If this is the
+       case, we flip the saturated value. */
+    if (mul == 0x8000000000000000LL) {
+        if (ovf >= 0) {
+            env->PSW_USB_V = (1 << 31);
+            env->PSW_USB_SV = (1 << 31);
+            /* ext_ret > MAX_INT */
+            if (mul >= 0) {
+                result = INT64_MAX;
+            /* ext_ret < MIN_INT */
+            } else {
+               result = INT64_MIN;
+            }
+        }
+    } else {
+        if (ovf < 0) {
+            env->PSW_USB_V = (1 << 31);
+            env->PSW_USB_SV = (1 << 31);
+            /* ext_ret > MAX_INT */
+            if (mul < 0) {
+                result = INT64_MAX;
+            /* ext_ret < MIN_INT */
+            } else {
+               result = INT64_MIN;
+            }
+        } else {
+            env->PSW_USB_V = 0;
+        }
+    }
+
+    return (uint64_t)result;
+}
+
+uint32_t helper_msubr_q_ssov(CPUTriCoreState *env, uint32_t r1, uint32_t r2,
+                             uint32_t r3, uint32_t n)
+{
+    int64_t t1 = sextract64(r1, 0, 32);
+    int64_t t2 = sextract64(r2, 0, 32);
+    int64_t t3 = sextract64(r3, 0, 32);
+    int64_t mul, ret;
+
+    if ((t2 == -0x8000ll) && (t3 == -0x8000ll) && (n == 1)) {
+        mul = 0x7fffffff;
+    } else {
+        mul = (t2 * t3) << n;
+    }
+
+    ret = t1 - mul + 0x8000;
+
+    env->PSW_USB_AV = ret ^ ret * 2u;
+    env->PSW_USB_SAV |= env->PSW_USB_AV;
+
+    if (ret > 0x7fffffffll) {
+        env->PSW_USB_V = (1 << 31);
+        env->PSW_USB_SV |= env->PSW_USB_V;
+        ret = INT32_MAX;
+    } else if (ret < -0x80000000ll) {
+        env->PSW_USB_V = (1 << 31);
+        env->PSW_USB_SV |= env->PSW_USB_V;
+        ret = INT32_MIN;
+    } else {
+        env->PSW_USB_V = 0;
+    }
+    return ret & 0xffff0000ll;
+}
+
 uint32_t helper_abs_b(CPUTriCoreState *env, target_ulong arg)
 {
     int32_t b, i;
@@ -1124,6 +1250,34 @@ uint32_t helper_subr_h(CPUTriCoreState *env, uint64_t r1, uint32_t r2_l,
     env->PSW_USB_SAV |= env->PSW_USB_AV;
 
     return (result1 & 0xffff0000ULL) | ((result0 >> 16) & 0xffffULL);
+}
+
+uint32_t helper_msubr_q(CPUTriCoreState *env, uint32_t r1, uint32_t r2,
+                        uint32_t r3, uint32_t n)
+{
+    int64_t t1 = sextract64(r1, 0, 32);
+    int64_t t2 = sextract64(r2, 0, 32);
+    int64_t t3 = sextract64(r3, 0, 32);
+    int64_t mul, ret;
+
+    if ((t2 == -0x8000ll) && (t3 == -0x8000ll) && (n == 1)) {
+        mul = 0x7fffffff;
+    } else {
+        mul = (t2 * t3) << n;
+    }
+
+    ret = t1 - mul + 0x8000;
+
+    if ((ret > 0x7fffffffll) || (ret < -0x80000000ll)) {
+        env->PSW_USB_V = (1 << 31);
+        env->PSW_USB_SV |= env->PSW_USB_V;
+    } else {
+        env->PSW_USB_V = 0;
+    }
+    env->PSW_USB_AV = ret ^ ret * 2u;
+    env->PSW_USB_SAV |= env->PSW_USB_AV;
+
+    return ret & 0xffff0000ll;
 }
 
 uint32_t helper_sub_b(CPUTriCoreState *env, target_ulong r1, target_ulong r2)
