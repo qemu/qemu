@@ -7583,6 +7583,59 @@ static void decode_rrr1_msubad_h(CPUTriCoreState *env, DisasContext *ctx)
     }
 }
 
+/* RRRR format */
+static void decode_rrrr_extract_insert(CPUTriCoreState *env, DisasContext *ctx)
+{
+    uint32_t op2;
+    int r1, r2, r3, r4;
+    TCGv tmp_width, tmp_pos;
+
+    r1 = MASK_OP_RRRR_S1(ctx->opcode);
+    r2 = MASK_OP_RRRR_S2(ctx->opcode);
+    r3 = MASK_OP_RRRR_S3(ctx->opcode);
+    r4 = MASK_OP_RRRR_D(ctx->opcode);
+    op2 = MASK_OP_RRRR_OP2(ctx->opcode);
+
+    tmp_pos = tcg_temp_new();
+    tmp_width = tcg_temp_new();
+
+    switch (op2) {
+    case OPC2_32_RRRR_DEXTR:
+        tcg_gen_andi_tl(tmp_pos, cpu_gpr_d[r3], 0x1f);
+        if (r1 == r2) {
+            tcg_gen_rotl_tl(cpu_gpr_d[r4], cpu_gpr_d[r1], tmp_pos);
+        } else {
+            tcg_gen_shl_tl(tmp_width, cpu_gpr_d[r1], tmp_pos);
+            tcg_gen_subfi_tl(tmp_pos, 32, tmp_pos);
+            tcg_gen_shr_tl(tmp_pos, cpu_gpr_d[r2], tmp_pos);
+            tcg_gen_or_tl(cpu_gpr_d[r4], tmp_width, tmp_pos);
+        }
+        break;
+    case OPC2_32_RRRR_EXTR:
+    case OPC2_32_RRRR_EXTR_U:
+        tcg_gen_andi_tl(tmp_width, cpu_gpr_d[r3+1], 0x1f);
+        tcg_gen_andi_tl(tmp_pos, cpu_gpr_d[r3], 0x1f);
+        tcg_gen_add_tl(tmp_pos, tmp_pos, tmp_width);
+        tcg_gen_subfi_tl(tmp_pos, 32, tmp_pos);
+        tcg_gen_shl_tl(cpu_gpr_d[r4], cpu_gpr_d[r1], tmp_pos);
+        tcg_gen_subfi_tl(tmp_width, 32, tmp_width);
+        if (op2 == OPC2_32_RRRR_EXTR) {
+            tcg_gen_sar_tl(cpu_gpr_d[r4], cpu_gpr_d[r4], tmp_width);
+        } else {
+            tcg_gen_shr_tl(cpu_gpr_d[r4], cpu_gpr_d[r4], tmp_width);
+        }
+        break;
+    case OPC2_32_RRRR_INSERT:
+        tcg_gen_andi_tl(tmp_width, cpu_gpr_d[r3+1], 0x1f);
+        tcg_gen_andi_tl(tmp_pos, cpu_gpr_d[r3], 0x1f);
+        gen_insert(cpu_gpr_d[r4], cpu_gpr_d[r1], cpu_gpr_d[r2], tmp_width,
+                   tmp_pos);
+        break;
+    }
+    tcg_temp_free(tmp_pos);
+    tcg_temp_free(tmp_width);
+}
+
 static void decode_32Bit_opc(CPUTriCoreState *env, DisasContext *ctx)
 {
     int op1;
@@ -7898,6 +7951,9 @@ static void decode_32Bit_opc(CPUTriCoreState *env, DisasContext *ctx)
     case OPCM_32_RRR1_MSUBAD_H:
         decode_rrr1_msubad_h(env, ctx);
         break;
+/* RRRR format */
+    case OPCM_32_RRRR_EXTRACT_INSERT:
+        decode_rrrr_extract_insert(env, ctx);
     }
 }
 
