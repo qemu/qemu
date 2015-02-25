@@ -74,10 +74,10 @@ void qemu_remove_exit_notifier(Notifier *notify);
 
 void qemu_add_machine_init_done_notifier(Notifier *notify);
 
-void do_savevm(Monitor *mon, const QDict *qdict);
+void hmp_savevm(Monitor *mon, const QDict *qdict);
 int load_vmstate(const char *name);
-void do_delvm(Monitor *mon, const QDict *qdict);
-void do_info_snapshots(Monitor *mon, const QDict *qdict);
+void hmp_delvm(Monitor *mon, const QDict *qdict);
+void hmp_info_snapshots(Monitor *mon, const QDict *qdict);
 
 void qemu_announce_self(void);
 
@@ -89,9 +89,6 @@ void qemu_savevm_state_complete(QEMUFile *f);
 void qemu_savevm_state_cancel(void);
 uint64_t qemu_savevm_state_pending(QEMUFile *f, uint64_t max_size);
 int qemu_loadvm_state(QEMUFile *f);
-
-/* SLIRP */
-void do_info_slirp(Monitor *mon);
 
 typedef enum DisplayType
 {
@@ -178,16 +175,16 @@ extern const char *prom_envs[MAX_PROM_ENVS];
 extern unsigned int nb_prom_envs;
 
 /* pci-hotplug */
-void pci_device_hot_add(Monitor *mon, const QDict *qdict);
+void hmp_pci_add(Monitor *mon, const QDict *qdict);
 int pci_drive_hot_add(Monitor *mon, const QDict *qdict, DriveInfo *dinfo);
-void do_pci_device_hot_remove(Monitor *mon, const QDict *qdict);
+void hmp_pci_del(Monitor *mon, const QDict *qdict);
 
 /* generic hotplug */
-void drive_hot_add(Monitor *mon, const QDict *qdict);
+void hmp_drive_add(Monitor *mon, const QDict *qdict);
 
 /* pcie aer error injection */
 void pcie_aer_inject_error_print(Monitor *mon, const QObject *data);
-int do_pcie_aer_inject_error(Monitor *mon,
+int hmp_pcie_aer_inject_error(Monitor *mon,
                              const QDict *qdict, QObject **ret_data);
 
 /* serial ports */
@@ -202,9 +199,9 @@ extern CharDriverState *serial_hds[MAX_SERIAL_PORTS];
 
 extern CharDriverState *parallel_hds[MAX_PARALLEL_PORTS];
 
-void do_usb_add(Monitor *mon, const QDict *qdict);
-void do_usb_del(Monitor *mon, const QDict *qdict);
-void usb_info(Monitor *mon, const QDict *qdict);
+void hmp_usb_add(Monitor *mon, const QDict *qdict);
+void hmp_usb_del(Monitor *mon, const QDict *qdict);
+void hmp_info_usb(Monitor *mon, const QDict *qdict);
 
 void add_boot_device_path(int32_t bootindex, DeviceState *dev,
                           const char *suffix);

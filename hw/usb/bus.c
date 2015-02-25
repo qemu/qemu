@@ -637,7 +637,7 @@ static char *usb_get_fw_dev_path(DeviceState *qdev)
     return fw_path;
 }
 
-void usb_info(Monitor *mon, const QDict *qdict)
+void hmp_info_usb(Monitor *mon, const QDict *qdict)
 {
     USBBus *bus;
     USBDevice *dev;

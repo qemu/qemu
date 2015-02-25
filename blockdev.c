@@ -1017,7 +1017,7 @@ fail:
     return dinfo;
 }
 
-void do_commit(Monitor *mon, const QDict *qdict)
+void hmp_commit(Monitor *mon, const QDict *qdict)
 {
     const char *device = qdict_get_str(qdict, "device");
     BlockDriverState *bs;
@@ -1945,7 +1945,7 @@ void qmp_block_set_io_throttle(const char *device, int64_t bps, int64_t bps_rd,
     aio_context_release(aio_context);
 }
 
-int do_drive_del(Monitor *mon, const QDict *qdict, QObject **ret_data)
+int hmp_drive_del(Monitor *mon, const QDict *qdict, QObject **ret_data)
 {
     const char *id = qdict_get_str(qdict, "id");
     BlockBackend *blk;
@@ -1987,7 +1987,7 @@ int do_drive_del(Monitor *mon, const QDict *qdict, QObject **ret_data)
      * then we can just get rid of the block driver state right here.
      */
     if (blk_get_attached_dev(blk)) {
-        blk_hide_on_behalf_of_do_drive_del(blk);
+        blk_hide_on_behalf_of_hmp_drive_del(blk);
         /* Further I/O must not pause the guest */
         bdrv_set_on_error(bs, BLOCKDEV_ON_ERROR_REPORT,
                           BLOCKDEV_ON_ERROR_REPORT);
