@@ -248,7 +248,7 @@ static int nbd_establish_connection(BlockDriverState *bs, Error **errp)
     /* Failed to establish connection */
     if (sock < 0) {
         logout("Failed to establish connection to NBD server\n");
-        return -errno;
+        return -EIO;
     }
 
     return sock;
