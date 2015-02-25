@@ -1013,7 +1013,7 @@ static void openpic_cpu_write_internal(void *opaque, hwaddr addr,
     DPRINTF("%s: cpu %d addr %#" HWADDR_PRIx " <= 0x%08x\n", __func__, idx,
             addr, val);
 
-    if (idx < 0) {
+    if (idx < 0 || idx >= opp->nb_cpus) {
         return;
     }
 
@@ -1152,7 +1152,7 @@ static uint32_t openpic_cpu_read_internal(void *opaque, hwaddr addr,
     DPRINTF("%s: cpu %d addr %#" HWADDR_PRIx "\n", __func__, idx, addr);
     retval = 0xFFFFFFFF;
 
-    if (idx < 0) {
+    if (idx < 0 || idx >= opp->nb_cpus) {
         return retval;
     }
 
