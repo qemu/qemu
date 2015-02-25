@@ -167,8 +167,9 @@ static int find_partition(BlockBackend *blk, int partition,
     for (i = 0; i < 4; i++) {
         read_partition(&data[446 + 16 * i], &mbr[i]);
 
-        if (!mbr[i].nb_sectors_abs)
+        if (!mbr[i].system || !mbr[i].nb_sectors_abs) {
             continue;
+        }
 
         if (mbr[i].system == 0xF || mbr[i].system == 0x5) {
             struct partition_record ext[4];
@@ -182,8 +183,9 @@ static int find_partition(BlockBackend *blk, int partition,
 
             for (j = 0; j < 4; j++) {
                 read_partition(&data1[446 + 16 * j], &ext[j]);
-                if (!ext[j].nb_sectors_abs)
+                if (!ext[j].system || !ext[j].nb_sectors_abs) {
                     continue;
+                }
 
                 if ((ext_partnum + j + 1) == partition) {
                     *offset = (uint64_t)ext[j].start_sector_abs << 9;
