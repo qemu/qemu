@@ -487,7 +487,7 @@ void ahci_get_command_header(AHCIQState *ahci, uint8_t port,
 void ahci_set_command_header(AHCIQState *ahci, uint8_t port,
                              uint8_t slot, AHCICommandHeader *cmd)
 {
-    AHCICommandHeader tmp;
+    AHCICommandHeader tmp = { .flags = 0 };
     uint64_t ba = ahci->port[port].clb;
     ba += slot * sizeof(AHCICommandHeader);
 
