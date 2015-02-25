@@ -107,6 +107,21 @@ static void ahci_shutdown(AHCIQState *ahci)
     qtest_shutdown(qs);
 }
 
+/**
+ * Boot and fully enable the HBA device.
+ * @see ahci_boot, ahci_pci_enable and ahci_hba_enable.
+ */
+static AHCIQState *ahci_boot_and_enable(void)
+{
+    AHCIQState *ahci;
+    ahci = ahci_boot();
+
+    ahci_pci_enable(ahci);
+    ahci_hba_enable(ahci);
+
+    return ahci;
+}
+
 /*** Specification Adherence Tests ***/
 
 /**
@@ -831,9 +846,7 @@ static void test_identify(void)
 {
     AHCIQState *ahci;
 
-    ahci = ahci_boot();
-    ahci_pci_enable(ahci);
-    ahci_hba_enable(ahci);
+    ahci = ahci_boot_and_enable();
     ahci_test_identify(ahci);
     ahci_shutdown(ahci);
 }
@@ -845,9 +858,7 @@ static void test_dma_rw_simple(void)
 {
     AHCIQState *ahci;
 
-    ahci = ahci_boot();
-    ahci_pci_enable(ahci);
-    ahci_hba_enable(ahci);
+    ahci = ahci_boot_and_enable();
     ahci_test_dma_rw_simple(ahci);
     ahci_shutdown(ahci);
 }
