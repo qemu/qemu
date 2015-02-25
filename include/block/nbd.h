@@ -54,8 +54,8 @@ struct nbd_reply {
 /* Reply types. */
 #define NBD_REP_ACK             (1)             /* Data sending finished. */
 #define NBD_REP_SERVER          (2)             /* Export description. */
-#define NBD_REP_ERR_UNSUP       ((1 << 31) | 1) /* Unknown option. */
-#define NBD_REP_ERR_INVALID     ((1 << 31) | 3) /* Invalid length. */
+#define NBD_REP_ERR_UNSUP       ((UINT32_C(1) << 31) | 1) /* Unknown option. */
+#define NBD_REP_ERR_INVALID     ((UINT32_C(1) << 31) | 3) /* Invalid length. */
 
 #define NBD_CMD_MASK_COMMAND	0x0000ffff
 #define NBD_CMD_FLAG_FUA	(1 << 16)
