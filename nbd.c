@@ -625,7 +625,7 @@ int nbd_receive_negotiate(int csock, const char *name, uint32_t *flags,
             error_setg(errp, "Failed to read export flags");
             goto fail;
         }
-        *flags |= be32_to_cpu(tmp);
+        *flags |= be16_to_cpu(tmp);
     }
     if (read_sync(csock, &buf, 124) != 124) {
         error_setg(errp, "Failed to read reserved block");
