@@ -731,12 +731,11 @@ static void ahci_test_identify(AHCIQState *ahci)
     g_assert_cmphex(sect_size, ==, 0x200);
 }
 
-static void ahci_test_dma_rw_simple(AHCIQState *ahci)
+static void ahci_test_dma_rw_simple(AHCIQState *ahci, unsigned bufsize)
 {
     uint64_t ptr;
     uint8_t port;
     unsigned i;
-    const unsigned bufsize = 4096;
     unsigned char *tx = g_malloc(bufsize);
     unsigned char *rx = g_malloc0(bufsize);
 
@@ -751,7 +750,7 @@ static void ahci_test_dma_rw_simple(AHCIQState *ahci)
     ptr = ahci_alloc(ahci, bufsize);
     g_assert(ptr);
 
-    /* Write some indicative pattern to our 4K buffer. */
+    /* Write some indicative pattern to our buffer. */
     for (i = 0; i < bufsize; i++) {
         tx[i] = (bufsize - i);
     }
@@ -852,15 +851,35 @@ static void test_identify(void)
 }
 
 /**
- * Perform a simple DMA R/W test, using a single PRD and non-NCQ commands.
+ * Perform a simple DMA R/W test using non-NCQ commands.
  */
-static void test_dma_rw_simple(void)
+static void test_dma_rw_interface(unsigned bufsize)
 {
     AHCIQState *ahci;
 
     ahci = ahci_boot_and_enable();
-    ahci_test_dma_rw_simple(ahci);
+    ahci_test_dma_rw_simple(ahci, bufsize);
     ahci_shutdown(ahci);
+}
+
+static void test_dma_rw_simple(void)
+{
+    test_dma_rw_interface(4096);
+}
+
+static void test_dma_rw_double(void)
+{
+    test_dma_rw_interface(8192);
+}
+
+static void test_dma_rw_long(void)
+{
+    test_dma_rw_interface(4096 * 64);
+}
+
+static void test_dma_rw_short(void)
+{
+    test_dma_rw_interface(512);
 }
 
 /******************************************************************************/
@@ -919,6 +938,9 @@ int main(int argc, char **argv)
     qtest_add_func("/ahci/hba_enable", test_hba_enable);
     qtest_add_func("/ahci/identify",   test_identify);
     qtest_add_func("/ahci/dma/simple", test_dma_rw_simple);
+    qtest_add_func("/ahci/dma/double", test_dma_rw_double);
+    qtest_add_func("/ahci/dma/long",   test_dma_rw_long);
+    qtest_add_func("/ahci/dma/short",  test_dma_rw_short);
 
     ret = g_test_run();
 
