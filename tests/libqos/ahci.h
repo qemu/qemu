@@ -537,11 +537,16 @@ void ahci_command_verify(AHCIQState *ahci, AHCICommand *cmd);
 void ahci_command_free(AHCICommand *cmd);
 
 /* Command adjustments */
+void ahci_command_set_flags(AHCICommand *cmd, uint16_t cmdh_flags);
+void ahci_command_clr_flags(AHCICommand *cmd, uint16_t cmdh_flags);
+void ahci_command_set_offset(AHCICommand *cmd, uint64_t lba_sect);
 void ahci_command_set_buffer(AHCICommand *cmd, uint64_t buffer);
 void ahci_command_set_size(AHCICommand *cmd, uint64_t xbytes);
 void ahci_command_set_prd_size(AHCICommand *cmd, unsigned prd_size);
 void ahci_command_set_sizes(AHCICommand *cmd, uint64_t xbytes,
                             unsigned prd_size);
+void ahci_command_adjust(AHCICommand *cmd, uint64_t lba_sect, uint64_t gbuffer,
+                         uint64_t xbytes, unsigned prd_size);
 
 /* Command Misc */
 uint8_t ahci_command_slot(AHCICommand *cmd);
