@@ -635,7 +635,9 @@ int main(int argc, char **argv)
          * print errors and exit with the proper status code.
          */
         pid = fork();
-        if (pid == 0) {
+        if (pid < 0) {
+            err(EXIT_FAILURE, "Failed to fork");
+        } else if (pid == 0) {
             close(stderr_fd[0]);
             ret = qemu_daemon(1, 0);
 
