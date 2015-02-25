@@ -1645,7 +1645,7 @@ static int img_convert(int argc, char **argv)
     if (skip_create) {
         int64_t output_sectors = blk_nb_sectors(out_blk);
         if (output_sectors < 0) {
-            error_report("unable to get output image length: %s\n",
+            error_report("unable to get output image length: %s",
                          strerror(-output_sectors));
             ret = -1;
             goto out;
