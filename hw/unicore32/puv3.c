@@ -109,6 +109,7 @@ static void puv3_init(MachineState *machine)
     const char *kernel_filename = machine->kernel_filename;
     const char *initrd_filename = machine->initrd_filename;
     CPUUniCore32State *env;
+    UniCore32CPU *cpu;
 
     if (initrd_filename) {
         hw_error("Please use kernel built-in initramdisk.\n");
@@ -118,10 +119,11 @@ static void puv3_init(MachineState *machine)
         cpu_model = "UniCore-II";
     }
 
-    env = cpu_init(cpu_model);
-    if (!env) {
+    cpu = uc32_cpu_init(cpu_model);
+    if (!cpu) {
         hw_error("Unable to find CPU definition\n");
     }
+    env = &cpu->env;
 
     puv3_soc_init(env);
     puv3_board_init(env, ram_size);
