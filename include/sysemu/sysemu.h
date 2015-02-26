@@ -174,11 +174,6 @@ extern int nb_option_roms;
 extern const char *prom_envs[MAX_PROM_ENVS];
 extern unsigned int nb_prom_envs;
 
-/* pci-hotplug */
-void hmp_pci_add(Monitor *mon, const QDict *qdict);
-int pci_drive_hot_add(Monitor *mon, const QDict *qdict, DriveInfo *dinfo);
-void hmp_pci_del(Monitor *mon, const QDict *qdict);
-
 /* generic hotplug */
 void hmp_drive_add(Monitor *mon, const QDict *qdict);
 
