@@ -539,8 +539,8 @@ static void pci_set_default_subsystem_id(PCIDevice *pci_dev)
  * Parse [[<domain>:]<bus>:]<slot>, return -1 on error if funcp == NULL
  *       [[<domain>:]<bus>:]<slot>.<func>, return -1 on error
  */
-int pci_parse_devaddr(const char *addr, int *domp, int *busp,
-                      unsigned int *slotp, unsigned int *funcp)
+static int pci_parse_devaddr(const char *addr, int *domp, int *busp,
+                             unsigned int *slotp, unsigned int *funcp)
 {
     const char *p;
     char *e;
@@ -598,7 +598,8 @@ int pci_parse_devaddr(const char *addr, int *domp, int *busp,
     return 0;
 }
 
-PCIBus *pci_get_bus_devfn(int *devfnp, PCIBus *root, const char *devaddr)
+static PCIBus *pci_get_bus_devfn(int *devfnp, PCIBus *root,
+                                 const char *devaddr)
 {
     int dom, bus;
     unsigned slot;
@@ -1610,10 +1611,9 @@ static const char * const pci_nic_names[] = {
 };
 
 /* Initialize a PCI NIC.  */
-/* FIXME callers should check for failure, but don't */
-PCIDevice *pci_nic_init(NICInfo *nd, PCIBus *rootbus,
-                        const char *default_model,
-                        const char *default_devaddr)
+static PCIDevice *pci_nic_init(NICInfo *nd, PCIBus *rootbus,
+                               const char *default_model,
+                               const char *default_devaddr)
 {
     const char *devaddr = nd->devaddr ? nd->devaddr : default_devaddr;
     PCIBus *bus;
