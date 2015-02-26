@@ -1123,11 +1123,7 @@ void hmp_migrate_incoming(Monitor *mon, const QDict *qdict)
 
     qmp_migrate_incoming(uri, &err);
 
-    if (err) {
-        monitor_printf(mon, "%s\n", error_get_pretty(err));
-        error_free(err);
-        return;
-    }
+    hmp_handle_error(mon, &err);
 }
 
 void hmp_migrate_set_downtime(Monitor *mon, const QDict *qdict)
