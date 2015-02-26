@@ -42,6 +42,7 @@
 #include "qapi-event.h"
 #include "hw/s390x/s390-pci-inst.h"
 #include "hw/s390x/s390-pci-bus.h"
+#include "hw/s390x/ipl.h"
 
 /* #define DEBUG_KVM */
 
@@ -756,6 +757,18 @@ static void enter_pgmcheck(S390CPU *cpu, uint16_t code)
     kvm_s390_vcpu_interrupt(cpu, &irq);
 }
 
+void kvm_s390_access_exception(S390CPU *cpu, uint16_t code, uint64_t te_code)
+{
+    struct kvm_s390_irq irq = {
+        .type = KVM_S390_PROGRAM_INT,
+        .u.pgm.code = code,
+        .u.pgm.trans_exc_code = te_code,
+        .u.pgm.exc_access_id = te_code & 3,
+    };
+
+    kvm_s390_vcpu_interrupt(cpu, &irq);
+}
+
 static int kvm_sclp_service_call(S390CPU *cpu, struct kvm_run *run,
                                  uint16_t ipbh0)
 {
@@ -1325,19 +1338,14 @@ static int handle_intercept(S390CPU *cpu)
 
 static int handle_tsch(S390CPU *cpu)
 {
-    CPUS390XState *env = &cpu->env;
     CPUState *cs = CPU(cpu);
     struct kvm_run *run = cs->kvm_run;
     int ret;
 
     cpu_synchronize_state(cs);
 
-    ret = ioinst_handle_tsch(env, env->regs[1], run->s390_tsch.ipb);
-    if (ret >= 0) {
-        /* Success; set condition code. */
-        setcc(cpu, ret);
-        ret = 0;
-    } else if (ret < -1) {
+    ret = ioinst_handle_tsch(cpu, cpu->env.regs[1], run->s390_tsch.ipb);
+    if (ret < 0) {
         /*
          * Failure.
          * If an I/O interrupt had been dequeued, we have to reinject it.
@@ -1397,7 +1405,7 @@ int kvm_arch_handle_exit(CPUState *cs, struct kvm_run *run)
             ret = handle_intercept(cpu);
             break;
         case KVM_EXIT_S390_RESET:
-            qemu_system_reset_request();
+            s390_reipl_request();
             break;
         case KVM_EXIT_S390_TSCH:
             ret = handle_tsch(cpu);

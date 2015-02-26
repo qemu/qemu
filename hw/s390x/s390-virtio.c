@@ -128,7 +128,8 @@ static void s390_virtio_register_hcalls(void)
 void s390_init_ipl_dev(const char *kernel_filename,
                        const char *kernel_cmdline,
                        const char *initrd_filename,
-                       const char *firmware)
+                       const char *firmware,
+                       bool enforce_bios)
 {
     DeviceState *dev;
 
@@ -141,6 +142,9 @@ void s390_init_ipl_dev(const char *kernel_filename,
     }
     qdev_prop_set_string(dev, "cmdline", kernel_cmdline);
     qdev_prop_set_string(dev, "firmware", firmware);
+    qdev_prop_set_bit(dev, "enforce_bios", enforce_bios);
+    object_property_add_child(qdev_get_machine(), "s390-ipl",
+                              OBJECT(dev), NULL);
     qdev_init_nofail(dev);
 }
 
@@ -221,7 +225,7 @@ static void s390_init(MachineState *machine)
     s390_bus = s390_virtio_bus_init(&my_ram_size);
     s390_sclp_init();
     s390_init_ipl_dev(machine->kernel_filename, machine->kernel_cmdline,
-                      machine->initrd_filename, ZIPL_FILENAME);
+                      machine->initrd_filename, ZIPL_FILENAME, false);
     s390_flic_init();
 
     /* register hypercalls */

@@ -287,6 +287,7 @@ typedef struct CPUS390XState {
 #define FLAG_MASK_32            0x00001000
 
 /* Control register 0 bits */
+#define CR0_LOWPROT             0x0000000010000000ULL
 #define CR0_EDAT                0x0000000000800000ULL
 
 static inline int cpu_mmu_index (CPUS390XState *env)
@@ -331,6 +332,7 @@ static inline int get_ilen(uint8_t opc)
    to re-compute the length by examining the insn in memory.  */
 #define ILEN_LATER       0x20
 #define ILEN_LATER_INC   0x21
+void trigger_pgm_exception(CPUS390XState *env, uint32_t code, uint32_t ilen);
 #endif
 
 S390CPU *cpu_s390x_init(const char *cpu_model);
@@ -348,10 +350,6 @@ int s390_cpu_handle_mmu_fault(CPUState *cpu, vaddr address, int rw,
 #include "ioinst.h"
 
 #ifndef CONFIG_USER_ONLY
-void *s390_cpu_physical_memory_map(CPUS390XState *env, hwaddr addr, hwaddr *len,
-                                   int is_write);
-void s390_cpu_physical_memory_unmap(CPUS390XState *env, void *addr, hwaddr len,
-                                    int is_write);
 static inline hwaddr decode_basedisp_s(CPUS390XState *env, uint32_t ipb)
 {
     hwaddr addr = 0;
@@ -396,11 +394,16 @@ void kvm_s390_service_interrupt(uint32_t parm);
 void kvm_s390_vcpu_interrupt(S390CPU *cpu, struct kvm_s390_irq *irq);
 void kvm_s390_floating_interrupt(struct kvm_s390_irq *irq);
 int kvm_s390_inject_flic(struct kvm_s390_irq *irq);
+void kvm_s390_access_exception(S390CPU *cpu, uint16_t code, uint64_t te_code);
 #else
 static inline void kvm_s390_virtio_irq(int config_change, uint64_t token)
 {
 }
 static inline void kvm_s390_service_interrupt(uint32_t parm)
+{
+}
+static inline void kvm_s390_access_exception(S390CPU *cpu, uint16_t code,
+                                             uint64_t te_code)
 {
 }
 #endif
@@ -443,13 +446,15 @@ bool css_subch_visible(SubchDev *sch);
 void css_conditional_io_interrupt(SubchDev *sch);
 int css_do_stsch(SubchDev *sch, SCHIB *schib);
 bool css_schid_final(int m, uint8_t cssid, uint8_t ssid, uint16_t schid);
-int css_do_msch(SubchDev *sch, SCHIB *schib);
+int css_do_msch(SubchDev *sch, const SCHIB *schib);
 int css_do_xsch(SubchDev *sch);
 int css_do_csch(SubchDev *sch);
 int css_do_hsch(SubchDev *sch);
 int css_do_ssch(SubchDev *sch, ORB *orb);
-int css_do_tsch(SubchDev *sch, IRB *irb);
+int css_do_tsch_get_irb(SubchDev *sch, IRB *irb, int *irb_len);
+void css_do_tsch_update_subch(SubchDev *sch);
 int css_do_stcrw(CRW *crw);
+void css_undo_stcrw(CRW *crw);
 int css_do_tpi(IOIntCode *int_code, int lowcore);
 int css_collect_chp_desc(int m, uint8_t cssid, uint8_t f_chpid, uint8_t l_chpid,
                          int rfmt, void *buf);
@@ -836,6 +841,8 @@ struct sysib_322 {
 #define _ASCE_TABLE_LENGTH      0x03      /* region table length              */
 
 #define _REGION_ENTRY_ORIGIN    ~0xfffULL /* region/segment table origin      */
+#define _REGION_ENTRY_RO        0x200     /* region/segment protection bit    */
+#define _REGION_ENTRY_TF        0xc0      /* region/segment table offset      */
 #define _REGION_ENTRY_INV       0x20      /* invalid region table entry       */
 #define _REGION_ENTRY_TYPE_MASK 0x0c      /* region/segment table type mask   */
 #define _REGION_ENTRY_TYPE_R1   0x0c      /* region first table type          */
@@ -850,6 +857,7 @@ struct sysib_322 {
 
 #define _PAGE_RO        0x200            /* HW read-only bit  */
 #define _PAGE_INVALID   0x400            /* HW invalid bit    */
+#define _PAGE_RES0      0x800            /* bit must be zero  */
 
 #define SK_C                    (0x1 << 1)
 #define SK_R                    (0x1 << 2)
@@ -883,10 +891,20 @@ struct sysib_322 {
 
 void load_psw(CPUS390XState *env, uint64_t mask, uint64_t addr);
 int mmu_translate(CPUS390XState *env, target_ulong vaddr, int rw, uint64_t asc,
-                  target_ulong *raddr, int *flags);
+                  target_ulong *raddr, int *flags, bool exc);
 int sclp_service_call(CPUS390XState *env, uint64_t sccb, uint32_t code);
 uint32_t calc_cc(CPUS390XState *env, uint32_t cc_op, uint64_t src, uint64_t dst,
                  uint64_t vr);
+
+int s390_cpu_virt_mem_rw(S390CPU *cpu, vaddr laddr, void *hostbuf, int len,
+                         bool is_write);
+
+#define s390_cpu_virt_mem_read(cpu, laddr, dest, len) \
+        s390_cpu_virt_mem_rw(cpu, laddr, dest, len, false)
+#define s390_cpu_virt_mem_write(cpu, laddr, dest, len) \
+        s390_cpu_virt_mem_rw(cpu, laddr, dest, len, true)
+#define s390_cpu_virt_mem_check_write(cpu, laddr, len) \
+        s390_cpu_virt_mem_rw(cpu, laddr, NULL, len, true)
 
 /* The value of the TOD clock for 1.1.1970. */
 #define TOD_UNIX_EPOCH 0x7d91048bca000000ULL

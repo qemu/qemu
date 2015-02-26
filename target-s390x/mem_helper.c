@@ -65,7 +65,7 @@ static void mvc_fast_memset(CPUS390XState *env, uint32_t l, uint64_t dest,
     uint64_t asc = env->psw.mask & PSW_MASK_ASC;
     int flags;
 
-    if (mmu_translate(env, dest, 1, asc, &dest_phys, &flags)) {
+    if (mmu_translate(env, dest, 1, asc, &dest_phys, &flags, true)) {
         cpu_stb_data(env, dest, byte);
         cpu_abort(CPU(cpu), "should never reach here");
     }
@@ -90,13 +90,13 @@ static void mvc_fast_memmove(CPUS390XState *env, uint32_t l, uint64_t dest,
     uint64_t asc = env->psw.mask & PSW_MASK_ASC;
     int flags;
 
-    if (mmu_translate(env, dest, 1, asc, &dest_phys, &flags)) {
+    if (mmu_translate(env, dest, 1, asc, &dest_phys, &flags, true)) {
         cpu_stb_data(env, dest, 0);
         cpu_abort(CPU(cpu), "should never reach here");
     }
     dest_phys |= dest & ~TARGET_PAGE_MASK;
 
-    if (mmu_translate(env, src, 0, asc, &src_phys, &flags)) {
+    if (mmu_translate(env, src, 0, asc, &src_phys, &flags, true)) {
         cpu_ldub_data(env, src);
         cpu_abort(CPU(cpu), "should never reach here");
     }
@@ -967,12 +967,12 @@ static uint32_t mvc_asc(CPUS390XState *env, int64_t l, uint64_t a1,
         cc = 3;
     }
 
-    if (mmu_translate(env, a1 & TARGET_PAGE_MASK, 1, mode1, &dest, &flags)) {
+    if (mmu_translate(env, a1, 1, mode1, &dest, &flags, true)) {
         cpu_loop_exit(CPU(s390_env_get_cpu(env)));
     }
     dest |= a1 & ~TARGET_PAGE_MASK;
 
-    if (mmu_translate(env, a2 & TARGET_PAGE_MASK, 0, mode2, &src, &flags)) {
+    if (mmu_translate(env, a2, 0, mode2, &src, &flags, true)) {
         cpu_loop_exit(CPU(s390_env_get_cpu(env)));
     }
     src |= a2 & ~TARGET_PAGE_MASK;
@@ -1088,7 +1088,7 @@ uint64_t HELPER(lra)(CPUS390XState *env, uint64_t addr)
     }
 
     cs->exception_index = old_exc;
-    if (mmu_translate(env, addr, 0, asc, &ret, &flags)) {
+    if (mmu_translate(env, addr, 0, asc, &ret, &flags, true)) {
         cc = 3;
     }
     if (cs->exception_index == EXCP_PGM) {
