@@ -434,10 +434,14 @@ void migrate_del_blocker(Error *reason)
 void qmp_migrate_incoming(const char *uri, Error **errp)
 {
     Error *local_err = NULL;
+    static bool once = true;
 
     if (!deferred_incoming) {
-        error_setg(errp, "'-incoming defer' is required for migrate_incoming");
+        error_setg(errp, "For use with '-incoming defer'");
         return;
+    }
+    if (!once) {
+        error_setg(errp, "The incoming migration has already been started");
     }
 
     qemu_start_incoming_migration(uri, &local_err);
@@ -447,7 +451,7 @@ void qmp_migrate_incoming(const char *uri, Error **errp)
         return;
     }
 
-    deferred_incoming = false;
+    once = false;
 }
 
 void qmp_migrate(const char *uri, bool has_blk, bool blk,
