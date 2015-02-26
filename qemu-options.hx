@@ -237,12 +237,24 @@ DEF("m", HAS_ARG, QEMU_OPTION_m,
     "NOTE: Some architectures might enforce a specific granularity\n",
     QEMU_ARCH_ALL)
 STEXI
-@item -m [size=]@var{megs}
+@item -m [size=]@var{megs}[,slots=n,maxmem=size]
 @findex -m
-Set virtual RAM size to @var{megs} megabytes. Default is 128 MiB.  Optionally,
-a suffix of ``M'' or ``G'' can be used to signify a value in megabytes or
-gigabytes respectively. Optional pair @var{slots}, @var{maxmem} could be used
-to set amount of hotluggable memory slots and possible maximum amount of memory.
+Sets guest startup RAM size to @var{megs} megabytes. Default is 128 MiB.
+Optionally, a suffix of ``M'' or ``G'' can be used to signify a value in
+megabytes or gigabytes respectively. Optional pair @var{slots}, @var{maxmem}
+could be used to set amount of hotpluggable memory slots and maximum amount of
+memory. Note that @var{maxmem} must be aligned to the page size.
+
+For example, the following command-line sets the guest startup RAM size to
+1GB, creates 3 slots to hotplug additional memory and sets the maximum
+memory the guest can reach to 4GB:
+
+@example
+qemu-system-x86_64 -m 1G,slots=3,maxmem=4G
+@end example
+
+If @var{slots} and @var{maxmem} are not specified, memory hotplug won't
+be enabled and the guest startup RAM will never increase.
 ETEXI
 
 DEF("mem-path", HAS_ARG, QEMU_OPTION_mempath,
