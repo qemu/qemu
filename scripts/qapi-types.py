@@ -123,16 +123,19 @@ const char *%(name)s_lookup[] = {
                          name=name)
     i = 0
     for value in values:
+        index = generate_enum_full_value(name, value)
         ret += mcgen('''
-    "%(value)s",
+    [%(index)s] = "%(value)s",
 ''',
-                     value=value)
+                     index = index, value = value)
 
+    max_index = generate_enum_full_value(name, 'MAX')
     ret += mcgen('''
-    NULL,
+    [%(max_index)s] = NULL,
 };
 
-''')
+''',
+        max_index=max_index)
     return ret
 
 def generate_enum(name, values):
