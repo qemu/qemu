@@ -1,5 +1,5 @@
 HXCOMM QMP dispatch table and documentation
-HXCOMM Text between SQMP and EQMP is copied to the QMP documention file and
+HXCOMM Text between SQMP and EQMP is copied to the QMP documentation file and
 HXCOMM does not show up in the other formats.
 
 SQMP
@@ -1767,7 +1767,7 @@ Arguments:
 
 - "protocol": protocol name (json-string)
 - "password": password (json-string)
-- "connected": [ keep | disconnect | fail ] (josn-string, optional)
+- "connected": [ keep | disconnect | fail ] (json-string, optional)
 
 Example:
 
@@ -2922,7 +2922,7 @@ Channels are described by a json-object, each one contain the following:
 - "channel-id": channel id.  Usually "0", might be different needed when
                 multiple channels of the same type exist, such as multiple
                 display channels in a multihead setup (json-int)
-- "tls": whevener the channel is encrypted (json-bool)
+- "tls": whether the channel is encrypted (json-bool)
 
 Example:
 
