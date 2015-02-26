@@ -121,15 +121,6 @@ static void cookey(register unsigned long *raw1)
 	return;
 	}
 
-void cpkey(register unsigned long *into)
-{
-	register unsigned long *from, *endp;
-
-	from = KnL, endp = &KnL[32];
-	while( from < endp ) *into++ = *from++;
-	return;
-	}
-
 void usekey(register unsigned long *from)
 {
 	register unsigned long *to, *endp;
