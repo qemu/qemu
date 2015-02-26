@@ -466,7 +466,7 @@ int css_do_rchp(uint8_t cssid, uint8_t chpid);
 bool css_present(uint8_t cssid);
 #endif
 
-#define cpu_init(model) (&cpu_s390x_init(model)->env)
+#define cpu_init(model) CPU(cpu_s390x_init(model))
 #define cpu_exec cpu_s390x_exec
 #define cpu_gen_code cpu_s390x_gen_code
 #define cpu_signal_handler cpu_s390x_signal_handler

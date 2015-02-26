@@ -143,15 +143,7 @@ static inline int cpu_mmu_index(CPUUniCore32State *env)
 
 UniCore32CPU *uc32_cpu_init(const char *cpu_model);
 
-static inline CPUUniCore32State *cpu_init(const char *cpu_model)
-{
-    UniCore32CPU *cpu = uc32_cpu_init(cpu_model);
-    if (cpu == NULL) {
-        return NULL;
-    }
-    return &cpu->env;
-
-}
+#define cpu_init(cpu_model) CPU(uc32_cpu_init(cpu_model))
 
 static inline void cpu_get_tb_cpu_state(CPUUniCore32State *env, target_ulong *pc,
                                         target_ulong *cs_base, int *flags)

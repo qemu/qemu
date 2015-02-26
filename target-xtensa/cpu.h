@@ -379,14 +379,7 @@ typedef struct CPUXtensaState {
 
 XtensaCPU *cpu_xtensa_init(const char *cpu_model);
 
-static inline CPUXtensaState *cpu_init(const char *cpu_model)
-{
-    XtensaCPU *cpu = cpu_xtensa_init(cpu_model);
-    if (cpu == NULL) {
-        return NULL;
-    }
-    return &cpu->env;
-}
+#define cpu_init(cpu_model) CPU(cpu_xtensa_init(cpu_model))
 
 void xtensa_translate_init(void);
 void xtensa_breakpoint_handler(CPUState *cs);
