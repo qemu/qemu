@@ -1399,8 +1399,7 @@ static USBDevice *usb_net_init(USBBus *bus, const char *cmdline)
 
     idx = net_client_init(opts, 0, &local_err);
     if (local_err) {
-        error_report("%s", error_get_pretty(local_err));
-        error_free(local_err);
+        error_report_err(local_err);
         return NULL;
     }
 

@@ -172,8 +172,7 @@ static int ide_dev_initfn(IDEDevice *dev, IDEDriveKind kind)
     if (kind != IDE_CD) {
         blkconf_geometry(&dev->conf, &dev->chs_trans, 65536, 16, 255, &err);
         if (err) {
-            error_report("%s", error_get_pretty(err));
-            error_free(err);
+            error_report_err(err);
             return -1;
         }
     }

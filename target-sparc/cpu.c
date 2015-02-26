@@ -111,8 +111,7 @@ static int cpu_sparc_register(SPARCCPU *cpu, const char *cpu_model)
     cc->parse_features(CPU(cpu), featurestr, &err);
     g_free(s);
     if (err) {
-        error_report("%s", error_get_pretty(err));
-        error_free(err);
+        error_report_err(err);
         return -1;
     }
 

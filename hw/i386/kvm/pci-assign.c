@@ -552,9 +552,8 @@ static void get_real_device(AssignedDevice *pci_dev, Error **errp)
     snprintf(name, sizeof(name), "%sconfig", dir);
 
     if (pci_dev->configfd_name && *pci_dev->configfd_name) {
-        dev->config_fd = monitor_handle_fd_param2(cur_mon,
-                                                  pci_dev->configfd_name,
-                                                  &local_err);
+        dev->config_fd = monitor_fd_param(cur_mon, pci_dev->configfd_name,
+                                          &local_err);
         if (local_err) {
             error_propagate(errp, local_err);
             return;
@@ -953,8 +952,7 @@ static void assigned_dev_update_irq_routing(PCIDevice *dev)
 
     r = assign_intx(assigned_dev, &err);
     if (r < 0) {
-        error_report("%s", error_get_pretty(err));
-        error_free(err);
+        error_report_err(err);
         err = NULL;
         qdev_unplug(&dev->qdev, &err);
         assert(!err);
@@ -1010,8 +1008,7 @@ static void assigned_dev_update_msi(PCIDevice *pci_dev)
 
         assign_intx(assigned_dev, &local_err);
         if (local_err) {
-            error_report("%s", error_get_pretty(local_err));
-            error_free(local_err);
+            error_report_err(local_err);
         }
     }
 }
@@ -1158,8 +1155,7 @@ static void assigned_dev_update_msix(PCIDevice *pci_dev)
 
         assign_intx(assigned_dev, &local_err);
         if (local_err) {
-            error_report("%s", error_get_pretty(local_err));
-            error_free(local_err);
+            error_report_err(local_err);
         }
     }
 }

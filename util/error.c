@@ -41,7 +41,7 @@ void error_set(Error **errp, ErrorClass err_class, const char *fmt, ...)
     err->err_class = err_class;
 
     if (errp == &error_abort) {
-        error_report("%s", error_get_pretty(err));
+        error_report_err(err);
         abort();
     }
 
@@ -77,7 +77,7 @@ void error_set_errno(Error **errp, int os_errno, ErrorClass err_class,
     err->err_class = err_class;
 
     if (errp == &error_abort) {
-        error_report("%s", error_get_pretty(err));
+        error_report_err(err);
         abort();
     }
 
@@ -122,7 +122,7 @@ void error_set_win32(Error **errp, int win32_err, ErrorClass err_class,
     err->err_class = err_class;
 
     if (errp == &error_abort) {
-        error_report("%s", error_get_pretty(err));
+        error_report_err(err);
         abort();
     }
 
@@ -152,6 +152,12 @@ const char *error_get_pretty(Error *err)
     return err->msg;
 }
 
+void error_report_err(Error *err)
+{
+    error_report("%s", error_get_pretty(err));
+    error_free(err);
+}
+
 void error_free(Error *err)
 {
     if (err) {
@@ -163,7 +169,7 @@ void error_free(Error *err)
 void error_propagate(Error **dst_errp, Error *local_err)
 {
     if (local_err && dst_errp == &error_abort) {
-        error_report("%s", error_get_pretty(local_err));
+        error_report_err(local_err);
         abort();
     } else if (dst_errp && !*dst_errp) {
         *dst_errp = local_err;

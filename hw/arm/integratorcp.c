@@ -500,14 +500,14 @@ static void integratorcp_init(MachineState *machine)
     if (object_property_find(cpuobj, "has_el3", NULL)) {
         object_property_set_bool(cpuobj, false, "has_el3", &err);
         if (err) {
-            error_report("%s", error_get_pretty(err));
+            error_report_err(err);
             exit(1);
         }
     }
 
     object_property_set_bool(cpuobj, true, "realized", &err);
     if (err) {
-        error_report("%s", error_get_pretty(err));
+        error_report_err(err);
         exit(1);
     }
 

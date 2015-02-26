@@ -908,7 +908,7 @@ void smbios_entry_add(QemuOpts *opts)
 
         qemu_opts_validate(opts, qemu_smbios_file_opts, &local_err);
         if (local_err) {
-            error_report("%s", error_get_pretty(local_err));
+            error_report_err(local_err);
             exit(1);
         }
 
@@ -994,7 +994,7 @@ void smbios_entry_add(QemuOpts *opts)
         case 0:
             qemu_opts_validate(opts, qemu_smbios_type0_opts, &local_err);
             if (local_err) {
-                error_report("%s", error_get_pretty(local_err));
+                error_report_err(local_err);
                 exit(1);
             }
             save_opt(&type0.vendor, opts, "vendor");
@@ -1014,7 +1014,7 @@ void smbios_entry_add(QemuOpts *opts)
         case 1:
             qemu_opts_validate(opts, qemu_smbios_type1_opts, &local_err);
             if (local_err) {
-                error_report("%s", error_get_pretty(local_err));
+                error_report_err(local_err);
                 exit(1);
             }
             save_opt(&type1.manufacturer, opts, "manufacturer");
@@ -1036,7 +1036,7 @@ void smbios_entry_add(QemuOpts *opts)
         case 2:
             qemu_opts_validate(opts, qemu_smbios_type2_opts, &local_err);
             if (local_err) {
-                error_report("%s", error_get_pretty(local_err));
+                error_report_err(local_err);
                 exit(1);
             }
             save_opt(&type2.manufacturer, opts, "manufacturer");
@@ -1049,7 +1049,7 @@ void smbios_entry_add(QemuOpts *opts)
         case 3:
             qemu_opts_validate(opts, qemu_smbios_type3_opts, &local_err);
             if (local_err) {
-                error_report("%s", error_get_pretty(local_err));
+                error_report_err(local_err);
                 exit(1);
             }
             save_opt(&type3.manufacturer, opts, "manufacturer");
@@ -1061,7 +1061,7 @@ void smbios_entry_add(QemuOpts *opts)
         case 4:
             qemu_opts_validate(opts, qemu_smbios_type4_opts, &local_err);
             if (local_err) {
-                error_report("%s", error_get_pretty(local_err));
+                error_report_err(local_err);
                 exit(1);
             }
             save_opt(&type4.sock_pfx, opts, "sock_pfx");
@@ -1074,7 +1074,7 @@ void smbios_entry_add(QemuOpts *opts)
         case 17:
             qemu_opts_validate(opts, qemu_smbios_type17_opts, &local_err);
             if (local_err) {
-                error_report("%s", error_get_pretty(local_err));
+                error_report_err(local_err);
                 exit(1);
             }
             save_opt(&type17.loc_pfx, opts, "loc_pfx");

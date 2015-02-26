@@ -974,8 +974,7 @@ void hmp_host_net_add(Monitor *mon, const QDict *qdict)
 
     net_client_init(opts, 0, &local_err);
     if (local_err) {
-        qerror_report_err(local_err);
-        error_free(local_err);
+        error_report_err(local_err);
         monitor_printf(mon, "adding host network device %s failed\n", device);
     }
 }
@@ -1270,8 +1269,7 @@ static int net_init_client(QemuOpts *opts, void *dummy)
 
     net_client_init(opts, 0, &local_err);
     if (local_err) {
-        qerror_report_err(local_err);
-        error_free(local_err);
+        error_report_err(local_err);
         return -1;
     }
 
@@ -1285,8 +1283,7 @@ static int net_init_netdev(QemuOpts *opts, void *dummy)
 
     ret = net_client_init(opts, 1, &local_err);
     if (local_err) {
-        qerror_report_err(local_err);
-        error_free(local_err);
+        error_report_err(local_err);
         return -1;
     }
 

@@ -133,25 +133,25 @@ static void zynq_init(MachineState *machine)
     if (object_property_find(OBJECT(cpu), "has_el3", NULL)) {
         object_property_set_bool(OBJECT(cpu), false, "has_el3", &err);
         if (err) {
-            error_report("%s", error_get_pretty(err));
+            error_report_err(err);
             exit(1);
         }
     }
 
     object_property_set_int(OBJECT(cpu), ZYNQ_BOARD_MIDR, "midr", &err);
     if (err) {
-        error_report("%s", error_get_pretty(err));
+        error_report_err(err);
         exit(1);
     }
 
     object_property_set_int(OBJECT(cpu), MPCORE_PERIPHBASE, "reset-cbar", &err);
     if (err) {
-        error_report("%s", error_get_pretty(err));
+        error_report_err(err);
         exit(1);
     }
     object_property_set_bool(OBJECT(cpu), true, "realized", &err);
     if (err) {
-        error_report("%s", error_get_pretty(err));
+        error_report_err(err);
         exit(1);
     }
 

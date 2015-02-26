@@ -605,6 +605,7 @@ static int net_init_tap_one(const NetdevTapOptions *tap, NetClientState *peer,
                             const char *downscript, const char *vhostfdname,
                             int vnet_hdr, int fd)
 {
+    Error *err = NULL;
     TAPState *s;
     int vhostfd;
 
@@ -643,8 +644,9 @@ static int net_init_tap_one(const NetdevTapOptions *tap, NetClientState *peer,
         options.force = tap->has_vhostforce && tap->vhostforce;
 
         if (tap->has_vhostfd || tap->has_vhostfds) {
-            vhostfd = monitor_handle_fd_param(cur_mon, vhostfdname);
+            vhostfd = monitor_fd_param(cur_mon, vhostfdname, &err);
             if (vhostfd == -1) {
+                error_report_err(err);
                 return -1;
             }
         } else {
@@ -704,6 +706,7 @@ int net_init_tap(const NetClientOptions *opts, const char *name,
     /* for the no-fd, no-helper case */
     const char *script = NULL; /* suppress wrong "uninit'd use" gcc warning */
     const char *downscript = NULL;
+    Error *err = NULL;
     const char *vhostfdname;
     char ifname[128];
 
@@ -729,8 +732,9 @@ int net_init_tap(const NetClientOptions *opts, const char *name,
             return -1;
         }
 
-        fd = monitor_handle_fd_param(cur_mon, tap->fd);
+        fd = monitor_fd_param(cur_mon, tap->fd, &err);
         if (fd == -1) {
+            error_report_err(err);
             return -1;
         }
 
@@ -768,8 +772,9 @@ int net_init_tap(const NetClientOptions *opts, const char *name,
         }
 
         for (i = 0; i < nfds; i++) {
-            fd = monitor_handle_fd_param(cur_mon, fds[i]);
+            fd = monitor_fd_param(cur_mon, fds[i], &err);
             if (fd == -1) {
+                error_report_err(err);
                 return -1;
             }
 

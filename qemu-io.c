@@ -440,8 +440,7 @@ int main(int argc, char **argv)
     }
 
     if (qemu_init_main_loop(&local_error)) {
-        error_report("%s", error_get_pretty(local_error));
-        error_free(local_error);
+        error_report_err(local_error);
         exit(1);
     }
 

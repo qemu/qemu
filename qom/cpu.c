@@ -71,8 +71,7 @@ CPUState *cpu_generic_init(const char *typename, const char *cpu_model)
 
 out:
     if (err != NULL) {
-        error_report("%s", error_get_pretty(err));
-        error_free(err);
+        error_report_err(err);
         object_unref(OBJECT(cpu));
         return NULL;
     }
