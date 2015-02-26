@@ -871,9 +871,9 @@
 # @connection-id: SPICE connection id number.  All channels with the same id
 #                 belong to the same SPICE session.
 #
-# @connection-type: SPICE channel type number.  "1" is the main control
-#                   channel, filter for this one if you want to track spice
-#                   sessions only
+# @channel-type: SPICE channel type number.  "1" is the main control
+#                channel, filter for this one if you want to track spice
+#                sessions only
 #
 # @channel-id: SPICE channel ID number.  Usually "0", might be different when
 #              multiple channels of the same type exist, such as multiple
