@@ -1750,6 +1750,9 @@
 # Returns: nothing on success
 #
 # Since: 2.3
+# Note: It's a bad idea to use a string for the uri, but it needs to stay
+# compatible with -incoming and the format of the uri is already exposed
+# above libvirt
 ##
 { 'command': 'migrate-incoming', 'data': {'uri': 'str' } }
 
