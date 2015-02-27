@@ -273,7 +273,7 @@ static int macio_newworld_initfn(PCIDevice *d)
     MacIOState *s = MACIO(d);
     NewWorldMacIOState *ns = NEWWORLD_MACIO(d);
     SysBusDevice *sysbus_dev;
-    MemoryRegion *timer_memory = g_new(MemoryRegion, 1);
+    MemoryRegion *timer_memory = NULL;
     int i;
     int cur_irq = 0;
     int ret = macio_common_initfn(d);
@@ -301,6 +301,7 @@ static int macio_newworld_initfn(PCIDevice *d)
     }
 
     /* Timer */
+    timer_memory = g_new(MemoryRegion, 1);
     memory_region_init_io(timer_memory, OBJECT(s), &timer_ops, NULL, "timer",
                           0x1000);
     memory_region_add_subregion(&s->bar, 0x15000, timer_memory);
