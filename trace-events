@@ -1836,3 +1836,7 @@ qio_channel_socket_dgram_complete(void *ioc, int fd) "Socket dgram complete ioc=
 qio_channel_socket_accept(void *ioc) "Socket accept start ioc=%p"
 qio_channel_socket_accept_fail(void *ioc) "Socket accept fail ioc=%p"
 qio_channel_socket_accept_complete(void *ioc, void *cioc, int fd) "Socket accept complete ioc=%p cioc=%p fd=%d"
+
+# io/channel-file.c
+qio_channel_file_new_fd(void *ioc, int fd) "File new fd ioc=%p fd=%d"
+qio_channel_file_new_path(void *ioc, const char *path, int flags, int mode, int fd) "File new fd ioc=%p path=%s flags=%d mode=%d fd=%d"

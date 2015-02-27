@@ -24,6 +24,8 @@ test-cutils
 test-hbitmap
 test-int128
 test-iov
+test-io-channel-file
+test-io-channel-file.txt
 test-io-channel-socket
 test-io-task
 test-mul64
