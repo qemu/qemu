@@ -1243,6 +1243,13 @@ S: Odd fixes
 F: util/buffer.c
 F: include/qemu/buffer.h
 
+I/O Channels
+M: Daniel P. Berrange <berrange@redhat.com>
+S: Maintained
+F: io/
+F: include/io/
+F: tests/test-io-*
+
 Usermode Emulation
 ------------------
 Overall
