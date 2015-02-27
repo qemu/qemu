@@ -990,13 +990,13 @@ static int parse_sandbox(void *opaque, QemuOpts *opts, Error **errp)
     if (qemu_opt_get_bool(opts, "enable", false)) {
 #ifdef CONFIG_SECCOMP
         if (seccomp_start() < 0) {
-            qerror_report(ERROR_CLASS_GENERIC_ERROR,
-                          "failed to install seccomp syscall filter in the kernel");
+            error_report("failed to install seccomp syscall filter "
+                         "in the kernel");
             return -1;
         }
 #else
-        qerror_report(ERROR_CLASS_GENERIC_ERROR,
-                      "sandboxing request but seccomp is not compiled into this build");
+        error_report("sandboxing request but seccomp is not compiled "
+                     "into this build");
         return -1;
 #endif
     }
@@ -1044,14 +1044,12 @@ static int parse_add_fd(void *opaque, QemuOpts *opts, Error **errp)
     fd_opaque = qemu_opt_get(opts, "opaque");
 
     if (fd < 0) {
-        qerror_report(ERROR_CLASS_GENERIC_ERROR,
-                      "fd option is required and must be non-negative");
+        error_report("fd option is required and must be non-negative");
         return -1;
     }
 
     if (fd <= STDERR_FILENO) {
-        qerror_report(ERROR_CLASS_GENERIC_ERROR,
-                      "fd cannot be a standard I/O stream");
+        error_report("fd cannot be a standard I/O stream");
         return -1;
     }
 
@@ -1061,14 +1059,12 @@ static int parse_add_fd(void *opaque, QemuOpts *opts, Error **errp)
      */
     flags = fcntl(fd, F_GETFD);
     if (flags == -1 || (flags & FD_CLOEXEC)) {
-        qerror_report(ERROR_CLASS_GENERIC_ERROR,
-                      "fd is not valid or already in use");
+        error_report("fd is not valid or already in use");
         return -1;
     }
 
     if (fdset_id < 0) {
-        qerror_report(ERROR_CLASS_GENERIC_ERROR,
-                      "set option is required and must be non-negative");
+        error_report("set option is required and must be non-negative");
         return -1;
     }
 
@@ -1081,8 +1077,7 @@ static int parse_add_fd(void *opaque, QemuOpts *opts, Error **errp)
     }
 #endif
     if (dupfd == -1) {
-        qerror_report(ERROR_CLASS_GENERIC_ERROR,
-                      "Error duplicating fd: %s", strerror(errno));
+        error_report("Error duplicating fd: %s", strerror(errno));
         return -1;
     }
 
