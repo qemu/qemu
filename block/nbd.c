@@ -274,6 +274,7 @@ static int nbd_open(BlockDriverState *bs, QDict *options, int flags,
      */
     sock = nbd_establish_connection(bs, errp);
     if (sock < 0) {
+        g_free(export);
         return sock;
     }
 
