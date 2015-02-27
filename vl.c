@@ -710,13 +710,17 @@ void vm_start(void)
 /***********************************************************/
 /* real time host monotonic timer */
 
+static time_t qemu_time(void)
+{
+    return qemu_clock_get_ms(QEMU_CLOCK_HOST) / 1000;
+}
+
 /***********************************************************/
 /* host time/date access */
 void qemu_get_timedate(struct tm *tm, int offset)
 {
-    time_t ti;
+    time_t ti = qemu_time();
 
-    time(&ti);
     ti += offset;
     if (rtc_date_offset == -1) {
         if (rtc_utc)
@@ -744,7 +748,7 @@ int qemu_timedate_diff(struct tm *tm)
     else
         seconds = mktimegm(tm) + rtc_date_offset;
 
-    return seconds - time(NULL);
+    return seconds - qemu_time();
 }
 
 static void configure_rtc_date_offset(const char *startdate, int legacy)
@@ -782,7 +786,7 @@ static void configure_rtc_date_offset(const char *startdate, int legacy)
                             "'2006-06-17T16:01:21' or '2006-06-17'\n");
             exit(1);
         }
-        rtc_date_offset = time(NULL) - rtc_start_date;
+        rtc_date_offset = qemu_time() - rtc_start_date;
     }
 }
 
