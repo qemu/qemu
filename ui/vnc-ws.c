@@ -37,17 +37,29 @@ static int vncws_start_tls_handshake(VncState *vs)
             goto error;
         }
         VNC_DEBUG("Client verification passed, starting TLS I/O\n");
-        qemu_set_fd_handler(vs->csock, vncws_handshake_read, NULL, vs);
+        if (vs->ioc_tag) {
+            g_source_remove(vs->ioc_tag);
+        }
+        vs->ioc_tag = qio_channel_add_watch(
+            vs->ioc, G_IO_IN, vncws_handshake_io, vs, NULL);
         break;
 
     case QCRYPTO_TLS_HANDSHAKE_RECVING:
         VNC_DEBUG("Handshake interrupted (blocking read)\n");
-        qemu_set_fd_handler(vs->csock, vncws_tls_handshake_io, NULL, vs);
+        if (vs->ioc_tag) {
+            g_source_remove(vs->ioc_tag);
+        }
+        vs->ioc_tag = qio_channel_add_watch(
+            vs->ioc, G_IO_IN, vncws_tls_handshake_io, vs, NULL);
         break;
 
     case QCRYPTO_TLS_HANDSHAKE_SENDING:
         VNC_DEBUG("Handshake interrupted (blocking write)\n");
-        qemu_set_fd_handler(vs->csock, NULL, vncws_tls_handshake_io, vs);
+        if (vs->ioc_tag) {
+            g_source_remove(vs->ioc_tag);
+        }
+        vs->ioc_tag = qio_channel_add_watch(
+            vs->ioc, G_IO_OUT, vncws_tls_handshake_io, vs, NULL);
         break;
     }
 
@@ -60,7 +72,9 @@ static int vncws_start_tls_handshake(VncState *vs)
     return -1;
 }
 
-void vncws_tls_handshake_io(void *opaque)
+gboolean vncws_tls_handshake_io(QIOChannel *ioc G_GNUC_UNUSED,
+                                GIOCondition condition G_GNUC_UNUSED,
+                                void *opaque)
 {
     VncState *vs = (VncState *)opaque;
     Error *err = NULL;
@@ -75,7 +89,7 @@ void vncws_tls_handshake_io(void *opaque)
                   error_get_pretty(err));
         error_free(err);
         vnc_client_error(vs);
-        return;
+        return TRUE;
     }
 
     qcrypto_tls_session_set_callbacks(vs->tls,
@@ -85,11 +99,11 @@ void vncws_tls_handshake_io(void *opaque)
 
     VNC_DEBUG("Start TLS WS handshake process\n");
     vncws_start_tls_handshake(vs);
+    return TRUE;
 }
 
-void vncws_handshake_read(void *opaque)
+static void vncws_handshake_read(VncState *vs)
 {
-    VncState *vs = opaque;
     uint8_t *handshake_end;
     long ret;
     /* Typical HTTP headers from novnc are 512 bytes, so limiting
@@ -99,7 +113,7 @@ void vncws_handshake_read(void *opaque)
     ret = vnc_client_read_buf(vs, buffer_end(&vs->ws_input), want);
 
     if (!ret) {
-        if (vs->csock == -1) {
+        if (vs->disconnecting) {
             vnc_disconnect_finish(vs);
         }
         return;
@@ -109,7 +123,11 @@ void vncws_handshake_read(void *opaque)
     handshake_end = (uint8_t *)g_strstr_len((char *)vs->ws_input.buffer,
             vs->ws_input.offset, WS_HANDSHAKE_END);
     if (handshake_end) {
-        qemu_set_fd_handler(vs->csock, vnc_client_read, NULL, vs);
+        if (vs->ioc_tag) {
+            g_source_remove(vs->ioc_tag);
+        }
+        vs->ioc_tag = qio_channel_add_watch(
+            vs->ioc, G_IO_IN, vnc_client_io, vs, NULL);
         vncws_process_handshake(vs, vs->ws_input.buffer, vs->ws_input.offset);
         buffer_advance(&vs->ws_input, handshake_end - vs->ws_input.buffer +
                 strlen(WS_HANDSHAKE_END));
@@ -119,6 +137,15 @@ void vncws_handshake_read(void *opaque)
     }
 }
 
+
+gboolean vncws_handshake_io(QIOChannel *ioc G_GNUC_UNUSED,
+                            GIOCondition condition G_GNUC_UNUSED,
+                            void *opaque)
+{
+    VncState *vs = opaque;
+    vncws_handshake_read(vs);
+    return TRUE;
+}
 
 long vnc_client_read_ws(VncState *vs)
 {
@@ -187,7 +214,11 @@ long vnc_client_write_ws(VncState *vs)
     buffer_advance(&vs->ws_output, ret);
 
     if (vs->ws_output.offset == 0) {
-        qemu_set_fd_handler(vs->csock, vnc_client_read, NULL, vs);
+        if (vs->ioc_tag) {
+            g_source_remove(vs->ioc_tag);
+        }
+        vs->ioc_tag = qio_channel_add_watch(
+            vs->ioc, G_IO_IN, vnc_client_io, vs, NULL);
     }
 
     return ret;

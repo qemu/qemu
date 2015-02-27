@@ -35,6 +35,7 @@
 #include "qemu/bitmap.h"
 #include "crypto/tlssession.h"
 #include "qemu/buffer.h"
+#include "io/channel-socket.h"
 #include <zlib.h>
 #include <stdbool.h>
 
@@ -145,8 +146,10 @@ struct VncDisplay
     int num_exclusive;
     int connections_limit;
     VncSharePolicy share_policy;
-    int lsock;
-    int lwebsock;
+    QIOChannelSocket *lsock;
+    guint lsock_tag;
+    QIOChannelSocket *lwebsock;
+    guint lwebsock_tag;
     bool ws_enabled;
     DisplaySurface *ds;
     DisplayChangeListener dcl;
@@ -248,7 +251,10 @@ struct VncJob
 
 struct VncState
 {
-    int csock;
+    QIOChannelSocket *sioc; /* The underlying socket */
+    QIOChannel *ioc; /* The channel currently used for I/O */
+    guint ioc_tag;
+    gboolean disconnecting;
 
     DECLARE_BITMAP(dirty[VNC_MAX_HEIGHT], VNC_DIRTY_BITS);
     uint8_t **lossy_rect; /* Not an Array to avoid costly memcpy in
@@ -499,8 +505,9 @@ enum {
  *****************************************************************************/
 
 /* Event loop functions */
-void vnc_client_read(void *opaque);
-void vnc_client_write(void *opaque);
+gboolean vnc_client_io(QIOChannel *ioc,
+                       GIOCondition condition,
+                       void *opaque);
 
 ssize_t vnc_client_read_buf(VncState *vs, uint8_t *data, size_t datalen);
 ssize_t vnc_client_write_buf(VncState *vs, const uint8_t *data, size_t datalen);
@@ -524,16 +531,13 @@ uint32_t read_u32(uint8_t *data, size_t offset);
 
 /* Protocol stage functions */
 void vnc_client_error(VncState *vs);
-ssize_t vnc_client_io_error(VncState *vs, ssize_t ret, int last_errno);
+ssize_t vnc_client_io_error(VncState *vs, ssize_t ret, Error **errp);
 
 void start_client_init(VncState *vs);
 void start_auth_vnc(VncState *vs);
 
 
 /* Misc helpers */
-
-char *vnc_socket_local_addr(const char *format, int fd);
-char *vnc_socket_remote_addr(const char *format, int fd);
 
 static inline uint32_t vnc_has_feature(VncState *vs, int feature) {
     return (vs->features & (1 << feature));

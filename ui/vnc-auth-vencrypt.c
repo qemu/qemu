@@ -63,7 +63,9 @@ static void start_auth_vencrypt_subauth(VncState *vs)
     }
 }
 
-static void vnc_tls_handshake_io(void *opaque);
+static gboolean vnc_tls_handshake_io(QIOChannel *ioc,
+                                     GIOCondition condition,
+                                     void *opaque);
 
 static int vnc_start_vencrypt_handshake(VncState *vs)
 {
@@ -80,19 +82,31 @@ static int vnc_start_vencrypt_handshake(VncState *vs)
             goto error;
         }
         VNC_DEBUG("Client verification passed, starting TLS I/O\n");
-        qemu_set_fd_handler(vs->csock, vnc_client_read, vnc_client_write, vs);
+        if (vs->ioc_tag) {
+            g_source_remove(vs->ioc_tag);
+        }
+        vs->ioc_tag = qio_channel_add_watch(
+            vs->ioc, G_IO_IN | G_IO_OUT, vnc_client_io, vs, NULL);
 
         start_auth_vencrypt_subauth(vs);
         break;
 
     case QCRYPTO_TLS_HANDSHAKE_RECVING:
         VNC_DEBUG("Handshake interrupted (blocking read)\n");
-        qemu_set_fd_handler(vs->csock, vnc_tls_handshake_io, NULL, vs);
+        if (vs->ioc_tag) {
+            g_source_remove(vs->ioc_tag);
+        }
+        vs->ioc_tag = qio_channel_add_watch(
+            vs->ioc, G_IO_IN, vnc_tls_handshake_io, vs, NULL);
         break;
 
     case QCRYPTO_TLS_HANDSHAKE_SENDING:
         VNC_DEBUG("Handshake interrupted (blocking write)\n");
-        qemu_set_fd_handler(vs->csock, NULL, vnc_tls_handshake_io, vs);
+        if (vs->ioc_tag) {
+            g_source_remove(vs->ioc_tag);
+        }
+        vs->ioc_tag = qio_channel_add_watch(
+            vs->ioc, G_IO_OUT, vnc_tls_handshake_io, vs, NULL);
         break;
     }
 
@@ -105,12 +119,15 @@ static int vnc_start_vencrypt_handshake(VncState *vs)
     return -1;
 }
 
-static void vnc_tls_handshake_io(void *opaque)
+static gboolean vnc_tls_handshake_io(QIOChannel *ioc G_GNUC_UNUSED,
+                                     GIOCondition condition G_GNUC_UNUSED,
+                                     void *opaque)
 {
     VncState *vs = (VncState *)opaque;
 
     VNC_DEBUG("Handshake IO continue\n");
     vnc_start_vencrypt_handshake(vs);
+    return TRUE;
 }
 
 

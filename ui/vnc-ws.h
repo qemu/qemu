@@ -72,8 +72,12 @@ enum {
     WS_OPCODE_PONG = 0xA
 };
 
-void vncws_tls_handshake_io(void *opaque);
-void vncws_handshake_read(void *opaque);
+gboolean vncws_tls_handshake_io(QIOChannel *ioc,
+                                GIOCondition condition,
+                                void *opaque);
+gboolean vncws_handshake_io(QIOChannel *ioc,
+                            GIOCondition condition,
+                            void *opaque);
 long vnc_client_write_ws(VncState *vs);
 long vnc_client_read_ws(VncState *vs);
 void vncws_process_handshake(VncState *vs, uint8_t *line, size_t size);
