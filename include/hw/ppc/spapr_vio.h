@@ -52,7 +52,7 @@ typedef struct VIOsPAPRDeviceClass {
     const char *dt_name, *dt_type, *dt_compatible;
     target_ulong signal_mask;
     uint32_t rtce_window_size;
-    int (*init)(VIOsPAPRDevice *dev);
+    void (*realize)(VIOsPAPRDevice *dev, Error **errp);
     void (*reset)(VIOsPAPRDevice *dev);
     int (*devnode)(VIOsPAPRDevice *dev, void *fdt, int node_off);
 } VIOsPAPRDeviceClass;

@@ -425,7 +425,7 @@ static void spapr_vio_busdev_reset(DeviceState *qdev)
     }
 }
 
-static int spapr_vio_busdev_init(DeviceState *qdev)
+static void spapr_vio_busdev_realize(DeviceState *qdev, Error **errp)
 {
     VIOsPAPRDevice *dev = (VIOsPAPRDevice *)qdev;
     VIOsPAPRDeviceClass *pc = VIO_SPAPR_DEVICE_GET_CLASS(dev);
@@ -441,11 +441,11 @@ static int spapr_vio_busdev_init(DeviceState *qdev)
         VIOsPAPRDevice *other = reg_conflict(dev);
 
         if (other) {
-            fprintf(stderr, "vio: %s and %s devices conflict at address %#x\n",
-                    object_get_typename(OBJECT(qdev)),
-                    object_get_typename(OBJECT(&other->qdev)),
-                    dev->reg);
-            return -1;
+            error_setg(errp, "%s and %s devices conflict at address %#x",
+                       object_get_typename(OBJECT(qdev)),
+                       object_get_typename(OBJECT(&other->qdev)),
+                       dev->reg);
+            return;
         }
     } else {
         /* Need to assign an address */
@@ -464,7 +464,8 @@ static int spapr_vio_busdev_init(DeviceState *qdev)
 
     dev->irq = xics_alloc(spapr->icp, 0, dev->irq, false);
     if (!dev->irq) {
-        return -1;
+        error_setg(errp, "can't allocate IRQ");
+        return;
     }
 
     if (pc->rtce_window_size) {
@@ -488,7 +489,7 @@ static int spapr_vio_busdev_init(DeviceState *qdev)
                                             spapr_tce_get_iommu(dev->tcet), 2);
     }
 
-    return pc->init(dev);
+    pc->realize(dev, errp);
 }
 
 static target_ulong h_vio_signal(PowerPCCPU *cpu, sPAPREnvironment *spapr,
@@ -594,7 +595,7 @@ const VMStateDescription vmstate_spapr_vio = {
 static void vio_spapr_device_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *k = DEVICE_CLASS(klass);
-    k->init = spapr_vio_busdev_init;
+    k->realize = spapr_vio_busdev_realize;
     k->reset = spapr_vio_busdev_reset;
     k->bus_type = TYPE_SPAPR_VIO_BUS;
     k->props = spapr_vio_props;
