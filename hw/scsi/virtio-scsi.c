@@ -903,6 +903,8 @@ static void virtio_scsi_device_realize(DeviceState *dev, Error **errp)
                     virtio_scsi_save, virtio_scsi_load, s);
     s->migration_state_notifier.notify = virtio_scsi_migration_state_changed;
     add_migration_state_change_notifier(&s->migration_state_notifier);
+
+    error_setg(&s->blocker, "block device is in use by data plane");
 }
 
 static void virtio_scsi_instance_init(Object *obj)
@@ -927,6 +929,8 @@ void virtio_scsi_common_unrealize(DeviceState *dev, Error **errp)
 static void virtio_scsi_device_unrealize(DeviceState *dev, Error **errp)
 {
     VirtIOSCSI *s = VIRTIO_SCSI(dev);
+
+    error_free(s->blocker);
 
     unregister_savevm(dev, "virtio-scsi", s);
     remove_migration_state_change_notifier(&s->migration_state_notifier);
