@@ -186,6 +186,7 @@ static void leon3_generic_hw_init(MachineState *machine)
         fprintf(stderr, "Can't read bios image %s\n", filename);
         exit(1);
     }
+    g_free(filename);
 
     /* Can directly load an application. */
     if (kernel_filename != NULL) {
