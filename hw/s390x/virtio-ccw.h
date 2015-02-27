@@ -64,7 +64,7 @@ typedef struct VirtioCcwDevice VirtioCcwDevice;
 
 typedef struct VirtIOCCWDeviceClass {
     DeviceClass parent_class;
-    int (*init)(VirtioCcwDevice *dev);
+    void (*realize)(VirtioCcwDevice *dev, Error **errp);
     int (*exit)(VirtioCcwDevice *dev);
 } VirtIOCCWDeviceClass;
 
