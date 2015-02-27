@@ -5,6 +5,7 @@ check-qjson
 check-qlist
 check-qstring
 check-qom-interface
+rcutorture
 test-aio
 test-bitops
 test-coroutine
@@ -26,6 +27,7 @@ test-qmp-input-strict
 test-qmp-input-visitor
 test-qmp-marshal.c
 test-qmp-output-visitor
+test-rcu-list
 test-rfifolock
 test-string-input-visitor
 test-string-output-visitor
@@ -33,6 +35,7 @@ test-thread-pool
 test-throttle
 test-visitor-serialization
 test-vmstate
+test-write-threshold
 test-x86-cpuid
 test-xbzrle
 *-test
