@@ -111,7 +111,8 @@ VirtIOS390Bus *s390_virtio_bus_init(ram_addr_t *ram_size)
     return bus;
 }
 
-static int s390_virtio_device_init(VirtIOS390Device *dev, VirtIODevice *vdev)
+static void s390_virtio_device_init(VirtIOS390Device *dev,
+                                    VirtIODevice *vdev)
 {
     VirtIOS390Bus *bus;
     int dev_len;
@@ -135,8 +136,6 @@ static int s390_virtio_device_init(VirtIOS390Device *dev, VirtIODevice *vdev)
     if (dev->qdev.hotplugged) {
         s390_virtio_irq(VIRTIO_PARAM_DEV_ADD, dev->dev_offs);
     }
-
-    return 0;
 }
 
 static int s390_virtio_net_init(VirtIOS390Device *s390_dev)
@@ -153,7 +152,8 @@ static int s390_virtio_net_init(VirtIOS390Device *s390_dev)
         return -1;
     }
 
-    return s390_virtio_device_init(s390_dev, VIRTIO_DEVICE(vdev));
+    s390_virtio_device_init(s390_dev, VIRTIO_DEVICE(vdev));
+    return 0;
 }
 
 static void s390_virtio_net_instance_init(Object *obj)
@@ -174,7 +174,8 @@ static int s390_virtio_blk_init(VirtIOS390Device *s390_dev)
     if (qdev_init(vdev) < 0) {
         return -1;
     }
-    return s390_virtio_device_init(s390_dev, VIRTIO_DEVICE(vdev));
+    s390_virtio_device_init(s390_dev, VIRTIO_DEVICE(vdev));
+    return 0;
 }
 
 static void s390_virtio_blk_instance_init(Object *obj)
@@ -215,12 +216,9 @@ static int s390_virtio_serial_init(VirtIOS390Device *s390_dev)
         return -1;
     }
 
-    r = s390_virtio_device_init(s390_dev, VIRTIO_DEVICE(vdev));
-    if (!r) {
-        bus->console = s390_dev;
-    }
-
-    return r;
+    s390_virtio_device_init(s390_dev, VIRTIO_DEVICE(vdev));
+    bus->console = s390_dev;
+    return 0;
 }
 
 static void s390_virtio_serial_instance_init(Object *obj)
@@ -253,7 +251,8 @@ static int s390_virtio_scsi_init(VirtIOS390Device *s390_dev)
         return -1;
     }
 
-    return s390_virtio_device_init(s390_dev, VIRTIO_DEVICE(vdev));
+    s390_virtio_device_init(s390_dev, VIRTIO_DEVICE(vdev));
+    return 0;
 }
 
 static void s390_virtio_scsi_instance_init(Object *obj)
@@ -275,7 +274,8 @@ static int s390_vhost_scsi_init(VirtIOS390Device *s390_dev)
         return -1;
     }
 
-    return s390_virtio_device_init(s390_dev, VIRTIO_DEVICE(vdev));
+    s390_virtio_device_init(s390_dev, VIRTIO_DEVICE(vdev));
+    return 0;
 }
 
 static void s390_vhost_scsi_instance_init(Object *obj)
@@ -302,7 +302,8 @@ static int s390_virtio_rng_init(VirtIOS390Device *s390_dev)
                              OBJECT(dev->vdev.conf.rng), "rng",
                              NULL);
 
-    return s390_virtio_device_init(s390_dev, VIRTIO_DEVICE(vdev));
+    s390_virtio_device_init(s390_dev, VIRTIO_DEVICE(vdev));
+    return 0;
 }
 
 static void s390_virtio_rng_instance_init(Object *obj)
