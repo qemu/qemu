@@ -363,6 +363,9 @@ static void gd_update_geometry_hints(VirtualConsole *vc)
     GtkWindow *geo_window;
 
     if (vc->type == GD_VC_GFX) {
+        if (!vc->gfx.ds) {
+            return;
+        }
         if (s->free_scale) {
             geo.min_width  = surface_width(vc->gfx.ds) * VC_SCALE_MIN;
             geo.min_height = surface_height(vc->gfx.ds) * VC_SCALE_MIN;
@@ -574,22 +577,28 @@ static void gd_switch(DisplayChangeListener *dcl,
     VirtualConsole *vc = container_of(dcl, VirtualConsole, gfx.dcl);
     bool resized = true;
 
-    trace_gd_switch(vc->label, surface_width(surface), surface_height(surface));
+    trace_gd_switch(vc->label,
+                    surface ? surface_width(surface)  : 0,
+                    surface ? surface_height(surface) : 0);
 
     if (vc->gfx.surface) {
         cairo_surface_destroy(vc->gfx.surface);
+        vc->gfx.surface = NULL;
+    }
+    if (vc->gfx.convert) {
+        pixman_image_unref(vc->gfx.convert);
+        vc->gfx.convert = NULL;
     }
 
-    if (vc->gfx.ds &&
+    if (vc->gfx.ds && surface &&
         surface_width(vc->gfx.ds) == surface_width(surface) &&
         surface_height(vc->gfx.ds) == surface_height(surface)) {
         resized = false;
     }
     vc->gfx.ds = surface;
 
-    if (vc->gfx.convert) {
-        pixman_image_unref(vc->gfx.convert);
-        vc->gfx.convert = NULL;
+    if (!surface) {
+        return;
     }
 
     if (surface->format == PIXMAN_x8r8g8b8) {
@@ -690,6 +699,9 @@ static gboolean gd_draw_event(GtkWidget *widget, cairo_t *cr, void *opaque)
     if (!gtk_widget_get_realized(widget)) {
         return FALSE;
     }
+    if (!vc->gfx.ds) {
+        return FALSE;
+    }
 
     fbw = surface_width(vc->gfx.ds);
     fbh = surface_height(vc->gfx.ds);
@@ -770,6 +782,10 @@ static gboolean gd_motion_event(GtkWidget *widget, GdkEventMotion *motion,
     int mx, my;
     int fbh, fbw;
     int ww, wh;
+
+    if (!vc->gfx.ds) {
+        return TRUE;
+    }
 
     fbw = surface_width(vc->gfx.ds) * vc->gfx.scale_x;
     fbh = surface_height(vc->gfx.ds) * vc->gfx.scale_y;
