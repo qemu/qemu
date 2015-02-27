@@ -83,7 +83,7 @@ typedef struct VirtIOS390Device VirtIOS390Device;
 
 typedef struct VirtIOS390DeviceClass {
     DeviceClass qdev;
-    int (*init)(VirtIOS390Device *dev);
+    void (*realize)(VirtIOS390Device *dev, Error **errp);
 } VirtIOS390DeviceClass;
 
 struct VirtIOS390Device {
