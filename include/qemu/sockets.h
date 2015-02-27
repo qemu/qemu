@@ -89,6 +89,25 @@ int parse_host_port(struct sockaddr_in *saddr, const char *str);
 int socket_init(void);
 
 /**
+ * socket_sockaddr_to_address:
+ * @sa: socket address struct
+ * @salen: size of @sa struct
+ * @errp: pointer to uninitialized error object
+ *
+ * Get the string representation of the socket
+ * address. A pointer to the allocated address information
+ * struct will be returned, which the caller is required to
+ * release with a call qapi_free_SocketAddress when no
+ * longer required.
+ *
+ * Returns: the socket address struct, or NULL on error
+ */
+SocketAddress *
+socket_sockaddr_to_address(struct sockaddr_storage *sa,
+                           socklen_t salen,
+                           Error **errp);
+
+/**
  * socket_local_address:
  * @fd: the socket file handle
  * @errp: pointer to uninitialized error object

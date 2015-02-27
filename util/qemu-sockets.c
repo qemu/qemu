@@ -1086,7 +1086,7 @@ socket_sockaddr_to_address_unix(struct sockaddr_storage *sa,
 }
 #endif /* WIN32 */
 
-static SocketAddress *
+SocketAddress *
 socket_sockaddr_to_address(struct sockaddr_storage *sa,
                            socklen_t salen,
                            Error **errp)

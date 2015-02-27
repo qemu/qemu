@@ -24,6 +24,7 @@ test-cutils
 test-hbitmap
 test-int128
 test-iov
+test-io-channel-socket
 test-io-task
 test-mul64
 test-opts-visitor

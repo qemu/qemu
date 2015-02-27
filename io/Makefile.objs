@@ -1,3 +1,4 @@
 io-obj-y = channel.o
+io-obj-y += channel-socket.o
 io-obj-y += channel-watch.o
 io-obj-y += task.o
