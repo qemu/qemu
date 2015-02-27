@@ -82,7 +82,7 @@ typedef struct {
 
 typedef struct VirtioPCIClass {
     PCIDeviceClass parent_class;
-    int (*init)(VirtIOPCIProxy *vpci_dev);
+    void (*realize)(VirtIOPCIProxy *vpci_dev, Error **errp);
 } VirtioPCIClass;
 
 struct VirtIOPCIProxy {
