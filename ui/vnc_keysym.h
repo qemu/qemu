@@ -404,6 +404,7 @@ static const name2keysym_t name2keysym[]={
 {"breve",                         0x01a2},  /* U+02D8 BREVE */
 {"caron",                         0x01b7},  /* U+02C7 CARON */
 {"Ccaron",                        0x01c8},  /* U+010C LATIN CAPITAL LETTER C WITH CARON */
+{"numerosign",                    0x06b0},  /* U+2116 NUMERO SIGN */
 {"Cyrillic_a",                    0x06c1},  /* U+0430 CYRILLIC SMALL LETTER A */
 {"Cyrillic_A",                    0x06e1},  /* U+0410 CYRILLIC CAPITAL LETTER A */
 {"Cyrillic_be",                   0x06c2},  /* U+0431 CYRILLIC SMALL LETTER BE */
