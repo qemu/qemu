@@ -4,7 +4,7 @@ map 0x419
 exclam 0x02 shift
 at 0x03 shift
 quotedbl 0x03 shift altgr
-numbersign 0x04 shift
+numerosign 0x04 shift
 dollar 0x05 shift
 asterisk 0x05 shift altgr
 percent 0x06 shift
