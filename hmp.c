@@ -29,6 +29,10 @@
 #include "block/qapi.h"
 #include "qemu-io.h"
 
+#ifdef CONFIG_SPICE
+#include <spice/enums.h>
+#endif
+
 static void hmp_handle_error(Monitor *mon, Error **errp)
 {
     assert(errp);
@@ -545,6 +549,20 @@ void hmp_info_spice(Monitor *mon, const QDict *qdict)
 {
     SpiceChannelList *chan;
     SpiceInfo *info;
+    const char *channel_name;
+    const char * const channel_names[] = {
+        [SPICE_CHANNEL_MAIN] = "main",
+        [SPICE_CHANNEL_DISPLAY] = "display",
+        [SPICE_CHANNEL_INPUTS] = "inputs",
+        [SPICE_CHANNEL_CURSOR] = "cursor",
+        [SPICE_CHANNEL_PLAYBACK] = "playback",
+        [SPICE_CHANNEL_RECORD] = "record",
+        [SPICE_CHANNEL_TUNNEL] = "tunnel",
+        [SPICE_CHANNEL_SMARTCARD] = "smartcard",
+        [SPICE_CHANNEL_USBREDIR] = "usbredir",
+        [SPICE_CHANNEL_PORT] = "port",
+        [SPICE_CHANNEL_WEBDAV] = "webdav",
+    };
 
     info = qmp_query_spice(NULL);
 
@@ -581,6 +599,15 @@ void hmp_info_spice(Monitor *mon, const QDict *qdict)
                            chan->value->connection_id);
             monitor_printf(mon, "     channel: %" PRId64 ":%" PRId64 "\n",
                            chan->value->channel_type, chan->value->channel_id);
+
+            channel_name = "unknown";
+            if (chan->value->channel_type > 0 &&
+                chan->value->channel_type < ARRAY_SIZE(channel_names) &&
+                channel_names[chan->value->channel_type]) {
+                channel_name = channel_names[chan->value->channel_type];
+            }
+
+            monitor_printf(mon, "     channel name: %s\n", channel_name);
         }
     }
 
