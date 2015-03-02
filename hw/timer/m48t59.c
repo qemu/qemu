@@ -129,6 +129,10 @@ static M48txxInfo m48txx_info[] = {
         .model = 8,
         .size = 0x2000,
     },{
+        .sysbus_name = "sysbus-m48t59",
+        .model = 59,
+        .size = 0x2000,
+    },{
         .isa_name = "isa-m48t59",
         .model = 59,
         .size = 0x2000,
