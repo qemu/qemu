@@ -1016,18 +1016,18 @@ fail:
 void hmp_commit(Monitor *mon, const QDict *qdict)
 {
     const char *device = qdict_get_str(qdict, "device");
-    BlockDriverState *bs;
+    BlockBackend *blk;
     int ret;
 
     if (!strcmp(device, "all")) {
         ret = bdrv_commit_all();
     } else {
-        bs = bdrv_find(device);
-        if (!bs) {
+        blk = blk_by_name(device);
+        if (!blk) {
             monitor_printf(mon, "Device '%s' not found\n", device);
             return;
         }
-        ret = bdrv_commit(bs);
+        ret = bdrv_commit(blk_bs(blk));
     }
     if (ret < 0) {
         monitor_printf(mon, "'commit' error for '%s': %s\n", device,
@@ -1092,17 +1092,20 @@ SnapshotInfo *qmp_blockdev_snapshot_delete_internal_sync(const char *device,
                                                          const char *name,
                                                          Error **errp)
 {
-    BlockDriverState *bs = bdrv_find(device);
+    BlockDriverState *bs;
+    BlockBackend *blk;
     AioContext *aio_context;
     QEMUSnapshotInfo sn;
     Error *local_err = NULL;
     SnapshotInfo *info = NULL;
     int ret;
 
-    if (!bs) {
+    blk = blk_by_name(device);
+    if (!blk) {
         error_set(errp, QERR_DEVICE_NOT_FOUND, device);
         return NULL;
     }
+    bs = blk_bs(blk);
 
     if (!has_id) {
         id = NULL;
@@ -1205,6 +1208,7 @@ static void internal_snapshot_prepare(BlkTransactionState *common,
     Error *local_err = NULL;
     const char *device;
     const char *name;
+    BlockBackend *blk;
     BlockDriverState *bs;
     QEMUSnapshotInfo old_sn, *sn;
     bool ret;
@@ -1223,11 +1227,12 @@ static void internal_snapshot_prepare(BlkTransactionState *common,
     name = internal->name;
 
     /* 2. check for validation */
-    bs = bdrv_find(device);
-    if (!bs) {
+    blk = blk_by_name(device);
+    if (!blk) {
         error_set(errp, QERR_DEVICE_NOT_FOUND, device);
         return;
     }
+    bs = blk_bs(blk);
 
     /* AioContext is released in .clean() */
     state->aio_context = bdrv_get_aio_context(bs);
@@ -1494,17 +1499,19 @@ static void drive_backup_prepare(BlkTransactionState *common, Error **errp)
 {
     DriveBackupState *state = DO_UPCAST(DriveBackupState, common, common);
     BlockDriverState *bs;
+    BlockBackend *blk;
     DriveBackup *backup;
     Error *local_err = NULL;
 
     assert(common->action->kind == TRANSACTION_ACTION_KIND_DRIVE_BACKUP);
     backup = common->action->drive_backup;
 
-    bs = bdrv_find(backup->device);
-    if (!bs) {
+    blk = blk_by_name(backup->device);
+    if (!blk) {
         error_set(errp, QERR_DEVICE_NOT_FOUND, backup->device);
         return;
     }
+    bs = blk_bs(blk);
 
     /* AioContext is released in .clean() */
     state->aio_context = bdrv_get_aio_context(bs);
@@ -1559,22 +1566,25 @@ static void blockdev_backup_prepare(BlkTransactionState *common, Error **errp)
     BlockdevBackupState *state = DO_UPCAST(BlockdevBackupState, common, common);
     BlockdevBackup *backup;
     BlockDriverState *bs, *target;
+    BlockBackend *blk;
     Error *local_err = NULL;
 
     assert(common->action->kind == TRANSACTION_ACTION_KIND_BLOCKDEV_BACKUP);
     backup = common->action->blockdev_backup;
 
-    bs = bdrv_find(backup->device);
-    if (!bs) {
+    blk = blk_by_name(backup->device);
+    if (!blk) {
         error_set(errp, QERR_DEVICE_NOT_FOUND, backup->device);
         return;
     }
+    bs = blk_bs(blk);
 
-    target = bdrv_find(backup->target);
-    if (!target) {
+    blk = blk_by_name(backup->target);
+    if (!blk) {
         error_set(errp, QERR_DEVICE_NOT_FOUND, backup->target);
         return;
     }
+    target = blk_bs(blk);
 
     /* AioContext is released in .clean() */
     state->aio_context = bdrv_get_aio_context(bs);
@@ -1881,13 +1891,15 @@ void qmp_block_set_io_throttle(const char *device, int64_t bps, int64_t bps_rd,
 {
     ThrottleConfig cfg;
     BlockDriverState *bs;
+    BlockBackend *blk;
     AioContext *aio_context;
 
-    bs = bdrv_find(device);
-    if (!bs) {
+    blk = blk_by_name(device);
+    if (!blk) {
         error_set(errp, QERR_DEVICE_NOT_FOUND, device);
         return;
     }
+    bs = blk_bs(blk);
 
     memset(&cfg, 0, sizeof(cfg));
     cfg.buckets[THROTTLE_BPS_TOTAL].avg = bps;
@@ -2091,6 +2103,7 @@ void qmp_block_stream(const char *device,
                       bool has_on_error, BlockdevOnError on_error,
                       Error **errp)
 {
+    BlockBackend *blk;
     BlockDriverState *bs;
     BlockDriverState *base_bs = NULL;
     AioContext *aio_context;
@@ -2101,11 +2114,12 @@ void qmp_block_stream(const char *device,
         on_error = BLOCKDEV_ON_ERROR_REPORT;
     }
 
-    bs = bdrv_find(device);
-    if (!bs) {
+    blk = blk_by_name(device);
+    if (!blk) {
         error_set(errp, QERR_DEVICE_NOT_FOUND, device);
         return;
     }
+    bs = blk_bs(blk);
 
     aio_context = bdrv_get_aio_context(bs);
     aio_context_acquire(aio_context);
@@ -2155,6 +2169,7 @@ void qmp_block_commit(const char *device,
                       bool has_speed, int64_t speed,
                       Error **errp)
 {
+    BlockBackend *blk;
     BlockDriverState *bs;
     BlockDriverState *base_bs, *top_bs;
     AioContext *aio_context;
@@ -2173,11 +2188,12 @@ void qmp_block_commit(const char *device,
      *  live commit feature versions; for this to work, we must make sure to
      *  perform the device lookup before any generic errors that may occur in a
      *  scenario in which all optional arguments are omitted. */
-    bs = bdrv_find(device);
-    if (!bs) {
+    blk = blk_by_name(device);
+    if (!blk) {
         error_set(errp, QERR_DEVICE_NOT_FOUND, device);
         return;
     }
+    bs = blk_bs(blk);
 
     aio_context = bdrv_get_aio_context(bs);
     aio_context_acquire(aio_context);
@@ -2258,6 +2274,7 @@ void qmp_drive_backup(const char *device, const char *target,
                       bool has_on_target_error, BlockdevOnError on_target_error,
                       Error **errp)
 {
+    BlockBackend *blk;
     BlockDriverState *bs;
     BlockDriverState *target_bs;
     BlockDriverState *source = NULL;
@@ -2281,11 +2298,12 @@ void qmp_drive_backup(const char *device, const char *target,
         mode = NEW_IMAGE_MODE_ABSOLUTE_PATHS;
     }
 
-    bs = bdrv_find(device);
-    if (!bs) {
+    blk = blk_by_name(device);
+    if (!blk) {
         error_set(errp, QERR_DEVICE_NOT_FOUND, device);
         return;
     }
+    bs = blk_bs(blk);
 
     aio_context = bdrv_get_aio_context(bs);
     aio_context_acquire(aio_context);
@@ -2385,6 +2403,7 @@ void qmp_blockdev_backup(const char *device, const char *target,
                          BlockdevOnError on_target_error,
                          Error **errp)
 {
+    BlockBackend *blk;
     BlockDriverState *bs;
     BlockDriverState *target_bs;
     Error *local_err = NULL;
@@ -2400,20 +2419,22 @@ void qmp_blockdev_backup(const char *device, const char *target,
         on_target_error = BLOCKDEV_ON_ERROR_REPORT;
     }
 
-    bs = bdrv_find(device);
-    if (!bs) {
+    blk = blk_by_name(device);
+    if (!blk) {
         error_set(errp, QERR_DEVICE_NOT_FOUND, device);
         return;
     }
+    bs = blk_bs(blk);
 
     aio_context = bdrv_get_aio_context(bs);
     aio_context_acquire(aio_context);
 
-    target_bs = bdrv_find(target);
-    if (!target_bs) {
+    blk = blk_by_name(target);
+    if (!blk) {
         error_set(errp, QERR_DEVICE_NOT_FOUND, target);
         goto out;
     }
+    target_bs = blk_bs(blk);
 
     bdrv_ref(target_bs);
     bdrv_set_aio_context(target_bs, aio_context);
@@ -2442,6 +2463,7 @@ void qmp_drive_mirror(const char *device, const char *target,
                       bool has_on_target_error, BlockdevOnError on_target_error,
                       Error **errp)
 {
+    BlockBackend *blk;
     BlockDriverState *bs;
     BlockDriverState *source, *target_bs;
     AioContext *aio_context;
@@ -2481,11 +2503,12 @@ void qmp_drive_mirror(const char *device, const char *target,
         return;
     }
 
-    bs = bdrv_find(device);
-    if (!bs) {
+    blk = blk_by_name(device);
+    if (!blk) {
         error_set(errp, QERR_DEVICE_NOT_FOUND, device);
         return;
     }
+    bs = blk_bs(blk);
 
     aio_context = bdrv_get_aio_context(bs);
     aio_context_acquire(aio_context);
@@ -2623,12 +2646,14 @@ out:
 static BlockJob *find_block_job(const char *device, AioContext **aio_context,
                                 Error **errp)
 {
+    BlockBackend *blk;
     BlockDriverState *bs;
 
-    bs = bdrv_find(device);
-    if (!bs) {
+    blk = blk_by_name(device);
+    if (!blk) {
         goto notfound;
     }
+    bs = blk_bs(blk);
 
     *aio_context = bdrv_get_aio_context(bs);
     aio_context_acquire(*aio_context);
@@ -2733,6 +2758,7 @@ void qmp_change_backing_file(const char *device,
                              const char *backing_file,
                              Error **errp)
 {
+    BlockBackend *blk;
     BlockDriverState *bs = NULL;
     AioContext *aio_context;
     BlockDriverState *image_bs = NULL;
@@ -2741,12 +2767,12 @@ void qmp_change_backing_file(const char *device,
     int open_flags;
     int ret;
 
-    /* find the top layer BDS of the chain */
-    bs = bdrv_find(device);
-    if (!bs) {
+    blk = blk_by_name(device);
+    if (!blk) {
         error_set(errp, QERR_DEVICE_NOT_FOUND, device);
         return;
     }
+    bs = blk_bs(blk);
 
     aio_context = bdrv_get_aio_context(bs);
     aio_context_acquire(aio_context);
