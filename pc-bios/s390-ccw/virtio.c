@@ -362,6 +362,7 @@ void virtio_setup_block(struct subchannel_id schid)
     struct vq_config_block config = {};
 
     blk_cfg.blk_size = 0; /* mark "illegal" - setup started... */
+    guessed_disk_nature = false;
 
     virtio_reset(schid);
 
