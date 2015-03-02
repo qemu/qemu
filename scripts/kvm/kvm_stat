@@ -519,7 +519,10 @@ def tui(screen, stats):
     def refresh(sleeptime):
         screen.erase()
         screen.addstr(0, 0, 'kvm statistics')
-        row = 2
+        screen.addstr(2, 1, 'Event')
+        screen.addstr(2, 1 + label_width + number_width - len('Total'), 'Total')
+        screen.addstr(2, 1 + label_width + number_width + 8 - len('Current'), 'Current')
+        row = 3
         s = stats.get()
         def sortkey(x):
             if s[x][1]:
