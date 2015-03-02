@@ -79,6 +79,7 @@ typedef struct M48t59State {
     qemu_irq IRQ;
     MemoryRegion iomem;
     uint32_t size;
+    int32_t base_year;
     /* RTC management */
     time_t   time_offset;
     time_t   stop_time;
@@ -387,11 +388,7 @@ static void m48t59_write(M48t59State *NVRAM, uint32_t addr, uint32_t val)
 	tmp = from_bcd(val);
 	if (tmp >= 0 && tmp <= 99) {
 	    get_time(NVRAM, &tm);
-            if (NVRAM->model == 8) {
-                tm.tm_year = from_bcd(val) + 68; // Base year is 1968
-            } else {
-                tm.tm_year = from_bcd(val);
-            }
+            tm.tm_year = from_bcd(val) + NVRAM->base_year - 1900;
 	    set_time(NVRAM, &tm);
 	}
         break;
@@ -493,11 +490,7 @@ static uint32_t m48t59_read(M48t59State *NVRAM, uint32_t addr)
     case 0x07FF:
         /* year */
         get_time(NVRAM, &tm);
-        if (NVRAM->model == 8) {
-            retval = to_bcd(tm.tm_year - 68); // Base year is 1968
-        } else {
-            retval = to_bcd(tm.tm_year);
-        }
+        retval = to_bcd((tm.tm_year + 1900 - NVRAM->base_year) % 100);
         break;
     default:
         /* Check lock registers state */
@@ -680,7 +673,8 @@ static const MemoryRegionOps m48t59_io_ops = {
 
 /* Initialisation routine */
 Nvram *m48t59_init(qemu_irq IRQ, hwaddr mem_base,
-                   uint32_t io_base, uint16_t size, int model)
+                   uint32_t io_base, uint16_t size, int base_year,
+                   int model)
 {
     DeviceState *dev;
     SysBusDevice *s;
@@ -694,6 +688,7 @@ Nvram *m48t59_init(qemu_irq IRQ, hwaddr mem_base,
         }
 
         dev = qdev_create(NULL, m48txx_info[i].sysbus_name);
+        qdev_prop_set_int32(dev, "base-year", base_year);
         qdev_init_nofail(dev);
         s = SYS_BUS_DEVICE(dev);
         sysbus_connect_irq(s, 0, IRQ);
@@ -713,7 +708,7 @@ Nvram *m48t59_init(qemu_irq IRQ, hwaddr mem_base,
 }
 
 Nvram *m48t59_init_isa(ISABus *bus, uint32_t io_base, uint16_t size,
-                       int model)
+                       int base_year, int model)
 {
     DeviceState *dev;
     int i;
@@ -727,6 +722,7 @@ Nvram *m48t59_init_isa(ISABus *bus, uint32_t io_base, uint16_t size,
 
         dev = DEVICE(isa_create(bus, m48txx_info[i].isa_name));
         qdev_prop_set_uint32(dev, "iobase", io_base);
+        qdev_prop_set_int32(dev, "base-year", base_year);
         qdev_init_nofail(dev);
         return NVRAM(dev);
     }
@@ -809,6 +805,7 @@ static void m48txx_isa_toggle_lock(Nvram *obj, int lock)
 }
 
 static Property m48t59_isa_properties[] = {
+    DEFINE_PROP_INT32("base-year", M48txxISAState, state.base_year, 0),
     DEFINE_PROP_UINT32("iobase", M48txxISAState, io_base, 0x74),
     DEFINE_PROP_END_OF_LIST(),
 };
@@ -852,6 +849,11 @@ static void m48txx_sysbus_toggle_lock(Nvram *obj, int lock)
     m48t59_toggle_lock(&d->state, lock);
 }
 
+static Property m48t59_sysbus_properties[] = {
+    DEFINE_PROP_INT32("base-year", M48txxSysBusState, state.base_year, 0),
+    DEFINE_PROP_END_OF_LIST(),
+};
+
 static void m48txx_sysbus_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
@@ -860,6 +862,7 @@ static void m48txx_sysbus_class_init(ObjectClass *klass, void *data)
 
     k->init = m48t59_init1;
     dc->reset = m48t59_reset_sysbus;
+    dc->props = m48t59_sysbus_properties;
     nc->read = m48txx_sysbus_read;
     nc->write = m48txx_sysbus_write;
     nc->toggle_lock = m48txx_sysbus_toggle_lock;

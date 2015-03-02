@@ -684,7 +684,7 @@ static void ppc_prep_init(MachineState *machine)
         pci_create_simple(pci_bus, -1, "pci-ohci");
     }
 
-    m48t59 = m48t59_init_isa(isa_bus, 0x0074, NVRAM_SIZE, 59);
+    m48t59 = m48t59_init_isa(isa_bus, 0x0074, NVRAM_SIZE, 2000, 59);
     if (m48t59 == NULL)
         return;
     sysctrl->nvram = m48t59;

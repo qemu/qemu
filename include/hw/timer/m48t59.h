@@ -26,8 +26,9 @@ typedef struct NvramClass {
 } NvramClass;
 
 Nvram *m48t59_init_isa(ISABus *bus, uint32_t io_base, uint16_t size,
-                       int type);
+                       int base_year, int type);
 Nvram *m48t59_init(qemu_irq IRQ, hwaddr mem_base,
-                   uint32_t io_base, uint16_t size, int type);
+                   uint32_t io_base, uint16_t size, int base_year,
+                   int type);
 
 #endif /* !NVRAM_H */

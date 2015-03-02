@@ -868,7 +868,7 @@ static void sun4uv_init(MemoryRegion *address_space_mem,
         fd[i] = drive_get(IF_FLOPPY, 0, i);
     }
     fdctrl_init_isa(isa_bus, fd);
-    nvram = m48t59_init_isa(isa_bus, 0x0074, NVRAM_SIZE, 59);
+    nvram = m48t59_init_isa(isa_bus, 0x0074, NVRAM_SIZE, 2000, 59);
 
     initrd_size = 0;
     initrd_addr = 0;
