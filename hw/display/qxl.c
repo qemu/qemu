@@ -1147,7 +1147,6 @@ static void qxl_soft_reset(PCIQXLDevice *d)
         qxl_enter_vga_mode(d);
     } else {
         d->mode = QXL_MODE_UNDEFINED;
-        update_displaychangelistener(&d->ssd.dcl, GUI_REFRESH_INTERVAL_IDLE);
     }
 }
 
