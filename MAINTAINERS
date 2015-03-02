@@ -159,6 +159,7 @@ F: hw/sh4/
 
 SPARC
 M: Blue Swirl <blauwirbel@gmail.com>
+M: Mark Cave-Ayland <mark.cave-ayland@ilande.co.uk>
 S: Maintained
 F: target-sparc/
 F: hw/sparc/
@@ -518,11 +519,13 @@ SPARC Machines
 --------------
 Sun4m
 M: Blue Swirl <blauwirbel@gmail.com>
+M: Mark Cave-Ayland <mark.cave-ayland@ilande.co.uk>
 S: Maintained
 F: hw/sparc/sun4m.c
 
 Sun4u
 M: Blue Swirl <blauwirbel@gmail.com>
+M: Mark Cave-Ayland <mark.cave-ayland@ilande.co.uk>
 S: Maintained
 F: hw/sparc64/sun4u.c
 
