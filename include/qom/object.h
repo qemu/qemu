@@ -273,7 +273,7 @@ typedef struct InterfaceInfo InterfaceInfo;
  *     .name = TYPE_DERIVED,
  *     .parent = TYPE_MY,
  *     .class_size = sizeof(DerivedClass),
- *     .class_init = my_class_init,
+ *     .class_init = derived_class_init,
  * };
  *   </programlisting>
  * </example>

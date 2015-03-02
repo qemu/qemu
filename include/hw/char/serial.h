@@ -92,6 +92,6 @@ SerialState *serial_mm_init(MemoryRegion *address_space,
 
 /* serial-isa.c */
 #define TYPE_ISA_SERIAL "isa-serial"
-bool serial_isa_init(ISABus *bus, int index, CharDriverState *chr);
+void serial_hds_isa_init(ISABus *bus, int n);
 
 #endif

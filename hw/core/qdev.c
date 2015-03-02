@@ -373,10 +373,15 @@ void qdev_simple_device_unplug_cb(HotplugHandler *hotplug_dev,
    way is somewhat unclean, and best avoided.  */
 void qdev_init_nofail(DeviceState *dev)
 {
-    const char *typename = object_get_typename(OBJECT(dev));
+    Error *err = NULL;
 
-    if (qdev_init(dev) < 0) {
-        error_report("Initialization of device %s failed", typename);
+    assert(!dev->realized);
+
+    object_property_set_bool(OBJECT(dev), true, "realized", &err);
+    if (err) {
+        error_report("Initialization of device %s failed: %s",
+                     object_get_typename(OBJECT(dev)),
+                     error_get_pretty(err));
         exit(1);
     }
 }
@@ -995,7 +1000,12 @@ void qdev_alias_all_properties(DeviceState *target, Object *source)
 static int qdev_add_hotpluggable_device(Object *obj, void *opaque)
 {
     GSList **list = opaque;
-    DeviceState *dev = DEVICE(obj);
+    DeviceState *dev = (DeviceState *)object_dynamic_cast(OBJECT(obj),
+                                                          TYPE_DEVICE);
+
+    if (dev == NULL) {
+        return 0;
+    }
 
     if (dev->realized && object_property_get_bool(obj, "hotpluggable", NULL)) {
         *list = g_slist_append(*list, dev);
