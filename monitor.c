@@ -4736,8 +4736,9 @@ static bool invalid_qmp_mode(const Monitor *mon, const mon_cmd_t *cmd)
  *               the QMP_ACCEPT_UNKNOWNS flag is set, then the
  *               checking is skipped for it.
  */
-static int check_client_args_type(const QDict *client_args,
-                                  const QDict *cmd_args, int flags)
+static void check_client_args_type(const QDict *client_args,
+                                   const QDict *cmd_args, int flags,
+                                   Error **errp)
 {
     const QDictEntry *ent;
 
@@ -4754,8 +4755,8 @@ static int check_client_args_type(const QDict *client_args,
                 continue;
             }
             /* client arg doesn't exist */
-            qerror_report(QERR_INVALID_PARAMETER, client_arg_name);
-            return -1;
+            error_set(errp, QERR_INVALID_PARAMETER, client_arg_name);
+            return;
         }
 
         arg_type = qobject_to_qstring(obj);
@@ -4767,9 +4768,9 @@ static int check_client_args_type(const QDict *client_args,
         case 'B':
         case 's':
             if (qobject_type(client_arg) != QTYPE_QSTRING) {
-                qerror_report(QERR_INVALID_PARAMETER_TYPE, client_arg_name,
-                              "string");
-                return -1;
+                error_set(errp, QERR_INVALID_PARAMETER_TYPE,
+                          client_arg_name, "string");
+                return;
             }
         break;
         case 'i':
@@ -4777,25 +4778,25 @@ static int check_client_args_type(const QDict *client_args,
         case 'M':
         case 'o':
             if (qobject_type(client_arg) != QTYPE_QINT) {
-                qerror_report(QERR_INVALID_PARAMETER_TYPE, client_arg_name,
-                              "int");
-                return -1; 
+                error_set(errp, QERR_INVALID_PARAMETER_TYPE,
+                          client_arg_name, "int");
+                return;
             }
             break;
         case 'T':
             if (qobject_type(client_arg) != QTYPE_QINT &&
                 qobject_type(client_arg) != QTYPE_QFLOAT) {
-                qerror_report(QERR_INVALID_PARAMETER_TYPE, client_arg_name,
-                              "number");
-               return -1; 
+                error_set(errp, QERR_INVALID_PARAMETER_TYPE,
+                          client_arg_name, "number");
+                return;
             }
             break;
         case 'b':
         case '-':
             if (qobject_type(client_arg) != QTYPE_QBOOL) {
-                qerror_report(QERR_INVALID_PARAMETER_TYPE, client_arg_name,
-                              "bool");
-               return -1; 
+                error_set(errp, QERR_INVALID_PARAMETER_TYPE,
+                          client_arg_name, "bool");
+                return;
             }
             break;
         case 'O':
@@ -4814,16 +4815,15 @@ static int check_client_args_type(const QDict *client_args,
             abort();
         }
     }
-
-    return 0;
 }
 
 /*
  * - Check if the client has passed all mandatory args
  * - Set special flags for argument validation
  */
-static int check_mandatory_args(const QDict *cmd_args,
-                                const QDict *client_args, int *flags)
+static void check_mandatory_args(const QDict *cmd_args,
+                                 const QDict *client_args, int *flags,
+                                 Error **errp)
 {
     const QDictEntry *ent;
 
@@ -4838,12 +4838,10 @@ static int check_mandatory_args(const QDict *cmd_args,
         } else if (qstring_get_str(type)[0] != '-' &&
                    qstring_get_str(type)[1] != '?' &&
                    !qdict_haskey(client_args, cmd_arg_name)) {
-            qerror_report(QERR_MISSING_PARAMETER, cmd_arg_name);
-            return -1;
+            error_set(errp, QERR_MISSING_PARAMETER, cmd_arg_name);
+            return;
         }
     }
-
-    return 0;
 }
 
 static QDict *qdict_from_args_type(const char *args_type)
@@ -4899,24 +4897,26 @@ out:
  * 3. Each argument provided by the client must have the type expected
  *    by the command
  */
-static int qmp_check_client_args(const mon_cmd_t *cmd, QDict *client_args)
+static void qmp_check_client_args(const mon_cmd_t *cmd, QDict *client_args,
+                                  Error **errp)
 {
-    int flags, err;
+    Error *err = NULL;
+    int flags;
     QDict *cmd_args;
 
     cmd_args = qdict_from_args_type(cmd->args_type);
 
     flags = 0;
-    err = check_mandatory_args(cmd_args, client_args, &flags);
+    check_mandatory_args(cmd_args, client_args, &flags, &err);
     if (err) {
         goto out;
     }
 
-    err = check_client_args_type(client_args, cmd_args, flags);
+    check_client_args_type(client_args, cmd_args, flags, &err);
 
 out:
+    error_propagate(errp, err);
     QDECREF(cmd_args);
-    return err;
 }
 
 /*
@@ -4975,7 +4975,7 @@ static QDict *qmp_check_input_obj(QObject *input_obj)
 
 static void handle_qmp_command(JSONMessageParser *parser, QList *tokens)
 {
-    int err;
+    Error *local_err = NULL;
     QObject *obj, *data;
     QDict *input, *args;
     const mon_cmd_t *cmd;
@@ -5021,8 +5021,9 @@ static void handle_qmp_command(JSONMessageParser *parser, QList *tokens)
         QINCREF(args);
     }
 
-    err = qmp_check_client_args(cmd, args);
-    if (err < 0) {
+    qmp_check_client_args(cmd, args, &local_err);
+    if (local_err) {
+        qerror_report_err(local_err);
         goto err_out;
     }
 
