@@ -475,12 +475,12 @@ static void vfio_listener_region_del(MemoryListener *listener,
     }
 }
 
-const MemoryListener vfio_memory_listener = {
+static const MemoryListener vfio_memory_listener = {
     .region_add = vfio_listener_region_add,
     .region_del = vfio_listener_region_del,
 };
 
-void vfio_listener_release(VFIOContainer *container)
+static void vfio_listener_release(VFIOContainer *container)
 {
     memory_listener_unregister(&container->iommu_data.type1.listener);
 }
