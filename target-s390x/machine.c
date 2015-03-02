@@ -28,9 +28,18 @@ static int cpu_post_load(void *opaque, int version_id)
      */
     if (kvm_enabled()) {
         kvm_s390_set_cpu_state(cpu, cpu->env.cpu_state);
+        return kvm_s390_vcpu_interrupt_post_load(cpu);
     }
 
     return 0;
+}
+static void cpu_pre_save(void *opaque)
+{
+    S390CPU *cpu = opaque;
+
+    if (kvm_enabled()) {
+        kvm_s390_vcpu_interrupt_pre_save(cpu);
+    }
 }
 
 const VMStateDescription vmstate_fpu = {
@@ -67,7 +76,8 @@ static inline bool fpu_needed(void *opaque)
 const VMStateDescription vmstate_s390_cpu = {
     .name = "cpu",
     .post_load = cpu_post_load,
-    .version_id = 3,
+    .pre_save = cpu_pre_save,
+    .version_id = 4,
     .minimum_version_id = 3,
     .fields      = (VMStateField[]) {
         VMSTATE_UINT64_ARRAY(env.regs, S390CPU, 16),
@@ -86,6 +96,9 @@ const VMStateDescription vmstate_s390_cpu = {
         VMSTATE_UINT64_ARRAY(env.cregs, S390CPU, 16),
         VMSTATE_UINT8(env.cpu_state, S390CPU),
         VMSTATE_UINT8(env.sigp_order, S390CPU),
+        VMSTATE_UINT32_V(irqstate_saved_size, S390CPU, 4),
+        VMSTATE_VBUFFER_UINT32(irqstate, S390CPU, 4, NULL, 0,
+                               irqstate_saved_size),
         VMSTATE_END_OF_LIST()
      },
     .subsections = (VMStateSubsection[]) {

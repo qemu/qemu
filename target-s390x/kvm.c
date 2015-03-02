@@ -109,6 +109,14 @@
 #define ICPT_CPU_STOP                   0x28
 #define ICPT_IO                         0x40
 
+#define NR_LOCAL_IRQS 32
+/*
+ * Needs to be big enough to contain max_cpus emergency signals
+ * and in addition NR_LOCAL_IRQS interrupts
+ */
+#define VCPU_IRQ_BUF_SIZE (sizeof(struct kvm_s390_irq) * \
+                           (max_cpus + NR_LOCAL_IRQS))
+
 static CPUWatchpoint hw_watchpoint;
 /*
  * We don't use a list because this structure is also used to transmit the
@@ -274,6 +282,7 @@ int kvm_arch_init_vcpu(CPUState *cs)
 {
     S390CPU *cpu = S390_CPU(cs);
     kvm_s390_set_cpu_state(cpu, cpu->env.cpu_state);
+    cpu->irqstate = g_malloc0(VCPU_IRQ_BUF_SIZE);
     return 0;
 }
 
@@ -2057,6 +2066,52 @@ int kvm_s390_set_cpu_state(S390CPU *cpu, uint8_t cpu_state)
     }
 
     return ret;
+}
+
+void kvm_s390_vcpu_interrupt_pre_save(S390CPU *cpu)
+{
+    struct kvm_s390_irq_state irq_state;
+    CPUState *cs = CPU(cpu);
+    int32_t bytes;
+
+    if (!kvm_check_extension(kvm_state, KVM_CAP_S390_IRQ_STATE)) {
+        return;
+    }
+
+    irq_state.buf = (uint64_t) cpu->irqstate;
+    irq_state.len = VCPU_IRQ_BUF_SIZE;
+
+    bytes = kvm_vcpu_ioctl(cs, KVM_S390_GET_IRQ_STATE, &irq_state);
+    if (bytes < 0) {
+        cpu->irqstate_saved_size = 0;
+        error_report("Migration of interrupt state failed");
+        return;
+    }
+
+    cpu->irqstate_saved_size = bytes;
+}
+
+int kvm_s390_vcpu_interrupt_post_load(S390CPU *cpu)
+{
+    CPUState *cs = CPU(cpu);
+    struct kvm_s390_irq_state irq_state;
+    int r;
+
+    if (!kvm_check_extension(kvm_state, KVM_CAP_S390_IRQ_STATE)) {
+        return -ENOSYS;
+    }
+
+    if (cpu->irqstate_saved_size == 0) {
+        return 0;
+    }
+    irq_state.buf = (uint64_t) cpu->irqstate;
+    irq_state.len = cpu->irqstate_saved_size;
+
+    r = kvm_vcpu_ioctl(cs, KVM_S390_SET_IRQ_STATE, &irq_state);
+    if (r) {
+        error_report("Setting interrupt state failed %d", r);
+    }
+    return r;
 }
 
 int kvm_arch_fixup_msi_route(struct kvm_irq_routing_entry *route,
