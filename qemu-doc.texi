@@ -2052,7 +2052,7 @@ firmware implementation. The goal is to implement a 100% IEEE
 
 A sample Linux 2.6 series kernel and ram disk image are available on
 the QEMU web site. There are still issues with NetBSD and OpenBSD, but
-some kernel versions work. Please note that currently older Solaris kernels
+most kernel versions work. Please note that currently older Solaris kernels
 don't work probably due to interface issues between OpenBIOS and
 Solaris.
 
@@ -2091,8 +2091,9 @@ Set the emulated machine type. Default is SS-5.
 
 Use the executable @file{qemu-system-sparc64} to simulate a Sun4u
 (UltraSPARC PC-like machine), Sun4v (T1 PC-like machine), or generic
-Niagara (T1) machine. The emulator is not usable for anything yet, but
-it can launch some kernels.
+Niagara (T1) machine. The Sun4u emulator is mostly complete, being
+able to run Linux, NetBSD and OpenBSD in headless (-nographic) mode. The
+Sun4v and Niagara emulators are still a work in progress.
 
 QEMU emulates the following peripherals:
 
