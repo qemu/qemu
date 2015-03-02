@@ -1201,7 +1201,6 @@ void vnc_disconnect_finish(VncState *vs)
     vnc_tight_clear(vs);
     vnc_zrle_clear(vs);
 
-    qcrypto_tls_session_free(vs->tls);
 #ifdef CONFIG_VNC_SASL
     vnc_sasl_client_cleanup(vs);
 #endif /* CONFIG_VNC_SASL */
@@ -1267,38 +1266,6 @@ void vnc_client_error(VncState *vs)
 }
 
 
-ssize_t vnc_tls_pull(char *buf, size_t len, void *opaque)
-{
-    VncState *vs = opaque;
-    ssize_t ret = qio_channel_read(vs->ioc, buf, len, NULL);
-    if (ret < 0) {
-        if (ret == QIO_CHANNEL_ERR_BLOCK) {
-            errno = EAGAIN;
-        } else {
-            errno = EIO;
-        }
-        return -1;
-    }
-    return ret;
-}
-
-
-ssize_t vnc_tls_push(const char *buf, size_t len, void *opaque)
-{
-    VncState *vs = opaque;
-    ssize_t ret = qio_channel_write(vs->ioc, buf, len, NULL);
-    if (ret < 0) {
-        if (ret == QIO_CHANNEL_ERR_BLOCK) {
-            errno = EAGAIN;
-        } else {
-            errno = EIO;
-        }
-        return -1;
-    }
-    return ret;
-}
-
-
 /*
  * Called to write a chunk of data to the client socket. The data may
  * be the raw data, or may have already been encoded by SASL.
@@ -1318,21 +1285,8 @@ ssize_t vnc_client_write_buf(VncState *vs, const uint8_t *data, size_t datalen)
 {
     Error *err = NULL;
     ssize_t ret;
-    if (vs->tls) {
-        ret = qcrypto_tls_session_write(vs->tls, (const char *)data, datalen);
-        if (ret < 0) {
-            if (errno == EAGAIN) {
-                ret = QIO_CHANNEL_ERR_BLOCK;
-            } else {
-                ret = -1;
-                error_setg_errno(&err, errno, "%s",
-                                 "Cannot write to TLS socket");
-            }
-        }
-    } else {
-        ret = qio_channel_write(
-            vs->ioc, (const char *)data, datalen, &err);
-    }
+    ret = qio_channel_write(
+        vs->ioc, (const char *)data, datalen, &err);
     VNC_DEBUG("Wrote wire %p %zd -> %ld\n", data, datalen, ret);
     return vnc_client_io_error(vs, ret, &err);
 }
@@ -1448,21 +1402,8 @@ ssize_t vnc_client_read_buf(VncState *vs, uint8_t *data, size_t datalen)
 {
     ssize_t ret;
     Error *err = NULL;
-    if (vs->tls) {
-        ret = qcrypto_tls_session_read(vs->tls, (char *)data, datalen);
-        if (ret < 0) {
-            if (errno == EAGAIN) {
-                ret = QIO_CHANNEL_ERR_BLOCK;
-            } else {
-                ret = -1;
-                error_setg_errno(&err, errno, "%s",
-                                 "Cannot read from TLS socket");
-            }
-        }
-    } else {
-        ret = qio_channel_read(
-            vs->ioc, (char *)data, datalen, &err);
-    }
+    ret = qio_channel_read(
+        vs->ioc, (char *)data, datalen, &err);
     VNC_DEBUG("Read wire %p %zd -> %ld\n", data, datalen, ret);
     return vnc_client_io_error(vs, ret, &err);
 }
@@ -3773,7 +3714,7 @@ void vnc_display_open(const char *id, Error **errp)
             vs->tlsaclname = g_strdup_printf("vnc.%s.x509dname", vs->id);
         }
         qemu_acl_init(vs->tlsaclname);
-     }
+    }
 #ifdef CONFIG_VNC_SASL
     if (acl && sasl) {
         char *aclname;

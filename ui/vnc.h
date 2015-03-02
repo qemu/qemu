@@ -36,6 +36,7 @@
 #include "crypto/tlssession.h"
 #include "qemu/buffer.h"
 #include "io/channel-socket.h"
+#include "io/channel-tls.h"
 #include <zlib.h>
 #include <stdbool.h>
 
@@ -281,7 +282,7 @@ struct VncState
     int auth;
     int subauth; /* Used by VeNCrypt */
     char challenge[VNC_AUTH_CHALLENGE_SIZE];
-    QCryptoTLSSession *tls;
+    QCryptoTLSSession *tls; /* Borrowed pointer from channel, don't free */
 #ifdef CONFIG_VNC_SASL
     VncStateSASL sasl;
 #endif
@@ -511,8 +512,6 @@ gboolean vnc_client_io(QIOChannel *ioc,
 
 ssize_t vnc_client_read_buf(VncState *vs, uint8_t *data, size_t datalen);
 ssize_t vnc_client_write_buf(VncState *vs, const uint8_t *data, size_t datalen);
-ssize_t vnc_tls_pull(char *buf, size_t len, void *opaque);
-ssize_t vnc_tls_push(const char *buf, size_t len, void *opaque);
 
 /* Protocol I/O functions */
 void vnc_write(VncState *vs, const void *data, size_t len);

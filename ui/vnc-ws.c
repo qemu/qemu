@@ -22,83 +22,60 @@
 #include "qemu/main-loop.h"
 #include "crypto/hash.h"
 
-static int vncws_start_tls_handshake(VncState *vs)
+static void vncws_handshake_read(VncState *vs);
+
+static void vncws_tls_handshake_done(Object *source,
+                                     Error *err,
+                                     gpointer user_data)
 {
-    Error *err = NULL;
+    VncState *vs = user_data;
 
-    if (qcrypto_tls_session_handshake(vs->tls, &err) < 0) {
-        goto error;
+    if (err) {
+        VNC_DEBUG("Handshake failed %s\n", error_get_pretty(err));
+        vnc_client_error(vs);
+    } else {
+        vs->ioc_tag = qio_channel_add_watch(
+            QIO_CHANNEL(vs->ioc), G_IO_IN, vncws_handshake_io, vs, NULL);
     }
-
-    switch (qcrypto_tls_session_get_handshake_status(vs->tls)) {
-    case QCRYPTO_TLS_HANDSHAKE_COMPLETE:
-        VNC_DEBUG("Handshake done, checking credentials\n");
-        if (qcrypto_tls_session_check_credentials(vs->tls, &err) < 0) {
-            goto error;
-        }
-        VNC_DEBUG("Client verification passed, starting TLS I/O\n");
-        if (vs->ioc_tag) {
-            g_source_remove(vs->ioc_tag);
-        }
-        vs->ioc_tag = qio_channel_add_watch(
-            vs->ioc, G_IO_IN, vncws_handshake_io, vs, NULL);
-        break;
-
-    case QCRYPTO_TLS_HANDSHAKE_RECVING:
-        VNC_DEBUG("Handshake interrupted (blocking read)\n");
-        if (vs->ioc_tag) {
-            g_source_remove(vs->ioc_tag);
-        }
-        vs->ioc_tag = qio_channel_add_watch(
-            vs->ioc, G_IO_IN, vncws_tls_handshake_io, vs, NULL);
-        break;
-
-    case QCRYPTO_TLS_HANDSHAKE_SENDING:
-        VNC_DEBUG("Handshake interrupted (blocking write)\n");
-        if (vs->ioc_tag) {
-            g_source_remove(vs->ioc_tag);
-        }
-        vs->ioc_tag = qio_channel_add_watch(
-            vs->ioc, G_IO_OUT, vncws_tls_handshake_io, vs, NULL);
-        break;
-    }
-
-    return 0;
-
- error:
-    VNC_DEBUG("Handshake failed %s\n", error_get_pretty(err));
-    error_free(err);
-    vnc_client_error(vs);
-    return -1;
 }
+
 
 gboolean vncws_tls_handshake_io(QIOChannel *ioc G_GNUC_UNUSED,
                                 GIOCondition condition G_GNUC_UNUSED,
                                 void *opaque)
 {
-    VncState *vs = (VncState *)opaque;
+    VncState *vs = opaque;
+    QIOChannelTLS *tls;
     Error *err = NULL;
 
-    vs->tls = qcrypto_tls_session_new(vs->vd->tlscreds,
-                                      NULL,
-                                      vs->vd->tlsaclname,
-                                      QCRYPTO_TLS_CREDS_ENDPOINT_SERVER,
-                                      &err);
-    if (!vs->tls) {
-        VNC_DEBUG("Failed to setup TLS %s\n",
-                  error_get_pretty(err));
+    VNC_DEBUG("TLS Websocket connection required\n");
+    if (vs->ioc_tag) {
+        g_source_remove(vs->ioc_tag);
+        vs->ioc_tag = 0;
+    }
+
+    tls = qio_channel_tls_new_server(
+        vs->ioc,
+        vs->vd->tlscreds,
+        vs->vd->tlsaclname,
+        &err);
+    if (!tls) {
+        VNC_DEBUG("Failed to setup TLS %s\n", error_get_pretty(err));
         error_free(err);
         vnc_client_error(vs);
         return TRUE;
     }
 
-    qcrypto_tls_session_set_callbacks(vs->tls,
-                                      vnc_tls_push,
-                                      vnc_tls_pull,
-                                      vs);
-
     VNC_DEBUG("Start TLS WS handshake process\n");
-    vncws_start_tls_handshake(vs);
+    object_unref(OBJECT(vs->ioc));
+    vs->ioc = QIO_CHANNEL(tls);
+    vs->tls = qio_channel_tls_get_session(tls);
+
+    qio_channel_tls_handshake(tls,
+                              vncws_tls_handshake_done,
+                              vs,
+                              NULL);
+
     return TRUE;
 }
 
