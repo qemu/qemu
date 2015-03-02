@@ -798,6 +798,24 @@ static int m48t59_init1(SysBusDevice *dev)
     return 0;
 }
 
+static uint32_t m48txx_isa_read(Nvram *obj, uint32_t addr)
+{
+    M48txxISAState *d = M48TXX_ISA(obj);
+    return m48t59_read(&d->state, addr);
+}
+
+static void m48txx_isa_write(Nvram *obj, uint32_t addr, uint32_t val)
+{
+    M48txxISAState *d = M48TXX_ISA(obj);
+    m48t59_write(&d->state, addr, val);
+}
+
+static void m48txx_isa_toggle_lock(Nvram *obj, int lock)
+{
+    M48txxISAState *d = M48TXX_ISA(obj);
+    m48t59_toggle_lock(&d->state, lock);
+}
+
 static Property m48t59_isa_properties[] = {
     DEFINE_PROP_UINT32("iobase", M48txxISAState, io_base, 0x74),
     DEFINE_PROP_END_OF_LIST(),
@@ -806,10 +824,14 @@ static Property m48t59_isa_properties[] = {
 static void m48txx_isa_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
+    NvramClass *nc = NVRAM_CLASS(klass);
 
     dc->realize = m48t59_isa_realize;
     dc->reset = m48t59_reset_isa;
     dc->props = m48t59_isa_properties;
+    nc->read = m48txx_isa_read;
+    nc->write = m48txx_isa_write;
+    nc->toggle_lock = m48txx_isa_toggle_lock;
 }
 
 static void m48txx_isa_concrete_class_init(ObjectClass *klass, void *data)
@@ -820,13 +842,35 @@ static void m48txx_isa_concrete_class_init(ObjectClass *klass, void *data)
     u->info = *info;
 }
 
+static uint32_t m48txx_sysbus_read(Nvram *obj, uint32_t addr)
+{
+    M48txxSysBusState *d = M48TXX_SYS_BUS(obj);
+    return m48t59_read(&d->state, addr);
+}
+
+static void m48txx_sysbus_write(Nvram *obj, uint32_t addr, uint32_t val)
+{
+    M48txxSysBusState *d = M48TXX_SYS_BUS(obj);
+    m48t59_write(&d->state, addr, val);
+}
+
+static void m48txx_sysbus_toggle_lock(Nvram *obj, int lock)
+{
+    M48txxSysBusState *d = M48TXX_SYS_BUS(obj);
+    m48t59_toggle_lock(&d->state, lock);
+}
+
 static void m48txx_sysbus_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
+    NvramClass *nc = NVRAM_CLASS(klass);
 
     k->init = m48t59_init1;
     dc->reset = m48t59_reset_sysbus;
+    nc->read = m48txx_sysbus_read;
+    nc->write = m48txx_sysbus_write;
+    nc->toggle_lock = m48txx_sysbus_toggle_lock;
 }
 
 static void m48txx_sysbus_concrete_class_init(ObjectClass *klass, void *data)
@@ -837,12 +881,22 @@ static void m48txx_sysbus_concrete_class_init(ObjectClass *klass, void *data)
     u->info = *info;
 }
 
+static const TypeInfo nvram_info = {
+    .name = TYPE_NVRAM,
+    .parent = TYPE_INTERFACE,
+    .class_size = sizeof(NvramClass),
+};
+
 static const TypeInfo m48txx_sysbus_type_info = {
     .name = TYPE_M48TXX_SYS_BUS,
     .parent = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(M48txxSysBusState),
     .abstract = true,
     .class_init = m48txx_sysbus_class_init,
+    .interfaces = (InterfaceInfo[]) {
+        { TYPE_NVRAM },
+        { }
+    }
 };
 
 static const TypeInfo m48txx_isa_type_info = {
@@ -851,6 +905,10 @@ static const TypeInfo m48txx_isa_type_info = {
     .instance_size = sizeof(M48txxISAState),
     .abstract = true,
     .class_init = m48txx_isa_class_init,
+    .interfaces = (InterfaceInfo[]) {
+        { TYPE_NVRAM },
+        { }
+    }
 };
 
 static void m48t59_register_types(void)
@@ -867,6 +925,7 @@ static void m48t59_register_types(void)
     };
     int i;
 
+    type_register_static(&nvram_info);
     type_register_static(&m48txx_sysbus_type_info);
     type_register_static(&m48txx_isa_type_info);
 

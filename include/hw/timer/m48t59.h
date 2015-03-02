@@ -1,6 +1,9 @@
 #ifndef NVRAM_H
 #define NVRAM_H
 
+#include "qemu-common.h"
+#include "qom/object.h"
+
 /* NVRAM helpers */
 typedef uint32_t (*nvram_read_t)(void *private, uint32_t addr);
 typedef void (*nvram_write_t)(void *private, uint32_t addr, uint32_t val);
@@ -33,5 +36,26 @@ M48t59State *m48t59_init_isa(ISABus *bus, uint32_t io_base, uint16_t size,
                              int type);
 M48t59State *m48t59_init(qemu_irq IRQ, hwaddr mem_base,
                          uint32_t io_base, uint16_t size, int type);
+
+#define TYPE_NVRAM "nvram"
+
+#define NVRAM_CLASS(klass) \
+    OBJECT_CLASS_CHECK(NvramClass, (klass), TYPE_NVRAM)
+#define NVRAM_GET_CLASS(obj) \
+    OBJECT_GET_CLASS(NvramClass, (obj), TYPE_NVRAM)
+#define NVRAM(obj) \
+    INTERFACE_CHECK(Nvram, (obj), TYPE_NVRAM)
+
+typedef struct Nvram {
+    Object parent;
+} Nvram;
+
+typedef struct NvramClass {
+    InterfaceClass parent;
+
+    uint32_t (*read)(Nvram *obj, uint32_t addr);
+    void (*write)(Nvram *obj, uint32_t addr, uint32_t val);
+    void (*toggle_lock)(Nvram *obj, int lock);
+} NvramClass;
 
 #endif /* !NVRAM_H */
