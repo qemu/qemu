@@ -658,10 +658,9 @@ M48t59State *m48t59_init(qemu_irq IRQ, hwaddr mem_base,
     d = SYSBUS_M48T59(dev);
     state = &d->state;
     sysbus_connect_irq(s, 0, IRQ);
-    memory_region_init_io(&d->io, OBJECT(d), &m48t59_io_ops, state,
-                          "m48t59", 4);
     if (io_base != 0) {
-        memory_region_add_subregion(get_system_io(), io_base, &d->io);
+        memory_region_add_subregion(get_system_io(), io_base,
+                                    sysbus_mmio_get_region(dev, 1));
     }
     if (mem_base != 0) {
         sysbus_mmio_map(s, 0, mem_base);
@@ -687,11 +686,6 @@ M48t59State *m48t59_init_isa(ISABus *bus, uint32_t io_base, uint16_t size,
     d = ISA_M48T59(isadev);
     s = &d->state;
 
-    memory_region_init_io(&d->io, OBJECT(d), &m48t59_io_ops, s, "m48t59", 4);
-    if (io_base != 0) {
-        isa_register_ioport(isadev, &d->io, io_base);
-    }
-
     return s;
 }
 
@@ -715,19 +709,28 @@ static void m48t59_isa_realize(DeviceState *dev, Error **errp)
 
     isa_init_irq(isadev, &s->IRQ, 8);
     m48t59_realize_common(s, errp);
+    memory_region_init_io(&d->io, OBJECT(dev), &m48t59_io_ops, s, "m48t59", 4);
+    if (s->io_base != 0) {
+        isa_register_ioport(isadev, &d->io, s->io_base);
+    }
+
+    return 0;
 }
 
 static int m48t59_init1(SysBusDevice *dev)
 {
     M48t59SysBusState *d = SYSBUS_M48T59(dev);
+    Object *o = OBJECT(dev);
     M48t59State *s = &d->state;
     Error *err = NULL;
 
     sysbus_init_irq(dev, &s->IRQ);
 
-    memory_region_init_io(&s->iomem, OBJECT(d), &nvram_ops, s,
-                          "m48t59.nvram", s->size);
+    memory_region_init_io(&s->iomem, o, &nvram_ops, s, "m48t59.nvram",
+                          s->size);
+    memory_region_init_io(&d->io, o, &m48t59_io_ops, s, "m48t59", 4);
     sysbus_init_mmio(dev, &s->iomem);
+    sysbus_init_mmio(dev, &d->io);
     m48t59_realize_common(s, &err);
     if (err != NULL) {
         error_free(err);
@@ -751,8 +754,6 @@ static void m48t59_isa_class_init(ObjectClass *klass, void *data)
     dc->realize = m48t59_isa_realize;
     dc->reset = m48t59_reset_isa;
     dc->props = m48t59_isa_properties;
-    /* Reason: needs to be wired up by m48t59_init_isa() */
-    dc->cannot_instantiate_with_device_add_yet = true;
 }
 
 static const TypeInfo m48t59_isa_info = {
