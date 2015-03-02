@@ -932,8 +932,8 @@ static int vfio_container_do_ioctl(AddressSpace *as, int32_t groupid,
     if (group->container) {
         ret = ioctl(container->fd, req, param);
         if (ret < 0) {
-            error_report("vfio: failed to ioctl container: ret=%d, %s",
-                         ret, strerror(errno));
+            error_report("vfio: failed to ioctl %d to container: ret=%d, %s",
+                         _IOC_NR(req) - VFIO_BASE, ret, strerror(errno));
         }
     }
 
