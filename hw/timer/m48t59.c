@@ -74,7 +74,7 @@ typedef struct M48txxInfo {
  * http://www.st.com/stonline/products/literature/od/7001/m48t59y.pdf
  */
 
-struct M48t59State {
+typedef struct M48t59State {
     /* Hardware parameters */
     qemu_irq IRQ;
     MemoryRegion iomem;
@@ -93,7 +93,7 @@ struct M48t59State {
     /* NVRAM storage */
     uint16_t addr;
     uint8_t  lock;
-};
+} M48t59State;
 
 typedef struct M48txxISAState {
     ISADevice parent_obj;
@@ -240,9 +240,8 @@ static void set_up_watchdog(M48t59State *NVRAM, uint8_t value)
 }
 
 /* Direct access to NVRAM */
-void m48t59_write (void *opaque, uint32_t addr, uint32_t val)
+static void m48t59_write(M48t59State *NVRAM, uint32_t addr, uint32_t val)
 {
-    M48t59State *NVRAM = opaque;
     struct tm tm;
     int tmp;
 
@@ -410,9 +409,8 @@ void m48t59_write (void *opaque, uint32_t addr, uint32_t val)
     }
 }
 
-uint32_t m48t59_read (void *opaque, uint32_t addr)
+static uint32_t m48t59_read(M48t59State *NVRAM, uint32_t addr)
 {
-    M48t59State *NVRAM = opaque;
     struct tm tm;
     uint32_t retval = 0xFF;
 
@@ -519,10 +517,8 @@ uint32_t m48t59_read (void *opaque, uint32_t addr)
     return retval;
 }
 
-void m48t59_toggle_lock (void *opaque, int lock)
+static void m48t59_toggle_lock(M48t59State *NVRAM, int lock)
 {
-    M48t59State *NVRAM = opaque;
-
     NVRAM->lock ^= 1 << lock;
 }
 
@@ -683,13 +679,11 @@ static const MemoryRegionOps m48t59_io_ops = {
 };
 
 /* Initialisation routine */
-M48t59State *m48t59_init(qemu_irq IRQ, hwaddr mem_base,
-                         uint32_t io_base, uint16_t size, int model)
+Nvram *m48t59_init(qemu_irq IRQ, hwaddr mem_base,
+                   uint32_t io_base, uint16_t size, int model)
 {
     DeviceState *dev;
     SysBusDevice *s;
-    M48txxSysBusState *d;
-    M48t59State *state;
     int i;
 
     for (i = 0; i < ARRAY_SIZE(m48txx_info); i++) {
@@ -702,8 +696,6 @@ M48t59State *m48t59_init(qemu_irq IRQ, hwaddr mem_base,
         dev = qdev_create(NULL, m48txx_info[i].sysbus_name);
         qdev_init_nofail(dev);
         s = SYS_BUS_DEVICE(dev);
-        d = M48TXX_SYS_BUS(s);
-        state = &d->state;
         sysbus_connect_irq(s, 0, IRQ);
         if (io_base != 0) {
             memory_region_add_subregion(get_system_io(), io_base,
@@ -713,15 +705,15 @@ M48t59State *m48t59_init(qemu_irq IRQ, hwaddr mem_base,
             sysbus_mmio_map(s, 0, mem_base);
         }
 
-        return state;
+        return NVRAM(s);
     }
 
     assert(false);
     return NULL;
 }
 
-M48t59State *m48t59_init_isa(ISABus *bus, uint32_t io_base, uint16_t size,
-                             int model)
+Nvram *m48t59_init_isa(ISABus *bus, uint32_t io_base, uint16_t size,
+                       int model)
 {
     DeviceState *dev;
     int i;
@@ -736,7 +728,7 @@ M48t59State *m48t59_init_isa(ISABus *bus, uint32_t io_base, uint16_t size,
         dev = DEVICE(isa_create(bus, m48txx_info[i].isa_name));
         qdev_prop_set_uint32(dev, "iobase", io_base);
         qdev_init_nofail(dev);
-        return &M48TXX_ISA(dev)->state;
+        return NVRAM(dev);
     }
 
     assert(false);

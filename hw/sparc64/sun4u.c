@@ -130,7 +130,7 @@ static void fw_cfg_boot_set(void *opaque, const char *boot_device,
     fw_cfg_add_i16(opaque, FW_CFG_BOOT_DEVICE, boot_device[0]);
 }
 
-static int sun4u_NVRAM_set_params(M48t59State *nvram, uint16_t NVRAM_size,
+static int sun4u_NVRAM_set_params(Nvram *nvram, uint16_t NVRAM_size,
                                   const char *arch, ram_addr_t RAM_size,
                                   const char *boot_devices,
                                   uint32_t kernel_image, uint32_t kernel_size,
@@ -144,6 +144,7 @@ static int sun4u_NVRAM_set_params(M48t59State *nvram, uint16_t NVRAM_size,
     uint32_t start, end;
     uint8_t image[0x1ff0];
     struct OpenBIOS_nvpart_v1 *part_header;
+    NvramClass *k = NVRAM_GET_CLASS(nvram);
 
     memset(image, '\0', sizeof(image));
 
@@ -176,8 +177,9 @@ static int sun4u_NVRAM_set_params(M48t59State *nvram, uint16_t NVRAM_size,
 
     Sun_init_header((struct Sun_nvram *)&image[0x1fd8], macaddr, 0x80);
 
-    for (i = 0; i < sizeof(image); i++)
-        m48t59_write(nvram, i, image[i]);
+    for (i = 0; i < sizeof(image); i++) {
+        (k->write)(nvram, i, image[i]);
+    }
 
     return 0;
 }
@@ -818,7 +820,7 @@ static void sun4uv_init(MemoryRegion *address_space_mem,
                         const struct hwdef *hwdef)
 {
     SPARCCPU *cpu;
-    M48t59State *nvram;
+    Nvram *nvram;
     unsigned int i;
     uint64_t initrd_addr, initrd_size, kernel_addr, kernel_size, kernel_entry;
     PCIBus *pci_bus, *pci_bus2, *pci_bus3;

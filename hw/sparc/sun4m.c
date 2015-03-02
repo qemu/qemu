@@ -127,7 +127,7 @@ static void fw_cfg_boot_set(void *opaque, const char *boot_device,
     fw_cfg_add_i16(opaque, FW_CFG_BOOT_DEVICE, boot_device[0]);
 }
 
-static void nvram_init(M48t59State *nvram, uint8_t *macaddr,
+static void nvram_init(Nvram *nvram, uint8_t *macaddr,
                        const char *cmdline, const char *boot_devices,
                        ram_addr_t RAM_size, uint32_t kernel_size,
                        int width, int height, int depth,
@@ -137,6 +137,7 @@ static void nvram_init(M48t59State *nvram, uint8_t *macaddr,
     uint32_t start, end;
     uint8_t image[0x1ff0];
     struct OpenBIOS_nvpart_v1 *part_header;
+    NvramClass *k = NVRAM_GET_CLASS(nvram);
 
     memset(image, '\0', sizeof(image));
 
@@ -170,8 +171,9 @@ static void nvram_init(M48t59State *nvram, uint8_t *macaddr,
     Sun_init_header((struct Sun_nvram *)&image[0x1fd8], macaddr,
                     nvram_machine_id);
 
-    for (i = 0; i < sizeof(image); i++)
-        m48t59_write(nvram, i, image[i]);
+    for (i = 0; i < sizeof(image); i++) {
+        (k->write)(nvram, i, image[i]);
+    }
 }
 
 static DeviceState *slavio_intctl;
