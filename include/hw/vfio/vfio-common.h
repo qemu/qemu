@@ -36,7 +36,6 @@
 #endif
 
 /* Extra debugging, trap acceleration paths for more logging */
-#define VFIO_ALLOW_MMAP 1
 #define VFIO_ALLOW_KVM_INTX 1
 #define VFIO_ALLOW_KVM_MSI 1
 #define VFIO_ALLOW_KVM_MSIX 1
@@ -102,6 +101,7 @@ typedef struct VFIODevice {
     int type;
     bool reset_works;
     bool needs_reset;
+    bool allow_mmap;
     VFIODeviceOps *ops;
     unsigned int num_irqs;
     unsigned int num_regions;

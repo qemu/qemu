@@ -3456,6 +3456,7 @@ static Property vfio_pci_dev_properties[] = {
     DEFINE_PROP_BIT("x-vga", VFIOPCIDevice, features,
                     VFIO_FEATURE_ENABLE_VGA_BIT, false),
     DEFINE_PROP_INT32("bootindex", VFIOPCIDevice, bootindex, -1),
+    DEFINE_PROP_BOOL("x-mmap", VFIOPCIDevice, vbasedev.allow_mmap, true),
     /*
      * TODO - support passed fds... is this necessary?
      * DEFINE_PROP_STRING("vfiofd", VFIOPCIDevice, vfiofd_name),

@@ -493,7 +493,7 @@ int vfio_mmap_region(Object *obj, VFIORegion *region,
     int ret = 0;
     VFIODevice *vbasedev = region->vbasedev;
 
-    if (VFIO_ALLOW_MMAP && size && region->flags &
+    if (vbasedev->allow_mmap && size && region->flags &
         VFIO_REGION_INFO_FLAG_MMAP) {
         int prot = 0;
 
