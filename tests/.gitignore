@@ -27,6 +27,7 @@ test-iov
 test-io-channel-file
 test-io-channel-file.txt
 test-io-channel-socket
+test-io-channel-tls
 test-io-task
 test-mul64
 test-opts-visitor

@@ -1840,3 +1840,13 @@ qio_channel_socket_accept_complete(void *ioc, void *cioc, int fd) "Socket accept
 # io/channel-file.c
 qio_channel_file_new_fd(void *ioc, int fd) "File new fd ioc=%p fd=%d"
 qio_channel_file_new_path(void *ioc, const char *path, int flags, int mode, int fd) "File new fd ioc=%p path=%s flags=%d mode=%d fd=%d"
+
+# io/channel-tls.c
+qio_channel_tls_new_client(void *ioc, void *master, void *creds, const char *hostname) "TLS new client ioc=%p master=%p creds=%p hostname=%s"
+qio_channel_tls_new_server(void *ioc, void *master, void *creds, const char *aclname) "TLS new client ioc=%p master=%p creds=%p acltname=%s"
+qio_channel_tls_handshake_start(void *ioc) "TLS handshake start ioc=%p"
+qio_channel_tls_handshake_pending(void *ioc, int status) "TLS handshake pending ioc=%p status=%d"
+qio_channel_tls_handshake_fail(void *ioc) "TLS handshake fail ioc=%p"
+qio_channel_tls_handshake_complete(void *ioc) "TLS handshake complete ioc=%p"
+qio_channel_tls_credentials_allow(void *ioc) "TLS credentials allow ioc=%p"
+qio_channel_tls_credentials_deny(void *ioc) "TLS credentials deny ioc=%p"
