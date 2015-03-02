@@ -79,6 +79,7 @@ gcov-files-test-write-threshold-y = block/write-threshold.c
 check-unit-$(CONFIG_GNUTLS_HASH) += tests/test-crypto-hash$(EXESUF)
 check-unit-y += tests/test-crypto-cipher$(EXESUF)
 check-unit-$(CONFIG_GNUTLS) += tests/test-crypto-tlscredsx509$(EXESUF)
+check-unit-$(CONFIG_GNUTLS) += tests/test-crypto-tlssession$(EXESUF)
 
 check-block-$(CONFIG_POSIX) += tests/qemu-iotests-quick.sh
 
@@ -360,6 +361,8 @@ tests/test-bitops$(EXESUF): tests/test-bitops.o $(test-util-obj-y)
 tests/test-crypto-hash$(EXESUF): tests/test-crypto-hash.o $(test-crypto-obj-y)
 tests/test-crypto-cipher$(EXESUF): tests/test-crypto-cipher.o $(test-crypto-obj-y)
 tests/test-crypto-tlscredsx509$(EXESUF): tests/test-crypto-tlscredsx509.o \
+	tests/crypto-tls-x509-helpers.o tests/pkix_asn1_tab.o $(test-crypto-obj-y)
+tests/test-crypto-tlssession$(EXESUF): tests/test-crypto-tlssession.o \
 	tests/crypto-tls-x509-helpers.o tests/pkix_asn1_tab.o $(test-crypto-obj-y)
 
 libqos-obj-y = tests/libqos/pci.o tests/libqos/fw_cfg.o tests/libqos/malloc.o

@@ -1681,3 +1681,6 @@ qcrypto_tls_creds_x509_check_key_usage(void *creds, const char *file, int status
 qcrypto_tls_creds_x509_check_key_purpose(void *creds, const char *file, int status, const char *usage, int critical) "TLS creds x509 check key usage creds=%p file=%s status=%d usage=%s critical=%d"
 qcrypto_tls_creds_x509_load_cert(void *creds, int isServer, const char *file) "TLS creds x509 load cert creds=%p isServer=%d file=%s"
 qcrypto_tls_creds_x509_load_cert_list(void *creds, const char *file) "TLS creds x509 load cert list creds=%p file=%s"
+
+# crypto/tlssession.c
+qcrypto_tls_session_new(void *session, void *creds, const char *hostname, const char *aclname, int endpoint) "TLS session new session=%p creds=%p hostname=%s aclname=%s endpoint=%d"
