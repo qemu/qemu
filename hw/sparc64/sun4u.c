@@ -612,7 +612,7 @@ pci_ebus_init1(PCIDevice *pci_dev)
                              0, 0x1000000);
     pci_register_bar(pci_dev, 0, PCI_BASE_ADDRESS_SPACE_MEMORY, &s->bar0);
     memory_region_init_alias(&s->bar1, OBJECT(s), "bar1", get_system_io(),
-                             0, 0x1000);
+                             0, 0x4000);
     pci_register_bar(pci_dev, 1, PCI_BASE_ADDRESS_SPACE_IO, &s->bar1);
     return 0;
 }
@@ -825,6 +825,7 @@ static void sun4uv_init(MemoryRegion *address_space_mem,
     uint64_t initrd_addr, initrd_size, kernel_addr, kernel_size, kernel_entry;
     PCIBus *pci_bus, *pci_bus2, *pci_bus3;
     ISABus *isa_bus;
+    SysBusDevice *s;
     qemu_irq *ivec_irqs, *pbm_irqs;
     DriveInfo *hd[MAX_IDE_BUS * MAX_IDE_DEVS];
     DriveInfo *fd[MAX_FD];
@@ -868,8 +869,13 @@ static void sun4uv_init(MemoryRegion *address_space_mem,
         fd[i] = drive_get(IF_FLOPPY, 0, i);
     }
     fdctrl_init_isa(isa_bus, fd);
-    nvram = m48t59_init_isa(isa_bus, 0x0074, NVRAM_SIZE, 2000, 59);
 
+    /* Map NVRAM into I/O (ebus) space */
+    nvram = m48t59_init(NULL, 0, 0, NVRAM_SIZE, 1968, 59);
+    s = SYS_BUS_DEVICE(nvram);
+    memory_region_add_subregion(get_system_io(), 0x2000,
+                                sysbus_mmio_get_region(s, 0));
+ 
     initrd_size = 0;
     initrd_addr = 0;
     kernel_size = sun4u_load_kernel(machine->kernel_filename,
