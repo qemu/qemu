@@ -4929,14 +4929,14 @@ out:
  * 5. If the "id" key exists, it can be anything (ie. json-value)
  * 6. Any argument not listed above is considered invalid
  */
-static QDict *qmp_check_input_obj(QObject *input_obj)
+static QDict *qmp_check_input_obj(QObject *input_obj, Error **errp)
 {
     const QDictEntry *ent;
     int has_exec_key = 0;
     QDict *input_dict;
 
     if (qobject_type(input_obj) != QTYPE_QDICT) {
-        qerror_report(QERR_QMP_BAD_INPUT_OBJECT, "object");
+        error_set(errp, QERR_QMP_BAD_INPUT_OBJECT, "object");
         return NULL;
     }
 
@@ -4948,25 +4948,25 @@ static QDict *qmp_check_input_obj(QObject *input_obj)
 
         if (!strcmp(arg_name, "execute")) {
             if (qobject_type(arg_obj) != QTYPE_QSTRING) {
-                qerror_report(QERR_QMP_BAD_INPUT_OBJECT_MEMBER, "execute",
-                              "string");
+                error_set(errp, QERR_QMP_BAD_INPUT_OBJECT_MEMBER,
+                          "execute", "string");
                 return NULL;
             }
             has_exec_key = 1;
         } else if (!strcmp(arg_name, "arguments")) {
             if (qobject_type(arg_obj) != QTYPE_QDICT) {
-                qerror_report(QERR_QMP_BAD_INPUT_OBJECT_MEMBER, "arguments",
-                              "object");
+                error_set(errp, QERR_QMP_BAD_INPUT_OBJECT_MEMBER,
+                          "arguments", "object");
                 return NULL;
             }
         } else {
-            qerror_report(QERR_QMP_EXTRA_MEMBER, arg_name);
+            error_set(errp, QERR_QMP_EXTRA_MEMBER, arg_name);
             return NULL;
         }
     }
 
     if (!has_exec_key) {
-        qerror_report(QERR_QMP_BAD_INPUT_OBJECT, "execute");
+        error_set(errp, QERR_QMP_BAD_INPUT_OBJECT, "execute");
         return NULL;
     }
 
@@ -4992,8 +4992,9 @@ static void handle_qmp_command(JSONMessageParser *parser, QList *tokens)
         goto err_out;
     }
 
-    input = qmp_check_input_obj(obj);
+    input = qmp_check_input_obj(obj, &local_err);
     if (!input) {
+        qerror_report_err(local_err);
         qobject_decref(obj);
         goto err_out;
     }
