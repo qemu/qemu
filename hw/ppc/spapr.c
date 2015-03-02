@@ -25,6 +25,7 @@
  *
  */
 #include "sysemu/sysemu.h"
+#include "sysemu/numa.h"
 #include "hw/hw.h"
 #include "hw/fw-path-provider.h"
 #include "elf.h"

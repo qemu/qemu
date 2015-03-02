@@ -78,6 +78,7 @@ int main(int argc, char **argv)
 #include "monitor/monitor.h"
 #include "ui/console.h"
 #include "sysemu/sysemu.h"
+#include "sysemu/numa.h"
 #include "exec/gdbstub.h"
 #include "qemu/timer.h"
 #include "sysemu/char.h"
@@ -182,10 +183,6 @@ size_t boot_splash_filedata_size;
 uint8_t qemu_extra_params_fw[2];
 
 int icount_align_option;
-
-int nb_numa_nodes;
-int max_numa_nodeid;
-NodeInfo numa_info[MAX_NODES];
 
 /* The bytes in qemu_uuid[] are in the order specified by RFC4122, _not_ in the
  * little-endian "wire format" described in the SMBIOS 2.6 specification.
@@ -2816,14 +2813,6 @@ int main(int argc, char **argv, char **envp)
     cyls = heads = secs = 0;
     translation = BIOS_ATA_TRANSLATION_AUTO;
 
-    for (i = 0; i < MAX_NODES; i++) {
-        numa_info[i].node_mem = 0;
-        numa_info[i].present = false;
-        bitmap_zero(numa_info[i].node_cpu, MAX_CPUMASK_BITS);
-    }
-
-    nb_numa_nodes = 0;
-    max_numa_nodeid = 0;
     nb_nics = 0;
 
     bdrv_init_with_whitelist();
@@ -4163,12 +4152,7 @@ int main(int argc, char **argv, char **envp)
     default_drive(default_floppy, snapshot, IF_FLOPPY, 0, FD_OPTS);
     default_drive(default_sdcard, snapshot, IF_SD, 0, SD_OPTS);
 
-    if (qemu_opts_foreach(qemu_find_opts("numa"), numa_init_func,
-                          NULL, 1) != 0) {
-        exit(1);
-    }
-
-    set_numa_nodes();
+    parse_numa_opts();
 
     if (qemu_opts_foreach(qemu_find_opts("mon"), mon_init_func, NULL, 1) != 0) {
         exit(1);
@@ -4227,7 +4211,7 @@ int main(int argc, char **argv, char **envp)
 
     cpu_synchronize_all_post_init();
 
-    set_numa_modes();
+    numa_post_machine_init();
 
     /* init USB devices */
     if (usb_enabled()) {

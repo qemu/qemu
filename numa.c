@@ -22,7 +22,7 @@
  * THE SOFTWARE.
  */
 
-#include "sysemu/sysemu.h"
+#include "sysemu/numa.h"
 #include "exec/cpu-common.h"
 #include "qemu/bitmap.h"
 #include "qom/cpu.h"
@@ -36,6 +36,8 @@
 #include "sysemu/hostmem.h"
 #include "qmp-commands.h"
 #include "hw/mem/pc-dimm.h"
+#include "qemu/option.h"
+#include "qemu/config-file.h"
 
 QemuOptsList qemu_numa_opts = {
     .name = "numa",
@@ -45,6 +47,11 @@ QemuOptsList qemu_numa_opts = {
 };
 
 static int have_memdevs = -1;
+static int max_numa_nodeid; /* Highest specified NUMA node ID, plus one.
+                             * For all nodes, nodeid < max_numa_nodeid
+                             */
+int nb_numa_nodes;
+NodeInfo numa_info[MAX_NODES];
 
 static void numa_node_parse(NumaNodeOptions *node, QemuOpts *opts, Error **errp)
 {
@@ -116,7 +123,7 @@ static void numa_node_parse(NumaNodeOptions *node, QemuOpts *opts, Error **errp)
     max_numa_nodeid = MAX(max_numa_nodeid, nodenr + 1);
 }
 
-int numa_init_func(QemuOpts *opts, void *opaque)
+static int parse_numa(QemuOpts *opts, void *opaque)
 {
     NumaOptions *object = NULL;
     Error *err = NULL;
@@ -158,9 +165,14 @@ error:
     return -1;
 }
 
-void set_numa_nodes(void)
+void parse_numa_opts(void)
 {
     int i;
+
+    if (qemu_opts_foreach(qemu_find_opts("numa"), parse_numa,
+                          NULL, 1) != 0) {
+        exit(1);
+    }
 
     assert(max_numa_nodeid <= MAX_NODES);
 
@@ -233,7 +245,7 @@ void set_numa_nodes(void)
     }
 }
 
-void set_numa_modes(void)
+void numa_post_machine_init(void)
 {
     CPUState *cpu;
     int i;
