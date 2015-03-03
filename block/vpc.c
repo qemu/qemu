@@ -602,7 +602,7 @@ static int64_t coroutine_fn vpc_co_get_block_status(BlockDriverState *bs,
 {
     BDRVVPCState *s = bs->opaque;
     VHDFooter *footer = (VHDFooter*) s->footer_buf;
-    int64_t start, offset, next;
+    int64_t start, offset;
     bool allocated;
     int n;
 
@@ -626,20 +626,18 @@ static int64_t coroutine_fn vpc_co_get_block_status(BlockDriverState *bs,
         *pnum += n;
         sector_num += n;
         nb_sectors -= n;
-        next = start + (*pnum * BDRV_SECTOR_SIZE);
-
+        /* *pnum can't be greater than one block for allocated
+         * sectors since there is always a bitmap in between. */
+        if (allocated) {
+            return BDRV_BLOCK_DATA | BDRV_BLOCK_OFFSET_VALID | start;
+        }
         if (nb_sectors == 0) {
             break;
         }
-
         offset = get_sector_offset(bs, sector_num, 0);
-    } while ((allocated && offset == next) || (!allocated && offset == -1));
+    } while (offset == -1);
 
-    if (allocated) {
-        return BDRV_BLOCK_DATA | BDRV_BLOCK_OFFSET_VALID | start;
-    } else {
-        return 0;
-    }
+    return 0;
 }
 
 /*
