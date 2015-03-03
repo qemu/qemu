@@ -865,9 +865,13 @@ struct sysib_322 {
         uint8_t  name[8];
         uint32_t caf;
         uint8_t  cpi[16];
-        uint8_t  res3[24];
+        uint8_t res5[3];
+        uint8_t ext_name_encoding;
+        uint32_t res3;
+        uint8_t uuid[16];
     } vm[8];
-    uint8_t res4[3552];
+    uint8_t res4[1504];
+    uint8_t ext_names[8][256];
 };
 
 /* MMU defines */

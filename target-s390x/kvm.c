@@ -44,6 +44,7 @@
 #include "hw/s390x/s390-pci-inst.h"
 #include "hw/s390x/s390-pci-bus.h"
 #include "hw/s390x/ipl.h"
+#include "hw/s390x/ebcdic.h"
 
 /* #define DEBUG_KVM */
 
@@ -255,6 +256,7 @@ int kvm_arch_init(MachineState *ms, KVMState *s)
     }
 
     kvm_vm_enable_cap(s, KVM_CAP_S390_USER_SIGP, 0);
+    kvm_vm_enable_cap(s, KVM_CAP_S390_USER_STSI, 0);
 
     return 0;
 }
@@ -1723,6 +1725,72 @@ static int handle_tsch(S390CPU *cpu)
     return ret;
 }
 
+static void insert_stsi_3_2_2(S390CPU *cpu, __u64 addr)
+{
+    struct sysib_322 sysib;
+    int del;
+
+    if (s390_cpu_virt_mem_read(cpu, addr, &sysib, sizeof(sysib))) {
+        return;
+    }
+    /* Shift the stack of Extended Names to prepare for our own data */
+    memmove(&sysib.ext_names[1], &sysib.ext_names[0],
+            sizeof(sysib.ext_names[0]) * (sysib.count - 1));
+    /* First virt level, that doesn't provide Ext Names delimits stack. It is
+     * assumed it's not capable of managing Extended Names for lower levels.
+     */
+    for (del = 1; del < sysib.count; del++) {
+        if (!sysib.vm[del].ext_name_encoding || !sysib.ext_names[del][0]) {
+            break;
+        }
+    }
+    if (del < sysib.count) {
+        memset(sysib.ext_names[del], 0,
+               sizeof(sysib.ext_names[0]) * (sysib.count - del));
+    }
+    /* Insert short machine name in EBCDIC, padded with blanks */
+    if (qemu_name) {
+        memset(sysib.vm[0].name, 0x40, sizeof(sysib.vm[0].name));
+        ebcdic_put(sysib.vm[0].name, qemu_name, MIN(sizeof(sysib.vm[0].name),
+                                                    strlen(qemu_name)));
+    }
+    sysib.vm[0].ext_name_encoding = 2; /* 2 = UTF-8 */
+    memset(sysib.ext_names[0], 0, sizeof(sysib.ext_names[0]));
+    /* If hypervisor specifies zero Extended Name in STSI322 SYSIB, it's
+     * considered by s390 as not capable of providing any Extended Name.
+     * Therefore if no name was specified on qemu invocation, we go with the
+     * same "KVMguest" default, which KVM has filled into short name field.
+     */
+    if (qemu_name) {
+        strncpy((char *)sysib.ext_names[0], qemu_name,
+                sizeof(sysib.ext_names[0]));
+    } else {
+        strcpy((char *)sysib.ext_names[0], "KVMguest");
+    }
+    /* Insert UUID */
+    memcpy(sysib.vm[0].uuid, qemu_uuid, sizeof(sysib.vm[0].uuid));
+
+    s390_cpu_virt_mem_write(cpu, addr, &sysib, sizeof(sysib));
+}
+
+static int handle_stsi(S390CPU *cpu)
+{
+    CPUState *cs = CPU(cpu);
+    struct kvm_run *run = cs->kvm_run;
+
+    switch (run->s390_stsi.fc) {
+    case 3:
+        if (run->s390_stsi.sel1 != 2 || run->s390_stsi.sel2 != 2) {
+            return 0;
+        }
+        /* Only sysib 3.2.2 needs post-handling for now. */
+        insert_stsi_3_2_2(cpu, run->s390_stsi.addr);
+        return 0;
+    default:
+        return 0;
+    }
+}
+
 static int kvm_arch_handle_debug_exit(S390CPU *cpu)
 {
     CPUState *cs = CPU(cpu);
@@ -1771,6 +1839,9 @@ int kvm_arch_handle_exit(CPUState *cs, struct kvm_run *run)
             break;
         case KVM_EXIT_S390_TSCH:
             ret = handle_tsch(cpu);
+            break;
+        case KVM_EXIT_S390_STSI:
+            ret = handle_stsi(cpu);
             break;
         case KVM_EXIT_DEBUG:
             ret = kvm_arch_handle_debug_exit(cpu);
