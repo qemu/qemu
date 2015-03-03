@@ -254,10 +254,8 @@ static int virtio_scsi_do_tmf(VirtIOSCSI *s, VirtIOSCSIReq *req)
     int target;
     int ret = 0;
 
-    if (s->dataplane_started && blk_get_aio_context(d->conf.blk) != s->ctx) {
-        aio_context_acquire(s->ctx);
-        blk_set_aio_context(d->conf.blk, s->ctx);
-        aio_context_release(s->ctx);
+    if (s->dataplane_started) {
+        assert(blk_get_aio_context(d->conf.blk) == s->ctx);
     }
     /* Here VIRTIO_SCSI_S_OK means "FUNCTION COMPLETE".  */
     req->resp.tmf.response = VIRTIO_SCSI_S_OK;
@@ -540,10 +538,8 @@ bool virtio_scsi_handle_cmd_req_prepare(VirtIOSCSI *s, VirtIOSCSIReq *req)
         virtio_scsi_complete_cmd_req(req);
         return false;
     }
-    if (s->dataplane_started && blk_get_aio_context(d->conf.blk) != s->ctx) {
-        aio_context_acquire(s->ctx);
-        blk_set_aio_context(d->conf.blk, s->ctx);
-        aio_context_release(s->ctx);
+    if (s->dataplane_started) {
+        assert(blk_get_aio_context(d->conf.blk) == s->ctx);
     }
     req->sreq = scsi_req_new(d, req->req.cmd.tag,
                              virtio_scsi_get_lun(req->req.cmd.lun),
@@ -767,6 +763,9 @@ static void virtio_scsi_hotplug(HotplugHandler *hotplug_dev, DeviceState *dev,
             return;
         }
         blk_op_block_all(sd->conf.blk, s->blocker);
+        aio_context_acquire(s->ctx);
+        blk_set_aio_context(sd->conf.blk, s->ctx);
+        aio_context_release(s->ctx);
     }
 
     if ((vdev->guest_features >> VIRTIO_SCSI_F_HOTPLUG) & 1) {
@@ -904,6 +903,8 @@ static void virtio_scsi_device_realize(DeviceState *dev, Error **errp)
                     virtio_scsi_save, virtio_scsi_load, s);
     s->migration_state_notifier.notify = virtio_scsi_migration_state_changed;
     add_migration_state_change_notifier(&s->migration_state_notifier);
+
+    error_setg(&s->blocker, "block device is in use by data plane");
 }
 
 static void virtio_scsi_instance_init(Object *obj)
@@ -928,6 +929,8 @@ void virtio_scsi_common_unrealize(DeviceState *dev, Error **errp)
 static void virtio_scsi_device_unrealize(DeviceState *dev, Error **errp)
 {
     VirtIOSCSI *s = VIRTIO_SCSI(dev);
+
+    error_free(s->blocker);
 
     unregister_savevm(dev, "virtio-scsi", s);
     remove_migration_state_change_notifier(&s->migration_state_notifier);

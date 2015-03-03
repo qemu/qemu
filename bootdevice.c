@@ -221,10 +221,15 @@ char *get_boot_devices_list(size_t *size, bool ignore_suffixes)
         }
 
         if (!ignore_suffixes) {
-            d = qdev_get_own_fw_dev_path_from_handler(i->dev->parent_bus, i->dev);
-            if (d) {
-                assert(!i->suffix);
-                suffix = d;
+            if (i->dev) {
+                d = qdev_get_own_fw_dev_path_from_handler(i->dev->parent_bus,
+                                                          i->dev);
+                if (d) {
+                    assert(!i->suffix);
+                    suffix = d;
+                } else {
+                    suffix = g_strdup(i->suffix);
+                }
             } else {
                 suffix = g_strdup(i->suffix);
             }

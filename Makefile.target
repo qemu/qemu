@@ -175,9 +175,11 @@ all-obj-y += $(common-obj-y)
 all-obj-y += $(target-obj-y)
 all-obj-$(CONFIG_SOFTMMU) += $(block-obj-y)
 
+$(QEMU_PROG_BUILD): config-devices.mak
+
 # build either PROG or PROGW
 $(QEMU_PROG_BUILD): $(all-obj-y) ../libqemuutil.a ../libqemustub.a
-	$(call LINK,$^)
+	$(call LINK, $(filter-out %.mak, $^))
 
 gdbstub-xml.c: $(TARGET_XML_FILES) $(SRC_PATH)/scripts/feature_to_c.sh
 	$(call quiet-command,rm -f $@ && $(SHELL) $(SRC_PATH)/scripts/feature_to_c.sh $@ $(TARGET_XML_FILES),"  GEN   $(TARGET_DIR)$@")

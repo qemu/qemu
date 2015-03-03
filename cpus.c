@@ -778,7 +778,7 @@ static void qemu_tcg_init_cpu_signals(void)
 
 static QemuMutex qemu_global_mutex;
 static QemuCond qemu_io_proceeded_cond;
-static bool iothread_requesting_mutex;
+static unsigned iothread_requesting_mutex;
 
 static QemuThread io_thread;
 
@@ -1025,6 +1025,9 @@ static void *qemu_tcg_cpu_thread_fn(void *arg)
         }
     }
 
+    /* process any pending work */
+    exit_request = 1;
+
     while (1) {
         tcg_exec_all();
 
@@ -1115,15 +1118,16 @@ bool qemu_in_vcpu_thread(void)
 
 void qemu_mutex_lock_iothread(void)
 {
-    if (!tcg_enabled()) {
+    atomic_inc(&iothread_requesting_mutex);
+    if (!tcg_enabled() || !first_cpu) {
         qemu_mutex_lock(&qemu_global_mutex);
+        atomic_dec(&iothread_requesting_mutex);
     } else {
-        iothread_requesting_mutex = true;
         if (qemu_mutex_trylock(&qemu_global_mutex)) {
             qemu_cpu_kick_thread(first_cpu);
             qemu_mutex_lock(&qemu_global_mutex);
         }
-        iothread_requesting_mutex = false;
+        atomic_dec(&iothread_requesting_mutex);
         qemu_cond_broadcast(&qemu_io_proceeded_cond);
     }
 }

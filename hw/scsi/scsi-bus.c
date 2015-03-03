@@ -221,11 +221,16 @@ SCSIDevice *scsi_bus_legacy_add_drive(SCSIBus *bus, BlockBackend *blk,
                                       const char *serial, Error **errp)
 {
     const char *driver;
+    char *name;
     DeviceState *dev;
     Error *err = NULL;
 
     driver = blk_is_sg(blk) ? "scsi-generic" : "scsi-disk";
     dev = qdev_create(&bus->qbus, driver);
+    name = g_strdup_printf("legacy[%d]", unit);
+    object_property_add_child(OBJECT(bus), name, OBJECT(dev), NULL);
+    g_free(name);
+
     qdev_prop_set_uint32(dev, "scsi-id", unit);
     if (bootindex >= 0) {
         object_property_set_int(OBJECT(dev), bootindex, "bootindex",
