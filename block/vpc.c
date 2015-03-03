@@ -46,6 +46,7 @@ enum vhd_type {
 #define VHD_TIMESTAMP_BASE 946684800
 
 #define VHD_MAX_SECTORS       (65535LL * 255 * 255)
+#define VHD_MAX_GEOMETRY      (65535LL *  16 * 255)
 
 // always big-endian
 typedef struct vhd_footer {
@@ -218,7 +219,7 @@ static int vpc_open(BlockDriverState *bs, QDict *options, int flags,
     /* Images that have exactly the maximum geometry are probably bigger and
      * would be truncated if we adhered to the geometry for them. Rely on
      * footer->size for them. */
-    if (bs->total_sectors == 65535ULL * 16 * 255) {
+    if (bs->total_sectors == VHD_MAX_GEOMETRY) {
         bs->total_sectors = be64_to_cpu(footer->size) / BDRV_SECTOR_SIZE;
     }
 
@@ -655,26 +656,20 @@ static int calculate_geometry(int64_t total_sectors, uint16_t* cyls,
 {
     uint32_t cyls_times_heads;
 
-    /* Allow a maximum disk size of approximately 2 TB */
-    if (total_sectors > 65535LL * 255 * 255) {
-        return -EFBIG;
-    }
+    total_sectors = MIN(total_sectors, VHD_MAX_GEOMETRY);
 
-    if (total_sectors > 65535 * 16 * 63) {
+    if (total_sectors >= 65535LL * 16 * 63) {
         *secs_per_cyl = 255;
-        if (total_sectors > 65535 * 16 * 255) {
-            *heads = 255;
-        } else {
-            *heads = 16;
-        }
+        *heads = 16;
         cyls_times_heads = total_sectors / *secs_per_cyl;
     } else {
         *secs_per_cyl = 17;
         cyls_times_heads = total_sectors / *secs_per_cyl;
         *heads = (cyls_times_heads + 1023) / 1024;
 
-        if (*heads < 4)
+        if (*heads < 4) {
             *heads = 4;
+        }
 
         if (cyls_times_heads >= (*heads * 1024) || *heads > 16) {
             *secs_per_cyl = 31;
@@ -830,19 +825,27 @@ static int vpc_create(const char *filename, QemuOpts *opts, Error **errp)
      * Calculate matching total_size and geometry. Increase the number of
      * sectors requested until we get enough (or fail). This ensures that
      * qemu-img convert doesn't truncate images, but rather rounds up.
+     *
+     * If the image size can't be represented by a spec conform CHS geometry,
+     * we set the geometry to 65535 x 16 x 255 (CxHxS) sectors and use
+     * the image size from the VHD footer to calculate total_sectors.
      */
-    total_sectors = total_size / BDRV_SECTOR_SIZE;
+    total_sectors = MIN(VHD_MAX_GEOMETRY, total_size / BDRV_SECTOR_SIZE);
     for (i = 0; total_sectors > (int64_t)cyls * heads * secs_per_cyl; i++) {
-        if (calculate_geometry(total_sectors + i, &cyls, &heads,
-                               &secs_per_cyl))
-        {
+        calculate_geometry(total_sectors + i, &cyls, &heads, &secs_per_cyl);
+    }
+
+    if ((int64_t)cyls * heads * secs_per_cyl == VHD_MAX_GEOMETRY) {
+        total_sectors = total_size / BDRV_SECTOR_SIZE;
+        /* Allow a maximum disk size of approximately 2 TB */
+        if (total_sectors > VHD_MAX_SECTORS) {
             ret = -EFBIG;
             goto out;
         }
+    } else {
+        total_sectors = (int64_t)cyls * heads * secs_per_cyl;
+        total_size = total_sectors * BDRV_SECTOR_SIZE;
     }
-
-    total_sectors = (int64_t) cyls * heads * secs_per_cyl;
-    total_size = total_sectors * BDRV_SECTOR_SIZE;
 
     /* Prepare the Hard Disk Footer */
     memset(buf, 0, 1024);
