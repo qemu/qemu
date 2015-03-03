@@ -299,7 +299,7 @@ static Aml *aml_bundle(uint8_t op, AmlBlockFlags flags)
     return var;
 }
 
-static void aml_free(gpointer data)
+static void aml_free(gpointer data, gpointer user_data)
 {
     Aml *var = data;
     build_free_array(var->buf);
@@ -310,13 +310,14 @@ Aml *init_aml_allocator(void)
     Aml *var;
 
     assert(!alloc_list);
-    alloc_list = g_ptr_array_new_with_free_func(aml_free);
+    alloc_list = g_ptr_array_new();
     var = aml_alloc();
     return var;
 }
 
 void free_aml_allocator(void)
 {
+    g_ptr_array_foreach(alloc_list, aml_free, NULL);
     g_ptr_array_free(alloc_list, true);
     alloc_list = 0;
 }
