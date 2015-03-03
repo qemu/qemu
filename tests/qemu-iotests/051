@@ -99,6 +99,12 @@ run_qemu -drive file="$TEST_IMG",driver=raw,format=qcow2
 run_qemu -drive file="$TEST_IMG",driver=qcow2,format=qcow2
 
 echo
+echo === Device without drive ===
+echo
+
+run_qemu -device virtio-scsi-pci -device scsi-hd
+
+echo
 echo === Overriding backing file ===
 echo
 

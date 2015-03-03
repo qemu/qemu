@@ -47,6 +47,14 @@ Testing: -drive file=TEST_DIR/t.qcow2,driver=qcow2,format=qcow2
 QEMU_PROG: -drive file=TEST_DIR/t.qcow2,driver=qcow2,format=qcow2: Cannot specify both 'driver' and 'format'
 
 
+=== Device without drive ===
+
+Testing: -device virtio-scsi-pci -device scsi-hd
+QEMU X.Y.Z monitor - type 'help' for more information
+(qemu) QEMU_PROG: -device scsi-hd: drive property not set
+QEMU_PROG: -device scsi-hd: Device 'scsi-hd' could not be initialized
+
+
 === Overriding backing file ===
 
 Testing: -drive file=TEST_DIR/t.qcow2,driver=qcow2,backing.file.filename=TEST_DIR/t.qcow2.orig -nodefaults
