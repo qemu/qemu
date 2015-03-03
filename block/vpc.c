@@ -215,12 +215,10 @@ static int vpc_open(BlockDriverState *bs, QDict *options, int flags,
     bs->total_sectors = (int64_t)
         be16_to_cpu(footer->cyls) * footer->heads * footer->secs_per_cyl;
 
-    /* images created with disk2vhd report a far higher virtual size
-     * than expected with the cyls * heads * sectors_per_cyl formula.
-     * use the footer->size instead if the image was created with
-     * disk2vhd.
-     */
-    if (!strncmp(footer->creator_app, "d2v", 4)) {
+    /* Images that have exactly the maximum geometry are probably bigger and
+     * would be truncated if we adhered to the geometry for them. Rely on
+     * footer->size for them. */
+    if (bs->total_sectors == 65535ULL * 16 * 255) {
         bs->total_sectors = be64_to_cpu(footer->size) / BDRV_SECTOR_SIZE;
     }
 
