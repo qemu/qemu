@@ -1,1 +1,2 @@
 io-obj-y = channel.o
+io-obj-y += channel-watch.o
