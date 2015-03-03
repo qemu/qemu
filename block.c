@@ -1364,7 +1364,7 @@ int bdrv_append_temp_snapshot(BlockDriverState *bs, int flags, Error **errp)
 
     opts = qemu_opts_create(bdrv_qcow2.create_opts, NULL, 0,
                             &error_abort);
-    qemu_opt_set_number(opts, BLOCK_OPT_SIZE, total_size);
+    qemu_opt_set_number(opts, BLOCK_OPT_SIZE, total_size, &error_abort);
     ret = bdrv_create(&bdrv_qcow2, tmp_filename, opts, &local_err);
     qemu_opts_del(opts);
     if (ret < 0) {
@@ -5649,18 +5649,22 @@ void bdrv_img_create(const char *filename, const char *fmt,
 
     /* Create parameter list with default values */
     opts = qemu_opts_create(create_opts, NULL, 0, &error_abort);
-    qemu_opt_set_number(opts, BLOCK_OPT_SIZE, img_size);
+    qemu_opt_set_number(opts, BLOCK_OPT_SIZE, img_size, &error_abort);
 
     /* Parse -o options */
     if (options) {
-        if (qemu_opts_do_parse(opts, options, NULL) != 0) {
+        qemu_opts_do_parse(opts, options, NULL, &local_err);
+        if (local_err) {
+            error_report_err(local_err);
+            local_err = NULL;
             error_setg(errp, "Invalid options for file format '%s'", fmt);
             goto out;
         }
     }
 
     if (base_filename) {
-        if (qemu_opt_set(opts, BLOCK_OPT_BACKING_FILE, base_filename)) {
+        qemu_opt_set(opts, BLOCK_OPT_BACKING_FILE, base_filename, &local_err);
+        if (local_err) {
             error_setg(errp, "Backing file not supported for file format '%s'",
                        fmt);
             goto out;
@@ -5668,7 +5672,8 @@ void bdrv_img_create(const char *filename, const char *fmt,
     }
 
     if (base_fmt) {
-        if (qemu_opt_set(opts, BLOCK_OPT_BACKING_FMT, base_fmt)) {
+        qemu_opt_set(opts, BLOCK_OPT_BACKING_FMT, base_fmt, &local_err);
+        if (local_err) {
             error_setg(errp, "Backing file format not supported for file "
                              "format '%s'", fmt);
             goto out;
@@ -5731,7 +5736,7 @@ void bdrv_img_create(const char *filename, const char *fmt,
                 goto out;
             }
 
-            qemu_opt_set_number(opts, BLOCK_OPT_SIZE, size);
+            qemu_opt_set_number(opts, BLOCK_OPT_SIZE, size, &error_abort);
 
             bdrv_unref(bs);
         } else {

@@ -1093,7 +1093,7 @@ static int drive_init_func(QemuOpts *opts, void *opaque)
 static int drive_enable_snapshot(QemuOpts *opts, void *opaque)
 {
     if (qemu_opt_get(opts, "snapshot") == NULL) {
-        qemu_opt_set(opts, "snapshot", "on");
+        qemu_opt_set(opts, "snapshot", "on", &error_abort);
     }
     return 0;
 }
@@ -2071,7 +2071,7 @@ static int balloon_parse(const char *arg)
             opts = qemu_opts_create(qemu_find_opts("device"), NULL, 0,
                                     &error_abort);
         }
-        qemu_opt_set(opts, "driver", "virtio-balloon");
+        qemu_opt_set(opts, "driver", "virtio-balloon", &error_abort);
         return 0;
     }
 
@@ -2217,11 +2217,11 @@ static void monitor_parse(const char *optarg, const char *mode, bool pretty)
         error_report_err(local_err);
         exit(1);
     }
-    qemu_opt_set(opts, "mode", mode);
-    qemu_opt_set(opts, "chardev", label);
-    qemu_opt_set_bool(opts, "pretty", pretty);
+    qemu_opt_set(opts, "mode", mode, &error_abort);
+    qemu_opt_set(opts, "chardev", label, &error_abort);
+    qemu_opt_set_bool(opts, "pretty", pretty, &error_abort);
     if (def)
-        qemu_opt_set(opts, "default", "on");
+        qemu_opt_set(opts, "default", "on", &error_abort);
     monitor_device_index++;
 }
 
@@ -2333,13 +2333,13 @@ static int virtcon_parse(const char *devname)
 
     bus_opts = qemu_opts_create(device, NULL, 0, &error_abort);
     if (arch_type == QEMU_ARCH_S390X) {
-        qemu_opt_set(bus_opts, "driver", "virtio-serial-s390");
+        qemu_opt_set(bus_opts, "driver", "virtio-serial-s390", &error_abort);
     } else {
-        qemu_opt_set(bus_opts, "driver", "virtio-serial-pci");
+        qemu_opt_set(bus_opts, "driver", "virtio-serial-pci", &error_abort);
     }
 
     dev_opts = qemu_opts_create(device, NULL, 0, &error_abort);
-    qemu_opt_set(dev_opts, "driver", "virtconsole");
+    qemu_opt_set(dev_opts, "driver", "virtconsole", &error_abort);
 
     snprintf(label, sizeof(label), "virtcon%d", index);
     virtcon_hds[index] = qemu_chr_new(label, devname, NULL);
@@ -2348,7 +2348,7 @@ static int virtcon_parse(const char *devname)
                 " to character backend '%s'\n", devname);
         return -1;
     }
-    qemu_opt_set(dev_opts, "chardev", label);
+    qemu_opt_set(dev_opts, "chardev", label, &error_abort);
 
     index++;
     return 0;
@@ -2372,7 +2372,7 @@ static int sclp_parse(const char *devname)
     assert(arch_type == QEMU_ARCH_S390X);
 
     dev_opts = qemu_opts_create(device, NULL, 0, NULL);
-    qemu_opt_set(dev_opts, "driver", "sclpconsole");
+    qemu_opt_set(dev_opts, "driver", "sclpconsole", &error_abort);
 
     snprintf(label, sizeof(label), "sclpcon%d", index);
     sclp_hds[index] = qemu_chr_new(label, devname, NULL);
@@ -2381,7 +2381,7 @@ static int sclp_parse(const char *devname)
                 " to character backend '%s'\n", devname);
         return -1;
     }
-    qemu_opt_set(dev_opts, "chardev", label);
+    qemu_opt_set(dev_opts, "chardev", label, &error_abort);
 
     index++;
     return 0;
@@ -2399,8 +2399,8 @@ static int debugcon_parse(const char *devname)
         fprintf(stderr, "qemu: already have a debugcon device\n");
         exit(1);
     }
-    qemu_opt_set(opts, "driver", "isa-debugcon");
-    qemu_opt_set(opts, "chardev", "debugcon");
+    qemu_opt_set(opts, "driver", "isa-debugcon", &error_abort);
+    qemu_opt_set(opts, "chardev", "debugcon", &error_abort);
     return 0;
 }
 
@@ -2681,7 +2681,7 @@ static void set_memory_options(uint64_t *ram_slots, ram_addr_t *maxram_size)
     }
 
     /* store value for the future use */
-    qemu_opt_set_number(opts, "size", ram_size);
+    qemu_opt_set_number(opts, "size", ram_size, &error_abort);
     *maxram_size = ram_size;
 
     maxmem_str = qemu_opt_get(opts, "maxmem");
@@ -2960,21 +2960,24 @@ int main(int argc, char **argv, char **envp)
                         exit(1);
                     }
                     if (hda_opts != NULL) {
-                        char num[16];
-                        snprintf(num, sizeof(num), "%d", cyls);
-                        qemu_opt_set(hda_opts, "cyls", num);
-                        snprintf(num, sizeof(num), "%d", heads);
-                        qemu_opt_set(hda_opts, "heads", num);
-                        snprintf(num, sizeof(num), "%d", secs);
-                        qemu_opt_set(hda_opts, "secs", num);
+                        qemu_opt_set_number(hda_opts, "cyls", cyls,
+                                            &error_abort);
+                        qemu_opt_set_number(hda_opts, "heads", heads,
+                                            &error_abort);
+                        qemu_opt_set_number(hda_opts, "secs", secs,
+                                            &error_abort);
                         if (translation == BIOS_ATA_TRANSLATION_LARGE) {
-                            qemu_opt_set(hda_opts, "trans", "large");
+                            qemu_opt_set(hda_opts, "trans", "large",
+                                         &error_abort);
                         } else if (translation == BIOS_ATA_TRANSLATION_RECHS) {
-                            qemu_opt_set(hda_opts, "trans", "rechs");
+                            qemu_opt_set(hda_opts, "trans", "rechs",
+                                         &error_abort);
                         } else if (translation == BIOS_ATA_TRANSLATION_LBA) {
-                            qemu_opt_set(hda_opts, "trans", "lba");
+                            qemu_opt_set(hda_opts, "trans", "lba",
+                                         &error_abort);
                         } else if (translation == BIOS_ATA_TRANSLATION_NONE) {
-                            qemu_opt_set(hda_opts, "trans", "none");
+                            qemu_opt_set(hda_opts, "trans", "none",
+                                         &error_abort);
                         }
                     }
                 }
@@ -3012,16 +3015,20 @@ int main(int argc, char **argv, char **envp)
                 }
                 break;
             case QEMU_OPTION_kernel:
-                qemu_opts_set(qemu_find_opts("machine"), 0, "kernel", optarg);
+                qemu_opts_set(qemu_find_opts("machine"), 0, "kernel", optarg,
+                              &error_abort);
                 break;
             case QEMU_OPTION_initrd:
-                qemu_opts_set(qemu_find_opts("machine"), 0, "initrd", optarg);
+                qemu_opts_set(qemu_find_opts("machine"), 0, "initrd", optarg,
+                              &error_abort);
                 break;
             case QEMU_OPTION_append:
-                qemu_opts_set(qemu_find_opts("machine"), 0, "append", optarg);
+                qemu_opts_set(qemu_find_opts("machine"), 0, "append", optarg,
+                              &error_abort);
                 break;
             case QEMU_OPTION_dtb:
-                qemu_opts_set(qemu_find_opts("machine"), 0, "dtb", optarg);
+                qemu_opts_set(qemu_find_opts("machine"), 0, "dtb", optarg,
+                              &error_abort);
                 break;
             case QEMU_OPTION_cdrom:
                 drive_add(IF_DEFAULT, 2, optarg, CDROM_OPTS);
@@ -3125,7 +3132,8 @@ int main(int argc, char **argv, char **envp)
                 }
                 break;
             case QEMU_OPTION_bios:
-                qemu_opts_set(qemu_find_opts("machine"), 0, "firmware", optarg);
+                qemu_opts_set(qemu_find_opts("machine"), 0, "firmware", optarg,
+                              &error_abort);
                 break;
             case QEMU_OPTION_singlestep:
                 singlestep = 1;
@@ -3255,35 +3263,39 @@ int main(int argc, char **argv, char **envp)
                 writeout = qemu_opt_get(opts, "writeout");
                 if (writeout) {
 #ifdef CONFIG_SYNC_FILE_RANGE
-                    qemu_opt_set(fsdev, "writeout", writeout);
+                    qemu_opt_set(fsdev, "writeout", writeout, &error_abort);
 #else
                     fprintf(stderr, "writeout=immediate not supported on "
                             "this platform\n");
                     exit(1);
 #endif
                 }
-                qemu_opt_set(fsdev, "fsdriver", qemu_opt_get(opts, "fsdriver"));
-                qemu_opt_set(fsdev, "path", qemu_opt_get(opts, "path"));
+                qemu_opt_set(fsdev, "fsdriver",
+                             qemu_opt_get(opts, "fsdriver"), &error_abort);
+                qemu_opt_set(fsdev, "path", qemu_opt_get(opts, "path"),
+                             &error_abort);
                 qemu_opt_set(fsdev, "security_model",
-                             qemu_opt_get(opts, "security_model"));
+                             qemu_opt_get(opts, "security_model"),
+                             &error_abort);
                 socket = qemu_opt_get(opts, "socket");
                 if (socket) {
-                    qemu_opt_set(fsdev, "socket", socket);
+                    qemu_opt_set(fsdev, "socket", socket, &error_abort);
                 }
                 sock_fd = qemu_opt_get(opts, "sock_fd");
                 if (sock_fd) {
-                    qemu_opt_set(fsdev, "sock_fd", sock_fd);
+                    qemu_opt_set(fsdev, "sock_fd", sock_fd, &error_abort);
                 }
 
                 qemu_opt_set_bool(fsdev, "readonly",
-                                qemu_opt_get_bool(opts, "readonly", 0));
+                                  qemu_opt_get_bool(opts, "readonly", 0),
+                                  &error_abort);
                 device = qemu_opts_create(qemu_find_opts("device"), NULL, 0,
                                           &error_abort);
-                qemu_opt_set(device, "driver", "virtio-9p-pci");
+                qemu_opt_set(device, "driver", "virtio-9p-pci", &error_abort);
                 qemu_opt_set(device, "fsdev",
-                             qemu_opt_get(opts, "mount_tag"));
+                             qemu_opt_get(opts, "mount_tag"), &error_abort);
                 qemu_opt_set(device, "mount_tag",
-                             qemu_opt_get(opts, "mount_tag"));
+                             qemu_opt_get(opts, "mount_tag"), &error_abort);
                 break;
             }
             case QEMU_OPTION_virtfs_synth: {
@@ -3296,13 +3308,13 @@ int main(int argc, char **argv, char **envp)
                     fprintf(stderr, "duplicate option: %s\n", "virtfs_synth");
                     exit(1);
                 }
-                qemu_opt_set(fsdev, "fsdriver", "synth");
+                qemu_opt_set(fsdev, "fsdriver", "synth", &error_abort);
 
                 device = qemu_opts_create(qemu_find_opts("device"), NULL, 0,
                                           &error_abort);
-                qemu_opt_set(device, "driver", "virtio-9p-pci");
-                qemu_opt_set(device, "fsdev", "v_synth");
-                qemu_opt_set(device, "mount_tag", "v_synth");
+                qemu_opt_set(device, "driver", "virtio-9p-pci", &error_abort);
+                qemu_opt_set(device, "fsdev", "v_synth", &error_abort);
+                qemu_opt_set(device, "mount_tag", "v_synth", &error_abort);
                 break;
             }
             case QEMU_OPTION_serial:

@@ -219,6 +219,7 @@ void qemu_add_opts(QemuOptsList *list)
 
 int qemu_set_option(const char *str)
 {
+    Error *local_err = NULL;
     char group[64], id[64], arg[64];
     QemuOptsList *list;
     QemuOpts *opts;
@@ -242,7 +243,9 @@ int qemu_set_option(const char *str)
         return -1;
     }
 
-    if (qemu_opt_set(opts, arg, str+offset+1) == -1) {
+    qemu_opt_set(opts, arg, str + offset + 1, &local_err);
+    if (local_err) {
+        error_report_err(local_err);
         return -1;
     }
     return 0;
@@ -335,7 +338,9 @@ int qemu_config_parse(FILE *fp, QemuOptsList **lists, const char *fname)
                 error_report("no group defined");
                 goto out;
             }
-            if (qemu_opt_set(opts, arg, value) != 0) {
+            qemu_opt_set(opts, arg, value, &local_err);
+            if (local_err) {
+                error_report_err(local_err);
                 goto out;
             }
             continue;
