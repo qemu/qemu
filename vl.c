@@ -2767,6 +2767,9 @@ int main(int argc, char **argv, char **envp)
     FILE *vmstate_dump_file = NULL;
     Error *main_loop_err = NULL;
 
+    qemu_init_cpu_loop();
+    qemu_mutex_lock_iothread();
+
     atexit(qemu_run_exit_notifiers);
     error_set_progname(argv[0]);
     qemu_init_exec_dir(argv[0]);
@@ -4101,9 +4104,6 @@ int main(int argc, char **argv, char **envp)
     }
 
     os_set_line_buffering();
-
-    qemu_init_cpu_loop();
-    qemu_mutex_lock_iothread();
 
 #ifdef CONFIG_SPICE
     /* spice needs the timers to be initialized by this point */
