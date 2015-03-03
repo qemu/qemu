@@ -66,7 +66,7 @@ typedef struct vhd_footer {
     char        creator_os[4]; // "Wi2k"
 
     uint64_t    orig_size;
-    uint64_t    size;
+    uint64_t    current_size;
 
     uint16_t    cyls;
     uint8_t     heads;
@@ -218,9 +218,10 @@ static int vpc_open(BlockDriverState *bs, QDict *options, int flags,
 
     /* Images that have exactly the maximum geometry are probably bigger and
      * would be truncated if we adhered to the geometry for them. Rely on
-     * footer->size for them. */
+     * footer->current_size for them. */
     if (bs->total_sectors == VHD_MAX_GEOMETRY) {
-        bs->total_sectors = be64_to_cpu(footer->size) / BDRV_SECTOR_SIZE;
+        bs->total_sectors = be64_to_cpu(footer->current_size) /
+                            BDRV_SECTOR_SIZE;
     }
 
     /* Allow a maximum disk size of approximately 2 TB */
@@ -868,7 +869,7 @@ static int vpc_create(const char *filename, QemuOpts *opts, Error **errp)
     footer->major = cpu_to_be16(0x0005);
     footer->minor = cpu_to_be16(0x0003);
     footer->orig_size = cpu_to_be64(total_size);
-    footer->size = cpu_to_be64(total_size);
+    footer->current_size = cpu_to_be64(total_size);
     footer->cyls = cpu_to_be16(cyls);
     footer->heads = heads;
     footer->secs_per_cyl = secs_per_cyl;
