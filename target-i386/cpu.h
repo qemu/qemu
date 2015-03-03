@@ -944,6 +944,7 @@ typedef struct CPUX86State {
     uint32_t cpuid_version;
     FeatureWordArray features;
     uint32_t cpuid_model[12];
+    uint32_t cpuid_apic_id;
 
     /* MTRRs */
     uint64_t mtrr_fixed[11];
@@ -981,6 +982,7 @@ typedef struct CPUX86State {
 
 #include "cpu-qom.h"
 
+X86CPU *cpu_x86_init(const char *cpu_model);
 X86CPU *cpu_x86_create(const char *cpu_model, DeviceState *icc_bridge,
                        Error **errp);
 int cpu_x86_exec(CPUX86State *s);
@@ -1169,9 +1171,14 @@ uint64_t cpu_get_tsc(CPUX86State *env);
 # define PHYS_ADDR_MASK 0xfffffffffLL
 # endif
 
-/* CPU creation function for *-user */
-CPUX86State *cpu_x86_init_user(const char *cpu_model);
-#define cpu_init cpu_x86_init_user
+static inline CPUX86State *cpu_init(const char *cpu_model)
+{
+    X86CPU *cpu = cpu_x86_init(cpu_model);
+    if (cpu == NULL) {
+        return NULL;
+    }
+    return &cpu->env;
+}
 
 #define cpu_exec cpu_x86_exec
 #define cpu_gen_code cpu_x86_gen_code
