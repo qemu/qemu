@@ -1200,6 +1200,12 @@ F: util/*coroutine*
 F: include/qemu/coroutine*
 F: tests/test-coroutine.c
 
+Buffers
+M: Daniel P. Berrange <berrange@redhat.com>
+S: Odd fixes
+F: util/buffer.c
+F: include/qemu/buffer.h
+
 Usermode Emulation
 ------------------
 Overall

@@ -647,49 +647,6 @@ void vnc_framebuffer_update(VncState *vs, int x, int y, int w, int h,
     vnc_write_s32(vs, encoding);
 }
 
-void buffer_reserve(Buffer *buffer, size_t len)
-{
-    if ((buffer->capacity - buffer->offset) < len) {
-        buffer->capacity += (len + 1024);
-        buffer->buffer = g_realloc(buffer->buffer, buffer->capacity);
-    }
-}
-
-static int buffer_empty(Buffer *buffer)
-{
-    return buffer->offset == 0;
-}
-
-uint8_t *buffer_end(Buffer *buffer)
-{
-    return buffer->buffer + buffer->offset;
-}
-
-void buffer_reset(Buffer *buffer)
-{
-        buffer->offset = 0;
-}
-
-void buffer_free(Buffer *buffer)
-{
-    g_free(buffer->buffer);
-    buffer->offset = 0;
-    buffer->capacity = 0;
-    buffer->buffer = NULL;
-}
-
-void buffer_append(Buffer *buffer, const void *data, size_t len)
-{
-    memcpy(buffer->buffer + buffer->offset, data, len);
-    buffer->offset += len;
-}
-
-void buffer_advance(Buffer *buf, size_t len)
-{
-    memmove(buf->buffer, buf->buffer + len,
-            (buf->offset - len));
-    buf->offset -= len;
-}
 
 static void vnc_desktop_resize(VncState *vs)
 {
