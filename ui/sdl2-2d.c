@@ -89,10 +89,21 @@ void sdl2_2d_switch(DisplayChangeListener *dcl,
                              surface_width(new_surface),
                              surface_height(new_surface));
 
-    if (surface_bits_per_pixel(scon->surface) == 16) {
+    switch (surface_format(scon->surface)) {
+    case PIXMAN_x1r5g5b5:
+        format = SDL_PIXELFORMAT_ARGB1555;
+        break;
+    case PIXMAN_r5g6b5:
         format = SDL_PIXELFORMAT_RGB565;
-    } else if (surface_bits_per_pixel(scon->surface) == 32) {
+        break;
+    case PIXMAN_x8r8g8b8:
         format = SDL_PIXELFORMAT_ARGB8888;
+        break;
+    case PIXMAN_r8g8b8x8:
+        format = SDL_PIXELFORMAT_RGBA8888;
+        break;
+    default:
+        g_assert_not_reached();
     }
     scon->texture = SDL_CreateTexture(scon->real_renderer, format,
                                       SDL_TEXTUREACCESS_STREAMING,

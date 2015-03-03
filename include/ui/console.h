@@ -280,6 +280,11 @@ static inline int surface_bytes_per_pixel(DisplaySurface *s)
     return (bits + 7) / 8;
 }
 
+static inline pixman_format_code_t surface_format(DisplaySurface *s)
+{
+    return s->format;
+}
+
 #ifdef CONFIG_CURSES
 #include <curses.h>
 typedef chtype console_ch_t;
