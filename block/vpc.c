@@ -376,38 +376,6 @@ static inline int64_t get_sector_offset(BlockDriverState *bs,
         bdrv_pwrite_sync(bs->file, bitmap_offset, bitmap, s->bitmap_size);
     }
 
-//    printf("sector: %" PRIx64 ", index: %x, offset: %x, bioff: %" PRIx64 ", bloff: %" PRIx64 "\n",
-//	sector_num, pagetable_index, pageentry_index,
-//	bitmap_offset, block_offset);
-
-// disabled by reason
-#if 0
-#ifdef CACHE
-    if (bitmap_offset != s->last_bitmap)
-    {
-	lseek(s->fd, bitmap_offset, SEEK_SET);
-
-	s->last_bitmap = bitmap_offset;
-
-	// Scary! Bitmap is stored as big endian 32bit entries,
-	// while we used to look it up byte by byte
-	read(s->fd, s->pageentry_u8, 512);
-	for (i = 0; i < 128; i++)
-	    be32_to_cpus(&s->pageentry_u32[i]);
-    }
-
-    if ((s->pageentry_u8[pageentry_index / 8] >> (pageentry_index % 8)) & 1)
-	return -1;
-#else
-    lseek(s->fd, bitmap_offset + (pageentry_index / 8), SEEK_SET);
-
-    read(s->fd, &bitmap_entry, 1);
-
-    if ((bitmap_entry >> (pageentry_index % 8)) & 1)
-	return -1; // not allocated
-#endif
-#endif
-
     return block_offset;
 }
 
