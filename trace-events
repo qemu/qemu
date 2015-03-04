@@ -1850,3 +1850,11 @@ qio_channel_tls_handshake_fail(void *ioc) "TLS handshake fail ioc=%p"
 qio_channel_tls_handshake_complete(void *ioc) "TLS handshake complete ioc=%p"
 qio_channel_tls_credentials_allow(void *ioc) "TLS credentials allow ioc=%p"
 qio_channel_tls_credentials_deny(void *ioc) "TLS credentials deny ioc=%p"
+
+# io/channel-websock.c
+qio_channel_websock_new_server(void *ioc, void *master) "Websock new client ioc=%p master=%p"
+qio_channel_websock_handshake_start(void *ioc) "Websock handshake start ioc=%p"
+qio_channel_websock_handshake_pending(void *ioc, int status) "Websock handshake pending ioc=%p status=%d"
+qio_channel_websock_handshake_reply(void *ioc) "Websock handshake reply ioc=%p"
+qio_channel_websock_handshake_fail(void *ioc) "Websock handshake fail ioc=%p"
+qio_channel_websock_handshake_complete(void *ioc) "Websock handshake complete ioc=%p"
