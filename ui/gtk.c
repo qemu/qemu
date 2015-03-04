@@ -34,24 +34,11 @@
 #define GETTEXT_PACKAGE "qemu"
 #define LOCALEDIR "po"
 
-#ifdef _WIN32
-# define _WIN32_WINNT 0x0601 /* needed to get definition of MAPVK_VK_TO_VSC */
-#endif
-
 #include "qemu-common.h"
 
-#ifdef CONFIG_PRAGMA_DIAGNOSTIC_AVAILABLE
-/* Work around an -Wstrict-prototypes warning in GTK headers */
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wstrict-prototypes"
-#endif
-#include <gtk/gtk.h>
-#ifdef CONFIG_PRAGMA_DIAGNOSTIC_AVAILABLE
-#pragma GCC diagnostic pop
-#endif
+#include "ui/console.h"
+#include "ui/gtk.h"
 
-
-#include <gdk/gdkkeysyms.h>
 #include <glib/gi18n.h>
 #include <locale.h>
 #if defined(CONFIG_VTE)
@@ -60,7 +47,6 @@
 #include <math.h>
 
 #include "trace.h"
-#include "ui/console.h"
 #include "ui/input.h"
 #include "sysemu/sysemu.h"
 #include "qmp-commands.h"
@@ -68,10 +54,6 @@
 #include "keymaps.h"
 #include "sysemu/char.h"
 #include "qom/object.h"
-#ifdef GDK_WINDOWING_X11
-#include <gdk/gdkx.h>
-#include <X11/XKBlib.h>
-#endif
 
 #define MAX_VCS 10
 #define VC_WINDOW_X_MIN  320
@@ -97,15 +79,6 @@
  * Luckily everything works smooth in gtk3.
  */
 # define VTE_RESIZE_HACK 1
-#endif
-
-/* Compatibility define to let us build on both Gtk2 and Gtk3 */
-#if GTK_CHECK_VERSION(3, 0, 0)
-static inline void gdk_drawable_get_size(GdkWindow *w, gint *ww, gint *wh)
-{
-    *ww = gdk_window_get_width(w);
-    *wh = gdk_window_get_height(w);
-}
 #endif
 
 #if !GTK_CHECK_VERSION(2, 20, 0)
@@ -137,48 +110,6 @@ static const int modifier_keycode[] = {
     /* shift, control, alt keys, meta keys, both left & right */
     0x2a, 0x36, 0x1d, 0x9d, 0x38, 0xb8, 0xdb, 0xdd,
 };
-
-typedef struct GtkDisplayState GtkDisplayState;
-
-typedef struct VirtualGfxConsole {
-    GtkWidget *drawing_area;
-    DisplayChangeListener dcl;
-    DisplaySurface *ds;
-    pixman_image_t *convert;
-    cairo_surface_t *surface;
-    double scale_x;
-    double scale_y;
-} VirtualGfxConsole;
-
-#if defined(CONFIG_VTE)
-typedef struct VirtualVteConsole {
-    GtkWidget *box;
-    GtkWidget *scrollbar;
-    GtkWidget *terminal;
-    CharDriverState *chr;
-} VirtualVteConsole;
-#endif
-
-typedef enum VirtualConsoleType {
-    GD_VC_GFX,
-    GD_VC_VTE,
-} VirtualConsoleType;
-
-typedef struct VirtualConsole {
-    GtkDisplayState *s;
-    char *label;
-    GtkWidget *window;
-    GtkWidget *menu_item;
-    GtkWidget *tab_item;
-    GtkWidget *focus;
-    VirtualConsoleType type;
-    union {
-        VirtualGfxConsole gfx;
-#if defined(CONFIG_VTE)
-        VirtualVteConsole vte;
-#endif
-    };
-} VirtualConsole;
 
 struct GtkDisplayState {
     GtkWidget *window;
