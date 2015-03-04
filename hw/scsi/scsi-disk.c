@@ -2291,7 +2291,12 @@ static void scsi_realize(SCSIDevice *dev, Error **errp)
 static void scsi_hd_realize(SCSIDevice *dev, Error **errp)
 {
     SCSIDiskState *s = DO_UPCAST(SCSIDiskState, qdev, dev);
-    blkconf_blocksizes(&s->qdev.conf);
+    /* can happen for devices without drive. The error message for missing
+     * backend will be issued in scsi_realize
+     */
+    if (s->qdev.conf.blk) {
+        blkconf_blocksizes(&s->qdev.conf);
+    }
     s->qdev.blocksize = s->qdev.conf.logical_block_size;
     s->qdev.type = TYPE_DISK;
     if (!s->product) {
