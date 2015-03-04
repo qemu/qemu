@@ -16,6 +16,19 @@ __email__      = "stefanha@linux.vnet.ibm.com"
 from tracetool import out
 
 
+# Reserved keywords from
+# https://wikis.oracle.com/display/DTrace/Types,+Operators+and+Expressions
+RESERVED_WORDS = (
+    'auto', 'goto', 'sizeof', 'break', 'if', 'static', 'case', 'import',
+    'string', 'char', 'inline', 'stringof', 'const', 'int', 'struct',
+    'continue', 'long', 'switch', 'counter', 'offsetof', 'this',
+    'default', 'probe', 'translator', 'do', 'provider', 'typedef',
+    'double', 'register', 'union', 'else', 'restrict', 'unsigned',
+    'enum', 'return', 'void', 'extern', 'self', 'volatile', 'float',
+    'short', 'while', 'for', 'signed', 'xlate',
+)
+
+
 def generate(events, backend):
     events = [e for e in events
               if "disable" not in e.properties]
@@ -25,18 +38,17 @@ def generate(events, backend):
         'provider qemu {')
 
     for e in events:
-        args = str(e.args)
-
-        # DTrace provider syntax expects foo() for empty
-        # params, not foo(void)
-        if args == 'void':
-            args = ''
+        args = []
+        for type_, name in e.args:
+            if name in RESERVED_WORDS:
+                name += '_'
+            args.append(type_ + ' ' + name)
 
         # Define prototype for probe arguments
         out('',
             'probe %(name)s(%(args)s);',
             name=e.name,
-            args=args)
+            args=','.join(args))
 
     out('',
         '};')
