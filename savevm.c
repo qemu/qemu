@@ -941,8 +941,7 @@ int qemu_loadvm_state(QEMUFile *f)
     int file_error_after_eof = -1;
 
     if (qemu_savevm_state_blocked(&local_err)) {
-        error_report("%s", error_get_pretty(local_err));
-        error_free(local_err);
+        error_report_err(local_err);
         return -EINVAL;
     }
 

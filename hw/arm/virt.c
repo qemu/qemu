@@ -771,7 +771,7 @@ static void machvirt_init(MachineState *machine)
         cc->parse_features(CPU(cpuobj), cpuopts, &err);
         g_free(cpuopts);
         if (err) {
-            error_report("%s", error_get_pretty(err));
+            error_report_err(err);
             exit(1);
         }
 
