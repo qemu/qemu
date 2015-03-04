@@ -64,7 +64,7 @@ static VirtIOSerialPort *find_port_by_name(char *name)
         VirtIOSerialPort *port;
 
         QTAILQ_FOREACH(port, &vser->ports, next) {
-            if (!strcmp(port->name, name)) {
+            if (port->name && !strcmp(port->name, name)) {
                 return port;
             }
         }
