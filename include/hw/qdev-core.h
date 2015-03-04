@@ -237,7 +237,7 @@ struct BusState {
 struct Property {
     const char   *name;
     PropertyInfo *info;
-    int          offset;
+    ptrdiff_t    offset;
     uint8_t      bitnr;
     qtype_code   qtype;
     int64_t      defval;
