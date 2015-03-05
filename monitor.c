@@ -378,8 +378,6 @@ static int GCC_FMT_ATTR(2, 3) monitor_fprintf(FILE *stream,
     return 0;
 }
 
-static void monitor_user_noop(Monitor *mon, const QObject *data) { }
-
 static inline int handler_is_qobject(const mon_cmd_t *cmd)
 {
     return cmd->user_print != NULL;

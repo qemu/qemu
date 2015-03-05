@@ -653,8 +653,7 @@ ETEXI
         .args_type  = "device:O",
         .params     = "driver[,prop=value][,...]",
         .help       = "add device, like -device on the command line",
-        .user_print = monitor_user_noop,
-        .mhandler.cmd_new = do_device_add,
+        .mhandler.cmd = hmp_device_add,
         .command_completion = device_add_completion,
     },
 

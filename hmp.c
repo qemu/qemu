@@ -22,6 +22,7 @@
 #include "qmp-commands.h"
 #include "qemu/sockets.h"
 #include "monitor/monitor.h"
+#include "monitor/qdev.h"
 #include "qapi/opts-visitor.h"
 #include "qapi/string-output-visitor.h"
 #include "qapi-visit.h"
@@ -1497,6 +1498,11 @@ void hmp_migrate(Monitor *mon, const QDict *qdict)
                                           status);
         timer_mod(status->timer, qemu_clock_get_ms(QEMU_CLOCK_REALTIME));
     }
+}
+
+void hmp_device_add(Monitor *mon, const QDict *qdict)
+{
+    do_device_add(mon, qdict, NULL);
 }
 
 void hmp_device_del(Monitor *mon, const QDict *qdict)
