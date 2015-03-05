@@ -123,7 +123,6 @@ typedef struct mon_cmd_t {
     const char *args_type;
     const char *params;
     const char *help;
-    void (*user_print)(Monitor *mon, const QObject *data);
     union {
         void (*cmd)(Monitor *mon, const QDict *qdict);
         int  (*cmd_new)(Monitor *mon, const QDict *params, QObject **ret_data);
@@ -376,11 +375,6 @@ static int GCC_FMT_ATTR(2, 3) monitor_fprintf(FILE *stream,
     monitor_vprintf((Monitor *)stream, fmt, ap);
     va_end(ap);
     return 0;
-}
-
-static inline int handler_is_qobject(const mon_cmd_t *cmd)
-{
-    return cmd->user_print != NULL;
 }
 
 static inline int monitor_has_error(const Monitor *mon)
@@ -4045,24 +4039,10 @@ static void handle_user_command(Monitor *mon, const char *cmdline)
     qdict = qdict_new();
 
     cmd = monitor_parse_command(mon, cmdline, 0, mon->cmd_table, qdict);
-    if (!cmd)
-        goto out;
-
-    if (handler_is_qobject(cmd)) {
-        QObject *data = NULL;
-
-        /* XXX: ignores the error code */
-        cmd->mhandler.cmd_new(mon, qdict, &data);
-        assert(!monitor_has_error(mon));
-        if (data) {
-            cmd->user_print(mon, data);
-            qobject_decref(data);
-        }
-    } else {
+    if (cmd) {
         cmd->mhandler.cmd(mon, qdict);
     }
 
-out:
     QDECREF(qdict);
 }
 
