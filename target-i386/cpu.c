@@ -3088,7 +3088,7 @@ static void x86_cpu_initfn(Object *obj)
     /* init various static tables used in TCG mode */
     if (tcg_enabled() && !inited) {
         inited = 1;
-        optimize_flags_init();
+        tcg_x86_init();
     }
 }
 

@@ -1224,7 +1224,7 @@ static inline target_long lshift(target_long x, int n)
 #define ST1    ST(1)
 
 /* translate.c */
-void optimize_flags_init(void);
+void tcg_x86_init(void);
 
 #include "exec/cpu-all.h"
 #include "svm.h"
