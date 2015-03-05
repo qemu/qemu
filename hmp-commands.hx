@@ -1183,8 +1183,7 @@ ETEXI
                       "<error_status> = error string or 32bit\n\t\t\t"
                       "<tlb header> = 32bit x 4\n\t\t\t"
                       "<tlb header prefix> = 32bit x 4",
-        .user_print  = pcie_aer_inject_error_print,
-        .mhandler.cmd_new = hmp_pcie_aer_inject_error,
+        .mhandler.cmd = hmp_pcie_aer_inject_error,
     },
 
 STEXI

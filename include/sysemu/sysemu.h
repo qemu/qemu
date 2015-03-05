@@ -161,9 +161,7 @@ extern unsigned int nb_prom_envs;
 void hmp_drive_add(Monitor *mon, const QDict *qdict);
 
 /* pcie aer error injection */
-void pcie_aer_inject_error_print(Monitor *mon, const QObject *data);
-int hmp_pcie_aer_inject_error(Monitor *mon,
-                             const QDict *qdict, QObject **ret_data);
+void hmp_pcie_aer_inject_error(Monitor *mon, const QDict *qdict);
 
 /* serial ports */
 

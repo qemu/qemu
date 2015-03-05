@@ -29,19 +29,7 @@ PciInfoList *qmp_query_pci(Error **errp)
     return NULL;
 }
 
-static void pci_error_message(Monitor *mon)
+void hmp_pcie_aer_inject_error(Monitor *mon, const QDict *qdict)
 {
     monitor_printf(mon, "PCI devices not supported\n");
-}
-
-int hmp_pcie_aer_inject_error(Monitor *mon,
-                             const QDict *qdict, QObject **ret_data)
-{
-    pci_error_message(mon);
-    return -ENOSYS;
-}
-
-void pcie_aer_inject_error_print(Monitor *mon, const QObject *data)
-{
-    pci_error_message(mon);
 }

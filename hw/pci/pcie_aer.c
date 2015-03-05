@@ -815,21 +815,6 @@ const VMStateDescription vmstate_pcie_aer_log = {
     }
 };
 
-void pcie_aer_inject_error_print(Monitor *mon, const QObject *data)
-{
-    QDict *qdict;
-    int devfn;
-    assert(qobject_type(data) == QTYPE_QDICT);
-    qdict = qobject_to_qdict(data);
-
-    devfn = (int)qdict_get_int(qdict, "devfn");
-    monitor_printf(mon, "OK id: %s root bus: %s, bus: %x devfn: %x.%x\n",
-                   qdict_get_str(qdict, "id"),
-                   qdict_get_str(qdict, "root_bus"),
-                   (int) qdict_get_int(qdict, "bus"),
-                   PCI_SLOT(devfn), PCI_FUNC(devfn));
-}
-
 typedef struct PCIEAERErrorName {
     const char *name;
     uint32_t val;
@@ -962,8 +947,8 @@ static int pcie_aer_parse_error_string(const char *error_name,
     return -EINVAL;
 }
 
-int hmp_pcie_aer_inject_error(Monitor *mon,
-                             const QDict *qdict, QObject **ret_data)
+static int do_pcie_aer_inject_error(Monitor *mon,
+                                    const QDict *qdict, QObject **ret_data)
 {
     const char *id = qdict_get_str(qdict, "id");
     const char *error_name;
@@ -1034,4 +1019,24 @@ int hmp_pcie_aer_inject_error(Monitor *mon,
     assert(*ret_data);
 
     return 0;
+}
+
+void hmp_pcie_aer_inject_error(Monitor *mon, const QDict *qdict)
+{
+    QObject *data;
+    int devfn;
+
+    if (do_pcie_aer_inject_error(mon, qdict, &data) < 0) {
+        return;
+    }
+
+    assert(qobject_type(data) == QTYPE_QDICT);
+    qdict = qobject_to_qdict(data);
+
+    devfn = (int)qdict_get_int(qdict, "devfn");
+    monitor_printf(mon, "OK id: %s root bus: %s, bus: %x devfn: %x.%x\n",
+                   qdict_get_str(qdict, "id"),
+                   qdict_get_str(qdict, "root_bus"),
+                   (int) qdict_get_int(qdict, "bus"),
+                   PCI_SLOT(devfn), PCI_FUNC(devfn));
 }
