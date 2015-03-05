@@ -1032,39 +1032,33 @@ static void hmp_info_trace_events(Monitor *mon, const QDict *qdict)
     qapi_free_TraceEventInfoList(events);
 }
 
-static int client_migrate_info(Monitor *mon, const QDict *qdict,
-                               QObject **ret_data)
+void qmp_client_migrate_info(const char *protocol, const char *hostname,
+                             bool has_port, int64_t port,
+                             bool has_tls_port, int64_t tls_port,
+                             bool has_cert_subject, const char *cert_subject,
+                             Error **errp)
 {
-    const char *protocol = qdict_get_str(qdict, "protocol");
-    const char *hostname = qdict_get_str(qdict, "hostname");
-    const char *subject  = qdict_get_try_str(qdict, "cert-subject");
-    int port             = qdict_get_try_int(qdict, "port", -1);
-    int tls_port         = qdict_get_try_int(qdict, "tls-port", -1);
-    Error *err = NULL;
-    int ret;
-
     if (strcmp(protocol, "spice") == 0) {
-        if (!qemu_using_spice(&err)) {
-            qerror_report_err(err);
-            error_free(err);
-            return -1;
+        if (!qemu_using_spice(errp)) {
+            return;
         }
 
-        if (port == -1 && tls_port == -1) {
-            qerror_report(QERR_MISSING_PARAMETER, "port/tls-port");
-            return -1;
+        if (!has_port && !has_tls_port) {
+            error_set(errp, QERR_MISSING_PARAMETER, "port/tls-port");
+            return;
         }
 
-        ret = qemu_spice_migrate_info(hostname, port, tls_port, subject);
-        if (ret != 0) {
-            qerror_report(QERR_UNDEFINED_ERROR);
-            return -1;
+        if (qemu_spice_migrate_info(hostname,
+                                    has_port ? port : -1,
+                                    has_tls_port ? tls_port : -1,
+                                    cert_subject)) {
+            error_set(errp, QERR_UNDEFINED_ERROR);
+            return;
         }
-        return 0;
+        return;
     }
 
-    qerror_report(QERR_INVALID_PARAMETER_VALUE, "protocol", "spice");
-    return -1;
+    error_set(errp, QERR_INVALID_PARAMETER_VALUE, "protocol", "spice");
 }
 
 static void hmp_logfile(Monitor *mon, const QDict *qdict)

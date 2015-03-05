@@ -785,7 +785,7 @@ EQMP
         .args_type  = "protocol:s,hostname:s,port:i?,tls-port:i?,cert-subject:s?",
         .params     = "protocol hostname port tls-port cert-subject",
         .help       = "set migration information for remote display",
-        .mhandler.cmd_new = client_migrate_info,
+        .mhandler.cmd_new = qmp_marshal_input_client_migrate_info,
     },
 
 SQMP

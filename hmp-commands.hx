@@ -1012,8 +1012,7 @@ ETEXI
         .args_type  = "protocol:s,hostname:s,port:i?,tls-port:i?,cert-subject:s?",
         .params     = "protocol hostname port tls-port cert-subject",
         .help       = "set migration information for remote display",
-        .user_print = monitor_user_noop,
-        .mhandler.cmd_new = client_migrate_info,
+        .mhandler.cmd = hmp_client_migrate_info,
     },
 
 STEXI
