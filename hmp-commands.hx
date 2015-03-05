@@ -178,8 +178,7 @@ ETEXI
         .args_type  = "id:B",
         .params     = "device",
         .help       = "remove host block device",
-        .user_print = monitor_user_noop,
-        .mhandler.cmd_new = hmp_drive_del,
+        .mhandler.cmd = hmp_drive_del,
     },
 
 STEXI
