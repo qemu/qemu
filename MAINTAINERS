@@ -605,11 +605,25 @@ S: Maintained
 F: hw/misc/edu.c
 
 IDE
-M: Kevin Wolf <kwolf@redhat.com>
-M: Stefan Hajnoczi <stefanha@redhat.com>
-S: Odd Fixes
+M: John Snow <jsnow@redhat.com>
+L: qemu-block@nongnu.org
+S: Supported
 F: include/hw/ide.h
 F: hw/ide/
+F: hw/block/block.c
+F: hw/block/cdrom.c
+F: hw/block/hd-geometry.c
+F: tests/ide-test.c
+F: tests/ahci-test.c
+T: git git://github.com/jnsnow/qemu.git ide
+
+Floppy
+M: John Snow <jsnow@redhat.com>
+L: qemu-block@nongnu.org
+S: Supported
+F: hw/block/fdc.c
+F: include/hw/block/fdc.h
+T: git git://github.com/jnsnow/qemu.git ide
 
 OMAP
 M: Peter Maydell <peter.maydell@linaro.org>
