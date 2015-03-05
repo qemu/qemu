@@ -122,6 +122,51 @@ static int cap_async_pf;
 
 static void *legacy_s390_alloc(size_t size, uint64_t *align);
 
+static int kvm_s390_supports_mem_limit(KVMState *s)
+{
+    struct kvm_device_attr attr = {
+        .group = KVM_S390_VM_MEM_CTRL,
+        .attr = KVM_S390_VM_MEM_LIMIT_SIZE,
+    };
+
+    return (kvm_vm_ioctl(s, KVM_HAS_DEVICE_ATTR, &attr) == 0);
+}
+
+static int kvm_s390_query_mem_limit(KVMState *s, uint64_t *memory_limit)
+{
+    struct kvm_device_attr attr = {
+        .group = KVM_S390_VM_MEM_CTRL,
+        .attr = KVM_S390_VM_MEM_LIMIT_SIZE,
+        .addr = (uint64_t) memory_limit,
+    };
+
+    return kvm_vm_ioctl(s, KVM_GET_DEVICE_ATTR, &attr);
+}
+
+int kvm_s390_set_mem_limit(KVMState *s, uint64_t new_limit, uint64_t *hw_limit)
+{
+    int rc;
+
+    struct kvm_device_attr attr = {
+        .group = KVM_S390_VM_MEM_CTRL,
+        .attr = KVM_S390_VM_MEM_LIMIT_SIZE,
+        .addr = (uint64_t) &new_limit,
+    };
+
+    if (!kvm_s390_supports_mem_limit(s)) {
+        return 0;
+    }
+
+    rc = kvm_s390_query_mem_limit(s, hw_limit);
+    if (rc) {
+        return rc;
+    } else if (*hw_limit < new_limit) {
+        return -E2BIG;
+    }
+
+    return kvm_vm_ioctl(s, KVM_SET_DEVICE_ATTR, &attr);
+}
+
 static int kvm_s390_check_clear_cmma(KVMState *s)
 {
     struct kvm_device_attr attr = {

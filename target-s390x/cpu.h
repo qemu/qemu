@@ -1029,6 +1029,7 @@ int kvm_s390_get_memslot_count(KVMState *s);
 void kvm_s390_clear_cmma_callback(void *opaque);
 int kvm_s390_set_cpu_state(S390CPU *cpu, uint8_t cpu_state);
 void kvm_s390_reset_vcpu(S390CPU *cpu);
+int kvm_s390_set_mem_limit(KVMState *s, uint64_t new_limit, uint64_t *hw_limit);
 #else
 static inline void kvm_s390_io_interrupt(uint16_t subchannel_id,
                                         uint16_t subchannel_nr,
@@ -1066,7 +1067,20 @@ static inline int kvm_s390_set_cpu_state(S390CPU *cpu, uint8_t cpu_state)
 static inline void kvm_s390_reset_vcpu(S390CPU *cpu)
 {
 }
+static inline int kvm_s390_set_mem_limit(KVMState *s, uint64_t new_limit,
+                                         uint64_t *hw_limit)
+{
+    return 0;
+}
 #endif
+
+static inline int s390_set_memory_limit(uint64_t new_limit, uint64_t *hw_limit)
+{
+    if (kvm_enabled()) {
+        return kvm_s390_set_mem_limit(kvm_state, new_limit, hw_limit);
+    }
+    return 0;
+}
 
 static inline void cmma_reset(S390CPU *cpu)
 {
