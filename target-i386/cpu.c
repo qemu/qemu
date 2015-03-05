@@ -2076,8 +2076,7 @@ static void x86_cpu_load_def(X86CPU *cpu, X86CPUDefinition *def, Error **errp)
 
 }
 
-X86CPU *cpu_x86_create(const char *cpu_model, DeviceState *icc_bridge,
-                       Error **errp)
+X86CPU *cpu_x86_create(const char *cpu_model, Error **errp)
 {
     X86CPU *cpu = NULL;
     X86CPUClass *xcc;
@@ -2108,15 +2107,6 @@ X86CPU *cpu_x86_create(const char *cpu_model, DeviceState *icc_bridge,
 
     cpu = X86_CPU(object_new(object_class_get_name(oc)));
 
-#ifndef CONFIG_USER_ONLY
-    if (icc_bridge == NULL) {
-        error_setg(&error, "Invalid icc-bridge value");
-        goto out;
-    }
-    qdev_set_parent_bus(DEVICE(cpu), qdev_get_child_bus(icc_bridge, "icc"));
-    object_unref(OBJECT(cpu));
-#endif
-
     x86_cpu_parse_featurestr(CPU(cpu), features, &error);
     if (error) {
         goto out;
@@ -2139,7 +2129,7 @@ X86CPU *cpu_x86_init(const char *cpu_model)
     Error *error = NULL;
     X86CPU *cpu;
 
-    cpu = cpu_x86_create(cpu_model, NULL, &error);
+    cpu = cpu_x86_create(cpu_model, &error);
     if (error) {
         goto out;
     }
