@@ -1086,7 +1086,7 @@ static void hmp_info_trace_events(Monitor *mon, const QDict *qdict)
 }
 
 static int client_migrate_info(Monitor *mon, const QDict *qdict,
-                               MonitorCompletion cb, void *opaque)
+                               QObject **ret_data)
 {
     const char *protocol = qdict_get_str(qdict, "protocol");
     const char *hostname = qdict_get_str(qdict, "hostname");
@@ -1108,8 +1108,7 @@ static int client_migrate_info(Monitor *mon, const QDict *qdict,
             return -1;
         }
 
-        ret = qemu_spice_migrate_info(hostname, port, tls_port, subject,
-                                      cb, opaque);
+        ret = qemu_spice_migrate_info(hostname, port, tls_port, subject);
         if (ret != 0) {
             qerror_report(QERR_UNDEFINED_ERROR);
             return -1;
