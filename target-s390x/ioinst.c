@@ -149,13 +149,14 @@ void ioinst_handle_msch(S390CPU *cpu, uint64_t reg1, uint32_t ipb)
     int ret = -ENODEV;
     int cc;
     CPUS390XState *env = &cpu->env;
+    uint8_t ar;
 
-    addr = decode_basedisp_s(env, ipb);
+    addr = decode_basedisp_s(env, ipb, &ar);
     if (addr & 3) {
         program_interrupt(env, PGM_SPECIFICATION, 2);
         return;
     }
-    if (s390_cpu_virt_mem_read(cpu, addr, &schib, sizeof(schib))) {
+    if (s390_cpu_virt_mem_read(cpu, addr, ar, &schib, sizeof(schib))) {
         return;
     }
     if (ioinst_disassemble_sch_ident(reg1, &m, &cssid, &ssid, &schid) ||
@@ -215,13 +216,14 @@ void ioinst_handle_ssch(S390CPU *cpu, uint64_t reg1, uint32_t ipb)
     int ret = -ENODEV;
     int cc;
     CPUS390XState *env = &cpu->env;
+    uint8_t ar;
 
-    addr = decode_basedisp_s(env, ipb);
+    addr = decode_basedisp_s(env, ipb, &ar);
     if (addr & 3) {
         program_interrupt(env, PGM_SPECIFICATION, 2);
         return;
     }
-    if (s390_cpu_virt_mem_read(cpu, addr, &orig_orb, sizeof(orb))) {
+    if (s390_cpu_virt_mem_read(cpu, addr, ar, &orig_orb, sizeof(orb))) {
         return;
     }
     copy_orb_from_guest(&orb, &orig_orb);
@@ -258,8 +260,9 @@ void ioinst_handle_stcrw(S390CPU *cpu, uint32_t ipb)
     uint64_t addr;
     int cc;
     CPUS390XState *env = &cpu->env;
+    uint8_t ar;
 
-    addr = decode_basedisp_s(env, ipb);
+    addr = decode_basedisp_s(env, ipb, &ar);
     if (addr & 3) {
         program_interrupt(env, PGM_SPECIFICATION, 2);
         return;
@@ -268,7 +271,7 @@ void ioinst_handle_stcrw(S390CPU *cpu, uint32_t ipb)
     cc = css_do_stcrw(&crw);
     /* 0 - crw stored, 1 - zeroes stored */
 
-    if (s390_cpu_virt_mem_write(cpu, addr, &crw, sizeof(crw)) == 0) {
+    if (s390_cpu_virt_mem_write(cpu, addr, ar, &crw, sizeof(crw)) == 0) {
         setcc(cpu, cc);
     } else if (cc == 0) {
         /* Write failed: requeue CRW since STCRW is a suppressing instruction */
@@ -284,8 +287,9 @@ void ioinst_handle_stsch(S390CPU *cpu, uint64_t reg1, uint32_t ipb)
     int cc;
     SCHIB schib;
     CPUS390XState *env = &cpu->env;
+    uint8_t ar;
 
-    addr = decode_basedisp_s(env, ipb);
+    addr = decode_basedisp_s(env, ipb, &ar);
     if (addr & 3) {
         program_interrupt(env, PGM_SPECIFICATION, 2);
         return;
@@ -297,7 +301,7 @@ void ioinst_handle_stsch(S390CPU *cpu, uint64_t reg1, uint32_t ipb)
          * we check whether the memory area is writeable (injecting the
          * access execption if it is not) first.
          */
-        if (!s390_cpu_virt_mem_check_write(cpu, addr, sizeof(schib))) {
+        if (!s390_cpu_virt_mem_check_write(cpu, addr, ar, sizeof(schib))) {
             program_interrupt(env, PGM_OPERAND, 2);
         }
         return;
@@ -322,12 +326,13 @@ void ioinst_handle_stsch(S390CPU *cpu, uint64_t reg1, uint32_t ipb)
         }
     }
     if (cc != 3) {
-        if (s390_cpu_virt_mem_write(cpu, addr, &schib, sizeof(schib)) != 0) {
+        if (s390_cpu_virt_mem_write(cpu, addr, ar, &schib,
+                                    sizeof(schib)) != 0) {
             return;
         }
     } else {
         /* Access exceptions have a higher priority than cc3 */
-        if (s390_cpu_virt_mem_check_write(cpu, addr, sizeof(schib)) != 0) {
+        if (s390_cpu_virt_mem_check_write(cpu, addr, ar, sizeof(schib)) != 0) {
             return;
         }
     }
@@ -342,13 +347,14 @@ int ioinst_handle_tsch(S390CPU *cpu, uint64_t reg1, uint32_t ipb)
     IRB irb;
     uint64_t addr;
     int cc, irb_len;
+    uint8_t ar;
 
     if (ioinst_disassemble_sch_ident(reg1, &m, &cssid, &ssid, &schid)) {
         program_interrupt(env, PGM_OPERAND, 2);
         return -EIO;
     }
     trace_ioinst_sch_id("tsch", cssid, ssid, schid);
-    addr = decode_basedisp_s(env, ipb);
+    addr = decode_basedisp_s(env, ipb, &ar);
     if (addr & 3) {
         program_interrupt(env, PGM_SPECIFICATION, 2);
         return -EIO;
@@ -362,14 +368,14 @@ int ioinst_handle_tsch(S390CPU *cpu, uint64_t reg1, uint32_t ipb)
     }
     /* 0 - status pending, 1 - not status pending, 3 - not operational */
     if (cc != 3) {
-        if (s390_cpu_virt_mem_write(cpu, addr, &irb, irb_len) != 0) {
+        if (s390_cpu_virt_mem_write(cpu, addr, ar, &irb, irb_len) != 0) {
             return -EFAULT;
         }
         css_do_tsch_update_subch(sch);
     } else {
         irb_len = sizeof(irb) - sizeof(irb.emw);
         /* Access exceptions have a higher priority than cc3 */
-        if (s390_cpu_virt_mem_check_write(cpu, addr, irb_len) != 0) {
+        if (s390_cpu_virt_mem_check_write(cpu, addr, ar, irb_len) != 0) {
             return -EFAULT;
         }
     }
@@ -645,7 +651,7 @@ void ioinst_handle_chsc(S390CPU *cpu, uint32_t ipb)
      * present CHSC sub-handlers ... if we ever need more, we should take
      * care of req->len here first.
      */
-    if (s390_cpu_virt_mem_read(cpu, addr, buf, sizeof(ChscReq))) {
+    if (s390_cpu_virt_mem_read(cpu, addr, reg, buf, sizeof(ChscReq))) {
         return;
     }
     req = (ChscReq *)buf;
@@ -677,7 +683,8 @@ void ioinst_handle_chsc(S390CPU *cpu, uint32_t ipb)
         break;
     }
 
-    if (!s390_cpu_virt_mem_write(cpu, addr + len, res, be16_to_cpu(res->len))) {
+    if (!s390_cpu_virt_mem_write(cpu, addr + len, reg, res,
+                                 be16_to_cpu(res->len))) {
         setcc(cpu, 0);    /* Command execution complete */
     }
 }
@@ -690,9 +697,10 @@ int ioinst_handle_tpi(S390CPU *cpu, uint32_t ipb)
     IOIntCode int_code;
     hwaddr len;
     int ret;
+    uint8_t ar;
 
     trace_ioinst("tpi");
-    addr = decode_basedisp_s(env, ipb);
+    addr = decode_basedisp_s(env, ipb, &ar);
     if (addr & 3) {
         program_interrupt(env, PGM_SPECIFICATION, 2);
         return -EIO;
@@ -702,7 +710,7 @@ int ioinst_handle_tpi(S390CPU *cpu, uint32_t ipb)
     len = lowcore ? 8 /* two words */ : 12 /* three words */;
     ret = css_do_tpi(&int_code, lowcore);
     if (ret == 1) {
-        s390_cpu_virt_mem_write(cpu, lowcore ? 184 : addr, &int_code, len);
+        s390_cpu_virt_mem_write(cpu, lowcore ? 184 : addr, ar, &int_code, len);
     }
     return ret;
 }

@@ -435,6 +435,7 @@ static int translate_pages(S390CPU *cpu, vaddr addr, int nr_pages,
 /**
  * s390_cpu_virt_mem_rw:
  * @laddr:     the logical start address
+ * @ar:        the access register number
  * @hostbuf:   buffer in host memory. NULL = do only checks w/o copying
  * @len:       length that should be transfered
  * @is_write:  true = write, false = read
@@ -443,7 +444,7 @@ static int translate_pages(S390CPU *cpu, vaddr addr, int nr_pages,
  * Copy from/to guest memory using logical addresses. Note that we inject a
  * program interrupt in case there is an error while accessing the memory.
  */
-int s390_cpu_virt_mem_rw(S390CPU *cpu, vaddr laddr, void *hostbuf,
+int s390_cpu_virt_mem_rw(S390CPU *cpu, vaddr laddr, uint8_t ar, void *hostbuf,
                          int len, bool is_write)
 {
     int currlen, nr_pages, i;
@@ -451,7 +452,7 @@ int s390_cpu_virt_mem_rw(S390CPU *cpu, vaddr laddr, void *hostbuf,
     int ret;
 
     if (kvm_enabled()) {
-        ret = kvm_s390_mem_op(cpu, laddr, hostbuf, len, is_write);
+        ret = kvm_s390_mem_op(cpu, laddr, ar, hostbuf, len, is_write);
         if (ret >= 0) {
             return ret;
         }

@@ -155,7 +155,7 @@ int clp_service_call(S390CPU *cpu, uint8_t r2)
         return 0;
     }
 
-    if (s390_cpu_virt_mem_read(cpu, env->regs[r2], buffer, sizeof(*reqh))) {
+    if (s390_cpu_virt_mem_read(cpu, env->regs[r2], r2, buffer, sizeof(*reqh))) {
         return 0;
     }
     reqh = (ClpReqHdr *)buffer;
@@ -165,7 +165,7 @@ int clp_service_call(S390CPU *cpu, uint8_t r2)
         return 0;
     }
 
-    if (s390_cpu_virt_mem_read(cpu, env->regs[r2], buffer,
+    if (s390_cpu_virt_mem_read(cpu, env->regs[r2], r2, buffer,
                                req_len + sizeof(*resh))) {
         return 0;
     }
@@ -180,7 +180,7 @@ int clp_service_call(S390CPU *cpu, uint8_t r2)
         return 0;
     }
 
-    if (s390_cpu_virt_mem_read(cpu, env->regs[r2], buffer,
+    if (s390_cpu_virt_mem_read(cpu, env->regs[r2], r2, buffer,
                                req_len + res_len)) {
         return 0;
     }
@@ -277,7 +277,7 @@ int clp_service_call(S390CPU *cpu, uint8_t r2)
     }
 
 out:
-    if (s390_cpu_virt_mem_write(cpu, env->regs[r2], buffer,
+    if (s390_cpu_virt_mem_write(cpu, env->regs[r2], r2, buffer,
                                 req_len + res_len)) {
         return 0;
     }
@@ -546,7 +546,8 @@ out:
     return 0;
 }
 
-int pcistb_service_call(S390CPU *cpu, uint8_t r1, uint8_t r3, uint64_t gaddr)
+int pcistb_service_call(S390CPU *cpu, uint8_t r1, uint8_t r3, uint64_t gaddr,
+                        uint8_t ar)
 {
     CPUS390XState *env = &cpu->env;
     S390PCIBusDevice *pbdev;
@@ -603,7 +604,7 @@ int pcistb_service_call(S390CPU *cpu, uint8_t r1, uint8_t r3, uint64_t gaddr)
         return 0;
     }
 
-    if (s390_cpu_virt_mem_read(cpu, gaddr, buffer, len)) {
+    if (s390_cpu_virt_mem_read(cpu, gaddr, ar, buffer, len)) {
         return 0;
     }
 
@@ -698,7 +699,7 @@ static void dereg_ioat(S390PCIBusDevice *pbdev)
     pbdev->g_iota = 0;
 }
 
-int mpcifc_service_call(S390CPU *cpu, uint8_t r1, uint64_t fiba)
+int mpcifc_service_call(S390CPU *cpu, uint8_t r1, uint64_t fiba, uint8_t ar)
 {
     CPUS390XState *env = &cpu->env;
     uint8_t oc;
@@ -727,7 +728,7 @@ int mpcifc_service_call(S390CPU *cpu, uint8_t r1, uint64_t fiba)
         return 0;
     }
 
-    if (s390_cpu_virt_mem_read(cpu, fiba, (uint8_t *)&fib, sizeof(fib))) {
+    if (s390_cpu_virt_mem_read(cpu, fiba, ar, (uint8_t *)&fib, sizeof(fib))) {
         return 0;
     }
 
@@ -773,7 +774,7 @@ int mpcifc_service_call(S390CPU *cpu, uint8_t r1, uint64_t fiba)
     return 0;
 }
 
-int stpcifc_service_call(S390CPU *cpu, uint8_t r1, uint64_t fiba)
+int stpcifc_service_call(S390CPU *cpu, uint8_t r1, uint64_t fiba, uint8_t ar)
 {
     CPUS390XState *env = &cpu->env;
     uint32_t fh;
@@ -829,7 +830,7 @@ int stpcifc_service_call(S390CPU *cpu, uint8_t r1, uint64_t fiba)
         fib.fc |= 0x10;
     }
 
-    if (s390_cpu_virt_mem_write(cpu, fiba, (uint8_t *)&fib, sizeof(fib))) {
+    if (s390_cpu_virt_mem_write(cpu, fiba, ar, (uint8_t *)&fib, sizeof(fib))) {
         return 0;
     }
 

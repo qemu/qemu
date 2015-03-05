@@ -555,6 +555,7 @@ int kvm_s390_set_clock(uint8_t *tod_high, uint64_t *tod_low)
 /**
  * kvm_s390_mem_op:
  * @addr:      the logical start address in guest memory
+ * @ar:        the access register number
  * @hostbuf:   buffer in host memory. NULL = do only checks w/o copying
  * @len:       length that should be transfered
  * @is_write:  true = write, false = read
@@ -563,8 +564,8 @@ int kvm_s390_set_clock(uint8_t *tod_high, uint64_t *tod_low)
  * Use KVM ioctl to read/write from/to guest memory. An access exception
  * is injected into the vCPU in case of translation errors.
  */
-int kvm_s390_mem_op(S390CPU *cpu, vaddr addr, void *hostbuf, int len,
-                    bool is_write)
+int kvm_s390_mem_op(S390CPU *cpu, vaddr addr, uint8_t ar, void *hostbuf,
+                    int len, bool is_write)
 {
     struct kvm_s390_mem_op mem_op = {
         .gaddr = addr,
@@ -573,6 +574,7 @@ int kvm_s390_mem_op(S390CPU *cpu, vaddr addr, void *hostbuf, int len,
         .op = is_write ? KVM_S390_MEMOP_LOGICAL_WRITE
                        : KVM_S390_MEMOP_LOGICAL_READ,
         .buf = (uint64_t)hostbuf,
+        .ar = ar,
     };
     int ret;
 
@@ -1017,7 +1019,8 @@ static int handle_b2(S390CPU *cpu, struct kvm_run *run, uint8_t ipa1)
     return rc;
 }
 
-static uint64_t get_base_disp_rxy(S390CPU *cpu, struct kvm_run *run)
+static uint64_t get_base_disp_rxy(S390CPU *cpu, struct kvm_run *run,
+                                  uint8_t *ar)
 {
     CPUS390XState *env = &cpu->env;
     uint32_t x2 = (run->s390_sieic.ipa & 0x000f);
@@ -1028,12 +1031,16 @@ static uint64_t get_base_disp_rxy(S390CPU *cpu, struct kvm_run *run)
     if (disp2 & 0x80000) {
         disp2 += 0xfff00000;
     }
+    if (ar) {
+        *ar = base2;
+    }
 
     return (base2 ? env->regs[base2] : 0) +
            (x2 ? env->regs[x2] : 0) + (long)(int)disp2;
 }
 
-static uint64_t get_base_disp_rsy(S390CPU *cpu, struct kvm_run *run)
+static uint64_t get_base_disp_rsy(S390CPU *cpu, struct kvm_run *run,
+                                  uint8_t *ar)
 {
     CPUS390XState *env = &cpu->env;
     uint32_t base2 = run->s390_sieic.ipb >> 28;
@@ -1042,6 +1049,9 @@ static uint64_t get_base_disp_rsy(S390CPU *cpu, struct kvm_run *run)
 
     if (disp2 & 0x80000) {
         disp2 += 0xfff00000;
+    }
+    if (ar) {
+        *ar = base2;
     }
 
     return (base2 ? env->regs[base2] : 0) + (long)(int)disp2;
@@ -1074,11 +1084,12 @@ static int kvm_stpcifc_service_call(S390CPU *cpu, struct kvm_run *run)
 {
     uint8_t r1 = (run->s390_sieic.ipa & 0x00f0) >> 4;
     uint64_t fiba;
+    uint8_t ar;
 
     cpu_synchronize_state(CPU(cpu));
-    fiba = get_base_disp_rxy(cpu, run);
+    fiba = get_base_disp_rxy(cpu, run, &ar);
 
-    return stpcifc_service_call(cpu, r1, fiba);
+    return stpcifc_service_call(cpu, r1, fiba, ar);
 }
 
 static int kvm_sic_service_call(S390CPU *cpu, struct kvm_run *run)
@@ -1100,22 +1111,24 @@ static int kvm_pcistb_service_call(S390CPU *cpu, struct kvm_run *run)
     uint8_t r1 = (run->s390_sieic.ipa & 0x00f0) >> 4;
     uint8_t r3 = run->s390_sieic.ipa & 0x000f;
     uint64_t gaddr;
+    uint8_t ar;
 
     cpu_synchronize_state(CPU(cpu));
-    gaddr = get_base_disp_rsy(cpu, run);
+    gaddr = get_base_disp_rsy(cpu, run, &ar);
 
-    return pcistb_service_call(cpu, r1, r3, gaddr);
+    return pcistb_service_call(cpu, r1, r3, gaddr, ar);
 }
 
 static int kvm_mpcifc_service_call(S390CPU *cpu, struct kvm_run *run)
 {
     uint8_t r1 = (run->s390_sieic.ipa & 0x00f0) >> 4;
     uint64_t fiba;
+    uint8_t ar;
 
     cpu_synchronize_state(CPU(cpu));
-    fiba = get_base_disp_rxy(cpu, run);
+    fiba = get_base_disp_rxy(cpu, run, &ar);
 
-    return mpcifc_service_call(cpu, r1, fiba);
+    return mpcifc_service_call(cpu, r1, fiba, ar);
 }
 
 static int handle_b9(S390CPU *cpu, struct kvm_run *run, uint8_t ipa1)
@@ -1244,7 +1257,7 @@ static int handle_diag(S390CPU *cpu, struct kvm_run *run, uint32_t ipb)
      * For any diagnose call we support, bits 48-63 of the resulting
      * address specify the function code; the remainder is ignored.
      */
-    func_code = decode_basedisp_rs(&cpu->env, ipb) & DIAG_KVM_CODE_MASK;
+    func_code = decode_basedisp_rs(&cpu->env, ipb, NULL) & DIAG_KVM_CODE_MASK;
     switch (func_code) {
     case DIAG_IPL:
         kvm_handle_diag_308(cpu, run);
@@ -1591,7 +1604,8 @@ static int handle_sigp(S390CPU *cpu, struct kvm_run *run, uint8_t ipa1)
     cpu_synchronize_state(CPU(cpu));
 
     /* get order code */
-    order = decode_basedisp_rs(env, run->s390_sieic.ipb) & SIGP_ORDER_MASK;
+    order = decode_basedisp_rs(env, run->s390_sieic.ipb, NULL)
+        & SIGP_ORDER_MASK;
     status_reg = &env->regs[r1];
     param = (r1 % 2) ? env->regs[r1] : env->regs[r1 + 1];
 
@@ -1765,12 +1779,12 @@ static int handle_tsch(S390CPU *cpu)
     return ret;
 }
 
-static void insert_stsi_3_2_2(S390CPU *cpu, __u64 addr)
+static void insert_stsi_3_2_2(S390CPU *cpu, __u64 addr, uint8_t ar)
 {
     struct sysib_322 sysib;
     int del;
 
-    if (s390_cpu_virt_mem_read(cpu, addr, &sysib, sizeof(sysib))) {
+    if (s390_cpu_virt_mem_read(cpu, addr, ar, &sysib, sizeof(sysib))) {
         return;
     }
     /* Shift the stack of Extended Names to prepare for our own data */
@@ -1810,7 +1824,7 @@ static void insert_stsi_3_2_2(S390CPU *cpu, __u64 addr)
     /* Insert UUID */
     memcpy(sysib.vm[0].uuid, qemu_uuid, sizeof(sysib.vm[0].uuid));
 
-    s390_cpu_virt_mem_write(cpu, addr, &sysib, sizeof(sysib));
+    s390_cpu_virt_mem_write(cpu, addr, ar, &sysib, sizeof(sysib));
 }
 
 static int handle_stsi(S390CPU *cpu)
@@ -1824,7 +1838,7 @@ static int handle_stsi(S390CPU *cpu)
             return 0;
         }
         /* Only sysib 3.2.2 needs post-handling for now. */
-        insert_stsi_3_2_2(cpu, run->s390_stsi.addr);
+        insert_stsi_3_2_2(cpu, run->s390_stsi.addr, run->s390_stsi.ar);
         return 0;
     default:
         return 0;
