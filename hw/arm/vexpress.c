@@ -562,7 +562,7 @@ static void vexpress_common_init(MachineState *machine)
      * If a bios file was provided, attempt to map it into memory
      */
     if (bios_name) {
-        const char *fn;
+        char *fn;
 
         if (drive_get(IF_PFLASH, 0, 0)) {
             error_report("The contents of the first flash device may be "
@@ -576,6 +576,7 @@ static void vexpress_common_init(MachineState *machine)
             error_report("Could not load ROM image '%s'", bios_name);
             exit(1);
         }
+        g_free(fn);
     }
 
     /* Motherboard peripherals: the wiring is the same but the

@@ -282,6 +282,7 @@ static void calxeda_init(MachineState *machine, enum cxmachines machine_id)
             if (load_image_targphys("sysram.bin", 0xfff88000, filesize) < 0) {
                 hw_error("Unable to load %s\n", bios_name);
             }
+            g_free(sysboot_filename);
         } else {
            hw_error("Unable to find %s\n", bios_name);
         }
