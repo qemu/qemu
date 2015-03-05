@@ -1063,7 +1063,7 @@ static int client_migrate_info(Monitor *mon, const QDict *qdict,
         return 0;
     }
 
-    qerror_report(QERR_INVALID_PARAMETER, "protocol");
+    qerror_report(QERR_INVALID_PARAMETER_VALUE, "protocol", "spice");
     return -1;
 }
 
