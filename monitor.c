@@ -4045,18 +4045,6 @@ void monitor_set_error(Monitor *mon, QError *qerror)
     }
 }
 
-static void handler_audit(Monitor *mon, const mon_cmd_t *cmd, int ret)
-{
-    if (ret && !monitor_has_error(mon)) {
-        /*
-         * If it returns failure, it must have passed on error.
-         *
-         * Action: Report an internal error to the client if in QMP.
-         */
-        qerror_report(QERR_UNDEFINED_ERROR);
-    }
-}
-
 static void handle_user_command(Monitor *mon, const char *cmdline)
 {
     QDict *qdict;
@@ -5013,28 +5001,17 @@ static QDict *qmp_check_input_obj(QObject *input_obj)
     return input_dict;
 }
 
-static void qmp_call_cmd(Monitor *mon, const mon_cmd_t *cmd,
-                         const QDict *params)
-{
-    int ret;
-    QObject *data = NULL;
-
-    ret = cmd->mhandler.cmd_new(mon, params, &data);
-    handler_audit(mon, cmd, ret);
-    monitor_protocol_emitter(mon, data);
-    qobject_decref(data);
-}
-
 static void handle_qmp_command(JSONMessageParser *parser, QList *tokens)
 {
     int err;
-    QObject *obj;
+    QObject *obj, *data;
     QDict *input, *args;
     const mon_cmd_t *cmd;
     const char *cmd_name;
     Monitor *mon = cur_mon;
 
     args = input = NULL;
+    data = NULL;
 
     obj = json_parser_parse(tokens, NULL);
     if (!obj) {
@@ -5077,12 +5054,17 @@ static void handle_qmp_command(JSONMessageParser *parser, QList *tokens)
         goto err_out;
     }
 
-    qmp_call_cmd(mon, cmd, args);
-    goto out;
+    if (cmd->mhandler.cmd_new(mon, args, &data)) {
+        /* Command failed... */
+        if (!monitor_has_error(mon)) {
+            /* ... without setting an error, so make one up */
+            qerror_report(QERR_UNDEFINED_ERROR);
+        }
+    }
 
 err_out:
-    monitor_protocol_emitter(mon, NULL);
-out:
+    monitor_protocol_emitter(mon, data);
+    qobject_decref(data);
     QDECREF(input);
     QDECREF(args);
 }
