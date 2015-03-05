@@ -118,12 +118,6 @@
  *
  */
 
-typedef struct MonitorCompletionData MonitorCompletionData;
-struct MonitorCompletionData {
-    Monitor *mon;
-    void (*user_print)(Monitor *mon, const QObject *data);
-};
-
 typedef struct mon_cmd_t {
     const char *name;
     const char *args_type;
@@ -133,10 +127,7 @@ typedef struct mon_cmd_t {
     union {
         void (*cmd)(Monitor *mon, const QDict *qdict);
         int  (*cmd_new)(Monitor *mon, const QDict *params, QObject **ret_data);
-        int  (*cmd_async)(Monitor *mon, const QDict *params,
-                          MonitorCompletion *cb, void *opaque);
     } mhandler;
-    int flags;
     /* @sub_table is a list of 2nd level of commands. If it do not exist,
      * mhandler should be used. If it exist, sub_table[?].mhandler should be
      * used, and mhandler of 1st level plays the role of help function.
@@ -392,11 +383,6 @@ static void monitor_user_noop(Monitor *mon, const QObject *data) { }
 static inline int handler_is_qobject(const mon_cmd_t *cmd)
 {
     return cmd->user_print != NULL;
-}
-
-static inline bool handler_is_async(const mon_cmd_t *cmd)
-{
-    return cmd->flags & MONITOR_CMD_ASYNC;
 }
 
 static inline int monitor_has_error(const Monitor *mon)
@@ -916,45 +902,6 @@ static void hmp_trace_file(Monitor *mon, const QDict *qdict)
     }
 }
 #endif
-
-static void user_monitor_complete(void *opaque, QObject *ret_data)
-{
-    MonitorCompletionData *data = (MonitorCompletionData *)opaque; 
-
-    if (ret_data) {
-        data->user_print(data->mon, ret_data);
-    }
-    monitor_resume(data->mon);
-    g_free(data);
-}
-
-static void qmp_monitor_complete(void *opaque, QObject *ret_data)
-{
-    monitor_protocol_emitter(opaque, ret_data);
-}
-
-static int qmp_async_cmd_handler(Monitor *mon, const mon_cmd_t *cmd,
-                                 const QDict *params)
-{
-    return cmd->mhandler.cmd_async(mon, params, qmp_monitor_complete, mon);
-}
-
-static void user_async_cmd_handler(Monitor *mon, const mon_cmd_t *cmd,
-                                   const QDict *params)
-{
-    int ret;
-
-    MonitorCompletionData *cb_data = g_malloc(sizeof(*cb_data));
-    cb_data->mon = mon;
-    cb_data->user_print = cmd->user_print;
-    monitor_suspend(mon);
-    ret = cmd->mhandler.cmd_async(mon, params,
-                                  user_monitor_complete, cb_data);
-    if (ret < 0) {
-        monitor_resume(mon);
-        g_free(cb_data);
-    }
-}
 
 static void hmp_info_help(Monitor *mon, const QDict *qdict)
 {
@@ -4121,9 +4068,7 @@ static void handle_user_command(Monitor *mon, const char *cmdline)
     if (!cmd)
         goto out;
 
-    if (handler_is_async(cmd)) {
-        user_async_cmd_handler(mon, cmd, qdict);
-    } else if (handler_is_qobject(cmd)) {
+    if (handler_is_qobject(cmd)) {
         QObject *data = NULL;
 
         /* XXX: ignores the error code */
@@ -5054,8 +4999,6 @@ static QDict *qmp_check_input_obj(QObject *input_obj)
                               "object");
                 return NULL;
             }
-        } else if (!strcmp(arg_name, "id")) {
-            /* FIXME: check duplicated IDs for async commands */
         } else {
             qerror_report(QERR_QMP_EXTRA_MEMBER, arg_name);
             return NULL;
@@ -5134,16 +5077,7 @@ static void handle_qmp_command(JSONMessageParser *parser, QList *tokens)
         goto err_out;
     }
 
-    if (handler_is_async(cmd)) {
-        err = qmp_async_cmd_handler(mon, cmd, args);
-        if (err) {
-            /* emit the error response */
-            goto err_out;
-        }
-    } else {
-        qmp_call_cmd(mon, cmd, args);
-    }
-
+    qmp_call_cmd(mon, cmd, args);
     goto out;
 
 err_out:
