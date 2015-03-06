@@ -5042,10 +5042,7 @@ err_out:
     QDECREF(args);
 }
 
-/**
- * monitor_control_read(): Read and handle QMP input
- */
-static void monitor_control_read(void *opaque, const uint8_t *buf, int size)
+static void monitor_qmp_read(void *opaque, const uint8_t *buf, int size)
 {
     Monitor *old_mon = cur_mon;
 
@@ -5110,10 +5107,7 @@ static QObject *get_qmp_greeting(void)
     return qobject_from_jsonf("{'QMP':{'version': %p,'capabilities': []}}",ver);
 }
 
-/**
- * monitor_control_event(): Print QMP gretting
- */
-static void monitor_control_event(void *opaque, int event)
+static void monitor_qmp_event(void *opaque, int event)
 {
     QObject *data;
     Monitor *mon = opaque;
@@ -5263,8 +5257,8 @@ void monitor_init(CharDriverState *chr, int flags)
     if (monitor_ctrl_mode(mon)) {
         mon->mc = g_malloc0(sizeof(MonitorControl));
         /* Control mode requires special handlers */
-        qemu_chr_add_handlers(chr, monitor_can_read, monitor_control_read,
-                              monitor_control_event, mon);
+        qemu_chr_add_handlers(chr, monitor_can_read, monitor_qmp_read,
+                              monitor_qmp_event, mon);
         qemu_chr_fe_set_echo(chr, true);
 
         json_message_parser_init(&mon->mc->parser, handle_qmp_command);
