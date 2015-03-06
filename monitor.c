@@ -161,11 +161,11 @@ struct MonFdset {
     QLIST_ENTRY(MonFdset) next;
 };
 
-typedef struct MonitorControl {
+typedef struct {
     QObject *id;
     JSONMessageParser parser;
     int command_mode;
-} MonitorControl;
+} MonitorQMP;
 
 /*
  * To prevent flooding clients, events can be throttled. The
@@ -195,7 +195,7 @@ struct Monitor {
     int mux_out;
 
     ReadLineState *rs;
-    MonitorControl *mc;
+    MonitorQMP qmp;
     CPUState *mon_cpu;
     BlockCompletionFunc *password_completion_cb;
     void *password_opaque;
@@ -228,7 +228,7 @@ static void monitor_command_cb(void *opaque, const char *cmdline,
 
 static inline int qmp_cmd_mode(const Monitor *mon)
 {
-    return (mon->mc ? mon->mc->command_mode : 0);
+    return mon->qmp.command_mode;
 }
 
 /* Return true if in control mode, false otherwise */
@@ -424,9 +424,9 @@ static void monitor_protocol_emitter(Monitor *mon, QObject *data,
         qmp = build_qmp_error_dict(err);
     }
 
-    if (mon->mc->id) {
-        qdict_put_obj(qmp, "id", mon->mc->id);
-        mon->mc->id = NULL;
+    if (mon->qmp.id) {
+        qdict_put_obj(qmp, "id", mon->qmp.id);
+        mon->qmp.id = NULL;
     }
 
     monitor_json_emitter(mon, QOBJECT(qmp));
@@ -568,7 +568,7 @@ static int do_qmp_capabilities(Monitor *mon, const QDict *params,
 {
     /* Will setup QMP capabilities in the future */
     if (monitor_ctrl_mode(mon)) {
-        mon->mc->command_mode = 1;
+        mon->qmp.command_mode = 1;
     }
 
     return 0;
@@ -4993,8 +4993,8 @@ static void handle_qmp_command(JSONMessageParser *parser, QList *tokens)
         goto err_out;
     }
 
-    mon->mc->id = qdict_get(input, "id");
-    qobject_incref(mon->mc->id);
+    mon->qmp.id = qdict_get(input, "id");
+    qobject_incref(mon->qmp.id);
 
     cmd_name = qdict_get_str(input, "execute");
     trace_handle_qmp_command(mon, cmd_name);
@@ -5048,7 +5048,7 @@ static void monitor_qmp_read(void *opaque, const uint8_t *buf, int size)
 
     cur_mon = opaque;
 
-    json_message_parser_feed(&cur_mon->mc->parser, (const char *) buf, size);
+    json_message_parser_feed(&cur_mon->qmp.parser, (const char *) buf, size);
 
     cur_mon = old_mon;
 }
@@ -5114,15 +5114,15 @@ static void monitor_qmp_event(void *opaque, int event)
 
     switch (event) {
     case CHR_EVENT_OPENED:
-        mon->mc->command_mode = 0;
+        mon->qmp.command_mode = 0;
         data = get_qmp_greeting();
         monitor_json_emitter(mon, data);
         qobject_decref(data);
         mon_refcount++;
         break;
     case CHR_EVENT_CLOSED:
-        json_message_parser_destroy(&mon->mc->parser);
-        json_message_parser_init(&mon->mc->parser, handle_qmp_command);
+        json_message_parser_destroy(&mon->qmp.parser);
+        json_message_parser_init(&mon->qmp.parser, handle_qmp_command);
         mon_refcount--;
         monitor_fdsets_cleanup();
         break;
@@ -5255,13 +5255,10 @@ void monitor_init(CharDriverState *chr, int flags)
     }
 
     if (monitor_ctrl_mode(mon)) {
-        mon->mc = g_malloc0(sizeof(MonitorControl));
-        /* Control mode requires special handlers */
         qemu_chr_add_handlers(chr, monitor_can_read, monitor_qmp_read,
                               monitor_qmp_event, mon);
         qemu_chr_fe_set_echo(chr, true);
-
-        json_message_parser_init(&mon->mc->parser, handle_qmp_command);
+        json_message_parser_init(&mon->qmp.parser, handle_qmp_command);
     } else {
         qemu_chr_add_handlers(chr, monitor_can_read, monitor_read,
                               monitor_event, mon);
