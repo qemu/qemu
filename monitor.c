@@ -574,7 +574,7 @@ static int do_qmp_capabilities(Monitor *mon, const QDict *params,
     return 0;
 }
 
-static void handle_user_command(Monitor *mon, const char *cmdline);
+static void handle_hmp_command(Monitor *mon, const char *cmdline);
 
 static void monitor_data_init(Monitor *mon)
 {
@@ -613,7 +613,7 @@ char *qmp_human_monitor_command(const char *command_line, bool has_cpu_index,
         }
     }
 
-    handle_user_command(&hmp, command_line);
+    handle_hmp_command(&hmp, command_line);
     cur_mon = old_mon;
 
     qemu_mutex_lock(&hmp.out_lock);
@@ -4025,7 +4025,7 @@ void monitor_set_error(Monitor *mon, QError *qerror)
     }
 }
 
-static void handle_user_command(Monitor *mon, const char *cmdline)
+static void handle_hmp_command(Monitor *mon, const char *cmdline)
 {
     QDict *qdict;
     const mon_cmd_t *cmd;
@@ -5070,7 +5070,7 @@ static void monitor_read(void *opaque, const uint8_t *buf, int size)
         if (size == 0 || buf[size - 1] != 0)
             monitor_printf(cur_mon, "corrupted command\n");
         else
-            handle_user_command(cur_mon, (char *)buf);
+            handle_hmp_command(cur_mon, (char *)buf);
     }
 
     cur_mon = old_mon;
@@ -5082,7 +5082,7 @@ static void monitor_command_cb(void *opaque, const char *cmdline,
     Monitor *mon = opaque;
 
     monitor_suspend(mon);
-    handle_user_command(mon, cmdline);
+    handle_hmp_command(mon, cmdline);
     monitor_resume(mon);
 }
 
