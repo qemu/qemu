@@ -231,8 +231,10 @@ Monitor *default_mon;
 static void monitor_command_cb(void *opaque, const char *cmdline,
                                void *readline_opaque);
 
-/* Return true if in control mode, false otherwise */
-static inline int monitor_ctrl_mode(const Monitor *mon)
+/**
+ * Is @mon a QMP monitor?
+ */
+static inline bool monitor_is_qmp(const Monitor *mon)
 {
     return (mon->flags & MONITOR_USE_CONTROL);
 }
@@ -240,7 +242,7 @@ static inline int monitor_ctrl_mode(const Monitor *mon)
 /* Return non-zero iff we have a current monitor, and it is in QMP mode.  */
 int monitor_cur_is_qmp(void)
 {
-    return cur_mon && monitor_ctrl_mode(cur_mon);
+    return cur_mon && monitor_is_qmp(cur_mon);
 }
 
 void monitor_read_command(Monitor *mon, int show_prompt)
@@ -350,7 +352,7 @@ void monitor_vprintf(Monitor *mon, const char *fmt, va_list ap)
     if (!mon)
         return;
 
-    if (monitor_ctrl_mode(mon)) {
+    if (monitor_is_qmp(mon)) {
         return;
     }
 
@@ -446,7 +448,7 @@ static void monitor_qapi_event_emit(QAPIEvent event, QObject *data)
 
     trace_monitor_protocol_event_emit(event, data);
     QLIST_FOREACH(mon, &mon_list, entry) {
-        if (monitor_ctrl_mode(mon) && mon->qmp.in_command_mode) {
+        if (monitor_is_qmp(mon) && mon->qmp.in_command_mode) {
             monitor_json_emitter(mon, data);
         }
     }
@@ -5251,7 +5253,7 @@ void monitor_init(CharDriverState *chr, int flags)
         monitor_read_command(mon, 0);
     }
 
-    if (monitor_ctrl_mode(mon)) {
+    if (monitor_is_qmp(mon)) {
         qemu_chr_add_handlers(chr, monitor_can_read, monitor_qmp_read,
                               monitor_qmp_event, mon);
         qemu_chr_fe_set_echo(chr, true);
