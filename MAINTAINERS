@@ -784,6 +784,18 @@ F: tests/qemu-iotests/
 T: git git://repo.or.cz/qemu/kevin.git block
 T: git git://github.com/stefanha/qemu.git block
 
+Block Jobs
+M: Jeff Cody <jcody@redhat.com>
+L: qemu-block@nongnu.org
+S: Supported
+F: blockjob.c
+F: include/block/blockjob.h
+F: block/backup.c
+F: block/commit.c
+F: block/stream.h
+F: block/mirror.c
+T: git git://github.com/codyprime/qemu-kvm-jtc.git block
+
 Character Devices
 M: Anthony Liguori <aliguori@amazon.com>
 M: Paolo Bonzini <pbonzini@redhat.com>
@@ -1093,20 +1105,28 @@ F: block/vmdk.c
 
 RBD
 M: Josh Durgin <josh.durgin@inktank.com>
+M: Jeff Cody <jcody@redhat.com>
+L: qemu-block@nongnu.org
 S: Supported
 F: block/rbd.c
+T: git git://github.com/codyprime/qemu-kvm-jtc.git block
 
 Sheepdog
 M: Hitoshi Mitake <mitake.hitoshi@lab.ntt.co.jp>
 M: Liu Yuan <namei.unix@gmail.com>
+M: Jeff Cody <jcody@redhat.com>
+L: qemu-block@nongnu.org
 L: sheepdog@lists.wpkg.org
 S: Supported
 F: block/sheepdog.c
+T: git git://github.com/codyprime/qemu-kvm-jtc.git block
 
 VHDX
 M: Jeff Cody <jcody@redhat.com>
+L: qemu-block@nongnu.org
 S: Supported
 F: block/vhdx*
+T: git git://github.com/codyprime/qemu-kvm-jtc.git block
 
 VDI
 M: Stefan Weil <sw@weilnetz.de>
@@ -1121,19 +1141,42 @@ S: Supported
 F: block/iscsi.c
 
 NFS
+M: Jeff Cody <jcody@redhat.com>
 M: Peter Lieven <pl@kamp.de>
+L: qemu-block@nongnu.org
 S: Maintained
 F: block/nfs.c
+T: git git://github.com/codyprime/qemu-kvm-jtc.git block
 
 SSH
 M: Richard W.M. Jones <rjones@redhat.com>
+M: Jeff Cody <jcody@redhat.com>
+L: qemu-block@nongnu.org
 S: Supported
 F: block/ssh.c
+T: git git://github.com/codyprime/qemu-kvm-jtc.git block
 
 ARCHIPELAGO
 M: Chrysostomos Nanakos <chris@include.gr>
+M: Jeff Cody <jcody@redhat.com>
+L: qemu-block@nongnu.org
 S: Maintained
 F: block/archipelago.c
+T: git git://github.com/codyprime/qemu-kvm-jtc.git block
+
+CURL
+M: Jeff Cody <jcody@redhat.com>
+L: qemu-block@nongnu.org
+S: Supported
+F: block/curl.c
+T: git git://github.com/codyprime/qemu-kvm-jtc.git block
+
+GLUSTER
+M: Jeff Cody <jcody@redhat.com>
+L: qemu-block@nongnu.org
+S: Supported
+F: block/gluster.c
+T: git git://github.com/codyprime/qemu-kvm-jtc.git block
 
 Bootdevice
 M: Gonglei <arei.gonglei@huawei.com>
