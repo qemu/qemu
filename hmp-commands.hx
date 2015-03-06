@@ -47,7 +47,6 @@ ETEXI
         .args_type  = "",
         .params     = "",
         .help       = "quit the emulator",
-        .user_print = monitor_user_noop,
         .mhandler.cmd = hmp_quit,
     },
 
