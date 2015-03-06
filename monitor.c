@@ -164,7 +164,12 @@ struct MonFdset {
 typedef struct {
     QObject *id;
     JSONMessageParser parser;
-    int command_mode;
+    /*
+     * When a client connects, we're in capabilities negotiation mode.
+     * When command qmp_capabilities succeeds, we go into command
+     * mode.
+     */
+    bool in_command_mode;       /* are we in command mode? */
 } MonitorQMP;
 
 /*
@@ -225,11 +230,6 @@ Monitor *default_mon;
 
 static void monitor_command_cb(void *opaque, const char *cmdline,
                                void *readline_opaque);
-
-static inline int qmp_cmd_mode(const Monitor *mon)
-{
-    return mon->qmp.command_mode;
-}
 
 /* Return true if in control mode, false otherwise */
 static inline int monitor_ctrl_mode(const Monitor *mon)
@@ -446,7 +446,7 @@ static void monitor_qapi_event_emit(QAPIEvent event, QObject *data)
 
     trace_monitor_protocol_event_emit(event, data);
     QLIST_FOREACH(mon, &mon_list, entry) {
-        if (monitor_ctrl_mode(mon) && qmp_cmd_mode(mon)) {
+        if (monitor_ctrl_mode(mon) && mon->qmp.in_command_mode) {
             monitor_json_emitter(mon, data);
         }
     }
@@ -566,7 +566,7 @@ static void monitor_qapi_event_init(void)
 static int do_qmp_capabilities(Monitor *mon, const QDict *params,
                                QObject **ret_data)
 {
-    mon->qmp.command_mode = 1;
+    mon->qmp.in_command_mode = true;
     return 0;
 }
 
@@ -4702,13 +4702,14 @@ static bool invalid_qmp_mode(const Monitor *mon, const mon_cmd_t *cmd,
                              Error **errp)
 {
     bool is_cap = cmd->mhandler.cmd_new == do_qmp_capabilities;
-    if (is_cap && qmp_cmd_mode(mon)) {
+
+    if (is_cap && mon->qmp.in_command_mode) {
         error_set(errp, ERROR_CLASS_COMMAND_NOT_FOUND,
                   "Capabilities negotiation is already complete, command "
                   "'%s' ignored", cmd->name);
         return true;
     }
-    if (!is_cap && !qmp_cmd_mode(mon)) {
+    if (!is_cap && !mon->qmp.in_command_mode) {
         error_set(errp, ERROR_CLASS_COMMAND_NOT_FOUND,
                   "Expecting capabilities negotiation with "
                   "'qmp_capabilities' before command '%s'", cmd->name);
@@ -5110,7 +5111,7 @@ static void monitor_qmp_event(void *opaque, int event)
 
     switch (event) {
     case CHR_EVENT_OPENED:
-        mon->qmp.command_mode = 0;
+        mon->qmp.in_command_mode = false;
         data = get_qmp_greeting();
         monitor_json_emitter(mon, data);
         qobject_decref(data);
