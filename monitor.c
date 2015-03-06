@@ -239,8 +239,10 @@ static inline bool monitor_is_qmp(const Monitor *mon)
     return (mon->flags & MONITOR_USE_CONTROL);
 }
 
-/* Return non-zero iff we have a current monitor, and it is in QMP mode.  */
-int monitor_cur_is_qmp(void)
+/**
+ * Is the current monitor, if any, a QMP monitor?
+ */
+bool monitor_cur_is_qmp(void)
 {
     return cur_mon && monitor_is_qmp(cur_mon);
 }
