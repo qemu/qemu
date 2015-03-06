@@ -407,13 +407,14 @@ static QDict *build_qmp_error_dict(const QError *err)
     return qobject_to_qdict(obj);
 }
 
-static void monitor_protocol_emitter(Monitor *mon, QObject *data)
+static void monitor_protocol_emitter(Monitor *mon, QObject *data,
+                                     QError *err)
 {
     QDict *qmp;
 
     trace_monitor_protocol_emitter(mon);
 
-    if (!monitor_has_error(mon)) {
+    if (!err) {
         /* success response */
         qmp = qdict_new();
         if (data) {
@@ -425,9 +426,7 @@ static void monitor_protocol_emitter(Monitor *mon, QObject *data)
         }
     } else {
         /* error response */
-        qmp = build_qmp_error_dict(mon->error);
-        QDECREF(mon->error);
-        mon->error = NULL;
+        qmp = build_qmp_error_dict(err);
     }
 
     if (mon->mc->id) {
@@ -5039,8 +5038,10 @@ static void handle_qmp_command(JSONMessageParser *parser, QList *tokens)
     }
 
 err_out:
-    monitor_protocol_emitter(mon, data);
+    monitor_protocol_emitter(mon, data, mon->error);
     qobject_decref(data);
+    QDECREF(mon->error);
+    mon->error = NULL;
     QDECREF(input);
     QDECREF(args);
 }
