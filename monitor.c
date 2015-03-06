@@ -377,11 +377,6 @@ static int GCC_FMT_ATTR(2, 3) monitor_fprintf(FILE *stream,
     return 0;
 }
 
-static inline int monitor_has_error(const Monitor *mon)
-{
-    return mon->error != NULL;
-}
-
 static void monitor_json_emitter(Monitor *mon, const QObject *data)
 {
     QString *json;
@@ -5031,7 +5026,7 @@ static void handle_qmp_command(JSONMessageParser *parser, QList *tokens)
 
     if (cmd->mhandler.cmd_new(mon, args, &data)) {
         /* Command failed... */
-        if (!monitor_has_error(mon)) {
+        if (!mon->error) {
             /* ... without setting an error, so make one up */
             qerror_report(QERR_UNDEFINED_ERROR);
         }
