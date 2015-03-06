@@ -391,19 +391,19 @@ static void monitor_json_emitter(Monitor *mon, const QObject *data)
     QDECREF(json);
 }
 
-static QDict *build_qmp_error_dict(const QError *err)
+static QDict *build_qmp_error_dict(Error *err)
 {
     QObject *obj;
 
-    obj = qobject_from_jsonf("{ 'error': { 'class': %s, 'desc': %p } }",
-                             ErrorClass_lookup[err->err_class],
-                             qerror_human(err));
+    obj = qobject_from_jsonf("{ 'error': { 'class': %s, 'desc': %s } }",
+                             ErrorClass_lookup[error_get_class(err)],
+                             error_get_pretty(err));
 
     return qobject_to_qdict(obj);
 }
 
 static void monitor_protocol_emitter(Monitor *mon, QObject *data,
-                                     QError *err)
+                                     Error *err)
 {
     QDict *qmp;
 
@@ -4983,13 +4983,12 @@ static void handle_qmp_command(JSONMessageParser *parser, QList *tokens)
     obj = json_parser_parse(tokens, NULL);
     if (!obj) {
         // FIXME: should be triggered in json_parser_parse()
-        qerror_report(QERR_JSON_PARSING);
+        error_set(&local_err, QERR_JSON_PARSING);
         goto err_out;
     }
 
     input = qmp_check_input_obj(obj, &local_err);
     if (!input) {
-        qerror_report_err(local_err);
         qobject_decref(obj);
         goto err_out;
     }
@@ -5001,12 +5000,11 @@ static void handle_qmp_command(JSONMessageParser *parser, QList *tokens)
     trace_handle_qmp_command(mon, cmd_name);
     cmd = qmp_find_cmd(cmd_name);
     if (!cmd) {
-        qerror_report(ERROR_CLASS_COMMAND_NOT_FOUND,
-                      "The command %s has not been found", cmd_name);
+        error_set(&local_err, ERROR_CLASS_COMMAND_NOT_FOUND,
+                  "The command %s has not been found", cmd_name);
         goto err_out;
     }
     if (invalid_qmp_mode(mon, cmd, &local_err)) {
-        qerror_report_err(local_err);
         goto err_out;
     }
 
@@ -5020,7 +5018,6 @@ static void handle_qmp_command(JSONMessageParser *parser, QList *tokens)
 
     qmp_check_client_args(cmd, args, &local_err);
     if (local_err) {
-        qerror_report_err(local_err);
         goto err_out;
     }
 
@@ -5028,12 +5025,16 @@ static void handle_qmp_command(JSONMessageParser *parser, QList *tokens)
         /* Command failed... */
         if (!mon->error) {
             /* ... without setting an error, so make one up */
-            qerror_report(QERR_UNDEFINED_ERROR);
+            error_set(&local_err, QERR_UNDEFINED_ERROR);
         }
+    }
+    if (mon->error) {
+        error_set(&local_err, mon->error->err_class, "%s",
+                  mon->error->err_msg);
     }
 
 err_out:
-    monitor_protocol_emitter(mon, data, mon->error);
+    monitor_protocol_emitter(mon, data, local_err);
     qobject_decref(data);
     QDECREF(mon->error);
     mon->error = NULL;
