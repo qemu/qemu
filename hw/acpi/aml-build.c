@@ -335,26 +335,29 @@ static void build_buffer(GArray *array, uint8_t op)
 
 void aml_append(Aml *parent_ctx, Aml *child)
 {
+    GArray *buf = build_alloc_array();
+    build_append_array(buf, child->buf);
+
     switch (child->block_flags) {
     case AML_OPCODE:
         build_append_byte(parent_ctx->buf, child->op);
         break;
     case AML_EXT_PACKAGE:
-        build_extop_package(child->buf, child->op);
+        build_extop_package(buf, child->op);
         break;
     case AML_PACKAGE:
-        build_package(child->buf, child->op);
+        build_package(buf, child->op);
         break;
     case AML_RES_TEMPLATE:
-        build_append_byte(child->buf, 0x79); /* EndTag */
+        build_append_byte(buf, 0x79); /* EndTag */
         /*
          * checksum operations are treated as succeeded if checksum
          * field is zero. [ACPI Spec 1.0b, 6.4.2.8 End Tag]
          */
-        build_append_byte(child->buf, 0);
+        build_append_byte(buf, 0);
         /* fall through, to pack resources in buffer */
     case AML_BUFFER:
-        build_buffer(child->buf, child->op);
+        build_buffer(buf, child->op);
         break;
     case AML_NO_OPCODE:
         break;
@@ -362,7 +365,8 @@ void aml_append(Aml *parent_ctx, Aml *child)
         assert(0);
         break;
     }
-    build_append_array(parent_ctx->buf, child->buf);
+    build_append_array(parent_ctx->buf, buf);
+    build_free_array(buf);
 }
 
 /* ACPI 1.0b: 16.2.5.1 Namespace Modifier Objects Encoding: DefScope */
