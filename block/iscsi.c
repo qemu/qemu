@@ -1326,7 +1326,7 @@ static int iscsi_open(BlockDriverState *bs, QDict *options, int flags,
         goto out;
     }
 
-    if (iscsi_url->user != NULL) {
+    if (iscsi_url->user[0] != '\0') {
         ret = iscsi_set_initiator_username_pwd(iscsi, iscsi_url->user,
                                               iscsi_url->passwd);
         if (ret != 0) {
