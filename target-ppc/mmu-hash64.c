@@ -350,7 +350,7 @@ uint64_t ppc_hash64_start_access(PowerPCCPU *cpu, target_ulong pte_index)
 void ppc_hash64_stop_access(uint64_t token)
 {
     if (kvmppc_kern_htab) {
-        return kvmppc_hash64_free_pteg(token);
+        kvmppc_hash64_free_pteg(token);
     }
 }
 
@@ -632,7 +632,8 @@ void ppc_hash64_store_hpte(CPUPPCState *env,
     CPUState *cs = CPU(ppc_env_get_cpu(env));
 
     if (kvmppc_kern_htab) {
-        return kvmppc_hash64_write_pte(env, pte_index, pte0, pte1);
+        kvmppc_hash64_write_pte(env, pte_index, pte0, pte1);
+        return;
     }
 
     pte_index *= HASH_PTE_SIZE_64;
