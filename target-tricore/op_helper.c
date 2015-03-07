@@ -1953,9 +1953,9 @@ uint64_t helper_dvinit_b_13(CPUTriCoreState *env, uint32_t r1, uint32_t r2)
         quotient_sign = 1;
     }
 
-    abs_sig_dividend = abs(r1) >> 7;
-    abs_base_dividend = abs(r1) & 0x7f;
-    abs_divisor = abs(r1);
+    abs_sig_dividend = abs((int32_t)r1) >> 7;
+    abs_base_dividend = abs((int32_t)r1) & 0x7f;
+    abs_divisor = abs((int32_t)r2);
     /* calc overflow */
     env->PSW_USB_V = 0;
     if ((quotient_sign) && (abs_divisor)) {
@@ -2003,9 +2003,9 @@ uint64_t helper_dvinit_h_13(CPUTriCoreState *env, uint32_t r1, uint32_t r2)
         quotient_sign = 1;
     }
 
-    abs_sig_dividend = abs(r1) >> 7;
-    abs_base_dividend = abs(r1) & 0x7f;
-    abs_divisor = abs(r1);
+    abs_sig_dividend = abs((int32_t)r1) >> 7;
+    abs_base_dividend = abs((int32_t)r1) & 0x7f;
+    abs_divisor = abs((int32_t)r2);
     /* calc overflow */
     env->PSW_USB_V = 0;
     if ((quotient_sign) && (abs_divisor)) {
