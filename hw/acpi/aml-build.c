@@ -112,7 +112,7 @@ build_append_namestringv(GArray *array, const char *format, va_list ap)
     switch (seg_count) {
     case 1:
         if (!*s) {
-            build_append_byte(array, 0x0); /* NullName */
+            build_append_byte(array, 0x00); /* NullName */
         } else {
             build_append_nameseg(array, s);
         }
@@ -448,7 +448,7 @@ Aml *aml_and(Aml *arg1, Aml *arg2)
     Aml *var = aml_opcode(0x7B /* AndOp */);
     aml_append(var, arg1);
     aml_append(var, arg2);
-    build_append_int(var->buf, 0x00 /* NullNameOp */);
+    build_append_byte(var->buf, 0x00 /* NullNameOp */);
     return var;
 }
 
@@ -546,7 +546,7 @@ Aml *aml_equal(Aml *arg1, Aml *arg2)
     Aml *var = aml_opcode(0x93 /* LequalOp */);
     aml_append(var, arg1);
     aml_append(var, arg2);
-    build_append_int(var->buf, 0x00); /* NullNameOp */
+    build_append_byte(var->buf, 0x00); /* NullNameOp */
     return var;
 }
 
