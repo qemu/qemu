@@ -467,19 +467,7 @@ build_madt(GArray *table_data, GArray *linker, AcpiCpuInfo *cpu,
                  table_data->len - madt_start, 1);
 }
 
-/* Encode a hex value */
-static inline char acpi_get_hex(uint32_t val)
-{
-    val &= 0x0f;
-    return (val <= 9) ? ('0' + val) : ('A' + val - 10);
-}
-
-
-#define ACPI_SSDT_SIGNATURE 0x54445353 /* SSDT */
-#define ACPI_SSDT_HEADER_LENGTH 36
-
 #include "hw/i386/ssdt-tpm.hex"
-
 
 /* Assign BSEL property to all buses.  In the future, this can be changed
  * to only assign to buses that support hotplug.
