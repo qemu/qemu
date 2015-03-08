@@ -472,7 +472,7 @@ void fw_cfg_add_string(FWCfgState *s, uint16_t key, const char *value)
 {
     size_t sz = strlen(value) + 1;
 
-    return fw_cfg_add_bytes(s, key, g_memdup(value, sz), sz);
+    fw_cfg_add_bytes(s, key, g_memdup(value, sz), sz);
 }
 
 void fw_cfg_add_i16(FWCfgState *s, uint16_t key, uint16_t value)

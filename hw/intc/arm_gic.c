@@ -704,7 +704,8 @@ static void gic_cpu_write(GICState *s, int cpu, int offset, uint32_t value)
         s->bpr[cpu] = (value & 0x7);
         break;
     case 0x10: /* End Of Interrupt */
-        return gic_complete_irq(s, cpu, value & 0x3ff);
+        gic_complete_irq(s, cpu, value & 0x3ff);
+        return;
     case 0x1c: /* Aliased Binary Point */
         if (s->revision >= 2) {
             s->abpr[cpu] = (value & 0x7);

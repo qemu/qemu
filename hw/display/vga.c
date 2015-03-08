@@ -1997,7 +1997,7 @@ static void vga_mem_write(void *opaque, hwaddr addr,
 {
     VGACommonState *s = opaque;
 
-    return vga_mem_writeb(s, addr, data);
+    vga_mem_writeb(s, addr, data);
 }
 
 const MemoryRegionOps vga_mem_ops = {

@@ -131,11 +131,13 @@ static void nmi_handler(void *opaque, int irq, int level)
 }
 
 static void irq_handler(void *opaque, int irq, int level)
-{   
+{
     struct etrax_pic *fs = (void *)opaque;
 
-    if (irq >= 30)
-        return nmi_handler(opaque, irq, level);
+    if (irq >= 30) {
+        nmi_handler(opaque, irq, level);
+        return;
+    }
 
     irq -= 1;
     fs->regs[R_R_VECT] &= ~(1 << irq);

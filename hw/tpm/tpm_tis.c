@@ -868,7 +868,7 @@ static void tpm_tis_mmio_write_intern(void *opaque, hwaddr addr,
 static void tpm_tis_mmio_write(void *opaque, hwaddr addr,
                                uint64_t val, unsigned size)
 {
-    return tpm_tis_mmio_write_intern(opaque, addr, val, size, false);
+    tpm_tis_mmio_write_intern(opaque, addr, val, size, false);
 }
 
 static const MemoryRegionOps tpm_tis_memory_ops = {
