@@ -140,7 +140,7 @@ static int handle_opendir(FsContext *ctx,
 
 static void handle_rewinddir(FsContext *ctx, V9fsFidOpenState *fs)
 {
-    return rewinddir(fs->dir);
+    rewinddir(fs->dir);
 }
 
 static off_t handle_telldir(FsContext *ctx, V9fsFidOpenState *fs)
@@ -157,7 +157,7 @@ static int handle_readdir_r(FsContext *ctx, V9fsFidOpenState *fs,
 
 static void handle_seekdir(FsContext *ctx, V9fsFidOpenState *fs, off_t off)
 {
-    return seekdir(fs->dir, off);
+    seekdir(fs->dir, off);
 }
 
 static ssize_t handle_preadv(FsContext *ctx, V9fsFidOpenState *fs,
