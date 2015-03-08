@@ -546,7 +546,6 @@ Aml *aml_equal(Aml *arg1, Aml *arg2)
     Aml *var = aml_opcode(0x93 /* LequalOp */);
     aml_append(var, arg1);
     aml_append(var, arg2);
-    build_append_byte(var->buf, 0x00); /* NullNameOp */
     return var;
 }
 
