@@ -1403,12 +1403,12 @@ static struct arm_boot_info n810_binfo = {
 
 static void n800_init(MachineState *machine)
 {
-    return n8x0_init(machine, &n800_binfo, 800);
+    n8x0_init(machine, &n800_binfo, 800);
 }
 
 static void n810_init(MachineState *machine)
 {
-    return n8x0_init(machine, &n810_binfo, 810);
+    n8x0_init(machine, &n810_binfo, 810);
 }
 
 static QEMUMachine n800_machine = {
