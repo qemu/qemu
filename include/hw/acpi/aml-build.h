@@ -9,7 +9,7 @@ typedef enum {
     AML_NO_OPCODE = 0,/* has only data */
     AML_OPCODE,       /* has opcode optionally followed by data */
     AML_PACKAGE,      /* has opcode and uses PkgLength for its length */
-    AML_EXT_PACKAGE,  /* ame as AML_PACKAGE but also has 'ExOpPrefix' */
+    AML_EXT_PACKAGE,  /* Same as AML_PACKAGE but also has 'ExOpPrefix' */
     AML_BUFFER,       /* data encoded as 'DefBuffer' */
     AML_RES_TEMPLATE, /* encoded as ResourceTemplate macro */
 } AmlBlockFlags;
