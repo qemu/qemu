@@ -2733,7 +2733,8 @@ int main(int argc, char **argv, char **envp)
     int snapshot, linux_boot;
     const char *initrd_filename;
     const char *kernel_filename, *kernel_cmdline;
-    const char *boot_order;
+    const char *boot_order = NULL;
+    const char *boot_once = NULL;
     DisplayState *ds;
     int cyls, heads, secs, translation;
     QemuOpts *hda_opts = NULL, *opts, *machine_opts, *icount_opts = NULL;
@@ -4048,37 +4049,34 @@ int main(int argc, char **argv, char **envp)
     kernel_cmdline = qemu_opt_get(machine_opts, "append");
     bios_name = qemu_opt_get(machine_opts, "firmware");
 
-    boot_order = machine_class->default_boot_order;
     opts = qemu_opts_find(qemu_find_opts("boot-opts"), NULL);
     if (opts) {
-        char *normal_boot_order;
-        const char *order, *once;
         Error *local_err = NULL;
 
-        order = qemu_opt_get(opts, "order");
-        if (order) {
-            validate_bootdevices(order, &local_err);
+        boot_order = qemu_opt_get(opts, "order");
+        if (boot_order) {
+            validate_bootdevices(boot_order, &local_err);
             if (local_err) {
                 error_report_err(local_err);
                 exit(1);
             }
-            boot_order = order;
         }
 
-        once = qemu_opt_get(opts, "once");
-        if (once) {
-            validate_bootdevices(once, &local_err);
+        boot_once = qemu_opt_get(opts, "once");
+        if (boot_once) {
+            validate_bootdevices(boot_once, &local_err);
             if (local_err) {
                 error_report_err(local_err);
                 exit(1);
             }
-            normal_boot_order = g_strdup(boot_order);
-            boot_order = once;
-            qemu_register_reset(restore_boot_order, normal_boot_order);
         }
 
         boot_menu = qemu_opt_get_bool(opts, "menu", boot_menu);
         boot_strict = qemu_opt_get_bool(opts, "strict", false);
+    }
+
+    if (!boot_order) {
+        boot_order = machine_class->default_boot_order;
     }
 
     if (!kernel_cmdline) {
@@ -4243,6 +4241,16 @@ int main(int argc, char **argv, char **envp)
     drive_check_orphaned();
 
     net_check_clients();
+
+    if (boot_once) {
+        Error *local_err = NULL;
+        qemu_boot_set(boot_once, &local_err);
+        if (local_err) {
+            error_report("%s", error_get_pretty(local_err));
+            exit(1);
+        }
+        qemu_register_reset(restore_boot_order, g_strdup(boot_order));
+    }
 
     ds = init_displaystate();
 

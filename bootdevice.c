@@ -105,7 +105,9 @@ void restore_boot_order(void *opaque)
         return;
     }
 
-    qemu_boot_set(normal_boot_order, NULL);
+    if (boot_set_handler) {
+        qemu_boot_set(normal_boot_order, &error_abort);
+    }
 
     qemu_unregister_reset(restore_boot_order, normal_boot_order);
     g_free(normal_boot_order);
