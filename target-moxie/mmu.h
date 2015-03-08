@@ -6,11 +6,11 @@
 typedef struct {
     uint32_t phy;
     uint32_t pfn;
-    int g:1;
-    int v:1;
-    int k:1;
-    int w:1;
-    int e:1;
+    unsigned g:1;
+    unsigned v:1;
+    unsigned k:1;
+    unsigned w:1;
+    unsigned e:1;
     int cause_op;
 } MoxieMMUResult;
 
