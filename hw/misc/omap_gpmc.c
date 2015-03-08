@@ -624,7 +624,8 @@ static void omap_gpmc_write(void *opaque, hwaddr addr,
     struct omap_gpmc_cs_file_s *f;
 
     if (size != 4 && gpmc_wordaccess_only(addr)) {
-        return omap_badwidth_write32(opaque, addr, value);
+        omap_badwidth_write32(opaque, addr, value);
+        return;
     }
 
     switch (addr) {

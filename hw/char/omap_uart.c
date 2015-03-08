@@ -112,7 +112,8 @@ static void omap_uart_write(void *opaque, hwaddr addr,
     struct omap_uart_s *s = (struct omap_uart_s *) opaque;
 
     if (size == 4) {
-        return omap_badwidth_write8(opaque, addr, value);
+        omap_badwidth_write8(opaque, addr, value);
+        return;
     }
 
     switch (addr) {

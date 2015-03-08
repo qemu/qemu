@@ -444,7 +444,7 @@ static void omap_gp_timer_writeh(void *opaque, hwaddr addr,
     struct omap_gp_timer_s *s = (struct omap_gp_timer_s *) opaque;
 
     if (addr & 2)
-        return omap_gp_timer_write(opaque, addr, (value << 16) | s->writeh);
+        omap_gp_timer_write(opaque, addr, (value << 16) | s->writeh);
     else
         s->writeh = (uint16_t) value;
 }

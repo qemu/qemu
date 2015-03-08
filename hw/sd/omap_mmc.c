@@ -406,7 +406,8 @@ static void omap_mmc_write(void *opaque, hwaddr offset,
     struct omap_mmc_s *s = (struct omap_mmc_s *) opaque;
 
     if (size != 2) {
-        return omap_badwidth_write16(opaque, offset, value);
+        omap_badwidth_write16(opaque, offset, value);
+        return;
     }
 
     switch (offset) {
