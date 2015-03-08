@@ -71,6 +71,20 @@ void tlb_fill(CPUState *cs,
     }
 }
 
+void xtensa_cpu_do_unassigned_access(CPUState *cs, hwaddr addr,
+                                     bool is_write, bool is_exec, int opaque,
+                                     unsigned size)
+{
+    XtensaCPU *cpu = XTENSA_CPU(cs);
+    CPUXtensaState *env = &cpu->env;
+
+    HELPER(exception_cause_vaddr)(env, env->pc,
+                                  is_exec ?
+                                  INSTR_PIF_ADDR_ERROR_CAUSE :
+                                  LOAD_STORE_PIF_ADDR_ERROR_CAUSE,
+                                  is_exec ? addr : cs->mem_io_vaddr);
+}
+
 static void tb_invalidate_virtual_addr(CPUXtensaState *env, uint32_t vaddr)
 {
     uint32_t paddr;
