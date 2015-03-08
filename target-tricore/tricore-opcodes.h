@@ -1245,10 +1245,10 @@ enum {
     OPC2_32_RRR1_MADDS_Q_64_LL                   = 0x3d,
     OPC2_32_RRR1_MADDS_Q_32_UU                   = 0x24,
     OPC2_32_RRR1_MADDS_Q_64_UU                   = 0x3c,
-    OPC2_32_RRR1_MADDR_H_16_UL                   = 0x1e,
-    OPC2_32_RRR1_MADDRS_H_16_UL                  = 0x3e,
-    OPC2_32_RRR1_MADDR_Q_32_L                    = 0x07,
-    OPC2_32_RRR1_MADDR_Q_32_U                    = 0x06,
+    OPC2_32_RRR1_MADDR_H_64_UL                   = 0x1e,
+    OPC2_32_RRR1_MADDRS_H_64_UL                  = 0x3e,
+    OPC2_32_RRR1_MADDR_Q_32_LL                   = 0x07,
+    OPC2_32_RRR1_MADDR_Q_32_UU                   = 0x06,
     OPC2_32_RRR1_MADDRS_Q_32_LL                  = 0x27,
     OPC2_32_RRR1_MADDRS_Q_32_UU                  = 0x26,
 };
@@ -1371,7 +1371,7 @@ enum {
     OPC2_32_RRR2_MADD_64                         = 0x6a,
     OPC2_32_RRR2_MADDS_32                        = 0x8a,
     OPC2_32_RRR2_MADDS_64                        = 0xea,
-    OPC2_32_RRR2_MADD_U_32                       = 0x68,
+    OPC2_32_RRR2_MADD_U_64                       = 0x68,
     OPC2_32_RRR2_MADDS_U_32                      = 0x88,
     OPC2_32_RRR2_MADDS_U_64                      = 0xe8,
 };

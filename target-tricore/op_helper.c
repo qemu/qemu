@@ -184,6 +184,31 @@ target_ulong helper_add_ssov(CPUTriCoreState *env, target_ulong r1,
     return ssov32(env, result);
 }
 
+uint64_t helper_add64_ssov(CPUTriCoreState *env, uint64_t r1, uint64_t r2)
+{
+    uint64_t result;
+    int64_t ovf;
+
+    result = r1 + r2;
+    ovf = (result ^ r1) & ~(r1 ^ r2);
+    env->PSW_USB_AV = (result ^ result * 2u) >> 32;
+    env->PSW_USB_SAV |= env->PSW_USB_AV;
+    if (ovf < 0) {
+        env->PSW_USB_V = (1 << 31);
+        env->PSW_USB_SV = (1 << 31);
+        /* ext_ret > MAX_INT */
+        if ((int64_t)r1 >= 0) {
+            result = INT64_MAX;
+        /* ext_ret < MIN_INT */
+        } else {
+            result = INT64_MIN;
+        }
+    } else {
+        env->PSW_USB_V = 0;
+    }
+    return result;
+}
+
 target_ulong helper_add_h_ssov(CPUTriCoreState *env, target_ulong r1,
                                target_ulong r2)
 {
@@ -193,6 +218,99 @@ target_ulong helper_add_h_ssov(CPUTriCoreState *env, target_ulong r1,
     ret_hw1 = sextract32(r1, 16, 16) + sextract32(r2, 16, 16);
     return ssov16(env, ret_hw0, ret_hw1);
 }
+
+uint32_t helper_addr_h_ssov(CPUTriCoreState *env, uint64_t r1, uint32_t r2_l,
+                            uint32_t r2_h)
+{
+    int64_t mul_res0 = sextract64(r1, 0, 32);
+    int64_t mul_res1 = sextract64(r1, 32, 32);
+    int64_t r2_low = sextract64(r2_l, 0, 32);
+    int64_t r2_high = sextract64(r2_h, 0, 32);
+    int64_t result0, result1;
+    uint32_t ovf0, ovf1;
+    uint32_t avf0, avf1;
+
+    ovf0 = ovf1 = 0;
+
+    result0 = r2_low + mul_res0 + 0x8000;
+    result1 = r2_high + mul_res1 + 0x8000;
+
+    avf0 = result0 * 2u;
+    avf0 = result0 ^ avf0;
+    avf1 = result1 * 2u;
+    avf1 = result1 ^ avf1;
+
+    if (result0 > INT32_MAX) {
+        ovf0 = (1 << 31);
+        result0 = INT32_MAX;
+    } else if (result0 < INT32_MIN) {
+        ovf0 = (1 << 31);
+        result0 = INT32_MIN;
+    }
+
+    if (result1 > INT32_MAX) {
+        ovf1 = (1 << 31);
+        result1 = INT32_MAX;
+    } else if (result1 < INT32_MIN) {
+        ovf1 = (1 << 31);
+        result1 = INT32_MIN;
+    }
+
+    env->PSW_USB_V = ovf0 | ovf1;
+    env->PSW_USB_SV |= env->PSW_USB_V;
+
+    env->PSW_USB_AV = avf0 | avf1;
+    env->PSW_USB_SAV |= env->PSW_USB_AV;
+
+    return (result1 & 0xffff0000ULL) | ((result0 >> 16) & 0xffffULL);
+}
+
+uint32_t helper_addsur_h_ssov(CPUTriCoreState *env, uint64_t r1, uint32_t r2_l,
+                              uint32_t r2_h)
+{
+    int64_t mul_res0 = sextract64(r1, 0, 32);
+    int64_t mul_res1 = sextract64(r1, 32, 32);
+    int64_t r2_low = sextract64(r2_l, 0, 32);
+    int64_t r2_high = sextract64(r2_h, 0, 32);
+    int64_t result0, result1;
+    uint32_t ovf0, ovf1;
+    uint32_t avf0, avf1;
+
+    ovf0 = ovf1 = 0;
+
+    result0 = r2_low - mul_res0 + 0x8000;
+    result1 = r2_high + mul_res1 + 0x8000;
+
+    avf0 = result0 * 2u;
+    avf0 = result0 ^ avf0;
+    avf1 = result1 * 2u;
+    avf1 = result1 ^ avf1;
+
+    if (result0 > INT32_MAX) {
+        ovf0 = (1 << 31);
+        result0 = INT32_MAX;
+    } else if (result0 < INT32_MIN) {
+        ovf0 = (1 << 31);
+        result0 = INT32_MIN;
+    }
+
+    if (result1 > INT32_MAX) {
+        ovf1 = (1 << 31);
+        result1 = INT32_MAX;
+    } else if (result1 < INT32_MIN) {
+        ovf1 = (1 << 31);
+        result1 = INT32_MIN;
+    }
+
+    env->PSW_USB_V = ovf0 | ovf1;
+    env->PSW_USB_SV |= env->PSW_USB_V;
+
+    env->PSW_USB_AV = avf0 | avf1;
+    env->PSW_USB_SAV |= env->PSW_USB_AV;
+
+    return (result1 & 0xffff0000ULL) | ((result0 >> 16) & 0xffffULL);
+}
+
 
 target_ulong helper_add_suov(CPUTriCoreState *env, target_ulong r1,
                              target_ulong r2)
@@ -403,6 +521,131 @@ uint64_t helper_madd64_ssov(CPUTriCoreState *env, target_ulong r1,
     return ret;
 }
 
+uint32_t
+helper_madd32_q_add_ssov(CPUTriCoreState *env, uint64_t r1, uint64_t r2)
+{
+    int64_t result;
+
+    result = (r1 + r2);
+
+    env->PSW_USB_AV = (result ^ result * 2u);
+    env->PSW_USB_SAV |= env->PSW_USB_AV;
+
+    /* we do the saturation by hand, since we produce an overflow on the host
+       if the mul before was (0x80000000 * 0x80000000) << 1). If this is the
+       case, we flip the saturated value. */
+    if (r2 == 0x8000000000000000LL) {
+        if (result > 0x7fffffffLL) {
+            env->PSW_USB_V = (1 << 31);
+            env->PSW_USB_SV = (1 << 31);
+            result = INT32_MIN;
+        } else if (result < -0x80000000LL) {
+            env->PSW_USB_V = (1 << 31);
+            env->PSW_USB_SV = (1 << 31);
+            result = INT32_MAX;
+        } else {
+            env->PSW_USB_V = 0;
+        }
+    } else {
+        if (result > 0x7fffffffLL) {
+            env->PSW_USB_V = (1 << 31);
+            env->PSW_USB_SV = (1 << 31);
+            result = INT32_MAX;
+        } else if (result < -0x80000000LL) {
+            env->PSW_USB_V = (1 << 31);
+            env->PSW_USB_SV = (1 << 31);
+            result = INT32_MIN;
+        } else {
+            env->PSW_USB_V = 0;
+        }
+    }
+    return (uint32_t)result;
+}
+
+uint64_t helper_madd64_q_ssov(CPUTriCoreState *env, uint64_t r1, uint32_t r2,
+                              uint32_t r3, uint32_t n)
+{
+    int64_t t1 = (int64_t)r1;
+    int64_t t2 = sextract64(r2, 0, 32);
+    int64_t t3 = sextract64(r3, 0, 32);
+    int64_t result, mul;
+    int64_t ovf;
+
+    mul = (t2 * t3) << n;
+    result = mul + t1;
+
+    env->PSW_USB_AV = (result ^ result * 2u) >> 32;
+    env->PSW_USB_SAV |= env->PSW_USB_AV;
+
+    ovf = (result ^ mul) & ~(mul ^ t1);
+    /* we do the saturation by hand, since we produce an overflow on the host
+       if the mul was (0x80000000 * 0x80000000) << 1). If this is the
+       case, we flip the saturated value. */
+    if ((r2 == 0x80000000) && (r3 == 0x80000000) && (n == 1)) {
+        if (ovf >= 0) {
+            env->PSW_USB_V = (1 << 31);
+            env->PSW_USB_SV = (1 << 31);
+            /* ext_ret > MAX_INT */
+            if (mul < 0) {
+                result = INT64_MAX;
+            /* ext_ret < MIN_INT */
+            } else {
+               result = INT64_MIN;
+            }
+        } else {
+            env->PSW_USB_V = 0;
+        }
+    } else {
+        if (ovf < 0) {
+            env->PSW_USB_V = (1 << 31);
+            env->PSW_USB_SV = (1 << 31);
+            /* ext_ret > MAX_INT */
+            if (mul >= 0) {
+                result = INT64_MAX;
+            /* ext_ret < MIN_INT */
+            } else {
+               result = INT64_MIN;
+            }
+        } else {
+            env->PSW_USB_V = 0;
+        }
+    }
+    return (uint64_t)result;
+}
+
+uint32_t helper_maddr_q_ssov(CPUTriCoreState *env, uint32_t r1, uint32_t r2,
+                             uint32_t r3, uint32_t n)
+{
+    int64_t t1 = sextract64(r1, 0, 32);
+    int64_t t2 = sextract64(r2, 0, 32);
+    int64_t t3 = sextract64(r3, 0, 32);
+    int64_t mul, ret;
+
+    if ((t2 == -0x8000ll) && (t3 == -0x8000ll) && (n == 1)) {
+        mul = 0x7fffffff;
+    } else {
+        mul = (t2 * t3) << n;
+    }
+
+    ret = t1 + mul + 0x8000;
+
+    env->PSW_USB_AV = ret ^ ret * 2u;
+    env->PSW_USB_SAV |= env->PSW_USB_AV;
+
+    if (ret > 0x7fffffffll) {
+        env->PSW_USB_V = (1 << 31);
+        env->PSW_USB_SV |= env->PSW_USB_V;
+        ret = INT32_MAX;
+    } else if (ret < -0x80000000ll) {
+        env->PSW_USB_V = (1 << 31);
+        env->PSW_USB_SV |= env->PSW_USB_V;
+        ret = INT32_MIN;
+    } else {
+        env->PSW_USB_V = 0;
+    }
+    return ret & 0xffff0000ll;
+}
+
 uint64_t helper_madd64_suov(CPUTriCoreState *env, target_ulong r1,
                             uint64_t r2, target_ulong r3)
 {
@@ -443,13 +686,28 @@ target_ulong helper_msub32_ssov(CPUTriCoreState *env, target_ulong r1,
 target_ulong helper_msub32_suov(CPUTriCoreState *env, target_ulong r1,
                                 target_ulong r2, target_ulong r3)
 {
-    int64_t t1 = extract64(r1, 0, 32);
-    int64_t t2 = extract64(r2, 0, 32);
-    int64_t t3 = extract64(r3, 0, 32);
-    int64_t result;
+    uint64_t t1 = extract64(r1, 0, 32);
+    uint64_t t2 = extract64(r2, 0, 32);
+    uint64_t t3 = extract64(r3, 0, 32);
+    uint64_t result;
+    uint64_t mul;
 
-    result = t2 - (t1 * t3);
-    return suov32_neg(env, result);
+    mul = (t1 * t3);
+    result = t2 - mul;
+
+    env->PSW_USB_AV = result ^ result * 2u;
+    env->PSW_USB_SAV |= env->PSW_USB_AV;
+    /* we calculate ovf by hand here, because the multiplication can overflow on
+       the host, which would give false results if we compare to less than
+       zero */
+    if (mul > t2) {
+        env->PSW_USB_V = (1 << 31);
+        env->PSW_USB_SV = (1 << 31);
+        result = 0;
+    } else {
+        env->PSW_USB_V = 0;
+    }
+    return result;
 }
 
 uint64_t helper_msub64_ssov(CPUTriCoreState *env, target_ulong r1,
@@ -602,6 +860,110 @@ uint32_t helper_absdif_h(CPUTriCoreState *env, target_ulong r1, target_ulong r2)
     env->PSW_USB_SAV |= env->PSW_USB_AV;
 
     return ret;
+}
+
+uint32_t helper_addr_h(CPUTriCoreState *env, uint64_t r1, uint32_t r2_l,
+                       uint32_t r2_h)
+{
+    int64_t mul_res0 = sextract64(r1, 0, 32);
+    int64_t mul_res1 = sextract64(r1, 32, 32);
+    int64_t r2_low = sextract64(r2_l, 0, 32);
+    int64_t r2_high = sextract64(r2_h, 0, 32);
+    int64_t result0, result1;
+    uint32_t ovf0, ovf1;
+    uint32_t avf0, avf1;
+
+    ovf0 = ovf1 = 0;
+
+    result0 = r2_low + mul_res0 + 0x8000;
+    result1 = r2_high + mul_res1 + 0x8000;
+
+    if ((result0 > INT32_MAX) || (result0 < INT32_MIN)) {
+        ovf0 = (1 << 31);
+    }
+
+    if ((result1 > INT32_MAX) || (result1 < INT32_MIN)) {
+        ovf1 = (1 << 31);
+    }
+
+    env->PSW_USB_V = ovf0 | ovf1;
+    env->PSW_USB_SV |= env->PSW_USB_V;
+
+    avf0 = result0 * 2u;
+    avf0 = result0 ^ avf0;
+    avf1 = result1 * 2u;
+    avf1 = result1 ^ avf1;
+
+    env->PSW_USB_AV = avf0 | avf1;
+    env->PSW_USB_SAV |= env->PSW_USB_AV;
+
+    return (result1 & 0xffff0000ULL) | ((result0 >> 16) & 0xffffULL);
+}
+
+uint32_t helper_addsur_h(CPUTriCoreState *env, uint64_t r1, uint32_t r2_l,
+                         uint32_t r2_h)
+{
+    int64_t mul_res0 = sextract64(r1, 0, 32);
+    int64_t mul_res1 = sextract64(r1, 32, 32);
+    int64_t r2_low = sextract64(r2_l, 0, 32);
+    int64_t r2_high = sextract64(r2_h, 0, 32);
+    int64_t result0, result1;
+    uint32_t ovf0, ovf1;
+    uint32_t avf0, avf1;
+
+    ovf0 = ovf1 = 0;
+
+    result0 = r2_low - mul_res0 + 0x8000;
+    result1 = r2_high + mul_res1 + 0x8000;
+
+    if ((result0 > INT32_MAX) || (result0 < INT32_MIN)) {
+        ovf0 = (1 << 31);
+    }
+
+    if ((result1 > INT32_MAX) || (result1 < INT32_MIN)) {
+        ovf1 = (1 << 31);
+    }
+
+    env->PSW_USB_V = ovf0 | ovf1;
+    env->PSW_USB_SV |= env->PSW_USB_V;
+
+    avf0 = result0 * 2u;
+    avf0 = result0 ^ avf0;
+    avf1 = result1 * 2u;
+    avf1 = result1 ^ avf1;
+
+    env->PSW_USB_AV = avf0 | avf1;
+    env->PSW_USB_SAV |= env->PSW_USB_AV;
+
+    return (result1 & 0xffff0000ULL) | ((result0 >> 16) & 0xffffULL);
+}
+
+uint32_t helper_maddr_q(CPUTriCoreState *env, uint32_t r1, uint32_t r2,
+                        uint32_t r3, uint32_t n)
+{
+    int64_t t1 = sextract64(r1, 0, 32);
+    int64_t t2 = sextract64(r2, 0, 32);
+    int64_t t3 = sextract64(r3, 0, 32);
+    int64_t mul, ret;
+
+    if ((t2 == -0x8000ll) && (t3 == -0x8000ll) && (n == 1)) {
+        mul = 0x7fffffff;
+    } else {
+        mul = (t2 * t3) << n;
+    }
+
+    ret = t1 + mul + 0x8000;
+
+    if ((ret > 0x7fffffffll) || (ret < -0x80000000ll)) {
+        env->PSW_USB_V = (1 << 31);
+        env->PSW_USB_SV |= env->PSW_USB_V;
+    } else {
+        env->PSW_USB_V = 0;
+    }
+    env->PSW_USB_AV = ret ^ ret * 2u;
+    env->PSW_USB_SAV |= env->PSW_USB_AV;
+
+    return ret & 0xffff0000ll;
 }
 
 uint32_t helper_add_b(CPUTriCoreState *env, target_ulong r1, target_ulong r2)
