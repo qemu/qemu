@@ -889,7 +889,7 @@ build_ssdt(GArray *table_data, GArray *linker,
         /* build "Name(CPON, Package() { One, One, ..., Zero, Zero, ... })"
          *
          * Note: The ability to create variable-sized packages was first
-         * ntroduced in ACPI 2.0. ACPI 1.0 only allowed fixed-size packages
+         * introduced in ACPI 2.0. ACPI 1.0 only allowed fixed-size packages
          * ith up to 255 elements. Windows guests up to win2k8 fail when
          * VarPackageOp is used.
          */
