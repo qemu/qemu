@@ -110,17 +110,20 @@ struct sPAPRMachineState {
 sPAPREnvironment *spapr;
 
 static XICSState *try_create_xics(const char *type, int nr_servers,
-                                  int nr_irqs)
+                                  int nr_irqs, Error **errp)
 {
+    Error *err = NULL;
     DeviceState *dev;
 
     dev = qdev_create(NULL, type);
     qdev_prop_set_uint32(dev, "nr_servers", nr_servers);
     qdev_prop_set_uint32(dev, "nr_irqs", nr_irqs);
-    if (qdev_init(dev) < 0) {
+    object_property_set_bool(OBJECT(dev), true, "realized", &err);
+    if (err) {
+        error_propagate(errp, err);
+        object_unparent(OBJECT(dev));
         return NULL;
     }
-
     return XICS_COMMON(dev);
 }
 
@@ -134,23 +137,19 @@ static XICSState *xics_system_init(int nr_servers, int nr_irqs)
                                                 "kernel_irqchip", true);
         bool irqchip_required = qemu_opt_get_bool(machine_opts,
                                                   "kernel_irqchip", false);
+        Error *err = NULL;
+
         if (irqchip_allowed) {
-            icp = try_create_xics(TYPE_KVM_XICS, nr_servers, nr_irqs);
+            icp = try_create_xics(TYPE_KVM_XICS, nr_servers, nr_irqs, &err);
         }
-
         if (irqchip_required && !icp) {
-            perror("Failed to create in-kernel XICS\n");
-            abort();
+            error_report("kernel_irqchip requested but unavailable: %s",
+                         error_get_pretty(err));
         }
     }
 
     if (!icp) {
-        icp = try_create_xics(TYPE_XICS, nr_servers, nr_irqs);
-    }
-
-    if (!icp) {
-        perror("Failed to create XICS\n");
-        abort();
+        icp = try_create_xics(TYPE_XICS, nr_servers, nr_irqs, &error_abort);
     }
 
     return icp;
@@ -994,6 +993,17 @@ static void spapr_create_nvram(sPAPREnvironment *spapr)
     spapr->nvram = (struct sPAPRNVRAM *)dev;
 }
 
+static void spapr_rtc_create(sPAPREnvironment *spapr)
+{
+    DeviceState *dev = qdev_create(NULL, TYPE_SPAPR_RTC);
+
+    qdev_init_nofail(dev);
+    spapr->rtc = dev;
+
+    object_property_add_alias(qdev_get_machine(), "rtc-time",
+                              OBJECT(spapr->rtc), "date", NULL);
+}
+
 /* Returns whether we want to use VGA or not */
 static int spapr_vga_init(PCIBus *pci_bus)
 {
@@ -1011,15 +1021,39 @@ static int spapr_vga_init(PCIBus *pci_bus)
     }
 }
 
+static int spapr_post_load(void *opaque, int version_id)
+{
+    sPAPREnvironment *spapr = (sPAPREnvironment *)opaque;
+    int err = 0;
+
+    /* In earlier versions, there was no seperate qdev for the PAPR
+     * RTC, so the RTC offset was stored directly in sPAPREnvironment.
+     * So when migrating from those versions, poke the incoming offset
+     * value into the RTC device */
+    if (version_id < 3) {
+        err = spapr_rtc_import_offset(spapr->rtc, spapr->rtc_offset);
+    }
+
+    return err;
+}
+
+static bool version_before_3(void *opaque, int version_id)
+{
+    return version_id < 3;
+}
+
 static const VMStateDescription vmstate_spapr = {
     .name = "spapr",
-    .version_id = 2,
+    .version_id = 3,
     .minimum_version_id = 1,
+    .post_load = spapr_post_load,
     .fields = (VMStateField[]) {
-        VMSTATE_UNUSED(4), /* used to be @next_irq */
+        /* used to be @next_irq */
+        VMSTATE_UNUSED_BUFFER(version_before_3, 0, 4),
 
         /* RTC offset */
-        VMSTATE_UINT64(rtc_offset, sPAPREnvironment),
+        VMSTATE_UINT64_TEST(rtc_offset, sPAPREnvironment, version_before_3),
+
         VMSTATE_PPC_TIMEBASE_V(tb, sPAPREnvironment, 2),
         VMSTATE_END_OF_LIST()
     },
@@ -1491,6 +1525,9 @@ static void ppc_spapr_init(MachineState *machine)
     /* Set up EPOW events infrastructure */
     spapr_events_init(spapr);
 
+    /* Set up the RTC RTAS interfaces */
+    spapr_rtc_create(spapr);
+
     /* Set up VIO bus */
     spapr->vio_bus = spapr_vio_bus_init();
 
@@ -1759,11 +1796,22 @@ static const TypeInfo spapr_machine_info = {
     },
 };
 
+#define SPAPR_COMPAT_2_2 \
+        {\
+            .driver   = TYPE_SPAPR_PCI_HOST_BRIDGE,\
+            .property = "mem_win_size",\
+            .value    = "0x20000000",\
+        }
+
+#define SPAPR_COMPAT_2_1 \
+        SPAPR_COMPAT_2_2
+
 static void spapr_machine_2_1_class_init(ObjectClass *oc, void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
     static GlobalProperty compat_props[] = {
         HW_COMPAT_2_1,
+        SPAPR_COMPAT_2_1,
         { /* end of list */ }
     };
 
@@ -1780,12 +1828,15 @@ static const TypeInfo spapr_machine_2_1_info = {
 
 static void spapr_machine_2_2_class_init(ObjectClass *oc, void *data)
 {
+    static GlobalProperty compat_props[] = {
+        SPAPR_COMPAT_2_2,
+        { /* end of list */ }
+    };
     MachineClass *mc = MACHINE_CLASS(oc);
 
     mc->name = "pseries-2.2";
     mc->desc = "pSeries Logical Partition (PAPR compliant) v2.2";
-    mc->alias = "pseries";
-    mc->is_default = 1;
+    mc->compat_props = compat_props;
 }
 
 static const TypeInfo spapr_machine_2_2_info = {
@@ -1794,11 +1845,28 @@ static const TypeInfo spapr_machine_2_2_info = {
     .class_init    = spapr_machine_2_2_class_init,
 };
 
+static void spapr_machine_2_3_class_init(ObjectClass *oc, void *data)
+{
+    MachineClass *mc = MACHINE_CLASS(oc);
+
+    mc->name = "pseries-2.3";
+    mc->desc = "pSeries Logical Partition (PAPR compliant) v2.3";
+    mc->alias = "pseries";
+    mc->is_default = 1;
+}
+
+static const TypeInfo spapr_machine_2_3_info = {
+    .name          = TYPE_SPAPR_MACHINE "2.3",
+    .parent        = TYPE_SPAPR_MACHINE,
+    .class_init    = spapr_machine_2_3_class_init,
+};
+
 static void spapr_machine_register_types(void)
 {
     type_register_static(&spapr_machine_info);
     type_register_static(&spapr_machine_2_1_info);
     type_register_static(&spapr_machine_2_2_info);
+    type_register_static(&spapr_machine_2_3_info);
 }
 
 type_init(spapr_machine_register_types)

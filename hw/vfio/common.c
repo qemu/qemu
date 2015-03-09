@@ -949,6 +949,7 @@ int vfio_container_ioctl(AddressSpace *as, int32_t groupid,
     switch (req) {
     case VFIO_CHECK_EXTENSION:
     case VFIO_IOMMU_SPAPR_TCE_GET_INFO:
+    case VFIO_EEH_PE_OP:
         break;
     default:
         /* Return an error on unknown requests */

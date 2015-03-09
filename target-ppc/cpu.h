@@ -45,6 +45,7 @@
 # define TARGET_VIRT_ADDR_SPACE_BITS 64
 #endif
 
+#define TARGET_PAGE_BITS_64K 16
 #define TARGET_PAGE_BITS_16M 24
 
 #else /* defined (TARGET_PPC64) */
@@ -1623,6 +1624,7 @@ static inline int cpu_mmu_index (CPUPPCState *env)
 #define SPR_MPC_MD_DBRAM1     (0x32A)
 #define SPR_RCPU_L2U_RA3      (0x32B)
 #define SPR_TAR               (0x32F)
+#define SPR_VTB               (0x351)
 #define SPR_440_INV0          (0x370)
 #define SPR_440_INV1          (0x371)
 #define SPR_440_INV2          (0x372)

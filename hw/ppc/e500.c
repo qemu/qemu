@@ -706,17 +706,19 @@ static DeviceState *ppce500_init_mpic_qemu(PPCE500Params *params,
 }
 
 static DeviceState *ppce500_init_mpic_kvm(PPCE500Params *params,
-                                          qemu_irq **irqs)
+                                          qemu_irq **irqs, Error **errp)
 {
+    Error *err = NULL;
     DeviceState *dev;
     CPUState *cs;
-    int r;
 
     dev = qdev_create(NULL, TYPE_KVM_OPENPIC);
     qdev_prop_set_uint32(dev, "model", params->mpic_version);
 
-    r = qdev_init(dev);
-    if (r) {
+    object_property_set_bool(OBJECT(dev), true, "realized", &err);
+    if (err) {
+        error_propagate(errp, err);
+        object_unparent(OBJECT(dev));
         return NULL;
     }
 
@@ -747,15 +749,15 @@ static qemu_irq *ppce500_init_mpic(PPCE500Params *params, MemoryRegion *ccsr,
                                                 "kernel_irqchip", true);
         bool irqchip_required = qemu_opt_get_bool(machine_opts,
                                                   "kernel_irqchip", false);
+        Error *err = NULL;
 
         if (irqchip_allowed) {
-            dev = ppce500_init_mpic_kvm(params, irqs);
+            dev = ppce500_init_mpic_kvm(params, irqs, &err);
         }
-
         if (irqchip_required && !dev) {
-            fprintf(stderr, "%s: irqchip requested but unavailable\n",
-                    __func__);
-            abort();
+            error_report("kernel_irqchip requested but unavailable: %s",
+                         error_get_pretty(err));
+            exit(1);
         }
     }
 

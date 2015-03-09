@@ -132,7 +132,7 @@ static void rtas_nvram_store(PowerPCCPU *cpu, sPAPREnvironment *spapr,
     rtas_st(rets, 1, (alen < 0) ? 0 : alen);
 }
 
-static int spapr_nvram_init(VIOsPAPRDevice *dev)
+static void spapr_nvram_realize(VIOsPAPRDevice *dev, Error **errp)
 {
     sPAPRNVRAM *nvram = VIO_SPAPR_NVRAM(dev);
 
@@ -145,23 +145,22 @@ static int spapr_nvram_init(VIOsPAPRDevice *dev)
     nvram->buf = g_malloc0(nvram->size);
 
     if ((nvram->size < MIN_NVRAM_SIZE) || (nvram->size > MAX_NVRAM_SIZE)) {
-        fprintf(stderr, "spapr-nvram must be between %d and %d bytes in size\n",
-                MIN_NVRAM_SIZE, MAX_NVRAM_SIZE);
-        return -1;
+        error_setg(errp, "spapr-nvram must be between %d and %d bytes in size",
+                   MIN_NVRAM_SIZE, MAX_NVRAM_SIZE);
+        return;
     }
 
     if (nvram->blk) {
         int alen = blk_pread(nvram->blk, 0, nvram->buf, nvram->size);
 
         if (alen != nvram->size) {
-            return -1;
+            error_setg(errp, "can't read spapr-nvram contents");
+            return;
         }
     }
 
     spapr_rtas_register(RTAS_NVRAM_FETCH, "nvram-fetch", rtas_nvram_fetch);
     spapr_rtas_register(RTAS_NVRAM_STORE, "nvram-store", rtas_nvram_store);
-
-    return 0;
 }
 
 static int spapr_nvram_devnode(VIOsPAPRDevice *dev, void *fdt, int node_off)
@@ -224,7 +223,7 @@ static void spapr_nvram_class_init(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
     VIOsPAPRDeviceClass *k = VIO_SPAPR_DEVICE_CLASS(klass);
 
-    k->init = spapr_nvram_init;
+    k->realize = spapr_nvram_realize;
     k->devnode = spapr_nvram_devnode;
     k->dt_name = "nvram";
     k->dt_type = "nvram";

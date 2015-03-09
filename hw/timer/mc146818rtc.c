@@ -831,49 +831,12 @@ static const MemoryRegionOps cmos_ops = {
     .endianness = DEVICE_LITTLE_ENDIAN,
 };
 
-static void rtc_get_date(Object *obj, Visitor *v, void *opaque,
-                         const char *name, Error **errp)
+static void rtc_get_date(Object *obj, struct tm *current_tm, Error **errp)
 {
-    Error *err = NULL;
     RTCState *s = MC146818_RTC(obj);
-    struct tm current_tm;
 
     rtc_update_time(s);
-    rtc_get_time(s, &current_tm);
-    visit_start_struct(v, NULL, "struct tm", name, 0, &err);
-    if (err) {
-        goto out;
-    }
-    visit_type_int32(v, &current_tm.tm_year, "tm_year", &err);
-    if (err) {
-        goto out_end;
-    }
-    visit_type_int32(v, &current_tm.tm_mon, "tm_mon", &err);
-    if (err) {
-        goto out_end;
-    }
-    visit_type_int32(v, &current_tm.tm_mday, "tm_mday", &err);
-    if (err) {
-        goto out_end;
-    }
-    visit_type_int32(v, &current_tm.tm_hour, "tm_hour", &err);
-    if (err) {
-        goto out_end;
-    }
-    visit_type_int32(v, &current_tm.tm_min, "tm_min", &err);
-    if (err) {
-        goto out_end;
-    }
-    visit_type_int32(v, &current_tm.tm_sec, "tm_sec", &err);
-    if (err) {
-        goto out_end;
-    }
-out_end:
-    error_propagate(errp, err);
-    err = NULL;
-    visit_end_struct(v, errp);
-out:
-    error_propagate(errp, err);
+    rtc_get_time(s, current_tm);
 }
 
 static void rtc_realizefn(DeviceState *dev, Error **errp)
@@ -932,8 +895,7 @@ static void rtc_realizefn(DeviceState *dev, Error **errp)
     qdev_set_legacy_instance_id(dev, base, 3);
     qemu_register_reset(rtc_reset, s);
 
-    object_property_add(OBJECT(s), "date", "struct tm",
-                        rtc_get_date, NULL, NULL, s, NULL);
+    object_property_add_tm(OBJECT(s), "date", rtc_get_date, NULL);
 
     object_property_add_alias(qdev_get_machine(), "rtc-time",
                               OBJECT(s), "date", NULL);
