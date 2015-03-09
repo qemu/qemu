@@ -7,7 +7,6 @@
 #include "sysemu/blockdev.h"
 #include "trace.h"
 #include "sysemu/dma.h"
-#include "qapi/qmp/qerror.h"
 
 static char *scsibus_get_dev_path(DeviceState *dev);
 static char *scsibus_get_fw_dev_path(DeviceState *dev);
@@ -245,9 +244,7 @@ SCSIDevice *scsi_bus_legacy_add_drive(SCSIBus *bus, BlockBackend *blk,
     }
     qdev_prop_set_drive(dev, "drive", blk, &err);
     if (err) {
-        qerror_report_err(err);
-        error_free(err);
-        error_setg(errp, "Setting drive property failed");
+        error_propagate(errp, err);
         object_unparent(OBJECT(dev));
         return NULL;
     }
