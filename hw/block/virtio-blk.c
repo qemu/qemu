@@ -667,11 +667,11 @@ static void virtio_blk_update_config(VirtIODevice *vdev, uint8_t *config)
     memset(&blkcfg, 0, sizeof(blkcfg));
     virtio_stq_p(vdev, &blkcfg.capacity, capacity);
     virtio_stl_p(vdev, &blkcfg.seg_max, 128 - 2);
-    virtio_stw_p(vdev, &blkcfg.cylinders, conf->cyls);
+    virtio_stw_p(vdev, &blkcfg.geometry.cylinders, conf->cyls);
     virtio_stl_p(vdev, &blkcfg.blk_size, blk_size);
     virtio_stw_p(vdev, &blkcfg.min_io_size, conf->min_io_size / blk_size);
     virtio_stw_p(vdev, &blkcfg.opt_io_size, conf->opt_io_size / blk_size);
-    blkcfg.heads = conf->heads;
+    blkcfg.geometry.heads = conf->heads;
     /*
      * We must ensure that the block device capacity is a multiple of
      * the logical block size. If that is not the case, let's use
@@ -684,9 +684,9 @@ static void virtio_blk_update_config(VirtIODevice *vdev, uint8_t *config)
      * per track (cylinder).
      */
     if (blk_getlength(s->blk) /  conf->heads / conf->secs % blk_size) {
-        blkcfg.sectors = conf->secs & ~s->sector_mask;
+        blkcfg.geometry.sectors = conf->secs & ~s->sector_mask;
     } else {
-        blkcfg.sectors = conf->secs;
+        blkcfg.geometry.sectors = conf->secs;
     }
     blkcfg.size_max = 0;
     blkcfg.physical_block_exp = get_physical_block_exp(conf);
@@ -711,20 +711,20 @@ static uint32_t virtio_blk_get_features(VirtIODevice *vdev, uint32_t features)
 {
     VirtIOBlock *s = VIRTIO_BLK(vdev);
 
-    features |= (1 << VIRTIO_BLK_F_SEG_MAX);
-    features |= (1 << VIRTIO_BLK_F_GEOMETRY);
-    features |= (1 << VIRTIO_BLK_F_TOPOLOGY);
-    features |= (1 << VIRTIO_BLK_F_BLK_SIZE);
-    features |= (1 << VIRTIO_BLK_F_SCSI);
+    virtio_add_feature(&features, VIRTIO_BLK_F_SEG_MAX);
+    virtio_add_feature(&features, VIRTIO_BLK_F_GEOMETRY);
+    virtio_add_feature(&features, VIRTIO_BLK_F_TOPOLOGY);
+    virtio_add_feature(&features, VIRTIO_BLK_F_BLK_SIZE);
+    virtio_add_feature(&features, VIRTIO_BLK_F_SCSI);
 
     if (s->conf.config_wce) {
-        features |= (1 << VIRTIO_BLK_F_CONFIG_WCE);
+        virtio_add_feature(&features, VIRTIO_BLK_F_CONFIG_WCE);
     }
     if (blk_enable_write_cache(s->blk)) {
-        features |= (1 << VIRTIO_BLK_F_WCE);
+        virtio_add_feature(&features, VIRTIO_BLK_F_WCE);
     }
     if (blk_is_read_only(s->blk)) {
-        features |= 1 << VIRTIO_BLK_F_RO;
+        virtio_add_feature(&features, VIRTIO_BLK_F_RO);
     }
 
     return features;
@@ -733,7 +733,6 @@ static uint32_t virtio_blk_get_features(VirtIODevice *vdev, uint32_t features)
 static void virtio_blk_set_status(VirtIODevice *vdev, uint8_t status)
 {
     VirtIOBlock *s = VIRTIO_BLK(vdev);
-    uint32_t features;
 
     if (s->dataplane && !(status & (VIRTIO_CONFIG_S_DRIVER |
                                     VIRTIO_CONFIG_S_DRIVER_OK))) {
@@ -743,8 +742,6 @@ static void virtio_blk_set_status(VirtIODevice *vdev, uint8_t status)
     if (!(status & VIRTIO_CONFIG_S_DRIVER_OK)) {
         return;
     }
-
-    features = vdev->guest_features;
 
     /* A guest that supports VIRTIO_BLK_F_CONFIG_WCE must be able to send
      * cache flushes.  Thus, the "auto writethrough" behavior is never
@@ -761,10 +758,10 @@ static void virtio_blk_set_status(VirtIODevice *vdev, uint8_t status)
      *
      * s->blk would erroneously be placed in writethrough mode.
      */
-    if (!(features & (1 << VIRTIO_BLK_F_CONFIG_WCE))) {
+    if (!virtio_has_feature(vdev, VIRTIO_BLK_F_CONFIG_WCE)) {
         aio_context_acquire(blk_get_aio_context(s->blk));
         blk_set_enable_write_cache(s->blk,
-                                   !!(features & (1 << VIRTIO_BLK_F_WCE)));
+                                   virtio_has_feature(vdev, VIRTIO_BLK_F_WCE));
         aio_context_release(blk_get_aio_context(s->blk));
     }
 }

@@ -709,7 +709,7 @@ static NetClientInfo net_ne2000_info = {
     .receive = ne2000_receive,
 };
 
-static int pci_ne2000_init(PCIDevice *pci_dev)
+static void pci_ne2000_realize(PCIDevice *pci_dev, Error **errp)
 {
     PCINE2000State *d = DO_UPCAST(PCINE2000State, dev, pci_dev);
     NE2000State *s;
@@ -729,8 +729,6 @@ static int pci_ne2000_init(PCIDevice *pci_dev)
     s->nic = qemu_new_nic(&net_ne2000_info, &s->c,
                           object_get_typename(OBJECT(pci_dev)), pci_dev->qdev.id, s);
     qemu_format_nic_info_str(qemu_get_queue(s->nic), s->c.macaddr.a);
-
-    return 0;
 }
 
 static void pci_ne2000_exit(PCIDevice *pci_dev)
@@ -763,7 +761,7 @@ static void ne2000_class_init(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
 
-    k->init = pci_ne2000_init;
+    k->realize = pci_ne2000_realize;
     k->exit = pci_ne2000_exit;
     k->romfile = "efi-ne2k_pci.rom",
     k->vendor_id = PCI_VENDOR_ID_REALTEK;

@@ -60,6 +60,7 @@ static const int ide_iobase2[MAX_IDE_BUS] = { 0x3f6, 0x376 };
 static const int ide_irq[MAX_IDE_BUS] = { 14, 15 };
 
 static bool has_acpi_build = true;
+static bool rsdp_in_ram = true;
 static int legacy_acpi_table_size;
 static bool smbios_defaults = true;
 static bool smbios_legacy_mode;
@@ -168,6 +169,7 @@ static void pc_init1(MachineState *machine,
 
     guest_info->isapc_ram_fw = !pci_enabled;
     guest_info->has_reserved_memory = has_reserved_memory;
+    guest_info->rsdp_in_ram = rsdp_in_ram;
 
     if (smbios_defaults) {
         MachineClass *mc = MACHINE_GET_CLASS(machine);
@@ -310,6 +312,7 @@ static void pc_init_pci(MachineState *machine)
 
 static void pc_compat_2_2(MachineState *machine)
 {
+    rsdp_in_ram = false;
     x86_cpu_compat_set_features("kvm64", FEAT_1_EDX, 0, CPUID_VME);
     x86_cpu_compat_set_features("kvm32", FEAT_1_EDX, 0, CPUID_VME);
     x86_cpu_compat_set_features("Conroe", FEAT_1_EDX, 0, CPUID_VME);

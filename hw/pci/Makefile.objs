@@ -7,5 +7,3 @@ common-obj-$(CONFIG_PCI) += pcie.o pcie_aer.o pcie_port.o
 
 common-obj-$(call lnot,$(CONFIG_PCI)) += pci-stub.o
 common-obj-$(CONFIG_ALL) += pci-stub.o
-
-common-obj-$(CONFIG_PCI_HOTPLUG_OLD) += pci-hotplug-old.o

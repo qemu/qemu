@@ -7,15 +7,13 @@
 #include <utime.h>
 #include <sys/resource.h>
 #include <glib.h>
+#include "standard-headers/linux/virtio_9p.h"
 #include "hw/virtio/virtio.h"
+#include "hw/virtio/virtio-9p.h"
 #include "fsdev/file-op-9p.h"
 #include "fsdev/virtio-9p-marshal.h"
 #include "qemu/thread.h"
 #include "block/coroutine.h"
-
-/* The feature bitmap for virtio 9P */
-/* The mount point is specified in a config variable */
-#define VIRTIO_9P_MOUNT_TAG 0
 
 enum {
     P9_TLERROR = 6,
@@ -144,10 +142,6 @@ struct V9fsPDU
  * 1) change user needs to set groups and stuff
  */
 
-/* from Linux's linux/virtio_9p.h */
-
-/* The ID for virtio console */
-#define VIRTIO_ID_9P    9
 #define MAX_REQ         128
 #define MAX_TAG_LEN     32
 
@@ -276,14 +270,6 @@ typedef struct V9fsWriteState {
     struct iovec *sg;
     int cnt;
 } V9fsWriteState;
-
-struct virtio_9p_config
-{
-    /* number of characters in tag */
-    uint16_t tag_len;
-    /* Variable size tag name */
-    uint8_t tag[0];
-} QEMU_PACKED;
 
 typedef struct V9fsMkState {
     V9fsPDU *pdu;

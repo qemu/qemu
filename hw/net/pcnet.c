@@ -1712,7 +1712,7 @@ const VMStateDescription vmstate_pcnet = {
     }
 };
 
-int pcnet_common_init(DeviceState *dev, PCNetState *s, NetClientInfo *info)
+void pcnet_common_init(DeviceState *dev, PCNetState *s, NetClientInfo *info)
 {
     int i;
     uint16_t checksum;
@@ -1751,6 +1751,4 @@ int pcnet_common_init(DeviceState *dev, PCNetState *s, NetClientInfo *info)
     *(uint16_t *)&s->prom[12] = cpu_to_le16(checksum);
 
     s->lnkst = 0x40; /* initial link state: up */
-
-    return 0;
 }

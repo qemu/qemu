@@ -22,14 +22,16 @@
             External(MEMORY_SLOTS_NUMBER, IntObj)
 
             /* Memory hotplug IO registers */
-            OperationRegion(MEMORY_HOTPLUG_IO_REGION, SystemIO,
-                            ACPI_MEMORY_HOTPLUG_BASE,
-                            ACPI_MEMORY_HOTPLUG_IO_LEN)
-
-            Name(_CRS, ResourceTemplate() {
-                IO(Decode16, ACPI_MEMORY_HOTPLUG_BASE, ACPI_MEMORY_HOTPLUG_BASE,
-                   0, ACPI_MEMORY_HOTPLUG_IO_LEN, IO)
-            })
+            External(MEMORY_SLOT_ADDR_LOW, FieldUnitObj) // read only
+            External(MEMORY_SLOT_ADDR_HIGH, FieldUnitObj) // read only
+            External(MEMORY_SLOT_SIZE_LOW, FieldUnitObj) // read only
+            External(MEMORY_SLOT_SIZE_HIGH, FieldUnitObj) // read only
+            External(MEMORY_SLOT_PROXIMITY, FieldUnitObj) // read only
+            External(MEMORY_SLOT_ENABLED, FieldUnitObj) // 1 if enabled, read only
+            External(MEMORY_SLOT_INSERT_EVENT, FieldUnitObj) // (read) 1 if has a insert event. (write) 1 to clear event
+            External(MEMORY_SLOT_SLECTOR, FieldUnitObj) // DIMM selector, write only
+            External(MEMORY_SLOT_OST_EVENT, FieldUnitObj) // _OST event code, write only
+            External(MEMORY_SLOT_OST_STATUS, FieldUnitObj) // _OST status code, write only
 
             Method(_STA, 0) {
                 If (LEqual(MEMORY_SLOTS_NUMBER, Zero)) {
@@ -39,25 +41,7 @@
                 Return(0xB)
             }
 
-            Field(MEMORY_HOTPLUG_IO_REGION, DWordAcc, NoLock, Preserve) {
-                MEMORY_SLOT_ADDR_LOW, 32,  // read only
-                MEMORY_SLOT_ADDR_HIGH, 32, // read only
-                MEMORY_SLOT_SIZE_LOW, 32,  // read only
-                MEMORY_SLOT_SIZE_HIGH, 32, // read only
-                MEMORY_SLOT_PROXIMITY, 32, // read only
-            }
-            Field(MEMORY_HOTPLUG_IO_REGION, ByteAcc, NoLock, Preserve) {
-                Offset(20),
-                MEMORY_SLOT_ENABLED,  1, // 1 if enabled, read only
-                MEMORY_SLOT_INSERT_EVENT, 1, // (read) 1 if has a insert event. (write) 1 to clear event
-            }
-
             Mutex (MEMORY_SLOT_LOCK, 0)
-            Field (MEMORY_HOTPLUG_IO_REGION, DWordAcc, NoLock, Preserve) {
-                MEMORY_SLOT_SLECTOR, 32,  // DIMM selector, write only
-                MEMORY_SLOT_OST_EVENT, 32,  // _OST event code, write only
-                MEMORY_SLOT_OST_STATUS, 32,  // _OST status code, write only
-            }
 
             Method(MEMORY_SLOT_SCAN_METHOD, 0) {
                 If (LEqual(MEMORY_SLOTS_NUMBER, Zero)) {

@@ -416,7 +416,7 @@ static const VMStateDescription vmstate_ppce500_pci = {
 
 #include "exec/address-spaces.h"
 
-static int e500_pcihost_bridge_initfn(PCIDevice *d)
+static void e500_pcihost_bridge_realize(PCIDevice *d, Error **errp)
 {
     PPCE500PCIBridgeState *b = PPC_E500_PCI_BRIDGE(d);
     PPCE500CCSRState *ccsr = CCSR(container_get(qdev_get_machine(),
@@ -430,8 +430,6 @@ static int e500_pcihost_bridge_initfn(PCIDevice *d)
     memory_region_init_alias(&b->bar0, OBJECT(ccsr), "e500-pci-bar0", &ccsr->ccsr_space,
                              0, int128_get64(ccsr->ccsr_space.size));
     pci_register_bar(d, 0, PCI_BASE_ADDRESS_SPACE_MEMORY, &b->bar0);
-
-    return 0;
 }
 
 static AddressSpace *e500_pcihost_set_iommu(PCIBus *bus, void *opaque,
@@ -500,7 +498,7 @@ static void e500_host_bridge_class_init(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
 
-    k->init = e500_pcihost_bridge_initfn;
+    k->realize = e500_pcihost_bridge_realize;
     k->vendor_id = PCI_VENDOR_ID_FREESCALE;
     k->device_id = PCI_DEVICE_ID_MPC8533E;
     k->class_id = PCI_CLASS_PROCESSOR_POWERPC;

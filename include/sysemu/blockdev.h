@@ -63,8 +63,6 @@ DriveInfo *drive_new(QemuOpts *arg, BlockInterfaceType block_default_type);
 
 /* device-hotplug */
 
-DriveInfo *add_init_drive(const char *opts);
-
 void qmp_change_blockdev(const char *device, const char *filename,
                          const char *format, Error **errp);
 void hmp_commit(Monitor *mon, const QDict *qdict);

@@ -278,7 +278,7 @@ static NetClientInfo net_pci_pcnet_info = {
     .link_status_changed = pcnet_set_link_status,
 };
 
-static int pci_pcnet_init(PCIDevice *pci_dev)
+static void pci_pcnet_realize(PCIDevice *pci_dev, Error **errp)
 {
     PCIPCNetState *d = PCI_PCNET(pci_dev);
     PCNetState *s = &d->state;
@@ -316,7 +316,7 @@ static int pci_pcnet_init(PCIDevice *pci_dev)
     s->phys_mem_write = pci_physical_memory_write;
     s->dma_opaque = pci_dev;
 
-    return pcnet_common_init(DEVICE(pci_dev), s, &net_pci_pcnet_info);
+    pcnet_common_init(DEVICE(pci_dev), s, &net_pci_pcnet_info);
 }
 
 static void pci_reset(DeviceState *dev)
@@ -346,7 +346,7 @@ static void pcnet_class_init(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
 
-    k->init = pci_pcnet_init;
+    k->realize = pci_pcnet_realize;
     k->exit = pci_pcnet_uninit;
     k->romfile = "efi-pcnet.rom",
     k->vendor_id = PCI_VENDOR_ID_AMD;

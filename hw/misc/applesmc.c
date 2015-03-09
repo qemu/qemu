@@ -43,7 +43,6 @@
 /* command/status port used by Apple SMC */
 #define APPLESMC_CMD_PORT              0x4
 #define APPLESMC_NR_PORTS              32
-#define APPLESMC_MAX_DATA_LENGTH       32
 
 #define APPLESMC_READ_CMD              0x10
 #define APPLESMC_WRITE_CMD             0x11
@@ -249,8 +248,8 @@ static void applesmc_isa_realize(DeviceState *dev, Error **errp)
 }
 
 static Property applesmc_isa_properties[] = {
-    DEFINE_PROP_UINT32("iobase", AppleSMCState, iobase,
-                      APPLESMC_DEFAULT_IOBASE),
+    DEFINE_PROP_UINT32(APPLESMC_PROP_IO_BASE, AppleSMCState, iobase,
+                       APPLESMC_DEFAULT_IOBASE),
     DEFINE_PROP_STRING("osk", AppleSMCState, osk),
     DEFINE_PROP_END_OF_LIST(),
 };

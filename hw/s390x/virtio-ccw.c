@@ -400,8 +400,7 @@ static int virtio_ccw_cb(SubchDev *sch, CCW1 ccw)
                                        ccw.cda + sizeof(features.features));
             features.features = ldl_le_phys(&address_space_memory, ccw.cda);
             if (features.index < ARRAY_SIZE(dev->host_features)) {
-                virtio_bus_set_vdev_features(&dev->bus, features.features);
-                vdev->guest_features = features.features;
+                virtio_set_features(vdev, features.features);
             } else {
                 /*
                  * If the guest supports more feature bits, assert that it
@@ -744,8 +743,8 @@ static int virtio_ccw_device_init(VirtioCcwDevice *dev, VirtIODevice *vdev)
     dev->host_features[0] = virtio_bus_get_vdev_features(&dev->bus,
                                                          dev->host_features[0]);
 
-    dev->host_features[0] |= 0x1 << VIRTIO_F_NOTIFY_ON_EMPTY;
-    dev->host_features[0] |= 0x1 << VIRTIO_F_BAD_FEATURE;
+    virtio_add_feature(&dev->host_features[0], VIRTIO_F_NOTIFY_ON_EMPTY);
+    virtio_add_feature(&dev->host_features[0], VIRTIO_F_BAD_FEATURE);
 
     css_generate_sch_crws(sch->cssid, sch->ssid, sch->schid,
                           parent->hotplugged, 1);
@@ -899,9 +898,8 @@ static void balloon_ccw_stats_set_poll_interval(Object *obj, struct Visitor *v,
 static void virtio_ccw_balloon_instance_init(Object *obj)
 {
     VirtIOBalloonCcw *dev = VIRTIO_BALLOON_CCW(obj);
-    object_initialize(&dev->vdev, sizeof(dev->vdev), TYPE_VIRTIO_BALLOON);
-    object_property_add_child(obj, "virtio-backend", OBJECT(&dev->vdev), NULL);
-    object_unref(OBJECT(&dev->vdev));
+    virtio_instance_init_common(obj, &dev->vdev, sizeof(dev->vdev),
+                                TYPE_VIRTIO_BALLOON);
     object_property_add(obj, "guest-stats", "guest statistics",
                         balloon_ccw_stats_get_all, NULL, NULL, dev, NULL);
 

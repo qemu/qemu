@@ -35,7 +35,7 @@
 
 #include <stdio.h>
 
-#include "hw/virtio/virtio_ring.h"
+#include "standard-headers/linux/virtio_ring.h"
 #include "hw/virtio/vhost.h"
 #include "hw/virtio/virtio-bus.h"
 

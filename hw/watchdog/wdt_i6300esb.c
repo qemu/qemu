@@ -408,7 +408,7 @@ static const VMStateDescription vmstate_i6300esb = {
     }
 };
 
-static int i6300esb_init(PCIDevice *dev)
+static void i6300esb_realize(PCIDevice *dev, Error **errp)
 {
     I6300State *d = DO_UPCAST(I6300State, dev, dev);
 
@@ -421,8 +421,6 @@ static int i6300esb_init(PCIDevice *dev)
                           "i6300esb", 0x10);
     pci_register_bar(&d->dev, 0, 0, &d->io_mem);
     /* qemu_register_coalesced_mmio (addr, 0x10); ? */
-
-    return 0;
 }
 
 static WatchdogTimerModel model = {
@@ -437,7 +435,7 @@ static void i6300esb_class_init(ObjectClass *klass, void *data)
 
     k->config_read = i6300esb_config_read;
     k->config_write = i6300esb_config_write;
-    k->init = i6300esb_init;
+    k->realize = i6300esb_realize;
     k->vendor_id = PCI_VENDOR_ID_INTEL;
     k->device_id = PCI_DEVICE_ID_INTEL_ESB_9;
     k->class_id = PCI_CLASS_SYSTEM_OTHER;

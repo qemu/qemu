@@ -168,7 +168,8 @@ void acpi_memory_plug_cb(ACPIREGS *ar, qemu_irq irq, MemHotplugState *mem_st,
 {
     MemStatus *mdev;
     Error *local_err = NULL;
-    int slot = object_property_get_int(OBJECT(dev), "slot", &local_err);
+    int slot = object_property_get_int(OBJECT(dev), PC_DIMM_SLOT_PROP,
+                                       &local_err);
 
     if (local_err) {
         error_propagate(errp, local_err);

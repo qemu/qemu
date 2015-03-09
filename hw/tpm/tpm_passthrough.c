@@ -112,14 +112,31 @@ static void tpm_write_fatal_error_response(uint8_t *out, uint32_t out_len)
     }
 }
 
+static bool tpm_passthrough_is_selftest(const uint8_t *in, uint32_t in_len)
+{
+    struct tpm_req_hdr *hdr = (struct tpm_req_hdr *)in;
+
+    if (in_len >= sizeof(*hdr)) {
+        return (be32_to_cpu(hdr->ordinal) == TPM_ORD_ContinueSelfTest);
+    }
+
+    return false;
+}
+
 static int tpm_passthrough_unix_tx_bufs(TPMPassthruState *tpm_pt,
                                         const uint8_t *in, uint32_t in_len,
-                                        uint8_t *out, uint32_t out_len)
+                                        uint8_t *out, uint32_t out_len,
+                                        bool *selftest_done)
 {
     int ret;
+    bool is_selftest;
+    const struct tpm_resp_hdr *hdr;
 
     tpm_pt->tpm_op_canceled = false;
     tpm_pt->tpm_executing = true;
+    *selftest_done = false;
+
+    is_selftest = tpm_passthrough_is_selftest(in, in_len);
 
     ret = tpm_passthrough_unix_write(tpm_pt->tpm_fd, in, in_len);
     if (ret != in_len) {
@@ -149,6 +166,11 @@ static int tpm_passthrough_unix_tx_bufs(TPMPassthruState *tpm_pt,
                      "packet from TPM\n");
     }
 
+    if (is_selftest && (ret >= sizeof(struct tpm_resp_hdr))) {
+        hdr = (struct tpm_resp_hdr *)out;
+        *selftest_done = (be32_to_cpu(hdr->errcode) == 0);
+    }
+
 err_exit:
     if (ret < 0) {
         tpm_write_fatal_error_response(out, out_len);
@@ -160,13 +182,15 @@ err_exit:
 }
 
 static int tpm_passthrough_unix_transfer(TPMPassthruState *tpm_pt,
-                                         const TPMLocality *locty_data)
+                                         const TPMLocality *locty_data,
+                                         bool *selftest_done)
 {
     return tpm_passthrough_unix_tx_bufs(tpm_pt,
                                         locty_data->w_buffer.buffer,
                                         locty_data->w_offset,
                                         locty_data->r_buffer.buffer,
-                                        locty_data->r_buffer.size);
+                                        locty_data->r_buffer.size,
+                                        selftest_done);
 }
 
 static void tpm_passthrough_worker_thread(gpointer data,
@@ -175,16 +199,19 @@ static void tpm_passthrough_worker_thread(gpointer data,
     TPMPassthruThreadParams *thr_parms = user_data;
     TPMPassthruState *tpm_pt = TPM_PASSTHROUGH(thr_parms->tb);
     TPMBackendCmd cmd = (TPMBackendCmd)data;
+    bool selftest_done = false;
 
     DPRINTF("tpm_passthrough: processing command type %d\n", cmd);
 
     switch (cmd) {
     case TPM_BACKEND_CMD_PROCESS_CMD:
         tpm_passthrough_unix_transfer(tpm_pt,
-                                      thr_parms->tpm_state->locty_data);
+                                      thr_parms->tpm_state->locty_data,
+                                      &selftest_done);
 
         thr_parms->recv_data_callback(thr_parms->tpm_state,
-                                      thr_parms->tpm_state->locty_number);
+                                      thr_parms->tpm_state->locty_number,
+                                      selftest_done);
         break;
     case TPM_BACKEND_CMD_INIT:
     case TPM_BACKEND_CMD_END:

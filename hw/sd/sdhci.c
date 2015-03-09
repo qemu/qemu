@@ -1220,7 +1220,7 @@ static Property sdhci_properties[] = {
     DEFINE_PROP_END_OF_LIST(),
 };
 
-static int sdhci_pci_init(PCIDevice *dev)
+static void sdhci_pci_realize(PCIDevice *dev, Error **errp)
 {
     SDHCIState *s = PCI_SDHCI(dev);
     dev->config[PCI_CLASS_PROG] = 0x01; /* Standard Host supported DMA */
@@ -1232,7 +1232,6 @@ static int sdhci_pci_init(PCIDevice *dev)
     memory_region_init_io(&s->iomem, OBJECT(s), &sdhci_mmio_ops, s, "sdhci",
             SDHC_REGISTERS_MAP_SIZE);
     pci_register_bar(dev, 0, 0, &s->iomem);
-    return 0;
 }
 
 static void sdhci_pci_exit(PCIDevice *dev)
@@ -1246,7 +1245,7 @@ static void sdhci_pci_class_init(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
 
-    k->init = sdhci_pci_init;
+    k->realize = sdhci_pci_realize;
     k->exit = sdhci_pci_exit;
     k->vendor_id = PCI_VENDOR_ID_REDHAT;
     k->device_id = PCI_DEVICE_ID_REDHAT_SDHCI;

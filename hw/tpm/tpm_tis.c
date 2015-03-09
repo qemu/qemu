@@ -14,7 +14,7 @@
  *
  * Implementation of the TIS interface according to specs found at
  * http://www.trustedcomputinggroup.org. This implementation currently
- * supports version 1.21, revision 1.0.
+ * supports version 1.3, 21 March 2013
  * In the developers menu choose the PC Client section then find the TIS
  * specification.
  */
@@ -51,6 +51,8 @@
 #define TPM_TIS_REG_INTF_CAPABILITY       0x14
 #define TPM_TIS_REG_STS                   0x18
 #define TPM_TIS_REG_DATA_FIFO             0x24
+#define TPM_TIS_REG_DATA_XFIFO            0x80
+#define TPM_TIS_REG_DATA_XFIFO_END        0xbc
 #define TPM_TIS_REG_DID_VID               0xf00
 #define TPM_TIS_REG_RID                   0xf04
 
@@ -62,6 +64,7 @@
 #define TPM_TIS_STS_TPM_GO                (1 << 5)
 #define TPM_TIS_STS_DATA_AVAILABLE        (1 << 4)
 #define TPM_TIS_STS_EXPECT                (1 << 3)
+#define TPM_TIS_STS_SELFTEST_DONE         (1 << 2)
 #define TPM_TIS_STS_RESPONSE_RETRY        (1 << 1)
 
 #define TPM_TIS_BURST_COUNT_SHIFT         8
@@ -100,8 +103,15 @@
 
 #endif
 
+#define TPM_TIS_CAP_INTERFACE_VERSION1_3 (2 << 28)
+#define TPM_TIS_CAP_DATA_TRANSFER_64B    (3 << 9)
+#define TPM_TIS_CAP_DATA_TRANSFER_LEGACY (0 << 9)
+#define TPM_TIS_CAP_BURST_COUNT_DYNAMIC  (0 << 8)
 #define TPM_TIS_CAP_INTERRUPT_LOW_LEVEL  (1 << 4) /* support is mandatory */
 #define TPM_TIS_CAPABILITIES_SUPPORTED   (TPM_TIS_CAP_INTERRUPT_LOW_LEVEL | \
+                                          TPM_TIS_CAP_BURST_COUNT_DYNAMIC | \
+                                          TPM_TIS_CAP_DATA_TRANSFER_64B | \
+                                          TPM_TIS_CAP_INTERFACE_VERSION1_3 | \
                                           TPM_TIS_INTERRUPTS_SUPPORTED)
 
 #define TPM_TIS_TPM_DID       0x0001
@@ -142,6 +152,24 @@ static void tpm_tis_show_buffer(const TPMSizedBuffer *sb, const char *string)
     }
     DPRINTF("\n");
 #endif
+}
+
+/*
+ * Set the given flags in the STS register by clearing the register but
+ * preserving the SELFTEST_DONE flag and then setting the new flags.
+ *
+ * The SELFTEST_DONE flag is acquired from the backend that determines it by
+ * peeking into TPM commands.
+ *
+ * A VM suspend/resume will preserve the flag by storing it into the VM
+ * device state, but the backend will not remember it when QEMU is started
+ * again. Therefore, we cache the flag here. Once set, it will not be unset
+ * except by a reset.
+ */
+static void tpm_tis_sts_set(TPMLocality *l, uint32_t flags)
+{
+    l->sts &= TPM_TIS_STS_SELFTEST_DONE;
+    l->sts |= flags;
 }
 
 /*
@@ -255,7 +283,8 @@ static void tpm_tis_abort(TPMState *s, uint8_t locty)
      */
     if (tis->aborting_locty == tis->next_locty) {
         tis->loc[tis->aborting_locty].state = TPM_TIS_STATE_READY;
-        tis->loc[tis->aborting_locty].sts = TPM_TIS_STS_COMMAND_READY;
+        tpm_tis_sts_set(&tis->loc[tis->aborting_locty],
+                        TPM_TIS_STS_COMMAND_READY);
         tpm_tis_raise_irq(s, tis->aborting_locty, TPM_TIS_INT_COMMAND_READY);
     }
 
@@ -300,7 +329,8 @@ static void tpm_tis_receive_bh(void *opaque)
     TPMTISEmuState *tis = &s->s.tis;
     uint8_t locty = s->locty_number;
 
-    tis->loc[locty].sts = TPM_TIS_STS_VALID | TPM_TIS_STS_DATA_AVAILABLE;
+    tpm_tis_sts_set(&tis->loc[locty],
+                    TPM_TIS_STS_VALID | TPM_TIS_STS_DATA_AVAILABLE);
     tis->loc[locty].state = TPM_TIS_STATE_COMPLETION;
     tis->loc[locty].r_offset = 0;
     tis->loc[locty].w_offset = 0;
@@ -320,11 +350,19 @@ static void tpm_tis_receive_bh(void *opaque)
 /*
  * Callback from the TPM to indicate that the response was received.
  */
-static void tpm_tis_receive_cb(TPMState *s, uint8_t locty)
+static void tpm_tis_receive_cb(TPMState *s, uint8_t locty,
+                               bool is_selftest_done)
 {
     TPMTISEmuState *tis = &s->s.tis;
+    uint8_t l;
 
     assert(s->locty_number == locty);
+
+    if (is_selftest_done) {
+        for (l = 0; l < TPM_TIS_NUM_LOCALITIES; l++) {
+            tis->loc[locty].sts |= TPM_TIS_STS_SELFTEST_DONE;
+        }
+    }
 
     qemu_bh_schedule(tis->bh);
 }
@@ -344,7 +382,7 @@ static uint32_t tpm_tis_data_read(TPMState *s, uint8_t locty)
         ret = tis->loc[locty].r_buffer.buffer[tis->loc[locty].r_offset++];
         if (tis->loc[locty].r_offset >= len) {
             /* got last byte */
-            tis->loc[locty].sts = TPM_TIS_STS_VALID;
+            tpm_tis_sts_set(&tis->loc[locty], TPM_TIS_STS_VALID);
 #ifdef RAISE_STS_IRQ
             tpm_tis_raise_irq(s, locty, TPM_TIS_INT_STS_VALID);
 #endif
@@ -427,6 +465,7 @@ static uint64_t tpm_tis_mmio_read(void *opaque, hwaddr addr,
     uint32_t val = 0xffffffff;
     uint8_t locty = tpm_tis_locality_from_addr(addr);
     uint32_t avail;
+    uint8_t v;
 
     if (tpm_backend_had_startup_error(s->be_driver)) {
         return val;
@@ -475,15 +514,28 @@ static uint64_t tpm_tis_mmio_read(void *opaque, hwaddr addr,
         }
         break;
     case TPM_TIS_REG_DATA_FIFO:
+    case TPM_TIS_REG_DATA_XFIFO ... TPM_TIS_REG_DATA_XFIFO_END:
         if (tis->active_locty == locty) {
-            switch (tis->loc[locty].state) {
-            case TPM_TIS_STATE_COMPLETION:
-                val = tpm_tis_data_read(s, locty);
-                break;
-            default:
-                val = TPM_TIS_NO_DATA_BYTE;
-                break;
+            if (size > 4 - (addr & 0x3)) {
+                /* prevent access beyond FIFO */
+                size = 4 - (addr & 0x3);
             }
+            val = 0;
+            shift = 0;
+            while (size > 0) {
+                switch (tis->loc[locty].state) {
+                case TPM_TIS_STATE_COMPLETION:
+                    v = tpm_tis_data_read(s, locty);
+                    break;
+                default:
+                    v = TPM_TIS_NO_DATA_BYTE;
+                    break;
+                }
+                val |= (v << shift);
+                shift += 8;
+                size--;
+            }
+            shift = 0; /* no more adjustments */
         }
         break;
     case TPM_TIS_REG_DID_VID:
@@ -518,11 +570,13 @@ static void tpm_tis_mmio_write_intern(void *opaque, hwaddr addr,
 {
     TPMState *s = opaque;
     TPMTISEmuState *tis = &s->s.tis;
-    uint16_t off = addr & 0xfff;
+    uint16_t off = addr & 0xffc;
+    uint8_t shift = (addr & 0x3) * 8;
     uint8_t locty = tpm_tis_locality_from_addr(addr);
     uint8_t active_locty, l;
     int c, set_new_locty = 1;
     uint16_t len;
+    uint32_t mask = (size == 1) ? 0xff : ((size == 2) ? 0xffff : ~0);
 
     DPRINTF("tpm_tis: write.%u(%08x) = %08x\n", size, (int)addr, (uint32_t)val);
 
@@ -534,6 +588,15 @@ static void tpm_tis_mmio_write_intern(void *opaque, hwaddr addr,
     if (tpm_backend_had_startup_error(s->be_driver)) {
         return;
     }
+
+    val &= mask;
+
+    if (shift) {
+        val <<= shift;
+        mask <<= shift;
+    }
+
+    mask ^= 0xffffffff;
 
     switch (off) {
     case TPM_TIS_REG_ACCESS:
@@ -646,9 +709,10 @@ static void tpm_tis_mmio_write_intern(void *opaque, hwaddr addr,
             break;
         }
 
-        tis->loc[locty].inte = (val & (TPM_TIS_INT_ENABLED |
-                                       TPM_TIS_INT_POLARITY_MASK |
-                                       TPM_TIS_INTERRUPTS_SUPPORTED));
+        tis->loc[locty].inte &= mask;
+        tis->loc[locty].inte |= (val & (TPM_TIS_INT_ENABLED |
+                                        TPM_TIS_INT_POLARITY_MASK |
+                                        TPM_TIS_INTERRUPTS_SUPPORTED));
         break;
     case TPM_TIS_REG_INT_VECTOR:
         /* hard wired -- ignore */
@@ -686,7 +750,7 @@ static void tpm_tis_mmio_write_intern(void *opaque, hwaddr addr,
             break;
 
             case TPM_TIS_STATE_IDLE:
-                tis->loc[locty].sts = TPM_TIS_STS_COMMAND_READY;
+                tpm_tis_sts_set(&tis->loc[locty], TPM_TIS_STS_COMMAND_READY);
                 tis->loc[locty].state = TPM_TIS_STATE_READY;
                 tpm_tis_raise_irq(s, locty, TPM_TIS_INT_COMMAND_READY);
             break;
@@ -705,7 +769,8 @@ static void tpm_tis_mmio_write_intern(void *opaque, hwaddr addr,
                 /* shortcut to ready state with C/R set */
                 tis->loc[locty].state = TPM_TIS_STATE_READY;
                 if (!(tis->loc[locty].sts & TPM_TIS_STS_COMMAND_READY)) {
-                    tis->loc[locty].sts   = TPM_TIS_STS_COMMAND_READY;
+                    tpm_tis_sts_set(&tis->loc[locty],
+                                    TPM_TIS_STS_COMMAND_READY);
                     tpm_tis_raise_irq(s, locty, TPM_TIS_INT_COMMAND_READY);
                 }
                 tis->loc[locty].sts &= ~(TPM_TIS_STS_DATA_AVAILABLE);
@@ -727,8 +792,9 @@ static void tpm_tis_mmio_write_intern(void *opaque, hwaddr addr,
             switch (tis->loc[locty].state) {
             case TPM_TIS_STATE_COMPLETION:
                 tis->loc[locty].r_offset = 0;
-                tis->loc[locty].sts = TPM_TIS_STS_VALID |
-                                      TPM_TIS_STS_DATA_AVAILABLE;
+                tpm_tis_sts_set(&tis->loc[locty],
+                                TPM_TIS_STS_VALID|
+                                TPM_TIS_STS_DATA_AVAILABLE);
                 break;
             default:
                 /* ignore */
@@ -737,6 +803,7 @@ static void tpm_tis_mmio_write_intern(void *opaque, hwaddr addr,
         }
         break;
     case TPM_TIS_REG_DATA_FIFO:
+    case TPM_TIS_REG_DATA_XFIFO ... TPM_TIS_REG_DATA_XFIFO_END:
         /* data fifo */
         if (tis->active_locty != locty) {
             break;
@@ -747,18 +814,28 @@ static void tpm_tis_mmio_write_intern(void *opaque, hwaddr addr,
             tis->loc[locty].state == TPM_TIS_STATE_COMPLETION) {
             /* drop the byte */
         } else {
-            DPRINTF("tpm_tis: Byte to send to TPM: %02x\n", (uint8_t)val);
+            DPRINTF("tpm_tis: Data to send to TPM: %08x (size=%d)\n",
+                    val, size);
             if (tis->loc[locty].state == TPM_TIS_STATE_READY) {
                 tis->loc[locty].state = TPM_TIS_STATE_RECEPTION;
-                tis->loc[locty].sts = TPM_TIS_STS_EXPECT | TPM_TIS_STS_VALID;
+                tpm_tis_sts_set(&tis->loc[locty],
+                                TPM_TIS_STS_EXPECT | TPM_TIS_STS_VALID);
             }
 
-            if ((tis->loc[locty].sts & TPM_TIS_STS_EXPECT)) {
+            val >>= shift;
+            if (size > 4 - (addr & 0x3)) {
+                /* prevent access beyond FIFO */
+                size = 4 - (addr & 0x3);
+            }
+
+            while ((tis->loc[locty].sts & TPM_TIS_STS_EXPECT) && size > 0) {
                 if (tis->loc[locty].w_offset < tis->loc[locty].w_buffer.size) {
                     tis->loc[locty].w_buffer.
                         buffer[tis->loc[locty].w_offset++] = (uint8_t)val;
+                    val >>= 8;
+                    size--;
                 } else {
-                    tis->loc[locty].sts = TPM_TIS_STS_VALID;
+                    tpm_tis_sts_set(&tis->loc[locty], TPM_TIS_STS_VALID);
                 }
             }
 
@@ -771,11 +848,11 @@ static void tpm_tis_mmio_write_intern(void *opaque, hwaddr addr,
 #endif
                 len = tpm_tis_get_size_from_buffer(&tis->loc[locty].w_buffer);
                 if (len > tis->loc[locty].w_offset) {
-                    tis->loc[locty].sts = TPM_TIS_STS_EXPECT |
-                                          TPM_TIS_STS_VALID;
+                    tpm_tis_sts_set(&tis->loc[locty],
+                                    TPM_TIS_STS_EXPECT | TPM_TIS_STS_VALID);
                 } else {
                     /* packet complete */
-                    tis->loc[locty].sts = TPM_TIS_STS_VALID;
+                    tpm_tis_sts_set(&tis->loc[locty], TPM_TIS_STS_VALID);
                 }
 #ifdef RAISE_STS_IRQ
                 if (needIrq) {

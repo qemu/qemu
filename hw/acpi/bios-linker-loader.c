@@ -141,6 +141,7 @@ void bios_linker_loader_add_pointer(GArray *linker,
                                     uint8_t pointer_size)
 {
     BiosLinkerLoaderEntry entry;
+    size_t offset = (gchar *)pointer - table->data;
 
     memset(&entry, 0, sizeof entry);
     strncpy(entry.pointer.dest_file, dest_file,
@@ -148,7 +149,8 @@ void bios_linker_loader_add_pointer(GArray *linker,
     strncpy(entry.pointer.src_file, src_file,
             sizeof entry.pointer.src_file - 1);
     entry.command = cpu_to_le32(BIOS_LINKER_LOADER_COMMAND_ADD_POINTER);
-    entry.pointer.offset = cpu_to_le32((gchar *)pointer - table->data);
+    assert(table->len >= offset + pointer_size);
+    entry.pointer.offset = cpu_to_le32(offset);
     entry.pointer.size = pointer_size;
     assert(pointer_size == 1 || pointer_size == 2 ||
            pointer_size == 4 || pointer_size == 8);

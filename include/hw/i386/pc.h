@@ -104,6 +104,7 @@ struct PcGuestInfo {
     int legacy_acpi_table_size;
     bool has_acpi_build;
     bool has_reserved_memory;
+    bool rsdp_in_ram;
 };
 
 /* parallel.c */

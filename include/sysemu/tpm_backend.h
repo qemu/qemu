@@ -56,7 +56,7 @@ struct TPMBackend {
     QLIST_ENTRY(TPMBackend) list;
 };
 
-typedef void (TPMRecvDataCB)(TPMState *, uint8_t locty);
+typedef void (TPMRecvDataCB)(TPMState *, uint8_t locty, bool selftest_done);
 
 typedef struct TPMSizedBuffer {
     uint32_t size;

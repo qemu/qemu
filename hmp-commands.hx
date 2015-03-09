@@ -1149,38 +1149,6 @@ STEXI
 Add drive to PCI storage controller.
 ETEXI
 
-#if defined(CONFIG_PCI_HOTPLUG_OLD)
-    {
-        .name       = "pci_add",
-        .args_type  = "pci_addr:s,type:s,opts:s?",
-        .params     = "auto|[[<domain>:]<bus>:]<slot> nic|storage [[vlan=n][,macaddr=addr][,model=type]] [file=file][,if=type][,bus=nr]...",
-        .help       = "hot-add PCI device",
-        .mhandler.cmd = hmp_pci_add,
-    },
-#endif
-
-STEXI
-@item pci_add
-@findex pci_add
-Hot-add PCI device.
-ETEXI
-
-#if defined(CONFIG_PCI_HOTPLUG_OLD)
-    {
-        .name       = "pci_del",
-        .args_type  = "pci_addr:s",
-        .params     = "[[<domain>:]<bus>:]<slot>",
-        .help       = "hot remove PCI device",
-        .mhandler.cmd = hmp_pci_del,
-    },
-#endif
-
-STEXI
-@item pci_del
-@findex pci_del
-Hot remove PCI device.
-ETEXI
-
     {
         .name       = "pcie_aer_inject_error",
         .args_type  = "advisory_non_fatal:-a,correctable:-c,"

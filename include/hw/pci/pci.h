@@ -185,7 +185,8 @@ typedef struct PCIINTxRoute {
 typedef struct PCIDeviceClass {
     DeviceClass parent_class;
 
-    int (*init)(PCIDevice *dev);
+    void (*realize)(PCIDevice *dev, Error **errp);
+    int (*init)(PCIDevice *dev);/* TODO convert to realize() and remove */
     PCIUnregisterFunc *exit;
     PCIConfigReadFunc *config_read;
     PCIConfigWriteFunc *config_write;
@@ -370,9 +371,6 @@ void pci_device_set_intx_routing_notifier(PCIDevice *dev,
                                           PCIINTxRoutingNotifier notifier);
 void pci_device_reset(PCIDevice *dev);
 
-PCIDevice *pci_nic_init(NICInfo *nd, PCIBus *rootbus,
-                        const char *default_model,
-                        const char *default_devaddr);
 PCIDevice *pci_nic_init_nofail(NICInfo *nd, PCIBus *rootbus,
                                const char *default_model,
                                const char *default_devaddr);
@@ -402,11 +400,7 @@ PCIBus *pci_device_root_bus(const PCIDevice *d);
 const char *pci_root_bus_path(PCIDevice *dev);
 PCIDevice *pci_find_device(PCIBus *bus, int bus_num, uint8_t devfn);
 int pci_qdev_find_device(const char *id, PCIDevice **pdev);
-PCIBus *pci_get_bus_devfn(int *devfnp, PCIBus *root, const char *devaddr);
 void pci_bus_get_w64_range(PCIBus *bus, Range *range);
-
-int pci_parse_devaddr(const char *addr, int *domp, int *busp,
-                      unsigned int *slotp, unsigned int *funcp);
 
 void pci_device_deassert_intx(PCIDevice *dev);
 

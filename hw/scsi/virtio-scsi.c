@@ -13,6 +13,7 @@
  *
  */
 
+#include "standard-headers/linux/virtio_ids.h"
 #include "hw/virtio/virtio-scsi.h"
 #include "qemu/error-report.h"
 #include "qemu/iov.h"
@@ -144,7 +145,7 @@ static int virtio_scsi_parse_req(VirtIOSCSIReq *req,
      *
      * TODO: always disable this workaround for virtio 1.0 devices.
      */
-    if ((vdev->guest_features & (1 << VIRTIO_F_ANY_LAYOUT)) == 0) {
+    if (!virtio_has_feature(vdev, VIRTIO_F_ANY_LAYOUT)) {
         req_size = req->elem.out_sg[0].iov_len;
         resp_size = req->elem.in_sg[0].iov_len;
     }
@@ -744,7 +745,7 @@ static void virtio_scsi_change(SCSIBus *bus, SCSIDevice *dev, SCSISense sense)
     VirtIOSCSI *s = container_of(bus, VirtIOSCSI, bus);
     VirtIODevice *vdev = VIRTIO_DEVICE(s);
 
-    if (((vdev->guest_features >> VIRTIO_SCSI_F_CHANGE) & 1) &&
+    if (virtio_has_feature(vdev, VIRTIO_SCSI_F_CHANGE) &&
         dev->type != TYPE_ROM) {
         virtio_scsi_push_event(s, dev, VIRTIO_SCSI_T_PARAM_CHANGE,
                                sense.asc | (sense.ascq << 8));
@@ -768,7 +769,7 @@ static void virtio_scsi_hotplug(HotplugHandler *hotplug_dev, DeviceState *dev,
         aio_context_release(s->ctx);
     }
 
-    if ((vdev->guest_features >> VIRTIO_SCSI_F_HOTPLUG) & 1) {
+    if (virtio_has_feature(vdev, VIRTIO_SCSI_F_HOTPLUG)) {
         virtio_scsi_push_event(s, sd,
                                VIRTIO_SCSI_T_TRANSPORT_RESET,
                                VIRTIO_SCSI_EVT_RESET_RESCAN);
@@ -782,7 +783,7 @@ static void virtio_scsi_hotunplug(HotplugHandler *hotplug_dev, DeviceState *dev,
     VirtIOSCSI *s = VIRTIO_SCSI(vdev);
     SCSIDevice *sd = SCSI_DEVICE(dev);
 
-    if ((vdev->guest_features >> VIRTIO_SCSI_F_HOTPLUG) & 1) {
+    if (virtio_has_feature(vdev, VIRTIO_SCSI_F_HOTPLUG)) {
         virtio_scsi_push_event(s, sd,
                                VIRTIO_SCSI_T_TRANSPORT_RESET,
                                VIRTIO_SCSI_EVT_RESET_REMOVED);
