@@ -548,6 +548,7 @@ void cpu_exec_init(CPUArchState *env)
 #ifndef CONFIG_USER_ONLY
     cpu->as = &address_space_memory;
     cpu->thread_id = qemu_get_thread_id();
+    cpu_reload_memory_map(cpu);
 #endif
     QTAILQ_INSERT_TAIL(&cpus, cpu, node);
 #if defined(CONFIG_USER_ONLY)
