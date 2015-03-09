@@ -14,6 +14,7 @@
 #include "sysemu/sysemu.h"
 #include "cpu.h"
 #include "elf.h"
+#include "exec/ram_addr.h"
 #include "hw/loader.h"
 #include "hw/sysbus.h"
 #include "hw/s390x/virtio-ccw.h"
@@ -95,6 +96,16 @@ static const VMStateDescription vmstate_ipl = {
      }
 };
 
+static uint64_t bios_translate_addr(void *opaque, uint64_t srcaddr)
+{
+    uint64_t dstaddr = *(uint64_t *) opaque;
+    /*
+     * Assuming that our s390-ccw.img was linked for starting at address 0,
+     * we can simply add the destination address for the final location
+     */
+    return srcaddr + dstaddr;
+}
+
 static int s390_ipl_init(SysBusDevice *dev)
 {
     S390IPLState *ipl = S390_IPL(dev);
@@ -109,6 +120,8 @@ static int s390_ipl_init(SysBusDevice *dev)
      * even if an external kernel has been defined.
      */
     if (!ipl->kernel || ipl->enforce_bios) {
+        uint64_t fwbase = (MIN(ram_size, 0x80000000U) - 0x200000) & ~0xffffUL;
+
         if (bios_name == NULL) {
             bios_name = ipl->firmware;
         }
@@ -118,9 +131,14 @@ static int s390_ipl_init(SysBusDevice *dev)
             hw_error("could not find stage1 bootloader\n");
         }
 
-        bios_size = load_elf(bios_filename, NULL, NULL, &ipl->bios_start_addr,
-                             NULL, NULL, 1, ELF_MACHINE, 0);
-        if (bios_size < 0) {
+        bios_size = load_elf(bios_filename, bios_translate_addr, &fwbase,
+                             &ipl->bios_start_addr, NULL, NULL, 1,
+                             ELF_MACHINE, 0);
+        if (bios_size > 0) {
+            /* Adjust ELF start address to final location */
+            ipl->bios_start_addr += fwbase;
+        } else {
+            /* Try to load non-ELF file (e.g. s390-zipl.rom) */
             bios_size = load_image_targphys(bios_filename, ZIPL_IMAGE_START,
                                             4096);
             ipl->bios_start_addr = ZIPL_IMAGE_START;
