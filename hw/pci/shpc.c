@@ -159,7 +159,7 @@ static void shpc_interrupt_update(PCIDevice *d)
     for (slot = 0; slot < shpc->nslots; ++slot) {
         uint8_t event = shpc->config[SHPC_SLOT_EVENT_LATCH(slot)];
         uint8_t disable = shpc->config[SHPC_SLOT_EVENT_SERR_INT_DIS(d, slot)];
-        uint32_t mask = 1 << SHPC_IDX_TO_LOGICAL(slot);
+        uint32_t mask = 1U << SHPC_IDX_TO_LOGICAL(slot);
         if (event & ~disable) {
             int_locator |= mask;
         }
