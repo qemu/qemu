@@ -134,7 +134,7 @@ obj-$(CONFIG_KVM) += kvm-all.o
 obj-y += memory.o savevm.o cputlb.o
 obj-y += memory_mapping.o
 obj-y += dump.o
-LIBS+=$(libs_softmmu)
+LIBS := $(libs_softmmu) $(LIBS)
 
 # xen support
 obj-$(CONFIG_XEN) += xen-common.o
