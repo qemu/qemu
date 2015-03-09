@@ -522,9 +522,9 @@ static void create_one_flash(const char *name, hwaddr flashbase,
     DeviceState *dev = qdev_create(NULL, "cfi.pflash01");
     const uint64_t sectorlength = 256 * 1024;
 
-    if (dinfo && qdev_prop_set_drive(dev, "drive",
-                                     blk_by_legacy_dinfo(dinfo))) {
-        abort();
+    if (dinfo) {
+        qdev_prop_set_drive(dev, "drive", blk_by_legacy_dinfo(dinfo),
+                            &error_abort);
     }
 
     qdev_prop_set_uint32(dev, "num-blocks", flashsize / sectorlength);
