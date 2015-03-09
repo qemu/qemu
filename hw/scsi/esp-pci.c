@@ -28,6 +28,7 @@
 #include "hw/scsi/esp.h"
 #include "trace.h"
 #include "qemu/log.h"
+#include "qapi/qmp/qerror.h"
 
 #define TYPE_AM53C974_DEVICE "am53c974"
 
@@ -369,6 +370,7 @@ static int esp_pci_scsi_init(PCIDevice *dev)
     if (!d->hotplugged) {
         scsi_bus_legacy_handle_cmdline(&s->bus, &err);
         if (err != NULL) {
+            qerror_report_err(err);
             error_free(err);
             return -1;
         }

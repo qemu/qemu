@@ -19,7 +19,7 @@
 #include "hw/pci/pci.h"
 #include "hw/scsi/scsi.h"
 #include "sysemu/dma.h"
-#include "qemu/error-report.h"
+#include "qapi/qmp/qerror.h"
 
 //#define DEBUG_LSI
 //#define DEBUG_LSI_REG
@@ -2119,6 +2119,7 @@ static int lsi_scsi_init(PCIDevice *dev)
     if (!d->hotplugged) {
         scsi_bus_legacy_handle_cmdline(&s->bus, &err);
         if (err != NULL) {
+            qerror_report_err(err);
             error_free(err);
             return -1;
         }

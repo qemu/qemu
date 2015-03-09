@@ -28,6 +28,7 @@
 #include "hw/scsi/scsi.h"
 #include "block/scsi.h"
 #include "trace.h"
+#include "qapi/qmp/qerror.h"
 
 #include "mfi.h"
 
@@ -2409,6 +2410,7 @@ static int megasas_scsi_init(PCIDevice *dev)
     if (!d->hotplugged) {
         scsi_bus_legacy_handle_cmdline(&s->bus, &err);
         if (err != NULL) {
+            qerror_report_err(err);
             error_free(err);
             return -1;
         }

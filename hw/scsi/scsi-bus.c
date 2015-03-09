@@ -273,7 +273,6 @@ void scsi_bus_legacy_handle_cmdline(SCSIBus *bus, Error **errp)
         scsi_bus_legacy_add_drive(bus, blk_by_legacy_dinfo(dinfo),
                                   unit, false, -1, NULL, &err);
         if (err != NULL) {
-            error_report("%s", error_get_pretty(err));
             error_propagate(errp, err);
             break;
         }
