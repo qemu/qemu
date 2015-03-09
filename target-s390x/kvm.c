@@ -486,6 +486,45 @@ int kvm_arch_get_registers(CPUState *cs)
     return 0;
 }
 
+int kvm_s390_get_clock(uint8_t *tod_high, uint64_t *tod_low)
+{
+    int r;
+    struct kvm_device_attr attr = {
+        .group = KVM_S390_VM_TOD,
+        .attr = KVM_S390_VM_TOD_LOW,
+        .addr = (uint64_t)tod_low,
+    };
+
+    r = kvm_vm_ioctl(kvm_state, KVM_GET_DEVICE_ATTR, &attr);
+    if (r) {
+        return r;
+    }
+
+    attr.attr = KVM_S390_VM_TOD_HIGH;
+    attr.addr = (uint64_t)tod_high;
+    return kvm_vm_ioctl(kvm_state, KVM_GET_DEVICE_ATTR, &attr);
+}
+
+int kvm_s390_set_clock(uint8_t *tod_high, uint64_t *tod_low)
+{
+    int r;
+
+    struct kvm_device_attr attr = {
+        .group = KVM_S390_VM_TOD,
+        .attr = KVM_S390_VM_TOD_LOW,
+        .addr = (uint64_t)tod_low,
+    };
+
+    r = kvm_vm_ioctl(kvm_state, KVM_SET_DEVICE_ATTR, &attr);
+    if (r) {
+        return r;
+    }
+
+    attr.attr = KVM_S390_VM_TOD_HIGH;
+    attr.addr = (uint64_t)tod_high;
+    return kvm_vm_ioctl(kvm_state, KVM_SET_DEVICE_ATTR, &attr);
+}
+
 /*
  * Legacy layout for s390:
  * Older S390 KVM requires the topmost vma of the RAM to be

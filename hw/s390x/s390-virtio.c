@@ -38,6 +38,7 @@
 #include "hw/s390x/sclp.h"
 #include "hw/s390x/s390_flic.h"
 #include "hw/s390x/s390-virtio.h"
+#include "cpu.h"
 
 //#define DEBUG_S390
 
@@ -52,6 +53,9 @@
 #define MAX_BLK_DEVS                    10
 #define ZIPL_FILENAME                   "s390-zipl.rom"
 #define TYPE_S390_MACHINE               "s390-machine"
+
+#define S390_TOD_CLOCK_VALUE_MISSING    0x00
+#define S390_TOD_CLOCK_VALUE_PRESENT    0x01
 
 static VirtIOS390Bus *s390_bus;
 static S390CPU **ipi_states;
@@ -196,6 +200,51 @@ void s390_create_virtio_net(BusState *bus, const char *name)
     }
 }
 
+void gtod_save(QEMUFile *f, void *opaque)
+{
+    uint64_t tod_low;
+    uint8_t tod_high;
+    int r;
+
+    r = s390_get_clock(&tod_high, &tod_low);
+    if (r) {
+        fprintf(stderr, "WARNING: Unable to get guest clock for migration. "
+                        "Error code %d. Guest clock will not be migrated "
+                        "which could cause the guest to hang.\n", r);
+        qemu_put_byte(f, S390_TOD_CLOCK_VALUE_MISSING);
+        return;
+    }
+
+    qemu_put_byte(f, S390_TOD_CLOCK_VALUE_PRESENT);
+    qemu_put_byte(f, tod_high);
+    qemu_put_be64(f, tod_low);
+}
+
+int gtod_load(QEMUFile *f, void *opaque, int version_id)
+{
+    uint64_t tod_low;
+    uint8_t tod_high;
+    int r;
+
+    if (qemu_get_byte(f) == S390_TOD_CLOCK_VALUE_MISSING) {
+        fprintf(stderr, "WARNING: Guest clock was not migrated. This could "
+                        "cause the guest to hang.\n");
+        return 0;
+    }
+
+    tod_high = qemu_get_byte(f);
+    tod_low = qemu_get_be64(f);
+
+    r = s390_set_clock(&tod_high, &tod_low);
+    if (r) {
+        fprintf(stderr, "WARNING: Unable to set guest clock value. "
+                        "s390_get_clock returned error %d. This could cause "
+                        "the guest to hang.\n", r);
+    }
+
+    return 0;
+}
+
 /* PC hardware initialisation */
 static void s390_init(MachineState *machine)
 {
@@ -253,6 +302,9 @@ static void s390_init(MachineState *machine)
 
     /* Create VirtIO network adapters */
     s390_create_virtio_net((BusState *)s390_bus, "virtio-net-s390");
+
+    /* Register savevm handler for guest TOD clock */
+    register_savevm(NULL, "todclock", 0, 1, gtod_save, gtod_load, NULL);
 }
 
 void s390_nmi(NMIState *n, int cpu_index, Error **errp)

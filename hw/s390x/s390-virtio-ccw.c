@@ -181,6 +181,10 @@ static void ccw_init(MachineState *machine)
 
     /* Create VirtIO network adapters */
     s390_create_virtio_net(BUS(css_bus), "virtio-net-ccw");
+
+    /* Register savevm handler for guest TOD clock */
+    register_savevm(NULL, "todclock", 0, 1,
+                    gtod_save, gtod_load, kvm_state);
 }
 
 static void ccw_machine_class_init(ObjectClass *oc, void *data)
