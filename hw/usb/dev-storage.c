@@ -664,6 +664,7 @@ static void usb_msd_realize_bot(USBDevice *dev, Error **errp)
 static USBDevice *usb_msd_init(USBBus *bus, const char *filename)
 {
     static int nr=0;
+    Error *err = NULL;
     char id[8];
     QemuOpts *opts;
     DriveInfo *dinfo;
@@ -707,8 +708,10 @@ static USBDevice *usb_msd_init(USBBus *bus, const char *filename)
 
     /* create guest device */
     dev = usb_create(bus, "usb-storage");
-    if (qdev_prop_set_drive(&dev->qdev, "drive",
-                            blk_by_legacy_dinfo(dinfo)) < 0) {
+    qdev_prop_set_drive(&dev->qdev, "drive", blk_by_legacy_dinfo(dinfo),
+                        &err);
+    if (err) {
+        error_report_err(err);
         object_unparent(OBJECT(dev));
         return NULL;
     }

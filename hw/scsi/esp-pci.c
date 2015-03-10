@@ -342,13 +342,12 @@ static const struct SCSIBusInfo esp_pci_scsi_info = {
     .cancel = esp_request_cancelled,
 };
 
-static int esp_pci_scsi_init(PCIDevice *dev)
+static void esp_pci_scsi_realize(PCIDevice *dev, Error **errp)
 {
     PCIESPState *pci = PCI_ESP(dev);
     DeviceState *d = DEVICE(dev);
     ESPState *s = &pci->esp;
     uint8_t *pci_conf;
-    Error *err = NULL;
 
     pci_conf = dev->config;
 
@@ -367,13 +366,8 @@ static int esp_pci_scsi_init(PCIDevice *dev)
 
     scsi_bus_new(&s->bus, sizeof(s->bus), d, &esp_pci_scsi_info, NULL);
     if (!d->hotplugged) {
-        scsi_bus_legacy_handle_cmdline(&s->bus, &err);
-        if (err != NULL) {
-            error_free(err);
-            return -1;
-        }
+        scsi_bus_legacy_handle_cmdline(&s->bus, errp);
     }
-    return 0;
 }
 
 static void esp_pci_scsi_uninit(PCIDevice *d)
@@ -388,7 +382,7 @@ static void esp_pci_class_init(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
 
-    k->init = esp_pci_scsi_init;
+    k->realize = esp_pci_scsi_realize;
     k->exit = esp_pci_scsi_uninit;
     k->vendor_id = PCI_VENDOR_ID_AMD;
     k->device_id = PCI_DEVICE_ID_AMD_SCSI;
@@ -466,17 +460,19 @@ static void dc390_write_config(PCIDevice *dev,
     }
 }
 
-static int dc390_scsi_init(PCIDevice *dev)
+static void dc390_scsi_realize(PCIDevice *dev, Error **errp)
 {
     DC390State *pci = DC390(dev);
+    Error *err = NULL;
     uint8_t *contents;
     uint16_t chksum = 0;
-    int i, ret;
+    int i;
 
     /* init base class */
-    ret = esp_pci_scsi_init(dev);
-    if (ret < 0) {
-        return ret;
+    esp_pci_scsi_realize(dev, &err);
+    if (err) {
+        error_propagate(errp, err);
+        return;
     }
 
     /* EEPROM */
@@ -503,8 +499,6 @@ static int dc390_scsi_init(PCIDevice *dev)
     chksum = 0x1234 - chksum;
     contents[EE_CHKSUM1] = chksum & 0xff;
     contents[EE_CHKSUM2] = chksum >> 8;
-
-    return 0;
 }
 
 static void dc390_class_init(ObjectClass *klass, void *data)
@@ -512,7 +506,7 @@ static void dc390_class_init(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
 
-    k->init = dc390_scsi_init;
+    k->realize = dc390_scsi_realize;
     k->config_read = dc390_read_config;
     k->config_write = dc390_write_config;
     set_bit(DEVICE_CATEGORY_STORAGE, dc->categories);

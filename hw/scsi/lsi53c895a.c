@@ -19,7 +19,6 @@
 #include "hw/pci/pci.h"
 #include "hw/scsi/scsi.h"
 #include "sysemu/dma.h"
-#include "qemu/error-report.h"
 
 //#define DEBUG_LSI
 //#define DEBUG_LSI_REG
@@ -2089,12 +2088,11 @@ static const struct SCSIBusInfo lsi_scsi_info = {
     .cancel = lsi_request_cancelled
 };
 
-static int lsi_scsi_init(PCIDevice *dev)
+static void lsi_scsi_realize(PCIDevice *dev, Error **errp)
 {
     LSIState *s = LSI53C895A(dev);
     DeviceState *d = DEVICE(dev);
     uint8_t *pci_conf;
-    Error *err = NULL;
 
     pci_conf = dev->config;
 
@@ -2117,13 +2115,8 @@ static int lsi_scsi_init(PCIDevice *dev)
 
     scsi_bus_new(&s->bus, sizeof(s->bus), d, &lsi_scsi_info, NULL);
     if (!d->hotplugged) {
-        scsi_bus_legacy_handle_cmdline(&s->bus, &err);
-        if (err != NULL) {
-            error_free(err);
-            return -1;
-        }
+        scsi_bus_legacy_handle_cmdline(&s->bus, errp);
     }
-    return 0;
 }
 
 static void lsi_class_init(ObjectClass *klass, void *data)
@@ -2131,7 +2124,7 @@ static void lsi_class_init(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
 
-    k->init = lsi_scsi_init;
+    k->realize = lsi_scsi_realize;
     k->vendor_id = PCI_VENDOR_ID_LSI_LOGIC;
     k->device_id = PCI_DEVICE_ID_LSI_53C895A;
     k->class_id = PCI_CLASS_STORAGE_SCSI;

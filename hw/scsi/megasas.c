@@ -2320,14 +2320,13 @@ static const struct SCSIBusInfo megasas_scsi_info = {
     .cancel = megasas_command_cancel,
 };
 
-static int megasas_scsi_init(PCIDevice *dev)
+static void megasas_scsi_realize(PCIDevice *dev, Error **errp)
 {
     DeviceState *d = DEVICE(dev);
     MegasasState *s = MEGASAS(dev);
     MegasasBaseClass *b = MEGASAS_DEVICE_GET_CLASS(s);
     uint8_t *pci_conf;
     int i, bar_type;
-    Error *err = NULL;
 
     pci_conf = dev->config;
 
@@ -2407,13 +2406,8 @@ static int megasas_scsi_init(PCIDevice *dev)
     scsi_bus_new(&s->bus, sizeof(s->bus), DEVICE(dev),
                  &megasas_scsi_info, NULL);
     if (!d->hotplugged) {
-        scsi_bus_legacy_handle_cmdline(&s->bus, &err);
-        if (err != NULL) {
-            error_free(err);
-            return -1;
-        }
+        scsi_bus_legacy_handle_cmdline(&s->bus, errp);
     }
-    return 0;
 }
 
 static void
@@ -2507,7 +2501,7 @@ static void megasas_class_init(ObjectClass *oc, void *data)
     MegasasBaseClass *e = MEGASAS_DEVICE_CLASS(oc);
     const MegasasInfo *info = data;
 
-    pc->init = megasas_scsi_init;
+    pc->realize = megasas_scsi_realize;
     pc->exit = megasas_scsi_uninit;
     pc->vendor_id = PCI_VENDOR_ID_LSI_LOGIC;
     pc->device_id = info->device_id;
