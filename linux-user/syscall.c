@@ -9351,15 +9351,29 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
         {
             loff_t loff_in, loff_out;
             loff_t *ploff_in = NULL, *ploff_out = NULL;
-            if(arg2) {
-                get_user_u64(loff_in, arg2);
+            if (arg2) {
+                if (get_user_u64(loff_in, arg2)) {
+                    goto efault;
+                }
                 ploff_in = &loff_in;
             }
-            if(arg4) {
-                get_user_u64(loff_out, arg2);
+            if (arg4) {
+                if (get_user_u64(loff_out, arg4)) {
+                    goto efault;
+                }
                 ploff_out = &loff_out;
             }
             ret = get_errno(splice(arg1, ploff_in, arg3, ploff_out, arg5, arg6));
+            if (arg2) {
+                if (put_user_u64(loff_in, arg2)) {
+                    goto efault;
+                }
+            }
+            if (arg4) {
+                if (put_user_u64(loff_out, arg4)) {
+                    goto efault;
+                }
+            }
         }
         break;
 #endif
