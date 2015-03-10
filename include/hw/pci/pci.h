@@ -137,7 +137,7 @@ enum {
 #define PCI_CONFIG_HEADER_SIZE 0x40
 /* Size of the standard PCI config space */
 #define PCI_CONFIG_SPACE_SIZE 0x100
-/* Size of the standart PCIe config space: 4KB */
+/* Size of the standard PCIe config space: 4KB */
 #define PCIE_CONFIG_SPACE_SIZE  0x1000
 
 #define PCI_NUM_PINS 4 /* A-D */
