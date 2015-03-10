@@ -123,7 +123,7 @@ int pcie_aer_init(PCIDevice *dev, uint16_t offset)
                  PCI_ERR_UNC_SUPPORTED);
 
     pci_long_test_and_set_mask(dev->w1cmask + offset + PCI_ERR_COR_STATUS,
-                               PCI_ERR_COR_STATUS);
+                               PCI_ERR_COR_SUPPORTED);
 
     pci_set_long(dev->config + offset + PCI_ERR_COR_MASK,
                  PCI_ERR_COR_MASK_DEFAULT);
