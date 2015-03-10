@@ -734,8 +734,8 @@ static DeviceState *ppce500_init_mpic_kvm(PPCE500Params *params,
     return dev;
 }
 
-static qemu_irq *ppce500_init_mpic(PPCE500Params *params, MemoryRegion *ccsr,
-                                   qemu_irq **irqs)
+static qemu_irq *ppce500_init_mpic(MachineState *machine, PPCE500Params *params,
+                                   MemoryRegion *ccsr, qemu_irq **irqs)
 {
     qemu_irq *mpic;
     DeviceState *dev = NULL;
@@ -745,17 +745,12 @@ static qemu_irq *ppce500_init_mpic(PPCE500Params *params, MemoryRegion *ccsr,
     mpic = g_new0(qemu_irq, 256);
 
     if (kvm_enabled()) {
-        QemuOpts *machine_opts = qemu_get_machine_opts();
-        bool irqchip_allowed = qemu_opt_get_bool(machine_opts,
-                                                "kernel_irqchip", true);
-        bool irqchip_required = qemu_opt_get_bool(machine_opts,
-                                                  "kernel_irqchip", false);
         Error *err = NULL;
 
-        if (irqchip_allowed) {
+        if (machine_kernel_irqchip_allowed(machine)) {
             dev = ppce500_init_mpic_kvm(params, irqs, &err);
         }
-        if (irqchip_required && !dev) {
+        if (machine_kernel_irqchip_required(machine) && !dev) {
             error_report("kernel_irqchip requested but unavailable: %s",
                          error_get_pretty(err));
             exit(1);
@@ -879,7 +874,7 @@ void ppce500_init(MachineState *machine, PPCE500Params *params)
     memory_region_add_subregion(address_space_mem, params->ccsrbar_base,
                                 ccsr_addr_space);
 
-    mpic = ppce500_init_mpic(params, ccsr_addr_space, irqs);
+    mpic = ppce500_init_mpic(machine, params, ccsr_addr_space, irqs);
 
     /* Serial */
     if (serial_hds[0]) {

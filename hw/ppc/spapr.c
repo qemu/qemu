@@ -127,22 +127,18 @@ static XICSState *try_create_xics(const char *type, int nr_servers,
     return XICS_COMMON(dev);
 }
 
-static XICSState *xics_system_init(int nr_servers, int nr_irqs)
+static XICSState *xics_system_init(MachineState *machine,
+                                   int nr_servers, int nr_irqs)
 {
     XICSState *icp = NULL;
 
     if (kvm_enabled()) {
-        QemuOpts *machine_opts = qemu_get_machine_opts();
-        bool irqchip_allowed = qemu_opt_get_bool(machine_opts,
-                                                "kernel_irqchip", true);
-        bool irqchip_required = qemu_opt_get_bool(machine_opts,
-                                                  "kernel_irqchip", false);
         Error *err = NULL;
 
-        if (irqchip_allowed) {
+        if (machine_kernel_irqchip_allowed(machine)) {
             icp = try_create_xics(TYPE_KVM_XICS, nr_servers, nr_irqs, &err);
         }
-        if (irqchip_required && !icp) {
+        if (machine_kernel_irqchip_required(machine) && !icp) {
             error_report("kernel_irqchip requested but unavailable: %s",
                          error_get_pretty(err));
         }
@@ -1455,7 +1451,8 @@ static void ppc_spapr_init(MachineState *machine)
     }
 
     /* Set up Interrupt Controller before we create the VCPUs */
-    spapr->icp = xics_system_init(smp_cpus * kvmppc_smt_threads() / smp_threads,
+    spapr->icp = xics_system_init(machine,
+                                  smp_cpus * kvmppc_smt_threads() / smp_threads,
                                   XICS_IRQS);
 
     /* init CPUs */
