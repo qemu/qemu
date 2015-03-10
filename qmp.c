@@ -391,7 +391,6 @@ static void qmp_change_vnc_listen(const char *target, Error **errp)
         return;
     }
 
-    vnc_auto_assign_id(olist, opts);
     vnc_display_open("default", errp);
 }
 

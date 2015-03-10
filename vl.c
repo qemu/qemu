@@ -2001,7 +2001,6 @@ static DisplayType select_display(const char *p)
     } else if (strstart(p, "vnc", &opts)) {
 #ifdef CONFIG_VNC
         if (*opts == '=') {
-            display_remote++;
             if (vnc_parse_func(opts+1) == NULL) {
                 exit(1);
             }
@@ -3477,7 +3476,6 @@ int main(int argc, char **argv, char **envp)
                 break;
             case QEMU_OPTION_vnc:
 #ifdef CONFIG_VNC
-                display_remote++;
                 if (vnc_parse_func(optarg) == NULL) {
                     exit(1);
                 }
@@ -3970,6 +3968,11 @@ int main(int argc, char **argv, char **envp)
         }
     }
 
+#if defined(CONFIG_VNC)
+    if (!QTAILQ_EMPTY(&(qemu_find_opts("vnc")->head))) {
+        display_remote++;
+    }
+#endif
     if (display_type == DT_DEFAULT && !display_remote) {
 #if defined(CONFIG_GTK)
         display_type = DT_GTK;

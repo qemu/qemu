@@ -3687,12 +3687,7 @@ void vnc_display_add_client(const char *id, int csock, bool skipauth)
     vnc_connect(vs, csock, skipauth, false);
 }
 
-QemuOpts *vnc_parse_func(const char *str)
-{
-    return qemu_opts_parse(qemu_find_opts("vnc"), str, 1);
-}
-
-void vnc_auto_assign_id(QemuOptsList *olist, QemuOpts *opts)
+static void vnc_auto_assign_id(QemuOptsList *olist, QemuOpts *opts)
 {
     int i = 2;
     char *id;
@@ -3705,18 +3700,25 @@ void vnc_auto_assign_id(QemuOptsList *olist, QemuOpts *opts)
     qemu_opts_set_id(opts, id);
 }
 
-int vnc_init_func(QemuOpts *opts, void *opaque)
+QemuOpts *vnc_parse_func(const char *str)
 {
-    Error *local_err = NULL;
     QemuOptsList *olist = qemu_find_opts("vnc");
-    char *id = (char *)qemu_opts_id(opts);
+    QemuOpts *opts = qemu_opts_parse(olist, str, 1);
+    const char *id = qemu_opts_id(opts);
 
     if (!id) {
         /* auto-assign id if not present */
         vnc_auto_assign_id(olist, opts);
-        id = (char *)qemu_opts_id(opts);
     }
+    return opts;
+}
 
+int vnc_init_func(QemuOpts *opts, void *opaque)
+{
+    Error *local_err = NULL;
+    char *id = (char *)qemu_opts_id(opts);
+
+    assert(id);
     vnc_display_init(id);
     vnc_display_open(id, &local_err);
     if (local_err != NULL) {

@@ -332,7 +332,6 @@ void vnc_display_init(const char *id);
 void vnc_display_open(const char *id, Error **errp);
 void vnc_display_add_client(const char *id, int csock, bool skipauth);
 char *vnc_display_local_addr(const char *id);
-void vnc_auto_assign_id(QemuOptsList *olist, QemuOpts *opts);
 #ifdef CONFIG_VNC
 int vnc_display_password(const char *id, const char *password);
 int vnc_display_pw_expire(const char *id, time_t expires);
