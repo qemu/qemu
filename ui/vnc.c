@@ -3303,7 +3303,7 @@ static QemuOptsList qemu_vnc_opts = {
             .type = QEMU_OPT_BOOL,
         },{
             .name = "x509verify",
-            .type = QEMU_OPT_BOOL,
+            .type = QEMU_OPT_STRING,
         },{
             .name = "acl",
             .type = QEMU_OPT_BOOL,
@@ -3410,9 +3410,14 @@ void vnc_display_open(const char *id, Error **errp)
 #ifdef CONFIG_VNC_TLS
     tls  = qemu_opt_get_bool(opts, "tls", false);
     path = qemu_opt_get(opts, "x509");
+    if (!path) {
+        path = qemu_opt_get(opts, "x509verify");
+        if (path) {
+            vs->tls.x509verify = true;
+        }
+    }
     if (path) {
         x509 = true;
-        vs->tls.x509verify = qemu_opt_get_bool(opts, "x509verify", false);
         if (vnc_tls_set_x509_creds_dir(vs, path) < 0) {
             error_setg(errp, "Failed to find x509 certificates/keys in %s",
                        path);
