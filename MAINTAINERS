@@ -50,14 +50,12 @@ Descriptions of section entries:
 
 General Project Administration
 ------------------------------
-M: Anthony Liguori <aliguori@amazon.com>
 M: Peter Maydell <peter.maydell@linaro.org>
 
 Responsible Disclosure, Reporting Security Issues
 ------------------------------
 W: http://wiki.qemu.org/SecurityProcess
 M: Michael S. Tsirkin <mst@redhat.com>
-M: Anthony Liguori <aliguori@amazon.com>
 L: secalert@redhat.com
 
 Guest CPU cores (TCG):
@@ -565,7 +563,6 @@ F: hw/unicore32/
 X86 Machines
 ------------
 PC
-M: Anthony Liguori <aliguori@amazon.com>
 M: Michael S. Tsirkin <mst@redhat.com>
 S: Supported
 F: include/hw/i386/
@@ -676,7 +673,6 @@ S: Supported
 F: hw/*/*vhost*
 
 virtio
-M: Anthony Liguori <aliguori@amazon.com>
 M: Michael S. Tsirkin <mst@redhat.com>
 S: Supported
 F: hw/*/virtio*
@@ -771,7 +767,6 @@ T: git git://repo.or.cz/qemu/kevin.git block
 T: git git://github.com/stefanha/qemu.git block
 
 Character Devices
-M: Anthony Liguori <aliguori@amazon.com>
 M: Paolo Bonzini <pbonzini@redhat.com>
 S: Maintained
 F: qemu-char.c
@@ -832,7 +827,6 @@ F: audio/spiceaudio.c
 F: hw/display/qxl*
 
 Graphics
-M: Anthony Liguori <aliguori@amazon.com>
 M: Gerd Hoffmann <kraxel@redhat.com>
 S: Odd Fixes
 F: ui/
@@ -844,7 +838,6 @@ S: Odd Fixes
 F: ui/cocoa.m
 
 Main loop
-M: Anthony Liguori <aliguori@amazon.com>
 M: Paolo Bonzini <pbonzini@redhat.com>
 S: Maintained
 F: cpus.c
@@ -861,7 +854,6 @@ F: hmp-commands.hx
 T: git git://repo.or.cz/qemu/qmp-unstable.git queue/qmp
 
 Network device layer
-M: Anthony Liguori <aliguori@amazon.com>
 M: Stefan Hajnoczi <stefanha@redhat.com>
 M: Jason Wang <jasowang@redhat.com>
 S: Maintained
@@ -913,7 +905,6 @@ F: qga/
 T: git git://github.com/mdroth/qemu.git qga
 
 QOM
-M: Anthony Liguori <aliguori@amazon.com>
 M: Andreas Färber <afaerber@suse.de>
 S: Supported
 T: git git://github.com/afaerber/qemu-cpu.git qom-next
