@@ -487,7 +487,7 @@ void ahci_get_command_header(AHCIQState *ahci, uint8_t port,
 void ahci_set_command_header(AHCIQState *ahci, uint8_t port,
                              uint8_t slot, AHCICommandHeader *cmd)
 {
-    AHCICommandHeader tmp;
+    AHCICommandHeader tmp = { .flags = 0 };
     uint64_t ba = ahci->port[port].clb;
     ba += slot * sizeof(AHCICommandHeader);
 
@@ -713,6 +713,40 @@ void ahci_command_free(AHCICommand *cmd)
     g_free(cmd);
 }
 
+void ahci_command_set_flags(AHCICommand *cmd, uint16_t cmdh_flags)
+{
+    cmd->header.flags |= cmdh_flags;
+}
+
+void ahci_command_clr_flags(AHCICommand *cmd, uint16_t cmdh_flags)
+{
+    cmd->header.flags &= ~cmdh_flags;
+}
+
+void ahci_command_set_offset(AHCICommand *cmd, uint64_t lba_sect)
+{
+    RegH2DFIS *fis = &(cmd->fis);
+    if (cmd->props->lba28) {
+        g_assert_cmphex(lba_sect, <=, 0xFFFFFFF);
+    } else if (cmd->props->lba48) {
+        g_assert_cmphex(lba_sect, <=, 0xFFFFFFFFFFFF);
+    } else {
+        /* Can't set offset if we don't know the format. */
+        g_assert_not_reached();
+    }
+
+    /* LBA28 uses the low nibble of the device/control register for LBA24:27 */
+    fis->lba_lo[0] = (lba_sect & 0xFF);
+    fis->lba_lo[1] = (lba_sect >> 8) & 0xFF;
+    fis->lba_lo[2] = (lba_sect >> 16) & 0xFF;
+    if (cmd->props->lba28) {
+        fis->device = (fis->device & 0xF0) || (lba_sect >> 24) & 0x0F;
+    }
+    fis->lba_hi[0] = (lba_sect >> 24) & 0xFF;
+    fis->lba_hi[1] = (lba_sect >> 32) & 0xFF;
+    fis->lba_hi[2] = (lba_sect >> 40) & 0xFF;
+}
+
 void ahci_command_set_buffer(AHCICommand *cmd, uint64_t buffer)
 {
     cmd->buffer = buffer;
@@ -738,6 +772,14 @@ void ahci_command_set_size(AHCICommand *cmd, uint64_t xbytes)
 void ahci_command_set_prd_size(AHCICommand *cmd, unsigned prd_size)
 {
     ahci_command_set_sizes(cmd, cmd->xbytes, prd_size);
+}
+
+void ahci_command_adjust(AHCICommand *cmd, uint64_t offset, uint64_t buffer,
+                         uint64_t xbytes, unsigned prd_size)
+{
+    ahci_command_set_sizes(cmd, xbytes, prd_size);
+    ahci_command_set_buffer(cmd, buffer);
+    ahci_command_set_offset(cmd, offset);
 }
 
 void ahci_command_commit(AHCIQState *ahci, AHCICommand *cmd, uint8_t port)

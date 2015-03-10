@@ -46,6 +46,13 @@ _supported_proto file
 _supported_os Linux
 _default_cache_mode "writethrough"
 _supported_cache_modes "writethrough" "none"
+# The refcount table tests expect a certain minimum width for refcount entries
+# (so that the refcount table actually needs to grow); that minimum is 16 bits,
+# being the default refcount entry width.
+# 32 and 64 bits do not work either, however, due to different leaked cluster
+# count on error.
+# Thus, the only remaining option is refcount_bits=16.
+_unsupported_imgopts 'refcount_bits=\([^1]\|.\([^6]\|$\)\)'
 
 echo "Errors while writing 128 kB"
 echo

@@ -252,7 +252,6 @@ static void ide_atapi_cmd_reply(IDEState *s, int size, int max_size)
     s->packet_transfer_size = size;
     s->io_buffer_size = size;    /* dma: send the reply data as one chunk */
     s->elementary_transfer_size = 0;
-    s->io_buffer_index = 0;
 
     if (s->atapi_dma) {
         block_acct_start(blk_get_stats(s->blk), &s->acct, size,
@@ -261,6 +260,7 @@ static void ide_atapi_cmd_reply(IDEState *s, int size, int max_size)
         ide_start_dma(s, ide_atapi_cmd_read_dma_cb);
     } else {
         s->status = READY_STAT | SEEK_STAT;
+        s->io_buffer_index = 0;
         ide_atapi_cmd_reply_end(s);
     }
 }
@@ -368,7 +368,6 @@ static void ide_atapi_cmd_read_dma(IDEState *s, int lba, int nb_sectors,
 {
     s->lba = lba;
     s->packet_transfer_size = nb_sectors * sector_size;
-    s->io_buffer_index = 0;
     s->io_buffer_size = 0;
     s->cd_sector_size = sector_size;
 

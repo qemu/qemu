@@ -201,6 +201,7 @@ static int virtio_blk_handle_scsi_req(VirtIOBlockReq *req)
 #ifdef __linux__
     int i;
     VirtIOBlockIoctlReq *ioctl_req;
+    BlockAIOCB *acb;
 #endif
 
     /*
@@ -278,8 +279,13 @@ static int virtio_blk_handle_scsi_req(VirtIOBlockReq *req)
     ioctl_req->hdr.sbp = elem->in_sg[elem->in_num - 3].iov_base;
     ioctl_req->hdr.mx_sb_len = elem->in_sg[elem->in_num - 3].iov_len;
 
-    blk_aio_ioctl(blk->blk, SG_IO, &ioctl_req->hdr,
-                  virtio_blk_ioctl_complete, ioctl_req);
+    acb = blk_aio_ioctl(blk->blk, SG_IO, &ioctl_req->hdr,
+                        virtio_blk_ioctl_complete, ioctl_req);
+    if (!acb) {
+        g_free(ioctl_req);
+        status = VIRTIO_BLK_S_UNSUPP;
+        goto fail;
+    }
     return -EINPROGRESS;
 #else
     abort();
@@ -591,12 +597,6 @@ static void virtio_blk_handle_output(VirtIODevice *vdev, VirtQueue *vq)
     if (mrb.num_reqs) {
         virtio_blk_submit_multireq(s->blk, &mrb);
     }
-
-    /*
-     * FIXME: Want to check for completions before returning to guest mode,
-     * so cached reads and writes are reported as quickly as possible. But
-     * that should be done in the generic block layer.
-     */
 }
 
 static void virtio_blk_dma_restart_bh(void *opaque)
@@ -884,6 +884,7 @@ static void virtio_blk_device_realize(DeviceState *dev, Error **errp)
         error_propagate(errp, err);
         return;
     }
+    blkconf_blocksizes(&conf->conf);
 
     virtio_init(vdev, "virtio-blk", VIRTIO_ID_BLOCK,
                 sizeof(struct virtio_blk_config));

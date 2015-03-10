@@ -56,6 +56,10 @@
 #include <linux/cdrom.h>
 #include <linux/fd.h>
 #include <linux/fs.h>
+#include <linux/hdreg.h>
+#ifdef __s390__
+#include <asm/dasd.h>
+#endif
 #ifndef FS_NOCOW_FL
 #define FS_NOCOW_FL                     0x00800000 /* Do not cow file */
 #endif
@@ -218,11 +222,85 @@ static int raw_normalize_devicepath(const char **filename)
 }
 #endif
 
+/*
+ * Get logical block size via ioctl. On success store it in @sector_size_p.
+ */
+static int probe_logical_blocksize(int fd, unsigned int *sector_size_p)
+{
+    unsigned int sector_size;
+    bool success = false;
+
+    errno = ENOTSUP;
+
+    /* Try a few ioctls to get the right size */
+#ifdef BLKSSZGET
+    if (ioctl(fd, BLKSSZGET, &sector_size) >= 0) {
+        *sector_size_p = sector_size;
+        success = true;
+    }
+#endif
+#ifdef DKIOCGETBLOCKSIZE
+    if (ioctl(fd, DKIOCGETBLOCKSIZE, &sector_size) >= 0) {
+        *sector_size_p = sector_size;
+        success = true;
+    }
+#endif
+#ifdef DIOCGSECTORSIZE
+    if (ioctl(fd, DIOCGSECTORSIZE, &sector_size) >= 0) {
+        *sector_size_p = sector_size;
+        success = true;
+    }
+#endif
+
+    return success ? 0 : -errno;
+}
+
+/**
+ * Get physical block size of @fd.
+ * On success, store it in @blk_size and return 0.
+ * On failure, return -errno.
+ */
+static int probe_physical_blocksize(int fd, unsigned int *blk_size)
+{
+#ifdef BLKPBSZGET
+    if (ioctl(fd, BLKPBSZGET, blk_size) < 0) {
+        return -errno;
+    }
+    return 0;
+#else
+    return -ENOTSUP;
+#endif
+}
+
+/* Check if read is allowed with given memory buffer and length.
+ *
+ * This function is used to check O_DIRECT memory buffer and request alignment.
+ */
+static bool raw_is_io_aligned(int fd, void *buf, size_t len)
+{
+    ssize_t ret = pread(fd, buf, len, 0);
+
+    if (ret >= 0) {
+        return true;
+    }
+
+#ifdef __linux__
+    /* The Linux kernel returns EINVAL for misaligned O_DIRECT reads.  Ignore
+     * other errors (e.g. real I/O error), which could happen on a failed
+     * drive, since we only care about probing alignment.
+     */
+    if (errno != EINVAL) {
+        return true;
+    }
+#endif
+
+    return false;
+}
+
 static void raw_probe_alignment(BlockDriverState *bs, int fd, Error **errp)
 {
     BDRVRawState *s = bs->opaque;
     char *buf;
-    unsigned int sector_size;
 
     /* For /dev/sg devices the alignment is not really used.
        With buffered I/O, we don't have any restrictions. */
@@ -232,25 +310,12 @@ static void raw_probe_alignment(BlockDriverState *bs, int fd, Error **errp)
         return;
     }
 
-    /* Try a few ioctls to get the right size */
     bs->request_alignment = 0;
     s->buf_align = 0;
-
-#ifdef BLKSSZGET
-    if (ioctl(fd, BLKSSZGET, &sector_size) >= 0) {
-        bs->request_alignment = sector_size;
+    /* Let's try to use the logical blocksize for the alignment. */
+    if (probe_logical_blocksize(fd, &bs->request_alignment) < 0) {
+        bs->request_alignment = 0;
     }
-#endif
-#ifdef DKIOCGETBLOCKSIZE
-    if (ioctl(fd, DKIOCGETBLOCKSIZE, &sector_size) >= 0) {
-        bs->request_alignment = sector_size;
-    }
-#endif
-#ifdef DIOCGSECTORSIZE
-    if (ioctl(fd, DIOCGSECTORSIZE, &sector_size) >= 0) {
-        bs->request_alignment = sector_size;
-    }
-#endif
 #ifdef CONFIG_XFS
     if (s->is_xfs) {
         struct dioattr da;
@@ -267,7 +332,7 @@ static void raw_probe_alignment(BlockDriverState *bs, int fd, Error **errp)
         size_t align;
         buf = qemu_memalign(MAX_BLOCKSIZE, 2 * MAX_BLOCKSIZE);
         for (align = 512; align <= MAX_BLOCKSIZE; align <<= 1) {
-            if (pread(fd, buf + align, MAX_BLOCKSIZE, 0) >= 0) {
+            if (raw_is_io_aligned(fd, buf + align, MAX_BLOCKSIZE)) {
                 s->buf_align = align;
                 break;
             }
@@ -279,7 +344,7 @@ static void raw_probe_alignment(BlockDriverState *bs, int fd, Error **errp)
         size_t align;
         buf = qemu_memalign(s->buf_align, MAX_BLOCKSIZE);
         for (align = 512; align <= MAX_BLOCKSIZE; align <<= 1) {
-            if (pread(fd, buf, align, 0) >= 0) {
+            if (raw_is_io_aligned(fd, buf, align)) {
                 bs->request_alignment = align;
                 break;
             }
@@ -655,6 +720,86 @@ static void raw_refresh_limits(BlockDriverState *bs, Error **errp)
     bs->bl.opt_mem_alignment = s->buf_align;
 }
 
+static int check_for_dasd(int fd)
+{
+#ifdef BIODASDINFO2
+    struct dasd_information2_t info = {0};
+
+    return ioctl(fd, BIODASDINFO2, &info);
+#else
+    return -1;
+#endif
+}
+
+/**
+ * Try to get @bs's logical and physical block size.
+ * On success, store them in @bsz and return zero.
+ * On failure, return negative errno.
+ */
+static int hdev_probe_blocksizes(BlockDriverState *bs, BlockSizes *bsz)
+{
+    BDRVRawState *s = bs->opaque;
+    int ret;
+
+    /* If DASD, get blocksizes */
+    if (check_for_dasd(s->fd) < 0) {
+        return -ENOTSUP;
+    }
+    ret = probe_logical_blocksize(s->fd, &bsz->log);
+    if (ret < 0) {
+        return ret;
+    }
+    return probe_physical_blocksize(s->fd, &bsz->phys);
+}
+
+/**
+ * Try to get @bs's geometry: cyls, heads, sectors.
+ * On success, store them in @geo and return 0.
+ * On failure return -errno.
+ * (Allows block driver to assign default geometry values that guest sees)
+ */
+#ifdef __linux__
+static int hdev_probe_geometry(BlockDriverState *bs, HDGeometry *geo)
+{
+    BDRVRawState *s = bs->opaque;
+    struct hd_geometry ioctl_geo = {0};
+    uint32_t blksize;
+
+    /* If DASD, get its geometry */
+    if (check_for_dasd(s->fd) < 0) {
+        return -ENOTSUP;
+    }
+    if (ioctl(s->fd, HDIO_GETGEO, &ioctl_geo) < 0) {
+        return -errno;
+    }
+    /* HDIO_GETGEO may return success even though geo contains zeros
+       (e.g. certain multipath setups) */
+    if (!ioctl_geo.heads || !ioctl_geo.sectors || !ioctl_geo.cylinders) {
+        return -ENOTSUP;
+    }
+    /* Do not return a geometry for partition */
+    if (ioctl_geo.start != 0) {
+        return -ENOTSUP;
+    }
+    geo->heads = ioctl_geo.heads;
+    geo->sectors = ioctl_geo.sectors;
+    if (!probe_physical_blocksize(s->fd, &blksize)) {
+        /* overwrite cyls: HDIO_GETGEO result is incorrect for big drives */
+        geo->cylinders = bdrv_nb_sectors(bs) / (blksize / BDRV_SECTOR_SIZE)
+                                             / (geo->heads * geo->sectors);
+        return 0;
+    }
+    geo->cylinders = ioctl_geo.cylinders;
+
+    return 0;
+}
+#else /* __linux__ */
+static int hdev_probe_geometry(BlockDriverState *bs, HDGeometry *geo)
+{
+    return -ENOTSUP;
+}
+#endif
+
 static ssize_t handle_aiocb_ioctl(RawPosixAIOData *aiocb)
 {
     int ret;
@@ -944,7 +1089,9 @@ static ssize_t handle_aiocb_write_zeroes_block(RawPosixAIOData *aiocb)
 
 static ssize_t handle_aiocb_write_zeroes(RawPosixAIOData *aiocb)
 {
+#if defined(CONFIG_FALLOCATE) || defined(CONFIG_XFS)
     BDRVRawState *s = aiocb->bs->opaque;
+#endif
 
     if (aiocb->aio_type & QEMU_AIO_BLKDEV) {
         return handle_aiocb_write_zeroes_block(aiocb);
@@ -2194,6 +2341,8 @@ static BlockDriver bdrv_host_device = {
     .bdrv_get_info = raw_get_info,
     .bdrv_get_allocated_file_size
                         = raw_get_allocated_file_size,
+    .bdrv_probe_blocksizes = hdev_probe_blocksizes,
+    .bdrv_probe_geometry = hdev_probe_geometry,
 
     .bdrv_detach_aio_context = raw_detach_aio_context,
     .bdrv_attach_aio_context = raw_attach_aio_context,

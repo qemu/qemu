@@ -213,6 +213,11 @@ typedef struct Qcow2DiscardRegion {
     QTAILQ_ENTRY(Qcow2DiscardRegion) next;
 } Qcow2DiscardRegion;
 
+typedef uint64_t Qcow2GetRefcountFunc(const void *refcount_array,
+                                      uint64_t index);
+typedef void Qcow2SetRefcountFunc(void *refcount_array,
+                                  uint64_t index, uint64_t value);
+
 typedef struct BDRVQcowState {
     int cluster_bits;
     int cluster_size;
@@ -258,6 +263,11 @@ typedef struct BDRVQcowState {
     int qcow_version;
     bool use_lazy_refcounts;
     int refcount_order;
+    int refcount_bits;
+    uint64_t refcount_max;
+
+    Qcow2GetRefcountFunc *get_refcount;
+    Qcow2SetRefcountFunc *set_refcount;
 
     bool discard_passthrough[QCOW2_DISCARD_MAX];
 
@@ -274,17 +284,6 @@ typedef struct BDRVQcowState {
     QTAILQ_HEAD (, Qcow2DiscardRegion) discards;
     bool cache_discards;
 } BDRVQcowState;
-
-/* XXX: use std qcow open function ? */
-typedef struct QCowCreateState {
-    int cluster_size;
-    int cluster_bits;
-    uint16_t *refcount_block;
-    uint64_t *refcount_table;
-    int64_t l1_table_offset;
-    int64_t refcount_table_offset;
-    int64_t refcount_block_offset;
-} QCowCreateState;
 
 struct QCowAIOCB;
 
@@ -468,6 +467,11 @@ static inline uint64_t l2meta_cow_end(QCowL2Meta *m)
         + (m->cow_end.nb_sectors << BDRV_SECTOR_BITS);
 }
 
+static inline uint64_t refcount_diff(uint64_t r1, uint64_t r2)
+{
+    return r1 > r2 ? r1 - r2 : r2 - r1;
+}
+
 // FIXME Need qcow2_ prefix to global functions
 
 /* qcow2.c functions */
@@ -487,10 +491,12 @@ void qcow2_signal_corruption(BlockDriverState *bs, bool fatal, int64_t offset,
 int qcow2_refcount_init(BlockDriverState *bs);
 void qcow2_refcount_close(BlockDriverState *bs);
 
-int qcow2_get_refcount(BlockDriverState *bs, int64_t cluster_index);
+int qcow2_get_refcount(BlockDriverState *bs, int64_t cluster_index,
+                       uint64_t *refcount);
 
 int qcow2_update_cluster_refcount(BlockDriverState *bs, int64_t cluster_index,
-                                  int addend, enum qcow2_discard_type type);
+                                  uint64_t addend, bool decrease,
+                                  enum qcow2_discard_type type);
 
 int64_t qcow2_alloc_clusters(BlockDriverState *bs, uint64_t size);
 int qcow2_alloc_clusters_at(BlockDriverState *bs, uint64_t offset,

@@ -1,0 +1,84 @@
+QA output created by 112
+
+=== refcount_bits limits ===
+
+qemu-img: TEST_DIR/t.IMGFMT: Refcount width must be a power of two and may not exceed 64 bits
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864
+qemu-img: TEST_DIR/t.IMGFMT: Refcount width must be a power of two and may not exceed 64 bits
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864 refcount_bits=-1
+qemu-img: TEST_DIR/t.IMGFMT: Refcount width must be a power of two and may not exceed 64 bits
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864
+qemu-img: TEST_DIR/t.IMGFMT: Refcount width must be a power of two and may not exceed 64 bits
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864
+refcount bits: 1
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864
+refcount bits: 64
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864
+refcount bits: 16
+
+=== refcount_bits and compat=0.10 ===
+
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864
+refcount bits: 16
+qemu-img: TEST_DIR/t.IMGFMT: Different refcount widths than 16 bits require compatibility level 1.1 or above (use compat=1.1 or greater)
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864
+qemu-img: TEST_DIR/t.IMGFMT: Different refcount widths than 16 bits require compatibility level 1.1 or above (use compat=1.1 or greater)
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864
+
+=== Snapshot limit on refcount_bits=1 ===
+
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864
+refcount bits: 1
+wrote 512/512 bytes at offset 0
+512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+qemu-img: Could not create snapshot 'foo': -22 (Invalid argument)
+Leaked cluster 6 refcount=1 reference=0
+
+1 leaked clusters were found on the image.
+This means waste of disk space, but no harm to data.
+
+=== Snapshot limit on refcount_bits=2 ===
+
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864
+refcount bits: 2
+wrote 512/512 bytes at offset 0
+512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+qemu-img: Could not create snapshot 'baz': -22 (Invalid argument)
+Leaked cluster 7 refcount=1 reference=0
+
+1 leaked clusters were found on the image.
+This means waste of disk space, but no harm to data.
+
+=== Compressed clusters with refcount_bits=1 ===
+
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864
+refcount bits: 1
+wrote 65536/65536 bytes at offset 0
+64 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+wrote 65536/65536 bytes at offset 65536
+64 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+No errors were found on the image.
+
+=== MSb set in 64 bit refcount ===
+
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864
+refcount bits: 64
+wrote 512/512 bytes at offset 0
+512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+wrote 512/512 bytes at offset 0
+512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+
+=== Snapshot on maximum 64 bit refcount value ===
+
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864
+refcount bits: 64
+wrote 512/512 bytes at offset 0
+512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+qemu-img: Could not create snapshot 'foo': -22 (Invalid argument)
+Leaked cluster 5 refcount=18446744073709551615 reference=1
+Leaked cluster 6 refcount=1 reference=0
+
+2 leaked clusters were found on the image.
+This means waste of disk space, but no harm to data.
+*** done

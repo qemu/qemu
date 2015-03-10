@@ -107,6 +107,21 @@ static void ahci_shutdown(AHCIQState *ahci)
     qtest_shutdown(qs);
 }
 
+/**
+ * Boot and fully enable the HBA device.
+ * @see ahci_boot, ahci_pci_enable and ahci_hba_enable.
+ */
+static AHCIQState *ahci_boot_and_enable(void)
+{
+    AHCIQState *ahci;
+    ahci = ahci_boot();
+
+    ahci_pci_enable(ahci);
+    ahci_hba_enable(ahci);
+
+    return ahci;
+}
+
 /*** Specification Adherence Tests ***/
 
 /**
@@ -716,12 +731,12 @@ static void ahci_test_identify(AHCIQState *ahci)
     g_assert_cmphex(sect_size, ==, 0x200);
 }
 
-static void ahci_test_dma_rw_simple(AHCIQState *ahci)
+static void ahci_test_io_rw_simple(AHCIQState *ahci, unsigned bufsize,
+                                   uint8_t read_cmd, uint8_t write_cmd)
 {
     uint64_t ptr;
     uint8_t port;
     unsigned i;
-    const unsigned bufsize = 4096;
     unsigned char *tx = g_malloc(bufsize);
     unsigned char *rx = g_malloc0(bufsize);
 
@@ -736,16 +751,16 @@ static void ahci_test_dma_rw_simple(AHCIQState *ahci)
     ptr = ahci_alloc(ahci, bufsize);
     g_assert(ptr);
 
-    /* Write some indicative pattern to our 4K buffer. */
+    /* Write some indicative pattern to our buffer. */
     for (i = 0; i < bufsize; i++) {
         tx[i] = (bufsize - i);
     }
     memwrite(ptr, tx, bufsize);
 
     /* Write this buffer to disk, then read it back to the DMA buffer. */
-    ahci_guest_io(ahci, port, CMD_WRITE_DMA, ptr, bufsize);
+    ahci_guest_io(ahci, port, write_cmd, ptr, bufsize);
     qmemset(ptr, 0x00, bufsize);
-    ahci_guest_io(ahci, port, CMD_READ_DMA, ptr, bufsize);
+    ahci_guest_io(ahci, port, read_cmd, ptr, bufsize);
 
     /*** Read back the Data ***/
     memread(ptr, rx, bufsize);
@@ -831,25 +846,204 @@ static void test_identify(void)
 {
     AHCIQState *ahci;
 
-    ahci = ahci_boot();
-    ahci_pci_enable(ahci);
-    ahci_hba_enable(ahci);
+    ahci = ahci_boot_and_enable();
     ahci_test_identify(ahci);
     ahci_shutdown(ahci);
 }
 
 /**
- * Perform a simple DMA R/W test, using a single PRD and non-NCQ commands.
+ * Fragmented DMA test: Perform a standard 4K DMA read/write
+ * test, but make sure the physical regions are fragmented to
+ * be very small, each just 32 bytes, to see how AHCI performs
+ * with chunks defined to be much less than a sector.
  */
-static void test_dma_rw_simple(void)
+static void test_dma_fragmented(void)
+{
+    AHCIQState *ahci;
+    AHCICommand *cmd;
+    uint8_t px;
+    size_t bufsize = 4096;
+    unsigned char *tx = g_malloc(bufsize);
+    unsigned char *rx = g_malloc0(bufsize);
+    unsigned i;
+    uint64_t ptr;
+
+    ahci = ahci_boot_and_enable();
+    px = ahci_port_select(ahci);
+    ahci_port_clear(ahci, px);
+
+    /* create pattern */
+    for (i = 0; i < bufsize; i++) {
+        tx[i] = (bufsize - i);
+    }
+
+    /* Create a DMA buffer in guest memory, and write our pattern to it. */
+    ptr = guest_alloc(ahci->parent->alloc, bufsize);
+    g_assert(ptr);
+    memwrite(ptr, tx, bufsize);
+
+    cmd = ahci_command_create(CMD_WRITE_DMA);
+    ahci_command_adjust(cmd, 0, ptr, bufsize, 32);
+    ahci_command_commit(ahci, cmd, px);
+    ahci_command_issue(ahci, cmd);
+    ahci_command_verify(ahci, cmd);
+    g_free(cmd);
+
+    cmd = ahci_command_create(CMD_READ_DMA);
+    ahci_command_adjust(cmd, 0, ptr, bufsize, 32);
+    ahci_command_commit(ahci, cmd, px);
+    ahci_command_issue(ahci, cmd);
+    ahci_command_verify(ahci, cmd);
+    g_free(cmd);
+
+    /* Read back the guest's receive buffer into local memory */
+    memread(ptr, rx, bufsize);
+    guest_free(ahci->parent->alloc, ptr);
+
+    g_assert_cmphex(memcmp(tx, rx, bufsize), ==, 0);
+
+    ahci_shutdown(ahci);
+
+    g_free(rx);
+    g_free(tx);
+}
+
+/******************************************************************************/
+/* AHCI I/O Test Matrix Definitions                                           */
+
+enum BuffLen {
+    LEN_BEGIN = 0,
+    LEN_SIMPLE = LEN_BEGIN,
+    LEN_DOUBLE,
+    LEN_LONG,
+    LEN_SHORT,
+    NUM_LENGTHS
+};
+
+static const char *buff_len_str[NUM_LENGTHS] = { "simple", "double",
+                                                 "long", "short" };
+
+enum AddrMode {
+    ADDR_MODE_BEGIN = 0,
+    ADDR_MODE_LBA28 = ADDR_MODE_BEGIN,
+    ADDR_MODE_LBA48,
+    NUM_ADDR_MODES
+};
+
+static const char *addr_mode_str[NUM_ADDR_MODES] = { "lba28", "lba48" };
+
+enum IOMode {
+    MODE_BEGIN = 0,
+    MODE_PIO = MODE_BEGIN,
+    MODE_DMA,
+    NUM_MODES
+};
+
+static const char *io_mode_str[NUM_MODES] = { "pio", "dma" };
+
+enum IOOps {
+    IO_BEGIN = 0,
+    IO_READ = IO_BEGIN,
+    IO_WRITE,
+    NUM_IO_OPS
+};
+
+typedef struct AHCIIOTestOptions {
+    enum BuffLen length;
+    enum AddrMode address_type;
+    enum IOMode io_type;
+} AHCIIOTestOptions;
+
+/**
+ * Table of possible I/O ATA commands given a set of enumerations.
+ */
+static const uint8_t io_cmds[NUM_MODES][NUM_ADDR_MODES][NUM_IO_OPS] = {
+    [MODE_PIO] = {
+        [ADDR_MODE_LBA28] = {
+            [IO_READ] = CMD_READ_PIO,
+            [IO_WRITE] = CMD_WRITE_PIO },
+        [ADDR_MODE_LBA48] = {
+            [IO_READ] = CMD_READ_PIO_EXT,
+            [IO_WRITE] = CMD_WRITE_PIO_EXT }
+    },
+    [MODE_DMA] = {
+        [ADDR_MODE_LBA28] = {
+            [IO_READ] = CMD_READ_DMA,
+            [IO_WRITE] = CMD_WRITE_DMA },
+        [ADDR_MODE_LBA48] = {
+            [IO_READ] = CMD_READ_DMA_EXT,
+            [IO_WRITE] = CMD_WRITE_DMA_EXT }
+    }
+};
+
+/**
+ * Test a Read/Write pattern using various commands, addressing modes,
+ * transfer modes, and buffer sizes.
+ */
+static void test_io_rw_interface(enum AddrMode lba48, enum IOMode dma,
+                                 unsigned bufsize)
 {
     AHCIQState *ahci;
 
-    ahci = ahci_boot();
-    ahci_pci_enable(ahci);
-    ahci_hba_enable(ahci);
-    ahci_test_dma_rw_simple(ahci);
+    ahci = ahci_boot_and_enable();
+    ahci_test_io_rw_simple(ahci, bufsize,
+                           io_cmds[dma][lba48][IO_READ],
+                           io_cmds[dma][lba48][IO_WRITE]);
     ahci_shutdown(ahci);
+}
+
+/**
+ * Demultiplex the test data and invoke the actual test routine.
+ */
+static void test_io_interface(gconstpointer opaque)
+{
+    AHCIIOTestOptions *opts = (AHCIIOTestOptions *)opaque;
+    unsigned bufsize;
+
+    switch (opts->length) {
+    case LEN_SIMPLE:
+        bufsize = 4096;
+        break;
+    case LEN_DOUBLE:
+        bufsize = 8192;
+        break;
+    case LEN_LONG:
+        bufsize = 4096 * 64;
+        break;
+    case LEN_SHORT:
+        bufsize = 512;
+        break;
+    default:
+        g_assert_not_reached();
+    }
+
+    test_io_rw_interface(opts->address_type, opts->io_type, bufsize);
+    g_free(opts);
+    return;
+}
+
+static void create_ahci_io_test(enum IOMode type, enum AddrMode addr,
+                                enum BuffLen len)
+{
+    static const char *arch;
+    char *name;
+    AHCIIOTestOptions *opts = g_malloc(sizeof(AHCIIOTestOptions));
+
+    opts->length = len;
+    opts->address_type = addr;
+    opts->io_type = type;
+
+    if (!arch) {
+        arch = qtest_get_arch();
+    }
+
+    name = g_strdup_printf("/%s/ahci/io/%s/%s/%s", arch,
+                           io_mode_str[type],
+                           addr_mode_str[addr],
+                           buff_len_str[len]);
+
+    g_test_add_data_func(name, opts, test_io_interface);
+    g_free(name);
 }
 
 /******************************************************************************/
@@ -860,6 +1054,7 @@ int main(int argc, char **argv)
     int fd;
     int ret;
     int c;
+    int i, j, k;
 
     static struct option long_options[] = {
         {"pedantic", no_argument, 0, 'p' },
@@ -907,7 +1102,16 @@ int main(int argc, char **argv)
     qtest_add_func("/ahci/hba_spec",   test_hba_spec);
     qtest_add_func("/ahci/hba_enable", test_hba_enable);
     qtest_add_func("/ahci/identify",   test_identify);
-    qtest_add_func("/ahci/dma/simple", test_dma_rw_simple);
+
+    for (i = MODE_BEGIN; i < NUM_MODES; i++) {
+        for (j = ADDR_MODE_BEGIN; j < NUM_ADDR_MODES; j++) {
+            for (k = LEN_BEGIN; k < NUM_LENGTHS; k++) {
+                create_ahci_io_test(i, j, k);
+            }
+        }
+    }
+
+    qtest_add_func("/ahci/io/dma/lba28/fragmented", test_dma_fragmented);
 
     ret = g_test_run();
 

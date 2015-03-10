@@ -60,6 +60,17 @@ typedef enum {
     BDRV_REQ_MAY_UNMAP    = 0x4,
 } BdrvRequestFlags;
 
+typedef struct BlockSizes {
+    uint32_t phys;
+    uint32_t log;
+} BlockSizes;
+
+typedef struct HDGeometry {
+    uint32_t heads;
+    uint32_t sectors;
+    uint32_t cylinders;
+} HDGeometry;
+
 #define BDRV_O_RDWR        0x0002
 #define BDRV_O_SNAPSHOT    0x0008 /* open the file read only and save writes in a snapshot */
 #define BDRV_O_TEMPORARY   0x0010 /* delete the file after use */
@@ -550,6 +561,8 @@ AioContext *bdrv_get_aio_context(BlockDriverState *bs);
  * This function must be called with iothread lock held.
  */
 void bdrv_set_aio_context(BlockDriverState *bs, AioContext *new_context);
+int bdrv_probe_blocksizes(BlockDriverState *bs, BlockSizes *bsz);
+int bdrv_probe_geometry(BlockDriverState *bs, HDGeometry *geo);
 
 void bdrv_io_plug(BlockDriverState *bs);
 void bdrv_io_unplug(BlockDriverState *bs);

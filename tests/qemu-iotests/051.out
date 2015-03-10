@@ -47,6 +47,14 @@ Testing: -drive file=TEST_DIR/t.qcow2,driver=qcow2,format=qcow2
 QEMU_PROG: -drive file=TEST_DIR/t.qcow2,driver=qcow2,format=qcow2: Cannot specify both 'driver' and 'format'
 
 
+=== Device without drive ===
+
+Testing: -device virtio-scsi-pci -device scsi-hd
+QEMU X.Y.Z monitor - type 'help' for more information
+(qemu) QEMU_PROG: -device scsi-hd: drive property not set
+QEMU_PROG: -device scsi-hd: Device 'scsi-hd' could not be initialized
+
+
 === Overriding backing file ===
 
 Testing: -drive file=TEST_DIR/t.qcow2,driver=qcow2,backing.file.filename=TEST_DIR/t.qcow2.orig -nodefaults
@@ -115,8 +123,7 @@ QEMU X.Y.Z monitor - type 'help' for more information
 Testing: -drive if=ide
 QEMU X.Y.Z monitor - type 'help' for more information
 (qemu) QEMU_PROG: Device needs media, but drive is empty
-QEMU_PROG: Device initialization failed.
-QEMU_PROG: Initialization of device ide-hd failed
+QEMU_PROG: Initialization of device ide-hd failed: Device initialization failed.
 
 Testing: -drive if=virtio
 QEMU X.Y.Z monitor - type 'help' for more information
@@ -127,8 +134,7 @@ QEMU_PROG: -drive if=virtio: Device 'virtio-blk-pci' could not be initialized
 Testing: -drive if=scsi
 QEMU X.Y.Z monitor - type 'help' for more information
 (qemu) QEMU_PROG: -drive if=scsi: Device needs media, but drive is empty
-QEMU_PROG: Device initialization failed.
-QEMU_PROG: Initialization of device lsi53c895a failed
+QEMU_PROG: Initialization of device lsi53c895a failed: Device initialization failed.
 
 Testing: -drive if=none,id=disk -device ide-cd,drive=disk
 QEMU X.Y.Z monitor - type 'help' for more information
@@ -178,8 +184,7 @@ QEMU X.Y.Z monitor - type 'help' for more information
 Testing: -drive file=TEST_DIR/t.qcow2,if=ide,readonly=on
 QEMU X.Y.Z monitor - type 'help' for more information
 (qemu) QEMU_PROG: Can't use a read-only drive
-QEMU_PROG: Device initialization failed.
-QEMU_PROG: Initialization of device ide-hd failed
+QEMU_PROG: Initialization of device ide-hd failed: Device initialization failed.
 
 Testing: -drive file=TEST_DIR/t.qcow2,if=virtio,readonly=on
 QEMU X.Y.Z monitor - type 'help' for more information

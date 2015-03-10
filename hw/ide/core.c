@@ -561,6 +561,8 @@ static bool ide_sect_range_ok(IDEState *s,
     return true;
 }
 
+static void ide_sector_read(IDEState *s);
+
 static void ide_sector_read_cb(void *opaque, int ret)
 {
     IDEState *s = opaque;
@@ -595,7 +597,7 @@ static void ide_sector_read_cb(void *opaque, int ret)
     s->io_buffer_offset += 512 * n;
 }
 
-void ide_sector_read(IDEState *s)
+static void ide_sector_read(IDEState *s)
 {
     int64_t sector_num;
     int n;
@@ -646,6 +648,9 @@ static void dma_buf_commit(IDEState *s, uint32_t tx_bytes)
 void ide_set_inactive(IDEState *s, bool more)
 {
     s->bus->dma->aiocb = NULL;
+    s->bus->retry_unit = -1;
+    s->bus->retry_sector_num = 0;
+    s->bus->retry_nsector = 0;
     if (s->bus->dma->ops->set_inactive) {
         s->bus->dma->ops->set_inactive(s->bus->dma, more);
     }
@@ -666,7 +671,7 @@ static int ide_handle_rw_error(IDEState *s, int error, int op)
     BlockErrorAction action = blk_get_error_action(s->blk, is_read, error);
 
     if (action == BLOCK_ERROR_ACTION_STOP) {
-        s->bus->dma->ops->set_unit(s->bus->dma, s->unit);
+        assert(s->bus->retry_unit == s->unit);
         s->bus->error_status = op;
     } else if (action == BLOCK_ERROR_ACTION_REPORT) {
         if (op & IDE_RETRY_DMA) {
@@ -679,7 +684,7 @@ static int ide_handle_rw_error(IDEState *s, int error, int op)
     return action != BLOCK_ERROR_ACTION_IGNORE;
 }
 
-void ide_dma_cb(void *opaque, int ret)
+static void ide_dma_cb(void *opaque, int ret)
 {
     IDEState *s = opaque;
     int n;
@@ -777,7 +782,6 @@ eot:
 static void ide_sector_start_dma(IDEState *s, enum ide_dma_cmd dma_cmd)
 {
     s->status = READY_STAT | SEEK_STAT | DRQ_STAT | BUSY_STAT;
-    s->io_buffer_index = 0;
     s->io_buffer_size = 0;
     s->dma_cmd = dma_cmd;
 
@@ -799,10 +803,16 @@ static void ide_sector_start_dma(IDEState *s, enum ide_dma_cmd dma_cmd)
 
 void ide_start_dma(IDEState *s, BlockCompletionFunc *cb)
 {
+    s->io_buffer_index = 0;
+    s->bus->retry_unit = s->unit;
+    s->bus->retry_sector_num = ide_get_sector(s);
+    s->bus->retry_nsector = s->nsector;
     if (s->bus->dma->ops->start_dma) {
         s->bus->dma->ops->start_dma(s->bus->dma, s, cb);
     }
 }
+
+static void ide_sector_write(IDEState *s);
 
 static void ide_sector_write_timer_cb(void *opaque)
 {
@@ -863,7 +873,7 @@ static void ide_sector_write_cb(void *opaque, int ret)
     }
 }
 
-void ide_sector_write(IDEState *s)
+static void ide_sector_write(IDEState *s)
 {
     int64_t sector_num;
     int n;
@@ -917,7 +927,7 @@ static void ide_flush_cb(void *opaque, int ret)
     ide_set_irq(s->bus);
 }
 
-void ide_flush_cache(IDEState *s)
+static void ide_flush_cache(IDEState *s)
 {
     if (s->blk == NULL) {
         ide_flush_cb(s, 0);
@@ -2314,21 +2324,100 @@ static int ide_nop_int(IDEDMA *dma, int x)
     return 0;
 }
 
+static void ide_nop(IDEDMA *dma)
+{
+}
+
 static int32_t ide_nop_int32(IDEDMA *dma, int x)
 {
     return 0;
 }
 
-static void ide_nop_restart(void *opaque, int x, RunState y)
-{
-}
-
 static const IDEDMAOps ide_dma_nop_ops = {
     .prepare_buf    = ide_nop_int32,
+    .restart_dma    = ide_nop,
     .rw_buf         = ide_nop_int,
-    .set_unit       = ide_nop_int,
-    .restart_cb     = ide_nop_restart,
 };
+
+static void ide_restart_dma(IDEState *s, enum ide_dma_cmd dma_cmd)
+{
+    s->unit = s->bus->retry_unit;
+    ide_set_sector(s, s->bus->retry_sector_num);
+    s->nsector = s->bus->retry_nsector;
+    s->bus->dma->ops->restart_dma(s->bus->dma);
+    s->io_buffer_size = 0;
+    s->dma_cmd = dma_cmd;
+    ide_start_dma(s, ide_dma_cb);
+}
+
+static void ide_restart_bh(void *opaque)
+{
+    IDEBus *bus = opaque;
+    IDEState *s;
+    bool is_read;
+    int error_status;
+
+    qemu_bh_delete(bus->bh);
+    bus->bh = NULL;
+
+    error_status = bus->error_status;
+    if (bus->error_status == 0) {
+        return;
+    }
+
+    s = idebus_active_if(bus);
+    is_read = (bus->error_status & IDE_RETRY_READ) != 0;
+
+    /* The error status must be cleared before resubmitting the request: The
+     * request may fail again, and this case can only be distinguished if the
+     * called function can set a new error status. */
+    bus->error_status = 0;
+
+    if (error_status & IDE_RETRY_DMA) {
+        if (error_status & IDE_RETRY_TRIM) {
+            ide_restart_dma(s, IDE_DMA_TRIM);
+        } else {
+            ide_restart_dma(s, is_read ? IDE_DMA_READ : IDE_DMA_WRITE);
+        }
+    } else if (error_status & IDE_RETRY_PIO) {
+        if (is_read) {
+            ide_sector_read(s);
+        } else {
+            ide_sector_write(s);
+        }
+    } else if (error_status & IDE_RETRY_FLUSH) {
+        ide_flush_cache(s);
+    } else {
+        /*
+         * We've not got any bits to tell us about ATAPI - but
+         * we do have the end_transfer_func that tells us what
+         * we're trying to do.
+         */
+        if (s->end_transfer_func == ide_atapi_cmd) {
+            ide_atapi_dma_restart(s);
+        }
+    }
+}
+
+static void ide_restart_cb(void *opaque, int running, RunState state)
+{
+    IDEBus *bus = opaque;
+
+    if (!running)
+        return;
+
+    if (!bus->bh) {
+        bus->bh = qemu_bh_new(ide_restart_bh, bus);
+        qemu_bh_schedule(bus->bh);
+    }
+}
+
+void ide_register_restart_cb(IDEBus *bus)
+{
+    if (bus->dma->ops->restart_dma) {
+        qemu_add_vm_change_state_handler(ide_restart_cb, bus);
+    }
+}
 
 static IDEDMA ide_dma_nop = {
     .ops = &ide_dma_nop_ops,
@@ -2557,10 +2646,13 @@ const VMStateDescription vmstate_ide_drive = {
 
 static const VMStateDescription vmstate_ide_error_status = {
     .name ="ide_bus/error",
-    .version_id = 1,
+    .version_id = 2,
     .minimum_version_id = 1,
     .fields = (VMStateField[]) {
         VMSTATE_INT32(error_status, IDEBus),
+        VMSTATE_INT64_V(retry_sector_num, IDEBus, 2),
+        VMSTATE_UINT32_V(retry_nsector, IDEBus, 2),
+        VMSTATE_UINT8_V(retry_unit, IDEBus, 2),
         VMSTATE_END_OF_LIST()
     }
 };

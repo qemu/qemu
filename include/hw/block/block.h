@@ -44,9 +44,9 @@ static inline unsigned int get_physical_block_exp(BlockConf *conf)
 #define DEFINE_BLOCK_PROPERTIES(_state, _conf)                          \
     DEFINE_PROP_DRIVE("drive", _state, _conf.blk),                      \
     DEFINE_PROP_BLOCKSIZE("logical_block_size", _state,                 \
-                          _conf.logical_block_size, 512),               \
+                          _conf.logical_block_size),                    \
     DEFINE_PROP_BLOCKSIZE("physical_block_size", _state,                \
-                          _conf.physical_block_size, 512),              \
+                          _conf.physical_block_size),                   \
     DEFINE_PROP_UINT16("min_io_size", _state, _conf.min_io_size, 0),  \
     DEFINE_PROP_UINT32("opt_io_size", _state, _conf.opt_io_size, 0),    \
     DEFINE_PROP_UINT32("discard_granularity", _state, \
@@ -63,6 +63,7 @@ void blkconf_serial(BlockConf *conf, char **serial);
 void blkconf_geometry(BlockConf *conf, int *trans,
                       unsigned cyls_max, unsigned heads_max, unsigned secs_max,
                       Error **errp);
+void blkconf_blocksizes(BlockConf *conf);
 
 /* Hard disk geometry */
 

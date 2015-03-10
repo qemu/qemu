@@ -41,13 +41,16 @@
 # @corrupt: #optional true if the image has been marked corrupt; only valid for
 #           compat >= 1.1 (since 2.2)
 #
+# @refcount-bits: width of a refcount entry in bits (since 2.3)
+#
 # Since: 1.7
 ##
 { 'type': 'ImageInfoSpecificQCow2',
   'data': {
       'compat': 'str',
       '*lazy-refcounts': 'bool',
-      '*corrupt': 'bool'
+      '*corrupt': 'bool',
+      'refcount-bits': 'int'
   } }
 
 ##

@@ -235,6 +235,16 @@ static int raw_probe(const uint8_t *buf, int buf_size, const char *filename)
     return 1;
 }
 
+static int raw_probe_blocksizes(BlockDriverState *bs, BlockSizes *bsz)
+{
+    return bdrv_probe_blocksizes(bs->file, bsz);
+}
+
+static int raw_probe_geometry(BlockDriverState *bs, HDGeometry *geo)
+{
+    return bdrv_probe_geometry(bs->file, geo);
+}
+
 BlockDriver bdrv_raw = {
     .format_name          = "raw",
     .bdrv_probe           = &raw_probe,
@@ -252,6 +262,8 @@ BlockDriver bdrv_raw = {
     .has_variable_length  = true,
     .bdrv_get_info        = &raw_get_info,
     .bdrv_refresh_limits  = &raw_refresh_limits,
+    .bdrv_probe_blocksizes = &raw_probe_blocksizes,
+    .bdrv_probe_geometry  = &raw_probe_geometry,
     .bdrv_is_inserted     = &raw_is_inserted,
     .bdrv_media_changed   = &raw_media_changed,
     .bdrv_eject           = &raw_eject,

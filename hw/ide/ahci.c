@@ -1160,6 +1160,11 @@ static void ahci_start_dma(IDEDMA *dma, IDEState *s,
     dma_cb(s, 0);
 }
 
+static void ahci_restart_dma(IDEDMA *dma)
+{
+    /* Nothing to do, ahci_start_dma already resets s->io_buffer_offset.  */
+}
+
 /**
  * Called in DMA R/W chains to read the PRDT, utilizing ahci_populate_sglist.
  * Not currently invoked by PIO R/W chains,
@@ -1226,12 +1231,6 @@ static int ahci_dma_rw_buf(IDEDMA *dma, int is_write)
     return 1;
 }
 
-static int ahci_dma_set_unit(IDEDMA *dma, int unit)
-{
-    /* only a single unit per link */
-    return 0;
-}
-
 static void ahci_cmd_done(IDEDMA *dma)
 {
     AHCIDevice *ad = DO_UPCAST(AHCIDevice, dma, dma);
@@ -1252,19 +1251,14 @@ static void ahci_irq_set(void *opaque, int n, int level)
 {
 }
 
-static void ahci_dma_restart_cb(void *opaque, int running, RunState state)
-{
-}
-
 static const IDEDMAOps ahci_dma_ops = {
     .start_dma = ahci_start_dma,
+    .restart_dma = ahci_restart_dma,
     .start_transfer = ahci_start_transfer,
     .prepare_buf = ahci_dma_prepare_buf,
     .commit_buf = ahci_commit_buf,
     .rw_buf = ahci_dma_rw_buf,
-    .set_unit = ahci_dma_set_unit,
     .cmd_done = ahci_cmd_done,
-    .restart_cb = ahci_dma_restart_cb,
 };
 
 void ahci_init(AHCIState *s, DeviceState *qdev, AddressSpace *as, int ports)
@@ -1294,6 +1288,7 @@ void ahci_init(AHCIState *s, DeviceState *qdev, AddressSpace *as, int ports)
         ad->port_no = i;
         ad->port.dma = &ad->dma;
         ad->port.dma->ops = &ahci_dma_ops;
+        ide_register_restart_cb(&ad->port);
     }
 }
 
@@ -1333,6 +1328,7 @@ static const VMStateDescription vmstate_ahci_device = {
     .version_id = 1,
     .fields = (VMStateField[]) {
         VMSTATE_IDE_BUS(port, AHCIDevice),
+        VMSTATE_IDE_DRIVE(port.ifs[0], AHCIDevice),
         VMSTATE_UINT32(port_state, AHCIDevice),
         VMSTATE_UINT32(finished, AHCIDevice),
         VMSTATE_UINT32(port_regs.lst_addr, AHCIDevice),
@@ -1371,16 +1367,23 @@ static int ahci_state_post_load(void *opaque, int version_id)
         map_page(s->as, &ad->res_fis,
                  ((uint64_t)pr->fis_addr_hi << 32) | pr->fis_addr, 256);
         /*
-         * All pending i/o should be flushed out on a migrate. However,
-         * we might not have cleared the busy_slot since this is done
-         * in a bh. Also, issue i/o against any slots that are pending.
+         * If an error is present, ad->busy_slot will be valid and not -1.
+         * In this case, an operation is waiting to resume and will re-check
+         * for additional AHCI commands to execute upon completion.
+         *
+         * In the case where no error was present, busy_slot will be -1,
+         * and we should check to see if there are additional commands waiting.
          */
-        if ((ad->busy_slot != -1) &&
-            !(ad->port.ifs[0].status & (BUSY_STAT|DRQ_STAT))) {
-            pr->cmd_issue &= ~(1 << ad->busy_slot);
-            ad->busy_slot = -1;
+        if (ad->busy_slot == -1) {
+            check_cmd(s, i);
+        } else {
+            /* We are in the middle of a command, and may need to access
+             * the command header in guest memory again. */
+            if (ad->busy_slot < 0 || ad->busy_slot >= AHCI_MAX_CMDS) {
+                return -1;
+            }
+            ad->cur_cmd = &((AHCICmdHdr *)ad->lst)[ad->busy_slot];
         }
-        check_cmd(s, i);
     }
 
     return 0;
