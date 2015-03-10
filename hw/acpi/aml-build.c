@@ -141,6 +141,7 @@ build_append_namestringv(GArray *array, const char *format, va_list ap)
     g_strfreev(segs);
 }
 
+GCC_FMT_ATTR(2, 3)
 static void build_append_namestring(GArray *array, const char *format, ...)
 {
     va_list ap;
