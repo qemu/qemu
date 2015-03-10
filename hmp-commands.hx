@@ -204,7 +204,6 @@ ETEXI
 STEXI
 @item change @var{device} @var{setting}
 @findex change
-
 Change the configuration of a device.
 
 @table @option
@@ -522,7 +521,6 @@ ETEXI
 STEXI
 @item p or print/@var{fmt} @var{expr}
 @findex print
-
 Print expression value. Only the @var{format} part of @var{fmt} is
 used.
 ETEXI
@@ -536,6 +534,8 @@ ETEXI
     },
 
 STEXI
+@item i/@var{fmt} @var{addr} [.@var{index}]
+@findex i
 Read I/O port.
 ETEXI
 
@@ -548,6 +548,8 @@ ETEXI
     },
 
 STEXI
+@item o/@var{fmt} @var{addr} @var{val}
+@findex o
 Write to I/O port.
 ETEXI
 
@@ -563,7 +565,6 @@ ETEXI
 STEXI
 @item sendkey @var{keys}
 @findex sendkey
-
 Send @var{keys} to the guest. @var{keys} could be the name of the
 key or the raw value in hexadecimal format. Use @code{-} to press
 several keys simultaneously. Example:
@@ -586,7 +587,6 @@ ETEXI
 STEXI
 @item system_reset
 @findex system_reset
-
 Reset the system.
 ETEXI
 
@@ -601,7 +601,6 @@ ETEXI
 STEXI
 @item system_powerdown
 @findex system_powerdown
-
 Power down the system (if supported).
 ETEXI
 
@@ -616,7 +615,6 @@ ETEXI
 STEXI
 @item sum @var{addr} @var{size}
 @findex sum
-
 Compute the checksum of a memory region.
 ETEXI
 
@@ -631,7 +629,6 @@ ETEXI
 STEXI
 @item usb_add @var{devname}
 @findex usb_add
-
 Add the USB device @var{devname}.  For details of available devices see
 @ref{usb_devices}
 ETEXI
@@ -647,7 +644,6 @@ ETEXI
 STEXI
 @item usb_del @var{devname}
 @findex usb_del
-
 Remove the USB device @var{devname} from the QEMU virtual USB
 hub. @var{devname} has the syntax @code{bus.addr}. Use the monitor
 command @code{info usb} to see the devices you can remove.
@@ -666,7 +662,6 @@ ETEXI
 STEXI
 @item device_add @var{config}
 @findex device_add
-
 Add device.
 ETEXI
 
@@ -682,7 +677,6 @@ ETEXI
 STEXI
 @item device_del @var{id}
 @findex device_del
-
 Remove device @var{id}.
 ETEXI
 
@@ -823,7 +817,6 @@ ETEXI
 STEXI
 @item boot_set @var{bootdevicelist}
 @findex boot_set
-
 Define new values for the boot device list. Those values will override
 the values specified on the command line through the @code{-boot} option.
 
@@ -1538,9 +1531,9 @@ ETEXI
     },
 
 STEXI
-@item block_set_io_throttle @var{device} @var{bps} @var{bps_rd} @var{bps_wr} @var{iops} @var{iops_rd} @var{iops_wr}
-@findex block_set_io_throttle
-Change I/O throttle limits for a block drive to @var{bps} @var{bps_rd} @var{bps_wr} @var{iops} @var{iops_rd} @var{iops_wr}
+@item block_passwd @var{device} @var{password}
+@findex block_passwd
+Set the encrypted device @var{device} password to @var{password}
 ETEXI
 
     {
@@ -1552,9 +1545,9 @@ ETEXI
     },
 
 STEXI
-@item block_passwd @var{device} @var{password}
-@findex block_passwd
-Set the encrypted device @var{device} password to @var{password}
+@item block_set_io_throttle @var{device} @var{bps} @var{bps_rd} @var{bps_wr} @var{iops} @var{iops_rd} @var{iops_wr}
+@findex block_set_io_throttle
+Change I/O throttle limits for a block drive to @var{bps} @var{bps_rd} @var{bps_wr} @var{iops} @var{iops_rd} @var{iops_wr}
 ETEXI
 
     {
@@ -1568,7 +1561,6 @@ ETEXI
 STEXI
 @item set_password [ vnc | spice ] password [ action-if-connected ]
 @findex set_password
-
 Change spice/vnc password.  Use zero to make the password stay valid
 forever.  @var{action-if-connected} specifies what should happen in
 case a connection is established: @var{fail} makes the password change
@@ -1588,7 +1580,6 @@ ETEXI
 STEXI
 @item expire_password [ vnc | spice ] expire-time
 @findex expire_password
-
 Specify when a password for spice/vnc becomes
 invalid. @var{expire-time} accepts:
 
@@ -1619,9 +1610,8 @@ ETEXI
     },
 
 STEXI
-@item chardev_add args
-@findex chardev_add
-
+@item chardev-add args
+@findex chardev-add
 chardev_add accepts the same parameters as the -chardev command line switch.
 
 ETEXI
@@ -1636,9 +1626,8 @@ ETEXI
     },
 
 STEXI
-@item chardev_remove id
-@findex chardev_remove
-
+@item chardev-remove id
+@findex chardev-remove
 Removes the chardev @var{id}.
 
 ETEXI
@@ -1654,7 +1643,6 @@ ETEXI
 STEXI
 @item qemu-io @var{device} @var{command}
 @findex qemu-io
-
 Executes a qemu-io command on the given block device.
 
 ETEXI
@@ -1669,6 +1657,7 @@ ETEXI
 
 STEXI
 @item cpu-add @var{id}
+@findex cpu-add
 Add CPU with id @var{id}
 ETEXI
 
