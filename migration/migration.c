@@ -56,6 +56,11 @@
 /* Migration XBZRLE default cache size */
 #define DEFAULT_MIGRATE_CACHE_SIZE (64 * 1024 * 1024)
 
+/* The delay time (in ms) between two COLO checkpoints
+ * Note: Please change this default value to 10000 when we support hybrid mode.
+ */
+#define DEFAULT_MIGRATE_X_CHECKPOINT_DELAY 200
+
 static NotifierList migration_state_notifiers =
     NOTIFIER_LIST_INITIALIZER(migration_state_notifiers);
 
@@ -91,6 +96,8 @@ MigrationState *migrate_get_current(void)
                 DEFAULT_MIGRATE_X_CPU_THROTTLE_INITIAL,
         .parameters[MIGRATION_PARAMETER_X_CPU_THROTTLE_INCREMENT] =
                 DEFAULT_MIGRATE_X_CPU_THROTTLE_INCREMENT,
+        .parameters[MIGRATION_PARAMETER_X_CHECKPOINT_DELAY] =
+                DEFAULT_MIGRATE_X_CHECKPOINT_DELAY,
     };
 
     if (!once) {
@@ -530,6 +537,8 @@ MigrationParameters *qmp_query_migrate_parameters(Error **errp)
             s->parameters[MIGRATION_PARAMETER_X_CPU_THROTTLE_INITIAL];
     params->x_cpu_throttle_increment =
             s->parameters[MIGRATION_PARAMETER_X_CPU_THROTTLE_INCREMENT];
+    params->x_checkpoint_delay =
+            s->parameters[MIGRATION_PARAMETER_X_CHECKPOINT_DELAY];
 
     return params;
 }
@@ -736,7 +745,10 @@ void qmp_migrate_set_parameters(bool has_compress_level,
                                 bool has_x_cpu_throttle_initial,
                                 int64_t x_cpu_throttle_initial,
                                 bool has_x_cpu_throttle_increment,
-                                int64_t x_cpu_throttle_increment, Error **errp)
+                                int64_t x_cpu_throttle_increment,
+                                bool has_x_checkpoint_delay,
+                                int64_t x_checkpoint_delay,
+                                Error **errp)
 {
     MigrationState *s = migrate_get_current();
 
@@ -771,6 +783,11 @@ void qmp_migrate_set_parameters(bool has_compress_level,
                    "x_cpu_throttle_increment",
                    "an integer in the range of 1 to 99");
     }
+    if (has_x_checkpoint_delay && (x_checkpoint_delay < 0)) {
+        error_setg(errp, QERR_INVALID_PARAMETER_VALUE,
+                    "x_checkpoint_delay",
+                    "is invalid, it should be positive");
+    }
 
     if (has_compress_level) {
         s->parameters[MIGRATION_PARAMETER_COMPRESS_LEVEL] = compress_level;
@@ -790,6 +807,11 @@ void qmp_migrate_set_parameters(bool has_compress_level,
     if (has_x_cpu_throttle_increment) {
         s->parameters[MIGRATION_PARAMETER_X_CPU_THROTTLE_INCREMENT] =
                                                     x_cpu_throttle_increment;
+    }
+
+    if (has_x_checkpoint_delay) {
+        s->parameters[MIGRATION_PARAMETER_X_CHECKPOINT_DELAY] =
+                                                    x_checkpoint_delay;
     }
 }
 
