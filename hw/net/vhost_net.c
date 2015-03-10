@@ -56,7 +56,7 @@ static const int kernel_feature_bits[] = {
 };
 
 /* Features supported by others. */
-const int user_feature_bits[] = {
+static const int user_feature_bits[] = {
     VIRTIO_F_NOTIFY_ON_EMPTY,
     VIRTIO_RING_F_INDIRECT_DESC,
     VIRTIO_RING_F_EVENT_IDX,

@@ -362,7 +362,7 @@ static void pfpu_start(MilkymistPFPUState *s)
             i = 0;
             while (pfpu_decode_insn(s)) {
                 /* decode at most MICROCODE_WORDS instructions */
-                if (i++ >= MICROCODE_WORDS) {
+                if (++i >= MICROCODE_WORDS) {
                     error_report("milkymist_pfpu: too many instructions "
                             "executed in microcode. No VECTOUT?");
                     break;

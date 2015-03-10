@@ -201,7 +201,7 @@ static int vfio_dma_unmap(VFIOContainer *container,
     };
 
     if (ioctl(container->fd, VFIO_IOMMU_UNMAP_DMA, &unmap)) {
-        error_report("VFIO_UNMAP_DMA: %d\n", -errno);
+        error_report("VFIO_UNMAP_DMA: %d", -errno);
         return -errno;
     }
 
@@ -234,7 +234,7 @@ static int vfio_dma_map(VFIOContainer *container, hwaddr iova,
         return 0;
     }
 
-    error_report("VFIO_MAP_DMA: %d\n", -errno);
+    error_report("VFIO_MAP_DMA: %d", -errno);
     return -errno;
 }
 
@@ -274,7 +274,7 @@ static void vfio_iommu_map_notify(Notifier *n, void *data)
                                  iotlb->translated_addr,
                                  &xlat, &len, iotlb->perm & IOMMU_WO);
     if (!memory_region_is_ram(mr)) {
-        error_report("iommu map to non memory area %"HWADDR_PRIx"\n",
+        error_report("iommu map to non memory area %"HWADDR_PRIx"",
                      xlat);
         return;
     }
@@ -283,7 +283,7 @@ static void vfio_iommu_map_notify(Notifier *n, void *data)
      * check that it did not truncate too much.
      */
     if (len & iotlb->addr_mask) {
-        error_report("iommu has granularity incompatible with target AS\n");
+        error_report("iommu has granularity incompatible with target AS");
         return;
     }
 
@@ -566,7 +566,7 @@ static void vfio_kvm_device_add_group(VFIOGroup *group)
         };
 
         if (kvm_vm_ioctl(kvm_state, KVM_CREATE_DEVICE, &cd)) {
-            error_report("Failed to create KVM VFIO device: %m\n");
+            error_report("Failed to create KVM VFIO device: %m");
             return;
         }
 

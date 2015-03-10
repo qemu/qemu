@@ -36,7 +36,6 @@ typedef struct QEMUPutLEDEntry QEMUPutLEDEntry;
 
 QEMUPutKbdEntry *qemu_add_kbd_event_handler(QEMUPutKBDEvent *func,
                                             void *opaque);
-void qemu_remove_kbd_event_handler(QEMUPutKbdEntry *entry);
 QEMUPutMouseEntry *qemu_add_mouse_event_handler(QEMUPutMouseEvent *func,
                                                 void *opaque, int absolute,
                                                 const char *name);
@@ -194,7 +193,6 @@ DisplaySurface *qemu_create_displaysurface_guestmem(int width, int height,
                                                     pixman_format_code_t format,
                                                     int linesize,
                                                     uint64_t addr);
-PixelFormat qemu_different_endianness_pixelformat(int bpp);
 PixelFormat qemu_default_pixelformat(int bpp);
 
 DisplaySurface *qemu_create_displaysurface(int width, int height);
@@ -322,7 +320,6 @@ void qemu_console_resize(QemuConsole *con, int width, int height);
 void qemu_console_copy(QemuConsole *con, int src_x, int src_y,
                        int dst_x, int dst_y, int w, int h);
 DisplaySurface *qemu_console_surface(QemuConsole *con);
-DisplayState *qemu_console_displaystate(QemuConsole *console);
 
 /* sdl.c */
 void sdl_display_init(DisplayState *ds, int full_screen, int no_frame);

@@ -308,6 +308,7 @@ static int ppce500_load_device_tree(MachineState *machine,
         }
 
         fdt = load_device_tree(filename, &fdt_size);
+        g_free(filename);
         if (!fdt) {
             goto out;
         }

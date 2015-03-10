@@ -91,6 +91,8 @@ bool sysbus_has_irq(SysBusDevice *dev, int n)
     ObjectProperty *r;
 
     r = object_property_find(OBJECT(dev), prop, NULL);
+    g_free(prop);
+
     return (r != NULL);
 }
 

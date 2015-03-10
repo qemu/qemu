@@ -99,7 +99,7 @@ static int32_t bmdma_prepare_buf(IDEDMA *dma, int is_write)
              * This should accommodate the largest ATA transaction
              * for LBA48 (65,536 sectors) and 32K sector sizes. */
             if (s->sg.size > INT32_MAX) {
-                error_report("IDE: sglist describes more than 2GiB.\n");
+                error_report("IDE: sglist describes more than 2GiB.");
                 break;
             }
             bm->cur_prd_addr += l;

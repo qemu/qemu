@@ -1474,6 +1474,7 @@ void qmp_memsave(int64_t addr, int64_t size, const char *filename,
     uint32_t l;
     CPUState *cpu;
     uint8_t buf[1024];
+    int64_t orig_addr = addr, orig_size = size;
 
     if (!has_cpu) {
         cpu_index = 0;
@@ -1497,7 +1498,8 @@ void qmp_memsave(int64_t addr, int64_t size, const char *filename,
         if (l > size)
             l = size;
         if (cpu_memory_rw_debug(cpu, addr, buf, l, 0) != 0) {
-            error_setg(errp, "Invalid addr 0x%016" PRIx64 "specified", addr);
+            error_setg(errp, "Invalid addr 0x%016" PRIx64 "/size %" PRId64
+                             " specified", orig_addr, orig_size);
             goto exit;
         }
         if (fwrite(buf, 1, l, f) != l) {

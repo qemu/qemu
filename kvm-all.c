@@ -366,7 +366,7 @@ static void kvm_log_stop(MemoryListener *listener,
     }
 }
 
-static int kvm_set_migration_log(int enable)
+static int kvm_set_migration_log(bool enable)
 {
     KVMState *s = kvm_state;
     KVMSlot *mem;

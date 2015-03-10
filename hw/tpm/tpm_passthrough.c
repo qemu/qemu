@@ -143,7 +143,7 @@ static int tpm_passthrough_unix_tx_bufs(TPMPassthruState *tpm_pt,
         if (!tpm_pt->tpm_op_canceled ||
             (tpm_pt->tpm_op_canceled && errno != ECANCELED)) {
             error_report("tpm_passthrough: error while transmitting data "
-                         "to TPM: %s (%i)\n",
+                         "to TPM: %s (%i)",
                          strerror(errno), errno);
         }
         goto err_exit;
@@ -156,14 +156,14 @@ static int tpm_passthrough_unix_tx_bufs(TPMPassthruState *tpm_pt,
         if (!tpm_pt->tpm_op_canceled ||
             (tpm_pt->tpm_op_canceled && errno != ECANCELED)) {
             error_report("tpm_passthrough: error while reading data from "
-                         "TPM: %s (%i)\n",
+                         "TPM: %s (%i)",
                          strerror(errno), errno);
         }
     } else if (ret < sizeof(struct tpm_resp_hdr) ||
                tpm_passthrough_get_size_from_buffer(out) != ret) {
         ret = -1;
         error_report("tpm_passthrough: received invalid response "
-                     "packet from TPM\n");
+                     "packet from TPM");
     }
 
     if (is_selftest && (ret >= sizeof(struct tpm_resp_hdr))) {
@@ -309,7 +309,7 @@ static void tpm_passthrough_cancel_cmd(TPMBackend *tb)
         if (tpm_pt->cancel_fd >= 0) {
             n = write(tpm_pt->cancel_fd, "-", 1);
             if (n != 1) {
-                error_report("Canceling TPM command failed: %s\n",
+                error_report("Canceling TPM command failed: %s",
                              strerror(errno));
             } else {
                 tpm_pt->tpm_op_canceled = true;
@@ -440,13 +440,13 @@ static int tpm_passthrough_handle_device_opts(QemuOpts *opts, TPMBackend *tb)
 
     tpm_pt->tpm_fd = qemu_open(tpm_pt->tpm_dev, O_RDWR);
     if (tpm_pt->tpm_fd < 0) {
-        error_report("Cannot access TPM device using '%s': %s\n",
+        error_report("Cannot access TPM device using '%s': %s",
                      tpm_pt->tpm_dev, strerror(errno));
         goto err_free_parameters;
     }
 
     if (tpm_passthrough_test_tpmdev(tpm_pt->tpm_fd)) {
-        error_report("'%s' is not a TPM device.\n",
+        error_report("'%s' is not a TPM device.",
                      tpm_pt->tpm_dev);
         goto err_close_tpmdev;
     }

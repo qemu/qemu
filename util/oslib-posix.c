@@ -399,10 +399,10 @@ void os_mem_prealloc(int fd, char *area, size_t memory)
     } else {
         int i;
         size_t hpagesize = fd_getpagesize(fd);
+        size_t numpages = DIV_ROUND_UP(memory, hpagesize);
 
         /* MAP_POPULATE silently ignores failures */
-        memory = (memory + hpagesize - 1) & -hpagesize;
-        for (i = 0; i < (memory / hpagesize); i++) {
+        for (i = 0; i < numpages; i++) {
             memset(area + (hpagesize * i), 0, 1);
         }
 

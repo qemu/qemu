@@ -1376,11 +1376,25 @@ ETEXI
 DEF("smbios", HAS_ARG, QEMU_OPTION_smbios,
     "-smbios file=binary\n"
     "                load SMBIOS entry from binary file\n"
-    "-smbios type=0[,vendor=str][,version=str][,date=str][,release=%d.%d][,uefi=on|off]\n"
+    "-smbios type=0[,vendor=str][,version=str][,date=str][,release=%d.%d]\n"
+    "              [,uefi=on|off]\n"
     "                specify SMBIOS type 0 fields\n"
     "-smbios type=1[,manufacturer=str][,product=str][,version=str][,serial=str]\n"
     "              [,uuid=uuid][,sku=str][,family=str]\n"
-    "                specify SMBIOS type 1 fields\n", QEMU_ARCH_I386)
+    "                specify SMBIOS type 1 fields\n"
+    "-smbios type=2[,manufacturer=str][,product=str][,version=str][,serial=str]\n"
+    "              [,asset=str][,location=str]\n"
+    "                specify SMBIOS type 2 fields\n"
+    "-smbios type=3[,manufacturer=str][,version=str][,serial=str][,asset=str]\n"
+    "              [,sku=str]\n"
+    "                specify SMBIOS type 3 fields\n"
+    "-smbios type=4[,sock_pfx=str][,manufacturer=str][,version=str][,serial=str]\n"
+    "              [,asset=str][,part=str]\n"
+    "                specify SMBIOS type 4 fields\n"
+    "-smbios type=17[,loc_pfx=str][,bank=str][,manufacturer=str][,serial=str]\n"
+    "               [,asset=str][,part=str]\n"
+    "                specify SMBIOS type 17 fields\n",
+    QEMU_ARCH_I386)
 STEXI
 @item -smbios file=@var{binary}
 @findex -smbios
@@ -1389,8 +1403,20 @@ Load SMBIOS entry from binary file.
 @item -smbios type=0[,vendor=@var{str}][,version=@var{str}][,date=@var{str}][,release=@var{%d.%d}][,uefi=on|off]
 Specify SMBIOS type 0 fields
 
-@item -smbios type=1[,manufacturer=@var{str}][,product=@var{str}] [,version=@var{str}][,serial=@var{str}][,uuid=@var{uuid}][,sku=@var{str}] [,family=@var{str}]
+@item -smbios type=1[,manufacturer=@var{str}][,product=@var{str}][,version=@var{str}][,serial=@var{str}][,uuid=@var{uuid}][,sku=@var{str}][,family=@var{str}]
 Specify SMBIOS type 1 fields
+
+@item -smbios type=2[,manufacturer=@var{str}][,product=@var{str}][,version=@var{str}][,serial=@var{str}][,asset=@var{str}][,location=@var{str}][,family=@var{str}]
+Specify SMBIOS type 2 fields
+
+@item -smbios type=3[,manufacturer=@var{str}][,version=@var{str}][,serial=@var{str}][,asset=@var{str}][,sku=@var{str}]
+Specify SMBIOS type 3 fields
+
+@item -smbios type=4[,sock_pfx=@var{str}][,manufacturer=@var{str}][,version=@var{str}][,serial=@var{str}][,asset=@var{str}][,part=@var{str}]
+Specify SMBIOS type 4 fields
+
+@item -smbios type=17[,loc_pfx=@var{str}][,bank=@var{str}][,manufacturer=@var{str}][,serial=@var{str}][,asset=@var{str}][,part=@var{str}]
+Specify SMBIOS type 17 fields
 ETEXI
 
 STEXI
@@ -3181,12 +3207,30 @@ Set TB size.
 ETEXI
 
 DEF("incoming", HAS_ARG, QEMU_OPTION_incoming, \
-    "-incoming p     prepare for incoming migration, listen on port p\n",
+    "-incoming tcp:[host]:port[,to=maxport][,ipv4][,ipv6]\n" \
+    "-incoming rdma:host:port[,ipv4][,ipv6]\n" \
+    "-incoming unix:socketpath\n" \
+    "                prepare for incoming migration, listen on\n" \
+    "                specified protocol and socket address\n" \
+    "-incoming fd:fd\n" \
+    "-incoming exec:cmdline\n" \
+    "                accept incoming migration on given file descriptor\n" \
+    "                or from given external command\n",
     QEMU_ARCH_ALL)
 STEXI
-@item -incoming @var{port}
+@item -incoming tcp:[@var{host}]:@var{port}[,to=@var{maxport}][,ipv4][,ipv6]
+@item -incoming rdma:@var{host}:@var{port}[,ipv4][,ipv6]
 @findex -incoming
-Prepare for incoming migration, listen on @var{port}.
+Prepare for incoming migration, listen on a given tcp port.
+
+@item -incoming unix:@var{socketpath}
+Prepare for incoming migration, listen on a given unix socket.
+
+@item -incoming fd:@var{fd}
+Accept incoming migration from a given filedescriptor.
+
+@item -incoming exec:@var{cmdline}
+Accept incoming migration as an output from specified external command.
 ETEXI
 
 DEF("nodefaults", 0, QEMU_OPTION_nodefaults, \

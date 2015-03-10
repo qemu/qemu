@@ -976,7 +976,8 @@ static int is_allocated_sectors_min(const uint8_t *buf, int n, int *pnum,
 static int compare_sectors(const uint8_t *buf1, const uint8_t *buf2, int n,
     int *pnum)
 {
-    int res, i;
+    bool res;
+    int i;
 
     if (n <= 0) {
         *pnum = 0;
@@ -1645,7 +1646,7 @@ static int img_convert(int argc, char **argv)
     if (skip_create) {
         int64_t output_sectors = blk_nb_sectors(out_blk);
         if (output_sectors < 0) {
-            error_report("unable to get output image length: %s\n",
+            error_report("unable to get output image length: %s",
                          strerror(-output_sectors));
             ret = -1;
             goto out;

@@ -126,7 +126,7 @@ static void trace_init_events(const char *fname)
                     error_report("WARNING: trace event '%s' does not exist",
                                  line_ptr);
                 } else if (!trace_event_get_state_static(ev)) {
-                    error_report("WARNING: trace event '%s' is not traceable\n",
+                    error_report("WARNING: trace event '%s' is not traceable",
                                  line_ptr);
                 } else {
                     trace_event_set_state_dynamic(ev, enable);

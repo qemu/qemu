@@ -332,7 +332,6 @@ static ssize_t local_readlink(FsContext *fs_ctx, V9fsPath *fs_path,
             tsize = read(fd, (void *)buf, bufsz);
         } while (tsize == -1 && errno == EINTR);
         close(fd);
-        return tsize;
     } else if ((fs_ctx->export_flags & V9FS_SM_PASSTHROUGH) ||
                (fs_ctx->export_flags & V9FS_SM_NONE)) {
         buffer = rpath(fs_ctx, path);

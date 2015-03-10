@@ -83,7 +83,7 @@ static int vhost_scsi_start(VHostSCSI *s)
     if (abi_version > VHOST_SCSI_ABI_VERSION) {
         error_report("vhost-scsi: The running tcm_vhost kernel abi_version:"
                      " %d is greater than vhost_scsi userspace supports: %d, please"
-                     " upgrade your version of QEMU\n", abi_version,
+                     " upgrade your version of QEMU", abi_version,
                      VHOST_SCSI_ABI_VERSION);
         return -ENOSYS;
     }
@@ -141,7 +141,7 @@ static void vhost_scsi_stop(VHostSCSI *s)
     if (k->set_guest_notifiers) {
         ret = k->set_guest_notifiers(qbus->parent, s->dev.nvqs, false);
         if (ret < 0) {
-                error_report("vhost guest notifier cleanup failed: %d\n", ret);
+                error_report("vhost guest notifier cleanup failed: %d", ret);
         }
     }
     assert(ret >= 0);
@@ -186,7 +186,7 @@ static void vhost_scsi_set_status(VirtIODevice *vdev, uint8_t val)
 
         ret = vhost_scsi_start(s);
         if (ret < 0) {
-            error_report("virtio-scsi: unable to start vhost: %s\n",
+            error_report("virtio-scsi: unable to start vhost: %s",
                          strerror(-ret));
 
             /* There is no userspace virtio-scsi fallback so exit */

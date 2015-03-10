@@ -155,6 +155,7 @@ milkymist_init(MachineState *machine)
                 bios_name);
         exit(1);
     }
+    g_free(bios_filename);
 
     milkymist_uart_create(0x60000000, irq[0]);
     milkymist_sysctl_create(0x60001000, irq[1], irq[2], irq[3],

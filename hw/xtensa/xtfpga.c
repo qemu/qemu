@@ -207,7 +207,7 @@ static void lx_init(const LxBoardDesc *board, MachineState *machine)
     for (n = 0; n < smp_cpus; n++) {
         cpu = cpu_xtensa_init(cpu_model);
         if (cpu == NULL) {
-            error_report("unable to find CPU definition '%s'\n",
+            error_report("unable to find CPU definition '%s'",
                          cpu_model);
             exit(EXIT_FAILURE);
         }
@@ -253,7 +253,7 @@ static void lx_init(const LxBoardDesc *board, MachineState *machine)
                 board->flash_size / board->flash_sector_size,
                 4, 0x0000, 0x0000, 0x0000, 0x0000, be);
         if (flash == NULL) {
-            error_report("unable to mount pflash\n");
+            error_report("unable to mount pflash");
             exit(EXIT_FAILURE);
         }
     }
@@ -305,7 +305,7 @@ static void lx_init(const LxBoardDesc *board, MachineState *machine)
             uint32_t dtb_addr = tswap32(cur_lowmem);
 
             if (!fdt) {
-                error_report("could not load DTB '%s'\n", dtb_filename);
+                error_report("could not load DTB '%s'", dtb_filename);
                 exit(EXIT_FAILURE);
             }
 
@@ -325,7 +325,7 @@ static void lx_init(const LxBoardDesc *board, MachineState *machine)
                                                   lowmem_end - cur_lowmem);
             }
             if (initrd_size < 0) {
-                error_report("could not load initrd '%s'\n", initrd_filename);
+                error_report("could not load initrd '%s'", initrd_filename);
                 exit(EXIT_FAILURE);
             }
             initrd_location.start = tswap32(cur_lowmem);
@@ -351,7 +351,7 @@ static void lx_init(const LxBoardDesc *board, MachineState *machine)
             if (success > 0 && is_linux) {
                 entry_point = ep;
             } else {
-                error_report("could not load kernel '%s'\n",
+                error_report("could not load kernel '%s'",
                              kernel_filename);
                 exit(EXIT_FAILURE);
             }
