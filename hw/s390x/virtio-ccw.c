@@ -508,7 +508,7 @@ static int virtio_ccw_cb(SubchDev *sch, CCW1 ccw)
         if (!ccw.cda) {
             ret = -EFAULT;
         } else {
-            indicators = ldq_phys(&address_space_memory, ccw.cda);
+            indicators = ldq_be_phys(&address_space_memory, ccw.cda);
             dev->indicators = get_indicator(indicators, sizeof(uint64_t));
             sch->curr_status.scsw.count = ccw.count - sizeof(indicators);
             ret = 0;
@@ -528,7 +528,7 @@ static int virtio_ccw_cb(SubchDev *sch, CCW1 ccw)
         if (!ccw.cda) {
             ret = -EFAULT;
         } else {
-            indicators = ldq_phys(&address_space_memory, ccw.cda);
+            indicators = ldq_be_phys(&address_space_memory, ccw.cda);
             dev->indicators2 = get_indicator(indicators, sizeof(uint64_t));
             sch->curr_status.scsw.count = ccw.count - sizeof(indicators);
             ret = 0;
@@ -548,11 +548,11 @@ static int virtio_ccw_cb(SubchDev *sch, CCW1 ccw)
         if (!ccw.cda) {
             ret = -EFAULT;
         } else {
-            vq_config.index = lduw_phys(&address_space_memory, ccw.cda);
+            vq_config.index = lduw_be_phys(&address_space_memory, ccw.cda);
             vq_config.num_max = virtio_queue_get_num(vdev,
                                                      vq_config.index);
-            stw_phys(&address_space_memory,
-                     ccw.cda + sizeof(vq_config.index), vq_config.num_max);
+            stw_be_phys(&address_space_memory,
+                        ccw.cda + sizeof(vq_config.index), vq_config.num_max);
             sch->curr_status.scsw.count = ccw.count - sizeof(vq_config);
             ret = 0;
         }
@@ -580,13 +580,17 @@ static int virtio_ccw_cb(SubchDev *sch, CCW1 ccw)
             if (!thinint) {
                 ret = -EFAULT;
             } else {
+                uint64_t ind_bit = ldq_be_p(&thinint->ind_bit);
+
                 len = hw_len;
                 dev->summary_indicator =
-                    get_indicator(thinint->summary_indicator, sizeof(uint8_t));
-                dev->indicators = get_indicator(thinint->device_indicator,
-                                                thinint->ind_bit / 8 + 1);
+                    get_indicator(ldq_be_p(&thinint->summary_indicator),
+                                  sizeof(uint8_t));
+                dev->indicators =
+                    get_indicator(ldq_be_p(&thinint->device_indicator),
+                                  ind_bit / 8 + 1);
                 dev->thinint_isc = thinint->isc;
-                dev->routes.adapter.ind_offset = thinint->ind_bit;
+                dev->routes.adapter.ind_offset = ind_bit;
                 dev->routes.adapter.summary_offset = 7;
                 cpu_physical_memory_unmap(thinint, hw_len, 0, hw_len);
                 ret = css_register_io_adapter(CSS_IO_ADAPTER_VIRTIO,
