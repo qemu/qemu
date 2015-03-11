@@ -406,6 +406,18 @@ static int icp_pic_init(SysBusDevice *sbd)
 
 /* CP control registers.  */
 
+#define TYPE_ICP_CONTROL_REGS "icp-ctrl-regs"
+#define ICP_CONTROL_REGS(obj) \
+    OBJECT_CHECK(ICPCtrlRegsState, (obj), TYPE_ICP_CONTROL_REGS)
+
+typedef struct ICPCtrlRegsState {
+    /*< private >*/
+    SysBusDevice parent_obj;
+    /*< public >*/
+
+    MemoryRegion iomem;
+} ICPCtrlRegsState;
+
 static uint64_t icp_control_read(void *opaque, hwaddr offset,
                                  unsigned size)
 {
@@ -444,15 +456,14 @@ static const MemoryRegionOps icp_control_ops = {
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
-static void icp_control_init(hwaddr base)
+static void icp_control_init(Object *obj)
 {
-    MemoryRegion *io;
+    SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
+    ICPCtrlRegsState *s = ICP_CONTROL_REGS(obj);
 
-    io = (MemoryRegion *)g_malloc0(sizeof(MemoryRegion));
-    memory_region_init_io(io, NULL, &icp_control_ops, NULL,
-                          "control", 0x00800000);
-    memory_region_add_subregion(get_system_memory(), base, io);
-    /* ??? Save/restore.  */
+    memory_region_init_io(&s->iomem, OBJECT(s), &icp_control_ops, s,
+                          "icp_ctrl_regs", 0x00800000);
+    sysbus_init_mmio(sbd, &s->iomem);
 }
 
 
@@ -541,7 +552,7 @@ static void integratorcp_init(MachineState *machine)
     sysbus_create_simple("pl031", 0x15000000, pic[8]);
     sysbus_create_simple("pl011", 0x16000000, pic[1]);
     sysbus_create_simple("pl011", 0x17000000, pic[2]);
-    icp_control_init(0xcb000000);
+    sysbus_create_simple(TYPE_ICP_CONTROL_REGS, 0xcb000000, NULL);
     sysbus_create_simple("pl050_keyboard", 0x18000000, pic[3]);
     sysbus_create_simple("pl050_mouse", 0x19000000, pic[4]);
     sysbus_create_simple(TYPE_INTEGRATOR_DEBUG, 0x1a000000, 0);
@@ -606,10 +617,18 @@ static const TypeInfo icp_pic_info = {
     .class_init    = icp_pic_class_init,
 };
 
+static const TypeInfo icp_ctrl_regs_info = {
+    .name          = TYPE_ICP_CONTROL_REGS,
+    .parent        = TYPE_SYS_BUS_DEVICE,
+    .instance_size = sizeof(ICPCtrlRegsState),
+    .instance_init = icp_control_init,
+};
+
 static void integratorcp_register_types(void)
 {
     type_register_static(&icp_pic_info);
     type_register_static(&core_info);
+    type_register_static(&icp_ctrl_regs_info);
 }
 
 type_init(integratorcp_register_types)
