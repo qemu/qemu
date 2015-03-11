@@ -1192,8 +1192,6 @@ void vnc_disconnect_finish(VncState *vs)
 
     buffer_free(&vs->input);
     buffer_free(&vs->output);
-    buffer_free(&vs->ws_input);
-    buffer_free(&vs->ws_output);
 
     qapi_free_VncClientInfo(vs->info);
 
@@ -1352,11 +1350,7 @@ static void vnc_client_write_locked(VncState *vs)
     } else
 #endif /* CONFIG_VNC_SASL */
     {
-        if (vs->encode_ws) {
-            vnc_client_write_ws(vs);
-        } else {
-            vnc_client_write_plain(vs);
-        }
+        vnc_client_write_plain(vs);
     }
 }
 
@@ -1364,7 +1358,7 @@ static void vnc_client_write(VncState *vs)
 {
 
     vnc_lock_output(vs);
-    if (vs->output.offset || vs->ws_output.offset) {
+    if (vs->output.offset) {
         vnc_client_write_locked(vs);
     } else if (vs->ioc != NULL) {
         if (vs->ioc_tag) {
@@ -1451,18 +1445,7 @@ static void vnc_client_read(VncState *vs)
         ret = vnc_client_read_sasl(vs);
     else
 #endif /* CONFIG_VNC_SASL */
-        if (vs->encode_ws) {
-            ret = vnc_client_read_ws(vs);
-            if (ret == -1) {
-                vnc_disconnect_start(vs);
-                return;
-            } else if (ret == -2) {
-                vnc_client_error(vs);
-                return;
-            }
-        } else {
-            ret = vnc_client_read_plain(vs);
-        }
+        ret = vnc_client_read_plain(vs);
     if (!ret) {
         if (vs->disconnecting) {
             vnc_disconnect_finish(vs);
@@ -1552,7 +1535,7 @@ void vnc_write_u8(VncState *vs, uint8_t value)
 void vnc_flush(VncState *vs)
 {
     vnc_lock_output(vs);
-    if (vs->ioc != NULL && (vs->output.offset || vs->ws_output.offset)) {
+    if (vs->ioc != NULL && vs->output.offset) {
         vnc_client_write_locked(vs);
     }
     vnc_unlock_output(vs);
@@ -2950,8 +2933,6 @@ static void vnc_connect(VncDisplay *vd, QIOChannelSocket *sioc,
 
     buffer_init(&vs->input,          "vnc-input/%p", sioc);
     buffer_init(&vs->output,         "vnc-output/%p", sioc);
-    buffer_init(&vs->ws_input,       "vnc-ws_input/%p", sioc);
-    buffer_init(&vs->ws_output,      "vnc-ws_output/%p", sioc);
     buffer_init(&vs->jobs_buffer,    "vnc-jobs_buffer/%p", sioc);
 
     buffer_init(&vs->tight.tight,    "vnc-tight/%p", sioc);

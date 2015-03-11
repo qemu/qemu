@@ -293,10 +293,6 @@ struct VncState
 
     Buffer output;
     Buffer input;
-    Buffer ws_input;
-    Buffer ws_output;
-    size_t ws_payload_remain;
-    WsMask ws_payload_mask;
     /* current output mode information */
     VncWritePixels *write_pixels;
     PixelFormat client_pf;
