@@ -354,7 +354,7 @@ static inline int32_t sextract32(uint32_t value, int start, int length)
  * Returns: the sign extended value of the bit field extracted from the
  * input value.
  */
-static inline uint64_t sextract64(uint64_t value, int start, int length)
+static inline int64_t sextract64(uint64_t value, int start, int length)
 {
     assert(start >= 0 && length > 0 && length <= 64 - start);
     /* Note that this implementation relies on right shift of signed
