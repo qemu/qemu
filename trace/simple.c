@@ -329,7 +329,8 @@ bool st_set_trace_file(const char *file)
     g_free(trace_file_name);
 
     if (!file) {
-        trace_file_name = g_strdup_printf(CONFIG_TRACE_FILE, getpid());
+        /* Type cast needed for Windows where getpid() returns an int. */
+        trace_file_name = g_strdup_printf(CONFIG_TRACE_FILE, (pid_t)getpid());
     } else {
         trace_file_name = g_strdup_printf("%s", file);
     }
