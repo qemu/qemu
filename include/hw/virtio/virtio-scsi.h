@@ -14,6 +14,9 @@
 #ifndef _QEMU_VIRTIO_SCSI_H
 #define _QEMU_VIRTIO_SCSI_H
 
+/* Override CDB/sense data size: they are dynamic (guest controlled) in QEMU */
+#define VIRTIO_SCSI_CDB_SIZE 0
+#define VIRTIO_SCSI_SENSE_SIZE 0
 #include "standard-headers/linux/virtio_scsi.h"
 #include "hw/virtio/virtio.h"
 #include "hw/pci/pci.h"
