@@ -1569,14 +1569,7 @@ static inline bool arm_excp_unmasked(CPUState *cs, unsigned int excp_idx)
     return unmasked || pstate_unmasked;
 }
 
-static inline CPUARMState *cpu_init(const char *cpu_model)
-{
-    ARMCPU *cpu = cpu_arm_init(cpu_model);
-    if (cpu) {
-        return &cpu->env;
-    }
-    return NULL;
-}
+#define cpu_init(cpu_model) CPU(cpu_arm_init(cpu_model))
 
 #define cpu_exec cpu_arm_exec
 #define cpu_gen_code cpu_arm_gen_code

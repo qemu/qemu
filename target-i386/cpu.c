@@ -2728,12 +2728,8 @@ static void x86_cpu_apic_realize(X86CPU *cpu, Error **errp)
     if (cpu->apic_state == NULL) {
         return;
     }
-
-    if (qdev_init(cpu->apic_state)) {
-        error_setg(errp, "APIC device '%s' could not be initialized",
-                   object_get_typename(OBJECT(cpu->apic_state)));
-        return;
-    }
+    object_property_set_bool(OBJECT(cpu->apic_state), true, "realized",
+                             errp);
 }
 #else
 static void x86_cpu_apic_realize(X86CPU *cpu, Error **errp)

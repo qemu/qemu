@@ -21,6 +21,7 @@ static void dummy_m68k_init(MachineState *machine)
     ram_addr_t ram_size = machine->ram_size;
     const char *cpu_model = machine->cpu_model;
     const char *kernel_filename = machine->kernel_filename;
+    M68kCPU *cpu;
     CPUM68KState *env;
     MemoryRegion *address_space_mem =  get_system_memory();
     MemoryRegion *ram = g_new(MemoryRegion, 1);
@@ -30,11 +31,12 @@ static void dummy_m68k_init(MachineState *machine)
 
     if (!cpu_model)
         cpu_model = "cfv4e";
-    env = cpu_init(cpu_model);
-    if (!env) {
+    cpu = cpu_m68k_init(cpu_model);
+    if (!cpu) {
         fprintf(stderr, "Unable to find m68k CPU definition\n");
         exit(1);
     }
+    env = &cpu->env;
 
     /* Initialize CPU registers.  */
     env->vbr = 0;

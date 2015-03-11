@@ -1170,14 +1170,7 @@ uint64_t cpu_get_tsc(CPUX86State *env);
 # define PHYS_ADDR_MASK 0xfffffffffLL
 # endif
 
-static inline CPUX86State *cpu_init(const char *cpu_model)
-{
-    X86CPU *cpu = cpu_x86_init(cpu_model);
-    if (cpu == NULL) {
-        return NULL;
-    }
-    return &cpu->env;
-}
+#define cpu_init(cpu_model) CPU(cpu_x86_init(cpu_model))
 
 #define cpu_exec cpu_x86_exec
 #define cpu_gen_code cpu_x86_gen_code

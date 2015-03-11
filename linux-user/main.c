@@ -3452,8 +3452,8 @@ void init_task_state(TaskState *ts)
 CPUArchState *cpu_copy(CPUArchState *env)
 {
     CPUState *cpu = ENV_GET_CPU(env);
-    CPUArchState *new_env = cpu_init(cpu_model);
-    CPUState *new_cpu = ENV_GET_CPU(new_env);
+    CPUState *new_cpu = cpu_init(cpu_model);
+    CPUArchState *new_env = cpu->env_ptr;
     CPUBreakpoint *bp;
     CPUWatchpoint *wp;
 
@@ -3939,12 +3939,12 @@ int main(int argc, char **argv, char **envp)
     cpu_exec_init_all();
     /* NOTE: we need to init the CPU at this stage to get
        qemu_host_page_size */
-    env = cpu_init(cpu_model);
-    if (!env) {
+    cpu = cpu_init(cpu_model);
+    if (!cpu) {
         fprintf(stderr, "Unable to find CPU definition\n");
         exit(1);
     }
-    cpu = ENV_GET_CPU(env);
+    env = cpu->env_ptr;
     cpu_reset(cpu);
 
     thread_cpu = cpu;
