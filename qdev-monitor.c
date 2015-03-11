@@ -364,43 +364,55 @@ static DeviceState *qbus_find_dev(BusState *bus, char *elem)
     return NULL;
 }
 
+static inline bool qbus_is_full(BusState *bus)
+{
+    BusClass *bus_class = BUS_GET_CLASS(bus);
+    return bus_class->max_dev && bus->max_index >= bus_class->max_dev;
+}
+
+/*
+ * Search the tree rooted at @bus for a bus.
+ * If @name, search for a bus with that name.  Note that bus names
+ * need not be unique.  Yes, that's screwed up.
+ * Else search for a bus that is a subtype of @bus_typename.
+ * If more than one exists, prefer one that can take another device.
+ * Return the bus if found, else %NULL.
+ */
 static BusState *qbus_find_recursive(BusState *bus, const char *name,
                                      const char *bus_typename)
 {
-    BusClass *bus_class = BUS_GET_CLASS(bus);
     BusChild *kid;
-    BusState *child, *ret;
-    int match = 1;
+    BusState *pick, *child, *ret;
+    bool match;
 
-    if (name && (strcmp(bus->name, name) != 0)) {
-        match = 0;
-    } else if (bus_typename && !object_dynamic_cast(OBJECT(bus), bus_typename)) {
-        match = 0;
-    } else if ((bus_class->max_dev != 0) && (bus_class->max_dev <= bus->max_index)) {
-        if (name != NULL) {
-            /* bus was explicitly specified: return an error. */
-            qerror_report(ERROR_CLASS_GENERIC_ERROR, "Bus '%s' is full",
-                          bus->name);
-            return NULL;
-        } else {
-            /* bus was not specified: try to find another one. */
-            match = 0;
-        }
+    assert(name || bus_typename);
+    if (name) {
+        match = !strcmp(bus->name, name);
+    } else {
+        match = !!object_dynamic_cast(OBJECT(bus), bus_typename);
     }
-    if (match) {
-        return bus;
+
+    if (match && !qbus_is_full(bus)) {
+        return bus;             /* root matches and isn't full */
     }
+
+    pick = match ? bus : NULL;
 
     QTAILQ_FOREACH(kid, &bus->children, sibling) {
         DeviceState *dev = kid->child;
         QLIST_FOREACH(child, &dev->child_bus, sibling) {
             ret = qbus_find_recursive(child, name, bus_typename);
-            if (ret) {
-                return ret;
+            if (ret && !qbus_is_full(ret)) {
+                return ret;     /* a descendant matches and isn't full */
+            }
+            if (ret && !pick) {
+                pick = ret;
             }
         }
     }
-    return NULL;
+
+    /* root or a descendant matches, but is full */
+    return pick;
 }
 
 static BusState *qbus_find(const char *path)
@@ -422,6 +434,10 @@ static BusState *qbus_find(const char *path)
         bus = qbus_find_recursive(sysbus_get_default(), elem, NULL);
         if (!bus) {
             qerror_report(QERR_BUS_NOT_FOUND, elem);
+            return NULL;
+        } else if (qbus_is_full(bus)) {
+            qerror_report(ERROR_CLASS_GENERIC_ERROR, "Bus '%s' is full",
+                          elem);
             return NULL;
         }
         pos = len;
@@ -529,7 +545,7 @@ DeviceState *qdev_device_add(QemuOpts *opts)
         }
     } else if (dc->bus_type != NULL) {
         bus = qbus_find_recursive(sysbus_get_default(), NULL, dc->bus_type);
-        if (!bus) {
+        if (!bus || qbus_is_full(bus)) {
             qerror_report(ERROR_CLASS_GENERIC_ERROR,
                           "No '%s' bus found for device '%s'",
                           dc->bus_type, driver);
