@@ -435,10 +435,6 @@ static BusState *qbus_find(const char *path)
         if (!bus) {
             qerror_report(QERR_BUS_NOT_FOUND, elem);
             return NULL;
-        } else if (qbus_is_full(bus)) {
-            qerror_report(ERROR_CLASS_GENERIC_ERROR, "Bus '%s' is full",
-                          elem);
-            return NULL;
         }
         pos = len;
     }
@@ -449,7 +445,7 @@ static BusState *qbus_find(const char *path)
             pos++;
         }
         if (path[pos] == '\0') {
-            return bus;
+            break;
         }
 
         /* find device */
@@ -474,21 +470,21 @@ static BusState *qbus_find(const char *path)
         if (path[pos] == '\0') {
             /* last specified element is a device.  If it has exactly
              * one child bus accept it nevertheless */
-            switch (dev->num_child_bus) {
-            case 0:
-                qerror_report(ERROR_CLASS_GENERIC_ERROR,
-                              "Device '%s' has no child bus", elem);
-                return NULL;
-            case 1:
-                return QLIST_FIRST(&dev->child_bus);
-            default:
+            if (dev->num_child_bus == 1) {
+                bus = QLIST_FIRST(&dev->child_bus);
+                break;
+            }
+            if (dev->num_child_bus) {
                 qerror_report(ERROR_CLASS_GENERIC_ERROR,
                               "Device '%s' has multiple child busses", elem);
                 if (!monitor_cur_is_qmp()) {
                     qbus_list_bus(dev);
                 }
-                return NULL;
+            } else {
+                qerror_report(ERROR_CLASS_GENERIC_ERROR,
+                              "Device '%s' has no child bus", elem);
             }
+            return NULL;
         }
 
         /* find bus */
@@ -506,6 +502,13 @@ static BusState *qbus_find(const char *path)
             return NULL;
         }
     }
+
+    if (qbus_is_full(bus)) {
+        qerror_report(ERROR_CLASS_GENERIC_ERROR, "Bus '%s' is full",
+                      path);
+        return NULL;
+    }
+    return bus;
 }
 
 DeviceState *qdev_device_add(QemuOpts *opts)
