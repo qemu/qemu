@@ -3644,7 +3644,7 @@ void vnc_display_open(const char *id, Error **errp)
             if (vs->ws_enabled) {
                 vs->lwebsock = inet_listen_opts(wsopts, 0, errp);
                 if (vs->lwebsock < 0) {
-                    if (vs->lsock) {
+                    if (vs->lsock != -1) {
                         close(vs->lsock);
                         vs->lsock = -1;
                     }
