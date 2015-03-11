@@ -134,9 +134,7 @@ typedef struct VirtIOSCSIReq {
         VirtIOSCSIEvent       event;
     } resp;
     union {
-        struct {
-            VirtIOSCSICmdReq  cmd;
-        } QEMU_PACKED;
+        VirtIOSCSICmdReq      cmd;
         VirtIOSCSICtrlTMFReq  tmf;
         VirtIOSCSICtrlANReq   an;
     } req;
