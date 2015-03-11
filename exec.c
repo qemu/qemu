@@ -26,7 +26,9 @@
 #include "cpu.h"
 #include "tcg.h"
 #include "hw/hw.h"
+#if !defined(CONFIG_USER_ONLY)
 #include "hw/boards.h"
+#endif
 #include "hw/qdev.h"
 #include "qemu/osdep.h"
 #include "sysemu/kvm.h"
