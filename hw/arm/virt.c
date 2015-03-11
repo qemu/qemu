@@ -758,6 +758,7 @@ static void machvirt_init(MachineState *machine)
         CPUClass *cc = CPU_CLASS(oc);
         Object *cpuobj;
         Error *err = NULL;
+        char *cpuopts = g_strdup(cpustr[1]);
 
         if (!oc) {
             fprintf(stderr, "Unable to find CPU definition\n");
@@ -766,7 +767,8 @@ static void machvirt_init(MachineState *machine)
         cpuobj = object_new(object_class_get_name(oc));
 
         /* Handle any CPU options specified by the user */
-        cc->parse_features(CPU(cpuobj), cpustr[1], &err);
+        cc->parse_features(CPU(cpuobj), cpuopts, &err);
+        g_free(cpuopts);
         if (err) {
             error_report("%s", error_get_pretty(err));
             exit(1);
