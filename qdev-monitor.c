@@ -288,12 +288,13 @@ static Object *qdev_get_peripheral_anon(void)
     return dev;
 }
 
+#if 0 /* conversion from qerror_report() to error_set() broke their use */
 static void qbus_list_bus(DeviceState *dev)
 {
     BusState *child;
     const char *sep = " ";
 
-    error_printf("child busses at \"%s\":",
+    error_printf("child buses at \"%s\":",
                  dev->id ? dev->id : object_get_typename(OBJECT(dev)));
     QLIST_FOREACH(child, &dev->child_bus, sibling) {
         error_printf("%s\"%s\"", sep, child->name);
@@ -317,6 +318,7 @@ static void qbus_list_dev(BusState *bus)
     }
     error_printf("\n");
 }
+#endif
 
 static BusState *qbus_find_bus(DeviceState *dev, char *elem)
 {
@@ -415,7 +417,7 @@ static BusState *qbus_find_recursive(BusState *bus, const char *name,
     return pick;
 }
 
-static BusState *qbus_find(const char *path)
+static BusState *qbus_find(const char *path, Error **errp)
 {
     DeviceState *dev;
     BusState *bus;
@@ -433,7 +435,7 @@ static BusState *qbus_find(const char *path)
         }
         bus = qbus_find_recursive(sysbus_get_default(), elem, NULL);
         if (!bus) {
-            qerror_report(QERR_BUS_NOT_FOUND, elem);
+            error_setg(errp, "Bus '%s' not found", elem);
             return NULL;
         }
         pos = len;
@@ -456,10 +458,12 @@ static BusState *qbus_find(const char *path)
         pos += len;
         dev = qbus_find_dev(bus, elem);
         if (!dev) {
-            qerror_report(QERR_DEVICE_NOT_FOUND, elem);
+            error_set(errp, QERR_DEVICE_NOT_FOUND, elem);
+#if 0 /* conversion from qerror_report() to error_set() broke this: */
             if (!monitor_cur_is_qmp()) {
                 qbus_list_dev(bus);
             }
+#endif
             return NULL;
         }
 
@@ -475,14 +479,15 @@ static BusState *qbus_find(const char *path)
                 break;
             }
             if (dev->num_child_bus) {
-                qerror_report(ERROR_CLASS_GENERIC_ERROR,
-                              "Device '%s' has multiple child busses", elem);
+                error_setg(errp, "Device '%s' has multiple child buses",
+                           elem);
+#if 0 /* conversion from qerror_report() to error_set() broke this: */
                 if (!monitor_cur_is_qmp()) {
                     qbus_list_bus(dev);
                 }
+#endif
             } else {
-                qerror_report(ERROR_CLASS_GENERIC_ERROR,
-                              "Device '%s' has no child bus", elem);
+                error_setg(errp, "Device '%s' has no child bus", elem);
             }
             return NULL;
         }
@@ -495,17 +500,18 @@ static BusState *qbus_find(const char *path)
         pos += len;
         bus = qbus_find_bus(dev, elem);
         if (!bus) {
-            qerror_report(QERR_BUS_NOT_FOUND, elem);
+            error_setg(errp, "Bus '%s' not found", elem);
+#if 0 /* conversion from qerror_report() to error_set() broke this: */
             if (!monitor_cur_is_qmp()) {
                 qbus_list_bus(dev);
             }
+#endif
             return NULL;
         }
     }
 
     if (qbus_is_full(bus)) {
-        qerror_report(ERROR_CLASS_GENERIC_ERROR, "Bus '%s' is full",
-                      path);
+        error_setg(errp, "Bus '%s' is full", path);
         return NULL;
     }
     return bus;
@@ -536,8 +542,10 @@ DeviceState *qdev_device_add(QemuOpts *opts)
     /* find bus */
     path = qemu_opt_get(opts, "bus");
     if (path != NULL) {
-        bus = qbus_find(path);
+        bus = qbus_find(path, &err);
         if (!bus) {
+            qerror_report_err(err);
+            error_free(err);
             return NULL;
         }
         if (!object_dynamic_cast(OBJECT(bus), dc->bus_type)) {

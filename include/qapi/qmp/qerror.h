@@ -43,9 +43,6 @@ void qerror_report_err(Error *err);
 #define QERR_BUS_NO_HOTPLUG \
     ERROR_CLASS_GENERIC_ERROR, "Bus '%s' does not support hotplugging"
 
-#define QERR_BUS_NOT_FOUND \
-    ERROR_CLASS_GENERIC_ERROR, "Bus '%s' not found"
-
 #define QERR_DEVICE_HAS_NO_MEDIUM \
     ERROR_CLASS_GENERIC_ERROR, "Device '%s' has no medium"
 
