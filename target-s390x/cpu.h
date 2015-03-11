@@ -157,6 +157,9 @@ typedef struct CPUS390XState {
 #define CPU_STATE_LOAD                 0x04
     uint8_t cpu_state;
 
+    /* currently processed sigp order */
+    uint8_t sigp_order;
+
 } CPUS390XState;
 
 #include "cpu-qom.h"
@@ -349,7 +352,10 @@ int s390_cpu_handle_mmu_fault(CPUState *cpu, vaddr address, int rw,
 
 #include "ioinst.h"
 
+
 #ifndef CONFIG_USER_ONLY
+void do_restart_interrupt(CPUS390XState *env);
+
 static inline hwaddr decode_basedisp_s(CPUS390XState *env, uint32_t ipb)
 {
     hwaddr addr = 0;
@@ -411,6 +417,10 @@ S390CPU *s390_cpu_addr2state(uint16_t cpu_addr);
 unsigned int s390_cpu_halt(S390CPU *cpu);
 void s390_cpu_unhalt(S390CPU *cpu);
 unsigned int s390_cpu_set_state(uint8_t cpu_state, S390CPU *cpu);
+static inline uint8_t s390_cpu_get_state(S390CPU *cpu)
+{
+    return cpu->env.cpu_state;
+}
 
 /* service interrupts are floating therefore we must not pass an cpustate */
 void s390_sclp_extint(uint32_t parm);
@@ -664,7 +674,7 @@ typedef struct LowCore
     PSW             mcck_old_psw;             /* 0x160 */
     PSW             io_old_psw;               /* 0x170 */
     uint8_t         pad7[0x1a0-0x180];        /* 0x180 */
-    PSW             restart_psw;              /* 0x1a0 */
+    PSW             restart_new_psw;          /* 0x1a0 */
     PSW             external_new_psw;         /* 0x1b0 */
     PSW             svc_new_psw;              /* 0x1c0 */
     PSW             program_new_psw;          /* 0x1d0 */
@@ -864,6 +874,7 @@ struct sysib_322 {
 #define SK_F                    (0x1 << 3)
 #define SK_ACC_MASK             (0xf << 4)
 
+/* SIGP order codes */
 #define SIGP_SENSE             0x01
 #define SIGP_EXTERNAL_CALL     0x02
 #define SIGP_EMERGENCY         0x03
@@ -877,7 +888,13 @@ struct sysib_322 {
 #define SIGP_STORE_STATUS_ADDR 0x0e
 #define SIGP_SET_ARCH          0x12
 
-/* cpu status bits */
+/* SIGP condition codes */
+#define SIGP_CC_ORDER_CODE_ACCEPTED 0
+#define SIGP_CC_STATUS_STORED       1
+#define SIGP_CC_BUSY                2
+#define SIGP_CC_NOT_OPERATIONAL     3
+
+/* SIGP status bits */
 #define SIGP_STAT_EQUIPMENT_CHECK   0x80000000UL
 #define SIGP_STAT_INCORRECT_STATE   0x00000200UL
 #define SIGP_STAT_INVALID_PARAMETER 0x00000100UL
@@ -888,6 +905,11 @@ struct sysib_322 {
 #define SIGP_STAT_INOPERATIVE       0x00000004UL
 #define SIGP_STAT_INVALID_ORDER     0x00000002UL
 #define SIGP_STAT_RECEIVER_CHECK    0x00000001UL
+
+/* SIGP SET ARCHITECTURE modes */
+#define SIGP_MODE_ESA_S390 0
+#define SIGP_MODE_Z_ARCH_TRANS_ALL_PSW 1
+#define SIGP_MODE_Z_ARCH_TRANS_CUR_PSW 2
 
 void load_psw(CPUS390XState *env, uint64_t mask, uint64_t addr);
 int mmu_translate(CPUS390XState *env, target_ulong vaddr, int rw, uint64_t asc,
@@ -1007,6 +1029,7 @@ int kvm_s390_get_memslot_count(KVMState *s);
 void kvm_s390_clear_cmma_callback(void *opaque);
 int kvm_s390_set_cpu_state(S390CPU *cpu, uint8_t cpu_state);
 void kvm_s390_reset_vcpu(S390CPU *cpu);
+int kvm_s390_set_mem_limit(KVMState *s, uint64_t new_limit, uint64_t *hw_limit);
 #else
 static inline void kvm_s390_io_interrupt(uint16_t subchannel_id,
                                         uint16_t subchannel_nr,
@@ -1044,7 +1067,20 @@ static inline int kvm_s390_set_cpu_state(S390CPU *cpu, uint8_t cpu_state)
 static inline void kvm_s390_reset_vcpu(S390CPU *cpu)
 {
 }
+static inline int kvm_s390_set_mem_limit(KVMState *s, uint64_t new_limit,
+                                         uint64_t *hw_limit)
+{
+    return 0;
+}
 #endif
+
+static inline int s390_set_memory_limit(uint64_t new_limit, uint64_t *hw_limit)
+{
+    if (kvm_enabled()) {
+        return kvm_s390_set_mem_limit(kvm_state, new_limit, hw_limit);
+    }
+    return 0;
+}
 
 static inline void cmma_reset(S390CPU *cpu)
 {

@@ -183,7 +183,9 @@ void load_psw(CPUS390XState *env, uint64_t mask, uint64_t addr)
 {
     env->psw.addr = addr;
     env->psw.mask = mask;
-    env->cc_op = (mask >> 44) & 3;
+    if (tcg_enabled()) {
+        env->cc_op = (mask >> 44) & 3;
+    }
 
     if (mask & PSW_MASK_WAIT) {
         S390CPU *cpu = s390_env_get_cpu(env);
@@ -197,14 +199,16 @@ void load_psw(CPUS390XState *env, uint64_t mask, uint64_t addr)
 
 static uint64_t get_psw_mask(CPUS390XState *env)
 {
-    uint64_t r;
+    uint64_t r = env->psw.mask;
 
-    env->cc_op = calc_cc(env, env->cc_op, env->cc_src, env->cc_dst, env->cc_vr);
+    if (tcg_enabled()) {
+        env->cc_op = calc_cc(env, env->cc_op, env->cc_src, env->cc_dst,
+                             env->cc_vr);
 
-    r = env->psw.mask;
-    r &= ~PSW_MASK_CC;
-    assert(!(env->cc_op & ~3));
-    r |= (uint64_t)env->cc_op << 44;
+        r &= ~PSW_MASK_CC;
+        assert(!(env->cc_op & ~3));
+        r |= (uint64_t)env->cc_op << 44;
+    }
 
     return r;
 }
@@ -227,6 +231,23 @@ static LowCore *cpu_map_lowcore(CPUS390XState *env)
 static void cpu_unmap_lowcore(LowCore *lowcore)
 {
     cpu_physical_memory_unmap(lowcore, sizeof(LowCore), 1, sizeof(LowCore));
+}
+
+void do_restart_interrupt(CPUS390XState *env)
+{
+    uint64_t mask, addr;
+    LowCore *lowcore;
+
+    lowcore = cpu_map_lowcore(env);
+
+    lowcore->restart_old_psw.mask = cpu_to_be64(get_psw_mask(env));
+    lowcore->restart_old_psw.addr = cpu_to_be64(env->psw.addr);
+    mask = be64_to_cpu(lowcore->restart_new_psw.mask);
+    addr = be64_to_cpu(lowcore->restart_new_psw.addr);
+
+    cpu_unmap_lowcore(lowcore);
+
+    load_psw(env, mask, addr);
 }
 
 static void do_svc_interrupt(CPUS390XState *env)

@@ -297,6 +297,7 @@ static void *load_at(int fd, int offset, int size)
 #undef elf_phdr
 #undef elf_shdr
 #undef elf_sym
+#undef elf_rela
 #undef elf_note
 #undef elf_word
 #undef elf_sword
@@ -307,6 +308,7 @@ static void *load_at(int fd, int offset, int size)
 #define elf_note	elf64_note
 #define elf_shdr	elf64_shdr
 #define elf_sym		elf64_sym
+#define elf_rela        elf64_rela
 #define elf_word        uint64_t
 #define elf_sword        int64_t
 #define bswapSZs	bswap64s

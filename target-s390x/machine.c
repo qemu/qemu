@@ -36,8 +36,8 @@ static int cpu_post_load(void *opaque, int version_id)
 const VMStateDescription vmstate_s390_cpu = {
     .name = "cpu",
     .post_load = cpu_post_load,
-    .version_id = 1,
-    .minimum_version_id = 1,
+    .version_id = 2,
+    .minimum_version_id = 2,
     .fields      = (VMStateField[]) {
         VMSTATE_UINT64(env.fregs[0].ll, S390CPU),
         VMSTATE_UINT64(env.fregs[1].ll, S390CPU),
@@ -71,6 +71,7 @@ const VMStateDescription vmstate_s390_cpu = {
         VMSTATE_UINT32_ARRAY(env.aregs, S390CPU, 16),
         VMSTATE_UINT64_ARRAY(env.cregs, S390CPU, 16),
         VMSTATE_UINT8(env.cpu_state, S390CPU),
+        VMSTATE_UINT8(env.sigp_order, S390CPU),
         VMSTATE_END_OF_LIST()
      },
 };

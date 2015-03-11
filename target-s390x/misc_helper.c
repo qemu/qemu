@@ -456,7 +456,7 @@ uint32_t HELPER(stsi)(CPUS390XState *env, uint64_t a0,
 uint32_t HELPER(sigp)(CPUS390XState *env, uint64_t order_code, uint32_t r1,
                       uint64_t cpu_addr)
 {
-    int cc = 0;
+    int cc = SIGP_CC_ORDER_CODE_ACCEPTED;
 
     HELPER_LOG("%s: %016" PRIx64 " %08x %016" PRIx64 "\n",
                __func__, order_code, r1, cpu_addr);
@@ -490,7 +490,7 @@ uint32_t HELPER(sigp)(CPUS390XState *env, uint64_t order_code, uint32_t r1,
     default:
         /* unknown sigp */
         fprintf(stderr, "XXX unknown sigp: 0x%" PRIx64 "\n", order_code);
-        cc = 3;
+        cc = SIGP_CC_NOT_OPERATIONAL;
     }
 
     return cc;

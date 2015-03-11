@@ -97,6 +97,7 @@ static void ccw_init(MachineState *machine)
     ram_addr_t pad_size = 0;
     ram_addr_t maxmem = qemu_opt_get_size(opts, "maxmem", my_ram_size);
     ram_addr_t standby_mem_size = maxmem - my_ram_size;
+    uint64_t kvm_limit;
 
     /* The storage increment size is a multiple of 1M and is a power of 2.
      * The number of storage increments must be MAX_STORAGE_INCREMENTS or fewer.
@@ -121,6 +122,15 @@ static void ccw_init(MachineState *machine)
 
     /* let's propagate the changed ram size into the global variable. */
     ram_size = my_ram_size;
+    machine->maxram_size = my_ram_size + standby_mem_size;
+
+    ret = s390_set_memory_limit(machine->maxram_size, &kvm_limit);
+    if (ret == -E2BIG) {
+        hw_error("qemu: host supports a maximum of %" PRIu64 " GB",
+                 kvm_limit >> 30);
+    } else if (ret) {
+        hw_error("qemu: setting the guest size failed");
+    }
 
     /* get a BUS */
     css_bus = virtual_css_bus_init();
