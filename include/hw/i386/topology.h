@@ -21,8 +21,8 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-#ifndef TARGET_I386_TOPOLOGY_H
-#define TARGET_I386_TOPOLOGY_H
+#ifndef HW_I386_TOPOLOGY_H
+#define HW_I386_TOPOLOGY_H
 
 /* This file implements the APIC-ID-based CPU topology enumeration logic,
  * documented at the following document:
@@ -131,4 +131,4 @@ static inline apic_id_t x86_apicid_from_cpu_idx(unsigned nr_cores,
     return apicid_from_topo_ids(nr_cores, nr_threads, pkg_id, core_id, smt_id);
 }
 
-#endif /* TARGET_I386_TOPOLOGY_H */
+#endif /* HW_I386_TOPOLOGY_H */
