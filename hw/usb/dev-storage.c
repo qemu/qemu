@@ -559,8 +559,7 @@ static void usb_msd_password_cb(void *opaque, int err)
     }
 
     if (local_err) {
-        qerror_report_err(local_err);
-        error_free(local_err);
+        error_report_err(local_err);
         qdev_unplug(&s->dev.qdev, NULL);
     }
 }
