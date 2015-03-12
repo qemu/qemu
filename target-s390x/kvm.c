@@ -55,6 +55,9 @@
     do { } while (0)
 #endif
 
+#define kvm_vm_check_mem_attr(s, attr) \
+    kvm_vm_check_attr(s, KVM_S390_VM_MEM_CTRL, attr)
+
 #define IPA0_DIAG                       0x8300
 #define IPA0_SIGP                       0xae00
 #define IPA0_B2                         0xb200
@@ -122,16 +125,6 @@ static int cap_async_pf;
 
 static void *legacy_s390_alloc(size_t size, uint64_t *align);
 
-static int kvm_s390_supports_mem_limit(KVMState *s)
-{
-    struct kvm_device_attr attr = {
-        .group = KVM_S390_VM_MEM_CTRL,
-        .attr = KVM_S390_VM_MEM_LIMIT_SIZE,
-    };
-
-    return (kvm_vm_ioctl(s, KVM_HAS_DEVICE_ATTR, &attr) == 0);
-}
-
 static int kvm_s390_query_mem_limit(KVMState *s, uint64_t *memory_limit)
 {
     struct kvm_device_attr attr = {
@@ -153,7 +146,7 @@ int kvm_s390_set_mem_limit(KVMState *s, uint64_t new_limit, uint64_t *hw_limit)
         .addr = (uint64_t) &new_limit,
     };
 
-    if (!kvm_s390_supports_mem_limit(s)) {
+    if (!kvm_vm_check_mem_attr(s, KVM_S390_VM_MEM_LIMIT_SIZE)) {
         return 0;
     }
 
@@ -165,26 +158,6 @@ int kvm_s390_set_mem_limit(KVMState *s, uint64_t new_limit, uint64_t *hw_limit)
     }
 
     return kvm_vm_ioctl(s, KVM_SET_DEVICE_ATTR, &attr);
-}
-
-static int kvm_s390_check_clear_cmma(KVMState *s)
-{
-    struct kvm_device_attr attr = {
-        .group = KVM_S390_VM_MEM_CTRL,
-        .attr = KVM_S390_VM_MEM_CLR_CMMA,
-    };
-
-    return kvm_vm_ioctl(s, KVM_HAS_DEVICE_ATTR, &attr);
-}
-
-static int kvm_s390_check_enable_cmma(KVMState *s)
-{
-    struct kvm_device_attr attr = {
-        .group = KVM_S390_VM_MEM_CTRL,
-        .attr = KVM_S390_VM_MEM_ENABLE_CMMA,
-    };
-
-    return kvm_vm_ioctl(s, KVM_HAS_DEVICE_ATTR, &attr);
 }
 
 void kvm_s390_clear_cmma_callback(void *opaque)
@@ -208,7 +181,8 @@ static void kvm_s390_enable_cmma(KVMState *s)
         .attr = KVM_S390_VM_MEM_ENABLE_CMMA,
     };
 
-    if (kvm_s390_check_enable_cmma(s) || kvm_s390_check_clear_cmma(s)) {
+    if (!kvm_vm_check_mem_attr(s, KVM_S390_VM_MEM_ENABLE_CMMA) ||
+        !kvm_vm_check_mem_attr(s, KVM_S390_VM_MEM_CLR_CMMA)) {
         return;
     }
 
@@ -224,9 +198,7 @@ int kvm_arch_init(MachineState *ms, KVMState *s)
     cap_sync_regs = kvm_check_extension(s, KVM_CAP_SYNC_REGS);
     cap_async_pf = kvm_check_extension(s, KVM_CAP_ASYNC_PF);
 
-    if (kvm_check_extension(s, KVM_CAP_VM_ATTRIBUTES)) {
-        kvm_s390_enable_cmma(s);
-    }
+    kvm_s390_enable_cmma(s);
 
     if (!kvm_check_extension(s, KVM_CAP_S390_GMAP)
         || !kvm_check_extension(s, KVM_CAP_S390_COW)) {
