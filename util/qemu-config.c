@@ -353,7 +353,7 @@ static int config_write_opts(void *opaque, QemuOpts *opts, Error **errp)
     } else {
         fprintf(data->fp, "[%s]\n", data->list->name);
     }
-    qemu_opt_foreach(opts, config_write_opt, data, 0);
+    qemu_opt_foreach(opts, config_write_opt, data);
     fprintf(data->fp, "\n");
     return 0;
 }

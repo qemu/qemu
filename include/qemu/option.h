@@ -101,8 +101,7 @@ void qemu_opt_set_bool(QemuOpts *opts, const char *name, bool val,
 void qemu_opt_set_number(QemuOpts *opts, const char *name, int64_t val,
                          Error **errp);
 typedef int (*qemu_opt_loopfunc)(const char *name, const char *value, void *opaque);
-int qemu_opt_foreach(QemuOpts *opts, qemu_opt_loopfunc func, void *opaque,
-                     int abort_on_failure);
+int qemu_opt_foreach(QemuOpts *opts, qemu_opt_loopfunc func, void *opaque);
 
 QemuOpts *qemu_opts_find(QemuOptsList *list, const char *id);
 QemuOpts *qemu_opts_create(QemuOptsList *list, const char *id,

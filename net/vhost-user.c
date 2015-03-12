@@ -189,7 +189,7 @@ static CharDriverState *net_vhost_parse_chardev(const NetdevVhostUserOptions *op
 
     /* inspect chardev opts */
     memset(&props, 0, sizeof(props));
-    if (qemu_opt_foreach(chr->opts, net_vhost_chardev_opts, &props, true) != 0) {
+    if (qemu_opt_foreach(chr->opts, net_vhost_chardev_opts, &props)) {
         return NULL;
     }
 

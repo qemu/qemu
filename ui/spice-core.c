@@ -782,7 +782,7 @@ void qemu_spice_init(void)
     spice_server_set_playback_compression
         (spice_server, qemu_opt_get_bool(opts, "playback-compression", 1));
 
-    qemu_opt_foreach(opts, add_channel, &tls_port, 0);
+    qemu_opt_foreach(opts, add_channel, &tls_port);
 
     spice_server_set_name(spice_server, qemu_name);
     spice_server_set_uuid(spice_server, qemu_uuid);

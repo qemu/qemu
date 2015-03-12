@@ -564,7 +564,7 @@ DeviceState *qdev_device_add(QemuOpts *opts)
     }
 
     /* set properties */
-    if (qemu_opt_foreach(opts, set_property, dev, 1) != 0) {
+    if (qemu_opt_foreach(opts, set_property, dev)) {
         object_unparent(OBJECT(dev));
         object_unref(OBJECT(dev));
         return NULL;

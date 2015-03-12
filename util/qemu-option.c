@@ -596,18 +596,23 @@ void qemu_opt_set_number(QemuOpts *opts, const char *name, int64_t val,
     QTAILQ_INSERT_TAIL(&opts->head, opt, next);
 }
 
-int qemu_opt_foreach(QemuOpts *opts, qemu_opt_loopfunc func, void *opaque,
-                     int abort_on_failure)
+/**
+ * For each member of @opts, call @func(name, value, @opaque).
+ * When @func() returns non-zero, break the loop and return that value.
+ * Return zero when the loop completes.
+ */
+int qemu_opt_foreach(QemuOpts *opts, qemu_opt_loopfunc func, void *opaque)
 {
     QemuOpt *opt;
-    int rc = 0;
+    int rc;
 
     QTAILQ_FOREACH(opt, &opts->head, next) {
         rc = func(opt->name, opt->str, opaque);
-        if (abort_on_failure  &&  rc != 0)
-            break;
+        if (rc) {
+            return rc;
+        }
     }
-    return rc;
+    return 0;
 }
 
 QemuOpts *qemu_opts_find(QemuOptsList *list, const char *id)

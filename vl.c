@@ -4070,8 +4070,8 @@ int main(int argc, char **argv, char **envp)
     }
 
     machine_opts = qemu_get_machine_opts();
-    if (qemu_opt_foreach(machine_opts, machine_set_property, current_machine,
-                         1) < 0) {
+    if (qemu_opt_foreach(machine_opts, machine_set_property,
+                         current_machine)) {
         object_unref(OBJECT(current_machine));
         exit(1);
     }
