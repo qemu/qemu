@@ -45,19 +45,17 @@
 
 static char *local_mapped_attr_path(FsContext *ctx, const char *path)
 {
-    char *dir_name;
-    char *tmp_path = g_strdup(path);
-    char *base_name = basename(tmp_path);
-    char *buffer;
-
-    /* NULL terminate the directory */
-    dir_name = tmp_path;
-    *(base_name - 1) = '\0';
-
-    buffer = g_strdup_printf("%s/%s/%s/%s",
-             ctx->fs_root, dir_name, VIRTFS_META_DIR, base_name);
-    g_free(tmp_path);
-    return buffer;
+    int dirlen;
+    const char *name = strrchr(path, '/');
+    if (name) {
+        dirlen = name - path;
+        ++name;
+    } else {
+        name = path;
+        dirlen = 0;
+    }
+    return g_strdup_printf("%s/%.*s/%s/%s", ctx->fs_root,
+                           dirlen, path, VIRTFS_META_DIR, name);
 }
 
 static FILE *local_fopen(const char *path, const char *mode)
