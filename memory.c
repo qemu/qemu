@@ -868,7 +868,7 @@ void memory_region_init(MemoryRegion *mr,
                         uint64_t size)
 {
     if (!owner) {
-        owner = qdev_get_machine();
+        owner = container_get(qdev_get_machine(), "/unattached");
     }
 
     object_initialize(mr, sizeof(*mr), TYPE_MEMORY_REGION);
