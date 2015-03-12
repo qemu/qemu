@@ -2276,11 +2276,14 @@ static int device_help_func(void *opaque, QemuOpts *opts, Error **errp)
 
 static int device_init_func(void *opaque, QemuOpts *opts, Error **errp)
 {
+    Error *err = NULL;
     DeviceState *dev;
 
-    dev = qdev_device_add(opts);
-    if (!dev)
+    dev = qdev_device_add(opts, &err);
+    if (!dev) {
+        error_report_err(err);
         return -1;
+    }
     object_unref(OBJECT(dev));
     return 0;
 }
