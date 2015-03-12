@@ -66,6 +66,13 @@ MachineClass *find_default_machine(void);
 extern MachineState *current_machine;
 
 bool machine_usb(MachineState *machine);
+bool machine_iommu(MachineState *machine);
+bool machine_kernel_irqchip_allowed(MachineState *machine);
+bool machine_kernel_irqchip_required(MachineState *machine);
+int machine_kvm_shadow_mem(MachineState *machine);
+int machine_phandle_start(MachineState *machine);
+bool machine_dump_guest_core(MachineState *machine);
+bool machine_mem_merge(MachineState *machine);
 
 /**
  * MachineClass:
@@ -124,7 +131,8 @@ struct MachineState {
     /*< public >*/
 
     char *accel;
-    bool kernel_irqchip;
+    bool kernel_irqchip_allowed;
+    bool kernel_irqchip_required;
     int kvm_shadow_mem;
     char *dtb;
     char *dumpdtb;

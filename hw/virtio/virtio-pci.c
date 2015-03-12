@@ -856,16 +856,13 @@ static void virtio_pci_vmstate_change(DeviceState *d, bool running)
 }
 
 #ifdef CONFIG_VIRTFS
-static int virtio_9p_init_pci(VirtIOPCIProxy *vpci_dev)
+static void virtio_9p_pci_realize(VirtIOPCIProxy *vpci_dev, Error **errp)
 {
     V9fsPCIState *dev = VIRTIO_9P_PCI(vpci_dev);
     DeviceState *vdev = DEVICE(&dev->vdev);
 
     qdev_set_parent_bus(vdev, BUS(&vpci_dev->bus));
-    if (qdev_init(vdev) < 0) {
-        return -1;
-    }
-    return 0;
+    object_property_set_bool(OBJECT(vdev), true, "realized", errp);
 }
 
 static Property virtio_9p_pci_properties[] = {
@@ -881,7 +878,7 @@ static void virtio_9p_pci_class_init(ObjectClass *klass, void *data)
     PCIDeviceClass *pcidev_k = PCI_DEVICE_CLASS(klass);
     VirtioPCIClass *k = VIRTIO_PCI_CLASS(klass);
 
-    k->init = virtio_9p_init_pci;
+    k->realize = virtio_9p_pci_realize;
     pcidev_k->vendor_id = PCI_VENDOR_ID_REDHAT_QUMRANET;
     pcidev_k->device_id = PCI_DEVICE_ID_VIRTIO_9P;
     pcidev_k->revision = VIRTIO_PCI_ABI_VERSION;
@@ -965,15 +962,15 @@ static void virtio_pci_device_unplugged(DeviceState *d)
     virtio_pci_stop_ioeventfd(proxy);
 }
 
-static int virtio_pci_init(PCIDevice *pci_dev)
+static void virtio_pci_realize(PCIDevice *pci_dev, Error **errp)
 {
     VirtIOPCIProxy *dev = VIRTIO_PCI(pci_dev);
     VirtioPCIClass *k = VIRTIO_PCI_GET_CLASS(pci_dev);
+
     virtio_pci_bus_new(&dev->bus, sizeof(dev->bus), dev);
-    if (k->init != NULL) {
-        return k->init(dev);
+    if (k->realize) {
+        k->realize(dev, errp);
     }
-    return 0;
 }
 
 static void virtio_pci_exit(PCIDevice *pci_dev)
@@ -1003,7 +1000,7 @@ static void virtio_pci_class_init(ObjectClass *klass, void *data)
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
 
     dc->props = virtio_pci_properties;
-    k->init = virtio_pci_init;
+    k->realize = virtio_pci_realize;
     k->exit = virtio_pci_exit;
     k->vendor_id = PCI_VENDOR_ID_REDHAT_QUMRANET;
     k->revision = VIRTIO_PCI_ABI_VERSION;
@@ -1030,15 +1027,13 @@ static Property virtio_blk_pci_properties[] = {
     DEFINE_PROP_END_OF_LIST(),
 };
 
-static int virtio_blk_pci_init(VirtIOPCIProxy *vpci_dev)
+static void virtio_blk_pci_realize(VirtIOPCIProxy *vpci_dev, Error **errp)
 {
     VirtIOBlkPCI *dev = VIRTIO_BLK_PCI(vpci_dev);
     DeviceState *vdev = DEVICE(&dev->vdev);
+
     qdev_set_parent_bus(vdev, BUS(&vpci_dev->bus));
-    if (qdev_init(vdev) < 0) {
-        return -1;
-    }
-    return 0;
+    object_property_set_bool(OBJECT(vdev), true, "realized", errp);
 }
 
 static void virtio_blk_pci_class_init(ObjectClass *klass, void *data)
@@ -1049,7 +1044,7 @@ static void virtio_blk_pci_class_init(ObjectClass *klass, void *data)
 
     set_bit(DEVICE_CATEGORY_STORAGE, dc->categories);
     dc->props = virtio_blk_pci_properties;
-    k->init = virtio_blk_pci_init;
+    k->realize = virtio_blk_pci_realize;
     pcidev_k->vendor_id = PCI_VENDOR_ID_REDHAT_QUMRANET;
     pcidev_k->device_id = PCI_DEVICE_ID_VIRTIO_BLOCK;
     pcidev_k->revision = VIRTIO_PCI_ABI_VERSION;
@@ -1087,7 +1082,7 @@ static Property virtio_scsi_pci_properties[] = {
     DEFINE_PROP_END_OF_LIST(),
 };
 
-static int virtio_scsi_pci_init_pci(VirtIOPCIProxy *vpci_dev)
+static void virtio_scsi_pci_realize(VirtIOPCIProxy *vpci_dev, Error **errp)
 {
     VirtIOSCSIPCI *dev = VIRTIO_SCSI_PCI(vpci_dev);
     DeviceState *vdev = DEVICE(&dev->vdev);
@@ -1110,10 +1105,7 @@ static int virtio_scsi_pci_init_pci(VirtIOPCIProxy *vpci_dev)
     }
 
     qdev_set_parent_bus(vdev, BUS(&vpci_dev->bus));
-    if (qdev_init(vdev) < 0) {
-        return -1;
-    }
-    return 0;
+    object_property_set_bool(OBJECT(vdev), true, "realized", errp);
 }
 
 static void virtio_scsi_pci_class_init(ObjectClass *klass, void *data)
@@ -1121,7 +1113,8 @@ static void virtio_scsi_pci_class_init(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
     VirtioPCIClass *k = VIRTIO_PCI_CLASS(klass);
     PCIDeviceClass *pcidev_k = PCI_DEVICE_CLASS(klass);
-    k->init = virtio_scsi_pci_init_pci;
+
+    k->realize = virtio_scsi_pci_realize;
     set_bit(DEVICE_CATEGORY_STORAGE, dc->categories);
     dc->props = virtio_scsi_pci_properties;
     pcidev_k->vendor_id = PCI_VENDOR_ID_REDHAT_QUMRANET;
@@ -1157,7 +1150,7 @@ static Property vhost_scsi_pci_properties[] = {
     DEFINE_PROP_END_OF_LIST(),
 };
 
-static int vhost_scsi_pci_init_pci(VirtIOPCIProxy *vpci_dev)
+static void vhost_scsi_pci_realize(VirtIOPCIProxy *vpci_dev, Error **errp)
 {
     VHostSCSIPCI *dev = VHOST_SCSI_PCI(vpci_dev);
     DeviceState *vdev = DEVICE(&dev->vdev);
@@ -1168,10 +1161,7 @@ static int vhost_scsi_pci_init_pci(VirtIOPCIProxy *vpci_dev)
     }
 
     qdev_set_parent_bus(vdev, BUS(&vpci_dev->bus));
-    if (qdev_init(vdev) < 0) {
-        return -1;
-    }
-    return 0;
+    object_property_set_bool(OBJECT(vdev), true, "realized", errp);
 }
 
 static void vhost_scsi_pci_class_init(ObjectClass *klass, void *data)
@@ -1179,7 +1169,7 @@ static void vhost_scsi_pci_class_init(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
     VirtioPCIClass *k = VIRTIO_PCI_CLASS(klass);
     PCIDeviceClass *pcidev_k = PCI_DEVICE_CLASS(klass);
-    k->init = vhost_scsi_pci_init_pci;
+    k->realize = vhost_scsi_pci_realize;
     set_bit(DEVICE_CATEGORY_STORAGE, dc->categories);
     dc->props = vhost_scsi_pci_properties;
     pcidev_k->vendor_id = PCI_VENDOR_ID_REDHAT_QUMRANET;
@@ -1240,7 +1230,7 @@ static Property virtio_balloon_pci_properties[] = {
     DEFINE_PROP_END_OF_LIST(),
 };
 
-static int virtio_balloon_pci_init(VirtIOPCIProxy *vpci_dev)
+static void virtio_balloon_pci_realize(VirtIOPCIProxy *vpci_dev, Error **errp)
 {
     VirtIOBalloonPCI *dev = VIRTIO_BALLOON_PCI(vpci_dev);
     DeviceState *vdev = DEVICE(&dev->vdev);
@@ -1251,10 +1241,7 @@ static int virtio_balloon_pci_init(VirtIOPCIProxy *vpci_dev)
     }
 
     qdev_set_parent_bus(vdev, BUS(&vpci_dev->bus));
-    if (qdev_init(vdev) < 0) {
-        return -1;
-    }
-    return 0;
+    object_property_set_bool(OBJECT(vdev), true, "realized", errp);
 }
 
 static void virtio_balloon_pci_class_init(ObjectClass *klass, void *data)
@@ -1262,7 +1249,7 @@ static void virtio_balloon_pci_class_init(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
     VirtioPCIClass *k = VIRTIO_PCI_CLASS(klass);
     PCIDeviceClass *pcidev_k = PCI_DEVICE_CLASS(klass);
-    k->init = virtio_balloon_pci_init;
+    k->realize = virtio_balloon_pci_realize;
     set_bit(DEVICE_CATEGORY_MISC, dc->categories);
     dc->props = virtio_balloon_pci_properties;
     pcidev_k->vendor_id = PCI_VENDOR_ID_REDHAT_QUMRANET;
@@ -1296,7 +1283,7 @@ static const TypeInfo virtio_balloon_pci_info = {
 
 /* virtio-serial-pci */
 
-static int virtio_serial_pci_init(VirtIOPCIProxy *vpci_dev)
+static void virtio_serial_pci_realize(VirtIOPCIProxy *vpci_dev, Error **errp)
 {
     VirtIOSerialPCI *dev = VIRTIO_SERIAL_PCI(vpci_dev);
     DeviceState *vdev = DEVICE(&dev->vdev);
@@ -1326,10 +1313,7 @@ static int virtio_serial_pci_init(VirtIOPCIProxy *vpci_dev)
     }
 
     qdev_set_parent_bus(vdev, BUS(&vpci_dev->bus));
-    if (qdev_init(vdev) < 0) {
-        return -1;
-    }
-    return 0;
+    object_property_set_bool(OBJECT(vdev), true, "realized", errp);
 }
 
 static Property virtio_serial_pci_properties[] = {
@@ -1345,7 +1329,7 @@ static void virtio_serial_pci_class_init(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
     VirtioPCIClass *k = VIRTIO_PCI_CLASS(klass);
     PCIDeviceClass *pcidev_k = PCI_DEVICE_CLASS(klass);
-    k->init = virtio_serial_pci_init;
+    k->realize = virtio_serial_pci_realize;
     set_bit(DEVICE_CATEGORY_INPUT, dc->categories);
     dc->props = virtio_serial_pci_properties;
     pcidev_k->vendor_id = PCI_VENDOR_ID_REDHAT_QUMRANET;
@@ -1380,7 +1364,7 @@ static Property virtio_net_properties[] = {
     DEFINE_PROP_END_OF_LIST(),
 };
 
-static int virtio_net_pci_init(VirtIOPCIProxy *vpci_dev)
+static void virtio_net_pci_realize(VirtIOPCIProxy *vpci_dev, Error **errp)
 {
     DeviceState *qdev = DEVICE(vpci_dev);
     VirtIONetPCI *dev = VIRTIO_NET_PCI(vpci_dev);
@@ -1390,10 +1374,7 @@ static int virtio_net_pci_init(VirtIOPCIProxy *vpci_dev)
     virtio_net_set_netclient_name(&dev->vdev, qdev->id,
                                   object_get_typename(OBJECT(qdev)));
     qdev_set_parent_bus(vdev, BUS(&vpci_dev->bus));
-    if (qdev_init(vdev) < 0) {
-        return -1;
-    }
-    return 0;
+    object_property_set_bool(OBJECT(vdev), true, "realized", errp);
 }
 
 static void virtio_net_pci_class_init(ObjectClass *klass, void *data)
@@ -1409,7 +1390,7 @@ static void virtio_net_pci_class_init(ObjectClass *klass, void *data)
     k->class_id = PCI_CLASS_NETWORK_ETHERNET;
     set_bit(DEVICE_CATEGORY_NETWORK, dc->categories);
     dc->props = virtio_net_properties;
-    vpciklass->init = virtio_net_pci_init;
+    vpciklass->realize = virtio_net_pci_realize;
 }
 
 static void virtio_net_pci_instance_init(Object *obj)
@@ -1436,21 +1417,22 @@ static Property virtio_rng_pci_properties[] = {
     DEFINE_PROP_END_OF_LIST(),
 };
 
-static int virtio_rng_pci_init(VirtIOPCIProxy *vpci_dev)
+static void virtio_rng_pci_realize(VirtIOPCIProxy *vpci_dev, Error **errp)
 {
     VirtIORngPCI *vrng = VIRTIO_RNG_PCI(vpci_dev);
     DeviceState *vdev = DEVICE(&vrng->vdev);
+    Error *err = NULL;
 
     qdev_set_parent_bus(vdev, BUS(&vpci_dev->bus));
-    if (qdev_init(vdev) < 0) {
-        return -1;
+    object_property_set_bool(OBJECT(vdev), true, "realized", &err);
+    if (err) {
+        error_propagate(errp, err);
+        return;
     }
 
     object_property_set_link(OBJECT(vrng),
                              OBJECT(vrng->vdev.conf.rng), "rng",
                              NULL);
-
-    return 0;
 }
 
 static void virtio_rng_pci_class_init(ObjectClass *klass, void *data)
@@ -1459,7 +1441,7 @@ static void virtio_rng_pci_class_init(ObjectClass *klass, void *data)
     VirtioPCIClass *k = VIRTIO_PCI_CLASS(klass);
     PCIDeviceClass *pcidev_k = PCI_DEVICE_CLASS(klass);
 
-    k->init = virtio_rng_pci_init;
+    k->realize = virtio_rng_pci_realize;
     set_bit(DEVICE_CATEGORY_MISC, dc->categories);
     dc->props = virtio_rng_pci_properties;
 

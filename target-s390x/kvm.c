@@ -219,7 +219,7 @@ static void kvm_s390_enable_cmma(KVMState *s)
     trace_kvm_enable_cmma(rc);
 }
 
-int kvm_arch_init(KVMState *s)
+int kvm_arch_init(MachineState *ms, KVMState *s)
 {
     cap_sync_regs = kvm_check_extension(s, KVM_CAP_SYNC_REGS);
     cap_async_pf = kvm_check_extension(s, KVM_CAP_ASYNC_PF);

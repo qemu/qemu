@@ -14,6 +14,9 @@
 #ifndef _QEMU_VIRTIO_SCSI_H
 #define _QEMU_VIRTIO_SCSI_H
 
+/* Override CDB/sense data size: they are dynamic (guest controlled) in QEMU */
+#define VIRTIO_SCSI_CDB_SIZE 0
+#define VIRTIO_SCSI_SENSE_SIZE 0
 #include "standard-headers/linux/virtio_scsi.h"
 #include "hw/virtio/virtio.h"
 #include "hw/pci/pci.h"
@@ -30,8 +33,6 @@
         OBJECT_CHECK(VirtIOSCSI, (obj), TYPE_VIRTIO_SCSI)
 
 #define VIRTIO_SCSI_VQ_SIZE     128
-#define VIRTIO_SCSI_CDB_SIZE    32
-#define VIRTIO_SCSI_SENSE_SIZE  96
 #define VIRTIO_SCSI_MAX_CHANNEL 0
 #define VIRTIO_SCSI_MAX_TARGET  255
 #define VIRTIO_SCSI_MAX_LUN     16383
@@ -108,8 +109,7 @@ typedef struct VirtIOSCSIReq {
     /* Note:
      * - fields before elem are initialized by virtio_scsi_init_req;
      * - elem is uninitialized at the time of allocation.
-     * - fields after elem (except the ending cdb[]) are zeroed by
-     *   virtio_scsi_init_req.
+     * - fields after elem are zeroed by virtio_scsi_init_req.
      * */
 
     VirtQueueElement elem;
@@ -134,17 +134,11 @@ typedef struct VirtIOSCSIReq {
         VirtIOSCSIEvent       event;
     } resp;
     union {
-        struct {
-            VirtIOSCSICmdReq  cmd;
-            uint8_t           cdb[];
-        } QEMU_PACKED;
+        VirtIOSCSICmdReq      cmd;
         VirtIOSCSICtrlTMFReq  tmf;
         VirtIOSCSICtrlANReq   an;
     } req;
 } VirtIOSCSIReq;
-
-QEMU_BUILD_BUG_ON(offsetof(VirtIOSCSIReq, req.cdb) !=
-                  offsetof(VirtIOSCSIReq, req.cmd) + sizeof(VirtIOSCSICmdReq));
 
 #define DEFINE_VIRTIO_SCSI_PROPERTIES(_state, _conf_field)                     \
     DEFINE_PROP_UINT32("num_queues", _state, _conf_field.num_queues, 1),       \

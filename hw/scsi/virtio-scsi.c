@@ -476,7 +476,7 @@ static int virtio_scsi_parse_cdb(SCSIDevice *dev, SCSICommand *cmd,
     VirtIOSCSIReq *req = hba_private;
 
     if (cmd->len == 0) {
-        cmd->len = MIN(VIRTIO_SCSI_CDB_SIZE, SCSI_CMD_BUF_SIZE);
+        cmd->len = MIN(VIRTIO_SCSI_CDB_DEFAULT_SIZE, SCSI_CMD_BUF_SIZE);
         memcpy(cmd->buf, buf, cmd->len);
     }
 
@@ -544,7 +544,7 @@ bool virtio_scsi_handle_cmd_req_prepare(VirtIOSCSI *s, VirtIOSCSIReq *req)
     }
     req->sreq = scsi_req_new(d, req->req.cmd.tag,
                              virtio_scsi_get_lun(req->req.cmd.lun),
-                             req->req.cdb, req);
+                             req->req.cmd.cdb, req);
 
     if (req->sreq->cmd.mode != SCSI_XFER_NONE
         && (req->sreq->cmd.mode != req->mode ||
@@ -642,8 +642,8 @@ static void virtio_scsi_reset(VirtIODevice *vdev)
     qbus_reset_all(&s->bus.qbus);
     s->resetting--;
 
-    vs->sense_size = VIRTIO_SCSI_SENSE_SIZE;
-    vs->cdb_size = VIRTIO_SCSI_CDB_SIZE;
+    vs->sense_size = VIRTIO_SCSI_SENSE_DEFAULT_SIZE;
+    vs->cdb_size = VIRTIO_SCSI_CDB_DEFAULT_SIZE;
     s->events_dropped = false;
 }
 
@@ -830,8 +830,8 @@ void virtio_scsi_common_realize(DeviceState *dev, Error **errp,
         return;
     }
     s->cmd_vqs = g_new0(VirtQueue *, s->conf.num_queues);
-    s->sense_size = VIRTIO_SCSI_SENSE_SIZE;
-    s->cdb_size = VIRTIO_SCSI_CDB_SIZE;
+    s->sense_size = VIRTIO_SCSI_SENSE_DEFAULT_SIZE;
+    s->cdb_size = VIRTIO_SCSI_CDB_DEFAULT_SIZE;
 
     s->ctrl_vq = virtio_add_queue(vdev, VIRTIO_SCSI_VQ_SIZE,
                                   ctrl);

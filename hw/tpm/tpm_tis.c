@@ -959,18 +959,18 @@ static void tpm_tis_realizefn(DeviceState *dev, Error **errp)
     tis->bh = qemu_bh_new(tpm_tis_receive_bh, s);
 
     isa_init_irq(&s->busdev, &tis->irq, tis->irq_num);
+
+    memory_region_add_subregion(isa_address_space(ISA_DEVICE(dev)),
+                                TPM_TIS_ADDR_BASE, &s->mmio);
 }
 
 static void tpm_tis_initfn(Object *obj)
 {
-    ISADevice *dev = ISA_DEVICE(obj);
     TPMState *s = TPM(obj);
 
     memory_region_init_io(&s->mmio, OBJECT(s), &tpm_tis_memory_ops,
                           s, "tpm-tis-mmio",
                           TPM_TIS_NUM_LOCALITIES << TPM_TIS_LOCALITY_SHIFT);
-    memory_region_add_subregion(isa_address_space(dev), TPM_TIS_ADDR_BASE,
-                                &s->mmio);
 }
 
 static void tpm_tis_class_init(ObjectClass *klass, void *data)
