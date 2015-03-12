@@ -5391,9 +5391,11 @@ int monitor_read_bdrv_key_start(Monitor *mon, BlockDriverState *bs,
 
     if (monitor_ctrl_mode(mon)) {
         qerror_report_err(local_err);
+        error_free(local_err);
         return -1;
     }
 
+    error_free(local_err);
     monitor_printf(mon, "%s (%s) is encrypted.\n", bdrv_get_device_name(bs),
                    bdrv_get_encrypted_filename(bs));
 
