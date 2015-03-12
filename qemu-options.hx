@@ -37,7 +37,9 @@ DEF("machine", HAS_ARG, QEMU_OPTION_machine, \
     "                kvm_shadow_mem=size of KVM shadow MMU\n"
     "                dump-guest-core=on|off include guest memory in a core dump (default=on)\n"
     "                mem-merge=on|off controls memory merge support (default: on)\n"
-    "                iommu=on|off controls emulated Intel IOMMU (VT-d) support (default=off)\n",
+    "                iommu=on|off controls emulated Intel IOMMU (VT-d) support (default=off)\n"
+    "                aes-key-wrap=on|off controls support for AES key wrapping (default=on)\n"
+    "                dea-key-wrap=on|off controls support for DEA key wrapping (default=on)\n",
     QEMU_ARCH_ALL)
 STEXI
 @item -machine [type=]@var{name}[,prop=@var{value}[,...]]
@@ -66,6 +68,14 @@ the host, de-duplicates identical memory pages among VMs instances
 (enabled by default).
 @item iommu=on|off
 Enables or disables emulated Intel IOMMU (VT-d) support. The default is off.
+@item aes-key-wrap=on|off
+Enables or disables AES key wrapping support on s390-ccw hosts. This feature
+controls whether AES wrapping keys will be created to allow
+execution of AES cryptographic functions.  The default is on.
+@item dea-key-wrap=on|off
+Enables or disables DEA key wrapping support on s390-ccw hosts. This feature
+controls whether DEA wrapping keys will be created to allow
+execution of DEA cryptographic functions.  The default is on.
 @end table
 ETEXI
 
