@@ -225,6 +225,18 @@ int kvm_vcpu_ioctl(CPUState *cpu, int type, ...);
 int kvm_device_ioctl(int fd, int type, ...);
 
 /**
+ * kvm_vm_check_attr - check for existence of a specific vm attribute
+ * @s: The KVMState pointer
+ * @group: the group
+ * @attr: the attribute of that group to query for
+ *
+ * Returns: 1 if the attribute exists
+ *          0 if the attribute either does not exist or if the vm device
+ *            interface is unavailable
+ */
+int kvm_vm_check_attr(KVMState *s, uint32_t group, uint64_t attr);
+
+/**
  * kvm_create_device - create a KVM device for the device control API
  * @KVMState: The KVMState pointer
  * @type: The KVM device type (see Documentation/virtual/kvm/devices in the

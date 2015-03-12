@@ -126,6 +126,7 @@ bool kvm_gsi_routing_allowed;
 bool kvm_gsi_direct_mapping;
 bool kvm_allowed;
 bool kvm_readonly_mem_allowed;
+bool kvm_vm_attributes_allowed;
 
 static const KVMCapabilityInfo kvm_required_capabilites[] = {
     KVM_CAP_INFO(USER_MEMORY),
@@ -1598,6 +1599,9 @@ static int kvm_init(MachineState *ms)
     kvm_resamplefds_allowed =
         (kvm_check_extension(s, KVM_CAP_IRQFD_RESAMPLE) > 0);
 
+    kvm_vm_attributes_allowed =
+        (kvm_check_extension(s, KVM_CAP_VM_ATTRIBUTES) > 0);
+
     ret = kvm_arch_init(ms, s);
     if (ret < 0) {
         goto err;
@@ -1934,6 +1938,23 @@ int kvm_device_ioctl(int fd, int type, ...)
         ret = -errno;
     }
     return ret;
+}
+
+int kvm_vm_check_attr(KVMState *s, uint32_t group, uint64_t attr)
+{
+    int ret;
+    struct kvm_device_attr attribute = {
+        .group = group,
+        .attr = attr,
+    };
+
+    if (!kvm_vm_attributes_allowed) {
+        return 0;
+    }
+
+    ret = kvm_vm_ioctl(s, KVM_HAS_DEVICE_ATTR, &attribute);
+    /* kvm returns 0 on success for HAS_DEVICE_ATTR */
+    return ret ? 0 : 1;
 }
 
 int kvm_has_sync_mmu(void)
