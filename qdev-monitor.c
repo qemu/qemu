@@ -156,8 +156,7 @@ static int set_property(void *opaque, const char *name, const char *value,
 
     object_property_parse(obj, value, name, &err);
     if (err != NULL) {
-        qerror_report_err(err);
-        error_free(err);
+        error_propagate(errp, err);
         return -1;
     }
     return 0;
@@ -592,7 +591,8 @@ DeviceState *qdev_device_add(QemuOpts *opts)
     }
 
     /* set properties */
-    if (qemu_opt_foreach(opts, set_property, dev, NULL)) {
+    if (qemu_opt_foreach(opts, set_property, dev, &err)) {
+        qerror_report_err(err);
         object_unparent(OBJECT(dev));
         object_unref(OBJECT(dev));
         return NULL;
