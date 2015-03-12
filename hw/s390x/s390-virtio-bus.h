@@ -108,7 +108,6 @@ typedef struct VirtIOS390Bus {
 
 void s390_virtio_device_update_status(VirtIOS390Device *dev);
 
-VirtIOS390Device *s390_virtio_bus_console(VirtIOS390Bus *bus);
 VirtIOS390Bus *s390_virtio_bus_init(ram_addr_t *ram_size);
 
 VirtIOS390Device *s390_virtio_bus_find_vring(VirtIOS390Bus *bus,

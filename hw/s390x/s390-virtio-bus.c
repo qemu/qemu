@@ -435,11 +435,6 @@ void s390_virtio_device_update_status(VirtIOS390Device *dev)
     virtio_set_features(vdev, features);
 }
 
-VirtIOS390Device *s390_virtio_bus_console(VirtIOS390Bus *bus)
-{
-    return bus->console;
-}
-
 /* Find a device by vring address */
 VirtIOS390Device *s390_virtio_bus_find_vring(VirtIOS390Bus *bus,
                                              ram_addr_t mem,
