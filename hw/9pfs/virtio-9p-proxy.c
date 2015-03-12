@@ -693,16 +693,16 @@ static ssize_t proxy_preadv(FsContext *ctx, V9fsFidOpenState *fs,
                             const struct iovec *iov,
                             int iovcnt, off_t offset)
 {
+    ssize_t ret;
 #ifdef CONFIG_PREADV
-    return preadv(fs->fd, iov, iovcnt, offset);
+    ret = preadv(fs->fd, iov, iovcnt, offset);
 #else
-    int err = lseek(fs->fd, offset, SEEK_SET);
-    if (err == -1) {
-        return err;
-    } else {
-        return readv(fs->fd, iov, iovcnt);
+    ret = lseek(fs->fd, offset, SEEK_SET);
+    if (ret >= 0) {
+        ret = readv(fs->fd, iov, iovcnt);
     }
 #endif
+    return ret;
 }
 
 static ssize_t proxy_pwritev(FsContext *ctx, V9fsFidOpenState *fs,
@@ -714,10 +714,8 @@ static ssize_t proxy_pwritev(FsContext *ctx, V9fsFidOpenState *fs,
 #ifdef CONFIG_PREADV
     ret = pwritev(fs->fd, iov, iovcnt, offset);
 #else
-    int err = lseek(fs->fd, offset, SEEK_SET);
-    if (err == -1) {
-        return err;
-    } else {
+    ret = lseek(fs->fd, offset, SEEK_SET);
+    if (ret >= 0) {
         ret = writev(fs->fd, iov, iovcnt);
     }
 #endif
