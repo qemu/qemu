@@ -143,7 +143,8 @@ static void qdev_print_devinfos(bool show_no_user)
     g_slist_free(list);
 }
 
-static int set_property(const char *name, const char *value, void *opaque)
+static int set_property(void *opaque, const char *name, const char *value,
+                        Error **errp)
 {
     Object *obj = opaque;
     Error *err = NULL;
@@ -564,7 +565,7 @@ DeviceState *qdev_device_add(QemuOpts *opts)
     }
 
     /* set properties */
-    if (qemu_opt_foreach(opts, set_property, dev)) {
+    if (qemu_opt_foreach(opts, set_property, dev, NULL)) {
         object_unparent(OBJECT(dev));
         object_unref(OBJECT(dev));
         return NULL;

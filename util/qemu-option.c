@@ -597,20 +597,23 @@ void qemu_opt_set_number(QemuOpts *opts, const char *name, int64_t val,
 }
 
 /**
- * For each member of @opts, call @func(name, value, @opaque).
+ * For each member of @opts, call @func(@opaque, name, value, @errp).
+ * @func() may store an Error through @errp, but must return non-zero then.
  * When @func() returns non-zero, break the loop and return that value.
  * Return zero when the loop completes.
  */
-int qemu_opt_foreach(QemuOpts *opts, qemu_opt_loopfunc func, void *opaque)
+int qemu_opt_foreach(QemuOpts *opts, qemu_opt_loopfunc func, void *opaque,
+                     Error **errp)
 {
     QemuOpt *opt;
     int rc;
 
     QTAILQ_FOREACH(opt, &opts->head, next) {
-        rc = func(opt->name, opt->str, opaque);
+        rc = func(opaque, opt->name, opt->str, errp);
         if (rc) {
             return rc;
         }
+        assert(!errp || !*errp);
     }
     return 0;
 }

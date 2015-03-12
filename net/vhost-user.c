@@ -157,8 +157,9 @@ static int net_vhost_user_init(NetClientState *peer, const char *device,
     return 0;
 }
 
-static int net_vhost_chardev_opts(const char *name, const char *value,
-                                  void *opaque)
+static int net_vhost_chardev_opts(void *opaque,
+                                  const char *name, const char *value,
+                                  Error **errp)
 {
     VhostUserChardevProps *props = opaque;
 
@@ -189,7 +190,7 @@ static CharDriverState *net_vhost_parse_chardev(const NetdevVhostUserOptions *op
 
     /* inspect chardev opts */
     memset(&props, 0, sizeof(props));
-    if (qemu_opt_foreach(chr->opts, net_vhost_chardev_opts, &props)) {
+    if (qemu_opt_foreach(chr->opts, net_vhost_chardev_opts, &props, NULL)) {
         return NULL;
     }
 

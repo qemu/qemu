@@ -335,7 +335,8 @@ struct ConfigWriteData {
     FILE *fp;
 };
 
-static int config_write_opt(const char *name, const char *value, void *opaque)
+static int config_write_opt(void *opaque, const char *name, const char *value,
+                            Error **errp)
 {
     struct ConfigWriteData *data = opaque;
 
@@ -353,7 +354,7 @@ static int config_write_opts(void *opaque, QemuOpts *opts, Error **errp)
     } else {
         fprintf(data->fp, "[%s]\n", data->list->name);
     }
-    qemu_opt_foreach(opts, config_write_opt, data);
+    qemu_opt_foreach(opts, config_write_opt, data, NULL);
     fprintf(data->fp, "\n");
     return 0;
 }

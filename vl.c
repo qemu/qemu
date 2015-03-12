@@ -2576,8 +2576,9 @@ static void free_and_trace(gpointer mem)
     free(mem);
 }
 
-static int machine_set_property(const char *name, const char *value,
-                                void *opaque)
+static int machine_set_property(void *opaque,
+                                const char *name, const char *value,
+                                Error **errp)
 {
     Object *obj = OBJECT(opaque);
     Error *local_err = NULL;
@@ -4070,8 +4071,8 @@ int main(int argc, char **argv, char **envp)
     }
 
     machine_opts = qemu_get_machine_opts();
-    if (qemu_opt_foreach(machine_opts, machine_set_property,
-                         current_machine)) {
+    if (qemu_opt_foreach(machine_opts, machine_set_property, current_machine,
+                         NULL)) {
         object_unref(OBJECT(current_machine));
         exit(1);
     }
