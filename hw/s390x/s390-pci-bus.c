@@ -44,6 +44,7 @@ int chsc_sei_nt2_get_event(void *res)
         QTAILQ_REMOVE(&s->pending_sei, sei_cont, link);
         nt2_res->nt = 2;
         nt2_res->cc = sei_cont->cc;
+        nt2_res->length = cpu_to_be16(sizeof(ChscSeiNt2Res));
         switch (sei_cont->cc) {
         case 1: /* error event */
             eccdf = (PciCcdfErr *)nt2_res->ccdf;
