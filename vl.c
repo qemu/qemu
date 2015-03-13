@@ -4055,7 +4055,7 @@ int main(int argc, char **argv, char **envp)
     }
 
     if (qemu_opts_foreach(qemu_find_opts("object"),
-                          object_create, NULL, 0) != 0) {
+                          object_create, NULL, 1) != 0) {
         exit(1);
     }
 
