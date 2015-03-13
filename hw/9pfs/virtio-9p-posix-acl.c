@@ -114,7 +114,7 @@ static ssize_t mp_dacl_listxattr(FsContext *ctx, const char *path,
     }
 
     /* len includes the trailing NUL */
-    memcpy(value, ACL_ACCESS, len);
+    memcpy(value, ACL_DEFAULT, len);
     return 0;
 }
 
