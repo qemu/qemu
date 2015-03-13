@@ -1341,16 +1341,16 @@ void hmp_block_job_complete(Monitor *mon, const QDict *qdict)
     hmp_handle_error(mon, &error);
 }
 
-typedef struct MigrationStatus
+typedef struct HMPMigrationStatus
 {
     QEMUTimer *timer;
     Monitor *mon;
     bool is_block_migration;
-} MigrationStatus;
+} HMPMigrationStatus;
 
 static void hmp_migrate_status_cb(void *opaque)
 {
-    MigrationStatus *status = opaque;
+    HMPMigrationStatus *status = opaque;
     MigrationInfo *info;
 
     info = qmp_query_migrate(NULL);
@@ -1398,7 +1398,7 @@ void hmp_migrate(Monitor *mon, const QDict *qdict)
     }
 
     if (!detach) {
-        MigrationStatus *status;
+        HMPMigrationStatus *status;
 
         if (monitor_suspend(mon) < 0) {
             monitor_printf(mon, "terminal does not allow synchronous "
