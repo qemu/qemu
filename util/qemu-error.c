@@ -202,7 +202,7 @@ bool enable_timestamp_msg;
  * Format arguments like vsprintf().  The result should not contain
  * newlines.
  * Prepend the current location and append a newline.
- * It's wrong to call this in a QMP monitor.  Use qerror_report() there.
+ * It's wrong to call this in a QMP monitor.  Use error_setg() there.
  */
 void error_vreport(const char *fmt, va_list ap)
 {
@@ -226,7 +226,7 @@ void error_vreport(const char *fmt, va_list ap)
  * Format arguments like sprintf().  The result should not contain
  * newlines.
  * Prepend the current location and append a newline.
- * It's wrong to call this in a QMP monitor.  Use qerror_report() there.
+ * It's wrong to call this in a QMP monitor.  Use error_setg() there.
  */
 void error_report(const char *fmt, ...)
 {

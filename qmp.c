@@ -227,57 +227,37 @@ ObjectPropertyInfoList *qmp_qom_list(const char *path, Error **errp)
 }
 
 /* FIXME: teach qapi about how to pass through Visitors */
-int qmp_qom_set(Monitor *mon, const QDict *qdict, QObject **ret)
+void qmp_qom_set(QDict *qdict, QObject **ret, Error **errp)
 {
     const char *path = qdict_get_str(qdict, "path");
     const char *property = qdict_get_str(qdict, "property");
     QObject *value = qdict_get(qdict, "value");
-    Error *local_err = NULL;
     Object *obj;
 
     obj = object_resolve_path(path, NULL);
     if (!obj) {
-        error_set(&local_err, ERROR_CLASS_DEVICE_NOT_FOUND,
+        error_set(errp, ERROR_CLASS_DEVICE_NOT_FOUND,
                   "Device '%s' not found", path);
-        goto out;
+        return;
     }
 
-    object_property_set_qobject(obj, value, property, &local_err);
-
-out:
-    if (local_err) {
-        qerror_report_err(local_err);
-        error_free(local_err);
-        return -1;
-    }
-
-    return 0;
+    object_property_set_qobject(obj, value, property, errp);
 }
 
-int qmp_qom_get(Monitor *mon, const QDict *qdict, QObject **ret)
+void qmp_qom_get(QDict *qdict, QObject **ret, Error **errp)
 {
     const char *path = qdict_get_str(qdict, "path");
     const char *property = qdict_get_str(qdict, "property");
-    Error *local_err = NULL;
     Object *obj;
 
     obj = object_resolve_path(path, NULL);
     if (!obj) {
-        error_set(&local_err, ERROR_CLASS_DEVICE_NOT_FOUND,
+        error_set(errp, ERROR_CLASS_DEVICE_NOT_FOUND,
                   "Device '%s' not found", path);
-        goto out;
+        return;
     }
 
-    *ret = object_property_get_qobject(obj, property, &local_err);
-
-out:
-    if (local_err) {
-        qerror_report_err(local_err);
-        error_free(local_err);
-        return -1;
-    }
-
-    return 0;
+    *ret = object_property_get_qobject(obj, property, errp);
 }
 
 void qmp_set_password(const char *protocol, const char *password,
@@ -673,36 +653,25 @@ out:
     object_unref(obj);
 }
 
-int qmp_object_add(Monitor *mon, const QDict *qdict, QObject **ret)
+void qmp_object_add(QDict *qdict, QObject **ret, Error **errp)
 {
     const char *type = qdict_get_str(qdict, "qom-type");
     const char *id = qdict_get_str(qdict, "id");
     QObject *props = qdict_get(qdict, "props");
     const QDict *pdict = NULL;
-    Error *local_err = NULL;
     QmpInputVisitor *qiv;
 
     if (props) {
         pdict = qobject_to_qdict(props);
         if (!pdict) {
-            error_setg(&local_err, QERR_INVALID_PARAMETER_TYPE,
-                       "props", "dict");
-            goto out;
+            error_setg(errp, QERR_INVALID_PARAMETER_TYPE, "props", "dict");
+            return;
         }
     }
 
     qiv = qmp_input_visitor_new(props);
-    object_add(type, id, pdict, qmp_input_get_visitor(qiv), &local_err);
+    object_add(type, id, pdict, qmp_input_get_visitor(qiv), errp);
     qmp_input_visitor_cleanup(qiv);
-
-out:
-    if (local_err) {
-        qerror_report_err(local_err);
-        error_free(local_err);
-        return -1;
-    }
-
-    return 0;
 }
 
 void qmp_object_del(const char *id, Error **errp)

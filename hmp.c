@@ -1507,7 +1507,10 @@ void hmp_migrate(Monitor *mon, const QDict *qdict)
 
 void hmp_device_add(Monitor *mon, const QDict *qdict)
 {
-    do_device_add(mon, qdict, NULL);
+    Error *err = NULL;
+
+    qmp_device_add((QDict *)qdict, NULL, &err);
+    hmp_handle_error(mon, &err);
 }
 
 void hmp_device_del(Monitor *mon, const QDict *qdict)

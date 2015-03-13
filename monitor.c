@@ -122,7 +122,7 @@ typedef struct mon_cmd_t {
     const char *help;
     union {
         void (*cmd)(Monitor *mon, const QDict *qdict);
-        int  (*cmd_new)(Monitor *mon, const QDict *params, QObject **ret_data);
+        void (*cmd_new)(QDict *params, QObject **ret_data, Error **errp);
     } mhandler;
     /* @sub_table is a list of 2nd level of commands. If it do not exist,
      * mhandler should be used. If it exist, sub_table[?].mhandler should be
@@ -563,11 +563,9 @@ static void monitor_qapi_event_init(void)
     qmp_event_set_func_emit(monitor_qapi_event_queue);
 }
 
-static int do_qmp_capabilities(Monitor *mon, const QDict *params,
-                               QObject **ret_data)
+static void qmp_capabilities(QDict *params, QObject **ret_data, Error **errp)
 {
-    mon->qmp.in_command_mode = true;
-    return 0;
+    cur_mon->qmp.in_command_mode = true;
 }
 
 static void handle_hmp_command(Monitor *mon, const char *cmdline);
@@ -4725,7 +4723,7 @@ static int monitor_can_read(void *opaque)
 static bool invalid_qmp_mode(const Monitor *mon, const mon_cmd_t *cmd,
                              Error **errp)
 {
-    bool is_cap = cmd->mhandler.cmd_new == do_qmp_capabilities;
+    bool is_cap = cmd->mhandler.cmd_new == qmp_capabilities;
 
     if (is_cap && mon->qmp.in_command_mode) {
         error_set(errp, ERROR_CLASS_COMMAND_NOT_FOUND,
@@ -5044,17 +5042,7 @@ static void handle_qmp_command(JSONMessageParser *parser, QList *tokens)
         goto err_out;
     }
 
-    if (cmd->mhandler.cmd_new(mon, args, &data)) {
-        /* Command failed... */
-        if (!mon->error) {
-            /* ... without setting an error, so make one up */
-            error_setg(&local_err, QERR_UNDEFINED_ERROR);
-        }
-    }
-    if (mon->error) {
-        error_set(&local_err, mon->error->err_class, "%s",
-                  mon->error->err_msg);
-    }
+    cmd->mhandler.cmd_new(args, &data, &local_err);
 
 err_out:
     monitor_protocol_emitter(mon, data, local_err);
@@ -5126,7 +5114,7 @@ static QObject *get_qmp_greeting(void)
 {
     QObject *ver = NULL;
 
-    qmp_marshal_input_query_version(NULL, NULL, &ver);
+    qmp_marshal_input_query_version(NULL, &ver, NULL);
     return qobject_from_jsonf("{'QMP':{'version': %p,'capabilities': []}}",ver);
 }
 

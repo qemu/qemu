@@ -756,7 +756,7 @@ void hmp_info_qom_tree(Monitor *mon, const QDict *dict)
     print_qom_composition(mon, obj, 0);
 }
 
-int do_device_add(Monitor *mon, const QDict *qdict, QObject **ret_data)
+void qmp_device_add(QDict *qdict, QObject **ret_data, Error **errp)
 {
     Error *local_err = NULL;
     QemuOpts *opts;
@@ -764,23 +764,20 @@ int do_device_add(Monitor *mon, const QDict *qdict, QObject **ret_data)
 
     opts = qemu_opts_from_qdict(qemu_find_opts("device"), qdict, &local_err);
     if (local_err) {
-        qerror_report_err(local_err);
-        error_free(local_err);
-        return -1;
+        error_propagate(errp, local_err);
+        return;
     }
     if (!monitor_cur_is_qmp() && qdev_device_help(opts)) {
         qemu_opts_del(opts);
-        return 0;
+        return;
     }
     dev = qdev_device_add(opts, &local_err);
     if (!dev) {
-        qerror_report_err(local_err);
-        error_free(local_err);
+        error_propagate(errp, local_err);
         qemu_opts_del(opts);
-        return -1;
+        return;
     }
     object_unref(OBJECT(dev));
-    return 0;
 }
 
 void qmp_device_del(const char *id, Error **errp)
