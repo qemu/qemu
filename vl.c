@@ -4049,7 +4049,7 @@ int main(int argc, char **argv, char **envp)
         exit(1);
     }
 
-    if (qemu_opts_foreach(qemu_find_opts("device"), device_help_func, NULL, 0)
+    if (qemu_opts_foreach(qemu_find_opts("device"), device_help_func, NULL, 1)
         != 0) {
         exit(0);
     }
