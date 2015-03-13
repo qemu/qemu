@@ -27,13 +27,13 @@
 #include "trace.h"
 
 enum {
-    MIG_STATE_ERROR = -1,
-    MIG_STATE_NONE,
-    MIG_STATE_SETUP,
-    MIG_STATE_CANCELLING,
-    MIG_STATE_CANCELLED,
-    MIG_STATE_ACTIVE,
-    MIG_STATE_COMPLETED,
+    MIGRATION_STATUS_FAILED = -1,
+    MIGRATION_STATUS_NONE,
+    MIGRATION_STATUS_SETUP,
+    MIGRATION_STATUS_CANCELLING,
+    MIGRATION_STATUS_CANCELLED,
+    MIGRATION_STATUS_ACTIVE,
+    MIGRATION_STATUS_COMPLETED,
 };
 
 #define MAX_THROTTLE  (32 << 20)      /* Migration speed throttling */
@@ -58,7 +58,7 @@ static bool deferred_incoming;
 MigrationState *migrate_get_current(void)
 {
     static MigrationState current_migration = {
-        .state = MIG_STATE_NONE,
+        .state = MIGRATION_STATUS_NONE,
         .bandwidth_limit = MAX_THROTTLE,
         .xbzrle_cache_size = DEFAULT_MIGRATE_CACHE_SIZE,
         .mbps = -1,
@@ -200,16 +200,16 @@ MigrationInfo *qmp_query_migrate(Error **errp)
     MigrationState *s = migrate_get_current();
 
     switch (s->state) {
-    case MIG_STATE_NONE:
+    case MIGRATION_STATUS_NONE:
         /* no migration has happened ever */
         break;
-    case MIG_STATE_SETUP:
+    case MIGRATION_STATUS_SETUP:
         info->has_status = true;
         info->status = g_strdup("setup");
         info->has_total_time = false;
         break;
-    case MIG_STATE_ACTIVE:
-    case MIG_STATE_CANCELLING:
+    case MIGRATION_STATUS_ACTIVE:
+    case MIGRATION_STATUS_CANCELLING:
         info->has_status = true;
         info->status = g_strdup("active");
         info->has_total_time = true;
@@ -243,7 +243,7 @@ MigrationInfo *qmp_query_migrate(Error **errp)
 
         get_xbzrle_cache_stats(info);
         break;
-    case MIG_STATE_COMPLETED:
+    case MIGRATION_STATUS_COMPLETED:
         get_xbzrle_cache_stats(info);
 
         info->has_status = true;
@@ -267,11 +267,11 @@ MigrationInfo *qmp_query_migrate(Error **errp)
         info->ram->mbps = s->mbps;
         info->ram->dirty_sync_count = s->dirty_sync_count;
         break;
-    case MIG_STATE_ERROR:
+    case MIGRATION_STATUS_FAILED:
         info->has_status = true;
         info->status = g_strdup("failed");
         break;
-    case MIG_STATE_CANCELLED:
+    case MIGRATION_STATUS_CANCELLED:
         info->has_status = true;
         info->status = g_strdup("cancelled");
         break;
@@ -286,7 +286,8 @@ void qmp_migrate_set_capabilities(MigrationCapabilityStatusList *params,
     MigrationState *s = migrate_get_current();
     MigrationCapabilityStatusList *cap;
 
-    if (s->state == MIG_STATE_ACTIVE || s->state == MIG_STATE_SETUP) {
+    if (s->state == MIGRATION_STATUS_ACTIVE ||
+        s->state == MIGRATION_STATUS_SETUP) {
         error_set(errp, QERR_MIGRATION_ACTIVE);
         return;
     }
@@ -322,12 +323,13 @@ static void migrate_fd_cleanup(void *opaque)
         s->file = NULL;
     }
 
-    assert(s->state != MIG_STATE_ACTIVE);
+    assert(s->state != MIGRATION_STATUS_ACTIVE);
 
-    if (s->state != MIG_STATE_COMPLETED) {
+    if (s->state != MIGRATION_STATUS_COMPLETED) {
         qemu_savevm_state_cancel();
-        if (s->state == MIG_STATE_CANCELLING) {
-            migrate_set_state(s, MIG_STATE_CANCELLING, MIG_STATE_CANCELLED);
+        if (s->state == MIGRATION_STATUS_CANCELLING) {
+            migrate_set_state(s, MIGRATION_STATUS_CANCELLING,
+                              MIGRATION_STATUS_CANCELLED);
         }
     }
 
@@ -338,8 +340,8 @@ void migrate_fd_error(MigrationState *s)
 {
     trace_migrate_fd_error();
     assert(s->file == NULL);
-    s->state = MIG_STATE_ERROR;
-    trace_migrate_set_state(MIG_STATE_ERROR);
+    s->state = MIGRATION_STATUS_FAILED;
+    trace_migrate_set_state(MIGRATION_STATUS_FAILED);
     notifier_list_notify(&migration_state_notifiers, s);
 }
 
@@ -351,11 +353,12 @@ static void migrate_fd_cancel(MigrationState *s)
 
     do {
         old_state = s->state;
-        if (old_state != MIG_STATE_SETUP && old_state != MIG_STATE_ACTIVE) {
+        if (old_state != MIGRATION_STATUS_SETUP &&
+            old_state != MIGRATION_STATUS_ACTIVE) {
             break;
         }
-        migrate_set_state(s, old_state, MIG_STATE_CANCELLING);
-    } while (s->state != MIG_STATE_CANCELLING);
+        migrate_set_state(s, old_state, MIGRATION_STATUS_CANCELLING);
+    } while (s->state != MIGRATION_STATUS_CANCELLING);
 
     /*
      * If we're unlucky the migration code might be stuck somewhere in a
@@ -364,7 +367,7 @@ static void migrate_fd_cancel(MigrationState *s)
      * The outgoing qemu file gets closed in migrate_fd_cleanup that is
      * called in a bh, so there is no race against this cancel.
      */
-    if (s->state == MIG_STATE_CANCELLING && f) {
+    if (s->state == MIGRATION_STATUS_CANCELLING && f) {
         qemu_file_shutdown(f);
     }
 }
@@ -381,18 +384,18 @@ void remove_migration_state_change_notifier(Notifier *notify)
 
 bool migration_in_setup(MigrationState *s)
 {
-    return s->state == MIG_STATE_SETUP;
+    return s->state == MIGRATION_STATUS_SETUP;
 }
 
 bool migration_has_finished(MigrationState *s)
 {
-    return s->state == MIG_STATE_COMPLETED;
+    return s->state == MIGRATION_STATUS_COMPLETED;
 }
 
 bool migration_has_failed(MigrationState *s)
 {
-    return (s->state == MIG_STATE_CANCELLED ||
-            s->state == MIG_STATE_ERROR);
+    return (s->state == MIGRATION_STATUS_CANCELLED ||
+            s->state == MIGRATION_STATUS_FAILED);
 }
 
 static MigrationState *migrate_init(const MigrationParams *params)
@@ -412,8 +415,8 @@ static MigrationState *migrate_init(const MigrationParams *params)
     s->xbzrle_cache_size = xbzrle_cache_size;
 
     s->bandwidth_limit = bandwidth_limit;
-    s->state = MIG_STATE_SETUP;
-    trace_migrate_set_state(MIG_STATE_SETUP);
+    s->state = MIGRATION_STATUS_SETUP;
+    trace_migrate_set_state(MIGRATION_STATUS_SETUP);
 
     s->total_time = qemu_clock_get_ms(QEMU_CLOCK_REALTIME);
     return s;
@@ -466,8 +469,9 @@ void qmp_migrate(const char *uri, bool has_blk, bool blk,
     params.blk = has_blk && blk;
     params.shared = has_inc && inc;
 
-    if (s->state == MIG_STATE_ACTIVE || s->state == MIG_STATE_SETUP ||
-        s->state == MIG_STATE_CANCELLING) {
+    if (s->state == MIGRATION_STATUS_ACTIVE ||
+        s->state == MIGRATION_STATUS_SETUP ||
+        s->state == MIGRATION_STATUS_CANCELLING) {
         error_set(errp, QERR_MIGRATION_ACTIVE);
         return;
     }
@@ -504,7 +508,7 @@ void qmp_migrate(const char *uri, bool has_blk, bool blk,
 #endif
     } else {
         error_set(errp, QERR_INVALID_PARAMETER_VALUE, "uri", "a valid migration protocol");
-        s->state = MIG_STATE_ERROR;
+        s->state = MIGRATION_STATUS_FAILED;
         return;
     }
 
@@ -630,9 +634,9 @@ static void *migration_thread(void *opaque)
     qemu_savevm_state_begin(s->file, &s->params);
 
     s->setup_time = qemu_clock_get_ms(QEMU_CLOCK_HOST) - setup_start;
-    migrate_set_state(s, MIG_STATE_SETUP, MIG_STATE_ACTIVE);
+    migrate_set_state(s, MIGRATION_STATUS_SETUP, MIGRATION_STATUS_ACTIVE);
 
-    while (s->state == MIG_STATE_ACTIVE) {
+    while (s->state == MIGRATION_STATUS_ACTIVE) {
         int64_t current_time;
         uint64_t pending_size;
 
@@ -657,19 +661,22 @@ static void *migration_thread(void *opaque)
                 qemu_mutex_unlock_iothread();
 
                 if (ret < 0) {
-                    migrate_set_state(s, MIG_STATE_ACTIVE, MIG_STATE_ERROR);
+                    migrate_set_state(s, MIGRATION_STATUS_ACTIVE,
+                                      MIGRATION_STATUS_FAILED);
                     break;
                 }
 
                 if (!qemu_file_get_error(s->file)) {
-                    migrate_set_state(s, MIG_STATE_ACTIVE, MIG_STATE_COMPLETED);
+                    migrate_set_state(s, MIGRATION_STATUS_ACTIVE,
+                                      MIGRATION_STATUS_COMPLETED);
                     break;
                 }
             }
         }
 
         if (qemu_file_get_error(s->file)) {
-            migrate_set_state(s, MIG_STATE_ACTIVE, MIG_STATE_ERROR);
+            migrate_set_state(s, MIGRATION_STATUS_ACTIVE,
+                              MIGRATION_STATUS_FAILED);
             break;
         }
         current_time = qemu_clock_get_ms(QEMU_CLOCK_REALTIME);
@@ -701,7 +708,7 @@ static void *migration_thread(void *opaque)
     }
 
     qemu_mutex_lock_iothread();
-    if (s->state == MIG_STATE_COMPLETED) {
+    if (s->state == MIGRATION_STATUS_COMPLETED) {
         int64_t end_time = qemu_clock_get_ms(QEMU_CLOCK_REALTIME);
         uint64_t transferred_bytes = qemu_ftell(s->file);
         s->total_time = end_time - s->total_time;
@@ -724,8 +731,8 @@ static void *migration_thread(void *opaque)
 
 void migrate_fd_connect(MigrationState *s)
 {
-    s->state = MIG_STATE_SETUP;
-    trace_migrate_set_state(MIG_STATE_SETUP);
+    s->state = MIGRATION_STATUS_SETUP;
+    trace_migrate_set_state(MIGRATION_STATUS_SETUP);
 
     /* This is a best 1st approximation. ns to ms */
     s->expected_downtime = max_downtime/1000000;
