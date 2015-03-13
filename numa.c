@@ -125,7 +125,7 @@ static void numa_node_parse(NumaNodeOptions *node, QemuOpts *opts, Error **errp)
     max_numa_nodeid = MAX(max_numa_nodeid, nodenr + 1);
 }
 
-static int parse_numa(QemuOpts *opts, void *opaque)
+static int parse_numa(void *opaque, QemuOpts *opts, Error **errp)
 {
     NumaOptions *object = NULL;
     Error *err = NULL;
@@ -216,7 +216,7 @@ void parse_numa_opts(MachineClass *mc)
 {
     int i;
 
-    if (qemu_opts_foreach(qemu_find_opts("numa"), parse_numa, NULL)) {
+    if (qemu_opts_foreach(qemu_find_opts("numa"), parse_numa, NULL, NULL)) {
         exit(1);
     }
 

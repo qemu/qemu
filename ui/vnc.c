@@ -3770,7 +3770,7 @@ QemuOpts *vnc_parse_func(const char *str)
     return opts;
 }
 
-int vnc_init_func(QemuOpts *opts, void *opaque)
+int vnc_init_func(void *opaque, QemuOpts *opts, Error **errp)
 {
     Error *local_err = NULL;
     char *id = (char *)qemu_opts_id(opts);

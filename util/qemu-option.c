@@ -1047,13 +1047,14 @@ void qemu_opts_validate(QemuOpts *opts, const QemuOptDesc *desc, Error **errp)
 }
 
 /**
- * For each member of @list, call @func(member, @opaque).
+ * For each member of @list, call @func(@opaque, member, @errp).
  * Call it with the current location temporarily set to the member's.
+ * @func() may store an Error through @errp, but must return non-zero then.
  * When @func() returns non-zero, break the loop and return that value.
  * Return zero when the loop completes.
  */
 int qemu_opts_foreach(QemuOptsList *list, qemu_opts_loopfunc func,
-                      void *opaque)
+                      void *opaque, Error **errp)
 {
     Location loc;
     QemuOpts *opts;
@@ -1062,10 +1063,11 @@ int qemu_opts_foreach(QemuOptsList *list, qemu_opts_loopfunc func,
     loc_push_none(&loc);
     QTAILQ_FOREACH(opts, &list->head, next) {
         loc_restore(&opts->loc);
-        rc = func(opts, opaque);
+        rc = func(opaque, opts, errp);
         if (rc) {
             return rc;
         }
+        assert(!errp || !*errp);
     }
     loc_pop(&loc);
     return 0;

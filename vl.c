@@ -515,7 +515,7 @@ static void res_free(void)
     }
 }
 
-static int default_driver_check(QemuOpts *opts, void *opaque)
+static int default_driver_check(void *opaque, QemuOpts *opts, Error **errp)
 {
     const char *driver = qemu_opt_get(opts, "driver");
     int i;
@@ -961,7 +961,7 @@ static int bt_parse(const char *opt)
     return 1;
 }
 
-static int parse_sandbox(QemuOpts *opts, void *opaque)
+static int parse_sandbox(void *opaque, QemuOpts *opts, Error **errp)
 {
     /* FIXME: change this to true for 1.3 */
     if (qemu_opt_get_bool(opts, "enable", false)) {
@@ -981,7 +981,7 @@ static int parse_sandbox(QemuOpts *opts, void *opaque)
     return 0;
 }
 
-static int parse_name(QemuOpts *opts, void *opaque)
+static int parse_name(void *opaque, QemuOpts *opts, Error **errp)
 {
     const char *proc_name;
 
@@ -1009,7 +1009,7 @@ bool usb_enabled(void)
 }
 
 #ifndef _WIN32
-static int parse_add_fd(QemuOpts *opts, void *opaque)
+static int parse_add_fd(void *opaque, QemuOpts *opts, Error **errp)
 {
     int fd, dupfd, flags;
     int64_t fdset_id;
@@ -1071,7 +1071,7 @@ static int parse_add_fd(QemuOpts *opts, void *opaque)
     return 0;
 }
 
-static int cleanup_add_fd(QemuOpts *opts, void *opaque)
+static int cleanup_add_fd(void *opaque, QemuOpts *opts, Error **errp)
 {
     int fd;
 
@@ -1092,14 +1092,14 @@ static int cleanup_add_fd(QemuOpts *opts, void *opaque)
 #define MTD_OPTS ""
 #define SD_OPTS ""
 
-static int drive_init_func(QemuOpts *opts, void *opaque)
+static int drive_init_func(void *opaque, QemuOpts *opts, Error **errp)
 {
     BlockInterfaceType *block_default_type = opaque;
 
     return drive_new(opts, *block_default_type) == NULL;
 }
 
-static int drive_enable_snapshot(QemuOpts *opts, void *opaque)
+static int drive_enable_snapshot(void *opaque, QemuOpts *opts, Error **errp)
 {
     if (qemu_opt_get(opts, "snapshot") == NULL) {
         qemu_opt_set(opts, "snapshot", "on", &error_abort);
@@ -1119,7 +1119,7 @@ static void default_drive(int enable, int snapshot, BlockInterfaceType type,
 
     opts = drive_add(type, index, NULL, optstr);
     if (snapshot) {
-        drive_enable_snapshot(opts, NULL);
+        drive_enable_snapshot(NULL, opts, NULL);
     }
 
     dinfo = drive_new(opts, type);
@@ -2127,12 +2127,12 @@ char *qemu_find_file(int type, const char *name)
     return NULL;
 }
 
-static int device_help_func(QemuOpts *opts, void *opaque)
+static int device_help_func(void *opaque, QemuOpts *opts, Error **errp)
 {
     return qdev_device_help(opts);
 }
 
-static int device_init_func(QemuOpts *opts, void *opaque)
+static int device_init_func(void *opaque, QemuOpts *opts, Error **errp)
 {
     DeviceState *dev;
 
@@ -2143,7 +2143,7 @@ static int device_init_func(QemuOpts *opts, void *opaque)
     return 0;
 }
 
-static int chardev_init_func(QemuOpts *opts, void *opaque)
+static int chardev_init_func(void *opaque, QemuOpts *opts, Error **errp)
 {
     Error *local_err = NULL;
 
@@ -2156,7 +2156,7 @@ static int chardev_init_func(QemuOpts *opts, void *opaque)
 }
 
 #ifdef CONFIG_VIRTFS
-static int fsdev_init_func(QemuOpts *opts, void *opaque)
+static int fsdev_init_func(void *opaque, QemuOpts *opts, Error **errp)
 {
     int ret;
     ret = qemu_fsdev_add(opts);
@@ -2165,7 +2165,7 @@ static int fsdev_init_func(QemuOpts *opts, void *opaque)
 }
 #endif
 
-static int mon_init_func(QemuOpts *opts, void *opaque)
+static int mon_init_func(void *opaque, QemuOpts *opts, Error **errp)
 {
     CharDriverState *chr;
     const char *chardev;
@@ -2606,7 +2606,7 @@ static int machine_set_property(const char *name, const char *value,
     return 0;
 }
 
-static int object_create(QemuOpts *opts, void *opaque)
+static int object_create(void *opaque, QemuOpts *opts, Error **errp)
 {
     Error *err = NULL;
     char *type = NULL;
@@ -3797,20 +3797,24 @@ int main(int argc, char **argv, char **envp)
         exit(1);
     }
 
-    if (qemu_opts_foreach(qemu_find_opts("sandbox"), parse_sandbox, NULL)) {
+    if (qemu_opts_foreach(qemu_find_opts("sandbox"),
+                          parse_sandbox, NULL, NULL)) {
         exit(1);
     }
 
-    if (qemu_opts_foreach(qemu_find_opts("name"), parse_name, NULL)) {
+    if (qemu_opts_foreach(qemu_find_opts("name"),
+                          parse_name, NULL, NULL)) {
         exit(1);
     }
 
 #ifndef _WIN32
-    if (qemu_opts_foreach(qemu_find_opts("add-fd"), parse_add_fd, NULL)) {
+    if (qemu_opts_foreach(qemu_find_opts("add-fd"),
+                          parse_add_fd, NULL, NULL)) {
         exit(1);
     }
 
-    if (qemu_opts_foreach(qemu_find_opts("add-fd"), cleanup_add_fd, NULL)) {
+    if (qemu_opts_foreach(qemu_find_opts("add-fd"),
+                          cleanup_add_fd, NULL, NULL)) {
         exit(1);
     }
 #endif
@@ -3897,8 +3901,10 @@ int main(int argc, char **argv, char **envp)
                                machine_class->default_machine_opts, 0);
     }
 
-    qemu_opts_foreach(qemu_find_opts("device"), default_driver_check, NULL);
-    qemu_opts_foreach(qemu_find_opts("global"), default_driver_check, NULL);
+    qemu_opts_foreach(qemu_find_opts("device"),
+                      default_driver_check, NULL, NULL);
+    qemu_opts_foreach(qemu_find_opts("global"),
+                      default_driver_check, NULL, NULL);
 
     if (!vga_model && !default_vga) {
         vga_interface_type = VGA_DEVICE;
@@ -4036,12 +4042,14 @@ int main(int argc, char **argv, char **envp)
 
     socket_init();
 
-    if (qemu_opts_foreach(qemu_find_opts("chardev"), chardev_init_func, NULL)) {
+    if (qemu_opts_foreach(qemu_find_opts("chardev"),
+                          chardev_init_func, NULL, NULL)) {
         exit(1);
     }
 
 #ifdef CONFIG_VIRTFS
-    if (qemu_opts_foreach(qemu_find_opts("fsdev"), fsdev_init_func, NULL)) {
+    if (qemu_opts_foreach(qemu_find_opts("fsdev"),
+                          fsdev_init_func, NULL, NULL)) {
         exit(1);
     }
 #endif
@@ -4051,11 +4059,13 @@ int main(int argc, char **argv, char **envp)
         exit(1);
     }
 
-    if (qemu_opts_foreach(qemu_find_opts("device"), device_help_func, NULL)) {
+    if (qemu_opts_foreach(qemu_find_opts("device"),
+                          device_help_func, NULL, NULL)) {
         exit(0);
     }
 
-    if (qemu_opts_foreach(qemu_find_opts("object"), object_create, NULL)) {
+    if (qemu_opts_foreach(qemu_find_opts("object"),
+                          object_create, NULL, NULL)) {
         exit(1);
     }
 
@@ -4189,9 +4199,10 @@ int main(int argc, char **argv, char **envp)
 
     /* open the virtual block devices */
     if (snapshot)
-        qemu_opts_foreach(qemu_find_opts("drive"), drive_enable_snapshot, NULL);
+        qemu_opts_foreach(qemu_find_opts("drive"),
+                          drive_enable_snapshot, NULL, NULL);
     if (qemu_opts_foreach(qemu_find_opts("drive"), drive_init_func,
-                          &machine_class->block_default_type)) {
+                          &machine_class->block_default_type, NULL)) {
         exit(1);
     }
 
@@ -4202,7 +4213,8 @@ int main(int argc, char **argv, char **envp)
 
     parse_numa_opts(machine_class);
 
-    if (qemu_opts_foreach(qemu_find_opts("mon"), mon_init_func, NULL)) {
+    if (qemu_opts_foreach(qemu_find_opts("mon"),
+                          mon_init_func, NULL, NULL)) {
         exit(1);
     }
 
@@ -4268,7 +4280,8 @@ int main(int argc, char **argv, char **envp)
     }
 
     /* init generic devices */
-    if (qemu_opts_foreach(qemu_find_opts("device"), device_init_func, NULL)) {
+    if (qemu_opts_foreach(qemu_find_opts("device"),
+                          device_init_func, NULL, NULL)) {
         exit(1);
     }
 
@@ -4322,7 +4335,8 @@ int main(int argc, char **argv, char **envp)
 
 #ifdef CONFIG_VNC
     /* init remote displays */
-    qemu_opts_foreach(qemu_find_opts("vnc"), vnc_init_func, NULL);
+    qemu_opts_foreach(qemu_find_opts("vnc"),
+                      vnc_init_func, NULL, NULL);
     if (show_vnc_port) {
         char *ret = vnc_display_local_addr("default");
         printf("VNC server running on `%s'\n", ret);

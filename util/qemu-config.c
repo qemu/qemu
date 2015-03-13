@@ -343,7 +343,7 @@ static int config_write_opt(const char *name, const char *value, void *opaque)
     return 0;
 }
 
-static int config_write_opts(QemuOpts *opts, void *opaque)
+static int config_write_opts(void *opaque, QemuOpts *opts, Error **errp)
 {
     struct ConfigWriteData *data = opaque;
     const char *id = qemu_opts_id(opts);
@@ -367,7 +367,7 @@ void qemu_config_write(FILE *fp)
     fprintf(fp, "# qemu config file\n\n");
     for (i = 0; lists[i] != NULL; i++) {
         data.list = lists[i];
-        qemu_opts_foreach(data.list, config_write_opts, &data);
+        qemu_opts_foreach(data.list, config_write_opts, &data, NULL);
     }
 }
 

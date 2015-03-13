@@ -204,7 +204,7 @@ static CharDriverState *net_vhost_parse_chardev(const NetdevVhostUserOptions *op
     return chr;
 }
 
-static int net_vhost_check_net(QemuOpts *opts, void *opaque)
+static int net_vhost_check_net(void *opaque, QemuOpts *opts, Error **errp)
 {
     const char *name = opaque;
     const char *driver, *netdev;
@@ -245,7 +245,7 @@ int net_init_vhost_user(const NetClientOptions *opts, const char *name,
 
     /* verify net frontend */
     if (qemu_opts_foreach(qemu_find_opts("device"), net_vhost_check_net,
-                          (char *)name)) {
+                          (char *)name, NULL)) {
         return -1;
     }
 

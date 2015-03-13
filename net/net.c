@@ -1329,7 +1329,7 @@ void net_check_clients(void)
     }
 }
 
-static int net_init_client(QemuOpts *opts, void *dummy)
+static int net_init_client(void *dummy, QemuOpts *opts, Error **errp)
 {
     Error *local_err = NULL;
 
@@ -1342,7 +1342,7 @@ static int net_init_client(QemuOpts *opts, void *dummy)
     return 0;
 }
 
-static int net_init_netdev(QemuOpts *opts, void *dummy)
+static int net_init_netdev(void *dummy, QemuOpts *opts, Error **errp)
 {
     Error *local_err = NULL;
     int ret;
@@ -1373,11 +1373,12 @@ int net_init_clients(void)
 
     QTAILQ_INIT(&net_clients);
 
-    if (qemu_opts_foreach(qemu_find_opts("netdev"), net_init_netdev, NULL)) {
+    if (qemu_opts_foreach(qemu_find_opts("netdev"),
+                          net_init_netdev, NULL, NULL)) {
         return -1;
     }
 
-    if (qemu_opts_foreach(net, net_init_client, NULL)) {
+    if (qemu_opts_foreach(net, net_init_client, NULL, NULL)) {
         return -1;
     }
 

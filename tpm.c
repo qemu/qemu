@@ -182,7 +182,7 @@ static int configure_tpm(QemuOpts *opts)
     return 0;
 }
 
-static int tpm_init_tpmdev(QemuOpts *opts, void *dummy)
+static int tpm_init_tpmdev(void *dummy, QemuOpts *opts, Error **errp)
 {
     return configure_tpm(opts);
 }
@@ -207,12 +207,12 @@ void tpm_cleanup(void)
  */
 int tpm_init(void)
 {
-    if (qemu_opts_foreach(qemu_find_opts("tpmdev"), tpm_init_tpmdev, NULL)) {
+    if (qemu_opts_foreach(qemu_find_opts("tpmdev"),
+                          tpm_init_tpmdev, NULL, NULL)) {
         return -1;
     }
 
     atexit(tpm_cleanup);
-
     return 0;
 }
 

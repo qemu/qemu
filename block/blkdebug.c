@@ -219,7 +219,7 @@ struct add_rule_data {
     Error **errp;
 };
 
-static int add_rule(QemuOpts *opts, void *opaque)
+static int add_rule(void *opaque, QemuOpts *opts, Error **errp)
 {
     struct add_rule_data *d = opaque;
     BDRVBlkdebugState *s = d->s;
@@ -320,7 +320,7 @@ static int read_config(BDRVBlkdebugState *s, const char *filename,
     d.s = s;
     d.action = ACTION_INJECT_ERROR;
     d.errp = &local_err;
-    qemu_opts_foreach(&inject_error_opts, add_rule, &d);
+    qemu_opts_foreach(&inject_error_opts, add_rule, &d, NULL);
     if (local_err) {
         error_propagate(errp, local_err);
         ret = -EINVAL;
@@ -328,7 +328,7 @@ static int read_config(BDRVBlkdebugState *s, const char *filename,
     }
 
     d.action = ACTION_SET_STATE;
-    qemu_opts_foreach(&set_state_opts, add_rule, &d);
+    qemu_opts_foreach(&set_state_opts, add_rule, &d, NULL);
     if (local_err) {
         error_propagate(errp, local_err);
         ret = -EINVAL;
