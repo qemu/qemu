@@ -661,7 +661,10 @@ static int interface_client_monitors_config(QXLInstance *sin,
 {
     SimpleSpiceDisplay *ssd = container_of(sin, SimpleSpiceDisplay, qxl);
     QemuUIInfo info;
-    int rc;
+
+    if (!dpy_ui_info_supported(ssd->dcl.con)) {
+        return 0; /* == not supported by guest */
+    }
 
     if (!mc) {
         return 1;
@@ -676,14 +679,10 @@ static int interface_client_monitors_config(QXLInstance *sin,
         info.width  = mc->monitors[0].width;
         info.height = mc->monitors[0].height;
     }
-    rc = dpy_set_ui_info(ssd->dcl.con, &info);
-    dprint(1, "%s/%d: size %dx%d, rc %d   <---   ==========================\n",
-           __func__, ssd->qxl.id, info.width, info.height, rc);
-    if (rc != 0) {
-        return 0; /* == not supported by guest */
-    } else {
-        return 1;
-    }
+    dpy_set_ui_info(ssd->dcl.con, &info);
+    dprint(1, "%s/%d: size %dx%d\n", __func__, ssd->qxl.id,
+           info.width, info.height);
+    return 1;
 }
 
 static const QXLInterface dpy_interface = {
