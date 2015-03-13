@@ -3591,6 +3591,33 @@ expensive operation that consumes random pool entropy, so it is
 recommended that a persistent set of parameters be generated
 upfront and saved.
 
+@item -object tls-creds-x509,id=@var{id},endpoint=@var{endpoint},dir=@var{/path/to/cred/dir},verify-peer=@var{on|off}
+
+Creates a TLS anonymous credentials object, which can be used to provide
+TLS support on network backends. The @option{id} parameter is a unique
+ID which network backends will use to access the credentials. The
+@option{endpoint} is either @option{server} or @option{client} depending
+on whether the QEMU network backend that uses the credentials will be
+acting as a client or as a server. If @option{verify-peer} is enabled
+(the default) then once the handshake is completed, the peer credentials
+will be verified. With x509 certificates, this implies that the clients
+must be provided with valid client certificates too.
+
+The @var{dir} parameter tells QEMU where to find the credential
+files. For server endpoints, this directory may contain a file
+@var{dh-params.pem} providing diffie-hellman parameters to use
+for the TLS server. If the file is missing, QEMU will generate
+a set of DH parameters at startup. This is a computationally
+expensive operation that consumes random pool entropy, so it is
+recommended that a persistent set of parameters be generated
+upfront and saved.
+
+For x509 certificate credentials the directory will contain further files
+providing the x509 certificates. The certificates must be stored
+in PEM format, in filenames @var{ca-cert.pem}, @var{ca-crl.pem} (optional),
+@var{server-cert.pem} (only servers), @var{server-key.pem} (only servers),
+@var{client-cert.pem} (only clients), and @var{client-key.pem} (only clients).
+
 @end table
 
 ETEXI
