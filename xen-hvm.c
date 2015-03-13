@@ -348,7 +348,7 @@ go_physmap:
         rc = xc_domain_add_to_physmap(xen_xc, xen_domid, XENMAPSPACE_gmfn, idx, gpfn);
         if (rc) {
             DPRINTF("add_to_physmap MFN %"PRI_xen_pfn" to PFN %"
-                    PRI_xen_pfn" failed: %d\n", idx, gpfn, rc);
+                    PRI_xen_pfn" failed: %d (errno: %d)\n", idx, gpfn, rc, errno);
             return -rc;
         }
     }
@@ -425,7 +425,7 @@ static int xen_remove_from_physmap(XenIOState *state,
         rc = xc_domain_add_to_physmap(xen_xc, xen_domid, XENMAPSPACE_gmfn, idx, gpfn);
         if (rc) {
             fprintf(stderr, "add_to_physmap MFN %"PRI_xen_pfn" to PFN %"
-                    PRI_xen_pfn" failed: %d\n", idx, gpfn, rc);
+                    PRI_xen_pfn" failed: %d (errno: %d)\n", idx, gpfn, rc, errno);
             return -rc;
         }
     }
