@@ -1478,6 +1478,19 @@ static gboolean gd_focus_out_event(GtkWidget *widget,
     return TRUE;
 }
 
+static gboolean gd_configure(GtkWidget *widget,
+                             GdkEventConfigure *cfg, gpointer opaque)
+{
+    VirtualConsole *vc = opaque;
+    QemuUIInfo info;
+
+    memset(&info, 0, sizeof(info));
+    info.width = cfg->width;
+    info.height = cfg->height;
+    dpy_set_ui_info(vc->gfx.dcl.con, &info);
+    return FALSE;
+}
+
 /** Virtual Console Callbacks **/
 
 static GSList *gd_vc_menu_init(GtkDisplayState *s, VirtualConsole *vc,
@@ -1655,6 +1668,8 @@ static void gd_connect_vc_gfx_signals(VirtualConsole *vc)
                          G_CALLBACK(gd_leave_event), vc);
         g_signal_connect(vc->gfx.drawing_area, "focus-out-event",
                          G_CALLBACK(gd_focus_out_event), vc);
+        g_signal_connect(vc->gfx.drawing_area, "configure-event",
+                         G_CALLBACK(gd_configure), vc);
     } else {
         g_signal_connect(vc->gfx.drawing_area, "key-press-event",
                          G_CALLBACK(gd_text_key_down), vc);
@@ -1771,6 +1786,10 @@ static GSList *gd_vc_gfx_init(GtkDisplayState *s, VirtualConsole *vc,
 
     gd_connect_vc_gfx_signals(vc);
     group = gd_vc_menu_init(s, vc, idx, group, view_menu);
+
+    if (dpy_ui_info_supported(vc->gfx.dcl.con)) {
+        gtk_menu_item_activate(GTK_MENU_ITEM(s->zoom_fit_item));
+    }
 
     return group;
 }
