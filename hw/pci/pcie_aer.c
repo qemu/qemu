@@ -433,7 +433,7 @@ static void pcie_aer_update_log(PCIDevice *dev, const PCIEAERErr *err)
     }
 
     if ((err->flags & PCIE_AER_ERR_TLP_PREFIX_PRESENT) &&
-        (pci_get_long(dev->config + dev->exp.exp_cap + PCI_EXP_DEVCTL2) &
+        (pci_get_long(dev->config + dev->exp.exp_cap + PCI_EXP_DEVCAP2) &
          PCI_EXP_DEVCAP2_EETLPP)) {
         for (i = 0; i < ARRAY_SIZE(err->prefix); ++i) {
             /* 7.10.12 tlp prefix log register */
