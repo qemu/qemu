@@ -702,7 +702,7 @@ int qcow2_snapshot_load_tmp(BlockDriverState *bs,
     sn = &s->snapshots[snapshot_index];
 
     /* Allocate and read in the snapshot's L1 table */
-    if (sn->l1_size > QCOW_MAX_L1_SIZE) {
+    if (sn->l1_size > QCOW_MAX_L1_SIZE / sizeof(uint64_t)) {
         error_setg(errp, "Snapshot L1 table too large");
         return -EFBIG;
     }

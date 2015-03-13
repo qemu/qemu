@@ -742,7 +742,7 @@ static int qcow2_open(BlockDriverState *bs, QDict *options, int flags,
     }
 
     /* read the level 1 table */
-    if (header.l1_size > QCOW_MAX_L1_SIZE) {
+    if (header.l1_size > QCOW_MAX_L1_SIZE / sizeof(uint64_t)) {
         error_setg(errp, "Active L1 table too large");
         ret = -EFBIG;
         goto fail;
