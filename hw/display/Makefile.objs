@@ -20,7 +20,8 @@ common-obj-$(CONFIG_ZAURUS) += tc6393xb.o
 
 ifeq ($(CONFIG_MILKYMIST_TMU2),y)
 common-obj-y += milkymist-tmu2.o
-libs_softmmu += $(GLX_LIBS)
+milkymist-tmu2.o-cflags := $(OPENGL_CFLAGS)
+libs_softmmu += $(OPENGL_LIBS)
 endif
 
 obj-$(CONFIG_OMAP) += omap_dss.o

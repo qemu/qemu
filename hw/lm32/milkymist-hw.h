@@ -86,7 +86,7 @@ static inline DeviceState *milkymist_pfpu_create(hwaddr base,
     return dev;
 }
 
-#ifdef CONFIG_GLX
+#ifdef CONFIG_OPENGL
 #include <X11/Xlib.h>
 #include <GL/glx.h>
 static const int glx_fbconfig_attr[] = {
@@ -100,7 +100,7 @@ static const int glx_fbconfig_attr[] = {
 static inline DeviceState *milkymist_tmu2_create(hwaddr base,
         qemu_irq irq)
 {
-#ifdef CONFIG_GLX
+#ifdef CONFIG_OPENGL
     DeviceState *dev;
     Display *d;
     GLXFBConfig *configs;
