@@ -3594,7 +3594,7 @@ void vnc_display_open(const char *id, Error **errp)
 
         dev = qdev_find_recursive(sysbus_get_default(), device_id);
         if (dev == NULL) {
-            error_set(errp, QERR_DEVICE_NOT_FOUND, device_id);
+            error_setg(errp, "Device '%s' not found", device_id);
             goto fail;
         }
 
