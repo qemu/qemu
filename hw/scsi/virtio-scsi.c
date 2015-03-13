@@ -146,8 +146,12 @@ static int virtio_scsi_parse_req(VirtIOSCSIReq *req,
      * TODO: always disable this workaround for virtio 1.0 devices.
      */
     if (!virtio_has_feature(vdev, VIRTIO_F_ANY_LAYOUT)) {
-        req_size = req->elem.out_sg[0].iov_len;
-        resp_size = req->elem.in_sg[0].iov_len;
+        if (req->elem.out_num) {
+            req_size = req->elem.out_sg[0].iov_len;
+        }
+        if (req->elem.in_num) {
+            resp_size = req->elem.in_sg[0].iov_len;
+        }
     }
 
     out_size = qemu_sgl_concat(req, req->elem.out_sg,
