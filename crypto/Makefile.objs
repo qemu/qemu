@@ -3,6 +3,7 @@ crypto-obj-y += hash.o
 crypto-obj-y += aes.o
 crypto-obj-y += desrfb.o
 crypto-obj-y += cipher.o
+crypto-obj-y += tlscreds.o
 
 # Let the userspace emulators avoid linking gnutls/etc
 crypto-aes-obj-y = aes.o

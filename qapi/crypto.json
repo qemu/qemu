@@ -1,0 +1,21 @@
+# -*- Mode: Python -*-
+#
+# QAPI crypto definitions
+
+##
+# QCryptoTLSCredsEndpoint:
+#
+# The type of network endpoint that will be using the credentials.
+# Most types of credential require different setup / structures
+# depending on whether they will be used in a server versus a
+# client.
+#
+# @client: the network endpoint is acting as the client
+#
+# @server: the network endpoint is acting as the server
+#
+# Since: 2.5
+##
+{ 'enum': 'QCryptoTLSCredsEndpoint',
+  'prefix': 'QCRYPTO_TLS_CREDS_ENDPOINT',
+  'data': ['client', 'server']}

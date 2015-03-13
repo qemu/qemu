@@ -288,7 +288,7 @@ test-qom-obj-y = $(qom-obj-y) $(test-util-obj-y)
 test-qapi-obj-y = tests/test-qapi-visit.o tests/test-qapi-types.o \
 	tests/test-qapi-event.o \
 	$(test-qom-obj-y)
-test-crypto-obj-y = $(crypto-obj-y) $(test-util-obj-y)
+test-crypto-obj-y = $(crypto-obj-y) $(test-qom-obj-y)
 test-block-obj-y = $(block-obj-y) $(test-crypto-obj-y)
 
 tests/check-qint$(EXESUF): tests/check-qint.o $(test-util-obj-y)
