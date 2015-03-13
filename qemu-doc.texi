@@ -539,8 +539,8 @@ storage.
 @item qcow2
 QEMU image format, the most versatile format. Use it to have smaller
 images (useful if your filesystem does not supports holes, for example
-on Windows), optional AES encryption, zlib based compression and
-support of multiple VM snapshots.
+on Windows), zlib based compression and support of multiple VM
+snapshots.
 
 Supported options:
 @table @code
@@ -574,9 +574,10 @@ original file must then be securely erased using a program like shred,
 though even this is ineffective with many modern storage technologies.
 @end itemize
 
-Use of qcow / qcow2 encryption is thus strongly discouraged. Users are
-recommended to use an alternative encryption technology such as the
-Linux dm-crypt / LUKS system.
+Use of qcow / qcow2 encryption with QEMU is deprecated, and support for
+it will go away in a future release.  Users are recommended to use an
+alternative encryption technology such as the Linux dm-crypt / LUKS
+system.
 
 @item cluster_size
 Changes the qcow2 cluster size (must be between 512 and 2M). Smaller cluster
