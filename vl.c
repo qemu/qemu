@@ -3797,7 +3797,7 @@ int main(int argc, char **argv, char **envp)
         exit(1);
     }
 
-    if (qemu_opts_foreach(qemu_find_opts("sandbox"), parse_sandbox, NULL, 0)) {
+    if (qemu_opts_foreach(qemu_find_opts("sandbox"), parse_sandbox, NULL, 1)) {
         exit(1);
     }
 
