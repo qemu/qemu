@@ -112,7 +112,7 @@ void qmp_block_set_write_threshold(const char *node_name,
 
     bs = bdrv_find_node(node_name);
     if (!bs) {
-        error_set(errp, QERR_DEVICE_NOT_FOUND, node_name);
+        error_setg(errp, "Device '%s' not found", node_name);
         return;
     }
 

@@ -1961,10 +1961,6 @@
 # @write-threshold: configured threshold for the block device, bytes.
 #                   Use 0 to disable the threshold.
 #
-# Returns: Nothing on success
-#          If @node name is not found on the block device graph,
-#          DeviceNotFound
-#
 # Since: 2.3
 ##
 { 'command': 'block-set-write-threshold',
