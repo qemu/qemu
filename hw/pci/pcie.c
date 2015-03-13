@@ -84,7 +84,7 @@ int pcie_cap_init(PCIDevice *dev, uint8_t offset, uint8_t type, uint8_t port)
     pci_set_long(exp_cap + PCI_EXP_DEVCAP2,
                  PCI_EXP_DEVCAP2_EFF | PCI_EXP_DEVCAP2_EETLPP);
 
-    pci_set_word(dev->wmask + pos, PCI_EXP_DEVCTL2_EETLPPB);
+    pci_set_word(dev->wmask + pos + PCI_EXP_DEVCTL2, PCI_EXP_DEVCTL2_EETLPPB);
     return pos;
 }
 

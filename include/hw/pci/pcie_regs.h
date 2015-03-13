@@ -72,7 +72,7 @@
 #define PCI_EXP_DEVCAP2_EFF             0x100000
 #define PCI_EXP_DEVCAP2_EETLPP          0x200000
 
-#define PCI_EXP_DEVCTL2_EETLPPB         0x80
+#define PCI_EXP_DEVCTL2_EETLPPB         0x8000
 
 /* ARI */
 #define PCI_ARI_VER                     1
