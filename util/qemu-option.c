@@ -1046,22 +1046,29 @@ void qemu_opts_validate(QemuOpts *opts, const QemuOptDesc *desc, Error **errp)
     }
 }
 
-int qemu_opts_foreach(QemuOptsList *list, qemu_opts_loopfunc func, void *opaque,
-                      int abort_on_failure)
+/**
+ * For each member of @list, call @func(member, @opaque).
+ * Call it with the current location temporarily set to the member's.
+ * When @func() returns non-zero, break the loop and return that value.
+ * Return zero when the loop completes.
+ */
+int qemu_opts_foreach(QemuOptsList *list, qemu_opts_loopfunc func,
+                      void *opaque)
 {
     Location loc;
     QemuOpts *opts;
-    int rc = 0;
+    int rc;
 
     loc_push_none(&loc);
     QTAILQ_FOREACH(opts, &list->head, next) {
         loc_restore(&opts->loc);
-        rc |= func(opts, opaque);
-        if (abort_on_failure  &&  rc != 0)
-            break;
+        rc = func(opts, opaque);
+        if (rc) {
+            return rc;
+        }
     }
     loc_pop(&loc);
-    return rc;
+    return 0;
 }
 
 static size_t count_opts_list(QemuOptsList *list)

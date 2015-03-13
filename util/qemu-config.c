@@ -367,7 +367,7 @@ void qemu_config_write(FILE *fp)
     fprintf(fp, "# qemu config file\n\n");
     for (i = 0; lists[i] != NULL; i++) {
         data.list = lists[i];
-        qemu_opts_foreach(data.list, config_write_opts, &data, 0);
+        qemu_opts_foreach(data.list, config_write_opts, &data);
     }
 }
 

@@ -245,7 +245,7 @@ int net_init_vhost_user(const NetClientOptions *opts, const char *name,
 
     /* verify net frontend */
     if (qemu_opts_foreach(qemu_find_opts("device"), net_vhost_check_net,
-                          (char *)name, true) == -1) {
+                          (char *)name)) {
         return -1;
     }
 

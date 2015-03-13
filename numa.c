@@ -216,8 +216,7 @@ void parse_numa_opts(MachineClass *mc)
 {
     int i;
 
-    if (qemu_opts_foreach(qemu_find_opts("numa"), parse_numa,
-                          NULL, 1) != 0) {
+    if (qemu_opts_foreach(qemu_find_opts("numa"), parse_numa, NULL)) {
         exit(1);
     }
 

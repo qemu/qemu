@@ -1373,10 +1373,11 @@ int net_init_clients(void)
 
     QTAILQ_INIT(&net_clients);
 
-    if (qemu_opts_foreach(qemu_find_opts("netdev"), net_init_netdev, NULL, 1) == -1)
+    if (qemu_opts_foreach(qemu_find_opts("netdev"), net_init_netdev, NULL)) {
         return -1;
+    }
 
-    if (qemu_opts_foreach(net, net_init_client, NULL, 1) == -1) {
+    if (qemu_opts_foreach(net, net_init_client, NULL)) {
         return -1;
     }
 
