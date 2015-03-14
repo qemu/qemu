@@ -1506,6 +1506,10 @@ static void ppc_spapr_init(MachineState *machine)
     }
 
     filename = qemu_find_file(QEMU_FILE_TYPE_BIOS, "spapr-rtas.bin");
+    if (!filename) {
+        hw_error("Could not find LPAR rtas '%s'\n", "spapr-rtas.bin");
+        exit(1);
+    }
     spapr->rtas_size = get_image_size(filename);
     spapr->rtas_blob = g_malloc(spapr->rtas_size);
     if (load_image_size(filename, spapr->rtas_blob, spapr->rtas_size) < 0) {
@@ -1623,6 +1627,10 @@ static void ppc_spapr_init(MachineState *machine)
         bios_name = FW_FILE_NAME;
     }
     filename = qemu_find_file(QEMU_FILE_TYPE_BIOS, bios_name);
+    if (!filename) {
+        hw_error("Could not find LPAR rtas '%s'\n", bios_name);
+        exit(1);
+    }
     fw_size = load_image_targphys(filename, 0, FW_MAX_SIZE);
     if (fw_size < 0) {
         hw_error("qemu: could not load LPAR rtas '%s'\n", filename);
