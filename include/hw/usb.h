@@ -445,15 +445,11 @@ void usb_ep_reset(USBDevice *dev);
 void usb_ep_dump(USBDevice *dev);
 struct USBEndpoint *usb_ep_get(USBDevice *dev, int pid, int ep);
 uint8_t usb_ep_get_type(USBDevice *dev, int pid, int ep);
-uint8_t usb_ep_get_ifnum(USBDevice *dev, int pid, int ep);
 void usb_ep_set_type(USBDevice *dev, int pid, int ep, uint8_t type);
 void usb_ep_set_ifnum(USBDevice *dev, int pid, int ep, uint8_t ifnum);
 void usb_ep_set_max_packet_size(USBDevice *dev, int pid, int ep,
                                 uint16_t raw);
-int usb_ep_get_max_packet_size(USBDevice *dev, int pid, int ep);
 void usb_ep_set_max_streams(USBDevice *dev, int pid, int ep, uint8_t raw);
-int usb_ep_get_max_streams(USBDevice *dev, int pid, int ep);
-void usb_ep_set_pipeline(USBDevice *dev, int pid, int ep, bool enabled);
 void usb_ep_set_halted(USBDevice *dev, int pid, int ep, bool halted);
 USBPacket *usb_ep_find_packet_by_id(USBDevice *dev, int pid, int ep,
                                     uint64_t id);
@@ -469,7 +465,6 @@ void usb_port_reset(USBPort *port);
 void usb_device_reset(USBDevice *dev);
 void usb_wakeup(USBEndpoint *ep, unsigned int stream);
 void usb_generic_async_ctrl_complete(USBDevice *s, USBPacket *p);
-int set_usb_string(uint8_t *buf, const char *str);
 
 /* usb-linux.c */
 USBDevice *usb_host_device_open(USBBus *bus, const char *devname);
