@@ -2283,6 +2283,7 @@ GuestMemoryBlockInfo *qmp_guest_get_memory_block_info(Error **errp)
 
     buf = g_malloc0(20);
     ga_read_sysfs_file(dirfd, "block_size_bytes", buf, 20, &local_err);
+    close(dirfd);
     if (local_err) {
         g_free(buf);
         error_propagate(errp, local_err);
