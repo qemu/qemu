@@ -288,7 +288,6 @@ qemu-img: Error while amending options: Invalid argument
 Unknown compatibility level 0.42.
 qemu-img: Error while amending options: Invalid argument
 qemu-img: Invalid parameter 'foo'
-qemu-img: Invalid options for file format 'qcow2'
 Changing the cluster size is not supported.
 qemu-img: Error while amending options: Operation not supported
 Changing the encryption flag is not supported.
