@@ -222,7 +222,7 @@ static uint16_t nvme_rw(NvmeCtrl *n, NvmeNamespace *ns, NvmeCmd *cmd,
 
     uint8_t lba_index  = NVME_ID_NS_FLBAS_INDEX(ns->id_ns.flbas);
     uint8_t data_shift = ns->id_ns.lbaf[lba_index].ds;
-    uint64_t data_size = nlb << data_shift;
+    uint64_t data_size = (uint64_t)nlb << data_shift;
     uint64_t aio_slba  = slba << (data_shift - BDRV_SECTOR_BITS);
     int is_write = rw->opcode == NVME_CMD_WRITE ? 1 : 0;
 
