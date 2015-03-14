@@ -738,6 +738,7 @@ static int proxy_socket(const char *path, uid_t uid, gid_t gid)
         return -1;
     }
 
+    g_assert(strlen(path) < sizeof(proxy.sun_path));
     sock = socket(AF_UNIX, SOCK_STREAM, 0);
     if (sock < 0) {
         do_perror("socket");
