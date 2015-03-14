@@ -45,6 +45,7 @@
 #include "sysemu/sysemu.h"
 #include "sysemu/numa.h"
 #include "sysemu/kvm.h"
+#include "sysemu/qtest.h"
 #include "kvm_i386.h"
 #include "hw/xen/xen.h"
 #include "sysemu/block-backend.h"
@@ -653,7 +654,7 @@ static uint32_t x86_cpu_apic_id_from_index(unsigned int cpu_index)
 
     correct_id = x86_apicid_from_cpu_idx(smp_cores, smp_threads, cpu_index);
     if (compat_apic_id_mode) {
-        if (cpu_index != correct_id && !warned) {
+        if (cpu_index != correct_id && !warned && !qtest_enabled()) {
             error_report("APIC IDs set in compatibility mode, "
                          "CPU topology won't match the configuration");
             warned = true;
