@@ -114,15 +114,6 @@ bool vmxnet_rx_pkt_is_vlan_stripped(struct VmxnetRxPkt *pkt);
 bool vmxnet_rx_pkt_has_virt_hdr(struct VmxnetRxPkt *pkt);
 
 /**
- * returns number of frags attached to the packet
- *
- * @pkt:            packet
- * @ret:            number of frags
- *
- */
-uint16_t vmxnet_rx_pkt_get_num_frags(struct VmxnetRxPkt *pkt);
-
-/**
  * attach data to rx packet
  *
  * @pkt:            packet
