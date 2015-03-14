@@ -97,6 +97,7 @@ typedef struct NICState {
     bool peer_deleted;
 } NICState;
 
+char *qemu_mac_strdup_printf(const uint8_t *macaddr);
 NetClientState *qemu_find_netdev(const char *id);
 int qemu_find_net_clients_except(const char *id, NetClientState **ncs,
                                  NetClientOptionsKind type, int max);

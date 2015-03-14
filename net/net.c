@@ -151,6 +151,13 @@ int parse_host_port(struct sockaddr_in *saddr, const char *str)
     return 0;
 }
 
+char *qemu_mac_strdup_printf(const uint8_t *macaddr)
+{
+    return g_strdup_printf("%.2x:%.2x:%.2x:%.2x:%.2x:%.2x",
+                           macaddr[0], macaddr[1], macaddr[2],
+                           macaddr[3], macaddr[4], macaddr[5]);
+}
+
 void qemu_format_nic_info_str(NetClientState *nc, uint8_t macaddr[6])
 {
     snprintf(nc->info_str, sizeof(nc->info_str),
