@@ -429,15 +429,6 @@ address_space_translate_for_iotlb(CPUState *cpu, hwaddr addr,
 }
 #endif
 
-void cpu_exec_init_all(void)
-{
-#if !defined(CONFIG_USER_ONLY)
-    qemu_mutex_init(&ram_list.mutex);
-    memory_map_init();
-    io_mem_init();
-#endif
-}
-
 #if !defined(CONFIG_USER_ONLY)
 
 static int cpu_common_post_load(void *opaque, int version_id)
@@ -2493,6 +2484,7 @@ typedef struct MapClient {
     QLIST_ENTRY(MapClient) link;
 } MapClient;
 
+QemuMutex map_client_list_lock;
 static QLIST_HEAD(map_client_list, MapClient) map_client_list
     = QLIST_HEAD_INITIALIZER(map_client_list);
 
@@ -2500,10 +2492,20 @@ void *cpu_register_map_client(void *opaque, void (*callback)(void *opaque))
 {
     MapClient *client = g_malloc(sizeof(*client));
 
+    qemu_mutex_lock(&map_client_list_lock);
     client->opaque = opaque;
     client->callback = callback;
     QLIST_INSERT_HEAD(&map_client_list, client, link);
+    qemu_mutex_unlock(&map_client_list_lock);
     return client;
+}
+
+void cpu_exec_init_all(void)
+{
+    qemu_mutex_init(&ram_list.mutex);
+    memory_map_init();
+    io_mem_init();
+    qemu_mutex_init(&map_client_list_lock);
 }
 
 static void cpu_unregister_map_client(void *_client)
@@ -2518,11 +2520,13 @@ static void cpu_notify_map_clients(void)
 {
     MapClient *client;
 
+    qemu_mutex_lock(&map_client_list_lock);
     while (!QLIST_EMPTY(&map_client_list)) {
         client = QLIST_FIRST(&map_client_list);
         client->callback(client->opaque);
         cpu_unregister_map_client(client);
     }
+    qemu_mutex_unlock(&map_client_list_lock);
 }
 
 bool address_space_access_valid(AddressSpace *as, hwaddr addr, int len, bool is_write)
