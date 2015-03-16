@@ -661,7 +661,36 @@ Example:
 <- { "return": {} }
 
 EQMP
-{
+
+    {
+        .name       = "migrate-incoming",
+        .args_type  = "uri:s",
+        .mhandler.cmd_new = qmp_marshal_input_migrate_incoming,
+    },
+
+SQMP
+migrate-incoming
+----------------
+
+Continue an incoming migration
+
+Arguments:
+
+- "uri": Source/listening URI (json-string)
+
+Example:
+
+-> { "execute": "migrate-incoming", "arguments": { "uri": "tcp::4446" } }
+<- { "return": {} }
+
+Notes:
+
+(1) QEMU must be started with -incoming defer to allow migrate-incoming to
+    be used
+(2) The uri format is the same as to -incoming
+
+EQMP
+    {
         .name       = "migrate-set-cache-size",
         .args_type  = "value:o",
         .mhandler.cmd_new = qmp_marshal_input_migrate_set_cache_size,

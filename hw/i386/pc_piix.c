@@ -335,6 +335,7 @@ static void pc_compat_2_2(MachineState *machine)
                                 CPUID_7_0_EBX_HLE | CPUID_7_0_EBX_RTM, 0);
     x86_cpu_compat_set_features("Broadwell", FEAT_7_0_EBX,
                                 CPUID_7_0_EBX_HLE | CPUID_7_0_EBX_RTM, 0);
+    machine->suppress_vmdesc = true;
 }
 
 static void pc_compat_2_1(MachineState *machine)

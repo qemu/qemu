@@ -710,6 +710,12 @@ int qemu_savevm_state_iterate(QEMUFile *f)
     return ret;
 }
 
+static bool should_send_vmdesc(void)
+{
+    MachineState *machine = MACHINE(qdev_get_machine());
+    return !machine->suppress_vmdesc;
+}
+
 void qemu_savevm_state_complete(QEMUFile *f)
 {
     QJSON *vmdesc;
@@ -782,9 +788,11 @@ void qemu_savevm_state_complete(QEMUFile *f)
     qjson_finish(vmdesc);
     vmdesc_len = strlen(qjson_get_str(vmdesc));
 
-    qemu_put_byte(f, QEMU_VM_VMDESCRIPTION);
-    qemu_put_be32(f, vmdesc_len);
-    qemu_put_buffer(f, (uint8_t *)qjson_get_str(vmdesc), vmdesc_len);
+    if (should_send_vmdesc()) {
+        qemu_put_byte(f, QEMU_VM_VMDESCRIPTION);
+        qemu_put_be32(f, vmdesc_len);
+        qemu_put_buffer(f, (uint8_t *)qjson_get_str(vmdesc), vmdesc_len);
+    }
     object_unref(OBJECT(vmdesc));
 
     qemu_fflush(f);
@@ -930,6 +938,7 @@ int qemu_loadvm_state(QEMUFile *f)
     uint8_t section_type;
     unsigned int v;
     int ret;
+    int file_error_after_eof = -1;
 
     if (qemu_savevm_state_blocked(&local_err)) {
         error_report("%s", error_get_pretty(local_err));
@@ -1035,6 +1044,24 @@ int qemu_loadvm_state(QEMUFile *f)
         }
     }
 
+    file_error_after_eof = qemu_file_get_error(f);
+
+    /*
+     * Try to read in the VMDESC section as well, so that dumping tools that
+     * intercept our migration stream have the chance to see it.
+     */
+    if (qemu_get_byte(f) == QEMU_VM_VMDESCRIPTION) {
+        uint32_t size = qemu_get_be32(f);
+        uint8_t *buf = g_malloc(0x1000);
+
+        while (size > 0) {
+            uint32_t read_chunk = MIN(size, 0x1000);
+            qemu_get_buffer(f, buf, read_chunk);
+            size -= read_chunk;
+        }
+        g_free(buf);
+    }
+
     cpu_synchronize_all_post_init();
 
     ret = 0;
@@ -1046,7 +1073,8 @@ out:
     }
 
     if (ret == 0) {
-        ret = qemu_file_get_error(f);
+        /* We may not have a VMDESC section, so ignore relative errors */
+        ret = file_error_after_eof;
     }
 
     return ret;

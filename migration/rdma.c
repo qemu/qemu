@@ -2654,7 +2654,7 @@ static int qemu_rdma_close(void *opaque)
  */
 static size_t qemu_rdma_save_page(QEMUFile *f, void *opaque,
                                   ram_addr_t block_offset, ram_addr_t offset,
-                                  size_t size, int *bytes_sent)
+                                  size_t size, uint64_t *bytes_sent)
 {
     QEMUFileRDMA *rfile = opaque;
     RDMAContext *rdma = rfile->rdma;
