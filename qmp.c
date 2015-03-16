@@ -206,7 +206,8 @@ ObjectPropertyInfoList *qmp_qom_list(const char *path, Error **errp)
         if (ambiguous) {
             error_setg(errp, "Path '%s' is ambiguous", path);
         } else {
-            error_set(errp, QERR_DEVICE_NOT_FOUND, path);
+            error_set(errp, ERROR_CLASS_DEVICE_NOT_FOUND,
+                      "Device '%s' not found", path);
         }
         return NULL;
     }
@@ -236,7 +237,8 @@ int qmp_qom_set(Monitor *mon, const QDict *qdict, QObject **ret)
 
     obj = object_resolve_path(path, NULL);
     if (!obj) {
-        error_set(&local_err, QERR_DEVICE_NOT_FOUND, path);
+        error_set(&local_err, ERROR_CLASS_DEVICE_NOT_FOUND,
+                  "Device '%s' not found", path);
         goto out;
     }
 
@@ -261,7 +263,8 @@ int qmp_qom_get(Monitor *mon, const QDict *qdict, QObject **ret)
 
     obj = object_resolve_path(path, NULL);
     if (!obj) {
-        error_set(&local_err, QERR_DEVICE_NOT_FOUND, path);
+        error_set(&local_err, ERROR_CLASS_DEVICE_NOT_FOUND,
+                  "Device '%s' not found", path);
         goto out;
     }
 
@@ -518,7 +521,8 @@ DevicePropertyInfoList *qmp_device_list_properties(const char *typename,
 
     klass = object_class_by_name(typename);
     if (klass == NULL) {
-        error_set(errp, QERR_DEVICE_NOT_FOUND, typename);
+        error_set(errp, ERROR_CLASS_DEVICE_NOT_FOUND,
+                  "Device '%s' not found", typename);
         return NULL;
     }
 

@@ -1867,7 +1867,8 @@ void hmp_qemu_io(Monitor *mon, const QDict *qdict)
     if (blk) {
         qemuio_command(blk, command);
     } else {
-        error_set(&err, QERR_DEVICE_NOT_FOUND, device);
+        error_set(&err, ERROR_CLASS_DEVICE_NOT_FOUND,
+                  "Device '%s' not found", device);
     }
 
     hmp_handle_error(mon, &err);
@@ -1995,7 +1996,8 @@ void hmp_qom_set(Monitor *mon, const QDict *qdict)
 
     obj = object_resolve_path(path, &ambiguous);
     if (obj == NULL) {
-        error_set(&err, QERR_DEVICE_NOT_FOUND, path);
+        error_set(&err, ERROR_CLASS_DEVICE_NOT_FOUND,
+                  "Device '%s' not found", path);
     } else {
         if (ambiguous) {
             monitor_printf(mon, "Warning: Path '%s' is ambiguous\n", path);

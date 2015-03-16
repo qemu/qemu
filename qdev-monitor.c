@@ -457,7 +457,8 @@ static BusState *qbus_find(const char *path, Error **errp)
         pos += len;
         dev = qbus_find_dev(bus, elem);
         if (!dev) {
-            error_set(errp, QERR_DEVICE_NOT_FOUND, elem);
+            error_set(errp, ERROR_CLASS_DEVICE_NOT_FOUND,
+                      "Device '%s' not found", elem);
 #if 0 /* conversion from qerror_report() to error_set() broke this: */
             if (!monitor_cur_is_qmp()) {
                 qbus_list_dev(bus);
@@ -793,7 +794,8 @@ void qmp_device_del(const char *id, Error **errp)
     g_free(path);
 
     if (!obj) {
-        error_set(errp, QERR_DEVICE_NOT_FOUND, id);
+        error_set(errp, ERROR_CLASS_DEVICE_NOT_FOUND,
+                  "Device '%s' not found", id);
         return;
     }
 

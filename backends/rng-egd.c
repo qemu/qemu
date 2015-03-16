@@ -147,7 +147,8 @@ static void rng_egd_opened(RngBackend *b, Error **errp)
 
     s->chr = qemu_chr_find(s->chr_name);
     if (s->chr == NULL) {
-        error_set(errp, QERR_DEVICE_NOT_FOUND, s->chr_name);
+        error_set(errp, ERROR_CLASS_DEVICE_NOT_FOUND,
+                  "Device '%s' not found", s->chr_name);
         return;
     }
 

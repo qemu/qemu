@@ -91,7 +91,8 @@ void qmp_nbd_server_add(const char *device, bool has_writable, bool writable,
 
     blk = blk_by_name(device);
     if (!blk) {
-        error_set(errp, QERR_DEVICE_NOT_FOUND, device);
+        error_set(errp, ERROR_CLASS_DEVICE_NOT_FOUND,
+                  "Device '%s' not found", device);
         return;
     }
     if (!blk_is_inserted(blk)) {

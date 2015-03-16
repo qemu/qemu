@@ -84,7 +84,8 @@ void qemu_input_handler_bind(QemuInputHandlerState *s,
 
     dev = qdev_find_recursive(sysbus_get_default(), device_id);
     if (dev == NULL) {
-        error_set(errp, QERR_DEVICE_NOT_FOUND, device_id);
+        error_set(errp, ERROR_CLASS_DEVICE_NOT_FOUND,
+                  "Device '%s' not found", device_id);
         return;
     }
 

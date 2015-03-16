@@ -1111,7 +1111,8 @@ SnapshotInfo *qmp_blockdev_snapshot_delete_internal_sync(const char *device,
 
     blk = blk_by_name(device);
     if (!blk) {
-        error_set(errp, QERR_DEVICE_NOT_FOUND, device);
+        error_set(errp, ERROR_CLASS_DEVICE_NOT_FOUND,
+                  "Device '%s' not found", device);
         return NULL;
     }
     bs = blk_bs(blk);
@@ -1300,7 +1301,8 @@ static void internal_snapshot_prepare(BlkTransactionState *common,
     /* 2. check for validation */
     blk = blk_by_name(device);
     if (!blk) {
-        error_set(errp, QERR_DEVICE_NOT_FOUND, device);
+        error_set(errp, ERROR_CLASS_DEVICE_NOT_FOUND,
+                  "Device '%s' not found", device);
         return;
     }
     bs = blk_bs(blk);
@@ -1580,7 +1582,8 @@ static void drive_backup_prepare(BlkTransactionState *common, Error **errp)
 
     blk = blk_by_name(backup->device);
     if (!blk) {
-        error_set(errp, QERR_DEVICE_NOT_FOUND, backup->device);
+        error_set(errp, ERROR_CLASS_DEVICE_NOT_FOUND,
+                  "Device '%s' not found", backup->device);
         return;
     }
     bs = blk_bs(blk);
@@ -1850,7 +1853,8 @@ void qmp_eject(const char *device, bool has_force, bool force, Error **errp)
 
     blk = blk_by_name(device);
     if (!blk) {
-        error_set(errp, QERR_DEVICE_NOT_FOUND, device);
+        error_set(errp, ERROR_CLASS_DEVICE_NOT_FOUND,
+                  "Device '%s' not found", device);
         return;
     }
 
@@ -1910,7 +1914,8 @@ void qmp_change_blockdev(const char *device, const char *filename,
 
     blk = blk_by_name(device);
     if (!blk) {
-        error_set(errp, QERR_DEVICE_NOT_FOUND, device);
+        error_set(errp, ERROR_CLASS_DEVICE_NOT_FOUND,
+                  "Device '%s' not found", device);
         return;
     }
     bs = blk_bs(blk);
@@ -1971,7 +1976,8 @@ void qmp_block_set_io_throttle(const char *device, int64_t bps, int64_t bps_rd,
 
     blk = blk_by_name(device);
     if (!blk) {
-        error_set(errp, QERR_DEVICE_NOT_FOUND, device);
+        error_set(errp, ERROR_CLASS_DEVICE_NOT_FOUND,
+                  "Device '%s' not found", device);
         return;
     }
     bs = blk_bs(blk);
@@ -2291,7 +2297,8 @@ void qmp_block_stream(const char *device,
 
     blk = blk_by_name(device);
     if (!blk) {
-        error_set(errp, QERR_DEVICE_NOT_FOUND, device);
+        error_set(errp, ERROR_CLASS_DEVICE_NOT_FOUND,
+                  "Device '%s' not found", device);
         return;
     }
     bs = blk_bs(blk);
@@ -2365,7 +2372,8 @@ void qmp_block_commit(const char *device,
      *  scenario in which all optional arguments are omitted. */
     blk = blk_by_name(device);
     if (!blk) {
-        error_set(errp, QERR_DEVICE_NOT_FOUND, device);
+        error_set(errp, ERROR_CLASS_DEVICE_NOT_FOUND,
+                  "Device '%s' not found", device);
         return;
     }
     bs = blk_bs(blk);
@@ -2477,7 +2485,8 @@ void qmp_drive_backup(const char *device, const char *target,
 
     blk = blk_by_name(device);
     if (!blk) {
-        error_set(errp, QERR_DEVICE_NOT_FOUND, device);
+        error_set(errp, ERROR_CLASS_DEVICE_NOT_FOUND,
+                  "Device '%s' not found", device);
         return;
     }
     bs = blk_bs(blk);
@@ -2691,7 +2700,8 @@ void qmp_drive_mirror(const char *device, const char *target,
 
     blk = blk_by_name(device);
     if (!blk) {
-        error_set(errp, QERR_DEVICE_NOT_FOUND, device);
+        error_set(errp, ERROR_CLASS_DEVICE_NOT_FOUND,
+                  "Device '%s' not found", device);
         return;
     }
     bs = blk_bs(blk);
@@ -2957,7 +2967,8 @@ void qmp_change_backing_file(const char *device,
 
     blk = blk_by_name(device);
     if (!blk) {
-        error_set(errp, QERR_DEVICE_NOT_FOUND, device);
+        error_set(errp, ERROR_CLASS_DEVICE_NOT_FOUND,
+                  "Device '%s' not found", device);
         return;
     }
     bs = blk_bs(blk);

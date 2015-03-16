@@ -1127,7 +1127,8 @@ void qmp_netdev_del(const char *id, Error **errp)
 
     nc = qemu_find_netdev(id);
     if (!nc) {
-        error_set(errp, QERR_DEVICE_NOT_FOUND, id);
+        error_set(errp, ERROR_CLASS_DEVICE_NOT_FOUND,
+                  "Device '%s' not found", id);
         return;
     }
 
@@ -1238,7 +1239,8 @@ void qmp_set_link(const char *name, bool up, Error **errp)
                                           MAX_QUEUE_NUM);
 
     if (queues == 0) {
-        error_set(errp, QERR_DEVICE_NOT_FOUND, name);
+        error_set(errp, ERROR_CLASS_DEVICE_NOT_FOUND,
+                  "Device '%s' not found", name);
         return;
     }
     nc = ncs[0];

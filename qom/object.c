@@ -999,7 +999,8 @@ Object *object_property_get_link(Object *obj, const char *name,
     if (str && *str) {
         target = object_resolve_path(str, NULL);
         if (!target) {
-            error_set(errp, QERR_DEVICE_NOT_FOUND, str);
+            error_set(errp, ERROR_CLASS_DEVICE_NOT_FOUND,
+                      "Device '%s' not found", str);
         }
     }
 
@@ -1305,7 +1306,8 @@ static Object *object_resolve_link(Object *obj, const char *name,
         if (target || ambiguous) {
             error_set(errp, QERR_INVALID_PARAMETER_TYPE, name, target_type);
         } else {
-            error_set(errp, QERR_DEVICE_NOT_FOUND, path);
+            error_set(errp, ERROR_CLASS_DEVICE_NOT_FOUND,
+                      "Device '%s' not found", path);
         }
         target = NULL;
     }
