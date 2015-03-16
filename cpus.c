@@ -1353,7 +1353,7 @@ static int tcg_cpu_exec(CPUArchState *env)
     }
     ret = cpu_exec(env);
 #ifdef CONFIG_PROFILER
-    qemu_time += profile_getclock() - ti;
+    tcg_time += profile_getclock() - ti;
 #endif
     if (use_icount) {
         /* Fold pending instructions back into the
