@@ -1186,3 +1186,9 @@ Bootdevice
 M: Gonglei <arei.gonglei@huawei.com>
 S: Maintained
 F: bootdevice.c
+
+Quorum
+M: Alberto Garcia <berto@igalia.com>
+S: Supported
+F: block/quorum.c
+L: qemu-block@nongnu.org
