@@ -262,6 +262,9 @@ static int send_status(int sockfd, struct iovec *iovec, int status)
      */
     msg_size = proxy_marshal(iovec, 0, "ddd", header.type,
                              header.size, status);
+    if (msg_size < 0) {
+        return msg_size;
+    }
     retval = socket_write(sockfd, iovec->iov_base, msg_size);
     if (retval < 0) {
         return retval;
