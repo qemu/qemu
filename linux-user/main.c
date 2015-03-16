@@ -3934,7 +3934,6 @@ int main(int argc, char **argv, char **envp)
 #endif
     }
     tcg_exec_init(0);
-    cpu_exec_init_all();
     /* NOTE: we need to init the CPU at this stage to get
        qemu_host_page_size */
     cpu = cpu_init(cpu_model);
