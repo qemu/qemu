@@ -2479,8 +2479,7 @@ typedef struct {
 static BounceBuffer bounce;
 
 typedef struct MapClient {
-    void *opaque;
-    void (*callback)(void *opaque);
+    QEMUBH *bh;
     QLIST_ENTRY(MapClient) link;
 } MapClient;
 
@@ -2488,31 +2487,34 @@ QemuMutex map_client_list_lock;
 static QLIST_HEAD(map_client_list, MapClient) map_client_list
     = QLIST_HEAD_INITIALIZER(map_client_list);
 
-static void cpu_unregister_map_client(void *_client);
+static void cpu_unregister_map_client_do(MapClient *client)
+{
+    QLIST_REMOVE(client, link);
+    g_free(client);
+}
+
 static void cpu_notify_map_clients_locked(void)
 {
     MapClient *client;
 
     while (!QLIST_EMPTY(&map_client_list)) {
         client = QLIST_FIRST(&map_client_list);
-        client->callback(client->opaque);
-        cpu_unregister_map_client(client);
+        qemu_bh_schedule(client->bh);
+        cpu_unregister_map_client_do(client);
     }
 }
 
-void *cpu_register_map_client(void *opaque, void (*callback)(void *opaque))
+void cpu_register_map_client(QEMUBH *bh)
 {
     MapClient *client = g_malloc(sizeof(*client));
 
     qemu_mutex_lock(&map_client_list_lock);
-    client->opaque = opaque;
-    client->callback = callback;
+    client->bh = bh;
     QLIST_INSERT_HEAD(&map_client_list, client, link);
     if (!atomic_read(&bounce.in_use)) {
         cpu_notify_map_clients_locked();
     }
     qemu_mutex_unlock(&map_client_list_lock);
-    return client;
 }
 
 void cpu_exec_init_all(void)
@@ -2523,12 +2525,18 @@ void cpu_exec_init_all(void)
     qemu_mutex_init(&map_client_list_lock);
 }
 
-static void cpu_unregister_map_client(void *_client)
+void cpu_unregister_map_client(QEMUBH *bh)
 {
-    MapClient *client = (MapClient *)_client;
+    MapClient *client;
 
-    QLIST_REMOVE(client, link);
-    g_free(client);
+    qemu_mutex_lock(&map_client_list_lock);
+    QLIST_FOREACH(client, &map_client_list, link) {
+        if (client->bh == bh) {
+            cpu_unregister_map_client_do(client);
+            break;
+        }
+    }
+    qemu_mutex_unlock(&map_client_list_lock);
 }
 
 static void cpu_notify_map_clients(void)

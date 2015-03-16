@@ -92,14 +92,6 @@ static void reschedule_dma(void *opaque)
     dma_blk_cb(dbs, 0);
 }
 
-static void continue_after_map_failure(void *opaque)
-{
-    DMAAIOCB *dbs = (DMAAIOCB *)opaque;
-
-    dbs->bh = qemu_bh_new(reschedule_dma, dbs);
-    qemu_bh_schedule(dbs->bh);
-}
-
 static void dma_blk_unmap(DMAAIOCB *dbs)
 {
     int i;
@@ -161,7 +153,9 @@ static void dma_blk_cb(void *opaque, int ret)
 
     if (dbs->iov.size == 0) {
         trace_dma_map_wait(dbs);
-        cpu_register_map_client(dbs, continue_after_map_failure);
+        dbs->bh = aio_bh_new(blk_get_aio_context(dbs->blk),
+                             reschedule_dma, dbs);
+        cpu_register_map_client(dbs->bh);
         return;
     }
 
@@ -182,6 +176,11 @@ static void dma_aio_cancel(BlockAIOCB *acb)
 
     if (dbs->acb) {
         blk_aio_cancel_async(dbs->acb);
+    }
+    if (dbs->bh) {
+        cpu_unregister_map_client(dbs->bh);
+        qemu_bh_delete(dbs->bh);
+        dbs->bh = NULL;
     }
 }
 
