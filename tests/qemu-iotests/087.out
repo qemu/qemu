@@ -44,10 +44,19 @@ QMP_VERSION
 
 === Encrypted image ===
 
+qemu-img: Encrypted images are deprecated
+Support for them will be removed in a future release.
+You can use 'qemu-img convert' to convert your image to an unencrypted one.
+qemu-img: Encrypted images are deprecated
+Support for them will be removed in a future release.
+You can use 'qemu-img convert' to convert your image to an unencrypted one.
 Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=134217728 encryption=on
 Testing: -S
 QMP_VERSION
 {"return": {}}
+Encrypted images are deprecated
+Support for them will be removed in a future release.
+You can use 'qemu-img convert' to convert your image to an unencrypted one.
 {"error": {"class": "GenericError", "desc": "blockdev-add doesn't support encrypted devices"}}
 {"return": {}}
 {"timestamp": {"seconds":  TIMESTAMP, "microseconds":  TIMESTAMP}, "event": "SHUTDOWN"}
@@ -57,6 +66,9 @@ QMP_VERSION
 Testing:
 QMP_VERSION
 {"return": {}}
+Encrypted images are deprecated
+Support for them will be removed in a future release.
+You can use 'qemu-img convert' to convert your image to an unencrypted one.
 {"error": {"class": "GenericError", "desc": "Guest must be stopped for opening of encrypted image"}}
 {"return": {}}
 {"timestamp": {"seconds":  TIMESTAMP, "microseconds":  TIMESTAMP}, "event": "SHUTDOWN"}
@@ -66,6 +78,12 @@ QMP_VERSION
 
 === Missing driver ===
 
+qemu-img: Encrypted images are deprecated
+Support for them will be removed in a future release.
+You can use 'qemu-img convert' to convert your image to an unencrypted one.
+qemu-img: Encrypted images are deprecated
+Support for them will be removed in a future release.
+You can use 'qemu-img convert' to convert your image to an unencrypted one.
 Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=134217728 encryption=on
 Testing: -S
 QMP_VERSION

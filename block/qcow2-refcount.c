@@ -466,8 +466,20 @@ static int alloc_refcount_block(BlockDriverState *bs,
      */
     BLKDBG_EVENT(bs->file, BLKDBG_REFTABLE_GROW);
 
-    /* Calculate the number of refcount blocks needed so far */
-    uint64_t blocks_used = DIV_ROUND_UP(cluster_index, s->refcount_block_size);
+    /* Calculate the number of refcount blocks needed so far; this will be the
+     * basis for calculating the index of the first cluster used for the
+     * self-describing refcount structures which we are about to create.
+     *
+     * Because we reached this point, there cannot be any refcount entries for
+     * cluster_index or higher indices yet. However, because new_block has been
+     * allocated to describe that cluster (and it will assume this role later
+     * on), we cannot use that index; also, new_block may actually have a higher
+     * cluster index than cluster_index, so it needs to be taken into account
+     * here (and 1 needs to be added to its value because that cluster is used).
+     */
+    uint64_t blocks_used = DIV_ROUND_UP(MAX(cluster_index + 1,
+                                            (new_block >> s->cluster_bits) + 1),
+                                        s->refcount_block_size);
 
     if (blocks_used > QCOW_MAX_REFTABLE_SIZE / sizeof(uint64_t)) {
         return -EFBIG;

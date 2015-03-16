@@ -23,6 +23,7 @@
 #include "migration/block.h"
 #include "migration/migration.h"
 #include "sysemu/blockdev.h"
+#include "sysemu/block-backend.h"
 #include <assert.h>
 
 #define BLOCK_SIZE                       (1 << 20)
@@ -783,6 +784,7 @@ static int block_load(QEMUFile *f, void *opaque, int version_id)
     char device_name[256];
     int64_t addr;
     BlockDriverState *bs, *bs_prev = NULL;
+    BlockBackend *blk;
     uint8_t *buf;
     int64_t total_sectors = 0;
     int nr_sectors;
@@ -800,12 +802,13 @@ static int block_load(QEMUFile *f, void *opaque, int version_id)
             qemu_get_buffer(f, (uint8_t *)device_name, len);
             device_name[len] = '\0';
 
-            bs = bdrv_find(device_name);
-            if (!bs) {
+            blk = blk_by_name(device_name);
+            if (!blk) {
                 fprintf(stderr, "Error unknown block device %s\n",
                         device_name);
                 return -EINVAL;
             }
+            bs = blk_bs(blk);
 
             if (bs != bs_prev) {
                 bs_prev = bs;

@@ -128,13 +128,11 @@ QEMU_PROG: Initialization of device ide-hd failed: Device initialization failed.
 Testing: -drive if=virtio
 QEMU X.Y.Z monitor - type 'help' for more information
 (qemu) QEMU_PROG: -drive if=virtio: Device needs media, but drive is empty
-QEMU_PROG: -drive if=virtio: Device initialization failed.
 QEMU_PROG: -drive if=virtio: Device 'virtio-blk-pci' could not be initialized
 
 Testing: -drive if=scsi
 QEMU X.Y.Z monitor - type 'help' for more information
-(qemu) QEMU_PROG: -drive if=scsi: Device needs media, but drive is empty
-QEMU_PROG: Initialization of device lsi53c895a failed: Device initialization failed.
+(qemu) QEMU_PROG: Initialization of device lsi53c895a failed: Device needs media, but drive is empty
 
 Testing: -drive if=none,id=disk -device ide-cd,drive=disk
 QEMU X.Y.Z monitor - type 'help' for more information

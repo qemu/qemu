@@ -274,8 +274,7 @@ static int print_block_option_help(const char *filename, const char *fmt)
     if (filename) {
         proto_drv = bdrv_find_protocol(filename, true, &local_err);
         if (!proto_drv) {
-            qerror_report_err(local_err);
-            error_free(local_err);
+            error_report_err(local_err);
             qemu_opts_free(create_opts);
             return 1;
         }
@@ -1526,8 +1525,7 @@ static int img_convert(int argc, char **argv)
 
     proto_drv = bdrv_find_protocol(out_filename, true, &local_err);
     if (!proto_drv) {
-        qerror_report_err(local_err);
-        error_free(local_err);
+        error_report_err(local_err);
         ret = -1;
         goto out;
     }
@@ -1554,8 +1552,7 @@ static int img_convert(int argc, char **argv)
         if (options) {
             qemu_opts_do_parse(opts, options, NULL, &local_err);
             if (local_err) {
-                error_report("Invalid options for file format '%s'", out_fmt);
-                error_free(local_err);
+                error_report_err(local_err);
                 ret = -1;
                 goto out;
             }
@@ -3001,8 +2998,7 @@ static int img_amend(int argc, char **argv)
     if (options) {
         qemu_opts_do_parse(opts, options, NULL, &err);
         if (err) {
-            error_report("Invalid options for file format '%s'", fmt);
-            error_free(err);
+            error_report_err(err);
             ret = -1;
             goto out;
         }

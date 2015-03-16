@@ -73,6 +73,7 @@
 #include "block/qapi.h"
 #include "qapi/qmp-event.h"
 #include "qapi-event.h"
+#include "sysemu/block-backend.h"
 
 /* for hmp_info_irq/pic */
 #if defined(TARGET_SPARC)
@@ -5414,15 +5415,15 @@ int monitor_read_block_device_key(Monitor *mon, const char *device,
                                   BlockCompletionFunc *completion_cb,
                                   void *opaque)
 {
-    BlockDriverState *bs;
+    BlockBackend *blk;
 
-    bs = bdrv_find(device);
-    if (!bs) {
+    blk = blk_by_name(device);
+    if (!blk) {
         monitor_printf(mon, "Device not found %s\n", device);
         return -1;
     }
 
-    return monitor_read_bdrv_key_start(mon, bs, completion_cb, opaque);
+    return monitor_read_bdrv_key_start(mon, blk_bs(blk), completion_cb, opaque);
 }
 
 QemuOptsList qemu_mon_opts = {
