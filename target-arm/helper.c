@@ -4962,15 +4962,11 @@ static inline int ap_to_rw_prot(CPUARMState *env, ARMMMUIdx mmu_idx,
 /* Translate section/page access permissions to page
  * R/W protection flags.
  *
- * @env:     CPUARMState
- * @mmu_idx: MMU index indicating required translation regime
  * @ap:      The 2-bit simple AP (AP[2:1])
+ * @is_user: TRUE if accessing from PL0
  */
-static inline int
-simple_ap_to_rw_prot(CPUARMState *env, ARMMMUIdx mmu_idx, int ap)
+static inline int simple_ap_to_rw_prot_is_user(int ap, bool is_user)
 {
-    bool is_user = regime_is_user(env, mmu_idx);
-
     switch (ap) {
     case 0:
         return is_user ? 0 : PAGE_READ | PAGE_WRITE;
@@ -4983,6 +4979,93 @@ simple_ap_to_rw_prot(CPUARMState *env, ARMMMUIdx mmu_idx, int ap)
     default:
         g_assert_not_reached();
     }
+}
+
+static inline int
+simple_ap_to_rw_prot(CPUARMState *env, ARMMMUIdx mmu_idx, int ap)
+{
+    return simple_ap_to_rw_prot_is_user(ap, regime_is_user(env, mmu_idx));
+}
+
+/* Translate section/page access permissions to protection flags
+ *
+ * @env:     CPUARMState
+ * @mmu_idx: MMU index indicating required translation regime
+ * @is_aa64: TRUE if AArch64
+ * @ap:      The 2-bit simple AP (AP[2:1])
+ * @ns:      NS (non-secure) bit
+ * @xn:      XN (execute-never) bit
+ * @pxn:     PXN (privileged execute-never) bit
+ */
+static int get_S1prot(CPUARMState *env, ARMMMUIdx mmu_idx, bool is_aa64,
+                      int ap, int ns, int xn, int pxn)
+{
+    bool is_user = regime_is_user(env, mmu_idx);
+    int prot_rw, user_rw;
+    bool have_wxn;
+    int wxn = 0;
+
+    assert(mmu_idx != ARMMMUIdx_S2NS);
+
+    user_rw = simple_ap_to_rw_prot_is_user(ap, true);
+    if (is_user) {
+        prot_rw = user_rw;
+    } else {
+        prot_rw = simple_ap_to_rw_prot_is_user(ap, false);
+    }
+
+    if (ns && arm_is_secure(env) && (env->cp15.scr_el3 & SCR_SIF)) {
+        return prot_rw;
+    }
+
+    /* TODO have_wxn should be replaced with
+     *   ARM_FEATURE_V8 || (ARM_FEATURE_V7 && ARM_FEATURE_EL2)
+     * when ARM_FEATURE_EL2 starts getting set. For now we assume all LPAE
+     * compatible processors have EL2, which is required for [U]WXN.
+     */
+    have_wxn = arm_feature(env, ARM_FEATURE_LPAE);
+
+    if (have_wxn) {
+        wxn = regime_sctlr(env, mmu_idx) & SCTLR_WXN;
+    }
+
+    if (is_aa64) {
+        switch (regime_el(env, mmu_idx)) {
+        case 1:
+            if (!is_user) {
+                xn = pxn || (user_rw & PAGE_WRITE);
+            }
+            break;
+        case 2:
+        case 3:
+            break;
+        }
+    } else if (arm_feature(env, ARM_FEATURE_V7)) {
+        switch (regime_el(env, mmu_idx)) {
+        case 1:
+        case 3:
+            if (is_user) {
+                xn = xn || !(user_rw & PAGE_READ);
+            } else {
+                int uwxn = 0;
+                if (have_wxn) {
+                    uwxn = regime_sctlr(env, mmu_idx) & SCTLR_UWXN;
+                }
+                xn = xn || !(prot_rw & PAGE_READ) || pxn ||
+                     (uwxn && (user_rw & PAGE_WRITE));
+            }
+            break;
+        case 2:
+            break;
+        }
+    } else {
+        xn = wxn = 0;
+    }
+
+    if (xn || (wxn && (prot_rw & PAGE_WRITE))) {
+        return prot_rw;
+    }
+    return prot_rw | PAGE_EXEC;
 }
 
 static bool get_level1_table_address(CPUARMState *env, ARMMMUIdx mmu_idx,
@@ -5273,8 +5356,8 @@ static int get_phys_addr_lpae(CPUARMState *env, target_ulong address,
     int32_t granule_sz = 9;
     int32_t va_size = 32;
     int32_t tbi = 0;
-    bool is_user;
     TCR *tcr = regime_tcr(env, mmu_idx);
+    int ap, ns, xn, pxn;
 
     /* TODO:
      * This code assumes we're either a 64-bit EL1 or a 32-bit PL1;
@@ -5435,7 +5518,7 @@ static int get_phys_addr_lpae(CPUARMState *env, target_ulong address,
         if (extract32(tableattrs, 2, 1)) {
             attrs &= ~(1 << 4);
         }
-        /* Since we're always in the Non-secure state, NSTable is ignored. */
+        attrs |= extract32(tableattrs, 4, 1) << 3; /* NS */
         break;
     }
     /* Here descaddr is the final physical address, and attributes
@@ -5446,30 +5529,17 @@ static int get_phys_addr_lpae(CPUARMState *env, target_ulong address,
         /* Access flag */
         goto do_fault;
     }
+
+    ap = extract32(attrs, 4, 2);
+    ns = extract32(attrs, 3, 1);
+    xn = extract32(attrs, 12, 1);
+    pxn = extract32(attrs, 11, 1);
+
+    *prot = get_S1prot(env, mmu_idx, va_size == 64, ap, ns, xn, pxn);
+
     fault_type = permission_fault;
-    is_user = regime_is_user(env, mmu_idx);
-    if (is_user && !(attrs & (1 << 4))) {
-        /* Unprivileged access not enabled */
+    if (!(*prot & (1 << access_type))) {
         goto do_fault;
-    }
-    *prot = PAGE_READ | PAGE_WRITE | PAGE_EXEC;
-    if ((arm_feature(env, ARM_FEATURE_V8) && is_user && (attrs & (1 << 12))) ||
-        (!arm_feature(env, ARM_FEATURE_V8) && (attrs & (1 << 12))) ||
-        (!is_user && (attrs & (1 << 11)))) {
-        /* XN/UXN or PXN. Since we only implement EL0/EL1 we unconditionally
-         * treat XN/UXN as UXN for v8.
-         */
-        if (access_type == 2) {
-            goto do_fault;
-        }
-        *prot &= ~PAGE_EXEC;
-    }
-    if (attrs & (1 << 5)) {
-        /* Write access forbidden */
-        if (access_type == 1) {
-            goto do_fault;
-        }
-        *prot &= ~PAGE_WRITE;
     }
 
     *phys_ptr = descaddr;
