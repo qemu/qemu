@@ -2482,6 +2482,7 @@ typedef struct {
     void *buffer;
     hwaddr addr;
     hwaddr len;
+    bool in_use;
 } BounceBuffer;
 
 static BounceBuffer bounce;
@@ -2570,7 +2571,7 @@ void *address_space_map(AddressSpace *as,
     l = len;
     mr = address_space_translate(as, addr, &xlat, &l, is_write);
     if (!memory_access_is_direct(mr, is_write)) {
-        if (bounce.buffer) {
+        if (atomic_xchg(&bounce.in_use, true)) {
             return NULL;
         }
         /* Avoid unbounded allocations */
@@ -2640,6 +2641,7 @@ void address_space_unmap(AddressSpace *as, void *buffer, hwaddr len,
     qemu_vfree(bounce.buffer);
     bounce.buffer = NULL;
     memory_region_unref(bounce.mr);
+    atomic_mb_set(&bounce.in_use, false);
     cpu_notify_map_clients();
 }
 
