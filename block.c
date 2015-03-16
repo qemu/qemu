@@ -3821,15 +3821,6 @@ void bdrv_iterate_format(void (*it)(void *opaque, const char *name),
     g_free(formats);
 }
 
-/* This function is to find block backend bs */
-/* TODO convert callers to blk_by_name(), then remove */
-BlockDriverState *bdrv_find(const char *name)
-{
-    BlockBackend *blk = blk_by_name(name);
-
-    return blk ? blk_bs(blk) : NULL;
-}
-
 /* This function is to find a node in the bs graph */
 BlockDriverState *bdrv_find_node(const char *node_name)
 {
