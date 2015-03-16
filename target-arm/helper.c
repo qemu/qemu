@@ -4905,6 +4905,11 @@ static inline bool regime_is_user(CPUARMState *env, ARMMMUIdx mmu_idx)
 
 /* Translate section/page access permissions to page
  * R/W protection flags
+ *
+ * @env:         CPUARMState
+ * @mmu_idx:     MMU index indicating required translation regime
+ * @ap:          The 3-bit access permissions (AP[2:0])
+ * @domain_prot: The 2-bit domain access permissions
  */
 static inline int ap_to_rw_prot(CPUARMState *env, ARMMMUIdx mmu_idx,
                                 int ap, int domain_prot)
@@ -4948,6 +4953,32 @@ static inline int ap_to_rw_prot(CPUARMState *env, ARMMMUIdx mmu_idx,
         if (!arm_feature(env, ARM_FEATURE_V6K)) {
             return 0;
         }
+        return PAGE_READ;
+    default:
+        g_assert_not_reached();
+    }
+}
+
+/* Translate section/page access permissions to page
+ * R/W protection flags.
+ *
+ * @env:     CPUARMState
+ * @mmu_idx: MMU index indicating required translation regime
+ * @ap:      The 2-bit simple AP (AP[2:1])
+ */
+static inline int
+simple_ap_to_rw_prot(CPUARMState *env, ARMMMUIdx mmu_idx, int ap)
+{
+    bool is_user = regime_is_user(env, mmu_idx);
+
+    switch (ap) {
+    case 0:
+        return is_user ? 0 : PAGE_READ | PAGE_WRITE;
+    case 1:
+        return PAGE_READ | PAGE_WRITE;
+    case 2:
+        return is_user ? 0 : PAGE_READ;
+    case 3:
         return PAGE_READ;
     default:
         g_assert_not_reached();
@@ -5186,14 +5217,18 @@ static int get_phys_addr_v6(CPUARMState *env, uint32_t address, int access_type,
         if (xn && access_type == 2)
             goto do_fault;
 
-        /* The simplified model uses AP[0] as an access control bit.  */
-        if ((regime_sctlr(env, mmu_idx) & SCTLR_AFE)
-                && (ap & 1) == 0) {
-            /* Access flag fault.  */
-            code = (code == 15) ? 6 : 3;
-            goto do_fault;
+        if (arm_feature(env, ARM_FEATURE_V6K) &&
+                (regime_sctlr(env, mmu_idx) & SCTLR_AFE)) {
+            /* The simplified model uses AP[0] as an access control bit.  */
+            if ((ap & 1) == 0) {
+                /* Access flag fault.  */
+                code = (code == 15) ? 6 : 3;
+                goto do_fault;
+            }
+            *prot = simple_ap_to_rw_prot(env, mmu_idx, ap >> 1);
+        } else {
+            *prot = ap_to_rw_prot(env, mmu_idx, ap, domain_prot);
         }
-        *prot = ap_to_rw_prot(env, mmu_idx, ap, domain_prot);
         if (*prot && !xn) {
             *prot |= PAGE_EXEC;
         }
