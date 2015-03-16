@@ -1274,26 +1274,24 @@ static void tgen_gotoi(TCGContext *s, int cc, tcg_insn_unit *dest)
     }
 }
 
-static void tgen_branch(TCGContext *s, int cc, int labelno)
+static void tgen_branch(TCGContext *s, int cc, TCGLabel *l)
 {
-    TCGLabel* l = &s->labels[labelno];
     if (l->has_value) {
         tgen_gotoi(s, cc, l->u.value_ptr);
     } else if (USE_LONG_BRANCHES) {
         tcg_out16(s, RIL_BRCL | (cc << 4));
-        tcg_out_reloc(s, s->code_ptr, R_390_PC32DBL, labelno, -2);
+        tcg_out_reloc(s, s->code_ptr, R_390_PC32DBL, l, -2);
         s->code_ptr += 2;
     } else {
         tcg_out16(s, RI_BRC | (cc << 4));
-        tcg_out_reloc(s, s->code_ptr, R_390_PC16DBL, labelno, -2);
+        tcg_out_reloc(s, s->code_ptr, R_390_PC16DBL, l, -2);
         s->code_ptr += 1;
     }
 }
 
 static void tgen_compare_branch(TCGContext *s, S390Opcode opc, int cc,
-                                TCGReg r1, TCGReg r2, int labelno)
+                                TCGReg r1, TCGReg r2, TCGLabel *l)
 {
-    TCGLabel* l = &s->labels[labelno];
     intptr_t off;
 
     if (l->has_value) {
@@ -1301,7 +1299,7 @@ static void tgen_compare_branch(TCGContext *s, S390Opcode opc, int cc,
     } else {
         /* We need to keep the offset unchanged for retranslation.  */
         off = s->code_ptr[1];
-        tcg_out_reloc(s, s->code_ptr + 1, R_390_PC16DBL, labelno, -2);
+        tcg_out_reloc(s, s->code_ptr + 1, R_390_PC16DBL, l, -2);
     }
 
     tcg_out16(s, (opc & 0xff00) | (r1 << 4) | r2);
@@ -1310,9 +1308,8 @@ static void tgen_compare_branch(TCGContext *s, S390Opcode opc, int cc,
 }
 
 static void tgen_compare_imm_branch(TCGContext *s, S390Opcode opc, int cc,
-                                    TCGReg r1, int i2, int labelno)
+                                    TCGReg r1, int i2, TCGLabel *l)
 {
-    TCGLabel* l = &s->labels[labelno];
     tcg_target_long off;
 
     if (l->has_value) {
@@ -1320,7 +1317,7 @@ static void tgen_compare_imm_branch(TCGContext *s, S390Opcode opc, int cc,
     } else {
         /* We need to keep the offset unchanged for retranslation.  */
         off = s->code_ptr[1];
-        tcg_out_reloc(s, s->code_ptr + 1, R_390_PC16DBL, labelno, -2);
+        tcg_out_reloc(s, s->code_ptr + 1, R_390_PC16DBL, l, -2);
     }
 
     tcg_out16(s, (opc & 0xff00) | (r1 << 4) | cc);
@@ -1329,7 +1326,7 @@ static void tgen_compare_imm_branch(TCGContext *s, S390Opcode opc, int cc,
 }
 
 static void tgen_brcond(TCGContext *s, TCGType type, TCGCond c,
-                        TCGReg r1, TCGArg c2, int c2const, int labelno)
+                        TCGReg r1, TCGArg c2, int c2const, TCGLabel *l)
 {
     int cc;
 
@@ -1344,7 +1341,7 @@ static void tgen_brcond(TCGContext *s, TCGType type, TCGCond c,
             opc = (type == TCG_TYPE_I32
                    ? (is_unsigned ? RIE_CLRJ : RIE_CRJ)
                    : (is_unsigned ? RIE_CLGRJ : RIE_CGRJ));
-            tgen_compare_branch(s, opc, cc, r1, c2, labelno);
+            tgen_compare_branch(s, opc, cc, r1, c2, l);
             return;
         }
 
@@ -1370,13 +1367,13 @@ static void tgen_brcond(TCGContext *s, TCGType type, TCGCond c,
             }
         }
         if (in_range) {
-            tgen_compare_imm_branch(s, opc, cc, r1, c2, labelno);
+            tgen_compare_imm_branch(s, opc, cc, r1, c2, l);
             return;
         }
     }
 
     cc = tgen_cmp(s, type, c, r1, c2, c2const);
-    tgen_branch(s, cc, labelno);
+    tgen_branch(s, cc, l);
 }
 
 static void tcg_out_call(TCGContext *s, tcg_insn_unit *dest)
@@ -1904,12 +1901,12 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc,
         break;
 
     case INDEX_op_br:
-        tgen_branch(s, S390_CC_ALWAYS, args[0]);
+        tgen_branch(s, S390_CC_ALWAYS, arg_label(args[0]));
         break;
 
     case INDEX_op_brcond_i32:
         tgen_brcond(s, TCG_TYPE_I32, args[2], args[0],
-                    args[1], const_args[1], args[3]);
+                    args[1], const_args[1], arg_label(args[3]));
         break;
     case INDEX_op_setcond_i32:
         tgen_setcond(s, TCG_TYPE_I32, args[3], args[0], args[1],
@@ -2126,7 +2123,7 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc,
 
     case INDEX_op_brcond_i64:
         tgen_brcond(s, TCG_TYPE_I64, args[2], args[0],
-                    args[1], const_args[1], args[3]);
+                    args[1], const_args[1], arg_label(args[3]));
         break;
     case INDEX_op_setcond_i64:
         tgen_setcond(s, TCG_TYPE_I64, args[3], args[0], args[1],

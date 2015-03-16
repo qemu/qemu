@@ -167,7 +167,8 @@ typedef struct TCGRelocation {
 } TCGRelocation; 
 
 typedef struct TCGLabel {
-    int has_value;
+    unsigned has_value : 1;
+    unsigned id : 31;
     union {
         uintptr_t value;
         tcg_insn_unit *value_ptr;
@@ -182,8 +183,6 @@ typedef struct TCGPool {
 } TCGPool;
 
 #define TCG_POOL_CHUNK_SIZE 32768
-
-#define TCG_MAX_LABELS 512
 
 #define TCG_MAX_TEMPS 512
 
@@ -556,8 +555,6 @@ struct TCGContext {
     target_ulong gen_opc_pc[OPC_BUF_SIZE];
     uint16_t gen_opc_icount[OPC_BUF_SIZE];
     uint8_t gen_opc_instr_start[OPC_BUF_SIZE];
-
-    TCGLabel labels[TCG_MAX_LABELS];
 };
 
 extern TCGContext tcg_ctx;
@@ -754,6 +751,33 @@ TCGv_i32 tcg_const_i32(int32_t val);
 TCGv_i64 tcg_const_i64(int64_t val);
 TCGv_i32 tcg_const_local_i32(int32_t val);
 TCGv_i64 tcg_const_local_i64(int64_t val);
+
+TCGLabel *gen_new_label(void);
+
+/**
+ * label_arg
+ * @l: label
+ *
+ * Encode a label for storage in the TCG opcode stream.
+ */
+
+static inline TCGArg label_arg(TCGLabel *l)
+{
+    return (uintptr_t)l;
+}
+
+/**
+ * arg_label
+ * @i: value
+ *
+ * The opposite of label_arg.  Retrieve a label from the
+ * encoding of the TCG opcode stream.
+ */
+
+static inline TCGLabel *arg_label(TCGArg i)
+{
+    return (TCGLabel *)(uintptr_t)i;
+}
 
 /**
  * tcg_ptr_byte_diff

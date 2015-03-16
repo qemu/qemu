@@ -6,8 +6,8 @@
 /* Helpers for instruction counting code generation.  */
 
 static TCGArg *icount_arg;
-static int icount_label;
-static int exitreq_label;
+static TCGLabel *icount_label;
+static TCGLabel *exitreq_label;
 
 static inline void gen_tb_start(TranslationBlock *tb)
 {

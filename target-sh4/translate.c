@@ -211,7 +211,7 @@ static void gen_jump(DisasContext * ctx)
 static inline void gen_branch_slot(uint32_t delayed_pc, int t)
 {
     TCGv sr;
-    int label = gen_new_label();
+    TCGLabel *label = gen_new_label();
     tcg_gen_movi_i32(cpu_delayed_pc, delayed_pc);
     sr = tcg_temp_new();
     tcg_gen_andi_i32(sr, cpu_sr, SR_T);
@@ -224,7 +224,7 @@ static inline void gen_branch_slot(uint32_t delayed_pc, int t)
 static void gen_conditional_jump(DisasContext * ctx,
 				 target_ulong ift, target_ulong ifnott)
 {
-    int l1;
+    TCGLabel *l1;
     TCGv sr;
 
     l1 = gen_new_label();
@@ -239,7 +239,7 @@ static void gen_conditional_jump(DisasContext * ctx,
 /* Delayed conditional jump (bt or bf) */
 static void gen_delayed_conditional_jump(DisasContext * ctx)
 {
-    int l1;
+    TCGLabel *l1;
     TCGv ds;
 
     l1 = gen_new_label();
@@ -850,10 +850,10 @@ static void _decode_opc(DisasContext * ctx)
 	return;
     case 0x400c:		/* shad Rm,Rn */
 	{
-	    int label1 = gen_new_label();
-	    int label2 = gen_new_label();
-	    int label3 = gen_new_label();
-	    int label4 = gen_new_label();
+            TCGLabel *label1 = gen_new_label();
+            TCGLabel *label2 = gen_new_label();
+            TCGLabel *label3 = gen_new_label();
+            TCGLabel *label4 = gen_new_label();
 	    TCGv shift;
 	    tcg_gen_brcondi_i32(TCG_COND_LT, REG(B7_4), 0, label1);
 	    /* Rm positive, shift to the left */
@@ -885,9 +885,9 @@ static void _decode_opc(DisasContext * ctx)
 	return;
     case 0x400d:		/* shld Rm,Rn */
 	{
-	    int label1 = gen_new_label();
-	    int label2 = gen_new_label();
-	    int label3 = gen_new_label();
+            TCGLabel *label1 = gen_new_label();
+            TCGLabel *label2 = gen_new_label();
+            TCGLabel *label3 = gen_new_label();
 	    TCGv shift;
 	    tcg_gen_brcondi_i32(TCG_COND_LT, REG(B7_4), 0, label1);
 	    /* Rm positive, shift to the left */
@@ -1554,7 +1554,7 @@ static void _decode_opc(DisasContext * ctx)
                0 -> LDST
         */
         if (ctx->features & SH_FEATURE_SH4A) {
-	    int label = gen_new_label();
+            TCGLabel *label = gen_new_label();
             tcg_gen_andi_i32(cpu_sr, cpu_sr, ~SR_T);
 	    tcg_gen_or_i32(cpu_sr, cpu_sr, cpu_ldst);
 	    tcg_gen_brcondi_i32(TCG_COND_EQ, cpu_ldst, 0, label);

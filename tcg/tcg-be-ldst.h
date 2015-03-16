@@ -21,7 +21,6 @@
  */
 
 #ifdef CONFIG_SOFTMMU
-#define TCG_MAX_QEMU_LDST       640
 
 typedef struct TCGLabelQemuLdst {
     bool is_ld;             /* qemu_ld: true, qemu_st: false */
@@ -34,11 +33,11 @@ typedef struct TCGLabelQemuLdst {
     int mem_index;          /* soft MMU memory index */
     tcg_insn_unit *raddr;   /* gen code addr of the next IR of qemu_ld/st IR */
     tcg_insn_unit *label_ptr[2]; /* label pointers to be updated */
+    struct TCGLabelQemuLdst *next;
 } TCGLabelQemuLdst;
 
 typedef struct TCGBackendData {
-    int nb_ldst_labels;
-    TCGLabelQemuLdst ldst_labels[TCG_MAX_QEMU_LDST];
+    TCGLabelQemuLdst *labels;
 } TCGBackendData;
 
 
@@ -48,7 +47,7 @@ typedef struct TCGBackendData {
 
 static inline void tcg_out_tb_init(TCGContext *s)
 {
-    s->be->nb_ldst_labels = 0;
+    s->be->labels = NULL;
 }
 
 /*
@@ -60,15 +59,14 @@ static void tcg_out_qemu_st_slow_path(TCGContext *s, TCGLabelQemuLdst *l);
 
 static void tcg_out_tb_finalize(TCGContext *s)
 {
-    TCGLabelQemuLdst *lb = s->be->ldst_labels;
-    int i, n = s->be->nb_ldst_labels;
+    TCGLabelQemuLdst *lb;
 
     /* qemu_ld/st slow paths */
-    for (i = 0; i < n; i++) {
-        if (lb[i].is_ld) {
-            tcg_out_qemu_ld_slow_path(s, lb + i);
+    for (lb = s->be->labels; lb != NULL; lb = lb->next) {
+        if (lb->is_ld) {
+            tcg_out_qemu_ld_slow_path(s, lb);
         } else {
-            tcg_out_qemu_st_slow_path(s, lb + i);
+            tcg_out_qemu_st_slow_path(s, lb);
         }
     }
 }
@@ -80,11 +78,11 @@ static void tcg_out_tb_finalize(TCGContext *s)
 static inline TCGLabelQemuLdst *new_ldst_label(TCGContext *s)
 {
     TCGBackendData *be = s->be;
-    int n = be->nb_ldst_labels;
+    TCGLabelQemuLdst *l = tcg_malloc(sizeof(*l));
 
-    assert(n < TCG_MAX_QEMU_LDST);
-    be->nb_ldst_labels = n + 1;
-    return &be->ldst_labels[n];
+    l->next = be->labels;
+    be->labels = l;
+    return l;
 }
 #else
 #include "tcg-be-null.h"

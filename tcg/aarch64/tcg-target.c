@@ -837,12 +837,10 @@ void aarch64_tb_set_jmp_target(uintptr_t jmp_addr, uintptr_t addr)
     flush_icache_range(jmp_addr, jmp_addr + 4);
 }
 
-static inline void tcg_out_goto_label(TCGContext *s, int label_index)
+static inline void tcg_out_goto_label(TCGContext *s, TCGLabel *l)
 {
-    TCGLabel *l = &s->labels[label_index];
-
     if (!l->has_value) {
-        tcg_out_reloc(s, s->code_ptr, R_AARCH64_JUMP26, label_index, 0);
+        tcg_out_reloc(s, s->code_ptr, R_AARCH64_JUMP26, l, 0);
         tcg_out_goto_noaddr(s);
     } else {
         tcg_out_goto(s, l->u.value_ptr);
@@ -850,9 +848,8 @@ static inline void tcg_out_goto_label(TCGContext *s, int label_index)
 }
 
 static void tcg_out_brcond(TCGContext *s, TCGMemOp ext, TCGCond c, TCGArg a,
-                           TCGArg b, bool b_const, int label)
+                           TCGArg b, bool b_const, TCGLabel *l)
 {
-    TCGLabel *l = &s->labels[label];
     intptr_t offset;
     bool need_cmp;
 
@@ -864,7 +861,7 @@ static void tcg_out_brcond(TCGContext *s, TCGMemOp ext, TCGCond c, TCGArg a,
     }
 
     if (!l->has_value) {
-        tcg_out_reloc(s, s->code_ptr, R_AARCH64_CONDBR19, label, 0);
+        tcg_out_reloc(s, s->code_ptr, R_AARCH64_CONDBR19, l, 0);
         offset = tcg_in32(s) >> 5;
     } else {
         offset = l->u.value_ptr - s->code_ptr;
@@ -1272,7 +1269,7 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc,
         break;
 
     case INDEX_op_br:
-        tcg_out_goto_label(s, a0);
+        tcg_out_goto_label(s, arg_label(a0));
         break;
 
     case INDEX_op_ld8u_i32:
@@ -1495,7 +1492,7 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc,
         a1 = (int32_t)a1;
         /* FALLTHRU */
     case INDEX_op_brcond_i64:
-        tcg_out_brcond(s, ext, a2, a0, a1, const_args[1], args[3]);
+        tcg_out_brcond(s, ext, a2, a0, a1, const_args[1], arg_label(args[3]));
         break;
 
     case INDEX_op_setcond_i32:

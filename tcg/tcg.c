@@ -208,12 +208,10 @@ static __attribute__((unused)) inline void tcg_patch64(tcg_insn_unit *p,
 /* label relocation processing */
 
 static void tcg_out_reloc(TCGContext *s, tcg_insn_unit *code_ptr, int type,
-                          int label_index, intptr_t addend)
+                          TCGLabel *l, intptr_t addend)
 {
-    TCGLabel *l;
     TCGRelocation *r;
 
-    l = &s->labels[label_index];
     if (l->has_value) {
         /* FIXME: This may break relocations on RISC targets that
            modify instruction fields in place.  The caller may not have 
@@ -230,9 +228,8 @@ static void tcg_out_reloc(TCGContext *s, tcg_insn_unit *code_ptr, int type,
     }
 }
 
-static void tcg_out_label(TCGContext *s, int label_index, tcg_insn_unit *ptr)
+static void tcg_out_label(TCGContext *s, TCGLabel *l, tcg_insn_unit *ptr)
 {
-    TCGLabel *l = &s->labels[label_index];
     intptr_t value = (intptr_t)ptr;
     TCGRelocation *r;
 
@@ -246,19 +243,16 @@ static void tcg_out_label(TCGContext *s, int label_index, tcg_insn_unit *ptr)
     l->u.value_ptr = ptr;
 }
 
-int gen_new_label(void)
+TCGLabel *gen_new_label(void)
 {
     TCGContext *s = &tcg_ctx;
-    int idx;
-    TCGLabel *l;
+    TCGLabel *l = tcg_malloc(sizeof(TCGLabel));
 
-    if (s->nb_labels >= TCG_MAX_LABELS)
-        tcg_abort();
-    idx = s->nb_labels++;
-    l = &s->labels[idx];
-    l->has_value = 0;
-    l->u.first_reloc = NULL;
-    return idx;
+    *l = (TCGLabel){
+        .id = s->nb_labels++
+    };
+
+    return l;
 }
 
 #include "tcg-target.c"
@@ -1088,11 +1082,20 @@ void tcg_dump_ops(TCGContext *s)
                 i = 0;
                 break;
             }
-            for (; i < nb_cargs; i++) {
-                if (k != 0) {
-                    qemu_log(",");
-                }
-                qemu_log("$0x%" TCG_PRIlx, args[k++]);
+            switch (c) {
+            case INDEX_op_set_label:
+            case INDEX_op_br:
+            case INDEX_op_brcond_i32:
+            case INDEX_op_brcond_i64:
+            case INDEX_op_brcond2_i32:
+                qemu_log("%s$L%d", k ? "," : "", arg_label(args[k])->id);
+                i++, k++;
+                break;
+            default:
+                break;
+            }
+            for (; i < nb_cargs; i++, k++) {
+                qemu_log("%s$0x%" TCG_PRIlx, k ? "," : "", args[k]);
             }
         }
         qemu_log("\n");
@@ -2332,7 +2335,7 @@ static inline int tcg_gen_code_common(TCGContext *s,
             break;
         case INDEX_op_set_label:
             tcg_reg_alloc_bb_end(s, s->reserved_regs);
-            tcg_out_label(s, args[0], s->code_ptr);
+            tcg_out_label(s, arg_label(args[0]), s->code_ptr);
             break;
         case INDEX_op_call:
             tcg_reg_alloc_call(s, op->callo, op->calli, args,

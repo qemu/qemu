@@ -219,7 +219,7 @@ static void dec_b(DisasContext *dc)
     /* restore IE.IE in case of an eret */
     if (dc->r0 == R_EA) {
         TCGv t0 = tcg_temp_new();
-        int l1 = gen_new_label();
+        TCGLabel *l1 = gen_new_label();
         tcg_gen_andi_tl(t0, cpu_ie, IE_EIE);
         tcg_gen_ori_tl(cpu_ie, cpu_ie, IE_IE);
         tcg_gen_brcondi_tl(TCG_COND_EQ, t0, IE_EIE, l1);
@@ -228,7 +228,7 @@ static void dec_b(DisasContext *dc)
         tcg_temp_free(t0);
     } else if (dc->r0 == R_BA) {
         TCGv t0 = tcg_temp_new();
-        int l1 = gen_new_label();
+        TCGLabel *l1 = gen_new_label();
         tcg_gen_andi_tl(t0, cpu_ie, IE_BIE);
         tcg_gen_ori_tl(cpu_ie, cpu_ie, IE_IE);
         tcg_gen_brcondi_tl(TCG_COND_EQ, t0, IE_BIE, l1);
@@ -252,9 +252,7 @@ static void dec_bi(DisasContext *dc)
 
 static inline void gen_cond_branch(DisasContext *dc, int cond)
 {
-    int l1;
-
-    l1 = gen_new_label();
+    TCGLabel *l1 = gen_new_label();
     tcg_gen_brcond_tl(cond, cpu_R[dc->r0], cpu_R[dc->r1], l1);
     gen_goto_tb(dc, 0, dc->pc + 4);
     gen_set_label(l1);
@@ -428,7 +426,7 @@ static void dec_cmpne(DisasContext *dc)
 
 static void dec_divu(DisasContext *dc)
 {
-    int l1;
+    TCGLabel *l1;
 
     LOG_DIS("divu r%d, r%d, r%d\n", dc->r2, dc->r0, dc->r1);
 
@@ -508,7 +506,7 @@ static void dec_lw(DisasContext *dc)
 
 static void dec_modu(DisasContext *dc)
 {
-    int l1;
+    TCGLabel *l1;
 
     LOG_DIS("modu r%d, r%d, %d\n", dc->r2, dc->r0, dc->r1);
 
@@ -769,8 +767,8 @@ static void dec_sr(DisasContext *dc)
         }
         tcg_gen_sari_tl(cpu_R[dc->r1], cpu_R[dc->r0], dc->imm5);
     } else {
-        int l1 = gen_new_label();
-        int l2 = gen_new_label();
+        TCGLabel *l1 = gen_new_label();
+        TCGLabel *l2 = gen_new_label();
         TCGv t0 = tcg_temp_local_new();
         tcg_gen_andi_tl(t0, cpu_R[dc->r1], 0x1f);
 
@@ -805,8 +803,8 @@ static void dec_sru(DisasContext *dc)
         }
         tcg_gen_shri_tl(cpu_R[dc->r1], cpu_R[dc->r0], dc->imm5);
     } else {
-        int l1 = gen_new_label();
-        int l2 = gen_new_label();
+        TCGLabel *l1 = gen_new_label();
+        TCGLabel *l2 = gen_new_label();
         TCGv t0 = tcg_temp_local_new();
         tcg_gen_andi_tl(t0, cpu_R[dc->r1], 0x1f);
 

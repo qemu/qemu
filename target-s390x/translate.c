@@ -1177,7 +1177,7 @@ static ExitStatus help_branch(DisasContext *s, DisasCompare *c,
 {
     ExitStatus ret;
     uint64_t dest = s->pc + 2 * imm;
-    int lab;
+    TCGLabel *lab;
 
     /* Take care of the special cases first.  */
     if (c->cond == TCG_COND_NEVER) {
@@ -1953,7 +1953,7 @@ static ExitStatus op_cvd(DisasContext *s, DisasOps *o)
 static ExitStatus op_ct(DisasContext *s, DisasOps *o)
 {
     int m3 = get_field(s->fields, m3);
-    int lab = gen_new_label();
+    TCGLabel *lab = gen_new_label();
     TCGv_i32 t;
     TCGCond c;
 
@@ -3077,7 +3077,8 @@ static ExitStatus op_soc(DisasContext *s, DisasOps *o)
 {
     DisasCompare c;
     TCGv_i64 a;
-    int lab, r1;
+    TCGLabel *lab;
+    int r1;
 
     disas_jcc(s, &c, get_field(s->fields, m3));
 

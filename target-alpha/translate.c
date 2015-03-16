@@ -388,7 +388,7 @@ static ExitStatus gen_store_conditional(DisasContext *ctx, int ra, int rb,
     /* ??? In system mode we are never multi-threaded, so CAS can be
        implemented via a non-atomic load-compare-store sequence.  */
     {
-        int lab_fail, lab_done;
+        TCGLabel *lab_fail, *lab_done;
         TCGv val;
 
         lab_fail = gen_new_label();
@@ -465,7 +465,7 @@ static ExitStatus gen_bcond_internal(DisasContext *ctx, TCGCond cond,
                                      TCGv cmp, int32_t disp)
 {
     uint64_t dest = ctx->pc + (disp << 2);
-    int lab_true = gen_new_label();
+    TCGLabel *lab_true = gen_new_label();
 
     if (use_goto_tb(ctx, dest)) {
         tcg_gen_brcondi_i64(cond, cmp, 0, lab_true);
