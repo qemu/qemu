@@ -30,7 +30,6 @@ S390FLICState *s390_get_flic(void)
 void s390_flic_init(void)
 {
     DeviceState *dev;
-    int r;
 
     dev = s390_flic_kvm_create();
     if (!dev) {
@@ -38,10 +37,7 @@ void s390_flic_init(void)
         object_property_add_child(qdev_get_machine(), TYPE_QEMU_S390_FLIC,
                                   OBJECT(dev), NULL);
     }
-    r = qdev_init(dev);
-    if (r) {
-        error_report("flic: couldn't create qdev");
-    }
+    qdev_init_nofail(dev);
 }
 
 static int qemu_s390_register_io_adapter(S390FLICState *fs, uint32_t id,

@@ -401,6 +401,8 @@ void kvm_s390_vcpu_interrupt(S390CPU *cpu, struct kvm_s390_irq *irq);
 void kvm_s390_floating_interrupt(struct kvm_s390_irq *irq);
 int kvm_s390_inject_flic(struct kvm_s390_irq *irq);
 void kvm_s390_access_exception(S390CPU *cpu, uint16_t code, uint64_t te_code);
+int kvm_s390_get_clock(uint8_t *tod_high, uint64_t *tod_clock);
+int kvm_s390_set_clock(uint8_t *tod_high, uint64_t *tod_clock);
 #else
 static inline void kvm_s390_virtio_irq(int config_change, uint64_t token)
 {
@@ -408,11 +410,40 @@ static inline void kvm_s390_virtio_irq(int config_change, uint64_t token)
 static inline void kvm_s390_service_interrupt(uint32_t parm)
 {
 }
+static inline int kvm_s390_get_clock(uint8_t *tod_high, uint64_t *tod_low)
+{
+    return -ENOSYS;
+}
+static inline int kvm_s390_set_clock(uint8_t *tod_high, uint64_t *tod_low)
+{
+    return -ENOSYS;
+}
 static inline void kvm_s390_access_exception(S390CPU *cpu, uint16_t code,
                                              uint64_t te_code)
 {
 }
 #endif
+
+static inline int s390_get_clock(uint8_t *tod_high, uint64_t *tod_low)
+{
+    if (kvm_enabled()) {
+        return kvm_s390_get_clock(tod_high, tod_low);
+    }
+    /* Fixme TCG */
+    *tod_high = 0;
+    *tod_low = 0;
+    return 0;
+}
+
+static inline int s390_set_clock(uint8_t *tod_high, uint64_t *tod_low)
+{
+    if (kvm_enabled()) {
+        return kvm_s390_set_clock(tod_high, tod_low);
+    }
+    /* Fixme TCG */
+    return 0;
+}
+
 S390CPU *s390_cpu_addr2state(uint16_t cpu_addr);
 unsigned int s390_cpu_halt(S390CPU *cpu);
 void s390_cpu_unhalt(S390CPU *cpu);
@@ -421,6 +452,9 @@ static inline uint8_t s390_cpu_get_state(S390CPU *cpu)
 {
     return cpu->env.cpu_state;
 }
+
+void gtod_save(QEMUFile *f, void *opaque);
+int gtod_load(QEMUFile *f, void *opaque, int version_id);
 
 /* service interrupts are floating therefore we must not pass an cpustate */
 void s390_sclp_extint(uint32_t parm);

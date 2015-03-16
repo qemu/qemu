@@ -22,6 +22,18 @@
 
 #define TYPE_S390_CCW_MACHINE               "s390-ccw-machine"
 
+#define S390_CCW_MACHINE(obj) \
+    OBJECT_CHECK(S390CcwMachineState, (obj), TYPE_S390_CCW_MACHINE)
+
+typedef struct S390CcwMachineState {
+    /*< private >*/
+    MachineState parent_obj;
+
+    /*< public >*/
+    bool aes_key_wrap;
+    bool dea_key_wrap;
+} S390CcwMachineState;
+
 void io_subsystem_reset(void)
 {
     DeviceState *css, *sclp, *flic;
@@ -181,6 +193,10 @@ static void ccw_init(MachineState *machine)
 
     /* Create VirtIO network adapters */
     s390_create_virtio_net(BUS(css_bus), "virtio-net-ccw");
+
+    /* Register savevm handler for guest TOD clock */
+    register_savevm(NULL, "todclock", 0, 1,
+                    gtod_save, gtod_load, kvm_state);
 }
 
 static void ccw_machine_class_init(ObjectClass *oc, void *data)
@@ -203,9 +219,60 @@ static void ccw_machine_class_init(ObjectClass *oc, void *data)
     nc->nmi_monitor_handler = s390_nmi;
 }
 
+static inline bool machine_get_aes_key_wrap(Object *obj, Error **errp)
+{
+    S390CcwMachineState *ms = S390_CCW_MACHINE(obj);
+
+    return ms->aes_key_wrap;
+}
+
+static inline void machine_set_aes_key_wrap(Object *obj, bool value,
+                                            Error **errp)
+{
+    S390CcwMachineState *ms = S390_CCW_MACHINE(obj);
+
+    ms->aes_key_wrap = value;
+}
+
+static inline bool machine_get_dea_key_wrap(Object *obj, Error **errp)
+{
+    S390CcwMachineState *ms = S390_CCW_MACHINE(obj);
+
+    return ms->dea_key_wrap;
+}
+
+static inline void machine_set_dea_key_wrap(Object *obj, bool value,
+                                            Error **errp)
+{
+    S390CcwMachineState *ms = S390_CCW_MACHINE(obj);
+
+    ms->dea_key_wrap = value;
+}
+
+static inline void s390_machine_initfn(Object *obj)
+{
+    object_property_add_bool(obj, "aes-key-wrap",
+                             machine_get_aes_key_wrap,
+                             machine_set_aes_key_wrap, NULL);
+    object_property_set_description(obj, "aes-key-wrap",
+            "enable/disable AES key wrapping using the CPACF wrapping key",
+            NULL);
+    object_property_set_bool(obj, true, "aes-key-wrap", NULL);
+
+    object_property_add_bool(obj, "dea-key-wrap",
+                             machine_get_dea_key_wrap,
+                             machine_set_dea_key_wrap, NULL);
+    object_property_set_description(obj, "dea-key-wrap",
+            "enable/disable DEA key wrapping using the CPACF wrapping key",
+            NULL);
+    object_property_set_bool(obj, true, "dea-key-wrap", NULL);
+}
+
 static const TypeInfo ccw_machine_info = {
     .name          = TYPE_S390_CCW_MACHINE,
     .parent        = TYPE_MACHINE,
+    .instance_size = sizeof(S390CcwMachineState),
+    .instance_init = s390_machine_initfn,
     .class_init    = ccw_machine_class_init,
     .interfaces = (InterfaceInfo[]) {
         { TYPE_NMI },

@@ -55,6 +55,9 @@
     do { } while (0)
 #endif
 
+#define kvm_vm_check_mem_attr(s, attr) \
+    kvm_vm_check_attr(s, KVM_S390_VM_MEM_CTRL, attr)
+
 #define IPA0_DIAG                       0x8300
 #define IPA0_SIGP                       0xae00
 #define IPA0_B2                         0xb200
@@ -122,16 +125,6 @@ static int cap_async_pf;
 
 static void *legacy_s390_alloc(size_t size, uint64_t *align);
 
-static int kvm_s390_supports_mem_limit(KVMState *s)
-{
-    struct kvm_device_attr attr = {
-        .group = KVM_S390_VM_MEM_CTRL,
-        .attr = KVM_S390_VM_MEM_LIMIT_SIZE,
-    };
-
-    return (kvm_vm_ioctl(s, KVM_HAS_DEVICE_ATTR, &attr) == 0);
-}
-
 static int kvm_s390_query_mem_limit(KVMState *s, uint64_t *memory_limit)
 {
     struct kvm_device_attr attr = {
@@ -153,7 +146,7 @@ int kvm_s390_set_mem_limit(KVMState *s, uint64_t new_limit, uint64_t *hw_limit)
         .addr = (uint64_t) &new_limit,
     };
 
-    if (!kvm_s390_supports_mem_limit(s)) {
+    if (!kvm_vm_check_mem_attr(s, KVM_S390_VM_MEM_LIMIT_SIZE)) {
         return 0;
     }
 
@@ -165,26 +158,6 @@ int kvm_s390_set_mem_limit(KVMState *s, uint64_t new_limit, uint64_t *hw_limit)
     }
 
     return kvm_vm_ioctl(s, KVM_SET_DEVICE_ATTR, &attr);
-}
-
-static int kvm_s390_check_clear_cmma(KVMState *s)
-{
-    struct kvm_device_attr attr = {
-        .group = KVM_S390_VM_MEM_CTRL,
-        .attr = KVM_S390_VM_MEM_CLR_CMMA,
-    };
-
-    return kvm_vm_ioctl(s, KVM_HAS_DEVICE_ATTR, &attr);
-}
-
-static int kvm_s390_check_enable_cmma(KVMState *s)
-{
-    struct kvm_device_attr attr = {
-        .group = KVM_S390_VM_MEM_CTRL,
-        .attr = KVM_S390_VM_MEM_ENABLE_CMMA,
-    };
-
-    return kvm_vm_ioctl(s, KVM_HAS_DEVICE_ATTR, &attr);
 }
 
 void kvm_s390_clear_cmma_callback(void *opaque)
@@ -208,7 +181,8 @@ static void kvm_s390_enable_cmma(KVMState *s)
         .attr = KVM_S390_VM_MEM_ENABLE_CMMA,
     };
 
-    if (kvm_s390_check_enable_cmma(s) || kvm_s390_check_clear_cmma(s)) {
+    if (!kvm_vm_check_mem_attr(s, KVM_S390_VM_MEM_ENABLE_CMMA) ||
+        !kvm_vm_check_mem_attr(s, KVM_S390_VM_MEM_CLR_CMMA)) {
         return;
     }
 
@@ -219,14 +193,61 @@ static void kvm_s390_enable_cmma(KVMState *s)
     trace_kvm_enable_cmma(rc);
 }
 
+static void kvm_s390_set_attr(uint64_t attr)
+{
+    struct kvm_device_attr attribute = {
+        .group = KVM_S390_VM_CRYPTO,
+        .attr  = attr,
+    };
+
+    int ret = kvm_vm_ioctl(kvm_state, KVM_SET_DEVICE_ATTR, &attribute);
+
+    if (ret) {
+        error_report("Failed to set crypto device attribute %lu: %s",
+                     attr, strerror(-ret));
+    }
+}
+
+static void kvm_s390_init_aes_kw(void)
+{
+    uint64_t attr = KVM_S390_VM_CRYPTO_DISABLE_AES_KW;
+
+    if (object_property_get_bool(OBJECT(qdev_get_machine()), "aes-key-wrap",
+                                 NULL)) {
+            attr = KVM_S390_VM_CRYPTO_ENABLE_AES_KW;
+    }
+
+    if (kvm_vm_check_attr(kvm_state, KVM_S390_VM_CRYPTO, attr)) {
+            kvm_s390_set_attr(attr);
+    }
+}
+
+static void kvm_s390_init_dea_kw(void)
+{
+    uint64_t attr = KVM_S390_VM_CRYPTO_DISABLE_DEA_KW;
+
+    if (object_property_get_bool(OBJECT(qdev_get_machine()), "dea-key-wrap",
+                                 NULL)) {
+            attr = KVM_S390_VM_CRYPTO_ENABLE_DEA_KW;
+    }
+
+    if (kvm_vm_check_attr(kvm_state, KVM_S390_VM_CRYPTO, attr)) {
+            kvm_s390_set_attr(attr);
+    }
+}
+
+static void kvm_s390_init_crypto(void)
+{
+    kvm_s390_init_aes_kw();
+    kvm_s390_init_dea_kw();
+}
+
 int kvm_arch_init(MachineState *ms, KVMState *s)
 {
     cap_sync_regs = kvm_check_extension(s, KVM_CAP_SYNC_REGS);
     cap_async_pf = kvm_check_extension(s, KVM_CAP_ASYNC_PF);
 
-    if (kvm_check_extension(s, KVM_CAP_VM_ATTRIBUTES)) {
-        kvm_s390_enable_cmma(s);
-    }
+    kvm_s390_enable_cmma(s);
 
     if (!kvm_check_extension(s, KVM_CAP_S390_GMAP)
         || !kvm_check_extension(s, KVM_CAP_S390_COW)) {
@@ -262,6 +283,8 @@ void kvm_s390_reset_vcpu(S390CPU *cpu)
     if (kvm_vcpu_ioctl(cs, KVM_S390_INITIAL_RESET, NULL)) {
         error_report("Initial CPU reset failed on CPU %i", cs->cpu_index);
     }
+
+    kvm_s390_init_crypto();
 }
 
 static int can_sync_regs(CPUState *cs, int regs)
@@ -484,6 +507,45 @@ int kvm_arch_get_registers(CPUState *cs)
     }
 
     return 0;
+}
+
+int kvm_s390_get_clock(uint8_t *tod_high, uint64_t *tod_low)
+{
+    int r;
+    struct kvm_device_attr attr = {
+        .group = KVM_S390_VM_TOD,
+        .attr = KVM_S390_VM_TOD_LOW,
+        .addr = (uint64_t)tod_low,
+    };
+
+    r = kvm_vm_ioctl(kvm_state, KVM_GET_DEVICE_ATTR, &attr);
+    if (r) {
+        return r;
+    }
+
+    attr.attr = KVM_S390_VM_TOD_HIGH;
+    attr.addr = (uint64_t)tod_high;
+    return kvm_vm_ioctl(kvm_state, KVM_GET_DEVICE_ATTR, &attr);
+}
+
+int kvm_s390_set_clock(uint8_t *tod_high, uint64_t *tod_low)
+{
+    int r;
+
+    struct kvm_device_attr attr = {
+        .group = KVM_S390_VM_TOD,
+        .attr = KVM_S390_VM_TOD_LOW,
+        .addr = (uint64_t)tod_low,
+    };
+
+    r = kvm_vm_ioctl(kvm_state, KVM_SET_DEVICE_ATTR, &attr);
+    if (r) {
+        return r;
+    }
+
+    attr.attr = KVM_S390_VM_TOD_HIGH;
+    attr.addr = (uint64_t)tod_high;
+    return kvm_vm_ioctl(kvm_state, KVM_SET_DEVICE_ATTR, &attr);
 }
 
 /*
