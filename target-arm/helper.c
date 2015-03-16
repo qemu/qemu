@@ -4903,32 +4903,21 @@ static inline bool regime_is_user(CPUARMState *env, ARMMMUIdx mmu_idx)
     }
 }
 
-/* Check section/page access permissions.
-   Returns the page protection flags, or zero if the access is not
-   permitted.  */
-static inline int check_ap(CPUARMState *env, ARMMMUIdx mmu_idx,
-                           int ap, int domain_prot,
-                           int access_type)
+/* Translate section/page access permissions to page
+ * R/W protection flags
+ */
+static inline int ap_to_rw_prot(CPUARMState *env, ARMMMUIdx mmu_idx,
+                                int ap, int domain_prot)
 {
-    int prot_ro;
     bool is_user = regime_is_user(env, mmu_idx);
 
     if (domain_prot == 3) {
         return PAGE_READ | PAGE_WRITE;
     }
 
-    if (access_type == 1) {
-        prot_ro = 0;
-    } else {
-        prot_ro = PAGE_READ;
-    }
-
     switch (ap) {
     case 0:
         if (arm_feature(env, ARM_FEATURE_V7)) {
-            return 0;
-        }
-        if (access_type == 1) {
             return 0;
         }
         switch (regime_sctlr(env, mmu_idx) & (SCTLR_S | SCTLR_R)) {
@@ -4943,7 +4932,7 @@ static inline int check_ap(CPUARMState *env, ARMMMUIdx mmu_idx,
         return is_user ? 0 : PAGE_READ | PAGE_WRITE;
     case 2:
         if (is_user) {
-            return prot_ro;
+            return PAGE_READ;
         } else {
             return PAGE_READ | PAGE_WRITE;
         }
@@ -4952,16 +4941,16 @@ static inline int check_ap(CPUARMState *env, ARMMMUIdx mmu_idx,
     case 4: /* Reserved.  */
         return 0;
     case 5:
-        return is_user ? 0 : prot_ro;
+        return is_user ? 0 : PAGE_READ;
     case 6:
-        return prot_ro;
+        return PAGE_READ;
     case 7:
         if (!arm_feature(env, ARM_FEATURE_V6K)) {
             return 0;
         }
-        return prot_ro;
+        return PAGE_READ;
     default:
-        abort();
+        g_assert_not_reached();
     }
 }
 
@@ -5083,12 +5072,12 @@ static int get_phys_addr_v5(CPUARMState *env, uint32_t address, int access_type,
         }
         code = 15;
     }
-    *prot = check_ap(env, mmu_idx, ap, domain_prot, access_type);
-    if (!*prot) {
+    *prot = ap_to_rw_prot(env, mmu_idx, ap, domain_prot);
+    *prot |= *prot ? PAGE_EXEC : 0;
+    if (!(*prot & (1 << access_type))) {
         /* Access permission fault.  */
         goto do_fault;
     }
-    *prot |= PAGE_EXEC;
     *phys_ptr = phys_addr;
     return 0;
 do_fault:
@@ -5204,13 +5193,13 @@ static int get_phys_addr_v6(CPUARMState *env, uint32_t address, int access_type,
             code = (code == 15) ? 6 : 3;
             goto do_fault;
         }
-        *prot = check_ap(env, mmu_idx, ap, domain_prot, access_type);
-        if (!*prot) {
+        *prot = ap_to_rw_prot(env, mmu_idx, ap, domain_prot);
+        if (*prot && !xn) {
+            *prot |= PAGE_EXEC;
+        }
+        if (!(*prot & (1 << access_type))) {
             /* Access permission fault.  */
             goto do_fault;
-        }
-        if (!xn) {
-            *prot |= PAGE_EXEC;
         }
     }
     *phys_ptr = phys_addr;
