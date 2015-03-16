@@ -2488,6 +2488,18 @@ QemuMutex map_client_list_lock;
 static QLIST_HEAD(map_client_list, MapClient) map_client_list
     = QLIST_HEAD_INITIALIZER(map_client_list);
 
+static void cpu_unregister_map_client(void *_client);
+static void cpu_notify_map_clients_locked(void)
+{
+    MapClient *client;
+
+    while (!QLIST_EMPTY(&map_client_list)) {
+        client = QLIST_FIRST(&map_client_list);
+        client->callback(client->opaque);
+        cpu_unregister_map_client(client);
+    }
+}
+
 void *cpu_register_map_client(void *opaque, void (*callback)(void *opaque))
 {
     MapClient *client = g_malloc(sizeof(*client));
@@ -2496,6 +2508,9 @@ void *cpu_register_map_client(void *opaque, void (*callback)(void *opaque))
     client->opaque = opaque;
     client->callback = callback;
     QLIST_INSERT_HEAD(&map_client_list, client, link);
+    if (!atomic_read(&bounce.in_use)) {
+        cpu_notify_map_clients_locked();
+    }
     qemu_mutex_unlock(&map_client_list_lock);
     return client;
 }
@@ -2518,14 +2533,8 @@ static void cpu_unregister_map_client(void *_client)
 
 static void cpu_notify_map_clients(void)
 {
-    MapClient *client;
-
     qemu_mutex_lock(&map_client_list_lock);
-    while (!QLIST_EMPTY(&map_client_list)) {
-        client = QLIST_FIRST(&map_client_list);
-        client->callback(client->opaque);
-        cpu_unregister_map_client(client);
-    }
+    cpu_notify_map_clients_locked();
     qemu_mutex_unlock(&map_client_list_lock);
 }
 
