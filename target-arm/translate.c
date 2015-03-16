@@ -8859,17 +8859,23 @@ static void disas_arm_insn(DisasContext *s, unsigned int insn)
         case 0x08:
         case 0x09:
             {
-                int j, n, user, loaded_base;
+                int j, n, loaded_base;
+                bool exc_return = false;
+                bool is_load = extract32(insn, 20, 1);
+                bool user = false;
                 TCGv_i32 loaded_var;
                 /* load/store multiple words */
                 /* XXX: store correct base if write back */
-                user = 0;
                 if (insn & (1 << 22)) {
+                    /* LDM (user), LDM (exception return) and STM (user) */
                     if (IS_USER(s))
                         goto illegal_op; /* only usable in supervisor mode */
 
-                    if ((insn & (1 << 15)) == 0)
-                        user = 1;
+                    if (is_load && extract32(insn, 15, 1)) {
+                        exc_return = true;
+                    } else {
+                        user = true;
+                    }
                 }
                 rn = (insn >> 16) & 0xf;
                 addr = load_reg(s, rn);
@@ -8903,7 +8909,7 @@ static void disas_arm_insn(DisasContext *s, unsigned int insn)
                 j = 0;
                 for(i=0;i<16;i++) {
                     if (insn & (1 << i)) {
-                        if (insn & (1 << 20)) {
+                        if (is_load) {
                             /* load */
                             tmp = tcg_temp_new_i32();
                             gen_aa32_ld32u(tmp, addr, get_mem_index(s));
@@ -8968,7 +8974,7 @@ static void disas_arm_insn(DisasContext *s, unsigned int insn)
                 if (loaded_base) {
                     store_reg(s, rn, loaded_var);
                 }
-                if ((insn & (1 << 22)) && !user) {
+                if (exc_return) {
                     /* Restore CPSR from SPSR.  */
                     tmp = load_cpu_field(spsr);
                     gen_set_cpsr(tmp, CPSR_ERET_MASK);

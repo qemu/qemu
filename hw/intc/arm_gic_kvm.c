@@ -573,6 +573,13 @@ static void kvm_arm_gic_realize(DeviceState *dev, Error **errp)
         kvm_gic_access(s, KVM_DEV_ARM_VGIC_GRP_NR_IRQS, 0, 0, &numirqs, 1);
     }
 
+    /* Tell the kernel to complete VGIC initialization now */
+    if (kvm_gic_supports_attr(s, KVM_DEV_ARM_VGIC_GRP_CTRL,
+                              KVM_DEV_ARM_VGIC_CTRL_INIT)) {
+        kvm_gic_access(s, KVM_DEV_ARM_VGIC_GRP_CTRL,
+                          KVM_DEV_ARM_VGIC_CTRL_INIT, 0, 0, 1);
+    }
+
     /* Distributor */
     memory_region_init_reservation(&s->iomem, OBJECT(s),
                                    "kvm-gic_dist", 0x1000);
