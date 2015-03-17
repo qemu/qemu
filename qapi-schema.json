@@ -410,19 +410,43 @@
            'cache-miss': 'int', 'cache-miss-rate': 'number',
            'overflow': 'int' } }
 
+# @MigrationStatus:
+#
+# An enumeration of migration status.
+#
+# @none: no migration has ever happened.
+#
+# @setup: migration process has been initiated.
+#
+# @cancelling: in the process of cancelling migration.
+#
+# @cancelled: cancelling migration is finished.
+#
+# @active: in the process of doing migration.
+#
+# @completed: migration is finished.
+#
+# @failed: some error occurred during migration process.
+#
+# Since: 2.3
+#
+##
+{ 'enum': 'MigrationStatus',
+  'data': [ 'none', 'setup', 'cancelling', 'cancelled',
+            'active', 'completed', 'failed' ] }
+
 ##
 # @MigrationInfo
 #
 # Information about current migration process.
 #
-# @status: #optional string describing the current migration status.
-#          As of 0.14.0 this can be 'setup', 'active', 'completed', 'failed' or
-#          'cancelled'. If this field is not returned, no migration process
+# @status: #optional @MigrationStatus describing the current migration status.
+#          If this field is not returned, no migration process
 #          has been initiated
 #
 # @ram: #optional @MigrationStats containing detailed migration
 #       status, only returned if status is 'active' or
-#       'completed'. 'comppleted' (since 1.2)
+#       'completed'(since 1.2)
 #
 # @disk: #optional @MigrationStats containing detailed disk migration
 #        status, only returned if status is 'active' and it is a block
@@ -453,7 +477,7 @@
 # Since: 0.14.0
 ##
 { 'type': 'MigrationInfo',
-  'data': {'*status': 'str', '*ram': 'MigrationStats',
+  'data': {'*status': 'MigrationStatus', '*ram': 'MigrationStats',
            '*disk': 'MigrationStats',
            '*xbzrle-cache': 'XBZRLECacheStats',
            '*total-time': 'int',
@@ -1750,6 +1774,9 @@
 # Returns: nothing on success
 #
 # Since: 2.3
+# Note: It's a bad idea to use a string for the uri, but it needs to stay
+# compatible with -incoming and the format of the uri is already exposed
+# above libvirt
 ##
 { 'command': 'migrate-incoming', 'data': {'uri': 'str' } }
 

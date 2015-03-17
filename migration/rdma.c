@@ -493,8 +493,8 @@ static inline uint64_t ram_chunk_index(const uint8_t *start,
 static inline uint8_t *ram_chunk_start(const RDMALocalBlock *rdma_ram_block,
                                        uint64_t i)
 {
-    return (uint8_t *) (((uintptr_t) rdma_ram_block->local_host_addr)
-                                    + (i << RDMA_REG_CHUNK_SHIFT));
+    return (uint8_t *)(uintptr_t)(rdma_ram_block->local_host_addr +
+                                  (i << RDMA_REG_CHUNK_SHIFT));
 }
 
 static inline uint8_t *ram_chunk_end(const RDMALocalBlock *rdma_ram_block,
@@ -515,7 +515,7 @@ static int rdma_add_block(RDMAContext *rdma, void *host_addr,
 {
     RDMALocalBlocks *local = &rdma->local_ram_blocks;
     RDMALocalBlock *block = g_hash_table_lookup(rdma->blockmap,
-        (void *) block_offset);
+        (void *)(uintptr_t)block_offset);
     RDMALocalBlock *old = local->block;
 
     assert(block == NULL);
@@ -526,9 +526,11 @@ static int rdma_add_block(RDMAContext *rdma, void *host_addr,
         int x;
 
         for (x = 0; x < local->nb_blocks; x++) {
-            g_hash_table_remove(rdma->blockmap, (void *)old[x].offset);
-            g_hash_table_insert(rdma->blockmap, (void *)old[x].offset,
-                                                &local->block[x]);
+            g_hash_table_remove(rdma->blockmap,
+                                (void *)(uintptr_t)old[x].offset);
+            g_hash_table_insert(rdma->blockmap,
+                                (void *)(uintptr_t)old[x].offset,
+                                &local->block[x]);
         }
         memcpy(local->block, old, sizeof(RDMALocalBlock) * local->nb_blocks);
         g_free(old);
@@ -551,9 +553,9 @@ static int rdma_add_block(RDMAContext *rdma, void *host_addr,
 
     g_hash_table_insert(rdma->blockmap, (void *) block_offset, block);
 
-    trace_rdma_add_block(local->nb_blocks, (uint64_t) block->local_host_addr,
+    trace_rdma_add_block(local->nb_blocks, (uintptr_t) block->local_host_addr,
                          block->offset, block->length,
-                         (uint64_t) (block->local_host_addr + block->length),
+                         (uintptr_t) (block->local_host_addr + block->length),
                          BITS_TO_LONGS(block->nb_chunks) *
                              sizeof(unsigned long) * 8,
                          block->nb_chunks);
@@ -634,7 +636,7 @@ static int rdma_delete_block(RDMAContext *rdma, ram_addr_t block_offset)
     block->remote_keys = NULL;
 
     for (x = 0; x < local->nb_blocks; x++) {
-        g_hash_table_remove(rdma->blockmap, (void *)old[x].offset);
+        g_hash_table_remove(rdma->blockmap, (void *)(uintptr_t)old[x].offset);
     }
 
     if (local->nb_blocks > 1) {
@@ -657,9 +659,9 @@ static int rdma_delete_block(RDMAContext *rdma, ram_addr_t block_offset)
     }
 
     trace_rdma_delete_block(local->nb_blocks,
-                           (uint64_t)block->local_host_addr,
+                           (uintptr_t)block->local_host_addr,
                            block->offset, block->length,
-                           (uint64_t)(block->local_host_addr + block->length),
+                            (uintptr_t)(block->local_host_addr + block->length),
                            BITS_TO_LONGS(block->nb_chunks) *
                                sizeof(unsigned long) * 8, block->nb_chunks);
 
@@ -669,8 +671,9 @@ static int rdma_delete_block(RDMAContext *rdma, ram_addr_t block_offset)
 
     if (local->nb_blocks) {
         for (x = 0; x < local->nb_blocks; x++) {
-            g_hash_table_insert(rdma->blockmap, (void *)local->block[x].offset,
-                                                &local->block[x]);
+            g_hash_table_insert(rdma->blockmap,
+                                (void *)(uintptr_t)local->block[x].offset,
+                                &local->block[x]);
         }
     }
 
@@ -1075,7 +1078,7 @@ static int qemu_rdma_reg_whole_ram_blocks(RDMAContext *rdma)
  * This search cannot fail or the migration will fail.
  */
 static int qemu_rdma_search_ram_block(RDMAContext *rdma,
-                                      uint64_t block_offset,
+                                      uintptr_t block_offset,
                                       uint64_t offset,
                                       uint64_t length,
                                       uint64_t *block_index,
@@ -1103,7 +1106,7 @@ static int qemu_rdma_search_ram_block(RDMAContext *rdma,
  * to perform the actual RDMA operation.
  */
 static int qemu_rdma_register_and_get_keys(RDMAContext *rdma,
-        RDMALocalBlock *block, uint8_t *host_addr,
+        RDMALocalBlock *block, uintptr_t host_addr,
         uint32_t *lkey, uint32_t *rkey, int chunk,
         uint8_t *chunk_start, uint8_t *chunk_end)
 {
@@ -1140,11 +1143,12 @@ static int qemu_rdma_register_and_get_keys(RDMAContext *rdma,
         if (!block->pmr[chunk]) {
             perror("Failed to register chunk!");
             fprintf(stderr, "Chunk details: block: %d chunk index %d"
-                            " start %" PRIu64 " end %" PRIu64 " host %" PRIu64
-                            " local %" PRIu64 " registrations: %d\n",
-                            block->index, chunk, (uint64_t) chunk_start,
-                            (uint64_t) chunk_end, (uint64_t) host_addr,
-                            (uint64_t) block->local_host_addr,
+                            " start %" PRIuPTR " end %" PRIuPTR
+                            " host %" PRIuPTR
+                            " local %" PRIuPTR " registrations: %d\n",
+                            block->index, chunk, (uintptr_t)chunk_start,
+                            (uintptr_t)chunk_end, host_addr,
+                            (uintptr_t)block->local_host_addr,
                             rdma->total_registrations);
             return -1;
         }
@@ -1378,8 +1382,8 @@ static uint64_t qemu_rdma_poll(RDMAContext *rdma, uint64_t *wr_id_out,
         RDMALocalBlock *block = &(rdma->local_ram_blocks.block[index]);
 
         trace_qemu_rdma_poll_write(print_wrid(wr_id), wr_id, rdma->nb_sent,
-                 index, chunk,
-                 block->local_host_addr, (void *)block->remote_host_addr);
+                                   index, chunk, block->local_host_addr,
+                                   (void *)(uintptr_t)block->remote_host_addr);
 
         clear_bit(chunk, block->transit_bitmap);
 
@@ -1522,7 +1526,7 @@ static int qemu_rdma_post_send_control(RDMAContext *rdma, uint8_t *buf,
     RDMAWorkRequestData *wr = &rdma->wr_data[RDMA_WRID_CONTROL];
     struct ibv_send_wr *bad_wr;
     struct ibv_sge sge = {
-                           .addr = (uint64_t)(wr->control),
+                           .addr = (uintptr_t)(wr->control),
                            .length = head->len + sizeof(RDMAControlHeader),
                            .lkey = wr->control_mr->lkey,
                          };
@@ -1576,7 +1580,7 @@ static int qemu_rdma_post_recv_control(RDMAContext *rdma, int idx)
 {
     struct ibv_recv_wr *bad_wr;
     struct ibv_sge sge = {
-                            .addr = (uint64_t)(rdma->wr_data[idx].control),
+                            .addr = (uintptr_t)(rdma->wr_data[idx].control),
                             .length = RDMA_CONTROL_MAX_BUFFER,
                             .lkey = rdma->wr_data[idx].control_mr->lkey,
                          };
@@ -1823,11 +1827,12 @@ static int qemu_rdma_write_one(QEMUFile *f, RDMAContext *rdma,
                              };
 
 retry:
-    sge.addr = (uint64_t)(block->local_host_addr +
+    sge.addr = (uintptr_t)(block->local_host_addr +
                             (current_addr - block->offset));
     sge.length = length;
 
-    chunk = ram_chunk_index(block->local_host_addr, (uint8_t *) sge.addr);
+    chunk = ram_chunk_index(block->local_host_addr,
+                            (uint8_t *)(uintptr_t)sge.addr);
     chunk_start = ram_chunk_start(block, chunk);
 
     if (block->is_ram_block) {
@@ -1880,8 +1885,9 @@ retry:
              * memset() + madvise() the entire chunk without RDMA.
              */
 
-            if (can_use_buffer_find_nonzero_offset((void *)sge.addr, length)
-                   && buffer_find_nonzero_offset((void *)sge.addr,
+            if (can_use_buffer_find_nonzero_offset((void *)(uintptr_t)sge.addr,
+                                                   length)
+                   && buffer_find_nonzero_offset((void *)(uintptr_t)sge.addr,
                                                     length) == length) {
                 RDMACompress comp = {
                                         .offset = current_addr,
@@ -1931,8 +1937,7 @@ retry:
             }
 
             /* try to overlap this single registration with the one we sent. */
-            if (qemu_rdma_register_and_get_keys(rdma, block,
-                                                (uint8_t *) sge.addr,
+            if (qemu_rdma_register_and_get_keys(rdma, block, sge.addr,
                                                 &sge.lkey, NULL, chunk,
                                                 chunk_start, chunk_end)) {
                 error_report("cannot get lkey");
@@ -1951,8 +1956,7 @@ retry:
             block->remote_host_addr = reg_result->host_addr;
         } else {
             /* already registered before */
-            if (qemu_rdma_register_and_get_keys(rdma, block,
-                                                (uint8_t *)sge.addr,
+            if (qemu_rdma_register_and_get_keys(rdma, block, sge.addr,
                                                 &sge.lkey, NULL, chunk,
                                                 chunk_start, chunk_end)) {
                 error_report("cannot get lkey!");
@@ -1964,7 +1968,7 @@ retry:
     } else {
         send_wr.wr.rdma.rkey = block->remote_rkey;
 
-        if (qemu_rdma_register_and_get_keys(rdma, block, (uint8_t *)sge.addr,
+        if (qemu_rdma_register_and_get_keys(rdma, block, sge.addr,
                                                      &sge.lkey, NULL, chunk,
                                                      chunk_start, chunk_end)) {
             error_report("cannot get lkey!");
@@ -2364,10 +2368,10 @@ err_rdma_source_connect:
 
 static int qemu_rdma_dest_init(RDMAContext *rdma, Error **errp)
 {
-    int ret = -EINVAL, idx;
+    int ret, idx;
     struct rdma_cm_id *listen_id;
     char ip[40] = "unknown";
-    struct rdma_addrinfo *res;
+    struct rdma_addrinfo *res, *e;
     char port_str[16];
 
     for (idx = 0; idx < RDMA_WRID_MAX; idx++) {
@@ -2375,7 +2379,7 @@ static int qemu_rdma_dest_init(RDMAContext *rdma, Error **errp)
         rdma->wr_data[idx].control_curr = NULL;
     }
 
-    if (rdma->host == NULL) {
+    if (!rdma->host || !rdma->host[0]) {
         ERROR(errp, "RDMA host is not set!");
         rdma->error_state = -EINVAL;
         return -1;
@@ -2398,40 +2402,33 @@ static int qemu_rdma_dest_init(RDMAContext *rdma, Error **errp)
     snprintf(port_str, 16, "%d", rdma->port);
     port_str[15] = '\0';
 
-    if (rdma->host && strcmp("", rdma->host)) {
-        struct rdma_addrinfo *e;
-
-        ret = rdma_getaddrinfo(rdma->host, port_str, NULL, &res);
-        if (ret < 0) {
-            ERROR(errp, "could not rdma_getaddrinfo address %s", rdma->host);
-            goto err_dest_init_bind_addr;
-        }
-
-        for (e = res; e != NULL; e = e->ai_next) {
-            inet_ntop(e->ai_family,
-                &((struct sockaddr_in *) e->ai_dst_addr)->sin_addr, ip, sizeof ip);
-            trace_qemu_rdma_dest_init_trying(rdma->host, ip);
-            ret = rdma_bind_addr(listen_id, e->ai_dst_addr);
-            if (!ret) {
-                if (e->ai_family == AF_INET6) {
-                    ret = qemu_rdma_broken_ipv6_kernel(errp, listen_id->verbs);
-                    if (ret) {
-                        continue;
-                    }
-                }
-                    
-                goto listen;
-            }
-        }
-
-        ERROR(errp, "Error: could not rdma_bind_addr!");
-        goto err_dest_init_bind_addr;
-    } else {
-        ERROR(errp, "migration host and port not specified!");
-        ret = -EINVAL;
+    ret = rdma_getaddrinfo(rdma->host, port_str, NULL, &res);
+    if (ret < 0) {
+        ERROR(errp, "could not rdma_getaddrinfo address %s", rdma->host);
         goto err_dest_init_bind_addr;
     }
-listen:
+
+    for (e = res; e != NULL; e = e->ai_next) {
+        inet_ntop(e->ai_family,
+            &((struct sockaddr_in *) e->ai_dst_addr)->sin_addr, ip, sizeof ip);
+        trace_qemu_rdma_dest_init_trying(rdma->host, ip);
+        ret = rdma_bind_addr(listen_id, e->ai_dst_addr);
+        if (ret) {
+            continue;
+        }
+        if (e->ai_family == AF_INET6) {
+            ret = qemu_rdma_broken_ipv6_kernel(errp, listen_id->verbs);
+            if (ret) {
+                continue;
+            }
+        }
+        break;
+    }
+
+    if (!e) {
+        ERROR(errp, "Error: could not rdma_bind_addr!");
+        goto err_dest_init_bind_addr;
+    }
 
     rdma->listen_id = listen_id;
     qemu_rdma_dump_gid("dest_init", listen_id);
@@ -2977,7 +2974,7 @@ static int qemu_rdma_registration_handle(QEMUFile *f, void *opaque,
              */
             for (i = 0; i < local->nb_blocks; i++) {
                 rdma->block[i].remote_host_addr =
-                    (uint64_t)(local->block[i].local_host_addr);
+                    (uintptr_t)(local->block[i].local_host_addr);
 
                 if (rdma->pin_all) {
                     rdma->block[i].remote_rkey = local->block[i].mr->rkey;
@@ -3034,14 +3031,14 @@ static int qemu_rdma_registration_handle(QEMUFile *f, void *opaque,
                 chunk_start = ram_chunk_start(block, chunk);
                 chunk_end = ram_chunk_end(block, chunk + reg->chunks);
                 if (qemu_rdma_register_and_get_keys(rdma, block,
-                            (uint8_t *)host_addr, NULL, &reg_result->rkey,
+                            (uintptr_t)host_addr, NULL, &reg_result->rkey,
                             chunk, chunk_start, chunk_end)) {
                     error_report("cannot get rkey");
                     ret = -EINVAL;
                     goto out;
                 }
 
-                reg_result->host_addr = (uint64_t) block->local_host_addr;
+                reg_result->host_addr = (uintptr_t)block->local_host_addr;
 
                 trace_qemu_rdma_registration_handle_register_rkey(
                                                            reg_result->rkey);

@@ -895,13 +895,7 @@ static int ram_save_setup(QEMUFile *f, void *opaque)
      * Count the total number of pages used by ram blocks not including any
      * gaps due to alignment or unplugs.
      */
-    migration_dirty_pages = 0;
-    QLIST_FOREACH_RCU(block, &ram_list.blocks, next) {
-        uint64_t block_pages;
-
-        block_pages = block->used_length >> TARGET_PAGE_BITS;
-        migration_dirty_pages += block_pages;
-    }
+    migration_dirty_pages = ram_bytes_total() >> TARGET_PAGE_BITS;
 
     memory_global_dirty_log_start();
     migration_bitmap_sync();

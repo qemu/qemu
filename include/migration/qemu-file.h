@@ -133,7 +133,6 @@ bool qemu_file_mode_is_not_valid(const char *mode);
 bool qemu_file_is_writable(QEMUFile *f);
 
 QEMUSizedBuffer *qsb_create(const uint8_t *buffer, size_t len);
-QEMUSizedBuffer *qsb_clone(const QEMUSizedBuffer *);
 void qsb_free(QEMUSizedBuffer *);
 size_t qsb_set_length(QEMUSizedBuffer *qsb, size_t length);
 size_t qsb_get_length(const QEMUSizedBuffer *qsb);

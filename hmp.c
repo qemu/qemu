@@ -162,7 +162,8 @@ void hmp_info_migrate(Monitor *mon, const QDict *qdict)
     }
 
     if (info->has_status) {
-        monitor_printf(mon, "Migration status: %s\n", info->status);
+        monitor_printf(mon, "Migration status: %s\n",
+                       MigrationStatus_lookup[info->status]);
         monitor_printf(mon, "total time: %" PRIu64 " milliseconds\n",
                        info->total_time);
         if (info->has_expected_downtime) {
@@ -1123,11 +1124,7 @@ void hmp_migrate_incoming(Monitor *mon, const QDict *qdict)
 
     qmp_migrate_incoming(uri, &err);
 
-    if (err) {
-        monitor_printf(mon, "%s\n", error_get_pretty(err));
-        error_free(err);
-        return;
-    }
+    hmp_handle_error(mon, &err);
 }
 
 void hmp_migrate_set_downtime(Monitor *mon, const QDict *qdict)
@@ -1345,21 +1342,21 @@ void hmp_block_job_complete(Monitor *mon, const QDict *qdict)
     hmp_handle_error(mon, &error);
 }
 
-typedef struct MigrationStatus
+typedef struct HMPMigrationStatus
 {
     QEMUTimer *timer;
     Monitor *mon;
     bool is_block_migration;
-} MigrationStatus;
+} HMPMigrationStatus;
 
 static void hmp_migrate_status_cb(void *opaque)
 {
-    MigrationStatus *status = opaque;
+    HMPMigrationStatus *status = opaque;
     MigrationInfo *info;
 
     info = qmp_query_migrate(NULL);
-    if (!info->has_status || strcmp(info->status, "active") == 0 ||
-        strcmp(info->status, "setup") == 0) {
+    if (!info->has_status || info->status == MIGRATION_STATUS_ACTIVE ||
+        info->status == MIGRATION_STATUS_SETUP) {
         if (info->has_disk) {
             int progress;
 
@@ -1402,7 +1399,7 @@ void hmp_migrate(Monitor *mon, const QDict *qdict)
     }
 
     if (!detach) {
-        MigrationStatus *status;
+        HMPMigrationStatus *status;
 
         if (monitor_suspend(mon) < 0) {
             monitor_printf(mon, "terminal does not allow synchronous "
