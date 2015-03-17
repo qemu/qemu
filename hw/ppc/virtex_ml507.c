@@ -41,7 +41,6 @@
 #include "ppc405.h"
 
 #include "sysemu/block-backend.h"
-#include "qapi/qmp/qerror.h"
 
 #define EPAPR_MAGIC    (0x45504150)
 #define FLASH_SIZE     (16 * 1024 * 1024)

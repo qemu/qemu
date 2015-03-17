@@ -28,6 +28,7 @@
 #include "block/blockjob.h"
 #include "qemu/error-report.h"
 #include "qemu/module.h"
+#include "qapi/qmp/qerror.h"
 #include "qapi/qmp/qjson.h"
 #include "sysemu/block-backend.h"
 #include "sysemu/sysemu.h"

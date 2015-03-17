@@ -22,7 +22,6 @@
 #include "internals.h"
 #include "qemu-common.h"
 #include "hw/qdev-properties.h"
-#include "qapi/qmp/qerror.h"
 #if !defined(CONFIG_USER_ONLY)
 #include "hw/loader.h"
 #endif

@@ -24,6 +24,7 @@
 #include "hw/qdev.h"
 #include "sysemu/blockdev.h"
 #include "qom/qom-qobject.h"
+#include "qapi/qmp/qerror.h"
 #include "qapi/qmp/qobject.h"
 #include "qapi/qmp-input-visitor.h"
 #include "hw/boards.h"

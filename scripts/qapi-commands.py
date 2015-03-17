@@ -329,7 +329,6 @@ h_comment = '''
 fdef.write(mcgen('''
 #include "qemu-common.h"
 #include "qemu/module.h"
-#include "qapi/qmp/qerror.h"
 #include "qapi/qmp/types.h"
 #include "qapi/qmp/dispatch.h"
 #include "qapi/visitor.h"

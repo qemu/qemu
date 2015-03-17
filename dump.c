@@ -23,6 +23,7 @@
 #include "sysemu/memory_mapping.h"
 #include "sysemu/cpus.h"
 #include "qapi/error.h"
+#include "qapi/qmp/qerror.h"
 #include "qmp-commands.h"
 
 #include <zlib.h>

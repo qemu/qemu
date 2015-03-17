@@ -23,6 +23,7 @@
  */
 #include "qapi-visit.h"
 #include "qapi/qmp-output-visitor.h"
+#include "qapi/qmp/qerror.h"
 #include "qapi/qmp/qjson.h"
 #include "qemu-common.h"
 #include "qemu/option.h"

@@ -16,7 +16,6 @@
 #include "qemu/queue.h"
 #include "qemu-common.h"
 #include "qapi/qmp/types.h"
-#include "qapi/qmp/qerror.h"
 
 typedef struct QStackEntry
 {

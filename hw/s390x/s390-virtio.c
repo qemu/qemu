@@ -22,6 +22,7 @@
  */
 
 #include "hw/hw.h"
+#include "qapi/qmp/qerror.h"
 #include "sysemu/block-backend.h"
 #include "sysemu/blockdev.h"
 #include "sysemu/sysemu.h"

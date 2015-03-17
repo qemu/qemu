@@ -22,7 +22,6 @@
 #include "qapi/qmp/qbool.h"
 #include "qapi/qmp/json-parser.h"
 #include "qapi/qmp/json-lexer.h"
-#include "qapi/qmp/qerror.h"
 
 typedef struct JSONParserContext
 {

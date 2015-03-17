@@ -25,6 +25,7 @@
 #include "monitor/monitor.h"
 #include "monitor/qdev.h"
 #include "qapi/opts-visitor.h"
+#include "qapi/qmp/qerror.h"
 #include "qapi/string-output-visitor.h"
 #include "qapi-visit.h"
 #include "ui/console.h"

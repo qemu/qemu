@@ -25,6 +25,7 @@
 
 #include "qemu-common.h"
 #include "block/block_int.h"
+#include "qapi/qmp/qerror.h"
 #include "qemu/error-report.h"
 #include "qemu/module.h"
 #include "migration/migration.h"

@@ -13,7 +13,6 @@
 #include "qemu-common.h"
 #include "qapi/string-output-visitor.h"
 #include "qapi/visitor-impl.h"
-#include "qapi/qmp/qerror.h"
 #include "qemu/host-utils.h"
 #include <math.h>
 #include "qemu/range.h"

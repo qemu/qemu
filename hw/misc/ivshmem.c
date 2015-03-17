@@ -22,7 +22,6 @@
 #include "hw/pci/msix.h"
 #include "sysemu/kvm.h"
 #include "migration/migration.h"
-#include "qapi/qmp/qerror.h"
 #include "qemu/error-report.h"
 #include "qemu/event_notifier.h"
 #include "qemu/fifo8.h"

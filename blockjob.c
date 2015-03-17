@@ -29,6 +29,7 @@
 #include "block/block.h"
 #include "block/blockjob.h"
 #include "block/block_int.h"
+#include "qapi/qmp/qerror.h"
 #include "qapi/qmp/qjson.h"
 #include "block/coroutine.h"
 #include "qmp-commands.h"
