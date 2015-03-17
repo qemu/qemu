@@ -427,7 +427,7 @@ VncInfo *qmp_query_vnc(Error **errp)
 
         if (getsockname(vd->lsock, (struct sockaddr *)&sa,
                         &salen) == -1) {
-            error_set(errp, QERR_UNDEFINED_ERROR);
+            error_setg(errp, QERR_UNDEFINED_ERROR);
             goto out_error;
         }
 
@@ -435,7 +435,7 @@ VncInfo *qmp_query_vnc(Error **errp)
                         host, sizeof(host),
                         serv, sizeof(serv),
                         NI_NUMERICHOST | NI_NUMERICSERV) < 0) {
-            error_set(errp, QERR_UNDEFINED_ERROR);
+            error_setg(errp, QERR_UNDEFINED_ERROR);
             goto out_error;
         }
 

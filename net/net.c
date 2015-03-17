@@ -945,16 +945,16 @@ static int net_client_init1(const void *object, int is_netdev, Error **errp)
             break;
 
         default:
-            error_set(errp, QERR_INVALID_PARAMETER_VALUE, "type",
-                      "a netdev backend type");
+            error_setg(errp, QERR_INVALID_PARAMETER_VALUE, "type",
+                       "a netdev backend type");
             return -1;
         }
     } else {
         u.net = object;
         opts = u.net->opts;
         if (opts->kind == NET_CLIENT_OPTIONS_KIND_HUBPORT) {
-            error_set(errp, QERR_INVALID_PARAMETER_VALUE, "type",
-                      "a net type");
+            error_setg(errp, QERR_INVALID_PARAMETER_VALUE, "type",
+                       "a net type");
             return -1;
         }
         /* missing optional values have been initialized to "all bits zero" */
@@ -975,8 +975,8 @@ static int net_client_init1(const void *object, int is_netdev, Error **errp)
         if (net_client_init_fun[opts->kind](opts, name, peer, errp) < 0) {
             /* FIXME drop when all init functions store an Error */
             if (errp && !*errp) {
-                error_set(errp, QERR_DEVICE_INIT_FAILED,
-                          NetClientOptionsKind_lookup[opts->kind]);
+                error_setg(errp, QERR_DEVICE_INIT_FAILED,
+                           NetClientOptionsKind_lookup[opts->kind]);
             }
             return -1;
         }

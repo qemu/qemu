@@ -739,7 +739,7 @@ static int img_commit(int argc, char **argv)
     if (base) {
         base_bs = bdrv_find_backing_image(bs, base);
         if (!base_bs) {
-            error_set(&local_err, QERR_BASE_NOT_FOUND, base);
+            error_setg(&local_err, QERR_BASE_NOT_FOUND, base);
             goto done;
         }
     } else {

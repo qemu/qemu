@@ -21,13 +21,13 @@
 
 RockerSwitch *qmp_query_rocker(const char *name, Error **errp)
 {
-    error_set(errp, QERR_FEATURE_DISABLED, "rocker");
+    error_setg(errp, QERR_FEATURE_DISABLED, "rocker");
     return NULL;
 };
 
 RockerPortList *qmp_query_rocker_ports(const char *name, Error **errp)
 {
-    error_set(errp, QERR_FEATURE_DISABLED, "rocker");
+    error_setg(errp, QERR_FEATURE_DISABLED, "rocker");
     return NULL;
 };
 
@@ -36,7 +36,7 @@ RockerOfDpaFlowList *qmp_query_rocker_of_dpa_flows(const char *name,
                                                    uint32_t tbl_id,
                                                    Error **errp)
 {
-    error_set(errp, QERR_FEATURE_DISABLED, "rocker");
+    error_setg(errp, QERR_FEATURE_DISABLED, "rocker");
     return NULL;
 };
 
@@ -45,6 +45,6 @@ RockerOfDpaGroupList *qmp_query_rocker_of_dpa_groups(const char *name,
                                                      uint8_t type,
                                                      Error **errp)
 {
-    error_set(errp, QERR_FEATURE_DISABLED, "rocker");
+    error_setg(errp, QERR_FEATURE_DISABLED, "rocker");
     return NULL;
 };

@@ -140,21 +140,22 @@ static int configure_tpm(QemuOpts *opts)
 
     id = qemu_opts_id(opts);
     if (id == NULL) {
-        qerror_report(QERR_MISSING_PARAMETER, "id");
+        qerror_report(ERROR_CLASS_GENERIC_ERROR, QERR_MISSING_PARAMETER, "id");
         return 1;
     }
 
     value = qemu_opt_get(opts, "type");
     if (!value) {
-        qerror_report(QERR_MISSING_PARAMETER, "type");
+        qerror_report(ERROR_CLASS_GENERIC_ERROR, QERR_MISSING_PARAMETER,
+                      "type");
         tpm_display_backend_drivers();
         return 1;
     }
 
     be = tpm_get_backend_driver(value);
     if (be == NULL) {
-        qerror_report(QERR_INVALID_PARAMETER_VALUE, "type",
-                      "a TPM backend type");
+        qerror_report(ERROR_CLASS_GENERIC_ERROR, QERR_INVALID_PARAMETER_VALUE,
+                      "type", "a TPM backend type");
         tpm_display_backend_drivers();
         return 1;
     }

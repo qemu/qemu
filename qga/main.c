@@ -578,7 +578,7 @@ static void process_event(JSONMessageParser *parser, QList *tokens)
         qdict = qdict_new();
         if (!err) {
             g_warning("failed to parse event: unknown error");
-            error_set(&err, QERR_JSON_PARSING);
+            error_setg(&err, QERR_JSON_PARSING);
         } else {
             g_warning("failed to parse event: %s", error_get_pretty(err));
         }
@@ -598,7 +598,7 @@ static void process_event(JSONMessageParser *parser, QList *tokens)
             QDECREF(qdict);
             qdict = qdict_new();
             g_warning("unrecognized payload format");
-            error_set(&err, QERR_UNSUPPORTED);
+            error_setg(&err, QERR_UNSUPPORTED);
             qdict_put_obj(qdict, "error", qmp_build_error_object(err));
             error_free(err);
         }

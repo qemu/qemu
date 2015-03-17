@@ -382,15 +382,15 @@ static int guest_file_toggle_flags(int fd, int flags, bool set, Error **err)
 
     old_flags = fcntl(fd, F_GETFL);
     if (old_flags == -1) {
-        error_set_errno(err, errno, QERR_QGA_COMMAND_FAILED,
-                        "failed to fetch filehandle flags");
+        error_setg_errno(err, errno, QERR_QGA_COMMAND_FAILED,
+                         "failed to fetch filehandle flags");
         return -1;
     }
 
     ret = fcntl(fd, F_SETFL, set ? (old_flags | flags) : (old_flags & ~flags));
     if (ret == -1) {
-        error_set_errno(err, errno, QERR_QGA_COMMAND_FAILED,
-                        "failed to set filehandle flags");
+        error_setg_errno(err, errno, QERR_QGA_COMMAND_FAILED,
+                         "failed to set filehandle flags");
         return -1;
     }
 
@@ -2302,34 +2302,34 @@ GuestMemoryBlockInfo *qmp_guest_get_memory_block_info(Error **errp)
 
 void qmp_guest_suspend_disk(Error **errp)
 {
-    error_set(errp, QERR_UNSUPPORTED);
+    error_setg(errp, QERR_UNSUPPORTED);
 }
 
 void qmp_guest_suspend_ram(Error **errp)
 {
-    error_set(errp, QERR_UNSUPPORTED);
+    error_setg(errp, QERR_UNSUPPORTED);
 }
 
 void qmp_guest_suspend_hybrid(Error **errp)
 {
-    error_set(errp, QERR_UNSUPPORTED);
+    error_setg(errp, QERR_UNSUPPORTED);
 }
 
 GuestNetworkInterfaceList *qmp_guest_network_get_interfaces(Error **errp)
 {
-    error_set(errp, QERR_UNSUPPORTED);
+    error_setg(errp, QERR_UNSUPPORTED);
     return NULL;
 }
 
 GuestLogicalProcessorList *qmp_guest_get_vcpus(Error **errp)
 {
-    error_set(errp, QERR_UNSUPPORTED);
+    error_setg(errp, QERR_UNSUPPORTED);
     return NULL;
 }
 
 int64_t qmp_guest_set_vcpus(GuestLogicalProcessorList *vcpus, Error **errp)
 {
-    error_set(errp, QERR_UNSUPPORTED);
+    error_setg(errp, QERR_UNSUPPORTED);
     return -1;
 }
 
@@ -2338,25 +2338,25 @@ void qmp_guest_set_user_password(const char *username,
                                  bool crypted,
                                  Error **errp)
 {
-    error_set(errp, QERR_UNSUPPORTED);
+    error_setg(errp, QERR_UNSUPPORTED);
 }
 
 GuestMemoryBlockList *qmp_guest_get_memory_blocks(Error **errp)
 {
-    error_set(errp, QERR_UNSUPPORTED);
+    error_setg(errp, QERR_UNSUPPORTED);
     return NULL;
 }
 
 GuestMemoryBlockResponseList *
 qmp_guest_set_memory_blocks(GuestMemoryBlockList *mem_blks, Error **errp)
 {
-    error_set(errp, QERR_UNSUPPORTED);
+    error_setg(errp, QERR_UNSUPPORTED);
     return NULL;
 }
 
 GuestMemoryBlockInfo *qmp_guest_get_memory_block_info(Error **errp)
 {
-    error_set(errp, QERR_UNSUPPORTED);
+    error_setg(errp, QERR_UNSUPPORTED);
     return NULL;
 }
 
@@ -2366,20 +2366,20 @@ GuestMemoryBlockInfo *qmp_guest_get_memory_block_info(Error **errp)
 
 GuestFilesystemInfoList *qmp_guest_get_fsinfo(Error **errp)
 {
-    error_set(errp, QERR_UNSUPPORTED);
+    error_setg(errp, QERR_UNSUPPORTED);
     return NULL;
 }
 
 GuestFsfreezeStatus qmp_guest_fsfreeze_status(Error **errp)
 {
-    error_set(errp, QERR_UNSUPPORTED);
+    error_setg(errp, QERR_UNSUPPORTED);
 
     return 0;
 }
 
 int64_t qmp_guest_fsfreeze_freeze(Error **errp)
 {
-    error_set(errp, QERR_UNSUPPORTED);
+    error_setg(errp, QERR_UNSUPPORTED);
 
     return 0;
 }
@@ -2388,14 +2388,14 @@ int64_t qmp_guest_fsfreeze_freeze_list(bool has_mountpoints,
                                        strList *mountpoints,
                                        Error **errp)
 {
-    error_set(errp, QERR_UNSUPPORTED);
+    error_setg(errp, QERR_UNSUPPORTED);
 
     return 0;
 }
 
 int64_t qmp_guest_fsfreeze_thaw(Error **errp)
 {
-    error_set(errp, QERR_UNSUPPORTED);
+    error_setg(errp, QERR_UNSUPPORTED);
 
     return 0;
 }
@@ -2404,7 +2404,7 @@ int64_t qmp_guest_fsfreeze_thaw(Error **errp)
 #if !defined(CONFIG_FSTRIM)
 void qmp_guest_fstrim(bool has_minimum, int64_t minimum, Error **errp)
 {
-    error_set(errp, QERR_UNSUPPORTED);
+    error_setg(errp, QERR_UNSUPPORTED);
 }
 #endif
 

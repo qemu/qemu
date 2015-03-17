@@ -1307,7 +1307,7 @@ void qmp_xen_save_devices_state(const char *filename, Error **errp)
     ret = qemu_save_device_state(f);
     qemu_fclose(f);
     if (ret < 0) {
-        error_set(errp, QERR_IO_ERROR);
+        error_setg(errp, QERR_IO_ERROR);
     }
 
  the_end:

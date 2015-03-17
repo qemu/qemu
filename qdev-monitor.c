@@ -201,16 +201,16 @@ static DeviceClass *qdev_get_device_class(const char **driver, Error **errp)
     }
 
     if (object_class_is_abstract(oc)) {
-        error_set(errp, QERR_INVALID_PARAMETER_VALUE, "driver",
-                  "non-abstract device type");
+        error_setg(errp, QERR_INVALID_PARAMETER_VALUE, "driver",
+                   "non-abstract device type");
         return NULL;
     }
 
     dc = DEVICE_CLASS(oc);
     if (dc->cannot_instantiate_with_device_add_yet ||
         (qdev_hotplug && !dc->hotpluggable)) {
-        error_set(errp, QERR_INVALID_PARAMETER_VALUE, "driver",
-                  "pluggable device type");
+        error_setg(errp, QERR_INVALID_PARAMETER_VALUE, "driver",
+                   "pluggable device type");
         return NULL;
     }
 
@@ -527,7 +527,7 @@ DeviceState *qdev_device_add(QemuOpts *opts, Error **errp)
 
     driver = qemu_opt_get(opts, "driver");
     if (!driver) {
-        error_set(errp, QERR_MISSING_PARAMETER, "driver");
+        error_setg(errp, QERR_MISSING_PARAMETER, "driver");
         return NULL;
     }
 
@@ -558,7 +558,7 @@ DeviceState *qdev_device_add(QemuOpts *opts, Error **errp)
         }
     }
     if (qdev_hotplug && bus && !qbus_is_hotpluggable(bus)) {
-        error_set(errp, QERR_BUS_NO_HOTPLUG, bus->name);
+        error_setg(errp, QERR_BUS_NO_HOTPLUG, bus->name);
         return NULL;
     }
 

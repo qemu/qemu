@@ -324,7 +324,7 @@ void s390_nmi(NMIState *n, int cpu_index, Error **errp)
     CPUState *cs = qemu_get_cpu(cpu_index);
 
     if (s390_cpu_restart(S390_CPU(cs))) {
-        error_set(errp, QERR_UNSUPPORTED);
+        error_setg(errp, QERR_UNSUPPORTED);
     }
 }
 

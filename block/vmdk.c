@@ -645,8 +645,8 @@ static int vmdk_open_vmdk4(BlockDriverState *bs,
         char buf[64];
         snprintf(buf, sizeof(buf), "VMDK version %" PRId32,
                  le32_to_cpu(header.version));
-        error_set(errp, QERR_UNKNOWN_BLOCK_FORMAT_FEATURE,
-                  bdrv_get_device_or_node_name(bs), "vmdk", buf);
+        error_setg(errp, QERR_UNKNOWN_BLOCK_FORMAT_FEATURE,
+                   bdrv_get_device_or_node_name(bs), "vmdk", buf);
         return -ENOTSUP;
     } else if (le32_to_cpu(header.version) == 3 && (flags & BDRV_O_RDWR)) {
         /* VMware KB 2064959 explains that version 3 added support for
@@ -1688,12 +1688,12 @@ static int vmdk_create_extent(const char *filename, int64_t filesize,
     /* write all the data */
     ret = bdrv_pwrite(bs, 0, &magic, sizeof(magic));
     if (ret < 0) {
-        error_set(errp, QERR_IO_ERROR);
+        error_setg(errp, QERR_IO_ERROR);
         goto exit;
     }
     ret = bdrv_pwrite(bs, sizeof(magic), &header, sizeof(header));
     if (ret < 0) {
-        error_set(errp, QERR_IO_ERROR);
+        error_setg(errp, QERR_IO_ERROR);
         goto exit;
     }
 
@@ -1713,7 +1713,7 @@ static int vmdk_create_extent(const char *filename, int64_t filesize,
     ret = bdrv_pwrite(bs, le64_to_cpu(header.rgd_offset) * BDRV_SECTOR_SIZE,
                       gd_buf, gd_buf_size);
     if (ret < 0) {
-        error_set(errp, QERR_IO_ERROR);
+        error_setg(errp, QERR_IO_ERROR);
         goto exit;
     }
 
@@ -1725,7 +1725,7 @@ static int vmdk_create_extent(const char *filename, int64_t filesize,
     ret = bdrv_pwrite(bs, le64_to_cpu(header.gd_offset) * BDRV_SECTOR_SIZE,
                       gd_buf, gd_buf_size);
     if (ret < 0) {
-        error_set(errp, QERR_IO_ERROR);
+        error_setg(errp, QERR_IO_ERROR);
         goto exit;
     }
 

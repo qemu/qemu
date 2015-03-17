@@ -573,7 +573,7 @@ static void mirror_set_speed(BlockJob *job, int64_t speed, Error **errp)
     MirrorBlockJob *s = container_of(job, MirrorBlockJob, common);
 
     if (speed < 0) {
-        error_set(errp, QERR_INVALID_PARAMETER, "speed");
+        error_setg(errp, QERR_INVALID_PARAMETER, "speed");
         return;
     }
     ratelimit_set_speed(&s->limit, speed / BDRV_SECTOR_SIZE, SLICE_TIME);
@@ -598,8 +598,8 @@ static void mirror_complete(BlockJob *job, Error **errp)
         return;
     }
     if (!s->synced) {
-        error_set(errp, QERR_BLOCK_JOB_NOT_READY,
-                  bdrv_get_device_name(job->bs));
+        error_setg(errp, QERR_BLOCK_JOB_NOT_READY,
+                   bdrv_get_device_name(job->bs));
         return;
     }
 
@@ -667,7 +667,7 @@ static void mirror_start_job(BlockDriverState *bs, BlockDriverState *target,
     if ((on_source_error == BLOCKDEV_ON_ERROR_STOP ||
          on_source_error == BLOCKDEV_ON_ERROR_ENOSPC) &&
         !bdrv_iostatus_is_enabled(bs)) {
-        error_set(errp, QERR_INVALID_PARAMETER, "on-source-error");
+        error_setg(errp, QERR_INVALID_PARAMETER, "on-source-error");
         return;
     }
 

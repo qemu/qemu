@@ -337,7 +337,7 @@ void qmp_migrate_set_capabilities(MigrationCapabilityStatusList *params,
 
     if (s->state == MIGRATION_STATUS_ACTIVE ||
         s->state == MIGRATION_STATUS_SETUP) {
-        error_set(errp, QERR_MIGRATION_ACTIVE);
+        error_setg(errp, QERR_MIGRATION_ACTIVE);
         return;
     }
 
@@ -356,22 +356,22 @@ void qmp_migrate_set_parameters(bool has_compress_level,
     MigrationState *s = migrate_get_current();
 
     if (has_compress_level && (compress_level < 0 || compress_level > 9)) {
-        error_set(errp, QERR_INVALID_PARAMETER_VALUE, "compress_level",
-                  "is invalid, it should be in the range of 0 to 9");
+        error_setg(errp, QERR_INVALID_PARAMETER_VALUE, "compress_level",
+                   "is invalid, it should be in the range of 0 to 9");
         return;
     }
     if (has_compress_threads &&
             (compress_threads < 1 || compress_threads > 255)) {
-        error_set(errp, QERR_INVALID_PARAMETER_VALUE,
-                  "compress_threads",
-                  "is invalid, it should be in the range of 1 to 255");
+        error_setg(errp, QERR_INVALID_PARAMETER_VALUE,
+                   "compress_threads",
+                   "is invalid, it should be in the range of 1 to 255");
         return;
     }
     if (has_decompress_threads &&
             (decompress_threads < 1 || decompress_threads > 255)) {
-        error_set(errp, QERR_INVALID_PARAMETER_VALUE,
-                  "decompress_threads",
-                  "is invalid, it should be in the range of 1 to 255");
+        error_setg(errp, QERR_INVALID_PARAMETER_VALUE,
+                   "decompress_threads",
+                   "is invalid, it should be in the range of 1 to 255");
         return;
     }
 
@@ -573,7 +573,7 @@ void qmp_migrate(const char *uri, bool has_blk, bool blk,
     if (s->state == MIGRATION_STATUS_ACTIVE ||
         s->state == MIGRATION_STATUS_SETUP ||
         s->state == MIGRATION_STATUS_CANCELLING) {
-        error_set(errp, QERR_MIGRATION_ACTIVE);
+        error_setg(errp, QERR_MIGRATION_ACTIVE);
         return;
     }
 
@@ -608,7 +608,8 @@ void qmp_migrate(const char *uri, bool has_blk, bool blk,
         fd_start_outgoing_migration(s, p, &local_err);
 #endif
     } else {
-        error_set(errp, QERR_INVALID_PARAMETER_VALUE, "uri", "a valid migration protocol");
+        error_setg(errp, QERR_INVALID_PARAMETER_VALUE, "uri",
+                   "a valid migration protocol");
         s->state = MIGRATION_STATUS_FAILED;
         return;
     }
@@ -632,22 +633,22 @@ void qmp_migrate_set_cache_size(int64_t value, Error **errp)
 
     /* Check for truncation */
     if (value != (size_t)value) {
-        error_set(errp, QERR_INVALID_PARAMETER_VALUE, "cache size",
-                  "exceeding address space");
+        error_setg(errp, QERR_INVALID_PARAMETER_VALUE, "cache size",
+                   "exceeding address space");
         return;
     }
 
     /* Cache should not be larger than guest ram size */
     if (value > ram_bytes_total()) {
-        error_set(errp, QERR_INVALID_PARAMETER_VALUE, "cache size",
-                  "exceeds guest ram size ");
+        error_setg(errp, QERR_INVALID_PARAMETER_VALUE, "cache size",
+                   "exceeds guest ram size ");
         return;
     }
 
     new_size = xbzrle_cache_resize(value);
     if (new_size < 0) {
-        error_set(errp, QERR_INVALID_PARAMETER_VALUE, "cache size",
-                  "is smaller than page size");
+        error_setg(errp, QERR_INVALID_PARAMETER_VALUE, "cache size",
+                   "is smaller than page size");
         return;
     }
 

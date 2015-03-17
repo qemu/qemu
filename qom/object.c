@@ -926,7 +926,7 @@ void object_property_get(Object *obj, Visitor *v, const char *name,
     }
 
     if (!prop->get) {
-        error_set(errp, QERR_PERMISSION_DENIED);
+        error_setg(errp, QERR_PERMISSION_DENIED);
     } else {
         prop->get(obj, v, prop->opaque, name, errp);
     }
@@ -941,7 +941,7 @@ void object_property_set(Object *obj, Visitor *v, const char *name,
     }
 
     if (!prop->set) {
-        error_set(errp, QERR_PERMISSION_DENIED);
+        error_setg(errp, QERR_PERMISSION_DENIED);
     } else {
         prop->set(obj, v, prop->opaque, name, errp);
     }
@@ -968,7 +968,7 @@ char *object_property_get_str(Object *obj, const char *name,
     }
     qstring = qobject_to_qstring(ret);
     if (!qstring) {
-        error_set(errp, QERR_INVALID_PARAMETER_TYPE, name, "string");
+        error_setg(errp, QERR_INVALID_PARAMETER_TYPE, name, "string");
         retval = NULL;
     } else {
         retval = g_strdup(qstring_get_str(qstring));
@@ -1029,7 +1029,7 @@ bool object_property_get_bool(Object *obj, const char *name,
     }
     qbool = qobject_to_qbool(ret);
     if (!qbool) {
-        error_set(errp, QERR_INVALID_PARAMETER_TYPE, name, "boolean");
+        error_setg(errp, QERR_INVALID_PARAMETER_TYPE, name, "boolean");
         retval = false;
     } else {
         retval = qbool_get_bool(qbool);
@@ -1060,7 +1060,7 @@ int64_t object_property_get_int(Object *obj, const char *name,
     }
     qint = qobject_to_qint(ret);
     if (!qint) {
-        error_set(errp, QERR_INVALID_PARAMETER_TYPE, name, "int");
+        error_setg(errp, QERR_INVALID_PARAMETER_TYPE, name, "int");
         retval = -1;
     } else {
         retval = qint_get_int(qint);
@@ -1304,7 +1304,7 @@ static Object *object_resolve_link(Object *obj, const char *name,
     } else if (!target) {
         target = object_resolve_path(path, &ambiguous);
         if (target || ambiguous) {
-            error_set(errp, QERR_INVALID_PARAMETER_TYPE, name, target_type);
+            error_setg(errp, QERR_INVALID_PARAMETER_TYPE, name, target_type);
         } else {
             error_set(errp, ERROR_CLASS_DEVICE_NOT_FOUND,
                       "Device '%s' not found", path);

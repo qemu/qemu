@@ -1062,8 +1062,8 @@ static void spapr_phb_hot_plug_child(HotplugHandler *plug_handler,
          * we need to let them know it's not enabled
          */
         if (plugged_dev->hotplugged) {
-            error_set(errp, QERR_BUS_NO_HOTPLUG,
-                      object_get_typename(OBJECT(phb)));
+            error_setg(errp, QERR_BUS_NO_HOTPLUG,
+                       object_get_typename(OBJECT(phb)));
         }
         return;
     }
@@ -1090,8 +1090,8 @@ static void spapr_phb_hot_unplug_child(HotplugHandler *plug_handler,
     Error *local_err = NULL;
 
     if (!phb->dr_enabled) {
-        error_set(errp, QERR_BUS_NO_HOTPLUG,
-                  object_get_typename(OBJECT(phb)));
+        error_setg(errp, QERR_BUS_NO_HOTPLUG,
+                   object_get_typename(OBJECT(phb)));
         return;
     }
 

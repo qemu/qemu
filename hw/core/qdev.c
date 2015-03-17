@@ -276,13 +276,13 @@ void qdev_unplug(DeviceState *dev, Error **errp)
     HotplugHandlerClass *hdc;
 
     if (dev->parent_bus && !qbus_is_hotpluggable(dev->parent_bus)) {
-        error_set(errp, QERR_BUS_NO_HOTPLUG, dev->parent_bus->name);
+        error_setg(errp, QERR_BUS_NO_HOTPLUG, dev->parent_bus->name);
         return;
     }
 
     if (!dc->hotpluggable) {
-        error_set(errp, QERR_DEVICE_NO_HOTPLUG,
-                  object_get_typename(OBJECT(dev)));
+        error_setg(errp, QERR_DEVICE_NO_HOTPLUG,
+                   object_get_typename(OBJECT(dev)));
         return;
     }
 
@@ -1026,7 +1026,7 @@ static void device_set_realized(Object *obj, bool value, Error **errp)
     Error *local_err = NULL;
 
     if (dev->hotplugged && !dc->hotpluggable) {
-        error_set(errp, QERR_DEVICE_NO_HOTPLUG, object_get_typename(obj));
+        error_setg(errp, QERR_DEVICE_NO_HOTPLUG, object_get_typename(obj));
         return;
     }
 

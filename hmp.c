@@ -1045,7 +1045,7 @@ void hmp_drive_mirror(Monitor *mon, const QDict *qdict)
     Error *err = NULL;
 
     if (!filename) {
-        error_set(&err, QERR_MISSING_PARAMETER, "target");
+        error_setg(&err, QERR_MISSING_PARAMETER, "target");
         hmp_handle_error(mon, &err);
         return;
     }
@@ -1075,7 +1075,7 @@ void hmp_drive_backup(Monitor *mon, const QDict *qdict)
     Error *err = NULL;
 
     if (!filename) {
-        error_set(&err, QERR_MISSING_PARAMETER, "target");
+        error_setg(&err, QERR_MISSING_PARAMETER, "target");
         hmp_handle_error(mon, &err);
         return;
     }
@@ -1105,7 +1105,7 @@ void hmp_snapshot_blkdev(Monitor *mon, const QDict *qdict)
     if (!filename) {
         /* In the future, if 'snapshot-file' is not specified, the snapshot
            will be taken internally. Today it's actually required. */
-        error_set(&err, QERR_MISSING_PARAMETER, "snapshot-file");
+        error_setg(&err, QERR_MISSING_PARAMETER, "snapshot-file");
         hmp_handle_error(mon, &err);
         return;
     }
@@ -1200,7 +1200,7 @@ void hmp_migrate_set_capability(Monitor *mon, const QDict *qdict)
     }
 
     if (i == MIGRATION_CAPABILITY_MAX) {
-        error_set(&err, QERR_INVALID_PARAMETER, cap);
+        error_setg(&err, QERR_INVALID_PARAMETER, cap);
     }
 
     qapi_free_MigrationCapabilityStatusList(caps);
@@ -1244,7 +1244,7 @@ void hmp_migrate_set_parameter(Monitor *mon, const QDict *qdict)
     }
 
     if (i == MIGRATION_PARAMETER_MAX) {
-        error_set(&err, QERR_INVALID_PARAMETER, param);
+        error_setg(&err, QERR_INVALID_PARAMETER, param);
     }
 
     if (err) {

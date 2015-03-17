@@ -25,7 +25,7 @@
 
 PciInfoList *qmp_query_pci(Error **errp)
 {
-    error_set(errp, QERR_UNSUPPORTED);
+    error_setg(errp, QERR_UNSUPPORTED);
     return NULL;
 }
 

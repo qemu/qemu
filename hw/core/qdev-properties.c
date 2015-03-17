@@ -570,8 +570,8 @@ static void set_pci_devfn(Object *obj, Visitor *v, void *opaque,
         if (local_err) {
             error_propagate(errp, local_err);
         } else if (value < -1 || value > 255) {
-            error_set(errp, QERR_INVALID_PARAMETER_VALUE, name ? name : "null",
-                      "pci_devfn");
+            error_setg(errp, QERR_INVALID_PARAMETER_VALUE,
+                       name ? name : "null", "pci_devfn");
         } else {
             *ptr = value;
         }
@@ -640,8 +640,8 @@ static void set_blocksize(Object *obj, Visitor *v, void *opaque,
     }
     /* value of 0 means "unset" */
     if (value && (value < min || value > max)) {
-        error_set(errp, QERR_PROPERTY_VALUE_OUT_OF_RANGE,
-                  dev->id?:"", name, (int64_t)value, min, max);
+        error_setg(errp, QERR_PROPERTY_VALUE_OUT_OF_RANGE,
+                   dev->id ? : "", name, (int64_t)value, min, max);
         return;
     }
 
@@ -923,8 +923,8 @@ void error_set_from_qdev_prop_error(Error **errp, int ret, DeviceState *dev,
         break;
     default:
     case -EINVAL:
-        error_set(errp, QERR_PROPERTY_VALUE_BAD,
-                  object_get_typename(OBJECT(dev)), prop->name, value);
+        error_setg(errp, QERR_PROPERTY_VALUE_BAD,
+                   object_get_typename(OBJECT(dev)), prop->name, value);
         break;
     case -ENOENT:
         error_setg(errp, "Property '%s.%s' can't find value '%s'",

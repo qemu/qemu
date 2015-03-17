@@ -1312,7 +1312,7 @@ static void internal_snapshot_prepare(BlkTransactionState *common,
     aio_context_acquire(state->aio_context);
 
     if (!bdrv_is_inserted(bs)) {
-        error_set(errp, QERR_DEVICE_HAS_NO_MEDIUM, device);
+        error_setg(errp, QERR_DEVICE_HAS_NO_MEDIUM, device);
         return;
     }
 
@@ -1453,7 +1453,7 @@ static void external_snapshot_prepare(BlkTransactionState *common,
     /* start processing */
     drv = bdrv_find_format(format);
     if (!drv) {
-        error_set(errp, QERR_INVALID_BLOCK_FORMAT, format);
+        error_setg(errp, QERR_INVALID_BLOCK_FORMAT, format);
         return;
     }
 
@@ -1480,7 +1480,7 @@ static void external_snapshot_prepare(BlkTransactionState *common,
     aio_context_acquire(state->aio_context);
 
     if (!bdrv_is_inserted(state->old_bs)) {
-        error_set(errp, QERR_DEVICE_HAS_NO_MEDIUM, device);
+        error_setg(errp, QERR_DEVICE_HAS_NO_MEDIUM, device);
         return;
     }
 
@@ -1491,13 +1491,13 @@ static void external_snapshot_prepare(BlkTransactionState *common,
 
     if (!bdrv_is_read_only(state->old_bs)) {
         if (bdrv_flush(state->old_bs)) {
-            error_set(errp, QERR_IO_ERROR);
+            error_setg(errp, QERR_IO_ERROR);
             return;
         }
     }
 
     if (!bdrv_is_first_non_filter(state->old_bs)) {
-        error_set(errp, QERR_FEATURE_DISABLED, "snapshot");
+        error_setg(errp, QERR_FEATURE_DISABLED, "snapshot");
         return;
     }
 
@@ -1926,7 +1926,7 @@ void qmp_change_blockdev(const char *device, const char *filename,
     if (format) {
         drv = bdrv_find_whitelisted_format(format, bs->read_only);
         if (!drv) {
-            error_set(errp, QERR_INVALID_BLOCK_FORMAT, format);
+            error_setg(errp, QERR_INVALID_BLOCK_FORMAT, format);
             goto out;
         }
     }
@@ -2208,17 +2208,17 @@ void qmp_block_resize(bool has_device, const char *device,
     aio_context_acquire(aio_context);
 
     if (!bdrv_is_first_non_filter(bs)) {
-        error_set(errp, QERR_FEATURE_DISABLED, "resize");
+        error_setg(errp, QERR_FEATURE_DISABLED, "resize");
         goto out;
     }
 
     if (size < 0) {
-        error_set(errp, QERR_INVALID_PARAMETER_VALUE, "size", "a >0 size");
+        error_setg(errp, QERR_INVALID_PARAMETER_VALUE, "size", "a >0 size");
         goto out;
     }
 
     if (bdrv_op_is_blocked(bs, BLOCK_OP_TYPE_RESIZE, NULL)) {
-        error_set(errp, QERR_DEVICE_IN_USE, device);
+        error_setg(errp, QERR_DEVICE_IN_USE, device);
         goto out;
     }
 
@@ -2230,16 +2230,16 @@ void qmp_block_resize(bool has_device, const char *device,
     case 0:
         break;
     case -ENOMEDIUM:
-        error_set(errp, QERR_DEVICE_HAS_NO_MEDIUM, device);
+        error_setg(errp, QERR_DEVICE_HAS_NO_MEDIUM, device);
         break;
     case -ENOTSUP:
-        error_set(errp, QERR_UNSUPPORTED);
+        error_setg(errp, QERR_UNSUPPORTED);
         break;
     case -EACCES:
         error_setg(errp, "Device '%s' is read only", device);
         break;
     case -EBUSY:
-        error_set(errp, QERR_DEVICE_IN_USE, device);
+        error_setg(errp, QERR_DEVICE_IN_USE, device);
         break;
     default:
         error_setg_errno(errp, -ret, "Could not resize");
@@ -2313,7 +2313,7 @@ void qmp_block_stream(const char *device,
     if (has_base) {
         base_bs = bdrv_find_backing_image(bs, base);
         if (base_bs == NULL) {
-            error_set(errp, QERR_BASE_NOT_FOUND, base);
+            error_setg(errp, QERR_BASE_NOT_FOUND, base);
             goto out;
         }
         assert(bdrv_get_aio_context(base_bs) == aio_context);
@@ -2411,7 +2411,7 @@ void qmp_block_commit(const char *device,
     }
 
     if (base_bs == NULL) {
-        error_set(errp, QERR_BASE_NOT_FOUND, base ? base : "NULL");
+        error_setg(errp, QERR_BASE_NOT_FOUND, base ? base : "NULL");
         goto out;
     }
 
@@ -2497,7 +2497,7 @@ void qmp_drive_backup(const char *device, const char *target,
     /* Although backup_run has this check too, we need to use bs->drv below, so
      * do an early check redundantly. */
     if (!bdrv_is_inserted(bs)) {
-        error_set(errp, QERR_DEVICE_HAS_NO_MEDIUM, device);
+        error_setg(errp, QERR_DEVICE_HAS_NO_MEDIUM, device);
         goto out;
     }
 
@@ -2507,7 +2507,7 @@ void qmp_drive_backup(const char *device, const char *target,
     if (format) {
         drv = bdrv_find_format(format);
         if (!drv) {
-            error_set(errp, QERR_INVALID_BLOCK_FORMAT, format);
+            error_setg(errp, QERR_INVALID_BLOCK_FORMAT, format);
             goto out;
         }
     }
@@ -2689,12 +2689,13 @@ void qmp_drive_mirror(const char *device, const char *target,
     }
 
     if (granularity != 0 && (granularity < 512 || granularity > 1048576 * 64)) {
-        error_set(errp, QERR_INVALID_PARAMETER_VALUE, "granularity",
-                  "a value in range [512B, 64MB]");
+        error_setg(errp, QERR_INVALID_PARAMETER_VALUE, "granularity",
+                   "a value in range [512B, 64MB]");
         return;
     }
     if (granularity & (granularity - 1)) {
-        error_set(errp, QERR_INVALID_PARAMETER_VALUE, "granularity", "power of 2");
+        error_setg(errp, QERR_INVALID_PARAMETER_VALUE, "granularity",
+                   "power of 2");
         return;
     }
 
@@ -2710,7 +2711,7 @@ void qmp_drive_mirror(const char *device, const char *target,
     aio_context_acquire(aio_context);
 
     if (!bdrv_is_inserted(bs)) {
-        error_set(errp, QERR_DEVICE_HAS_NO_MEDIUM, device);
+        error_setg(errp, QERR_DEVICE_HAS_NO_MEDIUM, device);
         goto out;
     }
 
@@ -2720,7 +2721,7 @@ void qmp_drive_mirror(const char *device, const char *target,
     if (format) {
         drv = bdrv_find_format(format);
         if (!drv) {
-            error_set(errp, QERR_INVALID_BLOCK_FORMAT, format);
+            error_setg(errp, QERR_INVALID_BLOCK_FORMAT, format);
             goto out;
         }
     }

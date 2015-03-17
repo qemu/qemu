@@ -603,8 +603,8 @@ char *qmp_human_monitor_command(const char *command_line, bool has_cpu_index,
         int ret = monitor_set_cpu(cpu_index);
         if (ret < 0) {
             cur_mon = old_mon;
-            error_set(errp, QERR_INVALID_PARAMETER_VALUE, "cpu-index",
-                      "a CPU number");
+            error_setg(errp, QERR_INVALID_PARAMETER_VALUE, "cpu-index",
+                       "a CPU number");
             goto out;
         }
     }
@@ -1021,7 +1021,7 @@ void qmp_client_migrate_info(const char *protocol, const char *hostname,
         }
 
         if (!has_port && !has_tls_port) {
-            error_set(errp, QERR_MISSING_PARAMETER, "port/tls-port");
+            error_setg(errp, QERR_MISSING_PARAMETER, "port/tls-port");
             return;
         }
 
@@ -1029,13 +1029,13 @@ void qmp_client_migrate_info(const char *protocol, const char *hostname,
                                     has_port ? port : -1,
                                     has_tls_port ? tls_port : -1,
                                     cert_subject)) {
-            error_set(errp, QERR_UNDEFINED_ERROR);
+            error_setg(errp, QERR_UNDEFINED_ERROR);
             return;
         }
         return;
     }
 
-    error_set(errp, QERR_INVALID_PARAMETER_VALUE, "protocol", "spice");
+    error_setg(errp, QERR_INVALID_PARAMETER_VALUE, "protocol", "spice");
 }
 
 static void hmp_logfile(Monitor *mon, const QDict *qdict)
@@ -2100,14 +2100,14 @@ void qmp_getfd(const char *fdname, Error **errp)
 
     fd = qemu_chr_fe_get_msgfd(cur_mon->chr);
     if (fd == -1) {
-        error_set(errp, QERR_FD_NOT_SUPPLIED);
+        error_setg(errp, QERR_FD_NOT_SUPPLIED);
         return;
     }
 
     if (qemu_isdigit(fdname[0])) {
         close(fd);
-        error_set(errp, QERR_INVALID_PARAMETER_VALUE, "fdname",
-                  "a name not starting with a digit");
+        error_setg(errp, QERR_INVALID_PARAMETER_VALUE, "fdname",
+                   "a name not starting with a digit");
         return;
     }
 
@@ -2144,7 +2144,7 @@ void qmp_closefd(const char *fdname, Error **errp)
         return;
     }
 
-    error_set(errp, QERR_FD_NOT_FOUND, fdname);
+    error_setg(errp, QERR_FD_NOT_FOUND, fdname);
 }
 
 static void hmp_loadvm(Monitor *mon, const QDict *qdict)
@@ -2225,7 +2225,7 @@ AddfdInfo *qmp_add_fd(bool has_fdset_id, int64_t fdset_id, bool has_opaque,
 
     fd = qemu_chr_fe_get_msgfd(mon->chr);
     if (fd == -1) {
-        error_set(errp, QERR_FD_NOT_SUPPLIED);
+        error_setg(errp, QERR_FD_NOT_SUPPLIED);
         goto error;
     }
 
@@ -2277,7 +2277,7 @@ error:
     } else {
         snprintf(fd_str, sizeof(fd_str), "fdset-id:%" PRId64, fdset_id);
     }
-    error_set(errp, QERR_FD_NOT_FOUND, fd_str);
+    error_setg(errp, QERR_FD_NOT_FOUND, fd_str);
 }
 
 FdsetInfoList *qmp_query_fdsets(Error **errp)
@@ -2345,8 +2345,8 @@ AddfdInfo *monitor_fdset_add_fd(int fd, bool has_fdset_id, int64_t fdset_id,
 
         if (has_fdset_id) {
             if (fdset_id < 0) {
-                error_set(errp, QERR_INVALID_PARAMETER_VALUE, "fdset-id",
-                          "a non-negative value");
+                error_setg(errp, QERR_INVALID_PARAMETER_VALUE, "fdset-id",
+                           "a non-negative value");
                 return NULL;
             }
             /* Use specified fdset ID */
@@ -4771,7 +4771,7 @@ static void check_client_args_type(const QDict *client_args,
                 continue;
             }
             /* client arg doesn't exist */
-            error_set(errp, QERR_INVALID_PARAMETER, client_arg_name);
+            error_setg(errp, QERR_INVALID_PARAMETER, client_arg_name);
             return;
         }
 
@@ -4784,8 +4784,8 @@ static void check_client_args_type(const QDict *client_args,
         case 'B':
         case 's':
             if (qobject_type(client_arg) != QTYPE_QSTRING) {
-                error_set(errp, QERR_INVALID_PARAMETER_TYPE,
-                          client_arg_name, "string");
+                error_setg(errp, QERR_INVALID_PARAMETER_TYPE,
+                           client_arg_name, "string");
                 return;
             }
         break;
@@ -4794,24 +4794,24 @@ static void check_client_args_type(const QDict *client_args,
         case 'M':
         case 'o':
             if (qobject_type(client_arg) != QTYPE_QINT) {
-                error_set(errp, QERR_INVALID_PARAMETER_TYPE,
-                          client_arg_name, "int");
+                error_setg(errp, QERR_INVALID_PARAMETER_TYPE,
+                           client_arg_name, "int");
                 return;
             }
             break;
         case 'T':
             if (qobject_type(client_arg) != QTYPE_QINT &&
                 qobject_type(client_arg) != QTYPE_QFLOAT) {
-                error_set(errp, QERR_INVALID_PARAMETER_TYPE,
-                          client_arg_name, "number");
+                error_setg(errp, QERR_INVALID_PARAMETER_TYPE,
+                           client_arg_name, "number");
                 return;
             }
             break;
         case 'b':
         case '-':
             if (qobject_type(client_arg) != QTYPE_QBOOL) {
-                error_set(errp, QERR_INVALID_PARAMETER_TYPE,
-                          client_arg_name, "bool");
+                error_setg(errp, QERR_INVALID_PARAMETER_TYPE,
+                           client_arg_name, "bool");
                 return;
             }
             break;
@@ -4854,7 +4854,7 @@ static void check_mandatory_args(const QDict *cmd_args,
         } else if (qstring_get_str(type)[0] != '-' &&
                    qstring_get_str(type)[1] != '?' &&
                    !qdict_haskey(client_args, cmd_arg_name)) {
-            error_set(errp, QERR_MISSING_PARAMETER, cmd_arg_name);
+            error_setg(errp, QERR_MISSING_PARAMETER, cmd_arg_name);
             return;
         }
     }
@@ -4952,7 +4952,7 @@ static QDict *qmp_check_input_obj(QObject *input_obj, Error **errp)
     QDict *input_dict;
 
     if (qobject_type(input_obj) != QTYPE_QDICT) {
-        error_set(errp, QERR_QMP_BAD_INPUT_OBJECT, "object");
+        error_setg(errp, QERR_QMP_BAD_INPUT_OBJECT, "object");
         return NULL;
     }
 
@@ -4964,27 +4964,27 @@ static QDict *qmp_check_input_obj(QObject *input_obj, Error **errp)
 
         if (!strcmp(arg_name, "execute")) {
             if (qobject_type(arg_obj) != QTYPE_QSTRING) {
-                error_set(errp, QERR_QMP_BAD_INPUT_OBJECT_MEMBER,
-                          "execute", "string");
+                error_setg(errp, QERR_QMP_BAD_INPUT_OBJECT_MEMBER,
+                           "execute", "string");
                 return NULL;
             }
             has_exec_key = 1;
         } else if (!strcmp(arg_name, "arguments")) {
             if (qobject_type(arg_obj) != QTYPE_QDICT) {
-                error_set(errp, QERR_QMP_BAD_INPUT_OBJECT_MEMBER,
-                          "arguments", "object");
+                error_setg(errp, QERR_QMP_BAD_INPUT_OBJECT_MEMBER,
+                           "arguments", "object");
                 return NULL;
             }
         } else if (!strcmp(arg_name, "id")) {
             /* Any string is acceptable as "id", so nothing to check */
         } else {
-            error_set(errp, QERR_QMP_EXTRA_MEMBER, arg_name);
+            error_setg(errp, QERR_QMP_EXTRA_MEMBER, arg_name);
             return NULL;
         }
     }
 
     if (!has_exec_key) {
-        error_set(errp, QERR_QMP_BAD_INPUT_OBJECT, "execute");
+        error_setg(errp, QERR_QMP_BAD_INPUT_OBJECT, "execute");
         return NULL;
     }
 
@@ -5006,7 +5006,7 @@ static void handle_qmp_command(JSONMessageParser *parser, QList *tokens)
     obj = json_parser_parse(tokens, NULL);
     if (!obj) {
         // FIXME: should be triggered in json_parser_parse()
-        error_set(&local_err, QERR_JSON_PARSING);
+        error_setg(&local_err, QERR_JSON_PARSING);
         goto err_out;
     }
 
@@ -5048,7 +5048,7 @@ static void handle_qmp_command(JSONMessageParser *parser, QList *tokens)
         /* Command failed... */
         if (!mon->error) {
             /* ... without setting an error, so make one up */
-            error_set(&local_err, QERR_UNDEFINED_ERROR);
+            error_setg(&local_err, QERR_UNDEFINED_ERROR);
         }
     }
     if (mon->error) {
@@ -5382,6 +5382,6 @@ QemuOptsList qemu_mon_opts = {
 #ifndef TARGET_I386
 void qmp_rtc_reset_reinjection(Error **errp)
 {
-    error_set(errp, QERR_FEATURE_DISABLED, "rtc-reset-reinjection");
+    error_setg(errp, QERR_FEATURE_DISABLED, "rtc-reset-reinjection");
 }
 #endif

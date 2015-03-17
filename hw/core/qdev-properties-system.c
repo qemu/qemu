@@ -326,8 +326,8 @@ static void set_vlan(Object *obj, Visitor *v, void *opaque,
 
     hubport = net_hub_port_find(id);
     if (!hubport) {
-        error_set(errp, QERR_INVALID_PARAMETER_VALUE,
-                  name, prop->info->name);
+        error_setg(errp, QERR_INVALID_PARAMETER_VALUE,
+                   name, prop->info->name);
         return;
     }
     *ptr = hubport;
