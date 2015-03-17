@@ -421,14 +421,12 @@ void vnc_tls_client_cleanup(struct VncState *vs)
         gnutls_deinit(vs->tls.session);
         vs->tls.session = NULL;
     }
-    vs->tls.wiremode = VNC_WIREMODE_CLEAR;
     g_free(vs->tls.dname);
 #ifdef CONFIG_VNC_WS
     if (vs->ws_tls.session) {
         gnutls_deinit(vs->ws_tls.session);
         vs->ws_tls.session = NULL;
     }
-    vs->ws_tls.wiremode = VNC_WIREMODE_CLEAR;
     g_free(vs->ws_tls.dname);
 #endif /* CONFIG_VNC_WS */
 }

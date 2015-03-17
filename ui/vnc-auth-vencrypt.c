@@ -93,7 +93,6 @@ static int vnc_start_vencrypt_handshake(struct VncState *vs) {
     }
 
     VNC_DEBUG("Handshake done, switching to TLS data mode\n");
-    vs->tls.wiremode = VNC_WIREMODE_TLS;
     qemu_set_fd_handler2(vs->csock, NULL, vnc_client_read, vnc_client_write, vs);
 
     start_auth_vencrypt_subauth(vs);
