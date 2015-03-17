@@ -3119,9 +3119,24 @@ libs_softmmu="$libs_softmmu $fdt_libs"
 
 ##########################################
 # opengl probe (for sdl2, milkymist-tmu2)
+
+# GLX probe, used by milkymist-tmu2
+# this is temporary, code will be switched to egl mid-term.
+cat > $TMPC << EOF
+#include <X11/Xlib.h>
+#include <GL/gl.h>
+#include <GL/glx.h>
+int main(void) { glBegin(0); glXQueryVersion(0,0,0); return 0; }
+EOF
+if compile_prog "" "-lGL -lX11" ; then
+  have_glx=yes
+else
+  have_glx=no
+fi
+
 if test "$opengl" != "no" ; then
-  opengl_pkgs="gl glx"
-  if $pkg_config $opengl_pkgs x11; then
+  opengl_pkgs="gl"
+  if $pkg_config $opengl_pkgs x11 && test "$have_glx" = "yes"; then
     opengl_cflags="$($pkg_config --cflags $opengl_pkgs) $x11_cflags"
     opengl_libs="$($pkg_config --libs $opengl_pkgs) $x11_libs"
     opengl=yes
