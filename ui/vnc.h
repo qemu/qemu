@@ -180,10 +180,10 @@ struct VncDisplay
     char *password;
     time_t expires;
     int auth;
+    int subauth; /* Used by VeNCrypt */
     bool lossy;
     bool non_adaptive;
 #ifdef CONFIG_VNC_TLS
-    int subauth; /* Used by VeNCrypt */
     VncDisplayTLS tls;
 #endif
 #ifdef CONFIG_VNC_SASL
@@ -284,9 +284,9 @@ struct VncState
     int minor;
 
     int auth;
+    int subauth; /* Used by VeNCrypt */
     char challenge[VNC_AUTH_CHALLENGE_SIZE];
 #ifdef CONFIG_VNC_TLS
-    int subauth; /* Used by VeNCrypt */
     VncStateTLS tls;
 #endif
 #ifdef CONFIG_VNC_SASL

@@ -3010,14 +3010,10 @@ static void vnc_connect(VncDisplay *vd, int csock,
 
     if (skipauth) {
 	vs->auth = VNC_AUTH_NONE;
-#ifdef CONFIG_VNC_TLS
 	vs->subauth = VNC_AUTH_INVALID;
-#endif
     } else {
 	vs->auth = vd->auth;
-#ifdef CONFIG_VNC_TLS
 	vs->subauth = vd->subauth;
-#endif
     }
 
     vs->lossy_rect = g_malloc0(VNC_STAT_ROWS * sizeof (*vs->lossy_rect));
@@ -3206,8 +3202,8 @@ static void vnc_display_close(VncDisplay *vs)
     }
 #endif /* CONFIG_VNC_WS */
     vs->auth = VNC_AUTH_INVALID;
-#ifdef CONFIG_VNC_TLS
     vs->subauth = VNC_AUTH_INVALID;
+#ifdef CONFIG_VNC_TLS
     vs->tls.x509verify = 0;
 #endif
 }
@@ -3332,15 +3328,13 @@ void vnc_display_open(const char *id, Error **errp)
     char *h;
     bool has_ipv4 = false;
     bool has_ipv6 = false;
-#ifdef CONFIG_VNC_WS
     const char *websocket;
-#endif
-#ifdef CONFIG_VNC_TLS
     bool tls = false, x509 = false;
+#ifdef CONFIG_VNC_TLS
     const char *path;
 #endif
-#ifdef CONFIG_VNC_SASL
     bool sasl = false;
+#ifdef CONFIG_VNC_SASL
     int saslErr;
 #endif
 #if defined(CONFIG_VNC_TLS) || defined(CONFIG_VNC_SASL)
@@ -3404,11 +3398,15 @@ void vnc_display_open(const char *id, Error **errp)
 
     reverse = qemu_opt_get_bool(opts, "reverse", false);
     lock_key_sync = qemu_opt_get_bool(opts, "lock-key-sync", true);
-#ifdef CONFIG_VNC_SASL
     sasl = qemu_opt_get_bool(opts, "sasl", false);
-#endif
-#ifdef CONFIG_VNC_TLS
+#ifndef CONFIG_VNC_SASL
+    if (sasl) {
+        error_setg(errp, "VNC SASL auth requires cyrus-sasl support");
+        goto fail;
+    }
+#endif /* CONFIG_VNC_SASL */
     tls  = qemu_opt_get_bool(opts, "tls", false);
+#ifdef CONFIG_VNC_TLS
     path = qemu_opt_get(opts, "x509");
     if (!path) {
         path = qemu_opt_get(opts, "x509verify");
@@ -3424,7 +3422,12 @@ void vnc_display_open(const char *id, Error **errp)
             goto fail;
         }
     }
-#endif
+#else /* ! CONFIG_VNC_TLS */
+    if (tls) {
+        error_setg(errp, "VNC TLS auth requires gnutls support");
+        goto fail;
+    }
+#endif /* ! CONFIG_VNC_TLS */
 #if defined(CONFIG_VNC_TLS) || defined(CONFIG_VNC_SASL)
     acl = qemu_opt_get_bool(opts, "acl", false);
 #endif
@@ -3446,14 +3449,16 @@ void vnc_display_open(const char *id, Error **errp)
     }
     vs->connections_limit = qemu_opt_get_number(opts, "connections", 32);
 
- #ifdef CONFIG_VNC_WS
     websocket = qemu_opt_get(opts, "websocket");
     if (websocket) {
+#ifdef CONFIG_VNC_WS
         vs->ws_enabled = true;
         qemu_opt_set(wsopts, "port", websocket, &error_abort);
-
+#else /* ! CONFIG_VNC_WS */
+        error_setg(errp, "Websockets protocol requires gnutls support");
+        goto fail;
+#endif /* ! CONFIG_VNC_WS */
     }
-#endif /* CONFIG_VNC_WS */
 
 #ifdef CONFIG_VNC_JPEG
     vs->lossy = qemu_opt_get_bool(opts, "lossy", false);
@@ -3518,7 +3523,6 @@ void vnc_display_open(const char *id, Error **errp)
      * NB2. the x509 schemes have option to validate a client cert dname
      */
     if (password) {
-#ifdef CONFIG_VNC_TLS
         if (tls) {
             vs->auth = VNC_AUTH_VENCRYPT;
             if (x509) {
@@ -3529,16 +3533,11 @@ void vnc_display_open(const char *id, Error **errp)
                 vs->subauth = VNC_AUTH_VENCRYPT_TLSVNC;
             }
         } else {
-#endif /* CONFIG_VNC_TLS */
             VNC_DEBUG("Initializing VNC server with password auth\n");
             vs->auth = VNC_AUTH_VNC;
-#ifdef CONFIG_VNC_TLS
             vs->subauth = VNC_AUTH_INVALID;
         }
-#endif /* CONFIG_VNC_TLS */
-#ifdef CONFIG_VNC_SASL
     } else if (sasl) {
-#ifdef CONFIG_VNC_TLS
         if (tls) {
             vs->auth = VNC_AUTH_VENCRYPT;
             if (x509) {
@@ -3549,16 +3548,11 @@ void vnc_display_open(const char *id, Error **errp)
                 vs->subauth = VNC_AUTH_VENCRYPT_TLSSASL;
             }
         } else {
-#endif /* CONFIG_VNC_TLS */
             VNC_DEBUG("Initializing VNC server with SASL auth\n");
             vs->auth = VNC_AUTH_SASL;
-#ifdef CONFIG_VNC_TLS
             vs->subauth = VNC_AUTH_INVALID;
         }
-#endif /* CONFIG_VNC_TLS */
-#endif /* CONFIG_VNC_SASL */
     } else {
-#ifdef CONFIG_VNC_TLS
         if (tls) {
             vs->auth = VNC_AUTH_VENCRYPT;
             if (x509) {
@@ -3569,13 +3563,10 @@ void vnc_display_open(const char *id, Error **errp)
                 vs->subauth = VNC_AUTH_VENCRYPT_TLSNONE;
             }
         } else {
-#endif
             VNC_DEBUG("Initializing VNC server with no auth\n");
             vs->auth = VNC_AUTH_NONE;
-#ifdef CONFIG_VNC_TLS
             vs->subauth = VNC_AUTH_INVALID;
         }
-#endif
     }
 
 #ifdef CONFIG_VNC_SASL
