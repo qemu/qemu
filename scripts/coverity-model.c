@@ -123,7 +123,7 @@ void *g_malloc_n(size_t nmemb, size_t size)
     __coverity_negative_sink__(nmemb);
     __coverity_negative_sink__(size);
     sz = nmemb * size;
-    ptr = __coverity_alloc__(size);
+    ptr = __coverity_alloc__(sz);
     __coverity_mark_as_uninitialized_buffer__(ptr);
     __coverity_mark_as_afm_allocated__(ptr, "g_free");
     return ptr;
@@ -137,7 +137,7 @@ void *g_malloc0_n(size_t nmemb, size_t size)
     __coverity_negative_sink__(nmemb);
     __coverity_negative_sink__(size);
     sz = nmemb * size;
-    ptr = __coverity_alloc__(size);
+    ptr = __coverity_alloc__(sz);
     __coverity_writeall0__(ptr);
     __coverity_mark_as_afm_allocated__(ptr, "g_free");
     return ptr;
@@ -151,7 +151,7 @@ void *g_realloc_n(void *ptr, size_t nmemb, size_t size)
     __coverity_negative_sink__(size);
     sz = nmemb * size;
     __coverity_escape__(ptr);
-    ptr = __coverity_alloc__(size);
+    ptr = __coverity_alloc__(sz);
     /*
      * Memory beyond the old size isn't actually initialized.  Can't
      * model that.  See Coverity's realloc() model
