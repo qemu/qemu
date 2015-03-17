@@ -45,6 +45,7 @@
 #include "sysemu/sysemu.h"
 #include "sysemu/numa.h"
 #include "sysemu/kvm.h"
+#include "sysemu/qtest.h"
 #include "kvm_i386.h"
 #include "hw/xen/xen.h"
 #include "sysemu/block-backend.h"
@@ -653,7 +654,7 @@ static uint32_t x86_cpu_apic_id_from_index(unsigned int cpu_index)
 
     correct_id = x86_apicid_from_cpu_idx(smp_cores, smp_threads, cpu_index);
     if (compat_apic_id_mode) {
-        if (cpu_index != correct_id && !warned) {
+        if (cpu_index != correct_id && !warned && !qtest_enabled()) {
             error_report("APIC IDs set in compatibility mode, "
                          "CPU topology won't match the configuration");
             warned = true;
@@ -992,18 +993,26 @@ void pc_acpi_smi_interrupt(void *opaque, int irq, int level)
 static X86CPU *pc_new_cpu(const char *cpu_model, int64_t apic_id,
                           DeviceState *icc_bridge, Error **errp)
 {
-    X86CPU *cpu;
+    X86CPU *cpu = NULL;
     Error *local_err = NULL;
 
-    cpu = cpu_x86_create(cpu_model, icc_bridge, &local_err);
-    if (local_err != NULL) {
-        error_propagate(errp, local_err);
-        return NULL;
+    if (icc_bridge == NULL) {
+        error_setg(&local_err, "Invalid icc-bridge value");
+        goto out;
     }
+
+    cpu = cpu_x86_create(cpu_model, &local_err);
+    if (local_err != NULL) {
+        goto out;
+    }
+
+    qdev_set_parent_bus(DEVICE(cpu), qdev_get_child_bus(icc_bridge, "icc"));
+    object_unref(OBJECT(cpu));
 
     object_property_set_int(OBJECT(cpu), apic_id, "apic-id", &local_err);
     object_property_set_bool(OBJECT(cpu), true, "realized", &local_err);
 
+out:
     if (local_err) {
         error_propagate(errp, local_err);
         object_unref(OBJECT(cpu));
