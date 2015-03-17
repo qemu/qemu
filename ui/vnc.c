@@ -2400,34 +2400,34 @@ static int protocol_client_msg(VncState *vs, uint8_t *data, size_t len)
                 case 4: vs->as.fmt = AUD_FMT_U32; break;
                 case 5: vs->as.fmt = AUD_FMT_S32; break;
                 default:
-                    printf("Invalid audio format %d\n", read_u8(data, 4));
+                    VNC_DEBUG("Invalid audio format %d\n", read_u8(data, 4));
                     vnc_client_error(vs);
                     break;
                 }
                 vs->as.nchannels = read_u8(data, 5);
                 if (vs->as.nchannels != 1 && vs->as.nchannels != 2) {
-                    printf("Invalid audio channel coount %d\n",
-                           read_u8(data, 5));
+                    VNC_DEBUG("Invalid audio channel coount %d\n",
+                              read_u8(data, 5));
                     vnc_client_error(vs);
                     break;
                 }
                 vs->as.freq = read_u32(data, 6);
                 break;
             default:
-                printf ("Invalid audio message %d\n", read_u8(data, 4));
+                VNC_DEBUG("Invalid audio message %d\n", read_u8(data, 4));
                 vnc_client_error(vs);
                 break;
             }
             break;
 
         default:
-            printf("Msg: %d\n", read_u16(data, 0));
+            VNC_DEBUG("Msg: %d\n", read_u16(data, 0));
             vnc_client_error(vs);
             break;
         }
         break;
     default:
-        printf("Msg: %d\n", data[0]);
+        VNC_DEBUG("Msg: %d\n", data[0]);
         vnc_client_error(vs);
         break;
     }
