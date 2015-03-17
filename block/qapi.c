@@ -523,12 +523,6 @@ static void dump_qobject(fprintf_function func_fprintf, void *f,
             func_fprintf(f, "%s", qbool_get_bool(value) ? "true" : "false");
             break;
         }
-        case QTYPE_QERROR: {
-            QString *value = qerror_human((QError *)obj);
-            func_fprintf(f, "%s", qstring_get_str(value));
-            QDECREF(value);
-            break;
-        }
         default:
             abort();
     }

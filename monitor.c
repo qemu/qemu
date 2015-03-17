@@ -202,7 +202,6 @@ struct Monitor {
     BlockCompletionFunc *password_completion_cb;
     void *password_opaque;
     mon_cmd_t *cmd_table;
-    QError *error;
     QLIST_HEAD(,mon_fd_t) fds;
     QLIST_ENTRY(Monitor) entry;
 };
@@ -4038,16 +4037,6 @@ fail:
     return NULL;
 }
 
-void monitor_set_error(Monitor *mon, QError *qerror)
-{
-    /* report only the first error */
-    if (!mon->error) {
-        mon->error = qerror;
-    } else {
-        QDECREF(qerror);
-    }
-}
-
 static void handle_hmp_command(Monitor *mon, const char *cmdline)
 {
     QDict *qdict;
@@ -5047,8 +5036,6 @@ static void handle_qmp_command(JSONMessageParser *parser, QList *tokens)
 err_out:
     monitor_protocol_emitter(mon, data, local_err);
     qobject_decref(data);
-    QDECREF(mon->error);
-    mon->error = NULL;
     QDECREF(input);
     QDECREF(args);
 }

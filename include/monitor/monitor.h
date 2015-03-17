@@ -39,7 +39,6 @@ void monitor_flush(Monitor *mon);
 int monitor_set_cpu(int cpu_index);
 int monitor_get_cpu_index(void);
 
-void monitor_set_error(Monitor *mon, QError *qerror);
 void monitor_read_command(Monitor *mon, int show_prompt);
 int monitor_read_password(Monitor *mon, ReadLineFunc *readline_func,
                           void *opaque);

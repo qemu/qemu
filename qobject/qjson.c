@@ -261,9 +261,6 @@ static void to_json(const QObject *obj, QString *str, int pretty, int indent)
         }
         break;
     }
-    case QTYPE_QERROR:
-        /* XXX: should QError be emitted? */
-        break;
     default:
         abort();
     }
