@@ -736,8 +736,7 @@ devices. We describe here the usage for QEMU version >= 0.8.3.
 
 On Linux, you can directly use the host device filename instead of a
 disk image filename provided you have enough privileges to access
-it. For example, use @file{/dev/cdrom} to access to the CDROM or
-@file{/dev/fd0} for the floppy.
+it. For example, use @file{/dev/cdrom} to access to the CDROM.
 
 @table @code
 @item CD
@@ -749,6 +748,8 @@ You can specify a floppy device even if no floppy is loaded. Floppy
 removal is currently not detected accurately (if you change floppy
 without doing floppy access while the floppy is not loaded, the guest
 OS will think that the same floppy is loaded).
+Use of the host's floppy device is deprecated, and support for it will
+be removed in a future release.
 @item Hard disks
 Hard disks can be used. Normally you must specify the whole disk
 (@file{/dev/hdb} instead of @file{/dev/hdb1}) so that the guest OS can

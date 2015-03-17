@@ -2387,6 +2387,8 @@ static int floppy_open(BlockDriverState *bs, QDict *options, int flags,
     s->fd = -1;
     s->fd_media_changed = 1;
 
+    error_report("Host floppy pass-through is deprecated");
+    error_printf("Support for it will be removed in a future release.\n");
     return 0;
 }
 

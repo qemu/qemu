@@ -218,6 +218,7 @@
 #       'host_floppy', 'http', 'https', 'nbd', 'parallels', 'qcow',
 #       'qcow2', 'raw', 'tftp', 'vdi', 'vmdk', 'vpc', 'vvfat'
 #       2.2: 'archipelago' added, 'cow' dropped
+#       2.3: 'host_floppy' deprecated
 #
 # @backing_file: #optional the name of the backing file (for copy-on-write)
 #
@@ -1245,6 +1246,7 @@
 # Drivers that are supported in block device operations.
 #
 # @host_device, @host_cdrom, @host_floppy: Since 2.1
+# @host_floppy: deprecated since 2.3
 #
 # Since: 2.0
 ##
