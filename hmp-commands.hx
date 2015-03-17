@@ -1674,6 +1674,32 @@ Add CPU with id @var{id}
 ETEXI
 
     {
+        .name       = "qom-list",
+        .args_type  = "path:s?",
+        .params     = "path",
+        .help       = "list QOM properties",
+        .mhandler.cmd  = hmp_qom_list,
+    },
+
+STEXI
+@item qom-list [@var{path}]
+Print QOM properties of object at location @var{path}
+ETEXI
+
+    {
+        .name       = "qom-set",
+        .args_type  = "path:s,property:s,value:s",
+        .params     = "path property value",
+        .help       = "set QOM property",
+        .mhandler.cmd  = hmp_qom_set,
+    },
+
+STEXI
+@item qom-set @var{path} @var{property} @var{value}
+Set QOM property @var{property} of object at location @var{path} to value @var{value}
+ETEXI
+
+    {
         .name       = "info",
         .args_type  = "item:s?",
         .params     = "[subcommand]",
@@ -1756,6 +1782,8 @@ show balloon information
 show device tree
 @item info qdm
 show qdev device model list
+@item info qom-tree
+show object composition tree
 @item info roms
 show roms
 @item info tpm

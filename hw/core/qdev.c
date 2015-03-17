@@ -501,8 +501,9 @@ void qdev_connect_gpio_out_named(DeviceState *dev, const char *name, int n,
          * with an error without doing anything.  If it has none, it will
          * never fail.  So we can just call it with a NULL Error pointer.
          */
-        object_property_add_child(qdev_get_machine(), "non-qdev-gpio[*]",
-                                  OBJECT(pin), NULL);
+        object_property_add_child(container_get(qdev_get_machine(),
+                                                "/unattached"),
+                                  "non-qdev-gpio[*]", OBJECT(pin), NULL);
     }
     object_property_set_link(OBJECT(dev), OBJECT(pin), propname, &error_abort);
     g_free(propname);

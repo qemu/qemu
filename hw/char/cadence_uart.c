@@ -476,18 +476,12 @@ static void cadence_uart_reset(DeviceState *dev)
     uart_update_status(s);
 }
 
-static int cadence_uart_init(SysBusDevice *dev)
+static void cadence_uart_realize(DeviceState *dev, Error **errp)
 {
     UartState *s = CADENCE_UART(dev);
 
-    memory_region_init_io(&s->iomem, OBJECT(s), &uart_ops, s, "uart", 0x1000);
-    sysbus_init_mmio(dev, &s->iomem);
-    sysbus_init_irq(dev, &s->irq);
-
     s->fifo_trigger_handle = timer_new_ns(QEMU_CLOCK_VIRTUAL,
-            (QEMUTimerCB *)fifo_trigger_update, s);
-
-    s->char_tx_time = (get_ticks_per_sec() / 9600) * 10;
+                                          fifo_trigger_update, s);
 
     s->chr = qemu_char_get_next_serial();
 
@@ -495,8 +489,18 @@ static int cadence_uart_init(SysBusDevice *dev)
         qemu_chr_add_handlers(s->chr, uart_can_receive, uart_receive,
                               uart_event, s);
     }
+}
 
-    return 0;
+static void cadence_uart_init(Object *obj)
+{
+    SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
+    UartState *s = CADENCE_UART(obj);
+
+    memory_region_init_io(&s->iomem, obj, &uart_ops, s, "uart", 0x1000);
+    sysbus_init_mmio(sbd, &s->iomem);
+    sysbus_init_irq(sbd, &s->irq);
+
+    s->char_tx_time = (get_ticks_per_sec() / 9600) * 10;
 }
 
 static int cadence_uart_post_load(void *opaque, int version_id)
@@ -528,9 +532,8 @@ static const VMStateDescription vmstate_cadence_uart = {
 static void cadence_uart_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
-    SysBusDeviceClass *sdc = SYS_BUS_DEVICE_CLASS(klass);
 
-    sdc->init = cadence_uart_init;
+    dc->realize = cadence_uart_realize;
     dc->vmsd = &vmstate_cadence_uart;
     dc->reset = cadence_uart_reset;
 }
@@ -539,6 +542,7 @@ static const TypeInfo cadence_uart_info = {
     .name          = TYPE_CADENCE_UART,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(UartState),
+    .instance_init = cadence_uart_init,
     .class_init    = cadence_uart_class_init,
 };
 

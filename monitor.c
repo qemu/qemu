@@ -2890,6 +2890,13 @@ static mon_cmd_t info_cmds[] = {
         .mhandler.cmd = hmp_info_qdm,
     },
     {
+        .name       = "qom-tree",
+        .args_type  = "path:s?",
+        .params     = "[path]",
+        .help       = "show QOM composition tree",
+        .mhandler.cmd = hmp_info_qom_tree,
+    },
+    {
         .name       = "roms",
         .args_type  = "",
         .params     = "",
