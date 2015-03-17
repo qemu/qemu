@@ -1111,7 +1111,7 @@ gen_m16add32_q(TCGv ret, TCGv arg1, TCGv arg2, TCGv arg3, uint32_t n)
     TCGv temp2 = tcg_temp_new();
     if (n == 0) {
         tcg_gen_mul_tl(temp, arg2, arg3);
-    } else { /* n is exspected to be 1 */
+    } else { /* n is expected to be 1 */
         tcg_gen_mul_tl(temp, arg2, arg3);
         tcg_gen_shli_tl(temp, temp, 1);
         /* catch special case r1 = r2 = 0x8000 */
@@ -1131,7 +1131,7 @@ gen_m16adds32_q(TCGv ret, TCGv arg1, TCGv arg2, TCGv arg3, uint32_t n)
     TCGv temp2 = tcg_temp_new();
     if (n == 0) {
         tcg_gen_mul_tl(temp, arg2, arg3);
-    } else { /* n is exspected to be 1 */
+    } else { /* n is expected to be 1 */
         tcg_gen_mul_tl(temp, arg2, arg3);
         tcg_gen_shli_tl(temp, temp, 1);
         /* catch special case r1 = r2 = 0x8000 */
@@ -1156,7 +1156,7 @@ gen_m16add64_q(TCGv rl, TCGv rh, TCGv arg1_low, TCGv arg1_high, TCGv arg2,
 
     if (n == 0) {
         tcg_gen_mul_tl(temp, arg2, arg3);
-    } else { /* n is exspected to be 1 */
+    } else { /* n is expected to be 1 */
         tcg_gen_mul_tl(temp, arg2, arg3);
         tcg_gen_shli_tl(temp, temp, 1);
         /* catch special case r1 = r2 = 0x8000 */
@@ -1188,7 +1188,7 @@ gen_m16adds64_q(TCGv rl, TCGv rh, TCGv arg1_low, TCGv arg1_high, TCGv arg2,
 
     if (n == 0) {
         tcg_gen_mul_tl(temp, arg2, arg3);
-    } else { /* n is exspected to be 1 */
+    } else { /* n is expected to be 1 */
         tcg_gen_mul_tl(temp, arg2, arg3);
         tcg_gen_shli_tl(temp, temp, 1);
         /* catch special case r1 = r2 = 0x8000 */
@@ -1975,7 +1975,7 @@ gen_m16sub32_q(TCGv ret, TCGv arg1, TCGv arg2, TCGv arg3, uint32_t n)
     TCGv temp2 = tcg_temp_new();
     if (n == 0) {
         tcg_gen_mul_tl(temp, arg2, arg3);
-    } else { /* n is exspected to be 1 */
+    } else { /* n is expected to be 1 */
         tcg_gen_mul_tl(temp, arg2, arg3);
         tcg_gen_shli_tl(temp, temp, 1);
         /* catch special case r1 = r2 = 0x8000 */
@@ -1995,7 +1995,7 @@ gen_m16subs32_q(TCGv ret, TCGv arg1, TCGv arg2, TCGv arg3, uint32_t n)
     TCGv temp2 = tcg_temp_new();
     if (n == 0) {
         tcg_gen_mul_tl(temp, arg2, arg3);
-    } else { /* n is exspected to be 1 */
+    } else { /* n is expected to be 1 */
         tcg_gen_mul_tl(temp, arg2, arg3);
         tcg_gen_shli_tl(temp, temp, 1);
         /* catch special case r1 = r2 = 0x8000 */
@@ -2020,7 +2020,7 @@ gen_m16sub64_q(TCGv rl, TCGv rh, TCGv arg1_low, TCGv arg1_high, TCGv arg2,
 
     if (n == 0) {
         tcg_gen_mul_tl(temp, arg2, arg3);
-    } else { /* n is exspected to be 1 */
+    } else { /* n is expected to be 1 */
         tcg_gen_mul_tl(temp, arg2, arg3);
         tcg_gen_shli_tl(temp, temp, 1);
         /* catch special case r1 = r2 = 0x8000 */
@@ -2052,7 +2052,7 @@ gen_m16subs64_q(TCGv rl, TCGv rh, TCGv arg1_low, TCGv arg1_high, TCGv arg2,
 
     if (n == 0) {
         tcg_gen_mul_tl(temp, arg2, arg3);
-    } else { /* n is exspected to be 1 */
+    } else { /* n is expected to be 1 */
         tcg_gen_mul_tl(temp, arg2, arg3);
         tcg_gen_shli_tl(temp, temp, 1);
         /* catch special case r1 = r2 = 0x8000 */
@@ -2560,7 +2560,7 @@ gen_mul_q(TCGv rl, TCGv rh, TCGv arg1, TCGv arg2, uint32_t n, uint32_t up_shift)
         }
         /* reset v bit */
         tcg_gen_movi_tl(cpu_PSW_V, 0);
-    } else { /* n is exspected to be 1 */
+    } else { /* n is expected to be 1 */
         tcg_gen_ext_i32_i64(temp_64, arg1);
         tcg_gen_ext_i32_i64(temp2_64, arg2);
 
@@ -2572,7 +2572,7 @@ gen_mul_q(TCGv rl, TCGv rh, TCGv arg1, TCGv arg2, uint32_t n, uint32_t up_shift)
             tcg_gen_shri_i64(temp_64, temp_64, up_shift - 1);
         }
         tcg_gen_extr_i64_i32(rl, rh, temp_64);
-        /* overflow only occours if r1 = r2 = 0x8000 */
+        /* overflow only occurs if r1 = r2 = 0x8000 */
         if (up_shift == 0) {/* result is 64 bit */
             tcg_gen_setcondi_tl(TCG_COND_EQ, cpu_PSW_V, rh,
                                 0x80000000);
@@ -2605,7 +2605,7 @@ gen_mul_q_16(TCGv ret, TCGv arg1, TCGv arg2, uint32_t n)
     TCGv temp = tcg_temp_new();
     if (n == 0) {
         tcg_gen_mul_tl(ret, arg1, arg2);
-    } else { /* n is exspected to be 1 */
+    } else { /* n is expected to be 1 */
         tcg_gen_mul_tl(ret, arg1, arg2);
         tcg_gen_shli_tl(ret, ret, 1);
         /* catch special case r1 = r2 = 0x8000 */
