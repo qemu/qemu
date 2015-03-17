@@ -362,6 +362,7 @@ static void init_event_facility_class(ObjectClass *klass, void *data)
 
     dc->reset = reset_event_facility;
     dc->vmsd = &vmstate_event_facility;
+    set_bit(DEVICE_CATEGORY_MISC, dc->categories);
     k->init = init_event_facility;
     k->command_handler = command_handler;
     k->event_pending = event_pending;
