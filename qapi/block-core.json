@@ -882,9 +882,6 @@
 #
 # For the arguments, see the documentation of BlockdevBackup.
 #
-# Returns: Nothing on success.
-#          If @device or @target is not a valid block device, DeviceNotFound.
-#
 # Since 2.3
 ##
 { 'command': 'blockdev-backup', 'data': 'BlockdevBackup' }
