@@ -22,7 +22,6 @@
 #include "hw/hw.h"
 #include "sysemu/sysemu.h"
 #include "hw/boards.h"
-#include "monitor/monitor.h"
 #include "hw/loader.h"
 #include "elf.h"
 #include "hw/sysbus.h"

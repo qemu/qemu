@@ -17,7 +17,6 @@
 #include "qemu/error-report.h"
 #include "qemu/main-loop.h"
 #include "migration/migration.h"
-#include "monitor/monitor.h"
 #include "migration/qemu-file.h"
 #include "sysemu/sysemu.h"
 #include "block/block.h"

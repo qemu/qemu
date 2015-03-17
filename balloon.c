@@ -24,7 +24,7 @@
  * THE SOFTWARE.
  */
 
-#include "monitor/monitor.h"
+#include "qemu-common.h"
 #include "exec/cpu-common.h"
 #include "sysemu/kvm.h"
 #include "sysemu/balloon.h"

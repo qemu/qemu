@@ -5,7 +5,7 @@
 #include "qom/object.h"
 #include "qapi/qmp/qdict.h"
 #include "qemu/notify.h"
-#include "monitor/monitor.h"
+#include "qemu/typedefs.h"
 #include "qapi-types.h"
 #include "qapi/error.h"
 

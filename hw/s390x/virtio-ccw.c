@@ -15,7 +15,6 @@
 #include "sysemu/blockdev.h"
 #include "sysemu/sysemu.h"
 #include "net/net.h"
-#include "monitor/monitor.h"
 #include "hw/virtio/virtio.h"
 #include "hw/virtio/virtio-serial.h"
 #include "hw/virtio/virtio-net.h"

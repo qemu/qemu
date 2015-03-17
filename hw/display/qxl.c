@@ -25,7 +25,6 @@
 #include "qemu/timer.h"
 #include "qemu/queue.h"
 #include "qemu/atomic.h"
-#include "monitor/monitor.h"
 #include "sysemu/sysemu.h"
 #include "trace.h"
 

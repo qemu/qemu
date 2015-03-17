@@ -28,7 +28,6 @@
 #include <hw/sysbus.h>
 
 #include "qemu/error-report.h"
-#include "monitor/monitor.h"
 #include "sysemu/block-backend.h"
 #include "sysemu/dma.h"
 #include "internal.h"

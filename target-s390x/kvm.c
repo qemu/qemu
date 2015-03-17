@@ -37,7 +37,6 @@
 #include "cpu.h"
 #include "sysemu/device_tree.h"
 #include "qapi/qmp/qjson.h"
-#include "monitor/monitor.h"
 #include "exec/gdbstub.h"
 #include "exec/address-spaces.h"
 #include "trace.h"

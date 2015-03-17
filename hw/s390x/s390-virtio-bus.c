@@ -21,7 +21,6 @@
 #include "sysemu/block-backend.h"
 #include "sysemu/sysemu.h"
 #include "hw/boards.h"
-#include "monitor/monitor.h"
 #include "hw/loader.h"
 #include "elf.h"
 #include "hw/virtio/virtio.h"

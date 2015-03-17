@@ -14,6 +14,7 @@
  */
 
 #include "qemu-common.h"
+#include "monitor/monitor.h"
 #include "sysemu/sysemu.h"
 #include "qmp-commands.h"
 #include "sysemu/char.h"

@@ -28,7 +28,6 @@
 #include "sysemu/sysemu.h"
 #include "net/net.h"
 #include "hw/boards.h"
-#include "monitor/monitor.h"
 #include "hw/loader.h"
 #include "hw/virtio/virtio.h"
 #include "hw/sysbus.h"
