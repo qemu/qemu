@@ -3036,7 +3036,7 @@ static void vnc_connect(VncDisplay *vd, int csock,
         vs->websocket = 1;
 #ifdef CONFIG_VNC_TLS
         if (vd->ws_tls) {
-            qemu_set_fd_handler2(vs->csock, NULL, vncws_tls_handshake_peek,
+            qemu_set_fd_handler2(vs->csock, NULL, vncws_tls_handshake_io,
                                  NULL, vs);
         } else
 #endif /* CONFIG_VNC_TLS */

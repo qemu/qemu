@@ -75,7 +75,7 @@ enum {
 };
 
 #ifdef CONFIG_VNC_TLS
-void vncws_tls_handshake_peek(void *opaque);
+void vncws_tls_handshake_io(void *opaque);
 #endif /* CONFIG_VNC_TLS */
 void vncws_handshake_read(void *opaque);
 long vnc_client_write_ws(VncState *vs);
