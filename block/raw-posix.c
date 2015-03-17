@@ -503,6 +503,14 @@ static int raw_open_common(BlockDriverState *bs, QDict *options,
         error_setg_errno(errp, -ret, "Could not set AIO state");
         goto fail;
     }
+    if (!s->use_aio && (bdrv_flags & BDRV_O_NATIVE_AIO)) {
+        error_printf("WARNING: aio=native was specified for '%s', but "
+                     "it requires cache.direct=on, which was not "
+                     "specified. Falling back to aio=threads.\n"
+                     "         This will become an error condition in "
+                     "future QEMU versions.\n",
+                     bs->filename);
+    }
 #endif
 
     s->has_discard = true;
