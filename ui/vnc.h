@@ -181,6 +181,8 @@ struct VncDisplay
     time_t expires;
     int auth;
     int subauth; /* Used by VeNCrypt */
+    int ws_auth; /* Used by websockets */
+    bool ws_tls; /* Used by websockets */
     bool lossy;
     bool non_adaptive;
 #ifdef CONFIG_VNC_TLS

@@ -3012,9 +3012,16 @@ static void vnc_connect(VncDisplay *vd, int csock,
 	vs->auth = VNC_AUTH_NONE;
 	vs->subauth = VNC_AUTH_INVALID;
     } else {
-	vs->auth = vd->auth;
-	vs->subauth = vd->subauth;
+        if (websocket) {
+            vs->auth = vd->ws_auth;
+            vs->subauth = VNC_AUTH_INVALID;
+        } else {
+            vs->auth = vd->auth;
+            vs->subauth = vd->subauth;
+        }
     }
+    VNC_DEBUG("Client sock=%d ws=%d auth=%d subauth=%d\n",
+              csock, websocket, vs->auth, vs->subauth);
 
     vs->lossy_rect = g_malloc0(VNC_STAT_ROWS * sizeof (*vs->lossy_rect));
     for (i = 0; i < VNC_STAT_ROWS; ++i) {
@@ -3028,7 +3035,7 @@ static void vnc_connect(VncDisplay *vd, int csock,
     if (websocket) {
         vs->websocket = 1;
 #ifdef CONFIG_VNC_TLS
-        if (vd->tls.x509cert) {
+        if (vd->ws_tls) {
             qemu_set_fd_handler2(vs->csock, NULL, vncws_tls_handshake_peek,
                                  NULL, vs);
         } else
@@ -3320,7 +3327,8 @@ vnc_display_setup_auth(VncDisplay *vs,
                        bool password,
                        bool sasl,
                        bool tls,
-                       bool x509)
+                       bool x509,
+                       bool websocket)
 {
     /*
      * We have a choice of 3 authentication options
@@ -3355,10 +3363,26 @@ vnc_display_setup_auth(VncDisplay *vs,
      * in an appropriate manner. In regular VNC, all the
      * TLS options get mapped into VNC_AUTH_VENCRYPT
      * sub-auth types.
+     *
+     * In websockets, the https:// protocol already provides
+     * TLS support, so there is no need to make use of the
+     * VeNCrypt extension. Furthermore, websockets browser
+     * clients could not use VeNCrypt even if they wanted to,
+     * as they cannot control when the TLS handshake takes
+     * place. Thus there is no option but to rely on https://,
+     * meaning combinations 4->6 and 7->9 will be mapped to
+     * VNC auth schemes in the same way as combos 1->3.
+     *
+     * Regardless of fact that we have a different mapping to
+     * VNC auth mechs for plain VNC vs websockets VNC, the end
+     * result has the same security characteristics.
      */
     if (password) {
         if (tls) {
             vs->auth = VNC_AUTH_VENCRYPT;
+            if (websocket) {
+                vs->ws_tls = true;
+            }
             if (x509) {
                 VNC_DEBUG("Initializing VNC server with x509 password auth\n");
                 vs->subauth = VNC_AUTH_VENCRYPT_X509VNC;
@@ -3371,9 +3395,17 @@ vnc_display_setup_auth(VncDisplay *vs,
             vs->auth = VNC_AUTH_VNC;
             vs->subauth = VNC_AUTH_INVALID;
         }
+        if (websocket) {
+            vs->ws_auth = VNC_AUTH_VNC;
+        } else {
+            vs->ws_auth = VNC_AUTH_INVALID;
+        }
     } else if (sasl) {
         if (tls) {
             vs->auth = VNC_AUTH_VENCRYPT;
+            if (websocket) {
+                vs->ws_tls = true;
+            }
             if (x509) {
                 VNC_DEBUG("Initializing VNC server with x509 SASL auth\n");
                 vs->subauth = VNC_AUTH_VENCRYPT_X509SASL;
@@ -3386,9 +3418,17 @@ vnc_display_setup_auth(VncDisplay *vs,
             vs->auth = VNC_AUTH_SASL;
             vs->subauth = VNC_AUTH_INVALID;
         }
+        if (websocket) {
+            vs->ws_auth = VNC_AUTH_SASL;
+        } else {
+            vs->ws_auth = VNC_AUTH_INVALID;
+        }
     } else {
         if (tls) {
             vs->auth = VNC_AUTH_VENCRYPT;
+            if (websocket) {
+                vs->ws_tls = true;
+            }
             if (x509) {
                 VNC_DEBUG("Initializing VNC server with x509 no auth\n");
                 vs->subauth = VNC_AUTH_VENCRYPT_X509NONE;
@@ -3400,6 +3440,11 @@ vnc_display_setup_auth(VncDisplay *vs,
             VNC_DEBUG("Initializing VNC server with no auth\n");
             vs->auth = VNC_AUTH_NONE;
             vs->subauth = VNC_AUTH_INVALID;
+        }
+        if (websocket) {
+            vs->ws_auth = VNC_AUTH_NONE;
+        } else {
+            vs->ws_auth = VNC_AUTH_INVALID;
         }
     }
 }
@@ -3596,7 +3641,7 @@ void vnc_display_open(const char *id, Error **errp)
     }
 #endif
 
-    vnc_display_setup_auth(vs, password, sasl, tls, x509);
+    vnc_display_setup_auth(vs, password, sasl, tls, x509, websocket);
 
 #ifdef CONFIG_VNC_SASL
     if ((saslErr = sasl_server_init(NULL, "qemu")) != SASL_OK) {
