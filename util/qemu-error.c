@@ -12,6 +12,7 @@
 
 #include <stdio.h>
 #include "monitor/monitor.h"
+#include "qemu/error-report.h"
 
 /*
  * Print to current monitor if we have one, else to stderr.

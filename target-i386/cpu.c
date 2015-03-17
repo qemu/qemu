@@ -26,6 +26,7 @@
 #include "sysemu/cpus.h"
 #include "kvm_i386.h"
 
+#include "qemu/error-report.h"
 #include "qemu/option.h"
 #include "qemu/config-file.h"
 #include "qapi/qmp/qerror.h"

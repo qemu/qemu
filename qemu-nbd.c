@@ -25,6 +25,7 @@
 #include "qemu/error-report.h"
 #include "block/snapshot.h"
 #include "qapi/util.h"
+#include "qapi/qmp/qstring.h"
 
 #include <stdarg.h>
 #include <stdio.h>

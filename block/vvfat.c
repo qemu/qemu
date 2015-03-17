@@ -30,6 +30,7 @@
 #include "migration/migration.h"
 #include "qapi/qmp/qint.h"
 #include "qapi/qmp/qbool.h"
+#include "qapi/qmp/qstring.h"
 
 #ifndef S_IWGRP
 #define S_IWGRP 0

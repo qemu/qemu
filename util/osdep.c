@@ -47,6 +47,7 @@ extern int madvise(caddr_t, size_t, int);
 
 #include "qemu-common.h"
 #include "qemu/sockets.h"
+#include "qemu/error-report.h"
 #include "monitor/monitor.h"
 
 static bool fips_enabled = false;

@@ -38,6 +38,7 @@
 #include "qemu/iov.h"
 #include "sysemu/sysemu.h"
 #include "qmp-commands.h"
+#include "qapi/qmp/qstring.h"
 
 #include <iscsi/iscsi.h>
 #include <iscsi/scsi-lowlevel.h>

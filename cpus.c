@@ -27,6 +27,7 @@
 
 #include "monitor/monitor.h"
 #include "qapi/qmp/qerror.h"
+#include "qemu/error-report.h"
 #include "sysemu/sysemu.h"
 #include "exec/gdbstub.h"
 #include "sysemu/dma.h"

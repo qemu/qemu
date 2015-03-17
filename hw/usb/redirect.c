@@ -29,6 +29,7 @@
 #include "qemu/timer.h"
 #include "monitor/monitor.h"
 #include "sysemu/sysemu.h"
+#include "qemu/error-report.h"
 #include "qemu/iov.h"
 #include "sysemu/char.h"
 

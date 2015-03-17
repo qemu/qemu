@@ -18,6 +18,7 @@
  */
 
 #include "hw/hw.h"
+#include "qemu/error-report.h"
 #include "ui/console.h"
 #include "ui/pixel_ops.h"
 #include "trace.h"

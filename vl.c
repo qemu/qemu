@@ -58,6 +58,7 @@ int main(int argc, char **argv)
 
 #include <glib.h>
 
+#include "qemu/error-report.h"
 #include "qemu/sockets.h"
 #include "hw/hw.h"
 #include "hw/boards.h"

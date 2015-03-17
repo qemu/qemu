@@ -24,6 +24,7 @@
 #include "qemu-common.h"
 #include "monitor/monitor.h"
 #include "sysemu/sysemu.h"
+#include "qemu/error-report.h"
 #include "qemu/timer.h"
 #include "sysemu/char.h"
 #include "hw/usb.h"

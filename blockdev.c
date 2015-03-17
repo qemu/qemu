@@ -36,6 +36,7 @@
 #include "block/blockjob.h"
 #include "block/throttle-groups.h"
 #include "monitor/monitor.h"
+#include "qemu/error-report.h"
 #include "qemu/option.h"
 #include "qemu/config-file.h"
 #include "qapi/qmp/types.h"

@@ -37,6 +37,7 @@
 #include "qemu/timer.h"
 #include "audio/audio.h"
 #include "migration/migration.h"
+#include "qemu/error-report.h"
 #include "qemu/sockets.h"
 #include "qemu/queue.h"
 #include "sysemu/cpus.h"

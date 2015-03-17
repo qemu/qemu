@@ -24,6 +24,7 @@
 #include "qmp-commands.h"
 #include "sysemu/arch_init.h"
 #include "qemu/config-file.h"
+#include "qemu/error-report.h"
 
 /*
  * Aliases were a bad idea from the start.  Let's keep them

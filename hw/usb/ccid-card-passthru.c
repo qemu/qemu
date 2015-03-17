@@ -9,6 +9,7 @@
  */
 
 #include "sysemu/char.h"
+#include "qemu/error-report.h"
 #include "qemu/sockets.h"
 #include "monitor/monitor.h"
 #include "ccid.h"

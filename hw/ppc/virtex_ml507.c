@@ -32,6 +32,7 @@
 #include "sysemu/device_tree.h"
 #include "hw/loader.h"
 #include "elf.h"
+#include "qemu/error-report.h"
 #include "qemu/log.h"
 #include "exec/address-spaces.h"
 

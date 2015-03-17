@@ -29,6 +29,7 @@
 #include <asm/ptrace.h>
 
 #include "qemu-common.h"
+#include "qemu/error-report.h"
 #include "qemu/timer.h"
 #include "sysemu/sysemu.h"
 #include "sysemu/kvm.h"

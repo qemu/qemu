@@ -15,10 +15,12 @@
 #include <libgen.h>
 
 #include "qemu-io.h"
+#include "qemu/error-report.h"
 #include "qemu/main-loop.h"
 #include "qemu/option.h"
 #include "qemu/config-file.h"
 #include "qemu/readline.h"
+#include "qapi/qmp/qstring.h"
 #include "sysemu/block-backend.h"
 #include "block/block_int.h"
 #include "trace/control.h"
