@@ -348,9 +348,10 @@ static void uhci_update_irq(UHCIState *s)
     pci_set_irq(&s->dev, level);
 }
 
-static void uhci_reset(void *opaque)
+static void uhci_reset(DeviceState *dev)
 {
-    UHCIState *s = opaque;
+    PCIDevice *d = PCI_DEVICE(dev);
+    UHCIState *s = DO_UPCAST(UHCIState, dev, d);
     uint8_t *pci_conf;
     int i;
     UHCIPort *port;
@@ -454,11 +455,11 @@ static void uhci_port_write(void *opaque, hwaddr addr,
                 port = &s->ports[i];
                 usb_device_reset(port->port.dev);
             }
-            uhci_reset(s);
+            uhci_reset(DEVICE(s));
             return;
         }
         if (val & UHCI_CMD_HCRESET) {
-            uhci_reset(s);
+            uhci_reset(DEVICE(s));
             return;
         }
         s->cmd = val;
@@ -1230,8 +1231,6 @@ static void usb_uhci_common_realize(PCIDevice *dev, Error **errp)
     s->num_ports_vmstate = NB_PORTS;
     QTAILQ_INIT(&s->queues);
 
-    qemu_register_reset(uhci_reset, s);
-
     memory_region_init_io(&s->io_bar, OBJECT(s), &uhci_ioport_ops, s,
                           "uhci", 0x20);
 
@@ -1305,6 +1304,7 @@ static void uhci_class_init(ObjectClass *klass, void *data)
     k->revision  = info->revision;
     k->class_id  = PCI_CLASS_SERIAL_USB;
     dc->vmsd = &vmstate_uhci;
+    dc->reset = uhci_reset;
     if (!info->unplug) {
         /* uhci controllers in companion setups can't be hotplugged */
         dc->hotpluggable = false;
