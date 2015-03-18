@@ -1233,7 +1233,9 @@ void address_space_stq(AddressSpace *as, hwaddr addr, uint64_t val,
 #endif
 
 /* address_space_translate: translate an address range into an address space
- * into a MemoryRegion and an address range into that section
+ * into a MemoryRegion and an address range into that section.  Should be
+ * called from an RCU critical section, to avoid that the last reference
+ * to the returned region disappears after address_space_translate returns.
  *
  * @as: #AddressSpace to be accessed
  * @addr: address within that address space
