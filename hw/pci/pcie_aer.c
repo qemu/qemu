@@ -622,8 +622,8 @@ static bool pcie_aer_inject_uncor_error(PCIEAERInject *inj, bool is_fatal)
  *
  * 6.2.4 Error Logging
  * 6.2.5 Sequence of Device Error Signaling and Logging Operations
- * table 6-2: Flowchart Showing Sequence of Device Error Signaling and Logging
- *            Operations
+ * Figure 6-2: Flowchart Showing Sequence of Device Error Signaling and Logging
+ *             Operations
  */
 int pcie_aer_inject_error(PCIDevice *dev, const PCIEAERErr *err)
 {
