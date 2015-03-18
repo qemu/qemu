@@ -45,7 +45,7 @@ static VirtIOSCSIVring *virtio_scsi_vring_init(VirtIOSCSI *s,
 {
     BusState *qbus = BUS(qdev_get_parent_bus(DEVICE(s)));
     VirtioBusClass *k = VIRTIO_BUS_GET_CLASS(qbus);
-    VirtIOSCSIVring *r = g_slice_new(VirtIOSCSIVring);
+    VirtIOSCSIVring *r;
     int rc;
 
     /* Set up virtqueue notify */
@@ -56,6 +56,8 @@ static VirtIOSCSIVring *virtio_scsi_vring_init(VirtIOSCSI *s,
         s->dataplane_fenced = true;
         return NULL;
     }
+
+    r = g_slice_new(VirtIOSCSIVring);
     r->host_notifier = *virtio_queue_get_host_notifier(vq);
     r->guest_notifier = *virtio_queue_get_guest_notifier(vq);
     aio_set_event_notifier(s->ctx, &r->host_notifier, handler);
