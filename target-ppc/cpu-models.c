@@ -1124,8 +1124,6 @@
     POWERPC_DEF("POWER5",        CPU_POWERPC_POWER5,                 POWER5,
                 "POWER5")
 #endif
-    POWERPC_DEF("POWER5+_v0.0",  CPU_POWERPC_POWER5P_v00,            POWER5P,
-                "POWER5+ v0.0")
     POWERPC_DEF("POWER5+_v2.1",  CPU_POWERPC_POWER5P_v21,            POWER5P,
                 "POWER5+ v2.1")
 #if defined(TODO)
@@ -1387,8 +1385,8 @@ PowerPCCPUAlias ppc_cpu_aliases[] = {
     { "Dino",  "POWER3" },
     { "POWER3+", "631" },
     { "POWER5gr", "POWER5" },
-    { "POWER5+", "POWER5+_v0.0" },
-    { "POWER5gs", "POWER5+_v0.0" },
+    { "POWER5+", "POWER5+_v2.1" },
+    { "POWER5gs", "POWER5+_v2.1" },
     { "POWER7", "POWER7_v2.3" },
     { "POWER7+", "POWER7+_v2.1" },
     { "POWER8E", "POWER8E_v1.0" },
