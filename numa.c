@@ -202,7 +202,7 @@ static void validate_numa_cpus(void)
     }
 }
 
-void parse_numa_opts(void)
+void parse_numa_opts(MachineClass *mc)
 {
     int i;
 
@@ -270,13 +270,21 @@ void parse_numa_opts(void)
                 break;
             }
         }
-        /* assigning the VCPUs round-robin is easier to implement, guest OSes
-         * must cope with this anyway, because there are BIOSes out there in
-         * real machines which also use this scheme.
+        /* Historically VCPUs were assigned in round-robin order to NUMA
+         * nodes. However it causes issues with guest not handling it nice
+         * in case where cores/threads from a multicore CPU appear on
+         * different nodes. So allow boards to override default distribution
+         * rule grouping VCPUs by socket so that VCPUs from the same socket
+         * would be on the same node.
          */
         if (i == nb_numa_nodes) {
             for (i = 0; i < max_cpus; i++) {
-                set_bit(i, numa_info[i % nb_numa_nodes].node_cpu);
+                unsigned node_id = i % nb_numa_nodes;
+                if (mc->cpu_index_to_socket_id) {
+                    node_id = mc->cpu_index_to_socket_id(i) % nb_numa_nodes;
+                }
+
+                set_bit(i, numa_info[node_id].node_cpu);
             }
         }
 
