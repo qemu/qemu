@@ -742,12 +742,12 @@ static void spapr_phb_realize(DeviceState *dev, Error **errp)
     PCIBus *bus;
     uint64_t msi_window_size = 4096;
 
-    if (sphb->index != -1) {
+    if (sphb->index != (uint32_t)-1) {
         hwaddr windows_base;
 
-        if ((sphb->buid != -1) || (sphb->dma_liobn != -1)
-            || (sphb->mem_win_addr != -1)
-            || (sphb->io_win_addr != -1)) {
+        if ((sphb->buid != (uint64_t)-1) || (sphb->dma_liobn != (uint32_t)-1)
+            || (sphb->mem_win_addr != (hwaddr)-1)
+            || (sphb->io_win_addr != (hwaddr)-1)) {
             error_setg(errp, "Either \"index\" or other parameters must"
                        " be specified for PAPR PHB, not both");
             return;
@@ -768,22 +768,22 @@ static void spapr_phb_realize(DeviceState *dev, Error **errp)
         sphb->io_win_addr = windows_base + SPAPR_PCI_IO_WIN_OFF;
     }
 
-    if (sphb->buid == -1) {
+    if (sphb->buid == (uint64_t)-1) {
         error_setg(errp, "BUID not specified for PHB");
         return;
     }
 
-    if (sphb->dma_liobn == -1) {
+    if (sphb->dma_liobn == (uint32_t)-1) {
         error_setg(errp, "LIOBN not specified for PHB");
         return;
     }
 
-    if (sphb->mem_win_addr == -1) {
+    if (sphb->mem_win_addr == (hwaddr)-1) {
         error_setg(errp, "Memory window address not specified for PHB");
         return;
     }
 
-    if (sphb->io_win_addr == -1) {
+    if (sphb->io_win_addr == (hwaddr)-1) {
         error_setg(errp, "IO window address not specified for PHB");
         return;
     }
