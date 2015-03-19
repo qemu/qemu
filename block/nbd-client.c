@@ -386,8 +386,7 @@ int nbd_client_init(BlockDriverState *bs, int sock, const char *export,
     logout("session init %s\n", export);
     qemu_set_block(sock);
     ret = nbd_receive_negotiate(sock, export,
-                                &client->nbdflags, &client->size,
-                                &client->blocksize, errp);
+                                &client->nbdflags, &client->size, errp);
     if (ret < 0) {
         logout("Failed to negotiate with the NBD server\n");
         closesocket(sock);

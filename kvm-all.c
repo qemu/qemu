@@ -528,13 +528,33 @@ int kvm_vm_check_extension(KVMState *s, unsigned int extension)
     return ret;
 }
 
+static uint32_t adjust_ioeventfd_endianness(uint32_t val, uint32_t size)
+{
+#if defined(HOST_WORDS_BIGENDIAN) != defined(TARGET_WORDS_BIGENDIAN)
+    /* The kernel expects ioeventfd values in HOST_WORDS_BIGENDIAN
+     * endianness, but the memory core hands them in target endianness.
+     * For example, PPC is always treated as big-endian even if running
+     * on KVM and on PPC64LE.  Correct here.
+     */
+    switch (size) {
+    case 2:
+        val = bswap16(val);
+        break;
+    case 4:
+        val = bswap32(val);
+        break;
+    }
+#endif
+    return val;
+}
+
 static int kvm_set_ioeventfd_mmio(int fd, hwaddr addr, uint32_t val,
                                   bool assign, uint32_t size, bool datamatch)
 {
     int ret;
     struct kvm_ioeventfd iofd;
 
-    iofd.datamatch = datamatch ? val : 0;
+    iofd.datamatch = datamatch ? adjust_ioeventfd_endianness(val, size) : 0;
     iofd.addr = addr;
     iofd.len = size;
     iofd.flags = 0;
@@ -564,7 +584,7 @@ static int kvm_set_ioeventfd_pio(int fd, uint16_t addr, uint16_t val,
                                  bool assign, uint32_t size, bool datamatch)
 {
     struct kvm_ioeventfd kick = {
-        .datamatch = datamatch ? val : 0,
+        .datamatch = datamatch ? adjust_ioeventfd_endianness(val, size) : 0,
         .addr = addr,
         .flags = KVM_IOEVENTFD_FLAG_PIO,
         .len = size,

@@ -1975,7 +1975,7 @@ static void hmp_info_numa(Monitor *mon, const QDict *qdict)
 
 #ifdef CONFIG_PROFILER
 
-int64_t qemu_time;
+int64_t tcg_time;
 int64_t dev_time;
 
 static void hmp_info_profile(Monitor *mon, const QDict *qdict)
@@ -1983,8 +1983,8 @@ static void hmp_info_profile(Monitor *mon, const QDict *qdict)
     monitor_printf(mon, "async time  %" PRId64 " (%0.3f)\n",
                    dev_time, dev_time / (double)get_ticks_per_sec());
     monitor_printf(mon, "qemu time   %" PRId64 " (%0.3f)\n",
-                   qemu_time, qemu_time / (double)get_ticks_per_sec());
-    qemu_time = 0;
+                   tcg_time, tcg_time / (double)get_ticks_per_sec());
+    tcg_time = 0;
     dev_time = 0;
 }
 #else

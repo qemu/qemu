@@ -142,8 +142,9 @@ static void read_partition(uint8_t *p, struct partition_record *r)
     r->end_head = p[5];
     r->end_cylinder = p[7] | ((p[6] << 2) & 0x300);
     r->end_sector = p[6] & 0x3f;
-    r->start_sector_abs = p[8] | p[9] << 8 | p[10] << 16 | p[11] << 24;
-    r->nb_sectors_abs = p[12] | p[13] << 8 | p[14] << 16 | p[15] << 24;
+
+    r->start_sector_abs = le32_to_cpup((uint32_t *)(p +  8));
+    r->nb_sectors_abs   = le32_to_cpup((uint32_t *)(p + 12));
 }
 
 static int find_partition(BlockBackend *blk, int partition,
@@ -167,8 +168,9 @@ static int find_partition(BlockBackend *blk, int partition,
     for (i = 0; i < 4; i++) {
         read_partition(&data[446 + 16 * i], &mbr[i]);
 
-        if (!mbr[i].nb_sectors_abs)
+        if (!mbr[i].system || !mbr[i].nb_sectors_abs) {
             continue;
+        }
 
         if (mbr[i].system == 0xF || mbr[i].system == 0x5) {
             struct partition_record ext[4];
@@ -182,8 +184,9 @@ static int find_partition(BlockBackend *blk, int partition,
 
             for (j = 0; j < 4; j++) {
                 read_partition(&data1[446 + 16 * j], &ext[j]);
-                if (!ext[j].nb_sectors_abs)
+                if (!ext[j].system || !ext[j].nb_sectors_abs) {
                     continue;
+                }
 
                 if ((ext_partnum + j + 1) == partition) {
                     *offset = (uint64_t)ext[j].start_sector_abs << 9;
@@ -276,7 +279,6 @@ static void *nbd_client_thread(void *arg)
 {
     char *device = arg;
     off_t size;
-    size_t blocksize;
     uint32_t nbdflags;
     int fd, sock;
     int ret;
@@ -289,7 +291,7 @@ static void *nbd_client_thread(void *arg)
     }
 
     ret = nbd_receive_negotiate(sock, NULL, &nbdflags,
-                                &size, &blocksize, &local_error);
+                                &size, &local_error);
     if (ret < 0) {
         if (local_error) {
             fprintf(stderr, "%s\n", error_get_pretty(local_error));
@@ -305,7 +307,7 @@ static void *nbd_client_thread(void *arg)
         goto out_socket;
     }
 
-    ret = nbd_init(fd, sock, nbdflags, size, blocksize);
+    ret = nbd_init(fd, sock, nbdflags, size);
     if (ret < 0) {
         goto out_fd;
     }
@@ -633,7 +635,9 @@ int main(int argc, char **argv)
          * print errors and exit with the proper status code.
          */
         pid = fork();
-        if (pid == 0) {
+        if (pid < 0) {
+            err(EXIT_FAILURE, "Failed to fork");
+        } else if (pid == 0) {
             close(stderr_fd[0]);
             ret = qemu_daemon(1, 0);
 
@@ -715,6 +719,10 @@ int main(int argc, char **argv)
 
     bs->detect_zeroes = detect_zeroes;
     fd_size = blk_getlength(blk);
+    if (fd_size < 0) {
+        errx(EXIT_FAILURE, "Failed to determine the image length: %s",
+             strerror(-fd_size));
+    }
 
     if (partition != -1) {
         ret = find_partition(blk, partition, &dev_offset, &fd_size);
@@ -724,7 +732,11 @@ int main(int argc, char **argv)
         }
     }
 
-    exp = nbd_export_new(blk, dev_offset, fd_size, nbdflags, nbd_export_closed);
+    exp = nbd_export_new(blk, dev_offset, fd_size, nbdflags, nbd_export_closed,
+                         &local_err);
+    if (!exp) {
+        errx(EXIT_FAILURE, "%s", error_get_pretty(local_err));
+    }
 
     if (sockpath) {
         fd = unix_socket_incoming(sockpath);
