@@ -806,14 +806,6 @@ static int bdrv_open_common(BlockDriverState *bs, BlockDriverState *file,
     }
     qdict_del(options, "node-name");
 
-    /* bdrv_open() with directly using a protocol as drv. This layer is already
-     * opened, so assign it to bs (while file becomes a closed BlockDriverState)
-     * and return immediately. */
-    if (file != NULL && drv->bdrv_file_open) {
-        bdrv_swap(file, bs);
-        return 0;
-    }
-
     bs->open_flags = flags;
     bs->guest_block_size = 512;
     bs->request_alignment = 512;
@@ -942,14 +934,17 @@ static QDict *parse_json_filename(const char *filename, Error **errp)
 /*
  * Fills in default options for opening images and converts the legacy
  * filename/flags pair to option QDict entries.
+ * The BDRV_O_PROTOCOL flag in *flags will be set or cleared accordingly if a
+ * block driver has been specified explicitly.
  */
-static int bdrv_fill_options(QDict **options, const char **pfilename, int flags,
-                             BlockDriver *drv, Error **errp)
+static int bdrv_fill_options(QDict **options, const char **pfilename,
+                             int *flags, BlockDriver *drv, Error **errp)
 {
     const char *filename = *pfilename;
     const char *drvname;
-    bool protocol = flags & BDRV_O_PROTOCOL;
+    bool protocol = *flags & BDRV_O_PROTOCOL;
     bool parse_filename = false;
+    BlockDriver *tmp_drv;
     Error *local_err = NULL;
 
     /* Parse json: pseudo-protocol */
@@ -967,6 +962,24 @@ static int bdrv_fill_options(QDict **options, const char **pfilename, int flags,
         *pfilename = filename = NULL;
     }
 
+    drvname = qdict_get_try_str(*options, "driver");
+
+    /* If the user has explicitly specified the driver, this choice should
+     * override the BDRV_O_PROTOCOL flag */
+    tmp_drv = drv;
+    if (!tmp_drv && drvname) {
+        tmp_drv = bdrv_find_format(drvname);
+    }
+    if (tmp_drv) {
+        protocol = tmp_drv->bdrv_file_open;
+    }
+
+    if (protocol) {
+        *flags |= BDRV_O_PROTOCOL;
+    } else {
+        *flags &= ~BDRV_O_PROTOCOL;
+    }
+
     /* Fetch the file name from the options QDict if necessary */
     if (protocol && filename) {
         if (!qdict_haskey(*options, "filename")) {
@@ -981,7 +994,6 @@ static int bdrv_fill_options(QDict **options, const char **pfilename, int flags,
 
     /* Find the right block driver */
     filename = qdict_get_try_str(*options, "filename");
-    drvname = qdict_get_try_str(*options, "driver");
 
     if (drv) {
         if (drvname) {
@@ -1317,7 +1329,7 @@ int bdrv_open(BlockDriverState **pbs, const char *filename,
         options = qdict_new();
     }
 
-    ret = bdrv_fill_options(&options, &filename, flags, drv, &local_err);
+    ret = bdrv_fill_options(&options, &filename, &flags, drv, &local_err);
     if (local_err) {
         goto fail;
     }
@@ -1336,11 +1348,6 @@ int bdrv_open(BlockDriverState **pbs, const char *filename,
     }
 
     assert(drvname || !(flags & BDRV_O_PROTOCOL));
-    if (drv && !drv->bdrv_file_open) {
-        /* If the user explicitly wants a format driver here, we'll need to add
-         * another layer for the protocol in bs->file */
-        flags &= ~BDRV_O_PROTOCOL;
-    }
 
     bs->options = options;
     options = qdict_clone_shallow(options);
@@ -1376,6 +1383,12 @@ int bdrv_open(BlockDriverState **pbs, const char *filename,
         ret = -EINVAL;
         goto fail;
     }
+
+    /* BDRV_O_PROTOCOL must be set iff a protocol BDS is about to be created */
+    assert(!!(flags & BDRV_O_PROTOCOL) == !!drv->bdrv_file_open);
+    /* file must be NULL if a protocol BDS is about to be created
+     * (the inverse results in an error message from bdrv_open_common()) */
+    assert(!(flags & BDRV_O_PROTOCOL) || !file);
 
     /* Open the image */
     ret = bdrv_open_common(bs, file, options, flags, drv, &local_err);
