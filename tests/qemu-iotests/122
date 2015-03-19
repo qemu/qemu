@@ -1,0 +1,223 @@
+#!/bin/bash
+#
+# Test some qemu-img convert cases
+#
+# Copyright (C) 2015 Red Hat, Inc.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+
+# creator
+owner=kwolf@redhat.com
+
+seq="$(basename $0)"
+echo "QA output created by $seq"
+
+here="$PWD"
+tmp=/tmp/$$
+status=1	# failure is the default!
+
+_cleanup()
+{
+    rm -f "$TEST_IMG".[123]
+	_cleanup_test_img
+}
+trap "_cleanup; exit \$status" 0 1 2 3 15
+
+# get standard environment, filters and checks
+. ./common.rc
+. ./common.filter
+
+_supported_fmt qcow2
+_supported_proto file
+_supported_os Linux
+
+
+TEST_IMG="$TEST_IMG".base _make_test_img 64M
+$QEMU_IO -c "write -P 0x11 0 64M" "$TEST_IMG".base 2>&1 | _filter_qemu_io | _filter_testdir
+
+
+echo
+echo "=== Check allocation status regression with -B ==="
+echo
+
+_make_test_img -b "$TEST_IMG".base
+$QEMU_IO -c "write -P 0x22 0 3M" "$TEST_IMG" 2>&1 | _filter_qemu_io | _filter_testdir
+$QEMU_IMG convert -O $IMGFMT -B "$TEST_IMG".base "$TEST_IMG" "$TEST_IMG".orig
+$QEMU_IMG map "$TEST_IMG".orig | _filter_qemu_img_map
+
+
+echo
+echo "=== Check that zero clusters are kept in overlay ==="
+echo
+
+_make_test_img -b "$TEST_IMG".base
+
+$QEMU_IO -c "write -P 0 0 3M" "$TEST_IMG" 2>&1 | _filter_qemu_io | _filter_testdir
+$QEMU_IMG convert -O $IMGFMT -B "$TEST_IMG".base "$TEST_IMG" "$TEST_IMG".orig
+$QEMU_IO -c "read -P 0 0 3M" "$TEST_IMG".orig 2>&1 | _filter_qemu_io | _filter_testdir
+$QEMU_IMG convert -O $IMGFMT -c -B "$TEST_IMG".base "$TEST_IMG" "$TEST_IMG".orig
+$QEMU_IO -c "read -P 0 0 3M" "$TEST_IMG".orig 2>&1 | _filter_qemu_io | _filter_testdir
+
+$QEMU_IO -c "write -z 0 3M" "$TEST_IMG" 2>&1 | _filter_qemu_io | _filter_testdir
+$QEMU_IMG convert -O $IMGFMT -B "$TEST_IMG".base "$TEST_IMG" "$TEST_IMG".orig
+$QEMU_IO -c "read -P 0 0 3M" "$TEST_IMG".orig 2>&1 | _filter_qemu_io | _filter_testdir
+$QEMU_IMG convert -O $IMGFMT -c -B "$TEST_IMG".base "$TEST_IMG" "$TEST_IMG".orig
+$QEMU_IO -c "read -P 0 0 3M" "$TEST_IMG".orig 2>&1 | _filter_qemu_io | _filter_testdir
+
+
+echo
+echo "=== Concatenate multiple source images ==="
+echo
+
+TEST_IMG="$TEST_IMG".1 _make_test_img 4M
+TEST_IMG="$TEST_IMG".2 _make_test_img 4M
+TEST_IMG="$TEST_IMG".3 _make_test_img 4M
+
+$QEMU_IO -c "write -P 0x11 0 64k" "$TEST_IMG".1 2>&1 | _filter_qemu_io | _filter_testdir
+$QEMU_IO -c "write -P 0x22 0 64k" "$TEST_IMG".2 2>&1 | _filter_qemu_io | _filter_testdir
+$QEMU_IO -c "write -P 0x33 0 64k" "$TEST_IMG".3 2>&1 | _filter_qemu_io | _filter_testdir
+
+$QEMU_IMG convert -O $IMGFMT "$TEST_IMG".[123] "$TEST_IMG"
+$QEMU_IMG map "$TEST_IMG" | _filter_qemu_img_map
+$QEMU_IO -c "read -P 0x11 0 64k" "$TEST_IMG" 2>&1 | _filter_qemu_io | _filter_testdir
+$QEMU_IO -c "read -P 0x22 4M 64k" "$TEST_IMG" 2>&1 | _filter_qemu_io | _filter_testdir
+$QEMU_IO -c "read -P 0x33 8M 64k" "$TEST_IMG" 2>&1 | _filter_qemu_io | _filter_testdir
+
+$QEMU_IMG convert -c -O $IMGFMT "$TEST_IMG".[123] "$TEST_IMG"
+$QEMU_IMG map --output=json "$TEST_IMG" | _filter_qemu_img_map
+$QEMU_IO -c "read -P 0x11 0 64k" "$TEST_IMG" 2>&1 | _filter_qemu_io | _filter_testdir
+$QEMU_IO -c "read -P 0x22 4M 64k" "$TEST_IMG" 2>&1 | _filter_qemu_io | _filter_testdir
+$QEMU_IO -c "read -P 0x33 8M 64k" "$TEST_IMG" 2>&1 | _filter_qemu_io | _filter_testdir
+
+# -B can't be combined with concatenation
+$QEMU_IMG convert -O $IMGFMT -B "$TEST_IMG".base "$TEST_IMG".[123] "$TEST_IMG"
+$QEMU_IMG convert -O $IMGFMT -c -B "$TEST_IMG".base "$TEST_IMG".[123] "$TEST_IMG"
+
+
+echo
+echo "=== Compression with misaligned allocations and image sizes ==="
+echo
+
+TEST_IMG="$TEST_IMG".1 _make_test_img 1023k -o cluster_size=1024
+TEST_IMG="$TEST_IMG".2 _make_test_img 1023k -o cluster_size=1024
+
+$QEMU_IO -c "write -P 0x11   16k  16k" "$TEST_IMG".1 2>&1 | _filter_qemu_io | _filter_testdir
+$QEMU_IO -c "write -P 0x22  130k 130k" "$TEST_IMG".1 2>&1 | _filter_qemu_io | _filter_testdir
+$QEMU_IO -c "write -P 0x33 1022k   1k" "$TEST_IMG".1 2>&1 | _filter_qemu_io | _filter_testdir
+$QEMU_IO -c "write -P 0x44    0k   1k" "$TEST_IMG".2 2>&1 | _filter_qemu_io | _filter_testdir
+
+$QEMU_IMG convert -c -O $IMGFMT "$TEST_IMG".[12] "$TEST_IMG"
+$QEMU_IMG map --output=json "$TEST_IMG" | _filter_qemu_img_map
+$QEMU_IO -c "read -P 0       0k   16k" "$TEST_IMG" 2>&1 | _filter_qemu_io | _filter_testdir
+$QEMU_IO -c "read -P 0x11   16k   16k" "$TEST_IMG" 2>&1 | _filter_qemu_io | _filter_testdir
+$QEMU_IO -c "read -P 0      32k   98k" "$TEST_IMG" 2>&1 | _filter_qemu_io | _filter_testdir
+$QEMU_IO -c "read -P 0x22  130k  130k" "$TEST_IMG" 2>&1 | _filter_qemu_io | _filter_testdir
+$QEMU_IO -c "read -P 0     260k  762k" "$TEST_IMG" 2>&1 | _filter_qemu_io | _filter_testdir
+$QEMU_IO -c "read -P 0x33 1022k    1k" "$TEST_IMG" 2>&1 | _filter_qemu_io | _filter_testdir
+$QEMU_IO -c "read -P 0x44 1023k    1k" "$TEST_IMG" 2>&1 | _filter_qemu_io | _filter_testdir
+$QEMU_IO -c "read -P 0    1024k 1022k" "$TEST_IMG" 2>&1 | _filter_qemu_io | _filter_testdir
+
+
+echo
+echo "=== Full allocation with -S 0 ==="
+echo
+
+# Standalone image
+_make_test_img 64M
+$QEMU_IO -c "write -P 0x22 0 3M" "$TEST_IMG" 2>&1 | _filter_qemu_io | _filter_testdir
+$QEMU_IO -c "write -P 0 3M 3M" "$TEST_IMG" 2>&1 | _filter_qemu_io | _filter_testdir
+
+echo
+echo convert -S 0:
+$QEMU_IMG convert -O $IMGFMT -S 0 "$TEST_IMG" "$TEST_IMG".orig
+$QEMU_IO -c "read -P 0x22 0 3M" "$TEST_IMG".orig 2>&1 | _filter_qemu_io | _filter_testdir
+$QEMU_IO -c "read -P 0 3M 61M" "$TEST_IMG".orig 2>&1 | _filter_qemu_io | _filter_testdir
+$QEMU_IMG map --output=json "$TEST_IMG".orig | _filter_qemu_img_map
+
+echo
+echo convert -c -S 0:
+$QEMU_IMG convert -O $IMGFMT -c -S 0 "$TEST_IMG" "$TEST_IMG".orig
+$QEMU_IO -c "read -P 0x22 0 3M" "$TEST_IMG".orig 2>&1 | _filter_qemu_io | _filter_testdir
+$QEMU_IO -c "read -P 0 3M 61M" "$TEST_IMG".orig 2>&1 | _filter_qemu_io | _filter_testdir
+$QEMU_IMG map --output=json "$TEST_IMG".orig | _filter_qemu_img_map
+
+# With backing file
+TEST_IMG="$TEST_IMG".base _make_test_img 64M
+$QEMU_IO -c "write -P 0x11 0 32M" "$TEST_IMG".base 2>&1 | _filter_qemu_io | _filter_testdir
+
+_make_test_img -b "$TEST_IMG".base 64M
+$QEMU_IO -c "write -P 0x22 0 3M" "$TEST_IMG" 2>&1 | _filter_qemu_io | _filter_testdir
+
+echo
+echo convert -S 0 with source backing file:
+$QEMU_IMG convert -O $IMGFMT -S 0 "$TEST_IMG" "$TEST_IMG".orig
+$QEMU_IO -c "read -P 0x22 0 3M" "$TEST_IMG".orig 2>&1 | _filter_qemu_io | _filter_testdir
+$QEMU_IO -c "read -P 0x11 3M 29M" "$TEST_IMG".orig 2>&1 | _filter_qemu_io | _filter_testdir
+$QEMU_IO -c "read -P 0 32M 32M" "$TEST_IMG".orig 2>&1 | _filter_qemu_io | _filter_testdir
+$QEMU_IMG map --output=json "$TEST_IMG".orig | _filter_qemu_img_map
+
+echo
+echo convert -c -S 0 with source backing file:
+$QEMU_IMG convert -O $IMGFMT -c -S 0 "$TEST_IMG" "$TEST_IMG".orig
+$QEMU_IO -c "read -P 0x22 0 3M" "$TEST_IMG".orig 2>&1 | _filter_qemu_io | _filter_testdir
+$QEMU_IO -c "read -P 0x11 3M 29M" "$TEST_IMG".orig 2>&1 | _filter_qemu_io | _filter_testdir
+$QEMU_IO -c "read -P 0 32M 32M" "$TEST_IMG".orig 2>&1 | _filter_qemu_io | _filter_testdir
+$QEMU_IMG map --output=json "$TEST_IMG".orig | _filter_qemu_img_map
+
+# With keeping the backing file
+echo
+echo convert -S 0 -B ...
+$QEMU_IMG convert -O $IMGFMT -S 0 "$TEST_IMG" "$TEST_IMG".orig
+$QEMU_IO -c "read -P 0x22 0 3M" "$TEST_IMG".orig 2>&1 | _filter_qemu_io | _filter_testdir
+$QEMU_IO -c "read -P 0x11 3M 29M" "$TEST_IMG".orig 2>&1 | _filter_qemu_io | _filter_testdir
+$QEMU_IO -c "read -P 0 32M 32M" "$TEST_IMG".orig 2>&1 | _filter_qemu_io | _filter_testdir
+$QEMU_IMG map --output=json "$TEST_IMG".orig | _filter_qemu_img_map
+
+echo
+echo convert -c -S 0 -B ...
+$QEMU_IMG convert -O $IMGFMT -c -S 0 "$TEST_IMG" "$TEST_IMG".orig
+$QEMU_IO -c "read -P 0x22 0 3M" "$TEST_IMG".orig 2>&1 | _filter_qemu_io | _filter_testdir
+$QEMU_IO -c "read -P 0x11 3M 29M" "$TEST_IMG".orig 2>&1 | _filter_qemu_io | _filter_testdir
+$QEMU_IO -c "read -P 0 32M 32M" "$TEST_IMG".orig 2>&1 | _filter_qemu_io | _filter_testdir
+$QEMU_IMG map --output=json "$TEST_IMG".orig | _filter_qemu_img_map
+
+
+echo
+echo "=== Non-zero -S ==="
+echo
+
+_make_test_img 64M -o cluster_size=1k
+$QEMU_IO -c "write -P 0 0 64k" "$TEST_IMG" 2>&1 | _filter_qemu_io | _filter_testdir
+$QEMU_IO -c "write 0 1k" "$TEST_IMG" 2>&1 | _filter_qemu_io | _filter_testdir
+$QEMU_IO -c "write 8k 1k" "$TEST_IMG" 2>&1 | _filter_qemu_io | _filter_testdir
+$QEMU_IO -c "write 17k 1k" "$TEST_IMG" 2>&1 | _filter_qemu_io | _filter_testdir
+
+for min_sparse in 4k 8k; do
+    echo
+    echo convert -S $min_sparse
+    $QEMU_IMG convert -O $IMGFMT -o cluster_size=1k -S $min_sparse "$TEST_IMG" "$TEST_IMG".orig
+    $QEMU_IMG map --output=json "$TEST_IMG".orig | _filter_qemu_img_map
+
+    echo
+    echo convert -c -S $min_sparse
+    # For compressed images, -S values other than 0 are ignored
+    $QEMU_IMG convert -O $IMGFMT -o cluster_size=1k -c -S $min_sparse "$TEST_IMG" "$TEST_IMG".orig
+    $QEMU_IMG map --output=json "$TEST_IMG".orig | _filter_qemu_img_map
+done
+
+# success, all done
+echo '*** done'
+rm -f $seq.full
+status=0
