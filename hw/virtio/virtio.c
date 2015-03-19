@@ -759,8 +759,9 @@ void virtio_queue_set_align(VirtIODevice *vdev, int n, int align)
 
 void virtio_queue_notify_vq(VirtQueue *vq)
 {
-    if (vq->vring.desc) {
+    if (vq->vring.desc && vq->handle_output) {
         VirtIODevice *vdev = vq->vdev;
+
         trace_virtio_queue_notify(vdev, vq - vdev->vq, vq);
         vq->handle_output(vdev, vq);
     }

@@ -51,7 +51,7 @@ struct PCIEAERLog {
     PCIEAERErr *log;
 };
 
-/* aer error message: error signaling message has only error sevirity and
+/* aer error message: error signaling message has only error severity and
    source id. See 2.2.8.3 error signaling messages */
 struct PCIEAERMsg {
     /*
