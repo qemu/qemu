@@ -60,6 +60,17 @@ typedef struct VirtIOSerialPortClass {
         /* Guest is now ready to accept data (virtqueues set up). */
     void (*guest_ready)(VirtIOSerialPort *port);
 
+        /*
+         * Guest has enqueued a buffer for the host to write into.
+         * Called each time a buffer is enqueued by the guest;
+         * irrespective of whether there already were free buffers the
+         * host could have consumed.
+         *
+         * This is dependent on both the guest and host end being
+         * connected.
+         */
+    void (*guest_writable)(VirtIOSerialPort *port);
+
     /*
      * Guest wrote some data to the port. This data is handed over to
      * the app via this callback.  The app can return a size less than
