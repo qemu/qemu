@@ -10531,14 +10531,25 @@ static void gen_rdhwr(DisasContext *ctx, int rt, int rd)
     tcg_temp_free(t0);
 }
 
+static inline void clear_branch_hflags(DisasContext *ctx)
+{
+    ctx->hflags &= ~MIPS_HFLAG_BMASK;
+    if (ctx->bstate == BS_NONE) {
+        save_cpu_state(ctx, 0);
+    } else {
+        /* it is not safe to save ctx->hflags as hflags may be changed
+           in execution time by the instruction in delay / forbidden slot. */
+        tcg_gen_andi_i32(hflags, hflags, ~MIPS_HFLAG_BMASK);
+    }
+}
+
 static void gen_branch(DisasContext *ctx, int insn_bytes)
 {
     if (ctx->hflags & MIPS_HFLAG_BMASK) {
         int proc_hflags = ctx->hflags & MIPS_HFLAG_BMASK;
         /* Branches completion */
-        ctx->hflags &= ~MIPS_HFLAG_BMASK;
+        clear_branch_hflags(ctx);
         ctx->bstate = BS_BRANCH;
-        save_cpu_state(ctx, 0);
         /* FIXME: Need to clear can_do_io.  */
         switch (proc_hflags & MIPS_HFLAG_BMASK_BASE) {
         case MIPS_HFLAG_FBNSLOT:
@@ -10596,8 +10607,8 @@ static void gen_branch(DisasContext *ctx, int insn_bytes)
             tcg_gen_exit_tb(0);
             break;
         default:
-            MIPS_DEBUG("unknown branch");
-            break;
+            fprintf(stderr, "unknown branch 0x%x\n", proc_hflags);
+            abort();
         }
     }
 }
@@ -18403,12 +18414,14 @@ static void gen_msa(CPUMIPSState *env, DisasContext *ctx)
             case OPC_LD_H:
             case OPC_LD_W:
             case OPC_LD_D:
+                save_cpu_state(ctx, 1);
                 gen_helper_msa_ld_df(cpu_env, tdf, twd, trs, ts10);
                 break;
             case OPC_ST_B:
             case OPC_ST_H:
             case OPC_ST_W:
             case OPC_ST_D:
+                save_cpu_state(ctx, 1);
                 gen_helper_msa_st_df(cpu_env, tdf, twd, trs, ts10);
                 break;
             }
@@ -18438,6 +18451,7 @@ static void decode_opc(CPUMIPSState *env, DisasContext *ctx)
     if (ctx->pc & 0x3) {
         env->CP0_BadVAddr = ctx->pc;
         generate_exception_err(ctx, EXCP_AdEL, EXCP_INST_NOTAVAIL);
+        ctx->bstate = BS_STOP;
         return;
     }
 
