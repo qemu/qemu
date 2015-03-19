@@ -1574,14 +1574,14 @@ static void blockdev_backup_prepare(BlkTransactionState *common, Error **errp)
 
     blk = blk_by_name(backup->device);
     if (!blk) {
-        error_set(errp, QERR_DEVICE_NOT_FOUND, backup->device);
+        error_setg(errp, "Device '%s' not found", backup->device);
         return;
     }
     bs = blk_bs(blk);
 
     blk = blk_by_name(backup->target);
     if (!blk) {
-        error_set(errp, QERR_DEVICE_NOT_FOUND, backup->target);
+        error_setg(errp, "Device '%s' not found", backup->target);
         return;
     }
     target = blk_bs(blk);
@@ -2421,7 +2421,7 @@ void qmp_blockdev_backup(const char *device, const char *target,
 
     blk = blk_by_name(device);
     if (!blk) {
-        error_set(errp, QERR_DEVICE_NOT_FOUND, device);
+        error_setg(errp, "Device '%s' not found", device);
         return;
     }
     bs = blk_bs(blk);
@@ -2431,7 +2431,7 @@ void qmp_blockdev_backup(const char *device, const char *target,
 
     blk = blk_by_name(target);
     if (!blk) {
-        error_set(errp, QERR_DEVICE_NOT_FOUND, target);
+        error_setg(errp, "Device '%s' not found", target);
         goto out;
     }
     target_bs = blk_bs(blk);

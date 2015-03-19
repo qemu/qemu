@@ -419,8 +419,7 @@ STEXI
 @item -fdb @var{file}
 @findex -fda
 @findex -fdb
-Use @var{file} as floppy disk 0/1 image (@pxref{disk_images}). You can
-use the host floppy by using @file{/dev/fd0} as filename (@pxref{host_drives}).
+Use @var{file} as floppy disk 0/1 image (@pxref{disk_images}).
 ETEXI
 
 DEF("hda", HAS_ARG, QEMU_OPTION_hda,

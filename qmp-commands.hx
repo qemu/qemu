@@ -2150,7 +2150,7 @@ Each json-object contain the following:
          - "drv": driver format name (json-string)
              - Possible values: "blkdebug", "bochs", "cloop", "dmg",
                                 "file", "file", "ftp", "ftps", "host_cdrom",
-                                "host_device", "host_floppy", "http", "https",
+                                "host_device", "http", "https",
                                 "nbd", "parallels", "qcow", "qcow2", "raw",
                                 "tftp", "vdi", "vmdk", "vpc", "vvfat"
          - "backing_file": backing file name (json-string, optional)
