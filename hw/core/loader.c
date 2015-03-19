@@ -267,7 +267,7 @@ int load_aout(const char *filename, hwaddr addr, int max_sz,
 
 /* ELF loader */
 
-static void *load_at(int fd, int offset, int size)
+static void *load_at(int fd, off_t offset, size_t size)
 {
     void *ptr;
     if (lseek(fd, offset, SEEK_SET) < 0)

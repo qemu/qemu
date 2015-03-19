@@ -276,7 +276,6 @@ EQMP
         .args_type  = "device:O",
         .params     = "driver[,prop=value][,...]",
         .help       = "add device, like -device on the command line",
-        .user_print = monitor_user_noop,
         .mhandler.cmd_new = do_device_add,
     },
 
@@ -786,7 +785,6 @@ EQMP
         .args_type  = "protocol:s,hostname:s,port:i?,tls-port:i?,cert-subject:s?",
         .params     = "protocol hostname port tls-port cert-subject",
         .help       = "send migration info to spice/vnc client",
-        .user_print = monitor_user_noop,
         .mhandler.cmd_async = client_migrate_info,
         .flags      = MONITOR_CMD_ASYNC,
     },
@@ -822,7 +820,6 @@ EQMP
         .args_type  = "paging:b,protocol:s,begin:i?,end:i?,format:s?",
         .params     = "-p protocol [begin] [length] [format]",
         .help       = "dump guest memory to file",
-        .user_print = monitor_user_noop,
         .mhandler.cmd_new = qmp_marshal_input_dump_guest_memory,
     },
 
@@ -1862,7 +1859,6 @@ EQMP
         .args_type  = "",
         .params     = "",
         .help       = "enable QMP capabilities",
-        .user_print = monitor_user_noop,
         .mhandler.cmd_new = do_qmp_capabilities,
     },
 

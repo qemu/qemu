@@ -117,7 +117,7 @@ error:
 
 static int init_capabilities(void)
 {
-    /* helper needs following capbabilities only */
+    /* helper needs following capabilities only */
     cap_value_t cap_list[] = {
         CAP_CHOWN,
         CAP_DAC_OVERRIDE,

@@ -36,7 +36,7 @@ void tpm_backend_destroy(TPMBackend *s)
 {
     TPMBackendClass *k = TPM_BACKEND_GET_CLASS(s);
 
-    return k->ops->destroy(s);
+    k->ops->destroy(s);
 }
 
 int tpm_backend_init(TPMBackend *s, TPMState *state,

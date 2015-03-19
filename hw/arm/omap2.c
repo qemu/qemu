@@ -447,7 +447,8 @@ static void omap_eac_write(void *opaque, hwaddr addr,
     struct omap_eac_s *s = (struct omap_eac_s *) opaque;
 
     if (size != 2) {
-        return omap_badwidth_write16(opaque, addr, value);
+        omap_badwidth_write16(opaque, addr, value);
+        return;
     }
 
     switch (addr) {
@@ -692,7 +693,8 @@ static void omap_sti_write(void *opaque, hwaddr addr,
     struct omap_sti_s *s = (struct omap_sti_s *) opaque;
 
     if (size != 4) {
-        return omap_badwidth_write32(opaque, addr, value);
+        omap_badwidth_write32(opaque, addr, value);
+        return;
     }
 
     switch (addr) {
@@ -757,7 +759,8 @@ static void omap_sti_fifo_write(void *opaque, hwaddr addr,
     uint8_t byte = value;
 
     if (size != 1) {
-        return omap_badwidth_write8(opaque, addr, size);
+        omap_badwidth_write8(opaque, addr, size);
+        return;
     }
 
     if (ch == STI_TRACE_CONTROL_CHANNEL) {
@@ -1359,7 +1362,8 @@ static void omap_prcm_write(void *opaque, hwaddr addr,
     struct omap_prcm_s *s = (struct omap_prcm_s *) opaque;
 
     if (size != 4) {
-        return omap_badwidth_write32(opaque, addr, value);
+        omap_badwidth_write32(opaque, addr, value);
+        return;
     }
 
     switch (addr) {

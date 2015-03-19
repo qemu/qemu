@@ -113,6 +113,7 @@ static void digic_load_rom(DigicBoardState *s, hwaddr addr,
             error_report("Couldn't load rom image '%s'.", filename);
             exit(1);
         }
+        g_free(fn);
     }
 }
 

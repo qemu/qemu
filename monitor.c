@@ -4691,11 +4691,13 @@ static void monitor_find_completion_by_table(Monitor *mon,
 
         if (cmd->sub_table) {
             /* do the job again */
-            return monitor_find_completion_by_table(mon, cmd->sub_table,
-                                                    &args[1], nb_args - 1);
+            monitor_find_completion_by_table(mon, cmd->sub_table,
+                                             &args[1], nb_args - 1);
+            return;
         }
         if (cmd->command_completion) {
-            return cmd->command_completion(mon->rs, nb_args, args[nb_args - 1]);
+            cmd->command_completion(mon->rs, nb_args, args[nb_args - 1]);
+            return;
         }
 
         ptype = next_arg_type(cmd->args_type);

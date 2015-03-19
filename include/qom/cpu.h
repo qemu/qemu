@@ -593,7 +593,7 @@ static inline void cpu_unaligned_access(CPUState *cpu, vaddr addr,
 {
     CPUClass *cc = CPU_GET_CLASS(cpu);
 
-    return cc->do_unaligned_access(cpu, addr, is_write, is_user, retaddr);
+    cc->do_unaligned_access(cpu, addr, is_write, is_user, retaddr);
 }
 #endif
 

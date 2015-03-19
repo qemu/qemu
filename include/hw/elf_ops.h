@@ -315,7 +315,9 @@ static int glue(load_elf, SZ)(const char *name, int fd,
     glue(load_symbols, SZ)(&ehdr, fd, must_swab, clear_lsb);
 
     size = ehdr.e_phnum * sizeof(phdr[0]);
-    lseek(fd, ehdr.e_phoff, SEEK_SET);
+    if (lseek(fd, ehdr.e_phoff, SEEK_SET) != ehdr.e_phoff) {
+        goto fail;
+    }
     phdr = g_malloc0(size);
     if (!phdr)
         goto fail;

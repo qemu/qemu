@@ -96,7 +96,7 @@ void cpu_get_memory_mapping(CPUState *cpu, MemoryMappingList *list,
 {
     CPUClass *cc = CPU_GET_CLASS(cpu);
 
-    return cc->get_memory_mapping(cpu, list, errp);
+    cc->get_memory_mapping(cpu, list, errp);
 }
 
 static void cpu_common_get_memory_mapping(CPUState *cpu,

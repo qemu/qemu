@@ -378,7 +378,7 @@ static int local_opendir(FsContext *ctx,
 
 static void local_rewinddir(FsContext *ctx, V9fsFidOpenState *fs)
 {
-    return rewinddir(fs->dir);
+    rewinddir(fs->dir);
 }
 
 static off_t local_telldir(FsContext *ctx, V9fsFidOpenState *fs)
@@ -409,7 +409,7 @@ again:
 
 static void local_seekdir(FsContext *ctx, V9fsFidOpenState *fs, off_t off)
 {
-    return seekdir(fs->dir, off);
+    seekdir(fs->dir, off);
 }
 
 static ssize_t local_preadv(FsContext *ctx, V9fsFidOpenState *fs,

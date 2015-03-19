@@ -583,7 +583,7 @@ static void ahci_test_port_spec(AHCIQState *ahci, uint8_t port)
         ASSERT_BIT_CLEAR(reg, AHCI_PX_CMD_MPSP);
     }
     /* If, via CPD or MPSP we detect a drive, HPCP must be on. */
-    if (BITANY(reg, AHCI_PX_CMD_CPD || AHCI_PX_CMD_MPSP)) {
+    if (BITANY(reg, AHCI_PX_CMD_CPD | AHCI_PX_CMD_MPSP)) {
         ASSERT_BIT_SET(reg, AHCI_PX_CMD_HPCP);
     }
     /* HPCP and ESP cannot both be active. */
