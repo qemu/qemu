@@ -334,82 +334,77 @@ static int vnc_set_gnutls_priority(gnutls_session_t s, int x509)
 
 int vnc_tls_client_setup(struct VncState *vs,
                          int needX509Creds) {
-    VncStateTLS *tls;
-
     VNC_DEBUG("Do TLS setup\n");
-#ifdef CONFIG_VNC_WS
-    if (vs->websocket) {
-        tls = &vs->ws_tls;
-    } else
-#endif /* CONFIG_VNC_WS */
-    {
-        tls = &vs->tls;
-    }
     if (vnc_tls_initialize() < 0) {
         VNC_DEBUG("Failed to init TLS\n");
         vnc_client_error(vs);
         return -1;
     }
-    if (tls->session == NULL) {
-        if (gnutls_init(&tls->session, GNUTLS_SERVER) < 0) {
+    if (vs->tls.session == NULL) {
+        if (gnutls_init(&vs->tls.session, GNUTLS_SERVER) < 0) {
             vnc_client_error(vs);
             return -1;
         }
 
-        if (gnutls_set_default_priority(tls->session) < 0) {
-            gnutls_deinit(tls->session);
-            tls->session = NULL;
+        if (gnutls_set_default_priority(vs->tls.session) < 0) {
+            gnutls_deinit(vs->tls.session);
+            vs->tls.session = NULL;
             vnc_client_error(vs);
             return -1;
         }
 
-        if (vnc_set_gnutls_priority(tls->session, needX509Creds) < 0) {
-            gnutls_deinit(tls->session);
-            tls->session = NULL;
+        if (vnc_set_gnutls_priority(vs->tls.session, needX509Creds) < 0) {
+            gnutls_deinit(vs->tls.session);
+            vs->tls.session = NULL;
             vnc_client_error(vs);
             return -1;
         }
 
         if (needX509Creds) {
-            gnutls_certificate_server_credentials x509_cred = vnc_tls_initialize_x509_cred(vs->vd);
+            gnutls_certificate_server_credentials x509_cred =
+                vnc_tls_initialize_x509_cred(vs->vd);
             if (!x509_cred) {
-                gnutls_deinit(tls->session);
-                tls->session = NULL;
+                gnutls_deinit(vs->tls.session);
+                vs->tls.session = NULL;
                 vnc_client_error(vs);
                 return -1;
             }
-            if (gnutls_credentials_set(tls->session, GNUTLS_CRD_CERTIFICATE, x509_cred) < 0) {
-                gnutls_deinit(tls->session);
-                tls->session = NULL;
+            if (gnutls_credentials_set(vs->tls.session,
+                                       GNUTLS_CRD_CERTIFICATE, x509_cred) < 0) {
+                gnutls_deinit(vs->tls.session);
+                vs->tls.session = NULL;
                 gnutls_certificate_free_credentials(x509_cred);
                 vnc_client_error(vs);
                 return -1;
             }
             if (vs->vd->tls.x509verify) {
                 VNC_DEBUG("Requesting a client certificate\n");
-                gnutls_certificate_server_set_request (tls->session, GNUTLS_CERT_REQUEST);
+                gnutls_certificate_server_set_request(vs->tls.session,
+                                                      GNUTLS_CERT_REQUEST);
             }
 
         } else {
-            gnutls_anon_server_credentials_t anon_cred = vnc_tls_initialize_anon_cred();
+            gnutls_anon_server_credentials_t anon_cred =
+                vnc_tls_initialize_anon_cred();
             if (!anon_cred) {
-                gnutls_deinit(tls->session);
-                tls->session = NULL;
+                gnutls_deinit(vs->tls.session);
+                vs->tls.session = NULL;
                 vnc_client_error(vs);
                 return -1;
             }
-            if (gnutls_credentials_set(tls->session, GNUTLS_CRD_ANON, anon_cred) < 0) {
-                gnutls_deinit(tls->session);
-                tls->session = NULL;
+            if (gnutls_credentials_set(vs->tls.session,
+                                       GNUTLS_CRD_ANON, anon_cred) < 0) {
+                gnutls_deinit(vs->tls.session);
+                vs->tls.session = NULL;
                 gnutls_anon_free_server_credentials(anon_cred);
                 vnc_client_error(vs);
                 return -1;
             }
         }
 
-        gnutls_transport_set_ptr(tls->session, (gnutls_transport_ptr_t)vs);
-        gnutls_transport_set_push_function(tls->session, vnc_tls_push);
-        gnutls_transport_set_pull_function(tls->session, vnc_tls_pull);
+        gnutls_transport_set_ptr(vs->tls.session, (gnutls_transport_ptr_t)vs);
+        gnutls_transport_set_push_function(vs->tls.session, vnc_tls_push);
+        gnutls_transport_set_pull_function(vs->tls.session, vnc_tls_pull);
     }
     return 0;
 }
@@ -421,16 +416,7 @@ void vnc_tls_client_cleanup(struct VncState *vs)
         gnutls_deinit(vs->tls.session);
         vs->tls.session = NULL;
     }
-    vs->tls.wiremode = VNC_WIREMODE_CLEAR;
     g_free(vs->tls.dname);
-#ifdef CONFIG_VNC_WS
-    if (vs->ws_tls.session) {
-        gnutls_deinit(vs->ws_tls.session);
-        vs->ws_tls.session = NULL;
-    }
-    vs->ws_tls.wiremode = VNC_WIREMODE_CLEAR;
-    g_free(vs->ws_tls.dname);
-#endif /* CONFIG_VNC_WS */
 }
 
 
