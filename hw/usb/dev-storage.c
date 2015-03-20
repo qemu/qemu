@@ -559,8 +559,7 @@ static void usb_msd_password_cb(void *opaque, int err)
     }
 
     if (local_err) {
-        qerror_report_err(local_err);
-        error_free(local_err);
+        error_report_err(local_err);
         qdev_unplug(&s->dev.qdev, NULL);
     }
 }
@@ -610,6 +609,23 @@ static void usb_msd_realize_storage(USBDevice *dev, Error **errp)
         return;
     }
 
+    bdrv_add_key(blk_bs(blk), NULL, &err);
+    if (err) {
+        if (monitor_cur_is_qmp()) {
+            error_propagate(errp, err);
+            return;
+        }
+        error_free(err);
+        err = NULL;
+        if (cur_mon) {
+            monitor_read_bdrv_key_start(cur_mon, blk_bs(blk),
+                                        usb_msd_password_cb, s);
+            s->dev.auto_attach = 0;
+        } else {
+            autostart = 0;
+        }
+    }
+
     blkconf_serial(&s->conf, &dev->serial);
     blkconf_blocksizes(&s->conf);
 
@@ -638,16 +654,6 @@ static void usb_msd_realize_storage(USBDevice *dev, Error **errp)
     }
     usb_msd_handle_reset(dev);
     s->scsi_dev = scsi_dev;
-
-    if (bdrv_key_required(blk_bs(blk))) {
-        if (cur_mon) {
-            monitor_read_bdrv_key_start(cur_mon, blk_bs(blk),
-                                        usb_msd_password_cb, s);
-            s->dev.auto_attach = 0;
-        } else {
-            autostart = 0;
-        }
-    }
 }
 
 static void usb_msd_realize_bot(USBDevice *dev, Error **errp)

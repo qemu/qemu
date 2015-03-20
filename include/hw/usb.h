@@ -526,8 +526,9 @@ struct USBBus {
 };
 
 struct USBBusOps {
-    int (*register_companion)(USBBus *bus, USBPort *ports[],
-                              uint32_t portcount, uint32_t firstport);
+    void (*register_companion)(USBBus *bus, USBPort *ports[],
+                               uint32_t portcount, uint32_t firstport,
+                               Error **errp);
     void (*wakeup_endpoint)(USBBus *bus, USBEndpoint *ep, unsigned int stream);
 };
 
@@ -543,9 +544,10 @@ USBDevice *usb_create_simple(USBBus *bus, const char *name);
 USBDevice *usbdevice_create(const char *cmdline);
 void usb_register_port(USBBus *bus, USBPort *port, void *opaque, int index,
                        USBPortOps *ops, int speedmask);
-int usb_register_companion(const char *masterbus, USBPort *ports[],
-                           uint32_t portcount, uint32_t firstport,
-                           void *opaque, USBPortOps *ops, int speedmask);
+void usb_register_companion(const char *masterbus, USBPort *ports[],
+                            uint32_t portcount, uint32_t firstport,
+                            void *opaque, USBPortOps *ops, int speedmask,
+                            Error **errp);
 void usb_port_location(USBPort *downstream, USBPort *upstream, int portnr);
 void usb_unregister_port(USBBus *bus, USBPort *port);
 void usb_claim_port(USBDevice *dev, Error **errp);

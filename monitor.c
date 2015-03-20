@@ -266,10 +266,7 @@ void monitor_read_command(Monitor *mon, int show_prompt)
 int monitor_read_password(Monitor *mon, ReadLineFunc *readline_func,
                           void *opaque)
 {
-    if (monitor_ctrl_mode(mon)) {
-        qerror_report(QERR_MISSING_PARAMETER, "password");
-        return -EINVAL;
-    } else if (mon->rs) {
+    if (mon->rs) {
         readline_start(mon->rs, "Password: ", 1, readline_func, opaque);
         /* prompt is printed on return from the command handler */
         return 0;
@@ -5389,22 +5386,7 @@ int monitor_read_bdrv_key_start(Monitor *mon, BlockDriverState *bs,
                                 BlockCompletionFunc *completion_cb,
                                 void *opaque)
 {
-    Error *local_err = NULL;
     int err;
-
-    bdrv_add_key(bs, NULL, &local_err);
-    if (!local_err) {
-        if (completion_cb)
-            completion_cb(opaque, 0);
-        return 0;
-    }
-
-    /* Need a key for @bs */
-
-    if (monitor_ctrl_mode(mon)) {
-        qerror_report_err(local_err);
-        return -1;
-    }
 
     monitor_printf(mon, "%s (%s) is encrypted.\n", bdrv_get_device_name(bs),
                    bdrv_get_encrypted_filename(bs));
@@ -5424,6 +5406,7 @@ int monitor_read_block_device_key(Monitor *mon, const char *device,
                                   BlockCompletionFunc *completion_cb,
                                   void *opaque)
 {
+    Error *err = NULL;
     BlockBackend *blk;
 
     blk = blk_by_name(device);
@@ -5432,7 +5415,16 @@ int monitor_read_block_device_key(Monitor *mon, const char *device,
         return -1;
     }
 
-    return monitor_read_bdrv_key_start(mon, blk_bs(blk), completion_cb, opaque);
+    bdrv_add_key(blk_bs(blk), NULL, &err);
+    if (err) {
+        error_free(err);
+        return monitor_read_bdrv_key_start(mon, blk_bs(blk), completion_cb, opaque);
+    }
+
+    if (completion_cb) {
+        completion_cb(opaque, 0);
+    }
+    return 0;
 }
 
 QemuOptsList qemu_mon_opts = {

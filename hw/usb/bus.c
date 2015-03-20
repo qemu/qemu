@@ -360,9 +360,10 @@ void usb_register_port(USBBus *bus, USBPort *port, void *opaque, int index,
     bus->nfree++;
 }
 
-int usb_register_companion(const char *masterbus, USBPort *ports[],
-                           uint32_t portcount, uint32_t firstport,
-                           void *opaque, USBPortOps *ops, int speedmask)
+void usb_register_companion(const char *masterbus, USBPort *ports[],
+                            uint32_t portcount, uint32_t firstport,
+                            void *opaque, USBPortOps *ops, int speedmask,
+                            Error **errp)
 {
     USBBus *bus;
     int i;
@@ -373,22 +374,22 @@ int usb_register_companion(const char *masterbus, USBPort *ports[],
         }
     }
 
-    if (!bus || !bus->ops->register_companion) {
-        qerror_report(QERR_INVALID_PARAMETER_VALUE, "masterbus",
-                      "an USB masterbus");
-        if (bus) {
-            error_printf_unless_qmp(
-                "USB bus '%s' does not allow companion controllers\n",
-                masterbus);
-        }
-        return -1;
+    if (!bus) {
+        error_setg(errp, "USB bus '%s' not found", masterbus);
+        return;
+    }
+    if (!bus->ops->register_companion) {
+        error_setg(errp, "Can't use USB bus '%s' as masterbus,"
+                   " it doesn't support companion controllers",
+                   masterbus);
+        return;
     }
 
     for (i = 0; i < portcount; i++) {
         usb_fill_port(ports[i], opaque, i, ops, speedmask);
     }
 
-    return bus->ops->register_companion(bus, ports, portcount, firstport);
+    bus->ops->register_companion(bus, ports, portcount, firstport, errp);
 }
 
 void usb_port_location(USBPort *downstream, USBPort *upstream, int portnr)
