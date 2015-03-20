@@ -587,14 +587,12 @@ static void ide_sector_read_cb(void *opaque, int ret)
         n = s->req_nb_sectors;
     }
 
-    /* Allow the guest to read the io_buffer */
-    ide_transfer_start(s, s->io_buffer, n * BDRV_SECTOR_SIZE, ide_sector_read);
-
-    ide_set_irq(s->bus);
-
     ide_set_sector(s, ide_get_sector(s) + n);
     s->nsector -= n;
+    /* Allow the guest to read the io_buffer */
+    ide_transfer_start(s, s->io_buffer, n * BDRV_SECTOR_SIZE, ide_sector_read);
     s->io_buffer_offset += 512 * n;
+    ide_set_irq(s->bus);
 }
 
 static void ide_sector_read(IDEState *s)
