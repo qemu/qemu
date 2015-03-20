@@ -3636,6 +3636,10 @@ blockdev-add
 
 Add a block device.
 
+This command is still a work in progress.  It doesn't support all
+block drivers, it lacks a matching blockdev-del, and more.  Stay away
+from it unless you want to help with its development.
+
 Arguments:
 
 - "options": block driver options
