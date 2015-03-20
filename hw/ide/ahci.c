@@ -799,7 +799,7 @@ static int ahci_populate_sglist(AHCIDevice *ad, QEMUSGList *sglist,
 
         qemu_sglist_init(sglist, qbus->parent, (sglist_alloc_hint - off_idx),
                          ad->hba->as);
-        qemu_sglist_add(sglist, le64_to_cpu(tbl[off_idx].addr + off_pos),
+        qemu_sglist_add(sglist, le64_to_cpu(tbl[off_idx].addr) + off_pos,
                         prdt_tbl_entry_size(&tbl[off_idx]) - off_pos);
 
         for (i = off_idx + 1; i < sglist_alloc_hint; i++) {
