@@ -846,6 +846,7 @@ static void ide_sector_write_cb(void *opaque, int ret)
     s->nsector -= n;
     s->io_buffer_offset += 512 * n;
 
+    ide_set_sector(s, ide_get_sector(s) + n);
     if (s->nsector == 0) {
         /* no more sectors to write */
         ide_transfer_stop(s);
@@ -857,7 +858,6 @@ static void ide_sector_write_cb(void *opaque, int ret)
         ide_transfer_start(s, s->io_buffer, n1 * BDRV_SECTOR_SIZE,
                            ide_sector_write);
     }
-    ide_set_sector(s, ide_get_sector(s) + n);
 
     if (win2k_install_hack && ((++s->irq_count % 16) == 0)) {
         /* It seems there is a bug in the Windows 2000 installer HDD
