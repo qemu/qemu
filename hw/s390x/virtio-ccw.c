@@ -266,7 +266,7 @@ static int virtio_ccw_set_vqs(SubchDev *sch, uint64_t addr, uint32_t align,
 {
     VirtIODevice *vdev = virtio_ccw_get_vdev(sch);
 
-    if (index > VIRTIO_PCI_QUEUE_MAX) {
+    if (index >= VIRTIO_PCI_QUEUE_MAX) {
         return -EINVAL;
     }
 
