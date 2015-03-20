@@ -6,6 +6,7 @@
 #include "qemu/option.h"
 #include "sysemu/sysemu.h"
 #include "sysemu/hostmem.h"
+#include "hw/boards.h"
 
 extern int nb_numa_nodes;   /* Number of NUMA nodes */
 
@@ -16,7 +17,7 @@ typedef struct node_info {
     bool present;
 } NodeInfo;
 extern NodeInfo numa_info[MAX_NODES];
-void parse_numa_opts(void);
+void parse_numa_opts(MachineClass *mc);
 void numa_post_machine_init(void);
 void query_numa_node_mem(uint64_t node_mem[]);
 extern QemuOptsList qemu_numa_opts;

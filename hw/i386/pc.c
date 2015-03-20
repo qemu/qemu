@@ -1851,6 +1851,14 @@ static void pc_machine_initfn(Object *obj)
                              NULL, NULL);
 }
 
+static unsigned pc_cpu_index_to_socket_id(unsigned cpu_index)
+{
+    unsigned pkg_id, core_id, smt_id;
+    x86_topo_ids_from_idx(smp_cores, smp_threads, cpu_index,
+                          &pkg_id, &core_id, &smt_id);
+    return pkg_id;
+}
+
 static void pc_machine_class_init(ObjectClass *oc, void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
@@ -1859,6 +1867,7 @@ static void pc_machine_class_init(ObjectClass *oc, void *data)
 
     pcmc->get_hotplug_handler = mc->get_hotplug_handler;
     mc->get_hotplug_handler = pc_get_hotpug_handler;
+    mc->cpu_index_to_socket_id = pc_cpu_index_to_socket_id;
     hc->plug = pc_machine_device_plug_cb;
     hc->unplug_request = pc_machine_device_unplug_request_cb;
     hc->unplug = pc_machine_device_unplug_cb;
