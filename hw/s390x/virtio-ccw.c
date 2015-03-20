@@ -549,6 +549,10 @@ static int virtio_ccw_cb(SubchDev *sch, CCW1 ccw)
             ret = -EFAULT;
         } else {
             vq_config.index = lduw_be_phys(&address_space_memory, ccw.cda);
+            if (vq_config.index >= VIRTIO_PCI_QUEUE_MAX) {
+                ret = -EINVAL;
+                break;
+            }
             vq_config.num_max = virtio_queue_get_num(vdev,
                                                      vq_config.index);
             stw_be_phys(&address_space_memory,
