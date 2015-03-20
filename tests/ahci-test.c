@@ -68,6 +68,32 @@ static void string_bswap16(uint16_t *s, size_t bytes)
     }
 }
 
+static void generate_pattern(void *buffer, size_t len, size_t cycle_len)
+{
+    int i, j;
+    unsigned char *tx = (unsigned char *)buffer;
+    unsigned char p;
+    size_t *sx;
+
+    /* Write an indicative pattern that varies and is unique per-cycle */
+    p = rand() % 256;
+    for (i = j = 0; i < len; i++, j++) {
+        tx[i] = p;
+        if (j % cycle_len == 0) {
+            p = rand() % 256;
+        }
+    }
+
+    /* force uniqueness by writing an id per-cycle */
+    for (i = 0; i < len / cycle_len; i++) {
+        j = i * cycle_len;
+        if (j + sizeof(*sx) <= len) {
+            sx = (size_t *)&tx[j];
+            *sx = i;
+        }
+    }
+}
+
 /*** Test Setup & Teardown ***/
 
 /**
@@ -736,7 +762,6 @@ static void ahci_test_io_rw_simple(AHCIQState *ahci, unsigned bufsize,
 {
     uint64_t ptr;
     uint8_t port;
-    unsigned i;
     unsigned char *tx = g_malloc(bufsize);
     unsigned char *rx = g_malloc0(bufsize);
 
@@ -752,9 +777,7 @@ static void ahci_test_io_rw_simple(AHCIQState *ahci, unsigned bufsize,
     g_assert(ptr);
 
     /* Write some indicative pattern to our buffer. */
-    for (i = 0; i < bufsize; i++) {
-        tx[i] = (bufsize - i);
-    }
+    generate_pattern(tx, bufsize, AHCI_SECTOR_SIZE);
     memwrite(ptr, tx, bufsize);
 
     /* Write this buffer to disk, then read it back to the DMA buffer. */
@@ -865,7 +888,6 @@ static void test_dma_fragmented(void)
     size_t bufsize = 4096;
     unsigned char *tx = g_malloc(bufsize);
     unsigned char *rx = g_malloc0(bufsize);
-    unsigned i;
     uint64_t ptr;
 
     ahci = ahci_boot_and_enable();
@@ -873,9 +895,7 @@ static void test_dma_fragmented(void)
     ahci_port_clear(ahci, px);
 
     /* create pattern */
-    for (i = 0; i < bufsize; i++) {
-        tx[i] = (bufsize - i);
-    }
+    generate_pattern(tx, bufsize, AHCI_SECTOR_SIZE);
 
     /* Create a DMA buffer in guest memory, and write our pattern to it. */
     ptr = guest_alloc(ahci->parent->alloc, bufsize);
