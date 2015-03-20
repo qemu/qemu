@@ -310,10 +310,6 @@ static void pc_compat_2_2(MachineState *machine)
     x86_cpu_compat_set_features("Haswell", FEAT_1_ECX, 0, CPUID_EXT_RDRAND);
     x86_cpu_compat_set_features("Broadwell", FEAT_1_ECX, 0, CPUID_EXT_F16C);
     x86_cpu_compat_set_features("Broadwell", FEAT_1_ECX, 0, CPUID_EXT_RDRAND);
-    x86_cpu_compat_set_features("Haswell", FEAT_7_0_EBX,
-                                CPUID_7_0_EBX_HLE | CPUID_7_0_EBX_RTM, 0);
-    x86_cpu_compat_set_features("Broadwell", FEAT_7_0_EBX,
-                                CPUID_7_0_EBX_HLE | CPUID_7_0_EBX_RTM, 0);
     machine->suppress_vmdesc = true;
 }
 
