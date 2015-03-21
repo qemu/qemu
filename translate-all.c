@@ -1334,8 +1334,6 @@ static inline void tb_alloc_page(TranslationBlock *tb,
     p->first_tb = (TranslationBlock *)((uintptr_t)tb | n);
     invalidate_page_bitmap(p);
 
-#if defined(TARGET_HAS_SMC) || 1
-
 #if defined(CONFIG_USER_ONLY)
     if (p->flags & PAGE_WRITE) {
         target_ulong addr;
@@ -1371,8 +1369,6 @@ static inline void tb_alloc_page(TranslationBlock *tb,
         tlb_protect_code(page_addr);
     }
 #endif
-
-#endif /* TARGET_HAS_SMC */
 }
 
 /* add a new TB and link it to the physical page tables. phys_page2 is

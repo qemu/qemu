@@ -31,8 +31,6 @@
 /* Maximum instruction code size */
 #define TARGET_MAX_INSN_SIZE 16
 
-/* target supports implicit self modifying code */
-#define TARGET_HAS_SMC
 /* support for self modifying code even if the modified instruction is
    close to the modifying instruction */
 #define TARGET_HAS_PRECISE_SMC
