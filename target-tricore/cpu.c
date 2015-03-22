@@ -118,6 +118,13 @@ static void tc1796_initfn(Object *obj)
 {
     TriCoreCPU *cpu = TRICORE_CPU(obj);
 
+    set_feature(&cpu->env, TRICORE_FEATURE_13);
+}
+
+static void tc1797_initfn(Object *obj)
+{
+    TriCoreCPU *cpu = TRICORE_CPU(obj);
+
     set_feature(&cpu->env, TRICORE_FEATURE_131);
 }
 
@@ -136,6 +143,7 @@ typedef struct TriCoreCPUInfo {
 
 static const TriCoreCPUInfo tricore_cpus[] = {
     { .name = "tc1796",      .initfn = tc1796_initfn },
+    { .name = "tc1797",      .initfn = tc1797_initfn },
     { .name = "aurix",       .initfn = aurix_initfn },
     { .name = NULL }
 };
