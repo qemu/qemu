@@ -330,7 +330,12 @@ struct CompressParam {
 typedef struct CompressParam CompressParam;
 
 struct DecompressParam {
-    /* To be done */
+    bool start;
+    QemuMutex mutex;
+    QemuCond cond;
+    void *des;
+    uint8 *compbuf;
+    int len;
 };
 typedef struct DecompressParam DecompressParam;
 
@@ -1266,6 +1271,9 @@ void migrate_decompress_threads_create(void)
     compressed_data_buf = g_malloc0(compressBound(TARGET_PAGE_SIZE));
     quit_decomp_thread = false;
     for (i = 0; i < thread_count; i++) {
+        qemu_mutex_init(&decomp_param[i].mutex);
+        qemu_cond_init(&decomp_param[i].cond);
+        decomp_param[i].compbuf = g_malloc0(compressBound(TARGET_PAGE_SIZE));
         qemu_thread_create(decompress_threads + i, "decompress",
                            do_data_decompress, decomp_param + i,
                            QEMU_THREAD_JOINABLE);
@@ -1280,6 +1288,9 @@ void migrate_decompress_threads_join(void)
     thread_count = migrate_decompress_threads();
     for (i = 0; i < thread_count; i++) {
         qemu_thread_join(decompress_threads + i);
+        qemu_mutex_destroy(&decomp_param[i].mutex);
+        qemu_cond_destroy(&decomp_param[i].cond);
+        g_free(decomp_param[i].compbuf);
     }
     g_free(decompress_threads);
     g_free(decomp_param);
