@@ -112,6 +112,7 @@ static inline void cpu_physical_memory_set_dirty_range_nocode(ram_addr_t start,
     page = start >> TARGET_PAGE_BITS;
     bitmap_set(ram_list.dirty_memory[DIRTY_MEMORY_MIGRATION], page, end - page);
     bitmap_set(ram_list.dirty_memory[DIRTY_MEMORY_VGA], page, end - page);
+    xen_modified_memory(start, length);
 }
 
 static inline void cpu_physical_memory_set_dirty_range(ram_addr_t start,
@@ -155,7 +156,7 @@ static inline void cpu_physical_memory_set_dirty_lebitmap(unsigned long *bitmap,
                 ram_list.dirty_memory[DIRTY_MEMORY_CODE][page + k] |= temp;
             }
         }
-        xen_modified_memory(start, pages);
+        xen_modified_memory(start, pages << TARGET_PAGE_BITS);
     } else {
         /*
          * bitmap-traveling is faster than memory-traveling (for addr...)
