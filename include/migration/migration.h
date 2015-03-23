@@ -51,6 +51,7 @@ struct MigrationState
     QEMUBH *cleanup_bh;
     QEMUFile *file;
     int compress_thread_count;
+    int decompress_thread_count;
     int compress_level;
 
     int state;
@@ -108,6 +109,8 @@ MigrationState *migrate_get_current(void);
 
 void migrate_compress_threads_create(void);
 void migrate_compress_threads_join(void);
+void migrate_decompress_threads_create(void);
+void migrate_decompress_threads_join(void);
 uint64_t ram_bytes_remaining(void);
 uint64_t ram_bytes_transferred(void);
 uint64_t ram_bytes_total(void);
@@ -159,6 +162,7 @@ int64_t xbzrle_cache_resize(int64_t new_size);
 bool migrate_use_compression(void);
 int migrate_compress_level(void);
 int migrate_compress_threads(void);
+int migrate_decompress_threads(void);
 
 void ram_control_before_iterate(QEMUFile *f, uint64_t flags);
 void ram_control_after_iterate(QEMUFile *f, uint64_t flags);

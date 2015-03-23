@@ -24,6 +24,7 @@
 #include <stdint.h>
 #include <stdarg.h>
 #include <stdlib.h>
+#include <zlib.h>
 #ifndef _WIN32
 #include <sys/types.h>
 #include <sys/mman.h>
@@ -127,6 +128,7 @@ static uint64_t bitmap_sync_count;
 #define RAM_SAVE_FLAG_CONTINUE 0x20
 #define RAM_SAVE_FLAG_XBZRLE   0x40
 /* 0x80 is reserved in migration.h start with 0x100 next */
+#define RAM_SAVE_FLAG_COMPRESS_PAGE    0x100
 
 static struct defconfig_file {
     const char *filename;
@@ -321,9 +323,18 @@ struct CompressParam {
 };
 typedef struct CompressParam CompressParam;
 
+struct DecompressParam {
+    /* To be done */
+};
+typedef struct DecompressParam DecompressParam;
+
 static CompressParam *comp_param;
 static QemuThread *compress_threads;
 static bool quit_comp_thread;
+static bool quit_decomp_thread;
+static DecompressParam *decomp_param;
+static QemuThread *decompress_threads;
+static uint8_t *compressed_data_buf;
 
 static void *do_data_compress(void *opaque)
 {
@@ -1203,10 +1214,59 @@ void ram_handle_compressed(void *host, uint8_t ch, uint64_t size)
     }
 }
 
+static void *do_data_decompress(void *opaque)
+{
+    while (!quit_decomp_thread) {
+        /* To be done */
+    }
+
+    return NULL;
+}
+
+void migrate_decompress_threads_create(void)
+{
+    int i, thread_count;
+
+    thread_count = migrate_decompress_threads();
+    decompress_threads = g_new0(QemuThread, thread_count);
+    decomp_param = g_new0(DecompressParam, thread_count);
+    compressed_data_buf = g_malloc0(compressBound(TARGET_PAGE_SIZE));
+    quit_decomp_thread = false;
+    for (i = 0; i < thread_count; i++) {
+        qemu_thread_create(decompress_threads + i, "decompress",
+                           do_data_decompress, decomp_param + i,
+                           QEMU_THREAD_JOINABLE);
+    }
+}
+
+void migrate_decompress_threads_join(void)
+{
+    int i, thread_count;
+
+    quit_decomp_thread = true;
+    thread_count = migrate_decompress_threads();
+    for (i = 0; i < thread_count; i++) {
+        qemu_thread_join(decompress_threads + i);
+    }
+    g_free(decompress_threads);
+    g_free(decomp_param);
+    g_free(compressed_data_buf);
+    decompress_threads = NULL;
+    decomp_param = NULL;
+    compressed_data_buf = NULL;
+}
+
+static void decompress_data_with_multi_threads(uint8_t *compbuf,
+                                               void *host, int len)
+{
+    /* To be done */
+}
+
 static int ram_load(QEMUFile *f, void *opaque, int version_id)
 {
     int flags = 0, ret = 0;
     static uint64_t seq_iter;
+    int len = 0;
 
     seq_iter++;
 
@@ -1285,6 +1345,23 @@ static int ram_load(QEMUFile *f, void *opaque, int version_id)
                 break;
             }
             qemu_get_buffer(f, host, TARGET_PAGE_SIZE);
+            break;
+        case RAM_SAVE_FLAG_COMPRESS_PAGE:
+            host = host_from_stream_offset(f, addr, flags);
+            if (!host) {
+                error_report("Invalid RAM offset " RAM_ADDR_FMT, addr);
+                ret = -EINVAL;
+                break;
+            }
+
+            len = qemu_get_be32(f);
+            if (len < 0 || len > compressBound(TARGET_PAGE_SIZE)) {
+                error_report("Invalid compressed data length: %d", len);
+                ret = -EINVAL;
+                break;
+            }
+            qemu_get_buffer(f, compressed_data_buf, len);
+            decompress_data_with_multi_threads(compressed_data_buf, host, len);
             break;
         case RAM_SAVE_FLAG_XBZRLE:
             host = host_from_stream_offset(f, addr, flags);
