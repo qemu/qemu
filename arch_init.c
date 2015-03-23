@@ -716,6 +716,34 @@ static void migration_bitmap_sync(void)
 }
 
 /**
+ * save_zero_page: Send the zero page to the stream
+ *
+ * Returns: Number of pages written.
+ *
+ * @f: QEMUFile where to send the data
+ * @block: block that contains the page we want to send
+ * @offset: offset inside the block for the page
+ * @p: pointer to the page
+ * @bytes_transferred: increase it with the number of transferred bytes
+ */
+static int save_zero_page(QEMUFile *f, RAMBlock *block, ram_addr_t offset,
+                          uint8_t *p, uint64_t *bytes_transferred)
+{
+    int pages = -1;
+
+    if (is_zero_range(p, TARGET_PAGE_SIZE)) {
+        acct_info.dup_pages++;
+        *bytes_transferred += save_page_header(f, block,
+                                               offset | RAM_SAVE_FLAG_COMPRESS);
+        qemu_put_byte(f, 0);
+        *bytes_transferred += 1;
+        pages = 1;
+    }
+
+    return pages;
+}
+
+/**
  * ram_save_page: Send the given page to the stream
  *
  * Returns: Number of pages written.
@@ -763,25 +791,22 @@ static int ram_save_page(QEMUFile *f, RAMBlock* block, ram_addr_t offset,
                 acct_info.dup_pages++;
             }
         }
-    } else if (is_zero_range(p, TARGET_PAGE_SIZE)) {
-        acct_info.dup_pages++;
-        *bytes_transferred += save_page_header(f, block,
-                                               offset | RAM_SAVE_FLAG_COMPRESS);
-        qemu_put_byte(f, 0);
-        *bytes_transferred += 1;
-        pages = 1;
-        /* Must let xbzrle know, otherwise a previous (now 0'd) cached
-         * page would be stale
-         */
-        xbzrle_cache_zero_page(current_addr);
-    } else if (!ram_bulk_stage && migrate_use_xbzrle()) {
-        pages = save_xbzrle_page(f, &p, current_addr, block,
-                                 offset, last_stage, bytes_transferred);
-        if (!last_stage) {
-            /* Can't send this cached data async, since the cache page
-             * might get updated before it gets to the wire
+    } else {
+        pages = save_zero_page(f, block, offset, p, bytes_transferred);
+        if (pages > 0) {
+            /* Must let xbzrle know, otherwise a previous (now 0'd) cached
+             * page would be stale
              */
-            send_async = false;
+            xbzrle_cache_zero_page(current_addr);
+        } else if (!ram_bulk_stage && migrate_use_xbzrle()) {
+            pages = save_xbzrle_page(f, &p, current_addr, block,
+                                     offset, last_stage, bytes_transferred);
+            if (!last_stage) {
+                /* Can't send this cached data async, since the cache page
+                 * might get updated before it gets to the wire
+                 */
+                send_async = false;
+            }
         }
     }
 
