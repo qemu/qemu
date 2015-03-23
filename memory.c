@@ -1425,6 +1425,7 @@ void memory_region_set_log(MemoryRegion *mr, bool log, unsigned client)
 {
     uint8_t mask = 1 << client;
 
+    assert(client == DIRTY_MEMORY_VGA);
     memory_region_transaction_begin();
     mr->dirty_log_mask = (mr->dirty_log_mask & ~mask) | (log * mask);
     memory_region_update_pending |= mr->enabled;

@@ -647,8 +647,7 @@ void memory_region_ram_resize(MemoryRegion *mr, ram_addr_t newsize,
  *
  * @mr: the memory region being updated.
  * @log: whether dirty logging is to be enabled or disabled.
- * @client: the user of the logging information; %DIRTY_MEMORY_MIGRATION or
- *          %DIRTY_MEMORY_VGA.
+ * @client: the user of the logging information; %DIRTY_MEMORY_VGA only.
  */
 void memory_region_set_log(MemoryRegion *mr, bool log, unsigned client);
 
