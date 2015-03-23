@@ -1119,7 +1119,7 @@ bool qemu_in_vcpu_thread(void)
 void qemu_mutex_lock_iothread(void)
 {
     atomic_inc(&iothread_requesting_mutex);
-    if (!tcg_enabled() || !first_cpu) {
+    if (!tcg_enabled() || !first_cpu || !first_cpu->thread) {
         qemu_mutex_lock(&qemu_global_mutex);
         atomic_dec(&iothread_requesting_mutex);
     } else {
