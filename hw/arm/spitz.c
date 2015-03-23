@@ -168,6 +168,7 @@ static int sl_nand_init(SysBusDevice *dev)
     DriveInfo *nand;
 
     s->ctl = 0;
+    /* FIXME use a qdev drive property instead of drive_get() */
     nand = drive_get(IF_MTD, 0, 0);
     s->nand = nand_init(nand ? blk_by_legacy_dinfo(nand) : NULL,
                         s->manf_id, s->chip_id);

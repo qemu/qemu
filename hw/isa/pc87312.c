@@ -319,11 +319,13 @@ static void pc87312_realize(DeviceState *dev, Error **errp)
         d = DEVICE(isa);
         qdev_prop_set_uint32(d, "iobase", get_fdc_iobase(s));
         qdev_prop_set_uint32(d, "irq", 6);
+        /* FIXME use a qdev drive property instead of drive_get() */
         drive = drive_get(IF_FLOPPY, 0, 0);
         if (drive != NULL) {
             qdev_prop_set_drive_nofail(d, "driveA",
                                        blk_by_legacy_dinfo(drive));
         }
+        /* FIXME use a qdev drive property instead of drive_get() */
         drive = drive_get(IF_FLOPPY, 0, 1);
         if (drive != NULL) {
             qdev_prop_set_drive_nofail(d, "driveB",

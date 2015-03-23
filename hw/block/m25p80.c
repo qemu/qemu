@@ -623,6 +623,7 @@ static int m25p80_init(SSISlave *ss)
     s->dirty_page = -1;
     s->storage = blk_blockalign(s->blk, s->size);
 
+    /* FIXME use a qdev drive property instead of drive_get_next() */
     dinfo = drive_get_next(IF_MTD);
 
     if (dinfo) {

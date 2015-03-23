@@ -255,6 +255,7 @@ static int milkymist_memcard_init(SysBusDevice *dev)
     DriveInfo *dinfo;
     BlockBackend *blk;
 
+    /* FIXME use a qdev drive property instead of drive_get_next() */
     dinfo = drive_get_next(IF_SD);
     blk = dinfo ? blk_by_legacy_dinfo(dinfo) : NULL;
     s->card = sd_init(blk, false);
