@@ -592,6 +592,51 @@
 { 'enum': 'MigrationParameter',
   'data': ['compress-level', 'compress-threads', 'decompress-threads'] }
 
+#
+# @migrate-set-parameters
+#
+# Set the following migration parameters
+#
+# @compress-level: compression level
+#
+# @compress-threads: compression thread count
+#
+# @decompress-threads: decompression thread count
+#
+# Since: 2.4
+##
+{ 'command': 'migrate-set-parameters',
+  'data': { '*compress-level': 'int',
+            '*compress-threads': 'int',
+            '*decompress-threads': 'int'} }
+
+#
+# @MigrationParameters
+#
+# @compress-level: compression level
+#
+# @compress-threads: compression thread count
+#
+# @decompress-threads: decompression thread count
+#
+# Since: 2.4
+##
+{ 'struct': 'MigrationParameters',
+  'data': { 'compress-level': 'int',
+            'compress-threads': 'int',
+            'decompress-threads': 'int'} }
+##
+# @query-migrate-parameters
+#
+# Returns information about the current migration parameters
+#
+# Returns: @MigrationParameters
+#
+# Since: 2.4
+##
+{ 'command': 'query-migrate-parameters',
+  'returns': 'MigrationParameters' }
+
 ##
 # @MouseInfo:
 #

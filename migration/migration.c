@@ -188,6 +188,21 @@ MigrationCapabilityStatusList *qmp_query_migrate_capabilities(Error **errp)
     return head;
 }
 
+MigrationParameters *qmp_query_migrate_parameters(Error **errp)
+{
+    MigrationParameters *params;
+    MigrationState *s = migrate_get_current();
+
+    params = g_malloc0(sizeof(*params));
+    params->compress_level = s->parameters[MIGRATION_PARAMETER_COMPRESS_LEVEL];
+    params->compress_threads =
+            s->parameters[MIGRATION_PARAMETER_COMPRESS_THREADS];
+    params->decompress_threads =
+            s->parameters[MIGRATION_PARAMETER_DECOMPRESS_THREADS];
+
+    return params;
+}
+
 static void get_xbzrle_cache_stats(MigrationInfo *info)
 {
     if (migrate_use_xbzrle()) {
@@ -298,6 +313,47 @@ void qmp_migrate_set_capabilities(MigrationCapabilityStatusList *params,
 
     for (cap = params; cap; cap = cap->next) {
         s->enabled_capabilities[cap->value->capability] = cap->value->state;
+    }
+}
+
+void qmp_migrate_set_parameters(bool has_compress_level,
+                                int64_t compress_level,
+                                bool has_compress_threads,
+                                int64_t compress_threads,
+                                bool has_decompress_threads,
+                                int64_t decompress_threads, Error **errp)
+{
+    MigrationState *s = migrate_get_current();
+
+    if (has_compress_level && (compress_level < 0 || compress_level > 9)) {
+        error_set(errp, QERR_INVALID_PARAMETER_VALUE, "compress_level",
+                  "is invalid, it should be in the range of 0 to 9");
+        return;
+    }
+    if (has_compress_threads &&
+            (compress_threads < 1 || compress_threads > 255)) {
+        error_set(errp, QERR_INVALID_PARAMETER_VALUE,
+                  "compress_threads",
+                  "is invalid, it should be in the range of 1 to 255");
+        return;
+    }
+    if (has_decompress_threads &&
+            (decompress_threads < 1 || decompress_threads > 255)) {
+        error_set(errp, QERR_INVALID_PARAMETER_VALUE,
+                  "decompress_threads",
+                  "is invalid, it should be in the range of 1 to 255");
+        return;
+    }
+
+    if (has_compress_level) {
+        s->parameters[MIGRATION_PARAMETER_COMPRESS_LEVEL] = compress_level;
+    }
+    if (has_compress_threads) {
+        s->parameters[MIGRATION_PARAMETER_COMPRESS_THREADS] = compress_threads;
+    }
+    if (has_decompress_threads) {
+        s->parameters[MIGRATION_PARAMETER_DECOMPRESS_THREADS] =
+                                                    decompress_threads;
     }
 }
 
