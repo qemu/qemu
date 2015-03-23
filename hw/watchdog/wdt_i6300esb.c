@@ -369,7 +369,7 @@ static const MemoryRegionOps i6300esb_ops = {
             i6300esb_mem_writel,
         },
     },
-    .endianness = DEVICE_NATIVE_ENDIAN,
+    .endianness = DEVICE_LITTLE_ENDIAN,
 };
 
 static const VMStateDescription vmstate_i6300esb = {
