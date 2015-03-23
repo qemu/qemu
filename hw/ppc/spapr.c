@@ -1580,7 +1580,7 @@ static void ppc_spapr_init(MachineState *machine)
     /* Graphics */
     if (spapr_vga_init(phb->bus)) {
         spapr->has_graphics = true;
-        machine->usb |= defaults_enabled();
+        machine->usb |= defaults_enabled() && !machine->usb_disabled;
     }
 
     if (machine->usb) {
