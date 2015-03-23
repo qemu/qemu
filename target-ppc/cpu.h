@@ -2251,8 +2251,8 @@ static inline ppcmas_tlb_t *booke206_get_tlbm(CPUPPCState *env, const int tlbn,
 {
     int r;
     uint32_t ways = booke206_tlb_ways(env, tlbn);
-    int ways_bits = ffs(ways) - 1;
-    int tlb_bits = ffs(booke206_tlb_size(env, tlbn)) - 1;
+    int ways_bits = ctz32(ways);
+    int tlb_bits = ctz32(booke206_tlb_size(env, tlbn));
     int i;
 
     way &= ways - 1;

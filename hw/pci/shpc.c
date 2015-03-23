@@ -61,7 +61,7 @@
 /* Same slot state masks are used for command and status registers */
 #define SHPC_SLOT_STATE_MASK     0x03
 #define SHPC_SLOT_STATE_SHIFT \
-    (ffs(SHPC_SLOT_STATE_MASK) - 1)
+    ctz32(SHPC_SLOT_STATE_MASK)
 
 #define SHPC_STATE_NO       0x0
 #define SHPC_STATE_PWRONLY  0x1
@@ -70,10 +70,10 @@
 
 #define SHPC_SLOT_PWR_LED_MASK   0xC
 #define SHPC_SLOT_PWR_LED_SHIFT \
-    (ffs(SHPC_SLOT_PWR_LED_MASK) - 1)
+    ctz32(SHPC_SLOT_PWR_LED_MASK)
 #define SHPC_SLOT_ATTN_LED_MASK  0x30
 #define SHPC_SLOT_ATTN_LED_SHIFT \
-    (ffs(SHPC_SLOT_ATTN_LED_MASK) - 1)
+    ctz32(SHPC_SLOT_ATTN_LED_MASK)
 
 #define SHPC_LED_NO     0x0
 #define SHPC_LED_ON     0x1
@@ -136,7 +136,7 @@ static int roundup_pow_of_two(int x)
 static uint16_t shpc_get_status(SHPCDevice *shpc, int slot, uint16_t msk)
 {
     uint8_t *status = shpc->config + SHPC_SLOT_STATUS(slot);
-    return (pci_get_word(status) & msk) >> (ffs(msk) - 1);
+    return (pci_get_word(status) & msk) >> ctz32(msk);
 }
 
 static void shpc_set_status(SHPCDevice *shpc,
@@ -144,7 +144,7 @@ static void shpc_set_status(SHPCDevice *shpc,
 {
     uint8_t *status = shpc->config + SHPC_SLOT_STATUS(slot);
     pci_word_test_and_clear_mask(status, msk);
-    pci_word_test_and_set_mask(status, value << (ffs(msk) - 1));
+    pci_word_test_and_set_mask(status, value << ctz32(msk));
 }
 
 static void shpc_interrupt_update(PCIDevice *d)

@@ -436,9 +436,9 @@ static int bdrv_qed_open(BlockDriverState *bs, QDict *options, int flags,
 
     s->table_nelems = (s->header.cluster_size * s->header.table_size) /
                       sizeof(uint64_t);
-    s->l2_shift = ffs(s->header.cluster_size) - 1;
+    s->l2_shift = ctz32(s->header.cluster_size);
     s->l2_mask = s->table_nelems - 1;
-    s->l1_shift = s->l2_shift + ffs(s->table_nelems) - 1;
+    s->l1_shift = s->l2_shift + ctz32(s->table_nelems);
 
     /* Header size calculation must not overflow uint32_t */
     if (s->header.header_size > UINT32_MAX / s->header.cluster_size) {

@@ -1802,7 +1802,7 @@ static int qcow2_create2(const char *filename, int64_t total_size,
 {
     /* Calculate cluster_bits */
     int cluster_bits;
-    cluster_bits = ffs(cluster_size) - 1;
+    cluster_bits = ctz32(cluster_size);
     if (cluster_bits < MIN_CLUSTER_BITS || cluster_bits > MAX_CLUSTER_BITS ||
         (1 << cluster_bits) != cluster_size)
     {
@@ -2110,7 +2110,7 @@ static int qcow2_create(const char *filename, QemuOpts *opts, Error **errp)
         goto finish;
     }
 
-    refcount_order = ffs(refcount_bits) - 1;
+    refcount_order = ctz32(refcount_bits);
 
     ret = qcow2_create2(filename, size, backing_file, backing_fmt, flags,
                         cluster_size, prealloc, opts, version, refcount_order,

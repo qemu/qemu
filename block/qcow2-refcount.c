@@ -2450,7 +2450,7 @@ int qcow2_pre_write_overlap_check(BlockDriverState *bs, int ign, int64_t offset,
     if (ret < 0) {
         return ret;
     } else if (ret > 0) {
-        int metadata_ol_bitnr = ffs(ret) - 1;
+        int metadata_ol_bitnr = ctz32(ret);
         assert(metadata_ol_bitnr < QCOW2_OL_MAX_BITNR);
 
         qcow2_signal_corruption(bs, true, offset, size, "Preventing invalid "
