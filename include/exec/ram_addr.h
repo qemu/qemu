@@ -41,6 +41,9 @@ void qemu_ram_free_from_ptr(ram_addr_t addr);
 
 int qemu_ram_resize(ram_addr_t base, ram_addr_t newsize, Error **errp);
 
+#define DIRTY_CLIENTS_ALL     ((1 << DIRTY_MEMORY_NUM) - 1)
+#define DIRTY_CLIENTS_NOCODE  (DIRTY_CLIENTS_ALL & ~(1 << DIRTY_MEMORY_CODE))
+
 static inline bool cpu_physical_memory_get_dirty(ram_addr_t start,
                                                  ram_addr_t length,
                                                  unsigned client)
@@ -103,28 +106,23 @@ static inline void cpu_physical_memory_set_dirty_flag(ram_addr_t addr,
     set_bit(addr >> TARGET_PAGE_BITS, ram_list.dirty_memory[client]);
 }
 
-static inline void cpu_physical_memory_set_dirty_range_nocode(ram_addr_t start,
-                                                              ram_addr_t length)
-{
-    unsigned long end, page;
-
-    end = TARGET_PAGE_ALIGN(start + length) >> TARGET_PAGE_BITS;
-    page = start >> TARGET_PAGE_BITS;
-    bitmap_set(ram_list.dirty_memory[DIRTY_MEMORY_MIGRATION], page, end - page);
-    bitmap_set(ram_list.dirty_memory[DIRTY_MEMORY_VGA], page, end - page);
-    xen_modified_memory(start, length);
-}
-
 static inline void cpu_physical_memory_set_dirty_range(ram_addr_t start,
-                                                       ram_addr_t length)
+                                                       ram_addr_t length,
+                                                       uint8_t mask)
 {
     unsigned long end, page;
 
     end = TARGET_PAGE_ALIGN(start + length) >> TARGET_PAGE_BITS;
     page = start >> TARGET_PAGE_BITS;
-    bitmap_set(ram_list.dirty_memory[DIRTY_MEMORY_MIGRATION], page, end - page);
-    bitmap_set(ram_list.dirty_memory[DIRTY_MEMORY_VGA], page, end - page);
-    bitmap_set(ram_list.dirty_memory[DIRTY_MEMORY_CODE], page, end - page);
+    if (likely(mask & (1 << DIRTY_MEMORY_MIGRATION))) {
+        bitmap_set(ram_list.dirty_memory[DIRTY_MEMORY_MIGRATION], page, end - page);
+    }
+    if (unlikely(mask & (1 << DIRTY_MEMORY_VGA))) {
+        bitmap_set(ram_list.dirty_memory[DIRTY_MEMORY_VGA], page, end - page);
+    }
+    if (unlikely(mask & (1 << DIRTY_MEMORY_CODE))) {
+        bitmap_set(ram_list.dirty_memory[DIRTY_MEMORY_CODE], page, end - page);
+    }
     xen_modified_memory(start, length);
 }
 
@@ -172,7 +170,8 @@ static inline void cpu_physical_memory_set_dirty_lebitmap(unsigned long *bitmap,
                     addr = page_number * TARGET_PAGE_SIZE;
                     ram_addr = start + addr;
                     cpu_physical_memory_set_dirty_range(ram_addr,
-                                       TARGET_PAGE_SIZE * hpratio);
+                                       TARGET_PAGE_SIZE * hpratio,
+                                       DIRTY_CLIENTS_ALL);
                 } while (c != 0);
             }
         }
