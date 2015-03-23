@@ -159,6 +159,9 @@ void qemu_put_be32(QEMUFile *f, unsigned int v);
 void qemu_put_be64(QEMUFile *f, uint64_t v);
 int qemu_peek_buffer(QEMUFile *f, uint8_t *buf, int size, size_t offset);
 int qemu_get_buffer(QEMUFile *f, uint8_t *buf, int size);
+ssize_t qemu_put_compression_data(QEMUFile *f, const uint8_t *p, size_t size,
+                                  int level);
+int qemu_put_qemu_file(QEMUFile *f_des, QEMUFile *f_src);
 /*
  * Note that you can only peek continuous bytes from where the current pointer
  * is; you aren't guaranteed to be able to peak to +n bytes unless you've
