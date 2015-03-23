@@ -316,6 +316,69 @@ static uint64_t migration_dirty_pages;
 static uint32_t last_version;
 static bool ram_bulk_stage;
 
+struct CompressParam {
+    /* To be done */
+};
+typedef struct CompressParam CompressParam;
+
+static CompressParam *comp_param;
+static QemuThread *compress_threads;
+static bool quit_comp_thread;
+
+static void *do_data_compress(void *opaque)
+{
+    while (!quit_comp_thread) {
+
+    /* To be done */
+
+    }
+
+    return NULL;
+}
+
+static inline void terminate_compression_threads(void)
+{
+    quit_comp_thread = true;
+
+    /* To be done */
+}
+
+void migrate_compress_threads_join(void)
+{
+    int i, thread_count;
+
+    if (!migrate_use_compression()) {
+        return;
+    }
+    terminate_compression_threads();
+    thread_count = migrate_compress_threads();
+    for (i = 0; i < thread_count; i++) {
+        qemu_thread_join(compress_threads + i);
+    }
+    g_free(compress_threads);
+    g_free(comp_param);
+    compress_threads = NULL;
+    comp_param = NULL;
+}
+
+void migrate_compress_threads_create(void)
+{
+    int i, thread_count;
+
+    if (!migrate_use_compression()) {
+        return;
+    }
+    quit_comp_thread = false;
+    thread_count = migrate_compress_threads();
+    compress_threads = g_new0(QemuThread, thread_count);
+    comp_param = g_new0(CompressParam, thread_count);
+    for (i = 0; i < thread_count; i++) {
+        qemu_thread_create(compress_threads + i, "compress",
+                           do_data_compress, comp_param + i,
+                           QEMU_THREAD_JOINABLE);
+    }
+}
+
 /**
  * save_page_header: Write page header to wire
  *
@@ -693,6 +756,28 @@ static int ram_save_page(QEMUFile *f, RAMBlock* block, ram_addr_t offset,
 }
 
 /**
+ * ram_save_compressed_page: compress the given page and send it to the stream
+ *
+ * Returns: Number of pages written.
+ *
+ * @f: QEMUFile where to send the data
+ * @block: block that contains the page we want to send
+ * @offset: offset inside the block for the page
+ * @last_stage: if we are at the completion stage
+ * @bytes_transferred: increase it with the number of transferred bytes
+ */
+static int ram_save_compressed_page(QEMUFile *f, RAMBlock *block,
+                                    ram_addr_t offset, bool last_stage,
+                                    uint64_t *bytes_transferred)
+{
+    int pages = -1;
+
+    /* To be done*/
+
+    return pages;
+}
+
+/**
  * ram_find_and_save_block: Finds a dirty page and sends it to f
  *
  * Called within an RCU critical section.
@@ -733,8 +818,13 @@ static int ram_find_and_save_block(QEMUFile *f, bool last_stage,
                 ram_bulk_stage = false;
             }
         } else {
-            pages = ram_save_page(f, block, offset, last_stage,
-                                  bytes_transferred);
+            if (migrate_use_compression()) {
+                pages = ram_save_compressed_page(f, block, offset, last_stage,
+                                                 bytes_transferred);
+            } else {
+                pages = ram_save_page(f, block, offset, last_stage,
+                                      bytes_transferred);
+            }
 
             /* if page is unmodified, continue to the next */
             if (pages > 0) {
