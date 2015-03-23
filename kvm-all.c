@@ -83,7 +83,6 @@ struct KVMState
     struct kvm_coalesced_mmio_ring *coalesced_mmio_ring;
     bool coalesced_flush_in_progress;
     int broken_set_mem_region;
-    int migration_log;
     int vcpu_events;
     int robust_singlestep;
     int debugregs;
@@ -234,9 +233,6 @@ static int kvm_set_user_memory_region(KVMState *s, KVMSlot *slot)
     mem.guest_phys_addr = slot->start_addr;
     mem.userspace_addr = (unsigned long)slot->ram;
     mem.flags = slot->flags;
-    if (s->migration_log) {
-        mem.flags |= KVM_MEM_LOG_DIRTY_PAGES;
-    }
 
     if (slot->memory_size && mem.flags & KVM_MEM_READONLY) {
         /* Set the slot size to 0 before setting the slot to the desired
@@ -317,10 +313,6 @@ static int kvm_slot_dirty_pages_log_change(KVMSlot *mem, bool log_dirty)
     mem->flags = flags;
 
     /* If nothing changed effectively, no need to issue ioctl */
-    if (s->migration_log) {
-        flags |= KVM_MEM_LOG_DIRTY_PAGES;
-    }
-
     if (flags == old_flags) {
         return 0;
     }
@@ -373,31 +365,6 @@ static void kvm_log_stop(MemoryListener *listener,
     if (r < 0) {
         abort();
     }
-}
-
-static int kvm_set_migration_log(bool enable)
-{
-    KVMState *s = kvm_state;
-    KVMSlot *mem;
-    int i, err;
-
-    s->migration_log = enable;
-
-    for (i = 0; i < s->nr_slots; i++) {
-        mem = &s->slots[i];
-
-        if (!mem->memory_size) {
-            continue;
-        }
-        if (!!(mem->flags & KVM_MEM_LOG_DIRTY_PAGES) == enable) {
-            continue;
-        }
-        err = kvm_set_user_memory_region(s, mem);
-        if (err) {
-            return err;
-        }
-    }
-    return 0;
 }
 
 /* get kvm's dirty pages bitmap and update qemu's */
@@ -671,8 +638,7 @@ static void kvm_set_phys_mem(MemoryRegionSection *section, bool add)
     KVMSlot *mem, old;
     int err;
     MemoryRegion *mr = section->mr;
-    bool log_dirty =
-        memory_region_get_dirty_log_mask(mr) & ~(1 << DIRTY_MEMORY_MIGRATION);
+    bool log_dirty = memory_region_get_dirty_log_mask(mr) != 0;
     bool writeable = !mr->readonly && !mr->rom_device;
     bool readonly_flag = mr->readonly || memory_region_is_romd(mr);
     hwaddr start_addr = section->offset_within_address_space;
@@ -724,7 +690,7 @@ static void kvm_set_phys_mem(MemoryRegionSection *section, bool add)
 
         old = *mem;
 
-        if ((mem->flags & KVM_MEM_LOG_DIRTY_PAGES) || s->migration_log) {
+        if (mem->flags & KVM_MEM_LOG_DIRTY_PAGES) {
             kvm_physical_sync_dirty_bitmap(section);
         }
 
@@ -853,22 +819,6 @@ static void kvm_log_sync(MemoryListener *listener,
     }
 }
 
-static void kvm_log_global_start(struct MemoryListener *listener)
-{
-    int r;
-
-    r = kvm_set_migration_log(1);
-    assert(r >= 0);
-}
-
-static void kvm_log_global_stop(struct MemoryListener *listener)
-{
-    int r;
-
-    r = kvm_set_migration_log(0);
-    assert(r >= 0);
-}
-
 static void kvm_mem_ioeventfd_add(MemoryListener *listener,
                                   MemoryRegionSection *section,
                                   bool match_data, uint64_t data,
@@ -944,8 +894,6 @@ static MemoryListener kvm_memory_listener = {
     .log_start = kvm_log_start,
     .log_stop = kvm_log_stop,
     .log_sync = kvm_log_sync,
-    .log_global_start = kvm_log_global_start,
-    .log_global_stop = kvm_log_global_stop,
     .eventfd_add = kvm_mem_ioeventfd_add,
     .eventfd_del = kvm_mem_ioeventfd_del,
     .coalesced_mmio_add = kvm_coalesce_mmio_region,
