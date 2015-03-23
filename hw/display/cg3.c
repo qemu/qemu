@@ -309,6 +309,7 @@ static void cg3_realizefn(DeviceState *dev, Error **errp)
 
     memory_region_init_ram(&s->vram_mem, NULL, "cg3.vram", s->vram_size,
                            &error_abort);
+    memory_region_set_log(&s->vram_mem, true, DIRTY_MEMORY_VGA);
     vmstate_register_ram_global(&s->vram_mem);
     sysbus_init_mmio(sbd, &s->vram_mem);
 

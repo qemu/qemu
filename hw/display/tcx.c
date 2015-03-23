@@ -1006,6 +1006,7 @@ static void tcx_realizefn(DeviceState *dev, Error **errp)
     memory_region_init_ram(&s->vram_mem, OBJECT(s), "tcx.vram",
                            s->vram_size * (1 + 4 + 4), &error_abort);
     vmstate_register_ram_global(&s->vram_mem);
+    memory_region_set_log(&s->vram_mem, true, DIRTY_MEMORY_VGA);
     vram_base = memory_region_get_ram_ptr(&s->vram_mem);
 
     /* 10/ROM : FCode ROM */
