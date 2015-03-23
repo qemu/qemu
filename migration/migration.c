@@ -611,8 +611,11 @@ bool migrate_zero_blocks(void)
 
 bool migrate_use_compression(void)
 {
-    /* Disable compression before the patch series are applied */
-    return false;
+    MigrationState *s;
+
+    s = migrate_get_current();
+
+    return s->enabled_capabilities[MIGRATION_CAPABILITY_COMPRESS];
 }
 
 int migrate_compress_level(void)

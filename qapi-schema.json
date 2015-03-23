@@ -515,13 +515,22 @@
 #          to enable the capability on the source VM. The feature is disabled by
 #          default. (since 1.6)
 #
+# @compress: Use multiple compression threads to accelerate live migration.
+#          This feature can help to reduce the migration traffic, by sending
+#          compressed pages. Please note that if compress and xbzrle are both
+#          on, compress only takes effect in the ram bulk stage, after that,
+#          it will be disabled and only xbzrle takes effect, this can help to
+#          minimize migration traffic. The feature is disabled by default.
+#          (since 2.4 )
+#
 # @auto-converge: If enabled, QEMU will automatically throttle down the guest
 #          to speed up convergence of RAM migration. (since 1.6)
 #
 # Since: 1.2
 ##
 { 'enum': 'MigrationCapability',
-  'data': ['xbzrle', 'rdma-pin-all', 'auto-converge', 'zero-blocks'] }
+  'data': ['xbzrle', 'rdma-pin-all', 'auto-converge', 'zero-blocks',
+           'compress'] }
 
 ##
 # @MigrationCapabilityStatus
