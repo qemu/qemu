@@ -1297,6 +1297,8 @@ static void sdhci_sysbus_class_init(ObjectClass *klass, void *data)
     dc->vmsd = &sdhci_vmstate;
     dc->props = sdhci_properties;
     dc->realize = sdhci_sysbus_realize;
+    /* Reason: instance_init() method uses drive_get_next() */
+    dc->cannot_instantiate_with_device_add_yet = true;
 }
 
 static const TypeInfo sdhci_sysbus_info = {

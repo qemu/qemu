@@ -508,6 +508,8 @@ static void pl181_class_init(ObjectClass *klass, void *data)
     sdc->init = pl181_init;
     k->vmsd = &vmstate_pl181;
     k->reset = pl181_reset;
+    /* Reason: init() method uses drive_get_next() */
+    k->cannot_instantiate_with_device_add_yet = true;
 }
 
 static const TypeInfo pl181_info = {

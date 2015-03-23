@@ -145,6 +145,8 @@ static void lm32_juart_class_init(ObjectClass *klass, void *data)
     k->init = lm32_juart_init;
     dc->reset = juart_reset;
     dc->vmsd = &vmstate_lm32_juart;
+    /* Reason: init() method uses qemu_char_get_next_serial() */
+    dc->cannot_instantiate_with_device_add_yet = true;
 }
 
 static const TypeInfo lm32_juart_info = {

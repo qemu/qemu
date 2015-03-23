@@ -235,6 +235,8 @@ static void milkymist_uart_class_init(ObjectClass *klass, void *data)
     dc->realize = milkymist_uart_realize;
     dc->reset = milkymist_uart_reset;
     dc->vmsd = &vmstate_milkymist_uart;
+    /* Reason: realize() method uses qemu_char_get_next_serial() */
+    dc->cannot_instantiate_with_device_add_yet = true;
 }
 
 static const TypeInfo milkymist_uart_info = {

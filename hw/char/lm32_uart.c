@@ -285,6 +285,8 @@ static void lm32_uart_class_init(ObjectClass *klass, void *data)
     k->init = lm32_uart_init;
     dc->reset = uart_reset;
     dc->vmsd = &vmstate_lm32_uart;
+    /* Reason: init() method uses qemu_char_get_next_serial() */
+    dc->cannot_instantiate_with_device_add_yet = true;
 }
 
 static const TypeInfo lm32_uart_info = {
