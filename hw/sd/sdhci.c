@@ -1254,6 +1254,8 @@ static void sdhci_pci_class_init(ObjectClass *klass, void *data)
     set_bit(DEVICE_CATEGORY_STORAGE, dc->categories);
     dc->vmsd = &sdhci_vmstate;
     dc->props = sdhci_properties;
+    /* Reason: realize() method uses drive_get_next() */
+    dc->cannot_instantiate_with_device_add_yet = true;
 }
 
 static const TypeInfo sdhci_pci_info = {
