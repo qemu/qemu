@@ -107,7 +107,7 @@ long vnc_client_read_ws(VncState *vs)
 {
     int ret, err;
     uint8_t *payload;
-    size_t payload_size, frame_size;
+    size_t payload_size, header_size;
     VNC_DEBUG("Read websocket %p size %zd offset %zd\n", vs->ws_input.buffer,
             vs->ws_input.capacity, vs->ws_input.offset);
     buffer_reserve(&vs->ws_input, 4096);
@@ -117,18 +117,39 @@ long vnc_client_read_ws(VncState *vs)
     }
     vs->ws_input.offset += ret;
 
-    /* make sure that nothing is left in the ws_input buffer */
+    ret = 0;
+    /* consume as much of ws_input buffer as possible */
     do {
-        err = vncws_decode_frame(&vs->ws_input, &payload,
-                              &payload_size, &frame_size);
-        if (err <= 0) {
-            return err;
+        if (vs->ws_payload_remain == 0) {
+            err = vncws_decode_frame_header(&vs->ws_input,
+                                            &header_size,
+                                            &vs->ws_payload_remain,
+                                            &vs->ws_payload_mask);
+            if (err <= 0) {
+                return err;
+            }
+
+            buffer_advance(&vs->ws_input, header_size);
         }
+        if (vs->ws_payload_remain != 0) {
+            err = vncws_decode_frame_payload(&vs->ws_input,
+                                             &vs->ws_payload_remain,
+                                             &vs->ws_payload_mask,
+                                             &payload,
+                                             &payload_size);
+            if (err < 0) {
+                return err;
+            }
+            if (err == 0) {
+                return ret;
+            }
+            ret += err;
 
-        buffer_reserve(&vs->input, payload_size);
-        buffer_append(&vs->input, payload, payload_size);
+            buffer_reserve(&vs->input, payload_size);
+            buffer_append(&vs->input, payload, payload_size);
 
-        buffer_advance(&vs->ws_input, frame_size);
+            buffer_advance(&vs->ws_input, payload_size);
+        }
     } while (vs->ws_input.offset > 0);
 
     return ret;
@@ -265,15 +286,14 @@ void vncws_encode_frame(Buffer *output, const void *payload,
     buffer_append(output, payload, payload_size);
 }
 
-int vncws_decode_frame(Buffer *input, uint8_t **payload,
-                           size_t *payload_size, size_t *frame_size)
+int vncws_decode_frame_header(Buffer *input,
+                              size_t *header_size,
+                              size_t *payload_remain,
+                              WsMask *payload_mask)
 {
     unsigned char opcode = 0, fin = 0, has_mask = 0;
-    size_t header_size = 0;
-    uint32_t *payload32;
+    size_t payload_len;
     WsHeader *header = (WsHeader *)input->buffer;
-    WsMask mask;
-    int i;
 
     if (input->offset < WS_HEAD_MIN_LEN + 4) {
         /* header not complete */
@@ -283,7 +303,7 @@ int vncws_decode_frame(Buffer *input, uint8_t **payload,
     fin = (header->b0 & 0x80) >> 7;
     opcode = header->b0 & 0x0f;
     has_mask = (header->b1 & 0x80) >> 7;
-    *payload_size = header->b1 & 0x7f;
+    payload_len = header->b1 & 0x7f;
 
     if (opcode == WS_OPCODE_CLOSE) {
         /* disconnect */
@@ -300,40 +320,57 @@ int vncws_decode_frame(Buffer *input, uint8_t **payload,
         return -2;
     }
 
-    if (*payload_size < 126) {
-        header_size = 6;
-        mask = header->u.m;
-    } else if (*payload_size == 126 && input->offset >= 8) {
-        *payload_size = be16_to_cpu(header->u.s16.l16);
-        header_size = 8;
-        mask = header->u.s16.m16;
-    } else if (*payload_size == 127 && input->offset >= 14) {
-        *payload_size = be64_to_cpu(header->u.s64.l64);
-        header_size = 14;
-        mask = header->u.s64.m64;
+    if (payload_len < 126) {
+        *payload_remain = payload_len;
+        *header_size = 6;
+        *payload_mask = header->u.m;
+    } else if (payload_len == 126 && input->offset >= 8) {
+        *payload_remain = be16_to_cpu(header->u.s16.l16);
+        *header_size = 8;
+        *payload_mask = header->u.s16.m16;
+    } else if (payload_len == 127 && input->offset >= 14) {
+        *payload_remain = be64_to_cpu(header->u.s64.l64);
+        *header_size = 14;
+        *payload_mask = header->u.s64.m64;
     } else {
         /* header not complete */
         return 0;
     }
 
-    *frame_size = header_size + *payload_size;
+    return 1;
+}
 
-    if (input->offset < *frame_size) {
-        /* frame not complete */
+int vncws_decode_frame_payload(Buffer *input,
+                               size_t *payload_remain, WsMask *payload_mask,
+                               uint8_t **payload, size_t *payload_size)
+{
+    size_t i;
+    uint32_t *payload32;
+
+    *payload = input->buffer;
+    /* If we aren't at the end of the payload, then drop
+     * off the last bytes, so we're always multiple of 4
+     * for purpose of unmasking, except at end of payload
+     */
+    if (input->offset < *payload_remain) {
+        *payload_size = input->offset - (input->offset % 4);
+    } else {
+        *payload_size = *payload_remain;
+    }
+    if (*payload_size == 0) {
         return 0;
     }
-
-    *payload = input->buffer + header_size;
+    *payload_remain -= *payload_size;
 
     /* unmask frame */
     /* process 1 frame (32 bit op) */
     payload32 = (uint32_t *)(*payload);
     for (i = 0; i < *payload_size / 4; i++) {
-        payload32[i] ^= mask.u;
+        payload32[i] ^= payload_mask->u;
     }
     /* process the remaining bytes (if any) */
     for (i *= 4; i < *payload_size; i++) {
-        (*payload)[i] ^= mask.c[i % 4];
+        (*payload)[i] ^= payload_mask->c[i % 4];
     }
 
     return 1;

@@ -83,7 +83,12 @@ long vnc_client_read_ws(VncState *vs);
 void vncws_process_handshake(VncState *vs, uint8_t *line, size_t size);
 void vncws_encode_frame(Buffer *output, const void *payload,
             const size_t payload_size);
-int vncws_decode_frame(Buffer *input, uint8_t **payload,
-                               size_t *payload_size, size_t *frame_size);
+int vncws_decode_frame_header(Buffer *input,
+                              size_t *header_size,
+                              size_t *payload_remain,
+                              WsMask *payload_mask);
+int vncws_decode_frame_payload(Buffer *input,
+                               size_t *payload_remain, WsMask *payload_mask,
+                               uint8_t **payload, size_t *payload_size);
 
 #endif /* __QEMU_UI_VNC_WS_H */

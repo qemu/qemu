@@ -306,6 +306,8 @@ struct VncState
 #ifdef CONFIG_VNC_WS
     Buffer ws_input;
     Buffer ws_output;
+    size_t ws_payload_remain;
+    WsMask ws_payload_mask;
 #endif
     /* current output mode information */
     VncWritePixels *write_pixels;
