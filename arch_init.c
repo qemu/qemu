@@ -319,7 +319,13 @@ static uint32_t last_version;
 static bool ram_bulk_stage;
 
 struct CompressParam {
-    /* To be done */
+    bool start;
+    bool done;
+    QEMUFile *file;
+    QemuMutex mutex;
+    QemuCond cond;
+    RAMBlock *block;
+    ram_addr_t offset;
 };
 typedef struct CompressParam CompressParam;
 
@@ -330,6 +336,14 @@ typedef struct DecompressParam DecompressParam;
 
 static CompressParam *comp_param;
 static QemuThread *compress_threads;
+/* comp_done_cond is used to wake up the migration thread when
+ * one of the compression threads has finished the compression.
+ * comp_done_lock is used to co-work with comp_done_cond.
+ */
+static QemuMutex *comp_done_lock;
+static QemuCond *comp_done_cond;
+/* The empty QEMUFileOps will be used by file in CompressParam */
+static const QEMUFileOps empty_ops = { };
 static bool quit_comp_thread;
 static bool quit_decomp_thread;
 static DecompressParam *decomp_param;
@@ -365,11 +379,20 @@ void migrate_compress_threads_join(void)
     thread_count = migrate_compress_threads();
     for (i = 0; i < thread_count; i++) {
         qemu_thread_join(compress_threads + i);
+        qemu_fclose(comp_param[i].file);
+        qemu_mutex_destroy(&comp_param[i].mutex);
+        qemu_cond_destroy(&comp_param[i].cond);
     }
+    qemu_mutex_destroy(comp_done_lock);
+    qemu_cond_destroy(comp_done_cond);
     g_free(compress_threads);
     g_free(comp_param);
+    g_free(comp_done_cond);
+    g_free(comp_done_lock);
     compress_threads = NULL;
     comp_param = NULL;
+    comp_done_cond = NULL;
+    comp_done_lock = NULL;
 }
 
 void migrate_compress_threads_create(void)
@@ -383,7 +406,17 @@ void migrate_compress_threads_create(void)
     thread_count = migrate_compress_threads();
     compress_threads = g_new0(QemuThread, thread_count);
     comp_param = g_new0(CompressParam, thread_count);
+    comp_done_cond = g_new0(QemuCond, 1);
+    comp_done_lock = g_new0(QemuMutex, 1);
+    qemu_cond_init(comp_done_cond);
+    qemu_mutex_init(comp_done_lock);
     for (i = 0; i < thread_count; i++) {
+        /* com_param[i].file is just used as a dummy buffer to save data, set
+         * it's ops to empty.
+         */
+        comp_param[i].file = qemu_fopen_ops(NULL, &empty_ops);
+        qemu_mutex_init(&comp_param[i].mutex);
+        qemu_cond_init(&comp_param[i].cond);
         qemu_thread_create(compress_threads + i, "compress",
                            do_data_compress, comp_param + i,
                            QEMU_THREAD_JOINABLE);
