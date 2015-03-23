@@ -488,7 +488,7 @@ static void xen_set_memory(struct MemoryListener *listener,
     XenIOState *state = container_of(listener, XenIOState, memory_listener);
     hwaddr start_addr = section->offset_within_address_space;
     ram_addr_t size = int128_get64(section->size);
-    bool log_dirty = memory_region_is_logging(section->mr);
+    bool log_dirty = memory_region_is_logging(section->mr, DIRTY_MEMORY_VGA);
     hvmmem_type_t mem_type;
 
     if (section->mr == &ram_memory) {

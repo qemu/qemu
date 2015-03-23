@@ -663,7 +663,8 @@ static void kvm_set_phys_mem(MemoryRegionSection *section, bool add)
     KVMSlot *mem, old;
     int err;
     MemoryRegion *mr = section->mr;
-    bool log_dirty = memory_region_is_logging(mr);
+    bool log_dirty =
+        memory_region_get_dirty_log_mask(mr) & ~(1 << DIRTY_MEMORY_MIGRATION);
     bool writeable = !mr->readonly && !mr->rom_device;
     bool readonly_flag = mr->readonly || memory_region_is_romd(mr);
     hwaddr start_addr = section->offset_within_address_space;

@@ -1389,9 +1389,14 @@ bool memory_region_is_skip_dump(MemoryRegion *mr)
     return mr->skip_dump;
 }
 
-bool memory_region_is_logging(MemoryRegion *mr)
+uint8_t memory_region_get_dirty_log_mask(MemoryRegion *mr)
 {
     return mr->dirty_log_mask;
+}
+
+bool memory_region_is_logging(MemoryRegion *mr, uint8_t client)
+{
+    return memory_region_get_dirty_log_mask(mr) & (1 << client);
 }
 
 bool memory_region_is_rom(MemoryRegion *mr)

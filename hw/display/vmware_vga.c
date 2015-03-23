@@ -1124,7 +1124,7 @@ static void vmsvga_update_display(void *opaque)
      * Is it more efficient to look at vram VGA-dirty bits or wait
      * for the driver to issue SVGA_CMD_UPDATE?
      */
-    if (memory_region_is_logging(&s->vga.vram)) {
+    if (memory_region_is_logging(&s->vga.vram, DIRTY_MEMORY_VGA)) {
         vga_sync_dirty_bitmap(&s->vga);
         dirty = memory_region_get_dirty(&s->vga.vram, 0,
             surface_stride(surface) * surface_height(surface),
