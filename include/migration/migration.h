@@ -50,9 +50,7 @@ struct MigrationState
     QemuThread thread;
     QEMUBH *cleanup_bh;
     QEMUFile *file;
-    int compress_thread_count;
-    int decompress_thread_count;
-    int compress_level;
+    int parameters[MIGRATION_PARAMETER_MAX];
 
     int state;
     MigrationParams params;

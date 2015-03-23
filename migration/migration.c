@@ -60,9 +60,12 @@ MigrationState *migrate_get_current(void)
         .bandwidth_limit = MAX_THROTTLE,
         .xbzrle_cache_size = DEFAULT_MIGRATE_CACHE_SIZE,
         .mbps = -1,
-        .compress_thread_count = DEFAULT_MIGRATE_COMPRESS_THREAD_COUNT,
-        .decompress_thread_count = DEFAULT_MIGRATE_DECOMPRESS_THREAD_COUNT,
-        .compress_level = DEFAULT_MIGRATE_COMPRESS_LEVEL,
+        .parameters[MIGRATION_PARAMETER_COMPRESS_LEVEL] =
+                DEFAULT_MIGRATE_COMPRESS_LEVEL,
+        .parameters[MIGRATION_PARAMETER_COMPRESS_THREADS] =
+                DEFAULT_MIGRATE_COMPRESS_THREAD_COUNT,
+        .parameters[MIGRATION_PARAMETER_DECOMPRESS_THREADS] =
+                DEFAULT_MIGRATE_DECOMPRESS_THREAD_COUNT,
     };
 
     return &current_migration;
@@ -406,9 +409,11 @@ static MigrationState *migrate_init(const MigrationParams *params)
     int64_t bandwidth_limit = s->bandwidth_limit;
     bool enabled_capabilities[MIGRATION_CAPABILITY_MAX];
     int64_t xbzrle_cache_size = s->xbzrle_cache_size;
-    int compress_level = s->compress_level;
-    int compress_thread_count = s->compress_thread_count;
-    int decompress_thread_count = s->decompress_thread_count;
+    int compress_level = s->parameters[MIGRATION_PARAMETER_COMPRESS_LEVEL];
+    int compress_thread_count =
+            s->parameters[MIGRATION_PARAMETER_COMPRESS_THREADS];
+    int decompress_thread_count =
+            s->parameters[MIGRATION_PARAMETER_DECOMPRESS_THREADS];
 
     memcpy(enabled_capabilities, s->enabled_capabilities,
            sizeof(enabled_capabilities));
@@ -419,9 +424,11 @@ static MigrationState *migrate_init(const MigrationParams *params)
            sizeof(enabled_capabilities));
     s->xbzrle_cache_size = xbzrle_cache_size;
 
-    s->compress_level = compress_level;
-    s->compress_thread_count = compress_thread_count;
-    s->decompress_thread_count = decompress_thread_count;
+    s->parameters[MIGRATION_PARAMETER_COMPRESS_LEVEL] = compress_level;
+    s->parameters[MIGRATION_PARAMETER_COMPRESS_THREADS] =
+               compress_thread_count;
+    s->parameters[MIGRATION_PARAMETER_DECOMPRESS_THREADS] =
+               decompress_thread_count;
     s->bandwidth_limit = bandwidth_limit;
     s->state = MIGRATION_STATUS_SETUP;
     trace_migrate_set_state(MIGRATION_STATUS_SETUP);
@@ -624,7 +631,7 @@ int migrate_compress_level(void)
 
     s = migrate_get_current();
 
-    return s->compress_level;
+    return s->parameters[MIGRATION_PARAMETER_COMPRESS_LEVEL];
 }
 
 int migrate_compress_threads(void)
@@ -633,7 +640,7 @@ int migrate_compress_threads(void)
 
     s = migrate_get_current();
 
-    return s->compress_thread_count;
+    return s->parameters[MIGRATION_PARAMETER_COMPRESS_THREADS];
 }
 
 int migrate_decompress_threads(void)
@@ -642,7 +649,7 @@ int migrate_decompress_threads(void)
 
     s = migrate_get_current();
 
-    return s->decompress_thread_count;
+    return s->parameters[MIGRATION_PARAMETER_DECOMPRESS_THREADS];
 }
 
 int migrate_use_xbzrle(void)
