@@ -588,7 +588,7 @@ static void render_memory_region(FlatView *view,
     remain = clip.size;
 
     fr.mr = mr;
-    fr.dirty_log_mask = mr->dirty_log_mask;
+    fr.dirty_log_mask = memory_region_get_dirty_log_mask(mr);
     fr.romd_mode = mr->romd_mode;
     fr.readonly = readonly;
 
@@ -1400,7 +1400,11 @@ bool memory_region_is_skip_dump(MemoryRegion *mr)
 
 uint8_t memory_region_get_dirty_log_mask(MemoryRegion *mr)
 {
-    return mr->dirty_log_mask;
+    uint8_t mask = mr->dirty_log_mask;
+    if (global_dirty_log) {
+        mask |= (1 << DIRTY_MEMORY_MIGRATION);
+    }
+    return mask;
 }
 
 bool memory_region_is_logging(MemoryRegion *mr, uint8_t client)
@@ -1962,12 +1966,24 @@ void address_space_sync_dirty_bitmap(AddressSpace *as)
 void memory_global_dirty_log_start(void)
 {
     global_dirty_log = true;
+
     MEMORY_LISTENER_CALL_GLOBAL(log_global_start, Forward);
+
+    /* Refresh DIRTY_LOG_MIGRATION bit.  */
+    memory_region_transaction_begin();
+    memory_region_update_pending = true;
+    memory_region_transaction_commit();
 }
 
 void memory_global_dirty_log_stop(void)
 {
     global_dirty_log = false;
+
+    /* Refresh DIRTY_LOG_MIGRATION bit.  */
+    memory_region_transaction_begin();
+    memory_region_update_pending = true;
+    memory_region_transaction_commit();
+
     MEMORY_LISTENER_CALL_GLOBAL(log_global_stop, Reverse);
 }
 
