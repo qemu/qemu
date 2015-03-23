@@ -349,6 +349,8 @@ static QemuMutex *comp_done_lock;
 static QemuCond *comp_done_cond;
 /* The empty QEMUFileOps will be used by file in CompressParam */
 static const QEMUFileOps empty_ops = { };
+
+static bool compression_switch;
 static bool quit_comp_thread;
 static bool quit_decomp_thread;
 static DecompressParam *decomp_param;
@@ -435,6 +437,7 @@ void migrate_compress_threads_create(void)
         return;
     }
     quit_comp_thread = false;
+    compression_switch = true;
     thread_count = migrate_compress_threads();
     compress_threads = g_new0(QemuThread, thread_count);
     comp_param = g_new0(CompressParam, thread_count);
@@ -1061,9 +1064,16 @@ static int ram_find_and_save_block(QEMUFile *f, bool last_stage,
                 block = QLIST_FIRST_RCU(&ram_list.blocks);
                 complete_round = true;
                 ram_bulk_stage = false;
+                if (migrate_use_xbzrle()) {
+                    /* If xbzrle is on, stop using the data compression at this
+                     * point. In theory, xbzrle can do better than compression.
+                     */
+                    flush_compressed_data(f);
+                    compression_switch = false;
+                }
             }
         } else {
-            if (migrate_use_compression()) {
+            if (compression_switch && migrate_use_compression()) {
                 pages = ram_save_compressed_page(f, block, offset, last_stage,
                                                  bytes_transferred);
             } else {
