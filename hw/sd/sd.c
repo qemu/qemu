@@ -796,8 +796,9 @@ static sd_rsp_type_t sd_normal_command(SDState *sd,
             sd->vhs = 0;
 
             /* No response if not exactly one VHS bit is set.  */
-            if (!(req.arg >> 8) || (req.arg >> ffs(req.arg & ~0xff)))
+            if (!(req.arg >> 8) || (req.arg >> (ctz32(req.arg & ~0xff) + 1))) {
                 return sd->spi ? sd_r7 : sd_r0;
+            }
 
             /* Accept.  */
             sd->vhs = req.arg;
