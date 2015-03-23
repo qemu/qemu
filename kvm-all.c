@@ -1141,18 +1141,18 @@ static int kvm_irqchip_get_virq(KVMState *s)
 {
     uint32_t *word = s->used_gsi_bitmap;
     int max_words = ALIGN(s->gsi_count, 32) / 32;
-    int i, bit;
+    int i, zeroes;
     bool retry = true;
 
 again:
     /* Return the lowest unused GSI in the bitmap */
     for (i = 0; i < max_words; i++) {
-        bit = ffs(~word[i]);
-        if (!bit) {
+        zeroes = ctz32(~word[i]);
+        if (zeroes == 32) {
             continue;
         }
 
-        return bit - 1 + i * 32;
+        return zeroes + i * 32;
     }
     if (!s->direct_msi && retry) {
         retry = false;

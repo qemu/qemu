@@ -2004,8 +2004,7 @@ static void omap_mpuio_write(void *opaque, hwaddr addr,
     case 0x04:	/* OUTPUT_REG */
         diff = (s->outputs ^ value) & ~s->dir;
         s->outputs = value;
-        while ((ln = ffs(diff))) {
-            ln --;
+        while ((ln = ctz32(diff)) != 32) {
             if (s->handler[ln])
                 qemu_set_irq(s->handler[ln], (value >> ln) & 1);
             diff &= ~(1 << ln);
@@ -2017,8 +2016,7 @@ static void omap_mpuio_write(void *opaque, hwaddr addr,
         s->dir = value;
 
         value = s->outputs & ~s->dir;
-        while ((ln = ffs(diff))) {
-            ln --;
+        while ((ln = ctz32(diff)) != 32) {
             if (s->handler[ln])
                 qemu_set_irq(s->handler[ln], (value >> ln) & 1);
             diff &= ~(1 << ln);

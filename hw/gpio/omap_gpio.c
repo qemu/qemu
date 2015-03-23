@@ -125,8 +125,7 @@ static void omap_gpio_write(void *opaque, hwaddr addr,
     case 0x04:	/* DATA_OUTPUT */
         diff = (s->outputs ^ value) & ~s->dir;
         s->outputs = value;
-        while ((ln = ffs(diff))) {
-            ln --;
+        while ((ln = ctz32(diff)) != 32) {
             if (s->handler[ln])
                 qemu_set_irq(s->handler[ln], (value >> ln) & 1);
             diff &= ~(1 << ln);
@@ -138,8 +137,7 @@ static void omap_gpio_write(void *opaque, hwaddr addr,
         s->dir = value;
 
         value = s->outputs & ~s->dir;
-        while ((ln = ffs(diff))) {
-            ln --;
+        while ((ln = ctz32(diff)) != 32) {
             if (s->handler[ln])
                 qemu_set_irq(s->handler[ln], (value >> ln) & 1);
             diff &= ~(1 << ln);
@@ -253,8 +251,7 @@ static inline void omap2_gpio_module_out_update(struct omap2_gpio_s *s,
 
     s->outputs ^= diff;
     diff &= ~s->dir;
-    while ((ln = ffs(diff))) {
-        ln --;
+    while ((ln = ctz32(diff)) != 32) {
         qemu_set_irq(s->handler[ln], (s->outputs >> ln) & 1);
         diff &= ~(1 << ln);
     }
@@ -442,8 +439,8 @@ static void omap2_gpio_module_write(void *opaque, hwaddr addr,
         s->dir = value;
 
         value = s->outputs & ~s->dir;
-        while ((ln = ffs(diff))) {
-            diff &= ~(1 <<-- ln);
+        while ((ln = ctz32(diff)) != 32) {
+            diff &= ~(1 << ln);
             qemu_set_irq(s->handler[ln], (value >> ln) & 1);
         }
 
