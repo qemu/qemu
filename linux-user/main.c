@@ -3451,7 +3451,7 @@ CPUArchState *cpu_copy(CPUArchState *env)
 {
     CPUState *cpu = ENV_GET_CPU(env);
     CPUState *new_cpu = cpu_init(cpu_model);
-    CPUArchState *new_env = cpu->env_ptr;
+    CPUArchState *new_env = new_cpu->env_ptr;
     CPUBreakpoint *bp;
     CPUWatchpoint *wp;
 
