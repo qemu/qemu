@@ -604,8 +604,8 @@ bool memory_region_is_logging(MemoryRegion *mr, uint8_t client);
  * memory_region_get_dirty_log_mask: return the clients for which a
  * memory region is logging writes.
  *
- * Returns a bitmap of clients, which right now will be either 0 or
- * (1 << DIRTY_MEMORY_VGA).
+ * Returns a bitmap of clients, in which the DIRTY_MEMORY_* constants
+ * are the bit indices.
  *
  * @mr: the memory region being queried
  */
