@@ -345,6 +345,18 @@ const char *qtest_get_arch(void);
 void qtest_add_func(const char *str, void (*fn));
 
 /**
+ * qtest_add_data_func:
+ * @str: Test case path.
+ * @data: Test case data
+ * @fn: Test case function
+ *
+ * Add a GTester testcase with the given name, data and function.
+ * The path is prefixed with the architecture under test, as
+ * returned by qtest_get_arch().
+ */
+void qtest_add_data_func(const char *str, const void *data, void (*fn));
+
+/**
  * qtest_start:
  * @args: other arguments to pass to QEMU
  *
