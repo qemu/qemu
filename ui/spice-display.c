@@ -734,7 +734,7 @@ static void display_mouse_set(DisplayChangeListener *dcl,
 
     qemu_mutex_lock(&ssd->lock);
     ssd->ptr_x = x;
-    ssd->ptr_y = x;
+    ssd->ptr_y = y;
     if (ssd->ptr_move) {
         g_free(ssd->ptr_move);
     }
