@@ -1942,29 +1942,19 @@ uint64_t helper_unpack(target_ulong arg1)
 uint64_t helper_dvinit_b_13(CPUTriCoreState *env, uint32_t r1, uint32_t r2)
 {
     uint64_t ret;
-    int32_t abs_sig_dividend, abs_base_dividend, abs_divisor;
-    int32_t quotient_sign;
+    int32_t abs_sig_dividend, abs_divisor;
 
     ret = sextract32(r1, 0, 32);
     ret = ret << 24;
-    quotient_sign = 0;
     if (!((r1 & 0x80000000) == (r2 & 0x80000000))) {
         ret |= 0xffffff;
-        quotient_sign = 1;
     }
 
-    abs_sig_dividend = abs(r1) >> 7;
-    abs_base_dividend = abs(r1) & 0x7f;
-    abs_divisor = abs(r1);
-    /* calc overflow */
-    env->PSW_USB_V = 0;
-    if ((quotient_sign) && (abs_divisor)) {
-        env->PSW_USB_V = (((abs_sig_dividend == abs_divisor) &&
-                         (abs_base_dividend >= abs_divisor)) ||
-                         (abs_sig_dividend > abs_divisor));
-    } else {
-        env->PSW_USB_V = (abs_sig_dividend >= abs_divisor);
-    }
+    abs_sig_dividend = abs((int32_t)r1) >> 8;
+    abs_divisor = abs((int32_t)r2);
+    /* calc overflow
+       ofv if (a/b >= 255) <=> (a/255 >= b) */
+    env->PSW_USB_V = (abs_sig_dividend >= abs_divisor) << 31;
     env->PSW_USB_V = env->PSW_USB_V << 31;
     env->PSW_USB_SV |= env->PSW_USB_V;
     env->PSW_USB_AV = 0;
@@ -1992,29 +1982,19 @@ uint64_t helper_dvinit_b_131(CPUTriCoreState *env, uint32_t r1, uint32_t r2)
 uint64_t helper_dvinit_h_13(CPUTriCoreState *env, uint32_t r1, uint32_t r2)
 {
     uint64_t ret;
-    int32_t abs_sig_dividend, abs_base_dividend, abs_divisor;
-    int32_t quotient_sign;
+    int32_t abs_sig_dividend, abs_divisor;
 
     ret = sextract32(r1, 0, 32);
     ret = ret << 16;
-    quotient_sign = 0;
     if (!((r1 & 0x80000000) == (r2 & 0x80000000))) {
         ret |= 0xffff;
-        quotient_sign = 1;
     }
 
-    abs_sig_dividend = abs(r1) >> 7;
-    abs_base_dividend = abs(r1) & 0x7f;
-    abs_divisor = abs(r1);
-    /* calc overflow */
-    env->PSW_USB_V = 0;
-    if ((quotient_sign) && (abs_divisor)) {
-        env->PSW_USB_V = (((abs_sig_dividend == abs_divisor) &&
-                         (abs_base_dividend >= abs_divisor)) ||
-                         (abs_sig_dividend > abs_divisor));
-    } else {
-        env->PSW_USB_V = (abs_sig_dividend >= abs_divisor);
-    }
+    abs_sig_dividend = abs((int32_t)r1) >> 16;
+    abs_divisor = abs((int32_t)r2);
+    /* calc overflow
+       ofv if (a/b >= 0xffff) <=> (a/0xffff >= b) */
+    env->PSW_USB_V = (abs_sig_dividend >= abs_divisor) << 31;
     env->PSW_USB_V = env->PSW_USB_V << 31;
     env->PSW_USB_SV |= env->PSW_USB_V;
     env->PSW_USB_AV = 0;

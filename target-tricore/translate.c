@@ -6240,7 +6240,7 @@ static void decode_rr_divide(CPUTriCoreState *env, DisasContext *ctx)
     uint32_t op2;
     int r1, r2, r3;
 
-    TCGv temp, temp2;
+    TCGv temp, temp2, temp3;
 
     op2 = MASK_OP_RR_OP2(ctx->opcode);
     r3 = MASK_OP_RR_D(ctx->opcode);
@@ -6261,14 +6261,17 @@ static void decode_rr_divide(CPUTriCoreState *env, DisasContext *ctx)
     case OPC2_32_RR_DVINIT_BU:
         temp = tcg_temp_new();
         temp2 = tcg_temp_new();
+        temp3 = tcg_temp_new();
+
+        tcg_gen_shri_tl(temp3, cpu_gpr_d[r1], 8);
         /* reset av */
         tcg_gen_movi_tl(cpu_PSW_AV, 0);
         if (!tricore_feature(env, TRICORE_FEATURE_131)) {
             /* overflow = (abs(D[r3+1]) >= abs(D[r2])) */
-            tcg_gen_neg_tl(temp, cpu_gpr_d[r3+1]);
+            tcg_gen_neg_tl(temp, temp3);
             /* use cpu_PSW_AV to compare against 0 */
-            tcg_gen_movcond_tl(TCG_COND_LT, temp, cpu_gpr_d[r3+1], cpu_PSW_AV,
-                               temp, cpu_gpr_d[r3+1]);
+            tcg_gen_movcond_tl(TCG_COND_LT, temp, temp3, cpu_PSW_AV,
+                               temp, temp3);
             tcg_gen_neg_tl(temp2, cpu_gpr_d[r2]);
             tcg_gen_movcond_tl(TCG_COND_LT, temp2, cpu_gpr_d[r2], cpu_PSW_AV,
                                temp2, cpu_gpr_d[r2]);
@@ -6281,12 +6284,12 @@ static void decode_rr_divide(CPUTriCoreState *env, DisasContext *ctx)
         /* sv */
         tcg_gen_or_tl(cpu_PSW_SV, cpu_PSW_SV, cpu_PSW_V);
         /* write result */
-        tcg_gen_shri_tl(temp, cpu_gpr_d[r1], 8);
         tcg_gen_shli_tl(cpu_gpr_d[r3], cpu_gpr_d[r1], 24);
-        tcg_gen_mov_tl(cpu_gpr_d[r3+1], temp);
+        tcg_gen_mov_tl(cpu_gpr_d[r3+1], temp3);
 
         tcg_temp_free(temp);
         tcg_temp_free(temp2);
+        tcg_temp_free(temp3);
         break;
     case OPC2_32_RR_DVINIT_H:
         gen_dvinit_h(env, cpu_gpr_d[r3], cpu_gpr_d[r3+1], cpu_gpr_d[r1],
@@ -6295,14 +6298,17 @@ static void decode_rr_divide(CPUTriCoreState *env, DisasContext *ctx)
     case OPC2_32_RR_DVINIT_HU:
         temp = tcg_temp_new();
         temp2 = tcg_temp_new();
+        temp3 = tcg_temp_new();
+
+        tcg_gen_shri_tl(temp3, cpu_gpr_d[r1], 16);
         /* reset av */
         tcg_gen_movi_tl(cpu_PSW_AV, 0);
         if (!tricore_feature(env, TRICORE_FEATURE_131)) {
             /* overflow = (abs(D[r3+1]) >= abs(D[r2])) */
-            tcg_gen_neg_tl(temp, cpu_gpr_d[r3+1]);
+            tcg_gen_neg_tl(temp, temp3);
             /* use cpu_PSW_AV to compare against 0 */
-            tcg_gen_movcond_tl(TCG_COND_LT, temp, cpu_gpr_d[r3+1], cpu_PSW_AV,
-                               temp, cpu_gpr_d[r3+1]);
+            tcg_gen_movcond_tl(TCG_COND_LT, temp, temp3, cpu_PSW_AV,
+                               temp, temp3);
             tcg_gen_neg_tl(temp2, cpu_gpr_d[r2]);
             tcg_gen_movcond_tl(TCG_COND_LT, temp2, cpu_gpr_d[r2], cpu_PSW_AV,
                                temp2, cpu_gpr_d[r2]);
@@ -6315,11 +6321,11 @@ static void decode_rr_divide(CPUTriCoreState *env, DisasContext *ctx)
         /* sv */
         tcg_gen_or_tl(cpu_PSW_SV, cpu_PSW_SV, cpu_PSW_V);
         /* write result */
-        tcg_gen_mov_tl(temp, cpu_gpr_d[r1]);
-        tcg_gen_shri_tl(cpu_gpr_d[r3+1], temp, 16);
-        tcg_gen_shli_tl(cpu_gpr_d[r3], temp, 16);
+        tcg_gen_mov_tl(cpu_gpr_d[r3+1], temp3);
+        tcg_gen_shli_tl(cpu_gpr_d[r3], cpu_gpr_d[r1], 16);
         tcg_temp_free(temp);
         tcg_temp_free(temp2);
+        tcg_temp_free(temp3);
         break;
     case OPC2_32_RR_DVINIT:
         temp = tcg_temp_new();
@@ -8038,8 +8044,8 @@ static void decode_32Bit_opc(CPUTriCoreState *env, DisasContext *ctx)
             tcg_gen_rotli_tl(cpu_gpr_d[r3], cpu_gpr_d[r1], const16);
         } else {
             temp = tcg_temp_new();
-            tcg_gen_shli_tl(cpu_gpr_d[r3], cpu_gpr_d[r2], const16);
-            tcg_gen_shri_tl(temp, cpu_gpr_d[r1], 32 - const16);
+            tcg_gen_shli_tl(temp, cpu_gpr_d[r1], const16);
+            tcg_gen_shri_tl(cpu_gpr_d[r3], cpu_gpr_d[r2], 32 - const16);
             tcg_gen_or_tl(cpu_gpr_d[r3], cpu_gpr_d[r3], temp);
             tcg_temp_free(temp);
         }
