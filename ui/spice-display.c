@@ -260,7 +260,8 @@ static void qemu_spice_create_update(SimpleSpiceDisplay *ssd)
 
 static SimpleSpiceCursor*
 qemu_spice_create_cursor_update(SimpleSpiceDisplay *ssd,
-                                QEMUCursor *c)
+                                QEMUCursor *c,
+                                int on)
 {
     size_t size = c ? c->width * c->height * 4 : 0;
     SimpleSpiceCursor *update;
@@ -288,6 +289,8 @@ qemu_spice_create_cursor_update(SimpleSpiceDisplay *ssd,
         cursor->data_size         = size;
         cursor->chunk.data_size   = size;
         memcpy(cursor->chunk.data, c->data, size);
+    } else if (!on) {
+        ccmd->type = QXL_CURSOR_HIDE;
     } else {
         ccmd->type = QXL_CURSOR_MOVE;
         ccmd->u.position.x = ssd->ptr_x + ssd->hot_x;
@@ -738,7 +741,7 @@ static void display_mouse_set(DisplayChangeListener *dcl,
     if (ssd->ptr_move) {
         g_free(ssd->ptr_move);
     }
-    ssd->ptr_move = qemu_spice_create_cursor_update(ssd, NULL);
+    ssd->ptr_move = qemu_spice_create_cursor_update(ssd, NULL, on);
     qemu_mutex_unlock(&ssd->lock);
 }
 
@@ -757,7 +760,7 @@ static void display_mouse_define(DisplayChangeListener *dcl,
     if (ssd->ptr_define) {
         g_free(ssd->ptr_define);
     }
-    ssd->ptr_define = qemu_spice_create_cursor_update(ssd, c);
+    ssd->ptr_define = qemu_spice_create_cursor_update(ssd, c, 0);
     qemu_mutex_unlock(&ssd->lock);
 }
 
