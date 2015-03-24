@@ -46,26 +46,39 @@ _supported_os Linux
 size=128M
 _make_test_img $size
 
-echo
-echo "== preparing image =="
-$QEMU_IO -c "write -P 0xa 0x200 0x400" "$TEST_IMG" | _filter_qemu_io
-$QEMU_IO -c "write -P 0xa 0x20000 0x600" "$TEST_IMG" | _filter_qemu_io
-$QEMU_IO -c "write -z 0x400 0x20000" "$TEST_IMG" | _filter_qemu_io
+do_test()
+{
+	local align=$1
+	local iocmd=$2
+	local img=$3
+	{
+		echo "open -o driver=$IMGFMT,file.align=$align blkdebug::$img"
+		echo $iocmd
+	} | $QEMU_IO
+}
 
-echo
-echo "== verifying patterns (1) =="
-$QEMU_IO -c "read -P 0xa 0x200 0x200" "$TEST_IMG" | _filter_qemu_io
-$QEMU_IO -c "read -P 0x0 0x400 0x20000" "$TEST_IMG" | _filter_qemu_io
-$QEMU_IO -c "read -P 0xa 0x20400 0x200" "$TEST_IMG" | _filter_qemu_io
+for align in 512 4k; do
+	echo
+	echo "== preparing image =="
+	do_test $align "write -P 0xa 0x200 0x400" "$TEST_IMG" | _filter_qemu_io
+	do_test $align "write -P 0xa 0x20000 0x600" "$TEST_IMG" | _filter_qemu_io
+	do_test $align "write -z 0x400 0x20000" "$TEST_IMG" | _filter_qemu_io
 
-echo
-echo "== rewriting zeroes =="
-$QEMU_IO -c "write -P 0xb 0x10000 0x10000" "$TEST_IMG" | _filter_qemu_io
-$QEMU_IO -c "write -z 0x10000 0x10000" "$TEST_IMG" | _filter_qemu_io
+	echo
+	echo "== verifying patterns (1) =="
+	do_test $align "read -P 0xa 0x200 0x200" "$TEST_IMG" | _filter_qemu_io
+	do_test $align "read -P 0x0 0x400 0x20000" "$TEST_IMG" | _filter_qemu_io
+	do_test $align "read -P 0xa 0x20400 0x200" "$TEST_IMG" | _filter_qemu_io
 
-echo
-echo "== verifying patterns (2) =="
-$QEMU_IO -c "read -P 0x0 0x400 0x20000" "$TEST_IMG" | _filter_qemu_io
+	echo
+	echo "== rewriting zeroes =="
+	do_test $align "write -P 0xb 0x10000 0x10000" "$TEST_IMG" | _filter_qemu_io
+	do_test $align "write -z 0x10000 0x10000" "$TEST_IMG" | _filter_qemu_io
+
+	echo
+	echo "== verifying patterns (2) =="
+	do_test $align "read -P 0x0 0x400 0x20000" "$TEST_IMG" | _filter_qemu_io
+done
 
 # success, all done
 echo "*** done"
