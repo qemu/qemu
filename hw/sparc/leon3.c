@@ -151,8 +151,7 @@ static void leon3_generic_hw_init(MachineState *machine)
         exit(1);
     }
 
-    memory_region_init_ram(ram, NULL, "leon3.ram", ram_size, &error_abort);
-    vmstate_register_ram_global(ram);
+    memory_region_allocate_system_memory(ram, NULL, "leon3.ram", ram_size);
     memory_region_add_subregion(address_space_mem, 0x40000000, ram);
 
     /* Allocate BIOS */
