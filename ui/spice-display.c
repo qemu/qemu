@@ -275,8 +275,8 @@ qemu_spice_create_cursor_update(SimpleSpiceDisplay *ssd,
 
     if (c) {
         ccmd->type = QXL_CURSOR_SET;
-        ccmd->u.set.position.x = ssd->ptr_x;
-        ccmd->u.set.position.y = ssd->ptr_y;
+        ccmd->u.set.position.x = ssd->ptr_x + ssd->hot_x;
+        ccmd->u.set.position.y = ssd->ptr_y + ssd->hot_y;
         ccmd->u.set.visible    = true;
         ccmd->u.set.shape      = (uintptr_t)cursor;
         cursor->header.unique     = ssd->unique++;
@@ -290,8 +290,8 @@ qemu_spice_create_cursor_update(SimpleSpiceDisplay *ssd,
         memcpy(cursor->chunk.data, c->data, size);
     } else {
         ccmd->type = QXL_CURSOR_MOVE;
-        ccmd->u.position.x = ssd->ptr_x;
-        ccmd->u.position.y = ssd->ptr_y;
+        ccmd->u.position.x = ssd->ptr_x + ssd->hot_x;
+        ccmd->u.position.y = ssd->ptr_y + ssd->hot_y;
     }
     ccmd->release_info.id = (uintptr_t)(&update->ext);
 
@@ -748,6 +748,8 @@ static void display_mouse_define(DisplayChangeListener *dcl,
     SimpleSpiceDisplay *ssd = container_of(dcl, SimpleSpiceDisplay, dcl);
 
     qemu_mutex_lock(&ssd->lock);
+    ssd->hot_x = c->hot_x;
+    ssd->hot_y = c->hot_y;
     if (ssd->ptr_move) {
         g_free(ssd->ptr_move);
         ssd->ptr_move = NULL;
