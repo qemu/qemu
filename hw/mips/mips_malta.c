@@ -993,9 +993,8 @@ void mips_malta_init(MachineState *machine)
     }
 
     /* register RAM at high address where it is undisturbed by IO */
-    memory_region_init_ram(ram_high, NULL, "mips_malta.ram", ram_size,
-                           &error_abort);
-    vmstate_register_ram_global(ram_high);
+    memory_region_allocate_system_memory(ram_high, NULL, "mips_malta.ram",
+                                         ram_size);
     memory_region_add_subregion(system_memory, 0x80000000, ram_high);
 
     /* alias for pre IO hole access */
