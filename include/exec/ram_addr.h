@@ -89,14 +89,25 @@ static inline bool cpu_physical_memory_is_clean(ram_addr_t addr)
     return !(vga && code && migration);
 }
 
-static inline bool cpu_physical_memory_range_includes_clean(ram_addr_t start,
-                                                            ram_addr_t length)
+static inline uint8_t cpu_physical_memory_range_includes_clean(ram_addr_t start,
+                                                               ram_addr_t length,
+                                                               uint8_t mask)
 {
-    bool vga = !cpu_physical_memory_all_dirty(start, length, DIRTY_MEMORY_VGA);
-    bool code = !cpu_physical_memory_all_dirty(start, length, DIRTY_MEMORY_CODE);
-    bool migration =
-        !cpu_physical_memory_all_dirty(start, length, DIRTY_MEMORY_MIGRATION);
-    return vga || code || migration;
+    uint8_t ret = 0;
+
+    if (mask & (1 << DIRTY_MEMORY_VGA) &&
+        !cpu_physical_memory_all_dirty(start, length, DIRTY_MEMORY_VGA)) {
+        ret |= (1 << DIRTY_MEMORY_VGA);
+    }
+    if (mask & (1 << DIRTY_MEMORY_CODE) &&
+        !cpu_physical_memory_all_dirty(start, length, DIRTY_MEMORY_CODE)) {
+        ret |= (1 << DIRTY_MEMORY_CODE);
+    }
+    if (mask & (1 << DIRTY_MEMORY_MIGRATION) &&
+        !cpu_physical_memory_all_dirty(start, length, DIRTY_MEMORY_MIGRATION)) {
+        ret |= (1 << DIRTY_MEMORY_MIGRATION);
+    }
+    return ret;
 }
 
 static inline void cpu_physical_memory_set_dirty_flag(ram_addr_t addr,

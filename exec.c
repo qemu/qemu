@@ -2259,16 +2259,20 @@ int cpu_memory_rw_debug(CPUState *cpu, target_ulong addr,
 static void invalidate_and_set_dirty(MemoryRegion *mr, hwaddr addr,
                                      hwaddr length)
 {
-    if (cpu_physical_memory_range_includes_clean(addr, length)) {
-        uint8_t dirty_log_mask = memory_region_get_dirty_log_mask(mr);
-        if (dirty_log_mask & (1 << DIRTY_MEMORY_CODE)) {
-            tb_invalidate_phys_range(addr, addr + length);
-            dirty_log_mask &= ~(1 << DIRTY_MEMORY_CODE);
-        }
-        cpu_physical_memory_set_dirty_range(addr, length, dirty_log_mask);
-    } else {
-        xen_modified_memory(addr, length);
+    uint8_t dirty_log_mask = memory_region_get_dirty_log_mask(mr);
+    /* No early return if dirty_log_mask is or becomes 0, because
+     * cpu_physical_memory_set_dirty_range will still call
+     * xen_modified_memory.
+     */
+    if (dirty_log_mask) {
+        dirty_log_mask =
+            cpu_physical_memory_range_includes_clean(addr, length, dirty_log_mask);
     }
+    if (dirty_log_mask & (1 << DIRTY_MEMORY_CODE)) {
+        tb_invalidate_phys_range(addr, addr + length);
+        dirty_log_mask &= ~(1 << DIRTY_MEMORY_CODE);
+    }
+    cpu_physical_memory_set_dirty_range(addr, length, dirty_log_mask);
 }
 
 static int memory_access_size(MemoryRegion *mr, unsigned l, hwaddr addr)
