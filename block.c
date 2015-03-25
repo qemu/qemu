@@ -30,6 +30,7 @@
 #include "qapi/qmp/qjson.h"
 #include "sysemu/block-backend.h"
 #include "sysemu/sysemu.h"
+#include "sysemu/qtest.h"
 #include "qemu/notify.h"
 #include "block/coroutine.h"
 #include "block/qapi.h"
@@ -181,10 +182,16 @@ static void bdrv_throttle_write_timer_cb(void *opaque)
 /* should be called before bdrv_set_io_limits if a limit is set */
 void bdrv_io_limits_enable(BlockDriverState *bs)
 {
+    int clock_type = QEMU_CLOCK_REALTIME;
+
+    if (qtest_enabled()) {
+        /* For testing block IO throttling only */
+        clock_type = QEMU_CLOCK_VIRTUAL;
+    }
     assert(!bs->io_limits_enabled);
     throttle_init(&bs->throttle_state,
                   bdrv_get_aio_context(bs),
-                  QEMU_CLOCK_VIRTUAL,
+                  clock_type,
                   bdrv_throttle_read_timer_cb,
                   bdrv_throttle_write_timer_cb,
                   bs);
