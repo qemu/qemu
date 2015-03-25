@@ -1607,7 +1607,7 @@ EOF
     fi
   fi
 
-  if compile_prog "-fno-pie" "-nopie"; then
+  if compile_prog "-Werror -fno-pie" "-nopie"; then
     CFLAGS_NOPIE="-fno-pie"
     LDFLAGS_NOPIE="-nopie"
   fi
