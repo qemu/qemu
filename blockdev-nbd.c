@@ -47,8 +47,9 @@ void qmp_nbd_server_start(SocketAddress *addr, Error **errp)
     }
 }
 
-/* Hook into the BlockDriverState notifiers to close the export when
- * the file is closed.
+/*
+ * Hook into the BlockBackend notifiers to close the export when the
+ * backend is closed.
  */
 typedef struct NBDCloseNotifier {
     Notifier n;
