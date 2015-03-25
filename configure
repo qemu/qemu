@@ -2807,6 +2807,18 @@ if ! $pkg_config --atleast-version=2.38 glib-2.0; then
     glib_subprocess=no
 fi
 
+# Silence clang 3.5.0 warnings about glib attribute __alloc_size__ usage
+cat > $TMPC << EOF
+#include <glib.h>
+int main(void) { return 0; }
+EOF
+if ! compile_prog "$glib_cflags -Werror" "$glib_libs" ; then
+    if cc_has_warning_flag "-Wno-unknown-attributes"; then
+        glib_cflags="-Wno-unknown-attributes $glib_cflags"
+        CFLAGS="-Wno-unknown-attributes $CFLAGS"
+    fi
+fi
+
 ##########################################
 # SHA command probe for modules
 if test "$modules" = yes; then
