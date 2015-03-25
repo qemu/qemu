@@ -980,8 +980,10 @@ static void virtio_serial_device_realize(DeviceState *dev, Error **errp)
         return;
     }
 
+    /* We don't support emergency write, skip it for now. */
+    /* TODO: cleaner fix, depending on host features. */
     virtio_init(vdev, "virtio-serial", VIRTIO_ID_CONSOLE,
-                sizeof(struct virtio_console_config));
+                offsetof(struct virtio_console_config, emerg_wr));
 
     /* Spawn a new virtio-serial bus on which the ports will ride as devices */
     qbus_create_inplace(&vser->bus, sizeof(vser->bus), TYPE_VIRTIO_SERIAL_BUS,
