@@ -34,6 +34,7 @@ static void aw_a10_init(Object *obj)
 
     object_initialize(&s->emac, sizeof(s->emac), TYPE_AW_EMAC);
     qdev_set_parent_bus(DEVICE(&s->emac), sysbus_get_default());
+    /* FIXME use qdev NIC properties instead of nd_table[] */
     if (nd_table[0].used) {
         qemu_check_nic_model(&nd_table[0], TYPE_AW_EMAC);
         qdev_set_nic_properties(DEVICE(&s->emac), &nd_table[0]);
