@@ -14,7 +14,6 @@
 #include "sysemu/sysemu.h"
 #include "cpu.h"
 #include "elf.h"
-#include "exec/ram_addr.h"
 #include "hw/loader.h"
 #include "hw/sysbus.h"
 #include "hw/s390x/virtio-ccw.h"
