@@ -198,6 +198,7 @@ static void stm32f2xx_usart_init(Object *obj)
                           TYPE_STM32F2XX_USART, 0x2000);
     sysbus_init_mmio(SYS_BUS_DEVICE(obj), &s->mmio);
 
+    /* FIXME use a qdev chardev prop instead of qemu_char_get_next_serial() */
     s->chr = qemu_char_get_next_serial();
 
     if (s->chr) {

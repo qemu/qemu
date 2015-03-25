@@ -278,6 +278,7 @@ static void pc87312_realize(DeviceState *dev, Error **errp)
     pc87312_hard_reset(s);
 
     if (is_parallel_enabled(s)) {
+        /* FIXME use a qdev chardev prop instead of parallel_hds[] */
         chr = parallel_hds[0];
         if (chr == NULL) {
             chr = qemu_chr_new("par0", "null", NULL);
@@ -296,6 +297,7 @@ static void pc87312_realize(DeviceState *dev, Error **errp)
 
     for (i = 0; i < 2; i++) {
         if (is_uart_enabled(s, i)) {
+            /* FIXME use a qdev chardev prop instead of serial_hds[] */
             chr = serial_hds[i];
             if (chr == NULL) {
                 snprintf(name, sizeof(name), "ser%d", i);

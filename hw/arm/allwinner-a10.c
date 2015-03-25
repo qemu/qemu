@@ -92,6 +92,7 @@ static void aw_a10_realize(DeviceState *dev, Error **errp)
     sysbus_mmio_map(sysbusdev, 0, AW_A10_EMAC_BASE);
     sysbus_connect_irq(sysbusdev, 0, s->irq[55]);
 
+    /* FIXME use a qdev chardev prop instead of serial_hds[] */
     serial_mm_init(get_system_memory(), AW_A10_UART0_REG_BASE, 2, s->irq[1],
                    115200, serial_hds[0], DEVICE_NATIVE_ENDIAN);
 }

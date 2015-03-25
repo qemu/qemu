@@ -117,6 +117,7 @@ static int lm32_juart_init(SysBusDevice *dev)
 {
     LM32JuartState *s = LM32_JUART(dev);
 
+    /* FIXME use a qdev chardev prop instead of qemu_char_get_next_serial() */
     s->chr = qemu_char_get_next_serial();
     if (s->chr) {
         qemu_chr_add_handlers(s->chr, juart_can_rx, juart_rx, juart_event, s);

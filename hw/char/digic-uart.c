@@ -143,6 +143,7 @@ static void digic_uart_realize(DeviceState *dev, Error **errp)
 {
     DigicUartState *s = DIGIC_UART(dev);
 
+    /* FIXME use a qdev chardev prop instead of qemu_char_get_next_serial() */
     s->chr = qemu_char_get_next_serial();
     if (s->chr) {
         qemu_chr_add_handlers(s->chr, uart_can_rx, uart_rx, uart_event, s);
