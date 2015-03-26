@@ -182,13 +182,19 @@ static void virtio_scsi_vring_teardown(VirtIOSCSI *s)
 
     if (s->ctrl_vring) {
         vring_teardown(&s->ctrl_vring->vring, vdev, 0);
+        g_slice_free(VirtIOSCSIVring, s->ctrl_vring);
+        s->ctrl_vring = NULL;
     }
     if (s->event_vring) {
         vring_teardown(&s->event_vring->vring, vdev, 1);
+        g_slice_free(VirtIOSCSIVring, s->event_vring);
+        s->event_vring = NULL;
     }
     if (s->cmd_vrings) {
         for (i = 0; i < vs->conf.num_queues && s->cmd_vrings[i]; i++) {
             vring_teardown(&s->cmd_vrings[i]->vring, vdev, 2 + i);
+            g_slice_free(VirtIOSCSIVring, s->cmd_vrings[i]);
+            s->cmd_vrings[i] = NULL;
         }
         free(s->cmd_vrings);
         s->cmd_vrings = NULL;
