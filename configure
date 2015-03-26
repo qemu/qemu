@@ -336,6 +336,7 @@ libssh2=""
 vhdx=""
 quorum=""
 numa=""
+tcmalloc="no"
 
 # parse CC options first
 for opt do
@@ -1134,6 +1135,10 @@ for opt do
   ;;
   --enable-numa) numa="yes"
   ;;
+  --disable-tcmalloc) tcmalloc="no"
+  ;;
+  --enable-tcmalloc) tcmalloc="yes"
+  ;;
   *)
       echo "ERROR: unknown option $opt"
       echo "Try '$0 --help' for more information"
@@ -1407,6 +1412,8 @@ Advanced options (experts only):
   --enable-quorum          enable quorum block filter support
   --disable-numa           disable libnuma support
   --enable-numa            enable libnuma support
+  --disable-tcmalloc       disable tcmalloc support
+  --enable-tcmalloc        enable tcmalloc support
 
 NOTE: The object files are built at the place where configure is launched
 EOF
@@ -3331,6 +3338,22 @@ EOF
 fi
 
 ##########################################
+# tcmalloc probe
+
+if test "$tcmalloc" = "yes" ; then
+  cat > $TMPC << EOF
+#include <stdlib.h>
+int main(void) { malloc(1); return 0; }
+EOF
+
+  if compile_prog "" "-ltcmalloc" ; then
+    LIBS="-ltcmalloc $LIBS"
+  else
+    feature_not_found "tcmalloc" "install gperftools devel"
+  fi
+fi
+
+##########################################
 # signalfd probe
 signalfd="no"
 cat > $TMPC << EOF
@@ -4441,6 +4464,7 @@ echo "lzo support       $lzo"
 echo "snappy support    $snappy"
 echo "bzip2 support     $bzip2"
 echo "NUMA host support $numa"
+echo "tcmalloc support  $tcmalloc"
 
 if test "$sdl_too_old" = "yes"; then
 echo "-> Your SDL version is too old - please upgrade to have SDL support"
