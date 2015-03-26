@@ -332,19 +332,14 @@ static size_t save_page_header(QEMUFile *f, RAMBlock *block, ram_addr_t offset)
 {
     size_t size;
 
-    if (block == last_sent_block) {
-        offset |= RAM_SAVE_FLAG_CONTINUE;
-    }
-
     qemu_put_be64(f, offset);
     size = 8;
 
-    if (block != last_sent_block) {
+    if (!(offset & RAM_SAVE_FLAG_CONTINUE)) {
         qemu_put_byte(f, strlen(block->idstr));
         qemu_put_buffer(f, (uint8_t *)block->idstr,
                         strlen(block->idstr));
         size += 1 + strlen(block->idstr);
-        last_sent_block = block;
     }
     return size;
 }
@@ -644,6 +639,10 @@ static int ram_save_page(QEMUFile *f, RAMBlock* block, ram_addr_t offset,
     XBZRLE_cache_lock();
 
     current_addr = block->offset + offset;
+
+    if (block == last_sent_block) {
+        offset |= RAM_SAVE_FLAG_CONTINUE;
+    }
     if (ret != RAM_SAVE_CONTROL_NOT_SUPP) {
         if (ret != RAM_SAVE_CONTROL_DELAYED) {
             if (bytes_xmit > 0) {
@@ -739,6 +738,7 @@ static int ram_find_and_save_block(QEMUFile *f, bool last_stage,
 
             /* if page is unmodified, continue to the next */
             if (pages > 0) {
+                last_sent_block = block;
                 break;
             }
         }

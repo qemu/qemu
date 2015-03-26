@@ -3618,8 +3618,10 @@ int main(int argc, char **argv, char **envp)
                 }
                 break;
             case QEMU_OPTION_incoming:
+                if (!incoming) {
+                    runstate_set(RUN_STATE_INMIGRATE);
+                }
                 incoming = optarg;
-                runstate_set(RUN_STATE_INMIGRATE);
                 break;
             case QEMU_OPTION_nodefaults:
                 has_defaults = 0;
