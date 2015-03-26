@@ -35,16 +35,15 @@
  * Test variables.
  */
 
-long long n_reads = 0LL;
-long long n_updates = 0LL;
-long long n_reclaims = 0LL;
-long long n_nodes_removed = 0LL;
-long long n_nodes = 0LL;
-int g_test_in_charge = 0;
+static QemuMutex counts_mutex;
+static long long n_reads = 0LL;
+static long long n_updates = 0LL;
+static long long n_reclaims = 0LL;
+static long long n_nodes_removed = 0LL;
+static long long n_nodes = 0LL;
+static int g_test_in_charge = 0;
 
-int nthreadsrunning;
-
-char argsbuf[64];
+static int nthreadsrunning;
 
 #define GOFLAG_INIT 0
 #define GOFLAG_RUN  1
@@ -92,21 +91,21 @@ static void wait_all_threads(void)
 struct list_element {
     QLIST_ENTRY(list_element) entry;
     struct rcu_head rcu;
-    long long val;
 };
 
 static void reclaim_list_el(struct rcu_head *prcu)
 {
     struct list_element *el = container_of(prcu, struct list_element, rcu);
     g_free(el);
-    atomic_add(&n_reclaims, 1);
+    /* Accessed only from call_rcu thread.  */
+    n_reclaims++;
 }
 
 static QLIST_HEAD(q_list_head, list_element) Q_list_head;
 
 static void *rcu_q_reader(void *arg)
 {
-    long long j, n_reads_local = 0;
+    long long n_reads_local = 0;
     struct list_element *el;
 
     *(struct rcu_reader_data **)arg = &rcu_reader;
@@ -118,8 +117,6 @@ static void *rcu_q_reader(void *arg)
     while (goflag == GOFLAG_RUN) {
         rcu_read_lock();
         QLIST_FOREACH_RCU(el, &Q_list_head, entry) {
-            j = atomic_read(&el->val);
-            (void)j;
             n_reads_local++;
             if (goflag == GOFLAG_STOP) {
                 break;
@@ -129,7 +126,9 @@ static void *rcu_q_reader(void *arg)
 
         g_usleep(100);
     }
-    atomic_add(&n_reads, n_reads_local);
+    qemu_mutex_lock(&counts_mutex);
+    n_reads += n_reads_local;
+    qemu_mutex_unlock(&counts_mutex);
     return NULL;
 }
 
@@ -137,6 +136,7 @@ static void *rcu_q_reader(void *arg)
 static void *rcu_q_updater(void *arg)
 {
     int j, target_el;
+    long long n_nodes_local = 0;
     long long n_updates_local = 0;
     long long n_removed_local = 0;
     struct list_element *el, *prev_el;
@@ -170,8 +170,7 @@ static void *rcu_q_updater(void *arg)
             j++;
             if (target_el == j) {
                 prev_el = g_new(struct list_element, 1);
-                atomic_add(&n_nodes, 1);
-                prev_el->val = atomic_read(&n_nodes);
+                n_nodes += n_nodes_local;
                 QLIST_INSERT_BEFORE_RCU(el, prev_el, entry);
                 break;
             }
@@ -181,8 +180,11 @@ static void *rcu_q_updater(void *arg)
         synchronize_rcu();
     }
     synchronize_rcu();
-    atomic_add(&n_updates, n_updates_local);
-    atomic_add(&n_nodes_removed, n_removed_local);
+    qemu_mutex_lock(&counts_mutex);
+    n_nodes += n_nodes_local;
+    n_updates += n_updates_local;
+    n_nodes_removed += n_removed_local;
+    qemu_mutex_unlock(&counts_mutex);
     return NULL;
 }
 
@@ -194,10 +196,11 @@ static void rcu_qtest_init(void)
     srand(time(0));
     for (i = 0; i < RCU_Q_LEN; i++) {
         new_el = g_new(struct list_element, 1);
-        new_el->val = i;
         QLIST_INSERT_HEAD_RCU(&Q_list_head, new_el, entry);
     }
-    atomic_add(&n_nodes, RCU_Q_LEN);
+    qemu_mutex_lock(&counts_mutex);
+    n_nodes += RCU_Q_LEN;
+    qemu_mutex_unlock(&counts_mutex);
 }
 
 static void rcu_qtest_run(int duration, int nreaders)
@@ -233,7 +236,9 @@ static void rcu_qtest(const char *test, int duration, int nreaders)
         call_rcu1(&prev_el->rcu, reclaim_list_el);
         n_removed_local++;
     }
-    atomic_add(&n_nodes_removed, n_removed_local);
+    qemu_mutex_lock(&counts_mutex);
+    n_nodes_removed += n_removed_local;
+    qemu_mutex_unlock(&counts_mutex);
     synchronize_rcu();
     while (n_nodes_removed > n_reclaims) {
         g_usleep(100);
@@ -277,6 +282,7 @@ int main(int argc, char *argv[])
 {
     int duration = 0, readers = 0;
 
+    qemu_mutex_init(&counts_mutex);
     if (argc >= 2) {
         if (argv[1][0] == '-') {
             g_test_init(&argc, &argv, NULL);

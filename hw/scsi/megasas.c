@@ -171,26 +171,29 @@ static bool megasas_is_jbod(MegasasState *s)
     return s->flags & MEGASAS_MASK_USE_JBOD;
 }
 
-static void megasas_frame_set_cmd_status(unsigned long frame, uint8_t v)
+static void megasas_frame_set_cmd_status(MegasasState *s,
+                                         unsigned long frame, uint8_t v)
 {
-    stb_phys(&address_space_memory,
-             frame + offsetof(struct mfi_frame_header, cmd_status), v);
+    PCIDevice *pci = &s->parent_obj;
+    stb_pci_dma(pci, frame + offsetof(struct mfi_frame_header, cmd_status), v);
 }
 
-static void megasas_frame_set_scsi_status(unsigned long frame, uint8_t v)
+static void megasas_frame_set_scsi_status(MegasasState *s,
+                                          unsigned long frame, uint8_t v)
 {
-    stb_phys(&address_space_memory,
-             frame + offsetof(struct mfi_frame_header, scsi_status), v);
+    PCIDevice *pci = &s->parent_obj;
+    stb_pci_dma(pci, frame + offsetof(struct mfi_frame_header, scsi_status), v);
 }
 
 /*
  * Context is considered opaque, but the HBA firmware is running
  * in little endian mode. So convert it to little endian, too.
  */
-static uint64_t megasas_frame_get_context(unsigned long frame)
+static uint64_t megasas_frame_get_context(MegasasState *s,
+                                          unsigned long frame)
 {
-    return ldq_le_phys(&address_space_memory,
-                       frame + offsetof(struct mfi_frame_header, context));
+    PCIDevice *pci = &s->parent_obj;
+    return ldq_le_pci_dma(pci, frame + offsetof(struct mfi_frame_header, context));
 }
 
 static bool megasas_frame_is_ieee_sgl(MegasasCmd *cmd)
@@ -523,8 +526,7 @@ static MegasasCmd *megasas_enqueue_frame(MegasasState *s,
     s->busy++;
 
     if (s->consumer_pa) {
-        s->reply_queue_tail = ldl_le_phys(&address_space_memory,
-                                          s->consumer_pa);
+        s->reply_queue_tail = ldl_le_pci_dma(pcid, s->consumer_pa);
     }
     trace_megasas_qf_enqueue(cmd->index, cmd->count, cmd->context,
                              s->reply_queue_head, s->reply_queue_tail, s->busy);
@@ -547,29 +549,24 @@ static void megasas_complete_frame(MegasasState *s, uint64_t context)
          */
         if (megasas_use_queue64(s)) {
             queue_offset = s->reply_queue_head * sizeof(uint64_t);
-            stq_le_phys(&address_space_memory,
-                        s->reply_queue_pa + queue_offset, context);
+            stq_le_pci_dma(pci_dev, s->reply_queue_pa + queue_offset, context);
         } else {
             queue_offset = s->reply_queue_head * sizeof(uint32_t);
-            stl_le_phys(&address_space_memory,
-                        s->reply_queue_pa + queue_offset, context);
+            stl_le_pci_dma(pci_dev, s->reply_queue_pa + queue_offset, context);
         }
-        s->reply_queue_tail = ldl_le_phys(&address_space_memory,
-                                          s->consumer_pa);
+        s->reply_queue_tail = ldl_le_pci_dma(pci_dev, s->consumer_pa);
         trace_megasas_qf_complete(context, s->reply_queue_head,
                                   s->reply_queue_tail, s->busy);
     }
 
     if (megasas_intr_enabled(s)) {
         /* Update reply queue pointer */
-        s->reply_queue_tail = ldl_le_phys(&address_space_memory,
-                                          s->consumer_pa);
+        s->reply_queue_tail = ldl_le_pci_dma(pci_dev, s->consumer_pa);
         tail = s->reply_queue_head;
         s->reply_queue_head = megasas_next_index(s, tail, s->fw_cmds);
         trace_megasas_qf_update(s->reply_queue_head, s->reply_queue_tail,
                                 s->busy);
-        stl_le_phys(&address_space_memory,
-                    s->producer_pa, s->reply_queue_head);
+        stl_le_pci_dma(pci_dev, s->producer_pa, s->reply_queue_head);
         /* Notify HBA */
         if (msix_enabled(pci_dev)) {
             trace_megasas_msix_raise(0);
@@ -651,8 +648,8 @@ static int megasas_init_firmware(MegasasState *s, MegasasCmd *cmd)
     pa_lo = le32_to_cpu(initq->pi_addr_lo);
     pa_hi = le32_to_cpu(initq->pi_addr_hi);
     s->producer_pa = ((uint64_t) pa_hi << 32) | pa_lo;
-    s->reply_queue_head = ldl_le_phys(&address_space_memory, s->producer_pa);
-    s->reply_queue_tail = ldl_le_phys(&address_space_memory, s->consumer_pa);
+    s->reply_queue_head = ldl_le_pci_dma(pcid, s->producer_pa);
+    s->reply_queue_tail = ldl_le_pci_dma(pcid, s->consumer_pa);
     flags = le32_to_cpu(initq->flags);
     if (flags & MFI_QUEUE_FLAG_CONTEXT64) {
         s->flags |= MEGASAS_MASK_USE_QUEUE64;
@@ -1951,14 +1948,14 @@ static void megasas_handle_frame(MegasasState *s, uint64_t frame_addr,
      * Always read 64bit context, top bits will be
      * masked out if required in megasas_enqueue_frame()
      */
-    frame_context = megasas_frame_get_context(frame_addr);
+    frame_context = megasas_frame_get_context(s, frame_addr);
 
     cmd = megasas_enqueue_frame(s, frame_addr, frame_context, frame_count);
     if (!cmd) {
         /* reply queue full */
         trace_megasas_frame_busy(frame_addr);
-        megasas_frame_set_scsi_status(frame_addr, BUSY);
-        megasas_frame_set_cmd_status(frame_addr, MFI_STAT_SCSI_DONE_WITH_ERROR);
+        megasas_frame_set_scsi_status(s, frame_addr, BUSY);
+        megasas_frame_set_cmd_status(s, frame_addr, MFI_STAT_SCSI_DONE_WITH_ERROR);
         megasas_complete_frame(s, frame_context);
         s->event_count++;
         return;
@@ -1993,7 +1990,7 @@ static void megasas_handle_frame(MegasasState *s, uint64_t frame_addr,
         if (cmd->frame) {
             cmd->frame->header.cmd_status = frame_status;
         } else {
-            megasas_frame_set_cmd_status(frame_addr, frame_status);
+            megasas_frame_set_cmd_status(s, frame_addr, frame_status);
         }
         megasas_unmap_frame(s, cmd);
         megasas_complete_frame(s, cmd->context);

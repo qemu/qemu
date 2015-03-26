@@ -205,8 +205,7 @@ void mips_r4k_init(MachineState *machine)
                 ((unsigned int)ram_size / (1 << 20)));
         exit(1);
     }
-    memory_region_init_ram(ram, NULL, "mips_r4k.ram", ram_size, &error_abort);
-    vmstate_register_ram_global(ram);
+    memory_region_allocate_system_memory(ram, NULL, "mips_r4k.ram", ram_size);
 
     memory_region_add_subregion(address_space_mem, 0, ram);
 

@@ -82,6 +82,7 @@ static volatile int goflag = GOFLAG_INIT;
 #define RCU_READ_RUN 1000
 
 #define NR_THREADS 100
+static QemuMutex counts_mutex;
 static QemuThread threads[NR_THREADS];
 static struct rcu_reader_data *data[NR_THREADS];
 static int n_threads;
@@ -130,7 +131,9 @@ static void *rcu_read_perf_test(void *arg)
         }
         n_reads_local += RCU_READ_RUN;
     }
-    atomic_add(&n_reads, n_reads_local);
+    qemu_mutex_lock(&counts_mutex);
+    n_reads += n_reads_local;
+    qemu_mutex_unlock(&counts_mutex);
 
     rcu_unregister_thread();
     return NULL;
@@ -151,7 +154,9 @@ static void *rcu_update_perf_test(void *arg)
         synchronize_rcu();
         n_updates_local++;
     }
-    atomic_add(&n_updates, n_updates_local);
+    qemu_mutex_lock(&counts_mutex);
+    n_updates += n_updates_local;
+    qemu_mutex_unlock(&counts_mutex);
 
     rcu_unregister_thread();
     return NULL;
@@ -241,6 +246,7 @@ static void *rcu_read_stress_test(void *arg)
     struct rcu_stress *p;
     int pc;
     long long n_reads_local = 0;
+    long long rcu_stress_local[RCU_STRESS_PIPE_LEN + 1] = { 0 };
     volatile int garbage = 0;
 
     rcu_register_thread();
@@ -265,13 +271,18 @@ static void *rcu_read_stress_test(void *arg)
         if ((pc > RCU_STRESS_PIPE_LEN) || (pc < 0)) {
             pc = RCU_STRESS_PIPE_LEN;
         }
-        atomic_inc(&rcu_stress_count[pc]);
+        rcu_stress_local[pc]++;
         n_reads_local++;
         if ((++itercnt % 0x1000) == 0) {
             synchronize_rcu();
         }
     }
-    atomic_add(&n_reads, n_reads_local);
+    qemu_mutex_lock(&counts_mutex);
+    n_reads += n_reads_local;
+    for (i = 0; i <= RCU_STRESS_PIPE_LEN; i++) {
+        rcu_stress_count[i] += rcu_stress_local[i];
+    }
+    qemu_mutex_unlock(&counts_mutex);
 
     rcu_unregister_thread();
     return NULL;
@@ -419,6 +430,7 @@ int main(int argc, char *argv[])
     int nreaders = 1;
     int duration = 1;
 
+    qemu_mutex_init(&counts_mutex);
     if (argc >= 2 && argv[1][0] == '-') {
         g_test_init(&argc, &argv, NULL);
         if (g_test_quick()) {
