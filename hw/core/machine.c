@@ -223,6 +223,7 @@ static void machine_set_usb(Object *obj, bool value, Error **errp)
     MachineState *ms = MACHINE(obj);
 
     ms->usb = value;
+    ms->usb_disabled = !value;
 }
 
 static char *machine_get_firmware(Object *obj, Error **errp)

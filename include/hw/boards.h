@@ -146,6 +146,7 @@ struct MachineState {
     bool dump_guest_core;
     bool mem_merge;
     bool usb;
+    bool usb_disabled;
     char *firmware;
     bool iommu;
     bool suppress_vmdesc;

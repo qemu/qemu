@@ -314,7 +314,6 @@ static void *spapr_create_fdt_skel(hwaddr initrd_base,
                                    hwaddr initrd_size,
                                    hwaddr kernel_size,
                                    bool little_endian,
-                                   const char *boot_device,
                                    const char *kernel_cmdline,
                                    uint32_t epow_irq)
 {
@@ -406,9 +405,6 @@ static void *spapr_create_fdt_skel(hwaddr initrd_base,
         if (little_endian) {
             _FDT((fdt_property(fdt, "qemu,boot-kernel-le", NULL, 0)));
         }
-    }
-    if (boot_device) {
-        _FDT((fdt_property_string(fdt, "qemu,boot-device", boot_device)));
     }
     if (boot_menu) {
         _FDT((fdt_property_cell(fdt, "qemu,boot-menu", boot_menu)));
@@ -721,6 +717,8 @@ static void spapr_finalize_fdt(sPAPREnvironment *spapr,
                                hwaddr rtas_addr,
                                hwaddr rtas_size)
 {
+    MachineState *machine = MACHINE(qdev_get_machine());
+    const char *boot_device = machine->boot_order;
     int ret, i;
     size_t cb = 0;
     char *bootlist;
@@ -778,6 +776,15 @@ static void spapr_finalize_fdt(sPAPREnvironment *spapr,
 
         }
         ret = fdt_setprop_string(fdt, offset, "qemu,boot-list", bootlist);
+    }
+
+    if (boot_device && strlen(boot_device)) {
+        int offset = fdt_path_offset(fdt, "/chosen");
+
+        if (offset < 0) {
+            exit(1);
+        }
+        fdt_setprop_string(fdt, offset, "qemu,boot-device", boot_device);
     }
 
     if (!spapr->has_graphics) {
@@ -1370,6 +1377,13 @@ static SaveVMHandlers savevm_htab_handlers = {
     .load_state = htab_load,
 };
 
+static void spapr_boot_set(void *opaque, const char *boot_device,
+                           Error **errp)
+{
+    MachineState *machine = MACHINE(qdev_get_machine());
+    machine->boot_order = g_strdup(boot_device);
+}
+
 /* pSeries LPAR / sPAPR hardware init */
 static void ppc_spapr_init(MachineState *machine)
 {
@@ -1378,7 +1392,6 @@ static void ppc_spapr_init(MachineState *machine)
     const char *kernel_filename = machine->kernel_filename;
     const char *kernel_cmdline = machine->kernel_cmdline;
     const char *initrd_filename = machine->initrd_filename;
-    const char *boot_device = machine->boot_order;
     PowerPCCPU *cpu;
     CPUPPCState *env;
     PCIHostState *phb;
@@ -1506,6 +1519,10 @@ static void ppc_spapr_init(MachineState *machine)
     }
 
     filename = qemu_find_file(QEMU_FILE_TYPE_BIOS, "spapr-rtas.bin");
+    if (!filename) {
+        hw_error("Could not find LPAR rtas '%s'\n", "spapr-rtas.bin");
+        exit(1);
+    }
     spapr->rtas_size = get_image_size(filename);
     spapr->rtas_blob = g_malloc(spapr->rtas_size);
     if (load_image_size(filename, spapr->rtas_blob, spapr->rtas_size) < 0) {
@@ -1563,7 +1580,7 @@ static void ppc_spapr_init(MachineState *machine)
     /* Graphics */
     if (spapr_vga_init(phb->bus)) {
         spapr->has_graphics = true;
-        machine->usb |= defaults_enabled();
+        machine->usb |= defaults_enabled() && !machine->usb_disabled;
     }
 
     if (machine->usb) {
@@ -1623,6 +1640,10 @@ static void ppc_spapr_init(MachineState *machine)
         bios_name = FW_FILE_NAME;
     }
     filename = qemu_find_file(QEMU_FILE_TYPE_BIOS, bios_name);
+    if (!filename) {
+        hw_error("Could not find LPAR rtas '%s'\n", bios_name);
+        exit(1);
+    }
     fw_size = load_image_targphys(filename, 0, FW_MAX_SIZE);
     if (fw_size < 0) {
         hw_error("qemu: could not load LPAR rtas '%s'\n", filename);
@@ -1639,9 +1660,10 @@ static void ppc_spapr_init(MachineState *machine)
     /* Prepare the device tree */
     spapr->fdt_skel = spapr_create_fdt_skel(initrd_base, initrd_size,
                                             kernel_size, kernel_le,
-                                            boot_device, kernel_cmdline,
-                                            spapr->epow_irq);
+                                            kernel_cmdline, spapr->epow_irq);
     assert(spapr->fdt_skel != NULL);
+
+    qemu_register_boot_set(spapr_boot_set, spapr);
 }
 
 static int spapr_kvm_type(const char *vm_type)
@@ -1771,7 +1793,7 @@ static void spapr_machine_class_init(ObjectClass *oc, void *data)
     mc->block_default_type = IF_SCSI;
     mc->max_cpus = MAX_CPUS;
     mc->no_parallel = 1;
-    mc->default_boot_order = NULL;
+    mc->default_boot_order = "";
     mc->kvm_type = spapr_kvm_type;
     mc->has_dynamic_sysbus = true;
 
