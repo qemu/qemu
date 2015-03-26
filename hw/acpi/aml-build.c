@@ -68,7 +68,7 @@ build_append_nameseg(GArray *array, const char *seg)
     g_array_append_vals(array, "____", ACPI_NAMESEG_LEN - len);
 }
 
-static void
+static void GCC_FMT_ATTR(2, 0)
 build_append_namestringv(GArray *array, const char *format, va_list ap)
 {
     /* It would be nicer to use g_string_vprintf but it's only there in 2.22 */

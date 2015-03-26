@@ -1588,6 +1588,13 @@ static void virtio_net_device_realize(DeviceState *dev, Error **errp)
     virtio_init(vdev, "virtio-net", VIRTIO_ID_NET, n->config_size);
 
     n->max_queues = MAX(n->nic_conf.peers.queues, 1);
+    if (n->max_queues * 2 + 1 > VIRTIO_PCI_QUEUE_MAX) {
+        error_setg(errp, "Invalid number of queues (= %" PRIu32 "), "
+                   "must be a postive integer less than %d.",
+                   n->max_queues, (VIRTIO_PCI_QUEUE_MAX - 1) / 2);
+        virtio_cleanup(vdev);
+        return;
+    }
     n->vqs = g_malloc0(sizeof(VirtIONetQueue) * n->max_queues);
     n->vqs[0].rx_vq = virtio_add_queue(vdev, 256, virtio_net_handle_rx);
     n->curr_queues = 1;
