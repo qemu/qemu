@@ -2194,6 +2194,10 @@ static void qemu_rdma_cleanup(RDMAContext *rdma)
         }
     }
 
+    if (rdma->qp) {
+        rdma_destroy_qp(rdma->cm_id);
+        rdma->qp = NULL;
+    }
     if (rdma->cq) {
         ibv_destroy_cq(rdma->cq);
         rdma->cq = NULL;
@@ -2206,17 +2210,13 @@ static void qemu_rdma_cleanup(RDMAContext *rdma)
         ibv_dealloc_pd(rdma->pd);
         rdma->pd = NULL;
     }
+    if (rdma->cm_id) {
+        rdma_destroy_id(rdma->cm_id);
+        rdma->cm_id = NULL;
+    }
     if (rdma->listen_id) {
         rdma_destroy_id(rdma->listen_id);
         rdma->listen_id = NULL;
-    }
-    if (rdma->cm_id) {
-        if (rdma->qp) {
-            rdma_destroy_qp(rdma->cm_id);
-            rdma->qp = NULL;
-        }
-        rdma_destroy_id(rdma->cm_id);
-        rdma->cm_id = NULL;
     }
     if (rdma->channel) {
         rdma_destroy_event_channel(rdma->channel);
@@ -2309,8 +2309,6 @@ static int qemu_rdma_connect(RDMAContext *rdma, Error **errp)
     if (ret) {
         perror("rdma_connect");
         ERROR(errp, "connecting to destination!");
-        rdma_destroy_id(rdma->cm_id);
-        rdma->cm_id = NULL;
         goto err_rdma_source_connect;
     }
 
@@ -2319,8 +2317,6 @@ static int qemu_rdma_connect(RDMAContext *rdma, Error **errp)
         perror("rdma_get_cm_event after rdma_connect");
         ERROR(errp, "connecting to destination!");
         rdma_ack_cm_event(cm_event);
-        rdma_destroy_id(rdma->cm_id);
-        rdma->cm_id = NULL;
         goto err_rdma_source_connect;
     }
 
@@ -2328,8 +2324,6 @@ static int qemu_rdma_connect(RDMAContext *rdma, Error **errp)
         perror("rdma_get_cm_event != EVENT_ESTABLISHED after rdma_connect");
         ERROR(errp, "connecting to destination!");
         rdma_ack_cm_event(cm_event);
-        rdma_destroy_id(rdma->cm_id);
-        rdma->cm_id = NULL;
         goto err_rdma_source_connect;
     }
     rdma->connected = true;
