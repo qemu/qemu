@@ -51,6 +51,8 @@ static void ahci_write_fis_d2h(AHCIDevice *ad, uint8_t *cmd_fis);
 static void ahci_init_d2h(AHCIDevice *ad);
 static int ahci_dma_prepare_buf(IDEDMA *dma, int is_write);
 static void ahci_commit_buf(IDEDMA *dma, uint32_t tx_bytes);
+static bool ahci_map_clb_address(AHCIDevice *ad);
+static bool ahci_map_fis_address(AHCIDevice *ad);
 
 
 static uint32_t  ahci_port_read(AHCIState *s, int port, int offset)
@@ -202,25 +204,15 @@ static void  ahci_port_write(AHCIState *s, int port, int offset, uint32_t val)
     switch (offset) {
         case PORT_LST_ADDR:
             pr->lst_addr = val;
-            map_page(s->as, &s->dev[port].lst,
-                     ((uint64_t)pr->lst_addr_hi << 32) | pr->lst_addr, 1024);
-            s->dev[port].cur_cmd = NULL;
             break;
         case PORT_LST_ADDR_HI:
             pr->lst_addr_hi = val;
-            map_page(s->as, &s->dev[port].lst,
-                     ((uint64_t)pr->lst_addr_hi << 32) | pr->lst_addr, 1024);
-            s->dev[port].cur_cmd = NULL;
             break;
         case PORT_FIS_ADDR:
             pr->fis_addr = val;
-            map_page(s->as, &s->dev[port].res_fis,
-                     ((uint64_t)pr->fis_addr_hi << 32) | pr->fis_addr, 256);
             break;
         case PORT_FIS_ADDR_HI:
             pr->fis_addr_hi = val;
-            map_page(s->as, &s->dev[port].res_fis,
-                     ((uint64_t)pr->fis_addr_hi << 32) | pr->fis_addr, 256);
             break;
         case PORT_IRQ_STAT:
             pr->irq_stat &= ~val;
@@ -234,11 +226,21 @@ static void  ahci_port_write(AHCIState *s, int port, int offset, uint32_t val)
             pr->cmd = val & ~(PORT_CMD_LIST_ON | PORT_CMD_FIS_ON);
 
             if (pr->cmd & PORT_CMD_START) {
-                pr->cmd |= PORT_CMD_LIST_ON;
+                if (ahci_map_clb_address(&s->dev[port])) {
+                    pr->cmd |= PORT_CMD_LIST_ON;
+                } else {
+                    error_report("AHCI: Failed to start DMA engine: "
+                                 "bad command list buffer address");
+                }
             }
 
             if (pr->cmd & PORT_CMD_FIS_RX) {
-                pr->cmd |= PORT_CMD_FIS_ON;
+                if (ahci_map_fis_address(&s->dev[port])) {
+                    pr->cmd |= PORT_CMD_FIS_ON;
+                } else {
+                    error_report("AHCI: Failed to start FIS receive engine: "
+                                 "bad FIS receive buffer address");
+                }
             }
 
             /* XXX usually the FIS would be pending on the bus here and
@@ -563,6 +565,23 @@ static void debug_print_fis(uint8_t *fis, int cmd_len)
     }
     fprintf(stderr, "\n");
 #endif
+}
+
+static bool ahci_map_fis_address(AHCIDevice *ad)
+{
+    AHCIPortRegs *pr = &ad->port_regs;
+    map_page(ad->hba->as, &ad->res_fis,
+             ((uint64_t)pr->fis_addr_hi << 32) | pr->fis_addr, 256);
+    return ad->res_fis != NULL;
+}
+
+static bool ahci_map_clb_address(AHCIDevice *ad)
+{
+    AHCIPortRegs *pr = &ad->port_regs;
+    ad->cur_cmd = NULL;
+    map_page(ad->hba->as, &ad->lst,
+             ((uint64_t)pr->lst_addr_hi << 32) | pr->lst_addr, 1024);
+    return ad->lst != NULL;
 }
 
 static void ahci_write_fis_sdb(AHCIState *s, int port, uint32_t finished)
@@ -1360,12 +1379,9 @@ static int ahci_state_post_load(void *opaque, int version_id)
 
     for (i = 0; i < s->ports; i++) {
         ad = &s->dev[i];
-        AHCIPortRegs *pr = &ad->port_regs;
 
-        map_page(s->as, &ad->lst,
-                 ((uint64_t)pr->lst_addr_hi << 32) | pr->lst_addr, 1024);
-        map_page(s->as, &ad->res_fis,
-                 ((uint64_t)pr->fis_addr_hi << 32) | pr->fis_addr, 256);
+        ahci_map_clb_address(ad);
+        ahci_map_fis_address(ad);
         /*
          * If an error is present, ad->busy_slot will be valid and not -1.
          * In this case, an operation is waiting to resume and will re-check
