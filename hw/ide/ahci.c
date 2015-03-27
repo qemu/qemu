@@ -53,6 +53,8 @@ static int ahci_dma_prepare_buf(IDEDMA *dma, int is_write);
 static void ahci_commit_buf(IDEDMA *dma, uint32_t tx_bytes);
 static bool ahci_map_clb_address(AHCIDevice *ad);
 static bool ahci_map_fis_address(AHCIDevice *ad);
+static void ahci_unmap_clb_address(AHCIDevice *ad);
+static void ahci_unmap_fis_address(AHCIDevice *ad);
 
 
 static uint32_t  ahci_port_read(AHCIState *s, int port, int offset)
@@ -223,7 +225,9 @@ static void  ahci_port_write(AHCIState *s, int port, int offset, uint32_t val)
             ahci_check_irq(s);
             break;
         case PORT_CMD:
-            pr->cmd = val & ~(PORT_CMD_LIST_ON | PORT_CMD_FIS_ON);
+            /* Block any Read-only fields from being set;
+             * including LIST_ON and FIS_ON. */
+            pr->cmd = (pr->cmd & PORT_CMD_RO_MASK) | (val & ~PORT_CMD_RO_MASK);
 
             if (pr->cmd & PORT_CMD_START) {
                 if (ahci_map_clb_address(&s->dev[port])) {
@@ -232,6 +236,9 @@ static void  ahci_port_write(AHCIState *s, int port, int offset, uint32_t val)
                     error_report("AHCI: Failed to start DMA engine: "
                                  "bad command list buffer address");
                 }
+            } else if (pr->cmd & PORT_CMD_LIST_ON) {
+                ahci_unmap_clb_address(&s->dev[port]);
+                pr->cmd = pr->cmd & ~(PORT_CMD_LIST_ON);
             }
 
             if (pr->cmd & PORT_CMD_FIS_RX) {
@@ -241,6 +248,9 @@ static void  ahci_port_write(AHCIState *s, int port, int offset, uint32_t val)
                     error_report("AHCI: Failed to start FIS receive engine: "
                                  "bad FIS receive buffer address");
                 }
+            } else if (pr->cmd & PORT_CMD_FIS_ON) {
+                ahci_unmap_fis_address(&s->dev[port]);
+                pr->cmd = pr->cmd & ~(PORT_CMD_FIS_ON);
             }
 
             /* XXX usually the FIS would be pending on the bus here and
@@ -575,6 +585,13 @@ static bool ahci_map_fis_address(AHCIDevice *ad)
     return ad->res_fis != NULL;
 }
 
+static void ahci_unmap_fis_address(AHCIDevice *ad)
+{
+    dma_memory_unmap(ad->hba->as, ad->res_fis, 256,
+                     DMA_DIRECTION_FROM_DEVICE, 256);
+    ad->res_fis = NULL;
+}
+
 static bool ahci_map_clb_address(AHCIDevice *ad)
 {
     AHCIPortRegs *pr = &ad->port_regs;
@@ -582,6 +599,13 @@ static bool ahci_map_clb_address(AHCIDevice *ad)
     map_page(ad->hba->as, &ad->lst,
              ((uint64_t)pr->lst_addr_hi << 32) | pr->lst_addr, 1024);
     return ad->lst != NULL;
+}
+
+static void ahci_unmap_clb_address(AHCIDevice *ad)
+{
+    dma_memory_unmap(ad->hba->as, ad->lst, 1024,
+                     DMA_DIRECTION_FROM_DEVICE, 1024);
+    ad->lst = NULL;
 }
 
 static void ahci_write_fis_sdb(AHCIState *s, int port, uint32_t finished)

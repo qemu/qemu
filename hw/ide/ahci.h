@@ -132,6 +132,8 @@
 #define PORT_CMD_ICC_PARTIAL      (0x2 << 28) /* Put i/f in partial state */
 #define PORT_CMD_ICC_SLUMBER      (0x6 << 28) /* Put i/f in slumber state */
 
+#define PORT_CMD_RO_MASK          0x007dffe0 /* Which CMD bits are read only? */
+
 /* ap->flags bits */
 #define AHCI_FLAG_NO_NCQ                  (1 << 24)
 #define AHCI_FLAG_IGN_IRQ_IF_ERR          (1 << 25) /* ignore IRQ_IF_ERR */
