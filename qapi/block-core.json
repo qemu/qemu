@@ -1721,6 +1721,10 @@
 #
 # Creates a new block device.
 #
+# This command is still a work in progress.  It doesn't support all
+# block drivers, it lacks a matching blockdev-del, and more.  Stay
+# away from it unless you want to help with its development.
+#
 # @options: block device options for the new device
 #
 # Since: 1.7
