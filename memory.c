@@ -28,6 +28,8 @@
 
 //#define DEBUG_UNASSIGNED
 
+#define RAM_ADDR_INVALID (~(ram_addr_t)0)
+
 static unsigned memory_region_transaction_depth;
 static bool memory_region_update_pending;
 static bool ioeventfd_update_pending;
@@ -1007,6 +1009,7 @@ static void memory_region_initfn(Object *obj)
     ObjectProperty *op;
 
     mr->ops = &unassigned_mem_ops;
+    mr->ram_addr = RAM_ADDR_INVALID;
     mr->enabled = true;
     mr->romd_mode = true;
     mr->destructor = memory_region_destructor_none;
@@ -1198,7 +1201,6 @@ void memory_region_init_io(MemoryRegion *mr,
     mr->ops = ops;
     mr->opaque = opaque;
     mr->terminates = true;
-    mr->ram_addr = ~(ram_addr_t)0;
 }
 
 void memory_region_init_ram(MemoryRegion *mr,
@@ -1453,14 +1455,14 @@ void memory_region_set_log(MemoryRegion *mr, bool log, unsigned client)
 bool memory_region_get_dirty(MemoryRegion *mr, hwaddr addr,
                              hwaddr size, unsigned client)
 {
-    assert(mr->terminates);
+    assert(mr->ram_addr != RAM_ADDR_INVALID);
     return cpu_physical_memory_get_dirty(mr->ram_addr + addr, size, client);
 }
 
 void memory_region_set_dirty(MemoryRegion *mr, hwaddr addr,
                              hwaddr size)
 {
-    assert(mr->terminates);
+    assert(mr->ram_addr != RAM_ADDR_INVALID);
     cpu_physical_memory_set_dirty_range(mr->ram_addr + addr, size,
                                         memory_region_get_dirty_log_mask(mr));
 }
@@ -1468,7 +1470,7 @@ void memory_region_set_dirty(MemoryRegion *mr, hwaddr addr,
 bool memory_region_test_and_clear_dirty(MemoryRegion *mr, hwaddr addr,
                                         hwaddr size, unsigned client)
 {
-    assert(mr->terminates);
+    assert(mr->ram_addr != RAM_ADDR_INVALID);
     return cpu_physical_memory_test_and_clear_dirty(mr->ram_addr + addr,
                                                     size, client);
 }
@@ -1513,7 +1515,7 @@ void memory_region_rom_device_set_romd(MemoryRegion *mr, bool romd_mode)
 void memory_region_reset_dirty(MemoryRegion *mr, hwaddr addr,
                                hwaddr size, unsigned client)
 {
-    assert(mr->terminates);
+    assert(mr->ram_addr != RAM_ADDR_INVALID);
     cpu_physical_memory_test_and_clear_dirty(mr->ram_addr + addr, size,
                                              client);
 }
@@ -1524,7 +1526,7 @@ int memory_region_get_fd(MemoryRegion *mr)
         return memory_region_get_fd(mr->alias);
     }
 
-    assert(mr->terminates);
+    assert(mr->ram_addr != RAM_ADDR_INVALID);
 
     return qemu_get_ram_fd(mr->ram_addr & TARGET_PAGE_MASK);
 }
@@ -1535,14 +1537,14 @@ void *memory_region_get_ram_ptr(MemoryRegion *mr)
         return memory_region_get_ram_ptr(mr->alias) + mr->alias_offset;
     }
 
-    assert(mr->terminates);
+    assert(mr->ram_addr != RAM_ADDR_INVALID);
 
     return qemu_get_ram_ptr(mr->ram_addr & TARGET_PAGE_MASK);
 }
 
 void memory_region_ram_resize(MemoryRegion *mr, ram_addr_t newsize, Error **errp)
 {
-    assert(mr->terminates);
+    assert(mr->ram_addr != RAM_ADDR_INVALID);
 
     qemu_ram_resize(mr->ram_addr, newsize, errp);
 }
