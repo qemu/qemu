@@ -2436,8 +2436,8 @@ void ide_init2(IDEBus *bus, qemu_irq irq)
 
 static const MemoryRegionPortio ide_portio_list[] = {
     { 0, 8, 1, .read = ide_ioport_read, .write = ide_ioport_write },
-    { 0, 2, 2, .read = ide_data_readw, .write = ide_data_writew },
-    { 0, 4, 4, .read = ide_data_readl, .write = ide_data_writel },
+    { 0, 1, 2, .read = ide_data_readw, .write = ide_data_writew },
+    { 0, 1, 4, .read = ide_data_readl, .write = ide_data_writel },
     PORTIO_END_OF_LIST(),
 };
 
