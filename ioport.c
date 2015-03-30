@@ -187,9 +187,14 @@ static uint64_t portio_read(void *opaque, hwaddr addr, unsigned size)
         data = mrp->read(mrpio->portio_opaque, mrp->base + addr);
     } else if (size == 2) {
         mrp = find_portio(mrpio, addr, 1, false);
-        assert(mrp);
-        data = mrp->read(mrpio->portio_opaque, mrp->base + addr) |
-                (mrp->read(mrpio->portio_opaque, mrp->base + addr + 1) << 8);
+        if (mrp) {
+            data = mrp->read(mrpio->portio_opaque, mrp->base + addr);
+            if (addr + 1 < mrp->offset + mrp->len) {
+                data |= mrp->read(mrpio->portio_opaque, mrp->base + addr + 1) << 8;
+            } else {
+                data |= 0xff00;
+            }
+        }
     }
     return data;
 }
@@ -204,9 +209,12 @@ static void portio_write(void *opaque, hwaddr addr, uint64_t data,
         mrp->write(mrpio->portio_opaque, mrp->base + addr, data);
     } else if (size == 2) {
         mrp = find_portio(mrpio, addr, 1, true);
-        assert(mrp);
-        mrp->write(mrpio->portio_opaque, mrp->base + addr, data & 0xff);
-        mrp->write(mrpio->portio_opaque, mrp->base + addr + 1, data >> 8);
+        if (mrp) {
+            mrp->write(mrpio->portio_opaque, mrp->base + addr, data & 0xff);
+            if (addr + 1 < mrp->offset + mrp->len) {
+                mrp->write(mrpio->portio_opaque, mrp->base + addr + 1, data >> 8);
+            }
+        }
     }
 }
 
