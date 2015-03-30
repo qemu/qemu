@@ -1121,12 +1121,6 @@ static IO_WRITE_PROTO (mixer_write_datab)
     s->mixer_regs[s->mixer_nreg] = val;
 }
 
-static IO_WRITE_PROTO (mixer_write_indexw)
-{
-    mixer_write_indexb (opaque, nport, val & 0xff);
-    mixer_write_datab (opaque, nport, (val >> 8) & 0xff);
-}
-
 static IO_READ_PROTO (mixer_read)
 {
     SB16State *s = opaque;
@@ -1345,7 +1339,6 @@ static const VMStateDescription vmstate_sb16 = {
 
 static const MemoryRegionPortio sb16_ioport_list[] = {
     {  4, 1, 1, .write = mixer_write_indexb },
-    {  4, 1, 2, .write = mixer_write_indexw },
     {  5, 1, 1, .read = mixer_read, .write = mixer_write_datab },
     {  6, 1, 1, .read = dsp_read, .write = dsp_write },
     { 10, 1, 1, .read = dsp_read },
