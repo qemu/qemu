@@ -33,12 +33,11 @@ static int cpu_post_load(void *opaque, int version_id)
     return 0;
 }
 
-const VMStateDescription vmstate_s390_cpu = {
-    .name = "cpu",
-    .post_load = cpu_post_load,
-    .version_id = 2,
-    .minimum_version_id = 2,
-    .fields      = (VMStateField[]) {
+const VMStateDescription vmstate_fpu = {
+    .name = "cpu/fpu",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .fields = (VMStateField[]) {
         VMSTATE_UINT64(env.fregs[0].ll, S390CPU),
         VMSTATE_UINT64(env.fregs[1].ll, S390CPU),
         VMSTATE_UINT64(env.fregs[2].ll, S390CPU),
@@ -55,11 +54,26 @@ const VMStateDescription vmstate_s390_cpu = {
         VMSTATE_UINT64(env.fregs[13].ll, S390CPU),
         VMSTATE_UINT64(env.fregs[14].ll, S390CPU),
         VMSTATE_UINT64(env.fregs[15].ll, S390CPU),
+        VMSTATE_UINT32(env.fpc, S390CPU),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
+static inline bool fpu_needed(void *opaque)
+{
+    return true;
+}
+
+const VMStateDescription vmstate_s390_cpu = {
+    .name = "cpu",
+    .post_load = cpu_post_load,
+    .version_id = 3,
+    .minimum_version_id = 3,
+    .fields      = (VMStateField[]) {
         VMSTATE_UINT64_ARRAY(env.regs, S390CPU, 16),
         VMSTATE_UINT64(env.psw.mask, S390CPU),
         VMSTATE_UINT64(env.psw.addr, S390CPU),
         VMSTATE_UINT64(env.psa, S390CPU),
-        VMSTATE_UINT32(env.fpc, S390CPU),
         VMSTATE_UINT32(env.todpr, S390CPU),
         VMSTATE_UINT64(env.pfault_token, S390CPU),
         VMSTATE_UINT64(env.pfault_compare, S390CPU),
@@ -74,4 +88,12 @@ const VMStateDescription vmstate_s390_cpu = {
         VMSTATE_UINT8(env.sigp_order, S390CPU),
         VMSTATE_END_OF_LIST()
      },
+    .subsections = (VMStateSubsection[]) {
+        {
+            .vmsd = &vmstate_fpu,
+            .needed = fpu_needed,
+        } , {
+            /* empty */
+        }
+    },
 };
