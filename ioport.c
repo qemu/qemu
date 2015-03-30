@@ -239,10 +239,6 @@ static void portio_list_add_1(PortioList *piolist,
         mrpio->ports[i].base = start + off_low;
     }
 
-    /*
-     * Use an alias so that the callback is called with an absolute address,
-     * rather than an offset relative to to start + off_low.
-     */
     memory_region_init_io(&mrpio->mr, piolist->owner, &portio_ops, mrpio,
                           piolist->name, off_high - off_low);
     if (piolist->flush_coalesced_mmio) {
