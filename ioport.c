@@ -269,7 +269,7 @@ void portio_list_add(PortioList *piolist,
 
     /* Handle the first entry specially.  */
     off_last = off_low = pio_start->offset;
-    off_high = off_low + pio_start->len;
+    off_high = off_low + pio_start->len + pio_start->size - 1;
     count = 1;
 
     for (pio = pio_start + 1; pio->size != 0; pio++, count++) {
@@ -284,10 +284,10 @@ void portio_list_add(PortioList *piolist,
             /* ... and start collecting anew.  */
             pio_start = pio;
             off_low = off_last;
-            off_high = off_low + pio->len;
+            off_high = off_low + pio->len + pio_start->size - 1;
             count = 0;
         } else if (off_last + pio->len > off_high) {
-            off_high = off_last + pio->len;
+            off_high = off_last + pio->len + pio_start->size - 1;
         }
     }
 
