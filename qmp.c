@@ -711,6 +711,11 @@ void qmp_object_del(const char *id, Error **errp)
         error_setg(errp, "object id not found");
         return;
     }
+
+    if (!user_creatable_can_be_deleted(USER_CREATABLE(obj), errp)) {
+        error_setg(errp, "%s is in use, can not be deleted", id);
+        return;
+    }
     object_unparent(obj);
 }
 
