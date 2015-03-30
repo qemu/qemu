@@ -788,7 +788,7 @@ build_ssdt(GArray *table_data, GArray *linker,
         scope = aml_scope("\\_SB.PCI0.ISA");
 
         dev = aml_device("PEVR");
-        aml_append(dev, aml_name_decl("_HID", aml_string("QEMU0002")));
+        aml_append(dev, aml_name_decl("_HID", aml_string("QEMU0001")));
 
         crs = aml_resource_template();
         aml_append(crs,
