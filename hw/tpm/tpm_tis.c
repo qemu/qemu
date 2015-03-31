@@ -30,15 +30,13 @@
 #include "qemu-common.h"
 #include "qemu/main-loop.h"
 
-/*#define DEBUG_TIS */
+#define DEBUG_TIS 0
 
-#ifdef DEBUG_TIS
-#define DPRINTF(fmt, ...) \
-    do { fprintf(stderr, fmt, ## __VA_ARGS__); } while (0)
-#else
-#define DPRINTF(fmt, ...) \
-    do { } while (0)
-#endif
+#define DPRINTF(fmt, ...) do { \
+    if (DEBUG_TIS) { \
+        printf(fmt, ## __VA_ARGS__); \
+    } \
+} while (0);
 
 /* whether the STS interrupt is supported */
 #define RAISE_STS_IRQ

@@ -34,15 +34,13 @@
 #include "sysemu/tpm_backend_int.h"
 #include "tpm_tis.h"
 
-/* #define DEBUG_TPM */
+#define DEBUG_TPM 0
 
-#ifdef DEBUG_TPM
-#define DPRINTF(fmt, ...) \
-    do { fprintf(stderr, fmt, ## __VA_ARGS__); } while (0)
-#else
-#define DPRINTF(fmt, ...) \
-    do { } while (0)
-#endif
+#define DPRINTF(fmt, ...) do { \
+    if (DEBUG_TPM) { \
+        fprintf(stderr, fmt, ## __VA_ARGS__); \
+    } \
+} while (0);
 
 #define TYPE_TPM_PASSTHROUGH "tpm-passthrough"
 #define TPM_PASSTHROUGH(obj) \
