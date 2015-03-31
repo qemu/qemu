@@ -111,6 +111,7 @@ typedef struct X86CPU {
     /* in order to simplify APIC support, we leave this pointer to the
        user */
     struct DeviceState *apic_state;
+    struct MemoryRegion *cpu_as_root;
 } X86CPU;
 
 static inline X86CPU *x86_env_get_cpu(CPUX86State *env)

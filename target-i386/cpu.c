@@ -44,6 +44,7 @@
 #include "hw/qdev-properties.h"
 #include "hw/cpu/icc_bus.h"
 #ifndef CONFIG_USER_ONLY
+#include "exec/address-spaces.h"
 #include "hw/xen/xen.h"
 #include "hw/i386/apic_internal.h"
 #endif
@@ -2811,6 +2812,18 @@ static void x86_cpu_realizefn(DeviceState *dev, Error **errp)
 #endif
 
     mce_init(cpu);
+
+#ifndef CONFIG_USER_ONLY
+    if (tcg_enabled()) {
+        cpu->cpu_as_root = g_new(MemoryRegion, 1);
+        cs->as = g_new(AddressSpace, 1);
+        memory_region_init_alias(cpu->cpu_as_root, OBJECT(cpu), "memory",
+                                 get_system_memory(), 0, ~0ull);
+        memory_region_set_enabled(cpu->cpu_as_root, true);
+        address_space_init(cs->as, cpu->cpu_as_root, "CPU");
+    }
+#endif
+
     qemu_init_vcpu(cs);
 
     /* Only Intel CPUs support hyperthreading. Even though QEMU fixes this
@@ -2834,6 +2847,7 @@ static void x86_cpu_realizefn(DeviceState *dev, Error **errp)
     cpu_reset(cs);
 
     xcc->parent_realize(dev, &local_err);
+
 out:
     if (local_err != NULL) {
         error_propagate(errp, local_err);
