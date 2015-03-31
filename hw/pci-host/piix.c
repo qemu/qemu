@@ -106,7 +106,6 @@ struct PCII440FXState {
     PAMMemoryRegion pam_regions[13];
     MemoryRegion smram_region;
     MemoryRegion smram, low_smram;
-    uint8_t smm_enabled;
 };
 
 
@@ -139,20 +138,9 @@ static void i440fx_update_memory_mappings(PCII440FXState *d)
         pam_update(&d->pam_regions[i], i,
                    pd->config[I440FX_PAM + ((i + 1) / 2)]);
     }
-    smram_update(&d->smram_region, pd->config[I440FX_SMRAM], d->smm_enabled);
+    smram_update(&d->smram_region, pd->config[I440FX_SMRAM]);
     memory_region_set_enabled(&d->smram,
                               pd->config[I440FX_SMRAM] & SMRAM_G_SMRAME);
-    memory_region_transaction_commit();
-}
-
-static void i440fx_set_smm(int val, void *arg)
-{
-    PCII440FXState *d = arg;
-    PCIDevice *pd = PCI_DEVICE(d);
-
-    memory_region_transaction_begin();
-    smram_set_smm(&d->smm_enabled, val, pd->config[I440FX_SMRAM],
-                  &d->smram_region);
     memory_region_transaction_commit();
 }
 
@@ -175,12 +163,13 @@ static int i440fx_load_old(QEMUFile* f, void *opaque, int version_id)
     PCII440FXState *d = opaque;
     PCIDevice *pd = PCI_DEVICE(d);
     int ret, i;
+    uint8_t smm_enabled;
 
     ret = pci_device_load(pd, f);
     if (ret < 0)
         return ret;
     i440fx_update_memory_mappings(d);
-    qemu_get_8s(f, &d->smm_enabled);
+    qemu_get_8s(f, &smm_enabled);
 
     if (version_id == 2) {
         for (i = 0; i < PIIX_NUM_PIRQS; i++) {
@@ -208,7 +197,10 @@ static const VMStateDescription vmstate_i440fx = {
     .post_load = i440fx_post_load,
     .fields = (VMStateField[]) {
         VMSTATE_PCI_DEVICE(parent_obj, PCII440FXState),
-        VMSTATE_UINT8(smm_enabled, PCII440FXState),
+        /* Used to be smm_enabled, which was basically always zero because
+         * SeaBIOS hardly uses SMM.  SMRAM is now handled by CPU code.
+         */
+        VMSTATE_UNUSED(1),
         VMSTATE_END_OF_LIST()
     }
 };
@@ -300,11 +292,7 @@ static void i440fx_pcihost_realize(DeviceState *dev, Error **errp)
 
 static void i440fx_realize(PCIDevice *dev, Error **errp)
 {
-    PCII440FXState *d = I440FX_PCI_DEVICE(dev);
-
     dev->config[I440FX_SMRAM] = 0x02;
-
-    cpu_smm_register(&i440fx_set_smm, d);
 }
 
 PCIBus *i440fx_init(PCII440FXState **pi440fx_state,
@@ -360,7 +348,7 @@ PCIBus *i440fx_init(PCII440FXState **pi440fx_state,
     memory_region_init(&f->smram, OBJECT(d), "smram", 1ull << 32);
     memory_region_set_enabled(&f->smram, true);
     memory_region_init_alias(&f->low_smram, OBJECT(d), "smram-low",
-                             f->system_memory, 0xa0000, 0x20000);
+                             f->ram_memory, 0xa0000, 0x20000);
     memory_region_set_enabled(&f->low_smram, true);
     memory_region_add_subregion(&f->smram, 0xa0000, &f->low_smram);
     object_property_add_const_link(qdev_get_machine(), "smram",

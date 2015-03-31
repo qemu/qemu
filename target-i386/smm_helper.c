@@ -40,6 +40,16 @@ void helper_rsm(CPUX86State *env)
 #define SMM_REVISION_ID 0x00020000
 #endif
 
+void cpu_smm_update(X86CPU *cpu)
+{
+    CPUX86State *env = &cpu->env;
+    bool smm_enabled = (env->hflags & HF_SMM_MASK);
+
+    if (cpu->smram) {
+        memory_region_set_enabled(cpu->smram, smm_enabled);
+    }
+}
+
 void do_smm_enter(X86CPU *cpu)
 {
     CPUX86State *env = &cpu->env;
@@ -57,7 +67,7 @@ void do_smm_enter(X86CPU *cpu)
     } else {
         env->hflags2 |= HF2_NMI_MASK;
     }
-    cpu_smm_update(env);
+    cpu_smm_update(cpu);
 
     sm_state = env->smbase + 0x8000;
 
@@ -317,7 +327,7 @@ void helper_rsm(CPUX86State *env)
     }
     env->hflags2 &= ~HF2_SMM_INSIDE_NMI_MASK;
     env->hflags &= ~HF_SMM_MASK;
-    cpu_smm_update(env);
+    cpu_smm_update(cpu);
 
     qemu_log_mask(CPU_LOG_INT, "SMM: after RSM\n");
     log_cpu_state_mask(CPU_LOG_INT, CPU(cpu), CPU_DUMP_CCOP);

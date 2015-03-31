@@ -164,27 +164,6 @@ uint64_t cpu_get_tsc(CPUX86State *env)
     return cpu_get_ticks();
 }
 
-/* SMM support */
-
-static cpu_set_smm_t smm_set;
-static void *smm_arg;
-
-void cpu_smm_register(cpu_set_smm_t callback, void *arg)
-{
-    assert(smm_set == NULL);
-    assert(smm_arg == NULL);
-    smm_set = callback;
-    smm_arg = arg;
-}
-
-void cpu_smm_update(CPUX86State *env)
-{
-    if (smm_set && smm_arg && CPU(x86_env_get_cpu(env)) == first_cpu) {
-        smm_set(!!(env->hflags & HF_SMM_MASK), smm_arg);
-    }
-}
-
-
 /* IRQ handling */
 int cpu_get_pic_interrupt(CPUX86State *env)
 {

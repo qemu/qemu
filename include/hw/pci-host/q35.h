@@ -55,7 +55,6 @@ typedef struct MCHPCIState {
     MemoryRegion smram_region;
     MemoryRegion smram, low_smram;
     PcPciInfo pci_info;
-    uint8_t smm_enabled;
     ram_addr_t below_4g_mem_size;
     ram_addr_t above_4g_mem_size;
     uint64_t pci_hole64_size;

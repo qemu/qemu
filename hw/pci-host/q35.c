@@ -268,21 +268,9 @@ static void mch_update_smram(MCHPCIState *mch)
     PCIDevice *pd = PCI_DEVICE(mch);
 
     memory_region_transaction_begin();
-    smram_update(&mch->smram_region, pd->config[MCH_HOST_BRIDGE_SMRAM],
-                    mch->smm_enabled);
+    smram_update(&mch->smram_region, pd->config[MCH_HOST_BRIDGE_SMRAM]);
     memory_region_set_enabled(&mch->smram,
                               pd->config[MCH_HOST_BRIDGE_SMRAM] & SMRAM_G_SMRAME);
-    memory_region_transaction_commit();
-}
-
-static void mch_set_smm(int smm, void *arg)
-{
-    MCHPCIState *mch = arg;
-    PCIDevice *pd = PCI_DEVICE(mch);
-
-    memory_region_transaction_begin();
-    smram_set_smm(&mch->smm_enabled, smm, pd->config[MCH_HOST_BRIDGE_SMRAM],
-                    &mch->smram_region);
     memory_region_transaction_commit();
 }
 
@@ -331,7 +319,10 @@ static const VMStateDescription vmstate_mch = {
     .post_load = mch_post_load,
     .fields = (VMStateField[]) {
         VMSTATE_PCI_DEVICE(parent_obj, MCHPCIState),
-        VMSTATE_UINT8(smm_enabled, MCHPCIState),
+        /* Used to be smm_enabled, which was basically always zero because
+         * SeaBIOS hardly uses SMM.  SMRAM is now handled by CPU code.
+         */
+        VMSTATE_UNUSED(1),
         VMSTATE_END_OF_LIST()
     }
 };
@@ -402,7 +393,6 @@ static void mch_realize(PCIDevice *d, Error **errp)
                            mch->pci_address_space);
 
     /* if *disabled* show SMRAM to all CPUs */
-    cpu_smm_register(&mch_set_smm, mch);
     memory_region_init_alias(&mch->smram_region, OBJECT(mch), "smram-region",
                              mch->pci_address_space, 0xa0000, 0x20000);
     memory_region_add_subregion_overlap(mch->system_memory, 0xa0000,
@@ -413,7 +403,7 @@ static void mch_realize(PCIDevice *d, Error **errp)
     memory_region_init(&mch->smram, OBJECT(mch), "smram", 1ull << 32);
     memory_region_set_enabled(&mch->smram, true);
     memory_region_init_alias(&mch->low_smram, OBJECT(mch), "smram-low",
-                             mch->system_memory, 0xa0000, 0x20000);
+                             mch->ram_memory, 0xa0000, 0x20000);
     memory_region_set_enabled(&mch->low_smram, true);
     memory_region_add_subregion(&mch->smram, 0xa0000, &mch->low_smram);
     object_property_add_const_link(qdev_get_machine(), "smram",
