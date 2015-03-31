@@ -345,6 +345,38 @@ const char *qtest_get_arch(void);
 void qtest_add_func(const char *str, void (*fn));
 
 /**
+ * qtest_add_data_func:
+ * @str: Test case path.
+ * @data: Test case data
+ * @fn: Test case function
+ *
+ * Add a GTester testcase with the given name, data and function.
+ * The path is prefixed with the architecture under test, as
+ * returned by qtest_get_arch().
+ */
+void qtest_add_data_func(const char *str, const void *data, void (*fn));
+
+/**
+ * qtest_add:
+ * @testpath: Test case path
+ * @Fixture: Fixture type
+ * @tdata: Test case data
+ * @fsetup: Test case setup function
+ * @ftest: Test case function
+ * @fteardown: Test case teardown function
+ *
+ * Add a GTester testcase with the given name, data and functions.
+ * The path is prefixed with the architecture under test, as
+ * returned by qtest_get_arch().
+ */
+#define qtest_add(testpath, Fixture, tdata, fsetup, ftest, fteardown) \
+    do { \
+        char *path = g_strdup_printf("/%s/%s", qtest_get_arch(), testpath); \
+        g_test_add(path, Fixture, tdata, fsetup, ftest, fteardown); \
+        g_free(path); \
+    } while (0)
+
+/**
  * qtest_start:
  * @args: other arguments to pass to QEMU
  *
