@@ -421,7 +421,7 @@ static void tpm_tis_dump_state(void *opaque, hwaddr addr)
 
     for (idx = 0; regs[idx] != 0xfff; idx++) {
         DPRINTF("tpm_tis: 0x%04x : 0x%08x\n", regs[idx],
-                (uint32_t)tpm_tis_mmio_read(opaque, base + regs[idx], 4));
+                (int)tpm_tis_mmio_read(opaque, base + regs[idx], 4));
     }
 
     DPRINTF("tpm_tis: read offset   : %d\n"
@@ -555,7 +555,7 @@ static uint64_t tpm_tis_mmio_read(void *opaque, hwaddr addr,
         val >>= shift;
     }
 
-    DPRINTF("tpm_tis:  read.%u(%08x) = %08x\n", size, (int)addr, (uint32_t)val);
+    DPRINTF("tpm_tis:  read.%u(%08x) = %08x\n", size, (int)addr, (int)val);
 
     return val;
 }
@@ -578,7 +578,7 @@ static void tpm_tis_mmio_write_intern(void *opaque, hwaddr addr,
     uint16_t len;
     uint32_t mask = (size == 1) ? 0xff : ((size == 2) ? 0xffff : ~0);
 
-    DPRINTF("tpm_tis: write.%u(%08x) = %08x\n", size, (int)addr, (uint32_t)val);
+    DPRINTF("tpm_tis: write.%u(%08x) = %08x\n", size, (int)addr, (int)val);
 
     if (locty == 4 && !hw_access) {
         DPRINTF("tpm_tis: Access to locality 4 only allowed from hardware\n");
@@ -815,7 +815,7 @@ static void tpm_tis_mmio_write_intern(void *opaque, hwaddr addr,
             /* drop the byte */
         } else {
             DPRINTF("tpm_tis: Data to send to TPM: %08x (size=%d)\n",
-                    val, size);
+                    (int)val, size);
             if (tis->loc[locty].state == TPM_TIS_STATE_READY) {
                 tis->loc[locty].state = TPM_TIS_STATE_RECEPTION;
                 tpm_tis_sts_set(&tis->loc[locty],
