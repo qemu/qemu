@@ -4509,14 +4509,14 @@ static void decode_bo_addrmode_post_pre_base(CPUTriCoreState *env,
     case OPC2_32_BO_CACHEA_I_POSTINC:
         /* instruction to access the cache, but we still need to handle
            the addressing mode */
-        tcg_gen_addi_tl(cpu_gpr_d[r2], cpu_gpr_d[r2], off10);
+        tcg_gen_addi_tl(cpu_gpr_a[r2], cpu_gpr_a[r2], off10);
         break;
     case OPC2_32_BO_CACHEA_WI_PREINC:
     case OPC2_32_BO_CACHEA_W_PREINC:
     case OPC2_32_BO_CACHEA_I_PREINC:
         /* instruction to access the cache, but we still need to handle
            the addressing mode */
-        tcg_gen_addi_tl(cpu_gpr_d[r2], cpu_gpr_d[r2], off10);
+        tcg_gen_addi_tl(cpu_gpr_a[r2], cpu_gpr_a[r2], off10);
         break;
     case OPC2_32_BO_CACHEI_WI_SHORTOFF:
     case OPC2_32_BO_CACHEI_W_SHORTOFF:
@@ -4526,13 +4526,13 @@ static void decode_bo_addrmode_post_pre_base(CPUTriCoreState *env,
     case OPC2_32_BO_CACHEI_W_POSTINC:
     case OPC2_32_BO_CACHEI_WI_POSTINC:
         if (tricore_feature(env, TRICORE_FEATURE_131)) {
-            tcg_gen_addi_tl(cpu_gpr_d[r2], cpu_gpr_d[r2], off10);
+            tcg_gen_addi_tl(cpu_gpr_a[r2], cpu_gpr_a[r2], off10);
         } /* TODO: else raise illegal opcode trap */
         break;
     case OPC2_32_BO_CACHEI_W_PREINC:
     case OPC2_32_BO_CACHEI_WI_PREINC:
         if (tricore_feature(env, TRICORE_FEATURE_131)) {
-            tcg_gen_addi_tl(cpu_gpr_d[r2], cpu_gpr_d[r2], off10);
+            tcg_gen_addi_tl(cpu_gpr_a[r2], cpu_gpr_a[r2], off10);
         } /* TODO: else raise illegal opcode trap */
         break;
     case OPC2_32_BO_ST_A_SHORTOFF:
