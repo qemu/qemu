@@ -266,12 +266,29 @@ static void mch_update_pam(MCHPCIState *mch)
 static void mch_update_smram(MCHPCIState *mch)
 {
     PCIDevice *pd = PCI_DEVICE(mch);
+    bool h_smrame = (pd->config[MCH_HOST_BRIDGE_ESMRAMC] & MCH_HOST_BRIDGE_ESMRAMC_H_SMRAME);
 
     memory_region_transaction_begin();
-    memory_region_set_enabled(&mch->smram_region,
-                              !(pd->config[MCH_HOST_BRIDGE_SMRAM] & SMRAM_D_OPEN));
-    memory_region_set_enabled(&mch->smram,
-                              pd->config[MCH_HOST_BRIDGE_SMRAM] & SMRAM_G_SMRAME);
+
+    if (pd->config[MCH_HOST_BRIDGE_SMRAM] & SMRAM_D_OPEN) {
+        /* Hide (!) low SMRAM if H_SMRAME = 1 */
+        memory_region_set_enabled(&mch->smram_region, h_smrame);
+        /* Show high SMRAM if H_SMRAME = 1 */
+        memory_region_set_enabled(&mch->open_high_smram, h_smrame);
+    } else {
+        /* Hide high SMRAM and low SMRAM */
+        memory_region_set_enabled(&mch->smram_region, true);
+        memory_region_set_enabled(&mch->open_high_smram, false);
+    }
+
+    if (pd->config[MCH_HOST_BRIDGE_SMRAM] & SMRAM_G_SMRAME) {
+        memory_region_set_enabled(&mch->low_smram, !h_smrame);
+        memory_region_set_enabled(&mch->high_smram, h_smrame);
+    } else {
+        memory_region_set_enabled(&mch->low_smram, false);
+        memory_region_set_enabled(&mch->high_smram, false);
+    }
+
     memory_region_transaction_commit();
 }
 
@@ -400,6 +417,12 @@ static void mch_realize(PCIDevice *d, Error **errp)
                                         &mch->smram_region, 1);
     memory_region_set_enabled(&mch->smram_region, true);
 
+    memory_region_init_alias(&mch->open_high_smram, OBJECT(mch), "smram-open-high",
+                             mch->ram_memory, 0xa0000, 0x20000);
+    memory_region_add_subregion_overlap(mch->system_memory, 0xfeda0000,
+                                        &mch->open_high_smram, 1);
+    memory_region_set_enabled(&mch->open_high_smram, false);
+
     /* smram, as seen by SMM CPUs */
     memory_region_init(&mch->smram, OBJECT(mch), "smram", 1ull << 32);
     memory_region_set_enabled(&mch->smram, true);
@@ -407,6 +430,10 @@ static void mch_realize(PCIDevice *d, Error **errp)
                              mch->ram_memory, 0xa0000, 0x20000);
     memory_region_set_enabled(&mch->low_smram, true);
     memory_region_add_subregion(&mch->smram, 0xa0000, &mch->low_smram);
+    memory_region_init_alias(&mch->high_smram, OBJECT(mch), "smram-high",
+                             mch->ram_memory, 0xa0000, 0x20000);
+    memory_region_set_enabled(&mch->high_smram, true);
+    memory_region_add_subregion(&mch->smram, 0xfeda0000, &mch->high_smram);
     object_property_add_const_link(qdev_get_machine(), "smram",
                                    OBJECT(&mch->smram), &error_abort);
 
