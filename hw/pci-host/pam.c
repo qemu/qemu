@@ -31,12 +31,6 @@
 #include "sysemu/sysemu.h"
 #include "hw/pci-host/pam.h"
 
-void smram_update(MemoryRegion *smram_region, uint8_t smram)
-{
-    bool smram_enabled = (smram & SMRAM_D_OPEN);
-    memory_region_set_enabled(smram_region, !smram_enabled);
-}
-
 void init_pam(DeviceState *dev, MemoryRegion *ram_memory,
               MemoryRegion *system_memory, MemoryRegion *pci_address_space,
               PAMMemoryRegion *mem, uint32_t start, uint32_t size)

@@ -268,7 +268,8 @@ static void mch_update_smram(MCHPCIState *mch)
     PCIDevice *pd = PCI_DEVICE(mch);
 
     memory_region_transaction_begin();
-    smram_update(&mch->smram_region, pd->config[MCH_HOST_BRIDGE_SMRAM]);
+    memory_region_set_enabled(&mch->smram_region,
+                              !(pd->config[MCH_HOST_BRIDGE_SMRAM] & SMRAM_D_OPEN));
     memory_region_set_enabled(&mch->smram,
                               pd->config[MCH_HOST_BRIDGE_SMRAM] & SMRAM_G_SMRAME);
     memory_region_transaction_commit();
