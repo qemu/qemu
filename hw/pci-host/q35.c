@@ -270,6 +270,8 @@ static void mch_update_smram(MCHPCIState *mch)
     memory_region_transaction_begin();
     smram_update(&mch->smram_region, pd->config[MCH_HOST_BRIDGE_SMRAM],
                     mch->smm_enabled);
+    memory_region_set_enabled(&mch->smram,
+                              pd->config[MCH_HOST_BRIDGE_SMRAM] & SMRAM_G_SMRAME);
     memory_region_transaction_commit();
 }
 
@@ -399,13 +401,24 @@ static void mch_realize(PCIDevice *d, Error **errp)
     pc_pci_as_mapping_init(OBJECT(mch), mch->system_memory,
                            mch->pci_address_space);
 
-    /* smram */
+    /* if *disabled* show SMRAM to all CPUs */
     cpu_smm_register(&mch_set_smm, mch);
     memory_region_init_alias(&mch->smram_region, OBJECT(mch), "smram-region",
                              mch->pci_address_space, 0xa0000, 0x20000);
     memory_region_add_subregion_overlap(mch->system_memory, 0xa0000,
                                         &mch->smram_region, 1);
-    memory_region_set_enabled(&mch->smram_region, false);
+    memory_region_set_enabled(&mch->smram_region, true);
+
+    /* smram, as seen by SMM CPUs */
+    memory_region_init(&mch->smram, OBJECT(mch), "smram", 1ull << 32);
+    memory_region_set_enabled(&mch->smram, true);
+    memory_region_init_alias(&mch->low_smram, OBJECT(mch), "smram-low",
+                             mch->system_memory, 0xa0000, 0x20000);
+    memory_region_set_enabled(&mch->low_smram, true);
+    memory_region_add_subregion(&mch->smram, 0xa0000, &mch->low_smram);
+    object_property_add_const_link(qdev_get_machine(), "smram",
+                                   OBJECT(&mch->smram), &error_abort);
+
     init_pam(DEVICE(mch), mch->ram_memory, mch->system_memory,
              mch->pci_address_space, &mch->pam_regions[0],
              PAM_BIOS_BASE, PAM_BIOS_SIZE);
