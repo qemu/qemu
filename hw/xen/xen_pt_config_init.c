@@ -286,23 +286,6 @@ static int xen_pt_irqpin_reg_init(XenPCIPassthroughState *s,
 }
 
 /* Command register */
-static int xen_pt_cmd_reg_read(XenPCIPassthroughState *s, XenPTReg *cfg_entry,
-                               uint16_t *value, uint16_t valid_mask)
-{
-    XenPTRegInfo *reg = cfg_entry->reg;
-    uint16_t valid_emu_mask = 0;
-    uint16_t emu_mask = reg->emu_mask;
-
-    if (s->is_virtfn) {
-        emu_mask |= PCI_COMMAND_MEMORY;
-    }
-
-    /* emulate word register */
-    valid_emu_mask = emu_mask & valid_mask;
-    *value = XEN_PT_MERGE_VALUE(*value, cfg_entry->data, ~valid_emu_mask);
-
-    return 0;
-}
 static int xen_pt_cmd_reg_write(XenPCIPassthroughState *s, XenPTReg *cfg_entry,
                                 uint16_t *val, uint16_t dev_value,
                                 uint16_t valid_mask)
@@ -310,18 +293,13 @@ static int xen_pt_cmd_reg_write(XenPCIPassthroughState *s, XenPTReg *cfg_entry,
     XenPTRegInfo *reg = cfg_entry->reg;
     uint16_t writable_mask = 0;
     uint16_t throughable_mask = 0;
-    uint16_t emu_mask = reg->emu_mask;
-
-    if (s->is_virtfn) {
-        emu_mask |= PCI_COMMAND_MEMORY;
-    }
 
     /* modify emulate register */
     writable_mask = ~reg->ro_mask & valid_mask;
     cfg_entry->data = XEN_PT_MERGE_VALUE(*val, cfg_entry->data, writable_mask);
 
     /* create value for writing to I/O device register */
-    throughable_mask = ~emu_mask & valid_mask;
+    throughable_mask = ~reg->emu_mask & valid_mask;
 
     if (*val & PCI_COMMAND_INTX_DISABLE) {
         throughable_mask |= PCI_COMMAND_INTX_DISABLE;
@@ -603,9 +581,9 @@ static XenPTRegInfo xen_pt_emu_reg_header0[] = {
         .size       = 2,
         .init_val   = 0x0000,
         .ro_mask    = 0xF880,
-        .emu_mask   = 0x0740,
+        .emu_mask   = 0x0743,
         .init       = xen_pt_common_reg_init,
-        .u.w.read   = xen_pt_cmd_reg_read,
+        .u.w.read   = xen_pt_word_reg_read,
         .u.w.write  = xen_pt_cmd_reg_write,
     },
     /* Capabilities Pointer reg */
