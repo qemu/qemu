@@ -311,19 +311,18 @@ static void rcu_init_unlock(void)
 {
     qemu_mutex_unlock(&rcu_gp_lock);
 }
+#endif
 
-static void rcu_init_child(void)
+void rcu_after_fork(void)
 {
-    qemu_mutex_unlock(&rcu_gp_lock);
     memset(&registry, 0, sizeof(registry));
     rcu_init_complete();
 }
-#endif
 
 static void __attribute__((__constructor__)) rcu_init(void)
 {
 #ifdef CONFIG_POSIX
-    pthread_atfork(rcu_init_lock, rcu_init_unlock, rcu_init_child);
+    pthread_atfork(rcu_init_lock, rcu_init_unlock, rcu_init_unlock);
 #endif
     rcu_init_complete();
 }

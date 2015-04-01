@@ -18,6 +18,18 @@ void user_creatable_complete(Object *obj, Error **errp)
     }
 }
 
+bool user_creatable_can_be_deleted(UserCreatable *uc, Error **errp)
+{
+
+    UserCreatableClass *ucc = USER_CREATABLE_GET_CLASS(uc);
+
+    if (ucc->can_be_deleted) {
+        return ucc->can_be_deleted(uc, errp);
+    } else {
+        return true;
+    }
+}
+
 static void register_types(void)
 {
     static const TypeInfo uc_interface_info = {
