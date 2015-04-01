@@ -177,6 +177,12 @@ static BlockAIOCB *null_aio_flush(BlockDriverState *bs,
     return null_aio_common(bs, cb, opaque);
 }
 
+static int null_reopen_prepare(BDRVReopenState *reopen_state,
+                               BlockReopenQueue *queue, Error **errp)
+{
+    return 0;
+}
+
 static BlockDriver bdrv_null_co = {
     .format_name            = "null-co",
     .protocol_name          = "null-co",
@@ -189,6 +195,7 @@ static BlockDriver bdrv_null_co = {
     .bdrv_co_readv          = null_co_readv,
     .bdrv_co_writev         = null_co_writev,
     .bdrv_co_flush_to_disk  = null_co_flush,
+    .bdrv_reopen_prepare    = null_reopen_prepare,
 };
 
 static BlockDriver bdrv_null_aio = {
@@ -203,6 +210,7 @@ static BlockDriver bdrv_null_aio = {
     .bdrv_aio_readv         = null_aio_readv,
     .bdrv_aio_writev        = null_aio_writev,
     .bdrv_aio_flush         = null_aio_flush,
+    .bdrv_reopen_prepare    = null_reopen_prepare,
 };
 
 static void bdrv_null_init(void)
