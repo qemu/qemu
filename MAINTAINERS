@@ -1182,6 +1182,12 @@ S: Supported
 F: block/gluster.c
 T: git git://github.com/codyprime/qemu-kvm-jtc.git block
 
+Null Block Driver
+M: Fam Zheng <famz@redhat.com>
+L: qemu-block@nongnu.org
+S: Supported
+F: block/null.c
+
 Bootdevice
 M: Gonglei <arei.gonglei@huawei.com>
 S: Maintained
