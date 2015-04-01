@@ -563,6 +563,7 @@ static void vexpress_common_init(MachineState *machine)
      */
     if (bios_name) {
         char *fn;
+        int image_size;
 
         if (drive_get(IF_PFLASH, 0, 0)) {
             error_report("The contents of the first flash device may be "
@@ -571,8 +572,14 @@ static void vexpress_common_init(MachineState *machine)
             exit(1);
         }
         fn = qemu_find_file(QEMU_FILE_TYPE_BIOS, bios_name);
-        if (!fn || load_image_targphys(fn, map[VE_NORFLASH0],
-                                       VEXPRESS_FLASH_SIZE) < 0) {
+        if (!fn) {
+            error_report("Could not find ROM image '%s'", bios_name);
+            exit(1);
+        }
+        image_size = load_image_targphys(fn, map[VE_NORFLASH0],
+                                         VEXPRESS_FLASH_SIZE);
+        g_free(fn);
+        if (image_size < 0) {
             error_report("Could not load ROM image '%s'", bios_name);
             exit(1);
         }

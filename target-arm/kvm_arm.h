@@ -162,6 +162,23 @@ typedef struct ARMHostCPUClass {
  */
 bool kvm_arm_get_host_cpu_features(ARMHostCPUClass *ahcc);
 
+
+/**
+ * kvm_arm_sync_mpstate_to_kvm
+ * @cpu: ARMCPU
+ *
+ * If supported set the KVM MP_STATE based on QEMU's model.
+ */
+int kvm_arm_sync_mpstate_to_kvm(ARMCPU *cpu);
+
+/**
+ * kvm_arm_sync_mpstate_to_qemu
+ * @cpu: ARMCPU
+ *
+ * If supported get the MP_STATE from KVM and store in QEMU's model.
+ */
+int kvm_arm_sync_mpstate_to_qemu(ARMCPU *cpu);
+
 #endif
 
 #endif

@@ -553,6 +553,7 @@ static void create_flash(const VirtBoardInfo *vbi)
 
     if (bios_name) {
         char *fn;
+        int image_size;
 
         if (drive_get(IF_PFLASH, 0, 0)) {
             error_report("The contents of the first flash device may be "
@@ -561,7 +562,13 @@ static void create_flash(const VirtBoardInfo *vbi)
             exit(1);
         }
         fn = qemu_find_file(QEMU_FILE_TYPE_BIOS, bios_name);
-        if (!fn || load_image_targphys(fn, flashbase, flashsize) < 0) {
+        if (!fn) {
+            error_report("Could not find ROM image '%s'", bios_name);
+            exit(1);
+        }
+        image_size = load_image_targphys(fn, flashbase, flashsize);
+        g_free(fn);
+        if (image_size < 0) {
             error_report("Could not load ROM image '%s'", bios_name);
             exit(1);
         }

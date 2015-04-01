@@ -356,6 +356,8 @@ int kvm_arch_put_registers(CPUState *cs, int level)
         return EINVAL;
     }
 
+    kvm_arm_sync_mpstate_to_kvm(cpu);
+
     return ret;
 }
 
@@ -426,6 +428,8 @@ int kvm_arch_get_registers(CPUState *cs)
      * so we can ignore a failure return here.
      */
     write_list_to_cpustate(cpu);
+
+    kvm_arm_sync_mpstate_to_qemu(cpu);
 
     return 0;
 }

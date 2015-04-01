@@ -370,6 +370,11 @@ static void kvm_arm_gic_put(GICState *s)
      * the appropriate CPU interfaces in the kernel) */
     kvm_dist_put(s, 0x800, 8, s->num_irq, translate_targets);
 
+    /* irq_state[n].trigger -> GICD_ICFGRn
+     * (restore configuration registers before pending IRQs so we treat
+     * level/edge correctly) */
+    kvm_dist_put(s, 0xc00, 2, s->num_irq, translate_trigger);
+
     /* irq_state[n].pending + irq_state[n].level -> GICD_ISPENDRn */
     kvm_dist_put(s, 0x280, 1, s->num_irq, translate_clear);
     kvm_dist_put(s, 0x200, 1, s->num_irq, translate_pending);
@@ -378,8 +383,6 @@ static void kvm_arm_gic_put(GICState *s)
     kvm_dist_put(s, 0x380, 1, s->num_irq, translate_clear);
     kvm_dist_put(s, 0x300, 1, s->num_irq, translate_active);
 
-    /* irq_state[n].trigger -> GICD_ICFRn */
-    kvm_dist_put(s, 0xc00, 2, s->num_irq, translate_trigger);
 
     /* s->priorityX[irq] -> ICD_IPRIORITYRn */
     kvm_dist_put(s, 0x400, 8, s->num_irq, translate_priority);

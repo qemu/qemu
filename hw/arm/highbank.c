@@ -278,8 +278,7 @@ static void calxeda_init(MachineState *machine, enum cxmachines machine_id)
     if (bios_name != NULL) {
         sysboot_filename = qemu_find_file(QEMU_FILE_TYPE_BIOS, bios_name);
         if (sysboot_filename != NULL) {
-            uint32_t filesize = get_image_size(sysboot_filename);
-            if (load_image_targphys("sysram.bin", 0xfff88000, filesize) < 0) {
+            if (load_image_targphys(sysboot_filename, 0xfff88000, 0x8000) < 0) {
                 hw_error("Unable to load %s\n", bios_name);
             }
             g_free(sysboot_filename);
