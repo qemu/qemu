@@ -1310,11 +1310,14 @@
 # Driver specific block device options for the null backend.
 #
 # @size:    #optional size of the device in bytes.
+# @latency-ns: #optional emulated latency (in nanoseconds) in processing
+#              requests. Default to zero which completes requests immediately.
+#              (Since 2.4)
 #
 # Since: 2.2
 ##
 { 'type': 'BlockdevOptionsNull',
-  'data': { '*size': 'int' } }
+  'data': { '*size': 'int', '*latency-ns': 'uint64' } }
 
 ##
 # @BlockdevOptionsVVFAT
