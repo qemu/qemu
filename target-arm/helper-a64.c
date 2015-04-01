@@ -523,7 +523,7 @@ void aarch64_cpu_do_interrupt(CPUState *cs)
         aarch64_save_sp(env, arm_current_el(env));
         env->elr_el[new_el] = env->pc;
     } else {
-        env->banked_spsr[0] = cpsr_read(env);
+        env->banked_spsr[aarch64_banked_spsr_index(new_el)] = cpsr_read(env);
         if (!env->thumb) {
             env->cp15.esr_el[new_el] |= 1 << 25;
         }
