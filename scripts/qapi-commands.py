@@ -309,36 +309,6 @@ qapi_init(qmp_init_marshal);
                 registry=registry.rstrip())
     return ret
 
-def gen_command_decl_prologue(prefix=""):
-    ret = mcgen('''
-#include "%(prefix)sqapi-types.h"
-#include "qapi/qmp/qdict.h"
-#include "qapi/error.h"
-
-''',
-                 prefix=prefix)
-    return ret
-
-def gen_command_def_prologue(prefix="", proxy=False):
-    ret = mcgen('''
-#include "qemu-common.h"
-#include "qemu/module.h"
-#include "qapi/qmp/qerror.h"
-#include "qapi/qmp/types.h"
-#include "qapi/qmp/dispatch.h"
-#include "qapi/visitor.h"
-#include "qapi/qmp-output-visitor.h"
-#include "qapi/qmp-input-visitor.h"
-#include "qapi/dealloc-visitor.h"
-#include "%(prefix)sqapi-types.h"
-#include "%(prefix)sqapi-visit.h"
-
-''',
-                prefix=prefix)
-    if not proxy:
-        ret += '#include "%sqmp-commands.h"' % prefix
-    return ret + "\n\n"
-
 middle_mode = False
 
 (input_file, output_dir, do_c, do_h, prefix, opts) = \
@@ -385,10 +355,30 @@ h_comment = '''
                             'qmp-marshal.c', 'qmp-commands.h',
                             c_comment, h_comment)
 
-ret = gen_command_decl_prologue(prefix=prefix)
-fdecl.write(ret)
-ret = gen_command_def_prologue(prefix=prefix)
-fdef.write(ret)
+fdef.write(mcgen('''
+#include "qemu-common.h"
+#include "qemu/module.h"
+#include "qapi/qmp/qerror.h"
+#include "qapi/qmp/types.h"
+#include "qapi/qmp/dispatch.h"
+#include "qapi/visitor.h"
+#include "qapi/qmp-output-visitor.h"
+#include "qapi/qmp-input-visitor.h"
+#include "qapi/dealloc-visitor.h"
+#include "%(prefix)sqapi-types.h"
+#include "%(prefix)sqapi-visit.h"
+#include "%(prefix)sqmp-commands.h"
+
+''',
+                prefix=prefix))
+
+fdecl.write(mcgen('''
+#include "%(prefix)sqapi-types.h"
+#include "qapi/qmp/qdict.h"
+#include "qapi/error.h"
+
+''',
+                 prefix=prefix))
 
 for cmd in commands:
     arglist = []
