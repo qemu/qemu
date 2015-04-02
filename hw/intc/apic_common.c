@@ -215,14 +215,18 @@ void apic_init_reset(DeviceState *dev)
     }
 }
 
-void apic_designate_bsp(DeviceState *dev)
+void apic_designate_bsp(DeviceState *dev, bool bsp)
 {
     if (dev == NULL) {
         return;
     }
 
     APICCommonState *s = APIC_COMMON(dev);
-    s->apicbase |= MSR_IA32_APICBASE_BSP;
+    if (bsp) {
+        s->apicbase |= MSR_IA32_APICBASE_BSP;
+    } else {
+        s->apicbase &= ~MSR_IA32_APICBASE_BSP;
+    }
 }
 
 static void apic_reset_common(DeviceState *dev)
