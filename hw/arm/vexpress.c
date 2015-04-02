@@ -583,7 +583,6 @@ static void vexpress_common_init(MachineState *machine)
             error_report("Could not load ROM image '%s'", bios_name);
             exit(1);
         }
-        g_free(fn);
     }
 
     /* Motherboard peripherals: the wiring is the same but the
