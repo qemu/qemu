@@ -381,14 +381,13 @@ try:
     opts, args = getopt.gnu_getopt(sys.argv[1:], "chp:i:o:m",
                                    ["source", "header", "prefix=",
                                     "input-file=", "output-dir=",
-                                    "type=", "middle"])
+                                    "middle"])
 except getopt.GetoptError, err:
     print str(err)
     sys.exit(1)
 
 output_dir = ""
 prefix = ""
-dispatch_type = "sync"
 c_file = 'qmp-marshal.c'
 h_file = 'qmp-commands.h'
 middle_mode = False
@@ -403,8 +402,6 @@ for o, a in opts:
         input_file = a
     elif o in ("-o", "--output-dir"):
         output_dir = a + "/"
-    elif o in ("-t", "--type"):
-        dispatch_type = a
     elif o in ("-m", "--middle"):
         middle_mode = True
     elif o in ("-c", "--source"):
@@ -436,40 +433,39 @@ exprs = parse_schema(input_file)
 commands = filter(lambda expr: expr.has_key('command'), exprs)
 commands = filter(lambda expr: not expr.has_key('gen'), commands)
 
-if dispatch_type == "sync":
-    fdecl = maybe_open(do_h, h_file, 'w')
-    fdef = maybe_open(do_c, c_file, 'w')
-    ret = gen_command_decl_prologue(header=basename(h_file), guard=guardname(h_file), prefix=prefix)
+fdecl = maybe_open(do_h, h_file, 'w')
+fdef = maybe_open(do_c, c_file, 'w')
+ret = gen_command_decl_prologue(header=basename(h_file), guard=guardname(h_file), prefix=prefix)
+fdecl.write(ret)
+ret = gen_command_def_prologue(prefix=prefix)
+fdef.write(ret)
+
+for cmd in commands:
+    arglist = []
+    ret_type = None
+    if cmd.has_key('data'):
+        arglist = cmd['data']
+    if cmd.has_key('returns'):
+        ret_type = cmd['returns']
+    ret = generate_command_decl(cmd['command'], arglist, ret_type) + "\n"
     fdecl.write(ret)
-    ret = gen_command_def_prologue(prefix=prefix)
+    if ret_type:
+        ret = gen_marshal_output(cmd['command'], arglist, ret_type, middle_mode) + "\n"
+        fdef.write(ret)
+
+    if middle_mode:
+        fdecl.write('%s;\n' % gen_marshal_input_decl(cmd['command'], arglist, ret_type, middle_mode))
+
+    ret = gen_marshal_input(cmd['command'], arglist, ret_type, middle_mode) + "\n"
     fdef.write(ret)
 
-    for cmd in commands:
-        arglist = []
-        ret_type = None
-        if cmd.has_key('data'):
-            arglist = cmd['data']
-        if cmd.has_key('returns'):
-            ret_type = cmd['returns']
-        ret = generate_command_decl(cmd['command'], arglist, ret_type) + "\n"
-        fdecl.write(ret)
-        if ret_type:
-            ret = gen_marshal_output(cmd['command'], arglist, ret_type, middle_mode) + "\n"
-            fdef.write(ret)
+fdecl.write("\n#endif\n");
 
-        if middle_mode:
-            fdecl.write('%s;\n' % gen_marshal_input_decl(cmd['command'], arglist, ret_type, middle_mode))
+if not middle_mode:
+    ret = gen_registry(commands)
+    fdef.write(ret)
 
-        ret = gen_marshal_input(cmd['command'], arglist, ret_type, middle_mode) + "\n"
-        fdef.write(ret)
-
-    fdecl.write("\n#endif\n");
-
-    if not middle_mode:
-        ret = gen_registry(commands)
-        fdef.write(ret)
-
-    fdef.flush()
-    fdef.close()
-    fdecl.flush()
-    fdecl.close()
+fdef.flush()
+fdef.close()
+fdecl.flush()
+fdecl.close()
