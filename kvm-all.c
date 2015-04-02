@@ -715,7 +715,7 @@ static void kvm_set_phys_mem(MemoryRegionSection *section, bool add)
 
         old = *mem;
 
-        if (mem->flags & KVM_MEM_LOG_DIRTY_PAGES) {
+        if ((mem->flags & KVM_MEM_LOG_DIRTY_PAGES) || s->migration_log) {
             kvm_physical_sync_dirty_bitmap(section);
         }
 
