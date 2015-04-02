@@ -273,7 +273,7 @@ $(qapi-modules) $(SRC_PATH)/scripts/qapi-visit.py $(qapi-py)
 qapi-event.c qapi-event.h :\
 $(qapi-modules) $(SRC_PATH)/scripts/qapi-event.py $(qapi-py)
 	$(call quiet-command,$(PYTHON) $(SRC_PATH)/scripts/qapi-event.py \
-		$(gen-out-type) -o "." -b -i $<, \
+		$(gen-out-type) -o "." -i $<, \
 		"  GEN   $@")
 qmp-commands.h qmp-marshal.c :\
 $(qapi-modules) $(SRC_PATH)/scripts/qapi-commands.py $(qapi-py)

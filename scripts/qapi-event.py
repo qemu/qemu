@@ -220,8 +220,8 @@ const char *%(event_enum_name)s_lookup[] = {
 # Start the real job
 
 try:
-    opts, args = getopt.gnu_getopt(sys.argv[1:], "chbp:i:o:",
-                                   ["source", "header", "builtins", "prefix=",
+    opts, args = getopt.gnu_getopt(sys.argv[1:], "chp:i:o:",
+                                   ["source", "header", "prefix=",
                                     "input-file=", "output-dir="])
 except getopt.GetoptError, err:
     print str(err)
@@ -235,7 +235,6 @@ h_file = 'qapi-event.h'
 
 do_c = False
 do_h = False
-do_builtins = False
 
 for o, a in opts:
     if o in ("-p", "--prefix"):
@@ -248,8 +247,6 @@ for o, a in opts:
         do_c = True
     elif o in ("-h", "--header"):
         do_h = True
-    elif o in ("-b", "--builtins"):
-        do_builtins = True
 
 if not do_c and not do_h:
     do_c = True
