@@ -2077,7 +2077,7 @@ static void x86_cpu_load_def(X86CPU *cpu, X86CPUDefinition *def, Error **errp)
     object_property_set_int(OBJECT(cpu), def->model, "model", errp);
     object_property_set_int(OBJECT(cpu), def->stepping, "stepping", errp);
     object_property_set_int(OBJECT(cpu), def->xlevel, "xlevel", errp);
-    env->cpuid_xlevel2 = def->xlevel2;
+    object_property_set_int(OBJECT(cpu), def->xlevel2, "xlevel2", errp);
     cpu->cache_info_passthrough = def->cache_info_passthrough;
     object_property_set_str(OBJECT(cpu), def->model_id, "model-id", errp);
     for (w = 0; w < FEATURE_WORDS; w++) {
@@ -2962,6 +2962,7 @@ static Property x86_cpu_properties[] = {
     DEFINE_PROP_BOOL("kvm", X86CPU, expose_kvm, true),
     DEFINE_PROP_UINT32("level", X86CPU, env.cpuid_level, 0),
     DEFINE_PROP_UINT32("xlevel", X86CPU, env.cpuid_xlevel, 0),
+    DEFINE_PROP_UINT32("xlevel2", X86CPU, env.cpuid_xlevel2, 0),
     DEFINE_PROP_END_OF_LIST()
 };
 
