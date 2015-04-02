@@ -750,6 +750,9 @@ static void dec_misc(DisasContext *dc, uint32_t insn)
         switch (op1) {
         case 0x01:    /* l.nop */
             LOG_DIS("l.nop %d\n", I16);
+            /* Exit QEMU upon receiving l.nop 0xC instruction */
+            if(I16 == 0xC)
+                exit(0);
             break;
 
         default:
