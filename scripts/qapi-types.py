@@ -11,8 +11,6 @@
 
 from ordereddict import OrderedDict
 from qapi import *
-import os
-import errno
 
 def generate_fwd_struct(name, members, builtin_type=False):
     if builtin_type:
@@ -273,8 +271,6 @@ void qapi_free_%(name)s(%(c_type)s obj)
                 c_type=c_type(name), name=c_name(name))
     return ret
 
-c_file = 'qapi-types.c'
-h_file = 'qapi-types.h'
 do_builtins = False
 
 (input_file, output_dir, do_c, do_h, prefix, opts) = \
@@ -284,28 +280,7 @@ for o, a in opts:
     if o in ("-b", "--builtins"):
         do_builtins = True
 
-c_file = output_dir + prefix + c_file
-h_file = output_dir + prefix + h_file
-
-try:
-    os.makedirs(output_dir)
-except os.error, e:
-    if e.errno != errno.EEXIST:
-        raise
-
-def maybe_open(really, name, opt):
-    if really:
-        return open(name, opt)
-    else:
-        import StringIO
-        return StringIO.StringIO()
-
-fdef = maybe_open(do_c, c_file, 'w')
-fdecl = maybe_open(do_h, h_file, 'w')
-
-fdef.write(mcgen('''
-/* AUTOMATICALLY GENERATED, DO NOT MODIFY */
-
+c_comment = '''
 /*
  * deallocation functions for schema-defined QAPI types
  *
@@ -319,16 +294,8 @@ fdef.write(mcgen('''
  * See the COPYING.LIB file in the top-level directory.
  *
  */
-
-#include "qapi/dealloc-visitor.h"
-#include "%(prefix)sqapi-types.h"
-#include "%(prefix)sqapi-visit.h"
-
-''',             prefix=prefix))
-
-fdecl.write(mcgen('''
-/* AUTOMATICALLY GENERATED, DO NOT MODIFY */
-
+'''
+h_comment = '''
 /*
  * schema-defined QAPI types
  *
@@ -341,15 +308,25 @@ fdecl.write(mcgen('''
  * See the COPYING.LIB file in the top-level directory.
  *
  */
+'''
 
-#ifndef %(guard)s
-#define %(guard)s
+(fdef, fdecl) = open_output(output_dir, do_c, do_h, prefix,
+                            'qapi-types.c', 'qapi-types.h',
+                            c_comment, h_comment)
 
+fdef.write(mcgen('''
+#include "qapi/dealloc-visitor.h"
+#include "%(prefix)sqapi-types.h"
+#include "%(prefix)sqapi-visit.h"
+
+''',
+                 prefix=prefix))
+
+fdecl.write(mcgen('''
 #include <stdbool.h>
 #include <stdint.h>
 
-''',
-                  guard=guardname(h_file)))
+'''))
 
 exprs = parse_schema(input_file)
 exprs = filter(lambda expr: not expr.has_key('gen'), exprs)
@@ -427,12 +404,4 @@ for expr in exprs:
         continue
     fdecl.write(ret)
 
-fdecl.write('''
-#endif
-''')
-
-fdecl.flush()
-fdecl.close()
-
-fdef.flush()
-fdef.close()
+close_output(fdef, fdecl)

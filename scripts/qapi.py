@@ -13,6 +13,7 @@
 
 import re
 from ordereddict import OrderedDict
+import errno
 import getopt
 import os
 import sys
@@ -1020,3 +1021,52 @@ def parse_command_line(extra_options = "", extra_long_options = []):
     input_file = args[0]
 
     return (input_file, output_dir, do_c, do_h, prefix, extra_opts)
+
+def open_output(output_dir, do_c, do_h, prefix, c_file, h_file,
+                c_comment, h_comment):
+    c_file = output_dir + prefix + c_file
+    h_file = output_dir + prefix + h_file
+
+    try:
+        os.makedirs(output_dir)
+    except os.error, e:
+        if e.errno != errno.EEXIST:
+            raise
+
+    def maybe_open(really, name, opt):
+        if really:
+            return open(name, opt)
+        else:
+            import StringIO
+            return StringIO.StringIO()
+
+    fdef = maybe_open(do_c, c_file, 'w')
+    fdecl = maybe_open(do_h, h_file, 'w')
+
+    fdef.write(mcgen('''
+/* AUTOMATICALLY GENERATED, DO NOT MODIFY */
+%(comment)s
+''',
+                     comment = c_comment))
+
+    fdecl.write(mcgen('''
+/* AUTOMATICALLY GENERATED, DO NOT MODIFY */
+%(comment)s
+#ifndef %(guard)s
+#define %(guard)s
+
+''',
+                      comment = h_comment, guard = guardname(h_file)))
+
+    return (fdef, fdecl)
+
+def close_output(fdef, fdecl):
+    fdecl.write('''
+#endif
+''')
+
+    fdecl.flush()
+    fdecl.close()
+
+    fdef.flush()
+    fdef.close()
