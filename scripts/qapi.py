@@ -989,7 +989,7 @@ def parse_command_line(extra_options = "", extra_long_options = []):
                                         "input-file=", "output-dir="]
                                        + extra_long_options)
     except getopt.GetoptError, err:
-        print str(err)
+        print >>sys.stderr, "%s: %s" % (sys.argv[0], str(err))
         sys.exit(1)
 
     output_dir = ""
@@ -1016,5 +1016,9 @@ def parse_command_line(extra_options = "", extra_long_options = []):
     if not do_c and not do_h:
         do_c = True
         do_h = True
+
+    if len(args) != 0:
+        print >>sys.stderr, "%s: too many arguments" % sys.argv[0]
+        sys.exit(1)
 
     return (input_file, output_dir, do_c, do_h, prefix, extra_opts)
