@@ -13,6 +13,7 @@
 
 import re
 from ordereddict import OrderedDict
+import getopt
 import os
 import sys
 import string
@@ -978,3 +979,42 @@ def guardend(name):
 
 ''',
                  name=guardname(name))
+
+def parse_command_line(extra_options = "", extra_long_options = []):
+
+    try:
+        opts, args = getopt.gnu_getopt(sys.argv[1:],
+                                       "chp:i:o:" + extra_options,
+                                       ["source", "header", "prefix=",
+                                        "input-file=", "output-dir="]
+                                       + extra_long_options)
+    except getopt.GetoptError, err:
+        print str(err)
+        sys.exit(1)
+
+    output_dir = ""
+    prefix = ""
+    do_c = False
+    do_h = False
+    extra_opts = []
+
+    for oa in opts:
+        o, a = oa
+        if o in ("-p", "--prefix"):
+            prefix = a
+        elif o in ("-i", "--input-file"):
+            input_file = a
+        elif o in ("-o", "--output-dir"):
+            output_dir = a + "/"
+        elif o in ("-c", "--source"):
+            do_c = True
+        elif o in ("-h", "--header"):
+            do_h = True
+        else:
+            extra_opts.append(oa)
+
+    if not do_c and not do_h:
+        do_c = True
+        do_h = True
+
+    return (input_file, output_dir, do_c, do_h, prefix, extra_opts)

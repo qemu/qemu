@@ -11,9 +11,7 @@
 
 from ordereddict import OrderedDict
 from qapi import *
-import sys
 import os
-import getopt
 import errno
 
 def generate_fwd_struct(name, members, builtin_type=False):
@@ -275,42 +273,16 @@ void qapi_free_%(name)s(%(c_type)s obj)
                 c_type=c_type(name), name=c_name(name))
     return ret
 
-
-try:
-    opts, args = getopt.gnu_getopt(sys.argv[1:], "chbp:i:o:",
-                                   ["source", "header", "builtins",
-                                    "prefix=", "input-file=", "output-dir="])
-except getopt.GetoptError, err:
-    print str(err)
-    sys.exit(1)
-
-output_dir = ""
-input_file = ""
-prefix = ""
 c_file = 'qapi-types.c'
 h_file = 'qapi-types.h'
-
-do_c = False
-do_h = False
 do_builtins = False
 
-for o, a in opts:
-    if o in ("-p", "--prefix"):
-        prefix = a
-    elif o in ("-i", "--input-file"):
-        input_file = a
-    elif o in ("-o", "--output-dir"):
-        output_dir = a + "/"
-    elif o in ("-c", "--source"):
-        do_c = True
-    elif o in ("-h", "--header"):
-        do_h = True
-    elif o in ("-b", "--builtins"):
-        do_builtins = True
+(input_file, output_dir, do_c, do_h, prefix, opts) = \
+    parse_command_line("b", ["builtins"])
 
-if not do_c and not do_h:
-    do_c = True
-    do_h = True
+for o, a in opts:
+    if o in ("-b", "--builtins"):
+        do_builtins = True
 
 c_file = output_dir + prefix + c_file
 h_file = output_dir + prefix + h_file

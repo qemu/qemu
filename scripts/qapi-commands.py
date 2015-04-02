@@ -15,9 +15,7 @@
 from ordereddict import OrderedDict
 from qapi import *
 import re
-import sys
 import os
-import getopt
 import errno
 
 def generate_command_decl(name, args, ret_type):
@@ -376,42 +374,16 @@ def gen_command_def_prologue(prefix="", proxy=False):
         ret += '#include "%sqmp-commands.h"' % prefix
     return ret + "\n\n"
 
-
-try:
-    opts, args = getopt.gnu_getopt(sys.argv[1:], "chp:i:o:m",
-                                   ["source", "header", "prefix=",
-                                    "input-file=", "output-dir=",
-                                    "middle"])
-except getopt.GetoptError, err:
-    print str(err)
-    sys.exit(1)
-
-output_dir = ""
-prefix = ""
 c_file = 'qmp-marshal.c'
 h_file = 'qmp-commands.h'
 middle_mode = False
 
-do_c = False
-do_h = False
+(input_file, output_dir, do_c, do_h, prefix, opts) = \
+    parse_command_line("m", ["middle"])
 
 for o, a in opts:
-    if o in ("-p", "--prefix"):
-        prefix = a
-    elif o in ("-i", "--input-file"):
-        input_file = a
-    elif o in ("-o", "--output-dir"):
-        output_dir = a + "/"
-    elif o in ("-m", "--middle"):
+    if o in ("-m", "--middle"):
         middle_mode = True
-    elif o in ("-c", "--source"):
-        do_c = True
-    elif o in ("-h", "--header"):
-        do_h = True
-
-if not do_c and not do_h:
-    do_c = True
-    do_h = True
 
 c_file = output_dir + prefix + c_file
 h_file = output_dir + prefix + h_file

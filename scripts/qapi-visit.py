@@ -15,9 +15,7 @@
 from ordereddict import OrderedDict
 from qapi import *
 import re
-import sys
 import os
-import getopt
 import errno
 
 implicit_structs = []
@@ -376,41 +374,16 @@ void visit_type_%(name)s(Visitor *m, %(name)s *obj, const char *name, Error **er
 ''',
                  name=c_name(name))
 
-try:
-    opts, args = getopt.gnu_getopt(sys.argv[1:], "chbp:i:o:",
-                                   ["source", "header", "builtins", "prefix=",
-                                    "input-file=", "output-dir="])
-except getopt.GetoptError, err:
-    print str(err)
-    sys.exit(1)
-
-input_file = ""
-output_dir = ""
-prefix = ""
 c_file = 'qapi-visit.c'
 h_file = 'qapi-visit.h'
-
-do_c = False
-do_h = False
 do_builtins = False
 
-for o, a in opts:
-    if o in ("-p", "--prefix"):
-        prefix = a
-    elif o in ("-i", "--input-file"):
-        input_file = a
-    elif o in ("-o", "--output-dir"):
-        output_dir = a + "/"
-    elif o in ("-c", "--source"):
-        do_c = True
-    elif o in ("-h", "--header"):
-        do_h = True
-    elif o in ("-b", "--builtins"):
-        do_builtins = True
+(input_file, output_dir, do_c, do_h, prefix, opts) = \
+    parse_command_line("b", ["builtins"])
 
-if not do_c and not do_h:
-    do_c = True
-    do_h = True
+for o, a in opts:
+    if o in ("-b", "--builtins"):
+        do_builtins = True
 
 c_file = output_dir + prefix + c_file
 h_file = output_dir + prefix + h_file
