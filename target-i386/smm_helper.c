@@ -101,7 +101,7 @@ void do_smm_enter(X86CPU *cpu)
     stl_phys(cs->as, sm_state + 0x7f60, env->dr[7]);
 
     stl_phys(cs->as, sm_state + 0x7f48, env->cr[4]);
-    stl_phys(cs->as, sm_state + 0x7f50, env->cr[3]);
+    stq_phys(cs->as, sm_state + 0x7f50, env->cr[3]);
     stl_phys(cs->as, sm_state + 0x7f58, env->cr[0]);
 
     stl_phys(cs->as, sm_state + 0x7efc, SMM_REVISION_ID);
@@ -236,7 +236,7 @@ void helper_rsm(CPUX86State *env)
     env->dr[7] = ldl_phys(cs->as, sm_state + 0x7f60);
 
     cpu_x86_update_cr4(env, ldl_phys(cs->as, sm_state + 0x7f48));
-    cpu_x86_update_cr3(env, ldl_phys(cs->as, sm_state + 0x7f50));
+    cpu_x86_update_cr3(env, ldq_phys(cs->as, sm_state + 0x7f50));
     cpu_x86_update_cr0(env, ldl_phys(cs->as, sm_state + 0x7f58));
 
     for (i = 0; i < 6; i++) {
