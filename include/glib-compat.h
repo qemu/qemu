@@ -32,7 +32,7 @@ static inline guint g_timeout_add_seconds(guint interval, GSourceFunc function,
 #endif
 
 #if !GLIB_CHECK_VERSION(2, 28, 0)
-static inline gint64 g_get_monotonic_time(void)
+static inline gint64 qemu_g_get_monotonic_time(void)
 {
     /* g_get_monotonic_time() is best-effort so we can use the wall clock as a
      * fallback.
@@ -43,6 +43,8 @@ static inline gint64 g_get_monotonic_time(void)
 
     return time.tv_sec * G_TIME_SPAN_SECOND + time.tv_usec;
 }
+/* work around distro backports of this interface */
+#define g_get_monotonic_time() qemu_g_get_monotonic_time()
 #endif
 
 #if !GLIB_CHECK_VERSION(2, 16, 0)
