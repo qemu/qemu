@@ -219,6 +219,7 @@ static int etraxfs_ser_init(SysBusDevice *dev)
                           "etraxfs-serial", R_MAX * 4);
     sysbus_init_mmio(dev, &s->mmio);
 
+    /* FIXME use a qdev chardev prop instead of qemu_char_get_next_serial() */
     s->chr = qemu_char_get_next_serial();
     if (s->chr) {
         qemu_chr_add_handlers(s->chr,
@@ -235,6 +236,8 @@ static void etraxfs_ser_class_init(ObjectClass *klass, void *data)
 
     k->init = etraxfs_ser_init;
     dc->reset = etraxfs_ser_reset;
+    /* Reason: init() method uses qemu_char_get_next_serial() */
+    dc->cannot_instantiate_with_device_add_yet = true;
 }
 
 static const TypeInfo etraxfs_ser_info = {

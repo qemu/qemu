@@ -1146,6 +1146,7 @@ static void sdhci_initfn(SDHCIState *s)
 {
     DriveInfo *di;
 
+    /* FIXME use a qdev drive property instead of drive_get_next() */
     di = drive_get_next(IF_SD);
     s->card = sd_init(di ? blk_by_legacy_dinfo(di) : NULL, false);
     if (s->card == NULL) {
@@ -1253,6 +1254,8 @@ static void sdhci_pci_class_init(ObjectClass *klass, void *data)
     set_bit(DEVICE_CATEGORY_STORAGE, dc->categories);
     dc->vmsd = &sdhci_vmstate;
     dc->props = sdhci_properties;
+    /* Reason: realize() method uses drive_get_next() */
+    dc->cannot_instantiate_with_device_add_yet = true;
 }
 
 static const TypeInfo sdhci_pci_info = {
@@ -1294,6 +1297,8 @@ static void sdhci_sysbus_class_init(ObjectClass *klass, void *data)
     dc->vmsd = &sdhci_vmstate;
     dc->props = sdhci_properties;
     dc->realize = sdhci_sysbus_realize;
+    /* Reason: instance_init() method uses drive_get_next() */
+    dc->cannot_instantiate_with_device_add_yet = true;
 }
 
 static const TypeInfo sdhci_sysbus_info = {

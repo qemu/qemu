@@ -205,6 +205,7 @@ static void xilinx_uartlite_realize(DeviceState *dev, Error **errp)
 {
     XilinxUARTLite *s = XILINX_UARTLITE(dev);
 
+    /* FIXME use a qdev chardev prop instead of qemu_char_get_next_serial() */
     s->chr = qemu_char_get_next_serial();
     if (s->chr)
         qemu_chr_add_handlers(s->chr, uart_can_rx, uart_rx, uart_event, s);
@@ -227,6 +228,8 @@ static void xilinx_uartlite_class_init(ObjectClass *klass, void *data)
 
     dc->reset = xilinx_uartlite_reset;
     dc->realize = xilinx_uartlite_realize;
+    /* Reason: realize() method uses qemu_char_get_next_serial() */
+    dc->cannot_instantiate_with_device_add_yet = true;
 }
 
 static const TypeInfo xilinx_uartlite_info = {
