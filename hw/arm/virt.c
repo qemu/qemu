@@ -572,7 +572,6 @@ static void create_flash(const VirtBoardInfo *vbi)
             error_report("Could not load ROM image '%s'", bios_name);
             exit(1);
         }
-        g_free(fn);
     }
 
     create_one_flash("virt.flash0", flashbase, flashsize);
