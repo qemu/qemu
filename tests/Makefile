@@ -303,22 +303,22 @@ tests/test-vmstate$(EXESUF): tests/test-vmstate.o \
 tests/test-qapi-types.c tests/test-qapi-types.h :\
 $(SRC_PATH)/tests/qapi-schema/qapi-schema-test.json $(SRC_PATH)/scripts/qapi-types.py $(qapi-py)
 	$(call quiet-command,$(PYTHON) $(SRC_PATH)/scripts/qapi-types.py \
-		$(gen-out-type) -o tests -p "test-" -i $<, \
+		$(gen-out-type) -o tests -p "test-" $<, \
 		"  GEN   $@")
 tests/test-qapi-visit.c tests/test-qapi-visit.h :\
 $(SRC_PATH)/tests/qapi-schema/qapi-schema-test.json $(SRC_PATH)/scripts/qapi-visit.py $(qapi-py)
 	$(call quiet-command,$(PYTHON) $(SRC_PATH)/scripts/qapi-visit.py \
-		$(gen-out-type) -o tests -p "test-" -i $<, \
+		$(gen-out-type) -o tests -p "test-" $<, \
 		"  GEN   $@")
 tests/test-qmp-commands.h tests/test-qmp-marshal.c :\
 $(SRC_PATH)/tests/qapi-schema/qapi-schema-test.json $(SRC_PATH)/scripts/qapi-commands.py $(qapi-py)
 	$(call quiet-command,$(PYTHON) $(SRC_PATH)/scripts/qapi-commands.py \
-		$(gen-out-type) -o tests -p "test-" -i $<, \
+		$(gen-out-type) -o tests -p "test-" $<, \
 		"  GEN   $@")
 tests/test-qapi-event.c tests/test-qapi-event.h :\
 $(SRC_PATH)/tests/qapi-schema/qapi-schema-test.json $(SRC_PATH)/scripts/qapi-event.py $(qapi-py)
 	$(call quiet-command,$(PYTHON) $(SRC_PATH)/scripts/qapi-event.py \
-		$(gen-out-type) -o tests -p "test-" -i $<, \
+		$(gen-out-type) -o tests -p "test-" $<, \
 		"  GEN   $@")
 
 tests/test-string-output-visitor$(EXESUF): tests/test-string-output-visitor.o $(test-qapi-obj-y) libqemuutil.a libqemustub.a

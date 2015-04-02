@@ -536,7 +536,7 @@ created code.
 Example:
 
     $ python scripts/qapi-types.py --output-dir="qapi-generated" \
-    --prefix="example-" --input-file=example-schema.json
+    --prefix="example-" example-schema.json
     $ cat qapi-generated/example-qapi-types.c
 [Uninteresting stuff omitted...]
 
@@ -623,7 +623,7 @@ $(prefix)qapi-visit.h: declarations for previously mentioned visitor
 Example:
 
     $ python scripts/qapi-visit.py --output-dir="qapi-generated"
-    --prefix="example-" --input-file=example-schema.json
+    --prefix="example-" example-schema.json
     $ cat qapi-generated/example-qapi-visit.c
 [Uninteresting stuff omitted...]
 
@@ -681,7 +681,7 @@ Example:
         error_propagate(errp, err);
     }
     $ python scripts/qapi-commands.py --output-dir="qapi-generated" \
-    --prefix="example-" --input-file=example-schema.json
+    --prefix="example-" example-schema.json
     $ cat qapi-generated/example-qapi-visit.h
 [Uninteresting stuff omitted...]
 
@@ -715,7 +715,7 @@ $(prefix)qmp-commands.h: Function prototypes for the QMP commands
 Example:
 
     $ python scripts/qapi-commands.py --output-dir="qapi-generated"
-    --prefix="example-" --input-file=example-schema.json
+    --prefix="example-" example-schema.json
     $ cat qapi-generated/example-qmp-marshal.c
 [Uninteresting stuff omitted...]
 
@@ -806,7 +806,7 @@ $(prefix)qapi-event.c - Implementation of functions to send an event
 Example:
 
     $ python scripts/qapi-event.py --output-dir="qapi-generated"
-    --prefix="example-" --input-file=example-schema.json
+    --prefix="example-" example-schema.json
     $ cat qapi-generated/example-qapi-event.c
 [Uninteresting stuff omitted...]
 

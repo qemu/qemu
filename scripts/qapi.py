@@ -984,10 +984,9 @@ def parse_command_line(extra_options = "", extra_long_options = []):
 
     try:
         opts, args = getopt.gnu_getopt(sys.argv[1:],
-                                       "chp:i:o:" + extra_options,
+                                       "chp:o:" + extra_options,
                                        ["source", "header", "prefix=",
-                                        "input-file=", "output-dir="]
-                                       + extra_long_options)
+                                        "output-dir="] + extra_long_options)
     except getopt.GetoptError, err:
         print >>sys.stderr, "%s: %s" % (sys.argv[0], str(err))
         sys.exit(1)
@@ -1002,8 +1001,6 @@ def parse_command_line(extra_options = "", extra_long_options = []):
         o, a = oa
         if o in ("-p", "--prefix"):
             prefix = a
-        elif o in ("-i", "--input-file"):
-            input_file = a
         elif o in ("-o", "--output-dir"):
             output_dir = a + "/"
         elif o in ("-c", "--source"):
@@ -1017,8 +1014,9 @@ def parse_command_line(extra_options = "", extra_long_options = []):
         do_c = True
         do_h = True
 
-    if len(args) != 0:
-        print >>sys.stderr, "%s: too many arguments" % sys.argv[0]
+    if len(args) != 1:
+        print >>sys.stderr, "%s: need exactly one argument" % sys.argv[0]
         sys.exit(1)
+    input_file = args[0]
 
     return (input_file, output_dir, do_c, do_h, prefix, extra_opts)
