@@ -33,7 +33,7 @@
 #include "hw/i386/pc.h"
 #include "target-i386/cpu.h"
 #include "hw/timer/hpet.h"
-#include "hw/i386/acpi-defs.h"
+#include "hw/acpi/acpi-defs.h"
 #include "hw/acpi/acpi.h"
 #include "hw/nvram/fw_cfg.h"
 #include "hw/acpi/bios-linker-loader.h"
