@@ -70,9 +70,6 @@
 
 #define ACPI_BUILD_TABLE_SIZE             0x20000
 
-/* Reserve RAM space for tables: add another order of magnitude. */
-#define ACPI_BUILD_TABLE_MAX_SIZE         0x200000
-
 /* #define DEBUG_ACPI_BUILD */
 #ifdef DEBUG_ACPI_BUILD
 #define ACPI_BUILD_DPRINTF(fmt, ...)        \
@@ -267,50 +264,7 @@ static void acpi_get_pci_info(PcPciInfo *info)
                                             NULL);
 }
 
-#define ACPI_BUILD_APPNAME  "Bochs"
-#define ACPI_BUILD_APPNAME6 "BOCHS "
-#define ACPI_BUILD_APPNAME4 "BXPC"
-
-#define ACPI_BUILD_TABLE_FILE "etc/acpi/tables"
-#define ACPI_BUILD_RSDP_FILE "etc/acpi/rsdp"
-#define ACPI_BUILD_TPMLOG_FILE "etc/tpm/log"
-
-static void
-build_header(GArray *linker, GArray *table_data,
-             AcpiTableHeader *h, const char *sig, int len, uint8_t rev)
-{
-    memcpy(&h->signature, sig, 4);
-    h->length = cpu_to_le32(len);
-    h->revision = rev;
-    memcpy(h->oem_id, ACPI_BUILD_APPNAME6, 6);
-    memcpy(h->oem_table_id, ACPI_BUILD_APPNAME4, 4);
-    memcpy(h->oem_table_id + 4, sig, 4);
-    h->oem_revision = cpu_to_le32(1);
-    memcpy(h->asl_compiler_id, ACPI_BUILD_APPNAME4, 4);
-    h->asl_compiler_revision = cpu_to_le32(1);
-    h->checksum = 0;
-    /* Checksum to be filled in by Guest linker */
-    bios_linker_loader_add_checksum(linker, ACPI_BUILD_TABLE_FILE,
-                                    table_data->data, h, len, &h->checksum);
-}
-
-/* End here */
 #define ACPI_PORT_SMI_CMD           0x00b2 /* TODO: this is APM_CNT_IOPORT */
-
-static inline void *acpi_data_push(GArray *table_data, unsigned size)
-{
-    unsigned off = table_data->len;
-    g_array_set_size(table_data, off + size);
-    return table_data->data + off;
-}
-
-static unsigned acpi_data_len(GArray *table)
-{
-#if GLIB_CHECK_VERSION(2, 22, 0)
-    assert(g_array_get_element_size(table) == 1);
-#endif
-    return table->len;
-}
 
 static void acpi_align_size(GArray *blob, unsigned align)
 {
@@ -318,12 +272,6 @@ static void acpi_align_size(GArray *blob, unsigned align)
      * we need to change size in the future (breaking cross version migration).
      */
     g_array_set_size(blob, ROUND_UP(acpi_data_len(blob), align));
-}
-
-static inline void acpi_add_table(GArray *table_offsets, GArray *table_data)
-{
-    uint32_t offset = cpu_to_le32(table_data->len);
-    g_array_append_val(table_offsets, offset);
 }
 
 /* FACS */
@@ -1293,31 +1241,6 @@ build_rsdp(GArray *rsdp_table, GArray *linker, unsigned rsdt)
                                     rsdp, rsdp, sizeof *rsdp, &rsdp->checksum);
 
     return rsdp_table;
-}
-
-typedef
-struct AcpiBuildTables {
-    GArray *table_data;
-    GArray *rsdp;
-    GArray *tcpalog;
-    GArray *linker;
-} AcpiBuildTables;
-
-static inline void acpi_build_tables_init(AcpiBuildTables *tables)
-{
-    tables->rsdp = g_array_new(false, true /* clear */, 1);
-    tables->table_data = g_array_new(false, true /* clear */, 1);
-    tables->tcpalog = g_array_new(false, true /* clear */, 1);
-    tables->linker = bios_linker_loader_init();
-}
-
-static inline void acpi_build_tables_cleanup(AcpiBuildTables *tables, bool mfre)
-{
-    void *linker_data = bios_linker_loader_cleanup(tables->linker);
-    g_free(linker_data);
-    g_array_free(tables->rsdp, true);
-    g_array_free(tables->table_data, true);
-    g_array_free(tables->tcpalog, mfre);
 }
 
 typedef

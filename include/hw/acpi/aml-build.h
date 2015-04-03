@@ -4,6 +4,18 @@
 #include <stdint.h>
 #include <glib.h>
 #include "qemu/compiler.h"
+#include "hw/acpi/acpi-defs.h"
+
+/* Reserve RAM space for tables: add another order of magnitude. */
+#define ACPI_BUILD_TABLE_MAX_SIZE         0x200000
+
+#define ACPI_BUILD_APPNAME  "Bochs"
+#define ACPI_BUILD_APPNAME6 "BOCHS "
+#define ACPI_BUILD_APPNAME4 "BXPC"
+
+#define ACPI_BUILD_TABLE_FILE "etc/acpi/tables"
+#define ACPI_BUILD_RSDP_FILE "etc/acpi/rsdp"
+#define ACPI_BUILD_TPMLOG_FILE "etc/tpm/log"
 
 typedef enum {
     AML_NO_OPCODE = 0,/* has only data */
@@ -92,6 +104,14 @@ typedef enum {
     aml_ReadOnly = 0,
     aml_ReadWrite = 1,
 } AmlReadAndWrite;
+
+typedef
+struct AcpiBuildTables {
+    GArray *table_data;
+    GArray *rsdp;
+    GArray *tcpalog;
+    GArray *linker;
+} AcpiBuildTables;
 
 /**
  * init_aml_allocator:
@@ -187,5 +207,14 @@ Aml *aml_buffer(void);
 Aml *aml_resource_template(void);
 Aml *aml_field(const char *name, AmlFieldFlags flags);
 Aml *aml_varpackage(uint32_t num_elements);
+
+void
+build_header(GArray *linker, GArray *table_data,
+             AcpiTableHeader *h, const char *sig, int len, uint8_t rev);
+void *acpi_data_push(GArray *table_data, unsigned size);
+unsigned acpi_data_len(GArray *table);
+void acpi_add_table(GArray *table_offsets, GArray *table_data);
+void acpi_build_tables_init(AcpiBuildTables *tables);
+void acpi_build_tables_cleanup(AcpiBuildTables *tables, bool mfre);
 
 #endif
