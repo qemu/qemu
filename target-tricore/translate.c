@@ -3745,10 +3745,10 @@ static void decode_slr_opc(DisasContext *ctx, int op1)
         tcg_gen_addi_tl(cpu_gpr_a[r2], cpu_gpr_a[r2], 2);
         break;
     case OPC1_16_SLR_LD_W:
-        tcg_gen_qemu_ld_tl(cpu_gpr_d[r1], cpu_gpr_a[r2], ctx->mem_idx, MO_LESW);
+        tcg_gen_qemu_ld_tl(cpu_gpr_d[r1], cpu_gpr_a[r2], ctx->mem_idx, MO_LESL);
         break;
     case OPC1_16_SLR_LD_W_POSTINC:
-        tcg_gen_qemu_ld_tl(cpu_gpr_d[r1], cpu_gpr_a[r2], ctx->mem_idx, MO_LESW);
+        tcg_gen_qemu_ld_tl(cpu_gpr_d[r1], cpu_gpr_a[r2], ctx->mem_idx, MO_LESL);
         tcg_gen_addi_tl(cpu_gpr_a[r2], cpu_gpr_a[r2], 4);
         break;
     }
