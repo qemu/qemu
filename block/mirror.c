@@ -634,7 +634,7 @@ static void mirror_complete(BlockJob *job, Error **errp)
     }
 
     s->should_complete = true;
-    block_job_resume(job);
+    block_job_enter(&s->common);
 }
 
 static const BlockJobDriver mirror_job_driver = {
