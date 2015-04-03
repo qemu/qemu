@@ -681,7 +681,7 @@ int nbd_init(int fd, int csock, uint32_t flags, off_t size)
 
     TRACE("Setting size to %zd block(s)", (size_t)(size / BDRV_SECTOR_SIZE));
 
-    if (ioctl(fd, NBD_SET_SIZE_BLOCKS, size / (size_t)BDRV_SECTOR_SIZE) < 0) {
+    if (ioctl(fd, NBD_SET_SIZE_BLOCKS, (size_t)(size / BDRV_SECTOR_SIZE)) < 0) {
         int serrno = errno;
         LOG("Failed setting size (in blocks)");
         return -serrno;
