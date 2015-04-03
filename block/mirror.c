@@ -475,7 +475,7 @@ static void coroutine_fn mirror_run(void *opaque)
                         (cnt + s->sectors_in_flight) * BDRV_SECTOR_SIZE;
 
         /* Note that even when no rate limit is applied we need to yield
-         * periodically with no pending I/O so that qemu_aio_flush() returns.
+         * periodically with no pending I/O so that bdrv_drain_all() returns.
          * We do so every SLICE_TIME nanoseconds, or when there is an error,
          * or when the source is clean, whichever comes first.
          */

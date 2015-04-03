@@ -287,7 +287,7 @@ static void coroutine_fn backup_run(void *opaque)
                 break;
             }
 
-            /* we need to yield so that qemu_aio_flush() returns.
+            /* we need to yield so that bdrv_drain_all() returns.
              * (without, VM does not reboot)
              */
             if (job->common.speed) {
