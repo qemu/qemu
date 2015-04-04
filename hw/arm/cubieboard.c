@@ -63,9 +63,8 @@ static void cubieboard_init(MachineState *machine)
         exit(1);
     }
 
-    memory_region_init_ram(&s->sdram, NULL, "cubieboard.ram",
-                           machine->ram_size, &error_abort);
-    vmstate_register_ram_global(&s->sdram);
+    memory_region_allocate_system_memory(&s->sdram, NULL, "cubieboard.ram",
+                                         machine->ram_size);
     memory_region_add_subregion(get_system_memory(), AW_A10_SDRAM_BASE,
                                 &s->sdram);
 

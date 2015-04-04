@@ -26,6 +26,8 @@
  *  Contributions after 2012-01-13 are licensed under the terms of the
  *  GNU GPL, version 2 or (at your option) any later version.
  */
+
+#include "hw/boards.h"
 #include "hw/sysbus.h"
 #include "strongarm.h"
 #include "qemu/error-report.h"
@@ -1604,9 +1606,8 @@ StrongARMState *sa1110_init(MemoryRegion *sysmem,
         exit(1);
     }
 
-    memory_region_init_ram(&s->sdram, NULL, "strongarm.sdram", sdram_size,
-                           &error_abort);
-    vmstate_register_ram_global(&s->sdram);
+    memory_region_allocate_system_memory(&s->sdram, NULL, "strongarm.sdram",
+                                         sdram_size);
     memory_region_add_subregion(sysmem, SA_SDCS0, &s->sdram);
 
     s->pic = sysbus_create_varargs("strongarm_pic", 0x90050000,

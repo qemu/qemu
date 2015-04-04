@@ -16,6 +16,8 @@
  * You should have received a copy of the GNU General Public License along
  * with this program; if not, see <http://www.gnu.org/licenses/>.
  */
+
+#include "hw/boards.h"
 #include "hw/hw.h"
 #include "hw/arm/arm.h"
 #include "hw/arm/omap.h"
@@ -3878,9 +3880,8 @@ struct omap_mpu_state_s *omap310_mpu_init(MemoryRegion *system_memory,
     omap_clk_init(s);
 
     /* Memory-mapped stuff */
-    memory_region_init_ram(&s->emiff_ram, NULL, "omap1.dram", s->sdram_size,
-                           &error_abort);
-    vmstate_register_ram_global(&s->emiff_ram);
+    memory_region_allocate_system_memory(&s->emiff_ram, NULL, "omap1.dram",
+                                         s->sdram_size);
     memory_region_add_subregion(system_memory, OMAP_EMIFF_BASE, &s->emiff_ram);
     memory_region_init_ram(&s->imif_ram, NULL, "omap1.sram", s->sram_size,
                            &error_abort);
