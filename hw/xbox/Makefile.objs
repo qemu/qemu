@@ -6,3 +6,5 @@ obj-y += nv2a.o nv2a_vsh.o nv2a_psh.o swizzle.o
 obj-y += mcpx_apu.o mcpx_aci.o
 obj-y += lpc47m157.o
 obj-y += xid.o
+
+obj-y += dsp/

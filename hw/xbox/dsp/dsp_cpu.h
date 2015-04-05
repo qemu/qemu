@@ -1,8 +1,8 @@
 /*
-	DSP M56001 emulation
-	Instructions interpreter, execution thread
+    DSP56300 emulator
 
-	(C) 2003-2008 ARAnyM developer team
+    Based on Hatari DSP M56001 emulation
+    (C) 2003-2008 ARAnyM developer team
 
 	This program is free software; you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -22,9 +22,8 @@
 #ifndef DSP_CPU_H
 #define DSP_CPU_H
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+#include <stdio.h>
+#include <stdint.h>
 
 /* Defines */
 #define BITMASK(x)	((1<<(x))-1)
@@ -111,15 +110,11 @@ extern "C" {
 #define DSP_SPACE_P	0x02
 
 /* Functions */
-extern void dsp56k_init_cpu(void);		/* Set dsp_core to use */
-extern void dsp56k_execute_instruction(void);	/* Execute 1 instruction */
-extern Uint16 dsp56k_execute_one_disasm_instruction(FILE *out, Uint16 pc);	/* Execute 1 instruction in disasm mode */
+void dsp56k_init_cpu(void);		/* Set dsp_core to use */
+void dsp56k_execute_instruction(void);	/* Execute 1 instruction */
+uint16_t dsp56k_execute_one_disasm_instruction(FILE *out, uint16_t pc);	/* Execute 1 instruction in disasm mode */
 
 /* Interrupt relative functions */
-void dsp_add_interrupt(Uint16 inter);
-
-#ifdef __cplusplus
-}
-#endif
+void dsp_add_interrupt(uint16_t inter);
 
 #endif	/* DSP_CPU_H */

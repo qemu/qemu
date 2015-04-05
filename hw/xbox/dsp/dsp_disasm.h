@@ -1,7 +1,7 @@
 /*
-	DSP M56001 emulation
-	Disassembler
+    DSP56300 Disassembler
 
+    Based on Hatari DSP M56001 Disassembler
 	(C) 2003-2008 ARAnyM developer team
 
 	This program is free software; you can redistribute it and/or modify
@@ -22,26 +22,18 @@
 #ifndef DSP_DISASM_H
 #define DSP_DISASM_H
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 typedef enum {
 	DSP_TRACE_MODE,
 	DSP_DISASM_MODE
 } dsp_trace_disasm_t;
 
 /* Functions */
-extern void dsp56k_disasm_init(void);
-extern Uint16 dsp56k_disasm(dsp_trace_disasm_t value);
-extern const char* dsp56k_getInstructionText(void);
+void dsp56k_disasm_init(void);
+uint16_t dsp56k_disasm(dsp_trace_disasm_t value);
+const char* dsp56k_get_instruction_text(void);
 
 /* Registers change */
-extern void dsp56k_disasm_reg_save(void);
-extern void dsp56k_disasm_reg_compare(void);
-
-#ifdef __cplusplus
-}
-#endif
+void dsp56k_disasm_reg_save(void);
+void dsp56k_disasm_reg_compare(void);
 
 #endif /* DSP_DISASM_H */
