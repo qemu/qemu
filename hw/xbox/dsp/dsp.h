@@ -33,6 +33,12 @@ void dsp_uninit(void);
 void dsp_reset(void);
 void dsp_run(int nHostCycles);
 
+/* Emulator call these to init/stop/reset DSP emulation */
+void dsp_core_init(void (*host_interrupt)(void));
+void dsp_core_shutdown(void);
+void dsp_core_reset(void);
+
+
 /* Dsp Debugger commands */
 uint32_t dsp_get_pc(void);
 uint32_t dsp_get_next_pc(uint32_t pc);

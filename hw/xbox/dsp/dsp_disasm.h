@@ -22,6 +22,8 @@
 #ifndef DSP_DISASM_H
 #define DSP_DISASM_H
 
+#include <stdint.h>
+
 typedef enum {
 	DSP_TRACE_MODE,
 	DSP_DISASM_MODE

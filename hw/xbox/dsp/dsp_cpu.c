@@ -23,9 +23,10 @@
 #include <string.h>
 #include <assert.h>
 
-#include "dsp_core.h"
-#include "dsp_cpu.h"
 #include "dsp_disasm.h"
+#include "dsp_int.h"
+
+#include "dsp_cpu.h"
 
 #define TRACE_DSP_DISASM 1
 #define TRACE_DSP_DISASM_REG 1

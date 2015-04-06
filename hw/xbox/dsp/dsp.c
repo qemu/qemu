@@ -26,7 +26,7 @@
 
 #include "dsp_cpu.h"
 #include "dsp_disasm.h"
-#include "dsp_core.h"
+#include "dsp_int.h"
 
 #include "dsp.h"
 
@@ -34,12 +34,7 @@
 #define BITMASK(x)  ((1<<(x))-1)
 #define ARRAYSIZE(x) (int)(sizeof(x)/sizeof(x[0]))
 
-#define DEBUG 0
-#if DEBUG
-#define DPRINTF(a) printf a
-#else
-#define DPRINTF(a)
-#endif
+#define DPRINTF(s, ...) fprintf(stderr, s, ## __VA_ARGS__)
 
 static int32_t save_cycles;
 
@@ -80,9 +75,9 @@ void dsp_reset(void)
 /**
  * Run DSP for certain cycles
  */
-void dsp_run(int nHostCycles)
+void dsp_run(int cycles)
 {
-    save_cycles += nHostCycles * 2;
+    save_cycles += cycles;
 
     if (dsp_core.running == 0) return;
 
@@ -454,4 +449,83 @@ bool dsp_disasm_set_register(const char *arg, uint32_t value)
         return true;
     }
     return false;
+}
+
+
+
+
+
+
+
+
+
+
+
+
+/*--- the DSP core itself ---*/
+dsp_core_t dsp_core;
+
+static void (*dsp_host_interrupt)(void);   /* Function to trigger host interrupt */
+
+/* Init DSP emulation */
+void dsp_core_init(void (*host_interrupt)(void))
+{
+    DPRINTF("Dsp: core init\n");
+
+    dsp_host_interrupt = host_interrupt;
+    memset(&dsp_core, 0, sizeof(dsp_core_t));
+}
+
+/* Shutdown DSP emulation */
+void dsp_core_shutdown(void)
+{
+    dsp_core.running = 0;
+    DPRINTF("Dsp: core shutdown\n");
+}
+
+/* Reset */
+void dsp_core_reset(void)
+{
+    int i;
+
+    DPRINTF("Dsp: core reset\n");
+    dsp_core_shutdown();
+
+    /* Memory */
+    memset(dsp_core.periph, 0, sizeof(dsp_core.periph));
+    memset(dsp_core.stack, 0, sizeof(dsp_core.stack));
+    memset(dsp_core.registers, 0, sizeof(dsp_core.registers));
+    // dsp_core.dsp_host_rtx = 0;
+    // dsp_core.dsp_host_htx = 0;
+    
+    /* Registers */
+    dsp_core.pc = 0x0000;
+    dsp_core.registers[DSP_REG_OMR]=0x02;
+    for (i=0;i<8;i++) {
+        dsp_core.registers[DSP_REG_M0+i]=0x00ffff;
+    }
+
+    /* Interruptions */
+    memset((void*)dsp_core.interrupt_isPending, 0, sizeof(dsp_core.interrupt_isPending));
+    dsp_core.interrupt_state = DSP_INTERRUPT_NONE;
+    dsp_core.interrupt_instr_fetch = -1;
+    dsp_core.interrupt_save_pc = -1;
+    dsp_core.interrupt_counter = 0;
+    dsp_core.interrupt_pipeline_count = 0;
+    for (i=0;i<5;i++) {
+        dsp_core.interrupt_ipl[i] = 3;
+    }
+    for (i=5;i<12;i++) {
+        dsp_core.interrupt_ipl[i] = -1;
+    }
+
+    /* Other hardware registers */
+    // dsp_core.periph[DSP_SPACE_X][DSP_IPR]=0;
+    // dsp_core.periph[DSP_SPACE_X][DSP_BCR]=0xffff;
+
+    /* Misc */
+    dsp_core.loop_rep = 0;
+
+    DPRINTF("Dsp: reset done\n");
+    dsp56k_init_cpu();
 }

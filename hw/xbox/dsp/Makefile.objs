@@ -1,1 +1,1 @@
-obj-y += dsp.o dsp_core.o dsp_cpu.o dsp_disasm.o
+obj-y += dsp.o dsp_cpu.o dsp_disasm.o

@@ -24,10 +24,9 @@
 #include <string.h>
 #include <inttypes.h>
 
-#include "dsp_core.h"
 #include "dsp_cpu.h"
+#include "dsp_int.h"
 #include "dsp_disasm.h"
-
 
 /* More disasm infos, if wanted */
 #define DSP_DISASM_REG_PC 0
