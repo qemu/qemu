@@ -93,9 +93,6 @@
 #define DSP_PERIPH_BASE 0xFFFF80
 #define DSP_PERIPH_SIZE 128
 
-
-
-
 #define DSP_INTERRUPT_NONE      0x0
 #define DSP_INTERRUPT_DISABLED  0x1
 #define DSP_INTERRUPT_LONG      0x2

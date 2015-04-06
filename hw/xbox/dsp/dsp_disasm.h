@@ -1,7 +1,7 @@
 /*
     DSP56300 Disassembler
 
-    Based on Hatari DSP M56001 Disassembler
+    Adapted from Hatari DSP M56001 Disassembler
 	(C) 2003-2008 ARAnyM developer team
 
 	This program is free software; you can redistribute it and/or modify

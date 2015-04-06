@@ -1,7 +1,7 @@
 /*
     DSP56300 emulation
 
-    Based on Hatari DSP M56001 emulation
+    Adapted from Hatari DSP M56001 emulation
     (C) 2001-2008 ARAnyM developer team
     Adaption to Hatari (C) 2008 by Thomas Huth
 
@@ -33,9 +33,6 @@ void dsp_uninit(void);
 void dsp_reset(void);
 void dsp_run(int nHostCycles);
 
-/* Emulator call these to init/stop/reset DSP emulation */
-void dsp_core_init(void (*host_interrupt)(void));
-void dsp_core_shutdown(void);
 void dsp_core_reset(void);
 
 

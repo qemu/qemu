@@ -1,7 +1,7 @@
 /*
     DSP56300 emulation
 
-    Based on Hatari DSP M56001 emulation
+    Adapted from Hatari DSP M56001 emulation
     (C) 2001-2008 ARAnyM developer team
     Adaption to Hatari (C) 2008 by Thomas Huth
 
@@ -38,16 +38,18 @@
 
 static int32_t save_cycles;
 
-static void dsp_trigger_host_interrupt(void) {
-    assert(false);
-}
+/*--- the DSP core itself ---*/
+dsp_core_t dsp_core;
 
 /**
  * Initialize the DSP emulation
  */
 void dsp_init(void)
 {
-    dsp_core_init(dsp_trigger_host_interrupt);
+    DPRINTF("Dsp: init\n");
+
+    memset(&dsp_core, 0, sizeof(dsp_core_t));
+
     dsp56k_init_cpu();
     save_cycles = 0;
 }
@@ -58,7 +60,8 @@ void dsp_init(void)
  */
 void dsp_uninit(void)
 {
-    dsp_core_shutdown();
+    dsp_core.running = 0;
+    DPRINTF("Dsp: core shutdown\n");
 }
 
 
@@ -453,43 +456,13 @@ bool dsp_disasm_set_register(const char *arg, uint32_t value)
 
 
 
-
-
-
-
-
-
-
-
-
-/*--- the DSP core itself ---*/
-dsp_core_t dsp_core;
-
-static void (*dsp_host_interrupt)(void);   /* Function to trigger host interrupt */
-
-/* Init DSP emulation */
-void dsp_core_init(void (*host_interrupt)(void))
-{
-    DPRINTF("Dsp: core init\n");
-
-    dsp_host_interrupt = host_interrupt;
-    memset(&dsp_core, 0, sizeof(dsp_core_t));
-}
-
-/* Shutdown DSP emulation */
-void dsp_core_shutdown(void)
-{
-    dsp_core.running = 0;
-    DPRINTF("Dsp: core shutdown\n");
-}
-
 /* Reset */
 void dsp_core_reset(void)
 {
     int i;
 
     DPRINTF("Dsp: core reset\n");
-    dsp_core_shutdown();
+    dsp_core.running = 0;
 
     /* Memory */
     memset(dsp_core.periph, 0, sizeof(dsp_core.periph));
