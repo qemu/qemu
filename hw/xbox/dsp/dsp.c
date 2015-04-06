@@ -20,8 +20,9 @@
     Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 */
 
- #include <ctype.h>
+#include <ctype.h>
 #include <string.h>
+#include <assert.h>
 
 #include "dsp_cpu.h"
 #include "dsp_disasm.h"
@@ -29,6 +30,8 @@
 
 #include "dsp.h"
 
+/* Defines */
+#define BITMASK(x)  ((1<<(x))-1)
 #define ARRAYSIZE(x) (int)(sizeof(x)/sizeof(x[0]))
 
 #define DEBUG 0
@@ -38,23 +41,18 @@
 #define DPRINTF(a)
 #endif
 
-static const char* x_ext_memory_addr_name[] = {
-    "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "",
-    "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "",
-    "PBC", "PCC", "PBDDR", "PCDDR", "PBD", "PCD", "", "",
-    "HCR", "HSR", "", "HRX/HTX", "CRA", "CRB", "SSISR/TSR", "RX/TX",
-    "SCR", "SSR", "SCCR", "STXA", "SRX/STX", "SRX/STX", "SRX/STX", "",
-    "", "", "", "", "", "", "BCR", "IPR"
-};
-
 static int32_t save_cycles;
+
+static void dsp_trigger_host_interrupt(void) {
+    assert(false);
+}
 
 /**
  * Initialize the DSP emulation
  */
 void dsp_init(void)
 {
-    dsp_core_init(NULL); //DSP_TriggerHostInterrupt
+    dsp_core_init(dsp_trigger_host_interrupt);
     dsp56k_init_cpu();
     save_cycles = 0;
 }
@@ -110,7 +108,7 @@ void dsp_run(int nHostCycles)
 /**
  * Get DSP program counter (for debugging)
  */
-uint16_t dsp_get_pc(void)
+uint32_t dsp_get_pc(void)
 {
     return dsp_core.pc;
 }
@@ -118,7 +116,7 @@ uint16_t dsp_get_pc(void)
 /**
  * Get next DSP PC without output (for debugging)
  */
-uint16_t dsp_get_next_pc(uint16_t pc)
+uint32_t dsp_get_next_pc(uint32_t pc)
 {
     /* code is reduced copy from dsp56k_execute_one_disasm_instruction() */
     dsp_core_t dsp_core_save;
@@ -152,9 +150,9 @@ uint16_t dsp_get_instr_cycles(void)
 /**
  * Disassemble DSP code between given addresses, return next PC address
  */
-uint16_t dsp_disasm_address(FILE *out, uint16_t lowerAdr, uint16_t UpperAdr)
+uint32_t dsp_disasm_address(FILE *out, uint32_t lowerAdr, uint32_t UpperAdr)
 {
-    uint16_t dsp_pc;
+    uint32_t dsp_pc;
 
     for (dsp_pc=lowerAdr; dsp_pc<=UpperAdr; dsp_pc++) {
         dsp_pc += dsp56k_execute_one_disasm_instruction(out, dsp_pc);
@@ -172,77 +170,32 @@ uint16_t dsp_disasm_address(FILE *out, uint16_t lowerAdr, uint16_t UpperAdr)
  * Return the value at given address. For valid values AND the return
  * value with BITMASK(24).
  */
-uint32_t dsp_read_memory(uint16_t address, char space_id, const char **mem_str)
+uint32_t dsp_read_memory(uint32_t address, char space_id, const char **mem_str)
 {
-    static const char *spaces[3][4] = {
-        { "X ram", "X rom", "X", "X periph" },
-        { "Y ram", "Y rom", "Y", "Y periph" },
-        { "P ram", "P ram", "P ext memory", "P ext memory" }
-    };
-    int idx, space;
+    int space;
 
     switch (space_id) {
     case 'X':
         space = DSP_SPACE_X;
-        idx = 0;
+        if (address >= DSP_PERIPH_BASE) {
+            *mem_str = "X periph";
+        } else {
+            *mem_str = "X ram";
+        }
         break;
     case 'Y':
         space = DSP_SPACE_Y;
-        idx = 1;
+        *mem_str = "Y ram";
         break;
     case 'P':
         space = DSP_SPACE_P;
-        idx = 2;
+        *mem_str = "P ram";
         break;
     default:
-        space = DSP_SPACE_X;
-        idx = 0;
-    }
-    address &= 0xFFFF;
-
-    /* Internal RAM ? */
-    if (address < 0x100) {
-        *mem_str = spaces[idx][0];
-        return dsp_core.ramint[space][address];
+        assert(false);
     }
 
-    if (space == DSP_SPACE_P) {
-        /* Internal RAM ? */
-        if (address < 0x200) {
-            *mem_str = spaces[idx][0];
-            return dsp_core.ramint[DSP_SPACE_P][address];
-        }
-        /* External RAM, mask address to available ram size */
-        *mem_str = spaces[idx][2];
-        return dsp_core.ramext[address & (DSP_RAMSIZE-1)];
-    }
-
-    /* Internal ROM ? */
-    if (address < 0x200) {
-        if (dsp_core.registers[DSP_REG_OMR] & (1<<DSP_OMR_DE)) {
-            *mem_str = spaces[idx][1];
-            return dsp_core.rom[space][address];
-        }
-    }
-
-    /* Peripheral address ? */
-    if (address >= 0xffc0) {
-        *mem_str = spaces[idx][3];
-        /* reading host/transmit regs has side-effects,
-         * so just give the memory value.
-         */
-        return dsp_core.periph[space][address-0xffc0];
-    }
-
-    /* Falcon: External RAM, map X to upper 16K of matching space in Y,P */
-    address &= (DSP_RAMSIZE>>1) - 1;
-    if (space == DSP_SPACE_X) {
-        address += DSP_RAMSIZE>>1;
-    }
-
-    /* Falcon: External RAM, finally map X,Y to P */
-    *mem_str = spaces[idx][2];
-    return dsp_core.ramext[address & (DSP_RAMSIZE-1)];
+    return dsp56k_read_memory(space, address);
 }
 
 
@@ -250,39 +203,12 @@ uint32_t dsp_read_memory(uint16_t address, char space_id, const char **mem_str)
  * Output memory values between given addresses in given DSP address space.
  * Return next DSP address value.
  */
-uint16_t dsp_disasm_memory(uint16_t dsp_memdump_addr, uint16_t dsp_memdump_upper, char space)
+uint32_t dsp_disasm_memory(uint32_t dsp_memdump_addr, uint32_t dsp_memdump_upper, char space)
 {
-    uint32_t mem, mem2, value;
+    uint32_t mem, value;
     const char *mem_str;
 
     for (mem = dsp_memdump_addr; mem <= dsp_memdump_upper; mem++) {
-        /* special printing of host communication/transmit registers */
-        if (space == 'X' && mem >= 0xffc0) {
-            if (mem == 0xffeb) {
-                fprintf(stderr,"X periph:%04x  HTX : %06x   RTX:%06x\n", 
-                    mem, dsp_core.dsp_host_htx, dsp_core.dsp_host_rtx);
-            }
-            else if (mem == 0xffef) {
-                fprintf(stderr,"X periph:%04x  SSI TX : %06x   SSI RX:%06x\n", 
-                    mem, dsp_core.ssi.transmit_value, dsp_core.ssi.received_value);
-            }
-            else {
-                value = dsp_read_memory(mem, space, &mem_str);
-                fprintf(stderr,"%s:%04x  %06x\t%s\n", mem_str, mem, value, x_ext_memory_addr_name[mem-0xffc0]);
-            }
-            continue;
-        }
-        /* special printing of X & Y external RAM values */
-        if ((space == 'X' || space == 'Y') &&
-            mem >= 0x200 && mem < 0xffc0) {
-            mem2 = mem & ((DSP_RAMSIZE>>1)-1);
-            if (space == 'X') {
-                mem2 += (DSP_RAMSIZE>>1);
-            }
-            fprintf(stderr,"%c:%04x (P:%04x): %06x\n", space,
-                mem, mem2, dsp_core.ramext[mem2 & (DSP_RAMSIZE-1)]);
-            continue;
-        }
         value = dsp_read_memory(mem, space, &mem_str);
         fprintf(stderr,"%s:%04x  %06x\n", mem_str, mem, value);
     }
@@ -303,26 +229,20 @@ void dsp_info(uint32_t dummy)
     for (i = 0; i < ARRAYSIZE(stackname); i++) {
         fprintf(stderr, "- %s stack:", stackname[i]);
         for (j = 0; j < ARRAYSIZE(dsp_core.stack[0]); j++) {
-            fprintf(stderr, " %04hx", dsp_core.stack[i][j]);
+            fprintf(stderr, " %04x", dsp_core.stack[i][j]);
         }
         fputs("\n", stderr);
     }
 
     fprintf(stderr, "- Interrupt IPL:");
     for (i = 0; i < ARRAYSIZE(dsp_core.interrupt_ipl); i++) {
-        fprintf(stderr, " %04hx", dsp_core.interrupt_ipl[i]);
+        fprintf(stderr, " %04x", dsp_core.interrupt_ipl[i]);
     }
     fputs("\n", stderr);
 
     fprintf(stderr, "- Pending ints: ");
     for (i = 0; i < ARRAYSIZE(dsp_core.interrupt_isPending); i++) {
         fprintf(stderr, " %04hx", dsp_core.interrupt_isPending[i]);
-    }
-    fputs("\n", stderr);
-
-    fprintf(stderr, "- Hostport:");
-    for (i = 0; i < ARRAYSIZE(dsp_core.hostport); i++) {
-        fprintf(stderr, " %02x", dsp_core.hostport[i]);
     }
     fputs("\n", stderr);
 }
@@ -413,7 +333,7 @@ int dsp_get_register_address(const char *regname, uint32_t **addr, uint32_t *mas
         { "OMR", &dsp_core.registers[DSP_REG_OMR], 32, 0x5f },
 
         /* 16-bit program counter */
-        { "PC",  (uint32_t*)(&dsp_core.pc),  16, BITMASK(16) },
+        { "PC",  (uint32_t*)(&dsp_core.pc),  24, BITMASK(24) },
 
         /* 16-bit DSP R (address) registers */
         { "R0",  &dsp_core.registers[DSP_REG_R0],  32, BITMASK(16) },

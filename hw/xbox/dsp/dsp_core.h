@@ -24,109 +24,7 @@
 
 #include <stdint.h>
 
-#define DSP_RAMSIZE 32768
-
-/* Host port, CPU side */
-#define CPU_HOST_ICR    0x00
-#define CPU_HOST_CVR    0x01
-#define CPU_HOST_ISR    0x02
-#define CPU_HOST_IVR    0x03
-#define CPU_HOST_TRX0   0x04
-#define CPU_HOST_TRXH   0x05
-#define CPU_HOST_TRXM   0x06
-#define CPU_HOST_TRXL   0x07
-#define CPU_HOST_RX0    0x04
-#define CPU_HOST_RXH    0x05
-#define CPU_HOST_RXM    0x06
-#define CPU_HOST_RXL    0x07
-#define CPU_HOST_TXH    0x09
-#define CPU_HOST_TXM    0x0a
-#define CPU_HOST_TXL    0x0b
-
-#define CPU_HOST_ICR_RREQ   0x00
-#define CPU_HOST_ICR_TREQ   0x01
-#define CPU_HOST_ICR_HF0    0x03
-#define CPU_HOST_ICR_HF1    0x04
-#define CPU_HOST_ICR_HM0    0x05
-#define CPU_HOST_ICR_HM1    0x06
-#define CPU_HOST_ICR_INIT   0x07
-
-#define CPU_HOST_CVR_HC     0x07
-
-#define CPU_HOST_ISR_RXDF   0x00
-#define CPU_HOST_ISR_TXDE   0x01
-#define CPU_HOST_ISR_TRDY   0x02
-#define CPU_HOST_ISR_HF2    0x03
-#define CPU_HOST_ISR_HF3    0x04
-#define CPU_HOST_ISR_DMA    0x06
-#define CPU_HOST_ISR_HREQ   0x07
-
-/* Host port, DSP side, DSP addresses are 0xffc0+value */
-#define DSP_PBC         0x20    /* Port B control register */
-#define DSP_PCC         0x21    /* Port C control register */
-#define DSP_PBDDR       0x22    /* Port B data direction register */
-#define DSP_PCDDR       0x23    /* Port C data direction register */
-#define DSP_PBD         0x24    /* Port B data register */
-#define DSP_PCD         0x25    /* Port C data register */
-#define DSP_HOST_HCR        0x28    /* Host control register */
-#define DSP_HOST_HSR        0x29    /* Host status register */
-#define DSP_HOST_HRX        0x2b    /* Host receive register */
-#define DSP_HOST_HTX        0x2b    /* Host transmit register */
-#define DSP_SSI_CRA     0x2c    /* Ssi control register A */
-#define DSP_SSI_CRB     0x2d    /* Ssi control register B */
-#define DSP_SSI_SR      0x2e    /* Ssi status register */
-#define DSP_SSI_TSR     0x2e    /* Ssi time slot register */
-#define DSP_SSI_RX      0x2f    /* Ssi receive register */
-#define DSP_SSI_TX      0x2f    /* Ssi transmit register */
-#define DSP_BCR         0x3e    /* Port A bus control register */
-#define DSP_IPR         0x3f    /* Interrupt priority register */
-
-#define DSP_HOST_HCR_HRIE   0x00
-#define DSP_HOST_HCR_HTIE   0x01
-#define DSP_HOST_HCR_HCIE   0x02
-#define DSP_HOST_HCR_HF2    0x03
-#define DSP_HOST_HCR_HF3    0x04
-
-#define DSP_HOST_HSR_HRDF   0x00
-#define DSP_HOST_HSR_HTDE   0x01
-#define DSP_HOST_HSR_HCP    0x02
-#define DSP_HOST_HSR_HF0    0x03
-#define DSP_HOST_HSR_HF1    0x04
-#define DSP_HOST_HSR_DMA    0x07
-
-#define DSP_SSI_CRA_DC0     0x8
-#define DSP_SSI_CRA_DC1     0x9
-#define DSP_SSI_CRA_DC2     0xa
-#define DSP_SSI_CRA_DC3     0xb
-#define DSP_SSI_CRA_DC4     0xc
-#define DSP_SSI_CRA_WL0     0xd
-#define DSP_SSI_CRA_WL1     0xe
-
-#define DSP_SSI_CRB_OF0     0x0
-#define DSP_SSI_CRB_OF1     0x1
-#define DSP_SSI_CRB_SCD0    0x2
-#define DSP_SSI_CRB_SCD1    0x3
-#define DSP_SSI_CRB_SCD2    0x4
-#define DSP_SSI_CRB_SCKD    0x5
-#define DSP_SSI_CRB_SHFD    0x6
-#define DSP_SSI_CRB_FSL0    0x7
-#define DSP_SSI_CRB_FSL1    0x8
-#define DSP_SSI_CRB_SYN     0x9
-#define DSP_SSI_CRB_GCK     0xa
-#define DSP_SSI_CRB_MOD     0xb
-#define DSP_SSI_CRB_TE      0xc
-#define DSP_SSI_CRB_RE      0xd
-#define DSP_SSI_CRB_TIE     0xe
-#define DSP_SSI_CRB_RIE     0xf
-
-#define DSP_SSI_SR_IF0      0x0
-#define DSP_SSI_SR_IF1      0x1
-#define DSP_SSI_SR_TFS      0x2
-#define DSP_SSI_SR_RFS      0x3
-#define DSP_SSI_SR_TUE      0x4
-#define DSP_SSI_SR_ROE      0x5
-#define DSP_SSI_SR_TDE      0x6
-#define DSP_SSI_SR_RDF      0x7
+#include "dsp_cpu.h"
 
 #define DSP_INTERRUPT_NONE      0x0
 #define DSP_INTERRUPT_DISABLED  0x1
@@ -146,32 +44,8 @@
 #define DSP_INTER_SSI_TRX_DATA      0xb
 
 
-typedef struct dsp_core_ssi_s dsp_core_ssi_t;
 typedef struct dsp_core_s dsp_core_t;
 typedef struct dsp_interrupt_s dsp_interrupt_t;
-
-struct dsp_core_ssi_s {
-    uint16_t  cra_word_length;
-    uint32_t  cra_word_mask;
-    uint16_t  cra_frame_rate_divider;
-
-    uint16_t  crb_src_clock;
-    uint16_t  crb_shifter;
-    uint16_t  crb_synchro;
-    uint16_t  crb_mode;
-    uint16_t  crb_te;
-    uint16_t  crb_re;
-    uint16_t  crb_tie;
-    uint16_t  crb_rie;
-
-    uint32_t  TX;
-    uint32_t  RX;
-    uint32_t  transmit_value;       /* DSP Transmit --> SSI */
-    uint32_t  received_value;       /* DSP Receive  --> SSI */
-    uint16_t  waitFrameTX;
-    uint16_t  waitFrameRX;
-    uint32_t  dspPlay_handshakeMode_frame;
-};
 
 struct dsp_interrupt_s {
     const uint16_t inter;
@@ -179,7 +53,6 @@ struct dsp_interrupt_s {
     const uint16_t periph;
     const char *name;
 };
-
 
 struct dsp_core_s {
 
@@ -190,40 +63,22 @@ struct dsp_core_s {
     uint16_t    instr_cycle;
 
     /* Registers */
-    uint16_t    pc;
-    uint32_t    registers[64];
+    uint32_t    pc;
+    uint32_t    registers[DSP_REG_MAX];
 
     /* stack[0=ssh], stack[1=ssl] */
-    uint16_t    stack[2][16];
+    uint32_t    stack[2][16];
 
-    /* External ram[] (mapped to p:) */
-    uint32_t    ramext[DSP_RAMSIZE];
+    uint32_t xram[DSP_XRAM_SIZE];
+    uint32_t yram[DSP_YRAM_SIZE];
+    uint32_t pram[DSP_PRAM_SIZE];
 
-    /* rom[0] is x:, rom[1] is y: */
-    uint32_t    rom[2][512];
-
-    /* Internal ram[0] is x:, ram[1] is y:, ram[2] is p: */
-    uint32_t    ramint[3][512];
-
-    /* peripheral space, [x|y]:0xffc0-0xffff */
-    uint32_t    periph[2][64];
-    uint32_t    dsp_host_htx;
-    uint32_t    dsp_host_rtx;
-    uint16_t dsp_host_isr_HREQ;
-
-
-    /* host port, CPU side */
-    uint8_t hostport[12];
-
-    /* SSI */
-    dsp_core_ssi_t ssi;
+    /* peripheral space, x:0xffff80-0xffffff */
+    uint32_t    periph[DSP_PERIPH_SIZE];
 
     /* Misc */
     uint32_t loop_rep;      /* executing rep ? */
     uint32_t pc_on_rep;     /* True if PC is on REP instruction */
-
-    /* For bootstrap routine */
-    uint16_t    bootstrap_pos;
 
     /* Interruptions */
     uint16_t    interrupt_state;        /* NONE, FAST or LONG interrupt */
@@ -244,24 +99,5 @@ extern dsp_core_t dsp_core;
 void dsp_core_init(void (*host_interrupt)(void));
 void dsp_core_shutdown(void);
 void dsp_core_reset(void);
-
-/* host port read/write by emulator, addr is 0-7, not 0xffa200-0xffa207 */
-uint8_t dsp_core_read_host(int addr);
-void dsp_core_write_host(int addr, uint8_t value);
-
-/* dsp_cpu call these to read/write host port */
-void dsp_core_hostport_dspread(void);
-void dsp_core_hostport_dspwrite(void);
-
-/* dsp_cpu call these to read/write/configure SSI port */
-void dsp_core_ssi_configure(uint32_t address, uint32_t value);
-void dsp_core_ssi_writeTX(uint32_t value);
-void dsp_core_ssi_writeTSR(void);
-uint32_t dsp_core_ssi_readRX(void);
-void dsp_core_ssi_Receive_SC0(void);
-void dsp_core_ssi_Receive_SC1(uint32_t value);
-void dsp_core_ssi_Receive_SC2(uint32_t value);
-void dsp_core_ssi_Receive_SCK(void);
-void dsp_core_setPortCDataRegister(uint32_t value);
 
 #endif /* DSP_CORE_H */

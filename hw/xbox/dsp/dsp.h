@@ -34,12 +34,12 @@ void dsp_reset(void);
 void dsp_run(int nHostCycles);
 
 /* Dsp Debugger commands */
-uint16_t dsp_get_pc(void);
-uint16_t dsp_get_next_pc(uint16_t pc);
+uint32_t dsp_get_pc(void);
+uint32_t dsp_get_next_pc(uint32_t pc);
 uint16_t dsp_get_instr_cycles(void);
-uint32_t dsp_read_memory(uint16_t addr, char space, const char **mem_str);
-uint16_t dsp_disasm_memory(uint16_t dsp_memdump_addr, uint16_t dsp_memdump_upper, char space);
-uint16_t dsp_disasm_address(FILE *out, uint16_t lowerAdr, uint16_t UpperAdr);
+uint32_t dsp_read_memory(uint32_t addr, char space, const char **mem_str);
+uint32_t dsp_disasm_memory(uint32_t dsp_memdump_addr, uint32_t dsp_memdump_upper, char space);
+uint32_t dsp_disasm_address(FILE *out, uint32_t lowerAdr, uint32_t UpperAdr);
 void dsp_info(uint32_t dummy);
 void dsp_print_registers(void);
 int dsp_get_register_address(const char *arg, uint32_t **addr, uint32_t *mask);

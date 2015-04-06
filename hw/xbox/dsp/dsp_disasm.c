@@ -35,6 +35,7 @@
 /**********************************
  *  Defines
  **********************************/
+#define BITMASK(x)  ((1<<(x))-1)
 
 /**********************************
  *  Variables
@@ -565,15 +566,7 @@ static void dsp_pm_class2(void) {
 
 static uint32_t read_memory(uint32_t currPc)
 {
-    uint32_t value;
-
-    if (currPc<0x200) {
-        value = dsp_core.ramint[DSP_SPACE_P][currPc];
-    } else {
-        value = dsp_core.ramext[currPc & (DSP_RAMSIZE-1)];
-    }
-
-    return value & BITMASK(24);
+    return dsp56k_read_memory(DSP_SPACE_P, currPc);
 }
 
 /**********************************
