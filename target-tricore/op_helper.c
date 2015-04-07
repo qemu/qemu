@@ -2573,7 +2573,7 @@ void helper_rslcx(CPUTriCoreState *env)
         /* CSU trap */
     }
     /* if (PCXI.UL == 1) then trap(CTYP); */
-    if ((env->PCXI & MASK_PCXI_UL) == 1) {
+    if ((env->PCXI & MASK_PCXI_UL) != 0) {
         /* CTYP trap */
     }
     /* EA = {PCXI.PCXS, 6'b0, PCXI.PCXO, 6'b0}; */
