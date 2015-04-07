@@ -391,13 +391,13 @@ static BlockBackend *blockdev_init(const char *file, QDict *bs_opts,
         }
     }
 
-    if (qemu_opt_get_bool(opts, "cache.writeback", true)) {
+    if (qemu_opt_get_bool(opts, BDRV_OPT_CACHE_WB, true)) {
         bdrv_flags |= BDRV_O_CACHE_WB;
     }
-    if (qemu_opt_get_bool(opts, "cache.direct", false)) {
+    if (qemu_opt_get_bool(opts, BDRV_OPT_CACHE_DIRECT, false)) {
         bdrv_flags |= BDRV_O_NOCACHE;
     }
-    if (qemu_opt_get_bool(opts, "cache.no-flush", false)) {
+    if (qemu_opt_get_bool(opts, BDRV_OPT_CACHE_NO_FLUSH, false)) {
         bdrv_flags |= BDRV_O_NO_FLUSH;
     }
 
@@ -733,16 +733,16 @@ DriveInfo *drive_new(QemuOpts *all_opts, BlockInterfaceType block_default_type)
         }
 
         /* Specific options take precedence */
-        if (!qemu_opt_get(all_opts, "cache.writeback")) {
-            qemu_opt_set_bool(all_opts, "cache.writeback",
+        if (!qemu_opt_get(all_opts, BDRV_OPT_CACHE_WB)) {
+            qemu_opt_set_bool(all_opts, BDRV_OPT_CACHE_WB,
                               !!(flags & BDRV_O_CACHE_WB), &error_abort);
         }
-        if (!qemu_opt_get(all_opts, "cache.direct")) {
-            qemu_opt_set_bool(all_opts, "cache.direct",
+        if (!qemu_opt_get(all_opts, BDRV_OPT_CACHE_DIRECT)) {
+            qemu_opt_set_bool(all_opts, BDRV_OPT_CACHE_DIRECT,
                               !!(flags & BDRV_O_NOCACHE), &error_abort);
         }
-        if (!qemu_opt_get(all_opts, "cache.no-flush")) {
-            qemu_opt_set_bool(all_opts, "cache.no-flush",
+        if (!qemu_opt_get(all_opts, BDRV_OPT_CACHE_NO_FLUSH)) {
+            qemu_opt_set_bool(all_opts, BDRV_OPT_CACHE_NO_FLUSH,
                               !!(flags & BDRV_O_NO_FLUSH), &error_abort);
         }
         qemu_opt_unset(all_opts, "cache");
@@ -3105,15 +3105,15 @@ QemuOptsList qemu_common_drive_opts = {
             .type = QEMU_OPT_STRING,
             .help = "discard operation (ignore/off, unmap/on)",
         },{
-            .name = "cache.writeback",
+            .name = BDRV_OPT_CACHE_WB,
             .type = QEMU_OPT_BOOL,
             .help = "enables writeback mode for any caches",
         },{
-            .name = "cache.direct",
+            .name = BDRV_OPT_CACHE_DIRECT,
             .type = QEMU_OPT_BOOL,
             .help = "enables use of O_DIRECT (bypass the host page cache)",
         },{
-            .name = "cache.no-flush",
+            .name = BDRV_OPT_CACHE_NO_FLUSH,
             .type = QEMU_OPT_BOOL,
             .help = "ignore any flush requests for the device",
         },{

@@ -90,6 +90,14 @@ typedef struct HDGeometry {
 
 #define BDRV_O_CACHE_MASK  (BDRV_O_NOCACHE | BDRV_O_CACHE_WB | BDRV_O_NO_FLUSH)
 
+
+/* Option names of options parsed by the block layer */
+
+#define BDRV_OPT_CACHE_WB       "cache.writeback"
+#define BDRV_OPT_CACHE_DIRECT   "cache.direct"
+#define BDRV_OPT_CACHE_NO_FLUSH "cache.no-flush"
+
+
 #define BDRV_SECTOR_BITS   9
 #define BDRV_SECTOR_SIZE   (1ULL << BDRV_SECTOR_BITS)
 #define BDRV_SECTOR_MASK   ~(BDRV_SECTOR_SIZE - 1)
