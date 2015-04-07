@@ -543,7 +543,7 @@ static int vmdk_open_vmfs_sparse(BlockDriverState *bs,
 }
 
 static int vmdk_open_desc_file(BlockDriverState *bs, int flags, char *buf,
-                               Error **errp);
+                               QDict *options, Error **errp);
 
 static char *vmdk_read_desc(BlockDriverState *file, uint64_t desc_offset,
                             Error **errp)
@@ -582,7 +582,7 @@ static char *vmdk_read_desc(BlockDriverState *file, uint64_t desc_offset,
 
 static int vmdk_open_vmdk4(BlockDriverState *bs,
                            BlockDriverState *file,
-                           int flags, Error **errp)
+                           int flags, QDict *options, Error **errp)
 {
     int ret;
     uint32_t magic;
@@ -606,7 +606,7 @@ static int vmdk_open_vmdk4(BlockDriverState *bs,
             if (!buf) {
                 return -EINVAL;
             }
-            ret = vmdk_open_desc_file(bs, flags, buf, errp);
+            ret = vmdk_open_desc_file(bs, flags, buf, options, errp);
             g_free(buf);
             return ret;
         }
@@ -763,7 +763,7 @@ static int vmdk_parse_description(const char *desc, const char *opt_name,
 /* Open an extent file and append to bs array */
 static int vmdk_open_sparse(BlockDriverState *bs,
                             BlockDriverState *file, int flags,
-                            char *buf, Error **errp)
+                            char *buf, QDict *options, Error **errp)
 {
     uint32_t magic;
 
@@ -773,7 +773,7 @@ static int vmdk_open_sparse(BlockDriverState *bs,
             return vmdk_open_vmfs_sparse(bs, file, flags, errp);
             break;
         case VMDK4_MAGIC:
-            return vmdk_open_vmdk4(bs, file, flags, errp);
+            return vmdk_open_vmdk4(bs, file, flags, options, errp);
             break;
         default:
             error_setg(errp, "Image not in VMDK format");
@@ -783,7 +783,8 @@ static int vmdk_open_sparse(BlockDriverState *bs,
 }
 
 static int vmdk_parse_extents(const char *desc, BlockDriverState *bs,
-                              const char *desc_file_path, Error **errp)
+                              const char *desc_file_path, QDict *options,
+                              Error **errp)
 {
     int ret;
     int matches;
@@ -797,6 +798,7 @@ static int vmdk_parse_extents(const char *desc, BlockDriverState *bs,
     BlockDriverState *extent_file;
     BDRVVmdkState *s = bs->opaque;
     VmdkExtent *extent;
+    char extent_opt_prefix[32];
 
     while (*p) {
         /* parse extent line in one of below formats:
@@ -846,8 +848,13 @@ static int vmdk_parse_extents(const char *desc, BlockDriverState *bs,
         extent_path = g_malloc0(PATH_MAX);
         path_combine(extent_path, PATH_MAX, desc_file_path, fname);
         extent_file = NULL;
-        ret = bdrv_open(&extent_file, extent_path, NULL, NULL,
-                        bs->open_flags | BDRV_O_PROTOCOL, NULL, errp);
+
+        ret = snprintf(extent_opt_prefix, 32, "extents.%d", s->num_extents);
+        assert(ret < 32);
+
+        ret = bdrv_open_image(&extent_file, extent_path,
+                              options, extent_opt_prefix,
+                              bs->open_flags | BDRV_O_PROTOCOL, false, errp);
         g_free(extent_path);
         if (ret) {
             return ret;
@@ -870,7 +877,8 @@ static int vmdk_parse_extents(const char *desc, BlockDriverState *bs,
             if (!buf) {
                 ret = -EINVAL;
             } else {
-                ret = vmdk_open_sparse(bs, extent_file, bs->open_flags, buf, errp);
+                ret = vmdk_open_sparse(bs, extent_file, bs->open_flags, buf,
+                                       options, errp);
             }
             g_free(buf);
             if (ret) {
@@ -898,7 +906,7 @@ next_line:
 }
 
 static int vmdk_open_desc_file(BlockDriverState *bs, int flags, char *buf,
-                               Error **errp)
+                               QDict *options, Error **errp)
 {
     int ret;
     char ct[128];
@@ -920,7 +928,7 @@ static int vmdk_open_desc_file(BlockDriverState *bs, int flags, char *buf,
     }
     s->create_type = g_strdup(ct);
     s->desc_offset = 0;
-    ret = vmdk_parse_extents(buf, bs, bs->file->exact_filename, errp);
+    ret = vmdk_parse_extents(buf, bs, bs->file->exact_filename, options, errp);
 exit:
     return ret;
 }
@@ -942,11 +950,11 @@ static int vmdk_open(BlockDriverState *bs, QDict *options, int flags,
     switch (magic) {
         case VMDK3_MAGIC:
         case VMDK4_MAGIC:
-            ret = vmdk_open_sparse(bs, bs->file, flags, buf, errp);
+            ret = vmdk_open_sparse(bs, bs->file, flags, buf, options, errp);
             s->desc_offset = 0x200;
             break;
         default:
-            ret = vmdk_open_desc_file(bs, flags, buf, errp);
+            ret = vmdk_open_desc_file(bs, flags, buf, options, errp);
             break;
     }
     if (ret) {
