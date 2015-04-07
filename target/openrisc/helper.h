@@ -19,6 +19,7 @@
 
 /* exception */
 DEF_HELPER_FLAGS_2(exception, 0, void, env, i32)
+DEF_HELPER_FLAGS_2(ove, TCG_CALL_NO_WG, void, env, tl)
 
 /* float */
 DEF_HELPER_FLAGS_2(itofd, 0, i64, env, i64)
@@ -52,9 +53,6 @@ FOP_CMP(ne)
 FOP_CMP(gt)
 FOP_CMP(ge)
 #undef FOP_CMP
-
-/* int */
-DEF_HELPER_FLAGS_3(mul32, 0, i32, env, i32, i32)
 
 /* interrupt */
 DEF_HELPER_FLAGS_1(rfe, 0, void, env)
