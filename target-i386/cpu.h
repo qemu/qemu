@@ -1105,6 +1105,18 @@ int x86_cpu_handle_mmu_fault(CPUState *cpu, vaddr addr,
                              int is_write, int mmu_idx);
 void x86_cpu_set_a20(X86CPU *cpu, int a20_state);
 
+#ifndef CONFIG_USER_ONLY
+uint8_t x86_ldub_phys(CPUState *cs, hwaddr addr);
+uint32_t x86_lduw_phys(CPUState *cs, hwaddr addr);
+uint32_t x86_ldl_phys(CPUState *cs, hwaddr addr);
+uint64_t x86_ldq_phys(CPUState *cs, hwaddr addr);
+void x86_stb_phys(CPUState *cs, hwaddr addr, uint8_t val);
+void x86_stl_phys_notdirty(CPUState *cs, hwaddr addr, uint32_t val);
+void x86_stw_phys(CPUState *cs, hwaddr addr, uint32_t val);
+void x86_stl_phys(CPUState *cs, hwaddr addr, uint32_t val);
+void x86_stq_phys(CPUState *cs, hwaddr addr, uint64_t val);
+#endif
+
 static inline bool hw_local_breakpoint_enabled(unsigned long dr7, int index)
 {
     return (dr7 >> (index * 2)) & 1;
