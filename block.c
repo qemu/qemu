@@ -3980,6 +3980,15 @@ const char *bdrv_get_device_name(const BlockDriverState *bs)
     return bs->blk ? blk_name(bs->blk) : "";
 }
 
+/* This can be used to identify nodes that might not have a device
+ * name associated. Since node and device names live in the same
+ * namespace, the result is unambiguous. The exception is if both are
+ * absent, then this returns an empty (non-null) string. */
+const char *bdrv_get_device_or_node_name(const BlockDriverState *bs)
+{
+    return bs->blk ? blk_name(bs->blk) : bs->node_name;
+}
+
 int bdrv_get_flags(BlockDriverState *bs)
 {
     return bs->open_flags;
