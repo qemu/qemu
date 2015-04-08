@@ -2089,7 +2089,7 @@ static void mtree_print_mr(fprintf_function mon_printf, void *f,
     const MemoryRegion *submr;
     unsigned int i;
 
-    if (!mr || !mr->enabled) {
+    if (!mr) {
         return;
     }
 
@@ -2115,7 +2115,7 @@ static void mtree_print_mr(fprintf_function mon_printf, void *f,
         }
         mon_printf(f, TARGET_FMT_plx "-" TARGET_FMT_plx
                    " (prio %d, %c%c): alias %s @%s " TARGET_FMT_plx
-                   "-" TARGET_FMT_plx "\n",
+                   "-" TARGET_FMT_plx "%s\n",
                    base + mr->addr,
                    base + mr->addr
                    + (int128_nz(mr->size) ?
@@ -2131,10 +2131,11 @@ static void mtree_print_mr(fprintf_function mon_printf, void *f,
                    mr->alias_offset
                    + (int128_nz(mr->size) ?
                       (hwaddr)int128_get64(int128_sub(mr->size,
-                                                      int128_one())) : 0));
+                                                      int128_one())) : 0),
+                   mr->enabled ? "" : " [disabled]");
     } else {
         mon_printf(f,
-                   TARGET_FMT_plx "-" TARGET_FMT_plx " (prio %d, %c%c): %s\n",
+                   TARGET_FMT_plx "-" TARGET_FMT_plx " (prio %d, %c%c): %s%s\n",
                    base + mr->addr,
                    base + mr->addr
                    + (int128_nz(mr->size) ?
@@ -2144,7 +2145,8 @@ static void mtree_print_mr(fprintf_function mon_printf, void *f,
                    mr->romd_mode ? 'R' : '-',
                    !mr->readonly && !(mr->rom_device && mr->romd_mode) ? 'W'
                                                                        : '-',
-                   memory_region_name(mr));
+                   memory_region_name(mr),
+                   mr->enabled ? "" : " [disabled]");
     }
 
     QTAILQ_INIT(&submr_print_queue);
