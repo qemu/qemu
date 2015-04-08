@@ -64,6 +64,8 @@ do {                                                        \
 #define TYPE_CFI_PFLASH01 "cfi.pflash01"
 #define CFI_PFLASH01(obj) OBJECT_CHECK(pflash_t, (obj), TYPE_CFI_PFLASH01)
 
+#define PFLASH_BE          0
+
 struct pflash_t {
     /*< private >*/
     SysBusDevice parent_obj;
@@ -75,7 +77,7 @@ struct pflash_t {
     uint8_t bank_width;
     uint8_t device_width; /* If 0, device width not specified. */
     uint8_t max_device_width;  /* max device width in bytes */
-    uint8_t be;
+    uint32_t features;
     uint8_t wcycle; /* if 0, the flash is read normally */
     int ro;
     uint8_t cmd;
@@ -773,7 +775,8 @@ static void pflash_cfi01_realize(DeviceState *dev, Error **errp)
 
     memory_region_init_rom_device(
         &pfl->mem, OBJECT(dev),
-        pfl->be ? &pflash_cfi01_ops_be : &pflash_cfi01_ops_le, pfl,
+        pfl->features & (1 << PFLASH_BE) ? &pflash_cfi01_ops_be : &pflash_cfi01_ops_le,
+        pfl,
         pfl->name, total_len, &local_err);
     if (local_err) {
         error_propagate(errp, local_err);
@@ -925,7 +928,7 @@ static Property pflash_cfi01_properties[] = {
     DEFINE_PROP_UINT8("width", struct pflash_t, bank_width, 0),
     DEFINE_PROP_UINT8("device-width", struct pflash_t, device_width, 0),
     DEFINE_PROP_UINT8("max-device-width", struct pflash_t, max_device_width, 0),
-    DEFINE_PROP_UINT8("big-endian", struct pflash_t, be, 0),
+    DEFINE_PROP_BIT("big-endian", struct pflash_t, features, PFLASH_BE, 0),
     DEFINE_PROP_UINT16("id0", struct pflash_t, ident0, 0),
     DEFINE_PROP_UINT16("id1", struct pflash_t, ident1, 0),
     DEFINE_PROP_UINT16("id2", struct pflash_t, ident2, 0),
@@ -975,7 +978,7 @@ pflash_t *pflash_cfi01_register(hwaddr base,
     qdev_prop_set_uint32(dev, "num-blocks", nb_blocs);
     qdev_prop_set_uint64(dev, "sector-length", sector_len);
     qdev_prop_set_uint8(dev, "width", bank_width);
-    qdev_prop_set_uint8(dev, "big-endian", !!be);
+    qdev_prop_set_bit(dev, "big-endian", !!be);
     qdev_prop_set_uint16(dev, "id0", id0);
     qdev_prop_set_uint16(dev, "id1", id1);
     qdev_prop_set_uint16(dev, "id2", id2);

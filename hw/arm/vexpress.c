@@ -525,7 +525,7 @@ static pflash_t *ve_pflash_cfi01_register(hwaddr base, const char *name,
     qdev_prop_set_uint64(dev, "sector-length", VEXPRESS_FLASH_SECT_SIZE);
     qdev_prop_set_uint8(dev, "width", 4);
     qdev_prop_set_uint8(dev, "device-width", 2);
-    qdev_prop_set_uint8(dev, "big-endian", 0);
+    qdev_prop_set_bit(dev, "big-endian", false);
     qdev_prop_set_uint16(dev, "id0", 0x89);
     qdev_prop_set_uint16(dev, "id1", 0x18);
     qdev_prop_set_uint16(dev, "id2", 0x00);

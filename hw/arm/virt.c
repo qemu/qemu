@@ -555,7 +555,7 @@ static void create_one_flash(const char *name, hwaddr flashbase,
     qdev_prop_set_uint64(dev, "sector-length", sectorlength);
     qdev_prop_set_uint8(dev, "width", 4);
     qdev_prop_set_uint8(dev, "device-width", 2);
-    qdev_prop_set_uint8(dev, "big-endian", 0);
+    qdev_prop_set_bit(dev, "big-endian", false);
     qdev_prop_set_uint16(dev, "id0", 0x89);
     qdev_prop_set_uint16(dev, "id1", 0x18);
     qdev_prop_set_uint16(dev, "id2", 0x00);
