@@ -65,7 +65,8 @@ static void start_auth_vencrypt_subauth(VncState *vs)
 
 static void vnc_tls_handshake_io(void *opaque);
 
-static int vnc_start_vencrypt_handshake(struct VncState *vs) {
+static int vnc_start_vencrypt_handshake(struct VncState *vs)
+{
     int ret;
 
     if ((ret = gnutls_handshake(vs->tls.session)) < 0) {
@@ -100,7 +101,8 @@ static int vnc_start_vencrypt_handshake(struct VncState *vs) {
     return 0;
 }
 
-static void vnc_tls_handshake_io(void *opaque) {
+static void vnc_tls_handshake_io(void *opaque)
+{
     struct VncState *vs = (struct VncState *)opaque;
 
     VNC_DEBUG("Handshake IO continue\n");
