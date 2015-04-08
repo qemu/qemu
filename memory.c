@@ -2185,15 +2185,16 @@ void mtree_info(fprintf_function mon_printf, void *f)
     QTAILQ_INIT(&ml_head);
 
     QTAILQ_FOREACH(as, &address_spaces, address_spaces_link) {
-        mon_printf(f, "%s\n", as->name);
-        mtree_print_mr(mon_printf, f, as->root, 0, 0, &ml_head);
+        mon_printf(f, "address-space: %s\n", as->name);
+        mtree_print_mr(mon_printf, f, as->root, 1, 0, &ml_head);
+        mon_printf(f, "\n");
     }
 
-    mon_printf(f, "aliases\n");
     /* print aliased regions */
     QTAILQ_FOREACH(ml, &ml_head, queue) {
-        mon_printf(f, "%s\n", memory_region_name(ml->mr));
-        mtree_print_mr(mon_printf, f, ml->mr, 0, 0, &ml_head);
+        mon_printf(f, "memory-region: %s\n", memory_region_name(ml->mr));
+        mtree_print_mr(mon_printf, f, ml->mr, 1, 0, &ml_head);
+        mon_printf(f, "\n");
     }
 
     QTAILQ_FOREACH_SAFE(ml, &ml_head, queue, ml2) {
