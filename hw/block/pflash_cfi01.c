@@ -650,101 +650,25 @@ static void pflash_write(pflash_t *pfl, hwaddr offset,
 }
 
 
-static uint32_t pflash_readb_be(void *opaque, hwaddr addr)
-{
-    return pflash_read(opaque, addr, 1, 1);
-}
-
-static uint32_t pflash_readb_le(void *opaque, hwaddr addr)
-{
-    return pflash_read(opaque, addr, 1, 0);
-}
-
-static uint32_t pflash_readw_be(void *opaque, hwaddr addr)
+static uint64_t pflash_mem_read(void *opaque, hwaddr addr, unsigned len)
 {
     pflash_t *pfl = opaque;
+    bool be = !!(pfl->features & (1 << PFLASH_BE));
 
-    return pflash_read(pfl, addr, 2, 1);
+    return pflash_read(pfl, addr, len, be);
 }
 
-static uint32_t pflash_readw_le(void *opaque, hwaddr addr)
+static void pflash_mem_write(void *opaque, hwaddr addr, uint64_t value, unsigned len)
 {
     pflash_t *pfl = opaque;
+    bool be = !!(pfl->features & (1 << PFLASH_BE));
 
-    return pflash_read(pfl, addr, 2, 0);
+    pflash_write(pfl, addr, value, len, be);
 }
 
-static uint32_t pflash_readl_be(void *opaque, hwaddr addr)
-{
-    pflash_t *pfl = opaque;
-
-    return pflash_read(pfl, addr, 4, 1);
-}
-
-static uint32_t pflash_readl_le(void *opaque, hwaddr addr)
-{
-    pflash_t *pfl = opaque;
-
-    return pflash_read(pfl, addr, 4, 0);
-}
-
-static void pflash_writeb_be(void *opaque, hwaddr addr,
-                             uint32_t value)
-{
-    pflash_write(opaque, addr, value, 1, 1);
-}
-
-static void pflash_writeb_le(void *opaque, hwaddr addr,
-                             uint32_t value)
-{
-    pflash_write(opaque, addr, value, 1, 0);
-}
-
-static void pflash_writew_be(void *opaque, hwaddr addr,
-                             uint32_t value)
-{
-    pflash_t *pfl = opaque;
-
-    pflash_write(pfl, addr, value, 2, 1);
-}
-
-static void pflash_writew_le(void *opaque, hwaddr addr,
-                             uint32_t value)
-{
-    pflash_t *pfl = opaque;
-
-    pflash_write(pfl, addr, value, 2, 0);
-}
-
-static void pflash_writel_be(void *opaque, hwaddr addr,
-                             uint32_t value)
-{
-    pflash_t *pfl = opaque;
-
-    pflash_write(pfl, addr, value, 4, 1);
-}
-
-static void pflash_writel_le(void *opaque, hwaddr addr,
-                             uint32_t value)
-{
-    pflash_t *pfl = opaque;
-
-    pflash_write(pfl, addr, value, 4, 0);
-}
-
-static const MemoryRegionOps pflash_cfi01_ops_be = {
-    .old_mmio = {
-        .read = { pflash_readb_be, pflash_readw_be, pflash_readl_be, },
-        .write = { pflash_writeb_be, pflash_writew_be, pflash_writel_be, },
-    },
-    .endianness = DEVICE_NATIVE_ENDIAN,
-};
-
-static const MemoryRegionOps pflash_cfi01_ops_le = {
-    .old_mmio = {
-        .read = { pflash_readb_le, pflash_readw_le, pflash_readl_le, },
-        .write = { pflash_writeb_le, pflash_writew_le, pflash_writel_le, },
-    },
+static const MemoryRegionOps pflash_cfi01_ops = {
+    .read = pflash_mem_read,
+    .write = pflash_mem_write,
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
@@ -775,7 +699,7 @@ static void pflash_cfi01_realize(DeviceState *dev, Error **errp)
 
     memory_region_init_rom_device(
         &pfl->mem, OBJECT(dev),
-        pfl->features & (1 << PFLASH_BE) ? &pflash_cfi01_ops_be : &pflash_cfi01_ops_le,
+        &pflash_cfi01_ops,
         pfl,
         pfl->name, total_len, &local_err);
     if (local_err) {
