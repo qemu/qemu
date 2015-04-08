@@ -172,6 +172,7 @@ F: hw/unicore32/
 X86
 M: Paolo Bonzini <pbonzini@redhat.com>
 M: Richard Henderson <rth@twiddle.net>
+M: Eduardo Habkost <ehabkost@redhat.com>
 S: Odd Fixes
 F: target-i386/
 F: hw/i386/
