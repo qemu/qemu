@@ -1231,8 +1231,8 @@ void bdrv_set_backing_hd(BlockDriverState *bs, BlockDriverState *backing_hd)
         bdrv_op_unblock_all(bs->backing_hd, bs->backing_blocker);
     } else if (backing_hd) {
         error_setg(&bs->backing_blocker,
-                   "device is used as backing hd of '%s'",
-                   bdrv_get_device_name(bs));
+                   "node is used as backing hd of '%s'",
+                   bdrv_get_device_or_node_name(bs));
     }
 
     bs->backing_hd = backing_hd;
@@ -1819,8 +1819,8 @@ int bdrv_reopen_prepare(BDRVReopenState *reopen_state, BlockReopenQueue *queue,
      * to r/w */
     if (!(reopen_state->bs->open_flags & BDRV_O_ALLOW_RDWR) &&
         reopen_state->flags & BDRV_O_RDWR) {
-        error_set(errp, QERR_DEVICE_IS_READ_ONLY,
-                  bdrv_get_device_name(reopen_state->bs));
+        error_setg(errp, "Node '%s' is read only",
+                   bdrv_get_device_or_node_name(reopen_state->bs));
         goto error;
     }
 
@@ -1846,9 +1846,9 @@ int bdrv_reopen_prepare(BDRVReopenState *reopen_state, BlockReopenQueue *queue,
     } else {
         /* It is currently mandatory to have a bdrv_reopen_prepare()
          * handler for each supported drv. */
-        error_set(errp, QERR_BLOCK_FORMAT_FEATURE_NOT_SUPPORTED,
-                  drv->format_name, bdrv_get_device_name(reopen_state->bs),
-                 "reopening of file");
+        error_setg(errp, "Block format '%s' used by node '%s' "
+                   "does not support reopening files", drv->format_name,
+                   bdrv_get_device_or_node_name(reopen_state->bs));
         ret = -1;
         goto error;
     }
@@ -3824,8 +3824,8 @@ void bdrv_add_key(BlockDriverState *bs, const char *key, Error **errp)
 {
     if (key) {
         if (!bdrv_is_encrypted(bs)) {
-            error_setg(errp, "Device '%s' is not encrypted",
-                      bdrv_get_device_name(bs));
+            error_setg(errp, "Node '%s' is not encrypted",
+                      bdrv_get_device_or_node_name(bs));
         } else if (bdrv_set_key(bs, key) < 0) {
             error_set(errp, QERR_INVALID_PASSWORD);
         }
@@ -3833,7 +3833,7 @@ void bdrv_add_key(BlockDriverState *bs, const char *key, Error **errp)
         if (bdrv_key_required(bs)) {
             error_set(errp, ERROR_CLASS_DEVICE_ENCRYPTED,
                       "'%s' (%s) is encrypted",
-                      bdrv_get_device_name(bs),
+                      bdrv_get_device_or_node_name(bs),
                       bdrv_get_encrypted_filename(bs));
         }
     }
@@ -5633,8 +5633,8 @@ bool bdrv_op_is_blocked(BlockDriverState *bs, BlockOpType op, Error **errp)
     if (!QLIST_EMPTY(&bs->op_blockers[op])) {
         blocker = QLIST_FIRST(&bs->op_blockers[op]);
         if (errp) {
-            error_setg(errp, "Device '%s' is busy: %s",
-                       bdrv_get_device_name(bs),
+            error_setg(errp, "Node '%s' is busy: %s",
+                       bdrv_get_device_or_node_name(bs),
                        error_get_pretty(blocker->reason));
         }
         return true;

@@ -124,7 +124,7 @@ static int qcow_open(BlockDriverState *bs, QDict *options, int flags,
         snprintf(version, sizeof(version), "QCOW version %" PRIu32,
                  header.version);
         error_set(errp, QERR_UNKNOWN_BLOCK_FORMAT_FEATURE,
-                  bdrv_get_device_name(bs), "qcow", version);
+                  bdrv_get_device_or_node_name(bs), "qcow", version);
         ret = -ENOTSUP;
         goto fail;
     }
@@ -229,9 +229,9 @@ static int qcow_open(BlockDriverState *bs, QDict *options, int flags,
     }
 
     /* Disable migration when qcow images are used */
-    error_set(&s->migration_blocker,
-              QERR_BLOCK_FORMAT_FEATURE_NOT_SUPPORTED,
-              "qcow", bdrv_get_device_name(bs), "live migration");
+    error_setg(&s->migration_blocker, "The qcow format used by node '%s' "
+               "does not support live migration",
+               bdrv_get_device_or_node_name(bs));
     migrate_add_blocker(s->migration_blocker);
 
     qemu_co_mutex_init(&s->lock);

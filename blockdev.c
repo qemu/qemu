@@ -1248,13 +1248,14 @@ static void internal_snapshot_prepare(BlkTransactionState *common,
     }
 
     if (bdrv_is_read_only(bs)) {
-        error_set(errp, QERR_DEVICE_IS_READ_ONLY, device);
+        error_setg(errp, "Device '%s' is read only", device);
         return;
     }
 
     if (!bdrv_can_snapshot(bs)) {
-        error_set(errp, QERR_BLOCK_FORMAT_FEATURE_NOT_SUPPORTED,
-                  bs->drv->format_name, device, "internal snapshot");
+        error_setg(errp, "Block format '%s' used by device '%s' "
+                   "does not support internal snapshots",
+                   bs->drv->format_name, device);
         return;
     }
 
@@ -2055,7 +2056,7 @@ void qmp_block_resize(bool has_device, const char *device,
         error_set(errp, QERR_UNSUPPORTED);
         break;
     case -EACCES:
-        error_set(errp, QERR_DEVICE_IS_READ_ONLY, device);
+        error_setg(errp, "Device '%s' is read only", device);
         break;
     case -EBUSY:
         error_set(errp, QERR_DEVICE_IN_USE, device);

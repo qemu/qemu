@@ -1180,9 +1180,10 @@ static int vvfat_open(BlockDriverState *bs, QDict *options, int flags,
 
     /* Disable migration when vvfat is used rw */
     if (s->qcow) {
-        error_set(&s->migration_blocker,
-                  QERR_BLOCK_FORMAT_FEATURE_NOT_SUPPORTED,
-                  "vvfat (rw)", bdrv_get_device_name(bs), "live migration");
+        error_setg(&s->migration_blocker,
+                   "The vvfat (rw) format used by node '%s' "
+                   "does not support live migration",
+                   bdrv_get_device_or_node_name(bs));
         migrate_add_blocker(s->migration_blocker);
     }
 

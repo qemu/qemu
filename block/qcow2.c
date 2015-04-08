@@ -208,7 +208,7 @@ static void GCC_FMT_ATTR(3, 4) report_unsupported(BlockDriverState *bs,
     va_end(ap);
 
     error_set(errp, QERR_UNKNOWN_BLOCK_FORMAT_FEATURE,
-              bdrv_get_device_name(bs), "qcow2", msg);
+              bdrv_get_device_or_node_name(bs), "qcow2", msg);
 }
 
 static void report_unsupported_feature(BlockDriverState *bs,
