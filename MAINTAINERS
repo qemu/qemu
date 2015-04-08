@@ -173,7 +173,7 @@ X86
 M: Paolo Bonzini <pbonzini@redhat.com>
 M: Richard Henderson <rth@twiddle.net>
 M: Eduardo Habkost <ehabkost@redhat.com>
-S: Odd Fixes
+S: Maintained
 F: target-i386/
 F: hw/i386/
 
