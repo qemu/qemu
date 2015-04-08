@@ -81,11 +81,11 @@ static uint64_t pci_vga_ioport_read(void *ptr, hwaddr addr,
 
     switch (size) {
     case 1:
-        ret = vga_ioport_read(&d->vga, addr);
+        ret = vga_ioport_read(&d->vga, addr + 0x3c0);
         break;
     case 2:
-        ret  = vga_ioport_read(&d->vga, addr);
-        ret |= vga_ioport_read(&d->vga, addr+1) << 8;
+        ret  = vga_ioport_read(&d->vga, addr + 0x3c0);
+        ret |= vga_ioport_read(&d->vga, addr + 0x3c1) << 8;
         break;
     }
     return ret;
