@@ -54,9 +54,7 @@ typedef struct PCIVGAState {
     VGACommonState vga;
     uint32_t flags;
     MemoryRegion mmio;
-    MemoryRegion ioport;
-    MemoryRegion bochs;
-    MemoryRegion qext;
+    MemoryRegion mrs[3];
 } PCIVGAState;
 
 #define TYPE_PCI_VGA "pci-vga"
@@ -206,10 +204,34 @@ static const MemoryRegionOps pci_vga_qext_ops = {
     .endianness = DEVICE_LITTLE_ENDIAN,
 };
 
+static void pci_std_vga_mmio_region_init(VGACommonState *s,
+                                         MemoryRegion *parent,
+                                         MemoryRegion *subs,
+                                         bool qext)
+{
+    memory_region_init_io(&subs[0], NULL, &pci_vga_ioport_ops, s,
+                          "vga ioports remapped", PCI_VGA_IOPORT_SIZE);
+    memory_region_add_subregion(parent, PCI_VGA_IOPORT_OFFSET,
+                                &subs[0]);
+
+    memory_region_init_io(&subs[1], NULL, &pci_vga_bochs_ops, s,
+                          "bochs dispi interface", PCI_VGA_BOCHS_SIZE);
+    memory_region_add_subregion(parent, PCI_VGA_BOCHS_OFFSET,
+                                &subs[1]);
+
+    if (qext) {
+        memory_region_init_io(&subs[2], NULL, &pci_vga_qext_ops, s,
+                              "qemu extended regs", PCI_VGA_QEXT_SIZE);
+        memory_region_add_subregion(parent, PCI_VGA_QEXT_OFFSET,
+                                    &subs[2]);
+    }
+}
+
 static void pci_std_vga_realize(PCIDevice *dev, Error **errp)
 {
     PCIVGAState *d = PCI_VGA(dev);
     VGACommonState *s = &d->vga;
+    bool qext = false;
 
     /* vga + console init */
     vga_common_init(s, OBJECT(dev), true);
@@ -224,23 +246,12 @@ static void pci_std_vga_realize(PCIDevice *dev, Error **errp)
     /* mmio bar for vga register access */
     if (d->flags & (1 << PCI_VGA_FLAG_ENABLE_MMIO)) {
         memory_region_init(&d->mmio, NULL, "vga.mmio", 4096);
-        memory_region_init_io(&d->ioport, NULL, &pci_vga_ioport_ops, s,
-                              "vga ioports remapped", PCI_VGA_IOPORT_SIZE);
-        memory_region_init_io(&d->bochs, NULL, &pci_vga_bochs_ops, s,
-                              "bochs dispi interface", PCI_VGA_BOCHS_SIZE);
-
-        memory_region_add_subregion(&d->mmio, PCI_VGA_IOPORT_OFFSET,
-                                    &d->ioport);
-        memory_region_add_subregion(&d->mmio, PCI_VGA_BOCHS_OFFSET,
-                                    &d->bochs);
 
         if (d->flags & (1 << PCI_VGA_FLAG_ENABLE_QEXT)) {
-            memory_region_init_io(&d->qext, NULL, &pci_vga_qext_ops, s,
-                                  "qemu extended regs", PCI_VGA_QEXT_SIZE);
-            memory_region_add_subregion(&d->mmio, PCI_VGA_QEXT_OFFSET,
-                                        &d->qext);
+            qext = true;
             pci_set_byte(&d->dev.config[PCI_REVISION_ID], 2);
         }
+        pci_std_vga_mmio_region_init(s, &d->mmio, d->mrs, qext);
 
         pci_register_bar(&d->dev, 2, PCI_BASE_ADDRESS_SPACE_MEMORY, &d->mmio);
     }
@@ -262,6 +273,7 @@ static void pci_secondary_vga_realize(PCIDevice *dev, Error **errp)
 {
     PCIVGAState *d = PCI_VGA(dev);
     VGACommonState *s = &d->vga;
+    bool qext = false;
 
     /* vga + console init */
     vga_common_init(s, OBJECT(dev), false);
@@ -269,23 +281,12 @@ static void pci_secondary_vga_realize(PCIDevice *dev, Error **errp)
 
     /* mmio bar */
     memory_region_init(&d->mmio, OBJECT(dev), "vga.mmio", 4096);
-    memory_region_init_io(&d->ioport, OBJECT(dev), &pci_vga_ioport_ops, d,
-                          "vga ioports remapped", PCI_VGA_IOPORT_SIZE);
-    memory_region_init_io(&d->bochs, OBJECT(dev), &pci_vga_bochs_ops, d,
-                          "bochs dispi interface", PCI_VGA_BOCHS_SIZE);
-
-    memory_region_add_subregion(&d->mmio, PCI_VGA_IOPORT_OFFSET,
-                                &d->ioport);
-    memory_region_add_subregion(&d->mmio, PCI_VGA_BOCHS_OFFSET,
-                                &d->bochs);
 
     if (d->flags & (1 << PCI_VGA_FLAG_ENABLE_QEXT)) {
-        memory_region_init_io(&d->qext, NULL, &pci_vga_qext_ops, d,
-                              "qemu extended regs", PCI_VGA_QEXT_SIZE);
-        memory_region_add_subregion(&d->mmio, PCI_VGA_QEXT_OFFSET,
-                                    &d->qext);
+        qext = true;
         pci_set_byte(&d->dev.config[PCI_REVISION_ID], 2);
     }
+    pci_std_vga_mmio_region_init(s, &d->mmio, d->mrs, qext);
 
     pci_register_bar(&d->dev, 0, PCI_BASE_ADDRESS_MEM_PREFETCH, &s->vram);
     pci_register_bar(&d->dev, 2, PCI_BASE_ADDRESS_SPACE_MEMORY, &d->mmio);
