@@ -1757,7 +1757,11 @@
 #
 # Emitted when a corruption has been detected in a disk image
 #
-# @device: device name
+# @device: device name. This is always present for compatibility
+#          reasons, but it can be empty ("") if the image does not
+#          have a device name associated.
+#
+# @node-name: #optional node name (Since: 2.4)
 #
 # @msg: informative message for human consumption, such as the kind of
 #       corruption being detected. It should not be parsed by machine as it is
@@ -1776,11 +1780,12 @@
 # Since: 1.7
 ##
 { 'event': 'BLOCK_IMAGE_CORRUPTED',
-  'data': { 'device' : 'str',
-            'msg'    : 'str',
-            '*offset': 'int',
-            '*size'  : 'int',
-            'fatal'  : 'bool' } }
+  'data': { 'device'     : 'str',
+            '*node-name' : 'str',
+            'msg'        : 'str',
+            '*offset'    : 'int',
+            '*size'      : 'int',
+            'fatal'      : 'bool' } }
 
 ##
 # @BLOCK_IO_ERROR

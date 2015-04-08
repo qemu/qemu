@@ -2824,6 +2824,7 @@ void qcow2_signal_corruption(BlockDriverState *bs, bool fatal, int64_t offset,
                              int64_t size, const char *message_format, ...)
 {
     BDRVQcowState *s = bs->opaque;
+    const char *node_name;
     char *message;
     va_list ap;
 
@@ -2847,8 +2848,11 @@ void qcow2_signal_corruption(BlockDriverState *bs, bool fatal, int64_t offset,
                 "corruption events will be suppressed\n", message);
     }
 
-    qapi_event_send_block_image_corrupted(bdrv_get_device_name(bs), message,
-                                          offset >= 0, offset, size >= 0, size,
+    node_name = bdrv_get_node_name(bs);
+    qapi_event_send_block_image_corrupted(bdrv_get_device_name(bs),
+                                          *node_name != '\0', node_name,
+                                          message, offset >= 0, offset,
+                                          size >= 0, size,
                                           fatal, &error_abort);
     g_free(message);
 
