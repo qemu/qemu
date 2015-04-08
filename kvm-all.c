@@ -1669,14 +1669,14 @@ void kvm_set_sigmask_len(KVMState *s, unsigned int sigmask_len)
     s->sigmask_len = sigmask_len;
 }
 
-static void kvm_handle_io(uint16_t port, void *data, int direction, int size,
-                          uint32_t count)
+static void kvm_handle_io(uint16_t port, MemTxAttrs attrs, void *data, int direction,
+                          int size, uint32_t count)
 {
     int i;
     uint8_t *ptr = data;
 
     for (i = 0; i < count; i++) {
-        address_space_rw(&address_space_io, port, MEMTXATTRS_UNSPECIFIED,
+        address_space_rw(&address_space_io, port, attrs,
                          ptr, size,
                          direction == KVM_EXIT_IO_OUT);
         ptr += size;
@@ -1796,6 +1796,8 @@ int kvm_cpu_exec(CPUState *cpu)
     }
 
     do {
+        MemTxAttrs attrs;
+
         if (cpu->kvm_vcpu_dirty) {
             kvm_arch_put_registers(cpu, KVM_PUT_RUNTIME_STATE);
             cpu->kvm_vcpu_dirty = false;
@@ -1816,7 +1818,7 @@ int kvm_cpu_exec(CPUState *cpu)
         run_ret = kvm_vcpu_ioctl(cpu, KVM_RUN, 0);
 
         qemu_mutex_lock_iothread();
-        kvm_arch_post_run(cpu, run);
+        attrs = kvm_arch_post_run(cpu, run);
 
         if (run_ret < 0) {
             if (run_ret == -EINTR || run_ret == -EAGAIN) {
@@ -1834,7 +1836,7 @@ int kvm_cpu_exec(CPUState *cpu)
         switch (run->exit_reason) {
         case KVM_EXIT_IO:
             DPRINTF("handle_io\n");
-            kvm_handle_io(run->io.port,
+            kvm_handle_io(run->io.port, attrs,
                           (uint8_t *)run + run->io.data_offset,
                           run->io.direction,
                           run->io.size,
@@ -1843,10 +1845,11 @@ int kvm_cpu_exec(CPUState *cpu)
             break;
         case KVM_EXIT_MMIO:
             DPRINTF("handle_mmio\n");
-            cpu_physical_memory_rw(run->mmio.phys_addr,
-                                   run->mmio.data,
-                                   run->mmio.len,
-                                   run->mmio.is_write);
+            address_space_rw(&address_space_memory,
+                             run->mmio.phys_addr, attrs,
+                             run->mmio.data,
+                             run->mmio.len,
+                             run->mmio.is_write);
             ret = 0;
             break;
         case KVM_EXIT_IRQ_WINDOW_OPEN:

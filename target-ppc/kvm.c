@@ -39,6 +39,7 @@
 #include "sysemu/watchdog.h"
 #include "trace.h"
 #include "exec/gdbstub.h"
+#include "exec/memattrs.h"
 
 //#define DEBUG_KVM
 
@@ -1270,8 +1271,9 @@ void kvm_arch_pre_run(CPUState *cs, struct kvm_run *run)
      * anyways, so we will get a chance to deliver the rest. */
 }
 
-void kvm_arch_post_run(CPUState *cpu, struct kvm_run *run)
+MemTxAttrs kvm_arch_post_run(CPUState *cs, struct kvm_run *run)
 {
+    return MEMTXATTRS_UNSPECIFIED;
 }
 
 int kvm_arch_process_async_events(CPUState *cs)

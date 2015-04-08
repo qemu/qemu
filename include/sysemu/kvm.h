@@ -18,6 +18,7 @@
 #include "config-host.h"
 #include "qemu/queue.h"
 #include "qom/cpu.h"
+#include "exec/memattrs.h"
 
 #ifdef CONFIG_KVM
 #include <linux/kvm.h>
@@ -254,7 +255,7 @@ int kvm_create_device(KVMState *s, uint64_t type, bool test);
 extern const KVMCapabilityInfo kvm_arch_required_capabilities[];
 
 void kvm_arch_pre_run(CPUState *cpu, struct kvm_run *run);
-void kvm_arch_post_run(CPUState *cpu, struct kvm_run *run);
+MemTxAttrs kvm_arch_post_run(CPUState *cpu, struct kvm_run *run);
 
 int kvm_arch_handle_exit(CPUState *cpu, struct kvm_run *run);
 
