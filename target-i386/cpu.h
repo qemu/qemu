@@ -1292,6 +1292,11 @@ static inline void cpu_load_efer(CPUX86State *env, uint64_t val)
     }
 }
 
+static inline MemTxAttrs cpu_get_mem_attrs(CPUX86State *env)
+{
+    return ((MemTxAttrs) { .secure = (env->hflags & HF_SMM_MASK) != 0 });
+}
+
 /* fpu_helper.c */
 void cpu_set_mxcsr(CPUX86State *env, uint32_t val);
 void cpu_set_fpuc(CPUX86State *env, uint16_t val);

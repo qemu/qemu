@@ -771,7 +771,8 @@ do_check_protect_pse36:
     page_offset = vaddr & (page_size - 1);
     paddr = pte + page_offset;
 
-    tlb_set_page(cs, vaddr, paddr, prot, mmu_idx, page_size);
+    tlb_set_page_with_attrs(cs, vaddr, paddr, cpu_get_mem_attrs(env),
+                            prot, mmu_idx, page_size);
     return 0;
  do_fault_rsvd:
     error_code |= PG_ERROR_RSVD_MASK;

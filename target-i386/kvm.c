@@ -2259,7 +2259,7 @@ MemTxAttrs kvm_arch_post_run(CPUState *cpu, struct kvm_run *run)
     }
     cpu_set_apic_tpr(x86_cpu->apic_state, run->cr8);
     cpu_set_apic_base(x86_cpu->apic_state, run->apic_base);
-    return MEMTXATTRS_UNSPECIFIED;
+    return cpu_get_mem_attrs(env);
 }
 
 int kvm_arch_process_async_events(CPUState *cs)
