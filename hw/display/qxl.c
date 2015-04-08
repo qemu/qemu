@@ -696,7 +696,7 @@ static inline void qxl_push_free_res(PCIQXLDevice *d, int flush)
 
 /* called from spice server thread context only */
 static void interface_release_resource(QXLInstance *sin,
-                                       struct QXLReleaseInfoExt ext)
+                                       QXLReleaseInfoExt ext)
 {
     PCIQXLDevice *qxl = container_of(sin, PCIQXLDevice, ssd.qxl);
     QXLReleaseRing *ring;
