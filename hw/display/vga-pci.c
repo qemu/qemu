@@ -76,16 +76,16 @@ static const VMStateDescription vmstate_vga_pci = {
 static uint64_t pci_vga_ioport_read(void *ptr, hwaddr addr,
                                     unsigned size)
 {
-    PCIVGAState *d = ptr;
+    VGACommonState *s = ptr;
     uint64_t ret = 0;
 
     switch (size) {
     case 1:
-        ret = vga_ioport_read(&d->vga, addr + 0x3c0);
+        ret = vga_ioport_read(s, addr + 0x3c0);
         break;
     case 2:
-        ret  = vga_ioport_read(&d->vga, addr + 0x3c0);
-        ret |= vga_ioport_read(&d->vga, addr + 0x3c1) << 8;
+        ret  = vga_ioport_read(s, addr + 0x3c0);
+        ret |= vga_ioport_read(s, addr + 0x3c1) << 8;
         break;
     }
     return ret;
@@ -94,11 +94,11 @@ static uint64_t pci_vga_ioport_read(void *ptr, hwaddr addr,
 static void pci_vga_ioport_write(void *ptr, hwaddr addr,
                                  uint64_t val, unsigned size)
 {
-    PCIVGAState *d = ptr;
+    VGACommonState *s = ptr;
 
     switch (size) {
     case 1:
-        vga_ioport_write(&d->vga, addr + 0x3c0, val);
+        vga_ioport_write(s, addr + 0x3c0, val);
         break;
     case 2:
         /*
@@ -106,8 +106,8 @@ static void pci_vga_ioport_write(void *ptr, hwaddr addr,
          * indexed registers with a single word write because the
          * index byte is updated first.
          */
-        vga_ioport_write(&d->vga, addr + 0x3c0, val & 0xff);
-        vga_ioport_write(&d->vga, addr + 0x3c1, (val >> 8) & 0xff);
+        vga_ioport_write(s, addr + 0x3c0, val & 0xff);
+        vga_ioport_write(s, addr + 0x3c1, (val >> 8) & 0xff);
         break;
     }
 }
@@ -125,21 +125,21 @@ static const MemoryRegionOps pci_vga_ioport_ops = {
 static uint64_t pci_vga_bochs_read(void *ptr, hwaddr addr,
                                    unsigned size)
 {
-    PCIVGAState *d = ptr;
+    VGACommonState *s = ptr;
     int index = addr >> 1;
 
-    vbe_ioport_write_index(&d->vga, 0, index);
-    return vbe_ioport_read_data(&d->vga, 0);
+    vbe_ioport_write_index(s, 0, index);
+    return vbe_ioport_read_data(s, 0);
 }
 
 static void pci_vga_bochs_write(void *ptr, hwaddr addr,
                                 uint64_t val, unsigned size)
 {
-    PCIVGAState *d = ptr;
+    VGACommonState *s = ptr;
     int index = addr >> 1;
 
-    vbe_ioport_write_index(&d->vga, 0, index);
-    vbe_ioport_write_data(&d->vga, 0, val);
+    vbe_ioport_write_index(s, 0, index);
+    vbe_ioport_write_data(s, 0, val);
 }
 
 static const MemoryRegionOps pci_vga_bochs_ops = {
@@ -154,13 +154,13 @@ static const MemoryRegionOps pci_vga_bochs_ops = {
 
 static uint64_t pci_vga_qext_read(void *ptr, hwaddr addr, unsigned size)
 {
-    PCIVGAState *d = ptr;
+    VGACommonState *s = ptr;
 
     switch (addr) {
     case PCI_VGA_QEXT_REG_SIZE:
         return PCI_VGA_QEXT_SIZE;
     case PCI_VGA_QEXT_REG_BYTEORDER:
-        return d->vga.big_endian_fb ?
+        return s->big_endian_fb ?
             PCI_VGA_QEXT_BIG_ENDIAN : PCI_VGA_QEXT_LITTLE_ENDIAN;
     default:
         return 0;
@@ -170,15 +170,15 @@ static uint64_t pci_vga_qext_read(void *ptr, hwaddr addr, unsigned size)
 static void pci_vga_qext_write(void *ptr, hwaddr addr,
                                uint64_t val, unsigned size)
 {
-    PCIVGAState *d = ptr;
+    VGACommonState *s = ptr;
 
     switch (addr) {
     case PCI_VGA_QEXT_REG_BYTEORDER:
         if (val == PCI_VGA_QEXT_BIG_ENDIAN) {
-            d->vga.big_endian_fb = true;
+            s->big_endian_fb = true;
         }
         if (val == PCI_VGA_QEXT_LITTLE_ENDIAN) {
-            d->vga.big_endian_fb = false;
+            s->big_endian_fb = false;
         }
         break;
     }
@@ -224,9 +224,9 @@ static void pci_std_vga_realize(PCIDevice *dev, Error **errp)
     /* mmio bar for vga register access */
     if (d->flags & (1 << PCI_VGA_FLAG_ENABLE_MMIO)) {
         memory_region_init(&d->mmio, NULL, "vga.mmio", 4096);
-        memory_region_init_io(&d->ioport, NULL, &pci_vga_ioport_ops, d,
+        memory_region_init_io(&d->ioport, NULL, &pci_vga_ioport_ops, s,
                               "vga ioports remapped", PCI_VGA_IOPORT_SIZE);
-        memory_region_init_io(&d->bochs, NULL, &pci_vga_bochs_ops, d,
+        memory_region_init_io(&d->bochs, NULL, &pci_vga_bochs_ops, s,
                               "bochs dispi interface", PCI_VGA_BOCHS_SIZE);
 
         memory_region_add_subregion(&d->mmio, PCI_VGA_IOPORT_OFFSET,
@@ -235,7 +235,7 @@ static void pci_std_vga_realize(PCIDevice *dev, Error **errp)
                                     &d->bochs);
 
         if (d->flags & (1 << PCI_VGA_FLAG_ENABLE_QEXT)) {
-            memory_region_init_io(&d->qext, NULL, &pci_vga_qext_ops, d,
+            memory_region_init_io(&d->qext, NULL, &pci_vga_qext_ops, s,
                                   "qemu extended regs", PCI_VGA_QEXT_SIZE);
             memory_region_add_subregion(&d->mmio, PCI_VGA_QEXT_OFFSET,
                                         &d->qext);
