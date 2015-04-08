@@ -413,7 +413,9 @@ int qemu_config_parse(FILE *fp, QemuOptsList **lists, const char *fname)
             opts = qemu_opts_create(list, NULL, 0, &error_abort);
             continue;
         }
-        if (sscanf(line, " %63s = \"%1023[^\"]\"", arg, value) == 2) {
+        value[0] = '\0';
+        if (sscanf(line, " %63s = \"%1023[^\"]\"", arg, value) == 2 ||
+            sscanf(line, " %63s = \"\"", arg) == 1) {
             /* arg = value */
             if (opts == NULL) {
                 error_report("no group defined");
