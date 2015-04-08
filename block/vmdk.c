@@ -852,9 +852,8 @@ static int vmdk_parse_extents(const char *desc, BlockDriverState *bs,
         ret = snprintf(extent_opt_prefix, 32, "extents.%d", s->num_extents);
         assert(ret < 32);
 
-        ret = bdrv_open_image(&extent_file, extent_path,
-                              options, extent_opt_prefix,
-                              bs->open_flags | BDRV_O_PROTOCOL, false, errp);
+        ret = bdrv_open_image(&extent_file, extent_path, options,
+                              extent_opt_prefix, bs, &child_file, false, errp);
         g_free(extent_path);
         if (ret) {
             return ret;

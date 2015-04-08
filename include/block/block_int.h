@@ -330,6 +330,13 @@ typedef struct BdrvAioNotifier {
     QLIST_ENTRY(BdrvAioNotifier) list;
 } BdrvAioNotifier;
 
+struct BdrvChildRole {
+    int (*inherit_flags)(int parent_flags);
+};
+
+extern const BdrvChildRole child_file;
+extern const BdrvChildRole child_format;
+
 /*
  * Note: the function bdrv_append() copies and swaps contents of
  * BlockDriverStates, so if you add new fields to this struct, please

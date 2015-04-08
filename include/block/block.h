@@ -12,6 +12,7 @@
 /* block.c */
 typedef struct BlockDriver BlockDriver;
 typedef struct BlockJob BlockJob;
+typedef struct BdrvChildRole BdrvChildRole;
 
 typedef struct BlockDriverInfo {
     /* in bytes, 0 if irrelevant */
@@ -203,7 +204,8 @@ void bdrv_append(BlockDriverState *bs_new, BlockDriverState *bs_top);
 int bdrv_parse_cache_flags(const char *mode, int *flags);
 int bdrv_parse_discard_flags(const char *mode, int *flags);
 int bdrv_open_image(BlockDriverState **pbs, const char *filename,
-                    QDict *options, const char *bdref_key, int flags,
+                    QDict *options, const char *bdref_key,
+                    BlockDriverState* parent, const BdrvChildRole *child_role,
                     bool allow_none, Error **errp);
 void bdrv_set_backing_hd(BlockDriverState *bs, BlockDriverState *backing_hd);
 int bdrv_open_backing_file(BlockDriverState *bs, QDict *options, Error **errp);

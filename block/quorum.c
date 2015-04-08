@@ -935,8 +935,8 @@ static int quorum_open(BlockDriverState *bs, QDict *options, int flags,
         ret = snprintf(indexstr, 32, "children.%d", i);
         assert(ret < 32);
 
-        ret = bdrv_open_image(&s->bs[i], NULL, options, indexstr, flags,
-                              false, &local_err);
+        ret = bdrv_open_image(&s->bs[i], NULL, options, indexstr, bs,
+                              &child_format, false, &local_err);
         if (ret < 0) {
             goto close_exit;
         }

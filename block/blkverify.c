@@ -125,7 +125,7 @@ static int blkverify_open(BlockDriverState *bs, QDict *options, int flags,
     /* Open the raw file */
     assert(bs->file == NULL);
     ret = bdrv_open_image(&bs->file, qemu_opt_get(opts, "x-raw"), options,
-                          "raw", flags | BDRV_O_PROTOCOL, false, &local_err);
+                          "raw", bs, &child_file, false, &local_err);
     if (ret < 0) {
         error_propagate(errp, local_err);
         goto fail;
@@ -134,7 +134,7 @@ static int blkverify_open(BlockDriverState *bs, QDict *options, int flags,
     /* Open the test file */
     assert(s->test_file == NULL);
     ret = bdrv_open_image(&s->test_file, qemu_opt_get(opts, "x-image"), options,
-                          "test", flags, false, &local_err);
+                          "test", bs, &child_format, false, &local_err);
     if (ret < 0) {
         error_propagate(errp, local_err);
         s->test_file = NULL;
