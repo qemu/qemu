@@ -337,6 +337,12 @@ struct BdrvChildRole {
 extern const BdrvChildRole child_file;
 extern const BdrvChildRole child_format;
 
+typedef struct BdrvChild {
+    BlockDriverState *bs;
+    const BdrvChildRole *role;
+    QLIST_ENTRY(BdrvChild) next;
+} BdrvChild;
+
 /*
  * Note: the function bdrv_append() copies and swaps contents of
  * BlockDriverStates, so if you add new fields to this struct, please
@@ -430,6 +436,8 @@ struct BlockDriverState {
 
     /* long-running background operation */
     BlockJob *job;
+
+    QLIST_HEAD(, BdrvChild) children;
 
     QDict *options;
     BlockdevDetectZeroesOptions detect_zeroes;

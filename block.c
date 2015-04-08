@@ -1325,6 +1325,19 @@ out:
     return ret;
 }
 
+static void bdrv_attach_child(BlockDriverState *parent_bs,
+                              BlockDriverState *child_bs,
+                              const BdrvChildRole *child_role)
+{
+    BdrvChild *child = g_new(BdrvChild, 1);
+    *child = (BdrvChild) {
+        .bs     = child_bs,
+        .role   = child_role,
+    };
+
+    QLIST_INSERT_HEAD(&parent_bs->children, child, next);
+}
+
 /*
  * Opens a disk image (raw, qcow2, vmdk, ...)
  *
@@ -1377,6 +1390,9 @@ static int bdrv_open_inherit(BlockDriverState **pbs, const char *filename,
             return -ENODEV;
         }
         bdrv_ref(bs);
+        if (child_role) {
+            bdrv_attach_child(parent, bs, child_role);
+        }
         *pbs = bs;
         return 0;
     }
@@ -1518,6 +1534,10 @@ static int bdrv_open_inherit(BlockDriverState **pbs, const char *filename,
                    "Guest must be stopped for opening of encrypted image");
         ret = -EBUSY;
         goto close_and_fail;
+    }
+
+    if (child_role) {
+        bdrv_attach_child(parent, bs, child_role);
     }
 
     QDECREF(options);
@@ -1814,6 +1834,13 @@ void bdrv_close(BlockDriverState *bs)
     notifier_list_notify(&bs->close_notifiers, bs);
 
     if (bs->drv) {
+        BdrvChild *child, *next;
+
+        QLIST_FOREACH_SAFE(child, &bs->children, next, next) {
+            QLIST_REMOVE(child, next);
+            g_free(child);
+        }
+
         if (bs->backing_hd) {
             BlockDriverState *backing_hd = bs->backing_hd;
             bdrv_set_backing_hd(bs, NULL);
@@ -2005,8 +2032,17 @@ void bdrv_swap(BlockDriverState *bs_new, BlockDriverState *bs_old)
         QTAILQ_INSERT_TAIL(&graph_bdrv_states, bs_old, node_list);
     }
 
+    /*
+     * Update lh_first.le_prev for non-empty lists.
+     *
+     * The head of the op blocker list doesn't change because it is moved back
+     * in bdrv_move_feature_fields().
+     */
     assert(QLIST_EMPTY(&bs_old->tracked_requests));
     assert(QLIST_EMPTY(&bs_new->tracked_requests));
+
+    QLIST_FIX_HEAD_PTR(&bs_new->children, next);
+    QLIST_FIX_HEAD_PTR(&bs_old->children, next);
 
     bdrv_rebind(bs_new);
     bdrv_rebind(bs_old);
@@ -2030,6 +2066,7 @@ void bdrv_append(BlockDriverState *bs_new, BlockDriverState *bs_top)
     /* The contents of 'tmp' will become bs_top, as we are
      * swapping bs_new and bs_top contents. */
     bdrv_set_backing_hd(bs_top, bs_new);
+    bdrv_attach_child(bs_top, bs_new, &child_backing);
 }
 
 static void bdrv_delete(BlockDriverState *bs)
