@@ -65,6 +65,7 @@ do {                                                        \
 #define CFI_PFLASH01(obj) OBJECT_CHECK(pflash_t, (obj), TYPE_CFI_PFLASH01)
 
 #define PFLASH_BE          0
+#define PFLASH_SECURE      1
 
 struct pflash_t {
     /*< private >*/
@@ -237,12 +238,57 @@ static uint32_t pflash_devid_query(pflash_t *pfl, hwaddr offset)
     return resp;
 }
 
+static uint32_t pflash_data_read(pflash_t *pfl, hwaddr offset,
+                                 int width, int be)
+{
+    uint8_t *p;
+    uint32_t ret;
+
+    p = pfl->storage;
+    switch (width) {
+    case 1:
+        ret = p[offset];
+        DPRINTF("%s: data offset " TARGET_FMT_plx " %02x\n",
+                __func__, offset, ret);
+        break;
+    case 2:
+        if (be) {
+            ret = p[offset] << 8;
+            ret |= p[offset + 1];
+        } else {
+            ret = p[offset];
+            ret |= p[offset + 1] << 8;
+        }
+        DPRINTF("%s: data offset " TARGET_FMT_plx " %04x\n",
+                __func__, offset, ret);
+        break;
+    case 4:
+        if (be) {
+            ret = p[offset] << 24;
+            ret |= p[offset + 1] << 16;
+            ret |= p[offset + 2] << 8;
+            ret |= p[offset + 3];
+        } else {
+            ret = p[offset];
+            ret |= p[offset + 1] << 8;
+            ret |= p[offset + 2] << 16;
+            ret |= p[offset + 3] << 24;
+        }
+        DPRINTF("%s: data offset " TARGET_FMT_plx " %08x\n",
+                __func__, offset, ret);
+        break;
+    default:
+        DPRINTF("BUG in %s\n", __func__);
+        abort();
+    }
+    return ret;
+}
+
 static uint32_t pflash_read (pflash_t *pfl, hwaddr offset,
                              int width, int be)
 {
     hwaddr boff;
     uint32_t ret;
-    uint8_t *p;
 
     ret = -1;
 
@@ -259,43 +305,7 @@ static uint32_t pflash_read (pflash_t *pfl, hwaddr offset,
         /* fall through to read code */
     case 0x00:
         /* Flash area read */
-        p = pfl->storage;
-        switch (width) {
-        case 1:
-            ret = p[offset];
-            DPRINTF("%s: data offset " TARGET_FMT_plx " %02x\n",
-                    __func__, offset, ret);
-            break;
-        case 2:
-            if (be) {
-                ret = p[offset] << 8;
-                ret |= p[offset + 1];
-            } else {
-                ret = p[offset];
-                ret |= p[offset + 1] << 8;
-            }
-            DPRINTF("%s: data offset " TARGET_FMT_plx " %04x\n",
-                    __func__, offset, ret);
-            break;
-        case 4:
-            if (be) {
-                ret = p[offset] << 24;
-                ret |= p[offset + 1] << 16;
-                ret |= p[offset + 2] << 8;
-                ret |= p[offset + 3];
-            } else {
-                ret = p[offset];
-                ret |= p[offset + 1] << 8;
-                ret |= p[offset + 2] << 16;
-                ret |= p[offset + 3] << 24;
-            }
-            DPRINTF("%s: data offset " TARGET_FMT_plx " %08x\n",
-                    __func__, offset, ret);
-            break;
-        default:
-            DPRINTF("BUG in %s\n", __func__);
-        }
-
+        ret = pflash_data_read(pfl, offset, width, be);
         break;
     case 0x10: /* Single byte program */
     case 0x20: /* Block erase */
@@ -650,25 +660,37 @@ static void pflash_write(pflash_t *pfl, hwaddr offset,
 }
 
 
-static uint64_t pflash_mem_read(void *opaque, hwaddr addr, unsigned len)
+static MemTxResult pflash_mem_read_with_attrs(void *opaque, hwaddr addr, uint64_t *value,
+                                              unsigned len, MemTxAttrs attrs)
 {
     pflash_t *pfl = opaque;
     bool be = !!(pfl->features & (1 << PFLASH_BE));
 
-    return pflash_read(pfl, addr, len, be);
+    if ((pfl->features & (1 << PFLASH_SECURE)) && !attrs.secure) {
+        *value = pflash_data_read(opaque, addr, len, be);
+    } else {
+        *value = pflash_read(opaque, addr, len, be);
+    }
+    return MEMTX_OK;
 }
 
-static void pflash_mem_write(void *opaque, hwaddr addr, uint64_t value, unsigned len)
+static MemTxResult pflash_mem_write_with_attrs(void *opaque, hwaddr addr, uint64_t value,
+                                               unsigned len, MemTxAttrs attrs)
 {
     pflash_t *pfl = opaque;
     bool be = !!(pfl->features & (1 << PFLASH_BE));
 
-    pflash_write(pfl, addr, value, len, be);
+    if ((pfl->features & (1 << PFLASH_SECURE)) && !attrs.secure) {
+        return MEMTX_ERROR;
+    } else {
+        pflash_write(opaque, addr, value, len, be);
+        return MEMTX_OK;
+    }
 }
 
 static const MemoryRegionOps pflash_cfi01_ops = {
-    .read = pflash_mem_read,
-    .write = pflash_mem_write,
+    .read_with_attrs = pflash_mem_read_with_attrs,
+    .write_with_attrs = pflash_mem_write_with_attrs,
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
@@ -853,6 +875,7 @@ static Property pflash_cfi01_properties[] = {
     DEFINE_PROP_UINT8("device-width", struct pflash_t, device_width, 0),
     DEFINE_PROP_UINT8("max-device-width", struct pflash_t, max_device_width, 0),
     DEFINE_PROP_BIT("big-endian", struct pflash_t, features, PFLASH_BE, 0),
+    DEFINE_PROP_BIT("secure", struct pflash_t, features, PFLASH_SECURE, 0),
     DEFINE_PROP_UINT16("id0", struct pflash_t, ident0, 0),
     DEFINE_PROP_UINT16("id1", struct pflash_t, ident1, 0),
     DEFINE_PROP_UINT16("id2", struct pflash_t, ident2, 0),
