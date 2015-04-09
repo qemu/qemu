@@ -1705,7 +1705,7 @@ void object_property_add_uint64_ptr(Object *obj, const char *name,
 
 typedef struct {
     Object *target_obj;
-    const char *target_name;
+    char *target_name;
 } AliasProperty;
 
 static void property_get_alias(Object *obj, struct Visitor *v, void *opaque,
@@ -1736,6 +1736,7 @@ static void property_release_alias(Object *obj, const char *name, void *opaque)
 {
     AliasProperty *prop = opaque;
 
+    g_free(prop->target_name);
     g_free(prop);
 }
 
@@ -1763,7 +1764,7 @@ void object_property_add_alias(Object *obj, const char *name,
 
     prop = g_malloc(sizeof(*prop));
     prop->target_obj = target_obj;
-    prop->target_name = target_name;
+    prop->target_name = g_strdup(target_name);
 
     op = object_property_add(obj, name, prop_type,
                              property_get_alias,
