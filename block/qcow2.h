@@ -283,6 +283,12 @@ typedef struct BDRVQcowState {
     QLIST_HEAD(, Qcow2UnknownHeaderExtension) unknown_header_ext;
     QTAILQ_HEAD (, Qcow2DiscardRegion) discards;
     bool cache_discards;
+
+    /* Backing file path and format as stored in the image (this is not the
+     * effective path/format, which may be the result of a runtime option
+     * override) */
+    char *image_backing_file;
+    char *image_backing_format;
 } BDRVQcowState;
 
 struct QCowAIOCB;

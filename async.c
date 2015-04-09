@@ -72,12 +72,13 @@ int aio_bh_poll(AioContext *ctx)
         /* Make sure that fetching bh happens before accessing its members */
         smp_read_barrier_depends();
         next = bh->next;
-        if (!bh->deleted && bh->scheduled) {
-            bh->scheduled = 0;
-            /* Paired with write barrier in bh schedule to ensure reading for
-             * idle & callbacks coming after bh's scheduling.
-             */
-            smp_rmb();
+        /* The atomic_xchg is paired with the one in qemu_bh_schedule.  The
+         * implicit memory barrier ensures that the callback sees all writes
+         * done by the scheduling thread.  It also ensures that the scheduling
+         * thread sees the zero before bh->cb has run, and thus will call
+         * aio_notify again if necessary.
+         */
+        if (!bh->deleted && atomic_xchg(&bh->scheduled, 0)) {
             if (!bh->idle)
                 ret = 1;
             bh->idle = 0;
@@ -108,33 +109,28 @@ int aio_bh_poll(AioContext *ctx)
 
 void qemu_bh_schedule_idle(QEMUBH *bh)
 {
-    if (bh->scheduled)
-        return;
     bh->idle = 1;
     /* Make sure that idle & any writes needed by the callback are done
      * before the locations are read in the aio_bh_poll.
      */
-    smp_wmb();
-    bh->scheduled = 1;
+    atomic_mb_set(&bh->scheduled, 1);
 }
 
 void qemu_bh_schedule(QEMUBH *bh)
 {
     AioContext *ctx;
 
-    if (bh->scheduled)
-        return;
     ctx = bh->ctx;
     bh->idle = 0;
-    /* Make sure that:
+    /* The memory barrier implicit in atomic_xchg makes sure that:
      * 1. idle & any writes needed by the callback are done before the
      *    locations are read in the aio_bh_poll.
      * 2. ctx is loaded before scheduled is set and the callback has a chance
      *    to execute.
      */
-    smp_mb();
-    bh->scheduled = 1;
-    aio_notify(ctx);
+    if (atomic_xchg(&bh->scheduled, 1) == 0) {
+        aio_notify(ctx);
+    }
 }
 
 

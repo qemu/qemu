@@ -56,6 +56,7 @@ typedef struct IscsiLun {
     uint64_t num_blocks;
     int events;
     QEMUTimer *nop_timer;
+    QEMUTimer *event_timer;
     uint8_t lbpme;
     uint8_t lbprz;
     uint8_t has_write_same;
@@ -95,6 +96,7 @@ typedef struct IscsiAIOCB {
 #endif
 } IscsiAIOCB;
 
+#define EVENT_INTERVAL 250
 #define NOP_INTERVAL 5000
 #define MAX_NOP_FAILURES 3
 #define ISCSI_CMD_RETRIES ARRAY_SIZE(iscsi_retry_times)
@@ -256,21 +258,30 @@ static void
 iscsi_set_events(IscsiLun *iscsilun)
 {
     struct iscsi_context *iscsi = iscsilun->iscsi;
-    int ev;
+    int ev = iscsi_which_events(iscsi);
 
-    /* We always register a read handler.  */
-    ev = POLLIN;
-    ev |= iscsi_which_events(iscsi);
     if (ev != iscsilun->events) {
         aio_set_fd_handler(iscsilun->aio_context,
                            iscsi_get_fd(iscsi),
-                           iscsi_process_read,
+                           (ev & POLLIN) ? iscsi_process_read : NULL,
                            (ev & POLLOUT) ? iscsi_process_write : NULL,
                            iscsilun);
-
+        iscsilun->events = ev;
     }
 
-    iscsilun->events = ev;
+    /* newer versions of libiscsi may return zero events. In this
+     * case start a timer to ensure we are able to return to service
+     * once this situation changes. */
+    if (!ev) {
+        timer_mod(iscsilun->event_timer,
+                  qemu_clock_get_ms(QEMU_CLOCK_REALTIME) + EVENT_INTERVAL);
+    }
+}
+
+static void iscsi_timed_set_events(void *opaque)
+{
+    IscsiLun *iscsilun = opaque;
+    iscsi_set_events(iscsilun);
 }
 
 static void
@@ -1214,6 +1225,11 @@ static void iscsi_detach_aio_context(BlockDriverState *bs)
         timer_free(iscsilun->nop_timer);
         iscsilun->nop_timer = NULL;
     }
+    if (iscsilun->event_timer) {
+        timer_del(iscsilun->event_timer);
+        timer_free(iscsilun->event_timer);
+        iscsilun->event_timer = NULL;
+    }
 }
 
 static void iscsi_attach_aio_context(BlockDriverState *bs,
@@ -1230,6 +1246,11 @@ static void iscsi_attach_aio_context(BlockDriverState *bs,
                                         iscsi_nop_timed_event, iscsilun);
     timer_mod(iscsilun->nop_timer,
               qemu_clock_get_ms(QEMU_CLOCK_REALTIME) + NOP_INTERVAL);
+
+    /* Prepare a timer for a delayed call to iscsi_set_events */
+    iscsilun->event_timer = aio_timer_new(iscsilun->aio_context,
+                                          QEMU_CLOCK_REALTIME, SCALE_MS,
+                                          iscsi_timed_set_events, iscsilun);
 }
 
 static bool iscsi_is_write_protected(IscsiLun *iscsilun)

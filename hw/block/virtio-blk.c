@@ -33,6 +33,7 @@ VirtIOBlockReq *virtio_blk_alloc_request(VirtIOBlock *s)
     VirtIOBlockReq *req = g_slice_new(VirtIOBlockReq);
     req->dev = s;
     req->qiov.size = 0;
+    req->in_len = 0;
     req->next = NULL;
     req->mr_next = NULL;
     return req;
@@ -54,7 +55,7 @@ static void virtio_blk_complete_request(VirtIOBlockReq *req,
     trace_virtio_blk_req_complete(req, status);
 
     stb_p(&req->in->status, status);
-    virtqueue_push(s->vq, &req->elem, req->qiov.size + sizeof(*req->in));
+    virtqueue_push(s->vq, &req->elem, req->in_len);
     virtio_notify(vdev, s->vq);
 }
 
@@ -102,6 +103,14 @@ static void virtio_blk_rw_complete(void *opaque, int ret)
         if (ret) {
             int p = virtio_ldl_p(VIRTIO_DEVICE(req->dev), &req->out.type);
             bool is_read = !(p & VIRTIO_BLK_T_OUT);
+            /* Note that memory may be dirtied on read failure.  If the
+             * virtio request is not completed here, as is the case for
+             * BLOCK_ERROR_ACTION_STOP, the memory may not be copied
+             * correctly during live migration.  While this is ugly,
+             * it is acceptable because the device is free to write to
+             * the memory until the request is completed (which will
+             * happen on the other side of the migration).
+             */
             if (virtio_blk_handle_rw_error(req, -ret, is_read)) {
                 continue;
             }
@@ -496,6 +505,8 @@ void virtio_blk_handle_request(VirtIOBlockReq *req, MultiReqBuffer *mrb)
         exit(1);
     }
 
+    /* We always touch the last byte, so just see how big in_iov is.  */
+    req->in_len = iov_size(in_iov, in_num);
     req->in = (void *)in_iov[in_num - 1].iov_base
               + in_iov[in_num - 1].iov_len
               - sizeof(struct virtio_blk_inhdr);
