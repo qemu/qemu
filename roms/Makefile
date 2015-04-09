@@ -121,12 +121,12 @@ efi-rom-%: build-pxe-roms build-efi-roms
 		-o ../pc-bios/efi-$*.rom
 
 build-pxe-roms: ipxe/src/config/local/general.h
-	$(MAKE) -C ipxe/src GITVERSION="" \
+	$(MAKE) -C ipxe/src \
 		CROSS_COMPILE=$(x86_64_cross_prefix) \
 		$(patsubst %,bin/%.rom,$(pxerom_targets))
 
 build-efi-roms: build-pxe-roms ipxe/src/config/local/general.h
-	$(MAKE) -C ipxe/src GITVERSION="" \
+	$(MAKE) -C ipxe/src \
 		CROSS_COMPILE=$(x86_64_cross_prefix) \
 		$(patsubst %,bin-i386-efi/%.efidrv,$(pxerom_targets)) \
 		$(patsubst %,bin-x86_64-efi/%.efidrv,$(pxerom_targets))
