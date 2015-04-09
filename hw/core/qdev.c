@@ -563,6 +563,7 @@ void qdev_pass_gpios(DeviceState *dev, DeviceState *container,
         object_property_add_alias(OBJECT(container), propname,
                                   OBJECT(dev), propname,
                                   &error_abort);
+        g_free(propname);
     }
     for (i = 0; i < ngl->num_out; i++) {
         const char *nm = ngl->name ? ngl->name : "unnamed-gpio-out";
@@ -571,6 +572,7 @@ void qdev_pass_gpios(DeviceState *dev, DeviceState *container,
         object_property_add_alias(OBJECT(container), propname,
                                   OBJECT(dev), propname,
                                   &error_abort);
+        g_free(propname);
     }
     QLIST_REMOVE(ngl, node);
     QLIST_INSERT_HEAD(&container->gpios, ngl, node);
