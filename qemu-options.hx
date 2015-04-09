@@ -171,11 +171,13 @@ Set parameter @var{arg} for item @var{id} of type @var{group}\n"
 ETEXI
 
 DEF("global", HAS_ARG, QEMU_OPTION_global,
-    "-global driver.prop=value\n"
+    "-global driver.property=value\n"
+    "-global driver=driver,property=property,value=value\n"
     "                set a global default for a driver property\n",
     QEMU_ARCH_ALL)
 STEXI
 @item -global @var{driver}.@var{prop}=@var{value}
+@itemx -global driver=@var{driver},property=@var{property},value=@var{value}
 @findex -global
 Set default value of @var{driver}'s property @var{prop} to @var{value}, e.g.:
 
@@ -186,6 +188,9 @@ qemu-system-i386 -global ide-drive.physical_block_size=4096 -drive file=file,if=
 In particular, you can use this to set driver properties for devices which are 
 created automatically by the machine model. To create a device which is not 
 created automatically and set properties on it, use -@option{device}.
+
+The two syntaxes are equivalent.  The longer one works for drivers whose name
+contains a dot.
 ETEXI
 
 DEF("boot", HAS_ARG, QEMU_OPTION_boot,
