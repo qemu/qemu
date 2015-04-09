@@ -327,7 +327,7 @@ seccomp=""
 glusterfs=""
 glusterfs_discard="no"
 glusterfs_zerofill="no"
-archipelago=""
+archipelago="no"
 gtk=""
 gtkabi=""
 vte=""
@@ -3173,6 +3173,12 @@ EOF
         archipelago="yes"
         libs_tools="$archipelago_libs $libs_tools"
         libs_softmmu="$archipelago_libs $libs_softmmu"
+
+	echo "WARNING: Please check the licenses of QEMU and libxseg carefully."
+	echo "GPLv3 versions of libxseg may not be compatible with QEMU's"
+	echo "license and therefore prevent redistribution."
+	echo
+	echo "To disable Archipelago, use --disable-archipelago"
     else
       if test "$archipelago" = "yes" ; then
         feature_not_found "Archipelago backend support" "Install libxseg devel"
