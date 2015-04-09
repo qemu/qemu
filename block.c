@@ -1615,6 +1615,8 @@ BlockReopenQueue *bdrv_reopen_queue(BlockReopenQueue *bs_queue,
     assert(bs != NULL);
 
     BlockReopenQueueEntry *bs_entry;
+    BdrvChild *child;
+
     if (bs_queue == NULL) {
         bs_queue = g_new0(BlockReopenQueue, 1);
         QSIMPLEQ_INIT(bs_queue);
@@ -1623,8 +1625,15 @@ BlockReopenQueue *bdrv_reopen_queue(BlockReopenQueue *bs_queue,
     /* bdrv_open() masks this flag out */
     flags &= ~BDRV_O_PROTOCOL;
 
-    if (bs->file) {
-        bdrv_reopen_queue(bs_queue, bs->file, bdrv_inherited_flags(flags));
+    QLIST_FOREACH(child, &bs->children, next) {
+        int child_flags;
+
+        if (child->bs->inherits_from != bs) {
+            continue;
+        }
+
+        child_flags = child->role->inherit_flags(flags);
+        bdrv_reopen_queue(bs_queue, child->bs, child_flags);
     }
 
     bs_entry = g_new0(BlockReopenQueueEntry, 1);
