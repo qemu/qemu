@@ -515,7 +515,7 @@ void virtio_blk_handle_request(VirtIOBlockReq *req, MultiReqBuffer *mrb)
     type = virtio_ldl_p(VIRTIO_DEVICE(req->dev), &req->out.type);
 
     /* VIRTIO_BLK_T_OUT defines the command direction. VIRTIO_BLK_T_BARRIER
-     * is an optional flag. Altough a guest should not send this flag if
+     * is an optional flag. Although a guest should not send this flag if
      * not negotiated we ignored it in the past. So keep ignoring it. */
     switch (type & ~(VIRTIO_BLK_T_OUT | VIRTIO_BLK_T_BARRIER)) {
     case VIRTIO_BLK_T_IN:

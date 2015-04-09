@@ -303,8 +303,8 @@ static int mmu_translate_asce(CPUS390XState *env, target_ulong vaddr,
  * @param asc    address space control (one of the PSW_ASC_* modes)
  * @param raddr  the translated address is stored to this pointer
  * @param flags  the PAGE_READ/WRITE/EXEC flags are stored to this pointer
- * @param exc    true = inject a program check if a fault occured
- * @return       0 if the translation was successfull, -1 if a fault occured
+ * @param exc    true = inject a program check if a fault occurred
+ * @return       0 if the translation was successful, -1 if a fault occurred
  */
 int mmu_translate(CPUS390XState *env, target_ulong vaddr, int rw, uint64_t asc,
                   target_ulong *raddr, int *flags, bool exc)
@@ -436,9 +436,9 @@ static int translate_pages(S390CPU *cpu, vaddr addr, int nr_pages,
  * s390_cpu_virt_mem_rw:
  * @laddr:     the logical start address
  * @hostbuf:   buffer in host memory. NULL = do only checks w/o copying
- * @len:       length that should be transfered
+ * @len:       length that should be transferred
  * @is_write:  true = write, false = read
- * Returns:    0 on success, non-zero if an exception occured
+ * Returns:    0 on success, non-zero if an exception occurred
  *
  * Copy from/to guest memory using logical addresses. Note that we inject a
  * program interrupt in case there is an error while accessing the memory.

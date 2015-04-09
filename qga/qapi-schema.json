@@ -808,7 +808,7 @@
 #
 # An enumeration of memory block operation result.
 #
-# @sucess: the operation of online/offline memory block is successful.
+# @success: the operation of online/offline memory block is successful.
 # @not-found: can't find the corresponding memoryXXX directory in sysfs.
 # @operation-not-supported: for some old kernels, it does not support
 #                           online or offline memory block.
