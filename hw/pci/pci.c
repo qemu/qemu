@@ -1660,7 +1660,9 @@ PCIDevice *pci_nic_init_nofail(NICInfo *nd, PCIBus *rootbus,
 
     res = pci_nic_init(nd, rootbus, default_model, default_devaddr, &err);
     if (!res) {
-        error_report_err(err);
+        if (err) {
+            error_report_err(err);
+        }
         exit(1);
     }
     return res;
