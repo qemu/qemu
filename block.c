@@ -1409,6 +1409,7 @@ static int bdrv_open_inherit(BlockDriverState **pbs, const char *filename,
     }
 
     if (child_role) {
+        bs->inherits_from = parent;
         flags = child_role->inherit_flags(parent->open_flags);
     }
 
@@ -1837,6 +1838,9 @@ void bdrv_close(BlockDriverState *bs)
         BdrvChild *child, *next;
 
         QLIST_FOREACH_SAFE(child, &bs->children, next, next) {
+            if (child->bs->inherits_from == bs) {
+                child->bs->inherits_from = NULL;
+            }
             QLIST_REMOVE(child, next);
             g_free(child);
         }
@@ -1985,6 +1989,7 @@ static void bdrv_move_feature_fields(BlockDriverState *bs_dest,
 void bdrv_swap(BlockDriverState *bs_new, BlockDriverState *bs_old)
 {
     BlockDriverState tmp;
+    BdrvChild *child;
 
     bdrv_drain(bs_new);
     bdrv_drain(bs_old);
@@ -2043,6 +2048,18 @@ void bdrv_swap(BlockDriverState *bs_new, BlockDriverState *bs_old)
 
     QLIST_FIX_HEAD_PTR(&bs_new->children, next);
     QLIST_FIX_HEAD_PTR(&bs_old->children, next);
+
+    /* Update references in bs->opaque and children */
+    QLIST_FOREACH(child, &bs_old->children, next) {
+        if (child->bs->inherits_from == bs_new) {
+            child->bs->inherits_from = bs_old;
+        }
+    }
+    QLIST_FOREACH(child, &bs_new->children, next) {
+        if (child->bs->inherits_from == bs_old) {
+            child->bs->inherits_from = bs_new;
+        }
+    }
 
     bdrv_rebind(bs_new);
     bdrv_rebind(bs_old);

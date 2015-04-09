@@ -437,6 +437,10 @@ struct BlockDriverState {
     /* long-running background operation */
     BlockJob *job;
 
+    /* The node that this node inherited default options from (and a reopen on
+     * which can affect this node by changing these defaults). This is always a
+     * parent node of this node. */
+    BlockDriverState *inherits_from;
     QLIST_HEAD(, BdrvChild) children;
 
     QDict *options;
