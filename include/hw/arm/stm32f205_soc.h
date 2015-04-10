@@ -29,7 +29,7 @@
 #include "hw/timer/stm32f2xx_timer.h"
 #include "hw/char/stm32f2xx_usart.h"
 
-#define TYPE_STM32F205_SOC "stm32f205_soc"
+#define TYPE_STM32F205_SOC "stm32f205-soc"
 #define STM32F205_SOC(obj) \
     OBJECT_CHECK(STM32F205State, (obj), TYPE_STM32F205_SOC)
 
