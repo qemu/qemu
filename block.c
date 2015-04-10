@@ -1636,6 +1636,9 @@ typedef struct BlockReopenQueueEntry {
  *
  * bs is the BlockDriverState to add to the reopen queue.
  *
+ * options contains the changed options for the associated bs
+ * (the BlockReopenQueue takes ownership)
+ *
  * flags contains the open flags for the associated bs
  *
  * returns a pointer to bs_queue, which is either the newly allocated
@@ -1643,17 +1646,27 @@ typedef struct BlockReopenQueueEntry {
  *
  */
 BlockReopenQueue *bdrv_reopen_queue(BlockReopenQueue *bs_queue,
-                                    BlockDriverState *bs, int flags)
+                                    BlockDriverState *bs,
+                                    QDict *options, int flags)
 {
     assert(bs != NULL);
 
     BlockReopenQueueEntry *bs_entry;
     BdrvChild *child;
+    QDict *old_options;
 
     if (bs_queue == NULL) {
         bs_queue = g_new0(BlockReopenQueue, 1);
         QSIMPLEQ_INIT(bs_queue);
     }
+
+    if (!options) {
+        options = qdict_new();
+    }
+
+    old_options = qdict_clone_shallow(bs->options);
+    qdict_join(options, old_options, false);
+    QDECREF(old_options);
 
     /* bdrv_open() masks this flag out */
     flags &= ~BDRV_O_PROTOCOL;
@@ -1666,13 +1679,15 @@ BlockReopenQueue *bdrv_reopen_queue(BlockReopenQueue *bs_queue,
         }
 
         child_flags = child->role->inherit_flags(flags);
-        bdrv_reopen_queue(bs_queue, child->bs, child_flags);
+        /* TODO Pass down child flags (backing.*, extents.*, ...) */
+        bdrv_reopen_queue(bs_queue, child->bs, NULL, child_flags);
     }
 
     bs_entry = g_new0(BlockReopenQueueEntry, 1);
     QSIMPLEQ_INSERT_TAIL(bs_queue, bs_entry, entry);
 
     bs_entry->state.bs = bs;
+    bs_entry->state.options = options;
     bs_entry->state.flags = flags;
 
     return bs_queue;
@@ -1725,6 +1740,7 @@ cleanup:
         if (ret && bs_entry->prepared) {
             bdrv_reopen_abort(&bs_entry->state);
         }
+        QDECREF(bs_entry->state.options);
         g_free(bs_entry);
     }
     g_free(bs_queue);
@@ -1737,7 +1753,7 @@ int bdrv_reopen(BlockDriverState *bs, int bdrv_flags, Error **errp)
 {
     int ret = -1;
     Error *local_err = NULL;
-    BlockReopenQueue *queue = bdrv_reopen_queue(NULL, bs, bdrv_flags);
+    BlockReopenQueue *queue = bdrv_reopen_queue(NULL, bs, NULL, bdrv_flags);
 
     ret = bdrv_reopen_multiple(queue, &local_err);
     if (local_err != NULL) {
@@ -1811,6 +1827,26 @@ int bdrv_reopen_prepare(BDRVReopenState *reopen_state, BlockReopenQueue *queue,
                    bdrv_get_device_or_node_name(reopen_state->bs));
         ret = -1;
         goto error;
+    }
+
+    /* Options that are not handled are only okay if they are unchanged
+     * compared to the old state. It is expected that some options are only
+     * used for the initial open, but not reopen (e.g. filename) */
+    if (qdict_size(reopen_state->options)) {
+        const QDictEntry *entry = qdict_first(reopen_state->options);
+
+        do {
+            QString *new_obj = qobject_to_qstring(entry->value);
+            const char *new = qstring_get_str(new_obj);
+            const char *old = qdict_get_try_str(reopen_state->bs->options,
+                                                entry->key);
+
+            if (!old || strcmp(new, old)) {
+                error_setg(errp, "Cannot change the option '%s'", entry->key);
+                ret = -EINVAL;
+                goto error;
+            }
+        } while ((entry = qdict_next(reopen_state->options, entry)));
     }
 
     ret = 0;
