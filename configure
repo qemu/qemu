@@ -416,6 +416,9 @@ if test "$debug_info" = "yes"; then
     LDFLAGS="-g $LDFLAGS"
 fi
 
+test_cflags=""
+test_libs=""
+
 # make source path absolute
 source_path=`cd "$source_path"; pwd`
 
@@ -2247,6 +2250,19 @@ if test "$gnutls_nettle" != "no"; then
     else
         feature_not_found "nettle" "Install nettle devel"
     fi
+fi
+
+##########################################
+# libtasn1 - only for the TLS creds/session test suite
+
+tasn1=yes
+if $pkg_config --exists "libtasn1"; then
+    tasn1_cflags=`$pkg_config --cflags libtasn1`
+    tasn1_libs=`$pkg_config --libs libtasn1`
+    test_cflags="$test_cflags $tasn1_cflags"
+    test_libs="$test_libs $tasn1_libs"
+else
+    tasn1=no
 fi
 
 
@@ -4574,6 +4590,7 @@ echo "GNUTLS support    $gnutls"
 echo "GNUTLS hash       $gnutls_hash"
 echo "GNUTLS gcrypt     $gnutls_gcrypt"
 echo "GNUTLS nettle     $gnutls_nettle ${gnutls_nettle+($nettle_version)}"
+echo "libtasn1          $tasn1"
 echo "VTE support       $vte"
 echo "curses support    $curses"
 echo "curl support      $curl"
@@ -4945,6 +4962,9 @@ if test "$gnutls_nettle" = "yes" ; then
   echo "CONFIG_GNUTLS_NETTLE=y" >> $config_host_mak
   echo "CONFIG_NETTLE_VERSION_MAJOR=${nettle_version%%.*}" >> $config_host_mak
 fi
+if test "$tasn1" = "yes" ; then
+  echo "CONFIG_TASN1=y" >> $config_host_mak
+fi
 if test "$vte" = "yes" ; then
   echo "CONFIG_VTE=y" >> $config_host_mak
   echo "VTE_CFLAGS=$vte_cflags" >> $config_host_mak
@@ -5268,6 +5288,8 @@ echo "EXESUF=$EXESUF" >> $config_host_mak
 echo "DSOSUF=$DSOSUF" >> $config_host_mak
 echo "LDFLAGS_SHARED=$LDFLAGS_SHARED" >> $config_host_mak
 echo "LIBS_QGA+=$libs_qga" >> $config_host_mak
+echo "TEST_LIBS=$test_libs" >> $config_host_mak
+echo "TEST_CFLAGS=$test_cflags" >> $config_host_mak
 echo "POD2MAN=$POD2MAN" >> $config_host_mak
 echo "TRANSLATE_OPT_CFLAGS=$TRANSLATE_OPT_CFLAGS" >> $config_host_mak
 if test "$gcov" = "yes" ; then

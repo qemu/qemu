@@ -100,6 +100,7 @@ struct QCryptoTLSCredsX509 {
 #ifdef CONFIG_GNUTLS
     gnutls_certificate_credentials_t data;
 #endif
+    bool sanityCheck;
 };
 
 

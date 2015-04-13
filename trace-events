@@ -1676,3 +1676,8 @@ qcrypto_tls_creds_anon_load(void *creds, const char *dir) "TLS creds anon load c
 
 # crypto/tlscredsx509.c
 qcrypto_tls_creds_x509_load(void *creds, const char *dir) "TLS creds x509 load creds=%p dir=%s"
+qcrypto_tls_creds_x509_check_basic_constraints(void *creds, const char *file, int status) "TLS creds x509 check basic constraints creds=%p file=%s status=%d"
+qcrypto_tls_creds_x509_check_key_usage(void *creds, const char *file, int status, int usage, int critical) "TLS creds x509 check key usage creds=%p file=%s status=%d usage=%d critical=%d"
+qcrypto_tls_creds_x509_check_key_purpose(void *creds, const char *file, int status, const char *usage, int critical) "TLS creds x509 check key usage creds=%p file=%s status=%d usage=%s critical=%d"
+qcrypto_tls_creds_x509_load_cert(void *creds, int isServer, const char *file) "TLS creds x509 load cert creds=%p isServer=%d file=%s"
+qcrypto_tls_creds_x509_load_cert_list(void *creds, const char *file) "TLS creds x509 load cert list creds=%p file=%s"

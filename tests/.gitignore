@@ -12,6 +12,9 @@ test-bitops
 test-coroutine
 test-crypto-cipher
 test-crypto-hash
+test-crypto-tlscredsx509
+test-crypto-tlscredsx509-work/
+test-crypto-tlscredsx509-certs/
 test-cutils
 test-hbitmap
 test-int128
