@@ -1269,7 +1269,7 @@ static coroutine_fn int vhdx_co_writev(BlockDriverState *bs, int64_t sector_num,
                         iov1.iov_base = qemu_blockalign(bs, iov1.iov_len);
                         memset(iov1.iov_base, 0, iov1.iov_len);
                         qemu_iovec_concat_iov(&hd_qiov, &iov1, 1, 0,
-                                              sinfo.block_offset);
+                                              iov1.iov_len);
                         sectors_to_write += iov1.iov_len >> BDRV_SECTOR_BITS;
                     }
 
@@ -1285,7 +1285,7 @@ static coroutine_fn int vhdx_co_writev(BlockDriverState *bs, int64_t sector_num,
                         iov2.iov_base = qemu_blockalign(bs, iov2.iov_len);
                         memset(iov2.iov_base, 0, iov2.iov_len);
                         qemu_iovec_concat_iov(&hd_qiov, &iov2, 1, 0,
-                                              sinfo.block_offset);
+                                              iov2.iov_len);
                         sectors_to_write += iov2.iov_len >> BDRV_SECTOR_BITS;
                     }
                 }
