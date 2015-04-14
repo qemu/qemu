@@ -629,6 +629,7 @@ static int m25p80_init(SSISlave *ss)
     if (dinfo) {
         DB_PRINT_L(0, "Binding to IF_MTD drive\n");
         s->blk = blk_by_legacy_dinfo(dinfo);
+        blk_attach_dev_nofail(s->blk, s);
 
         /* FIXME: Move to late init */
         if (blk_read(s->blk, 0, s->storage,
