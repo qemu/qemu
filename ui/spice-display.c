@@ -178,7 +178,7 @@ static void qemu_spice_create_one_update(SimpleSpiceDisplay *ssd,
     image->bitmap.palette = 0;
     image->bitmap.format = SPICE_BITMAP_FMT_32BIT;
 
-    dest = pixman_image_create_bits(PIXMAN_x8r8g8b8, bw, bh,
+    dest = pixman_image_create_bits(PIXMAN_LE_x8r8g8b8, bw, bh,
                                     (void *)update->bitmap, bw * 4);
     pixman_image_composite(PIXMAN_OP_SRC, ssd->surface, NULL, ssd->mirror,
                            rect->left, rect->top, 0, 0,
