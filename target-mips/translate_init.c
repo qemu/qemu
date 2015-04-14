@@ -553,9 +553,6 @@ static const mips_def_t mips_defs[] =
                     (1 << FCR0_L) | (1 << FCR0_W) | (1 << FCR0_D) |
                     (1 << FCR0_S) | (0x00 << FCR0_PRID) | (0x0 << FCR0_REV),
         .SEGBITS = 42,
-        /* The architectural limit is 59, but we have hardcoded 36 bit
-           in some places...
-        .PABITS = 59, */ /* the architectural limit */
         .PABITS = 36,
         .insn_flags = CPU_MIPS64R2 | ASE_MIPS3D,
         .mmu_type = MMU_TYPE_R4000,
@@ -637,9 +634,6 @@ static const mips_def_t mips_defs[] =
                     (1 << FCR0_W) | (1 << FCR0_D) | (1 << FCR0_S) |
                     (0x00 << FCR0_PRID) | (0x0 << FCR0_REV),
         .SEGBITS = 42,
-        /* The architectural limit is 59, but we have hardcoded 36 bit
-           in some places...
-        .PABITS = 59, */ /* the architectural limit */
         .PABITS = 36,
         .insn_flags = CPU_MIPS64R6,
         .mmu_type = MMU_TYPE_R4000,
@@ -703,9 +697,6 @@ static const mips_def_t mips_defs[] =
                     (1 << FCR0_L) | (1 << FCR0_W) | (1 << FCR0_D) |
                     (1 << FCR0_S) | (0x00 << FCR0_PRID) | (0x0 << FCR0_REV),
         .SEGBITS = 42,
-        /* The architectural limit is 59, but we have hardcoded 36 bit
-           in some places...
-        .PABITS = 59, */ /* the architectural limit */
         .PABITS = 36,
         .insn_flags = CPU_MIPS64R2 | ASE_DSP | ASE_DSPR2,
         .mmu_type = MMU_TYPE_R4000,
