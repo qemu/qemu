@@ -224,8 +224,14 @@ struct CPUMIPSState {
 
     uint32_t SEGBITS;
     uint32_t PABITS;
+#if defined(TARGET_MIPS64)
+# define PABITS_BASE 36
+#else
+# define PABITS_BASE 32
+#endif
     target_ulong SEGMask;
     uint64_t PAMask;
+#define PAMASK_BASE ((1ULL << PABITS_BASE) - 1)
 
     int32_t msair;
 #define MSAIR_ProcID    8
@@ -289,6 +295,7 @@ struct CPUMIPSState {
     int32_t CP0_PageGrain;
 #define CP0PG_RIE 31
 #define CP0PG_XIE 30
+#define CP0PG_ELPA 29
 #define CP0PG_IEC 27
     int32_t CP0_Wired;
     int32_t CP0_SRSConf0_rw_bitmask;
@@ -518,7 +525,7 @@ struct CPUMIPSState {
 #define EXCP_INST_NOTAVAIL 0x2 /* No valid instruction word for BadInstr */
     uint32_t hflags;    /* CPU State */
     /* TMASK defines different execution modes */
-#define MIPS_HFLAG_TMASK  0x35807FF
+#define MIPS_HFLAG_TMASK  0x75807FF
 #define MIPS_HFLAG_MODE   0x00007 /* execution modes                    */
     /* The KSU flags must be the lowest bits in hflags. The flag order
        must be the same as defined for CP0 Status. This allows to use
@@ -566,6 +573,7 @@ struct CPUMIPSState {
 #define MIPS_HFLAG_FBNSLOT 0x800000 /* Forbidden slot                   */
 #define MIPS_HFLAG_MSA   0x1000000
 #define MIPS_HFLAG_FRE   0x2000000 /* FRE enabled */
+#define MIPS_HFLAG_ELPA  0x4000000
     target_ulong btarget;        /* Jump / branch target               */
     target_ulong bcond;          /* Branch condition (if needed)       */
 
@@ -801,6 +809,15 @@ static inline void restore_msa_fp_status(CPUMIPSState *env)
     set_flush_inputs_to_zero(flush_to_zero, status);
 }
 
+static inline void restore_pamask(CPUMIPSState *env)
+{
+    if (env->hflags & MIPS_HFLAG_ELPA) {
+        env->PAMask = (1ULL << env->PABITS) - 1;
+    } else {
+        env->PAMask = PAMASK_BASE;
+    }
+}
+
 static inline void cpu_get_tb_cpu_state(CPUMIPSState *env, target_ulong *pc,
                                         target_ulong *cs_base, int *flags)
 {
@@ -848,7 +865,8 @@ static inline void compute_hflags(CPUMIPSState *env)
     env->hflags &= ~(MIPS_HFLAG_COP1X | MIPS_HFLAG_64 | MIPS_HFLAG_CP0 |
                      MIPS_HFLAG_F64 | MIPS_HFLAG_FPU | MIPS_HFLAG_KSU |
                      MIPS_HFLAG_AWRAP | MIPS_HFLAG_DSP | MIPS_HFLAG_DSPR2 |
-                     MIPS_HFLAG_SBRI | MIPS_HFLAG_MSA | MIPS_HFLAG_FRE);
+                     MIPS_HFLAG_SBRI | MIPS_HFLAG_MSA | MIPS_HFLAG_FRE |
+                     MIPS_HFLAG_ELPA);
     if (!(env->CP0_Status & (1 << CP0St_EXL)) &&
         !(env->CP0_Status & (1 << CP0St_ERL)) &&
         !(env->hflags & MIPS_HFLAG_DM)) {
@@ -932,6 +950,11 @@ static inline void compute_hflags(CPUMIPSState *env)
     if (env->active_fpu.fcr0 & (1 << FCR0_FREP)) {
         if (env->CP0_Config5 & (1 << CP0C5_FRE)) {
             env->hflags |= MIPS_HFLAG_FRE;
+        }
+    }
+    if (env->CP0_Config3 & (1 << CP0C3_LPA)) {
+        if (env->CP0_PageGrain & (1 << CP0PG_ELPA)) {
+            env->hflags |= MIPS_HFLAG_ELPA;
         }
     }
 }

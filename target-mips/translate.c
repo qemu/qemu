@@ -5699,6 +5699,7 @@ static void gen_mtc0(DisasContext *ctx, TCGv arg, int reg, int sel)
             check_insn(ctx, ISA_MIPS32R2);
             gen_helper_mtc0_pagegrain(cpu_env, arg);
             rn = "PageGrain";
+            ctx->bstate = BS_STOP;
             break;
         default:
             goto cp0_unimplemented;
@@ -19578,7 +19579,6 @@ void cpu_state_reset(CPUMIPSState *env)
     }
 #endif
     env->PABITS = env->cpu_model->PABITS;
-    env->PAMask = (1ULL << env->cpu_model->PABITS) - 1;
     env->CP0_SRSConf0_rw_bitmask = env->cpu_model->CP0_SRSConf0_rw_bitmask;
     env->CP0_SRSConf0 = env->cpu_model->CP0_SRSConf0;
     env->CP0_SRSConf1_rw_bitmask = env->cpu_model->CP0_SRSConf1_rw_bitmask;
@@ -19699,6 +19699,7 @@ void cpu_state_reset(CPUMIPSState *env)
     compute_hflags(env);
     restore_rounding_mode(env);
     restore_flush_mode(env);
+    restore_pamask(env);
     cs->exception_index = EXCP_NONE;
 }
 

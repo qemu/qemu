@@ -10,6 +10,7 @@ static int cpu_post_load(void *opaque, int version_id)
     restore_fp_status(env);
     restore_msa_fp_status(env);
     compute_hflags(env);
+    restore_pamask(env);
 
     return 0;
 }

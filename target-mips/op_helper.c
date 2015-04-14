@@ -1068,19 +1068,23 @@ void helper_mtc0_vpeopt(CPUMIPSState *env, target_ulong arg1)
     env->CP0_VPEOpt = arg1 & 0x0000ffff;
 }
 
+#define MTC0_ENTRYLO_MASK(env) ((env->PAMask >> 6) & 0x3FFFFFFF)
+
 void helper_mtc0_entrylo0(CPUMIPSState *env, target_ulong arg1)
 {
-    /* Large physaddr (PABITS) not implemented */
     /* 1k pages not implemented */
     target_ulong rxi = arg1 & (env->CP0_PageGrain & (3u << CP0PG_XIE));
-    env->CP0_EntryLo0 = (arg1 & 0x3FFFFFFF) | (rxi << (CP0EnLo_XI - 30));
+    env->CP0_EntryLo0 = (arg1 & MTC0_ENTRYLO_MASK(env))
+                        | (rxi << (CP0EnLo_XI - 30));
 }
 
 #if defined(TARGET_MIPS64)
+#define DMTC0_ENTRYLO_MASK(env) (env->PAMask >> 6)
+
 void helper_dmtc0_entrylo0(CPUMIPSState *env, uint64_t arg1)
 {
     uint64_t rxi = arg1 & ((env->CP0_PageGrain & (3ull << CP0PG_XIE)) << 32);
-    env->CP0_EntryLo0 = (arg1 & 0x3FFFFFFF) | rxi;
+    env->CP0_EntryLo0 = (arg1 & DMTC0_ENTRYLO_MASK(env)) | rxi;
 }
 #endif
 
@@ -1246,17 +1250,17 @@ void helper_mttc0_tcschefback(CPUMIPSState *env, target_ulong arg1)
 
 void helper_mtc0_entrylo1(CPUMIPSState *env, target_ulong arg1)
 {
-    /* Large physaddr (PABITS) not implemented */
     /* 1k pages not implemented */
     target_ulong rxi = arg1 & (env->CP0_PageGrain & (3u << CP0PG_XIE));
-    env->CP0_EntryLo1 = (arg1 & 0x3FFFFFFF) | (rxi << (CP0EnLo_XI - 30));
+    env->CP0_EntryLo1 = (arg1 & MTC0_ENTRYLO_MASK(env))
+                        | (rxi << (CP0EnLo_XI - 30));
 }
 
 #if defined(TARGET_MIPS64)
 void helper_dmtc0_entrylo1(CPUMIPSState *env, uint64_t arg1)
 {
     uint64_t rxi = arg1 & ((env->CP0_PageGrain & (3ull << CP0PG_XIE)) << 32);
-    env->CP0_EntryLo1 = (arg1 & 0x3FFFFFFF) | rxi;
+    env->CP0_EntryLo1 = (arg1 & DMTC0_ENTRYLO_MASK(env)) | rxi;
 }
 #endif
 
@@ -1279,10 +1283,11 @@ void helper_mtc0_pagemask(CPUMIPSState *env, target_ulong arg1)
 void helper_mtc0_pagegrain(CPUMIPSState *env, target_ulong arg1)
 {
     /* SmartMIPS not implemented */
-    /* Large physaddr (PABITS) not implemented */
     /* 1k pages not implemented */
     env->CP0_PageGrain = (arg1 & env->CP0_PageGrain_rw_bitmask) |
                          (env->CP0_PageGrain & ~env->CP0_PageGrain_rw_bitmask);
+    compute_hflags(env);
+    restore_pamask(env);
 }
 
 void helper_mtc0_wired(CPUMIPSState *env, target_ulong arg1)
