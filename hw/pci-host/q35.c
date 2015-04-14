@@ -268,6 +268,13 @@ static void mch_update_smram(MCHPCIState *mch)
     PCIDevice *pd = PCI_DEVICE(mch);
     bool h_smrame = (pd->config[MCH_HOST_BRIDGE_ESMRAMC] & MCH_HOST_BRIDGE_ESMRAMC_H_SMRAME);
 
+    /* implement SMRAM.D_LCK */
+    if (pd->config[MCH_HOST_BRIDGE_SMRAM] & MCH_HOST_BRIDGE_SMRAM_D_LCK) {
+        pd->config[MCH_HOST_BRIDGE_SMRAM] &= ~MCH_HOST_BRIDGE_SMRAM_D_OPEN;
+        pd->wmask[MCH_HOST_BRIDGE_SMRAM] = MCH_HOST_BRIDGE_SMRAM_WMASK_LCK;
+        pd->wmask[MCH_HOST_BRIDGE_ESMRAMC] = MCH_HOST_BRIDGE_ESMRAMC_WMASK_LCK;
+    }
+
     memory_region_transaction_begin();
 
     if (pd->config[MCH_HOST_BRIDGE_SMRAM] & SMRAM_D_OPEN) {
@@ -297,7 +304,6 @@ static void mch_write_config(PCIDevice *d,
 {
     MCHPCIState *mch = MCH_PCI_DEVICE(d);
 
-    /* XXX: implement SMRAM.D_LOCK */
     pci_default_write_config(d, address, val, len);
 
     if (ranges_overlap(address, len, MCH_HOST_BRIDGE_PAM0,

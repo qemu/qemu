@@ -145,6 +145,8 @@ typedef struct Q35PCIHost {
      MCH_HOST_BRIDGE_SMRAM_D_CLS |              \
      MCH_HOST_BRIDGE_SMRAM_D_LCK |              \
      MCH_HOST_BRIDGE_SMRAM_G_SMRAME)
+#define MCH_HOST_BRIDGE_SMRAM_WMASK_LCK         \
+    MCH_HOST_BRIDGE_SMRAM_D_CLS
 
 #define MCH_HOST_BRIDGE_ESMRAMC                0x9e
 #define MCH_HOST_BRIDGE_ESMRAMC_H_SMRAME       ((uint8_t)(1 << 7))
@@ -165,6 +167,7 @@ typedef struct Q35PCIHost {
     (MCH_HOST_BRIDGE_ESMRAMC_H_SMRAME |             \
      MCH_HOST_BRIDGE_ESMRAMC_TSEG_SZ_MASK |         \
      MCH_HOST_BRIDGE_ESMRAMC_T_EN)
+#define MCH_HOST_BRIDGE_ESMRAMC_WMASK_LCK     0
 
 /* D1:F0 PCIE* port*/
 #define MCH_PCIE_DEV                           1
