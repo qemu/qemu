@@ -1007,6 +1007,43 @@ EQMP
         .mhandler.cmd_new = qmp_marshal_input_block_stream,
     },
 
+SQMP
+block-stream
+------------
+
+Copy data from a backing file into a block device.
+
+Arguments:
+
+- "device": The device's ID, must be unique (json-string)
+- "base": The file name of the backing image above which copying starts
+          (json-string, optional)
+- "backing-file": The backing file string to write into the active layer. This
+                  filename is not validated.
+
+                  If a pathname string is such that it cannot be resolved by
+                  QEMU, that means that subsequent QMP or HMP commands must use
+                  node-names for the image in question, as filename lookup
+                  methods will fail.
+
+                  If not specified, QEMU will automatically determine the
+                  backing file string to use, or error out if there is no
+                  obvious choice.  Care should be taken when specifying the
+                  string, to specify a valid filename or protocol.
+                  (json-string, optional) (Since 2.1)
+- "speed":  the maximum speed, in bytes per second (json-int, optional)
+- "on-error": the action to take on an error (default 'report').  'stop' and
+              'enospc' can only be used if the block device supports io-status.
+              (json-string, optional) (Since 2.1)
+
+Example:
+
+-> { "execute": "block-stream", "arguments": { "device": "virtio0",
+                                               "base": "/tmp/master.qcow2" } }
+<- { "return": {} }
+
+EQMP
+
     {
         .name       = "block-commit",
         .args_type  = "device:B,base:s?,top:s?,backing-file:s?,speed:o?",
