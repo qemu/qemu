@@ -842,7 +842,7 @@ static void tpm_tis_mmio_write_intern(void *opaque, hwaddr addr,
                 (tis->loc[locty].sts & TPM_TIS_STS_EXPECT)) {
                 /* we have a packet length - see if we have all of it */
 #ifdef RAISE_STS_IRQ
-                bool needIrq = !(tis->loc[locty].sts & TPM_TIS_STS_VALID);
+                bool need_irq = !(tis->loc[locty].sts & TPM_TIS_STS_VALID);
 #endif
                 len = tpm_tis_get_size_from_buffer(&tis->loc[locty].w_buffer);
                 if (len > tis->loc[locty].w_offset) {
@@ -853,7 +853,7 @@ static void tpm_tis_mmio_write_intern(void *opaque, hwaddr addr,
                     tpm_tis_sts_set(&tis->loc[locty], TPM_TIS_STS_VALID);
                 }
 #ifdef RAISE_STS_IRQ
-                if (needIrq) {
+                if (need_irq) {
                     tpm_tis_raise_irq(s, locty, TPM_TIS_INT_STS_VALID);
                 }
 #endif
