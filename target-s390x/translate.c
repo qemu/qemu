@@ -3082,6 +3082,10 @@ static ExitStatus op_soc(DisasContext *s, DisasOps *o)
 
     disas_jcc(s, &c, get_field(s->fields, m3));
 
+    /* We want to store when the condition is fulfilled, so branch
+       out when it's not */
+    c.cond = tcg_invert_cond(c.cond);
+
     lab = gen_new_label();
     if (c.is_64) {
         tcg_gen_brcond_i64(c.cond, c.u.s64.a, c.u.s64.b, lab);
