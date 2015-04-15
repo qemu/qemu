@@ -663,12 +663,16 @@ static void migration_bitmap_sync_range(ram_addr_t start, ram_addr_t length)
 static int64_t start_time;
 static int64_t bytes_xfer_prev;
 static int64_t num_dirty_pages_period;
+static uint64_t xbzrle_cache_miss_prev;
+static uint64_t iterations_prev;
 
 static void migration_bitmap_sync_init(void)
 {
     start_time = 0;
     bytes_xfer_prev = 0;
     num_dirty_pages_period = 0;
+    xbzrle_cache_miss_prev = 0;
+    iterations_prev = 0;
 }
 
 /* Called with iothread lock held, to protect ram_list.dirty_memory[] */
@@ -679,8 +683,6 @@ static void migration_bitmap_sync(void)
     MigrationState *s = migrate_get_current();
     int64_t end_time;
     int64_t bytes_xfer_now;
-    static uint64_t xbzrle_cache_miss_prev;
-    static uint64_t iterations_prev;
 
     bitmap_sync_count++;
 
@@ -728,7 +730,7 @@ static void migration_bitmap_sync(void)
              mig_throttle_on = false;
         }
         if (migrate_use_xbzrle()) {
-            if (iterations_prev != 0) {
+            if (iterations_prev != acct_info.iterations) {
                 acct_info.xbzrle_cache_miss_rate =
                    (double)(acct_info.xbzrle_cache_miss -
                             xbzrle_cache_miss_prev) /
