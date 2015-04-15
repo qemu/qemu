@@ -332,7 +332,7 @@ EQMP
 
     {
         .name       = "send-key",
-        .args_type  = "keys:O,hold-time:i?",
+        .args_type  = "keys:q,hold-time:i?",
         .mhandler.cmd_new = qmp_marshal_input_send_key,
     },
 
@@ -3288,7 +3288,7 @@ EQMP
 
     {
         .name       = "migrate-set-capabilities",
-        .args_type  = "capabilities:O",
+        .args_type  = "capabilities:q",
         .params     = "capability:s,state:b",
 	.mhandler.cmd_new = qmp_marshal_input_migrate_set_capabilities,
     },
