@@ -354,6 +354,7 @@ static void mch_reset(DeviceState *qdev)
                  MCH_HOST_BRIDGE_PCIEXBAR_DEFAULT);
 
     d->config[MCH_HOST_BRIDGE_SMRAM] = MCH_HOST_BRIDGE_SMRAM_DEFAULT;
+    d->config[MCH_HOST_BRIDGE_ESMRAMC] = MCH_HOST_BRIDGE_ESMRAMC_DEFAULT;
 
     mch_update(mch);
 }

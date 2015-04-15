@@ -128,7 +128,6 @@ typedef struct Q35PCIHost {
 
 #define MCH_HOST_BRIDGE_SMRAM                  0x9d
 #define MCH_HOST_BRIDGE_SMRAM_SIZE             2
-#define MCH_HOST_BRIDGE_SMRAM_DEFAULT          ((uint8_t)0x2)
 #define MCH_HOST_BRIDGE_SMRAM_D_OPEN           ((uint8_t)(1 << 6))
 #define MCH_HOST_BRIDGE_SMRAM_D_CLS            ((uint8_t)(1 << 5))
 #define MCH_HOST_BRIDGE_SMRAM_D_LCK            ((uint8_t)(1 << 4))
@@ -139,6 +138,8 @@ typedef struct Q35PCIHost {
 #define MCH_HOST_BRIDGE_SMRAM_C_END            0xc0000
 #define MCH_HOST_BRIDGE_SMRAM_C_SIZE           0x20000
 #define MCH_HOST_BRIDGE_UPPER_SYSTEM_BIOS_END  0x100000
+#define MCH_HOST_BRIDGE_SMRAM_DEFAULT           \
+    MCH_HOST_BRIDGE_SMRAM_C_BASE_SEG
 
 #define MCH_HOST_BRIDGE_ESMRAMC                0x9e
 #define MCH_HOST_BRIDGE_ESMRAMC_H_SMRAME       ((uint8_t)(1 << 7))
@@ -151,6 +152,10 @@ typedef struct Q35PCIHost {
 #define MCH_HOST_BRIDGE_ESMRAMC_TSEG_SZ_2MB    ((uint8_t)(0x1 << 1))
 #define MCH_HOST_BRIDGE_ESMRAMC_TSEG_SZ_8MB    ((uint8_t)(0x2 << 1))
 #define MCH_HOST_BRIDGE_ESMRAMC_T_EN           ((uint8_t)1)
+#define MCH_HOST_BRIDGE_ESMRAMC_DEFAULT \
+    (MCH_HOST_BRIDGE_ESMRAMC_SM_CACHE | \
+     MCH_HOST_BRIDGE_ESMRAMC_SM_L1 |    \
+     MCH_HOST_BRIDGE_ESMRAMC_SM_L2)
 
 /* D1:F0 PCIE* port*/
 #define MCH_PCIE_DEV                           1
