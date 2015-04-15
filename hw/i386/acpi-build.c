@@ -976,7 +976,7 @@ build_ssdt(GArray *table_data, GArray *linker,
         }
 
         /* build Method(MEMORY_SLOT_NOTIFY_METHOD, 2) {
-         *     If (LEqual(Arg0, 0x00)) {Notify(MP00, Arg1)} ...
+         *     If (LEqual(Arg0, 0x00)) {Notify(MP00, Arg1)} ... }
          */
         method = aml_method(stringify(MEMORY_SLOT_NOTIFY_METHOD), 2);
         for (i = 0; i < nr_mem; i++) {
