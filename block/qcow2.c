@@ -649,7 +649,24 @@ static int qcow2_update_options_prepare(BlockDriverState *bs,
         goto fail;
     }
 
-    /* alloc L2 table/refcount block cache */
+    /* alloc new L2 table/refcount block cache, flush old one */
+    if (s->l2_table_cache) {
+        ret = qcow2_cache_flush(bs, s->l2_table_cache);
+        if (ret) {
+            error_setg_errno(errp, -ret, "Failed to flush the L2 table cache");
+            goto fail;
+        }
+    }
+
+    if (s->refcount_block_cache) {
+        ret = qcow2_cache_flush(bs, s->refcount_block_cache);
+        if (ret) {
+            error_setg_errno(errp, -ret,
+                             "Failed to flush the refcount block cache");
+            goto fail;
+        }
+    }
+
     r->l2_table_cache = qcow2_cache_create(bs, l2_cache_size);
     r->refcount_block_cache = qcow2_cache_create(bs, refcount_cache_size);
     if (r->l2_table_cache == NULL || r->refcount_block_cache == NULL) {
@@ -660,14 +677,15 @@ static int qcow2_update_options_prepare(BlockDriverState *bs,
 
     /* New interval for cache cleanup timer */
     r->cache_clean_interval =
-        qemu_opt_get_number(opts, QCOW2_OPT_CACHE_CLEAN_INTERVAL, 0);
+        qemu_opt_get_number(opts, QCOW2_OPT_CACHE_CLEAN_INTERVAL,
+                            s->cache_clean_interval);
     if (r->cache_clean_interval > UINT_MAX) {
         error_setg(errp, "Cache clean interval too big");
         ret = -EINVAL;
         goto fail;
     }
 
-    /* Enable lazy_refcounts according to image and command line options */
+    /* lazy-refcounts; flush if going from enabled to disabled */
     r->use_lazy_refcounts = qemu_opt_get_bool(opts, QCOW2_OPT_LAZY_REFCOUNTS,
         (s->compatible_features & QCOW2_COMPAT_LAZY_REFCOUNTS));
     if (r->use_lazy_refcounts && s->qcow_version < 3) {
@@ -675,6 +693,14 @@ static int qcow2_update_options_prepare(BlockDriverState *bs,
                    "qemu 1.1 compatibility level");
         ret = -EINVAL;
         goto fail;
+    }
+
+    if (s->use_lazy_refcounts && !r->use_lazy_refcounts) {
+        ret = qcow2_mark_clean(bs);
+        if (ret < 0) {
+            error_setg_errno(errp, -ret, "Failed to disable lazy refcounts");
+            goto fail;
+        }
     }
 
     /* Overlap check options */
@@ -741,6 +767,12 @@ static void qcow2_update_options_commit(BlockDriverState *bs,
     BDRVQcow2State *s = bs->opaque;
     int i;
 
+    if (s->l2_table_cache) {
+        qcow2_cache_destroy(bs, s->l2_table_cache);
+    }
+    if (s->refcount_block_cache) {
+        qcow2_cache_destroy(bs, s->refcount_block_cache);
+    }
     s->l2_table_cache = r->l2_table_cache;
     s->refcount_block_cache = r->refcount_block_cache;
 
@@ -751,8 +783,11 @@ static void qcow2_update_options_commit(BlockDriverState *bs,
         s->discard_passthrough[i] = r->discard_passthrough[i];
     }
 
-    s->cache_clean_interval = r->cache_clean_interval;
-    cache_clean_timer_init(bs, bdrv_get_aio_context(bs));
+    if (s->cache_clean_interval != r->cache_clean_interval) {
+        cache_clean_timer_del(bs);
+        s->cache_clean_interval = r->cache_clean_interval;
+        cache_clean_timer_init(bs, bdrv_get_aio_context(bs));
+    }
 }
 
 static void qcow2_update_options_abort(BlockDriverState *bs,
@@ -1199,26 +1234,52 @@ static int qcow2_set_key(BlockDriverState *bs, const char *key)
     return 0;
 }
 
-/* We have no actual commit/abort logic for qcow2, but we need to write out any
- * unwritten data if we reopen read-only. */
 static int qcow2_reopen_prepare(BDRVReopenState *state,
                                 BlockReopenQueue *queue, Error **errp)
 {
+    Qcow2ReopenState *r;
     int ret;
 
+    r = g_new0(Qcow2ReopenState, 1);
+    state->opaque = r;
+
+    ret = qcow2_update_options_prepare(state->bs, r, state->options,
+                                       state->flags, errp);
+    if (ret < 0) {
+        goto fail;
+    }
+
+    /* We need to write out any unwritten data if we reopen read-only. */
     if ((state->flags & BDRV_O_RDWR) == 0) {
         ret = bdrv_flush(state->bs);
         if (ret < 0) {
-            return ret;
+            goto fail;
         }
 
         ret = qcow2_mark_clean(state->bs);
         if (ret < 0) {
-            return ret;
+            goto fail;
         }
     }
 
     return 0;
+
+fail:
+    qcow2_update_options_abort(state->bs, r);
+    g_free(r);
+    return ret;
+}
+
+static void qcow2_reopen_commit(BDRVReopenState *state)
+{
+    qcow2_update_options_commit(state->bs, state->opaque);
+    g_free(state->opaque);
+}
+
+static void qcow2_reopen_abort(BDRVReopenState *state)
+{
+    qcow2_update_options_abort(state->bs, state->opaque);
+    g_free(state->opaque);
 }
 
 static int64_t coroutine_fn qcow2_co_get_block_status(BlockDriverState *bs,
@@ -3082,6 +3143,8 @@ BlockDriver bdrv_qcow2 = {
     .bdrv_open          = qcow2_open,
     .bdrv_close         = qcow2_close,
     .bdrv_reopen_prepare  = qcow2_reopen_prepare,
+    .bdrv_reopen_commit   = qcow2_reopen_commit,
+    .bdrv_reopen_abort    = qcow2_reopen_abort,
     .bdrv_create        = qcow2_create,
     .bdrv_has_zero_init = bdrv_has_zero_init_1,
     .bdrv_co_get_block_status = qcow2_co_get_block_status,
