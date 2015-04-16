@@ -589,15 +589,77 @@ static void read_cache_sizes(BlockDriverState *bs, QemuOpts *opts,
     }
 }
 
-static int qcow2_update_options(BlockDriverState *bs, QemuOpts *opts,
+static int qcow2_update_options(BlockDriverState *bs, QDict *options,
                                 int flags, Error **errp)
 {
     BDRVQcow2State *s = bs->opaque;
+    QemuOpts *opts = NULL;
     const char *opt_overlap_check, *opt_overlap_check_template;
     int overlap_check_template = 0;
+    uint64_t l2_cache_size, refcount_cache_size;
+    uint64_t cache_clean_interval;
     int i;
+    Error *local_err = NULL;
     int ret;
 
+    opts = qemu_opts_create(&qcow2_runtime_opts, NULL, 0, &error_abort);
+    qemu_opts_absorb_qdict(opts, options, &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        ret = -EINVAL;
+        goto fail;
+    }
+
+    /* get L2 table/refcount block cache size from command line options */
+    read_cache_sizes(bs, opts, &l2_cache_size, &refcount_cache_size,
+                     &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        ret = -EINVAL;
+        goto fail;
+    }
+
+    l2_cache_size /= s->cluster_size;
+    if (l2_cache_size < MIN_L2_CACHE_SIZE) {
+        l2_cache_size = MIN_L2_CACHE_SIZE;
+    }
+    if (l2_cache_size > INT_MAX) {
+        error_setg(errp, "L2 cache size too big");
+        ret = -EINVAL;
+        goto fail;
+    }
+
+    refcount_cache_size /= s->cluster_size;
+    if (refcount_cache_size < MIN_REFCOUNT_CACHE_SIZE) {
+        refcount_cache_size = MIN_REFCOUNT_CACHE_SIZE;
+    }
+    if (refcount_cache_size > INT_MAX) {
+        error_setg(errp, "Refcount cache size too big");
+        ret = -EINVAL;
+        goto fail;
+    }
+
+    /* alloc L2 table/refcount block cache */
+    s->l2_table_cache = qcow2_cache_create(bs, l2_cache_size);
+    s->refcount_block_cache = qcow2_cache_create(bs, refcount_cache_size);
+    if (s->l2_table_cache == NULL || s->refcount_block_cache == NULL) {
+        error_setg(errp, "Could not allocate metadata caches");
+        ret = -ENOMEM;
+        goto fail;
+    }
+
+    /* New interval for cache cleanup timer */
+    cache_clean_interval =
+        qemu_opt_get_number(opts, QCOW2_OPT_CACHE_CLEAN_INTERVAL, 0);
+    if (cache_clean_interval > UINT_MAX) {
+        error_setg(errp, "Cache clean interval too big");
+        ret = -EINVAL;
+        goto fail;
+    }
+    s->cache_clean_interval = cache_clean_interval;
+    cache_clean_timer_init(bs, bdrv_get_aio_context(bs));
+
+    /* Enable lazy_refcounts according to image and command line options */
     s->use_lazy_refcounts = qemu_opt_get_bool(opts, QCOW2_OPT_LAZY_REFCOUNTS,
         (s->compatible_features & QCOW2_COMPAT_LAZY_REFCOUNTS));
 
@@ -660,6 +722,9 @@ static int qcow2_update_options(BlockDriverState *bs, QemuOpts *opts,
 
     ret = 0;
 fail:
+    qemu_opts_del(opts);
+    opts = NULL;
+
     return ret;
 }
 
@@ -670,12 +735,9 @@ static int qcow2_open(BlockDriverState *bs, QDict *options, int flags,
     unsigned int len, i;
     int ret = 0;
     QCowHeader header;
-    QemuOpts *opts = NULL;
     Error *local_err = NULL;
     uint64_t ext_end;
     uint64_t l1_vm_state_index;
-    uint64_t l2_cache_size, refcount_cache_size;
-    uint64_t cache_clean_interval;
 
     ret = bdrv_pread(bs->file, 0, &header, sizeof(header));
     if (ret < 0) {
@@ -923,70 +985,11 @@ static int qcow2_open(BlockDriverState *bs, QDict *options, int flags,
         }
     }
 
-    /* get L2 table/refcount block cache size from command line options */
-    opts = qemu_opts_create(&qcow2_runtime_opts, NULL, 0, &error_abort);
-    qemu_opts_absorb_qdict(opts, options, &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
-        ret = -EINVAL;
-        goto fail;
-    }
-
-    read_cache_sizes(bs, opts, &l2_cache_size, &refcount_cache_size,
-                     &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
-        ret = -EINVAL;
-        goto fail;
-    }
-
-    l2_cache_size /= s->cluster_size;
-    if (l2_cache_size < MIN_L2_CACHE_SIZE) {
-        l2_cache_size = MIN_L2_CACHE_SIZE;
-    }
-    if (l2_cache_size > INT_MAX) {
-        error_setg(errp, "L2 cache size too big");
-        ret = -EINVAL;
-        goto fail;
-    }
-
-    refcount_cache_size /= s->cluster_size;
-    if (refcount_cache_size < MIN_REFCOUNT_CACHE_SIZE) {
-        refcount_cache_size = MIN_REFCOUNT_CACHE_SIZE;
-    }
-    if (refcount_cache_size > INT_MAX) {
-        error_setg(errp, "Refcount cache size too big");
-        ret = -EINVAL;
-        goto fail;
-    }
-
-    /* alloc L2 table/refcount block cache */
-    s->l2_table_cache = qcow2_cache_create(bs, l2_cache_size);
-    s->refcount_block_cache = qcow2_cache_create(bs, refcount_cache_size);
-    if (s->l2_table_cache == NULL || s->refcount_block_cache == NULL) {
-        error_setg(errp, "Could not allocate metadata caches");
-        ret = -ENOMEM;
-        goto fail;
-    }
-
-    cache_clean_interval =
-        qemu_opt_get_number(opts, QCOW2_OPT_CACHE_CLEAN_INTERVAL, 0);
-    if (cache_clean_interval > UINT_MAX) {
-        error_setg(errp, "Cache clean interval too big");
-        ret = -EINVAL;
-        goto fail;
-    }
-    s->cache_clean_interval = cache_clean_interval;
-    cache_clean_timer_init(bs, bdrv_get_aio_context(bs));
-
-    /* Enable lazy_refcounts according to image and command line options */
-    ret = qcow2_update_options(bs, opts, flags, errp);
+    /* Parse driver-specific options */
+    ret = qcow2_update_options(bs, options, flags, errp);
     if (ret < 0) {
         goto fail;
     }
-
-    qemu_opts_del(opts);
-    opts = NULL;
 
     s->cluster_cache = g_malloc(s->cluster_size);
     /* one more sector for decompressed data alignment */
@@ -1081,7 +1084,6 @@ static int qcow2_open(BlockDriverState *bs, QDict *options, int flags,
     return ret;
 
  fail:
-    qemu_opts_del(opts);
     g_free(s->unknown_header_fields);
     cleanup_unknown_header_ext(bs);
     qcow2_free_snapshots(bs);
