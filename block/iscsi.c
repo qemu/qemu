@@ -186,10 +186,13 @@ iscsi_co_generic_cb(struct iscsi_context *iscsi, int status,
                 iTask->do_retry = 1;
                 goto out;
             }
-            if (status == SCSI_STATUS_BUSY) {
+            /* status 0x28 is SCSI_TASK_SET_FULL. It was first introduced
+             * in libiscsi 1.10.0. Hardcode this value here to avoid
+             * the need to bump the libiscsi requirement to 1.10.0 */
+            if (status == SCSI_STATUS_BUSY || status == 0x28) {
                 unsigned retry_time =
                     exp_random(iscsi_retry_times[iTask->retries - 1]);
-                error_report("iSCSI Busy (retry #%u in %u ms): %s",
+                error_report("iSCSI Busy/TaskSetFull (retry #%u in %u ms): %s",
                              iTask->retries, retry_time,
                              iscsi_get_error(iscsi));
                 aio_timer_init(iTask->iscsilun->aio_context,
