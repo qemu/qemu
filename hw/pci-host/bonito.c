@@ -233,7 +233,7 @@ static void bonito_writel(void *opaque, hwaddr addr,
     uint32_t saddr;
     int reset = 0;
 
-    saddr = (addr - BONITO_REGBASE) >> 2;
+    saddr = addr >> 2;
 
     DPRINTF("bonito_writel "TARGET_FMT_plx" val %x saddr %x\n", addr, val, saddr);
     switch (saddr) {
@@ -295,7 +295,7 @@ static uint64_t bonito_readl(void *opaque, hwaddr addr,
     PCIBonitoState *s = opaque;
     uint32_t saddr;
 
-    saddr = (addr - BONITO_REGBASE) >> 2;
+    saddr = addr >> 2;
 
     DPRINTF("bonito_readl "TARGET_FMT_plx"\n", addr);
     switch (saddr) {
