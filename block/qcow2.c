@@ -979,6 +979,15 @@ static int qcow2_open(BlockDriverState *bs, QDict *options, int flags,
     s->cache_clean_interval = cache_clean_interval;
     cache_clean_timer_init(bs, bdrv_get_aio_context(bs));
 
+    /* Enable lazy_refcounts according to image and command line options */
+    ret = qcow2_update_options(bs, opts, flags, errp);
+    if (ret < 0) {
+        goto fail;
+    }
+
+    qemu_opts_del(opts);
+    opts = NULL;
+
     s->cluster_cache = g_malloc(s->cluster_size);
     /* one more sector for decompressed data alignment */
     s->cluster_data = qemu_try_blockalign(bs->file, QCOW_MAX_CRYPT_CLUSTERS
@@ -1062,15 +1071,6 @@ static int qcow2_open(BlockDriverState *bs, QDict *options, int flags,
             goto fail;
         }
     }
-
-    /* Enable lazy_refcounts according to image and command line options */
-    ret = qcow2_update_options(bs, opts, flags, errp);
-    if (ret < 0) {
-        goto fail;
-    }
-
-    qemu_opts_del(opts);
-    opts = NULL;
 
 #ifdef DEBUG_ALLOC
     {
