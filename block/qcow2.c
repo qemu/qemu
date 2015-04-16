@@ -597,7 +597,10 @@ static int qcow2_update_options(BlockDriverState *bs, QDict *options,
     const char *opt_overlap_check, *opt_overlap_check_template;
     int overlap_check_template = 0;
     uint64_t l2_cache_size, refcount_cache_size;
+    Qcow2Cache *l2_table_cache;
+    Qcow2Cache *refcount_block_cache;
     uint64_t cache_clean_interval;
+    bool use_lazy_refcounts;
     int i;
     Error *local_err = NULL;
     int ret;
@@ -640,9 +643,9 @@ static int qcow2_update_options(BlockDriverState *bs, QDict *options,
     }
 
     /* alloc L2 table/refcount block cache */
-    s->l2_table_cache = qcow2_cache_create(bs, l2_cache_size);
-    s->refcount_block_cache = qcow2_cache_create(bs, refcount_cache_size);
-    if (s->l2_table_cache == NULL || s->refcount_block_cache == NULL) {
+    l2_table_cache = qcow2_cache_create(bs, l2_cache_size);
+    refcount_block_cache = qcow2_cache_create(bs, refcount_cache_size);
+    if (l2_table_cache == NULL || refcount_block_cache == NULL) {
         error_setg(errp, "Could not allocate metadata caches");
         ret = -ENOMEM;
         goto fail;
@@ -656,23 +659,18 @@ static int qcow2_update_options(BlockDriverState *bs, QDict *options,
         ret = -EINVAL;
         goto fail;
     }
-    s->cache_clean_interval = cache_clean_interval;
-    cache_clean_timer_init(bs, bdrv_get_aio_context(bs));
 
     /* Enable lazy_refcounts according to image and command line options */
-    s->use_lazy_refcounts = qemu_opt_get_bool(opts, QCOW2_OPT_LAZY_REFCOUNTS,
+    use_lazy_refcounts = qemu_opt_get_bool(opts, QCOW2_OPT_LAZY_REFCOUNTS,
         (s->compatible_features & QCOW2_COMPAT_LAZY_REFCOUNTS));
+    if (use_lazy_refcounts && s->qcow_version < 3) {
+        error_setg(errp, "Lazy refcounts require a qcow2 image with at least "
+                   "qemu 1.1 compatibility level");
+        ret = -EINVAL;
+        goto fail;
+    }
 
-    s->discard_passthrough[QCOW2_DISCARD_NEVER] = false;
-    s->discard_passthrough[QCOW2_DISCARD_ALWAYS] = true;
-    s->discard_passthrough[QCOW2_DISCARD_REQUEST] =
-        qemu_opt_get_bool(opts, QCOW2_OPT_DISCARD_REQUEST,
-                          flags & BDRV_O_UNMAP);
-    s->discard_passthrough[QCOW2_DISCARD_SNAPSHOT] =
-        qemu_opt_get_bool(opts, QCOW2_OPT_DISCARD_SNAPSHOT, true);
-    s->discard_passthrough[QCOW2_DISCARD_OTHER] =
-        qemu_opt_get_bool(opts, QCOW2_OPT_DISCARD_OTHER, false);
-
+    /* Overlap check options */
     opt_overlap_check = qemu_opt_get(opts, QCOW2_OPT_OVERLAP);
     opt_overlap_check_template = qemu_opt_get(opts, QCOW2_OPT_OVERLAP_TEMPLATE);
     if (opt_overlap_check_template && opt_overlap_check &&
@@ -704,6 +702,10 @@ static int qcow2_update_options(BlockDriverState *bs, QDict *options,
         goto fail;
     }
 
+    /*
+     * Start updating fields in BDRVQcow2State.
+     * After this point no failure is allowed any more.
+     */
     s->overlap_check = 0;
     for (i = 0; i < QCOW2_OL_MAX_BITNR; i++) {
         /* overlap-check defines a template bitmask, but every flag may be
@@ -713,12 +715,23 @@ static int qcow2_update_options(BlockDriverState *bs, QDict *options,
                               overlap_check_template & (1 << i)) << i;
     }
 
-    if (s->use_lazy_refcounts && s->qcow_version < 3) {
-        error_setg(errp, "Lazy refcounts require a qcow2 image with at least "
-                   "qemu 1.1 compatibility level");
-        ret = -EINVAL;
-        goto fail;
-    }
+    s->l2_table_cache = l2_table_cache;
+    s->refcount_block_cache = refcount_block_cache;
+
+    s->use_lazy_refcounts = use_lazy_refcounts;
+
+    s->discard_passthrough[QCOW2_DISCARD_NEVER] = false;
+    s->discard_passthrough[QCOW2_DISCARD_ALWAYS] = true;
+    s->discard_passthrough[QCOW2_DISCARD_REQUEST] =
+        qemu_opt_get_bool(opts, QCOW2_OPT_DISCARD_REQUEST,
+                          flags & BDRV_O_UNMAP);
+    s->discard_passthrough[QCOW2_DISCARD_SNAPSHOT] =
+        qemu_opt_get_bool(opts, QCOW2_OPT_DISCARD_SNAPSHOT, true);
+    s->discard_passthrough[QCOW2_DISCARD_OTHER] =
+        qemu_opt_get_bool(opts, QCOW2_OPT_DISCARD_OTHER, false);
+
+    s->cache_clean_interval = cache_clean_interval;
+    cache_clean_timer_init(bs, bdrv_get_aio_context(bs));
 
     ret = 0;
 fail:
