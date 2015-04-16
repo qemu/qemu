@@ -57,9 +57,6 @@ typedef struct IscsiLun {
     int events;
     QEMUTimer *nop_timer;
     QEMUTimer *event_timer;
-    uint8_t lbpme;
-    uint8_t lbprz;
-    uint8_t has_write_same;
     struct scsi_inquiry_logical_block_provisioning lbp;
     struct scsi_inquiry_block_limits bl;
     unsigned char *zeroblock;
@@ -67,6 +64,9 @@ typedef struct IscsiLun {
     int cluster_sectors;
     bool use_16_for_rw;
     bool write_protected;
+    bool lbpme;
+    bool lbprz;
+    bool has_write_same;
 } IscsiLun;
 
 typedef struct IscsiTask {
@@ -460,7 +460,7 @@ static int64_t coroutine_fn iscsi_co_get_block_status(BlockDriverState *bs,
     *pnum = nb_sectors;
 
     /* LUN does not support logical block provisioning */
-    if (iscsilun->lbpme == 0) {
+    if (!iscsilun->lbpme) {
         goto out;
     }
 
@@ -1121,8 +1121,8 @@ static void iscsi_readcapacity_sync(IscsiLun *iscsilun, Error **errp)
                 } else {
                     iscsilun->block_size = rc16->block_length;
                     iscsilun->num_blocks = rc16->returned_lba + 1;
-                    iscsilun->lbpme = rc16->lbpme;
-                    iscsilun->lbprz = rc16->lbprz;
+                    iscsilun->lbpme = !!rc16->lbpme;
+                    iscsilun->lbprz = !!rc16->lbprz;
                     iscsilun->use_16_for_rw = (rc16->returned_lba > 0xffffffff);
                 }
             }
@@ -1655,7 +1655,7 @@ out:
 static int iscsi_get_info(BlockDriverState *bs, BlockDriverInfo *bdi)
 {
     IscsiLun *iscsilun = bs->opaque;
-    bdi->unallocated_blocks_are_zero = !!iscsilun->lbprz;
+    bdi->unallocated_blocks_are_zero = iscsilun->lbprz;
     bdi->can_write_zeroes_with_unmap = iscsilun->lbprz && iscsilun->lbp.lbpws;
     bdi->cluster_size = iscsilun->cluster_sectors * BDRV_SECTOR_SIZE;
     return 0;
