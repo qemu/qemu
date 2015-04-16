@@ -66,6 +66,7 @@ typedef struct IscsiLun {
     bool write_protected;
     bool lbpme;
     bool lbprz;
+    bool dpofua;
     bool has_write_same;
 } IscsiLun;
 
@@ -1258,6 +1259,7 @@ static void iscsi_modesense_sync(IscsiLun *iscsilun)
     struct scsi_task *task;
     struct scsi_mode_sense *ms = NULL;
     iscsilun->write_protected = false;
+    iscsilun->dpofua = false;
 
     task = iscsi_modesense6_sync(iscsilun->iscsi, iscsilun->lun,
                                  1, SCSI_MODESENSE_PC_CURRENT,
@@ -1279,6 +1281,7 @@ static void iscsi_modesense_sync(IscsiLun *iscsilun)
         goto out;
     }
     iscsilun->write_protected = ms->device_specific_parameter & 0x80;
+    iscsilun->dpofua          = ms->device_specific_parameter & 0x10;
 
 out:
     if (task) {
