@@ -589,6 +589,80 @@ static void read_cache_sizes(BlockDriverState *bs, QemuOpts *opts,
     }
 }
 
+static int qcow2_update_options(BlockDriverState *bs, QemuOpts *opts,
+                                int flags, Error **errp)
+{
+    BDRVQcow2State *s = bs->opaque;
+    const char *opt_overlap_check, *opt_overlap_check_template;
+    int overlap_check_template = 0;
+    int i;
+    int ret;
+
+    s->use_lazy_refcounts = qemu_opt_get_bool(opts, QCOW2_OPT_LAZY_REFCOUNTS,
+        (s->compatible_features & QCOW2_COMPAT_LAZY_REFCOUNTS));
+
+    s->discard_passthrough[QCOW2_DISCARD_NEVER] = false;
+    s->discard_passthrough[QCOW2_DISCARD_ALWAYS] = true;
+    s->discard_passthrough[QCOW2_DISCARD_REQUEST] =
+        qemu_opt_get_bool(opts, QCOW2_OPT_DISCARD_REQUEST,
+                          flags & BDRV_O_UNMAP);
+    s->discard_passthrough[QCOW2_DISCARD_SNAPSHOT] =
+        qemu_opt_get_bool(opts, QCOW2_OPT_DISCARD_SNAPSHOT, true);
+    s->discard_passthrough[QCOW2_DISCARD_OTHER] =
+        qemu_opt_get_bool(opts, QCOW2_OPT_DISCARD_OTHER, false);
+
+    opt_overlap_check = qemu_opt_get(opts, QCOW2_OPT_OVERLAP);
+    opt_overlap_check_template = qemu_opt_get(opts, QCOW2_OPT_OVERLAP_TEMPLATE);
+    if (opt_overlap_check_template && opt_overlap_check &&
+        strcmp(opt_overlap_check_template, opt_overlap_check))
+    {
+        error_setg(errp, "Conflicting values for qcow2 options '"
+                   QCOW2_OPT_OVERLAP "' ('%s') and '" QCOW2_OPT_OVERLAP_TEMPLATE
+                   "' ('%s')", opt_overlap_check, opt_overlap_check_template);
+        ret = -EINVAL;
+        goto fail;
+    }
+    if (!opt_overlap_check) {
+        opt_overlap_check = opt_overlap_check_template ?: "cached";
+    }
+
+    if (!strcmp(opt_overlap_check, "none")) {
+        overlap_check_template = 0;
+    } else if (!strcmp(opt_overlap_check, "constant")) {
+        overlap_check_template = QCOW2_OL_CONSTANT;
+    } else if (!strcmp(opt_overlap_check, "cached")) {
+        overlap_check_template = QCOW2_OL_CACHED;
+    } else if (!strcmp(opt_overlap_check, "all")) {
+        overlap_check_template = QCOW2_OL_ALL;
+    } else {
+        error_setg(errp, "Unsupported value '%s' for qcow2 option "
+                   "'overlap-check'. Allowed are any of the following: "
+                   "none, constant, cached, all", opt_overlap_check);
+        ret = -EINVAL;
+        goto fail;
+    }
+
+    s->overlap_check = 0;
+    for (i = 0; i < QCOW2_OL_MAX_BITNR; i++) {
+        /* overlap-check defines a template bitmask, but every flag may be
+         * overwritten through the associated boolean option */
+        s->overlap_check |=
+            qemu_opt_get_bool(opts, overlap_bool_option_names[i],
+                              overlap_check_template & (1 << i)) << i;
+    }
+
+    if (s->use_lazy_refcounts && s->qcow_version < 3) {
+        error_setg(errp, "Lazy refcounts require a qcow2 image with at least "
+                   "qemu 1.1 compatibility level");
+        ret = -EINVAL;
+        goto fail;
+    }
+
+    ret = 0;
+fail:
+    return ret;
+}
+
 static int qcow2_open(BlockDriverState *bs, QDict *options, int flags,
                       Error **errp)
 {
@@ -600,8 +674,6 @@ static int qcow2_open(BlockDriverState *bs, QDict *options, int flags,
     Error *local_err = NULL;
     uint64_t ext_end;
     uint64_t l1_vm_state_index;
-    const char *opt_overlap_check, *opt_overlap_check_template;
-    int overlap_check_template = 0;
     uint64_t l2_cache_size, refcount_cache_size;
     uint64_t cache_clean_interval;
 
@@ -992,68 +1064,13 @@ static int qcow2_open(BlockDriverState *bs, QDict *options, int flags,
     }
 
     /* Enable lazy_refcounts according to image and command line options */
-    s->use_lazy_refcounts = qemu_opt_get_bool(opts, QCOW2_OPT_LAZY_REFCOUNTS,
-        (s->compatible_features & QCOW2_COMPAT_LAZY_REFCOUNTS));
-
-    s->discard_passthrough[QCOW2_DISCARD_NEVER] = false;
-    s->discard_passthrough[QCOW2_DISCARD_ALWAYS] = true;
-    s->discard_passthrough[QCOW2_DISCARD_REQUEST] =
-        qemu_opt_get_bool(opts, QCOW2_OPT_DISCARD_REQUEST,
-                          flags & BDRV_O_UNMAP);
-    s->discard_passthrough[QCOW2_DISCARD_SNAPSHOT] =
-        qemu_opt_get_bool(opts, QCOW2_OPT_DISCARD_SNAPSHOT, true);
-    s->discard_passthrough[QCOW2_DISCARD_OTHER] =
-        qemu_opt_get_bool(opts, QCOW2_OPT_DISCARD_OTHER, false);
-
-    opt_overlap_check = qemu_opt_get(opts, QCOW2_OPT_OVERLAP);
-    opt_overlap_check_template = qemu_opt_get(opts, QCOW2_OPT_OVERLAP_TEMPLATE);
-    if (opt_overlap_check_template && opt_overlap_check &&
-        strcmp(opt_overlap_check_template, opt_overlap_check))
-    {
-        error_setg(errp, "Conflicting values for qcow2 options '"
-                   QCOW2_OPT_OVERLAP "' ('%s') and '" QCOW2_OPT_OVERLAP_TEMPLATE
-                   "' ('%s')", opt_overlap_check, opt_overlap_check_template);
-        ret = -EINVAL;
+    ret = qcow2_update_options(bs, opts, flags, errp);
+    if (ret < 0) {
         goto fail;
-    }
-    if (!opt_overlap_check) {
-        opt_overlap_check = opt_overlap_check_template ?: "cached";
-    }
-
-    if (!strcmp(opt_overlap_check, "none")) {
-        overlap_check_template = 0;
-    } else if (!strcmp(opt_overlap_check, "constant")) {
-        overlap_check_template = QCOW2_OL_CONSTANT;
-    } else if (!strcmp(opt_overlap_check, "cached")) {
-        overlap_check_template = QCOW2_OL_CACHED;
-    } else if (!strcmp(opt_overlap_check, "all")) {
-        overlap_check_template = QCOW2_OL_ALL;
-    } else {
-        error_setg(errp, "Unsupported value '%s' for qcow2 option "
-                   "'overlap-check'. Allowed are any of the following: "
-                   "none, constant, cached, all", opt_overlap_check);
-        ret = -EINVAL;
-        goto fail;
-    }
-
-    s->overlap_check = 0;
-    for (i = 0; i < QCOW2_OL_MAX_BITNR; i++) {
-        /* overlap-check defines a template bitmask, but every flag may be
-         * overwritten through the associated boolean option */
-        s->overlap_check |=
-            qemu_opt_get_bool(opts, overlap_bool_option_names[i],
-                              overlap_check_template & (1 << i)) << i;
     }
 
     qemu_opts_del(opts);
     opts = NULL;
-
-    if (s->use_lazy_refcounts && s->qcow_version < 3) {
-        error_setg(errp, "Lazy refcounts require a qcow2 image with at least "
-                   "qemu 1.1 compatibility level");
-        ret = -EINVAL;
-        goto fail;
-    }
 
 #ifdef DEBUG_ALLOC
     {
