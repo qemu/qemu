@@ -1501,6 +1501,9 @@ out:
 
     if (ret) {
         if (iscsi != NULL) {
+            if (iscsi_is_logged_in(iscsi)) {
+                iscsi_logout_sync(iscsi);
+            }
             iscsi_destroy_context(iscsi);
         }
         memset(iscsilun, 0, sizeof(IscsiLun));
@@ -1514,6 +1517,9 @@ static void iscsi_close(BlockDriverState *bs)
     struct iscsi_context *iscsi = iscsilun->iscsi;
 
     iscsi_detach_aio_context(bs);
+    if (iscsi_is_logged_in(iscsi)) {
+        iscsi_logout_sync(iscsi);
+    }
     iscsi_destroy_context(iscsi);
     g_free(iscsilun->zeroblock);
     g_free(iscsilun->allocationmap);
