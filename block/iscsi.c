@@ -1499,7 +1499,7 @@ static int iscsi_open(BlockDriverState *bs, QDict *options, int flags,
         iscsilun->bl.opt_unmap_gran * iscsilun->block_size <= 16 * 1024 * 1024) {
         iscsilun->cluster_sectors = (iscsilun->bl.opt_unmap_gran *
                                      iscsilun->block_size) >> BDRV_SECTOR_BITS;
-        if (iscsilun->lbprz && !(bs->open_flags & BDRV_O_NOCACHE)) {
+        if (iscsilun->lbprz) {
             iscsilun->allocationmap = iscsi_allocationmap_init(iscsilun);
             if (iscsilun->allocationmap == NULL) {
                 ret = -ENOMEM;
