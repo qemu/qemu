@@ -68,6 +68,7 @@ typedef struct IscsiLun {
     bool lbprz;
     bool dpofua;
     bool has_write_same;
+    bool force_next_flush;
 } IscsiLun;
 
 typedef struct IscsiTask {
@@ -80,6 +81,7 @@ typedef struct IscsiTask {
     QEMUBH *bh;
     IscsiLun *iscsilun;
     QEMUTimer retry_timer;
+    bool force_next_flush;
 } IscsiTask;
 
 typedef struct IscsiAIOCB {
@@ -200,6 +202,8 @@ iscsi_co_generic_cb(struct iscsi_context *iscsi, int status,
             }
         }
         error_report("iSCSI Failure: %s", iscsi_get_error(iscsi));
+    } else {
+        iTask->iscsilun->force_next_flush |= iTask->force_next_flush;
     }
 
 out:
@@ -370,6 +374,7 @@ static int coroutine_fn iscsi_co_writev(BlockDriverState *bs,
     struct IscsiTask iTask;
     uint64_t lba;
     uint32_t num_sectors;
+    int fua;
 
     if (!is_request_lun_aligned(sector_num, nb_sectors, iscsilun)) {
         return -EINVAL;
@@ -385,15 +390,17 @@ static int coroutine_fn iscsi_co_writev(BlockDriverState *bs,
     num_sectors = sector_qemu2lun(nb_sectors, iscsilun);
     iscsi_co_init_iscsitask(iscsilun, &iTask);
 retry:
+    fua = iscsilun->dpofua && !bs->enable_write_cache;
+    iTask.force_next_flush = !fua;
     if (iscsilun->use_16_for_rw) {
         iTask.task = iscsi_write16_task(iscsilun->iscsi, iscsilun->lun, lba,
                                         NULL, num_sectors * iscsilun->block_size,
-                                        iscsilun->block_size, 0, 0, 0, 0, 0,
+                                        iscsilun->block_size, 0, 0, fua, 0, 0,
                                         iscsi_co_generic_cb, &iTask);
     } else {
         iTask.task = iscsi_write10_task(iscsilun->iscsi, iscsilun->lun, lba,
                                         NULL, num_sectors * iscsilun->block_size,
-                                        iscsilun->block_size, 0, 0, 0, 0, 0,
+                                        iscsilun->block_size, 0, 0, fua, 0, 0,
                                         iscsi_co_generic_cb, &iTask);
     }
     if (iTask.task == NULL) {
@@ -621,8 +628,12 @@ static int coroutine_fn iscsi_co_flush(BlockDriverState *bs)
         return 0;
     }
 
-    iscsi_co_init_iscsitask(iscsilun, &iTask);
+    if (!iscsilun->force_next_flush) {
+        return 0;
+    }
+    iscsilun->force_next_flush = false;
 
+    iscsi_co_init_iscsitask(iscsilun, &iTask);
 retry:
     if (iscsi_synchronizecache10_task(iscsilun->iscsi, iscsilun->lun, 0, 0, 0,
                                       0, iscsi_co_generic_cb, &iTask) == NULL) {
@@ -918,6 +929,7 @@ coroutine_fn iscsi_co_write_zeroes(BlockDriverState *bs, int64_t sector_num,
     }
 
     iscsi_co_init_iscsitask(iscsilun, &iTask);
+    iTask.force_next_flush = true;
 retry:
     if (use_16_for_ws) {
         iTask.task = iscsi_writesame16_task(iscsilun->iscsi, iscsilun->lun, lba,
