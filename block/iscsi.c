@@ -103,7 +103,7 @@ typedef struct IscsiAIOCB {
 #define NOP_INTERVAL 5000
 #define MAX_NOP_FAILURES 3
 #define ISCSI_CMD_RETRIES ARRAY_SIZE(iscsi_retry_times)
-static const unsigned iscsi_retry_times[] = {8, 32, 128, 512, 2048};
+static const unsigned iscsi_retry_times[] = {8, 32, 128, 512, 2048, 8192, 32768};
 
 /* this threshold is a trade-off knob to choose between
  * the potential additional overhead of an extra GET_LBA_STATUS request
