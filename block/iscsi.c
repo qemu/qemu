@@ -1253,11 +1253,11 @@ static void iscsi_attach_aio_context(BlockDriverState *bs,
                                           iscsi_timed_set_events, iscsilun);
 }
 
-static bool iscsi_is_write_protected(IscsiLun *iscsilun)
+static void iscsi_modesense_sync(IscsiLun *iscsilun)
 {
     struct scsi_task *task;
     struct scsi_mode_sense *ms = NULL;
-    bool wrprotected = false;
+    iscsilun->write_protected = false;
 
     task = iscsi_modesense6_sync(iscsilun->iscsi, iscsilun->lun,
                                  1, SCSI_MODESENSE_PC_CURRENT,
@@ -1278,13 +1278,12 @@ static bool iscsi_is_write_protected(IscsiLun *iscsilun)
                      iscsi_get_error(iscsilun->iscsi));
         goto out;
     }
-    wrprotected = ms->device_specific_parameter & 0x80;
+    iscsilun->write_protected = ms->device_specific_parameter & 0x80;
 
 out:
     if (task) {
         scsi_free_scsi_task(task);
     }
-    return wrprotected;
 }
 
 /*
@@ -1403,7 +1402,8 @@ static int iscsi_open(BlockDriverState *bs, QDict *options, int flags,
     scsi_free_scsi_task(task);
     task = NULL;
 
-    iscsilun->write_protected = iscsi_is_write_protected(iscsilun);
+    iscsi_modesense_sync(iscsilun);
+
     /* Check the write protect flag of the LUN if we want to write */
     if (iscsilun->type == TYPE_DISK && (flags & BDRV_O_RDWR) &&
         iscsilun->write_protected) {
