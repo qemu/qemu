@@ -1,0 +1,104 @@
+#!/usr/bin/env python
+#
+# Tests for incremental drive-backup
+#
+# Copyright (C) 2015 John Snow for Red Hat, Inc.
+#
+# Based on 056.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+
+import os
+import iotests
+
+
+def io_write_patterns(img, patterns):
+    for pattern in patterns:
+        iotests.qemu_io('-c', 'write -P%s %s %s' % pattern, img)
+
+
+class TestIncrementalBackup(iotests.QMPTestCase):
+    def setUp(self):
+        self.bitmaps = list()
+        self.files = list()
+        self.drives = list()
+        self.vm = iotests.VM()
+        self.err_img = os.path.join(iotests.test_dir, 'err.%s' % iotests.imgfmt)
+
+        # Create a base image with a distinctive patterning
+        drive0 = self.add_node('drive0')
+        self.img_create(drive0['file'], drive0['fmt'])
+        self.vm.add_drive(drive0['file'])
+        io_write_patterns(drive0['file'], (('0x41', 0, 512),
+                                           ('0xd5', '1M', '32k'),
+                                           ('0xdc', '32M', '124k')))
+        self.vm.launch()
+
+
+    def add_node(self, node_id, fmt=iotests.imgfmt, path=None, backup=None):
+        if path is None:
+            path = os.path.join(iotests.test_dir, '%s.%s' % (node_id, fmt))
+        if backup is None:
+            backup = os.path.join(iotests.test_dir,
+                                  '%s.full.backup.%s' % (node_id, fmt))
+
+        self.drives.append({
+            'id': node_id,
+            'file': path,
+            'backup': backup,
+            'fmt': fmt })
+        return self.drives[-1]
+
+
+    def img_create(self, img, fmt=iotests.imgfmt, size='64M',
+                   parent=None, parentFormat=None):
+        if parent:
+            if parentFormat is None:
+                parentFormat = fmt
+            iotests.qemu_img('create', '-f', fmt, img, size,
+                             '-b', parent, '-F', parentFormat)
+        else:
+            iotests.qemu_img('create', '-f', fmt, img, size)
+        self.files.append(img)
+
+    def test_sync_dirty_bitmap_missing(self):
+        self.assert_no_active_block_jobs()
+        self.files.append(self.err_img)
+        result = self.vm.qmp('drive-backup', device=self.drives[0]['id'],
+                             sync='dirty-bitmap', format=self.drives[0]['fmt'],
+                             target=self.err_img)
+        self.assert_qmp(result, 'error/class', 'GenericError')
+
+
+    def test_sync_dirty_bitmap_not_found(self):
+        self.assert_no_active_block_jobs()
+        self.files.append(self.err_img)
+        result = self.vm.qmp('drive-backup', device=self.drives[0]['id'],
+                             sync='dirty-bitmap', bitmap='unknown',
+                             format=self.drives[0]['fmt'], target=self.err_img)
+        self.assert_qmp(result, 'error/class', 'GenericError')
+
+
+    def tearDown(self):
+        self.vm.shutdown()
+        for filename in self.files:
+            try:
+                os.remove(filename)
+            except OSError:
+                pass
+
+
+if __name__ == '__main__':
+    iotests.main(supported_fmts=['qcow2'])
