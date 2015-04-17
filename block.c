@@ -5783,6 +5783,15 @@ static void bdrv_reset_dirty(BlockDriverState *bs, int64_t cur_sector,
     }
 }
 
+/**
+ * Advance an HBitmapIter to an arbitrary offset.
+ */
+void bdrv_set_dirty_iter(HBitmapIter *hbi, int64_t offset)
+{
+    assert(hbi->hb);
+    hbitmap_iter_init(hbi, hbi->hb, offset);
+}
+
 int64_t bdrv_get_dirty_count(BlockDriverState *bs, BdrvDirtyBitmap *bitmap)
 {
     return hbitmap_count(bitmap->bitmap);

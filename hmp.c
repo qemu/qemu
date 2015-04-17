@@ -1061,7 +1061,8 @@ void hmp_drive_backup(Monitor *mon, const QDict *qdict)
 
     qmp_drive_backup(device, filename, !!format, format,
                      full ? MIRROR_SYNC_MODE_FULL : MIRROR_SYNC_MODE_TOP,
-                     true, mode, false, 0, false, 0, false, 0, &err);
+                     true, mode, false, 0, false, NULL,
+                     false, 0, false, 0, &err);
     hmp_handle_error(mon, &err);
 }
 
