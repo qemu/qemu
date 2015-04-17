@@ -284,7 +284,7 @@ static int coroutine_fn backup_run_incremental(BackupBlockJob *job)
 
     granularity = bdrv_dirty_bitmap_granularity(job->sync_bitmap);
     clusters_per_iter = MAX((granularity / BACKUP_CLUSTER_SIZE), 1);
-    bdrv_dirty_iter_init(bs, job->sync_bitmap, &hbi);
+    bdrv_dirty_iter_init(job->sync_bitmap, &hbi);
 
     /* Find the next dirty sector(s) */
     while ((sector = hbitmap_iter_next(&hbi)) != -1) {

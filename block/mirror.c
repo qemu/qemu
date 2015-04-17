@@ -125,11 +125,9 @@ static void mirror_write_complete(void *opaque, int ret)
     MirrorOp *op = opaque;
     MirrorBlockJob *s = op->s;
     if (ret < 0) {
-        BlockDriverState *source = s->common.bs;
         BlockErrorAction action;
 
-        bdrv_set_dirty_bitmap(source, s->dirty_bitmap, op->sector_num,
-                              op->nb_sectors);
+        bdrv_set_dirty_bitmap(s->dirty_bitmap, op->sector_num, op->nb_sectors);
         action = mirror_error_action(s, false, -ret);
         if (action == BLOCK_ERROR_ACTION_REPORT && s->ret >= 0) {
             s->ret = ret;
@@ -143,11 +141,9 @@ static void mirror_read_complete(void *opaque, int ret)
     MirrorOp *op = opaque;
     MirrorBlockJob *s = op->s;
     if (ret < 0) {
-        BlockDriverState *source = s->common.bs;
         BlockErrorAction action;
 
-        bdrv_set_dirty_bitmap(source, s->dirty_bitmap, op->sector_num,
-                              op->nb_sectors);
+        bdrv_set_dirty_bitmap(s->dirty_bitmap, op->sector_num, op->nb_sectors);
         action = mirror_error_action(s, true, -ret);
         if (action == BLOCK_ERROR_ACTION_REPORT && s->ret >= 0) {
             s->ret = ret;
@@ -170,10 +166,9 @@ static uint64_t coroutine_fn mirror_iteration(MirrorBlockJob *s)
 
     s->sector_num = hbitmap_iter_next(&s->hbi);
     if (s->sector_num < 0) {
-        bdrv_dirty_iter_init(source, s->dirty_bitmap, &s->hbi);
+        bdrv_dirty_iter_init(s->dirty_bitmap, &s->hbi);
         s->sector_num = hbitmap_iter_next(&s->hbi);
-        trace_mirror_restart_iter(s,
-                                  bdrv_get_dirty_count(source, s->dirty_bitmap));
+        trace_mirror_restart_iter(s, bdrv_get_dirty_count(s->dirty_bitmap));
         assert(s->sector_num >= 0);
     }
 
@@ -288,8 +283,7 @@ static uint64_t coroutine_fn mirror_iteration(MirrorBlockJob *s)
         next_sector += sectors_per_chunk;
     }
 
-    bdrv_reset_dirty_bitmap(source, s->dirty_bitmap, sector_num,
-                            nb_sectors);
+    bdrv_reset_dirty_bitmap(s->dirty_bitmap, sector_num, nb_sectors);
 
     /* Copy the dirty cluster.  */
     s->in_flight++;
@@ -446,7 +440,7 @@ static void coroutine_fn mirror_run(void *opaque)
 
             assert(n > 0);
             if (ret == 1) {
-                bdrv_set_dirty_bitmap(bs, s->dirty_bitmap, sector_num, n);
+                bdrv_set_dirty_bitmap(s->dirty_bitmap, sector_num, n);
                 sector_num = next;
             } else {
                 sector_num += n;
@@ -454,7 +448,7 @@ static void coroutine_fn mirror_run(void *opaque)
         }
     }
 
-    bdrv_dirty_iter_init(bs, s->dirty_bitmap, &s->hbi);
+    bdrv_dirty_iter_init(s->dirty_bitmap, &s->hbi);
     last_pause_ns = qemu_clock_get_ns(QEMU_CLOCK_REALTIME);
     for (;;) {
         uint64_t delay_ns = 0;
@@ -466,7 +460,7 @@ static void coroutine_fn mirror_run(void *opaque)
             goto immediate_exit;
         }
 
-        cnt = bdrv_get_dirty_count(bs, s->dirty_bitmap);
+        cnt = bdrv_get_dirty_count(s->dirty_bitmap);
         /* s->common.offset contains the number of bytes already processed so
          * far, cnt is the number of dirty sectors remaining and
          * s->sectors_in_flight is the number of sectors currently being
@@ -516,7 +510,7 @@ static void coroutine_fn mirror_run(void *opaque)
 
                 should_complete = s->should_complete ||
                     block_job_is_cancelled(&s->common);
-                cnt = bdrv_get_dirty_count(bs, s->dirty_bitmap);
+                cnt = bdrv_get_dirty_count(s->dirty_bitmap);
             }
         }
 
@@ -531,7 +525,7 @@ static void coroutine_fn mirror_run(void *opaque)
              */
             trace_mirror_before_drain(s, cnt);
             bdrv_drain(bs);
-            cnt = bdrv_get_dirty_count(bs, s->dirty_bitmap);
+            cnt = bdrv_get_dirty_count(s->dirty_bitmap);
         }
 
         ret = 0;
