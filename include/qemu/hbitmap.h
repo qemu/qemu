@@ -65,6 +65,16 @@ struct HBitmapIter {
 HBitmap *hbitmap_alloc(uint64_t size, int granularity);
 
 /**
+ * hbitmap_truncate:
+ * @hb: The bitmap to change the size of.
+ * @size: The number of elements to change the bitmap to accommodate.
+ *
+ * truncate or grow an existing bitmap to accommodate a new number of elements.
+ * This may invalidate existing HBitmapIterators.
+ */
+void hbitmap_truncate(HBitmap *hb, uint64_t size);
+
+/**
  * hbitmap_merge:
  * @a: The bitmap to store the result in.
  * @b: The bitmap to merge into @a.

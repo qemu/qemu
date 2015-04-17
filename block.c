@@ -114,6 +114,7 @@ static void bdrv_set_dirty(BlockDriverState *bs, int64_t cur_sector,
                            int nr_sectors);
 static void bdrv_reset_dirty(BlockDriverState *bs, int64_t cur_sector,
                              int nr_sectors);
+static void bdrv_dirty_bitmap_truncate(BlockDriverState *bs);
 /* If non-zero, use only whitelisted block drivers */
 static int use_bdrv_whitelist;
 
@@ -3610,6 +3611,7 @@ int bdrv_truncate(BlockDriverState *bs, int64_t offset)
     ret = drv->bdrv_truncate(bs, offset);
     if (ret == 0) {
         ret = refresh_total_sectors(bs, offset >> BDRV_SECTOR_BITS);
+        bdrv_dirty_bitmap_truncate(bs);
         if (bs->blk) {
             blk_dev_resize_cb(bs->blk);
         }
@@ -5657,6 +5659,22 @@ BdrvDirtyBitmap *bdrv_reclaim_dirty_bitmap(BlockDriverState *bs,
     parent->successor = NULL;
 
     return parent;
+}
+
+/**
+ * Truncates _all_ bitmaps attached to a BDS.
+ */
+static void bdrv_dirty_bitmap_truncate(BlockDriverState *bs)
+{
+    BdrvDirtyBitmap *bitmap;
+    uint64_t size = bdrv_nb_sectors(bs);
+
+    QLIST_FOREACH(bitmap, &bs->dirty_bitmaps, list) {
+        if (bdrv_dirty_bitmap_frozen(bitmap)) {
+            continue;
+        }
+        hbitmap_truncate(bitmap->bitmap, size);
+    }
 }
 
 void bdrv_release_dirty_bitmap(BlockDriverState *bs, BdrvDirtyBitmap *bitmap)
