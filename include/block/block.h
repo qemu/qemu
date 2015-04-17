@@ -459,6 +459,7 @@ BdrvDirtyBitmap *bdrv_find_dirty_bitmap(BlockDriverState *bs,
 void bdrv_dirty_bitmap_make_anon(BlockDriverState *bs, BdrvDirtyBitmap *bitmap);
 void bdrv_release_dirty_bitmap(BlockDriverState *bs, BdrvDirtyBitmap *bitmap);
 BlockDirtyInfoList *bdrv_query_dirty_bitmaps(BlockDriverState *bs);
+uint32_t bdrv_get_default_bitmap_granularity(BlockDriverState *bs);
 int bdrv_get_dirty(BlockDriverState *bs, BdrvDirtyBitmap *bitmap, int64_t sector);
 void bdrv_set_dirty_bitmap(BlockDriverState *bs, BdrvDirtyBitmap *bitmap,
                            int64_t cur_sector, int nr_sectors);

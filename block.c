@@ -5596,6 +5596,26 @@ int bdrv_get_dirty(BlockDriverState *bs, BdrvDirtyBitmap *bitmap, int64_t sector
     }
 }
 
+/**
+ * Chooses a default granularity based on the existing cluster size,
+ * but clamped between [4K, 64K]. Defaults to 64K in the case that there
+ * is no cluster size information available.
+ */
+uint32_t bdrv_get_default_bitmap_granularity(BlockDriverState *bs)
+{
+    BlockDriverInfo bdi;
+    uint32_t granularity;
+
+    if (bdrv_get_info(bs, &bdi) >= 0 && bdi.cluster_size > 0) {
+        granularity = MAX(4096, bdi.cluster_size);
+        granularity = MIN(65536, granularity);
+    } else {
+        granularity = 65536;
+    }
+
+    return granularity;
+}
+
 void bdrv_dirty_iter_init(BlockDriverState *bs,
                           BdrvDirtyBitmap *bitmap, HBitmapIter *hbi)
 {

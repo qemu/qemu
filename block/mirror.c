@@ -668,15 +668,7 @@ static void mirror_start_job(BlockDriverState *bs, BlockDriverState *target,
     MirrorBlockJob *s;
 
     if (granularity == 0) {
-        /* Choose the default granularity based on the target file's cluster
-         * size, clamped between 4k and 64k.  */
-        BlockDriverInfo bdi;
-        if (bdrv_get_info(target, &bdi) >= 0 && bdi.cluster_size != 0) {
-            granularity = MAX(4096, bdi.cluster_size);
-            granularity = MIN(65536, granularity);
-        } else {
-            granularity = 65536;
-        }
+        granularity = bdrv_get_default_bitmap_granularity(target);
     }
 
     assert ((granularity & (granularity - 1)) == 0);

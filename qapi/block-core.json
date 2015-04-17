@@ -960,6 +960,61 @@
             '*on-target-error': 'BlockdevOnError' } }
 
 ##
+# @BlockDirtyBitmap
+#
+# @node: name of device/node which the bitmap is tracking
+#
+# @name: name of the dirty bitmap
+#
+# Since 2.4
+##
+{ 'type': 'BlockDirtyBitmap',
+  'data': { 'node': 'str', 'name': 'str' } }
+
+##
+# @BlockDirtyBitmapAdd
+#
+# @node: name of device/node which the bitmap is tracking
+#
+# @name: name of the dirty bitmap
+#
+# @granularity: #optional the bitmap granularity, default is 64k for
+#               block-dirty-bitmap-add
+#
+# Since 2.4
+##
+{ 'type': 'BlockDirtyBitmapAdd',
+  'data': { 'node': 'str', 'name': 'str', '*granularity': 'uint32' } }
+
+##
+# @block-dirty-bitmap-add
+#
+# Create a dirty bitmap with a name on the node
+#
+# Returns: nothing on success
+#          If @node is not a valid block device or node, DeviceNotFound
+#          If @name is already taken, GenericError with an explanation
+#
+# Since 2.4
+##
+{ 'command': 'block-dirty-bitmap-add',
+  'data': 'BlockDirtyBitmapAdd' }
+
+##
+# @block-dirty-bitmap-remove
+#
+# Remove a dirty bitmap on the node
+#
+# Returns: nothing on success
+#          If @node is not a valid block device or node, DeviceNotFound
+#          If @name is not found, GenericError with an explanation
+#
+# Since 2.4
+##
+{ 'command': 'block-dirty-bitmap-remove',
+  'data': 'BlockDirtyBitmap' }
+
+##
 # @block_set_io_throttle:
 #
 # Change I/O throttle limits for a block drive.
