@@ -1364,6 +1364,35 @@ Example:
 EQMP
 
     {
+        .name       = "block-dirty-bitmap-clear",
+        .args_type  = "node:B,name:s",
+        .mhandler.cmd_new = qmp_marshal_input_block_dirty_bitmap_clear,
+    },
+
+SQMP
+
+block-dirty-bitmap-clear
+------------------------
+Since 2.4
+
+Reset the dirty bitmap associated with a node so that an incremental backup
+from this point in time forward will only backup clusters modified after this
+clear operation.
+
+Arguments:
+
+- "node": device/node on which to remove dirty bitmap (json-string)
+- "name": name of the dirty bitmap to remove (json-string)
+
+Example:
+
+-> { "execute": "block-dirty-bitmap-clear", "arguments": { "node": "drive0",
+                                                           "name": "bitmap0" } }
+<- { "return": {} }
+
+EQMP
+
+    {
         .name       = "blockdev-snapshot-sync",
         .args_type  = "device:s?,node-name:s?,snapshot-file:s,snapshot-node-name:s?,format:s?,mode:s?",
         .mhandler.cmd_new = qmp_marshal_input_blockdev_snapshot_sync,

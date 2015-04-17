@@ -479,6 +479,7 @@ void bdrv_set_dirty_bitmap(BlockDriverState *bs, BdrvDirtyBitmap *bitmap,
                            int64_t cur_sector, int nr_sectors);
 void bdrv_reset_dirty_bitmap(BlockDriverState *bs, BdrvDirtyBitmap *bitmap,
                              int64_t cur_sector, int nr_sectors);
+void bdrv_clear_dirty_bitmap(BdrvDirtyBitmap *bitmap);
 void bdrv_dirty_iter_init(BlockDriverState *bs,
                           BdrvDirtyBitmap *bitmap, struct HBitmapIter *hbi);
 void bdrv_set_dirty_iter(struct HBitmapIter *hbi, int64_t offset);

@@ -63,6 +63,7 @@
 struct BdrvDirtyBitmap {
     HBitmap *bitmap;
     BdrvDirtyBitmap *successor;
+    int64_t size;
     char *name;
     bool disabled;
     QLIST_ENTRY(BdrvDirtyBitmap) list;
@@ -5557,6 +5558,7 @@ BdrvDirtyBitmap *bdrv_create_dirty_bitmap(BlockDriverState *bs,
     }
     bitmap = g_new0(BdrvDirtyBitmap, 1);
     bitmap->bitmap = hbitmap_alloc(bitmap_size, ctz32(sector_granularity));
+    bitmap->size = bitmap_size;
     bitmap->name = g_strdup(name);
     bitmap->disabled = false;
     QLIST_INSERT_HEAD(&bs->dirty_bitmaps, bitmap, list);
@@ -5757,6 +5759,12 @@ void bdrv_reset_dirty_bitmap(BlockDriverState *bs, BdrvDirtyBitmap *bitmap,
 {
     assert(bdrv_dirty_bitmap_enabled(bitmap));
     hbitmap_reset(bitmap->bitmap, cur_sector, nr_sectors);
+}
+
+void bdrv_clear_dirty_bitmap(BdrvDirtyBitmap *bitmap)
+{
+    assert(bdrv_dirty_bitmap_enabled(bitmap));
+    hbitmap_reset(bitmap->bitmap, 0, bitmap->size);
 }
 
 static void bdrv_set_dirty(BlockDriverState *bs, int64_t cur_sector,

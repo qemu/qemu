@@ -1022,6 +1022,20 @@
   'data': 'BlockDirtyBitmap' }
 
 ##
+# @block-dirty-bitmap-clear
+#
+# Clear (reset) a dirty bitmap on the device
+#
+# Returns: nothing on success
+#          If @node is not a valid block device, DeviceNotFound
+#          If @name is not found, GenericError with an explanation
+#
+# Since 2.4
+##
+{ 'command': 'block-dirty-bitmap-clear',
+  'data': 'BlockDirtyBitmap' }
+
+##
 # @block_set_io_throttle:
 #
 # Change I/O throttle limits for a block drive.

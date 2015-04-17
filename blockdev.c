@@ -2079,6 +2079,40 @@ void qmp_block_dirty_bitmap_remove(const char *node, const char *name,
     aio_context_release(aio_context);
 }
 
+/**
+ * Completely clear a bitmap, for the purposes of synchronizing a bitmap
+ * immediately after a full backup operation.
+ */
+void qmp_block_dirty_bitmap_clear(const char *node, const char *name,
+                                  Error **errp)
+{
+    AioContext *aio_context;
+    BdrvDirtyBitmap *bitmap;
+    BlockDriverState *bs;
+
+    bitmap = block_dirty_bitmap_lookup(node, name, &bs, &aio_context, errp);
+    if (!bitmap || !bs) {
+        return;
+    }
+
+    if (bdrv_dirty_bitmap_frozen(bitmap)) {
+        error_setg(errp,
+                   "Bitmap '%s' is currently frozen and cannot be modified",
+                   name);
+        goto out;
+    } else if (!bdrv_dirty_bitmap_enabled(bitmap)) {
+        error_setg(errp,
+                   "Bitmap '%s' is currently disabled and cannot be cleared",
+                   name);
+        goto out;
+    }
+
+    bdrv_clear_dirty_bitmap(bitmap);
+
+ out:
+    aio_context_release(aio_context);
+}
+
 int hmp_drive_del(Monitor *mon, const QDict *qdict, QObject **ret_data)
 {
     const char *id = qdict_get_str(qdict, "id");
