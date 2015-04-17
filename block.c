@@ -61,11 +61,11 @@
  *     or enabled. A frozen bitmap can only abdicate() or reclaim().
  */
 struct BdrvDirtyBitmap {
-    HBitmap *bitmap;
-    BdrvDirtyBitmap *successor;
-    int64_t size;
-    char *name;
-    bool disabled;
+    HBitmap *bitmap;            /* Dirty sector bitmap implementation */
+    BdrvDirtyBitmap *successor; /* Anonymous child; implies frozen status */
+    char *name;                 /* Optional non-empty unique ID */
+    int64_t size;               /* Size of the bitmap (Number of sectors) */
+    bool disabled;              /* Bitmap is read-only */
     QLIST_ENTRY(BdrvDirtyBitmap) list;
 };
 
