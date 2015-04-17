@@ -5522,12 +5522,13 @@ void bdrv_dirty_bitmap_make_anon(BlockDriverState *bs, BdrvDirtyBitmap *bitmap)
 }
 
 BdrvDirtyBitmap *bdrv_create_dirty_bitmap(BlockDriverState *bs,
-                                          int granularity,
+                                          uint32_t granularity,
                                           const char *name,
                                           Error **errp)
 {
     int64_t bitmap_size;
     BdrvDirtyBitmap *bitmap;
+    uint32_t sector_granularity;
 
     assert((granularity & (granularity - 1)) == 0);
 
@@ -5535,8 +5536,8 @@ BdrvDirtyBitmap *bdrv_create_dirty_bitmap(BlockDriverState *bs,
         error_setg(errp, "Bitmap already exists: %s", name);
         return NULL;
     }
-    granularity >>= BDRV_SECTOR_BITS;
-    assert(granularity);
+    sector_granularity = granularity >> BDRV_SECTOR_BITS;
+    assert(sector_granularity);
     bitmap_size = bdrv_nb_sectors(bs);
     if (bitmap_size < 0) {
         error_setg_errno(errp, -bitmap_size, "could not get length of device");
@@ -5544,7 +5545,7 @@ BdrvDirtyBitmap *bdrv_create_dirty_bitmap(BlockDriverState *bs,
         return NULL;
     }
     bitmap = g_new0(BdrvDirtyBitmap, 1);
-    bitmap->bitmap = hbitmap_alloc(bitmap_size, ctz32(granularity));
+    bitmap->bitmap = hbitmap_alloc(bitmap_size, ctz32(sector_granularity));
     bitmap->name = g_strdup(name);
     QLIST_INSERT_HEAD(&bs->dirty_bitmaps, bitmap, list);
     return bitmap;
@@ -5575,7 +5576,7 @@ BlockDirtyInfoList *bdrv_query_dirty_bitmaps(BlockDriverState *bs)
         BlockDirtyInfoList *entry = g_new0(BlockDirtyInfoList, 1);
         info->count = bdrv_get_dirty_count(bs, bm);
         info->granularity =
-            ((int64_t) BDRV_SECTOR_SIZE << hbitmap_granularity(bm->bitmap));
+            ((uint32_t) BDRV_SECTOR_SIZE << hbitmap_granularity(bm->bitmap));
         info->has_name = !!bm->name;
         info->name = g_strdup(bm->name);
         entry->value = info;

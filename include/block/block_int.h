@@ -590,7 +590,7 @@ void commit_active_start(BlockDriverState *bs, BlockDriverState *base,
  */
 void mirror_start(BlockDriverState *bs, BlockDriverState *target,
                   const char *replaces,
-                  int64_t speed, int64_t granularity, int64_t buf_size,
+                  int64_t speed, uint32_t granularity, int64_t buf_size,
                   MirrorSyncMode mode, BlockdevOnError on_source_error,
                   BlockdevOnError on_target_error,
                   BlockCompletionFunc *cb,

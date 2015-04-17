@@ -656,7 +656,7 @@ static const BlockJobDriver commit_active_job_driver = {
 
 static void mirror_start_job(BlockDriverState *bs, BlockDriverState *target,
                              const char *replaces,
-                             int64_t speed, int64_t granularity,
+                             int64_t speed, uint32_t granularity,
                              int64_t buf_size,
                              BlockdevOnError on_source_error,
                              BlockdevOnError on_target_error,
@@ -717,7 +717,7 @@ static void mirror_start_job(BlockDriverState *bs, BlockDriverState *target,
 
 void mirror_start(BlockDriverState *bs, BlockDriverState *target,
                   const char *replaces,
-                  int64_t speed, int64_t granularity, int64_t buf_size,
+                  int64_t speed, uint32_t granularity, int64_t buf_size,
                   MirrorSyncMode mode, BlockdevOnError on_source_error,
                   BlockdevOnError on_target_error,
                   BlockCompletionFunc *cb,
