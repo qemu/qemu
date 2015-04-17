@@ -703,7 +703,7 @@ static void mirror_start_job(BlockDriverState *bs, BlockDriverState *target,
     s->granularity = granularity;
     s->buf_size = MAX(buf_size, granularity);
 
-    s->dirty_bitmap = bdrv_create_dirty_bitmap(bs, granularity, errp);
+    s->dirty_bitmap = bdrv_create_dirty_bitmap(bs, granularity, NULL, errp);
     if (!s->dirty_bitmap) {
         return;
     }
