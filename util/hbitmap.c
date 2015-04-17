@@ -399,3 +399,36 @@ HBitmap *hbitmap_alloc(uint64_t size, int granularity)
     hb->levels[0][0] |= 1UL << (BITS_PER_LONG - 1);
     return hb;
 }
+
+/**
+ * Given HBitmaps A and B, let A := A (BITOR) B.
+ * Bitmap B will not be modified.
+ *
+ * @return true if the merge was successful,
+ *         false if it was not attempted.
+ */
+bool hbitmap_merge(HBitmap *a, const HBitmap *b)
+{
+    int i;
+    uint64_t j;
+
+    if ((a->size != b->size) || (a->granularity != b->granularity)) {
+        return false;
+    }
+
+    if (hbitmap_count(b) == 0) {
+        return true;
+    }
+
+    /* This merge is O(size), as BITS_PER_LONG and HBITMAP_LEVELS are constant.
+     * It may be possible to improve running times for sparsely populated maps
+     * by using hbitmap_iter_next, but this is suboptimal for dense maps.
+     */
+    for (i = HBITMAP_LEVELS - 1; i >= 0; i--) {
+        for (j = 0; j < a->sizes[i]; j++) {
+            a->levels[i][j] |= b->levels[i][j];
+        }
+    }
+
+    return true;
+}
