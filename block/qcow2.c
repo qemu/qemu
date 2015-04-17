@@ -597,8 +597,8 @@ static int qcow2_update_options(BlockDriverState *bs, QDict *options,
     const char *opt_overlap_check, *opt_overlap_check_template;
     int overlap_check_template = 0;
     uint64_t l2_cache_size, refcount_cache_size;
-    Qcow2Cache *l2_table_cache;
-    Qcow2Cache *refcount_block_cache;
+    Qcow2Cache *l2_table_cache = NULL;
+    Qcow2Cache *refcount_block_cache = NULL;
     uint64_t cache_clean_interval;
     bool use_lazy_refcounts;
     int i;
@@ -735,6 +735,14 @@ static int qcow2_update_options(BlockDriverState *bs, QDict *options,
 
     ret = 0;
 fail:
+    if (ret < 0) {
+        if (l2_table_cache) {
+            qcow2_cache_destroy(bs, l2_table_cache);
+        }
+        if (refcount_block_cache) {
+            qcow2_cache_destroy(bs, refcount_block_cache);
+        }
+    }
     qemu_opts_del(opts);
     opts = NULL;
 
