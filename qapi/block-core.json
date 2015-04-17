@@ -1008,6 +1008,7 @@
 # Returns: nothing on success
 #          If @node is not a valid block device or node, DeviceNotFound
 #          If @name is not found, GenericError with an explanation
+#          if @name is frozen by an operation, GenericError
 #
 # Since 2.4
 ##

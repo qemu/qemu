@@ -2065,9 +2065,16 @@ void qmp_block_dirty_bitmap_remove(const char *node, const char *name,
         return;
     }
 
+    if (bdrv_dirty_bitmap_frozen(bitmap)) {
+        error_setg(errp,
+                   "Bitmap '%s' is currently frozen and cannot be removed",
+                   name);
+        goto out;
+    }
     bdrv_dirty_bitmap_make_anon(bs, bitmap);
     bdrv_release_dirty_bitmap(bs, bitmap);
 
+ out:
     aio_context_release(aio_context);
 }
 
