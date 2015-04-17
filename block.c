@@ -5575,8 +5575,7 @@ BlockDirtyInfoList *bdrv_query_dirty_bitmaps(BlockDriverState *bs)
         BlockDirtyInfo *info = g_new0(BlockDirtyInfo, 1);
         BlockDirtyInfoList *entry = g_new0(BlockDirtyInfoList, 1);
         info->count = bdrv_get_dirty_count(bs, bm);
-        info->granularity =
-            ((uint32_t) BDRV_SECTOR_SIZE << hbitmap_granularity(bm->bitmap));
+        info->granularity = bdrv_dirty_bitmap_granularity(bm);
         info->has_name = !!bm->name;
         info->name = g_strdup(bm->name);
         entry->value = info;
@@ -5614,6 +5613,11 @@ uint32_t bdrv_get_default_bitmap_granularity(BlockDriverState *bs)
     }
 
     return granularity;
+}
+
+uint32_t bdrv_dirty_bitmap_granularity(BdrvDirtyBitmap *bitmap)
+{
+    return BDRV_SECTOR_SIZE << hbitmap_granularity(bitmap->bitmap);
 }
 
 void bdrv_dirty_iter_init(BlockDriverState *bs,
