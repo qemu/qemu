@@ -158,11 +158,11 @@ class TestIncrementalBackup(iotests.QMPTestCase):
         self.assertTrue(res)
 
 
-    def add_bitmap(self, name, drive):
+    def add_bitmap(self, name, drive, **kwargs):
         bitmap = Bitmap(name, drive)
         self.bitmaps.append(bitmap)
         result = self.vm.qmp('block-dirty-bitmap-add', node=drive['id'],
-                             name=bitmap.name)
+                             name=bitmap.name, **kwargs)
         self.assert_qmp(result, 'return', {})
         return bitmap
 
@@ -212,16 +212,9 @@ class TestIncrementalBackup(iotests.QMPTestCase):
         self.vm.hmp_qemu_io(drive, 'flush')
 
 
-    def test_incremental_simple(self):
-        '''
-        Test: Create and verify three incremental backups.
-
-        Create a bitmap and a full backup before VM execution begins,
-        then create a series of three incremental backups "during execution,"
-        i.e.; after IO requests begin modifying the drive.
-        '''
+    def do_incremental_simple(self, **kwargs):
         self.create_anchor_backup()
-        self.add_bitmap('bitmap0', self.drives[0])
+        self.add_bitmap('bitmap0', self.drives[0], **kwargs)
 
         # Sanity: Create a "hollow" incremental backup
         self.create_incremental()
@@ -238,6 +231,37 @@ class TestIncrementalBackup(iotests.QMPTestCase):
         self.create_incremental()
         self.vm.shutdown()
         self.check_backups()
+
+
+    def test_incremental_simple(self):
+        '''
+        Test: Create and verify three incremental backups.
+
+        Create a bitmap and a full backup before VM execution begins,
+        then create a series of three incremental backups "during execution,"
+        i.e.; after IO requests begin modifying the drive.
+        '''
+        return self.do_incremental_simple()
+
+
+    def test_small_granularity(self):
+        '''
+        Test: Create and verify backups made with a small granularity bitmap.
+
+        Perform the same test as test_incremental_simple, but with a granularity
+        of only 32KiB instead of the present default of 64KiB.
+        '''
+        return self.do_incremental_simple(granularity=32768)
+
+
+    def test_large_granularity(self):
+        '''
+        Test: Create and verify backups made with a large granularity bitmap.
+
+        Perform the same test as test_incremental_simple, but with a granularity
+        of 128KiB instead of the present default of 64KiB.
+        '''
+        return self.do_incremental_simple(granularity=131072)
 
 
     def test_incremental_failure(self):
@@ -313,6 +337,18 @@ class TestIncrementalBackup(iotests.QMPTestCase):
                              sync='dirty-bitmap', bitmap='unknown',
                              format=self.drives[0]['fmt'], target=self.err_img)
         self.assert_qmp(result, 'error/class', 'GenericError')
+
+
+    def test_sync_dirty_bitmap_bad_granularity(self):
+        '''
+        Test: Test what happens if we provide an improper granularity.
+
+        The granularity must always be a power of 2.
+        '''
+        self.assert_no_active_block_jobs()
+        self.assertRaises(AssertionError, self.add_bitmap,
+                          'bitmap0', self.drives[0],
+                          granularity=64000)
 
 
     def tearDown(self):
