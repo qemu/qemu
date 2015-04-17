@@ -55,6 +55,7 @@
 struct BdrvDirtyBitmap {
     HBitmap *bitmap;
     char *name;
+    bool disabled;
     QLIST_ENTRY(BdrvDirtyBitmap) list;
 };
 
@@ -5547,8 +5548,14 @@ BdrvDirtyBitmap *bdrv_create_dirty_bitmap(BlockDriverState *bs,
     bitmap = g_new0(BdrvDirtyBitmap, 1);
     bitmap->bitmap = hbitmap_alloc(bitmap_size, ctz32(sector_granularity));
     bitmap->name = g_strdup(name);
+    bitmap->disabled = false;
     QLIST_INSERT_HEAD(&bs->dirty_bitmaps, bitmap, list);
     return bitmap;
+}
+
+bool bdrv_dirty_bitmap_enabled(BdrvDirtyBitmap *bitmap)
+{
+    return !bitmap->disabled;
 }
 
 void bdrv_release_dirty_bitmap(BlockDriverState *bs, BdrvDirtyBitmap *bitmap)
@@ -5563,6 +5570,16 @@ void bdrv_release_dirty_bitmap(BlockDriverState *bs, BdrvDirtyBitmap *bitmap)
             return;
         }
     }
+}
+
+void bdrv_disable_dirty_bitmap(BdrvDirtyBitmap *bitmap)
+{
+    bitmap->disabled = true;
+}
+
+void bdrv_enable_dirty_bitmap(BdrvDirtyBitmap *bitmap)
+{
+    bitmap->disabled = false;
 }
 
 BlockDirtyInfoList *bdrv_query_dirty_bitmaps(BlockDriverState *bs)
@@ -5629,12 +5646,14 @@ void bdrv_dirty_iter_init(BlockDriverState *bs,
 void bdrv_set_dirty_bitmap(BlockDriverState *bs, BdrvDirtyBitmap *bitmap,
                            int64_t cur_sector, int nr_sectors)
 {
+    assert(bdrv_dirty_bitmap_enabled(bitmap));
     hbitmap_set(bitmap->bitmap, cur_sector, nr_sectors);
 }
 
 void bdrv_reset_dirty_bitmap(BlockDriverState *bs, BdrvDirtyBitmap *bitmap,
                              int64_t cur_sector, int nr_sectors)
 {
+    assert(bdrv_dirty_bitmap_enabled(bitmap));
     hbitmap_reset(bitmap->bitmap, cur_sector, nr_sectors);
 }
 
@@ -5643,6 +5662,9 @@ static void bdrv_set_dirty(BlockDriverState *bs, int64_t cur_sector,
 {
     BdrvDirtyBitmap *bitmap;
     QLIST_FOREACH(bitmap, &bs->dirty_bitmaps, list) {
+        if (!bdrv_dirty_bitmap_enabled(bitmap)) {
+            continue;
+        }
         hbitmap_set(bitmap->bitmap, cur_sector, nr_sectors);
     }
 }
@@ -5652,6 +5674,9 @@ static void bdrv_reset_dirty(BlockDriverState *bs, int64_t cur_sector,
 {
     BdrvDirtyBitmap *bitmap;
     QLIST_FOREACH(bitmap, &bs->dirty_bitmaps, list) {
+        if (!bdrv_dirty_bitmap_enabled(bitmap)) {
+            continue;
+        }
         hbitmap_reset(bitmap->bitmap, cur_sector, nr_sectors);
     }
 }
