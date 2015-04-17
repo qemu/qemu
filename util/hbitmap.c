@@ -90,6 +90,9 @@ struct HBitmap {
      * bitmap will still allocate HBITMAP_LEVELS arrays.
      */
     unsigned long *levels[HBITMAP_LEVELS];
+
+    /* The length of each levels[] array. */
+    uint64_t sizes[HBITMAP_LEVELS];
 };
 
 /* Advance hbi to the next nonzero word and return it.  hbi->pos
@@ -384,6 +387,7 @@ HBitmap *hbitmap_alloc(uint64_t size, int granularity)
     hb->granularity = granularity;
     for (i = HBITMAP_LEVELS; i-- > 0; ) {
         size = MAX((size + BITS_PER_LONG - 1) >> BITS_PER_LEVEL, 1);
+        hb->sizes[i] = size;
         hb->levels[i] = g_new0(unsigned long, size);
     }
 
