@@ -198,6 +198,28 @@ static const TypeInfo q35_host_info = {
  * MCH D0:F0
  */
 
+static uint64_t tseg_blackhole_read(void *ptr, hwaddr reg, unsigned size)
+{
+    return 0xffffffff;
+}
+
+static void tseg_blackhole_write(void *opaque, hwaddr addr, uint64_t val,
+                                 unsigned width)
+{
+    /* nothing */
+}
+
+static const MemoryRegionOps tseg_blackhole_ops = {
+    .read = tseg_blackhole_read,
+    .write = tseg_blackhole_write,
+    .endianness = DEVICE_NATIVE_ENDIAN,
+    .valid.min_access_size = 1,
+    .valid.max_access_size = 4,
+    .impl.min_access_size = 4,
+    .impl.max_access_size = 4,
+    .endianness = DEVICE_LITTLE_ENDIAN,
+};
+
 /* PCIe MMCFG */
 static void mch_update_pciexbar(MCHPCIState *mch)
 {
@@ -267,6 +289,7 @@ static void mch_update_smram(MCHPCIState *mch)
 {
     PCIDevice *pd = PCI_DEVICE(mch);
     bool h_smrame = (pd->config[MCH_HOST_BRIDGE_ESMRAMC] & MCH_HOST_BRIDGE_ESMRAMC_H_SMRAME);
+    uint32_t tseg_size;
 
     /* implement SMRAM.D_LCK */
     if (pd->config[MCH_HOST_BRIDGE_SMRAM] & MCH_HOST_BRIDGE_SMRAM_D_LCK) {
@@ -295,6 +318,39 @@ static void mch_update_smram(MCHPCIState *mch)
         memory_region_set_enabled(&mch->low_smram, false);
         memory_region_set_enabled(&mch->high_smram, false);
     }
+
+    if (pd->config[MCH_HOST_BRIDGE_ESMRAMC] & MCH_HOST_BRIDGE_ESMRAMC_T_EN) {
+        switch (pd->config[MCH_HOST_BRIDGE_ESMRAMC] &
+                MCH_HOST_BRIDGE_ESMRAMC_TSEG_SZ_MASK) {
+        case MCH_HOST_BRIDGE_ESMRAMC_TSEG_SZ_1MB:
+            tseg_size = 1024 * 1024;
+            break;
+        case MCH_HOST_BRIDGE_ESMRAMC_TSEG_SZ_2MB:
+            tseg_size = 1024 * 1024 * 2;
+            break;
+        case MCH_HOST_BRIDGE_ESMRAMC_TSEG_SZ_8MB:
+            tseg_size = 1024 * 1024 * 8;
+            break;
+        default:
+            tseg_size = 0;
+            break;
+        }
+    } else {
+        tseg_size = 0;
+    }
+    memory_region_del_subregion(mch->system_memory, &mch->tseg_blackhole);
+    memory_region_set_enabled(&mch->tseg_blackhole, tseg_size);
+    memory_region_set_size(&mch->tseg_blackhole, tseg_size);
+    memory_region_add_subregion_overlap(mch->system_memory,
+                                        mch->below_4g_mem_size - tseg_size,
+                                        &mch->tseg_blackhole, 1);
+
+    memory_region_set_enabled(&mch->tseg_window, tseg_size);
+    memory_region_set_size(&mch->tseg_window, tseg_size);
+    memory_region_set_address(&mch->tseg_window,
+                              mch->below_4g_mem_size - tseg_size);
+    memory_region_set_alias_offset(&mch->tseg_window,
+                                   mch->below_4g_mem_size - tseg_size);
 
     memory_region_transaction_commit();
 }
@@ -443,6 +499,20 @@ static void mch_realize(PCIDevice *d, Error **errp)
                              mch->ram_memory, 0xa0000, 0x20000);
     memory_region_set_enabled(&mch->high_smram, true);
     memory_region_add_subregion(&mch->smram, 0xfeda0000, &mch->high_smram);
+
+    memory_region_init_io(&mch->tseg_blackhole, OBJECT(mch),
+                          &tseg_blackhole_ops, NULL,
+                          "tseg-blackhole", 0);
+    memory_region_set_enabled(&mch->tseg_blackhole, false);
+    memory_region_add_subregion_overlap(mch->system_memory,
+                                        mch->below_4g_mem_size,
+                                        &mch->tseg_blackhole, 1);
+
+    memory_region_init_alias(&mch->tseg_window, OBJECT(mch), "tseg-window",
+                             mch->ram_memory, mch->below_4g_mem_size, 0);
+    memory_region_set_enabled(&mch->tseg_window, false);
+    memory_region_add_subregion(&mch->smram, mch->below_4g_mem_size,
+                                &mch->tseg_window);
     object_property_add_const_link(qdev_get_machine(), "smram",
                                    OBJECT(&mch->smram), &error_abort);
 
