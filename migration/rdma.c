@@ -2452,7 +2452,6 @@ static void *qemu_rdma_data_init(const char *host_port, Error **errp)
 
     if (host_port) {
         rdma = g_malloc0(sizeof(RDMAContext));
-        memset(rdma, 0, sizeof(RDMAContext));
         rdma->current_index = -1;
         rdma->current_chunk = -1;
 
