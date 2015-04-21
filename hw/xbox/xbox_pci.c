@@ -300,12 +300,12 @@ static int xbox_lpc_initfn(PCIDevice *d)
         const char *bootrom_file = qemu_opt_get(machine_opts, "bootrom");
         if (!bootrom_file) bootrom_file = "mcpx.bin";
 
-        char *filename;
         int rc, fd = -1;
-        if (bootrom_file
-              && (filename = qemu_find_file(QEMU_FILE_TYPE_BIOS, bootrom_file))) {
-            s->bootrom_size = get_image_size(filename);
+        if (bootrom_file) {
+            char *filename = qemu_find_file(QEMU_FILE_TYPE_BIOS, bootrom_file);
+            assert(filename);
 
+            s->bootrom_size = get_image_size(filename);
             if (s->bootrom_size != 512) {
                 fprintf(stderr, "MCPX bootrom should be 512 bytes, got %d\n",
                         s->bootrom_size);
@@ -313,7 +313,7 @@ static int xbox_lpc_initfn(PCIDevice *d)
             }
 
             fd = open(filename, O_RDONLY | O_BINARY);
-            assert(fd != -1);
+            assert(fd >= 0);
             rc = read(fd, s->bootrom_data, s->bootrom_size);
             assert(rc == s->bootrom_size);
 
