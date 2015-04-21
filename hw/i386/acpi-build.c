@@ -763,7 +763,7 @@ build_ssdt(GArray *table_data, GArray *linker,
         aml_append(ssdt, scope);
     }
 
-    sb_scope = aml_scope("_SB");
+    sb_scope = aml_scope("\\_SB");
     {
         /* create PCI0.PRES device and its _CRS to reserve CPU hotplug MMIO */
         dev = aml_device("PCI0." stringify(CPU_HOTPLUG_RESOURCE_DEVICE));

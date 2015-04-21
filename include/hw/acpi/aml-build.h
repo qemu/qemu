@@ -146,7 +146,7 @@ void free_aml_allocator(void);
  * Joins Aml elements together and helps to construct AML tables
  * Examle of usage:
  *   Aml *table = aml_def_block("SSDT", ...);
- *   Aml *sb = aml_scope("\_SB");
+ *   Aml *sb = aml_scope("\\_SB");
  *   Aml *dev = aml_device("PCI0");
  *
  *   aml_append(dev, aml_name_decl("HID", aml_eisaid("PNP0A03")));
