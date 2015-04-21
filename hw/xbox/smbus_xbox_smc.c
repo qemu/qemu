@@ -28,17 +28,17 @@
 
 #define SMC_REG_VER                 0x01
 #define SMC_REG_POWER               0x02
-#define         SMC_REG_POWER_RESET         0x01
-#define         SMC_REG_POWER_CYCLE         0x40
-#define         SMC_REG_POWER_SHUTDOWN      0x80
+#define     SMC_REG_POWER_RESET         0x01
+#define     SMC_REG_POWER_CYCLE         0x40
+#define     SMC_REG_POWER_SHUTDOWN      0x80
 #define SMC_REG_TRAYSTATE           0x03
 #define SMC_REG_AVPACK              0x04
-#define         SMC_REG_AVPACK_SCART        0x00
-#define         SMC_REG_AVPACK_HDTV         0x01
-#define         SMC_REG_AVPACK_VGA_SOG      0x02
-#define         SMC_REG_AVPACK_SVIDEO       0x04
-#define         SMC_REG_AVPACK_COMPOSITE    0x06
-#define         SMC_REG_AVPACK_VGA          0x07
+#define     SMC_REG_AVPACK_SCART        0x00
+#define     SMC_REG_AVPACK_HDTV         0x01
+#define     SMC_REG_AVPACK_VGA_SOG      0x02
+#define     SMC_REG_AVPACK_SVIDEO       0x04
+#define     SMC_REG_AVPACK_COMPOSITE    0x06
+#define     SMC_REG_AVPACK_VGA          0x07
 #define SMC_REG_FANMODE             0x05
 #define SMC_REG_FANSPEED            0x06
 #define SMC_REG_LEDMODE             0x07
@@ -46,17 +46,19 @@
 #define SMC_REG_CPUTEMP             0x09
 #define SMC_REG_BOARDTEMP           0x0a
 #define SMC_REG_TRAYEJECT           0x0c
-#define SMC_REG_INTACK		0x0d
+#define SMC_REG_INTACK              0x0d
 #define SMC_REG_INTSTATUS           0x11
-#define		SMC_REG_INTSTATUS_POWER		0x01
-#define		SMC_REG_INTSTATUS_TRAYCLOSED	0x02
-#define		SMC_REG_INTSTATUS_TRAYOPENING	0x04
-#define		SMC_REG_INTSTATUS_AVPACK_PLUG	0x08
-#define		SMC_REG_INTSTATUS_AVPACK_UNPLUG	0x10
-#define		SMC_REG_INTSTATUS_EJECT_BUTTON	0x20
-#define		SMC_REG_INTSTATUS_TRAYCLOSING	0x40
+#define     SMC_REG_INTSTATUS_POWER         0x01
+#define     SMC_REG_INTSTATUS_TRAYCLOSED    0x02
+#define     SMC_REG_INTSTATUS_TRAYOPENING   0x04
+#define     SMC_REG_INTSTATUS_AVPACK_PLUG   0x08
+#define     SMC_REG_INTSTATUS_AVPACK_UNPLUG 0x10
+#define     SMC_REG_INTSTATUS_EJECT_BUTTON  0x20
+#define     SMC_REG_INTSTATUS_TRAYCLOSING   0x40
 #define SMC_REG_RESETONEJECT        0x19
 #define SMC_REG_INTEN               0x1a
+#define SMC_REG_SCRATCH             0x1b
+#define     SMC_REG_SCRATCH_SHORT_ANIMATION 0x04
 
 static const char* smc_version_string = "P01";
 
@@ -134,6 +136,10 @@ static uint8_t smc_read_data(SMBusDevice *dev, uint8_t cmd, int n)
         case SMC_REG_AVPACK:
             /* pretend to have a composite av pack plugged in */
             return SMC_REG_AVPACK_COMPOSITE;
+
+        case SMC_REG_SCRATCH:
+            return 0;
+            // return SMC_REG_SCRATCH_SHORT_ANIMATION;
 
         /* challenge request:
          * must be non-0 */
