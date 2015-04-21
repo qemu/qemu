@@ -2303,6 +2303,16 @@ target_ulong helper_cfc1(CPUMIPSState *env, uint32_t reg)
             }
         }
         break;
+    case 5:
+        /* FRE Support - read Config5.FRE bit */
+        if (env->active_fpu.fcr0 & (1 << FCR0_FREP)) {
+            if (env->CP0_Config5 & (1 << CP0C5_UFE)) {
+                arg1 = (env->CP0_Config5 >> CP0C5_FRE) & 1;
+            } else {
+                helper_raise_exception(env, EXCP_RI);
+            }
+        }
+        break;
     case 25:
         arg1 = ((env->active_fpu.fcr31 >> 24) & 0xfe) | ((env->active_fpu.fcr31 >> 23) & 0x1);
         break;
@@ -2342,6 +2352,30 @@ void helper_ctc1(CPUMIPSState *env, target_ulong arg1, uint32_t fs, uint32_t rt)
         }
         if (env->CP0_Config5 & (1 << CP0C5_UFR)) {
             env->CP0_Status |= (1 << CP0St_FR);
+            compute_hflags(env);
+        } else {
+            helper_raise_exception(env, EXCP_RI);
+        }
+        break;
+    case 5:
+        /* FRE Support - clear Config5.FRE bit */
+        if (!((env->active_fpu.fcr0 & (1 << FCR0_FREP)) && (rt == 0))) {
+            return;
+        }
+        if (env->CP0_Config5 & (1 << CP0C5_UFE)) {
+            env->CP0_Config5 &= ~(1 << CP0C5_FRE);
+            compute_hflags(env);
+        } else {
+            helper_raise_exception(env, EXCP_RI);
+        }
+        break;
+    case 6:
+        /* FRE Support - set Config5.FRE bit */
+        if (!((env->active_fpu.fcr0 & (1 << FCR0_FREP)) && (rt == 0))) {
+            return;
+        }
+        if (env->CP0_Config5 & (1 << CP0C5_UFE)) {
+            env->CP0_Config5 |= (1 << CP0C5_FRE);
             compute_hflags(env);
         } else {
             helper_raise_exception(env, EXCP_RI);

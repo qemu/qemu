@@ -622,7 +622,8 @@ static const mips_def_t mips_defs[] =
                        (1 << CP0C3_BI) | (1 << CP0C3_ULRI) | (1U << CP0C3_M),
         .CP0_Config4 = MIPS_CONFIG4 | (0xfc << CP0C4_KScrExist) |
                        (3 << CP0C4_IE) | (1 << CP0C4_M),
-        .CP0_Config5_rw_bitmask = (1 << CP0C5_SBRI),
+        .CP0_Config5_rw_bitmask = (1 << CP0C5_SBRI) | (1 << CP0C5_FRE) |
+                                  (1 << CP0C5_UFE),
         .CP0_LLAddr_rw_bitmask = 0,
         .CP0_LLAddr_shift = 0,
         .SYNCI_Step = 32,
@@ -631,9 +632,9 @@ static const mips_def_t mips_defs[] =
         .CP0_PageGrain = (1 << CP0PG_IEC) | (1 << CP0PG_XIE) |
                          (1U << CP0PG_RIE),
         .CP0_PageGrain_rw_bitmask = 0,
-        .CP1_fcr0 = (1 << FCR0_F64) | (1 << FCR0_L) | (1 << FCR0_W) |
-                    (1 << FCR0_D) | (1 << FCR0_S) | (0x00 << FCR0_PRID) |
-                    (0x0 << FCR0_REV),
+        .CP1_fcr0 = (1 << FCR0_FREP) | (1 << FCR0_F64) | (1 << FCR0_L) |
+                    (1 << FCR0_W) | (1 << FCR0_D) | (1 << FCR0_S) |
+                    (0x00 << FCR0_PRID) | (0x0 << FCR0_REV),
         .SEGBITS = 42,
         /* The architectural limit is 59, but we have hardcoded 36 bit
            in some places...
