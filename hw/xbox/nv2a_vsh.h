@@ -82,10 +82,11 @@ typedef enum {
     FLD_FINAL
 } VshFieldName;
 
-uint8_t vsh_get_field(uint32_t *shader_token, VshFieldName field_name);
+uint8_t vsh_get_field(const uint32_t *shader_token, VshFieldName field_name);
 
 QString* vsh_translate(uint16_t version,
-                       uint32_t *tokens, unsigned int tokens_length);
+                       const uint32_t *tokens,
+                       unsigned int length);
 
 
 #endif

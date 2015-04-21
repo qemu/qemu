@@ -262,8 +262,12 @@
 #   define NV_PGRAPH_CSV0_D_MODE                                0xC0000000
 #   define NV_PGRAPH_CSV0_D_RANGE_MODE                          (1 << 18)
 #define NV_PGRAPH_CSV0_C                                 0x00000FB8
+#   define NV_PGRAPH_CSV0_C_CHEOPS_PROGRAM_START                0x0000FF00
 #define NV_PGRAPH_CSV1_B                                 0x00000FBC
 #define NV_PGRAPH_CSV1_A                                 0x00000FC0
+#define NV_PGRAPH_CHEOPS_OFFSET                          0x00000FC4
+#   define NV_PGRAPH_CHEOPS_OFFSET_PROG_LD_PTR                  0x000000FF
+#   define NV_PGRAPH_CHEOPS_OFFSET_CONST_LD_PTR                 0x0000FF00
 #define NV_PGRAPH_CLEARRECTX                             0x00001864
 #       define NV_PGRAPH_CLEARRECTX_XMIN                          0x00000FFF
 #       define NV_PGRAPH_CLEARRECTX_XMAX                          0x0FFF0000
@@ -333,6 +337,7 @@
 #define NV_PGRAPH_ZSTENCILCLEARVALUE                     0x00001A88
 #define NV_PGRAPH_ZCLIPMAX                               0x00001ABC
 #define NV_PGRAPH_ZCLIPMIN                               0x00001A90
+
 
 #define NV_PCRTC_INTR_0                                  0x00000100
 #   define NV_PCRTC_INTR_0_VBLANK                               (1 << 0)
@@ -819,7 +824,7 @@ typedef struct VertexAttribute {
 
 typedef struct VertexShaderConstant {
     bool dirty;
-    uint32 data[4];
+    uint32_t data[4];
 } VertexShaderConstant;
 
 typedef struct ShaderState {
@@ -839,7 +844,7 @@ typedef struct ShaderState {
     bool fixed_function;
 
     bool vertex_program;
-    uint32_t program_data[NV2A_MAX_TRANSFORM_PROGRAM_LENGTH];
+    uint32_t program_data[NV2A_MAX_TRANSFORM_PROGRAM_LENGTH][VSH_TOKEN_SIZE];
     int program_length;
 } ShaderState;
 
@@ -963,11 +968,8 @@ typedef struct PGRAPHState {
 
     bool enable_vertex_program_write;
 
-    unsigned int program_start;
-    unsigned int program_load;
-    uint32_t program_data[NV2A_MAX_TRANSFORM_PROGRAM_LENGTH];
+    uint32_t program_data[NV2A_MAX_TRANSFORM_PROGRAM_LENGTH][VSH_TOKEN_SIZE];
 
-    unsigned int constant_load_slot;
     VertexShaderConstant constants[NV2A_VERTEXSHADER_CONSTANTS];
 
     VertexAttribute vertex_attributes[NV2A_VERTEXSHADER_ATTRIBUTES];
@@ -1648,7 +1650,7 @@ static GLuint generate_shaders(ShaderState state)
 
     } else if (state.vertex_program) {
         vertex_shader_code = vsh_translate(VSH_VERSION_XVS,
-                                           state.program_data,
+                                           (uint32_t*)state.program_data,
                                            state.program_length);
         vertex_shader_code_str = qstring_get_str(vertex_shader_code);
     }
@@ -1781,6 +1783,9 @@ static void pgraph_bind_shaders(PGRAPHState *pg)
     bool fixed_function = GET_MASK(pg->regs[NV_PGRAPH_CSV0_D],
                                    NV_PGRAPH_CSV0_D_MODE) == 0;
 
+    int program_start = GET_MASK(pg->regs[NV_PGRAPH_CSV0_C],
+                                 NV_PGRAPH_CSV0_C_CHEOPS_PROGRAM_START);
+
     if (pg->shaders_dirty) {
         ShaderState state = {
             /* register combier stuff */
@@ -1802,14 +1807,14 @@ static void pgraph_bind_shaders(PGRAPHState *pg)
 
         if (vertex_program) {
             // copy in vertex program tokens
-            for (i = pg->program_start;
+            for (i = program_start;
                     i < NV2A_MAX_TRANSFORM_PROGRAM_LENGTH;
-                    i += VSH_TOKEN_SIZE) {
-                uint32_t *cur_token = pg->program_data + i;
-                memcpy(state.program_data + state.program_length,
+                    i++) {
+                uint32_t *cur_token = (uint32_t*)&pg->program_data[i];
+                memcpy(&state.program_data[state.program_length],
                        cur_token,
                        VSH_TOKEN_SIZE * sizeof(uint32_t));
-                state.program_length += VSH_TOKEN_SIZE;
+                state.program_length++;
 
                 if (vsh_get_field(cur_token, FLD_FINAL)) {
                     break;
@@ -2212,8 +2217,6 @@ static void pgraph_method(NV2AState *d,
     GraphicsObject *object;
 
     unsigned int slot;
-    VertexAttribute *vertex_attribute;
-    VertexShaderConstant *constant;
 
     PGRAPHState *pg = &d->pgraph;
 
@@ -2549,27 +2552,44 @@ static void pgraph_method(NV2AState *d,
         break;
 
     case NV097_SET_TRANSFORM_PROGRAM ...
-            NV097_SET_TRANSFORM_PROGRAM + 0x7c:
+            NV097_SET_TRANSFORM_PROGRAM + 0x7c: {
 
-        // slot = (class_method - NV097_SET_TRANSFORM_PROGRAM) / 4;
+        slot = (class_method - NV097_SET_TRANSFORM_PROGRAM) / 4;
 
-        assert(pg->program_load < NV2A_MAX_TRANSFORM_PROGRAM_LENGTH);
-        pg->program_data[pg->program_load++] = parameter;
+        int program_load = GET_MASK(pg->regs[NV_PGRAPH_CHEOPS_OFFSET],
+                                    NV_PGRAPH_CHEOPS_OFFSET_PROG_LD_PTR);
+
+        assert(program_load < NV2A_MAX_TRANSFORM_PROGRAM_LENGTH);
+        pg->program_data[program_load][slot%4] = parameter;
         pg->shaders_dirty = true;
+
+        if (slot % 4 == 3) {
+            SET_MASK(pg->regs[NV_PGRAPH_CHEOPS_OFFSET],
+                     NV_PGRAPH_CHEOPS_OFFSET_PROG_LD_PTR, program_load+1);
+        }
+
         break;
+    }
 
     case NV097_SET_TRANSFORM_CONSTANT ...
-            NV097_SET_TRANSFORM_CONSTANT + 0x7c:
+            NV097_SET_TRANSFORM_CONSTANT + 0x7c: {
 
-        // slot = (class_method - NV097_SET_TRANSFORM_CONSTANT) / 4;
+        slot = (class_method - NV097_SET_TRANSFORM_CONSTANT) / 4;
 
-        assert((pg->constant_load_slot/4) < NV2A_VERTEXSHADER_CONSTANTS);
-        constant = &pg->constants[pg->constant_load_slot/4];
-        constant->data[pg->constant_load_slot%4] = parameter;
+        int const_load = GET_MASK(pg->regs[NV_PGRAPH_CHEOPS_OFFSET],
+                                  NV_PGRAPH_CHEOPS_OFFSET_CONST_LD_PTR);
+
+        assert(const_load < NV2A_VERTEXSHADER_CONSTANTS);
+        VertexShaderConstant *constant = &pg->constants[const_load];
+        constant->data[slot%4] = parameter;
         constant->dirty = true;
 
-        pg->constant_load_slot++;
+        if (slot % 4 == 3) {
+            SET_MASK(pg->regs[NV_PGRAPH_CHEOPS_OFFSET],
+                     NV_PGRAPH_CHEOPS_OFFSET_CONST_LD_PTR, const_load+1);
+        }
         break;
+    }
 
     case NV097_SET_VERTEX4F ...
             NV097_SET_VERTEX4F + 12: {
@@ -2591,10 +2611,10 @@ static void pgraph_method(NV2AState *d,
     }
 
     case NV097_SET_VERTEX_DATA_ARRAY_FORMAT ...
-            NV097_SET_VERTEX_DATA_ARRAY_FORMAT + 0x3c:
+            NV097_SET_VERTEX_DATA_ARRAY_FORMAT + 0x3c: {
 
         slot = (class_method - NV097_SET_VERTEX_DATA_ARRAY_FORMAT) / 4;
-        vertex_attribute = &pg->vertex_attributes[slot];
+        VertexAttribute *vertex_attribute = &pg->vertex_attributes[slot];
 
         vertex_attribute->format =
             GET_MASK(parameter, NV097_SET_VERTEX_DATA_ARRAY_FORMAT_TYPE);
@@ -2662,6 +2682,8 @@ static void pgraph_method(NV2AState *d,
         }
 
         break;
+    }
+
     case NV097_SET_VERTEX_DATA_ARRAY_OFFSET ...
             NV097_SET_VERTEX_DATA_ARRAY_OFFSET + 0x3c:
 
@@ -2963,16 +2985,19 @@ static void pgraph_method(NV2AState *d,
         break;
     case NV097_SET_TRANSFORM_PROGRAM_LOAD:
         assert(parameter < NV2A_MAX_TRANSFORM_PROGRAM_LENGTH);
-        pg->program_load = parameter * VSH_TOKEN_SIZE;
+        SET_MASK(pg->regs[NV_PGRAPH_CHEOPS_OFFSET],
+                 NV_PGRAPH_CHEOPS_OFFSET_PROG_LD_PTR, parameter);
         break;
     case NV097_SET_TRANSFORM_PROGRAM_START:
         assert(parameter < NV2A_MAX_TRANSFORM_PROGRAM_LENGTH);
-        pg->program_start = parameter * VSH_TOKEN_SIZE;
+        SET_MASK(pg->regs[NV_PGRAPH_CSV0_C],
+                 NV_PGRAPH_CSV0_C_CHEOPS_PROGRAM_START, parameter);
         pg->shaders_dirty = true;
         break;
     case NV097_SET_TRANSFORM_CONSTANT_LOAD:
         assert(parameter < NV2A_VERTEXSHADER_CONSTANTS);
-        pg->constant_load_slot = parameter * 4;
+        SET_MASK(pg->regs[NV_PGRAPH_CHEOPS_OFFSET],
+                 NV_PGRAPH_CHEOPS_OFFSET_CONST_LD_PTR, parameter);
         NV2A_DPRINTF("load to %d\n", parameter);
         break;
 

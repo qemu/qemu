@@ -259,7 +259,7 @@ static const char* out_reg_name[] = {
 
 
 // Retrieves a number of bits in the instruction token
-static int vsh_get_from_token(uint32_t *shader_token,
+static int vsh_get_from_token(const uint32_t *shader_token,
                               uint8_t subtoken,
                               uint8_t start_bit,
                               uint8_t bit_length)
@@ -267,7 +267,7 @@ static int vsh_get_from_token(uint32_t *shader_token,
     return (shader_token[subtoken] >> start_bit) & ~(0xFFFFFFFF << bit_length);
 }
 
-uint8_t vsh_get_field(uint32_t *shader_token, VshFieldName field_name)
+uint8_t vsh_get_field(const uint32_t *shader_token, VshFieldName field_name)
 {
 
     return (uint8_t)(vsh_get_from_token(shader_token,
@@ -287,7 +287,7 @@ static int16_t convert_c_register(const int16_t c_reg)
 
 
 
-static QString* decode_swizzle(uint32_t *shader_token,
+static QString* decode_swizzle(const uint32_t *shader_token,
                                VshFieldName swizzle_field)
 {
     const char* swizzle_str = "xyzw";
@@ -325,7 +325,7 @@ static QString* decode_swizzle(uint32_t *shader_token,
     }
 }
 
-static QString* decode_opcode_input(uint32_t *shader_token,
+static QString* decode_opcode_input(const uint32_t *shader_token,
                                     VshParameterType param,
                                     VshFieldName neg_field,
                                     int reg_num)
@@ -378,7 +378,7 @@ static QString* decode_opcode_input(uint32_t *shader_token,
 }
 
 
-static QString* decode_opcode(uint32_t *shader_token,
+static QString* decode_opcode(const uint32_t *shader_token,
                               VshOutputMux out_mux,
                               uint32_t mask,
                               const char* opcode,
@@ -447,7 +447,7 @@ static QString* decode_opcode(uint32_t *shader_token,
 }
 
 
-static QString* decode_token(uint32_t *shader_token)
+static QString* decode_token(const uint32_t *shader_token)
 {
     QString *ret;
 
@@ -741,17 +741,16 @@ static const char* vsh_header =
     "}\n";
 
 QString* vsh_translate(uint16_t version,
-                       uint32_t *tokens, unsigned int tokens_length)
+                       const uint32_t *tokens,
+                       unsigned int length)
 {
     QString *body = qstring_from_str("\n");
     QString *header = qstring_from_str(vsh_header);
 
 
     bool has_final = false;
-    uint32_t *cur_token = tokens;
-    unsigned int slot;
-    while (cur_token-tokens < tokens_length) {
-        slot = (cur_token-tokens) / VSH_TOKEN_SIZE;
+    for (int slot=0; slot<length; slot++) {
+        const uint32_t* cur_token = &tokens[slot * VSH_TOKEN_SIZE];
         QString *token_str = decode_token(cur_token);
         qstring_append_fmt(body,
                            "  /* Slot %d: 0x%08X 0x%08X 0x%08X 0x%08X */",
@@ -766,7 +765,6 @@ QString* vsh_translate(uint16_t version,
             has_final = true;
             break;
         }
-        cur_token += VSH_TOKEN_SIZE;
     }
     assert(has_final);
 
