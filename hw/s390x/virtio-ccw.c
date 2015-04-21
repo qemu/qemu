@@ -652,10 +652,8 @@ static void virtio_ccw_device_realize(VirtioCcwDevice *dev, Error **errp)
     bool found = false;
     SubchDev *sch;
     int num;
-    DeviceState *parent = DEVICE(dev);
     Error *err = NULL;
     VirtIOCCWDeviceClass *k = VIRTIO_CCW_DEVICE_GET_CLASS(dev);
-    VirtIODevice *vdev;
 
     sch = g_malloc0(sizeof(SubchDev));
 
@@ -778,19 +776,6 @@ static void virtio_ccw_device_realize(VirtioCcwDevice *dev, Error **errp)
         goto out_err;
     }
 
-    /* device_id is only set after vdev has been realized */
-    vdev = virtio_ccw_get_vdev(sch);
-    sch->id.cu_model = vdev->device_id;
-
-    /* Only the first 32 feature bits are used. */
-    dev->host_features[0] = virtio_bus_get_vdev_features(&dev->bus,
-                                                         dev->host_features[0]);
-
-    virtio_add_feature(&dev->host_features[0], VIRTIO_F_NOTIFY_ON_EMPTY);
-    virtio_add_feature(&dev->host_features[0], VIRTIO_F_BAD_FEATURE);
-
-    css_generate_sch_crws(sch->cssid, sch->ssid, sch->schid,
-                          parent->hotplugged, 1);
     return;
 
 out_err:
@@ -1428,6 +1413,30 @@ static int virtio_ccw_load_config(DeviceState *d, QEMUFile *f)
     return 0;
 }
 
+/* This is called by virtio-bus just after the device is plugged. */
+static void virtio_ccw_device_plugged(DeviceState *d)
+{
+    VirtioCcwDevice *dev = VIRTIO_CCW_DEVICE(d);
+    SubchDev *sch = dev->sch;
+
+    sch->id.cu_model = virtio_bus_get_vdev_id(&dev->bus);
+
+    /* Only the first 32 feature bits are used. */
+    virtio_add_feature(&dev->host_features[0], VIRTIO_F_NOTIFY_ON_EMPTY);
+    virtio_add_feature(&dev->host_features[0], VIRTIO_F_BAD_FEATURE);
+    dev->host_features[0] = virtio_bus_get_vdev_features(&dev->bus,
+                                                         dev->host_features[0]);
+
+    css_generate_sch_crws(sch->cssid, sch->ssid, sch->schid,
+                          d->hotplugged, 1);
+}
+
+static void virtio_ccw_device_unplugged(DeviceState *d)
+{
+    VirtioCcwDevice *dev = VIRTIO_CCW_DEVICE(d);
+
+    virtio_ccw_stop_ioeventfd(dev);
+}
 /**************** Virtio-ccw Bus Device Descriptions *******************/
 
 static Property virtio_ccw_net_properties[] = {
@@ -1752,6 +1761,8 @@ static void virtio_ccw_bus_class_init(ObjectClass *klass, void *data)
     k->load_queue = virtio_ccw_load_queue;
     k->save_config = virtio_ccw_save_config;
     k->load_config = virtio_ccw_load_config;
+    k->device_plugged = virtio_ccw_device_plugged;
+    k->device_unplugged = virtio_ccw_device_unplugged;
 }
 
 static const TypeInfo virtio_ccw_bus_info = {
