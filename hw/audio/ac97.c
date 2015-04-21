@@ -273,7 +273,7 @@ static void voice_set_active (AC97LinkState *s, int bm_index, int on)
         break;
 
     default:
-        AUD_log ("ac97", "invalid bm_index(%d) in voice_set_active", bm_index);
+        AUD_log ("ac97", "invalid bm_index(%d) in voice_set_active\n", bm_index);
         break;
     }
 }
