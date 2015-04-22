@@ -353,6 +353,7 @@ static void tcx_update_display(void *opaque)
         return;
     }
 
+    memory_region_sync_dirty_bitmap(&ts->vram_mem);
     for (y = 0; y < ts->height; page += TARGET_PAGE_SIZE) {
         if (memory_region_get_dirty(&ts->vram_mem, page, TARGET_PAGE_SIZE,
                                     DIRTY_MEMORY_VGA)) {
@@ -446,6 +447,7 @@ static void tcx24_update_display(void *opaque)
     dd = surface_stride(surface);
     ds = 1024;
 
+    memory_region_sync_dirty_bitmap(&ts->vram_mem);
     for (y = 0; y < ts->height; page += TARGET_PAGE_SIZE,
             page24 += TARGET_PAGE_SIZE, cpage += TARGET_PAGE_SIZE) {
         if (tcx24_check_dirty(ts, page, page24, cpage)) {

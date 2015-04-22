@@ -1322,6 +1322,7 @@ static void sm501_draw_crt(SM501State * s)
     }
 
     /* draw each line according to conditions */
+    memory_region_sync_dirty_bitmap(&s->local_mem_region);
     for (y = 0; y < height; y++) {
 	int update_hwc = draw_hwc_line ? within_hwc_y_range(s, y, 1) : 0;
 	int update = full_update || update_hwc;

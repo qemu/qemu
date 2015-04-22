@@ -106,6 +106,7 @@ static void cg3_update_display(void *opaque)
     pix = memory_region_get_ram_ptr(&s->vram_mem);
     data = (uint32_t *)surface_data(surface);
 
+    memory_region_sync_dirty_bitmap(&s->vram_mem);
     for (y = 0; y < height; y++) {
         int update = s->full_update;
 
