@@ -391,8 +391,7 @@ static void print_block_info(Monitor *mon, BlockInfo *info,
                         inserted->iops_size);
     }
 
-    /* TODO: inserted->image should never be null */
-    if (verbose && inserted->image) {
+    if (verbose) {
         monitor_printf(mon, "\nImages:\n");
         image_info = inserted->image;
         while (1) {
