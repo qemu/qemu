@@ -5445,21 +5445,34 @@ static int get_phys_addr_lpae(CPUARMState *env, target_ulong address,
     int32_t tbi = 0;
     TCR *tcr = regime_tcr(env, mmu_idx);
     int ap, ns, xn, pxn;
+    uint32_t el = regime_el(env, mmu_idx);
+    bool ttbr1_valid = true;
 
     /* TODO:
-     * This code assumes we're either a 64-bit EL1 or a 32-bit PL1;
-     * it doesn't handle the different format TCR for TCR_EL2, TCR_EL3,
-     * and VTCR_EL2, or the fact that those regimes don't have a split
-     * TTBR0/TTBR1. Attribute and permission bit handling should also
-     * be checked when adding support for those page table walks.
+     * This code does not handle the different format TCR for VTCR_EL2.
+     * This code also does not support shareability levels.
+     * Attribute and permission bit handling should also be checked when adding
+     * support for those page table walks.
      */
-    if (arm_el_is_aa64(env, regime_el(env, mmu_idx))) {
+    if (arm_el_is_aa64(env, el)) {
         va_size = 64;
-        if (extract64(address, 55, 1))
-            tbi = extract64(tcr->raw_tcr, 38, 1);
-        else
-            tbi = extract64(tcr->raw_tcr, 37, 1);
+        if (el > 1) {
+            tbi = extract64(tcr->raw_tcr, 20, 1);
+        } else {
+            if (extract64(address, 55, 1)) {
+                tbi = extract64(tcr->raw_tcr, 38, 1);
+            } else {
+                tbi = extract64(tcr->raw_tcr, 37, 1);
+            }
+        }
         tbi *= 8;
+
+        /* If we are in 64-bit EL2 or EL3 then there is no TTBR1, so mark it
+         * invalid.
+         */
+        if (el > 1) {
+            ttbr1_valid = false;
+        }
     }
 
     /* Determine whether this address is in the region controlled by
@@ -5480,13 +5493,14 @@ static int get_phys_addr_lpae(CPUARMState *env, target_ulong address,
     if (t0sz && !extract64(address, va_size - t0sz, t0sz - tbi)) {
         /* there is a ttbr0 region and we are in it (high bits all zero) */
         ttbr_select = 0;
-    } else if (t1sz && !extract64(~address, va_size - t1sz, t1sz - tbi)) {
+    } else if (ttbr1_valid && t1sz &&
+               !extract64(~address, va_size - t1sz, t1sz - tbi)) {
         /* there is a ttbr1 region and we are in it (high bits all one) */
         ttbr_select = 1;
     } else if (!t0sz) {
         /* ttbr0 region is "everything not in the ttbr1 region" */
         ttbr_select = 0;
-    } else if (!t1sz) {
+    } else if (!t1sz && ttbr1_valid) {
         /* ttbr1 region is "everything not in the ttbr0 region" */
         ttbr_select = 1;
     } else {
@@ -5515,6 +5529,9 @@ static int get_phys_addr_lpae(CPUARMState *env, target_ulong address,
             granule_sz = 11;
         }
     } else {
+        /* We should only be here if TTBR1 is valid */
+        assert(ttbr1_valid);
+
         ttbr = regime_ttbr(env, mmu_idx, 1);
         epd = extract32(tcr->raw_tcr, 23, 1);
         tsz = t1sz;
@@ -5533,7 +5550,9 @@ static int get_phys_addr_lpae(CPUARMState *env, target_ulong address,
      */
 
     if (epd) {
-        /* Translation table walk disabled => Translation fault on TLB miss */
+        /* Translation table walk disabled => Translation fault on TLB miss
+         * Note: This is always 0 on 64-bit EL2 and EL3.
+         */
         goto do_fault;
     }
 
