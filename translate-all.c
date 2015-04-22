@@ -1082,12 +1082,6 @@ void tb_invalidate_phys_page_range(tb_page_addr_t start, tb_page_addr_t end,
     if (!p) {
         return;
     }
-    if (!p->code_bitmap &&
-        ++p->code_write_count >= SMC_BITMAP_USE_THRESHOLD &&
-        is_cpu_write_access) {
-        /* build code bitmap */
-        build_page_bitmap(p);
-    }
 #if defined(TARGET_HAS_PRECISE_SMC)
     if (cpu != NULL) {
         env = cpu->env_ptr;
@@ -1157,9 +1151,7 @@ void tb_invalidate_phys_page_range(tb_page_addr_t start, tb_page_addr_t end,
     /* if no code remaining, no need to continue to use slow writes */
     if (!p->first_tb) {
         invalidate_page_bitmap(p);
-        if (is_cpu_write_access) {
-            tlb_unprotect_code(start);
-        }
+        tlb_unprotect_code(start);
     }
 #endif
 #ifdef TARGET_HAS_PRECISE_SMC
@@ -1191,6 +1183,11 @@ void tb_invalidate_phys_page_fast(tb_page_addr_t start, int len)
     p = page_find(start >> TARGET_PAGE_BITS);
     if (!p) {
         return;
+    }
+    if (!p->code_bitmap &&
+        ++p->code_write_count >= SMC_BITMAP_USE_THRESHOLD) {
+        /* build code bitmap */
+        build_page_bitmap(p);
     }
     if (p->code_bitmap) {
         unsigned int nr;
