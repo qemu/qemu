@@ -1158,7 +1158,7 @@ void tb_invalidate_phys_page_range(tb_page_addr_t start, tb_page_addr_t end,
     if (!p->first_tb) {
         invalidate_page_bitmap(p);
         if (is_cpu_write_access) {
-            tlb_unprotect_code_phys(cpu, start, cpu->mem_io_vaddr);
+            tlb_unprotect_code(start);
         }
     }
 #endif
