@@ -180,15 +180,17 @@
 
 /* hflags2 */
 
-#define HF2_GIF_SHIFT        0 /* if set CPU takes interrupts */
-#define HF2_HIF_SHIFT        1 /* value of IF_MASK when entering SVM */
-#define HF2_NMI_SHIFT        2 /* CPU serving NMI */
-#define HF2_VINTR_SHIFT      3 /* value of V_INTR_MASKING bit */
+#define HF2_GIF_SHIFT            0 /* if set CPU takes interrupts */
+#define HF2_HIF_SHIFT            1 /* value of IF_MASK when entering SVM */
+#define HF2_NMI_SHIFT            2 /* CPU serving NMI */
+#define HF2_VINTR_SHIFT          3 /* value of V_INTR_MASKING bit */
+#define HF2_SMM_INSIDE_NMI_SHIFT 4 /* CPU serving SMI nested inside NMI */
 
-#define HF2_GIF_MASK          (1 << HF2_GIF_SHIFT)
-#define HF2_HIF_MASK          (1 << HF2_HIF_SHIFT)
-#define HF2_NMI_MASK          (1 << HF2_NMI_SHIFT)
-#define HF2_VINTR_MASK        (1 << HF2_VINTR_SHIFT)
+#define HF2_GIF_MASK            (1 << HF2_GIF_SHIFT)
+#define HF2_HIF_MASK            (1 << HF2_HIF_SHIFT)
+#define HF2_NMI_MASK            (1 << HF2_NMI_SHIFT)
+#define HF2_VINTR_MASK          (1 << HF2_VINTR_SHIFT)
+#define HF2_SMM_INSIDE_NMI_MASK (1 << HF2_SMM_INSIDE_NMI_SHIFT)
 
 #define CR0_PE_SHIFT 0
 #define CR0_MP_SHIFT 1

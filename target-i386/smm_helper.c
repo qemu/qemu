@@ -52,6 +52,11 @@ void do_smm_enter(X86CPU *cpu)
     log_cpu_state_mask(CPU_LOG_INT, CPU(cpu), CPU_DUMP_CCOP);
 
     env->hflags |= HF_SMM_MASK;
+    if (env->hflags2 & HF2_NMI_MASK) {
+        env->hflags2 |= HF2_SMM_INSIDE_NMI_MASK;
+    } else {
+        env->hflags2 |= HF2_NMI_MASK;
+    }
     cpu_smm_update(env);
 
     sm_state = env->smbase + 0x8000;
@@ -307,6 +312,10 @@ void helper_rsm(CPUX86State *env)
         env->smbase = x86_ldl_phys(cs, sm_state + 0x7ef8) & ~0x7fff;
     }
 #endif
+    if ((env->hflags2 & HF2_SMM_INSIDE_NMI_MASK) == 0) {
+        env->hflags2 &= ~HF2_NMI_MASK;
+    }
+    env->hflags2 &= ~HF2_SMM_INSIDE_NMI_MASK;
     env->hflags &= ~HF_SMM_MASK;
     cpu_smm_update(env);
 
