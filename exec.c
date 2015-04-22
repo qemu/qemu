@@ -2256,7 +2256,7 @@ static void invalidate_and_set_dirty(MemoryRegion *mr, hwaddr addr,
     if (cpu_physical_memory_range_includes_clean(addr, length)) {
         uint8_t dirty_log_mask = memory_region_get_dirty_log_mask(mr);
         if (dirty_log_mask & (1 << DIRTY_MEMORY_CODE)) {
-            tb_invalidate_phys_range(addr, addr + length, 0);
+            tb_invalidate_phys_range(addr, addr + length);
             dirty_log_mask &= ~(1 << DIRTY_MEMORY_CODE);
         }
         if (dirty_log_mask) {
