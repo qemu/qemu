@@ -90,11 +90,7 @@ TranslationBlock *tb_gen_code(CPUState *cpu,
                               int cflags);
 void cpu_exec_init(CPUArchState *env);
 void QEMU_NORETURN cpu_loop_exit(CPUState *cpu);
-int page_unprotect(target_ulong address, uintptr_t pc, void *puc);
-void tb_invalidate_phys_page_range(tb_page_addr_t start, tb_page_addr_t end,
-                                   int is_cpu_write_access);
-void tb_invalidate_phys_range(tb_page_addr_t start, tb_page_addr_t end,
-                              int is_cpu_write_access);
+
 #if !defined(CONFIG_USER_ONLY)
 bool qemu_in_vcpu_thread(void);
 void cpu_reload_memory_map(CPUState *cpu);

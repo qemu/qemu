@@ -30,6 +30,7 @@
 
 #include "qemu.h"
 #include "qemu-common.h"
+#include "translate-all.h"
 
 //#define DEBUG_MMAP
 
