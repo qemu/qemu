@@ -59,6 +59,7 @@
 
 #include "exec/cputlb.h"
 #include "translate-all.h"
+#include "qemu/bitmap.h"
 #include "qemu/timer.h"
 
 //#define DEBUG_TB_INVALIDATE
@@ -79,7 +80,7 @@ typedef struct PageDesc {
     /* in order to optimize self modifying code, we count the number
        of lookups we do to a given page to use a bitmap */
     unsigned int code_write_count;
-    uint8_t *code_bitmap;
+    unsigned long *code_bitmap;
 #if defined(CONFIG_USER_ONLY)
     unsigned long flags;
 #endif
@@ -964,39 +965,12 @@ void tb_phys_invalidate(TranslationBlock *tb, tb_page_addr_t page_addr)
     tcg_ctx.tb_ctx.tb_phys_invalidate_count++;
 }
 
-static inline void set_bits(uint8_t *tab, int start, int len)
-{
-    int end, mask, end1;
-
-    end = start + len;
-    tab += start >> 3;
-    mask = 0xff << (start & 7);
-    if ((start & ~7) == (end & ~7)) {
-        if (start < end) {
-            mask &= ~(0xff << (end & 7));
-            *tab |= mask;
-        }
-    } else {
-        *tab++ |= mask;
-        start = (start + 8) & ~7;
-        end1 = end & ~7;
-        while (start < end1) {
-            *tab++ = 0xff;
-            start += 8;
-        }
-        if (start < end) {
-            mask = ~(0xff << (end & 7));
-            *tab |= mask;
-        }
-    }
-}
-
 static void build_page_bitmap(PageDesc *p)
 {
     int n, tb_start, tb_end;
     TranslationBlock *tb;
 
-    p->code_bitmap = g_malloc0(TARGET_PAGE_SIZE / 8);
+    p->code_bitmap = bitmap_new(TARGET_PAGE_SIZE);
 
     tb = p->first_tb;
     while (tb != NULL) {
@@ -1015,7 +989,7 @@ static void build_page_bitmap(PageDesc *p)
             tb_start = 0;
             tb_end = ((tb->pc + tb->size) & ~TARGET_PAGE_MASK);
         }
-        set_bits(p->code_bitmap, tb_start, tb_end - tb_start);
+        bitmap_set(p->code_bitmap, tb_start, tb_end - tb_start);
         tb = tb->page_next[n];
     }
 }
@@ -1205,7 +1179,6 @@ void tb_invalidate_phys_page_range(tb_page_addr_t start, tb_page_addr_t end,
 void tb_invalidate_phys_page_fast(tb_page_addr_t start, int len)
 {
     PageDesc *p;
-    int offset, b;
 
 #if 0
     if (1) {
@@ -1221,8 +1194,11 @@ void tb_invalidate_phys_page_fast(tb_page_addr_t start, int len)
         return;
     }
     if (p->code_bitmap) {
-        offset = start & ~TARGET_PAGE_MASK;
-        b = p->code_bitmap[offset >> 3] >> (offset & 7);
+        unsigned int nr;
+        unsigned long b;
+
+        nr = start & ~TARGET_PAGE_MASK;
+        b = p->code_bitmap[BIT_WORD(nr)] >> (nr & (BITS_PER_LONG - 1));
         if (b & ((1 << len) - 1)) {
             goto do_invalidate;
         }
