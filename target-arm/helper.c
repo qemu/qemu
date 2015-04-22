@@ -4913,6 +4913,21 @@ static inline TCR *regime_tcr(CPUARMState *env, ARMMMUIdx mmu_idx)
     return &env->cp15.tcr_el[regime_el(env, mmu_idx)];
 }
 
+/* Return the TTBR associated with this translation regime */
+static inline uint64_t regime_ttbr(CPUARMState *env, ARMMMUIdx mmu_idx,
+                                   int ttbrn)
+{
+    if (mmu_idx == ARMMMUIdx_S2NS) {
+        /* TODO: return VTTBR_EL2 */
+        g_assert_not_reached();
+    }
+    if (ttbrn == 0) {
+        return env->cp15.ttbr0_el[regime_el(env, mmu_idx)];
+    } else {
+        return env->cp15.ttbr1_el[regime_el(env, mmu_idx)];
+    }
+}
+
 /* Return true if the translation regime is using LPAE format page tables */
 static inline bool regime_using_lpae_format(CPUARMState *env,
                                             ARMMMUIdx mmu_idx)
@@ -5111,7 +5126,6 @@ static bool get_level1_table_address(CPUARMState *env, ARMMMUIdx mmu_idx,
                                      uint32_t *table, uint32_t address)
 {
     /* Note that we can only get here for an AArch32 PL0/PL1 lookup */
-    int el = regime_el(env, mmu_idx);
     TCR *tcr = regime_tcr(env, mmu_idx);
 
     if (address & tcr->mask) {
@@ -5119,13 +5133,13 @@ static bool get_level1_table_address(CPUARMState *env, ARMMMUIdx mmu_idx,
             /* Translation table walk disabled for TTBR1 */
             return false;
         }
-        *table = env->cp15.ttbr1_el[el] & 0xffffc000;
+        *table = regime_ttbr(env, mmu_idx, 1) & 0xffffc000;
     } else {
         if (tcr->raw_tcr & TTBCR_PD0) {
             /* Translation table walk disabled for TTBR0 */
             return false;
         }
-        *table = env->cp15.ttbr0_el[el] & tcr->base_mask;
+        *table = regime_ttbr(env, mmu_idx, 0) & tcr->base_mask;
     }
     *table |= (address >> 18) & 0x3ffc;
     return true;
@@ -5489,7 +5503,7 @@ static int get_phys_addr_lpae(CPUARMState *env, target_ulong address,
      * we will always flush the TLB any time the ASID is changed).
      */
     if (ttbr_select == 0) {
-        ttbr = A32_BANKED_CURRENT_REG_GET(env, ttbr0);
+        ttbr = regime_ttbr(env, mmu_idx, 0);
         epd = extract32(tcr->raw_tcr, 7, 1);
         tsz = t0sz;
 
@@ -5501,7 +5515,7 @@ static int get_phys_addr_lpae(CPUARMState *env, target_ulong address,
             granule_sz = 11;
         }
     } else {
-        ttbr = A32_BANKED_CURRENT_REG_GET(env, ttbr1);
+        ttbr = regime_ttbr(env, mmu_idx, 1);
         epd = extract32(tcr->raw_tcr, 23, 1);
         tsz = t1sz;
 
