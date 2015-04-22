@@ -241,10 +241,6 @@ void dpy_text_resize(QemuConsole *con, int w, int h);
 void dpy_mouse_set(QemuConsole *con, int x, int y, int on);
 void dpy_cursor_define(QemuConsole *con, QEMUCursor *cursor);
 bool dpy_cursor_define_supported(QemuConsole *con);
-void dpy_gfx_update_dirty(QemuConsole *con,
-                          MemoryRegion *address_space,
-                          uint64_t base,
-                          bool invalidate);
 bool dpy_gfx_check_format(QemuConsole *con,
                           pixman_format_code_t format);
 
