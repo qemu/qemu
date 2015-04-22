@@ -213,10 +213,6 @@ uint32_t kvm_arch_get_supported_cpuid(KVMState *s, uint32_t function,
         /* KVM before 2.6.30 misreports the following features */
         ret |= CPUID_MTRR | CPUID_PAT | CPUID_MCE | CPUID_MCA;
     } else if (function == 1 && reg == R_ECX) {
-        /* We can set the hypervisor flag, even if KVM does not return it on
-         * GET_SUPPORTED_CPUID
-         */
-        ret |= CPUID_EXT_HYPERVISOR;
         /* tsc-deadline flag is not returned by GET_SUPPORTED_CPUID, but it
          * can be enabled if the kernel has KVM_CAP_TSC_DEADLINE_TIMER,
          * and the irqchip is in the kernel.
