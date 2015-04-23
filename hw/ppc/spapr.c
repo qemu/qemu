@@ -1825,6 +1825,27 @@ static const TypeInfo spapr_machine_info = {
 #define SPAPR_COMPAT_2_1 \
         SPAPR_COMPAT_2_2
 
+static void spapr_compat_2_2(Object *obj)
+{
+}
+
+static void spapr_compat_2_1(Object *obj)
+{
+    spapr_compat_2_2(obj);
+}
+
+static void spapr_machine_2_2_instance_init(Object *obj)
+{
+    spapr_compat_2_2(obj);
+    spapr_machine_initfn(obj);
+}
+
+static void spapr_machine_2_1_instance_init(Object *obj)
+{
+    spapr_compat_2_1(obj);
+    spapr_machine_initfn(obj);
+}
+
 static void spapr_machine_2_1_class_init(ObjectClass *oc, void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
@@ -1843,6 +1864,7 @@ static const TypeInfo spapr_machine_2_1_info = {
     .name          = TYPE_SPAPR_MACHINE "2.1",
     .parent        = TYPE_SPAPR_MACHINE,
     .class_init    = spapr_machine_2_1_class_init,
+    .instance_init = spapr_machine_2_1_instance_init,
 };
 
 static void spapr_machine_2_2_class_init(ObjectClass *oc, void *data)
@@ -1862,6 +1884,7 @@ static const TypeInfo spapr_machine_2_2_info = {
     .name          = TYPE_SPAPR_MACHINE "2.2",
     .parent        = TYPE_SPAPR_MACHINE,
     .class_init    = spapr_machine_2_2_class_init,
+    .instance_init = spapr_machine_2_2_instance_init,
 };
 
 static void spapr_machine_2_3_class_init(ObjectClass *oc, void *data)
