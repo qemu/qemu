@@ -908,6 +908,13 @@ static const TypeInfo virtio_9p_pci_info = {
  * virtio-pci: This is the PCIDevice which has a virtio-pci-bus.
  */
 
+static int virtio_pci_query_nvectors(DeviceState *d)
+{
+    VirtIOPCIProxy *proxy = VIRTIO_PCI(d);
+
+    return proxy->nvectors;
+}
+
 /* This is called by virtio-bus just after the device is plugged. */
 static void virtio_pci_device_plugged(DeviceState *d)
 {
@@ -1498,6 +1505,7 @@ static void virtio_pci_bus_class_init(ObjectClass *klass, void *data)
     k->vmstate_change = virtio_pci_vmstate_change;
     k->device_plugged = virtio_pci_device_plugged;
     k->device_unplugged = virtio_pci_device_unplugged;
+    k->query_nvectors = virtio_pci_query_nvectors;
 }
 
 static const TypeInfo virtio_pci_bus_info = {

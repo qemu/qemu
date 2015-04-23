@@ -62,6 +62,7 @@ typedef struct VirtioBusClass {
      * This is called by virtio-bus just before the device is unplugged.
      */
     void (*device_unplugged)(DeviceState *d);
+    int (*query_nvectors)(DeviceState *d);
     /*
      * Does the transport have variable vring alignment?
      * (ie can it ever call virtio_queue_set_align()?)
