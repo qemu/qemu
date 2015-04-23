@@ -281,7 +281,7 @@ static int virtio_ccw_set_vqs(SubchDev *sch, uint64_t addr, uint32_t align,
 
     virtio_queue_set_addr(vdev, index, addr);
     if (!addr) {
-        virtio_queue_set_vector(vdev, index, 0);
+        virtio_queue_set_vector(vdev, index, VIRTIO_NO_VECTOR);
     } else {
         /* Fail if we don't have a big enough queue. */
         /* TODO: Add interface to handle vring.num changing */
