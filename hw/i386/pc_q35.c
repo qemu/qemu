@@ -289,8 +289,13 @@ static void pc_q35_init(MachineState *machine)
     }
 }
 
+static void pc_compat_2_3(MachineState *machine)
+{
+}
+
 static void pc_compat_2_2(MachineState *machine)
 {
+    pc_compat_2_3(machine);
     rsdp_in_ram = false;
     x86_cpu_compat_set_features("kvm64", FEAT_1_EDX, 0, CPUID_VME);
     x86_cpu_compat_set_features("kvm32", FEAT_1_EDX, 0, CPUID_VME);
@@ -361,6 +366,12 @@ static void pc_compat_1_4(MachineState *machine)
     x86_cpu_compat_set_features("Westmere", FEAT_1_ECX, 0, CPUID_EXT_PCLMULQDQ);
 }
 
+static void pc_q35_init_2_3(MachineState *machine)
+{
+    pc_compat_2_3(machine);
+    pc_q35_init(machine);
+}
+
 static void pc_q35_init_2_2(MachineState *machine)
 {
     pc_compat_2_2(machine);
@@ -410,16 +421,24 @@ static void pc_q35_init_1_4(MachineState *machine)
     .hot_add_cpu = pc_hot_add_cpu, \
     .units_per_default_bus = 1
 
-#define PC_Q35_2_3_MACHINE_OPTIONS                      \
+#define PC_Q35_2_4_MACHINE_OPTIONS                      \
     PC_Q35_MACHINE_OPTIONS,                             \
     .default_machine_opts = "firmware=bios-256k.bin",   \
     .default_display = "std"
 
+static QEMUMachine pc_q35_machine_v2_4 = {
+    PC_Q35_2_4_MACHINE_OPTIONS,
+    .name = "pc-q35-2.4",
+    .alias = "q35",
+    .init = pc_q35_init,
+};
+
+#define PC_Q35_2_3_MACHINE_OPTIONS PC_Q35_2_4_MACHINE_OPTIONS
+
 static QEMUMachine pc_q35_machine_v2_3 = {
     PC_Q35_2_3_MACHINE_OPTIONS,
     .name = "pc-q35-2.3",
-    .alias = "q35",
-    .init = pc_q35_init,
+    .init = pc_q35_init_2_3,
 };
 
 #define PC_Q35_2_2_MACHINE_OPTIONS PC_Q35_2_3_MACHINE_OPTIONS
@@ -506,6 +525,7 @@ static QEMUMachine pc_q35_machine_v1_4 = {
 
 static void pc_q35_machine_init(void)
 {
+    qemu_register_pc_machine(&pc_q35_machine_v2_4);
     qemu_register_pc_machine(&pc_q35_machine_v2_3);
     qemu_register_pc_machine(&pc_q35_machine_v2_2);
     qemu_register_pc_machine(&pc_q35_machine_v2_1);

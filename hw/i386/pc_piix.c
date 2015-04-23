@@ -310,8 +310,13 @@ static void pc_init_pci(MachineState *machine)
     pc_init1(machine, 1, 1);
 }
 
+static void pc_compat_2_3(MachineState *machine)
+{
+}
+
 static void pc_compat_2_2(MachineState *machine)
 {
+    pc_compat_2_3(machine);
     rsdp_in_ram = false;
     x86_cpu_compat_set_features("kvm64", FEAT_1_EDX, 0, CPUID_VME);
     x86_cpu_compat_set_features("kvm32", FEAT_1_EDX, 0, CPUID_VME);
@@ -413,6 +418,12 @@ static void pc_compat_1_2(MachineState *machine)
     x86_cpu_compat_kvm_no_autoenable(FEAT_KVM, 1 << KVM_FEATURE_PV_EOI);
 }
 
+static void pc_init_pci_2_3(MachineState *machine)
+{
+    pc_compat_2_3(machine);
+    pc_init_pci(machine);
+}
+
 static void pc_init_pci_2_2(MachineState *machine)
 {
     pc_compat_2_2(machine);
@@ -512,17 +523,26 @@ static void pc_xen_hvm_init(MachineState *machine)
     .desc = "Standard PC (i440FX + PIIX, 1996)", \
     .hot_add_cpu = pc_hot_add_cpu
 
-#define PC_I440FX_2_3_MACHINE_OPTIONS                           \
+#define PC_I440FX_2_4_MACHINE_OPTIONS                           \
     PC_I440FX_MACHINE_OPTIONS,                                  \
     .default_machine_opts = "firmware=bios-256k.bin",           \
     .default_display = "std"
 
-static QEMUMachine pc_i440fx_machine_v2_3 = {
-    PC_I440FX_2_3_MACHINE_OPTIONS,
-    .name = "pc-i440fx-2.3",
+
+static QEMUMachine pc_i440fx_machine_v2_4 = {
+    PC_I440FX_2_4_MACHINE_OPTIONS,
+    .name = "pc-i440fx-2.4",
     .alias = "pc",
     .init = pc_init_pci,
     .is_default = 1,
+};
+
+#define PC_I440FX_2_3_MACHINE_OPTIONS PC_I440FX_2_4_MACHINE_OPTIONS
+
+static QEMUMachine pc_i440fx_machine_v2_3 = {
+    PC_I440FX_2_3_MACHINE_OPTIONS,
+    .name = "pc-i440fx-2.3",
+    .init = pc_init_pci_2_3,
 };
 
 #define PC_I440FX_2_2_MACHINE_OPTIONS PC_I440FX_2_3_MACHINE_OPTIONS
@@ -970,6 +990,7 @@ static QEMUMachine xenfv_machine = {
 
 static void pc_machine_init(void)
 {
+    qemu_register_pc_machine(&pc_i440fx_machine_v2_4);
     qemu_register_pc_machine(&pc_i440fx_machine_v2_3);
     qemu_register_pc_machine(&pc_i440fx_machine_v2_2);
     qemu_register_pc_machine(&pc_i440fx_machine_v2_1);
