@@ -4477,7 +4477,7 @@ void set_link_completion(ReadLineState *rs, int nb_args, const char *str)
         count = qemu_find_net_clients_except(NULL, ncs,
                                              NET_CLIENT_OPTIONS_KIND_NONE,
                                              MAX_QUEUE_NUM);
-        for (i = 0; i < count; i++) {
+        for (i = 0; i < MIN(count, MAX_QUEUE_NUM); i++) {
             const char *name = ncs[i]->name;
             if (!strncmp(str, name, len)) {
                 readline_add_completion(rs, name);
@@ -4502,7 +4502,7 @@ void netdev_del_completion(ReadLineState *rs, int nb_args, const char *str)
     readline_set_completion_index(rs, len);
     count = qemu_find_net_clients_except(NULL, ncs, NET_CLIENT_OPTIONS_KIND_NIC,
                                          MAX_QUEUE_NUM);
-    for (i = 0; i < count; i++) {
+    for (i = 0; i < MIN(count, MAX_QUEUE_NUM); i++) {
         QemuOpts *opts;
         const char *name = ncs[i]->name;
         if (strncmp(str, name, len)) {
@@ -4576,7 +4576,7 @@ void host_net_remove_completion(ReadLineState *rs, int nb_args, const char *str)
         count = qemu_find_net_clients_except(NULL, ncs,
                                              NET_CLIENT_OPTIONS_KIND_NONE,
                                              MAX_QUEUE_NUM);
-        for (i = 0; i < count; i++) {
+        for (i = 0; i < MIN(count, MAX_QUEUE_NUM); i++) {
             int id;
             char name[16];
 
@@ -4593,7 +4593,7 @@ void host_net_remove_completion(ReadLineState *rs, int nb_args, const char *str)
         count = qemu_find_net_clients_except(NULL, ncs,
                                              NET_CLIENT_OPTIONS_KIND_NIC,
                                              MAX_QUEUE_NUM);
-        for (i = 0; i < count; i++) {
+        for (i = 0; i < MIN(count, MAX_QUEUE_NUM); i++) {
             int id;
             const char *name;
 
