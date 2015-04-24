@@ -43,7 +43,7 @@ file_backend_memory_alloc(HostMemoryBackend *backend, Error **errp)
         return;
     }
     if (!fb->mem_path) {
-        error_setg(errp, "mem_path property not set");
+        error_setg(errp, "mem-path property not set");
         return;
     }
 #ifndef CONFIG_LINUX
