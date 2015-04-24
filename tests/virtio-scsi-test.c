@@ -12,15 +12,36 @@
 #include "libqtest.h"
 #include "qemu/osdep.h"
 
+static void qvirtio_scsi_start(const char *extra_opts)
+{
+    char *cmdline;
+
+    cmdline = g_strdup_printf(
+                "-drive id=drv0,if=none,file=/dev/null,format=raw "
+                "-device virtio-scsi-pci,id=vs0 "
+                "-device scsi-hd,bus=vs0.0,drive=drv0 %s",
+                extra_opts ? : "");
+    qtest_start(cmdline);
+    g_free(cmdline);
+}
+
+static void qvirtio_scsi_stop(void)
+{
+    qtest_end();
+}
+
 /* Tests only initialization so far. TODO: Replace with functional tests */
 static void pci_nop(void)
 {
+    qvirtio_scsi_start(NULL);
+    qvirtio_scsi_stop();
 }
 
 static void hotplug(void)
 {
     QDict *response;
 
+    qvirtio_scsi_start("-drive id=drv1,if=none,file=/dev/null,format=raw");
     response = qmp("{\"execute\": \"device_add\","
                    " \"arguments\": {"
                    "   \"driver\": \"scsi-hd\","
@@ -42,6 +63,7 @@ static void hotplug(void)
     g_assert(qdict_haskey(response, "event"));
     g_assert(!strcmp(qdict_get_str(response, "event"), "DEVICE_DELETED"));
     QDECREF(response);
+    qvirtio_scsi_stop();
 }
 
 int main(int argc, char **argv)
@@ -52,13 +74,7 @@ int main(int argc, char **argv)
     qtest_add_func("/virtio/scsi/pci/nop", pci_nop);
     qtest_add_func("/virtio/scsi/pci/hotplug", hotplug);
 
-    qtest_start("-drive id=drv0,if=none,file=/dev/null,format=raw "
-                "-drive id=drv1,if=none,file=/dev/null,format=raw "
-                "-device virtio-scsi-pci,id=vscsi0 "
-                "-device scsi-hd,bus=vscsi0.0,drive=drv0");
     ret = g_test_run();
-
-    qtest_end();
 
     return ret;
 }
