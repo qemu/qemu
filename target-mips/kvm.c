@@ -628,12 +628,12 @@ int kvm_arch_put_registers(CPUState *cs, int level)
 
     /* Set the registers based on QEMU's view of things */
     for (i = 0; i < 32; i++) {
-        regs.gpr[i] = env->active_tc.gpr[i];
+        regs.gpr[i] = (int64_t)(target_long)env->active_tc.gpr[i];
     }
 
-    regs.hi = env->active_tc.HI[0];
-    regs.lo = env->active_tc.LO[0];
-    regs.pc = env->active_tc.PC;
+    regs.hi = (int64_t)(target_long)env->active_tc.HI[0];
+    regs.lo = (int64_t)(target_long)env->active_tc.LO[0];
+    regs.pc = (int64_t)(target_long)env->active_tc.PC;
 
     ret = kvm_vcpu_ioctl(cs, KVM_SET_REGS, &regs);
 
