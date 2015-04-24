@@ -235,10 +235,9 @@ int kvm_mips_set_ipi_interrupt(MIPSCPU *cpu, int irq, int level)
 static inline int kvm_mips_put_one_reg(CPUState *cs, uint64_t reg_id,
                                        int32_t *addr)
 {
-    uint64_t val64 = *addr;
     struct kvm_one_reg cp0reg = {
         .id = reg_id,
-        .addr = (uintptr_t)&val64
+        .addr = (uintptr_t)addr
     };
 
     return kvm_vcpu_ioctl(cs, KVM_SET_ONE_REG, &cp0reg);
@@ -270,18 +269,12 @@ static inline int kvm_mips_put_one_reg64(CPUState *cs, uint64_t reg_id,
 static inline int kvm_mips_get_one_reg(CPUState *cs, uint64_t reg_id,
                                        int32_t *addr)
 {
-    int ret;
-    uint64_t val64 = 0;
     struct kvm_one_reg cp0reg = {
         .id = reg_id,
-        .addr = (uintptr_t)&val64
+        .addr = (uintptr_t)addr
     };
 
-    ret = kvm_vcpu_ioctl(cs, KVM_GET_ONE_REG, &cp0reg);
-    if (ret >= 0) {
-        *addr = val64;
-    }
-    return ret;
+    return kvm_vcpu_ioctl(cs, KVM_GET_ONE_REG, &cp0reg);
 }
 
 static inline int kvm_mips_get_one_ulreg(CPUState *cs, uint64 reg_id,
