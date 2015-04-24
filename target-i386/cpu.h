@@ -1108,6 +1108,7 @@ typedef struct CPUX86State {
     CPU_COMMON
 
     /* Fields from here on are preserved across CPU reset. */
+    struct {} end_reset_fields;
 
     /* processor features (e.g. for CPUID insn) */
     uint32_t cpuid_level;

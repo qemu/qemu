@@ -2714,7 +2714,7 @@ static void x86_cpu_reset(CPUState *s)
 
     xcc->parent_reset(s);
 
-    memset(env, 0, offsetof(CPUX86State, cpuid_level));
+    memset(env, 0, offsetof(CPUX86State, end_reset_fields));
 
     tlb_flush(s, 1);
 
