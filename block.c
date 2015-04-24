@@ -817,6 +817,11 @@ static QemuOptsList bdrv_runtime_opts = {
             .type = QEMU_OPT_STRING,
             .help = "Node name of the block device node",
         },
+        {
+            .name = "driver",
+            .type = QEMU_OPT_STRING,
+            .help = "Block driver to use for the node",
+        },
         { /* end of list */ }
     },
 };
@@ -827,17 +832,30 @@ static QemuOptsList bdrv_runtime_opts = {
  * Removes all processed options from *options.
  */
 static int bdrv_open_common(BlockDriverState *bs, BdrvChild *file,
-    QDict *options, int flags, BlockDriver *drv, Error **errp)
+                            QDict *options, int flags, Error **errp)
 {
     int ret, open_flags;
     const char *filename;
+    const char *driver_name = NULL;
     const char *node_name = NULL;
     QemuOpts *opts;
+    BlockDriver *drv;
     Error *local_err = NULL;
 
-    assert(drv != NULL);
     assert(bs->file == NULL);
     assert(options != NULL && bs->options != options);
+
+    opts = qemu_opts_create(&bdrv_runtime_opts, NULL, 0, &error_abort);
+    qemu_opts_absorb_qdict(opts, options, &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        ret = -EINVAL;
+        goto fail_opts;
+    }
+
+    driver_name = qemu_opt_get(opts, "driver");
+    drv = bdrv_find_format(driver_name);
+    assert(drv != NULL);
 
     if (file != NULL) {
         filename = file->bs->filename;
@@ -848,18 +866,11 @@ static int bdrv_open_common(BlockDriverState *bs, BdrvChild *file,
     if (drv->bdrv_needs_filename && !filename) {
         error_setg(errp, "The '%s' block driver requires a file name",
                    drv->format_name);
-        return -EINVAL;
-    }
-
-    trace_bdrv_open_common(bs, filename ?: "", flags, drv->format_name);
-
-    opts = qemu_opts_create(&bdrv_runtime_opts, NULL, 0, &error_abort);
-    qemu_opts_absorb_qdict(opts, options, &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
         ret = -EINVAL;
         goto fail_opts;
     }
+
+    trace_bdrv_open_common(bs, filename ?: "", flags, drv->format_name);
 
     node_name = qemu_opt_get(opts, "node-name");
     bdrv_assign_node_name(bs, node_name, &local_err);
@@ -1477,11 +1488,14 @@ static int bdrv_open_inherit(BlockDriverState **pbs, const char *filename,
         goto fail;
     }
 
+    bs->open_flags = flags;
+    bs->options = options;
+    options = qdict_clone_shallow(options);
+
     /* Find the right image format driver */
     drvname = qdict_get_try_str(options, "driver");
     if (drvname) {
         drv = bdrv_find_format(drvname);
-        qdict_del(options, "driver");
         if (!drv) {
             error_setg(errp, "Unknown driver: '%s'", drvname);
             ret = -EINVAL;
@@ -1496,10 +1510,6 @@ static int bdrv_open_inherit(BlockDriverState **pbs, const char *filename,
         flags |= BDRV_O_NO_BACKING;
         qdict_del(options, "backing");
     }
-
-    bs->open_flags = flags;
-    bs->options = options;
-    options = qdict_clone_shallow(options);
 
     /* Open image file without format layer */
     if ((flags & BDRV_O_PROTOCOL) == 0) {
@@ -1528,6 +1538,19 @@ static int bdrv_open_inherit(BlockDriverState **pbs, const char *filename,
         if (ret < 0) {
             goto fail;
         }
+        /*
+         * This option update would logically belong in bdrv_fill_options(),
+         * but we first need to open bs->file for the probing to work, while
+         * opening bs->file already requires the (mostly) final set of options
+         * so that cache mode etc. can be inherited.
+         *
+         * Adding the driver later is somewhat ugly, but it's not an option
+         * that would ever be inherited, so it's correct. We just need to make
+         * sure to update both bs->options (which has the full effective
+         * options for bs) and options (which has file.* already removed).
+         */
+        qdict_put(bs->options, "driver", qstring_from_str(drv->format_name));
+        qdict_put(options, "driver", qstring_from_str(drv->format_name));
     } else if (!drv) {
         error_setg(errp, "Must specify either driver or file");
         ret = -EINVAL;
@@ -1541,7 +1564,7 @@ static int bdrv_open_inherit(BlockDriverState **pbs, const char *filename,
     assert(!(flags & BDRV_O_PROTOCOL) || !file);
 
     /* Open the image */
-    ret = bdrv_open_common(bs, file, options, flags, drv, &local_err);
+    ret = bdrv_open_common(bs, file, options, flags, &local_err);
     if (ret < 0) {
         goto fail;
     }
