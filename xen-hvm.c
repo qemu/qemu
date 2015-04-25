@@ -646,21 +646,27 @@ static void xen_sync_dirty_bitmap(XenIOState *state,
 }
 
 static void xen_log_start(MemoryListener *listener,
-                          MemoryRegionSection *section)
+                          MemoryRegionSection *section,
+                          int old, int new)
 {
     XenIOState *state = container_of(listener, XenIOState, memory_listener);
 
-    xen_sync_dirty_bitmap(state, section->offset_within_address_space,
-                          int128_get64(section->size));
+    if (new & ~old & (1 << DIRTY_MEMORY_VGA)) {
+        xen_sync_dirty_bitmap(state, section->offset_within_address_space,
+                              int128_get64(section->size));
+    }
 }
 
-static void xen_log_stop(MemoryListener *listener, MemoryRegionSection *section)
+static void xen_log_stop(MemoryListener *listener, MemoryRegionSection *section,
+                         int old, int new)
 {
     XenIOState *state = container_of(listener, XenIOState, memory_listener);
 
-    state->log_for_dirtybit = NULL;
-    /* Disable dirty bit tracking */
-    xc_hvm_track_dirty_vram(xen_xc, xen_domid, 0, 0, NULL);
+    if (old & ~new & (1 << DIRTY_MEMORY_VGA)) {
+        state->log_for_dirtybit = NULL;
+        /* Disable dirty bit tracking */
+        xc_hvm_track_dirty_vram(xen_xc, xen_domid, 0, 0, NULL);
+    }
 }
 
 static void xen_log_sync(MemoryListener *listener, MemoryRegionSection *section)

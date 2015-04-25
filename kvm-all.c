@@ -344,9 +344,14 @@ static int kvm_dirty_pages_log_change(hwaddr phys_addr,
 }
 
 static void kvm_log_start(MemoryListener *listener,
-                          MemoryRegionSection *section)
+                          MemoryRegionSection *section,
+                          int old, int new)
 {
     int r;
+
+    if (old != 0) {
+        return;
+    }
 
     r = kvm_dirty_pages_log_change(section->offset_within_address_space,
                                    int128_get64(section->size), true);
@@ -356,9 +361,14 @@ static void kvm_log_start(MemoryListener *listener,
 }
 
 static void kvm_log_stop(MemoryListener *listener,
-                          MemoryRegionSection *section)
+                          MemoryRegionSection *section,
+                          int old, int new)
 {
     int r;
+
+    if (new != 0) {
+        return;
+    }
 
     r = kvm_dirty_pages_log_change(section->offset_within_address_space,
                                    int128_get64(section->size), false);

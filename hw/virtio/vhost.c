@@ -676,13 +676,15 @@ static void vhost_log_global_stop(MemoryListener *listener)
 }
 
 static void vhost_log_start(MemoryListener *listener,
-                            MemoryRegionSection *section)
+                            MemoryRegionSection *section,
+                            int old, int new)
 {
     /* FIXME: implement */
 }
 
 static void vhost_log_stop(MemoryListener *listener,
-                           MemoryRegionSection *section)
+                           MemoryRegionSection *section,
+                           int old, int new)
 {
     /* FIXME: implement */
 }
