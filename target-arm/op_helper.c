@@ -600,8 +600,10 @@ static bool bp_wp_matches(ARMCPU *cpu, int n, bool is_wp)
     CPUARMState *env = &cpu->env;
     uint64_t cr;
     int pac, hmc, ssc, wt, lbn;
-    /* TODO: check against CPU security state when we implement TrustZone */
-    bool is_secure = false;
+    /* Note that for watchpoints the check is against the CPU security
+     * state, not the S/NS attribute on the offending data access.
+     */
+    bool is_secure = arm_is_secure(env);
     int access_el = arm_current_el(env);
 
     if (is_wp) {
