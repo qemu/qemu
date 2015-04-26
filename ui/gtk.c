@@ -170,6 +170,7 @@ typedef struct VirtualConsole {
     GtkWidget *window;
     GtkWidget *menu_item;
     GtkWidget *tab_item;
+    GtkWidget *focus;
     VirtualConsoleType type;
     union {
         VirtualGfxConsole gfx;
@@ -1060,15 +1061,13 @@ static void gd_menu_switch_vc(GtkMenuItem *item, void *opaque)
     GtkDisplayState *s = opaque;
     VirtualConsole *vc = gd_vc_find_by_menu(s);
     GtkNotebook *nb = GTK_NOTEBOOK(s->notebook);
-    GtkWidget *child;
     gint page;
 
     gtk_release_modifiers(s);
     if (vc) {
         page = gtk_notebook_page_num(nb, vc->tab_item);
         gtk_notebook_set_current_page(nb, page);
-        child = gtk_notebook_get_nth_page(nb, page);
-        gtk_widget_grab_focus(child);
+        gtk_widget_grab_focus(vc->focus);
     }
 }
 
@@ -1588,6 +1587,7 @@ static GSList *gd_vc_vte_init(GtkDisplayState *s, VirtualConsole *vc,
 
     vc->type = GD_VC_VTE;
     vc->tab_item = box;
+    vc->focus = vc->vte.terminal;
     gtk_notebook_append_page(GTK_NOTEBOOK(s->notebook), vc->tab_item,
                              gtk_label_new(vc->label));
 
@@ -1749,6 +1749,7 @@ static GSList *gd_vc_gfx_init(GtkDisplayState *s, VirtualConsole *vc,
 
     vc->type = GD_VC_GFX;
     vc->tab_item = vc->gfx.drawing_area;
+    vc->focus = vc->gfx.drawing_area;
     gtk_notebook_append_page(GTK_NOTEBOOK(s->notebook),
                              vc->tab_item, gtk_label_new(vc->label));
 
