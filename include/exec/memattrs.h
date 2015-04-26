@@ -31,6 +31,8 @@ typedef struct MemTxAttrs {
     unsigned int unspecified:1;
     /* ARM/AMBA TrustZone Secure access */
     unsigned int secure:1;
+    /* Memory access is usermode (unprivileged) */
+    unsigned int user:1;
 } MemTxAttrs;
 
 /* Bus masters which don't specify any attributes will get this,

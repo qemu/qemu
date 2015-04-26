@@ -5749,6 +5749,7 @@ static inline int get_phys_addr(CPUARMState *env, target_ulong address,
      * to secure.
      */
     attrs->secure = regime_is_secure(env, mmu_idx);
+    attrs->user = regime_is_user(env, mmu_idx);
 
     /* Fast Context Switch Extension. This doesn't exist at all in v8.
      * In v7 and earlier it affects all stage 1 translations.
