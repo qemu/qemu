@@ -1385,7 +1385,8 @@ static void hmp_sum(Monitor *mon, const QDict *qdict)
 
     sum = 0;
     for(addr = start; addr < (start + size); addr++) {
-        uint8_t val = ldub_phys(&address_space_memory, addr);
+        uint8_t val = address_space_ldub(&address_space_memory, addr,
+                                         MEMTXATTRS_UNSPECIFIED, NULL);
         /* BSD sum algorithm ('sum' Unix command) */
         sum = (sum >> 1) | (sum << 15);
         sum += val;

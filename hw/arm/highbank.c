@@ -69,11 +69,17 @@ static void hb_reset_secondary(ARMCPU *cpu, const struct arm_boot_info *info)
 
     switch (info->nb_cpus) {
     case 4:
-        stl_phys_notdirty(&address_space_memory, SMP_BOOT_REG + 0x30, 0);
+        address_space_stl_notdirty(&address_space_memory,
+                                   SMP_BOOT_REG + 0x30, 0,
+                                   MEMTXATTRS_UNSPECIFIED, NULL);
     case 3:
-        stl_phys_notdirty(&address_space_memory, SMP_BOOT_REG + 0x20, 0);
+        address_space_stl_notdirty(&address_space_memory,
+                                   SMP_BOOT_REG + 0x20, 0,
+                                   MEMTXATTRS_UNSPECIFIED, NULL);
     case 2:
-        stl_phys_notdirty(&address_space_memory, SMP_BOOT_REG + 0x10, 0);
+        address_space_stl_notdirty(&address_space_memory,
+                                   SMP_BOOT_REG + 0x10, 0,
+                                   MEMTXATTRS_UNSPECIFIED, NULL);
         env->regs[15] = SMP_BOOT_ADDR;
         break;
     default:
