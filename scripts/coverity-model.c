@@ -46,6 +46,8 @@ typedef struct va_list_str *va_list;
 
 typedef struct AddressSpace AddressSpace;
 typedef uint64_t hwaddr;
+typedef uint32_t MemTxResult;
+typedef uint64_t MemTxAttrs;
 
 static void __write(uint8_t *buf, ssize_t len)
 {
@@ -65,10 +67,10 @@ static void __read(uint8_t *buf, ssize_t len)
     int last = buf[len-1];
 }
 
-bool address_space_rw(AddressSpace *as, hwaddr addr, uint8_t *buf,
-                      int len, bool is_write)
+MemTxResult address_space_rw(AddressSpace *as, hwaddr addr, MemTxAttrs attrs,
+                             uint8_t *buf, int len, bool is_write)
 {
-    bool result;
+    MemTxResult result;
 
     // TODO: investigate impact of treating reads as producing
     // tainted data, with __coverity_tainted_data_argument__(buf).

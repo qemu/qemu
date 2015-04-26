@@ -1667,7 +1667,8 @@ static void kvm_handle_io(uint16_t port, void *data, int direction, int size,
     uint8_t *ptr = data;
 
     for (i = 0; i < count; i++) {
-        address_space_rw(&address_space_io, port, ptr, size,
+        address_space_rw(&address_space_io, port, MEMTXATTRS_UNSPECIFIED,
+                         ptr, size,
                          direction == KVM_EXIT_IO_OUT);
         ptr += size;
     }
