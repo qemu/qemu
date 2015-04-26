@@ -816,8 +816,10 @@ static void scr_write(CPUARMState *env, const ARMCPRegInfo *ri, uint64_t value)
          * supported if EL2 exists. The bit is UNK/SBZP when
          * EL2 is unavailable. In QEMU ARMv7, we force it to always zero
          * when EL2 is unavailable.
+         * On ARMv8, this bit is always available.
          */
-        if (arm_feature(env, ARM_FEATURE_V7)) {
+        if (arm_feature(env, ARM_FEATURE_V7) &&
+            !arm_feature(env, ARM_FEATURE_V8)) {
             valid_mask &= ~SCR_SMD;
         }
     }
