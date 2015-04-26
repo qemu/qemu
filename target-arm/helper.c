@@ -5129,6 +5129,29 @@ static bool get_level1_table_address(CPUARMState *env, ARMMMUIdx mmu_idx,
     return true;
 }
 
+/* All loads done in the course of a page table walk go through here.
+ * TODO: rather than ignoring errors from physical memory reads (which
+ * are external aborts in ARM terminology) we should propagate this
+ * error out so that we can turn it into a Data Abort if this walk
+ * was being done for a CPU load/store or an address translation instruction
+ * (but not if it was for a debug access).
+ */
+static uint32_t arm_ldl_ptw(CPUState *cs, hwaddr addr, bool is_secure)
+{
+    MemTxAttrs attrs = {};
+
+    attrs.secure = is_secure;
+    return address_space_ldl(cs->as, addr, attrs, NULL);
+}
+
+static uint64_t arm_ldq_ptw(CPUState *cs, hwaddr addr, bool is_secure)
+{
+    MemTxAttrs attrs = {};
+
+    attrs.secure = is_secure;
+    return address_space_ldq(cs->as, addr, attrs, NULL);
+}
+
 static int get_phys_addr_v5(CPUARMState *env, uint32_t address, int access_type,
                             ARMMMUIdx mmu_idx, hwaddr *phys_ptr,
                             int *prot, target_ulong *page_size)
@@ -5151,7 +5174,7 @@ static int get_phys_addr_v5(CPUARMState *env, uint32_t address, int access_type,
         code = 5;
         goto do_fault;
     }
-    desc = ldl_phys(cs->as, table);
+    desc = arm_ldl_ptw(cs, table, regime_is_secure(env, mmu_idx));
     type = (desc & 3);
     domain = (desc >> 5) & 0x0f;
     if (regime_el(env, mmu_idx) == 1) {
@@ -5187,7 +5210,7 @@ static int get_phys_addr_v5(CPUARMState *env, uint32_t address, int access_type,
             /* Fine pagetable.  */
             table = (desc & 0xfffff000) | ((address >> 8) & 0xffc);
         }
-        desc = ldl_phys(cs->as, table);
+        desc = arm_ldl_ptw(cs, table, regime_is_secure(env, mmu_idx));
         switch (desc & 3) {
         case 0: /* Page translation fault.  */
             code = 7;
@@ -5261,7 +5284,7 @@ static int get_phys_addr_v6(CPUARMState *env, uint32_t address, int access_type,
         code = 5;
         goto do_fault;
     }
-    desc = ldl_phys(cs->as, table);
+    desc = arm_ldl_ptw(cs, table, regime_is_secure(env, mmu_idx));
     type = (desc & 3);
     if (type == 0 || (type == 3 && !arm_feature(env, ARM_FEATURE_PXN))) {
         /* Section translation fault, or attempt to use the encoding
@@ -5310,7 +5333,7 @@ static int get_phys_addr_v6(CPUARMState *env, uint32_t address, int access_type,
         ns = extract32(desc, 3, 1);
         /* Lookup l2 entry.  */
         table = (desc & 0xfffffc00) | ((address >> 10) & 0x3fc);
-        desc = ldl_phys(cs->as, table);
+        desc = arm_ldl_ptw(cs, table, regime_is_secure(env, mmu_idx));
         ap = ((desc >> 4) & 3) | ((desc >> 7) & 4);
         switch (desc & 3) {
         case 0: /* Page translation fault.  */
@@ -5525,13 +5548,20 @@ static int get_phys_addr_lpae(CPUARMState *env, target_ulong address,
     descaddr = extract64(ttbr, 0, 48);
     descaddr &= ~((1ULL << (va_size - tsz - (granule_sz * (4 - level)))) - 1);
 
-    tableattrs = 0;
+    /* Secure accesses start with the page table in secure memory and
+     * can be downgraded to non-secure at any step. Non-secure accesses
+     * remain non-secure. We implement this by just ORing in the NSTable/NS
+     * bits at each step.
+     */
+    tableattrs = regime_is_secure(env, mmu_idx) ? 0 : (1 << 4);
     for (;;) {
         uint64_t descriptor;
+        bool nstable;
 
         descaddr |= (address >> (granule_sz * (4 - level))) & descmask;
         descaddr &= ~7ULL;
-        descriptor = ldq_phys(cs->as, descaddr);
+        nstable = extract32(tableattrs, 4, 1);
+        descriptor = arm_ldq_ptw(cs, descaddr, !nstable);
         if (!(descriptor & 1) ||
             (!(descriptor & 2) && (level == 3))) {
             /* Invalid, or the Reserved level 3 encoding */
@@ -5566,7 +5596,7 @@ static int get_phys_addr_lpae(CPUARMState *env, target_ulong address,
         if (extract32(tableattrs, 2, 1)) {
             attrs &= ~(1 << 4);
         }
-        attrs |= extract32(tableattrs, 4, 1) << 3; /* NS */
+        attrs |= nstable << 3; /* NS */
         break;
     }
     /* Here descaddr is the final physical address, and attributes
@@ -5705,8 +5735,9 @@ static inline int get_phys_addr(CPUARMState *env, target_ulong address,
 {
     if (mmu_idx == ARMMMUIdx_S12NSE0 || mmu_idx == ARMMMUIdx_S12NSE1) {
         /* TODO: when we support EL2 we should here call ourselves recursively
-         * to do the stage 1 and then stage 2 translations. The ldl_phys
-         * calls for stage 1 will also need changing.
+         * to do the stage 1 and then stage 2 translations. The arm_ld*_ptw
+         * functions will also need changing to perform ARMMMUIdx_S2NS loads
+         * rather than direct physical memory loads when appropriate.
          * For non-EL2 CPUs a stage1+stage2 translation is just stage 1.
          */
         assert(!arm_feature(env, ARM_FEATURE_EL2));
