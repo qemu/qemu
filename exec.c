@@ -1858,7 +1858,7 @@ static const MemoryRegionOps notdirty_mem_ops = {
 };
 
 /* Generate a debug exception if a watchpoint has been hit.  */
-static void check_watchpoint(int offset, int len, int flags)
+static void check_watchpoint(int offset, int len, MemTxAttrs attrs, int flags)
 {
     CPUState *cpu = current_cpu;
     CPUArchState *env = cpu->env_ptr;
@@ -1884,6 +1884,7 @@ static void check_watchpoint(int offset, int len, int flags)
                 wp->flags |= BP_WATCHPOINT_HIT_WRITE;
             }
             wp->hitaddr = vaddr;
+            wp->hitattrs = attrs;
             if (!cpu->watchpoint_hit) {
                 cpu->watchpoint_hit = wp;
                 tb_check_watchpoint(cpu);
@@ -1905,39 +1906,54 @@ static void check_watchpoint(int offset, int len, int flags)
 /* Watchpoint access routines.  Watchpoints are inserted using TLB tricks,
    so these check for a hit then pass through to the normal out-of-line
    phys routines.  */
-static uint64_t watch_mem_read(void *opaque, hwaddr addr,
-                               unsigned size)
+static MemTxResult watch_mem_read(void *opaque, hwaddr addr, uint64_t *pdata,
+                                  unsigned size, MemTxAttrs attrs)
 {
-    check_watchpoint(addr & ~TARGET_PAGE_MASK, size, BP_MEM_READ);
-    switch (size) {
-    case 1: return ldub_phys(&address_space_memory, addr);
-    case 2: return lduw_phys(&address_space_memory, addr);
-    case 4: return ldl_phys(&address_space_memory, addr);
-    default: abort();
-    }
-}
+    MemTxResult res;
+    uint64_t data;
 
-static void watch_mem_write(void *opaque, hwaddr addr,
-                            uint64_t val, unsigned size)
-{
-    check_watchpoint(addr & ~TARGET_PAGE_MASK, size, BP_MEM_WRITE);
+    check_watchpoint(addr & ~TARGET_PAGE_MASK, size, attrs, BP_MEM_READ);
     switch (size) {
     case 1:
-        stb_phys(&address_space_memory, addr, val);
+        data = address_space_ldub(&address_space_memory, addr, attrs, &res);
         break;
     case 2:
-        stw_phys(&address_space_memory, addr, val);
+        data = address_space_lduw(&address_space_memory, addr, attrs, &res);
         break;
     case 4:
-        stl_phys(&address_space_memory, addr, val);
+        data = address_space_ldl(&address_space_memory, addr, attrs, &res);
         break;
     default: abort();
     }
+    *pdata = data;
+    return res;
+}
+
+static MemTxResult watch_mem_write(void *opaque, hwaddr addr,
+                                   uint64_t val, unsigned size,
+                                   MemTxAttrs attrs)
+{
+    MemTxResult res;
+
+    check_watchpoint(addr & ~TARGET_PAGE_MASK, size, attrs, BP_MEM_WRITE);
+    switch (size) {
+    case 1:
+        address_space_stb(&address_space_memory, addr, val, attrs, &res);
+        break;
+    case 2:
+        address_space_stw(&address_space_memory, addr, val, attrs, &res);
+        break;
+    case 4:
+        address_space_stl(&address_space_memory, addr, val, attrs, &res);
+        break;
+    default: abort();
+    }
+    return res;
 }
 
 static const MemoryRegionOps watch_mem_ops = {
-    .read = watch_mem_read,
-    .write = watch_mem_write,
+    .read_with_attrs = watch_mem_read,
+    .write_with_attrs = watch_mem_write,
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 

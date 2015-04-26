@@ -24,6 +24,7 @@
 #include <setjmp.h>
 #include "hw/qdev-core.h"
 #include "exec/hwaddr.h"
+#include "exec/memattrs.h"
 #include "qemu/queue.h"
 #include "qemu/thread.h"
 #include "qemu/tls.h"
@@ -195,6 +196,7 @@ typedef struct CPUWatchpoint {
     vaddr vaddr;
     vaddr len;
     vaddr hitaddr;
+    MemTxAttrs hitattrs;
     int flags; /* BP_* */
     QTAILQ_ENTRY(CPUWatchpoint) entry;
 } CPUWatchpoint;
