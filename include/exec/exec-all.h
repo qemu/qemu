@@ -105,6 +105,9 @@ void tlb_flush(CPUState *cpu, int flush_global);
 void tlb_set_page(CPUState *cpu, target_ulong vaddr,
                   hwaddr paddr, int prot,
                   int mmu_idx, target_ulong size);
+void tlb_set_page_with_attrs(CPUState *cpu, target_ulong vaddr,
+                             hwaddr paddr, MemTxAttrs attrs,
+                             int prot, int mmu_idx, target_ulong size);
 void tb_invalidate_phys_addr(AddressSpace *as, hwaddr addr);
 #else
 static inline void tlb_flush_page(CPUState *cpu, target_ulong addr)

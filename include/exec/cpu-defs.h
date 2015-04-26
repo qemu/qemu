@@ -30,6 +30,7 @@
 #ifndef CONFIG_USER_ONLY
 #include "exec/hwaddr.h"
 #endif
+#include "exec/memattrs.h"
 
 #ifndef TARGET_LONG_BITS
 #error TARGET_LONG_BITS must be defined before including this header
@@ -109,6 +110,7 @@ QEMU_BUILD_BUG_ON(sizeof(CPUTLBEntry) != (1 << CPU_TLB_ENTRY_BITS));
  */
 typedef struct CPUIOTLBEntry {
     hwaddr addr;
+    MemTxAttrs attrs;
 } CPUIOTLBEntry;
 
 #define CPU_COMMON_TLB \

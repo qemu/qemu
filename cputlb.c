@@ -249,9 +249,9 @@ static void tlb_add_large_page(CPUArchState *env, target_ulong vaddr,
  * Called from TCG-generated code, which is under an RCU read-side
  * critical section.
  */
-void tlb_set_page(CPUState *cpu, target_ulong vaddr,
-                  hwaddr paddr, int prot,
-                  int mmu_idx, target_ulong size)
+void tlb_set_page_with_attrs(CPUState *cpu, target_ulong vaddr,
+                             hwaddr paddr, MemTxAttrs attrs, int prot,
+                             int mmu_idx, target_ulong size)
 {
     CPUArchState *env = cpu->env_ptr;
     MemoryRegionSection *section;
@@ -302,6 +302,7 @@ void tlb_set_page(CPUState *cpu, target_ulong vaddr,
 
     /* refill the tlb */
     env->iotlb[mmu_idx][index].addr = iotlb - vaddr;
+    env->iotlb[mmu_idx][index].attrs = attrs;
     te->addend = addend - vaddr;
     if (prot & PAGE_READ) {
         te->addr_read = address;
@@ -329,6 +330,17 @@ void tlb_set_page(CPUState *cpu, target_ulong vaddr,
     } else {
         te->addr_write = -1;
     }
+}
+
+/* Add a new TLB entry, but without specifying the memory
+ * transaction attributes to be used.
+ */
+void tlb_set_page(CPUState *cpu, target_ulong vaddr,
+                  hwaddr paddr, int prot,
+                  int mmu_idx, target_ulong size)
+{
+    tlb_set_page_with_attrs(cpu, vaddr, paddr, MEMTXATTRS_UNSPECIFIED,
+                            prot, mmu_idx, size);
 }
 
 /* NOTE: this function can trigger an exception */
