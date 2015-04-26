@@ -158,7 +158,8 @@ static inline DATA_TYPE glue(io_read, SUFFIX)(CPUArchState *env,
     }
 
     cpu->mem_io_vaddr = addr;
-    io_mem_read(mr, physaddr, &val, 1 << SHIFT);
+    memory_region_dispatch_read(mr, physaddr, &val, 1 << SHIFT,
+                                MEMTXATTRS_UNSPECIFIED);
     return val;
 }
 #endif
@@ -378,7 +379,8 @@ static inline void glue(io_write, SUFFIX)(CPUArchState *env,
 
     cpu->mem_io_vaddr = addr;
     cpu->mem_io_pc = retaddr;
-    io_mem_write(mr, physaddr, val, 1 << SHIFT);
+    memory_region_dispatch_write(mr, physaddr, val, 1 << SHIFT,
+                                 MEMTXATTRS_UNSPECIFIED);
 }
 
 void helper_le_st_name(CPUArchState *env, target_ulong addr, DATA_TYPE val,

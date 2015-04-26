@@ -1531,9 +1531,12 @@ static uint64_t vfio_rtl8168_window_quirk_read(void *opaque,
                 return 0;
             }
 
-            io_mem_read(&vdev->pdev.msix_table_mmio,
-                        (hwaddr)(quirk->data.address_match & 0xfff),
-                        &val, size);
+            memory_region_dispatch_read(&vdev->pdev.msix_table_mmio,
+                                        (hwaddr)(quirk->data.address_match
+                                                 & 0xfff),
+                                        &val,
+                                        size,
+                                        MEMTXATTRS_UNSPECIFIED);
             return val;
         }
     }
@@ -1561,9 +1564,12 @@ static void vfio_rtl8168_window_quirk_write(void *opaque, hwaddr addr,
                         memory_region_name(&quirk->mem),
                         vdev->vbasedev.name);
 
-                io_mem_write(&vdev->pdev.msix_table_mmio,
-                             (hwaddr)(quirk->data.address_match & 0xfff),
-                             data, size);
+                memory_region_dispatch_write(&vdev->pdev.msix_table_mmio,
+                                             (hwaddr)(quirk->data.address_match
+                                                      & 0xfff),
+                                             data,
+                                             size,
+                                             MEMTXATTRS_UNSPECIFIED);
             }
 
             quirk->data.flags = 1;

@@ -2312,7 +2312,8 @@ bool address_space_rw(AddressSpace *as, hwaddr addr, uint8_t *buf,
     uint64_t val;
     hwaddr addr1;
     MemoryRegion *mr;
-    bool error = false;
+    MemTxResult result = MEMTX_OK;
+    MemTxAttrs attrs = MEMTXATTRS_UNSPECIFIED;
 
     while (len > 0) {
         l = len;
@@ -2327,22 +2328,26 @@ bool address_space_rw(AddressSpace *as, hwaddr addr, uint8_t *buf,
                 case 8:
                     /* 64 bit write access */
                     val = ldq_p(buf);
-                    error |= io_mem_write(mr, addr1, val, 8);
+                    result |= memory_region_dispatch_write(mr, addr1, val, 8,
+                                                           attrs);
                     break;
                 case 4:
                     /* 32 bit write access */
                     val = ldl_p(buf);
-                    error |= io_mem_write(mr, addr1, val, 4);
+                    result |= memory_region_dispatch_write(mr, addr1, val, 4,
+                                                           attrs);
                     break;
                 case 2:
                     /* 16 bit write access */
                     val = lduw_p(buf);
-                    error |= io_mem_write(mr, addr1, val, 2);
+                    result |= memory_region_dispatch_write(mr, addr1, val, 2,
+                                                           attrs);
                     break;
                 case 1:
                     /* 8 bit write access */
                     val = ldub_p(buf);
-                    error |= io_mem_write(mr, addr1, val, 1);
+                    result |= memory_region_dispatch_write(mr, addr1, val, 1,
+                                                           attrs);
                     break;
                 default:
                     abort();
@@ -2361,22 +2366,26 @@ bool address_space_rw(AddressSpace *as, hwaddr addr, uint8_t *buf,
                 switch (l) {
                 case 8:
                     /* 64 bit read access */
-                    error |= io_mem_read(mr, addr1, &val, 8);
+                    result |= memory_region_dispatch_read(mr, addr1, &val, 8,
+                                                          attrs);
                     stq_p(buf, val);
                     break;
                 case 4:
                     /* 32 bit read access */
-                    error |= io_mem_read(mr, addr1, &val, 4);
+                    result |= memory_region_dispatch_read(mr, addr1, &val, 4,
+                                                          attrs);
                     stl_p(buf, val);
                     break;
                 case 2:
                     /* 16 bit read access */
-                    error |= io_mem_read(mr, addr1, &val, 2);
+                    result |= memory_region_dispatch_read(mr, addr1, &val, 2,
+                                                          attrs);
                     stw_p(buf, val);
                     break;
                 case 1:
                     /* 8 bit read access */
-                    error |= io_mem_read(mr, addr1, &val, 1);
+                    result |= memory_region_dispatch_read(mr, addr1, &val, 1,
+                                                          attrs);
                     stb_p(buf, val);
                     break;
                 default:
@@ -2393,7 +2402,7 @@ bool address_space_rw(AddressSpace *as, hwaddr addr, uint8_t *buf,
         addr += l;
     }
 
-    return error;
+    return result;
 }
 
 bool address_space_write(AddressSpace *as, hwaddr addr,
@@ -2669,7 +2678,8 @@ static inline uint32_t ldl_phys_internal(AddressSpace *as, hwaddr addr,
     mr = address_space_translate(as, addr, &addr1, &l, false);
     if (l < 4 || !memory_access_is_direct(mr, false)) {
         /* I/O case */
-        io_mem_read(mr, addr1, &val, 4);
+        memory_region_dispatch_read(mr, addr1, &val, 4,
+                                    MEMTXATTRS_UNSPECIFIED);
 #if defined(TARGET_WORDS_BIGENDIAN)
         if (endian == DEVICE_LITTLE_ENDIAN) {
             val = bswap32(val);
@@ -2728,7 +2738,8 @@ static inline uint64_t ldq_phys_internal(AddressSpace *as, hwaddr addr,
                                  false);
     if (l < 8 || !memory_access_is_direct(mr, false)) {
         /* I/O case */
-        io_mem_read(mr, addr1, &val, 8);
+        memory_region_dispatch_read(mr, addr1, &val, 8,
+                                    MEMTXATTRS_UNSPECIFIED);
 #if defined(TARGET_WORDS_BIGENDIAN)
         if (endian == DEVICE_LITTLE_ENDIAN) {
             val = bswap64(val);
@@ -2795,7 +2806,8 @@ static inline uint32_t lduw_phys_internal(AddressSpace *as, hwaddr addr,
                                  false);
     if (l < 2 || !memory_access_is_direct(mr, false)) {
         /* I/O case */
-        io_mem_read(mr, addr1, &val, 2);
+        memory_region_dispatch_read(mr, addr1, &val, 2,
+                                    MEMTXATTRS_UNSPECIFIED);
 #if defined(TARGET_WORDS_BIGENDIAN)
         if (endian == DEVICE_LITTLE_ENDIAN) {
             val = bswap16(val);
@@ -2853,7 +2865,8 @@ void stl_phys_notdirty(AddressSpace *as, hwaddr addr, uint32_t val)
     mr = address_space_translate(as, addr, &addr1, &l,
                                  true);
     if (l < 4 || !memory_access_is_direct(mr, true)) {
-        io_mem_write(mr, addr1, val, 4);
+        memory_region_dispatch_write(mr, addr1, val, 4,
+                                     MEMTXATTRS_UNSPECIFIED);
     } else {
         addr1 += memory_region_get_ram_addr(mr) & TARGET_PAGE_MASK;
         ptr = qemu_get_ram_ptr(addr1);
@@ -2892,7 +2905,8 @@ static inline void stl_phys_internal(AddressSpace *as,
             val = bswap32(val);
         }
 #endif
-        io_mem_write(mr, addr1, val, 4);
+        memory_region_dispatch_write(mr, addr1, val, 4,
+                                     MEMTXATTRS_UNSPECIFIED);
     } else {
         /* RAM case */
         addr1 += memory_region_get_ram_addr(mr) & TARGET_PAGE_MASK;
@@ -2955,7 +2969,8 @@ static inline void stw_phys_internal(AddressSpace *as,
             val = bswap16(val);
         }
 #endif
-        io_mem_write(mr, addr1, val, 2);
+        memory_region_dispatch_write(mr, addr1, val, 2,
+                                     MEMTXATTRS_UNSPECIFIED);
     } else {
         /* RAM case */
         addr1 += memory_region_get_ram_addr(mr) & TARGET_PAGE_MASK;
