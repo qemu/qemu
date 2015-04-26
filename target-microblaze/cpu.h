@@ -333,11 +333,6 @@ static inline int cpu_interrupts_enabled(CPUMBState *env)
 
 #include "exec/cpu-all.h"
 
-static inline target_ulong cpu_get_pc(CPUMBState *env)
-{
-    return env->sregs[SR_PC];
-}
-
 static inline void cpu_get_tb_cpu_state(CPUMBState *env, target_ulong *pc,
                                         target_ulong *cs_base, int *flags)
 {
