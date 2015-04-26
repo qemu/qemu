@@ -29,6 +29,8 @@ typedef struct MemTxAttrs {
      * "didn't specify" if necessary.
      */
     unsigned int unspecified:1;
+    /* ARM/AMBA TrustZone Secure access */
+    unsigned int secure:1;
 } MemTxAttrs;
 
 /* Bus masters which don't specify any attributes will get this,
