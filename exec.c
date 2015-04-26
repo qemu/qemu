@@ -1941,8 +1941,8 @@ static const MemoryRegionOps watch_mem_ops = {
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
-static uint64_t subpage_read(void *opaque, hwaddr addr,
-                             unsigned len)
+static MemTxResult subpage_read(void *opaque, hwaddr addr, uint64_t *data,
+                                unsigned len, MemTxAttrs attrs)
 {
     subpage_t *subpage = opaque;
     uint8_t buf[8];
@@ -1951,23 +1951,29 @@ static uint64_t subpage_read(void *opaque, hwaddr addr,
     printf("%s: subpage %p len %u addr " TARGET_FMT_plx "\n", __func__,
            subpage, len, addr);
 #endif
-    address_space_read(subpage->as, addr + subpage->base, buf, len);
+    if (address_space_read(subpage->as, addr + subpage->base, buf, len)) {
+        return MEMTX_DECODE_ERROR;
+    }
     switch (len) {
     case 1:
-        return ldub_p(buf);
+        *data = ldub_p(buf);
+        return MEMTX_OK;
     case 2:
-        return lduw_p(buf);
+        *data = lduw_p(buf);
+        return MEMTX_OK;
     case 4:
-        return ldl_p(buf);
+        *data = ldl_p(buf);
+        return MEMTX_OK;
     case 8:
-        return ldq_p(buf);
+        *data = ldq_p(buf);
+        return MEMTX_OK;
     default:
         abort();
     }
 }
 
-static void subpage_write(void *opaque, hwaddr addr,
-                          uint64_t value, unsigned len)
+static MemTxResult subpage_write(void *opaque, hwaddr addr,
+                                 uint64_t value, unsigned len, MemTxAttrs attrs)
 {
     subpage_t *subpage = opaque;
     uint8_t buf[8];
@@ -1993,7 +1999,10 @@ static void subpage_write(void *opaque, hwaddr addr,
     default:
         abort();
     }
-    address_space_write(subpage->as, addr + subpage->base, buf, len);
+    if (address_space_write(subpage->as, addr + subpage->base, buf, len)) {
+        return MEMTX_DECODE_ERROR;
+    }
+    return MEMTX_OK;
 }
 
 static bool subpage_accepts(void *opaque, hwaddr addr,
@@ -2010,8 +2019,8 @@ static bool subpage_accepts(void *opaque, hwaddr addr,
 }
 
 static const MemoryRegionOps subpage_ops = {
-    .read = subpage_read,
-    .write = subpage_write,
+    .read_with_attrs = subpage_read,
+    .write_with_attrs = subpage_write,
     .impl.min_access_size = 1,
     .impl.max_access_size = 8,
     .valid.min_access_size = 1,
