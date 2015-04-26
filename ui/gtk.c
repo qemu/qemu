@@ -231,6 +231,7 @@ struct GtkDisplayState {
 
     bool modifier_pressed[ARRAY_SIZE(modifier_keycode)];
     bool has_evdev;
+    bool ignore_keys;
 };
 
 static void gd_grab_pointer(VirtualConsole *vc);
@@ -993,6 +994,11 @@ static gboolean gd_key_event(GtkWidget *widget, GdkEventKey *key, void *opaque)
     int qemu_keycode;
     int i;
 
+    if (s->ignore_keys) {
+        s->ignore_keys = (key->type == GDK_KEY_PRESS);
+        return TRUE;
+    }
+
     if (key->keyval == GDK_KEY_Pause) {
         qemu_input_event_send_key_qcode(vc->gfx.dcl.con, Q_KEY_CODE_PAUSE,
                                         key->type == GDK_KEY_PRESS);
@@ -1069,12 +1075,18 @@ static void gd_menu_switch_vc(GtkMenuItem *item, void *opaque)
         gtk_notebook_set_current_page(nb, page);
         gtk_widget_grab_focus(vc->focus);
     }
+    s->ignore_keys = false;
 }
 
 static void gd_accel_switch_vc(void *opaque)
 {
     VirtualConsole *vc = opaque;
+
     gtk_check_menu_item_set_active(GTK_CHECK_MENU_ITEM(vc->menu_item), TRUE);
+#if !GTK_CHECK_VERSION(3, 0, 0)
+    /* GTK2 sends the accel key to the target console - ignore this until */
+    vc->s->ignore_keys = true;
+#endif
 }
 
 static void gd_menu_show_tabs(GtkMenuItem *item, void *opaque)
