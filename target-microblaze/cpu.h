@@ -319,11 +319,6 @@ static inline int cpu_mmu_index (CPUMBState *env)
 int mb_cpu_handle_mmu_fault(CPUState *cpu, vaddr address, int rw,
                             int mmu_idx);
 
-static inline int cpu_interrupts_enabled(CPUMBState *env)
-{
-    return env->sregs[SR_MSR] & MSR_IE;
-}
-
 #include "exec/cpu-all.h"
 
 static inline void cpu_get_tb_cpu_state(CPUMBState *env, target_ulong *pc,
