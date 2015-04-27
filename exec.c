@@ -541,8 +541,6 @@ void cpu_exec_init(CPUArchState *env)
         cpu_index++;
     }
     cpu->cpu_index = cpu_index;
-    QTAILQ_INIT(&cpu->breakpoints);
-    QTAILQ_INIT(&cpu->watchpoints);
 #ifndef CONFIG_USER_ONLY
     cpu->as = &address_space_memory;
     cpu->thread_id = qemu_get_thread_id();
