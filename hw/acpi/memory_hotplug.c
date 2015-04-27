@@ -163,29 +163,51 @@ void acpi_memory_hotplug_init(MemoryRegion *as, Object *owner,
     memory_region_add_subregion(as, ACPI_MEMORY_HOTPLUG_BASE, &state->io);
 }
 
-void acpi_memory_plug_cb(ACPIREGS *ar, qemu_irq irq, MemHotplugState *mem_st,
-                         DeviceState *dev, Error **errp)
+/**
+ * acpi_memory_slot_status:
+ * @mem_st: memory hotplug state
+ * @dev: device
+ * @errp: set in case of an error
+ *
+ * Obtain a single memory slot status.
+ *
+ * This function will be called by memory unplug request cb and unplug cb.
+ */
+static MemStatus *
+acpi_memory_slot_status(MemHotplugState *mem_st,
+                        DeviceState *dev, Error **errp)
 {
-    MemStatus *mdev;
     Error *local_err = NULL;
     int slot = object_property_get_int(OBJECT(dev), PC_DIMM_SLOT_PROP,
                                        &local_err);
 
     if (local_err) {
         error_propagate(errp, local_err);
-        return;
+        return NULL;
     }
 
     if (slot >= mem_st->dev_count) {
         char *dev_path = object_get_canonical_path(OBJECT(dev));
-        error_setg(errp, "acpi_memory_plug_cb: "
+        error_setg(errp, "acpi_memory_slot_status: "
                    "device [%s] returned invalid memory slot[%d]",
                     dev_path, slot);
         g_free(dev_path);
+        return NULL;
+    }
+
+    return &mem_st->devs[slot];
+}
+
+void acpi_memory_plug_cb(ACPIREGS *ar, qemu_irq irq, MemHotplugState *mem_st,
+                         DeviceState *dev, Error **errp)
+{
+    MemStatus *mdev;
+
+    mdev = acpi_memory_slot_status(mem_st, dev, errp);
+    if (!mdev) {
         return;
     }
 
-    mdev = &mem_st->devs[slot];
     mdev->dimm = dev;
     mdev->is_enabled = true;
     mdev->is_inserting = true;
