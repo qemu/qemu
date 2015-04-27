@@ -2,7 +2,7 @@
 # QAPI visitor generator
 #
 # Copyright IBM, Corp. 2011
-# Copyright (C) 2014 Red Hat, Inc.
+# Copyright (C) 2014-2015 Red Hat, Inc.
 #
 # Authors:
 #  Anthony Liguori <aliguori@us.ibm.com>
@@ -401,34 +401,31 @@ out:
 
     return ret
 
-def generate_declaration(name, members, genlist=True, builtin_type=False):
+def generate_declaration(name, members, builtin_type=False):
     ret = ""
     if not builtin_type:
         ret += mcgen('''
 
 void visit_type_%(name)s(Visitor *m, %(name)s **obj, const char *name, Error **errp);
 ''',
-                    name=name)
+                     name=name)
 
-    if genlist:
-        ret += mcgen('''
+    ret += mcgen('''
 void visit_type_%(name)sList(Visitor *m, %(name)sList **obj, const char *name, Error **errp);
 ''',
                  name=name)
 
     return ret
 
-def generate_enum_declaration(name, members, genlist=True):
-    ret = ""
-    if genlist:
-        ret += mcgen('''
+def generate_enum_declaration(name, members):
+    ret = mcgen('''
 void visit_type_%(name)sList(Visitor *m, %(name)sList **obj, const char *name, Error **errp);
 ''',
-                     name=name)
+                name=name)
 
     return ret
 
-def generate_decl_enum(name, members, genlist=True):
+def generate_decl_enum(name, members):
     return mcgen('''
 
 void visit_type_%(name)s(Visitor *m, %(name)s *obj, const char *name, Error **errp);
@@ -542,8 +539,7 @@ exprs = parse_schema(input_file)
 # for built-in types in our header files and simply guard them
 fdecl.write(guardstart("QAPI_VISIT_BUILTIN_VISITOR_DECL"))
 for typename in builtin_types:
-    fdecl.write(generate_declaration(typename, None, genlist=True,
-                                     builtin_type=True))
+    fdecl.write(generate_declaration(typename, None, builtin_type=True))
 fdecl.write(guardend("QAPI_VISIT_BUILTIN_VISITOR_DECL"))
 
 # ...this doesn't work for cases where we link in multiple objects that

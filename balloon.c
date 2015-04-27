@@ -58,7 +58,6 @@ int qemu_add_balloon_handler(QEMUBalloonEvent *event_func,
         /* We're already registered one balloon handler.  How many can
          * a guest really have?
          */
-        error_report("Another balloon device already registered");
         return -1;
     }
     balloon_event_fn = event_func;

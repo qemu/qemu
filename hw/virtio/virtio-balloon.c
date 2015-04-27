@@ -383,7 +383,7 @@ static void virtio_balloon_device_realize(DeviceState *dev, Error **errp)
                                    virtio_balloon_stat, s);
 
     if (ret < 0) {
-        error_setg(errp, "Adding balloon handler failed");
+        error_setg(errp, "Only one balloon device is supported");
         virtio_cleanup(vdev);
         return;
     }

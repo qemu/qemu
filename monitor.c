@@ -4783,10 +4783,22 @@ static int monitor_can_read(void *opaque)
     return (mon->suspend_cnt == 0) ? 1 : 0;
 }
 
-static int invalid_qmp_mode(const Monitor *mon, const mon_cmd_t *cmd)
+static bool invalid_qmp_mode(const Monitor *mon, const mon_cmd_t *cmd)
 {
-    int is_cap = cmd->mhandler.cmd_new == do_qmp_capabilities;
-    return (qmp_cmd_mode(mon) ? is_cap : !is_cap);
+    bool is_cap = cmd->mhandler.cmd_new == do_qmp_capabilities;
+    if (is_cap && qmp_cmd_mode(mon)) {
+        qerror_report(ERROR_CLASS_COMMAND_NOT_FOUND,
+                      "Capabilities negotiation is already complete, command "
+                      "'%s' ignored", cmd->name);
+        return true;
+    }
+    if (!is_cap && !qmp_cmd_mode(mon)) {
+        qerror_report(ERROR_CLASS_COMMAND_NOT_FOUND,
+                      "Expecting capabilities negotiation with "
+                      "'qmp_capabilities' before command '%s'", cmd->name);
+        return true;
+    }
+    return false;
 }
 
 /*
@@ -5080,9 +5092,12 @@ static void handle_qmp_command(JSONMessageParser *parser, QList *tokens)
     cmd_name = qdict_get_str(input, "execute");
     trace_handle_qmp_command(mon, cmd_name);
     cmd = qmp_find_cmd(cmd_name);
-    if (!cmd || invalid_qmp_mode(mon, cmd)) {
+    if (!cmd) {
         qerror_report(ERROR_CLASS_COMMAND_NOT_FOUND,
                       "The command %s has not been found", cmd_name);
+        goto err_out;
+    }
+    if (invalid_qmp_mode(mon, cmd)) {
         goto err_out;
     }
 
