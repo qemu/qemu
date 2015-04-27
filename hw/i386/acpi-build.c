@@ -879,6 +879,12 @@ build_ssdt(GArray *table_data, GArray *linker,
         aml_append(field,
             /*(read) 1 if has a insert event. (write) 1 to clear event */
             aml_named_field(stringify(MEMORY_SLOT_INSERT_EVENT), 1));
+        aml_append(field,
+            /* (read) 1 if has a remove event. (write) 1 to clear event */
+            aml_named_field(stringify(MEMORY_SLOT_REMOVE_EVENT), 1));
+        aml_append(field,
+            /* initiates device eject, write only */
+            aml_named_field(stringify(MEMORY_SLOT_EJECT), 1));
         aml_append(scope, field);
 
         field = aml_field(stringify(MEMORY_HOTPLUG_IO_REGION), aml_dword_acc,
@@ -921,6 +927,12 @@ build_ssdt(GArray *table_data, GArray *linker,
             aml_append(method, aml_return(aml_call4(
                 s, aml_name("_UID"), aml_arg(0), aml_arg(1), aml_arg(2)
             )));
+            aml_append(dev, method);
+
+            method = aml_method("_EJ0", 1);
+            s = BASEPATH stringify(MEMORY_SLOT_EJECT_METHOD);
+            aml_append(method, aml_return(aml_call2(
+                       s, aml_name("_UID"), aml_arg(0))));
             aml_append(dev, method);
 
             aml_append(sb_scope, dev);

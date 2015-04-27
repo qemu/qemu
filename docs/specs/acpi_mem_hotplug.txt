@@ -19,7 +19,9 @@ Memory hot-plug interface (IO port 0xa00-0xa17, 1-4 byte access):
               1: Device insert event, used to distinguish device for which
                  no device check event to OSPM was issued.
                  It's valid only when bit 1 is set.
-              2-7: reserved and should be ignored by OSPM
+              2: Device remove event, used to distinguish device for which
+                 no device eject request to OSPM was issued.
+              3-7: reserved and should be ignored by OSPM
       [0x15-0x17] reserved
 
   write access:
@@ -38,7 +40,12 @@ Memory hot-plug interface (IO port 0xa00-0xa17, 1-4 byte access):
               1: if set to 1 clears device insert event, set by OSPM
                  after it has emitted device check event for the
                  selected memory device
-              2-7: reserved, OSPM must clear them before writing to register
+              2: if set to 1 clears device remove event, set by OSPM
+                 after it has emitted device eject request for the
+                 selected memory device
+              3: if set to 1 initiates device eject, set by OSPM when it
+                 triggers memory device removal and calls _EJ0 method
+              4-7: reserved, OSPM must clear them before writing to register
 
 Selecting memory device slot beyond present range has no effect on platform:
    - write accesses to memory hot-plug registers not documented above are

@@ -2,6 +2,7 @@
 #include "hw/acpi/pc-hotplug.h"
 #include "hw/mem/pc-dimm.h"
 #include "hw/boards.h"
+#include "hw/qdev-core.h"
 #include "trace.h"
 #include "qapi-event.h"
 
@@ -91,6 +92,8 @@ static void acpi_memory_hotplug_write(void *opaque, hwaddr addr, uint64_t data,
     MemHotplugState *mem_st = opaque;
     MemStatus *mdev;
     ACPIOSTInfo *info;
+    DeviceState *dev = NULL;
+    HotplugHandler *hotplug_ctrl = NULL;
 
     if (!mem_st->dev_count) {
         return;
@@ -128,12 +131,28 @@ static void acpi_memory_hotplug_write(void *opaque, hwaddr addr, uint64_t data,
         qapi_event_send_acpi_device_ost(info, &error_abort);
         qapi_free_ACPIOSTInfo(info);
         break;
-    case 0x14:
+    case 0x14: /* set is_* fields  */
         mdev = &mem_st->devs[mem_st->selector];
         if (data & 2) { /* clear insert event */
             mdev->is_inserting  = false;
             trace_mhp_acpi_clear_insert_evt(mem_st->selector);
+        } else if (data & 4) {
+            mdev->is_removing = false;
+            trace_mhp_acpi_clear_remove_evt(mem_st->selector);
+        } else if (data & 8) {
+            if (!mdev->is_enabled) {
+                trace_mhp_acpi_ejecting_invalid_slot(mem_st->selector);
+                break;
+            }
+
+            dev = DEVICE(mdev->dimm);
+            hotplug_ctrl = qdev_get_hotplug_handler(dev);
+            /* call pc-dimm unplug cb */
+            hotplug_handler_unplug(hotplug_ctrl, dev, NULL);
+            trace_mhp_acpi_pc_dimm_deleted(mem_st->selector);
         }
+        break;
+    default:
         break;
     }
 

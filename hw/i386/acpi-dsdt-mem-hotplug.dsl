@@ -29,6 +29,8 @@
             External(MEMORY_SLOT_PROXIMITY, FieldUnitObj) // read only
             External(MEMORY_SLOT_ENABLED, FieldUnitObj) // 1 if enabled, read only
             External(MEMORY_SLOT_INSERT_EVENT, FieldUnitObj) // (read) 1 if has a insert event. (write) 1 to clear event
+            External(MEMORY_SLOT_REMOVE_EVENT, FieldUnitObj) // (read) 1 if has a remove event. (write) 1 to clear event
+            External(MEMORY_SLOT_EJECT, FieldUnitObj) // initiates device eject, write only
             External(MEMORY_SLOT_SLECTOR, FieldUnitObj) // DIMM selector, write only
             External(MEMORY_SLOT_OST_EVENT, FieldUnitObj) // _OST event code, write only
             External(MEMORY_SLOT_OST_STATUS, FieldUnitObj) // _OST status code, write only
@@ -55,8 +57,10 @@
                     If (LEqual(MEMORY_SLOT_INSERT_EVENT, One)) { // Memory device needs check
                         MEMORY_SLOT_NOTIFY_METHOD(Local0, 1)
                         Store(1, MEMORY_SLOT_INSERT_EVENT)
+                    } Elseif (LEqual(MEMORY_SLOT_REMOVE_EVENT, One)) { // Ejection request
+                        MEMORY_SLOT_NOTIFY_METHOD(Local0, 3)
+                        Store(1, MEMORY_SLOT_REMOVE_EVENT)
                     }
-                    // TODO: handle memory eject request
                     Add(Local0, One, Local0) // goto next DIMM
                 }
                 Release(MEMORY_SLOT_LOCK)
@@ -154,6 +158,13 @@
                 Store(ToInteger(Arg0), MEMORY_SLOT_SLECTOR) // select DIMM
                 Store(Arg1, MEMORY_SLOT_OST_EVENT)
                 Store(Arg2, MEMORY_SLOT_OST_STATUS)
+                Release(MEMORY_SLOT_LOCK)
+            }
+
+            Method(MEMORY_SLOT_EJECT_METHOD, 2) {
+                Acquire(MEMORY_SLOT_LOCK, 0xFFFF)
+                Store(ToInteger(Arg0), MEMORY_SLOT_SLECTOR) // select DIMM
+                Store(1, MEMORY_SLOT_EJECT)
                 Release(MEMORY_SLOT_LOCK)
             }
         } // Device()
