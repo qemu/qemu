@@ -746,7 +746,7 @@ build_ssdt(GArray *table_data, GArray *linker,
 
         aml_append(dev, aml_operation_region("PEOR", aml_system_io,
                                               misc->pvpanic_port, 1));
-        field = aml_field("PEOR", aml_byte_acc);
+        field = aml_field("PEOR", aml_byte_acc, aml_preserve);
         aml_append(field, aml_named_field("PEPT", 8));
         aml_append(dev, field);
 
@@ -783,7 +783,7 @@ build_ssdt(GArray *table_data, GArray *linker,
         /* declare CPU hotplug MMIO region and PRS field to access it */
         aml_append(sb_scope, aml_operation_region(
             "PRST", aml_system_io, pm->cpu_hp_io_base, pm->cpu_hp_io_len));
-        field = aml_field("PRST", aml_byte_acc);
+        field = aml_field("PRST", aml_byte_acc, aml_preserve);
         aml_append(field, aml_named_field("PRS", 256));
         aml_append(sb_scope, field);
 
@@ -857,7 +857,8 @@ build_ssdt(GArray *table_data, GArray *linker,
             pm->mem_hp_io_base, pm->mem_hp_io_len)
         );
 
-        field = aml_field(stringify(MEMORY_HOTPLUG_IO_REGION), aml_dword_acc);
+        field = aml_field(stringify(MEMORY_HOTPLUG_IO_REGION), aml_dword_acc,
+                          aml_preserve);
         aml_append(field, /* read only */
             aml_named_field(stringify(MEMORY_SLOT_ADDR_LOW), 32));
         aml_append(field, /* read only */
@@ -870,7 +871,8 @@ build_ssdt(GArray *table_data, GArray *linker,
             aml_named_field(stringify(MEMORY_SLOT_PROXIMITY), 32));
         aml_append(scope, field);
 
-        field = aml_field(stringify(MEMORY_HOTPLUG_IO_REGION), aml_byte_acc);
+        field = aml_field(stringify(MEMORY_HOTPLUG_IO_REGION), aml_byte_acc,
+                          aml_preserve);
         aml_append(field, aml_reserved_field(160 /* bits, Offset(20) */));
         aml_append(field, /* 1 if enabled, read only */
             aml_named_field(stringify(MEMORY_SLOT_ENABLED), 1));
@@ -879,7 +881,8 @@ build_ssdt(GArray *table_data, GArray *linker,
             aml_named_field(stringify(MEMORY_SLOT_INSERT_EVENT), 1));
         aml_append(scope, field);
 
-        field = aml_field(stringify(MEMORY_HOTPLUG_IO_REGION), aml_dword_acc);
+        field = aml_field(stringify(MEMORY_HOTPLUG_IO_REGION), aml_dword_acc,
+                          aml_preserve);
         aml_append(field, /* DIMM selector, write only */
             aml_named_field(stringify(MEMORY_SLOT_SLECTOR), 32));
         aml_append(field, /* _OST event code, write only */

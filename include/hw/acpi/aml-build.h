@@ -47,7 +47,13 @@ typedef enum {
     aml_dword_acc = 3,
     aml_qword_acc = 4,
     aml_buffer_acc = 5,
-} AmlFieldFlags;
+} AmlAccessType;
+
+typedef enum {
+    aml_preserve = 0,
+    aml_write_as_ones = 1,
+    aml_write_as_zeros = 2,
+} AmlUpdateRule;
 
 typedef enum {
     aml_system_memory = 0x00,
@@ -205,7 +211,7 @@ Aml *aml_if(Aml *predicate);
 Aml *aml_package(uint8_t num_elements);
 Aml *aml_buffer(void);
 Aml *aml_resource_template(void);
-Aml *aml_field(const char *name, AmlFieldFlags flags);
+Aml *aml_field(const char *name, AmlAccessType type, AmlUpdateRule rule);
 Aml *aml_varpackage(uint32_t num_elements);
 
 void
