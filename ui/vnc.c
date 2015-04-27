@@ -3482,7 +3482,14 @@ void vnc_display_open(const char *id, Error **errp)
 
     h = strrchr(vnc, ':');
     if (h) {
-        char *host = g_strndup(vnc, h - vnc);
+        char *host;
+        size_t hlen = h - vnc;
+
+        if (vnc[0] == '[' && vnc[hlen - 1] == ']') {
+            host = g_strndup(vnc + 1, hlen - 2);
+        } else {
+            host = g_strndup(vnc, hlen);
+        }
         qemu_opt_set(sopts, "host", host, &error_abort);
         qemu_opt_set(wsopts, "host", host, &error_abort);
         qemu_opt_set(sopts, "port", h+1, &error_abort);
