@@ -552,13 +552,13 @@ static int kvm_set_ioeventfd_mmio(int fd, hwaddr addr, uint32_t val,
                                   bool assign, uint32_t size, bool datamatch)
 {
     int ret;
-    struct kvm_ioeventfd iofd;
-
-    iofd.datamatch = datamatch ? adjust_ioeventfd_endianness(val, size) : 0;
-    iofd.addr = addr;
-    iofd.len = size;
-    iofd.flags = 0;
-    iofd.fd = fd;
+    struct kvm_ioeventfd iofd = {
+        .datamatch = datamatch ? adjust_ioeventfd_endianness(val, size) : 0,
+        .addr = addr,
+        .len = size,
+        .flags = 0,
+        .fd = fd,
+    };
 
     if (!kvm_enabled()) {
         return -ENOSYS;
