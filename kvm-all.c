@@ -335,12 +335,10 @@ static int kvm_dirty_pages_log_change(hwaddr phys_addr,
     KVMSlot *mem = kvm_lookup_matching_slot(s, phys_addr, phys_addr + size);
 
     if (mem == NULL)  {
-        fprintf(stderr, "BUG: %s: invalid parameters " TARGET_FMT_plx "-"
-                TARGET_FMT_plx "\n", __func__, phys_addr,
-                (hwaddr)(phys_addr + size - 1));
-        return -EINVAL;
+        return 0;
+    } else {
+        return kvm_slot_dirty_pages_log_change(mem, log_dirty);
     }
-    return kvm_slot_dirty_pages_log_change(mem, log_dirty);
 }
 
 static void kvm_log_start(MemoryListener *listener,
