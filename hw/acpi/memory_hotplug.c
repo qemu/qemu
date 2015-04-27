@@ -75,6 +75,7 @@ static uint64_t acpi_memory_hotplug_read(void *opaque, hwaddr addr,
     case 0x14: /* pack and return is_* fields */
         val |= mdev->is_enabled   ? 1 : 0;
         val |= mdev->is_inserting ? 2 : 0;
+        val |= mdev->is_removing  ? 4 : 0;
         trace_mhp_acpi_read_flags(mem_st->selector, val);
         break;
     default:
@@ -216,6 +217,24 @@ void acpi_memory_plug_cb(ACPIREGS *ar, qemu_irq irq, MemHotplugState *mem_st,
     ar->gpe.sts[0] |= ACPI_MEMORY_HOTPLUG_STATUS;
     acpi_update_sci(ar, irq);
     return;
+}
+
+void acpi_memory_unplug_request_cb(ACPIREGS *ar, qemu_irq irq,
+                                   MemHotplugState *mem_st,
+                                   DeviceState *dev, Error **errp)
+{
+    MemStatus *mdev;
+
+    mdev = acpi_memory_slot_status(mem_st, dev, errp);
+    if (!mdev) {
+        return;
+    }
+
+    mdev->is_removing = true;
+
+    /* Do ACPI magic */
+    ar->gpe.sts[0] |= ACPI_MEMORY_HOTPLUG_STATUS;
+    acpi_update_sci(ar, irq);
 }
 
 static const VMStateDescription vmstate_memhp_sts = {
