@@ -237,6 +237,20 @@ void acpi_memory_unplug_request_cb(ACPIREGS *ar, qemu_irq irq,
     acpi_update_sci(ar, irq);
 }
 
+void acpi_memory_unplug_cb(MemHotplugState *mem_st,
+                           DeviceState *dev, Error **errp)
+{
+    MemStatus *mdev;
+
+    mdev = acpi_memory_slot_status(mem_st, dev, errp);
+    if (!mdev) {
+        return;
+    }
+
+    mdev->is_enabled = false;
+    mdev->dimm = NULL;
+}
+
 static const VMStateDescription vmstate_memhp_sts = {
     .name = "memory hotplug device state",
     .version_id = 1,

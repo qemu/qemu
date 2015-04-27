@@ -413,8 +413,13 @@ void ich9_pm_device_unplug_request_cb(ICH9LPCPMRegs *pm, DeviceState *dev,
 void ich9_pm_device_unplug_cb(ICH9LPCPMRegs *pm, DeviceState *dev,
                               Error **errp)
 {
-    error_setg(errp, "acpi: device unplug for not supported device"
-               " type: %s", object_get_typename(OBJECT(dev)));
+    if (pm->acpi_memory_hotplug.is_enabled &&
+        object_dynamic_cast(OBJECT(dev), TYPE_PC_DIMM)) {
+        acpi_memory_unplug_cb(&pm->acpi_memory_hotplug, dev, errp);
+    } else {
+        error_setg(errp, "acpi: device unplug for not supported device"
+                   " type: %s", object_get_typename(OBJECT(dev)));
+    }
 }
 
 void ich9_pm_ospm_status(AcpiDeviceIf *adev, ACPIOSTInfoList ***list)

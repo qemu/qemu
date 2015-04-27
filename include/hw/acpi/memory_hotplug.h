@@ -38,6 +38,8 @@ void acpi_memory_plug_cb(ACPIREGS *ar, qemu_irq irq, MemHotplugState *mem_st,
 void acpi_memory_unplug_request_cb(ACPIREGS *ar, qemu_irq irq,
                                    MemHotplugState *mem_st,
                                    DeviceState *dev, Error **errp);
+void acpi_memory_unplug_cb(MemHotplugState *mem_st,
+                           DeviceState *dev, Error **errp);
 
 extern const VMStateDescription vmstate_memory_hotplug;
 #define VMSTATE_MEMORY_HOTPLUG(memhp, state) \
