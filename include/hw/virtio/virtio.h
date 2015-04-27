@@ -84,7 +84,7 @@ struct VirtIODevice
     VMChangeStateEntry *vmstate;
     char *bus_name;
     uint8_t device_endian;
-    QLIST_HEAD(, VirtQueue) * vector_queues;
+    QLIST_HEAD(, VirtQueue) *vector_queues;
 };
 
 typedef struct VirtioDeviceClass {
