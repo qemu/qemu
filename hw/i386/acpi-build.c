@@ -872,7 +872,7 @@ build_ssdt(GArray *table_data, GArray *linker,
         aml_append(scope, field);
 
         field = aml_field(stringify(MEMORY_HOTPLUG_IO_REGION), aml_byte_acc,
-                          aml_preserve);
+                          aml_write_as_zeros);
         aml_append(field, aml_reserved_field(160 /* bits, Offset(20) */));
         aml_append(field, /* 1 if enabled, read only */
             aml_named_field(stringify(MEMORY_SLOT_ENABLED), 1));

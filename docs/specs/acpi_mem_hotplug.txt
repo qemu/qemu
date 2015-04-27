@@ -31,7 +31,10 @@ Memory hot-plug interface (IO port 0xa00-0xa17, 1-4 byte access):
       [0xc-0x13] reserved, writes into it are ignored
       [0x14] Memory device control fields
           bits:
-              0: reserved, OSPM must clear it before writing to register
+              0: reserved, OSPM must clear it before writing to register.
+                 Due to BUG in versions prior 2.4 that field isn't cleared
+                 when other fields are written. Keep it reserved and don't
+                 try to reuse it.
               1: if set to 1 clears device insert event, set by OSPM
                  after it has emitted device check event for the
                  selected memory device
