@@ -541,7 +541,6 @@ void cpu_exec_init(CPUArchState *env)
         cpu_index++;
     }
     cpu->cpu_index = cpu_index;
-    cpu->numa_node = 0;
     QTAILQ_INIT(&cpu->breakpoints);
     QTAILQ_INIT(&cpu->watchpoints);
 #ifndef CONFIG_USER_ONLY
