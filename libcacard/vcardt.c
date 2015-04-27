@@ -2,9 +2,9 @@
 #include <string.h>
 #include <glib.h>
 
-#include "libcacard/vcardt.h"
+#include "vcardt.h"
 
-#include "libcacard/vcardt_internal.h"
+#include "vcardt_internal.h"
 
 /* create an ATR with appropriate historical bytes */
 #define ATR_TS_DIRECT_CONVENTION 0x3b

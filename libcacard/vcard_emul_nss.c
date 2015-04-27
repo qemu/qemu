@@ -33,7 +33,7 @@
 #include "vreader.h"
 #include "vevent.h"
 
-#include "libcacard/vcardt_internal.h"
+#include "vcardt_internal.h"
 
 
 typedef enum {
