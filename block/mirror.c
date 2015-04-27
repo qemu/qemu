@@ -482,9 +482,6 @@ static void coroutine_fn mirror_run(void *opaque)
                 continue;
             } else if (cnt != 0) {
                 delay_ns = mirror_iteration(s);
-                if (delay_ns == 0) {
-                    continue;
-                }
             }
         }
 
