@@ -4027,7 +4027,10 @@ void bdrv_refresh_filename(BlockDriverState *bs)
             bs->full_open_options = NULL;
         }
 
-        drv->bdrv_refresh_filename(bs);
+        opts = qdict_new();
+        append_open_options(opts, bs);
+        drv->bdrv_refresh_filename(bs, opts);
+        QDECREF(opts);
     } else if (bs->file) {
         /* Try to reconstruct valid information from the underlying file */
         bool has_open_options;
