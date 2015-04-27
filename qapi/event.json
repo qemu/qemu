@@ -330,3 +330,17 @@
 ##
 { 'event': 'VSERPORT_CHANGE',
   'data': { 'id': 'str', 'open': 'bool' } }
+
+##
+# @MEM_UNPLUG_ERROR
+#
+# Emitted when memory hot unplug error occurs.
+#
+# @device: device name
+#
+# @msg: Informative message
+#
+# Since: 2.4
+##
+{ 'event': 'MEM_UNPLUG_ERROR',
+  'data': { 'device': 'str', 'msg': 'str' } }

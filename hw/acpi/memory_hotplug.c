@@ -94,6 +94,7 @@ static void acpi_memory_hotplug_write(void *opaque, hwaddr addr, uint64_t data,
     ACPIOSTInfo *info;
     DeviceState *dev = NULL;
     HotplugHandler *hotplug_ctrl = NULL;
+    Error *local_err = NULL;
 
     if (!mem_st->dev_count) {
         return;
@@ -148,7 +149,14 @@ static void acpi_memory_hotplug_write(void *opaque, hwaddr addr, uint64_t data,
             dev = DEVICE(mdev->dimm);
             hotplug_ctrl = qdev_get_hotplug_handler(dev);
             /* call pc-dimm unplug cb */
-            hotplug_handler_unplug(hotplug_ctrl, dev, NULL);
+            hotplug_handler_unplug(hotplug_ctrl, dev, &local_err);
+            if (local_err) {
+                trace_mhp_acpi_pc_dimm_delete_failed(mem_st->selector);
+                qapi_event_send_mem_unplug_error(dev->id,
+                                                 error_get_pretty(local_err),
+                                                 &error_abort);
+                break;
+            }
             trace_mhp_acpi_pc_dimm_deleted(mem_st->selector);
         }
         break;
