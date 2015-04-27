@@ -1101,11 +1101,13 @@ static int bdrv_fill_options(QDict **options, const char **pfilename,
 
 static BdrvChild *bdrv_attach_child(BlockDriverState *parent_bs,
                                     BlockDriverState *child_bs,
+                                    const char *child_name,
                                     const BdrvChildRole *child_role)
 {
     BdrvChild *child = g_new(BdrvChild, 1);
     *child = (BdrvChild) {
         .bs     = child_bs,
+        .name   = g_strdup(child_name),
         .role   = child_role,
     };
 
@@ -1119,6 +1121,7 @@ static void bdrv_detach_child(BdrvChild *child)
 {
     QLIST_REMOVE(child, next);
     QLIST_REMOVE(child, next_parent);
+    g_free(child->name);
     g_free(child);
 }
 
@@ -1165,7 +1168,7 @@ void bdrv_set_backing_hd(BlockDriverState *bs, BlockDriverState *backing_hd)
         bs->backing = NULL;
         goto out;
     }
-    bs->backing = bdrv_attach_child(bs, backing_hd, &child_backing);
+    bs->backing = bdrv_attach_child(bs, backing_hd, "backing", &child_backing);
     bs->open_flags &= ~BDRV_O_NO_BACKING;
     pstrcpy(bs->backing_file, sizeof(bs->backing_file), backing_hd->filename);
     pstrcpy(bs->backing_format, sizeof(bs->backing_format),
@@ -1321,7 +1324,7 @@ BdrvChild *bdrv_open_child(const char *filename,
         goto done;
     }
 
-    c = bdrv_attach_child(parent, bs, child_role);
+    c = bdrv_attach_child(parent, bs, bdref_key, child_role);
 
 done:
     qdict_del(options, bdref_key);
@@ -3951,13 +3954,22 @@ static bool append_open_options(QDict *d, BlockDriverState *bs)
 {
     const QDictEntry *entry;
     QemuOptDesc *desc;
+    BdrvChild *child;
     bool found_any = false;
+    const char *p;
 
     for (entry = qdict_first(bs->options); entry;
          entry = qdict_next(bs->options, entry))
     {
-        /* Only take options for this level */
-        if (strchr(qdict_entry_key(entry), '.')) {
+        /* Exclude options for children */
+        QLIST_FOREACH(child, &bs->children, next) {
+            if (strstart(qdict_entry_key(entry), child->name, &p)
+                && (!*p || *p == '.'))
+            {
+                break;
+            }
+        }
+        if (child) {
             continue;
         }
 
