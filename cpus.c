@@ -1016,7 +1016,7 @@ static void *qemu_tcg_cpu_thread_fn(void *arg)
     qemu_cond_signal(&qemu_cpu_cond);
 
     /* wait for initial kick-off after machine start */
-    while (QTAILQ_FIRST(&cpus)->stopped) {
+    while (first_cpu->stopped) {
         qemu_cond_wait(tcg_halt_cond, &qemu_global_mutex);
 
         /* process any pending work */
