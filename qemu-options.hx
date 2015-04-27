@@ -3106,7 +3106,7 @@ executed often has little or no correlation with actual performance.
 to synchronise the host clock and the virtual clock. The goal is to
 have a guest running at the real frequency imposed by the shift option.
 Whenever the guest clock is behind the host clock and if
-@option{align=on} is specified then we print a messsage to the user
+@option{align=on} is specified then we print a message to the user
 to inform about the delay.
 Currently this option does not work when @option{shift} is @code{auto}.
 Note: The sync algorithm will work for those shift values for which
