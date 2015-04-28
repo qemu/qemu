@@ -535,8 +535,6 @@ struct FDCtrl {
     uint8_t pwrd;
     /* Floppy drives */
     uint8_t num_floppies;
-    /* Sun4m quirks? */
-    int sun4m;
     FDrive drives[MAX_FD];
     int reset_sensei;
     uint32_t check_media_rate;
@@ -885,13 +883,6 @@ static void fdctrl_reset_irq(FDCtrl *fdctrl)
 
 static void fdctrl_raise_irq(FDCtrl *fdctrl)
 {
-    /* Sparc mutation */
-    if (fdctrl->sun4m && (fdctrl->msr & FD_MSR_CMDBUSY)) {
-        /* XXX: not sure */
-        fdctrl->msr &= ~FD_MSR_CMDBUSY;
-        fdctrl->msr |= FD_MSR_RQM | FD_MSR_DIO;
-        return;
-    }
     if (!(fdctrl->sra & FD_SRA_INTPEND)) {
         qemu_set_irq(fdctrl->irq, 1);
         fdctrl->sra |= FD_SRA_INTPEND;
@@ -1079,12 +1070,6 @@ static uint32_t fdctrl_read_main_status(FDCtrl *fdctrl)
 
     fdctrl->dsr &= ~FD_DSR_PWRDOWN;
     fdctrl->dor |= FD_DOR_nRESET;
-
-    /* Sparc mutation */
-    if (fdctrl->sun4m) {
-        retval |= FD_MSR_DIO;
-        fdctrl_reset_irq(fdctrl);
-    };
 
     FLOPPY_DPRINTF("main status register: 0x%02x\n", retval);
 
@@ -2240,8 +2225,6 @@ static void sun4m_fdc_initfn(Object *obj)
     SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
     FDCtrlSysBus *sys = SYSBUS_FDC(obj);
     FDCtrl *fdctrl = &sys->state;
-
-    fdctrl->sun4m = 1;
 
     memory_region_init_io(&fdctrl->iomem, obj, &fdctrl_mem_strict_ops,
                           fdctrl, "fdctrl", 0x08);
