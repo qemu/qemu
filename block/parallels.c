@@ -159,6 +159,13 @@ static int64_t seek_to_sector(BDRVParallelsState *s, int64_t sector_num)
     return (uint64_t)s->catalog_bitmap[index] * s->off_multiplier + offset;
 }
 
+static int cluster_remainder(BDRVParallelsState *s, int64_t sector_num,
+        int nb_sectors)
+{
+    int ret = s->tracks - sector_num % s->tracks;
+    return MIN(nb_sectors, ret);
+}
+
 static int parallels_read(BlockDriverState *bs, int64_t sector_num,
                     uint8_t *buf, int nb_sectors)
 {
@@ -166,17 +173,18 @@ static int parallels_read(BlockDriverState *bs, int64_t sector_num,
 
     while (nb_sectors > 0) {
         int64_t position = seek_to_sector(s, sector_num);
+        int n = cluster_remainder(s, sector_num, nb_sectors);
         if (position >= 0) {
-            int ret = bdrv_read(bs->file, position, buf, 1);
+            int ret = bdrv_read(bs->file, position, buf, n);
             if (ret < 0) {
                 return ret;
             }
         } else {
-            memset(buf, 0, BDRV_SECTOR_SIZE);
+            memset(buf, 0, n << BDRV_SECTOR_BITS);
         }
-        nb_sectors--;
-        sector_num++;
-        buf += BDRV_SECTOR_SIZE;
+        nb_sectors -= n;
+        sector_num += n;
+        buf += n << BDRV_SECTOR_BITS;
     }
     return 0;
 }
