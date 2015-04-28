@@ -30,6 +30,7 @@
 #include "qemu-common.h"
 #include "block/block_int.h"
 #include "qemu/module.h"
+#include "qemu/bitmap.h"
 
 /**************************************************************/
 
@@ -65,6 +66,9 @@ typedef struct BDRVParallelsState {
     ParallelsHeader *header;
     uint32_t header_size;
     bool header_unclean;
+
+    unsigned long *bat_dirty_bmap;
+    unsigned int  bat_dirty_block;
 
     uint32_t *bat_bitmap;
     unsigned int bat_size;
@@ -165,14 +169,42 @@ static int64_t allocate_cluster(BlockDriverState *bs, int64_t sector_num)
     }
 
     s->bat_bitmap[idx] = cpu_to_le32(pos / s->off_multiplier);
-    ret = bdrv_pwrite(bs->file, bat_entry_off(idx), s->bat_bitmap + idx,
-                      sizeof(s->bat_bitmap[idx]));
-    if (ret < 0) {
-        s->bat_bitmap[idx] = 0;
-        return ret;
-    }
+
+    bitmap_set(s->bat_dirty_bmap, bat_entry_off(idx) / s->bat_dirty_block, 1);
     return bat2sect(s, idx) + offset;
 }
+
+
+static coroutine_fn int parallels_co_flush_to_os(BlockDriverState *bs)
+{
+    BDRVParallelsState *s = bs->opaque;
+    unsigned long size = DIV_ROUND_UP(s->header_size, s->bat_dirty_block);
+    unsigned long bit;
+
+    qemu_co_mutex_lock(&s->lock);
+
+    bit = find_first_bit(s->bat_dirty_bmap, size);
+    while (bit < size) {
+        uint32_t off = bit * s->bat_dirty_block;
+        uint32_t to_write = s->bat_dirty_block;
+        int ret;
+
+        if (off + to_write > s->header_size) {
+            to_write = s->header_size - off;
+        }
+        ret = bdrv_pwrite(bs->file, off, (uint8_t *)s->header + off, to_write);
+        if (ret < 0) {
+            qemu_co_mutex_unlock(&s->lock);
+            return ret;
+        }
+        bit = find_next_bit(s->bat_dirty_bmap, size, bit + 1);
+    }
+    bitmap_zero(s->bat_dirty_bmap, size);
+
+    qemu_co_mutex_unlock(&s->lock);
+    return 0;
+}
+
 
 static int64_t coroutine_fn parallels_co_get_block_status(BlockDriverState *bs,
         int64_t sector_num, int nb_sectors, int *pnum)
@@ -557,6 +589,10 @@ static int parallels_open(BlockDriverState *bs, QDict *options, int flags,
         }
     }
 
+    s->bat_dirty_block = 4 * getpagesize();
+    s->bat_dirty_bmap =
+        bitmap_new(DIV_ROUND_UP(s->header_size, s->bat_dirty_block));
+
     qemu_co_mutex_init(&s->lock);
     return 0;
 
@@ -578,6 +614,7 @@ static void parallels_close(BlockDriverState *bs)
         parallels_update_header(bs);
     }
 
+    g_free(s->bat_dirty_bmap);
     qemu_vfree(s->header);
 }
 
@@ -608,6 +645,7 @@ static BlockDriver bdrv_parallels = {
     .bdrv_close		= parallels_close,
     .bdrv_co_get_block_status = parallels_co_get_block_status,
     .bdrv_has_zero_init       = bdrv_has_zero_init_1,
+    .bdrv_co_flush_to_os      = parallels_co_flush_to_os,
     .bdrv_co_readv  = parallels_co_readv,
     .bdrv_co_writev = parallels_co_writev,
 
