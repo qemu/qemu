@@ -804,7 +804,7 @@ static int megasas_ctrl_get_info(MegasasState *s, MegasasCmd *cmd)
                                MFI_INFO_LDOPS_READ_POLICY);
     info.max_strips_per_io = cpu_to_le16(s->fw_sge);
     info.stripe_sz_ops.min = 3;
-    info.stripe_sz_ops.max = ffs(MEGASAS_MAX_SECTORS + 1) - 1;
+    info.stripe_sz_ops.max = ctz32(MEGASAS_MAX_SECTORS + 1);
     info.properties.pred_fail_poll_interval = cpu_to_le16(300);
     info.properties.intr_throttle_cnt = cpu_to_le16(16);
     info.properties.intr_throttle_timeout = cpu_to_le16(50);

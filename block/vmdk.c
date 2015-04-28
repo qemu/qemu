@@ -523,7 +523,7 @@ static int vmdk_open_vmfs_sparse(BlockDriverState *bs,
     }
     ret = vmdk_add_extent(bs, file, false,
                           le32_to_cpu(header.disk_sectors),
-                          le32_to_cpu(header.l1dir_offset) << 9,
+                          (int64_t)le32_to_cpu(header.l1dir_offset) << 9,
                           0,
                           le32_to_cpu(header.l1dir_size),
                           4096,
@@ -669,7 +669,7 @@ static int vmdk_open_vmdk4(BlockDriverState *bs,
         snprintf(buf, sizeof(buf), "VMDK version %" PRId32,
                  le32_to_cpu(header.version));
         error_set(errp, QERR_UNKNOWN_BLOCK_FORMAT_FEATURE,
-                  bdrv_get_device_name(bs), "vmdk", buf);
+                  bdrv_get_device_or_node_name(bs), "vmdk", buf);
         return -ENOTSUP;
     } else if (le32_to_cpu(header.version) == 3 && (flags & BDRV_O_RDWR)) {
         /* VMware KB 2064959 explains that version 3 added support for
@@ -962,9 +962,9 @@ static int vmdk_open(BlockDriverState *bs, QDict *options, int flags,
     qemu_co_mutex_init(&s->lock);
 
     /* Disable migration when VMDK images are used */
-    error_set(&s->migration_blocker,
-              QERR_BLOCK_FORMAT_FEATURE_NOT_SUPPORTED,
-              "vmdk", bdrv_get_device_name(bs), "live migration");
+    error_setg(&s->migration_blocker, "The vmdk format used by node '%s' "
+               "does not support live migration",
+               bdrv_get_device_or_node_name(bs));
     migrate_add_blocker(s->migration_blocker);
     g_free(buf);
     return 0;

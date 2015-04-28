@@ -2911,6 +2911,17 @@ sub process {
 		if ($rawline =~ /\b(?:Qemu|QEmu)\b/) {
 			WARN("use QEMU instead of Qemu or QEmu\n" . $herecurr);
 		}
+
+# check for non-portable ffs() calls that have portable alternatives in QEMU
+		if ($line =~ /\bffs\(/) {
+			ERROR("use ctz32() instead of ffs()\n" . $herecurr);
+		}
+		if ($line =~ /\bffsl\(/) {
+			ERROR("use ctz32() or ctz64() instead of ffsl()\n" . $herecurr);
+		}
+		if ($line =~ /\bffsll\(/) {
+			ERROR("use ctz64() instead of ffsll()\n" . $herecurr);
+		}
 	}
 
 	# If we have no input at all, then there is nothing to report on

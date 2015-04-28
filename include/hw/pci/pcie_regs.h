@@ -27,34 +27,34 @@
 
 /* PCI_EXP_FLAGS */
 #define PCI_EXP_FLAGS_VER2              2 /* for now, supports only ver. 2 */
-#define PCI_EXP_FLAGS_IRQ_SHIFT         (ffs(PCI_EXP_FLAGS_IRQ) - 1)
-#define PCI_EXP_FLAGS_TYPE_SHIFT        (ffs(PCI_EXP_FLAGS_TYPE) - 1)
+#define PCI_EXP_FLAGS_IRQ_SHIFT         ctz32(PCI_EXP_FLAGS_IRQ)
+#define PCI_EXP_FLAGS_TYPE_SHIFT        ctz32(PCI_EXP_FLAGS_TYPE)
 
 
 /* PCI_EXP_LINK{CAP, STA} */
 /* link speed */
 #define PCI_EXP_LNK_LS_25               1
 
-#define PCI_EXP_LNK_MLW_SHIFT           (ffs(PCI_EXP_LNKCAP_MLW) - 1)
+#define PCI_EXP_LNK_MLW_SHIFT           ctz32(PCI_EXP_LNKCAP_MLW)
 #define PCI_EXP_LNK_MLW_1               (1 << PCI_EXP_LNK_MLW_SHIFT)
 
 /* PCI_EXP_LINKCAP */
-#define PCI_EXP_LNKCAP_ASPMS_SHIFT      (ffs(PCI_EXP_LNKCAP_ASPMS) - 1)
+#define PCI_EXP_LNKCAP_ASPMS_SHIFT      ctz32(PCI_EXP_LNKCAP_ASPMS)
 #define PCI_EXP_LNKCAP_ASPMS_0S         (1 << PCI_EXP_LNKCAP_ASPMS_SHIFT)
 
-#define PCI_EXP_LNKCAP_PN_SHIFT         (ffs(PCI_EXP_LNKCAP_PN) - 1)
+#define PCI_EXP_LNKCAP_PN_SHIFT         ctz32(PCI_EXP_LNKCAP_PN)
 
-#define PCI_EXP_SLTCAP_PSN_SHIFT        (ffs(PCI_EXP_SLTCAP_PSN) - 1)
+#define PCI_EXP_SLTCAP_PSN_SHIFT        ctz32(PCI_EXP_SLTCAP_PSN)
 
 #define PCI_EXP_SLTCTL_IND_RESERVED     0x0
 #define PCI_EXP_SLTCTL_IND_ON           0x1
 #define PCI_EXP_SLTCTL_IND_BLINK        0x2
 #define PCI_EXP_SLTCTL_IND_OFF          0x3
-#define PCI_EXP_SLTCTL_AIC_SHIFT        (ffs(PCI_EXP_SLTCTL_AIC) - 1)
+#define PCI_EXP_SLTCTL_AIC_SHIFT        ctz32(PCI_EXP_SLTCTL_AIC)
 #define PCI_EXP_SLTCTL_AIC_OFF                          \
     (PCI_EXP_SLTCTL_IND_OFF << PCI_EXP_SLTCTL_AIC_SHIFT)
 
-#define PCI_EXP_SLTCTL_PIC_SHIFT        (ffs(PCI_EXP_SLTCTL_PIC) - 1)
+#define PCI_EXP_SLTCTL_PIC_SHIFT        ctz32(PCI_EXP_SLTCTL_PIC)
 #define PCI_EXP_SLTCTL_PIC_OFF                          \
     (PCI_EXP_SLTCTL_IND_OFF << PCI_EXP_SLTCTL_PIC_SHIFT)
 #define PCI_EXP_SLTCTL_PIC_ON                          \
@@ -109,7 +109,7 @@
 
 #define PCI_ERR_ROOT_IRQ_MAX            32
 #define PCI_ERR_ROOT_IRQ                0xf8000000
-#define PCI_ERR_ROOT_IRQ_SHIFT          (ffs(PCI_ERR_ROOT_IRQ) - 1)
+#define PCI_ERR_ROOT_IRQ_SHIFT          ctz32(PCI_ERR_ROOT_IRQ)
 #define PCI_ERR_ROOT_STATUS_REPORT_MASK (PCI_ERR_ROOT_COR_RCV |         \
                                          PCI_ERR_ROOT_MULTI_COR_RCV |   \
                                          PCI_ERR_ROOT_UNCOR_RCV |       \

@@ -721,6 +721,11 @@ static int64_t blkdebug_getlength(BlockDriverState *bs)
     return bdrv_getlength(bs->file);
 }
 
+static int blkdebug_truncate(BlockDriverState *bs, int64_t offset)
+{
+    return bdrv_truncate(bs->file, offset);
+}
+
 static void blkdebug_refresh_filename(BlockDriverState *bs)
 {
     QDict *opts;
@@ -779,6 +784,7 @@ static BlockDriver bdrv_blkdebug = {
     .bdrv_file_open         = blkdebug_open,
     .bdrv_close             = blkdebug_close,
     .bdrv_getlength         = blkdebug_getlength,
+    .bdrv_truncate          = blkdebug_truncate,
     .bdrv_refresh_filename  = blkdebug_refresh_filename,
 
     .bdrv_aio_readv         = blkdebug_aio_readv,

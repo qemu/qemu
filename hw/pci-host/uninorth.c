@@ -92,7 +92,10 @@ static uint32_t unin_get_config_reg(uint32_t reg, uint32_t addr)
         uint32_t slot, func;
 
         /* Grab CFA0 style values */
-        slot = ffs(reg & 0xfffff800) - 1;
+        slot = ctz32(reg & 0xfffff800);
+        if (slot == 32) {
+            slot = -1; /* XXX: should this be 0? */
+        }
         func = (reg >> 8) & 7;
 
         /* ... and then convert them to x86 format */

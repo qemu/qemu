@@ -439,6 +439,14 @@ extern BlockDriver bdrv_file;
 extern BlockDriver bdrv_raw;
 extern BlockDriver bdrv_qcow2;
 
+/**
+ * bdrv_setup_io_funcs:
+ *
+ * Prepare a #BlockDriver for I/O request processing by populating
+ * unimplemented coroutine and AIO interfaces with generic wrapper functions
+ * that fall back to implemented interfaces.
+ */
+void bdrv_setup_io_funcs(BlockDriver *bdrv);
 
 int get_tmp_filename(char *filename, int size);
 BlockDriver *bdrv_probe_all(const uint8_t *buf, int buf_size,
@@ -590,7 +598,7 @@ void commit_active_start(BlockDriverState *bs, BlockDriverState *base,
  */
 void mirror_start(BlockDriverState *bs, BlockDriverState *target,
                   const char *replaces,
-                  int64_t speed, int64_t granularity, int64_t buf_size,
+                  int64_t speed, uint32_t granularity, int64_t buf_size,
                   MirrorSyncMode mode, BlockdevOnError on_source_error,
                   BlockdevOnError on_target_error,
                   BlockCompletionFunc *cb,
@@ -602,6 +610,7 @@ void mirror_start(BlockDriverState *bs, BlockDriverState *target,
  * @target: Block device to write to.
  * @speed: The maximum speed, in bytes per second, or 0 for unlimited.
  * @sync_mode: What parts of the disk image should be copied to the destination.
+ * @sync_bitmap: The dirty bitmap if sync_mode is MIRROR_SYNC_MODE_DIRTY_BITMAP.
  * @on_source_error: The action to take upon error reading from the source.
  * @on_target_error: The action to take upon error writing to the target.
  * @cb: Completion function for the job.
@@ -612,6 +621,7 @@ void mirror_start(BlockDriverState *bs, BlockDriverState *target,
  */
 void backup_start(BlockDriverState *bs, BlockDriverState *target,
                   int64_t speed, MirrorSyncMode sync_mode,
+                  BdrvDirtyBitmap *sync_bitmap,
                   BlockdevOnError on_source_error,
                   BlockdevOnError on_target_error,
                   BlockCompletionFunc *cb, void *opaque,
@@ -623,5 +633,9 @@ void blk_dev_eject_request(BlockBackend *blk, bool force);
 bool blk_dev_is_tray_open(BlockBackend *blk);
 bool blk_dev_is_medium_locked(BlockBackend *blk);
 void blk_dev_resize_cb(BlockBackend *blk);
+
+void bdrv_set_dirty(BlockDriverState *bs, int64_t cur_sector, int nr_sectors);
+void bdrv_reset_dirty(BlockDriverState *bs, int64_t cur_sector,
+                      int nr_sectors);
 
 #endif /* BLOCK_INT_H */

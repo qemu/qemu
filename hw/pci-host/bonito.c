@@ -427,7 +427,7 @@ static uint32_t bonito_sbridge_pciaddr(void *opaque, hwaddr addr)
     cfgaddr |= (s->regs[BONITO_PCIMAP_CFG] & 0xffff) << 16;
 
     idsel = (cfgaddr & BONITO_PCICONF_IDSEL_MASK) >> BONITO_PCICONF_IDSEL_OFFSET;
-    devno = ffs(idsel) - 1;
+    devno = ctz32(idsel);
     funno = (cfgaddr & BONITO_PCICONF_FUN_MASK) >> BONITO_PCICONF_FUN_OFFSET;
     regno = (cfgaddr & BONITO_PCICONF_REG_MASK) >> BONITO_PCICONF_REG_OFFSET;
 

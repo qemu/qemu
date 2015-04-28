@@ -1164,6 +1164,68 @@ out_aio_context:
     return NULL;
 }
 
+/**
+ * block_dirty_bitmap_lookup:
+ * Return a dirty bitmap (if present), after validating
+ * the node reference and bitmap names.
+ *
+ * @node: The name of the BDS node to search for bitmaps
+ * @name: The name of the bitmap to search for
+ * @pbs: Output pointer for BDS lookup, if desired. Can be NULL.
+ * @paio: Output pointer for aio_context acquisition, if desired. Can be NULL.
+ * @errp: Output pointer for error information. Can be NULL.
+ *
+ * @return: A bitmap object on success, or NULL on failure.
+ */
+static BdrvDirtyBitmap *block_dirty_bitmap_lookup(const char *node,
+                                                  const char *name,
+                                                  BlockDriverState **pbs,
+                                                  AioContext **paio,
+                                                  Error **errp)
+{
+    BlockDriverState *bs;
+    BdrvDirtyBitmap *bitmap;
+    AioContext *aio_context;
+
+    if (!node) {
+        error_setg(errp, "Node cannot be NULL");
+        return NULL;
+    }
+    if (!name) {
+        error_setg(errp, "Bitmap name cannot be NULL");
+        return NULL;
+    }
+    bs = bdrv_lookup_bs(node, node, NULL);
+    if (!bs) {
+        error_setg(errp, "Node '%s' not found", node);
+        return NULL;
+    }
+
+    aio_context = bdrv_get_aio_context(bs);
+    aio_context_acquire(aio_context);
+
+    bitmap = bdrv_find_dirty_bitmap(bs, name);
+    if (!bitmap) {
+        error_setg(errp, "Dirty bitmap '%s' not found", name);
+        goto fail;
+    }
+
+    if (pbs) {
+        *pbs = bs;
+    }
+    if (paio) {
+        *paio = aio_context;
+    } else {
+        aio_context_release(aio_context);
+    }
+
+    return bitmap;
+
+ fail:
+    aio_context_release(aio_context);
+    return NULL;
+}
+
 /* New and old BlockDriverState structs for atomic group operations */
 
 typedef struct BlkTransactionState BlkTransactionState;
@@ -1248,13 +1310,14 @@ static void internal_snapshot_prepare(BlkTransactionState *common,
     }
 
     if (bdrv_is_read_only(bs)) {
-        error_set(errp, QERR_DEVICE_IS_READ_ONLY, device);
+        error_setg(errp, "Device '%s' is read only", device);
         return;
     }
 
     if (!bdrv_can_snapshot(bs)) {
-        error_set(errp, QERR_BLOCK_FORMAT_FEATURE_NOT_SUPPORTED,
-                  bs->drv->format_name, device, "internal snapshot");
+        error_setg(errp, "Block format '%s' used by device '%s' "
+                   "does not support internal snapshots",
+                   bs->drv->format_name, device);
         return;
     }
 
@@ -1522,6 +1585,7 @@ static void drive_backup_prepare(BlkTransactionState *common, Error **errp)
                      backup->sync,
                      backup->has_mode, backup->mode,
                      backup->has_speed, backup->speed,
+                     backup->has_bitmap, backup->bitmap,
                      backup->has_on_source_error, backup->on_source_error,
                      backup->has_on_target_error, backup->on_target_error,
                      &local_err);
@@ -1953,6 +2017,102 @@ void qmp_block_set_io_throttle(const char *device, int64_t bps, int64_t bps_rd,
     aio_context_release(aio_context);
 }
 
+void qmp_block_dirty_bitmap_add(const char *node, const char *name,
+                                bool has_granularity, uint32_t granularity,
+                                Error **errp)
+{
+    AioContext *aio_context;
+    BlockDriverState *bs;
+
+    if (!name || name[0] == '\0') {
+        error_setg(errp, "Bitmap name cannot be empty");
+        return;
+    }
+
+    bs = bdrv_lookup_bs(node, node, errp);
+    if (!bs) {
+        return;
+    }
+
+    aio_context = bdrv_get_aio_context(bs);
+    aio_context_acquire(aio_context);
+
+    if (has_granularity) {
+        if (granularity < 512 || !is_power_of_2(granularity)) {
+            error_setg(errp, "Granularity must be power of 2 "
+                             "and at least 512");
+            goto out;
+        }
+    } else {
+        /* Default to cluster size, if available: */
+        granularity = bdrv_get_default_bitmap_granularity(bs);
+    }
+
+    bdrv_create_dirty_bitmap(bs, granularity, name, errp);
+
+ out:
+    aio_context_release(aio_context);
+}
+
+void qmp_block_dirty_bitmap_remove(const char *node, const char *name,
+                                   Error **errp)
+{
+    AioContext *aio_context;
+    BlockDriverState *bs;
+    BdrvDirtyBitmap *bitmap;
+
+    bitmap = block_dirty_bitmap_lookup(node, name, &bs, &aio_context, errp);
+    if (!bitmap || !bs) {
+        return;
+    }
+
+    if (bdrv_dirty_bitmap_frozen(bitmap)) {
+        error_setg(errp,
+                   "Bitmap '%s' is currently frozen and cannot be removed",
+                   name);
+        goto out;
+    }
+    bdrv_dirty_bitmap_make_anon(bitmap);
+    bdrv_release_dirty_bitmap(bs, bitmap);
+
+ out:
+    aio_context_release(aio_context);
+}
+
+/**
+ * Completely clear a bitmap, for the purposes of synchronizing a bitmap
+ * immediately after a full backup operation.
+ */
+void qmp_block_dirty_bitmap_clear(const char *node, const char *name,
+                                  Error **errp)
+{
+    AioContext *aio_context;
+    BdrvDirtyBitmap *bitmap;
+    BlockDriverState *bs;
+
+    bitmap = block_dirty_bitmap_lookup(node, name, &bs, &aio_context, errp);
+    if (!bitmap || !bs) {
+        return;
+    }
+
+    if (bdrv_dirty_bitmap_frozen(bitmap)) {
+        error_setg(errp,
+                   "Bitmap '%s' is currently frozen and cannot be modified",
+                   name);
+        goto out;
+    } else if (!bdrv_dirty_bitmap_enabled(bitmap)) {
+        error_setg(errp,
+                   "Bitmap '%s' is currently disabled and cannot be cleared",
+                   name);
+        goto out;
+    }
+
+    bdrv_clear_dirty_bitmap(bitmap);
+
+ out:
+    aio_context_release(aio_context);
+}
+
 int hmp_drive_del(Monitor *mon, const QDict *qdict, QObject **ret_data)
 {
     const char *id = qdict_get_str(qdict, "id");
@@ -2055,7 +2215,7 @@ void qmp_block_resize(bool has_device, const char *device,
         error_set(errp, QERR_UNSUPPORTED);
         break;
     case -EACCES:
-        error_set(errp, QERR_DEVICE_IS_READ_ONLY, device);
+        error_setg(errp, "Device '%s' is read only", device);
         break;
     case -EBUSY:
         error_set(errp, QERR_DEVICE_IN_USE, device);
@@ -2270,6 +2430,7 @@ void qmp_drive_backup(const char *device, const char *target,
                       enum MirrorSyncMode sync,
                       bool has_mode, enum NewImageMode mode,
                       bool has_speed, int64_t speed,
+                      bool has_bitmap, const char *bitmap,
                       bool has_on_source_error, BlockdevOnError on_source_error,
                       bool has_on_target_error, BlockdevOnError on_target_error,
                       Error **errp)
@@ -2278,6 +2439,7 @@ void qmp_drive_backup(const char *device, const char *target,
     BlockDriverState *bs;
     BlockDriverState *target_bs;
     BlockDriverState *source = NULL;
+    BdrvDirtyBitmap *bmap = NULL;
     AioContext *aio_context;
     BlockDriver *drv = NULL;
     Error *local_err = NULL;
@@ -2377,7 +2539,16 @@ void qmp_drive_backup(const char *device, const char *target,
 
     bdrv_set_aio_context(target_bs, aio_context);
 
-    backup_start(bs, target_bs, speed, sync, on_source_error, on_target_error,
+    if (has_bitmap) {
+        bmap = bdrv_find_dirty_bitmap(bs, bitmap);
+        if (!bmap) {
+            error_setg(errp, "Bitmap '%s' could not be found", bitmap);
+            goto out;
+        }
+    }
+
+    backup_start(bs, target_bs, speed, sync, bmap,
+                 on_source_error, on_target_error,
                  block_job_cb, bs, &local_err);
     if (local_err != NULL) {
         bdrv_unref(target_bs);
@@ -2391,7 +2562,7 @@ out:
 
 BlockDeviceInfoList *qmp_query_named_block_nodes(Error **errp)
 {
-    return bdrv_named_nodes_list();
+    return bdrv_named_nodes_list(errp);
 }
 
 void qmp_blockdev_backup(const char *device, const char *target,
@@ -2438,8 +2609,8 @@ void qmp_blockdev_backup(const char *device, const char *target,
 
     bdrv_ref(target_bs);
     bdrv_set_aio_context(target_bs, aio_context);
-    backup_start(bs, target_bs, speed, sync, on_source_error, on_target_error,
-                 block_job_cb, bs, &local_err);
+    backup_start(bs, target_bs, speed, sync, NULL, on_source_error,
+                 on_target_error, block_job_cb, bs, &local_err);
     if (local_err != NULL) {
         bdrv_unref(target_bs);
         error_propagate(errp, local_err);
@@ -2699,7 +2870,7 @@ void qmp_block_job_cancel(const char *device,
         force = false;
     }
 
-    if (job->paused && !force) {
+    if (job->user_paused && !force) {
         error_setg(errp, "The block job for device '%s' is currently paused",
                    device);
         goto out;
@@ -2716,10 +2887,11 @@ void qmp_block_job_pause(const char *device, Error **errp)
     AioContext *aio_context;
     BlockJob *job = find_block_job(device, &aio_context, errp);
 
-    if (!job) {
+    if (!job || job->user_paused) {
         return;
     }
 
+    job->user_paused = true;
     trace_qmp_block_job_pause(job);
     block_job_pause(job);
     aio_context_release(aio_context);
@@ -2730,10 +2902,11 @@ void qmp_block_job_resume(const char *device, Error **errp)
     AioContext *aio_context;
     BlockJob *job = find_block_job(device, &aio_context, errp);
 
-    if (!job) {
+    if (!job || !job->user_paused) {
         return;
     }
 
+    job->user_paused = false;
     trace_qmp_block_job_resume(job);
     block_job_resume(job);
     aio_context_release(aio_context);

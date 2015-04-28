@@ -1716,7 +1716,7 @@ static int parse_block_size_shift(BDRVSheepdogState *s, QemuOpts *opt)
         if ((object_size - 1) & object_size) {    /* not a power of 2? */
             return -EINVAL;
         }
-        obj_order = ffs(object_size) - 1;
+        obj_order = ctz32(object_size);
         if (obj_order < 20 || obj_order > 31) {
             return -EINVAL;
         }

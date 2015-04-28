@@ -579,7 +579,10 @@ static uint32_t mipid_txrx(void *opaque, uint32_t cmd, int len)
 
     case 0x26:	/* GAMSET */
         if (!s->pm) {
-            s->gamma = ffs(s->param[0] & 0xf) - 1;
+            s->gamma = ctz32(s->param[0] & 0xf);
+            if (s->gamma == 32) {
+                s->gamma = -1; /* XXX: should this be 0? */
+            }
         } else if (s->pm < 0) {
             s->pm = 1;
         }

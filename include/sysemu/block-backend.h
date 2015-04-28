@@ -87,6 +87,8 @@ int blk_read_unthrottled(BlockBackend *blk, int64_t sector_num, uint8_t *buf,
                          int nb_sectors);
 int blk_write(BlockBackend *blk, int64_t sector_num, const uint8_t *buf,
               int nb_sectors);
+int blk_write_zeroes(BlockBackend *blk, int64_t sector_num,
+                     int nb_sectors, BdrvRequestFlags flags);
 BlockAIOCB *blk_aio_write_zeroes(BlockBackend *blk, int64_t sector_num,
                                  int nb_sectors, BdrvRequestFlags flags,
                                  BlockCompletionFunc *cb, void *opaque);

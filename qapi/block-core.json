@@ -330,14 +330,19 @@
 #
 # Block dirty bitmap information.
 #
+# @name: #optional the name of the dirty bitmap (Since 2.4)
+#
 # @count: number of dirty bytes according to the dirty bitmap
 #
 # @granularity: granularity of the dirty bitmap in bytes (since 1.4)
 #
+# @frozen: whether the dirty bitmap is frozen (Since 2.4)
+#
 # Since: 1.3
 ##
 { 'type': 'BlockDirtyInfo',
-  'data': {'count': 'int', 'granularity': 'int'} }
+  'data': {'*name': 'str', 'count': 'int', 'granularity': 'uint32',
+           'frozen': 'bool'} }
 
 ##
 # @BlockInfo:
@@ -510,10 +515,12 @@
 #
 # @none: only copy data written from now on
 #
+# @dirty-bitmap: only copy data described by the dirty bitmap. Since: 2.4
+#
 # Since: 1.3
 ##
 { 'enum': 'MirrorSyncMode',
-  'data': ['top', 'full', 'none'] }
+  'data': ['top', 'full', 'none', 'dirty-bitmap'] }
 
 ##
 # @BlockJobType:
@@ -688,13 +695,17 @@
 #          probe if @mode is 'existing', else the format of the source
 #
 # @sync: what parts of the disk image should be copied to the destination
-#        (all the disk, only the sectors allocated in the topmost image, or
-#        only new I/O).
+#        (all the disk, only the sectors allocated in the topmost image, from a
+#        dirty bitmap, or only new I/O).
 #
 # @mode: #optional whether and how QEMU should create a new image, default is
 #        'absolute-paths'.
 #
 # @speed: #optional the maximum speed, in bytes per second
+#
+# @bitmap: #optional the name of dirty bitmap if sync is "dirty-bitmap".
+#          Must be present if sync is "dirty-bitmap", must NOT be present
+#          otherwise. (Since 2.4)
 #
 # @on-source-error: #optional the action to take on an error on the source,
 #                   default 'report'.  'stop' and 'enospc' can only be used
@@ -713,7 +724,7 @@
 { 'type': 'DriveBackup',
   'data': { 'device': 'str', 'target': 'str', '*format': 'str',
             'sync': 'MirrorSyncMode', '*mode': 'NewImageMode',
-            '*speed': 'int',
+            '*speed': 'int', '*bitmap': 'str',
             '*on-source-error': 'BlockdevOnError',
             '*on-target-error': 'BlockdevOnError' } }
 
@@ -956,6 +967,76 @@
             '*speed': 'int', '*granularity': 'uint32',
             '*buf-size': 'int', '*on-source-error': 'BlockdevOnError',
             '*on-target-error': 'BlockdevOnError' } }
+
+##
+# @BlockDirtyBitmap
+#
+# @node: name of device/node which the bitmap is tracking
+#
+# @name: name of the dirty bitmap
+#
+# Since 2.4
+##
+{ 'type': 'BlockDirtyBitmap',
+  'data': { 'node': 'str', 'name': 'str' } }
+
+##
+# @BlockDirtyBitmapAdd
+#
+# @node: name of device/node which the bitmap is tracking
+#
+# @name: name of the dirty bitmap
+#
+# @granularity: #optional the bitmap granularity, default is 64k for
+#               block-dirty-bitmap-add
+#
+# Since 2.4
+##
+{ 'type': 'BlockDirtyBitmapAdd',
+  'data': { 'node': 'str', 'name': 'str', '*granularity': 'uint32' } }
+
+##
+# @block-dirty-bitmap-add
+#
+# Create a dirty bitmap with a name on the node
+#
+# Returns: nothing on success
+#          If @node is not a valid block device or node, DeviceNotFound
+#          If @name is already taken, GenericError with an explanation
+#
+# Since 2.4
+##
+{ 'command': 'block-dirty-bitmap-add',
+  'data': 'BlockDirtyBitmapAdd' }
+
+##
+# @block-dirty-bitmap-remove
+#
+# Remove a dirty bitmap on the node
+#
+# Returns: nothing on success
+#          If @node is not a valid block device or node, DeviceNotFound
+#          If @name is not found, GenericError with an explanation
+#          if @name is frozen by an operation, GenericError
+#
+# Since 2.4
+##
+{ 'command': 'block-dirty-bitmap-remove',
+  'data': 'BlockDirtyBitmap' }
+
+##
+# @block-dirty-bitmap-clear
+#
+# Clear (reset) a dirty bitmap on the device
+#
+# Returns: nothing on success
+#          If @node is not a valid block device, DeviceNotFound
+#          If @name is not found, GenericError with an explanation
+#
+# Since 2.4
+##
+{ 'command': 'block-dirty-bitmap-clear',
+  'data': 'BlockDirtyBitmap' }
 
 ##
 # @block_set_io_throttle:
@@ -1310,11 +1391,14 @@
 # Driver specific block device options for the null backend.
 #
 # @size:    #optional size of the device in bytes.
+# @latency-ns: #optional emulated latency (in nanoseconds) in processing
+#              requests. Default to zero which completes requests immediately.
+#              (Since 2.4)
 #
 # Since: 2.2
 ##
 { 'type': 'BlockdevOptionsNull',
-  'data': { '*size': 'int' } }
+  'data': { '*size': 'int', '*latency-ns': 'uint64' } }
 
 ##
 # @BlockdevOptionsVVFAT
@@ -1754,7 +1838,11 @@
 #
 # Emitted when a corruption has been detected in a disk image
 #
-# @device: device name
+# @device: device name. This is always present for compatibility
+#          reasons, but it can be empty ("") if the image does not
+#          have a device name associated.
+#
+# @node-name: #optional node name (Since: 2.4)
 #
 # @msg: informative message for human consumption, such as the kind of
 #       corruption being detected. It should not be parsed by machine as it is
@@ -1773,11 +1861,12 @@
 # Since: 1.7
 ##
 { 'event': 'BLOCK_IMAGE_CORRUPTED',
-  'data': { 'device' : 'str',
-            'msg'    : 'str',
-            '*offset': 'int',
-            '*size'  : 'int',
-            'fatal'  : 'bool' } }
+  'data': { 'device'     : 'str',
+            '*node-name' : 'str',
+            'msg'        : 'str',
+            '*offset'    : 'int',
+            '*size'      : 'int',
+            'fatal'      : 'bool' } }
 
 ##
 # @BLOCK_IO_ERROR

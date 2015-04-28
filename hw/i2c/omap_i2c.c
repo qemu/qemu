@@ -171,9 +171,13 @@ static uint32_t omap_i2c_read(void *opaque, hwaddr addr)
     case 0x0c:	/* I2C_IV */
         if (s->revision >= OMAP2_INTR_REV)
             break;
-        ret = ffs(s->stat & s->mask);
-        if (ret)
-            s->stat ^= 1 << (ret - 1);
+        ret = ctz32(s->stat & s->mask);
+        if (ret != 32) {
+            s->stat ^= 1 << ret;
+            ret++;
+        } else {
+            ret = 0;
+        }
         omap_i2c_interrupts_update(s);
         return ret;
 

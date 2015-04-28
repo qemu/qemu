@@ -2,7 +2,7 @@
  * QEMU Block driver for iSCSI images
  *
  * Copyright (c) 2010-2011 Ronnie Sahlberg <ronniesahlberg@gmail.com>
- * Copyright (c) 2012-2014 Peter Lieven <pl@kamp.de>
+ * Copyright (c) 2012-2015 Peter Lieven <pl@kamp.de>
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -57,9 +57,6 @@ typedef struct IscsiLun {
     int events;
     QEMUTimer *nop_timer;
     QEMUTimer *event_timer;
-    uint8_t lbpme;
-    uint8_t lbprz;
-    uint8_t has_write_same;
     struct scsi_inquiry_logical_block_provisioning lbp;
     struct scsi_inquiry_block_limits bl;
     unsigned char *zeroblock;
@@ -67,6 +64,11 @@ typedef struct IscsiLun {
     int cluster_sectors;
     bool use_16_for_rw;
     bool write_protected;
+    bool lbpme;
+    bool lbprz;
+    bool dpofua;
+    bool has_write_same;
+    bool force_next_flush;
 } IscsiLun;
 
 typedef struct IscsiTask {
@@ -79,6 +81,7 @@ typedef struct IscsiTask {
     QEMUBH *bh;
     IscsiLun *iscsilun;
     QEMUTimer retry_timer;
+    bool force_next_flush;
 } IscsiTask;
 
 typedef struct IscsiAIOCB {
@@ -100,7 +103,7 @@ typedef struct IscsiAIOCB {
 #define NOP_INTERVAL 5000
 #define MAX_NOP_FAILURES 3
 #define ISCSI_CMD_RETRIES ARRAY_SIZE(iscsi_retry_times)
-static const unsigned iscsi_retry_times[] = {8, 32, 128, 512, 2048};
+static const unsigned iscsi_retry_times[] = {8, 32, 128, 512, 2048, 8192, 32768};
 
 /* this threshold is a trade-off knob to choose between
  * the potential additional overhead of an extra GET_LBA_STATUS request
@@ -183,10 +186,13 @@ iscsi_co_generic_cb(struct iscsi_context *iscsi, int status,
                 iTask->do_retry = 1;
                 goto out;
             }
-            if (status == SCSI_STATUS_BUSY) {
+            /* status 0x28 is SCSI_TASK_SET_FULL. It was first introduced
+             * in libiscsi 1.10.0. Hardcode this value here to avoid
+             * the need to bump the libiscsi requirement to 1.10.0 */
+            if (status == SCSI_STATUS_BUSY || status == 0x28) {
                 unsigned retry_time =
                     exp_random(iscsi_retry_times[iTask->retries - 1]);
-                error_report("iSCSI Busy (retry #%u in %u ms): %s",
+                error_report("iSCSI Busy/TaskSetFull (retry #%u in %u ms): %s",
                              iTask->retries, retry_time,
                              iscsi_get_error(iscsi));
                 aio_timer_init(iTask->iscsilun->aio_context,
@@ -199,6 +205,8 @@ iscsi_co_generic_cb(struct iscsi_context *iscsi, int status,
             }
         }
         error_report("iSCSI Failure: %s", iscsi_get_error(iscsi));
+    } else {
+        iTask->iscsilun->force_next_flush |= iTask->force_next_flush;
     }
 
 out:
@@ -369,6 +377,7 @@ static int coroutine_fn iscsi_co_writev(BlockDriverState *bs,
     struct IscsiTask iTask;
     uint64_t lba;
     uint32_t num_sectors;
+    int fua;
 
     if (!is_request_lun_aligned(sector_num, nb_sectors, iscsilun)) {
         return -EINVAL;
@@ -384,15 +393,17 @@ static int coroutine_fn iscsi_co_writev(BlockDriverState *bs,
     num_sectors = sector_qemu2lun(nb_sectors, iscsilun);
     iscsi_co_init_iscsitask(iscsilun, &iTask);
 retry:
+    fua = iscsilun->dpofua && !bs->enable_write_cache;
+    iTask.force_next_flush = !fua;
     if (iscsilun->use_16_for_rw) {
         iTask.task = iscsi_write16_task(iscsilun->iscsi, iscsilun->lun, lba,
                                         NULL, num_sectors * iscsilun->block_size,
-                                        iscsilun->block_size, 0, 0, 0, 0, 0,
+                                        iscsilun->block_size, 0, 0, fua, 0, 0,
                                         iscsi_co_generic_cb, &iTask);
     } else {
         iTask.task = iscsi_write10_task(iscsilun->iscsi, iscsilun->lun, lba,
                                         NULL, num_sectors * iscsilun->block_size,
-                                        iscsilun->block_size, 0, 0, 0, 0, 0,
+                                        iscsilun->block_size, 0, 0, fua, 0, 0,
                                         iscsi_co_generic_cb, &iTask);
     }
     if (iTask.task == NULL) {
@@ -460,7 +471,7 @@ static int64_t coroutine_fn iscsi_co_get_block_status(BlockDriverState *bs,
     *pnum = nb_sectors;
 
     /* LUN does not support logical block provisioning */
-    if (iscsilun->lbpme == 0) {
+    if (!iscsilun->lbpme) {
         goto out;
     }
 
@@ -620,8 +631,12 @@ static int coroutine_fn iscsi_co_flush(BlockDriverState *bs)
         return 0;
     }
 
-    iscsi_co_init_iscsitask(iscsilun, &iTask);
+    if (!iscsilun->force_next_flush) {
+        return 0;
+    }
+    iscsilun->force_next_flush = false;
 
+    iscsi_co_init_iscsitask(iscsilun, &iTask);
 retry:
     if (iscsi_synchronizecache10_task(iscsilun->iscsi, iscsilun->lun, 0, 0, 0,
                                       0, iscsi_co_generic_cb, &iTask) == NULL) {
@@ -917,6 +932,7 @@ coroutine_fn iscsi_co_write_zeroes(BlockDriverState *bs, int64_t sector_num,
     }
 
     iscsi_co_init_iscsitask(iscsilun, &iTask);
+    iTask.force_next_flush = true;
 retry:
     if (use_16_for_ws) {
         iTask.task = iscsi_writesame16_task(iscsilun->iscsi, iscsilun->lun, lba,
@@ -1121,8 +1137,8 @@ static void iscsi_readcapacity_sync(IscsiLun *iscsilun, Error **errp)
                 } else {
                     iscsilun->block_size = rc16->block_length;
                     iscsilun->num_blocks = rc16->returned_lba + 1;
-                    iscsilun->lbpme = rc16->lbpme;
-                    iscsilun->lbprz = rc16->lbprz;
+                    iscsilun->lbpme = !!rc16->lbpme;
+                    iscsilun->lbprz = !!rc16->lbprz;
                     iscsilun->use_16_for_rw = (rc16->returned_lba > 0xffffffff);
                 }
             }
@@ -1253,11 +1269,12 @@ static void iscsi_attach_aio_context(BlockDriverState *bs,
                                           iscsi_timed_set_events, iscsilun);
 }
 
-static bool iscsi_is_write_protected(IscsiLun *iscsilun)
+static void iscsi_modesense_sync(IscsiLun *iscsilun)
 {
     struct scsi_task *task;
     struct scsi_mode_sense *ms = NULL;
-    bool wrprotected = false;
+    iscsilun->write_protected = false;
+    iscsilun->dpofua = false;
 
     task = iscsi_modesense6_sync(iscsilun->iscsi, iscsilun->lun,
                                  1, SCSI_MODESENSE_PC_CURRENT,
@@ -1278,13 +1295,13 @@ static bool iscsi_is_write_protected(IscsiLun *iscsilun)
                      iscsi_get_error(iscsilun->iscsi));
         goto out;
     }
-    wrprotected = ms->device_specific_parameter & 0x80;
+    iscsilun->write_protected = ms->device_specific_parameter & 0x80;
+    iscsilun->dpofua          = ms->device_specific_parameter & 0x10;
 
 out:
     if (task) {
         scsi_free_scsi_task(task);
     }
-    return wrprotected;
 }
 
 /*
@@ -1403,7 +1420,8 @@ static int iscsi_open(BlockDriverState *bs, QDict *options, int flags,
     scsi_free_scsi_task(task);
     task = NULL;
 
-    iscsilun->write_protected = iscsi_is_write_protected(iscsilun);
+    iscsi_modesense_sync(iscsilun);
+
     /* Check the write protect flag of the LUN if we want to write */
     if (iscsilun->type == TYPE_DISK && (flags & BDRV_O_RDWR) &&
         iscsilun->write_protected) {
@@ -1481,7 +1499,7 @@ static int iscsi_open(BlockDriverState *bs, QDict *options, int flags,
         iscsilun->bl.opt_unmap_gran * iscsilun->block_size <= 16 * 1024 * 1024) {
         iscsilun->cluster_sectors = (iscsilun->bl.opt_unmap_gran *
                                      iscsilun->block_size) >> BDRV_SECTOR_BITS;
-        if (iscsilun->lbprz && !(bs->open_flags & BDRV_O_NOCACHE)) {
+        if (iscsilun->lbprz) {
             iscsilun->allocationmap = iscsi_allocationmap_init(iscsilun);
             if (iscsilun->allocationmap == NULL) {
                 ret = -ENOMEM;
@@ -1501,6 +1519,9 @@ out:
 
     if (ret) {
         if (iscsi != NULL) {
+            if (iscsi_is_logged_in(iscsi)) {
+                iscsi_logout_sync(iscsi);
+            }
             iscsi_destroy_context(iscsi);
         }
         memset(iscsilun, 0, sizeof(IscsiLun));
@@ -1514,6 +1535,9 @@ static void iscsi_close(BlockDriverState *bs)
     struct iscsi_context *iscsi = iscsilun->iscsi;
 
     iscsi_detach_aio_context(bs);
+    if (iscsi_is_logged_in(iscsi)) {
+        iscsi_logout_sync(iscsi);
+    }
     iscsi_destroy_context(iscsi);
     g_free(iscsilun->zeroblock);
     g_free(iscsilun->allocationmap);
@@ -1649,7 +1673,7 @@ out:
 static int iscsi_get_info(BlockDriverState *bs, BlockDriverInfo *bdi)
 {
     IscsiLun *iscsilun = bs->opaque;
-    bdi->unallocated_blocks_are_zero = !!iscsilun->lbprz;
+    bdi->unallocated_blocks_are_zero = iscsilun->lbprz;
     bdi->can_write_zeroes_with_unmap = iscsilun->lbprz && iscsilun->lbp.lbpws;
     bdi->cluster_size = iscsilun->cluster_sectors * BDRV_SECTOR_SIZE;
     return 0;

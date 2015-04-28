@@ -230,7 +230,6 @@ aio_ctx_finalize(GSource     *source)
     event_notifier_cleanup(&ctx->notifier);
     rfifolock_destroy(&ctx->lock);
     qemu_mutex_destroy(&ctx->bh_lock);
-    g_array_free(ctx->pollfds, TRUE);
     timerlistgroup_deinit(&ctx->tlg);
 }
 
@@ -281,12 +280,6 @@ static void aio_timerlist_notify(void *opaque)
     aio_notify(opaque);
 }
 
-static void aio_rfifolock_cb(void *opaque)
-{
-    /* Kick owner thread in case they are blocked in aio_poll() */
-    aio_notify(opaque);
-}
-
 AioContext *aio_context_new(Error **errp)
 {
     int ret;
@@ -302,10 +295,9 @@ AioContext *aio_context_new(Error **errp)
     aio_set_event_notifier(ctx, &ctx->notifier,
                            (EventNotifierHandler *)
                            event_notifier_test_and_clear);
-    ctx->pollfds = g_array_new(FALSE, FALSE, sizeof(GPollFD));
     ctx->thread_pool = NULL;
     qemu_mutex_init(&ctx->bh_lock);
-    rfifolock_init(&ctx->lock, aio_rfifolock_cb, ctx);
+    rfifolock_init(&ctx->lock, NULL, NULL);
     timerlistgroup_init(&ctx->tlg, aio_timerlist_notify, ctx);
 
     return ctx;

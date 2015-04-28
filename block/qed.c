@@ -408,7 +408,7 @@ static int bdrv_qed_open(BlockDriverState *bs, QDict *options, int flags,
         snprintf(buf, sizeof(buf), "%" PRIx64,
             s->header.features & ~QED_FEATURE_MASK);
         error_set(errp, QERR_UNKNOWN_BLOCK_FORMAT_FEATURE,
-            bdrv_get_device_name(bs), "QED", buf);
+            bdrv_get_device_or_node_name(bs), "QED", buf);
         return -ENOTSUP;
     }
     if (!qed_is_cluster_size_valid(s->header.cluster_size)) {
@@ -436,9 +436,9 @@ static int bdrv_qed_open(BlockDriverState *bs, QDict *options, int flags,
 
     s->table_nelems = (s->header.cluster_size * s->header.table_size) /
                       sizeof(uint64_t);
-    s->l2_shift = ffs(s->header.cluster_size) - 1;
+    s->l2_shift = ctz32(s->header.cluster_size);
     s->l2_mask = s->table_nelems - 1;
-    s->l1_shift = s->l2_shift + ffs(s->table_nelems) - 1;
+    s->l1_shift = s->l2_shift + ctz32(s->table_nelems);
 
     /* Header size calculation must not overflow uint32_t */
     if (s->header.header_size > UINT32_MAX / s->header.cluster_size) {
