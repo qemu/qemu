@@ -242,6 +242,90 @@ static coroutine_fn int parallels_co_readv(BlockDriverState *bs,
     return ret;
 }
 
+
+static int parallels_check(BlockDriverState *bs, BdrvCheckResult *res,
+                           BdrvCheckMode fix)
+{
+    BDRVParallelsState *s = bs->opaque;
+    int64_t size, prev_off, high_off;
+    int ret;
+    uint32_t i;
+    bool flush_bat = false;
+    int cluster_size = s->tracks << BDRV_SECTOR_BITS;
+
+    size = bdrv_getlength(bs->file);
+    if (size < 0) {
+        res->check_errors++;
+        return size;
+    }
+
+    res->bfi.total_clusters = s->bat_size;
+    res->bfi.compressed_clusters = 0; /* compression is not supported */
+
+    high_off = 0;
+    prev_off = 0;
+    for (i = 0; i < s->bat_size; i++) {
+        int64_t off = bat2sect(s, i) << BDRV_SECTOR_BITS;
+        if (off == 0) {
+            prev_off = 0;
+            continue;
+        }
+
+        /* cluster outside the image */
+        if (off > size) {
+            fprintf(stderr, "%s cluster %u is outside image\n",
+                    fix & BDRV_FIX_ERRORS ? "Repairing" : "ERROR", i);
+            res->corruptions++;
+            if (fix & BDRV_FIX_ERRORS) {
+                prev_off = 0;
+                s->bat_bitmap[i] = 0;
+                res->corruptions_fixed++;
+                flush_bat = true;
+                continue;
+            }
+        }
+
+        res->bfi.allocated_clusters++;
+        if (off > high_off) {
+            high_off = off;
+        }
+
+        if (prev_off != 0 && (prev_off + cluster_size) != off) {
+            res->bfi.fragmented_clusters++;
+        }
+        prev_off = off;
+    }
+
+    if (flush_bat) {
+        ret = bdrv_pwrite_sync(bs->file, 0, s->header, s->header_size);
+        if (ret < 0) {
+            res->check_errors++;
+            return ret;
+        }
+    }
+
+    res->image_end_offset = high_off + cluster_size;
+    if (size > res->image_end_offset) {
+        int64_t count;
+        count = DIV_ROUND_UP(size - res->image_end_offset, cluster_size);
+        fprintf(stderr, "%s space leaked at the end of the image %" PRId64 "\n",
+                fix & BDRV_FIX_LEAKS ? "Repairing" : "ERROR",
+                size - res->image_end_offset);
+        res->leaks += count;
+        if (fix & BDRV_FIX_LEAKS) {
+            ret = bdrv_truncate(bs->file, res->image_end_offset);
+            if (ret < 0) {
+                res->check_errors++;
+                return ret;
+            }
+            res->leaks_fixed += count;
+        }
+    }
+
+    return 0;
+}
+
+
 static int parallels_create(const char *filename, QemuOpts *opts, Error **errp)
 {
     int64_t total_size, cl_size;
@@ -449,6 +533,7 @@ static BlockDriver bdrv_parallels = {
     .bdrv_co_writev = parallels_co_writev,
 
     .bdrv_create    = parallels_create,
+    .bdrv_check     = parallels_check,
     .create_opts    = &parallels_create_opts,
 };
 
