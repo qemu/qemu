@@ -1793,6 +1793,14 @@ static void xhci_xfer_report(XHCITransfer *xfer)
                 return;
             }
         }
+
+        switch (TRB_TYPE(*trb)) {
+        case TR_SETUP:
+            reported = 0;
+            shortpkt = 0;
+            break;
+        }
+
     }
 }
 
