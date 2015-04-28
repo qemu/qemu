@@ -90,7 +90,6 @@ static int parallels_open(BlockDriverState *bs, QDict *options, int flags,
                           Error **errp)
 {
     BDRVParallelsState *s = bs->opaque;
-    int i;
     ParallelsHeader ph;
     int ret;
 
@@ -143,10 +142,6 @@ static int parallels_open(BlockDriverState *bs, QDict *options, int flags,
         goto fail;
     }
 
-    for (i = 0; i < s->bat_size; i++) {
-        le32_to_cpus(&s->bat_bitmap[i]);
-    }
-
     s->has_truncate = bdrv_has_zero_init(bs->file) &&
                       bdrv_truncate(bs->file, bdrv_getlength(bs->file)) == 0;
 
@@ -164,7 +159,7 @@ fail:
 
 static int64_t bat2sect(BDRVParallelsState *s, uint32_t idx)
 {
-    return (uint64_t)s->bat_bitmap[idx] * s->off_multiplier;
+    return (uint64_t)le32_to_cpu(s->bat_bitmap[idx]) * s->off_multiplier;
 }
 
 static int64_t seek_to_sector(BDRVParallelsState *s, int64_t sector_num)
@@ -191,7 +186,7 @@ static int cluster_remainder(BDRVParallelsState *s, int64_t sector_num,
 static int64_t allocate_cluster(BlockDriverState *bs, int64_t sector_num)
 {
     BDRVParallelsState *s = bs->opaque;
-    uint32_t idx, offset, tmp;
+    uint32_t idx, offset;
     int64_t pos;
     int ret;
 
@@ -215,12 +210,10 @@ static int64_t allocate_cluster(BlockDriverState *bs, int64_t sector_num)
         return ret;
     }
 
-    s->bat_bitmap[idx] = pos / s->off_multiplier;
-
-    tmp = cpu_to_le32(s->bat_bitmap[idx]);
-
+    s->bat_bitmap[idx] = cpu_to_le32(pos / s->off_multiplier);
     ret = bdrv_pwrite(bs->file,
-            sizeof(ParallelsHeader) + idx * sizeof(tmp), &tmp, sizeof(tmp));
+            sizeof(ParallelsHeader) + idx * sizeof(s->bat_bitmap[idx]),
+            s->bat_bitmap + idx, sizeof(s->bat_bitmap[idx]));
     if (ret < 0) {
         s->bat_bitmap[idx] = 0;
         return ret;
