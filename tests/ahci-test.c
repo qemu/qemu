@@ -39,8 +39,8 @@
 #include "hw/pci/pci_ids.h"
 #include "hw/pci/pci_regs.h"
 
-/* Test-specific defines. */
-#define TEST_IMAGE_SIZE    (64 * 1024 * 1024)
+/* Test-specific defines -- in MiB */
+#define TEST_IMAGE_SIZE_MB (200 * 1024)
 
 /*** Globals ***/
 static char tmp_path[] = "/tmp/qtest.XXXXXX";
@@ -107,7 +107,7 @@ static AHCIQState *ahci_boot(void)
     s = g_malloc0(sizeof(AHCIQState));
 
     cli = "-drive if=none,id=drive0,file=%s,cache=writeback,serial=%s"
-        ",format=raw"
+        ",format=qcow2"
         " -M q35 "
         "-device ide-hd,drive=drive0 "
         "-global ide-hd.ver=%s";
@@ -1071,7 +1071,6 @@ static void create_ahci_io_test(enum IOMode type, enum AddrMode addr,
 int main(int argc, char **argv)
 {
     const char *arch;
-    int fd;
     int ret;
     int c;
     int i, j, k;
@@ -1108,12 +1107,9 @@ int main(int argc, char **argv)
         return 0;
     }
 
-    /* Create a temporary raw image */
-    fd = mkstemp(tmp_path);
-    g_assert(fd >= 0);
-    ret = ftruncate(fd, TEST_IMAGE_SIZE);
-    g_assert(ret == 0);
-    close(fd);
+    /* Create a temporary qcow2 image */
+    close(mkstemp(tmp_path));
+    mkqcow2(tmp_path, TEST_IMAGE_SIZE_MB);
 
     /* Run the tests */
     qtest_add_func("/ahci/sanity",     test_sanity);

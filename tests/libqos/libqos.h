@@ -19,6 +19,8 @@ typedef struct QOSState {
 QOSState *qtest_vboot(QOSOps *ops, const char *cmdline_fmt, va_list ap);
 QOSState *qtest_boot(QOSOps *ops, const char *cmdline_fmt, ...);
 void qtest_shutdown(QOSState *qs);
+void mkimg(const char *file, const char *fmt, unsigned size_mb);
+void mkqcow2(const char *file, unsigned size_mb);
 
 static inline uint64_t qmalloc(QOSState *q, size_t bytes)
 {
