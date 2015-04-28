@@ -60,6 +60,8 @@ typedef struct BDRVParallelsState {
     unsigned int tracks;
 
     unsigned int off_multiplier;
+
+    bool has_truncate;
 } BDRVParallelsState;
 
 static int parallels_probe(const uint8_t *buf, int buf_size, const char *filename)
@@ -84,8 +86,6 @@ static int parallels_open(BlockDriverState *bs, QDict *options, int flags,
     int i;
     ParallelsHeader ph;
     int ret;
-
-    bs->read_only = 1; // no write support yet
 
     ret = bdrv_pread(bs->file, 0, &ph, sizeof(ph));
     if (ret < 0) {
@@ -139,6 +139,9 @@ static int parallels_open(BlockDriverState *bs, QDict *options, int flags,
     for (i = 0; i < s->catalog_size; i++)
         le32_to_cpus(&s->catalog_bitmap[i]);
 
+    s->has_truncate = bdrv_has_zero_init(bs->file) &&
+                      bdrv_truncate(bs->file, bdrv_getlength(bs->file)) == 0;
+
     qemu_co_mutex_init(&s->lock);
     return 0;
 
@@ -170,6 +173,46 @@ static int cluster_remainder(BDRVParallelsState *s, int64_t sector_num,
     return MIN(nb_sectors, ret);
 }
 
+static int64_t allocate_cluster(BlockDriverState *bs, int64_t sector_num)
+{
+    BDRVParallelsState *s = bs->opaque;
+    uint32_t idx, offset, tmp;
+    int64_t pos;
+    int ret;
+
+    idx = sector_num / s->tracks;
+    offset = sector_num % s->tracks;
+
+    if (idx >= s->catalog_size) {
+        return -EINVAL;
+    }
+    if (s->catalog_bitmap[idx] != 0) {
+        return (uint64_t)s->catalog_bitmap[idx] * s->off_multiplier + offset;
+    }
+
+    pos = bdrv_getlength(bs->file) >> BDRV_SECTOR_BITS;
+    if (s->has_truncate) {
+        ret = bdrv_truncate(bs->file, (pos + s->tracks) << BDRV_SECTOR_BITS);
+    } else {
+        ret = bdrv_write_zeroes(bs->file, pos, s->tracks, 0);
+    }
+    if (ret < 0) {
+        return ret;
+    }
+
+    s->catalog_bitmap[idx] = pos / s->off_multiplier;
+
+    tmp = cpu_to_le32(s->catalog_bitmap[idx]);
+
+    ret = bdrv_pwrite(bs->file,
+            sizeof(ParallelsHeader) + idx * sizeof(tmp), &tmp, sizeof(tmp));
+    if (ret < 0) {
+        s->catalog_bitmap[idx] = 0;
+        return ret;
+    }
+    return (uint64_t)s->catalog_bitmap[idx] * s->off_multiplier + offset;
+}
+
 static int64_t coroutine_fn parallels_co_get_block_status(BlockDriverState *bs,
         int64_t sector_num, int nb_sectors, int *pnum)
 {
@@ -188,6 +231,48 @@ static int64_t coroutine_fn parallels_co_get_block_status(BlockDriverState *bs,
 
     return (offset << BDRV_SECTOR_BITS) |
         BDRV_BLOCK_DATA | BDRV_BLOCK_OFFSET_VALID;
+}
+
+static coroutine_fn int parallels_co_writev(BlockDriverState *bs,
+        int64_t sector_num, int nb_sectors, QEMUIOVector *qiov)
+{
+    BDRVParallelsState *s = bs->opaque;
+    uint64_t bytes_done = 0;
+    QEMUIOVector hd_qiov;
+    int ret = 0;
+
+    qemu_iovec_init(&hd_qiov, qiov->niov);
+
+    while (nb_sectors > 0) {
+        int64_t position;
+        int n, nbytes;
+
+        qemu_co_mutex_lock(&s->lock);
+        position = allocate_cluster(bs, sector_num);
+        qemu_co_mutex_unlock(&s->lock);
+        if (position < 0) {
+            ret = (int)position;
+            break;
+        }
+
+        n = cluster_remainder(s, sector_num, nb_sectors);
+        nbytes = n << BDRV_SECTOR_BITS;
+
+        qemu_iovec_reset(&hd_qiov);
+        qemu_iovec_concat(&hd_qiov, qiov, bytes_done, nbytes);
+
+        ret = bdrv_co_writev(bs->file, position, n, &hd_qiov);
+        if (ret < 0) {
+            break;
+        }
+
+        nb_sectors -= n;
+        sector_num += n;
+        bytes_done += nbytes;
+    }
+
+    qemu_iovec_destroy(&hd_qiov);
+    return ret;
 }
 
 static coroutine_fn int parallels_co_readv(BlockDriverState *bs,
@@ -247,6 +332,7 @@ static BlockDriver bdrv_parallels = {
     .bdrv_co_get_block_status = parallels_co_get_block_status,
     .bdrv_has_zero_init       = bdrv_has_zero_init_1,
     .bdrv_co_readv  = parallels_co_readv,
+    .bdrv_co_writev = parallels_co_writev,
 };
 
 static void bdrv_parallels_init(void)
