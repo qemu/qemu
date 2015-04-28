@@ -31,6 +31,7 @@
 #include "block/block_int.h"
 #include "qemu/module.h"
 #include "qemu/bitmap.h"
+#include "qapi/util.h"
 
 /**************************************************************/
 
@@ -56,6 +57,20 @@ typedef struct ParallelsHeader {
     char padding[12];
 } QEMU_PACKED ParallelsHeader;
 
+
+typedef enum ParallelsPreallocMode {
+    PRL_PREALLOC_MODE_FALLOCATE = 0,
+    PRL_PREALLOC_MODE_TRUNCATE = 1,
+    PRL_PREALLOC_MODE_MAX = 2,
+} ParallelsPreallocMode;
+
+static const char *prealloc_mode_lookup[] = {
+    "falloc",
+    "truncate",
+    NULL,
+};
+
+
 typedef struct BDRVParallelsState {
     /** Locking is conservative, the lock protects
      *   - image file extending (truncate, fallocate)
@@ -73,12 +88,38 @@ typedef struct BDRVParallelsState {
     uint32_t *bat_bitmap;
     unsigned int bat_size;
 
+    uint64_t prealloc_size;
+    ParallelsPreallocMode prealloc_mode;
+
     unsigned int tracks;
 
     unsigned int off_multiplier;
-
-    bool has_truncate;
 } BDRVParallelsState;
+
+
+#define PARALLELS_OPT_PREALLOC_MODE     "prealloc-mode"
+#define PARALLELS_OPT_PREALLOC_SIZE     "prealloc-size"
+
+static QemuOptsList parallels_runtime_opts = {
+    .name = "parallels",
+    .head = QTAILQ_HEAD_INITIALIZER(parallels_runtime_opts.head),
+    .desc = {
+        {
+            .name = PARALLELS_OPT_PREALLOC_SIZE,
+            .type = QEMU_OPT_SIZE,
+            .help = "Preallocation size on image expansion",
+            .def_value_str = "128MiB",
+        },
+        {
+            .name = PARALLELS_OPT_PREALLOC_MODE,
+            .type = QEMU_OPT_STRING,
+            .help = "Preallocation mode on image expansion "
+                    "(allowed values: falloc, truncate)",
+            .def_value_str = "falloc",
+        },
+        { /* end of list */ },
+    },
+};
 
 
 static int64_t bat2sect(BDRVParallelsState *s, uint32_t idx)
@@ -159,7 +200,7 @@ static int64_t allocate_cluster(BlockDriverState *bs, int64_t sector_num)
     }
 
     pos = bdrv_getlength(bs->file) >> BDRV_SECTOR_BITS;
-    if (s->has_truncate) {
+    if (s->prealloc_mode == PRL_PREALLOC_MODE_TRUNCATE) {
         ret = bdrv_truncate(bs->file, (pos + s->tracks) << BDRV_SECTOR_BITS);
     } else {
         ret = bdrv_write_zeroes(bs->file, pos, s->tracks, 0);
@@ -509,6 +550,9 @@ static int parallels_open(BlockDriverState *bs, QDict *options, int flags,
     BDRVParallelsState *s = bs->opaque;
     ParallelsHeader ph;
     int ret, size;
+    QemuOpts *opts = NULL;
+    Error *local_err = NULL;
+    char *buf;
 
     ret = bdrv_pread(bs->file, 0, &ph, sizeof(ph));
     if (ret < 0) {
@@ -567,9 +611,6 @@ static int parallels_open(BlockDriverState *bs, QDict *options, int flags,
     }
     s->bat_bitmap = (uint32_t *)(s->header + 1);
 
-    s->has_truncate = bdrv_has_zero_init(bs->file) &&
-                      bdrv_truncate(bs->file, bdrv_getlength(bs->file)) == 0;
-
     if (le32_to_cpu(ph.inuse) == HEADER_INUSE_MAGIC) {
         /* Image was not closed correctly. The check is mandatory */
         s->header_unclean = true;
@@ -579,6 +620,31 @@ static int parallels_open(BlockDriverState *bs, QDict *options, int flags,
             ret = -EACCES;
             goto fail;
         }
+    }
+
+    opts = qemu_opts_create(&parallels_runtime_opts, NULL, 0, &local_err);
+    if (local_err != NULL) {
+        goto fail_options;
+    }
+
+    qemu_opts_absorb_qdict(opts, options, &local_err);
+    if (local_err != NULL) {
+        goto fail_options;
+    }
+
+    s->prealloc_size =
+        qemu_opt_get_size_del(opts, PARALLELS_OPT_PREALLOC_SIZE, 0);
+    s->prealloc_size = MAX(s->tracks, s->prealloc_size >> BDRV_SECTOR_BITS);
+    buf = qemu_opt_get_del(opts, PARALLELS_OPT_PREALLOC_MODE);
+    s->prealloc_mode = qapi_enum_parse(prealloc_mode_lookup, buf,
+            PRL_PREALLOC_MODE_MAX, PRL_PREALLOC_MODE_FALLOCATE, &local_err);
+    g_free(buf);
+    if (local_err != NULL) {
+        goto fail_options;
+    }
+    if (!bdrv_has_zero_init(bs->file) ||
+            bdrv_truncate(bs->file, bdrv_getlength(bs->file)) != 0) {
+        s->prealloc_mode = PRL_PREALLOC_MODE_FALLOCATE;
     }
 
     if (flags & BDRV_O_RDWR) {
@@ -602,6 +668,11 @@ fail_format:
 fail:
     qemu_vfree(s->header);
     return ret;
+
+fail_options:
+    error_propagate(errp, local_err);
+    ret = -EINVAL;
+    goto fail;
 }
 
 
