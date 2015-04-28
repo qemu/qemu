@@ -47,7 +47,7 @@ typedef struct ParallelsHeader {
     uint32_t heads;
     uint32_t cylinders;
     uint32_t tracks;
-    uint32_t catalog_entries;
+    uint32_t bat_entries;
     uint64_t nb_sectors;
     uint32_t inuse;
     uint32_t data_off;
@@ -61,8 +61,8 @@ typedef struct BDRVParallelsState {
      */
     CoMutex lock;
 
-    uint32_t *catalog_bitmap;
-    unsigned int catalog_size;
+    uint32_t *bat_bitmap;
+    unsigned int bat_size;
 
     unsigned int tracks;
 
@@ -125,26 +125,27 @@ static int parallels_open(BlockDriverState *bs, QDict *options, int flags,
         goto fail;
     }
 
-    s->catalog_size = le32_to_cpu(ph.catalog_entries);
-    if (s->catalog_size > INT_MAX / sizeof(uint32_t)) {
+    s->bat_size = le32_to_cpu(ph.bat_entries);
+    if (s->bat_size > INT_MAX / sizeof(uint32_t)) {
         error_setg(errp, "Catalog too large");
         ret = -EFBIG;
         goto fail;
     }
-    s->catalog_bitmap = g_try_new(uint32_t, s->catalog_size);
-    if (s->catalog_size && s->catalog_bitmap == NULL) {
+    s->bat_bitmap = g_try_new(uint32_t, s->bat_size);
+    if (s->bat_size && s->bat_bitmap == NULL) {
         ret = -ENOMEM;
         goto fail;
     }
 
     ret = bdrv_pread(bs->file, sizeof(ParallelsHeader),
-                     s->catalog_bitmap, s->catalog_size * sizeof(uint32_t));
+                     s->bat_bitmap, s->bat_size * sizeof(uint32_t));
     if (ret < 0) {
         goto fail;
     }
 
-    for (i = 0; i < s->catalog_size; i++)
-        le32_to_cpus(&s->catalog_bitmap[i]);
+    for (i = 0; i < s->bat_size; i++) {
+        le32_to_cpus(&s->bat_bitmap[i]);
+    }
 
     s->has_truncate = bdrv_has_zero_init(bs->file) &&
                       bdrv_truncate(bs->file, bdrv_getlength(bs->file)) == 0;
@@ -156,7 +157,7 @@ fail_format:
     error_setg(errp, "Image not in Parallels format");
     ret = -EINVAL;
 fail:
-    g_free(s->catalog_bitmap);
+    g_free(s->bat_bitmap);
     return ret;
 }
 
@@ -168,9 +169,10 @@ static int64_t seek_to_sector(BDRVParallelsState *s, int64_t sector_num)
     offset = sector_num % s->tracks;
 
     /* not allocated */
-    if ((index >= s->catalog_size) || (s->catalog_bitmap[index] == 0))
+    if ((index >= s->bat_size) || (s->bat_bitmap[index] == 0)) {
         return -1;
-    return (uint64_t)s->catalog_bitmap[index] * s->off_multiplier + offset;
+    }
+    return (uint64_t)s->bat_bitmap[index] * s->off_multiplier + offset;
 }
 
 static int cluster_remainder(BDRVParallelsState *s, int64_t sector_num,
@@ -190,11 +192,11 @@ static int64_t allocate_cluster(BlockDriverState *bs, int64_t sector_num)
     idx = sector_num / s->tracks;
     offset = sector_num % s->tracks;
 
-    if (idx >= s->catalog_size) {
+    if (idx >= s->bat_size) {
         return -EINVAL;
     }
-    if (s->catalog_bitmap[idx] != 0) {
-        return (uint64_t)s->catalog_bitmap[idx] * s->off_multiplier + offset;
+    if (s->bat_bitmap[idx] != 0) {
+        return (uint64_t)s->bat_bitmap[idx] * s->off_multiplier + offset;
     }
 
     pos = bdrv_getlength(bs->file) >> BDRV_SECTOR_BITS;
@@ -207,17 +209,17 @@ static int64_t allocate_cluster(BlockDriverState *bs, int64_t sector_num)
         return ret;
     }
 
-    s->catalog_bitmap[idx] = pos / s->off_multiplier;
+    s->bat_bitmap[idx] = pos / s->off_multiplier;
 
-    tmp = cpu_to_le32(s->catalog_bitmap[idx]);
+    tmp = cpu_to_le32(s->bat_bitmap[idx]);
 
     ret = bdrv_pwrite(bs->file,
             sizeof(ParallelsHeader) + idx * sizeof(tmp), &tmp, sizeof(tmp));
     if (ret < 0) {
-        s->catalog_bitmap[idx] = 0;
+        s->bat_bitmap[idx] = 0;
         return ret;
     }
-    return (uint64_t)s->catalog_bitmap[idx] * s->off_multiplier + offset;
+    return (uint64_t)s->bat_bitmap[idx] * s->off_multiplier + offset;
 }
 
 static int64_t coroutine_fn parallels_co_get_block_status(BlockDriverState *bs,
@@ -330,7 +332,7 @@ static int parallels_create(const char *filename, QemuOpts *opts, Error **errp)
     uint8_t tmp[BDRV_SECTOR_SIZE];
     Error *local_err = NULL;
     BlockDriverState *file;
-    uint32_t cat_entries, cat_sectors;
+    uint32_t bat_entries, bat_sectors;
     ParallelsHeader header;
     int ret;
 
@@ -357,10 +359,10 @@ static int parallels_create(const char *filename, QemuOpts *opts, Error **errp)
         goto exit;
     }
 
-    cat_entries = DIV_ROUND_UP(total_size, cl_size);
-    cat_sectors = DIV_ROUND_UP(cat_entries * sizeof(uint32_t) +
+    bat_entries = DIV_ROUND_UP(total_size, cl_size);
+    bat_sectors = DIV_ROUND_UP(bat_entries * sizeof(uint32_t) +
                                sizeof(ParallelsHeader), cl_size);
-    cat_sectors = (cat_sectors *  cl_size) >> BDRV_SECTOR_BITS;
+    bat_sectors = (bat_sectors *  cl_size) >> BDRV_SECTOR_BITS;
 
     memset(&header, 0, sizeof(header));
     memcpy(header.magic, HEADER_MAGIC2, sizeof(header.magic));
@@ -369,9 +371,9 @@ static int parallels_create(const char *filename, QemuOpts *opts, Error **errp)
     header.heads = cpu_to_le32(16);
     header.cylinders = cpu_to_le32(total_size / BDRV_SECTOR_SIZE / 16 / 32);
     header.tracks = cpu_to_le32(cl_size >> BDRV_SECTOR_BITS);
-    header.catalog_entries = cpu_to_le32(cat_entries);
+    header.bat_entries = cpu_to_le32(bat_entries);
     header.nb_sectors = cpu_to_le64(DIV_ROUND_UP(total_size, BDRV_SECTOR_SIZE));
-    header.data_off = cpu_to_le32(cat_sectors);
+    header.data_off = cpu_to_le32(bat_sectors);
 
     /* write all the data */
     memset(tmp, 0, sizeof(tmp));
@@ -381,7 +383,7 @@ static int parallels_create(const char *filename, QemuOpts *opts, Error **errp)
     if (ret < 0) {
         goto exit;
     }
-    ret = bdrv_write_zeroes(file, 1, cat_sectors - 1, 0);
+    ret = bdrv_write_zeroes(file, 1, bat_sectors - 1, 0);
     if (ret < 0) {
         goto exit;
     }
@@ -399,7 +401,7 @@ exit:
 static void parallels_close(BlockDriverState *bs)
 {
     BDRVParallelsState *s = bs->opaque;
-    g_free(s->catalog_bitmap);
+    g_free(s->bat_bitmap);
 }
 
 static QemuOptsList parallels_create_opts = {
