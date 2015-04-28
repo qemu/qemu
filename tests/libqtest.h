@@ -64,6 +64,15 @@ void qtest_qmp_discard_response(QTestState *s, const char *fmt, ...);
 QDict *qtest_qmp(QTestState *s, const char *fmt, ...);
 
 /**
+ * qtest_async_qmp:
+ * @s: #QTestState instance to operate on.
+ * @fmt...: QMP message to send to qemu
+ *
+ * Sends a QMP message to QEMU and leaves the response in the stream.
+ */
+void qtest_async_qmp(QTestState *s, const char *fmt, ...);
+
+/**
  * qtest_qmpv_discard_response:
  * @s: #QTestState instance to operate on.
  * @fmt: QMP message to send to QEMU
@@ -82,6 +91,16 @@ void qtest_qmpv_discard_response(QTestState *s, const char *fmt, va_list ap);
  * Sends a QMP message to QEMU and returns the response.
  */
 QDict *qtest_qmpv(QTestState *s, const char *fmt, va_list ap);
+
+/**
+ * qtest_async_qmpv:
+ * @s: #QTestState instance to operate on.
+ * @fmt: QMP message to send to QEMU
+ * @ap: QMP message arguments
+ *
+ * Sends a QMP message to QEMU and leaves the response in the stream.
+ */
+void qtest_async_qmpv(QTestState *s, const char *fmt, va_list ap);
 
 /**
  * qtest_receive:
@@ -418,6 +437,14 @@ static inline void qtest_end(void)
  * Sends a QMP message to QEMU and returns the response.
  */
 QDict *qmp(const char *fmt, ...);
+
+/**
+ * qmp_async:
+ * @fmt...: QMP message to send to qemu
+ *
+ * Sends a QMP message to QEMU and leaves the response in the stream.
+ */
+void qmp_async(const char *fmt, ...);
 
 /**
  * qmp_discard_response:
