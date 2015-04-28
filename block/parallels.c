@@ -88,6 +88,7 @@ typedef struct BDRVParallelsState {
     uint32_t *bat_bitmap;
     unsigned int bat_size;
 
+    int64_t  data_end;
     uint64_t prealloc_size;
     ParallelsPreallocMode prealloc_mode;
 
@@ -187,7 +188,6 @@ static int64_t allocate_cluster(BlockDriverState *bs, int64_t sector_num)
     BDRVParallelsState *s = bs->opaque;
     uint32_t idx, offset;
     int64_t pos;
-    int ret;
 
     idx = sector_num / s->tracks;
     offset = sector_num % s->tracks;
@@ -200,14 +200,21 @@ static int64_t allocate_cluster(BlockDriverState *bs, int64_t sector_num)
     }
 
     pos = bdrv_getlength(bs->file) >> BDRV_SECTOR_BITS;
-    if (s->prealloc_mode == PRL_PREALLOC_MODE_TRUNCATE) {
-        ret = bdrv_truncate(bs->file, (pos + s->tracks) << BDRV_SECTOR_BITS);
-    } else {
-        ret = bdrv_write_zeroes(bs->file, pos, s->tracks, 0);
+    if (s->data_end + s->tracks > pos) {
+        int ret;
+        if (s->prealloc_mode == PRL_PREALLOC_MODE_FALLOCATE) {
+            ret = bdrv_write_zeroes(bs->file, s->data_end,
+                                    s->prealloc_size, 0);
+        } else {
+            ret = bdrv_truncate(bs->file,
+                    (s->data_end + s->prealloc_size) << BDRV_SECTOR_BITS);
+        }
+        if (ret < 0) {
+            return ret;
+        }
     }
-    if (ret < 0) {
-        return ret;
-    }
+    pos = s->data_end;
+    s->data_end += s->tracks;
 
     s->bat_bitmap[idx] = cpu_to_le32(pos / s->off_multiplier);
 
@@ -549,7 +556,7 @@ static int parallels_open(BlockDriverState *bs, QDict *options, int flags,
 {
     BDRVParallelsState *s = bs->opaque;
     ParallelsHeader ph;
-    int ret, size;
+    int ret, size, i;
     QemuOpts *opts = NULL;
     Error *local_err = NULL;
     char *buf;
@@ -599,7 +606,11 @@ static int parallels_open(BlockDriverState *bs, QDict *options, int flags,
         ret = -ENOMEM;
         goto fail;
     }
-    if (le32_to_cpu(ph.data_off) < s->header_size) {
+    s->data_end = le32_to_cpu(ph.data_off);
+    if (s->data_end == 0) {
+        s->data_end = ROUND_UP(bat_entry_off(s->bat_size), BDRV_SECTOR_SIZE);
+    }
+    if (s->data_end < s->header_size) {
         /* there is not enough unused space to fit to block align between BAT
            and actual data. We can't avoid read-modify-write... */
         s->header_size = size;
@@ -610,6 +621,13 @@ static int parallels_open(BlockDriverState *bs, QDict *options, int flags,
         goto fail;
     }
     s->bat_bitmap = (uint32_t *)(s->header + 1);
+
+    for (i = 0; i < s->bat_size; i++) {
+        int64_t off = bat2sect(s, i);
+        if (off >= s->data_end) {
+            s->data_end = off + s->tracks;
+        }
+    }
 
     if (le32_to_cpu(ph.inuse) == HEADER_INUSE_MAGIC) {
         /* Image was not closed correctly. The check is mandatory */
@@ -683,6 +701,10 @@ static void parallels_close(BlockDriverState *bs)
     if (bs->open_flags & BDRV_O_RDWR) {
         s->header->inuse = 0;
         parallels_update_header(bs);
+    }
+
+    if (bs->open_flags & BDRV_O_RDWR) {
+        bdrv_truncate(bs->file, s->data_end << BDRV_SECTOR_BITS);
     }
 
     g_free(s->bat_dirty_bmap);
