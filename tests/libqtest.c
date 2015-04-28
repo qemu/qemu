@@ -488,6 +488,7 @@ void qtest_qmp_eventwait(QTestState *s, const char *event)
 const char *qtest_get_arch(void)
 {
     const char *qemu = getenv("QTEST_QEMU_BINARY");
+    g_assert(qemu != NULL);
     const char *end = strrchr(qemu, '/');
 
     return end + strlen("/qemu-system-");
