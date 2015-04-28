@@ -105,3 +105,25 @@ void mkqcow2(const char *file, unsigned size_mb)
 {
     return mkimg(file, "qcow2", size_mb);
 }
+
+void prepare_blkdebug_script(const char *debug_fn, const char *event)
+{
+    FILE *debug_file = fopen(debug_fn, "w");
+    int ret;
+
+    fprintf(debug_file, "[inject-error]\n");
+    fprintf(debug_file, "event = \"%s\"\n", event);
+    fprintf(debug_file, "errno = \"5\"\n");
+    fprintf(debug_file, "state = \"1\"\n");
+    fprintf(debug_file, "immediately = \"off\"\n");
+    fprintf(debug_file, "once = \"on\"\n");
+
+    fprintf(debug_file, "[set-state]\n");
+    fprintf(debug_file, "event = \"%s\"\n", event);
+    fprintf(debug_file, "new_state = \"2\"\n");
+    fflush(debug_file);
+    g_assert(!ferror(debug_file));
+
+    ret = fclose(debug_file);
+    g_assert(ret == 0);
+}
