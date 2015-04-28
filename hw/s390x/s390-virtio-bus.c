@@ -75,10 +75,12 @@ void s390_virtio_reset_idx(VirtIOS390Device *dev)
     for (i = 0; i < num_vq; i++) {
         idx_addr = virtio_queue_get_avail_addr(dev->vdev, i) +
             VIRTIO_VRING_AVAIL_IDX_OFFS;
-        stw_phys(&address_space_memory, idx_addr, 0);
+        address_space_stw(&address_space_memory, idx_addr, 0,
+                          MEMTXATTRS_UNSPECIFIED, NULL);
         idx_addr = virtio_queue_get_used_addr(dev->vdev, i) +
             VIRTIO_VRING_USED_IDX_OFFS;
-        stw_phys(&address_space_memory, idx_addr, 0);
+        address_space_stw(&address_space_memory, idx_addr, 0,
+                          MEMTXATTRS_UNSPECIFIED, NULL);
     }
 }
 
@@ -336,7 +338,8 @@ static uint64_t s390_virtio_device_vq_token(VirtIOS390Device *dev, int vq)
                 (vq * VIRTIO_VQCONFIG_LEN) +
                 VIRTIO_VQCONFIG_OFFS_TOKEN;
 
-    return ldq_be_phys(&address_space_memory, token_off);
+    return address_space_ldq_be(&address_space_memory, token_off,
+                                MEMTXATTRS_UNSPECIFIED, NULL);
 }
 
 static ram_addr_t s390_virtio_device_num_vq(VirtIOS390Device *dev)
@@ -371,21 +374,33 @@ void s390_virtio_device_sync(VirtIOS390Device *dev)
     virtio_reset(dev->vdev);
 
     /* Sync dev space */
-    stb_phys(&address_space_memory,
-             dev->dev_offs + VIRTIO_DEV_OFFS_TYPE, dev->vdev->device_id);
+    address_space_stb(&address_space_memory,
+                      dev->dev_offs + VIRTIO_DEV_OFFS_TYPE,
+                      dev->vdev->device_id,
+                      MEMTXATTRS_UNSPECIFIED,
+                      NULL);
 
-    stb_phys(&address_space_memory,
-             dev->dev_offs + VIRTIO_DEV_OFFS_NUM_VQ,
-             s390_virtio_device_num_vq(dev));
-    stb_phys(&address_space_memory,
-             dev->dev_offs + VIRTIO_DEV_OFFS_FEATURE_LEN, dev->feat_len);
+    address_space_stb(&address_space_memory,
+                      dev->dev_offs + VIRTIO_DEV_OFFS_NUM_VQ,
+                      s390_virtio_device_num_vq(dev),
+                      MEMTXATTRS_UNSPECIFIED,
+                      NULL);
+    address_space_stb(&address_space_memory,
+                      dev->dev_offs + VIRTIO_DEV_OFFS_FEATURE_LEN,
+                      dev->feat_len,
+                      MEMTXATTRS_UNSPECIFIED,
+                      NULL);
 
-    stb_phys(&address_space_memory,
-             dev->dev_offs + VIRTIO_DEV_OFFS_CONFIG_LEN, dev->vdev->config_len);
+    address_space_stb(&address_space_memory,
+                      dev->dev_offs + VIRTIO_DEV_OFFS_CONFIG_LEN,
+                      dev->vdev->config_len,
+                      MEMTXATTRS_UNSPECIFIED,
+                      NULL);
 
     num_vq = s390_virtio_device_num_vq(dev);
-    stb_phys(&address_space_memory,
-             dev->dev_offs + VIRTIO_DEV_OFFS_NUM_VQ, num_vq);
+    address_space_stb(&address_space_memory,
+                      dev->dev_offs + VIRTIO_DEV_OFFS_NUM_VQ, num_vq,
+                      MEMTXATTRS_UNSPECIFIED, NULL);
 
     /* Sync virtqueues */
     for (i = 0; i < num_vq; i++) {
@@ -396,11 +411,14 @@ void s390_virtio_device_sync(VirtIOS390Device *dev)
         vring = s390_virtio_next_ring(bus);
         virtio_queue_set_addr(dev->vdev, i, vring);
         virtio_queue_set_vector(dev->vdev, i, i);
-        stq_be_phys(&address_space_memory,
-                    vq + VIRTIO_VQCONFIG_OFFS_ADDRESS, vring);
-        stw_be_phys(&address_space_memory,
-                    vq + VIRTIO_VQCONFIG_OFFS_NUM,
-                    virtio_queue_get_num(dev->vdev, i));
+        address_space_stq_be(&address_space_memory,
+                             vq + VIRTIO_VQCONFIG_OFFS_ADDRESS, vring,
+                             MEMTXATTRS_UNSPECIFIED, NULL);
+        address_space_stw_be(&address_space_memory,
+                             vq + VIRTIO_VQCONFIG_OFFS_NUM,
+                             virtio_queue_get_num(dev->vdev, i),
+                             MEMTXATTRS_UNSPECIFIED,
+                             NULL);
     }
 
     cur_offs = dev->dev_offs;
@@ -408,7 +426,8 @@ void s390_virtio_device_sync(VirtIOS390Device *dev)
     cur_offs += num_vq * VIRTIO_VQCONFIG_LEN;
 
     /* Sync feature bitmap */
-    stl_le_phys(&address_space_memory, cur_offs, dev->host_features);
+    address_space_stl_le(&address_space_memory, cur_offs, dev->host_features,
+                         MEMTXATTRS_UNSPECIFIED, NULL);
 
     dev->feat_offs = cur_offs + dev->feat_len;
     cur_offs += dev->feat_len * 2;
@@ -426,12 +445,16 @@ void s390_virtio_device_update_status(VirtIOS390Device *dev)
     VirtIODevice *vdev = dev->vdev;
     uint32_t features;
 
-    virtio_set_status(vdev, ldub_phys(&address_space_memory,
-                                      dev->dev_offs + VIRTIO_DEV_OFFS_STATUS));
+    virtio_set_status(vdev,
+                      address_space_ldub(&address_space_memory,
+                                         dev->dev_offs + VIRTIO_DEV_OFFS_STATUS,
+                                         MEMTXATTRS_UNSPECIFIED, NULL));
 
     /* Update guest supported feature bitmap */
 
-    features = bswap32(ldl_be_phys(&address_space_memory, dev->feat_offs));
+    features = bswap32(address_space_ldl_be(&address_space_memory,
+                                            dev->feat_offs,
+                                            MEMTXATTRS_UNSPECIFIED, NULL));
     virtio_set_features(vdev, features);
 }
 

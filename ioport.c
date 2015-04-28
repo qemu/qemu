@@ -64,7 +64,8 @@ void cpu_outb(pio_addr_t addr, uint8_t val)
 {
     LOG_IOPORT("outb: %04"FMT_pioaddr" %02"PRIx8"\n", addr, val);
     trace_cpu_out(addr, val);
-    address_space_write(&address_space_io, addr, &val, 1);
+    address_space_write(&address_space_io, addr, MEMTXATTRS_UNSPECIFIED,
+                        &val, 1);
 }
 
 void cpu_outw(pio_addr_t addr, uint16_t val)
@@ -74,7 +75,8 @@ void cpu_outw(pio_addr_t addr, uint16_t val)
     LOG_IOPORT("outw: %04"FMT_pioaddr" %04"PRIx16"\n", addr, val);
     trace_cpu_out(addr, val);
     stw_p(buf, val);
-    address_space_write(&address_space_io, addr, buf, 2);
+    address_space_write(&address_space_io, addr, MEMTXATTRS_UNSPECIFIED,
+                        buf, 2);
 }
 
 void cpu_outl(pio_addr_t addr, uint32_t val)
@@ -84,14 +86,16 @@ void cpu_outl(pio_addr_t addr, uint32_t val)
     LOG_IOPORT("outl: %04"FMT_pioaddr" %08"PRIx32"\n", addr, val);
     trace_cpu_out(addr, val);
     stl_p(buf, val);
-    address_space_write(&address_space_io, addr, buf, 4);
+    address_space_write(&address_space_io, addr, MEMTXATTRS_UNSPECIFIED,
+                        buf, 4);
 }
 
 uint8_t cpu_inb(pio_addr_t addr)
 {
     uint8_t val;
 
-    address_space_read(&address_space_io, addr, &val, 1);
+    address_space_read(&address_space_io, addr, MEMTXATTRS_UNSPECIFIED,
+                       &val, 1);
     trace_cpu_in(addr, val);
     LOG_IOPORT("inb : %04"FMT_pioaddr" %02"PRIx8"\n", addr, val);
     return val;
@@ -102,7 +106,7 @@ uint16_t cpu_inw(pio_addr_t addr)
     uint8_t buf[2];
     uint16_t val;
 
-    address_space_read(&address_space_io, addr, buf, 2);
+    address_space_read(&address_space_io, addr, MEMTXATTRS_UNSPECIFIED, buf, 2);
     val = lduw_p(buf);
     trace_cpu_in(addr, val);
     LOG_IOPORT("inw : %04"FMT_pioaddr" %04"PRIx16"\n", addr, val);
@@ -114,7 +118,7 @@ uint32_t cpu_inl(pio_addr_t addr)
     uint8_t buf[4];
     uint32_t val;
 
-    address_space_read(&address_space_io, addr, buf, 4);
+    address_space_read(&address_space_io, addr, MEMTXATTRS_UNSPECIFIED, buf, 4);
     val = ldl_p(buf);
     trace_cpu_in(addr, val);
     LOG_IOPORT("inl : %04"FMT_pioaddr" %08"PRIx32"\n", addr, val);

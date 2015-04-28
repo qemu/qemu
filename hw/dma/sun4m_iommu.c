@@ -263,7 +263,8 @@ static uint32_t iommu_page_get_flags(IOMMUState *s, hwaddr addr)
     iopte = s->regs[IOMMU_BASE] << 4;
     addr &= ~s->iostart;
     iopte += (addr >> (IOMMU_PAGE_SHIFT - 2)) & ~3;
-    ret = ldl_be_phys(&address_space_memory, iopte);
+    ret = address_space_ldl_be(&address_space_memory, iopte,
+                               MEMTXATTRS_UNSPECIFIED, NULL);
     trace_sun4m_iommu_page_get_flags(pa, iopte, ret);
     return ret;
 }

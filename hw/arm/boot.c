@@ -170,7 +170,8 @@ static void default_reset_secondary(ARMCPU *cpu,
 {
     CPUARMState *env = &cpu->env;
 
-    stl_phys_notdirty(&address_space_memory, info->smp_bootreg_addr, 0);
+    address_space_stl_notdirty(&address_space_memory, info->smp_bootreg_addr,
+                               0, MEMTXATTRS_UNSPECIFIED, NULL);
     env->regs[15] = info->smp_loader_start;
 }
 
@@ -180,7 +181,8 @@ static inline bool have_dtb(const struct arm_boot_info *info)
 }
 
 #define WRITE_WORD(p, value) do { \
-    stl_phys_notdirty(&address_space_memory, p, value);  \
+    address_space_stl_notdirty(&address_space_memory, p, value, \
+                               MEMTXATTRS_UNSPECIFIED, NULL);  \
     p += 4;                       \
 } while (0)
 

@@ -201,7 +201,7 @@ typedef struct CPUARMState {
             };
             uint64_t sctlr_el[4];
         };
-        uint64_t c1_coproc; /* Coprocessor access register.  */
+        uint64_t cpacr_el1; /* Architectural feature access control register */
         uint32_t c1_xscaleauxcr; /* XScale auxiliary control register.  */
         uint64_t sder; /* Secure debug enable register. */
         uint32_t nsacr; /* Non-secure access control register. */
@@ -1813,7 +1813,7 @@ static inline void cpu_get_tb_cpu_state(CPUARMState *env, target_ulong *pc,
     int fpen;
 
     if (arm_feature(env, ARM_FEATURE_V6)) {
-        fpen = extract32(env->cp15.c1_coproc, 20, 2);
+        fpen = extract32(env->cp15.cpacr_el1, 20, 2);
     } else {
         /* CPACR doesn't exist before v6, so VFP is always accessible */
         fpen = 3;

@@ -318,8 +318,10 @@ static void r2d_init(MachineState *machine)
         }
 
         /* initialization which should be done by firmware */
-        stl_phys(&address_space_memory, SH7750_BCR1, 1<<3); /* cs3 SDRAM */
-        stw_phys(&address_space_memory, SH7750_BCR2, 3<<(3*2)); /* cs3 32bit */
+        address_space_stl(&address_space_memory, SH7750_BCR1, 1 << 3,
+                          MEMTXATTRS_UNSPECIFIED, NULL); /* cs3 SDRAM */
+        address_space_stw(&address_space_memory, SH7750_BCR2, 3 << (3 * 2),
+                          MEMTXATTRS_UNSPECIFIED, NULL); /* cs3 32bit */
         reset_info->vector = (SDRAM_BASE + LINUX_LOAD_OFFSET) | 0xa0000000; /* Start from P2 area */
     }
 

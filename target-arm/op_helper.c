@@ -600,15 +600,26 @@ static bool bp_wp_matches(ARMCPU *cpu, int n, bool is_wp)
     CPUARMState *env = &cpu->env;
     uint64_t cr;
     int pac, hmc, ssc, wt, lbn;
-    /* TODO: check against CPU security state when we implement TrustZone */
-    bool is_secure = false;
+    /* Note that for watchpoints the check is against the CPU security
+     * state, not the S/NS attribute on the offending data access.
+     */
+    bool is_secure = arm_is_secure(env);
+    int access_el = arm_current_el(env);
 
     if (is_wp) {
-        if (!env->cpu_watchpoint[n]
-            || !(env->cpu_watchpoint[n]->flags & BP_WATCHPOINT_HIT)) {
+        CPUWatchpoint *wp = env->cpu_watchpoint[n];
+
+        if (!wp || !(wp->flags & BP_WATCHPOINT_HIT)) {
             return false;
         }
         cr = env->cp15.dbgwcr[n];
+        if (wp->hitattrs.user) {
+            /* The LDRT/STRT/LDT/STT "unprivileged access" instructions should
+             * match watchpoints as if they were accesses done at EL0, even if
+             * the CPU is at EL1 or higher.
+             */
+            access_el = 0;
+        }
     } else {
         uint64_t pc = is_a64(env) ? env->pc : env->regs[15];
 
@@ -649,15 +660,7 @@ static bool bp_wp_matches(ARMCPU *cpu, int n, bool is_wp)
         break;
     }
 
-    /* TODO: this is not strictly correct because the LDRT/STRT/LDT/STT
-     * "unprivileged access" instructions should match watchpoints as if
-     * they were accesses done at EL0, even if the CPU is at EL1 or higher.
-     * Implementing this would require reworking the core watchpoint code
-     * to plumb the mmu_idx through to this point. Luckily Linux does not
-     * rely on this behaviour currently.
-     * For breakpoints we do want to use the current CPU state.
-     */
-    switch (arm_current_el(env)) {
+    switch (access_el) {
     case 3:
     case 2:
         if (!hmc) {

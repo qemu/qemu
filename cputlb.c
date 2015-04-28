@@ -249,9 +249,9 @@ static void tlb_add_large_page(CPUArchState *env, target_ulong vaddr,
  * Called from TCG-generated code, which is under an RCU read-side
  * critical section.
  */
-void tlb_set_page(CPUState *cpu, target_ulong vaddr,
-                  hwaddr paddr, int prot,
-                  int mmu_idx, target_ulong size)
+void tlb_set_page_with_attrs(CPUState *cpu, target_ulong vaddr,
+                             hwaddr paddr, MemTxAttrs attrs, int prot,
+                             int mmu_idx, target_ulong size)
 {
     CPUArchState *env = cpu->env_ptr;
     MemoryRegionSection *section;
@@ -301,7 +301,8 @@ void tlb_set_page(CPUState *cpu, target_ulong vaddr,
     env->iotlb_v[mmu_idx][vidx] = env->iotlb[mmu_idx][index];
 
     /* refill the tlb */
-    env->iotlb[mmu_idx][index] = iotlb - vaddr;
+    env->iotlb[mmu_idx][index].addr = iotlb - vaddr;
+    env->iotlb[mmu_idx][index].attrs = attrs;
     te->addend = addend - vaddr;
     if (prot & PAGE_READ) {
         te->addr_read = address;
@@ -331,6 +332,17 @@ void tlb_set_page(CPUState *cpu, target_ulong vaddr,
     }
 }
 
+/* Add a new TLB entry, but without specifying the memory
+ * transaction attributes to be used.
+ */
+void tlb_set_page(CPUState *cpu, target_ulong vaddr,
+                  hwaddr paddr, int prot,
+                  int mmu_idx, target_ulong size)
+{
+    tlb_set_page_with_attrs(cpu, vaddr, paddr, MEMTXATTRS_UNSPECIFIED,
+                            prot, mmu_idx, size);
+}
+
 /* NOTE: this function can trigger an exception */
 /* NOTE2: the returned address is not exactly the physical address: it
  * is actually a ram_addr_t (in system mode; the user mode emulation
@@ -349,7 +361,7 @@ tb_page_addr_t get_page_addr_code(CPUArchState *env1, target_ulong addr)
                  (addr & TARGET_PAGE_MASK))) {
         cpu_ldub_code(env1, addr);
     }
-    pd = env1->iotlb[mmu_idx][page_index] & ~TARGET_PAGE_MASK;
+    pd = env1->iotlb[mmu_idx][page_index].addr & ~TARGET_PAGE_MASK;
     mr = iotlb_to_region(cpu, pd);
     if (memory_region_is_unassigned(mr)) {
         CPUClass *cc = CPU_GET_CLASS(cpu);

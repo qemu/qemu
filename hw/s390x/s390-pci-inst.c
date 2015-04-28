@@ -331,7 +331,8 @@ int pcilg_service_call(S390CPU *cpu, uint8_t r1, uint8_t r2)
             return 0;
         }
         MemoryRegion *mr = pbdev->pdev->io_regions[pcias].memory;
-        io_mem_read(mr, offset, &data, len);
+        memory_region_dispatch_read(mr, offset, &data, len,
+                                    MEMTXATTRS_UNSPECIFIED);
     } else if (pcias == 15) {
         if ((4 - (offset & 0x3)) < len) {
             program_interrupt(env, PGM_OPERAND, 4);
@@ -456,7 +457,8 @@ int pcistg_service_call(S390CPU *cpu, uint8_t r1, uint8_t r2)
             mr = pbdev->pdev->io_regions[pcias].memory;
         }
 
-        io_mem_write(mr, offset, data, len);
+        memory_region_dispatch_write(mr, offset, data, len,
+                                     MEMTXATTRS_UNSPECIFIED);
     } else if (pcias == 15) {
         if ((4 - (offset & 0x3)) < len) {
             program_interrupt(env, PGM_OPERAND, 4);
@@ -606,7 +608,9 @@ int pcistb_service_call(S390CPU *cpu, uint8_t r1, uint8_t r3, uint64_t gaddr)
     }
 
     for (i = 0; i < len / 8; i++) {
-        io_mem_write(mr, env->regs[r3] + i * 8, ldq_p(buffer + i * 8), 8);
+        memory_region_dispatch_write(mr, env->regs[r3] + i * 8,
+                                     ldq_p(buffer + i * 8), 8,
+                                     MEMTXATTRS_UNSPECIFIED);
     }
 
     setcc(cpu, ZPCI_PCI_LS_OK);

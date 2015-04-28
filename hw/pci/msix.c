@@ -435,7 +435,8 @@ void msix_notify(PCIDevice *dev, unsigned vector)
 
     msg = msix_get_message(dev, vector);
 
-    stl_le_phys(&dev->bus_master_as, msg.address, msg.data);
+    address_space_stl_le(&dev->bus_master_as, msg.address, msg.data,
+                         MEMTXATTRS_UNSPECIFIED, NULL);
 }
 
 void msix_reset(PCIDevice *dev)

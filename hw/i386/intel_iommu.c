@@ -246,7 +246,8 @@ static void vtd_generate_interrupt(IntelIOMMUState *s, hwaddr mesg_addr_reg,
     data = vtd_get_long_raw(s, mesg_data_reg);
 
     VTD_DPRINTF(FLOG, "msi: addr 0x%"PRIx64 " data 0x%"PRIx32, addr, data);
-    stl_le_phys(&address_space_memory, addr, data);
+    address_space_stl_le(&address_space_memory, addr, data,
+                         MEMTXATTRS_UNSPECIFIED, NULL);
 }
 
 /* Generate a fault event to software via MSI if conditions are met.
