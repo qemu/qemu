@@ -349,7 +349,7 @@ void bdrv_get_full_backing_filename(BlockDriverState *bs, char *dest, size_t sz,
                                                  dest, sz, errp);
 }
 
-void bdrv_register(BlockDriver *bdrv)
+void bdrv_setup_io_funcs(BlockDriver *bdrv)
 {
     /* Block drivers without coroutine functions need emulation */
     if (!bdrv->bdrv_co_readv) {
@@ -365,6 +365,11 @@ void bdrv_register(BlockDriver *bdrv)
             bdrv->bdrv_aio_writev = bdrv_aio_writev_em;
         }
     }
+}
+
+void bdrv_register(BlockDriver *bdrv)
+{
+    bdrv_setup_io_funcs(bdrv);
 
     QLIST_INSERT_HEAD(&bdrv_drivers, bdrv, list);
 }

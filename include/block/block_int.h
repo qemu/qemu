@@ -439,6 +439,14 @@ extern BlockDriver bdrv_file;
 extern BlockDriver bdrv_raw;
 extern BlockDriver bdrv_qcow2;
 
+/**
+ * bdrv_setup_io_funcs:
+ *
+ * Prepare a #BlockDriver for I/O request processing by populating
+ * unimplemented coroutine and AIO interfaces with generic wrapper functions
+ * that fall back to implemented interfaces.
+ */
+void bdrv_setup_io_funcs(BlockDriver *bdrv);
 
 int get_tmp_filename(char *filename, int size);
 BlockDriver *bdrv_probe_all(const uint8_t *buf, int buf_size,
