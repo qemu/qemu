@@ -2,8 +2,12 @@
  * Block driver for Parallels disk image format
  *
  * Copyright (c) 2007 Alex Beregszaszi
+ * Copyright (c) 2015 Denis V. Lunev <den@openvz.org>
  *
- * This code is based on comparing different disk images created by Parallels.
+ * This code was originally based on comparing different disk images created
+ * by Parallels. Currently it is based on opened OpenVZ sources
+ * available at
+ *     http://git.openvz.org/?p=ploop;a=summary
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
