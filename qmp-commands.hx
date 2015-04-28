@@ -2380,7 +2380,7 @@ Example:
                   "virtual-size":2048000,
                   "backing_file":"base.qcow2",
                   "full-backing-filename":"disks/base.qcow2",
-                  "backing-filename-format:"qcow2",
+                  "backing-filename-format":"qcow2",
                   "snapshots":[
                      {
                         "id": "1",
@@ -3847,7 +3847,7 @@ Example:
                       "virtual-size":2048000,
                       "backing_file":"base.qcow2",
                       "full-backing-filename":"disks/base.qcow2",
-                      "backing-filename-format:"qcow2",
+                      "backing-filename-format":"qcow2",
                       "snapshots":[
                          {
                             "id": "1",
