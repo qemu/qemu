@@ -82,6 +82,11 @@ static int64_t bat2sect(BDRVParallelsState *s, uint32_t idx)
     return (uint64_t)le32_to_cpu(s->bat_bitmap[idx]) * s->off_multiplier;
 }
 
+static uint32_t bat_entry_off(uint32_t idx)
+{
+    return sizeof(ParallelsHeader) + sizeof(uint32_t) * idx;
+}
+
 static int64_t seek_to_sector(BDRVParallelsState *s, int64_t sector_num)
 {
     uint32_t index, offset;
@@ -160,9 +165,8 @@ static int64_t allocate_cluster(BlockDriverState *bs, int64_t sector_num)
     }
 
     s->bat_bitmap[idx] = cpu_to_le32(pos / s->off_multiplier);
-    ret = bdrv_pwrite(bs->file,
-            sizeof(ParallelsHeader) + idx * sizeof(s->bat_bitmap[idx]),
-            s->bat_bitmap + idx, sizeof(s->bat_bitmap[idx]));
+    ret = bdrv_pwrite(bs->file, bat_entry_off(idx), s->bat_bitmap + idx,
+                      sizeof(s->bat_bitmap[idx]));
     if (ret < 0) {
         s->bat_bitmap[idx] = 0;
         return ret;
@@ -400,8 +404,7 @@ static int parallels_create(const char *filename, QemuOpts *opts, Error **errp)
     }
 
     bat_entries = DIV_ROUND_UP(total_size, cl_size);
-    bat_sectors = DIV_ROUND_UP(bat_entries * sizeof(uint32_t) +
-                               sizeof(ParallelsHeader), cl_size);
+    bat_sectors = DIV_ROUND_UP(bat_entry_off(bat_entries), cl_size);
     bat_sectors = (bat_sectors *  cl_size) >> BDRV_SECTOR_BITS;
 
     memset(&header, 0, sizeof(header));
@@ -513,7 +516,7 @@ static int parallels_open(BlockDriverState *bs, QDict *options, int flags,
         goto fail;
     }
 
-    size = sizeof(ParallelsHeader) + sizeof(uint32_t) * s->bat_size;
+    size = bat_entry_off(s->bat_size);
     s->header_size = ROUND_UP(size, bdrv_opt_mem_align(bs->file));
     s->header = qemu_try_blockalign(bs->file, s->header_size);
     if (s->header == NULL) {
