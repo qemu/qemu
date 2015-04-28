@@ -103,6 +103,35 @@ static int cluster_remainder(BDRVParallelsState *s, int64_t sector_num,
     return MIN(nb_sectors, ret);
 }
 
+static int64_t block_status(BDRVParallelsState *s, int64_t sector_num,
+                            int nb_sectors, int *pnum)
+{
+    int64_t start_off = -2, prev_end_off = -2;
+
+    *pnum = 0;
+    while (nb_sectors > 0 || start_off == -2) {
+        int64_t offset = seek_to_sector(s, sector_num);
+        int to_end;
+
+        if (start_off == -2) {
+            start_off = offset;
+            prev_end_off = offset;
+        } else if (offset != prev_end_off) {
+            break;
+        }
+
+        to_end = cluster_remainder(s, sector_num, nb_sectors);
+        nb_sectors -= to_end;
+        sector_num += to_end;
+        *pnum += to_end;
+
+        if (offset > 0) {
+            prev_end_off += to_end;
+        }
+    }
+    return start_off;
+}
+
 static int64_t allocate_cluster(BlockDriverState *bs, int64_t sector_num)
 {
     BDRVParallelsState *s = bs->opaque;
@@ -148,10 +177,8 @@ static int64_t coroutine_fn parallels_co_get_block_status(BlockDriverState *bs,
     int64_t offset;
 
     qemu_co_mutex_lock(&s->lock);
-    offset = seek_to_sector(s, sector_num);
+    offset = block_status(s, sector_num, nb_sectors, pnum);
     qemu_co_mutex_unlock(&s->lock);
-
-    *pnum = cluster_remainder(s, sector_num, nb_sectors);
 
     if (offset < 0) {
         return 0;
@@ -218,10 +245,9 @@ static coroutine_fn int parallels_co_readv(BlockDriverState *bs,
         int n, nbytes;
 
         qemu_co_mutex_lock(&s->lock);
-        position = seek_to_sector(s, sector_num);
+        position = block_status(s, sector_num, nb_sectors, &n);
         qemu_co_mutex_unlock(&s->lock);
 
-        n = cluster_remainder(s, sector_num, nb_sectors);
         nbytes = n << BDRV_SECTOR_BITS;
 
         if (position < 0) {
