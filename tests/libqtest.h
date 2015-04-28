@@ -92,6 +92,15 @@ QDict *qtest_qmpv(QTestState *s, const char *fmt, va_list ap);
 QDict *qtest_qmp_receive(QTestState *s);
 
 /**
+ * qtest_qmp_eventwait:
+ * @s: #QTestState instance to operate on.
+ * @s: #event event to wait for.
+ *
+ * Continuosly polls for QMP responses until it receives the desired event.
+ */
+void qtest_qmp_eventwait(QTestState *s, const char *event);
+
+/**
  * qtest_get_irq:
  * @s: #QTestState instance to operate on.
  * @num: Interrupt to observe.
@@ -426,6 +435,17 @@ void qmp_discard_response(const char *fmt, ...);
 static inline QDict *qmp_receive(void)
 {
     return qtest_qmp_receive(global_qtest);
+}
+
+/**
+ * qmp_eventwait:
+ * @s: #event event to wait for.
+ *
+ * Continuosly polls for QMP responses until it receives the desired event.
+ */
+static inline void qmp_eventwait(const char *event)
+{
+    return qtest_qmp_eventwait(global_qtest, event);
 }
 
 /**

@@ -520,7 +520,6 @@ static void test_retry_flush(const char *machine)
 {
     uint8_t data;
     const char *s;
-    QDict *response;
 
     prepare_blkdebug_script(debug_path, "flush_to_disk");
 
@@ -539,15 +538,7 @@ static void test_retry_flush(const char *machine)
     assert_bit_set(data, BSY | DRDY);
     assert_bit_clear(data, DF | ERR | DRQ);
 
-    for (;; response = NULL) {
-        response = qmp_receive();
-        if ((qdict_haskey(response, "event")) &&
-            (strcmp(qdict_get_str(response, "event"), "STOP") == 0)) {
-            QDECREF(response);
-            break;
-        }
-        QDECREF(response);
-    }
+    qmp_eventwait("STOP");
 
     /* Complete the command */
     s = "{'execute':'cont' }";
