@@ -2051,9 +2051,9 @@ void bdrv_drain_all(void)
 {
     /* Always run first iteration so any pending completion BHs run */
     bool busy = true;
-    BlockDriverState *bs;
+    BlockDriverState *bs = NULL;
 
-    QTAILQ_FOREACH(bs, &bdrv_states, device_list) {
+    while ((bs = bdrv_next(bs))) {
         AioContext *aio_context = bdrv_get_aio_context(bs);
 
         aio_context_acquire(aio_context);
@@ -2065,8 +2065,9 @@ void bdrv_drain_all(void)
 
     while (busy) {
         busy = false;
+        bs = NULL;
 
-        QTAILQ_FOREACH(bs, &bdrv_states, device_list) {
+        while ((bs = bdrv_next(bs))) {
             AioContext *aio_context = bdrv_get_aio_context(bs);
 
             aio_context_acquire(aio_context);
@@ -2075,7 +2076,8 @@ void bdrv_drain_all(void)
         }
     }
 
-    QTAILQ_FOREACH(bs, &bdrv_states, device_list) {
+    bs = NULL;
+    while ((bs = bdrv_next(bs))) {
         AioContext *aio_context = bdrv_get_aio_context(bs);
 
         aio_context_acquire(aio_context);
@@ -4015,10 +4017,10 @@ int bdrv_get_flags(BlockDriverState *bs)
 
 int bdrv_flush_all(void)
 {
-    BlockDriverState *bs;
+    BlockDriverState *bs = NULL;
     int result = 0;
 
-    QTAILQ_FOREACH(bs, &bdrv_states, device_list) {
+    while ((bs = bdrv_next(bs))) {
         AioContext *aio_context = bdrv_get_aio_context(bs);
         int ret;
 
