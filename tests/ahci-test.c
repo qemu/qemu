@@ -41,6 +41,8 @@
 
 /* Test-specific defines -- in MiB */
 #define TEST_IMAGE_SIZE_MB (200 * 1024)
+#define TEST_IMAGE_SECTORS ((TEST_IMAGE_SIZE_MB / AHCI_SECTOR_SIZE)     \
+                            * 1024 * 1024)
 
 /*** Globals ***/
 static char tmp_path[] = "/tmp/qtest.XXXXXX";
@@ -738,7 +740,7 @@ static void ahci_test_identify(AHCIQState *ahci)
     ahci_port_clear(ahci, px);
 
     /* "Read" 512 bytes using CMD_IDENTIFY into the host buffer. */
-    ahci_io(ahci, px, CMD_IDENTIFY, &buff, buffsize);
+    ahci_io(ahci, px, CMD_IDENTIFY, &buff, buffsize, 0);
 
     /* Check serial number/version in the buffer */
     /* NB: IDENTIFY strings are packed in 16bit little endian chunks.
@@ -754,11 +756,12 @@ static void ahci_test_identify(AHCIQState *ahci)
     g_assert_cmphex(rc, ==, 0);
 
     sect_size = le16_to_cpu(*((uint16_t *)(&buff[5])));
-    g_assert_cmphex(sect_size, ==, 0x200);
+    g_assert_cmphex(sect_size, ==, AHCI_SECTOR_SIZE);
 }
 
 static void ahci_test_io_rw_simple(AHCIQState *ahci, unsigned bufsize,
-                                   uint8_t read_cmd, uint8_t write_cmd)
+                                   uint64_t sector, uint8_t read_cmd,
+                                   uint8_t write_cmd)
 {
     uint64_t ptr;
     uint8_t port;
@@ -781,9 +784,9 @@ static void ahci_test_io_rw_simple(AHCIQState *ahci, unsigned bufsize,
     memwrite(ptr, tx, bufsize);
 
     /* Write this buffer to disk, then read it back to the DMA buffer. */
-    ahci_guest_io(ahci, port, write_cmd, ptr, bufsize);
+    ahci_guest_io(ahci, port, write_cmd, ptr, bufsize, sector);
     qmemset(ptr, 0x00, bufsize);
-    ahci_guest_io(ahci, port, read_cmd, ptr, bufsize);
+    ahci_guest_io(ahci, port, read_cmd, ptr, bufsize, sector);
 
     /*** Read back the Data ***/
     memread(ptr, rx, bufsize);
@@ -968,11 +971,44 @@ enum IOOps {
     NUM_IO_OPS
 };
 
+enum OffsetType {
+    OFFSET_BEGIN = 0,
+    OFFSET_ZERO = OFFSET_BEGIN,
+    OFFSET_LOW,
+    OFFSET_HIGH,
+    NUM_OFFSETS
+};
+
+static const char *offset_str[NUM_OFFSETS] = { "zero", "low", "high" };
+
 typedef struct AHCIIOTestOptions {
     enum BuffLen length;
     enum AddrMode address_type;
     enum IOMode io_type;
+    enum OffsetType offset;
 } AHCIIOTestOptions;
+
+static uint64_t offset_sector(enum OffsetType ofst,
+                              enum AddrMode addr_type,
+                              uint64_t buffsize)
+{
+    uint64_t ceil;
+    uint64_t nsectors;
+
+    switch (ofst) {
+    case OFFSET_ZERO:
+        return 0;
+    case OFFSET_LOW:
+        return 1;
+    case OFFSET_HIGH:
+        ceil = (addr_type == ADDR_MODE_LBA28) ? 0xfffffff : 0xffffffffffff;
+        ceil = MIN(ceil, TEST_IMAGE_SECTORS - 1);
+        nsectors = buffsize / AHCI_SECTOR_SIZE;
+        return ceil - nsectors + 1;
+    default:
+        g_assert_not_reached();
+    }
+}
 
 /**
  * Table of possible I/O ATA commands given a set of enumerations.
@@ -1001,12 +1037,12 @@ static const uint8_t io_cmds[NUM_MODES][NUM_ADDR_MODES][NUM_IO_OPS] = {
  * transfer modes, and buffer sizes.
  */
 static void test_io_rw_interface(enum AddrMode lba48, enum IOMode dma,
-                                 unsigned bufsize)
+                                 unsigned bufsize, uint64_t sector)
 {
     AHCIQState *ahci;
 
     ahci = ahci_boot_and_enable();
-    ahci_test_io_rw_simple(ahci, bufsize,
+    ahci_test_io_rw_simple(ahci, bufsize, sector,
                            io_cmds[dma][lba48][IO_READ],
                            io_cmds[dma][lba48][IO_WRITE]);
     ahci_shutdown(ahci);
@@ -1019,6 +1055,7 @@ static void test_io_interface(gconstpointer opaque)
 {
     AHCIIOTestOptions *opts = (AHCIIOTestOptions *)opaque;
     unsigned bufsize;
+    uint64_t sector;
 
     switch (opts->length) {
     case LEN_SIMPLE:
@@ -1037,13 +1074,14 @@ static void test_io_interface(gconstpointer opaque)
         g_assert_not_reached();
     }
 
-    test_io_rw_interface(opts->address_type, opts->io_type, bufsize);
+    sector = offset_sector(opts->offset, opts->address_type, bufsize);
+    test_io_rw_interface(opts->address_type, opts->io_type, bufsize, sector);
     g_free(opts);
     return;
 }
 
 static void create_ahci_io_test(enum IOMode type, enum AddrMode addr,
-                                enum BuffLen len)
+                                enum BuffLen len, enum OffsetType offset)
 {
     static const char *arch;
     char *name;
@@ -1052,15 +1090,17 @@ static void create_ahci_io_test(enum IOMode type, enum AddrMode addr,
     opts->length = len;
     opts->address_type = addr;
     opts->io_type = type;
+    opts->offset = offset;
 
     if (!arch) {
         arch = qtest_get_arch();
     }
 
-    name = g_strdup_printf("/%s/ahci/io/%s/%s/%s", arch,
+    name = g_strdup_printf("/%s/ahci/io/%s/%s/%s/%s", arch,
                            io_mode_str[type],
                            addr_mode_str[addr],
-                           buff_len_str[len]);
+                           buff_len_str[len],
+                           offset_str[offset]);
 
     g_test_add_data_func(name, opts, test_io_interface);
     g_free(name);
@@ -1073,7 +1113,7 @@ int main(int argc, char **argv)
     const char *arch;
     int ret;
     int c;
-    int i, j, k;
+    int i, j, k, m;
 
     static struct option long_options[] = {
         {"pedantic", no_argument, 0, 'p' },
@@ -1122,7 +1162,9 @@ int main(int argc, char **argv)
     for (i = MODE_BEGIN; i < NUM_MODES; i++) {
         for (j = ADDR_MODE_BEGIN; j < NUM_ADDR_MODES; j++) {
             for (k = LEN_BEGIN; k < NUM_LENGTHS; k++) {
-                create_ahci_io_test(i, j, k);
+                for (m = OFFSET_BEGIN; m < NUM_OFFSETS; m++) {
+                    create_ahci_io_test(i, j, k, m);
+                }
             }
         }
     }
