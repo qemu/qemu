@@ -21,4 +21,21 @@ read 32768/32768 bytes at offset 163840
 == check that there is no trash before written ==
 read 32768/32768 bytes at offset 0
 32 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+== Corrupt image ==
+qemu-io: can't open device TEST_DIR/t.parallels: parallels: Image was not closed correctly; cannot be opened read/write
+no file open, try 'help open'
+ERROR image was not closed correctly
+
+1 errors were found on the image.
+Data may be corrupted, or further writes to the image may corrupt it.
+Repairing image was not closed correctly
+The following inconsistencies were found and repaired:
+
+    0 leaked clusters
+    1 corruptions
+
+Double checking the fixed image now...
+No errors were found on the image.
+read 65536/65536 bytes at offset 65536
+64 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 *** done

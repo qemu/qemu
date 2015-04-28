@@ -42,6 +42,8 @@ _supported_fmt parallels
 _supported_proto file
 _supported_os Linux
 
+inuse_offset=$((0x2c))
+
 size=64M
 CLUSTER_SIZE=64k
 IMGFMT=parallels
@@ -61,6 +63,13 @@ echo == check that there is no trash after written ==
 { $QEMU_IO -c "read -P 0 160k 32k" "$TEST_IMG"; } 2>&1 | _filter_qemu_io | _filter_testdir
 echo == check that there is no trash before written ==
 { $QEMU_IO -c "read -P 0 0 32k" "$TEST_IMG"; } 2>&1 | _filter_qemu_io | _filter_testdir
+
+echo "== Corrupt image =="
+poke_file "$TEST_IMG" "$inuse_offset" "\x59\x6e\x6f\x74"
+{ $QEMU_IO -c "read -P 0x11 64k 64k" "$TEST_IMG"; } 2>&1 | _filter_qemu_io | _filter_testdir
+_check_test_img
+_check_test_img -r all
+{ $QEMU_IO -c "read -P 0x11 64k 64k" "$TEST_IMG"; } 2>&1 | _filter_qemu_io | _filter_testdir
 
 # success, all done
 echo "*** done"
