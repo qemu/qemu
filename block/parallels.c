@@ -73,99 +73,6 @@ typedef struct BDRVParallelsState {
     bool has_truncate;
 } BDRVParallelsState;
 
-static int parallels_probe(const uint8_t *buf, int buf_size, const char *filename)
-{
-    const ParallelsHeader *ph = (const void *)buf;
-
-    if (buf_size < sizeof(ParallelsHeader))
-        return 0;
-
-    if ((!memcmp(ph->magic, HEADER_MAGIC, 16) ||
-        !memcmp(ph->magic, HEADER_MAGIC2, 16)) &&
-        (le32_to_cpu(ph->version) == HEADER_VERSION))
-        return 100;
-
-    return 0;
-}
-
-static int parallels_open(BlockDriverState *bs, QDict *options, int flags,
-                          Error **errp)
-{
-    BDRVParallelsState *s = bs->opaque;
-    ParallelsHeader ph;
-    int ret, size;
-
-    ret = bdrv_pread(bs->file, 0, &ph, sizeof(ph));
-    if (ret < 0) {
-        goto fail;
-    }
-
-    bs->total_sectors = le64_to_cpu(ph.nb_sectors);
-
-    if (le32_to_cpu(ph.version) != HEADER_VERSION) {
-        goto fail_format;
-    }
-    if (!memcmp(ph.magic, HEADER_MAGIC, 16)) {
-        s->off_multiplier = 1;
-        bs->total_sectors = 0xffffffff & bs->total_sectors;
-    } else if (!memcmp(ph.magic, HEADER_MAGIC2, 16)) {
-        s->off_multiplier = le32_to_cpu(ph.tracks);
-    } else {
-        goto fail_format;
-    }
-
-    s->tracks = le32_to_cpu(ph.tracks);
-    if (s->tracks == 0) {
-        error_setg(errp, "Invalid image: Zero sectors per track");
-        ret = -EINVAL;
-        goto fail;
-    }
-    if (s->tracks > INT32_MAX/513) {
-        error_setg(errp, "Invalid image: Too big cluster");
-        ret = -EFBIG;
-        goto fail;
-    }
-
-    s->bat_size = le32_to_cpu(ph.bat_entries);
-    if (s->bat_size > INT_MAX / sizeof(uint32_t)) {
-        error_setg(errp, "Catalog too large");
-        ret = -EFBIG;
-        goto fail;
-    }
-
-    size = sizeof(ParallelsHeader) + sizeof(uint32_t) * s->bat_size;
-    s->header_size = ROUND_UP(size, bdrv_opt_mem_align(bs->file));
-    s->header = qemu_try_blockalign(bs->file, s->header_size);
-    if (s->header == NULL) {
-        ret = -ENOMEM;
-        goto fail;
-    }
-    if (le32_to_cpu(ph.data_off) < s->header_size) {
-        /* there is not enough unused space to fit to block align between BAT
-           and actual data. We can't avoid read-modify-write... */
-        s->header_size = size;
-    }
-
-    ret = bdrv_pread(bs->file, 0, s->header, s->header_size);
-    if (ret < 0) {
-        goto fail;
-    }
-    s->bat_bitmap = (uint32_t *)(s->header + 1);
-
-    s->has_truncate = bdrv_has_zero_init(bs->file) &&
-                      bdrv_truncate(bs->file, bdrv_getlength(bs->file)) == 0;
-
-    qemu_co_mutex_init(&s->lock);
-    return 0;
-
-fail_format:
-    error_setg(errp, "Image not in Parallels format");
-    ret = -EINVAL;
-fail:
-    qemu_vfree(s->header);
-    return ret;
-}
-
 
 static int64_t bat2sect(BDRVParallelsState *s, uint32_t idx)
 {
@@ -406,6 +313,104 @@ exit:
     error_setg_errno(errp, -ret, "Failed to create Parallels image");
     goto done;
 }
+
+
+static int parallels_probe(const uint8_t *buf, int buf_size,
+                           const char *filename)
+{
+    const ParallelsHeader *ph = (const void *)buf;
+
+    if (buf_size < sizeof(ParallelsHeader)) {
+        return 0;
+    }
+
+    if ((!memcmp(ph->magic, HEADER_MAGIC, 16) ||
+           !memcmp(ph->magic, HEADER_MAGIC2, 16)) &&
+           (le32_to_cpu(ph->version) == HEADER_VERSION)) {
+        return 100;
+    }
+
+    return 0;
+}
+
+static int parallels_open(BlockDriverState *bs, QDict *options, int flags,
+                          Error **errp)
+{
+    BDRVParallelsState *s = bs->opaque;
+    ParallelsHeader ph;
+    int ret, size;
+
+    ret = bdrv_pread(bs->file, 0, &ph, sizeof(ph));
+    if (ret < 0) {
+        goto fail;
+    }
+
+    bs->total_sectors = le64_to_cpu(ph.nb_sectors);
+
+    if (le32_to_cpu(ph.version) != HEADER_VERSION) {
+        goto fail_format;
+    }
+    if (!memcmp(ph.magic, HEADER_MAGIC, 16)) {
+        s->off_multiplier = 1;
+        bs->total_sectors = 0xffffffff & bs->total_sectors;
+    } else if (!memcmp(ph.magic, HEADER_MAGIC2, 16)) {
+        s->off_multiplier = le32_to_cpu(ph.tracks);
+    } else {
+        goto fail_format;
+    }
+
+    s->tracks = le32_to_cpu(ph.tracks);
+    if (s->tracks == 0) {
+        error_setg(errp, "Invalid image: Zero sectors per track");
+        ret = -EINVAL;
+        goto fail;
+    }
+    if (s->tracks > INT32_MAX/513) {
+        error_setg(errp, "Invalid image: Too big cluster");
+        ret = -EFBIG;
+        goto fail;
+    }
+
+    s->bat_size = le32_to_cpu(ph.bat_entries);
+    if (s->bat_size > INT_MAX / sizeof(uint32_t)) {
+        error_setg(errp, "Catalog too large");
+        ret = -EFBIG;
+        goto fail;
+    }
+
+    size = sizeof(ParallelsHeader) + sizeof(uint32_t) * s->bat_size;
+    s->header_size = ROUND_UP(size, bdrv_opt_mem_align(bs->file));
+    s->header = qemu_try_blockalign(bs->file, s->header_size);
+    if (s->header == NULL) {
+        ret = -ENOMEM;
+        goto fail;
+    }
+    if (le32_to_cpu(ph.data_off) < s->header_size) {
+        /* there is not enough unused space to fit to block align between BAT
+           and actual data. We can't avoid read-modify-write... */
+        s->header_size = size;
+    }
+
+    ret = bdrv_pread(bs->file, 0, s->header, s->header_size);
+    if (ret < 0) {
+        goto fail;
+    }
+    s->bat_bitmap = (uint32_t *)(s->header + 1);
+
+    s->has_truncate = bdrv_has_zero_init(bs->file) &&
+                      bdrv_truncate(bs->file, bdrv_getlength(bs->file)) == 0;
+
+    qemu_co_mutex_init(&s->lock);
+    return 0;
+
+fail_format:
+    error_setg(errp, "Image not in Parallels format");
+    ret = -EINVAL;
+fail:
+    qemu_vfree(s->header);
+    return ret;
+}
+
 
 static void parallels_close(BlockDriverState *bs)
 {
