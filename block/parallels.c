@@ -61,6 +61,8 @@ typedef struct BDRVParallelsState {
      */
     CoMutex lock;
 
+    ParallelsHeader *header;
+    uint32_t header_size;
     uint32_t *bat_bitmap;
     unsigned int bat_size;
 
@@ -91,7 +93,7 @@ static int parallels_open(BlockDriverState *bs, QDict *options, int flags,
 {
     BDRVParallelsState *s = bs->opaque;
     ParallelsHeader ph;
-    int ret;
+    int ret, size;
 
     ret = bdrv_pread(bs->file, 0, &ph, sizeof(ph));
     if (ret < 0) {
@@ -130,17 +132,25 @@ static int parallels_open(BlockDriverState *bs, QDict *options, int flags,
         ret = -EFBIG;
         goto fail;
     }
-    s->bat_bitmap = g_try_new(uint32_t, s->bat_size);
-    if (s->bat_size && s->bat_bitmap == NULL) {
+
+    size = sizeof(ParallelsHeader) + sizeof(uint32_t) * s->bat_size;
+    s->header_size = ROUND_UP(size, bdrv_opt_mem_align(bs->file));
+    s->header = qemu_try_blockalign(bs->file, s->header_size);
+    if (s->header == NULL) {
         ret = -ENOMEM;
         goto fail;
     }
+    if (le32_to_cpu(ph.data_off) < s->header_size) {
+        /* there is not enough unused space to fit to block align between BAT
+           and actual data. We can't avoid read-modify-write... */
+        s->header_size = size;
+    }
 
-    ret = bdrv_pread(bs->file, sizeof(ParallelsHeader),
-                     s->bat_bitmap, s->bat_size * sizeof(uint32_t));
+    ret = bdrv_pread(bs->file, 0, s->header, s->header_size);
     if (ret < 0) {
         goto fail;
     }
+    s->bat_bitmap = (uint32_t *)(s->header + 1);
 
     s->has_truncate = bdrv_has_zero_init(bs->file) &&
                       bdrv_truncate(bs->file, bdrv_getlength(bs->file)) == 0;
@@ -152,7 +162,7 @@ fail_format:
     error_setg(errp, "Image not in Parallels format");
     ret = -EINVAL;
 fail:
-    g_free(s->bat_bitmap);
+    qemu_vfree(s->header);
     return ret;
 }
 
@@ -400,7 +410,7 @@ exit:
 static void parallels_close(BlockDriverState *bs)
 {
     BDRVParallelsState *s = bs->opaque;
-    g_free(s->bat_bitmap);
+    qemu_vfree(s->header);
 }
 
 static QemuOptsList parallels_create_opts = {
