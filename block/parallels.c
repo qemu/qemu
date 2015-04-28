@@ -32,7 +32,6 @@
 #define HEADER_MAGIC "WithoutFreeSpace"
 #define HEADER_MAGIC2 "WithouFreSpacExt"
 #define HEADER_VERSION 2
-#define HEADER_SIZE 64
 
 // always little-endian
 typedef struct ParallelsHeader {
@@ -67,7 +66,7 @@ static int parallels_probe(const uint8_t *buf, int buf_size, const char *filenam
 {
     const ParallelsHeader *ph = (const void *)buf;
 
-    if (buf_size < HEADER_SIZE)
+    if (buf_size < sizeof(ParallelsHeader))
         return 0;
 
     if ((!memcmp(ph->magic, HEADER_MAGIC, 16) ||
@@ -120,7 +119,7 @@ static int parallels_open(BlockDriverState *bs, QDict *options, int flags,
     }
 
     s->catalog_size = le32_to_cpu(ph.catalog_entries);
-    if (s->catalog_size > INT_MAX / 4) {
+    if (s->catalog_size > INT_MAX / sizeof(uint32_t)) {
         error_setg(errp, "Catalog too large");
         ret = -EFBIG;
         goto fail;
@@ -131,7 +130,8 @@ static int parallels_open(BlockDriverState *bs, QDict *options, int flags,
         goto fail;
     }
 
-    ret = bdrv_pread(bs->file, 64, s->catalog_bitmap, s->catalog_size * 4);
+    ret = bdrv_pread(bs->file, sizeof(ParallelsHeader),
+                     s->catalog_bitmap, s->catalog_size * sizeof(uint32_t));
     if (ret < 0) {
         goto fail;
     }
