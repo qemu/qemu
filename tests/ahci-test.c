@@ -797,6 +797,29 @@ static void ahci_test_io_rw_simple(AHCIQState *ahci, unsigned bufsize,
     g_free(rx);
 }
 
+static void ahci_test_nondata(AHCIQState *ahci, uint8_t ide_cmd)
+{
+    uint8_t px;
+    AHCICommand *cmd;
+
+    /* Sanitize */
+    px = ahci_port_select(ahci);
+    ahci_port_clear(ahci, px);
+
+    /* Issue Command */
+    cmd = ahci_command_create(ide_cmd);
+    ahci_command_commit(ahci, cmd, px);
+    ahci_command_issue(ahci, cmd);
+    ahci_command_verify(ahci, cmd);
+    ahci_command_free(cmd);
+}
+
+static void ahci_test_flush(AHCIQState *ahci)
+{
+    ahci_test_nondata(ahci, CMD_FLUSH_CACHE);
+}
+
+
 /******************************************************************************/
 /* Test Interfaces                                                            */
 /******************************************************************************/
@@ -929,6 +952,15 @@ static void test_dma_fragmented(void)
 
     g_free(rx);
     g_free(tx);
+}
+
+static void test_flush(void)
+{
+    AHCIQState *ahci;
+
+    ahci = ahci_boot_and_enable();
+    ahci_test_flush(ahci);
+    ahci_shutdown(ahci);
 }
 
 /******************************************************************************/
@@ -1170,6 +1202,8 @@ int main(int argc, char **argv)
     }
 
     qtest_add_func("/ahci/io/dma/lba28/fragmented", test_dma_fragmented);
+
+    qtest_add_func("/ahci/flush/simple", test_flush);
 
     ret = g_test_run();
 
