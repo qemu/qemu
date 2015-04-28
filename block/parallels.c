@@ -161,6 +161,12 @@ fail:
     return ret;
 }
 
+
+static int64_t bat2sect(BDRVParallelsState *s, uint32_t idx)
+{
+    return (uint64_t)s->bat_bitmap[idx] * s->off_multiplier;
+}
+
 static int64_t seek_to_sector(BDRVParallelsState *s, int64_t sector_num)
 {
     uint32_t index, offset;
@@ -172,7 +178,7 @@ static int64_t seek_to_sector(BDRVParallelsState *s, int64_t sector_num)
     if ((index >= s->bat_size) || (s->bat_bitmap[index] == 0)) {
         return -1;
     }
-    return (uint64_t)s->bat_bitmap[index] * s->off_multiplier + offset;
+    return bat2sect(s, index) + offset;
 }
 
 static int cluster_remainder(BDRVParallelsState *s, int64_t sector_num,
@@ -196,7 +202,7 @@ static int64_t allocate_cluster(BlockDriverState *bs, int64_t sector_num)
         return -EINVAL;
     }
     if (s->bat_bitmap[idx] != 0) {
-        return (uint64_t)s->bat_bitmap[idx] * s->off_multiplier + offset;
+        return bat2sect(s, idx) + offset;
     }
 
     pos = bdrv_getlength(bs->file) >> BDRV_SECTOR_BITS;
@@ -219,7 +225,7 @@ static int64_t allocate_cluster(BlockDriverState *bs, int64_t sector_num)
         s->bat_bitmap[idx] = 0;
         return ret;
     }
-    return (uint64_t)s->bat_bitmap[idx] * s->off_multiplier + offset;
+    return bat2sect(s, idx) + offset;
 }
 
 static int64_t coroutine_fn parallels_co_get_block_status(BlockDriverState *bs,
