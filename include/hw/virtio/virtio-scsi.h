@@ -98,6 +98,7 @@ typedef struct VirtIOSCSI {
     bool dataplane_fenced;
     Error *blocker;
     Notifier migration_state_notifier;
+    uint32_t host_features;
 } VirtIOSCSI;
 
 typedef struct VirtIOSCSIReq {
