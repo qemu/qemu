@@ -146,9 +146,8 @@ fail:
     return ret;
 }
 
-static int64_t seek_to_sector(BlockDriverState *bs, int64_t sector_num)
+static int64_t seek_to_sector(BDRVParallelsState *s, int64_t sector_num)
 {
-    BDRVParallelsState *s = bs->opaque;
     uint32_t index, offset;
 
     index = sector_num / s->tracks;
@@ -157,24 +156,27 @@ static int64_t seek_to_sector(BlockDriverState *bs, int64_t sector_num)
     /* not allocated */
     if ((index >= s->catalog_size) || (s->catalog_bitmap[index] == 0))
         return -1;
-    return
-        ((uint64_t)s->catalog_bitmap[index] * s->off_multiplier + offset) * 512;
+    return (uint64_t)s->catalog_bitmap[index] * s->off_multiplier + offset;
 }
 
 static int parallels_read(BlockDriverState *bs, int64_t sector_num,
                     uint8_t *buf, int nb_sectors)
 {
+    BDRVParallelsState *s = bs->opaque;
+
     while (nb_sectors > 0) {
-        int64_t position = seek_to_sector(bs, sector_num);
+        int64_t position = seek_to_sector(s, sector_num);
         if (position >= 0) {
-            if (bdrv_pread(bs->file, position, buf, 512) != 512)
-                return -1;
+            int ret = bdrv_read(bs->file, position, buf, 1);
+            if (ret < 0) {
+                return ret;
+            }
         } else {
-            memset(buf, 0, 512);
+            memset(buf, 0, BDRV_SECTOR_SIZE);
         }
         nb_sectors--;
         sector_num++;
-        buf += 512;
+        buf += BDRV_SECTOR_SIZE;
     }
     return 0;
 }
