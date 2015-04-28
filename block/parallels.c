@@ -49,6 +49,10 @@ typedef struct ParallelsHeader {
 } QEMU_PACKED ParallelsHeader;
 
 typedef struct BDRVParallelsState {
+    /** Locking is conservative, the lock protects
+     *   - image file extending (truncate, fallocate)
+     *   - any access to block allocation table
+     */
     CoMutex lock;
 
     uint32_t *catalog_bitmap;
@@ -186,37 +190,45 @@ static int64_t coroutine_fn parallels_co_get_block_status(BlockDriverState *bs,
         BDRV_BLOCK_DATA | BDRV_BLOCK_OFFSET_VALID;
 }
 
-static int parallels_read(BlockDriverState *bs, int64_t sector_num,
-                    uint8_t *buf, int nb_sectors)
+static coroutine_fn int parallels_co_readv(BlockDriverState *bs,
+        int64_t sector_num, int nb_sectors, QEMUIOVector *qiov)
 {
     BDRVParallelsState *s = bs->opaque;
+    uint64_t bytes_done = 0;
+    QEMUIOVector hd_qiov;
+    int ret = 0;
+
+    qemu_iovec_init(&hd_qiov, qiov->niov);
 
     while (nb_sectors > 0) {
-        int64_t position = seek_to_sector(s, sector_num);
-        int n = cluster_remainder(s, sector_num, nb_sectors);
-        if (position >= 0) {
-            int ret = bdrv_read(bs->file, position, buf, n);
-            if (ret < 0) {
-                return ret;
-            }
+        int64_t position;
+        int n, nbytes;
+
+        qemu_co_mutex_lock(&s->lock);
+        position = seek_to_sector(s, sector_num);
+        qemu_co_mutex_unlock(&s->lock);
+
+        n = cluster_remainder(s, sector_num, nb_sectors);
+        nbytes = n << BDRV_SECTOR_BITS;
+
+        if (position < 0) {
+            qemu_iovec_memset(qiov, bytes_done, 0, nbytes);
         } else {
-            memset(buf, 0, n << BDRV_SECTOR_BITS);
+            qemu_iovec_reset(&hd_qiov);
+            qemu_iovec_concat(&hd_qiov, qiov, bytes_done, nbytes);
+
+            ret = bdrv_co_readv(bs->file, position, n, &hd_qiov);
+            if (ret < 0) {
+                break;
+            }
         }
+
         nb_sectors -= n;
         sector_num += n;
-        buf += n << BDRV_SECTOR_BITS;
+        bytes_done += nbytes;
     }
-    return 0;
-}
 
-static coroutine_fn int parallels_co_read(BlockDriverState *bs, int64_t sector_num,
-                                          uint8_t *buf, int nb_sectors)
-{
-    int ret;
-    BDRVParallelsState *s = bs->opaque;
-    qemu_co_mutex_lock(&s->lock);
-    ret = parallels_read(bs, sector_num, buf, nb_sectors);
-    qemu_co_mutex_unlock(&s->lock);
+    qemu_iovec_destroy(&hd_qiov);
     return ret;
 }
 
@@ -231,9 +243,9 @@ static BlockDriver bdrv_parallels = {
     .instance_size	= sizeof(BDRVParallelsState),
     .bdrv_probe		= parallels_probe,
     .bdrv_open		= parallels_open,
-    .bdrv_read          = parallels_co_read,
     .bdrv_close		= parallels_close,
     .bdrv_co_get_block_status = parallels_co_get_block_status,
+    .bdrv_co_readv  = parallels_co_readv,
 };
 
 static void bdrv_parallels_init(void)
