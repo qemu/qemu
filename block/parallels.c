@@ -36,6 +36,7 @@
 #define HEADER_MAGIC "WithoutFreeSpace"
 #define HEADER_MAGIC2 "WithouFreSpacExt"
 #define HEADER_VERSION 2
+#define HEADER_INUSE_MAGIC  (0x746F6E59)
 
 #define DEFAULT_CLUSTER_SIZE 1048576        /* 1 MiB */
 
@@ -63,6 +64,8 @@ typedef struct BDRVParallelsState {
 
     ParallelsHeader *header;
     uint32_t header_size;
+    bool header_unclean;
+
     uint32_t *bat_bitmap;
     unsigned int bat_size;
 
@@ -259,6 +262,17 @@ static int parallels_check(BlockDriverState *bs, BdrvCheckResult *res,
         return size;
     }
 
+    if (s->header_unclean) {
+        fprintf(stderr, "%s image was not closed correctly\n",
+                fix & BDRV_FIX_ERRORS ? "Repairing" : "ERROR");
+        res->corruptions++;
+        if (fix & BDRV_FIX_ERRORS) {
+            /* parallels_close will do the job right */
+            res->corruptions_fixed++;
+            s->header_unclean = false;
+        }
+    }
+
     res->bfi.total_clusters = s->bat_size;
     res->bfi.compressed_clusters = 0; /* compression is not supported */
 
@@ -417,6 +431,17 @@ static int parallels_probe(const uint8_t *buf, int buf_size,
     return 0;
 }
 
+static int parallels_update_header(BlockDriverState *bs)
+{
+    BDRVParallelsState *s = bs->opaque;
+    unsigned size = MAX(bdrv_opt_mem_align(bs->file), sizeof(ParallelsHeader));
+
+    if (size > s->header_size) {
+        size = s->header_size;
+    }
+    return bdrv_pwrite_sync(bs->file, 0, s->header, size);
+}
+
 static int parallels_open(BlockDriverState *bs, QDict *options, int flags,
                           Error **errp)
 {
@@ -484,6 +509,25 @@ static int parallels_open(BlockDriverState *bs, QDict *options, int flags,
     s->has_truncate = bdrv_has_zero_init(bs->file) &&
                       bdrv_truncate(bs->file, bdrv_getlength(bs->file)) == 0;
 
+    if (le32_to_cpu(ph.inuse) == HEADER_INUSE_MAGIC) {
+        /* Image was not closed correctly. The check is mandatory */
+        s->header_unclean = true;
+        if ((flags & BDRV_O_RDWR) && !(flags & BDRV_O_CHECK)) {
+            error_setg(errp, "parallels: Image was not closed correctly; "
+                       "cannot be opened read/write");
+            ret = -EACCES;
+            goto fail;
+        }
+    }
+
+    if (flags & BDRV_O_RDWR) {
+        s->header->inuse = cpu_to_le32(HEADER_INUSE_MAGIC);
+        ret = parallels_update_header(bs);
+        if (ret < 0) {
+            goto fail;
+        }
+    }
+
     qemu_co_mutex_init(&s->lock);
     return 0;
 
@@ -499,6 +543,12 @@ fail:
 static void parallels_close(BlockDriverState *bs)
 {
     BDRVParallelsState *s = bs->opaque;
+
+    if (bs->open_flags & BDRV_O_RDWR) {
+        s->header->inuse = 0;
+        parallels_update_header(bs);
+    }
+
     qemu_vfree(s->header);
 }
 
