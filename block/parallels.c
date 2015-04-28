@@ -245,6 +245,7 @@ static BlockDriver bdrv_parallels = {
     .bdrv_open		= parallels_open,
     .bdrv_close		= parallels_close,
     .bdrv_co_get_block_status = parallels_co_get_block_status,
+    .bdrv_has_zero_init       = bdrv_has_zero_init_1,
     .bdrv_co_readv  = parallels_co_readv,
 };
 
