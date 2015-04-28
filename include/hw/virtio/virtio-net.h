@@ -68,6 +68,7 @@ typedef struct VirtIONet {
     uint32_t has_vnet_hdr;
     size_t host_hdr_len;
     size_t guest_hdr_len;
+    uint32_t host_features;
     uint8_t has_ufo;
     int mergeable_rx_bufs;
     uint8_t promisc;
@@ -137,7 +138,6 @@ typedef struct VirtIONet {
     DEFINE_PROP_INT32("x-txburst", _state, _field.txburst, TX_BURST),          \
     DEFINE_PROP_STRING("tx", _state, _field.tx)
 
-void virtio_net_set_config_size(VirtIONet *n, uint32_t host_features);
 void virtio_net_set_netclient_name(VirtIONet *n, const char *name,
                                    const char *type);
 

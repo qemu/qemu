@@ -779,7 +779,6 @@ static void virtio_ccw_net_realize(VirtioCcwDevice *ccw_dev, Error **errp)
     DeviceState *vdev = DEVICE(&dev->vdev);
     Error *err = NULL;
 
-    virtio_net_set_config_size(&dev->vdev, ccw_dev->host_features[0]);
     virtio_net_set_netclient_name(&dev->vdev, qdev->id,
                                   object_get_typename(OBJECT(qdev)));
     qdev_set_parent_bus(vdev, BUS(&ccw_dev->bus));
@@ -1403,7 +1402,6 @@ static int virtio_ccw_load_config(DeviceState *d, QEMUFile *f)
 
 static Property virtio_ccw_net_properties[] = {
     DEFINE_PROP_STRING("devno", VirtioCcwDevice, bus_id),
-    DEFINE_VIRTIO_NET_FEATURES(VirtioCcwDevice, host_features[0]),
     DEFINE_PROP_BIT("ioeventfd", VirtioCcwDevice, flags,
                     VIRTIO_CCW_FLAG_USE_IOEVENTFD_BIT, true),
     DEFINE_PROP_END_OF_LIST(),

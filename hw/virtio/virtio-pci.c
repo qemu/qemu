@@ -1369,7 +1369,6 @@ static Property virtio_net_properties[] = {
     DEFINE_PROP_BIT("ioeventfd", VirtIOPCIProxy, flags,
                     VIRTIO_PCI_FLAG_USE_IOEVENTFD_BIT, false),
     DEFINE_PROP_UINT32("vectors", VirtIOPCIProxy, nvectors, 3),
-    DEFINE_VIRTIO_NET_FEATURES(VirtIOPCIProxy, host_features),
     DEFINE_PROP_END_OF_LIST(),
 };
 
@@ -1379,7 +1378,6 @@ static void virtio_net_pci_realize(VirtIOPCIProxy *vpci_dev, Error **errp)
     VirtIONetPCI *dev = VIRTIO_NET_PCI(vpci_dev);
     DeviceState *vdev = DEVICE(&dev->vdev);
 
-    virtio_net_set_config_size(&dev->vdev, vpci_dev->host_features);
     virtio_net_set_netclient_name(&dev->vdev, qdev->id,
                                   object_get_typename(OBJECT(qdev)));
     qdev_set_parent_bus(vdev, BUS(&vpci_dev->bus));
