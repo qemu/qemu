@@ -35,7 +35,7 @@
 #define HEADER_SIZE 64
 
 // always little-endian
-struct parallels_header {
+typedef struct ParallelsHeader {
     char magic[16]; // "WithoutFreeSpace"
     uint32_t version;
     uint32_t heads;
@@ -46,7 +46,7 @@ struct parallels_header {
     uint32_t inuse;
     uint32_t data_off;
     char padding[12];
-} QEMU_PACKED;
+} QEMU_PACKED ParallelsHeader;
 
 typedef struct BDRVParallelsState {
     CoMutex lock;
@@ -61,7 +61,7 @@ typedef struct BDRVParallelsState {
 
 static int parallels_probe(const uint8_t *buf, int buf_size, const char *filename)
 {
-    const struct parallels_header *ph = (const void *)buf;
+    const ParallelsHeader *ph = (const void *)buf;
 
     if (buf_size < HEADER_SIZE)
         return 0;
@@ -79,7 +79,7 @@ static int parallels_open(BlockDriverState *bs, QDict *options, int flags,
 {
     BDRVParallelsState *s = bs->opaque;
     int i;
-    struct parallels_header ph;
+    ParallelsHeader ph;
     int ret;
 
     bs->read_only = 1; // no write support yet
