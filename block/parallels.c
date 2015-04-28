@@ -183,43 +183,47 @@ static int64_t block_status(BDRVParallelsState *s, int64_t sector_num,
     return start_off;
 }
 
-static int64_t allocate_cluster(BlockDriverState *bs, int64_t sector_num)
+static int64_t allocate_clusters(BlockDriverState *bs, int64_t sector_num,
+                                 int nb_sectors, int *pnum)
 {
     BDRVParallelsState *s = bs->opaque;
-    uint32_t idx, offset;
-    int64_t pos;
+    uint32_t idx, to_allocate, i;
+    int64_t pos, space;
+
+    pos = block_status(s, sector_num, nb_sectors, pnum);
+    if (pos > 0) {
+        return pos;
+    }
 
     idx = sector_num / s->tracks;
-    offset = sector_num % s->tracks;
-
     if (idx >= s->bat_size) {
         return -EINVAL;
     }
-    if (s->bat_bitmap[idx] != 0) {
-        return bat2sect(s, idx) + offset;
-    }
 
-    pos = bdrv_getlength(bs->file) >> BDRV_SECTOR_BITS;
-    if (s->data_end + s->tracks > pos) {
+    to_allocate = (sector_num + *pnum + s->tracks - 1) / s->tracks - idx;
+    space = to_allocate * s->tracks;
+    if (s->data_end + space > bdrv_getlength(bs->file) >> BDRV_SECTOR_BITS) {
         int ret;
+        space += s->prealloc_size;
         if (s->prealloc_mode == PRL_PREALLOC_MODE_FALLOCATE) {
-            ret = bdrv_write_zeroes(bs->file, s->data_end,
-                                    s->prealloc_size, 0);
+            ret = bdrv_write_zeroes(bs->file, s->data_end, space, 0);
         } else {
             ret = bdrv_truncate(bs->file,
-                    (s->data_end + s->prealloc_size) << BDRV_SECTOR_BITS);
+                                (s->data_end + space) << BDRV_SECTOR_BITS);
         }
         if (ret < 0) {
             return ret;
         }
     }
-    pos = s->data_end;
-    s->data_end += s->tracks;
 
-    s->bat_bitmap[idx] = cpu_to_le32(pos / s->off_multiplier);
+    for (i = 0; i < to_allocate; i++) {
+        s->bat_bitmap[idx + i] = cpu_to_le32(s->data_end / s->off_multiplier);
+        s->data_end += s->tracks;
+        bitmap_set(s->bat_dirty_bmap,
+                   bat_entry_off(idx) / s->bat_dirty_block, 1);
+    }
 
-    bitmap_set(s->bat_dirty_bmap, bat_entry_off(idx) / s->bat_dirty_block, 1);
-    return bat2sect(s, idx) + offset;
+    return bat2sect(s, idx) + sector_num % s->tracks;
 }
 
 
@@ -287,14 +291,13 @@ static coroutine_fn int parallels_co_writev(BlockDriverState *bs,
         int n, nbytes;
 
         qemu_co_mutex_lock(&s->lock);
-        position = allocate_cluster(bs, sector_num);
+        position = allocate_clusters(bs, sector_num, nb_sectors, &n);
         qemu_co_mutex_unlock(&s->lock);
         if (position < 0) {
             ret = (int)position;
             break;
         }
 
-        n = cluster_remainder(s, sector_num, nb_sectors);
         nbytes = n << BDRV_SECTOR_BITS;
 
         qemu_iovec_reset(&hd_qiov);
