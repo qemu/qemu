@@ -46,6 +46,7 @@
 
 /*** Globals ***/
 static char tmp_path[] = "/tmp/qtest.XXXXXX";
+static char debug_path[] = "/tmp/qtest-blkdebug.XXXXXX";
 static bool ahci_pedantic;
 
 /*** Function Declarations ***/
@@ -986,6 +987,41 @@ static void test_flush(void)
     ahci_shutdown(ahci);
 }
 
+static void test_flush_retry(void)
+{
+    AHCIQState *ahci;
+    AHCICommand *cmd;
+    uint8_t port;
+    const char *s;
+
+    prepare_blkdebug_script(debug_path, "flush_to_disk");
+    ahci = ahci_boot_and_enable("-drive file=blkdebug:%s:%s,if=none,id=drive0,"
+                                "format=qcow2,cache=writeback,"
+                                "rerror=stop,werror=stop "
+                                "-M q35 "
+                                "-device ide-hd,drive=drive0 ",
+                                debug_path,
+                                tmp_path);
+
+    /* Issue Flush Command */
+    port = ahci_port_select(ahci);
+    ahci_port_clear(ahci, port);
+    cmd = ahci_command_create(CMD_FLUSH_CACHE);
+    ahci_command_commit(ahci, cmd, port);
+    ahci_command_issue_async(ahci, cmd);
+    qmp_eventwait("STOP");
+
+    /* Complete the command */
+    s = "{'execute':'cont' }";
+    qmp_async(s);
+    qmp_eventwait("RESUME");
+    ahci_command_wait(ahci, cmd);
+    ahci_command_verify(ahci, cmd);
+
+    ahci_command_free(cmd);
+    ahci_shutdown(ahci);
+}
+
 /******************************************************************************/
 /* AHCI I/O Test Matrix Definitions                                           */
 
@@ -1167,6 +1203,7 @@ int main(int argc, char **argv)
 {
     const char *arch;
     int ret;
+    int fd;
     int c;
     int i, j, k, m;
 
@@ -1206,6 +1243,11 @@ int main(int argc, char **argv)
     close(mkstemp(tmp_path));
     mkqcow2(tmp_path, TEST_IMAGE_SIZE_MB);
 
+    /* Create temporary blkdebug instructions */
+    fd = mkstemp(debug_path);
+    g_assert(fd >= 0);
+    close(fd);
+
     /* Run the tests */
     qtest_add_func("/ahci/sanity",     test_sanity);
     qtest_add_func("/ahci/pci_spec",   test_pci_spec);
@@ -1227,11 +1269,13 @@ int main(int argc, char **argv)
     qtest_add_func("/ahci/io/dma/lba28/fragmented", test_dma_fragmented);
 
     qtest_add_func("/ahci/flush/simple", test_flush);
+    qtest_add_func("/ahci/flush/retry", test_flush_retry);
 
     ret = g_test_run();
 
     /* Cleanup */
     unlink(tmp_path);
+    unlink(debug_path);
 
     return ret;
 }
