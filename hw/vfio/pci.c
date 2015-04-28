@@ -3358,7 +3358,7 @@ static int vfio_initfn(PCIDevice *pdev)
     len = readlink(path, iommu_group_path, sizeof(path));
     if (len <= 0 || len >= sizeof(path)) {
         error_report("vfio: error no iommu_group for device");
-        return len < 0 ? -errno : ENAMETOOLONG;
+        return len < 0 ? -errno : -ENAMETOOLONG;
     }
 
     iommu_group_path[len] = 0;
