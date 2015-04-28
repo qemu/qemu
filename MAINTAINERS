@@ -905,6 +905,15 @@ F: nbd.*
 F: qemu-nbd.c
 T: git git://github.com/bonzini/qemu.git nbd-next
 
+NUMA
+M: Eduardo Habkost <ehabkost@redhat.com>
+S: Maintained
+F: numa.c
+F: include/sysemu/numa.h
+K: numa|NUMA
+K: srat|SRAT
+T: git git://github.com/ehabkost/qemu.git numa
+
 QAPI
 M: Luiz Capitulino <lcapitulino@redhat.com>
 M: Michael Roth <mdroth@linux.vnet.ibm.com>
