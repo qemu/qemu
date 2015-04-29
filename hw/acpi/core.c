@@ -592,7 +592,8 @@ static const MemoryRegionOps acpi_pm_cnt_ops = {
     .endianness = DEVICE_LITTLE_ENDIAN,
 };
 
-void acpi_pm1_cnt_init(ACPIREGS *ar, MemoryRegion *parent, uint8_t s4_val)
+void acpi_pm1_cnt_init(ACPIREGS *ar, MemoryRegion *parent,
+                       bool disable_s3, bool disable_s4, uint8_t s4_val)
 {
     ar->pm1.cnt.s4_val = s4_val;
     ar->wakeup.notify = acpi_notify_wakeup;
