@@ -770,9 +770,8 @@ F: tests/ac97-test.c
 F: tests/es1370-test.c
 F: tests/intel-hda-test.c
 
-Block
+Block layer core
 M: Kevin Wolf <kwolf@redhat.com>
-M: Stefan Hajnoczi <stefanha@redhat.com>
 S: Supported
 F: block*
 F: block/
@@ -781,7 +780,6 @@ F: qemu-img*
 F: qemu-io*
 F: tests/qemu-iotests/
 T: git git://repo.or.cz/qemu/kevin.git block
-T: git git://github.com/stefanha/qemu.git block
 
 Block I/O path
 M: Stefan Hajnoczi <stefanha@redhat.com>
