@@ -36,7 +36,7 @@
 #include <assert.h>
 
 typedef enum {
-    QTYPE_NONE,
+    QTYPE_NONE,    /* sentinel value, no QObject has this type code */
     QTYPE_QINT,
     QTYPE_QSTRING,
     QTYPE_QDICT,

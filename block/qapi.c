@@ -523,9 +523,6 @@ static void dump_qobject(fprintf_function func_fprintf, void *f,
             QDECREF(value);
             break;
         }
-        case QTYPE_NONE:
-            break;
-        case QTYPE_MAX:
         default:
             abort();
     }
