@@ -492,6 +492,25 @@ static QemuOptsList qemu_semihosting_config_opts = {
     },
 };
 
+static QemuOptsList qemu_fw_cfg_opts = {
+    .name = "fw_cfg",
+    .implied_opt_name = "name",
+    .head = QTAILQ_HEAD_INITIALIZER(qemu_fw_cfg_opts.head),
+    .desc = {
+        {
+            .name = "name",
+            .type = QEMU_OPT_STRING,
+            .help = "Sets the fw_cfg name of the blob to be inserted",
+        }, {
+            .name = "file",
+            .type = QEMU_OPT_STRING,
+            .help = "Sets the name of the file from which\n"
+                    "the fw_cfg blob will be loaded",
+        },
+        { /* end of list */ }
+    },
+};
+
 /**
  * Get machine options
  *
@@ -2127,6 +2146,38 @@ char *qemu_find_file(int type, const char *name)
     return NULL;
 }
 
+static int parse_fw_cfg(void *opaque, QemuOpts *opts, Error **errp)
+{
+    gchar *buf;
+    size_t size;
+    const char *name, *file;
+
+    if (opaque == NULL) {
+        error_report("fw_cfg device not available");
+        return -1;
+    }
+    name = qemu_opt_get(opts, "name");
+    file = qemu_opt_get(opts, "file");
+    if (name == NULL || *name == '\0' || file == NULL || *file == '\0') {
+        error_report("invalid argument value");
+        return -1;
+    }
+    if (strlen(name) > FW_CFG_MAX_FILE_PATH - 1) {
+        error_report("name too long (max. %d char)", FW_CFG_MAX_FILE_PATH - 1);
+        return -1;
+    }
+    if (strncmp(name, "opt/", 4) != 0) {
+        error_report("WARNING: externally provided fw_cfg item names "
+                     "should be prefixed with \"opt/\"!");
+    }
+    if (!g_file_get_contents(file, &buf, &size, NULL)) {
+        error_report("can't load %s", file);
+        return -1;
+    }
+    fw_cfg_add_file((FWCfgState *)opaque, name, buf, size);
+    return 0;
+}
+
 static int device_help_func(void *opaque, QemuOpts *opts, Error **errp)
 {
     return qdev_device_help(opts);
@@ -2822,6 +2873,7 @@ int main(int argc, char **argv, char **envp)
     qemu_add_opts(&qemu_numa_opts);
     qemu_add_opts(&qemu_icount_opts);
     qemu_add_opts(&qemu_semihosting_config_opts);
+    qemu_add_opts(&qemu_fw_cfg_opts);
 
     runstate_init();
 
@@ -3437,6 +3489,12 @@ int main(int argc, char **argv, char **envp)
                     exit(1);
                 }
                 do_smbios_option(opts);
+                break;
+            case QEMU_OPTION_fwcfg:
+                opts = qemu_opts_parse(qemu_find_opts("fw_cfg"), optarg, 1);
+                if (opts == NULL) {
+                    exit(1);
+                }
                 break;
             case QEMU_OPTION_enable_kvm:
                 olist = qemu_find_opts("machine");
@@ -4273,6 +4331,11 @@ int main(int argc, char **argv, char **envp)
     cpu_synchronize_all_post_init();
 
     numa_post_machine_init();
+
+    if (qemu_opts_foreach(qemu_find_opts("fw_cfg"),
+                          parse_fw_cfg, fw_cfg_find(), NULL) != 0) {
+        exit(1);
+    }
 
     /* init USB devices */
     if (usb_enabled()) {
