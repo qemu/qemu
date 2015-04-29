@@ -36,11 +36,11 @@ typedef struct CPUMBState CPUMBState;
 
 #define ELF_MACHINE	EM_MICROBLAZE
 
-#define EXCP_MMU        2
-#define EXCP_IRQ        3
-#define EXCP_BREAK      4
-#define EXCP_HW_BREAK   5
-#define EXCP_HW_EXCP    6
+#define EXCP_MMU        1
+#define EXCP_IRQ        2
+#define EXCP_BREAK      3
+#define EXCP_HW_BREAK   4
+#define EXCP_HW_EXCP    5
 
 /* MicroBlaze-specific interrupt pending bits.  */
 #define CPU_INTERRUPT_NMI       CPU_INTERRUPT_TGT_EXT_3
