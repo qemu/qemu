@@ -99,7 +99,6 @@ static void pc_init1(MachineState *machine)
     MemoryRegion *pci_memory;
     MemoryRegion *rom_memory;
     DeviceState *icc_bridge;
-    FWCfgState *fw_cfg = NULL;
     PcGuestInfo *guest_info;
     ram_addr_t lowmem;
 
@@ -180,16 +179,16 @@ static void pc_init1(MachineState *machine)
 
     /* allocate ram and load rom/bios */
     if (!xen_enabled()) {
-        fw_cfg = pc_memory_init(machine, system_memory,
-                                below_4g_mem_size, above_4g_mem_size,
-                                rom_memory, &ram_memory, guest_info);
+        pc_memory_init(machine, system_memory,
+                       below_4g_mem_size, above_4g_mem_size,
+                       rom_memory, &ram_memory, guest_info);
     } else if (machine->kernel_filename != NULL) {
         /* For xen HVM direct kernel boot, load linux here */
-        fw_cfg = xen_load_linux(machine->kernel_filename,
-                                machine->kernel_cmdline,
-                                machine->initrd_filename,
-                                below_4g_mem_size,
-                                guest_info);
+        xen_load_linux(machine->kernel_filename,
+                       machine->kernel_cmdline,
+                       machine->initrd_filename,
+                       below_4g_mem_size,
+                       guest_info);
     }
 
     gsi_state = g_malloc0(sizeof(*gsi_state));
@@ -288,7 +287,7 @@ static void pc_init1(MachineState *machine)
         /* TODO: Populate SPD eeprom data.  */
         smbus = piix4_pm_init(pci_bus, piix3_devfn + 3, 0xb100,
                               gsi[9], *smi_irq,
-                              kvm_enabled(), fw_cfg, &piix4_pm);
+                              kvm_enabled(), &piix4_pm);
         smbus_eeprom_init(smbus, 8, NULL, 0);
 
         object_property_add_link(OBJECT(machine), PC_MACHINE_ACPI_DEVICE_PROP,

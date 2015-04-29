@@ -218,8 +218,7 @@ void ioapic_init_gsi(GSIState *gsi_state, const char *parent_name);
 
 I2CBus *piix4_pm_init(PCIBus *bus, int devfn, uint32_t smb_io_base,
                       qemu_irq sci_irq, qemu_irq smi_irq,
-                      int kvm_enabled, FWCfgState *fw_cfg,
-                      DeviceState **piix4_pm);
+                      int kvm_enabled, DeviceState **piix4_pm);
 void piix4_smbus_register_device(SMBusDevice *dev, uint8_t addr);
 
 /* hpet.c */
