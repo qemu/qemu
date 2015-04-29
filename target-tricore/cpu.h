@@ -395,9 +395,4 @@ int cpu_tricore_handle_mmu_fault(CPUState *cpu, target_ulong address,
 
 #include "exec/exec-all.h"
 
-static inline void cpu_pc_from_tb(CPUTriCoreState *env, TranslationBlock *tb)
-{
-    env->PC = tb->pc;
-}
-
 #endif /*__TRICORE_CPU_H__ */
