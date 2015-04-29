@@ -423,6 +423,7 @@ static void fw_cfg_add_bytes_read_callback(FWCfgState *s, uint16_t key,
     key &= FW_CFG_ENTRY_MASK;
 
     assert(key < FW_CFG_MAX_ENTRY && len < UINT32_MAX);
+    assert(s->entries[arch][key].data == NULL); /* avoid key conflict */
 
     s->entries[arch][key].data = data;
     s->entries[arch][key].len = (uint32_t)len;
