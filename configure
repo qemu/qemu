@@ -1556,6 +1556,17 @@ if test "$static" = "yes" ; then
   fi
 fi
 
+# Unconditional check for compiler __thread support
+  cat > $TMPC << EOF
+static __thread int tls_var;
+int main(void) { return tls_var; }
+EOF
+
+if ! compile_prog "-Werror" "" ; then
+    error_exit "Your compiler does not support the __thread specifier for " \
+	"Thread-Local Storage (TLS). Please upgrade to a version that does."
+fi
+
 if test "$pie" = ""; then
   case "$cpu-$targetos" in
     i386-Linux|x86_64-Linux|x32-Linux|i386-OpenBSD|x86_64-OpenBSD)
