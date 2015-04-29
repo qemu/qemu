@@ -525,14 +525,6 @@ I2CBus *piix4_pm_init(PCIBus *bus, int devfn, uint32_t smb_io_base,
 
     qdev_init_nofail(dev);
 
-    if (fw_cfg) {
-        uint8_t suspend[6] = {128, 0, 0, 129, 128, 128};
-        suspend[3] = 1 | ((!s->disable_s3) << 7);
-        suspend[4] = s->s4_val | ((!s->disable_s4) << 7);
-
-        fw_cfg_add_file(fw_cfg, "etc/system-states", g_memdup(suspend, 6), 6);
-    }
-
     return s->smb.smbus;
 }
 
