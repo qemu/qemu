@@ -88,16 +88,8 @@ class QMPShell(qmp.QEMUMonitorProtocol):
         # clearing everything as it doesn't seem to matter
         readline.set_completer_delims('')
 
-    def __build_cmd(self, cmdline):
-        """
-        Build a QMP input object from a user provided command-line in the
-        following format:
-
-            < command-name > [ arg-name1=arg1 ] ... [ arg-nameN=argN ]
-        """
-        cmdargs = cmdline.split()
-        qmpcmd = { 'execute': cmdargs[0], 'arguments': {} }
-        for arg in cmdargs[1:]:
+    def __cli_expr(self, tokens, parent):
+        for arg in tokens:
             opt = arg.split('=')
             try:
                 if(len(opt) > 2):
@@ -113,7 +105,6 @@ class QMPShell(qmp.QEMUMonitorProtocol):
                 else:
                     value = opt[1]
             optpath = opt[0].split('.')
-            parent = qmpcmd['arguments']
             curpath = []
             for p in optpath[:-1]:
                 curpath.append(p)
@@ -128,6 +119,17 @@ class QMPShell(qmp.QEMUMonitorProtocol):
                 else:
                     raise QMPShellError('Cannot set "%s" multiple times' % opt[0])
             parent[optpath[-1]] = value
+
+    def __build_cmd(self, cmdline):
+        """
+        Build a QMP input object from a user provided command-line in the
+        following format:
+
+            < command-name > [ arg-name1=arg1 ] ... [ arg-nameN=argN ]
+        """
+        cmdargs = cmdline.split()
+        qmpcmd = { 'execute': cmdargs[0], 'arguments': {} }
+        self.__cli_expr(cmdargs[1:], qmpcmd['arguments'])
         return qmpcmd
 
     def _execute_cmd(self, cmdline):
