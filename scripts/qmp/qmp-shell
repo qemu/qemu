@@ -32,6 +32,7 @@
 
 import qmp
 import json
+import ast
 import readline
 import sys
 import pprint
@@ -50,6 +51,19 @@ class QMPShellError(Exception):
 
 class QMPShellBadPort(QMPShellError):
     pass
+
+class FuzzyJSON(ast.NodeTransformer):
+    '''This extension of ast.NodeTransformer filters literal "true/false/null"
+    values in an AST and replaces them by proper "True/False/None" values that
+    Python can properly evaluate.'''
+    def visit_Name(self, node):
+        if node.id == 'true':
+            node.id = 'True'
+        if node.id == 'false':
+            node.id = 'False'
+        if node.id == 'null':
+            node.id = 'None'
+        return node
 
 # TODO: QMPShell's interface is a bit ugly (eg. _fill_completion() and
 #       _execute_cmd()). Let's design a better one.
@@ -88,23 +102,40 @@ class QMPShell(qmp.QEMUMonitorProtocol):
         # clearing everything as it doesn't seem to matter
         readline.set_completer_delims('')
 
+    def __parse_value(self, val):
+        try:
+            return int(val)
+        except ValueError:
+            pass
+
+        if val.lower() == 'true':
+            return True
+        if val.lower() == 'false':
+            return False
+        if val.startswith(('{', '[')):
+            # Try first as pure JSON:
+            try:
+                return json.loads(val)
+            except ValueError:
+                pass
+            # Try once again as FuzzyJSON:
+            try:
+                st = ast.parse(val, mode='eval')
+                return ast.literal_eval(FuzzyJSON().visit(st))
+            except SyntaxError:
+                pass
+            except ValueError:
+                pass
+        return val
+
     def __cli_expr(self, tokens, parent):
         for arg in tokens:
-            opt = arg.split('=')
-            try:
-                if(len(opt) > 2):
-                    opt[1] = '='.join(opt[1:])
-                value = int(opt[1])
-            except ValueError:
-                if opt[1] == 'true':
-                    value = True
-                elif opt[1] == 'false':
-                    value = False
-                elif opt[1].startswith('{'):
-                    value = json.loads(opt[1])
-                else:
-                    value = opt[1]
-            optpath = opt[0].split('.')
+            (key, _, val) = arg.partition('=')
+            if not val:
+                raise QMPShellError("Expected a key=value pair, got '%s'" % arg)
+
+            value = self.__parse_value(val)
+            optpath = key.split('.')
             curpath = []
             for p in optpath[:-1]:
                 curpath.append(p)
@@ -117,7 +148,7 @@ class QMPShell(qmp.QEMUMonitorProtocol):
                 if type(parent[optpath[-1]]) is dict:
                     raise QMPShellError('Cannot use "%s" as both leaf and non-leaf key' % '.'.join(curpath))
                 else:
-                    raise QMPShellError('Cannot set "%s" multiple times' % opt[0])
+                    raise QMPShellError('Cannot set "%s" multiple times' % key)
             parent[optpath[-1]] = value
 
     def __build_cmd(self, cmdline):
