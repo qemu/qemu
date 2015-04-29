@@ -3,7 +3,7 @@
  *
  * Based on ideas by Avi Kivity <avi@redhat.com>
  *
- * Copyright (C) 2009 Red Hat Inc.
+ * Copyright (C) 2009, 2015 Red Hat Inc.
  *
  * Authors:
  *  Luiz Capitulino <lcapitulino@redhat.com>
@@ -37,6 +37,7 @@
 
 typedef enum {
     QTYPE_NONE,    /* sentinel value, no QObject has this type code */
+    QTYPE_QNULL,
     QTYPE_QINT,
     QTYPE_QSTRING,
     QTYPE_QDICT,
@@ -108,6 +109,14 @@ static inline qtype_code qobject_type(const QObject *obj)
 {
     assert(obj->type != NULL);
     return obj->type->code;
+}
+
+extern QObject qnull_;
+
+static inline QObject *qnull(void)
+{
+    qobject_incref(&qnull_);
+    return &qnull_;
 }
 
 #endif /* QOBJECT_H */
