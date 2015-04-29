@@ -704,10 +704,13 @@ F: tests/virtio-9p-test.c
 T: git git://github.com/kvaneesh/QEMU.git
 
 virtio-blk
-M: Kevin Wolf <kwolf@redhat.com>
 M: Stefan Hajnoczi <stefanha@redhat.com>
+L: qemu-block@nongnu.org
 S: Supported
 F: hw/block/virtio-blk.c
+F: hw/block/dataplane/*
+F: hw/virtio/dataplane/*
+T: git git://github.com/stefanha/qemu.git block
 
 virtio-ccw
 M: Cornelia Huck <cornelia.huck@de.ibm.com>
