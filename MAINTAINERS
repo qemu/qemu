@@ -774,17 +774,24 @@ Block
 M: Kevin Wolf <kwolf@redhat.com>
 M: Stefan Hajnoczi <stefanha@redhat.com>
 S: Supported
-F: async.c
-F: aio-*.c
 F: block*
 F: block/
 F: hw/block/
-F: migration/block*
 F: qemu-img*
 F: qemu-io*
 F: tests/image-fuzzer/
 F: tests/qemu-iotests/
 T: git git://repo.or.cz/qemu/kevin.git block
+T: git git://github.com/stefanha/qemu.git block
+
+Block I/O path
+M: Stefan Hajnoczi <stefanha@redhat.com>
+L: qemu-block@nongnu.org
+S: Supported
+F: async.c
+F: aio-*.c
+F: block/io.c
+F: migration/block*
 T: git git://github.com/stefanha/qemu.git block
 
 Block Jobs
