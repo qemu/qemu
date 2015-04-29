@@ -343,7 +343,8 @@ typedef struct BdrvAioNotifier {
 } BdrvAioNotifier;
 
 struct BdrvChildRole {
-    int (*inherit_flags)(int parent_flags);
+    void (*inherit_options)(int *child_flags, QDict *child_options,
+                            int parent_flags, QDict *parent_options);
 };
 
 extern const BdrvChildRole child_file;

@@ -695,11 +695,14 @@ static int bdrv_temp_snapshot_flags(int flags)
 }
 
 /*
- * Returns the flags that bs->file should get if a protocol driver is expected,
- * based on the given flags for the parent BDS
+ * Returns the options and flags that bs->file should get if a protocol driver
+ * is expected, based on the given options and flags for the parent BDS
  */
-static int bdrv_inherited_flags(int flags)
+static void bdrv_inherited_options(int *child_flags, QDict *child_options,
+                                   int parent_flags, QDict *parent_options)
 {
+    int flags = parent_flags;
+
     /* Enable protocol handling, disable format probing for bs->file */
     flags |= BDRV_O_PROTOCOL;
 
@@ -710,45 +713,51 @@ static int bdrv_inherited_flags(int flags)
     /* Clear flags that only apply to the top layer */
     flags &= ~(BDRV_O_SNAPSHOT | BDRV_O_NO_BACKING | BDRV_O_COPY_ON_READ);
 
-    return flags;
+    *child_flags = flags;
 }
 
 const BdrvChildRole child_file = {
-    .inherit_flags = bdrv_inherited_flags,
+    .inherit_options = bdrv_inherited_options,
 };
 
 /*
- * Returns the flags that bs->file should get if the use of formats (and not
- * only protocols) is permitted for it, based on the given flags for the parent
- * BDS
+ * Returns the options and flags that bs->file should get if the use of formats
+ * (and not only protocols) is permitted for it, based on the given options and
+ * flags for the parent BDS
  */
-static int bdrv_inherited_fmt_flags(int parent_flags)
+static void bdrv_inherited_fmt_options(int *child_flags, QDict *child_options,
+                                       int parent_flags, QDict *parent_options)
 {
-    int flags = child_file.inherit_flags(parent_flags);
-    return flags & ~BDRV_O_PROTOCOL;
+    child_file.inherit_options(child_flags, child_options,
+                               parent_flags, parent_options);
+
+    *child_flags &= ~BDRV_O_PROTOCOL;
 }
 
 const BdrvChildRole child_format = {
-    .inherit_flags = bdrv_inherited_fmt_flags,
+    .inherit_options = bdrv_inherited_fmt_options,
 };
 
 /*
- * Returns the flags that bs->backing should get, based on the given flags
- * for the parent BDS
+ * Returns the options and flags that bs->backing should get, based on the
+ * given options and flags for the parent BDS
  */
-static int bdrv_backing_flags(int flags)
+static void bdrv_backing_options(int *child_flags, QDict *child_options,
+                                 int parent_flags, QDict *parent_options)
 {
+    int flags = parent_flags;
+
     /* backing files always opened read-only */
     flags &= ~(BDRV_O_RDWR | BDRV_O_COPY_ON_READ);
 
     /* snapshot=on is handled on the top layer */
     flags &= ~(BDRV_O_SNAPSHOT | BDRV_O_TEMPORARY);
 
-    return flags;
+    *child_flags = flags;
 }
 
 static const BdrvChildRole child_backing = {
-    .inherit_flags = bdrv_backing_flags,
+    .inherit_options = bdrv_backing_options,
 };
 
 static int bdrv_open_flags(BlockDriverState *bs, int flags)
@@ -1480,7 +1489,8 @@ static int bdrv_open_inherit(BlockDriverState **pbs, const char *filename,
 
     if (child_role) {
         bs->inherits_from = parent;
-        flags = child_role->inherit_flags(parent->open_flags);
+        child_role->inherit_options(&flags, options,
+                                    parent->open_flags, parent->options);
     }
 
     ret = bdrv_fill_options(&options, &filename, &flags, &local_err);
@@ -1518,7 +1528,7 @@ static int bdrv_open_inherit(BlockDriverState **pbs, const char *filename,
         }
         if (flags & BDRV_O_SNAPSHOT) {
             snapshot_flags = bdrv_temp_snapshot_flags(flags);
-            flags = bdrv_backing_flags(flags);
+            bdrv_backing_options(&flags, options, flags, options);
         }
 
         bs->open_flags = flags;
@@ -1721,14 +1731,14 @@ static BlockReopenQueue *bdrv_reopen_queue_child(BlockReopenQueue *bs_queue,
      * 1. Explicitly passed in options (highest)
      * 2. TODO Set in flags (only for top level)
      * 3. TODO Retained from explicitly set options of bs
-     * 4. TODO Inherited from parent node
+     * 4. Inherited from parent node
      * 5. Retained from effective options of bs
      */
 
     /* Inherit from parent node */
     if (parent_options) {
         assert(!flags);
-        flags = role->inherit_flags(parent_flags);
+        role->inherit_options(&flags, options, parent_flags, parent_options);
     }
 
     /* Old values are used for options that aren't set yet */
