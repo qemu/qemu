@@ -31,6 +31,7 @@ ifeq ($(CONFIG_OPENGL),y)
 common-obj-y += shader.o
 common-obj-y += console-gl.o
 common-obj-y += egl-helpers.o
+common-obj-y += egl-context.o
 common-obj-$(CONFIG_GTK) += gtk-egl.o
 endif
 
