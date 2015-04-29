@@ -46,7 +46,6 @@ typedef struct FWCfgEntry {
     uint32_t len;
     uint8_t *data;
     void *callback_opaque;
-    FWCfgCallback callback;
     FWCfgReadCallback read_callback;
 } FWCfgEntry;
 
@@ -232,19 +231,7 @@ static void fw_cfg_reboot(FWCfgState *s)
 
 static void fw_cfg_write(FWCfgState *s, uint8_t value)
 {
-    int arch = !!(s->cur_entry & FW_CFG_ARCH_LOCAL);
-    FWCfgEntry *e = &s->entries[arch][s->cur_entry & FW_CFG_ENTRY_MASK];
-
-    trace_fw_cfg_write(s, value);
-
-    if (s->cur_entry & FW_CFG_WRITE_CHANNEL && e->callback &&
-        s->cur_offset < e->len) {
-        e->data[s->cur_offset++] = value;
-        if (s->cur_offset == e->len) {
-            e->callback(e->callback_opaque, e->data);
-            s->cur_offset = 0;
-        }
-    }
+    /* nothing, write support removed in QEMU v2.4+ */
 }
 
 static int fw_cfg_select(FWCfgState *s, uint16_t key)
@@ -458,7 +445,6 @@ static void *fw_cfg_modify_bytes_read(FWCfgState *s, uint16_t key,
     s->entries[arch][key].data = data;
     s->entries[arch][key].len = len;
     s->entries[arch][key].callback_opaque = NULL;
-    s->entries[arch][key].callback = NULL;
 
     return ptr;
 }
@@ -510,23 +496,6 @@ void fw_cfg_add_i64(FWCfgState *s, uint16_t key, uint64_t value)
     copy = g_malloc(sizeof(value));
     *copy = cpu_to_le64(value);
     fw_cfg_add_bytes(s, key, copy, sizeof(value));
-}
-
-void fw_cfg_add_callback(FWCfgState *s, uint16_t key, FWCfgCallback callback,
-                         void *callback_opaque, void *data, size_t len)
-{
-    int arch = !!(key & FW_CFG_ARCH_LOCAL);
-
-    assert(key & FW_CFG_WRITE_CHANNEL);
-
-    key &= FW_CFG_ENTRY_MASK;
-
-    assert(key < FW_CFG_MAX_ENTRY && len <= UINT32_MAX);
-
-    s->entries[arch][key].data = data;
-    s->entries[arch][key].len = (uint32_t)len;
-    s->entries[arch][key].callback_opaque = callback_opaque;
-    s->entries[arch][key].callback = callback;
 }
 
 void fw_cfg_add_file_callback(FWCfgState *s,  const char *filename,

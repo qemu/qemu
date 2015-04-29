@@ -193,7 +193,6 @@ ecc_diag_mem_writeb(uint64_t addr, uint32_t val) "Write diagnostic %"PRId64" = %
 ecc_diag_mem_readb(uint64_t addr, uint32_t ret) "Read diagnostic %"PRId64"= %02x"
 
 # hw/nvram/fw_cfg.c
-fw_cfg_write(void *s, uint8_t value) "%p %d"
 fw_cfg_select(void *s, uint16_t key, int ret) "%p key %d = %d"
 fw_cfg_read(void *s, uint8_t ret) "%p = %d"
 fw_cfg_add_file_dupe(void *s, char *name) "%p %s"
