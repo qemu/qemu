@@ -515,17 +515,18 @@ void fw_cfg_add_file_callback(FWCfgState *s,  const char *filename,
     index = be32_to_cpu(s->files->count);
     assert(index < FW_CFG_FILE_SLOTS);
 
-    fw_cfg_add_bytes_read_callback(s, FW_CFG_FILE_FIRST + index,
-                                   callback, callback_opaque, data, len);
-
     pstrcpy(s->files->f[index].name, sizeof(s->files->f[index].name),
             filename);
     for (i = 0; i < index; i++) {
         if (strcmp(s->files->f[index].name, s->files->f[i].name) == 0) {
-            trace_fw_cfg_add_file_dupe(s, s->files->f[index].name);
-            return;
+            error_report("duplicate fw_cfg file name: %s",
+                         s->files->f[index].name);
+            exit(1);
         }
     }
+
+    fw_cfg_add_bytes_read_callback(s, FW_CFG_FILE_FIRST + index,
+                                   callback, callback_opaque, data, len);
 
     s->files->f[index].size   = cpu_to_be32(len);
     s->files->f[index].select = cpu_to_be16(FW_CFG_FILE_FIRST + index);
