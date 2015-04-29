@@ -73,6 +73,8 @@ class QMPShell(qmp.QEMUMonitorProtocol):
         self._greeting = None
         self._completer = None
         self._pp = pp
+        self._transmode = False
+        self._actions = list()
 
     def __get_address(self, arg):
         """
@@ -159,6 +161,36 @@ class QMPShell(qmp.QEMUMonitorProtocol):
             < command-name > [ arg-name1=arg1 ] ... [ arg-nameN=argN ]
         """
         cmdargs = cmdline.split()
+
+        # Transactional CLI entry/exit:
+        if cmdargs[0] == 'transaction(':
+            self._transmode = True
+            cmdargs.pop(0)
+        elif cmdargs[0] == ')' and self._transmode:
+            self._transmode = False
+            if len(cmdargs) > 1:
+                raise QMPShellError("Unexpected input after close of Transaction sub-shell")
+            qmpcmd = { 'execute': 'transaction',
+                       'arguments': { 'actions': self._actions } }
+            self._actions = list()
+            return qmpcmd
+
+        # Nothing to process?
+        if not cmdargs:
+            return None
+
+        # Parse and then cache this Transactional Action
+        if self._transmode:
+            finalize = False
+            action = { 'type': cmdargs[0], 'data': {} }
+            if cmdargs[-1] == ')':
+                cmdargs.pop(-1)
+                finalize = True
+            self.__cli_expr(cmdargs[1:], action['data'])
+            self._actions.append(action)
+            return self.__build_cmd(')') if finalize else None
+
+        # Standard command: parse and return it to be executed.
         qmpcmd = { 'execute': cmdargs[0], 'arguments': {} }
         self.__cli_expr(cmdargs[1:], qmpcmd['arguments'])
         return qmpcmd
@@ -170,6 +202,9 @@ class QMPShell(qmp.QEMUMonitorProtocol):
             print 'Error while parsing command line: %s' % e
             print 'command format: <command-name> ',
             print '[arg-name1=arg1] ... [arg-nameN=argN]'
+            return True
+        # For transaction mode, we may have just cached the action:
+        if qmpcmd is None:
             return True
         resp = self.cmd_obj(qmpcmd)
         if resp is None:
@@ -190,6 +225,11 @@ class QMPShell(qmp.QEMUMonitorProtocol):
         print msg
         version = self._greeting['QMP']['version']['qemu']
         print 'Connected to QEMU %d.%d.%d\n' % (version['major'],version['minor'],version['micro'])
+
+    def get_prompt(self):
+        if self._transmode:
+            return "TRANS> "
+        return "(QEMU) "
 
     def read_exec_command(self, prompt):
         """
@@ -330,7 +370,7 @@ def main():
         die('Could not connect to %s' % addr)
 
     qemu.show_banner()
-    while qemu.read_exec_command('(QEMU) '):
+    while qemu.read_exec_command(qemu.get_prompt()):
         pass
     qemu.close()
 
