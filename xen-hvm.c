@@ -814,9 +814,14 @@ static void cpu_ioreq_pio(ioreq_t *req)
 {
     uint32_t i;
 
+    trace_cpu_ioreq_pio(req, req->dir, req->df, req->data_is_ptr, req->addr,
+                         req->data, req->count, req->size);
+
     if (req->dir == IOREQ_READ) {
         if (!req->data_is_ptr) {
             req->data = do_inp(req->addr, req->size);
+            trace_cpu_ioreq_pio_read_reg(req, req->data, req->addr,
+                                         req->size);
         } else {
             uint32_t tmp;
 
@@ -827,6 +832,8 @@ static void cpu_ioreq_pio(ioreq_t *req)
         }
     } else if (req->dir == IOREQ_WRITE) {
         if (!req->data_is_ptr) {
+            trace_cpu_ioreq_pio_write_reg(req, req->data, req->addr,
+                                          req->size);
             do_outp(req->addr, req->size, req->data);
         } else {
             for (i = 0; i < req->count; i++) {
@@ -842,6 +849,9 @@ static void cpu_ioreq_pio(ioreq_t *req)
 static void cpu_ioreq_move(ioreq_t *req)
 {
     uint32_t i;
+
+    trace_cpu_ioreq_move(req, req->dir, req->df, req->data_is_ptr, req->addr,
+                         req->data, req->count, req->size);
 
     if (!req->data_is_ptr) {
         if (req->dir == IOREQ_READ) {
@@ -915,10 +925,17 @@ static void handle_vmport_ioreq(XenIOState *state, ioreq_t *req)
 
 static void handle_ioreq(XenIOState *state, ioreq_t *req)
 {
+    trace_handle_ioreq(req, req->type, req->dir, req->df, req->data_is_ptr,
+                       req->addr, req->data, req->count, req->size);
+
     if (!req->data_is_ptr && (req->dir == IOREQ_WRITE) &&
             (req->size < sizeof (target_ulong))) {
         req->data &= ((target_ulong) 1 << (8 * req->size)) - 1;
     }
+
+    if (req->dir == IOREQ_WRITE)
+        trace_handle_ioreq_write(req, req->type, req->df, req->data_is_ptr,
+                                 req->addr, req->data, req->count, req->size);
 
     switch (req->type) {
         case IOREQ_TYPE_PIO:
@@ -958,6 +975,10 @@ static void handle_ioreq(XenIOState *state, ioreq_t *req)
         }
         default:
             hw_error("Invalid ioreq type 0x%x\n", req->type);
+    }
+    if (req->dir == IOREQ_READ) {
+        trace_handle_ioreq_read(req, req->type, req->df, req->data_is_ptr,
+                                req->addr, req->data, req->count, req->size);
     }
 }
 
