@@ -356,7 +356,8 @@ int s390_cpu_handle_mmu_fault(CPUState *cpu, vaddr address, int rw,
 #ifndef CONFIG_USER_ONLY
 void do_restart_interrupt(CPUS390XState *env);
 
-static inline hwaddr decode_basedisp_s(CPUS390XState *env, uint32_t ipb)
+static inline hwaddr decode_basedisp_s(CPUS390XState *env, uint32_t ipb,
+                                       uint8_t *ar)
 {
     hwaddr addr = 0;
     uint8_t reg;
@@ -366,6 +367,9 @@ static inline hwaddr decode_basedisp_s(CPUS390XState *env, uint32_t ipb)
         addr = env->regs[reg];
     }
     addr += (ipb >> 16) & 0xfff;
+    if (ar) {
+        *ar = reg;
+    }
 
     return addr;
 }
@@ -401,6 +405,8 @@ void kvm_s390_vcpu_interrupt(S390CPU *cpu, struct kvm_s390_irq *irq);
 void kvm_s390_floating_interrupt(struct kvm_s390_irq *irq);
 int kvm_s390_inject_flic(struct kvm_s390_irq *irq);
 void kvm_s390_access_exception(S390CPU *cpu, uint16_t code, uint64_t te_code);
+int kvm_s390_mem_op(S390CPU *cpu, vaddr addr, uint8_t ar, void *hostbuf,
+                    int len, bool is_write);
 int kvm_s390_get_clock(uint8_t *tod_high, uint64_t *tod_clock);
 int kvm_s390_set_clock(uint8_t *tod_high, uint64_t *tod_clock);
 #else
@@ -415,6 +421,11 @@ static inline int kvm_s390_get_clock(uint8_t *tod_high, uint64_t *tod_low)
     return -ENOSYS;
 }
 static inline int kvm_s390_set_clock(uint8_t *tod_high, uint64_t *tod_low)
+{
+    return -ENOSYS;
+}
+static inline int kvm_s390_mem_op(S390CPU *cpu, vaddr addr, uint8_t ar,
+                                  void *hostbuf, int len, bool is_write)
 {
     return -ENOSYS;
 }
@@ -865,9 +876,13 @@ struct sysib_322 {
         uint8_t  name[8];
         uint32_t caf;
         uint8_t  cpi[16];
-        uint8_t  res3[24];
+        uint8_t res5[3];
+        uint8_t ext_name_encoding;
+        uint32_t res3;
+        uint8_t uuid[16];
     } vm[8];
-    uint8_t res4[3552];
+    uint8_t res4[1504];
+    uint8_t ext_names[8][256];
 };
 
 /* MMU defines */
@@ -952,15 +967,15 @@ int sclp_service_call(CPUS390XState *env, uint64_t sccb, uint32_t code);
 uint32_t calc_cc(CPUS390XState *env, uint32_t cc_op, uint64_t src, uint64_t dst,
                  uint64_t vr);
 
-int s390_cpu_virt_mem_rw(S390CPU *cpu, vaddr laddr, void *hostbuf, int len,
-                         bool is_write);
+int s390_cpu_virt_mem_rw(S390CPU *cpu, vaddr laddr, uint8_t ar, void *hostbuf,
+                         int len, bool is_write);
 
-#define s390_cpu_virt_mem_read(cpu, laddr, dest, len) \
-        s390_cpu_virt_mem_rw(cpu, laddr, dest, len, false)
-#define s390_cpu_virt_mem_write(cpu, laddr, dest, len) \
-        s390_cpu_virt_mem_rw(cpu, laddr, dest, len, true)
-#define s390_cpu_virt_mem_check_write(cpu, laddr, len) \
-        s390_cpu_virt_mem_rw(cpu, laddr, NULL, len, true)
+#define s390_cpu_virt_mem_read(cpu, laddr, ar, dest, len)    \
+        s390_cpu_virt_mem_rw(cpu, laddr, ar, dest, len, false)
+#define s390_cpu_virt_mem_write(cpu, laddr, ar, dest, len)       \
+        s390_cpu_virt_mem_rw(cpu, laddr, ar, dest, len, true)
+#define s390_cpu_virt_mem_check_write(cpu, laddr, ar, len)   \
+        s390_cpu_virt_mem_rw(cpu, laddr, ar, NULL, len, true)
 
 /* The value of the TOD clock for 1.1.1970. */
 #define TOD_UNIX_EPOCH 0x7d91048bca000000ULL

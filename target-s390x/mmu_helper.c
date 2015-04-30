@@ -68,7 +68,7 @@ static void trigger_prot_fault(CPUS390XState *env, target_ulong vaddr,
 {
     uint64_t tec;
 
-    tec = vaddr | (rw == 1 ? FS_WRITE : FS_READ) | 4 | asc >> 46;
+    tec = vaddr | (rw == MMU_DATA_STORE ? FS_WRITE : FS_READ) | 4 | asc >> 46;
 
     DPRINTF("%s: trans_exc_code=%016" PRIx64 "\n", __func__, tec);
 
@@ -85,7 +85,7 @@ static void trigger_page_fault(CPUS390XState *env, target_ulong vaddr,
     int ilen = ILEN_LATER;
     uint64_t tec;
 
-    tec = vaddr | (rw == 1 ? FS_WRITE : FS_READ) | asc >> 46;
+    tec = vaddr | (rw == MMU_DATA_STORE ? FS_WRITE : FS_READ) | asc >> 46;
 
     DPRINTF("%s: vaddr=%016" PRIx64 " bits=%d\n", __func__, vaddr, bits);
 
@@ -94,7 +94,7 @@ static void trigger_page_fault(CPUS390XState *env, target_ulong vaddr,
     }
 
     /* Code accesses have an undefined ilc.  */
-    if (rw == 2) {
+    if (rw == MMU_INST_FETCH) {
         ilen = 2;
     }
 
@@ -288,7 +288,7 @@ static int mmu_translate_asce(CPUS390XState *env, target_ulong vaddr,
 
     r = mmu_translate_region(env, vaddr, asc, asce, level, raddr, flags, rw,
                              exc);
-    if ((rw == 1) && !(*flags & PAGE_WRITE)) {
+    if (rw == MMU_DATA_STORE && !(*flags & PAGE_WRITE)) {
         trigger_prot_fault(env, vaddr, asc, rw, exc);
         return -1;
     }
@@ -338,7 +338,7 @@ int mmu_translate(CPUS390XState *env, target_ulong vaddr, int rw, uint64_t asc,
          * Instruction: Primary
          * Data: Secondary
          */
-        if (rw == 2) {
+        if (rw == MMU_INST_FETCH) {
             r = mmu_translate_asce(env, vaddr, PSW_ASC_PRIMARY, env->cregs[1],
                                    raddr, flags, rw, exc);
             *flags &= ~(PAGE_READ | PAGE_WRITE);
@@ -435,6 +435,7 @@ static int translate_pages(S390CPU *cpu, vaddr addr, int nr_pages,
 /**
  * s390_cpu_virt_mem_rw:
  * @laddr:     the logical start address
+ * @ar:        the access register number
  * @hostbuf:   buffer in host memory. NULL = do only checks w/o copying
  * @len:       length that should be transfered
  * @is_write:  true = write, false = read
@@ -443,12 +444,19 @@ static int translate_pages(S390CPU *cpu, vaddr addr, int nr_pages,
  * Copy from/to guest memory using logical addresses. Note that we inject a
  * program interrupt in case there is an error while accessing the memory.
  */
-int s390_cpu_virt_mem_rw(S390CPU *cpu, vaddr laddr, void *hostbuf,
+int s390_cpu_virt_mem_rw(S390CPU *cpu, vaddr laddr, uint8_t ar, void *hostbuf,
                          int len, bool is_write)
 {
     int currlen, nr_pages, i;
     target_ulong *pages;
     int ret;
+
+    if (kvm_enabled()) {
+        ret = kvm_s390_mem_op(cpu, laddr, ar, hostbuf, len, is_write);
+        if (ret >= 0) {
+            return ret;
+        }
+    }
 
     nr_pages = (((laddr & ~TARGET_PAGE_MASK) + len - 1) >> TARGET_PAGE_BITS)
                + 1;

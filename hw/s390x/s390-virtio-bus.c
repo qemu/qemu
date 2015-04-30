@@ -542,6 +542,7 @@ static void s390_virtio_net_class_init(ObjectClass *klass, void *data)
 
     k->realize = s390_virtio_net_realize;
     dc->props = s390_virtio_net_properties;
+    set_bit(DEVICE_CATEGORY_NETWORK, dc->categories);
 }
 
 static const TypeInfo s390_virtio_net = {
@@ -555,8 +556,10 @@ static const TypeInfo s390_virtio_net = {
 static void s390_virtio_blk_class_init(ObjectClass *klass, void *data)
 {
     VirtIOS390DeviceClass *k = VIRTIO_S390_DEVICE_CLASS(klass);
+    DeviceClass *dc = DEVICE_CLASS(klass);
 
     k->realize = s390_virtio_blk_realize;
+    set_bit(DEVICE_CATEGORY_STORAGE, dc->categories);
 }
 
 static const TypeInfo s390_virtio_blk = {
@@ -578,6 +581,7 @@ static void s390_virtio_serial_class_init(ObjectClass *klass, void *data)
 
     k->realize = s390_virtio_serial_realize;
     dc->props = s390_virtio_serial_properties;
+    set_bit(DEVICE_CATEGORY_INPUT, dc->categories);
 }
 
 static const TypeInfo s390_virtio_serial = {
@@ -600,6 +604,7 @@ static void s390_virtio_rng_class_init(ObjectClass *klass, void *data)
 
     k->realize = s390_virtio_rng_realize;
     dc->props = s390_virtio_rng_properties;
+    set_bit(DEVICE_CATEGORY_MISC, dc->categories);
 }
 
 static const TypeInfo s390_virtio_rng = {
@@ -658,6 +663,7 @@ static void s390_virtio_scsi_class_init(ObjectClass *klass, void *data)
 
     k->realize = s390_virtio_scsi_realize;
     dc->props = s390_virtio_scsi_properties;
+    set_bit(DEVICE_CATEGORY_STORAGE, dc->categories);
 }
 
 static const TypeInfo s390_virtio_scsi = {
@@ -681,6 +687,7 @@ static void s390_vhost_scsi_class_init(ObjectClass *klass, void *data)
 
     k->realize = s390_vhost_scsi_realize;
     dc->props = s390_vhost_scsi_properties;
+    set_bit(DEVICE_CATEGORY_STORAGE, dc->categories);
 }
 
 static const TypeInfo s390_vhost_scsi = {
@@ -704,8 +711,10 @@ static int s390_virtio_bridge_init(SysBusDevice *dev)
 static void s390_virtio_bridge_class_init(ObjectClass *klass, void *data)
 {
     SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
+    DeviceClass *dc = DEVICE_CLASS(klass);
 
     k->init = s390_virtio_bridge_init;
+    set_bit(DEVICE_CATEGORY_BRIDGE, dc->categories);
 }
 
 static const TypeInfo s390_virtio_bridge_info = {

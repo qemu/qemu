@@ -1453,6 +1453,7 @@ static void virtio_ccw_net_class_init(ObjectClass *klass, void *data)
     k->exit = virtio_ccw_exit;
     dc->reset = virtio_ccw_reset;
     dc->props = virtio_ccw_net_properties;
+    set_bit(DEVICE_CATEGORY_NETWORK, dc->categories);
 }
 
 static const TypeInfo virtio_ccw_net = {
@@ -1479,6 +1480,7 @@ static void virtio_ccw_blk_class_init(ObjectClass *klass, void *data)
     k->exit = virtio_ccw_exit;
     dc->reset = virtio_ccw_reset;
     dc->props = virtio_ccw_blk_properties;
+    set_bit(DEVICE_CATEGORY_STORAGE, dc->categories);
 }
 
 static const TypeInfo virtio_ccw_blk = {
@@ -1505,6 +1507,7 @@ static void virtio_ccw_serial_class_init(ObjectClass *klass, void *data)
     k->exit = virtio_ccw_exit;
     dc->reset = virtio_ccw_reset;
     dc->props = virtio_ccw_serial_properties;
+    set_bit(DEVICE_CATEGORY_INPUT, dc->categories);
 }
 
 static const TypeInfo virtio_ccw_serial = {
@@ -1531,6 +1534,7 @@ static void virtio_ccw_balloon_class_init(ObjectClass *klass, void *data)
     k->exit = virtio_ccw_exit;
     dc->reset = virtio_ccw_reset;
     dc->props = virtio_ccw_balloon_properties;
+    set_bit(DEVICE_CATEGORY_MISC, dc->categories);
 }
 
 static const TypeInfo virtio_ccw_balloon = {
@@ -1558,6 +1562,7 @@ static void virtio_ccw_scsi_class_init(ObjectClass *klass, void *data)
     k->exit = virtio_ccw_exit;
     dc->reset = virtio_ccw_reset;
     dc->props = virtio_ccw_scsi_properties;
+    set_bit(DEVICE_CATEGORY_STORAGE, dc->categories);
 }
 
 static const TypeInfo virtio_ccw_scsi = {
@@ -1583,6 +1588,7 @@ static void vhost_ccw_scsi_class_init(ObjectClass *klass, void *data)
     k->exit = virtio_ccw_exit;
     dc->reset = virtio_ccw_reset;
     dc->props = vhost_ccw_scsi_properties;
+    set_bit(DEVICE_CATEGORY_STORAGE, dc->categories);
 }
 
 static const TypeInfo vhost_ccw_scsi = {
@@ -1620,6 +1626,7 @@ static void virtio_ccw_rng_class_init(ObjectClass *klass, void *data)
     k->exit = virtio_ccw_exit;
     dc->reset = virtio_ccw_reset;
     dc->props = virtio_ccw_rng_properties;
+    set_bit(DEVICE_CATEGORY_MISC, dc->categories);
 }
 
 static const TypeInfo virtio_ccw_rng = {
@@ -1706,9 +1713,11 @@ static void virtual_css_bridge_class_init(ObjectClass *klass, void *data)
 {
     SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
     HotplugHandlerClass *hc = HOTPLUG_HANDLER_CLASS(klass);
+    DeviceClass *dc = DEVICE_CLASS(klass);
 
     k->init = virtual_css_bridge_init;
     hc->unplug = virtio_ccw_busdev_unplug;
+    set_bit(DEVICE_CATEGORY_BRIDGE, dc->categories);
 }
 
 static const TypeInfo virtual_css_bridge_info = {

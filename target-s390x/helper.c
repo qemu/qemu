@@ -162,7 +162,7 @@ hwaddr s390_cpu_get_phys_page_debug(CPUState *cs, vaddr vaddr)
         vaddr &= 0x7fffffff;
     }
 
-    mmu_translate(env, vaddr, 2, asc, &raddr, &prot, false);
+    mmu_translate(env, vaddr, MMU_INST_FETCH, asc, &raddr, &prot, false);
 
     return raddr;
 }
