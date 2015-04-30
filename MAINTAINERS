@@ -735,12 +735,14 @@ F: backends/rng*.c
 
 nvme
 M: Keith Busch <keith.busch@intel.com>
+L: qemu-block@nongnu.org
 S: Supported
 F: hw/block/nvme*
 F: tests/nvme-test.c
 
 megasas
 M: Hannes Reinecke <hare@suse.de>
+L: qemu-block@nongnu.org
 S: Supported
 F: hw/scsi/megasas.c
 F: hw/scsi/mfi.h
@@ -772,6 +774,7 @@ F: tests/intel-hda-test.c
 
 Block layer core
 M: Kevin Wolf <kwolf@redhat.com>
+L: qemu-block@nongnu.org
 S: Supported
 F: block*
 F: block/
@@ -1111,6 +1114,7 @@ Block drivers
 -------------
 VMDK
 M: Fam Zheng <famz@redhat.com>
+L: qemu-block@nongnu.org
 S: Supported
 F: block/vmdk.c
 
@@ -1141,6 +1145,7 @@ T: git git://github.com/codyprime/qemu-kvm-jtc.git block
 
 VDI
 M: Stefan Weil <sw@weilnetz.de>
+L: qemu-block@nongnu.org
 S: Maintained
 F: block/vdi.c
 
@@ -1148,6 +1153,7 @@ iSCSI
 M: Ronnie Sahlberg <ronniesahlberg@gmail.com>
 M: Paolo Bonzini <pbonzini@redhat.com>
 M: Peter Lieven <pl@kamp.de>
+L: qemu-block@nongnu.org
 S: Supported
 F: block/iscsi.c
 
