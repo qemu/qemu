@@ -704,10 +704,13 @@ F: tests/virtio-9p-test.c
 T: git git://github.com/kvaneesh/QEMU.git
 
 virtio-blk
-M: Kevin Wolf <kwolf@redhat.com>
 M: Stefan Hajnoczi <stefanha@redhat.com>
+L: qemu-block@nongnu.org
 S: Supported
 F: hw/block/virtio-blk.c
+F: hw/block/dataplane/*
+F: hw/virtio/dataplane/*
+T: git git://github.com/stefanha/qemu.git block
 
 virtio-ccw
 M: Cornelia Huck <cornelia.huck@de.ibm.com>
@@ -732,12 +735,14 @@ F: backends/rng*.c
 
 nvme
 M: Keith Busch <keith.busch@intel.com>
+L: qemu-block@nongnu.org
 S: Supported
 F: hw/block/nvme*
 F: tests/nvme-test.c
 
 megasas
 M: Hannes Reinecke <hare@suse.de>
+L: qemu-block@nongnu.org
 S: Supported
 F: hw/scsi/megasas.c
 F: hw/scsi/mfi.h
@@ -767,21 +772,26 @@ F: tests/ac97-test.c
 F: tests/es1370-test.c
 F: tests/intel-hda-test.c
 
-Block
+Block layer core
 M: Kevin Wolf <kwolf@redhat.com>
-M: Stefan Hajnoczi <stefanha@redhat.com>
+L: qemu-block@nongnu.org
 S: Supported
-F: async.c
-F: aio-*.c
 F: block*
 F: block/
 F: hw/block/
-F: migration/block*
 F: qemu-img*
 F: qemu-io*
-F: tests/image-fuzzer/
 F: tests/qemu-iotests/
 T: git git://repo.or.cz/qemu/kevin.git block
+
+Block I/O path
+M: Stefan Hajnoczi <stefanha@redhat.com>
+L: qemu-block@nongnu.org
+S: Supported
+F: async.c
+F: aio-*.c
+F: block/io.c
+F: migration/block*
 T: git git://github.com/stefanha/qemu.git block
 
 Block Jobs
@@ -1104,6 +1114,7 @@ Block drivers
 -------------
 VMDK
 M: Fam Zheng <famz@redhat.com>
+L: qemu-block@nongnu.org
 S: Supported
 F: block/vmdk.c
 
@@ -1134,6 +1145,7 @@ T: git git://github.com/codyprime/qemu-kvm-jtc.git block
 
 VDI
 M: Stefan Weil <sw@weilnetz.de>
+L: qemu-block@nongnu.org
 S: Maintained
 F: block/vdi.c
 
@@ -1141,6 +1153,7 @@ iSCSI
 M: Ronnie Sahlberg <ronniesahlberg@gmail.com>
 M: Paolo Bonzini <pbonzini@redhat.com>
 M: Peter Lieven <pl@kamp.de>
+L: qemu-block@nongnu.org
 S: Supported
 F: block/iscsi.c
 
@@ -1198,3 +1211,86 @@ M: Alberto Garcia <berto@igalia.com>
 S: Supported
 F: block/quorum.c
 L: qemu-block@nongnu.org
+
+blkverify
+M: Stefan Hajnoczi <stefanha@redhat.com>
+L: qemu-block@nongnu.org
+S: Supported
+F: block/blkverify.c
+
+bochs
+M: Stefan Hajnoczi <stefanha@redhat.com>
+L: qemu-block@nongnu.org
+S: Supported
+F: block/bochs.c
+
+cloop
+M: Stefan Hajnoczi <stefanha@redhat.com>
+L: qemu-block@nongnu.org
+S: Supported
+F: block/cloop.c
+
+dmg
+M: Stefan Hajnoczi <stefanha@redhat.com>
+L: qemu-block@nongnu.org
+S: Supported
+F: block/dmg.c
+
+parallels
+M: Stefan Hajnoczi <stefanha@redhat.com>
+L: qemu-block@nongnu.org
+S: Supported
+F: block/parallels.c
+
+qed
+M: Stefan Hajnoczi <stefanha@redhat.com>
+L: qemu-block@nongnu.org
+S: Supported
+F: block/qed.c
+
+raw
+M: Kevin Wolf <kwolf@redhat.com>
+L: qemu-block@nongnu.org
+S: Supported
+F: block/linux-aio.c
+F: block/raw-aio.h
+F: block/raw-posix.c
+F: block/raw-win32.c
+F: block/raw_bsd.c
+F: block/win32-aio.c
+
+qcow2
+M: Kevin Wolf <kwolf@redhat.com>
+L: qemu-block@nongnu.org
+S: Supported
+F: block/qcow2*
+
+qcow
+M: Kevin Wolf <kwolf@redhat.com>
+L: qemu-block@nongnu.org
+S: Supported
+F: block/qcow.c
+
+blkdebug
+M: Kevin Wolf <kwolf@redhat.com>
+L: qemu-block@nongnu.org
+S: Supported
+F: block/blkdebug.c
+
+vpc
+M: Kevin Wolf <kwolf@redhat.com>
+L: qemu-block@nongnu.org
+S: Supported
+F: block/vpc.c
+
+vvfat
+M: Kevin Wolf <kwolf@redhat.com>
+L: qemu-block@nongnu.org
+S: Supported
+F: block/vvfat.c
+
+Image format fuzzer
+M: Stefan Hajnoczi <stefanha@redhat.com>
+L: qemu-block@nongnu.org
+S: Supported
+F: tests/image-fuzzer/
