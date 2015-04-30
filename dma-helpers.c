@@ -10,7 +10,6 @@
 #include "sysemu/block-backend.h"
 #include "sysemu/dma.h"
 #include "trace.h"
-#include "qemu/range.h"
 #include "qemu/thread.h"
 #include "qemu/main-loop.h"
 

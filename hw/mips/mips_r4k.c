@@ -139,6 +139,7 @@ static int64_t load_kernel(void)
     rom_add_blob_fixed("params", params_buf, params_size,
                        (16 << 20) - 264);
 
+    g_free(params_buf);
     return entry;
 }
 

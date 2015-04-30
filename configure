@@ -5193,8 +5193,6 @@ case "$target_name" in
     TARGET_BASE_ARCH=mips
     echo "TARGET_ABI_MIPSN64=y" >> $config_target_mak
   ;;
-  tricore)
-  ;;
   moxie)
   ;;
   or32)
@@ -5244,6 +5242,8 @@ case "$target_name" in
   ;;
   s390x)
     gdb_xml_files="s390x-core64.xml s390-acr.xml s390-fpr.xml"
+  ;;
+  tricore)
   ;;
   unicore32)
   ;;

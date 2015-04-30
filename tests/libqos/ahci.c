@@ -364,7 +364,7 @@ void ahci_port_clear(AHCIQState *ahci, uint8_t port)
     ahci_px_wreg(ahci, port, AHCI_PX_IS, reg);
     g_assert_cmphex(ahci_px_rreg(ahci, port, AHCI_PX_IS), ==, 0);
 
-    /* Wipe the FIS-Recieve Buffer */
+    /* Wipe the FIS-Receive Buffer */
     qmemset(ahci->port[port].fb, 0x00, 0x100);
 }
 
@@ -442,7 +442,7 @@ void ahci_port_check_pio_sanity(AHCIQState *ahci, uint8_t port,
 {
     PIOSetupFIS *pio = g_malloc0(0x20);
 
-    /* We cannot check the Status or E_Status registers, becuase
+    /* We cannot check the Status or E_Status registers, because
      * the status may have again changed between the PIO Setup FIS
      * and the conclusion of the command with the D2H Register FIS. */
     memread(ahci->port[port].fb + 0x20, pio, 0x20);

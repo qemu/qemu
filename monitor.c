@@ -4390,14 +4390,6 @@ static void ringbuf_completion(ReadLineState *rs, const char *str)
     qapi_free_ChardevInfoList(start);
 }
 
-void ringbuf_read_completion(ReadLineState *rs, int nb_args, const char *str)
-{
-    if (nb_args != 2) {
-        return;
-    }
-    ringbuf_completion(rs, str);
-}
-
 void ringbuf_write_completion(ReadLineState *rs, int nb_args, const char *str)
 {
     if (nb_args != 2) {
@@ -5390,11 +5382,6 @@ static void bdrv_password_cb(void *opaque, const char *password,
         mon->password_completion_cb(mon->password_opaque, ret);
 
     monitor_read_command(mon, 1);
-}
-
-ReadLineState *monitor_get_rs(Monitor *mon)
-{
-    return mon->rs;
 }
 
 int monitor_read_bdrv_key_start(Monitor *mon, BlockDriverState *bs,

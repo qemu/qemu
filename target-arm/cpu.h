@@ -93,11 +93,6 @@
 #define ARM_CPU_VIRQ 2
 #define ARM_CPU_VFIQ 3
 
-typedef void ARMWriteCPFunc(void *opaque, int cp_info,
-                            int srcreg, int operand, uint32_t value);
-typedef uint32_t ARMReadCPFunc(void *opaque, int cp_info,
-                               int dstreg, int operand);
-
 struct arm_boot_info;
 
 #define NB_MMU_MODES 7
@@ -1878,15 +1873,6 @@ static inline void cpu_get_tb_cpu_state(CPUARMState *env, target_ulong *pc,
 }
 
 #include "exec/exec-all.h"
-
-static inline void cpu_pc_from_tb(CPUARMState *env, TranslationBlock *tb)
-{
-    if (ARM_TBFLAG_AARCH64_STATE(tb->flags)) {
-        env->pc = tb->pc;
-    } else {
-        env->regs[15] = tb->pc;
-    }
-}
 
 enum {
     QEMU_PSCI_CONDUIT_DISABLED = 0,

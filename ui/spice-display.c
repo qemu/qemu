@@ -539,7 +539,7 @@ static void interface_get_init_info(QXLInstance *sin, QXLDevInitInfo *info)
     info->n_surfaces = ssd->num_surfaces;
 }
 
-static int interface_get_command(QXLInstance *sin, struct QXLCommandExt *ext)
+static int interface_get_command(QXLInstance *sin, QXLCommandExt *ext)
 {
     SimpleSpiceDisplay *ssd = container_of(sin, SimpleSpiceDisplay, qxl);
     SimpleSpiceUpdate *update;
@@ -566,7 +566,7 @@ static int interface_req_cmd_notification(QXLInstance *sin)
 }
 
 static void interface_release_resource(QXLInstance *sin,
-                                       struct QXLReleaseInfoExt rext)
+                                       QXLReleaseInfoExt rext)
 {
     SimpleSpiceDisplay *ssd = container_of(sin, SimpleSpiceDisplay, qxl);
     SimpleSpiceUpdate *update;
@@ -589,7 +589,7 @@ static void interface_release_resource(QXLInstance *sin,
     }
 }
 
-static int interface_get_cursor_command(QXLInstance *sin, struct QXLCommandExt *ext)
+static int interface_get_cursor_command(QXLInstance *sin, QXLCommandExt *ext)
 {
     SimpleSpiceDisplay *ssd = container_of(sin, SimpleSpiceDisplay, qxl);
     int ret;
@@ -718,7 +718,7 @@ static void display_update(DisplayChangeListener *dcl,
 }
 
 static void display_switch(DisplayChangeListener *dcl,
-                           struct DisplaySurface *surface)
+                           DisplaySurface *surface)
 {
     SimpleSpiceDisplay *ssd = container_of(dcl, SimpleSpiceDisplay, dcl);
     qemu_spice_display_switch(ssd, surface);

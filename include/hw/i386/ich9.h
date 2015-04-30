@@ -2,7 +2,6 @@
 #define HW_ICH9_H
 
 #include "hw/hw.h"
-#include "qemu/range.h"
 #include "hw/isa/isa.h"
 #include "hw/sysbus.h"
 #include "hw/i386/pc.h"
@@ -19,7 +18,6 @@ void ich9_lpc_set_irq(void *opaque, int irq_num, int level);
 int ich9_lpc_map_irq(PCIDevice *pci_dev, int intx);
 PCIINTxRoute ich9_route_intx_pin_to_irq(void *opaque, int pirq_pin);
 void ich9_lpc_pm_init(PCIDevice *pci_lpc);
-PCIBus *ich9_d2pbr_init(PCIBus *bus, int devfn, int sec_bus);
 I2CBus *ich9_smb_init(PCIBus *bus, int devfn, uint32_t smb_io_base);
 
 #define ICH9_CC_SIZE                            (16 * 1024)     /* 16KB */

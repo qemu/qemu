@@ -269,7 +269,7 @@ void graphic_hw_invalidate(QemuConsole *con)
     }
 }
 
-static void ppm_save(const char *filename, struct DisplaySurface *ds,
+static void ppm_save(const char *filename, DisplaySurface *ds,
                      Error **errp)
 {
     int width = pixman_image_get_width(ds->image);
@@ -1535,7 +1535,7 @@ void dpy_text_update(QemuConsole *con, int x, int y, int w, int h)
 void dpy_text_resize(QemuConsole *con, int w, int h)
 {
     DisplayState *s = con->ds;
-    struct DisplayChangeListener *dcl;
+    DisplayChangeListener *dcl;
 
     if (!qemu_console_is_visible(con)) {
         return;

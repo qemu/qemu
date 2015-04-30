@@ -3,10 +3,8 @@
 #include "qemu/option.h"
 #include "qemu/config-file.h"
 #include "qapi/qmp/qerror.h"
-#include "hw/qdev.h"
 #include "qapi/error.h"
 #include "qmp-commands.h"
-#include "hw/i386/pc.h"
 
 static QemuOptsList *vm_config_groups[32];
 static QemuOptsList *drive_config_groups[4];

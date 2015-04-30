@@ -415,9 +415,4 @@ static inline int cpu_mmu_index(CPUOpenRISCState *env)
 
 #include "exec/exec-all.h"
 
-static inline target_ulong cpu_get_pc(CPUOpenRISCState *env)
-{
-    return env->pc;
-}
-
 #endif /* CPU_OPENRISC_H */

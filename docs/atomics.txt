@@ -281,7 +281,7 @@ note that the other barrier may actually be in a driver that runs in
 the guest!
 
 For the purposes of pairing, smp_read_barrier_depends() and smp_rmb()
-both count as read barriers.  A read barriers shall pair with a write
+both count as read barriers.  A read barrier shall pair with a write
 barrier or a full barrier; a write barrier shall pair with a read
 barrier or a full barrier.  A full barrier can pair with anything.
 For example:
@@ -294,7 +294,7 @@ For example:
                              smp_rmb();
                              y = a;
 
-Note that the "writing" thread are accessing the variables in the
+Note that the "writing" thread is accessing the variables in the
 opposite order as the "reading" thread.  This is expected: stores
 before the write barrier will normally match the loads after the
 read barrier, and vice versa.  The same is true for more than 2

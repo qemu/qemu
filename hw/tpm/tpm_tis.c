@@ -30,15 +30,13 @@
 #include "qemu-common.h"
 #include "qemu/main-loop.h"
 
-/*#define DEBUG_TIS */
+#define DEBUG_TIS 0
 
-#ifdef DEBUG_TIS
-#define DPRINTF(fmt, ...) \
-    do { fprintf(stderr, fmt, ## __VA_ARGS__); } while (0)
-#else
-#define DPRINTF(fmt, ...) \
-    do { } while (0)
-#endif
+#define DPRINTF(fmt, ...) do { \
+    if (DEBUG_TIS) { \
+        printf(fmt, ## __VA_ARGS__); \
+    } \
+} while (0);
 
 /* whether the STS interrupt is supported */
 #define RAISE_STS_IRQ
@@ -421,7 +419,7 @@ static void tpm_tis_dump_state(void *opaque, hwaddr addr)
 
     for (idx = 0; regs[idx] != 0xfff; idx++) {
         DPRINTF("tpm_tis: 0x%04x : 0x%08x\n", regs[idx],
-                (uint32_t)tpm_tis_mmio_read(opaque, base + regs[idx], 4));
+                (int)tpm_tis_mmio_read(opaque, base + regs[idx], 4));
     }
 
     DPRINTF("tpm_tis: read offset   : %d\n"
@@ -555,7 +553,7 @@ static uint64_t tpm_tis_mmio_read(void *opaque, hwaddr addr,
         val >>= shift;
     }
 
-    DPRINTF("tpm_tis:  read.%u(%08x) = %08x\n", size, (int)addr, (uint32_t)val);
+    DPRINTF("tpm_tis:  read.%u(%08x) = %08x\n", size, (int)addr, (int)val);
 
     return val;
 }
@@ -578,7 +576,7 @@ static void tpm_tis_mmio_write_intern(void *opaque, hwaddr addr,
     uint16_t len;
     uint32_t mask = (size == 1) ? 0xff : ((size == 2) ? 0xffff : ~0);
 
-    DPRINTF("tpm_tis: write.%u(%08x) = %08x\n", size, (int)addr, (uint32_t)val);
+    DPRINTF("tpm_tis: write.%u(%08x) = %08x\n", size, (int)addr, (int)val);
 
     if (locty == 4 && !hw_access) {
         DPRINTF("tpm_tis: Access to locality 4 only allowed from hardware\n");
@@ -815,7 +813,7 @@ static void tpm_tis_mmio_write_intern(void *opaque, hwaddr addr,
             /* drop the byte */
         } else {
             DPRINTF("tpm_tis: Data to send to TPM: %08x (size=%d)\n",
-                    val, size);
+                    (int)val, size);
             if (tis->loc[locty].state == TPM_TIS_STATE_READY) {
                 tis->loc[locty].state = TPM_TIS_STATE_RECEPTION;
                 tpm_tis_sts_set(&tis->loc[locty],
@@ -844,7 +842,7 @@ static void tpm_tis_mmio_write_intern(void *opaque, hwaddr addr,
                 (tis->loc[locty].sts & TPM_TIS_STS_EXPECT)) {
                 /* we have a packet length - see if we have all of it */
 #ifdef RAISE_STS_IRQ
-                bool needIrq = !(tis->loc[locty].sts & TPM_TIS_STS_VALID);
+                bool need_irq = !(tis->loc[locty].sts & TPM_TIS_STS_VALID);
 #endif
                 len = tpm_tis_get_size_from_buffer(&tis->loc[locty].w_buffer);
                 if (len > tis->loc[locty].w_offset) {
@@ -855,7 +853,7 @@ static void tpm_tis_mmio_write_intern(void *opaque, hwaddr addr,
                     tpm_tis_sts_set(&tis->loc[locty], TPM_TIS_STS_VALID);
                 }
 #ifdef RAISE_STS_IRQ
-                if (needIrq) {
+                if (need_irq) {
                     tpm_tis_raise_irq(s, locty, TPM_TIS_INT_STS_VALID);
                 }
 #endif

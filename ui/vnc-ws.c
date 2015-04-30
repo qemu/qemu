@@ -24,7 +24,7 @@
 #ifdef CONFIG_VNC_TLS
 #include "qemu/sockets.h"
 
-static int vncws_start_tls_handshake(struct VncState *vs)
+static int vncws_start_tls_handshake(VncState *vs)
 {
     int ret = gnutls_handshake(vs->tls.session);
 
@@ -63,7 +63,7 @@ static int vncws_start_tls_handshake(struct VncState *vs)
 
 void vncws_tls_handshake_io(void *opaque)
 {
-    struct VncState *vs = (struct VncState *)opaque;
+    VncState *vs = (VncState *)opaque;
 
     if (!vs->tls.session) {
         VNC_DEBUG("TLS Websocket setup\n");

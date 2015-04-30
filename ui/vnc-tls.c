@@ -68,7 +68,7 @@ static int vnc_tls_initialize(void)
 static ssize_t vnc_tls_push(gnutls_transport_ptr_t transport,
                             const void *data,
                             size_t len) {
-    struct VncState *vs = (struct VncState *)transport;
+    VncState *vs = (VncState *)transport;
     int ret;
 
  retry:
@@ -85,7 +85,7 @@ static ssize_t vnc_tls_push(gnutls_transport_ptr_t transport,
 static ssize_t vnc_tls_pull(gnutls_transport_ptr_t transport,
                             void *data,
                             size_t len) {
-    struct VncState *vs = (struct VncState *)transport;
+    VncState *vs = (VncState *)transport;
     int ret;
 
  retry:
@@ -170,7 +170,7 @@ static gnutls_certificate_credentials_t vnc_tls_initialize_x509_cred(VncDisplay 
 }
 
 
-int vnc_tls_validate_certificate(struct VncState *vs)
+int vnc_tls_validate_certificate(VncState *vs)
 {
     int ret;
     unsigned int status;
@@ -332,7 +332,7 @@ static int vnc_set_gnutls_priority(gnutls_session_t s, int x509)
 
 #endif
 
-int vnc_tls_client_setup(struct VncState *vs,
+int vnc_tls_client_setup(VncState *vs,
                          int needX509Creds) {
     VNC_DEBUG("Do TLS setup\n");
     if (vnc_tls_initialize() < 0) {
@@ -410,7 +410,7 @@ int vnc_tls_client_setup(struct VncState *vs,
 }
 
 
-void vnc_tls_client_cleanup(struct VncState *vs)
+void vnc_tls_client_cleanup(VncState *vs)
 {
     if (vs->tls.session) {
         gnutls_deinit(vs->tls.session);

@@ -1029,7 +1029,7 @@ static int spapr_post_load(void *opaque, int version_id)
     sPAPREnvironment *spapr = (sPAPREnvironment *)opaque;
     int err = 0;
 
-    /* In earlier versions, there was no seperate qdev for the PAPR
+    /* In earlier versions, there was no separate qdev for the PAPR
      * RTC, so the RTC offset was stored directly in sPAPREnvironment.
      * So when migrating from those versions, poke the incoming offset
      * value into the RTC device */

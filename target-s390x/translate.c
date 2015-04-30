@@ -2990,7 +2990,7 @@ static ExitStatus op_sam(DisasContext *s, DisasOps *o)
         break;
     }
 
-    /* Bizzare but true, we check the address of the current insn for the
+    /* Bizarre but true, we check the address of the current insn for the
        specification exception, not the next to be executed.  Thus the PoO
        documents that Bad Things Happen two bytes before the end.  */
     if (s->pc & ~mask) {

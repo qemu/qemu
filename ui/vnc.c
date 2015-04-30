@@ -1046,7 +1046,7 @@ static void vnc_dpy_cursor_define(DisplayChangeListener *dcl,
     }
 }
 
-static int find_and_clear_dirty_height(struct VncState *vs,
+static int find_and_clear_dirty_height(VncState *vs,
                                        int y, int last_x, int x, int height)
 {
     int h;

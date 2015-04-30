@@ -82,7 +82,6 @@ struct microblaze_mmu_lookup
     } err;
 };
 
-void mmu_flip_um(CPUMBState *env, unsigned int um);
 unsigned int mmu_translate(struct microblaze_mmu *mmu,
                            struct microblaze_mmu_lookup *lu,
                            target_ulong vaddr, int rw, int mmu_idx);

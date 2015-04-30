@@ -26,7 +26,6 @@
 #include "qemu-common.h"
 #include "qemu/bitmap.h"
 #include "qemu/osdep.h"
-#include "qemu/range.h"
 #include "qemu/error-report.h"
 #include "hw/pci/pci.h"
 #include "qom/cpu.h"
