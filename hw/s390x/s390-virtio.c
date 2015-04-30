@@ -77,6 +77,16 @@ static int s390_virtio_hcall_notify(const uint64_t *args)
     if (mem > ram_size) {
         VirtIOS390Device *dev = s390_virtio_bus_find_vring(s390_bus, mem, &i);
         if (dev) {
+            /*
+             * Older kernels will use the virtqueue before setting DRIVER_OK.
+             * In this case the feature bits are not yet up to date, meaning
+             * that several funny things can happen, e.g. the guest thinks
+             * EVENT_IDX is on and QEMU thinks it is off. Let's force a feature
+             * and status sync.
+             */
+            if (!(dev->vdev->status & VIRTIO_CONFIG_S_DRIVER_OK)) {
+                s390_virtio_device_update_status(dev);
+            }
             virtio_queue_notify(dev->vdev, i);
         } else {
             r = -EINVAL;
