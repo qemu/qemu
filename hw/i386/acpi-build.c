@@ -58,7 +58,6 @@
 
 #include "qapi/qmp/qint.h"
 #include "qom/qom-qobject.h"
-#include "exec/ram_addr.h"
 
 /* These are used to size the ACPI tables for -M pc-i440fx-1.7 and
  * -M pc-i440fx-2.0.  Even if the actual amount of AML generated grows
@@ -1323,13 +1322,13 @@ static inline void acpi_build_tables_cleanup(AcpiBuildTables *tables, bool mfre)
 typedef
 struct AcpiBuildState {
     /* Copy of table in RAM (for patching). */
-    ram_addr_t table_ram;
+    MemoryRegion *table_mr;
     /* Is table patched? */
     uint8_t patched;
     PcGuestInfo *guest_info;
     void *rsdp;
-    ram_addr_t rsdp_ram;
-    ram_addr_t linker_ram;
+    MemoryRegion *rsdp_mr;
+    MemoryRegion *linker_mr;
 } AcpiBuildState;
 
 static bool acpi_get_mcfg(AcpiMcfgInfo *mcfg)
@@ -1513,15 +1512,15 @@ void acpi_build(PcGuestInfo *guest_info, AcpiBuildTables *tables)
     g_array_free(table_offsets, true);
 }
 
-static void acpi_ram_update(ram_addr_t ram, GArray *data)
+static void acpi_ram_update(MemoryRegion *mr, GArray *data)
 {
     uint32_t size = acpi_data_len(data);
 
     /* Make sure RAM size is correct - in case it got changed e.g. by migration */
-    qemu_ram_resize(ram, size, &error_abort);
+    memory_region_ram_resize(mr, size, &error_abort);
 
-    memcpy(qemu_get_ram_ptr(ram), data->data, size);
-    cpu_physical_memory_set_dirty_range_nocode(ram, size);
+    memcpy(memory_region_get_ram_ptr(mr), data->data, size);
+    memory_region_set_dirty(mr, 0, size);
 }
 
 static void acpi_build_update(void *build_opaque, uint32_t offset)
@@ -1539,15 +1538,15 @@ static void acpi_build_update(void *build_opaque, uint32_t offset)
 
     acpi_build(build_state->guest_info, &tables);
 
-    acpi_ram_update(build_state->table_ram, tables.table_data);
+    acpi_ram_update(build_state->table_mr, tables.table_data);
 
     if (build_state->rsdp) {
         memcpy(build_state->rsdp, tables.rsdp->data, acpi_data_len(tables.rsdp));
     } else {
-        acpi_ram_update(build_state->rsdp_ram, tables.rsdp);
+        acpi_ram_update(build_state->rsdp_mr, tables.rsdp);
     }
 
-    acpi_ram_update(build_state->linker_ram, tables.linker);
+    acpi_ram_update(build_state->linker_mr, tables.linker);
     acpi_build_tables_cleanup(&tables, true);
 }
 
@@ -1557,8 +1556,9 @@ static void acpi_build_reset(void *build_opaque)
     build_state->patched = 0;
 }
 
-static ram_addr_t acpi_add_rom_blob(AcpiBuildState *build_state, GArray *blob,
-                               const char *name, uint64_t max_size)
+static MemoryRegion *acpi_add_rom_blob(AcpiBuildState *build_state,
+                                       GArray *blob, const char *name,
+                                       uint64_t max_size)
 {
     return rom_add_blob(name, blob->data, acpi_data_len(blob), max_size, -1,
                         name, acpi_build_update, build_state);
@@ -1604,12 +1604,12 @@ void acpi_setup(PcGuestInfo *guest_info)
     acpi_build(build_state->guest_info, &tables);
 
     /* Now expose it all to Guest */
-    build_state->table_ram = acpi_add_rom_blob(build_state, tables.table_data,
+    build_state->table_mr = acpi_add_rom_blob(build_state, tables.table_data,
                                                ACPI_BUILD_TABLE_FILE,
                                                ACPI_BUILD_TABLE_MAX_SIZE);
-    assert(build_state->table_ram != RAM_ADDR_MAX);
+    assert(build_state->table_mr != NULL);
 
-    build_state->linker_ram =
+    build_state->linker_mr =
         acpi_add_rom_blob(build_state, tables.linker, "etc/table-loader", 0);
 
     fw_cfg_add_file(guest_info->fw_cfg, ACPI_BUILD_TPMLOG_FILE,
@@ -1627,10 +1627,10 @@ void acpi_setup(PcGuestInfo *guest_info)
         fw_cfg_add_file_callback(guest_info->fw_cfg, ACPI_BUILD_RSDP_FILE,
                                  acpi_build_update, build_state,
                                  build_state->rsdp, rsdp_size);
-        build_state->rsdp_ram = (ram_addr_t)-1;
+        build_state->rsdp_mr = NULL;
     } else {
         build_state->rsdp = NULL;
-        build_state->rsdp_ram = acpi_add_rom_blob(build_state, tables.rsdp,
+        build_state->rsdp_mr = acpi_add_rom_blob(build_state, tables.rsdp,
                                                   ACPI_BUILD_RSDP_FILE, 0);
     }
 

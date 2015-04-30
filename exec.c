@@ -380,7 +380,6 @@ MemoryRegion *address_space_translate(AddressSpace *as, hwaddr addr,
     IOMMUTLBEntry iotlb;
     MemoryRegionSection *section;
     MemoryRegion *mr;
-    hwaddr len = *plen;
 
     rcu_read_lock();
     for (;;) {
@@ -395,7 +394,7 @@ MemoryRegion *address_space_translate(AddressSpace *as, hwaddr addr,
         iotlb = mr->iommu_ops->translate(mr, addr, is_write);
         addr = ((iotlb.translated_addr & ~iotlb.addr_mask)
                 | (addr & iotlb.addr_mask));
-        len = MIN(len, (addr | iotlb.addr_mask) - addr + 1);
+        *plen = MIN(*plen, (addr | iotlb.addr_mask) - addr + 1);
         if (!(iotlb.perm & (1 << is_write))) {
             mr = &io_mem_unassigned;
             break;
@@ -406,10 +405,9 @@ MemoryRegion *address_space_translate(AddressSpace *as, hwaddr addr,
 
     if (xen_enabled() && memory_access_is_direct(mr, is_write)) {
         hwaddr page = ((addr & TARGET_PAGE_MASK) + TARGET_PAGE_SIZE) - addr;
-        len = MIN(page, len);
+        *plen = MIN(page, *plen);
     }
 
-    *plen = len;
     *xlat = addr;
     rcu_read_unlock();
     return mr;
@@ -428,15 +426,6 @@ address_space_translate_for_iotlb(CPUState *cpu, hwaddr addr,
     return section;
 }
 #endif
-
-void cpu_exec_init_all(void)
-{
-#if !defined(CONFIG_USER_ONLY)
-    qemu_mutex_init(&ram_list.mutex);
-    memory_map_init();
-    io_mem_init();
-#endif
-}
 
 #if !defined(CONFIG_USER_ONLY)
 
@@ -2518,46 +2507,77 @@ typedef struct {
     void *buffer;
     hwaddr addr;
     hwaddr len;
+    bool in_use;
 } BounceBuffer;
 
 static BounceBuffer bounce;
 
 typedef struct MapClient {
-    void *opaque;
-    void (*callback)(void *opaque);
+    QEMUBH *bh;
     QLIST_ENTRY(MapClient) link;
 } MapClient;
 
+QemuMutex map_client_list_lock;
 static QLIST_HEAD(map_client_list, MapClient) map_client_list
     = QLIST_HEAD_INITIALIZER(map_client_list);
 
-void *cpu_register_map_client(void *opaque, void (*callback)(void *opaque))
+static void cpu_unregister_map_client_do(MapClient *client)
 {
-    MapClient *client = g_malloc(sizeof(*client));
-
-    client->opaque = opaque;
-    client->callback = callback;
-    QLIST_INSERT_HEAD(&map_client_list, client, link);
-    return client;
-}
-
-static void cpu_unregister_map_client(void *_client)
-{
-    MapClient *client = (MapClient *)_client;
-
     QLIST_REMOVE(client, link);
     g_free(client);
 }
 
-static void cpu_notify_map_clients(void)
+static void cpu_notify_map_clients_locked(void)
 {
     MapClient *client;
 
     while (!QLIST_EMPTY(&map_client_list)) {
         client = QLIST_FIRST(&map_client_list);
-        client->callback(client->opaque);
-        cpu_unregister_map_client(client);
+        qemu_bh_schedule(client->bh);
+        cpu_unregister_map_client_do(client);
     }
+}
+
+void cpu_register_map_client(QEMUBH *bh)
+{
+    MapClient *client = g_malloc(sizeof(*client));
+
+    qemu_mutex_lock(&map_client_list_lock);
+    client->bh = bh;
+    QLIST_INSERT_HEAD(&map_client_list, client, link);
+    if (!atomic_read(&bounce.in_use)) {
+        cpu_notify_map_clients_locked();
+    }
+    qemu_mutex_unlock(&map_client_list_lock);
+}
+
+void cpu_exec_init_all(void)
+{
+    qemu_mutex_init(&ram_list.mutex);
+    memory_map_init();
+    io_mem_init();
+    qemu_mutex_init(&map_client_list_lock);
+}
+
+void cpu_unregister_map_client(QEMUBH *bh)
+{
+    MapClient *client;
+
+    qemu_mutex_lock(&map_client_list_lock);
+    QLIST_FOREACH(client, &map_client_list, link) {
+        if (client->bh == bh) {
+            cpu_unregister_map_client_do(client);
+            break;
+        }
+    }
+    qemu_mutex_unlock(&map_client_list_lock);
+}
+
+static void cpu_notify_map_clients(void)
+{
+    qemu_mutex_lock(&map_client_list_lock);
+    cpu_notify_map_clients_locked();
+    qemu_mutex_unlock(&map_client_list_lock);
 }
 
 bool address_space_access_valid(AddressSpace *as, hwaddr addr, int len, bool is_write)
@@ -2606,7 +2626,7 @@ void *address_space_map(AddressSpace *as,
     l = len;
     mr = address_space_translate(as, addr, &xlat, &l, is_write);
     if (!memory_access_is_direct(mr, is_write)) {
-        if (bounce.buffer) {
+        if (atomic_xchg(&bounce.in_use, true)) {
             return NULL;
         }
         /* Avoid unbounded allocations */
@@ -2678,6 +2698,7 @@ void address_space_unmap(AddressSpace *as, void *buffer, hwaddr len,
     qemu_vfree(bounce.buffer);
     bounce.buffer = NULL;
     memory_region_unref(bounce.mr);
+    atomic_mb_set(&bounce.in_use, false);
     cpu_notify_map_clients();
 }
 

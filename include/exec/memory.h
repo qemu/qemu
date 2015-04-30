@@ -627,6 +627,18 @@ int memory_region_get_fd(MemoryRegion *mr);
  */
 void *memory_region_get_ram_ptr(MemoryRegion *mr);
 
+/* memory_region_ram_resize: Resize a RAM region.
+ *
+ * Only legal before guest might have detected the memory size: e.g. on
+ * incoming migration, or right after reset.
+ *
+ * @mr: a memory region created with @memory_region_init_resizeable_ram.
+ * @newsize: the new size the region
+ * @errp: pointer to Error*, to store an error if it happens.
+ */
+void memory_region_ram_resize(MemoryRegion *mr, ram_addr_t newsize,
+                              Error **errp);
+
 /**
  * memory_region_set_log: Turn dirty logging on or off for a region.
  *

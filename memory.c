@@ -1523,6 +1523,13 @@ void *memory_region_get_ram_ptr(MemoryRegion *mr)
     return qemu_get_ram_ptr(mr->ram_addr & TARGET_PAGE_MASK);
 }
 
+void memory_region_ram_resize(MemoryRegion *mr, ram_addr_t newsize, Error **errp)
+{
+    assert(mr->terminates);
+
+    qemu_ram_resize(mr->ram_addr, newsize, errp);
+}
+
 static void memory_region_update_coalesced_range_as(MemoryRegion *mr, AddressSpace *as)
 {
     FlatView *view;
