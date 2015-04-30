@@ -523,9 +523,9 @@ void ahci_write_fis(AHCIQState *ahci, RegH2DFIS *fis, uint64_t addr);
 unsigned ahci_pick_cmd(AHCIQState *ahci, uint8_t port);
 unsigned size_to_prdtl(unsigned bytes, unsigned bytes_per_prd);
 void ahci_guest_io(AHCIQState *ahci, uint8_t port, uint8_t ide_cmd,
-                   uint64_t gbuffer, size_t size);
+                   uint64_t gbuffer, size_t size, uint64_t sector);
 void ahci_io(AHCIQState *ahci, uint8_t port, uint8_t ide_cmd,
-             void *buffer, size_t bufsize);
+             void *buffer, size_t bufsize, uint64_t sector);
 
 /* Command Lifecycle */
 AHCICommand *ahci_command_create(uint8_t command_name);

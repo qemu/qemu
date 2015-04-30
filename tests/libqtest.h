@@ -64,6 +64,15 @@ void qtest_qmp_discard_response(QTestState *s, const char *fmt, ...);
 QDict *qtest_qmp(QTestState *s, const char *fmt, ...);
 
 /**
+ * qtest_async_qmp:
+ * @s: #QTestState instance to operate on.
+ * @fmt...: QMP message to send to qemu
+ *
+ * Sends a QMP message to QEMU and leaves the response in the stream.
+ */
+void qtest_async_qmp(QTestState *s, const char *fmt, ...);
+
+/**
  * qtest_qmpv_discard_response:
  * @s: #QTestState instance to operate on.
  * @fmt: QMP message to send to QEMU
@@ -84,12 +93,31 @@ void qtest_qmpv_discard_response(QTestState *s, const char *fmt, va_list ap);
 QDict *qtest_qmpv(QTestState *s, const char *fmt, va_list ap);
 
 /**
+ * qtest_async_qmpv:
+ * @s: #QTestState instance to operate on.
+ * @fmt: QMP message to send to QEMU
+ * @ap: QMP message arguments
+ *
+ * Sends a QMP message to QEMU and leaves the response in the stream.
+ */
+void qtest_async_qmpv(QTestState *s, const char *fmt, va_list ap);
+
+/**
  * qtest_receive:
  * @s: #QTestState instance to operate on.
  *
  * Reads a QMP message from QEMU and returns the response.
  */
 QDict *qtest_qmp_receive(QTestState *s);
+
+/**
+ * qtest_qmp_eventwait:
+ * @s: #QTestState instance to operate on.
+ * @s: #event event to wait for.
+ *
+ * Continuosly polls for QMP responses until it receives the desired event.
+ */
+void qtest_qmp_eventwait(QTestState *s, const char *event);
 
 /**
  * qtest_get_irq:
@@ -411,6 +439,14 @@ static inline void qtest_end(void)
 QDict *qmp(const char *fmt, ...);
 
 /**
+ * qmp_async:
+ * @fmt...: QMP message to send to qemu
+ *
+ * Sends a QMP message to QEMU and leaves the response in the stream.
+ */
+void qmp_async(const char *fmt, ...);
+
+/**
  * qmp_discard_response:
  * @fmt...: QMP message to send to qemu
  *
@@ -426,6 +462,17 @@ void qmp_discard_response(const char *fmt, ...);
 static inline QDict *qmp_receive(void)
 {
     return qtest_qmp_receive(global_qtest);
+}
+
+/**
+ * qmp_eventwait:
+ * @s: #event event to wait for.
+ *
+ * Continuosly polls for QMP responses until it receives the desired event.
+ */
+static inline void qmp_eventwait(const char *event)
+{
+    return qtest_qmp_eventwait(global_qtest, event);
 }
 
 /**

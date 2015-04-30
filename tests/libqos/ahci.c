@@ -568,13 +568,15 @@ inline unsigned size_to_prdtl(unsigned bytes, unsigned bytes_per_prd)
 
 /* Given a guest buffer address, perform an IO operation */
 void ahci_guest_io(AHCIQState *ahci, uint8_t port, uint8_t ide_cmd,
-                   uint64_t buffer, size_t bufsize)
+                   uint64_t buffer, size_t bufsize, uint64_t sector)
 {
     AHCICommand *cmd;
-
     cmd = ahci_command_create(ide_cmd);
     ahci_command_set_buffer(cmd, buffer);
     ahci_command_set_size(cmd, bufsize);
+    if (sector) {
+        ahci_command_set_offset(cmd, sector);
+    }
     ahci_command_commit(ahci, cmd, port);
     ahci_command_issue(ahci, cmd);
     ahci_command_verify(ahci, cmd);
@@ -612,7 +614,7 @@ static AHCICommandProp *ahci_command_find(uint8_t command_name)
 
 /* Given a HOST buffer, create a buffer address and perform an IO operation. */
 void ahci_io(AHCIQState *ahci, uint8_t port, uint8_t ide_cmd,
-             void *buffer, size_t bufsize)
+             void *buffer, size_t bufsize, uint64_t sector)
 {
     uint64_t ptr;
     AHCICommandProp *props;
@@ -626,7 +628,7 @@ void ahci_io(AHCIQState *ahci, uint8_t port, uint8_t ide_cmd,
         memwrite(ptr, buffer, bufsize);
     }
 
-    ahci_guest_io(ahci, port, ide_cmd, ptr, bufsize);
+    ahci_guest_io(ahci, port, ide_cmd, ptr, bufsize, sector);
 
     if (props->read) {
         memread(ptr, buffer, bufsize);

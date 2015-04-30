@@ -388,7 +388,12 @@ QDict *qtest_qmp_receive(QTestState *s)
     return qmp.response;
 }
 
-QDict *qtest_qmpv(QTestState *s, const char *fmt, va_list ap)
+/**
+ * Allow users to send a message without waiting for the reply,
+ * in the case that they choose to discard all replies up until
+ * a particular EVENT is received.
+ */
+void qtest_async_qmpv(QTestState *s, const char *fmt, va_list ap)
 {
     va_list ap_copy;
     QObject *qobj;
@@ -417,6 +422,11 @@ QDict *qtest_qmpv(QTestState *s, const char *fmt, va_list ap)
         QDECREF(qstr);
         qobject_decref(qobj);
     }
+}
+
+QDict *qtest_qmpv(QTestState *s, const char *fmt, va_list ap)
+{
+    qtest_async_qmpv(s, fmt, ap);
 
     /* Receive reply */
     return qtest_qmp_receive(s);
@@ -431,6 +441,15 @@ QDict *qtest_qmp(QTestState *s, const char *fmt, ...)
     response = qtest_qmpv(s, fmt, ap);
     va_end(ap);
     return response;
+}
+
+void qtest_async_qmp(QTestState *s, const char *fmt, ...)
+{
+    va_list ap;
+
+    va_start(ap, fmt);
+    qtest_async_qmpv(s, fmt, ap);
+    va_end(ap);
 }
 
 void qtest_qmpv_discard_response(QTestState *s, const char *fmt, va_list ap)
@@ -450,9 +469,26 @@ void qtest_qmp_discard_response(QTestState *s, const char *fmt, ...)
     QDECREF(response);
 }
 
+void qtest_qmp_eventwait(QTestState *s, const char *event)
+{
+    QDict *response;
+
+    for (;;) {
+        response = qtest_qmp_receive(s);
+        if ((qdict_haskey(response, "event")) &&
+            (strcmp(qdict_get_str(response, "event"), event) == 0)) {
+            QDECREF(response);
+            break;
+        }
+        QDECREF(response);
+    }
+}
+
+
 const char *qtest_get_arch(void)
 {
     const char *qemu = getenv("QTEST_QEMU_BINARY");
+    g_assert(qemu != NULL);
     const char *end = strrchr(qemu, '/');
 
     return end + strlen("/qemu-system-");
@@ -693,6 +729,15 @@ QDict *qmp(const char *fmt, ...)
     response = qtest_qmpv(global_qtest, fmt, ap);
     va_end(ap);
     return response;
+}
+
+void qmp_async(const char *fmt, ...)
+{
+    va_list ap;
+
+    va_start(ap, fmt);
+    qtest_async_qmpv(global_qtest, fmt, ap);
+    va_end(ap);
 }
 
 void qmp_discard_response(const char *fmt, ...)

@@ -39,11 +39,14 @@
 #include "hw/pci/pci_ids.h"
 #include "hw/pci/pci_regs.h"
 
-/* Test-specific defines. */
-#define TEST_IMAGE_SIZE    (64 * 1024 * 1024)
+/* Test-specific defines -- in MiB */
+#define TEST_IMAGE_SIZE_MB (200 * 1024)
+#define TEST_IMAGE_SECTORS ((TEST_IMAGE_SIZE_MB / AHCI_SECTOR_SIZE)     \
+                            * 1024 * 1024)
 
 /*** Globals ***/
 static char tmp_path[] = "/tmp/qtest.XXXXXX";
+static char debug_path[] = "/tmp/qtest-blkdebug.XXXXXX";
 static bool ahci_pedantic;
 
 /*** Function Declarations ***/
@@ -99,23 +102,40 @@ static void generate_pattern(void *buffer, size_t len, size_t cycle_len)
 /**
  * Start a Q35 machine and bookmark a handle to the AHCI device.
  */
-static AHCIQState *ahci_boot(void)
+static AHCIQState *ahci_vboot(const char *cli, va_list ap)
 {
     AHCIQState *s;
-    const char *cli;
 
     s = g_malloc0(sizeof(AHCIQState));
-
-    cli = "-drive if=none,id=drive0,file=%s,cache=writeback,serial=%s"
-        ",format=raw"
-        " -M q35 "
-        "-device ide-hd,drive=drive0 "
-        "-global ide-hd.ver=%s";
-    s->parent = qtest_pc_boot(cli, tmp_path, "testdisk", "version");
+    s->parent = qtest_pc_vboot(cli, ap);
     alloc_set_flags(s->parent->alloc, ALLOC_LEAK_ASSERT);
 
     /* Verify that we have an AHCI device present. */
     s->dev = get_ahci_device(&s->fingerprint);
+
+    return s;
+}
+
+/**
+ * Start a Q35 machine and bookmark a handle to the AHCI device.
+ */
+static AHCIQState *ahci_boot(const char *cli, ...)
+{
+    AHCIQState *s;
+    va_list ap;
+
+    if (cli) {
+        va_start(ap, cli);
+        s = ahci_vboot(cli, ap);
+        va_end(ap);
+    } else {
+        cli = "-drive if=none,id=drive0,file=%s,cache=writeback,serial=%s"
+            ",format=qcow2"
+            " -M q35 "
+            "-device ide-hd,drive=drive0 "
+            "-global ide-hd.ver=%s";
+        s = ahci_boot(cli, tmp_path, "testdisk", "version");
+    }
 
     return s;
 }
@@ -126,7 +146,6 @@ static AHCIQState *ahci_boot(void)
 static void ahci_shutdown(AHCIQState *ahci)
 {
     QOSState *qs = ahci->parent;
-
     ahci_clean_mem(ahci);
     free_ahci_device(ahci->dev);
     g_free(ahci);
@@ -137,10 +156,18 @@ static void ahci_shutdown(AHCIQState *ahci)
  * Boot and fully enable the HBA device.
  * @see ahci_boot, ahci_pci_enable and ahci_hba_enable.
  */
-static AHCIQState *ahci_boot_and_enable(void)
+static AHCIQState *ahci_boot_and_enable(const char *cli, ...)
 {
     AHCIQState *ahci;
-    ahci = ahci_boot();
+    va_list ap;
+
+    if (cli) {
+        va_start(ap, cli);
+        ahci = ahci_vboot(cli, ap);
+        va_end(ap);
+    } else {
+        ahci = ahci_boot(NULL);
+    }
 
     ahci_pci_enable(ahci);
     ahci_hba_enable(ahci);
@@ -738,7 +765,7 @@ static void ahci_test_identify(AHCIQState *ahci)
     ahci_port_clear(ahci, px);
 
     /* "Read" 512 bytes using CMD_IDENTIFY into the host buffer. */
-    ahci_io(ahci, px, CMD_IDENTIFY, &buff, buffsize);
+    ahci_io(ahci, px, CMD_IDENTIFY, &buff, buffsize, 0);
 
     /* Check serial number/version in the buffer */
     /* NB: IDENTIFY strings are packed in 16bit little endian chunks.
@@ -754,11 +781,12 @@ static void ahci_test_identify(AHCIQState *ahci)
     g_assert_cmphex(rc, ==, 0);
 
     sect_size = le16_to_cpu(*((uint16_t *)(&buff[5])));
-    g_assert_cmphex(sect_size, ==, 0x200);
+    g_assert_cmphex(sect_size, ==, AHCI_SECTOR_SIZE);
 }
 
 static void ahci_test_io_rw_simple(AHCIQState *ahci, unsigned bufsize,
-                                   uint8_t read_cmd, uint8_t write_cmd)
+                                   uint64_t sector, uint8_t read_cmd,
+                                   uint8_t write_cmd)
 {
     uint64_t ptr;
     uint8_t port;
@@ -781,9 +809,9 @@ static void ahci_test_io_rw_simple(AHCIQState *ahci, unsigned bufsize,
     memwrite(ptr, tx, bufsize);
 
     /* Write this buffer to disk, then read it back to the DMA buffer. */
-    ahci_guest_io(ahci, port, write_cmd, ptr, bufsize);
+    ahci_guest_io(ahci, port, write_cmd, ptr, bufsize, sector);
     qmemset(ptr, 0x00, bufsize);
-    ahci_guest_io(ahci, port, read_cmd, ptr, bufsize);
+    ahci_guest_io(ahci, port, read_cmd, ptr, bufsize, sector);
 
     /*** Read back the Data ***/
     memread(ptr, rx, bufsize);
@@ -793,6 +821,29 @@ static void ahci_test_io_rw_simple(AHCIQState *ahci, unsigned bufsize,
     g_free(tx);
     g_free(rx);
 }
+
+static void ahci_test_nondata(AHCIQState *ahci, uint8_t ide_cmd)
+{
+    uint8_t px;
+    AHCICommand *cmd;
+
+    /* Sanitize */
+    px = ahci_port_select(ahci);
+    ahci_port_clear(ahci, px);
+
+    /* Issue Command */
+    cmd = ahci_command_create(ide_cmd);
+    ahci_command_commit(ahci, cmd, px);
+    ahci_command_issue(ahci, cmd);
+    ahci_command_verify(ahci, cmd);
+    ahci_command_free(cmd);
+}
+
+static void ahci_test_flush(AHCIQState *ahci)
+{
+    ahci_test_nondata(ahci, CMD_FLUSH_CACHE);
+}
+
 
 /******************************************************************************/
 /* Test Interfaces                                                            */
@@ -804,7 +855,7 @@ static void ahci_test_io_rw_simple(AHCIQState *ahci, unsigned bufsize,
 static void test_sanity(void)
 {
     AHCIQState *ahci;
-    ahci = ahci_boot();
+    ahci = ahci_boot(NULL);
     ahci_shutdown(ahci);
 }
 
@@ -815,7 +866,7 @@ static void test_sanity(void)
 static void test_pci_spec(void)
 {
     AHCIQState *ahci;
-    ahci = ahci_boot();
+    ahci = ahci_boot(NULL);
     ahci_test_pci_spec(ahci);
     ahci_shutdown(ahci);
 }
@@ -827,8 +878,7 @@ static void test_pci_spec(void)
 static void test_pci_enable(void)
 {
     AHCIQState *ahci;
-
-    ahci = ahci_boot();
+    ahci = ahci_boot(NULL);
     ahci_pci_enable(ahci);
     ahci_shutdown(ahci);
 }
@@ -841,7 +891,7 @@ static void test_hba_spec(void)
 {
     AHCIQState *ahci;
 
-    ahci = ahci_boot();
+    ahci = ahci_boot(NULL);
     ahci_pci_enable(ahci);
     ahci_test_hba_spec(ahci);
     ahci_shutdown(ahci);
@@ -855,7 +905,7 @@ static void test_hba_enable(void)
 {
     AHCIQState *ahci;
 
-    ahci = ahci_boot();
+    ahci = ahci_boot(NULL);
     ahci_pci_enable(ahci);
     ahci_hba_enable(ahci);
     ahci_shutdown(ahci);
@@ -869,7 +919,7 @@ static void test_identify(void)
 {
     AHCIQState *ahci;
 
-    ahci = ahci_boot_and_enable();
+    ahci = ahci_boot_and_enable(NULL);
     ahci_test_identify(ahci);
     ahci_shutdown(ahci);
 }
@@ -890,7 +940,7 @@ static void test_dma_fragmented(void)
     unsigned char *rx = g_malloc0(bufsize);
     uint64_t ptr;
 
-    ahci = ahci_boot_and_enable();
+    ahci = ahci_boot_and_enable(NULL);
     px = ahci_port_select(ahci);
     ahci_port_clear(ahci, px);
 
@@ -926,6 +976,50 @@ static void test_dma_fragmented(void)
 
     g_free(rx);
     g_free(tx);
+}
+
+static void test_flush(void)
+{
+    AHCIQState *ahci;
+
+    ahci = ahci_boot_and_enable(NULL);
+    ahci_test_flush(ahci);
+    ahci_shutdown(ahci);
+}
+
+static void test_flush_retry(void)
+{
+    AHCIQState *ahci;
+    AHCICommand *cmd;
+    uint8_t port;
+    const char *s;
+
+    prepare_blkdebug_script(debug_path, "flush_to_disk");
+    ahci = ahci_boot_and_enable("-drive file=blkdebug:%s:%s,if=none,id=drive0,"
+                                "format=qcow2,cache=writeback,"
+                                "rerror=stop,werror=stop "
+                                "-M q35 "
+                                "-device ide-hd,drive=drive0 ",
+                                debug_path,
+                                tmp_path);
+
+    /* Issue Flush Command */
+    port = ahci_port_select(ahci);
+    ahci_port_clear(ahci, port);
+    cmd = ahci_command_create(CMD_FLUSH_CACHE);
+    ahci_command_commit(ahci, cmd, port);
+    ahci_command_issue_async(ahci, cmd);
+    qmp_eventwait("STOP");
+
+    /* Complete the command */
+    s = "{'execute':'cont' }";
+    qmp_async(s);
+    qmp_eventwait("RESUME");
+    ahci_command_wait(ahci, cmd);
+    ahci_command_verify(ahci, cmd);
+
+    ahci_command_free(cmd);
+    ahci_shutdown(ahci);
 }
 
 /******************************************************************************/
@@ -968,11 +1062,44 @@ enum IOOps {
     NUM_IO_OPS
 };
 
+enum OffsetType {
+    OFFSET_BEGIN = 0,
+    OFFSET_ZERO = OFFSET_BEGIN,
+    OFFSET_LOW,
+    OFFSET_HIGH,
+    NUM_OFFSETS
+};
+
+static const char *offset_str[NUM_OFFSETS] = { "zero", "low", "high" };
+
 typedef struct AHCIIOTestOptions {
     enum BuffLen length;
     enum AddrMode address_type;
     enum IOMode io_type;
+    enum OffsetType offset;
 } AHCIIOTestOptions;
+
+static uint64_t offset_sector(enum OffsetType ofst,
+                              enum AddrMode addr_type,
+                              uint64_t buffsize)
+{
+    uint64_t ceil;
+    uint64_t nsectors;
+
+    switch (ofst) {
+    case OFFSET_ZERO:
+        return 0;
+    case OFFSET_LOW:
+        return 1;
+    case OFFSET_HIGH:
+        ceil = (addr_type == ADDR_MODE_LBA28) ? 0xfffffff : 0xffffffffffff;
+        ceil = MIN(ceil, TEST_IMAGE_SECTORS - 1);
+        nsectors = buffsize / AHCI_SECTOR_SIZE;
+        return ceil - nsectors + 1;
+    default:
+        g_assert_not_reached();
+    }
+}
 
 /**
  * Table of possible I/O ATA commands given a set of enumerations.
@@ -1001,12 +1128,12 @@ static const uint8_t io_cmds[NUM_MODES][NUM_ADDR_MODES][NUM_IO_OPS] = {
  * transfer modes, and buffer sizes.
  */
 static void test_io_rw_interface(enum AddrMode lba48, enum IOMode dma,
-                                 unsigned bufsize)
+                                 unsigned bufsize, uint64_t sector)
 {
     AHCIQState *ahci;
 
-    ahci = ahci_boot_and_enable();
-    ahci_test_io_rw_simple(ahci, bufsize,
+    ahci = ahci_boot_and_enable(NULL);
+    ahci_test_io_rw_simple(ahci, bufsize, sector,
                            io_cmds[dma][lba48][IO_READ],
                            io_cmds[dma][lba48][IO_WRITE]);
     ahci_shutdown(ahci);
@@ -1019,6 +1146,7 @@ static void test_io_interface(gconstpointer opaque)
 {
     AHCIIOTestOptions *opts = (AHCIIOTestOptions *)opaque;
     unsigned bufsize;
+    uint64_t sector;
 
     switch (opts->length) {
     case LEN_SIMPLE:
@@ -1037,13 +1165,14 @@ static void test_io_interface(gconstpointer opaque)
         g_assert_not_reached();
     }
 
-    test_io_rw_interface(opts->address_type, opts->io_type, bufsize);
+    sector = offset_sector(opts->offset, opts->address_type, bufsize);
+    test_io_rw_interface(opts->address_type, opts->io_type, bufsize, sector);
     g_free(opts);
     return;
 }
 
 static void create_ahci_io_test(enum IOMode type, enum AddrMode addr,
-                                enum BuffLen len)
+                                enum BuffLen len, enum OffsetType offset)
 {
     static const char *arch;
     char *name;
@@ -1052,15 +1181,17 @@ static void create_ahci_io_test(enum IOMode type, enum AddrMode addr,
     opts->length = len;
     opts->address_type = addr;
     opts->io_type = type;
+    opts->offset = offset;
 
     if (!arch) {
         arch = qtest_get_arch();
     }
 
-    name = g_strdup_printf("/%s/ahci/io/%s/%s/%s", arch,
+    name = g_strdup_printf("/%s/ahci/io/%s/%s/%s/%s", arch,
                            io_mode_str[type],
                            addr_mode_str[addr],
-                           buff_len_str[len]);
+                           buff_len_str[len],
+                           offset_str[offset]);
 
     g_test_add_data_func(name, opts, test_io_interface);
     g_free(name);
@@ -1071,10 +1202,10 @@ static void create_ahci_io_test(enum IOMode type, enum AddrMode addr,
 int main(int argc, char **argv)
 {
     const char *arch;
-    int fd;
     int ret;
+    int fd;
     int c;
-    int i, j, k;
+    int i, j, k, m;
 
     static struct option long_options[] = {
         {"pedantic", no_argument, 0, 'p' },
@@ -1108,11 +1239,13 @@ int main(int argc, char **argv)
         return 0;
     }
 
-    /* Create a temporary raw image */
-    fd = mkstemp(tmp_path);
+    /* Create a temporary qcow2 image */
+    close(mkstemp(tmp_path));
+    mkqcow2(tmp_path, TEST_IMAGE_SIZE_MB);
+
+    /* Create temporary blkdebug instructions */
+    fd = mkstemp(debug_path);
     g_assert(fd >= 0);
-    ret = ftruncate(fd, TEST_IMAGE_SIZE);
-    g_assert(ret == 0);
     close(fd);
 
     /* Run the tests */
@@ -1126,17 +1259,23 @@ int main(int argc, char **argv)
     for (i = MODE_BEGIN; i < NUM_MODES; i++) {
         for (j = ADDR_MODE_BEGIN; j < NUM_ADDR_MODES; j++) {
             for (k = LEN_BEGIN; k < NUM_LENGTHS; k++) {
-                create_ahci_io_test(i, j, k);
+                for (m = OFFSET_BEGIN; m < NUM_OFFSETS; m++) {
+                    create_ahci_io_test(i, j, k, m);
+                }
             }
         }
     }
 
     qtest_add_func("/ahci/io/dma/lba28/fragmented", test_dma_fragmented);
 
+    qtest_add_func("/ahci/flush/simple", test_flush);
+    qtest_add_func("/ahci/flush/retry", test_flush_retry);
+
     ret = g_test_run();
 
     /* Cleanup */
     unlink(tmp_path);
+    unlink(debug_path);
 
     return ret;
 }
