@@ -3609,10 +3609,6 @@ void vnc_display_open(const char *id, Error **errp)
             aclname = g_strdup_printf("vnc.%s.x509dname", vs->id);
         }
         vs->tls.acl = qemu_acl_init(aclname);
-        if (!vs->tls.acl) {
-            fprintf(stderr, "Failed to create x509 dname ACL\n");
-            exit(1);
-        }
         g_free(aclname);
     }
 #endif
@@ -3626,10 +3622,6 @@ void vnc_display_open(const char *id, Error **errp)
             aclname = g_strdup_printf("vnc.%s.username", vs->id);
         }
         vs->sasl.acl = qemu_acl_init(aclname);
-        if (!vs->sasl.acl) {
-            fprintf(stderr, "Failed to create username ACL\n");
-            exit(1);
-        }
         g_free(aclname);
     }
 #endif
