@@ -623,6 +623,7 @@ endif # SIGNCODE
                 $(if $(DLL_PATH),-DDLLDIR="$(DLL_PATH)") \
                 -DSRCDIR="$(SRC_PATH)" \
                 -DOUTFILE="$(INSTALLER)" \
+                -DDISPLAYVERSION="$(VERSION)" \
                 $(SRC_PATH)/qemu.nsi
 	rm -r ${INSTDIR}
 ifdef SIGNCODE
