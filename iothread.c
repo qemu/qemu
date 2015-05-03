@@ -114,18 +114,6 @@ static void iothread_register_types(void)
 
 type_init(iothread_register_types)
 
-IOThread *iothread_find(const char *id)
-{
-    Object *container = container_get(object_get_root(), IOTHREADS_PATH);
-    Object *child;
-
-    child = object_property_get_link(container, id, NULL);
-    if (!child) {
-        return NULL;
-    }
-    return (IOThread *)object_dynamic_cast(child, TYPE_IOTHREAD);
-}
-
 char *iothread_get_id(IOThread *iothread)
 {
     return object_get_canonical_path_component(OBJECT(iothread));
