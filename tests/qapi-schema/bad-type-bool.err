@@ -1,1 +1,1 @@
-tests/qapi-schema/bad-type-bool.json:3:11: Stray "t"
+tests/qapi-schema/bad-type-bool.json:2: 'type' key must have a string value

@@ -158,6 +158,20 @@ class QAPISchema:
                         return
                     else:
                         string += ch
+            elif self.tok in "tfn":
+                val = self.src[self.cursor - 1:]
+                if val.startswith("true"):
+                    self.val = True
+                    self.cursor += 3
+                    return
+                elif val.startswith("false"):
+                    self.val = False
+                    self.cursor += 4
+                    return
+                elif val.startswith("null"):
+                    self.val = None
+                    self.cursor += 3
+                    return
             elif self.tok == '\n':
                 if self.cursor == len(self.src):
                     self.tok = None
@@ -197,8 +211,9 @@ class QAPISchema:
         if self.tok == ']':
             self.accept()
             return expr
-        if not self.tok in [ '{', '[', "'" ]:
-            raise QAPISchemaError(self, 'Expected "{", "[", "]" or string')
+        if not self.tok in "{['tfn":
+            raise QAPISchemaError(self, 'Expected "{", "[", "]", string, '
+                                  'boolean or "null"')
         while True:
             expr.append(self.get_expr(True))
             if self.tok == ']':
@@ -217,7 +232,7 @@ class QAPISchema:
         elif self.tok == '[':
             self.accept()
             expr = self.get_values()
-        elif self.tok == "'":
+        elif self.tok in "'tfn":
             expr = self.val
             self.accept()
         else:
