@@ -85,11 +85,12 @@ the definition of complex structs that can have mutually recursive
 types, and allows for indefinite nesting of QMP that satisfies the
 schema.  A type name should not be defined more than once.
 
-There are six top-level expressions recognized by the parser:
-'include', 'command', 'type', 'enum', 'union', and 'event'.  There are
-several built-in types, such as 'int' and 'str'; additionally, the
-top-level expressions can define complex types, enumeration types, and
-several flavors of union types.  The 'command' and 'event' expressions
+There are seven top-level expressions recognized by the parser:
+'include', 'command', 'type', 'enum', 'union', 'alternate', and
+'event'.  There are several groups of types: simple types (a number of
+built-in types, such as 'int' and 'str'; as well as enumerations),
+complex types (structs and two flavors of unions), and alternate types
+(a choice between other types).  The 'command' and 'event' expressions
 can refer to existing types by name, or list an anonymous type as a
 dictionary. Listing a type name inside an array refers to a
 single-dimension array of that type; multi-dimension arrays are not
@@ -261,14 +262,12 @@ open-coding the field to be type 'str'.
 Usage: { 'union': STRING, 'data': DICT }
 or:    { 'union': STRING, 'data': DICT, 'base': COMPLEX-TYPE-NAME,
          'discriminator': ENUM-MEMBER-OF-BASE }
-or:    { 'union': STRING, 'data': DICT, 'discriminator': {} }
 
 Union types are used to let the user choose between several different
-variants for an object.  There are three flavors: simple (no
-discriminator or base), flat (both base and discriminator are
-strings), and anonymous (discriminator is an empty dictionary).  A
-union type is defined using a data dictionary as explained in the
-following paragraphs.
+variants for an object.  There are two flavors: simple (no
+discriminator or base), flat (both discriminator and base).  A union
+type is defined using a data dictionary as explained in the following
+paragraphs.
 
 A simple union type defines a mapping from automatic discriminator
 values to data types like in this example:
@@ -350,20 +349,36 @@ is identical on the wire to:
    'data': { 'one': 'Branch1', 'two': 'Branch2' } }
 
 
-The final flavor of unions is an anonymous union. While the other two
-union types are always passed as a JSON object in the wire format, an
-anonymous union instead allows the direct use of different types in
-its place. Anonymous unions are declared using an empty dictionary as
-their discriminator. The discriminator values never appear on the
-wire, they are only used in the generated C code. Anonymous unions
-cannot have a base type.
+=== Alternate types ===
 
- { 'union': 'BlockRef',
-   'discriminator': {},
+Usage: { 'alternate': STRING, 'data': DICT }
+
+An alternate type is one that allows a choice between two or more JSON
+data types (string, integer, number, or object, but currently not
+array) on the wire.  The definition is similar to a simple union type,
+where each branch of the union names a QAPI type.  For example:
+
+ { 'alternate': 'BlockRef',
    'data': { 'definition': 'BlockdevOptions',
              'reference': 'str' } }
 
-This example allows using both of the following example objects:
+Just like for a simple union, an implicit C enum 'NameKind' is created
+to enumerate the branches for the alternate 'Name'.
+
+Unlike a union, the discriminator string is never passed on the wire
+for QMP.  Instead, the value's JSON type serves as an implicit
+discriminator, which in turn means that an alternate can only express
+a choice between types represented differently in JSON.  If a branch
+is typed as the 'bool' built-in, the alternate accepts true and false;
+if it is typed as any of the various numeric built-ins, it accepts a
+JSON number; if it is typed as a 'str' built-in or named enum type, it
+accepts a JSON string; and if it is typed as a complex type (struct or
+union), it accepts a JSON object.  Two different complex types, for
+instance, aren't permitted, because both are represented as a JSON
+object.
+
+The example alternate declaration above allows using both of the
+following example objects:
 
  { "file": "my_existing_block_device_id" }
  { "file": { "driver": "file",
