@@ -1,7 +1,7 @@
 /*
  * QMP Output Visitor unit-tests.
  *
- * Copyright (C) 2011 Red Hat Inc.
+ * Copyright (C) 2011, 2015 Red Hat Inc.
  *
  * Authors:
  *  Luiz Capitulino <lcapitulino@redhat.com>
@@ -871,29 +871,41 @@ int main(int argc, char **argv)
     output_visitor_test_add("/visitor/output/empty",
                             &out_visitor_data, test_visitor_out_empty);
     output_visitor_test_add("/visitor/output/native_list/int",
-                            &out_visitor_data, test_visitor_out_native_list_int);
+                            &out_visitor_data,
+                            test_visitor_out_native_list_int);
     output_visitor_test_add("/visitor/output/native_list/int8",
-                            &out_visitor_data, test_visitor_out_native_list_int8);
+                            &out_visitor_data,
+                            test_visitor_out_native_list_int8);
     output_visitor_test_add("/visitor/output/native_list/int16",
-                            &out_visitor_data, test_visitor_out_native_list_int16);
+                            &out_visitor_data,
+                            test_visitor_out_native_list_int16);
     output_visitor_test_add("/visitor/output/native_list/int32",
-                            &out_visitor_data, test_visitor_out_native_list_int32);
+                            &out_visitor_data,
+                            test_visitor_out_native_list_int32);
     output_visitor_test_add("/visitor/output/native_list/int64",
-                            &out_visitor_data, test_visitor_out_native_list_int64);
+                            &out_visitor_data,
+                            test_visitor_out_native_list_int64);
     output_visitor_test_add("/visitor/output/native_list/uint8",
-                            &out_visitor_data, test_visitor_out_native_list_uint8);
+                            &out_visitor_data,
+                            test_visitor_out_native_list_uint8);
     output_visitor_test_add("/visitor/output/native_list/uint16",
-                            &out_visitor_data, test_visitor_out_native_list_uint16);
+                            &out_visitor_data,
+                            test_visitor_out_native_list_uint16);
     output_visitor_test_add("/visitor/output/native_list/uint32",
-                            &out_visitor_data, test_visitor_out_native_list_uint32);
+                            &out_visitor_data,
+                            test_visitor_out_native_list_uint32);
     output_visitor_test_add("/visitor/output/native_list/uint64",
-                            &out_visitor_data, test_visitor_out_native_list_uint64);
+                            &out_visitor_data,
+                            test_visitor_out_native_list_uint64);
     output_visitor_test_add("/visitor/output/native_list/bool",
-                            &out_visitor_data, test_visitor_out_native_list_bool);
+                            &out_visitor_data,
+                            test_visitor_out_native_list_bool);
     output_visitor_test_add("/visitor/output/native_list/string",
-                            &out_visitor_data, test_visitor_out_native_list_str);
+                            &out_visitor_data,
+                            test_visitor_out_native_list_str);
     output_visitor_test_add("/visitor/output/native_list/number",
-                            &out_visitor_data, test_visitor_out_native_list_number);
+                            &out_visitor_data,
+                            test_visitor_out_native_list_number);
 
     g_test_run();
 
