@@ -1,4 +1,4 @@
-# we require branches to be a complex type name
+# we require branches to be a struct name
 # TODO: should we allow anonymous inline types?
 { 'enum': 'TestEnum',
   'data': [ 'value1', 'value2' ] }

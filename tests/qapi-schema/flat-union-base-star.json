@@ -1,4 +1,4 @@
-# we require the base to be an existing complex type
+# we require the base to be an existing struct
 { 'enum': 'TestEnum',
   'data': [ 'value1', 'value2' ] }
 { 'type': 'TestTypeA',

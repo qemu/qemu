@@ -419,7 +419,7 @@ def check_union(expr, expr_info):
     members = expr['data']
     values = { 'MAX': '(automatic)' }
 
-    # If the object has a member 'base', its value must name a complex type,
+    # If the object has a member 'base', its value must name a struct,
     # and there must be a discriminator.
     if base is not None:
         if discriminator is None:
@@ -448,18 +448,18 @@ def check_union(expr, expr_info):
         base_fields = find_base_fields(base)
         if not base_fields:
             raise QAPIExprError(expr_info,
-                                "Base '%s' is not a valid type"
+                                "Base '%s' is not a valid struct"
                                 % base)
 
         # The value of member 'discriminator' must name a non-optional
-        # member of the base type.
+        # member of the base struct.
         check_name(expr_info, "Discriminator of flat union '%s'" % name,
                    discriminator)
         discriminator_type = base_fields.get(discriminator)
         if not discriminator_type:
             raise QAPIExprError(expr_info,
                                 "Discriminator '%s' is not a member of base "
-                                "type '%s'"
+                                "struct '%s'"
                                 % (discriminator, base))
         enum_define = find_enum(discriminator_type)
         allow_metas=['struct']
@@ -546,12 +546,12 @@ def check_enum(expr, expr_info):
         values[key] = member
 
 def check_struct(expr, expr_info):
-    name = expr['type']
+    name = expr['struct']
     members = expr['data']
 
-    check_type(expr_info, "'data' for type '%s'" % name, members,
+    check_type(expr_info, "'data' for struct '%s'" % name, members,
                allow_dict=True, allow_optional=True)
-    check_type(expr_info, "'base' for type '%s'" % name, expr.get('base'),
+    check_type(expr_info, "'base' for struct '%s'" % name, expr.get('base'),
                allow_metas=['struct'])
 
 def check_exprs(schema):
@@ -565,7 +565,7 @@ def check_exprs(schema):
             check_union(expr, info)
         elif expr.has_key('alternate'):
             check_alternate(expr, info)
-        elif expr.has_key('type'):
+        elif expr.has_key('struct'):
             check_struct(expr, info)
         elif expr.has_key('command'):
             check_command(expr, info)
@@ -617,6 +617,20 @@ def parse_schema(input_file):
         for expr_elem in schema.exprs:
             expr = expr_elem['expr']
             info = expr_elem['info']
+
+            # back-compat hack until all schemas have been converted;
+            # preserve the ordering of the original expression
+            if expr.has_key('type'):
+                seen_type = False
+                for (key, value) in expr.items():
+                    if key == 'type':
+                        seen_type = True
+                        del expr['type']
+                        expr['struct'] = value
+                    elif seen_type:
+                        del expr[key]
+                        expr[key] = value
+
             if expr.has_key('enum'):
                 check_keys(expr_elem, 'enum', ['data'])
                 add_enum(expr['enum'], info, expr['data'])
@@ -627,8 +641,8 @@ def parse_schema(input_file):
             elif expr.has_key('alternate'):
                 check_keys(expr_elem, 'alternate', ['data'])
                 add_name(expr['alternate'], info, 'alternate')
-            elif expr.has_key('type'):
-                check_keys(expr_elem, 'type', ['data'], ['base'])
+            elif expr.has_key('struct'):
+                check_keys(expr_elem, 'struct', ['data'], ['base'])
                 add_struct(expr, info)
             elif expr.has_key('command'):
                 check_keys(expr_elem, 'command', [],
@@ -745,11 +759,9 @@ def type_name(name):
         return c_list_type(name[0])
     return name
 
-def add_name(name, info, meta, implicit = False, source = None):
+def add_name(name, info, meta, implicit = False):
     global all_names
-    if not source:
-        source = "'%s'" % meta
-    check_name(info, source, name)
+    check_name(info, "'%s'" % meta, name)
     if name in all_names:
         raise QAPIExprError(info,
                             "%s '%s' is already defined"
@@ -762,14 +774,14 @@ def add_name(name, info, meta, implicit = False, source = None):
 
 def add_struct(definition, info):
     global struct_types
-    name = definition['type']
-    add_name(name, info, 'struct', source="'type'")
+    name = definition['struct']
+    add_name(name, info, 'struct')
     struct_types.append(definition)
 
 def find_struct(name):
     global struct_types
     for struct in struct_types:
-        if struct['type'] == name:
+        if struct['struct'] == name:
             return struct
     return None
 

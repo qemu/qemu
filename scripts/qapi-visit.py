@@ -178,7 +178,7 @@ def generate_visit_struct_body(field_prefix, name, members):
 
 def generate_visit_struct(expr):
 
-    name = expr['type']
+    name = expr['struct']
     members = expr['data']
     base = expr.get('base')
 
@@ -545,12 +545,12 @@ if do_builtins:
         fdef.write(generate_visit_list(typename, None))
 
 for expr in exprs:
-    if expr.has_key('type'):
+    if expr.has_key('struct'):
         ret = generate_visit_struct(expr)
-        ret += generate_visit_list(expr['type'], expr['data'])
+        ret += generate_visit_list(expr['struct'], expr['data'])
         fdef.write(ret)
 
-        ret = generate_declaration(expr['type'], expr['data'])
+        ret = generate_declaration(expr['struct'], expr['data'])
         fdecl.write(ret)
     elif expr.has_key('union'):
         ret = generate_visit_union(expr)

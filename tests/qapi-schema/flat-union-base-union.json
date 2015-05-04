@@ -1,4 +1,4 @@
-# FIXME: the error message needs help: we require the base to be a struct
+# we require the base to be a struct
 { 'enum': 'TestEnum',
   'data': [ 'value1', 'value2' ] }
 { 'type': 'TestTypeA',

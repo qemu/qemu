@@ -83,7 +83,7 @@ def generate_struct_fields(members):
 
 def generate_struct(expr):
 
-    structname = expr.get('type', "")
+    structname = expr.get('struct', "")
     fieldname = expr.get('field', "")
     members = expr['data']
     base = expr.get('base')
@@ -394,8 +394,8 @@ fdecl.write(guardend("QAPI_TYPES_BUILTIN_STRUCT_DECL"))
 
 for expr in exprs:
     ret = "\n"
-    if expr.has_key('type'):
-        ret += generate_fwd_struct(expr['type'], expr['data'])
+    if expr.has_key('struct'):
+        ret += generate_fwd_struct(expr['struct'], expr['data'])
     elif expr.has_key('enum'):
         ret += generate_enum(expr['enum'], expr['data']) + "\n"
         ret += generate_fwd_enum_struct(expr['enum'], expr['data'])
@@ -435,12 +435,12 @@ if do_builtins:
 
 for expr in exprs:
     ret = "\n"
-    if expr.has_key('type'):
+    if expr.has_key('struct'):
         ret += generate_struct(expr) + "\n"
-        ret += generate_type_cleanup_decl(expr['type'] + "List")
-        fdef.write(generate_type_cleanup(expr['type'] + "List") + "\n")
-        ret += generate_type_cleanup_decl(expr['type'])
-        fdef.write(generate_type_cleanup(expr['type']) + "\n")
+        ret += generate_type_cleanup_decl(expr['struct'] + "List")
+        fdef.write(generate_type_cleanup(expr['struct'] + "List") + "\n")
+        ret += generate_type_cleanup_decl(expr['struct'])
+        fdef.write(generate_type_cleanup(expr['struct']) + "\n")
     elif expr.has_key('union'):
         ret += generate_union(expr, 'union')
         ret += generate_type_cleanup_decl(expr['union'] + "List")
