@@ -77,8 +77,16 @@ void s390_virtio_reset_idx(VirtIOS390Device *dev)
             VIRTIO_VRING_AVAIL_IDX_OFFS;
         address_space_stw(&address_space_memory, idx_addr, 0,
                           MEMTXATTRS_UNSPECIFIED, NULL);
+        idx_addr = virtio_queue_get_avail_addr(dev->vdev, i) +
+            virtio_queue_get_avail_size(dev->vdev, i);
+        address_space_stw(&address_space_memory, idx_addr, 0,
+                          MEMTXATTRS_UNSPECIFIED, NULL);
         idx_addr = virtio_queue_get_used_addr(dev->vdev, i) +
             VIRTIO_VRING_USED_IDX_OFFS;
+        address_space_stw(&address_space_memory, idx_addr, 0,
+                          MEMTXATTRS_UNSPECIFIED, NULL);
+        idx_addr = virtio_queue_get_used_addr(dev->vdev, i) +
+            virtio_queue_get_used_size(dev->vdev, i);
         address_space_stw(&address_space_memory, idx_addr, 0,
                           MEMTXATTRS_UNSPECIFIED, NULL);
     }
