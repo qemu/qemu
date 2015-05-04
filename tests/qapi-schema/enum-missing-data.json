@@ -1,0 +1,2 @@
+# FIXME: we should require that all QAPI enums have a data array
+{ 'enum': 'MyEnum' }

@@ -1,0 +1,3 @@
+[OrderedDict([('enum', 'MyEnum'), ('data', [])])]
+[{'enum_name': 'MyEnum', 'enum_values': []}]
+[]

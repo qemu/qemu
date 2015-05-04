@@ -207,7 +207,11 @@ $(foreach target,$(SYSEMU_TARGET_LIST), \
 		$(eval check-qtest-$(target)-y += tests/qom-test$(EXESUF))))
 
 check-qapi-schema-y := $(addprefix tests/qapi-schema/, \
-	comments.json empty.json funny-char.json indented-expr.json \
+	comments.json empty.json enum-empty.json enum-missing-data.json \
+	enum-wrong-data.json enum-int-member.json enum-dict-member.json \
+	enum-clash-member.json enum-max-member.json enum-union-clash.json \
+	enum-bad-name.json \
+	funny-char.json indented-expr.json \
 	missing-colon.json missing-comma-list.json \
 	missing-comma-object.json non-objects.json \
 	qapi-schema-test.json quoted-structural-chars.json \
