@@ -1,0 +1,14 @@
+# FIXME: we should require the discriminator to be a string naming a base-type member
+{ 'enum': 'TestEnum',
+  'data': [ 'value1', 'value2' ] }
+{ 'type': 'TestBase',
+  'data': { 'enum1': 'TestEnum', 'kind': 'str' } }
+{ 'type': 'TestTypeA',
+  'data': { 'string': 'str' } }
+{ 'type': 'TestTypeB',
+  'data': { 'integer': 'int' } }
+{ 'union': 'TestUnion',
+  'base': 'TestBase',
+  'discriminator': [],
+  'data': { 'kind1': 'TestTypeA',
+            'kind2': 'TestTypeB' } }

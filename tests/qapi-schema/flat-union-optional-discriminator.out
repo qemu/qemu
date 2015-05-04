@@ -1,0 +1,7 @@
+[OrderedDict([('enum', 'Enum'), ('data', ['one', 'two'])]),
+ OrderedDict([('type', 'Base'), ('data', OrderedDict([('*switch', 'Enum')]))]),
+ OrderedDict([('type', 'Branch'), ('data', OrderedDict([('name', 'str')]))]),
+ OrderedDict([('union', 'MyUnion'), ('base', 'Base'), ('discriminator', '*switch'), ('data', OrderedDict([('one', 'Branch'), ('two', 'Branch')]))])]
+[{'enum_name': 'Enum', 'enum_values': ['one', 'two']}]
+[OrderedDict([('type', 'Base'), ('data', OrderedDict([('*switch', 'Enum')]))]),
+ OrderedDict([('type', 'Branch'), ('data', OrderedDict([('name', 'str')]))])]

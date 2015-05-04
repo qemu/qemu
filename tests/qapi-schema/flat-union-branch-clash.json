@@ -1,0 +1,14 @@
+# FIXME: we should check for no duplicate keys between branches and base
+{ 'enum': 'TestEnum',
+  'data': [ 'value1', 'value2' ] }
+{ 'type': 'Base',
+  'data': { 'enum1': 'TestEnum', 'name': 'str' } }
+{ 'type': 'Branch1',
+  'data': { 'name': 'str' } }
+{ 'type': 'Branch2',
+  'data': { 'value': 'int' } }
+{ 'union': 'TestUnion',
+  'base': 'Base',
+  'discriminator': 'enum1',
+  'data': { 'value1': 'Branch1',
+            'value2': 'Branch2' } }

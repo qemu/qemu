@@ -1,0 +1,7 @@
+# FIXME: we should reject anonymous unions with multiple string-like branches
+{ 'enum': 'Enum',
+  'data': [ 'hello', 'world' ] }
+{ 'union': 'MyUnion',
+  'discriminator': {},
+  'data': { 'one': 'str',
+            'two': 'Enum' } }

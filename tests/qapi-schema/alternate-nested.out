@@ -1,0 +1,5 @@
+[OrderedDict([('union', 'Union1'), ('discriminator', OrderedDict()), ('data', OrderedDict([('name', 'str'), ('value', 'int')]))]),
+ OrderedDict([('union', 'Union2'), ('discriminator', OrderedDict()), ('data', OrderedDict([('nested', 'Union1')]))])]
+[{'enum_name': 'Union1Kind', 'enum_values': None},
+ {'enum_name': 'Union2Kind', 'enum_values': None}]
+[]

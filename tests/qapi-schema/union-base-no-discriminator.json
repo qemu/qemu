@@ -1,12 +1,14 @@
-# FIXME: flat unions should require a base
-# TODO: simple unions should be able to use an enum discriminator
+# FIXME: we should reject simple unions with a base
 { 'type': 'TestTypeA',
   'data': { 'string': 'str' } }
+
 { 'type': 'TestTypeB',
   'data': { 'integer': 'int' } }
-{ 'enum': 'Enum',
-  'data': [ 'value1', 'value2' ] }
+
+{ 'type': 'Base',
+  'data': { 'string': 'str' } }
+
 { 'union': 'TestUnion',
-  'discriminator': 'Enum',
+  'base': 'Base',
   'data': { 'value1': 'TestTypeA',
             'value2': 'TestTypeB' } }

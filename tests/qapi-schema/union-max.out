@@ -1,0 +1,3 @@
+[OrderedDict([('union', 'Union'), ('data', OrderedDict([('max', 'int')]))])]
+[{'enum_name': 'UnionKind', 'enum_values': None}]
+[]

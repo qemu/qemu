@@ -1,0 +1,4 @@
+# FIXME: we should detect C enum collisions in an anonymous union
+{ 'union': 'Union1',
+  'discriminator': {},
+  'data': { 'one': 'str', 'ONE': 'int' } }

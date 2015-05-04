@@ -1,0 +1,13 @@
+# FIXME: poor message: we require the base to be an existing complex type
+# TODO: should we allow an anonymous inline base type?
+{ 'enum': 'TestEnum',
+  'data': [ 'value1', 'value2' ] }
+{ 'type': 'TestTypeA',
+  'data': { 'string': 'str' } }
+{ 'type': 'TestTypeB',
+  'data': { 'integer': 'int' } }
+{ 'union': 'TestUnion',
+  'base': { 'enum1': 'TestEnum', 'kind': 'str' },
+  'discriminator': 'enum1',
+  'data': { 'value1': 'TestTypeA',
+            'value2': 'TestTypeB' } }

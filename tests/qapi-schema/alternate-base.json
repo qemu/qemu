@@ -1,0 +1,7 @@
+# FIXME: we should reject anonymous union with base type
+{ 'type': 'Base',
+  'data': { 'string': 'str' } }
+{ 'union': 'MyUnion',
+  'base': 'Base',
+  'discriminator': {},
+  'data': { 'number': 'int' } }

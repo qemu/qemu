@@ -1,0 +1,6 @@
+[OrderedDict([('type', 'Data'), ('data', OrderedDict([('*number', 'int'), ('*name', 'str')]))]),
+ OrderedDict([('enum', 'Enum'), ('data', ['hello', 'world'])]),
+ OrderedDict([('union', 'MyUnion'), ('discriminator', OrderedDict()), ('data', OrderedDict([('value', 'int'), ('string', 'Enum'), ('struct', 'Data')]))])]
+[{'enum_name': 'Enum', 'enum_values': ['hello', 'world']},
+ {'enum_name': 'MyUnionKind', 'enum_values': None}]
+[OrderedDict([('type', 'Data'), ('data', OrderedDict([('*number', 'int'), ('*name', 'str')]))])]

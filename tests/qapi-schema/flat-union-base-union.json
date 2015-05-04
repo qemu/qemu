@@ -1,0 +1,15 @@
+# FIXME: the error message needs help: we require the base to be a struct
+{ 'enum': 'TestEnum',
+  'data': [ 'value1', 'value2' ] }
+{ 'type': 'TestTypeA',
+  'data': { 'string': 'str' } }
+{ 'type': 'TestTypeB',
+  'data': { 'integer': 'int' } }
+{ 'union': 'UnionBase',
+  'data': { 'kind1': 'TestTypeA',
+            'kind2': 'TestTypeB' } }
+{ 'union': 'TestUnion',
+  'base': 'UnionBase',
+  'discriminator': 'type',
+  'data': { 'kind1': 'TestTypeA',
+            'kind2': 'TestTypeB' } }

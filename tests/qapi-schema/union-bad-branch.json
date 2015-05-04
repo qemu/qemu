@@ -1,0 +1,8 @@
+# FIXME: we should reject normal unions where branches would collide in C
+{ 'type': 'One',
+  'data': { 'string': 'str' } }
+{ 'type': 'Two',
+  'data': { 'number': 'int' } }
+{ 'union': 'MyUnion',
+  'data': { 'one': 'One',
+            'ONE': 'Two' } }

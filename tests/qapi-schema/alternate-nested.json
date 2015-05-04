@@ -1,0 +1,7 @@
+# FIXME: we should reject a nested anonymous union branch
+{ 'union': 'Union1',
+  'discriminator': {},
+  'data': { 'name': 'str', 'value': 'int' } }
+{ 'union': 'Union2',
+  'discriminator': {},
+  'data': { 'nested': 'Union1' } }

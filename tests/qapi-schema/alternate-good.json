@@ -1,0 +1,10 @@
+# Working example of anonymous union
+{ 'type': 'Data',
+  'data': { '*number': 'int', '*name': 'str' } }
+{ 'enum': 'Enum',
+  'data': [ 'hello', 'world' ] }
+{ 'union': 'MyUnion',
+  'discriminator': {},
+  'data': { 'value': 'int',
+            'string': 'Enum',
+            'struct': 'Data' } }

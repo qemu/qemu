@@ -1,0 +1,12 @@
+# FIXME: we should require flat union branches to be a complex type
+{ 'enum': 'TestEnum',
+  'data': [ 'value1', 'value2' ] }
+{ 'type': 'Base',
+  'data': { 'enum1': 'TestEnum' } }
+{ 'type': 'TestTypeB',
+  'data': { 'integer': 'int' } }
+{ 'union': 'TestUnion',
+  'base': 'Base',
+  'discriminator': 'enum1',
+  'data': { 'value1': 'int',
+            'value2': 'TestTypeB' } }

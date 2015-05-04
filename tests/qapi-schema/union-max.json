@@ -1,0 +1,3 @@
+# FIXME: we should reject 'max' branch in a union, for collision with C enum
+{ 'union': 'Union',
+  'data': { 'max': 'int' } }

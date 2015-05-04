@@ -217,10 +217,18 @@ check-qapi-schema-y := $(addprefix tests/qapi-schema/, \
 	qapi-schema-test.json quoted-structural-chars.json \
 	trailing-comma-list.json trailing-comma-object.json \
 	unclosed-list.json unclosed-object.json unclosed-string.json \
-	duplicate-key.json union-invalid-base.json flat-union-no-base.json \
-	flat-union-invalid-discriminator.json \
+	duplicate-key.json union-invalid-base.json union-bad-branch.json \
+	union-optional-branch.json union-unknown.json union-max.json \
+	flat-union-optional-discriminator.json flat-union-no-base.json \
+	flat-union-invalid-discriminator.json flat-union-inline.json \
 	flat-union-invalid-branch-key.json flat-union-reverse-define.json \
-	flat-union-string-discriminator.json \
+	flat-union-string-discriminator.json union-base-no-discriminator.json \
+	flat-union-bad-discriminator.json flat-union-bad-base.json \
+	flat-union-base-star.json flat-union-int-branch.json \
+	flat-union-base-union.json flat-union-branch-clash.json \
+	alternate-nested.json alternate-unknown.json alternate-clash.json \
+	alternate-good.json alternate-base.json alternate-array.json \
+	alternate-conflict-string.json alternate-conflict-dict.json \
 	include-simple.json include-relpath.json include-format-err.json \
 	include-non-file.json include-no-file.json include-before-err.json \
 	include-nested-err.json include-self-cycle.json include-cycle.json \

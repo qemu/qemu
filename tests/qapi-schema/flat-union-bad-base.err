@@ -1,0 +1,1 @@
+tests/qapi-schema/flat-union-bad-base.json:9: Base 'OrderedDict([('enum1', 'TestEnum'), ('kind', 'str')])' is not a valid type
