@@ -617,20 +617,6 @@ def parse_schema(input_file):
         for expr_elem in schema.exprs:
             expr = expr_elem['expr']
             info = expr_elem['info']
-
-            # back-compat hack until all schemas have been converted;
-            # preserve the ordering of the original expression
-            if expr.has_key('type'):
-                seen_type = False
-                for (key, value) in expr.items():
-                    if key == 'type':
-                        seen_type = True
-                        del expr['type']
-                        expr['struct'] = value
-                    elif seen_type:
-                        del expr[key]
-                        expr[key] = value
-
             if expr.has_key('enum'):
                 check_keys(expr_elem, 'enum', ['data'])
                 add_enum(expr['enum'], info, expr['data'])
