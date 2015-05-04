@@ -72,7 +72,7 @@ x.y.z)' comment.  For example:
     #
     # Since: 0.14.0
     ##
-    { 'type': 'BlockStats',
+    { 'struct': 'BlockStats',
       'data': {'*device': 'str', 'stats': 'BlockDeviceStats',
                '*parent': 'BlockStats',
                '*backing': 'BlockStats'} }
@@ -86,7 +86,7 @@ types, and allows for indefinite nesting of QMP that satisfies the
 schema.  A type name should not be defined more than once.
 
 There are seven top-level expressions recognized by the parser:
-'include', 'command', 'type', 'enum', 'union', 'alternate', and
+'include', 'command', 'struct', 'enum', 'union', 'alternate', and
 'event'.  There are several groups of types: simple types (a number of
 built-in types, such as 'int' and 'str'; as well as enumerations),
 complex types (structs and two flavors of unions), and alternate types
@@ -128,9 +128,9 @@ In the rest of this document, usage lines are given for each
 expression type, with literal strings written in lower case and
 placeholders written in capitals.  If a literal string includes a
 prefix of '*', that key/value pair can be omitted from the expression.
-For example, a usage statement that includes '*base':COMPLEX-TYPE-NAME
+For example, a usage statement that includes '*base':STRUCT-NAME
 means that an expression has an optional key 'base', which if present
-must have a value that forms a complex type name.
+must have a value that forms a struct name.
 
 
 === Built-in Types ===
@@ -168,17 +168,17 @@ an outer file.  The parser may be made stricter in the future to
 prevent incomplete include files.
 
 
-=== Complex types ===
+=== Struct types ===
 
-Usage: { 'type': STRING, 'data': DICT, '*base': COMPLEX-TYPE-NAME }
+Usage: { 'struct': STRING, 'data': DICT, '*base': STRUCT-NAME }
 
-A complex type is a dictionary containing a single 'data' key whose
+A struct is a dictionary containing a single 'data' key whose
 value is a dictionary.  This corresponds to a struct in C or an Object
 in JSON. Each value of the 'data' dictionary must be the name of a
 type, or a one-element array containing a type name.  An example of a
-complex type is:
+struct is:
 
- { 'type': 'MyType',
+ { 'struct': 'MyType',
    'data': { 'member1': 'str', 'member2': 'int', '*member3': 'str' } }
 
 The use of '*' as a prefix to the name means the member is optional in
@@ -211,13 +211,13 @@ A structure that is used in both input and output of various commands
 must consider the backwards compatibility constraints of both directions
 of use.
 
-A complex type definition can specify another complex type as its base.
+A struct definition can specify another struct as its base.
 In this case, the fields of the base type are included as top-level fields
-of the new complex type's dictionary in the QMP wire format. An example
+of the new struct's dictionary in the QMP wire format. An example
 definition is:
 
- { 'type': 'BlockdevOptionsGenericFormat', 'data': { 'file': 'str' } }
- { 'type': 'BlockdevOptionsGenericCOWFormat',
+ { 'struct': 'BlockdevOptionsGenericFormat', 'data': { 'file': 'str' } }
+ { 'struct': 'BlockdevOptionsGenericCOWFormat',
    'base': 'BlockdevOptionsGenericFormat',
    'data': { '*backing': 'str' } }
 
@@ -252,7 +252,7 @@ converting between strings and enum values.  Since the wire format
 always passes by name, it is acceptable to reorder or add new
 enumeration members in any location without breaking QMP clients;
 however, removing enum values would break compatibility.  For any
-complex type that has a field that will only contain a finite set of
+struct that has a field that will only contain a finite set of
 string values, using an enum type for that field is better than
 open-coding the field to be type 'str'.
 
@@ -260,7 +260,7 @@ open-coding the field to be type 'str'.
 === Union types ===
 
 Usage: { 'union': STRING, 'data': DICT }
-or:    { 'union': STRING, 'data': DICT, 'base': COMPLEX-TYPE-NAME,
+or:    { 'union': STRING, 'data': DICT, 'base': STRUCT-NAME,
          'discriminator': ENUM-MEMBER-OF-BASE }
 
 Union types are used to let the user choose between several different
@@ -272,8 +272,8 @@ paragraphs.
 A simple union type defines a mapping from automatic discriminator
 values to data types like in this example:
 
- { 'type': 'FileOptions', 'data': { 'filename': 'str' } }
- { 'type': 'Qcow2Options',
+ { 'struct': 'FileOptions', 'data': { 'filename': 'str' } }
+ { 'struct': 'Qcow2Options',
    'data': { 'backing-file': 'str', 'lazy-refcounts': 'bool' } }
 
  { 'union': 'BlockdevOptions',
@@ -296,13 +296,13 @@ the union can be named 'max', as this would collide with the implicit
 enum.  The value for each branch can be of any type.
 
 
-A flat union definition specifies a complex type as its base, and
+A flat union definition specifies a struct as its base, and
 avoids nesting on the wire.  All branches of the union must be
 complex types, and the top-level fields of the union dictionary on
 the wire will be combination of fields from both the base type and the
 appropriate branch type (when merging two dictionaries, there must be
 no keys in common).  The 'discriminator' field must be the name of an
-enum-typed member of the base type.
+enum-typed member of the base struct.
 
 The following example enhances the above simple union example by
 adding a common field 'readonly', renaming the discriminator to
@@ -310,7 +310,7 @@ something more applicable, and reducing the number of {} required on
 the wire:
 
  { 'enum': 'BlockdevDriver', 'data': [ 'raw', 'qcow2' ] }
- { 'type': 'BlockdevCommonOptions',
+ { 'struct': 'BlockdevCommonOptions',
    'data': { 'driver': 'BlockdevDriver', 'readonly': 'bool' } }
  { 'union': 'BlockdevOptions',
    'base': 'BlockdevCommonOptions',
@@ -335,16 +335,16 @@ and then a union of structures for each branch of the struct.
 
 A simple union can always be re-written as a flat union where the base
 class has a single member named 'type', and where each branch of the
-union has a complex type with a single member named 'data'.  That is,
+union has a struct with a single member named 'data'.  That is,
 
  { 'union': 'Simple', 'data': { 'one': 'str', 'two': 'int' } }
 
 is identical on the wire to:
 
  { 'enum': 'Enum', 'data': ['one', 'two'] }
- { 'type': 'Base', 'data': { 'type': 'Enum' } }
- { 'type': 'Branch1', 'data': { 'data': 'str' } }
- { 'type': 'Branch2', 'data': { 'data': 'int' } }
+ { 'struct': 'Base', 'data': { 'type': 'Enum' } }
+ { 'struct': 'Branch1', 'data': { 'data': 'str' } }
+ { 'struct': 'Branch2', 'data': { 'data': 'int' } }
  { 'union': 'Flat': 'base': 'Base', 'discriminator': 'type',
    'data': { 'one': 'Branch1', 'two': 'Branch2' } }
 
@@ -402,7 +402,7 @@ part of a QMP command.  The 'data' member is optional and defaults to
 {} (an empty dictionary).  If present, it must be the string name of a
 complex type, a one-element array containing the name of a complex
 type, or a dictionary that declares an anonymous type with the same
-semantics as a 'type' expression, with one exception noted below when
+semantics as a 'struct' expression, with one exception noted below when
 'gen' is used.
 
 The 'returns' member describes what will appear in the "return" field
@@ -411,7 +411,7 @@ optional from the command declaration; if absent, the "return" field
 will be an empty dictionary.  If 'returns' is present, it must be the
 string name of a complex or built-in type, a one-element array
 containing the name of a complex or built-in type, or a dictionary
-that declares an anonymous type with the same semantics as a 'type'
+that declares an anonymous type with the same semantics as a 'struct'
 expression, with one exception noted below when 'gen' is used.
 Although it is permitted to have the 'returns' member name a built-in
 type or an array of built-in types, any command that does this cannot
@@ -430,7 +430,7 @@ Some example commands:
 
  { 'command': 'my-first-command',
    'data': { 'arg1': 'str', '*arg2': 'str' } }
- { 'type': 'MyType', 'data': { '*value': 'str' } }
+ { 'struct': 'MyType', 'data': { '*value': 'str' } }
  { 'command': 'my-second-command',
    'returns': [ 'MyType' ] }
 
@@ -474,7 +474,7 @@ Events are defined with the keyword 'event'.  It is not allowed to
 name an event 'MAX', since the generator also produces a C enumeration
 of all event names with a generated _MAX value at the end.  When
 'data' is also specified, additional info will be included in the
-event, with similar semantics to a 'type' expression.  Finally there
+event, with similar semantics to a 'struct' expression.  Finally there
 will be C API generated in qapi-event.h; when called by QEMU code, a
 message with timestamp will be emitted on the wire.
 
@@ -505,7 +505,7 @@ case we want to accept/return a list of this type with a command), and a
 command which takes that type as a parameter and returns the same type:
 
     $ cat example-schema.json
-    { 'type': 'UserDefOne',
+    { 'struct': 'UserDefOne',
       'data': { 'integer': 'int', 'string': 'str' } }
 
     { 'command': 'my-command',
