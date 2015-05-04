@@ -1,4 +1,0 @@
-[OrderedDict([('alternate', 'Alt'), ('data', OrderedDict([('a', 'int'), ('b', 'str')]))]),
- OrderedDict([('command', 'oops'), ('returns', 'Alt')])]
-[{'enum_name': 'AltKind', 'enum_values': None}]
-[]

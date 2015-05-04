@@ -32,6 +32,30 @@ builtin_types = {
     'size':     'QTYPE_QINT',
 }
 
+# Whitelist of commands allowed to return a non-dictionary
+returns_whitelist = [
+    # From QMP:
+    'human-monitor-command',
+    'query-migrate-cache-size',
+    'query-tpm-models',
+    'query-tpm-types',
+    'ringbuf-read',
+
+    # From QGA:
+    'guest-file-open',
+    'guest-fsfreeze-freeze',
+    'guest-fsfreeze-freeze-list',
+    'guest-fsfreeze-status',
+    'guest-fsfreeze-thaw',
+    'guest-get-time',
+    'guest-set-vcpus',
+    'guest-sync',
+    'guest-sync-delimited',
+
+    # From qapi-schema-test:
+    'user_def_cmd3',
+]
+
 enum_types = []
 struct_types = []
 union_types = []
@@ -354,11 +378,12 @@ def check_command(expr, expr_info):
     check_type(expr_info, "'data' for command '%s'" % name,
                expr.get('data'), allow_dict=True, allow_optional=True,
                allow_metas=['union', 'struct'])
+    returns_meta = ['union', 'struct']
+    if name in returns_whitelist:
+        returns_meta += ['built-in', 'alternate', 'enum']
     check_type(expr_info, "'returns' for command '%s'" % name,
                expr.get('returns'), allow_array=True, allow_dict=True,
-               allow_optional=True,
-               allow_metas=['built-in', 'union', 'alternate', 'struct',
-                            'enum'])
+               allow_optional=True, allow_metas=returns_meta)
 
 def check_event(expr, expr_info):
     global events
