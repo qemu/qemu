@@ -2,7 +2,7 @@
 # QAPI command marshaller generator
 #
 # Copyright IBM, Corp. 2011
-# Copyright (C) 2014 Red Hat, Inc.
+# Copyright (C) 2014-2015 Red Hat, Inc.
 #
 # Authors:
 #  Anthony Liguori <aliguori@us.ibm.com>
@@ -293,17 +293,12 @@ out:
 
     return ret
 
-def option_value_matches(opt, val, cmd):
-    if opt in cmd and cmd[opt] == val:
-        return True
-    return False
-
 def gen_registry(commands):
     registry=""
     push_indent()
     for cmd in commands:
         options = 'QCO_NO_OPTIONS'
-        if option_value_matches('success-response', 'no', cmd):
+        if not cmd.get('success-response', True):
             options = 'QCO_NO_SUCCESS_RESP'
 
         registry += mcgen('''

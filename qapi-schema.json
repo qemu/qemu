@@ -1561,8 +1561,8 @@
 ##
 { 'command': 'qom-get',
   'data': { 'path': 'str', 'property': 'str' },
-  'returns': 'visitor',
-  'gen': 'no' }
+  'returns': '**',
+  'gen': false }
 
 ##
 # @qom-set:
@@ -1579,8 +1579,8 @@
 # Since: 1.2
 ##
 { 'command': 'qom-set',
-  'data': { 'path': 'str', 'property': 'str', 'value': 'visitor' },
-  'gen': 'no' }
+  'data': { 'path': 'str', 'property': 'str', 'value': '**' },
+  'gen': false }
 
 ##
 # @set_password:
@@ -1943,7 +1943,7 @@
 ##
 { 'command': 'netdev_add',
   'data': {'type': 'str', 'id': 'str', '*props': '**'},
-  'gen': 'no' }
+  'gen': false }
 
 ##
 # @netdev_del:
@@ -1976,8 +1976,8 @@
 # Since: 2.0
 ##
 { 'command': 'object-add',
-  'data': {'qom-type': 'str', 'id': 'str', '*props': 'dict'},
-  'gen': 'no' }
+  'data': {'qom-type': 'str', 'id': 'str', '*props': '**'},
+  'gen': false }
 
 ##
 # @object-del:

@@ -195,7 +195,7 @@
 # Since: 0.15.0
 ##
 { 'command': 'guest-shutdown', 'data': { '*mode': 'str' },
-  'success-response': 'no' }
+  'success-response': false }
 
 ##
 # @guest-file-open:
@@ -470,7 +470,7 @@
 #
 # Since: 1.1
 ##
-{ 'command': 'guest-suspend-disk', 'success-response': 'no' }
+{ 'command': 'guest-suspend-disk', 'success-response': false }
 
 ##
 # @guest-suspend-ram
@@ -502,7 +502,7 @@
 #
 # Since: 1.1
 ##
-{ 'command': 'guest-suspend-ram', 'success-response': 'no' }
+{ 'command': 'guest-suspend-ram', 'success-response': false }
 
 ##
 # @guest-suspend-hybrid
@@ -529,7 +529,7 @@
 #
 # Since: 1.1
 ##
-{ 'command': 'guest-suspend-hybrid', 'success-response': 'no' }
+{ 'command': 'guest-suspend-hybrid', 'success-response': false }
 
 ##
 # @GuestIpAddressType:

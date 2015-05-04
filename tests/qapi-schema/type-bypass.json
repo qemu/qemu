@@ -1,0 +1,2 @@
+# Use of 'gen':false allows bypassing type system
+{ 'command': 'unsafe', 'data': { 'arg': '**' }, 'returns': '**', 'gen': false }
