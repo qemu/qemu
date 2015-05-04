@@ -648,14 +648,14 @@ static void hmp_info_pci_device(Monitor *mon, const PciDeviceInfo *dev)
                    dev->slot, dev->function);
     monitor_printf(mon, "    ");
 
-    if (dev->class_info.has_desc) {
-        monitor_printf(mon, "%s", dev->class_info.desc);
+    if (dev->class_info->has_desc) {
+        monitor_printf(mon, "%s", dev->class_info->desc);
     } else {
-        monitor_printf(mon, "Class %04" PRId64, dev->class_info.q_class);
+        monitor_printf(mon, "Class %04" PRId64, dev->class_info->q_class);
     }
 
     monitor_printf(mon, ": PCI device %04" PRIx64 ":%04" PRIx64 "\n",
-                   dev->id.vendor, dev->id.device);
+                   dev->id->vendor, dev->id->device);
 
     if (dev->has_irq) {
         monitor_printf(mon, "      IRQ %" PRId64 ".\n", dev->irq);
@@ -663,25 +663,25 @@ static void hmp_info_pci_device(Monitor *mon, const PciDeviceInfo *dev)
 
     if (dev->has_pci_bridge) {
         monitor_printf(mon, "      BUS %" PRId64 ".\n",
-                       dev->pci_bridge->bus.number);
+                       dev->pci_bridge->bus->number);
         monitor_printf(mon, "      secondary bus %" PRId64 ".\n",
-                       dev->pci_bridge->bus.secondary);
+                       dev->pci_bridge->bus->secondary);
         monitor_printf(mon, "      subordinate bus %" PRId64 ".\n",
-                       dev->pci_bridge->bus.subordinate);
+                       dev->pci_bridge->bus->subordinate);
 
         monitor_printf(mon, "      IO range [0x%04"PRIx64", 0x%04"PRIx64"]\n",
-                       dev->pci_bridge->bus.io_range->base,
-                       dev->pci_bridge->bus.io_range->limit);
+                       dev->pci_bridge->bus->io_range->base,
+                       dev->pci_bridge->bus->io_range->limit);
 
         monitor_printf(mon,
                        "      memory range [0x%08"PRIx64", 0x%08"PRIx64"]\n",
-                       dev->pci_bridge->bus.memory_range->base,
-                       dev->pci_bridge->bus.memory_range->limit);
+                       dev->pci_bridge->bus->memory_range->base,
+                       dev->pci_bridge->bus->memory_range->limit);
 
         monitor_printf(mon, "      prefetchable memory range "
                        "[0x%08"PRIx64", 0x%08"PRIx64"]\n",
-                       dev->pci_bridge->bus.prefetchable_range->base,
-                       dev->pci_bridge->bus.prefetchable_range->limit);
+                       dev->pci_bridge->bus->prefetchable_range->base,
+                       dev->pci_bridge->bus->prefetchable_range->limit);
     }
 
     for (region = dev->regions; region; region = region->next) {

@@ -1041,36 +1041,75 @@
            '*prefetch': 'bool', '*mem_type_64': 'bool' } }
 
 ##
+# @PciBusInfo:
+#
+# Information about a bus of a PCI Bridge device
+#
+# @number: primary bus interface number.  This should be the number of the
+#          bus the device resides on.
+#
+# @secondary: secondary bus interface number.  This is the number of the
+#             main bus for the bridge
+#
+# @subordinate: This is the highest number bus that resides below the
+#               bridge.
+#
+# @io_range: The PIO range for all devices on this bridge
+#
+# @memory_range: The MMIO range for all devices on this bridge
+#
+# @prefetchable_range: The range of prefetchable MMIO for all devices on
+#                      this bridge
+#
+# Since: 2.4
+##
+{ 'struct': 'PciBusInfo',
+  'data': {'number': 'int', 'secondary': 'int', 'subordinate': 'int',
+           'io_range': 'PciMemoryRange',
+           'memory_range': 'PciMemoryRange',
+           'prefetchable_range': 'PciMemoryRange' } }
+
+##
 # @PciBridgeInfo:
 #
 # Information about a PCI Bridge device
 #
-# @bus.number: primary bus interface number.  This should be the number of the
-#              bus the device resides on.
-#
-# @bus.secondary: secondary bus interface number.  This is the number of the
-#                 main bus for the bridge
-#
-# @bus.subordinate: This is the highest number bus that resides below the
-#                   bridge.
-#
-# @bus.io_range: The PIO range for all devices on this bridge
-#
-# @bus.memory_range: The MMIO range for all devices on this bridge
-#
-# @bus.prefetchable_range: The range of prefetchable MMIO for all devices on
-#                          this bridge
+# @bus: information about the bus the device resides on
 #
 # @devices: a list of @PciDeviceInfo for each device on this bridge
 #
 # Since: 0.14.0
 ##
 { 'struct': 'PciBridgeInfo',
-  'data': {'bus': { 'number': 'int', 'secondary': 'int', 'subordinate': 'int',
-                    'io_range': 'PciMemoryRange',
-                    'memory_range': 'PciMemoryRange',
-                    'prefetchable_range': 'PciMemoryRange' },
-           '*devices': ['PciDeviceInfo']} }
+  'data': {'bus': 'PciBusInfo', '*devices': ['PciDeviceInfo']} }
+
+##
+# @PciDeviceClass:
+#
+# Information about the Class of a PCI device
+#
+# @desc: #optional a string description of the device's class
+#
+# @class: the class code of the device
+#
+# Since: 2.4
+##
+{ 'struct': 'PciDeviceClass',
+  'data': {'*desc': 'str', 'class': 'int'} }
+
+##
+# @PciDeviceId:
+#
+# Information about the Id of a PCI device
+#
+# @device: the PCI device id
+#
+# @vendor: the PCI vendor id
+#
+# Since: 2.4
+##
+{ 'struct': 'PciDeviceId',
+  'data': {'device': 'int', 'vendor': 'int'} }
 
 ##
 # @PciDeviceInfo:
@@ -1083,13 +1122,9 @@
 #
 # @function: the function of the slot used by the device
 #
-# @class_info.desc: #optional a string description of the device's class
+# @class_info: the class of the device
 #
-# @class_info.class: the class code of the device
-#
-# @id.device: the PCI device id
-#
-# @id.vendor: the PCI vendor id
+# @id: the PCI device id
 #
 # @irq: #optional if an IRQ is assigned to the device, the IRQ number
 #
@@ -1106,8 +1141,7 @@
 ##
 { 'struct': 'PciDeviceInfo',
   'data': {'bus': 'int', 'slot': 'int', 'function': 'int',
-           'class_info': {'*desc': 'str', 'class': 'int'},
-           'id': {'device': 'int', 'vendor': 'int'},
+           'class_info': 'PciDeviceClass', 'id': 'PciDeviceId',
            '*irq': 'int', 'qdev_id': 'str', '*pci_bridge': 'PciBridgeInfo',
            'regions': ['PciMemoryRegion']} }
 
