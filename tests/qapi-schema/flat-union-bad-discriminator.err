@@ -1,1 +1,1 @@
-tests/qapi-schema/flat-union-bad-discriminator.json:11: Flat union 'TestUnion' discriminator must be a string
+tests/qapi-schema/flat-union-bad-discriminator.json:11: Discriminator of flat union 'TestUnion' requires a string name

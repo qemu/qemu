@@ -1,4 +1,4 @@
-# FIXME: we should require the discriminator to be non-optional
+# we require the discriminator to be non-optional
 { 'enum': 'Enum', 'data': [ 'one', 'two' ] }
 { 'type': 'Base',
   'data': { '*switch': 'Enum' } }

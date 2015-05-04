@@ -1,2 +1,2 @@
-# FIXME: union branches cannot be optional
+# union branches cannot be optional
 { 'union': 'Union', 'data': { '*a': 'int', 'b': 'str' } }

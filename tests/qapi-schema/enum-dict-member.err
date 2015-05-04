@@ -1,1 +1,1 @@
-tests/qapi-schema/enum-dict-member.json:2: Enum 'MyEnum' member 'OrderedDict([('value', 'str')])' is not a string
+tests/qapi-schema/enum-dict-member.json:2: Member of enum 'MyEnum' requires a string name

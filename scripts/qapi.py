@@ -276,8 +276,31 @@ def discriminator_find_enum_define(expr):
 
     return find_enum(discriminator_type)
 
+valid_name = re.compile('^[a-zA-Z_][a-zA-Z0-9_.-]*$')
+def check_name(expr_info, source, name, allow_optional = False,
+               enum_member = False):
+    global valid_name
+    membername = name
+
+    if not isinstance(name, str):
+        raise QAPIExprError(expr_info,
+                            "%s requires a string name" % source)
+    if name.startswith('*'):
+        membername = name[1:]
+        if not allow_optional:
+            raise QAPIExprError(expr_info,
+                                "%s does not allow optional name '%s'"
+                                % (source, name))
+    # Enum members can start with a digit, because the generated C
+    # code always prefixes it with the enum name
+    if enum_member:
+        membername = '_' + membername
+    if not valid_name.match(membername):
+        raise QAPIExprError(expr_info,
+                            "%s uses invalid name '%s'" % (source, name))
+
 def check_type(expr_info, source, value, allow_array = False,
-               allow_dict = False, allow_metas = []):
+               allow_dict = False, allow_optional = False, allow_metas = []):
     global all_names
     orig_value = value
 
@@ -319,18 +342,21 @@ def check_type(expr_info, source, value, allow_array = False,
         raise QAPIExprError(expr_info,
                             "%s should be a type name" % source)
     for (key, arg) in value.items():
+        check_name(expr_info, "Member of %s" % source, key,
+                   allow_optional=allow_optional)
         check_type(expr_info, "Member '%s' of %s" % (key, source), arg,
-                   allow_array=True, allow_dict=True,
+                   allow_array=True, allow_dict=True, allow_optional=True,
                    allow_metas=['built-in', 'union', 'alternate', 'struct',
                                 'enum'])
 
 def check_command(expr, expr_info):
     name = expr['command']
     check_type(expr_info, "'data' for command '%s'" % name,
-               expr.get('data'), allow_dict=True,
+               expr.get('data'), allow_dict=True, allow_optional=True,
                allow_metas=['union', 'struct'])
     check_type(expr_info, "'returns' for command '%s'" % name,
                expr.get('returns'), allow_array=True, allow_dict=True,
+               allow_optional=True,
                allow_metas=['built-in', 'union', 'alternate', 'struct',
                             'enum'])
 
@@ -343,7 +369,7 @@ def check_event(expr, expr_info):
         raise QAPIExprError(expr_info, "Event name 'MAX' cannot be created")
     events.append(name)
     check_type(expr_info, "'data' for event '%s'" % name,
-               expr.get('data'), allow_dict=True,
+               expr.get('data'), allow_dict=True, allow_optional=True,
                allow_metas=['union', 'struct'])
     if params:
         for argname, argentry, optional, structured in parse_args(params):
@@ -392,12 +418,10 @@ def check_union(expr, expr_info):
                                 "Base '%s' is not a valid type"
                                 % base)
 
-        # The value of member 'discriminator' must name a member of the
-        # base type.
-        if not isinstance(discriminator, str):
-            raise QAPIExprError(expr_info,
-                                "Flat union '%s' discriminator must be a string"
-                                % name)
+        # The value of member 'discriminator' must name a non-optional
+        # member of the base type.
+        check_name(expr_info, "Discriminator of flat union '%s'" % name,
+                   discriminator)
         discriminator_type = base_fields.get(discriminator)
         if not discriminator_type:
             raise QAPIExprError(expr_info,
@@ -414,6 +438,8 @@ def check_union(expr, expr_info):
 
     # Check every branch
     for (key, value) in members.items():
+        check_name(expr_info, "Member of union '%s'" % name, key)
+
         # Each value must name a known type; furthermore, in flat unions,
         # branches must be a struct
         check_type(expr_info, "Member '%s' of union '%s'" % (key, name),
@@ -445,6 +471,8 @@ def check_alternate(expr, expr_info):
 
     # Check every branch
     for (key, value) in members.items():
+        check_name(expr_info, "Member of alternate '%s'" % name, key)
+
         # Check for conflicts in the generated enum
         c_key = _generate_enum_string(key)
         if c_key in values:
@@ -475,10 +503,8 @@ def check_enum(expr, expr_info):
         raise QAPIExprError(expr_info,
                             "Enum '%s' requires an array for 'data'" % name)
     for member in members:
-        if not isinstance(member, str):
-            raise QAPIExprError(expr_info,
-                                "Enum '%s' member '%s' is not a string"
-                                % (name, member))
+        check_name(expr_info, "Member of enum '%s'" %name, member,
+                   enum_member=True)
         key = _generate_enum_string(member)
         if key in values:
             raise QAPIExprError(expr_info,
@@ -491,7 +517,7 @@ def check_struct(expr, expr_info):
     members = expr['data']
 
     check_type(expr_info, "'data' for type '%s'" % name, members,
-               allow_dict=True)
+               allow_dict=True, allow_optional=True)
     check_type(expr_info, "'base' for type '%s'" % name, expr.get('base'),
                allow_metas=['struct'])
 
@@ -682,8 +708,11 @@ def type_name(name):
         return c_list_type(name[0])
     return name
 
-def add_name(name, info, meta, implicit = False):
+def add_name(name, info, meta, implicit = False, source = None):
     global all_names
+    if not source:
+        source = "'%s'" % meta
+    check_name(info, source, name)
     if name in all_names:
         raise QAPIExprError(info,
                             "%s '%s' is already defined"
@@ -697,7 +726,7 @@ def add_name(name, info, meta, implicit = False):
 def add_struct(definition, info):
     global struct_types
     name = definition['type']
-    add_name(name, info, 'struct')
+    add_name(name, info, 'struct', source="'type'")
     struct_types.append(definition)
 
 def find_struct(name):
