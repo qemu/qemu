@@ -237,7 +237,7 @@ void visit_type_%(name)s(Visitor *m, %(name)s *obj, const char *name, Error **er
 ''',
                  name=name)
 
-def generate_visit_anon_union(name, members):
+def generate_visit_alternate(name, members):
     ret = mcgen('''
 
 void visit_type_%(name)s(Visitor *m, %(name)s **obj, const char *name, Error **errp)
@@ -302,7 +302,7 @@ def generate_visit_union(expr):
 
     if discriminator == {}:
         assert not base
-        return generate_visit_anon_union(name, members)
+        return generate_visit_alternate(name, members)
 
     enum_define = discriminator_find_enum_define(expr)
     if enum_define:

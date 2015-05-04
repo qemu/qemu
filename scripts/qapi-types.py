@@ -170,7 +170,7 @@ typedef enum %(name)s
 
     return lookup_decl + enum_decl
 
-def generate_anon_union_qtypes(expr):
+def generate_alternate_qtypes(expr):
 
     name = expr['union']
     members = expr['data']
@@ -181,7 +181,7 @@ const int %(name)s_qtypes[QTYPE_MAX] = {
     name=name)
 
     for key in members:
-        qtype = find_anonymous_member_qtype(members[key])
+        qtype = find_alternate_member_qtype(members[key])
         assert qtype, "Invalid anonymous union member"
 
         ret += mcgen('''
@@ -408,7 +408,7 @@ for expr in exprs:
             fdef.write(generate_enum_lookup('%sKind' % expr['union'],
                                             expr['data'].keys()))
         if expr.get('discriminator') == {}:
-            fdef.write(generate_anon_union_qtypes(expr))
+            fdef.write(generate_alternate_qtypes(expr))
     else:
         continue
     fdecl.write(ret)
