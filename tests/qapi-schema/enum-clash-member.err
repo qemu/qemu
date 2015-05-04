@@ -1,0 +1,1 @@
+tests/qapi-schema/enum-clash-member.json:2: Enum 'MyEnum' member 'ONE' clashes with 'one'

@@ -1,6 +1,1 @@
-Traceback (most recent call last):
-  File "tests/qapi-schema/test-qapi.py", line 19, in <module>
-    exprs = parse_schema(sys.argv[1])
-  File "scripts/qapi.py", line 334, in parse_schema
-    add_enum(expr['enum'], expr['data'])
-KeyError: 'data'
+tests/qapi-schema/enum-missing-data.json:2: Enum 'MyEnum' requires an array for 'data'

@@ -311,13 +311,37 @@ def check_union(expr, expr_info):
         # Todo: add checking for values. Key is checked as above, value can be
         # also checked here, but we need more functions to handle array case.
 
+def check_enum(expr, expr_info):
+    name = expr['enum']
+    members = expr.get('data')
+    values = { 'MAX': '(automatic)' }
+
+    if not isinstance(members, list):
+        raise QAPIExprError(expr_info,
+                            "Enum '%s' requires an array for 'data'" % name)
+    for member in members:
+        if not isinstance(member, str):
+            raise QAPIExprError(expr_info,
+                                "Enum '%s' member '%s' is not a string"
+                                % (name, member))
+        key = _generate_enum_string(member)
+        if key in values:
+            raise QAPIExprError(expr_info,
+                                "Enum '%s' member '%s' clashes with '%s'"
+                                % (name, member, values[key]))
+        values[key] = member
+
 def check_exprs(schema):
     for expr_elem in schema.exprs:
         expr = expr_elem['expr']
-        if expr.has_key('union'):
-            check_union(expr, expr_elem['info'])
-        if expr.has_key('event'):
-            check_event(expr, expr_elem['info'])
+        info = expr_elem['info']
+
+        if expr.has_key('enum'):
+            check_enum(expr, info)
+        elif expr.has_key('union'):
+            check_union(expr, info)
+        elif expr.has_key('event'):
+            check_event(expr, info)
 
 def parse_schema(input_file):
     try:
@@ -331,7 +355,7 @@ def parse_schema(input_file):
     for expr_elem in schema.exprs:
         expr = expr_elem['expr']
         if expr.has_key('enum'):
-            add_enum(expr['enum'], expr['data'])
+            add_enum(expr['enum'], expr.get('data'))
         elif expr.has_key('union'):
             add_union(expr)
         elif expr.has_key('type'):

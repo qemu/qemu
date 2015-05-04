@@ -1,3 +1,0 @@
-[OrderedDict([('enum', 'MyEnum'), ('data', ['one', 'ONE'])])]
-[{'enum_name': 'MyEnum', 'enum_values': ['one', 'ONE']}]
-[]
