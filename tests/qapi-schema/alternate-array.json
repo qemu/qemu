@@ -1,4 +1,4 @@
-# FIXME: we should not allow array branches in anonymous unions
+# we do not allow array branches in anonymous unions
 # TODO: should we support this?
 { 'type': 'One',
   'data': { 'name': 'str' } }

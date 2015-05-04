@@ -224,6 +224,23 @@ def find_base_fields(base):
         return None
     return base_struct_define['data']
 
+# Return the qtype of an anonymous union branch, or None on error.
+def find_anonymous_member_qtype(qapi_type):
+    if builtin_types.has_key(qapi_type):
+        return builtin_types[qapi_type]
+    elif find_struct(qapi_type):
+        return "QTYPE_QDICT"
+    elif find_enum(qapi_type):
+        return "QTYPE_QSTRING"
+    else:
+        union = find_union(qapi_type)
+        if union:
+            discriminator = union.get('discriminator')
+            if discriminator == {}:
+                return None
+            return "QTYPE_QDICT"
+    return None
+
 # Return the discriminator enum define if discriminator is specified as an
 # enum type, otherwise return None.
 def discriminator_find_enum_define(expr):
@@ -258,6 +275,8 @@ def check_union(expr, expr_info):
     base = expr.get('base')
     discriminator = expr.get('discriminator')
     members = expr['data']
+    values = { 'MAX': '(automatic)' }
+    types_seen = {}
 
     # If the object has a member 'base', its value must name a complex type,
     # and there must be a discriminator.
@@ -266,26 +285,35 @@ def check_union(expr, expr_info):
             raise QAPIExprError(expr_info,
                                 "Union '%s' requires a discriminator to go "
                                 "along with base" %name)
+
+    # If the union object has no member 'discriminator', it's a
+    # simple union. If 'discriminator' is {}, it is an anonymous union.
+    if discriminator is None or discriminator == {}:
+        enum_define = None
+        if base is not None:
+            raise QAPIExprError(expr_info,
+                                "Union '%s' must not have a base"
+                                % name)
+
+    # Else, it's a flat union.
+    else:
+        # The object must have a string member 'base'.
+        if not isinstance(base, str):
+            raise QAPIExprError(expr_info,
+                                "Flat union '%s' must have a string base field"
+                                % name)
         base_fields = find_base_fields(base)
         if not base_fields:
             raise QAPIExprError(expr_info,
                                 "Base '%s' is not a valid type"
                                 % base)
 
-    # If the union object has no member 'discriminator', it's a
-    # simple union. If 'discriminator' is {}, it is an anonymous union.
-    if not discriminator or discriminator == {}:
-        enum_define = None
-
-    # Else, it's a flat union.
-    else:
-        # The object must have a member 'base'.
-        if not base:
-            raise QAPIExprError(expr_info,
-                                "Flat union '%s' must have a base field"
-                                % name)
         # The value of member 'discriminator' must name a member of the
         # base type.
+        if not isinstance(discriminator, str):
+            raise QAPIExprError(expr_info,
+                                "Flat union '%s' discriminator must be a string"
+                                % name)
         discriminator_type = base_fields.get(discriminator)
         if not discriminator_type:
             raise QAPIExprError(expr_info,
@@ -301,15 +329,42 @@ def check_union(expr, expr_info):
 
     # Check every branch
     for (key, value) in members.items():
-        # If this named member's value names an enum type, then all members
+        # If the discriminator names an enum type, then all members
         # of 'data' must also be members of the enum type.
-        if enum_define and not key in enum_define['enum_values']:
-            raise QAPIExprError(expr_info,
-                                "Discriminator value '%s' is not found in "
-                                "enum '%s'" %
-                                (key, enum_define["enum_name"]))
-        # Todo: add checking for values. Key is checked as above, value can be
-        # also checked here, but we need more functions to handle array case.
+        if enum_define:
+            if not key in enum_define['enum_values']:
+                raise QAPIExprError(expr_info,
+                                    "Discriminator value '%s' is not found in "
+                                    "enum '%s'" %
+                                    (key, enum_define["enum_name"]))
+
+        # Otherwise, check for conflicts in the generated enum
+        else:
+            c_key = _generate_enum_string(key)
+            if c_key in values:
+                raise QAPIExprError(expr_info,
+                                    "Union '%s' member '%s' clashes with '%s'"
+                                    % (name, key, values[c_key]))
+            values[c_key] = key
+
+        # Ensure anonymous unions have no type conflicts.
+        if discriminator == {}:
+            if isinstance(value, list):
+                raise QAPIExprError(expr_info,
+                                    "Anonymous union '%s' member '%s' must "
+                                    "not be array type" % (name, key))
+            qtype = find_anonymous_member_qtype(value)
+            if not qtype:
+                raise QAPIExprError(expr_info,
+                                    "Anonymous union '%s' member '%s' has "
+                                    "invalid type '%s'" % (name, key, value))
+            if qtype in types_seen:
+                raise QAPIExprError(expr_info,
+                                    "Anonymous union '%s' member '%s' can't "
+                                    "be distinguished from member '%s'"
+                                    % (name, key, types_seen[qtype]))
+            types_seen[qtype] = key
+
 
 def check_enum(expr, expr_info):
     name = expr['enum']

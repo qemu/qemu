@@ -1,0 +1,1 @@
+tests/qapi-schema/alternate-unknown.json:2: Anonymous union 'Union' member 'unknown' has invalid type 'MissingType'

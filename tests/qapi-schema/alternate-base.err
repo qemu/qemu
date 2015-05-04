@@ -1,0 +1,1 @@
+tests/qapi-schema/alternate-base.json:4: Union 'MyUnion' must not have a base

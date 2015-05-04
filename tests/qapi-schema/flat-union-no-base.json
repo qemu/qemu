@@ -1,4 +1,4 @@
-# FIXME: flat unions should require a base
+# flat unions require a base
 # TODO: simple unions should be able to use an enum discriminator
 { 'type': 'TestTypeA',
   'data': { 'string': 'str' } }

@@ -1,6 +1,0 @@
-[OrderedDict([('type', 'One'), ('data', OrderedDict([('name', 'str')]))]),
- OrderedDict([('type', 'Two'), ('data', OrderedDict([('value', 'int')]))]),
- OrderedDict([('union', 'MyUnion'), ('discriminator', OrderedDict()), ('data', OrderedDict([('one', 'One'), ('two', 'Two')]))])]
-[{'enum_name': 'MyUnionKind', 'enum_values': None}]
-[OrderedDict([('type', 'One'), ('data', OrderedDict([('name', 'str')]))]),
- OrderedDict([('type', 'Two'), ('data', OrderedDict([('value', 'int')]))])]

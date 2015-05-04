@@ -1,4 +1,4 @@
-# FIXME: we should require the discriminator to be a string naming a base-type member
+# we require the discriminator to be a string naming a base-type member
 { 'enum': 'TestEnum',
   'data': [ 'value1', 'value2' ] }
 { 'type': 'TestBase',

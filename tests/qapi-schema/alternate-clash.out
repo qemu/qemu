@@ -1,3 +1,0 @@
-[OrderedDict([('union', 'Union1'), ('discriminator', OrderedDict()), ('data', OrderedDict([('one', 'str'), ('ONE', 'int')]))])]
-[{'enum_name': 'Union1Kind', 'enum_values': None}]
-[]

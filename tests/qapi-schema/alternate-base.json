@@ -1,4 +1,4 @@
-# FIXME: we should reject anonymous union with base type
+# we reject anonymous union with base type
 { 'type': 'Base',
   'data': { 'string': 'str' } }
 { 'union': 'MyUnion',

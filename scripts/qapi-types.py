@@ -181,17 +181,8 @@ const int %(name)s_qtypes[QTYPE_MAX] = {
     name=name)
 
     for key in members:
-        qapi_type = members[key]
-        if builtin_types.has_key(qapi_type):
-            qtype = builtin_types[qapi_type]
-        elif find_struct(qapi_type):
-            qtype = "QTYPE_QDICT"
-        elif find_union(qapi_type):
-            qtype = "QTYPE_QDICT"
-        elif find_enum(qapi_type):
-            qtype = "QTYPE_QSTRING"
-        else:
-            assert False, "Invalid anonymous union member"
+        qtype = find_anonymous_member_qtype(members[key])
+        assert qtype, "Invalid anonymous union member"
 
         ret += mcgen('''
     [ %(qtype)s ] = %(abbrev)s_KIND_%(enum)s,

@@ -1,4 +1,4 @@
-# FIXME: we should reject an anonymous union with unknown type in branch
+# we reject an anonymous union with unknown type in branch
 { 'union': 'Union',
   'discriminator': {},
   'data': { 'unknown': 'MissingType' } }

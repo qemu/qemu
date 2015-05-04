@@ -1,4 +1,4 @@
-# FIXME: we should reject anonymous unions with multiple object branches
+# we reject anonymous unions with multiple object branches
 { 'type': 'One',
   'data': { 'name': 'str' } }
 { 'type': 'Two',
