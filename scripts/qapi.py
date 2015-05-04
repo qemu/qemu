@@ -2,7 +2,7 @@
 # QAPI helper library
 #
 # Copyright IBM, Corp. 2011
-# Copyright (c) 2013 Red Hat Inc.
+# Copyright (c) 2013-2015 Red Hat Inc.
 #
 # Authors:
 #  Anthony Liguori <aliguori@us.ibm.com>
@@ -354,7 +354,7 @@ def parse_schema(input_file):
     return exprs
 
 def parse_args(typeinfo):
-    if isinstance(typeinfo, basestring):
+    if isinstance(typeinfo, str):
         struct = find_struct(typeinfo)
         assert struct != None
         typeinfo = struct['data']
