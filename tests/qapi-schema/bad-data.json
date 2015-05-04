@@ -1,2 +1,2 @@
-# FIXME: we should ensure 'data' is a dictionary for all but enums
+# we ensure 'data' is a dictionary for all but enums
 { 'command': 'oops', 'data': [ ] }

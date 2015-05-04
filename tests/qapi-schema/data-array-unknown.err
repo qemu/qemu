@@ -1,0 +1,1 @@
+tests/qapi-schema/data-array-unknown.json:2: Member 'array' of 'data' for command 'oops' uses unknown type 'array of NoSuchType'

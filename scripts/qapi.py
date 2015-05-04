@@ -276,6 +276,64 @@ def discriminator_find_enum_define(expr):
 
     return find_enum(discriminator_type)
 
+def check_type(expr_info, source, value, allow_array = False,
+               allow_dict = False, allow_metas = []):
+    global all_names
+    orig_value = value
+
+    if value is None:
+        return
+
+    if value == '**':
+        return
+
+    # Check if array type for value is okay
+    if isinstance(value, list):
+        if not allow_array:
+            raise QAPIExprError(expr_info,
+                                "%s cannot be an array" % source)
+        if len(value) != 1 or not isinstance(value[0], str):
+            raise QAPIExprError(expr_info,
+                                "%s: array type must contain single type name"
+                                % source)
+        value = value[0]
+        orig_value = "array of %s" %value
+
+    # Check if type name for value is okay
+    if isinstance(value, str):
+        if not value in all_names:
+            raise QAPIExprError(expr_info,
+                                "%s uses unknown type '%s'"
+                                % (source, orig_value))
+        if not all_names[value] in allow_metas:
+            raise QAPIExprError(expr_info,
+                                "%s cannot use %s type '%s'"
+                                % (source, all_names[value], orig_value))
+        return
+
+    # value is a dictionary, check that each member is okay
+    if not isinstance(value, OrderedDict):
+        raise QAPIExprError(expr_info,
+                            "%s should be a dictionary" % source)
+    if not allow_dict:
+        raise QAPIExprError(expr_info,
+                            "%s should be a type name" % source)
+    for (key, arg) in value.items():
+        check_type(expr_info, "Member '%s' of %s" % (key, source), arg,
+                   allow_array=True, allow_dict=True,
+                   allow_metas=['built-in', 'union', 'alternate', 'struct',
+                                'enum'])
+
+def check_command(expr, expr_info):
+    name = expr['command']
+    check_type(expr_info, "'data' for command '%s'" % name,
+               expr.get('data'), allow_dict=True,
+               allow_metas=['union', 'struct'])
+    check_type(expr_info, "'returns' for command '%s'" % name,
+               expr.get('returns'), allow_array=True, allow_dict=True,
+               allow_metas=['built-in', 'union', 'alternate', 'struct',
+                            'enum'])
+
 def check_event(expr, expr_info):
     global events
     name = expr['event']
@@ -284,7 +342,9 @@ def check_event(expr, expr_info):
     if name.upper() == 'MAX':
         raise QAPIExprError(expr_info, "Event name 'MAX' cannot be created")
     events.append(name)
-
+    check_type(expr_info, "'data' for event '%s'" % name,
+               expr.get('data'), allow_dict=True,
+               allow_metas=['union', 'struct'])
     if params:
         for argname, argentry, optional, structured in parse_args(params):
             if structured:
@@ -313,6 +373,7 @@ def check_union(expr, expr_info):
     # With no discriminator it is a simple union.
     if discriminator is None:
         enum_define = None
+        allow_metas=['built-in', 'union', 'alternate', 'struct', 'enum']
         if base is not None:
             raise QAPIExprError(expr_info,
                                 "Simple union '%s' must not have a base"
@@ -344,6 +405,7 @@ def check_union(expr, expr_info):
                                 "type '%s'"
                                 % (discriminator, base))
         enum_define = find_enum(discriminator_type)
+        allow_metas=['struct']
         # Do not allow string discriminator
         if not enum_define:
             raise QAPIExprError(expr_info,
@@ -352,6 +414,11 @@ def check_union(expr, expr_info):
 
     # Check every branch
     for (key, value) in members.items():
+        # Each value must name a known type; furthermore, in flat unions,
+        # branches must be a struct
+        check_type(expr_info, "Member '%s' of union '%s'" % (key, name),
+                   value, allow_array=True, allow_metas=allow_metas)
+
         # If the discriminator names an enum type, then all members
         # of 'data' must also be members of the enum type.
         if enum_define:
@@ -387,15 +454,11 @@ def check_alternate(expr, expr_info):
         values[c_key] = key
 
         # Ensure alternates have no type conflicts.
-        if isinstance(value, list):
-            raise QAPIExprError(expr_info,
-                                "Alternate '%s' member '%s' must "
-                                "not be array type" % (name, key))
+        check_type(expr_info, "Member '%s' of alternate '%s'" % (key, name),
+                   value,
+                   allow_metas=['built-in', 'union', 'struct', 'enum'])
         qtype = find_alternate_member_qtype(value)
-        if not qtype:
-            raise QAPIExprError(expr_info,
-                                "Alternate '%s' member '%s' has "
-                                "invalid type '%s'" % (name, key, value))
+        assert qtype
         if qtype in types_seen:
             raise QAPIExprError(expr_info,
                                 "Alternate '%s' member '%s' can't "
@@ -423,6 +486,15 @@ def check_enum(expr, expr_info):
                                 % (name, member, values[key]))
         values[key] = member
 
+def check_struct(expr, expr_info):
+    name = expr['type']
+    members = expr['data']
+
+    check_type(expr_info, "'data' for type '%s'" % name, members,
+               allow_dict=True)
+    check_type(expr_info, "'base' for type '%s'" % name, expr.get('base'),
+               allow_metas=['struct'])
+
 def check_exprs(schema):
     for expr_elem in schema.exprs:
         expr = expr_elem['expr']
@@ -434,8 +506,14 @@ def check_exprs(schema):
             check_union(expr, info)
         elif expr.has_key('alternate'):
             check_alternate(expr, info)
+        elif expr.has_key('type'):
+            check_struct(expr, info)
+        elif expr.has_key('command'):
+            check_command(expr, info)
         elif expr.has_key('event'):
             check_event(expr, info)
+        else:
+            assert False, 'unexpected meta type'
 
 def check_keys(expr_elem, meta, required, optional=[]):
     expr = expr_elem['expr']

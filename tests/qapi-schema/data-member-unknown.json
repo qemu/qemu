@@ -1,2 +1,2 @@
-# FIXME: we should reject data if it does not contain a known type
+# we reject data if it does not contain a known type
 { 'command': 'oops', 'data': { 'member': 'NoSuchType' } }
