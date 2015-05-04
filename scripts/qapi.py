@@ -348,11 +348,6 @@ def check_alternate(expr, expr_info):
     values = { 'MAX': '(automatic)' }
     types_seen = {}
 
-    if expr.get('base') is not None:
-        raise QAPIExprError(expr_info,
-                            "Alternate '%s' must not have a base"
-                            % name)
-
     # Check every branch
     for (key, value) in members.items():
         # Check for conflicts in the generated enum
@@ -414,6 +409,26 @@ def check_exprs(schema):
         elif expr.has_key('event'):
             check_event(expr, info)
 
+def check_keys(expr_elem, meta, required, optional=[]):
+    expr = expr_elem['expr']
+    info = expr_elem['info']
+    name = expr[meta]
+    if not isinstance(name, str):
+        raise QAPIExprError(info,
+                            "'%s' key must have a string value" % meta)
+    required = required + [ meta ]
+    for (key, value) in expr.items():
+        if not key in required and not key in optional:
+            raise QAPIExprError(info,
+                                "Unknown key '%s' in %s '%s'"
+                                % (key, meta, name))
+    for key in required:
+        if not expr.has_key(key):
+            raise QAPIExprError(info,
+                                "Key '%s' is missing from %s '%s'"
+                                % (key, meta, name))
+
+
 def parse_schema(input_file):
     # First pass: read entire file into memory
     try:
@@ -425,15 +440,30 @@ def parse_schema(input_file):
     exprs = []
 
     try:
-        # Next pass: learn the types.
+        # Next pass: learn the types and check for valid expression keys. At
+        # this point, top-level 'include' has already been flattened.
         for expr_elem in schema.exprs:
             expr = expr_elem['expr']
             if expr.has_key('enum'):
-                add_enum(expr['enum'], expr.get('data'))
+                check_keys(expr_elem, 'enum', ['data'])
+                add_enum(expr['enum'], expr['data'])
             elif expr.has_key('union'):
+                check_keys(expr_elem, 'union', ['data'],
+                           ['base', 'discriminator'])
                 add_union(expr)
+            elif expr.has_key('alternate'):
+                check_keys(expr_elem, 'alternate', ['data'])
             elif expr.has_key('type'):
+                check_keys(expr_elem, 'type', ['data'], ['base'])
                 add_struct(expr)
+            elif expr.has_key('command'):
+                check_keys(expr_elem, 'command', [],
+                           ['data', 'returns', 'gen', 'success-response'])
+            elif expr.has_key('event'):
+                check_keys(expr_elem, 'event', [], ['data'])
+            else:
+                raise QAPIExprError(expr_elem['info'],
+                                    "Expression is missing metatype")
             exprs.append(expr)
 
         # Try again for hidden UnionKind enum

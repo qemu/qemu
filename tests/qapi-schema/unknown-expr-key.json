@@ -1,2 +1,2 @@
-# FIXME: we should reject an expression with unknown top-level keys
+# we reject an expression with unknown top-level keys
 { 'type': 'bar', 'data': { 'string': 'str'}, 'bogus': { } }
