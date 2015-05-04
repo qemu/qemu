@@ -13,12 +13,14 @@ functionality to internal and external users. For external
 users/processes, this interface is made available by a JSON-based wire
 format for the QEMU Monitor Protocol (QMP) for controlling qemu, as
 well as the QEMU Guest Agent (QGA) for communicating with the guest.
+The remainder of this document uses "Client JSON Protocol" when
+referring to the wire contents of a QMP or QGA connection.
 
-To map QMP and QGA interfaces to the native C QAPI implementations, a
-JSON-based schema is used to define types and function signatures, and
-a set of scripts is used to generate types, signatures, and
-marshaling/dispatch code. This document will describe how the schemas,
-scripts, and resulting code are used.
+To map Client JSON Protocol interfaces to the native C QAPI
+implementations, a JSON-based schema is used to define types and
+function signatures, and a set of scripts is used to generate types,
+signatures, and marshaling/dispatch code. This document will describe
+how the schemas, scripts, and resulting code are used.
 
 
 == QMP/Guest agent schema ==
@@ -34,13 +36,13 @@ generated C structs and parameter lists).  Ordering doesn't matter
 between top-level expressions or the keys within an expression, but
 does matter within dictionary values for 'data' and 'returns' members
 of a single expression.  QAPI schema input is written using 'single
-quotes' instead of JSON's "double quotes" (in contrast, QMP uses no
-comments, and while input accepts 'single quotes' as an extension,
-output is strict JSON using only "double quotes").  As in JSON,
-trailing commas are not permitted in arrays or dictionaries.  Input
-must be ASCII (although QMP supports full Unicode strings, the QAPI
-parser does not).  At present, there is no place where a QAPI schema
-requires the use of JSON numbers or null.
+quotes' instead of JSON's "double quotes" (in contrast, Client JSON
+Protocol uses no comments, and while input accepts 'single quotes' as
+an extension, output is strict JSON using only "double quotes").  As
+in JSON, trailing commas are not permitted in arrays or dictionaries.
+Input must be ASCII (although QMP supports full Unicode strings, the
+QAPI parser does not).  At present, there is no place where a QAPI
+schema requires the use of JSON numbers or null.
 
 Comments are allowed; anything between an unquoted # and the following
 newline is ignored.  Although there is not yet a documentation
@@ -82,8 +84,11 @@ that will use those types.  Forward references are allowed: the parser
 scans in two passes, where the first pass learns all type names, and
 the second validates the schema and generates the code.  This allows
 the definition of complex structs that can have mutually recursive
-types, and allows for indefinite nesting of QMP that satisfies the
-schema.  A type name should not be defined more than once.
+types, and allows for indefinite nesting of Client JSON Protocol that
+satisfies the schema.  A type name should not be defined more than
+once.  It is permissible for the schema to contain additional types
+not used by any commands or events in the Client JSON Protocol, for
+the side effect of generated C code used internally.
 
 There are seven top-level expressions recognized by the parser:
 'include', 'command', 'struct', 'enum', 'union', 'alternate', and
@@ -182,7 +187,7 @@ struct is:
    'data': { 'member1': 'str', 'member2': 'int', '*member3': 'str' } }
 
 The use of '*' as a prefix to the name means the member is optional in
-the corresponding QMP usage.
+the corresponding JSON protocol usage.
 
 The default initialization value of an optional argument should not be changed
 between versions of QEMU unless the new default maintains backward
@@ -213,8 +218,8 @@ of use.
 
 A struct definition can specify another struct as its base.
 In this case, the fields of the base type are included as top-level fields
-of the new struct's dictionary in the QMP wire format. An example
-definition is:
+of the new struct's dictionary in the Client JSON Protocol wire
+format. An example definition is:
 
  { 'struct': 'BlockdevOptionsGenericFormat', 'data': { 'file': 'str' } }
  { 'struct': 'BlockdevOptionsGenericCOWFormat',
@@ -242,19 +247,19 @@ useful.  The list of strings should be lower case; if an enum name
 represents multiple words, use '-' between words.  The string 'max' is
 not allowed as an enum value, and values should not be repeated.
 
-The enumeration values are passed as strings over the QMP protocol,
-but are encoded as C enum integral values in generated code.  While
-the C code starts numbering at 0, it is better to use explicit
+The enumeration values are passed as strings over the Client JSON
+Protocol, but are encoded as C enum integral values in generated code.
+While the C code starts numbering at 0, it is better to use explicit
 comparisons to enum values than implicit comparisons to 0; the C code
 will also include a generated enum member ending in _MAX for tracking
 the size of the enum, useful when using common functions for
 converting between strings and enum values.  Since the wire format
 always passes by name, it is acceptable to reorder or add new
-enumeration members in any location without breaking QMP clients;
-however, removing enum values would break compatibility.  For any
-struct that has a field that will only contain a finite set of
-string values, using an enum type for that field is better than
-open-coding the field to be type 'str'.
+enumeration members in any location without breaking clients of Client
+JSON Protocol; however, removing enum values would break
+compatibility.  For any struct that has a field that will only contain
+a finite set of string values, using an enum type for that field is
+better than open-coding the field to be type 'str'.
 
 
 === Union types ===
@@ -280,10 +285,10 @@ values to data types like in this example:
    'data': { 'file': 'FileOptions',
              'qcow2': 'Qcow2Options' } }
 
-In the QMP wire format, a simple union is represented by a dictionary
-that contains the 'type' field as a discriminator, and a 'data' field
-that is of the specified data type corresponding to the discriminator
-value, as in these examples:
+In the Client JSON Protocol, a simple union is represented by a
+dictionary that contains the 'type' field as a discriminator, and a
+'data' field that is of the specified data type corresponding to the
+discriminator value, as in these examples:
 
  { "type": "file", "data" : { "filename": "/some/place/my-image" } }
  { "type": "qcow2", "data" : { "backing-file": "/some/place/my-image",
@@ -366,16 +371,16 @@ Just like for a simple union, an implicit C enum 'NameKind' is created
 to enumerate the branches for the alternate 'Name'.
 
 Unlike a union, the discriminator string is never passed on the wire
-for QMP.  Instead, the value's JSON type serves as an implicit
-discriminator, which in turn means that an alternate can only express
-a choice between types represented differently in JSON.  If a branch
-is typed as the 'bool' built-in, the alternate accepts true and false;
-if it is typed as any of the various numeric built-ins, it accepts a
-JSON number; if it is typed as a 'str' built-in or named enum type, it
-accepts a JSON string; and if it is typed as a complex type (struct or
-union), it accepts a JSON object.  Two different complex types, for
-instance, aren't permitted, because both are represented as a JSON
-object.
+for the Client JSON Protocol.  Instead, the value's JSON type serves
+as an implicit discriminator, which in turn means that an alternate
+can only express a choice between types represented differently in
+JSON.  If a branch is typed as the 'bool' built-in, the alternate
+accepts true and false; if it is typed as any of the various numeric
+built-ins, it accepts a JSON number; if it is typed as a 'str'
+built-in or named enum type, it accepts a JSON string; and if it is
+typed as a complex type (struct or union), it accepts a JSON object.
+Two different complex types, for instance, aren't permitted, because
+both are represented as a JSON object.
 
 The example alternate declaration above allows using both of the
 following example objects:
@@ -394,37 +399,37 @@ Usage: { 'command': STRING, '*data': COMPLEX-TYPE-NAME-OR-DICT,
 
 Commands are defined by using a dictionary containing several members,
 where three members are most common.  The 'command' member is a
-mandatory string, and determines the "execute" value passed in a QMP
-command exchange.
+mandatory string, and determines the "execute" value passed in a
+Client JSON Protocol command exchange.
 
 The 'data' argument maps to the "arguments" dictionary passed in as
-part of a QMP command.  The 'data' member is optional and defaults to
-{} (an empty dictionary).  If present, it must be the string name of a
-complex type, a one-element array containing the name of a complex
-type, or a dictionary that declares an anonymous type with the same
-semantics as a 'struct' expression, with one exception noted below when
-'gen' is used.
+part of a Client JSON Protocol command.  The 'data' member is optional
+and defaults to {} (an empty dictionary).  If present, it must be the
+string name of a complex type, a one-element array containing the name
+of a complex type, or a dictionary that declares an anonymous type
+with the same semantics as a 'struct' expression, with one exception
+noted below when 'gen' is used.
 
 The 'returns' member describes what will appear in the "return" field
-of a QMP reply on successful completion of a command.  The member is
-optional from the command declaration; if absent, the "return" field
-will be an empty dictionary.  If 'returns' is present, it must be the
-string name of a complex or built-in type, a one-element array
-containing the name of a complex or built-in type, or a dictionary
-that declares an anonymous type with the same semantics as a 'struct'
-expression, with one exception noted below when 'gen' is used.
-Although it is permitted to have the 'returns' member name a built-in
-type or an array of built-in types, any command that does this cannot
-be extended to return additional information in the future; thus, new
-commands should strongly consider returning a dictionary-based type or
-an array of dictionaries, even if the dictionary only contains one
-field at the present.
+of a Client JSON Protocol reply on successful completion of a command.
+The member is optional from the command declaration; if absent, the
+"return" field will be an empty dictionary.  If 'returns' is present,
+it must be the string name of a complex or built-in type, a
+one-element array containing the name of a complex or built-in type,
+or a dictionary that declares an anonymous type with the same
+semantics as a 'struct' expression, with one exception noted below
+when 'gen' is used.  Although it is permitted to have the 'returns'
+member name a built-in type or an array of built-in types, any command
+that does this cannot be extended to return additional information in
+the future; thus, new commands should strongly consider returning a
+dictionary-based type or an array of dictionaries, even if the
+dictionary only contains one field at the present.
 
-All commands use a dictionary to report failure, with no way to
-specify that in QAPI.  Where the error return is different than the
-usual GenericError class in order to help the client react differently
-to certain error conditions, it is worth documenting this in the
-comments before the command declaration.
+All commands in Client JSON Protocol use a dictionary to report
+failure, with no way to specify that in QAPI.  Where the error return
+is different than the usual GenericError class in order to help the
+client react differently to certain error conditions, it is worth
+documenting this in the comments before the command declaration.
 
 Some example commands:
 
@@ -434,7 +439,7 @@ Some example commands:
  { 'command': 'my-second-command',
    'returns': [ 'MyType' ] }
 
-which would validate this QMP transaction:
+which would validate this Client JSON Protocol transaction:
 
  => { "execute": "my-first-command",
       "arguments": { "arg1": "hello" } }
@@ -443,14 +448,14 @@ which would validate this QMP transaction:
  <= { "return": [ { "value": "one" }, { } ] }
 
 In rare cases, QAPI cannot express a type-safe representation of a
-corresponding QMP command.  In these cases, if the command expression
-includes the key 'gen' with boolean value false, then the 'data' or
-'returns' member that intends to bypass generated type-safety and do
-its own manual validation should use an inline dictionary definition,
-with a value of '**' rather than a valid type name for the keys that
-the generated code will not validate.  Please try to avoid adding new
-commands that rely on this, and instead use type-safe unions.  For an
-example of bypass usage:
+corresponding Client JSON Protocol command.  In these cases, if the
+command expression includes the key 'gen' with boolean value false,
+then the 'data' or 'returns' member that intends to bypass generated
+type-safety and do its own manual validation should use an inline
+dictionary definition, with a value of '**' rather than a valid type
+name for the keys that the generated code will not validate.  Please
+try to avoid adding new commands that rely on this, and instead use
+type-safe unions.  For an example of bypass usage:
 
  { 'command': 'netdev_add',
    'data': {'type': 'str', 'id': 'str', '*props': '**'},
@@ -494,9 +499,9 @@ Resulting in this JSON object:
 
 Schemas are fed into 3 scripts to generate all the code/files that, paired
 with the core QAPI libraries, comprise everything required to take JSON
-commands read in by a QMP/guest agent server, unmarshal the arguments into
+commands read in by a Client JSON Protocol server, unmarshal the arguments into
 the underlying C types, call into the corresponding C function, and map the
-response back to a QMP/guest agent response to be returned to the user.
+response back to a Client JSON Protocol response to be returned to the user.
 
 As an example, we'll use the following schema, which describes a single
 complex user-defined type (which will produce a C struct, along with a list
