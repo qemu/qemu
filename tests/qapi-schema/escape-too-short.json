@@ -1,0 +1,3 @@
+# the \u escape requires 4 hex digits
+# { 'command': 'a' }
+{ 'command': '\u61' }

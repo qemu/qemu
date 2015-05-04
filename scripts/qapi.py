@@ -173,7 +173,41 @@ class QAPISchema:
                         raise QAPISchemaError(self,
                                               'Missing terminating "\'"')
                     if esc:
-                        string += ch
+                        if ch == 'b':
+                            string += '\b'
+                        elif ch == 'f':
+                            string += '\f'
+                        elif ch == 'n':
+                            string += '\n'
+                        elif ch == 'r':
+                            string += '\r'
+                        elif ch == 't':
+                            string += '\t'
+                        elif ch == 'u':
+                            value = 0
+                            for x in range(0, 4):
+                                ch = self.src[self.cursor]
+                                self.cursor += 1
+                                if ch not in "0123456789abcdefABCDEF":
+                                    raise QAPISchemaError(self,
+                                                          '\\u escape needs 4 '
+                                                          'hex digits')
+                                value = (value << 4) + int(ch, 16)
+                            # If Python 2 and 3 didn't disagree so much on
+                            # how to handle Unicode, then we could allow
+                            # Unicode string defaults.  But most of QAPI is
+                            # ASCII-only, so we aren't losing much for now.
+                            if not value or value > 0x7f:
+                                raise QAPISchemaError(self,
+                                                      'For now, \\u escape '
+                                                      'only supports non-zero '
+                                                      'values up to \\u007f')
+                            string += chr(value)
+                        elif ch in "\\/'\"":
+                            string += ch
+                        else:
+                            raise QAPISchemaError(self,
+                                                  "Unknown escape \\%s" %ch)
                         esc = False
                     elif ch == "\\":
                         esc = True
