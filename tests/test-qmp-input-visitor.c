@@ -261,13 +261,15 @@ static void test_visitor_in_struct_nested(TestInputVisitorData *data,
     g_assert(!err);
 
     check_and_free_str(udp->string0, "string0");
-    check_and_free_str(udp->dict1.string1, "string1");
-    g_assert_cmpint(udp->dict1.dict2.userdef->base->integer, ==, 42);
-    check_and_free_str(udp->dict1.dict2.userdef->string, "string");
-    check_and_free_str(udp->dict1.dict2.string, "string2");
-    g_assert(udp->dict1.has_dict3 == false);
+    check_and_free_str(udp->dict1->string1, "string1");
+    g_assert_cmpint(udp->dict1->dict2->userdef->base->integer, ==, 42);
+    check_and_free_str(udp->dict1->dict2->userdef->string, "string");
+    check_and_free_str(udp->dict1->dict2->string, "string2");
+    g_assert(udp->dict1->has_dict3 == false);
 
-    g_free(udp->dict1.dict2.userdef);
+    g_free(udp->dict1->dict2->userdef);
+    g_free(udp->dict1->dict2);
+    g_free(udp->dict1);
     g_free(udp);
 }
 

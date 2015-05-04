@@ -33,12 +33,15 @@ UserDefTwo *qmp_user_def_cmd2(UserDefOne *ud1a,
 
     ret = g_new0(UserDefTwo, 1);
     ret->string0 = strdup("blah1");
-    ret->dict1.string1 = strdup("blah2");
-    ret->dict1.dict2.userdef = ud1c;
-    ret->dict1.dict2.string = strdup("blah3");
-    ret->dict1.has_dict3 = true;
-    ret->dict1.dict3.userdef = ud1d;
-    ret->dict1.dict3.string = strdup("blah4");
+    ret->dict1 = g_new0(UserDefTwoDict, 1);
+    ret->dict1->string1 = strdup("blah2");
+    ret->dict1->dict2 = g_new0(UserDefTwoDictDict, 1);
+    ret->dict1->dict2->userdef = ud1c;
+    ret->dict1->dict2->string = strdup("blah3");
+    ret->dict1->dict3 = g_new0(UserDefTwoDictDict, 1);
+    ret->dict1->has_dict3 = true;
+    ret->dict1->dict3->userdef = ud1d;
+    ret->dict1->dict3->string = strdup("blah4");
 
     return ret;
 }
@@ -204,7 +207,7 @@ static void test_dealloc_partial(void)
     assert(ud2 != NULL);
     assert(ud2->string0 != NULL);
     assert(strcmp(ud2->string0, text) == 0);
-    assert(ud2->dict1.dict2.userdef == NULL);
+    assert(ud2->dict1 == NULL);
 
     /* confirm & release construction error */
     assert(err != NULL);

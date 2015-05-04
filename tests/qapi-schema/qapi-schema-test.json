@@ -14,11 +14,17 @@
   'base': 'UserDefZero',
   'data': { 'string': 'str', '*enum1': 'EnumOne' } }
 
+{ 'struct': 'UserDefTwoDictDict',
+  'data': { 'userdef': 'UserDefOne', 'string': 'str' } }
+
+{ 'struct': 'UserDefTwoDict',
+  'data': { 'string1': 'str',
+            'dict2': 'UserDefTwoDictDict',
+            '*dict3': 'UserDefTwoDictDict' } }
+
 { 'struct': 'UserDefTwo',
   'data': { 'string0': 'str',
-            'dict1': { 'string1': 'str',
-                       'dict2': { 'userdef': 'UserDefOne', 'string': 'str' },
-                       '*dict3': { 'userdef': 'UserDefOne', 'string': 'str' } } } }
+            'dict1': 'UserDefTwoDict' } }
 
 # for testing unions
 { 'struct': 'UserDefA',

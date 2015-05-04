@@ -244,19 +244,23 @@ static void test_visitor_out_struct_nested(TestOutputVisitorData *data,
     ud2 = g_malloc0(sizeof(*ud2));
     ud2->string0 = g_strdup(strings[0]);
 
-    ud2->dict1.string1 = g_strdup(strings[1]);
-    ud2->dict1.dict2.userdef = g_new0(UserDefOne, 1);
-    ud2->dict1.dict2.userdef->string = g_strdup(string);
-    ud2->dict1.dict2.userdef->base = g_new0(UserDefZero, 1);
-    ud2->dict1.dict2.userdef->base->integer = value;
-    ud2->dict1.dict2.string = g_strdup(strings[2]);
+    ud2->dict1 = g_malloc0(sizeof(*ud2->dict1));
+    ud2->dict1->string1 = g_strdup(strings[1]);
 
-    ud2->dict1.has_dict3 = true;
-    ud2->dict1.dict3.userdef = g_new0(UserDefOne, 1);
-    ud2->dict1.dict3.userdef->string = g_strdup(string);
-    ud2->dict1.dict3.userdef->base = g_new0(UserDefZero, 1);
-    ud2->dict1.dict3.userdef->base->integer = value;
-    ud2->dict1.dict3.string = g_strdup(strings[3]);
+    ud2->dict1->dict2 = g_malloc0(sizeof(*ud2->dict1->dict2));
+    ud2->dict1->dict2->userdef = g_new0(UserDefOne, 1);
+    ud2->dict1->dict2->userdef->string = g_strdup(string);
+    ud2->dict1->dict2->userdef->base = g_new0(UserDefZero, 1);
+    ud2->dict1->dict2->userdef->base->integer = value;
+    ud2->dict1->dict2->string = g_strdup(strings[2]);
+
+    ud2->dict1->dict3 = g_malloc0(sizeof(*ud2->dict1->dict3));
+    ud2->dict1->has_dict3 = true;
+    ud2->dict1->dict3->userdef = g_new0(UserDefOne, 1);
+    ud2->dict1->dict3->userdef->string = g_strdup(string);
+    ud2->dict1->dict3->userdef->base = g_new0(UserDefZero, 1);
+    ud2->dict1->dict3->userdef->base->integer = value;
+    ud2->dict1->dict3->string = g_strdup(strings[3]);
 
     visit_type_UserDefTwo(data->ov, &ud2, "unused", &err);
     g_assert(!err);
@@ -407,13 +411,15 @@ static void test_visitor_out_list_qapi_free(TestOutputVisitorData *data,
         p->value = g_malloc0(sizeof(*p->value));
 
         p->value->string0 = g_strdup(string);
-        p->value->dict1.string1 = g_strdup(string);
-        p->value->dict1.dict2.userdef = g_new0(UserDefOne, 1);
-        p->value->dict1.dict2.userdef->string = g_strdup(string);
-        p->value->dict1.dict2.userdef->base = g_new0(UserDefZero, 1);
-        p->value->dict1.dict2.userdef->base->integer = 42;
-        p->value->dict1.dict2.string = g_strdup(string);
-        p->value->dict1.has_dict3 = false;
+        p->value->dict1 = g_new0(UserDefTwoDict, 1);
+        p->value->dict1->string1 = g_strdup(string);
+        p->value->dict1->dict2 = g_new0(UserDefTwoDictDict, 1);
+        p->value->dict1->dict2->userdef = g_new0(UserDefOne, 1);
+        p->value->dict1->dict2->userdef->string = g_strdup(string);
+        p->value->dict1->dict2->userdef->base = g_new0(UserDefZero, 1);
+        p->value->dict1->dict2->userdef->base->integer = 42;
+        p->value->dict1->dict2->string = g_strdup(string);
+        p->value->dict1->has_dict3 = false;
 
         p->next = head;
         head = p;
