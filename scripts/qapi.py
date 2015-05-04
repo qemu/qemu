@@ -16,13 +16,7 @@ from ordereddict import OrderedDict
 import os
 import sys
 
-builtin_types = [
-    'str', 'int', 'number', 'bool',
-    'int8', 'int16', 'int32', 'int64',
-    'uint8', 'uint16', 'uint32', 'uint64'
-]
-
-builtin_type_qtypes = {
+builtin_types = {
     'str':      'QTYPE_QSTRING',
     'int':      'QTYPE_QINT',
     'number':   'QTYPE_QFLOAT',

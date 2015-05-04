@@ -182,8 +182,8 @@ const int %(name)s_qtypes[QTYPE_MAX] = {
 
     for key in members:
         qapi_type = members[key]
-        if builtin_type_qtypes.has_key(qapi_type):
-            qtype = builtin_type_qtypes[qapi_type]
+        if builtin_types.has_key(qapi_type):
+            qtype = builtin_types[qapi_type]
         elif find_struct(qapi_type):
             qtype = "QTYPE_QDICT"
         elif find_union(qapi_type):
@@ -398,7 +398,7 @@ exprs = parse_schema(input_file)
 exprs = filter(lambda expr: not expr.has_key('gen'), exprs)
 
 fdecl.write(guardstart("QAPI_TYPES_BUILTIN_STRUCT_DECL"))
-for typename in builtin_types:
+for typename in builtin_types.keys():
     fdecl.write(generate_fwd_struct(typename, None, builtin_type=True))
 fdecl.write(guardend("QAPI_TYPES_BUILTIN_STRUCT_DECL"))
 
@@ -426,7 +426,7 @@ for expr in exprs:
 # to avoid header dependency hell, we always generate declarations
 # for built-in types in our header files and simply guard them
 fdecl.write(guardstart("QAPI_TYPES_BUILTIN_CLEANUP_DECL"))
-for typename in builtin_types:
+for typename in builtin_types.keys():
     fdecl.write(generate_type_cleanup_decl(typename + "List"))
 fdecl.write(guardend("QAPI_TYPES_BUILTIN_CLEANUP_DECL"))
 
@@ -435,7 +435,7 @@ fdecl.write(guardend("QAPI_TYPES_BUILTIN_CLEANUP_DECL"))
 # over these cases
 if do_builtins:
     fdef.write(guardstart("QAPI_TYPES_BUILTIN_CLEANUP_DEF"))
-    for typename in builtin_types:
+    for typename in builtin_types.keys():
         fdef.write(generate_type_cleanup(typename + "List"))
     fdef.write(guardend("QAPI_TYPES_BUILTIN_CLEANUP_DEF"))
 

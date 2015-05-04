@@ -261,7 +261,7 @@ void visit_type_%(name)s(Visitor *m, %(name)s **obj, const char *name, Error **e
     disc_type = '%sKind' % (name)
 
     for key in members:
-        assert (members[key] in builtin_types
+        assert (members[key] in builtin_types.keys()
             or find_struct(members[key])
             or find_union(members[key])
             or find_enum(members[key])), "Invalid anonymous union member"
@@ -538,7 +538,7 @@ exprs = parse_schema(input_file)
 # to avoid header dependency hell, we always generate declarations
 # for built-in types in our header files and simply guard them
 fdecl.write(guardstart("QAPI_VISIT_BUILTIN_VISITOR_DECL"))
-for typename in builtin_types:
+for typename in builtin_types.keys():
     fdecl.write(generate_declaration(typename, None, builtin_type=True))
 fdecl.write(guardend("QAPI_VISIT_BUILTIN_VISITOR_DECL"))
 
@@ -546,7 +546,7 @@ fdecl.write(guardend("QAPI_VISIT_BUILTIN_VISITOR_DECL"))
 # have the functions defined, so we use -b option to provide control
 # over these cases
 if do_builtins:
-    for typename in builtin_types:
+    for typename in builtin_types.keys():
         fdef.write(generate_visit_list(typename, None))
 
 for expr in exprs:
