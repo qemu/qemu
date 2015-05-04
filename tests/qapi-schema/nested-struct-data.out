@@ -1,0 +1,3 @@
+[OrderedDict([('command', 'foo'), ('data', OrderedDict([('a', OrderedDict([('string', 'str'), ('integer', 'int')])), ('b', 'str')])), ('returns', OrderedDict())])]
+[]
+[]

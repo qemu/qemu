@@ -1,0 +1,2 @@
+# It is okay (although not extensible) to return a non-dictionary
+{ 'command': 'okay', 'returns': 'int' }

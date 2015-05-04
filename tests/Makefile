@@ -215,10 +215,14 @@ check-qapi-schema-y := $(addprefix tests/qapi-schema/, \
 	double-type.json bad-base.json bad-type-bool.json bad-type-int.json \
 	bad-type-dict.json double-data.json unknown-expr-key.json \
 	redefined-type.json redefined-command.json redefined-builtin.json \
-	redefined-event.json command-int.json event-max.json \
+	redefined-event.json command-int.json bad-data.json event-max.json \
 	type-bypass.json type-bypass-no-gen.json type-bypass-bad-gen.json \
-	missing-colon.json missing-comma-list.json \
-	missing-comma-object.json non-objects.json \
+	data-array-empty.json data-array-unknown.json data-int.json \
+	data-unknown.json data-member-unknown.json data-member-array.json \
+	data-member-array-bad.json returns-array-bad.json returns-int.json \
+	returns-unknown.json returns-alternate.json returns-whitelist.json \
+	missing-colon.json missing-comma-list.json missing-comma-object.json \
+	nested-struct-data.json nested-struct-returns.json non-objects.json \
 	qapi-schema-test.json quoted-structural-chars.json \
 	trailing-comma-list.json trailing-comma-object.json \
 	unclosed-list.json unclosed-object.json unclosed-string.json \

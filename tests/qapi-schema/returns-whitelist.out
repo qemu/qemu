@@ -1,0 +1,7 @@
+[OrderedDict([('command', 'human-monitor-command'), ('data', OrderedDict([('command-line', 'str'), ('*cpu-index', 'int')])), ('returns', 'str')]),
+ OrderedDict([('enum', 'TpmModel'), ('data', ['tpm-tis'])]),
+ OrderedDict([('command', 'query-tpm-models'), ('returns', ['TpmModel'])]),
+ OrderedDict([('command', 'guest-get-time'), ('returns', 'int')]),
+ OrderedDict([('command', 'no-way-this-will-get-whitelisted'), ('returns', ['int'])])]
+[{'enum_name': 'TpmModel', 'enum_values': ['tpm-tis']}]
+[]
