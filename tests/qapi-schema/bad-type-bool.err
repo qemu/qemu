@@ -1,0 +1,1 @@
+tests/qapi-schema/bad-type-bool.json:3:11: Stray "t"

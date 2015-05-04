@@ -210,8 +210,10 @@ check-qapi-schema-y := $(addprefix tests/qapi-schema/, \
 	comments.json empty.json enum-empty.json enum-missing-data.json \
 	enum-wrong-data.json enum-int-member.json enum-dict-member.json \
 	enum-clash-member.json enum-max-member.json enum-union-clash.json \
-	enum-bad-name.json \
-	funny-char.json indented-expr.json \
+	enum-bad-name.json funny-char.json indented-expr.json \
+	missing-type.json bad-ident.json ident-with-escape.json \
+	double-type.json bad-base.json bad-type-bool.json bad-type-int.json \
+	bad-type-dict.json double-data.json unknown-expr-key.json \
 	missing-colon.json missing-comma-list.json \
 	missing-comma-object.json non-objects.json \
 	qapi-schema-test.json quoted-structural-chars.json \
@@ -232,7 +234,7 @@ check-qapi-schema-y := $(addprefix tests/qapi-schema/, \
 	include-simple.json include-relpath.json include-format-err.json \
 	include-non-file.json include-no-file.json include-before-err.json \
 	include-nested-err.json include-self-cycle.json include-cycle.json \
-	include-repetition.json event-nest-struct.json)
+	include-repetition.json event-nest-struct.json event-case.json)
 
 GENERATED_HEADERS += tests/test-qapi-types.h tests/test-qapi-visit.h \
 		     tests/test-qmp-commands.h tests/test-qapi-event.h

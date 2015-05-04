@@ -1,0 +1,2 @@
+# FIXME: we should reject creating a type name with bad name
+{ 'type': '*oops', 'data': { 'i': 'int' } }

@@ -1,0 +1,4 @@
+[OrderedDict([('union', 'Union'), ('data', OrderedDict([('a', 'int'), ('b', 'str')]))]),
+ OrderedDict([('type', 'MyType'), ('base', 'Union'), ('data', OrderedDict([('c', 'int')]))])]
+[{'enum_name': 'UnionKind', 'enum_values': None}]
+[OrderedDict([('type', 'MyType'), ('base', 'Union'), ('data', OrderedDict([('c', 'int')]))])]

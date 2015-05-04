@@ -1,0 +1,3 @@
+[OrderedDict([('type', 'bar'), ('data', OrderedDict([('string', 'str')])), ('bogus', OrderedDict())])]
+[]
+[OrderedDict([('type', 'bar'), ('data', OrderedDict([('string', 'str')])), ('bogus', OrderedDict())])]

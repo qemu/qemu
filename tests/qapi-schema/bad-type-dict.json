@@ -1,0 +1,2 @@
+# FIXME: we should reject an expression with a metatype that is not a string
+{ 'command': { } }

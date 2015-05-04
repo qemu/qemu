@@ -1,0 +1,1 @@
+tests/qapi-schema/bad-type-int.json:3:11: Stray "1"

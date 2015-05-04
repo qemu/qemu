@@ -1,0 +1,2 @@
+# FIXME: we should reject an expression with ambiguous metatype
+{ 'command': 'foo', 'type': 'bar', 'data': { } }
