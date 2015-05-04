@@ -172,7 +172,7 @@ typedef enum %(name)s
 
 def generate_alternate_qtypes(expr):
 
-    name = expr['union']
+    name = expr['alternate']
     members = expr['data']
 
     ret = mcgen('''
@@ -182,7 +182,7 @@ const int %(name)s_qtypes[QTYPE_MAX] = {
 
     for key in members:
         qtype = find_alternate_member_qtype(members[key])
-        assert qtype, "Invalid anonymous union member"
+        assert qtype, "Invalid alternate member"
 
         ret += mcgen('''
     [ %(qtype)s ] = %(abbrev)s_KIND_%(enum)s,
@@ -197,9 +197,9 @@ const int %(name)s_qtypes[QTYPE_MAX] = {
     return ret
 
 
-def generate_union(expr):
+def generate_union(expr, meta):
 
-    name = expr['union']
+    name = expr[meta]
     typeinfo = expr['data']
 
     base = expr.get('base')
@@ -243,7 +243,7 @@ struct %(name)s
     ret += mcgen('''
 };
 ''')
-    if discriminator == {}:
+    if meta == 'alternate':
         ret += mcgen('''
 extern const int %(name)s_qtypes[];
 ''',
@@ -407,8 +407,12 @@ for expr in exprs:
             ret += generate_enum('%sKind' % expr['union'], expr['data'].keys())
             fdef.write(generate_enum_lookup('%sKind' % expr['union'],
                                             expr['data'].keys()))
-        if expr.get('discriminator') == {}:
-            fdef.write(generate_alternate_qtypes(expr))
+    elif expr.has_key('alternate'):
+        ret += generate_fwd_struct(expr['alternate'], expr['data']) + "\n"
+        ret += generate_enum('%sKind' % expr['alternate'], expr['data'].keys())
+        fdef.write(generate_enum_lookup('%sKind' % expr['alternate'],
+                                        expr['data'].keys()))
+        fdef.write(generate_alternate_qtypes(expr))
     else:
         continue
     fdecl.write(ret)
@@ -438,11 +442,17 @@ for expr in exprs:
         ret += generate_type_cleanup_decl(expr['type'])
         fdef.write(generate_type_cleanup(expr['type']) + "\n")
     elif expr.has_key('union'):
-        ret += generate_union(expr)
+        ret += generate_union(expr, 'union')
         ret += generate_type_cleanup_decl(expr['union'] + "List")
         fdef.write(generate_type_cleanup(expr['union'] + "List") + "\n")
         ret += generate_type_cleanup_decl(expr['union'])
         fdef.write(generate_type_cleanup(expr['union']) + "\n")
+    elif expr.has_key('alternate'):
+        ret += generate_union(expr, 'alternate')
+        ret += generate_type_cleanup_decl(expr['alternate'] + "List")
+        fdef.write(generate_type_cleanup(expr['alternate'] + "List") + "\n")
+        ret += generate_type_cleanup_decl(expr['alternate'])
+        fdef.write(generate_type_cleanup(expr['alternate']) + "\n")
     elif expr.has_key('enum'):
         ret += generate_type_cleanup_decl(expr['enum'] + "List")
         fdef.write(generate_type_cleanup(expr['enum'] + "List") + "\n")

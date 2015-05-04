@@ -1,9 +1,8 @@
-# we reject anonymous unions with multiple object branches
+# we reject alternates with multiple object branches
 { 'type': 'One',
   'data': { 'name': 'str' } }
 { 'type': 'Two',
   'data': { 'value': 'int' } }
-{ 'union': 'MyUnion',
-  'discriminator': {},
+{ 'alternate': 'Alt',
   'data': { 'one': 'One',
             'two': 'Two' } }

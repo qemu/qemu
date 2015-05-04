@@ -1,4 +1,5 @@
 # we require the discriminator to be a string naming a base-type member
+# this tests the old syntax for anonymous unions before we added alternates
 { 'enum': 'TestEnum',
   'data': [ 'value1', 'value2' ] }
 { 'type': 'TestBase',
@@ -9,6 +10,6 @@
   'data': { 'integer': 'int' } }
 { 'union': 'TestUnion',
   'base': 'TestBase',
-  'discriminator': [],
+  'discriminator': {},
   'data': { 'kind1': 'TestTypeA',
             'kind2': 'TestTypeB' } }

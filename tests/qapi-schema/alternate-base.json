@@ -1,7 +1,6 @@
-# we reject anonymous union with base type
+# we reject alternate with base type
 { 'type': 'Base',
   'data': { 'string': 'str' } }
-{ 'union': 'MyUnion',
+{ 'alternate': 'Alt',
   'base': 'Base',
-  'discriminator': {},
   'data': { 'number': 'int' } }

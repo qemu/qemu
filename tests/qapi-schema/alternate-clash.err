@@ -1,1 +1,1 @@
-tests/qapi-schema/alternate-clash.json:2: Anonymous union 'Union1' member 'ONE' clashes with 'one'
+tests/qapi-schema/alternate-clash.json:2: Alternate 'Alt1' member 'ONE' clashes with 'one'

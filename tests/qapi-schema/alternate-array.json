@@ -1,8 +1,7 @@
-# we do not allow array branches in anonymous unions
+# we do not allow array branches in alternates
 # TODO: should we support this?
 { 'type': 'One',
   'data': { 'name': 'str' } }
-{ 'union': 'MyUnion',
-  'discriminator': {},
+{ 'alternate': 'Alt',
   'data': { 'one': 'One',
             'two': [ 'int' ] } }

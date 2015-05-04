@@ -281,7 +281,6 @@ def check_union(expr, expr_info):
                                 "along with base" %name)
 
     # Two types of unions, determined by discriminator.
-    assert discriminator != {}
 
     # With no discriminator it is a simple union.
     if discriminator is None:
@@ -344,17 +343,14 @@ def check_union(expr, expr_info):
             values[c_key] = key
 
 def check_alternate(expr, expr_info):
-    name = expr['union']
-    base = expr.get('base')
-    discriminator = expr.get('discriminator')
+    name = expr['alternate']
     members = expr['data']
     values = { 'MAX': '(automatic)' }
     types_seen = {}
 
-    assert discriminator == {}
-    if base is not None:
+    if expr.get('base') is not None:
         raise QAPIExprError(expr_info,
-                            "Anonymous union '%s' must not have a base"
+                            "Alternate '%s' must not have a base"
                             % name)
 
     # Check every branch
@@ -363,23 +359,23 @@ def check_alternate(expr, expr_info):
         c_key = _generate_enum_string(key)
         if c_key in values:
             raise QAPIExprError(expr_info,
-                                "Anonymous union '%s' member '%s' clashes "
-                                "with '%s'" % (name, key, values[c_key]))
+                                "Alternate '%s' member '%s' clashes with '%s'"
+                                % (name, key, values[c_key]))
         values[c_key] = key
 
         # Ensure alternates have no type conflicts.
         if isinstance(value, list):
             raise QAPIExprError(expr_info,
-                                "Anonymous union '%s' member '%s' must "
+                                "Alternate '%s' member '%s' must "
                                 "not be array type" % (name, key))
         qtype = find_alternate_member_qtype(value)
         if not qtype:
             raise QAPIExprError(expr_info,
-                                "Anonymous union '%s' member '%s' has "
+                                "Alternate '%s' member '%s' has "
                                 "invalid type '%s'" % (name, key, value))
         if qtype in types_seen:
             raise QAPIExprError(expr_info,
-                                "Anonymous union '%s' member '%s' can't "
+                                "Alternate '%s' member '%s' can't "
                                 "be distinguished from member '%s'"
                                 % (name, key, types_seen[qtype]))
         types_seen[qtype] = key
@@ -412,10 +408,9 @@ def check_exprs(schema):
         if expr.has_key('enum'):
             check_enum(expr, info)
         elif expr.has_key('union'):
-            if expr.get('discriminator') == {}:
-                check_alternate(expr, info)
-            else:
-                check_union(expr, info)
+            check_union(expr, info)
+        elif expr.has_key('alternate'):
+            check_alternate(expr, info)
         elif expr.has_key('event'):
             check_event(expr, info)
 
@@ -447,6 +442,8 @@ def parse_schema(input_file):
             if expr.has_key('union'):
                 if not discriminator_find_enum_define(expr):
                     add_enum('%sKind' % expr['union'])
+            elif expr.has_key('alternate'):
+                add_enum('%sKind' % expr['alternate'])
 
         # Final pass - validate that exprs make sense
         check_exprs(schema)
@@ -557,8 +554,7 @@ def find_struct(name):
 
 def add_union(definition):
     global union_types
-    if definition.get('discriminator') != {}:
-        union_types.append(definition)
+    union_types.append(definition)
 
 def find_union(name):
     global union_types

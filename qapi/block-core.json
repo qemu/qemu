@@ -1503,8 +1503,7 @@
 #
 # Since: 2.2
 ##
-{ 'union': 'Qcow2OverlapChecks',
-  'discriminator': {},
+{ 'alternate': 'Qcow2OverlapChecks',
   'data': { 'flags': 'Qcow2OverlapCheckFlags',
             'mode':  'Qcow2OverlapCheckMode' } }
 
@@ -1795,8 +1794,7 @@
 #
 # Since: 1.7
 ##
-{ 'union': 'BlockdevRef',
-  'discriminator': {},
+{ 'alternate': 'BlockdevRef',
   'data': { 'definition': 'BlockdevOptions',
             'reference': 'str' } }
 

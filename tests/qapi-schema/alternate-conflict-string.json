@@ -1,7 +1,6 @@
-# we reject anonymous unions with multiple string-like branches
+# we reject alternates with multiple string-like branches
 { 'enum': 'Enum',
   'data': [ 'hello', 'world' ] }
-{ 'union': 'MyUnion',
-  'discriminator': {},
+{ 'alternate': 'Alt',
   'data': { 'one': 'str',
             'two': 'Enum' } }

@@ -1,1 +1,1 @@
-tests/qapi-schema/alternate-nested.json:5: Anonymous union 'Union2' member 'nested' has invalid type 'Union1'
+tests/qapi-schema/alternate-nested.json:4: Alternate 'Alt2' member 'nested' has invalid type 'Alt1'

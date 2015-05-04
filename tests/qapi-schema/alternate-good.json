@@ -1,10 +1,9 @@
-# Working example of anonymous union
+# Working example of alternate
 { 'type': 'Data',
   'data': { '*number': 'int', '*name': 'str' } }
 { 'enum': 'Enum',
   'data': [ 'hello', 'world' ] }
-{ 'union': 'MyUnion',
-  'discriminator': {},
+{ 'alternate': 'Alt',
   'data': { 'value': 'int',
             'string': 'Enum',
             'struct': 'Data' } }

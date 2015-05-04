@@ -256,7 +256,7 @@ void visit_type_%(name)s(Visitor *m, %(name)s **obj, const char *name, Error **e
 ''',
     name=name)
 
-    # For anon union, always use the default enum type automatically generated
+    # For alternate, always use the default enum type automatically generated
     # as "'%sKind' % (name)"
     disc_type = '%sKind' % (name)
 
@@ -264,7 +264,7 @@ void visit_type_%(name)s(Visitor *m, %(name)s **obj, const char *name, Error **e
         assert (members[key] in builtin_types.keys()
             or find_struct(members[key])
             or find_union(members[key])
-            or find_enum(members[key])), "Invalid anonymous union member"
+            or find_enum(members[key])), "Invalid alternate member"
 
         enum_full_value = generate_enum_full_value(disc_type, key)
         ret += mcgen('''
@@ -299,10 +299,6 @@ def generate_visit_union(expr):
 
     base = expr.get('base')
     discriminator = expr.get('discriminator')
-
-    if discriminator == {}:
-        assert not base
-        return generate_visit_alternate(name, members)
 
     enum_define = discriminator_find_enum_define(expr)
     if enum_define:
@@ -567,6 +563,15 @@ for expr in exprs:
             ret = generate_decl_enum('%sKind' % expr['union'],
                                      expr['data'].keys())
         ret += generate_declaration(expr['union'], expr['data'])
+        fdecl.write(ret)
+    elif expr.has_key('alternate'):
+        ret = generate_visit_alternate(expr['alternate'], expr['data'])
+        ret += generate_visit_list(expr['alternate'], expr['data'])
+        fdef.write(ret)
+
+        ret = generate_decl_enum('%sKind' % expr['alternate'],
+                                 expr['data'].keys())
+        ret += generate_declaration(expr['alternate'], expr['data'])
         fdecl.write(ret)
     elif expr.has_key('enum'):
         ret = generate_visit_list(expr['enum'], expr['data'])
