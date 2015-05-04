@@ -310,16 +310,15 @@ def generate_visit_union(expr):
         ret = ""
         disc_type = enum_define['enum_name']
     else:
-        # There will always be a discriminator in the C switch code, by default it
-        # is an enum type generated silently as "'%sKind' % (name)"
+        # There will always be a discriminator in the C switch code, by default
+        # it is an enum type generated silently as "'%sKind' % (name)"
         ret = generate_visit_enum('%sKind' % name, members.keys())
         disc_type = '%sKind' % (name)
 
     if base:
-        base_fields = find_struct(base)['data']
-        if discriminator:
-            base_fields = base_fields.copy()
-            del base_fields[discriminator]
+        assert discriminator
+        base_fields = find_struct(base)['data'].copy()
+        del base_fields[discriminator]
         ret += generate_visit_struct_fields(name, "", "", base_fields)
 
     if discriminator:

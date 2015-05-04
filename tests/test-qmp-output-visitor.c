@@ -422,40 +422,6 @@ static void test_visitor_out_list_qapi_free(TestOutputVisitorData *data,
     qapi_free_UserDefNestedList(head);
 }
 
-static void test_visitor_out_union(TestOutputVisitorData *data,
-                                   const void *unused)
-{
-    QObject *arg, *qvalue;
-    QDict *qdict, *value;
-
-    Error *err = NULL;
-
-    UserDefUnion *tmp = g_malloc0(sizeof(UserDefUnion));
-    tmp->kind = USER_DEF_UNION_KIND_A;
-    tmp->integer = 41;
-    tmp->a = g_malloc0(sizeof(UserDefA));
-    tmp->a->boolean = true;
-
-    visit_type_UserDefUnion(data->ov, &tmp, NULL, &err);
-    g_assert(err == NULL);
-    arg = qmp_output_get_qobject(data->qov);
-
-    g_assert(qobject_type(arg) == QTYPE_QDICT);
-    qdict = qobject_to_qdict(arg);
-
-    g_assert_cmpstr(qdict_get_str(qdict, "type"), ==, "a");
-    g_assert_cmpint(qdict_get_int(qdict, "integer"), ==, 41);
-
-    qvalue = qdict_get(qdict, "data");
-    g_assert(data != NULL);
-    g_assert(qobject_type(qvalue) == QTYPE_QDICT);
-    value = qobject_to_qdict(qvalue);
-    g_assert_cmpint(qdict_get_bool(value, "boolean"), ==, true);
-
-    qapi_free_UserDefUnion(tmp);
-    QDECREF(qdict);
-}
-
 static void test_visitor_out_union_flat(TestOutputVisitorData *data,
                                         const void *unused)
 {
@@ -862,8 +828,6 @@ int main(int argc, char **argv)
                             &out_visitor_data, test_visitor_out_list);
     output_visitor_test_add("/visitor/output/list-qapi-free",
                             &out_visitor_data, test_visitor_out_list_qapi_free);
-    output_visitor_test_add("/visitor/output/union",
-                            &out_visitor_data, test_visitor_out_union);
     output_visitor_test_add("/visitor/output/union-flat",
                             &out_visitor_data, test_visitor_out_union_flat);
     output_visitor_test_add("/visitor/output/union-anon",

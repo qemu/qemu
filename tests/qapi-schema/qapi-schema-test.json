@@ -36,10 +36,6 @@
 { 'type': 'UserDefC',
   'data': { 'string1': 'str', 'string2': 'str' } }
 
-{ 'union': 'UserDefUnion',
-  'base': 'UserDefZero',
-  'data': { 'a' : 'UserDefA', 'b' : 'UserDefB' } }
-
 { 'type': 'UserDefUnionBase',
   'data': { 'string': 'str', 'enum1': 'EnumOne' } }
 

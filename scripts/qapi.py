@@ -259,22 +259,22 @@ def check_union(expr, expr_info):
     discriminator = expr.get('discriminator')
     members = expr['data']
 
-    # If the object has a member 'base', its value must name a complex type.
-    if base:
+    # If the object has a member 'base', its value must name a complex type,
+    # and there must be a discriminator.
+    if base is not None:
+        if discriminator is None:
+            raise QAPIExprError(expr_info,
+                                "Union '%s' requires a discriminator to go "
+                                "along with base" %name)
         base_fields = find_base_fields(base)
         if not base_fields:
             raise QAPIExprError(expr_info,
                                 "Base '%s' is not a valid type"
                                 % base)
 
-    # If the union object has no member 'discriminator', it's an
-    # ordinary union.
-    if not discriminator:
-        enum_define = None
-
-    # Else if the value of member 'discriminator' is {}, it's an
-    # anonymous union.
-    elif discriminator == {}:
+    # If the union object has no member 'discriminator', it's a
+    # simple union. If 'discriminator' is {}, it is an anonymous union.
+    if not discriminator or discriminator == {}:
         enum_define = None
 
     # Else, it's a flat union.

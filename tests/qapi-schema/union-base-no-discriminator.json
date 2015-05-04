@@ -1,4 +1,4 @@
-# FIXME: we should reject simple unions with a base
+# we reject simple unions with a base (or flat unions without discriminator)
 { 'type': 'TestTypeA',
   'data': { 'string': 'str' } }
 

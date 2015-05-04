@@ -242,10 +242,9 @@ struct %(name)s
 ''')
 
     if base:
-        base_fields = find_struct(base)['data']
-        if discriminator:
-            base_fields = base_fields.copy()
-            del base_fields[discriminator]
+        assert discriminator
+        base_fields = find_struct(base)['data'].copy()
+        del base_fields[discriminator]
         ret += generate_struct_fields(base_fields)
     else:
         assert not discriminator
