@@ -52,7 +52,7 @@
 #
 # Since: 1.7
 ##
-{ 'type': 'BlockdevSnapshotInternal',
+{ 'struct': 'BlockdevSnapshotInternal',
   'data': { 'device': 'str', 'name': 'str' } }
 
 ##

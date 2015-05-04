@@ -1,8 +1,8 @@
 # we require the discriminator to be non-optional
 { 'enum': 'Enum', 'data': [ 'one', 'two' ] }
-{ 'type': 'Base',
+{ 'struct': 'Base',
   'data': { '*switch': 'Enum' } }
-{ 'type': 'Branch', 'data': { 'name': 'str' } }
+{ 'struct': 'Branch', 'data': { 'name': 'str' } }
 { 'union': 'MyUnion',
   'base': 'Base',
   'discriminator': '*switch',

@@ -2,7 +2,7 @@
 # TODO: should we allow anonymous inline types?
 { 'enum': 'TestEnum',
   'data': [ 'value1', 'value2' ] }
-{ 'type': 'Base',
+{ 'struct': 'Base',
   'data': { 'enum1': 'TestEnum', 'kind': 'str' } }
 { 'union': 'TestUnion',
   'base': { 'enum1': 'TestEnum', 'kind': 'str' },

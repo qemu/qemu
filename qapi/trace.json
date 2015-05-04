@@ -32,7 +32,7 @@
 #
 # Since 2.2
 ##
-{ 'type': 'TraceEventInfo',
+{ 'struct': 'TraceEventInfo',
   'data': {'name': 'str', 'state': 'TraceEventState'} }
 
 ##

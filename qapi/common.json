@@ -50,7 +50,7 @@
 #
 # Since: 0.14.0
 ##
-{ 'type': 'VersionInfo',
+{ 'struct': 'VersionInfo',
   'data': {'qemu': {'major': 'int', 'minor': 'int', 'micro': 'int'},
            'package': 'str'} }
 
@@ -74,7 +74,7 @@
 #
 # Since: 0.14.0
 ##
-{ 'type': 'CommandInfo', 'data': {'name': 'str'} }
+{ 'struct': 'CommandInfo', 'data': {'name': 'str'} }
 
 ##
 # @query-commands:

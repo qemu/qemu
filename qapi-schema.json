@@ -71,7 +71,7 @@
 #
 # Since 0.14.0
 ##
-{ 'type': 'NameInfo', 'data': {'*name': 'str'} }
+{ 'struct': 'NameInfo', 'data': {'*name': 'str'} }
 
 ##
 # @query-name:
@@ -95,7 +95,7 @@
 #
 # Since: 0.14.0
 ##
-{ 'type': 'KvmInfo', 'data': {'enabled': 'bool', 'present': 'bool'} }
+{ 'struct': 'KvmInfo', 'data': {'enabled': 'bool', 'present': 'bool'} }
 
 ##
 # @query-kvm:
@@ -170,7 +170,7 @@
 #
 # Notes: @singlestep is enabled through the GDB stub
 ##
-{ 'type': 'StatusInfo',
+{ 'struct': 'StatusInfo',
   'data': {'running': 'bool', 'singlestep': 'bool', 'status': 'RunState'} }
 
 ##
@@ -195,7 +195,7 @@
 #
 # Notes: If no UUID was specified for the guest, a null UUID is returned.
 ##
-{ 'type': 'UuidInfo', 'data': {'UUID': 'str'} }
+{ 'struct': 'UuidInfo', 'data': {'UUID': 'str'} }
 
 ##
 # @query-uuid:
@@ -226,7 +226,7 @@
 #
 # Since: 0.14.0
 ##
-{ 'type': 'ChardevInfo', 'data': {'label': 'str',
+{ 'struct': 'ChardevInfo', 'data': {'label': 'str',
                                   'filename': 'str',
                                   'frontend-open': 'bool'} }
 
@@ -250,7 +250,7 @@
 #
 # Since: 2.0
 ##
-{ 'type': 'ChardevBackendInfo', 'data': {'name': 'str'} }
+{ 'struct': 'ChardevBackendInfo', 'data': {'name': 'str'} }
 
 ##
 # @query-chardev-backends:
@@ -339,7 +339,7 @@
 #
 # Since: 1.2.0
 ##
-{ 'type': 'EventInfo', 'data': {'name': 'str'} }
+{ 'struct': 'EventInfo', 'data': {'name': 'str'} }
 
 ##
 # @query-events:
@@ -380,7 +380,7 @@
 #
 # Since: 0.14.0
 ##
-{ 'type': 'MigrationStats',
+{ 'struct': 'MigrationStats',
   'data': {'transferred': 'int', 'remaining': 'int', 'total': 'int' ,
            'duplicate': 'int', 'skipped': 'int', 'normal': 'int',
            'normal-bytes': 'int', 'dirty-pages-rate' : 'int',
@@ -405,7 +405,7 @@
 #
 # Since: 1.2
 ##
-{ 'type': 'XBZRLECacheStats',
+{ 'struct': 'XBZRLECacheStats',
   'data': {'cache-size': 'int', 'bytes': 'int', 'pages': 'int',
            'cache-miss': 'int', 'cache-miss-rate': 'number',
            'overflow': 'int' } }
@@ -476,7 +476,7 @@
 #
 # Since: 0.14.0
 ##
-{ 'type': 'MigrationInfo',
+{ 'struct': 'MigrationInfo',
   'data': {'*status': 'MigrationStatus', '*ram': 'MigrationStats',
            '*disk': 'MigrationStats',
            '*xbzrle-cache': 'XBZRLECacheStats',
@@ -534,7 +534,7 @@
 #
 # Since: 1.2
 ##
-{ 'type': 'MigrationCapabilityStatus',
+{ 'struct': 'MigrationCapabilityStatus',
   'data': { 'capability' : 'MigrationCapability', 'state' : 'bool' } }
 
 ##
@@ -575,7 +575,7 @@
 #
 # Since: 0.14.0
 ##
-{ 'type': 'MouseInfo',
+{ 'struct': 'MouseInfo',
   'data': {'name': 'str', 'index': 'int', 'current': 'bool',
            'absolute': 'bool'} }
 
@@ -621,7 +621,7 @@
 # Notes: @halted is a transient state that changes frequently.  By the time the
 #        data is sent to the client, the guest may no longer be halted.
 ##
-{ 'type': 'CpuInfo',
+{ 'struct': 'CpuInfo',
   'data': {'CPU': 'int', 'current': 'bool', 'halted': 'bool', '*pc': 'int',
            '*nip': 'int', '*npc': 'int', '*PC': 'int', 'thread_id': 'int'} }
 
@@ -647,7 +647,7 @@
 #
 # Since: 2.0
 ##
-{ 'type': 'IOThreadInfo',
+{ 'struct': 'IOThreadInfo',
   'data': {'id': 'str', 'thread-id': 'int'} }
 
 ##
@@ -700,7 +700,7 @@
 #
 # Since: 2.1
 ##
-{ 'type': 'VncBasicInfo',
+{ 'struct': 'VncBasicInfo',
   'data': { 'host': 'str',
             'service': 'str',
             'family': 'NetworkAddressFamily',
@@ -715,7 +715,7 @@
 #
 # Since: 2.1
 ##
-{ 'type': 'VncServerInfo',
+{ 'struct': 'VncServerInfo',
   'base': 'VncBasicInfo',
   'data': { '*auth': 'str' } }
 
@@ -732,7 +732,7 @@
 #
 # Since: 0.14.0
 ##
-{ 'type': 'VncClientInfo',
+{ 'struct': 'VncClientInfo',
   'base': 'VncBasicInfo',
   'data': { '*x509_dname': 'str', '*sasl_username': 'str' } }
 
@@ -772,7 +772,7 @@
 #
 # Since: 0.14.0
 ##
-{ 'type': 'VncInfo',
+{ 'struct': 'VncInfo',
   'data': {'enabled': 'bool', '*host': 'str',
            '*family': 'NetworkAddressFamily',
            '*service': 'str', '*auth': 'str', '*clients': ['VncClientInfo']} }
@@ -826,7 +826,7 @@
 #
 # Since: 2.3
 ##
-{ 'type': 'VncInfo2',
+{ 'struct': 'VncInfo2',
   'data': { 'id'        : 'str',
             'server'    : ['VncBasicInfo'],
             'clients'   : ['VncClientInfo'],
@@ -869,7 +869,7 @@
 #
 # Since: 2.1
 ##
-{ 'type': 'SpiceBasicInfo',
+{ 'struct': 'SpiceBasicInfo',
   'data': { 'host': 'str',
             'port': 'str',
             'family': 'NetworkAddressFamily' } }
@@ -883,7 +883,7 @@
 #
 # Since: 2.1
 ##
-{ 'type': 'SpiceServerInfo',
+{ 'struct': 'SpiceServerInfo',
   'base': 'SpiceBasicInfo',
   'data': { '*auth': 'str' } }
 
@@ -907,7 +907,7 @@
 #
 # Since: 0.14.0
 ##
-{ 'type': 'SpiceChannel',
+{ 'struct': 'SpiceChannel',
   'base': 'SpiceBasicInfo',
   'data': {'connection-id': 'int', 'channel-type': 'int', 'channel-id': 'int',
            'tls': 'bool'} }
@@ -965,7 +965,7 @@
 #
 # Since: 0.14.0
 ##
-{ 'type': 'SpiceInfo',
+{ 'struct': 'SpiceInfo',
   'data': {'enabled': 'bool', 'migrated': 'bool', '*host': 'str', '*port': 'int',
            '*tls-port': 'int', '*auth': 'str', '*compiled-version': 'str',
            'mouse-mode': 'SpiceQueryMouseMode', '*channels': ['SpiceChannel']} }
@@ -991,7 +991,7 @@
 # Since: 0.14.0
 #
 ##
-{ 'type': 'BalloonInfo', 'data': {'actual': 'int' } }
+{ 'struct': 'BalloonInfo', 'data': {'actual': 'int' } }
 
 ##
 # @query-balloon:
@@ -1018,7 +1018,7 @@
 #
 # Since: 0.14.0
 ##
-{ 'type': 'PciMemoryRange', 'data': {'base': 'int', 'limit': 'int'} }
+{ 'struct': 'PciMemoryRange', 'data': {'base': 'int', 'limit': 'int'} }
 
 ##
 # @PciMemoryRegion
@@ -1036,7 +1036,7 @@
 #
 # Since: 0.14.0
 ##
-{ 'type': 'PciMemoryRegion',
+{ 'struct': 'PciMemoryRegion',
   'data': {'bar': 'int', 'type': 'str', 'address': 'int', 'size': 'int',
            '*prefetch': 'bool', '*mem_type_64': 'bool' } }
 
@@ -1065,7 +1065,7 @@
 #
 # Since: 0.14.0
 ##
-{ 'type': 'PciBridgeInfo',
+{ 'struct': 'PciBridgeInfo',
   'data': {'bus': { 'number': 'int', 'secondary': 'int', 'subordinate': 'int',
                     'io_range': 'PciMemoryRange',
                     'memory_range': 'PciMemoryRange',
@@ -1104,7 +1104,7 @@
 #
 # Since: 0.14.0
 ##
-{ 'type': 'PciDeviceInfo',
+{ 'struct': 'PciDeviceInfo',
   'data': {'bus': 'int', 'slot': 'int', 'function': 'int',
            'class_info': {'*desc': 'str', 'class': 'int'},
            'id': {'device': 'int', 'vendor': 'int'},
@@ -1122,7 +1122,7 @@
 #
 # Since: 0.14.0
 ##
-{ 'type': 'PciInfo', 'data': {'bus': 'int', 'devices': ['PciDeviceInfo']} }
+{ 'struct': 'PciInfo', 'data': {'bus': 'int', 'devices': ['PciDeviceInfo']} }
 
 ##
 # @query-pci:
@@ -1341,7 +1341,7 @@
 #
 # Since: 1.6
 ###
-{ 'type': 'Abort',
+{ 'struct': 'Abort',
   'data': { } }
 
 ##
@@ -1506,7 +1506,7 @@
 #
 # Since: 1.2
 ##
-{ 'type': 'ObjectPropertyInfo',
+{ 'struct': 'ObjectPropertyInfo',
   'data': { 'name': 'str', 'type': 'str' } }
 
 ##
@@ -1691,7 +1691,7 @@
 #
 # Notes: This command is experimental and may change syntax in future releases.
 ##
-{ 'type': 'ObjectTypeInfo',
+{ 'struct': 'ObjectTypeInfo',
   'data': { 'name': 'str' } }
 
 ##
@@ -1723,7 +1723,7 @@
 #
 # Since: 1.2
 ##
-{ 'type': 'DevicePropertyInfo',
+{ 'struct': 'DevicePropertyInfo',
   'data': { 'name': 'str', 'type': 'str', '*description': 'str' } }
 
 ##
@@ -1903,7 +1903,7 @@
 #
 # Since: 2.0
 ##
-{ 'type': 'DumpGuestMemoryCapability',
+{ 'struct': 'DumpGuestMemoryCapability',
   'data': {
       'formats': ['DumpGuestMemoryFormat'] } }
 
@@ -2000,7 +2000,7 @@
 #
 # Since 1.2
 ##
-{ 'type': 'NetdevNoneOptions',
+{ 'struct': 'NetdevNoneOptions',
   'data': { } }
 
 ##
@@ -2020,7 +2020,7 @@
 #
 # Since 1.2
 ##
-{ 'type': 'NetLegacyNicOptions',
+{ 'struct': 'NetLegacyNicOptions',
   'data': {
     '*netdev':  'str',
     '*macaddr': 'str',
@@ -2035,7 +2035,7 @@
 #
 # Since 1.2
 ##
-{ 'type': 'String',
+{ 'struct': 'String',
   'data': {
     'str': 'str' } }
 
@@ -2078,7 +2078,7 @@
 #
 # Since 1.2
 ##
-{ 'type': 'NetdevUserOptions',
+{ 'struct': 'NetdevUserOptions',
   'data': {
     '*hostname':  'str',
     '*restrict':  'bool',
@@ -2130,7 +2130,7 @@
 #
 # Since 1.2
 ##
-{ 'type': 'NetdevTapOptions',
+{ 'struct': 'NetdevTapOptions',
   'data': {
     '*ifname':     'str',
     '*fd':         'str',
@@ -2166,7 +2166,7 @@
 #
 # Since 1.2
 ##
-{ 'type': 'NetdevSocketOptions',
+{ 'struct': 'NetdevSocketOptions',
   'data': {
     '*fd':        'str',
     '*listen':    'str',
@@ -2214,7 +2214,7 @@
 #
 # Since 2.1
 ##
-{ 'type': 'NetdevL2TPv3Options',
+{ 'struct': 'NetdevL2TPv3Options',
   'data': {
     'src':          'str',
     'dst':          'str',
@@ -2246,7 +2246,7 @@
 #
 # Since 1.2
 ##
-{ 'type': 'NetdevVdeOptions',
+{ 'struct': 'NetdevVdeOptions',
   'data': {
     '*sock':  'str',
     '*port':  'uint16',
@@ -2265,7 +2265,7 @@
 #
 # Since 1.2
 ##
-{ 'type': 'NetdevDumpOptions',
+{ 'struct': 'NetdevDumpOptions',
   'data': {
     '*len':  'size',
     '*file': 'str' } }
@@ -2281,7 +2281,7 @@
 #
 # Since 1.2
 ##
-{ 'type': 'NetdevBridgeOptions',
+{ 'struct': 'NetdevBridgeOptions',
   'data': {
     '*br':     'str',
     '*helper': 'str' } }
@@ -2295,7 +2295,7 @@
 #
 # Since 1.2
 ##
-{ 'type': 'NetdevHubPortOptions',
+{ 'struct': 'NetdevHubPortOptions',
   'data': {
     'hubid':     'int32' } }
 
@@ -2315,7 +2315,7 @@
 #
 # Since 2.0
 ##
-{ 'type': 'NetdevNetmapOptions',
+{ 'struct': 'NetdevNetmapOptions',
   'data': {
     'ifname':     'str',
     '*devname':    'str' } }
@@ -2331,7 +2331,7 @@
 #
 # Since 2.1
 ##
-{ 'type': 'NetdevVhostUserOptions',
+{ 'struct': 'NetdevVhostUserOptions',
   'data': {
     'chardev':        'str',
     '*vhostforce':    'bool' } }
@@ -2376,7 +2376,7 @@
 #
 # Since 1.2
 ##
-{ 'type': 'NetLegacy',
+{ 'struct': 'NetLegacy',
   'data': {
     '*vlan': 'int32',
     '*id':   'str',
@@ -2394,7 +2394,7 @@
 #
 # Since 1.2
 ##
-{ 'type': 'Netdev',
+{ 'struct': 'Netdev',
   'data': {
     'id':   'str',
     'opts': 'NetClientOptions' } }
@@ -2418,7 +2418,7 @@
 #
 # Since 1.3
 ##
-{ 'type': 'InetSocketAddress',
+{ 'struct': 'InetSocketAddress',
   'data': {
     'host': 'str',
     'port': 'str',
@@ -2435,7 +2435,7 @@
 #
 # Since 1.3
 ##
-{ 'type': 'UnixSocketAddress',
+{ 'struct': 'UnixSocketAddress',
   'data': {
     'path': 'str' } }
 
@@ -2500,7 +2500,7 @@
 #
 # Since: 1.2.0
 ##
-{ 'type': 'MachineInfo',
+{ 'struct': 'MachineInfo',
   'data': { 'name': 'str', '*alias': 'str',
             '*is-default': 'bool', 'cpu-max': 'int' } }
 
@@ -2524,7 +2524,7 @@
 #
 # Since: 1.2.0
 ##
-{ 'type': 'CpuDefinitionInfo',
+{ 'struct': 'CpuDefinitionInfo',
   'data': { 'name': 'str' } }
 
 ##
@@ -2549,7 +2549,7 @@
 #
 # Since: 1.2.0
 ##
-{ 'type': 'AddfdInfo', 'data': {'fdset-id': 'int', 'fd': 'int'} }
+{ 'struct': 'AddfdInfo', 'data': {'fdset-id': 'int', 'fd': 'int'} }
 
 ##
 # @add-fd:
@@ -2605,7 +2605,7 @@
 #
 # Since: 1.2.0
 ##
-{ 'type': 'FdsetFdInfo',
+{ 'struct': 'FdsetFdInfo',
   'data': {'fd': 'int', '*opaque': 'str'} }
 
 ##
@@ -2619,7 +2619,7 @@
 #
 # Since: 1.2.0
 ##
-{ 'type': 'FdsetInfo',
+{ 'struct': 'FdsetInfo',
   'data': {'fdset-id': 'int', 'fds': ['FdsetFdInfo']} }
 
 ##
@@ -2645,7 +2645,7 @@
 #
 # Since: 1.2.0
 ##
-{ 'type': 'TargetInfo',
+{ 'struct': 'TargetInfo',
   'data': { 'arch': 'str' } }
 
 ##
@@ -2745,7 +2745,7 @@
 #
 # Since: 1.4
 ##
-{ 'type': 'ChardevFile', 'data': { '*in' : 'str',
+{ 'struct': 'ChardevFile', 'data': { '*in' : 'str',
                                    'out' : 'str' } }
 
 ##
@@ -2759,7 +2759,7 @@
 #
 # Since: 1.4
 ##
-{ 'type': 'ChardevHostdev', 'data': { 'device' : 'str' } }
+{ 'struct': 'ChardevHostdev', 'data': { 'device' : 'str' } }
 
 ##
 # @ChardevSocket:
@@ -2781,7 +2781,7 @@
 #
 # Since: 1.4
 ##
-{ 'type': 'ChardevSocket', 'data': { 'addr'       : 'SocketAddress',
+{ 'struct': 'ChardevSocket', 'data': { 'addr'       : 'SocketAddress',
                                      '*server'    : 'bool',
                                      '*wait'      : 'bool',
                                      '*nodelay'   : 'bool',
@@ -2798,7 +2798,7 @@
 #
 # Since: 1.5
 ##
-{ 'type': 'ChardevUdp', 'data': { 'remote' : 'SocketAddress',
+{ 'struct': 'ChardevUdp', 'data': { 'remote' : 'SocketAddress',
                                   '*local' : 'SocketAddress' } }
 
 ##
@@ -2810,7 +2810,7 @@
 #
 # Since: 1.5
 ##
-{ 'type': 'ChardevMux', 'data': { 'chardev' : 'str' } }
+{ 'struct': 'ChardevMux', 'data': { 'chardev' : 'str' } }
 
 ##
 # @ChardevStdio:
@@ -2823,7 +2823,7 @@
 #
 # Since: 1.5
 ##
-{ 'type': 'ChardevStdio', 'data': { '*signal' : 'bool' } }
+{ 'struct': 'ChardevStdio', 'data': { '*signal' : 'bool' } }
 
 ##
 # @ChardevSpiceChannel:
@@ -2834,7 +2834,7 @@
 #
 # Since: 1.5
 ##
-{ 'type': 'ChardevSpiceChannel', 'data': { 'type'  : 'str' } }
+{ 'struct': 'ChardevSpiceChannel', 'data': { 'type'  : 'str' } }
 
 ##
 # @ChardevSpicePort:
@@ -2845,7 +2845,7 @@
 #
 # Since: 1.5
 ##
-{ 'type': 'ChardevSpicePort', 'data': { 'fqdn'  : 'str' } }
+{ 'struct': 'ChardevSpicePort', 'data': { 'fqdn'  : 'str' } }
 
 ##
 # @ChardevVC:
@@ -2859,7 +2859,7 @@
 #
 # Since: 1.5
 ##
-{ 'type': 'ChardevVC', 'data': { '*width'  : 'int',
+{ 'struct': 'ChardevVC', 'data': { '*width'  : 'int',
                                  '*height' : 'int',
                                  '*cols'   : 'int',
                                  '*rows'   : 'int' } }
@@ -2873,7 +2873,7 @@
 #
 # Since: 1.5
 ##
-{ 'type': 'ChardevRingbuf', 'data': { '*size'  : 'int' } }
+{ 'struct': 'ChardevRingbuf', 'data': { '*size'  : 'int' } }
 
 ##
 # @ChardevBackend:
@@ -2882,7 +2882,7 @@
 #
 # Since: 1.4 (testdev since 2.2)
 ##
-{ 'type': 'ChardevDummy', 'data': { } }
+{ 'struct': 'ChardevDummy', 'data': { } }
 
 { 'union': 'ChardevBackend', 'data': { 'file'   : 'ChardevFile',
                                        'serial' : 'ChardevHostdev',
@@ -2915,7 +2915,7 @@
 #
 # Since: 1.4
 ##
-{ 'type' : 'ChardevReturn', 'data': { '*pty' : 'str' } }
+{ 'struct' : 'ChardevReturn', 'data': { '*pty' : 'str' } }
 
 ##
 # @chardev-add:
@@ -3002,7 +3002,7 @@
 #
 # Since: 1.5
 ##
-{ 'type': 'TPMPassthroughOptions', 'data': { '*path' : 'str',
+{ 'struct': 'TPMPassthroughOptions', 'data': { '*path' : 'str',
                                              '*cancel-path' : 'str'} }
 
 ##
@@ -3030,7 +3030,7 @@
 #
 # Since: 1.5
 ##
-{ 'type': 'TPMInfo',
+{ 'struct': 'TPMInfo',
   'data': {'id': 'str',
            'model': 'TpmModel',
            'options': 'TpmTypeOptions' } }
@@ -3092,7 +3092,7 @@
 #
 # Since 1.5
 ##
-{ 'type': 'AcpiTableOptions',
+{ 'struct': 'AcpiTableOptions',
   'data': {
     '*sig':               'str',
     '*rev':               'uint8',
@@ -3138,7 +3138,7 @@
 #
 # Since 1.5
 ##
-{ 'type': 'CommandLineParameterInfo',
+{ 'struct': 'CommandLineParameterInfo',
   'data': { 'name': 'str',
             'type': 'CommandLineParameterType',
             '*help': 'str',
@@ -3155,7 +3155,7 @@
 #
 # Since 1.5
 ##
-{ 'type': 'CommandLineOptionInfo',
+{ 'struct': 'CommandLineOptionInfo',
   'data': { 'option': 'str', 'parameters': ['CommandLineParameterInfo'] } }
 
 ##
@@ -3199,7 +3199,7 @@
 #
 # Since: 1.5
 ##
-{ 'type': 'X86CPUFeatureWordInfo',
+{ 'struct': 'X86CPUFeatureWordInfo',
   'data': { 'cpuid-input-eax': 'int',
             '*cpuid-input-ecx': 'int',
             'cpuid-register': 'X86CPURegister32',
@@ -3252,7 +3252,7 @@
 # Since 1.6
 ##
 
-{ 'type': 'RxFilterInfo',
+{ 'struct': 'RxFilterInfo',
   'data': {
     'name':               'str',
     'promiscuous':        'bool',
@@ -3314,7 +3314,7 @@
 #
 # Since: 2.0
 ##
-{ 'type'  : 'InputKeyEvent',
+{ 'struct'  : 'InputKeyEvent',
   'data'  : { 'key'     : 'KeyValue',
               'down'    : 'bool' } }
 
@@ -3328,7 +3328,7 @@
 #
 # Since: 2.0
 ##
-{ 'type'  : 'InputBtnEvent',
+{ 'struct'  : 'InputBtnEvent',
   'data'  : { 'button'  : 'InputButton',
               'down'    : 'bool' } }
 
@@ -3343,7 +3343,7 @@
 #
 # Since: 2.0
 ##
-{ 'type'  : 'InputMoveEvent',
+{ 'struct'  : 'InputMoveEvent',
   'data'  : { 'axis'    : 'InputAxis',
               'value'   : 'int' } }
 
@@ -3426,7 +3426,7 @@
 #
 # Since: 2.1
 ##
-{ 'type': 'NumaNodeOptions',
+{ 'struct': 'NumaNodeOptions',
   'data': {
    '*nodeid': 'uint16',
    '*cpus':   ['uint16'],
@@ -3473,7 +3473,7 @@
 # Since: 2.1
 ##
 
-{ 'type': 'Memdev',
+{ 'struct': 'Memdev',
   'data': {
     'size':       'size',
     'merge':      'bool',
@@ -3516,7 +3516,7 @@
 #
 # Since: 2.1
 ##
-{ 'type': 'PCDIMMDeviceInfo',
+{ 'struct': 'PCDIMMDeviceInfo',
   'data': { '*id': 'str',
             'addr': 'int',
             'size': 'int',
@@ -3570,7 +3570,7 @@
 #
 # Since: 2.1
 ##
-{ 'type': 'ACPIOSTInfo',
+{ 'struct': 'ACPIOSTInfo',
   'data'  : { '*device': 'str',
               'slot': 'str',
               'slot-type': 'ACPISlotType',

@@ -26,7 +26,7 @@
 #
 ##
 
-{ 'type': 'SnapshotInfo',
+{ 'struct': 'SnapshotInfo',
   'data': { 'id': 'str', 'name': 'str', 'vm-state-size': 'int',
             'date-sec': 'int', 'date-nsec': 'int',
             'vm-clock-sec': 'int', 'vm-clock-nsec': 'int' } }
@@ -45,7 +45,7 @@
 #
 # Since: 1.7
 ##
-{ 'type': 'ImageInfoSpecificQCow2',
+{ 'struct': 'ImageInfoSpecificQCow2',
   'data': {
       'compat': 'str',
       '*lazy-refcounts': 'bool',
@@ -66,7 +66,7 @@
 #
 # Since: 1.7
 ##
-{ 'type': 'ImageInfoSpecificVmdk',
+{ 'struct': 'ImageInfoSpecificVmdk',
   'data': {
       'create-type': 'str',
       'cid': 'int',
@@ -126,7 +126,7 @@
 #
 ##
 
-{ 'type': 'ImageInfo',
+{ 'struct': 'ImageInfo',
   'data': {'filename': 'str', 'format': 'str', '*dirty-flag': 'bool',
            '*actual-size': 'int', 'virtual-size': 'int',
            '*cluster-size': 'int', '*encrypted': 'bool', '*compressed': 'bool',
@@ -178,7 +178,7 @@
 #
 ##
 
-{ 'type': 'ImageCheck',
+{ 'struct': 'ImageCheck',
   'data': {'filename': 'str', 'format': 'str', 'check-errors': 'int',
            '*image-end-offset': 'int', '*corruptions': 'int', '*leaks': 'int',
            '*corruptions-fixed': 'int', '*leaks-fixed': 'int',
@@ -196,7 +196,7 @@
 #
 # Since: 2.3
 ##
-{ 'type': 'BlockdevCacheInfo',
+{ 'struct': 'BlockdevCacheInfo',
   'data': { 'writeback': 'bool',
             'direct': 'bool',
             'no-flush': 'bool' } }
@@ -267,7 +267,7 @@
 # Since: 0.14.0
 #
 ##
-{ 'type': 'BlockDeviceInfo',
+{ 'struct': 'BlockDeviceInfo',
   'data': { 'file': 'str', '*node-name': 'str', 'ro': 'bool', 'drv': 'str',
             '*backing_file': 'str', 'backing_file_depth': 'int',
             'encrypted': 'bool', 'encryption_key_missing': 'bool',
@@ -321,7 +321,7 @@
 #
 # Since 1.7
 ##
-{ 'type': 'BlockDeviceMapEntry',
+{ 'struct': 'BlockDeviceMapEntry',
   'data': { 'start': 'int', 'length': 'int', 'depth': 'int', 'zero': 'bool',
             'data': 'bool', '*offset': 'int' } }
 
@@ -340,7 +340,7 @@
 #
 # Since: 1.3
 ##
-{ 'type': 'BlockDirtyInfo',
+{ 'struct': 'BlockDirtyInfo',
   'data': {'*name': 'str', 'count': 'int', 'granularity': 'uint32',
            'frozen': 'bool'} }
 
@@ -375,7 +375,7 @@
 #
 # Since:  0.14.0
 ##
-{ 'type': 'BlockInfo',
+{ 'struct': 'BlockInfo',
   'data': {'device': 'str', 'type': 'str', 'removable': 'bool',
            'locked': 'bool', '*inserted': 'BlockDeviceInfo',
            '*tray_open': 'bool', '*io-status': 'BlockDeviceIoStatus',
@@ -428,7 +428,7 @@
 #
 # Since: 0.14.0
 ##
-{ 'type': 'BlockDeviceStats',
+{ 'struct': 'BlockDeviceStats',
   'data': {'rd_bytes': 'int', 'wr_bytes': 'int', 'rd_operations': 'int',
            'wr_operations': 'int', 'flush_operations': 'int',
            'flush_total_time_ns': 'int', 'wr_total_time_ns': 'int',
@@ -454,7 +454,7 @@
 #
 # Since: 0.14.0
 ##
-{ 'type': 'BlockStats',
+{ 'struct': 'BlockStats',
   'data': {'*device': 'str', '*node-name': 'str',
            'stats': 'BlockDeviceStats',
            '*parent': 'BlockStats',
@@ -567,7 +567,7 @@
 #
 # Since: 1.1
 ##
-{ 'type': 'BlockJobInfo',
+{ 'struct': 'BlockJobInfo',
   'data': {'type': 'str', 'device': 'str', 'len': 'int',
            'offset': 'int', 'busy': 'bool', 'paused': 'bool', 'speed': 'int',
            'io-status': 'BlockDeviceIoStatus', 'ready': 'bool'} }
@@ -677,7 +677,7 @@
 # @mode: #optional whether and how QEMU should create a new image, default is
 #        'absolute-paths'.
 ##
-{ 'type': 'BlockdevSnapshot',
+{ 'struct': 'BlockdevSnapshot',
   'data': { '*device': 'str', '*node-name': 'str',
             'snapshot-file': 'str', '*snapshot-node-name': 'str',
             '*format': 'str', '*mode': 'NewImageMode' } }
@@ -721,7 +721,7 @@
 #
 # Since: 1.6
 ##
-{ 'type': 'DriveBackup',
+{ 'struct': 'DriveBackup',
   'data': { 'device': 'str', 'target': 'str', '*format': 'str',
             'sync': 'MirrorSyncMode', '*mode': 'NewImageMode',
             '*speed': 'int', '*bitmap': 'str',
@@ -756,7 +756,7 @@
 #
 # Since: 2.3
 ##
-{ 'type': 'BlockdevBackup',
+{ 'struct': 'BlockdevBackup',
   'data': { 'device': 'str', 'target': 'str',
             'sync': 'MirrorSyncMode',
             '*speed': 'int',
@@ -977,7 +977,7 @@
 #
 # Since 2.4
 ##
-{ 'type': 'BlockDirtyBitmap',
+{ 'struct': 'BlockDirtyBitmap',
   'data': { 'node': 'str', 'name': 'str' } }
 
 ##
@@ -992,7 +992,7 @@
 #
 # Since 2.4
 ##
-{ 'type': 'BlockDirtyBitmapAdd',
+{ 'struct': 'BlockDirtyBitmapAdd',
   'data': { 'node': 'str', 'name': 'str', '*granularity': 'uint32' } }
 
 ##
@@ -1313,7 +1313,7 @@
 #
 # Since: 1.7
 ##
-{ 'type': 'BlockdevCacheOptions',
+{ 'struct': 'BlockdevCacheOptions',
   'data': { '*writeback': 'bool',
             '*direct': 'bool',
             '*no-flush': 'bool' } }
@@ -1360,7 +1360,7 @@
 #
 # Since: 1.7
 ##
-{ 'type': 'BlockdevOptionsBase',
+{ 'struct': 'BlockdevOptionsBase',
   'data': { 'driver': 'BlockdevDriver',
             '*id': 'str',
             '*node-name': 'str',
@@ -1382,7 +1382,7 @@
 #
 # Since: 1.7
 ##
-{ 'type': 'BlockdevOptionsFile',
+{ 'struct': 'BlockdevOptionsFile',
   'data': { 'filename': 'str' } }
 
 ##
@@ -1397,7 +1397,7 @@
 #
 # Since: 2.2
 ##
-{ 'type': 'BlockdevOptionsNull',
+{ 'struct': 'BlockdevOptionsNull',
   'data': { '*size': 'int', '*latency-ns': 'uint64' } }
 
 ##
@@ -1413,7 +1413,7 @@
 #
 # Since: 1.7
 ##
-{ 'type': 'BlockdevOptionsVVFAT',
+{ 'struct': 'BlockdevOptionsVVFAT',
   'data': { 'dir': 'str', '*fat-type': 'int', '*floppy': 'bool',
             '*rw': 'bool' } }
 
@@ -1427,7 +1427,7 @@
 #
 # Since: 1.7
 ##
-{ 'type': 'BlockdevOptionsGenericFormat',
+{ 'struct': 'BlockdevOptionsGenericFormat',
   'data': { 'file': 'BlockdevRef' } }
 
 ##
@@ -1443,7 +1443,7 @@
 #
 # Since: 1.7
 ##
-{ 'type': 'BlockdevOptionsGenericCOWFormat',
+{ 'struct': 'BlockdevOptionsGenericCOWFormat',
   'base': 'BlockdevOptionsGenericFormat',
   'data': { '*backing': 'BlockdevRef' } }
 
@@ -1479,7 +1479,7 @@
 #
 # Since: 2.2
 ##
-{ 'type': 'Qcow2OverlapCheckFlags',
+{ 'struct': 'Qcow2OverlapCheckFlags',
   'data': { '*template':       'Qcow2OverlapCheckMode',
             '*main-header':    'bool',
             '*active-l1':      'bool',
@@ -1540,7 +1540,7 @@
 #
 # Since: 1.7
 ##
-{ 'type': 'BlockdevOptionsQcow2',
+{ 'struct': 'BlockdevOptionsQcow2',
   'base': 'BlockdevOptionsGenericCOWFormat',
   'data': { '*lazy-refcounts': 'bool',
             '*pass-discard-request': 'bool',
@@ -1575,7 +1575,7 @@
 #                       use the default value, 'archipelago'.
 # Since: 2.2
 ##
-{ 'type': 'BlockdevOptionsArchipelago',
+{ 'struct': 'BlockdevOptionsArchipelago',
   'data': { 'volume': 'str',
             '*mport': 'int',
             '*vport': 'int',
@@ -1627,7 +1627,7 @@
 #
 # Since: 2.0
 ##
-{ 'type': 'BlkdebugInjectErrorOptions',
+{ 'struct': 'BlkdebugInjectErrorOptions',
   'data': { 'event': 'BlkdebugEvent',
             '*state': 'int',
             '*errno': 'int',
@@ -1650,7 +1650,7 @@
 #
 # Since: 2.0
 ##
-{ 'type': 'BlkdebugSetStateOptions',
+{ 'struct': 'BlkdebugSetStateOptions',
   'data': { 'event': 'BlkdebugEvent',
             '*state': 'int',
             'new_state': 'int' } }
@@ -1672,7 +1672,7 @@
 #
 # Since: 2.0
 ##
-{ 'type': 'BlockdevOptionsBlkdebug',
+{ 'struct': 'BlockdevOptionsBlkdebug',
   'data': { 'image': 'BlockdevRef',
             '*config': 'str',
             '*align': 'int',
@@ -1690,7 +1690,7 @@
 #
 # Since: 2.0
 ##
-{ 'type': 'BlockdevOptionsBlkverify',
+{ 'struct': 'BlockdevOptionsBlkverify',
   'data': { 'test': 'BlockdevRef',
             'raw': 'BlockdevRef' } }
 
@@ -1727,7 +1727,7 @@
 #
 # Since: 2.0
 ##
-{ 'type': 'BlockdevOptionsQuorum',
+{ 'struct': 'BlockdevOptionsQuorum',
   'data': { '*blkverify': 'bool',
             'children': [ 'BlockdevRef' ],
             'vote-threshold': 'int',

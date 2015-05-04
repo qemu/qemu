@@ -1,11 +1,11 @@
 # FIXME: we should check for no duplicate keys between branches and base
 { 'enum': 'TestEnum',
   'data': [ 'value1', 'value2' ] }
-{ 'type': 'Base',
+{ 'struct': 'Base',
   'data': { 'enum1': 'TestEnum', 'name': 'str' } }
-{ 'type': 'Branch1',
+{ 'struct': 'Branch1',
   'data': { 'name': 'str' } }
-{ 'type': 'Branch2',
+{ 'struct': 'Branch2',
   'data': { 'value': 'int' } }
 { 'union': 'TestUnion',
   'base': 'Base',

@@ -1,13 +1,13 @@
 { 'enum': 'TestEnum',
   'data': [ 'value1', 'value2' ] }
 
-{ 'type': 'TestBase',
+{ 'struct': 'TestBase',
   'data': { 'enum1': 'TestEnum', 'kind': 'str' } }
 
-{ 'type': 'TestTypeA',
+{ 'struct': 'TestTypeA',
   'data': { 'string': 'str' } }
 
-{ 'type': 'TestTypeB',
+{ 'struct': 'TestTypeB',
   'data': { 'integer': 'int' } }
 
 { 'union': 'TestUnion',

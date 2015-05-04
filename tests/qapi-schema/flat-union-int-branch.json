@@ -1,9 +1,9 @@
 # we require flat union branches to be a struct
 { 'enum': 'TestEnum',
   'data': [ 'value1', 'value2' ] }
-{ 'type': 'Base',
+{ 'struct': 'Base',
   'data': { 'enum1': 'TestEnum' } }
-{ 'type': 'TestTypeB',
+{ 'struct': 'TestTypeB',
   'data': { 'integer': 'int' } }
 { 'union': 'TestUnion',
   'base': 'Base',

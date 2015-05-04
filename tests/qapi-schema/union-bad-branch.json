@@ -1,7 +1,7 @@
 # we reject normal unions where branches would collide in C
-{ 'type': 'One',
+{ 'struct': 'One',
   'data': { 'string': 'str' } }
-{ 'type': 'Two',
+{ 'struct': 'Two',
   'data': { 'number': 'int' } }
 { 'union': 'MyUnion',
   'data': { 'one': 'One',
