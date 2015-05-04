@@ -324,14 +324,15 @@ def check_name(expr_info, source, name, allow_optional = False,
                             "%s uses invalid name '%s'" % (source, name))
 
 def check_type(expr_info, source, value, allow_array = False,
-               allow_dict = False, allow_optional = False, allow_metas = []):
+               allow_dict = False, allow_optional = False,
+               allow_star = False, allow_metas = []):
     global all_names
     orig_value = value
 
     if value is None:
         return
 
-    if value == '**':
+    if allow_star and value == '**':
         return
 
     # Check if array type for value is okay
@@ -348,6 +349,10 @@ def check_type(expr_info, source, value, allow_array = False,
 
     # Check if type name for value is okay
     if isinstance(value, str):
+        if value == '**':
+            raise QAPIExprError(expr_info,
+                                "%s uses '**' but did not request 'gen':false"
+                                % source)
         if not value in all_names:
             raise QAPIExprError(expr_info,
                                 "%s uses unknown type '%s'"
@@ -371,19 +376,22 @@ def check_type(expr_info, source, value, allow_array = False,
         check_type(expr_info, "Member '%s' of %s" % (key, source), arg,
                    allow_array=True, allow_dict=True, allow_optional=True,
                    allow_metas=['built-in', 'union', 'alternate', 'struct',
-                                'enum'])
+                                'enum'], allow_star=allow_star)
 
 def check_command(expr, expr_info):
     name = expr['command']
+    allow_star = expr.has_key('gen')
+
     check_type(expr_info, "'data' for command '%s'" % name,
                expr.get('data'), allow_dict=True, allow_optional=True,
-               allow_metas=['union', 'struct'])
+               allow_metas=['union', 'struct'], allow_star=allow_star)
     returns_meta = ['union', 'struct']
     if name in returns_whitelist:
         returns_meta += ['built-in', 'alternate', 'enum']
     check_type(expr_info, "'returns' for command '%s'" % name,
                expr.get('returns'), allow_array=True, allow_dict=True,
-               allow_optional=True, allow_metas=returns_meta)
+               allow_optional=True, allow_metas=returns_meta,
+               allow_star=allow_star)
 
 def check_event(expr, expr_info):
     global events
@@ -578,6 +586,10 @@ def check_keys(expr_elem, meta, required, optional=[]):
         if not key in required and not key in optional:
             raise QAPIExprError(info,
                                 "Unknown key '%s' in %s '%s'"
+                                % (key, meta, name))
+        if (key == 'gen' or key == 'success-response') and value != False:
+            raise QAPIExprError(info,
+                                "'%s' of %s '%s' should only use false value"
                                 % (key, meta, name))
     for key in required:
         if not expr.has_key(key):

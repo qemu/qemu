@@ -1,0 +1,1 @@
+tests/qapi-schema/type-bypass-bad-gen.json:2: 'gen' of command 'foo' should only use false value
