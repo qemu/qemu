@@ -399,6 +399,7 @@ def check_exprs(schema):
             check_event(expr, info)
 
 def parse_schema(input_file):
+    # First pass: read entire file into memory
     try:
         schema = QAPISchema(open(input_file, "r"))
     except (QAPISchemaError, QAPIExprError), e:
@@ -407,24 +408,26 @@ def parse_schema(input_file):
 
     exprs = []
 
-    for expr_elem in schema.exprs:
-        expr = expr_elem['expr']
-        if expr.has_key('enum'):
-            add_enum(expr['enum'], expr.get('data'))
-        elif expr.has_key('union'):
-            add_union(expr)
-        elif expr.has_key('type'):
-            add_struct(expr)
-        exprs.append(expr)
-
-    # Try again for hidden UnionKind enum
-    for expr_elem in schema.exprs:
-        expr = expr_elem['expr']
-        if expr.has_key('union'):
-            if not discriminator_find_enum_define(expr):
-                add_enum('%sKind' % expr['union'])
-
     try:
+        # Next pass: learn the types.
+        for expr_elem in schema.exprs:
+            expr = expr_elem['expr']
+            if expr.has_key('enum'):
+                add_enum(expr['enum'], expr.get('data'))
+            elif expr.has_key('union'):
+                add_union(expr)
+            elif expr.has_key('type'):
+                add_struct(expr)
+            exprs.append(expr)
+
+        # Try again for hidden UnionKind enum
+        for expr_elem in schema.exprs:
+            expr = expr_elem['expr']
+            if expr.has_key('union'):
+                if not discriminator_find_enum_define(expr):
+                    add_enum('%sKind' % expr['union'])
+
+        # Final pass - validate that exprs make sense
         check_exprs(schema)
     except QAPIExprError, e:
         print >>sys.stderr, e
