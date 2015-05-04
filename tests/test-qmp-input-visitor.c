@@ -248,23 +248,26 @@ static void check_and_free_str(char *str, const char *cmp)
 static void test_visitor_in_struct_nested(TestInputVisitorData *data,
                                           const void *unused)
 {
-    UserDefNested *udp = NULL;
+    UserDefTwo *udp = NULL;
     Error *err = NULL;
     Visitor *v;
 
-    v = visitor_input_test_init(data, "{ 'string0': 'string0', 'dict1': { 'string1': 'string1', 'dict2': { 'userdef1': { 'integer': 42, 'string': 'string' }, 'string2': 'string2'}}}");
+    v = visitor_input_test_init(data, "{ 'string0': 'string0', "
+                                "'dict1': { 'string1': 'string1', "
+                                "'dict2': { 'userdef': { 'integer': 42, "
+                                "'string': 'string' }, 'string': 'string2'}}}");
 
-    visit_type_UserDefNested(v, &udp, NULL, &err);
+    visit_type_UserDefTwo(v, &udp, NULL, &err);
     g_assert(!err);
 
     check_and_free_str(udp->string0, "string0");
     check_and_free_str(udp->dict1.string1, "string1");
-    g_assert_cmpint(udp->dict1.dict2.userdef1->base->integer, ==, 42);
-    check_and_free_str(udp->dict1.dict2.userdef1->string, "string");
-    check_and_free_str(udp->dict1.dict2.string2, "string2");
+    g_assert_cmpint(udp->dict1.dict2.userdef->base->integer, ==, 42);
+    check_and_free_str(udp->dict1.dict2.userdef->string, "string");
+    check_and_free_str(udp->dict1.dict2.string, "string2");
     g_assert(udp->dict1.has_dict3 == false);
 
-    g_free(udp->dict1.dict2.userdef1);
+    g_free(udp->dict1.dict2.userdef);
     g_free(udp);
 }
 

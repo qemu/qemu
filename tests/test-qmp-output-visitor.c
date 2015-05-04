@@ -234,7 +234,7 @@ static void test_visitor_out_struct_nested(TestOutputVisitorData *data,
 {
     int64_t value = 42;
     Error *err = NULL;
-    UserDefNested *ud2;
+    UserDefTwo *ud2;
     QObject *obj;
     QDict *qdict, *dict1, *dict2, *dict3, *userdef;
     const char *string = "user def string";
@@ -245,20 +245,20 @@ static void test_visitor_out_struct_nested(TestOutputVisitorData *data,
     ud2->string0 = g_strdup(strings[0]);
 
     ud2->dict1.string1 = g_strdup(strings[1]);
-    ud2->dict1.dict2.userdef1 = g_malloc0(sizeof(UserDefOne));
-    ud2->dict1.dict2.userdef1->string = g_strdup(string);
-    ud2->dict1.dict2.userdef1->base = g_new0(UserDefZero, 1);
-    ud2->dict1.dict2.userdef1->base->integer = value;
-    ud2->dict1.dict2.string2 = g_strdup(strings[2]);
+    ud2->dict1.dict2.userdef = g_new0(UserDefOne, 1);
+    ud2->dict1.dict2.userdef->string = g_strdup(string);
+    ud2->dict1.dict2.userdef->base = g_new0(UserDefZero, 1);
+    ud2->dict1.dict2.userdef->base->integer = value;
+    ud2->dict1.dict2.string = g_strdup(strings[2]);
 
     ud2->dict1.has_dict3 = true;
-    ud2->dict1.dict3.userdef2 = g_malloc0(sizeof(UserDefOne));
-    ud2->dict1.dict3.userdef2->string = g_strdup(string);
-    ud2->dict1.dict3.userdef2->base = g_new0(UserDefZero, 1);
-    ud2->dict1.dict3.userdef2->base->integer = value;
-    ud2->dict1.dict3.string3 = g_strdup(strings[3]);
+    ud2->dict1.dict3.userdef = g_new0(UserDefOne, 1);
+    ud2->dict1.dict3.userdef->string = g_strdup(string);
+    ud2->dict1.dict3.userdef->base = g_new0(UserDefZero, 1);
+    ud2->dict1.dict3.userdef->base->integer = value;
+    ud2->dict1.dict3.string = g_strdup(strings[3]);
 
-    visit_type_UserDefNested(data->ov, &ud2, "unused", &err);
+    visit_type_UserDefTwo(data->ov, &ud2, "unused", &err);
     g_assert(!err);
 
     obj = qmp_output_get_qobject(data->qov);
@@ -275,22 +275,22 @@ static void test_visitor_out_struct_nested(TestOutputVisitorData *data,
 
     dict2 = qdict_get_qdict(dict1, "dict2");
     g_assert_cmpint(qdict_size(dict2), ==, 2);
-    g_assert_cmpstr(qdict_get_str(dict2, "string2"), ==, strings[2]);
-    userdef = qdict_get_qdict(dict2, "userdef1");
+    g_assert_cmpstr(qdict_get_str(dict2, "string"), ==, strings[2]);
+    userdef = qdict_get_qdict(dict2, "userdef");
     g_assert_cmpint(qdict_size(userdef), ==, 2);
     g_assert_cmpint(qdict_get_int(userdef, "integer"), ==, value);
     g_assert_cmpstr(qdict_get_str(userdef, "string"), ==, string);
 
     dict3 = qdict_get_qdict(dict1, "dict3");
     g_assert_cmpint(qdict_size(dict3), ==, 2);
-    g_assert_cmpstr(qdict_get_str(dict3, "string3"), ==, strings[3]);
-    userdef = qdict_get_qdict(dict3, "userdef2");
+    g_assert_cmpstr(qdict_get_str(dict3, "string"), ==, strings[3]);
+    userdef = qdict_get_qdict(dict3, "userdef");
     g_assert_cmpint(qdict_size(userdef), ==, 2);
     g_assert_cmpint(qdict_get_int(userdef, "integer"), ==, value);
     g_assert_cmpstr(qdict_get_str(userdef, "string"), ==, string);
 
     QDECREF(qdict);
-    qapi_free_UserDefNested(ud2);
+    qapi_free_UserDefTwo(ud2);
 }
 
 static void test_visitor_out_struct_errors(TestOutputVisitorData *data,
@@ -398,7 +398,7 @@ static void test_visitor_out_list(TestOutputVisitorData *data,
 static void test_visitor_out_list_qapi_free(TestOutputVisitorData *data,
                                             const void *unused)
 {
-    UserDefNestedList *p, *head = NULL;
+    UserDefTwoList *p, *head = NULL;
     const char string[] = "foo bar";
     int i, max_count = 1024;
 
@@ -408,18 +408,18 @@ static void test_visitor_out_list_qapi_free(TestOutputVisitorData *data,
 
         p->value->string0 = g_strdup(string);
         p->value->dict1.string1 = g_strdup(string);
-        p->value->dict1.dict2.userdef1 = g_malloc0(sizeof(UserDefOne));
-        p->value->dict1.dict2.userdef1->string = g_strdup(string);
-        p->value->dict1.dict2.userdef1->base = g_new0(UserDefZero, 1);
-        p->value->dict1.dict2.userdef1->base->integer = 42;
-        p->value->dict1.dict2.string2 = g_strdup(string);
+        p->value->dict1.dict2.userdef = g_new0(UserDefOne, 1);
+        p->value->dict1.dict2.userdef->string = g_strdup(string);
+        p->value->dict1.dict2.userdef->base = g_new0(UserDefZero, 1);
+        p->value->dict1.dict2.userdef->base->integer = 42;
+        p->value->dict1.dict2.string = g_strdup(string);
         p->value->dict1.has_dict3 = false;
 
         p->next = head;
         head = p;
     }
 
-    qapi_free_UserDefNestedList(head);
+    qapi_free_UserDefTwoList(head);
 }
 
 static void test_visitor_out_union_flat(TestOutputVisitorData *data,

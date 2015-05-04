@@ -15,16 +15,10 @@
   'data': { 'string': 'str', '*enum1': 'EnumOne' } }
 
 { 'struct': 'UserDefTwo',
-  'data': { 'string': 'str',
-            'dict': { 'string': 'str',
-                      'dict': { 'userdef': 'UserDefOne', 'string': 'str' },
-                      '*dict2': { 'userdef': 'UserDefOne', 'string': 'str' } } } }
-
-{ 'struct': 'UserDefNested',
   'data': { 'string0': 'str',
             'dict1': { 'string1': 'str',
-                       'dict2': { 'userdef1': 'UserDefOne', 'string2': 'str' },
-                       '*dict3': { 'userdef2': 'UserDefOne', 'string3': 'str' } } } }
+                       'dict2': { 'userdef': 'UserDefOne', 'string': 'str' },
+                       '*dict3': { 'userdef': 'UserDefOne', 'string': 'str' } } } }
 
 # for testing unions
 { 'struct': 'UserDefA',
