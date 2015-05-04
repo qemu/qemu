@@ -53,7 +53,7 @@
   'discriminator': 'enum1',
   'data': { 'value1' : 'UserDefC', 'value2' : 'UserDefB', 'value3' : 'UserDefA' } }
 
-{ 'union': 'UserDefAnonUnion',
+{ 'union': 'UserDefAlternate',
   'discriminator': {},
   'data': { 'uda': 'UserDefA', 's': 'str', 'i': 'int' } }
 

@@ -315,20 +315,20 @@ static void test_visitor_in_union_flat(TestInputVisitorData *data,
     qapi_free_UserDefFlatUnion(tmp);
 }
 
-static void test_visitor_in_union_anon(TestInputVisitorData *data,
-                                       const void *unused)
+static void test_visitor_in_alternate(TestInputVisitorData *data,
+                                      const void *unused)
 {
     Visitor *v;
     Error *err = NULL;
-    UserDefAnonUnion *tmp;
+    UserDefAlternate *tmp;
 
     v = visitor_input_test_init(data, "42");
 
-    visit_type_UserDefAnonUnion(v, &tmp, NULL, &err);
+    visit_type_UserDefAlternate(v, &tmp, NULL, &err);
     g_assert(err == NULL);
-    g_assert_cmpint(tmp->kind, ==, USER_DEF_ANON_UNION_KIND_I);
+    g_assert_cmpint(tmp->kind, ==, USER_DEF_ALTERNATE_KIND_I);
     g_assert_cmpint(tmp->i, ==, 42);
-    qapi_free_UserDefAnonUnion(tmp);
+    qapi_free_UserDefAlternate(tmp);
 }
 
 static void test_native_list_integer_helper(TestInputVisitorData *data,
@@ -664,8 +664,8 @@ int main(int argc, char **argv)
                            &in_visitor_data, test_visitor_in_list);
     input_visitor_test_add("/visitor/input/union-flat",
                            &in_visitor_data, test_visitor_in_union_flat);
-    input_visitor_test_add("/visitor/input/union-anon",
-                           &in_visitor_data, test_visitor_in_union_anon);
+    input_visitor_test_add("/visitor/input/alternate",
+                           &in_visitor_data, test_visitor_in_alternate);
     input_visitor_test_add("/visitor/input/errors",
                            &in_visitor_data, test_visitor_in_errors);
     input_visitor_test_add("/visitor/input/native_list/int",

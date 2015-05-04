@@ -10,7 +10,7 @@
  OrderedDict([('type', 'UserDefUnionBase'), ('data', OrderedDict([('string', 'str'), ('enum1', 'EnumOne')]))]),
  OrderedDict([('union', 'UserDefFlatUnion'), ('base', 'UserDefUnionBase'), ('discriminator', 'enum1'), ('data', OrderedDict([('value1', 'UserDefA'), ('value2', 'UserDefB'), ('value3', 'UserDefB')]))]),
  OrderedDict([('union', 'UserDefFlatUnion2'), ('base', 'UserDefUnionBase'), ('discriminator', 'enum1'), ('data', OrderedDict([('value1', 'UserDefC'), ('value2', 'UserDefB'), ('value3', 'UserDefA')]))]),
- OrderedDict([('union', 'UserDefAnonUnion'), ('discriminator', OrderedDict()), ('data', OrderedDict([('uda', 'UserDefA'), ('s', 'str'), ('i', 'int')]))]),
+ OrderedDict([('union', 'UserDefAlternate'), ('discriminator', OrderedDict()), ('data', OrderedDict([('uda', 'UserDefA'), ('s', 'str'), ('i', 'int')]))]),
  OrderedDict([('union', 'UserDefNativeListUnion'), ('data', OrderedDict([('integer', ['int']), ('s8', ['int8']), ('s16', ['int16']), ('s32', ['int32']), ('s64', ['int64']), ('u8', ['uint8']), ('u16', ['uint16']), ('u32', ['uint32']), ('u64', ['uint64']), ('number', ['number']), ('boolean', ['bool']), ('string', ['str']), ('sizes', ['size'])]))]),
  OrderedDict([('command', 'user_def_cmd'), ('data', OrderedDict())]),
  OrderedDict([('command', 'user_def_cmd1'), ('data', OrderedDict([('ud1a', 'UserDefOne')]))]),
@@ -23,7 +23,7 @@
  OrderedDict([('event', 'EVENT_C'), ('data', OrderedDict([('*a', 'int'), ('*b', 'UserDefOne'), ('c', 'str')]))]),
  OrderedDict([('event', 'EVENT_D'), ('data', OrderedDict([('a', 'EventStructOne'), ('b', 'str'), ('*c', 'str'), ('*enum3', 'EnumOne')]))])]
 [{'enum_name': 'EnumOne', 'enum_values': ['value1', 'value2', 'value3']},
- {'enum_name': 'UserDefAnonUnionKind', 'enum_values': None},
+ {'enum_name': 'UserDefAlternateKind', 'enum_values': None},
  {'enum_name': 'UserDefNativeListUnionKind', 'enum_values': None}]
 [OrderedDict([('type', 'NestedEnumsOne'), ('data', OrderedDict([('enum1', 'EnumOne'), ('*enum2', 'EnumOne'), ('enum3', 'EnumOne'), ('*enum4', 'EnumOne')]))]),
  OrderedDict([('type', 'UserDefZero'), ('data', OrderedDict([('integer', 'int')]))]),

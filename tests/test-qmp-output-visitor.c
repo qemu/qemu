@@ -453,24 +453,24 @@ static void test_visitor_out_union_flat(TestOutputVisitorData *data,
     QDECREF(qdict);
 }
 
-static void test_visitor_out_union_anon(TestOutputVisitorData *data,
-                                        const void *unused)
+static void test_visitor_out_alternate(TestOutputVisitorData *data,
+                                       const void *unused)
 {
     QObject *arg;
     Error *err = NULL;
 
-    UserDefAnonUnion *tmp = g_malloc0(sizeof(UserDefAnonUnion));
-    tmp->kind = USER_DEF_ANON_UNION_KIND_I;
+    UserDefAlternate *tmp = g_malloc0(sizeof(UserDefAlternate));
+    tmp->kind = USER_DEF_ALTERNATE_KIND_I;
     tmp->i = 42;
 
-    visit_type_UserDefAnonUnion(data->ov, &tmp, NULL, &err);
+    visit_type_UserDefAlternate(data->ov, &tmp, NULL, &err);
     g_assert(err == NULL);
     arg = qmp_output_get_qobject(data->qov);
 
     g_assert(qobject_type(arg) == QTYPE_QINT);
     g_assert_cmpint(qint_get_int(qobject_to_qint(arg)), ==, 42);
 
-    qapi_free_UserDefAnonUnion(tmp);
+    qapi_free_UserDefAlternate(tmp);
 }
 
 static void test_visitor_out_empty(TestOutputVisitorData *data,
@@ -830,8 +830,8 @@ int main(int argc, char **argv)
                             &out_visitor_data, test_visitor_out_list_qapi_free);
     output_visitor_test_add("/visitor/output/union-flat",
                             &out_visitor_data, test_visitor_out_union_flat);
-    output_visitor_test_add("/visitor/output/union-anon",
-                            &out_visitor_data, test_visitor_out_union_anon);
+    output_visitor_test_add("/visitor/output/alternate",
+                            &out_visitor_data, test_visitor_out_alternate);
     output_visitor_test_add("/visitor/output/empty",
                             &out_visitor_data, test_visitor_out_empty);
     output_visitor_test_add("/visitor/output/native_list/int",

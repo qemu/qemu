@@ -173,18 +173,18 @@ static void test_validate_union_flat(TestInputVisitorData *data,
     qapi_free_UserDefFlatUnion(tmp);
 }
 
-static void test_validate_union_anon(TestInputVisitorData *data,
-                                     const void *unused)
+static void test_validate_alternate(TestInputVisitorData *data,
+                                    const void *unused)
 {
-    UserDefAnonUnion *tmp = NULL;
+    UserDefAlternate *tmp = NULL;
     Visitor *v;
     Error *err = NULL;
 
     v = validate_test_init(data, "42");
 
-    visit_type_UserDefAnonUnion(v, &tmp, NULL, &err);
+    visit_type_UserDefAlternate(v, &tmp, NULL, &err);
     g_assert(!err);
-    qapi_free_UserDefAnonUnion(tmp);
+    qapi_free_UserDefAlternate(tmp);
 }
 
 static void test_validate_fail_struct(TestInputVisitorData *data,
@@ -276,18 +276,18 @@ static void test_validate_fail_union_flat_no_discrim(TestInputVisitorData *data,
     qapi_free_UserDefFlatUnion2(tmp);
 }
 
-static void test_validate_fail_union_anon(TestInputVisitorData *data,
-                                          const void *unused)
+static void test_validate_fail_alternate(TestInputVisitorData *data,
+                                         const void *unused)
 {
-    UserDefAnonUnion *tmp = NULL;
+    UserDefAlternate *tmp = NULL;
     Visitor *v;
     Error *err = NULL;
 
     v = validate_test_init(data, "3.14");
 
-    visit_type_UserDefAnonUnion(v, &tmp, NULL, &err);
+    visit_type_UserDefAlternate(v, &tmp, NULL, &err);
     g_assert(err);
-    qapi_free_UserDefAnonUnion(tmp);
+    qapi_free_UserDefAlternate(tmp);
 }
 
 static void validate_test_add(const char *testpath,
@@ -312,8 +312,8 @@ int main(int argc, char **argv)
                       &testdata, test_validate_list);
     validate_test_add("/visitor/input-strict/pass/union-flat",
                       &testdata, test_validate_union_flat);
-    validate_test_add("/visitor/input-strict/pass/union-anon",
-                      &testdata, test_validate_union_anon);
+    validate_test_add("/visitor/input-strict/pass/alternate",
+                      &testdata, test_validate_alternate);
     validate_test_add("/visitor/input-strict/pass/union-native-list",
                       &testdata, test_validate_union_native_list);
     validate_test_add("/visitor/input-strict/fail/struct",
@@ -326,8 +326,8 @@ int main(int argc, char **argv)
                       &testdata, test_validate_fail_union_flat);
     validate_test_add("/visitor/input-strict/fail/union-flat-no-discriminator",
                       &testdata, test_validate_fail_union_flat_no_discrim);
-    validate_test_add("/visitor/input-strict/fail/union-anon",
-                      &testdata, test_validate_fail_union_anon);
+    validate_test_add("/visitor/input-strict/fail/alternate",
+                      &testdata, test_validate_fail_alternate);
     validate_test_add("/visitor/input-strict/fail/union-native-list",
                       &testdata, test_validate_fail_union_native_list);
 
