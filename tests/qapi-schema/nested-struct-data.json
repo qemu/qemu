@@ -1,4 +1,4 @@
-# FIXME: inline subtypes collide with our desired future use of defaults
+# inline subtypes collide with our desired future use of defaults
 { 'command': 'foo',
   'data': { 'a' : { 'string' : 'str', 'integer': 'int' }, 'b' : 'str' },
   'returns': {} }

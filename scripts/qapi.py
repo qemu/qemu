@@ -373,10 +373,12 @@ def check_type(expr_info, source, value, allow_array = False,
     for (key, arg) in value.items():
         check_name(expr_info, "Member of %s" % source, key,
                    allow_optional=allow_optional)
+        # Todo: allow dictionaries to represent default values of
+        # an optional argument.
         check_type(expr_info, "Member '%s' of %s" % (key, source), arg,
-                   allow_array=True, allow_dict=True, allow_optional=True,
+                   allow_array=True, allow_star=allow_star,
                    allow_metas=['built-in', 'union', 'alternate', 'struct',
-                                'enum'], allow_star=allow_star)
+                                'enum'])
 
 def check_command(expr, expr_info):
     name = expr['command']
@@ -404,13 +406,6 @@ def check_event(expr, expr_info):
     check_type(expr_info, "'data' for event '%s'" % name,
                expr.get('data'), allow_dict=True, allow_optional=True,
                allow_metas=['union', 'struct'])
-    if params:
-        for argname, argentry, optional, structured in parse_args(params):
-            if structured:
-                raise QAPIExprError(expr_info,
-                                    "Nested structure define in event is not "
-                                    "supported, event '%s', argname '%s'"
-                                    % (expr['event'], argname))
 
 def check_union(expr, expr_info):
     name = expr['union']
@@ -671,13 +666,12 @@ def parse_args(typeinfo):
         argname = member
         argentry = typeinfo[member]
         optional = False
-        structured = False
         if member.startswith('*'):
             argname = member[1:]
             optional = True
-        if isinstance(argentry, OrderedDict):
-            structured = True
-        yield (argname, argentry, optional, structured)
+        # Todo: allow argentry to be OrderedDict, for providing the
+        # value of an optional argument.
+        yield (argname, argentry, optional)
 
 def de_camel_case(name):
     new_name = ''

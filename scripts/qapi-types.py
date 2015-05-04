@@ -63,18 +63,13 @@ typedef struct %(name)sList
 def generate_struct_fields(members):
     ret = ''
 
-    for argname, argentry, optional, structured in parse_args(members):
+    for argname, argentry, optional in parse_args(members):
         if optional:
             ret += mcgen('''
     bool has_%(c_name)s;
 ''',
                          c_name=c_var(argname))
-        if structured:
-            push_indent()
-            ret += generate_struct({ "field": argname, "data": argentry})
-            pop_indent()
-        else:
-            ret += mcgen('''
+        ret += mcgen('''
     %(c_type)s %(c_name)s;
 ''',
                      c_type=c_type(argentry), c_name=c_var(argname))
