@@ -32,6 +32,12 @@ builtin_types = {
     'size':     'QTYPE_QINT',
 }
 
+enum_types = []
+struct_types = []
+union_types = []
+events = []
+all_names = {}
+
 def error_path(parent):
     res = ""
     while parent:
@@ -256,7 +262,14 @@ def discriminator_find_enum_define(expr):
     return find_enum(discriminator_type)
 
 def check_event(expr, expr_info):
+    global events
+    name = expr['event']
     params = expr.get('data')
+
+    if name.upper() == 'MAX':
+        raise QAPIExprError(expr_info, "Event name 'MAX' cannot be created")
+    events.append(name)
+
     if params:
         for argname, argentry, optional, structured in parse_args(params):
             if structured:
@@ -430,6 +443,9 @@ def check_keys(expr_elem, meta, required, optional=[]):
 
 
 def parse_schema(input_file):
+    global all_names
+    exprs = []
+
     # First pass: read entire file into memory
     try:
         schema = QAPISchema(open(input_file, "r"))
@@ -437,30 +453,34 @@ def parse_schema(input_file):
         print >>sys.stderr, e
         exit(1)
 
-    exprs = []
-
     try:
         # Next pass: learn the types and check for valid expression keys. At
         # this point, top-level 'include' has already been flattened.
+        for builtin in builtin_types.keys():
+            all_names[builtin] = 'built-in'
         for expr_elem in schema.exprs:
             expr = expr_elem['expr']
+            info = expr_elem['info']
             if expr.has_key('enum'):
                 check_keys(expr_elem, 'enum', ['data'])
-                add_enum(expr['enum'], expr['data'])
+                add_enum(expr['enum'], info, expr['data'])
             elif expr.has_key('union'):
                 check_keys(expr_elem, 'union', ['data'],
                            ['base', 'discriminator'])
-                add_union(expr)
+                add_union(expr, info)
             elif expr.has_key('alternate'):
                 check_keys(expr_elem, 'alternate', ['data'])
+                add_name(expr['alternate'], info, 'alternate')
             elif expr.has_key('type'):
                 check_keys(expr_elem, 'type', ['data'], ['base'])
-                add_struct(expr)
+                add_struct(expr, info)
             elif expr.has_key('command'):
                 check_keys(expr_elem, 'command', [],
                            ['data', 'returns', 'gen', 'success-response'])
+                add_name(expr['command'], info, 'command')
             elif expr.has_key('event'):
                 check_keys(expr_elem, 'event', [], ['data'])
+                add_name(expr['event'], info, 'event')
             else:
                 raise QAPIExprError(expr_elem['info'],
                                     "Expression is missing metatype")
@@ -471,9 +491,11 @@ def parse_schema(input_file):
             expr = expr_elem['expr']
             if expr.has_key('union'):
                 if not discriminator_find_enum_define(expr):
-                    add_enum('%sKind' % expr['union'])
+                    add_enum('%sKind' % expr['union'], expr_elem['info'],
+                             implicit=True)
             elif expr.has_key('alternate'):
-                add_enum('%sKind' % expr['alternate'])
+                add_enum('%sKind' % expr['alternate'], expr_elem['info'],
+                         implicit=True)
 
         # Final pass - validate that exprs make sense
         check_exprs(schema)
@@ -567,12 +589,22 @@ def type_name(name):
         return c_list_type(name[0])
     return name
 
-enum_types = []
-struct_types = []
-union_types = []
+def add_name(name, info, meta, implicit = False):
+    global all_names
+    if name in all_names:
+        raise QAPIExprError(info,
+                            "%s '%s' is already defined"
+                            % (all_names[name], name))
+    if not implicit and name[-4:] == 'Kind':
+        raise QAPIExprError(info,
+                            "%s '%s' should not end in 'Kind'"
+                            % (meta, name))
+    all_names[name] = meta
 
-def add_struct(definition):
+def add_struct(definition, info):
     global struct_types
+    name = definition['type']
+    add_name(name, info, 'struct')
     struct_types.append(definition)
 
 def find_struct(name):
@@ -582,8 +614,10 @@ def find_struct(name):
             return struct
     return None
 
-def add_union(definition):
+def add_union(definition, info):
     global union_types
+    name = definition['union']
+    add_name(name, info, 'union')
     union_types.append(definition)
 
 def find_union(name):
@@ -593,8 +627,9 @@ def find_union(name):
             return union
     return None
 
-def add_enum(name, enum_values = None):
+def add_enum(name, info, enum_values = None, implicit = False):
     global enum_types
+    add_name(name, info, 'enum', implicit)
     enum_types.append({"enum_name": name, "enum_values": enum_values})
 
 def find_enum(name):
@@ -636,7 +671,7 @@ def c_type(name, is_param=False):
         return name
     elif name == None or len(name) == 0:
         return 'void'
-    elif name == name.upper():
+    elif name in events:
         return '%sEvent *%s' % (camel_case(name), eatspace)
     else:
         return '%s *%s' % (name, eatspace)

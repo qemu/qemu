@@ -1,2 +1,2 @@
-# FIXME: an event named 'MAX' would conflict with implicit C enum
+# an event named 'MAX' would conflict with implicit C enum
 { 'event': 'MAX' }

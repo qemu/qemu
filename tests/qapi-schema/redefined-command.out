@@ -1,4 +1,0 @@
-[OrderedDict([('command', 'foo'), ('data', OrderedDict([('one', 'str')]))]),
- OrderedDict([('command', 'foo'), ('data', OrderedDict([('*two', 'str')]))])]
-[]
-[]
