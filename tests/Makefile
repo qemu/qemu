@@ -243,7 +243,8 @@ check-qapi-schema-y := $(addprefix tests/qapi-schema/, \
 	include-simple.json include-relpath.json include-format-err.json \
 	include-non-file.json include-no-file.json include-before-err.json \
 	include-nested-err.json include-self-cycle.json include-cycle.json \
-	include-repetition.json event-nest-struct.json event-case.json)
+	include-repetition.json event-nest-struct.json event-case.json \
+	struct-base-clash.json struct-base-clash-deep.json )
 
 GENERATED_HEADERS += tests/test-qapi-types.h tests/test-qapi-visit.h \
 		     tests/test-qmp-commands.h tests/test-qapi-event.h

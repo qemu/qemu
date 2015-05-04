@@ -1,0 +1,9 @@
+# we check for no duplicate keys with indirect base
+{ 'struct': 'Base',
+  'data': { 'name': 'str' } }
+{ 'struct': 'Mid',
+  'base': 'Base',
+  'data': { 'value': 'int' } }
+{ 'struct': 'Sub',
+  'base': 'Mid',
+  'data': { '*name': 'str' } }

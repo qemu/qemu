@@ -1,9 +1,0 @@
-[OrderedDict([('enum', 'TestEnum'), ('data', ['value1', 'value2'])]),
- OrderedDict([('struct', 'Base'), ('data', OrderedDict([('enum1', 'TestEnum'), ('name', 'str')]))]),
- OrderedDict([('struct', 'Branch1'), ('data', OrderedDict([('name', 'str')]))]),
- OrderedDict([('struct', 'Branch2'), ('data', OrderedDict([('value', 'int')]))]),
- OrderedDict([('union', 'TestUnion'), ('base', 'Base'), ('discriminator', 'enum1'), ('data', OrderedDict([('value1', 'Branch1'), ('value2', 'Branch2')]))])]
-[{'enum_name': 'TestEnum', 'enum_values': ['value1', 'value2']}]
-[OrderedDict([('struct', 'Base'), ('data', OrderedDict([('enum1', 'TestEnum'), ('name', 'str')]))]),
- OrderedDict([('struct', 'Branch1'), ('data', OrderedDict([('name', 'str')]))]),
- OrderedDict([('struct', 'Branch2'), ('data', OrderedDict([('value', 'int')]))])]

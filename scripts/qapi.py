@@ -414,6 +414,20 @@ def check_type(expr_info, source, value, allow_array = False,
                    allow_metas=['built-in', 'union', 'alternate', 'struct',
                                 'enum'])
 
+def check_member_clash(expr_info, base_name, data, source = ""):
+    base = find_struct(base_name)
+    assert base
+    base_members = base['data']
+    for key in data.keys():
+        if key.startswith('*'):
+            key = key[1:]
+        if key in base_members or "*" + key in base_members:
+            raise QAPIExprError(expr_info,
+                                "Member name '%s'%s clashes with base '%s'"
+                                % (key, source, base_name))
+    if base.get('base'):
+        check_member_clash(expr_info, base['base'], data, source)
+
 def check_command(expr, expr_info):
     name = expr['command']
     allow_star = expr.has_key('gen')
@@ -503,9 +517,14 @@ def check_union(expr, expr_info):
         check_name(expr_info, "Member of union '%s'" % name, key)
 
         # Each value must name a known type; furthermore, in flat unions,
-        # branches must be a struct
+        # branches must be a struct with no overlapping member names
         check_type(expr_info, "Member '%s' of union '%s'" % (key, name),
                    value, allow_array=True, allow_metas=allow_metas)
+        if base:
+            branch_struct = find_struct(value)
+            assert branch_struct
+            check_member_clash(expr_info, base, branch_struct['data'],
+                               " of branch '%s'" % key)
 
         # If the discriminator names an enum type, then all members
         # of 'data' must also be members of the enum type.
@@ -582,6 +601,8 @@ def check_struct(expr, expr_info):
                allow_dict=True, allow_optional=True)
     check_type(expr_info, "'base' for struct '%s'" % name, expr.get('base'),
                allow_metas=['struct'])
+    if expr.get('base'):
+        check_member_clash(expr_info, expr['base'], expr['data'])
 
 def check_exprs(schema):
     for expr_elem in schema.exprs:
