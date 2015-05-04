@@ -43,50 +43,43 @@ static void visit_type_implicit_%(c_type)s(Visitor *m, %(c_type)s **obj, Error *
 ''',
                  c_type=type_name(type))
 
-def generate_visit_struct_fields(name, field_prefix, fn_prefix, members, base = None):
+def generate_visit_struct_fields(name, members, base = None):
     substructs = []
     ret = ''
-    if not fn_prefix:
-        full_name = name
-    else:
-        full_name = "%s_%s" % (name, fn_prefix)
 
     if base:
         ret += generate_visit_implicit_struct(base)
 
     ret += mcgen('''
 
-static void visit_type_%(full_name)s_fields(Visitor *m, %(name)s **obj, Error **errp)
+static void visit_type_%(name)s_fields(Visitor *m, %(name)s **obj, Error **errp)
 {
     Error *err = NULL;
 ''',
-        name=name, full_name=full_name)
+                 name=name)
     push_indent()
 
     if base:
         ret += mcgen('''
-visit_type_implicit_%(type)s(m, &(*obj)->%(c_prefix)s%(c_name)s, &err);
+visit_type_implicit_%(type)s(m, &(*obj)->%(c_name)s, &err);
 if (err) {
     goto out;
 }
 ''',
-                     c_prefix=c_var(field_prefix),
                      type=type_name(base), c_name=c_var('base'))
 
     for argname, argentry, optional in parse_args(members):
         if optional:
             ret += mcgen('''
-visit_optional(m, &(*obj)->%(c_prefix)shas_%(c_name)s, "%(name)s", &err);
-if (!err && (*obj)->%(prefix)shas_%(c_name)s) {
+visit_optional(m, &(*obj)->has_%(c_name)s, "%(name)s", &err);
+if (!err && (*obj)->has_%(c_name)s) {
 ''',
-                         c_prefix=c_var(field_prefix), prefix=field_prefix,
                          c_name=c_var(argname), name=argname)
             push_indent()
 
         ret += mcgen('''
-visit_type_%(type)s(m, &(*obj)->%(c_prefix)s%(c_name)s, "%(name)s", &err);
+visit_type_%(type)s(m, &(*obj)->%(c_name)s, "%(name)s", &err);
 ''',
-                     c_prefix=c_var(field_prefix), prefix=field_prefix,
                      type=type_name(argentry), c_name=c_var(argname),
                      name=argname)
 
@@ -114,29 +107,11 @@ out:
     return ret
 
 
-def generate_visit_struct_body(field_prefix, name, members):
+def generate_visit_struct_body(name, members):
     ret = mcgen('''
     Error *err = NULL;
 
-''')
-
-    if not field_prefix:
-        full_name = name
-    else:
-        full_name = "%s_%s" % (field_prefix, name)
-
-    if len(field_prefix):
-        ret += mcgen('''
-    visit_start_struct(m, NULL, "", "%(name)s", 0, &err);
-''',
-                name=name)
-    else:
-        ret += mcgen('''
     visit_start_struct(m, (void **)obj, "%(name)s", name, sizeof(%(name)s), &err);
-''',
-                name=name)
-
-    ret += mcgen('''
     if (!err) {
         if (*obj) {
             visit_type_%(name)s_fields(m, obj, errp);
@@ -145,7 +120,7 @@ def generate_visit_struct_body(field_prefix, name, members):
     }
     error_propagate(errp, err);
 ''',
-        name=full_name)
+                name=name)
 
     return ret
 
@@ -155,7 +130,7 @@ def generate_visit_struct(expr):
     members = expr['data']
     base = expr.get('base')
 
-    ret = generate_visit_struct_fields(name, "", "", members, base)
+    ret = generate_visit_struct_fields(name, members, base)
 
     ret += mcgen('''
 
@@ -164,7 +139,7 @@ void visit_type_%(name)s(Visitor *m, %(name)s **obj, const char *name, Error **e
 ''',
                 name=name)
 
-    ret += generate_visit_struct_body("", name, members)
+    ret += generate_visit_struct_body(name, members)
 
     ret += mcgen('''
 }
@@ -288,7 +263,7 @@ def generate_visit_union(expr):
         assert discriminator
         base_fields = find_struct(base)['data'].copy()
         del base_fields[discriminator]
-        ret += generate_visit_struct_fields(name, "", "", base_fields)
+        ret += generate_visit_struct_fields(name, base_fields)
 
     if discriminator:
         for key in members:
