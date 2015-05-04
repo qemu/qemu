@@ -214,6 +214,8 @@ check-qapi-schema-y := $(addprefix tests/qapi-schema/, \
 	missing-type.json bad-ident.json ident-with-escape.json \
 	double-type.json bad-base.json bad-type-bool.json bad-type-int.json \
 	bad-type-dict.json double-data.json unknown-expr-key.json \
+	redefined-type.json redefined-command.json redefined-builtin.json \
+	redefined-event.json command-int.json event-max.json \
 	missing-colon.json missing-comma-list.json \
 	missing-comma-object.json non-objects.json \
 	qapi-schema-test.json quoted-structural-chars.json \

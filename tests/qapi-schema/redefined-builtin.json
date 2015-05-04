@@ -1,0 +1,2 @@
+# FIXME: we should reject types that duplicate builtin names
+{ 'type': 'size', 'data': { 'myint': 'size' } }

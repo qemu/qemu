@@ -1,0 +1,3 @@
+# FIXME: we should reject types defined more than once
+{ 'type': 'foo', 'data': { 'one': 'str' } }
+{ 'enum': 'foo', 'data': [ 'two' ] }

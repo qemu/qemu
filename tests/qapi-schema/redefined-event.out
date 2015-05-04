@@ -1,0 +1,4 @@
+[OrderedDict([('event', 'EVENT_A'), ('data', OrderedDict([('myint', 'int')]))]),
+ OrderedDict([('event', 'EVENT_A'), ('data', OrderedDict([('myint', 'int')]))])]
+[]
+[]
