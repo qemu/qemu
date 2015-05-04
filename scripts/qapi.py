@@ -29,6 +29,7 @@ builtin_types = {
     'uint16':   'QTYPE_QINT',
     'uint32':   'QTYPE_QINT',
     'uint64':   'QTYPE_QINT',
+    'size':     'QTYPE_QINT',
 }
 
 def error_path(parent):

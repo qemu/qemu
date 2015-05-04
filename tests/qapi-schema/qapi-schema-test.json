@@ -74,7 +74,8 @@
             'u64': ['uint64'],
             'number': ['number'],
             'boolean': ['bool'],
-            'string': ['str'] } }
+            'string': ['str'],
+            'sizes': ['size'] } }
 
 # testing commands
 { 'command': 'user_def_cmd', 'data': {} }
