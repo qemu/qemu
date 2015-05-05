@@ -95,6 +95,15 @@ static void set_guest_connected(VirtIOSerialPort *port, int guest_connected)
     }
 }
 
+static void guest_writable(VirtIOSerialPort *port)
+{
+    VirtConsole *vcon = VIRTIO_CONSOLE(port);
+
+    if (vcon->chr) {
+        qemu_chr_accept_input(vcon->chr);
+    }
+}
+
 /* Readiness of the guest to accept data on a port */
 static int chr_can_read(void *opaque)
 {
@@ -188,6 +197,7 @@ static void virtserialport_class_init(ObjectClass *klass, void *data)
     k->unrealize = virtconsole_unrealize;
     k->have_data = flush_buf;
     k->set_guest_connected = set_guest_connected;
+    k->guest_writable = guest_writable;
     dc->props = virtserialport_properties;
 }
 
