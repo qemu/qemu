@@ -296,6 +296,7 @@ clean:
 	rm -f fsdev/*.pod
 	rm -rf .libs */.libs
 	rm -f qemu-img-cmds.h
+	rm -f ui/shader/*-vert.h ui/shader/*-frag.h
 	@# May not be present in GENERATED_HEADERS
 	rm -f trace/generated-tracers-dtrace.dtrace*
 	rm -f trace/generated-tracers-dtrace.h*
@@ -440,6 +441,22 @@ cscope:
 	rm -f ./cscope.*
 	find "$(SRC_PATH)" -name "*.[chsS]" -print | sed 's,^\./,,' > ./cscope.files
 	cscope -b
+
+# opengl shader programs
+ui/shader/%-vert.h: $(SRC_PATH)/ui/shader/%.vert $(SRC_PATH)/scripts/shaderinclude.pl
+	@mkdir -p $(dir $@)
+	$(call quiet-command,\
+		perl $(SRC_PATH)/scripts/shaderinclude.pl $< > $@,\
+		"  VERT  $@")
+
+ui/shader/%-frag.h: $(SRC_PATH)/ui/shader/%.frag $(SRC_PATH)/scripts/shaderinclude.pl
+	@mkdir -p $(dir $@)
+	$(call quiet-command,\
+		perl $(SRC_PATH)/scripts/shaderinclude.pl $< > $@,\
+		"  FRAG  $@")
+
+ui/console-gl.o: $(SRC_PATH)/ui/console-gl.c \
+	ui/shader/texture-blit-vert.h ui/shader/texture-blit-frag.h
 
 # documentation
 MAKEINFO=makeinfo

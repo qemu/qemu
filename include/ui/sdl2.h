@@ -1,6 +1,12 @@
 #ifndef SDL2_H
 #define SDL2_H
 
+/* Avoid compiler warning because macro is redefined in SDL_syswm.h. */
+#undef WIN32_LEAN_AND_MEAN
+
+#include <SDL.h>
+#include <SDL_syswm.h>
+
 struct sdl2_console {
     DisplayChangeListener dcl;
     DisplaySurface *surface;
@@ -11,6 +17,10 @@ struct sdl2_console {
     int last_vm_running; /* per console for caption reasons */
     int x, y;
     int hidden;
+    int opengl;
+    int updates;
+    SDL_GLContext winctx;
+    ConsoleGLState *gls;
 };
 
 void sdl2_window_create(struct sdl2_console *scon);
@@ -30,5 +40,12 @@ void sdl2_2d_refresh(DisplayChangeListener *dcl);
 void sdl2_2d_redraw(struct sdl2_console *scon);
 bool sdl2_2d_check_format(DisplayChangeListener *dcl,
                           pixman_format_code_t format);
+
+void sdl2_gl_update(DisplayChangeListener *dcl,
+                    int x, int y, int w, int h);
+void sdl2_gl_switch(DisplayChangeListener *dcl,
+                    DisplaySurface *new_surface);
+void sdl2_gl_refresh(DisplayChangeListener *dcl);
+void sdl2_gl_redraw(struct sdl2_console *scon);
 
 #endif /* SDL2_H */

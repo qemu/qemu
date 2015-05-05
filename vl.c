@@ -130,6 +130,7 @@ static int data_dir_idx;
 const char *bios_name = NULL;
 enum vga_retrace_method vga_retrace_method = VGA_RETRACE_DUMB;
 DisplayType display_type = DT_DEFAULT;
+int request_opengl = -1;
 int display_opengl;
 static int display_remote;
 const char* keyboard_layout = NULL;
@@ -1987,6 +1988,15 @@ static DisplayType select_display(const char *p)
                     no_quit = 0;
                 } else if (strstart(opts, "off", &nextopt)) {
                     no_quit = 1;
+                } else {
+                    goto invalid_sdl_args;
+                }
+            } else if (strstart(opts, ",gl=", &nextopt)) {
+                opts = nextopt;
+                if (strstart(opts, "on", &nextopt)) {
+                    request_opengl = 1;
+                } else if (strstart(opts, "off", &nextopt)) {
+                    request_opengl = 0;
                 } else {
                     goto invalid_sdl_args;
                 }
@@ -4005,6 +4015,19 @@ int main(int argc, char **argv, char **envp)
         early_gtk_display_init();
     }
 #endif
+#if defined(CONFIG_SDL)
+    if (display_type == DT_SDL) {
+        sdl_display_early_init(request_opengl);
+    }
+#endif
+    if (request_opengl == 1 && display_opengl == 0) {
+#if defined(CONFIG_OPENGL)
+        fprintf(stderr, "OpenGL is not supported by the display.\n");
+#else
+        fprintf(stderr, "QEMU was built without opengl support.\n");
+#endif
+        exit(1);
+    }
 
     socket_init();
 
