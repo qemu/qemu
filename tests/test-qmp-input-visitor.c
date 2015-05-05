@@ -1,7 +1,7 @@
 /*
  * QMP Input Visitor unit-tests.
  *
- * Copyright (C) 2011 Red Hat Inc.
+ * Copyright (C) 2011, 2015 Red Hat Inc.
  *
  * Authors:
  *  Luiz Capitulino <lcapitulino@redhat.com>
@@ -248,23 +248,28 @@ static void check_and_free_str(char *str, const char *cmp)
 static void test_visitor_in_struct_nested(TestInputVisitorData *data,
                                           const void *unused)
 {
-    UserDefNested *udp = NULL;
+    UserDefTwo *udp = NULL;
     Error *err = NULL;
     Visitor *v;
 
-    v = visitor_input_test_init(data, "{ 'string0': 'string0', 'dict1': { 'string1': 'string1', 'dict2': { 'userdef1': { 'integer': 42, 'string': 'string' }, 'string2': 'string2'}}}");
+    v = visitor_input_test_init(data, "{ 'string0': 'string0', "
+                                "'dict1': { 'string1': 'string1', "
+                                "'dict2': { 'userdef': { 'integer': 42, "
+                                "'string': 'string' }, 'string': 'string2'}}}");
 
-    visit_type_UserDefNested(v, &udp, NULL, &err);
+    visit_type_UserDefTwo(v, &udp, NULL, &err);
     g_assert(!err);
 
     check_and_free_str(udp->string0, "string0");
-    check_and_free_str(udp->dict1.string1, "string1");
-    g_assert_cmpint(udp->dict1.dict2.userdef1->base->integer, ==, 42);
-    check_and_free_str(udp->dict1.dict2.userdef1->string, "string");
-    check_and_free_str(udp->dict1.dict2.string2, "string2");
-    g_assert(udp->dict1.has_dict3 == false);
+    check_and_free_str(udp->dict1->string1, "string1");
+    g_assert_cmpint(udp->dict1->dict2->userdef->base->integer, ==, 42);
+    check_and_free_str(udp->dict1->dict2->userdef->string, "string");
+    check_and_free_str(udp->dict1->dict2->string, "string2");
+    g_assert(udp->dict1->has_dict3 == false);
 
-    g_free(udp->dict1.dict2.userdef1);
+    g_free(udp->dict1->dict2->userdef);
+    g_free(udp->dict1->dict2);
+    g_free(udp->dict1);
     g_free(udp);
 }
 
@@ -293,23 +298,6 @@ static void test_visitor_in_list(TestInputVisitorData *data,
     qapi_free_UserDefOneList(head);
 }
 
-static void test_visitor_in_union(TestInputVisitorData *data,
-                                  const void *unused)
-{
-    Visitor *v;
-    Error *err = NULL;
-    UserDefUnion *tmp;
-
-    v = visitor_input_test_init(data, "{ 'type': 'b', 'integer': 41, 'data' : { 'integer': 42 } }");
-
-    visit_type_UserDefUnion(v, &tmp, NULL, &err);
-    g_assert(err == NULL);
-    g_assert_cmpint(tmp->kind, ==, USER_DEF_UNION_KIND_B);
-    g_assert_cmpint(tmp->integer, ==, 41);
-    g_assert_cmpint(tmp->b->integer, ==, 42);
-    qapi_free_UserDefUnion(tmp);
-}
-
 static void test_visitor_in_union_flat(TestInputVisitorData *data,
                                        const void *unused)
 {
@@ -332,20 +320,20 @@ static void test_visitor_in_union_flat(TestInputVisitorData *data,
     qapi_free_UserDefFlatUnion(tmp);
 }
 
-static void test_visitor_in_union_anon(TestInputVisitorData *data,
-                                       const void *unused)
+static void test_visitor_in_alternate(TestInputVisitorData *data,
+                                      const void *unused)
 {
     Visitor *v;
     Error *err = NULL;
-    UserDefAnonUnion *tmp;
+    UserDefAlternate *tmp;
 
     v = visitor_input_test_init(data, "42");
 
-    visit_type_UserDefAnonUnion(v, &tmp, NULL, &err);
+    visit_type_UserDefAlternate(v, &tmp, NULL, &err);
     g_assert(err == NULL);
-    g_assert_cmpint(tmp->kind, ==, USER_DEF_ANON_UNION_KIND_I);
+    g_assert_cmpint(tmp->kind, ==, USER_DEF_ALTERNATE_KIND_I);
     g_assert_cmpint(tmp->i, ==, 42);
-    qapi_free_UserDefAnonUnion(tmp);
+    qapi_free_UserDefAlternate(tmp);
 }
 
 static void test_native_list_integer_helper(TestInputVisitorData *data,
@@ -670,55 +658,56 @@ int main(int argc, char **argv)
     input_visitor_test_add("/visitor/input/number",
                            &in_visitor_data, test_visitor_in_number);
     input_visitor_test_add("/visitor/input/string",
-                            &in_visitor_data, test_visitor_in_string);
+                           &in_visitor_data, test_visitor_in_string);
     input_visitor_test_add("/visitor/input/enum",
-                            &in_visitor_data, test_visitor_in_enum);
+                           &in_visitor_data, test_visitor_in_enum);
     input_visitor_test_add("/visitor/input/struct",
-                            &in_visitor_data, test_visitor_in_struct);
+                           &in_visitor_data, test_visitor_in_struct);
     input_visitor_test_add("/visitor/input/struct-nested",
-                            &in_visitor_data, test_visitor_in_struct_nested);
+                           &in_visitor_data, test_visitor_in_struct_nested);
     input_visitor_test_add("/visitor/input/list",
-                            &in_visitor_data, test_visitor_in_list);
-    input_visitor_test_add("/visitor/input/union",
-                            &in_visitor_data, test_visitor_in_union);
+                           &in_visitor_data, test_visitor_in_list);
     input_visitor_test_add("/visitor/input/union-flat",
-                            &in_visitor_data, test_visitor_in_union_flat);
-    input_visitor_test_add("/visitor/input/union-anon",
-                            &in_visitor_data, test_visitor_in_union_anon);
+                           &in_visitor_data, test_visitor_in_union_flat);
+    input_visitor_test_add("/visitor/input/alternate",
+                           &in_visitor_data, test_visitor_in_alternate);
     input_visitor_test_add("/visitor/input/errors",
-                            &in_visitor_data, test_visitor_in_errors);
+                           &in_visitor_data, test_visitor_in_errors);
     input_visitor_test_add("/visitor/input/native_list/int",
-                            &in_visitor_data,
-                            test_visitor_in_native_list_int);
+                           &in_visitor_data,
+                           test_visitor_in_native_list_int);
     input_visitor_test_add("/visitor/input/native_list/int8",
-                            &in_visitor_data,
-                            test_visitor_in_native_list_int8);
+                           &in_visitor_data,
+                           test_visitor_in_native_list_int8);
     input_visitor_test_add("/visitor/input/native_list/int16",
-                            &in_visitor_data,
-                            test_visitor_in_native_list_int16);
+                           &in_visitor_data,
+                           test_visitor_in_native_list_int16);
     input_visitor_test_add("/visitor/input/native_list/int32",
-                            &in_visitor_data,
-                            test_visitor_in_native_list_int32);
+                           &in_visitor_data,
+                           test_visitor_in_native_list_int32);
     input_visitor_test_add("/visitor/input/native_list/int64",
-                            &in_visitor_data,
-                            test_visitor_in_native_list_int64);
+                           &in_visitor_data,
+                           test_visitor_in_native_list_int64);
     input_visitor_test_add("/visitor/input/native_list/uint8",
-                            &in_visitor_data,
-                            test_visitor_in_native_list_uint8);
+                           &in_visitor_data,
+                           test_visitor_in_native_list_uint8);
     input_visitor_test_add("/visitor/input/native_list/uint16",
-                            &in_visitor_data,
-                            test_visitor_in_native_list_uint16);
+                           &in_visitor_data,
+                           test_visitor_in_native_list_uint16);
     input_visitor_test_add("/visitor/input/native_list/uint32",
-                            &in_visitor_data,
-                            test_visitor_in_native_list_uint32);
+                           &in_visitor_data,
+                           test_visitor_in_native_list_uint32);
     input_visitor_test_add("/visitor/input/native_list/uint64",
-                            &in_visitor_data, test_visitor_in_native_list_uint64);
+                           &in_visitor_data,
+                           test_visitor_in_native_list_uint64);
     input_visitor_test_add("/visitor/input/native_list/bool",
-                            &in_visitor_data, test_visitor_in_native_list_bool);
+                           &in_visitor_data, test_visitor_in_native_list_bool);
     input_visitor_test_add("/visitor/input/native_list/str",
-                            &in_visitor_data, test_visitor_in_native_list_string);
+                           &in_visitor_data,
+                           test_visitor_in_native_list_string);
     input_visitor_test_add("/visitor/input/native_list/number",
-                            &in_visitor_data, test_visitor_in_native_list_number);
+                           &in_visitor_data,
+                           test_visitor_in_native_list_number);
 
     g_test_run();
 

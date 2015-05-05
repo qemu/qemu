@@ -1,0 +1,2 @@
+# we reject enums where members will clash when mapped to C enum
+{ 'enum': 'MyEnum', 'data': [ 'one', 'ONE' ] }

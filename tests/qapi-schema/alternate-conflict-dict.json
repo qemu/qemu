@@ -1,0 +1,8 @@
+# we reject alternates with multiple object branches
+{ 'struct': 'One',
+  'data': { 'name': 'str' } }
+{ 'struct': 'Two',
+  'data': { 'value': 'int' } }
+{ 'alternate': 'Alt',
+  'data': { 'one': 'One',
+            'two': 'Two' } }

@@ -1,0 +1,1 @@
+tests/qapi-schema/bad-base.json:3: 'base' for struct 'MyType' cannot use union type 'Union'

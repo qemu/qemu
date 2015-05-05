@@ -21,7 +21,7 @@ def _generate_event_api_name(event_name, params):
     l = len(api_name)
 
     if params:
-        for argname, argentry, optional, structured in parse_args(params):
+        for argname, argentry, optional in parse_args(params):
             if optional:
                 api_name += "bool has_%s,\n" % c_var(argname)
                 api_name += "".ljust(l)
@@ -93,7 +93,7 @@ def generate_event_implement(api_name, event_name, params):
 """,
                 event_name = event_name)
 
-        for argname, argentry, optional, structured in parse_args(params):
+        for argname, argentry, optional in parse_args(params):
             if optional:
                 ret += mcgen("""
     if (has_%(var)s) {

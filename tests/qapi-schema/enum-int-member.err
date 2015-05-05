@@ -1,0 +1,1 @@
+tests/qapi-schema/enum-int-member.json:3:31: Stray "1"

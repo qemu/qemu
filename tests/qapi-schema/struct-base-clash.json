@@ -1,0 +1,6 @@
+# we check for no duplicate keys with base
+{ 'struct': 'Base',
+  'data': { 'name': 'str' } }
+{ 'struct': 'Sub',
+  'base': 'Base',
+  'data': { 'name': 'str' } }

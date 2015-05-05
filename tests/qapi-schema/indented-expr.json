@@ -1,2 +1,2 @@
-{ 'id' : 'eins' }
- { 'id' : 'zwei' }
+{ 'command' : 'eins' }
+ { 'command' : 'zwei' }

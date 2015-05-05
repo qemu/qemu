@@ -2,7 +2,7 @@
 # QAPI command marshaller generator
 #
 # Copyright IBM, Corp. 2011
-# Copyright (C) 2014 Red Hat, Inc.
+# Copyright (C) 2014-2015 Red Hat, Inc.
 #
 # Authors:
 #  Anthony Liguori <aliguori@us.ibm.com>
@@ -28,7 +28,7 @@ def type_visitor(name):
 
 def generate_command_decl(name, args, ret_type):
     arglist=""
-    for argname, argtype, optional, structured in parse_args(args):
+    for argname, argtype, optional in parse_args(args):
         argtype = c_type(argtype, is_param=True)
         if optional:
             arglist += "bool has_%s, " % c_var(argname)
@@ -53,7 +53,7 @@ def gen_sync_call(name, args, ret_type, indent=0):
     retval=""
     if ret_type:
         retval = "retval = "
-    for argname, argtype, optional, structured in parse_args(args):
+    for argname, argtype, optional in parse_args(args):
         if optional:
             arglist += "has_%s, " % c_var(argname)
         arglist += "%s, " % (c_var(argname))
@@ -96,7 +96,7 @@ Visitor *v;
 def gen_visitor_input_vars_decl(args):
     ret = ""
     push_indent()
-    for argname, argtype, optional, structured in parse_args(args):
+    for argname, argtype, optional in parse_args(args):
         if optional:
             ret += mcgen('''
 bool has_%(argname)s = false;
@@ -139,7 +139,7 @@ v = qapi_dealloc_get_visitor(md);
 v = qmp_input_get_visitor(mi);
 ''')
 
-    for argname, argtype, optional, structured in parse_args(args):
+    for argname, argtype, optional in parse_args(args):
         if optional:
             ret += mcgen('''
 visit_optional(v, &has_%(c_name)s, "%(name)s", %(errp)s);
@@ -293,17 +293,12 @@ out:
 
     return ret
 
-def option_value_matches(opt, val, cmd):
-    if opt in cmd and cmd[opt] == val:
-        return True
-    return False
-
 def gen_registry(commands):
     registry=""
     push_indent()
     for cmd in commands:
         options = 'QCO_NO_OPTIONS'
-        if option_value_matches('success-response', 'no', cmd):
+        if not cmd.get('success-response', True):
             options = 'QCO_NO_SUCCESS_RESP'
 
         registry += mcgen('''

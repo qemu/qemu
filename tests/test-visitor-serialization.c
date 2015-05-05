@@ -1,6 +1,7 @@
 /*
  * Unit-tests for visitor-based serialization
  *
+ * Copyright (C) 2014-2015 Red Hat, Inc.
  * Copyright IBM, Corp. 2012
  *
  * Authors:
@@ -249,57 +250,62 @@ static void visit_struct(Visitor *v, void **native, Error **errp)
     visit_type_TestStruct(v, (TestStruct **)native, NULL, errp);
 }
 
-static UserDefNested *nested_struct_create(void)
+static UserDefTwo *nested_struct_create(void)
 {
-    UserDefNested *udnp = g_malloc0(sizeof(*udnp));
+    UserDefTwo *udnp = g_malloc0(sizeof(*udnp));
     udnp->string0 = strdup("test_string0");
-    udnp->dict1.string1 = strdup("test_string1");
-    udnp->dict1.dict2.userdef1 = g_malloc0(sizeof(UserDefOne));
-    udnp->dict1.dict2.userdef1->base = g_new0(UserDefZero, 1);
-    udnp->dict1.dict2.userdef1->base->integer = 42;
-    udnp->dict1.dict2.userdef1->string = strdup("test_string");
-    udnp->dict1.dict2.string2 = strdup("test_string2");
-    udnp->dict1.has_dict3 = true;
-    udnp->dict1.dict3.userdef2 = g_malloc0(sizeof(UserDefOne));
-    udnp->dict1.dict3.userdef2->base = g_new0(UserDefZero, 1);
-    udnp->dict1.dict3.userdef2->base->integer = 43;
-    udnp->dict1.dict3.userdef2->string = strdup("test_string");
-    udnp->dict1.dict3.string3 = strdup("test_string3");
+    udnp->dict1 = g_malloc0(sizeof(*udnp->dict1));
+    udnp->dict1->string1 = strdup("test_string1");
+    udnp->dict1->dict2 = g_malloc0(sizeof(*udnp->dict1->dict2));
+    udnp->dict1->dict2->userdef = g_new0(UserDefOne, 1);
+    udnp->dict1->dict2->userdef->base = g_new0(UserDefZero, 1);
+    udnp->dict1->dict2->userdef->base->integer = 42;
+    udnp->dict1->dict2->userdef->string = strdup("test_string");
+    udnp->dict1->dict2->string = strdup("test_string2");
+    udnp->dict1->dict3 = g_malloc0(sizeof(*udnp->dict1->dict3));
+    udnp->dict1->has_dict3 = true;
+    udnp->dict1->dict3->userdef = g_new0(UserDefOne, 1);
+    udnp->dict1->dict3->userdef->base = g_new0(UserDefZero, 1);
+    udnp->dict1->dict3->userdef->base->integer = 43;
+    udnp->dict1->dict3->userdef->string = strdup("test_string");
+    udnp->dict1->dict3->string = strdup("test_string3");
     return udnp;
 }
 
-static void nested_struct_compare(UserDefNested *udnp1, UserDefNested *udnp2)
+static void nested_struct_compare(UserDefTwo *udnp1, UserDefTwo *udnp2)
 {
     g_assert(udnp1);
     g_assert(udnp2);
     g_assert_cmpstr(udnp1->string0, ==, udnp2->string0);
-    g_assert_cmpstr(udnp1->dict1.string1, ==, udnp2->dict1.string1);
-    g_assert_cmpint(udnp1->dict1.dict2.userdef1->base->integer, ==,
-                    udnp2->dict1.dict2.userdef1->base->integer);
-    g_assert_cmpstr(udnp1->dict1.dict2.userdef1->string, ==,
-                    udnp2->dict1.dict2.userdef1->string);
-    g_assert_cmpstr(udnp1->dict1.dict2.string2, ==, udnp2->dict1.dict2.string2);
-    g_assert(udnp1->dict1.has_dict3 == udnp2->dict1.has_dict3);
-    g_assert_cmpint(udnp1->dict1.dict3.userdef2->base->integer, ==,
-                    udnp2->dict1.dict3.userdef2->base->integer);
-    g_assert_cmpstr(udnp1->dict1.dict3.userdef2->string, ==,
-                    udnp2->dict1.dict3.userdef2->string);
-    g_assert_cmpstr(udnp1->dict1.dict3.string3, ==, udnp2->dict1.dict3.string3);
+    g_assert_cmpstr(udnp1->dict1->string1, ==, udnp2->dict1->string1);
+    g_assert_cmpint(udnp1->dict1->dict2->userdef->base->integer, ==,
+                    udnp2->dict1->dict2->userdef->base->integer);
+    g_assert_cmpstr(udnp1->dict1->dict2->userdef->string, ==,
+                    udnp2->dict1->dict2->userdef->string);
+    g_assert_cmpstr(udnp1->dict1->dict2->string, ==,
+                    udnp2->dict1->dict2->string);
+    g_assert(udnp1->dict1->has_dict3 == udnp2->dict1->has_dict3);
+    g_assert_cmpint(udnp1->dict1->dict3->userdef->base->integer, ==,
+                    udnp2->dict1->dict3->userdef->base->integer);
+    g_assert_cmpstr(udnp1->dict1->dict3->userdef->string, ==,
+                    udnp2->dict1->dict3->userdef->string);
+    g_assert_cmpstr(udnp1->dict1->dict3->string, ==,
+                    udnp2->dict1->dict3->string);
 }
 
-static void nested_struct_cleanup(UserDefNested *udnp)
+static void nested_struct_cleanup(UserDefTwo *udnp)
 {
-    qapi_free_UserDefNested(udnp);
+    qapi_free_UserDefTwo(udnp);
 }
 
 static void visit_nested_struct(Visitor *v, void **native, Error **errp)
 {
-    visit_type_UserDefNested(v, (UserDefNested **)native, NULL, errp);
+    visit_type_UserDefTwo(v, (UserDefTwo **)native, NULL, errp);
 }
 
 static void visit_nested_struct_list(Visitor *v, void **native, Error **errp)
 {
-    visit_type_UserDefNestedList(v, (UserDefNestedList **)native, NULL, errp);
+    visit_type_UserDefTwoList(v, (UserDefTwoList **)native, NULL, errp);
 }
 
 /* test cases */
@@ -715,13 +721,14 @@ static void test_nested_struct(gconstpointer opaque)
 {
     TestArgs *args = (TestArgs *) opaque;
     const SerializeOps *ops = args->ops;
-    UserDefNested *udnp = nested_struct_create();
-    UserDefNested *udnp_copy = NULL;
+    UserDefTwo *udnp = nested_struct_create();
+    UserDefTwo *udnp_copy = NULL;
     Error *err = NULL;
     void *serialize_data;
-    
+
     ops->serialize(udnp, &serialize_data, visit_nested_struct, &err);
-    ops->deserialize((void **)&udnp_copy, serialize_data, visit_nested_struct, &err); 
+    ops->deserialize((void **)&udnp_copy, serialize_data, visit_nested_struct,
+                     &err);
 
     g_assert(err == NULL);
     nested_struct_compare(udnp, udnp_copy);
@@ -737,18 +744,18 @@ static void test_nested_struct_list(gconstpointer opaque)
 {
     TestArgs *args = (TestArgs *) opaque;
     const SerializeOps *ops = args->ops;
-    UserDefNestedList *listp = NULL, *tmp, *tmp_copy, *listp_copy = NULL;
+    UserDefTwoList *listp = NULL, *tmp, *tmp_copy, *listp_copy = NULL;
     Error *err = NULL;
     void *serialize_data;
     int i = 0;
 
     for (i = 0; i < 8; i++) {
-        tmp = g_malloc0(sizeof(UserDefNestedList));
+        tmp = g_new0(UserDefTwoList, 1);
         tmp->value = nested_struct_create();
         tmp->next = listp;
         listp = tmp;
     }
-    
+
     ops->serialize(listp, &serialize_data, visit_nested_struct_list, &err);
     ops->deserialize((void **)&listp_copy, serialize_data,
                      visit_nested_struct_list, &err); 
@@ -764,8 +771,8 @@ static void test_nested_struct_list(gconstpointer opaque)
         listp_copy = listp_copy->next;
     }
 
-    qapi_free_UserDefNestedList(tmp);
-    qapi_free_UserDefNestedList(tmp_copy);
+    qapi_free_UserDefTwoList(tmp);
+    qapi_free_UserDefTwoList(tmp_copy);
 
     ops->cleanup(serialize_data);
     g_free(args);

@@ -1,0 +1,11 @@
+# we enforce that 'returns' be a dict or array of dict unless whitelisted
+{ 'command': 'human-monitor-command',
+  'data': {'command-line': 'str', '*cpu-index': 'int'},
+  'returns': 'str' }
+{ 'enum': 'TpmModel', 'data': [ 'tpm-tis' ] }
+{ 'command': 'query-tpm-models', 'returns': ['TpmModel'] }
+{ 'command': 'guest-get-time',
+  'returns': 'int' }
+
+{ 'command': 'no-way-this-will-get-whitelisted',
+  'returns': [ 'int' ] }

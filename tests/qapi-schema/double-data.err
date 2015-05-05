@@ -1,0 +1,1 @@
+tests/qapi-schema/double-data.json:2:41: Duplicate key "data"

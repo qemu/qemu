@@ -1,7 +1,7 @@
 /*
  * QMP Output Visitor unit-tests.
  *
- * Copyright (C) 2011 Red Hat Inc.
+ * Copyright (C) 2011, 2015 Red Hat Inc.
  *
  * Authors:
  *  Luiz Capitulino <lcapitulino@redhat.com>
@@ -234,7 +234,7 @@ static void test_visitor_out_struct_nested(TestOutputVisitorData *data,
 {
     int64_t value = 42;
     Error *err = NULL;
-    UserDefNested *ud2;
+    UserDefTwo *ud2;
     QObject *obj;
     QDict *qdict, *dict1, *dict2, *dict3, *userdef;
     const char *string = "user def string";
@@ -244,21 +244,25 @@ static void test_visitor_out_struct_nested(TestOutputVisitorData *data,
     ud2 = g_malloc0(sizeof(*ud2));
     ud2->string0 = g_strdup(strings[0]);
 
-    ud2->dict1.string1 = g_strdup(strings[1]);
-    ud2->dict1.dict2.userdef1 = g_malloc0(sizeof(UserDefOne));
-    ud2->dict1.dict2.userdef1->string = g_strdup(string);
-    ud2->dict1.dict2.userdef1->base = g_new0(UserDefZero, 1);
-    ud2->dict1.dict2.userdef1->base->integer = value;
-    ud2->dict1.dict2.string2 = g_strdup(strings[2]);
+    ud2->dict1 = g_malloc0(sizeof(*ud2->dict1));
+    ud2->dict1->string1 = g_strdup(strings[1]);
 
-    ud2->dict1.has_dict3 = true;
-    ud2->dict1.dict3.userdef2 = g_malloc0(sizeof(UserDefOne));
-    ud2->dict1.dict3.userdef2->string = g_strdup(string);
-    ud2->dict1.dict3.userdef2->base = g_new0(UserDefZero, 1);
-    ud2->dict1.dict3.userdef2->base->integer = value;
-    ud2->dict1.dict3.string3 = g_strdup(strings[3]);
+    ud2->dict1->dict2 = g_malloc0(sizeof(*ud2->dict1->dict2));
+    ud2->dict1->dict2->userdef = g_new0(UserDefOne, 1);
+    ud2->dict1->dict2->userdef->string = g_strdup(string);
+    ud2->dict1->dict2->userdef->base = g_new0(UserDefZero, 1);
+    ud2->dict1->dict2->userdef->base->integer = value;
+    ud2->dict1->dict2->string = g_strdup(strings[2]);
 
-    visit_type_UserDefNested(data->ov, &ud2, "unused", &err);
+    ud2->dict1->dict3 = g_malloc0(sizeof(*ud2->dict1->dict3));
+    ud2->dict1->has_dict3 = true;
+    ud2->dict1->dict3->userdef = g_new0(UserDefOne, 1);
+    ud2->dict1->dict3->userdef->string = g_strdup(string);
+    ud2->dict1->dict3->userdef->base = g_new0(UserDefZero, 1);
+    ud2->dict1->dict3->userdef->base->integer = value;
+    ud2->dict1->dict3->string = g_strdup(strings[3]);
+
+    visit_type_UserDefTwo(data->ov, &ud2, "unused", &err);
     g_assert(!err);
 
     obj = qmp_output_get_qobject(data->qov);
@@ -275,22 +279,22 @@ static void test_visitor_out_struct_nested(TestOutputVisitorData *data,
 
     dict2 = qdict_get_qdict(dict1, "dict2");
     g_assert_cmpint(qdict_size(dict2), ==, 2);
-    g_assert_cmpstr(qdict_get_str(dict2, "string2"), ==, strings[2]);
-    userdef = qdict_get_qdict(dict2, "userdef1");
+    g_assert_cmpstr(qdict_get_str(dict2, "string"), ==, strings[2]);
+    userdef = qdict_get_qdict(dict2, "userdef");
     g_assert_cmpint(qdict_size(userdef), ==, 2);
     g_assert_cmpint(qdict_get_int(userdef, "integer"), ==, value);
     g_assert_cmpstr(qdict_get_str(userdef, "string"), ==, string);
 
     dict3 = qdict_get_qdict(dict1, "dict3");
     g_assert_cmpint(qdict_size(dict3), ==, 2);
-    g_assert_cmpstr(qdict_get_str(dict3, "string3"), ==, strings[3]);
-    userdef = qdict_get_qdict(dict3, "userdef2");
+    g_assert_cmpstr(qdict_get_str(dict3, "string"), ==, strings[3]);
+    userdef = qdict_get_qdict(dict3, "userdef");
     g_assert_cmpint(qdict_size(userdef), ==, 2);
     g_assert_cmpint(qdict_get_int(userdef, "integer"), ==, value);
     g_assert_cmpstr(qdict_get_str(userdef, "string"), ==, string);
 
     QDECREF(qdict);
-    qapi_free_UserDefNested(ud2);
+    qapi_free_UserDefTwo(ud2);
 }
 
 static void test_visitor_out_struct_errors(TestOutputVisitorData *data,
@@ -398,7 +402,7 @@ static void test_visitor_out_list(TestOutputVisitorData *data,
 static void test_visitor_out_list_qapi_free(TestOutputVisitorData *data,
                                             const void *unused)
 {
-    UserDefNestedList *p, *head = NULL;
+    UserDefTwoList *p, *head = NULL;
     const char string[] = "foo bar";
     int i, max_count = 1024;
 
@@ -407,53 +411,21 @@ static void test_visitor_out_list_qapi_free(TestOutputVisitorData *data,
         p->value = g_malloc0(sizeof(*p->value));
 
         p->value->string0 = g_strdup(string);
-        p->value->dict1.string1 = g_strdup(string);
-        p->value->dict1.dict2.userdef1 = g_malloc0(sizeof(UserDefOne));
-        p->value->dict1.dict2.userdef1->string = g_strdup(string);
-        p->value->dict1.dict2.userdef1->base = g_new0(UserDefZero, 1);
-        p->value->dict1.dict2.userdef1->base->integer = 42;
-        p->value->dict1.dict2.string2 = g_strdup(string);
-        p->value->dict1.has_dict3 = false;
+        p->value->dict1 = g_new0(UserDefTwoDict, 1);
+        p->value->dict1->string1 = g_strdup(string);
+        p->value->dict1->dict2 = g_new0(UserDefTwoDictDict, 1);
+        p->value->dict1->dict2->userdef = g_new0(UserDefOne, 1);
+        p->value->dict1->dict2->userdef->string = g_strdup(string);
+        p->value->dict1->dict2->userdef->base = g_new0(UserDefZero, 1);
+        p->value->dict1->dict2->userdef->base->integer = 42;
+        p->value->dict1->dict2->string = g_strdup(string);
+        p->value->dict1->has_dict3 = false;
 
         p->next = head;
         head = p;
     }
 
-    qapi_free_UserDefNestedList(head);
-}
-
-static void test_visitor_out_union(TestOutputVisitorData *data,
-                                   const void *unused)
-{
-    QObject *arg, *qvalue;
-    QDict *qdict, *value;
-
-    Error *err = NULL;
-
-    UserDefUnion *tmp = g_malloc0(sizeof(UserDefUnion));
-    tmp->kind = USER_DEF_UNION_KIND_A;
-    tmp->integer = 41;
-    tmp->a = g_malloc0(sizeof(UserDefA));
-    tmp->a->boolean = true;
-
-    visit_type_UserDefUnion(data->ov, &tmp, NULL, &err);
-    g_assert(err == NULL);
-    arg = qmp_output_get_qobject(data->qov);
-
-    g_assert(qobject_type(arg) == QTYPE_QDICT);
-    qdict = qobject_to_qdict(arg);
-
-    g_assert_cmpstr(qdict_get_str(qdict, "type"), ==, "a");
-    g_assert_cmpint(qdict_get_int(qdict, "integer"), ==, 41);
-
-    qvalue = qdict_get(qdict, "data");
-    g_assert(data != NULL);
-    g_assert(qobject_type(qvalue) == QTYPE_QDICT);
-    value = qobject_to_qdict(qvalue);
-    g_assert_cmpint(qdict_get_bool(value, "boolean"), ==, true);
-
-    qapi_free_UserDefUnion(tmp);
-    QDECREF(qdict);
+    qapi_free_UserDefTwoList(head);
 }
 
 static void test_visitor_out_union_flat(TestOutputVisitorData *data,
@@ -487,24 +459,24 @@ static void test_visitor_out_union_flat(TestOutputVisitorData *data,
     QDECREF(qdict);
 }
 
-static void test_visitor_out_union_anon(TestOutputVisitorData *data,
-                                        const void *unused)
+static void test_visitor_out_alternate(TestOutputVisitorData *data,
+                                       const void *unused)
 {
     QObject *arg;
     Error *err = NULL;
 
-    UserDefAnonUnion *tmp = g_malloc0(sizeof(UserDefAnonUnion));
-    tmp->kind = USER_DEF_ANON_UNION_KIND_I;
+    UserDefAlternate *tmp = g_malloc0(sizeof(UserDefAlternate));
+    tmp->kind = USER_DEF_ALTERNATE_KIND_I;
     tmp->i = 42;
 
-    visit_type_UserDefAnonUnion(data->ov, &tmp, NULL, &err);
+    visit_type_UserDefAlternate(data->ov, &tmp, NULL, &err);
     g_assert(err == NULL);
     arg = qmp_output_get_qobject(data->qov);
 
     g_assert(qobject_type(arg) == QTYPE_QINT);
     g_assert_cmpint(qint_get_int(qobject_to_qint(arg)), ==, 42);
 
-    qapi_free_UserDefAnonUnion(tmp);
+    qapi_free_UserDefAlternate(tmp);
 }
 
 static void test_visitor_out_empty(TestOutputVisitorData *data,
@@ -862,38 +834,48 @@ int main(int argc, char **argv)
                             &out_visitor_data, test_visitor_out_list);
     output_visitor_test_add("/visitor/output/list-qapi-free",
                             &out_visitor_data, test_visitor_out_list_qapi_free);
-    output_visitor_test_add("/visitor/output/union",
-                            &out_visitor_data, test_visitor_out_union);
     output_visitor_test_add("/visitor/output/union-flat",
                             &out_visitor_data, test_visitor_out_union_flat);
-    output_visitor_test_add("/visitor/output/union-anon",
-                            &out_visitor_data, test_visitor_out_union_anon);
+    output_visitor_test_add("/visitor/output/alternate",
+                            &out_visitor_data, test_visitor_out_alternate);
     output_visitor_test_add("/visitor/output/empty",
                             &out_visitor_data, test_visitor_out_empty);
     output_visitor_test_add("/visitor/output/native_list/int",
-                            &out_visitor_data, test_visitor_out_native_list_int);
+                            &out_visitor_data,
+                            test_visitor_out_native_list_int);
     output_visitor_test_add("/visitor/output/native_list/int8",
-                            &out_visitor_data, test_visitor_out_native_list_int8);
+                            &out_visitor_data,
+                            test_visitor_out_native_list_int8);
     output_visitor_test_add("/visitor/output/native_list/int16",
-                            &out_visitor_data, test_visitor_out_native_list_int16);
+                            &out_visitor_data,
+                            test_visitor_out_native_list_int16);
     output_visitor_test_add("/visitor/output/native_list/int32",
-                            &out_visitor_data, test_visitor_out_native_list_int32);
+                            &out_visitor_data,
+                            test_visitor_out_native_list_int32);
     output_visitor_test_add("/visitor/output/native_list/int64",
-                            &out_visitor_data, test_visitor_out_native_list_int64);
+                            &out_visitor_data,
+                            test_visitor_out_native_list_int64);
     output_visitor_test_add("/visitor/output/native_list/uint8",
-                            &out_visitor_data, test_visitor_out_native_list_uint8);
+                            &out_visitor_data,
+                            test_visitor_out_native_list_uint8);
     output_visitor_test_add("/visitor/output/native_list/uint16",
-                            &out_visitor_data, test_visitor_out_native_list_uint16);
+                            &out_visitor_data,
+                            test_visitor_out_native_list_uint16);
     output_visitor_test_add("/visitor/output/native_list/uint32",
-                            &out_visitor_data, test_visitor_out_native_list_uint32);
+                            &out_visitor_data,
+                            test_visitor_out_native_list_uint32);
     output_visitor_test_add("/visitor/output/native_list/uint64",
-                            &out_visitor_data, test_visitor_out_native_list_uint64);
+                            &out_visitor_data,
+                            test_visitor_out_native_list_uint64);
     output_visitor_test_add("/visitor/output/native_list/bool",
-                            &out_visitor_data, test_visitor_out_native_list_bool);
+                            &out_visitor_data,
+                            test_visitor_out_native_list_bool);
     output_visitor_test_add("/visitor/output/native_list/string",
-                            &out_visitor_data, test_visitor_out_native_list_str);
+                            &out_visitor_data,
+                            test_visitor_out_native_list_str);
     output_visitor_test_add("/visitor/output/native_list/number",
-                            &out_visitor_data, test_visitor_out_native_list_number);
+                            &out_visitor_data,
+                            test_visitor_out_native_list_number);
 
     g_test_run();
 

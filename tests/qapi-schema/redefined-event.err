@@ -1,0 +1,1 @@
+tests/qapi-schema/redefined-event.json:3: event 'EVENT_A' is already defined
