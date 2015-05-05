@@ -3779,8 +3779,7 @@ int vnc_init_func(QemuOpts *opts, void *opaque)
     vnc_display_init(id);
     vnc_display_open(id, &local_err);
     if (local_err != NULL) {
-        error_report("Failed to start VNC server on `%s': %s",
-                     qemu_opt_get(opts, "display"),
+        error_report("Failed to start VNC server: %s",
                      error_get_pretty(local_err));
         error_free(local_err);
         exit(1);
