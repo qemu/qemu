@@ -3684,6 +3684,9 @@ void vnc_display_open(const char *id, Error **errp)
         /* listen for connects */
         if (strncmp(vnc, "unix:", 5) == 0) {
             vs->lsock = unix_listen(vnc+5, NULL, 0, errp);
+            if (vs->lsock < 0) {
+                goto fail;
+            }
             vs->is_unix = true;
         } else {
             vs->lsock = inet_listen_opts(sopts, 5900, errp);
