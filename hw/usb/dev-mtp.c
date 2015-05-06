@@ -1071,6 +1071,10 @@ static void usb_mtp_realize(USBDevice *dev, Error **errp)
     usb_desc_init(dev);
     QTAILQ_INIT(&s->objects);
     if (s->desc == NULL) {
+        if (s->root == NULL) {
+            error_setg(errp, "usb-mtp: x-root property must be configured");
+            return;
+        }
         s->desc = strrchr(s->root, '/');
         if (s->desc && s->desc[0]) {
             s->desc = g_strdup(s->desc + 1);
