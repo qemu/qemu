@@ -315,6 +315,7 @@ snappy=""
 bzip2=""
 guest_agent=""
 guest_agent_with_vss="no"
+guest_agent_msi=""
 vss_win32_sdk=""
 win_sdk="no"
 want_tools="yes"
@@ -1078,6 +1079,10 @@ for opt do
   ;;
   --disable-guest-agent) guest_agent="no"
   ;;
+  --enable-guest-agent-msi) guest_agent_msi="yes"
+  ;;
+  --disable-guest-agent-msi) guest_agent_msi="no"
+  ;;
   --with-vss-sdk) vss_win32_sdk=""
   ;;
   --with-vss-sdk=*) vss_win32_sdk="$optarg"
@@ -1394,6 +1399,8 @@ Advanced options (experts only):
                            reading bzip2-compressed dmg images)
   --disable-guest-agent    disable building of the QEMU Guest Agent
   --enable-guest-agent     enable building of the QEMU Guest Agent
+  --enable-guest-agent-msi enable building guest agent Windows MSI installation package
+  --disable-guest-agent-msi disable building guest agent Windows MSI installation
   --with-vss-sdk=SDK-path  enable Windows VSS support in QEMU Guest Agent
   --with-win-sdk=SDK-path  path to Windows Platform SDK (to build VSS .tlb)
   --disable-seccomp        disable seccomp support
@@ -3862,6 +3869,56 @@ if test "$mingw32" = "yes" -a "$guest_agent" != "no" -a "$guest_agent_with_vss" 
 fi
 
 ##########################################
+# Guest agent Window MSI  package
+
+if test "$guest_agent" != yes; then
+  if test "$guest_agent_msi" = yes; then
+    error_exit "MSI guest agent package requires guest agent enabled"
+  fi
+  guest_agent_msi=no
+elif test "$mingw32" != "yes"; then
+  if test "$guest_agent_msi" = "yes"; then
+    error_exit "MSI guest agent package is available only for MinGW Windows cross-compilation"
+  fi
+  guest_agent_msi=no
+elif ! has wixl; then
+  if test "$guest_agent_msi" = "yes"; then
+    error_exit "MSI guest agent package requires wixl tool installed ( usually from msitools package )"
+  fi
+  guest_agent_msi=no
+fi
+
+if test "$guest_agent_msi" != "no"; then
+  if test "$guest_agent_with_vss" = "yes"; then
+    QEMU_GA_MSI_WITH_VSS="-D InstallVss"
+  fi
+
+  if test "$QEMU_GA_MANUFACTURER" = ""; then
+    QEMU_GA_MANUFACTURER=QEMU
+  fi
+
+  if test "$QEMU_GA_DISTRO" = ""; then
+    QEMU_GA_DISTRO=Linux
+  fi
+
+  if test "$QEMU_GA_VERSION" = ""; then
+      QEMU_GA_VERSION=`cat $source_path/VERSION`
+  fi
+
+  QEMU_GA_MSI_MINGW_DLL_PATH="-D Mingw_dlls=`$pkg_config --variable=prefix glib-2.0`/bin"
+  
+  case "$cpu" in
+  x86_64)
+    QEMU_GA_MSI_ARCH="-a x64 -D Arch=64"
+    ;;
+  i386)
+    QEMU_GA_MSI_ARCH="-D Arch=32"
+    ;;
+  *)
+    error_exit "CPU $cpu not supported for building installation package"
+    ;;
+  esac
+fi
 
 ##########################################
 # check if we have fdatasync
@@ -4557,6 +4614,15 @@ if test "$mingw32" = "yes" ; then
   if test "$guest_agent_with_vss" = "yes" ; then
     echo "CONFIG_QGA_VSS=y" >> $config_host_mak
     echo "WIN_SDK=\"$win_sdk\"" >> $config_host_mak
+  fi
+  if test "$guest_agent_msi" != "no"; then
+    echo "QEMU_GA_MSI_ENABLED=yes" >> $config_host_mak  
+    echo "QEMU_GA_MSI_MINGW_DLL_PATH=${QEMU_GA_MSI_MINGW_DLL_PATH}" >> $config_host_mak
+    echo "QEMU_GA_MSI_WITH_VSS=${QEMU_GA_MSI_WITH_VSS}" >> $config_host_mak
+    echo "QEMU_GA_MSI_ARCH=${QEMU_GA_MSI_ARCH}" >> $config_host_mak
+    echo "QEMU_GA_MANUFACTURER=${QEMU_GA_MANUFACTURER}" >> $config_host_mak
+    echo "QEMU_GA_DISTRO=${QEMU_GA_DISTRO}" >> $config_host_mak
+    echo "QEMU_GA_VERSION=${QEMU_GA_VERSION}" >> $config_host_mak
   fi
 else
   echo "CONFIG_POSIX=y" >> $config_host_mak

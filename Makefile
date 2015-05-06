@@ -74,7 +74,7 @@ Makefile: ;
 configure: ;
 
 .PHONY: all clean cscope distclean dvi html info install install-doc \
-	pdf recurse-all speed test dist
+	pdf recurse-all speed test dist msi
 
 $(call set-vpath, $(SRC_PATH))
 
@@ -287,10 +287,32 @@ $(qga-obj-y) qemu-ga.o: $(QGALIB_GEN)
 qemu-ga$(EXESUF): $(qga-obj-y) libqemuutil.a libqemustub.a
 	$(call LINK, $^)
 
+ifdef QEMU_GA_MSI_ENABLED
+QEMU_GA_MSI=qemu-ga-$(ARCH).msi
+
+msi: ${QEMU_GA_MSI}
+
+$(QEMU_GA_MSI): qemu-ga.exe
+
+ifdef QEMU_GA_MSI_WITH_VSS
+$(QEMU_GA_MSI): qga/vss-win32/qga-vss.dll
+endif
+
+$(QEMU_GA_MSI): config-host.mak
+
+$(QEMU_GA_MSI):  qga/installer/qemu-ga.wxs
+	$(call quiet-command,QEMU_GA_VERSION="$(QEMU_GA_VERSION)" QEMU_GA_MANUFACTURER="$(QEMU_GA_MANUFACTURER)" QEMU_GA_DISTRO="$(QEMU_GA_DISTRO)" \
+	wixl -o $@ $(QEMU_GA_MSI_ARCH) $(QEMU_GA_MSI_WITH_VSS) $(QEMU_GA_MSI_MINGW_DLL_PATH) $<, "  WIXL  $@")
+else
+msi:
+	@echo MSI build not configured or dependency resolution failed (reconfigure with --enable-guest-agent-msi option)
+endif
+
 clean:
 # avoid old build problems by removing potentially incorrect old files
 	rm -f config.mak op-i386.h opc-i386.h gen-op-i386.h op-arm.h opc-arm.h gen-op-arm.h
 	rm -f qemu-options.def
+	rm -f *.msi
 	find . \( -name '*.l[oa]' -o -name '*.so' -o -name '*.dll' -o -name '*.mo' -o -name '*.[oda]' \) -type f -exec rm {} +
 	rm -f $(filter-out %.tlb,$(TOOLS)) $(HELPERS-y) qemu-ga TAGS cscope.* *.pod *~ */*~
 	rm -f fsdev/*.pod
