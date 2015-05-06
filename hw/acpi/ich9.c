@@ -94,7 +94,8 @@ static void ich9_smi_writel(void *opaque, hwaddr addr, uint64_t val,
     ICH9LPCPMRegs *pm = opaque;
     switch (addr) {
     case 0:
-        pm->smi_en = val;
+        pm->smi_en &= ~pm->smi_en_wmask;
+        pm->smi_en |= (val & pm->smi_en_wmask);
         break;
     }
 }
@@ -198,6 +199,7 @@ static void pm_reset(void *opaque)
          * support SMM mode. */
         pm->smi_en |= ICH9_PMIO_SMI_EN_APMC_EN;
     }
+    pm->smi_en_wmask = ~0;
 
     acpi_update_sci(&pm->acpi_regs, pm->irq);
 }
