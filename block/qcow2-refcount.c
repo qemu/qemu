@@ -833,6 +833,11 @@ static int64_t alloc_clusters_noref(BlockDriverState *bs, uint64_t size)
     uint64_t i, nb_clusters, refcount;
     int ret;
 
+    /* We can't allocate clusters if they may still be queued for discard. */
+    if (s->cache_discards) {
+        qcow2_process_discards(bs, 0);
+    }
+
     nb_clusters = size_to_clusters(s, size);
 retry:
     for(i = 0; i < nb_clusters; i++) {
