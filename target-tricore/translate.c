@@ -3485,7 +3485,7 @@ static void gen_compute_branch(DisasContext *ctx, uint32_t opc, int r1,
  * Functions for decoding instructions
  */
 
-static void decode_src_opc(DisasContext *ctx, int op1)
+static void decode_src_opc(CPUTriCoreState *env, DisasContext *ctx, int op1)
 {
     int r1;
     int32_t const4;
@@ -3545,6 +3545,12 @@ static void decode_src_opc(DisasContext *ctx, int op1)
     case OPC1_16_SRC_MOV_A:
         const4 = MASK_OP_SRC_CONST4(ctx->opcode);
         tcg_gen_movi_tl(cpu_gpr_a[r1], const4);
+        break;
+    case OPC1_16_SRC_MOV_E:
+        if (tricore_feature(env, TRICORE_FEATURE_16)) {
+            tcg_gen_movi_tl(cpu_gpr_d[r1], const4);
+            tcg_gen_sari_tl(cpu_gpr_d[r1+1], cpu_gpr_d[r1], 31);
+        } /* TODO: else raise illegal opcode trap */
         break;
     case OPC1_16_SRC_SH:
         gen_shi(cpu_gpr_d[r1], cpu_gpr_d[r1], const4);
@@ -3883,9 +3889,10 @@ static void decode_16Bit_opc(CPUTriCoreState *env, DisasContext *ctx)
     case OPC1_16_SRC_LT:
     case OPC1_16_SRC_MOV:
     case OPC1_16_SRC_MOV_A:
+    case OPC1_16_SRC_MOV_E:
     case OPC1_16_SRC_SH:
     case OPC1_16_SRC_SHA:
-        decode_src_opc(ctx, op1);
+        decode_src_opc(env, ctx, op1);
         break;
 /* SRR-format */
     case OPC1_16_SRR_ADD:
