@@ -51,6 +51,9 @@ typedef struct USBHIDState {
     uint32_t head;
 } USBHIDState;
 
+#define TYPE_USB_HID "usb-hid"
+#define USB_HID(obj) OBJECT_CHECK(USBHIDState, (obj), TYPE_USB_HID)
+
 enum {
     STR_MANUFACTURER = 1,
     STR_PRODUCT_MOUSE,
@@ -564,7 +567,7 @@ static void usb_hid_changed(HIDState *hs)
 
 static void usb_hid_handle_reset(USBDevice *dev)
 {
-    USBHIDState *us = DO_UPCAST(USBHIDState, dev, dev);
+    USBHIDState *us = USB_HID(dev);
 
     hid_reset(&us->hid);
 }
@@ -572,7 +575,7 @@ static void usb_hid_handle_reset(USBDevice *dev)
 static void usb_hid_handle_control(USBDevice *dev, USBPacket *p,
                int request, int value, int index, int length, uint8_t *data)
 {
-    USBHIDState *us = DO_UPCAST(USBHIDState, dev, dev);
+    USBHIDState *us = USB_HID(dev);
     HIDState *hs = &us->hid;
     int ret;
 
@@ -651,7 +654,7 @@ static void usb_hid_handle_control(USBDevice *dev, USBPacket *p,
 
 static void usb_hid_handle_data(USBDevice *dev, USBPacket *p)
 {
-    USBHIDState *us = DO_UPCAST(USBHIDState, dev, dev);
+    USBHIDState *us = USB_HID(dev);
     HIDState *hs = &us->hid;
     uint8_t buf[p->iov.size];
     int len = 0;
@@ -687,7 +690,7 @@ static void usb_hid_handle_data(USBDevice *dev, USBPacket *p)
 
 static void usb_hid_handle_destroy(USBDevice *dev)
 {
-    USBHIDState *us = DO_UPCAST(USBHIDState, dev, dev);
+    USBHIDState *us = USB_HID(dev);
 
     hid_free(&us->hid);
 }
@@ -696,7 +699,7 @@ static void usb_hid_initfn(USBDevice *dev, int kind,
                            const USBDesc *usb1, const USBDesc *usb2,
                            Error **errp)
 {
-    USBHIDState *us = DO_UPCAST(USBHIDState, dev, dev);
+    USBHIDState *us = USB_HID(dev);
     switch (us->usb_version) {
     case 1:
         dev->usb_desc = usb1;
@@ -784,6 +787,14 @@ static void usb_hid_class_initfn(ObjectClass *klass, void *data)
     uc->handle_attach  = usb_desc_attach;
 }
 
+static const TypeInfo usb_hid_type_info = {
+    .name = TYPE_USB_HID,
+    .parent = TYPE_USB_DEVICE,
+    .instance_size = sizeof(USBHIDState),
+    .abstract = true,
+    .class_init = usb_hid_class_initfn,
+};
+
 static Property usb_tablet_properties[] = {
         DEFINE_PROP_UINT32("usb_version", USBHIDState, usb_version, 2),
         DEFINE_PROP_STRING("display", USBHIDState, display),
@@ -796,7 +807,6 @@ static void usb_tablet_class_initfn(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
     USBDeviceClass *uc = USB_DEVICE_CLASS(klass);
 
-    usb_hid_class_initfn(klass, data);
     uc->realize        = usb_tablet_realize;
     uc->product_desc   = "QEMU USB Tablet";
     dc->vmsd = &vmstate_usb_ptr;
@@ -806,8 +816,7 @@ static void usb_tablet_class_initfn(ObjectClass *klass, void *data)
 
 static const TypeInfo usb_tablet_info = {
     .name          = "usb-tablet",
-    .parent        = TYPE_USB_DEVICE,
-    .instance_size = sizeof(USBHIDState),
+    .parent        = TYPE_USB_HID,
     .class_init    = usb_tablet_class_initfn,
 };
 
@@ -821,7 +830,6 @@ static void usb_mouse_class_initfn(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
     USBDeviceClass *uc = USB_DEVICE_CLASS(klass);
 
-    usb_hid_class_initfn(klass, data);
     uc->realize        = usb_mouse_realize;
     uc->product_desc   = "QEMU USB Mouse";
     dc->vmsd = &vmstate_usb_ptr;
@@ -831,8 +839,7 @@ static void usb_mouse_class_initfn(ObjectClass *klass, void *data)
 
 static const TypeInfo usb_mouse_info = {
     .name          = "usb-mouse",
-    .parent        = TYPE_USB_DEVICE,
-    .instance_size = sizeof(USBHIDState),
+    .parent        = TYPE_USB_HID,
     .class_init    = usb_mouse_class_initfn,
 };
 
@@ -847,7 +854,6 @@ static void usb_keyboard_class_initfn(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
     USBDeviceClass *uc = USB_DEVICE_CLASS(klass);
 
-    usb_hid_class_initfn(klass, data);
     uc->realize        = usb_keyboard_realize;
     uc->product_desc   = "QEMU USB Keyboard";
     dc->vmsd = &vmstate_usb_kbd;
@@ -857,13 +863,13 @@ static void usb_keyboard_class_initfn(ObjectClass *klass, void *data)
 
 static const TypeInfo usb_keyboard_info = {
     .name          = "usb-kbd",
-    .parent        = TYPE_USB_DEVICE,
-    .instance_size = sizeof(USBHIDState),
+    .parent        = TYPE_USB_HID,
     .class_init    = usb_keyboard_class_initfn,
 };
 
 static void usb_hid_register_types(void)
 {
+    type_register_static(&usb_hid_type_info);
     type_register_static(&usb_tablet_info);
     usb_legacy_register("usb-tablet", "tablet", NULL);
     type_register_static(&usb_mouse_info);
