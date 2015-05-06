@@ -3277,6 +3277,7 @@ static abi_long do_ipc(unsigned int call, abi_long first,
 #define STRUCT_SPECIAL(name) STRUCT_ ## name,
 enum {
 #include "syscall_types.h"
+STRUCT_MAX
 };
 #undef STRUCT
 #undef STRUCT_SPECIAL
@@ -4878,6 +4879,8 @@ void syscall_init(void)
     const argtype *arg_type;
     int size;
     int i;
+
+    thunk_init(STRUCT_MAX);
 
 #define STRUCT(name, ...) thunk_register_struct(STRUCT_ ## name, #name, struct_ ## name ## _def);
 #define STRUCT_SPECIAL(name) thunk_register_struct_direct(STRUCT_ ## name, #name, &struct_ ## name ## _def);
