@@ -49,6 +49,9 @@ struct USBBtState {
     } outcmd, outacl, outsco;
 };
 
+#define TYPE_USB_BT "usb-bt-dongle"
+#define USB_BT(obj) OBJECT_CHECK(struct USBBtState, (obj), TYPE_USB_BT)
+
 #define USB_EVT_EP	1
 #define USB_ACL_EP	2
 #define USB_SCO_EP	3
@@ -503,7 +506,7 @@ static void usb_bt_handle_destroy(USBDevice *dev)
 
 static void usb_bt_realize(USBDevice *dev, Error **errp)
 {
-    struct USBBtState *s = DO_UPCAST(struct USBBtState, dev, dev);
+    struct USBBtState *s = USB_BT(dev);
 
     usb_desc_create_serial(dev);
     usb_desc_init(dev);
@@ -523,7 +526,7 @@ static USBDevice *usb_bt_init(USBBus *bus, const char *cmdline)
     USBDevice *dev;
     struct USBBtState *s;
     HCIInfo *hci;
-    const char *name = "usb-bt-dongle";
+    const char *name = TYPE_USB_BT;
 
     if (*cmdline) {
         hci = hci_init(cmdline);
@@ -534,7 +537,7 @@ static USBDevice *usb_bt_init(USBBus *bus, const char *cmdline)
         return NULL;
 
     dev = usb_create(bus, name);
-    s = DO_UPCAST(struct USBBtState, dev, dev);
+    s = USB_BT(dev);
     s->hci = hci;
     return dev;
 }
@@ -561,7 +564,7 @@ static void usb_bt_class_initfn(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo bt_info = {
-    .name          = "usb-bt-dongle",
+    .name          = TYPE_USB_BT,
     .parent        = TYPE_USB_DEVICE,
     .instance_size = sizeof(struct USBBtState),
     .class_init    = usb_bt_class_initfn,
@@ -570,7 +573,7 @@ static const TypeInfo bt_info = {
 static void usb_bt_register_types(void)
 {
     type_register_static(&bt_info);
-    usb_legacy_register("usb-bt-dongle", "bt", usb_bt_init);
+    usb_legacy_register(TYPE_USB_BT, "bt", usb_bt_init);
 }
 
 type_init(usb_bt_register_types)
