@@ -763,6 +763,9 @@ enum {
     OPC2_32_BO_SWAP_W_SHORTOFF                   = 0x20,
     OPC2_32_BO_SWAP_W_POSTINC                    = 0x00,
     OPC2_32_BO_SWAP_W_PREINC                     = 0x10,
+    OPC2_32_BO_CMPSWAP_W_SHORTOFF                = 0x23,
+    OPC2_32_BO_CMPSWAP_W_POSTINC                 = 0x03,
+    OPC2_32_BO_CMPSWAP_W_PREINC                  = 0x13,
 };
 /*OPCM_32_BO_ADDRMODE_LDMST_BITREVERSE_CIRCULAR  */
 enum {
@@ -770,6 +773,8 @@ enum {
     OPC2_32_BO_LDMST_CIRC                        = 0x11,
     OPC2_32_BO_SWAP_W_BR                         = 0x00,
     OPC2_32_BO_SWAP_W_CIRC                       = 0x10,
+    OPC2_32_BO_CMPSWAP_W_BR                      = 0x03,
+    OPC2_32_BO_CMPSWAP_W_CIRC                    = 0x13,
 };
 /*
  * BRC Format

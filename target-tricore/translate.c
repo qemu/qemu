@@ -319,6 +319,20 @@ static void gen_swap(DisasContext *ctx, int reg, TCGv ea)
     tcg_temp_free(temp);
 }
 
+static void gen_cmpswap(DisasContext *ctx, int reg, TCGv ea)
+{
+    TCGv temp = tcg_temp_new();
+    TCGv temp2 = tcg_temp_new();
+    tcg_gen_qemu_ld_tl(temp, ea, ctx->mem_idx, MO_LEUL);
+    tcg_gen_movcond_tl(TCG_COND_EQ, temp2, cpu_gpr_d[reg+1], temp,
+                       cpu_gpr_d[reg], temp);
+    tcg_gen_qemu_st_tl(temp2, ea, ctx->mem_idx, MO_LEUL);
+    tcg_gen_mov_tl(cpu_gpr_d[reg], temp);
+
+    tcg_temp_free(temp);
+    tcg_temp_free(temp2);
+}
+
 /* We generate loads and store to core special function register (csfr) through
    the function gen_mfcr and gen_mtcr. To handle access permissions, we use 3
    makros R, A and E, which allow read-only, all and endinit protected access.
@@ -5046,6 +5060,18 @@ static void decode_bo_addrmode_stctx_post_pre_base(CPUTriCoreState *env,
         tcg_gen_addi_tl(cpu_gpr_a[r2], cpu_gpr_a[r2], off10);
         gen_swap(ctx, r1, cpu_gpr_a[r2]);
         break;
+    case OPC2_32_BO_CMPSWAP_W_SHORTOFF:
+        tcg_gen_addi_tl(temp, cpu_gpr_a[r2], off10);
+        gen_cmpswap(ctx, r1, temp);
+        break;
+    case OPC2_32_BO_CMPSWAP_W_POSTINC:
+        gen_cmpswap(ctx, r1, cpu_gpr_a[r2]);
+        tcg_gen_addi_tl(cpu_gpr_a[r2], cpu_gpr_a[r2], off10);
+        break;
+    case OPC2_32_BO_CMPSWAP_W_PREINC:
+        tcg_gen_addi_tl(cpu_gpr_a[r2], cpu_gpr_a[r2], off10);
+        gen_cmpswap(ctx, r1, cpu_gpr_a[r2]);
+        break;
     }
     tcg_temp_free(temp);
     tcg_temp_free(temp2);
@@ -5089,7 +5115,16 @@ static void decode_bo_addrmode_ldmst_bitreverse_circular(CPUTriCoreState *env,
         gen_swap(ctx, r1, temp2);
         gen_helper_circ_update(cpu_gpr_a[r2+1], cpu_gpr_a[r2+1], temp3);
         break;
+    case OPC2_32_BO_CMPSWAP_W_BR:
+        gen_cmpswap(ctx, r1, temp2);
+        gen_helper_br_update(cpu_gpr_a[r2+1], cpu_gpr_a[r2+1]);
+        break;
+    case OPC2_32_BO_CMPSWAP_W_CIRC:
+        gen_cmpswap(ctx, r1, temp2);
+        gen_helper_circ_update(cpu_gpr_a[r2+1], cpu_gpr_a[r2+1], temp3);
+        break;
     }
+
     tcg_temp_free(temp);
     tcg_temp_free(temp2);
     tcg_temp_free(temp3);
