@@ -721,6 +721,7 @@ GList *ga_command_blacklist_init(GList *blacklist)
     }
 
     if (!vss_init(true)) {
+        g_debug("vss_init failed, vss commands are going to be disabled");
         const char *list[] = {
             "guest-get-fsinfo", "guest-fsfreeze-status",
             "guest-fsfreeze-freeze", "guest-fsfreeze-thaw", NULL};
