@@ -760,7 +760,7 @@ static void spapr_phb_realize(DeviceState *dev, Error **errp)
         }
 
         sphb->buid = SPAPR_PCI_BASE_BUID + sphb->index;
-        sphb->dma_liobn = SPAPR_PCI_BASE_LIOBN + sphb->index;
+        sphb->dma_liobn = SPAPR_PCI_LIOBN(sphb->index, 0);
 
         windows_base = SPAPR_PCI_WINDOW_BASE
             + sphb->index * SPAPR_PCI_WINDOW_SPACING;
@@ -1101,7 +1101,7 @@ static int spapr_phb_children_dt(Object *child, void *opaque)
     sPAPRTCETable *tcet;
 
     tcet = (sPAPRTCETable *) object_dynamic_cast(child, TYPE_SPAPR_TCE_TABLE);
-    if (!tcet) {
+    if (!tcet || SPAPR_PCI_DMA_WINDOW_NUM(tcet->liobn)) {
         return 0;
     }
 
