@@ -1506,6 +1506,11 @@ static void ppc_spapr_init(MachineState *machine)
         qemu_register_reset(spapr_cpu_reset, cpu);
     }
 
+    if (kvm_enabled()) {
+        /* Enable H_LOGICAL_CI_* so SLOF can talk to in-kernel devices */
+        kvmppc_enable_logical_ci_hcalls();
+    }
+
     /* allocate RAM */
     spapr->ram_limit = ram_size;
     memory_region_allocate_system_memory(ram, NULL, "ppc_spapr.ram",

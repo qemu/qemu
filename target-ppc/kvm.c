@@ -1884,6 +1884,23 @@ int kvmppc_get_hypercall(CPUPPCState *env, uint8_t *buf, int buf_len)
     return 0;
 }
 
+static inline int kvmppc_enable_hcall(KVMState *s, target_ulong hcall)
+{
+    return kvm_vm_enable_cap(s, KVM_CAP_PPC_ENABLE_HCALL, 0, hcall, 1);
+}
+
+void kvmppc_enable_logical_ci_hcalls(void)
+{
+    /*
+     * FIXME: it would be nice if we could detect the cases where
+     * we're using a device which requires the in kernel
+     * implementation of these hcalls, but the kernel lacks them and
+     * produce a warning.
+     */
+    kvmppc_enable_hcall(kvm_state, H_LOGICAL_CI_LOAD);
+    kvmppc_enable_hcall(kvm_state, H_LOGICAL_CI_STORE);
+}
+
 void kvmppc_set_papr(PowerPCCPU *cpu)
 {
     CPUState *cs = CPU(cpu);
