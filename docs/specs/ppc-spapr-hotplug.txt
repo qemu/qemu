@@ -1,0 +1,287 @@
+= sPAPR Dynamic Reconfiguration =
+
+sPAPR/"pseries" guests make use of a facility called dynamic-reconfiguration
+to handle hotplugging of dynamic "physical" resources like PCI cards, or
+"logical"/paravirtual resources like memory, CPUs, and "physical"
+host-bridges, which are generally managed by the host/hypervisor and provided
+to guests as virtualized resources. The specifics of dynamic-reconfiguration
+are documented extensively in PAPR+ v2.7, Section 13.1. This document
+provides a summary of that information as it applies to the implementation
+within QEMU.
+
+== Dynamic-reconfiguration Connectors ==
+
+To manage hotplug/unplug of these resources, a firmware abstraction known as
+a Dynamic Resource Connector (DRC) is used to assign a particular dynamic
+resource to the guest, and provide an interface for the guest to manage
+configuration/removal of the resource associated with it.
+
+== Device-tree description of DRCs ==
+
+A set of 4 Open Firmware device tree array properties are used to describe
+the name/index/power-domain/type of each DRC allocated to a guest at
+boot-time. There may be multiple sets of these arrays, rooted at different
+paths in the device tree depending on the type of resource the DRCs manage.
+
+In some cases, the DRCs themselves may be provided by a dynamic resource,
+such as the DRCs managing PCI slots on a hotplugged PHB. In this case the
+arrays would be fetched as part of the device tree retrieval interfaces
+for hotplugged resources described under "Guest->Host interface".
+
+The array properties are described below. Each entry/element in an array
+describes the DRC identified by the element in the corresponding position
+of ibm,drc-indexes:
+
+ibm,drc-names:
+  first 4-bytes: BE-encoded integer denoting the number of entries
+  each entry: a NULL-terminated <name> string encoded as a byte array
+
+  <name> values for logical/virtual resources are defined in PAPR+ v2.7,
+  Section 13.5.2.4, and basically consist of the type of the resource
+  followed by a space and a numerical value that's unique across resources
+  of that type.
+
+  <name> values for "physical" resources such as PCI or VIO devices are
+  defined as being "location codes", which are the "location labels" of
+  each encapsulating device, starting from the chassis down to the
+  individual slot for the device, concatenated by a hyphen. This provides
+  a mapping of resources to a physical location in a chassis for debugging
+  purposes. For QEMU, this mapping is less important, so we assign a
+  location code that conforms to naming specifications, but is simply a
+  location label for the slot by itself to simplify the implementation.
+  The naming convention for location labels is documented in detail in
+  PAPR+ v2.7, Section 12.3.1.5, and in our case amounts to using "C<n>"
+  for PCI/VIO device slots, where <n> is unique across all PCI/VIO
+  device slots.
+
+ibm,drc-indexes:
+  first 4-bytes: BE-encoded integer denoting the number of entries
+  each 4-byte entry: BE-encoded <index> integer that is unique across all DRCs
+    in the machine
+
+  <index> is arbitrary, but in the case of QEMU we try to maintain the
+  convention used to assign them to pSeries guests on pHyp:
+
+    bit[31:28]: integer encoding of <type>, where <type> is:
+                  1 for CPU resource
+                  2 for PHB resource
+                  3 for VIO resource
+                  4 for PCI resource
+                  8 for Memory resource
+    bit[27:0]: integer encoding of <id>, where <id> is unique across
+                 all resources of specified type
+
+ibm,drc-power-domains:
+  first 4-bytes: BE-encoded integer denoting the number of entries
+  each 4-byte entry: 32-bit, BE-encoded <index> integer that specifies the
+    power domain the resource will be assigned to. In the case of QEMU
+    we associated all resources with a "live insertion" domain, where the
+    power is assumed to be managed automatically. The integer value for
+    this domain is a special value of -1.
+
+
+ibm,drc-types:
+  first 4-bytes: BE-encoded integer denoting the number of entries
+  each entry: a NULL-terminated <type> string encoded as a byte array
+
+  <type> is assigned as follows:
+    "CPU" for a CPU
+    "PHB" for a physical host-bridge
+    "SLOT" for a VIO slot
+    "28" for a PCI slot
+    "MEM" for memory resource
+
+== Guest->Host interface to manage dynamic resources ==
+
+Each DRC is given a globally unique DRC Index, and resources associated with
+a particular DRC are configured/managed by the guest via a number of RTAS
+calls which reference individual DRCs based on the DRC index. This can be
+considered the guest->host interface.
+
+rtas-set-power-level:
+  arg[0]: integer identifying power domain
+  arg[1]: new power level for the domain, 0-100
+  output[0]: status, 0 on success
+  output[1]: power level after command
+
+  Set the power level for a specified power domain
+
+rtas-get-power-level:
+  arg[0]: integer identifying power domain
+  output[0]: status, 0 on success
+  output[1]: current power level
+
+  Get the power level for a specified power domain
+
+rtas-set-indicator:
+  arg[0]: integer identifying sensor/indicator type
+  arg[1]: index of sensor, for DR-related sensors this is generally the
+          DRC index
+  arg[2]: desired sensor value
+  output[0]: status, 0 on success
+
+  Set the state of an indicator or sensor. For the purpose of this document we
+  focus on the indicator/sensor types associated with a DRC. The types are:
+
+    9001: isolation-state, controls/indicates whether a device has been made
+          accessible to a guest
+
+          supported sensor values:
+            0: isolate, device is made unaccessible by guest OS
+            1: unisolate, device is made available to guest OS
+
+    9002: dr-indicator, controls "visual" indicator associated with device
+
+          supported sensor values:
+            0: inactive, resource may be safely removed
+            1: active, resource is in use and cannot be safely removed
+            2: identify, used to visually identify slot for interactive hotplug
+            3: action, in most cases, used in the same manner as identify
+
+    9003: allocation-state, generally only used for "logical" DR resources to
+          request the allocation/deallocation of a resource prior to acquiring
+          it via isolation-state->unisolate, or after releasing it via
+          isolation-state->isolate, respectively. for "physical" DR (like PCI
+          hotplug/unplug) the pre-allocation of the resource is implied and
+          this sensor is unused.
+
+          supported sensor values:
+            0: unusable, tell firmware/system the resource can be
+               unallocated/reclaimed and added back to the system resource pool
+            1: usable, request the resource be allocated/reserved for use by
+               guest OS
+            2: exchange, used to allocate a spare resource to use for fail-over
+               in certain situations. unused in QEMU
+            3: recover, used to reclaim a previously allocated resource that's
+               not currently allocated to the guest OS. unused in QEMU
+
+rtas-get-sensor-state:
+  arg[0]: integer identifying sensor/indicator type
+  arg[1]: index of sensor, for DR-related sensors this is generally the
+          DRC index
+  output[0]: status, 0 on success
+
+  Used to read an indicator or sensor value.
+
+  For DR-related operations, the only noteworthy sensor is dr-entity-sense,
+  which has a type value of 9003, as allocation-state does in the case of
+  rtas-set-indicator. The semantics/encodings of the sensor values are distinct
+  however:
+
+  supported sensor values for dr-entity-sense (9003) sensor:
+    0: empty,
+         for physical resources: DRC/slot is empty
+         for logical resources: unused
+    1: present,
+         for physical resources: DRC/slot is populated with a device/resource
+         for logical resources: resource has been allocated to the DRC
+    2: unusable,
+         for physical resources: unused
+         for logical resources: DRC has no resource allocated to it
+    3: exchange,
+         for physical resources: unused
+         for logical resources: resource available for exchange (see
+           allocation-state sensor semantics above)
+    4: recovery,
+         for physical resources: unused
+         for logical resources: resource available for recovery (see
+           allocation-state sensor semantics above)
+
+rtas-ibm-configure-connector:
+  arg[0]: guest physical address of 4096-byte work area buffer
+  arg[1]: 0, or address of additional 4096-byte work area buffer. only non-zero
+          if a prior RTAS response indicated a need for additional memory
+  output[0]: status:
+               0: completed transmittal of device-tree node
+               1: instruct guest to prepare for next DT sibling node
+               2: instruct guest to prepare for next DT child node
+               3: instruct guest to prepare for next DT property
+               4: instruct guest to ascend to parent DT node
+               5: instruct guest to provide additional work-area buffer
+                  via arg[1]
+            990x: instruct guest that operation took too long and to try
+                  again later
+
+  Used to fetch an OF device-tree description of the resource associated with
+  a particular DRC. The DRC index is encoded in the first 4-bytes of the first
+  work area buffer.
+
+  Work area layout, using 4-byte offsets:
+    wa[0]: DRC index of the DRC to fetch device-tree nodes from
+    wa[1]: 0 (hard-coded)
+    wa[2]: for next-sibling/next-child response:
+             wa offset of null-terminated string denoting the new node's name
+           for next-property response:
+             wa offset of null-terminated string denoting new property's name
+    wa[3]: for next-property response (unused otherwise):
+             byte-length of new property's value
+    wa[4]: for next-property response (unused otherwise):
+             new property's value, encoded as an OFDT-compatible byte array
+
+== hotplug/unplug events ==
+
+For most DR operations, the hypervisor will issue host->guest add/remove events
+using the EPOW/check-exception notification framework, where the host issues a
+check-exception interrupt, then provides an RTAS event log via an
+rtas-check-exception call issued by the guest in response. This framework is
+documented by PAPR+ v2.7, and already use in by QEMU for generating powerdown
+requests via EPOW events.
+
+For DR, this framework has been extended to include hotplug events, which were
+previously unneeded due to direct manipulation of DR-related guest userspace
+tools by host-level management such as an HMC. This level of management is not
+applicable to PowerKVM, hence the reason for extending the notification
+framework to support hotplug events.
+
+Note that these events are not yet formally part of the PAPR+ specification,
+but support for this format has already been implemented in DR-related
+guest tools such as powerpc-utils/librtas, as well as kernel patches that have
+been submitted to handle in-kernel processing of memory/cpu-related hotplug
+events[1], and is planned for formal inclusion is PAPR+ specification. The
+hotplug-specific payload is QEMU implemented as follows (with all values
+encoded in big-endian format):
+
+struct rtas_event_log_v6_hp {
+#define SECTION_ID_HOTPLUG              0x4850 /* HP */
+    struct section_header {
+        uint16_t section_id;            /* set to SECTION_ID_HOTPLUG */
+        uint16_t section_length;        /* sizeof(rtas_event_log_v6_hp),
+                                         * plus the length of the DRC name
+                                         * if a DRC name identifier is
+                                         * specified for hotplug_identifier
+                                         */
+        uint8_t section_version;        /* version 1 */
+        uint8_t section_subtype;        /* unused */
+        uint16_t creator_component_id;  /* unused */
+    } hdr;
+#define RTAS_LOG_V6_HP_TYPE_CPU         1
+#define RTAS_LOG_V6_HP_TYPE_MEMORY      2
+#define RTAS_LOG_V6_HP_TYPE_SLOT        3
+#define RTAS_LOG_V6_HP_TYPE_PHB         4
+#define RTAS_LOG_V6_HP_TYPE_PCI         5
+    uint8_t hotplug_type;               /* type of resource/device */
+#define RTAS_LOG_V6_HP_ACTION_ADD       1
+#define RTAS_LOG_V6_HP_ACTION_REMOVE    2
+    uint8_t hotplug_action;             /* action (add/remove) */
+#define RTAS_LOG_V6_HP_ID_DRC_NAME      1
+#define RTAS_LOG_V6_HP_ID_DRC_INDEX     2
+#define RTAS_LOG_V6_HP_ID_DRC_COUNT     3
+    uint8_t hotplug_identifier;         /* type of the resource identifier,
+                                         * which serves as the discriminator
+                                         * for the 'drc' union field below
+                                         */
+    uint8_t reserved;
+    union {
+        uint32_t index;                 /* DRC index of resource to take action
+                                         * on
+                                         */
+        uint32_t count;                 /* number of DR resources to take
+                                         * action on (guest chooses which)
+                                         */
+        char name[1];                   /* string representing the name of the
+                                         * DRC to take action on
+                                         */
+    } drc;
+} QEMU_PACKED;
+
+[1] http://thread.gmane.org/gmane.linux.ports.ppc.embedded/75350/focus=106867
