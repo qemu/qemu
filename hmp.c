@@ -252,6 +252,29 @@ void hmp_info_migrate_capabilities(Monitor *mon, const QDict *qdict)
     qapi_free_MigrationCapabilityStatusList(caps);
 }
 
+void hmp_info_migrate_parameters(Monitor *mon, const QDict *qdict)
+{
+    MigrationParameters *params;
+
+    params = qmp_query_migrate_parameters(NULL);
+
+    if (params) {
+        monitor_printf(mon, "parameters:");
+        monitor_printf(mon, " %s: %" PRId64,
+            MigrationParameter_lookup[MIGRATION_PARAMETER_COMPRESS_LEVEL],
+            params->compress_level);
+        monitor_printf(mon, " %s: %" PRId64,
+            MigrationParameter_lookup[MIGRATION_PARAMETER_COMPRESS_THREADS],
+            params->compress_threads);
+        monitor_printf(mon, " %s: %" PRId64,
+            MigrationParameter_lookup[MIGRATION_PARAMETER_DECOMPRESS_THREADS],
+            params->decompress_threads);
+        monitor_printf(mon, "\n");
+    }
+
+    qapi_free_MigrationParameters(params);
+}
+
 void hmp_info_migrate_cache_size(Monitor *mon, const QDict *qdict)
 {
     monitor_printf(mon, "xbzrel cache size: %" PRId64 " kbytes\n",
@@ -1180,6 +1203,48 @@ void hmp_migrate_set_capability(Monitor *mon, const QDict *qdict)
 
     if (err) {
         monitor_printf(mon, "migrate_set_capability: %s\n",
+                       error_get_pretty(err));
+        error_free(err);
+    }
+}
+
+void hmp_migrate_set_parameter(Monitor *mon, const QDict *qdict)
+{
+    const char *param = qdict_get_str(qdict, "parameter");
+    int value = qdict_get_int(qdict, "value");
+    Error *err = NULL;
+    bool has_compress_level = false;
+    bool has_compress_threads = false;
+    bool has_decompress_threads = false;
+    int i;
+
+    for (i = 0; i < MIGRATION_PARAMETER_MAX; i++) {
+        if (strcmp(param, MigrationParameter_lookup[i]) == 0) {
+            switch (i) {
+            case MIGRATION_PARAMETER_COMPRESS_LEVEL:
+                has_compress_level = true;
+                break;
+            case MIGRATION_PARAMETER_COMPRESS_THREADS:
+                has_compress_threads = true;
+                break;
+            case MIGRATION_PARAMETER_DECOMPRESS_THREADS:
+                has_decompress_threads = true;
+                break;
+            }
+            qmp_migrate_set_parameters(has_compress_level, value,
+                                       has_compress_threads, value,
+                                       has_decompress_threads, value,
+                                       &err);
+            break;
+        }
+    }
+
+    if (i == MIGRATION_PARAMETER_MAX) {
+        error_set(&err, QERR_INVALID_PARAMETER, param);
+    }
+
+    if (err) {
+        monitor_printf(mon, "migrate_set_parameter: %s\n",
                        error_get_pretty(err));
         error_free(err);
     }

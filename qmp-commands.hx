@@ -3443,6 +3443,63 @@ EQMP
     },
 
 SQMP
+migrate-set-parameters
+----------------------
+
+Set migration parameters
+
+- "compress-level": set compression level during migration (json-int)
+- "compress-threads": set compression thread count for migration (json-int)
+- "decompress-threads": set decompression thread count for migration (json-int)
+
+Arguments:
+
+Example:
+
+-> { "execute": "migrate-set-parameters" , "arguments":
+      { "compress-level": 1 } }
+
+EQMP
+
+    {
+        .name       = "migrate-set-parameters",
+        .args_type  =
+            "compress-level:i?,compress-threads:i?,decompress-threads:i?",
+	.mhandler.cmd_new = qmp_marshal_input_migrate_set_parameters,
+    },
+SQMP
+query-migrate-parameters
+------------------------
+
+Query current migration parameters
+
+- "parameters": migration parameters value
+         - "compress-level" : compression level value (json-int)
+         - "compress-threads" : compression thread count value (json-int)
+         - "decompress-threads" : decompression thread count value (json-int)
+
+Arguments:
+
+Example:
+
+-> { "execute": "query-migrate-parameters" }
+<- {
+      "return": {
+         "decompress-threads", 2,
+         "compress-threads", 8,
+         "compress-level", 1
+      }
+   }
+
+EQMP
+
+    {
+        .name       = "query-migrate-parameters",
+        .args_type  = "",
+        .mhandler.cmd_new = qmp_marshal_input_query_migrate_parameters,
+    },
+
+SQMP
 query-balloon
 -------------
 

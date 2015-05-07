@@ -2859,6 +2859,13 @@ static mon_cmd_t info_cmds[] = {
         .mhandler.cmd = hmp_info_migrate_capabilities,
     },
     {
+        .name       = "migrate_parameters",
+        .args_type  = "",
+        .params     = "",
+        .help       = "show current migration parameters",
+        .mhandler.cmd = hmp_info_migrate_parameters,
+    },
+    {
         .name       = "migrate_cache_size",
         .args_type  = "",
         .params     = "",
@@ -4537,6 +4544,24 @@ void migrate_set_capability_completion(ReadLineState *rs, int nb_args,
     } else if (nb_args == 3) {
         add_completion_option(rs, str, "on");
         add_completion_option(rs, str, "off");
+    }
+}
+
+void migrate_set_parameter_completion(ReadLineState *rs, int nb_args,
+                                      const char *str)
+{
+    size_t len;
+
+    len = strlen(str);
+    readline_set_completion_index(rs, len);
+    if (nb_args == 2) {
+        int i;
+        for (i = 0; i < MIGRATION_PARAMETER_MAX; i++) {
+            const char *name = MigrationParameter_lookup[i];
+            if (!strncmp(str, name, len)) {
+                readline_add_completion(rs, name);
+            }
+        }
     }
 }
 

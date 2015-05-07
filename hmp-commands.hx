@@ -993,6 +993,21 @@ Enable/Disable the usage of a capability @var{capability} for migration.
 ETEXI
 
     {
+        .name       = "migrate_set_parameter",
+        .args_type  = "parameter:s,value:i",
+        .params     = "parameter value",
+        .help       = "Set the parameter for migration",
+        .mhandler.cmd = hmp_migrate_set_parameter,
+        .command_completion = migrate_set_parameter_completion,
+    },
+
+STEXI
+@item migrate_set_parameter @var{parameter} @var{value}
+@findex migrate_set_parameter
+Set the parameter @var{parameter} for migration.
+ETEXI
+
+    {
         .name       = "client_migrate_info",
         .args_type  = "protocol:s,hostname:s,port:i?,tls-port:i?,cert-subject:s?",
         .params     = "protocol hostname port tls-port cert-subject",
@@ -1761,6 +1776,8 @@ show user network stack connection states
 show migration status
 @item info migrate_capabilities
 show current migration capabilities
+@item info migrate_parameters
+show current migration parameters
 @item info migrate_cache_size
 show current migration XBZRLE cache size
 @item info balloon

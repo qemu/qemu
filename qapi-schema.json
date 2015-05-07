@@ -515,13 +515,22 @@
 #          to enable the capability on the source VM. The feature is disabled by
 #          default. (since 1.6)
 #
+# @compress: Use multiple compression threads to accelerate live migration.
+#          This feature can help to reduce the migration traffic, by sending
+#          compressed pages. Please note that if compress and xbzrle are both
+#          on, compress only takes effect in the ram bulk stage, after that,
+#          it will be disabled and only xbzrle takes effect, this can help to
+#          minimize migration traffic. The feature is disabled by default.
+#          (since 2.4 )
+#
 # @auto-converge: If enabled, QEMU will automatically throttle down the guest
 #          to speed up convergence of RAM migration. (since 1.6)
 #
 # Since: 1.2
 ##
 { 'enum': 'MigrationCapability',
-  'data': ['xbzrle', 'rdma-pin-all', 'auto-converge', 'zero-blocks'] }
+  'data': ['xbzrle', 'rdma-pin-all', 'auto-converge', 'zero-blocks',
+           'compress'] }
 
 ##
 # @MigrationCapabilityStatus
@@ -559,6 +568,74 @@
 # Since: 1.2
 ##
 { 'command': 'query-migrate-capabilities', 'returns':   ['MigrationCapabilityStatus']}
+
+# @MigrationParameter
+#
+# Migration parameters enumeration
+#
+# @compress-level: Set the compression level to be used in live migration,
+#          the compression level is an integer between 0 and 9, where 0 means
+#          no compression, 1 means the best compression speed, and 9 means best
+#          compression ratio which will consume more CPU.
+#
+# @compress-threads: Set compression thread count to be used in live migration,
+#          the compression thread count is an integer between 1 and 255.
+#
+# @decompress-threads: Set decompression thread count to be used in live
+#          migration, the decompression thread count is an integer between 1
+#          and 255. Usually, decompression is at least 4 times as fast as
+#          compression, so set the decompress-threads to the number about 1/4
+#          of compress-threads is adequate.
+#
+# Since: 2.4
+##
+{ 'enum': 'MigrationParameter',
+  'data': ['compress-level', 'compress-threads', 'decompress-threads'] }
+
+#
+# @migrate-set-parameters
+#
+# Set the following migration parameters
+#
+# @compress-level: compression level
+#
+# @compress-threads: compression thread count
+#
+# @decompress-threads: decompression thread count
+#
+# Since: 2.4
+##
+{ 'command': 'migrate-set-parameters',
+  'data': { '*compress-level': 'int',
+            '*compress-threads': 'int',
+            '*decompress-threads': 'int'} }
+
+#
+# @MigrationParameters
+#
+# @compress-level: compression level
+#
+# @compress-threads: compression thread count
+#
+# @decompress-threads: decompression thread count
+#
+# Since: 2.4
+##
+{ 'struct': 'MigrationParameters',
+  'data': { 'compress-level': 'int',
+            'compress-threads': 'int',
+            'decompress-threads': 'int'} }
+##
+# @query-migrate-parameters
+#
+# Returns information about the current migration parameters
+#
+# Returns: @MigrationParameters
+#
+# Since: 2.4
+##
+{ 'command': 'query-migrate-parameters',
+  'returns': 'MigrationParameters' }
 
 ##
 # @MouseInfo:
