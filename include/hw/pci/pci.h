@@ -334,6 +334,12 @@ int pci_device_load(PCIDevice *s, QEMUFile *f);
 MemoryRegion *pci_address_space(PCIDevice *dev);
 MemoryRegion *pci_address_space_io(PCIDevice *dev);
 
+/*
+ * Should not normally be used by devices. For use by sPAPR target
+ * where QEMU emulates firmware.
+ */
+int pci_bar(PCIDevice *d, int reg);
+
 typedef void (*pci_set_irq_fn)(void *opaque, int irq_num, int level);
 typedef int (*pci_map_irq_fn)(PCIDevice *pci_dev, int irq_num);
 typedef PCIINTxRoute (*pci_route_irq_fn)(void *opaque, int pin);
