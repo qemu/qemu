@@ -247,7 +247,7 @@ static target_ulong h_put_tce_indirect(PowerPCCPU *cpu,
     target_ulong ioba1 = ioba;
     target_ulong tce_list = args[2];
     target_ulong npages = args[3];
-    target_ulong ret = H_PARAMETER;
+    target_ulong ret = H_PARAMETER, tce = 0;
     sPAPRTCETable *tcet = spapr_tce_find_by_liobn(liobn);
     CPUState *cs = CPU(cpu);
     hwaddr page_mask, page_size;
@@ -267,7 +267,7 @@ static target_ulong h_put_tce_indirect(PowerPCCPU *cpu,
     for (i = 0; i < npages; ++i, ioba += page_size) {
         target_ulong off = (tce_list & ~SPAPR_TCE_RW) +
                                 i * sizeof(target_ulong);
-        target_ulong tce = ldq_phys(cs->as, off);
+        tce = ldq_be_phys(cs->as, off);
 
         ret = put_tce_emu(tcet, ioba, tce);
         if (ret) {
@@ -278,8 +278,7 @@ static target_ulong h_put_tce_indirect(PowerPCCPU *cpu,
     /* Trace last successful or the first problematic entry */
     i = i ? (i - 1) : 0;
     trace_spapr_iommu_indirect(liobn, ioba1, tce_list, i,
-                               ldq_phys(cs->as,
-                               tce_list + i * sizeof(target_ulong)),
+                               tce,
                                ret);
 
     return ret;
