@@ -3,11 +3,13 @@
 
 #include "sysemu/dma.h"
 #include "hw/ppc/xics.h"
+#include "hw/ppc/spapr_drc.h"
 
 struct VIOsPAPRBus;
 struct sPAPRPHBState;
 struct sPAPRNVRAM;
 typedef struct sPAPRConfigureConnectorState sPAPRConfigureConnectorState;
+typedef struct sPAPREventLogEntry sPAPREventLogEntry;
 
 #define HPTE64_V_HPTE_DIRTY     0x0000000000000040ULL
 
@@ -32,8 +34,9 @@ typedef struct sPAPREnvironment {
     struct PPCTimebase tb;
     bool has_graphics;
 
-    uint32_t epow_irq;
+    uint32_t check_exception_irq;
     Notifier epow_notifier;
+    QTAILQ_HEAD(, sPAPREventLogEntry) pending_events;
 
     /* Migration state */
     int htab_save_index;
@@ -533,6 +536,13 @@ struct sPAPRTCETable {
 };
 
 sPAPRTCETable *spapr_tce_find_by_liobn(target_ulong liobn);
+
+struct sPAPREventLogEntry {
+    int log_type;
+    void *data;
+    QTAILQ_ENTRY(sPAPREventLogEntry) next;
+};
+
 void spapr_events_init(sPAPREnvironment *spapr);
 void spapr_events_fdt_skel(void *fdt, uint32_t epow_irq);
 int spapr_h_cas_compose_response(target_ulong addr, target_ulong size);
@@ -547,6 +557,8 @@ int spapr_dma_dt(void *fdt, int node_off, const char *propname,
 int spapr_tcet_dma_dt(void *fdt, int node_off, const char *propname,
                       sPAPRTCETable *tcet);
 void spapr_pci_switch_vga(bool big_endian);
+void spapr_hotplug_req_add_event(sPAPRDRConnector *drc);
+void spapr_hotplug_req_remove_event(sPAPRDRConnector *drc);
 
 /* rtas-configure-connector state */
 struct sPAPRConfigureConnectorState {

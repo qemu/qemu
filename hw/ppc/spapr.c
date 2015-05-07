@@ -1660,7 +1660,8 @@ static void ppc_spapr_init(MachineState *machine)
     /* Prepare the device tree */
     spapr->fdt_skel = spapr_create_fdt_skel(initrd_base, initrd_size,
                                             kernel_size, kernel_le,
-                                            kernel_cmdline, spapr->epow_irq);
+                                            kernel_cmdline,
+                                            spapr->check_exception_irq);
     assert(spapr->fdt_skel != NULL);
 
     /* used by RTAS */
