@@ -794,8 +794,8 @@ static void spapr_finalize_fdt(sPAPREnvironment *spapr,
     _FDT((fdt_pack(fdt)));
 
     if (fdt_totalsize(fdt) > FDT_MAX_SIZE) {
-        hw_error("FDT too big ! 0x%x bytes (max is 0x%x)\n",
-                 fdt_totalsize(fdt), FDT_MAX_SIZE);
+        error_report("FDT too big ! 0x%x bytes (max is 0x%x)",
+                     fdt_totalsize(fdt), FDT_MAX_SIZE);
         exit(1);
     }
 
@@ -899,7 +899,7 @@ static int spapr_check_htab_fd(sPAPREnvironment *spapr)
         spapr->htab_fd = kvmppc_get_htab_fd(false);
         if (spapr->htab_fd < 0) {
             error_report("Unable to open fd for reading hash table from KVM: "
-                    "%s", strerror(errno));
+                         "%s", strerror(errno));
             rc = -1;
         }
         spapr->htab_fd_stale = false;
@@ -1419,7 +1419,7 @@ static void ppc_spapr_init(MachineState *machine)
     rma_alloc_size = kvmppc_alloc_rma(&rma);
 
     if (rma_alloc_size == -1) {
-        hw_error("qemu: Unable to create RMA\n");
+        error_report("Unable to create RMA");
         exit(1);
     }
 
@@ -1520,18 +1520,18 @@ static void ppc_spapr_init(MachineState *machine)
 
     filename = qemu_find_file(QEMU_FILE_TYPE_BIOS, "spapr-rtas.bin");
     if (!filename) {
-        hw_error("Could not find LPAR rtas '%s'\n", "spapr-rtas.bin");
+        error_report("Could not find LPAR rtas '%s'", "spapr-rtas.bin");
         exit(1);
     }
     spapr->rtas_size = get_image_size(filename);
     spapr->rtas_blob = g_malloc(spapr->rtas_size);
     if (load_image_size(filename, spapr->rtas_blob, spapr->rtas_size) < 0) {
-        hw_error("qemu: could not load LPAR rtas '%s'\n", filename);
+        error_report("Could not load LPAR rtas '%s'", filename);
         exit(1);
     }
     if (spapr->rtas_size > RTAS_MAX_SIZE) {
-        hw_error("RTAS too big ! 0x%zx bytes (max is 0x%x)\n",
-                 (size_t)spapr->rtas_size, RTAS_MAX_SIZE);
+        error_report("RTAS too big ! 0x%zx bytes (max is 0x%x)",
+                     (size_t)spapr->rtas_size, RTAS_MAX_SIZE);
         exit(1);
     }
     g_free(filename);
