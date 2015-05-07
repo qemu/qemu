@@ -1823,7 +1823,12 @@ static const TypeInfo spapr_machine_info = {
 };
 
 #define SPAPR_COMPAT_2_3 \
-        HW_COMPAT_2_3
+        HW_COMPAT_2_3 \
+        {\
+            .driver   = "spapr-pci-host-bridge",\
+            .property = "dynamic-reconfiguration",\
+            .value    = "off",\
+        },
 
 #define SPAPR_COMPAT_2_2 \
         SPAPR_COMPAT_2_3 \
@@ -1913,7 +1918,7 @@ static const TypeInfo spapr_machine_2_2_info = {
 static void spapr_machine_2_3_class_init(ObjectClass *oc, void *data)
 {
     static GlobalProperty compat_props[] = {
-        /* SPAPR_COMPAT_2_3, */
+        SPAPR_COMPAT_2_3
         { /* end of list */ }
     };
     MachineClass *mc = MACHINE_CLASS(oc);

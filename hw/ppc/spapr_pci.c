@@ -936,6 +936,8 @@ static Property spapr_phb_properties[] = {
     DEFINE_PROP_UINT64("io_win_addr", sPAPRPHBState, io_win_addr, -1),
     DEFINE_PROP_UINT64("io_win_size", sPAPRPHBState, io_win_size,
                        SPAPR_PCI_IO_WIN_SIZE),
+    DEFINE_PROP_BOOL("dynamic-reconfiguration", sPAPRPHBState, dr_enabled,
+                     true),
     DEFINE_PROP_END_OF_LIST(),
 };
 
