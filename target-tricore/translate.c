@@ -6449,6 +6449,11 @@ static void decode_rr_divide(CPUTriCoreState *env, DisasContext *ctx)
     case OPC2_32_RR_UNPACK:
         gen_unpack(cpu_gpr_d[r3], cpu_gpr_d[r3+1], cpu_gpr_d[r1]);
         break;
+    case OPC2_32_RR_CRC32:
+        if (tricore_feature(env, TRICORE_FEATURE_161)) {
+            gen_helper_crc32(cpu_gpr_d[r3], cpu_gpr_d[r1], cpu_gpr_d[r2]);
+        } /* TODO: else raise illegal opcode trap */
+        break;
     }
 }
 
