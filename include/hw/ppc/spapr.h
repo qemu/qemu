@@ -7,6 +7,7 @@
 struct VIOsPAPRBus;
 struct sPAPRPHBState;
 struct sPAPRNVRAM;
+typedef struct sPAPRConfigureConnectorState sPAPRConfigureConnectorState;
 
 #define HPTE64_V_HPTE_DIRTY     0x0000000000000040ULL
 
@@ -39,6 +40,9 @@ typedef struct sPAPREnvironment {
     bool htab_first_pass;
     int htab_fd;
     bool htab_fd_stale;
+
+    /* RTAS state */
+    QTAILQ_HEAD(, sPAPRConfigureConnectorState) ccs_list;
 } sPAPREnvironment;
 
 #define H_SUCCESS         0
@@ -543,6 +547,16 @@ int spapr_dma_dt(void *fdt, int node_off, const char *propname,
 int spapr_tcet_dma_dt(void *fdt, int node_off, const char *propname,
                       sPAPRTCETable *tcet);
 void spapr_pci_switch_vga(bool big_endian);
+
+/* rtas-configure-connector state */
+struct sPAPRConfigureConnectorState {
+    uint32_t drc_index;
+    int fdt_offset;
+    int fdt_depth;
+    QTAILQ_ENTRY(sPAPRConfigureConnectorState) next;
+};
+
+void spapr_ccs_reset_hook(void *opaque);
 
 #define TYPE_SPAPR_RTC "spapr-rtc"
 

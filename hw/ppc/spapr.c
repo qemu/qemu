@@ -1663,6 +1663,10 @@ static void ppc_spapr_init(MachineState *machine)
                                             kernel_cmdline, spapr->epow_irq);
     assert(spapr->fdt_skel != NULL);
 
+    /* used by RTAS */
+    QTAILQ_INIT(&spapr->ccs_list);
+    qemu_register_reset(spapr_ccs_reset_hook, spapr);
+
     qemu_register_boot_set(spapr_boot_set, spapr);
 }
 
