@@ -339,7 +339,7 @@ int kvm_arch_put_registers(CPUState *cs, int level)
 
     /* Floating point */
     for (i = 0; i < 16; i++) {
-        fpu.fprs[i] = env->fregs[i].ll;
+        fpu.fprs[i] = get_freg(env, i)->ll;
     }
     fpu.fpc = env->fpc;
 
@@ -474,7 +474,7 @@ int kvm_arch_get_registers(CPUState *cs)
         return r;
     }
     for (i = 0; i < 16; i++) {
-        env->fregs[i].ll = fpu.fprs[i];
+        get_freg(env, i)->ll = fpu.fprs[i];
     }
     env->fpc = fpu.fpc;
 
@@ -1363,6 +1363,7 @@ static int kvm_s390_store_status(S390CPU *cpu, hwaddr addr, bool store_arch)
     static const uint8_t ar_id = 1;
     uint64_t ckc = cpu->env.ckc >> 8;
     void *mem;
+    int i;
     hwaddr len = SAVE_AREA_SIZE;
 
     mem = cpu_physical_memory_map(addr, &len, 1);
@@ -1377,7 +1378,9 @@ static int kvm_s390_store_status(S390CPU *cpu, hwaddr addr, bool store_arch)
     if (store_arch) {
         cpu_physical_memory_write(offsetof(LowCore, ar_access_id), &ar_id, 1);
     }
-    memcpy(mem, &cpu->env.fregs, 128);
+    for (i = 0; i < 16; ++i) {
+        *((uint64 *)mem + i) = get_freg(&cpu->env, i)->ll;
+    }
     memcpy(mem + 128, &cpu->env.regs, 128);
     memcpy(mem + 256, &cpu->env.psw, 16);
     memcpy(mem + 280, &cpu->env.psa, 4);

@@ -113,7 +113,7 @@ void s390_cpu_dump_state(CPUState *cs, FILE *f, fprintf_function cpu_fprintf,
     }
 
     for (i = 0; i < 16; i++) {
-        cpu_fprintf(f, "F%02d=%016" PRIx64, i, env->fregs[i].ll);
+        cpu_fprintf(f, "F%02d=%016" PRIx64, i, get_freg(env, i)->ll);
         if ((i % 4) == 3) {
             cpu_fprintf(f, "\n");
         } else {

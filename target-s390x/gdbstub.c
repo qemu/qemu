@@ -111,7 +111,7 @@ static int cpu_read_fp_reg(CPUS390XState *env, uint8_t *mem_buf, int n)
     case S390_FPC_REGNUM:
         return gdb_get_reg32(mem_buf, env->fpc);
     case S390_F0_REGNUM ... S390_F15_REGNUM:
-        return gdb_get_reg64(mem_buf, env->fregs[n - S390_F0_REGNUM].ll);
+        return gdb_get_reg64(mem_buf, get_freg(env, n - S390_F0_REGNUM)->ll);
     default:
         return 0;
     }
@@ -124,7 +124,7 @@ static int cpu_write_fp_reg(CPUS390XState *env, uint8_t *mem_buf, int n)
         env->fpc = ldl_p(mem_buf);
         return 4;
     case S390_F0_REGNUM ... S390_F15_REGNUM:
-        env->fregs[n - S390_F0_REGNUM].ll = ldtul_p(mem_buf);
+        get_freg(env, n - S390_F0_REGNUM)->ll = ldtul_p(mem_buf);
         return 8;
     default:
         return 0;

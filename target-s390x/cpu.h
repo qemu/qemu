@@ -162,6 +162,11 @@ typedef struct CPUS390XState {
 
 } CPUS390XState;
 
+static inline CPU_DoubleU *get_freg(CPUS390XState *cs, int nr)
+{
+    return &cs->fregs[nr];
+}
+
 #include "cpu-qom.h"
 #include <sysemu/kvm.h>
 

@@ -78,11 +78,12 @@ static void s390x_write_elf64_prstatus(Note *note, S390CPU *cpu)
 static void s390x_write_elf64_fpregset(Note *note, S390CPU *cpu)
 {
     int i;
+    CPUS390XState *cs = &cpu->env;
 
     note->hdr.n_type = cpu_to_be32(NT_FPREGSET);
     note->contents.fpregset.fpc = cpu_to_be32(cpu->env.fpc);
     for (i = 0; i <= 15; i++) {
-        note->contents.fpregset.fprs[i] = cpu_to_be64(cpu->env.fregs[i].ll);
+        note->contents.fpregset.fprs[i] = cpu_to_be64(get_freg(cs, i)->ll);
     }
 }
 
