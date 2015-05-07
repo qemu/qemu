@@ -7792,10 +7792,12 @@ static void decode_rrrw_extract_insert(CPUTriCoreState *env, DisasContext *ctx)
 static void decode_sys_interrupts(CPUTriCoreState *env, DisasContext *ctx)
 {
     uint32_t op2;
+    uint32_t r1;
     TCGLabel *l1;
     TCGv tmp;
 
     op2 = MASK_OP_SYS_OP2(ctx->opcode);
+    r1  = MASK_OP_SYS_S1D(ctx->opcode);
 
     switch (op2) {
     case OPC2_32_SYS_DEBUG:
@@ -7843,6 +7845,14 @@ static void decode_sys_interrupts(CPUTriCoreState *env, DisasContext *ctx)
         break;
     case OPC2_32_SYS_SVLCX:
         gen_helper_svlcx(cpu_env);
+        break;
+    case OPC2_32_SYS_RESTORE:
+        if (tricore_feature(env, TRICORE_FEATURE_16)) {
+            if ((ctx->hflags & TRICORE_HFLAG_KUU) == TRICORE_HFLAG_SM ||
+                (ctx->hflags & TRICORE_HFLAG_KUU) == TRICORE_HFLAG_UM1) {
+                tcg_gen_deposit_tl(cpu_ICR, cpu_ICR, cpu_gpr_d[r1], 8, 1);
+            } /* else raise privilege trap */
+        } /* else raise illegal opcode trap */
         break;
     case OPC2_32_SYS_TRAPSV:
         /* TODO: raise sticky overflow trap */
