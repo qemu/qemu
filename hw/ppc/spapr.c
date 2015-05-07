@@ -1641,12 +1641,12 @@ static void ppc_spapr_init(MachineState *machine)
     }
     filename = qemu_find_file(QEMU_FILE_TYPE_BIOS, bios_name);
     if (!filename) {
-        hw_error("Could not find LPAR rtas '%s'\n", bios_name);
+        error_report("Could not find LPAR firmware '%s'", bios_name);
         exit(1);
     }
     fw_size = load_image_targphys(filename, 0, FW_MAX_SIZE);
-    if (fw_size < 0) {
-        hw_error("qemu: could not load LPAR rtas '%s'\n", filename);
+    if (fw_size <= 0) {
+        error_report("Could not load LPAR firmware '%s'", filename);
         exit(1);
     }
     g_free(filename);
