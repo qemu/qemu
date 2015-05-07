@@ -41,7 +41,7 @@ enum sPAPRTCEAccess {
 
 static QLIST_HEAD(spapr_tce_tables, sPAPRTCETable) spapr_tce_tables;
 
-sPAPRTCETable *spapr_tce_find_by_liobn(uint32_t liobn)
+sPAPRTCETable *spapr_tce_find_by_liobn(target_ulong liobn)
 {
     sPAPRTCETable *tcet;
 
@@ -52,7 +52,7 @@ sPAPRTCETable *spapr_tce_find_by_liobn(uint32_t liobn)
     }
 
     QLIST_FOREACH(tcet, &spapr_tce_tables, list) {
-        if (tcet->liobn == liobn) {
+        if (tcet->liobn == (uint32_t)liobn) {
             return tcet;
         }
     }
