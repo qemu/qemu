@@ -1205,7 +1205,7 @@ static int coroutine_fn bdrv_co_do_pwritev(BlockDriverState *bs,
         return -ENOMEDIUM;
     }
     if (bs->read_only) {
-        return -EACCES;
+        return -EPERM;
     }
 
     ret = bdrv_check_byte_request(bs, offset, bytes);
@@ -2340,7 +2340,7 @@ int coroutine_fn bdrv_co_discard(BlockDriverState *bs, int64_t sector_num,
     if (ret < 0) {
         return ret;
     } else if (bs->read_only) {
-        return -EROFS;
+        return -EPERM;
     }
 
     bdrv_reset_dirty(bs, sector_num, nb_sectors);
