@@ -1801,6 +1801,7 @@ static void spapr_machine_class_init(ObjectClass *oc, void *data)
     mc->max_cpus = MAX_CPUS;
     mc->no_parallel = 1;
     mc->default_boot_order = "";
+    mc->default_ram_size = 512 * M_BYTE;
     mc->kvm_type = spapr_kvm_type;
     mc->has_dynamic_sysbus = true;
 
