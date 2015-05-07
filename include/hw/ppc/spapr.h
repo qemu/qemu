@@ -485,6 +485,7 @@ int spapr_rtas_device_tree_setup(void *fdt, hwaddr rtas_addr,
 #define SPAPR_VIO_LIOBN(reg)    (0x00000000 | (reg))
 #define SPAPR_PCI_LIOBN(phb_index, window_num) \
     (0x80000000 | ((phb_index) << 8) | (window_num))
+#define SPAPR_IS_PCI_LIOBN(liobn)   (!!((liobn) & 0x80000000))
 #define SPAPR_PCI_DMA_WINDOW_NUM(liobn) ((liobn) & 0xff)
 
 #define RTAS_ERROR_LOG_MAX      2048

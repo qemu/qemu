@@ -277,10 +277,11 @@ static target_ulong h_put_tce_indirect(PowerPCCPU *cpu,
 
     /* Trace last successful or the first problematic entry */
     i = i ? (i - 1) : 0;
-    trace_spapr_iommu_indirect(liobn, ioba1, tce_list, i,
-                               tce,
-                               ret);
-
+    if (SPAPR_IS_PCI_LIOBN(liobn)) {
+        trace_spapr_iommu_pci_indirect(liobn, ioba1, tce_list, i, tce, ret);
+    } else {
+        trace_spapr_iommu_indirect(liobn, ioba1, tce_list, i, tce, ret);
+    }
     return ret;
 }
 
@@ -314,7 +315,11 @@ static target_ulong h_stuff_tce(PowerPCCPU *cpu, sPAPREnvironment *spapr,
             break;
         }
     }
-    trace_spapr_iommu_stuff(liobn, ioba, tce_value, npages, ret);
+    if (SPAPR_IS_PCI_LIOBN(liobn)) {
+        trace_spapr_iommu_pci_stuff(liobn, ioba, tce_value, npages, ret);
+    } else {
+        trace_spapr_iommu_stuff(liobn, ioba, tce_value, npages, ret);
+    }
 
     return ret;
 }
@@ -335,7 +340,11 @@ static target_ulong h_put_tce(PowerPCCPU *cpu, sPAPREnvironment *spapr,
 
         ret = put_tce_emu(tcet, ioba, tce);
     }
-    trace_spapr_iommu_put(liobn, ioba, tce, ret);
+    if (SPAPR_IS_PCI_LIOBN(liobn)) {
+        trace_spapr_iommu_pci_put(liobn, ioba, tce, ret);
+    } else {
+        trace_spapr_iommu_put(liobn, ioba, tce, ret);
+    }
 
     return ret;
 }
@@ -375,7 +384,11 @@ static target_ulong h_get_tce(PowerPCCPU *cpu, sPAPREnvironment *spapr,
             args[0] = tce;
         }
     }
-    trace_spapr_iommu_get(liobn, ioba, ret, tce);
+    if (SPAPR_IS_PCI_LIOBN(liobn)) {
+        trace_spapr_iommu_pci_get(liobn, ioba, ret, tce);
+    } else {
+        trace_spapr_iommu_get(liobn, ioba, ret, tce);
+    }
 
     return ret;
 }
