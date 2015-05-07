@@ -1205,7 +1205,7 @@ vmstate_subsection_load_good(const char *parent) "%s"
 # qemu-file.c
 qemu_file_fclose(void) ""
 
-# arch_init.c
+# migration/ram.c
 migration_bitmap_sync_start(void) ""
 migration_bitmap_sync_end(uint64_t dirty_pages) "dirty_pages %" PRIu64""
 migration_throttle(void) ""
