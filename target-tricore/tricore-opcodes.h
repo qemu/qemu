@@ -399,6 +399,7 @@ enum {
     OPC2_16_SR_RET                                   = 0x09,
     OPC2_16_SR_RFE                                   = 0x08,
     OPC2_16_SR_DEBUG                                 = 0x0a,
+    OPC2_16_SR_FRET                                  = 0x07,
 };
 /* OPCM_16_SR_ACCU                                   */
 enum {
@@ -1438,4 +1439,5 @@ enum {
     OPC2_32_SYS_TRAPSV                           = 0x15,
     OPC2_32_SYS_TRAPV                            = 0x14,
     OPC2_32_SYS_RESTORE                          = 0x0e,
+    OPC2_32_SYS_FRET                             = 0x03,
 };

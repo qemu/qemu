@@ -3287,6 +3287,20 @@ static void gen_fcall_save_ctx(DisasContext *ctx)
     tcg_temp_free(temp);
 }
 
+static void gen_fret(DisasContext *ctx)
+{
+    TCGv temp = tcg_temp_new();
+
+    tcg_gen_andi_tl(temp, cpu_gpr_a[11], ~0x1);
+    tcg_gen_qemu_ld_tl(cpu_gpr_a[11], cpu_gpr_a[10], ctx->mem_idx, MO_LESL);
+    tcg_gen_addi_tl(cpu_gpr_a[10], cpu_gpr_a[10], 4);
+    tcg_gen_mov_tl(cpu_PC, temp);
+    tcg_gen_exit_tb(0);
+    ctx->bstate = BS_BRANCH;
+
+    tcg_temp_free(temp);
+}
+
 static void gen_compute_branch(DisasContext *ctx, uint32_t opc, int r1,
                                int r2 , int32_t constant , int32_t offset)
 {
@@ -3869,6 +3883,8 @@ static void decode_sr_system(CPUTriCoreState *env, DisasContext *ctx)
     case OPC2_16_SR_DEBUG:
         /* raise EXCP_DEBUG */
         break;
+    case OPC2_16_SR_FRET:
+        gen_fret(ctx);
     }
 }
 
@@ -7841,6 +7857,9 @@ static void decode_sys_interrupts(CPUTriCoreState *env, DisasContext *ctx)
         break;
     case OPC2_32_SYS_RET:
         gen_compute_branch(ctx, op2, 0, 0, 0, 0);
+        break;
+    case OPC2_32_SYS_FRET:
+        gen_fret(ctx);
         break;
     case OPC2_32_SYS_RFE:
         gen_helper_rfe(cpu_env);
