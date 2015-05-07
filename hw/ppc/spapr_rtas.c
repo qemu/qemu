@@ -377,6 +377,47 @@ out_unimplemented:
     rtas_st(rets, 0, RTAS_OUT_NOT_SUPPORTED);
 }
 
+static void rtas_get_sensor_state(PowerPCCPU *cpu, sPAPREnvironment *spapr,
+                                  uint32_t token, uint32_t nargs,
+                                  target_ulong args, uint32_t nret,
+                                  target_ulong rets)
+{
+    uint32_t sensor_type;
+    uint32_t sensor_index;
+    sPAPRDRConnector *drc;
+    sPAPRDRConnectorClass *drck;
+    uint32_t entity_sense;
+
+    if (nargs != 2 || nret != 2) {
+        rtas_st(rets, 0, RTAS_OUT_PARAM_ERROR);
+        return;
+    }
+
+    sensor_type = rtas_ld(args, 0);
+    sensor_index = rtas_ld(args, 1);
+
+    if (sensor_type != RTAS_SENSOR_TYPE_ENTITY_SENSE) {
+        /* currently only DR-related sensors are implemented */
+        DPRINTF("rtas_get_sensor_state: sensor/indicator not implemented: %d\n",
+                sensor_type);
+        rtas_st(rets, 0, RTAS_OUT_NOT_SUPPORTED);
+        return;
+    }
+
+    drc = spapr_dr_connector_by_index(sensor_index);
+    if (!drc) {
+        DPRINTF("rtas_get_sensor_state: invalid sensor/DRC index: %xh\n",
+                sensor_index);
+        rtas_st(rets, 0, RTAS_OUT_PARAM_ERROR);
+        return;
+    }
+    drck = SPAPR_DR_CONNECTOR_GET_CLASS(drc);
+    entity_sense = drck->entity_sense(drc);
+
+    rtas_st(rets, 0, RTAS_OUT_SUCCESS);
+    rtas_st(rets, 1, entity_sense);
+}
+
 static struct rtas_call {
     const char *name;
     spapr_rtas_fn fn;
@@ -508,6 +549,8 @@ static void core_rtas_register_types(void)
                         rtas_get_power_level);
     spapr_rtas_register(RTAS_SET_INDICATOR, "set-indicator",
                         rtas_set_indicator);
+    spapr_rtas_register(RTAS_GET_SENSOR_STATE, "get-sensor-state",
+                        rtas_get_sensor_state);
 }
 
 type_init(core_rtas_register_types)
