@@ -35,6 +35,7 @@
 #include "qemu/error-report.h"
 
 #include "hw/pci/pci_bus.h"
+#include "hw/ppc/spapr_drc.h"
 
 /* Copied from the kernel arch/powerpc/platforms/pseries/msi.c */
 #define RTAS_QUERY_FN           0
@@ -880,6 +881,15 @@ static void spapr_phb_realize(DeviceState *dev, Error **errp)
         sphb->lsi_table[i].irq = irq;
     }
 
+    /* allocate connectors for child PCI devices */
+    if (sphb->dr_enabled) {
+        for (i = 0; i < PCI_SLOT_MAX * 8; i++) {
+            spapr_dr_connector_new(OBJECT(phb),
+                                   SPAPR_DR_CONNECTOR_TYPE_PCI,
+                                   (sphb->index << 16) | i);
+        }
+    }
+
     if (!info->finish_realize) {
         error_setg(errp, "finish_realize not defined");
         return;
@@ -1096,7 +1106,7 @@ int spapr_populate_pci_dt(sPAPRPHBState *phb,
                           uint32_t xics_phandle,
                           void *fdt)
 {
-    int bus_off, i, j;
+    int bus_off, i, j, ret;
     char nodename[256];
     uint32_t bus_range[] = { cpu_to_be32(0), cpu_to_be32(0xff) };
     const uint64_t mmiosize = memory_region_size(&phb->memwindow);
@@ -1187,6 +1197,12 @@ int spapr_populate_pci_dt(sPAPRPHBState *phb,
     spapr_dma_dt(fdt, bus_off, "ibm,dma-window",
                  tcet->liobn, tcet->bus_offset,
                  tcet->nb_table << tcet->page_shift);
+
+    ret = spapr_drc_populate_dt(fdt, bus_off, OBJECT(phb),
+                                SPAPR_DR_CONNECTOR_TYPE_PCI);
+    if (ret) {
+        return ret;
+    }
 
     return 0;
 }
