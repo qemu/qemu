@@ -1190,4 +1190,18 @@ static inline int s390_assign_subch_ioeventfd(EventNotifier *notifier,
     }
 }
 
+#ifdef CONFIG_KVM
+static inline bool vregs_needed(void *opaque)
+{
+    if (kvm_enabled()) {
+        return kvm_check_extension(kvm_state, KVM_CAP_S390_VECTOR_REGISTERS);
+    }
+    return 0;
+}
+#else
+static inline bool vregs_needed(void *opaque)
+{
+    return 0;
+}
+#endif
 #endif
