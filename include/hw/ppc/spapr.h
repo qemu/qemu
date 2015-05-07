@@ -430,6 +430,17 @@ int spapr_allocate_irq_block(int num, bool lsi, bool msi);
 #define RTAS_SYSPARM_DIAGNOSTICS_RUN_MODE        42
 #define RTAS_SYSPARM_UUID                        48
 
+/* RTAS indicator/sensor types
+ *
+ * as defined by PAPR+ 2.7 7.3.5.4, Table 41
+ *
+ * NOTE: currently only DR-related sensors are implemented here
+ */
+#define RTAS_SENSOR_TYPE_ISOLATION_STATE        9001
+#define RTAS_SENSOR_TYPE_DR                     9002
+#define RTAS_SENSOR_TYPE_ALLOCATION_STATE       9003
+#define RTAS_SENSOR_TYPE_ENTITY_SENSE RTAS_SENSOR_TYPE_ALLOCATION_STATE
+
 /* Possible values for the platform-processor-diagnostics-run-mode parameter
  * of the RTAS ibm,get-system-parameter call.
  */

@@ -35,6 +35,18 @@
 #include "qapi-event.h"
 
 #include <libfdt.h>
+#include "hw/ppc/spapr_drc.h"
+
+/* #define DEBUG_SPAPR */
+
+#ifdef DEBUG_SPAPR
+#define DPRINTF(fmt, ...) \
+    do { fprintf(stderr, fmt, ## __VA_ARGS__); } while (0)
+#else
+#define DPRINTF(fmt, ...) \
+    do { } while (0)
+#endif
+
 
 static void rtas_display_character(PowerPCCPU *cpu, sPAPREnvironment *spapr,
                                    uint32_t token, uint32_t nargs,
@@ -295,6 +307,76 @@ static void rtas_get_power_level(PowerPCCPU *cpu, sPAPREnvironment *spapr,
     rtas_st(rets, 1, 100);
 }
 
+static bool sensor_type_is_dr(uint32_t sensor_type)
+{
+    switch (sensor_type) {
+    case RTAS_SENSOR_TYPE_ISOLATION_STATE:
+    case RTAS_SENSOR_TYPE_DR:
+    case RTAS_SENSOR_TYPE_ALLOCATION_STATE:
+        return true;
+    }
+
+    return false;
+}
+
+static void rtas_set_indicator(PowerPCCPU *cpu, sPAPREnvironment *spapr,
+                               uint32_t token, uint32_t nargs,
+                               target_ulong args, uint32_t nret,
+                               target_ulong rets)
+{
+    uint32_t sensor_type;
+    uint32_t sensor_index;
+    uint32_t sensor_state;
+    sPAPRDRConnector *drc;
+    sPAPRDRConnectorClass *drck;
+
+    if (nargs != 3 || nret != 1) {
+        rtas_st(rets, 0, RTAS_OUT_PARAM_ERROR);
+        return;
+    }
+
+    sensor_type = rtas_ld(args, 0);
+    sensor_index = rtas_ld(args, 1);
+    sensor_state = rtas_ld(args, 2);
+
+    if (!sensor_type_is_dr(sensor_type)) {
+        goto out_unimplemented;
+    }
+
+    /* if this is a DR sensor we can assume sensor_index == drc_index */
+    drc = spapr_dr_connector_by_index(sensor_index);
+    if (!drc) {
+        DPRINTF("rtas_set_indicator: invalid sensor/DRC index: %xh\n",
+                sensor_index);
+        rtas_st(rets, 0, RTAS_OUT_PARAM_ERROR);
+        return;
+    }
+    drck = SPAPR_DR_CONNECTOR_GET_CLASS(drc);
+
+    switch (sensor_type) {
+    case RTAS_SENSOR_TYPE_ISOLATION_STATE:
+        drck->set_isolation_state(drc, sensor_state);
+        break;
+    case RTAS_SENSOR_TYPE_DR:
+        drck->set_indicator_state(drc, sensor_state);
+        break;
+    case RTAS_SENSOR_TYPE_ALLOCATION_STATE:
+        drck->set_allocation_state(drc, sensor_state);
+        break;
+    default:
+        goto out_unimplemented;
+    }
+
+    rtas_st(rets, 0, RTAS_OUT_SUCCESS);
+    return;
+
+out_unimplemented:
+    /* currently only DR-related sensors are implemented */
+    DPRINTF("rtas_set_indicator: sensor/indicator not implemented: %d\n",
+            sensor_type);
+    rtas_st(rets, 0, RTAS_OUT_NOT_SUPPORTED);
+}
+
 static struct rtas_call {
     const char *name;
     spapr_rtas_fn fn;
@@ -424,6 +506,8 @@ static void core_rtas_register_types(void)
                         rtas_set_power_level);
     spapr_rtas_register(RTAS_GET_POWER_LEVEL, "get-power-level",
                         rtas_get_power_level);
+    spapr_rtas_register(RTAS_SET_INDICATOR, "set-indicator",
+                        rtas_set_indicator);
 }
 
 type_init(core_rtas_register_types)
