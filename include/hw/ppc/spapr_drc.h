@@ -195,5 +195,7 @@ sPAPRDRConnector *spapr_dr_connector_new(Object *owner,
 sPAPRDRConnector *spapr_dr_connector_by_index(uint32_t index);
 sPAPRDRConnector *spapr_dr_connector_by_id(sPAPRDRConnectorType type,
                                            uint32_t id);
+int spapr_drc_populate_dt(void *fdt, int fdt_offset, Object *owner,
+                          uint32_t drc_type_mask);
 
 #endif /* __HW_SPAPR_DRC_H__ */

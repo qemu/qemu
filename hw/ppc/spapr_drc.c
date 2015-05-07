@@ -586,3 +586,159 @@ sPAPRDRConnector *spapr_dr_connector_by_id(sPAPRDRConnectorType type,
             (get_type_shift(type) << DRC_INDEX_TYPE_SHIFT) |
             (id & DRC_INDEX_ID_MASK));
 }
+
+/* generate a string the describes the DRC to encode into the
+ * device tree.
+ *
+ * as documented by PAPR+ v2.7, 13.5.2.6 and C.6.1
+ */
+static const char *spapr_drc_get_type_str(sPAPRDRConnectorType type)
+{
+    switch (type) {
+    case SPAPR_DR_CONNECTOR_TYPE_CPU:
+        return "CPU";
+    case SPAPR_DR_CONNECTOR_TYPE_PHB:
+        return "PHB";
+    case SPAPR_DR_CONNECTOR_TYPE_VIO:
+        return "SLOT";
+    case SPAPR_DR_CONNECTOR_TYPE_PCI:
+        return "28";
+    case SPAPR_DR_CONNECTOR_TYPE_LMB:
+        return "MEM";
+    default:
+        g_assert(false);
+    }
+
+    return NULL;
+}
+
+/**
+ * spapr_drc_populate_dt
+ *
+ * @fdt: libfdt device tree
+ * @path: path in the DT to generate properties
+ * @owner: parent Object/DeviceState for which to generate DRC
+ *         descriptions for
+ * @drc_type_mask: mask of sPAPRDRConnectorType values corresponding
+ *   to the types of DRCs to generate entries for
+ *
+ * generate OF properties to describe DRC topology/indices to guests
+ *
+ * as documented in PAPR+ v2.1, 13.5.2
+ */
+int spapr_drc_populate_dt(void *fdt, int fdt_offset, Object *owner,
+                          uint32_t drc_type_mask)
+{
+    Object *root_container;
+    ObjectProperty *prop;
+    uint32_t drc_count = 0;
+    GArray *drc_indexes, *drc_power_domains;
+    GString *drc_names, *drc_types;
+    int ret;
+
+    /* the first entry of each properties is a 32-bit integer encoding
+     * the number of elements in the array. we won't know this until
+     * we complete the iteration through all the matching DRCs, but
+     * reserve the space now and set the offsets accordingly so we
+     * can fill them in later.
+     */
+    drc_indexes = g_array_new(false, true, sizeof(uint32_t));
+    drc_indexes = g_array_set_size(drc_indexes, 1);
+    drc_power_domains = g_array_new(false, true, sizeof(uint32_t));
+    drc_power_domains = g_array_set_size(drc_power_domains, 1);
+    drc_names = g_string_set_size(g_string_new(NULL), sizeof(uint32_t));
+    drc_types = g_string_set_size(g_string_new(NULL), sizeof(uint32_t));
+
+    /* aliases for all DRConnector objects will be rooted in QOM
+     * composition tree at DRC_CONTAINER_PATH
+     */
+    root_container = container_get(object_get_root(), DRC_CONTAINER_PATH);
+
+    QTAILQ_FOREACH(prop, &root_container->properties, node) {
+        Object *obj;
+        sPAPRDRConnector *drc;
+        sPAPRDRConnectorClass *drck;
+        uint32_t drc_index, drc_power_domain;
+
+        if (!strstart(prop->type, "link<", NULL)) {
+            continue;
+        }
+
+        obj = object_property_get_link(root_container, prop->name, NULL);
+        drc = SPAPR_DR_CONNECTOR(obj);
+        drck = SPAPR_DR_CONNECTOR_GET_CLASS(drc);
+
+        if (owner && (drc->owner != owner)) {
+            continue;
+        }
+
+        if ((drc->type & drc_type_mask) == 0) {
+            continue;
+        }
+
+        drc_count++;
+
+        /* ibm,drc-indexes */
+        drc_index = cpu_to_be32(drck->get_index(drc));
+        g_array_append_val(drc_indexes, drc_index);
+
+        /* ibm,drc-power-domains */
+        drc_power_domain = cpu_to_be32(-1);
+        g_array_append_val(drc_power_domains, drc_power_domain);
+
+        /* ibm,drc-names */
+        drc_names = g_string_append(drc_names, drck->get_name(drc));
+        drc_names = g_string_insert_len(drc_names, -1, "\0", 1);
+
+        /* ibm,drc-types */
+        drc_types = g_string_append(drc_types,
+                                    spapr_drc_get_type_str(drc->type));
+        drc_types = g_string_insert_len(drc_types, -1, "\0", 1);
+    }
+
+    /* now write the drc count into the space we reserved at the
+     * beginning of the arrays previously
+     */
+    *(uint32_t *)drc_indexes->data = cpu_to_be32(drc_count);
+    *(uint32_t *)drc_power_domains->data = cpu_to_be32(drc_count);
+    *(uint32_t *)drc_names->str = cpu_to_be32(drc_count);
+    *(uint32_t *)drc_types->str = cpu_to_be32(drc_count);
+
+    ret = fdt_setprop(fdt, fdt_offset, "ibm,drc-indexes",
+                      drc_indexes->data,
+                      drc_indexes->len * sizeof(uint32_t));
+    if (ret) {
+        fprintf(stderr, "Couldn't create ibm,drc-indexes property\n");
+        goto out;
+    }
+
+    ret = fdt_setprop(fdt, fdt_offset, "ibm,drc-power-domains",
+                      drc_power_domains->data,
+                      drc_power_domains->len * sizeof(uint32_t));
+    if (ret) {
+        fprintf(stderr, "Couldn't finalize ibm,drc-power-domains property\n");
+        goto out;
+    }
+
+    ret = fdt_setprop(fdt, fdt_offset, "ibm,drc-names",
+                      drc_names->str, drc_names->len);
+    if (ret) {
+        fprintf(stderr, "Couldn't finalize ibm,drc-names property\n");
+        goto out;
+    }
+
+    ret = fdt_setprop(fdt, fdt_offset, "ibm,drc-types",
+                      drc_types->str, drc_types->len);
+    if (ret) {
+        fprintf(stderr, "Couldn't finalize ibm,drc-types property\n");
+        goto out;
+    }
+
+out:
+    g_array_free(drc_indexes, true);
+    g_array_free(drc_power_domains, true);
+    g_string_free(drc_names, true);
+    g_string_free(drc_types, true);
+
+    return ret;
+}
