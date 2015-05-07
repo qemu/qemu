@@ -893,11 +893,11 @@ static void spapr_phb_realize(DeviceState *dev, Error **errp)
 static void spapr_phb_finish_realize(sPAPRPHBState *sphb, Error **errp)
 {
     sPAPRTCETable *tcet;
+    uint32_t nb_table;
 
+    nb_table = SPAPR_PCI_DMA32_SIZE >> SPAPR_TCE_PAGE_SHIFT;
     tcet = spapr_tce_new_table(DEVICE(sphb), sphb->dma_liobn,
-                               0,
-                               SPAPR_TCE_PAGE_SHIFT,
-                               0x40000000 >> SPAPR_TCE_PAGE_SHIFT, false);
+                               0, SPAPR_TCE_PAGE_SHIFT, nb_table, false);
     if (!tcet) {
         error_setg(errp, "Unable to create TCE table for %s",
                    sphb->dtbusname);

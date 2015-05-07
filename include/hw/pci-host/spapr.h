@@ -114,6 +114,8 @@ struct sPAPRPHBVFIOState {
 
 #define SPAPR_PCI_MSI_WINDOW         0x40000000000ULL
 
+#define SPAPR_PCI_DMA32_SIZE         0x40000000
+
 static inline qemu_irq spapr_phb_lsi_qirq(struct sPAPRPHBState *phb, int pin)
 {
     return xics_get_qirq(spapr->icp, phb->lsi_table[pin].irq);
