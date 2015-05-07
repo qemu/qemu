@@ -366,7 +366,7 @@ static void uhci_reset(DeviceState *dev)
     pci_conf[0x6a] = 0x01; /* usb clock */
     pci_conf[0x6b] = 0x00;
     s->cmd = 0;
-    s->status = 0;
+    s->status = UHCI_STS_HCHALTED;
     s->status2 = 0;
     s->intr = 0;
     s->fl_base_addr = 0;
