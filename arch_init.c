@@ -744,8 +744,8 @@ static void migration_bitmap_sync(void)
         s->dirty_bytes_rate = s->dirty_pages_rate * TARGET_PAGE_SIZE;
         start_time = end_time;
         num_dirty_pages_period = 0;
-        s->dirty_sync_count = bitmap_sync_count;
     }
+    s->dirty_sync_count = bitmap_sync_count;
 }
 
 /**
