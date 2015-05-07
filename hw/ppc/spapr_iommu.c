@@ -126,11 +126,11 @@ static MemoryRegionIOMMUOps spapr_iommu_ops = {
 static int spapr_tce_table_realize(DeviceState *dev)
 {
     sPAPRTCETable *tcet = SPAPR_TCE_TABLE(dev);
+    uint64_t window_size = (uint64_t)tcet->nb_table << tcet->page_shift;
 
-    if (kvm_enabled()) {
+    if (kvm_enabled() && !(window_size >> 32)) {
         tcet->table = kvmppc_create_spapr_tce(tcet->liobn,
-                                              tcet->nb_table <<
-                                              tcet->page_shift,
+                                              window_size,
                                               &tcet->fd,
                                               tcet->vfio_accel);
     }
