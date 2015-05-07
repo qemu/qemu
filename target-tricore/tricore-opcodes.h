@@ -428,6 +428,8 @@ enum {
 /* B Format */
     OPC1_32_B_CALL                                   = 0x6d,
     OPC1_32_B_CALLA                                  = 0xed,
+    OPC1_32_B_FCALL                                  = 0x61,
+    OPC1_32_B_FCALLA                                 = 0xe1,
     OPC1_32_B_J                                      = 0x1d,
     OPC1_32_B_JA                                     = 0x9d,
     OPC1_32_B_JL                                     = 0x5d,
@@ -1127,6 +1129,7 @@ enum {
     OPC2_32_RR_JI                                = 0x03,
     OPC2_32_RR_JLI                               = 0x02,
     OPC2_32_RR_CALLI                             = 0x00,
+    OPC2_32_RR_FCALLI                            = 0x01,
 };
 /*
  * RR1 Format

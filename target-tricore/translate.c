@@ -3275,6 +3275,18 @@ static void gen_loop(DisasContext *ctx, int r1, int32_t offset)
     gen_goto_tb(ctx, 0, ctx->next_pc);
 }
 
+static void gen_fcall_save_ctx(DisasContext *ctx)
+{
+    TCGv temp = tcg_temp_new();
+
+    tcg_gen_addi_tl(temp, cpu_gpr_a[10], -4);
+    tcg_gen_qemu_st_tl(cpu_gpr_a[11], temp, ctx->mem_idx, MO_LESL);
+    tcg_gen_movi_tl(cpu_gpr_a[11], ctx->next_pc);
+    tcg_gen_mov_tl(cpu_gpr_a[10], temp);
+
+    tcg_temp_free(temp);
+}
+
 static void gen_compute_branch(DisasContext *ctx, uint32_t opc, int r1,
                                int r2 , int32_t constant , int32_t offset)
 {
@@ -3367,6 +3379,14 @@ static void gen_compute_branch(DisasContext *ctx, uint32_t opc, int r1,
 /* B-format */
     case OPC1_32_B_CALLA:
         gen_helper_1arg(call, ctx->next_pc);
+        gen_goto_tb(ctx, 0, EA_B_ABSOLUT(offset));
+        break;
+    case OPC1_32_B_FCALL:
+        gen_fcall_save_ctx(ctx);
+        gen_goto_tb(ctx, 0, ctx->pc + offset * 2);
+        break;
+    case OPC1_32_B_FCALLA:
+        gen_fcall_save_ctx(ctx);
         gen_goto_tb(ctx, 0, EA_B_ABSOLUT(offset));
         break;
     case OPC1_32_B_JLA:
@@ -6311,6 +6331,10 @@ static void decode_rr_idirect(CPUTriCoreState *env, DisasContext *ctx)
         gen_helper_1arg(call, ctx->next_pc);
         tcg_gen_andi_tl(cpu_PC, cpu_gpr_a[r1], ~0x1);
         break;
+    case OPC2_32_RR_FCALLI:
+        gen_fcall_save_ctx(ctx);
+        tcg_gen_andi_tl(cpu_PC, cpu_gpr_a[r1], ~0x1);
+        break;
     }
     tcg_gen_exit_tb(0);
     ctx->bstate = BS_BRANCH;
@@ -7946,6 +7970,8 @@ static void decode_32Bit_opc(CPUTriCoreState *env, DisasContext *ctx)
 /* B-format */
     case OPC1_32_B_CALL:
     case OPC1_32_B_CALLA:
+    case OPC1_32_B_FCALL:
+    case OPC1_32_B_FCALLA:
     case OPC1_32_B_J:
     case OPC1_32_B_JA:
     case OPC1_32_B_JL:
