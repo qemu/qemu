@@ -115,7 +115,7 @@ static inline void g_mutex_init(CompatGMutex *mutex)
 
 static inline void g_mutex_clear(CompatGMutex *mutex)
 {
-    assert(mutex->once.status != G_ONCE_STATUS_PROGRESS);
+    g_assert(mutex->once.status != G_ONCE_STATUS_PROGRESS);
     if (mutex->once.retval) {
         g_mutex_free((GMutex *) mutex->once.retval);
     }
@@ -155,7 +155,7 @@ static inline void g_cond_init(CompatGCond *cond)
 
 static inline void g_cond_clear(CompatGCond *cond)
 {
-    assert(cond->once.status != G_ONCE_STATUS_PROGRESS);
+    g_assert(cond->once.status != G_ONCE_STATUS_PROGRESS);
     if (cond->once.retval) {
         g_cond_free((GCond *) cond->once.retval);
     }
@@ -164,7 +164,7 @@ static inline void g_cond_clear(CompatGCond *cond)
 
 static inline void (g_cond_wait)(CompatGCond *cond, CompatGMutex *mutex)
 {
-    assert(mutex->once.status != G_ONCE_STATUS_PROGRESS);
+    g_assert(mutex->once.status != G_ONCE_STATUS_PROGRESS);
     g_once(&cond->once, do_g_cond_new, NULL);
     g_cond_wait((GCond *) cond->once.retval, (GMutex *) mutex->once.retval);
 }
