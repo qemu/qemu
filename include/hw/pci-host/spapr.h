@@ -131,4 +131,8 @@ void spapr_pci_msi_init(sPAPREnvironment *spapr, hwaddr addr);
 
 void spapr_pci_rtas_init(void);
 
+sPAPRPHBState *spapr_pci_find_phb(sPAPREnvironment *spapr, uint64_t buid);
+PCIDevice *spapr_pci_find_dev(sPAPREnvironment *spapr, uint64_t buid,
+                              uint32_t config_addr);
+
 #endif /* __HW_SPAPR_PCI_H__ */
