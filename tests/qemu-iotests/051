@@ -183,12 +183,12 @@ echo
 # Cannot use the test image because cache=none might not work on the host FS
 # Use cdrom so that we won't get errors about missing media
 
-run_qemu -drive media=cdrom,cache=none
-run_qemu -drive media=cdrom,cache=directsync
-run_qemu -drive media=cdrom,cache=writeback
-run_qemu -drive media=cdrom,cache=writethrough
-run_qemu -drive media=cdrom,cache=unsafe
-run_qemu -drive media=cdrom,cache=invalid_value
+run_qemu -drive driver=null-co,cache=none
+run_qemu -drive driver=null-co,cache=directsync
+run_qemu -drive driver=null-co,cache=writeback
+run_qemu -drive driver=null-co,cache=writethrough
+run_qemu -drive driver=null-co,cache=unsafe
+run_qemu -drive driver=null-co,cache=invalid_value
 
 echo
 echo === Specifying the protocol layer ===

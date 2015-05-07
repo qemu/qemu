@@ -148,12 +148,12 @@ class VM(object):
     def add_drive(self, path, opts='', interface='virtio'):
         '''Add a virtio-blk drive to the VM'''
         options = ['if=%s' % interface,
-                   'cache=%s' % cachemode,
                    'id=drive%d' % self._num_drives]
 
         if path is not None:
             options.append('file=%s' % path)
             options.append('format=%s' % imgfmt)
+            options.append('cache=%s' % cachemode)
 
         if opts:
             options.append(opts)

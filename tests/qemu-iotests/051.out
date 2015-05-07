@@ -215,28 +215,28 @@ QEMU X.Y.Z monitor - type 'help' for more information
 
 === Cache modes ===
 
-Testing: -drive media=cdrom,cache=none
+Testing: -drive driver=null-co,cache=none
 QEMU X.Y.Z monitor - type 'help' for more information
 (qemu) q[K[Dqu[K[D[Dqui[K[D[D[Dquit[K
 
-Testing: -drive media=cdrom,cache=directsync
+Testing: -drive driver=null-co,cache=directsync
 QEMU X.Y.Z monitor - type 'help' for more information
 (qemu) q[K[Dqu[K[D[Dqui[K[D[D[Dquit[K
 
-Testing: -drive media=cdrom,cache=writeback
+Testing: -drive driver=null-co,cache=writeback
 QEMU X.Y.Z monitor - type 'help' for more information
 (qemu) q[K[Dqu[K[D[Dqui[K[D[D[Dquit[K
 
-Testing: -drive media=cdrom,cache=writethrough
+Testing: -drive driver=null-co,cache=writethrough
 QEMU X.Y.Z monitor - type 'help' for more information
 (qemu) q[K[Dqu[K[D[Dqui[K[D[D[Dquit[K
 
-Testing: -drive media=cdrom,cache=unsafe
+Testing: -drive driver=null-co,cache=unsafe
 QEMU X.Y.Z monitor - type 'help' for more information
 (qemu) q[K[Dqu[K[D[Dqui[K[D[D[Dquit[K
 
-Testing: -drive media=cdrom,cache=invalid_value
-QEMU_PROG: -drive media=cdrom,cache=invalid_value: invalid cache option
+Testing: -drive driver=null-co,cache=invalid_value
+QEMU_PROG: -drive driver=null-co,cache=invalid_value: invalid cache option
 
 
 === Specifying the protocol layer ===
