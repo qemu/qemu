@@ -1495,11 +1495,14 @@ static int bdrv_open_inherit(BlockDriverState **pbs, const char *filename,
         options = qdict_new();
     }
 
+    /* json: syntax counts as explicit options, as if in the QDict */
     parse_json_protocol(options, &filename, &local_err);
     if (local_err) {
         ret = -EINVAL;
         goto fail;
     }
+
+    bs->explicit_options = qdict_clone_shallow(options);
 
     if (child_role) {
         bs->inherits_from = parent;
@@ -1655,6 +1658,7 @@ fail:
     if (file != NULL) {
         bdrv_unref_child(bs, file);
     }
+    QDECREF(bs->explicit_options);
     QDECREF(bs->options);
     QDECREF(options);
     bs->options = NULL;
@@ -1729,7 +1733,7 @@ static BlockReopenQueue *bdrv_reopen_queue_child(BlockReopenQueue *bs_queue,
 
     BlockReopenQueueEntry *bs_entry;
     BdrvChild *child;
-    QDict *old_options;
+    QDict *old_options, *explicit_options;
 
     if (bs_queue == NULL) {
         bs_queue = g_new0(BlockReopenQueue, 1);
@@ -1744,10 +1748,17 @@ static BlockReopenQueue *bdrv_reopen_queue_child(BlockReopenQueue *bs_queue,
      * Precedence of options:
      * 1. Explicitly passed in options (highest)
      * 2. TODO Set in flags (only for top level)
-     * 3. TODO Retained from explicitly set options of bs
+     * 3. Retained from explicitly set options of bs
      * 4. Inherited from parent node
      * 5. Retained from effective options of bs
      */
+
+    /* Old explicitly set values (don't overwrite by inherited value) */
+    old_options = qdict_clone_shallow(bs->explicit_options);
+    bdrv_join_options(bs, options, old_options);
+    QDECREF(old_options);
+
+    explicit_options = qdict_clone_shallow(options);
 
     /* Inherit from parent node */
     if (parent_options) {
@@ -1787,6 +1798,7 @@ static BlockReopenQueue *bdrv_reopen_queue_child(BlockReopenQueue *bs_queue,
 
     bs_entry->state.bs = bs;
     bs_entry->state.options = options;
+    bs_entry->state.explicit_options = explicit_options;
     bs_entry->state.flags = flags;
 
     return bs_queue;
@@ -1846,6 +1858,8 @@ cleanup:
     QSIMPLEQ_FOREACH_SAFE(bs_entry, bs_queue, entry, next) {
         if (ret && bs_entry->prepared) {
             bdrv_reopen_abort(&bs_entry->state);
+        } else if (ret) {
+            QDECREF(bs_entry->state.explicit_options);
         }
         QDECREF(bs_entry->state.options);
         g_free(bs_entry);
@@ -1980,6 +1994,9 @@ void bdrv_reopen_commit(BDRVReopenState *reopen_state)
     }
 
     /* set BDS specific flags now */
+    QDECREF(reopen_state->bs->explicit_options);
+
+    reopen_state->bs->explicit_options   = reopen_state->explicit_options;
     reopen_state->bs->open_flags         = reopen_state->flags;
     reopen_state->bs->enable_write_cache = !!(reopen_state->flags &
                                               BDRV_O_CACHE_WB);
@@ -2003,6 +2020,8 @@ void bdrv_reopen_abort(BDRVReopenState *reopen_state)
     if (drv->bdrv_reopen_abort) {
         drv->bdrv_reopen_abort(reopen_state);
     }
+
+    QDECREF(reopen_state->explicit_options);
 }
 
 
@@ -2061,6 +2080,7 @@ void bdrv_close(BlockDriverState *bs)
         bs->sg = 0;
         bs->zero_beyond_eof = false;
         QDECREF(bs->options);
+        QDECREF(bs->explicit_options);
         bs->options = NULL;
         QDECREF(bs->full_open_options);
         bs->full_open_options = NULL;

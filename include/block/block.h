@@ -150,6 +150,7 @@ typedef struct BDRVReopenState {
     BlockDriverState *bs;
     int flags;
     QDict *options;
+    QDict *explicit_options;
     void *opaque;
 } BDRVReopenState;
 

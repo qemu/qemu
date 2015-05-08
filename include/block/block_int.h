@@ -459,6 +459,7 @@ struct BlockDriverState {
     QLIST_HEAD(, BdrvChild) parents;
 
     QDict *options;
+    QDict *explicit_options;
     BlockdevDetectZeroesOptions detect_zeroes;
 
     /* The error object in use for blocking operations on backing_hd */
