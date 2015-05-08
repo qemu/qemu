@@ -29,6 +29,7 @@
 #include "qemu/error-report.h"
 #include "qemu/module.h"
 #include "qapi/qmp/qerror.h"
+#include "qapi/qmp/qbool.h"
 #include "qapi/qmp/qjson.h"
 #include "sysemu/block-backend.h"
 #include "sysemu/sysemu.h"
@@ -706,9 +707,16 @@ static void bdrv_inherited_options(int *child_flags, QDict *child_options,
     /* Enable protocol handling, disable format probing for bs->file */
     flags |= BDRV_O_PROTOCOL;
 
+    /* If the cache mode isn't explicitly set, inherit direct and no-flush from
+     * the parent. */
+    qdict_copy_default(child_options, parent_options, BDRV_OPT_CACHE_DIRECT);
+    qdict_copy_default(child_options, parent_options, BDRV_OPT_CACHE_NO_FLUSH);
+
     /* Our block drivers take care to send flushes and respect unmap policy,
-     * so we can enable both unconditionally on lower layers. */
-    flags |= BDRV_O_CACHE_WB | BDRV_O_UNMAP;
+     * so we can default to enable both on lower layers regardless of the
+     * corresponding parent options. */
+    qdict_set_default_str(child_options, BDRV_OPT_CACHE_WB, "on");
+    flags |= BDRV_O_UNMAP;
 
     /* Clear flags that only apply to the top layer */
     flags &= ~(BDRV_O_SNAPSHOT | BDRV_O_NO_BACKING | BDRV_O_COPY_ON_READ);
@@ -747,6 +755,11 @@ static void bdrv_backing_options(int *child_flags, QDict *child_options,
 {
     int flags = parent_flags;
 
+    /* The cache mode is inherited unmodified for backing files */
+    qdict_copy_default(child_options, parent_options, BDRV_OPT_CACHE_WB);
+    qdict_copy_default(child_options, parent_options, BDRV_OPT_CACHE_DIRECT);
+    qdict_copy_default(child_options, parent_options, BDRV_OPT_CACHE_NO_FLUSH);
+
     /* backing files always opened read-only */
     flags &= ~(BDRV_O_RDWR | BDRV_O_COPY_ON_READ);
 
@@ -778,6 +791,42 @@ static int bdrv_open_flags(BlockDriverState *bs, int flags)
     }
 
     return open_flags;
+}
+
+static void update_flags_from_options(int *flags, QemuOpts *opts)
+{
+    *flags &= ~BDRV_O_CACHE_MASK;
+
+    assert(qemu_opt_find(opts, BDRV_OPT_CACHE_WB));
+    if (qemu_opt_get_bool(opts, BDRV_OPT_CACHE_WB, false)) {
+        *flags |= BDRV_O_CACHE_WB;
+    }
+
+    assert(qemu_opt_find(opts, BDRV_OPT_CACHE_NO_FLUSH));
+    if (qemu_opt_get_bool(opts, BDRV_OPT_CACHE_NO_FLUSH, false)) {
+        *flags |= BDRV_O_NO_FLUSH;
+    }
+
+    assert(qemu_opt_find(opts, BDRV_OPT_CACHE_DIRECT));
+    if (qemu_opt_get_bool(opts, BDRV_OPT_CACHE_DIRECT, false)) {
+        *flags |= BDRV_O_NOCACHE;
+    }
+}
+
+static void update_options_from_flags(QDict *options, int flags)
+{
+    if (!qdict_haskey(options, BDRV_OPT_CACHE_WB)) {
+        qdict_put(options, BDRV_OPT_CACHE_WB,
+                  qbool_from_bool(flags & BDRV_O_CACHE_WB));
+    }
+    if (!qdict_haskey(options, BDRV_OPT_CACHE_DIRECT)) {
+        qdict_put(options, BDRV_OPT_CACHE_DIRECT,
+                  qbool_from_bool(flags & BDRV_O_NOCACHE));
+    }
+    if (!qdict_haskey(options, BDRV_OPT_CACHE_NO_FLUSH)) {
+        qdict_put(options, BDRV_OPT_CACHE_NO_FLUSH,
+                  qbool_from_bool(flags & BDRV_O_NO_FLUSH));
+    }
 }
 
 static void bdrv_assign_node_name(BlockDriverState *bs,
@@ -830,6 +879,21 @@ static QemuOptsList bdrv_runtime_opts = {
             .name = "driver",
             .type = QEMU_OPT_STRING,
             .help = "Block driver to use for the node",
+        },
+        {
+            .name = BDRV_OPT_CACHE_WB,
+            .type = QEMU_OPT_BOOL,
+            .help = "Enable writeback mode",
+        },
+        {
+            .name = BDRV_OPT_CACHE_DIRECT,
+            .type = QEMU_OPT_BOOL,
+            .help = "Bypass software writeback cache on the host",
+        },
+        {
+            .name = BDRV_OPT_CACHE_NO_FLUSH,
+            .type = QEMU_OPT_BOOL,
+            .help = "Ignore flush requests",
         },
         { /* end of list */ }
     },
@@ -925,7 +989,9 @@ static int bdrv_open_common(BlockDriverState *bs, BdrvChild *file,
     bs->drv = drv;
     bs->opaque = g_malloc0(drv->instance_size);
 
-    bs->enable_write_cache = !!(flags & BDRV_O_CACHE_WB);
+    /* Apply cache mode options */
+    update_flags_from_options(&bs->open_flags, opts);
+    bdrv_set_enable_write_cache(bs, bs->open_flags & BDRV_O_CACHE_WB);
 
     /* Open the image, either directly or using a protocol */
     if (drv->bdrv_file_open) {
@@ -1074,6 +1140,9 @@ static int bdrv_fill_options(QDict **options, const char *filename,
     } else {
         *flags &= ~BDRV_O_PROTOCOL;
     }
+
+    /* Translate cache options from flags into options */
+    update_options_from_flags(*options, *flags);
 
     /* Fetch the file name from the options QDict if necessary */
     if (protocol && filename) {
@@ -1747,11 +1816,21 @@ static BlockReopenQueue *bdrv_reopen_queue_child(BlockReopenQueue *bs_queue,
     /*
      * Precedence of options:
      * 1. Explicitly passed in options (highest)
-     * 2. TODO Set in flags (only for top level)
+     * 2. Set in flags (only for top level)
      * 3. Retained from explicitly set options of bs
      * 4. Inherited from parent node
      * 5. Retained from effective options of bs
      */
+
+    if (!parent_options) {
+        /*
+         * Any setting represented by flags is always updated. If the
+         * corresponding QDict option is set, it takes precedence. Otherwise
+         * the flag is translated into a QDict option. The old setting of bs is
+         * not considered.
+         */
+        update_options_from_flags(options, flags);
+    }
 
     /* Old explicitly set values (don't overwrite by inherited value) */
     old_options = qdict_clone_shallow(bs->explicit_options);
@@ -1921,6 +2000,19 @@ int bdrv_reopen_prepare(BDRVReopenState *reopen_state, BlockReopenQueue *queue,
         error_propagate(errp, local_err);
         ret = -EINVAL;
         goto error;
+    }
+
+    update_flags_from_options(&reopen_state->flags, opts);
+
+    /* If a guest device is attached, it owns WCE */
+    if (reopen_state->bs->blk && blk_get_attached_dev(reopen_state->bs->blk)) {
+        bool old_wce = bdrv_enable_write_cache(reopen_state->bs);
+        bool new_wce = (reopen_state->flags & BDRV_O_CACHE_WB);
+        if (old_wce != new_wce) {
+            error_setg(errp, "Cannot change cache.writeback: Device attached");
+            ret = -EINVAL;
+            goto error;
+        }
     }
 
     /* node-name and driver must be unchanged. Put them back into the QDict, so
