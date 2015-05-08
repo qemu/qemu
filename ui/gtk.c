@@ -615,6 +615,13 @@ static const DisplayChangeListenerOps dcl_egl_ops = {
     .dpy_refresh          = gd_egl_refresh,
     .dpy_mouse_set        = gd_mouse_set,
     .dpy_cursor_define    = gd_cursor_define,
+
+    .dpy_gl_ctx_create       = gd_egl_create_context,
+    .dpy_gl_ctx_destroy      = qemu_egl_destroy_context,
+    .dpy_gl_ctx_make_current = gd_egl_make_current,
+    .dpy_gl_ctx_get_current  = qemu_egl_get_current_context,
+    .dpy_gl_scanout          = gd_egl_scanout,
+    .dpy_gl_update           = gd_egl_scanout_flush,
 };
 
 #endif
