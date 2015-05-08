@@ -1118,6 +1118,7 @@ typedef enum DisasFacility {
     FAC_PC,                 /* population count */
     FAC_SCF,                /* store clock fast */
     FAC_SFLE,               /* store facility list extended */
+    FAC_ILA,                /* interlocked access facility 1 */
 } DisasFacility;
 
 struct DisasInsn {
@@ -4065,6 +4066,22 @@ static void wout_m2_32(DisasContext *s, DisasFields *f, DisasOps *o)
 }
 #define SPEC_wout_m2_32 0
 
+static void wout_m2_32_r1_atomic(DisasContext *s, DisasFields *f, DisasOps *o)
+{
+    /* XXX release reservation */
+    tcg_gen_qemu_st32(o->out, o->addr1, get_mem_index(s));
+    store_reg32_i64(get_field(f, r1), o->in2);
+}
+#define SPEC_wout_m2_32_r1_atomic 0
+
+static void wout_m2_64_r1_atomic(DisasContext *s, DisasFields *f, DisasOps *o)
+{
+    /* XXX release reservation */
+    tcg_gen_qemu_st64(o->out, o->addr1, get_mem_index(s));
+    store_reg(get_field(f, r1), o->in2);
+}
+#define SPEC_wout_m2_64_r1_atomic 0
+
 /* ====================================================================== */
 /* The "INput 1" generators.  These load the first operand to an insn.  */
 
@@ -4485,6 +4502,24 @@ static void in2_mri2_64(DisasContext *s, DisasFields *f, DisasOps *o)
     tcg_gen_qemu_ld64(o->in2, o->in2, get_mem_index(s));
 }
 #define SPEC_in2_mri2_64 0
+
+static void in2_m2_32s_atomic(DisasContext *s, DisasFields *f, DisasOps *o)
+{
+    /* XXX should reserve the address */
+    in1_la2(s, f, o);
+    o->in2 = tcg_temp_new_i64();
+    tcg_gen_qemu_ld32s(o->in2, o->addr1, get_mem_index(s));
+}
+#define SPEC_in2_m2_32s_atomic 0
+
+static void in2_m2_64_atomic(DisasContext *s, DisasFields *f, DisasOps *o)
+{
+    /* XXX should reserve the address */
+    in1_la2(s, f, o);
+    o->in2 = tcg_temp_new_i64();
+    tcg_gen_qemu_ld64(o->in2, o->addr1, get_mem_index(s));
+}
+#define SPEC_in2_m2_64_atomic 0
 
 static void in2_i2(DisasContext *s, DisasFields *f, DisasOps *o)
 {
