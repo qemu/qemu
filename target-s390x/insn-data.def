@@ -1,3 +1,24 @@
+/*
+ *  Arguments to the opcode prototypes
+ *
+ *  C(OPC,    NAME,    FMT,   FAC, I1, I2, P, W, OP, CC)
+ *  D(OPC,    NAME,    FMT,   FAC, I1, I2, P, W, OP, CC, DATA)
+ *
+ *  OPC  = (op << 8) | op2 where op is the major, op2 the minor opcode
+ *  NAME = name of the opcode, used internally
+ *  FMT  = format of the opcode (defined in insn-format.def)
+ *  FAC  = facility the opcode is available in (defined in DisasFacility)
+ *  I1   = func in1_xx fills o->in1
+ *  I2   = func in2_xx fills o->in2
+ *  P    = func prep_xx initializes o->*out*
+ *  W    = func wout_xx writes o->*out* somewhere
+ *  OP   = func op_xx does the bulk of the operation
+ *  CC   = func cout_xx defines how cc should get set
+ *  DATA = immediate argument to op_xx function
+ *
+ *  The helpers get called in order: I1, I2, P, OP, W, CC
+ */
+
 /* ADD */
     C(0x1a00, AR,      RR_a,  Z,   r1, r2, new, r1_32, add, adds32)
     C(0xb9f8, ARK,     RRF_a, DO,  r2, r3, new, r1_32, add, adds32)
