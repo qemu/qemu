@@ -61,7 +61,7 @@ function do_run_qemu()
 
 function run_qemu()
 {
-    do_run_qemu "$@" 2>&1 | _filter_testdir | _filter_qemu
+    do_run_qemu "$@" 2>&1 | _filter_testdir | _filter_qemu | _filter_generated_node_ids
 }
 
 size=128M
@@ -189,6 +189,14 @@ run_qemu -drive driver=null-co,cache=writeback
 run_qemu -drive driver=null-co,cache=writethrough
 run_qemu -drive driver=null-co,cache=unsafe
 run_qemu -drive driver=null-co,cache=invalid_value
+
+# Can't test direct=on here because O_DIRECT might not be supported on this FS
+# Test 142 checks the direct=on cases
+
+for cache in writeback writethrough unsafe invalid_value; do
+    echo -e "info block\ninfo block file\ninfo block backing\ninfo block backing-file" | \
+    run_qemu -drive file="$TEST_IMG",cache=$cache,backing.file.filename="$TEST_IMG.base",backing.cache.no-flush=on,backing.cache.writeback=on,backing.node-name=backing,backing.file.node-name=backing-file,file.node-name=file -nodefaults
+done
 
 echo
 echo === Specifying the protocol layer ===
