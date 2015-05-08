@@ -1720,15 +1720,23 @@ BlockReopenQueue *bdrv_reopen_queue(BlockReopenQueue *bs_queue,
     flags &= ~BDRV_O_PROTOCOL;
 
     QLIST_FOREACH(child, &bs->children, next) {
+        QDict *new_child_options;
+        char *child_key_dot;
         int child_flags;
 
+        /* reopen can only change the options of block devices that were
+         * implicitly created and inherited options. For other (referenced)
+         * block devices, a syntax like "backing.foo" results in an error. */
         if (child->bs->inherits_from != bs) {
             continue;
         }
 
+        child_key_dot = g_strdup_printf("%s.", child->name);
+        qdict_extract_subqdict(options, &new_child_options, child_key_dot);
+        g_free(child_key_dot);
+
         child_flags = child->role->inherit_flags(flags);
-        /* TODO Pass down child flags (backing.*, extents.*, ...) */
-        bdrv_reopen_queue(bs_queue, child->bs, NULL, child_flags);
+        bdrv_reopen_queue(bs_queue, child->bs, new_child_options, child_flags);
     }
 
     bs_entry = g_new0(BlockReopenQueueEntry, 1);
