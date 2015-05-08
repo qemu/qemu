@@ -1,0 +1,773 @@
+QA output created by 142
+Formatting 'TEST_DIR/t.IMGFMT.base', fmt=IMGFMT size=134217728
+Formatting 'TEST_DIR/t.IMGFMT.snap', fmt=IMGFMT size=134217728
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=134217728 backing_file=TEST_DIR/t.IMGFMT.base
+
+=== Simple test for all cache modes ===
+
+Testing: -drive file=TEST_DIR/t.qcow2,cache=none
+QEMU X.Y.Z monitor - type 'help' for more information
+(qemu) q[K[Dqu[K[D[Dqui[K[D[D[Dquit[K
+
+Testing: -drive file=TEST_DIR/t.qcow2,cache=directsync
+QEMU X.Y.Z monitor - type 'help' for more information
+(qemu) q[K[Dqu[K[D[Dqui[K[D[D[Dquit[K
+
+Testing: -drive file=TEST_DIR/t.qcow2,cache=writeback
+QEMU X.Y.Z monitor - type 'help' for more information
+(qemu) q[K[Dqu[K[D[Dqui[K[D[D[Dquit[K
+
+Testing: -drive file=TEST_DIR/t.qcow2,cache=writethrough
+QEMU X.Y.Z monitor - type 'help' for more information
+(qemu) q[K[Dqu[K[D[Dqui[K[D[D[Dquit[K
+
+Testing: -drive file=TEST_DIR/t.qcow2,cache=unsafe
+QEMU X.Y.Z monitor - type 'help' for more information
+(qemu) q[K[Dqu[K[D[Dqui[K[D[D[Dquit[K
+
+Testing: -drive file=TEST_DIR/t.qcow2,cache=invalid_value
+QEMU_PROG: -drive file=TEST_DIR/t.qcow2,cache=invalid_value: invalid cache option
+
+
+=== Check inheritance of cache modes ===
+
+
+--- Configure cache modes on the command line ---
+
+cache.direct=on on none0
+    Cache mode:       writeback, direct
+    Cache mode:       writeback, direct
+    Cache mode:       writeback, direct
+    Cache mode:       writeback, direct
+
+cache.direct=on on file
+    Cache mode:       writeback
+    Cache mode:       writeback, direct
+    Cache mode:       writeback
+    Cache mode:       writeback
+
+cache.direct=on on backing
+    Cache mode:       writeback
+    Cache mode:       writeback
+    Cache mode:       writeback, direct
+    Cache mode:       writeback, direct
+
+cache.direct=on on backing-file
+    Cache mode:       writeback
+    Cache mode:       writeback
+    Cache mode:       writeback
+    Cache mode:       writeback, direct
+
+
+cache.writeback=off on none0
+    Cache mode:       writethrough
+    Cache mode:       writeback
+    Cache mode:       writethrough
+    Cache mode:       writeback
+
+cache.writeback=off on file
+    Cache mode:       writeback
+    Cache mode:       writethrough
+    Cache mode:       writeback
+    Cache mode:       writeback
+
+cache.writeback=off on backing
+    Cache mode:       writeback
+    Cache mode:       writeback
+    Cache mode:       writethrough
+    Cache mode:       writeback
+
+cache.writeback=off on backing-file
+    Cache mode:       writeback
+    Cache mode:       writeback
+    Cache mode:       writeback
+    Cache mode:       writethrough
+
+
+cache.no-flush=on on none0
+    Cache mode:       writeback, ignore flushes
+    Cache mode:       writeback, ignore flushes
+    Cache mode:       writeback, ignore flushes
+    Cache mode:       writeback, ignore flushes
+
+cache.no-flush=on on file
+    Cache mode:       writeback
+    Cache mode:       writeback, ignore flushes
+    Cache mode:       writeback
+    Cache mode:       writeback
+
+cache.no-flush=on on backing
+    Cache mode:       writeback
+    Cache mode:       writeback
+    Cache mode:       writeback, ignore flushes
+    Cache mode:       writeback, ignore flushes
+
+cache.no-flush=on on backing-file
+    Cache mode:       writeback
+    Cache mode:       writeback
+    Cache mode:       writeback
+    Cache mode:       writeback, ignore flushes
+
+--- Cache modes after reopen (live snapshot) ---
+
+cache.direct=on on none0
+    Cache mode:       writeback, direct
+    Cache mode:       writeback, direct
+    Cache mode:       writeback, direct
+    Cache mode:       writeback, direct
+    Cache mode:       writeback, direct
+
+cache.direct=on on file
+    Cache mode:       writeback
+    Cache mode:       writeback
+    Cache mode:       writeback, direct
+    Cache mode:       writeback
+    Cache mode:       writeback
+
+cache.direct=on on backing
+    Cache mode:       writeback
+    Cache mode:       writeback
+    Cache mode:       writeback
+    Cache mode:       writeback, direct
+    Cache mode:       writeback, direct
+
+cache.direct=on on backing-file
+    Cache mode:       writeback
+    Cache mode:       writeback
+    Cache mode:       writeback
+    Cache mode:       writeback
+    Cache mode:       writeback, direct
+
+
+cache.writeback=off on none0
+    Cache mode:       writethrough
+    Cache mode:       writethrough
+    Cache mode:       writeback
+    Cache mode:       writethrough
+    Cache mode:       writeback
+
+cache.writeback=off on file
+    Cache mode:       writeback
+    Cache mode:       writeback
+    Cache mode:       writethrough
+    Cache mode:       writeback
+    Cache mode:       writeback
+
+cache.writeback=off on backing
+    Cache mode:       writeback
+    Cache mode:       writeback
+    Cache mode:       writeback
+    Cache mode:       writethrough
+    Cache mode:       writeback
+
+cache.writeback=off on backing-file
+    Cache mode:       writeback
+    Cache mode:       writeback
+    Cache mode:       writeback
+    Cache mode:       writeback
+    Cache mode:       writethrough
+
+
+cache.no-flush=on on none0
+    Cache mode:       writeback, ignore flushes
+    Cache mode:       writeback, ignore flushes
+    Cache mode:       writeback, ignore flushes
+    Cache mode:       writeback, ignore flushes
+    Cache mode:       writeback, ignore flushes
+
+cache.no-flush=on on file
+    Cache mode:       writeback
+    Cache mode:       writeback
+    Cache mode:       writeback, ignore flushes
+    Cache mode:       writeback
+    Cache mode:       writeback
+
+cache.no-flush=on on backing
+    Cache mode:       writeback
+    Cache mode:       writeback
+    Cache mode:       writeback
+    Cache mode:       writeback, ignore flushes
+    Cache mode:       writeback, ignore flushes
+
+cache.no-flush=on on backing-file
+    Cache mode:       writeback
+    Cache mode:       writeback
+    Cache mode:       writeback
+    Cache mode:       writeback
+    Cache mode:       writeback, ignore flushes
+
+--- Change cache modes with reopen (qemu-io command, flags) ---
+
+cache.direct=on on none0
+    Cache mode:       writeback, direct
+    Cache mode:       writeback, direct
+    Cache mode:       writeback, direct
+    Cache mode:       writeback, direct
+
+cache.direct=on on file
+    Cache mode:       writeback, direct
+    Cache mode:       writeback, direct
+    Cache mode:       writeback, direct
+    Cache mode:       writeback, direct
+
+cache.direct=on on backing
+    Cache mode:       writeback, direct
+    Cache mode:       writeback, direct
+    Cache mode:       writeback, direct
+    Cache mode:       writeback, direct
+
+cache.direct=on on backing-file
+    Cache mode:       writeback, direct
+    Cache mode:       writeback, direct
+    Cache mode:       writeback, direct
+    Cache mode:       writeback, direct
+
+
+cache.writeback=off on none0
+    Cache mode:       writeback, direct
+    Cache mode:       writeback, direct
+    Cache mode:       writeback, direct
+    Cache mode:       writeback, direct
+
+cache.writeback=off on file
+    Cache mode:       writeback, direct
+    Cache mode:       writethrough, direct
+    Cache mode:       writeback, direct
+    Cache mode:       writeback, direct
+
+cache.writeback=off on backing
+    Cache mode:       writeback, direct
+    Cache mode:       writeback, direct
+    Cache mode:       writethrough, direct
+    Cache mode:       writeback, direct
+
+cache.writeback=off on backing-file
+    Cache mode:       writeback, direct
+    Cache mode:       writeback, direct
+    Cache mode:       writeback, direct
+    Cache mode:       writethrough, direct
+
+
+cache.no-flush=on on none0
+    Cache mode:       writeback, direct
+    Cache mode:       writeback, direct
+    Cache mode:       writeback, direct
+    Cache mode:       writeback, direct
+
+cache.no-flush=on on file
+    Cache mode:       writeback, direct
+    Cache mode:       writeback, direct, ignore flushes
+    Cache mode:       writeback, direct
+    Cache mode:       writeback, direct
+
+cache.no-flush=on on backing
+    Cache mode:       writeback, direct
+    Cache mode:       writeback, direct
+    Cache mode:       writeback, direct, ignore flushes
+    Cache mode:       writeback, direct, ignore flushes
+
+cache.no-flush=on on backing-file
+    Cache mode:       writeback, direct
+    Cache mode:       writeback, direct
+    Cache mode:       writeback, direct
+    Cache mode:       writeback, direct, ignore flushes
+
+--- Change cache modes with reopen (qemu-io command, options) ---
+
+cache.direct=on on none0
+    Cache mode:       writeback, direct
+    Cache mode:       writeback, direct
+    Cache mode:       writeback, direct
+    Cache mode:       writeback, direct
+
+cache.direct=on on file
+    Cache mode:       writeback, direct
+    Cache mode:       writeback, direct
+    Cache mode:       writeback, direct
+    Cache mode:       writeback, direct
+
+cache.direct=on on backing
+    Cache mode:       writeback, direct
+    Cache mode:       writeback, direct
+    Cache mode:       writeback, direct
+    Cache mode:       writeback, direct
+
+cache.direct=on on backing-file
+    Cache mode:       writeback, direct
+    Cache mode:       writeback, direct
+    Cache mode:       writeback, direct
+    Cache mode:       writeback, direct
+
+
+cache.writeback=off on none0
+    Cache mode:       writethrough, direct
+    Cache mode:       writeback, direct
+    Cache mode:       writethrough, direct
+    Cache mode:       writeback, direct
+
+cache.writeback=off on file
+    Cache mode:       writeback, direct
+    Cache mode:       writethrough, direct
+    Cache mode:       writeback, direct
+    Cache mode:       writeback, direct
+
+cache.writeback=off on backing
+    Cache mode:       writeback, direct
+    Cache mode:       writeback, direct
+    Cache mode:       writethrough, direct
+    Cache mode:       writeback, direct
+
+cache.writeback=off on backing-file
+    Cache mode:       writeback, direct
+    Cache mode:       writeback, direct
+    Cache mode:       writeback, direct
+    Cache mode:       writethrough, direct
+
+
+cache.no-flush=on on none0
+    Cache mode:       writeback, direct, ignore flushes
+    Cache mode:       writeback, direct, ignore flushes
+    Cache mode:       writeback, direct, ignore flushes
+    Cache mode:       writeback, direct, ignore flushes
+
+cache.no-flush=on on file
+    Cache mode:       writeback, direct
+    Cache mode:       writeback, direct, ignore flushes
+    Cache mode:       writeback, direct
+    Cache mode:       writeback, direct
+
+cache.no-flush=on on backing
+    Cache mode:       writeback, direct
+    Cache mode:       writeback, direct
+    Cache mode:       writeback, direct, ignore flushes
+    Cache mode:       writeback, direct, ignore flushes
+
+cache.no-flush=on on backing-file
+    Cache mode:       writeback, direct
+    Cache mode:       writeback, direct
+    Cache mode:       writeback, direct
+    Cache mode:       writeback, direct, ignore flushes
+
+--- Change cache modes after snapshot ---
+
+cache.direct=on on none0
+    Cache mode:       writeback, direct
+    Cache mode:       writeback, direct
+    Cache mode:       writeback, direct
+    Cache mode:       writeback, direct
+    Cache mode:       writeback, direct
+
+cache.direct=on on file
+    Cache mode:       writeback, direct
+    Cache mode:       writeback
+    Cache mode:       writeback, direct
+    Cache mode:       writeback
+    Cache mode:       writeback
+
+cache.direct=on on backing
+    Cache mode:       writeback, direct
+    Cache mode:       writeback
+    Cache mode:       writeback
+    Cache mode:       writeback, direct
+    Cache mode:       writeback, direct
+
+cache.direct=on on backing-file
+    Cache mode:       writeback, direct
+    Cache mode:       writeback
+    Cache mode:       writeback
+    Cache mode:       writeback
+    Cache mode:       writeback, direct
+
+
+cache.writeback=off on none0
+    Cache mode:       writeback, direct
+    Cache mode:       writethrough
+    Cache mode:       writeback
+    Cache mode:       writethrough
+    Cache mode:       writeback
+
+cache.writeback=off on file
+    Cache mode:       writeback, direct
+    Cache mode:       writeback
+    Cache mode:       writethrough
+    Cache mode:       writeback
+    Cache mode:       writeback
+
+cache.writeback=off on backing
+    Cache mode:       writeback, direct
+    Cache mode:       writeback
+    Cache mode:       writeback
+    Cache mode:       writethrough
+    Cache mode:       writeback
+
+cache.writeback=off on backing-file
+    Cache mode:       writeback, direct
+    Cache mode:       writeback
+    Cache mode:       writeback
+    Cache mode:       writeback
+    Cache mode:       writethrough
+
+
+cache.no-flush=on on none0
+    Cache mode:       writeback, direct
+    Cache mode:       writeback, ignore flushes
+    Cache mode:       writeback, ignore flushes
+    Cache mode:       writeback, ignore flushes
+    Cache mode:       writeback, ignore flushes
+
+cache.no-flush=on on file
+    Cache mode:       writeback, direct
+    Cache mode:       writeback
+    Cache mode:       writeback, ignore flushes
+    Cache mode:       writeback
+    Cache mode:       writeback
+
+cache.no-flush=on on backing
+    Cache mode:       writeback, direct
+    Cache mode:       writeback
+    Cache mode:       writeback
+    Cache mode:       writeback, ignore flushes
+    Cache mode:       writeback, ignore flushes
+
+cache.no-flush=on on backing-file
+    Cache mode:       writeback, direct
+    Cache mode:       writeback
+    Cache mode:       writeback
+    Cache mode:       writeback
+    Cache mode:       writeback, ignore flushes
+
+--- Change cache mode in parent, child has explicit option in JSON ---
+
+    Cache mode:       writethrough, direct, ignore flushes
+    Cache mode:       writeback, direct, ignore flushes
+    Cache mode:       writethrough, ignore flushes
+
+=== Check that referenced BDSes don't inherit ===
+
+
+--- Configure cache modes on the command line ---
+
+cache.direct=on on blk
+    Cache mode:       writeback, direct
+    Cache mode:       writeback
+    Cache mode:       writeback
+    Cache mode:       writeback
+
+cache.direct=on on file
+    Cache mode:       writeback
+    Cache mode:       writeback, direct
+    Cache mode:       writeback
+    Cache mode:       writeback
+
+cache.direct=on on backing
+    Cache mode:       writeback
+    Cache mode:       writeback
+    Cache mode:       writeback, direct
+    Cache mode:       writeback
+
+cache.direct=on on backing-file
+    Cache mode:       writeback
+    Cache mode:       writeback
+    Cache mode:       writeback
+    Cache mode:       writeback, direct
+
+
+cache.writeback=off on blk
+    Cache mode:       writethrough
+    Cache mode:       writeback
+    Cache mode:       writeback
+    Cache mode:       writeback
+
+cache.writeback=off on file
+    Cache mode:       writeback
+    Cache mode:       writethrough
+    Cache mode:       writeback
+    Cache mode:       writeback
+
+cache.writeback=off on backing
+    Cache mode:       writeback
+    Cache mode:       writeback
+    Cache mode:       writethrough
+    Cache mode:       writeback
+
+cache.writeback=off on backing-file
+    Cache mode:       writeback
+    Cache mode:       writeback
+    Cache mode:       writeback
+    Cache mode:       writethrough
+
+
+cache.no-flush=on on blk
+    Cache mode:       writeback, ignore flushes
+    Cache mode:       writeback
+    Cache mode:       writeback
+    Cache mode:       writeback
+
+cache.no-flush=on on file
+    Cache mode:       writeback
+    Cache mode:       writeback, ignore flushes
+    Cache mode:       writeback
+    Cache mode:       writeback
+
+cache.no-flush=on on backing
+    Cache mode:       writeback
+    Cache mode:       writeback
+    Cache mode:       writeback, ignore flushes
+    Cache mode:       writeback
+
+cache.no-flush=on on backing-file
+    Cache mode:       writeback
+    Cache mode:       writeback
+    Cache mode:       writeback
+    Cache mode:       writeback, ignore flushes
+
+--- Cache modes after reopen (live snapshot) ---
+
+cache.direct=on on blk
+    Cache mode:       writeback, direct
+    Cache mode:       writeback, direct
+    Cache mode:       writeback
+    Cache mode:       writeback
+    Cache mode:       writeback
+
+cache.direct=on on file
+    Cache mode:       writeback
+    Cache mode:       writeback
+    Cache mode:       writeback, direct
+    Cache mode:       writeback
+    Cache mode:       writeback
+
+cache.direct=on on backing
+    Cache mode:       writeback
+    Cache mode:       writeback
+    Cache mode:       writeback
+    Cache mode:       writeback, direct
+    Cache mode:       writeback
+
+cache.direct=on on backing-file
+    Cache mode:       writeback
+    Cache mode:       writeback
+    Cache mode:       writeback
+    Cache mode:       writeback
+    Cache mode:       writeback, direct
+
+
+cache.writeback=off on blk
+    Cache mode:       writethrough
+    Cache mode:       writethrough
+    Cache mode:       writeback
+    Cache mode:       writeback
+    Cache mode:       writeback
+
+cache.writeback=off on file
+    Cache mode:       writeback
+    Cache mode:       writeback
+    Cache mode:       writethrough
+    Cache mode:       writeback
+    Cache mode:       writeback
+
+cache.writeback=off on backing
+    Cache mode:       writeback
+    Cache mode:       writeback
+    Cache mode:       writeback
+    Cache mode:       writethrough
+    Cache mode:       writeback
+
+cache.writeback=off on backing-file
+    Cache mode:       writeback
+    Cache mode:       writeback
+    Cache mode:       writeback
+    Cache mode:       writeback
+    Cache mode:       writethrough
+
+
+cache.no-flush=on on blk
+    Cache mode:       writeback, ignore flushes
+    Cache mode:       writeback, ignore flushes
+    Cache mode:       writeback
+    Cache mode:       writeback
+    Cache mode:       writeback
+
+cache.no-flush=on on file
+    Cache mode:       writeback
+    Cache mode:       writeback
+    Cache mode:       writeback, ignore flushes
+    Cache mode:       writeback
+    Cache mode:       writeback
+
+cache.no-flush=on on backing
+    Cache mode:       writeback
+    Cache mode:       writeback
+    Cache mode:       writeback
+    Cache mode:       writeback, ignore flushes
+    Cache mode:       writeback
+
+cache.no-flush=on on backing-file
+    Cache mode:       writeback
+    Cache mode:       writeback
+    Cache mode:       writeback
+    Cache mode:       writeback
+    Cache mode:       writeback, ignore flushes
+
+--- Change cache modes with reopen (qemu-io command, flags) ---
+
+cache.direct=on on blk
+    Cache mode:       writeback, direct
+    Cache mode:       writeback
+    Cache mode:       writeback
+    Cache mode:       writeback
+
+cache.direct=on on file
+    Cache mode:       writeback, direct
+    Cache mode:       writeback, direct
+    Cache mode:       writeback
+    Cache mode:       writeback
+
+cache.direct=on on backing
+    Cache mode:       writeback, direct
+    Cache mode:       writeback
+    Cache mode:       writeback, direct
+    Cache mode:       writeback
+
+cache.direct=on on backing-file
+    Cache mode:       writeback, direct
+    Cache mode:       writeback
+    Cache mode:       writeback
+    Cache mode:       writeback, direct
+
+
+cache.writeback=off on blk
+    Cache mode:       writeback, direct
+    Cache mode:       writeback
+    Cache mode:       writeback
+    Cache mode:       writeback
+
+cache.writeback=off on file
+    Cache mode:       writeback, direct
+    Cache mode:       writethrough
+    Cache mode:       writeback
+    Cache mode:       writeback
+
+cache.writeback=off on backing
+    Cache mode:       writeback, direct
+    Cache mode:       writeback
+    Cache mode:       writethrough
+    Cache mode:       writeback
+
+cache.writeback=off on backing-file
+    Cache mode:       writeback, direct
+    Cache mode:       writeback
+    Cache mode:       writeback
+    Cache mode:       writethrough
+
+
+cache.no-flush=on on blk
+    Cache mode:       writeback, direct
+    Cache mode:       writeback
+    Cache mode:       writeback
+    Cache mode:       writeback
+
+cache.no-flush=on on file
+    Cache mode:       writeback, direct
+    Cache mode:       writeback, ignore flushes
+    Cache mode:       writeback
+    Cache mode:       writeback
+
+cache.no-flush=on on backing
+    Cache mode:       writeback, direct
+    Cache mode:       writeback
+    Cache mode:       writeback, ignore flushes
+    Cache mode:       writeback
+
+cache.no-flush=on on backing-file
+    Cache mode:       writeback, direct
+    Cache mode:       writeback
+    Cache mode:       writeback
+    Cache mode:       writeback, ignore flushes
+
+=== Reopening children instead of the root ===
+
+
+--- Basic reopen ---
+
+cache.direct=on on none0
+    Cache mode:       writeback, direct
+    Cache mode:       writeback, direct
+    Cache mode:       writeback, direct
+    Cache mode:       writeback, direct
+
+cache.direct=on on file
+    Cache mode:       writeback
+    Cache mode:       writeback, direct
+    Cache mode:       writeback, direct
+    Cache mode:       writeback, direct
+
+cache.direct=on on backing
+    Cache mode:       writeback
+    Cache mode:       writeback
+    Cache mode:       writeback, direct
+    Cache mode:       writeback, direct
+
+cache.direct=on on backing-file
+    Cache mode:       writeback
+    Cache mode:       writeback
+    Cache mode:       writeback, direct
+    Cache mode:       writeback, direct
+
+
+cache.writeback=off on none0
+    Cache mode:       writethrough
+    Cache mode:       writeback
+    Cache mode:       writethrough, direct
+    Cache mode:       writeback, direct
+
+cache.writeback=off on file
+    Cache mode:       writeback
+    Cache mode:       writethrough
+    Cache mode:       writeback, direct
+    Cache mode:       writeback, direct
+
+cache.writeback=off on backing
+    Cache mode:       writeback
+    Cache mode:       writeback
+    Cache mode:       writethrough, direct
+    Cache mode:       writeback, direct
+
+cache.writeback=off on backing-file
+    Cache mode:       writeback
+    Cache mode:       writeback
+    Cache mode:       writeback, direct
+    Cache mode:       writethrough, direct
+
+
+cache.no-flush=on on none0
+    Cache mode:       writeback, ignore flushes
+    Cache mode:       writeback, ignore flushes
+    Cache mode:       writeback, direct, ignore flushes
+    Cache mode:       writeback, direct, ignore flushes
+
+cache.no-flush=on on file
+    Cache mode:       writeback
+    Cache mode:       writeback, ignore flushes
+    Cache mode:       writeback, direct
+    Cache mode:       writeback, direct
+
+cache.no-flush=on on backing
+    Cache mode:       writeback
+    Cache mode:       writeback
+    Cache mode:       writeback, direct, ignore flushes
+    Cache mode:       writeback, direct, ignore flushes
+
+cache.no-flush=on on backing-file
+    Cache mode:       writeback
+    Cache mode:       writeback
+    Cache mode:       writeback, direct
+    Cache mode:       writeback, direct, ignore flushes
+
+--- Change cache mode after reopening child ---
+
+    Cache mode:       writeback, direct
+    Cache mode:       writethrough
+    Cache mode:       writeback, direct
+    Cache mode:       writeback, ignore flushes
+*** done
