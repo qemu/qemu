@@ -1435,6 +1435,7 @@ CpuInfoList *qmp_query_cpus(Error **errp)
         info->value->CPU = cpu->cpu_index;
         info->value->current = (cpu == first_cpu);
         info->value->halted = cpu->halted;
+        info->value->qom_path = object_get_canonical_path(OBJECT(cpu));
         info->value->thread_id = cpu->thread_id;
 #if defined(TARGET_I386)
         info->value->has_pc = true;
