@@ -1014,7 +1014,6 @@ M: Amit Shah <amit.shah@redhat.com>
 S: Maintained
 F: include/migration/
 F: migration/
-F: savevm.c
 F: scripts/vmstate-static-checker.py
 F: tests/vmstate-static-checker-data/
 

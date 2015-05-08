@@ -1179,7 +1179,7 @@ virtio_gpu_cmd_res_flush(uint32_t res, uint32_t w, uint32_t h, uint32_t x, uint3
 virtio_gpu_fence_ctrl(uint64_t fence, uint32_t type) "fence 0x%" PRIx64 ", type 0x%x"
 virtio_gpu_fence_resp(uint64_t fence) "fence 0x%" PRIx64
 
-# savevm.c
+# migration/savevm.c
 qemu_loadvm_state_section(unsigned int section_type) "%d"
 qemu_loadvm_state_section_partend(uint32_t section_id) "%u"
 qemu_loadvm_state_section_startfull(uint32_t section_id, const char *idstr, uint32_t instance_id, uint32_t version_id) "%u(%s) %u %u"
