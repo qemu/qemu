@@ -26,31 +26,17 @@
  * THE SOFTWARE.
  */
 #include <stdint.h>
-#include <stdarg.h>
-#include <stdlib.h>
 #include <zlib.h>
-#ifndef _WIN32
-#include <sys/types.h>
-#include <sys/mman.h>
-#endif
-#include "config.h"
-#include "monitor/monitor.h"
-#include "sysemu/sysemu.h"
 #include "qemu/bitops.h"
 #include "qemu/bitmap.h"
-#include "hw/i386/pc.h"
-#include "hw/pci/pci.h"
-#include "hw/audio/audio.h"
+#include "qemu/timer.h"
+#include "qemu/main-loop.h"
 #include "migration/migration.h"
 #include "exec/address-spaces.h"
 #include "migration/page_cache.h"
-#include "qemu/config-file.h"
 #include "qemu/error-report.h"
-#include "qmp-commands.h"
 #include "trace.h"
-#include "exec/cpu-all.h"
 #include "exec/ram_addr.h"
-#include "qemu/host-utils.h"
 #include "qemu/rcu_queue.h"
 
 #ifdef DEBUG_MIGRATION_RAM
