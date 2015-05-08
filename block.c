@@ -1693,9 +1693,13 @@ typedef struct BlockReopenQueueEntry {
  * bs_queue, or the existing bs_queue being used.
  *
  */
-BlockReopenQueue *bdrv_reopen_queue(BlockReopenQueue *bs_queue,
-                                    BlockDriverState *bs,
-                                    QDict *options, int flags)
+static BlockReopenQueue *bdrv_reopen_queue_child(BlockReopenQueue *bs_queue,
+                                                 BlockDriverState *bs,
+                                                 QDict *options,
+                                                 int flags,
+                                                 const BdrvChildRole *role,
+                                                 QDict *parent_options,
+                                                 int parent_flags)
 {
     assert(bs != NULL);
 
@@ -1712,6 +1716,22 @@ BlockReopenQueue *bdrv_reopen_queue(BlockReopenQueue *bs_queue,
         options = qdict_new();
     }
 
+    /*
+     * Precedence of options:
+     * 1. Explicitly passed in options (highest)
+     * 2. TODO Set in flags (only for top level)
+     * 3. TODO Retained from explicitly set options of bs
+     * 4. TODO Inherited from parent node
+     * 5. Retained from effective options of bs
+     */
+
+    /* Inherit from parent node */
+    if (parent_options) {
+        assert(!flags);
+        flags = role->inherit_flags(parent_flags);
+    }
+
+    /* Old values are used for options that aren't set yet */
     old_options = qdict_clone_shallow(bs->options);
     bdrv_join_options(bs, options, old_options);
     QDECREF(old_options);
@@ -1722,7 +1742,6 @@ BlockReopenQueue *bdrv_reopen_queue(BlockReopenQueue *bs_queue,
     QLIST_FOREACH(child, &bs->children, next) {
         QDict *new_child_options;
         char *child_key_dot;
-        int child_flags;
 
         /* reopen can only change the options of block devices that were
          * implicitly created and inherited options. For other (referenced)
@@ -1735,8 +1754,8 @@ BlockReopenQueue *bdrv_reopen_queue(BlockReopenQueue *bs_queue,
         qdict_extract_subqdict(options, &new_child_options, child_key_dot);
         g_free(child_key_dot);
 
-        child_flags = child->role->inherit_flags(flags);
-        bdrv_reopen_queue(bs_queue, child->bs, new_child_options, child_flags);
+        bdrv_reopen_queue_child(bs_queue, child->bs, new_child_options, 0,
+                                child->role, options, flags);
     }
 
     bs_entry = g_new0(BlockReopenQueueEntry, 1);
@@ -1747,6 +1766,14 @@ BlockReopenQueue *bdrv_reopen_queue(BlockReopenQueue *bs_queue,
     bs_entry->state.flags = flags;
 
     return bs_queue;
+}
+
+BlockReopenQueue *bdrv_reopen_queue(BlockReopenQueue *bs_queue,
+                                    BlockDriverState *bs,
+                                    QDict *options, int flags)
+{
+    return bdrv_reopen_queue_child(bs_queue, bs, options, flags,
+                                   NULL, NULL, 0);
 }
 
 /*
