@@ -1907,10 +1907,33 @@ int bdrv_reopen_prepare(BDRVReopenState *reopen_state, BlockReopenQueue *queue,
     int ret = -1;
     Error *local_err = NULL;
     BlockDriver *drv;
+    QemuOpts *opts;
+    const char *value;
 
     assert(reopen_state != NULL);
     assert(reopen_state->bs->drv != NULL);
     drv = reopen_state->bs->drv;
+
+    /* Process generic block layer options */
+    opts = qemu_opts_create(&bdrv_runtime_opts, NULL, 0, &error_abort);
+    qemu_opts_absorb_qdict(opts, reopen_state->options, &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        ret = -EINVAL;
+        goto error;
+    }
+
+    /* node-name and driver must be unchanged. Put them back into the QDict, so
+     * that they are checked at the end of this function. */
+    value = qemu_opt_get(opts, "node-name");
+    if (value) {
+        qdict_put(reopen_state->options, "node-name", qstring_from_str(value));
+    }
+
+    value = qemu_opt_get(opts, "driver");
+    if (value) {
+        qdict_put(reopen_state->options, "driver", qstring_from_str(value));
+    }
 
     /* if we are to stay read-only, do not allow permission change
      * to r/w */
@@ -1972,6 +1995,7 @@ int bdrv_reopen_prepare(BDRVReopenState *reopen_state, BlockReopenQueue *queue,
     ret = 0;
 
 error:
+    qemu_opts_del(opts);
     return ret;
 }
 
