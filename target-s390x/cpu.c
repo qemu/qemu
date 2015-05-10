@@ -213,6 +213,7 @@ static void s390_cpu_finalize(Object *obj)
     S390CPU *cpu = S390_CPU(obj);
 
     qemu_unregister_reset(s390_cpu_machine_reset_cb, cpu);
+    g_free(cpu->irqstate);
 #endif
 }
 

@@ -642,8 +642,7 @@ static int virtio_ccw_cb(SubchDev *sch, CCW1 ccw)
     return ret;
 }
 
-static void virtio_ccw_device_realize(VirtioCcwDevice *dev,
-                                      VirtIODevice *vdev, Error **errp)
+static void virtio_ccw_device_realize(VirtioCcwDevice *dev, Error **errp)
 {
     unsigned int cssid = 0;
     unsigned int ssid = 0;
@@ -653,7 +652,8 @@ static void virtio_ccw_device_realize(VirtioCcwDevice *dev,
     bool found = false;
     SubchDev *sch;
     int num;
-    DeviceState *parent = DEVICE(dev);
+    Error *err = NULL;
+    VirtIOCCWDeviceClass *k = VIRTIO_CCW_DEVICE_GET_CLASS(dev);
 
     sch = g_malloc0(sizeof(SubchDev));
 
@@ -766,17 +766,16 @@ static void virtio_ccw_device_realize(VirtioCcwDevice *dev,
     memset(&sch->id, 0, sizeof(SenseId));
     sch->id.reserved = 0xff;
     sch->id.cu_type = VIRTIO_CCW_CU_TYPE;
-    sch->id.cu_model = vdev->device_id;
 
-    /* Only the first 32 feature bits are used. */
-    dev->host_features[0] = virtio_bus_get_vdev_features(&dev->bus,
-                                                         dev->host_features[0]);
+    if (k->realize) {
+        k->realize(dev, &err);
+    }
+    if (err) {
+        error_propagate(errp, err);
+        css_subch_assign(cssid, ssid, schid, devno, NULL);
+        goto out_err;
+    }
 
-    virtio_add_feature(&dev->host_features[0], VIRTIO_F_NOTIFY_ON_EMPTY);
-    virtio_add_feature(&dev->host_features[0], VIRTIO_F_BAD_FEATURE);
-
-    css_generate_sch_crws(sch->cssid, sch->ssid, sch->schid,
-                          parent->hotplugged, 1);
     return;
 
 out_err:
@@ -813,10 +812,7 @@ static void virtio_ccw_net_realize(VirtioCcwDevice *ccw_dev, Error **errp)
     object_property_set_bool(OBJECT(vdev), true, "realized", &err);
     if (err) {
         error_propagate(errp, err);
-        return;
     }
-
-    virtio_ccw_device_realize(ccw_dev, VIRTIO_DEVICE(vdev), errp);
 }
 
 static void virtio_ccw_net_instance_init(Object *obj)
@@ -839,10 +835,7 @@ static void virtio_ccw_blk_realize(VirtioCcwDevice *ccw_dev, Error **errp)
     object_property_set_bool(OBJECT(vdev), true, "realized", &err);
     if (err) {
         error_propagate(errp, err);
-        return;
     }
-
-    virtio_ccw_device_realize(ccw_dev, VIRTIO_DEVICE(vdev), errp);
 }
 
 static void virtio_ccw_blk_instance_init(Object *obj)
@@ -879,10 +872,7 @@ static void virtio_ccw_serial_realize(VirtioCcwDevice *ccw_dev, Error **errp)
     object_property_set_bool(OBJECT(vdev), true, "realized", &err);
     if (err) {
         error_propagate(errp, err);
-        return;
     }
-
-    virtio_ccw_device_realize(ccw_dev, VIRTIO_DEVICE(vdev), errp);
 }
 
 
@@ -904,10 +894,7 @@ static void virtio_ccw_balloon_realize(VirtioCcwDevice *ccw_dev, Error **errp)
     object_property_set_bool(OBJECT(vdev), true, "realized", &err);
     if (err) {
         error_propagate(errp, err);
-        return;
     }
-
-    virtio_ccw_device_realize(ccw_dev, VIRTIO_DEVICE(vdev), errp);
 }
 
 static void balloon_ccw_stats_get_all(Object *obj, struct Visitor *v,
@@ -972,10 +959,7 @@ static void virtio_ccw_scsi_realize(VirtioCcwDevice *ccw_dev, Error **errp)
     object_property_set_bool(OBJECT(vdev), true, "realized", &err);
     if (err) {
         error_propagate(errp, err);
-        return;
     }
-
-    virtio_ccw_device_realize(ccw_dev, VIRTIO_DEVICE(vdev), errp);
 }
 
 static void virtio_ccw_scsi_instance_init(Object *obj)
@@ -999,10 +983,7 @@ static void vhost_ccw_scsi_realize(VirtioCcwDevice *ccw_dev, Error **errp)
     object_property_set_bool(OBJECT(vdev), true, "realized", &err);
     if (err) {
         error_propagate(errp, err);
-        return;
     }
-
-    virtio_ccw_device_realize(ccw_dev, VIRTIO_DEVICE(vdev), errp);
 }
 
 static void vhost_ccw_scsi_instance_init(Object *obj)
@@ -1030,8 +1011,6 @@ static void virtio_ccw_rng_realize(VirtioCcwDevice *ccw_dev, Error **errp)
     object_property_set_link(OBJECT(dev),
                              OBJECT(dev->vdev.conf.rng), "rng",
                              NULL);
-
-    virtio_ccw_device_realize(ccw_dev, VIRTIO_DEVICE(vdev), errp);
 }
 
 /* DeviceState to VirtioCcwDevice. Note: used on datapath,
@@ -1434,6 +1413,30 @@ static int virtio_ccw_load_config(DeviceState *d, QEMUFile *f)
     return 0;
 }
 
+/* This is called by virtio-bus just after the device is plugged. */
+static void virtio_ccw_device_plugged(DeviceState *d)
+{
+    VirtioCcwDevice *dev = VIRTIO_CCW_DEVICE(d);
+    SubchDev *sch = dev->sch;
+
+    sch->id.cu_model = virtio_bus_get_vdev_id(&dev->bus);
+
+    /* Only the first 32 feature bits are used. */
+    virtio_add_feature(&dev->host_features[0], VIRTIO_F_NOTIFY_ON_EMPTY);
+    virtio_add_feature(&dev->host_features[0], VIRTIO_F_BAD_FEATURE);
+    dev->host_features[0] = virtio_bus_get_vdev_features(&dev->bus,
+                                                         dev->host_features[0]);
+
+    css_generate_sch_crws(sch->cssid, sch->ssid, sch->schid,
+                          d->hotplugged, 1);
+}
+
+static void virtio_ccw_device_unplugged(DeviceState *d)
+{
+    VirtioCcwDevice *dev = VIRTIO_CCW_DEVICE(d);
+
+    virtio_ccw_stop_ioeventfd(dev);
+}
 /**************** Virtio-ccw Bus Device Descriptions *******************/
 
 static Property virtio_ccw_net_properties[] = {
@@ -1640,10 +1643,9 @@ static const TypeInfo virtio_ccw_rng = {
 static void virtio_ccw_busdev_realize(DeviceState *dev, Error **errp)
 {
     VirtioCcwDevice *_dev = (VirtioCcwDevice *)dev;
-    VirtIOCCWDeviceClass *_info = VIRTIO_CCW_DEVICE_GET_CLASS(dev);
 
     virtio_ccw_bus_new(&_dev->bus, sizeof(_dev->bus), _dev);
-    _info->realize(_dev, errp);
+    virtio_ccw_device_realize(_dev, errp);
 }
 
 static int virtio_ccw_busdev_exit(DeviceState *dev)
@@ -1759,6 +1761,8 @@ static void virtio_ccw_bus_class_init(ObjectClass *klass, void *data)
     k->load_queue = virtio_ccw_load_queue;
     k->save_config = virtio_ccw_save_config;
     k->load_config = virtio_ccw_load_config;
+    k->device_plugged = virtio_ccw_device_plugged;
+    k->device_unplugged = virtio_ccw_device_unplugged;
 }
 
 static const TypeInfo virtio_ccw_bus_info = {

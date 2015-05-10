@@ -1079,6 +1079,8 @@ void kvm_s390_clear_cmma_callback(void *opaque);
 int kvm_s390_set_cpu_state(S390CPU *cpu, uint8_t cpu_state);
 void kvm_s390_reset_vcpu(S390CPU *cpu);
 int kvm_s390_set_mem_limit(KVMState *s, uint64_t new_limit, uint64_t *hw_limit);
+void kvm_s390_vcpu_interrupt_pre_save(S390CPU *cpu);
+int kvm_s390_vcpu_interrupt_post_load(S390CPU *cpu);
 #else
 static inline void kvm_s390_io_interrupt(uint16_t subchannel_id,
                                         uint16_t subchannel_nr,
@@ -1118,6 +1120,13 @@ static inline void kvm_s390_reset_vcpu(S390CPU *cpu)
 }
 static inline int kvm_s390_set_mem_limit(KVMState *s, uint64_t new_limit,
                                          uint64_t *hw_limit)
+{
+    return 0;
+}
+static inline void kvm_s390_vcpu_interrupt_pre_save(S390CPU *cpu)
+{
+}
+static inline int kvm_s390_vcpu_interrupt_post_load(S390CPU *cpu)
 {
     return 0;
 }
