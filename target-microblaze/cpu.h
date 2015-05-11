@@ -34,8 +34,6 @@ typedef struct CPUMBState CPUMBState;
 #include "mmu.h"
 #endif
 
-#define ELF_MACHINE	EM_MICROBLAZE
-
 #define EXCP_MMU        1
 #define EXCP_IRQ        2
 #define EXCP_BREAK      3
