@@ -493,9 +493,11 @@ static void guest_fsfreeze_cleanup(void)
  * Walk list of mounted file systems in the guest, and discard unused
  * areas.
  */
-void qmp_guest_fstrim(bool has_minimum, int64_t minimum, Error **errp)
+GuestFilesystemTrimResponse *
+qmp_guest_fstrim(bool has_minimum, int64_t minimum, Error **errp)
 {
     error_setg(errp, QERR_UNSUPPORTED);
+    return NULL;
 }
 
 typedef enum {

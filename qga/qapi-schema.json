@@ -425,6 +425,30 @@
   'returns': 'int' }
 
 ##
+# @GuestFilesystemTrimResult
+#
+# @path: path that was trimmed
+# @error: an error message when trim failed
+# @trimmed: bytes trimmed for this path
+# @minimum: reported effective minimum for this path
+#
+# Since: 2.4
+##
+{ 'struct': 'GuestFilesystemTrimResult',
+  'data': {'path': 'str',
+           '*trimmed': 'int', '*minimum': 'int', '*error': 'str'} }
+
+##
+# @GuestFilesystemTrimResponse
+#
+# @paths: list of @GuestFilesystemTrimResult per path that was trimmed
+#
+# Since: 2.4
+##
+{ 'struct': 'GuestFilesystemTrimResponse',
+  'data': {'paths': ['GuestFilesystemTrimResult']} }
+
+##
 # @guest-fstrim:
 #
 # Discard (or "trim") blocks which are not in use by the filesystem.
@@ -437,12 +461,14 @@
 #       fragmented free space, although not all blocks will be discarded.
 #       The default value is zero, meaning "discard every free block".
 #
-# Returns: Nothing.
+# Returns: A @GuestFilesystemTrimResponse which contains the
+#          status of all trimmed paths. (since 2.4)
 #
 # Since: 1.2
 ##
 { 'command': 'guest-fstrim',
-  'data': { '*minimum': 'int' } }
+  'data': { '*minimum': 'int' },
+  'returns': 'GuestFilesystemTrimResponse' }
 
 ##
 # @guest-suspend-disk
