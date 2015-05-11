@@ -272,7 +272,7 @@ static void elf_core_copy_regs(target_elf_gregset_t *regs, const CPUX86State *en
 
 #define ELF_START_MMAP 0x80000000
 
-#define ELF_ARCH        ELF_MACHINE
+#define ELF_ARCH        EM_ARM
 #define ELF_CLASS       ELFCLASS32
 
 static inline void init_thread(struct target_pt_regs *regs,
@@ -478,7 +478,7 @@ static uint32_t get_elf_hwcap2(void)
 /* 64 bit ARM definitions */
 #define ELF_START_MMAP 0x80000000
 
-#define ELF_ARCH        ELF_MACHINE
+#define ELF_ARCH        EM_AARCH64
 #define ELF_CLASS       ELFCLASS64
 #define ELF_PLATFORM    "aarch64"
 
