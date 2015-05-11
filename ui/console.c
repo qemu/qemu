@@ -126,6 +126,7 @@ struct QemuConsole {
     Object *device;
     uint32_t head;
     QemuUIInfo ui_info;
+    QEMUTimer *ui_timer;
     const GraphicHwOps *hw_ops;
     void *hw;
 
@@ -1383,14 +1384,33 @@ void unregister_displaychangelistener(DisplayChangeListener *dcl)
     gui_setup_refresh(ds);
 }
 
+static void dpy_set_ui_info_timer(void *opaque)
+{
+    QemuConsole *con = opaque;
+
+    con->hw_ops->ui_info(con->hw, con->head, &con->ui_info);
+}
+
+bool dpy_ui_info_supported(QemuConsole *con)
+{
+    return con->hw_ops->ui_info != NULL;
+}
+
 int dpy_set_ui_info(QemuConsole *con, QemuUIInfo *info)
 {
     assert(con != NULL);
     con->ui_info = *info;
-    if (con->hw_ops->ui_info) {
-        return con->hw_ops->ui_info(con->hw, con->head, info);
+    if (!dpy_ui_info_supported(con)) {
+        return -1;
     }
-    return -1;
+
+    /*
+     * Typically we get a flood of these as the user resizes the window.
+     * Wait until the dust has settled (one second without updates), then
+     * go notify the guest.
+     */
+    timer_mod(con->ui_timer, qemu_clock_get_ms(QEMU_CLOCK_REALTIME) + 1000);
+    return 0;
 }
 
 void dpy_gfx_update(QemuConsole *con, int x, int y, int w, int h)
@@ -1724,6 +1744,7 @@ QemuConsole *graphic_console_init(DeviceState *dev, uint32_t head,
     ds = get_alloc_displaystate();
     trace_console_gfx_new();
     s = new_console(ds, GRAPHIC_CONSOLE, head);
+    s->ui_timer = timer_new_ms(QEMU_CLOCK_REALTIME, dpy_set_ui_info_timer, s);
     graphic_console_set_hwops(s, hw_ops, opaque);
     if (dev) {
         object_property_set_link(OBJECT(s), OBJECT(dev), "device",
