@@ -49,6 +49,16 @@ static inline void *qcow2_cache_get_table_addr(BlockDriverState *bs,
     return (uint8_t *) c->table_array + (size_t) table * s->cluster_size;
 }
 
+static inline int qcow2_cache_get_table_idx(BlockDriverState *bs,
+                  Qcow2Cache *c, void *table)
+{
+    BDRVQcowState *s = bs->opaque;
+    ptrdiff_t table_offset = (uint8_t *) table - (uint8_t *) c->table_array;
+    int idx = table_offset / s->cluster_size;
+    assert(idx >= 0 && idx < c->size && table_offset % s->cluster_size == 0);
+    return idx;
+}
+
 Qcow2Cache *qcow2_cache_create(BlockDriverState *bs, int num_tables)
 {
     BDRVQcowState *s = bs->opaque;
@@ -337,16 +347,12 @@ int qcow2_cache_get_empty(BlockDriverState *bs, Qcow2Cache *c, uint64_t offset,
 
 int qcow2_cache_put(BlockDriverState *bs, Qcow2Cache *c, void **table)
 {
-    int i;
+    int i = qcow2_cache_get_table_idx(bs, c, *table);
 
-    for (i = 0; i < c->size; i++) {
-        if (qcow2_cache_get_table_addr(bs, c, i) == *table) {
-            goto found;
-        }
+    if (c->entries[i].offset == 0) {
+        return -ENOENT;
     }
-    return -ENOENT;
 
-found:
     c->entries[i].ref--;
     *table = NULL;
 
@@ -357,15 +363,7 @@ found:
 void qcow2_cache_entry_mark_dirty(BlockDriverState *bs, Qcow2Cache *c,
      void *table)
 {
-    int i;
-
-    for (i = 0; i < c->size; i++) {
-        if (qcow2_cache_get_table_addr(bs, c, i) == table) {
-            goto found;
-        }
-    }
-    abort();
-
-found:
+    int i = qcow2_cache_get_table_idx(bs, c, table);
+    assert(c->entries[i].offset != 0);
     c->entries[i].dirty = true;
 }
