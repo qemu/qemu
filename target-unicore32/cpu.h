@@ -17,8 +17,6 @@
 #define TARGET_PHYS_ADDR_SPACE_BITS     32
 #define TARGET_VIRT_ADDR_SPACE_BITS     32
 
-#define ELF_MACHINE             EM_UNICORE32
-
 #define CPUArchState                struct CPUUniCore32State
 
 #include "config.h"
