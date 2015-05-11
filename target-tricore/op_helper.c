@@ -2458,6 +2458,7 @@ void helper_rfe(CPUTriCoreState *env)
     if (!cdc_zero(&(env->PSW)) && (env->PSW & MASK_PSW_CDE)) {
         /* raise MNG trap */
     }
+    env->PC = env->gpr_a[11] & ~0x1;
     /* ICR.IE = PCXI.PIE; */
     env->ICR = (env->ICR & ~MASK_ICR_IE) + ((env->PCXI & MASK_PCXI_PIE) >> 15);
     /* ICR.CCPN = PCXI.PCPN; */
@@ -2581,7 +2582,7 @@ void helper_rslcx(CPUTriCoreState *env)
          ((env->PCXI & MASK_PCXI_PCXO) << 6);
     /* {new_PCXI, A[11], A[10], A[11], D[8], D[9], D[10], D[11], A[12],
         A[13], A[14], A[15], D[12], D[13], D[14], D[15]} = M(EA, 16 * word); */
-    restore_context_upper(env, ea, &new_PCXI, &env->gpr_a[11]);
+    restore_context_lower(env, ea, &env->gpr_a[11], &new_PCXI);
     /* M(EA, word) = FCX; */
     cpu_stl_data(env, ea, env->FCX);
     /* M(EA, word) = FCX; */
