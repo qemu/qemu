@@ -1847,7 +1847,7 @@
 #       not guaranteed to be stable
 #
 # @offset: #optional, if the corruption resulted from an image access, this is
-#          the access offset into the image
+#          the host's access offset into the image
 #
 # @size: #optional, if the corruption resulted from an image access, this is
 #        the access size

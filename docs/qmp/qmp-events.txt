@@ -43,9 +43,10 @@ Data:
 - "msg":       Informative message (e.g., reason for the corruption)
                (json-string)
 - "offset":    If the corruption resulted from an image access, this
-               is the access offset into the image (json-int)
+               is the host's access offset into the image
+               (json-int, optional)
 - "size":      If the corruption resulted from an image access, this
-               is the access size (json-int)
+               is the access size (json-int, optional)
 
 Example:
 
