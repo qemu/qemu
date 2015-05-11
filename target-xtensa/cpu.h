@@ -30,7 +30,6 @@
 
 #define ALIGNED_ONLY
 #define TARGET_LONG_BITS 32
-#define ELF_MACHINE EM_XTENSA
 
 #define CPUArchState struct CPUXtensaState
 
