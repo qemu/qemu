@@ -373,6 +373,7 @@ static inline bool memory_access_is_direct(MemoryRegion *mr, bool is_write)
     return false;
 }
 
+/* Called from RCU critical section */
 MemoryRegion *address_space_translate(AddressSpace *as, hwaddr addr,
                                       hwaddr *xlat, hwaddr *plen,
                                       bool is_write)
@@ -381,7 +382,6 @@ MemoryRegion *address_space_translate(AddressSpace *as, hwaddr addr,
     MemoryRegionSection *section;
     MemoryRegion *mr;
 
-    rcu_read_lock();
     for (;;) {
         AddressSpaceDispatch *d = atomic_rcu_read(&as->dispatch);
         section = address_space_translate_internal(d, addr, &addr, plen, true);
@@ -409,7 +409,6 @@ MemoryRegion *address_space_translate(AddressSpace *as, hwaddr addr,
     }
 
     *xlat = addr;
-    rcu_read_unlock();
     return mr;
 }
 
@@ -2329,6 +2328,7 @@ MemTxResult address_space_rw(AddressSpace *as, hwaddr addr, MemTxAttrs attrs,
     MemoryRegion *mr;
     MemTxResult result = MEMTX_OK;
 
+    rcu_read_lock();
     while (len > 0) {
         l = len;
         mr = address_space_translate(as, addr, &addr1, &l, is_write);
@@ -2415,6 +2415,7 @@ MemTxResult address_space_rw(AddressSpace *as, hwaddr addr, MemTxAttrs attrs,
         buf += l;
         addr += l;
     }
+    rcu_read_unlock();
 
     return result;
 }
@@ -2452,6 +2453,7 @@ static inline void cpu_physical_memory_write_rom_internal(AddressSpace *as,
     hwaddr addr1;
     MemoryRegion *mr;
 
+    rcu_read_lock();
     while (len > 0) {
         l = len;
         mr = address_space_translate(as, addr, &addr1, &l, true);
@@ -2477,6 +2479,7 @@ static inline void cpu_physical_memory_write_rom_internal(AddressSpace *as,
         buf += l;
         addr += l;
     }
+    rcu_read_unlock();
 }
 
 /* used for ROM loading : can write in RAM and ROM */
@@ -2585,6 +2588,7 @@ bool address_space_access_valid(AddressSpace *as, hwaddr addr, int len, bool is_
     MemoryRegion *mr;
     hwaddr l, xlat;
 
+    rcu_read_lock();
     while (len > 0) {
         l = len;
         mr = address_space_translate(as, addr, &xlat, &l, is_write);
@@ -2598,6 +2602,7 @@ bool address_space_access_valid(AddressSpace *as, hwaddr addr, int len, bool is_
         len -= l;
         addr += l;
     }
+    rcu_read_unlock();
     return true;
 }
 
@@ -2624,9 +2629,12 @@ void *address_space_map(AddressSpace *as,
     }
 
     l = len;
+    rcu_read_lock();
     mr = address_space_translate(as, addr, &xlat, &l, is_write);
+
     if (!memory_access_is_direct(mr, is_write)) {
         if (atomic_xchg(&bounce.in_use, true)) {
+            rcu_read_unlock();
             return NULL;
         }
         /* Avoid unbounded allocations */
@@ -2642,6 +2650,7 @@ void *address_space_map(AddressSpace *as,
                                bounce.buffer, l);
         }
 
+        rcu_read_unlock();
         *plen = l;
         return bounce.buffer;
     }
@@ -2665,6 +2674,7 @@ void *address_space_map(AddressSpace *as,
     }
 
     memory_region_ref(mr);
+    rcu_read_unlock();
     *plen = done;
     return qemu_ram_ptr_length(raddr + base, plen);
 }
@@ -2728,6 +2738,7 @@ static inline uint32_t address_space_ldl_internal(AddressSpace *as, hwaddr addr,
     hwaddr addr1;
     MemTxResult r;
 
+    rcu_read_lock();
     mr = address_space_translate(as, addr, &addr1, &l, false);
     if (l < 4 || !memory_access_is_direct(mr, false)) {
         /* I/O case */
@@ -2762,6 +2773,7 @@ static inline uint32_t address_space_ldl_internal(AddressSpace *as, hwaddr addr,
     if (result) {
         *result = r;
     }
+    rcu_read_unlock();
     return val;
 }
 
@@ -2814,6 +2826,7 @@ static inline uint64_t address_space_ldq_internal(AddressSpace *as, hwaddr addr,
     hwaddr addr1;
     MemTxResult r;
 
+    rcu_read_lock();
     mr = address_space_translate(as, addr, &addr1, &l,
                                  false);
     if (l < 8 || !memory_access_is_direct(mr, false)) {
@@ -2849,6 +2862,7 @@ static inline uint64_t address_space_ldq_internal(AddressSpace *as, hwaddr addr,
     if (result) {
         *result = r;
     }
+    rcu_read_unlock();
     return val;
 }
 
@@ -2921,6 +2935,7 @@ static inline uint32_t address_space_lduw_internal(AddressSpace *as,
     hwaddr addr1;
     MemTxResult r;
 
+    rcu_read_lock();
     mr = address_space_translate(as, addr, &addr1, &l,
                                  false);
     if (l < 2 || !memory_access_is_direct(mr, false)) {
@@ -2956,6 +2971,7 @@ static inline uint32_t address_space_lduw_internal(AddressSpace *as,
     if (result) {
         *result = r;
     }
+    rcu_read_unlock();
     return val;
 }
 
@@ -3007,6 +3023,7 @@ void address_space_stl_notdirty(AddressSpace *as, hwaddr addr, uint32_t val,
     hwaddr addr1;
     MemTxResult r;
 
+    rcu_read_lock();
     mr = address_space_translate(as, addr, &addr1, &l,
                                  true);
     if (l < 4 || !memory_access_is_direct(mr, true)) {
@@ -3029,6 +3046,7 @@ void address_space_stl_notdirty(AddressSpace *as, hwaddr addr, uint32_t val,
     if (result) {
         *result = r;
     }
+    rcu_read_unlock();
 }
 
 void stl_phys_notdirty(AddressSpace *as, hwaddr addr, uint32_t val)
@@ -3049,6 +3067,7 @@ static inline void address_space_stl_internal(AddressSpace *as,
     hwaddr addr1;
     MemTxResult r;
 
+    rcu_read_lock();
     mr = address_space_translate(as, addr, &addr1, &l,
                                  true);
     if (l < 4 || !memory_access_is_direct(mr, true)) {
@@ -3083,6 +3102,7 @@ static inline void address_space_stl_internal(AddressSpace *as,
     if (result) {
         *result = r;
     }
+    rcu_read_unlock();
 }
 
 void address_space_stl(AddressSpace *as, hwaddr addr, uint32_t val,
@@ -3152,6 +3172,7 @@ static inline void address_space_stw_internal(AddressSpace *as,
     hwaddr addr1;
     MemTxResult r;
 
+    rcu_read_lock();
     mr = address_space_translate(as, addr, &addr1, &l, true);
     if (l < 2 || !memory_access_is_direct(mr, true)) {
 #if defined(TARGET_WORDS_BIGENDIAN)
@@ -3185,6 +3206,7 @@ static inline void address_space_stw_internal(AddressSpace *as,
     if (result) {
         *result = r;
     }
+    rcu_read_unlock();
 }
 
 void address_space_stw(AddressSpace *as, hwaddr addr, uint32_t val,
@@ -3322,12 +3344,15 @@ bool cpu_physical_memory_is_io(hwaddr phys_addr)
 {
     MemoryRegion*mr;
     hwaddr l = 1;
+    bool res;
 
+    rcu_read_lock();
     mr = address_space_translate(&address_space_memory,
                                  phys_addr, &phys_addr, &l, false);
 
-    return !(memory_region_is_ram(mr) ||
-             memory_region_is_romd(mr));
+    res = !(memory_region_is_ram(mr) || memory_region_is_romd(mr));
+    rcu_read_unlock();
+    return res;
 }
 
 void qemu_ram_foreach_block(RAMBlockIterFunc func, void *opaque)

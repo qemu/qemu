@@ -1416,14 +1416,17 @@ void tb_invalidate_phys_addr(AddressSpace *as, hwaddr addr)
     MemoryRegion *mr;
     hwaddr l = 1;
 
+    rcu_read_lock();
     mr = address_space_translate(as, addr, &addr, &l, false);
     if (!(memory_region_is_ram(mr)
           || memory_region_is_romd(mr))) {
+        rcu_read_unlock();
         return;
     }
     ram_addr = (memory_region_get_ram_addr(mr) & TARGET_PAGE_MASK)
         + addr;
     tb_invalidate_phys_page_range(ram_addr, ram_addr + 1, 0);
+    rcu_read_unlock();
 }
 #endif /* !defined(CONFIG_USER_ONLY) */
 

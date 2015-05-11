@@ -86,6 +86,59 @@
 #define NBD_OPT_ABORT           (2)
 #define NBD_OPT_LIST            (3)
 
+/* NBD errors are based on errno numbers, so there is a 1:1 mapping,
+ * but only a limited set of errno values is specified in the protocol.
+ * Everything else is squashed to EINVAL.
+ */
+#define NBD_SUCCESS    0
+#define NBD_EPERM      1
+#define NBD_EIO        5
+#define NBD_ENOMEM     12
+#define NBD_EINVAL     22
+#define NBD_ENOSPC     28
+
+static int system_errno_to_nbd_errno(int err)
+{
+    switch (err) {
+    case 0:
+        return NBD_SUCCESS;
+    case EPERM:
+        return NBD_EPERM;
+    case EIO:
+        return NBD_EIO;
+    case ENOMEM:
+        return NBD_ENOMEM;
+#ifdef EDQUOT
+    case EDQUOT:
+#endif
+    case EFBIG:
+    case ENOSPC:
+        return NBD_ENOSPC;
+    case EINVAL:
+    default:
+        return NBD_EINVAL;
+    }
+}
+
+static int nbd_errno_to_system_errno(int err)
+{
+    switch (err) {
+    case NBD_SUCCESS:
+        return 0;
+    case NBD_EPERM:
+        return EPERM;
+    case NBD_EIO:
+        return EIO;
+    case NBD_ENOMEM:
+        return ENOMEM;
+    case NBD_ENOSPC:
+        return ENOSPC;
+    case NBD_EINVAL:
+    default:
+        return EINVAL;
+    }
+}
+
 /* Definitions for opaque data types */
 
 typedef struct NBDRequest NBDRequest;
@@ -856,6 +909,8 @@ ssize_t nbd_receive_reply(int csock, struct nbd_reply *reply)
     reply->error  = be32_to_cpup((uint32_t*)(buf + 4));
     reply->handle = be64_to_cpup((uint64_t*)(buf + 8));
 
+    reply->error = nbd_errno_to_system_errno(reply->error);
+
     TRACE("Got reply: "
           "{ magic = 0x%x, .error = %d, handle = %" PRIu64" }",
           magic, reply->error, reply->handle);
@@ -871,6 +926,8 @@ static ssize_t nbd_send_reply(int csock, struct nbd_reply *reply)
 {
     uint8_t buf[NBD_REPLY_SIZE];
     ssize_t ret;
+
+    reply->error = system_errno_to_nbd_errno(reply->error);
 
     /* Reply
        [ 0 ..  3]    magic   (NBD_REPLY_MAGIC)

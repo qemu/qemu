@@ -45,6 +45,7 @@
 #include "hw/s390x/s390-pci-bus.h"
 #include "hw/s390x/ipl.h"
 #include "hw/s390x/ebcdic.h"
+#include "exec/memattrs.h"
 
 /* #define DEBUG_KVM */
 
@@ -780,8 +781,9 @@ void kvm_arch_pre_run(CPUState *cpu, struct kvm_run *run)
 {
 }
 
-void kvm_arch_post_run(CPUState *cpu, struct kvm_run *run)
+MemTxAttrs kvm_arch_post_run(CPUState *cs, struct kvm_run *run)
 {
+    return MEMTXATTRS_UNSPECIFIED;
 }
 
 int kvm_arch_process_async_events(CPUState *cs)

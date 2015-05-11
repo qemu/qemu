@@ -2089,7 +2089,7 @@ static void mtree_print_mr(fprintf_function mon_printf, void *f,
     const MemoryRegion *submr;
     unsigned int i;
 
-    if (!mr || !mr->enabled) {
+    if (!mr) {
         return;
     }
 
@@ -2115,7 +2115,7 @@ static void mtree_print_mr(fprintf_function mon_printf, void *f,
         }
         mon_printf(f, TARGET_FMT_plx "-" TARGET_FMT_plx
                    " (prio %d, %c%c): alias %s @%s " TARGET_FMT_plx
-                   "-" TARGET_FMT_plx "\n",
+                   "-" TARGET_FMT_plx "%s\n",
                    base + mr->addr,
                    base + mr->addr
                    + (int128_nz(mr->size) ?
@@ -2131,10 +2131,11 @@ static void mtree_print_mr(fprintf_function mon_printf, void *f,
                    mr->alias_offset
                    + (int128_nz(mr->size) ?
                       (hwaddr)int128_get64(int128_sub(mr->size,
-                                                      int128_one())) : 0));
+                                                      int128_one())) : 0),
+                   mr->enabled ? "" : " [disabled]");
     } else {
         mon_printf(f,
-                   TARGET_FMT_plx "-" TARGET_FMT_plx " (prio %d, %c%c): %s\n",
+                   TARGET_FMT_plx "-" TARGET_FMT_plx " (prio %d, %c%c): %s%s\n",
                    base + mr->addr,
                    base + mr->addr
                    + (int128_nz(mr->size) ?
@@ -2144,7 +2145,8 @@ static void mtree_print_mr(fprintf_function mon_printf, void *f,
                    mr->romd_mode ? 'R' : '-',
                    !mr->readonly && !(mr->rom_device && mr->romd_mode) ? 'W'
                                                                        : '-',
-                   memory_region_name(mr));
+                   memory_region_name(mr),
+                   mr->enabled ? "" : " [disabled]");
     }
 
     QTAILQ_INIT(&submr_print_queue);
@@ -2185,15 +2187,16 @@ void mtree_info(fprintf_function mon_printf, void *f)
     QTAILQ_INIT(&ml_head);
 
     QTAILQ_FOREACH(as, &address_spaces, address_spaces_link) {
-        mon_printf(f, "%s\n", as->name);
-        mtree_print_mr(mon_printf, f, as->root, 0, 0, &ml_head);
+        mon_printf(f, "address-space: %s\n", as->name);
+        mtree_print_mr(mon_printf, f, as->root, 1, 0, &ml_head);
+        mon_printf(f, "\n");
     }
 
-    mon_printf(f, "aliases\n");
     /* print aliased regions */
     QTAILQ_FOREACH(ml, &ml_head, queue) {
-        mon_printf(f, "%s\n", memory_region_name(ml->mr));
-        mtree_print_mr(mon_printf, f, ml->mr, 0, 0, &ml_head);
+        mon_printf(f, "memory-region: %s\n", memory_region_name(ml->mr));
+        mtree_print_mr(mon_printf, f, ml->mr, 1, 0, &ml_head);
+        mon_printf(f, "\n");
     }
 
     QTAILQ_FOREACH_SAFE(ml, &ml_head, queue, ml2) {
