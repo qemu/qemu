@@ -265,10 +265,7 @@ int qcow2_get_refcount(BlockDriverState *bs, int64_t cluster_index,
     block_index = cluster_index & (s->refcount_block_size - 1);
     *refcount = s->get_refcount(refcount_block, block_index);
 
-    ret = qcow2_cache_put(bs, s->refcount_block_cache, &refcount_block);
-    if (ret < 0) {
-        return ret;
-    }
+    qcow2_cache_put(bs, s->refcount_block_cache, &refcount_block);
 
     return 0;
 }
@@ -448,10 +445,7 @@ static int alloc_refcount_block(BlockDriverState *bs,
         return -EAGAIN;
     }
 
-    ret = qcow2_cache_put(bs, s->refcount_block_cache, refcount_block);
-    if (ret < 0) {
-        goto fail_block;
-    }
+    qcow2_cache_put(bs, s->refcount_block_cache, refcount_block);
 
     /*
      * If we come here, we need to grow the refcount table. Again, a new
@@ -723,13 +717,8 @@ static int QEMU_WARN_UNUSED_RESULT update_refcount(BlockDriverState *bs,
         /* Load the refcount block and allocate it if needed */
         if (table_index != old_table_index) {
             if (refcount_block) {
-                ret = qcow2_cache_put(bs, s->refcount_block_cache,
-                                      &refcount_block);
-                if (ret < 0) {
-                    goto fail;
-                }
+                qcow2_cache_put(bs, s->refcount_block_cache, &refcount_block);
             }
-
             ret = alloc_refcount_block(bs, cluster_index, &refcount_block);
             if (ret < 0) {
                 goto fail;
@@ -774,11 +763,7 @@ fail:
 
     /* Write last changed block to disk */
     if (refcount_block) {
-        int wret;
-        wret = qcow2_cache_put(bs, s->refcount_block_cache, &refcount_block);
-        if (wret < 0) {
-            return ret < 0 ? ret : wret;
-        }
+        qcow2_cache_put(bs, s->refcount_block_cache, &refcount_block);
     }
 
     /*
@@ -1188,11 +1173,7 @@ int qcow2_update_snapshot_refcount(BlockDriverState *bs,
                 }
             }
 
-            ret = qcow2_cache_put(bs, s->l2_table_cache, (void**) &l2_table);
-            if (ret < 0) {
-                goto fail;
-            }
-
+            qcow2_cache_put(bs, s->l2_table_cache, (void **) &l2_table);
 
             if (addend != 0) {
                 ret = qcow2_update_cluster_refcount(bs, l2_offset >>
