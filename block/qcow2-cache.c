@@ -242,51 +242,38 @@ int qcow2_cache_empty(BlockDriverState *bs, Qcow2Cache *c)
     return 0;
 }
 
-static int qcow2_cache_find_entry_to_replace(Qcow2Cache *c)
-{
-    int i;
-    uint64_t min_lru_counter = UINT64_MAX;
-    int min_index = -1;
-
-
-    for (i = 0; i < c->size; i++) {
-        if (c->entries[i].ref) {
-            continue;
-        }
-
-        if (c->entries[i].lru_counter < min_lru_counter) {
-            min_index = i;
-            min_lru_counter = c->entries[i].lru_counter;
-        }
-    }
-
-    if (min_index == -1) {
-        /* This can't happen in current synchronous code, but leave the check
-         * here as a reminder for whoever starts using AIO with the cache */
-        abort();
-    }
-    return min_index;
-}
-
 static int qcow2_cache_do_get(BlockDriverState *bs, Qcow2Cache *c,
     uint64_t offset, void **table, bool read_from_disk)
 {
     BDRVQcowState *s = bs->opaque;
     int i;
     int ret;
+    uint64_t min_lru_counter = UINT64_MAX;
+    int min_lru_index = -1;
 
     trace_qcow2_cache_get(qemu_coroutine_self(), c == s->l2_table_cache,
                           offset, read_from_disk);
 
     /* Check if the table is already cached */
     for (i = 0; i < c->size; i++) {
-        if (c->entries[i].offset == offset) {
+        const Qcow2CachedTable *t = &c->entries[i];
+        if (t->offset == offset) {
             goto found;
+        }
+        if (t->ref == 0 && t->lru_counter < min_lru_counter) {
+            min_lru_counter = t->lru_counter;
+            min_lru_index = i;
         }
     }
 
-    /* If not, write a table back and replace it */
-    i = qcow2_cache_find_entry_to_replace(c);
+    if (min_lru_index == -1) {
+        /* This can't happen in current synchronous code, but leave the check
+         * here as a reminder for whoever starts using AIO with the cache */
+        abort();
+    }
+
+    /* Cache miss: write a table back and replace it */
+    i = min_lru_index;
     trace_qcow2_cache_get_replace_entry(qemu_coroutine_self(),
                                         c == s->l2_table_cache, i);
     if (i < 0) {
