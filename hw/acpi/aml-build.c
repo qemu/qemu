@@ -26,6 +26,7 @@
 #include <string.h>
 #include "hw/acpi/aml-build.h"
 #include "qemu/bswap.h"
+#include "hw/acpi/bios-linker-loader.h"
 
 static GArray *build_alloc_array(void)
 {
@@ -635,9 +636,11 @@ Aml *aml_reserved_field(unsigned length)
 }
 
 /* ACPI 1.0b: 16.2.5.2 Named Objects Encoding: DefField */
-Aml *aml_field(const char *name, AmlFieldFlags flags)
+Aml *aml_field(const char *name, AmlAccessType type, AmlUpdateRule rule)
 {
     Aml *var = aml_bundle(0x81 /* FieldOp */, AML_EXT_PACKAGE);
+    uint8_t flags = rule << 5 | type;
+
     build_append_namestring(var->buf, "%s", name);
     build_append_byte(var->buf, flags);
     return var;
@@ -890,4 +893,61 @@ Aml *aml_qword_memory(AmlDecode dec, AmlMinFixed min_fixed,
     return aml_qword_as_desc(aml_memory_range, min_fixed, max_fixed,
                              dec, addr_gran, addr_min, addr_max,
                              addr_trans, len, flags);
+}
+
+void
+build_header(GArray *linker, GArray *table_data,
+             AcpiTableHeader *h, const char *sig, int len, uint8_t rev)
+{
+    memcpy(&h->signature, sig, 4);
+    h->length = cpu_to_le32(len);
+    h->revision = rev;
+    memcpy(h->oem_id, ACPI_BUILD_APPNAME6, 6);
+    memcpy(h->oem_table_id, ACPI_BUILD_APPNAME4, 4);
+    memcpy(h->oem_table_id + 4, sig, 4);
+    h->oem_revision = cpu_to_le32(1);
+    memcpy(h->asl_compiler_id, ACPI_BUILD_APPNAME4, 4);
+    h->asl_compiler_revision = cpu_to_le32(1);
+    h->checksum = 0;
+    /* Checksum to be filled in by Guest linker */
+    bios_linker_loader_add_checksum(linker, ACPI_BUILD_TABLE_FILE,
+                                    table_data->data, h, len, &h->checksum);
+}
+
+void *acpi_data_push(GArray *table_data, unsigned size)
+{
+    unsigned off = table_data->len;
+    g_array_set_size(table_data, off + size);
+    return table_data->data + off;
+}
+
+unsigned acpi_data_len(GArray *table)
+{
+#if GLIB_CHECK_VERSION(2, 22, 0)
+    assert(g_array_get_element_size(table) == 1);
+#endif
+    return table->len;
+}
+
+void acpi_add_table(GArray *table_offsets, GArray *table_data)
+{
+    uint32_t offset = cpu_to_le32(table_data->len);
+    g_array_append_val(table_offsets, offset);
+}
+
+void acpi_build_tables_init(AcpiBuildTables *tables)
+{
+    tables->rsdp = g_array_new(false, true /* clear */, 1);
+    tables->table_data = g_array_new(false, true /* clear */, 1);
+    tables->tcpalog = g_array_new(false, true /* clear */, 1);
+    tables->linker = bios_linker_loader_init();
+}
+
+void acpi_build_tables_cleanup(AcpiBuildTables *tables, bool mfre)
+{
+    void *linker_data = bios_linker_loader_cleanup(tables->linker);
+    g_free(linker_data);
+    g_array_free(tables->rsdp, true);
+    g_array_free(tables->table_data, true);
+    g_array_free(tables->tcpalog, mfre);
 }

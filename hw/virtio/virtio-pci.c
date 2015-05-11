@@ -630,28 +630,30 @@ static int virtio_pci_vector_unmask(PCIDevice *dev, unsigned vector,
 {
     VirtIOPCIProxy *proxy = container_of(dev, VirtIOPCIProxy, pci_dev);
     VirtIODevice *vdev = virtio_bus_get_device(&proxy->bus);
-    int ret, queue_no;
+    VirtQueue *vq = virtio_vector_first_queue(vdev, vector);
+    int ret, index, unmasked = 0;
 
-    for (queue_no = 0; queue_no < proxy->nvqs_with_notifiers; queue_no++) {
-        if (!virtio_queue_get_num(vdev, queue_no)) {
+    while (vq) {
+        index = virtio_get_queue_index(vq);
+        if (!virtio_queue_get_num(vdev, index)) {
             break;
         }
-        if (virtio_queue_vector(vdev, queue_no) != vector) {
-            continue;
-        }
-        ret = virtio_pci_vq_vector_unmask(proxy, queue_no, vector, msg);
+        ret = virtio_pci_vq_vector_unmask(proxy, index, vector, msg);
         if (ret < 0) {
             goto undo;
         }
+        vq = virtio_vector_next_queue(vq);
+        ++unmasked;
     }
+
     return 0;
 
 undo:
-    while (--queue_no >= 0) {
-        if (virtio_queue_vector(vdev, queue_no) != vector) {
-            continue;
-        }
-        virtio_pci_vq_vector_mask(proxy, queue_no, vector);
+    vq = virtio_vector_first_queue(vdev, vector);
+    while (vq && --unmasked >= 0) {
+        index = virtio_get_queue_index(vq);
+        virtio_pci_vq_vector_mask(proxy, index, vector);
+        vq = virtio_vector_next_queue(vq);
     }
     return ret;
 }
@@ -660,16 +662,16 @@ static void virtio_pci_vector_mask(PCIDevice *dev, unsigned vector)
 {
     VirtIOPCIProxy *proxy = container_of(dev, VirtIOPCIProxy, pci_dev);
     VirtIODevice *vdev = virtio_bus_get_device(&proxy->bus);
-    int queue_no;
+    VirtQueue *vq = virtio_vector_first_queue(vdev, vector);
+    int index;
 
-    for (queue_no = 0; queue_no < proxy->nvqs_with_notifiers; queue_no++) {
-        if (!virtio_queue_get_num(vdev, queue_no)) {
+    while (vq) {
+        index = virtio_get_queue_index(vq);
+        if (!virtio_queue_get_num(vdev, index)) {
             break;
         }
-        if (virtio_queue_vector(vdev, queue_no) != vector) {
-            continue;
-        }
-        virtio_pci_vq_vector_mask(proxy, queue_no, vector);
+        virtio_pci_vq_vector_mask(proxy, index, vector);
+        vq = virtio_vector_next_queue(vq);
     }
 }
 
@@ -908,6 +910,13 @@ static const TypeInfo virtio_9p_pci_info = {
  * virtio-pci: This is the PCIDevice which has a virtio-pci-bus.
  */
 
+static int virtio_pci_query_nvectors(DeviceState *d)
+{
+    VirtIOPCIProxy *proxy = VIRTIO_PCI(d);
+
+    return proxy->nvectors;
+}
+
 /* This is called by virtio-bus just after the device is plugged. */
 static void virtio_pci_device_plugged(DeviceState *d)
 {
@@ -1078,7 +1087,6 @@ static Property virtio_scsi_pci_properties[] = {
                     VIRTIO_PCI_FLAG_USE_IOEVENTFD_BIT, true),
     DEFINE_PROP_UINT32("vectors", VirtIOPCIProxy, nvectors,
                        DEV_NVECTORS_UNSPECIFIED),
-    DEFINE_VIRTIO_SCSI_FEATURES(VirtIOPCIProxy, host_features),
     DEFINE_PROP_END_OF_LIST(),
 };
 
@@ -1360,7 +1368,6 @@ static Property virtio_net_properties[] = {
     DEFINE_PROP_BIT("ioeventfd", VirtIOPCIProxy, flags,
                     VIRTIO_PCI_FLAG_USE_IOEVENTFD_BIT, false),
     DEFINE_PROP_UINT32("vectors", VirtIOPCIProxy, nvectors, 3),
-    DEFINE_VIRTIO_NET_FEATURES(VirtIOPCIProxy, host_features),
     DEFINE_PROP_END_OF_LIST(),
 };
 
@@ -1370,7 +1377,6 @@ static void virtio_net_pci_realize(VirtIOPCIProxy *vpci_dev, Error **errp)
     VirtIONetPCI *dev = VIRTIO_NET_PCI(vpci_dev);
     DeviceState *vdev = DEVICE(&dev->vdev);
 
-    virtio_net_set_config_size(&dev->vdev, vpci_dev->host_features);
     virtio_net_set_netclient_name(&dev->vdev, qdev->id,
                                   object_get_typename(OBJECT(qdev)));
     qdev_set_parent_bus(vdev, BUS(&vpci_dev->bus));
@@ -1498,6 +1504,7 @@ static void virtio_pci_bus_class_init(ObjectClass *klass, void *data)
     k->vmstate_change = virtio_pci_vmstate_change;
     k->device_plugged = virtio_pci_device_plugged;
     k->device_unplugged = virtio_pci_device_unplugged;
+    k->query_nvectors = virtio_pci_query_nvectors;
 }
 
 static const TypeInfo virtio_pci_bus_info = {

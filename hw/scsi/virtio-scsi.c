@@ -631,6 +631,10 @@ static void virtio_scsi_set_config(VirtIODevice *vdev,
 static uint32_t virtio_scsi_get_features(VirtIODevice *vdev,
                                          uint32_t requested_features)
 {
+    VirtIOSCSI *s = VIRTIO_SCSI(vdev);
+
+    /* Firstly sync all virtio-scsi possible supported features */
+    requested_features |= s->host_features;
     return requested_features;
 }
 
@@ -945,6 +949,7 @@ static void virtio_scsi_device_unrealize(DeviceState *dev, Error **errp)
 
 static Property virtio_scsi_properties[] = {
     DEFINE_VIRTIO_SCSI_PROPERTIES(VirtIOSCSI, parent_obj.conf),
+    DEFINE_VIRTIO_SCSI_FEATURES(VirtIOSCSI, host_features),
     DEFINE_PROP_END_OF_LIST(),
 };
 

@@ -446,6 +446,9 @@ static uint32_t virtio_net_get_features(VirtIODevice *vdev, uint32_t features)
     VirtIONet *n = VIRTIO_NET(vdev);
     NetClientState *nc = qemu_get_queue(n->nic);
 
+    /* Firstly sync all virtio-net possible supported features */
+    features |= n->host_features;
+
     virtio_add_feature(&features, VIRTIO_NET_F_MAC);
 
     if (!peer_has_vnet_hdr(n)) {
@@ -1309,7 +1312,7 @@ static void virtio_net_set_multiqueue(VirtIONet *n, int multiqueue)
 
     n->multiqueue = multiqueue;
 
-    for (i = 2; i <= n->max_queues * 2 + 1; i++) {
+    for (i = 2; i < n->max_queues * 2 + 1; i++) {
         virtio_del_queue(vdev, i);
     }
 
@@ -1552,7 +1555,7 @@ static void virtio_net_guest_notifier_mask(VirtIODevice *vdev, int idx,
                              vdev, idx, mask);
 }
 
-void virtio_net_set_config_size(VirtIONet *n, uint32_t host_features)
+static void virtio_net_set_config_size(VirtIONet *n, uint32_t host_features)
 {
     int i, config_size = 0;
     virtio_add_feature(&host_features, VIRTIO_NET_F_MAC);
@@ -1585,6 +1588,7 @@ static void virtio_net_device_realize(DeviceState *dev, Error **errp)
     NetClientState *nc;
     int i;
 
+    virtio_net_set_config_size(n, n->host_features);
     virtio_init(vdev, "virtio-net", VIRTIO_ID_NET, n->config_size);
 
     n->max_queues = MAX(n->nic_conf.peers.queues, 1);
@@ -1721,6 +1725,7 @@ static void virtio_net_instance_init(Object *obj)
 }
 
 static Property virtio_net_properties[] = {
+    DEFINE_VIRTIO_NET_FEATURES(VirtIONet, host_features),
     DEFINE_NIC_PROPERTIES(VirtIONet, nic_conf),
     DEFINE_PROP_UINT32("x-txtimer", VirtIONet, net_conf.txtimer,
                                                TX_TIMER_INTERVAL),

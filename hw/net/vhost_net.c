@@ -263,6 +263,13 @@ static void vhost_net_stop_one(struct vhost_net *net,
                                           &file);
             assert(r >= 0);
         }
+    } else if (net->nc->info->type == NET_CLIENT_OPTIONS_KIND_VHOST_USER) {
+        for (file.index = 0; file.index < net->dev.nvqs; ++file.index) {
+            const VhostOps *vhost_ops = net->dev.vhost_ops;
+            int r = vhost_ops->vhost_call(&net->dev, VHOST_RESET_OWNER,
+                                          NULL);
+            assert(r >= 0);
+        }
     }
     if (net->nc->info->poll) {
         net->nc->info->poll(net->nc, true);

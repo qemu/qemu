@@ -1615,28 +1615,32 @@ static const char * const pci_nic_names[] = {
 };
 
 /* Initialize a PCI NIC.  */
-static PCIDevice *pci_nic_init(NICInfo *nd, PCIBus *rootbus,
+PCIDevice *pci_nic_init_nofail(NICInfo *nd, PCIBus *rootbus,
                                const char *default_model,
-                               const char *default_devaddr,
-                               Error **errp)
+                               const char *default_devaddr)
 {
     const char *devaddr = nd->devaddr ? nd->devaddr : default_devaddr;
     Error *err = NULL;
     PCIBus *bus;
-    int devfn;
     PCIDevice *pci_dev;
     DeviceState *dev;
+    int devfn;
     int i;
 
+    if (qemu_show_nic_models(nd->model, pci_nic_models)) {
+        exit(0);
+    }
+
     i = qemu_find_nic_model(nd, pci_nic_models, default_model);
-    if (i < 0)
-        return NULL;
+    if (i < 0) {
+        exit(1);
+    }
 
     bus = pci_get_bus_devfn(&devfn, rootbus, devaddr);
     if (!bus) {
         error_report("Invalid PCI device address %s for device %s",
                      devaddr, pci_nic_names[i]);
-        return NULL;
+        exit(1);
     }
 
     pci_dev = pci_create(bus, devfn, pci_nic_names[i]);
@@ -1645,31 +1649,12 @@ static PCIDevice *pci_nic_init(NICInfo *nd, PCIBus *rootbus,
 
     object_property_set_bool(OBJECT(dev), true, "realized", &err);
     if (err) {
-        error_propagate(errp, err);
+        error_report_err(err);
         object_unparent(OBJECT(dev));
-        return NULL;
-    }
-    return pci_dev;
-}
-
-PCIDevice *pci_nic_init_nofail(NICInfo *nd, PCIBus *rootbus,
-                               const char *default_model,
-                               const char *default_devaddr)
-{
-    Error *err = NULL;
-    PCIDevice *res;
-
-    if (qemu_show_nic_models(nd->model, pci_nic_models))
-        exit(0);
-
-    res = pci_nic_init(nd, rootbus, default_model, default_devaddr, &err);
-    if (!res) {
-        if (err) {
-            error_report_err(err);
-        }
         exit(1);
     }
-    return res;
+
+    return pci_dev;
 }
 
 PCIDevice *pci_vga_init(PCIBus *bus)

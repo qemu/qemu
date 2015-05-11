@@ -32,7 +32,7 @@
 #include "hw/i386/pc.h"
 #include "target-i386/cpu.h"
 #include "hw/timer/hpet.h"
-#include "hw/i386/acpi-defs.h"
+#include "hw/acpi/acpi-defs.h"
 #include "hw/acpi/acpi.h"
 #include "hw/nvram/fw_cfg.h"
 #include "hw/acpi/bios-linker-loader.h"
@@ -67,9 +67,6 @@
 #define ACPI_BUILD_ALIGN_SIZE             0x1000
 
 #define ACPI_BUILD_TABLE_SIZE             0x20000
-
-/* Reserve RAM space for tables: add another order of magnitude. */
-#define ACPI_BUILD_TABLE_MAX_SIZE         0x200000
 
 /* #define DEBUG_ACPI_BUILD */
 #ifdef DEBUG_ACPI_BUILD
@@ -265,50 +262,7 @@ static void acpi_get_pci_info(PcPciInfo *info)
                                             NULL);
 }
 
-#define ACPI_BUILD_APPNAME  "Bochs"
-#define ACPI_BUILD_APPNAME6 "BOCHS "
-#define ACPI_BUILD_APPNAME4 "BXPC"
-
-#define ACPI_BUILD_TABLE_FILE "etc/acpi/tables"
-#define ACPI_BUILD_RSDP_FILE "etc/acpi/rsdp"
-#define ACPI_BUILD_TPMLOG_FILE "etc/tpm/log"
-
-static void
-build_header(GArray *linker, GArray *table_data,
-             AcpiTableHeader *h, const char *sig, int len, uint8_t rev)
-{
-    memcpy(&h->signature, sig, 4);
-    h->length = cpu_to_le32(len);
-    h->revision = rev;
-    memcpy(h->oem_id, ACPI_BUILD_APPNAME6, 6);
-    memcpy(h->oem_table_id, ACPI_BUILD_APPNAME4, 4);
-    memcpy(h->oem_table_id + 4, sig, 4);
-    h->oem_revision = cpu_to_le32(1);
-    memcpy(h->asl_compiler_id, ACPI_BUILD_APPNAME4, 4);
-    h->asl_compiler_revision = cpu_to_le32(1);
-    h->checksum = 0;
-    /* Checksum to be filled in by Guest linker */
-    bios_linker_loader_add_checksum(linker, ACPI_BUILD_TABLE_FILE,
-                                    table_data->data, h, len, &h->checksum);
-}
-
-/* End here */
 #define ACPI_PORT_SMI_CMD           0x00b2 /* TODO: this is APM_CNT_IOPORT */
-
-static inline void *acpi_data_push(GArray *table_data, unsigned size)
-{
-    unsigned off = table_data->len;
-    g_array_set_size(table_data, off + size);
-    return table_data->data + off;
-}
-
-static unsigned acpi_data_len(GArray *table)
-{
-#if GLIB_CHECK_VERSION(2, 22, 0)
-    assert(g_array_get_element_size(table) == 1);
-#endif
-    return table->len;
-}
 
 static void acpi_align_size(GArray *blob, unsigned align)
 {
@@ -316,12 +270,6 @@ static void acpi_align_size(GArray *blob, unsigned align)
      * we need to change size in the future (breaking cross version migration).
      */
     g_array_set_size(blob, ROUND_UP(acpi_data_len(blob), align));
-}
-
-static inline void acpi_add_table(GArray *table_offsets, GArray *table_data)
-{
-    uint32_t offset = cpu_to_le32(table_data->len);
-    g_array_append_val(table_offsets, offset);
 }
 
 /* FACS */
@@ -796,7 +744,7 @@ build_ssdt(GArray *table_data, GArray *linker,
 
         aml_append(dev, aml_operation_region("PEOR", aml_system_io,
                                               misc->pvpanic_port, 1));
-        field = aml_field("PEOR", aml_byte_acc);
+        field = aml_field("PEOR", aml_byte_acc, aml_preserve);
         aml_append(field, aml_named_field("PEPT", 8));
         aml_append(dev, field);
 
@@ -813,7 +761,7 @@ build_ssdt(GArray *table_data, GArray *linker,
         aml_append(ssdt, scope);
     }
 
-    sb_scope = aml_scope("_SB");
+    sb_scope = aml_scope("\\_SB");
     {
         /* create PCI0.PRES device and its _CRS to reserve CPU hotplug MMIO */
         dev = aml_device("PCI0." stringify(CPU_HOTPLUG_RESOURCE_DEVICE));
@@ -833,7 +781,7 @@ build_ssdt(GArray *table_data, GArray *linker,
         /* declare CPU hotplug MMIO region and PRS field to access it */
         aml_append(sb_scope, aml_operation_region(
             "PRST", aml_system_io, pm->cpu_hp_io_base, pm->cpu_hp_io_len));
-        field = aml_field("PRST", aml_byte_acc);
+        field = aml_field("PRST", aml_byte_acc, aml_preserve);
         aml_append(field, aml_named_field("PRS", 256));
         aml_append(sb_scope, field);
 
@@ -907,7 +855,8 @@ build_ssdt(GArray *table_data, GArray *linker,
             pm->mem_hp_io_base, pm->mem_hp_io_len)
         );
 
-        field = aml_field(stringify(MEMORY_HOTPLUG_IO_REGION), aml_dword_acc);
+        field = aml_field(stringify(MEMORY_HOTPLUG_IO_REGION), aml_dword_acc,
+                          aml_preserve);
         aml_append(field, /* read only */
             aml_named_field(stringify(MEMORY_SLOT_ADDR_LOW), 32));
         aml_append(field, /* read only */
@@ -920,16 +869,24 @@ build_ssdt(GArray *table_data, GArray *linker,
             aml_named_field(stringify(MEMORY_SLOT_PROXIMITY), 32));
         aml_append(scope, field);
 
-        field = aml_field(stringify(MEMORY_HOTPLUG_IO_REGION), aml_byte_acc);
+        field = aml_field(stringify(MEMORY_HOTPLUG_IO_REGION), aml_byte_acc,
+                          aml_write_as_zeros);
         aml_append(field, aml_reserved_field(160 /* bits, Offset(20) */));
         aml_append(field, /* 1 if enabled, read only */
             aml_named_field(stringify(MEMORY_SLOT_ENABLED), 1));
         aml_append(field,
             /*(read) 1 if has a insert event. (write) 1 to clear event */
             aml_named_field(stringify(MEMORY_SLOT_INSERT_EVENT), 1));
+        aml_append(field,
+            /* (read) 1 if has a remove event. (write) 1 to clear event */
+            aml_named_field(stringify(MEMORY_SLOT_REMOVE_EVENT), 1));
+        aml_append(field,
+            /* initiates device eject, write only */
+            aml_named_field(stringify(MEMORY_SLOT_EJECT), 1));
         aml_append(scope, field);
 
-        field = aml_field(stringify(MEMORY_HOTPLUG_IO_REGION), aml_dword_acc);
+        field = aml_field(stringify(MEMORY_HOTPLUG_IO_REGION), aml_dword_acc,
+                          aml_preserve);
         aml_append(field, /* DIMM selector, write only */
             aml_named_field(stringify(MEMORY_SLOT_SLECTOR), 32));
         aml_append(field, /* _OST event code, write only */
@@ -970,11 +927,17 @@ build_ssdt(GArray *table_data, GArray *linker,
             )));
             aml_append(dev, method);
 
+            method = aml_method("_EJ0", 1);
+            s = BASEPATH stringify(MEMORY_SLOT_EJECT_METHOD);
+            aml_append(method, aml_return(aml_call2(
+                       s, aml_name("_UID"), aml_arg(0))));
+            aml_append(dev, method);
+
             aml_append(sb_scope, dev);
         }
 
         /* build Method(MEMORY_SLOT_NOTIFY_METHOD, 2) {
-         *     If (LEqual(Arg0, 0x00)) {Notify(MP00, Arg1)} ...
+         *     If (LEqual(Arg0, 0x00)) {Notify(MP00, Arg1)} ... }
          */
         method = aml_method(stringify(MEMORY_SLOT_NOTIFY_METHOD), 2);
         for (i = 0; i < nr_mem; i++) {
@@ -1291,31 +1254,6 @@ build_rsdp(GArray *rsdp_table, GArray *linker, unsigned rsdt)
                                     rsdp, rsdp, sizeof *rsdp, &rsdp->checksum);
 
     return rsdp_table;
-}
-
-typedef
-struct AcpiBuildTables {
-    GArray *table_data;
-    GArray *rsdp;
-    GArray *tcpalog;
-    GArray *linker;
-} AcpiBuildTables;
-
-static inline void acpi_build_tables_init(AcpiBuildTables *tables)
-{
-    tables->rsdp = g_array_new(false, true /* clear */, 1);
-    tables->table_data = g_array_new(false, true /* clear */, 1);
-    tables->tcpalog = g_array_new(false, true /* clear */, 1);
-    tables->linker = bios_linker_loader_init();
-}
-
-static inline void acpi_build_tables_cleanup(AcpiBuildTables *tables, bool mfre)
-{
-    void *linker_data = bios_linker_loader_cleanup(tables->linker);
-    g_free(linker_data);
-    g_array_free(tables->rsdp, true);
-    g_array_free(tables->table_data, true);
-    g_array_free(tables->tcpalog, mfre);
 }
 
 typedef

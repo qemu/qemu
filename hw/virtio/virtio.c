@@ -89,6 +89,7 @@ struct VirtQueue
     VirtIODevice *vdev;
     EventNotifier guest_notifier;
     EventNotifier host_notifier;
+    QLIST_ENTRY(VirtQueue) node;
 };
 
 /* virt queue functions */
@@ -605,7 +606,7 @@ void virtio_reset(void *opaque)
         vdev->vq[i].vring.used = 0;
         vdev->vq[i].last_avail_idx = 0;
         vdev->vq[i].pa = 0;
-        vdev->vq[i].vector = VIRTIO_NO_VECTOR;
+        virtio_queue_set_vector(vdev, i, VIRTIO_NO_VECTOR);
         vdev->vq[i].signalled_used = 0;
         vdev->vq[i].signalled_used_valid = false;
         vdev->vq[i].notification = true;
@@ -730,6 +731,16 @@ void virtio_queue_set_num(VirtIODevice *vdev, int n, int num)
     virtqueue_init(&vdev->vq[n]);
 }
 
+VirtQueue *virtio_vector_first_queue(VirtIODevice *vdev, uint16_t vector)
+{
+    return QLIST_FIRST(&vdev->vector_queues[vector]);
+}
+
+VirtQueue *virtio_vector_next_queue(VirtQueue *vq)
+{
+    return QLIST_NEXT(vq, node);
+}
+
 int virtio_queue_get_num(VirtIODevice *vdev, int n)
 {
     return vdev->vq[n].vring.num;
@@ -780,8 +791,19 @@ uint16_t virtio_queue_vector(VirtIODevice *vdev, int n)
 
 void virtio_queue_set_vector(VirtIODevice *vdev, int n, uint16_t vector)
 {
-    if (n < VIRTIO_PCI_QUEUE_MAX)
+    VirtQueue *vq = &vdev->vq[n];
+
+    if (n < VIRTIO_PCI_QUEUE_MAX) {
+        if (vdev->vector_queues &&
+            vdev->vq[n].vector != VIRTIO_NO_VECTOR) {
+            QLIST_REMOVE(vq, node);
+        }
         vdev->vq[n].vector = vector;
+        if (vdev->vector_queues &&
+            vector != VIRTIO_NO_VECTOR) {
+            QLIST_INSERT_HEAD(&vdev->vector_queues[vector], vq, node);
+        }
+    }
 }
 
 VirtQueue *virtio_add_queue(VirtIODevice *vdev, int queue_size,
@@ -1088,6 +1110,7 @@ void virtio_cleanup(VirtIODevice *vdev)
     qemu_del_vm_change_state_handler(vdev->vmstate);
     g_free(vdev->config);
     g_free(vdev->vq);
+    g_free(vdev->vector_queues);
 }
 
 static void virtio_vmstate_change(void *opaque, int running, RunState state)
@@ -1125,7 +1148,16 @@ void virtio_instance_init_common(Object *proxy_obj, void *data,
 void virtio_init(VirtIODevice *vdev, const char *name,
                  uint16_t device_id, size_t config_size)
 {
+    BusState *qbus = qdev_get_parent_bus(DEVICE(vdev));
+    VirtioBusClass *k = VIRTIO_BUS_GET_CLASS(qbus);
     int i;
+    int nvectors = k->query_nvectors ? k->query_nvectors(qbus->parent) : 0;
+
+    if (nvectors) {
+        vdev->vector_queues =
+            g_malloc0(sizeof(*vdev->vector_queues) * nvectors);
+    }
+
     vdev->device_id = device_id;
     vdev->status = 0;
     vdev->isr = 0;

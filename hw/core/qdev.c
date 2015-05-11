@@ -273,7 +273,7 @@ void qdev_set_legacy_instance_id(DeviceState *dev, int alias_id,
     dev->alias_required_for_version = required_for_version;
 }
 
-static HotplugHandler *qdev_get_hotplug_handler(DeviceState *dev)
+HotplugHandler *qdev_get_hotplug_handler(DeviceState *dev)
 {
     HotplugHandler *hotplug_ctrl = NULL;
 

@@ -361,7 +361,11 @@ static void piix4_device_unplug_request_cb(HotplugHandler *hotplug_dev,
 {
     PIIX4PMState *s = PIIX4_PM(hotplug_dev);
 
-    if (object_dynamic_cast(OBJECT(dev), TYPE_PCI_DEVICE)) {
+    if (s->acpi_memory_hotplug.is_enabled &&
+        object_dynamic_cast(OBJECT(dev), TYPE_PC_DIMM)) {
+        acpi_memory_unplug_request_cb(&s->ar, s->irq, &s->acpi_memory_hotplug,
+                                      dev, errp);
+    } else if (object_dynamic_cast(OBJECT(dev), TYPE_PCI_DEVICE)) {
         acpi_pcihp_device_unplug_cb(&s->ar, s->irq, &s->acpi_pci_hotplug, dev,
                                     errp);
     } else {
@@ -373,8 +377,15 @@ static void piix4_device_unplug_request_cb(HotplugHandler *hotplug_dev,
 static void piix4_device_unplug_cb(HotplugHandler *hotplug_dev,
                                    DeviceState *dev, Error **errp)
 {
-    error_setg(errp, "acpi: device unplug for not supported device"
-               " type: %s", object_get_typename(OBJECT(dev)));
+    PIIX4PMState *s = PIIX4_PM(hotplug_dev);
+
+    if (s->acpi_memory_hotplug.is_enabled &&
+        object_dynamic_cast(OBJECT(dev), TYPE_PC_DIMM)) {
+        acpi_memory_unplug_cb(&s->acpi_memory_hotplug, dev, errp);
+    } else {
+        error_setg(errp, "acpi: device unplug for not supported device"
+                   " type: %s", object_get_typename(OBJECT(dev)));
+    }
 }
 
 static void piix4_update_bus_hotplug(PCIBus *pci_bus, void *opaque)

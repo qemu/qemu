@@ -17,7 +17,7 @@
 #include "qemu-common.h"
 #include "libqtest.h"
 #include "qemu/compiler.h"
-#include "hw/i386/acpi-defs.h"
+#include "hw/acpi/acpi-defs.h"
 #include "hw/i386/smbios.h"
 #include "qemu/bitmap.h"
 

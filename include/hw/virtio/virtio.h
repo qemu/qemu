@@ -84,6 +84,7 @@ struct VirtIODevice
     VMChangeStateEntry *vmstate;
     char *bus_name;
     uint8_t device_endian;
+    QLIST_HEAD(, VirtQueue) *vector_queues;
 };
 
 typedef struct VirtioDeviceClass {
@@ -218,6 +219,8 @@ void virtio_queue_set_host_notifier_fd_handler(VirtQueue *vq, bool assign,
                                                bool set_handler);
 void virtio_queue_notify_vq(VirtQueue *vq);
 void virtio_irq(VirtQueue *vq);
+VirtQueue *virtio_vector_first_queue(VirtIODevice *vdev, uint16_t vector);
+VirtQueue *virtio_vector_next_queue(VirtQueue *vq);
 
 static inline void virtio_add_feature(uint32_t *features, unsigned int fbit)
 {

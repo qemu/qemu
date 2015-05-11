@@ -7,10 +7,17 @@
 
 #define ACPI_MEMORY_HOTPLUG_STATUS 8
 
+/**
+ * MemStatus:
+ * @is_removing: the memory device in slot has been requested to be ejected.
+ *
+ * This structure stores memory device's status.
+ */
 typedef struct MemStatus {
     DeviceState *dimm;
     bool is_enabled;
     bool is_inserting;
+    bool is_removing;
     uint32_t ost_event;
     uint32_t ost_status;
 } MemStatus;
@@ -28,6 +35,11 @@ void acpi_memory_hotplug_init(MemoryRegion *as, Object *owner,
 
 void acpi_memory_plug_cb(ACPIREGS *ar, qemu_irq irq, MemHotplugState *mem_st,
                          DeviceState *dev, Error **errp);
+void acpi_memory_unplug_request_cb(ACPIREGS *ar, qemu_irq irq,
+                                   MemHotplugState *mem_st,
+                                   DeviceState *dev, Error **errp);
+void acpi_memory_unplug_cb(MemHotplugState *mem_st,
+                           DeviceState *dev, Error **errp);
 
 extern const VMStateDescription vmstate_memory_hotplug;
 #define VMSTATE_MEMORY_HOTPLUG(memhp, state) \
