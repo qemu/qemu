@@ -176,7 +176,7 @@ milkymist_init(MachineState *machine)
 
         /* Boots a kernel elf binary.  */
         kernel_size = load_elf(kernel_filename, NULL, NULL, &entry, NULL, NULL,
-                               1, ELF_MACHINE, 0);
+                               1, EM_LATTICEMICO32, 0);
         reset_info->bootstrap_pc = entry;
 
         if (kernel_size < 0) {
