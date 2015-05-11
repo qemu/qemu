@@ -1767,18 +1767,9 @@ static void xhci_xfer_report(XHCITransfer *xfer)
             break;
         }
 
-        /*
-         * XHCI 1.1, 4.11.3.1 Transfer Event TRB -- "each Transfer TRB
-         * encountered with its IOC flag set to '1' shall generate a Transfer
-         * Event."
-         *
-         * Otherwise, longer transfers can have multiple data TRBs (for scatter
-         * gather). Short transfers and errors should be reported once per
-         * transfer only.
-         */
-        if ((trb->control & TRB_TR_IOC) ||
-            (!reported && ((shortpkt && (trb->control & TRB_TR_ISP)) ||
-                           (xfer->status != CC_SUCCESS && left == 0)))) {
+        if (!reported && ((trb->control & TRB_TR_IOC) ||
+                          (shortpkt && (trb->control & TRB_TR_ISP)) ||
+                          (xfer->status != CC_SUCCESS && left == 0))) {
             event.slotid = xfer->slotid;
             event.epid = xfer->epid;
             event.length = (trb->status & 0x1ffff) - chunk;
@@ -1802,6 +1793,14 @@ static void xhci_xfer_report(XHCITransfer *xfer)
                 return;
             }
         }
+
+        switch (TRB_TYPE(*trb)) {
+        case TR_SETUP:
+            reported = 0;
+            shortpkt = 0;
+            break;
+        }
+
     }
 }
 
@@ -2224,6 +2223,8 @@ static void xhci_kick_ep(XHCIState *xhci, unsigned int slotid,
         if (xfer->running_retry) {
             DPRINTF("xhci: xfer nacked, stopping schedule\n");
             epctx->retry = xfer;
+            timer_mod(epctx->kick_timer, qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) +
+                      epctx->interval * 125000);
             break;
         }
     }

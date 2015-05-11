@@ -64,6 +64,9 @@ typedef struct {
     SCSIDevice *scsi_dev;
 } MSDState;
 
+#define TYPE_USB_STORAGE "usb-storage-dev"
+#define USB_STORAGE_DEV(obj) OBJECT_CHECK(MSDState, (obj), TYPE_USB_STORAGE)
+
 struct usb_msd_cbw {
     uint32_t sig;
     uint32_t tag;
@@ -385,7 +388,7 @@ static void usb_msd_handle_control(USBDevice *dev, USBPacket *p,
 
 static void usb_msd_cancel_io(USBDevice *dev, USBPacket *p)
 {
-    MSDState *s = DO_UPCAST(MSDState, dev, dev);
+    MSDState *s = USB_STORAGE_DEV(dev);
 
     assert(s->packet == p);
     s->packet = NULL;
@@ -599,7 +602,7 @@ static const struct SCSIBusInfo usb_msd_scsi_info_bot = {
 
 static void usb_msd_realize_storage(USBDevice *dev, Error **errp)
 {
-    MSDState *s = DO_UPCAST(MSDState, dev, dev);
+    MSDState *s = USB_STORAGE_DEV(dev);
     BlockBackend *blk = s->conf.blk;
     SCSIDevice *scsi_dev;
     Error *err = NULL;
@@ -658,7 +661,7 @@ static void usb_msd_realize_storage(USBDevice *dev, Error **errp)
 
 static void usb_msd_realize_bot(USBDevice *dev, Error **errp)
 {
-    MSDState *s = DO_UPCAST(MSDState, dev, dev);
+    MSDState *s = USB_STORAGE_DEV(dev);
 
     usb_desc_create_serial(dev);
     usb_desc_init(dev);
@@ -748,7 +751,7 @@ static Property msd_properties[] = {
     DEFINE_PROP_END_OF_LIST(),
 };
 
-static void usb_msd_class_initfn_common(ObjectClass *klass)
+static void usb_msd_class_initfn_common(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     USBDeviceClass *uc = USB_DEVICE_CLASS(klass);
@@ -772,14 +775,13 @@ static void usb_msd_class_initfn_storage(ObjectClass *klass, void *data)
 
     uc->realize = usb_msd_realize_storage;
     dc->props = msd_properties;
-    usb_msd_class_initfn_common(klass);
 }
 
 static void usb_msd_get_bootindex(Object *obj, Visitor *v, void *opaque,
                                   const char *name, Error **errp)
 {
     USBDevice *dev = USB_DEVICE(obj);
-    MSDState *s = DO_UPCAST(MSDState, dev, dev);
+    MSDState *s = USB_STORAGE_DEV(dev);
 
     visit_type_int32(v, &s->conf.bootindex, name, errp);
 }
@@ -788,7 +790,7 @@ static void usb_msd_set_bootindex(Object *obj, Visitor *v, void *opaque,
                                   const char *name, Error **errp)
 {
     USBDevice *dev = USB_DEVICE(obj);
-    MSDState *s = DO_UPCAST(MSDState, dev, dev);
+    MSDState *s = USB_STORAGE_DEV(dev);
     int32_t boot_index;
     Error *local_err = NULL;
 
@@ -815,6 +817,14 @@ out:
     }
 }
 
+static const TypeInfo usb_storage_dev_type_info = {
+    .name = TYPE_USB_STORAGE,
+    .parent = TYPE_USB_DEVICE,
+    .instance_size = sizeof(MSDState),
+    .abstract = true,
+    .class_init = usb_msd_class_initfn_common,
+};
+
 static void usb_msd_instance_init(Object *obj)
 {
     object_property_add(obj, "bootindex", "int32",
@@ -829,27 +839,25 @@ static void usb_msd_class_initfn_bot(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
 
     uc->realize = usb_msd_realize_bot;
-    usb_msd_class_initfn_common(klass);
     dc->hotpluggable = false;
 }
 
 static const TypeInfo msd_info = {
     .name          = "usb-storage",
-    .parent        = TYPE_USB_DEVICE,
-    .instance_size = sizeof(MSDState),
+    .parent        = TYPE_USB_STORAGE,
     .class_init    = usb_msd_class_initfn_storage,
     .instance_init = usb_msd_instance_init,
 };
 
 static const TypeInfo bot_info = {
     .name          = "usb-bot",
-    .parent        = TYPE_USB_DEVICE,
-    .instance_size = sizeof(MSDState),
+    .parent        = TYPE_USB_STORAGE,
     .class_init    = usb_msd_class_initfn_bot,
 };
 
 static void usb_msd_register_types(void)
 {
+    type_register_static(&usb_storage_dev_type_info);
     type_register_static(&msd_info);
     type_register_static(&bot_info);
     usb_legacy_register("usb-storage", "disk", usb_msd_init);
