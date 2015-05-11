@@ -678,6 +678,7 @@ static inline void init_thread(struct target_pt_regs *regs,
 
 #ifdef TARGET_PPC
 
+#define ELF_MACHINE    PPC_ELF_MACHINE
 #define ELF_START_MMAP 0x80000000
 
 #if defined(TARGET_PPC64) && !defined(TARGET_ABI32)
