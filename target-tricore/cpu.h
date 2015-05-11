@@ -25,8 +25,6 @@
 #include "exec/cpu-defs.h"
 #include "fpu/softfloat.h"
 
-#define ELF_MACHINE     EM_TRICORE
-
 #define CPUArchState struct CPUTriCoreState
 
 struct CPUTriCoreState;
