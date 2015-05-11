@@ -24,8 +24,6 @@
 
 #define TARGET_LONG_BITS 32
 
-#define ELF_MACHINE	EM_SH
-
 /* CPU Subtypes */
 #define SH_CPU_SH7750  (1 << 0)
 #define SH_CPU_SH7750S (1 << 1)
