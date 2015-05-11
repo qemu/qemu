@@ -201,6 +201,15 @@ void tricore_cpu_dump_state(CPUState *cs, FILE *f,
     tcg_temp_free_i64(arg1);                                 \
 } while (0)
 
+#define GEN_HELPER_RR(name, rl, rh, arg1, arg2) do {        \
+    TCGv_i64 ret = tcg_temp_new_i64();                      \
+                                                            \
+    gen_helper_##name(ret, cpu_env, arg1, arg2);            \
+    tcg_gen_extr_i64_i32(rl, rh, ret);                      \
+                                                            \
+    tcg_temp_free_i64(ret);                                 \
+} while (0)
+
 #define EA_ABS_FORMAT(con) (((con & 0x3C000) << 14) + (con & 0x3FFF))
 #define EA_B_ABSOLUT(con) (((offset & 0xf00000) << 8) | \
                            ((offset & 0x0fffff) << 1))
@@ -6492,6 +6501,18 @@ static void decode_rr_divide(CPUTriCoreState *env, DisasContext *ctx)
     case OPC2_32_RR_CRC32:
         if (tricore_feature(env, TRICORE_FEATURE_161)) {
             gen_helper_crc32(cpu_gpr_d[r3], cpu_gpr_d[r1], cpu_gpr_d[r2]);
+        } /* TODO: else raise illegal opcode trap */
+        break;
+    case OPC2_32_RR_DIV:
+        if (tricore_feature(env, TRICORE_FEATURE_16)) {
+            GEN_HELPER_RR(divide, cpu_gpr_d[r3], cpu_gpr_d[r3+1], cpu_gpr_d[r1],
+                          cpu_gpr_d[r2]);
+        } /* TODO: else raise illegal opcode trap */
+        break;
+    case OPC2_32_RR_DIV_U:
+        if (tricore_feature(env, TRICORE_FEATURE_16)) {
+            GEN_HELPER_RR(divide_u, cpu_gpr_d[r3], cpu_gpr_d[r3+1],
+                          cpu_gpr_d[r1], cpu_gpr_d[r2]);
         } /* TODO: else raise illegal opcode trap */
         break;
     }

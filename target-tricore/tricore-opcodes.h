@@ -1124,6 +1124,8 @@ enum {
     OPC2_32_RR_PARITY                            = 0x02,
     OPC2_32_RR_UNPACK                            = 0x08,
     OPC2_32_RR_CRC32                             = 0x03,
+    OPC2_32_RR_DIV                               = 0x20,
+    OPC2_32_RR_DIV_U                             = 0x21,
 };
 /* OPCM_32_RR_IDIRECT                               */
 enum {
