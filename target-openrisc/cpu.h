@@ -21,7 +21,6 @@
 #define CPU_OPENRISC_H
 
 #define TARGET_LONG_BITS 32
-#define ELF_MACHINE    EM_OPENRISC
 
 #define CPUArchState struct CPUOpenRISCState
 
