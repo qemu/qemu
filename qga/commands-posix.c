@@ -1332,11 +1332,7 @@ void qmp_guest_fstrim(bool has_minimum, int64_t minimum, Error **errp)
     struct FsMount *mount;
     int fd;
     Error *local_err = NULL;
-    struct fstrim_range r = {
-        .start = 0,
-        .len = -1,
-        .minlen = has_minimum ? minimum : 0,
-    };
+    struct fstrim_range r;
 
     slog("guest-fstrim called");
 
@@ -1360,6 +1356,9 @@ void qmp_guest_fstrim(bool has_minimum, int64_t minimum, Error **errp)
          * error means an unexpected error, so return it in those cases.  In
          * some other cases ENOTTY will be reported (e.g. CD-ROMs).
          */
+        r.start = 0;
+        r.len = -1;
+        r.minlen = has_minimum ? minimum : 0;
         ret = ioctl(fd, FITRIM, &r);
         if (ret == -1) {
             if (errno != ENOTTY && errno != EOPNOTSUPP) {
