@@ -35,8 +35,8 @@ typedef struct Qcow2CachedTable {
 } Qcow2CachedTable;
 
 struct Qcow2Cache {
-    Qcow2CachedTable*       entries;
-    struct Qcow2Cache*      depends;
+    Qcow2CachedTable       *entries;
+    struct Qcow2Cache      *depends;
     int                     size;
     bool                    depends_on_flush;
     void                   *table_array;
@@ -81,7 +81,7 @@ Qcow2Cache *qcow2_cache_create(BlockDriverState *bs, int num_tables)
     return c;
 }
 
-int qcow2_cache_destroy(BlockDriverState* bs, Qcow2Cache *c)
+int qcow2_cache_destroy(BlockDriverState *bs, Qcow2Cache *c)
 {
     int i;
 
