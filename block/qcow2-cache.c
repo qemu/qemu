@@ -28,10 +28,10 @@
 #include "trace.h"
 
 typedef struct Qcow2CachedTable {
-    int64_t offset;
-    bool    dirty;
-    int     cache_hits;
-    int     ref;
+    int64_t  offset;
+    bool     dirty;
+    uint64_t lru_counter;
+    int      ref;
 } Qcow2CachedTable;
 
 struct Qcow2Cache {
@@ -40,6 +40,7 @@ struct Qcow2Cache {
     int                     size;
     bool                    depends_on_flush;
     void                   *table_array;
+    uint64_t                lru_counter;
 };
 
 static inline void *qcow2_cache_get_table_addr(BlockDriverState *bs,
@@ -233,8 +234,10 @@ int qcow2_cache_empty(BlockDriverState *bs, Qcow2Cache *c)
     for (i = 0; i < c->size; i++) {
         assert(c->entries[i].ref == 0);
         c->entries[i].offset = 0;
-        c->entries[i].cache_hits = 0;
+        c->entries[i].lru_counter = 0;
     }
+
+    c->lru_counter = 0;
 
     return 0;
 }
@@ -242,7 +245,7 @@ int qcow2_cache_empty(BlockDriverState *bs, Qcow2Cache *c)
 static int qcow2_cache_find_entry_to_replace(Qcow2Cache *c)
 {
     int i;
-    int min_count = INT_MAX;
+    uint64_t min_lru_counter = UINT64_MAX;
     int min_index = -1;
 
 
@@ -251,15 +254,9 @@ static int qcow2_cache_find_entry_to_replace(Qcow2Cache *c)
             continue;
         }
 
-        if (c->entries[i].cache_hits < min_count) {
+        if (c->entries[i].lru_counter < min_lru_counter) {
             min_index = i;
-            min_count = c->entries[i].cache_hits;
-        }
-
-        /* Give newer hits priority */
-        /* TODO Check how to optimize the replacement strategy */
-        if (c->entries[i].cache_hits > 1) {
-            c->entries[i].cache_hits /= 2;
+            min_lru_counter = c->entries[i].lru_counter;
         }
     }
 
@@ -316,14 +313,10 @@ static int qcow2_cache_do_get(BlockDriverState *bs, Qcow2Cache *c,
         }
     }
 
-    /* Give the table some hits for the start so that it won't be replaced
-     * immediately. The number 32 is completely arbitrary. */
-    c->entries[i].cache_hits = 32;
     c->entries[i].offset = offset;
 
     /* And return the right table */
 found:
-    c->entries[i].cache_hits++;
     c->entries[i].ref++;
     *table = qcow2_cache_get_table_addr(bs, c, i);
 
@@ -355,6 +348,10 @@ int qcow2_cache_put(BlockDriverState *bs, Qcow2Cache *c, void **table)
 
     c->entries[i].ref--;
     *table = NULL;
+
+    if (c->entries[i].ref == 0) {
+        c->entries[i].lru_counter = ++c->lru_counter;
+    }
 
     assert(c->entries[i].ref >= 0);
     return 0;
