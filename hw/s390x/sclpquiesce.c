@@ -66,7 +66,7 @@ static int read_event_data(SCLPEvent *event, EventBufferHeader *evt_buf_hdr,
 }
 
 static const VMStateDescription vmstate_sclpquiesce = {
-    .name = "sclpquiesce",
+    .name = TYPE_SCLP_QUIESCE,
     .version_id = 0,
     .minimum_version_id = 0,
     .fields = (VMStateField[]) {
@@ -127,7 +127,7 @@ static void quiesce_class_init(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo sclp_quiesce_info = {
-    .name          = "sclpquiesce",
+    .name          = TYPE_SCLP_QUIESCE,
     .parent        = TYPE_SCLP_EVENT,
     .instance_size = sizeof(SCLPEvent),
     .class_init    = quiesce_class_init,

@@ -47,6 +47,7 @@
      OBJECT_GET_CLASS(SCLPEventClass, (obj), TYPE_SCLP_EVENT)
 
 #define TYPE_SCLP_CPU_HOTPLUG "sclp-cpu-hotplug"
+#define TYPE_SCLP_QUIESCE "sclpquiesce"
 
 typedef struct WriteEventMask {
     SCCBHeader h;
