@@ -248,6 +248,7 @@ static int qcow2_cache_do_get(BlockDriverState *bs, Qcow2Cache *c,
     BDRVQcowState *s = bs->opaque;
     int i;
     int ret;
+    int lookup_index;
     uint64_t min_lru_counter = UINT64_MAX;
     int min_lru_index = -1;
 
@@ -255,7 +256,8 @@ static int qcow2_cache_do_get(BlockDriverState *bs, Qcow2Cache *c,
                           offset, read_from_disk);
 
     /* Check if the table is already cached */
-    for (i = 0; i < c->size; i++) {
+    i = lookup_index = (offset / s->cluster_size * 4) % c->size;
+    do {
         const Qcow2CachedTable *t = &c->entries[i];
         if (t->offset == offset) {
             goto found;
@@ -264,7 +266,10 @@ static int qcow2_cache_do_get(BlockDriverState *bs, Qcow2Cache *c,
             min_lru_counter = t->lru_counter;
             min_lru_index = i;
         }
-    }
+        if (++i == c->size) {
+            i = 0;
+        }
+    } while (i != lookup_index);
 
     if (min_lru_index == -1) {
         /* This can't happen in current synchronous code, but leave the check
