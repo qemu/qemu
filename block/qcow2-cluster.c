@@ -263,7 +263,7 @@ static int l2_allocate(BlockDriverState *bs, int l1_index, uint64_t **table)
     BLKDBG_EVENT(bs->file, BLKDBG_L2_ALLOC_WRITE);
 
     trace_qcow2_l2_allocate_write_l2(bs, l1_index);
-    qcow2_cache_entry_mark_dirty(s->l2_table_cache, l2_table);
+    qcow2_cache_entry_mark_dirty(bs, s->l2_table_cache, l2_table);
     ret = qcow2_cache_flush(bs, s->l2_table_cache);
     if (ret < 0) {
         goto fail;
@@ -692,7 +692,7 @@ uint64_t qcow2_alloc_compressed_cluster_offset(BlockDriverState *bs,
     /* compressed clusters never have the copied flag */
 
     BLKDBG_EVENT(bs->file, BLKDBG_L2_UPDATE_COMPRESSED);
-    qcow2_cache_entry_mark_dirty(s->l2_table_cache, l2_table);
+    qcow2_cache_entry_mark_dirty(bs, s->l2_table_cache, l2_table);
     l2_table[l2_index] = cpu_to_be64(cluster_offset);
     ret = qcow2_cache_put(bs, s->l2_table_cache, (void**) &l2_table);
     if (ret < 0) {
@@ -771,7 +771,7 @@ int qcow2_alloc_cluster_link_l2(BlockDriverState *bs, QCowL2Meta *m)
     if (ret < 0) {
         goto err;
     }
-    qcow2_cache_entry_mark_dirty(s->l2_table_cache, l2_table);
+    qcow2_cache_entry_mark_dirty(bs, s->l2_table_cache, l2_table);
 
     assert(l2_index + m->nb_clusters <= s->l2_size);
     for (i = 0; i < m->nb_clusters; i++) {
@@ -1470,7 +1470,7 @@ static int discard_single_l2(BlockDriverState *bs, uint64_t offset,
         }
 
         /* First remove L2 entries */
-        qcow2_cache_entry_mark_dirty(s->l2_table_cache, l2_table);
+        qcow2_cache_entry_mark_dirty(bs, s->l2_table_cache, l2_table);
         if (!full_discard && s->qcow_version >= 3) {
             l2_table[l2_index + i] = cpu_to_be64(QCOW_OFLAG_ZERO);
         } else {
@@ -1558,7 +1558,7 @@ static int zero_single_l2(BlockDriverState *bs, uint64_t offset,
         old_offset = be64_to_cpu(l2_table[l2_index + i]);
 
         /* Update L2 entries */
-        qcow2_cache_entry_mark_dirty(s->l2_table_cache, l2_table);
+        qcow2_cache_entry_mark_dirty(bs, s->l2_table_cache, l2_table);
         if (old_offset & QCOW_OFLAG_COMPRESSED) {
             l2_table[l2_index + i] = cpu_to_be64(QCOW_OFLAG_ZERO);
             qcow2_free_any_clusters(bs, old_offset, 1, QCOW2_DISCARD_REQUEST);
@@ -1760,7 +1760,7 @@ static int expand_zero_clusters_in_l1(BlockDriverState *bs, uint64_t *l1_table,
 
         if (is_active_l1) {
             if (l2_dirty) {
-                qcow2_cache_entry_mark_dirty(s->l2_table_cache, l2_table);
+                qcow2_cache_entry_mark_dirty(bs, s->l2_table_cache, l2_table);
                 qcow2_cache_depends_on_flush(s->l2_table_cache);
             }
             ret = qcow2_cache_put(bs, s->l2_table_cache, (void **)&l2_table);

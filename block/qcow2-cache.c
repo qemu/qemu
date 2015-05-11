@@ -28,7 +28,6 @@
 #include "trace.h"
 
 typedef struct Qcow2CachedTable {
-    void*   table;
     int64_t offset;
     bool    dirty;
     int     cache_hits;
@@ -40,39 +39,35 @@ struct Qcow2Cache {
     struct Qcow2Cache*      depends;
     int                     size;
     bool                    depends_on_flush;
+    void                   *table_array;
 };
+
+static inline void *qcow2_cache_get_table_addr(BlockDriverState *bs,
+                    Qcow2Cache *c, int table)
+{
+    BDRVQcowState *s = bs->opaque;
+    return (uint8_t *) c->table_array + (size_t) table * s->cluster_size;
+}
 
 Qcow2Cache *qcow2_cache_create(BlockDriverState *bs, int num_tables)
 {
     BDRVQcowState *s = bs->opaque;
     Qcow2Cache *c;
-    int i;
 
     c = g_new0(Qcow2Cache, 1);
     c->size = num_tables;
     c->entries = g_try_new0(Qcow2CachedTable, num_tables);
-    if (!c->entries) {
-        goto fail;
-    }
+    c->table_array = qemu_try_blockalign(bs->file,
+                                         (size_t) num_tables * s->cluster_size);
 
-    for (i = 0; i < c->size; i++) {
-        c->entries[i].table = qemu_try_blockalign(bs->file, s->cluster_size);
-        if (c->entries[i].table == NULL) {
-            goto fail;
-        }
+    if (!c->entries || !c->table_array) {
+        qemu_vfree(c->table_array);
+        g_free(c->entries);
+        g_free(c);
+        c = NULL;
     }
 
     return c;
-
-fail:
-    if (c->entries) {
-        for (i = 0; i < c->size; i++) {
-            qemu_vfree(c->entries[i].table);
-        }
-    }
-    g_free(c->entries);
-    g_free(c);
-    return NULL;
 }
 
 int qcow2_cache_destroy(BlockDriverState* bs, Qcow2Cache *c)
@@ -81,9 +76,9 @@ int qcow2_cache_destroy(BlockDriverState* bs, Qcow2Cache *c)
 
     for (i = 0; i < c->size; i++) {
         assert(c->entries[i].ref == 0);
-        qemu_vfree(c->entries[i].table);
     }
 
+    qemu_vfree(c->table_array);
     g_free(c->entries);
     g_free(c);
 
@@ -151,8 +146,8 @@ static int qcow2_cache_entry_flush(BlockDriverState *bs, Qcow2Cache *c, int i)
         BLKDBG_EVENT(bs->file, BLKDBG_L2_UPDATE);
     }
 
-    ret = bdrv_pwrite(bs->file, c->entries[i].offset, c->entries[i].table,
-        s->cluster_size);
+    ret = bdrv_pwrite(bs->file, c->entries[i].offset,
+                      qcow2_cache_get_table_addr(bs, c, i), s->cluster_size);
     if (ret < 0) {
         return ret;
     }
@@ -304,7 +299,8 @@ static int qcow2_cache_do_get(BlockDriverState *bs, Qcow2Cache *c,
             BLKDBG_EVENT(bs->file, BLKDBG_L2_LOAD);
         }
 
-        ret = bdrv_pread(bs->file, offset, c->entries[i].table, s->cluster_size);
+        ret = bdrv_pread(bs->file, offset, qcow2_cache_get_table_addr(bs, c, i),
+                         s->cluster_size);
         if (ret < 0) {
             return ret;
         }
@@ -319,7 +315,7 @@ static int qcow2_cache_do_get(BlockDriverState *bs, Qcow2Cache *c,
 found:
     c->entries[i].cache_hits++;
     c->entries[i].ref++;
-    *table = c->entries[i].table;
+    *table = qcow2_cache_get_table_addr(bs, c, i);
 
     trace_qcow2_cache_get_done(qemu_coroutine_self(),
                                c == s->l2_table_cache, i);
@@ -344,7 +340,7 @@ int qcow2_cache_put(BlockDriverState *bs, Qcow2Cache *c, void **table)
     int i;
 
     for (i = 0; i < c->size; i++) {
-        if (c->entries[i].table == *table) {
+        if (qcow2_cache_get_table_addr(bs, c, i) == *table) {
             goto found;
         }
     }
@@ -358,12 +354,13 @@ found:
     return 0;
 }
 
-void qcow2_cache_entry_mark_dirty(Qcow2Cache *c, void *table)
+void qcow2_cache_entry_mark_dirty(BlockDriverState *bs, Qcow2Cache *c,
+     void *table)
 {
     int i;
 
     for (i = 0; i < c->size; i++) {
-        if (c->entries[i].table == table) {
+        if (qcow2_cache_get_table_addr(bs, c, i) == table) {
             goto found;
         }
     }
