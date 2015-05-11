@@ -1,7 +1,4 @@
-#ifdef CONFIG_OPENGL
-# include <GLES2/gl2.h>
-# include <GLES2/gl2ext.h>
-#endif
+#include <epoxy/gl.h>
 
 void qemu_gl_run_texture_blit(GLint texture_blit_prog);
 

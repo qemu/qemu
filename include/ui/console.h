@@ -10,8 +10,7 @@
 #include "qapi/error.h"
 
 #ifdef CONFIG_OPENGL
-# include <GLES2/gl2.h>
-# include <GLES2/gl2ext.h>
+# include <epoxy/gl.h>
 #endif
 
 /* keyboard/mouse support */
