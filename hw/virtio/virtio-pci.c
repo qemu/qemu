@@ -1207,32 +1207,6 @@ static const TypeInfo vhost_scsi_pci_info = {
 
 /* virtio-balloon-pci */
 
-static void balloon_pci_stats_get_all(Object *obj, struct Visitor *v,
-                                      void *opaque, const char *name,
-                                      Error **errp)
-{
-    VirtIOBalloonPCI *dev = opaque;
-    object_property_get(OBJECT(&dev->vdev), v, "guest-stats", errp);
-}
-
-static void balloon_pci_stats_get_poll_interval(Object *obj, struct Visitor *v,
-                                                void *opaque, const char *name,
-                                                Error **errp)
-{
-    VirtIOBalloonPCI *dev = opaque;
-    object_property_get(OBJECT(&dev->vdev), v, "guest-stats-polling-interval",
-                        errp);
-}
-
-static void balloon_pci_stats_set_poll_interval(Object *obj, struct Visitor *v,
-                                                void *opaque, const char *name,
-                                                Error **errp)
-{
-    VirtIOBalloonPCI *dev = opaque;
-    object_property_set(OBJECT(&dev->vdev), v, "guest-stats-polling-interval",
-                        errp);
-}
-
 static Property virtio_balloon_pci_properties[] = {
     DEFINE_PROP_UINT32("class", VirtIOPCIProxy, class_code, 0),
     DEFINE_PROP_END_OF_LIST(),
@@ -1269,16 +1243,14 @@ static void virtio_balloon_pci_class_init(ObjectClass *klass, void *data)
 static void virtio_balloon_pci_instance_init(Object *obj)
 {
     VirtIOBalloonPCI *dev = VIRTIO_BALLOON_PCI(obj);
+
     virtio_instance_init_common(obj, &dev->vdev, sizeof(dev->vdev),
                                 TYPE_VIRTIO_BALLOON);
-    object_property_add(obj, "guest-stats", "guest statistics",
-                        balloon_pci_stats_get_all, NULL, NULL, dev,
-                        NULL);
-
-    object_property_add(obj, "guest-stats-polling-interval", "int",
-                        balloon_pci_stats_get_poll_interval,
-                        balloon_pci_stats_set_poll_interval,
-                        NULL, dev, NULL);
+    object_property_add_alias(obj, "guest-stats", OBJECT(&dev->vdev),
+                                  "guest-stats", &error_abort);
+    object_property_add_alias(obj, "guest-stats-polling-interval",
+                              OBJECT(&dev->vdev),
+                              "guest-stats-polling-interval", &error_abort);
 }
 
 static const TypeInfo virtio_balloon_pci_info = {
