@@ -762,7 +762,12 @@ static MemTxResult gic_cpu_read(GICState *s, int cpu, int offset,
         *data = s->priority_mask[cpu];
         break;
     case 0x08: /* Binary Point */
-        *data = s->bpr[cpu];
+        if (s->security_extn && !attrs.secure) {
+            /* BPR is banked. Non-secure copy stored in ABPR. */
+            *data = s->abpr[cpu];
+        } else {
+            *data = s->bpr[cpu];
+        }
         break;
     case 0x0c: /* Acknowledge */
         *data = gic_acknowledge_irq(s, cpu);
@@ -774,7 +779,16 @@ static MemTxResult gic_cpu_read(GICState *s, int cpu, int offset,
         *data = s->current_pending[cpu];
         break;
     case 0x1c: /* Aliased Binary Point */
-        *data = s->abpr[cpu];
+        /* GIC v2, no security: ABPR
+         * GIC v1, no security: not implemented (RAZ/WI)
+         * With security extensions, secure access: ABPR (alias of NS BPR)
+         * With security extensions, nonsecure access: RAZ/WI
+         */
+        if (!gic_has_groups(s) || (s->security_extn && !attrs.secure)) {
+            *data = 0;
+        } else {
+            *data = s->abpr[cpu];
+        }
         break;
     case 0xd0: case 0xd4: case 0xd8: case 0xdc:
         *data = s->apr[(offset - 0xd0) / 4][cpu];
@@ -799,14 +813,21 @@ static MemTxResult gic_cpu_write(GICState *s, int cpu, int offset,
         s->priority_mask[cpu] = (value & 0xff);
         break;
     case 0x08: /* Binary Point */
-        s->bpr[cpu] = (value & 0x7);
+        if (s->security_extn && !attrs.secure) {
+            s->abpr[cpu] = MAX(value & 0x7, GIC_MIN_ABPR);
+        } else {
+            s->bpr[cpu] = MAX(value & 0x7, GIC_MIN_BPR);
+        }
         break;
     case 0x10: /* End Of Interrupt */
         gic_complete_irq(s, cpu, value & 0x3ff);
         return MEMTX_OK;
     case 0x1c: /* Aliased Binary Point */
-        if (s->revision >= 2) {
-            s->abpr[cpu] = (value & 0x7);
+        if (!gic_has_groups(s) || (s->security_extn && !attrs.secure)) {
+            /* unimplemented, or NS access: RAZ/WI */
+            return MEMTX_OK;
+        } else {
+            s->abpr[cpu] = MAX(value & 0x7, GIC_MIN_ABPR);
         }
         break;
     case 0xd0: case 0xd4: case 0xd8: case 0xdc:
