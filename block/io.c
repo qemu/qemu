@@ -205,7 +205,7 @@ void bdrv_refresh_limits(BlockDriverState *bs, Error **errp)
         bs->bl.opt_mem_alignment = bs->file->bl.opt_mem_alignment;
     } else {
         bs->bl.min_mem_alignment = 512;
-        bs->bl.opt_mem_alignment = 512;
+        bs->bl.opt_mem_alignment = getpagesize();
     }
 
     if (bs->backing_hd) {

@@ -106,8 +106,8 @@ int is_windows_drive(const char *filename)
 size_t bdrv_opt_mem_align(BlockDriverState *bs)
 {
     if (!bs || !bs->drv) {
-        /* 4k should be on the safe side */
-        return 4096;
+        /* page size or 4k (hdd sector size) should be on the safe side */
+        return MAX(4096, getpagesize());
     }
 
     return bs->bl.opt_mem_alignment;
@@ -116,8 +116,8 @@ size_t bdrv_opt_mem_align(BlockDriverState *bs)
 size_t bdrv_min_mem_align(BlockDriverState *bs)
 {
     if (!bs || !bs->drv) {
-        /* 4k should be on the safe side */
-        return 4096;
+        /* page size or 4k (hdd sector size) should be on the safe side */
+        return MAX(4096, getpagesize());
     }
 
     return bs->bl.min_mem_alignment;
