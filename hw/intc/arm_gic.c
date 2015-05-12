@@ -60,7 +60,7 @@ void gic_update(GICState *s)
     int best_irq;
     int best_prio;
     int irq;
-    int level;
+    int irq_level, fiq_level;
     int cpu;
     int cm;
 
@@ -70,6 +70,7 @@ void gic_update(GICState *s)
         if (!(s->ctlr & (GICD_CTLR_EN_GRP0 | GICD_CTLR_EN_GRP1))
             || !(s->cpu_ctlr[cpu] & (GICC_CTLR_EN_GRP0 | GICC_CTLR_EN_GRP1))) {
             qemu_irq_lower(s->parent_irq[cpu]);
+            qemu_irq_lower(s->parent_fiq[cpu]);
             return;
         }
         best_prio = 0x100;
@@ -83,15 +84,31 @@ void gic_update(GICState *s)
                 }
             }
         }
-        level = 0;
+
+        irq_level = fiq_level = 0;
+
         if (best_prio < s->priority_mask[cpu]) {
             s->current_pending[cpu] = best_irq;
             if (best_prio < s->running_priority[cpu]) {
-                DPRINTF("Raised pending IRQ %d (cpu %d)\n", best_irq, cpu);
-                level = 1;
+                int group = GIC_TEST_GROUP(best_irq, cm);
+
+                if (extract32(s->ctlr, group, 1) &&
+                    extract32(s->cpu_ctlr[cpu], group, 1)) {
+                    if (group == 0 && s->cpu_ctlr[cpu] & GICC_CTLR_FIQ_EN) {
+                        DPRINTF("Raised pending FIQ %d (cpu %d)\n",
+                                best_irq, cpu);
+                        fiq_level = 1;
+                    } else {
+                        DPRINTF("Raised pending IRQ %d (cpu %d)\n",
+                                best_irq, cpu);
+                        irq_level = 1;
+                    }
+                }
             }
         }
-        qemu_set_irq(s->parent_irq[cpu], level);
+
+        qemu_set_irq(s->parent_irq[cpu], irq_level);
+        qemu_set_irq(s->parent_fiq[cpu], fiq_level);
     }
 }
 
