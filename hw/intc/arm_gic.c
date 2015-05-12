@@ -176,6 +176,32 @@ static void gic_set_irq(void *opaque, int irq, int level)
     gic_update(s);
 }
 
+static uint16_t gic_get_current_pending_irq(GICState *s, int cpu,
+                                            MemTxAttrs attrs)
+{
+    uint16_t pending_irq = s->current_pending[cpu];
+
+    if (pending_irq < GIC_MAXIRQ && gic_has_groups(s)) {
+        int group = GIC_TEST_GROUP(pending_irq, (1 << cpu));
+        /* On a GIC without the security extensions, reading this register
+         * behaves in the same way as a secure access to a GIC with them.
+         */
+        bool secure = !s->security_extn || attrs.secure;
+
+        if (group == 0 && !secure) {
+            /* Group0 interrupts hidden from Non-secure access */
+            return 1023;
+        }
+        if (group == 1 && secure && !(s->cpu_ctlr[cpu] & GICC_CTLR_ACK_CTL)) {
+            /* Group1 interrupts only seen by Secure access if
+             * AckCtl bit set.
+             */
+            return 1022;
+        }
+    }
+    return pending_irq;
+}
+
 static void gic_set_running_irq(GICState *s, int cpu, int irq)
 {
     s->running_irq[cpu] = irq;
@@ -890,7 +916,7 @@ static MemTxResult gic_cpu_read(GICState *s, int cpu, int offset,
         *data = gic_get_running_priority(s, cpu, attrs);
         break;
     case 0x18: /* Highest Pending Interrupt */
-        *data = s->current_pending[cpu];
+        *data = gic_get_current_pending_irq(s, cpu, attrs);
         break;
     case 0x1c: /* Aliased Binary Point */
         /* GIC v2, no security: ABPR
