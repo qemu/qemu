@@ -400,7 +400,8 @@ static int coroutine_fn copy_sectors(BlockDriverState *bs,
         goto out;
     }
 
-    if (s->crypt_method) {
+    if (bs->encrypted) {
+        assert(s->crypt_method);
         qcow2_encrypt_sectors(s, start_sect + n_start,
                         iov.iov_base, iov.iov_base, n, 1,
                         &s->aes_encrypt_key);
