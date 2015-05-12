@@ -67,7 +67,8 @@ void gic_update(GICState *s)
     for (cpu = 0; cpu < NUM_CPU(s); cpu++) {
         cm = 1 << cpu;
         s->current_pending[cpu] = 1023;
-        if (!s->enabled || !s->cpu_enabled[cpu]) {
+        if (!(s->ctlr & (GICD_CTLR_EN_GRP0 | GICD_CTLR_EN_GRP1))
+            || !s->cpu_enabled[cpu]) {
             qemu_irq_lower(s->parent_irq[cpu]);
             return;
         }
@@ -303,8 +304,16 @@ static uint32_t gic_dist_readb(void *opaque, hwaddr offset, MemTxAttrs attrs)
     cpu = gic_get_current_cpu(s);
     cm = 1 << cpu;
     if (offset < 0x100) {
-        if (offset == 0)
-            return s->enabled;
+        if (offset == 0) {      /* GICD_CTLR */
+            if (s->security_extn && !attrs.secure) {
+                /* The NS bank of this register is just an alias of the
+                 * EnableGrp1 bit in the S bank version.
+                 */
+                return extract32(s->ctlr, 1, 1);
+            } else {
+                return s->ctlr;
+            }
+        }
         if (offset == 4)
             /* Interrupt Controller Type Register */
             return ((s->num_irq / 32) - 1)
@@ -475,8 +484,17 @@ static void gic_dist_writeb(void *opaque, hwaddr offset,
     cpu = gic_get_current_cpu(s);
     if (offset < 0x100) {
         if (offset == 0) {
-            s->enabled = (value & 1);
-            DPRINTF("Distribution %sabled\n", s->enabled ? "En" : "Dis");
+            if (s->security_extn && !attrs.secure) {
+                /* NS version is just an alias of the S version's bit 1 */
+                s->ctlr = deposit32(s->ctlr, 1, 1, value);
+            } else if (gic_has_groups(s)) {
+                s->ctlr = value & (GICD_CTLR_EN_GRP0 | GICD_CTLR_EN_GRP1);
+            } else {
+                s->ctlr = value & GICD_CTLR_EN_GRP0;
+            }
+            DPRINTF("Distributor: Group0 %sabled; Group 1 %sabled\n",
+                    s->ctlr & GICD_CTLR_EN_GRP0 ? "En" : "Dis",
+                    s->ctlr & GICD_CTLR_EN_GRP1 ? "En" : "Dis");
         } else if (offset < 4) {
             /* ignored.  */
         } else if (offset >= 0x80) {

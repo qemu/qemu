@@ -54,6 +54,8 @@
 #define GIC_SET_GROUP(irq, cm) (s->irq_state[irq].group |= (cm))
 #define GIC_TEST_GROUP(irq, cm) ((s->irq_state[irq].group & (cm)) != 0)
 
+#define GICD_CTLR_EN_GRP0 (1U << 0)
+#define GICD_CTLR_EN_GRP1 (1U << 1)
 
 /* The special cases for the revision property: */
 #define REV_11MPCORE 0

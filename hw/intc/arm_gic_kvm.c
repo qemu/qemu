@@ -353,8 +353,8 @@ static void kvm_arm_gic_put(GICState *s)
      * Distributor State
      */
 
-    /* s->enabled -> GICD_CTLR */
-    reg = s->enabled;
+    /* s->ctlr -> GICD_CTLR */
+    reg = s->ctlr;
     kvm_gicd_access(s, 0x0, 0, &reg, true);
 
     /* Sanity checking on GICD_TYPER and s->num_irq, s->num_cpu */
@@ -453,9 +453,9 @@ static void kvm_arm_gic_get(GICState *s)
      * Distributor State
      */
 
-    /* GICD_CTLR -> s->enabled */
+    /* GICD_CTLR -> s->ctlr */
     kvm_gicd_access(s, 0x0, 0, &reg, false);
-    s->enabled = reg & 1;
+    s->ctlr = reg;
 
     /* Sanity checking on GICD_TYPER -> s->num_irq, s->num_cpu */
     kvm_gicd_access(s, 0x4, 0, &reg, false);

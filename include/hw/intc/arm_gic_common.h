@@ -52,7 +52,10 @@ typedef struct GICState {
 
     qemu_irq parent_irq[GIC_NCPU];
     qemu_irq parent_fiq[GIC_NCPU];
-    bool enabled;
+    /* GICD_CTLR; for a GIC with the security extensions the NS banked version
+     * of this register is just an alias of bit 1 of the S banked version.
+     */
+    uint32_t ctlr;
     bool cpu_enabled[GIC_NCPU];
 
     gic_irq_state irq_state[GIC_MAXIRQ];
