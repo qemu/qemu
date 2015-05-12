@@ -282,7 +282,7 @@ void gic_complete_irq(GICState *s, int cpu, int irq)
     }
 }
 
-static uint32_t gic_dist_readb(void *opaque, hwaddr offset)
+static uint32_t gic_dist_readb(void *opaque, hwaddr offset, MemTxAttrs attrs)
 {
     GICState *s = (GICState *)opaque;
     uint32_t res;
@@ -418,24 +418,30 @@ bad_reg:
     return 0;
 }
 
-static uint32_t gic_dist_readw(void *opaque, hwaddr offset)
+static MemTxResult gic_dist_read(void *opaque, hwaddr offset, uint64_t *data,
+                                 unsigned size, MemTxAttrs attrs)
 {
-    uint32_t val;
-    val = gic_dist_readb(opaque, offset);
-    val |= gic_dist_readb(opaque, offset + 1) << 8;
-    return val;
-}
-
-static uint32_t gic_dist_readl(void *opaque, hwaddr offset)
-{
-    uint32_t val;
-    val = gic_dist_readw(opaque, offset);
-    val |= gic_dist_readw(opaque, offset + 2) << 16;
-    return val;
+    switch (size) {
+    case 1:
+        *data = gic_dist_readb(opaque, offset, attrs);
+        return MEMTX_OK;
+    case 2:
+        *data = gic_dist_readb(opaque, offset, attrs);
+        *data |= gic_dist_readb(opaque, offset + 1, attrs) << 8;
+        return MEMTX_OK;
+    case 4:
+        *data = gic_dist_readb(opaque, offset, attrs);
+        *data |= gic_dist_readb(opaque, offset + 1, attrs) << 8;
+        *data |= gic_dist_readb(opaque, offset + 2, attrs) << 16;
+        *data |= gic_dist_readb(opaque, offset + 3, attrs) << 24;
+        return MEMTX_OK;
+    default:
+        return MEMTX_ERROR;
+    }
 }
 
 static void gic_dist_writeb(void *opaque, hwaddr offset,
-                            uint32_t value)
+                            uint32_t value, MemTxAttrs attrs)
 {
     GICState *s = (GICState *)opaque;
     int irq;
@@ -612,14 +618,14 @@ bad_reg:
 }
 
 static void gic_dist_writew(void *opaque, hwaddr offset,
-                            uint32_t value)
+                            uint32_t value, MemTxAttrs attrs)
 {
-    gic_dist_writeb(opaque, offset, value & 0xff);
-    gic_dist_writeb(opaque, offset + 1, value >> 8);
+    gic_dist_writeb(opaque, offset, value & 0xff, attrs);
+    gic_dist_writeb(opaque, offset + 1, value >> 8, attrs);
 }
 
 static void gic_dist_writel(void *opaque, hwaddr offset,
-                            uint32_t value)
+                            uint32_t value, MemTxAttrs attrs)
 {
     GICState *s = (GICState *)opaque;
     if (offset == 0xf00) {
@@ -655,45 +661,72 @@ static void gic_dist_writel(void *opaque, hwaddr offset,
         gic_update(s);
         return;
     }
-    gic_dist_writew(opaque, offset, value & 0xffff);
-    gic_dist_writew(opaque, offset + 2, value >> 16);
+    gic_dist_writew(opaque, offset, value & 0xffff, attrs);
+    gic_dist_writew(opaque, offset + 2, value >> 16, attrs);
 }
 
-static const MemoryRegionOps gic_dist_ops = {
-    .old_mmio = {
-        .read = { gic_dist_readb, gic_dist_readw, gic_dist_readl, },
-        .write = { gic_dist_writeb, gic_dist_writew, gic_dist_writel, },
-    },
-    .endianness = DEVICE_NATIVE_ENDIAN,
-};
-
-static uint32_t gic_cpu_read(GICState *s, int cpu, int offset)
+static MemTxResult gic_dist_write(void *opaque, hwaddr offset, uint64_t data,
+                                  unsigned size, MemTxAttrs attrs)
 {
-    switch (offset) {
-    case 0x00: /* Control */
-        return s->cpu_enabled[cpu];
-    case 0x04: /* Priority mask */
-        return s->priority_mask[cpu];
-    case 0x08: /* Binary Point */
-        return s->bpr[cpu];
-    case 0x0c: /* Acknowledge */
-        return gic_acknowledge_irq(s, cpu);
-    case 0x14: /* Running Priority */
-        return s->running_priority[cpu];
-    case 0x18: /* Highest Pending Interrupt */
-        return s->current_pending[cpu];
-    case 0x1c: /* Aliased Binary Point */
-        return s->abpr[cpu];
-    case 0xd0: case 0xd4: case 0xd8: case 0xdc:
-        return s->apr[(offset - 0xd0) / 4][cpu];
+    switch (size) {
+    case 1:
+        gic_dist_writeb(opaque, offset, data, attrs);
+        return MEMTX_OK;
+    case 2:
+        gic_dist_writew(opaque, offset, data, attrs);
+        return MEMTX_OK;
+    case 4:
+        gic_dist_writel(opaque, offset, data, attrs);
+        return MEMTX_OK;
     default:
-        qemu_log_mask(LOG_GUEST_ERROR,
-                      "gic_cpu_read: Bad offset %x\n", (int)offset);
-        return 0;
+        return MEMTX_ERROR;
     }
 }
 
-static void gic_cpu_write(GICState *s, int cpu, int offset, uint32_t value)
+static const MemoryRegionOps gic_dist_ops = {
+    .read_with_attrs = gic_dist_read,
+    .write_with_attrs = gic_dist_write,
+    .endianness = DEVICE_NATIVE_ENDIAN,
+};
+
+static MemTxResult gic_cpu_read(GICState *s, int cpu, int offset,
+                                uint64_t *data, MemTxAttrs attrs)
+{
+    switch (offset) {
+    case 0x00: /* Control */
+        *data = s->cpu_enabled[cpu];
+        break;
+    case 0x04: /* Priority mask */
+        *data = s->priority_mask[cpu];
+        break;
+    case 0x08: /* Binary Point */
+        *data = s->bpr[cpu];
+        break;
+    case 0x0c: /* Acknowledge */
+        *data = gic_acknowledge_irq(s, cpu);
+        break;
+    case 0x14: /* Running Priority */
+        *data = s->running_priority[cpu];
+        break;
+    case 0x18: /* Highest Pending Interrupt */
+        *data = s->current_pending[cpu];
+        break;
+    case 0x1c: /* Aliased Binary Point */
+        *data = s->abpr[cpu];
+        break;
+    case 0xd0: case 0xd4: case 0xd8: case 0xdc:
+        *data = s->apr[(offset - 0xd0) / 4][cpu];
+        break;
+    default:
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "gic_cpu_read: Bad offset %x\n", (int)offset);
+        return MEMTX_ERROR;
+    }
+    return MEMTX_OK;
+}
+
+static MemTxResult gic_cpu_write(GICState *s, int cpu, int offset,
+                                 uint32_t value, MemTxAttrs attrs)
 {
     switch (offset) {
     case 0x00: /* Control */
@@ -708,7 +741,7 @@ static void gic_cpu_write(GICState *s, int cpu, int offset, uint32_t value)
         break;
     case 0x10: /* End Of Interrupt */
         gic_complete_irq(s, cpu, value & 0x3ff);
-        return;
+        return MEMTX_OK;
     case 0x1c: /* Aliased Binary Point */
         if (s->revision >= 2) {
             s->abpr[cpu] = (value & 0x7);
@@ -720,56 +753,59 @@ static void gic_cpu_write(GICState *s, int cpu, int offset, uint32_t value)
     default:
         qemu_log_mask(LOG_GUEST_ERROR,
                       "gic_cpu_write: Bad offset %x\n", (int)offset);
-        return;
+        return MEMTX_ERROR;
     }
     gic_update(s);
+    return MEMTX_OK;
 }
 
 /* Wrappers to read/write the GIC CPU interface for the current CPU */
-static uint64_t gic_thiscpu_read(void *opaque, hwaddr addr,
-                                 unsigned size)
+static MemTxResult gic_thiscpu_read(void *opaque, hwaddr addr, uint64_t *data,
+                                    unsigned size, MemTxAttrs attrs)
 {
     GICState *s = (GICState *)opaque;
-    return gic_cpu_read(s, gic_get_current_cpu(s), addr);
+    return gic_cpu_read(s, gic_get_current_cpu(s), addr, data, attrs);
 }
 
-static void gic_thiscpu_write(void *opaque, hwaddr addr,
-                              uint64_t value, unsigned size)
+static MemTxResult gic_thiscpu_write(void *opaque, hwaddr addr,
+                                     uint64_t value, unsigned size,
+                                     MemTxAttrs attrs)
 {
     GICState *s = (GICState *)opaque;
-    gic_cpu_write(s, gic_get_current_cpu(s), addr, value);
+    return gic_cpu_write(s, gic_get_current_cpu(s), addr, value, attrs);
 }
 
 /* Wrappers to read/write the GIC CPU interface for a specific CPU.
  * These just decode the opaque pointer into GICState* + cpu id.
  */
-static uint64_t gic_do_cpu_read(void *opaque, hwaddr addr,
-                                unsigned size)
+static MemTxResult gic_do_cpu_read(void *opaque, hwaddr addr, uint64_t *data,
+                                   unsigned size, MemTxAttrs attrs)
 {
     GICState **backref = (GICState **)opaque;
     GICState *s = *backref;
     int id = (backref - s->backref);
-    return gic_cpu_read(s, id, addr);
+    return gic_cpu_read(s, id, addr, data, attrs);
 }
 
-static void gic_do_cpu_write(void *opaque, hwaddr addr,
-                             uint64_t value, unsigned size)
+static MemTxResult gic_do_cpu_write(void *opaque, hwaddr addr,
+                                    uint64_t value, unsigned size,
+                                    MemTxAttrs attrs)
 {
     GICState **backref = (GICState **)opaque;
     GICState *s = *backref;
     int id = (backref - s->backref);
-    gic_cpu_write(s, id, addr, value);
+    return gic_cpu_write(s, id, addr, value, attrs);
 }
 
 static const MemoryRegionOps gic_thiscpu_ops = {
-    .read = gic_thiscpu_read,
-    .write = gic_thiscpu_write,
+    .read_with_attrs = gic_thiscpu_read,
+    .write_with_attrs = gic_thiscpu_write,
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
 static const MemoryRegionOps gic_cpu_ops = {
-    .read = gic_do_cpu_read,
-    .write = gic_do_cpu_write,
+    .read_with_attrs = gic_do_cpu_read,
+    .write_with_attrs = gic_do_cpu_write,
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
