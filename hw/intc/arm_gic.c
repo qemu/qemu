@@ -213,14 +213,24 @@ static void gic_set_running_irq(GICState *s, int cpu, int irq)
     gic_update(s);
 }
 
-uint32_t gic_acknowledge_irq(GICState *s, int cpu)
+uint32_t gic_acknowledge_irq(GICState *s, int cpu, MemTxAttrs attrs)
 {
     int ret, irq, src;
     int cm = 1 << cpu;
-    irq = s->current_pending[cpu];
-    if (irq == 1023
-            || GIC_GET_PRIORITY(irq, cpu) >= s->running_priority[cpu]) {
-        DPRINTF("ACK no pending IRQ\n");
+
+    /* gic_get_current_pending_irq() will return 1022 or 1023 appropriately
+     * for the case where this GIC supports grouping and the pending interrupt
+     * is in the wrong group.
+     */
+    irq = gic_get_current_pending_irq(s, cpu, attrs);;
+
+    if (irq >= GIC_MAXIRQ) {
+        DPRINTF("ACK, no pending interrupt or it is hidden: %d\n", irq);
+        return irq;
+    }
+
+    if (GIC_GET_PRIORITY(irq, cpu) >= s->running_priority[cpu]) {
+        DPRINTF("ACK, pending interrupt (%d) has insufficient priority\n", irq);
         return 1023;
     }
     s->last_active[irq][cpu] = s->running_irq[cpu];
@@ -920,7 +930,7 @@ static MemTxResult gic_cpu_read(GICState *s, int cpu, int offset,
         }
         break;
     case 0x0c: /* Acknowledge */
-        *data = gic_acknowledge_irq(s, cpu);
+        *data = gic_acknowledge_irq(s, cpu, attrs);
         break;
     case 0x14: /* Running Priority */
         *data = gic_get_running_priority(s, cpu, attrs);

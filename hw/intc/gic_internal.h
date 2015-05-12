@@ -78,7 +78,7 @@
 #define REV_NVIC 0xffffffff
 
 void gic_set_pending_private(GICState *s, int cpu, int irq);
-uint32_t gic_acknowledge_irq(GICState *s, int cpu);
+uint32_t gic_acknowledge_irq(GICState *s, int cpu, MemTxAttrs attrs);
 void gic_complete_irq(GICState *s, int cpu, int irq, MemTxAttrs attrs);
 void gic_update(GICState *s);
 void gic_init_irqs_and_distributor(GICState *s);
