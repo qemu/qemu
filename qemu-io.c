@@ -120,7 +120,7 @@ static int open_f(BlockBackend *blk, int argc, char **argv)
     QemuOpts *qopts;
     QDict *opts;
 
-    while ((c = getopt(argc, argv, "snrgo:")) != EOF) {
+    while ((c = getopt(argc, argv, "snrgo:")) != -1) {
         switch (c) {
         case 's':
             flags |= BDRV_O_SNAPSHOT;

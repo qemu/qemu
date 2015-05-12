@@ -646,7 +646,7 @@ static int read_f(BlockBackend *blk, int argc, char **argv)
     int total = 0;
     int pattern = 0, pattern_offset = 0, pattern_count = 0;
 
-    while ((c = getopt(argc, argv, "bCl:pP:qs:v")) != EOF) {
+    while ((c = getopt(argc, argv, "bCl:pP:qs:v")) != -1) {
         switch (c) {
         case 'b':
             bflag = 1;
@@ -830,7 +830,7 @@ static int readv_f(BlockBackend *blk, int argc, char **argv)
     int pattern = 0;
     int Pflag = 0;
 
-    while ((c = getopt(argc, argv, "CP:qv")) != EOF) {
+    while ((c = getopt(argc, argv, "CP:qv")) != -1) {
         switch (c) {
         case 'C':
             Cflag = 1;
@@ -961,7 +961,7 @@ static int write_f(BlockBackend *blk, int argc, char **argv)
     int total = 0;
     int pattern = 0xcd;
 
-    while ((c = getopt(argc, argv, "bcCpP:qz")) != EOF) {
+    while ((c = getopt(argc, argv, "bcCpP:qz")) != -1) {
         switch (c) {
         case 'b':
             bflag = 1;
@@ -1116,7 +1116,7 @@ static int writev_f(BlockBackend *blk, int argc, char **argv)
     int pattern = 0xcd;
     QEMUIOVector qiov;
 
-    while ((c = getopt(argc, argv, "CqP:")) != EOF) {
+    while ((c = getopt(argc, argv, "CqP:")) != -1) {
         switch (c) {
         case 'C':
             Cflag = 1;
@@ -1228,7 +1228,7 @@ static int multiwrite_f(BlockBackend *blk, int argc, char **argv)
     int i;
     BlockRequest *reqs;
 
-    while ((c = getopt(argc, argv, "CqP:")) != EOF) {
+    while ((c = getopt(argc, argv, "CqP:")) != -1) {
         switch (c) {
         case 'C':
             Cflag = 1;
@@ -1463,7 +1463,7 @@ static int aio_read_f(BlockBackend *blk, int argc, char **argv)
     struct aio_ctx *ctx = g_new0(struct aio_ctx, 1);
 
     ctx->blk = blk;
-    while ((c = getopt(argc, argv, "CP:qv")) != EOF) {
+    while ((c = getopt(argc, argv, "CP:qv")) != -1) {
         switch (c) {
         case 'C':
             ctx->Cflag = 1;
@@ -1562,7 +1562,7 @@ static int aio_write_f(BlockBackend *blk, int argc, char **argv)
     struct aio_ctx *ctx = g_new0(struct aio_ctx, 1);
 
     ctx->blk = blk;
-    while ((c = getopt(argc, argv, "CqP:")) != EOF) {
+    while ((c = getopt(argc, argv, "CqP:")) != -1) {
         switch (c) {
         case 'C':
             ctx->Cflag = 1;
@@ -1779,7 +1779,7 @@ static int discard_f(BlockBackend *blk, int argc, char **argv)
     int64_t offset;
     int count;
 
-    while ((c = getopt(argc, argv, "Cq")) != EOF) {
+    while ((c = getopt(argc, argv, "Cq")) != -1) {
         switch (c) {
         case 'C':
             Cflag = 1;
