@@ -577,17 +577,12 @@ static const TypeInfo s390_virtio_blk = {
     .class_init    = s390_virtio_blk_class_init,
 };
 
-static Property s390_virtio_serial_properties[] = {
-    DEFINE_PROP_END_OF_LIST(),
-};
-
 static void s390_virtio_serial_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     VirtIOS390DeviceClass *k = VIRTIO_S390_DEVICE_CLASS(klass);
 
     k->realize = s390_virtio_serial_realize;
-    dc->props = s390_virtio_serial_properties;
     set_bit(DEVICE_CATEGORY_INPUT, dc->categories);
 }
 
