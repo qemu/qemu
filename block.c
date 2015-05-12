@@ -113,6 +113,16 @@ size_t bdrv_opt_mem_align(BlockDriverState *bs)
     return bs->bl.opt_mem_alignment;
 }
 
+size_t bdrv_min_mem_align(BlockDriverState *bs)
+{
+    if (!bs || !bs->drv) {
+        /* 4k should be on the safe side */
+        return 4096;
+    }
+
+    return bs->bl.min_mem_alignment;
+}
+
 /* check if the path starts with "<protocol>:" */
 int path_has_protocol(const char *path)
 {
@@ -890,6 +900,7 @@ static int bdrv_open_common(BlockDriverState *bs, BlockDriverState *file,
     }
 
     assert(bdrv_opt_mem_align(bs) != 0);
+    assert(bdrv_min_mem_align(bs) != 0);
     assert((bs->request_alignment != 0) || bs->sg);
     return 0;
 

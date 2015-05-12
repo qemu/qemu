@@ -725,6 +725,7 @@ static void raw_refresh_limits(BlockDriverState *bs, Error **errp)
     BDRVRawState *s = bs->opaque;
 
     raw_probe_alignment(bs, s->fd, errp);
+    bs->bl.min_mem_alignment = s->buf_align;
     bs->bl.opt_mem_alignment = s->buf_align;
 }
 

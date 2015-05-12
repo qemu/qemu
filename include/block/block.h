@@ -440,6 +440,8 @@ void bdrv_img_create(const char *filename, const char *fmt,
 
 /* Returns the alignment in bytes that is required so that no bounce buffer
  * is required throughout the stack */
+size_t bdrv_min_mem_align(BlockDriverState *bs);
+/* Returns optimal alignment in bytes for bounce buffer */
 size_t bdrv_opt_mem_align(BlockDriverState *bs);
 void bdrv_set_guest_block_size(BlockDriverState *bs, int align);
 void *qemu_blockalign(BlockDriverState *bs, size_t size);
