@@ -233,13 +233,66 @@ uint32_t gic_acknowledge_irq(GICState *s, int cpu)
     return ret;
 }
 
-void gic_set_priority(GICState *s, int cpu, int irq, uint8_t val)
+void gic_set_priority(GICState *s, int cpu, int irq, uint8_t val,
+                      MemTxAttrs attrs)
 {
+    if (s->security_extn && !attrs.secure) {
+        if (!GIC_TEST_GROUP(irq, (1 << cpu))) {
+            return; /* Ignore Non-secure access of Group0 IRQ */
+        }
+        val = 0x80 | (val >> 1); /* Non-secure view */
+    }
+
     if (irq < GIC_INTERNAL) {
         s->priority1[irq][cpu] = val;
     } else {
         s->priority2[(irq) - GIC_INTERNAL] = val;
     }
+}
+
+static uint32_t gic_get_priority(GICState *s, int cpu, int irq,
+                                 MemTxAttrs attrs)
+{
+    uint32_t prio = GIC_GET_PRIORITY(irq, cpu);
+
+    if (s->security_extn && !attrs.secure) {
+        if (!GIC_TEST_GROUP(irq, (1 << cpu))) {
+            return 0; /* Non-secure access cannot read priority of Group0 IRQ */
+        }
+        prio = (prio << 1) & 0xff; /* Non-secure view */
+    }
+    return prio;
+}
+
+static void gic_set_priority_mask(GICState *s, int cpu, uint8_t pmask,
+                                  MemTxAttrs attrs)
+{
+    if (s->security_extn && !attrs.secure) {
+        if (s->priority_mask[cpu] & 0x80) {
+            /* Priority Mask in upper half */
+            pmask = 0x80 | (pmask >> 1);
+        } else {
+            /* Non-secure write ignored if priority mask is in lower half */
+            return;
+        }
+    }
+    s->priority_mask[cpu] = pmask;
+}
+
+static uint32_t gic_get_priority_mask(GICState *s, int cpu, MemTxAttrs attrs)
+{
+    uint32_t pmask = s->priority_mask[cpu];
+
+    if (s->security_extn && !attrs.secure) {
+        if (pmask & 0x80) {
+            /* Priority Mask in upper half, return Non-secure view */
+            pmask = (pmask << 1) & 0xff;
+        } else {
+            /* Priority Mask in lower half, RAZ */
+            pmask = 0;
+        }
+    }
+    return pmask;
 }
 
 static uint32_t gic_get_cpu_control(GICState *s, int cpu, MemTxAttrs attrs)
@@ -451,7 +504,7 @@ static uint32_t gic_dist_readb(void *opaque, hwaddr offset, MemTxAttrs attrs)
         irq = (offset - 0x400) + GIC_BASE_IRQ;
         if (irq >= s->num_irq)
             goto bad_reg;
-        res = GIC_GET_PRIORITY(irq, cpu);
+        res = gic_get_priority(s, cpu, irq, attrs);
     } else if (offset < 0xc00) {
         /* Interrupt CPU Target.  */
         if (s->num_cpu == 1 && s->revision != REV_11MPCORE) {
@@ -669,7 +722,7 @@ static void gic_dist_writeb(void *opaque, hwaddr offset,
         irq = (offset - 0x400) + GIC_BASE_IRQ;
         if (irq >= s->num_irq)
             goto bad_reg;
-        gic_set_priority(s, cpu, irq, value);
+        gic_set_priority(s, cpu, irq, value, attrs);
     } else if (offset < 0xc00) {
         /* Interrupt CPU Target. RAZ/WI on uniprocessor GICs, with the
          * annoying exception of the 11MPCore's GIC.
@@ -820,7 +873,7 @@ static MemTxResult gic_cpu_read(GICState *s, int cpu, int offset,
         *data = gic_get_cpu_control(s, cpu, attrs);
         break;
     case 0x04: /* Priority mask */
-        *data = s->priority_mask[cpu];
+        *data = gic_get_priority_mask(s, cpu, attrs);
         break;
     case 0x08: /* Binary Point */
         if (s->security_extn && !attrs.secure) {
@@ -870,7 +923,7 @@ static MemTxResult gic_cpu_write(GICState *s, int cpu, int offset,
         gic_set_cpu_control(s, cpu, value, attrs);
         break;
     case 0x04: /* Priority mask */
-        s->priority_mask[cpu] = (value & 0xff);
+        gic_set_priority_mask(s, cpu, value, attrs);
         break;
     case 0x08: /* Binary Point */
         if (s->security_extn && !attrs.secure) {
