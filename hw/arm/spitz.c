@@ -1060,10 +1060,6 @@ static VMStateDescription vmstate_spitz_kbd = {
     },
 };
 
-static Property spitz_keyboard_properties[] = {
-    DEFINE_PROP_END_OF_LIST(),
-};
-
 static void spitz_keyboard_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
@@ -1071,7 +1067,6 @@ static void spitz_keyboard_class_init(ObjectClass *klass, void *data)
 
     k->init = spitz_keyboard_init;
     dc->vmsd = &vmstate_spitz_kbd;
-    dc->props = spitz_keyboard_properties;
 }
 
 static const TypeInfo spitz_keyboard_info = {
