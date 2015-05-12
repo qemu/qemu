@@ -382,7 +382,7 @@ static uint8_t gic_get_running_priority(GICState *s, int cpu, MemTxAttrs attrs)
     }
 }
 
-void gic_complete_irq(GICState *s, int cpu, int irq)
+void gic_complete_irq(GICState *s, int cpu, int irq, MemTxAttrs attrs)
 {
     int update = 0;
     int cm = 1 << cpu;
@@ -411,6 +411,16 @@ void gic_complete_irq(GICState *s, int cpu, int irq)
             update = 1;
         }
     }
+
+    if (s->security_extn && !attrs.secure && !GIC_TEST_GROUP(irq, cm)) {
+        DPRINTF("Non-secure EOI for Group0 interrupt %d ignored\n", irq);
+        return;
+    }
+
+    /* Secure EOI with GICC_CTLR.AckCtl == 0 when the IRQ is a Group 1
+     * interrupt is UNPREDICTABLE. We choose to handle it as if AckCtl == 1,
+     * i.e. go ahead and complete the irq anyway.
+     */
 
     if (irq != s->running_irq[cpu]) {
         /* Complete an IRQ that is not currently running.  */
@@ -959,7 +969,7 @@ static MemTxResult gic_cpu_write(GICState *s, int cpu, int offset,
         }
         break;
     case 0x10: /* End Of Interrupt */
-        gic_complete_irq(s, cpu, value & 0x3ff);
+        gic_complete_irq(s, cpu, value & 0x3ff, attrs);
         return MEMTX_OK;
     case 0x1c: /* Aliased Binary Point */
         if (!gic_has_groups(s) || (s->security_extn && !attrs.secure)) {
