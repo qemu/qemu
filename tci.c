@@ -420,7 +420,7 @@ static bool tci_compare64(uint64_t u0, uint64_t u1, TCGCond condition)
 }
 
 #ifdef CONFIG_SOFTMMU
-# define mmuidx          tci_read_i(&tb_ptr)
+# define mmuidx          get_mmuidx(oi)
 # define qemu_ld_ub \
     helper_ret_ldub_mmu(env, taddr, mmuidx, (uintptr_t)tb_ptr)
 # define qemu_ld_leuw \
@@ -496,7 +496,7 @@ uintptr_t tcg_qemu_tb_exec(CPUArchState *env, uint8_t *tb_ptr)
 #if TCG_TARGET_REG_BITS == 32
         uint64_t v64;
 #endif
-        TCGMemOp memop;
+        TCGMemOpIdx oi;
 
 #if defined(GETPC)
         tci_tb_ptr = (uintptr_t)tb_ptr;
@@ -1107,8 +1107,8 @@ uintptr_t tcg_qemu_tb_exec(CPUArchState *env, uint8_t *tb_ptr)
         case INDEX_op_qemu_ld_i32:
             t0 = *tb_ptr++;
             taddr = tci_read_ulong(&tb_ptr);
-            memop = tci_read_i(&tb_ptr);
-            switch (memop) {
+            oi = tci_read_i(&tb_ptr);
+            switch (get_memop(oi)) {
             case MO_UB:
                 tmp32 = qemu_ld_ub;
                 break;
@@ -1144,8 +1144,8 @@ uintptr_t tcg_qemu_tb_exec(CPUArchState *env, uint8_t *tb_ptr)
                 t1 = *tb_ptr++;
             }
             taddr = tci_read_ulong(&tb_ptr);
-            memop = tci_read_i(&tb_ptr);
-            switch (memop) {
+            oi = tci_read_i(&tb_ptr);
+            switch (get_memop(oi)) {
             case MO_UB:
                 tmp64 = qemu_ld_ub;
                 break;
@@ -1193,8 +1193,8 @@ uintptr_t tcg_qemu_tb_exec(CPUArchState *env, uint8_t *tb_ptr)
         case INDEX_op_qemu_st_i32:
             t0 = tci_read_r(&tb_ptr);
             taddr = tci_read_ulong(&tb_ptr);
-            memop = tci_read_i(&tb_ptr);
-            switch (memop) {
+            oi = tci_read_i(&tb_ptr);
+            switch (get_memop(oi)) {
             case MO_UB:
                 qemu_st_b(t0);
                 break;
@@ -1217,8 +1217,8 @@ uintptr_t tcg_qemu_tb_exec(CPUArchState *env, uint8_t *tb_ptr)
         case INDEX_op_qemu_st_i64:
             tmp64 = tci_read_r64(&tb_ptr);
             taddr = tci_read_ulong(&tb_ptr);
-            memop = tci_read_i(&tb_ptr);
-            switch (memop) {
+            oi = tci_read_i(&tb_ptr);
+            switch (get_memop(oi)) {
             case MO_UB:
                 qemu_st_b(tmp64);
                 break;

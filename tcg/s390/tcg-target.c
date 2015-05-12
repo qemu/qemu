@@ -1632,9 +1632,11 @@ static void tcg_prepare_user_ldst(TCGContext *s, TCGReg *addr_reg,
 #endif /* CONFIG_SOFTMMU */
 
 static void tcg_out_qemu_ld(TCGContext* s, TCGReg data_reg, TCGReg addr_reg,
-                            TCGMemOp opc, int mem_index)
+                            TCGMemOpIdx oi)
 {
+    TCGMemOp opc = get_memop(oi);
 #ifdef CONFIG_SOFTMMU
+    unsigned mem_index = get_mmuidx(oi);
     tcg_insn_unit *label_ptr;
     TCGReg base_reg;
 
@@ -1657,9 +1659,11 @@ static void tcg_out_qemu_ld(TCGContext* s, TCGReg data_reg, TCGReg addr_reg,
 }
 
 static void tcg_out_qemu_st(TCGContext* s, TCGReg data_reg, TCGReg addr_reg,
-                            TCGMemOp opc, int mem_index)
+                            TCGMemOpIdx oi)
 {
+    TCGMemOp opc = get_memop(oi);
 #ifdef CONFIG_SOFTMMU
+    unsigned mem_index = get_mmuidx(oi);
     tcg_insn_unit *label_ptr;
     TCGReg base_reg;
 
@@ -1920,11 +1924,11 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc,
     case INDEX_op_qemu_ld_i32:
         /* ??? Technically we can use a non-extending instruction.  */
     case INDEX_op_qemu_ld_i64:
-        tcg_out_qemu_ld(s, args[0], args[1], args[2], args[3]);
+        tcg_out_qemu_ld(s, args[0], args[1], args[2]);
         break;
     case INDEX_op_qemu_st_i32:
     case INDEX_op_qemu_st_i64:
-        tcg_out_qemu_st(s, args[0], args[1], args[2], args[3]);
+        tcg_out_qemu_st(s, args[0], args[1], args[2]);
         break;
 
     case INDEX_op_ld16s_i64:

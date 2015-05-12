@@ -1070,9 +1070,11 @@ static const int qemu_st_opc[16] = {
 };
 
 static void tcg_out_qemu_ld(TCGContext *s, TCGReg data, TCGReg addr,
-                            TCGMemOp memop, int memi, bool is_64)
+                            TCGMemOpIdx oi, bool is_64)
 {
+    TCGMemOp memop = get_memop(oi);
 #ifdef CONFIG_SOFTMMU
+    unsigned memi = get_mmuidx(oi);
     TCGMemOp s_bits = memop & MO_SIZE;
     TCGReg addrz, param;
     tcg_insn_unit *func;
@@ -1150,9 +1152,11 @@ static void tcg_out_qemu_ld(TCGContext *s, TCGReg data, TCGReg addr,
 }
 
 static void tcg_out_qemu_st(TCGContext *s, TCGReg data, TCGReg addr,
-                            TCGMemOp memop, int memi)
+                            TCGMemOpIdx oi)
 {
+    TCGMemOp memop = get_memop(oi);
 #ifdef CONFIG_SOFTMMU
+    unsigned memi = get_mmuidx(oi);
     TCGMemOp s_bits = memop & MO_SIZE;
     TCGReg addrz, param;
     tcg_insn_unit *func;
@@ -1363,14 +1367,14 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc,
         break;
 
     case INDEX_op_qemu_ld_i32:
-        tcg_out_qemu_ld(s, a0, a1, a2, args[3], false);
+        tcg_out_qemu_ld(s, a0, a1, a2, false);
         break;
     case INDEX_op_qemu_ld_i64:
-        tcg_out_qemu_ld(s, a0, a1, a2, args[3], true);
+        tcg_out_qemu_ld(s, a0, a1, a2, true);
         break;
     case INDEX_op_qemu_st_i32:
     case INDEX_op_qemu_st_i64:
-        tcg_out_qemu_st(s, a0, a1, a2, args[3]);
+        tcg_out_qemu_st(s, a0, a1, a2);
         break;
 
     case INDEX_op_ld32s_i64:

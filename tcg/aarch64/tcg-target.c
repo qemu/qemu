@@ -1197,9 +1197,11 @@ static void tcg_out_qemu_st_direct(TCGContext *s, TCGMemOp memop,
 }
 
 static void tcg_out_qemu_ld(TCGContext *s, TCGReg data_reg, TCGReg addr_reg,
-                            TCGMemOp memop, TCGType ext, int mem_index)
+                            TCGMemOpIdx oi, TCGType ext)
 {
+    TCGMemOp memop = get_memop(oi);
 #ifdef CONFIG_SOFTMMU
+    unsigned mem_index = get_mmuidx(oi);
     TCGMemOp s_bits = memop & MO_SIZE;
     tcg_insn_unit *label_ptr;
 
@@ -1214,9 +1216,11 @@ static void tcg_out_qemu_ld(TCGContext *s, TCGReg data_reg, TCGReg addr_reg,
 }
 
 static void tcg_out_qemu_st(TCGContext *s, TCGReg data_reg, TCGReg addr_reg,
-                            TCGMemOp memop, int mem_index)
+                            TCGMemOpIdx oi)
 {
+    TCGMemOp memop = get_memop(oi);
 #ifdef CONFIG_SOFTMMU
+    unsigned mem_index = get_mmuidx(oi);
     TCGMemOp s_bits = memop & MO_SIZE;
     tcg_insn_unit *label_ptr;
 
@@ -1515,11 +1519,11 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc,
 
     case INDEX_op_qemu_ld_i32:
     case INDEX_op_qemu_ld_i64:
-        tcg_out_qemu_ld(s, a0, a1, a2, ext, args[3]);
+        tcg_out_qemu_ld(s, a0, a1, a2, ext);
         break;
     case INDEX_op_qemu_st_i32:
     case INDEX_op_qemu_st_i64:
-        tcg_out_qemu_st(s, REG0(0), a1, a2, args[3]);
+        tcg_out_qemu_st(s, REG0(0), a1, a2);
         break;
 
     case INDEX_op_bswap64_i64:

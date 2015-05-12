@@ -1463,6 +1463,7 @@ static inline void tcg_out_qemu_ld_direct(TCGContext *s, TCGMemOp opc,
 static void tcg_out_qemu_ld(TCGContext *s, const TCGArg *args, bool is64)
 {
     TCGReg addrlo, datalo, datahi, addrhi __attribute__((unused));
+    TCGMemOpIdx oi;
     TCGMemOp opc;
 #ifdef CONFIG_SOFTMMU
     int mem_index;
@@ -1474,10 +1475,11 @@ static void tcg_out_qemu_ld(TCGContext *s, const TCGArg *args, bool is64)
     datahi = (is64 ? *args++ : 0);
     addrlo = *args++;
     addrhi = (TARGET_LONG_BITS == 64 ? *args++ : 0);
-    opc = *args++;
+    oi = *args++;
+    opc = get_memop(oi);
 
 #ifdef CONFIG_SOFTMMU
-    mem_index = *args;
+    mem_index = get_mmuidx(oi);
     addend = tcg_out_tlb_read(s, addrlo, addrhi, opc & MO_SIZE, mem_index, 1);
 
     /* This a conditional BL only to load a pointer within this opcode into LR
@@ -1592,6 +1594,7 @@ static inline void tcg_out_qemu_st_direct(TCGContext *s, TCGMemOp opc,
 static void tcg_out_qemu_st(TCGContext *s, const TCGArg *args, bool is64)
 {
     TCGReg addrlo, datalo, datahi, addrhi __attribute__((unused));
+    TCGMemOpIdx oi;
     TCGMemOp opc;
 #ifdef CONFIG_SOFTMMU
     int mem_index;
@@ -1603,10 +1606,11 @@ static void tcg_out_qemu_st(TCGContext *s, const TCGArg *args, bool is64)
     datahi = (is64 ? *args++ : 0);
     addrlo = *args++;
     addrhi = (TARGET_LONG_BITS == 64 ? *args++ : 0);
-    opc = *args++;
+    oi = *args++;
+    opc = get_memop(oi);
 
 #ifdef CONFIG_SOFTMMU
-    mem_index = *args;
+    mem_index = get_mmuidx(oi);
     addend = tcg_out_tlb_read(s, addrlo, addrhi, opc & MO_SIZE, mem_index, 0);
 
     tcg_out_qemu_st_index(s, COND_EQ, opc, datalo, datahi, addrlo, addend);

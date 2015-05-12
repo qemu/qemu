@@ -1150,6 +1150,7 @@ static void tcg_out_qemu_ld(TCGContext *s, const TCGArg *args, bool is_64)
 {
     TCGReg addr_regl, addr_regh __attribute__((unused));
     TCGReg data_regl, data_regh;
+    TCGMemOpIdx oi;
     TCGMemOp opc;
 #if defined(CONFIG_SOFTMMU)
     tcg_insn_unit *label_ptr[2];
@@ -1164,10 +1165,11 @@ static void tcg_out_qemu_ld(TCGContext *s, const TCGArg *args, bool is_64)
     data_regh = (is_64 ? *args++ : 0);
     addr_regl = *args++;
     addr_regh = (TARGET_LONG_BITS == 64 ? *args++ : 0);
-    opc = *args++;
+    oi = *args++;
+    opc = get_memop(oi);
 
 #if defined(CONFIG_SOFTMMU)
-    mem_index = *args;
+    mem_index = get_mmuidx(oi);
     s_bits = opc & MO_SIZE;
 
     tcg_out_tlb_load(s, base, addr_regl, addr_regh, mem_index,
@@ -1279,6 +1281,7 @@ static void tcg_out_qemu_st(TCGContext *s, const TCGArg *args, bool is_64)
 {
     TCGReg addr_regl, addr_regh __attribute__((unused));
     TCGReg data_regl, data_regh, base;
+    TCGMemOpIdx oi;
     TCGMemOp opc;
 #if defined(CONFIG_SOFTMMU)
     tcg_insn_unit *label_ptr[2];
@@ -1290,10 +1293,11 @@ static void tcg_out_qemu_st(TCGContext *s, const TCGArg *args, bool is_64)
     data_regh = (is_64 ? *args++ : 0);
     addr_regl = *args++;
     addr_regh = (TARGET_LONG_BITS == 64 ? *args++ : 0);
-    opc = *args++;
+    oi = *args++;
+    opc = get_memop(oi);
 
 #if defined(CONFIG_SOFTMMU)
-    mem_index = *args;
+    mem_index = get_mmuidx(oi);
     s_bits = opc & 3;
 
     /* Note that we eliminated the helper's address argument,

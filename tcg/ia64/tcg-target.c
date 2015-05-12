@@ -1634,14 +1634,16 @@ static inline void tcg_out_qemu_ld(TCGContext *s, const TCGArg *args)
         OPC_LD1_M1, OPC_LD2_M1, OPC_LD4_M1, OPC_LD8_M1
     };
     int addr_reg, data_reg, mem_index;
+    TCGMemOpIdx oi;
     TCGMemOp opc, s_bits;
     uint64_t fin1, fin2;
     tcg_insn_unit *label_ptr;
 
     data_reg = args[0];
     addr_reg = args[1];
-    opc = args[2];
-    mem_index = args[3];
+    oi = args[2];
+    opc = get_memop(oi);
+    mem_index = get_mmuidx(oi);
     s_bits = opc & MO_SIZE;
 
     /* Read the TLB entry */
@@ -1696,13 +1698,15 @@ static inline void tcg_out_qemu_st(TCGContext *s, const TCGArg *args)
     TCGReg addr_reg, data_reg;
     int mem_index;
     uint64_t pre1, pre2;
+    TCGMemOpIdx oi;
     TCGMemOp opc, s_bits;
     tcg_insn_unit *label_ptr;
 
     data_reg = args[0];
     addr_reg = args[1];
-    opc = args[2];
-    mem_index = args[3];
+    oi = args[2];
+    opc = get_memop(oi);
+    mem_index = get_mmuidx(oi);
     s_bits = opc & MO_SIZE;
 
     /* Note that we always use LE helper functions, so the bswap insns

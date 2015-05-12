@@ -826,6 +826,44 @@ static inline size_t tcg_current_code_size(TCGContext *s)
     return tcg_ptr_byte_diff(s->code_ptr, s->code_buf);
 }
 
+/* Combine the TCGMemOp and mmu_idx parameters into a single value.  */
+typedef uint32_t TCGMemOpIdx;
+
+/**
+ * make_memop_idx
+ * @op: memory operation
+ * @idx: mmu index
+ *
+ * Encode these values into a single parameter.
+ */
+static inline TCGMemOpIdx make_memop_idx(TCGMemOp op, unsigned idx)
+{
+    tcg_debug_assert(idx <= 15);
+    return (op << 4) | idx;
+}
+
+/**
+ * get_memop
+ * @oi: combined op/idx parameter
+ *
+ * Extract the memory operation from the combined value.
+ */
+static inline TCGMemOp get_memop(TCGMemOpIdx oi)
+{
+    return oi >> 4;
+}
+
+/**
+ * get_mmuidx
+ * @oi: combined op/idx parameter
+ *
+ * Extract the mmu index from the combined value.
+ */
+static inline unsigned get_mmuidx(TCGMemOpIdx oi)
+{
+    return oi & 15;
+}
+
 /**
  * tcg_qemu_tb_exec:
  * @env: CPUArchState * for the CPU

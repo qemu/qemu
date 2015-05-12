@@ -1575,6 +1575,7 @@ static void tcg_out_qemu_ld(TCGContext *s, const TCGArg *args, bool is_64)
 {
     TCGReg datalo, datahi, addrlo, rbase;
     TCGReg addrhi __attribute__((unused));
+    TCGMemOpIdx oi;
     TCGMemOp opc, s_bits;
 #ifdef CONFIG_SOFTMMU
     int mem_index;
@@ -1585,11 +1586,12 @@ static void tcg_out_qemu_ld(TCGContext *s, const TCGArg *args, bool is_64)
     datahi = (TCG_TARGET_REG_BITS == 32 && is_64 ? *args++ : 0);
     addrlo = *args++;
     addrhi = (TCG_TARGET_REG_BITS < TARGET_LONG_BITS ? *args++ : 0);
-    opc = *args++;
+    oi = *args++;
+    opc = get_memop(oi);
     s_bits = opc & MO_SIZE;
 
 #ifdef CONFIG_SOFTMMU
-    mem_index = *args;
+    mem_index = get_mmuidx(oi);
     addrlo = tcg_out_tlb_read(s, s_bits, addrlo, addrhi, mem_index, true);
 
     /* Load a pointer into the current opcode w/conditional branch-link. */
@@ -1648,6 +1650,7 @@ static void tcg_out_qemu_st(TCGContext *s, const TCGArg *args, bool is_64)
 {
     TCGReg datalo, datahi, addrlo, rbase;
     TCGReg addrhi __attribute__((unused));
+    TCGMemOpIdx oi;
     TCGMemOp opc, s_bits;
 #ifdef CONFIG_SOFTMMU
     int mem_index;
@@ -1658,11 +1661,12 @@ static void tcg_out_qemu_st(TCGContext *s, const TCGArg *args, bool is_64)
     datahi = (TCG_TARGET_REG_BITS == 32 && is_64 ? *args++ : 0);
     addrlo = *args++;
     addrhi = (TCG_TARGET_REG_BITS < TARGET_LONG_BITS ? *args++ : 0);
-    opc = *args++;
+    oi = *args++;
+    opc = get_memop(oi);
     s_bits = opc & MO_SIZE;
 
 #ifdef CONFIG_SOFTMMU
-    mem_index = *args;
+    mem_index = get_mmuidx(oi);
     addrlo = tcg_out_tlb_read(s, s_bits, addrlo, addrhi, mem_index, false);
 
     /* Load a pointer into the current opcode w/conditional branch-link. */

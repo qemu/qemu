@@ -918,7 +918,8 @@ static void tcg_constant_folding(TCGContext *s)
 
         CASE_OP_32_64(qemu_ld):
             {
-                TCGMemOp mop = args[nb_oargs + nb_iargs];
+                TCGMemOpIdx oi = args[nb_oargs + nb_iargs];
+                TCGMemOp mop = get_memop(oi);
                 if (!(mop & MO_SIGN)) {
                     mask = (2ULL << ((8 << (mop & MO_SIZE)) - 1)) - 1;
                 }
