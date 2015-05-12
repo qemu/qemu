@@ -286,6 +286,23 @@ static void gic_set_cpu_control(GICState *s, int cpu, uint32_t value,
             (s->cpu_ctlr[cpu] & GICC_CTLR_EN_GRP1) ? "En" : "Dis");
 }
 
+static uint8_t gic_get_running_priority(GICState *s, int cpu, MemTxAttrs attrs)
+{
+    if (s->security_extn && !attrs.secure) {
+        if (s->running_priority[cpu] & 0x80) {
+            /* Running priority in upper half of range: return the Non-secure
+             * view of the priority.
+             */
+            return s->running_priority[cpu] << 1;
+        } else {
+            /* Running priority in lower half of range: RAZ */
+            return 0;
+        }
+    } else {
+        return s->running_priority[cpu];
+    }
+}
+
 void gic_complete_irq(GICState *s, int cpu, int irq)
 {
     int update = 0;
@@ -817,7 +834,7 @@ static MemTxResult gic_cpu_read(GICState *s, int cpu, int offset,
         *data = gic_acknowledge_irq(s, cpu);
         break;
     case 0x14: /* Running Priority */
-        *data = s->running_priority[cpu];
+        *data = gic_get_running_priority(s, cpu, attrs);
         break;
     case 0x18: /* Highest Pending Interrupt */
         *data = s->current_pending[cpu];
