@@ -544,6 +544,12 @@ static void kvm_arm_gic_realize(DeviceState *dev, Error **errp)
         return;
     }
 
+    if (s->security_extn) {
+        error_setg(errp, "the in-kernel VGIC does not implement the "
+                   "security extensions");
+        return;
+    }
+
     i = s->num_irq - GIC_INTERNAL;
     /* For the GIC, also expose incoming GPIO lines for PPIs for each CPU.
      * GPIO array layout is thus:

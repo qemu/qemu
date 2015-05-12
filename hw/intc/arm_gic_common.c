@@ -110,6 +110,13 @@ static void arm_gic_common_realize(DeviceState *dev, Error **errp)
                    num_irq);
         return;
     }
+
+    if (s->security_extn &&
+        (s->revision == REV_11MPCORE || s->revision == REV_NVIC)) {
+        error_setg(errp, "this GIC revision does not implement "
+                   "the security extensions");
+        return;
+    }
 }
 
 static void arm_gic_common_reset(DeviceState *dev)
@@ -149,6 +156,8 @@ static Property arm_gic_common_properties[] = {
      * (Internally, 0xffffffff also indicates "not a GIC but an NVIC".)
      */
     DEFINE_PROP_UINT32("revision", GICState, revision, 1),
+    /* True if the GIC should implement the security extensions */
+    DEFINE_PROP_BOOL("has-security-extensions", GICState, security_extn, 0),
     DEFINE_PROP_END_OF_LIST(),
 };
 

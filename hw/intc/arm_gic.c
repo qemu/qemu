@@ -298,7 +298,10 @@ static uint32_t gic_dist_readb(void *opaque, hwaddr offset)
         if (offset == 0)
             return s->enabled;
         if (offset == 4)
-            return ((s->num_irq / 32) - 1) | ((NUM_CPU(s) - 1) << 5);
+            /* Interrupt Controller Type Register */
+            return ((s->num_irq / 32) - 1)
+                    | ((NUM_CPU(s) - 1) << 5)
+                    | (s->security_extn << 10);
         if (offset < 0x08)
             return 0;
         if (offset >= 0x80) {
