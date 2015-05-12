@@ -68,7 +68,7 @@ void gic_update(GICState *s)
         cm = 1 << cpu;
         s->current_pending[cpu] = 1023;
         if (!(s->ctlr & (GICD_CTLR_EN_GRP0 | GICD_CTLR_EN_GRP1))
-            || !s->cpu_enabled[cpu]) {
+            || !(s->cpu_ctlr[cpu] & (GICC_CTLR_EN_GRP0 | GICC_CTLR_EN_GRP1))) {
             qemu_irq_lower(s->parent_irq[cpu]);
             return;
         }
@@ -240,6 +240,50 @@ void gic_set_priority(GICState *s, int cpu, int irq, uint8_t val)
     } else {
         s->priority2[(irq) - GIC_INTERNAL] = val;
     }
+}
+
+static uint32_t gic_get_cpu_control(GICState *s, int cpu, MemTxAttrs attrs)
+{
+    uint32_t ret = s->cpu_ctlr[cpu];
+
+    if (s->security_extn && !attrs.secure) {
+        /* Construct the NS banked view of GICC_CTLR from the correct
+         * bits of the S banked view. We don't need to move the bypass
+         * control bits because we don't implement that (IMPDEF) part
+         * of the GIC architecture.
+         */
+        ret = (ret & (GICC_CTLR_EN_GRP1 | GICC_CTLR_EOIMODE_NS)) >> 1;
+    }
+    return ret;
+}
+
+static void gic_set_cpu_control(GICState *s, int cpu, uint32_t value,
+                                MemTxAttrs attrs)
+{
+    uint32_t mask;
+
+    if (s->security_extn && !attrs.secure) {
+        /* The NS view can only write certain bits in the register;
+         * the rest are unchanged
+         */
+        mask = GICC_CTLR_EN_GRP1;
+        if (s->revision == 2) {
+            mask |= GICC_CTLR_EOIMODE_NS;
+        }
+        s->cpu_ctlr[cpu] &= ~mask;
+        s->cpu_ctlr[cpu] |= (value << 1) & mask;
+    } else {
+        if (s->revision == 2) {
+            mask = s->security_extn ? GICC_CTLR_V2_S_MASK : GICC_CTLR_V2_MASK;
+        } else {
+            mask = s->security_extn ? GICC_CTLR_V1_S_MASK : GICC_CTLR_V1_MASK;
+        }
+        s->cpu_ctlr[cpu] = value & mask;
+    }
+    DPRINTF("CPU Interface %d: Group0 Interrupts %sabled, "
+            "Group1 Interrupts %sabled\n", cpu,
+            (s->cpu_ctlr[cpu] & GICC_CTLR_EN_GRP0) ? "En" : "Dis",
+            (s->cpu_ctlr[cpu] & GICC_CTLR_EN_GRP1) ? "En" : "Dis");
 }
 
 void gic_complete_irq(GICState *s, int cpu, int irq)
@@ -756,7 +800,7 @@ static MemTxResult gic_cpu_read(GICState *s, int cpu, int offset,
 {
     switch (offset) {
     case 0x00: /* Control */
-        *data = s->cpu_enabled[cpu];
+        *data = gic_get_cpu_control(s, cpu, attrs);
         break;
     case 0x04: /* Priority mask */
         *data = s->priority_mask[cpu];
@@ -806,8 +850,7 @@ static MemTxResult gic_cpu_write(GICState *s, int cpu, int offset,
 {
     switch (offset) {
     case 0x00: /* Control */
-        s->cpu_enabled[cpu] = (value & 1);
-        DPRINTF("CPU %d %sabled\n", cpu, s->cpu_enabled[cpu] ? "En" : "Dis");
+        gic_set_cpu_control(s, cpu, value, attrs);
         break;
     case 0x04: /* Priority mask */
         s->priority_mask[cpu] = (value & 0xff);

@@ -59,7 +59,10 @@ typedef struct GICState {
      * of this register is just an alias of bit 1 of the S banked version.
      */
     uint32_t ctlr;
-    bool cpu_enabled[GIC_NCPU];
+    /* GICC_CTLR; again, the NS banked version is just aliases of bits of
+     * the S banked register, so our state only needs to store the S version.
+     */
+    uint32_t cpu_ctlr[GIC_NCPU];
 
     gic_irq_state irq_state[GIC_MAXIRQ];
     uint8_t irq_target[GIC_MAXIRQ];

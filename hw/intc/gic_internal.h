@@ -57,6 +57,22 @@
 #define GICD_CTLR_EN_GRP0 (1U << 0)
 #define GICD_CTLR_EN_GRP1 (1U << 1)
 
+#define GICC_CTLR_EN_GRP0    (1U << 0)
+#define GICC_CTLR_EN_GRP1    (1U << 1)
+#define GICC_CTLR_ACK_CTL    (1U << 2)
+#define GICC_CTLR_FIQ_EN     (1U << 3)
+#define GICC_CTLR_CBPR       (1U << 4) /* GICv1: SBPR */
+#define GICC_CTLR_EOIMODE    (1U << 9)
+#define GICC_CTLR_EOIMODE_NS (1U << 10)
+
+/* Valid bits for GICC_CTLR for GICv1, v1 with security extensions,
+ * GICv2 and GICv2 with security extensions:
+ */
+#define GICC_CTLR_V1_MASK    0x1
+#define GICC_CTLR_V1_S_MASK  0x1f
+#define GICC_CTLR_V2_MASK    0x21f
+#define GICC_CTLR_V2_S_MASK  0x61f
+
 /* The special cases for the revision property: */
 #define REV_11MPCORE 0
 #define REV_NVIC 0xffffffff
