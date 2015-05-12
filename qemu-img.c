@@ -165,97 +165,6 @@ static int GCC_FMT_ATTR(2, 3) qprintf(bool quiet, const char *fmt, ...)
     return ret;
 }
 
-#if defined(WIN32)
-/* XXX: put correct support for win32 */
-static int read_password(char *buf, int buf_size)
-{
-    int c, i;
-
-    printf("Password: ");
-    fflush(stdout);
-    i = 0;
-    for(;;) {
-        c = getchar();
-        if (c < 0) {
-            buf[i] = '\0';
-            return -1;
-        } else if (c == '\n') {
-            break;
-        } else if (i < (buf_size - 1)) {
-            buf[i++] = c;
-        }
-    }
-    buf[i] = '\0';
-    return 0;
-}
-
-#else
-
-#include <termios.h>
-
-static struct termios oldtty;
-
-static void term_exit(void)
-{
-    tcsetattr (0, TCSANOW, &oldtty);
-}
-
-static void term_init(void)
-{
-    struct termios tty;
-
-    tcgetattr (0, &tty);
-    oldtty = tty;
-
-    tty.c_iflag &= ~(IGNBRK|BRKINT|PARMRK|ISTRIP
-                          |INLCR|IGNCR|ICRNL|IXON);
-    tty.c_oflag |= OPOST;
-    tty.c_lflag &= ~(ECHO|ECHONL|ICANON|IEXTEN);
-    tty.c_cflag &= ~(CSIZE|PARENB);
-    tty.c_cflag |= CS8;
-    tty.c_cc[VMIN] = 1;
-    tty.c_cc[VTIME] = 0;
-
-    tcsetattr (0, TCSANOW, &tty);
-
-    atexit(term_exit);
-}
-
-static int read_password(char *buf, int buf_size)
-{
-    uint8_t ch;
-    int i, ret;
-
-    printf("password: ");
-    fflush(stdout);
-    term_init();
-    i = 0;
-    for(;;) {
-        ret = read(0, &ch, 1);
-        if (ret == -1) {
-            if (errno == EAGAIN || errno == EINTR) {
-                continue;
-            } else {
-                break;
-            }
-        } else if (ret == 0) {
-            ret = -1;
-            break;
-        } else {
-            if (ch == '\r') {
-                ret = 0;
-                break;
-            }
-            if (i < (buf_size - 1))
-                buf[i++] = ch;
-        }
-    }
-    term_exit();
-    buf[i] = '\0';
-    printf("\n");
-    return ret;
-}
-#endif
 
 static int print_block_option_help(const char *filename, const char *fmt)
 {
@@ -312,7 +221,7 @@ static BlockBackend *img_open(const char *id, const char *filename,
     bs = blk_bs(blk);
     if (bdrv_is_encrypted(bs) && require_io) {
         qprintf(quiet, "Disk image '%s' is encrypted.\n", filename);
-        if (read_password(password, sizeof(password)) < 0) {
+        if (qemu_read_password(password, sizeof(password)) < 0) {
             error_report("No password given");
             goto fail;
         }
