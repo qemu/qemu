@@ -467,7 +467,8 @@ int qemu_read_password(char *buf, int buf_size)
             ret = -1;
             break;
         } else {
-            if (ch == '\r') {
+            if (ch == '\r' ||
+                ch == '\n') {
                 ret = 0;
                 break;
             }
