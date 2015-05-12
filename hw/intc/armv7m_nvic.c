@@ -77,6 +77,15 @@ static inline int64_t systick_scale(nvic_state *s)
 
 static void systick_reload(nvic_state *s, int reset)
 {
+    /* The Cortex-M3 Devices Generic User Guide says that "When the
+     * ENABLE bit is set to 1, the counter loads the RELOAD value from the
+     * SYST RVR register and then counts down". So, we need to check the
+     * ENABLE bit before reloading the value.
+     */
+    if ((s->systick.control & SYSTICK_ENABLE) == 0) {
+        return;
+    }
+
     if (reset)
         s->systick.tick = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
     s->systick.tick += (s->systick.reload + 1) * systick_scale(s);
