@@ -386,6 +386,8 @@ static uint32_t create_gic(const VirtBoardInfo *vbi, qemu_irq *pic)
                               qdev_get_gpio_in(gicdev, ppibase + 27));
 
         sysbus_connect_irq(gicbusdev, i, qdev_get_gpio_in(cpudev, ARM_CPU_IRQ));
+        sysbus_connect_irq(gicbusdev, i + smp_cpus,
+                           qdev_get_gpio_in(cpudev, ARM_CPU_FIQ));
     }
 
     for (i = 0; i < NUM_IRQS; i++) {
