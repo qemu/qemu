@@ -561,6 +561,8 @@ static QObject *parse_keyword(JSONParserContext *ctxt)
         ret = QOBJECT(qbool_from_int(true));
     } else if (token_is_keyword(token, "false")) {
         ret = QOBJECT(qbool_from_int(false));
+    } else if (token_is_keyword(token, "null")) {
+        ret = qnull();
     } else {
         parse_error(ctxt, token, "invalid keyword `%s'", token_get_value(token));
         goto out;

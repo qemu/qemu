@@ -24,6 +24,8 @@ struct QJSON {
     bool omit_comma;
 };
 
+#define QJSON(obj) OBJECT_CHECK(QJSON, (obj), TYPE_QJSON)
+
 static void json_emit_element(QJSON *json, const char *name)
 {
     /* Check whether we need to print a , before an element */
@@ -87,7 +89,7 @@ const char *qjson_get_str(QJSON *json)
 
 QJSON *qjson_new(void)
 {
-    QJSON *json = (QJSON *)object_new(TYPE_QJSON);
+    QJSON *json = QJSON(object_new(TYPE_QJSON));
     return json;
 }
 
@@ -98,8 +100,7 @@ void qjson_finish(QJSON *json)
 
 static void qjson_initfn(Object *obj)
 {
-    QJSON *json = (QJSON *)object_dynamic_cast(obj, TYPE_QJSON);
-    assert(json);
+    QJSON *json = QJSON(obj);
 
     json->str = qstring_from_str("{ ");
     json->omit_comma = true;
@@ -107,9 +108,8 @@ static void qjson_initfn(Object *obj)
 
 static void qjson_finalizefn(Object *obj)
 {
-    QJSON *json = (QJSON *)object_dynamic_cast(obj, TYPE_QJSON);
+    QJSON *json = QJSON(obj);
 
-    assert(json);
     qobject_decref(QOBJECT(json->str));
 }
 

@@ -226,7 +226,7 @@ struct Property {
     PropertyInfo *info;
     int          offset;
     uint8_t      bitnr;
-    uint8_t      qtype;
+    qtype_code   qtype;
     int64_t      defval;
     int          arrayoffset;
     PropertyInfo *arrayinfo;
