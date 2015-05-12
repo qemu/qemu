@@ -52,14 +52,15 @@ static const VMStateDescription vmstate_gic_irq_state = {
         VMSTATE_UINT8(level, gic_irq_state),
         VMSTATE_BOOL(model, gic_irq_state),
         VMSTATE_BOOL(edge_trigger, gic_irq_state),
+        VMSTATE_UINT8(group, gic_irq_state),
         VMSTATE_END_OF_LIST()
     }
 };
 
 static const VMStateDescription vmstate_gic = {
     .name = "arm_gic",
-    .version_id = 7,
-    .minimum_version_id = 7,
+    .version_id = 8,
+    .minimum_version_id = 8,
     .pre_save = gic_pre_save,
     .post_load = gic_post_load,
     .fields = (VMStateField[]) {

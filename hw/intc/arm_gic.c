@@ -45,6 +45,14 @@ static inline int gic_get_current_cpu(GICState *s)
     return 0;
 }
 
+/* Return true if this GIC config has interrupt groups, which is
+ * true if we're a GICv2, or a GICv1 with the security extensions.
+ */
+static inline bool gic_has_groups(GICState *s)
+{
+    return s->revision == 2 || s->security_extn;
+}
+
 /* TODO: Many places that call this routine could be optimized.  */
 /* Update interrupt status after enabled or pending bits have been changed.  */
 void gic_update(GICState *s)
@@ -305,8 +313,24 @@ static uint32_t gic_dist_readb(void *opaque, hwaddr offset, MemTxAttrs attrs)
         if (offset < 0x08)
             return 0;
         if (offset >= 0x80) {
-            /* Interrupt Security , RAZ/WI */
-            return 0;
+            /* Interrupt Group Registers: these RAZ/WI if this is an NS
+             * access to a GIC with the security extensions, or if the GIC
+             * doesn't have groups at all.
+             */
+            res = 0;
+            if (!(s->security_extn && !attrs.secure) && gic_has_groups(s)) {
+                /* Every byte offset holds 8 group status bits */
+                irq = (offset - 0x080) * 8 + GIC_BASE_IRQ;
+                if (irq >= s->num_irq) {
+                    goto bad_reg;
+                }
+                for (i = 0; i < 8; i++) {
+                    if (GIC_TEST_GROUP(irq + i, cm)) {
+                        res |= (1 << i);
+                    }
+                }
+            }
+            return res;
         }
         goto bad_reg;
     } else if (offset < 0x200) {
@@ -456,7 +480,27 @@ static void gic_dist_writeb(void *opaque, hwaddr offset,
         } else if (offset < 4) {
             /* ignored.  */
         } else if (offset >= 0x80) {
-            /* Interrupt Security Registers, RAZ/WI */
+            /* Interrupt Group Registers: RAZ/WI for NS access to secure
+             * GIC, or for GICs without groups.
+             */
+            if (!(s->security_extn && !attrs.secure) && gic_has_groups(s)) {
+                /* Every byte offset holds 8 group status bits */
+                irq = (offset - 0x80) * 8 + GIC_BASE_IRQ;
+                if (irq >= s->num_irq) {
+                    goto bad_reg;
+                }
+                for (i = 0; i < 8; i++) {
+                    /* Group bits are banked for private interrupts */
+                    int cm = (irq < GIC_INTERNAL) ? (1 << cpu) : ALL_CPU_MASK;
+                    if (value & (1 << i)) {
+                        /* Group1 (Non-secure) */
+                        GIC_SET_GROUP(irq + i, cm);
+                    } else {
+                        /* Group0 (Secure) */
+                        GIC_CLEAR_GROUP(irq + i, cm);
+                    }
+                }
+            }
         } else {
             goto bad_reg;
         }

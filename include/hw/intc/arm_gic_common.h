@@ -42,6 +42,7 @@ typedef struct gic_irq_state {
     uint8_t level;
     bool model; /* 0 = N:N, 1 = 1:N */
     bool edge_trigger; /* true: edge-triggered, false: level-triggered  */
+    uint8_t group;
 } gic_irq_state;
 
 typedef struct GICState {

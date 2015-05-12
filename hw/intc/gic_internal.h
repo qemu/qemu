@@ -50,6 +50,10 @@
                                     s->priority1[irq][cpu] :            \
                                     s->priority2[(irq) - GIC_INTERNAL])
 #define GIC_TARGET(irq) s->irq_target[irq]
+#define GIC_CLEAR_GROUP(irq, cm) (s->irq_state[irq].group &= ~(cm))
+#define GIC_SET_GROUP(irq, cm) (s->irq_state[irq].group |= (cm))
+#define GIC_TEST_GROUP(irq, cm) ((s->irq_state[irq].group & (cm)) != 0)
+
 
 /* The special cases for the revision property: */
 #define REV_11MPCORE 0
