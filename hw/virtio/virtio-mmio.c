@@ -22,7 +22,9 @@
 #include "hw/sysbus.h"
 #include "hw/virtio/virtio.h"
 #include "qemu/host-utils.h"
+#include "sysemu/kvm.h"
 #include "hw/virtio/virtio-bus.h"
+#include "qemu/error-report.h"
 
 /* #define DEBUG_VIRTIO_MMIO */
 
@@ -86,7 +88,95 @@ typedef struct {
     uint32_t guest_page_shift;
     /* virtio-bus */
     VirtioBusState bus;
+    bool ioeventfd_disabled;
+    bool ioeventfd_started;
 } VirtIOMMIOProxy;
+
+static int virtio_mmio_set_host_notifier_internal(VirtIOMMIOProxy *proxy,
+                                                  int n, bool assign,
+                                                  bool set_handler)
+{
+    VirtIODevice *vdev = virtio_bus_get_device(&proxy->bus);
+    VirtQueue *vq = virtio_get_queue(vdev, n);
+    EventNotifier *notifier = virtio_queue_get_host_notifier(vq);
+    int r = 0;
+
+    if (assign) {
+        r = event_notifier_init(notifier, 1);
+        if (r < 0) {
+            error_report("%s: unable to init event notifier: %d",
+                         __func__, r);
+            return r;
+        }
+        virtio_queue_set_host_notifier_fd_handler(vq, true, set_handler);
+        memory_region_add_eventfd(&proxy->iomem, VIRTIO_MMIO_QUEUENOTIFY, 4,
+                                  true, n, notifier);
+    } else {
+        memory_region_del_eventfd(&proxy->iomem, VIRTIO_MMIO_QUEUENOTIFY, 4,
+                                  true, n, notifier);
+        virtio_queue_set_host_notifier_fd_handler(vq, false, false);
+        event_notifier_cleanup(notifier);
+    }
+    return r;
+}
+
+static void virtio_mmio_start_ioeventfd(VirtIOMMIOProxy *proxy)
+{
+    VirtIODevice *vdev = virtio_bus_get_device(&proxy->bus);
+    int n, r;
+
+    if (!kvm_eventfds_enabled() ||
+        proxy->ioeventfd_disabled ||
+        proxy->ioeventfd_started) {
+        return;
+    }
+
+    for (n = 0; n < VIRTIO_QUEUE_MAX; n++) {
+        if (!virtio_queue_get_num(vdev, n)) {
+            continue;
+        }
+
+        r = virtio_mmio_set_host_notifier_internal(proxy, n, true, true);
+        if (r < 0) {
+            goto assign_error;
+        }
+    }
+    proxy->ioeventfd_started = true;
+    return;
+
+assign_error:
+    while (--n >= 0) {
+        if (!virtio_queue_get_num(vdev, n)) {
+            continue;
+        }
+
+        r = virtio_mmio_set_host_notifier_internal(proxy, n, false, false);
+        assert(r >= 0);
+    }
+    proxy->ioeventfd_started = false;
+    error_report("%s: failed. Fallback to a userspace (slower).", __func__);
+}
+
+static void virtio_mmio_stop_ioeventfd(VirtIOMMIOProxy *proxy)
+{
+    int r;
+    int n;
+    VirtIODevice *vdev = virtio_bus_get_device(&proxy->bus);
+
+    if (!proxy->ioeventfd_started) {
+        return;
+    }
+
+    for (n = 0; n < VIRTIO_QUEUE_MAX; n++) {
+        if (!virtio_queue_get_num(vdev, n)) {
+            continue;
+        }
+
+        r = virtio_mmio_set_host_notifier_internal(proxy, n, false, false);
+        assert(r >= 0);
+    }
+    proxy->ioeventfd_started = false;
+}
 
 static uint64_t virtio_mmio_read(void *opaque, hwaddr offset, unsigned size)
 {
@@ -265,7 +355,16 @@ static void virtio_mmio_write(void *opaque, hwaddr offset, uint64_t value,
         virtio_update_irq(vdev);
         break;
     case VIRTIO_MMIO_STATUS:
+        if (!(value & VIRTIO_CONFIG_S_DRIVER_OK)) {
+            virtio_mmio_stop_ioeventfd(proxy);
+        }
+
         virtio_set_status(vdev, value & 0xff);
+
+        if (value & VIRTIO_CONFIG_S_DRIVER_OK) {
+            virtio_mmio_start_ioeventfd(proxy);
+        }
+
         if (vdev->status == 0) {
             virtio_reset(vdev);
         }
@@ -328,10 +427,90 @@ static void virtio_mmio_reset(DeviceState *d)
 {
     VirtIOMMIOProxy *proxy = VIRTIO_MMIO(d);
 
+    virtio_mmio_stop_ioeventfd(proxy);
     virtio_bus_reset(&proxy->bus);
     proxy->host_features_sel = 0;
     proxy->guest_features_sel = 0;
     proxy->guest_page_shift = 0;
+}
+
+static int virtio_mmio_set_guest_notifier(DeviceState *d, int n, bool assign,
+                                          bool with_irqfd)
+{
+    VirtIOMMIOProxy *proxy = VIRTIO_MMIO(d);
+    VirtIODevice *vdev = virtio_bus_get_device(&proxy->bus);
+    VirtioDeviceClass *vdc = VIRTIO_DEVICE_GET_CLASS(vdev);
+    VirtQueue *vq = virtio_get_queue(vdev, n);
+    EventNotifier *notifier = virtio_queue_get_guest_notifier(vq);
+
+    if (assign) {
+        int r = event_notifier_init(notifier, 0);
+        if (r < 0) {
+            return r;
+        }
+        virtio_queue_set_guest_notifier_fd_handler(vq, true, with_irqfd);
+    } else {
+        virtio_queue_set_guest_notifier_fd_handler(vq, false, with_irqfd);
+        event_notifier_cleanup(notifier);
+    }
+
+    if (vdc->guest_notifier_mask) {
+        vdc->guest_notifier_mask(vdev, n, !assign);
+    }
+
+    return 0;
+}
+
+static int virtio_mmio_set_guest_notifiers(DeviceState *d, int nvqs,
+                                           bool assign)
+{
+    VirtIOMMIOProxy *proxy = VIRTIO_MMIO(d);
+    VirtIODevice *vdev = virtio_bus_get_device(&proxy->bus);
+    /* TODO: need to check if kvm-arm supports irqfd */
+    bool with_irqfd = false;
+    int r, n;
+
+    nvqs = MIN(nvqs, VIRTIO_QUEUE_MAX);
+
+    for (n = 0; n < nvqs; n++) {
+        if (!virtio_queue_get_num(vdev, n)) {
+            break;
+        }
+
+        r = virtio_mmio_set_guest_notifier(d, n, assign, with_irqfd);
+        if (r < 0) {
+            goto assign_error;
+        }
+    }
+
+    return 0;
+
+assign_error:
+    /* We get here on assignment failure. Recover by undoing for VQs 0 .. n. */
+    assert(assign);
+    while (--n >= 0) {
+        virtio_mmio_set_guest_notifier(d, n, !assign, false);
+    }
+    return r;
+}
+
+static int virtio_mmio_set_host_notifier(DeviceState *opaque, int n,
+                                         bool assign)
+{
+    VirtIOMMIOProxy *proxy = VIRTIO_MMIO(opaque);
+
+    /* Stop using ioeventfd for virtqueue kick if the device starts using host
+     * notifiers.  This makes it easy to avoid stepping on each others' toes.
+     */
+    proxy->ioeventfd_disabled = assign;
+    if (assign) {
+        virtio_mmio_stop_ioeventfd(proxy);
+    }
+    /* We don't need to start here: it's not needed because backend
+     * currently only stops on status change away from ok,
+     * reset, vmstop and such. If we do add code to start here,
+     * need to check vmstate, device state etc. */
+    return virtio_mmio_set_host_notifier_internal(proxy, n, assign, false);
 }
 
 /* virtio-mmio device */
@@ -375,6 +554,8 @@ static void virtio_mmio_bus_class_init(ObjectClass *klass, void *data)
     k->notify = virtio_mmio_update_irq;
     k->save_config = virtio_mmio_save_config;
     k->load_config = virtio_mmio_load_config;
+    k->set_host_notifier = virtio_mmio_set_host_notifier;
+    k->set_guest_notifiers = virtio_mmio_set_guest_notifiers;
     k->has_variable_vring_alignment = true;
     bus_class->max_dev = 1;
 }
