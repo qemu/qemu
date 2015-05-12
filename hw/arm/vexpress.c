@@ -253,6 +253,8 @@ static void init_cpus(const char *cpu_model, const char *privdev,
         DeviceState *cpudev = DEVICE(qemu_get_cpu(n));
 
         sysbus_connect_irq(busdev, n, qdev_get_gpio_in(cpudev, ARM_CPU_IRQ));
+        sysbus_connect_irq(busdev, n + smp_cpus,
+                           qdev_get_gpio_in(cpudev, ARM_CPU_FIQ));
     }
 }
 

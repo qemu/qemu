@@ -77,6 +77,15 @@ static inline int64_t systick_scale(nvic_state *s)
 
 static void systick_reload(nvic_state *s, int reset)
 {
+    /* The Cortex-M3 Devices Generic User Guide says that "When the
+     * ENABLE bit is set to 1, the counter loads the RELOAD value from the
+     * SYST RVR register and then counts down". So, we need to check the
+     * ENABLE bit before reloading the value.
+     */
+    if ((s->systick.control & SYSTICK_ENABLE) == 0) {
+        return;
+    }
+
     if (reset)
         s->systick.tick = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
     s->systick.tick += (s->systick.reload + 1) * systick_scale(s);
@@ -122,7 +131,7 @@ int armv7m_nvic_acknowledge_irq(void *opaque)
     nvic_state *s = (nvic_state *)opaque;
     uint32_t irq;
 
-    irq = gic_acknowledge_irq(&s->gic, 0);
+    irq = gic_acknowledge_irq(&s->gic, 0, MEMTXATTRS_UNSPECIFIED);
     if (irq == 1023)
         hw_error("Interrupt but no vector\n");
     if (irq >= 32)
@@ -135,7 +144,7 @@ void armv7m_nvic_complete_irq(void *opaque, int irq)
     nvic_state *s = (nvic_state *)opaque;
     if (irq >= 16)
         irq += 16;
-    gic_complete_irq(&s->gic, 0, irq);
+    gic_complete_irq(&s->gic, 0, irq, MEMTXATTRS_UNSPECIFIED);
 }
 
 static uint32_t nvic_readl(nvic_state *s, uint32_t offset)
@@ -465,10 +474,10 @@ static void armv7m_nvic_reset(DeviceState *dev)
      * as enabled by default, and with a priority mask which allows
      * all interrupts through.
      */
-    s->gic.cpu_enabled[0] = true;
+    s->gic.cpu_ctlr[0] = GICC_CTLR_EN_GRP0;
     s->gic.priority_mask[0] = 0x100;
     /* The NVIC as a whole is always enabled. */
-    s->gic.enabled = true;
+    s->gic.ctlr = 1;
     systick_reset(s);
 }
 
