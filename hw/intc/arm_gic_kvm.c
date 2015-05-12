@@ -554,11 +554,14 @@ static void kvm_arm_gic_realize(DeviceState *dev, Error **errp)
      */
     i += (GIC_INTERNAL * s->num_cpu);
     qdev_init_gpio_in(dev, kvm_arm_gic_set_irq, i);
-    /* We never use our outbound IRQ lines but provide them so that
+    /* We never use our outbound IRQ/FIQ lines but provide them so that
      * we maintain the same interface as the non-KVM GIC.
      */
     for (i = 0; i < s->num_cpu; i++) {
         sysbus_init_irq(sbd, &s->parent_irq[i]);
+    }
+    for (i = 0; i < s->num_cpu; i++) {
+        sysbus_init_irq(sbd, &s->parent_fiq[i]);
     }
 
     /* Try to create the device via the device control API */

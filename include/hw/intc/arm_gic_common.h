@@ -50,6 +50,7 @@ typedef struct GICState {
     /*< public >*/
 
     qemu_irq parent_irq[GIC_NCPU];
+    qemu_irq parent_fiq[GIC_NCPU];
     bool enabled;
     bool cpu_enabled[GIC_NCPU];
 
