@@ -226,12 +226,6 @@ static void rxfilter_notify(NetClientState *nc)
     }
 }
 
-static char *mac_strdup_printf(const uint8_t *mac)
-{
-    return g_strdup_printf("%.2x:%.2x:%.2x:%.2x:%.2x:%.2x", mac[0],
-                            mac[1], mac[2], mac[3], mac[4], mac[5]);
-}
-
 static intList *get_vlan_table(VirtIONet *n)
 {
     intList *list, *entry;
@@ -284,12 +278,12 @@ static RxFilterInfo *virtio_net_query_rxfilter(NetClientState *nc)
     info->multicast_overflow = n->mac_table.multi_overflow;
     info->unicast_overflow = n->mac_table.uni_overflow;
 
-    info->main_mac = mac_strdup_printf(n->mac);
+    info->main_mac = qemu_mac_strdup_printf(n->mac);
 
     str_list = NULL;
     for (i = 0; i < n->mac_table.first_multi; i++) {
         entry = g_malloc0(sizeof(*entry));
-        entry->value = mac_strdup_printf(n->mac_table.macs + i * ETH_ALEN);
+        entry->value = qemu_mac_strdup_printf(n->mac_table.macs + i * ETH_ALEN);
         entry->next = str_list;
         str_list = entry;
     }
@@ -298,7 +292,7 @@ static RxFilterInfo *virtio_net_query_rxfilter(NetClientState *nc)
     str_list = NULL;
     for (i = n->mac_table.first_multi; i < n->mac_table.in_use; i++) {
         entry = g_malloc0(sizeof(*entry));
-        entry->value = mac_strdup_printf(n->mac_table.macs + i * ETH_ALEN);
+        entry->value = qemu_mac_strdup_printf(n->mac_table.macs + i * ETH_ALEN);
         entry->next = str_list;
         str_list = entry;
     }
