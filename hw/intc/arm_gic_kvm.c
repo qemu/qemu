@@ -176,6 +176,20 @@ static void translate_clear(GICState *s, int irq, int cpu,
     }
 }
 
+static void translate_group(GICState *s, int irq, int cpu,
+                            uint32_t *field, bool to_kernel)
+{
+    int cm = (irq < GIC_INTERNAL) ? (1 << cpu) : ALL_CPU_MASK;
+
+    if (to_kernel) {
+        *field = GIC_TEST_GROUP(irq, cm);
+    } else {
+        if (*field & 1) {
+            GIC_SET_GROUP(irq, cm);
+        }
+    }
+}
+
 static void translate_enabled(GICState *s, int irq, int cpu,
                               uint32_t *field, bool to_kernel)
 {
@@ -365,6 +379,9 @@ static void kvm_arm_gic_put(GICState *s)
     kvm_dist_put(s, 0x180, 1, s->num_irq, translate_clear);
     kvm_dist_put(s, 0x100, 1, s->num_irq, translate_enabled);
 
+    /* irq_state[n].group -> GICD_IGROUPRn */
+    kvm_dist_put(s, 0x80, 1, s->num_irq, translate_group);
+
     /* s->irq_target[irq] -> GICD_ITARGETSRn
      * (restore targets before pending to ensure the pending state is set on
      * the appropriate CPU interfaces in the kernel) */
@@ -454,20 +471,13 @@ static void kvm_arm_gic_get(GICState *s)
     /* GICD_IIDR -> ? */
     kvm_gicd_access(s, 0x8, 0, &reg, false);
 
-    /* Verify no GROUP 1 interrupts configured in the kernel */
-    for_each_irq_reg(i, s->num_irq, 1) {
-        kvm_gicd_access(s, 0x80 + (i * 4), 0, &reg, false);
-        if (reg != 0) {
-            fprintf(stderr, "Unsupported GICD_IGROUPRn value: %08x\n",
-                    reg);
-            abort();
-        }
-    }
-
     /* Clear all the IRQ settings */
     for (i = 0; i < s->num_irq; i++) {
         memset(&s->irq_state[i], 0, sizeof(s->irq_state[0]));
     }
+
+    /* GICD_IGROUPRn -> irq_state[n].group */
+    kvm_dist_get(s, 0x80, 1, s->num_irq, translate_group);
 
     /* GICD_ISENABLERn -> irq_state[n].enabled */
     kvm_dist_get(s, 0x100, 1, s->num_irq, translate_enabled);
