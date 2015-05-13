@@ -239,10 +239,15 @@ typedef struct SaveStateEntry {
     int is_ram;
 } SaveStateEntry;
 
+typedef struct SaveState {
+    QTAILQ_HEAD(, SaveStateEntry) handlers;
+    int global_section_id;
+} SaveState;
 
-static QTAILQ_HEAD(savevm_handlers, SaveStateEntry) savevm_handlers =
-    QTAILQ_HEAD_INITIALIZER(savevm_handlers);
-static int global_section_id;
+static SaveState savevm_state = {
+    .handlers = QTAILQ_HEAD_INITIALIZER(savevm_state.handlers),
+    .global_section_id = 0,
+};
 
 static void dump_vmstate_vmsd(FILE *out_file,
                               const VMStateDescription *vmsd, int indent,
@@ -387,7 +392,7 @@ static int calculate_new_instance_id(const char *idstr)
     SaveStateEntry *se;
     int instance_id = 0;
 
-    QTAILQ_FOREACH(se, &savevm_handlers, entry) {
+    QTAILQ_FOREACH(se, &savevm_state.handlers, entry) {
         if (strcmp(idstr, se->idstr) == 0
             && instance_id <= se->instance_id) {
             instance_id = se->instance_id + 1;
@@ -401,7 +406,7 @@ static int calculate_compat_instance_id(const char *idstr)
     SaveStateEntry *se;
     int instance_id = 0;
 
-    QTAILQ_FOREACH(se, &savevm_handlers, entry) {
+    QTAILQ_FOREACH(se, &savevm_state.handlers, entry) {
         if (!se->compat) {
             continue;
         }
@@ -429,7 +434,7 @@ int register_savevm_live(DeviceState *dev,
 
     se = g_malloc0(sizeof(SaveStateEntry));
     se->version_id = version_id;
-    se->section_id = global_section_id++;
+    se->section_id = savevm_state.global_section_id++;
     se->ops = ops;
     se->opaque = opaque;
     se->vmsd = NULL;
@@ -461,7 +466,7 @@ int register_savevm_live(DeviceState *dev,
     }
     assert(!se->compat || se->instance_id == 0);
     /* add at the end of list */
-    QTAILQ_INSERT_TAIL(&savevm_handlers, se, entry);
+    QTAILQ_INSERT_TAIL(&savevm_state.handlers, se, entry);
     return 0;
 }
 
@@ -495,9 +500,9 @@ void unregister_savevm(DeviceState *dev, const char *idstr, void *opaque)
     }
     pstrcat(id, sizeof(id), idstr);
 
-    QTAILQ_FOREACH_SAFE(se, &savevm_handlers, entry, new_se) {
+    QTAILQ_FOREACH_SAFE(se, &savevm_state.handlers, entry, new_se) {
         if (strcmp(se->idstr, id) == 0 && se->opaque == opaque) {
-            QTAILQ_REMOVE(&savevm_handlers, se, entry);
+            QTAILQ_REMOVE(&savevm_state.handlers, se, entry);
             if (se->compat) {
                 g_free(se->compat);
             }
@@ -519,7 +524,7 @@ int vmstate_register_with_alias_id(DeviceState *dev, int instance_id,
 
     se = g_malloc0(sizeof(SaveStateEntry));
     se->version_id = vmsd->version_id;
-    se->section_id = global_section_id++;
+    se->section_id = savevm_state.global_section_id++;
     se->opaque = opaque;
     se->vmsd = vmsd;
     se->alias_id = alias_id;
@@ -547,7 +552,7 @@ int vmstate_register_with_alias_id(DeviceState *dev, int instance_id,
     }
     assert(!se->compat || se->instance_id == 0);
     /* add at the end of list */
-    QTAILQ_INSERT_TAIL(&savevm_handlers, se, entry);
+    QTAILQ_INSERT_TAIL(&savevm_state.handlers, se, entry);
     return 0;
 }
 
@@ -556,9 +561,9 @@ void vmstate_unregister(DeviceState *dev, const VMStateDescription *vmsd,
 {
     SaveStateEntry *se, *new_se;
 
-    QTAILQ_FOREACH_SAFE(se, &savevm_handlers, entry, new_se) {
+    QTAILQ_FOREACH_SAFE(se, &savevm_state.handlers, entry, new_se) {
         if (se->vmsd == vmsd && se->opaque == opaque) {
-            QTAILQ_REMOVE(&savevm_handlers, se, entry);
+            QTAILQ_REMOVE(&savevm_state.handlers, se, entry);
             if (se->compat) {
                 g_free(se->compat);
             }
@@ -610,7 +615,7 @@ bool qemu_savevm_state_blocked(Error **errp)
 {
     SaveStateEntry *se;
 
-    QTAILQ_FOREACH(se, &savevm_handlers, entry) {
+    QTAILQ_FOREACH(se, &savevm_state.handlers, entry) {
         if (se->vmsd && se->vmsd->unmigratable) {
             error_setg(errp, "State blocked by non-migratable device '%s'",
                        se->idstr);
@@ -627,7 +632,7 @@ void qemu_savevm_state_begin(QEMUFile *f,
     int ret;
 
     trace_savevm_state_begin();
-    QTAILQ_FOREACH(se, &savevm_handlers, entry) {
+    QTAILQ_FOREACH(se, &savevm_state.handlers, entry) {
         if (!se->ops || !se->ops->set_params) {
             continue;
         }
@@ -637,7 +642,7 @@ void qemu_savevm_state_begin(QEMUFile *f,
     qemu_put_be32(f, QEMU_VM_FILE_MAGIC);
     qemu_put_be32(f, QEMU_VM_FILE_VERSION);
 
-    QTAILQ_FOREACH(se, &savevm_handlers, entry) {
+    QTAILQ_FOREACH(se, &savevm_state.handlers, entry) {
         int len;
 
         if (!se->ops || !se->ops->save_live_setup) {
@@ -680,7 +685,7 @@ int qemu_savevm_state_iterate(QEMUFile *f)
     int ret = 1;
 
     trace_savevm_state_iterate();
-    QTAILQ_FOREACH(se, &savevm_handlers, entry) {
+    QTAILQ_FOREACH(se, &savevm_state.handlers, entry) {
         if (!se->ops || !se->ops->save_live_iterate) {
             continue;
         }
@@ -731,7 +736,7 @@ void qemu_savevm_state_complete(QEMUFile *f)
 
     cpu_synchronize_all_states();
 
-    QTAILQ_FOREACH(se, &savevm_handlers, entry) {
+    QTAILQ_FOREACH(se, &savevm_state.handlers, entry) {
         if (!se->ops || !se->ops->save_live_complete) {
             continue;
         }
@@ -756,7 +761,7 @@ void qemu_savevm_state_complete(QEMUFile *f)
     vmdesc = qjson_new();
     json_prop_int(vmdesc, "page_size", TARGET_PAGE_SIZE);
     json_start_array(vmdesc, "devices");
-    QTAILQ_FOREACH(se, &savevm_handlers, entry) {
+    QTAILQ_FOREACH(se, &savevm_state.handlers, entry) {
         int len;
 
         if ((!se->ops || !se->ops->save_state) && !se->vmsd) {
@@ -807,7 +812,7 @@ uint64_t qemu_savevm_state_pending(QEMUFile *f, uint64_t max_size)
     SaveStateEntry *se;
     uint64_t ret = 0;
 
-    QTAILQ_FOREACH(se, &savevm_handlers, entry) {
+    QTAILQ_FOREACH(se, &savevm_state.handlers, entry) {
         if (!se->ops || !se->ops->save_live_pending) {
             continue;
         }
@@ -826,7 +831,7 @@ void qemu_savevm_state_cancel(void)
     SaveStateEntry *se;
 
     trace_savevm_state_cancel();
-    QTAILQ_FOREACH(se, &savevm_handlers, entry) {
+    QTAILQ_FOREACH(se, &savevm_state.handlers, entry) {
         if (se->ops && se->ops->cancel) {
             se->ops->cancel(se->opaque);
         }
@@ -876,7 +881,7 @@ static int qemu_save_device_state(QEMUFile *f)
 
     cpu_synchronize_all_states();
 
-    QTAILQ_FOREACH(se, &savevm_handlers, entry) {
+    QTAILQ_FOREACH(se, &savevm_state.handlers, entry) {
         int len;
 
         if (se->is_ram) {
@@ -910,7 +915,7 @@ static SaveStateEntry *find_se(const char *idstr, int instance_id)
 {
     SaveStateEntry *se;
 
-    QTAILQ_FOREACH(se, &savevm_handlers, entry) {
+    QTAILQ_FOREACH(se, &savevm_state.handlers, entry) {
         if (!strcmp(se->idstr, idstr) &&
             (instance_id == se->instance_id ||
              instance_id == se->alias_id))
