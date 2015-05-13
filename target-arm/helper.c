@@ -1249,7 +1249,7 @@ static void gt_tval_write(CPUARMState *env, const ARMCPRegInfo *ri,
     int timeridx = ri->crm & 1;
 
     env->cp15.c14_timer[timeridx].cval = gt_get_countervalue(env) +
-        + sextract64(value, 0, 32);
+                                         sextract64(value, 0, 32);
     gt_recalc_timer(arm_env_get_cpu(env), timeridx);
 }
 
