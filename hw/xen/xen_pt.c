@@ -125,7 +125,7 @@ int xen_pt_bar_offset_to_index(uint32_t offset)
 
 static uint32_t xen_pt_pci_read_config(PCIDevice *d, uint32_t addr, int len)
 {
-    XenPCIPassthroughState *s = DO_UPCAST(XenPCIPassthroughState, dev, d);
+    XenPCIPassthroughState *s = XEN_PT_DEVICE(d);
     uint32_t val = 0;
     XenPTRegGroup *reg_grp_entry = NULL;
     XenPTReg *reg_entry = NULL;
@@ -230,7 +230,7 @@ exit:
 static void xen_pt_pci_write_config(PCIDevice *d, uint32_t addr,
                                     uint32_t val, int len)
 {
-    XenPCIPassthroughState *s = DO_UPCAST(XenPCIPassthroughState, dev, d);
+    XenPCIPassthroughState *s = XEN_PT_DEVICE(d);
     int index = 0;
     XenPTRegGroup *reg_grp_entry = NULL;
     int rc = 0;
@@ -679,7 +679,7 @@ static const MemoryListener xen_pt_io_listener = {
 
 static int xen_pt_initfn(PCIDevice *d)
 {
-    XenPCIPassthroughState *s = DO_UPCAST(XenPCIPassthroughState, dev, d);
+    XenPCIPassthroughState *s = XEN_PT_DEVICE(d);
     int rc = 0;
     uint8_t machine_irq = 0;
     uint16_t cmd = 0;
@@ -797,7 +797,7 @@ out:
 
 static void xen_pt_unregister_device(PCIDevice *d)
 {
-    XenPCIPassthroughState *s = DO_UPCAST(XenPCIPassthroughState, dev, d);
+    XenPCIPassthroughState *s = XEN_PT_DEVICE(d);
     uint8_t machine_irq = s->machine_irq;
     uint8_t intx = xen_pt_pci_intx(s);
     int rc;
@@ -868,7 +868,7 @@ static void xen_pci_passthrough_class_init(ObjectClass *klass, void *data)
 };
 
 static const TypeInfo xen_pci_passthrough_info = {
-    .name = "xen-pci-passthrough",
+    .name = TYPE_XEN_PT_DEVICE,
     .parent = TYPE_PCI_DEVICE,
     .instance_size = sizeof(XenPCIPassthroughState),
     .class_init = xen_pci_passthrough_class_init,
