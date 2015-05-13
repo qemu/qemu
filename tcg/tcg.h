@@ -241,6 +241,19 @@ typedef enum TCGMemOp {
     MO_TE    = MO_LE,
 #endif
 
+    /* MO_UNALN accesses are never checked for alignment.
+       MO_ALIGN accesses will result in a call to the CPU's
+       do_unaligned_access hook if the guest address is not aligned.
+       The default depends on whether the target CPU defines ALIGNED_ONLY.  */
+    MO_AMASK = 16,
+#ifdef ALIGNED_ONLY
+    MO_ALIGN = 0,
+    MO_UNALN = MO_AMASK,
+#else
+    MO_ALIGN = MO_AMASK,
+    MO_UNALN = 0,
+#endif
+
     /* Combinations of the above, for ease of use.  */
     MO_UB    = MO_8,
     MO_UW    = MO_16,
