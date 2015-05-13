@@ -19,8 +19,6 @@
 #include "qmp-commands.h"
 #include "qemu/error-report.h"
 
-#define IOTHREADS_PATH "/objects"
-
 typedef ObjectClass IOThreadClass;
 
 #define IOTHREAD_GET_CLASS(obj) \
@@ -160,7 +158,7 @@ IOThreadInfoList *qmp_query_iothreads(Error **errp)
 {
     IOThreadInfoList *head = NULL;
     IOThreadInfoList **prev = &head;
-    Object *container = container_get(object_get_root(), IOTHREADS_PATH);
+    Object *container = object_get_objects_root();
 
     object_child_foreach(container, query_one_iothread, &prev);
     return head;

@@ -485,7 +485,7 @@ MemdevList *qmp_query_memdev(Error **errp)
     Object *obj;
     MemdevList *list = NULL;
 
-    obj = object_resolve_path("/objects", NULL);
+    obj = object_get_objects_root();
     if (obj == NULL) {
         return NULL;
     }

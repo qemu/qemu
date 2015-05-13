@@ -1026,6 +1026,18 @@ const char *object_property_get_type(Object *obj, const char *name,
  */
 Object *object_get_root(void);
 
+
+/**
+ * object_get_objects_root:
+ *
+ * Get the container object that holds user created
+ * object instances. This is the object at path
+ * "/objects"
+ *
+ * Returns: the user object container
+ */
+Object *object_get_objects_root(void);
+
 /**
  * object_get_canonical_path_component:
  *

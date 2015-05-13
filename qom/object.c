@@ -1054,6 +1054,11 @@ Object *object_get_root(void)
     return root;
 }
 
+Object *object_get_objects_root(void)
+{
+    return container_get(object_get_root(), "/objects");
+}
+
 static void object_get_child_property(Object *obj, Visitor *v, void *opaque,
                                       const char *name, Error **errp)
 {

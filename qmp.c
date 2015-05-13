@@ -651,7 +651,7 @@ void object_add(const char *type, const char *id, const QDict *qdict,
         }
     }
 
-    object_property_add_child(container_get(object_get_root(), "/objects"),
+    object_property_add_child(object_get_objects_root(),
                               id, obj, &local_err);
     if (local_err) {
         goto out;
@@ -659,7 +659,7 @@ void object_add(const char *type, const char *id, const QDict *qdict,
 
     user_creatable_complete(obj, &local_err);
     if (local_err) {
-        object_property_del(container_get(object_get_root(), "/objects"),
+        object_property_del(object_get_objects_root(),
                             id, &error_abort);
         goto out;
     }
@@ -706,7 +706,7 @@ void qmp_object_del(const char *id, Error **errp)
     Object *container;
     Object *obj;
 
-    container = container_get(object_get_root(), "/objects");
+    container = object_get_objects_root();
     obj = object_resolve_path_component(container, id);
     if (!obj) {
         error_setg(errp, "object id not found");
