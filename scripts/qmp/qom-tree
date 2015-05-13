@@ -65,6 +65,11 @@ def list_node(path):
     print ''
     for item in items:
         if item['type'].startswith('child<'):
-            list_node(path + '/' + item['name'])
+            list_node((path if (path != '/') else '')  + '/' + item['name'])
 
-list_node('/machine')
+if len(args) == 0:
+    path = '/'
+else:
+    path = args[0]
+
+list_node(path)
