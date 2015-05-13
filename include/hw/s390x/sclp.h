@@ -192,6 +192,7 @@ typedef struct SCLPDeviceClass {
 
     /* public */
     void (*execute)(SCLPDevice *sclp, SCCB *sccb, uint32_t code);
+    void (*service_interrupt)(SCLPDevice *sclp, uint32_t sccb);
 } SCLPDeviceClass;
 
 typedef struct sclpMemoryHotplugDev sclpMemoryHotplugDev;

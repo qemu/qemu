@@ -22,12 +22,6 @@
 #include "hw/s390x/event-facility.h"
 #include "hw/s390x/s390-pci-bus.h"
 
-static inline SCLPEventFacility *get_event_facility(void)
-{
-    return EVENT_FACILITY(object_resolve_path_type("", TYPE_SCLP_EVENT_FACILITY,
-                                                   NULL));
-}
-
 static inline SCLPDevice *get_sclp_device(void)
 {
     return SCLP(object_resolve_path_type("", TYPE_SCLP, NULL));
@@ -417,15 +411,15 @@ int sclp_service_call(CPUS390XState *env, uint64_t sccb, uint32_t code)
     cpu_physical_memory_write(sccb, &work_sccb,
                               be16_to_cpu(work_sccb.h.length));
 
-    sclp_service_interrupt(sccb);
+    sclp_c->service_interrupt(sclp, sccb);
 
 out:
     return r;
 }
 
-void sclp_service_interrupt(uint32_t sccb)
+static void service_interrupt(SCLPDevice *sclp, uint32_t sccb)
 {
-    SCLPEventFacility *ef = get_event_facility();
+    SCLPEventFacility *ef = sclp->event_facility;
     SCLPEventFacilityClass *efc = EVENT_FACILITY_GET_CLASS(ef);
 
     uint32_t param = sccb & ~3;
@@ -438,6 +432,14 @@ void sclp_service_interrupt(uint32_t sccb)
         return;
     }
     s390_sclp_extint(param);
+}
+
+void sclp_service_interrupt(uint32_t sccb)
+{
+    SCLPDevice *sclp = get_sclp_device();
+    SCLPDeviceClass *sclp_c = SCLP_GET_CLASS(sclp);
+
+    sclp_c->service_interrupt(sclp, sccb);
 }
 
 /* qemu object creation and initialization functions */
@@ -499,6 +501,7 @@ static void sclp_class_init(ObjectClass *oc, void *data)
     sc->unassign_storage = unassign_storage;
     sc->read_cpu_info = sclp_read_cpu_info;
     sc->execute = sclp_execute;
+    sc->service_interrupt = service_interrupt;
 }
 
 static TypeInfo sclp_info = {
