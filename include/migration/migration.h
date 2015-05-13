@@ -34,6 +34,7 @@
 #define QEMU_VM_SECTION_FULL         0x04
 #define QEMU_VM_SUBSECTION           0x05
 #define QEMU_VM_VMDESCRIPTION        0x06
+#define QEMU_VM_CONFIGURATION        0x07
 #define QEMU_VM_SECTION_FOOTER       0x7e
 
 struct MigrationParams {
@@ -199,4 +200,5 @@ void ram_mig_init(void);
 void savevm_skip_section_footers(void);
 void register_global_state(void);
 void global_state_set_optional(void);
+void savevm_skip_configuration(void);
 #endif
