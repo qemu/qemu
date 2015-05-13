@@ -666,6 +666,13 @@ uint32_t acpi_gpe_ioport_readb(ACPIREGS *ar, uint32_t addr)
     return val;
 }
 
+void acpi_send_gpe_event(ACPIREGS *ar, qemu_irq irq,
+                         AcpiGPEStatusBits status)
+{
+    ar->gpe.sts[0] |= status;
+    acpi_update_sci(ar, irq);
+}
+
 void acpi_update_sci(ACPIREGS *regs, qemu_irq irq)
 {
     int sci_level, pm1a_sts;
