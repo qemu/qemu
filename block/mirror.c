@@ -444,11 +444,23 @@ static void coroutine_fn mirror_run(void *opaque)
     sectors_per_chunk = s->granularity >> BDRV_SECTOR_BITS;
     mirror_free_init(s);
 
+    last_pause_ns = qemu_clock_get_ns(QEMU_CLOCK_REALTIME);
     if (!s->is_none_mode) {
         /* First part, loop on the sectors and initialize the dirty bitmap.  */
         BlockDriverState *base = s->base;
         for (sector_num = 0; sector_num < end; ) {
             int64_t next = (sector_num | (sectors_per_chunk - 1)) + 1;
+            int64_t now = qemu_clock_get_ns(QEMU_CLOCK_REALTIME);
+
+            if (now - last_pause_ns > SLICE_TIME) {
+                last_pause_ns = now;
+                block_job_sleep_ns(&s->common, QEMU_CLOCK_REALTIME, 0);
+            }
+
+            if (block_job_is_cancelled(&s->common)) {
+                goto immediate_exit;
+            }
+
             ret = bdrv_is_allocated_above(bs, base,
                                           sector_num, next - sector_num, &n);
 
@@ -467,7 +479,6 @@ static void coroutine_fn mirror_run(void *opaque)
     }
 
     bdrv_dirty_iter_init(s->dirty_bitmap, &s->hbi);
-    last_pause_ns = qemu_clock_get_ns(QEMU_CLOCK_REALTIME);
     for (;;) {
         uint64_t delay_ns = 0;
         int64_t cnt;
