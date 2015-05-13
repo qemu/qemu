@@ -1069,6 +1069,12 @@ int64_t object_property_get_int(Object *obj, const char *name,
     return retval;
 }
 
+typedef struct EnumProperty {
+    const char * const *strings;
+    int (*get)(Object *, Error **);
+    void (*set)(Object *, int, Error **);
+} EnumProperty;
+
 int object_property_get_enum(Object *obj, const char *name,
                              const char * const strings[], Error **errp)
 {
@@ -1666,6 +1672,58 @@ void object_property_add_bool(Object *obj, const char *name,
                         get ? property_get_bool : NULL,
                         set ? property_set_bool : NULL,
                         property_release_bool,
+                        prop, &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        g_free(prop);
+    }
+}
+
+static void property_get_enum(Object *obj, Visitor *v, void *opaque,
+                              const char *name, Error **errp)
+{
+    EnumProperty *prop = opaque;
+    int value;
+
+    value = prop->get(obj, errp);
+    visit_type_enum(v, &value, prop->strings, NULL, name, errp);
+}
+
+static void property_set_enum(Object *obj, Visitor *v, void *opaque,
+                              const char *name, Error **errp)
+{
+    EnumProperty *prop = opaque;
+    int value;
+
+    visit_type_enum(v, &value, prop->strings, NULL, name, errp);
+    prop->set(obj, value, errp);
+}
+
+static void property_release_enum(Object *obj, const char *name,
+                                  void *opaque)
+{
+    EnumProperty *prop = opaque;
+    g_free(prop);
+}
+
+void object_property_add_enum(Object *obj, const char *name,
+                              const char *typename,
+                              const char * const *strings,
+                              int (*get)(Object *, Error **),
+                              void (*set)(Object *, int, Error **),
+                              Error **errp)
+{
+    Error *local_err = NULL;
+    EnumProperty *prop = g_malloc(sizeof(*prop));
+
+    prop->strings = strings;
+    prop->get = get;
+    prop->set = set;
+
+    object_property_add(obj, name, typename,
+                        get ? property_get_enum : NULL,
+                        set ? property_set_enum : NULL,
+                        property_release_enum,
                         prop, &local_err);
     if (local_err) {
         error_propagate(errp, local_err);

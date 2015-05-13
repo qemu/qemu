@@ -32,10 +32,28 @@ typedef struct DummyObjectClass DummyObjectClass;
 #define DUMMY_OBJECT(obj)                               \
     OBJECT_CHECK(DummyObject, (obj), TYPE_DUMMY)
 
+typedef enum DummyAnimal DummyAnimal;
+
+enum DummyAnimal {
+    DUMMY_FROG,
+    DUMMY_ALLIGATOR,
+    DUMMY_PLATYPUS,
+
+    DUMMY_LAST,
+};
+
+static const char *const dummy_animal_map[DUMMY_LAST + 1] = {
+    [DUMMY_FROG] = "frog",
+    [DUMMY_ALLIGATOR] = "alligator",
+    [DUMMY_PLATYPUS] = "platypus",
+    [DUMMY_LAST] = NULL,
+};
+
 struct DummyObject {
     Object parent_obj;
 
     bool bv;
+    DummyAnimal av;
     char *sv;
 };
 
@@ -59,6 +77,24 @@ static bool dummy_get_bv(Object *obj,
     DummyObject *dobj = DUMMY_OBJECT(obj);
 
     return dobj->bv;
+}
+
+
+static void dummy_set_av(Object *obj,
+                         int value,
+                         Error **errp)
+{
+    DummyObject *dobj = DUMMY_OBJECT(obj);
+
+    dobj->av = value;
+}
+
+static int dummy_get_av(Object *obj,
+                        Error **errp)
+{
+    DummyObject *dobj = DUMMY_OBJECT(obj);
+
+    return dobj->av;
 }
 
 
@@ -91,6 +127,12 @@ static void dummy_init(Object *obj)
                             dummy_get_sv,
                             dummy_set_sv,
                             NULL);
+    object_property_add_enum(obj, "av",
+                             "DummyAnimal",
+                             dummy_animal_map,
+                             dummy_get_av,
+                             dummy_set_av,
+                             NULL);
 }
 
 static void dummy_finalize(Object *obj)
@@ -121,11 +163,13 @@ static void test_dummy_createv(void)
                               &err,
                               "bv", "yes",
                               "sv", "Hiss hiss hiss",
+                              "av", "platypus",
                               NULL));
 
     g_assert(err == NULL);
     g_assert_cmpstr(dobj->sv, ==, "Hiss hiss hiss");
     g_assert(dobj->bv == true);
+    g_assert(dobj->av == DUMMY_PLATYPUS);
 
     g_assert(object_resolve_path_component(parent, "dummy0")
              == OBJECT(dobj));
@@ -160,17 +204,45 @@ static void test_dummy_createlist(void)
                    parent,
                    "bv", "yes",
                    "sv", "Hiss hiss hiss",
+                   "av", "platypus",
                    NULL));
 
     g_assert(err == NULL);
     g_assert_cmpstr(dobj->sv, ==, "Hiss hiss hiss");
     g_assert(dobj->bv == true);
+    g_assert(dobj->av == DUMMY_PLATYPUS);
 
     g_assert(object_resolve_path_component(parent, "dummy0")
              == OBJECT(dobj));
 
     object_unparent(OBJECT(dobj));
 }
+
+static void test_dummy_badenum(void)
+{
+    Error *err = NULL;
+    Object *parent = object_get_objects_root();
+    Object *dobj =
+        object_new_with_props(TYPE_DUMMY,
+                              parent,
+                              "dummy0",
+                              &err,
+                              "bv", "yes",
+                              "sv", "Hiss hiss hiss",
+                              "av", "yeti",
+                              NULL);
+
+    g_assert(dobj == NULL);
+    g_assert(err != NULL);
+    g_assert_cmpstr(error_get_pretty(err), ==,
+                    "Invalid parameter 'yeti'");
+
+    g_assert(object_resolve_path_component(parent, "dummy0")
+             == NULL);
+
+    error_free(err);
+}
+
 
 int main(int argc, char **argv)
 {
@@ -181,6 +253,7 @@ int main(int argc, char **argv)
 
     g_test_add_func("/qom/proplist/createlist", test_dummy_createlist);
     g_test_add_func("/qom/proplist/createv", test_dummy_createv);
+    g_test_add_func("/qom/proplist/badenum", test_dummy_badenum);
 
     return g_test_run();
 }
