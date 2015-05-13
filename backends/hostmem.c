@@ -252,7 +252,7 @@ static void host_memory_backend_init(Object *obj)
     object_property_add(obj, "host-nodes", "int",
                         host_memory_backend_get_host_nodes,
                         host_memory_backend_set_host_nodes, NULL, NULL, NULL);
-    object_property_add(obj, "policy", "str",
+    object_property_add(obj, "policy", "HostMemPolicy",
                         host_memory_backend_get_policy,
                         host_memory_backend_set_policy, NULL, NULL, NULL);
 }
