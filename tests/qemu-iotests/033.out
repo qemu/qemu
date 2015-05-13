@@ -27,6 +27,21 @@ wrote 65536/65536 bytes at offset 65536
 read 131072/131072 bytes at offset 1024
 128 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 
+== rewriting unaligned zeroes ==
+wrote 4096/4096 bytes at offset 0
+4 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+wrote 512/512 bytes at offset 512
+512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+
+== verifying patterns (3) ==
+read 512/512 bytes at offset 0
+512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+read 512/512 bytes at offset 512
+512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+read 3072/3072 bytes at offset 1024
+3 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+
+
 == preparing image ==
 wrote 1024/1024 bytes at offset 512
 1 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
@@ -52,4 +67,19 @@ wrote 65536/65536 bytes at offset 65536
 == verifying patterns (2) ==
 read 131072/131072 bytes at offset 1024
 128 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+
+== rewriting unaligned zeroes ==
+wrote 4096/4096 bytes at offset 0
+4 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+wrote 512/512 bytes at offset 512
+512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+
+== verifying patterns (3) ==
+read 512/512 bytes at offset 0
+512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+read 512/512 bytes at offset 512
+512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+read 3072/3072 bytes at offset 1024
+3 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+
 *** done
