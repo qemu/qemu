@@ -1030,7 +1030,7 @@ static int qcow2_open(BlockDriverState *bs, QDict *options, int flags,
         overlap_check_template = QCOW2_OL_ALL;
     } else {
         error_setg(errp, "Unsupported value '%s' for qcow2 option "
-                   "'overlap-check'. Allowed are either of the following: "
+                   "'overlap-check'. Allowed are any of the following: "
                    "none, constant, cached, all", opt_overlap_check);
         ret = -EINVAL;
         goto fail;
