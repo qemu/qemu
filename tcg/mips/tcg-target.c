@@ -990,21 +990,19 @@ static void tcg_out_tlb_load(TCGContext *s, TCGReg base, TCGReg addrl,
     tcg_out_opc_reg(s, OPC_ADDU, base, TCG_REG_A0, addrl);
 }
 
-static void add_qemu_ldst_label(TCGContext *s, int is_ld, TCGMemOp opc,
+static void add_qemu_ldst_label(TCGContext *s, int is_ld, TCGMemOpIdx oi,
                                 TCGReg datalo, TCGReg datahi,
                                 TCGReg addrlo, TCGReg addrhi,
-                                int mem_index, void *raddr,
-                                tcg_insn_unit *label_ptr[2])
+                                void *raddr, tcg_insn_unit *label_ptr[2])
 {
     TCGLabelQemuLdst *label = new_ldst_label(s);
 
     label->is_ld = is_ld;
-    label->opc = opc;
+    label->oi = oi;
     label->datalo_reg = datalo;
     label->datahi_reg = datahi;
     label->addrlo_reg = addrlo;
     label->addrhi_reg = addrhi;
-    label->mem_index = mem_index;
     label->raddr = raddr;
     label->label_ptr[0] = label_ptr[0];
     if (TARGET_LONG_BITS == 64) {
@@ -1014,7 +1012,8 @@ static void add_qemu_ldst_label(TCGContext *s, int is_ld, TCGMemOp opc,
 
 static void tcg_out_qemu_ld_slow_path(TCGContext *s, TCGLabelQemuLdst *l)
 {
-    TCGMemOp opc = l->opc;
+    TCGMemOpIdx oi = lb->oi;
+    TCGMemOp opc = get_memop(oi);
     TCGReg v0;
     int i;
 
@@ -1030,7 +1029,7 @@ static void tcg_out_qemu_ld_slow_path(TCGContext *s, TCGLabelQemuLdst *l)
     } else {
         i = tcg_out_call_iarg_reg(s, i, l->addrlo_reg);
     }
-    i = tcg_out_call_iarg_imm(s, i, l->mem_index);
+    i = tcg_out_call_iarg_imm(s, i, oi);
     i = tcg_out_call_iarg_imm(s, i, (intptr_t)l->raddr);
     tcg_out_call_int(s, qemu_ld_helpers[opc], false);
     /* delay slot */
@@ -1056,7 +1055,8 @@ static void tcg_out_qemu_ld_slow_path(TCGContext *s, TCGLabelQemuLdst *l)
 
 static void tcg_out_qemu_st_slow_path(TCGContext *s, TCGLabelQemuLdst *l)
 {
-    TCGMemOp opc = l->opc;
+    TCGMemOpIdx oi = lb->oi;
+    TCGMemOp opc = get_memop(oi);
     TCGMemOp s_bits = opc & MO_SIZE;
     int i;
 
@@ -1088,7 +1088,7 @@ static void tcg_out_qemu_st_slow_path(TCGContext *s, TCGLabelQemuLdst *l)
     default:
         tcg_abort();
     }
-    i = tcg_out_call_iarg_imm(s, i, l->mem_index);
+    i = tcg_out_call_iarg_imm(s, i, oi);
 
     /* Tail call to the store helper.  Thus force the return address
        computation to take place in the return address register.  */
@@ -1175,8 +1175,8 @@ static void tcg_out_qemu_ld(TCGContext *s, const TCGArg *args, bool is_64)
     tcg_out_tlb_load(s, base, addr_regl, addr_regh, mem_index,
                      s_bits, label_ptr, 1);
     tcg_out_qemu_ld_direct(s, data_regl, data_regh, base, opc);
-    add_qemu_ldst_label(s, 1, opc, data_regl, data_regh, addr_regl, addr_regh,
-                        mem_index, s->code_ptr, label_ptr);
+    add_qemu_ldst_label(s, 1, oi, data_regl, data_regh, addr_regl, addr_regh,
+                        s->code_ptr, label_ptr);
 #else
     if (GUEST_BASE == 0 && data_regl != addr_regl) {
         base = addr_regl;
@@ -1306,8 +1306,8 @@ static void tcg_out_qemu_st(TCGContext *s, const TCGArg *args, bool is_64)
     tcg_out_tlb_load(s, base, addr_regl, addr_regh, mem_index,
                      s_bits, label_ptr, 0);
     tcg_out_qemu_st_direct(s, data_regl, data_regh, base, opc);
-    add_qemu_ldst_label(s, 0, opc, data_regl, data_regh, addr_regl, addr_regh,
-                        mem_index, s->code_ptr, label_ptr);
+    add_qemu_ldst_label(s, 0, oi, data_regl, data_regh, addr_regl, addr_regh,
+                        s->code_ptr, label_ptr);
 #else
     if (GUEST_BASE == 0) {
         base = addr_regl;

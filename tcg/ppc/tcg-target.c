@@ -1451,28 +1451,27 @@ static TCGReg tcg_out_tlb_read(TCGContext *s, TCGMemOp s_bits,
 /* Record the context of a call to the out of line helper code for the slow
    path for a load or store, so that we can later generate the correct
    helper code.  */
-static void add_qemu_ldst_label(TCGContext *s, bool is_ld, TCGMemOp opc,
+static void add_qemu_ldst_label(TCGContext *s, bool is_ld, TCGMemOpIdx oi,
                                 TCGReg datalo_reg, TCGReg datahi_reg,
                                 TCGReg addrlo_reg, TCGReg addrhi_reg,
-                                int mem_index, tcg_insn_unit *raddr,
-                                tcg_insn_unit *lptr)
+                                tcg_insn_unit *raddr, tcg_insn_unit *lptr)
 {
     TCGLabelQemuLdst *label = new_ldst_label(s);
 
     label->is_ld = is_ld;
-    label->opc = opc;
+    label->oi = oi;
     label->datalo_reg = datalo_reg;
     label->datahi_reg = datahi_reg;
     label->addrlo_reg = addrlo_reg;
     label->addrhi_reg = addrhi_reg;
-    label->mem_index = mem_index;
     label->raddr = raddr;
     label->label_ptr[0] = lptr;
 }
 
 static void tcg_out_qemu_ld_slow_path(TCGContext *s, TCGLabelQemuLdst *lb)
 {
-    TCGMemOp opc = lb->opc;
+    TCGMemOpIdx oi = lb->oi;
+    TCGMemOp opc = get_memop(oi);
     TCGReg hi, lo, arg = TCG_REG_R3;
 
     reloc_pc14(lb->label_ptr[0], s->code_ptr);
@@ -1493,7 +1492,7 @@ static void tcg_out_qemu_ld_slow_path(TCGContext *s, TCGLabelQemuLdst *lb)
         tcg_out_mov(s, TCG_TYPE_TL, arg++, lo);
     }
 
-    tcg_out_movi(s, TCG_TYPE_I32, arg++, lb->mem_index);
+    tcg_out_movi(s, TCG_TYPE_I32, arg++, oi);
     tcg_out32(s, MFSPR | RT(arg) | LR);
 
     tcg_out_call(s, qemu_ld_helpers[opc & ~MO_SIGN]);
@@ -1515,7 +1514,8 @@ static void tcg_out_qemu_ld_slow_path(TCGContext *s, TCGLabelQemuLdst *lb)
 
 static void tcg_out_qemu_st_slow_path(TCGContext *s, TCGLabelQemuLdst *lb)
 {
-    TCGMemOp opc = lb->opc;
+    TCGMemOpIdx oi = lb->oi;
+    TCGMemOp opc = get_memop(oi);
     TCGMemOp s_bits = opc & MO_SIZE;
     TCGReg hi, lo, arg = TCG_REG_R3;
 
@@ -1562,7 +1562,7 @@ static void tcg_out_qemu_st_slow_path(TCGContext *s, TCGLabelQemuLdst *lb)
         }
     }
 
-    tcg_out_movi(s, TCG_TYPE_I32, arg++, lb->mem_index);
+    tcg_out_movi(s, TCG_TYPE_I32, arg++, oi);
     tcg_out32(s, MFSPR | RT(arg) | LR);
 
     tcg_out_call(s, qemu_st_helpers[opc]);
@@ -1641,8 +1641,8 @@ static void tcg_out_qemu_ld(TCGContext *s, const TCGArg *args, bool is_64)
     }
 
 #ifdef CONFIG_SOFTMMU
-    add_qemu_ldst_label(s, true, opc, datalo, datahi, addrlo, addrhi,
-                        mem_index, s->code_ptr, label_ptr);
+    add_qemu_ldst_label(s, true, oi, datalo, datahi, addrlo, addrhi,
+                        s->code_ptr, label_ptr);
 #endif
 }
 
@@ -1708,8 +1708,8 @@ static void tcg_out_qemu_st(TCGContext *s, const TCGArg *args, bool is_64)
     }
 
 #ifdef CONFIG_SOFTMMU
-    add_qemu_ldst_label(s, false, opc, datalo, datahi, addrlo, addrhi,
-                        mem_index, s->code_ptr, label_ptr);
+    add_qemu_ldst_label(s, false, oi, datalo, datahi, addrlo, addrhi,
+                        s->code_ptr, label_ptr);
 #endif
 }
 

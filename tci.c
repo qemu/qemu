@@ -420,35 +420,34 @@ static bool tci_compare64(uint64_t u0, uint64_t u1, TCGCond condition)
 }
 
 #ifdef CONFIG_SOFTMMU
-# define mmuidx          get_mmuidx(oi)
 # define qemu_ld_ub \
-    helper_ret_ldub_mmu(env, taddr, mmuidx, (uintptr_t)tb_ptr)
+    helper_ret_ldub_mmu(env, taddr, oi, (uintptr_t)tb_ptr)
 # define qemu_ld_leuw \
-    helper_le_lduw_mmu(env, taddr, mmuidx, (uintptr_t)tb_ptr)
+    helper_le_lduw_mmu(env, taddr, oi, (uintptr_t)tb_ptr)
 # define qemu_ld_leul \
-    helper_le_ldul_mmu(env, taddr, mmuidx, (uintptr_t)tb_ptr)
+    helper_le_ldul_mmu(env, taddr, oi, (uintptr_t)tb_ptr)
 # define qemu_ld_leq \
-    helper_le_ldq_mmu(env, taddr, mmuidx, (uintptr_t)tb_ptr)
+    helper_le_ldq_mmu(env, taddr, oi, (uintptr_t)tb_ptr)
 # define qemu_ld_beuw \
-    helper_be_lduw_mmu(env, taddr, mmuidx, (uintptr_t)tb_ptr)
+    helper_be_lduw_mmu(env, taddr, oi, (uintptr_t)tb_ptr)
 # define qemu_ld_beul \
-    helper_be_ldul_mmu(env, taddr, mmuidx, (uintptr_t)tb_ptr)
+    helper_be_ldul_mmu(env, taddr, oi, (uintptr_t)tb_ptr)
 # define qemu_ld_beq \
-    helper_be_ldq_mmu(env, taddr, mmuidx, (uintptr_t)tb_ptr)
+    helper_be_ldq_mmu(env, taddr, oi, (uintptr_t)tb_ptr)
 # define qemu_st_b(X) \
-    helper_ret_stb_mmu(env, taddr, X, mmuidx, (uintptr_t)tb_ptr)
+    helper_ret_stb_mmu(env, taddr, X, oi, (uintptr_t)tb_ptr)
 # define qemu_st_lew(X) \
-    helper_le_stw_mmu(env, taddr, X, mmuidx, (uintptr_t)tb_ptr)
+    helper_le_stw_mmu(env, taddr, X, oi, (uintptr_t)tb_ptr)
 # define qemu_st_lel(X) \
-    helper_le_stl_mmu(env, taddr, X, mmuidx, (uintptr_t)tb_ptr)
+    helper_le_stl_mmu(env, taddr, X, oi, (uintptr_t)tb_ptr)
 # define qemu_st_leq(X) \
-    helper_le_stq_mmu(env, taddr, X, mmuidx, (uintptr_t)tb_ptr)
+    helper_le_stq_mmu(env, taddr, X, oi, (uintptr_t)tb_ptr)
 # define qemu_st_bew(X) \
-    helper_be_stw_mmu(env, taddr, X, mmuidx, (uintptr_t)tb_ptr)
+    helper_be_stw_mmu(env, taddr, X, oi, (uintptr_t)tb_ptr)
 # define qemu_st_bel(X) \
-    helper_be_stl_mmu(env, taddr, X, mmuidx, (uintptr_t)tb_ptr)
+    helper_be_stl_mmu(env, taddr, X, oi, (uintptr_t)tb_ptr)
 # define qemu_st_beq(X) \
-    helper_be_stq_mmu(env, taddr, X, mmuidx, (uintptr_t)tb_ptr)
+    helper_be_stq_mmu(env, taddr, X, oi, (uintptr_t)tb_ptr)
 #else
 # define qemu_ld_ub      ldub_p(g2h(taddr))
 # define qemu_ld_leuw    lduw_le_p(g2h(taddr))

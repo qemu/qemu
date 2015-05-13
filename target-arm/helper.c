@@ -6013,13 +6013,15 @@ void HELPER(dc_zva)(CPUARMState *env, uint64_t vaddr_in)
         int maxidx = DIV_ROUND_UP(blocklen, TARGET_PAGE_SIZE);
         void *hostaddr[maxidx];
         int try, i;
+        unsigned mmu_idx = cpu_mmu_index(env);
+        TCGMemOpIdx oi = make_memop_idx(MO_UB, mmu_idx);
 
         for (try = 0; try < 2; try++) {
 
             for (i = 0; i < maxidx; i++) {
                 hostaddr[i] = tlb_vaddr_to_host(env,
                                                 vaddr + TARGET_PAGE_SIZE * i,
-                                                1, cpu_mmu_index(env));
+                                                1, mmu_idx);
                 if (!hostaddr[i]) {
                     break;
                 }
@@ -6040,12 +6042,12 @@ void HELPER(dc_zva)(CPUARMState *env, uint64_t vaddr_in)
              * this purpose use the actual register value passed to us
              * so that we get the fault address right.
              */
-            helper_ret_stb_mmu(env, vaddr_in, 0, cpu_mmu_index(env), GETRA());
+            helper_ret_stb_mmu(env, vaddr_in, 0, oi, GETRA());
             /* Now we can populate the other TLB entries, if any */
             for (i = 0; i < maxidx; i++) {
                 uint64_t va = vaddr + TARGET_PAGE_SIZE * i;
                 if (va != (vaddr_in & TARGET_PAGE_MASK)) {
-                    helper_ret_stb_mmu(env, va, 0, cpu_mmu_index(env), GETRA());
+                    helper_ret_stb_mmu(env, va, 0, oi, GETRA());
                 }
             }
         }
@@ -6062,7 +6064,7 @@ void HELPER(dc_zva)(CPUARMState *env, uint64_t vaddr_in)
          *    bounce buffer was in use
          */
         for (i = 0; i < blocklen; i++) {
-            helper_ret_stb_mmu(env, vaddr + i, 0, cpu_mmu_index(env), GETRA());
+            helper_ret_stb_mmu(env, vaddr + i, 0, oi, GETRA());
         }
     }
 #else

@@ -1671,7 +1671,7 @@ static inline void tcg_out_qemu_ld(TCGContext *s, const TCGArg *args)
                    tcg_opc_mov_a(TCG_REG_P7, TCG_REG_R56, TCG_AREG0),
                    tcg_opc_a1 (TCG_REG_P6, OPC_ADD_A1, TCG_REG_R2,
                                TCG_REG_R2, TCG_REG_R57),
-                   tcg_opc_movi_a(TCG_REG_P7, TCG_REG_R58, mem_index));
+                   tcg_opc_movi_a(TCG_REG_P7, TCG_REG_R58, oi));
     label_ptr = s->code_ptr;
     tcg_out_bundle(s, miB,
                    tcg_opc_m1 (TCG_REG_P6, opc_ld_m1[s_bits],
@@ -1735,7 +1735,7 @@ static inline void tcg_out_qemu_st(TCGContext *s, const TCGArg *args)
                    tcg_opc_mov_a(TCG_REG_P7, TCG_REG_R56, TCG_AREG0),
                    tcg_opc_a1 (TCG_REG_P6, OPC_ADD_A1, TCG_REG_R2,
                                TCG_REG_R2, TCG_REG_R57),
-                   tcg_opc_movi_a(TCG_REG_P7, TCG_REG_R59, mem_index));
+                   tcg_opc_movi_a(TCG_REG_P7, TCG_REG_R59, oi));
     label_ptr = s->code_ptr;
     tcg_out_bundle(s, miB,
                    tcg_opc_m4 (TCG_REG_P6, opc_st_m4[s_bits],

@@ -915,7 +915,7 @@ static void build_trampolines(TCGContext *s)
             } else {
                 ra += 1;
             }
-            /* Skip the mem_index argument.  */
+            /* Skip the oi argument.  */
             ra += 1;
         }
                 
@@ -1113,7 +1113,7 @@ static void tcg_out_qemu_ld(TCGContext *s, TCGReg data, TCGReg addr,
     assert(func != NULL);
     tcg_out_call_nodelay(s, func);
     /* delay slot */
-    tcg_out_movi(s, TCG_TYPE_I32, param, memi);
+    tcg_out_movi(s, TCG_TYPE_I32, param, oi);
 
     /* Recall that all of the helpers return 64-bit results.
        Which complicates things for sparcv8plus.  */
@@ -1192,7 +1192,7 @@ static void tcg_out_qemu_st(TCGContext *s, TCGReg data, TCGReg addr,
     assert(func != NULL);
     tcg_out_call_nodelay(s, func);
     /* delay slot */
-    tcg_out_movi(s, TCG_TYPE_REG, param, memi);
+    tcg_out_movi(s, TCG_TYPE_I32, param, oi);
 
     *label_ptr |= INSN_OFF19(tcg_ptr_byte_diff(s->code_ptr, label_ptr));
 #else
