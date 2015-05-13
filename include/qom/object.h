@@ -607,6 +607,134 @@ Object *object_new(const char *typename);
 Object *object_new_with_type(Type type);
 
 /**
+ * object_new_with_props:
+ * @typename:  The name of the type of the object to instantiate.
+ * @parent: the parent object
+ * @id: The unique ID of the object
+ * @errp: pointer to error object
+ * @...: list of property names and values
+ *
+ * This function will initialize a new object using heap allocated memory.
+ * The returned object has a reference count of 1, and will be freed when
+ * the last reference is dropped.
+ *
+ * The @id parameter will be used when registering the object as a
+ * child of @parent in the composition tree.
+ *
+ * The variadic parameters are a list of pairs of (propname, propvalue)
+ * strings. The propname of %NULL indicates the end of the property
+ * list. If the object implements the user creatable interface, the
+ * object will be marked complete once all the properties have been
+ * processed.
+ *
+ * <example>
+ *   <title>Creating an object with properties</title>
+ *   <programlisting>
+ *   Error *err = NULL;
+ *   Object *obj;
+ *
+ *   obj = object_new_with_props(TYPE_MEMORY_BACKEND_FILE,
+ *                               object_get_objects_root(),
+ *                               "hostmem0",
+ *                               &err,
+ *                               "share", "yes",
+ *                               "mem-path", "/dev/shm/somefile",
+ *                               "prealloc", "yes",
+ *                               "size", "1048576",
+ *                               NULL);
+ *
+ *   if (!obj) {
+ *     g_printerr("Cannot create memory backend: %s\n",
+ *                error_get_pretty(err));
+ *   }
+ *   </programlisting>
+ * </example>
+ *
+ * The returned object will have one stable reference maintained
+ * for as long as it is present in the object hierarchy.
+ *
+ * Returns: The newly allocated, instantiated & initialized object.
+ */
+Object *object_new_with_props(const char *typename,
+                              Object *parent,
+                              const char *id,
+                              Error **errp,
+                              ...) QEMU_SENTINEL;
+
+/**
+ * object_new_with_propv:
+ * @typename:  The name of the type of the object to instantiate.
+ * @parent: the parent object
+ * @id: The unique ID of the object
+ * @errp: pointer to error object
+ * @vargs: list of property names and values
+ *
+ * See object_new_with_props() for documentation.
+ */
+Object *object_new_with_propv(const char *typename,
+                              Object *parent,
+                              const char *id,
+                              Error **errp,
+                              va_list vargs);
+
+/**
+ * object_set_props:
+ * @obj: the object instance to set properties on
+ * @errp: pointer to error object
+ * @...: list of property names and values
+ *
+ * This function will set a list of properties on an existing object
+ * instance.
+ *
+ * The variadic parameters are a list of pairs of (propname, propvalue)
+ * strings. The propname of %NULL indicates the end of the property
+ * list.
+ *
+ * <example>
+ *   <title>Update an object's properties</title>
+ *   <programlisting>
+ *   Error *err = NULL;
+ *   Object *obj = ...get / create object...;
+ *
+ *   obj = object_set_props(obj,
+ *                          &err,
+ *                          "share", "yes",
+ *                          "mem-path", "/dev/shm/somefile",
+ *                          "prealloc", "yes",
+ *                          "size", "1048576",
+ *                          NULL);
+ *
+ *   if (!obj) {
+ *     g_printerr("Cannot set properties: %s\n",
+ *                error_get_pretty(err));
+ *   }
+ *   </programlisting>
+ * </example>
+ *
+ * The returned object will have one stable reference maintained
+ * for as long as it is present in the object hierarchy.
+ *
+ * Returns: -1 on error, 0 on success
+ */
+int object_set_props(Object *obj,
+                     Error **errp,
+                     ...) QEMU_SENTINEL;
+
+/**
+ * object_set_propv:
+ * @obj: the object instance to set properties on
+ * @errp: pointer to error object
+ * @vargs: list of property names and values
+ *
+ * See object_set_props() for documentation.
+ *
+ * Returns: -1 on error, 0 on success
+ */
+int object_set_propv(Object *obj,
+                     Error **errp,
+                     va_list vargs);
+
+/**
  * object_initialize_with_type:
  * @data: A pointer to the memory to be used for the object.
  * @size: The maximum size available at @data for the object.

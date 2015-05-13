@@ -5,6 +5,7 @@ check-qjson
 check-qlist
 check-qstring
 check-qom-interface
+check-qom-proplist
 rcutorture
 test-aio
 test-bitops

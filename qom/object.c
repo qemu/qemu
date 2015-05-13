@@ -11,6 +11,7 @@
  */
 
 #include "qom/object.h"
+#include "qom/object_interfaces.h"
 #include "qemu-common.h"
 #include "qapi/visitor.h"
 #include "qapi-visit.h"
@@ -438,6 +439,114 @@ Object *object_new(const char *typename)
 
     return object_new_with_type(ti);
 }
+
+
+Object *object_new_with_props(const char *typename,
+                              Object *parent,
+                              const char *id,
+                              Error **errp,
+                              ...)
+{
+    va_list vargs;
+    Object *obj;
+
+    va_start(vargs, errp);
+    obj = object_new_with_propv(typename, parent, id, errp, vargs);
+    va_end(vargs);
+
+    return obj;
+}
+
+
+Object *object_new_with_propv(const char *typename,
+                              Object *parent,
+                              const char *id,
+                              Error **errp,
+                              va_list vargs)
+{
+    Object *obj;
+    ObjectClass *klass;
+    Error *local_err = NULL;
+
+    klass = object_class_by_name(typename);
+    if (!klass) {
+        error_setg(errp, "invalid object type: %s", typename);
+        return NULL;
+    }
+
+    if (object_class_is_abstract(klass)) {
+        error_setg(errp, "object type '%s' is abstract", typename);
+        return NULL;
+    }
+    obj = object_new(typename);
+
+    if (object_set_propv(obj, &local_err, vargs) < 0) {
+        goto error;
+    }
+
+    object_property_add_child(parent, id, obj, &local_err);
+    if (local_err) {
+        goto error;
+    }
+
+    if (object_dynamic_cast(obj, TYPE_USER_CREATABLE)) {
+        user_creatable_complete(obj, &local_err);
+        if (local_err) {
+            object_unparent(obj);
+            goto error;
+        }
+    }
+
+    object_unref(OBJECT(obj));
+    return obj;
+
+ error:
+    if (local_err) {
+        error_propagate(errp, local_err);
+    }
+    object_unref(obj);
+    return NULL;
+}
+
+
+int object_set_props(Object *obj,
+                     Error **errp,
+                     ...)
+{
+    va_list vargs;
+    int ret;
+
+    va_start(vargs, errp);
+    ret = object_set_propv(obj, errp, vargs);
+    va_end(vargs);
+
+    return ret;
+}
+
+
+int object_set_propv(Object *obj,
+                     Error **errp,
+                     va_list vargs)
+{
+    const char *propname;
+    Error *local_err = NULL;
+
+    propname = va_arg(vargs, char *);
+    while (propname != NULL) {
+        const char *value = va_arg(vargs, char *);
+
+        g_assert(value != NULL);
+        object_property_parse(obj, value, propname, &local_err);
+        if (local_err) {
+            error_propagate(errp, local_err);
+            return -1;
+        }
+        propname = va_arg(vargs, char *);
+    }
+
+    return 0;
+}
+
 
 Object *object_dynamic_cast(Object *obj, const char *typename)
 {
