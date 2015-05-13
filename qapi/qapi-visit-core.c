@@ -89,7 +89,7 @@ void visit_get_next_type(Visitor *v, int *obj, const int *qtypes,
     }
 }
 
-void visit_type_enum(Visitor *v, int *obj, const char *strings[],
+void visit_type_enum(Visitor *v, int *obj, const char * const strings[],
                      const char *kind, const char *name, Error **errp)
 {
     v->type_enum(v, obj, strings, kind, name, errp);
@@ -260,7 +260,7 @@ void visit_type_number(Visitor *v, double *obj, const char *name, Error **errp)
     v->type_number(v, obj, name, errp);
 }
 
-void output_type_enum(Visitor *v, int *obj, const char *strings[],
+void output_type_enum(Visitor *v, int *obj, const char * const strings[],
                       const char *kind, const char *name,
                       Error **errp)
 {
@@ -279,7 +279,7 @@ void output_type_enum(Visitor *v, int *obj, const char *strings[],
     visit_type_str(v, &enum_str, name, errp);
 }
 
-void input_type_enum(Visitor *v, int *obj, const char *strings[],
+void input_type_enum(Visitor *v, int *obj, const char * const strings[],
                      const char *kind, const char *name,
                      Error **errp)
 {

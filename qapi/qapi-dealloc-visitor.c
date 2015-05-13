@@ -156,7 +156,8 @@ static void qapi_dealloc_type_size(Visitor *v, uint64_t *obj, const char *name,
 {
 }
 
-static void qapi_dealloc_type_enum(Visitor *v, int *obj, const char *strings[],
+static void qapi_dealloc_type_enum(Visitor *v, int *obj,
+                                   const char * const strings[],
                                    const char *kind, const char *name,
                                    Error **errp)
 {

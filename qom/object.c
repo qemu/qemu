@@ -1070,7 +1070,7 @@ int64_t object_property_get_int(Object *obj, const char *name,
 }
 
 int object_property_get_enum(Object *obj, const char *name,
-                             const char *strings[], Error **errp)
+                             const char * const strings[], Error **errp)
 {
     StringOutputVisitor *sov;
     StringInputVisitor *siv;
