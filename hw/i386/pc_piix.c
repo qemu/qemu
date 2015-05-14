@@ -930,32 +930,35 @@ static QEMUMachine pc_machine_v0_11 = {
     .hw_version = "0.11",
 };
 
+#define PC_COMPAT_0_10 \
+    PC_COMPAT_0_11 \
+    {\
+        .driver   = "virtio-blk-pci",\
+        .property = "class",\
+        .value    = stringify(PCI_CLASS_STORAGE_OTHER),\
+    },{\
+        .driver   = "virtio-serial-pci",\
+        .property = "class",\
+        .value    = stringify(PCI_CLASS_DISPLAY_OTHER),\
+    },{\
+        .driver   = "virtio-net-pci",\
+        .property = "vectors",\
+        .value    = stringify(0),\
+    },{\
+        .driver   = "ide-drive",\
+        .property = "ver",\
+        .value    = "0.10",\
+    },{\
+        .driver   = "scsi-disk",\
+        .property = "ver",\
+        .value    = "0.10",\
+    },
+
 static QEMUMachine pc_machine_v0_10 = {
     PC_I440FX_0_13_MACHINE_OPTIONS,
     .name = "pc-0.10",
     .compat_props = (GlobalProperty[]) {
-        PC_COMPAT_0_11
-        {
-            .driver   = "virtio-blk-pci",
-            .property = "class",
-            .value    = stringify(PCI_CLASS_STORAGE_OTHER),
-        },{
-            .driver   = "virtio-serial-pci",
-            .property = "class",
-            .value    = stringify(PCI_CLASS_DISPLAY_OTHER),
-        },{
-            .driver   = "virtio-net-pci",
-            .property = "vectors",
-            .value    = stringify(0),
-        },{
-            .driver   = "ide-drive",
-            .property = "ver",
-            .value    = "0.10",
-        },{
-            .driver   = "scsi-disk",
-            .property = "ver",
-            .value    = "0.10",
-        },
+        PC_COMPAT_0_10
         { /* end of list */ }
     },
     .hw_version = "0.10",
