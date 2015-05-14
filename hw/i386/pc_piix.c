@@ -808,6 +808,14 @@ static QEMUMachine pc_machine_v0_15 = {
             .driver   = "virtio-balloon-pci",\
             .property = "event_idx",\
             .value    = "off",\
+        },{\
+            .driver   = "qxl",\
+            .property = "revision",\
+            .value    = stringify(2),\
+        },{\
+            .driver   = "qxl-vga",\
+            .property = "revision",\
+            .value    = stringify(2),\
         },
 
 static QEMUMachine pc_machine_v0_14 = {
@@ -815,15 +823,6 @@ static QEMUMachine pc_machine_v0_14 = {
     .name = "pc-0.14",
     .compat_props = (GlobalProperty[]) {
         PC_COMPAT_0_14
-        {
-            .driver   = "qxl",
-            .property = "revision",
-            .value    = stringify(2),
-        },{
-            .driver   = "qxl-vga",
-            .property = "revision",
-            .value    = stringify(2),
-        },
         { /* end of list */ }
     },
     .hw_version = "0.14",
