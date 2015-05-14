@@ -1815,7 +1815,11 @@ static const TypeInfo spapr_machine_info = {
     },
 };
 
+#define SPAPR_COMPAT_2_3 \
+        HW_COMPAT_2_3
+
 #define SPAPR_COMPAT_2_2 \
+        SPAPR_COMPAT_2_3 \
         HW_COMPAT_2_2 \
         {\
             .driver   = TYPE_SPAPR_PCI_HOST_BRIDGE,\
