@@ -122,3 +122,8 @@
   'data': { '__org.qemu_x-value': '__org.qemu_x-Struct2' } }
 { 'alternate': '__org.qemu_x-Alt',
   'data': { '__org.qemu_x-branch': 'str', 'b': '__org.qemu_x-Base' } }
+{ 'event': '__ORG.QEMU_X-EVENT', 'data': '__org.qemu_x-Struct' }
+{ 'command': '__org.qemu_x-command',
+  'data': { 'a': ['__org.qemu_x-Enum'], 'b': ['__org.qemu_x-Struct'],
+            'c': '__org.qemu_x-Union2', 'd': '__org.qemu_x-Alt' },
+  'returns': '__org.qemu_x-Union1' }

@@ -20,12 +20,6 @@ import os
 import getopt
 import errno
 
-def type_visitor(name):
-    if type(name) == list:
-        return 'visit_type_%sList' % name[0]
-    else:
-        return 'visit_type_%s' % name
-
 def generate_command_decl(name, args, ret_type):
     arglist=""
     for argname, argtype, optional in parse_args(args):
@@ -153,10 +147,10 @@ if (has_%(c_name)s) {
                          c_name=c_name(argname))
             push_indent()
         ret += mcgen('''
-%(visitor)s(v, &%(c_name)s, "%(name)s", %(errp)s);
+visit_type_%(visitor)s(v, &%(c_name)s, "%(name)s", %(errp)s);
 ''',
                      c_name=c_name(argname), name=argname, argtype=argtype,
-                     visitor=type_visitor(argtype), errp=errparg)
+                     visitor=type_name(argtype), errp=errparg)
         ret += gen_err_check(errarg)
         if optional:
             pop_indent()
@@ -184,7 +178,7 @@ static void qmp_marshal_output_%(c_name)s(%(c_ret_type)s ret_in, QObject **ret_o
     Visitor *v;
 
     v = qmp_output_get_visitor(mo);
-    %(visitor)s(v, &ret_in, "unused", &local_err);
+    visit_type_%(visitor)s(v, &ret_in, "unused", &local_err);
     if (local_err) {
         goto out;
     }
@@ -195,12 +189,12 @@ out:
     qmp_output_visitor_cleanup(mo);
     md = qapi_dealloc_visitor_new();
     v = qapi_dealloc_get_visitor(md);
-    %(visitor)s(v, &ret_in, "unused", NULL);
+    visit_type_%(visitor)s(v, &ret_in, "unused", NULL);
     qapi_dealloc_visitor_cleanup(md);
 }
 ''',
                 c_ret_type=c_type(ret_type), c_name=c_name(name),
-                visitor=type_visitor(ret_type))
+                visitor=type_name(ret_type))
 
     return ret
 
