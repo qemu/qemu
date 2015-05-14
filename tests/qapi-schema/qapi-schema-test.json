@@ -107,3 +107,6 @@
   'data': { '*a': 'int', '*b': 'UserDefOne', 'c': 'str' } }
 { 'event': 'EVENT_D',
   'data': { 'a' : 'EventStructOne', 'b' : 'str', '*c': 'str', '*enum3': 'EnumOne' } }
+
+# test that we correctly compile downstream extensions
+{ 'enum': '__org.qemu_x-Enum', 'data': [ '__org.qemu_x-value' ] }

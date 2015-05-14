@@ -58,7 +58,7 @@ typedef struct %(name)sList
     struct %(name)sList *next;
 } %(name)sList;
 ''',
-                 name=name)
+                 name=c_name(name))
 
 def generate_struct_fields(members):
     ret = ''
@@ -115,7 +115,7 @@ def generate_enum_lookup(name, values):
     ret = mcgen('''
 const char *%(name)s_lookup[] = {
 ''',
-                         name=name)
+                name=c_name(name))
     i = 0
     for value in values:
         index = c_enum_const(name, value)
@@ -134,6 +134,7 @@ const char *%(name)s_lookup[] = {
     return ret
 
 def generate_enum(name, values):
+    name = c_name(name)
     lookup_decl = mcgen('''
 extern const char *%(name)s_lookup[];
 ''',
@@ -247,15 +248,15 @@ extern const int %(name)s_qtypes[];
 
 def generate_type_cleanup_decl(name):
     ret = mcgen('''
-void qapi_free_%(type)s(%(c_type)s obj);
+void qapi_free_%(name)s(%(c_type)s obj);
 ''',
-                c_type=c_type(name),type=name)
+                c_type=c_type(name), name=c_name(name))
     return ret
 
 def generate_type_cleanup(name):
     ret = mcgen('''
 
-void qapi_free_%(type)s(%(c_type)s obj)
+void qapi_free_%(name)s(%(c_type)s obj)
 {
     QapiDeallocVisitor *md;
     Visitor *v;
@@ -266,11 +267,11 @@ void qapi_free_%(type)s(%(c_type)s obj)
 
     md = qapi_dealloc_visitor_new();
     v = qapi_dealloc_get_visitor(md);
-    visit_type_%(type)s(v, &obj, NULL, NULL);
+    visit_type_%(name)s(v, &obj, NULL, NULL);
     qapi_dealloc_visitor_cleanup(md);
 }
 ''',
-                c_type=c_type(name),type=name)
+                c_type=c_type(name), name=c_name(name))
     return ret
 
 
