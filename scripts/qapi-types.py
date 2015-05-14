@@ -174,16 +174,17 @@ def generate_alternate_qtypes(expr):
     ret = mcgen('''
 const int %(name)s_qtypes[QTYPE_MAX] = {
 ''',
-    name=name)
+                name=c_name(name))
 
     for key in members:
         qtype = find_alternate_member_qtype(members[key])
         assert qtype, "Invalid alternate member"
 
         ret += mcgen('''
-    [ %(qtype)s ] = %(enum_const)s,
+    [%(qtype)s] = %(enum_const)s,
 ''',
-        qtype = qtype, enum_const = c_enum_const(name + 'Kind', key))
+                     qtype = qtype,
+                     enum_const = c_enum_const(name + 'Kind', key))
 
     ret += mcgen('''
 };

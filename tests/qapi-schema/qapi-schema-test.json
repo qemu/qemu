@@ -120,3 +120,5 @@
 { 'union': '__org.qemu_x-Union2', 'base': '__org.qemu_x-Base',
   'discriminator': '__org.qemu_x-member1',
   'data': { '__org.qemu_x-value': '__org.qemu_x-Struct2' } }
+{ 'alternate': '__org.qemu_x-Alt',
+  'data': { '__org.qemu_x-branch': 'str', 'b': '__org.qemu_x-Base' } }

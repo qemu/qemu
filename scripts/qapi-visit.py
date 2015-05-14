@@ -202,11 +202,11 @@ void visit_type_%(name)s(Visitor *m, %(name)s **obj, const char *name, Error **e
     }
     switch ((*obj)->kind) {
 ''',
-    name=name)
+                name=c_name(name))
 
     # For alternate, always use the default enum type automatically generated
-    # as "'%sKind' % (name)"
-    disc_type = '%sKind' % (name)
+    # as name + 'Kind'
+    disc_type = c_name(name) + 'Kind'
 
     for key in members:
         assert (members[key] in builtin_types.keys()
