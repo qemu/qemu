@@ -2589,14 +2589,26 @@ EOF
 int main(void) { return GL_VERSION != 0; }
 EOF
   else
-    opengl_libs="-lGL -lX11"
-    cat > $TMPC << EOF
-#include <X11/Xlib.h>
-#include <GL/gl.h>
+    # change this to "if false; then" you want EGL instead of GLX
+    # also requires a change in Makefile.target, look for "obj-gl"
+    if true; then
+      opengl_libs="-lGLEW -lGLU -lGL -lX11"
+      cat > $TMPC << EOF
+#include <GL/glew.h>
+#include <GL/glu.h>
 #include <GL/glx.h>
-#include <GL/glut.h>
-int main(void) { glBegin(0); glXQueryVersion(0,0,0); return 0; }
+#include <X11/Xlib.h>
+int main(void) { glXGetClientString(XOpenDisplay(0), GL_VERSION); return 0; }
 EOF
+    else 
+      opengl_libs="-lGLEW -lGLU -lGL -lEGL"
+      cat > $TMPC << EOF
+#include <GL/glew.h>
+#include <GL/glu.h>
+#include <EGL/egl.h>
+int main(void) { return GL_VERSION != 0; }
+EOF
+    fi
   fi
   if compile_prog "" "$opengl_libs" ; then
     opengl=yes
@@ -4366,7 +4378,7 @@ case "$target_name" in
   *)
 esac
 case "$target_name" in
-  arm|i386|x86_64|ppcemb|ppc|ppc64|s390x)
+  arm|xbox|i386|x86_64|ppcemb|ppc|ppc64|s390x)
     # Make sure the target and host cpus are compatible
     if test "$kvm" = "yes" -a "$target_softmmu" = "yes" -a \
       \( "$target_name" = "$cpu" -o \
@@ -4375,7 +4387,9 @@ case "$target_name" in
       \( "$target_name" = "ppc"    -a "$cpu" = "ppc64" \) -o \
       \( "$target_name" = "ppcemb" -a "$cpu" = "ppc64" \) -o \
       \( "$target_name" = "x86_64" -a "$cpu" = "i386"   \) -o \
-      \( "$target_name" = "i386"   -a "$cpu" = "x86_64" \) \) ; then
+      \( "$target_name" = "i386"   -a "$cpu" = "x86_64" \) -o \
+      \( "$target_name" = "xbox"   -a "$cpu" = "i386"   \) -o \
+      \( "$target_name" = "xbox"   -a "$cpu" = "x86_64" \) \) ; then
       echo "CONFIG_KVM=y" >> $config_target_mak
       if test "$vhost_net" = "yes" ; then
         echo "CONFIG_VHOST_NET=y" >> $config_target_mak

@@ -70,6 +70,7 @@ extern void glo_set_current(GloContext *context);
 /* Check GL Extensions */
 extern GLboolean glo_check_extension(
     const GLubyte *extName, const GLubyte *extString);
+void* glo_get_extension_proc(const GLubyte *extProc);
 
 /* Create an OpenGL context for a certain
  * pixel format. formatflags are from the
