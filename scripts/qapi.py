@@ -801,12 +801,12 @@ def c_name(name, protect=True):
     return name.translate(c_name_trans)
 
 def c_list_type(name):
-    return '%sList' % name
+    return name + 'List'
 
-def type_name(name):
-    if type(name) == list:
-        return c_list_type(name[0])
-    return name
+def type_name(value):
+    if type(value) == list:
+        return c_list_type(value[0])
+    return value
 
 def add_name(name, info, meta, implicit = False):
     global all_names
@@ -863,42 +863,44 @@ def is_enum(name):
     return find_enum(name) != None
 
 eatspace = '\033EATSPACE.'
+pointer_suffix = ' *' + eatspace
 
 # A special suffix is added in c_type() for pointer types, and it's
 # stripped in mcgen(). So please notice this when you check the return
 # value of c_type() outside mcgen().
-def c_type(name, is_param=False):
-    if name == 'str':
+def c_type(value, is_param=False):
+    if value == 'str':
         if is_param:
-            return 'const char *' + eatspace
-        return 'char *' + eatspace
+            return 'const char' + pointer_suffix
+        return 'char' + pointer_suffix
 
-    elif name == 'int':
+    elif value == 'int':
         return 'int64_t'
-    elif (name == 'int8' or name == 'int16' or name == 'int32' or
-          name == 'int64' or name == 'uint8' or name == 'uint16' or
-          name == 'uint32' or name == 'uint64'):
-        return name + '_t'
-    elif name == 'size':
+    elif (value == 'int8' or value == 'int16' or value == 'int32' or
+          value == 'int64' or value == 'uint8' or value == 'uint16' or
+          value == 'uint32' or value == 'uint64'):
+        return value + '_t'
+    elif value == 'size':
         return 'uint64_t'
-    elif name == 'bool':
+    elif value == 'bool':
         return 'bool'
-    elif name == 'number':
+    elif value == 'number':
         return 'double'
-    elif type(name) == list:
-        return '%s *%s' % (c_list_type(name[0]), eatspace)
-    elif is_enum(name):
-        return name
-    elif name == None or len(name) == 0:
+    elif type(value) == list:
+        return c_list_type(value[0]) + pointer_suffix
+    elif is_enum(value):
+        return value
+    elif value == None:
         return 'void'
-    elif name in events:
-        return '%sEvent *%s' % (camel_case(name), eatspace)
+    elif value in events:
+        return camel_case(value) + 'Event' + pointer_suffix
     else:
-        return '%s *%s' % (name, eatspace)
+        # complex type name
+        assert isinstance(value, str) and value != ""
+        return value + pointer_suffix
 
-def is_c_ptr(name):
-    suffix = "*" + eatspace
-    return c_type(name).endswith(suffix)
+def is_c_ptr(value):
+    return c_type(value).endswith(pointer_suffix)
 
 def genindent(count):
     ret = ""
