@@ -742,6 +742,31 @@ def camel_case(name):
             new_name += ch.lower()
     return new_name
 
+# ENUMName -> ENUM_NAME, EnumName1 -> ENUM_NAME1
+# ENUM_NAME -> ENUM_NAME, ENUM_NAME1 -> ENUM_NAME1, ENUM_Name2 -> ENUM_NAME2
+# ENUM24_Name -> ENUM24_NAME
+def camel_to_upper(value):
+    c_fun_str = c_name(value, False)
+    if value.isupper():
+        return c_fun_str
+
+    new_name = ''
+    l = len(c_fun_str)
+    for i in range(l):
+        c = c_fun_str[i]
+        # When c is upper and no "_" appears before, do more checks
+        if c.isupper() and (i > 0) and c_fun_str[i - 1] != "_":
+            # Case 1: next string is lower
+            # Case 2: previous string is digit
+            if (i < (l - 1) and c_fun_str[i + 1].islower()) or \
+            c_fun_str[i - 1].isdigit():
+                new_name += '_'
+        new_name += c
+    return new_name.lstrip('_').upper()
+
+def c_enum_const(type_name, const_name):
+    return camel_to_upper(type_name + '_' + const_name)
+
 c_name_trans = string.maketrans('.-', '__')
 
 def c_name(name, protect=True):
@@ -926,28 +951,3 @@ def guardend(name):
 
 ''',
                  name=guardname(name))
-
-# ENUMName -> ENUM_NAME, EnumName1 -> ENUM_NAME1
-# ENUM_NAME -> ENUM_NAME, ENUM_NAME1 -> ENUM_NAME1, ENUM_Name2 -> ENUM_NAME2
-# ENUM24_Name -> ENUM24_NAME
-def camel_to_upper(value):
-    c_fun_str = c_name(value, False)
-    if value.isupper():
-        return c_fun_str
-
-    new_name = ''
-    l = len(c_fun_str)
-    for i in range(l):
-        c = c_fun_str[i]
-        # When c is upper and no "_" appears before, do more checks
-        if c.isupper() and (i > 0) and c_fun_str[i - 1] != "_":
-            # Case 1: next string is lower
-            # Case 2: previous string is digit
-            if (i < (l - 1) and c_fun_str[i + 1].islower()) or \
-            c_fun_str[i - 1].isdigit():
-                new_name += '_'
-        new_name += c
-    return new_name.lstrip('_').upper()
-
-def c_enum_const(type_name, const_name):
-    return camel_to_upper(type_name + '_' + const_name)
