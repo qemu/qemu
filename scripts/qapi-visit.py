@@ -66,7 +66,7 @@ if (err) {
     goto out;
 }
 ''',
-                     type=type_name(base), c_name=c_var('base'))
+                     type=type_name(base), c_name=c_name('base'))
 
     for argname, argentry, optional in parse_args(members):
         if optional:
@@ -74,13 +74,13 @@ if (err) {
 visit_optional(m, &(*obj)->has_%(c_name)s, "%(name)s", &err);
 if (!err && (*obj)->has_%(c_name)s) {
 ''',
-                         c_name=c_var(argname), name=argname)
+                         c_name=c_name(argname), name=argname)
             push_indent()
 
         ret += mcgen('''
 visit_type_%(type)s(m, &(*obj)->%(c_name)s, "%(name)s", &err);
 ''',
-                     type=type_name(argentry), c_name=c_var(argname),
+                     type=type_name(argentry), c_name=c_name(argname),
                      name=argname)
 
         if optional:
@@ -222,7 +222,7 @@ void visit_type_%(name)s(Visitor *m, %(name)s **obj, const char *name, Error **e
 ''',
                 enum_full_value = enum_full_value,
                 c_type = type_name(members[key]),
-                c_name = c_fun(key))
+                c_name = c_name(key))
 
     ret += mcgen('''
     default:
@@ -323,7 +323,7 @@ void visit_type_%(name)s(Visitor *m, %(name)s **obj, const char *name, Error **e
 ''',
                 enum_full_value = enum_full_value,
                 c_type=type_name(members[key]),
-                c_name=c_fun(key))
+                c_name=c_name(key))
 
     ret += mcgen('''
         default:

@@ -753,9 +753,9 @@ def camel_case(name):
             new_name += ch.lower()
     return new_name
 
-c_var_trans = string.maketrans('.-', '__')
+c_name_trans = string.maketrans('.-', '__')
 
-def c_var(name, protect=True):
+def c_name(name, protect=True):
     # ANSI X3J11/88-090, 3.1.1
     c89_words = set(['auto', 'break', 'case', 'char', 'const', 'continue',
                      'default', 'do', 'double', 'else', 'enum', 'extern', 'float',
@@ -784,10 +784,7 @@ def c_var(name, protect=True):
     polluted_words = set(['unix', 'errno'])
     if protect and (name in c89_words | c99_words | c11_words | gcc_words | cpp_words | polluted_words):
         return "q_" + name
-    return name.translate(c_var_trans)
-
-def c_fun(name, protect=True):
-    return c_var(name, protect)
+    return name.translate(c_name_trans)
 
 def c_list_type(name):
     return '%sList' % name
@@ -945,7 +942,7 @@ def guardend(name):
 # ENUM_NAME -> ENUM_NAME, ENUM_NAME1 -> ENUM_NAME1, ENUM_Name2 -> ENUM_NAME2
 # ENUM24_Name -> ENUM24_NAME
 def _generate_enum_string(value):
-    c_fun_str = c_fun(value, False)
+    c_fun_str = c_name(value, False)
     if value.isupper():
         return c_fun_str
 

@@ -17,17 +17,17 @@ import getopt
 import errno
 
 def _generate_event_api_name(event_name, params):
-    api_name = "void qapi_event_send_%s(" % c_fun(event_name).lower();
+    api_name = "void qapi_event_send_%s(" % c_name(event_name).lower();
     l = len(api_name)
 
     if params:
         for argname, argentry, optional in parse_args(params):
             if optional:
-                api_name += "bool has_%s,\n" % c_var(argname)
+                api_name += "bool has_%s,\n" % c_name(argname)
                 api_name += "".ljust(l)
 
             api_name += "%s %s,\n" % (c_type(argentry, is_param=True),
-                                      c_var(argname))
+                                      c_name(argname))
             api_name += "".ljust(l)
 
     api_name += "Error **errp)"
@@ -98,7 +98,7 @@ def generate_event_implement(api_name, event_name, params):
                 ret += mcgen("""
     if (has_%(var)s) {
 """,
-                             var = c_var(argname))
+                             var = c_name(argname))
                 push_indent()
 
             if argentry == "str":
@@ -113,7 +113,7 @@ def generate_event_implement(api_name, event_name, params):
     }
 """,
                          var_type = var_type,
-                         var = c_var(argname),
+                         var = c_name(argname),
                          type = type_name(argentry),
                          name = argname)
 

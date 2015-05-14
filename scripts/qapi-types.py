@@ -68,11 +68,11 @@ def generate_struct_fields(members):
             ret += mcgen('''
     bool has_%(c_name)s;
 ''',
-                         c_name=c_var(argname))
+                         c_name=c_name(argname))
         ret += mcgen('''
     %(c_type)s %(c_name)s;
 ''',
-                     c_type=c_type(argentry), c_name=c_var(argname))
+                     c_type=c_type(argentry), c_name=c_name(argname))
 
     return ret
 
@@ -184,7 +184,7 @@ const int %(name)s_qtypes[QTYPE_MAX] = {
 ''',
         qtype = qtype,
         abbrev = de_camel_case(name).upper(),
-        enum = c_fun(de_camel_case(key),False).upper())
+        enum = c_name(de_camel_case(key),False).upper())
 
     ret += mcgen('''
 };
@@ -221,7 +221,7 @@ struct %(name)s
         %(c_type)s %(c_name)s;
 ''',
                      c_type=c_type(typeinfo[key]),
-                     c_name=c_fun(key))
+                     c_name=c_name(key))
 
     ret += mcgen('''
     };
