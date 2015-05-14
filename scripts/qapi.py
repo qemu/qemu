@@ -538,7 +538,7 @@ def check_union(expr, expr_info):
 
         # Otherwise, check for conflicts in the generated enum
         else:
-            c_key = _generate_enum_string(key)
+            c_key = camel_to_upper(key)
             if c_key in values:
                 raise QAPIExprError(expr_info,
                                     "Union '%s' member '%s' clashes with '%s'"
@@ -556,7 +556,7 @@ def check_alternate(expr, expr_info):
         check_name(expr_info, "Member of alternate '%s'" % name, key)
 
         # Check for conflicts in the generated enum
-        c_key = _generate_enum_string(key)
+        c_key = camel_to_upper(key)
         if c_key in values:
             raise QAPIExprError(expr_info,
                                 "Alternate '%s' member '%s' clashes with '%s'"
@@ -587,7 +587,7 @@ def check_enum(expr, expr_info):
     for member in members:
         check_name(expr_info, "Member of enum '%s'" %name, member,
                    enum_member=True)
-        key = _generate_enum_string(member)
+        key = camel_to_upper(member)
         if key in values:
             raise QAPIExprError(expr_info,
                                 "Enum '%s' member '%s' clashes with '%s'"
@@ -941,7 +941,7 @@ def guardend(name):
 # ENUMName -> ENUM_NAME, EnumName1 -> ENUM_NAME1
 # ENUM_NAME -> ENUM_NAME, ENUM_NAME1 -> ENUM_NAME1, ENUM_Name2 -> ENUM_NAME2
 # ENUM24_Name -> ENUM24_NAME
-def _generate_enum_string(value):
+def camel_to_upper(value):
     c_fun_str = c_name(value, False)
     if value.isupper():
         return c_fun_str
@@ -961,6 +961,6 @@ def _generate_enum_string(value):
     return new_name.lstrip('_').upper()
 
 def generate_enum_full_value(enum_name, enum_value):
-    abbrev_string = _generate_enum_string(enum_name)
-    value_string = _generate_enum_string(enum_value)
+    abbrev_string = camel_to_upper(enum_name)
+    value_string = camel_to_upper(enum_value)
     return "%s_%s" % (abbrev_string, value_string)
