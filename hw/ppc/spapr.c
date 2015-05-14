@@ -1816,6 +1816,7 @@ static const TypeInfo spapr_machine_info = {
 };
 
 #define SPAPR_COMPAT_2_2 \
+        HW_COMPAT_2_2 \
         {\
             .driver   = TYPE_SPAPR_PCI_HOST_BRIDGE,\
             .property = "mem_win_size",\
@@ -1823,7 +1824,8 @@ static const TypeInfo spapr_machine_info = {
         },
 
 #define SPAPR_COMPAT_2_1 \
-        SPAPR_COMPAT_2_2
+        SPAPR_COMPAT_2_2 \
+        HW_COMPAT_2_1
 
 static void spapr_compat_2_3(Object *obj)
 {
@@ -1861,7 +1863,6 @@ static void spapr_machine_2_1_class_init(ObjectClass *oc, void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
     static GlobalProperty compat_props[] = {
-        HW_COMPAT_2_1
         SPAPR_COMPAT_2_1
         { /* end of list */ }
     };
