@@ -838,6 +838,10 @@ static QEMUMachine pc_machine_v0_14 = {
             .driver   = "AC97",\
             .property = "use_broken_id",\
             .value    = stringify(1),\
+        },{\
+            .driver   = "virtio-9p-pci",\
+            .property = "vectors",\
+            .value    = stringify(0),\
         },
 
 #define PC_I440FX_0_13_MACHINE_OPTIONS \
@@ -850,10 +854,6 @@ static QEMUMachine pc_machine_v0_13 = {
     .compat_props = (GlobalProperty[]) {
         PC_COMPAT_0_13
         {
-            .driver   = "virtio-9p-pci",
-            .property = "vectors",
-            .value    = stringify(0),
-        },{
             .driver   = "VGA",
             .property = "rombar",
             .value    = stringify(0),
