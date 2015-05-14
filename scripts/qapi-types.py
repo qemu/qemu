@@ -193,7 +193,7 @@ const int %(name)s_qtypes[QTYPE_MAX] = {
 
 def generate_union(expr, meta):
 
-    name = expr[meta]
+    name = c_name(expr[meta])
     typeinfo = expr['data']
 
     base = expr.get('base')

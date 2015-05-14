@@ -25,11 +25,13 @@
  OrderedDict([('event', 'EVENT_D'), ('data', OrderedDict([('a', 'EventStructOne'), ('b', 'str'), ('*c', 'str'), ('*enum3', 'EnumOne')]))]),
  OrderedDict([('enum', '__org.qemu_x-Enum'), ('data', ['__org.qemu_x-value'])]),
  OrderedDict([('struct', '__org.qemu_x-Base'), ('data', OrderedDict([('__org.qemu_x-member1', '__org.qemu_x-Enum')]))]),
- OrderedDict([('struct', '__org.qemu_x-Struct'), ('base', '__org.qemu_x-Base'), ('data', OrderedDict([('__org.qemu_x-member2', 'str')]))])]
+ OrderedDict([('struct', '__org.qemu_x-Struct'), ('base', '__org.qemu_x-Base'), ('data', OrderedDict([('__org.qemu_x-member2', 'str')]))]),
+ OrderedDict([('union', '__org.qemu_x-Union1'), ('data', OrderedDict([('__org.qemu_x-branch', 'str')]))])]
 [{'enum_name': 'EnumOne', 'enum_values': ['value1', 'value2', 'value3']},
  {'enum_name': '__org.qemu_x-Enum', 'enum_values': ['__org.qemu_x-value']},
  {'enum_name': 'UserDefAlternateKind', 'enum_values': None},
- {'enum_name': 'UserDefNativeListUnionKind', 'enum_values': None}]
+ {'enum_name': 'UserDefNativeListUnionKind', 'enum_values': None},
+ {'enum_name': '__org.qemu_x-Union1Kind', 'enum_values': None}]
 [OrderedDict([('struct', 'NestedEnumsOne'), ('data', OrderedDict([('enum1', 'EnumOne'), ('*enum2', 'EnumOne'), ('enum3', 'EnumOne'), ('*enum4', 'EnumOne')]))]),
  OrderedDict([('struct', 'UserDefZero'), ('data', OrderedDict([('integer', 'int')]))]),
  OrderedDict([('struct', 'UserDefOne'), ('base', 'UserDefZero'), ('data', OrderedDict([('string', 'str'), ('*enum1', 'EnumOne')]))]),

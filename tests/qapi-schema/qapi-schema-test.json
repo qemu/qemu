@@ -114,3 +114,4 @@
   'data': { '__org.qemu_x-member1': '__org.qemu_x-Enum' } }
 { 'struct': '__org.qemu_x-Struct', 'base': '__org.qemu_x-Base',
   'data': { '__org.qemu_x-member2': 'str' } }
+{ 'union': '__org.qemu_x-Union1', 'data': { '__org.qemu_x-branch': 'str' } }
