@@ -353,10 +353,10 @@ bool e820_get_entry(int, uint32_t, uint64_t *, uint64_t *);
             .driver   = "ioh3420",\
             .property = COMPAT_PROP_PCP,\
             .value    = "off",\
-        }
+        },
 
 #define PC_COMPAT_1_7 \
-        PC_COMPAT_2_0, \
+        PC_COMPAT_2_0 \
         {\
             .driver   = TYPE_USB_DEVICE,\
             .property = "msos-desc",\
@@ -371,10 +371,10 @@ bool e820_get_entry(int, uint32_t, uint64_t *, uint64_t *);
             .driver   = "hpet",\
             .property = HPET_INTCAP,\
             .value    = stringify(4),\
-        }
+        },
 
 #define PC_COMPAT_1_6 \
-        PC_COMPAT_1_7, \
+        PC_COMPAT_1_7 \
         {\
             .driver   = "e1000",\
             .property = "mitigation",\
@@ -395,10 +395,10 @@ bool e820_get_entry(int, uint32_t, uint64_t *, uint64_t *);
             .driver   = "q35-pcihost",\
             .property = "short_root_bus",\
             .value    = stringify(1),\
-        }
+        },
 
 #define PC_COMPAT_1_5 \
-        PC_COMPAT_1_6, \
+        PC_COMPAT_1_6 \
         {\
             .driver   = "Conroe-" TYPE_X86_CPU,\
             .property = "model",\
@@ -439,10 +439,10 @@ bool e820_get_entry(int, uint32_t, uint64_t *, uint64_t *);
             .driver   = "q35-pcihost",\
             .property = "short_root_bus",\
             .value    = stringify(0),\
-        }
+        },
 
 #define PC_COMPAT_1_4 \
-        PC_COMPAT_1_5, \
+        PC_COMPAT_1_5 \
         {\
             .driver   = "scsi-hd",\
             .property = "discard_granularity",\
@@ -504,7 +504,7 @@ bool e820_get_entry(int, uint32_t, uint64_t *, uint64_t *);
             .driver   = "486-" TYPE_X86_CPU,\
             .property = "model",\
             .value    = stringify(0),\
-        }
+        },
 
 #define PC_COMMON_MACHINE_OPTIONS \
     .default_boot_order = "cad"
