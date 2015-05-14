@@ -729,17 +729,6 @@ def parse_args(typeinfo):
         # value of an optional argument.
         yield (argname, argentry, optional)
 
-def de_camel_case(name):
-    new_name = ''
-    for ch in name:
-        if ch.isupper() and new_name:
-            new_name += '_'
-        if ch == '-':
-            new_name += '_'
-        else:
-            new_name += ch.lower()
-    return new_name
-
 def camel_case(name):
     new_name = ''
     first = True

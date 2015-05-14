@@ -180,11 +180,9 @@ const int %(name)s_qtypes[QTYPE_MAX] = {
         assert qtype, "Invalid alternate member"
 
         ret += mcgen('''
-    [ %(qtype)s ] = %(abbrev)s_KIND_%(enum)s,
+    [ %(qtype)s ] = %(enum_const)s,
 ''',
-        qtype = qtype,
-        abbrev = de_camel_case(name).upper(),
-        enum = c_name(de_camel_case(key),False).upper())
+        qtype = qtype, enum_const = c_enum_const(name + 'Kind', key))
 
     ret += mcgen('''
 };
