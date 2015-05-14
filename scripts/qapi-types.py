@@ -118,13 +118,13 @@ const char *%(name)s_lookup[] = {
                          name=name)
     i = 0
     for value in values:
-        index = generate_enum_full_value(name, value)
+        index = c_enum_const(name, value)
         ret += mcgen('''
     [%(index)s] = "%(value)s",
 ''',
                      index = index, value = value)
 
-    max_index = generate_enum_full_value(name, 'MAX')
+    max_index = c_enum_const(name, 'MAX')
     ret += mcgen('''
     [%(max_index)s] = NULL,
 };
@@ -150,7 +150,7 @@ typedef enum %(name)s
 
     i = 0
     for value in enum_values:
-        enum_full_value = generate_enum_full_value(name, value)
+        enum_full_value = c_enum_const(name, value)
         enum_decl += mcgen('''
     %(enum_full_value)s = %(i)d,
 ''',

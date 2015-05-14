@@ -214,7 +214,7 @@ void visit_type_%(name)s(Visitor *m, %(name)s **obj, const char *name, Error **e
             or find_union(members[key])
             or find_enum(members[key])), "Invalid alternate member"
 
-        enum_full_value = generate_enum_full_value(disc_type, key)
+        enum_full_value = c_enum_const(disc_type, key)
         ret += mcgen('''
     case %(enum_full_value)s:
         visit_type_%(c_type)s(m, &(*obj)->%(c_name)s, name, &err);
@@ -315,7 +315,7 @@ void visit_type_%(name)s(Visitor *m, %(name)s **obj, const char *name, Error **e
         else:
             fmt = 'visit_type_implicit_%(c_type)s(m, &(*obj)->%(c_name)s, &err);'
 
-        enum_full_value = generate_enum_full_value(disc_type, key)
+        enum_full_value = c_enum_const(disc_type, key)
         ret += mcgen('''
         case %(enum_full_value)s:
             ''' + fmt + '''

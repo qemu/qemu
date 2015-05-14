@@ -177,7 +177,7 @@ typedef enum %(event_enum_name)s
                       event_enum_name = event_enum_name)
 
     # append automatically generated _MAX value
-    enum_max_value = generate_enum_full_value(event_enum_name, "MAX")
+    enum_max_value = c_enum_const(event_enum_name, "MAX")
     enum_values = event_enum_values + [ enum_max_value ]
 
     i = 0
@@ -343,8 +343,7 @@ for expr in exprs:
         fdecl.write(ret)
 
         # We need an enum value per event
-        event_enum_value = generate_enum_full_value(event_enum_name,
-                                                    event_name)
+        event_enum_value = c_enum_const(event_enum_name, event_name)
         ret = generate_event_implement(api_name, event_name, params)
         fdef.write(ret)
 

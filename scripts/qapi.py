@@ -960,7 +960,7 @@ def camel_to_upper(value):
         new_name += c
     return new_name.lstrip('_').upper()
 
-def generate_enum_full_value(enum_name, enum_value):
-    abbrev_string = camel_to_upper(enum_name)
-    value_string = camel_to_upper(enum_value)
+def c_enum_const(type_name, const_name):
+    abbrev_string = camel_to_upper(type_name)
+    value_string = camel_to_upper(const_name)
     return "%s_%s" % (abbrev_string, value_string)
