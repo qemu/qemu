@@ -447,23 +447,23 @@ bool e820_get_entry(int, uint32_t, uint64_t *, uint64_t *);
             .driver   = "scsi-hd",\
             .property = "discard_granularity",\
             .value    = stringify(0),\
-	},{\
+        },{\
             .driver   = "scsi-cd",\
             .property = "discard_granularity",\
             .value    = stringify(0),\
-	},{\
+        },{\
             .driver   = "scsi-disk",\
             .property = "discard_granularity",\
             .value    = stringify(0),\
-	},{\
+        },{\
             .driver   = "ide-hd",\
             .property = "discard_granularity",\
             .value    = stringify(0),\
-	},{\
+        },{\
             .driver   = "ide-cd",\
             .property = "discard_granularity",\
             .value    = stringify(0),\
-	},{\
+        },{\
             .driver   = "ide-drive",\
             .property = "discard_granularity",\
             .value    = stringify(0),\
@@ -471,7 +471,7 @@ bool e820_get_entry(int, uint32_t, uint64_t *, uint64_t *);
             .driver   = "virtio-blk-pci",\
             .property = "discard_granularity",\
             .value    = stringify(0),\
-	},{\
+        },{\
             .driver   = "virtio-serial-pci",\
             .property = "vectors",\
             /* DEV_NVECTORS_UNSPECIFIED as a uint32_t string */\

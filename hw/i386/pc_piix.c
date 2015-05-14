@@ -628,7 +628,7 @@ static QEMUMachine pc_i440fx_machine_v1_4 = {
 };
 
 #define PC_COMPAT_1_3 \
-	PC_COMPAT_1_4, \
+        PC_COMPAT_1_4, \
         {\
             .driver   = "usb-tablet",\
             .property = "usb_version",\
