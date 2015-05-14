@@ -1861,7 +1861,7 @@ static void spapr_machine_2_1_class_init(ObjectClass *oc, void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
     static GlobalProperty compat_props[] = {
-        HW_COMPAT_2_1,
+        HW_COMPAT_2_1
         SPAPR_COMPAT_2_1,
         { /* end of list */ }
     };

@@ -30,6 +30,6 @@
             .driver   = "virtio-pci",\
             .property = "virtio-pci-bus-master-bug-migration",\
             .value    = "on",\
-        }
+        },
 
 #endif /* HW_COMPAT_H */
