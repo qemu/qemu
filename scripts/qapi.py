@@ -769,6 +769,15 @@ def c_enum_const(type_name, const_name):
 
 c_name_trans = string.maketrans('.-', '__')
 
+# Map @name to a valid C identifier.
+# If @protect, avoid returning certain ticklish identifiers (like
+# C keywords) by prepending "q_".
+#
+# Used for converting 'name' from a 'name':'type' qapi definition
+# into a generated struct member, as well as converting type names
+# into substrings of a generated C function name.
+# '__a.b_c' -> '__a_b_c', 'x-foo' -> 'x_foo'
+# protect=True: 'int' -> 'q_int'; protect=False: 'int' -> 'int'
 def c_name(name, protect=True):
     # ANSI X3J11/88-090, 3.1.1
     c89_words = set(['auto', 'break', 'case', 'char', 'const', 'continue',
@@ -800,13 +809,25 @@ def c_name(name, protect=True):
         return "q_" + name
     return name.translate(c_name_trans)
 
+# Map type @name to the C typedef name for the list form.
+#
+# ['Name'] -> 'NameList', ['x-Foo'] -> 'x_FooList', ['int'] -> 'intList'
 def c_list_type(name):
-    return name + 'List'
+    return type_name(name) + 'List'
 
+# Map type @value to the C typedef form.
+#
+# Used for converting 'type' from a 'member':'type' qapi definition
+# into the alphanumeric portion of the type for a generated C parameter,
+# as well as generated C function names.  See c_type() for the rest of
+# the conversion such as adding '*' on pointer types.
+# 'int' -> 'int', '[x-Foo]' -> 'x_FooList', '__a.b_c' -> '__a_b_c'
 def type_name(value):
     if type(value) == list:
         return c_list_type(value[0])
-    return value
+    if value in builtin_types.keys():
+        return value
+    return c_name(value)
 
 def add_name(name, info, meta, implicit = False):
     global all_names
@@ -865,6 +886,10 @@ def is_enum(name):
 eatspace = '\033EATSPACE.'
 pointer_suffix = ' *' + eatspace
 
+# Map type @name to its C type expression.
+# If @is_param, const-qualify the string type.
+#
+# This function is used for computing the full C type of 'member':'name'.
 # A special suffix is added in c_type() for pointer types, and it's
 # stripped in mcgen(). So please notice this when you check the return
 # value of c_type() outside mcgen().
@@ -889,7 +914,7 @@ def c_type(value, is_param=False):
     elif type(value) == list:
         return c_list_type(value[0]) + pointer_suffix
     elif is_enum(value):
-        return value
+        return c_name(value)
     elif value == None:
         return 'void'
     elif value in events:
@@ -897,7 +922,7 @@ def c_type(value, is_param=False):
     else:
         # complex type name
         assert isinstance(value, str) and value != ""
-        return value + pointer_suffix
+        return c_name(value) + pointer_suffix
 
 def is_c_ptr(value):
     return c_type(value).endswith(pointer_suffix)
