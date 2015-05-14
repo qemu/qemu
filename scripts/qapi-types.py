@@ -213,7 +213,7 @@ struct %(name)s
         void *data;
 ''',
                 name=name,
-                discriminator_type_name=discriminator_type_name)
+                discriminator_type_name=c_name(discriminator_type_name))
 
     for key in typeinfo:
         ret += mcgen('''

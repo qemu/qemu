@@ -252,7 +252,7 @@ def generate_visit_union(expr):
     if enum_define:
         # Use the enum type as discriminator
         ret = ""
-        disc_type = enum_define['enum_name']
+        disc_type = c_name(enum_define['enum_name'])
     else:
         # There will always be a discriminator in the C switch code, by default
         # it is an enum type generated silently
@@ -290,7 +290,7 @@ void visit_type_%(name)s(Visitor *m, %(name)s **obj, const char *name, Error **e
             goto out_obj;
         }
 ''',
-            name=name)
+                     name=c_name(name))
 
     if not discriminator:
         disc_key = "type"
