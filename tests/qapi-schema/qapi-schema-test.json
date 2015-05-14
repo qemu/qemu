@@ -110,3 +110,7 @@
 
 # test that we correctly compile downstream extensions
 { 'enum': '__org.qemu_x-Enum', 'data': [ '__org.qemu_x-value' ] }
+{ 'struct': '__org.qemu_x-Base',
+  'data': { '__org.qemu_x-member1': '__org.qemu_x-Enum' } }
+{ 'struct': '__org.qemu_x-Struct', 'base': '__org.qemu_x-Base',
+  'data': { '__org.qemu_x-member2': 'str' } }

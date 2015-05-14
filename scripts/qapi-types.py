@@ -45,7 +45,7 @@ typedef struct %(name)sList
     struct %(name)sList *next;
 } %(name)sList;
 ''',
-                 name=name)
+                 name=c_name(name))
 
 def generate_fwd_enum_struct(name, members):
     return mcgen('''
@@ -87,7 +87,7 @@ def generate_struct(expr):
 struct %(name)s
 {
 ''',
-          name=structname)
+          name=c_name(structname))
 
     if base:
         ret += generate_struct_fields({'base': base})

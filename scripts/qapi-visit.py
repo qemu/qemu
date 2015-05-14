@@ -56,7 +56,7 @@ static void visit_type_%(name)s_fields(Visitor *m, %(name)s **obj, Error **errp)
 {
     Error *err = NULL;
 ''',
-                 name=name)
+                 name=c_name(name))
     push_indent()
 
     if base:
@@ -111,16 +111,16 @@ def generate_visit_struct_body(name, members):
     ret = mcgen('''
     Error *err = NULL;
 
-    visit_start_struct(m, (void **)obj, "%(name)s", name, sizeof(%(name)s), &err);
+    visit_start_struct(m, (void **)obj, "%(name)s", name, sizeof(%(c_name)s), &err);
     if (!err) {
         if (*obj) {
-            visit_type_%(name)s_fields(m, obj, errp);
+            visit_type_%(c_name)s_fields(m, obj, errp);
         }
         visit_end_struct(m, &err);
     }
     error_propagate(errp, err);
 ''',
-                name=name)
+                name=name, c_name=c_name(name))
 
     return ret
 
@@ -137,7 +137,7 @@ def generate_visit_struct(expr):
 void visit_type_%(name)s(Visitor *m, %(name)s **obj, const char *name, Error **errp)
 {
 ''',
-                name=name)
+                 name=c_name(name))
 
     ret += generate_visit_struct_body(name, members)
 
@@ -347,6 +347,7 @@ out:
 def generate_declaration(name, members, builtin_type=False):
     ret = ""
     if not builtin_type:
+        name = c_name(name)
         ret += mcgen('''
 
 void visit_type_%(name)s(Visitor *m, %(name)s **obj, const char *name, Error **errp);
