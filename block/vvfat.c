@@ -1059,8 +1059,8 @@ static void vvfat_parse_filename(const char *filename, QDict *options,
     /* Fill in the options QDict */
     qdict_put(options, "dir", qstring_from_str(filename));
     qdict_put(options, "fat-type", qint_from_int(fat_type));
-    qdict_put(options, "floppy", qbool_from_int(floppy));
-    qdict_put(options, "rw", qbool_from_int(rw));
+    qdict_put(options, "floppy", qbool_from_bool(floppy));
+    qdict_put(options, "rw", qbool_from_bool(rw));
 }
 
 static int vvfat_open(BlockDriverState *bs, QDict *options, int flags,

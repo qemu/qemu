@@ -927,7 +927,7 @@ static void qemu_opts_from_qdict_1(const char *key, QObject *obj, void *opaque)
         break;
     case QTYPE_QBOOL:
         pstrcpy(buf, sizeof(buf),
-                qbool_get_int(qobject_to_qbool(obj)) ? "on" : "off");
+                qbool_get_bool(qobject_to_qbool(obj)) ? "on" : "off");
         value = buf;
         break;
     default:

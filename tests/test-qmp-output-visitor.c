@@ -72,7 +72,7 @@ static void test_visitor_out_bool(TestOutputVisitorData *data,
     obj = qmp_output_get_qobject(data->qov);
     g_assert(obj != NULL);
     g_assert(qobject_type(obj) == QTYPE_QBOOL);
-    g_assert(qbool_get_int(qobject_to_qbool(obj)) == value);
+    g_assert(qbool_get_bool(qobject_to_qbool(obj)) == value);
 
     qobject_decref(obj);
 }
@@ -662,7 +662,7 @@ static void check_native_list(QObject *qobj,
             tmp = qlist_peek(qlist);
             g_assert(tmp);
             qvalue = qobject_to_qbool(tmp);
-            g_assert_cmpint(qbool_get_int(qvalue), ==, (i % 3 == 0) ? 1 : 0);
+            g_assert_cmpint(qbool_get_bool(qvalue), ==, i % 3 == 0);
             qobject_decref(qlist_pop(qlist));
         }
         break;

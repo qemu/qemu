@@ -248,7 +248,7 @@ static void qmp_input_type_bool(Visitor *v, bool *obj, const char *name,
         return;
     }
 
-    *obj = qbool_get_int(qobject_to_qbool(qobj));
+    *obj = qbool_get_bool(qobject_to_qbool(qobj));
 }
 
 static void qmp_input_type_str(Visitor *v, char **obj, const char *name,

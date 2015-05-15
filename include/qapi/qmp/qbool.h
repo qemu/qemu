@@ -14,16 +14,16 @@
 #ifndef QBOOL_H
 #define QBOOL_H
 
-#include <stdint.h>
+#include <stdbool.h>
 #include "qapi/qmp/qobject.h"
 
 typedef struct QBool {
     QObject_HEAD;
-    int value;
+    bool value;
 } QBool;
 
-QBool *qbool_from_int(int value);
-int qbool_get_int(const QBool *qb);
+QBool *qbool_from_bool(bool value);
+bool qbool_get_bool(const QBool *qb);
 QBool *qobject_to_qbool(const QObject *obj);
 
 #endif /* QBOOL_H */

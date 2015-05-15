@@ -1010,7 +1010,7 @@ Object *object_property_get_link(Object *obj, const char *name,
 void object_property_set_bool(Object *obj, bool value,
                               const char *name, Error **errp)
 {
-    QBool *qbool = qbool_from_int(value);
+    QBool *qbool = qbool_from_bool(value);
     object_property_set_qobject(obj, QOBJECT(qbool), name, errp);
 
     QDECREF(qbool);
@@ -1031,7 +1031,7 @@ bool object_property_get_bool(Object *obj, const char *name,
         error_set(errp, QERR_INVALID_PARAMETER_TYPE, name, "boolean");
         retval = false;
     } else {
-        retval = qbool_get_int(qbool);
+        retval = qbool_get_bool(qbool);
     }
 
     QDECREF(qbool);

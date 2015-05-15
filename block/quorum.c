@@ -1024,9 +1024,9 @@ static void quorum_refresh_filename(BlockDriverState *bs)
     qdict_put_obj(opts, QUORUM_OPT_VOTE_THRESHOLD,
                   QOBJECT(qint_from_int(s->threshold)));
     qdict_put_obj(opts, QUORUM_OPT_BLKVERIFY,
-                  QOBJECT(qbool_from_int(s->is_blkverify)));
+                  QOBJECT(qbool_from_bool(s->is_blkverify)));
     qdict_put_obj(opts, QUORUM_OPT_REWRITE,
-                  QOBJECT(qbool_from_int(s->rewrite_corrupted)));
+                  QOBJECT(qbool_from_bool(s->rewrite_corrupted)));
     qdict_put_obj(opts, "children", QOBJECT(children));
 
     bs->full_open_options = opts;

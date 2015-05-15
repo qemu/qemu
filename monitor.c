@@ -3940,7 +3940,7 @@ static const mon_cmd_t *monitor_parse_command(Monitor *mon,
         case 'b':
             {
                 const char *beg;
-                int val;
+                bool val;
 
                 while (qemu_isspace(*p)) {
                     p++;
@@ -3950,14 +3950,14 @@ static const mon_cmd_t *monitor_parse_command(Monitor *mon,
                     p++;
                 }
                 if (p - beg == 2 && !memcmp(beg, "on", p - beg)) {
-                    val = 1;
+                    val = true;
                 } else if (p - beg == 3 && !memcmp(beg, "off", p - beg)) {
-                    val = 0;
+                    val = false;
                 } else {
                     monitor_printf(mon, "Expected 'on' or 'off'\n");
                     goto fail;
                 }
-                qdict_put(qdict, key, qbool_from_int(val));
+                qdict_put(qdict, key, qbool_from_bool(val));
             }
             break;
         case '-':
@@ -3988,7 +3988,7 @@ static const mon_cmd_t *monitor_parse_command(Monitor *mon,
                     } else {
                         /* has option */
                         p++;
-                        qdict_put(qdict, key, qbool_from_int(1));
+                        qdict_put(qdict, key, qbool_from_bool(true));
                     }
                 }
             }
