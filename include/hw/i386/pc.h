@@ -529,20 +529,23 @@ static inline void pc_default_machine_options(QEMUMachine *m)
     m->max_cpus = 255;
 }
 
-#define DEFINE_PC_MACHINE(suffix, namestr, initfn, optsfn, COMPAT) \
+#define DEFINE_PC_MACHINE(suffix, namestr, initfn, optsfn) \
     static void pc_machine_init_##suffix(void) \
     { \
         static QEMUMachine m = { }; \
-        static GlobalProperty props[] = { \
-            COMPAT \
-            { /* end of list */ } \
-        }; \
         optsfn(&m); \
         m.name = namestr; \
         m.init = initfn; \
-        m.compat_props = props; \
         qemu_register_pc_machine(&m); \
     } \
     machine_init(pc_machine_init_##suffix)
+
+#define SET_MACHINE_COMPAT(m, COMPAT) do { \
+    static GlobalProperty props[] = { \
+        COMPAT \
+        { /* end of list */ } \
+    }; \
+    (m)->compat_props = props; \
+} while (0)
 
 #endif
