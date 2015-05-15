@@ -16,9 +16,7 @@
  * with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "hw/sysbus.h"
-#include "sysemu/char.h"
-#include "qemu/timer.h"
+#include "hw/char/cadence_uart.h"
 
 #ifdef CADENCE_UART_ERR_DEBUG
 #define DB_PRINT(...) do { \
@@ -85,8 +83,6 @@
 #define LOCAL_LOOPBACK         (0x2 << UART_MR_CHMODE_SH)
 #define REMOTE_LOOPBACK        (0x3 << UART_MR_CHMODE_SH)
 
-#define CADENCE_UART_RX_FIFO_SIZE           16
-#define CADENCE_UART_TX_FIFO_SIZE           16
 #define UART_INPUT_CLK         50000000
 
 #define R_CR       (0x00/4)
@@ -108,29 +104,6 @@
 #define R_PWID     (0x40/4)
 #define R_TTRIG    (0x44/4)
 
-#define CADENCE_UART_R_MAX (0x48/4)
-
-#define TYPE_CADENCE_UART "cadence_uart"
-#define CADENCE_UART(obj) OBJECT_CHECK(CadenceUARTState, (obj), \
-                                       TYPE_CADENCE_UART)
-
-typedef struct {
-    /*< private >*/
-    SysBusDevice parent_obj;
-    /*< public >*/
-
-    MemoryRegion iomem;
-    uint32_t r[CADENCE_UART_R_MAX];
-    uint8_t rx_fifo[CADENCE_UART_RX_FIFO_SIZE];
-    uint8_t tx_fifo[CADENCE_UART_TX_FIFO_SIZE];
-    uint32_t rx_wpos;
-    uint32_t rx_count;
-    uint32_t tx_count;
-    uint64_t char_tx_time;
-    CharDriverState *chr;
-    qemu_irq irq;
-    QEMUTimer *fifo_trigger_handle;
-} CadenceUARTState;
 
 static void uart_update_status(CadenceUARTState *s)
 {
