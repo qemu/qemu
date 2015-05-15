@@ -530,121 +530,70 @@ static void pc_xen_hvm_init(MachineState *machine)
     .alias = "pc",                                              \
     .is_default = 1
 
+DEFINE_PC_MACHINE(v2_4, "pc-i440fx-2.4", pc_init_pci,
+                  PC_I440FX_2_4_MACHINE_OPTIONS, /* no compat */)
 
-static QEMUMachine pc_i440fx_machine_v2_4 = {
-    PC_I440FX_2_4_MACHINE_OPTIONS,
-    .name = "pc-i440fx-2.4",
-    .init = pc_init_pci,
-};
 
 #define PC_I440FX_2_3_MACHINE_OPTIONS \
     PC_I440FX_2_4_MACHINE_OPTIONS, \
     .alias = NULL, \
     .is_default = 0
 
-static QEMUMachine pc_i440fx_machine_v2_3 = {
-    PC_I440FX_2_3_MACHINE_OPTIONS,
-    .name = "pc-i440fx-2.3",
-    .init = pc_init_pci_2_3,
-    .compat_props = (GlobalProperty[]) {
-        PC_COMPAT_2_3
-        { /* end of list */ }
-    },
-};
+DEFINE_PC_MACHINE(v2_3, "pc-i440fx-2.3", pc_init_pci_2_3,
+                  PC_I440FX_2_3_MACHINE_OPTIONS, PC_COMPAT_2_3);
+
 
 #define PC_I440FX_2_2_MACHINE_OPTIONS \
     PC_I440FX_2_3_MACHINE_OPTIONS
 
-static QEMUMachine pc_i440fx_machine_v2_2 = {
-    PC_I440FX_2_2_MACHINE_OPTIONS,
-    .name = "pc-i440fx-2.2",
-    .init = pc_init_pci_2_2,
-    .compat_props = (GlobalProperty[]) {
-        PC_COMPAT_2_2
-        { /* end of list */ }
-    },
-};
+DEFINE_PC_MACHINE(v2_2, "pc-i440fx-2.2", pc_init_pci_2_2,
+                  PC_I440FX_2_2_MACHINE_OPTIONS, PC_COMPAT_2_2);
+
 
 #define PC_I440FX_2_1_MACHINE_OPTIONS \
     PC_I440FX_2_2_MACHINE_OPTIONS, \
     .default_display = NULL
 
-static QEMUMachine pc_i440fx_machine_v2_1 = {
-    PC_I440FX_2_1_MACHINE_OPTIONS,
-    .name = "pc-i440fx-2.1",
-    .init = pc_init_pci_2_1,
-    .compat_props = (GlobalProperty[]) {
-        PC_COMPAT_2_1
-        { /* end of list */ }
-    },
-};
+DEFINE_PC_MACHINE(v2_1, "pc-i440fx-2.1", pc_init_pci_2_1,
+                  PC_I440FX_2_1_MACHINE_OPTIONS, PC_COMPAT_2_1);
+
 
 #define PC_I440FX_2_0_MACHINE_OPTIONS \
     PC_I440FX_2_1_MACHINE_OPTIONS
 
-static QEMUMachine pc_i440fx_machine_v2_0 = {
-    PC_I440FX_2_0_MACHINE_OPTIONS,
-    .name = "pc-i440fx-2.0",
-    .init = pc_init_pci_2_0,
-    .compat_props = (GlobalProperty[]) {
-        PC_COMPAT_2_0
-        { /* end of list */ }
-    },
-};
+DEFINE_PC_MACHINE(v2_0, "pc-i440fx-2.0", pc_init_pci_2_0,
+                  PC_I440FX_2_0_MACHINE_OPTIONS, PC_COMPAT_2_0);
+
 
 #define PC_I440FX_1_7_MACHINE_OPTIONS \
     PC_I440FX_2_0_MACHINE_OPTIONS, \
     .default_machine_opts = NULL
 
-static QEMUMachine pc_i440fx_machine_v1_7 = {
-    PC_I440FX_1_7_MACHINE_OPTIONS,
-    .name = "pc-i440fx-1.7",
-    .init = pc_init_pci_1_7,
-    .compat_props = (GlobalProperty[]) {
-        PC_COMPAT_1_7
-        { /* end of list */ }
-    },
-};
+DEFINE_PC_MACHINE(v1_7, "pc-i440fx-1.7", pc_init_pci_1_7,
+                  PC_I440FX_1_7_MACHINE_OPTIONS, PC_COMPAT_1_7);
+
 
 #define PC_I440FX_1_6_MACHINE_OPTIONS \
     PC_I440FX_1_7_MACHINE_OPTIONS
 
-static QEMUMachine pc_i440fx_machine_v1_6 = {
-    PC_I440FX_1_6_MACHINE_OPTIONS,
-    .name = "pc-i440fx-1.6",
-    .init = pc_init_pci_1_6,
-    .compat_props = (GlobalProperty[]) {
-        PC_COMPAT_1_6
-        { /* end of list */ }
-    },
-};
+DEFINE_PC_MACHINE(v1_6, "pc-i440fx-1.6", pc_init_pci_1_6,
+                  PC_I440FX_1_6_MACHINE_OPTIONS, PC_COMPAT_1_6);
+
 
 #define PC_I440FX_1_5_MACHINE_OPTIONS \
     PC_I440FX_1_6_MACHINE_OPTIONS
 
-static QEMUMachine pc_i440fx_machine_v1_5 = {
-    PC_I440FX_1_5_MACHINE_OPTIONS,
-    .name = "pc-i440fx-1.5",
-    .init = pc_init_pci_1_5,
-    .compat_props = (GlobalProperty[]) {
-        PC_COMPAT_1_5
-        { /* end of list */ }
-    },
-};
+DEFINE_PC_MACHINE(v1_5, "pc-i440fx-1.5", pc_init_pci_1_5,
+                  PC_I440FX_1_5_MACHINE_OPTIONS, PC_COMPAT_1_5);
+
 
 #define PC_I440FX_1_4_MACHINE_OPTIONS \
     PC_I440FX_1_5_MACHINE_OPTIONS, \
     .hot_add_cpu = NULL
 
-static QEMUMachine pc_i440fx_machine_v1_4 = {
-    PC_I440FX_1_4_MACHINE_OPTIONS,
-    .name = "pc-i440fx-1.4",
-    .init = pc_init_pci_1_4,
-    .compat_props = (GlobalProperty[]) {
-        PC_COMPAT_1_4
-        { /* end of list */ }
-    },
-};
+DEFINE_PC_MACHINE(v1_4, "pc-i440fx-1.4", pc_init_pci_1_4,
+                  PC_I440FX_1_4_MACHINE_OPTIONS, PC_COMPAT_1_4);
+
 
 #define PC_COMPAT_1_3 \
         PC_COMPAT_1_4 \
@@ -669,15 +618,9 @@ static QEMUMachine pc_i440fx_machine_v1_4 = {
 #define PC_I440FX_1_3_MACHINE_OPTIONS \
     PC_I440FX_1_4_MACHINE_OPTIONS
 
-static QEMUMachine pc_machine_v1_3 = {
-    PC_I440FX_1_3_MACHINE_OPTIONS,
-    .name = "pc-1.3",
-    .init = pc_init_pci_1_3,
-    .compat_props = (GlobalProperty[]) {
-        PC_COMPAT_1_3
-        { /* end of list */ }
-    },
-};
+DEFINE_PC_MACHINE(v1_3, "pc-1.3", pc_init_pci_1_3,
+                  PC_I440FX_1_3_MACHINE_OPTIONS, PC_COMPAT_1_3);
+
 
 #define PC_COMPAT_1_2 \
         PC_COMPAT_1_3 \
@@ -710,15 +653,9 @@ static QEMUMachine pc_machine_v1_3 = {
 #define PC_I440FX_1_2_MACHINE_OPTIONS \
     PC_I440FX_1_3_MACHINE_OPTIONS
 
-static QEMUMachine pc_machine_v1_2 = {
-    PC_I440FX_1_2_MACHINE_OPTIONS,
-    .name = "pc-1.2",
-    .init = pc_init_pci_1_2,
-    .compat_props = (GlobalProperty[]) {
-        PC_COMPAT_1_2
-        { /* end of list */ }
-    },
-};
+DEFINE_PC_MACHINE(v1_2, "pc-1.2", pc_init_pci_1_2,
+                  PC_I440FX_1_2_MACHINE_OPTIONS, PC_COMPAT_1_2);
+
 
 #define PC_COMPAT_1_1 \
         PC_COMPAT_1_2 \
@@ -755,15 +692,9 @@ static QEMUMachine pc_machine_v1_2 = {
 #define PC_I440FX_1_1_MACHINE_OPTIONS \
     PC_I440FX_1_2_MACHINE_OPTIONS
 
-static QEMUMachine pc_machine_v1_1 = {
-    PC_I440FX_1_1_MACHINE_OPTIONS,
-    .name = "pc-1.1",
-    .init = pc_init_pci_1_2,
-    .compat_props = (GlobalProperty[]) {
-        PC_COMPAT_1_1
-        { /* end of list */ }
-    },
-};
+DEFINE_PC_MACHINE(v1_1, "pc-1.1", pc_init_pci_1_2,
+                  PC_I440FX_1_1_MACHINE_OPTIONS, PC_COMPAT_1_1);
+
 
 #define PC_COMPAT_1_0 \
         PC_COMPAT_1_1 \
@@ -789,15 +720,9 @@ static QEMUMachine pc_machine_v1_1 = {
     PC_I440FX_1_1_MACHINE_OPTIONS, \
     .hw_version = "1.0"
 
-static QEMUMachine pc_machine_v1_0 = {
-    PC_I440FX_1_0_MACHINE_OPTIONS,
-    .name = "pc-1.0",
-    .init = pc_init_pci_1_2,
-    .compat_props = (GlobalProperty[]) {
-        PC_COMPAT_1_0
-        { /* end of list */ }
-    },
-};
+DEFINE_PC_MACHINE(v1_0, "pc-1.0", pc_init_pci_1_2,
+                  PC_I440FX_1_0_MACHINE_OPTIONS, PC_COMPAT_1_0);
+
 
 #define PC_COMPAT_0_15 \
         PC_COMPAT_1_0
@@ -806,15 +731,9 @@ static QEMUMachine pc_machine_v1_0 = {
     PC_I440FX_1_0_MACHINE_OPTIONS, \
     .hw_version = "0.15"
 
-static QEMUMachine pc_machine_v0_15 = {
-    PC_I440FX_0_15_MACHINE_OPTIONS,
-    .name = "pc-0.15",
-    .init = pc_init_pci_1_2,
-    .compat_props = (GlobalProperty[]) {
-        PC_COMPAT_0_15
-        { /* end of list */ }
-    },
-};
+DEFINE_PC_MACHINE(v0_15, "pc-0.15", pc_init_pci_1_2,
+                  PC_I440FX_0_15_MACHINE_OPTIONS, PC_COMPAT_0_15);
+
 
 #define PC_COMPAT_0_14 \
         PC_COMPAT_0_15 \
@@ -848,15 +767,9 @@ static QEMUMachine pc_machine_v0_15 = {
     PC_I440FX_0_15_MACHINE_OPTIONS, \
     .hw_version = "0.14"
 
-static QEMUMachine pc_machine_v0_14 = {
-    PC_I440FX_0_14_MACHINE_OPTIONS,
-    .name = "pc-0.14",
-    .init = pc_init_pci_1_2,
-    .compat_props = (GlobalProperty[]) {
-        PC_COMPAT_0_14
-        { /* end of list */ }
-    },
-};
+DEFINE_PC_MACHINE(v0_14, "pc-0.14", pc_init_pci_1_2,
+                  PC_I440FX_0_14_MACHINE_OPTIONS, PC_COMPAT_0_14);
+
 
 #define PC_COMPAT_0_13 \
         PC_COMPAT_0_14 \
@@ -886,15 +799,9 @@ static QEMUMachine pc_machine_v0_14 = {
     PC_I440FX_0_14_MACHINE_OPTIONS, \
     .hw_version = "0.13"
 
-static QEMUMachine pc_machine_v0_13 = {
-    PC_I440FX_0_13_MACHINE_OPTIONS,
-    .name = "pc-0.13",
-    .init = pc_init_pci_no_kvmclock,
-    .compat_props = (GlobalProperty[]) {
-        PC_COMPAT_0_13
-        { /* end of list */ }
-    },
-};
+DEFINE_PC_MACHINE(v0_13, "pc-0.13", pc_init_pci_no_kvmclock,
+                  PC_I440FX_0_13_MACHINE_OPTIONS, PC_COMPAT_0_13);
+
 
 #define PC_COMPAT_0_12 \
         PC_COMPAT_0_13 \
@@ -924,15 +831,9 @@ static QEMUMachine pc_machine_v0_13 = {
     PC_I440FX_0_13_MACHINE_OPTIONS, \
     .hw_version = "0.12"
 
-static QEMUMachine pc_machine_v0_12 = {
-    PC_I440FX_0_12_MACHINE_OPTIONS,
-    .name = "pc-0.12",
-    .init = pc_init_pci_no_kvmclock,
-    .compat_props = (GlobalProperty[]) {
-        PC_COMPAT_0_12
-        { /* end of list */ }
-    },
-};
+DEFINE_PC_MACHINE(v0_12, "pc-0.12", pc_init_pci_no_kvmclock,
+                  PC_I440FX_0_12_MACHINE_OPTIONS, PC_COMPAT_0_12);
+
 
 #define PC_COMPAT_0_11 \
         PC_COMPAT_0_12 \
@@ -958,15 +859,9 @@ static QEMUMachine pc_machine_v0_12 = {
     PC_I440FX_0_12_MACHINE_OPTIONS, \
     .hw_version = "0.11"
 
-static QEMUMachine pc_machine_v0_11 = {
-    PC_I440FX_0_11_MACHINE_OPTIONS,
-    .name = "pc-0.11",
-    .init = pc_init_pci_no_kvmclock,
-    .compat_props = (GlobalProperty[]) {
-        PC_COMPAT_0_11
-        { /* end of list */ }
-    },
-};
+DEFINE_PC_MACHINE(v0_11, "pc-0.11", pc_init_pci_no_kvmclock,
+                  PC_I440FX_0_11_MACHINE_OPTIONS, PC_COMPAT_0_11);
+
 
 #define PC_COMPAT_0_10 \
     PC_COMPAT_0_11 \
@@ -996,29 +891,18 @@ static QEMUMachine pc_machine_v0_11 = {
     PC_I440FX_0_11_MACHINE_OPTIONS, \
     .hw_version = "0.10"
 
-static QEMUMachine pc_machine_v0_10 = {
-    PC_I440FX_0_10_MACHINE_OPTIONS,
-    .name = "pc-0.10",
-    .init = pc_init_pci_no_kvmclock,
-    .compat_props = (GlobalProperty[]) {
-        PC_COMPAT_0_10
-        { /* end of list */ }
-    },
-};
+DEFINE_PC_MACHINE(v0_10, "pc-0.10", pc_init_pci_no_kvmclock,
+                  PC_I440FX_0_10_MACHINE_OPTIONS, PC_COMPAT_0_10);
+
 
 #define ISAPC_MACHINE_OPTIONS \
     PC_COMMON_MACHINE_OPTIONS, \
     .desc = "ISA-only PC", \
     .max_cpus = 1
 
-static QEMUMachine isapc_machine = {
-    ISAPC_MACHINE_OPTIONS,
-    .name = "isapc",
-    .init = pc_init_isa,
-    .compat_props = (GlobalProperty[]) {
-        { /* end of list */ }
-    },
-};
+DEFINE_PC_MACHINE(isapc, "isapc", pc_init_isa,
+                  ISAPC_MACHINE_OPTIONS, /* no compat */);
+
 
 #ifdef CONFIG_XEN
 #define XENFV_MACHINE_OPTIONS \
@@ -1028,38 +912,6 @@ static QEMUMachine isapc_machine = {
     .default_machine_opts = "accel=xen", \
     .hot_add_cpu = pc_hot_add_cpu
 
-static QEMUMachine xenfv_machine = {
-    XENFV_MACHINE_OPTIONS,
-    .name = "xenfv",
-    .init = pc_xen_hvm_init,
-};
+DEFINE_PC_MACHINE(xenfv, "xenfv", pc_xen_hvm_init,
+                  XENFV_MACHINE_OPTIONS, /* no compat */);
 #endif
-
-static void pc_machine_init(void)
-{
-    qemu_register_pc_machine(&pc_i440fx_machine_v2_4);
-    qemu_register_pc_machine(&pc_i440fx_machine_v2_3);
-    qemu_register_pc_machine(&pc_i440fx_machine_v2_2);
-    qemu_register_pc_machine(&pc_i440fx_machine_v2_1);
-    qemu_register_pc_machine(&pc_i440fx_machine_v2_0);
-    qemu_register_pc_machine(&pc_i440fx_machine_v1_7);
-    qemu_register_pc_machine(&pc_i440fx_machine_v1_6);
-    qemu_register_pc_machine(&pc_i440fx_machine_v1_5);
-    qemu_register_pc_machine(&pc_i440fx_machine_v1_4);
-    qemu_register_pc_machine(&pc_machine_v1_3);
-    qemu_register_pc_machine(&pc_machine_v1_2);
-    qemu_register_pc_machine(&pc_machine_v1_1);
-    qemu_register_pc_machine(&pc_machine_v1_0);
-    qemu_register_pc_machine(&pc_machine_v0_15);
-    qemu_register_pc_machine(&pc_machine_v0_14);
-    qemu_register_pc_machine(&pc_machine_v0_13);
-    qemu_register_pc_machine(&pc_machine_v0_12);
-    qemu_register_pc_machine(&pc_machine_v0_11);
-    qemu_register_pc_machine(&pc_machine_v0_10);
-    qemu_register_pc_machine(&isapc_machine);
-#ifdef CONFIG_XEN
-    qemu_register_pc_machine(&xenfv_machine);
-#endif
-}
-
-machine_init(pc_machine_init);

@@ -525,4 +525,20 @@ bool e820_get_entry(int, uint32_t, uint64_t *, uint64_t *);
     .hot_add_cpu = pc_hot_add_cpu, \
     .max_cpus = 255
 
+#define DEFINE_PC_MACHINE(suffix, namestr, initfn, OPTS, COMPAT) \
+    static QEMUMachine pc_machine_##suffix = { \
+        OPTS, \
+        .name = namestr, \
+        .init = initfn, \
+        .compat_props = (GlobalProperty[]) { \
+            COMPAT \
+            { /* end of list */ } \
+        }, \
+    }; \
+    static void pc_machine_init_##suffix(void) \
+    { \
+        qemu_register_pc_machine(&pc_machine_##suffix); \
+    } \
+    machine_init(pc_machine_init_##suffix)
+
 #endif

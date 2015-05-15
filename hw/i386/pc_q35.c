@@ -427,131 +427,65 @@ static void pc_q35_init_1_4(MachineState *machine)
     .default_display = "std",                           \
     .alias = "q35"
 
-static QEMUMachine pc_q35_machine_v2_4 = {
-    PC_Q35_2_4_MACHINE_OPTIONS,
-    .name = "pc-q35-2.4",
-    .init = pc_q35_init,
-};
+DEFINE_PC_MACHINE(v2_4, "pc-q35-2.4", pc_q35_init,
+                  PC_Q35_2_4_MACHINE_OPTIONS, /* no compat */);
+
 
 #define PC_Q35_2_3_MACHINE_OPTIONS \
     PC_Q35_2_4_MACHINE_OPTIONS, \
     .alias = NULL
 
-static QEMUMachine pc_q35_machine_v2_3 = {
-    PC_Q35_2_3_MACHINE_OPTIONS,
-    .name = "pc-q35-2.3",
-    .init = pc_q35_init_2_3,
-    .compat_props = (GlobalProperty[]) {
-        PC_COMPAT_2_3
-        { /* end of list */ }
-    },
-};
+DEFINE_PC_MACHINE(v2_3, "pc-q35-2.3", pc_q35_init_2_3,
+                  PC_Q35_2_3_MACHINE_OPTIONS, PC_COMPAT_2_3);
+
 
 #define PC_Q35_2_2_MACHINE_OPTIONS \
     PC_Q35_2_3_MACHINE_OPTIONS
 
-static QEMUMachine pc_q35_machine_v2_2 = {
-    PC_Q35_2_2_MACHINE_OPTIONS,
-    .name = "pc-q35-2.2",
-    .init = pc_q35_init_2_2,
-    .compat_props = (GlobalProperty[]) {
-        PC_COMPAT_2_2
-        { /* end of list */ }
-    },
-};
+DEFINE_PC_MACHINE(v2_2, "pc-q35-2.2", pc_q35_init_2_2,
+                  PC_Q35_2_2_MACHINE_OPTIONS, PC_COMPAT_2_2);
+
 
 #define PC_Q35_2_1_MACHINE_OPTIONS \
     PC_Q35_2_2_MACHINE_OPTIONS, \
     .default_display = NULL
 
-static QEMUMachine pc_q35_machine_v2_1 = {
-    PC_Q35_2_1_MACHINE_OPTIONS,
-    .name = "pc-q35-2.1",
-    .init = pc_q35_init_2_1,
-    .compat_props = (GlobalProperty[]) {
-        PC_COMPAT_2_1
-        { /* end of list */ }
-    },
-};
+DEFINE_PC_MACHINE(v2_1, "pc-q35-2.1", pc_q35_init_2_1,
+                  PC_Q35_2_1_MACHINE_OPTIONS, PC_COMPAT_2_1);
+
 
 #define PC_Q35_2_0_MACHINE_OPTIONS \
     PC_Q35_2_1_MACHINE_OPTIONS
 
-static QEMUMachine pc_q35_machine_v2_0 = {
-    PC_Q35_2_0_MACHINE_OPTIONS,
-    .name = "pc-q35-2.0",
-    .init = pc_q35_init_2_0,
-    .compat_props = (GlobalProperty[]) {
-        PC_COMPAT_2_0
-        { /* end of list */ }
-    },
-};
+DEFINE_PC_MACHINE(v2_0, "pc-q35-2.0", pc_q35_init_2_0,
+                  PC_Q35_2_0_MACHINE_OPTIONS, PC_COMPAT_2_0);
+
 
 #define PC_Q35_1_7_MACHINE_OPTIONS \
     PC_Q35_2_0_MACHINE_OPTIONS, \
     .default_machine_opts = NULL
 
-static QEMUMachine pc_q35_machine_v1_7 = {
-    PC_Q35_1_7_MACHINE_OPTIONS,
-    .name = "pc-q35-1.7",
-    .init = pc_q35_init_1_7,
-    .compat_props = (GlobalProperty[]) {
-        PC_COMPAT_1_7
-        { /* end of list */ }
-    },
-};
+DEFINE_PC_MACHINE(v1_7, "pc-q35-1.7", pc_q35_init_1_7,
+                  PC_Q35_1_7_MACHINE_OPTIONS, PC_COMPAT_1_7);
+
 
 #define PC_Q35_1_6_MACHINE_OPTIONS \
     PC_Q35_MACHINE_OPTIONS
 
-static QEMUMachine pc_q35_machine_v1_6 = {
-    PC_Q35_1_6_MACHINE_OPTIONS,
-    .name = "pc-q35-1.6",
-    .init = pc_q35_init_1_6,
-    .compat_props = (GlobalProperty[]) {
-        PC_COMPAT_1_6
-        { /* end of list */ }
-    },
-};
+DEFINE_PC_MACHINE(v1_6, "pc-q35-1.6", pc_q35_init_1_6,
+                  PC_Q35_1_6_MACHINE_OPTIONS, PC_COMPAT_1_6);
+
 
 #define PC_Q35_1_5_MACHINE_OPTIONS \
     PC_Q35_1_6_MACHINE_OPTIONS
 
-static QEMUMachine pc_q35_machine_v1_5 = {
-    PC_Q35_1_5_MACHINE_OPTIONS,
-    .name = "pc-q35-1.5",
-    .init = pc_q35_init_1_5,
-    .compat_props = (GlobalProperty[]) {
-        PC_COMPAT_1_5
-        { /* end of list */ }
-    },
-};
+DEFINE_PC_MACHINE(v1_5, "pc-q35-1.5", pc_q35_init_1_5,
+                  PC_Q35_1_5_MACHINE_OPTIONS, PC_COMPAT_1_5);
+
 
 #define PC_Q35_1_4_MACHINE_OPTIONS \
     PC_Q35_1_5_MACHINE_OPTIONS, \
     .hot_add_cpu = NULL
 
-static QEMUMachine pc_q35_machine_v1_4 = {
-    PC_Q35_1_4_MACHINE_OPTIONS,
-    .name = "pc-q35-1.4",
-    .init = pc_q35_init_1_4,
-    .compat_props = (GlobalProperty[]) {
-        PC_COMPAT_1_4
-        { /* end of list */ }
-    },
-};
-
-static void pc_q35_machine_init(void)
-{
-    qemu_register_pc_machine(&pc_q35_machine_v2_4);
-    qemu_register_pc_machine(&pc_q35_machine_v2_3);
-    qemu_register_pc_machine(&pc_q35_machine_v2_2);
-    qemu_register_pc_machine(&pc_q35_machine_v2_1);
-    qemu_register_pc_machine(&pc_q35_machine_v2_0);
-    qemu_register_pc_machine(&pc_q35_machine_v1_7);
-    qemu_register_pc_machine(&pc_q35_machine_v1_6);
-    qemu_register_pc_machine(&pc_q35_machine_v1_5);
-    qemu_register_pc_machine(&pc_q35_machine_v1_4);
-}
-
-machine_init(pc_q35_machine_init);
+DEFINE_PC_MACHINE(v1_4, "pc-q35-1.4", pc_q35_init_1_4,
+                  PC_Q35_1_4_MACHINE_OPTIONS, PC_COMPAT_1_4);
