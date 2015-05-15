@@ -16,6 +16,23 @@
  */
 
 #include "hw/arm/xlnx-zynqmp.h"
+#include "exec/address-spaces.h"
+
+#define GIC_NUM_SPI_INTR 160
+
+#define GIC_BASE_ADDR       0xf9000000
+#define GIC_DIST_ADDR       0xf9010000
+#define GIC_CPU_ADDR        0xf9020000
+
+typedef struct XlnxZynqMPGICRegion {
+    int region_index;
+    uint32_t address;
+} XlnxZynqMPGICRegion;
+
+static const XlnxZynqMPGICRegion xlnx_zynqmp_gic_regions[] = {
+    { .region_index = 0, .address = GIC_DIST_ADDR, },
+    { .region_index = 1, .address = GIC_CPU_ADDR,  },
+};
 
 static void xlnx_zynqmp_init(Object *obj)
 {
@@ -28,13 +45,45 @@ static void xlnx_zynqmp_init(Object *obj)
         object_property_add_child(obj, "cpu[*]", OBJECT(&s->cpu[i]),
                                   &error_abort);
     }
+
+    object_initialize(&s->gic, sizeof(s->gic), TYPE_ARM_GIC);
+    qdev_set_parent_bus(DEVICE(&s->gic), sysbus_get_default());
 }
 
 static void xlnx_zynqmp_realize(DeviceState *dev, Error **errp)
 {
     XlnxZynqMPState *s = XLNX_ZYNQMP(dev);
+    MemoryRegion *system_memory = get_system_memory();
     uint8_t i;
     Error *err = NULL;
+
+    qdev_prop_set_uint32(DEVICE(&s->gic), "num-irq", GIC_NUM_SPI_INTR + 32);
+    qdev_prop_set_uint32(DEVICE(&s->gic), "revision", 2);
+    qdev_prop_set_uint32(DEVICE(&s->gic), "num-cpu", XLNX_ZYNQMP_NUM_CPUS);
+    object_property_set_bool(OBJECT(&s->gic), true, "realized", &err);
+    if (err) {
+        error_propagate((errp), (err));
+        return;
+    }
+    assert(ARRAY_SIZE(xlnx_zynqmp_gic_regions) == XLNX_ZYNQMP_GIC_REGIONS);
+    for (i = 0; i < XLNX_ZYNQMP_GIC_REGIONS; i++) {
+        SysBusDevice *gic = SYS_BUS_DEVICE(&s->gic);
+        const XlnxZynqMPGICRegion *r = &xlnx_zynqmp_gic_regions[i];
+        MemoryRegion *mr = sysbus_mmio_get_region(gic, r->region_index);
+        uint32_t addr = r->address;
+        int j;
+
+        sysbus_mmio_map(gic, r->region_index, addr);
+
+        for (j = 0; j < XLNX_ZYNQMP_GIC_ALIASES; j++) {
+            MemoryRegion *alias = &s->gic_mr[i][j];
+
+            addr += XLNX_ZYNQMP_GIC_REGION_SIZE;
+            memory_region_init_alias(alias, OBJECT(s), "zynqmp-gic-alias", mr,
+                                     0, XLNX_ZYNQMP_GIC_REGION_SIZE);
+            memory_region_add_subregion(system_memory, addr, alias);
+        }
+    }
 
     for (i = 0; i < XLNX_ZYNQMP_NUM_CPUS; i++) {
         object_property_set_int(OBJECT(&s->cpu[i]), QEMU_PSCI_CONDUIT_SMC,
@@ -45,11 +94,21 @@ static void xlnx_zynqmp_realize(DeviceState *dev, Error **errp)
                                      "start-powered-off", &error_abort);
         }
 
+        object_property_set_int(OBJECT(&s->cpu[i]), GIC_BASE_ADDR,
+                                "reset-cbar", &err);
+        if (err) {
+            error_propagate((errp), (err));
+            return;
+        }
+
         object_property_set_bool(OBJECT(&s->cpu[i]), true, "realized", &err);
         if (err) {
             error_propagate((errp), (err));
             return;
         }
+
+        sysbus_connect_irq(SYS_BUS_DEVICE(&s->gic), i,
+                           qdev_get_gpio_in(DEVICE(&s->cpu[i]), ARM_CPU_IRQ));
     }
 }
 
