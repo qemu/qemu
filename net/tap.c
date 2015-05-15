@@ -536,7 +536,6 @@ int net_init_bridge(const NetClientOptions *opts, const char *name,
     /* FIXME error_setg(errp, ...) on failure */
     const NetdevBridgeOptions *bridge;
     const char *helper, *br;
-
     TAPState *s;
     int fd, vnet_hdr;
 
@@ -552,14 +551,8 @@ int net_init_bridge(const NetClientOptions *opts, const char *name,
     }
 
     fcntl(fd, F_SETFL, O_NONBLOCK);
-
     vnet_hdr = tap_probe_vnet_hdr(fd);
-
     s = net_tap_fd_init(peer, "bridge", name, fd, vnet_hdr);
-    if (!s) {
-        close(fd);
-        return -1;
-    }
 
     snprintf(s->nc.info_str, sizeof(s->nc.info_str), "helper=%s,br=%s", helper,
              br);
@@ -607,13 +600,8 @@ static int net_init_tap_one(const NetdevTapOptions *tap, NetClientState *peer,
                             int vnet_hdr, int fd)
 {
     Error *err = NULL;
-    TAPState *s;
+    TAPState *s = net_tap_fd_init(peer, model, name, fd, vnet_hdr);
     int vhostfd;
-
-    s = net_tap_fd_init(peer, model, name, fd, vnet_hdr);
-    if (!s) {
-        return -1;
-    }
 
     if (tap_set_sndbuf(s->fd, tap) < 0) {
         return -1;
