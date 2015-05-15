@@ -176,9 +176,8 @@ error:
 }
 #endif /* __FreeBSD__ */
 
-int tap_set_sndbuf(int fd, const NetdevTapOptions *tap)
+void tap_set_sndbuf(int fd, const NetdevTapOptions *tap, Error **errp)
 {
-    return 0;
 }
 
 int tap_probe_vnet_hdr(int fd)

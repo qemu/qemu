@@ -126,7 +126,7 @@ int tap_open(char *ifname, int ifname_size, int *vnet_hdr,
  */
 #define TAP_DEFAULT_SNDBUF 0
 
-int tap_set_sndbuf(int fd, const NetdevTapOptions *tap)
+void tap_set_sndbuf(int fd, const NetdevTapOptions *tap, Error **errp)
 {
     int sndbuf;
 
@@ -139,10 +139,8 @@ int tap_set_sndbuf(int fd, const NetdevTapOptions *tap)
     }
 
     if (ioctl(fd, TUNSETSNDBUF, &sndbuf) == -1 && tap->has_sndbuf) {
-        error_report("TUNSETSNDBUF ioctl failed: %s", strerror(errno));
-        return -1;
+        error_setg_errno(errp, errno, "TUNSETSNDBUF ioctl failed");
     }
-    return 0;
 }
 
 int tap_probe_vnet_hdr(int fd)

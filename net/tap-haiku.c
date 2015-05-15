@@ -32,9 +32,8 @@ int tap_open(char *ifname, int ifname_size, int *vnet_hdr,
     return -1;
 }
 
-int tap_set_sndbuf(int fd, const NetdevTapOptions *tap)
+void tap_set_sndbuf(int fd, const NetdevTapOptions *tap, Error **errp)
 {
-    return 0;
 }
 
 int tap_probe_vnet_hdr(int fd)
