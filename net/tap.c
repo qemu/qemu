@@ -600,11 +600,11 @@ static int net_tap_init(const NetdevTapOptions *tap, int *vnet_hdr,
 
 #define MAX_TAP_QUEUES 1024
 
-static int net_init_tap_one(const NetdevTapOptions *tap, NetClientState *peer,
-                            const char *model, const char *name,
-                            const char *ifname, const char *script,
-                            const char *downscript, const char *vhostfdname,
-                            int vnet_hdr, int fd)
+static void net_init_tap_one(const NetdevTapOptions *tap, NetClientState *peer,
+                             const char *model, const char *name,
+                             const char *ifname, const char *script,
+                             const char *downscript, const char *vhostfdname,
+                             int vnet_hdr, int fd, Error **errp)
 {
     Error *err = NULL;
     TAPState *s = net_tap_fd_init(peer, model, name, fd, vnet_hdr);
@@ -612,8 +612,8 @@ static int net_init_tap_one(const NetdevTapOptions *tap, NetClientState *peer,
 
     tap_set_sndbuf(s->fd, tap, &err);
     if (err) {
-        error_report_err(err);
-        return -1;
+        error_propagate(errp, err);
+        return;
     }
 
     if (tap->has_fd || tap->has_fds) {
@@ -644,30 +644,28 @@ static int net_init_tap_one(const NetdevTapOptions *tap, NetClientState *peer,
         if (tap->has_vhostfd || tap->has_vhostfds) {
             vhostfd = monitor_fd_param(cur_mon, vhostfdname, &err);
             if (vhostfd == -1) {
-                error_report_err(err);
-                return -1;
+                error_propagate(errp, err);
+                return;
             }
         } else {
             vhostfd = open("/dev/vhost-net", O_RDWR);
             if (vhostfd < 0) {
-                error_report("tap: open vhost char device failed: %s",
-                           strerror(errno));
-                return -1;
+                error_setg_errno(errp, errno,
+                                 "tap: open vhost char device failed");
+                return;
             }
         }
         options.opaque = (void *)(uintptr_t)vhostfd;
 
         s->vhost_net = vhost_net_init(&options);
         if (!s->vhost_net) {
-            error_report("vhost-net requested but could not be initialized");
-            return -1;
+            error_setg(errp,
+                       "vhost-net requested but could not be initialized");
+            return;
         }
     } else if (tap->has_vhostfd || tap->has_vhostfds) {
-        error_report("vhostfd= is not valid without vhost");
-        return -1;
+        error_setg(errp, "vhostfd= is not valid without vhost");
     }
-
-    return 0;
 }
 
 static int get_fds(char *str, char *fds[], int max)
@@ -741,9 +739,11 @@ int net_init_tap(const NetClientOptions *opts, const char *name,
 
         vnet_hdr = tap_probe_vnet_hdr(fd);
 
-        if (net_init_tap_one(tap, peer, "tap", name, NULL,
-                             script, downscript,
-                             vhostfdname, vnet_hdr, fd)) {
+        net_init_tap_one(tap, peer, "tap", name, NULL,
+                         script, downscript,
+                         vhostfdname, vnet_hdr, fd, &err);
+        if (err) {
+            error_report_err(err);
             return -1;
         }
     } else if (tap->has_fds) {
@@ -786,10 +786,12 @@ int net_init_tap(const NetClientOptions *opts, const char *name,
                 return -1;
             }
 
-            if (net_init_tap_one(tap, peer, "tap", name, ifname,
-                                 script, downscript,
-                                 tap->has_vhostfds ? vhost_fds[i] : NULL,
-                                 vnet_hdr, fd)) {
+            net_init_tap_one(tap, peer, "tap", name, ifname,
+                             script, downscript,
+                             tap->has_vhostfds ? vhost_fds[i] : NULL,
+                             vnet_hdr, fd, &err);
+            if (err) {
+                error_report_err(err);
                 return -1;
             }
         }
@@ -810,9 +812,11 @@ int net_init_tap(const NetClientOptions *opts, const char *name,
         fcntl(fd, F_SETFL, O_NONBLOCK);
         vnet_hdr = tap_probe_vnet_hdr(fd);
 
-        if (net_init_tap_one(tap, peer, "bridge", name, ifname,
-                             script, downscript, vhostfdname,
-                             vnet_hdr, fd)) {
+        net_init_tap_one(tap, peer, "bridge", name, ifname,
+                         script, downscript, vhostfdname,
+                         vnet_hdr, fd, &err);
+        if (err) {
+            error_report_err(err);
             close(fd);
             return -1;
         }
@@ -846,10 +850,12 @@ int net_init_tap(const NetClientOptions *opts, const char *name,
                 }
             }
 
-            if (net_init_tap_one(tap, peer, "tap", name, ifname,
-                                 i >= 1 ? "no" : script,
-                                 i >= 1 ? "no" : downscript,
-                                 vhostfdname, vnet_hdr, fd)) {
+            net_init_tap_one(tap, peer, "tap", name, ifname,
+                             i >= 1 ? "no" : script,
+                             i >= 1 ? "no" : downscript,
+                             vhostfdname, vnet_hdr, fd, &err);
+            if (err) {
+                error_report_err(err);
                 close(fd);
                 return -1;
             }
