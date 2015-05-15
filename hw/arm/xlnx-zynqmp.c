@@ -16,9 +16,13 @@
  */
 
 #include "hw/arm/xlnx-zynqmp.h"
+#include "hw/intc/arm_gic_common.h"
 #include "exec/address-spaces.h"
 
 #define GIC_NUM_SPI_INTR 160
+
+#define ARM_PHYS_TIMER_PPI  30
+#define ARM_VIRT_TIMER_PPI  27
 
 #define GIC_BASE_ADDR       0xf9000000
 #define GIC_DIST_ADDR       0xf9010000
@@ -33,6 +37,11 @@ static const XlnxZynqMPGICRegion xlnx_zynqmp_gic_regions[] = {
     { .region_index = 0, .address = GIC_DIST_ADDR, },
     { .region_index = 1, .address = GIC_CPU_ADDR,  },
 };
+
+static inline int arm_gic_ppi_index(int cpu_nr, int ppi_index)
+{
+    return GIC_NUM_SPI_INTR + cpu_nr * GIC_INTERNAL + ppi_index;
+}
 
 static void xlnx_zynqmp_init(Object *obj)
 {
@@ -86,6 +95,8 @@ static void xlnx_zynqmp_realize(DeviceState *dev, Error **errp)
     }
 
     for (i = 0; i < XLNX_ZYNQMP_NUM_CPUS; i++) {
+        qemu_irq irq;
+
         object_property_set_int(OBJECT(&s->cpu[i]), QEMU_PSCI_CONDUIT_SMC,
                                 "psci-conduit", &error_abort);
         if (i > 0) {
@@ -109,6 +120,12 @@ static void xlnx_zynqmp_realize(DeviceState *dev, Error **errp)
 
         sysbus_connect_irq(SYS_BUS_DEVICE(&s->gic), i,
                            qdev_get_gpio_in(DEVICE(&s->cpu[i]), ARM_CPU_IRQ));
+        irq = qdev_get_gpio_in(DEVICE(&s->gic),
+                               arm_gic_ppi_index(i, ARM_PHYS_TIMER_PPI));
+        qdev_connect_gpio_out(DEVICE(&s->cpu[i]), 0, irq);
+        irq = qdev_get_gpio_in(DEVICE(&s->gic),
+                               arm_gic_ppi_index(i, ARM_VIRT_TIMER_PPI));
+        qdev_connect_gpio_out(DEVICE(&s->cpu[i]), 1, irq);
     }
 }
 
