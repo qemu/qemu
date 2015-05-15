@@ -1459,7 +1459,6 @@ static int ram_load(QEMUFile *f, void *opaque, int version_id)
             total_ram_bytes = addr;
             while (!ret && total_ram_bytes) {
                 RAMBlock *block;
-                uint8_t len;
                 char id[256];
                 ram_addr_t length;
 
