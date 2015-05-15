@@ -28,6 +28,8 @@ typedef struct XlnxEP108 {
 /* Max 2GB RAM */
 #define EP108_MAX_RAM_SIZE 0x80000000ull
 
+static struct arm_boot_info xlnx_ep108_binfo;
+
 static void xlnx_ep108_init(MachineState *machine)
 {
     XlnxEP108 *s = g_new0(XlnxEP108, 1);
@@ -57,6 +59,13 @@ static void xlnx_ep108_init(MachineState *machine)
     memory_region_allocate_system_memory(&s->ddr_ram, NULL, "ddr-ram",
                                          machine->ram_size);
     memory_region_add_subregion(get_system_memory(), 0, &s->ddr_ram);
+
+    xlnx_ep108_binfo.ram_size = machine->ram_size;
+    xlnx_ep108_binfo.kernel_filename = machine->kernel_filename;
+    xlnx_ep108_binfo.kernel_cmdline = machine->kernel_cmdline;
+    xlnx_ep108_binfo.initrd_filename = machine->initrd_filename;
+    xlnx_ep108_binfo.loader_start = 0;
+    arm_load_kernel(&s->soc.cpu[0], &xlnx_ep108_binfo);
 }
 
 static QEMUMachine xlnx_ep108_machine = {
