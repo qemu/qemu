@@ -437,7 +437,8 @@ static int recv_fd(int c)
     return len;
 }
 
-static int net_bridge_run_helper(const char *helper, const char *bridge)
+static int net_bridge_run_helper(const char *helper, const char *bridge,
+                                 Error **errp)
 {
     sigset_t oldmask, mask;
     int pid, status;
@@ -450,11 +451,16 @@ static int net_bridge_run_helper(const char *helper, const char *bridge)
     sigprocmask(SIG_BLOCK, &mask, &oldmask);
 
     if (socketpair(PF_UNIX, SOCK_STREAM, 0, sv) == -1) {
+        error_setg_errno(errp, errno, "socketpair() failed");
         return -1;
     }
 
     /* try to launch bridge helper */
     pid = fork();
+    if (pid < 0) {
+        error_setg_errno(errp, errno, "Can't fork bridge helper");
+        return -1;
+    }
     if (pid == 0) {
         int open_max = sysconf(_SC_OPEN_MAX), i;
         char fd_buf[6+10];
@@ -502,14 +508,16 @@ static int net_bridge_run_helper(const char *helper, const char *bridge)
         }
         _exit(1);
 
-    } else if (pid > 0) {
+    } else {
         int fd;
+        int saved_errno;
 
         close(sv[1]);
 
         do {
             fd = recv_fd(sv[0]);
         } while (fd == -1 && errno == EINTR);
+        saved_errno = errno;
 
         close(sv[0]);
 
@@ -518,22 +526,21 @@ static int net_bridge_run_helper(const char *helper, const char *bridge)
         }
         sigprocmask(SIG_SETMASK, &oldmask, NULL);
         if (fd < 0) {
-            fprintf(stderr, "failed to recv file descriptor\n");
+            error_setg_errno(errp, saved_errno,
+                             "failed to recv file descriptor");
             return -1;
         }
-
-        if (WIFEXITED(status) && WEXITSTATUS(status) == 0) {
-            return fd;
+        if (!WIFEXITED(status) || WEXITSTATUS(status) != 0) {
+            error_setg(errp, "bridge helper failed");
+            return -1;
         }
+        return fd;
     }
-    fprintf(stderr, "failed to launch bridge helper\n");
-    return -1;
 }
 
 int net_init_bridge(const NetClientOptions *opts, const char *name,
                     NetClientState *peer, Error **errp)
 {
-    /* FIXME error_setg(errp, ...) on failure */
     const NetdevBridgeOptions *bridge;
     const char *helper, *br;
     TAPState *s;
@@ -545,7 +552,7 @@ int net_init_bridge(const NetClientOptions *opts, const char *name,
     helper = bridge->has_helper ? bridge->helper : DEFAULT_BRIDGE_HELPER;
     br     = bridge->has_br     ? bridge->br     : DEFAULT_BRIDGE_INTERFACE;
 
-    fd = net_bridge_run_helper(helper, br);
+    fd = net_bridge_run_helper(helper, br, errp);
     if (fd == -1) {
         return -1;
     }
@@ -792,7 +799,8 @@ int net_init_tap(const NetClientOptions *opts, const char *name,
             return -1;
         }
 
-        fd = net_bridge_run_helper(tap->helper, DEFAULT_BRIDGE_INTERFACE);
+        fd = net_bridge_run_helper(tap->helper, DEFAULT_BRIDGE_INTERFACE,
+                                   errp);
         if (fd == -1) {
             return -1;
         }
