@@ -38,22 +38,22 @@ static inline void unset_feature(CPUARMState *env, int feature)
 }
 
 #ifndef CONFIG_USER_ONLY
-static uint64_t a57_l2ctlr_read(CPUARMState *env, const ARMCPRegInfo *ri)
+static uint64_t a57_a53_l2ctlr_read(CPUARMState *env, const ARMCPRegInfo *ri)
 {
     /* Number of processors is in [25:24]; otherwise we RAZ */
     return (smp_cpus - 1) << 24;
 }
 #endif
 
-static const ARMCPRegInfo cortexa57_cp_reginfo[] = {
+static const ARMCPRegInfo cortex_a57_a53_cp_reginfo[] = {
 #ifndef CONFIG_USER_ONLY
     { .name = "L2CTLR_EL1", .state = ARM_CP_STATE_AA64,
       .opc0 = 3, .opc1 = 1, .crn = 11, .crm = 0, .opc2 = 2,
-      .access = PL1_RW, .readfn = a57_l2ctlr_read,
+      .access = PL1_RW, .readfn = a57_a53_l2ctlr_read,
       .writefn = arm_cp_write_ignore },
     { .name = "L2CTLR",
       .cp = 15, .opc1 = 1, .crn = 9, .crm = 0, .opc2 = 2,
-      .access = PL1_RW, .readfn = a57_l2ctlr_read,
+      .access = PL1_RW, .readfn = a57_a53_l2ctlr_read,
       .writefn = arm_cp_write_ignore },
 #endif
     { .name = "L2ECTLR_EL1", .state = ARM_CP_STATE_AA64,
@@ -140,7 +140,7 @@ static void aarch64_a57_initfn(Object *obj)
     cpu->ccsidr[1] = 0x201fe012; /* 48KB L1 icache */
     cpu->ccsidr[2] = 0x70ffe07a; /* 2048KB L2 cache */
     cpu->dcz_blocksize = 4; /* 64 bytes */
-    define_arm_cp_regs(cpu, cortexa57_cp_reginfo);
+    define_arm_cp_regs(cpu, cortex_a57_a53_cp_reginfo);
 }
 
 #ifdef CONFIG_USER_ONLY
