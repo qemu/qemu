@@ -414,78 +414,98 @@ static void pc_q35_init_1_4(MachineState *machine)
     pc_q35_init(machine);
 }
 
-#define PC_Q35_MACHINE_OPTIONS \
-    PC_DEFAULT_MACHINE_OPTIONS, \
-    .family = "pc_q35", \
-    .desc = "Standard PC (Q35 + ICH9, 2009)", \
-    .hot_add_cpu = pc_hot_add_cpu, \
-    .units_per_default_bus = 1
+static void pc_q35_machine_options(QEMUMachine *m)
+{
+    pc_default_machine_options(m);
+    m->family = "pc_q35";
+    m->desc = "Standard PC (Q35 + ICH9, 2009)";
+    m->hot_add_cpu = pc_hot_add_cpu;
+    m->units_per_default_bus = 1;
+}
 
-#define PC_Q35_2_4_MACHINE_OPTIONS                      \
-    PC_Q35_MACHINE_OPTIONS,                             \
-    .default_machine_opts = "firmware=bios-256k.bin",   \
-    .default_display = "std",                           \
-    .alias = "q35"
+static void pc_q35_2_4_machine_options(QEMUMachine *m)
+{
+    pc_q35_machine_options(m);
+    m->default_machine_opts = "firmware=bios-256k.bin";
+    m->default_display = "std";
+    m->alias = "q35";
+}
 
 DEFINE_PC_MACHINE(v2_4, "pc-q35-2.4", pc_q35_init,
-                  PC_Q35_2_4_MACHINE_OPTIONS, /* no compat */);
+                  pc_q35_2_4_machine_options, /* no compat */);
 
 
-#define PC_Q35_2_3_MACHINE_OPTIONS \
-    PC_Q35_2_4_MACHINE_OPTIONS, \
-    .alias = NULL
+static void pc_q35_2_3_machine_options(QEMUMachine *m)
+{
+    pc_q35_2_4_machine_options(m);
+    m->alias = NULL;
+}
 
 DEFINE_PC_MACHINE(v2_3, "pc-q35-2.3", pc_q35_init_2_3,
-                  PC_Q35_2_3_MACHINE_OPTIONS, PC_COMPAT_2_3);
+                  pc_q35_2_3_machine_options, PC_COMPAT_2_3);
 
 
-#define PC_Q35_2_2_MACHINE_OPTIONS \
-    PC_Q35_2_3_MACHINE_OPTIONS
+static void pc_q35_2_2_machine_options(QEMUMachine *m)
+{
+    pc_q35_2_3_machine_options(m);
+}
 
 DEFINE_PC_MACHINE(v2_2, "pc-q35-2.2", pc_q35_init_2_2,
-                  PC_Q35_2_2_MACHINE_OPTIONS, PC_COMPAT_2_2);
+                  pc_q35_2_2_machine_options, PC_COMPAT_2_2);
 
 
-#define PC_Q35_2_1_MACHINE_OPTIONS \
-    PC_Q35_2_2_MACHINE_OPTIONS, \
-    .default_display = NULL
+static void pc_q35_2_1_machine_options(QEMUMachine *m)
+{
+    pc_q35_2_2_machine_options(m);
+    m->default_display = NULL;
+}
 
 DEFINE_PC_MACHINE(v2_1, "pc-q35-2.1", pc_q35_init_2_1,
-                  PC_Q35_2_1_MACHINE_OPTIONS, PC_COMPAT_2_1);
+                  pc_q35_2_1_machine_options, PC_COMPAT_2_1);
 
 
-#define PC_Q35_2_0_MACHINE_OPTIONS \
-    PC_Q35_2_1_MACHINE_OPTIONS
+static void pc_q35_2_0_machine_options(QEMUMachine *m)
+{
+    pc_q35_2_1_machine_options(m);
+}
 
 DEFINE_PC_MACHINE(v2_0, "pc-q35-2.0", pc_q35_init_2_0,
-                  PC_Q35_2_0_MACHINE_OPTIONS, PC_COMPAT_2_0);
+                  pc_q35_2_0_machine_options, PC_COMPAT_2_0);
 
 
-#define PC_Q35_1_7_MACHINE_OPTIONS \
-    PC_Q35_2_0_MACHINE_OPTIONS, \
-    .default_machine_opts = NULL
+static void pc_q35_1_7_machine_options(QEMUMachine *m)
+{
+    pc_q35_2_0_machine_options(m);
+    m->default_machine_opts = NULL;
+}
 
 DEFINE_PC_MACHINE(v1_7, "pc-q35-1.7", pc_q35_init_1_7,
-                  PC_Q35_1_7_MACHINE_OPTIONS, PC_COMPAT_1_7);
+                  pc_q35_1_7_machine_options, PC_COMPAT_1_7);
 
 
-#define PC_Q35_1_6_MACHINE_OPTIONS \
-    PC_Q35_MACHINE_OPTIONS
+static void pc_q35_1_6_machine_options(QEMUMachine *m)
+{
+    pc_q35_machine_options(m);
+}
 
 DEFINE_PC_MACHINE(v1_6, "pc-q35-1.6", pc_q35_init_1_6,
-                  PC_Q35_1_6_MACHINE_OPTIONS, PC_COMPAT_1_6);
+                  pc_q35_1_6_machine_options, PC_COMPAT_1_6);
 
 
-#define PC_Q35_1_5_MACHINE_OPTIONS \
-    PC_Q35_1_6_MACHINE_OPTIONS
+static void pc_q35_1_5_machine_options(QEMUMachine *m)
+{
+    pc_q35_1_6_machine_options(m);
+}
 
 DEFINE_PC_MACHINE(v1_5, "pc-q35-1.5", pc_q35_init_1_5,
-                  PC_Q35_1_5_MACHINE_OPTIONS, PC_COMPAT_1_5);
+                  pc_q35_1_5_machine_options, PC_COMPAT_1_5);
 
 
-#define PC_Q35_1_4_MACHINE_OPTIONS \
-    PC_Q35_1_5_MACHINE_OPTIONS, \
-    .hot_add_cpu = NULL
+static void pc_q35_1_4_machine_options(QEMUMachine *m)
+{
+    pc_q35_1_5_machine_options(m);
+    m->hot_add_cpu = NULL;
+}
 
 DEFINE_PC_MACHINE(v1_4, "pc-q35-1.4", pc_q35_init_1_4,
-                  PC_Q35_1_4_MACHINE_OPTIONS, PC_COMPAT_1_4);
+                  pc_q35_1_4_machine_options, PC_COMPAT_1_4);

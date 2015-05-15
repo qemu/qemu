@@ -517,27 +517,31 @@ bool e820_get_entry(int, uint32_t, uint64_t *, uint64_t *);
             .value    = stringify(0),\
         },
 
-#define PC_COMMON_MACHINE_OPTIONS \
-    .default_boot_order = "cad"
+static inline void pc_common_machine_options(QEMUMachine *m)
+{
+    m->default_boot_order = "cad";
+}
 
-#define PC_DEFAULT_MACHINE_OPTIONS \
-    PC_COMMON_MACHINE_OPTIONS, \
-    .hot_add_cpu = pc_hot_add_cpu, \
-    .max_cpus = 255
+static inline void pc_default_machine_options(QEMUMachine *m)
+{
+    pc_common_machine_options(m);
+    m->hot_add_cpu = pc_hot_add_cpu;
+    m->max_cpus = 255;
+}
 
-#define DEFINE_PC_MACHINE(suffix, namestr, initfn, OPTS, COMPAT) \
-    static QEMUMachine pc_machine_##suffix = { \
-        OPTS, \
-        .name = namestr, \
-        .init = initfn, \
-        .compat_props = (GlobalProperty[]) { \
-            COMPAT \
-            { /* end of list */ } \
-        }, \
-    }; \
+#define DEFINE_PC_MACHINE(suffix, namestr, initfn, optsfn, COMPAT) \
     static void pc_machine_init_##suffix(void) \
     { \
-        qemu_register_pc_machine(&pc_machine_##suffix); \
+        static QEMUMachine m = { }; \
+        static GlobalProperty props[] = { \
+            COMPAT \
+            { /* end of list */ } \
+        }; \
+        optsfn(&m); \
+        m.name = namestr; \
+        m.init = initfn; \
+        m.compat_props = props; \
+        qemu_register_pc_machine(&m); \
     } \
     machine_init(pc_machine_init_##suffix)
 
