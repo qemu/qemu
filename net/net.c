@@ -882,6 +882,11 @@ static int net_client_init1(const void *object, int is_netdev, Error **errp)
     } else {
         u.net = object;
         opts = u.net->opts;
+        if (opts->kind == NET_CLIENT_OPTIONS_KIND_HUBPORT) {
+            error_set(errp, QERR_INVALID_PARAMETER_VALUE, "type",
+                      "a net type");
+            return -1;
+        }
         /* missing optional values have been initialized to "all bits zero" */
         name = u.net->has_id ? u.net->id : u.net->name;
     }
