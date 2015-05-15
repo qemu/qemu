@@ -413,79 +413,11 @@ static void pc_compat_1_2(MachineState *machine)
     x86_cpu_compat_kvm_no_autoenable(FEAT_KVM, 1 << KVM_FEATURE_PV_EOI);
 }
 
-static void pc_init_pci_2_3(MachineState *machine)
-{
-    pc_compat_2_3(machine);
-    pc_init1(machine);
-}
-
-static void pc_init_pci_2_2(MachineState *machine)
-{
-    pc_compat_2_2(machine);
-    pc_init1(machine);
-}
-
 /* PC compat function for pc-0.10 to pc-0.13 */
 static void pc_compat_0_13(MachineState *machine)
 {
     pc_compat_1_2(machine);
     kvmclock_enabled = false;
-}
-
-static void pc_init_pci_2_1(MachineState *machine)
-{
-    pc_compat_2_1(machine);
-    pc_init1(machine);
-}
-
-static void pc_init_pci_2_0(MachineState *machine)
-{
-    pc_compat_2_0(machine);
-    pc_init1(machine);
-}
-
-static void pc_init_pci_1_7(MachineState *machine)
-{
-    pc_compat_1_7(machine);
-    pc_init1(machine);
-}
-
-static void pc_init_pci_1_6(MachineState *machine)
-{
-    pc_compat_1_6(machine);
-    pc_init1(machine);
-}
-
-static void pc_init_pci_1_5(MachineState *machine)
-{
-    pc_compat_1_5(machine);
-    pc_init1(machine);
-}
-
-static void pc_init_pci_1_4(MachineState *machine)
-{
-    pc_compat_1_4(machine);
-    pc_init1(machine);
-}
-
-static void pc_init_pci_1_3(MachineState *machine)
-{
-    pc_compat_1_3(machine);
-    pc_init1(machine);
-}
-
-/* PC machine init function for pc-0.14 to pc-1.2 */
-static void pc_init_pci_1_2(MachineState *machine)
-{
-    pc_compat_1_2(machine);
-    pc_init1(machine);
-}
-
-/* PC init function for pc-0.10 to pc-0.13 */
-static void pc_init_pci_no_kvmclock(MachineState *machine)
-{
-    pc_compat_0_13(machine);
-    pc_init1(machine);
 }
 
 static void pc_init_isa(MachineState *machine)
@@ -520,6 +452,16 @@ static void pc_xen_hvm_init(MachineState *machine)
 }
 #endif
 
+#define DEFINE_I440FX_MACHINE(suffix, name, compatfn, optionfn) \
+    static void pc_init_##suffix(MachineState *machine) \
+    { \
+        void (*compat)(MachineState *m) = (compatfn); \
+        if (compat) { \
+            compat(machine); \
+        } \
+        pc_init1(machine); \
+    } \
+    DEFINE_PC_MACHINE(suffix, name, pc_init_##suffix, optionfn)
 
 static void pc_i440fx_machine_options(MachineClass *m)
 {
@@ -538,8 +480,8 @@ static void pc_i440fx_2_4_machine_options(MachineClass *m)
     m->is_default = 1;
 }
 
-DEFINE_PC_MACHINE(v2_4, "pc-i440fx-2.4", pc_init1,
-                  pc_i440fx_2_4_machine_options)
+DEFINE_I440FX_MACHINE(v2_4, "pc-i440fx-2.4", NULL,
+                      pc_i440fx_2_4_machine_options)
 
 
 static void pc_i440fx_2_3_machine_options(MachineClass *m)
@@ -550,8 +492,8 @@ static void pc_i440fx_2_3_machine_options(MachineClass *m)
     SET_MACHINE_COMPAT(m, PC_COMPAT_2_3);
 }
 
-DEFINE_PC_MACHINE(v2_3, "pc-i440fx-2.3", pc_init_pci_2_3,
-                  pc_i440fx_2_3_machine_options);
+DEFINE_I440FX_MACHINE(v2_3, "pc-i440fx-2.3", pc_compat_2_3,
+                      pc_i440fx_2_3_machine_options);
 
 
 static void pc_i440fx_2_2_machine_options(MachineClass *m)
@@ -560,8 +502,8 @@ static void pc_i440fx_2_2_machine_options(MachineClass *m)
     SET_MACHINE_COMPAT(m, PC_COMPAT_2_2);
 }
 
-DEFINE_PC_MACHINE(v2_2, "pc-i440fx-2.2", pc_init_pci_2_2,
-                  pc_i440fx_2_2_machine_options);
+DEFINE_I440FX_MACHINE(v2_2, "pc-i440fx-2.2", pc_compat_2_2,
+                      pc_i440fx_2_2_machine_options);
 
 
 static void pc_i440fx_2_1_machine_options(MachineClass *m)
@@ -571,8 +513,8 @@ static void pc_i440fx_2_1_machine_options(MachineClass *m)
     SET_MACHINE_COMPAT(m, PC_COMPAT_2_1);
 }
 
-DEFINE_PC_MACHINE(v2_1, "pc-i440fx-2.1", pc_init_pci_2_1,
-                  pc_i440fx_2_1_machine_options);
+DEFINE_I440FX_MACHINE(v2_1, "pc-i440fx-2.1", pc_compat_2_1,
+                      pc_i440fx_2_1_machine_options);
 
 
 
@@ -582,8 +524,8 @@ static void pc_i440fx_2_0_machine_options(MachineClass *m)
     SET_MACHINE_COMPAT(m, PC_COMPAT_2_0);
 }
 
-DEFINE_PC_MACHINE(v2_0, "pc-i440fx-2.0", pc_init_pci_2_0,
-                  pc_i440fx_2_0_machine_options);
+DEFINE_I440FX_MACHINE(v2_0, "pc-i440fx-2.0", pc_compat_2_0,
+                      pc_i440fx_2_0_machine_options);
 
 
 static void pc_i440fx_1_7_machine_options(MachineClass *m)
@@ -593,8 +535,8 @@ static void pc_i440fx_1_7_machine_options(MachineClass *m)
     SET_MACHINE_COMPAT(m, PC_COMPAT_1_7);
 }
 
-DEFINE_PC_MACHINE(v1_7, "pc-i440fx-1.7", pc_init_pci_1_7,
-                  pc_i440fx_1_7_machine_options);
+DEFINE_I440FX_MACHINE(v1_7, "pc-i440fx-1.7", pc_compat_1_7,
+                      pc_i440fx_1_7_machine_options);
 
 
 static void pc_i440fx_1_6_machine_options(MachineClass *m)
@@ -603,8 +545,8 @@ static void pc_i440fx_1_6_machine_options(MachineClass *m)
     SET_MACHINE_COMPAT(m, PC_COMPAT_1_6);
 }
 
-DEFINE_PC_MACHINE(v1_6, "pc-i440fx-1.6", pc_init_pci_1_6,
-                  pc_i440fx_1_6_machine_options);
+DEFINE_I440FX_MACHINE(v1_6, "pc-i440fx-1.6", pc_compat_1_6,
+                      pc_i440fx_1_6_machine_options);
 
 
 static void pc_i440fx_1_5_machine_options(MachineClass *m)
@@ -613,8 +555,8 @@ static void pc_i440fx_1_5_machine_options(MachineClass *m)
     SET_MACHINE_COMPAT(m, PC_COMPAT_1_5);
 }
 
-DEFINE_PC_MACHINE(v1_5, "pc-i440fx-1.5", pc_init_pci_1_5,
-                  pc_i440fx_1_5_machine_options);
+DEFINE_I440FX_MACHINE(v1_5, "pc-i440fx-1.5", pc_compat_1_5,
+                      pc_i440fx_1_5_machine_options);
 
 
 static void pc_i440fx_1_4_machine_options(MachineClass *m)
@@ -624,8 +566,8 @@ static void pc_i440fx_1_4_machine_options(MachineClass *m)
     SET_MACHINE_COMPAT(m, PC_COMPAT_1_4);
 }
 
-DEFINE_PC_MACHINE(v1_4, "pc-i440fx-1.4", pc_init_pci_1_4,
-                  pc_i440fx_1_4_machine_options);
+DEFINE_I440FX_MACHINE(v1_4, "pc-i440fx-1.4", pc_compat_1_4,
+                      pc_i440fx_1_4_machine_options);
 
 
 #define PC_COMPAT_1_3 \
@@ -655,8 +597,8 @@ static void pc_i440fx_1_3_machine_options(MachineClass *m)
     SET_MACHINE_COMPAT(m, PC_COMPAT_1_3);
 }
 
-DEFINE_PC_MACHINE(v1_3, "pc-1.3", pc_init_pci_1_3,
-                  pc_i440fx_1_3_machine_options);
+DEFINE_I440FX_MACHINE(v1_3, "pc-1.3", pc_compat_1_3,
+                      pc_i440fx_1_3_machine_options);
 
 
 #define PC_COMPAT_1_2 \
@@ -693,8 +635,8 @@ static void pc_i440fx_1_2_machine_options(MachineClass *m)
     SET_MACHINE_COMPAT(m, PC_COMPAT_1_2);
 }
 
-DEFINE_PC_MACHINE(v1_2, "pc-1.2", pc_init_pci_1_2,
-                  pc_i440fx_1_2_machine_options);
+DEFINE_I440FX_MACHINE(v1_2, "pc-1.2", pc_compat_1_2,
+                      pc_i440fx_1_2_machine_options);
 
 
 #define PC_COMPAT_1_1 \
@@ -735,8 +677,8 @@ static void pc_i440fx_1_1_machine_options(MachineClass *m)
     SET_MACHINE_COMPAT(m, PC_COMPAT_1_1);
 }
 
-DEFINE_PC_MACHINE(v1_1, "pc-1.1", pc_init_pci_1_2,
-                  pc_i440fx_1_1_machine_options);
+DEFINE_I440FX_MACHINE(v1_1, "pc-1.1", pc_compat_1_2,
+                      pc_i440fx_1_1_machine_options);
 
 
 #define PC_COMPAT_1_0 \
@@ -766,8 +708,8 @@ static void pc_i440fx_1_0_machine_options(MachineClass *m)
     SET_MACHINE_COMPAT(m, PC_COMPAT_1_0);
 }
 
-DEFINE_PC_MACHINE(v1_0, "pc-1.0", pc_init_pci_1_2,
-                  pc_i440fx_1_0_machine_options);
+DEFINE_I440FX_MACHINE(v1_0, "pc-1.0", pc_compat_1_2,
+                      pc_i440fx_1_0_machine_options);
 
 
 #define PC_COMPAT_0_15 \
@@ -780,8 +722,8 @@ static void pc_i440fx_0_15_machine_options(MachineClass *m)
     SET_MACHINE_COMPAT(m, PC_COMPAT_0_15);
 }
 
-DEFINE_PC_MACHINE(v0_15, "pc-0.15", pc_init_pci_1_2,
-                  pc_i440fx_0_15_machine_options);
+DEFINE_I440FX_MACHINE(v0_15, "pc-0.15", pc_compat_1_2,
+                      pc_i440fx_0_15_machine_options);
 
 
 #define PC_COMPAT_0_14 \
@@ -819,8 +761,8 @@ static void pc_i440fx_0_14_machine_options(MachineClass *m)
     SET_MACHINE_COMPAT(m, PC_COMPAT_0_14);
 }
 
-DEFINE_PC_MACHINE(v0_14, "pc-0.14", pc_init_pci_1_2,
-                  pc_i440fx_0_14_machine_options);
+DEFINE_I440FX_MACHINE(v0_14, "pc-0.14", pc_compat_1_2,
+                      pc_i440fx_0_14_machine_options);
 
 
 #define PC_COMPAT_0_13 \
@@ -854,8 +796,8 @@ static void pc_i440fx_0_13_machine_options(MachineClass *m)
     SET_MACHINE_COMPAT(m, PC_COMPAT_0_13);
 }
 
-DEFINE_PC_MACHINE(v0_13, "pc-0.13", pc_init_pci_no_kvmclock,
-                  pc_i440fx_0_13_machine_options);
+DEFINE_I440FX_MACHINE(v0_13, "pc-0.13", pc_compat_0_13,
+                      pc_i440fx_0_13_machine_options);
 
 
 #define PC_COMPAT_0_12 \
@@ -889,8 +831,8 @@ static void pc_i440fx_0_12_machine_options(MachineClass *m)
     SET_MACHINE_COMPAT(m, PC_COMPAT_0_12);
 }
 
-DEFINE_PC_MACHINE(v0_12, "pc-0.12", pc_init_pci_no_kvmclock,
-                  pc_i440fx_0_12_machine_options);
+DEFINE_I440FX_MACHINE(v0_12, "pc-0.12", pc_compat_0_13,
+                      pc_i440fx_0_12_machine_options);
 
 
 #define PC_COMPAT_0_11 \
@@ -920,8 +862,8 @@ static void pc_i440fx_0_11_machine_options(MachineClass *m)
     SET_MACHINE_COMPAT(m, PC_COMPAT_0_11);
 }
 
-DEFINE_PC_MACHINE(v0_11, "pc-0.11", pc_init_pci_no_kvmclock,
-                  pc_i440fx_0_11_machine_options);
+DEFINE_I440FX_MACHINE(v0_11, "pc-0.11", pc_compat_0_13,
+                      pc_i440fx_0_11_machine_options);
 
 
 #define PC_COMPAT_0_10 \
@@ -955,8 +897,8 @@ static void pc_i440fx_0_10_machine_options(MachineClass *m)
     SET_MACHINE_COMPAT(m, PC_COMPAT_0_10);
 }
 
-DEFINE_PC_MACHINE(v0_10, "pc-0.10", pc_init_pci_no_kvmclock,
-                  pc_i440fx_0_10_machine_options);
+DEFINE_I440FX_MACHINE(v0_10, "pc-0.10", pc_compat_0_13,
+                      pc_i440fx_0_10_machine_options);
 
 
 static void isapc_machine_options(MachineClass *m)

@@ -366,53 +366,17 @@ static void pc_compat_1_4(MachineState *machine)
     x86_cpu_compat_set_features("Westmere", FEAT_1_ECX, 0, CPUID_EXT_PCLMULQDQ);
 }
 
-static void pc_q35_init_2_3(MachineState *machine)
-{
-    pc_compat_2_3(machine);
-    pc_q35_init(machine);
-}
+#define DEFINE_Q35_MACHINE(suffix, name, compatfn, optionfn) \
+    static void pc_init_##suffix(MachineState *machine) \
+    { \
+        void (*compat)(MachineState *m) = (compatfn); \
+        if (compat) { \
+            compat(machine); \
+        } \
+        pc_q35_init(machine); \
+    } \
+    DEFINE_PC_MACHINE(suffix, name, pc_init_##suffix, optionfn)
 
-static void pc_q35_init_2_2(MachineState *machine)
-{
-    pc_compat_2_2(machine);
-    pc_q35_init(machine);
-}
-
-static void pc_q35_init_2_1(MachineState *machine)
-{
-    pc_compat_2_1(machine);
-    pc_q35_init(machine);
-}
-
-static void pc_q35_init_2_0(MachineState *machine)
-{
-    pc_compat_2_0(machine);
-    pc_q35_init(machine);
-}
-
-static void pc_q35_init_1_7(MachineState *machine)
-{
-    pc_compat_1_7(machine);
-    pc_q35_init(machine);
-}
-
-static void pc_q35_init_1_6(MachineState *machine)
-{
-    pc_compat_1_6(machine);
-    pc_q35_init(machine);
-}
-
-static void pc_q35_init_1_5(MachineState *machine)
-{
-    pc_compat_1_5(machine);
-    pc_q35_init(machine);
-}
-
-static void pc_q35_init_1_4(MachineState *machine)
-{
-    pc_compat_1_4(machine);
-    pc_q35_init(machine);
-}
 
 static void pc_q35_machine_options(MachineClass *m)
 {
@@ -431,8 +395,8 @@ static void pc_q35_2_4_machine_options(MachineClass *m)
     m->alias = "q35";
 }
 
-DEFINE_PC_MACHINE(v2_4, "pc-q35-2.4", pc_q35_init,
-                  pc_q35_2_4_machine_options);
+DEFINE_Q35_MACHINE(v2_4, "pc-q35-2.4", NULL,
+                   pc_q35_2_4_machine_options);
 
 
 static void pc_q35_2_3_machine_options(MachineClass *m)
@@ -442,8 +406,8 @@ static void pc_q35_2_3_machine_options(MachineClass *m)
     SET_MACHINE_COMPAT(m, PC_COMPAT_2_3);
 }
 
-DEFINE_PC_MACHINE(v2_3, "pc-q35-2.3", pc_q35_init_2_3,
-                  pc_q35_2_3_machine_options);
+DEFINE_Q35_MACHINE(v2_3, "pc-q35-2.3", pc_compat_2_3,
+                   pc_q35_2_3_machine_options);
 
 
 static void pc_q35_2_2_machine_options(MachineClass *m)
@@ -452,8 +416,8 @@ static void pc_q35_2_2_machine_options(MachineClass *m)
     SET_MACHINE_COMPAT(m, PC_COMPAT_2_2);
 }
 
-DEFINE_PC_MACHINE(v2_2, "pc-q35-2.2", pc_q35_init_2_2,
-                  pc_q35_2_2_machine_options);
+DEFINE_Q35_MACHINE(v2_2, "pc-q35-2.2", pc_compat_2_2,
+                   pc_q35_2_2_machine_options);
 
 
 static void pc_q35_2_1_machine_options(MachineClass *m)
@@ -463,8 +427,8 @@ static void pc_q35_2_1_machine_options(MachineClass *m)
     SET_MACHINE_COMPAT(m, PC_COMPAT_2_1);
 }
 
-DEFINE_PC_MACHINE(v2_1, "pc-q35-2.1", pc_q35_init_2_1,
-                  pc_q35_2_1_machine_options);
+DEFINE_Q35_MACHINE(v2_1, "pc-q35-2.1", pc_compat_2_1,
+                   pc_q35_2_1_machine_options);
 
 
 static void pc_q35_2_0_machine_options(MachineClass *m)
@@ -473,8 +437,8 @@ static void pc_q35_2_0_machine_options(MachineClass *m)
     SET_MACHINE_COMPAT(m, PC_COMPAT_2_0);
 }
 
-DEFINE_PC_MACHINE(v2_0, "pc-q35-2.0", pc_q35_init_2_0,
-                  pc_q35_2_0_machine_options);
+DEFINE_Q35_MACHINE(v2_0, "pc-q35-2.0", pc_compat_2_0,
+                   pc_q35_2_0_machine_options);
 
 
 static void pc_q35_1_7_machine_options(MachineClass *m)
@@ -484,8 +448,8 @@ static void pc_q35_1_7_machine_options(MachineClass *m)
     SET_MACHINE_COMPAT(m, PC_COMPAT_1_7);
 }
 
-DEFINE_PC_MACHINE(v1_7, "pc-q35-1.7", pc_q35_init_1_7,
-                  pc_q35_1_7_machine_options);
+DEFINE_Q35_MACHINE(v1_7, "pc-q35-1.7", pc_compat_1_7,
+                   pc_q35_1_7_machine_options);
 
 
 static void pc_q35_1_6_machine_options(MachineClass *m)
@@ -494,8 +458,8 @@ static void pc_q35_1_6_machine_options(MachineClass *m)
     SET_MACHINE_COMPAT(m, PC_COMPAT_1_6);
 }
 
-DEFINE_PC_MACHINE(v1_6, "pc-q35-1.6", pc_q35_init_1_6,
-                  pc_q35_1_6_machine_options);
+DEFINE_Q35_MACHINE(v1_6, "pc-q35-1.6", pc_compat_1_6,
+                   pc_q35_1_6_machine_options);
 
 
 static void pc_q35_1_5_machine_options(MachineClass *m)
@@ -504,8 +468,8 @@ static void pc_q35_1_5_machine_options(MachineClass *m)
     SET_MACHINE_COMPAT(m, PC_COMPAT_1_5);
 }
 
-DEFINE_PC_MACHINE(v1_5, "pc-q35-1.5", pc_q35_init_1_5,
-                  pc_q35_1_5_machine_options);
+DEFINE_Q35_MACHINE(v1_5, "pc-q35-1.5", pc_compat_1_5,
+                   pc_q35_1_5_machine_options);
 
 
 static void pc_q35_1_4_machine_options(MachineClass *m)
@@ -515,5 +479,5 @@ static void pc_q35_1_4_machine_options(MachineClass *m)
     SET_MACHINE_COMPAT(m, PC_COMPAT_1_4);
 }
 
-DEFINE_PC_MACHINE(v1_4, "pc-q35-1.4", pc_q35_init_1_4,
-                  pc_q35_1_4_machine_options);
+DEFINE_Q35_MACHINE(v1_4, "pc-q35-1.4", pc_compat_1_4,
+                   pc_q35_1_4_machine_options);
