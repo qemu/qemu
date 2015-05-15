@@ -517,12 +517,12 @@ bool e820_get_entry(int, uint32_t, uint64_t *, uint64_t *);
             .value    = stringify(0),\
         },
 
-static inline void pc_common_machine_options(QEMUMachine *m)
+static inline void pc_common_machine_options(MachineClass *m)
 {
     m->default_boot_order = "cad";
 }
 
-static inline void pc_default_machine_options(QEMUMachine *m)
+static inline void pc_default_machine_options(MachineClass *m)
 {
     pc_common_machine_options(m);
     m->hot_add_cpu = pc_hot_add_cpu;
@@ -530,13 +530,21 @@ static inline void pc_default_machine_options(QEMUMachine *m)
 }
 
 #define DEFINE_PC_MACHINE(suffix, namestr, initfn, optsfn) \
+    static void pc_machine_##suffix##_class_init(ObjectClass *oc, void *data) \
+    { \
+        MachineClass *mc = MACHINE_CLASS(oc); \
+        optsfn(mc); \
+        mc->name = namestr; \
+        mc->init = initfn; \
+    } \
+    static const TypeInfo pc_machine_type_##suffix = { \
+        .name       = namestr TYPE_MACHINE_SUFFIX, \
+        .parent     = TYPE_PC_MACHINE, \
+        .class_init = pc_machine_##suffix##_class_init, \
+    }; \
     static void pc_machine_init_##suffix(void) \
     { \
-        static QEMUMachine m = { }; \
-        optsfn(&m); \
-        m.name = namestr; \
-        m.init = initfn; \
-        qemu_register_pc_machine(&m); \
+        type_register(&pc_machine_type_##suffix); \
     } \
     machine_init(pc_machine_init_##suffix)
 

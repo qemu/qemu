@@ -518,7 +518,7 @@ static void pc_xen_hvm_init(MachineState *machine)
 #endif
 
 
-static void pc_i440fx_machine_options(QEMUMachine *m)
+static void pc_i440fx_machine_options(MachineClass *m)
 {
     pc_default_machine_options(m);
     m->family = "pc_piix";
@@ -526,7 +526,7 @@ static void pc_i440fx_machine_options(QEMUMachine *m)
     m->hot_add_cpu = pc_hot_add_cpu;
 }
 
-static void pc_i440fx_2_4_machine_options(QEMUMachine *m)
+static void pc_i440fx_2_4_machine_options(MachineClass *m)
 {
     pc_i440fx_machine_options(m);
     m->default_machine_opts = "firmware=bios-256k.bin";
@@ -539,7 +539,7 @@ DEFINE_PC_MACHINE(v2_4, "pc-i440fx-2.4", pc_init_pci,
                   pc_i440fx_2_4_machine_options)
 
 
-static void pc_i440fx_2_3_machine_options(QEMUMachine *m)
+static void pc_i440fx_2_3_machine_options(MachineClass *m)
 {
     pc_i440fx_machine_options(m);
     m->alias = NULL;
@@ -551,7 +551,7 @@ DEFINE_PC_MACHINE(v2_3, "pc-i440fx-2.3", pc_init_pci_2_3,
                   pc_i440fx_2_3_machine_options);
 
 
-static void pc_i440fx_2_2_machine_options(QEMUMachine *m)
+static void pc_i440fx_2_2_machine_options(MachineClass *m)
 {
     pc_i440fx_2_3_machine_options(m);
     SET_MACHINE_COMPAT(m, PC_COMPAT_2_2);
@@ -561,7 +561,7 @@ DEFINE_PC_MACHINE(v2_2, "pc-i440fx-2.2", pc_init_pci_2_2,
                   pc_i440fx_2_2_machine_options);
 
 
-static void pc_i440fx_2_1_machine_options(QEMUMachine *m)
+static void pc_i440fx_2_1_machine_options(MachineClass *m)
 {
     pc_i440fx_2_2_machine_options(m);
     m->default_display = NULL;
@@ -573,7 +573,7 @@ DEFINE_PC_MACHINE(v2_1, "pc-i440fx-2.1", pc_init_pci_2_1,
 
 
 
-static void pc_i440fx_2_0_machine_options(QEMUMachine *m)
+static void pc_i440fx_2_0_machine_options(MachineClass *m)
 {
     pc_i440fx_2_1_machine_options(m);
     SET_MACHINE_COMPAT(m, PC_COMPAT_2_0);
@@ -583,7 +583,7 @@ DEFINE_PC_MACHINE(v2_0, "pc-i440fx-2.0", pc_init_pci_2_0,
                   pc_i440fx_2_0_machine_options);
 
 
-static void pc_i440fx_1_7_machine_options(QEMUMachine *m)
+static void pc_i440fx_1_7_machine_options(MachineClass *m)
 {
     pc_i440fx_2_0_machine_options(m);
     m->default_machine_opts = NULL;
@@ -594,7 +594,7 @@ DEFINE_PC_MACHINE(v1_7, "pc-i440fx-1.7", pc_init_pci_1_7,
                   pc_i440fx_1_7_machine_options);
 
 
-static void pc_i440fx_1_6_machine_options(QEMUMachine *m)
+static void pc_i440fx_1_6_machine_options(MachineClass *m)
 {
     pc_i440fx_1_7_machine_options(m);
     SET_MACHINE_COMPAT(m, PC_COMPAT_1_6);
@@ -604,7 +604,7 @@ DEFINE_PC_MACHINE(v1_6, "pc-i440fx-1.6", pc_init_pci_1_6,
                   pc_i440fx_1_6_machine_options);
 
 
-static void pc_i440fx_1_5_machine_options(QEMUMachine *m)
+static void pc_i440fx_1_5_machine_options(MachineClass *m)
 {
     pc_i440fx_1_6_machine_options(m);
     SET_MACHINE_COMPAT(m, PC_COMPAT_1_5);
@@ -614,7 +614,7 @@ DEFINE_PC_MACHINE(v1_5, "pc-i440fx-1.5", pc_init_pci_1_5,
                   pc_i440fx_1_5_machine_options);
 
 
-static void pc_i440fx_1_4_machine_options(QEMUMachine *m)
+static void pc_i440fx_1_4_machine_options(MachineClass *m)
 {
     pc_i440fx_1_5_machine_options(m);
     m->hot_add_cpu = NULL;
@@ -646,7 +646,7 @@ DEFINE_PC_MACHINE(v1_4, "pc-i440fx-1.4", pc_init_pci_1_4,
         },
 
 
-static void pc_i440fx_1_3_machine_options(QEMUMachine *m)
+static void pc_i440fx_1_3_machine_options(MachineClass *m)
 {
     pc_i440fx_1_4_machine_options(m);
     SET_MACHINE_COMPAT(m, PC_COMPAT_1_3);
@@ -684,7 +684,7 @@ DEFINE_PC_MACHINE(v1_3, "pc-1.3", pc_init_pci_1_3,
             .value    = "off",\
         },
 
-static void pc_i440fx_1_2_machine_options(QEMUMachine *m)
+static void pc_i440fx_1_2_machine_options(MachineClass *m)
 {
     pc_i440fx_1_3_machine_options(m);
     SET_MACHINE_COMPAT(m, PC_COMPAT_1_2);
@@ -726,7 +726,7 @@ DEFINE_PC_MACHINE(v1_2, "pc-1.2", pc_init_pci_1_2,
             .value    = "off",\
         },
 
-static void pc_i440fx_1_1_machine_options(QEMUMachine *m)
+static void pc_i440fx_1_1_machine_options(MachineClass *m)
 {
     pc_i440fx_1_2_machine_options(m);
     SET_MACHINE_COMPAT(m, PC_COMPAT_1_1);
@@ -756,7 +756,7 @@ DEFINE_PC_MACHINE(v1_1, "pc-1.1", pc_init_pci_1_2,
             .value    = "no",\
         },
 
-static void pc_i440fx_1_0_machine_options(QEMUMachine *m)
+static void pc_i440fx_1_0_machine_options(MachineClass *m)
 {
     pc_i440fx_1_1_machine_options(m);
     m->hw_version = "1.0";
@@ -770,7 +770,7 @@ DEFINE_PC_MACHINE(v1_0, "pc-1.0", pc_init_pci_1_2,
 #define PC_COMPAT_0_15 \
         PC_COMPAT_1_0
 
-static void pc_i440fx_0_15_machine_options(QEMUMachine *m)
+static void pc_i440fx_0_15_machine_options(MachineClass *m)
 {
     pc_i440fx_1_0_machine_options(m);
     m->hw_version = "0.15";
@@ -809,7 +809,7 @@ DEFINE_PC_MACHINE(v0_15, "pc-0.15", pc_init_pci_1_2,
             .value    = stringify(2),\
         },
 
-static void pc_i440fx_0_14_machine_options(QEMUMachine *m)
+static void pc_i440fx_0_14_machine_options(MachineClass *m)
 {
     pc_i440fx_0_15_machine_options(m);
     m->hw_version = "0.14";
@@ -844,7 +844,7 @@ DEFINE_PC_MACHINE(v0_14, "pc-0.14", pc_init_pci_1_2,
             .value    = stringify(0),\
         },
 
-static void pc_i440fx_0_13_machine_options(QEMUMachine *m)
+static void pc_i440fx_0_13_machine_options(MachineClass *m)
 {
     pc_i440fx_0_14_machine_options(m);
     m->hw_version = "0.13";
@@ -879,7 +879,7 @@ DEFINE_PC_MACHINE(v0_13, "pc-0.13", pc_init_pci_no_kvmclock,
             .value    = "1",\
         },
 
-static void pc_i440fx_0_12_machine_options(QEMUMachine *m)
+static void pc_i440fx_0_12_machine_options(MachineClass *m)
 {
     pc_i440fx_0_13_machine_options(m);
     m->hw_version = "0.12";
@@ -910,7 +910,7 @@ DEFINE_PC_MACHINE(v0_12, "pc-0.12", pc_init_pci_no_kvmclock,
             .value    = "0.11",\
         },
 
-static void pc_i440fx_0_11_machine_options(QEMUMachine *m)
+static void pc_i440fx_0_11_machine_options(MachineClass *m)
 {
     pc_i440fx_0_12_machine_options(m);
     m->hw_version = "0.11";
@@ -945,7 +945,7 @@ DEFINE_PC_MACHINE(v0_11, "pc-0.11", pc_init_pci_no_kvmclock,
         .value    = "0.10",\
     },
 
-static void pc_i440fx_0_10_machine_options(QEMUMachine *m)
+static void pc_i440fx_0_10_machine_options(MachineClass *m)
 {
     pc_i440fx_0_11_machine_options(m);
     m->hw_version = "0.10";
@@ -956,7 +956,7 @@ DEFINE_PC_MACHINE(v0_10, "pc-0.10", pc_init_pci_no_kvmclock,
                   pc_i440fx_0_10_machine_options);
 
 
-static void isapc_machine_options(QEMUMachine *m)
+static void isapc_machine_options(MachineClass *m)
 {
     pc_common_machine_options(m);
     m->desc = "ISA-only PC";
@@ -968,7 +968,7 @@ DEFINE_PC_MACHINE(isapc, "isapc", pc_init_isa,
 
 
 #ifdef CONFIG_XEN
-static void xenfv_machine_options(QEMUMachine *m)
+static void xenfv_machine_options(MachineClass *m)
 {
     pc_common_machine_options(m);
     m->desc = "Xen Fully-virtualized PC";
