@@ -35,8 +35,9 @@
 
 #ifndef __FreeBSD__
 int tap_open(char *ifname, int ifname_size, int *vnet_hdr,
-             int vnet_hdr_required, int mq_required)
+             int vnet_hdr_required, int mq_required, Error **errp)
 {
+    /* FIXME error_setg(errp, ...) on failure */
     int fd;
 #ifdef TAPGIFNAME
     struct ifreq ifr;
@@ -114,8 +115,9 @@ int tap_open(char *ifname, int ifname_size, int *vnet_hdr,
 #define PATH_NET_TAP "/dev/tap"
 
 int tap_open(char *ifname, int ifname_size, int *vnet_hdr,
-             int vnet_hdr_required, int mq_required)
+             int vnet_hdr_required, int mq_required, Error **errp)
 {
+    /* FIXME error_setg(errp, ...) on failure */
     int fd, s, ret;
     struct ifreq ifr;
 

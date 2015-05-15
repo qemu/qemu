@@ -30,7 +30,7 @@
 #include "qapi-types.h"
 
 int tap_open(char *ifname, int ifname_size, int *vnet_hdr,
-             int vnet_hdr_required, int mq_required);
+             int vnet_hdr_required, int mq_required, Error **errp);
 
 ssize_t tap_read_packet(int tapfd, uint8_t *buf, int maxlen);
 

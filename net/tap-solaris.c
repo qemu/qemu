@@ -174,8 +174,9 @@ static int tap_alloc(char *dev, size_t dev_size)
 }
 
 int tap_open(char *ifname, int ifname_size, int *vnet_hdr,
-             int vnet_hdr_required, int mq_required)
+             int vnet_hdr_required, int mq_required, Error **errp)
 {
+    /* FIXME error_setg(errp, ...) on failure */
     char  dev[10]="";
     int fd;
     if( (fd = tap_alloc(dev, sizeof(dev))) < 0 ){

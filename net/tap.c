@@ -581,7 +581,7 @@ int net_init_bridge(const NetClientOptions *opts, const char *name,
 
 static int net_tap_init(const NetdevTapOptions *tap, int *vnet_hdr,
                         const char *setup_script, char *ifname,
-                        size_t ifname_sz, int mq_required)
+                        size_t ifname_sz, int mq_required, Error **errp)
 {
     Error *err = NULL;
     int fd, vnet_hdr_required;
@@ -595,8 +595,12 @@ static int net_tap_init(const NetdevTapOptions *tap, int *vnet_hdr,
     }
 
     TFR(fd = tap_open(ifname, ifname_sz, vnet_hdr, vnet_hdr_required,
-                      mq_required));
+                      mq_required, errp));
     if (fd < 0) {
+        /* FIXME drop when all tap_open() store an Error */
+        if (errp && !*errp) {
+            error_setg(errp, "can't open tap device");
+        }
         return -1;
     }
 
@@ -605,7 +609,7 @@ static int net_tap_init(const NetdevTapOptions *tap, int *vnet_hdr,
         strcmp(setup_script, "no") != 0) {
         launch_script(setup_script, ifname, fd, &err);
         if (err) {
-            error_report_err(err);
+            error_propagate(errp, err);
             close(fd);
             return -1;
         }
@@ -853,8 +857,9 @@ int net_init_tap(const NetClientOptions *opts, const char *name,
 
         for (i = 0; i < queues; i++) {
             fd = net_tap_init(tap, &vnet_hdr, i >= 1 ? "no" : script,
-                              ifname, sizeof ifname, queues > 1);
+                              ifname, sizeof ifname, queues > 1, &err);
             if (fd == -1) {
+                error_report_err(err);
                 return -1;
             }
 
