@@ -73,8 +73,6 @@ typedef struct PCMachineClass PCMachineClass;
 #define PC_MACHINE_CLASS(klass) \
     OBJECT_CLASS_CHECK(PCMachineClass, (klass), TYPE_PC_MACHINE)
 
-void qemu_register_pc_machine(QEMUMachine *m);
-
 /* PC-style peripherals (also used by other machines).  */
 
 typedef struct PcPciInfo {
