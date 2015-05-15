@@ -2569,6 +2569,7 @@ Return a json-array. Each CPU is represented by a json-object, which contains:
 - "CPU": CPU index (json-int)
 - "current": true if this is the current CPU, false otherwise (json-bool)
 - "halted": true if the cpu is halted, false otherwise (json-bool)
+- "qom_path": path to the CPU object in the QOM tree (json-str)
 - Current program counter. The key's name depends on the architecture:
      "pc": i386/x86_64 (json-int)
      "nip": PPC (json-int)
@@ -2585,14 +2586,16 @@ Example:
             "CPU":0,
             "current":true,
             "halted":false,
-            "pc":3227107138
+            "qom_path":"/machine/unattached/device[0]",
+            "pc":3227107138,
             "thread_id":3134
          },
          {
             "CPU":1,
             "current":false,
             "halted":true,
-            "pc":7108165
+            "qom_path":"/machine/unattached/device[2]",
+            "pc":7108165,
             "thread_id":3135
          }
       ]

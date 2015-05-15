@@ -51,6 +51,21 @@ int64_t qmp_user_def_cmd3(int64_t a, bool has_b, int64_t b, Error **errp)
     return a + (has_b ? b : 0);
 }
 
+__org_qemu_x_Union1 *qmp___org_qemu_x_command(__org_qemu_x_EnumList *a,
+                                              __org_qemu_x_StructList *b,
+                                              __org_qemu_x_Union2 *c,
+                                              __org_qemu_x_Alt *d,
+                                              Error **errp)
+{
+    __org_qemu_x_Union1 *ret = g_new0(__org_qemu_x_Union1, 1);
+
+    ret->kind = ORG_QEMU_X_UNION1_KIND___ORG_QEMU_X_BRANCH;
+    ret->__org_qemu_x_branch = strdup("blah1");
+
+    return ret;
+}
+
+
 /* test commands with no input and no return value */
 static void test_dispatch_cmd(void)
 {

@@ -15,10 +15,6 @@
 from ordereddict import OrderedDict
 from qapi import *
 import re
-import sys
-import os
-import getopt
-import errno
 
 implicit_structs = []
 
@@ -56,7 +52,7 @@ static void visit_type_%(name)s_fields(Visitor *m, %(name)s **obj, Error **errp)
 {
     Error *err = NULL;
 ''',
-                 name=name)
+                 name=c_name(name))
     push_indent()
 
     if base:
@@ -66,7 +62,7 @@ if (err) {
     goto out;
 }
 ''',
-                     type=type_name(base), c_name=c_var('base'))
+                     type=type_name(base), c_name=c_name('base'))
 
     for argname, argentry, optional in parse_args(members):
         if optional:
@@ -74,13 +70,13 @@ if (err) {
 visit_optional(m, &(*obj)->has_%(c_name)s, "%(name)s", &err);
 if (!err && (*obj)->has_%(c_name)s) {
 ''',
-                         c_name=c_var(argname), name=argname)
+                         c_name=c_name(argname), name=argname)
             push_indent()
 
         ret += mcgen('''
 visit_type_%(type)s(m, &(*obj)->%(c_name)s, "%(name)s", &err);
 ''',
-                     type=type_name(argentry), c_name=c_var(argname),
+                     type=type_name(argentry), c_name=c_name(argname),
                      name=argname)
 
         if optional:
@@ -111,16 +107,16 @@ def generate_visit_struct_body(name, members):
     ret = mcgen('''
     Error *err = NULL;
 
-    visit_start_struct(m, (void **)obj, "%(name)s", name, sizeof(%(name)s), &err);
+    visit_start_struct(m, (void **)obj, "%(name)s", name, sizeof(%(c_name)s), &err);
     if (!err) {
         if (*obj) {
-            visit_type_%(name)s_fields(m, obj, errp);
+            visit_type_%(c_name)s_fields(m, obj, errp);
         }
         visit_end_struct(m, &err);
     }
     error_propagate(errp, err);
 ''',
-                name=name)
+                name=name, c_name=c_name(name))
 
     return ret
 
@@ -137,7 +133,7 @@ def generate_visit_struct(expr):
 void visit_type_%(name)s(Visitor *m, %(name)s **obj, const char *name, Error **errp)
 {
 ''',
-                name=name)
+                 name=c_name(name))
 
     ret += generate_visit_struct_body(name, members)
 
@@ -173,7 +169,7 @@ out:
     error_propagate(errp, err);
 }
 ''',
-                name=name)
+                name=type_name(name))
 
 def generate_visit_enum(name, members):
     return mcgen('''
@@ -183,7 +179,7 @@ void visit_type_%(name)s(Visitor *m, %(name)s *obj, const char *name, Error **er
     visit_type_enum(m, (int *)obj, %(name)s_lookup, "%(name)s", name, errp);
 }
 ''',
-                 name=name)
+                 name=c_name(name))
 
 def generate_visit_alternate(name, members):
     ret = mcgen('''
@@ -202,11 +198,11 @@ void visit_type_%(name)s(Visitor *m, %(name)s **obj, const char *name, Error **e
     }
     switch ((*obj)->kind) {
 ''',
-    name=name)
+                name=c_name(name))
 
     # For alternate, always use the default enum type automatically generated
-    # as "'%sKind' % (name)"
-    disc_type = '%sKind' % (name)
+    # as name + 'Kind'
+    disc_type = c_name(name) + 'Kind'
 
     for key in members:
         assert (members[key] in builtin_types.keys()
@@ -214,7 +210,7 @@ void visit_type_%(name)s(Visitor *m, %(name)s **obj, const char *name, Error **e
             or find_union(members[key])
             or find_enum(members[key])), "Invalid alternate member"
 
-        enum_full_value = generate_enum_full_value(disc_type, key)
+        enum_full_value = c_enum_const(disc_type, key)
         ret += mcgen('''
     case %(enum_full_value)s:
         visit_type_%(c_type)s(m, &(*obj)->%(c_name)s, name, &err);
@@ -222,7 +218,7 @@ void visit_type_%(name)s(Visitor *m, %(name)s **obj, const char *name, Error **e
 ''',
                 enum_full_value = enum_full_value,
                 c_type = type_name(members[key]),
-                c_name = c_fun(key))
+                c_name = c_name(key))
 
     ret += mcgen('''
     default:
@@ -252,12 +248,12 @@ def generate_visit_union(expr):
     if enum_define:
         # Use the enum type as discriminator
         ret = ""
-        disc_type = enum_define['enum_name']
+        disc_type = c_name(enum_define['enum_name'])
     else:
         # There will always be a discriminator in the C switch code, by default
-        # it is an enum type generated silently as "'%sKind' % (name)"
-        ret = generate_visit_enum('%sKind' % name, members.keys())
-        disc_type = '%sKind' % (name)
+        # it is an enum type generated silently
+        ret = generate_visit_enum(name + 'Kind', members.keys())
+        disc_type = c_name(name) + 'Kind'
 
     if base:
         assert discriminator
@@ -281,7 +277,7 @@ void visit_type_%(name)s(Visitor *m, %(name)s **obj, const char *name, Error **e
     }
     if (*obj) {
 ''',
-                 name=name)
+                 name=c_name(name))
 
     if base:
         ret += mcgen('''
@@ -290,7 +286,7 @@ void visit_type_%(name)s(Visitor *m, %(name)s **obj, const char *name, Error **e
             goto out_obj;
         }
 ''',
-            name=name)
+                     name=c_name(name))
 
     if not discriminator:
         disc_key = "type"
@@ -315,7 +311,7 @@ void visit_type_%(name)s(Visitor *m, %(name)s **obj, const char *name, Error **e
         else:
             fmt = 'visit_type_implicit_%(c_type)s(m, &(*obj)->%(c_name)s, &err);'
 
-        enum_full_value = generate_enum_full_value(disc_type, key)
+        enum_full_value = c_enum_const(disc_type, key)
         ret += mcgen('''
         case %(enum_full_value)s:
             ''' + fmt + '''
@@ -323,7 +319,7 @@ void visit_type_%(name)s(Visitor *m, %(name)s **obj, const char *name, Error **e
 ''',
                 enum_full_value = enum_full_value,
                 c_type=type_name(members[key]),
-                c_name=c_fun(key))
+                c_name=c_name(key))
 
     ret += mcgen('''
         default:
@@ -347,6 +343,7 @@ out:
 def generate_declaration(name, members, builtin_type=False):
     ret = ""
     if not builtin_type:
+        name = c_name(name)
         ret += mcgen('''
 
 void visit_type_%(name)s(Visitor *m, %(name)s **obj, const char *name, Error **errp);
@@ -364,7 +361,7 @@ def generate_enum_declaration(name, members):
     ret = mcgen('''
 void visit_type_%(name)sList(Visitor *m, %(name)sList **obj, const char *name, Error **errp);
 ''',
-                name=name)
+                name=c_name(name))
 
     return ret
 
@@ -373,108 +370,62 @@ def generate_decl_enum(name, members):
 
 void visit_type_%(name)s(Visitor *m, %(name)s *obj, const char *name, Error **errp);
 ''',
-                name=name)
+                 name=c_name(name))
 
-try:
-    opts, args = getopt.gnu_getopt(sys.argv[1:], "chbp:i:o:",
-                                   ["source", "header", "builtins", "prefix=",
-                                    "input-file=", "output-dir="])
-except getopt.GetoptError, err:
-    print str(err)
-    sys.exit(1)
-
-input_file = ""
-output_dir = ""
-prefix = ""
-c_file = 'qapi-visit.c'
-h_file = 'qapi-visit.h'
-
-do_c = False
-do_h = False
 do_builtins = False
 
+(input_file, output_dir, do_c, do_h, prefix, opts) = \
+    parse_command_line("b", ["builtins"])
+
 for o, a in opts:
-    if o in ("-p", "--prefix"):
-        prefix = a
-    elif o in ("-i", "--input-file"):
-        input_file = a
-    elif o in ("-o", "--output-dir"):
-        output_dir = a + "/"
-    elif o in ("-c", "--source"):
-        do_c = True
-    elif o in ("-h", "--header"):
-        do_h = True
-    elif o in ("-b", "--builtins"):
+    if o in ("-b", "--builtins"):
         do_builtins = True
 
-if not do_c and not do_h:
-    do_c = True
-    do_h = True
+c_comment = '''
+/*
+ * schema-defined QAPI visitor functions
+ *
+ * Copyright IBM, Corp. 2011
+ *
+ * Authors:
+ *  Anthony Liguori   <aliguori@us.ibm.com>
+ *
+ * This work is licensed under the terms of the GNU LGPL, version 2.1 or later.
+ * See the COPYING.LIB file in the top-level directory.
+ *
+ */
+'''
+h_comment = '''
+/*
+ * schema-defined QAPI visitor functions
+ *
+ * Copyright IBM, Corp. 2011
+ *
+ * Authors:
+ *  Anthony Liguori   <aliguori@us.ibm.com>
+ *
+ * This work is licensed under the terms of the GNU LGPL, version 2.1 or later.
+ * See the COPYING.LIB file in the top-level directory.
+ *
+ */
+'''
 
-c_file = output_dir + prefix + c_file
-h_file = output_dir + prefix + h_file
-
-try:
-    os.makedirs(output_dir)
-except os.error, e:
-    if e.errno != errno.EEXIST:
-        raise
-
-def maybe_open(really, name, opt):
-    if really:
-        return open(name, opt)
-    else:
-        import StringIO
-        return StringIO.StringIO()
-
-fdef = maybe_open(do_c, c_file, 'w')
-fdecl = maybe_open(do_h, h_file, 'w')
+(fdef, fdecl) = open_output(output_dir, do_c, do_h, prefix,
+                            'qapi-visit.c', 'qapi-visit.h',
+                            c_comment, h_comment)
 
 fdef.write(mcgen('''
-/* THIS FILE IS AUTOMATICALLY GENERATED, DO NOT MODIFY */
-
-/*
- * schema-defined QAPI visitor functions
- *
- * Copyright IBM, Corp. 2011
- *
- * Authors:
- *  Anthony Liguori   <aliguori@us.ibm.com>
- *
- * This work is licensed under the terms of the GNU LGPL, version 2.1 or later.
- * See the COPYING.LIB file in the top-level directory.
- *
- */
-
 #include "qemu-common.h"
-#include "%(header)s"
+#include "%(prefix)sqapi-visit.h"
 ''',
-                 header=basename(h_file)))
+                 prefix = prefix))
 
 fdecl.write(mcgen('''
-/* THIS FILE IS AUTOMATICALLY GENERATED, DO NOT MODIFY */
-
-/*
- * schema-defined QAPI visitor functions
- *
- * Copyright IBM, Corp. 2011
- *
- * Authors:
- *  Anthony Liguori   <aliguori@us.ibm.com>
- *
- * This work is licensed under the terms of the GNU LGPL, version 2.1 or later.
- * See the COPYING.LIB file in the top-level directory.
- *
- */
-
-#ifndef %(guard)s
-#define %(guard)s
-
 #include "qapi/visitor.h"
 #include "%(prefix)sqapi-types.h"
 
 ''',
-                  prefix=prefix, guard=guardname(h_file)))
+                  prefix=prefix))
 
 exprs = parse_schema(input_file)
 
@@ -530,12 +481,4 @@ for expr in exprs:
         ret += generate_enum_declaration(expr['enum'], expr['data'])
         fdecl.write(ret)
 
-fdecl.write('''
-#endif
-''')
-
-fdecl.flush()
-fdecl.close()
-
-fdef.flush()
-fdef.close()
+close_output(fdef, fdecl)

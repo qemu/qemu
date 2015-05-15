@@ -679,6 +679,8 @@
 # @halted: true if the virtual CPU is in the halt state.  Halt usually refers
 #          to a processor specific low power mode.
 #
+# @qom_path: path to the CPU object in the QOM tree (since 2.4)
+#
 # @pc: #optional If the target is i386 or x86_64, this is the 64-bit instruction
 #                pointer.
 #                If the target is Sparc, this is the PC component of the
@@ -699,8 +701,10 @@
 #        data is sent to the client, the guest may no longer be halted.
 ##
 { 'struct': 'CpuInfo',
-  'data': {'CPU': 'int', 'current': 'bool', 'halted': 'bool', '*pc': 'int',
-           '*nip': 'int', '*npc': 'int', '*PC': 'int', 'thread_id': 'int'} }
+  'data': {'CPU': 'int', 'current': 'bool', 'halted': 'bool',
+           'qom_path': 'str',
+           '*pc': 'int', '*nip': 'int', '*npc': 'int', '*PC': 'int',
+           'thread_id': 'int'} }
 
 ##
 # @query-cpus:
