@@ -742,7 +742,6 @@ int qemu_find_nic_model(NICInfo *nd, const char * const *models,
 static int net_init_nic(const NetClientOptions *opts, const char *name,
                         NetClientState *peer, Error **errp)
 {
-    /* FIXME error_setg(errp, ...) on failure */
     int idx;
     NICInfo *nd;
     const NetLegacyNicOptions *nic;
@@ -752,7 +751,7 @@ static int net_init_nic(const NetClientOptions *opts, const char *name,
 
     idx = nic_get_free_idx();
     if (idx == -1 || nb_nics >= MAX_NICS) {
-        error_report("Too Many NICs");
+        error_setg(errp, "too many NICs");
         return -1;
     }
 
@@ -763,7 +762,7 @@ static int net_init_nic(const NetClientOptions *opts, const char *name,
     if (nic->has_netdev) {
         nd->netdev = qemu_find_netdev(nic->netdev);
         if (!nd->netdev) {
-            error_report("netdev '%s' not found", nic->netdev);
+            error_setg(errp, "netdev '%s' not found", nic->netdev);
             return -1;
         }
     } else {
@@ -780,19 +779,20 @@ static int net_init_nic(const NetClientOptions *opts, const char *name,
 
     if (nic->has_macaddr &&
         net_parse_macaddr(nd->macaddr.a, nic->macaddr) < 0) {
-        error_report("invalid syntax for ethernet address");
+        error_setg(errp, "invalid syntax for ethernet address");
         return -1;
     }
     if (nic->has_macaddr &&
         is_multicast_ether_addr(nd->macaddr.a)) {
-        error_report("NIC cannot have multicast MAC address (odd 1st byte)");
+        error_setg(errp,
+                   "NIC cannot have multicast MAC address (odd 1st byte)");
         return -1;
     }
     qemu_macaddr_default_if_unset(&nd->macaddr);
 
     if (nic->has_vectors) {
         if (nic->vectors > 0x7ffffff) {
-            error_report("invalid # of vectors: %"PRIu32, nic->vectors);
+            error_setg(errp, "invalid # of vectors: %"PRIu32, nic->vectors);
             return -1;
         }
         nd->nvectors = nic->vectors;
