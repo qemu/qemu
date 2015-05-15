@@ -21,6 +21,7 @@
 #include "hw/arm/arm.h"
 #include "hw/intc/arm_gic.h"
 #include "hw/net/cadence_gem.h"
+#include "hw/char/cadence_uart.h"
 
 #define TYPE_XLNX_ZYNQMP "xlnx,zynqmp"
 #define XLNX_ZYNQMP(obj) OBJECT_CHECK(XlnxZynqMPState, (obj), \
@@ -28,6 +29,7 @@
 
 #define XLNX_ZYNQMP_NUM_CPUS 4
 #define XLNX_ZYNQMP_NUM_GEMS 4
+#define XLNX_ZYNQMP_NUM_UARTS 2
 
 #define XLNX_ZYNQMP_GIC_REGIONS 2
 
@@ -49,6 +51,7 @@ typedef struct XlnxZynqMPState {
     GICState gic;
     MemoryRegion gic_mr[XLNX_ZYNQMP_GIC_REGIONS][XLNX_ZYNQMP_GIC_ALIASES];
     CadenceGEMState gem[XLNX_ZYNQMP_NUM_GEMS];
+    CadenceUARTState uart[XLNX_ZYNQMP_NUM_UARTS];
 }  XlnxZynqMPState;
 
 #define XLNX_ZYNQMP_H
