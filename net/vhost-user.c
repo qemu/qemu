@@ -223,8 +223,9 @@ static int net_vhost_check_net(QemuOpts *opts, void *opaque)
 }
 
 int net_init_vhost_user(const NetClientOptions *opts, const char *name,
-                        NetClientState *peer)
+                        NetClientState *peer, Error **errp)
 {
+    /* FIXME error_setg(errp, ...) on failure */
     const NetdevVhostUserOptions *vhost_user_opts;
     CharDriverState *chr;
 

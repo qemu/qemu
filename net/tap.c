@@ -531,8 +531,9 @@ static int net_bridge_run_helper(const char *helper, const char *bridge)
 }
 
 int net_init_bridge(const NetClientOptions *opts, const char *name,
-                    NetClientState *peer)
+                    NetClientState *peer, Error **errp)
 {
+    /* FIXME error_setg(errp, ...) on failure */
     const NetdevBridgeOptions *bridge;
     const char *helper, *br;
 
@@ -699,8 +700,9 @@ static int get_fds(char *str, char *fds[], int max)
 }
 
 int net_init_tap(const NetClientOptions *opts, const char *name,
-                 NetClientState *peer)
+                 NetClientState *peer, Error **errp)
 {
+    /* FIXME error_setg(errp, ...) on failure */
     const NetdevTapOptions *tap;
     int fd, vnet_hdr = 0, i = 0, queues;
     /* for the no-fd, no-helper case */

@@ -693,8 +693,9 @@ static int net_socket_udp_init(NetClientState *peer,
 }
 
 int net_init_socket(const NetClientOptions *opts, const char *name,
-                    NetClientState *peer)
+                    NetClientState *peer, Error **errp)
 {
+    /* FIXME error_setg(errp, ...) on failure */
     Error *err = NULL;
     const NetdevSocketOptions *sock;
 

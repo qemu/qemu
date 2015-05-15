@@ -740,8 +740,9 @@ int qemu_find_nic_model(NICInfo *nd, const char * const *models,
 }
 
 static int net_init_nic(const NetClientOptions *opts, const char *name,
-                        NetClientState *peer)
+                        NetClientState *peer, Error **errp)
 {
+    /* FIXME error_setg(errp, ...) on failure */
     int idx;
     NICInfo *nd;
     const NetLegacyNicOptions *nic;
@@ -809,7 +810,7 @@ static int net_init_nic(const NetClientOptions *opts, const char *name,
 static int (* const net_client_init_fun[NET_CLIENT_OPTIONS_KIND_MAX])(
     const NetClientOptions *opts,
     const char *name,
-    NetClientState *peer) = {
+    NetClientState *peer, Error **errp) = {
         [NET_CLIENT_OPTIONS_KIND_NIC]       = net_init_nic,
 #ifdef CONFIG_SLIRP
         [NET_CLIENT_OPTIONS_KIND_USER]      = net_init_slirp,
@@ -902,10 +903,12 @@ static int net_client_init1(const void *object, int is_netdev, Error **errp)
             peer = net_hub_add_port(u.net->has_vlan ? u.net->vlan : 0, NULL);
         }
 
-        if (net_client_init_fun[opts->kind](opts, name, peer) < 0) {
-            /* TODO push error reporting into init() methods */
-            error_set(errp, QERR_DEVICE_INIT_FAILED,
-                      NetClientOptionsKind_lookup[opts->kind]);
+        if (net_client_init_fun[opts->kind](opts, name, peer, errp) < 0) {
+            /* FIXME drop when all init functions store an Error */
+            if (errp && !*errp) {
+                error_set(errp, QERR_DEVICE_INIT_FAILED,
+                          NetClientOptionsKind_lookup[opts->kind]);
+            }
             return -1;
         }
     }

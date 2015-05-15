@@ -146,8 +146,9 @@ static int net_dump_init(NetClientState *peer, const char *device,
 }
 
 int net_init_dump(const NetClientOptions *opts, const char *name,
-                  NetClientState *peer)
+                  NetClientState *peer, Error **errp)
 {
+    /* FIXME error_setg(errp, ...) on failure */
     int len;
     const char *file;
     char def_file[128];

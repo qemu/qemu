@@ -281,7 +281,7 @@ int net_hub_id_for_client(NetClientState *nc, int *id)
 }
 
 int net_init_hubport(const NetClientOptions *opts, const char *name,
-                     NetClientState *peer)
+                     NetClientState *peer, Error **errp)
 {
     const NetdevHubPortOptions *hubport;
 

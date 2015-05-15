@@ -110,8 +110,9 @@ static int net_vde_init(NetClientState *peer, const char *model,
 }
 
 int net_init_vde(const NetClientOptions *opts, const char *name,
-                 NetClientState *peer)
+                 NetClientState *peer, Error **errp)
 {
+    /* FIXME error_setg(errp, ...) on failure */
     const NetdevVdeOptions *vde;
 
     assert(opts->kind == NET_CLIENT_OPTIONS_KIND_VDE);
