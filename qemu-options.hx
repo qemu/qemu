@@ -1449,25 +1449,25 @@ DEF("smb", HAS_ARG, QEMU_OPTION_smb, "", QEMU_ARCH_ALL)
 #endif
 #endif
 
-DEF("net", HAS_ARG, QEMU_OPTION_net,
-    "-net nic[,vlan=n][,macaddr=mac][,model=type][,name=str][,addr=str][,vectors=v]\n"
-    "                create a new Network Interface Card and connect it to VLAN 'n'\n"
+DEF("netdev", HAS_ARG, QEMU_OPTION_netdev,
 #ifdef CONFIG_SLIRP
-    "-net user[,vlan=n][,name=str][,net=addr[/mask]][,host=addr][,restrict=on|off]\n"
+    "-netdev user,id=str[,net=addr[/mask]][,host=addr][,restrict=on|off]\n"
     "         [,hostname=host][,dhcpstart=addr][,dns=addr][,dnssearch=domain][,tftp=dir]\n"
     "         [,bootfile=f][,hostfwd=rule][,guestfwd=rule]"
 #ifndef _WIN32
                                              "[,smb=dir[,smbserver=addr]]\n"
 #endif
-    "                connect the user mode network stack to VLAN 'n', configure its\n"
-    "                DHCP server and enabled optional services\n"
+    "                configure a user mode network backend with ID 'str',\n"
+    "                its DHCP server and optional services\n"
 #endif
 #ifdef _WIN32
-    "-net tap[,vlan=n][,name=str],ifname=name\n"
-    "                connect the host TAP network interface to VLAN 'n'\n"
+    "-netdev tap,id=str,ifname=name\n"
+    "                configure a host TAP network backend with ID 'str'\n"
 #else
-    "-net tap[,vlan=n][,name=str][,fd=h][,fds=x:y:...:z][,ifname=name][,script=file][,downscript=dfile][,helper=helper][,sndbuf=nbytes][,vnet_hdr=on|off][,vhost=on|off][,vhostfd=h][,vhostfds=x:y:...:z][,vhostforce=on|off][,queues=n]\n"
-    "                connect the host TAP network interface to VLAN 'n'\n"
+    "-netdev tap,id=str[,fd=h][,fds=x:y:...:z][,ifname=name][,script=file][,downscript=dfile]\n"
+    "         [,helper=helper][,sndbuf=nbytes][,vnet_hdr=on|off][,vhost=on|off]\n"
+    "         [,vhostfd=h][,vhostfds=x:y:...:z][,vhostforce=on|off][,queues=n]\n"
+    "                configure a host TAP network backend with ID 'str'\n"
     "                use network scripts 'file' (default=" DEFAULT_NETWORK_SCRIPT ")\n"
     "                to configure it and 'dfile' (default=" DEFAULT_NETWORK_DOWN_SCRIPT ")\n"
     "                to deconfigure it\n"
@@ -1486,14 +1486,18 @@ DEF("net", HAS_ARG, QEMU_OPTION_net,
     "                use 'vhostfd=h' to connect to an already opened vhost net device\n"
     "                use 'vhostfds=x:y:...:z to connect to multiple already opened vhost net devices\n"
     "                use 'queues=n' to specify the number of queues to be created for multiqueue TAP\n"
-    "-net bridge[,vlan=n][,name=str][,br=bridge][,helper=helper]\n"
-    "                connects a host TAP network interface to a host bridge device 'br'\n"
-    "                (default=" DEFAULT_BRIDGE_INTERFACE ") using the program 'helper'\n"
-    "                (default=" DEFAULT_BRIDGE_HELPER ")\n"
+    "-netdev bridge,id=str[,br=bridge][,helper=helper]\n"
+    "                configure a host TAP network backend with ID 'str' that is\n"
+    "                connected to a bridge (default=" DEFAULT_BRIDGE_INTERFACE ")\n"
+    "                using the program 'helper (default=" DEFAULT_BRIDGE_HELPER ")\n"
 #endif
 #ifdef __linux__
-    "-net l2tpv3[,vlan=n][,name=str],src=srcaddr,dst=dstaddr[,srcport=srcport][,dstport=dstport],txsession=txsession[,rxsession=rxsession][,ipv6=on/off][,udp=on/off][,cookie64=on/off][,counter][,pincounter][,txcookie=txcookie][,rxcookie=rxcookie][,offset=offset]\n"
-    "                connect the VLAN to an Ethernet over L2TPv3 pseudowire\n"
+    "-netdev l2tpv3,id=str,src=srcaddr,dst=dstaddr[,srcport=srcport][,dstport=dstport]\n"
+    "         [,rxsession=rxsession],txsession=txsession[,ipv6=on/off][,udp=on/off]\n"
+    "         [,cookie64=on/off][,counter][,pincounter][,txcookie=txcookie]\n"
+    "         [,rxcookie=rxcookie][,offset=offset]\n"
+    "                configure a network backend with ID 'str' connected to\n"
+    "                an Ethernet over L2TPv3 pseudowire.\n"
     "                Linux kernel 3.3+ as well as most routers can talk\n"
     "                L2TPv3. This transport allows connecting a VM to a VM,\n"
     "                VM to a router and even VM to Host. It is a nearly-universal\n"
@@ -1514,32 +1518,41 @@ DEF("net", HAS_ARG, QEMU_OPTION_net,
     "                use 'pincounter=on' to work around broken counter handling in peer\n"
     "                use 'offset=X' to add an extra offset between header and data\n"
 #endif
-    "-net socket[,vlan=n][,name=str][,fd=h][,listen=[host]:port][,connect=host:port]\n"
-    "                connect the vlan 'n' to another VLAN using a socket connection\n"
-    "-net socket[,vlan=n][,name=str][,fd=h][,mcast=maddr:port[,localaddr=addr]]\n"
-    "                connect the vlan 'n' to multicast maddr and port\n"
+    "-netdev socket,id=str[,fd=h][,listen=[host]:port][,connect=host:port]\n"
+    "                configure a network backend to connect to another network\n"
+    "                using a socket connection\n"
+    "-netdev socket,id=str[,fd=h][,mcast=maddr:port[,localaddr=addr]]\n"
+    "                configure a network backend to connect to a multicast maddr and port\n"
     "                use 'localaddr=addr' to specify the host address to send packets from\n"
-    "-net socket[,vlan=n][,name=str][,fd=h][,udp=host:port][,localaddr=host:port]\n"
-    "                connect the vlan 'n' to another VLAN using an UDP tunnel\n"
+    "-netdev socket,id=str[,fd=h][,udp=host:port][,localaddr=host:port]\n"
+    "                configure a network backend to connect to another network\n"
+    "                using an UDP tunnel\n"
 #ifdef CONFIG_VDE
-    "-net vde[,vlan=n][,name=str][,sock=socketpath][,port=n][,group=groupname][,mode=octalmode]\n"
-    "                connect the vlan 'n' to port 'n' of a vde switch running\n"
-    "                on host and listening for incoming connections on 'socketpath'.\n"
+    "-netdev vde,id=str[,sock=socketpath][,port=n][,group=groupname][,mode=octalmode]\n"
+    "                configure a network backend to connect to port 'n' of a vde switch\n"
+    "                running on host and listening for incoming connections on 'socketpath'.\n"
     "                Use group 'groupname' and mode 'octalmode' to change default\n"
     "                ownership and permissions for communication port.\n"
 #endif
 #ifdef CONFIG_NETMAP
-    "-net netmap,ifname=name[,devname=nmname]\n"
+    "-netdev netmap,id=str,ifname=name[,devname=nmname]\n"
     "                attach to the existing netmap-enabled network interface 'name', or to a\n"
     "                VALE port (created on the fly) called 'name' ('nmname' is name of the \n"
     "                netmap device, defaults to '/dev/netmap')\n"
 #endif
+    "-netdev vhost-user,id=str,chardev=dev[,vhostforce=on|off]\n"
+    "                configure a vhost-user network, backed by a chardev 'dev'\n"
+    "-netdev hubport,id=str,hubid=n\n"
+    "                configure a hub port on QEMU VLAN 'n'\n", QEMU_ARCH_ALL)
+DEF("net", HAS_ARG, QEMU_OPTION_net,
+    "-net nic[,vlan=n][,macaddr=mac][,model=type][,name=str][,addr=str][,vectors=v]\n"
+    "                old way to create a new NIC and connect it to VLAN 'n'\n"
+    "                (use the '-device devtype,netdev=str' option if possible instead)\n"
     "-net dump[,vlan=n][,file=f][,len=n]\n"
     "                dump traffic on vlan 'n' to file 'f' (max n bytes per packet)\n"
     "-net none       use it alone to have zero network devices. If no -net option\n"
-    "                is provided, the default is '-net nic -net user'\n", QEMU_ARCH_ALL)
-DEF("netdev", HAS_ARG, QEMU_OPTION_netdev,
-    "-netdev ["
+    "                is provided, the default is '-net nic -net user'\n"
+    "-net ["
 #ifdef CONFIG_SLIRP
     "user|"
 #endif
@@ -1551,9 +1564,9 @@ DEF("netdev", HAS_ARG, QEMU_OPTION_netdev,
 #ifdef CONFIG_NETMAP
     "netmap|"
 #endif
-    "vhost-user|"
-    "socket|"
-    "hubport],id=str[,option][,option][,...]\n", QEMU_ARCH_ALL)
+    "socket][,vlan=n][,option][,option][,...]\n"
+    "                old way to initialize a host network interface\n"
+    "                (use the -netdev option if possible instead)\n", QEMU_ARCH_ALL)
 STEXI
 @item -net nic[,vlan=@var{n}][,macaddr=@var{mac}][,model=@var{type}] [,name=@var{name}][,addr=@var{addr}][,vectors=@var{v}]
 @findex -net
