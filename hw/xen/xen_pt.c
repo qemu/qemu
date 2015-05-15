@@ -740,10 +740,7 @@ static int xen_pt_initfn(PCIDevice *d)
                    machine_irq, pirq, rc);
 
         /* Disable PCI intx assertion (turn on bit10 of devctl) */
-        xen_host_pci_set_word(&s->real_device,
-                              PCI_COMMAND,
-                              pci_get_word(s->dev.config + PCI_COMMAND)
-                              | PCI_COMMAND_INTX_DISABLE);
+        cmd |= PCI_COMMAND_INTX_DISABLE;
         machine_irq = 0;
         s->machine_irq = 0;
     } else {
@@ -765,9 +762,7 @@ static int xen_pt_initfn(PCIDevice *d)
                        e_intx, rc);
 
             /* Disable PCI intx assertion (turn on bit10 of devctl) */
-            xen_host_pci_set_word(&s->real_device, PCI_COMMAND,
-                                  *(uint16_t *)(&s->dev.config[PCI_COMMAND])
-                                  | PCI_COMMAND_INTX_DISABLE);
+            cmd |= PCI_COMMAND_INTX_DISABLE;
             xen_pt_mapped_machine_irq[machine_irq]--;
 
             if (xen_pt_mapped_machine_irq[machine_irq] == 0) {
