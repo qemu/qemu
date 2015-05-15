@@ -713,7 +713,6 @@ static int get_fds(char *str, char *fds[], int max)
 int net_init_tap(const NetClientOptions *opts, const char *name,
                  NetClientState *peer, Error **errp)
 {
-    /* FIXME error_setg(errp, ...) on failure */
     const NetdevTapOptions *tap;
     int fd, vnet_hdr = 0, i = 0, queues;
     /* for the no-fd, no-helper case */
@@ -731,7 +730,7 @@ int net_init_tap(const NetClientOptions *opts, const char *name,
     /* QEMU vlans does not support multiqueue tap, in this case peer is set.
      * For -netdev, peer is always NULL. */
     if (peer && (tap->has_queues || tap->has_fds || tap->has_vhostfds)) {
-        error_report("Multiqueue tap cannot be used with QEMU vlans");
+        error_setg(errp, "Multiqueue tap cannot be used with QEMU vlans");
         return -1;
     }
 
@@ -739,15 +738,15 @@ int net_init_tap(const NetClientOptions *opts, const char *name,
         if (tap->has_ifname || tap->has_script || tap->has_downscript ||
             tap->has_vnet_hdr || tap->has_helper || tap->has_queues ||
             tap->has_fds || tap->has_vhostfds) {
-            error_report("ifname=, script=, downscript=, vnet_hdr=, "
-                         "helper=, queues=, fds=, and vhostfds= "
-                         "are invalid with fd=");
+            error_setg(errp, "ifname=, script=, downscript=, vnet_hdr=, "
+                       "helper=, queues=, fds=, and vhostfds= "
+                       "are invalid with fd=");
             return -1;
         }
 
         fd = monitor_fd_param(cur_mon, tap->fd, &err);
         if (fd == -1) {
-            error_report_err(err);
+            error_propagate(errp, err);
             return -1;
         }
 
@@ -759,7 +758,7 @@ int net_init_tap(const NetClientOptions *opts, const char *name,
                          script, downscript,
                          vhostfdname, vnet_hdr, fd, &err);
         if (err) {
-            error_report_err(err);
+            error_propagate(errp, err);
             return -1;
         }
     } else if (tap->has_fds) {
@@ -770,9 +769,9 @@ int net_init_tap(const NetClientOptions *opts, const char *name,
         if (tap->has_ifname || tap->has_script || tap->has_downscript ||
             tap->has_vnet_hdr || tap->has_helper || tap->has_queues ||
             tap->has_vhostfd) {
-            error_report("ifname=, script=, downscript=, vnet_hdr=, "
-                         "helper=, queues=, and vhostfd= "
-                         "are invalid with fds=");
+            error_setg(errp, "ifname=, script=, downscript=, vnet_hdr=, "
+                       "helper=, queues=, and vhostfd= "
+                       "are invalid with fds=");
             return -1;
         }
 
@@ -780,8 +779,8 @@ int net_init_tap(const NetClientOptions *opts, const char *name,
         if (tap->has_vhostfds) {
             nvhosts = get_fds(tap->vhostfds, vhost_fds, MAX_TAP_QUEUES);
             if (nfds != nvhosts) {
-                error_report("The number of fds passed does not match the "
-                             "number of vhostfds passed");
+                error_setg(errp, "The number of fds passed does not match "
+                           "the number of vhostfds passed");
                 return -1;
             }
         }
@@ -789,7 +788,7 @@ int net_init_tap(const NetClientOptions *opts, const char *name,
         for (i = 0; i < nfds; i++) {
             fd = monitor_fd_param(cur_mon, fds[i], &err);
             if (fd == -1) {
-                error_report_err(err);
+                error_propagate(errp, err);
                 return -1;
             }
 
@@ -798,7 +797,8 @@ int net_init_tap(const NetClientOptions *opts, const char *name,
             if (i == 0) {
                 vnet_hdr = tap_probe_vnet_hdr(fd);
             } else if (vnet_hdr != tap_probe_vnet_hdr(fd)) {
-                error_report("vnet_hdr not consistent across given tap fds");
+                error_setg(errp,
+                           "vnet_hdr not consistent across given tap fds");
                 return -1;
             }
 
@@ -807,15 +807,15 @@ int net_init_tap(const NetClientOptions *opts, const char *name,
                              tap->has_vhostfds ? vhost_fds[i] : NULL,
                              vnet_hdr, fd, &err);
             if (err) {
-                error_report_err(err);
+                error_propagate(errp, err);
                 return -1;
             }
         }
     } else if (tap->has_helper) {
         if (tap->has_ifname || tap->has_script || tap->has_downscript ||
             tap->has_vnet_hdr || tap->has_queues || tap->has_vhostfds) {
-            error_report("ifname=, script=, downscript=, and vnet_hdr= "
-                         "queues=, and vhostfds= are invalid with helper=");
+            error_setg(errp, "ifname=, script=, downscript=, vnet_hdr=, "
+                       "queues=, and vhostfds= are invalid with helper=");
             return -1;
         }
 
@@ -832,13 +832,13 @@ int net_init_tap(const NetClientOptions *opts, const char *name,
                          script, downscript, vhostfdname,
                          vnet_hdr, fd, &err);
         if (err) {
-            error_report_err(err);
+            error_propagate(errp, err);
             close(fd);
             return -1;
         }
     } else {
         if (tap->has_vhostfds) {
-            error_report("vhostfds= is invalid if fds= wasn't specified");
+            error_setg(errp, "vhostfds= is invalid if fds= wasn't specified");
             return -1;
         }
         script = tap->has_script ? tap->script : DEFAULT_NETWORK_SCRIPT;
@@ -853,15 +853,14 @@ int net_init_tap(const NetClientOptions *opts, const char *name,
 
         for (i = 0; i < queues; i++) {
             fd = net_tap_init(tap, &vnet_hdr, i >= 1 ? "no" : script,
-                              ifname, sizeof ifname, queues > 1, &err);
+                              ifname, sizeof ifname, queues > 1, errp);
             if (fd == -1) {
-                error_report_err(err);
                 return -1;
             }
 
             if (queues > 1 && i == 0 && !tap->has_ifname) {
                 if (tap_fd_get_ifname(fd, ifname)) {
-                    error_report("Fail to get ifname");
+                    error_setg(errp, "Fail to get ifname");
                     close(fd);
                     return -1;
                 }
@@ -872,7 +871,7 @@ int net_init_tap(const NetClientOptions *opts, const char *name,
                              i >= 1 ? "no" : downscript,
                              vhostfdname, vnet_hdr, fd, &err);
             if (err) {
-                error_report_err(err);
+                error_propagate(errp, err);
                 close(fd);
                 return -1;
             }
