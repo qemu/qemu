@@ -20,6 +20,7 @@
 
 #define SLICE_TIME    100000000ULL /* ns */
 #define MAX_IN_FLIGHT 16
+#define DEFAULT_MIRROR_BUF_SIZE   (10 << 20)
 
 /* The mirroring buffer is a list of granularity-sized chunks.
  * Free chunks are organized in a list.
@@ -701,6 +702,14 @@ static void mirror_start_job(BlockDriverState *bs, BlockDriverState *target,
         return;
     }
 
+    if (buf_size < 0) {
+        error_setg(errp, "Invalid parameter 'buf-size'");
+        return;
+    }
+
+    if (buf_size == 0) {
+        buf_size = DEFAULT_MIRROR_BUF_SIZE;
+    }
 
     s = block_job_create(driver, bs, speed, cb, opaque, errp);
     if (!s) {
@@ -714,7 +723,7 @@ static void mirror_start_job(BlockDriverState *bs, BlockDriverState *target,
     s->is_none_mode = is_none_mode;
     s->base = base;
     s->granularity = granularity;
-    s->buf_size = MAX(buf_size, granularity);
+    s->buf_size = ROUND_UP(buf_size, granularity);
     s->unmap = unmap;
 
     s->dirty_bitmap = bdrv_create_dirty_bitmap(bs, granularity, NULL, errp);
