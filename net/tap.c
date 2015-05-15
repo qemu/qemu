@@ -59,7 +59,8 @@ typedef struct TAPState {
     unsigned host_vnet_hdr_len;
 } TAPState;
 
-static int launch_script(const char *setup_script, const char *ifname, int fd);
+static void launch_script(const char *setup_script, const char *ifname,
+                          int fd, Error **errp);
 
 static int tap_can_send(void *opaque);
 static void tap_send(void *opaque);
@@ -288,6 +289,7 @@ static void tap_set_offload(NetClientState *nc, int csum, int tso4,
 static void tap_cleanup(NetClientState *nc)
 {
     TAPState *s = DO_UPCAST(TAPState, nc, nc);
+    Error *err = NULL;
 
     if (s->vhost_net) {
         vhost_net_cleanup(s->vhost_net);
@@ -296,8 +298,12 @@ static void tap_cleanup(NetClientState *nc)
 
     qemu_purge_queued_packets(nc);
 
-    if (s->down_script[0])
-        launch_script(s->down_script, s->down_script_arg, s->fd);
+    if (s->down_script[0]) {
+        launch_script(s->down_script, s->down_script_arg, s->fd, &err);
+        if (err) {
+            error_report_err(err);
+        }
+    }
 
     tap_read_poll(s, false);
     tap_write_poll(s, false);
@@ -368,7 +374,8 @@ static TAPState *net_tap_fd_init(NetClientState *peer,
     return s;
 }
 
-static int launch_script(const char *setup_script, const char *ifname, int fd)
+static void launch_script(const char *setup_script, const char *ifname,
+                          int fd, Error **errp)
 {
     int pid, status;
     char *args[3];
@@ -376,6 +383,11 @@ static int launch_script(const char *setup_script, const char *ifname, int fd)
 
     /* try to launch network script */
     pid = fork();
+    if (pid < 0) {
+        error_setg_errno(errp, errno, "could not launch network script %s",
+                         setup_script);
+        return;
+    }
     if (pid == 0) {
         int open_max = sysconf(_SC_OPEN_MAX), i;
 
@@ -390,17 +402,17 @@ static int launch_script(const char *setup_script, const char *ifname, int fd)
         *parg = NULL;
         execv(setup_script, args);
         _exit(1);
-    } else if (pid > 0) {
+    } else {
         while (waitpid(pid, &status, 0) != pid) {
             /* loop */
         }
 
         if (WIFEXITED(status) && WEXITSTATUS(status) == 0) {
-            return 0;
+            return;
         }
+        error_setg(errp, "network script %s failed with status %d",
+                   setup_script, status);
     }
-    fprintf(stderr, "%s: could not launch network script\n", setup_script);
-    return -1;
 }
 
 static int recv_fd(int c)
@@ -571,6 +583,7 @@ static int net_tap_init(const NetdevTapOptions *tap, int *vnet_hdr,
                         const char *setup_script, char *ifname,
                         size_t ifname_sz, int mq_required)
 {
+    Error *err = NULL;
     int fd, vnet_hdr_required;
 
     if (tap->has_vnet_hdr) {
@@ -589,10 +602,13 @@ static int net_tap_init(const NetdevTapOptions *tap, int *vnet_hdr,
 
     if (setup_script &&
         setup_script[0] != '\0' &&
-        strcmp(setup_script, "no") != 0 &&
-        launch_script(setup_script, ifname, fd)) {
-        close(fd);
-        return -1;
+        strcmp(setup_script, "no") != 0) {
+        launch_script(setup_script, ifname, fd, &err);
+        if (err) {
+            error_report_err(err);
+            close(fd);
+            return -1;
+        }
     }
 
     return fd;
