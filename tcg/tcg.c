@@ -1071,12 +1071,18 @@ void tcg_dump_ops(TCGContext *s)
             case INDEX_op_qemu_st_i32:
             case INDEX_op_qemu_ld_i64:
             case INDEX_op_qemu_st_i64:
-                if (args[k] < ARRAY_SIZE(ldst_name) && ldst_name[args[k]]) {
-                    qemu_log(",%s", ldst_name[args[k++]]);
-                } else {
-                    qemu_log(",$0x%" TCG_PRIlx, args[k++]);
+                {
+                    TCGMemOpIdx oi = args[k++];
+                    TCGMemOp op = get_memop(oi);
+                    unsigned ix = get_mmuidx(oi);
+
+                    if (op < ARRAY_SIZE(ldst_name) && ldst_name[op]) {
+                        qemu_log(",%s,%u", ldst_name[op], ix);
+                    } else {
+                        qemu_log(",$0x%x,%u", op, ix);
+                    }
+                    i = 1;
                 }
-                i = 1;
                 break;
             default:
                 i = 0;
