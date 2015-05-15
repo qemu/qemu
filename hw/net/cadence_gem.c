@@ -24,8 +24,7 @@
 
 #include <zlib.h> /* For crc32 */
 
-#include "hw/sysbus.h"
-#include "net/net.h"
+#include "hw/net/cadence_gem.h"
 #include "net/checksum.h"
 
 #ifdef CADENCE_GEM_ERR_DEBUG
@@ -140,8 +139,6 @@
 #define GEM_DESCONF5      (0x00000290/4)
 #define GEM_DESCONF6      (0x00000294/4)
 #define GEM_DESCONF7      (0x00000298/4)
-
-#define CADENCE_GEM_MAXREG        (0x00000640/4) /* Last valid GEM address */
 
 /*****************************************/
 #define GEM_NWCTRL_TXSTART     0x00000200 /* Transmit Enable */
@@ -348,44 +345,6 @@ static inline void rx_desc_set_sar(unsigned *desc, int sar_idx)
                         sar_idx);
     desc[1] |= R_DESC_1_RX_SAR_MATCH;
 }
-
-#define TYPE_CADENCE_GEM "cadence_gem"
-#define CADENCE_GEM(obj) OBJECT_CHECK(CadenceGEMState, (obj), TYPE_CADENCE_GEM)
-
-typedef struct CadenceGEMState {
-    SysBusDevice parent_obj;
-
-    MemoryRegion iomem;
-    NICState *nic;
-    NICConf conf;
-    qemu_irq irq;
-
-    /* GEM registers backing store */
-    uint32_t regs[CADENCE_GEM_MAXREG];
-    /* Mask of register bits which are write only */
-    uint32_t regs_wo[CADENCE_GEM_MAXREG];
-    /* Mask of register bits which are read only */
-    uint32_t regs_ro[CADENCE_GEM_MAXREG];
-    /* Mask of register bits which are clear on read */
-    uint32_t regs_rtc[CADENCE_GEM_MAXREG];
-    /* Mask of register bits which are write 1 to clear */
-    uint32_t regs_w1c[CADENCE_GEM_MAXREG];
-
-    /* PHY registers backing store */
-    uint16_t phy_regs[32];
-
-    uint8_t phy_loop; /* Are we in phy loopback? */
-
-    /* The current DMA descriptor pointers */
-    uint32_t rx_desc_addr;
-    uint32_t tx_desc_addr;
-
-    uint8_t can_rx_state; /* Debug only */
-
-    unsigned rx_desc[2];
-
-    bool sar_active[4];
-} CadenceGEMState;
 
 /* The broadcast MAC address: 0xFFFFFFFFFFFF */
 static const uint8_t broadcast_addr[] = { 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF };
