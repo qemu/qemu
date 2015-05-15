@@ -2589,26 +2589,14 @@ EOF
 int main(void) { return GL_VERSION != 0; }
 EOF
   else
-    # change this to "if false; then" you want EGL instead of GLX
-    # also requires a change in Makefile.target, look for "obj-gl"
-    if true; then
-      opengl_libs="-lGLEW -lGLU -lGL -lX11"
-      cat > $TMPC << EOF
+    opengl_libs="-lGLEW -lGLU -lGL -lX11"
+    cat > $TMPC << EOF
 #include <GL/glew.h>
 #include <GL/glu.h>
 #include <GL/glx.h>
 #include <X11/Xlib.h>
 int main(void) { glXGetClientString(XOpenDisplay(0), GL_VERSION); return 0; }
 EOF
-    else 
-      opengl_libs="-lGLEW -lGLU -lGL -lEGL"
-      cat > $TMPC << EOF
-#include <GL/glew.h>
-#include <GL/glu.h>
-#include <EGL/egl.h>
-int main(void) { return GL_VERSION != 0; }
-EOF
-    fi
   fi
   if compile_prog "" "$opengl_libs" ; then
     opengl=yes
