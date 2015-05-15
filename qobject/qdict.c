@@ -241,7 +241,7 @@ int64_t qdict_get_int(const QDict *qdict, const char *key)
  *
  * Return bool mapped by 'key'.
  */
-int qdict_get_bool(const QDict *qdict, const char *key)
+bool qdict_get_bool(const QDict *qdict, const char *key)
 {
     QObject *obj = qdict_get_obj(qdict, key, QTYPE_QBOOL);
     return qbool_get_bool(qobject_to_qbool(obj));
@@ -314,7 +314,7 @@ int64_t qdict_get_try_int(const QDict *qdict, const char *key,
  * dictionary or if the stored object is not of QBool type
  * 'def_value' will be returned.
  */
-int qdict_get_try_bool(const QDict *qdict, const char *key, int def_value)
+bool qdict_get_try_bool(const QDict *qdict, const char *key, bool def_value)
 {
     QObject *obj;
 

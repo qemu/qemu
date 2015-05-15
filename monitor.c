@@ -2091,7 +2091,7 @@ static void hmp_mce(Monitor *mon, const QDict *qdict)
     uint64_t misc = qdict_get_int(qdict, "misc");
     int flags = MCE_INJECT_UNCOND_AO;
 
-    if (qdict_get_try_bool(qdict, "broadcast", 0)) {
+    if (qdict_get_try_bool(qdict, "broadcast", false)) {
         flags |= MCE_INJECT_BROADCAST;
     }
     cs = qemu_get_cpu(cpu_index);

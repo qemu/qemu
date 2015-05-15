@@ -223,7 +223,7 @@ static void test_visitor_out_struct(TestOutputVisitorData *data,
     qdict = qobject_to_qdict(obj);
     g_assert_cmpint(qdict_size(qdict), ==, 3);
     g_assert_cmpint(qdict_get_int(qdict, "integer"), ==, 42);
-    g_assert_cmpint(qdict_get_bool(qdict, "boolean"), ==, 0);
+    g_assert_cmpint(qdict_get_bool(qdict, "boolean"), ==, false);
     g_assert_cmpstr(qdict_get_str(qdict, "string"), ==, "foo");
 
     QDECREF(qdict);
