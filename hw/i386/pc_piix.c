@@ -305,11 +305,6 @@ static void pc_init1(MachineState *machine)
     }
 }
 
-static void pc_init_pci(MachineState *machine)
-{
-    pc_init1(machine);
-}
-
 static void pc_compat_2_3(MachineState *machine)
 {
 }
@@ -421,13 +416,13 @@ static void pc_compat_1_2(MachineState *machine)
 static void pc_init_pci_2_3(MachineState *machine)
 {
     pc_compat_2_3(machine);
-    pc_init_pci(machine);
+    pc_init1(machine);
 }
 
 static void pc_init_pci_2_2(MachineState *machine)
 {
     pc_compat_2_2(machine);
-    pc_init_pci(machine);
+    pc_init1(machine);
 }
 
 /* PC compat function for pc-0.10 to pc-0.13 */
@@ -440,57 +435,57 @@ static void pc_compat_0_13(MachineState *machine)
 static void pc_init_pci_2_1(MachineState *machine)
 {
     pc_compat_2_1(machine);
-    pc_init_pci(machine);
+    pc_init1(machine);
 }
 
 static void pc_init_pci_2_0(MachineState *machine)
 {
     pc_compat_2_0(machine);
-    pc_init_pci(machine);
+    pc_init1(machine);
 }
 
 static void pc_init_pci_1_7(MachineState *machine)
 {
     pc_compat_1_7(machine);
-    pc_init_pci(machine);
+    pc_init1(machine);
 }
 
 static void pc_init_pci_1_6(MachineState *machine)
 {
     pc_compat_1_6(machine);
-    pc_init_pci(machine);
+    pc_init1(machine);
 }
 
 static void pc_init_pci_1_5(MachineState *machine)
 {
     pc_compat_1_5(machine);
-    pc_init_pci(machine);
+    pc_init1(machine);
 }
 
 static void pc_init_pci_1_4(MachineState *machine)
 {
     pc_compat_1_4(machine);
-    pc_init_pci(machine);
+    pc_init1(machine);
 }
 
 static void pc_init_pci_1_3(MachineState *machine)
 {
     pc_compat_1_3(machine);
-    pc_init_pci(machine);
+    pc_init1(machine);
 }
 
 /* PC machine init function for pc-0.14 to pc-1.2 */
 static void pc_init_pci_1_2(MachineState *machine)
 {
     pc_compat_1_2(machine);
-    pc_init_pci(machine);
+    pc_init1(machine);
 }
 
 /* PC init function for pc-0.10 to pc-0.13 */
 static void pc_init_pci_no_kvmclock(MachineState *machine)
 {
     pc_compat_0_13(machine);
-    pc_init_pci(machine);
+    pc_init1(machine);
 }
 
 static void pc_init_isa(MachineState *machine)
@@ -516,7 +511,7 @@ static void pc_xen_hvm_init(MachineState *machine)
 {
     PCIBus *bus;
 
-    pc_init_pci(machine);
+    pc_init1(machine);
 
     bus = pci_find_primary_bus();
     if (bus != NULL) {
@@ -543,7 +538,7 @@ static void pc_i440fx_2_4_machine_options(MachineClass *m)
     m->is_default = 1;
 }
 
-DEFINE_PC_MACHINE(v2_4, "pc-i440fx-2.4", pc_init_pci,
+DEFINE_PC_MACHINE(v2_4, "pc-i440fx-2.4", pc_init1,
                   pc_i440fx_2_4_machine_options)
 
 
