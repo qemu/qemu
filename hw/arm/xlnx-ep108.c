@@ -18,10 +18,15 @@
 #include "hw/arm/xlnx-zynqmp.h"
 #include "hw/boards.h"
 #include "qemu/error-report.h"
+#include "exec/address-spaces.h"
 
 typedef struct XlnxEP108 {
     XlnxZynqMPState soc;
+    MemoryRegion ddr_ram;
 } XlnxEP108;
+
+/* Max 2GB RAM */
+#define EP108_MAX_RAM_SIZE 0x80000000ull
 
 static void xlnx_ep108_init(MachineState *machine)
 {
@@ -37,6 +42,21 @@ static void xlnx_ep108_init(MachineState *machine)
         error_report("%s", error_get_pretty(err));
         exit(1);
     }
+
+    if (machine->ram_size > EP108_MAX_RAM_SIZE) {
+        error_report("WARNING: RAM size " RAM_ADDR_FMT " above max supported, "
+                     "reduced to %llx", machine->ram_size, EP108_MAX_RAM_SIZE);
+        machine->ram_size = EP108_MAX_RAM_SIZE;
+    }
+
+    if (machine->ram_size <= 0x08000000) {
+        qemu_log("WARNING: RAM size " RAM_ADDR_FMT " is small for EP108",
+                 machine->ram_size);
+    }
+
+    memory_region_allocate_system_memory(&s->ddr_ram, NULL, "ddr-ram",
+                                         machine->ram_size);
+    memory_region_add_subregion(get_system_memory(), 0, &s->ddr_ram);
 }
 
 static QEMUMachine xlnx_ep108_machine = {
