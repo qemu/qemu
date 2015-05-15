@@ -20,12 +20,14 @@
 #include "qemu-common.h"
 #include "hw/arm/arm.h"
 #include "hw/intc/arm_gic.h"
+#include "hw/net/cadence_gem.h"
 
 #define TYPE_XLNX_ZYNQMP "xlnx,zynqmp"
 #define XLNX_ZYNQMP(obj) OBJECT_CHECK(XlnxZynqMPState, (obj), \
                                        TYPE_XLNX_ZYNQMP)
 
 #define XLNX_ZYNQMP_NUM_CPUS 4
+#define XLNX_ZYNQMP_NUM_GEMS 4
 
 #define XLNX_ZYNQMP_GIC_REGIONS 2
 
@@ -46,6 +48,7 @@ typedef struct XlnxZynqMPState {
     ARMCPU cpu[XLNX_ZYNQMP_NUM_CPUS];
     GICState gic;
     MemoryRegion gic_mr[XLNX_ZYNQMP_GIC_REGIONS][XLNX_ZYNQMP_GIC_ALIASES];
+    CadenceGEMState gem[XLNX_ZYNQMP_NUM_GEMS];
 }  XlnxZynqMPState;
 
 #define XLNX_ZYNQMP_H

@@ -28,6 +28,14 @@
 #define GIC_DIST_ADDR       0xf9010000
 #define GIC_CPU_ADDR        0xf9020000
 
+static const uint64_t gem_addr[XLNX_ZYNQMP_NUM_GEMS] = {
+    0xFF0B0000, 0xFF0C0000, 0xFF0D0000, 0xFF0E0000,
+};
+
+static const int gem_intr[XLNX_ZYNQMP_NUM_GEMS] = {
+    57, 59, 61, 63,
+};
+
 typedef struct XlnxZynqMPGICRegion {
     int region_index;
     uint32_t address;
@@ -57,6 +65,11 @@ static void xlnx_zynqmp_init(Object *obj)
 
     object_initialize(&s->gic, sizeof(s->gic), TYPE_ARM_GIC);
     qdev_set_parent_bus(DEVICE(&s->gic), sysbus_get_default());
+
+    for (i = 0; i < XLNX_ZYNQMP_NUM_GEMS; i++) {
+        object_initialize(&s->gem[i], sizeof(s->gem[i]), TYPE_CADENCE_GEM);
+        qdev_set_parent_bus(DEVICE(&s->gem[i]), sysbus_get_default());
+    }
 }
 
 static void xlnx_zynqmp_realize(DeviceState *dev, Error **errp)
@@ -64,6 +77,7 @@ static void xlnx_zynqmp_realize(DeviceState *dev, Error **errp)
     XlnxZynqMPState *s = XLNX_ZYNQMP(dev);
     MemoryRegion *system_memory = get_system_memory();
     uint8_t i;
+    qemu_irq gic_spi[GIC_NUM_SPI_INTR];
     Error *err = NULL;
 
     qdev_prop_set_uint32(DEVICE(&s->gic), "num-irq", GIC_NUM_SPI_INTR + 32);
@@ -126,6 +140,27 @@ static void xlnx_zynqmp_realize(DeviceState *dev, Error **errp)
         irq = qdev_get_gpio_in(DEVICE(&s->gic),
                                arm_gic_ppi_index(i, ARM_VIRT_TIMER_PPI));
         qdev_connect_gpio_out(DEVICE(&s->cpu[i]), 1, irq);
+    }
+
+    for (i = 0; i < GIC_NUM_SPI_INTR; i++) {
+        gic_spi[i] = qdev_get_gpio_in(DEVICE(&s->gic), i);
+    }
+
+    for (i = 0; i < XLNX_ZYNQMP_NUM_GEMS; i++) {
+        NICInfo *nd = &nd_table[i];
+
+        if (nd->used) {
+            qemu_check_nic_model(nd, TYPE_CADENCE_GEM);
+            qdev_set_nic_properties(DEVICE(&s->gem[i]), nd);
+        }
+        object_property_set_bool(OBJECT(&s->gem[i]), true, "realized", &err);
+        if (err) {
+            error_propagate((errp), (err));
+            return;
+        }
+        sysbus_mmio_map(SYS_BUS_DEVICE(&s->gem[i]), 0, gem_addr[i]);
+        sysbus_connect_irq(SYS_BUS_DEVICE(&s->gem[i]), 0,
+                           gic_spi[gem_intr[i]]);
     }
 }
 
