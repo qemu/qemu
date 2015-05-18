@@ -268,7 +268,8 @@ void HELPER(spx)(CPUS390XState *env, uint64_t a1)
     tlb_flush_page(cs, TARGET_PAGE_SIZE);
 }
 
-static inline uint64_t clock_value(CPUS390XState *env)
+/* Store Clock */
+uint64_t HELPER(stck)(CPUS390XState *env)
 {
     uint64_t time;
 
@@ -276,12 +277,6 @@ static inline uint64_t clock_value(CPUS390XState *env)
         time2tod(qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) - env->tod_basetime);
 
     return time;
-}
-
-/* Store Clock */
-uint64_t HELPER(stck)(CPUS390XState *env)
-{
-    return clock_value(env);
 }
 
 /* Set Clock Comparator */
