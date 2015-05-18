@@ -313,14 +313,15 @@ void HELPER(spt)(CPUS390XState *env, uint64_t time)
     /* nanoseconds */
     time = tod2time(time);
 
-    timer_mod(env->cpu_timer, qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) + time);
+    env->cputm = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) + time;
+
+    timer_mod(env->cpu_timer, env->cputm);
 }
 
 /* Store CPU Timer */
 uint64_t HELPER(stpt)(CPUS390XState *env)
 {
-    /* XXX implement */
-    return 0;
+    return time2tod(env->cputm - qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL));
 }
 
 /* Store System Information */
