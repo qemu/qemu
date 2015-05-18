@@ -294,7 +294,7 @@ void HELPER(sckc)(CPUS390XState *env, uint64_t time)
     /* difference between now and then */
     time -= clock_value(env);
     /* nanoseconds */
-    time = (time * 125) >> 9;
+    time = tod2time(time);
 
     timer_mod(env->tod_timer, qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) + time);
 }
@@ -314,7 +314,7 @@ void HELPER(spt)(CPUS390XState *env, uint64_t time)
     }
 
     /* nanoseconds */
-    time = (time * 125) >> 9;
+    time = tod2time(time);
 
     timer_mod(env->cpu_timer, qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) + time);
 }

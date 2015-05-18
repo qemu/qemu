@@ -995,6 +995,11 @@ static inline uint64_t time2tod(uint64_t ns) {
     return (ns << 9) / 125;
 }
 
+/* Converts s390's clock format to ns */
+static inline uint64_t tod2time(uint64_t t) {
+    return (t * 125) >> 9;
+}
+
 static inline void cpu_inject_ext(S390CPU *cpu, uint32_t code, uint32_t param,
                                   uint64_t param64)
 {
