@@ -291,12 +291,13 @@ void HELPER(sckc)(CPUS390XState *env, uint64_t time)
         return;
     }
 
-    /* difference between now and then */
-    time -= clock_value(env);
+    /* difference between origins */
+    time -= env->tod_offset;
+
     /* nanoseconds */
     time = tod2time(time);
 
-    timer_mod(env->tod_timer, qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) + time);
+    timer_mod(env->tod_timer, env->tod_basetime + time);
 }
 
 /* Store Clock Comparator */
