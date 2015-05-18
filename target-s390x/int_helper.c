@@ -115,26 +115,6 @@ uint64_t HELPER(divu64)(CPUS390XState *env, uint64_t ah, uint64_t al,
     return ret;
 }
 
-/* absolute value 32-bit */
-uint32_t HELPER(abs_i32)(int32_t val)
-{
-    if (val < 0) {
-        return -val;
-    } else {
-        return val;
-    }
-}
-
-/* negative absolute value 32-bit */
-int32_t HELPER(nabs_i32)(int32_t val)
-{
-    if (val < 0) {
-        return val;
-    } else {
-        return -val;
-    }
-}
-
 /* count leading zeros, for find leftmost one */
 uint64_t HELPER(clz)(uint64_t v)
 {
