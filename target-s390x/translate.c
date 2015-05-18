@@ -1310,7 +1310,13 @@ static ExitStatus help_branch(DisasContext *s, DisasCompare *c,
 
 static ExitStatus op_abs(DisasContext *s, DisasOps *o)
 {
-    gen_helper_abs_i64(o->out, o->in2);
+    TCGv_i64 z, n;
+    z = tcg_const_i64(0);
+    n = tcg_temp_new_i64();
+    tcg_gen_neg_i64(n, o->in2);
+    tcg_gen_movcond_i64(TCG_COND_LT, o->out, o->in2, z, n, o->in2);
+    tcg_temp_free_i64(n);
+    tcg_temp_free_i64(z);
     return NO_EXIT;
 }
 
@@ -2680,7 +2686,13 @@ static ExitStatus op_msdb(DisasContext *s, DisasOps *o)
 
 static ExitStatus op_nabs(DisasContext *s, DisasOps *o)
 {
-    gen_helper_nabs_i64(o->out, o->in2);
+    TCGv_i64 z, n;
+    z = tcg_const_i64(0);
+    n = tcg_temp_new_i64();
+    tcg_gen_neg_i64(n, o->in2);
+    tcg_gen_movcond_i64(TCG_COND_GE, o->out, o->in2, z, n, o->in2);
+    tcg_temp_free_i64(n);
+    tcg_temp_free_i64(z);
     return NO_EXIT;
 }
 
