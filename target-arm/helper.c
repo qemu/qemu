@@ -1249,7 +1249,7 @@ static void gt_tval_write(CPUARMState *env, const ARMCPRegInfo *ri,
     int timeridx = ri->crm & 1;
 
     env->cp15.c14_timer[timeridx].cval = gt_get_countervalue(env) +
-        + sextract64(value, 0, 32);
+                                         sextract64(value, 0, 32);
     gt_recalc_timer(arm_env_get_cpu(env), timeridx);
 }
 
@@ -1353,6 +1353,7 @@ static const ARMCPRegInfo generic_timer_cp_reginfo[] = {
     { .name = "CNTP_TVAL_EL0", .state = ARM_CP_STATE_AA64,
       .opc0 = 3, .opc1 = 3, .crn = 14, .crm = 2, .opc2 = 0,
       .type = ARM_CP_NO_RAW | ARM_CP_IO, .access = PL1_RW | PL0_R,
+      .accessfn = gt_ptimer_access,
       .readfn = gt_tval_read, .writefn = gt_tval_write,
     },
     { .name = "CNTV_TVAL", .cp = 15, .crn = 14, .crm = 3, .opc1 = 0, .opc2 = 0,
@@ -1363,6 +1364,7 @@ static const ARMCPRegInfo generic_timer_cp_reginfo[] = {
     { .name = "CNTV_TVAL_EL0", .state = ARM_CP_STATE_AA64,
       .opc0 = 3, .opc1 = 3, .crn = 14, .crm = 3, .opc2 = 0,
       .type = ARM_CP_NO_RAW | ARM_CP_IO, .access = PL1_RW | PL0_R,
+      .accessfn = gt_vtimer_access,
       .readfn = gt_tval_read, .writefn = gt_tval_write,
     },
     /* The counter itself */
@@ -1401,7 +1403,7 @@ static const ARMCPRegInfo generic_timer_cp_reginfo[] = {
       .access = PL1_RW | PL0_R,
       .type = ARM_CP_IO,
       .fieldoffset = offsetof(CPUARMState, cp15.c14_timer[GTIMER_PHYS].cval),
-      .resetvalue = 0, .accessfn = gt_vtimer_access,
+      .resetvalue = 0, .accessfn = gt_ptimer_access,
       .writefn = gt_cval_write, .raw_writefn = raw_write,
     },
     { .name = "CNTV_CVAL", .cp = 15, .crm = 14, .opc1 = 3,
@@ -4913,6 +4915,21 @@ static inline TCR *regime_tcr(CPUARMState *env, ARMMMUIdx mmu_idx)
     return &env->cp15.tcr_el[regime_el(env, mmu_idx)];
 }
 
+/* Return the TTBR associated with this translation regime */
+static inline uint64_t regime_ttbr(CPUARMState *env, ARMMMUIdx mmu_idx,
+                                   int ttbrn)
+{
+    if (mmu_idx == ARMMMUIdx_S2NS) {
+        /* TODO: return VTTBR_EL2 */
+        g_assert_not_reached();
+    }
+    if (ttbrn == 0) {
+        return env->cp15.ttbr0_el[regime_el(env, mmu_idx)];
+    } else {
+        return env->cp15.ttbr1_el[regime_el(env, mmu_idx)];
+    }
+}
+
 /* Return true if the translation regime is using LPAE format page tables */
 static inline bool regime_using_lpae_format(CPUARMState *env,
                                             ARMMMUIdx mmu_idx)
@@ -5111,7 +5128,6 @@ static bool get_level1_table_address(CPUARMState *env, ARMMMUIdx mmu_idx,
                                      uint32_t *table, uint32_t address)
 {
     /* Note that we can only get here for an AArch32 PL0/PL1 lookup */
-    int el = regime_el(env, mmu_idx);
     TCR *tcr = regime_tcr(env, mmu_idx);
 
     if (address & tcr->mask) {
@@ -5119,13 +5135,13 @@ static bool get_level1_table_address(CPUARMState *env, ARMMMUIdx mmu_idx,
             /* Translation table walk disabled for TTBR1 */
             return false;
         }
-        *table = env->cp15.ttbr1_el[el] & 0xffffc000;
+        *table = regime_ttbr(env, mmu_idx, 1) & 0xffffc000;
     } else {
         if (tcr->raw_tcr & TTBCR_PD0) {
             /* Translation table walk disabled for TTBR0 */
             return false;
         }
-        *table = env->cp15.ttbr0_el[el] & tcr->base_mask;
+        *table = regime_ttbr(env, mmu_idx, 0) & tcr->base_mask;
     }
     *table |= (address >> 18) & 0x3ffc;
     return true;
@@ -5431,21 +5447,34 @@ static int get_phys_addr_lpae(CPUARMState *env, target_ulong address,
     int32_t tbi = 0;
     TCR *tcr = regime_tcr(env, mmu_idx);
     int ap, ns, xn, pxn;
+    uint32_t el = regime_el(env, mmu_idx);
+    bool ttbr1_valid = true;
 
     /* TODO:
-     * This code assumes we're either a 64-bit EL1 or a 32-bit PL1;
-     * it doesn't handle the different format TCR for TCR_EL2, TCR_EL3,
-     * and VTCR_EL2, or the fact that those regimes don't have a split
-     * TTBR0/TTBR1. Attribute and permission bit handling should also
-     * be checked when adding support for those page table walks.
+     * This code does not handle the different format TCR for VTCR_EL2.
+     * This code also does not support shareability levels.
+     * Attribute and permission bit handling should also be checked when adding
+     * support for those page table walks.
      */
-    if (arm_el_is_aa64(env, regime_el(env, mmu_idx))) {
+    if (arm_el_is_aa64(env, el)) {
         va_size = 64;
-        if (extract64(address, 55, 1))
-            tbi = extract64(tcr->raw_tcr, 38, 1);
-        else
-            tbi = extract64(tcr->raw_tcr, 37, 1);
+        if (el > 1) {
+            tbi = extract64(tcr->raw_tcr, 20, 1);
+        } else {
+            if (extract64(address, 55, 1)) {
+                tbi = extract64(tcr->raw_tcr, 38, 1);
+            } else {
+                tbi = extract64(tcr->raw_tcr, 37, 1);
+            }
+        }
         tbi *= 8;
+
+        /* If we are in 64-bit EL2 or EL3 then there is no TTBR1, so mark it
+         * invalid.
+         */
+        if (el > 1) {
+            ttbr1_valid = false;
+        }
     }
 
     /* Determine whether this address is in the region controlled by
@@ -5466,13 +5495,14 @@ static int get_phys_addr_lpae(CPUARMState *env, target_ulong address,
     if (t0sz && !extract64(address, va_size - t0sz, t0sz - tbi)) {
         /* there is a ttbr0 region and we are in it (high bits all zero) */
         ttbr_select = 0;
-    } else if (t1sz && !extract64(~address, va_size - t1sz, t1sz - tbi)) {
+    } else if (ttbr1_valid && t1sz &&
+               !extract64(~address, va_size - t1sz, t1sz - tbi)) {
         /* there is a ttbr1 region and we are in it (high bits all one) */
         ttbr_select = 1;
     } else if (!t0sz) {
         /* ttbr0 region is "everything not in the ttbr1 region" */
         ttbr_select = 0;
-    } else if (!t1sz) {
+    } else if (!t1sz && ttbr1_valid) {
         /* ttbr1 region is "everything not in the ttbr0 region" */
         ttbr_select = 1;
     } else {
@@ -5489,7 +5519,7 @@ static int get_phys_addr_lpae(CPUARMState *env, target_ulong address,
      * we will always flush the TLB any time the ASID is changed).
      */
     if (ttbr_select == 0) {
-        ttbr = A32_BANKED_CURRENT_REG_GET(env, ttbr0);
+        ttbr = regime_ttbr(env, mmu_idx, 0);
         epd = extract32(tcr->raw_tcr, 7, 1);
         tsz = t0sz;
 
@@ -5501,7 +5531,10 @@ static int get_phys_addr_lpae(CPUARMState *env, target_ulong address,
             granule_sz = 11;
         }
     } else {
-        ttbr = A32_BANKED_CURRENT_REG_GET(env, ttbr1);
+        /* We should only be here if TTBR1 is valid */
+        assert(ttbr1_valid);
+
+        ttbr = regime_ttbr(env, mmu_idx, 1);
         epd = extract32(tcr->raw_tcr, 23, 1);
         tsz = t1sz;
 
@@ -5519,7 +5552,9 @@ static int get_phys_addr_lpae(CPUARMState *env, target_ulong address,
      */
 
     if (epd) {
-        /* Translation table walk disabled => Translation fault on TLB miss */
+        /* Translation table walk disabled => Translation fault on TLB miss
+         * Note: This is always 0 on 64-bit EL2 and EL3.
+         */
         goto do_fault;
     }
 

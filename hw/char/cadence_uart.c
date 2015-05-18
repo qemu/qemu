@@ -16,9 +16,7 @@
  * with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "hw/sysbus.h"
-#include "sysemu/char.h"
-#include "qemu/timer.h"
+#include "hw/char/cadence_uart.h"
 
 #ifdef CADENCE_UART_ERR_DEBUG
 #define DB_PRINT(...) do { \
@@ -85,8 +83,6 @@
 #define LOCAL_LOOPBACK         (0x2 << UART_MR_CHMODE_SH)
 #define REMOTE_LOOPBACK        (0x3 << UART_MR_CHMODE_SH)
 
-#define RX_FIFO_SIZE           16
-#define TX_FIFO_SIZE           16
 #define UART_INPUT_CLK         50000000
 
 #define R_CR       (0x00/4)
@@ -108,38 +104,18 @@
 #define R_PWID     (0x40/4)
 #define R_TTRIG    (0x44/4)
 
-#define R_MAX (R_TTRIG + 1)
 
-#define TYPE_CADENCE_UART "cadence_uart"
-#define CADENCE_UART(obj) OBJECT_CHECK(UartState, (obj), TYPE_CADENCE_UART)
-
-typedef struct {
-    /*< private >*/
-    SysBusDevice parent_obj;
-    /*< public >*/
-
-    MemoryRegion iomem;
-    uint32_t r[R_MAX];
-    uint8_t rx_fifo[RX_FIFO_SIZE];
-    uint8_t tx_fifo[TX_FIFO_SIZE];
-    uint32_t rx_wpos;
-    uint32_t rx_count;
-    uint32_t tx_count;
-    uint64_t char_tx_time;
-    CharDriverState *chr;
-    qemu_irq irq;
-    QEMUTimer *fifo_trigger_handle;
-} UartState;
-
-static void uart_update_status(UartState *s)
+static void uart_update_status(CadenceUARTState *s)
 {
     s->r[R_SR] = 0;
 
-    s->r[R_SR] |= s->rx_count == RX_FIFO_SIZE ? UART_SR_INTR_RFUL : 0;
+    s->r[R_SR] |= s->rx_count == CADENCE_UART_RX_FIFO_SIZE ? UART_SR_INTR_RFUL
+                                                           : 0;
     s->r[R_SR] |= !s->rx_count ? UART_SR_INTR_REMPTY : 0;
     s->r[R_SR] |= s->rx_count >= s->r[R_RTRIG] ? UART_SR_INTR_RTRIG : 0;
 
-    s->r[R_SR] |= s->tx_count == TX_FIFO_SIZE ? UART_SR_INTR_TFUL : 0;
+    s->r[R_SR] |= s->tx_count == CADENCE_UART_TX_FIFO_SIZE ? UART_SR_INTR_TFUL
+                                                           : 0;
     s->r[R_SR] |= !s->tx_count ? UART_SR_INTR_TEMPTY : 0;
     s->r[R_SR] |= s->tx_count >= s->r[R_TTRIG] ? UART_SR_TTRIG : 0;
 
@@ -150,14 +126,14 @@ static void uart_update_status(UartState *s)
 
 static void fifo_trigger_update(void *opaque)
 {
-    UartState *s = (UartState *)opaque;
+    CadenceUARTState *s = opaque;
 
     s->r[R_CISR] |= UART_INTR_TIMEOUT;
 
     uart_update_status(s);
 }
 
-static void uart_rx_reset(UartState *s)
+static void uart_rx_reset(CadenceUARTState *s)
 {
     s->rx_wpos = 0;
     s->rx_count = 0;
@@ -166,12 +142,12 @@ static void uart_rx_reset(UartState *s)
     }
 }
 
-static void uart_tx_reset(UartState *s)
+static void uart_tx_reset(CadenceUARTState *s)
 {
     s->tx_count = 0;
 }
 
-static void uart_send_breaks(UartState *s)
+static void uart_send_breaks(CadenceUARTState *s)
 {
     int break_enabled = 1;
 
@@ -181,7 +157,7 @@ static void uart_send_breaks(UartState *s)
     }
 }
 
-static void uart_parameters_setup(UartState *s)
+static void uart_parameters_setup(CadenceUARTState *s)
 {
     QEMUSerialSetParams ssp;
     unsigned int baud_rate, packet_size;
@@ -236,20 +212,20 @@ static void uart_parameters_setup(UartState *s)
 
 static int uart_can_receive(void *opaque)
 {
-    UartState *s = (UartState *)opaque;
-    int ret = MAX(RX_FIFO_SIZE, TX_FIFO_SIZE);
+    CadenceUARTState *s = opaque;
+    int ret = MAX(CADENCE_UART_RX_FIFO_SIZE, CADENCE_UART_TX_FIFO_SIZE);
     uint32_t ch_mode = s->r[R_MR] & UART_MR_CHMODE;
 
     if (ch_mode == NORMAL_MODE || ch_mode == ECHO_MODE) {
-        ret = MIN(ret, RX_FIFO_SIZE - s->rx_count);
+        ret = MIN(ret, CADENCE_UART_RX_FIFO_SIZE - s->rx_count);
     }
     if (ch_mode == REMOTE_LOOPBACK || ch_mode == ECHO_MODE) {
-        ret = MIN(ret, TX_FIFO_SIZE - s->tx_count);
+        ret = MIN(ret, CADENCE_UART_TX_FIFO_SIZE - s->tx_count);
     }
     return ret;
 }
 
-static void uart_ctrl_update(UartState *s)
+static void uart_ctrl_update(CadenceUARTState *s)
 {
     if (s->r[R_CR] & UART_CR_TXRST) {
         uart_tx_reset(s);
@@ -268,7 +244,7 @@ static void uart_ctrl_update(UartState *s)
 
 static void uart_write_rx_fifo(void *opaque, const uint8_t *buf, int size)
 {
-    UartState *s = (UartState *)opaque;
+    CadenceUARTState *s = opaque;
     uint64_t new_rx_time = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
     int i;
 
@@ -276,12 +252,12 @@ static void uart_write_rx_fifo(void *opaque, const uint8_t *buf, int size)
         return;
     }
 
-    if (s->rx_count == RX_FIFO_SIZE) {
+    if (s->rx_count == CADENCE_UART_RX_FIFO_SIZE) {
         s->r[R_CISR] |= UART_INTR_ROVR;
     } else {
         for (i = 0; i < size; i++) {
             s->rx_fifo[s->rx_wpos] = buf[i];
-            s->rx_wpos = (s->rx_wpos + 1) % RX_FIFO_SIZE;
+            s->rx_wpos = (s->rx_wpos + 1) % CADENCE_UART_RX_FIFO_SIZE;
             s->rx_count++;
         }
         timer_mod(s->fifo_trigger_handle, new_rx_time +
@@ -293,7 +269,7 @@ static void uart_write_rx_fifo(void *opaque, const uint8_t *buf, int size)
 static gboolean cadence_uart_xmit(GIOChannel *chan, GIOCondition cond,
                                   void *opaque)
 {
-    UartState *s = opaque;
+    CadenceUARTState *s = opaque;
     int ret;
 
     /* instant drain the fifo when there's no back-end */
@@ -320,14 +296,15 @@ static gboolean cadence_uart_xmit(GIOChannel *chan, GIOCondition cond,
     return FALSE;
 }
 
-static void uart_write_tx_fifo(UartState *s, const uint8_t *buf, int size)
+static void uart_write_tx_fifo(CadenceUARTState *s, const uint8_t *buf,
+                               int size)
 {
     if ((s->r[R_CR] & UART_CR_TX_DIS) || !(s->r[R_CR] & UART_CR_TX_EN)) {
         return;
     }
 
-    if (size > TX_FIFO_SIZE - s->tx_count) {
-        size = TX_FIFO_SIZE - s->tx_count;
+    if (size > CADENCE_UART_TX_FIFO_SIZE - s->tx_count) {
+        size = CADENCE_UART_TX_FIFO_SIZE - s->tx_count;
         /*
          * This can only be a guest error via a bad tx fifo register push,
          * as can_receive() should stop remote loop and echo modes ever getting
@@ -345,7 +322,7 @@ static void uart_write_tx_fifo(UartState *s, const uint8_t *buf, int size)
 
 static void uart_receive(void *opaque, const uint8_t *buf, int size)
 {
-    UartState *s = (UartState *)opaque;
+    CadenceUARTState *s = opaque;
     uint32_t ch_mode = s->r[R_MR] & UART_MR_CHMODE;
 
     if (ch_mode == NORMAL_MODE || ch_mode == ECHO_MODE) {
@@ -358,7 +335,7 @@ static void uart_receive(void *opaque, const uint8_t *buf, int size)
 
 static void uart_event(void *opaque, int event)
 {
-    UartState *s = (UartState *)opaque;
+    CadenceUARTState *s = opaque;
     uint8_t buf = '\0';
 
     if (event == CHR_EVENT_BREAK) {
@@ -368,15 +345,15 @@ static void uart_event(void *opaque, int event)
     uart_update_status(s);
 }
 
-static void uart_read_rx_fifo(UartState *s, uint32_t *c)
+static void uart_read_rx_fifo(CadenceUARTState *s, uint32_t *c)
 {
     if ((s->r[R_CR] & UART_CR_RX_DIS) || !(s->r[R_CR] & UART_CR_RX_EN)) {
         return;
     }
 
     if (s->rx_count) {
-        uint32_t rx_rpos =
-                (RX_FIFO_SIZE + s->rx_wpos - s->rx_count) % RX_FIFO_SIZE;
+        uint32_t rx_rpos = (CADENCE_UART_RX_FIFO_SIZE + s->rx_wpos -
+                            s->rx_count) % CADENCE_UART_RX_FIFO_SIZE;
         *c = s->rx_fifo[rx_rpos];
         s->rx_count--;
 
@@ -393,7 +370,7 @@ static void uart_read_rx_fifo(UartState *s, uint32_t *c)
 static void uart_write(void *opaque, hwaddr offset,
                           uint64_t value, unsigned size)
 {
-    UartState *s = (UartState *)opaque;
+    CadenceUARTState *s = opaque;
 
     DB_PRINT(" offset:%x data:%08x\n", (unsigned)offset, (unsigned)value);
     offset >>= 2;
@@ -437,11 +414,11 @@ static void uart_write(void *opaque, hwaddr offset,
 static uint64_t uart_read(void *opaque, hwaddr offset,
         unsigned size)
 {
-    UartState *s = (UartState *)opaque;
+    CadenceUARTState *s = opaque;
     uint32_t c = 0;
 
     offset >>= 2;
-    if (offset >= R_MAX) {
+    if (offset >= CADENCE_UART_R_MAX) {
         c = 0;
     } else if (offset == R_TX_RX) {
         uart_read_rx_fifo(s, &c);
@@ -461,7 +438,7 @@ static const MemoryRegionOps uart_ops = {
 
 static void cadence_uart_reset(DeviceState *dev)
 {
-    UartState *s = CADENCE_UART(dev);
+    CadenceUARTState *s = CADENCE_UART(dev);
 
     s->r[R_CR] = 0x00000128;
     s->r[R_IMR] = 0;
@@ -478,7 +455,7 @@ static void cadence_uart_reset(DeviceState *dev)
 
 static void cadence_uart_realize(DeviceState *dev, Error **errp)
 {
-    UartState *s = CADENCE_UART(dev);
+    CadenceUARTState *s = CADENCE_UART(dev);
 
     s->fifo_trigger_handle = timer_new_ns(QEMU_CLOCK_VIRTUAL,
                                           fifo_trigger_update, s);
@@ -495,7 +472,7 @@ static void cadence_uart_realize(DeviceState *dev, Error **errp)
 static void cadence_uart_init(Object *obj)
 {
     SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
-    UartState *s = CADENCE_UART(obj);
+    CadenceUARTState *s = CADENCE_UART(obj);
 
     memory_region_init_io(&s->iomem, obj, &uart_ops, s, "uart", 0x1000);
     sysbus_init_mmio(sbd, &s->iomem);
@@ -506,7 +483,7 @@ static void cadence_uart_init(Object *obj)
 
 static int cadence_uart_post_load(void *opaque, int version_id)
 {
-    UartState *s = opaque;
+    CadenceUARTState *s = opaque;
 
     uart_parameters_setup(s);
     uart_update_status(s);
@@ -519,13 +496,15 @@ static const VMStateDescription vmstate_cadence_uart = {
     .minimum_version_id = 2,
     .post_load = cadence_uart_post_load,
     .fields = (VMStateField[]) {
-        VMSTATE_UINT32_ARRAY(r, UartState, R_MAX),
-        VMSTATE_UINT8_ARRAY(rx_fifo, UartState, RX_FIFO_SIZE),
-        VMSTATE_UINT8_ARRAY(tx_fifo, UartState, RX_FIFO_SIZE),
-        VMSTATE_UINT32(rx_count, UartState),
-        VMSTATE_UINT32(tx_count, UartState),
-        VMSTATE_UINT32(rx_wpos, UartState),
-        VMSTATE_TIMER_PTR(fifo_trigger_handle, UartState),
+        VMSTATE_UINT32_ARRAY(r, CadenceUARTState, CADENCE_UART_R_MAX),
+        VMSTATE_UINT8_ARRAY(rx_fifo, CadenceUARTState,
+                            CADENCE_UART_RX_FIFO_SIZE),
+        VMSTATE_UINT8_ARRAY(tx_fifo, CadenceUARTState,
+                            CADENCE_UART_TX_FIFO_SIZE),
+        VMSTATE_UINT32(rx_count, CadenceUARTState),
+        VMSTATE_UINT32(tx_count, CadenceUARTState),
+        VMSTATE_UINT32(rx_wpos, CadenceUARTState),
+        VMSTATE_TIMER_PTR(fifo_trigger_handle, CadenceUARTState),
         VMSTATE_END_OF_LIST()
     }
 };
@@ -544,7 +523,7 @@ static void cadence_uart_class_init(ObjectClass *klass, void *data)
 static const TypeInfo cadence_uart_info = {
     .name          = TYPE_CADENCE_UART,
     .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(UartState),
+    .instance_size = sizeof(CadenceUARTState),
     .instance_init = cadence_uart_init,
     .class_init    = cadence_uart_class_init,
 };
