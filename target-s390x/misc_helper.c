@@ -286,6 +286,8 @@ void HELPER(sckc)(CPUS390XState *env, uint64_t time)
         return;
     }
 
+    env->ckc = time;
+
     /* difference between origins */
     time -= env->tod_offset;
 
@@ -298,8 +300,7 @@ void HELPER(sckc)(CPUS390XState *env, uint64_t time)
 /* Store Clock Comparator */
 uint64_t HELPER(stckc)(CPUS390XState *env)
 {
-    /* XXX implement */
-    return 0;
+    return env->ckc;
 }
 
 /* Set CPU Timer */
