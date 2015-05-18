@@ -32,6 +32,7 @@ check=${check-true}
 
 diff="diff -u"
 verbose=false
+debug=false
 group=false
 xgroup=false
 imgopts=false
@@ -132,6 +133,7 @@ s/ .*//p
 
 common options
     -v                  verbose
+    -d                  debug
 
 check options
     -raw                test raw (default)
@@ -320,6 +322,10 @@ testlist options
 
         -v)
             verbose=true
+            xpand=false
+            ;;
+        -d)
+            debug=true
             xpand=false
             ;;
         -x)        # -x group ... exclude from group file

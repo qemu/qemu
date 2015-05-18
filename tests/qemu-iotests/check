@@ -296,9 +296,15 @@ do
             run_command="./$seq"
         fi
         export OUTPUT_DIR=$PWD
-        (cd "$source_iotests";
-        MALLOC_PERTURB_=${MALLOC_PERTURB_:-$(($RANDOM % 255 + 1))} \
-                $run_command >$tmp.out 2>&1)
+        if $debug; then
+            (cd "$source_iotests";
+            MALLOC_PERTURB_=${MALLOC_PERTURB_:-$(($RANDOM % 255 + 1))} \
+                    $run_command -d 2>&1 | tee $tmp.out)
+        else
+            (cd "$source_iotests";
+            MALLOC_PERTURB_=${MALLOC_PERTURB_:-$(($RANDOM % 255 + 1))} \
+                    $run_command >$tmp.out 2>&1)
+        fi
         sts=$?
         $timestamp && _timestamp
         stop=`_wallclock`
