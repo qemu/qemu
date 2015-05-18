@@ -1828,6 +1828,14 @@ int kvm_cpu_exec(CPUState *cpu)
             }
             fprintf(stderr, "error: kvm run failed %s\n",
                     strerror(-run_ret));
+#ifdef TARGET_PPC
+            if (run_ret == -EBUSY) {
+                fprintf(stderr,
+                        "This is probably because your SMT is enabled.\n"
+                        "VCPU can only run on primary threads with all "
+                        "secondary threads offline.\n");
+            }
+#endif
             ret = -1;
             break;
         }
