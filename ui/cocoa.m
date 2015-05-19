@@ -64,6 +64,7 @@ static int last_buttons;
 
 int gArgc;
 char **gArgv;
+bool stretch_video;
 
 // keymap conversion
 int keymap[] =
@@ -418,6 +419,18 @@ QemuCocoaView *cocoaView;
     if (isFullscreen) {
         cdx = [[NSScreen mainScreen] frame].size.width / (float)screen.width;
         cdy = [[NSScreen mainScreen] frame].size.height / (float)screen.height;
+
+        /* stretches video, but keeps same aspect ratio */
+        if (stretch_video == true) {
+            /* use smallest stretch value - prevents clipping on sides */
+            if (MIN(cdx, cdy) == cdx) {
+                cdy = cdx;
+            } else {
+                cdx = cdy;
+            }
+        } else {  /* No stretching */
+            cdx = cdy = 1;
+        }
         cw = screen.width * cdx;
         ch = screen.height * cdy;
         cx = ([[NSScreen mainScreen] frame].size.width - cw) / 2.0;
@@ -502,6 +515,7 @@ QemuCocoaView *cocoaView;
 #endif
     } else { // switch from desktop to fullscreen
         isFullscreen = TRUE;
+        [normalWindow orderOut: nil]; /* Hide the window */
         [self grabMouse];
         [self setContentDimensions];
 // test if host supports "enterFullScreenMode:withOptions" at compile time
@@ -518,8 +532,11 @@ QemuCocoaView *cocoaView;
                 styleMask:NSBorderlessWindowMask
                 backing:NSBackingStoreBuffered
                 defer:NO];
+            [fullScreenWindow setAcceptsMouseMovedEvents: YES];
             [fullScreenWindow setHasShadow:NO];
-            [fullScreenWindow setContentView:self];
+            [fullScreenWindow setBackgroundColor: [NSColor blackColor]];
+            [self setFrame:NSMakeRect(cx, cy, cw, ch)];
+            [[fullScreenWindow contentView] addSubview: self];
             [fullScreenWindow makeKeyAndOrderFront:self];
 #if (MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_5)
         }
@@ -561,7 +578,7 @@ QemuCocoaView *cocoaView;
             }
 
             // release Mouse grab when pressing ctrl+alt
-            if (!isFullscreen && ([event modifierFlags] & NSControlKeyMask) && ([event modifierFlags] & NSAlternateKeyMask)) {
+            if (([event modifierFlags] & NSControlKeyMask) && ([event modifierFlags] & NSAlternateKeyMask)) {
                 [self ungrabMouse];
             }
             break;
@@ -798,9 +815,11 @@ QemuCocoaView *cocoaView;
 }
 - (void)startEmulationWithArgc:(int)argc argv:(char**)argv;
 - (void)openPanelDidEnd:(NSOpenPanel *)sheet returnCode:(int)returnCode contextInfo:(void *)contextInfo;
+- (void)doToggleFullScreen:(id)sender;
 - (void)toggleFullScreen:(id)sender;
 - (void)showQEMUDoc:(id)sender;
 - (void)showQEMUTec:(id)sender;
+- (void)zoomToFit:(id) sender;
 @end
 
 @implementation QemuCocoaAppController
@@ -832,7 +851,7 @@ QemuCocoaView *cocoaView;
         [normalWindow useOptimizedDrawing:YES];
         [normalWindow makeKeyAndOrderFront:self];
         [normalWindow center];
-
+        stretch_video = false;
     }
     return self;
 }
@@ -921,6 +940,16 @@ QemuCocoaView *cocoaView;
         [self startEmulationWithArgc:3 argv:(char**)argv];
     }
 }
+
+/* We abstract the method called by the Enter Fullscreen menu item
+ * because Mac OS 10.7 and higher disables it. This is because of the
+ * menu item's old selector's name toggleFullScreen:
+ */
+- (void) doToggleFullScreen:(id)sender
+{
+    [self toggleFullScreen:(id)sender];
+}
+
 - (void)toggleFullScreen:(id)sender
 {
     COCOA_DEBUG("QemuCocoaAppController: toggleFullScreen\n");
@@ -942,6 +971,17 @@ QemuCocoaView *cocoaView;
 
     [[NSWorkspace sharedWorkspace] openFile:[NSString stringWithFormat:@"%@/../doc/qemu/qemu-tech.html",
         [[NSBundle mainBundle] resourcePath]] withApplication:@"Help Viewer"];
+}
+
+/* Stretches video to fit host monitor size */
+- (void)zoomToFit:(id) sender
+{
+    stretch_video = !stretch_video;
+    if (stretch_video == true) {
+        [sender setState: NSOnState];
+    } else {
+        [sender setState: NSOffState];
+    }
 }
 @end
 
@@ -1005,7 +1045,8 @@ int main (int argc, const char * argv[]) {
 
     // View menu
     menu = [[NSMenu alloc] initWithTitle:@"View"];
-    [menu addItem: [[[NSMenuItem alloc] initWithTitle:@"Enter Fullscreen" action:@selector(toggleFullScreen:) keyEquivalent:@"f"] autorelease]]; // Fullscreen
+    [menu addItem: [[[NSMenuItem alloc] initWithTitle:@"Enter Fullscreen" action:@selector(doToggleFullScreen:) keyEquivalent:@"f"] autorelease]]; // Fullscreen
+    [menu addItem: [[[NSMenuItem alloc] initWithTitle:@"Zoom To Fit" action:@selector(zoomToFit:) keyEquivalent:@""] autorelease]];
     menuItem = [[[NSMenuItem alloc] initWithTitle:@"View" action:nil keyEquivalent:@""] autorelease];
     [menuItem setSubmenu:menu];
     [[NSApp mainMenu] addItem:menuItem];
