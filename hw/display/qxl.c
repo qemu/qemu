@@ -1181,7 +1181,7 @@ static void qxl_hard_reset(PCIQXLDevice *d, int loadvm)
 
 static void qxl_reset_handler(DeviceState *dev)
 {
-    PCIQXLDevice *d = DO_UPCAST(PCIQXLDevice, pci.qdev, dev);
+    PCIQXLDevice *d = PCI_QXL(PCI_DEVICE(dev));
 
     qxl_hard_reset(d, 0);
 }
@@ -2026,7 +2026,7 @@ static void qxl_realize_common(PCIQXLDevice *qxl, Error **errp)
 
 static void qxl_realize_primary(PCIDevice *dev, Error **errp)
 {
-    PCIQXLDevice *qxl = DO_UPCAST(PCIQXLDevice, pci, dev);
+    PCIQXLDevice *qxl = PCI_QXL(dev);
     VGACommonState *vga = &qxl->vga;
     Error *local_err = NULL;
 
@@ -2059,7 +2059,7 @@ static void qxl_realize_primary(PCIDevice *dev, Error **errp)
 static void qxl_realize_secondary(PCIDevice *dev, Error **errp)
 {
     static int device_id = 1;
-    PCIQXLDevice *qxl = DO_UPCAST(PCIQXLDevice, pci, dev);
+    PCIQXLDevice *qxl = PCI_QXL(dev);
 
     qxl->id = device_id++;
     qxl_init_ramsize(qxl);
@@ -2277,6 +2277,27 @@ static Property qxl_properties[] = {
         DEFINE_PROP_END_OF_LIST(),
 };
 
+static void qxl_pci_class_init(ObjectClass *klass, void *data)
+{
+    DeviceClass *dc = DEVICE_CLASS(klass);
+    PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
+
+    k->vendor_id = REDHAT_PCI_VENDOR_ID;
+    k->device_id = QXL_DEVICE_ID_STABLE;
+    set_bit(DEVICE_CATEGORY_DISPLAY, dc->categories);
+    dc->reset = qxl_reset_handler;
+    dc->vmsd = &qxl_vmstate;
+    dc->props = qxl_properties;
+}
+
+static const TypeInfo qxl_pci_type_info = {
+    .name = TYPE_PCI_QXL,
+    .parent = TYPE_PCI_DEVICE,
+    .instance_size = sizeof(PCIQXLDevice),
+    .abstract = true,
+    .class_init = qxl_pci_class_init,
+};
+
 static void qxl_primary_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
@@ -2284,21 +2305,14 @@ static void qxl_primary_class_init(ObjectClass *klass, void *data)
 
     k->realize = qxl_realize_primary;
     k->romfile = "vgabios-qxl.bin";
-    k->vendor_id = REDHAT_PCI_VENDOR_ID;
-    k->device_id = QXL_DEVICE_ID_STABLE;
     k->class_id = PCI_CLASS_DISPLAY_VGA;
-    set_bit(DEVICE_CATEGORY_DISPLAY, dc->categories);
     dc->desc = "Spice QXL GPU (primary, vga compatible)";
-    dc->reset = qxl_reset_handler;
-    dc->vmsd = &qxl_vmstate;
-    dc->props = qxl_properties;
     dc->hotpluggable = false;
 }
 
 static const TypeInfo qxl_primary_info = {
     .name          = "qxl-vga",
-    .parent        = TYPE_PCI_DEVICE,
-    .instance_size = sizeof(PCIQXLDevice),
+    .parent        = TYPE_PCI_QXL,
     .class_init    = qxl_primary_class_init,
 };
 
@@ -2308,25 +2322,19 @@ static void qxl_secondary_class_init(ObjectClass *klass, void *data)
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
 
     k->realize = qxl_realize_secondary;
-    k->vendor_id = REDHAT_PCI_VENDOR_ID;
-    k->device_id = QXL_DEVICE_ID_STABLE;
     k->class_id = PCI_CLASS_DISPLAY_OTHER;
-    set_bit(DEVICE_CATEGORY_DISPLAY, dc->categories);
     dc->desc = "Spice QXL GPU (secondary)";
-    dc->reset = qxl_reset_handler;
-    dc->vmsd = &qxl_vmstate;
-    dc->props = qxl_properties;
 }
 
 static const TypeInfo qxl_secondary_info = {
     .name          = "qxl",
-    .parent        = TYPE_PCI_DEVICE,
-    .instance_size = sizeof(PCIQXLDevice),
+    .parent        = TYPE_PCI_QXL,
     .class_init    = qxl_secondary_class_init,
 };
 
 static void qxl_register_types(void)
 {
+    type_register_static(&qxl_pci_type_info);
     type_register_static(&qxl_primary_info);
     type_register_static(&qxl_secondary_info);
 }
