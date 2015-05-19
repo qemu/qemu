@@ -30,9 +30,6 @@
 #include "ui/input.h"
 #include "sysemu/sysemu.h"
 
-#ifndef MAC_OS_X_VERSION_10_4
-#define MAC_OS_X_VERSION_10_4 1040
-#endif
 #ifndef MAC_OS_X_VERSION_10_5
 #define MAC_OS_X_VERSION_10_5 1050
 #endif
@@ -376,11 +373,7 @@ QemuCocoaView *cocoaView;
         );
         // selective drawing code (draws only dirty rectangles) (OS X >= 10.4)
         const NSRect *rectList;
-#if (MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_5)
         NSInteger rectCount;
-#else
-        int rectCount;
-#endif
         int i;
         CGImageRef clipImageRef;
         CGRect clipRect;
@@ -490,33 +483,25 @@ QemuCocoaView *cocoaView;
         isFullscreen = FALSE;
         [self ungrabMouse];
         [self setContentDimensions];
-// test if host supports "exitFullScreenModeWithOptions" at compile time
-#if (MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_5)
         if ([NSView respondsToSelector:@selector(exitFullScreenModeWithOptions:)]) { // test if "exitFullScreenModeWithOptions" is supported on host at runtime
             [self exitFullScreenModeWithOptions:nil];
         } else {
-#endif
             [fullScreenWindow close];
             [normalWindow setContentView: self];
             [normalWindow makeKeyAndOrderFront: self];
             [NSMenu setMenuBarVisible:YES];
-#if (MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_5)
         }
-#endif
     } else { // switch from desktop to fullscreen
         isFullscreen = TRUE;
         [normalWindow orderOut: nil]; /* Hide the window */
         [self grabMouse];
         [self setContentDimensions];
-// test if host supports "enterFullScreenMode:withOptions" at compile time
-#if (MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_5)
         if ([NSView respondsToSelector:@selector(enterFullScreenMode:withOptions:)]) { // test if "enterFullScreenMode:withOptions" is supported on host at runtime
             [self enterFullScreenMode:[NSScreen mainScreen] withOptions:[NSDictionary dictionaryWithObjectsAndKeys:
                 [NSNumber numberWithBool:NO], NSFullScreenModeAllScreens,
                 [NSDictionary dictionaryWithObjectsAndKeys:[NSNumber numberWithBool:NO], kCGDisplayModeIsStretched, nil], NSFullScreenModeSetting,
                  nil]];
         } else {
-#endif
             [NSMenu setMenuBarVisible:NO];
             fullScreenWindow = [[NSWindow alloc] initWithContentRect:[[NSScreen mainScreen] frame]
                 styleMask:NSBorderlessWindowMask
@@ -528,9 +513,7 @@ QemuCocoaView *cocoaView;
             [self setFrame:NSMakeRect(cx, cy, cw, ch)];
             [[fullScreenWindow contentView] addSubview: self];
             [fullScreenWindow makeKeyAndOrderFront:self];
-#if (MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_5)
         }
-#endif
     }
 }
 
