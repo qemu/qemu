@@ -611,6 +611,27 @@ static void vmstate_save(QEMUFile *f, SaveStateEntry *se, QJSON *vmdesc)
     vmstate_save_state(f, se->vmsd, se->opaque, vmdesc);
 }
 
+/*
+ * Write the header for device section (QEMU_VM_SECTION START/END/PART/FULL)
+ */
+static void save_section_header(QEMUFile *f, SaveStateEntry *se,
+                                uint8_t section_type)
+{
+    qemu_put_byte(f, section_type);
+    qemu_put_be32(f, se->section_id);
+
+    if (section_type == QEMU_VM_SECTION_FULL ||
+        section_type == QEMU_VM_SECTION_START) {
+        /* ID string */
+        size_t len = strlen(se->idstr);
+        qemu_put_byte(f, len);
+        qemu_put_buffer(f, (uint8_t *)se->idstr, len);
+
+        qemu_put_be32(f, se->instance_id);
+        qemu_put_be32(f, se->version_id);
+    }
+}
+
 bool qemu_savevm_state_blocked(Error **errp)
 {
     SaveStateEntry *se;
@@ -647,8 +668,6 @@ void qemu_savevm_state_begin(QEMUFile *f,
     }
 
     QTAILQ_FOREACH(se, &savevm_state.handlers, entry) {
-        int len;
-
         if (!se->ops || !se->ops->save_live_setup) {
             continue;
         }
@@ -657,17 +676,7 @@ void qemu_savevm_state_begin(QEMUFile *f,
                 continue;
             }
         }
-        /* Section type */
-        qemu_put_byte(f, QEMU_VM_SECTION_START);
-        qemu_put_be32(f, se->section_id);
-
-        /* ID string */
-        len = strlen(se->idstr);
-        qemu_put_byte(f, len);
-        qemu_put_buffer(f, (uint8_t *)se->idstr, len);
-
-        qemu_put_be32(f, se->instance_id);
-        qemu_put_be32(f, se->version_id);
+        save_section_header(f, se, QEMU_VM_SECTION_START);
 
         ret = se->ops->save_live_setup(f, se->opaque);
         if (ret < 0) {
@@ -702,9 +711,8 @@ int qemu_savevm_state_iterate(QEMUFile *f)
             return 0;
         }
         trace_savevm_section_start(se->idstr, se->section_id);
-        /* Section type */
-        qemu_put_byte(f, QEMU_VM_SECTION_PART);
-        qemu_put_be32(f, se->section_id);
+
+        save_section_header(f, se, QEMU_VM_SECTION_PART);
 
         ret = se->ops->save_live_iterate(f, se->opaque);
         trace_savevm_section_end(se->idstr, se->section_id, ret);
@@ -750,9 +758,8 @@ void qemu_savevm_state_complete(QEMUFile *f)
             }
         }
         trace_savevm_section_start(se->idstr, se->section_id);
-        /* Section type */
-        qemu_put_byte(f, QEMU_VM_SECTION_END);
-        qemu_put_be32(f, se->section_id);
+
+        save_section_header(f, se, QEMU_VM_SECTION_END);
 
         ret = se->ops->save_live_complete(f, se->opaque);
         trace_savevm_section_end(se->idstr, se->section_id, ret);
@@ -766,7 +773,6 @@ void qemu_savevm_state_complete(QEMUFile *f)
     json_prop_int(vmdesc, "page_size", TARGET_PAGE_SIZE);
     json_start_array(vmdesc, "devices");
     QTAILQ_FOREACH(se, &savevm_state.handlers, entry) {
-        int len;
 
         if ((!se->ops || !se->ops->save_state) && !se->vmsd) {
             continue;
@@ -777,17 +783,7 @@ void qemu_savevm_state_complete(QEMUFile *f)
         json_prop_str(vmdesc, "name", se->idstr);
         json_prop_int(vmdesc, "instance_id", se->instance_id);
 
-        /* Section type */
-        qemu_put_byte(f, QEMU_VM_SECTION_FULL);
-        qemu_put_be32(f, se->section_id);
-
-        /* ID string */
-        len = strlen(se->idstr);
-        qemu_put_byte(f, len);
-        qemu_put_buffer(f, (uint8_t *)se->idstr, len);
-
-        qemu_put_be32(f, se->instance_id);
-        qemu_put_be32(f, se->version_id);
+        save_section_header(f, se, QEMU_VM_SECTION_FULL);
 
         vmstate_save(f, se, vmdesc);
 
@@ -887,8 +883,6 @@ static int qemu_save_device_state(QEMUFile *f)
     cpu_synchronize_all_states();
 
     QTAILQ_FOREACH(se, &savevm_state.handlers, entry) {
-        int len;
-
         if (se->is_ram) {
             continue;
         }
@@ -896,17 +890,7 @@ static int qemu_save_device_state(QEMUFile *f)
             continue;
         }
 
-        /* Section type */
-        qemu_put_byte(f, QEMU_VM_SECTION_FULL);
-        qemu_put_be32(f, se->section_id);
-
-        /* ID string */
-        len = strlen(se->idstr);
-        qemu_put_byte(f, len);
-        qemu_put_buffer(f, (uint8_t *)se->idstr, len);
-
-        qemu_put_be32(f, se->instance_id);
-        qemu_put_be32(f, se->version_id);
+        save_section_header(f, se, QEMU_VM_SECTION_FULL);
 
         vmstate_save(f, se, NULL);
     }
