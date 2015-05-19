@@ -784,6 +784,9 @@ QemuCocoaView *cocoaView;
  ------------------------------------------------------
 */
 @interface QemuCocoaAppController : NSObject
+#if (MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_6)
+                                             <NSApplicationDelegate>
+#endif
 {
 }
 - (void)startEmulationWithArgc:(int)argc argv:(char**)argv;
