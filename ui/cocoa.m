@@ -799,6 +799,7 @@ QemuCocoaView *cocoaView;
 - (void)showQEMUDoc:(id)sender;
 - (void)showQEMUTec:(id)sender;
 - (void)zoomToFit:(id) sender;
+- (void)displayConsole:(id)sender;
 @end
 
 @implementation QemuCocoaAppController
@@ -970,8 +971,13 @@ QemuCocoaView *cocoaView;
         [sender setState: NSOffState];
     }
 }
-@end
 
+/* Displays the console on the screen */
+- (void)displayConsole:(id)sender
+{
+    console_select([sender tag]);
+}
+@end
 
 
 int main (int argc, const char * argv[]) {
@@ -1144,6 +1150,32 @@ static const DisplayChangeListenerOps dcl_ops = {
     .dpy_refresh = cocoa_refresh,
 };
 
+/* Returns a name for a given console */
+static NSString * getConsoleName(QemuConsole * console)
+{
+    return [NSString stringWithFormat: @"%s", qemu_console_get_label(console)];
+}
+
+/* Add an entry to the View menu for each console */
+static void add_console_menu_entries(void)
+{
+    NSMenu *menu;
+    NSMenuItem *menuItem;
+    int index = 0;
+
+    menu = [[[NSApp mainMenu] itemWithTitle:@"View"] submenu];
+
+    [menu addItem:[NSMenuItem separatorItem]];
+
+    while (qemu_console_lookup_by_index(index) != NULL) {
+        menuItem = [[[NSMenuItem alloc] initWithTitle: getConsoleName(qemu_console_lookup_by_index(index))
+                                               action: @selector(displayConsole:) keyEquivalent: @""] autorelease];
+        [menuItem setTag: index];
+        [menu addItem: menuItem];
+        index++;
+    }
+}
+
 void cocoa_display_init(DisplayState *ds, int full_screen)
 {
     COCOA_DEBUG("qemu_cocoa: cocoa_display_init\n");
@@ -1162,4 +1194,9 @@ void cocoa_display_init(DisplayState *ds, int full_screen)
 
     // register cleanup function
     atexit(cocoa_cleanup);
+
+    /* At this point QEMU has created all the consoles, so we can add View
+     * menu entries for them.
+     */
+    add_console_menu_entries();
 }
