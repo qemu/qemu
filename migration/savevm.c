@@ -639,6 +639,53 @@ static void save_section_header(QEMUFile *f, SaveStateEntry *se,
     }
 }
 
+/*
+ * Write a footer onto device sections that catches cases misformatted device
+ * sections.
+ */
+static void save_section_footer(QEMUFile *f, SaveStateEntry *se)
+{
+    if (!skip_section_footers) {
+        qemu_put_byte(f, QEMU_VM_SECTION_FOOTER);
+        qemu_put_be32(f, se->section_id);
+    }
+}
+
+/*
+ * Read a footer off the wire and check that it matches the expected section
+ *
+ * Returns: true if the footer was good
+ *          false if there is a problem (and calls error_report to say why)
+ */
+static bool check_section_footer(QEMUFile *f, SaveStateEntry *se)
+{
+    uint8_t read_mark;
+    uint32_t read_section_id;
+
+    if (skip_section_footers) {
+        /* No footer to check */
+        return true;
+    }
+
+    read_mark = qemu_get_byte(f);
+
+    if (read_mark != QEMU_VM_SECTION_FOOTER) {
+        error_report("Missing section footer for %s", se->idstr);
+        return false;
+    }
+
+    read_section_id = qemu_get_be32(f);
+    if (read_section_id != se->section_id) {
+        error_report("Mismatched section id in footer for %s -"
+                     " read 0x%x expected 0x%x",
+                     se->idstr, read_section_id, se->section_id);
+        return false;
+    }
+
+    /* All good */
+    return true;
+}
+
 bool qemu_savevm_state_blocked(Error **errp)
 {
     SaveStateEntry *se;
@@ -686,6 +733,7 @@ void qemu_savevm_state_begin(QEMUFile *f,
         save_section_header(f, se, QEMU_VM_SECTION_START);
 
         ret = se->ops->save_live_setup(f, se->opaque);
+        save_section_footer(f, se);
         if (ret < 0) {
             qemu_file_set_error(f, ret);
             break;
@@ -723,6 +771,7 @@ int qemu_savevm_state_iterate(QEMUFile *f)
 
         ret = se->ops->save_live_iterate(f, se->opaque);
         trace_savevm_section_end(se->idstr, se->section_id, ret);
+        save_section_footer(f, se);
 
         if (ret < 0) {
             qemu_file_set_error(f, ret);
@@ -770,6 +819,7 @@ void qemu_savevm_state_complete(QEMUFile *f)
 
         ret = se->ops->save_live_complete(f, se->opaque);
         trace_savevm_section_end(se->idstr, se->section_id, ret);
+        save_section_footer(f, se);
         if (ret < 0) {
             qemu_file_set_error(f, ret);
             return;
@@ -796,6 +846,7 @@ void qemu_savevm_state_complete(QEMUFile *f)
 
         json_end_object(vmdesc);
         trace_savevm_section_end(se->idstr, se->section_id, 0);
+        save_section_footer(f, se);
     }
 
     qemu_put_byte(f, QEMU_VM_EOF);
@@ -900,6 +951,8 @@ static int qemu_save_device_state(QEMUFile *f)
         save_section_header(f, se, QEMU_VM_SECTION_FULL);
 
         vmstate_save(f, se, NULL);
+
+        save_section_footer(f, se);
     }
 
     qemu_put_byte(f, QEMU_VM_EOF);
@@ -1027,6 +1080,10 @@ int qemu_loadvm_state(QEMUFile *f)
                              " device '%s'", instance_id, idstr);
                 goto out;
             }
+            if (!check_section_footer(f, le->se)) {
+                ret = -EINVAL;
+                goto out;
+            }
             break;
         case QEMU_VM_SECTION_PART:
         case QEMU_VM_SECTION_END:
@@ -1048,6 +1105,10 @@ int qemu_loadvm_state(QEMUFile *f)
             if (ret < 0) {
                 error_report("error while loading state section id %d(%s)",
                              section_id, le->se->idstr);
+                goto out;
+            }
+            if (!check_section_footer(f, le->se)) {
+                ret = -EINVAL;
                 goto out;
             }
             break;

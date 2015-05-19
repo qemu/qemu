@@ -34,6 +34,7 @@
 #define QEMU_VM_SECTION_FULL         0x04
 #define QEMU_VM_SUBSECTION           0x05
 #define QEMU_VM_VMDESCRIPTION        0x06
+#define QEMU_VM_SECTION_FOOTER       0x7e
 
 struct MigrationParams {
     bool blk;
