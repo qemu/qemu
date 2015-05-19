@@ -374,40 +374,30 @@ QemuCocoaView *cocoaView;
             0, //interpolate
             kCGRenderingIntentDefault //intent
         );
-// test if host supports "CGImageCreateWithImageInRect" at compile time
-#if (MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_4)
-        if (CGImageCreateWithImageInRect == NULL) { // test if "CGImageCreateWithImageInRect" is supported on host at runtime
-#endif
-            // compatibility drawing code (draws everything) (OS X < 10.4)
-            CGContextDrawImage (viewContextRef, CGRectMake(0, 0, [self bounds].size.width, [self bounds].size.height), imageRef);
-#if (MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_4)
-        } else {
-            // selective drawing code (draws only dirty rectangles) (OS X >= 10.4)
-            const NSRect *rectList;
+        // selective drawing code (draws only dirty rectangles) (OS X >= 10.4)
+        const NSRect *rectList;
 #if (MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_5)
-            NSInteger rectCount;
+        NSInteger rectCount;
 #else
-            int rectCount;
+        int rectCount;
 #endif
-            int i;
-            CGImageRef clipImageRef;
-            CGRect clipRect;
+        int i;
+        CGImageRef clipImageRef;
+        CGRect clipRect;
 
-            [self getRectsBeingDrawn:&rectList count:&rectCount];
-            for (i = 0; i < rectCount; i++) {
-                clipRect.origin.x = rectList[i].origin.x / cdx;
-                clipRect.origin.y = (float)screen.height - (rectList[i].origin.y + rectList[i].size.height) / cdy;
-                clipRect.size.width = rectList[i].size.width / cdx;
-                clipRect.size.height = rectList[i].size.height / cdy;
-                clipImageRef = CGImageCreateWithImageInRect(
-                    imageRef,
-                    clipRect
-                );
-                CGContextDrawImage (viewContextRef, cgrect(rectList[i]), clipImageRef);
-                CGImageRelease (clipImageRef);
-            }
+        [self getRectsBeingDrawn:&rectList count:&rectCount];
+        for (i = 0; i < rectCount; i++) {
+            clipRect.origin.x = rectList[i].origin.x / cdx;
+            clipRect.origin.y = (float)screen.height - (rectList[i].origin.y + rectList[i].size.height) / cdy;
+            clipRect.size.width = rectList[i].size.width / cdx;
+            clipRect.size.height = rectList[i].size.height / cdy;
+            clipImageRef = CGImageCreateWithImageInRect(
+                                                        imageRef,
+                                                        clipRect
+                                                        );
+            CGContextDrawImage (viewContextRef, cgrect(rectList[i]), clipImageRef);
+            CGImageRelease (clipImageRef);
         }
-#endif
         CGImageRelease (imageRef);
     }
 }
