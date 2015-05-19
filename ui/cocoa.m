@@ -1161,6 +1161,12 @@ void cocoa_display_init(DisplayState *ds, int full_screen)
 {
     COCOA_DEBUG("qemu_cocoa: cocoa_display_init\n");
 
+    /* if fullscreen mode is to be used */
+    if (full_screen == true) {
+        [NSApp activateIgnoringOtherApps: YES];
+        [(QemuCocoaAppController *)[[NSApplication sharedApplication] delegate] toggleFullScreen: nil];
+    }
+
     dcl = g_malloc0(sizeof(DisplayChangeListener));
 
     // register vga output callbacks
