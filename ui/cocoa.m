@@ -787,7 +787,7 @@ QemuCocoaView *cocoaView;
 {
 }
 - (void)startEmulationWithArgc:(int)argc argv:(char**)argv;
-- (void)openPanelDidEnd:(NSOpenPanel *)sheet returnCode:(int)returnCode contextInfo:(void *)contextInfo;
+- (void)openPanelDidEnd:(NSOpenPanel *)sheet returnCode:(NSInteger)returnCode contextInfo:(void *)contextInfo;
 - (void)doToggleFullScreen:(id)sender;
 - (void)toggleFullScreen:(id)sender;
 - (void)showQEMUDoc:(id)sender;
@@ -890,7 +890,7 @@ QemuCocoaView *cocoaView;
     exit(status);
 }
 
-- (void)openPanelDidEnd:(NSOpenPanel *)sheet returnCode:(int)returnCode contextInfo:(void *)contextInfo
+- (void)openPanelDidEnd:(NSOpenPanel *)sheet returnCode:(NSInteger)returnCode contextInfo:(void *)contextInfo
 {
     COCOA_DEBUG("QemuCocoaAppController: openPanelDidEnd\n");
 
