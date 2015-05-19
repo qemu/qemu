@@ -55,6 +55,8 @@
 #define ARP_PTYPE_IP 0x0800
 #define ARP_OP_REQUEST_REV 0x3
 
+static bool skip_section_footers;
+
 static int announce_self_create(uint8_t *buf,
                                 uint8_t *mac_addr)
 {
@@ -609,6 +611,11 @@ static void vmstate_save(QEMUFile *f, SaveStateEntry *se, QJSON *vmdesc)
         return;
     }
     vmstate_save_state(f, se->vmsd, se->opaque, vmdesc);
+}
+
+void savevm_skip_section_footers(void)
+{
+    skip_section_footers = true;
 }
 
 /*

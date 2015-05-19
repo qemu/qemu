@@ -52,6 +52,7 @@
 #ifdef CONFIG_XEN
 #  include <xen/hvm/hvm_info_table.h>
 #endif
+#include "migration/migration.h"
 
 #define MAX_IDE_BUS 2
 
@@ -305,6 +306,7 @@ static void pc_init1(MachineState *machine)
 
 static void pc_compat_2_3(MachineState *machine)
 {
+    savevm_skip_section_footers();
 }
 
 static void pc_compat_2_2(MachineState *machine)
