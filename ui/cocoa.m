@@ -902,9 +902,15 @@ QemuCocoaView *cocoaView;
 {
     COCOA_DEBUG("QemuCocoaAppController: openPanelDidEnd\n");
 
-    if(returnCode == NSCancelButton) {
+    /* The NSFileHandlingPanelOKButton/NSFileHandlingPanelCancelButton values for
+     * returnCode strictly only apply for the 10.6-and-up beginSheetModalForWindow
+     * API. For the legacy pre-10.6 beginSheetForDirectory API they are NSOKButton
+     * and NSCancelButton. However conveniently the values are the same.
+     * We use the non-legacy names because the others are deprecated in OSX 10.10.
+     */
+    if (returnCode == NSFileHandlingPanelCancelButton) {
         exit(0);
-    } else if(returnCode == NSOKButton) {
+    } else if (returnCode == NSFileHandlingPanelOKButton) {
         char *img = (char*)[ [ [ sheet URL ] path ] cStringUsingEncoding:NSASCIIStringEncoding];
 
         char **argv = g_new(char *, 4);
