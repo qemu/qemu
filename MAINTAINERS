@@ -785,6 +785,7 @@ S: Supported
 F: block*
 F: block/
 F: hw/block/
+F: include/block/
 F: qemu-img*
 F: qemu-io*
 F: tests/qemu-iotests/
