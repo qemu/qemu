@@ -838,9 +838,6 @@ static void *migration_thread(void *opaque)
 
 void migrate_fd_connect(MigrationState *s)
 {
-    s->state = MIGRATION_STATUS_SETUP;
-    trace_migrate_set_state(MIGRATION_STATUS_SETUP);
-
     /* This is a best 1st approximation. ns to ms */
     s->expected_downtime = max_downtime/1000000;
     s->cleanup_bh = qemu_bh_new(migrate_fd_cleanup, s);
