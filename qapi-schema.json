@@ -720,6 +720,33 @@
 { 'command': 'migrate-start-postcopy' }
 
 ##
+# @COLOCommand
+#
+# The commands for COLO fault tolerance
+#
+# @invalid: unknown command
+#
+# @checkpoint-ready: SVM is ready for checkpointing
+#
+# @checkpoint-request: PVM tells SVM to prepare for new checkpointing
+#
+# @checkpoint-reply: SVM gets PVM's checkpoint request
+#
+# @vmstate-send: VM's state will be sent by PVM.
+#
+# @vmstate-size: The total size of VMstate.
+#
+# @vmstate-received: VM's state has been received by SVM
+#
+# @vmstate-loaded: VM's state has been loaded by SVM
+#
+# Since: 2.5
+##
+{ 'enum': 'COLOCommand',
+  'data': [ 'invalid', 'checkpoint-ready', 'checkpoint-request',
+            'checkpoint-reply', 'vmstate-send', 'vmstate-size',
+            'vmstate-received', 'vmstate-loaded' ] }
+
 # @MouseInfo:
 #
 # Information about a mouse device.
