@@ -230,6 +230,7 @@ void qemu_start_incoming_migration(const char *uri, Error **errp)
 {
     const char *p;
 
+    qapi_event_send_migration(MIGRATION_STATUS_SETUP, &error_abort);
     if (!strcmp(uri, "defer")) {
         deferred_incoming_migration(errp);
     } else if (strstart(uri, "tcp:", &p)) {
@@ -258,7 +259,7 @@ static void process_incoming_migration_co(void *opaque)
     int ret;
 
     migration_incoming_state_new(f);
-
+    migrate_generate_event(MIGRATION_STATUS_ACTIVE);
     ret = qemu_loadvm_state(f);
 
     qemu_fclose(f);
@@ -266,10 +267,12 @@ static void process_incoming_migration_co(void *opaque)
     migration_incoming_state_destroy();
 
     if (ret < 0) {
+        migrate_generate_event(MIGRATION_STATUS_FAILED);
         error_report("load of migration failed: %s", strerror(-ret));
         migrate_decompress_threads_join();
         exit(EXIT_FAILURE);
     }
+    migrate_generate_event(MIGRATION_STATUS_COMPLETED);
     qemu_announce_self();
 
     /* Make sure all file formats flush their mutable metadata */
