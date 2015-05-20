@@ -27,6 +27,7 @@
 #include "qmp-commands.h"
 #include "trace.h"
 #include "qapi/util.h"
+#include "qapi-event.h"
 
 #define MAX_THROTTLE  (32 << 20)      /* Migration speed throttling */
 
@@ -510,6 +511,7 @@ void qmp_migrate_set_parameters(bool has_compress_level,
 static void migrate_set_state(MigrationState *s, int old_state, int new_state)
 {
     if (atomic_cmpxchg(&s->state, old_state, new_state) == old_state) {
+        qapi_event_send_migration(new_state, &error_abort);
         trace_migrate_set_state(new_state);
     }
 }

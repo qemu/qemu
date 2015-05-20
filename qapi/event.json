@@ -243,6 +243,18 @@
 { 'event': 'SPICE_MIGRATE_COMPLETED' }
 
 ##
+# @MIGRATION
+#
+# Emitted when a migration event happens
+#
+# @status: @MigrationStatus describing the current migration status.
+#
+# Since: 2.4
+##
+{ 'event': 'MIGRATION',
+  'data': {'status': 'MigrationStatus'}}
+
+##
 # @ACPI_DEVICE_OST
 #
 # Emitted when guest executes ACPI _OST method.
