@@ -42,9 +42,14 @@ struct MigrationParams {
 
 typedef struct MigrationState MigrationState;
 
+typedef QLIST_HEAD(, LoadStateEntry) LoadStateEntry_Head;
+
 /* State for the incoming migration */
 struct MigrationIncomingState {
     QEMUFile *file;
+
+    /* See savevm.c */
+    LoadStateEntry_Head loadvm_handlers;
 };
 
 MigrationIncomingState *migration_incoming_get_current(void);

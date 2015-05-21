@@ -936,18 +936,26 @@ static SaveStateEntry *find_se(const char *idstr, int instance_id)
     return NULL;
 }
 
-typedef struct LoadStateEntry {
+struct LoadStateEntry {
     QLIST_ENTRY(LoadStateEntry) entry;
     SaveStateEntry *se;
     int section_id;
     int version_id;
-} LoadStateEntry;
+};
+
+void loadvm_free_handlers(MigrationIncomingState *mis)
+{
+    LoadStateEntry *le, *new_le;
+
+    QLIST_FOREACH_SAFE(le, &mis->loadvm_handlers, entry, new_le) {
+        QLIST_REMOVE(le, entry);
+        g_free(le);
+    }
+}
 
 int qemu_loadvm_state(QEMUFile *f)
 {
-    QLIST_HEAD(, LoadStateEntry) loadvm_handlers =
-        QLIST_HEAD_INITIALIZER(loadvm_handlers);
-    LoadStateEntry *le, *new_le;
+    MigrationIncomingState *mis = migration_incoming_get_current();
     Error *local_err = NULL;
     uint8_t section_type;
     unsigned int v;
@@ -978,6 +986,7 @@ int qemu_loadvm_state(QEMUFile *f)
     while ((section_type = qemu_get_byte(f)) != QEMU_VM_EOF) {
         uint32_t instance_id, version_id, section_id;
         SaveStateEntry *se;
+        LoadStateEntry *le;
         char idstr[256];
 
         trace_qemu_loadvm_state_section(section_type);
@@ -1019,7 +1028,7 @@ int qemu_loadvm_state(QEMUFile *f)
             le->se = se;
             le->section_id = section_id;
             le->version_id = version_id;
-            QLIST_INSERT_HEAD(&loadvm_handlers, le, entry);
+            QLIST_INSERT_HEAD(&mis->loadvm_handlers, le, entry);
 
             ret = vmstate_load(f, le->se, le->version_id);
             if (ret < 0) {
@@ -1033,7 +1042,7 @@ int qemu_loadvm_state(QEMUFile *f)
             section_id = qemu_get_be32(f);
 
             trace_qemu_loadvm_state_section_partend(section_id);
-            QLIST_FOREACH(le, &loadvm_handlers, entry) {
+            QLIST_FOREACH(le, &mis->loadvm_handlers, entry) {
                 if (le->section_id == section_id) {
                     break;
                 }
@@ -1081,11 +1090,6 @@ int qemu_loadvm_state(QEMUFile *f)
     ret = 0;
 
 out:
-    QLIST_FOREACH_SAFE(le, &loadvm_handlers, entry, new_le) {
-        QLIST_REMOVE(le, entry);
-        g_free(le);
-    }
-
     if (ret == 0) {
         /* We may not have a VMDESC section, so ignore relative errors */
         ret = file_error_after_eof;

@@ -31,6 +31,7 @@ typedef struct I2CBus I2CBus;
 typedef struct I2SCodec I2SCodec;
 typedef struct ISABus ISABus;
 typedef struct ISADevice ISADevice;
+typedef struct LoadStateEntry LoadStateEntry;
 typedef struct MACAddr MACAddr;
 typedef struct MachineClass MachineClass;
 typedef struct MachineState MachineState;
