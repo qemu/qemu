@@ -2000,14 +2000,16 @@ static void fdctrl_handle_relative_seek_out(FDCtrl *fdctrl, int direction)
 /*
  * Handlers for the execution phase of each command
  */
-static const struct {
+typedef struct FDCtrlCommand {
     uint8_t value;
     uint8_t mask;
     const char* name;
     int parameters;
     void (*handler)(FDCtrl *fdctrl, int direction);
     int direction;
-} handlers[] = {
+} FDCtrlCommand;
+
+static const FDCtrlCommand handlers[] = {
     { FD_CMD_READ, 0x1f, "READ", 8, fdctrl_start_transfer, FD_DIR_READ },
     { FD_CMD_WRITE, 0x3f, "WRITE", 8, fdctrl_start_transfer, FD_DIR_WRITE },
     { FD_CMD_SEEK, 0xff, "SEEK", 2, fdctrl_handle_seek },
@@ -2044,9 +2046,19 @@ static const struct {
 /* Associate command to an index in the 'handlers' array */
 static uint8_t command_to_handler[256];
 
+static const FDCtrlCommand *get_command(uint8_t cmd)
+{
+    int idx;
+
+    idx = command_to_handler[cmd];
+    FLOPPY_DPRINTF("%s command\n", handlers[idx].name);
+    return &handlers[idx];
+}
+
 static void fdctrl_write_data(FDCtrl *fdctrl, uint32_t value)
 {
     FDrive *cur_drv;
+    const FDCtrlCommand *cmd;
     uint32_t pos;
 
     /* Reset mode */
@@ -2060,15 +2072,22 @@ static void fdctrl_write_data(FDCtrl *fdctrl, uint32_t value)
     }
     fdctrl->dsr &= ~FD_DSR_PWRDOWN;
 
+    FLOPPY_DPRINTF("%s: %02x\n", __func__, value);
+
+    /* If data_len spans multiple sectors, the current position in the FIFO
+     * wraps around while fdctrl->data_pos is the real position in the whole
+     * request. */
+    pos = fdctrl->data_pos++;
+    pos %= FD_SECTOR_LEN;
+    fdctrl->fifo[pos] = value;
+
     switch (fdctrl->phase) {
     case FD_PHASE_EXECUTION:
         /* For DMA requests, RQM should be cleared during execution phase, so
          * we would have errored out above. */
         assert(fdctrl->msr & FD_MSR_NONDMA);
+
         /* FIFO data write */
-        pos = fdctrl->data_pos++;
-        pos %= FD_SECTOR_LEN;
-        fdctrl->fifo[pos] = value;
         if (pos == FD_SECTOR_LEN - 1 ||
             fdctrl->data_pos == fdctrl->data_len) {
             cur_drv = get_cur_drv(fdctrl);
@@ -2084,41 +2103,37 @@ static void fdctrl_write_data(FDCtrl *fdctrl, uint32_t value)
                 break;
             }
         }
-        /* Switch from transfer mode to status mode
-         * then from status mode to command mode
-         */
-        if (fdctrl->data_pos == fdctrl->data_len)
+
+        /* Switch to result phase when done with the transfer */
+        if (fdctrl->data_pos == fdctrl->data_len) {
             fdctrl_stop_transfer(fdctrl, 0x00, 0x00, 0x00);
+        }
         break;
 
     case FD_PHASE_COMMAND:
         assert(!(fdctrl->msr & FD_MSR_NONDMA));
+        assert(fdctrl->data_pos < FD_SECTOR_LEN);
 
-        if (fdctrl->data_pos == 0) {
-            /* Command */
-            pos = command_to_handler[value & 0xff];
-            FLOPPY_DPRINTF("%s command\n", handlers[pos].name);
-            fdctrl->data_len = handlers[pos].parameters + 1;
+        if (pos == 0) {
+            /* The first byte specifies the command. Now we start reading
+             * as many parameters as this command requires. */
+            cmd = get_command(value);
+            fdctrl->data_len = cmd->parameters + 1;
             fdctrl->msr |= FD_MSR_CMDBUSY;
         }
 
-        FLOPPY_DPRINTF("%s: %02x\n", __func__, value);
-        pos = fdctrl->data_pos++;
-        pos %= FD_SECTOR_LEN;
-        fdctrl->fifo[pos] = value;
         if (fdctrl->data_pos == fdctrl->data_len) {
-            /* We now have all parameters
-             * and will be able to treat the command
-             */
+            /* We have all parameters now, execute the command */
             fdctrl->phase = FD_PHASE_EXECUTION;
+
             if (fdctrl->data_state & FD_STATE_FORMAT) {
                 fdctrl_format_sector(fdctrl);
                 break;
             }
 
-            pos = command_to_handler[fdctrl->fifo[0] & 0xff];
-            FLOPPY_DPRINTF("treat %s command\n", handlers[pos].name);
-            (*handlers[pos].handler)(fdctrl, handlers[pos].direction);
+            cmd = get_command(fdctrl->fifo[0]);
+            FLOPPY_DPRINTF("Calling handler for '%s'\n", cmd->name);
+            cmd->handler(fdctrl, cmd->direction);
         }
         break;
 
