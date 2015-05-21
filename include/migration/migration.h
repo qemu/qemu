@@ -42,6 +42,15 @@ struct MigrationParams {
 
 typedef struct MigrationState MigrationState;
 
+/* State for the incoming migration */
+struct MigrationIncomingState {
+    QEMUFile *file;
+};
+
+MigrationIncomingState *migration_incoming_get_current(void);
+MigrationIncomingState *migration_incoming_state_new(QEMUFile *f);
+void migration_incoming_state_destroy(void);
+
 struct MigrationState
 {
     int64_t bandwidth_limit;

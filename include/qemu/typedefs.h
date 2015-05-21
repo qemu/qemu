@@ -38,6 +38,7 @@ typedef struct MemoryListener MemoryListener;
 typedef struct MemoryMappingList MemoryMappingList;
 typedef struct MemoryRegion MemoryRegion;
 typedef struct MemoryRegionSection MemoryRegionSection;
+typedef struct MigrationIncomingState MigrationIncomingState;
 typedef struct MigrationParams MigrationParams;
 typedef struct Monitor Monitor;
 typedef struct MouseTransformInfo MouseTransformInfo;

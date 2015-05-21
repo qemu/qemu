@@ -1329,9 +1329,11 @@ int load_vmstate(const char *name)
     }
 
     qemu_system_reset(VMRESET_SILENT);
+    migration_incoming_state_new(f);
     ret = qemu_loadvm_state(f);
 
     qemu_fclose(f);
+    migration_incoming_state_destroy();
     if (ret < 0) {
         error_report("Error %d while loading VM state", ret);
         return ret;
