@@ -3482,7 +3482,14 @@ void vnc_display_open(const char *id, Error **errp)
 
     h = strrchr(vnc, ':');
     if (h) {
-        char *host = g_strndup(vnc, h - vnc);
+        char *host;
+        size_t hlen = h - vnc;
+
+        if (vnc[0] == '[' && vnc[hlen - 1] == ']') {
+            host = g_strndup(vnc + 1, hlen - 2);
+        } else {
+            host = g_strndup(vnc, hlen);
+        }
         qemu_opt_set(sopts, "host", host, &error_abort);
         qemu_opt_set(wsopts, "host", host, &error_abort);
         qemu_opt_set(sopts, "port", h+1, &error_abort);
@@ -3602,10 +3609,6 @@ void vnc_display_open(const char *id, Error **errp)
             aclname = g_strdup_printf("vnc.%s.x509dname", vs->id);
         }
         vs->tls.acl = qemu_acl_init(aclname);
-        if (!vs->tls.acl) {
-            fprintf(stderr, "Failed to create x509 dname ACL\n");
-            exit(1);
-        }
         g_free(aclname);
     }
 #endif
@@ -3619,10 +3622,6 @@ void vnc_display_open(const char *id, Error **errp)
             aclname = g_strdup_printf("vnc.%s.username", vs->id);
         }
         vs->sasl.acl = qemu_acl_init(aclname);
-        if (!vs->sasl.acl) {
-            fprintf(stderr, "Failed to create username ACL\n");
-            exit(1);
-        }
         g_free(aclname);
     }
 #endif
@@ -3685,6 +3684,9 @@ void vnc_display_open(const char *id, Error **errp)
         /* listen for connects */
         if (strncmp(vnc, "unix:", 5) == 0) {
             vs->lsock = unix_listen(vnc+5, NULL, 0, errp);
+            if (vs->lsock < 0) {
+                goto fail;
+            }
             vs->is_unix = true;
         } else {
             vs->lsock = inet_listen_opts(sopts, 5900, errp);
@@ -3777,8 +3779,7 @@ int vnc_init_func(QemuOpts *opts, void *opaque)
     vnc_display_init(id);
     vnc_display_open(id, &local_err);
     if (local_err != NULL) {
-        error_report("Failed to start VNC server on `%s': %s",
-                     qemu_opt_get(opts, "display"),
+        error_report("Failed to start VNC server: %s",
                      error_get_pretty(local_err));
         error_free(local_err);
         exit(1);
