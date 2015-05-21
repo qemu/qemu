@@ -1223,7 +1223,9 @@ static void fdctrl_to_command_phase(FDCtrl *fdctrl)
     fdctrl->phase = FD_PHASE_COMMAND;
     fdctrl->data_dir = FD_DIR_WRITE;
     fdctrl->data_pos = 0;
+    fdctrl->data_len = 1; /* Accept command byte, adjust for params later */
     fdctrl->msr &= ~(FD_MSR_CMDBUSY | FD_MSR_DIO);
+    fdctrl->msr |= FD_MSR_RQM;
 }
 
 /* Update the state to allow the guest to read out the command status.
@@ -1438,7 +1440,7 @@ static void fdctrl_start_transfer(FDCtrl *fdctrl, int direction)
         }
     }
     FLOPPY_DPRINTF("start non-DMA transfer\n");
-    fdctrl->msr |= FD_MSR_NONDMA;
+    fdctrl->msr |= FD_MSR_NONDMA | FD_MSR_RQM;
     if (direction != FD_DIR_WRITE)
         fdctrl->msr |= FD_MSR_DIO;
     /* IO based transfer: calculate len */
@@ -1618,6 +1620,7 @@ static uint32_t fdctrl_read_data(FDCtrl *fdctrl)
         }
 
         if (++fdctrl->data_pos == fdctrl->data_len) {
+            fdctrl->msr &= ~FD_MSR_RQM;
             fdctrl_stop_transfer(fdctrl, 0x00, 0x00, 0x00);
         }
         break;
@@ -1625,6 +1628,7 @@ static uint32_t fdctrl_read_data(FDCtrl *fdctrl)
     case FD_PHASE_RESULT:
         assert(!(fdctrl->msr & FD_MSR_NONDMA));
         if (++fdctrl->data_pos == fdctrl->data_len) {
+            fdctrl->msr &= ~FD_MSR_RQM;
             fdctrl_to_command_phase(fdctrl);
             fdctrl_reset_irq(fdctrl);
         }
@@ -2094,6 +2098,10 @@ static void fdctrl_write_data(FDCtrl *fdctrl, uint32_t value)
     pos %= FD_SECTOR_LEN;
     fdctrl->fifo[pos] = value;
 
+    if (fdctrl->data_pos == fdctrl->data_len) {
+        fdctrl->msr &= ~FD_MSR_RQM;
+    }
+
     switch (fdctrl->phase) {
     case FD_PHASE_EXECUTION:
         /* For DMA requests, RQM should be cleared during execution phase, so
@@ -2132,6 +2140,9 @@ static void fdctrl_write_data(FDCtrl *fdctrl, uint32_t value)
              * as many parameters as this command requires. */
             cmd = get_command(value);
             fdctrl->data_len = cmd->parameters + 1;
+            if (cmd->parameters) {
+                fdctrl->msr |= FD_MSR_RQM;
+            }
             fdctrl->msr |= FD_MSR_CMDBUSY;
         }
 
