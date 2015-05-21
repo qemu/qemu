@@ -973,8 +973,7 @@ int qemu_loadvm_state(QEMUFile *f)
     while ((section_type = qemu_get_byte(f)) != QEMU_VM_EOF) {
         uint32_t instance_id, version_id, section_id;
         SaveStateEntry *se;
-        char idstr[257];
-        int len;
+        char idstr[256];
 
         trace_qemu_loadvm_state_section(section_type);
         switch (section_type) {
@@ -982,9 +981,11 @@ int qemu_loadvm_state(QEMUFile *f)
         case QEMU_VM_SECTION_FULL:
             /* Read section start */
             section_id = qemu_get_be32(f);
-            len = qemu_get_byte(f);
-            qemu_get_buffer(f, (uint8_t *)idstr, len);
-            idstr[len] = 0;
+            if (!qemu_get_counted_string(f, idstr)) {
+                error_report("Unable to read ID string for section %u",
+                            section_id);
+                return -EINVAL;
+            }
             instance_id = qemu_get_be32(f);
             version_id = qemu_get_be32(f);
 
