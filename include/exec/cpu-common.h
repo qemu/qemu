@@ -126,10 +126,10 @@ void cpu_flush_icache_range(hwaddr start, int len);
 extern struct MemoryRegion io_mem_rom;
 extern struct MemoryRegion io_mem_notdirty;
 
-typedef void (RAMBlockIterFunc)(void *host_addr,
+typedef int (RAMBlockIterFunc)(const char *block_name, void *host_addr,
     ram_addr_t offset, ram_addr_t length, void *opaque);
 
-void qemu_ram_foreach_block(RAMBlockIterFunc func, void *opaque);
+int qemu_ram_foreach_block(RAMBlockIterFunc func, void *opaque);
 
 #endif
 
