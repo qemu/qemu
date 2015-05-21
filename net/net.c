@@ -167,19 +167,68 @@ void qemu_format_nic_info_str(NetClientState *nc, uint8_t macaddr[6])
              macaddr[3], macaddr[4], macaddr[5]);
 }
 
+static int mac_table[256] = {0};
+
+static void qemu_macaddr_set_used(MACAddr *macaddr)
+{
+    int index;
+
+    for (index = 0x56; index < 0xFF; index++) {
+        if (macaddr->a[5] == index) {
+            mac_table[index]++;
+        }
+    }
+}
+
+static void qemu_macaddr_set_free(MACAddr *macaddr)
+{
+    int index;
+    static const MACAddr base = { .a = { 0x52, 0x54, 0x00, 0x12, 0x34, 0 } };
+
+    if (memcmp(macaddr->a, &base.a, (sizeof(base.a) - 1)) != 0) {
+        return;
+    }
+    for (index = 0x56; index < 0xFF; index++) {
+        if (macaddr->a[5] == index) {
+            mac_table[index]--;
+        }
+    }
+}
+
+static int qemu_macaddr_get_free(void)
+{
+    int index;
+
+    for (index = 0x56; index < 0xFF; index++) {
+        if (mac_table[index] == 0) {
+            return index;
+        }
+    }
+
+    return -1;
+}
+
 void qemu_macaddr_default_if_unset(MACAddr *macaddr)
 {
-    static int index = 0;
     static const MACAddr zero = { .a = { 0,0,0,0,0,0 } };
+    static const MACAddr base = { .a = { 0x52, 0x54, 0x00, 0x12, 0x34, 0 } };
 
-    if (memcmp(macaddr, &zero, sizeof(zero)) != 0)
-        return;
+    if (memcmp(macaddr, &zero, sizeof(zero)) != 0) {
+        if (memcmp(macaddr->a, &base.a, (sizeof(base.a) - 1)) != 0) {
+            return;
+        } else {
+            qemu_macaddr_set_used(macaddr);
+            return;
+        }
+    }
+
     macaddr->a[0] = 0x52;
     macaddr->a[1] = 0x54;
     macaddr->a[2] = 0x00;
     macaddr->a[3] = 0x12;
     macaddr->a[4] = 0x34;
-    macaddr->a[5] = 0x56 + index++;
+    macaddr->a[5] = qemu_macaddr_get_free();
+    qemu_macaddr_set_used(macaddr);
 }
 
 /**
@@ -373,6 +422,8 @@ void qemu_del_net_client(NetClientState *nc)
 void qemu_del_nic(NICState *nic)
 {
     int i, queues = MAX(nic->conf->peers.queues, 1);
+
+    qemu_macaddr_set_free(&nic->conf->macaddr);
 
     /* If this is a peer NIC and peer has already been deleted, free it now. */
     if (nic->peer_deleted) {
