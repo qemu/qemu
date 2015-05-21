@@ -173,17 +173,22 @@ static void phys_map_node_reserve(PhysPageMap *map, unsigned nodes)
     }
 }
 
-static uint32_t phys_map_node_alloc(PhysPageMap *map)
+static uint32_t phys_map_node_alloc(PhysPageMap *map, bool leaf)
 {
     unsigned i;
     uint32_t ret;
+    PhysPageEntry e;
+    PhysPageEntry *p;
 
     ret = map->nodes_nb++;
+    p = map->nodes[ret];
     assert(ret != PHYS_MAP_NODE_NIL);
     assert(ret != map->nodes_nb_alloc);
+
+    e.skip = leaf ? 0 : 1;
+    e.ptr = leaf ? PHYS_SECTION_UNASSIGNED : PHYS_MAP_NODE_NIL;
     for (i = 0; i < P_L2_SIZE; ++i) {
-        map->nodes[ret][i].skip = 1;
-        map->nodes[ret][i].ptr = PHYS_MAP_NODE_NIL;
+        memcpy(&p[i], &e, sizeof(e));
     }
     return ret;
 }
@@ -193,21 +198,12 @@ static void phys_page_set_level(PhysPageMap *map, PhysPageEntry *lp,
                                 int level)
 {
     PhysPageEntry *p;
-    int i;
     hwaddr step = (hwaddr)1 << (level * P_L2_BITS);
 
     if (lp->skip && lp->ptr == PHYS_MAP_NODE_NIL) {
-        lp->ptr = phys_map_node_alloc(map);
-        p = map->nodes[lp->ptr];
-        if (level == 0) {
-            for (i = 0; i < P_L2_SIZE; i++) {
-                p[i].skip = 0;
-                p[i].ptr = PHYS_SECTION_UNASSIGNED;
-            }
-        }
-    } else {
-        p = map->nodes[lp->ptr];
+        lp->ptr = phys_map_node_alloc(map, level == 0);
     }
+    p = map->nodes[lp->ptr];
     lp = &p[(*index >> (level * P_L2_BITS)) & (P_L2_SIZE - 1)];
 
     while (*nb && lp < &p[P_L2_SIZE]) {
