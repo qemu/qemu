@@ -1591,9 +1591,16 @@ static uint32_t fdctrl_read_data(FDCtrl *fdctrl)
         FLOPPY_DPRINTF("error: controller not ready for reading\n");
         return 0;
     }
+
+    /* If data_len spans multiple sectors, the current position in the FIFO
+     * wraps around while fdctrl->data_pos is the real position in the whole
+     * request. */
     pos = fdctrl->data_pos;
     pos %= FD_SECTOR_LEN;
-    if (fdctrl->msr & FD_MSR_NONDMA) {
+
+    switch (fdctrl->phase) {
+    case FD_PHASE_EXECUTION:
+        assert(fdctrl->msr & FD_MSR_NONDMA);
         if (pos == 0) {
             if (fdctrl->data_pos != 0)
                 if (!fdctrl_seek_to_next_sect(fdctrl, cur_drv)) {
@@ -1609,20 +1616,26 @@ static uint32_t fdctrl_read_data(FDCtrl *fdctrl)
                 memset(fdctrl->fifo, 0, FD_SECTOR_LEN);
             }
         }
-    }
-    retval = fdctrl->fifo[pos];
-    if (++fdctrl->data_pos == fdctrl->data_len) {
-        fdctrl->data_pos = 0;
-        /* Switch from transfer mode to status mode
-         * then from status mode to command mode
-         */
-        if (fdctrl->msr & FD_MSR_NONDMA) {
+
+        if (++fdctrl->data_pos == fdctrl->data_len) {
             fdctrl_stop_transfer(fdctrl, 0x00, 0x00, 0x00);
-        } else {
+        }
+        break;
+
+    case FD_PHASE_RESULT:
+        assert(!(fdctrl->msr & FD_MSR_NONDMA));
+        if (++fdctrl->data_pos == fdctrl->data_len) {
             fdctrl_to_command_phase(fdctrl);
             fdctrl_reset_irq(fdctrl);
         }
+        break;
+
+    case FD_PHASE_COMMAND:
+    default:
+        abort();
     }
+
+    retval = fdctrl->fifo[pos];
     FLOPPY_DPRINTF("data register: 0x%02x\n", retval);
 
     return retval;
