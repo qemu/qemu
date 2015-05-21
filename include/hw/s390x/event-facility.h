@@ -191,8 +191,7 @@ typedef struct SCLPEventClass {
 typedef struct SCLPEventFacility SCLPEventFacility;
 
 typedef struct SCLPEventFacilityClass {
-    DeviceClass parent_class;
-    int (*init)(SCLPEventFacility *ef);
+    SysBusDeviceClass parent_class;
     void (*command_handler)(SCLPEventFacility *ef, SCCB *sccb, uint64_t code);
     bool (*event_pending)(SCLPEventFacility *ef);
 } SCLPEventFacilityClass;
