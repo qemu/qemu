@@ -324,7 +324,7 @@ static void fd_revalidate(FDrive *drv)
 /* Intel 82078 floppy disk controller emulation          */
 
 static void fdctrl_reset(FDCtrl *fdctrl, int do_irq);
-static void fdctrl_reset_fifo(FDCtrl *fdctrl);
+static void fdctrl_to_command_phase(FDCtrl *fdctrl);
 static int fdctrl_transfer_handler (void *opaque, int nchan,
                                     int dma_pos, int dma_len);
 static void fdctrl_raise_irq(FDCtrl *fdctrl);
@@ -918,7 +918,7 @@ static void fdctrl_reset(FDCtrl *fdctrl, int do_irq)
     fdctrl->data_dir = FD_DIR_WRITE;
     for (i = 0; i < MAX_FD; i++)
         fd_recalibrate(&fdctrl->drives[i]);
-    fdctrl_reset_fifo(fdctrl);
+    fdctrl_to_command_phase(fdctrl);
     if (do_irq) {
         fdctrl->status0 |= FD_SR0_RDYCHG;
         fdctrl_raise_irq(fdctrl);
@@ -1134,8 +1134,8 @@ static uint32_t fdctrl_read_dir(FDCtrl *fdctrl)
     return retval;
 }
 
-/* FIFO state control */
-static void fdctrl_reset_fifo(FDCtrl *fdctrl)
+/* Clear the FIFO and update the state for receiving the next command */
+static void fdctrl_to_command_phase(FDCtrl *fdctrl)
 {
     fdctrl->data_dir = FD_DIR_WRITE;
     fdctrl->data_pos = 0;
@@ -1533,7 +1533,7 @@ static uint32_t fdctrl_read_data(FDCtrl *fdctrl)
         if (fdctrl->msr & FD_MSR_NONDMA) {
             fdctrl_stop_transfer(fdctrl, 0x00, 0x00, 0x00);
         } else {
-            fdctrl_reset_fifo(fdctrl);
+            fdctrl_to_command_phase(fdctrl);
             fdctrl_reset_irq(fdctrl);
         }
     }
@@ -1667,7 +1667,7 @@ static void fdctrl_handle_restore(FDCtrl *fdctrl, int direction)
     fdctrl->config = fdctrl->fifo[11];
     fdctrl->precomp_trk = fdctrl->fifo[12];
     fdctrl->pwrd = fdctrl->fifo[13];
-    fdctrl_reset_fifo(fdctrl);
+    fdctrl_to_command_phase(fdctrl);
 }
 
 static void fdctrl_handle_save(FDCtrl *fdctrl, int direction)
@@ -1746,7 +1746,7 @@ static void fdctrl_handle_specify(FDCtrl *fdctrl, int direction)
     else
         fdctrl->dor |= FD_DOR_DMAEN;
     /* No result back */
-    fdctrl_reset_fifo(fdctrl);
+    fdctrl_to_command_phase(fdctrl);
 }
 
 static void fdctrl_handle_sense_drive_status(FDCtrl *fdctrl, int direction)
@@ -1772,7 +1772,7 @@ static void fdctrl_handle_recalibrate(FDCtrl *fdctrl, int direction)
     SET_CUR_DRV(fdctrl, fdctrl->fifo[1] & FD_DOR_SELMASK);
     cur_drv = get_cur_drv(fdctrl);
     fd_recalibrate(cur_drv);
-    fdctrl_reset_fifo(fdctrl);
+    fdctrl_to_command_phase(fdctrl);
     /* Raise Interrupt */
     fdctrl->status0 |= FD_SR0_SEEK;
     fdctrl_raise_irq(fdctrl);
@@ -1808,7 +1808,7 @@ static void fdctrl_handle_seek(FDCtrl *fdctrl, int direction)
 
     SET_CUR_DRV(fdctrl, fdctrl->fifo[1] & FD_DOR_SELMASK);
     cur_drv = get_cur_drv(fdctrl);
-    fdctrl_reset_fifo(fdctrl);
+    fdctrl_to_command_phase(fdctrl);
     /* The seek command just sends step pulses to the drive and doesn't care if
      * there is a medium inserted of if it's banging the head against the drive.
      */
@@ -1825,7 +1825,7 @@ static void fdctrl_handle_perpendicular_mode(FDCtrl *fdctrl, int direction)
     if (fdctrl->fifo[1] & 0x80)
         cur_drv->perpendicular = fdctrl->fifo[1] & 0x7;
     /* No result back */
-    fdctrl_reset_fifo(fdctrl);
+    fdctrl_to_command_phase(fdctrl);
 }
 
 static void fdctrl_handle_configure(FDCtrl *fdctrl, int direction)
@@ -1833,7 +1833,7 @@ static void fdctrl_handle_configure(FDCtrl *fdctrl, int direction)
     fdctrl->config = fdctrl->fifo[2];
     fdctrl->precomp_trk =  fdctrl->fifo[3];
     /* No result back */
-    fdctrl_reset_fifo(fdctrl);
+    fdctrl_to_command_phase(fdctrl);
 }
 
 static void fdctrl_handle_powerdown_mode(FDCtrl *fdctrl, int direction)
@@ -1846,7 +1846,7 @@ static void fdctrl_handle_powerdown_mode(FDCtrl *fdctrl, int direction)
 static void fdctrl_handle_option(FDCtrl *fdctrl, int direction)
 {
     /* No result back */
-    fdctrl_reset_fifo(fdctrl);
+    fdctrl_to_command_phase(fdctrl);
 }
 
 static void fdctrl_handle_drive_specification_command(FDCtrl *fdctrl, int direction)
@@ -1864,7 +1864,7 @@ static void fdctrl_handle_drive_specification_command(FDCtrl *fdctrl, int direct
             fdctrl->fifo[3] = 0;
             fdctrl_set_fifo(fdctrl, 4);
         } else {
-            fdctrl_reset_fifo(fdctrl);
+            fdctrl_to_command_phase(fdctrl);
         }
     } else if (fdctrl->data_len > 7) {
         /* ERROR */
@@ -1887,7 +1887,7 @@ static void fdctrl_handle_relative_seek_in(FDCtrl *fdctrl, int direction)
         fd_seek(cur_drv, cur_drv->head,
                 cur_drv->track + fdctrl->fifo[2], cur_drv->sect, 1);
     }
-    fdctrl_reset_fifo(fdctrl);
+    fdctrl_to_command_phase(fdctrl);
     /* Raise Interrupt */
     fdctrl->status0 |= FD_SR0_SEEK;
     fdctrl_raise_irq(fdctrl);
@@ -1905,7 +1905,7 @@ static void fdctrl_handle_relative_seek_out(FDCtrl *fdctrl, int direction)
         fd_seek(cur_drv, cur_drv->head,
                 cur_drv->track - fdctrl->fifo[2], cur_drv->sect, 1);
     }
-    fdctrl_reset_fifo(fdctrl);
+    fdctrl_to_command_phase(fdctrl);
     /* Raise Interrupt */
     fdctrl->status0 |= FD_SR0_SEEK;
     fdctrl_raise_irq(fdctrl);
