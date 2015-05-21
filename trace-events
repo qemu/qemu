@@ -1186,6 +1186,7 @@ qemu_loadvm_state_section_startfull(uint32_t section_id, const char *idstr, uint
 savevm_section_start(const char *id, unsigned int section_id) "%s, section_id %u"
 savevm_section_end(const char *id, unsigned int section_id, int ret) "%s, section_id %u -> %d"
 savevm_state_begin(void) ""
+savevm_state_header(void) ""
 savevm_state_iterate(void) ""
 savevm_state_complete(void) ""
 savevm_state_cancel(void) ""

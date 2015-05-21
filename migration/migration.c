@@ -738,6 +738,7 @@ static void *migration_thread(void *opaque)
     int64_t start_time = initial_time;
     bool old_vm_running = false;
 
+    qemu_savevm_state_header(s->file);
     qemu_savevm_state_begin(s->file, &s->params);
 
     s->setup_time = qemu_clock_get_ms(QEMU_CLOCK_HOST) - setup_start;
