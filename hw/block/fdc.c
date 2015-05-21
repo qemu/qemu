@@ -1142,8 +1142,9 @@ static void fdctrl_to_command_phase(FDCtrl *fdctrl)
     fdctrl->msr &= ~(FD_MSR_CMDBUSY | FD_MSR_DIO);
 }
 
-/* Set FIFO status for the host to read */
-static void fdctrl_set_fifo(FDCtrl *fdctrl, int fifo_len)
+/* Update the state to allow the guest to read out the command status.
+ * @fifo_len is the number of result bytes to be read out. */
+static void fdctrl_to_result_phase(FDCtrl *fdctrl, int fifo_len)
 {
     fdctrl->data_dir = FD_DIR_READ;
     fdctrl->data_len = fifo_len;
@@ -1157,7 +1158,7 @@ static void fdctrl_unimplemented(FDCtrl *fdctrl, int direction)
     qemu_log_mask(LOG_UNIMP, "fdc: unimplemented command 0x%02x\n",
                   fdctrl->fifo[0]);
     fdctrl->fifo[0] = FD_SR0_INVCMD;
-    fdctrl_set_fifo(fdctrl, 1);
+    fdctrl_to_result_phase(fdctrl, 1);
 }
 
 /* Seek to next sector
@@ -1238,7 +1239,7 @@ static void fdctrl_stop_transfer(FDCtrl *fdctrl, uint8_t status0,
     fdctrl->msr |= FD_MSR_RQM | FD_MSR_DIO;
     fdctrl->msr &= ~FD_MSR_NONDMA;
 
-    fdctrl_set_fifo(fdctrl, 7);
+    fdctrl_to_result_phase(fdctrl, 7);
     fdctrl_raise_irq(fdctrl);
 }
 
@@ -1606,7 +1607,7 @@ static void fdctrl_handle_lock(FDCtrl *fdctrl, int direction)
 {
     fdctrl->lock = (fdctrl->fifo[0] & 0x80) ? 1 : 0;
     fdctrl->fifo[0] = fdctrl->lock << 4;
-    fdctrl_set_fifo(fdctrl, 1);
+    fdctrl_to_result_phase(fdctrl, 1);
 }
 
 static void fdctrl_handle_dumpreg(FDCtrl *fdctrl, int direction)
@@ -1631,20 +1632,20 @@ static void fdctrl_handle_dumpreg(FDCtrl *fdctrl, int direction)
         (cur_drv->perpendicular << 2);
     fdctrl->fifo[8] = fdctrl->config;
     fdctrl->fifo[9] = fdctrl->precomp_trk;
-    fdctrl_set_fifo(fdctrl, 10);
+    fdctrl_to_result_phase(fdctrl, 10);
 }
 
 static void fdctrl_handle_version(FDCtrl *fdctrl, int direction)
 {
     /* Controller's version */
     fdctrl->fifo[0] = fdctrl->version;
-    fdctrl_set_fifo(fdctrl, 1);
+    fdctrl_to_result_phase(fdctrl, 1);
 }
 
 static void fdctrl_handle_partid(FDCtrl *fdctrl, int direction)
 {
     fdctrl->fifo[0] = 0x41; /* Stepping 1 */
-    fdctrl_set_fifo(fdctrl, 1);
+    fdctrl_to_result_phase(fdctrl, 1);
 }
 
 static void fdctrl_handle_restore(FDCtrl *fdctrl, int direction)
@@ -1697,7 +1698,7 @@ static void fdctrl_handle_save(FDCtrl *fdctrl, int direction)
     fdctrl->fifo[12] = fdctrl->pwrd;
     fdctrl->fifo[13] = 0;
     fdctrl->fifo[14] = 0;
-    fdctrl_set_fifo(fdctrl, 15);
+    fdctrl_to_result_phase(fdctrl, 15);
 }
 
 static void fdctrl_handle_readid(FDCtrl *fdctrl, int direction)
@@ -1762,7 +1763,7 @@ static void fdctrl_handle_sense_drive_status(FDCtrl *fdctrl, int direction)
         (cur_drv->head << 2) |
         GET_CUR_DRV(fdctrl) |
         0x28;
-    fdctrl_set_fifo(fdctrl, 1);
+    fdctrl_to_result_phase(fdctrl, 1);
 }
 
 static void fdctrl_handle_recalibrate(FDCtrl *fdctrl, int direction)
@@ -1788,7 +1789,7 @@ static void fdctrl_handle_sense_interrupt_status(FDCtrl *fdctrl, int direction)
         fdctrl->reset_sensei--;
     } else if (!(fdctrl->sra & FD_SRA_INTPEND)) {
         fdctrl->fifo[0] = FD_SR0_INVCMD;
-        fdctrl_set_fifo(fdctrl, 1);
+        fdctrl_to_result_phase(fdctrl, 1);
         return;
     } else {
         fdctrl->fifo[0] =
@@ -1797,7 +1798,7 @@ static void fdctrl_handle_sense_interrupt_status(FDCtrl *fdctrl, int direction)
     }
 
     fdctrl->fifo[1] = cur_drv->track;
-    fdctrl_set_fifo(fdctrl, 2);
+    fdctrl_to_result_phase(fdctrl, 2);
     fdctrl_reset_irq(fdctrl);
     fdctrl->status0 = FD_SR0_RDYCHG;
 }
@@ -1840,7 +1841,7 @@ static void fdctrl_handle_powerdown_mode(FDCtrl *fdctrl, int direction)
 {
     fdctrl->pwrd = fdctrl->fifo[1];
     fdctrl->fifo[0] = fdctrl->fifo[1];
-    fdctrl_set_fifo(fdctrl, 1);
+    fdctrl_to_result_phase(fdctrl, 1);
 }
 
 static void fdctrl_handle_option(FDCtrl *fdctrl, int direction)
@@ -1862,7 +1863,7 @@ static void fdctrl_handle_drive_specification_command(FDCtrl *fdctrl, int direct
             fdctrl->fifo[0] = fdctrl->fifo[1];
             fdctrl->fifo[2] = 0;
             fdctrl->fifo[3] = 0;
-            fdctrl_set_fifo(fdctrl, 4);
+            fdctrl_to_result_phase(fdctrl, 4);
         } else {
             fdctrl_to_command_phase(fdctrl);
         }
@@ -1870,7 +1871,7 @@ static void fdctrl_handle_drive_specification_command(FDCtrl *fdctrl, int direct
         /* ERROR */
         fdctrl->fifo[0] = 0x80 |
             (cur_drv->head << 2) | GET_CUR_DRV(fdctrl);
-        fdctrl_set_fifo(fdctrl, 1);
+        fdctrl_to_result_phase(fdctrl, 1);
     }
 }
 
