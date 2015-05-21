@@ -495,6 +495,33 @@ enum {
     FD_DIR_DSKCHG   = 0x80,
 };
 
+/*
+ * See chapter 5.0 "Controller phases" of the spec:
+ *
+ * Command phase:
+ * The host writes a command and its parameters into the FIFO. The command
+ * phase is completed when all parameters for the command have been supplied,
+ * and execution phase is entered.
+ *
+ * Execution phase:
+ * Data transfers, either DMA or non-DMA. For non-DMA transfers, the FIFO
+ * contains the payload now, otherwise it's unused. When all bytes of the
+ * required data have been transferred, the state is switched to either result
+ * phase (if the command produces status bytes) or directly back into the
+ * command phase for the next command.
+ *
+ * Result phase:
+ * The host reads out the FIFO, which contains one or more result bytes now.
+ */
+enum {
+    /* Only for migration: reconstruct phase from registers like qemu 2.3 */
+    FD_PHASE_RECONSTRUCT    = 0,
+
+    FD_PHASE_COMMAND        = 1,
+    FD_PHASE_EXECUTION      = 2,
+    FD_PHASE_RESULT         = 3,
+};
+
 #define FD_MULTI_TRACK(state) ((state) & FD_STATE_MULTI)
 #define FD_FORMAT_CMD(state) ((state) & FD_STATE_FORMAT)
 
@@ -504,6 +531,7 @@ struct FDCtrl {
     /* Controller state */
     QEMUTimer *result_timer;
     int dma_chann;
+    uint8_t phase;
     /* Controller's identification */
     uint8_t version;
     /* HW */
@@ -744,11 +772,40 @@ static const VMStateDescription vmstate_fdrive = {
     }
 };
 
+/*
+ * Reconstructs the phase from register values according to the logic that was
+ * implemented in qemu 2.3. This is the default value that is used if the phase
+ * subsection is not present on migration.
+ *
+ * Don't change this function to reflect newer qemu versions, it is part of
+ * the migration ABI.
+ */
+static int reconstruct_phase(FDCtrl *fdctrl)
+{
+    if (fdctrl->msr & FD_MSR_NONDMA) {
+        return FD_PHASE_EXECUTION;
+    } else if ((fdctrl->msr & FD_MSR_RQM) == 0) {
+        /* qemu 2.3 disabled RQM only during DMA transfers */
+        return FD_PHASE_EXECUTION;
+    } else if (fdctrl->msr & FD_MSR_DIO) {
+        return FD_PHASE_RESULT;
+    } else {
+        return FD_PHASE_COMMAND;
+    }
+}
+
 static void fdc_pre_save(void *opaque)
 {
     FDCtrl *s = opaque;
 
     s->dor_vmstate = s->dor | GET_CUR_DRV(s);
+}
+
+static int fdc_pre_load(void *opaque)
+{
+    FDCtrl *s = opaque;
+    s->phase = FD_PHASE_RECONSTRUCT;
+    return 0;
 }
 
 static int fdc_post_load(void *opaque, int version_id)
@@ -757,6 +814,11 @@ static int fdc_post_load(void *opaque, int version_id)
 
     SET_CUR_DRV(s, s->dor_vmstate & FD_DOR_SELMASK);
     s->dor = s->dor_vmstate & ~FD_DOR_SELMASK;
+
+    if (s->phase == FD_PHASE_RECONSTRUCT) {
+        s->phase = reconstruct_phase(s);
+    }
+
     return 0;
 }
 
@@ -794,11 +856,29 @@ static const VMStateDescription vmstate_fdc_result_timer = {
     }
 };
 
+static bool fdc_phase_needed(void *opaque)
+{
+    FDCtrl *fdctrl = opaque;
+
+    return reconstruct_phase(fdctrl) != fdctrl->phase;
+}
+
+static const VMStateDescription vmstate_fdc_phase = {
+    .name = "fdc/phase",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .fields = (VMStateField[]) {
+        VMSTATE_UINT8(phase, FDCtrl),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
 static const VMStateDescription vmstate_fdc = {
     .name = "fdc",
     .version_id = 2,
     .minimum_version_id = 2,
     .pre_save = fdc_pre_save,
+    .pre_load = fdc_pre_load,
     .post_load = fdc_post_load,
     .fields = (VMStateField[]) {
         /* Controller State */
@@ -838,6 +918,9 @@ static const VMStateDescription vmstate_fdc = {
         } , {
             .vmsd = &vmstate_fdc_result_timer,
             .needed = fdc_result_timer_needed,
+        } , {
+            .vmsd = &vmstate_fdc_phase,
+            .needed = fdc_phase_needed,
         } , {
             /* empty */
         }
@@ -1137,6 +1220,7 @@ static uint32_t fdctrl_read_dir(FDCtrl *fdctrl)
 /* Clear the FIFO and update the state for receiving the next command */
 static void fdctrl_to_command_phase(FDCtrl *fdctrl)
 {
+    fdctrl->phase = FD_PHASE_COMMAND;
     fdctrl->data_dir = FD_DIR_WRITE;
     fdctrl->data_pos = 0;
     fdctrl->msr &= ~(FD_MSR_CMDBUSY | FD_MSR_DIO);
@@ -1146,6 +1230,7 @@ static void fdctrl_to_command_phase(FDCtrl *fdctrl)
  * @fifo_len is the number of result bytes to be read out. */
 static void fdctrl_to_result_phase(FDCtrl *fdctrl, int fifo_len)
 {
+    fdctrl->phase = FD_PHASE_RESULT;
     fdctrl->data_dir = FD_DIR_READ;
     fdctrl->data_len = fifo_len;
     fdctrl->data_pos = 0;
@@ -1912,6 +1997,9 @@ static void fdctrl_handle_relative_seek_out(FDCtrl *fdctrl, int direction)
     fdctrl_raise_irq(fdctrl);
 }
 
+/*
+ * Handlers for the execution phase of each command
+ */
 static const struct {
     uint8_t value;
     uint8_t mask;
@@ -2015,6 +2103,7 @@ static void fdctrl_write_data(FDCtrl *fdctrl, uint32_t value)
         /* We now have all parameters
          * and will be able to treat the command
          */
+        fdctrl->phase = FD_PHASE_EXECUTION;
         if (fdctrl->data_state & FD_STATE_FORMAT) {
             fdctrl_format_sector(fdctrl);
             return;
