@@ -349,14 +349,14 @@ void qemu_file_skip(QEMUFile *f, int size)
 }
 
 /*
- * Read 'size' bytes from file (at 'offset') into buf without moving the
- * pointer.
+ * Read 'size' bytes from file (at 'offset') without moving the
+ * pointer and set 'buf' to point to that data.
  *
  * It will return size bytes unless there was an error, in which case it will
  * return as many as it managed to read (assuming blocking fd's which
  * all current QEMUFile are)
  */
-int qemu_peek_buffer(QEMUFile *f, uint8_t *buf, int size, size_t offset)
+int qemu_peek_buffer(QEMUFile *f, uint8_t **buf, int size, size_t offset)
 {
     int pending;
     int index;
@@ -392,7 +392,7 @@ int qemu_peek_buffer(QEMUFile *f, uint8_t *buf, int size, size_t offset)
         size = pending;
     }
 
-    memcpy(buf, f->buf + index, size);
+    *buf = f->buf + index;
     return size;
 }
 
@@ -411,11 +411,13 @@ int qemu_get_buffer(QEMUFile *f, uint8_t *buf, int size)
 
     while (pending > 0) {
         int res;
+        uint8_t *src;
 
-        res = qemu_peek_buffer(f, buf, MIN(pending, IO_BUF_SIZE), 0);
+        res = qemu_peek_buffer(f, &src, MIN(pending, IO_BUF_SIZE), 0);
         if (res == 0) {
             return done;
         }
+        memcpy(buf, src, res);
         qemu_file_skip(f, res);
         buf += res;
         pending -= res;
