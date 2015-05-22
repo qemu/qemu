@@ -5276,7 +5276,7 @@ static void decode_bol_opc(CPUTriCoreState *env, DisasContext *ctx, int32_t op1)
         break;
     case OPC1_32_BOL_ST_H_LONGOFF:
         if (tricore_feature(env, TRICORE_FEATURE_16)) {
-            gen_offset_ld(ctx, cpu_gpr_d[r1], cpu_gpr_a[r2], address, MO_LESW);
+            gen_offset_st(ctx, cpu_gpr_d[r1], cpu_gpr_a[r2], address, MO_LESW);
         } else {
             /* raise illegal opcode trap */
         }
