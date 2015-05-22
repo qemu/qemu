@@ -3513,7 +3513,7 @@ void bdrv_reset_dirty_bitmap(BdrvDirtyBitmap *bitmap,
 void bdrv_clear_dirty_bitmap(BdrvDirtyBitmap *bitmap)
 {
     assert(bdrv_dirty_bitmap_enabled(bitmap));
-    hbitmap_reset(bitmap->bitmap, 0, bitmap->size);
+    hbitmap_reset_all(bitmap->bitmap);
 }
 
 void bdrv_set_dirty(BlockDriverState *bs, int64_t cur_sector,
