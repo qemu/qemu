@@ -6,7 +6,7 @@ BUILD_DIR=$(CURDIR)
 # Before including a proper config-host.mak, assume we are in the source tree
 SRC_PATH=.
 
-UNCHECKED_GOALS := %clean TAGS cscope
+UNCHECKED_GOALS := %clean TAGS cscope ctags
 
 # All following code might depend on configuration variables
 ifneq ($(wildcard config-host.mak),)
@@ -453,6 +453,11 @@ endif
 # various test targets
 test speed: all
 	$(MAKE) -C tests/tcg $@
+
+.PHONY: ctags
+ctags:
+	rm -f $@
+	find "$(SRC_PATH)" -name '*.[hc]' -exec ctags --append {} +
 
 .PHONY: TAGS
 TAGS:
