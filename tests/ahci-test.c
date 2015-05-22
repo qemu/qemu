@@ -1071,7 +1071,7 @@ static void test_flush_retry(void)
                                 debug_path,
                                 tmp_path);
 
-    /* Issue Flush Command */
+    /* Issue Flush Command and wait for error */
     port = ahci_port_select(ahci);
     ahci_port_clear(ahci, port);
     cmd = ahci_command_create(CMD_FLUSH_CACHE);
@@ -1152,6 +1152,55 @@ static void test_migrate_dma(void)
     ahci_shutdown(dst);
     g_free(rx);
     g_free(tx);
+}
+
+/**
+ * Migration test: Try to flush, migrate, then resume.
+ */
+static void test_flush_migrate(void)
+{
+    AHCIQState *src, *dst;
+    AHCICommand *cmd;
+    uint8_t px;
+    const char *s;
+    const char *uri = "tcp:127.0.0.1:1234";
+
+    prepare_blkdebug_script(debug_path, "flush_to_disk");
+
+    src = ahci_boot_and_enable("-drive file=blkdebug:%s:%s,if=none,id=drive0,"
+                               "cache=writeback,rerror=stop,werror=stop "
+                               "-M q35 "
+                               "-device ide-hd,drive=drive0 ",
+                               debug_path, tmp_path);
+    dst = ahci_boot("-drive file=%s,if=none,id=drive0,"
+                    "cache=writeback,rerror=stop,werror=stop "
+                    "-M q35 "
+                    "-device ide-hd,drive=drive0 "
+                    "-incoming %s", tmp_path, uri);
+
+    set_context(src->parent);
+
+    /* Issue Flush Command */
+    px = ahci_port_select(src);
+    ahci_port_clear(src, px);
+    cmd = ahci_command_create(CMD_FLUSH_CACHE);
+    ahci_command_commit(src, cmd, px);
+    ahci_command_issue_async(src, cmd);
+    qmp_eventwait("STOP");
+
+    /* Migrate over */
+    ahci_migrate(src, dst, uri);
+
+    /* Complete the command */
+    s = "{'execute':'cont' }";
+    qmp_async(s);
+    qmp_eventwait("RESUME");
+    ahci_command_wait(dst, cmd);
+    ahci_command_verify(dst, cmd);
+
+    ahci_command_free(cmd);
+    ahci_shutdown(src);
+    ahci_shutdown(dst);
 }
 
 /******************************************************************************/
@@ -1402,6 +1451,7 @@ int main(int argc, char **argv)
 
     qtest_add_func("/ahci/flush/simple", test_flush);
     qtest_add_func("/ahci/flush/retry", test_flush_retry);
+    qtest_add_func("/ahci/flush/migrate", test_flush_migrate);
 
     qtest_add_func("/ahci/migrate/sanity", test_migrate_sanity);
     qtest_add_func("/ahci/migrate/dma", test_migrate_dma);
