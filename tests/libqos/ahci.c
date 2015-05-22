@@ -566,6 +566,33 @@ inline unsigned size_to_prdtl(unsigned bytes, unsigned bytes_per_prd)
     return (bytes + bytes_per_prd - 1) / bytes_per_prd;
 }
 
+/* Issue a command, expecting it to fail and STOP the VM */
+AHCICommand *ahci_guest_io_halt(AHCIQState *ahci, uint8_t port,
+                                uint8_t ide_cmd, uint64_t buffer,
+                                size_t bufsize, uint64_t sector)
+{
+    AHCICommand *cmd;
+
+    cmd = ahci_command_create(ide_cmd);
+    ahci_command_adjust(cmd, sector, buffer, bufsize, 0);
+    ahci_command_commit(ahci, cmd, port);
+    ahci_command_issue_async(ahci, cmd);
+    qmp_eventwait("STOP");
+
+    return cmd;
+}
+
+/* Resume a previously failed command and verify/finalize */
+void ahci_guest_io_resume(AHCIQState *ahci, AHCICommand *cmd)
+{
+    /* Complete the command */
+    qmp_async("{'execute':'cont' }");
+    qmp_eventwait("RESUME");
+    ahci_command_wait(ahci, cmd);
+    ahci_command_verify(ahci, cmd);
+    ahci_command_free(cmd);
+}
+
 /* Given a guest buffer address, perform an IO operation */
 void ahci_guest_io(AHCIQState *ahci, uint8_t port, uint8_t ide_cmd,
                    uint64_t buffer, size_t bufsize, uint64_t sector)
