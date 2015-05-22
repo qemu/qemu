@@ -301,6 +301,17 @@ uint64_t qtest_readq(QTestState *s, uint64_t addr);
 void qtest_memread(QTestState *s, uint64_t addr, void *data, size_t size);
 
 /**
+ * qtest_bufread:
+ * @s: #QTestState instance to operate on.
+ * @addr: Guest address to read from.
+ * @data: Pointer to where memory contents will be stored.
+ * @size: Number of bytes to read.
+ *
+ * Read guest memory into a buffer and receive using a base64 encoding.
+ */
+void qtest_bufread(QTestState *s, uint64_t addr, void *data, size_t size);
+
+/**
  * qtest_memwrite:
  * @s: #QTestState instance to operate on.
  * @addr: Guest address to write to.
@@ -310,6 +321,18 @@ void qtest_memread(QTestState *s, uint64_t addr, void *data, size_t size);
  * Write a buffer to guest memory.
  */
 void qtest_memwrite(QTestState *s, uint64_t addr, const void *data, size_t size);
+
+/**
+ * qtest_bufwrite:
+ * @s: #QTestState instance to operate on.
+ * @addr: Guest address to write to.
+ * @data: Pointer to the bytes that will be written to guest memory.
+ * @size: Number of bytes to write.
+ *
+ * Write a buffer to guest memory and transmit using a base64 encoding.
+ */
+void qtest_bufwrite(QTestState *s, uint64_t addr,
+                    const void *data, size_t size);
 
 /**
  * qtest_memset:
@@ -699,6 +722,19 @@ static inline void memread(uint64_t addr, void *data, size_t size)
 }
 
 /**
+ * bufread:
+ * @addr: Guest address to read from.
+ * @data: Pointer to where memory contents will be stored.
+ * @size: Number of bytes to read.
+ *
+ * Read guest memory into a buffer, receive using a base64 encoding.
+ */
+static inline void bufread(uint64_t addr, void *data, size_t size)
+{
+    qtest_bufread(global_qtest, addr, data, size);
+}
+
+/**
  * memwrite:
  * @addr: Guest address to write to.
  * @data: Pointer to the bytes that will be written to guest memory.
@@ -709,6 +745,19 @@ static inline void memread(uint64_t addr, void *data, size_t size)
 static inline void memwrite(uint64_t addr, const void *data, size_t size)
 {
     qtest_memwrite(global_qtest, addr, data, size);
+}
+
+/**
+ * bufwrite:
+ * @addr: Guest address to write to.
+ * @data: Pointer to the bytes that will be written to guest memory.
+ * @size: Number of bytes to write.
+ *
+ * Write a buffer to guest memory, transmit using a base64 encoding.
+ */
+static inline void bufwrite(uint64_t addr, const void *data, size_t size)
+{
+    qtest_bufwrite(global_qtest, addr, data, size);
 }
 
 /**

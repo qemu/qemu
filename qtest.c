@@ -119,11 +119,20 @@ static bool qtest_opened;
  *  > write ADDR SIZE DATA
  *  < OK
  *
+ *  > b64read ADDR SIZE
+ *  < OK B64_DATA
+ *
+ *  > b64write ADDR SIZE B64_DATA
+ *  < OK
+ *
  * ADDR, SIZE, VALUE are all integers parsed with strtoul() with a base of 0.
  *
  * DATA is an arbitrarily long hex number prefixed with '0x'.  If it's smaller
  * than the expected size, the value will be zero filled at the end of the data
  * sequence.
+ *
+ * B64_DATA is an arbitrarily long base64 encoded string.
+ * If the sizes do not match, the data will be truncated.
  *
  * IRQ management:
  *
@@ -180,6 +189,21 @@ static void qtest_send_prefix(CharDriverState *chr)
     qtest_get_time(&tv);
     fprintf(qtest_log_fp, "[S +" FMT_timeval "] ",
             (long) tv.tv_sec, (long) tv.tv_usec);
+}
+
+static void GCC_FMT_ATTR(1, 2) qtest_log_send(const char *fmt, ...)
+{
+    va_list ap;
+
+    if (!qtest_log_fp || !qtest_opened) {
+        return;
+    }
+
+    qtest_send_prefix(NULL);
+
+    va_start(ap, fmt);
+    vfprintf(qtest_log_fp, fmt, ap);
+    va_end(ap);
 }
 
 static void do_qtest_send(CharDriverState *chr, const char *str, size_t len)
@@ -403,6 +427,23 @@ static void qtest_process_command(CharDriverState *chr, gchar **words)
         qtest_send(chr, "\n");
 
         g_free(data);
+    } else if (strcmp(words[0], "b64read") == 0) {
+        uint64_t addr, len;
+        uint8_t *data;
+        gchar *b64_data;
+
+        g_assert(words[1] && words[2]);
+        addr = strtoull(words[1], NULL, 0);
+        len = strtoull(words[2], NULL, 0);
+
+        data = g_malloc(len);
+        cpu_physical_memory_read(addr, data, len);
+        b64_data = g_base64_encode(data, len);
+        qtest_send_prefix(chr);
+        qtest_sendf(chr, "OK %s\n", b64_data);
+
+        g_free(data);
+        g_free(b64_data);
     } else if (strcmp(words[0], "write") == 0) {
         uint64_t addr, len, i;
         uint8_t *data;
@@ -429,6 +470,34 @@ static void qtest_process_command(CharDriverState *chr, gchar **words)
         }
         cpu_physical_memory_write(addr, data, len);
         g_free(data);
+
+        qtest_send_prefix(chr);
+        qtest_send(chr, "OK\n");
+    }  else if (strcmp(words[0], "b64write") == 0) {
+        uint64_t addr, len;
+        uint8_t *data;
+        size_t data_len;
+        gsize out_len;
+
+        g_assert(words[1] && words[2] && words[3]);
+        addr = strtoull(words[1], NULL, 0);
+        len = strtoull(words[2], NULL, 0);
+
+        data_len = strlen(words[3]);
+        if (data_len < 3) {
+            qtest_send(chr, "ERR invalid argument size\n");
+            return;
+        }
+
+        data = g_base64_decode_inplace(words[3], &out_len);
+        if (out_len != len) {
+            qtest_log_send("b64write: data length mismatch (told %"PRIu64", "
+                           "found %zu)\n",
+                           len, out_len);
+            out_len = MIN(out_len, len);
+        }
+
+        cpu_physical_memory_write(addr, data, out_len);
 
         qtest_send_prefix(chr);
         qtest_send(chr, "OK\n");

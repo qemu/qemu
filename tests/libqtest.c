@@ -695,6 +695,37 @@ void qtest_add_data_func(const char *str, const void *data, void (*fn))
     g_free(path);
 }
 
+void qtest_bufwrite(QTestState *s, uint64_t addr, const void *data, size_t size)
+{
+    gchar *bdata;
+
+    bdata = g_base64_encode(data, size);
+    qtest_sendf(s, "b64write 0x%" PRIx64 " 0x%zx ", addr, size);
+    socket_send(s->fd, bdata, strlen(bdata));
+    socket_send(s->fd, "\n", 1);
+    qtest_rsp(s, 0);
+    g_free(bdata);
+}
+
+void qtest_bufread(QTestState *s, uint64_t addr, void *data, size_t size)
+{
+    gchar **args;
+    size_t len;
+
+    qtest_sendf(s, "b64read 0x%" PRIx64 " 0x%zx\n", addr, size);
+    args = qtest_rsp(s, 2);
+
+    g_base64_decode_inplace(args[1], &len);
+    if (size != len) {
+        fprintf(stderr, "bufread: asked for %zu bytes but decoded %zu\n",
+                size, len);
+        len = MIN(len, size);
+    }
+
+    memcpy(data, args[1], len);
+    g_strfreev(args);
+}
+
 void qtest_memwrite(QTestState *s, uint64_t addr, const void *data, size_t size)
 {
     const uint8_t *ptr = data;
