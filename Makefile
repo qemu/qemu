@@ -3,6 +3,11 @@
 # Always point to the root of the build tree (needs GNU make).
 BUILD_DIR=$(CURDIR)
 
+# Before including a proper config-host.mak, assume we are in the source tree
+SRC_PATH=.
+
+UNCHECKED_GOALS := %clean TAGS cscope
+
 # All following code might depend on configuration variables
 ifneq ($(wildcard config-host.mak),)
 # Put the all: rule here so that config-host.mak can contain dependencies.
@@ -38,7 +43,7 @@ config-host.mak: $(SRC_PATH)/configure
 	fi
 else
 config-host.mak:
-ifneq ($(filter-out %clean,$(MAKECMDGOALS)),$(if $(MAKECMDGOALS),,fail))
+ifneq ($(filter-out $(UNCHECKED_GOALS),$(MAKECMDGOALS)),$(if $(MAKECMDGOALS),,fail))
 	@echo "Please call configure before running make!"
 	@exit 1
 endif
@@ -455,9 +460,9 @@ TAGS:
 	find "$(SRC_PATH)" -name '*.[hc]' -exec etags --append {} +
 
 cscope:
-	rm -f ./cscope.*
-	find "$(SRC_PATH)" -name "*.[chsS]" -print | sed 's,^\./,,' > ./cscope.files
-	cscope -b
+	rm -f "$(SRC_PATH)"/cscope.*
+	find "$(SRC_PATH)/" -name "*.[chsS]" -print | sed 's,^\./,,' > "$(SRC_PATH)/cscope.files"
+	cscope -b -i"$(SRC_PATH)/cscope.files"
 
 # opengl shader programs
 ui/shader/%-vert.h: $(SRC_PATH)/ui/shader/%.vert $(SRC_PATH)/scripts/shaderinclude.pl
@@ -600,7 +605,7 @@ endif # CONFIG_WIN
 
 # Add a dependency on the generated files, so that they are always
 # rebuilt before other object files
-ifneq ($(filter-out %clean,$(MAKECMDGOALS)),$(if $(MAKECMDGOALS),,fail))
+ifneq ($(filter-out $(UNCHECKED_GOALS),$(MAKECMDGOALS)),$(if $(MAKECMDGOALS),,fail))
 Makefile: $(GENERATED_HEADERS)
 endif
 
