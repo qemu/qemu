@@ -125,6 +125,9 @@ static bool qtest_opened;
  *  > b64write ADDR SIZE B64_DATA
  *  < OK
  *
+ *  > memset ADDR SIZE VALUE
+ *  < OK
+ *
  * ADDR, SIZE, VALUE are all integers parsed with strtoul() with a base of 0.
  *
  * DATA is an arbitrarily long hex number prefixed with '0x'.  If it's smaller
@@ -468,6 +471,23 @@ static void qtest_process_command(CharDriverState *chr, gchar **words)
                 data[i] = 0;
             }
         }
+        cpu_physical_memory_write(addr, data, len);
+        g_free(data);
+
+        qtest_send_prefix(chr);
+        qtest_send(chr, "OK\n");
+    } else if (strcmp(words[0], "memset") == 0) {
+        uint64_t addr, len;
+        uint8_t *data;
+        uint8_t pattern;
+
+        g_assert(words[1] && words[2] && words[3]);
+        addr = strtoull(words[1], NULL, 0);
+        len = strtoull(words[2], NULL, 0);
+        pattern = strtoull(words[3], NULL, 0);
+
+        data = g_malloc(len);
+        memset(data, pattern, len);
         cpu_physical_memory_write(addr, data, len);
         g_free(data);
 
