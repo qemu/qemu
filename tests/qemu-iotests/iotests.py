@@ -338,6 +338,8 @@ def notrun(reason):
 def main(supported_fmts=[], supported_oses=['linux']):
     '''Run tests'''
 
+    debug = '-d' in sys.argv
+    verbosity = 1
     if supported_fmts and (imgfmt not in supported_fmts):
         notrun('not suitable for this image format: %s' % imgfmt)
 
@@ -347,14 +349,20 @@ def main(supported_fmts=[], supported_oses=['linux']):
     # We need to filter out the time taken from the output so that qemu-iotest
     # can reliably diff the results against master output.
     import StringIO
-    output = StringIO.StringIO()
+    if debug:
+        output = sys.stdout
+        verbosity = 2
+        sys.argv.remove('-d')
+    else:
+        output = StringIO.StringIO()
 
     class MyTestRunner(unittest.TextTestRunner):
-        def __init__(self, stream=output, descriptions=True, verbosity=1):
+        def __init__(self, stream=output, descriptions=True, verbosity=verbosity):
             unittest.TextTestRunner.__init__(self, stream, descriptions, verbosity)
 
     # unittest.main() will use sys.exit() so expect a SystemExit exception
     try:
         unittest.main(testRunner=MyTestRunner)
     finally:
-        sys.stderr.write(re.sub(r'Ran (\d+) tests? in [\d.]+s', r'Ran \1 tests', output.getvalue()))
+        if not debug:
+            sys.stderr.write(re.sub(r'Ran (\d+) tests? in [\d.]+s', r'Ran \1 tests', output.getvalue()))

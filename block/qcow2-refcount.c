@@ -265,10 +265,7 @@ int qcow2_get_refcount(BlockDriverState *bs, int64_t cluster_index,
     block_index = cluster_index & (s->refcount_block_size - 1);
     *refcount = s->get_refcount(refcount_block, block_index);
 
-    ret = qcow2_cache_put(bs, s->refcount_block_cache, &refcount_block);
-    if (ret < 0) {
-        return ret;
-    }
+    qcow2_cache_put(bs, s->refcount_block_cache, &refcount_block);
 
     return 0;
 }
@@ -424,7 +421,7 @@ static int alloc_refcount_block(BlockDriverState *bs,
 
     /* Now the new refcount block needs to be written to disk */
     BLKDBG_EVENT(bs->file, BLKDBG_REFBLOCK_ALLOC_WRITE);
-    qcow2_cache_entry_mark_dirty(s->refcount_block_cache, *refcount_block);
+    qcow2_cache_entry_mark_dirty(bs, s->refcount_block_cache, *refcount_block);
     ret = qcow2_cache_flush(bs, s->refcount_block_cache);
     if (ret < 0) {
         goto fail_block;
@@ -448,10 +445,7 @@ static int alloc_refcount_block(BlockDriverState *bs,
         return -EAGAIN;
     }
 
-    ret = qcow2_cache_put(bs, s->refcount_block_cache, refcount_block);
-    if (ret < 0) {
-        goto fail_block;
-    }
+    qcow2_cache_put(bs, s->refcount_block_cache, refcount_block);
 
     /*
      * If we come here, we need to grow the refcount table. Again, a new
@@ -723,13 +717,8 @@ static int QEMU_WARN_UNUSED_RESULT update_refcount(BlockDriverState *bs,
         /* Load the refcount block and allocate it if needed */
         if (table_index != old_table_index) {
             if (refcount_block) {
-                ret = qcow2_cache_put(bs, s->refcount_block_cache,
-                                      &refcount_block);
-                if (ret < 0) {
-                    goto fail;
-                }
+                qcow2_cache_put(bs, s->refcount_block_cache, &refcount_block);
             }
-
             ret = alloc_refcount_block(bs, cluster_index, &refcount_block);
             if (ret < 0) {
                 goto fail;
@@ -737,7 +726,8 @@ static int QEMU_WARN_UNUSED_RESULT update_refcount(BlockDriverState *bs,
         }
         old_table_index = table_index;
 
-        qcow2_cache_entry_mark_dirty(s->refcount_block_cache, refcount_block);
+        qcow2_cache_entry_mark_dirty(bs, s->refcount_block_cache,
+                                     refcount_block);
 
         /* we can update the count and save it */
         block_index = cluster_index & (s->refcount_block_size - 1);
@@ -773,11 +763,7 @@ fail:
 
     /* Write last changed block to disk */
     if (refcount_block) {
-        int wret;
-        wret = qcow2_cache_put(bs, s->refcount_block_cache, &refcount_block);
-        if (wret < 0) {
-            return ret < 0 ? ret : wret;
-        }
+        qcow2_cache_put(bs, s->refcount_block_cache, &refcount_block);
     }
 
     /*
@@ -832,6 +818,11 @@ static int64_t alloc_clusters_noref(BlockDriverState *bs, uint64_t size)
     BDRVQcowState *s = bs->opaque;
     uint64_t i, nb_clusters, refcount;
     int ret;
+
+    /* We can't allocate clusters if they may still be queued for discard. */
+    if (s->cache_discards) {
+        qcow2_process_discards(bs, 0);
+    }
 
     nb_clusters = size_to_clusters(s, size);
 retry:
@@ -1177,15 +1168,12 @@ int qcow2_update_snapshot_refcount(BlockDriverState *bs,
                             s->refcount_block_cache);
                     }
                     l2_table[j] = cpu_to_be64(offset);
-                    qcow2_cache_entry_mark_dirty(s->l2_table_cache, l2_table);
+                    qcow2_cache_entry_mark_dirty(bs, s->l2_table_cache,
+                                                 l2_table);
                 }
             }
 
-            ret = qcow2_cache_put(bs, s->l2_table_cache, (void**) &l2_table);
-            if (ret < 0) {
-                goto fail;
-            }
-
+            qcow2_cache_put(bs, s->l2_table_cache, (void **) &l2_table);
 
             if (addend != 0) {
                 ret = qcow2_update_cluster_refcount(bs, l2_offset >>

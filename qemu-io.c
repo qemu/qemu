@@ -52,6 +52,7 @@ static const cmdinfo_t close_cmd = {
 static int openfile(char *name, int flags, QDict *opts)
 {
     Error *local_err = NULL;
+    BlockDriverState *bs;
 
     if (qemuio_blk) {
         fprintf(stderr, "file open already, try 'help close'\n");
@@ -68,7 +69,27 @@ static int openfile(char *name, int flags, QDict *opts)
         return 1;
     }
 
+    bs = blk_bs(qemuio_blk);
+    if (bdrv_is_encrypted(bs)) {
+        char password[256];
+        printf("Disk image '%s' is encrypted.\n", name);
+        if (qemu_read_password(password, sizeof(password)) < 0) {
+            error_report("No password given");
+            goto error;
+        }
+        if (bdrv_set_key(bs, password) < 0) {
+            error_report("invalid password");
+            goto error;
+        }
+    }
+
+
     return 0;
+
+ error:
+    blk_unref(qemuio_blk);
+    qemuio_blk = NULL;
+    return 1;
 }
 
 static void open_help(void)
@@ -120,7 +141,7 @@ static int open_f(BlockBackend *blk, int argc, char **argv)
     QemuOpts *qopts;
     QDict *opts;
 
-    while ((c = getopt(argc, argv, "snrgo:")) != EOF) {
+    while ((c = getopt(argc, argv, "snrgo:")) != -1) {
         switch (c) {
         case 's':
             flags |= BDRV_O_SNAPSHOT;

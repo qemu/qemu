@@ -50,6 +50,7 @@ extern int daemon(int, int);
 
 #include <termios.h>
 #include <unistd.h>
+#include <termios.h>
 
 #include <glib/gprintf.h>
 
@@ -414,4 +415,70 @@ void os_mem_prealloc(int fd, char *area, size_t memory)
 
         pthread_sigmask(SIG_SETMASK, &oldset, NULL);
     }
+}
+
+
+static struct termios oldtty;
+
+static void term_exit(void)
+{
+    tcsetattr(0, TCSANOW, &oldtty);
+}
+
+static void term_init(void)
+{
+    struct termios tty;
+
+    tcgetattr(0, &tty);
+    oldtty = tty;
+
+    tty.c_iflag &= ~(IGNBRK|BRKINT|PARMRK|ISTRIP
+                          |INLCR|IGNCR|ICRNL|IXON);
+    tty.c_oflag |= OPOST;
+    tty.c_lflag &= ~(ECHO|ECHONL|ICANON|IEXTEN);
+    tty.c_cflag &= ~(CSIZE|PARENB);
+    tty.c_cflag |= CS8;
+    tty.c_cc[VMIN] = 1;
+    tty.c_cc[VTIME] = 0;
+
+    tcsetattr(0, TCSANOW, &tty);
+
+    atexit(term_exit);
+}
+
+int qemu_read_password(char *buf, int buf_size)
+{
+    uint8_t ch;
+    int i, ret;
+
+    printf("password: ");
+    fflush(stdout);
+    term_init();
+    i = 0;
+    for (;;) {
+        ret = read(0, &ch, 1);
+        if (ret == -1) {
+            if (errno == EAGAIN || errno == EINTR) {
+                continue;
+            } else {
+                break;
+            }
+        } else if (ret == 0) {
+            ret = -1;
+            break;
+        } else {
+            if (ch == '\r' ||
+                ch == '\n') {
+                ret = 0;
+                break;
+            }
+            if (i < (buf_size - 1)) {
+                buf[i++] = ch;
+            }
+        }
+    }
+    term_exit();
+    buf[i] = '\0';
+    printf("\n");
+    return ret;
 }

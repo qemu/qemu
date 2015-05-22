@@ -1037,6 +1037,7 @@ static int qcow2_set_key(BlockDriverState *bs, const char *key)
     for(i = 0;i < len;i++) {
         keybuf[i] = key[i];
     }
+    assert(bs->encrypted);
     s->crypt_method = s->crypt_method_header;
 
     if (AES_set_encrypt_key(keybuf, 128, &s->aes_encrypt_key) != 0)
@@ -1224,7 +1225,9 @@ static coroutine_fn int qcow2_co_readv(BlockDriverState *bs, int64_t sector_num,
                 goto fail;
             }
 
-            if (s->crypt_method) {
+            if (bs->encrypted) {
+                assert(s->crypt_method);
+
                 /*
                  * For encrypted images, read everything into a temporary
                  * contiguous buffer on which the AES functions can work.
@@ -1255,7 +1258,8 @@ static coroutine_fn int qcow2_co_readv(BlockDriverState *bs, int64_t sector_num,
             if (ret < 0) {
                 goto fail;
             }
-            if (s->crypt_method) {
+            if (bs->encrypted) {
+                assert(s->crypt_method);
                 qcow2_encrypt_sectors(s, sector_num,  cluster_data,
                     cluster_data, cur_nr_sectors, 0, &s->aes_decrypt_key);
                 qemu_iovec_from_buf(qiov, bytes_done,
@@ -1315,7 +1319,7 @@ static coroutine_fn int qcow2_co_writev(BlockDriverState *bs,
         trace_qcow2_writev_start_part(qemu_coroutine_self());
         index_in_cluster = sector_num & (s->cluster_sectors - 1);
         cur_nr_sectors = remaining_sectors;
-        if (s->crypt_method &&
+        if (bs->encrypted &&
             cur_nr_sectors >
             QCOW_MAX_CRYPT_CLUSTERS * s->cluster_sectors - index_in_cluster) {
             cur_nr_sectors =
@@ -1334,7 +1338,8 @@ static coroutine_fn int qcow2_co_writev(BlockDriverState *bs,
         qemu_iovec_concat(&hd_qiov, qiov, bytes_done,
             cur_nr_sectors * 512);
 
-        if (s->crypt_method) {
+        if (bs->encrypted) {
+            assert(s->crypt_method);
             if (!cluster_data) {
                 cluster_data = qemu_try_blockalign(bs->file,
                                                    QCOW_MAX_CRYPT_CLUSTERS
@@ -1484,7 +1489,8 @@ static void qcow2_invalidate_cache(BlockDriverState *bs, Error **errp)
      * that means we don't have to worry about reopening them here.
      */
 
-    if (s->crypt_method) {
+    if (bs->encrypted) {
+        assert(s->crypt_method);
         crypt_method = s->crypt_method;
         memcpy(&aes_encrypt_key, &s->aes_encrypt_key, sizeof(aes_encrypt_key));
         memcpy(&aes_decrypt_key, &s->aes_decrypt_key, sizeof(aes_decrypt_key));
@@ -1513,7 +1519,7 @@ static void qcow2_invalidate_cache(BlockDriverState *bs, Error **errp)
         return;
     }
 
-    if (crypt_method) {
+    if (bs->encrypted) {
         s->crypt_method = crypt_method;
         memcpy(&s->aes_encrypt_key, &aes_encrypt_key, sizeof(aes_encrypt_key));
         memcpy(&s->aes_decrypt_key, &aes_decrypt_key, sizeof(aes_decrypt_key));
