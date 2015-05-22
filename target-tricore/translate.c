@@ -6451,8 +6451,8 @@ static void decode_rr_divide(CPUTriCoreState *env, DisasContext *ctx)
         /* sv */
         tcg_gen_or_tl(cpu_PSW_SV, cpu_PSW_SV, cpu_PSW_V);
         /* write result */
-        tcg_gen_mov_tl(cpu_gpr_d[r3+1], temp3);
         tcg_gen_shli_tl(cpu_gpr_d[r3], cpu_gpr_d[r1], 16);
+        tcg_gen_mov_tl(cpu_gpr_d[r3+1], temp3);
         tcg_temp_free(temp);
         tcg_temp_free(temp2);
         tcg_temp_free(temp3);
