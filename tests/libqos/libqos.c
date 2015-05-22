@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <glib.h>
 #include <unistd.h>
 #include <fcntl.h>
@@ -60,6 +61,90 @@ void qtest_shutdown(QOSState *qs)
     }
     qtest_quit(qs->qts);
     g_free(qs);
+}
+
+void set_context(QOSState *s)
+{
+    global_qtest = s->qts;
+}
+
+static QDict *qmp_execute(const char *command)
+{
+    char *fmt;
+    QDict *rsp;
+
+    fmt = g_strdup_printf("{ 'execute': '%s' }", command);
+    rsp = qmp(fmt);
+    g_free(fmt);
+
+    return rsp;
+}
+
+void migrate(QOSState *from, QOSState *to, const char *uri)
+{
+    const char *st;
+    char *s;
+    QDict *rsp, *sub;
+    bool running;
+
+    set_context(from);
+
+    /* Is the machine currently running? */
+    rsp = qmp_execute("query-status");
+    g_assert(qdict_haskey(rsp, "return"));
+    sub = qdict_get_qdict(rsp, "return");
+    g_assert(qdict_haskey(sub, "running"));
+    running = qdict_get_bool(sub, "running");
+    QDECREF(rsp);
+
+    /* Issue the migrate command. */
+    s = g_strdup_printf("{ 'execute': 'migrate',"
+                        "'arguments': { 'uri': '%s' } }",
+                        uri);
+    rsp = qmp(s);
+    g_free(s);
+    g_assert(qdict_haskey(rsp, "return"));
+    QDECREF(rsp);
+
+    /* Wait for STOP event, but only if we were running: */
+    if (running) {
+        qmp_eventwait("STOP");
+    }
+
+    /* If we were running, we can wait for an event. */
+    if (running) {
+        migrate_allocator(from->alloc, to->alloc);
+        set_context(to);
+        qmp_eventwait("RESUME");
+        return;
+    }
+
+    /* Otherwise, we need to wait: poll until migration is completed. */
+    while (1) {
+        rsp = qmp_execute("query-migrate");
+        g_assert(qdict_haskey(rsp, "return"));
+        sub = qdict_get_qdict(rsp, "return");
+        g_assert(qdict_haskey(sub, "status"));
+        st = qdict_get_str(sub, "status");
+
+        /* "setup", "active", "completed", "failed", "cancelled" */
+        if (strcmp(st, "completed") == 0) {
+            QDECREF(rsp);
+            break;
+        }
+
+        if ((strcmp(st, "setup") == 0) || (strcmp(st, "active") == 0)) {
+            QDECREF(rsp);
+            g_usleep(5000);
+            continue;
+        }
+
+        fprintf(stderr, "Migration did not complete, status: %s\n", st);
+        g_assert_not_reached();
+    }
+
+    migrate_allocator(from->alloc, to->alloc);
+    set_context(to);
 }
 
 void mkimg(const char *file, const char *fmt, unsigned size_mb)

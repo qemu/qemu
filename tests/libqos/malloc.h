@@ -31,6 +31,7 @@ void alloc_uninit(QGuestAllocator *allocator);
 /* Always returns page aligned values */
 uint64_t guest_alloc(QGuestAllocator *allocator, size_t size);
 void guest_free(QGuestAllocator *allocator, uint64_t addr);
+void migrate_allocator(QGuestAllocator *src, QGuestAllocator *dst);
 
 QGuestAllocator *alloc_init(uint64_t start, uint64_t end);
 QGuestAllocator *alloc_init_flags(QAllocOpts flags,
