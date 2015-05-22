@@ -650,6 +650,7 @@ void ahci_io(AHCIQState *ahci, uint8_t port, uint8_t ide_cmd,
     g_assert(props);
     ptr = ahci_alloc(ahci, bufsize);
     g_assert(ptr);
+    qmemset(ptr, 0x00, bufsize);
 
     if (props->write) {
         memwrite(ptr, buffer, bufsize);

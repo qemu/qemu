@@ -1110,6 +1110,50 @@ static void test_migrate_sanity(void)
     ahci_shutdown(dst);
 }
 
+/**
+ * DMA Migration test: Write a pattern, migrate, then read.
+ */
+static void test_migrate_dma(void)
+{
+    AHCIQState *src, *dst;
+    uint8_t px;
+    size_t bufsize = 4096;
+    unsigned char *tx = g_malloc(bufsize);
+    unsigned char *rx = g_malloc0(bufsize);
+    unsigned i;
+    const char *uri = "tcp:127.0.0.1:1234";
+
+    src = ahci_boot_and_enable("-m 1024 -M q35 "
+                               "-hda %s ", tmp_path);
+    dst = ahci_boot("-m 1024 -M q35 "
+                    "-hda %s "
+                    "-incoming %s", tmp_path, uri);
+
+    set_context(src->parent);
+
+    /* initialize */
+    px = ahci_port_select(src);
+    ahci_port_clear(src, px);
+
+    /* create pattern */
+    for (i = 0; i < bufsize; i++) {
+        tx[i] = (bufsize - i);
+    }
+
+    /* Write, migrate, then read. */
+    ahci_io(src, px, CMD_WRITE_DMA, tx, bufsize, 0);
+    ahci_migrate(src, dst, uri);
+    ahci_io(dst, px, CMD_READ_DMA, rx, bufsize, 0);
+
+    /* Verify pattern */
+    g_assert_cmphex(memcmp(tx, rx, bufsize), ==, 0);
+
+    ahci_shutdown(src);
+    ahci_shutdown(dst);
+    g_free(rx);
+    g_free(tx);
+}
+
 /******************************************************************************/
 /* AHCI I/O Test Matrix Definitions                                           */
 
@@ -1360,6 +1404,7 @@ int main(int argc, char **argv)
     qtest_add_func("/ahci/flush/retry", test_flush_retry);
 
     qtest_add_func("/ahci/migrate/sanity", test_migrate_sanity);
+    qtest_add_func("/ahci/migrate/dma", test_migrate_dma);
 
     ret = g_test_run();
 
