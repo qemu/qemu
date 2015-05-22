@@ -653,13 +653,13 @@ void ahci_io(AHCIQState *ahci, uint8_t port, uint8_t ide_cmd,
     qmemset(ptr, 0x00, bufsize);
 
     if (props->write) {
-        memwrite(ptr, buffer, bufsize);
+        bufwrite(ptr, buffer, bufsize);
     }
 
     ahci_guest_io(ahci, port, ide_cmd, ptr, bufsize, sector);
 
     if (props->read) {
-        memread(ptr, buffer, bufsize);
+        bufread(ptr, buffer, bufsize);
     }
 
     ahci_free(ahci, ptr);

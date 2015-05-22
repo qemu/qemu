@@ -874,7 +874,7 @@ static void ahci_test_io_rw_simple(AHCIQState *ahci, unsigned bufsize,
 
     /* Write some indicative pattern to our buffer. */
     generate_pattern(tx, bufsize, AHCI_SECTOR_SIZE);
-    memwrite(ptr, tx, bufsize);
+    bufwrite(ptr, tx, bufsize);
 
     /* Write this buffer to disk, then read it back to the DMA buffer. */
     ahci_guest_io(ahci, port, write_cmd, ptr, bufsize, sector);
@@ -882,7 +882,7 @@ static void ahci_test_io_rw_simple(AHCIQState *ahci, unsigned bufsize,
     ahci_guest_io(ahci, port, read_cmd, ptr, bufsize, sector);
 
     /*** Read back the Data ***/
-    memread(ptr, rx, bufsize);
+    bufread(ptr, rx, bufsize);
     g_assert_cmphex(memcmp(tx, rx, bufsize), ==, 0);
 
     ahci_free(ahci, ptr);
@@ -1018,7 +1018,7 @@ static void test_dma_fragmented(void)
     /* Create a DMA buffer in guest memory, and write our pattern to it. */
     ptr = guest_alloc(ahci->parent->alloc, bufsize);
     g_assert(ptr);
-    memwrite(ptr, tx, bufsize);
+    bufwrite(ptr, tx, bufsize);
 
     cmd = ahci_command_create(CMD_WRITE_DMA);
     ahci_command_adjust(cmd, 0, ptr, bufsize, 32);
@@ -1035,7 +1035,7 @@ static void test_dma_fragmented(void)
     g_free(cmd);
 
     /* Read back the guest's receive buffer into local memory */
-    memread(ptr, rx, bufsize);
+    bufread(ptr, rx, bufsize);
     guest_free(ahci->parent->alloc, ptr);
 
     g_assert_cmphex(memcmp(tx, rx, bufsize), ==, 0);
