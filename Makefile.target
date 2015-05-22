@@ -138,6 +138,7 @@ endif
 obj-gl-y += gl/gloffscreen_common.o 
 obj-gl-$(CONFIG_WIN32) += gl/gloffscreen_wgl.o
 obj-gl-$(CONFIG_DARWIN) += gl/gloffscreen_cgl.o
+obj-gl-$(CONFIG_LINUX) += gl/gloffscreen_glx.o
 obj-$(CONFIG_OPENGL) += $(obj-gl-y)
 
 main.o: QEMU_CFLAGS+=$(GPROF_CFLAGS)
