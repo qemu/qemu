@@ -399,6 +399,7 @@ enum {
     OPC2_16_SR_RET                                   = 0x09,
     OPC2_16_SR_RFE                                   = 0x08,
     OPC2_16_SR_DEBUG                                 = 0x0a,
+    OPC2_16_SR_FRET                                  = 0x07,
 };
 /* OPCM_16_SR_ACCU                                   */
 enum {
@@ -428,6 +429,8 @@ enum {
 /* B Format */
     OPC1_32_B_CALL                                   = 0x6d,
     OPC1_32_B_CALLA                                  = 0xed,
+    OPC1_32_B_FCALL                                  = 0x61,
+    OPC1_32_B_FCALLA                                 = 0xe1,
     OPC1_32_B_J                                      = 0x1d,
     OPC1_32_B_JA                                     = 0x9d,
     OPC1_32_B_JL                                     = 0x5d,
@@ -763,6 +766,12 @@ enum {
     OPC2_32_BO_SWAP_W_SHORTOFF                   = 0x20,
     OPC2_32_BO_SWAP_W_POSTINC                    = 0x00,
     OPC2_32_BO_SWAP_W_PREINC                     = 0x10,
+    OPC2_32_BO_CMPSWAP_W_SHORTOFF                = 0x23,
+    OPC2_32_BO_CMPSWAP_W_POSTINC                 = 0x03,
+    OPC2_32_BO_CMPSWAP_W_PREINC                  = 0x13,
+    OPC2_32_BO_SWAPMSK_W_SHORTOFF                = 0x22,
+    OPC2_32_BO_SWAPMSK_W_POSTINC                 = 0x02,
+    OPC2_32_BO_SWAPMSK_W_PREINC                  = 0x12,
 };
 /*OPCM_32_BO_ADDRMODE_LDMST_BITREVERSE_CIRCULAR  */
 enum {
@@ -770,6 +779,10 @@ enum {
     OPC2_32_BO_LDMST_CIRC                        = 0x11,
     OPC2_32_BO_SWAP_W_BR                         = 0x00,
     OPC2_32_BO_SWAP_W_CIRC                       = 0x10,
+    OPC2_32_BO_CMPSWAP_W_BR                      = 0x03,
+    OPC2_32_BO_CMPSWAP_W_CIRC                    = 0x13,
+    OPC2_32_BO_SWAPMSK_W_BR                      = 0x02,
+    OPC2_32_BO_SWAPMSK_W_CIRC                    = 0x12,
 };
 /*
  * BRC Format
@@ -1110,12 +1123,16 @@ enum {
     OPC2_32_RR_DVINIT_U                          = 0x0a,
     OPC2_32_RR_PARITY                            = 0x02,
     OPC2_32_RR_UNPACK                            = 0x08,
+    OPC2_32_RR_CRC32                             = 0x03,
+    OPC2_32_RR_DIV                               = 0x20,
+    OPC2_32_RR_DIV_U                             = 0x21,
 };
 /* OPCM_32_RR_IDIRECT                               */
 enum {
     OPC2_32_RR_JI                                = 0x03,
     OPC2_32_RR_JLI                               = 0x02,
     OPC2_32_RR_CALLI                             = 0x00,
+    OPC2_32_RR_FCALLI                            = 0x01,
 };
 /*
  * RR1 Format
@@ -1423,4 +1440,6 @@ enum {
     OPC2_32_SYS_SVLCX                            = 0x08,
     OPC2_32_SYS_TRAPSV                           = 0x15,
     OPC2_32_SYS_TRAPV                            = 0x14,
+    OPC2_32_SYS_RESTORE                          = 0x0e,
+    OPC2_32_SYS_FRET                             = 0x03,
 };
