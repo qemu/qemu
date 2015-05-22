@@ -49,31 +49,36 @@ nb_sectors_offset=$((0x24))
 echo
 echo "== Read from a valid v1 image =="
 _use_sample_img parallels-v1.bz2
-{ $QEMU_IO -c "read -P 0x11 0 64k" $TEST_IMG; } 2>&1 | _filter_qemu_io | _filter_testdir
+{ $QEMU_IO -c "read -P 0x11 0 64k" "$TEST_IMG"; } 2>&1 | _filter_qemu_io | _filter_testdir
 
 echo
 echo "== Negative catalog size =="
 _use_sample_img parallels-v1.bz2
 poke_file "$TEST_IMG" "$catalog_entries_offset" "\xff\xff\xff\xff"
-{ $QEMU_IO -c "read 0 512" $TEST_IMG; } 2>&1 | _filter_qemu_io | _filter_testdir
+{ $QEMU_IO -c "read 0 512" "$TEST_IMG"; } 2>&1 | _filter_qemu_io | _filter_testdir
 
 echo
 echo "== Overflow in catalog allocation =="
 _use_sample_img parallels-v1.bz2
 poke_file "$TEST_IMG" "$nb_sectors_offset" "\xff\xff\xff\xff"
 poke_file "$TEST_IMG" "$catalog_entries_offset" "\x01\x00\x00\x40"
-{ $QEMU_IO -c "read 64M 64M" $TEST_IMG; } 2>&1 | _filter_qemu_io | _filter_testdir
+{ $QEMU_IO -c "read 64M 64M" "$TEST_IMG"; } 2>&1 | _filter_qemu_io | _filter_testdir
 
 echo
 echo "== Zero sectors per track =="
 _use_sample_img parallels-v1.bz2
 poke_file "$TEST_IMG" "$tracks_offset" "\x00\x00\x00\x00"
-{ $QEMU_IO -c "read 0 512" $TEST_IMG; } 2>&1 | _filter_qemu_io | _filter_testdir
+{ $QEMU_IO -c "read 0 512" "$TEST_IMG"; } 2>&1 | _filter_qemu_io | _filter_testdir
 
 echo
 echo "== Read from a valid v2 image =="
 _use_sample_img parallels-v2.bz2
-{ $QEMU_IO -c "read -P 0x11 0 64k" $TEST_IMG; } 2>&1 | _filter_qemu_io | _filter_testdir
+{ $QEMU_IO -c "read -P 0x11 0 64k" "$TEST_IMG"; } 2>&1 | _filter_qemu_io | _filter_testdir
+{ $QEMU_IO -c "write -P 0x21 1024k 1k" "$TEST_IMG"; } 2>&1 | _filter_qemu_io | _filter_testdir
+{ $QEMU_IO -c "write -P 0x22 1025k 1k" "$TEST_IMG"; } 2>&1 | _filter_qemu_io | _filter_testdir
+{ $QEMU_IO -c "read -P 0x21 1024k 1k" "$TEST_IMG"; } 2>&1 | _filter_qemu_io | _filter_testdir
+{ $QEMU_IO -c "read -P 0x22 1025k 1k" "$TEST_IMG"; } 2>&1 | _filter_qemu_io | _filter_testdir
+{ $QEMU_IO -c "read -P 0 1026k 62k" "$TEST_IMG"; } 2>&1 | _filter_qemu_io | _filter_testdir
 
 # success, all done
 echo "*** done"

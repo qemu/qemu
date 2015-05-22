@@ -201,9 +201,11 @@ void bdrv_refresh_limits(BlockDriverState *bs, Error **errp)
         }
         bs->bl.opt_transfer_length = bs->file->bl.opt_transfer_length;
         bs->bl.max_transfer_length = bs->file->bl.max_transfer_length;
+        bs->bl.min_mem_alignment = bs->file->bl.min_mem_alignment;
         bs->bl.opt_mem_alignment = bs->file->bl.opt_mem_alignment;
     } else {
-        bs->bl.opt_mem_alignment = 512;
+        bs->bl.min_mem_alignment = 512;
+        bs->bl.opt_mem_alignment = getpagesize();
     }
 
     if (bs->backing_hd) {
@@ -221,6 +223,9 @@ void bdrv_refresh_limits(BlockDriverState *bs, Error **errp)
         bs->bl.opt_mem_alignment =
             MAX(bs->bl.opt_mem_alignment,
                 bs->backing_hd->bl.opt_mem_alignment);
+        bs->bl.min_mem_alignment =
+            MAX(bs->bl.min_mem_alignment,
+                bs->backing_hd->bl.min_mem_alignment);
     }
 
     /* Then let the driver override it */
@@ -929,19 +934,6 @@ out:
     return ret;
 }
 
-static inline uint64_t bdrv_get_align(BlockDriverState *bs)
-{
-    /* TODO Lift BDRV_SECTOR_SIZE restriction in BlockDriver interface */
-    return MAX(BDRV_SECTOR_SIZE, bs->request_alignment);
-}
-
-static inline bool bdrv_req_is_aligned(BlockDriverState *bs,
-                                       int64_t offset, size_t bytes)
-{
-    int64_t align = bdrv_get_align(bs);
-    return !(offset & (align - 1) || (bytes & (align - 1)));
-}
-
 /*
  * Handle a read request in coroutine context
  */
@@ -952,7 +944,8 @@ static int coroutine_fn bdrv_co_do_preadv(BlockDriverState *bs,
     BlockDriver *drv = bs->drv;
     BdrvTrackedRequest req;
 
-    uint64_t align = bdrv_get_align(bs);
+    /* TODO Lift BDRV_SECTOR_SIZE restriction in BlockDriver interface */
+    uint64_t align = MAX(BDRV_SECTOR_SIZE, bs->request_alignment);
     uint8_t *head_buf = NULL;
     uint8_t *tail_buf = NULL;
     QEMUIOVector local_qiov;
@@ -1186,6 +1179,94 @@ static int coroutine_fn bdrv_aligned_pwritev(BlockDriverState *bs,
     return ret;
 }
 
+static int coroutine_fn bdrv_co_do_zero_pwritev(BlockDriverState *bs,
+                                                int64_t offset,
+                                                unsigned int bytes,
+                                                BdrvRequestFlags flags,
+                                                BdrvTrackedRequest *req)
+{
+    uint8_t *buf = NULL;
+    QEMUIOVector local_qiov;
+    struct iovec iov;
+    uint64_t align = MAX(BDRV_SECTOR_SIZE, bs->request_alignment);
+    unsigned int head_padding_bytes, tail_padding_bytes;
+    int ret = 0;
+
+    head_padding_bytes = offset & (align - 1);
+    tail_padding_bytes = align - ((offset + bytes) & (align - 1));
+
+
+    assert(flags & BDRV_REQ_ZERO_WRITE);
+    if (head_padding_bytes || tail_padding_bytes) {
+        buf = qemu_blockalign(bs, align);
+        iov = (struct iovec) {
+            .iov_base   = buf,
+            .iov_len    = align,
+        };
+        qemu_iovec_init_external(&local_qiov, &iov, 1);
+    }
+    if (head_padding_bytes) {
+        uint64_t zero_bytes = MIN(bytes, align - head_padding_bytes);
+
+        /* RMW the unaligned part before head. */
+        mark_request_serialising(req, align);
+        wait_serialising_requests(req);
+        BLKDBG_EVENT(bs, BLKDBG_PWRITEV_RMW_HEAD);
+        ret = bdrv_aligned_preadv(bs, req, offset & ~(align - 1), align,
+                                  align, &local_qiov, 0);
+        if (ret < 0) {
+            goto fail;
+        }
+        BLKDBG_EVENT(bs, BLKDBG_PWRITEV_RMW_AFTER_HEAD);
+
+        memset(buf + head_padding_bytes, 0, zero_bytes);
+        ret = bdrv_aligned_pwritev(bs, req, offset & ~(align - 1), align,
+                                   &local_qiov,
+                                   flags & ~BDRV_REQ_ZERO_WRITE);
+        if (ret < 0) {
+            goto fail;
+        }
+        offset += zero_bytes;
+        bytes -= zero_bytes;
+    }
+
+    assert(!bytes || (offset & (align - 1)) == 0);
+    if (bytes >= align) {
+        /* Write the aligned part in the middle. */
+        uint64_t aligned_bytes = bytes & ~(align - 1);
+        ret = bdrv_aligned_pwritev(bs, req, offset, aligned_bytes,
+                                   NULL, flags);
+        if (ret < 0) {
+            goto fail;
+        }
+        bytes -= aligned_bytes;
+        offset += aligned_bytes;
+    }
+
+    assert(!bytes || (offset & (align - 1)) == 0);
+    if (bytes) {
+        assert(align == tail_padding_bytes + bytes);
+        /* RMW the unaligned part after tail. */
+        mark_request_serialising(req, align);
+        wait_serialising_requests(req);
+        BLKDBG_EVENT(bs, BLKDBG_PWRITEV_RMW_TAIL);
+        ret = bdrv_aligned_preadv(bs, req, offset, align,
+                                  align, &local_qiov, 0);
+        if (ret < 0) {
+            goto fail;
+        }
+        BLKDBG_EVENT(bs, BLKDBG_PWRITEV_RMW_AFTER_TAIL);
+
+        memset(buf, 0, bytes);
+        ret = bdrv_aligned_pwritev(bs, req, offset, align,
+                                   &local_qiov, flags & ~BDRV_REQ_ZERO_WRITE);
+    }
+fail:
+    qemu_vfree(buf);
+    return ret;
+
+}
+
 /*
  * Handle a write request in coroutine context
  */
@@ -1194,7 +1275,8 @@ static int coroutine_fn bdrv_co_do_pwritev(BlockDriverState *bs,
     BdrvRequestFlags flags)
 {
     BdrvTrackedRequest req;
-    uint64_t align = bdrv_get_align(bs);
+    /* TODO Lift BDRV_SECTOR_SIZE restriction in BlockDriver interface */
+    uint64_t align = MAX(BDRV_SECTOR_SIZE, bs->request_alignment);
     uint8_t *head_buf = NULL;
     uint8_t *tail_buf = NULL;
     QEMUIOVector local_qiov;
@@ -1205,7 +1287,7 @@ static int coroutine_fn bdrv_co_do_pwritev(BlockDriverState *bs,
         return -ENOMEDIUM;
     }
     if (bs->read_only) {
-        return -EACCES;
+        return -EPERM;
     }
 
     ret = bdrv_check_byte_request(bs, offset, bytes);
@@ -1224,6 +1306,11 @@ static int coroutine_fn bdrv_co_do_pwritev(BlockDriverState *bs,
      * only for bdrv_aligned_pwritev, but also for the reads of the RMW cycle.
      */
     tracked_request_begin(&req, bs, offset, bytes, true);
+
+    if (!qiov) {
+        ret = bdrv_co_do_zero_pwritev(bs, offset, bytes, flags, &req);
+        goto out;
+    }
 
     if (offset & (align - 1)) {
         QEMUIOVector head_qiov;
@@ -1293,23 +1380,19 @@ static int coroutine_fn bdrv_co_do_pwritev(BlockDriverState *bs,
         bytes = ROUND_UP(bytes, align);
     }
 
-    if (use_local_qiov) {
-        /* Local buffer may have non-zero data. */
-        flags &= ~BDRV_REQ_ZERO_WRITE;
-    }
     ret = bdrv_aligned_pwritev(bs, &req, offset, bytes,
                                use_local_qiov ? &local_qiov : qiov,
                                flags);
 
 fail:
-    tracked_request_end(&req);
 
     if (use_local_qiov) {
         qemu_iovec_destroy(&local_qiov);
     }
     qemu_vfree(head_buf);
     qemu_vfree(tail_buf);
-
+out:
+    tracked_request_end(&req);
     return ret;
 }
 
@@ -1337,32 +1420,14 @@ int coroutine_fn bdrv_co_write_zeroes(BlockDriverState *bs,
                                       int64_t sector_num, int nb_sectors,
                                       BdrvRequestFlags flags)
 {
-    int ret;
-
     trace_bdrv_co_write_zeroes(bs, sector_num, nb_sectors, flags);
 
     if (!(bs->open_flags & BDRV_O_UNMAP)) {
         flags &= ~BDRV_REQ_MAY_UNMAP;
     }
-    if (bdrv_req_is_aligned(bs, sector_num << BDRV_SECTOR_BITS,
-                            nb_sectors << BDRV_SECTOR_BITS)) {
-        ret = bdrv_co_do_writev(bs, sector_num, nb_sectors, NULL,
-                                BDRV_REQ_ZERO_WRITE | flags);
-    } else {
-        uint8_t *buf;
-        QEMUIOVector local_qiov;
-        size_t bytes = nb_sectors << BDRV_SECTOR_BITS;
 
-        buf = qemu_memalign(bdrv_opt_mem_align(bs), bytes);
-        memset(buf, 0, bytes);
-        qemu_iovec_init(&local_qiov, 1);
-        qemu_iovec_add(&local_qiov, buf, bytes);
-
-        ret = bdrv_co_do_writev(bs, sector_num, nb_sectors, &local_qiov,
-                                BDRV_REQ_ZERO_WRITE | flags);
-        qemu_vfree(buf);
-    }
-    return ret;
+    return bdrv_co_do_writev(bs, sector_num, nb_sectors, NULL,
+                             BDRV_REQ_ZERO_WRITE | flags);
 }
 
 int bdrv_flush_all(void)
@@ -1456,9 +1521,7 @@ static int64_t coroutine_fn bdrv_co_get_block_status(BlockDriverState *bs,
 
     if (ret & (BDRV_BLOCK_DATA | BDRV_BLOCK_ZERO)) {
         ret |= BDRV_BLOCK_ALLOCATED;
-    }
-
-    if (!(ret & BDRV_BLOCK_DATA) && !(ret & BDRV_BLOCK_ZERO)) {
+    } else {
         if (bdrv_unallocated_blocks_are_zero(bs)) {
             ret |= BDRV_BLOCK_ZERO;
         } else if (bs->backing_hd) {
@@ -2340,7 +2403,7 @@ int coroutine_fn bdrv_co_discard(BlockDriverState *bs, int64_t sector_num,
     if (ret < 0) {
         return ret;
     } else if (bs->read_only) {
-        return -EROFS;
+        return -EPERM;
     }
 
     bdrv_reset_dirty(bs, sector_num, nb_sectors);
@@ -2489,7 +2552,7 @@ void *qemu_try_blockalign0(BlockDriverState *bs, size_t size)
 bool bdrv_qiov_is_aligned(BlockDriverState *bs, QEMUIOVector *qiov)
 {
     int i;
-    size_t alignment = bdrv_opt_mem_align(bs);
+    size_t alignment = bdrv_min_mem_align(bs);
 
     for (i = 0; i < qiov->niov; i++) {
         if ((uintptr_t) qiov->iov[i].iov_base % alignment) {
