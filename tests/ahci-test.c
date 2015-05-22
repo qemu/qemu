@@ -97,6 +97,72 @@ static void generate_pattern(void *buffer, size_t len, size_t cycle_len)
     }
 }
 
+/**
+ * Verify that the transfer did not corrupt our state at all.
+ */
+static void verify_state(AHCIQState *ahci)
+{
+    int i, j;
+    uint32_t ahci_fingerprint;
+    uint64_t hba_base;
+    uint64_t hba_stored;
+    AHCICommandHeader cmd;
+
+    ahci_fingerprint = qpci_config_readl(ahci->dev, PCI_VENDOR_ID);
+    g_assert_cmphex(ahci_fingerprint, ==, ahci->fingerprint);
+
+    /* If we haven't initialized, this is as much as can be validated. */
+    if (!ahci->hba_base) {
+        return;
+    }
+
+    hba_base = (uint64_t)qpci_config_readl(ahci->dev, PCI_BASE_ADDRESS_5);
+    hba_stored = (uint64_t)(uintptr_t)ahci->hba_base;
+    g_assert_cmphex(hba_base, ==, hba_stored);
+
+    g_assert_cmphex(ahci_rreg(ahci, AHCI_CAP), ==, ahci->cap);
+    g_assert_cmphex(ahci_rreg(ahci, AHCI_CAP2), ==, ahci->cap2);
+
+    for (i = 0; i < 32; i++) {
+        g_assert_cmphex(ahci_px_rreg(ahci, i, AHCI_PX_FB), ==,
+                        ahci->port[i].fb);
+        g_assert_cmphex(ahci_px_rreg(ahci, i, AHCI_PX_CLB), ==,
+                        ahci->port[i].clb);
+        for (j = 0; j < 32; j++) {
+            ahci_get_command_header(ahci, i, j, &cmd);
+            g_assert_cmphex(cmd.prdtl, ==, ahci->port[i].prdtl[j]);
+            g_assert_cmphex(cmd.ctba, ==, ahci->port[i].ctba[j]);
+        }
+    }
+}
+
+static void ahci_migrate(AHCIQState *from, AHCIQState *to, const char *uri)
+{
+    QOSState *tmp = to->parent;
+    QPCIDevice *dev = to->dev;
+    if (uri == NULL) {
+        uri = "tcp:127.0.0.1:1234";
+    }
+
+    /* context will be 'to' after completion. */
+    migrate(from->parent, to->parent, uri);
+
+    /* We'd like for the AHCIState objects to still point
+     * to information specific to its specific parent
+     * instance, but otherwise just inherit the new data. */
+    memcpy(to, from, sizeof(AHCIQState));
+    to->parent = tmp;
+    to->dev = dev;
+
+    tmp = from->parent;
+    dev = from->dev;
+    memset(from, 0x00, sizeof(AHCIQState));
+    from->parent = tmp;
+    from->dev = dev;
+
+    verify_state(to);
+}
+
 /*** Test Setup & Teardown ***/
 
 /**
@@ -146,6 +212,8 @@ static AHCIQState *ahci_boot(const char *cli, ...)
 static void ahci_shutdown(AHCIQState *ahci)
 {
     QOSState *qs = ahci->parent;
+
+    set_context(qs);
     ahci_clean_mem(ahci);
     free_ahci_device(ahci->dev);
     g_free(ahci);
@@ -1022,6 +1090,26 @@ static void test_flush_retry(void)
     ahci_shutdown(ahci);
 }
 
+/**
+ * Basic sanity test to boot a machine, find an AHCI device, and shutdown.
+ */
+static void test_migrate_sanity(void)
+{
+    AHCIQState *src, *dst;
+    const char *uri = "tcp:127.0.0.1:1234";
+
+    src = ahci_boot("-m 1024 -M q35 "
+                    "-hda %s ", tmp_path);
+    dst = ahci_boot("-m 1024 -M q35 "
+                    "-hda %s "
+                    "-incoming %s", tmp_path, uri);
+
+    ahci_migrate(src, dst, uri);
+
+    ahci_shutdown(src);
+    ahci_shutdown(dst);
+}
+
 /******************************************************************************/
 /* AHCI I/O Test Matrix Definitions                                           */
 
@@ -1270,6 +1358,8 @@ int main(int argc, char **argv)
 
     qtest_add_func("/ahci/flush/simple", test_flush);
     qtest_add_func("/ahci/flush/retry", test_flush_retry);
+
+    qtest_add_func("/ahci/migrate/sanity", test_migrate_sanity);
 
     ret = g_test_run();
 
