@@ -414,6 +414,7 @@ static void qtest_process_command(CharDriverState *chr, gchar **words)
     } else if (strcmp(words[0], "read") == 0) {
         uint64_t addr, len, i;
         uint8_t *data;
+        char *enc;
 
         g_assert(words[1] && words[2]);
         addr = strtoull(words[1], NULL, 0);
@@ -422,14 +423,16 @@ static void qtest_process_command(CharDriverState *chr, gchar **words)
         data = g_malloc(len);
         cpu_physical_memory_read(addr, data, len);
 
-        qtest_send_prefix(chr);
-        qtest_send(chr, "OK 0x");
+        enc = g_malloc(2 * len + 1);
         for (i = 0; i < len; i++) {
-            qtest_sendf(chr, "%02x", data[i]);
+            sprintf(&enc[i * 2], "%02x", data[i]);
         }
-        qtest_send(chr, "\n");
+
+        qtest_send_prefix(chr);
+        qtest_sendf(chr, "OK 0x%s\n", enc);
 
         g_free(data);
+        g_free(enc);
     } else if (strcmp(words[0], "b64read") == 0) {
         uint64_t addr, len;
         uint8_t *data;
