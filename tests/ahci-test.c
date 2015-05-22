@@ -1155,6 +1155,65 @@ static void test_migrate_dma(void)
 }
 
 /**
+ * DMA Error Test
+ *
+ * Simulate an error on first write, Try to write a pattern,
+ * Confirm the VM has stopped, resume the VM, verify command
+ * has completed, then read back the data and verify.
+ */
+static void test_halted_dma(void)
+{
+    AHCIQState *ahci;
+    uint8_t port;
+    size_t bufsize = 4096;
+    unsigned char *tx = g_malloc(bufsize);
+    unsigned char *rx = g_malloc0(bufsize);
+    unsigned i;
+    uint64_t ptr;
+    AHCICommand *cmd;
+
+    prepare_blkdebug_script(debug_path, "write_aio");
+
+    ahci = ahci_boot_and_enable("-drive file=blkdebug:%s:%s,if=none,id=drive0,"
+                                "format=qcow2,cache=writeback,"
+                                "rerror=stop,werror=stop "
+                                "-M q35 "
+                                "-device ide-hd,drive=drive0 ",
+                                debug_path,
+                                tmp_path);
+
+    /* Initialize and prepare */
+    port = ahci_port_select(ahci);
+    ahci_port_clear(ahci, port);
+
+    for (i = 0; i < bufsize; i++) {
+        tx[i] = (bufsize - i);
+    }
+
+    /* create DMA source buffer and write pattern */
+    ptr = ahci_alloc(ahci, bufsize);
+    g_assert(ptr);
+    memwrite(ptr, tx, bufsize);
+
+    /* Attempt to write (and fail) */
+    cmd = ahci_guest_io_halt(ahci, port, CMD_WRITE_DMA,
+                             ptr, bufsize, 0);
+
+    /* Attempt to resume the command */
+    ahci_guest_io_resume(ahci, cmd);
+    ahci_free(ahci, ptr);
+
+    /* Read back and verify */
+    ahci_io(ahci, port, CMD_READ_DMA, rx, bufsize, 0);
+    g_assert_cmphex(memcmp(tx, rx, bufsize), ==, 0);
+
+    /* Cleanup and go home */
+    ahci_shutdown(ahci);
+    g_free(rx);
+    g_free(tx);
+}
+
+/**
  * Migration test: Try to flush, migrate, then resume.
  */
 static void test_flush_migrate(void)
@@ -1455,6 +1514,7 @@ int main(int argc, char **argv)
 
     qtest_add_func("/ahci/migrate/sanity", test_migrate_sanity);
     qtest_add_func("/ahci/migrate/dma", test_migrate_dma);
+    qtest_add_func("/ahci/io/dma/lba28/retry", test_halted_dma);
 
     ret = g_test_run();
 
