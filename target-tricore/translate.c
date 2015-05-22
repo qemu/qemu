@@ -1980,17 +1980,6 @@ gen_msub32_q(TCGv ret, TCGv arg1, TCGv arg2, TCGv arg3, uint32_t n,
     tcg_gen_or_i64(t1, t1, t2);
     tcg_gen_trunc_i64_i32(cpu_PSW_V, t1);
     tcg_gen_shli_tl(cpu_PSW_V, cpu_PSW_V, 31);
-    /* We produce an overflow on the host if the mul before was
-       (0x80000000 * 0x80000000) << 1). If this is the
-       case, we negate the ovf. */
-    if (n == 1) {
-        tcg_gen_setcondi_tl(TCG_COND_EQ, temp, arg2, 0x80000000);
-        tcg_gen_setcond_tl(TCG_COND_EQ, temp2, arg2, arg3);
-        tcg_gen_and_tl(temp, temp, temp2);
-        tcg_gen_shli_tl(temp, temp, 31);
-        /* negate v bit, if special condition */
-        tcg_gen_xor_tl(cpu_PSW_V, cpu_PSW_V, temp);
-    }
     /* Calc SV bit */
     tcg_gen_or_tl(cpu_PSW_SV, cpu_PSW_SV, cpu_PSW_V);
     /* Calc AV/SAV bits */
