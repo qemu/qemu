@@ -1214,6 +1214,78 @@ static void test_halted_dma(void)
 }
 
 /**
+ * DMA Error Migration Test
+ *
+ * Simulate an error on first write, Try to write a pattern,
+ * Confirm the VM has stopped, migrate, resume the VM,
+ * verify command has completed, then read back the data and verify.
+ */
+static void test_migrate_halted_dma(void)
+{
+    AHCIQState *src, *dst;
+    uint8_t port;
+    size_t bufsize = 4096;
+    unsigned char *tx = g_malloc(bufsize);
+    unsigned char *rx = g_malloc0(bufsize);
+    unsigned i;
+    uint64_t ptr;
+    AHCICommand *cmd;
+    const char *uri = "tcp:127.0.0.1:1234";
+
+    prepare_blkdebug_script(debug_path, "write_aio");
+
+    src = ahci_boot_and_enable("-drive file=blkdebug:%s:%s,if=none,id=drive0,"
+                               "format=qcow2,cache=writeback,"
+                               "rerror=stop,werror=stop "
+                               "-M q35 "
+                               "-device ide-hd,drive=drive0 ",
+                               debug_path,
+                               tmp_path);
+
+    dst = ahci_boot("-drive file=%s,if=none,id=drive0,"
+                    "format=qcow2,cache=writeback,"
+                    "rerror=stop,werror=stop "
+                    "-M q35 "
+                    "-device ide-hd,drive=drive0 "
+                    "-incoming %s",
+                    tmp_path, uri);
+
+    set_context(src->parent);
+
+    /* Initialize and prepare */
+    port = ahci_port_select(src);
+    ahci_port_clear(src, port);
+
+    for (i = 0; i < bufsize; i++) {
+        tx[i] = (bufsize - i);
+    }
+
+    /* create DMA source buffer and write pattern */
+    ptr = ahci_alloc(src, bufsize);
+    g_assert(ptr);
+    memwrite(ptr, tx, bufsize);
+
+    /* Write, trigger the VM to stop, migrate, then resume. */
+    cmd = ahci_guest_io_halt(src, port, CMD_WRITE_DMA,
+                             ptr, bufsize, 0);
+    ahci_migrate(src, dst, uri);
+    ahci_guest_io_resume(dst, cmd);
+    ahci_free(dst, ptr);
+
+    /* Read back */
+    ahci_io(dst, port, CMD_READ_DMA, rx, bufsize, 0);
+
+    /* Verify TX and RX are identical */
+    g_assert_cmphex(memcmp(tx, rx, bufsize), ==, 0);
+
+    /* Cleanup and go home. */
+    ahci_shutdown(src);
+    ahci_shutdown(dst);
+    g_free(rx);
+    g_free(tx);
+}
+
+/**
  * Migration test: Try to flush, migrate, then resume.
  */
 static void test_flush_migrate(void)
@@ -1513,8 +1585,9 @@ int main(int argc, char **argv)
     qtest_add_func("/ahci/flush/migrate", test_flush_migrate);
 
     qtest_add_func("/ahci/migrate/sanity", test_migrate_sanity);
-    qtest_add_func("/ahci/migrate/dma", test_migrate_dma);
+    qtest_add_func("/ahci/migrate/dma/simple", test_migrate_dma);
     qtest_add_func("/ahci/io/dma/lba28/retry", test_halted_dma);
+    qtest_add_func("/ahci/migrate/dma/halted", test_migrate_halted_dma);
 
     ret = g_test_run();
 
