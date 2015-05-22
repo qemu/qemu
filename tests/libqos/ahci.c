@@ -769,7 +769,7 @@ void ahci_command_set_offset(AHCICommand *cmd, uint64_t lba_sect)
     fis->lba_lo[1] = (lba_sect >> 8) & 0xFF;
     fis->lba_lo[2] = (lba_sect >> 16) & 0xFF;
     if (cmd->props->lba28) {
-        fis->device = (fis->device & 0xF0) || (lba_sect >> 24) & 0x0F;
+        fis->device = (fis->device & 0xF0) | ((lba_sect >> 24) & 0x0F);
     }
     fis->lba_hi[0] = (lba_sect >> 24) & 0xFF;
     fis->lba_hi[1] = (lba_sect >> 32) & 0xFF;
@@ -787,7 +787,9 @@ void ahci_command_set_sizes(AHCICommand *cmd, uint64_t xbytes,
     /* Each PRD can describe up to 4MiB, and must not be odd. */
     g_assert_cmphex(prd_size, <=, 4096 * 1024);
     g_assert_cmphex(prd_size & 0x01, ==, 0x00);
-    cmd->prd_size = prd_size;
+    if (prd_size) {
+        cmd->prd_size = prd_size;
+    }
     cmd->xbytes = xbytes;
     cmd->fis.count = (cmd->xbytes / AHCI_SECTOR_SIZE);
     cmd->header.prdtl = size_to_prdtl(cmd->xbytes, cmd->prd_size);
