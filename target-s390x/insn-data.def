@@ -336,7 +336,7 @@
 /* LOAD */
     C(0x1800, LR,      RR_a,  Z,   0, r2_o, 0, cond_r1r2_32, mov2, 0)
     C(0x5800, L,       RX_a,  Z,   0, a2, new, r1_32, ld32s, 0)
-    C(0xe358, LY,      RXY_a, Z,   0, a2, new, r1_32, ld32s, 0)
+    C(0xe358, LY,      RXY_a, LD,  0, a2, new, r1_32, ld32s, 0)
     C(0xb904, LGR,     RRE,   Z,   0, r2_o, 0, r1, mov2, 0)
     C(0xb914, LGFR,    RRE,   Z,   0, r2_32s, 0, r1, mov2, 0)
     C(0xe304, LG,      RXY_a, Z,   0, a2, r1, 0, ld64, 0)
@@ -595,8 +595,8 @@
 
 /* ROTATE THEN INSERT SELECTED BITS */
     C(0xec55, RISBG,   RIE_f, GIE, 0, r2, r1, 0, risbg, s64)
-    C(0xec5d, RISBHG,  RIE_f, GIE, 0, r2, r1, 0, risbg, 0)
-    C(0xec51, RISBLG,  RIE_f, GIE, 0, r2, r1, 0, risbg, 0)
+    C(0xec5d, RISBHG,  RIE_f, HW,  0, r2, r1, 0, risbg, 0)
+    C(0xec51, RISBLG,  RIE_f, HW,  0, r2, r1, 0, risbg, 0)
 /* ROTATE_THEN <OP> SELECTED BITS */
     C(0xec54, RNSBG,   RIE_f, GIE, 0, r2, r1, 0, rosbg, 0)
     C(0xec56, ROSBG,   RIE_f, GIE, 0, r2, r1, 0, rosbg, 0)
@@ -670,7 +670,7 @@
 /* STORE CHARACTERS UNDER MASK */
     D(0xbe00, STCM,    RS_b,  Z,   r1_o, a2, 0, 0, stcm, 0, 0)
     D(0xeb2d, STCMY,   RSY_b, LD,  r1_o, a2, 0, 0, stcm, 0, 0)
-    D(0xeb2c, STCMH,   RSY_b, LD,  r1_o, a2, 0, 0, stcm, 0, 32)
+    D(0xeb2c, STCMH,   RSY_b, Z,   r1_o, a2, 0, 0, stcm, 0, 32)
 /* STORE HALFWORD */
     C(0x4000, STH,     RX_a,  Z,   r1_o, a2, 0, 0, st16, 0)
     C(0xe370, STHY,    RXY_a, LD,  r1_o, a2, 0, 0, st16, 0)
