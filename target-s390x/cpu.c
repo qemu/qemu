@@ -118,6 +118,10 @@ static void s390_cpu_initial_reset(CPUState *s)
 
     env->pfault_token = -1UL;
 
+    /* tininess for underflow is detected before rounding */
+    set_float_detect_tininess(float_tininess_before_rounding,
+                              &env->fpu_status);
+
     /* Reset state inside the kernel that we cannot access yet from QEMU. */
     if (kvm_enabled()) {
         kvm_s390_reset_vcpu(cpu);
@@ -142,6 +146,10 @@ static void s390_cpu_full_reset(CPUState *s)
     env->cregs[14] = CR14_RESET;
 
     env->pfault_token = -1UL;
+
+    /* tininess for underflow is detected before rounding */
+    set_float_detect_tininess(float_tininess_before_rounding,
+                              &env->fpu_status);
 
     /* Reset state inside the kernel that we cannot access yet from QEMU. */
     if (kvm_enabled()) {
