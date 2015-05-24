@@ -644,15 +644,12 @@ static void _decode_opc(DisasContext * ctx)
     case 0x300e:		/* addc Rm,Rn */
         {
             TCGv t0, t1;
-            t0 = tcg_temp_new();
+            t0 = tcg_const_tl(0);
             t1 = tcg_temp_new();
-            tcg_gen_add_i32(t0, REG(B7_4), REG(B11_8));
-            tcg_gen_add_i32(t1, cpu_sr_t, t0);
-            tcg_gen_setcond_i32(TCG_COND_GTU, cpu_sr_t, REG(B11_8), t0);
-            tcg_gen_setcond_i32(TCG_COND_GTU, t0, t0, t1);
-            tcg_gen_or_i32(cpu_sr_t, cpu_sr_t, t0);
+            tcg_gen_add2_i32(t1, cpu_sr_t, cpu_sr_t, t0, REG(B7_4), t0);
+            tcg_gen_add2_i32(REG(B11_8), cpu_sr_t,
+                             REG(B11_8), t0, t1, cpu_sr_t);
             tcg_temp_free(t0);
-            tcg_gen_mov_i32(REG(B11_8), t1);
             tcg_temp_free(t1);
         }
 	return;
