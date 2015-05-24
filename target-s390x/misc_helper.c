@@ -61,7 +61,7 @@ void QEMU_NORETURN runtime_exception(CPUS390XState *env, int excp,
     /* Advance past the insn.  */
     t = cpu_ldub_code(env, env->psw.addr);
     env->int_pgm_ilen = t = get_ilen(t);
-    env->psw.addr += 2 * t;
+    env->psw.addr += t;
 
     cpu_loop_exit(cs);
 }
