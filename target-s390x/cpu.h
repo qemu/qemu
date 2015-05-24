@@ -48,7 +48,7 @@
 #define MMU_MODE1_SUFFIX _secondary
 #define MMU_MODE2_SUFFIX _home
 
-#define MMU_USER_IDX 1
+#define MMU_USER_IDX 0
 
 #define MAX_EXT_QUEUE 16
 #define MAX_IO_QUEUE 16
@@ -304,11 +304,18 @@ static inline CPU_DoubleU *get_freg(CPUS390XState *cs, int nr)
 
 static inline int cpu_mmu_index (CPUS390XState *env)
 {
-    if (env->psw.mask & PSW_MASK_PSTATE) {
+    switch (env->psw.mask & PSW_MASK_ASC) {
+    case PSW_ASC_PRIMARY:
+        return 0;
+    case PSW_ASC_SECONDARY:
         return 1;
+    case PSW_ASC_HOME:
+        return 2;
+    case PSW_ASC_ACCREG:
+        /* Fallthrough: access register mode is not yet supported */
+    default:
+        abort();
     }
-
-    return 0;
 }
 
 static inline void cpu_get_tb_cpu_state(CPUS390XState* env, target_ulong *pc,
