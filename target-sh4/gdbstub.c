@@ -51,7 +51,7 @@ int superh_cpu_gdb_read_register(CPUState *cs, uint8_t *mem_buf, int n)
     case 21:
         return gdb_get_regl(mem_buf, env->macl);
     case 22:
-        return gdb_get_regl(mem_buf, env->sr);
+        return gdb_get_regl(mem_buf, cpu_read_sr(env));
     case 23:
         return gdb_get_regl(mem_buf, env->fpul);
     case 24:
@@ -111,7 +111,7 @@ int superh_cpu_gdb_write_register(CPUState *cs, uint8_t *mem_buf, int n)
         env->macl = ldl_p(mem_buf);
         break;
     case 22:
-        env->sr = ldl_p(mem_buf);
+        cpu_write_sr(env, ldl_p(mem_buf));
         break;
     case 23:
         env->fpul = ldl_p(mem_buf);

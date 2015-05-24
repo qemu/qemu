@@ -156,11 +156,11 @@ void helper_ocbi(CPUSH4State *env, uint32_t address)
     }
 }
 
-#define T (env->sr & (1u << SR_T))
+#define T (env->sr_t)
 #define Q (env->sr & (1u << SR_Q) ? 1 : 0)
 #define M (env->sr & (1u << SR_M) ? 1 : 0)
-#define SETT (env->sr |= (1u << SR_T))
-#define CLRT (env->sr &= ~(1u << SR_T))
+#define SETT (env->sr_t = 1)
+#define CLRT (env->sr_t = 0)
 #define SETQ (env->sr |= (1u << SR_Q))
 #define CLRQ (env->sr &= ~(1u << SR_Q))
 #define SETM (env->sr |= (1u << SR_M))
@@ -309,16 +309,6 @@ void helper_macw(CPUSH4State *env, uint32_t arg0, uint32_t arg1)
     }
 }
 
-static inline void set_t(CPUSH4State *env)
-{
-    env->sr |= (1u << SR_T);
-}
-
-static inline void clr_t(CPUSH4State *env)
-{
-    env->sr &= ~(1u << SR_T);
-}
-
 void helper_ld_fpscr(CPUSH4State *env, uint32_t val)
 {
     env->fpscr = val & FPSCR_MASK;
@@ -403,10 +393,8 @@ void helper_fcmp_eq_FT(CPUSH4State *env, float32 t0, float32 t1)
     relation = float32_compare(t0, t1, &env->fp_status);
     if (unlikely(relation == float_relation_unordered)) {
         update_fpscr(env, GETPC());
-    } else if (relation == float_relation_equal) {
-        set_t(env);
     } else {
-        clr_t(env);
+        env->sr_t = (relation == float_relation_equal);
     }
 }
 
@@ -418,10 +406,8 @@ void helper_fcmp_eq_DT(CPUSH4State *env, float64 t0, float64 t1)
     relation = float64_compare(t0, t1, &env->fp_status);
     if (unlikely(relation == float_relation_unordered)) {
         update_fpscr(env, GETPC());
-    } else if (relation == float_relation_equal) {
-        set_t(env);
     } else {
-        clr_t(env);
+        env->sr_t = (relation == float_relation_equal);
     }
 }
 
@@ -433,10 +419,8 @@ void helper_fcmp_gt_FT(CPUSH4State *env, float32 t0, float32 t1)
     relation = float32_compare(t0, t1, &env->fp_status);
     if (unlikely(relation == float_relation_unordered)) {
         update_fpscr(env, GETPC());
-    } else if (relation == float_relation_greater) {
-        set_t(env);
     } else {
-        clr_t(env);
+        env->sr_t = (relation == float_relation_greater);
     }
 }
 
@@ -448,10 +432,8 @@ void helper_fcmp_gt_DT(CPUSH4State *env, float64 t0, float64 t1)
     relation = float64_compare(t0, t1, &env->fp_status);
     if (unlikely(relation == float_relation_unordered)) {
         update_fpscr(env, GETPC());
-    } else if (relation == float_relation_greater) {
-        set_t(env);
     } else {
-        clr_t(env);
+        env->sr_t = (relation == float_relation_greater);
     }
 }
 

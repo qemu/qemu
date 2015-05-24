@@ -138,7 +138,8 @@ typedef struct CPUSH4State {
     uint32_t flags;		/* general execution flags */
     uint32_t gregs[24];		/* general registers */
     float32 fregs[32];		/* floating point registers */
-    uint32_t sr;		/* status register */
+    uint32_t sr;                /* status register (with T split out) */
+    uint32_t sr_t;              /* T bit of status register */
     uint32_t ssr;		/* saved status register */
     uint32_t spc;		/* saved program counter */
     uint32_t gbr;		/* global base register */
@@ -330,6 +331,17 @@ static inline int cpu_ptel_pr (uint32_t ptel)
 #define cpu_ptea_tc(ptea) (((ptea) & PTEA_TC) >> 3)
 
 #define TB_FLAG_PENDING_MOVCA  (1 << 4)
+
+static inline target_ulong cpu_read_sr(CPUSH4State *env)
+{
+    return env->sr | (env->sr_t << SR_T);
+}
+
+static inline void cpu_write_sr(CPUSH4State *env, target_ulong sr)
+{
+    env->sr_t = sr & (1u << SR_T);
+    env->sr = sr & ~(1u << SR_T);
+}
 
 static inline void cpu_get_tb_cpu_state(CPUSH4State *env, target_ulong *pc,
                                         target_ulong *cs_base, int *flags)
