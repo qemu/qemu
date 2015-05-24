@@ -2596,6 +2596,41 @@ static ExitStatus op_mov2(DisasContext *s, DisasOps *o)
     return NO_EXIT;
 }
 
+static ExitStatus op_mov2e(DisasContext *s, DisasOps *o)
+{
+    int b2 = get_field(s->fields, b2);
+    TCGv ar1 = tcg_temp_new_i64();
+
+    o->out = o->in2;
+    o->g_out = o->g_in2;
+    TCGV_UNUSED_I64(o->in2);
+    o->g_in2 = false;
+
+    switch (s->tb->flags & FLAG_MASK_ASC) {
+    case PSW_ASC_PRIMARY >> 32:
+        tcg_gen_movi_i64(ar1, 0);
+        break;
+    case PSW_ASC_ACCREG >> 32:
+        tcg_gen_movi_i64(ar1, 1);
+        break;
+    case PSW_ASC_SECONDARY >> 32:
+        if (b2) {
+            tcg_gen_ld32u_i64(ar1, cpu_env, offsetof(CPUS390XState, aregs[b2]));
+        } else {
+            tcg_gen_movi_i64(ar1, 0);
+        }
+        break;
+    case PSW_ASC_HOME >> 32:
+        tcg_gen_movi_i64(ar1, 2);
+        break;
+    }
+
+    tcg_gen_st32_i64(ar1, cpu_env, offsetof(CPUS390XState, aregs[1]));
+    tcg_temp_free_i64(ar1);
+
+    return NO_EXIT;
+}
+
 static ExitStatus op_movx(DisasContext *s, DisasOps *o)
 {
     o->out = o->in1;

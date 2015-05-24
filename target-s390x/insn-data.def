@@ -357,6 +357,9 @@
 /* LOAD ADDRESS */
     C(0x4100, LA,      RX_a,  Z,   0, a2, 0, r1, mov2, 0)
     C(0xe371, LAY,     RXY_a, LD,  0, a2, 0, r1, mov2, 0)
+/* LOAD ADDRESS EXTENDED */
+    C(0x5100, LAE,     RX_a,  Z,   0, a2, 0, r1, mov2e, 0)
+    C(0xe375, LAEY,    RXY_a, GIE, 0, a2, 0, r1, mov2e, 0)
 /* LOAD ADDRESS RELATIVE LONG */
     C(0xc000, LARL,    RIL_b, Z,   0, ri2, 0, r1, mov2, 0)
 /* LOAD AND ADD */
