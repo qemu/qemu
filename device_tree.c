@@ -18,7 +18,6 @@
 #include <unistd.h>
 #include <stdlib.h>
 
-#include "config.h"
 #include "qemu-common.h"
 #include "qemu/error-report.h"
 #include "sysemu/device_tree.h"
