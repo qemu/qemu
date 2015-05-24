@@ -1158,7 +1158,7 @@ static void memory_dump(Monitor *mon, int count, int format, int wsize,
         flags = msr_le << 16;
         flags |= env->bfd_mach;
 #endif
-        monitor_disas(mon, mon_get_cpu_env(), addr, count, is_physical, flags);
+        monitor_disas(mon, mon_get_cpu(), addr, count, is_physical, flags);
         return;
     }
 

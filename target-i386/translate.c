@@ -8093,7 +8093,7 @@ done_generating:
         else
 #endif
             disas_flags = !dc->code32;
-        log_target_disas(env, pc_start, pc_ptr - pc_start, disas_flags);
+        log_target_disas(cs, pc_start, pc_ptr - pc_start, disas_flags);
         qemu_log("\n");
     }
 #endif
