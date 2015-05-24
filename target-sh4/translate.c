@@ -795,12 +795,12 @@ static void _decode_opc(DisasContext * ctx)
 	return;
     case 0x600a:		/* negc Rm,Rn */
         {
-            TCGv t0 = tcg_temp_new();
-            tcg_gen_neg_i32(t0, REG(B7_4));
-            tcg_gen_sub_i32(REG(B11_8), t0, cpu_sr_t);
-            tcg_gen_setcondi_i32(TCG_COND_GTU, cpu_sr_t, t0, 0);
-            tcg_gen_setcond_i32(TCG_COND_GTU, t0, REG(B11_8), t0);
-            tcg_gen_or_i32(cpu_sr_t, cpu_sr_t, t0);
+            TCGv t0 = tcg_const_i32(0);
+            tcg_gen_add2_i32(REG(B11_8), cpu_sr_t,
+                             REG(B7_4), t0, cpu_sr_t, t0);
+            tcg_gen_sub2_i32(REG(B11_8), cpu_sr_t,
+                             t0, t0, REG(B11_8), cpu_sr_t);
+            tcg_gen_andi_i32(cpu_sr_t, cpu_sr_t, 1);
             tcg_temp_free(t0);
         }
 	return;
