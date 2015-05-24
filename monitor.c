@@ -939,28 +939,28 @@ int monitor_set_cpu(int cpu_index)
     return 0;
 }
 
-static CPUArchState *mon_get_cpu(void)
+static CPUState *mon_get_cpu(void)
 {
     if (!cur_mon->mon_cpu) {
         monitor_set_cpu(0);
     }
     cpu_synchronize_state(cur_mon->mon_cpu);
-    return cur_mon->mon_cpu->env_ptr;
+    return cur_mon->mon_cpu;
+}
+
+static CPUArchState *mon_get_cpu_env(void)
+{
+    return mon_get_cpu()->env_ptr;
 }
 
 int monitor_get_cpu_index(void)
 {
-    CPUState *cpu = ENV_GET_CPU(mon_get_cpu());
-    return cpu->cpu_index;
+    return mon_get_cpu()->cpu_index;
 }
 
 static void hmp_info_registers(Monitor *mon, const QDict *qdict)
 {
-    CPUState *cpu;
-    CPUArchState *env;
-    env = mon_get_cpu();
-    cpu = ENV_GET_CPU(env);
-    cpu_dump_state(cpu, (FILE *)mon, monitor_fprintf, CPU_DUMP_FPU);
+    cpu_dump_state(mon_get_cpu(), (FILE *)mon, monitor_fprintf, CPU_DUMP_FPU);
 }
 
 static void hmp_info_jit(Monitor *mon, const QDict *qdict)
@@ -993,12 +993,7 @@ static void hmp_info_history(Monitor *mon, const QDict *qdict)
 
 static void hmp_info_cpustats(Monitor *mon, const QDict *qdict)
 {
-    CPUState *cpu;
-    CPUArchState *env;
-
-    env = mon_get_cpu();
-    cpu = ENV_GET_CPU(env);
-    cpu_dump_statistics(cpu, (FILE *)mon, &monitor_fprintf, 0);
+    cpu_dump_statistics(mon_get_cpu(), (FILE *)mon, &monitor_fprintf, 0);
 }
 
 static void hmp_info_trace_events(Monitor *mon, const QDict *qdict)
@@ -1131,16 +1126,14 @@ static void monitor_printc(Monitor *mon, int c)
 static void memory_dump(Monitor *mon, int count, int format, int wsize,
                         hwaddr addr, int is_physical)
 {
-    CPUArchState *env;
     int l, line_size, i, max_digits, len;
     uint8_t buf[16];
     uint64_t v;
 
     if (format == 'i') {
-        int flags;
-        flags = 0;
-        env = mon_get_cpu();
+        int flags = 0;
 #ifdef TARGET_I386
+        CPUArchState *env = mon_get_cpu_env();
         if (wsize == 2) {
             flags = 1;
         } else if (wsize == 4) {
@@ -1161,10 +1154,11 @@ static void memory_dump(Monitor *mon, int count, int format, int wsize,
         }
 #endif
 #ifdef TARGET_PPC
+        CPUArchState *env = mon_get_cpu_env();
         flags = msr_le << 16;
         flags |= env->bfd_mach;
 #endif
-        monitor_disas(mon, env, addr, count, is_physical, flags);
+        monitor_disas(mon, mon_get_cpu_env(), addr, count, is_physical, flags);
         return;
     }
 
@@ -1203,8 +1197,7 @@ static void memory_dump(Monitor *mon, int count, int format, int wsize,
         if (is_physical) {
             cpu_physical_memory_read(addr, buf, l);
         } else {
-            env = mon_get_cpu();
-            if (cpu_memory_rw_debug(ENV_GET_CPU(env), addr, buf, l, 0) < 0) {
+            if (cpu_memory_rw_debug(mon_get_cpu(), addr, buf, l, 0) < 0) {
                 monitor_printf(mon, " Cannot access memory\n");
                 break;
             }
@@ -1583,7 +1576,7 @@ static void hmp_info_tlb(Monitor *mon, const QDict *qdict)
 {
     CPUArchState *env;
 
-    env = mon_get_cpu();
+    env = mon_get_cpu_env();
 
     if (!(env->cr[0] & CR0_PG_MASK)) {
         monitor_printf(mon, "PG disabled\n");
@@ -1806,7 +1799,7 @@ static void hmp_info_mem(Monitor *mon, const QDict *qdict)
 {
     CPUArchState *env;
 
-    env = mon_get_cpu();
+    env = mon_get_cpu_env();
 
     if (!(env->cr[0] & CR0_PG_MASK)) {
         monitor_printf(mon, "PG disabled\n");
@@ -1843,7 +1836,7 @@ static void print_tlb(Monitor *mon, int idx, tlb_t *tlb)
 
 static void hmp_info_tlb(Monitor *mon, const QDict *qdict)
 {
-    CPUArchState *env = mon_get_cpu();
+    CPUArchState *env = mon_get_cpu_env();
     int i;
 
     monitor_printf (mon, "ITLB:\n");
@@ -1859,7 +1852,7 @@ static void hmp_info_tlb(Monitor *mon, const QDict *qdict)
 #if defined(TARGET_SPARC) || defined(TARGET_PPC) || defined(TARGET_XTENSA)
 static void hmp_info_tlb(Monitor *mon, const QDict *qdict)
 {
-    CPUArchState *env1 = mon_get_cpu();
+    CPUArchState *env1 = mon_get_cpu_env();
 
     dump_mmu((FILE*)mon, (fprintf_function)monitor_printf, env1);
 }
@@ -2920,7 +2913,7 @@ typedef struct MonitorDef {
 #if defined(TARGET_I386)
 static target_long monitor_get_pc (const struct MonitorDef *md, int val)
 {
-    CPUArchState *env = mon_get_cpu();
+    CPUArchState *env = mon_get_cpu_env();
     return env->eip + env->segs[R_CS].base;
 }
 #endif
@@ -2928,7 +2921,7 @@ static target_long monitor_get_pc (const struct MonitorDef *md, int val)
 #if defined(TARGET_PPC)
 static target_long monitor_get_ccr (const struct MonitorDef *md, int val)
 {
-    CPUArchState *env = mon_get_cpu();
+    CPUArchState *env = mon_get_cpu_env();
     unsigned int u;
     int i;
 
@@ -2941,31 +2934,31 @@ static target_long monitor_get_ccr (const struct MonitorDef *md, int val)
 
 static target_long monitor_get_msr (const struct MonitorDef *md, int val)
 {
-    CPUArchState *env = mon_get_cpu();
+    CPUArchState *env = mon_get_cpu_env();
     return env->msr;
 }
 
 static target_long monitor_get_xer (const struct MonitorDef *md, int val)
 {
-    CPUArchState *env = mon_get_cpu();
+    CPUArchState *env = mon_get_cpu_env();
     return env->xer;
 }
 
 static target_long monitor_get_decr (const struct MonitorDef *md, int val)
 {
-    CPUArchState *env = mon_get_cpu();
+    CPUArchState *env = mon_get_cpu_env();
     return cpu_ppc_load_decr(env);
 }
 
 static target_long monitor_get_tbu (const struct MonitorDef *md, int val)
 {
-    CPUArchState *env = mon_get_cpu();
+    CPUArchState *env = mon_get_cpu_env();
     return cpu_ppc_load_tbu(env);
 }
 
 static target_long monitor_get_tbl (const struct MonitorDef *md, int val)
 {
-    CPUArchState *env = mon_get_cpu();
+    CPUArchState *env = mon_get_cpu_env();
     return cpu_ppc_load_tbl(env);
 }
 #endif
@@ -2974,7 +2967,7 @@ static target_long monitor_get_tbl (const struct MonitorDef *md, int val)
 #ifndef TARGET_SPARC64
 static target_long monitor_get_psr (const struct MonitorDef *md, int val)
 {
-    CPUArchState *env = mon_get_cpu();
+    CPUArchState *env = mon_get_cpu_env();
 
     return cpu_get_psr(env);
 }
@@ -2982,7 +2975,7 @@ static target_long monitor_get_psr (const struct MonitorDef *md, int val)
 
 static target_long monitor_get_reg(const struct MonitorDef *md, int val)
 {
-    CPUArchState *env = mon_get_cpu();
+    CPUArchState *env = mon_get_cpu_env();
     return env->regwptr[val];
 }
 #endif
@@ -3318,7 +3311,7 @@ static int get_monitor_def(target_long *pval, const char *name)
             if (md->get_value) {
                 *pval = md->get_value(md, md->offset);
             } else {
-                CPUArchState *env = mon_get_cpu();
+                CPUArchState *env = mon_get_cpu_env();
                 ptr = (uint8_t *)env + md->offset;
                 switch(md->type) {
                 case MD_I32:
