@@ -1010,24 +1010,19 @@ static void _decode_opc(DisasContext * ctx)
 	return;
     case 0xf00b: /* fmov {F,D,X}Rm,@-Rn - FPSCR: Nothing */
 	CHECK_FPU_ENABLED
+        TCGv addr = tcg_temp_new_i32();
+        tcg_gen_subi_i32(addr, REG(B11_8), 4);
         if (ctx->flags & FPSCR_SZ) {
-	    TCGv addr = tcg_temp_new_i32();
 	    int fr = XREG(B7_4);
-	    tcg_gen_subi_i32(addr, REG(B11_8), 4);
             tcg_gen_qemu_st_i32(cpu_fregs[fr+1], addr, ctx->memidx, MO_TEUL);
 	    tcg_gen_subi_i32(addr, addr, 4);
             tcg_gen_qemu_st_i32(cpu_fregs[fr], addr, ctx->memidx, MO_TEUL);
-	    tcg_gen_mov_i32(REG(B11_8), addr);
-	    tcg_temp_free(addr);
 	} else {
-	    TCGv addr;
-	    addr = tcg_temp_new_i32();
-	    tcg_gen_subi_i32(addr, REG(B11_8), 4);
             tcg_gen_qemu_st_i32(cpu_fregs[FREG(B7_4)], addr,
                                 ctx->memidx, MO_TEUL);
-	    tcg_gen_mov_i32(REG(B11_8), addr);
-	    tcg_temp_free(addr);
 	}
+        tcg_gen_mov_i32(REG(B11_8), addr);
+        tcg_temp_free(addr);
 	return;
     case 0xf006: /* fmov @(R0,Rm),{F,D,X}Rm - FPSCR: Nothing */
 	CHECK_FPU_ENABLED
