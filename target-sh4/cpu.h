@@ -47,18 +47,18 @@
 #define TARGET_PHYS_ADDR_SPACE_BITS 32
 #define TARGET_VIRT_ADDR_SPACE_BITS 32
 
-#define SR_MD (1 << 30)
-#define SR_RB (1 << 29)
-#define SR_BL (1 << 28)
-#define SR_FD (1 << 15)
-#define SR_M  (1 << 9)
-#define SR_Q  (1 << 8)
-#define SR_I3 (1 << 7)
-#define SR_I2 (1 << 6)
-#define SR_I1 (1 << 5)
-#define SR_I0 (1 << 4)
-#define SR_S  (1 << 1)
-#define SR_T  (1 << 0)
+#define SR_MD 30
+#define SR_RB 29
+#define SR_BL 28
+#define SR_FD 15
+#define SR_M  9
+#define SR_Q  8
+#define SR_I3 7
+#define SR_I2 6
+#define SR_I1 5
+#define SR_I0 4
+#define SR_S  1
+#define SR_T  0
 
 #define FPSCR_MASK             (0x003fffff)
 #define FPSCR_FR               (1 << 21)
@@ -234,7 +234,7 @@ void cpu_load_tlb(CPUSH4State * env);
 #define MMU_USER_IDX 1
 static inline int cpu_mmu_index (CPUSH4State *env)
 {
-    return (env->sr & SR_MD) == 0 ? 1 : 0;
+    return (env->sr & (1u << SR_MD)) == 0 ? 1 : 0;
 }
 
 #include "exec/cpu-all.h"
@@ -339,8 +339,8 @@ static inline void cpu_get_tb_cpu_state(CPUSH4State *env, target_ulong *pc,
     *flags = (env->flags & (DELAY_SLOT | DELAY_SLOT_CONDITIONAL
                     | DELAY_SLOT_TRUE | DELAY_SLOT_CLEARME))   /* Bits  0- 3 */
             | (env->fpscr & (FPSCR_FR | FPSCR_SZ | FPSCR_PR))  /* Bits 19-21 */
-            | (env->sr & (SR_MD | SR_RB))                      /* Bits 29-30 */
-            | (env->sr & SR_FD)                                /* Bit 15 */
+            | (env->sr & ((1u << SR_MD) | (1u << SR_RB)))      /* Bits 29-30 */
+            | (env->sr & (1u << SR_FD))                        /* Bit 15 */
             | (env->movcal_backup ? TB_FLAG_PENDING_MOVCA : 0); /* Bit 4 */
 }
 

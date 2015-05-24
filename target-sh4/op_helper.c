@@ -156,15 +156,15 @@ void helper_ocbi(CPUSH4State *env, uint32_t address)
     }
 }
 
-#define T (env->sr & SR_T)
-#define Q (env->sr & SR_Q ? 1 : 0)
-#define M (env->sr & SR_M ? 1 : 0)
-#define SETT env->sr |= SR_T
-#define CLRT env->sr &= ~SR_T
-#define SETQ env->sr |= SR_Q
-#define CLRQ env->sr &= ~SR_Q
-#define SETM env->sr |= SR_M
-#define CLRM env->sr &= ~SR_M
+#define T (env->sr & (1u << SR_T))
+#define Q (env->sr & (1u << SR_Q) ? 1 : 0)
+#define M (env->sr & (1u << SR_M) ? 1 : 0)
+#define SETT (env->sr |= (1u << SR_T))
+#define CLRT (env->sr &= ~(1u << SR_T))
+#define SETQ (env->sr |= (1u << SR_Q))
+#define CLRQ (env->sr &= ~(1u << SR_Q))
+#define SETM (env->sr |= (1u << SR_M))
+#define CLRM (env->sr &= ~(1u << SR_M))
 
 uint32_t helper_div1(CPUSH4State *env, uint32_t arg0, uint32_t arg1)
 {
@@ -282,7 +282,7 @@ void helper_macl(CPUSH4State *env, uint32_t arg0, uint32_t arg1)
     res += (int64_t) (int32_t) arg0 *(int64_t) (int32_t) arg1;
     env->mach = (res >> 32) & 0xffffffff;
     env->macl = res & 0xffffffff;
-    if (env->sr & SR_S) {
+    if (env->sr & (1u << SR_S)) {
 	if (res < 0)
 	    env->mach |= 0xffff0000;
 	else
@@ -298,7 +298,7 @@ void helper_macw(CPUSH4State *env, uint32_t arg0, uint32_t arg1)
     res += (int64_t) (int16_t) arg0 *(int64_t) (int16_t) arg1;
     env->mach = (res >> 32) & 0xffffffff;
     env->macl = res & 0xffffffff;
-    if (env->sr & SR_S) {
+    if (env->sr & (1u << SR_S)) {
 	if (res < -0x80000000) {
 	    env->mach = 1;
 	    env->macl = 0x80000000;
@@ -311,12 +311,12 @@ void helper_macw(CPUSH4State *env, uint32_t arg0, uint32_t arg1)
 
 static inline void set_t(CPUSH4State *env)
 {
-    env->sr |= SR_T;
+    env->sr |= (1u << SR_T);
 }
 
 static inline void clr_t(CPUSH4State *env)
 {
-    env->sr &= ~SR_T;
+    env->sr &= ~(1u << SR_T);
 }
 
 void helper_ld_fpscr(CPUSH4State *env, uint32_t val)
