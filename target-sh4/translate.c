@@ -880,19 +880,15 @@ static void _decode_opc(DisasContext * ctx)
 	return;
     case 0x300a:		/* subc Rm,Rn */
         {
-            TCGv t0, t1, t2;
-            t0 = tcg_temp_new();
+            TCGv t0, t1;
+            t0 = tcg_const_tl(0);
             t1 = tcg_temp_new();
-            tcg_gen_sub_i32(t1, REG(B11_8), REG(B7_4));
-            tcg_gen_sub_i32(t0, t1, cpu_sr_t);
-            t2 = tcg_temp_new();
-            tcg_gen_setcond_i32(TCG_COND_LTU, t2, REG(B11_8), t1);
-            tcg_gen_setcond_i32(TCG_COND_LTU, t1, t1, t0);
-            tcg_gen_or_i32(cpu_sr_t, t1, t2);
-            tcg_temp_free(t2);
-            tcg_temp_free(t1);
-            tcg_gen_mov_i32(REG(B11_8), t0);
+            tcg_gen_add2_i32(t1, cpu_sr_t, cpu_sr_t, t0, REG(B7_4), t0);
+            tcg_gen_sub2_i32(REG(B11_8), cpu_sr_t,
+                             REG(B11_8), t0, t1, cpu_sr_t);
+            tcg_gen_andi_i32(cpu_sr_t, cpu_sr_t, 1);
             tcg_temp_free(t0);
+            tcg_temp_free(t1);
         }
 	return;
     case 0x300b:		/* subv Rm,Rn */
