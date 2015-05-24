@@ -1241,6 +1241,14 @@ static void pcnet_transmit(PCNetState *s)
         }
 
         bcnt = 4096 - GET_FIELD(tmd.length, TMDL, BCNT);
+
+        /* if multi-tmd packet outsizes s->buffer then skip it silently.
+           Note: this is not what real hw does */
+        if (s->xmit_pos + bcnt > sizeof(s->buffer)) {
+            s->xmit_pos = -1;
+            goto txdone;
+        }
+
         s->phys_mem_read(s->dma_opaque, PHYSADDR(s, tmd.tbadr),
                          s->buffer + s->xmit_pos, bcnt, CSR_BSWP(s));
         s->xmit_pos += bcnt;
