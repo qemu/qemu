@@ -18,7 +18,6 @@
  */
 
 #define DEBUG_DISAS
-//#define SH4_SINGLE_STEP
 
 #include "cpu.h"
 #include "disas/disas.h"
