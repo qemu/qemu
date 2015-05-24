@@ -62,7 +62,8 @@ enum {
 /* global register indexes */
 static TCGv_ptr cpu_env;
 static TCGv cpu_gregs[24];
-static TCGv cpu_pc, cpu_sr, cpu_sr_t, cpu_ssr, cpu_spc, cpu_gbr;
+static TCGv cpu_sr, cpu_sr_m, cpu_sr_q, cpu_sr_t;
+static TCGv cpu_pc, cpu_ssr, cpu_spc, cpu_gbr;
 static TCGv cpu_vbr, cpu_sgr, cpu_dbr, cpu_mach, cpu_macl;
 static TCGv cpu_pr, cpu_fpscr, cpu_fpul, cpu_ldst;
 static TCGv cpu_fregs[32];
@@ -110,6 +111,10 @@ void sh4_translate_init(void)
                                     offsetof(CPUSH4State, pc), "PC");
     cpu_sr = tcg_global_mem_new_i32(TCG_AREG0,
                                     offsetof(CPUSH4State, sr), "SR");
+    cpu_sr_m = tcg_global_mem_new_i32(TCG_AREG0,
+                                    offsetof(CPUSH4State, sr_m), "SR_M");
+    cpu_sr_q = tcg_global_mem_new_i32(TCG_AREG0,
+                                    offsetof(CPUSH4State, sr_q), "SR_Q");
     cpu_sr_t = tcg_global_mem_new_i32(TCG_AREG0,
                                     offsetof(CPUSH4State, sr_t), "SR_T");
     cpu_ssr = tcg_global_mem_new_i32(TCG_AREG0,
@@ -179,13 +184,26 @@ void superh_cpu_dump_state(CPUState *cs, FILE *f,
 
 static void gen_read_sr(TCGv dst)
 {
-    tcg_gen_or_i32(dst, cpu_sr, cpu_sr_t);
+    TCGv t0 = tcg_temp_new();
+    tcg_gen_shli_i32(t0, cpu_sr_q, SR_Q);
+    tcg_gen_or_i32(dst, dst, t0);
+    tcg_gen_shli_i32(t0, cpu_sr_m, SR_M);
+    tcg_gen_or_i32(dst, dst, t0);
+    tcg_gen_shli_i32(t0, cpu_sr_t, SR_T);
+    tcg_gen_or_i32(dst, cpu_sr, t0);
+    tcg_temp_free_i32(t0);
 }
 
 static void gen_write_sr(TCGv src)
 {
-    tcg_gen_andi_i32(cpu_sr, src, ~(1u << SR_T));
-    tcg_gen_andi_i32(cpu_sr_t, src, (1u << SR_T));
+    tcg_gen_andi_i32(cpu_sr, src,
+                     ~((1u << SR_Q) | (1u << SR_M) | (1u << SR_T)));
+    tcg_gen_shri_i32(cpu_sr_q, src, SR_Q);
+    tcg_gen_andi_i32(cpu_sr_q, cpu_sr_q, 1);
+    tcg_gen_shri_i32(cpu_sr_m, src, SR_M);
+    tcg_gen_andi_i32(cpu_sr_m, cpu_sr_m, 1);
+    tcg_gen_shri_i32(cpu_sr_t, src, SR_T);
+    tcg_gen_andi_i32(cpu_sr_t, cpu_sr_t, 1);
 }
 
 static void gen_goto_tb(DisasContext * ctx, int n, target_ulong dest)
@@ -261,24 +279,6 @@ static inline void gen_store_flags(uint32_t flags)
 {
     tcg_gen_andi_i32(cpu_flags, cpu_flags, DELAY_SLOT_TRUE);
     tcg_gen_ori_i32(cpu_flags, cpu_flags, flags);
-}
-
-static inline void gen_copy_bit_i32(TCGv t0, int p0, TCGv t1, int p1)
-{
-    TCGv tmp = tcg_temp_new();
-
-    p0 &= 0x1f;
-    p1 &= 0x1f;
-
-    tcg_gen_andi_i32(tmp, t1, (1 << p1));
-    tcg_gen_andi_i32(t0, t0, ~(1 << p0));
-    if (p0 < p1)
-        tcg_gen_shri_i32(tmp, tmp, p1 - p0);
-    else if (p0 > p1)
-        tcg_gen_shli_i32(tmp, tmp, p0 - p1);
-    tcg_gen_or_i32(t0, t0, tmp);
-
-    tcg_temp_free(tmp);
 }
 
 static inline void gen_load_fpr64(TCGv_i64 t, int reg)
@@ -392,7 +392,8 @@ static void _decode_opc(DisasContext * ctx)
 
     switch (ctx->opcode) {
     case 0x0019:		/* div0u */
-        tcg_gen_andi_i32(cpu_sr, cpu_sr, ~((1u << SR_M) | (1u << SR_Q)));
+        tcg_gen_movi_i32(cpu_sr_m, 0);
+        tcg_gen_movi_i32(cpu_sr_q, 0);
         tcg_gen_movi_i32(cpu_sr_t, 0);
 	return;
     case 0x000b:		/* rts */
@@ -709,13 +710,44 @@ static void _decode_opc(DisasContext * ctx)
 	}
 	return;
     case 0x2007:		/* div0s Rm,Rn */
-        gen_copy_bit_i32(cpu_sr, SR_Q, REG(B11_8), 31);     /* SR_Q */
-        gen_copy_bit_i32(cpu_sr, SR_M, REG(B7_4), 31);      /* SR_M */
-        tcg_gen_xor_i32(cpu_sr_t, REG(B7_4), REG(B11_8));
-        tcg_gen_shri_i32(cpu_sr_t, cpu_sr_t, 31);           /* SR_T */
+        tcg_gen_shri_i32(cpu_sr_q, REG(B11_8), 31);         /* SR_Q */
+        tcg_gen_shri_i32(cpu_sr_m, REG(B7_4), 31);          /* SR_M */
+        tcg_gen_xor_i32(cpu_sr_t, cpu_sr_q, cpu_sr_m);      /* SR_T */
 	return;
     case 0x3004:		/* div1 Rm,Rn */
-        gen_helper_div1(REG(B11_8), cpu_env, REG(B7_4), REG(B11_8));
+        {
+            TCGv t0 = tcg_temp_new();
+            TCGv t1 = tcg_temp_new();
+            TCGv t2 = tcg_temp_new();
+            TCGv zero = tcg_const_i32(0);
+
+            /* shift left arg1, saving the bit being pushed out and inserting
+               T on the right */
+            tcg_gen_shri_i32(t0, REG(B11_8), 31);
+            tcg_gen_shli_i32(REG(B11_8), REG(B11_8), 1);
+            tcg_gen_or_i32(REG(B11_8), REG(B11_8), cpu_sr_t);
+
+            /* Add or subtract arg0 from arg1 depending if Q == M. To avoid
+               using 64-bit temps, we compute arg0's high part from q ^ m, so
+               that it is 0x00000000 when adding the value or 0xffffffff when
+               subtracting it. */
+            tcg_gen_xor_i32(t1, cpu_sr_q, cpu_sr_m);
+            tcg_gen_subi_i32(t1, t1, 1);
+            tcg_gen_neg_i32(t2, REG(B7_4));
+            tcg_gen_movcond_i32(TCG_COND_EQ, t2, t1, zero, REG(B7_4), t2);
+            tcg_gen_add2_i32(REG(B11_8), t1, REG(B11_8), zero, t2, t1);
+
+            /* compute T and Q depending on carry */
+            tcg_gen_andi_i32(t1, t1, 1);
+            tcg_gen_xor_i32(t1, t1, t0);
+            tcg_gen_xori_i32(cpu_sr_t, t1, 1);
+            tcg_gen_xor_i32(cpu_sr_q, cpu_sr_m, t1);
+
+            tcg_temp_free(zero);
+            tcg_temp_free(t2);
+            tcg_temp_free(t1);
+            tcg_temp_free(t0);
+        }
 	return;
     case 0x300d:		/* dmuls.l Rm,Rn */
         tcg_gen_muls2_i32(cpu_macl, cpu_mach, REG(B7_4), REG(B11_8));

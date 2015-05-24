@@ -139,6 +139,8 @@ typedef struct CPUSH4State {
     uint32_t gregs[24];		/* general registers */
     float32 fregs[32];		/* floating point registers */
     uint32_t sr;                /* status register (with T split out) */
+    uint32_t sr_m;              /* M bit of status register */
+    uint32_t sr_q;              /* Q bit of status register */
     uint32_t sr_t;              /* T bit of status register */
     uint32_t ssr;		/* saved status register */
     uint32_t spc;		/* saved program counter */
@@ -334,13 +336,17 @@ static inline int cpu_ptel_pr (uint32_t ptel)
 
 static inline target_ulong cpu_read_sr(CPUSH4State *env)
 {
-    return env->sr | (env->sr_t << SR_T);
+    return env->sr | (env->sr_m << SR_M) |
+                     (env->sr_q << SR_Q) |
+                     (env->sr_t << SR_T);
 }
 
 static inline void cpu_write_sr(CPUSH4State *env, target_ulong sr)
 {
-    env->sr_t = sr & (1u << SR_T);
-    env->sr = sr & ~(1u << SR_T);
+    env->sr_m = (sr >> SR_M) & 1;
+    env->sr_q = (sr >> SR_Q) & 1;
+    env->sr_t = (sr >> SR_T) & 1;
+    env->sr = sr & ~((1u << SR_M) | (1u << SR_Q) | (1u << SR_T));
 }
 
 static inline void cpu_get_tb_cpu_state(CPUSH4State *env, target_ulong *pc,
