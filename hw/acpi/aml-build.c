@@ -304,6 +304,7 @@ static void aml_free(gpointer data, gpointer user_data)
 {
     Aml *var = data;
     build_free_array(var->buf);
+    g_free(var);
 }
 
 Aml *init_aml_allocator(void)
