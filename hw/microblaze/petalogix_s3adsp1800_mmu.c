@@ -62,7 +62,6 @@ static void
 petalogix_s3adsp1800_init(MachineState *machine)
 {
     ram_addr_t ram_size = machine->ram_size;
-    const char *cpu_model = machine->cpu_model;
     DeviceState *dev;
     MicroBlazeCPU *cpu;
     DriveInfo *dinfo;
@@ -73,11 +72,8 @@ petalogix_s3adsp1800_init(MachineState *machine)
     qemu_irq irq[32];
     MemoryRegion *sysmem = get_system_memory();
 
-    /* init CPUs */
-    if (cpu_model == NULL) {
-        cpu_model = "microblaze";
-    }
-    cpu = cpu_mb_init(cpu_model);
+    cpu = MICROBLAZE_CPU(object_new(TYPE_MICROBLAZE_CPU));
+    object_property_set_bool(OBJECT(cpu), true, "realized", &error_abort);
 
     /* Attach emulated BRAM through the LMB.  */
     memory_region_init_ram(phys_lmb_bram, NULL,
