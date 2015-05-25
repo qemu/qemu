@@ -266,6 +266,7 @@ Aml *aml_device(const char *name_format, ...) GCC_FMT_ATTR(1, 2);
 Aml *aml_method(const char *name, int arg_count);
 Aml *aml_if(Aml *predicate);
 Aml *aml_else(void);
+Aml *aml_while(Aml *predicate);
 Aml *aml_package(uint8_t num_elements);
 Aml *aml_buffer(int buffer_size, uint8_t *byte_list);
 Aml *aml_resource_template(void);
