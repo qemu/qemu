@@ -494,6 +494,14 @@ Aml *aml_add(Aml *arg1, Aml *arg2)
     return var;
 }
 
+/* ACPI 1.0b: 16.2.5.4 Type 2 Opcodes Encoding: DefIncrement */
+Aml *aml_increment(Aml *arg)
+{
+    Aml *var = aml_opcode(0x75 /* IncrementOp */);
+    aml_append(var, arg);
+    return var;
+}
+
 /* ACPI 1.0b: 16.2.5.4 Type 2 Opcodes Encoding: DefIndex */
 Aml *aml_index(Aml *arg1, Aml *idx)
 {
