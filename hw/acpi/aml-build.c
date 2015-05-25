@@ -455,6 +455,15 @@ Aml *aml_or(Aml *arg1, Aml *arg2)
     return var;
 }
 
+/* ACPI 1.0b: 16.2.5.4 Type 2 Opcodes Encoding: DefLLess */
+Aml *aml_lless(Aml *arg1, Aml *arg2)
+{
+    Aml *var = aml_opcode(0x95 /* LLessOp */);
+    aml_append(var, arg1);
+    aml_append(var, arg2);
+    return var;
+}
+
 /* ACPI 1.0b: 16.2.5.4 Type 2 Opcodes Encoding: DefAdd */
 Aml *aml_add(Aml *arg1, Aml *arg2)
 {
