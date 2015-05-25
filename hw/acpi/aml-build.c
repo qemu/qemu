@@ -474,6 +474,16 @@ Aml *aml_add(Aml *arg1, Aml *arg2)
     return var;
 }
 
+/* ACPI 1.0b: 16.2.5.4 Type 2 Opcodes Encoding: DefIndex */
+Aml *aml_index(Aml *arg1, Aml *idx)
+{
+    Aml *var = aml_opcode(0x88 /* IndexOp */);
+    aml_append(var, arg1);
+    aml_append(var, idx);
+    build_append_byte(var->buf, 0x00 /* NullNameOp */);
+    return var;
+}
+
 /* ACPI 1.0b: 16.2.5.3 Type 1 Opcodes Encoding: DefNotify */
 Aml *aml_notify(Aml *arg1, Aml *arg2)
 {

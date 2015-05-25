@@ -204,6 +204,7 @@ Aml *aml_and(Aml *arg1, Aml *arg2);
 Aml *aml_or(Aml *arg1, Aml *arg2);
 Aml *aml_lless(Aml *arg1, Aml *arg2);
 Aml *aml_add(Aml *arg1, Aml *arg2);
+Aml *aml_index(Aml *arg1, Aml *idx);
 Aml *aml_notify(Aml *arg1, Aml *arg2);
 Aml *aml_call1(const char *method, Aml *arg1);
 Aml *aml_call2(const char *method, Aml *arg1, Aml *arg2);
