@@ -89,7 +89,7 @@ static void pc_init1(MachineState *machine)
     qemu_irq *cpu_irq;
     qemu_irq *gsi;
     qemu_irq *i8259;
-    qemu_irq *smi_irq;
+    qemu_irq smi_irq;
     GSIState *gsi_state;
     DriveInfo *hd[MAX_IDE_BUS * MAX_IDE_DEVS];
     BusState *idebus[MAX_IDE_BUS];
@@ -227,6 +227,7 @@ static void pc_init1(MachineState *machine)
     for (i = 0; i < ISA_NUM_IRQS; i++) {
         gsi_state->i8259_irq[i] = i8259[i];
     }
+    g_free(i8259);
     if (pci_enabled) {
         ioapic_init_gsi(gsi_state, "i440fx");
     }
@@ -284,10 +285,10 @@ static void pc_init1(MachineState *machine)
         DeviceState *piix4_pm;
         I2CBus *smbus;
 
-        smi_irq = qemu_allocate_irqs(pc_acpi_smi_interrupt, first_cpu, 1);
+        smi_irq = qemu_allocate_irq(pc_acpi_smi_interrupt, first_cpu, 0);
         /* TODO: Populate SPD eeprom data.  */
         smbus = piix4_pm_init(pci_bus, piix3_devfn + 3, 0xb100,
-                              gsi[9], *smi_irq,
+                              gsi[9], smi_irq,
                               kvm_enabled(), fw_cfg, &piix4_pm);
         smbus_eeprom_init(smbus, 8, NULL, 0);
 
