@@ -21,6 +21,8 @@ QOSState *qtest_boot(QOSOps *ops, const char *cmdline_fmt, ...);
 void qtest_shutdown(QOSState *qs);
 void mkimg(const char *file, const char *fmt, unsigned size_mb);
 void mkqcow2(const char *file, unsigned size_mb);
+void set_context(QOSState *s);
+void migrate(QOSState *from, QOSState *to, const char *uri);
 void prepare_blkdebug_script(const char *debug_fn, const char *event);
 
 static inline uint64_t qmalloc(QOSState *q, size_t bytes)

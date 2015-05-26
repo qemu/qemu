@@ -30,8 +30,8 @@ struct QGuestAllocator {
     uint64_t end;
     uint32_t page_size;
 
-    MemList used;
-    MemList free;
+    MemList *used;
+    MemList *free;
 };
 
 #define DEFAULT_PAGE_SIZE 4096
@@ -150,7 +150,7 @@ static uint64_t mlist_fulfill(QGuestAllocator *s, MemBlock *freenode,
     addr = freenode->addr;
     if (freenode->size == size) {
         /* re-use this freenode as our used node */
-        QTAILQ_REMOVE(&s->free, freenode, MLIST_ENTNAME);
+        QTAILQ_REMOVE(s->free, freenode, MLIST_ENTNAME);
         usednode = freenode;
     } else {
         /* adjust the free node and create a new used node */
@@ -159,7 +159,7 @@ static uint64_t mlist_fulfill(QGuestAllocator *s, MemBlock *freenode,
         usednode = mlist_new(addr, size);
     }
 
-    mlist_sort_insert(&s->used, usednode);
+    mlist_sort_insert(s->used, usednode);
     return addr;
 }
 
@@ -171,7 +171,7 @@ static void mlist_check(QGuestAllocator *s)
     uint64_t addr = s->start > 0 ? s->start - 1 : 0;
     uint64_t next = s->start;
 
-    QTAILQ_FOREACH(node, &s->free, MLIST_ENTNAME) {
+    QTAILQ_FOREACH(node, s->free, MLIST_ENTNAME) {
         g_assert_cmpint(node->addr, >, addr);
         g_assert_cmpint(node->addr, >=, next);
         addr = node->addr;
@@ -180,7 +180,7 @@ static void mlist_check(QGuestAllocator *s)
 
     addr = s->start > 0 ? s->start - 1 : 0;
     next = s->start;
-    QTAILQ_FOREACH(node, &s->used, MLIST_ENTNAME) {
+    QTAILQ_FOREACH(node, s->used, MLIST_ENTNAME) {
         g_assert_cmpint(node->addr, >, addr);
         g_assert_cmpint(node->addr, >=, next);
         addr = node->addr;
@@ -192,7 +192,7 @@ static uint64_t mlist_alloc(QGuestAllocator *s, uint64_t size)
 {
     MemBlock *node;
 
-    node = mlist_find_space(&s->free, size);
+    node = mlist_find_space(s->free, size);
     if (!node) {
         fprintf(stderr, "Out of guest memory.\n");
         g_assert_not_reached();
@@ -208,7 +208,7 @@ static void mlist_free(QGuestAllocator *s, uint64_t addr)
         return;
     }
 
-    node = mlist_find_key(&s->used, addr);
+    node = mlist_find_key(s->used, addr);
     if (!node) {
         fprintf(stderr, "Error: no record found for an allocation at "
                 "0x%016" PRIx64 ".\n",
@@ -217,9 +217,9 @@ static void mlist_free(QGuestAllocator *s, uint64_t addr)
     }
 
     /* Rip it out of the used list and re-insert back into the free list. */
-    QTAILQ_REMOVE(&s->used, node, MLIST_ENTNAME);
-    mlist_sort_insert(&s->free, node);
-    mlist_coalesce(&s->free, node);
+    QTAILQ_REMOVE(s->used, node, MLIST_ENTNAME);
+    mlist_sort_insert(s->free, node);
+    mlist_coalesce(s->free, node);
 }
 
 /*
@@ -233,7 +233,7 @@ void alloc_uninit(QGuestAllocator *allocator)
     QAllocOpts mask;
 
     /* Check for guest leaks, and destroy the list. */
-    QTAILQ_FOREACH_SAFE(node, &allocator->used, MLIST_ENTNAME, tmp) {
+    QTAILQ_FOREACH_SAFE(node, allocator->used, MLIST_ENTNAME, tmp) {
         if (allocator->opts & (ALLOC_LEAK_WARN | ALLOC_LEAK_ASSERT)) {
             fprintf(stderr, "guest malloc leak @ 0x%016" PRIx64 "; "
                     "size 0x%016" PRIx64 ".\n",
@@ -248,7 +248,7 @@ void alloc_uninit(QGuestAllocator *allocator)
     /* If we have previously asserted that there are no leaks, then there
      * should be only one node here with a specific address and size. */
     mask = ALLOC_LEAK_ASSERT | ALLOC_PARANOID;
-    QTAILQ_FOREACH_SAFE(node, &allocator->free, MLIST_ENTNAME, tmp) {
+    QTAILQ_FOREACH_SAFE(node, allocator->free, MLIST_ENTNAME, tmp) {
         if ((allocator->opts & mask) == mask) {
             if ((node->addr != allocator->start) ||
                 (node->size != allocator->end - allocator->start)) {
@@ -260,6 +260,8 @@ void alloc_uninit(QGuestAllocator *allocator)
         g_free(node);
     }
 
+    g_free(allocator->used);
+    g_free(allocator->free);
     g_free(allocator);
 }
 
@@ -297,11 +299,13 @@ QGuestAllocator *alloc_init(uint64_t start, uint64_t end)
     s->start = start;
     s->end = end;
 
-    QTAILQ_INIT(&s->used);
-    QTAILQ_INIT(&s->free);
+    s->used = g_malloc(sizeof(MemList));
+    s->free = g_malloc(sizeof(MemList));
+    QTAILQ_INIT(s->used);
+    QTAILQ_INIT(s->free);
 
     node = mlist_new(s->start, s->end - s->start);
-    QTAILQ_INSERT_HEAD(&s->free, node, MLIST_ENTNAME);
+    QTAILQ_INSERT_HEAD(s->free, node, MLIST_ENTNAME);
 
     s->page_size = DEFAULT_PAGE_SIZE;
 
@@ -319,7 +323,7 @@ QGuestAllocator *alloc_init_flags(QAllocOpts opts,
 void alloc_set_page_size(QGuestAllocator *allocator, size_t page_size)
 {
     /* Can't alter the page_size for an allocator in-use */
-    g_assert(QTAILQ_EMPTY(&allocator->used));
+    g_assert(QTAILQ_EMPTY(allocator->used));
 
     g_assert(is_power_of_2(page_size));
     allocator->page_size = page_size;
@@ -328,4 +332,40 @@ void alloc_set_page_size(QGuestAllocator *allocator, size_t page_size)
 void alloc_set_flags(QGuestAllocator *allocator, QAllocOpts opts)
 {
     allocator->opts |= opts;
+}
+
+void migrate_allocator(QGuestAllocator *src,
+                       QGuestAllocator *dst)
+{
+    MemBlock *node, *tmp;
+    MemList *tmpused, *tmpfree;
+
+    /* The general memory layout should be equivalent,
+     * though opts can differ. */
+    g_assert_cmphex(src->start, ==, dst->start);
+    g_assert_cmphex(src->end, ==, dst->end);
+
+    /* Destroy (silently, regardless of options) the dest-list: */
+    QTAILQ_FOREACH_SAFE(node, dst->used, MLIST_ENTNAME, tmp) {
+        g_free(node);
+    }
+    QTAILQ_FOREACH_SAFE(node, dst->free, MLIST_ENTNAME, tmp) {
+        g_free(node);
+    }
+
+    tmpused = dst->used;
+    tmpfree = dst->free;
+
+    /* Inherit the lists of the source allocator: */
+    dst->used = src->used;
+    dst->free = src->free;
+
+    /* Source is now re-initialized, the source memory is 'invalid' now: */
+    src->used = tmpused;
+    src->free = tmpfree;
+    QTAILQ_INIT(src->used);
+    QTAILQ_INIT(src->free);
+    node = mlist_new(src->start, src->end - src->start);
+    QTAILQ_INSERT_HEAD(src->free, node, MLIST_ENTNAME);
+    return;
 }

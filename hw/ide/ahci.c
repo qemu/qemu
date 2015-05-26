@@ -198,6 +198,61 @@ static void map_page(AddressSpace *as, uint8_t **ptr, uint64_t addr,
     }
 }
 
+/**
+ * Check the cmd register to see if we should start or stop
+ * the DMA or FIS RX engines.
+ *
+ * @ad: Device to engage.
+ * @allow_stop: Allow device to transition from started to stopped?
+ *   'no' is useful for migration post_load, which does not expect a transition.
+ *
+ * @return 0 on success, -1 on error.
+ */
+static int ahci_cond_start_engines(AHCIDevice *ad, bool allow_stop)
+{
+    AHCIPortRegs *pr = &ad->port_regs;
+
+    if (pr->cmd & PORT_CMD_START) {
+        if (ahci_map_clb_address(ad)) {
+            pr->cmd |= PORT_CMD_LIST_ON;
+        } else {
+            error_report("AHCI: Failed to start DMA engine: "
+                         "bad command list buffer address");
+            return -1;
+        }
+    } else if (pr->cmd & PORT_CMD_LIST_ON) {
+        if (allow_stop) {
+            ahci_unmap_clb_address(ad);
+            pr->cmd = pr->cmd & ~(PORT_CMD_LIST_ON);
+        } else {
+            error_report("AHCI: DMA engine should be off, "
+                         "but appears to still be running");
+            return -1;
+        }
+    }
+
+    if (pr->cmd & PORT_CMD_FIS_RX) {
+        if (ahci_map_fis_address(ad)) {
+            pr->cmd |= PORT_CMD_FIS_ON;
+        } else {
+            error_report("AHCI: Failed to start FIS receive engine: "
+                         "bad FIS receive buffer address");
+            return -1;
+        }
+    } else if (pr->cmd & PORT_CMD_FIS_ON) {
+        if (allow_stop) {
+            ahci_unmap_fis_address(ad);
+            pr->cmd = pr->cmd & ~(PORT_CMD_FIS_ON);
+        } else {
+            error_report("AHCI: FIS receive engine should be off, "
+                         "but appears to still be running");
+            return -1;
+        }
+    }
+
+    return 0;
+}
+
 static void  ahci_port_write(AHCIState *s, int port, int offset, uint32_t val)
 {
     AHCIPortRegs *pr = &s->dev[port].port_regs;
@@ -229,29 +284,8 @@ static void  ahci_port_write(AHCIState *s, int port, int offset, uint32_t val)
              * including LIST_ON and FIS_ON. */
             pr->cmd = (pr->cmd & PORT_CMD_RO_MASK) | (val & ~PORT_CMD_RO_MASK);
 
-            if (pr->cmd & PORT_CMD_START) {
-                if (ahci_map_clb_address(&s->dev[port])) {
-                    pr->cmd |= PORT_CMD_LIST_ON;
-                } else {
-                    error_report("AHCI: Failed to start DMA engine: "
-                                 "bad command list buffer address");
-                }
-            } else if (pr->cmd & PORT_CMD_LIST_ON) {
-                ahci_unmap_clb_address(&s->dev[port]);
-                pr->cmd = pr->cmd & ~(PORT_CMD_LIST_ON);
-            }
-
-            if (pr->cmd & PORT_CMD_FIS_RX) {
-                if (ahci_map_fis_address(&s->dev[port])) {
-                    pr->cmd |= PORT_CMD_FIS_ON;
-                } else {
-                    error_report("AHCI: Failed to start FIS receive engine: "
-                                 "bad FIS receive buffer address");
-                }
-            } else if (pr->cmd & PORT_CMD_FIS_ON) {
-                ahci_unmap_fis_address(&s->dev[port]);
-                pr->cmd = pr->cmd & ~(PORT_CMD_FIS_ON);
-            }
+            /* Check FIS RX and CLB engines, allow transition to false: */
+            ahci_cond_start_engines(&s->dev[port], true);
 
             /* XXX usually the FIS would be pending on the bus here and
                    issuing deferred until the OS enables FIS receival.
@@ -1404,8 +1438,12 @@ static int ahci_state_post_load(void *opaque, int version_id)
     for (i = 0; i < s->ports; i++) {
         ad = &s->dev[i];
 
-        ahci_map_clb_address(ad);
-        ahci_map_fis_address(ad);
+        /* Only remap the CLB address if appropriate, disallowing a state
+         * transition from 'on' to 'off' it should be consistent here. */
+        if (ahci_cond_start_engines(ad, false) != 0) {
+            return -1;
+        }
+
         /*
          * If an error is present, ad->busy_slot will be valid and not -1.
          * In this case, an operation is waiting to resume and will re-check
@@ -1461,7 +1499,6 @@ typedef struct SysbusAHCIState {
 
 static const VMStateDescription vmstate_sysbus_ahci = {
     .name = "sysbus-ahci",
-    .unmigratable = 1, /* Still buggy under I/O load */
     .fields = (VMStateField[]) {
         VMSTATE_AHCI(ahci, SysbusAHCIState),
         VMSTATE_END_OF_LIST()
