@@ -43,20 +43,23 @@ static void nbd_recv_coroutines_enter_all(NbdClientSession *s)
     }
 }
 
-static void nbd_teardown_connection(NbdClientSession *client)
+static void nbd_teardown_connection(BlockDriverState *bs)
 {
+    NbdClientSession *client = nbd_get_client_session(bs);
+
     /* finish any pending coroutines */
     shutdown(client->sock, 2);
     nbd_recv_coroutines_enter_all(client);
 
-    nbd_client_session_detach_aio_context(client);
+    nbd_client_detach_aio_context(bs);
     closesocket(client->sock);
     client->sock = -1;
 }
 
 static void nbd_reply_ready(void *opaque)
 {
-    NbdClientSession *s = opaque;
+    BlockDriverState *bs = opaque;
+    NbdClientSession *s = nbd_get_client_session(bs);
     uint64_t i;
     int ret;
 
@@ -89,28 +92,40 @@ static void nbd_reply_ready(void *opaque)
     }
 
 fail:
-    nbd_teardown_connection(s);
+    nbd_teardown_connection(bs);
 }
 
 static void nbd_restart_write(void *opaque)
 {
-    NbdClientSession *s = opaque;
+    BlockDriverState *bs = opaque;
 
-    qemu_coroutine_enter(s->send_coroutine, NULL);
+    qemu_coroutine_enter(nbd_get_client_session(bs)->send_coroutine, NULL);
 }
 
-static int nbd_co_send_request(NbdClientSession *s,
-    struct nbd_request *request,
-    QEMUIOVector *qiov, int offset)
+static int nbd_co_send_request(BlockDriverState *bs,
+                               struct nbd_request *request,
+                               QEMUIOVector *qiov, int offset)
 {
+    NbdClientSession *s = nbd_get_client_session(bs);
     AioContext *aio_context;
-    int rc, ret;
+    int rc, ret, i;
 
     qemu_co_mutex_lock(&s->send_mutex);
+
+    for (i = 0; i < MAX_NBD_REQUESTS; i++) {
+        if (s->recv_coroutine[i] == NULL) {
+            s->recv_coroutine[i] = qemu_coroutine_self();
+            break;
+        }
+    }
+
+    assert(i < MAX_NBD_REQUESTS);
+    request->handle = INDEX_TO_HANDLE(s, i);
     s->send_coroutine = qemu_coroutine_self();
-    aio_context = bdrv_get_aio_context(s->bs);
+    aio_context = bdrv_get_aio_context(bs);
+
     aio_set_fd_handler(aio_context, s->sock,
-                       nbd_reply_ready, nbd_restart_write, s);
+                       nbd_reply_ready, nbd_restart_write, bs);
     if (qiov) {
         if (!s->is_unix) {
             socket_set_cork(s->sock, 1);
@@ -129,7 +144,7 @@ static int nbd_co_send_request(NbdClientSession *s,
     } else {
         rc = nbd_send_request(s->sock, request);
     }
-    aio_set_fd_handler(aio_context, s->sock, nbd_reply_ready, NULL, s);
+    aio_set_fd_handler(aio_context, s->sock, nbd_reply_ready, NULL, bs);
     s->send_coroutine = NULL;
     qemu_co_mutex_unlock(&s->send_mutex);
     return rc;
@@ -164,8 +179,6 @@ static void nbd_co_receive_reply(NbdClientSession *s,
 static void nbd_coroutine_start(NbdClientSession *s,
    struct nbd_request *request)
 {
-    int i;
-
     /* Poor man semaphore.  The free_sema is locked when no other request
      * can be accepted, and unlocked after receiving one reply.  */
     if (s->in_flight >= MAX_NBD_REQUESTS - 1) {
@@ -174,15 +187,7 @@ static void nbd_coroutine_start(NbdClientSession *s,
     }
     s->in_flight++;
 
-    for (i = 0; i < MAX_NBD_REQUESTS; i++) {
-        if (s->recv_coroutine[i] == NULL) {
-            s->recv_coroutine[i] = qemu_coroutine_self();
-            break;
-        }
-    }
-
-    assert(i < MAX_NBD_REQUESTS);
-    request->handle = INDEX_TO_HANDLE(s, i);
+    /* s->recv_coroutine[i] is set as soon as we get the send_lock.  */
 }
 
 static void nbd_coroutine_end(NbdClientSession *s,
@@ -195,10 +200,11 @@ static void nbd_coroutine_end(NbdClientSession *s,
     }
 }
 
-static int nbd_co_readv_1(NbdClientSession *client, int64_t sector_num,
+static int nbd_co_readv_1(BlockDriverState *bs, int64_t sector_num,
                           int nb_sectors, QEMUIOVector *qiov,
                           int offset)
 {
+    NbdClientSession *client = nbd_get_client_session(bs);
     struct nbd_request request = { .type = NBD_CMD_READ };
     struct nbd_reply reply;
     ssize_t ret;
@@ -207,7 +213,7 @@ static int nbd_co_readv_1(NbdClientSession *client, int64_t sector_num,
     request.len = nb_sectors * 512;
 
     nbd_coroutine_start(client, &request);
-    ret = nbd_co_send_request(client, &request, NULL, 0);
+    ret = nbd_co_send_request(bs, &request, NULL, 0);
     if (ret < 0) {
         reply.error = -ret;
     } else {
@@ -218,15 +224,16 @@ static int nbd_co_readv_1(NbdClientSession *client, int64_t sector_num,
 
 }
 
-static int nbd_co_writev_1(NbdClientSession *client, int64_t sector_num,
+static int nbd_co_writev_1(BlockDriverState *bs, int64_t sector_num,
                            int nb_sectors, QEMUIOVector *qiov,
                            int offset)
 {
+    NbdClientSession *client = nbd_get_client_session(bs);
     struct nbd_request request = { .type = NBD_CMD_WRITE };
     struct nbd_reply reply;
     ssize_t ret;
 
-    if (!bdrv_enable_write_cache(client->bs) &&
+    if (!bdrv_enable_write_cache(bs) &&
         (client->nbdflags & NBD_FLAG_SEND_FUA)) {
         request.type |= NBD_CMD_FLAG_FUA;
     }
@@ -235,7 +242,7 @@ static int nbd_co_writev_1(NbdClientSession *client, int64_t sector_num,
     request.len = nb_sectors * 512;
 
     nbd_coroutine_start(client, &request);
-    ret = nbd_co_send_request(client, &request, qiov, offset);
+    ret = nbd_co_send_request(bs, &request, qiov, offset);
     if (ret < 0) {
         reply.error = -ret;
     } else {
@@ -249,14 +256,13 @@ static int nbd_co_writev_1(NbdClientSession *client, int64_t sector_num,
  * remain aligned to 4K. */
 #define NBD_MAX_SECTORS 2040
 
-int nbd_client_session_co_readv(NbdClientSession *client, int64_t sector_num,
-    int nb_sectors, QEMUIOVector *qiov)
+int nbd_client_co_readv(BlockDriverState *bs, int64_t sector_num,
+                        int nb_sectors, QEMUIOVector *qiov)
 {
     int offset = 0;
     int ret;
     while (nb_sectors > NBD_MAX_SECTORS) {
-        ret = nbd_co_readv_1(client, sector_num,
-                             NBD_MAX_SECTORS, qiov, offset);
+        ret = nbd_co_readv_1(bs, sector_num, NBD_MAX_SECTORS, qiov, offset);
         if (ret < 0) {
             return ret;
         }
@@ -264,17 +270,16 @@ int nbd_client_session_co_readv(NbdClientSession *client, int64_t sector_num,
         sector_num += NBD_MAX_SECTORS;
         nb_sectors -= NBD_MAX_SECTORS;
     }
-    return nbd_co_readv_1(client, sector_num, nb_sectors, qiov, offset);
+    return nbd_co_readv_1(bs, sector_num, nb_sectors, qiov, offset);
 }
 
-int nbd_client_session_co_writev(NbdClientSession *client, int64_t sector_num,
-                                 int nb_sectors, QEMUIOVector *qiov)
+int nbd_client_co_writev(BlockDriverState *bs, int64_t sector_num,
+                         int nb_sectors, QEMUIOVector *qiov)
 {
     int offset = 0;
     int ret;
     while (nb_sectors > NBD_MAX_SECTORS) {
-        ret = nbd_co_writev_1(client, sector_num,
-                              NBD_MAX_SECTORS, qiov, offset);
+        ret = nbd_co_writev_1(bs, sector_num, NBD_MAX_SECTORS, qiov, offset);
         if (ret < 0) {
             return ret;
         }
@@ -282,11 +287,12 @@ int nbd_client_session_co_writev(NbdClientSession *client, int64_t sector_num,
         sector_num += NBD_MAX_SECTORS;
         nb_sectors -= NBD_MAX_SECTORS;
     }
-    return nbd_co_writev_1(client, sector_num, nb_sectors, qiov, offset);
+    return nbd_co_writev_1(bs, sector_num, nb_sectors, qiov, offset);
 }
 
-int nbd_client_session_co_flush(NbdClientSession *client)
+int nbd_client_co_flush(BlockDriverState *bs)
 {
+    NbdClientSession *client = nbd_get_client_session(bs);
     struct nbd_request request = { .type = NBD_CMD_FLUSH };
     struct nbd_reply reply;
     ssize_t ret;
@@ -303,7 +309,7 @@ int nbd_client_session_co_flush(NbdClientSession *client)
     request.len = 0;
 
     nbd_coroutine_start(client, &request);
-    ret = nbd_co_send_request(client, &request, NULL, 0);
+    ret = nbd_co_send_request(bs, &request, NULL, 0);
     if (ret < 0) {
         reply.error = -ret;
     } else {
@@ -313,9 +319,10 @@ int nbd_client_session_co_flush(NbdClientSession *client)
     return -reply.error;
 }
 
-int nbd_client_session_co_discard(NbdClientSession *client, int64_t sector_num,
-    int nb_sectors)
+int nbd_client_co_discard(BlockDriverState *bs, int64_t sector_num,
+                          int nb_sectors)
 {
+    NbdClientSession *client = nbd_get_client_session(bs);
     struct nbd_request request = { .type = NBD_CMD_TRIM };
     struct nbd_reply reply;
     ssize_t ret;
@@ -327,7 +334,7 @@ int nbd_client_session_co_discard(NbdClientSession *client, int64_t sector_num,
     request.len = nb_sectors * 512;
 
     nbd_coroutine_start(client, &request);
-    ret = nbd_co_send_request(client, &request, NULL, 0);
+    ret = nbd_co_send_request(bs, &request, NULL, 0);
     if (ret < 0) {
         reply.error = -ret;
     } else {
@@ -338,51 +345,48 @@ int nbd_client_session_co_discard(NbdClientSession *client, int64_t sector_num,
 
 }
 
-void nbd_client_session_detach_aio_context(NbdClientSession *client)
+void nbd_client_detach_aio_context(BlockDriverState *bs)
 {
-    aio_set_fd_handler(bdrv_get_aio_context(client->bs), client->sock,
-                       NULL, NULL, NULL);
+    aio_set_fd_handler(bdrv_get_aio_context(bs),
+                       nbd_get_client_session(bs)->sock, NULL, NULL, NULL);
 }
 
-void nbd_client_session_attach_aio_context(NbdClientSession *client,
-                                           AioContext *new_context)
+void nbd_client_attach_aio_context(BlockDriverState *bs,
+                                   AioContext *new_context)
 {
-    aio_set_fd_handler(new_context, client->sock,
-                       nbd_reply_ready, NULL, client);
+    aio_set_fd_handler(new_context, nbd_get_client_session(bs)->sock,
+                       nbd_reply_ready, NULL, bs);
 }
 
-void nbd_client_session_close(NbdClientSession *client)
+void nbd_client_close(BlockDriverState *bs)
 {
+    NbdClientSession *client = nbd_get_client_session(bs);
     struct nbd_request request = {
         .type = NBD_CMD_DISC,
         .from = 0,
         .len = 0
     };
 
-    if (!client->bs) {
-        return;
-    }
     if (client->sock == -1) {
         return;
     }
 
     nbd_send_request(client->sock, &request);
 
-    nbd_teardown_connection(client);
-    client->bs = NULL;
+    nbd_teardown_connection(bs);
 }
 
-int nbd_client_session_init(NbdClientSession *client, BlockDriverState *bs,
-    int sock, const char *export)
+int nbd_client_init(BlockDriverState *bs, int sock, const char *export,
+                    Error **errp)
 {
+    NbdClientSession *client = nbd_get_client_session(bs);
     int ret;
 
     /* NBD handshake */
     logout("session init %s\n", export);
     qemu_set_block(sock);
     ret = nbd_receive_negotiate(sock, export,
-                                &client->nbdflags, &client->size,
-                                &client->blocksize);
+                                &client->nbdflags, &client->size, errp);
     if (ret < 0) {
         logout("Failed to negotiate with the NBD server\n");
         closesocket(sock);
@@ -391,13 +395,12 @@ int nbd_client_session_init(NbdClientSession *client, BlockDriverState *bs,
 
     qemu_co_mutex_init(&client->send_mutex);
     qemu_co_mutex_init(&client->free_sema);
-    client->bs = bs;
     client->sock = sock;
 
     /* Now that we're connected, set the socket to be non-blocking and
      * kick the reply mechanism.  */
     qemu_set_nonblock(sock);
-    nbd_client_session_attach_aio_context(client, bdrv_get_aio_context(bs));
+    nbd_client_attach_aio_context(bs, bdrv_get_aio_context(bs));
 
     logout("Established connection with NBD server\n");
     return 0;

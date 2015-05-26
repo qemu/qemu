@@ -12,7 +12,7 @@
 003 rw auto
 004 rw auto quick
 005 img auto quick
-006 img auto
+# 006 was removed, do not reuse
 007 snapshot auto
 008 rw auto quick
 009 rw auto quick
@@ -22,7 +22,7 @@
 013 rw auto
 014 rw auto
 015 rw snapshot auto
-016 rw auto quick
+# 016 was removed, do not reuse
 017 rw backing auto quick
 018 rw backing auto quick
 019 rw backing auto quick
@@ -99,6 +99,8 @@
 090 rw auto quick
 091 rw auto
 092 rw auto quick
+093 auto
+094 rw auto quick
 095 rw auto quick
 097 rw auto backing
 098 rw auto backing quick
@@ -114,5 +116,17 @@
 109 rw auto
 110 rw auto backing quick
 111 rw auto quick
+112 rw auto
 113 rw auto quick
 114 rw auto quick
+115 rw auto
+116 rw auto quick
+121 rw auto
+122 rw auto
+123 rw auto quick
+124 rw auto backing
+128 rw auto quick
+129 rw auto quick
+130 rw auto quick
+131 rw auto quick
+134 rw auto quick

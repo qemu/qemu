@@ -19,6 +19,10 @@
 #ifndef HW_S390_VIRTIO_BUS_H
 #define HW_S390_VIRTIO_BUS_H 1
 
+#include <stddef.h>
+
+#include "standard-headers/asm-s390/kvm_virtio.h"
+#include "standard-headers/linux/virtio_ring.h"
 #include "hw/virtio/virtio-blk.h"
 #include "hw/virtio/virtio-net.h"
 #include "hw/virtio/virtio-rng.h"
@@ -29,27 +33,25 @@
 #include "hw/virtio/vhost-scsi.h"
 #endif
 
-#define VIRTIO_DEV_OFFS_TYPE		0	/* 8 bits */
-#define VIRTIO_DEV_OFFS_NUM_VQ		1	/* 8 bits */
-#define VIRTIO_DEV_OFFS_FEATURE_LEN	2	/* 8 bits */
-#define VIRTIO_DEV_OFFS_CONFIG_LEN	3	/* 8 bits */
-#define VIRTIO_DEV_OFFS_STATUS		4	/* 8 bits */
-#define VIRTIO_DEV_OFFS_CONFIG		5	/* dynamic */
+typedef struct kvm_device_desc KvmDeviceDesc;
 
-#define VIRTIO_VQCONFIG_OFFS_TOKEN	0	/* 64 bits */
-#define VIRTIO_VQCONFIG_OFFS_ADDRESS	8	/* 64 bits */
-#define VIRTIO_VQCONFIG_OFFS_NUM	16	/* 16 bits */
-#define VIRTIO_VQCONFIG_LEN		24
+#define VIRTIO_DEV_OFFS_TYPE        offsetof(KvmDeviceDesc, type)
+#define VIRTIO_DEV_OFFS_NUM_VQ      offsetof(KvmDeviceDesc, num_vq)
+#define VIRTIO_DEV_OFFS_FEATURE_LEN offsetof(KvmDeviceDesc, feature_len)
+#define VIRTIO_DEV_OFFS_CONFIG_LEN  offsetof(KvmDeviceDesc, config_len)
+#define VIRTIO_DEV_OFFS_STATUS      offsetof(KvmDeviceDesc, status)
+#define VIRTIO_DEV_OFFS_CONFIG      offsetof(KvmDeviceDesc, config)
+
+typedef struct kvm_vqconfig KvmVqConfig;
+#define VIRTIO_VQCONFIG_OFFS_TOKEN   offsetof(KvmVqConfig,token)    /* 64 bit */
+#define VIRTIO_VQCONFIG_OFFS_ADDRESS offsetof(KvmVqConfig, address) /* 64 bit */
+#define VIRTIO_VQCONFIG_OFFS_NUM     offsetof(KvmVqConfig, num)     /* 16 bit */
+#define VIRTIO_VQCONFIG_LEN          sizeof(KvmVqConfig)
 
 #define VIRTIO_RING_LEN			(TARGET_PAGE_SIZE * 3)
-#define VIRTIO_VRING_AVAIL_IDX_OFFS 2
-#define VIRTIO_VRING_USED_IDX_OFFS 2
+#define VIRTIO_VRING_AVAIL_IDX_OFFS offsetof(struct vring_avail, idx)
+#define VIRTIO_VRING_USED_IDX_OFFS  offsetof(struct vring_used, idx)
 #define S390_DEVICE_PAGES		512
-
-#define VIRTIO_PARAM_MASK               0xff
-#define VIRTIO_PARAM_VRING_INTERRUPT    0x0
-#define VIRTIO_PARAM_CONFIG_CHANGED     0x1
-#define VIRTIO_PARAM_DEV_ADD            0x2
 
 #define TYPE_VIRTIO_S390_DEVICE "virtio-s390-device"
 #define VIRTIO_S390_DEVICE(obj) \
@@ -81,7 +83,7 @@ typedef struct VirtIOS390Device VirtIOS390Device;
 
 typedef struct VirtIOS390DeviceClass {
     DeviceClass qdev;
-    int (*init)(VirtIOS390Device *dev);
+    void (*realize)(VirtIOS390Device *dev, Error **errp);
 } VirtIOS390DeviceClass;
 
 struct VirtIOS390Device {
@@ -106,7 +108,6 @@ typedef struct VirtIOS390Bus {
 
 void s390_virtio_device_update_status(VirtIOS390Device *dev);
 
-VirtIOS390Device *s390_virtio_bus_console(VirtIOS390Bus *bus);
 VirtIOS390Bus *s390_virtio_bus_init(ram_addr_t *ram_size);
 
 VirtIOS390Device *s390_virtio_bus_find_vring(VirtIOS390Bus *bus,

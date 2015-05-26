@@ -45,7 +45,7 @@ static VirtIOSCSIVring *virtio_scsi_vring_init(VirtIOSCSI *s,
 {
     BusState *qbus = BUS(qdev_get_parent_bus(DEVICE(s)));
     VirtioBusClass *k = VIRTIO_BUS_GET_CLASS(qbus);
-    VirtIOSCSIVring *r = g_slice_new(VirtIOSCSIVring);
+    VirtIOSCSIVring *r;
     int rc;
 
     /* Set up virtqueue notify */
@@ -56,6 +56,8 @@ static VirtIOSCSIVring *virtio_scsi_vring_init(VirtIOSCSI *s,
         s->dataplane_fenced = true;
         return NULL;
     }
+
+    r = g_slice_new(VirtIOSCSIVring);
     r->host_notifier = *virtio_queue_get_host_notifier(vq);
     r->guest_notifier = *virtio_queue_get_guest_notifier(vq);
     aio_set_event_notifier(s->ctx, &r->host_notifier, handler);
@@ -94,7 +96,7 @@ void virtio_scsi_vring_push_notify(VirtIOSCSIReq *req)
 {
     VirtIODevice *vdev = VIRTIO_DEVICE(req->vring->parent);
 
-    vring_push(&req->vring->vring, &req->elem,
+    vring_push(vdev, &req->vring->vring, &req->elem,
                req->qsgl.size + req->resp_iov.size);
 
     if (vring_should_notify(vdev, &req->vring->vring)) {
@@ -180,13 +182,19 @@ static void virtio_scsi_vring_teardown(VirtIOSCSI *s)
 
     if (s->ctrl_vring) {
         vring_teardown(&s->ctrl_vring->vring, vdev, 0);
+        g_slice_free(VirtIOSCSIVring, s->ctrl_vring);
+        s->ctrl_vring = NULL;
     }
     if (s->event_vring) {
         vring_teardown(&s->event_vring->vring, vdev, 1);
+        g_slice_free(VirtIOSCSIVring, s->event_vring);
+        s->event_vring = NULL;
     }
     if (s->cmd_vrings) {
         for (i = 0; i < vs->conf.num_queues && s->cmd_vrings[i]; i++) {
             vring_teardown(&s->cmd_vrings[i]->vring, vdev, 2 + i);
+            g_slice_free(VirtIOSCSIVring, s->cmd_vrings[i]);
+            s->cmd_vrings[i] = NULL;
         }
         free(s->cmd_vrings);
         s->cmd_vrings = NULL;
@@ -211,8 +219,6 @@ void virtio_scsi_dataplane_start(VirtIOSCSI *s)
 
     s->dataplane_starting = true;
 
-    assert(!s->blocker);
-    error_setg(&s->blocker, "block device is in use by data plane");
     /* Set up guest notifier (irq) */
     rc = k->set_guest_notifiers(qbus->parent, vs->conf.num_queues + 2, true);
     if (rc != 0) {
@@ -279,8 +285,6 @@ void virtio_scsi_dataplane_stop(VirtIOSCSI *s)
     if (!s->dataplane_started || s->dataplane_stopping) {
         return;
     }
-    error_free(s->blocker);
-    s->blocker = NULL;
     s->dataplane_stopping = true;
     assert(s->ctx == iothread_get_aio_context(vs->conf.iothread));
 

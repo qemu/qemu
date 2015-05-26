@@ -213,6 +213,11 @@ typedef struct Qcow2DiscardRegion {
     QTAILQ_ENTRY(Qcow2DiscardRegion) next;
 } Qcow2DiscardRegion;
 
+typedef uint64_t Qcow2GetRefcountFunc(const void *refcount_array,
+                                      uint64_t index);
+typedef void Qcow2SetRefcountFunc(void *refcount_array,
+                                  uint64_t index, uint64_t value);
+
 typedef struct BDRVQcowState {
     int cluster_bits;
     int cluster_size;
@@ -258,6 +263,11 @@ typedef struct BDRVQcowState {
     int qcow_version;
     bool use_lazy_refcounts;
     int refcount_order;
+    int refcount_bits;
+    uint64_t refcount_max;
+
+    Qcow2GetRefcountFunc *get_refcount;
+    Qcow2SetRefcountFunc *set_refcount;
 
     bool discard_passthrough[QCOW2_DISCARD_MAX];
 
@@ -273,18 +283,13 @@ typedef struct BDRVQcowState {
     QLIST_HEAD(, Qcow2UnknownHeaderExtension) unknown_header_ext;
     QTAILQ_HEAD (, Qcow2DiscardRegion) discards;
     bool cache_discards;
-} BDRVQcowState;
 
-/* XXX: use std qcow open function ? */
-typedef struct QCowCreateState {
-    int cluster_size;
-    int cluster_bits;
-    uint16_t *refcount_block;
-    uint64_t *refcount_table;
-    int64_t l1_table_offset;
-    int64_t refcount_table_offset;
-    int64_t refcount_block_offset;
-} QCowCreateState;
+    /* Backing file path and format as stored in the image (this is not the
+     * effective path/format, which may be the result of a runtime option
+     * override) */
+    char *image_backing_file;
+    char *image_backing_format;
+} BDRVQcowState;
 
 struct QCowAIOCB;
 
@@ -468,6 +473,11 @@ static inline uint64_t l2meta_cow_end(QCowL2Meta *m)
         + (m->cow_end.nb_sectors << BDRV_SECTOR_BITS);
 }
 
+static inline uint64_t refcount_diff(uint64_t r1, uint64_t r2)
+{
+    return r1 > r2 ? r1 - r2 : r2 - r1;
+}
+
 // FIXME Need qcow2_ prefix to global functions
 
 /* qcow2.c functions */
@@ -487,10 +497,12 @@ void qcow2_signal_corruption(BlockDriverState *bs, bool fatal, int64_t offset,
 int qcow2_refcount_init(BlockDriverState *bs);
 void qcow2_refcount_close(BlockDriverState *bs);
 
-int qcow2_get_refcount(BlockDriverState *bs, int64_t cluster_index);
+int qcow2_get_refcount(BlockDriverState *bs, int64_t cluster_index,
+                       uint64_t *refcount);
 
 int qcow2_update_cluster_refcount(BlockDriverState *bs, int64_t cluster_index,
-                                  int addend, enum qcow2_discard_type type);
+                                  uint64_t addend, bool decrease,
+                                  enum qcow2_discard_type type);
 
 int64_t qcow2_alloc_clusters(BlockDriverState *bs, uint64_t size);
 int qcow2_alloc_clusters_at(BlockDriverState *bs, uint64_t offset,
@@ -562,7 +574,8 @@ int qcow2_read_snapshots(BlockDriverState *bs);
 Qcow2Cache *qcow2_cache_create(BlockDriverState *bs, int num_tables);
 int qcow2_cache_destroy(BlockDriverState* bs, Qcow2Cache *c);
 
-void qcow2_cache_entry_mark_dirty(Qcow2Cache *c, void *table);
+void qcow2_cache_entry_mark_dirty(BlockDriverState *bs, Qcow2Cache *c,
+     void *table);
 int qcow2_cache_flush(BlockDriverState *bs, Qcow2Cache *c);
 int qcow2_cache_set_dependency(BlockDriverState *bs, Qcow2Cache *c,
     Qcow2Cache *dependency);
@@ -574,6 +587,6 @@ int qcow2_cache_get(BlockDriverState *bs, Qcow2Cache *c, uint64_t offset,
     void **table);
 int qcow2_cache_get_empty(BlockDriverState *bs, Qcow2Cache *c, uint64_t offset,
     void **table);
-int qcow2_cache_put(BlockDriverState *bs, Qcow2Cache *c, void **table);
+void qcow2_cache_put(BlockDriverState *bs, Qcow2Cache *c, void **table);
 
 #endif

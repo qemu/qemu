@@ -35,7 +35,7 @@
 
 #include <stdio.h>
 
-#include "hw/virtio/virtio_ring.h"
+#include "standard-headers/linux/virtio_ring.h"
 #include "hw/virtio/vhost.h"
 #include "hw/virtio/virtio-bus.h"
 
@@ -56,7 +56,7 @@ static const int kernel_feature_bits[] = {
 };
 
 /* Features supported by others. */
-const int user_feature_bits[] = {
+static const int user_feature_bits[] = {
     VIRTIO_F_NOTIFY_ON_EMPTY,
     VIRTIO_RING_F_INDIRECT_DESC,
     VIRTIO_RING_F_EVENT_IDX,
@@ -261,6 +261,13 @@ static void vhost_net_stop_one(struct vhost_net *net,
             const VhostOps *vhost_ops = net->dev.vhost_ops;
             int r = vhost_ops->vhost_call(&net->dev, VHOST_NET_SET_BACKEND,
                                           &file);
+            assert(r >= 0);
+        }
+    } else if (net->nc->info->type == NET_CLIENT_OPTIONS_KIND_VHOST_USER) {
+        for (file.index = 0; file.index < net->dev.nvqs; ++file.index) {
+            const VhostOps *vhost_ops = net->dev.vhost_ops;
+            int r = vhost_ops->vhost_call(&net->dev, VHOST_RESET_OWNER,
+                                          NULL);
             assert(r >= 0);
         }
     }

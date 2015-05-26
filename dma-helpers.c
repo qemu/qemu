@@ -10,7 +10,6 @@
 #include "sysemu/block-backend.h"
 #include "sysemu/dma.h"
 #include "trace.h"
-#include "qemu/range.h"
 #include "qemu/thread.h"
 #include "qemu/main-loop.h"
 
@@ -28,7 +27,8 @@ int dma_memory_set(AddressSpace *as, dma_addr_t addr, uint8_t c, dma_addr_t len)
     memset(fillbuf, c, FILLBUF_SIZE);
     while (len > 0) {
         l = len < FILLBUF_SIZE ? len : FILLBUF_SIZE;
-        error |= address_space_rw(as, addr, fillbuf, l, true);
+        error |= address_space_rw(as, addr, MEMTXATTRS_UNSPECIFIED,
+                                  fillbuf, l, true);
         len -= l;
         addr += l;
     }
@@ -92,14 +92,6 @@ static void reschedule_dma(void *opaque)
     dma_blk_cb(dbs, 0);
 }
 
-static void continue_after_map_failure(void *opaque)
-{
-    DMAAIOCB *dbs = (DMAAIOCB *)opaque;
-
-    dbs->bh = qemu_bh_new(reschedule_dma, dbs);
-    qemu_bh_schedule(dbs->bh);
-}
-
 static void dma_blk_unmap(DMAAIOCB *dbs)
 {
     int i;
@@ -161,7 +153,9 @@ static void dma_blk_cb(void *opaque, int ret)
 
     if (dbs->iov.size == 0) {
         trace_dma_map_wait(dbs);
-        cpu_register_map_client(dbs, continue_after_map_failure);
+        dbs->bh = aio_bh_new(blk_get_aio_context(dbs->blk),
+                             reschedule_dma, dbs);
+        cpu_register_map_client(dbs->bh);
         return;
     }
 
@@ -182,6 +176,11 @@ static void dma_aio_cancel(BlockAIOCB *acb)
 
     if (dbs->acb) {
         blk_aio_cancel_async(dbs->acb);
+    }
+    if (dbs->bh) {
+        cpu_unregister_map_client(dbs->bh);
+        qemu_bh_delete(dbs->bh);
+        dbs->bh = NULL;
     }
 }
 

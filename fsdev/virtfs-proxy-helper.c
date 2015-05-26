@@ -117,7 +117,7 @@ error:
 
 static int init_capabilities(void)
 {
-    /* helper needs following capbabilities only */
+    /* helper needs following capabilities only */
     cap_value_t cap_list[] = {
         CAP_CHOWN,
         CAP_DAC_OVERRIDE,
@@ -262,6 +262,9 @@ static int send_status(int sockfd, struct iovec *iovec, int status)
      */
     msg_size = proxy_marshal(iovec, 0, "ddd", header.type,
                              header.size, status);
+    if (msg_size < 0) {
+        return msg_size;
+    }
     retval = socket_write(sockfd, iovec->iov_base, msg_size);
     if (retval < 0) {
         return retval;
@@ -735,6 +738,7 @@ static int proxy_socket(const char *path, uid_t uid, gid_t gid)
         return -1;
     }
 
+    g_assert(strlen(path) < sizeof(proxy.sun_path));
     sock = socket(AF_UNIX, SOCK_STREAM, 0);
     if (sock < 0) {
         do_perror("socket");
@@ -749,24 +753,29 @@ static int proxy_socket(const char *path, uid_t uid, gid_t gid)
     if (bind(sock, (struct sockaddr *)&proxy,
             sizeof(struct sockaddr_un)) < 0) {
         do_perror("bind");
-        return -1;
+        goto error;
     }
     if (chown(proxy.sun_path, uid, gid) < 0) {
         do_perror("chown");
-        return -1;
+        goto error;
     }
     if (listen(sock, 1) < 0) {
         do_perror("listen");
-        return -1;
+        goto error;
     }
 
     size = sizeof(qemu);
     client = accept(sock, (struct sockaddr *)&qemu, &size);
     if (client < 0) {
         do_perror("accept");
-        return -1;
+        goto error;
     }
+    close(sock);
     return client;
+
+error:
+    close(sock);
+    return -1;
 }
 
 static void usage(char *prog)

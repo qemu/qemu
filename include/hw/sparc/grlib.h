@@ -55,9 +55,7 @@ DeviceState *grlib_irqmp_create(hwaddr   base,
     qdev_prop_set_ptr(dev, "set_pil_in", set_pil_in);
     qdev_prop_set_ptr(dev, "set_pil_in_opaque", env);
 
-    if (qdev_init(dev)) {
-        return NULL;
-    }
+    qdev_init_nofail(dev);
 
     env->irq_manager = dev;
 
@@ -87,9 +85,7 @@ DeviceState *grlib_gptimer_create(hwaddr  base,
     qdev_prop_set_uint32(dev, "frequency", freq);
     qdev_prop_set_uint32(dev, "irq-line", base_irq);
 
-    if (qdev_init(dev)) {
-        return NULL;
-    }
+    qdev_init_nofail(dev);
 
     sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, base);
 
@@ -112,9 +108,7 @@ DeviceState *grlib_apbuart_create(hwaddr  base,
     dev = qdev_create(NULL, "grlib,apbuart");
     qdev_prop_set_chr(dev, "chrdev", serial);
 
-    if (qdev_init(dev)) {
-        return NULL;
-    }
+    qdev_init_nofail(dev);
 
     sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, base);
 

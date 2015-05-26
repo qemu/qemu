@@ -945,9 +945,7 @@ static inline void gen_op_eval_fbo(TCGv dst, TCGv src,
 static inline void gen_branch2(DisasContext *dc, target_ulong pc1,
                                target_ulong pc2, TCGv r_cond)
 {
-    int l1;
-
-    l1 = gen_new_label();
+    TCGLabel *l1 = gen_new_label();
 
     tcg_gen_brcondi_tl(TCG_COND_EQ, r_cond, 0, l1);
 
@@ -960,9 +958,7 @@ static inline void gen_branch2(DisasContext *dc, target_ulong pc1,
 static inline void gen_branch_a(DisasContext *dc, target_ulong pc1,
                                 target_ulong pc2, TCGv r_cond)
 {
-    int l1;
-
-    l1 = gen_new_label();
+    TCGLabel *l1 = gen_new_label();
 
     tcg_gen_brcondi_tl(TCG_COND_EQ, r_cond, 0, l1);
 
@@ -2605,7 +2601,8 @@ static void disas_sparc_insn(DisasContext * dc, unsigned int insn)
             if (xop == 0x3a) {  /* generate trap */
                 int cond = GET_FIELD(insn, 3, 6);
                 TCGv_i32 trap;
-                int l1 = -1, mask;
+                TCGLabel *l1 = NULL;
+                int mask;
 
                 if (cond == 0) {
                     /* Trap never.  */
@@ -5223,7 +5220,6 @@ static inline void gen_intermediate_code_internal(SPARCCPU *cpu,
     CPUState *cs = CPU(cpu);
     CPUSPARCState *env = &cpu->env;
     target_ulong pc_start, last_pc;
-    uint16_t *gen_opc_end;
     DisasContext dc1, *dc = &dc1;
     CPUBreakpoint *bp;
     int j, lj = -1;
@@ -5243,7 +5239,6 @@ static inline void gen_intermediate_code_internal(SPARCCPU *cpu,
     dc->fpu_enabled = tb_fpu_enabled(tb->flags);
     dc->address_mask_32bit = tb_am_enabled(tb->flags);
     dc->singlestep = (cs->singlestep_enabled || singlestep);
-    gen_opc_end = tcg_ctx.gen_opc_buf + OPC_MAX_SIZE;
 
     num_insns = 0;
     max_insns = tb->cflags & CF_COUNT_MASK;
@@ -5265,7 +5260,7 @@ static inline void gen_intermediate_code_internal(SPARCCPU *cpu,
         }
         if (spc) {
             qemu_log("Search PC...\n");
-            j = tcg_ctx.gen_opc_ptr - tcg_ctx.gen_opc_buf;
+            j = tcg_op_buf_count();
             if (lj < j) {
                 lj++;
                 while (lj < j)
@@ -5298,7 +5293,7 @@ static inline void gen_intermediate_code_internal(SPARCCPU *cpu,
         if (dc->singlestep) {
             break;
         }
-    } while ((tcg_ctx.gen_opc_ptr < gen_opc_end) &&
+    } while (!tcg_op_buf_full() &&
              (dc->pc - pc_start) < (TARGET_PAGE_SIZE - 32) &&
              num_insns < max_insns);
 
@@ -5320,9 +5315,9 @@ static inline void gen_intermediate_code_internal(SPARCCPU *cpu,
         }
     }
     gen_tb_end(tb, num_insns);
-    *tcg_ctx.gen_opc_ptr = INDEX_op_end;
+
     if (spc) {
-        j = tcg_ctx.gen_opc_ptr - tcg_ctx.gen_opc_buf;
+        j = tcg_op_buf_count();
         lj++;
         while (lj <= j)
             tcg_ctx.gen_opc_instr_start[lj++] = 0;

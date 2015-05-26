@@ -1793,6 +1793,14 @@ static void xhci_xfer_report(XHCITransfer *xfer)
                 return;
             }
         }
+
+        switch (TRB_TYPE(*trb)) {
+        case TR_SETUP:
+            reported = 0;
+            shortpkt = 0;
+            break;
+        }
+
     }
 }
 
@@ -2195,7 +2203,6 @@ static void xhci_kick_ep(XHCIState *xhci, unsigned int slotid,
         if (epid == 1) {
             if (xhci_fire_ctl_transfer(xhci, xfer) >= 0) {
                 epctx->next_xfer = (epctx->next_xfer + 1) % TD_QUEUE;
-                ep = xfer->packet.ep;
             } else {
                 DPRINTF("xhci: error firing CTL transfer\n");
             }
@@ -2215,6 +2222,8 @@ static void xhci_kick_ep(XHCIState *xhci, unsigned int slotid,
         if (xfer->running_retry) {
             DPRINTF("xhci: xfer nacked, stopping schedule\n");
             epctx->retry = xfer;
+            timer_mod(epctx->kick_timer, qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) +
+                      epctx->interval * 125000);
             break;
         }
     }
@@ -3567,7 +3576,7 @@ static void usb_xhci_init(XHCIState *xhci)
     }
 }
 
-static int usb_xhci_initfn(struct PCIDevice *dev)
+static void usb_xhci_realize(struct PCIDevice *dev, Error **errp)
 {
     int i, ret;
 
@@ -3646,8 +3655,6 @@ static int usb_xhci_initfn(struct PCIDevice *dev)
                   &xhci->mem, 0, OFF_MSIX_PBA,
                   0x90);
     }
-
-    return 0;
 }
 
 static void usb_xhci_exit(PCIDevice *dev)
@@ -3887,7 +3894,7 @@ static void xhci_class_init(ObjectClass *klass, void *data)
     dc->props   = xhci_properties;
     dc->reset   = xhci_reset;
     set_bit(DEVICE_CATEGORY_USB, dc->categories);
-    k->init         = usb_xhci_initfn;
+    k->realize      = usb_xhci_realize;
     k->exit         = usb_xhci_exit;
     k->vendor_id    = PCI_VENDOR_ID_NEC;
     k->device_id    = PCI_DEVICE_ID_NEC_UPD720200;

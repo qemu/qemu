@@ -111,15 +111,22 @@ static void arm_cpu_reset(CPUState *s)
         /* Userspace expects access to DC ZVA, CTL_EL0 and the cache ops */
         env->cp15.sctlr_el[1] |= SCTLR_UCT | SCTLR_UCI | SCTLR_DZE;
         /* and to the FP/Neon instructions */
-        env->cp15.c1_coproc = deposit64(env->cp15.c1_coproc, 20, 2, 3);
+        env->cp15.cpacr_el1 = deposit64(env->cp15.cpacr_el1, 20, 2, 3);
 #else
-        env->pstate = PSTATE_MODE_EL1h;
+        /* Reset into the highest available EL */
+        if (arm_feature(env, ARM_FEATURE_EL3)) {
+            env->pstate = PSTATE_MODE_EL3h;
+        } else if (arm_feature(env, ARM_FEATURE_EL2)) {
+            env->pstate = PSTATE_MODE_EL2h;
+        } else {
+            env->pstate = PSTATE_MODE_EL1h;
+        }
         env->pc = cpu->rvbar;
 #endif
     } else {
 #if defined(CONFIG_USER_ONLY)
         /* Userspace expects access to cp10 and cp11 for FP/Neon */
-        env->cp15.c1_coproc = deposit64(env->cp15.c1_coproc, 20, 4, 0xf);
+        env->cp15.cpacr_el1 = deposit64(env->cp15.cpacr_el1, 20, 4, 0xf);
 #endif
     }
 
@@ -320,6 +327,29 @@ static void arm_cpu_kvm_set_irq(void *opaque, int irq, int level)
     kvm_set_irq(kvm_state, kvm_irq, level ? 1 : 0);
 #endif
 }
+
+static bool arm_cpu_is_big_endian(CPUState *cs)
+{
+    ARMCPU *cpu = ARM_CPU(cs);
+    CPUARMState *env = &cpu->env;
+    int cur_el;
+
+    cpu_synchronize_state(cs);
+
+    /* In 32bit guest endianness is determined by looking at CPSR's E bit */
+    if (!is_a64(env)) {
+        return (env->uncached_cpsr & CPSR_E) ? 1 : 0;
+    }
+
+    cur_el = arm_current_el(env);
+
+    if (cur_el == 0) {
+        return (env->cp15.sctlr_el[1] & SCTLR_E0E) != 0;
+    }
+
+    return (env->cp15.sctlr_el[cur_el] & SCTLR_EE) != 0;
+}
+
 #endif
 
 static inline void set_feature(CPUARMState *env, int feature)
@@ -494,9 +524,10 @@ static void arm_cpu_realizefn(DeviceState *dev, Error **errp)
         unset_feature(env, ARM_FEATURE_EL3);
 
         /* Disable the security extension feature bits in the processor feature
-         * register as well.  This is id_pfr1[7:4].
+         * registers as well. These are id_pfr1[7:4] and id_aa64pfr0[15:12].
          */
         cpu->id_pfr1 &= ~0xf0;
+        cpu->id_aa64pfr0 &= ~0xf000;
     }
 
     register_cp_regs_for_features(cpu);
@@ -514,13 +545,16 @@ static ObjectClass *arm_cpu_class_by_name(const char *cpu_model)
 {
     ObjectClass *oc;
     char *typename;
+    char **cpuname;
 
     if (!cpu_model) {
         return NULL;
     }
 
-    typename = g_strdup_printf("%s-" TYPE_ARM_CPU, cpu_model);
+    cpuname = g_strsplit(cpu_model, ",", 1);
+    typename = g_strdup_printf("%s-" TYPE_ARM_CPU, cpuname[0]);
     oc = object_class_by_name(typename);
+    g_strfreev(cpuname);
     g_free(typename);
     if (!oc || !object_class_dynamic_cast(oc, TYPE_ARM_CPU) ||
         object_class_is_abstract(oc)) {
@@ -1189,6 +1223,7 @@ static void arm_cpu_class_init(ObjectClass *oc, void *data)
     cc->do_interrupt = arm_cpu_do_interrupt;
     cc->get_phys_page_debug = arm_cpu_get_phys_page_debug;
     cc->vmsd = &vmstate_arm_cpu;
+    cc->virtio_is_big_endian = arm_cpu_is_big_endian;
 #endif
     cc->gdb_num_core_regs = 26;
     cc->gdb_core_xml_file = "arm-core.xml";

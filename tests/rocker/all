@@ -1,0 +1,19 @@
+echo -n "Running port test...              "
+./port
+if [ $? -eq 0 ]; then echo "pass"; else echo "FAILED"; exit 1; fi
+
+echo -n "Running bridge test...            "
+./bridge
+if [ $? -eq 0 ]; then echo "pass"; else echo "FAILED"; exit 1; fi
+
+echo -n "Running bridge STP test...        "
+./bridge-stp
+if [ $? -eq 0 ]; then echo "pass"; else echo "FAILED"; exit 1; fi
+
+echo -n "Running bridge VLAN test...       "
+./bridge-vlan
+if [ $? -eq 0 ]; then echo "pass"; else echo "FAILED"; exit 1; fi
+
+echo -n "Running bridge VLAN STP test...   "
+./bridge-vlan-stp
+if [ $? -eq 0 ]; then echo "pass"; else echo "FAILED"; exit 1; fi

@@ -39,6 +39,7 @@ typedef struct BlockAcctStats {
     uint64_t nr_bytes[BLOCK_MAX_IOTYPE];
     uint64_t nr_ops[BLOCK_MAX_IOTYPE];
     uint64_t total_time_ns[BLOCK_MAX_IOTYPE];
+    uint64_t merged[BLOCK_MAX_IOTYPE];
     uint64_t wr_highest_sector;
 } BlockAcctStats;
 
@@ -53,5 +54,7 @@ void block_acct_start(BlockAcctStats *stats, BlockAcctCookie *cookie,
 void block_acct_done(BlockAcctStats *stats, BlockAcctCookie *cookie);
 void block_acct_highest_sector(BlockAcctStats *stats, int64_t sector_num,
                                unsigned int nb_sectors);
+void block_acct_merge_done(BlockAcctStats *stats, enum BlockAcctType type,
+                           int num_requests);
 
 #endif

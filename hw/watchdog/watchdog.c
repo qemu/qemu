@@ -68,7 +68,7 @@ int select_watchdog(const char *p)
             /* add the device */
             opts = qemu_opts_create(qemu_find_opts("device"), NULL, 0,
                                     &error_abort);
-            qemu_opt_set(opts, "driver", p);
+            qemu_opt_set(opts, "driver", p, &error_abort);
             return 0;
         }
     }

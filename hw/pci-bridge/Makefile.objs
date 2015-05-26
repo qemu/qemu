@@ -1,5 +1,6 @@
 common-obj-y += pci_bridge_dev.o
-common-obj-y += ioh3420.o xio3130_upstream.o xio3130_downstream.o
-common-obj-y += i82801b11.o
+common-obj-$(CONFIG_XIO3130) += xio3130_upstream.o xio3130_downstream.o
+common-obj-$(CONFIG_IOH3420) += ioh3420.o
+common-obj-$(CONFIG_I82801B11) += i82801b11.o
 # NewWorld PowerMac
 common-obj-$(CONFIG_DEC_PCI) += dec.o

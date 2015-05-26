@@ -58,7 +58,7 @@ static void i82378_request_pic_irq(void *opaque, int irq, int level)
     qemu_set_irq(s->i8259[irq], level);
 }
 
-static int i82378_initfn(PCIDevice *pci)
+static void i82378_realize(PCIDevice *pci, Error **errp)
 {
     DeviceState *dev = DEVICE(pci);
     I82378State *s = I82378(dev);
@@ -75,7 +75,8 @@ static int i82378_initfn(PCIDevice *pci)
 
     pci_config_set_interrupt_pin(pci_conf, 1); /* interrupt pin 0 */
 
-    isabus = isa_bus_new(dev, pci_address_space_io(pci));
+    isabus = isa_bus_new(dev, get_system_memory(),
+                         pci_address_space_io(pci));
 
     /* This device has:
        2 82C59 (irq)
@@ -106,8 +107,6 @@ static int i82378_initfn(PCIDevice *pci)
 
     /* timer */
     isa_create_simple(isabus, "mc146818rtc");
-
-    return 0;
 }
 
 static void i82378_init(Object *obj)
@@ -124,7 +123,7 @@ static void i82378_class_init(ObjectClass *klass, void *data)
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
     DeviceClass *dc = DEVICE_CLASS(klass);
 
-    k->init = i82378_initfn;
+    k->realize = i82378_realize;
     k->vendor_id = PCI_VENDOR_ID_INTEL;
     k->device_id = PCI_DEVICE_ID_INTEL_82378;
     k->revision = 0x03;

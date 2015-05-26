@@ -31,21 +31,27 @@ Example:
 BLOCK_IMAGE_CORRUPTED
 ---------------------
 
-Emitted when a disk image is being marked corrupt.
+Emitted when a disk image is being marked corrupt. The image can be
+identified by its device or node name. The 'device' field is always
+present for compatibility reasons, but it can be empty ("") if the
+image does not have a device name associated.
 
 Data:
 
-- "device": Device name (json-string)
-- "msg":    Informative message (e.g., reason for the corruption) (json-string)
-- "offset": If the corruption resulted from an image access, this is the access
-            offset into the image (json-int)
-- "size":   If the corruption resulted from an image access, this is the access
-            size (json-int)
+- "device":    Device name (json-string)
+- "node-name": Node name (json-string, optional)
+- "msg":       Informative message (e.g., reason for the corruption)
+               (json-string)
+- "offset":    If the corruption resulted from an image access, this
+               is the host's access offset into the image
+               (json-int, optional)
+- "size":      If the corruption resulted from an image access, this
+               is the access size (json-int, optional)
 
 Example:
 
 { "event": "BLOCK_IMAGE_CORRUPTED",
-    "data": { "device": "ide0-hd0",
+    "data": { "device": "ide0-hd0", "node-name": "node0",
         "msg": "Prevented active L1 table overwrite", "offset": 196608,
         "size": 65536 },
     "timestamp": { "seconds": 1378126126, "microseconds": 966463 } }
@@ -225,6 +231,23 @@ Example:
 
 { "event": "GUEST_PANICKED",
      "data": { "action": "pause" } }
+
+MEM_UNPLUG_ERROR
+--------------------
+Emitted when memory hot unplug error occurs.
+
+Data:
+
+- "device": device name (json-string)
+- "msg": Informative message (e.g., reason for the error) (json-string)
+
+Example:
+
+{ "event": "MEM_UNPLUG_ERROR"
+  "data": { "device": "dimm1",
+            "msg": "acpi: device unplug for unsupported device"
+  },
+  "timestamp": { "seconds": 1265044230, "microseconds": 450486 } }
 
 NIC_RX_FILTER_CHANGED
 ---------------------

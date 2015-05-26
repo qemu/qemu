@@ -35,7 +35,7 @@
 #include "hw/usb.h"
 #include "monitor/monitor.h"
 
-void usb_host_info(Monitor *mon, const QDict *qdict)
+void hmp_info_usbhost(Monitor *mon, const QDict *qdict)
 {
     monitor_printf(mon, "USB host devices not supported\n");
 }

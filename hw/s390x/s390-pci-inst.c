@@ -155,7 +155,9 @@ int clp_service_call(S390CPU *cpu, uint8_t r2)
         return 0;
     }
 
-    cpu_physical_memory_read(env->regs[r2], buffer, sizeof(*reqh));
+    if (s390_cpu_virt_mem_read(cpu, env->regs[r2], r2, buffer, sizeof(*reqh))) {
+        return 0;
+    }
     reqh = (ClpReqHdr *)buffer;
     req_len = lduw_p(&reqh->len);
     if (req_len < 16 || req_len > 8184 || (req_len % 8 != 0)) {
@@ -163,7 +165,10 @@ int clp_service_call(S390CPU *cpu, uint8_t r2)
         return 0;
     }
 
-    cpu_physical_memory_read(env->regs[r2], buffer, req_len + sizeof(*resh));
+    if (s390_cpu_virt_mem_read(cpu, env->regs[r2], r2, buffer,
+                               req_len + sizeof(*resh))) {
+        return 0;
+    }
     resh = (ClpRspHdr *)(buffer + req_len);
     res_len = lduw_p(&resh->len);
     if (res_len < 8 || res_len > 8176 || (res_len % 8 != 0)) {
@@ -175,7 +180,10 @@ int clp_service_call(S390CPU *cpu, uint8_t r2)
         return 0;
     }
 
-    cpu_physical_memory_read(env->regs[r2], buffer, req_len + res_len);
+    if (s390_cpu_virt_mem_read(cpu, env->regs[r2], r2, buffer,
+                               req_len + res_len)) {
+        return 0;
+    }
 
     if (req_len != 32) {
         stw_p(&resh->rsp, CLP_RC_LEN);
@@ -269,7 +277,10 @@ int clp_service_call(S390CPU *cpu, uint8_t r2)
     }
 
 out:
-    cpu_physical_memory_write(env->regs[r2], buffer, req_len + res_len);
+    if (s390_cpu_virt_mem_write(cpu, env->regs[r2], r2, buffer,
+                                req_len + res_len)) {
+        return 0;
+    }
     setcc(cpu, cc);
     return 0;
 }
@@ -320,7 +331,8 @@ int pcilg_service_call(S390CPU *cpu, uint8_t r1, uint8_t r2)
             return 0;
         }
         MemoryRegion *mr = pbdev->pdev->io_regions[pcias].memory;
-        io_mem_read(mr, offset, &data, len);
+        memory_region_dispatch_read(mr, offset, &data, len,
+                                    MEMTXATTRS_UNSPECIFIED);
     } else if (pcias == 15) {
         if ((4 - (offset & 0x3)) < len) {
             program_interrupt(env, PGM_OPERAND, 4);
@@ -445,7 +457,8 @@ int pcistg_service_call(S390CPU *cpu, uint8_t r1, uint8_t r2)
             mr = pbdev->pdev->io_regions[pcias].memory;
         }
 
-        io_mem_write(mr, offset, data, len);
+        memory_region_dispatch_write(mr, offset, data, len,
+                                     MEMTXATTRS_UNSPECIFIED);
     } else if (pcias == 15) {
         if ((4 - (offset & 0x3)) < len) {
             program_interrupt(env, PGM_OPERAND, 4);
@@ -487,7 +500,7 @@ int rpcit_service_call(S390CPU *cpu, uint8_t r1, uint8_t r2)
     CPUS390XState *env = &cpu->env;
     uint32_t fh;
     S390PCIBusDevice *pbdev;
-    ram_addr_t size;
+    hwaddr start, end;
     IOMMUTLBEntry entry;
     MemoryRegion *mr;
 
@@ -504,7 +517,8 @@ int rpcit_service_call(S390CPU *cpu, uint8_t r1, uint8_t r2)
     }
 
     fh = env->regs[r1] >> 32;
-    size = env->regs[r2 + 1];
+    start = env->regs[r2];
+    end = start + env->regs[r2 + 1];
 
     pbdev = s390_pci_find_dev_by_fh(fh);
 
@@ -515,30 +529,34 @@ int rpcit_service_call(S390CPU *cpu, uint8_t r1, uint8_t r2)
     }
 
     mr = pci_device_iommu_address_space(pbdev->pdev)->root;
-    entry = mr->iommu_ops->translate(mr, env->regs[r2], 0);
+    while (start < end) {
+        entry = mr->iommu_ops->translate(mr, start, 0);
 
-    if (!entry.translated_addr) {
-        setcc(cpu, ZPCI_PCI_LS_ERR);
-        goto out;
+        if (!entry.translated_addr) {
+            setcc(cpu, ZPCI_PCI_LS_ERR);
+            goto out;
+        }
+
+        memory_region_notify_iommu(mr, entry);
+        start += entry.addr_mask + 1;
     }
 
-    entry.addr_mask = size - 1;
-    memory_region_notify_iommu(mr, entry);
     setcc(cpu, ZPCI_PCI_LS_OK);
 out:
     return 0;
 }
 
-int pcistb_service_call(S390CPU *cpu, uint8_t r1, uint8_t r3, uint64_t gaddr)
+int pcistb_service_call(S390CPU *cpu, uint8_t r1, uint8_t r3, uint64_t gaddr,
+                        uint8_t ar)
 {
     CPUS390XState *env = &cpu->env;
     S390PCIBusDevice *pbdev;
     MemoryRegion *mr;
     int i;
-    uint64_t val;
     uint32_t fh;
     uint8_t pcias;
     uint8_t len;
+    uint8_t buffer[128];
 
     if (env->psw.mask & PSW_MASK_PSTATE) {
         program_interrupt(env, PGM_PRIVILEGED, 6);
@@ -586,9 +604,14 @@ int pcistb_service_call(S390CPU *cpu, uint8_t r1, uint8_t r3, uint64_t gaddr)
         return 0;
     }
 
+    if (s390_cpu_virt_mem_read(cpu, gaddr, ar, buffer, len)) {
+        return 0;
+    }
+
     for (i = 0; i < len / 8; i++) {
-        val = ldq_phys(&address_space_memory, gaddr + i * 8);
-        io_mem_write(mr, env->regs[r3] + i * 8, val, 8);
+        memory_region_dispatch_write(mr, env->regs[r3] + i * 8,
+                                     ldq_p(buffer + i * 8), 8,
+                                     MEMTXATTRS_UNSPECIFIED);
     }
 
     setcc(cpu, ZPCI_PCI_LS_OK);
@@ -676,7 +699,7 @@ static void dereg_ioat(S390PCIBusDevice *pbdev)
     pbdev->g_iota = 0;
 }
 
-int mpcifc_service_call(S390CPU *cpu, uint8_t r1, uint64_t fiba)
+int mpcifc_service_call(S390CPU *cpu, uint8_t r1, uint64_t fiba, uint8_t ar)
 {
     CPUS390XState *env = &cpu->env;
     uint8_t oc;
@@ -705,7 +728,9 @@ int mpcifc_service_call(S390CPU *cpu, uint8_t r1, uint64_t fiba)
         return 0;
     }
 
-    cpu_physical_memory_read(fiba, (uint8_t *)&fib, sizeof(fib));
+    if (s390_cpu_virt_mem_read(cpu, fiba, ar, (uint8_t *)&fib, sizeof(fib))) {
+        return 0;
+    }
 
     switch (oc) {
     case ZPCI_MOD_FC_REG_INT:
@@ -749,7 +774,7 @@ int mpcifc_service_call(S390CPU *cpu, uint8_t r1, uint64_t fiba)
     return 0;
 }
 
-int stpcifc_service_call(S390CPU *cpu, uint8_t r1, uint64_t fiba)
+int stpcifc_service_call(S390CPU *cpu, uint8_t r1, uint64_t fiba, uint8_t ar)
 {
     CPUS390XState *env = &cpu->env;
     uint32_t fh;
@@ -784,10 +809,10 @@ int stpcifc_service_call(S390CPU *cpu, uint8_t r1, uint64_t fiba)
     stq_p(&fib.aisb, pbdev->routes.adapter.summary_addr);
     stq_p(&fib.fmb_addr, pbdev->fmb_addr);
 
-    data = (pbdev->isc << 28) | (pbdev->noi << 16) |
-           (pbdev->routes.adapter.ind_offset << 8) | (pbdev->sum << 7) |
-           pbdev->routes.adapter.summary_offset;
-    stw_p(&fib.data, data);
+    data = ((uint32_t)pbdev->isc << 28) | ((uint32_t)pbdev->noi << 16) |
+           ((uint32_t)pbdev->routes.adapter.ind_offset << 8) |
+           ((uint32_t)pbdev->sum << 7) | pbdev->routes.adapter.summary_offset;
+    stl_p(&fib.data, data);
 
     if (pbdev->fh >> ENABLE_BIT_OFFSET) {
         fib.fc |= 0x80;
@@ -805,7 +830,10 @@ int stpcifc_service_call(S390CPU *cpu, uint8_t r1, uint64_t fiba)
         fib.fc |= 0x10;
     }
 
-    cpu_physical_memory_write(fiba, (uint8_t *)&fib, sizeof(fib));
+    if (s390_cpu_virt_mem_write(cpu, fiba, ar, (uint8_t *)&fib, sizeof(fib))) {
+        return 0;
+    }
+
     setcc(cpu, cc);
     return 0;
 }

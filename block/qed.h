@@ -133,7 +133,6 @@ typedef struct QEDAIOCB {
     int bh_ret;                     /* final return status for completion bh */
     QSIMPLEQ_ENTRY(QEDAIOCB) next;  /* next request */
     int flags;                      /* QED_AIOCB_* bits ORed together */
-    bool *finished;                 /* signal for cancel completion */
     uint64_t end_pos;               /* request end on block device, in bytes */
 
     /* User scatter-gather list */

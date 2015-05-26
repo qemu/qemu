@@ -226,10 +226,7 @@ static void quorum_report_bad(QuorumAIOCB *acb, char *node_name, int ret)
 
 static void quorum_report_failure(QuorumAIOCB *acb)
 {
-    const char *reference = bdrv_get_device_name(acb->common.bs)[0] ?
-                            bdrv_get_device_name(acb->common.bs) :
-                            acb->common.bs->node_name;
-
+    const char *reference = bdrv_get_device_or_node_name(acb->common.bs);
     qapi_event_send_quorum_failure(reference, acb->sector_num,
                                    acb->nb_sectors, &error_abort);
 }

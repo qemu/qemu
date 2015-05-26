@@ -389,13 +389,13 @@ static inline uint64_t sd_addr_to_wpnum(uint64_t addr)
     return addr >> (HWBLOCK_SHIFT + SECTOR_SHIFT + WPGROUP_SHIFT);
 }
 
-static void sd_reset(SDState *sd, BlockBackend *blk)
+static void sd_reset(SDState *sd)
 {
     uint64_t size;
     uint64_t sect;
 
-    if (blk) {
-        blk_get_geometry(blk, &sect);
+    if (sd->blk) {
+        blk_get_geometry(sd->blk, &sect);
     } else {
         sect = 0;
     }
@@ -412,11 +412,9 @@ static void sd_reset(SDState *sd, BlockBackend *blk)
     sd_set_cardstatus(sd);
     sd_set_sdstatus(sd);
 
-    sd->blk = blk;
-
     if (sd->wp_groups)
         g_free(sd->wp_groups);
-    sd->wp_switch = blk ? blk_is_read_only(blk) : false;
+    sd->wp_switch = sd->blk ? blk_is_read_only(sd->blk) : false;
     sd->wpgrps_size = sect;
     sd->wp_groups = bitmap_new(sd->wpgrps_size);
     memset(sd->function_group, 0, sizeof(sd->function_group));
@@ -434,7 +432,7 @@ static void sd_cardchange(void *opaque, bool load)
 
     qemu_set_irq(sd->inserted_cb, blk_is_inserted(sd->blk));
     if (blk_is_inserted(sd->blk)) {
-        sd_reset(sd, sd->blk);
+        sd_reset(sd);
         qemu_set_irq(sd->readonly_cb, sd->wp_switch);
     }
 }
@@ -492,7 +490,8 @@ SDState *sd_init(BlockBackend *blk, bool is_spi)
     sd->buf = blk_blockalign(blk, 512);
     sd->spi = is_spi;
     sd->enable = true;
-    sd_reset(sd, blk);
+    sd->blk = blk;
+    sd_reset(sd);
     if (sd->blk) {
         blk_attach_dev_nofail(sd->blk, sd);
         blk_set_dev_ops(sd->blk, &sd_block_ops, sd);
@@ -680,7 +679,7 @@ static sd_rsp_type_t sd_normal_command(SDState *sd,
 
         default:
             sd->state = sd_idle_state;
-            sd_reset(sd, sd->blk);
+            sd_reset(sd);
             return sd->spi ? sd_r1 : sd_r0;
         }
         break;
@@ -796,8 +795,9 @@ static sd_rsp_type_t sd_normal_command(SDState *sd,
             sd->vhs = 0;
 
             /* No response if not exactly one VHS bit is set.  */
-            if (!(req.arg >> 8) || (req.arg >> ffs(req.arg & ~0xff)))
+            if (!(req.arg >> 8) || (req.arg >> (ctz32(req.arg & ~0xff) + 1))) {
                 return sd->spi ? sd_r7 : sd_r0;
+            }
 
             /* Accept.  */
             sd->vhs = req.arg;

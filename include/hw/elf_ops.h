@@ -49,6 +49,13 @@ static void glue(bswap_sym, SZ)(struct elf_sym *sym)
     bswap16s(&sym->st_shndx);
 }
 
+static void glue(bswap_rela, SZ)(struct elf_rela *rela)
+{
+    bswapSZs(&rela->r_offset);
+    bswapSZs(&rela->r_info);
+    bswapSZs((elf_word *)&rela->r_addend);
+}
+
 static struct elf_shdr *glue(find_section, SZ)(struct elf_shdr *shdr_table,
                                                int n, int type)
 {
@@ -182,6 +189,75 @@ static int glue(load_symbols, SZ)(struct elfhdr *ehdr, int fd, int must_swab,
     return -1;
 }
 
+static int glue(elf_reloc, SZ)(struct elfhdr *ehdr, int fd, int must_swab,
+                               uint64_t (*translate_fn)(void *, uint64_t),
+                               void *translate_opaque, uint8_t *data,
+                               struct elf_phdr *ph, int elf_machine)
+{
+    struct elf_shdr *reltab, *shdr_table = NULL;
+    struct elf_rela *rels = NULL;
+    int nrels, i, ret = -1;
+    elf_word wordval;
+    void *addr;
+
+    shdr_table = load_at(fd, ehdr->e_shoff,
+                         sizeof(struct elf_shdr) * ehdr->e_shnum);
+    if (!shdr_table) {
+        return -1;
+    }
+    if (must_swab) {
+        for (i = 0; i < ehdr->e_shnum; i++) {
+            glue(bswap_shdr, SZ)(&shdr_table[i]);
+        }
+    }
+
+    reltab = glue(find_section, SZ)(shdr_table, ehdr->e_shnum, SHT_RELA);
+    if (!reltab) {
+        goto fail;
+    }
+    rels = load_at(fd, reltab->sh_offset, reltab->sh_size);
+    if (!rels) {
+        goto fail;
+    }
+    nrels = reltab->sh_size / sizeof(struct elf_rela);
+
+    for (i = 0; i < nrels; i++) {
+        if (must_swab) {
+            glue(bswap_rela, SZ)(&rels[i]);
+        }
+        if (rels[i].r_offset < ph->p_vaddr ||
+            rels[i].r_offset >= ph->p_vaddr + ph->p_filesz) {
+            continue;
+        }
+        addr = &data[rels[i].r_offset - ph->p_vaddr];
+        switch (elf_machine) {
+        case EM_S390:
+            switch (rels[i].r_info) {
+            case R_390_RELATIVE:
+                wordval = *(elf_word *)addr;
+                if (must_swab) {
+                    bswapSZs(&wordval);
+                }
+                wordval = translate_fn(translate_opaque, wordval);
+                if (must_swab) {
+                    bswapSZs(&wordval);
+                }
+                *(elf_word *)addr = wordval;
+                break;
+            default:
+                fprintf(stderr, "Unsupported relocation type %i!\n",
+                        (int)rels[i].r_info);
+            }
+        }
+    }
+
+    ret = 0;
+fail:
+    g_free(rels);
+    g_free(shdr_table);
+    return ret;
+}
+
 static int glue(load_elf, SZ)(const char *name, int fd,
                               uint64_t (*translate_fn)(void *, uint64_t),
                               void *translate_opaque,
@@ -239,7 +315,9 @@ static int glue(load_elf, SZ)(const char *name, int fd,
     glue(load_symbols, SZ)(&ehdr, fd, must_swab, clear_lsb);
 
     size = ehdr.e_phnum * sizeof(phdr[0]);
-    lseek(fd, ehdr.e_phoff, SEEK_SET);
+    if (lseek(fd, ehdr.e_phoff, SEEK_SET) != ehdr.e_phoff) {
+        goto fail;
+    }
     phdr = g_malloc0(size);
     if (!phdr)
         goto fail;
@@ -271,6 +349,8 @@ static int glue(load_elf, SZ)(const char *name, int fd,
                linked at the wrong physical address.  */
             if (translate_fn) {
                 addr = translate_fn(translate_opaque, ph->p_paddr);
+                glue(elf_reloc, SZ)(&ehdr, fd, must_swab,  translate_fn,
+                                    translate_opaque, data, ph, elf_machine);
             } else {
                 addr = ph->p_paddr;
             }

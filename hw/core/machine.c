@@ -31,18 +31,12 @@ static void machine_set_accel(Object *obj, const char *value, Error **errp)
     ms->accel = g_strdup(value);
 }
 
-static bool machine_get_kernel_irqchip(Object *obj, Error **errp)
-{
-    MachineState *ms = MACHINE(obj);
-
-    return ms->kernel_irqchip;
-}
-
 static void machine_set_kernel_irqchip(Object *obj, bool value, Error **errp)
 {
     MachineState *ms = MACHINE(obj);
 
-    ms->kernel_irqchip = value;
+    ms->kernel_irqchip_allowed = value;
+    ms->kernel_irqchip_required = value;
 }
 
 static void machine_get_kvm_shadow_mem(Object *obj, Visitor *v,
@@ -229,6 +223,7 @@ static void machine_set_usb(Object *obj, bool value, Error **errp)
     MachineState *ms = MACHINE(obj);
 
     ms->usb = value;
+    ms->usb_disabled = !value;
 }
 
 static char *machine_get_firmware(Object *obj, Error **errp)
@@ -260,6 +255,20 @@ static void machine_set_iommu(Object *obj, bool value, Error **errp)
     ms->iommu = value;
 }
 
+static void machine_set_suppress_vmdesc(Object *obj, bool value, Error **errp)
+{
+    MachineState *ms = MACHINE(obj);
+
+    ms->suppress_vmdesc = value;
+}
+
+static bool machine_get_suppress_vmdesc(Object *obj, Error **errp)
+{
+    MachineState *ms = MACHINE(obj);
+
+    return ms->suppress_vmdesc;
+}
+
 static int error_on_sysbus_device(SysBusDevice *sbdev, void *opaque)
 {
     error_report("Option '-device %s' cannot be handled by this machine",
@@ -289,13 +298,18 @@ static void machine_initfn(Object *obj)
 {
     MachineState *ms = MACHINE(obj);
 
+    ms->kernel_irqchip_allowed = true;
+    ms->kvm_shadow_mem = -1;
+    ms->dump_guest_core = true;
+    ms->mem_merge = true;
+
     object_property_add_str(obj, "accel",
                             machine_get_accel, machine_set_accel, NULL);
     object_property_set_description(obj, "accel",
                                     "Accelerator list",
                                     NULL);
     object_property_add_bool(obj, "kernel-irqchip",
-                             machine_get_kernel_irqchip,
+                             NULL,
                              machine_set_kernel_irqchip,
                              NULL);
     object_property_set_description(obj, "kernel-irqchip",
@@ -378,6 +392,12 @@ static void machine_initfn(Object *obj)
     object_property_set_description(obj, "iommu",
                                     "Set on/off to enable/disable Intel IOMMU (VT-d)",
                                     NULL);
+    object_property_add_bool(obj, "suppress-vmdesc",
+                             machine_get_suppress_vmdesc,
+                             machine_set_suppress_vmdesc, NULL);
+    object_property_set_description(obj, "suppress-vmdesc",
+                                    "Set on to disable self-describing migration",
+                                    NULL);
 
     /* Register notifier when init is done for sysbus sanity checks */
     ms->sysbus_notifier.notify = machine_init_notify;
@@ -401,6 +421,41 @@ static void machine_finalize(Object *obj)
 bool machine_usb(MachineState *machine)
 {
     return machine->usb;
+}
+
+bool machine_iommu(MachineState *machine)
+{
+    return machine->iommu;
+}
+
+bool machine_kernel_irqchip_allowed(MachineState *machine)
+{
+    return machine->kernel_irqchip_allowed;
+}
+
+bool machine_kernel_irqchip_required(MachineState *machine)
+{
+    return machine->kernel_irqchip_required;
+}
+
+int machine_kvm_shadow_mem(MachineState *machine)
+{
+    return machine->kvm_shadow_mem;
+}
+
+int machine_phandle_start(MachineState *machine)
+{
+    return machine->phandle_start;
+}
+
+bool machine_dump_guest_core(MachineState *machine)
+{
+    return machine->dump_guest_core;
+}
+
+bool machine_mem_merge(MachineState *machine)
+{
+    return machine->mem_merge;
 }
 
 static const TypeInfo machine_info = {

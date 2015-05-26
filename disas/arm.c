@@ -1549,10 +1549,6 @@ enum map_type {
   MAP_DATA
 };
 
-enum map_type last_type;
-int last_mapping_sym = -1;
-bfd_vma last_mapping_addr = 0;
-
 /* Decode a bitfield of the form matching regexp (N(-N)?,)*N(-N)?.
    Returns pointer to following character of the format string and
    fills in *VALUEP and *WIDTHP with the extracted value and number of
@@ -3878,135 +3874,11 @@ print_insn_arm (bfd_vma pc, struct disassemble_info *info)
   int           is_data = false;
   unsigned int	size = 4;
   void	 	(*printer) (bfd_vma, struct disassemble_info *, long);
-#if 0
-  bfd_boolean   found = false;
-
-  if (info->disassembler_options)
-    {
-      parse_disassembler_options (info->disassembler_options);
-
-      /* To avoid repeated parsing of these options, we remove them here.  */
-      info->disassembler_options = NULL;
-    }
-
-  /* First check the full symtab for a mapping symbol, even if there
-     are no usable non-mapping symbols for this address.  */
-  if (info->symtab != NULL
-      && bfd_asymbol_flavour (*info->symtab) == bfd_target_elf_flavour)
-    {
-      bfd_vma addr;
-      int n;
-      int last_sym = -1;
-      enum map_type type = MAP_ARM;
-
-      if (pc <= last_mapping_addr)
-	last_mapping_sym = -1;
-      is_thumb = (last_type == MAP_THUMB);
-      found = false;
-      /* Start scanning at the start of the function, or wherever
-	 we finished last time.  */
-      n = info->symtab_pos + 1;
-      if (n < last_mapping_sym)
-	n = last_mapping_sym;
-
-      /* Scan up to the location being disassembled.  */
-      for (; n < info->symtab_size; n++)
-	{
-	  addr = bfd_asymbol_value (info->symtab[n]);
-	  if (addr > pc)
-	    break;
-	  if ((info->section == NULL
-	       || info->section == info->symtab[n]->section)
-	      && get_sym_code_type (info, n, &type))
-	    {
-	      last_sym = n;
-	      found = true;
-	    }
-	}
-
-      if (!found)
-	{
-	  n = info->symtab_pos;
-	  if (n < last_mapping_sym - 1)
-	    n = last_mapping_sym - 1;
-
-	  /* No mapping symbol found at this address.  Look backwards
-	     for a preceding one.  */
-	  for (; n >= 0; n--)
-	    {
-	      if (get_sym_code_type (info, n, &type))
-		{
-		  last_sym = n;
-		  found = true;
-		  break;
-		}
-	    }
-	}
-
-      last_mapping_sym = last_sym;
-      last_type = type;
-      is_thumb = (last_type == MAP_THUMB);
-      is_data = (last_type == MAP_DATA);
-
-      /* Look a little bit ahead to see if we should print out
-	 two or four bytes of data.  If there's a symbol,
-	 mapping or otherwise, after two bytes then don't
-	 print more.  */
-      if (is_data)
-	{
-	  size = 4 - (pc & 3);
-	  for (n = last_sym + 1; n < info->symtab_size; n++)
-	    {
-	      addr = bfd_asymbol_value (info->symtab[n]);
-	      if (addr > pc)
-		{
-		  if (addr - pc < size)
-		    size = addr - pc;
-		  break;
-		}
-	    }
-	  /* If the next symbol is after three bytes, we need to
-	     print only part of the data, so that we can use either
-	     .byte or .short.  */
-	  if (size == 3)
-	    size = (pc & 1) ? 1 : 2;
-	}
-    }
-
-  if (info->symbols != NULL)
-    {
-      if (bfd_asymbol_flavour (*info->symbols) == bfd_target_coff_flavour)
-	{
-	  coff_symbol_type * cs;
-
-	  cs = coffsymbol (*info->symbols);
-	  is_thumb = (   cs->native->u.syment.n_sclass == C_THUMBEXT
-		      || cs->native->u.syment.n_sclass == C_THUMBSTAT
-		      || cs->native->u.syment.n_sclass == C_THUMBLABEL
-		      || cs->native->u.syment.n_sclass == C_THUMBEXTFUNC
-		      || cs->native->u.syment.n_sclass == C_THUMBSTATFUNC);
-	}
-      else if (bfd_asymbol_flavour (*info->symbols) == bfd_target_elf_flavour
-	       && !found)
-	{
-	  /* If no mapping symbol has been found then fall back to the type
-	     of the function symbol.  */
-	  elf_symbol_type *  es;
-	  unsigned int       type;
-
-	  es = *(elf_symbol_type **)(info->symbols);
-	  type = ELF_ST_TYPE (es->internal_elf_sym.st_info);
-
-	  is_thumb = (type == STT_ARM_TFUNC) || (type == STT_ARM_16BIT);
-	}
-    }
-#else
   int little;
 
   little = (info->endian == BFD_ENDIAN_LITTLE);
   is_thumb |= (pc & 1);
   pc &= ~(bfd_vma)1;
-#endif
 
   if (force_thumb)
     is_thumb = true;

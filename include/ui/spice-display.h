@@ -97,7 +97,8 @@ struct SimpleSpiceDisplay {
     /* cursor (without qxl): displaychangelistener -> spice server */
     SimpleSpiceCursor *ptr_define;
     SimpleSpiceCursor *ptr_move;
-    uint16_t ptr_x, ptr_y;
+    int16_t ptr_x, ptr_y;
+    int16_t hot_x, hot_y;
 
     /* cursor (with qxl): qxl local renderer -> displaychangelistener */
     QEMUCursor *cursor;

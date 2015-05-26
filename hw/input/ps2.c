@@ -27,6 +27,8 @@
 #include "ui/input.h"
 #include "sysemu/sysemu.h"
 
+#include "trace.h"
+
 /* debug PC keyboard */
 //#define DEBUG_KBD
 
@@ -158,6 +160,7 @@ static void ps2_put_keycode(void *opaque, int keycode)
 {
     PS2KbdState *s = opaque;
 
+    trace_ps2_put_keycode(opaque, keycode);
     qemu_system_wakeup_request(QEMU_WAKEUP_REASON_OTHER);
     /* XXX: add support for scancode set 1 */
     if (!s->translate && keycode < 0xe0 && s->scancode_set > 1) {
@@ -194,6 +197,7 @@ uint32_t ps2_read_data(void *opaque)
     PS2Queue *q;
     int val, index;
 
+    trace_ps2_read_data(opaque);
     q = &s->queue;
     if (q->count == 0) {
         /* NOTE: if no data left, we return the last keyboard one
@@ -218,12 +222,14 @@ uint32_t ps2_read_data(void *opaque)
 
 static void ps2_set_ledstate(PS2KbdState *s, int ledstate)
 {
+    trace_ps2_set_ledstate(s, ledstate);
     s->ledstate = ledstate;
     kbd_put_ledstate(ledstate);
 }
 
 static void ps2_reset_keyboard(PS2KbdState *s)
 {
+    trace_ps2_reset_keyboard(s);
     s->scan_enabled = 1;
     s->scancode_set = 2;
     ps2_set_ledstate(s, 0);
@@ -233,6 +239,7 @@ void ps2_write_keyboard(void *opaque, int val)
 {
     PS2KbdState *s = (PS2KbdState *)opaque;
 
+    trace_ps2_write_keyboard(opaque, val);
     switch(s->common.write_cmd) {
     default:
     case -1:
@@ -319,6 +326,7 @@ void ps2_write_keyboard(void *opaque, int val)
 void ps2_keyboard_set_translation(void *opaque, int mode)
 {
     PS2KbdState *s = (PS2KbdState *)opaque;
+    trace_ps2_keyboard_set_translation(opaque, mode);
     s->translate = mode;
 }
 
@@ -364,6 +372,7 @@ static void ps2_mouse_send_packet(PS2MouseState *s)
         break;
     }
 
+    trace_ps2_mouse_send_packet(s, dx1, dy1, dz1, b);
     /* update deltas */
     s->mouse_dx -= dx1;
     s->mouse_dy -= dy1;
@@ -433,6 +442,7 @@ static void ps2_mouse_sync(DeviceState *dev)
 void ps2_mouse_fake_event(void *opaque)
 {
     PS2MouseState *s = opaque;
+    trace_ps2_mouse_fake_event(opaque);
     s->mouse_dx++;
     ps2_mouse_sync(opaque);
 }
@@ -440,6 +450,8 @@ void ps2_mouse_fake_event(void *opaque)
 void ps2_write_mouse(void *opaque, int val)
 {
     PS2MouseState *s = (PS2MouseState *)opaque;
+
+    trace_ps2_write_mouse(opaque, val);
 #ifdef DEBUG_MOUSE
     printf("kbd: write mouse 0x%02x\n", val);
 #endif
@@ -606,6 +618,7 @@ static void ps2_kbd_reset(void *opaque)
 {
     PS2KbdState *s = (PS2KbdState *) opaque;
 
+    trace_ps2_kbd_reset(opaque);
     ps2_common_reset(&s->common);
     s->scan_enabled = 0;
     s->translate = 0;
@@ -616,6 +629,7 @@ static void ps2_mouse_reset(void *opaque)
 {
     PS2MouseState *s = (PS2MouseState *) opaque;
 
+    trace_ps2_mouse_reset(opaque);
     ps2_common_reset(&s->common);
     s->mouse_status = 0;
     s->mouse_resolution = 0;
@@ -763,6 +777,7 @@ void *ps2_kbd_init(void (*update_irq)(void *, int), void *update_arg)
 {
     PS2KbdState *s = (PS2KbdState *)g_malloc0(sizeof(PS2KbdState));
 
+    trace_ps2_kbd_init(s);
     s->common.update_irq = update_irq;
     s->common.update_arg = update_arg;
     s->scancode_set = 2;
@@ -784,6 +799,7 @@ void *ps2_mouse_init(void (*update_irq)(void *, int), void *update_arg)
 {
     PS2MouseState *s = (PS2MouseState *)g_malloc0(sizeof(PS2MouseState));
 
+    trace_ps2_mouse_init(s);
     s->common.update_irq = update_irq;
     s->common.update_arg = update_arg;
     vmstate_register(NULL, 0, &vmstate_ps2_mouse, s);

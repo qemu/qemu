@@ -354,7 +354,7 @@
 #define TARGET_NR_kexec_load			(347)
 #define TARGET_NR_utimensat			(348)
 #define TARGET_NR_signalfd			(349)
-#define TARGET_NR_timerfd			(350)
+#define TARGET_NR_timerfd_create		(350)
 #define TARGET_NR_eventfd			(351)
 #define TARGET_NR_fallocate			(352)
 #define TARGET_NR_timerfd_settime		(353)

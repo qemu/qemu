@@ -107,7 +107,7 @@
 /* BO Format */
 #define MASK_OP_BO_OFF10(op)   (MASK_BITS_SHIFT(op, 16, 21) + \
                                (MASK_BITS_SHIFT(op, 28, 31) << 6))
-#define MASK_OP_BO_OFF10_SEXT(op)   (MASK_BITS_SHIFT_SEXT(op, 16, 21) + \
+#define MASK_OP_BO_OFF10_SEXT(op)   (MASK_BITS_SHIFT(op, 16, 21) + \
                                     (MASK_BITS_SHIFT_SEXT(op, 28, 31) << 6))
 #define MASK_OP_BO_OP2(op)     MASK_BITS_SHIFT(op, 22, 27)
 #define MASK_OP_BO_S2(op)      MASK_BITS_SHIFT(op, 12, 15)
@@ -399,6 +399,7 @@ enum {
     OPC2_16_SR_RET                                   = 0x09,
     OPC2_16_SR_RFE                                   = 0x08,
     OPC2_16_SR_DEBUG                                 = 0x0a,
+    OPC2_16_SR_FRET                                  = 0x07,
 };
 /* OPCM_16_SR_ACCU                                   */
 enum {
@@ -428,6 +429,8 @@ enum {
 /* B Format */
     OPC1_32_B_CALL                                   = 0x6d,
     OPC1_32_B_CALLA                                  = 0xed,
+    OPC1_32_B_FCALL                                  = 0x61,
+    OPC1_32_B_FCALLA                                 = 0xe1,
     OPC1_32_B_J                                      = 0x1d,
     OPC1_32_B_JA                                     = 0x9d,
     OPC1_32_B_JL                                     = 0x5d,
@@ -523,7 +526,7 @@ enum {
     OPCM_32_RRR1_MADDSU_H                            = 0xc3,
     OPCM_32_RRR1_MSUB_H                              = 0xa3,
     OPCM_32_RRR1_MSUB_Q                              = 0x63,
-    OPCM_32_RRR1_MSUBADS_H                           = 0xe3,
+    OPCM_32_RRR1_MSUBAD_H                            = 0xe3,
 /* RRR2 Format */
     OPCM_32_RRR2_MADD                                = 0x03,
     OPCM_32_RRR2_MSUB                                = 0x23,
@@ -763,6 +766,12 @@ enum {
     OPC2_32_BO_SWAP_W_SHORTOFF                   = 0x20,
     OPC2_32_BO_SWAP_W_POSTINC                    = 0x00,
     OPC2_32_BO_SWAP_W_PREINC                     = 0x10,
+    OPC2_32_BO_CMPSWAP_W_SHORTOFF                = 0x23,
+    OPC2_32_BO_CMPSWAP_W_POSTINC                 = 0x03,
+    OPC2_32_BO_CMPSWAP_W_PREINC                  = 0x13,
+    OPC2_32_BO_SWAPMSK_W_SHORTOFF                = 0x22,
+    OPC2_32_BO_SWAPMSK_W_POSTINC                 = 0x02,
+    OPC2_32_BO_SWAPMSK_W_PREINC                  = 0x12,
 };
 /*OPCM_32_BO_ADDRMODE_LDMST_BITREVERSE_CIRCULAR  */
 enum {
@@ -770,6 +779,10 @@ enum {
     OPC2_32_BO_LDMST_CIRC                        = 0x11,
     OPC2_32_BO_SWAP_W_BR                         = 0x00,
     OPC2_32_BO_SWAP_W_CIRC                       = 0x10,
+    OPC2_32_BO_CMPSWAP_W_BR                      = 0x03,
+    OPC2_32_BO_CMPSWAP_W_CIRC                    = 0x13,
+    OPC2_32_BO_SWAPMSK_W_BR                      = 0x02,
+    OPC2_32_BO_SWAPMSK_W_CIRC                    = 0x12,
 };
 /*
  * BRC Format
@@ -1110,12 +1123,16 @@ enum {
     OPC2_32_RR_DVINIT_U                          = 0x0a,
     OPC2_32_RR_PARITY                            = 0x02,
     OPC2_32_RR_UNPACK                            = 0x08,
+    OPC2_32_RR_CRC32                             = 0x03,
+    OPC2_32_RR_DIV                               = 0x20,
+    OPC2_32_RR_DIV_U                             = 0x21,
 };
 /* OPCM_32_RR_IDIRECT                               */
 enum {
     OPC2_32_RR_JI                                = 0x03,
     OPC2_32_RR_JLI                               = 0x02,
     OPC2_32_RR_CALLI                             = 0x00,
+    OPC2_32_RR_FCALLI                            = 0x01,
 };
 /*
  * RR1 Format
@@ -1245,10 +1262,10 @@ enum {
     OPC2_32_RRR1_MADDS_Q_64_LL                   = 0x3d,
     OPC2_32_RRR1_MADDS_Q_32_UU                   = 0x24,
     OPC2_32_RRR1_MADDS_Q_64_UU                   = 0x3c,
-    OPC2_32_RRR1_MADDR_H_16_UL                   = 0x1e,
-    OPC2_32_RRR1_MADDRS_H_16_UL                  = 0x3e,
-    OPC2_32_RRR1_MADDR_Q_32_L                    = 0x07,
-    OPC2_32_RRR1_MADDR_Q_32_U                    = 0x06,
+    OPC2_32_RRR1_MADDR_H_64_UL                   = 0x1e,
+    OPC2_32_RRR1_MADDRS_H_64_UL                  = 0x3e,
+    OPC2_32_RRR1_MADDR_Q_32_LL                   = 0x07,
+    OPC2_32_RRR1_MADDR_Q_32_UU                   = 0x06,
     OPC2_32_RRR1_MADDRS_Q_32_LL                  = 0x27,
     OPC2_32_RRR1_MADDRS_Q_32_UU                  = 0x26,
 };
@@ -1281,30 +1298,30 @@ enum {
 };
 /* OPCM_32_RRR1_MSUB_H                              */
 enum {
-    OPC2_32_RRR1_MSUB_H_32_LL                    = 0x1a,
-    OPC2_32_RRR1_MSUB_H_32_LU                    = 0x19,
-    OPC2_32_RRR1_MSUB_H_32_UL                    = 0x18,
-    OPC2_32_RRR1_MSUB_H_32_UU                    = 0x1b,
-    OPC2_32_RRR1_MSUBS_H_32_LL                   = 0x3a,
-    OPC2_32_RRR1_MSUBS_H_32_LU                   = 0x39,
-    OPC2_32_RRR1_MSUBS_H_32_UL                   = 0x38,
-    OPC2_32_RRR1_MSUBS_H_32_UU                   = 0x3b,
-    OPC2_32_RRR1_MSUBM_H_64_LL                   = 0x1e,
-    OPC2_32_RRR1_MSUBM_H_64_LU                   = 0x1d,
-    OPC2_32_RRR1_MSUBM_H_64_UL                   = 0x1c,
-    OPC2_32_RRR1_MSUBM_H_64_UU                   = 0x1f,
-    OPC2_32_RRR1_MSUBMS_H_64_LL                  = 0x3e,
-    OPC2_32_RRR1_MSUBMS_H_64_LU                  = 0x3d,
-    OPC2_32_RRR1_MSUBMS_H_64_UL                  = 0x3c,
-    OPC2_32_RRR1_MSUBMS_H_64_UU                  = 0x3f,
-    OPC2_32_RRR1_MSUBR_H_16_LL                   = 0x0e,
-    OPC2_32_RRR1_MSUBR_H_16_LU                   = 0x0d,
-    OPC2_32_RRR1_MSUBR_H_16_UL                   = 0x0c,
-    OPC2_32_RRR1_MSUBR_H_16_UU                   = 0x0f,
-    OPC2_32_RRR1_MSUBRS_H_16_LL                  = 0x2e,
-    OPC2_32_RRR1_MSUBRS_H_16_LU                  = 0x2d,
-    OPC2_32_RRR1_MSUBRS_H_16_UL                  = 0x2c,
-    OPC2_32_RRR1_MSUBRS_H_16_UU                  = 0x2f,
+    OPC2_32_RRR1_MSUB_H_LL                       = 0x1a,
+    OPC2_32_RRR1_MSUB_H_LU                       = 0x19,
+    OPC2_32_RRR1_MSUB_H_UL                       = 0x18,
+    OPC2_32_RRR1_MSUB_H_UU                       = 0x1b,
+    OPC2_32_RRR1_MSUBS_H_LL                      = 0x3a,
+    OPC2_32_RRR1_MSUBS_H_LU                      = 0x39,
+    OPC2_32_RRR1_MSUBS_H_UL                      = 0x38,
+    OPC2_32_RRR1_MSUBS_H_UU                      = 0x3b,
+    OPC2_32_RRR1_MSUBM_H_LL                      = 0x1e,
+    OPC2_32_RRR1_MSUBM_H_LU                      = 0x1d,
+    OPC2_32_RRR1_MSUBM_H_UL                      = 0x1c,
+    OPC2_32_RRR1_MSUBM_H_UU                      = 0x1f,
+    OPC2_32_RRR1_MSUBMS_H_LL                     = 0x3e,
+    OPC2_32_RRR1_MSUBMS_H_LU                     = 0x3d,
+    OPC2_32_RRR1_MSUBMS_H_UL                     = 0x3c,
+    OPC2_32_RRR1_MSUBMS_H_UU                     = 0x3f,
+    OPC2_32_RRR1_MSUBR_H_LL                      = 0x0e,
+    OPC2_32_RRR1_MSUBR_H_LU                      = 0x0d,
+    OPC2_32_RRR1_MSUBR_H_UL                      = 0x0c,
+    OPC2_32_RRR1_MSUBR_H_UU                      = 0x0f,
+    OPC2_32_RRR1_MSUBRS_H_LL                     = 0x2e,
+    OPC2_32_RRR1_MSUBRS_H_LU                     = 0x2d,
+    OPC2_32_RRR1_MSUBRS_H_UL                     = 0x2c,
+    OPC2_32_RRR1_MSUBRS_H_UU                     = 0x2f,
 };
 /* OPCM_32_RRR1_MSUB_Q                              */
 enum {
@@ -1328,8 +1345,8 @@ enum {
     OPC2_32_RRR1_MSUBS_Q_64_LL                   = 0x3d,
     OPC2_32_RRR1_MSUBS_Q_32_UU                   = 0x24,
     OPC2_32_RRR1_MSUBS_Q_64_UU                   = 0x3c,
-    OPC2_32_RRR1_MSUBR_H_32_UL                   = 0x1e,
-    OPC2_32_RRR1_MSUBRS_H_32_UL                  = 0x3e,
+    OPC2_32_RRR1_MSUBR_H_64_UL                   = 0x1e,
+    OPC2_32_RRR1_MSUBRS_H_64_UL                  = 0x3e,
     OPC2_32_RRR1_MSUBR_Q_32_LL                   = 0x07,
     OPC2_32_RRR1_MSUBR_Q_32_UU                   = 0x06,
     OPC2_32_RRR1_MSUBRS_Q_32_LL                  = 0x27,
@@ -1352,7 +1369,7 @@ enum {
     OPC2_32_RRR1_MSUBADMS_H_64_LL                = 0x3e,
     OPC2_32_RRR1_MSUBADMS_H_64_LU                = 0x3d,
     OPC2_32_RRR1_MSUBADMS_H_64_UL                = 0x3c,
-    OPC2_32_RRR1_MSUBADMS_H_16_UU                = 0x3f,
+    OPC2_32_RRR1_MSUBADMS_H_64_UU                = 0x3f,
     OPC2_32_RRR1_MSUBADR_H_16_LL                 = 0x0e,
     OPC2_32_RRR1_MSUBADR_H_16_LU                 = 0x0d,
     OPC2_32_RRR1_MSUBADR_H_16_UL                 = 0x0c,
@@ -1371,7 +1388,7 @@ enum {
     OPC2_32_RRR2_MADD_64                         = 0x6a,
     OPC2_32_RRR2_MADDS_32                        = 0x8a,
     OPC2_32_RRR2_MADDS_64                        = 0xea,
-    OPC2_32_RRR2_MADD_U_32                       = 0x68,
+    OPC2_32_RRR2_MADD_U_64                       = 0x68,
     OPC2_32_RRR2_MADDS_U_32                      = 0x88,
     OPC2_32_RRR2_MADDS_U_64                      = 0xe8,
 };
@@ -1423,4 +1440,6 @@ enum {
     OPC2_32_SYS_SVLCX                            = 0x08,
     OPC2_32_SYS_TRAPSV                           = 0x15,
     OPC2_32_SYS_TRAPV                            = 0x14,
+    OPC2_32_SYS_RESTORE                          = 0x0e,
+    OPC2_32_SYS_FRET                             = 0x03,
 };

@@ -53,6 +53,7 @@
 #include "block/block_int.h"
 #include "qemu/module.h"
 #include "migration/migration.h"
+#include "block/coroutine.h"
 
 #if defined(CONFIG_UUID)
 #include <uuid/uuid.h>
@@ -195,6 +196,8 @@ typedef struct {
     uint32_t bmap_sector;
     /* VDI header (converted to host endianness). */
     VdiHeader header;
+
+    CoMutex write_lock;
 
     Error *migration_blocker;
 } BDRVVdiState;
@@ -499,10 +502,12 @@ static int vdi_open(BlockDriverState *bs, QDict *options, int flags,
     }
 
     /* Disable migration when vdi images are used */
-    error_set(&s->migration_blocker,
-              QERR_BLOCK_FORMAT_FEATURE_NOT_SUPPORTED,
-              "vdi", bdrv_get_device_name(bs), "live migration");
+    error_setg(&s->migration_blocker, "The vdi format used by node '%s' "
+               "does not support live migration",
+               bdrv_get_device_or_node_name(bs));
     migrate_add_blocker(s->migration_blocker);
+
+    qemu_co_mutex_init(&s->write_lock);
 
     return 0;
 
@@ -639,11 +644,31 @@ static int vdi_co_write(BlockDriverState *bs,
                    buf, n_sectors * SECTOR_SIZE);
             memset(block + (sector_in_block + n_sectors) * SECTOR_SIZE, 0,
                    (s->block_sectors - n_sectors - sector_in_block) * SECTOR_SIZE);
+
+            /* Note that this coroutine does not yield anywhere from reading the
+             * bmap entry until here, so in regards to all the coroutines trying
+             * to write to this cluster, the one doing the allocation will
+             * always be the first to try to acquire the lock.
+             * Therefore, it is also the first that will actually be able to
+             * acquire the lock and thus the padded cluster is written before
+             * the other coroutines can write to the affected area. */
+            qemu_co_mutex_lock(&s->write_lock);
             ret = bdrv_write(bs->file, offset, block, s->block_sectors);
+            qemu_co_mutex_unlock(&s->write_lock);
         } else {
             uint64_t offset = s->header.offset_data / SECTOR_SIZE +
                               (uint64_t)bmap_entry * s->block_sectors +
                               sector_in_block;
+            qemu_co_mutex_lock(&s->write_lock);
+            /* This lock is only used to make sure the following write operation
+             * is executed after the write issued by the coroutine allocating
+             * this cluster, therefore we do not need to keep it locked.
+             * As stated above, the allocating coroutine will always try to lock
+             * the mutex before all the other concurrent accesses to that
+             * cluster, therefore at this point we can be absolutely certain
+             * that that write operation has returned (there may be other writes
+             * in flight, but they do not concern this very operation). */
+            qemu_co_mutex_unlock(&s->write_lock);
             ret = bdrv_write(bs->file, offset, buf, n_sectors);
         }
 

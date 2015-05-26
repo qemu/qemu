@@ -27,8 +27,26 @@
 
 #ifdef HOST_WORDS_BIGENDIAN
 # define PIXMAN_BE_r8g8b8     PIXMAN_r8g8b8
+# define PIXMAN_BE_x8r8g8b8   PIXMAN_x8r8g8b8
+# define PIXMAN_BE_a8r8g8b8   PIXMAN_a8r8g8b8
+# define PIXMAN_BE_b8g8r8x8   PIXMAN_b8g8r8x8
+# define PIXMAN_BE_b8g8r8a8   PIXMAN_b8g8r8a8
+# define PIXMAN_BE_r8g8b8x8   PIXMAN_r8g8b8x8
+# define PIXMAN_BE_r8g8b8a8   PIXMAN_r8g8b8a8
+# define PIXMAN_BE_x8b8g8r8   PIXMAN_x8b8g8r8
+# define PIXMAN_BE_a8b8g8r8   PIXMAN_a8b8g8r8
+# define PIXMAN_LE_x8r8g8b8   PIXMAN_b8g8r8x8
 #else
 # define PIXMAN_BE_r8g8b8     PIXMAN_b8g8r8
+# define PIXMAN_BE_x8r8g8b8   PIXMAN_b8g8r8x8
+# define PIXMAN_BE_a8r8g8b8   PIXMAN_b8g8r8a8
+# define PIXMAN_BE_b8g8r8x8   PIXMAN_x8r8g8b8
+# define PIXMAN_BE_b8g8r8a8   PIXMAN_a8r8g8b8
+# define PIXMAN_BE_r8g8b8x8   PIXMAN_x8b8g8r8
+# define PIXMAN_BE_r8g8b8a8   PIXMAN_a8b8g8r8
+# define PIXMAN_BE_x8b8g8r8   PIXMAN_r8g8b8x8
+# define PIXMAN_BE_a8b8g8r8   PIXMAN_r8g8b8a8
+# define PIXMAN_LE_x8r8g8b8   PIXMAN_x8r8g8b8
 #endif
 
 /* -------------------------------------------------------------------- */

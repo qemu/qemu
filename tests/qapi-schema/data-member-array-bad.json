@@ -1,0 +1,2 @@
+# we reject data if it does not contain a valid array type
+{ 'command': 'oops', 'data': { 'member': [ { 'nested': 'str' } ] } }

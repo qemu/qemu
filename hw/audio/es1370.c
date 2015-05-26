@@ -1016,7 +1016,7 @@ static void es1370_on_reset (void *opaque)
     es1370_reset (s);
 }
 
-static int es1370_initfn (PCIDevice *dev)
+static void es1370_realize(PCIDevice *dev, Error **errp)
 {
     ES1370State *s = DO_UPCAST (ES1370State, dev, dev);
     uint8_t *c = s->dev.config;
@@ -1039,7 +1039,6 @@ static int es1370_initfn (PCIDevice *dev)
 
     AUD_register_card ("es1370", &s->card);
     es1370_reset (s);
-    return 0;
 }
 
 static int es1370_init (PCIBus *bus)
@@ -1053,7 +1052,7 @@ static void es1370_class_init (ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS (klass);
     PCIDeviceClass *k = PCI_DEVICE_CLASS (klass);
 
-    k->init = es1370_initfn;
+    k->realize = es1370_realize;
     k->vendor_id = PCI_VENDOR_ID_ENSONIQ;
     k->device_id = PCI_DEVICE_ID_ENSONIQ_ES1370;
     k->class_id = PCI_CLASS_MULTIMEDIA_AUDIO;

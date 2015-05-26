@@ -62,6 +62,9 @@ typedef struct BlockDevOps {
 
 BlockBackend *blk_new(const char *name, Error **errp);
 BlockBackend *blk_new_with_bs(const char *name, Error **errp);
+BlockBackend *blk_new_open(const char *name, const char *filename,
+                           const char *reference, QDict *options, int flags,
+                           Error **errp);
 void blk_ref(BlockBackend *blk);
 void blk_unref(BlockBackend *blk);
 const char *blk_name(BlockBackend *blk);
@@ -70,7 +73,7 @@ BlockBackend *blk_next(BlockBackend *blk);
 
 BlockDriverState *blk_bs(BlockBackend *blk);
 
-void blk_hide_on_behalf_of_do_drive_del(BlockBackend *blk);
+void blk_hide_on_behalf_of_hmp_drive_del(BlockBackend *blk);
 
 void blk_iostatus_enable(BlockBackend *blk);
 int blk_attach_dev(BlockBackend *blk, void *dev);
@@ -84,6 +87,8 @@ int blk_read_unthrottled(BlockBackend *blk, int64_t sector_num, uint8_t *buf,
                          int nb_sectors);
 int blk_write(BlockBackend *blk, int64_t sector_num, const uint8_t *buf,
               int nb_sectors);
+int blk_write_zeroes(BlockBackend *blk, int64_t sector_num,
+                     int nb_sectors, BdrvRequestFlags flags);
 BlockAIOCB *blk_aio_write_zeroes(BlockBackend *blk, int64_t sector_num,
                                  int nb_sectors, BdrvRequestFlags flags,
                                  BlockCompletionFunc *cb, void *opaque);
@@ -91,6 +96,7 @@ int blk_pread(BlockBackend *blk, int64_t offset, void *buf, int count);
 int blk_pwrite(BlockBackend *blk, int64_t offset, const void *buf, int count);
 int64_t blk_getlength(BlockBackend *blk);
 void blk_get_geometry(BlockBackend *blk, uint64_t *nb_sectors_ptr);
+int64_t blk_nb_sectors(BlockBackend *blk);
 BlockAIOCB *blk_aio_readv(BlockBackend *blk, int64_t sector_num,
                           QEMUIOVector *iov, int nb_sectors,
                           BlockCompletionFunc *cb, void *opaque);
@@ -127,6 +133,7 @@ int blk_is_inserted(BlockBackend *blk);
 void blk_lock_medium(BlockBackend *blk, bool locked);
 void blk_eject(BlockBackend *blk, bool eject_flag);
 int blk_get_flags(BlockBackend *blk);
+int blk_get_max_transfer_length(BlockBackend *blk);
 void blk_set_guest_block_size(BlockBackend *blk, int align);
 void *blk_blockalign(BlockBackend *blk, size_t size);
 bool blk_op_is_blocked(BlockBackend *blk, BlockOpType op, Error **errp);
@@ -150,5 +157,16 @@ BlockAcctStats *blk_get_stats(BlockBackend *blk);
 
 void *blk_aio_get(const AIOCBInfo *aiocb_info, BlockBackend *blk,
                   BlockCompletionFunc *cb, void *opaque);
+int coroutine_fn blk_co_write_zeroes(BlockBackend *blk, int64_t sector_num,
+                                     int nb_sectors, BdrvRequestFlags flags);
+int blk_write_compressed(BlockBackend *blk, int64_t sector_num,
+                         const uint8_t *buf, int nb_sectors);
+int blk_truncate(BlockBackend *blk, int64_t offset);
+int blk_discard(BlockBackend *blk, int64_t sector_num, int nb_sectors);
+int blk_save_vmstate(BlockBackend *blk, const uint8_t *buf,
+                     int64_t pos, int size);
+int blk_load_vmstate(BlockBackend *blk, uint8_t *buf, int64_t pos, int size);
+int blk_probe_blocksizes(BlockBackend *blk, BlockSizes *bsz);
+int blk_probe_geometry(BlockBackend *blk, HDGeometry *geo);
 
 #endif

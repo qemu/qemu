@@ -1,10 +1,21 @@
                       QEMU Machine Protocol Specification
 
+0. About This Document
+======================
+
+Copyright (C) 2009-2015 Red Hat, Inc.
+
+This work is licensed under the terms of the GNU GPL, version 2 or
+later. See the COPYING file in the top-level directory.
+
 1. Introduction
 ===============
 
-This document specifies the QEMU Machine Protocol (QMP), a JSON-based protocol
-which is available for applications to operate QEMU at the machine-level.
+This document specifies the QEMU Machine Protocol (QMP), a JSON-based
+protocol which is available for applications to operate QEMU at the
+machine-level.  It is also in use by the QEMU Guest Agent (QGA), which
+is available for host applications to interact with the guest
+operating system.
 
 2. Protocol Specification
 =========================
@@ -18,14 +29,27 @@ following format:
 
     json-DATA-STRUCTURE-NAME
 
-Where DATA-STRUCTURE-NAME is any valid JSON data structure, as defined by
-the JSON standard:
+Where DATA-STRUCTURE-NAME is any valid JSON data structure, as defined
+by the JSON standard:
 
-http://www.ietf.org/rfc/rfc4627.txt
+http://www.ietf.org/rfc/rfc7159.txt
 
-For convenience, json-object members and json-array elements mentioned in
-this document will be in a certain order. However, in real protocol usage
-they can be in ANY order, thus no particular order should be assumed.
+The protocol is always encoded in UTF-8 except for synchronization
+bytes (documented below); although thanks to json-string escape
+sequences, the server will reply using only the strict ASCII subset.
+
+For convenience, json-object members mentioned in this document will
+be in a certain order. However, in real protocol usage they can be in
+ANY order, thus no particular order should be assumed. On the other
+hand, use of json-array elements presumes that preserving order is
+important unless specifically documented otherwise.  Repeating a key
+within a json-object gives unpredictable results.
+
+Also for convenience, the server will accept an extension of
+'single-quoted' strings in place of the usual "double-quoted"
+json-string, and both input forms of strings understand an additional
+escape sequence of "\'" for a single quote. The server will only use
+double quoting on output.
 
 2.1 General Definitions
 -----------------------
@@ -52,7 +76,16 @@ The greeting message format is:
 - The "version" member contains the Server's version information (the format
   is the same of the query-version command)
 - The "capabilities" member specify the availability of features beyond the
-  baseline specification
+  baseline specification; the order of elements in this array has no
+  particular significance, so a client must search the entire array
+  when looking for a particular capability
+
+2.2.1 Capabilities
+------------------
+
+As of the date this document was last revised, no server or client
+capability strings have been defined.
+
 
 2.3 Issuing Commands
 --------------------
@@ -65,10 +98,14 @@ The format for command execution is:
 
 - The "execute" member identifies the command to be executed by the Server
 - The "arguments" member is used to pass any arguments required for the
-  execution of the command, it is optional when no arguments are required
+  execution of the command, it is optional when no arguments are
+  required. Each command documents what contents will be considered
+  valid when handling the json-argument
 - The "id" member is a transaction identification associated with the
   command execution, it is optional and will be part of the response if
-  provided
+  provided. The "id" member can be any json-value, although most
+  clients merely use a json-number incremented for each successive
+  command
 
 2.4 Commands Responses
 ----------------------
@@ -81,13 +118,15 @@ of a command execution: success or error.
 
 The format of a success response is:
 
-{ "return": json-object, "id": json-value }
+{ "return": json-value, "id": json-value }
 
  Where,
 
-- The "return" member contains the command returned data, which is defined
-  in a per-command basis or an empty json-object if the command does not
-  return data
+- The "return" member contains the data returned by the command, which
+  is defined on a per-command basis (usually a json-object or
+  json-array of json-objects, but sometimes a json-number, json-string,
+  or json-array of json-strings); it is an empty json-object if the
+  command does not return data
 - The "id" member contains the transaction identification associated
   with the command execution if issued by the Client
 
@@ -114,7 +153,8 @@ if provided by the client.
 -----------------------
 
 As a result of state changes, the Server may send messages unilaterally
-to the Client at any time. They are called "asynchronous events".
+to the Client at any time, when not in the middle of any other
+response. They are called "asynchronous events".
 
 The format of asynchronous events is:
 
@@ -126,12 +166,26 @@ The format of asynchronous events is:
 - The "event" member contains the event's name
 - The "data" member contains event specific data, which is defined in a
   per-event basis, it is optional
-- The "timestamp" member contains the exact time of when the event occurred
-  in the Server. It is a fixed json-object with time in seconds and
-  microseconds
+- The "timestamp" member contains the exact time of when the event
+  occurred in the Server. It is a fixed json-object with time in
+  seconds and microseconds relative to the Unix Epoch (1 Jan 1970); if
+  there is a failure to retrieve host time, both members of the
+  timestamp will be set to -1.
 
 For a listing of supported asynchronous events, please, refer to the
 qmp-events.txt file.
+
+2.5 QGA Synchronization
+-----------------------
+
+When using QGA, an additional synchronization feature is built into
+the protocol.  If the Client sends a raw 0xFF sentinel byte (not valid
+JSON), then the Server will reset its state and discard all pending
+data prior to the sentinel.  Conversely, if the Client makes use of
+the 'guest-sync-delimited' command, the Server will send a raw 0xFF
+sentinel byte prior to its response, to aid the Client in discarding
+any data prior to the sentinel.
+
 
 3. QMP Examples
 ===============
@@ -145,32 +199,37 @@ This section provides some examples of real QMP usage, in all of them
 S: { "QMP": { "version": { "qemu": { "micro": 50, "minor": 6, "major": 1 },
      "package": ""}, "capabilities": []}}
 
-3.2 Simple 'stop' execution
+3.2 Client QMP negotiation
+--------------------------
+C: { "execute": "qmp_capabilities" }
+S: { "return": {}}
+
+3.3 Simple 'stop' execution
 ---------------------------
 
 C: { "execute": "stop" }
 S: { "return": {} }
 
-3.3 KVM information
+3.4 KVM information
 -------------------
 
 C: { "execute": "query-kvm", "id": "example" }
 S: { "return": { "enabled": true, "present": true }, "id": "example"}
 
-3.4 Parsing error
+3.5 Parsing error
 ------------------
 
 C: { "execute": }
 S: { "error": { "class": "GenericError", "desc": "Invalid JSON syntax" } }
 
-3.5 Powerdown event
+3.6 Powerdown event
 -------------------
 
 S: { "timestamp": { "seconds": 1258551470, "microseconds": 802384 },
     "event": "POWERDOWN" }
 
 4. Capabilities Negotiation
-----------------------------
+===========================
 
 When a Client successfully establishes a connection, the Server is in
 Capabilities Negotiation mode.
@@ -189,7 +248,7 @@ effect, all commands (except qmp_capabilities) are allowed and asynchronous
 messages are delivered.
 
 5 Compatibility Considerations
-------------------------------
+==============================
 
 All protocol changes or new features which modify the protocol format in an
 incompatible way are disabled by default and will be advertised by the
@@ -213,12 +272,16 @@ However, Clients must not assume any particular:
 - Amount of errors generated by a command, that is, new errors can be added
   to any existing command in newer versions of the Server
 
+Any command or field name beginning with "x-" is deemed experimental,
+and may be withdrawn or changed in an incompatible manner in a future
+release.
+
 Of course, the Server does guarantee to send valid JSON.  But apart from
 this, a Client should be "conservative in what they send, and liberal in
 what they accept".
 
 6. Downstream extension of QMP
-------------------------------
+==============================
 
 We recommend that downstream consumers of QEMU do *not* modify QMP.
 Management tools should be able to support both upstream and downstream

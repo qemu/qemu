@@ -1,0 +1,3 @@
+# we only recognize JSON escape sequences, plus our \' extension (no \x)
+# { 'command': 'foo', 'data': {} }
+{ 'command': 'foo', 'dat\x61':{} }

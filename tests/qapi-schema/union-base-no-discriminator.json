@@ -1,0 +1,14 @@
+# we reject simple unions with a base (or flat unions without discriminator)
+{ 'struct': 'TestTypeA',
+  'data': { 'string': 'str' } }
+
+{ 'struct': 'TestTypeB',
+  'data': { 'integer': 'int' } }
+
+{ 'struct': 'Base',
+  'data': { 'string': 'str' } }
+
+{ 'union': 'TestUnion',
+  'base': 'Base',
+  'data': { 'value1': 'TestTypeA',
+            'value2': 'TestTypeB' } }

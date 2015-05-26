@@ -37,26 +37,14 @@ void qerror_report_err(Error *err);
 #define QERR_BASE_NOT_FOUND \
     ERROR_CLASS_GENERIC_ERROR, "Base '%s' not found"
 
-#define QERR_BLOCK_JOB_NOT_ACTIVE \
-    ERROR_CLASS_DEVICE_NOT_ACTIVE, "No active block job on device '%s'"
-
 #define QERR_BLOCK_JOB_NOT_READY \
     ERROR_CLASS_GENERIC_ERROR, "The active block job for device '%s' cannot be completed"
-
-#define QERR_BLOCK_FORMAT_FEATURE_NOT_SUPPORTED \
-    ERROR_CLASS_GENERIC_ERROR, "Block format '%s' used by device '%s' does not support feature '%s'"
 
 #define QERR_BUS_NO_HOTPLUG \
     ERROR_CLASS_GENERIC_ERROR, "Bus '%s' does not support hotplugging"
 
 #define QERR_BUS_NOT_FOUND \
     ERROR_CLASS_GENERIC_ERROR, "Bus '%s' not found"
-
-#define QERR_COMMAND_NOT_FOUND \
-    ERROR_CLASS_COMMAND_NOT_FOUND, "The command %s has not been found"
-
-#define QERR_DEVICE_ENCRYPTED \
-    ERROR_CLASS_DEVICE_ENCRYPTED, "'%s' (%s) is encrypted"
 
 #define QERR_DEVICE_HAS_NO_MEDIUM \
     ERROR_CLASS_GENERIC_ERROR, "Device '%s' has no medium"
@@ -67,17 +55,8 @@ void qerror_report_err(Error *err);
 #define QERR_DEVICE_IN_USE \
     ERROR_CLASS_GENERIC_ERROR, "Device '%s' is in use"
 
-#define QERR_DEVICE_IS_READ_ONLY \
-    ERROR_CLASS_GENERIC_ERROR, "Device '%s' is read only"
-
 #define QERR_DEVICE_NO_HOTPLUG \
     ERROR_CLASS_GENERIC_ERROR, "Device '%s' does not support hotplugging"
-
-#define QERR_DEVICE_NOT_ACTIVE \
-    ERROR_CLASS_DEVICE_NOT_ACTIVE, "No %s device has been activated"
-
-#define QERR_DEVICE_NOT_ENCRYPTED \
-    ERROR_CLASS_GENERIC_ERROR, "Device '%s' is not encrypted"
 
 #define QERR_DEVICE_NOT_FOUND \
     ERROR_CLASS_DEVICE_NOT_FOUND, "Device '%s' not found"
@@ -111,9 +90,6 @@ void qerror_report_err(Error *err);
 
 #define QERR_JSON_PARSING \
     ERROR_CLASS_GENERIC_ERROR, "Invalid JSON syntax"
-
-#define QERR_KVM_MISSING_CAP \
-    ERROR_CLASS_KVM_MISSING_CAP, "Using KVM without %s, %s unavailable"
 
 #define QERR_MIGRATION_ACTIVE \
     ERROR_CLASS_GENERIC_ERROR, "There's a migration process in progress"

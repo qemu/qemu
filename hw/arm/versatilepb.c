@@ -213,22 +213,21 @@ static void versatile_init(MachineState *machine, int board_id)
     if (object_property_find(cpuobj, "has_el3", NULL)) {
         object_property_set_bool(cpuobj, false, "has_el3", &err);
         if (err) {
-            error_report("%s", error_get_pretty(err));
+            error_report_err(err);
             exit(1);
         }
     }
 
     object_property_set_bool(cpuobj, true, "realized", &err);
     if (err) {
-        error_report("%s", error_get_pretty(err));
+        error_report_err(err);
         exit(1);
     }
 
     cpu = ARM_CPU(cpuobj);
 
-    memory_region_init_ram(ram, NULL, "versatile.ram", machine->ram_size,
-                           &error_abort);
-    vmstate_register_ram_global(ram);
+    memory_region_allocate_system_memory(ram, NULL, "versatile.ram",
+                                         machine->ram_size);
     /* ??? RAM should repeat to fill physical memory space.  */
     /* SDRAM at address zero.  */
     memory_region_add_subregion(sysmem, 0, ram);

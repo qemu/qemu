@@ -142,8 +142,9 @@ static void read_partition(uint8_t *p, struct partition_record *r)
     r->end_head = p[5];
     r->end_cylinder = p[7] | ((p[6] << 2) & 0x300);
     r->end_sector = p[6] & 0x3f;
-    r->start_sector_abs = p[8] | p[9] << 8 | p[10] << 16 | p[11] << 24;
-    r->nb_sectors_abs = p[12] | p[13] << 8 | p[14] << 16 | p[15] << 24;
+
+    r->start_sector_abs = le32_to_cpup((uint32_t *)(p +  8));
+    r->nb_sectors_abs   = le32_to_cpup((uint32_t *)(p + 12));
 }
 
 static int find_partition(BlockBackend *blk, int partition,
@@ -167,8 +168,9 @@ static int find_partition(BlockBackend *blk, int partition,
     for (i = 0; i < 4; i++) {
         read_partition(&data[446 + 16 * i], &mbr[i]);
 
-        if (!mbr[i].nb_sectors_abs)
+        if (!mbr[i].system || !mbr[i].nb_sectors_abs) {
             continue;
+        }
 
         if (mbr[i].system == 0xF || mbr[i].system == 0x5) {
             struct partition_record ext[4];
@@ -182,8 +184,9 @@ static int find_partition(BlockBackend *blk, int partition,
 
             for (j = 0; j < 4; j++) {
                 read_partition(&data1[446 + 16 * j], &ext[j]);
-                if (!ext[j].nb_sectors_abs)
+                if (!ext[j].system || !ext[j].nb_sectors_abs) {
                     continue;
+                }
 
                 if ((ext_partnum + j + 1) == partition) {
                     *offset = (uint64_t)ext[j].start_sector_abs << 9;
@@ -228,8 +231,7 @@ static int tcp_socket_incoming(const char *address, uint16_t port)
     int fd = inet_listen(address_and_port, NULL, 0, SOCK_STREAM, 0, &local_err);
 
     if (local_err != NULL) {
-        error_report("%s", error_get_pretty(local_err));
-        error_free(local_err);
+        error_report_err(local_err);
     }
     return fd;
 }
@@ -240,8 +242,7 @@ static int unix_socket_incoming(const char *path)
     int fd = unix_listen(path, NULL, 0, &local_err);
 
     if (local_err != NULL) {
-        error_report("%s", error_get_pretty(local_err));
-        error_free(local_err);
+        error_report_err(local_err);
     }
     return fd;
 }
@@ -252,8 +253,7 @@ static int unix_socket_outgoing(const char *path)
     int fd = unix_connect(path, &local_err);
 
     if (local_err != NULL) {
-        error_report("%s", error_get_pretty(local_err));
-        error_free(local_err);
+        error_report_err(local_err);
     }
     return fd;
 }
@@ -279,11 +279,11 @@ static void *nbd_client_thread(void *arg)
 {
     char *device = arg;
     off_t size;
-    size_t blocksize;
     uint32_t nbdflags;
     int fd, sock;
     int ret;
     pthread_t show_parts_thread;
+    Error *local_error = NULL;
 
     sock = unix_socket_outgoing(sockpath);
     if (sock < 0) {
@@ -291,8 +291,12 @@ static void *nbd_client_thread(void *arg)
     }
 
     ret = nbd_receive_negotiate(sock, NULL, &nbdflags,
-                                &size, &blocksize);
+                                &size, &local_error);
     if (ret < 0) {
+        if (local_error) {
+            fprintf(stderr, "%s\n", error_get_pretty(local_error));
+            error_free(local_error);
+        }
         goto out_socket;
     }
 
@@ -303,7 +307,7 @@ static void *nbd_client_thread(void *arg)
         goto out_socket;
     }
 
-    ret = nbd_init(fd, sock, nbdflags, size, blocksize);
+    ret = nbd_init(fd, sock, nbdflags, size);
     if (ret < 0) {
         goto out_fd;
     }
@@ -386,7 +390,6 @@ int main(int argc, char **argv)
 {
     BlockBackend *blk;
     BlockDriverState *bs;
-    BlockDriver *drv;
     off_t dev_offset = 0;
     uint32_t nbdflags = 0;
     bool disconnect = false;
@@ -429,7 +432,7 @@ int main(int argc, char **argv)
     char *end;
     int flags = BDRV_O_RDWR;
     int partition = -1;
-    int ret;
+    int ret = 0;
     int fd;
     bool seen_cache = false;
     bool seen_discard = false;
@@ -440,6 +443,7 @@ int main(int argc, char **argv)
     const char *fmt = NULL;
     Error *local_err = NULL;
     BlockdevDetectZeroesOptions detect_zeroes = BLOCKDEV_DETECT_ZEROES_OPTIONS_OFF;
+    QDict *options = NULL;
 
     /* The client thread uses SIGTERM to interrupt the server.  A signal
      * handler ensures that "qemu-nbd -v -c" exits with a nice status code.
@@ -631,7 +635,9 @@ int main(int argc, char **argv)
          * print errors and exit with the proper status code.
          */
         pid = fork();
-        if (pid == 0) {
+        if (pid < 0) {
+            err(EXIT_FAILURE, "Failed to fork");
+        } else if (pid == 0) {
             close(stderr_fd[0]);
             ret = qemu_daemon(1, 0);
 
@@ -676,32 +682,24 @@ int main(int argc, char **argv)
     }
 
     if (qemu_init_main_loop(&local_err)) {
-        error_report("%s", error_get_pretty(local_err));
-        error_free(local_err);
+        error_report_err(local_err);
         exit(EXIT_FAILURE);
     }
     bdrv_init();
     atexit(bdrv_close_all);
 
     if (fmt) {
-        drv = bdrv_find_format(fmt);
-        if (!drv) {
-            errx(EXIT_FAILURE, "Unknown file format '%s'", fmt);
-        }
-    } else {
-        drv = NULL;
+        options = qdict_new();
+        qdict_put(options, "driver", qstring_from_str(fmt));
     }
-
-    blk = blk_new_with_bs("hda", &error_abort);
-    bs = blk_bs(blk);
 
     srcpath = argv[optind];
-    ret = bdrv_open(&bs, srcpath, NULL, NULL, flags, drv, &local_err);
-    if (ret < 0) {
-        errno = -ret;
-        err(EXIT_FAILURE, "Failed to bdrv_open '%s': %s", argv[optind],
-            error_get_pretty(local_err));
+    blk = blk_new_open("hda", srcpath, NULL, options, flags, &local_err);
+    if (!blk) {
+        errx(EXIT_FAILURE, "Failed to blk_new_open '%s': %s", argv[optind],
+             error_get_pretty(local_err));
     }
+    bs = blk_bs(blk);
 
     if (sn_opts) {
         ret = bdrv_snapshot_load_tmp(bs,
@@ -721,6 +719,10 @@ int main(int argc, char **argv)
 
     bs->detect_zeroes = detect_zeroes;
     fd_size = blk_getlength(blk);
+    if (fd_size < 0) {
+        errx(EXIT_FAILURE, "Failed to determine the image length: %s",
+             strerror(-fd_size));
+    }
 
     if (partition != -1) {
         ret = find_partition(blk, partition, &dev_offset, &fd_size);
@@ -730,7 +732,11 @@ int main(int argc, char **argv)
         }
     }
 
-    exp = nbd_export_new(blk, dev_offset, fd_size, nbdflags, nbd_export_closed);
+    exp = nbd_export_new(blk, dev_offset, fd_size, nbdflags, nbd_export_closed,
+                         &local_err);
+    if (!exp) {
+        errx(EXIT_FAILURE, "%s", error_get_pretty(local_err));
+    }
 
     if (sockpath) {
         fd = unix_socket_incoming(sockpath);

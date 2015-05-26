@@ -222,7 +222,7 @@ static uint16_t nvme_rw(NvmeCtrl *n, NvmeNamespace *ns, NvmeCmd *cmd,
 
     uint8_t lba_index  = NVME_ID_NS_FLBAS_INDEX(ns->id_ns.flbas);
     uint8_t data_shift = ns->id_ns.lbaf[lba_index].ds;
-    uint64_t data_size = nlb << data_shift;
+    uint64_t data_size = (uint64_t)nlb << data_shift;
     uint64_t aio_slba  = slba << (data_shift - BDRV_SECTOR_BITS);
     int is_write = rw->opcode == NVME_CMD_WRITE ? 1 : 0;
 
@@ -479,6 +479,9 @@ static uint16_t nvme_get_feature(NvmeCtrl *n, NvmeCmd *cmd, NvmeRequest *req)
         req->cqe.result =
             cpu_to_le32((n->num_queues - 1) | ((n->num_queues - 1) << 16));
         break;
+    case NVME_VOLATILE_WRITE_CACHE:
+        req->cqe.result = cpu_to_le32(1);
+        break;
     default:
         return NVME_INVALID_FIELD | NVME_DNR;
     }
@@ -615,6 +618,13 @@ static void nvme_write_bar(NvmeCtrl *n, hwaddr offset, uint64_t data,
         n->bar.intmc = n->bar.intms;
         break;
     case 0x14:
+        /* Windows first sends data, then sends enable bit */
+        if (!NVME_CC_EN(data) && !NVME_CC_EN(n->bar.cc) &&
+            !NVME_CC_SHN(data) && !NVME_CC_SHN(n->bar.cc))
+        {
+            n->bar.cc = data;
+        }
+
         if (NVME_CC_EN(data) && !NVME_CC_EN(n->bar.cc)) {
             n->bar.cc = data;
             if (nvme_start_ctrl(n)) {
@@ -765,6 +775,7 @@ static int nvme_init(PCIDevice *pci_dev)
     if (!n->serial) {
         return -1;
     }
+    blkconf_blocksizes(&n->conf);
 
     pci_conf = pci_dev->config;
     pci_conf[PCI_INTERRUPT_PIN] = 1;

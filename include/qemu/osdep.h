@@ -259,4 +259,6 @@ void qemu_set_tty_echo(int fd, bool echo);
 
 void os_mem_prealloc(int fd, char *area, size_t sz);
 
+int qemu_read_password(char *buf, int buf_size);
+
 #endif

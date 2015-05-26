@@ -159,6 +159,7 @@ static int cpu_post_load(void *opaque, int version_id)
     PowerPCCPU *cpu = opaque;
     CPUPPCState *env = &cpu->env;
     int i;
+    target_ulong msr;
 
     /*
      * We always ignore the source PVR. The user or management
@@ -190,7 +191,12 @@ static int cpu_post_load(void *opaque, int version_id)
         /* Restore htab_base and htab_mask variables */
         ppc_store_sdr1(env, env->spr[SPR_SDR1]);
     }
-    hreg_compute_hflags(env);
+
+    /* Invalidate all msr bits except MSR_TGPR/MSR_HVB before restoring */
+    msr = env->msr;
+    env->msr ^= ~((1ULL << MSR_TGPR) | MSR_HVB);
+    ppc_store_msr(env, msr);
+
     hreg_compute_mem_idx(env);
 
     return 0;

@@ -572,14 +572,34 @@ static int vmstate_load(QEMUFile *f, SaveStateEntry *se, int version_id)
     return vmstate_load_state(f, se->vmsd, se->opaque, version_id);
 }
 
-static void vmstate_save(QEMUFile *f, SaveStateEntry *se)
+static void vmstate_save_old_style(QEMUFile *f, SaveStateEntry *se, QJSON *vmdesc)
+{
+    int64_t old_offset, size;
+
+    old_offset = qemu_ftell_fast(f);
+    se->ops->save_state(f, se->opaque);
+    size = qemu_ftell_fast(f) - old_offset;
+
+    if (vmdesc) {
+        json_prop_int(vmdesc, "size", size);
+        json_start_array(vmdesc, "fields");
+        json_start_object(vmdesc, NULL);
+        json_prop_str(vmdesc, "name", "data");
+        json_prop_int(vmdesc, "size", size);
+        json_prop_str(vmdesc, "type", "buffer");
+        json_end_object(vmdesc);
+        json_end_array(vmdesc);
+    }
+}
+
+static void vmstate_save(QEMUFile *f, SaveStateEntry *se, QJSON *vmdesc)
 {
     trace_vmstate_save(se->idstr, se->vmsd ? se->vmsd->name : "(old)");
-    if (!se->vmsd) {         /* Old style */
-        se->ops->save_state(f, se->opaque);
+    if (!se->vmsd) {
+        vmstate_save_old_style(f, se, vmdesc);
         return;
     }
-    vmstate_save_state(f, se->vmsd, se->opaque);
+    vmstate_save_state(f, se->vmsd, se->opaque, vmdesc);
 }
 
 bool qemu_savevm_state_blocked(Error **errp)
@@ -674,7 +694,7 @@ int qemu_savevm_state_iterate(QEMUFile *f)
         qemu_put_be32(f, se->section_id);
 
         ret = se->ops->save_live_iterate(f, se->opaque);
-        trace_savevm_section_end(se->idstr, se->section_id);
+        trace_savevm_section_end(se->idstr, se->section_id, ret);
 
         if (ret < 0) {
             qemu_file_set_error(f, ret);
@@ -690,8 +710,16 @@ int qemu_savevm_state_iterate(QEMUFile *f)
     return ret;
 }
 
+static bool should_send_vmdesc(void)
+{
+    MachineState *machine = MACHINE(qdev_get_machine());
+    return !machine->suppress_vmdesc;
+}
+
 void qemu_savevm_state_complete(QEMUFile *f)
 {
+    QJSON *vmdesc;
+    int vmdesc_len;
     SaveStateEntry *se;
     int ret;
 
@@ -714,13 +742,16 @@ void qemu_savevm_state_complete(QEMUFile *f)
         qemu_put_be32(f, se->section_id);
 
         ret = se->ops->save_live_complete(f, se->opaque);
-        trace_savevm_section_end(se->idstr, se->section_id);
+        trace_savevm_section_end(se->idstr, se->section_id, ret);
         if (ret < 0) {
             qemu_file_set_error(f, ret);
             return;
         }
     }
 
+    vmdesc = qjson_new();
+    json_prop_int(vmdesc, "page_size", TARGET_PAGE_SIZE);
+    json_start_array(vmdesc, "devices");
     QTAILQ_FOREACH(se, &savevm_handlers, entry) {
         int len;
 
@@ -728,6 +759,11 @@ void qemu_savevm_state_complete(QEMUFile *f)
             continue;
         }
         trace_savevm_section_start(se->idstr, se->section_id);
+
+        json_start_object(vmdesc, NULL);
+        json_prop_str(vmdesc, "name", se->idstr);
+        json_prop_int(vmdesc, "instance_id", se->instance_id);
+
         /* Section type */
         qemu_put_byte(f, QEMU_VM_SECTION_FULL);
         qemu_put_be32(f, se->section_id);
@@ -740,11 +776,25 @@ void qemu_savevm_state_complete(QEMUFile *f)
         qemu_put_be32(f, se->instance_id);
         qemu_put_be32(f, se->version_id);
 
-        vmstate_save(f, se);
-        trace_savevm_section_end(se->idstr, se->section_id);
+        vmstate_save(f, se, vmdesc);
+
+        json_end_object(vmdesc);
+        trace_savevm_section_end(se->idstr, se->section_id, 0);
     }
 
     qemu_put_byte(f, QEMU_VM_EOF);
+
+    json_end_array(vmdesc);
+    qjson_finish(vmdesc);
+    vmdesc_len = strlen(qjson_get_str(vmdesc));
+
+    if (should_send_vmdesc()) {
+        qemu_put_byte(f, QEMU_VM_VMDESCRIPTION);
+        qemu_put_be32(f, vmdesc_len);
+        qemu_put_buffer(f, (uint8_t *)qjson_get_str(vmdesc), vmdesc_len);
+    }
+    object_unref(OBJECT(vmdesc));
+
     qemu_fflush(f);
 }
 
@@ -779,7 +829,7 @@ void qemu_savevm_state_cancel(void)
     }
 }
 
-static int qemu_savevm_state(QEMUFile *f)
+static int qemu_savevm_state(QEMUFile *f, Error **errp)
 {
     int ret;
     MigrationParams params = {
@@ -787,7 +837,7 @@ static int qemu_savevm_state(QEMUFile *f)
         .shared = 0
     };
 
-    if (qemu_savevm_state_blocked(NULL)) {
+    if (qemu_savevm_state_blocked(errp)) {
         return -EINVAL;
     }
 
@@ -808,6 +858,7 @@ static int qemu_savevm_state(QEMUFile *f)
     }
     if (ret != 0) {
         qemu_savevm_state_cancel();
+        error_setg_errno(errp, -ret, "Error while writing VM state");
     }
     return ret;
 }
@@ -843,7 +894,7 @@ static int qemu_save_device_state(QEMUFile *f)
         qemu_put_be32(f, se->instance_id);
         qemu_put_be32(f, se->version_id);
 
-        vmstate_save(f, se);
+        vmstate_save(f, se, NULL);
     }
 
     qemu_put_byte(f, QEMU_VM_EOF);
@@ -883,25 +934,30 @@ int qemu_loadvm_state(QEMUFile *f)
     QLIST_HEAD(, LoadStateEntry) loadvm_handlers =
         QLIST_HEAD_INITIALIZER(loadvm_handlers);
     LoadStateEntry *le, *new_le;
+    Error *local_err = NULL;
     uint8_t section_type;
     unsigned int v;
     int ret;
+    int file_error_after_eof = -1;
 
-    if (qemu_savevm_state_blocked(NULL)) {
+    if (qemu_savevm_state_blocked(&local_err)) {
+        error_report_err(local_err);
         return -EINVAL;
     }
 
     v = qemu_get_be32(f);
     if (v != QEMU_VM_FILE_MAGIC) {
+        error_report("Not a migration stream");
         return -EINVAL;
     }
 
     v = qemu_get_be32(f);
     if (v == QEMU_VM_FILE_VERSION_COMPAT) {
-        fprintf(stderr, "SaveVM v2 format is obsolete and don't work anymore\n");
+        error_report("SaveVM v2 format is obsolete and don't work anymore");
         return -ENOTSUP;
     }
     if (v != QEMU_VM_FILE_VERSION) {
+        error_report("Unsupported migration stream version");
         return -ENOTSUP;
     }
 
@@ -911,6 +967,7 @@ int qemu_loadvm_state(QEMUFile *f)
         char idstr[257];
         int len;
 
+        trace_qemu_loadvm_state_section(section_type);
         switch (section_type) {
         case QEMU_VM_SECTION_START:
         case QEMU_VM_SECTION_FULL:
@@ -922,18 +979,21 @@ int qemu_loadvm_state(QEMUFile *f)
             instance_id = qemu_get_be32(f);
             version_id = qemu_get_be32(f);
 
+            trace_qemu_loadvm_state_section_startfull(section_id, idstr,
+                                                      instance_id, version_id);
             /* Find savevm section */
             se = find_se(idstr, instance_id);
             if (se == NULL) {
-                fprintf(stderr, "Unknown savevm section or instance '%s' %d\n", idstr, instance_id);
+                error_report("Unknown savevm section or instance '%s' %d",
+                             idstr, instance_id);
                 ret = -EINVAL;
                 goto out;
             }
 
             /* Validate version */
             if (version_id > se->version_id) {
-                fprintf(stderr, "savevm: unsupported version %d for '%s' v%d\n",
-                        version_id, idstr, se->version_id);
+                error_report("savevm: unsupported version %d for '%s' v%d",
+                             version_id, idstr, se->version_id);
                 ret = -EINVAL;
                 goto out;
             }
@@ -948,8 +1008,8 @@ int qemu_loadvm_state(QEMUFile *f)
 
             ret = vmstate_load(f, le->se, le->version_id);
             if (ret < 0) {
-                fprintf(stderr, "qemu: warning: error while loading state for instance 0x%x of device '%s'\n",
-                        instance_id, idstr);
+                error_report("error while loading state for instance 0x%x of"
+                             " device '%s'", instance_id, idstr);
                 goto out;
             }
             break;
@@ -957,29 +1017,48 @@ int qemu_loadvm_state(QEMUFile *f)
         case QEMU_VM_SECTION_END:
             section_id = qemu_get_be32(f);
 
+            trace_qemu_loadvm_state_section_partend(section_id);
             QLIST_FOREACH(le, &loadvm_handlers, entry) {
                 if (le->section_id == section_id) {
                     break;
                 }
             }
             if (le == NULL) {
-                fprintf(stderr, "Unknown savevm section %d\n", section_id);
+                error_report("Unknown savevm section %d", section_id);
                 ret = -EINVAL;
                 goto out;
             }
 
             ret = vmstate_load(f, le->se, le->version_id);
             if (ret < 0) {
-                fprintf(stderr, "qemu: warning: error while loading state section id %d\n",
-                        section_id);
+                error_report("error while loading state section id %d(%s)",
+                             section_id, le->se->idstr);
                 goto out;
             }
             break;
         default:
-            fprintf(stderr, "Unknown savevm section type %d\n", section_type);
+            error_report("Unknown savevm section type %d", section_type);
             ret = -EINVAL;
             goto out;
         }
+    }
+
+    file_error_after_eof = qemu_file_get_error(f);
+
+    /*
+     * Try to read in the VMDESC section as well, so that dumping tools that
+     * intercept our migration stream have the chance to see it.
+     */
+    if (qemu_get_byte(f) == QEMU_VM_VMDESCRIPTION) {
+        uint32_t size = qemu_get_be32(f);
+        uint8_t *buf = g_malloc(0x1000);
+
+        while (size > 0) {
+            uint32_t read_chunk = MIN(size, 0x1000);
+            qemu_get_buffer(f, buf, read_chunk);
+            size -= read_chunk;
+        }
+        g_free(buf);
     }
 
     cpu_synchronize_all_post_init();
@@ -993,7 +1072,8 @@ out:
     }
 
     if (ret == 0) {
-        ret = qemu_file_get_error(f);
+        /* We may not have a VMDESC section, so ignore relative errors */
+        ret = file_error_after_eof;
     }
 
     return ret;
@@ -1039,7 +1119,7 @@ static int del_existing_snapshots(Monitor *mon, const char *name)
     return 0;
 }
 
-void do_savevm(Monitor *mon, const QDict *qdict)
+void hmp_savevm(Monitor *mon, const QDict *qdict)
 {
     BlockDriverState *bs, *bs1;
     QEMUSnapshotInfo sn1, *sn = &sn1, old_sn1, *old_sn = &old_sn1;
@@ -1050,6 +1130,7 @@ void do_savevm(Monitor *mon, const QDict *qdict)
     qemu_timeval tv;
     struct tm tm;
     const char *name = qdict_get_try_str(qdict, "name");
+    Error *local_err = NULL;
 
     /* Verify if there is a device that doesn't support snapshots and is writable */
     bs = NULL;
@@ -1108,11 +1189,12 @@ void do_savevm(Monitor *mon, const QDict *qdict)
         monitor_printf(mon, "Could not open VM state file\n");
         goto the_end;
     }
-    ret = qemu_savevm_state(f);
+    ret = qemu_savevm_state(f, &local_err);
     vm_state_size = qemu_ftell(f);
     qemu_fclose(f);
     if (ret < 0) {
-        monitor_printf(mon, "Error %d while writing VM\n", ret);
+        monitor_printf(mon, "%s\n", error_get_pretty(local_err));
+        error_free(local_err);
         goto the_end;
     }
 
@@ -1243,7 +1325,7 @@ int load_vmstate(const char *name)
     return 0;
 }
 
-void do_delvm(Monitor *mon, const QDict *qdict)
+void hmp_delvm(Monitor *mon, const QDict *qdict)
 {
     BlockDriverState *bs;
     Error *err;
@@ -1271,7 +1353,7 @@ void do_delvm(Monitor *mon, const QDict *qdict)
     }
 }
 
-void do_info_snapshots(Monitor *mon, const QDict *qdict)
+void hmp_info_snapshots(Monitor *mon, const QDict *qdict)
 {
     BlockDriverState *bs, *bs1;
     QEMUSnapshotInfo *sn_tab, *sn, s, *sn_info = &s;

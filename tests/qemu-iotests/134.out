@@ -1,0 +1,46 @@
+QA output created by 134
+qemu-img: Encrypted images are deprecated
+Support for them will be removed in a future release.
+You can use 'qemu-img convert' to convert your image to an unencrypted one.
+qemu-img: Encrypted images are deprecated
+Support for them will be removed in a future release.
+You can use 'qemu-img convert' to convert your image to an unencrypted one.
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=134217728 encryption=on
+
+== reading whole image ==
+Encrypted images are deprecated
+Support for them will be removed in a future release.
+You can use 'qemu-img convert' to convert your image to an unencrypted one.
+Disk image 'TEST_DIR/t.qcow2' is encrypted.
+password:
+read 134217728/134217728 bytes at offset 0
+128 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+
+== rewriting whole image ==
+Encrypted images are deprecated
+Support for them will be removed in a future release.
+You can use 'qemu-img convert' to convert your image to an unencrypted one.
+Disk image 'TEST_DIR/t.qcow2' is encrypted.
+password:
+wrote 134217728/134217728 bytes at offset 0
+128 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+
+== verify pattern ==
+Encrypted images are deprecated
+Support for them will be removed in a future release.
+You can use 'qemu-img convert' to convert your image to an unencrypted one.
+Disk image 'TEST_DIR/t.qcow2' is encrypted.
+password:
+read 134217728/134217728 bytes at offset 0
+128 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+
+== verify pattern failure with wrong password ==
+Encrypted images are deprecated
+Support for them will be removed in a future release.
+You can use 'qemu-img convert' to convert your image to an unencrypted one.
+Disk image 'TEST_DIR/t.qcow2' is encrypted.
+password:
+Pattern verification failed at offset 0, 134217728 bytes
+read 134217728/134217728 bytes at offset 0
+128 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+*** done

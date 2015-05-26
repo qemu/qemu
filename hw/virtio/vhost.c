@@ -288,7 +288,7 @@ static inline void vhost_dev_log_resize(struct vhost_dev* dev, uint64_t size)
     int r;
 
     log = g_malloc0(size * sizeof *log);
-    log_base = (uint64_t)(unsigned long)log;
+    log_base = (uintptr_t)log;
     r = dev->vhost_ops->vhost_call(dev, VHOST_SET_LOG_BASE, &log_base);
     assert(r >= 0);
     /* Sync only the range covered by the old log */
@@ -1057,10 +1057,13 @@ int vhost_dev_start(struct vhost_dev *hdev, VirtIODevice *vdev)
     }
 
     if (hdev->log_enabled) {
+        uint64_t log_base;
+
         hdev->log_size = vhost_get_log_size(hdev);
         hdev->log = hdev->log_size ?
             g_malloc0(hdev->log_size * sizeof *hdev->log) : NULL;
-        r = hdev->vhost_ops->vhost_call(hdev, VHOST_SET_LOG_BASE, hdev->log);
+        log_base = (uintptr_t)hdev->log;
+        r = hdev->vhost_ops->vhost_call(hdev, VHOST_SET_LOG_BASE, &log_base);
         if (r < 0) {
             r = -errno;
             goto fail_log;

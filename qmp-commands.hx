@@ -1,5 +1,5 @@
 HXCOMM QMP dispatch table and documentation
-HXCOMM Text between SQMP and EQMP is copied to the QMP documention file and
+HXCOMM Text between SQMP and EQMP is copied to the QMP documentation file and
 HXCOMM does not show up in the other formats.
 
 SQMP
@@ -276,7 +276,6 @@ EQMP
         .args_type  = "device:O",
         .params     = "driver[,prop=value][,...]",
         .help       = "add device, like -device on the command line",
-        .user_print = monitor_user_noop,
         .mhandler.cmd_new = do_device_add,
     },
 
@@ -333,7 +332,7 @@ EQMP
 
     {
         .name       = "send-key",
-        .args_type  = "keys:O,hold-time:i?",
+        .args_type  = "keys:q,hold-time:i?",
         .mhandler.cmd_new = qmp_marshal_input_send_key,
     },
 
@@ -661,7 +660,36 @@ Example:
 <- { "return": {} }
 
 EQMP
-{
+
+    {
+        .name       = "migrate-incoming",
+        .args_type  = "uri:s",
+        .mhandler.cmd_new = qmp_marshal_input_migrate_incoming,
+    },
+
+SQMP
+migrate-incoming
+----------------
+
+Continue an incoming migration
+
+Arguments:
+
+- "uri": Source/listening URI (json-string)
+
+Example:
+
+-> { "execute": "migrate-incoming", "arguments": { "uri": "tcp::4446" } }
+<- { "return": {} }
+
+Notes:
+
+(1) QEMU must be started with -incoming defer to allow migrate-incoming to
+    be used
+(2) The uri format is the same as to -incoming
+
+EQMP
+    {
         .name       = "migrate-set-cache-size",
         .args_type  = "value:o",
         .mhandler.cmd_new = qmp_marshal_input_migrate_set_cache_size,
@@ -757,9 +785,7 @@ EQMP
         .args_type  = "protocol:s,hostname:s,port:i?,tls-port:i?,cert-subject:s?",
         .params     = "protocol hostname port tls-port cert-subject",
         .help       = "send migration info to spice/vnc client",
-        .user_print = monitor_user_noop,
-        .mhandler.cmd_async = client_migrate_info,
-        .flags      = MONITOR_CMD_ASYNC,
+        .mhandler.cmd_new = client_migrate_info,
     },
 
 SQMP
@@ -793,7 +819,6 @@ EQMP
         .args_type  = "paging:b,protocol:s,begin:i?,end:i?,format:s?",
         .params     = "-p protocol [begin] [length] [format]",
         .help       = "dump guest memory to file",
-        .user_print = monitor_user_noop,
         .mhandler.cmd_new = qmp_marshal_input_dump_guest_memory,
     },
 
@@ -982,6 +1007,43 @@ EQMP
         .mhandler.cmd_new = qmp_marshal_input_block_stream,
     },
 
+SQMP
+block-stream
+------------
+
+Copy data from a backing file into a block device.
+
+Arguments:
+
+- "device": The device's ID, must be unique (json-string)
+- "base": The file name of the backing image above which copying starts
+          (json-string, optional)
+- "backing-file": The backing file string to write into the active layer. This
+                  filename is not validated.
+
+                  If a pathname string is such that it cannot be resolved by
+                  QEMU, that means that subsequent QMP or HMP commands must use
+                  node-names for the image in question, as filename lookup
+                  methods will fail.
+
+                  If not specified, QEMU will automatically determine the
+                  backing file string to use, or error out if there is no
+                  obvious choice.  Care should be taken when specifying the
+                  string, to specify a valid filename or protocol.
+                  (json-string, optional) (Since 2.1)
+- "speed":  the maximum speed, in bytes per second (json-int, optional)
+- "on-error": the action to take on an error (default 'report').  'stop' and
+              'enospc' can only be used if the block device supports io-status.
+              (json-string, optional) (Since 2.1)
+
+Example:
+
+-> { "execute": "block-stream", "arguments": { "device": "virtio0",
+                                               "base": "/tmp/master.qcow2" } }
+<- { "return": {} }
+
+EQMP
+
     {
         .name       = "block-commit",
         .args_type  = "device:B,base:s?,top:s?,backing-file:s?,speed:o?",
@@ -1048,7 +1110,7 @@ EQMP
     {
         .name       = "drive-backup",
         .args_type  = "sync:s,device:B,target:s,speed:i?,mode:s?,format:s?,"
-                      "on-source-error:s?,on-target-error:s?",
+                      "bitmap:s?,on-source-error:s?,on-target-error:s?",
         .mhandler.cmd_new = qmp_marshal_input_drive_backup,
     },
 
@@ -1075,8 +1137,10 @@ Arguments:
             (json-string, optional)
 - "sync": what parts of the disk image should be copied to the destination;
   possibilities include "full" for all the disk, "top" for only the sectors
-  allocated in the topmost image, or "none" to only replicate new I/O
-  (MirrorSyncMode).
+  allocated in the topmost image, "dirty-bitmap" for only the dirty sectors in
+  the bitmap, or "none" to only replicate new I/O (MirrorSyncMode).
+- "bitmap": dirty bitmap name for sync==dirty-bitmap. Must be present if sync
+            is "dirty-bitmap", must NOT be present otherwise.
 - "mode": whether and how QEMU should create a new image
           (NewImageMode, optional, default 'absolute-paths')
 - "speed": the maximum speed, in bytes per second (json-int, optional)
@@ -1239,6 +1303,91 @@ Example:
          { "type": "blockdev-snapshot-internal-sync", "data" : {
                                          "device": "ide-hd2",
                                          "name": "snapshot0" } } ] } }
+<- { "return": {} }
+
+EQMP
+
+    {
+        .name       = "block-dirty-bitmap-add",
+        .args_type  = "node:B,name:s,granularity:i?",
+        .mhandler.cmd_new = qmp_marshal_input_block_dirty_bitmap_add,
+    },
+
+SQMP
+
+block-dirty-bitmap-add
+----------------------
+Since 2.4
+
+Create a dirty bitmap with a name on the device, and start tracking the writes.
+
+Arguments:
+
+- "node": device/node on which to create dirty bitmap (json-string)
+- "name": name of the new dirty bitmap (json-string)
+- "granularity": granularity to track writes with (int, optional)
+
+Example:
+
+-> { "execute": "block-dirty-bitmap-add", "arguments": { "node": "drive0",
+                                                   "name": "bitmap0" } }
+<- { "return": {} }
+
+EQMP
+
+    {
+        .name       = "block-dirty-bitmap-remove",
+        .args_type  = "node:B,name:s",
+        .mhandler.cmd_new = qmp_marshal_input_block_dirty_bitmap_remove,
+    },
+
+SQMP
+
+block-dirty-bitmap-remove
+-------------------------
+Since 2.4
+
+Stop write tracking and remove the dirty bitmap that was created with
+block-dirty-bitmap-add.
+
+Arguments:
+
+- "node": device/node on which to remove dirty bitmap (json-string)
+- "name": name of the dirty bitmap to remove (json-string)
+
+Example:
+
+-> { "execute": "block-dirty-bitmap-remove", "arguments": { "node": "drive0",
+                                                      "name": "bitmap0" } }
+<- { "return": {} }
+
+EQMP
+
+    {
+        .name       = "block-dirty-bitmap-clear",
+        .args_type  = "node:B,name:s",
+        .mhandler.cmd_new = qmp_marshal_input_block_dirty_bitmap_clear,
+    },
+
+SQMP
+
+block-dirty-bitmap-clear
+------------------------
+Since 2.4
+
+Reset the dirty bitmap associated with a node so that an incremental backup
+from this point in time forward will only backup clusters modified after this
+clear operation.
+
+Arguments:
+
+- "node": device/node on which to remove dirty bitmap (json-string)
+- "name": name of the dirty bitmap to remove (json-string)
+
+Example:
+
+-> { "execute": "block-dirty-bitmap-clear", "arguments": { "node": "drive0",
+                                                           "name": "bitmap0" } }
 <- { "return": {} }
 
 EQMP
@@ -1767,7 +1916,7 @@ Arguments:
 
 - "protocol": protocol name (json-string)
 - "password": password (json-string)
-- "connected": [ keep | disconnect | fail ] (josn-string, optional)
+- "connected": [ keep | disconnect | fail ] (json-string, optional)
 
 Example:
 
@@ -1833,7 +1982,6 @@ EQMP
         .args_type  = "",
         .params     = "",
         .help       = "enable QMP capabilities",
-        .user_print = monitor_user_noop,
         .mhandler.cmd_new = do_qmp_capabilities,
     },
 
@@ -2125,7 +2273,7 @@ Each json-object contain the following:
          - "drv": driver format name (json-string)
              - Possible values: "blkdebug", "bochs", "cloop", "dmg",
                                 "file", "file", "ftp", "ftps", "host_cdrom",
-                                "host_device", "host_floppy", "http", "https",
+                                "host_device", "http", "https",
                                 "nbd", "parallels", "qcow", "qcow2", "raw",
                                 "tftp", "vdi", "vmdk", "vpc", "vvfat"
          - "backing_file": backing file name (json-string, optional)
@@ -2146,6 +2294,8 @@ Each json-object contain the following:
          - "iops_size": I/O size when limiting by iops (json-int)
          - "detect_zeroes": detect and optimize zero writing (json-string)
              - Possible values: "off", "on", "unmap"
+         - "write_threshold": write offset threshold in bytes, a event will be
+                              emitted if crossed. Zero if disabled (json-int)
          - "image": the detail of the image, it is a json-object containing
             the following:
              - "filename": image file name (json-string)
@@ -2223,13 +2373,14 @@ Example:
                "iops_wr_max": 0,
                "iops_size": 0,
                "detect_zeroes": "on",
+               "write_threshold": 0,
                "image":{
                   "filename":"disks/test.qcow2",
                   "format":"qcow2",
                   "virtual-size":2048000,
                   "backing_file":"base.qcow2",
                   "full-backing-filename":"disks/base.qcow2",
-                  "backing-filename-format:"qcow2",
+                  "backing-filename-format":"qcow2",
                   "snapshots":[
                      {
                         "id": "1",
@@ -2303,6 +2454,10 @@ Each json-object contain the following:
     - "flush_total_time_ns": total time spend on cache flushes in nano-seconds (json-int)
     - "wr_highest_offset": Highest offset of a sector written since the
                            BlockDriverState has been opened (json-int)
+    - "rd_merged": number of read requests that have been merged into
+                   another request (json-int)
+    - "wr_merged": number of write requests that have been merged into
+                   another request (json-int)
 - "parent": Contains recursively the statistics of the underlying
             protocol (e.g. the host file for a qcow2 image). If there is
             no underlying protocol, this field is omitted
@@ -2326,6 +2481,8 @@ Example:
                   "rd_total_times_ns":3465673657
                   "flush_total_times_ns":49653
                   "flush_operations":61,
+                  "rd_merged":0,
+                  "wr_merged":0
                }
             },
             "stats":{
@@ -2337,7 +2494,9 @@ Example:
                "flush_operations":51,
                "wr_total_times_ns":313253456
                "rd_total_times_ns":3465673657
-               "flush_total_times_ns":49653
+               "flush_total_times_ns":49653,
+               "rd_merged":0,
+               "wr_merged":0
             }
          },
          {
@@ -2351,7 +2510,9 @@ Example:
                "flush_operations":0,
                "wr_total_times_ns":0
                "rd_total_times_ns":0
-               "flush_total_times_ns":0
+               "flush_total_times_ns":0,
+               "rd_merged":0,
+               "wr_merged":0
             }
          },
          {
@@ -2365,7 +2526,9 @@ Example:
                "flush_operations":0,
                "wr_total_times_ns":0
                "rd_total_times_ns":0
-               "flush_total_times_ns":0
+               "flush_total_times_ns":0,
+               "rd_merged":0,
+               "wr_merged":0
             }
          },
          {
@@ -2379,7 +2542,9 @@ Example:
                "flush_operations":0,
                "wr_total_times_ns":0
                "rd_total_times_ns":0
-               "flush_total_times_ns":0
+               "flush_total_times_ns":0,
+               "rd_merged":0,
+               "wr_merged":0
             }
          }
       ]
@@ -2404,6 +2569,7 @@ Return a json-array. Each CPU is represented by a json-object, which contains:
 - "CPU": CPU index (json-int)
 - "current": true if this is the current CPU, false otherwise (json-bool)
 - "halted": true if the cpu is halted, false otherwise (json-bool)
+- "qom_path": path to the CPU object in the QOM tree (json-str)
 - Current program counter. The key's name depends on the architecture:
      "pc": i386/x86_64 (json-int)
      "nip": PPC (json-int)
@@ -2420,14 +2586,16 @@ Example:
             "CPU":0,
             "current":true,
             "halted":false,
-            "pc":3227107138
+            "qom_path":"/machine/unattached/device[0]",
+            "pc":3227107138,
             "thread_id":3134
          },
          {
             "CPU":1,
             "current":false,
             "halted":true,
-            "pc":7108165
+            "qom_path":"/machine/unattached/device[2]",
+            "pc":7108165,
             "thread_id":3135
          }
       ]
@@ -2905,7 +3073,7 @@ Channels are described by a json-object, each one contain the following:
 - "channel-id": channel id.  Usually "0", might be different needed when
                 multiple channels of the same type exist, such as multiple
                 display channels in a multihead setup (json-int)
-- "tls": whevener the channel is encrypted (json-bool)
+- "tls": whether the channel is encrypted (json-bool)
 
 Example:
 
@@ -3246,7 +3414,7 @@ EQMP
 
     {
         .name       = "migrate-set-capabilities",
-        .args_type  = "capabilities:O",
+        .args_type  = "capabilities:q",
         .params     = "capability:s,state:b",
 	.mhandler.cmd_new = qmp_marshal_input_migrate_set_capabilities,
     },
@@ -3275,6 +3443,63 @@ EQMP
         .name       = "query-migrate-capabilities",
         .args_type  = "",
         .mhandler.cmd_new = qmp_marshal_input_query_migrate_capabilities,
+    },
+
+SQMP
+migrate-set-parameters
+----------------------
+
+Set migration parameters
+
+- "compress-level": set compression level during migration (json-int)
+- "compress-threads": set compression thread count for migration (json-int)
+- "decompress-threads": set decompression thread count for migration (json-int)
+
+Arguments:
+
+Example:
+
+-> { "execute": "migrate-set-parameters" , "arguments":
+      { "compress-level": 1 } }
+
+EQMP
+
+    {
+        .name       = "migrate-set-parameters",
+        .args_type  =
+            "compress-level:i?,compress-threads:i?,decompress-threads:i?",
+	.mhandler.cmd_new = qmp_marshal_input_migrate_set_parameters,
+    },
+SQMP
+query-migrate-parameters
+------------------------
+
+Query current migration parameters
+
+- "parameters": migration parameters value
+         - "compress-level" : compression level value (json-int)
+         - "compress-threads" : compression thread count value (json-int)
+         - "decompress-threads" : decompression thread count value (json-int)
+
+Arguments:
+
+Example:
+
+-> { "execute": "query-migrate-parameters" }
+<- {
+      "return": {
+         "decompress-threads", 2,
+         "compress-threads", 8,
+         "compress-level", 1
+      }
+   }
+
+EQMP
+
+    {
+        .name       = "query-migrate-parameters",
+        .args_type  = "",
+        .mhandler.cmd_new = qmp_marshal_input_query_migrate_parameters,
     },
 
 SQMP
@@ -3594,6 +3819,10 @@ blockdev-add
 
 Add a block device.
 
+This command is still a work in progress.  It doesn't support all
+block drivers, it lacks a matching blockdev-del, and more.  Stay away
+from it unless you want to help with its development.
+
 Arguments:
 
 - "options": block driver options
@@ -3671,13 +3900,14 @@ Example:
                    "iops_rd_max": 0,
                    "iops_wr_max": 0,
                    "iops_size": 0,
+                   "write_threshold": 0,
                    "image":{
                       "filename":"disks/test.qcow2",
                       "format":"qcow2",
                       "virtual-size":2048000,
                       "backing_file":"base.qcow2",
                       "full-backing-filename":"disks/base.qcow2",
-                      "backing-filename-format:"qcow2",
+                      "backing-filename-format":"qcow2",
                       "snapshots":[
                          {
                             "id": "1",
@@ -3904,6 +4134,34 @@ Move mouse pointer to absolute coordinates (20000, 400).
   "arguments": { "console": 0, "events": [
                { "type": "abs", "data" : { "axis": "X", "value" : 20000 } },
                { "type": "abs", "data" : { "axis": "Y", "value" : 400 } } ] } }
+<- { "return": {} }
+
+EQMP
+
+    {
+        .name       = "block-set-write-threshold",
+        .args_type  = "node-name:s,write-threshold:l",
+        .mhandler.cmd_new = qmp_marshal_input_block_set_write_threshold,
+    },
+
+SQMP
+block-set-write-threshold
+------------
+
+Change the write threshold for a block drive. The threshold is an offset,
+thus must be non-negative. Default is no write threshold.
+Setting the threshold to zero disables it.
+
+Arguments:
+
+- "node-name": the node name in the block driver state graph (json-string)
+- "write-threshold": the write threshold in bytes (json-int)
+
+Example:
+
+-> { "execute": "block-set-write-threshold",
+  "arguments": { "node-name": "mydev",
+                 "write-threshold": 17179869184 } }
 <- { "return": {} }
 
 EQMP

@@ -24,6 +24,9 @@
 #include "qemu/atomic.h"
 #include "sysemu/qtest.h"
 #include "qemu/timer.h"
+#include "exec/address-spaces.h"
+#include "exec/memory-internal.h"
+#include "qemu/rcu.h"
 
 /* -icount align implementation. */
 
@@ -61,8 +64,7 @@ static void align_clocks(SyncClocks *sc, const CPUState *cpu)
         sleep_delay.tv_sec = sc->diff_clk / 1000000000LL;
         sleep_delay.tv_nsec = sc->diff_clk % 1000000000LL;
         if (nanosleep(&sleep_delay, &rem_delay) < 0) {
-            sc->diff_clk -= (sleep_delay.tv_sec - rem_delay.tv_sec) * 1000000000LL;
-            sc->diff_clk -= sleep_delay.tv_nsec - rem_delay.tv_nsec;
+            sc->diff_clk = rem_delay.tv_sec * 1000000000LL + rem_delay.tv_nsec;
         } else {
             sc->diff_clk = 0;
         }
@@ -101,10 +103,8 @@ static void init_delay_params(SyncClocks *sc,
     if (!icount_align_option) {
         return;
     }
-    sc->realtime_clock = qemu_clock_get_ns(QEMU_CLOCK_REALTIME);
-    sc->diff_clk = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) -
-                   sc->realtime_clock +
-                   cpu_get_clock_offset();
+    sc->realtime_clock = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL_RT);
+    sc->diff_clk = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) - sc->realtime_clock;
     sc->last_cpu_icount = cpu->icount_extra + cpu->icount_decr.u16.low;
     if (sc->diff_clk < max_delay) {
         max_delay = sc->diff_clk;
@@ -143,6 +143,33 @@ void cpu_resume_from_signal(CPUState *cpu, void *puc)
 
     cpu->exception_index = -1;
     siglongjmp(cpu->jmp_env, 1);
+}
+
+void cpu_reload_memory_map(CPUState *cpu)
+{
+    AddressSpaceDispatch *d;
+
+    if (qemu_in_vcpu_thread()) {
+        /* Do not let the guest prolong the critical section as much as it
+         * as it desires.
+         *
+         * Currently, this is prevented by the I/O thread's periodinc kicking
+         * of the VCPU thread (iothread_requesting_mutex, qemu_cpu_kick_thread)
+         * but this will go away once TCG's execution moves out of the global
+         * mutex.
+         *
+         * This pair matches cpu_exec's rcu_read_lock()/rcu_read_unlock(), which
+         * only protects cpu->as->dispatch.  Since we reload it below, we can
+         * split the critical section.
+         */
+        rcu_read_unlock();
+        rcu_read_lock();
+    }
+
+    /* The CPU and TLB are protected by the iothread lock.  */
+    d = atomic_rcu_read(&cpu->as->dispatch);
+    cpu->memory_dispatch = d;
+    tlb_flush(cpu, 1);
 }
 #endif
 
@@ -355,6 +382,8 @@ int cpu_exec(CPUArchState *env)
      * an instruction scheduling constraint on modern architectures.  */
     smp_mb();
 
+    rcu_read_lock();
+
     if (unlikely(exit_request)) {
         cpu->exit_request = 1;
     }
@@ -497,28 +526,22 @@ int cpu_exec(CPUArchState *env)
                          * interrupt_request) which we will handle
                          * next time around the loop.
                          */
-                        tb = (TranslationBlock *)(next_tb & ~TB_EXIT_MASK);
                         next_tb = 0;
                         break;
                     case TB_EXIT_ICOUNT_EXPIRED:
                     {
                         /* Instruction counter expired.  */
-                        int insns_left;
-                        tb = (TranslationBlock *)(next_tb & ~TB_EXIT_MASK);
-                        insns_left = cpu->icount_decr.u32;
+                        int insns_left = cpu->icount_decr.u32;
                         if (cpu->icount_extra && insns_left >= 0) {
                             /* Refill decrementer and continue execution.  */
                             cpu->icount_extra += insns_left;
-                            if (cpu->icount_extra > 0xffff) {
-                                insns_left = 0xffff;
-                            } else {
-                                insns_left = cpu->icount_extra;
-                            }
+                            insns_left = MIN(0xffff, cpu->icount_extra);
                             cpu->icount_extra -= insns_left;
                             cpu->icount_decr.u16.low = insns_left;
                         } else {
                             if (insns_left > 0) {
                                 /* Execute remaining instructions.  */
+                                tb = (TranslationBlock *)(next_tb & ~TB_EXIT_MASK);
                                 cpu_exec_nocache(env, insns_left, tb);
                                 align_clocks(&sc, cpu);
                             }
@@ -557,6 +580,7 @@ int cpu_exec(CPUArchState *env)
     } /* for(;;) */
 
     cc->cpu_exec_exit(cpu);
+    rcu_read_unlock();
 
     /* fail safe : never use current_cpu outside cpu_exec() */
     current_cpu = NULL;

@@ -23,6 +23,7 @@
 #include "migration/block.h"
 #include "migration/migration.h"
 #include "sysemu/blockdev.h"
+#include "sysemu/block-backend.h"
 #include <assert.h>
 
 #define BLOCK_SIZE                       (1 << 20)
@@ -303,7 +304,7 @@ static int mig_save_device_bulk(QEMUFile *f, BlkMigDevState *bmds)
     blk->aiocb = bdrv_aio_readv(bs, cur_sector, &blk->qiov,
                                 nr_sectors, blk_mig_read_cb, blk);
 
-    bdrv_reset_dirty_bitmap(bs, bmds->dirty_bitmap, cur_sector, nr_sectors);
+    bdrv_reset_dirty_bitmap(bmds->dirty_bitmap, cur_sector, nr_sectors);
     qemu_mutex_unlock_iothread();
 
     bmds->cur_sector = cur_sector + nr_sectors;
@@ -319,7 +320,7 @@ static int set_dirty_tracking(void)
 
     QSIMPLEQ_FOREACH(bmds, &block_mig_state.bmds_list, entry) {
         bmds->dirty_bitmap = bdrv_create_dirty_bitmap(bmds->bs, BLOCK_SIZE,
-                                                      NULL);
+                                                      NULL, NULL);
         if (!bmds->dirty_bitmap) {
             ret = -errno;
             goto fail;
@@ -496,8 +497,7 @@ static int mig_save_device_dirty(QEMUFile *f, BlkMigDevState *bmds,
                 g_free(blk);
             }
 
-            bdrv_reset_dirty_bitmap(bmds->bs, bmds->dirty_bitmap, sector,
-                                    nr_sectors);
+            bdrv_reset_dirty_bitmap(bmds->dirty_bitmap, sector, nr_sectors);
             break;
         }
         sector += BDRV_SECTORS_PER_DIRTY_CHUNK;
@@ -583,7 +583,7 @@ static int64_t get_remaining_dirty(void)
     int64_t dirty = 0;
 
     QSIMPLEQ_FOREACH(bmds, &block_mig_state.bmds_list, entry) {
-        dirty += bdrv_get_dirty_count(bmds->bs, bmds->dirty_bitmap);
+        dirty += bdrv_get_dirty_count(bmds->dirty_bitmap);
     }
 
     return dirty << BDRV_SECTOR_BITS;
@@ -783,6 +783,7 @@ static int block_load(QEMUFile *f, void *opaque, int version_id)
     char device_name[256];
     int64_t addr;
     BlockDriverState *bs, *bs_prev = NULL;
+    BlockBackend *blk;
     uint8_t *buf;
     int64_t total_sectors = 0;
     int nr_sectors;
@@ -800,12 +801,13 @@ static int block_load(QEMUFile *f, void *opaque, int version_id)
             qemu_get_buffer(f, (uint8_t *)device_name, len);
             device_name[len] = '\0';
 
-            bs = bdrv_find(device_name);
-            if (!bs) {
+            blk = blk_by_name(device_name);
+            if (!blk) {
                 fprintf(stderr, "Error unknown block device %s\n",
                         device_name);
                 return -EINVAL;
             }
+            bs = blk_bs(blk);
 
             if (bs != bs_prev) {
                 bs_prev = bs;

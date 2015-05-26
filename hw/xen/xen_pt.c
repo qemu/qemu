@@ -388,7 +388,7 @@ static const MemoryRegionOps ops = {
     .write = xen_pt_bar_write,
 };
 
-static int xen_pt_register_regions(XenPCIPassthroughState *s)
+static int xen_pt_register_regions(XenPCIPassthroughState *s, uint16_t *cmd)
 {
     int i = 0;
     XenHostPCIDevice *d = &s->real_device;
@@ -406,6 +406,7 @@ static int xen_pt_register_regions(XenPCIPassthroughState *s)
 
         if (r->type & XEN_HOST_PCI_REGION_TYPE_IO) {
             type = PCI_BASE_ADDRESS_SPACE_IO;
+            *cmd |= PCI_COMMAND_IO;
         } else {
             type = PCI_BASE_ADDRESS_SPACE_MEMORY;
             if (r->type & XEN_HOST_PCI_REGION_TYPE_PREFETCH) {
@@ -414,6 +415,7 @@ static int xen_pt_register_regions(XenPCIPassthroughState *s)
             if (r->type & XEN_HOST_PCI_REGION_TYPE_MEM_64) {
                 type |= PCI_BASE_ADDRESS_MEM_TYPE_64;
             }
+            *cmd |= PCI_COMMAND_MEMORY;
         }
 
         memory_region_init_io(&s->bar[i], OBJECT(s), &ops, &s->dev,
@@ -638,6 +640,7 @@ static int xen_pt_initfn(PCIDevice *d)
     XenPCIPassthroughState *s = DO_UPCAST(XenPCIPassthroughState, dev, d);
     int rc = 0;
     uint8_t machine_irq = 0;
+    uint16_t cmd = 0;
     int pirq = XEN_PT_UNASSIGNED_PIRQ;
 
     /* register real device */
@@ -672,7 +675,7 @@ static int xen_pt_initfn(PCIDevice *d)
     s->io_listener = xen_pt_io_listener;
 
     /* Handle real device's MMIO/PIO BARs */
-    xen_pt_register_regions(s);
+    xen_pt_register_regions(s, &cmd);
 
     /* reinitialize each config register to be emulated */
     if (xen_pt_config_init(s)) {
@@ -736,6 +739,11 @@ static int xen_pt_initfn(PCIDevice *d)
     }
 
 out:
+    if (cmd) {
+        xen_host_pci_set_word(&s->real_device, PCI_COMMAND,
+                              pci_get_word(d->config + PCI_COMMAND) | cmd);
+    }
+
     memory_listener_register(&s->memory_listener, &s->dev.bus_master_as);
     memory_listener_register(&s->io_listener, &address_space_io);
     XEN_PT_LOG(d,

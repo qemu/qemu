@@ -526,7 +526,7 @@ MouseInfoList *qmp_query_mice(Error **errp)
     return mice_list;
 }
 
-void do_mouse_set(Monitor *mon, const QDict *qdict)
+void hmp_mouse_set(Monitor *mon, const QDict *qdict)
 {
     QemuInputHandlerState *s;
     int index = qdict_get_int(qdict, "index");

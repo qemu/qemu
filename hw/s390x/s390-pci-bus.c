@@ -44,6 +44,7 @@ int chsc_sei_nt2_get_event(void *res)
         QTAILQ_REMOVE(&s->pending_sei, sei_cont, link);
         nt2_res->nt = 2;
         nt2_res->cc = sei_cont->cc;
+        nt2_res->length = cpu_to_be16(sizeof(ChscSeiNt2Res));
         switch (sei_cont->cc) {
         case 1: /* error event */
             eccdf = (PciCcdfErr *)nt2_res->ccdf;
@@ -170,7 +171,7 @@ S390PCIBusDevice *s390_pci_find_dev_by_fh(uint32_t fh)
     S390pciState *s = S390_PCI_HOST_BRIDGE(
         object_resolve_path(TYPE_S390_PCI_HOST_BRIDGE, NULL));
 
-    if (!s) {
+    if (!s || !fh) {
         return NULL;
     }
 
@@ -187,7 +188,7 @@ S390PCIBusDevice *s390_pci_find_dev_by_fh(uint32_t fh)
 static void s390_pci_generate_event(uint8_t cc, uint16_t pec, uint32_t fh,
                                     uint32_t fid, uint64_t faddr, uint32_t e)
 {
-    SeiContainer *sei_cont = g_malloc0(sizeof(SeiContainer));
+    SeiContainer *sei_cont;
     S390pciState *s = S390_PCI_HOST_BRIDGE(
         object_resolve_path(TYPE_S390_PCI_HOST_BRIDGE, NULL));
 
@@ -195,6 +196,7 @@ static void s390_pci_generate_event(uint8_t cc, uint16_t pec, uint32_t fh,
         return;
     }
 
+    sei_cont = g_malloc0(sizeof(SeiContainer));
     sei_cont->fh = fh;
     sei_cont->fid = fid;
     sei_cont->cc = cc;
@@ -276,7 +278,8 @@ static uint64_t s390_guest_io_table_walk(uint64_t guest_iota,
     px = calc_px(guest_dma_address);
 
     sto_a = guest_iota + rtx * sizeof(uint64_t);
-    sto = ldq_phys(&address_space_memory, sto_a);
+    sto = address_space_ldq(&address_space_memory, sto_a,
+                            MEMTXATTRS_UNSPECIFIED, NULL);
     sto = get_rt_sto(sto);
     if (!sto) {
         pte = 0;
@@ -284,7 +287,8 @@ static uint64_t s390_guest_io_table_walk(uint64_t guest_iota,
     }
 
     pto_a = sto + sx * sizeof(uint64_t);
-    pto = ldq_phys(&address_space_memory, pto_a);
+    pto = address_space_ldq(&address_space_memory, pto_a,
+                            MEMTXATTRS_UNSPECIFIED, NULL);
     pto = get_st_pto(pto);
     if (!pto) {
         pte = 0;
@@ -292,7 +296,8 @@ static uint64_t s390_guest_io_table_walk(uint64_t guest_iota,
     }
 
     px_a = pto + px * sizeof(uint64_t);
-    pte = ldq_phys(&address_space_memory, px_a);
+    pte = address_space_ldq(&address_space_memory, px_a,
+                            MEMTXATTRS_UNSPECIFIED, NULL);
 
 out:
     return pte;

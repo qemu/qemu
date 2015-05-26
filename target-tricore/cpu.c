@@ -68,6 +68,10 @@ static void tricore_cpu_realizefn(DeviceState *dev, Error **errp)
     CPUTriCoreState *env = &cpu->env;
 
     /* Some features automatically imply others */
+    if (tricore_feature(env, TRICORE_FEATURE_161)) {
+        set_feature(env, TRICORE_FEATURE_16);
+    }
+
     if (tricore_feature(env, TRICORE_FEATURE_16)) {
         set_feature(env, TRICORE_FEATURE_131);
     }
@@ -118,14 +122,21 @@ static void tc1796_initfn(Object *obj)
 {
     TriCoreCPU *cpu = TRICORE_CPU(obj);
 
-    set_feature(&cpu->env, TRICORE_FEATURE_131);
+    set_feature(&cpu->env, TRICORE_FEATURE_13);
 }
 
-static void aurix_initfn(Object *obj)
+static void tc1797_initfn(Object *obj)
 {
     TriCoreCPU *cpu = TRICORE_CPU(obj);
 
-    set_feature(&cpu->env, TRICORE_FEATURE_16);
+    set_feature(&cpu->env, TRICORE_FEATURE_131);
+}
+
+static void tc27x_initfn(Object *obj)
+{
+    TriCoreCPU *cpu = TRICORE_CPU(obj);
+
+    set_feature(&cpu->env, TRICORE_FEATURE_161);
 }
 
 typedef struct TriCoreCPUInfo {
@@ -136,7 +147,8 @@ typedef struct TriCoreCPUInfo {
 
 static const TriCoreCPUInfo tricore_cpus[] = {
     { .name = "tc1796",      .initfn = tc1796_initfn },
-    { .name = "aurix",       .initfn = aurix_initfn },
+    { .name = "tc1797",      .initfn = tc1797_initfn },
+    { .name = "tc27x",       .initfn = tc27x_initfn },
     { .name = NULL }
 };
 

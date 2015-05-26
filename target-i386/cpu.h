@@ -31,8 +31,6 @@
 /* Maximum instruction code size */
 #define TARGET_MAX_INSN_SIZE 16
 
-/* target supports implicit self modifying code */
-#define TARGET_HAS_SMC
 /* support for self modifying code even if the modified instruction is
    close to the modifying instruction */
 #define TARGET_HAS_PRECISE_SMC
@@ -944,7 +942,6 @@ typedef struct CPUX86State {
     uint32_t cpuid_version;
     FeatureWordArray features;
     uint32_t cpuid_model[12];
-    uint32_t cpuid_apic_id;
 
     /* MTRRs */
     uint64_t mtrr_fixed[11];
@@ -983,8 +980,7 @@ typedef struct CPUX86State {
 #include "cpu-qom.h"
 
 X86CPU *cpu_x86_init(const char *cpu_model);
-X86CPU *cpu_x86_create(const char *cpu_model, DeviceState *icc_bridge,
-                       Error **errp);
+X86CPU *cpu_x86_create(const char *cpu_model, Error **errp);
 int cpu_x86_exec(CPUX86State *s);
 void x86_cpu_list(FILE *f, fprintf_function cpu_fprintf);
 void x86_cpudef_setup(void);
@@ -1171,14 +1167,7 @@ uint64_t cpu_get_tsc(CPUX86State *env);
 # define PHYS_ADDR_MASK 0xfffffffffLL
 # endif
 
-static inline CPUX86State *cpu_init(const char *cpu_model)
-{
-    X86CPU *cpu = cpu_x86_init(cpu_model);
-    if (cpu == NULL) {
-        return NULL;
-    }
-    return &cpu->env;
-}
+#define cpu_init(cpu_model) CPU(cpu_x86_init(cpu_model))
 
 #define cpu_exec cpu_x86_exec
 #define cpu_gen_code cpu_x86_gen_code
@@ -1329,7 +1318,6 @@ void x86_cpu_compat_kvm_no_autodisable(FeatureWord w, uint32_t features);
 /* Return name of 32-bit register, from a R_* constant */
 const char *get_register_name_32(unsigned int reg);
 
-uint32_t x86_cpu_apic_id_from_index(unsigned int cpu_index);
 void enable_compat_apic_id_mode(void);
 
 #define APIC_DEFAULT_ADDRESS 0xfee00000

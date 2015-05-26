@@ -65,7 +65,8 @@ static void start_auth_vencrypt_subauth(VncState *vs)
 
 static void vnc_tls_handshake_io(void *opaque);
 
-static int vnc_start_vencrypt_handshake(struct VncState *vs) {
+static int vnc_start_vencrypt_handshake(VncState *vs)
+{
     int ret;
 
     if ((ret = gnutls_handshake(vs->tls.session)) < 0) {
@@ -93,7 +94,6 @@ static int vnc_start_vencrypt_handshake(struct VncState *vs) {
     }
 
     VNC_DEBUG("Handshake done, switching to TLS data mode\n");
-    vs->tls.wiremode = VNC_WIREMODE_TLS;
     qemu_set_fd_handler2(vs->csock, NULL, vnc_client_read, vnc_client_write, vs);
 
     start_auth_vencrypt_subauth(vs);
@@ -101,8 +101,9 @@ static int vnc_start_vencrypt_handshake(struct VncState *vs) {
     return 0;
 }
 
-static void vnc_tls_handshake_io(void *opaque) {
-    struct VncState *vs = (struct VncState *)opaque;
+static void vnc_tls_handshake_io(void *opaque)
+{
+    VncState *vs = (VncState *)opaque;
 
     VNC_DEBUG("Handshake IO continue\n");
     vnc_start_vencrypt_handshake(vs);

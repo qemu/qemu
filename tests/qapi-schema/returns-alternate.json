@@ -1,0 +1,3 @@
+# we reject returns if it is an alternate type
+{ 'alternate': 'Alt', 'data': { 'a': 'int', 'b': 'str' } }
+{ 'command': 'oops', 'returns': 'Alt' }

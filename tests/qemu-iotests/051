@@ -41,6 +41,9 @@ trap "_cleanup; exit \$status" 0 1 2 3 15
 _supported_fmt qcow2
 _supported_proto file
 _supported_os Linux
+# A compat=0.10 image is created in this test which does not support anything
+# other than refcount_bits=16
+_unsupported_imgopts 'refcount_bits=\([^1]\|.\([^6]\|$\)\)'
 
 function do_run_qemu()
 {
@@ -93,6 +96,13 @@ echo
 run_qemu -drive file="$TEST_IMG",format=foo
 run_qemu -drive file="$TEST_IMG",driver=foo
 run_qemu -drive file="$TEST_IMG",driver=raw,format=qcow2
+run_qemu -drive file="$TEST_IMG",driver=qcow2,format=qcow2
+
+echo
+echo === Device without drive ===
+echo
+
+run_qemu -device virtio-scsi-pci -device scsi-hd
 
 echo
 echo === Overriding backing file ===

@@ -14,15 +14,13 @@
 
 #include "sysemu/rng.h"
 #include "sysemu/rng-random.h"
+#include "standard-headers/linux/virtio_rng.h"
 
 #define TYPE_VIRTIO_RNG "virtio-rng-device"
 #define VIRTIO_RNG(obj) \
         OBJECT_CHECK(VirtIORNG, (obj), TYPE_VIRTIO_RNG)
 #define VIRTIO_RNG_GET_PARENT_CLASS(obj) \
         OBJECT_GET_PARENT_CLASS(obj, TYPE_VIRTIO_RNG)
-
-/* The Virtio ID for the virtio rng device */
-#define VIRTIO_ID_RNG    4
 
 struct VirtIORNGConf {
     RngBackend *rng;

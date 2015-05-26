@@ -1,0 +1,2 @@
+# An empty enum, although unusual, is currently acceptable
+{ 'enum': 'MyEnum', 'data': [ ] }

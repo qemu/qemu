@@ -707,7 +707,7 @@ static void sdp_service_record_build(struct sdp_service_record_s *record,
         len += sdp_attr_max_size(&def->attributes[record->attributes ++].data,
                         &record->uuids);
     }
-    record->uuids = 1 << ffs(record->uuids - 1);
+    record->uuids = pow2ceil(record->uuids);
     record->attribute_list =
             g_malloc0(record->attributes * sizeof(*record->attribute_list));
     record->uuid =

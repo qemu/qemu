@@ -32,6 +32,7 @@ Testing: -drive file=TEST_DIR/t.qcow2,format=qcow2,if=none,id=disk -device virti
                         "data": {
                             "compat": "1.1",
                             "lazy-refcounts": false,
+                            "refcount-bits": 16,
                             "corrupt": false
                         }
                     },
@@ -43,6 +44,7 @@ Testing: -drive file=TEST_DIR/t.qcow2,format=qcow2,if=none,id=disk -device virti
                 "drv": "qcow2",
                 "iops": 0,
                 "bps_wr": 0,
+                "write_threshold": 0,
                 "encrypted": false,
                 "bps": 0,
                 "bps_rd": 0,
@@ -207,6 +209,7 @@ Testing: -drive file=TEST_DIR/t.qcow2,format=qcow2,if=none,id=disk
                         "data": {
                             "compat": "1.1",
                             "lazy-refcounts": false,
+                            "refcount-bits": 16,
                             "corrupt": false
                         }
                     },
@@ -218,6 +221,7 @@ Testing: -drive file=TEST_DIR/t.qcow2,format=qcow2,if=none,id=disk
                 "drv": "qcow2",
                 "iops": 0,
                 "bps_wr": 0,
+                "write_threshold": 0,
                 "encrypted": false,
                 "bps": 0,
                 "bps_rd": 0,
@@ -412,6 +416,7 @@ Testing:
                         "data": {
                             "compat": "1.1",
                             "lazy-refcounts": false,
+                            "refcount-bits": 16,
                             "corrupt": false
                         }
                     },
@@ -423,6 +428,7 @@ Testing:
                 "drv": "qcow2",
                 "iops": 0,
                 "bps_wr": 0,
+                "write_threshold": 0,
                 "encrypted": false,
                 "bps": 0,
                 "bps_rd": 0,
@@ -596,6 +602,7 @@ Testing:
                         "data": {
                             "compat": "1.1",
                             "lazy-refcounts": false,
+                            "refcount-bits": 16,
                             "corrupt": false
                         }
                     },
@@ -607,6 +614,7 @@ Testing:
                 "drv": "qcow2",
                 "iops": 0,
                 "bps_wr": 0,
+                "write_threshold": 0,
                 "encrypted": false,
                 "bps": 0,
                 "bps_rd": 0,
@@ -706,6 +714,7 @@ Testing:
                         "data": {
                             "compat": "1.1",
                             "lazy-refcounts": false,
+                            "refcount-bits": 16,
                             "corrupt": false
                         }
                     },
@@ -717,6 +726,7 @@ Testing:
                 "drv": "qcow2",
                 "iops": 0,
                 "bps_wr": 0,
+                "write_threshold": 0,
                 "encrypted": false,
                 "bps": 0,
                 "bps_rd": 0,

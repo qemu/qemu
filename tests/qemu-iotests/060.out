@@ -18,6 +18,7 @@ cluster_size: 65536
 Format specific information:
     compat: 1.1
     lazy refcounts: false
+    refcount bits: 16
     corrupt: true
 qemu-io: can't open device TEST_DIR/t.IMGFMT: IMGFMT: Image is corrupt; cannot be opened read/write
 read 512/512 bytes at offset 0

@@ -594,14 +594,7 @@ hwaddr cpu_get_phys_page_nofault(CPUSPARCState *env, target_ulong addr,
 int cpu_sparc_signal_handler(int host_signum, void *pinfo, void *puc);
 
 #ifndef NO_CPU_IO_DEFS
-static inline CPUSPARCState *cpu_init(const char *cpu_model)
-{
-    SPARCCPU *cpu = cpu_sparc_init(cpu_model);
-    if (cpu == NULL) {
-        return NULL;
-    }
-    return &cpu->env;
-}
+#define cpu_init(cpu_model) CPU(cpu_sparc_init(cpu_model))
 #endif
 
 #define cpu_exec cpu_sparc_exec

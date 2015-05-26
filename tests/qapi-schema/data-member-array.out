@@ -1,0 +1,5 @@
+[OrderedDict([('enum', 'abc'), ('data', ['a', 'b', 'c'])]),
+ OrderedDict([('struct', 'def'), ('data', OrderedDict([('array', ['abc'])]))]),
+ OrderedDict([('command', 'okay'), ('data', OrderedDict([('member1', ['int']), ('member2', ['def'])]))])]
+[{'enum_name': 'abc', 'enum_values': ['a', 'b', 'c']}]
+[OrderedDict([('struct', 'def'), ('data', OrderedDict([('array', ['abc'])]))])]

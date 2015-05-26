@@ -134,7 +134,7 @@ static int configure_tpm(QemuOpts *opts)
     Error *local_err = NULL;
 
     if (!QLIST_EMPTY(&tpm_backends)) {
-        error_report("Only one TPM is allowed.\n");
+        error_report("Only one TPM is allowed.");
         return 1;
     }
 
@@ -162,8 +162,7 @@ static int configure_tpm(QemuOpts *opts)
     /* validate backend specific opts */
     qemu_opts_validate(opts, be->opts, &local_err);
     if (local_err) {
-        qerror_report_err(local_err);
-        error_free(local_err);
+        error_report_err(local_err);
         return 1;
     }
 
@@ -174,8 +173,7 @@ static int configure_tpm(QemuOpts *opts)
 
     tpm_backend_open(drv, &local_err);
     if (local_err) {
-        qerror_report_err(local_err);
-        error_free(local_err);
+        error_report_err(local_err);
         return 1;
     }
 

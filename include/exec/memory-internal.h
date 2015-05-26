@@ -23,6 +23,7 @@
 typedef struct AddressSpaceDispatch AddressSpaceDispatch;
 
 void address_space_init_dispatch(AddressSpace *as);
+void address_space_unregister(AddressSpace *as);
 void address_space_destroy_dispatch(AddressSpace *as);
 
 extern const MemoryRegionOps unassigned_mem_ops;

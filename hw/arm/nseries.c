@@ -579,7 +579,10 @@ static uint32_t mipid_txrx(void *opaque, uint32_t cmd, int len)
 
     case 0x26:	/* GAMSET */
         if (!s->pm) {
-            s->gamma = ffs(s->param[0] & 0xf) - 1;
+            s->gamma = ctz32(s->param[0] & 0xf);
+            if (s->gamma == 32) {
+                s->gamma = -1; /* XXX: should this be 0? */
+            }
         } else if (s->pm < 0) {
             s->pm = 1;
         }
@@ -1403,12 +1406,12 @@ static struct arm_boot_info n810_binfo = {
 
 static void n800_init(MachineState *machine)
 {
-    return n8x0_init(machine, &n800_binfo, 800);
+    n8x0_init(machine, &n800_binfo, 800);
 }
 
 static void n810_init(MachineState *machine)
 {
-    return n8x0_init(machine, &n810_binfo, 810);
+    n8x0_init(machine, &n810_binfo, 810);
 }
 
 static QEMUMachine n800_machine = {

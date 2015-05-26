@@ -42,6 +42,15 @@ static void usb_ehci_sysbus_realize(DeviceState *dev, Error **errp)
     sysbus_init_irq(d, &s->irq);
 }
 
+static void usb_ehci_sysbus_reset(DeviceState *dev)
+{
+    SysBusDevice *d = SYS_BUS_DEVICE(dev);
+    EHCISysBusState *i = SYS_BUS_EHCI(d);
+    EHCIState *s = &i->ehci;
+
+    ehci_reset(s);
+}
+
 static void ehci_sysbus_init(Object *obj)
 {
     SysBusDevice *d = SYS_BUS_DEVICE(obj);
@@ -70,6 +79,7 @@ static void ehci_sysbus_class_init(ObjectClass *klass, void *data)
     dc->realize = usb_ehci_sysbus_realize;
     dc->vmsd = &vmstate_ehci_sysbus;
     dc->props = ehci_sysbus_properties;
+    dc->reset = usb_ehci_sysbus_reset;
     set_bit(DEVICE_CATEGORY_USB, dc->categories);
 }
 

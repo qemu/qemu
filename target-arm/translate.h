@@ -9,7 +9,7 @@ typedef struct DisasContext {
     /* Nonzero if this instruction has been conditionally skipped.  */
     int condjmp;
     /* The label that will be jumped to when the instruction is skipped.  */
-    int condlabel;
+    TCGLabel *condlabel;
     /* Thumb-2 conditional execution bits.  */
     int condexec_mask;
     int condexec_cond;
@@ -20,6 +20,7 @@ typedef struct DisasContext {
 #if !defined(CONFIG_USER_ONLY)
     int user;
 #endif
+    ARMMMUIdx mmu_idx; /* MMU index to use for normal loads/stores */
     bool ns;        /* Use non-secure CPREG bank on access */
     bool cpacr_fpen; /* FP enabled via CPACR.FPEN */
     bool vfp_enabled; /* FP enabled via FPSCR.EN */
@@ -69,7 +70,7 @@ static inline int arm_dc_feature(DisasContext *dc, int feature)
 
 static inline int get_mem_index(DisasContext *s)
 {
-    return s->current_el;
+    return s->mmu_idx;
 }
 
 /* target-specific extra values for is_jmp */
@@ -118,6 +119,6 @@ static inline void aarch64_cpu_dump_state(CPUState *cs, FILE *f,
 }
 #endif
 
-void arm_gen_test_cc(int cc, int label);
+void arm_gen_test_cc(int cc, TCGLabel *label);
 
 #endif /* TARGET_ARM_TRANSLATE_H */

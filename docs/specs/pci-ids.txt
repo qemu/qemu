@@ -45,6 +45,7 @@ PCI devices (other than virtio):
 1b36:0003  PCI Dual-port 16550A adapter (docs/specs/pci-serial.txt)
 1b36:0004  PCI Quad-port 16550A adapter (docs/specs/pci-serial.txt)
 1b36:0005  PCI test device (docs/specs/pci-testdev.txt)
+1b36:0006  PCI Rocker Ethernet switch device
 1b36:0007  PCI SD Card Host Controller Interface (SDHCI)
 
 All these devices are documented in docs/specs.

@@ -1,0 +1,4 @@
+# we allow escape sequences in strings, if they map back to ASCII
+# { 'command': 'fooA', 'data': { 'bar1': 'str' } }
+{ 'c\u006fmmand': '\u0066\u006f\u006FA',
+  'd\u0061ta': { '\u0062\u0061\u00721': '\u0073\u0074\u0072' } }

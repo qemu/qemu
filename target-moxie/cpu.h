@@ -121,14 +121,7 @@ void moxie_translate_init(void);
 int cpu_moxie_signal_handler(int host_signum, void *pinfo,
                              void *puc);
 
-static inline CPUMoxieState *cpu_init(const char *cpu_model)
-{
-    MoxieCPU *cpu = cpu_moxie_init(cpu_model);
-    if (cpu == NULL) {
-        return NULL;
-    }
-    return &cpu->env;
-}
+#define cpu_init(cpu_model) CPU(cpu_moxie_init(cpu_model))
 
 #define cpu_exec cpu_moxie_exec
 #define cpu_gen_code cpu_moxie_gen_code

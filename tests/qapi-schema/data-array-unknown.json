@@ -1,0 +1,2 @@
+# we reject an array for data if it does not contain a known type
+{ 'command': 'oops', 'data': { 'array': [ 'NoSuchType' ] } }

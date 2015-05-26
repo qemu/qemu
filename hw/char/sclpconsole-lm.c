@@ -364,6 +364,7 @@ static void console_class_init(ObjectClass *klass, void *data)
     ec->can_handle_event = can_handle_event;
     ec->read_event_data = read_event_data;
     ec->write_event_data = write_event_data;
+    set_bit(DEVICE_CATEGORY_INPUT, dc->categories);
 }
 
 static const TypeInfo sclp_console_info = {

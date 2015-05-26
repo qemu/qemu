@@ -332,7 +332,7 @@ typedef struct
 
 #ifdef DEFINE_TABLE
 
-const sh_opcode_info sh_table[] =
+static const sh_opcode_info sh_table[] =
   {
 /* 0111nnnni8*1.... add #<imm>,<REG_N>  */{"add",{A_IMM,A_REG_N},{HEX_7,REG_N,IMM0_8}, arch_sh1_up},
 

@@ -153,13 +153,18 @@ typedef struct VFIOPCIDevice {
     VFIOVGA vga; /* 0xa0000, 0x3b0, 0x3c0 */
     PCIHostDeviceAddress host;
     EventNotifier err_notifier;
+    EventNotifier req_notifier;
+    int (*resetfn)(struct VFIOPCIDevice *);
     uint32_t features;
 #define VFIO_FEATURE_ENABLE_VGA_BIT 0
 #define VFIO_FEATURE_ENABLE_VGA (1 << VFIO_FEATURE_ENABLE_VGA_BIT)
+#define VFIO_FEATURE_ENABLE_REQ_BIT 1
+#define VFIO_FEATURE_ENABLE_REQ (1 << VFIO_FEATURE_ENABLE_REQ_BIT)
     int32_t bootindex;
     uint8_t pm_cap;
     bool has_vga;
     bool pci_aer;
+    bool req_enabled;
     bool has_flr;
     bool has_pm_reset;
     bool rom_read_failed;
@@ -195,7 +200,6 @@ static uint32_t vfio_pci_read_config(PCIDevice *pdev, uint32_t addr, int len);
 static void vfio_pci_write_config(PCIDevice *pdev, uint32_t addr,
                                   uint32_t val, int len);
 static void vfio_mmap_set_enabled(VFIOPCIDevice *vdev, bool enabled);
-static int vfio_populate_device(VFIODevice *vbasedev);
 
 /*
  * Disabling BAR mmaping can be slow, but toggling it around INTx can
@@ -517,7 +521,7 @@ static void vfio_msi_interrupt(void *opaque)
         abort();
     }
 
-    trace_vfio_msi_interrupt(vbasedev->name, nr, msg.address, msg.data);
+    trace_vfio_msi_interrupt(vdev->vbasedev.name, nr, msg.address, msg.data);
 #endif
 
     if (vdev->interrupt == VFIO_INT_MSIX) {
@@ -1528,9 +1532,12 @@ static uint64_t vfio_rtl8168_window_quirk_read(void *opaque,
                 return 0;
             }
 
-            io_mem_read(&vdev->pdev.msix_table_mmio,
-                        (hwaddr)(quirk->data.address_match & 0xfff),
-                        &val, size);
+            memory_region_dispatch_read(&vdev->pdev.msix_table_mmio,
+                                        (hwaddr)(quirk->data.address_match
+                                                 & 0xfff),
+                                        &val,
+                                        size,
+                                        MEMTXATTRS_UNSPECIFIED);
             return val;
         }
     }
@@ -1558,9 +1565,12 @@ static void vfio_rtl8168_window_quirk_write(void *opaque, hwaddr addr,
                         memory_region_name(&quirk->mem),
                         vdev->vbasedev.name);
 
-                io_mem_write(&vdev->pdev.msix_table_mmio,
-                             (hwaddr)(quirk->data.address_match & 0xfff),
-                             data, size);
+                memory_region_dispatch_write(&vdev->pdev.msix_table_mmio,
+                                             (hwaddr)(quirk->data.address_match
+                                                      & 0xfff),
+                                             data,
+                                             size,
+                                             MEMTXATTRS_UNSPECIFIED);
             }
 
             quirk->data.flags = 1;
@@ -1997,12 +2007,23 @@ static void vfio_vga_quirk_setup(VFIOPCIDevice *vdev)
 
 static void vfio_vga_quirk_teardown(VFIOPCIDevice *vdev)
 {
+    VFIOQuirk *quirk;
+    int i;
+
+    for (i = 0; i < ARRAY_SIZE(vdev->vga.region); i++) {
+        QLIST_FOREACH(quirk, &vdev->vga.region[i].quirks, next) {
+            memory_region_del_subregion(&vdev->vga.region[i].mem, &quirk->mem);
+        }
+    }
+}
+
+static void vfio_vga_quirk_free(VFIOPCIDevice *vdev)
+{
     int i;
 
     for (i = 0; i < ARRAY_SIZE(vdev->vga.region); i++) {
         while (!QLIST_EMPTY(&vdev->vga.region[i].quirks)) {
             VFIOQuirk *quirk = QLIST_FIRST(&vdev->vga.region[i].quirks);
-            memory_region_del_subregion(&vdev->vga.region[i].mem, &quirk->mem);
             object_unparent(OBJECT(&quirk->mem));
             QLIST_REMOVE(quirk, next);
             g_free(quirk);
@@ -2023,10 +2044,19 @@ static void vfio_bar_quirk_setup(VFIOPCIDevice *vdev, int nr)
 static void vfio_bar_quirk_teardown(VFIOPCIDevice *vdev, int nr)
 {
     VFIOBAR *bar = &vdev->bars[nr];
+    VFIOQuirk *quirk;
+
+    QLIST_FOREACH(quirk, &bar->quirks, next) {
+        memory_region_del_subregion(&bar->region.mem, &quirk->mem);
+    }
+}
+
+static void vfio_bar_quirk_free(VFIOPCIDevice *vdev, int nr)
+{
+    VFIOBAR *bar = &vdev->bars[nr];
 
     while (!QLIST_EMPTY(&bar->quirks)) {
         VFIOQuirk *quirk = QLIST_FIRST(&bar->quirks);
-        memory_region_del_subregion(&bar->region.mem, &quirk->mem);
         object_unparent(OBJECT(&quirk->mem));
         QLIST_REMOVE(quirk, next);
         g_free(quirk);
@@ -2282,7 +2312,7 @@ static void vfio_mmap_set_enabled(VFIOPCIDevice *vdev, bool enabled)
     }
 }
 
-static void vfio_unmap_bar(VFIOPCIDevice *vdev, int nr)
+static void vfio_unregister_bar(VFIOPCIDevice *vdev, int nr)
 {
     VFIOBAR *bar = &vdev->bars[nr];
 
@@ -2293,10 +2323,25 @@ static void vfio_unmap_bar(VFIOPCIDevice *vdev, int nr)
     vfio_bar_quirk_teardown(vdev, nr);
 
     memory_region_del_subregion(&bar->region.mem, &bar->region.mmap_mem);
-    munmap(bar->region.mmap, memory_region_size(&bar->region.mmap_mem));
 
     if (vdev->msix && vdev->msix->table_bar == nr) {
         memory_region_del_subregion(&bar->region.mem, &vdev->msix->mmap_mem);
+    }
+}
+
+static void vfio_unmap_bar(VFIOPCIDevice *vdev, int nr)
+{
+    VFIOBAR *bar = &vdev->bars[nr];
+
+    if (!bar->region.size) {
+        return;
+    }
+
+    vfio_bar_quirk_free(vdev, nr);
+
+    munmap(bar->region.mmap, memory_region_size(&bar->region.mmap_mem));
+
+    if (vdev->msix && vdev->msix->table_bar == nr) {
         munmap(vdev->msix->mmap, memory_region_size(&vdev->msix->mmap_mem));
     }
 }
@@ -2356,7 +2401,7 @@ static void vfio_map_bar(VFIOPCIDevice *vdev, int nr)
     if (vdev->msix && vdev->msix->table_bar == nr) {
         uint64_t start;
 
-        start = HOST_PAGE_ALIGN(vdev->msix->table_offset +
+        start = HOST_PAGE_ALIGN((uint64_t)vdev->msix->table_offset +
                                 (vdev->msix->entries * PCI_MSIX_ENTRY_SIZE));
 
         size = start < bar->region.size ? bar->region.size - start : 0;
@@ -2404,6 +2449,20 @@ static void vfio_map_bars(VFIOPCIDevice *vdev)
     }
 }
 
+static void vfio_unregister_bars(VFIOPCIDevice *vdev)
+{
+    int i;
+
+    for (i = 0; i < PCI_ROM_SLOT; i++) {
+        vfio_unregister_bar(vdev, i);
+    }
+
+    if (vdev->has_vga) {
+        vfio_vga_quirk_teardown(vdev);
+        pci_unregister_vga(&vdev->pdev);
+    }
+}
+
 static void vfio_unmap_bars(VFIOPCIDevice *vdev)
 {
     int i;
@@ -2413,8 +2472,7 @@ static void vfio_unmap_bars(VFIOPCIDevice *vdev)
     }
 
     if (vdev->has_vga) {
-        vfio_vga_quirk_teardown(vdev);
-        pci_unregister_vga(&vdev->pdev);
+        vfio_vga_quirk_free(vdev);
     }
 }
 
@@ -2934,12 +2992,11 @@ static VFIODeviceOps vfio_pci_ops = {
     .vfio_compute_needs_reset = vfio_pci_compute_needs_reset,
     .vfio_hot_reset_multi = vfio_pci_hot_reset_multi,
     .vfio_eoi = vfio_eoi,
-    .vfio_populate_device = vfio_populate_device,
 };
 
-static int vfio_populate_device(VFIODevice *vbasedev)
+static int vfio_populate_device(VFIOPCIDevice *vdev)
 {
-    VFIOPCIDevice *vdev = container_of(vbasedev, VFIOPCIDevice, vbasedev);
+    VFIODevice *vbasedev = &vdev->vbasedev;
     struct vfio_region_info reg_info = { .argsz = sizeof(reg_info) };
     struct vfio_irq_info irq_info = { .argsz = sizeof(irq_info) };
     int i, ret = -1;
@@ -3042,6 +3099,7 @@ static int vfio_populate_device(VFIODevice *vbasedev)
 
         vdev->has_vga = true;
     }
+
     irq_info.index = VFIO_PCI_ERR_IRQ_INDEX;
 
     ret = ioctl(vdev->vbasedev.fd, VFIO_DEVICE_GET_IRQ_INFO, &irq_info);
@@ -3065,6 +3123,7 @@ static void vfio_put_device(VFIOPCIDevice *vdev)
 {
     g_free(vdev->vbasedev.name);
     if (vdev->msix) {
+        object_unparent(OBJECT(&vdev->msix->mmap_mem));
         g_free(vdev->msix);
         vdev->msix = NULL;
     }
@@ -3176,6 +3235,253 @@ static void vfio_unregister_err_notifier(VFIOPCIDevice *vdev)
     event_notifier_cleanup(&vdev->err_notifier);
 }
 
+static void vfio_req_notifier_handler(void *opaque)
+{
+    VFIOPCIDevice *vdev = opaque;
+
+    if (!event_notifier_test_and_clear(&vdev->req_notifier)) {
+        return;
+    }
+
+    qdev_unplug(&vdev->pdev.qdev, NULL);
+}
+
+static void vfio_register_req_notifier(VFIOPCIDevice *vdev)
+{
+    struct vfio_irq_info irq_info = { .argsz = sizeof(irq_info),
+                                      .index = VFIO_PCI_REQ_IRQ_INDEX };
+    int argsz;
+    struct vfio_irq_set *irq_set;
+    int32_t *pfd;
+
+    if (!(vdev->features & VFIO_FEATURE_ENABLE_REQ)) {
+        return;
+    }
+
+    if (ioctl(vdev->vbasedev.fd,
+              VFIO_DEVICE_GET_IRQ_INFO, &irq_info) < 0 || irq_info.count < 1) {
+        return;
+    }
+
+    if (event_notifier_init(&vdev->req_notifier, 0)) {
+        error_report("vfio: Unable to init event notifier for device request");
+        return;
+    }
+
+    argsz = sizeof(*irq_set) + sizeof(*pfd);
+
+    irq_set = g_malloc0(argsz);
+    irq_set->argsz = argsz;
+    irq_set->flags = VFIO_IRQ_SET_DATA_EVENTFD |
+                     VFIO_IRQ_SET_ACTION_TRIGGER;
+    irq_set->index = VFIO_PCI_REQ_IRQ_INDEX;
+    irq_set->start = 0;
+    irq_set->count = 1;
+    pfd = (int32_t *)&irq_set->data;
+
+    *pfd = event_notifier_get_fd(&vdev->req_notifier);
+    qemu_set_fd_handler(*pfd, vfio_req_notifier_handler, NULL, vdev);
+
+    if (ioctl(vdev->vbasedev.fd, VFIO_DEVICE_SET_IRQS, irq_set)) {
+        error_report("vfio: Failed to set up device request notification");
+        qemu_set_fd_handler(*pfd, NULL, NULL, vdev);
+        event_notifier_cleanup(&vdev->req_notifier);
+    } else {
+        vdev->req_enabled = true;
+    }
+
+    g_free(irq_set);
+}
+
+static void vfio_unregister_req_notifier(VFIOPCIDevice *vdev)
+{
+    int argsz;
+    struct vfio_irq_set *irq_set;
+    int32_t *pfd;
+
+    if (!vdev->req_enabled) {
+        return;
+    }
+
+    argsz = sizeof(*irq_set) + sizeof(*pfd);
+
+    irq_set = g_malloc0(argsz);
+    irq_set->argsz = argsz;
+    irq_set->flags = VFIO_IRQ_SET_DATA_EVENTFD |
+                     VFIO_IRQ_SET_ACTION_TRIGGER;
+    irq_set->index = VFIO_PCI_REQ_IRQ_INDEX;
+    irq_set->start = 0;
+    irq_set->count = 1;
+    pfd = (int32_t *)&irq_set->data;
+    *pfd = -1;
+
+    if (ioctl(vdev->vbasedev.fd, VFIO_DEVICE_SET_IRQS, irq_set)) {
+        error_report("vfio: Failed to de-assign device request fd: %m");
+    }
+    g_free(irq_set);
+    qemu_set_fd_handler(event_notifier_get_fd(&vdev->req_notifier),
+                        NULL, NULL, vdev);
+    event_notifier_cleanup(&vdev->req_notifier);
+
+    vdev->req_enabled = false;
+}
+
+/*
+ * AMD Radeon PCI config reset, based on Linux:
+ *   drivers/gpu/drm/radeon/ci_smc.c:ci_is_smc_running()
+ *   drivers/gpu/drm/radeon/radeon_device.c:radeon_pci_config_reset
+ *   drivers/gpu/drm/radeon/ci_smc.c:ci_reset_smc()
+ *   drivers/gpu/drm/radeon/ci_smc.c:ci_stop_smc_clock()
+ * IDs: include/drm/drm_pciids.h
+ * Registers: http://cgit.freedesktop.org/~agd5f/linux/commit/?id=4e2aa447f6f0
+ *
+ * Bonaire and Hawaii GPUs do not respond to a bus reset.  This is a bug in the
+ * hardware that should be fixed on future ASICs.  The symptom of this is that
+ * once the accerlated driver loads, Windows guests will bsod on subsequent
+ * attmpts to load the driver, such as after VM reset or shutdown/restart.  To
+ * work around this, we do an AMD specific PCI config reset, followed by an SMC
+ * reset.  The PCI config reset only works if SMC firmware is running, so we
+ * have a dependency on the state of the device as to whether this reset will
+ * be effective.  There are still cases where we won't be able to kick the
+ * device into working, but this greatly improves the usability overall.  The
+ * config reset magic is relatively common on AMD GPUs, but the setup and SMC
+ * poking is largely ASIC specific.
+ */
+static bool vfio_radeon_smc_is_running(VFIOPCIDevice *vdev)
+{
+    uint32_t clk, pc_c;
+
+    /*
+     * Registers 200h and 204h are index and data registers for acessing
+     * indirect configuration registers within the device.
+     */
+    vfio_region_write(&vdev->bars[5].region, 0x200, 0x80000004, 4);
+    clk = vfio_region_read(&vdev->bars[5].region, 0x204, 4);
+    vfio_region_write(&vdev->bars[5].region, 0x200, 0x80000370, 4);
+    pc_c = vfio_region_read(&vdev->bars[5].region, 0x204, 4);
+
+    return (!(clk & 1) && (0x20100 <= pc_c));
+}
+
+/*
+ * The scope of a config reset is controlled by a mode bit in the misc register
+ * and a fuse, exposed as a bit in another register.  The fuse is the default
+ * (0 = GFX, 1 = whole GPU), the misc bit is a toggle, with the forumula
+ * scope = !(misc ^ fuse), where the resulting scope is defined the same as
+ * the fuse.  A truth table therefore tells us that if misc == fuse, we need
+ * to flip the value of the bit in the misc register.
+ */
+static void vfio_radeon_set_gfx_only_reset(VFIOPCIDevice *vdev)
+{
+    uint32_t misc, fuse;
+    bool a, b;
+
+    vfio_region_write(&vdev->bars[5].region, 0x200, 0xc00c0000, 4);
+    fuse = vfio_region_read(&vdev->bars[5].region, 0x204, 4);
+    b = fuse & 64;
+
+    vfio_region_write(&vdev->bars[5].region, 0x200, 0xc0000010, 4);
+    misc = vfio_region_read(&vdev->bars[5].region, 0x204, 4);
+    a = misc & 2;
+
+    if (a == b) {
+        vfio_region_write(&vdev->bars[5].region, 0x204, misc ^ 2, 4);
+        vfio_region_read(&vdev->bars[5].region, 0x204, 4); /* flush */
+    }
+}
+
+static int vfio_radeon_reset(VFIOPCIDevice *vdev)
+{
+    PCIDevice *pdev = &vdev->pdev;
+    int i, ret = 0;
+    uint32_t data;
+
+    /* Defer to a kernel implemented reset */
+    if (vdev->vbasedev.reset_works) {
+        return -ENODEV;
+    }
+
+    /* Enable only memory BAR access */
+    vfio_pci_write_config(pdev, PCI_COMMAND, PCI_COMMAND_MEMORY, 2);
+
+    /* Reset only works if SMC firmware is loaded and running */
+    if (!vfio_radeon_smc_is_running(vdev)) {
+        ret = -EINVAL;
+        goto out;
+    }
+
+    /* Make sure only the GFX function is reset */
+    vfio_radeon_set_gfx_only_reset(vdev);
+
+    /* AMD PCI config reset */
+    vfio_pci_write_config(pdev, 0x7c, 0x39d5e86b, 4);
+    usleep(100);
+
+    /* Read back the memory size to make sure we're out of reset */
+    for (i = 0; i < 100000; i++) {
+        if (vfio_region_read(&vdev->bars[5].region, 0x5428, 4) != 0xffffffff) {
+            break;
+        }
+        usleep(1);
+    }
+
+    /* Reset SMC */
+    vfio_region_write(&vdev->bars[5].region, 0x200, 0x80000000, 4);
+    data = vfio_region_read(&vdev->bars[5].region, 0x204, 4);
+    data |= 1;
+    vfio_region_write(&vdev->bars[5].region, 0x204, data, 4);
+
+    /* Disable SMC clock */
+    vfio_region_write(&vdev->bars[5].region, 0x200, 0x80000004, 4);
+    data = vfio_region_read(&vdev->bars[5].region, 0x204, 4);
+    data |= 1;
+    vfio_region_write(&vdev->bars[5].region, 0x204, data, 4);
+
+out:
+    /* Restore PCI command register */
+    vfio_pci_write_config(pdev, PCI_COMMAND, 0, 2);
+
+    return ret;
+}
+
+static void vfio_setup_resetfn(VFIOPCIDevice *vdev)
+{
+    PCIDevice *pdev = &vdev->pdev;
+    uint16_t vendor, device;
+
+    vendor = pci_get_word(pdev->config + PCI_VENDOR_ID);
+    device = pci_get_word(pdev->config + PCI_DEVICE_ID);
+
+    switch (vendor) {
+    case 0x1002:
+        switch (device) {
+        /* Bonaire */
+        case 0x6649: /* Bonaire [FirePro W5100] */
+        case 0x6650:
+        case 0x6651:
+        case 0x6658: /* Bonaire XTX [Radeon R7 260X] */
+        case 0x665c: /* Bonaire XT [Radeon HD 7790/8770 / R9 260 OEM] */
+        case 0x665d: /* Bonaire [Radeon R7 200 Series] */
+        /* Hawaii */
+        case 0x67A0: /* Hawaii XT GL [FirePro W9100] */
+        case 0x67A1: /* Hawaii PRO GL [FirePro W8100] */
+        case 0x67A2:
+        case 0x67A8:
+        case 0x67A9:
+        case 0x67AA:
+        case 0x67B0: /* Hawaii XT [Radeon R9 290X] */
+        case 0x67B1: /* Hawaii PRO [Radeon R9 290] */
+        case 0x67B8:
+        case 0x67B9:
+        case 0x67BA:
+        case 0x67BE:
+            vdev->resetfn = vfio_radeon_reset;
+            break;
+        }
+        break;
+    }
+}
+
 static int vfio_initfn(PCIDevice *pdev)
 {
     VFIOPCIDevice *vdev = DO_UPCAST(VFIOPCIDevice, pdev, pdev);
@@ -3209,7 +3515,7 @@ static int vfio_initfn(PCIDevice *pdev)
     len = readlink(path, iommu_group_path, sizeof(path));
     if (len <= 0 || len >= sizeof(path)) {
         error_report("vfio: error no iommu_group for device");
-        return len < 0 ? -errno : ENAMETOOLONG;
+        return len < 0 ? -errno : -ENAMETOOLONG;
     }
 
     iommu_group_path[len] = 0;
@@ -3247,6 +3553,11 @@ static int vfio_initfn(PCIDevice *pdev)
         return ret;
     }
 
+    ret = vfio_populate_device(vdev);
+    if (ret) {
+        return ret;
+    }
+
     /* Get a copy of config space */
     ret = pread(vdev->vbasedev.fd, vdev->pdev.config,
                 MIN(pci_config_size(&vdev->pdev), vdev->config_size),
@@ -3254,7 +3565,7 @@ static int vfio_initfn(PCIDevice *pdev)
     if (ret < (int)MIN(pci_config_size(&vdev->pdev), vdev->config_size)) {
         ret = ret < 0 ? -errno : -EFAULT;
         error_report("vfio: Failed to read device config space");
-        goto out_put;
+        return ret;
     }
 
     /* vfio emulates a lot for us, but some bits need extra love */
@@ -3286,7 +3597,7 @@ static int vfio_initfn(PCIDevice *pdev)
 
     ret = vfio_early_setup_msix(vdev);
     if (ret) {
-        goto out_put;
+        return ret;
     }
 
     vfio_map_bars(vdev);
@@ -3318,25 +3629,36 @@ static int vfio_initfn(PCIDevice *pdev)
     }
 
     vfio_register_err_notifier(vdev);
+    vfio_register_req_notifier(vdev);
+    vfio_setup_resetfn(vdev);
 
     return 0;
 
 out_teardown:
     pci_device_set_intx_routing_notifier(&vdev->pdev, NULL);
     vfio_teardown_msi(vdev);
+    vfio_unregister_bars(vdev);
+    return ret;
+}
+
+static void vfio_instance_finalize(Object *obj)
+{
+    PCIDevice *pci_dev = PCI_DEVICE(obj);
+    VFIOPCIDevice *vdev = DO_UPCAST(VFIOPCIDevice, pdev, pci_dev);
+    VFIOGroup *group = vdev->vbasedev.group;
+
     vfio_unmap_bars(vdev);
-out_put:
     g_free(vdev->emulated_config_bits);
+    g_free(vdev->rom);
     vfio_put_device(vdev);
     vfio_put_group(group);
-    return ret;
 }
 
 static void vfio_exitfn(PCIDevice *pdev)
 {
     VFIOPCIDevice *vdev = DO_UPCAST(VFIOPCIDevice, pdev, pdev);
-    VFIOGroup *group = vdev->vbasedev.group;
 
+    vfio_unregister_req_notifier(vdev);
     vfio_unregister_err_notifier(vdev);
     pci_device_set_intx_routing_notifier(&vdev->pdev, NULL);
     vfio_disable_interrupts(vdev);
@@ -3344,11 +3666,7 @@ static void vfio_exitfn(PCIDevice *pdev)
         timer_free(vdev->intx.mmap_timer);
     }
     vfio_teardown_msi(vdev);
-    vfio_unmap_bars(vdev);
-    g_free(vdev->emulated_config_bits);
-    g_free(vdev->rom);
-    vfio_put_device(vdev);
-    vfio_put_group(group);
+    vfio_unregister_bars(vdev);
 }
 
 static void vfio_pci_reset(DeviceState *dev)
@@ -3359,6 +3677,10 @@ static void vfio_pci_reset(DeviceState *dev)
     trace_vfio_pci_reset(vdev->vbasedev.name);
 
     vfio_pci_pre_reset(vdev);
+
+    if (vdev->resetfn && !vdev->resetfn(vdev)) {
+        goto post_reset;
+    }
 
     if (vdev->vbasedev.reset_works &&
         (vdev->has_flr || !vdev->has_pm_reset) &&
@@ -3399,7 +3721,10 @@ static Property vfio_pci_dev_properties[] = {
                        intx.mmap_timeout, 1100),
     DEFINE_PROP_BIT("x-vga", VFIOPCIDevice, features,
                     VFIO_FEATURE_ENABLE_VGA_BIT, false),
+    DEFINE_PROP_BIT("x-req", VFIOPCIDevice, features,
+                    VFIO_FEATURE_ENABLE_REQ_BIT, true),
     DEFINE_PROP_INT32("bootindex", VFIOPCIDevice, bootindex, -1),
+    DEFINE_PROP_BOOL("x-mmap", VFIOPCIDevice, vbasedev.allow_mmap, true),
     /*
      * TODO - support passed fds... is this necessary?
      * DEFINE_PROP_STRING("vfiofd", VFIOPCIDevice, vfiofd_name),
@@ -3436,6 +3761,7 @@ static const TypeInfo vfio_pci_dev_info = {
     .instance_size = sizeof(VFIOPCIDevice),
     .class_init = vfio_pci_dev_class_init,
     .instance_init = vfio_instance_init,
+    .instance_finalize = vfio_instance_finalize,
 };
 
 static void register_vfio_pci_dev_type(void)

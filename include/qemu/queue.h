@@ -104,6 +104,19 @@ struct {                                                                \
         (head)->lh_first = NULL;                                        \
 } while (/*CONSTCOND*/0)
 
+#define QLIST_SWAP(dstlist, srclist, field) do {                        \
+        void *tmplist;                                                  \
+        tmplist = (srclist)->lh_first;                                  \
+        (srclist)->lh_first = (dstlist)->lh_first;                      \
+        if ((srclist)->lh_first != NULL) {                              \
+            (srclist)->lh_first->field.le_prev = &(srclist)->lh_first;  \
+        }                                                               \
+        (dstlist)->lh_first = tmplist;                                  \
+        if ((dstlist)->lh_first != NULL) {                              \
+            (dstlist)->lh_first->field.le_prev = &(dstlist)->lh_first;  \
+        }                                                               \
+} while (/*CONSTCOND*/0)
+
 #define QLIST_INSERT_AFTER(listelm, elm, field) do {                    \
         if (((elm)->field.le_next = (listelm)->field.le_next) != NULL)  \
                 (listelm)->field.le_next->field.le_prev =               \
@@ -125,17 +138,6 @@ struct {                                                                \
         (head)->lh_first = (elm);                                       \
         (elm)->field.le_prev = &(head)->lh_first;                       \
 } while (/*CONSTCOND*/0)
-
-#define QLIST_INSERT_HEAD_RCU(head, elm, field) do {                    \
-        (elm)->field.le_prev = &(head)->lh_first;                       \
-        (elm)->field.le_next = (head)->lh_first;                        \
-        smp_wmb(); /* fill elm before linking it */                     \
-        if ((head)->lh_first != NULL)  {                                \
-            (head)->lh_first->field.le_prev = &(elm)->field.le_next;    \
-        }                                                               \
-        (head)->lh_first = (elm);                                       \
-        smp_wmb();                                                      \
-} while (/* CONSTCOND*/0)
 
 #define QLIST_REMOVE(elm, field) do {                                   \
         if ((elm)->field.le_next != NULL)                               \
@@ -195,11 +197,12 @@ struct {                                                                \
         (head)->slh_first = (elm);                                       \
 } while (/*CONSTCOND*/0)
 
-#define QSLIST_INSERT_HEAD_ATOMIC(head, elm, field) do {                   \
-        do {                                                               \
-            (elm)->field.sle_next = (head)->slh_first;                     \
-        } while (atomic_cmpxchg(&(head)->slh_first, (elm)->field.sle_next, \
-                               (elm)) != (elm)->field.sle_next);           \
+#define QSLIST_INSERT_HEAD_ATOMIC(head, elm, field) do {                     \
+        typeof(elm) save_sle_next;                                           \
+        do {                                                                 \
+            save_sle_next = (elm)->field.sle_next = (head)->slh_first;       \
+        } while (atomic_cmpxchg(&(head)->slh_first, save_sle_next, (elm)) != \
+                 save_sle_next);                                             \
 } while (/*CONSTCOND*/0)
 
 #define QSLIST_MOVE_ATOMIC(dest, src) do {                               \

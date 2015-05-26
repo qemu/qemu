@@ -150,54 +150,54 @@ enum {
     FP_ROUND_DYNAMIC = 0x3,
 };
 
-/* FPCR bits */
-#define FPCR_SUM		(1ULL << 63)
-#define FPCR_INED		(1ULL << 62)
-#define FPCR_UNFD		(1ULL << 61)
-#define FPCR_UNDZ		(1ULL << 60)
-#define FPCR_DYN_SHIFT		58
-#define FPCR_DYN_CHOPPED	(0ULL << FPCR_DYN_SHIFT)
-#define FPCR_DYN_MINUS		(1ULL << FPCR_DYN_SHIFT)
-#define FPCR_DYN_NORMAL		(2ULL << FPCR_DYN_SHIFT)
-#define FPCR_DYN_PLUS		(3ULL << FPCR_DYN_SHIFT)
-#define FPCR_DYN_MASK		(3ULL << FPCR_DYN_SHIFT)
-#define FPCR_IOV		(1ULL << 57)
-#define FPCR_INE		(1ULL << 56)
-#define FPCR_UNF		(1ULL << 55)
-#define FPCR_OVF		(1ULL << 54)
-#define FPCR_DZE		(1ULL << 53)
-#define FPCR_INV		(1ULL << 52)
-#define FPCR_OVFD		(1ULL << 51)
-#define FPCR_DZED		(1ULL << 50)
-#define FPCR_INVD		(1ULL << 49)
-#define FPCR_DNZ		(1ULL << 48)
-#define FPCR_DNOD		(1ULL << 47)
-#define FPCR_STATUS_MASK	(FPCR_IOV | FPCR_INE | FPCR_UNF \
-				 | FPCR_OVF | FPCR_DZE | FPCR_INV)
+/* FPCR bits -- right-shifted 32 so we can use a uint32_t.  */
+#define FPCR_SUM                (1U << (63 - 32))
+#define FPCR_INED               (1U << (62 - 32))
+#define FPCR_UNFD               (1U << (61 - 32))
+#define FPCR_UNDZ               (1U << (60 - 32))
+#define FPCR_DYN_SHIFT          (58 - 32)
+#define FPCR_DYN_CHOPPED        (0U << FPCR_DYN_SHIFT)
+#define FPCR_DYN_MINUS          (1U << FPCR_DYN_SHIFT)
+#define FPCR_DYN_NORMAL         (2U << FPCR_DYN_SHIFT)
+#define FPCR_DYN_PLUS           (3U << FPCR_DYN_SHIFT)
+#define FPCR_DYN_MASK           (3U << FPCR_DYN_SHIFT)
+#define FPCR_IOV                (1U << (57 - 32))
+#define FPCR_INE                (1U << (56 - 32))
+#define FPCR_UNF                (1U << (55 - 32))
+#define FPCR_OVF                (1U << (54 - 32))
+#define FPCR_DZE                (1U << (53 - 32))
+#define FPCR_INV                (1U << (52 - 32))
+#define FPCR_OVFD               (1U << (51 - 32))
+#define FPCR_DZED               (1U << (50 - 32))
+#define FPCR_INVD               (1U << (49 - 32))
+#define FPCR_DNZ                (1U << (48 - 32))
+#define FPCR_DNOD               (1U << (47 - 32))
+#define FPCR_STATUS_MASK        (FPCR_IOV | FPCR_INE | FPCR_UNF \
+                                 | FPCR_OVF | FPCR_DZE | FPCR_INV)
 
 /* The silly software trap enables implemented by the kernel emulation.
    These are more or less architecturally required, since the real hardware
    has read-as-zero bits in the FPCR when the features aren't implemented.
    For the purposes of QEMU, we pretend the FPCR can hold everything.  */
-#define SWCR_TRAP_ENABLE_INV	(1ULL << 1)
-#define SWCR_TRAP_ENABLE_DZE	(1ULL << 2)
-#define SWCR_TRAP_ENABLE_OVF	(1ULL << 3)
-#define SWCR_TRAP_ENABLE_UNF	(1ULL << 4)
-#define SWCR_TRAP_ENABLE_INE	(1ULL << 5)
-#define SWCR_TRAP_ENABLE_DNO	(1ULL << 6)
-#define SWCR_TRAP_ENABLE_MASK	((1ULL << 7) - (1ULL << 1))
+#define SWCR_TRAP_ENABLE_INV    (1U << 1)
+#define SWCR_TRAP_ENABLE_DZE    (1U << 2)
+#define SWCR_TRAP_ENABLE_OVF    (1U << 3)
+#define SWCR_TRAP_ENABLE_UNF    (1U << 4)
+#define SWCR_TRAP_ENABLE_INE    (1U << 5)
+#define SWCR_TRAP_ENABLE_DNO    (1U << 6)
+#define SWCR_TRAP_ENABLE_MASK   ((1U << 7) - (1U << 1))
 
-#define SWCR_MAP_DMZ		(1ULL << 12)
-#define SWCR_MAP_UMZ		(1ULL << 13)
-#define SWCR_MAP_MASK		(SWCR_MAP_DMZ | SWCR_MAP_UMZ)
+#define SWCR_MAP_DMZ            (1U << 12)
+#define SWCR_MAP_UMZ            (1U << 13)
+#define SWCR_MAP_MASK           (SWCR_MAP_DMZ | SWCR_MAP_UMZ)
 
-#define SWCR_STATUS_INV		(1ULL << 17)
-#define SWCR_STATUS_DZE		(1ULL << 18)
-#define SWCR_STATUS_OVF		(1ULL << 19)
-#define SWCR_STATUS_UNF		(1ULL << 20)
-#define SWCR_STATUS_INE		(1ULL << 21)
-#define SWCR_STATUS_DNO		(1ULL << 22)
-#define SWCR_STATUS_MASK	((1ULL << 23) - (1ULL << 17))
+#define SWCR_STATUS_INV         (1U << 17)
+#define SWCR_STATUS_DZE         (1U << 18)
+#define SWCR_STATUS_OVF         (1U << 19)
+#define SWCR_STATUS_UNF         (1U << 20)
+#define SWCR_STATUS_INE         (1U << 21)
+#define SWCR_STATUS_DNO         (1U << 22)
+#define SWCR_STATUS_MASK        ((1U << 23) - (1U << 17))
 
 #define SWCR_MASK  (SWCR_TRAP_ENABLE_MASK | SWCR_MAP_MASK | SWCR_STATUS_MASK)
 
@@ -238,14 +238,13 @@ struct CPUAlphaState {
     uint64_t lock_addr;
     uint64_t lock_st_addr;
     uint64_t lock_value;
+
+    /* The FPCR, and disassembled portions thereof.  */
+    uint32_t fpcr;
+    uint32_t fpcr_exc_enable;
     float_status fp_status;
-    /* The following fields make up the FPCR, but in FP_STATUS format.  */
-    uint8_t fpcr_exc_status;
-    uint8_t fpcr_exc_mask;
     uint8_t fpcr_dyn_round;
     uint8_t fpcr_flush_to_zero;
-    uint8_t fpcr_dnod;
-    uint8_t fpcr_undz;
 
     /* The Internal Processor Registers.  Some of these we assume always
        exist for use in user-mode.  */
@@ -429,14 +428,7 @@ void alpha_translate_init(void);
 
 AlphaCPU *cpu_alpha_init(const char *cpu_model);
 
-static inline CPUAlphaState *cpu_init(const char *cpu_model)
-{
-    AlphaCPU *cpu = cpu_alpha_init(cpu_model);
-    if (cpu == NULL) {
-        return NULL;
-    }
-    return &cpu->env;
-}
+#define cpu_init(cpu_model) CPU(cpu_alpha_init(cpu_model))
 
 void alpha_cpu_list(FILE *f, fprintf_function cpu_fprintf);
 int cpu_alpha_exec(CPUAlphaState *s);

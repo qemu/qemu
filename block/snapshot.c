@@ -246,9 +246,9 @@ int bdrv_snapshot_delete(BlockDriverState *bs,
     if (bs->file) {
         return bdrv_snapshot_delete(bs->file, snapshot_id, name, errp);
     }
-    error_set(errp, QERR_BLOCK_FORMAT_FEATURE_NOT_SUPPORTED,
-              drv->format_name, bdrv_get_device_name(bs),
-              "internal snapshot deletion");
+    error_setg(errp, "Block format '%s' used by device '%s' "
+               "does not support internal snapshot deletion",
+               drv->format_name, bdrv_get_device_name(bs));
     return -ENOTSUP;
 }
 
@@ -329,9 +329,9 @@ int bdrv_snapshot_load_tmp(BlockDriverState *bs,
     if (drv->bdrv_snapshot_load_tmp) {
         return drv->bdrv_snapshot_load_tmp(bs, snapshot_id, name, errp);
     }
-    error_set(errp, QERR_BLOCK_FORMAT_FEATURE_NOT_SUPPORTED,
-              drv->format_name, bdrv_get_device_name(bs),
-              "temporarily load internal snapshot");
+    error_setg(errp, "Block format '%s' used by device '%s' "
+               "does not support temporarily loading internal snapshots",
+               drv->format_name, bdrv_get_device_name(bs));
     return -ENOTSUP;
 }
 

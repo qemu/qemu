@@ -51,9 +51,8 @@ typedef struct DigicBoard {
 
 static void digic4_board_setup_ram(DigicBoardState *s, hwaddr ram_size)
 {
-    memory_region_init_ram(&s->ram, NULL, "ram", ram_size, &error_abort);
+    memory_region_allocate_system_memory(&s->ram, NULL, "ram", ram_size);
     memory_region_add_subregion(get_system_memory(), 0, &s->ram);
-    vmstate_register_ram_global(&s->ram);
 }
 
 static void digic4_board_init(DigicBoard *board)
@@ -65,7 +64,7 @@ static void digic4_board_init(DigicBoard *board)
     s->digic = DIGIC(object_new(TYPE_DIGIC));
     object_property_set_bool(OBJECT(s->digic), true, "realized", &err);
     if (err != NULL) {
-        error_report("Couldn't realize DIGIC SoC: %s\n",
+        error_report("Couldn't realize DIGIC SoC: %s",
                      error_get_pretty(err));
         exit(1);
     }
@@ -104,15 +103,16 @@ static void digic_load_rom(DigicBoardState *s, hwaddr addr,
         char *fn = qemu_find_file(QEMU_FILE_TYPE_BIOS, filename);
 
         if (!fn) {
-            error_report("Couldn't find rom image '%s'.\n", filename);
+            error_report("Couldn't find rom image '%s'.", filename);
             exit(1);
         }
 
         rom_size = load_image_targphys(fn, addr, max_size);
         if (rom_size < 0 || rom_size > max_size) {
-            error_report("Couldn't load rom image '%s'.\n", filename);
+            error_report("Couldn't load rom image '%s'.", filename);
             exit(1);
         }
+        g_free(fn);
     }
 }
 

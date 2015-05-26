@@ -37,6 +37,7 @@
 #include "hw/pci/pci.h"
 #include "migration/migration.h"
 #include "qapi/qmp/qerror.h"
+#include "exec/memattrs.h"
 
 //#define DEBUG_KVM
 
@@ -430,7 +431,7 @@ static void cpu_update_state(void *opaque, int running, RunState state)
 unsigned long kvm_arch_vcpu_id(CPUState *cs)
 {
     X86CPU *cpu = X86_CPU(cs);
-    return cpu->env.cpuid_apic_id;
+    return cpu->apic_id;
 }
 
 #ifndef KVM_CPUID_SIGNATURE_NEXT
@@ -840,7 +841,7 @@ static int kvm_get_supported_msrs(KVMState *s)
     return ret;
 }
 
-int kvm_arch_init(KVMState *s)
+int kvm_arch_init(MachineState *ms, KVMState *s)
 {
     uint64_t identity_base = 0xfffbc000;
     uint64_t shadow_mem;
@@ -890,8 +891,7 @@ int kvm_arch_init(KVMState *s)
     }
     qemu_register_reset(kvm_unpoison_all, NULL);
 
-    shadow_mem = qemu_opt_get_size(qemu_get_machine_opts(),
-                                   "kvm_shadow_mem", -1);
+    shadow_mem = machine_kvm_shadow_mem(ms);
     if (shadow_mem != -1) {
         shadow_mem /= 4096;
         ret = kvm_vm_ioctl(s, KVM_SET_NR_MMU_PAGES, shadow_mem);
@@ -2247,7 +2247,7 @@ void kvm_arch_pre_run(CPUState *cpu, struct kvm_run *run)
     }
 }
 
-void kvm_arch_post_run(CPUState *cpu, struct kvm_run *run)
+MemTxAttrs kvm_arch_post_run(CPUState *cpu, struct kvm_run *run)
 {
     X86CPU *x86_cpu = X86_CPU(cpu);
     CPUX86State *env = &x86_cpu->env;
@@ -2259,6 +2259,7 @@ void kvm_arch_post_run(CPUState *cpu, struct kvm_run *run)
     }
     cpu_set_apic_tpr(x86_cpu->apic_state, run->cr8);
     cpu_set_apic_base(x86_cpu->apic_state, run->apic_base);
+    return MEMTXATTRS_UNSPECIFIED;
 }
 
 int kvm_arch_process_async_events(CPUState *cs)

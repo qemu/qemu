@@ -12,25 +12,25 @@
 #include "libqos/virtio.h"
 
 uint8_t qvirtio_config_readb(const QVirtioBus *bus, QVirtioDevice *d,
-                                                                void *addr)
+                                                                uint64_t addr)
 {
     return bus->config_readb(d, addr);
 }
 
 uint16_t qvirtio_config_readw(const QVirtioBus *bus, QVirtioDevice *d,
-                                                                void *addr)
+                                                                uint64_t addr)
 {
     return bus->config_readw(d, addr);
 }
 
 uint32_t qvirtio_config_readl(const QVirtioBus *bus, QVirtioDevice *d,
-                                                                void *addr)
+                                                                uint64_t addr)
 {
     return bus->config_readl(d, addr);
 }
 
 uint64_t qvirtio_config_readq(const QVirtioBus *bus, QVirtioDevice *d,
-                                                                void *addr)
+                                                                uint64_t addr)
 {
     return bus->config_readq(d, addr);
 }

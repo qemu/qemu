@@ -552,9 +552,8 @@ static void get_real_device(AssignedDevice *pci_dev, Error **errp)
     snprintf(name, sizeof(name), "%sconfig", dir);
 
     if (pci_dev->configfd_name && *pci_dev->configfd_name) {
-        dev->config_fd = monitor_handle_fd_param2(cur_mon,
-                                                  pci_dev->configfd_name,
-                                                  &local_err);
+        dev->config_fd = monitor_fd_param(cur_mon, pci_dev->configfd_name,
+                                          &local_err);
         if (local_err) {
             error_propagate(errp, local_err);
             return;
@@ -953,8 +952,7 @@ static void assigned_dev_update_irq_routing(PCIDevice *dev)
 
     r = assign_intx(assigned_dev, &err);
     if (r < 0) {
-        error_report("%s", error_get_pretty(err));
-        error_free(err);
+        error_report_err(err);
         err = NULL;
         qdev_unplug(&dev->qdev, &err);
         assert(!err);
@@ -1010,8 +1008,7 @@ static void assigned_dev_update_msi(PCIDevice *pci_dev)
 
         assign_intx(assigned_dev, &local_err);
         if (local_err) {
-            error_report("%s", error_get_pretty(local_err));
-            error_free(local_err);
+            error_report_err(local_err);
         }
     }
 }
@@ -1158,8 +1155,7 @@ static void assigned_dev_update_msix(PCIDevice *pci_dev)
 
         assign_intx(assigned_dev, &local_err);
         if (local_err) {
-            error_report("%s", error_get_pretty(local_err));
-            error_free(local_err);
+            error_report_err(local_err);
         }
     }
 }
@@ -1742,7 +1738,7 @@ static void reset_assigned_device(DeviceState *dev)
     assigned_dev_pci_write_config(pci_dev, PCI_COMMAND, 0, 1);
 }
 
-static int assigned_initfn(struct PCIDevice *pci_dev)
+static void assigned_realize(struct PCIDevice *pci_dev, Error **errp)
 {
     AssignedDevice *dev = DO_UPCAST(AssignedDevice, dev, pci_dev);
     uint8_t e_intx;
@@ -1825,7 +1821,7 @@ static int assigned_initfn(struct PCIDevice *pci_dev)
 
     assigned_dev_load_option_rom(dev);
 
-    return 0;
+    return;
 
 assigned_out:
     deassign_device(dev);
@@ -1835,9 +1831,7 @@ out:
 
 exit_with_error:
     assert(local_err);
-    qerror_report_err(local_err);
-    error_free(local_err);
-    return -1;
+    error_propagate(errp, local_err);
 }
 
 static void assigned_exitfn(struct PCIDevice *pci_dev)
@@ -1873,7 +1867,7 @@ static void assign_class_init(ObjectClass *klass, void *data)
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
     DeviceClass *dc = DEVICE_CLASS(klass);
 
-    k->init         = assigned_initfn;
+    k->realize      = assigned_realize;
     k->exit         = assigned_exitfn;
     k->config_read  = assigned_dev_pci_read_config;
     k->config_write = assigned_dev_pci_write_config;

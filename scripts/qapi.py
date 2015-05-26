@@ -2,7 +2,7 @@
 # QAPI helper library
 #
 # Copyright IBM, Corp. 2011
-# Copyright (c) 2013 Red Hat Inc.
+# Copyright (c) 2013-2015 Red Hat Inc.
 #
 # Authors:
 #  Anthony Liguori <aliguori@us.ibm.com>
@@ -13,16 +13,13 @@
 
 import re
 from ordereddict import OrderedDict
+import errno
+import getopt
 import os
 import sys
+import string
 
-builtin_types = [
-    'str', 'int', 'number', 'bool',
-    'int8', 'int16', 'int32', 'int64',
-    'uint8', 'uint16', 'uint32', 'uint64'
-]
-
-builtin_type_qtypes = {
+builtin_types = {
     'str':      'QTYPE_QSTRING',
     'int':      'QTYPE_QINT',
     'number':   'QTYPE_QFLOAT',
@@ -35,7 +32,38 @@ builtin_type_qtypes = {
     'uint16':   'QTYPE_QINT',
     'uint32':   'QTYPE_QINT',
     'uint64':   'QTYPE_QINT',
+    'size':     'QTYPE_QINT',
 }
+
+# Whitelist of commands allowed to return a non-dictionary
+returns_whitelist = [
+    # From QMP:
+    'human-monitor-command',
+    'query-migrate-cache-size',
+    'query-tpm-models',
+    'query-tpm-types',
+    'ringbuf-read',
+
+    # From QGA:
+    'guest-file-open',
+    'guest-fsfreeze-freeze',
+    'guest-fsfreeze-freeze-list',
+    'guest-fsfreeze-status',
+    'guest-fsfreeze-thaw',
+    'guest-get-time',
+    'guest-set-vcpus',
+    'guest-sync',
+    'guest-sync-delimited',
+
+    # From qapi-schema-test:
+    'user_def_cmd3',
+]
+
+enum_types = []
+struct_types = []
+union_types = []
+events = []
+all_names = {}
 
 def error_path(parent):
     res = ""
@@ -148,7 +176,41 @@ class QAPISchema:
                         raise QAPISchemaError(self,
                                               'Missing terminating "\'"')
                     if esc:
-                        string += ch
+                        if ch == 'b':
+                            string += '\b'
+                        elif ch == 'f':
+                            string += '\f'
+                        elif ch == 'n':
+                            string += '\n'
+                        elif ch == 'r':
+                            string += '\r'
+                        elif ch == 't':
+                            string += '\t'
+                        elif ch == 'u':
+                            value = 0
+                            for x in range(0, 4):
+                                ch = self.src[self.cursor]
+                                self.cursor += 1
+                                if ch not in "0123456789abcdefABCDEF":
+                                    raise QAPISchemaError(self,
+                                                          '\\u escape needs 4 '
+                                                          'hex digits')
+                                value = (value << 4) + int(ch, 16)
+                            # If Python 2 and 3 didn't disagree so much on
+                            # how to handle Unicode, then we could allow
+                            # Unicode string defaults.  But most of QAPI is
+                            # ASCII-only, so we aren't losing much for now.
+                            if not value or value > 0x7f:
+                                raise QAPISchemaError(self,
+                                                      'For now, \\u escape '
+                                                      'only supports non-zero '
+                                                      'values up to \\u007f')
+                            string += chr(value)
+                        elif ch in "\\/'\"":
+                            string += ch
+                        else:
+                            raise QAPISchemaError(self,
+                                                  "Unknown escape \\%s" %ch)
                         esc = False
                     elif ch == "\\":
                         esc = True
@@ -157,6 +219,20 @@ class QAPISchema:
                         return
                     else:
                         string += ch
+            elif self.tok in "tfn":
+                val = self.src[self.cursor - 1:]
+                if val.startswith("true"):
+                    self.val = True
+                    self.cursor += 3
+                    return
+                elif val.startswith("false"):
+                    self.val = False
+                    self.cursor += 4
+                    return
+                elif val.startswith("null"):
+                    self.val = None
+                    self.cursor += 3
+                    return
             elif self.tok == '\n':
                 if self.cursor == len(self.src):
                     self.tok = None
@@ -196,8 +272,9 @@ class QAPISchema:
         if self.tok == ']':
             self.accept()
             return expr
-        if not self.tok in [ '{', '[', "'" ]:
-            raise QAPISchemaError(self, 'Expected "{", "[", "]" or string')
+        if not self.tok in "{['tfn":
+            raise QAPISchemaError(self, 'Expected "{", "[", "]", string, '
+                                  'boolean or "null"')
         while True:
             expr.append(self.get_expr(True))
             if self.tok == ']':
@@ -216,7 +293,7 @@ class QAPISchema:
         elif self.tok == '[':
             self.accept()
             expr = self.get_values()
-        elif self.tok == "'":
+        elif self.tok in "'tfn":
             expr = self.val
             self.accept()
         else:
@@ -228,6 +305,18 @@ def find_base_fields(base):
     if not base_struct_define:
         return None
     return base_struct_define['data']
+
+# Return the qtype of an alternate branch, or None on error.
+def find_alternate_member_qtype(qapi_type):
+    if builtin_types.has_key(qapi_type):
+        return builtin_types[qapi_type]
+    elif find_struct(qapi_type):
+        return "QTYPE_QDICT"
+    elif find_enum(qapi_type):
+        return "QTYPE_QSTRING"
+    elif find_union(qapi_type):
+        return "QTYPE_QDICT"
+    return None
 
 # Return the discriminator enum define if discriminator is specified as an
 # enum type, otherwise return None.
@@ -248,56 +337,178 @@ def discriminator_find_enum_define(expr):
 
     return find_enum(discriminator_type)
 
+valid_name = re.compile('^[a-zA-Z_][a-zA-Z0-9_.-]*$')
+def check_name(expr_info, source, name, allow_optional = False,
+               enum_member = False):
+    global valid_name
+    membername = name
+
+    if not isinstance(name, str):
+        raise QAPIExprError(expr_info,
+                            "%s requires a string name" % source)
+    if name.startswith('*'):
+        membername = name[1:]
+        if not allow_optional:
+            raise QAPIExprError(expr_info,
+                                "%s does not allow optional name '%s'"
+                                % (source, name))
+    # Enum members can start with a digit, because the generated C
+    # code always prefixes it with the enum name
+    if enum_member:
+        membername = '_' + membername
+    if not valid_name.match(membername):
+        raise QAPIExprError(expr_info,
+                            "%s uses invalid name '%s'" % (source, name))
+
+def check_type(expr_info, source, value, allow_array = False,
+               allow_dict = False, allow_optional = False,
+               allow_star = False, allow_metas = []):
+    global all_names
+    orig_value = value
+
+    if value is None:
+        return
+
+    if allow_star and value == '**':
+        return
+
+    # Check if array type for value is okay
+    if isinstance(value, list):
+        if not allow_array:
+            raise QAPIExprError(expr_info,
+                                "%s cannot be an array" % source)
+        if len(value) != 1 or not isinstance(value[0], str):
+            raise QAPIExprError(expr_info,
+                                "%s: array type must contain single type name"
+                                % source)
+        value = value[0]
+        orig_value = "array of %s" %value
+
+    # Check if type name for value is okay
+    if isinstance(value, str):
+        if value == '**':
+            raise QAPIExprError(expr_info,
+                                "%s uses '**' but did not request 'gen':false"
+                                % source)
+        if not value in all_names:
+            raise QAPIExprError(expr_info,
+                                "%s uses unknown type '%s'"
+                                % (source, orig_value))
+        if not all_names[value] in allow_metas:
+            raise QAPIExprError(expr_info,
+                                "%s cannot use %s type '%s'"
+                                % (source, all_names[value], orig_value))
+        return
+
+    # value is a dictionary, check that each member is okay
+    if not isinstance(value, OrderedDict):
+        raise QAPIExprError(expr_info,
+                            "%s should be a dictionary" % source)
+    if not allow_dict:
+        raise QAPIExprError(expr_info,
+                            "%s should be a type name" % source)
+    for (key, arg) in value.items():
+        check_name(expr_info, "Member of %s" % source, key,
+                   allow_optional=allow_optional)
+        # Todo: allow dictionaries to represent default values of
+        # an optional argument.
+        check_type(expr_info, "Member '%s' of %s" % (key, source), arg,
+                   allow_array=True, allow_star=allow_star,
+                   allow_metas=['built-in', 'union', 'alternate', 'struct',
+                                'enum'])
+
+def check_member_clash(expr_info, base_name, data, source = ""):
+    base = find_struct(base_name)
+    assert base
+    base_members = base['data']
+    for key in data.keys():
+        if key.startswith('*'):
+            key = key[1:]
+        if key in base_members or "*" + key in base_members:
+            raise QAPIExprError(expr_info,
+                                "Member name '%s'%s clashes with base '%s'"
+                                % (key, source, base_name))
+    if base.get('base'):
+        check_member_clash(expr_info, base['base'], data, source)
+
+def check_command(expr, expr_info):
+    name = expr['command']
+    allow_star = expr.has_key('gen')
+
+    check_type(expr_info, "'data' for command '%s'" % name,
+               expr.get('data'), allow_dict=True, allow_optional=True,
+               allow_metas=['union', 'struct'], allow_star=allow_star)
+    returns_meta = ['union', 'struct']
+    if name in returns_whitelist:
+        returns_meta += ['built-in', 'alternate', 'enum']
+    check_type(expr_info, "'returns' for command '%s'" % name,
+               expr.get('returns'), allow_array=True, allow_dict=True,
+               allow_optional=True, allow_metas=returns_meta,
+               allow_star=allow_star)
+
 def check_event(expr, expr_info):
+    global events
+    name = expr['event']
     params = expr.get('data')
-    if params:
-        for argname, argentry, optional, structured in parse_args(params):
-            if structured:
-                raise QAPIExprError(expr_info,
-                                    "Nested structure define in event is not "
-                                    "supported, event '%s', argname '%s'"
-                                    % (expr['event'], argname))
+
+    if name.upper() == 'MAX':
+        raise QAPIExprError(expr_info, "Event name 'MAX' cannot be created")
+    events.append(name)
+    check_type(expr_info, "'data' for event '%s'" % name,
+               expr.get('data'), allow_dict=True, allow_optional=True,
+               allow_metas=['union', 'struct'])
 
 def check_union(expr, expr_info):
     name = expr['union']
     base = expr.get('base')
     discriminator = expr.get('discriminator')
     members = expr['data']
+    values = { 'MAX': '(automatic)' }
 
-    # If the object has a member 'base', its value must name a complex type.
-    if base:
-        base_fields = find_base_fields(base)
-        if not base_fields:
+    # If the object has a member 'base', its value must name a struct,
+    # and there must be a discriminator.
+    if base is not None:
+        if discriminator is None:
             raise QAPIExprError(expr_info,
-                                "Base '%s' is not a valid type"
-                                % base)
+                                "Union '%s' requires a discriminator to go "
+                                "along with base" %name)
 
-    # If the union object has no member 'discriminator', it's an
-    # ordinary union.
-    if not discriminator:
-        enum_define = None
+    # Two types of unions, determined by discriminator.
 
-    # Else if the value of member 'discriminator' is {}, it's an
-    # anonymous union.
-    elif discriminator == {}:
+    # With no discriminator it is a simple union.
+    if discriminator is None:
         enum_define = None
+        allow_metas=['built-in', 'union', 'alternate', 'struct', 'enum']
+        if base is not None:
+            raise QAPIExprError(expr_info,
+                                "Simple union '%s' must not have a base"
+                                % name)
 
     # Else, it's a flat union.
     else:
-        # The object must have a member 'base'.
-        if not base:
+        # The object must have a string member 'base'.
+        if not isinstance(base, str):
             raise QAPIExprError(expr_info,
-                                "Flat union '%s' must have a base field"
+                                "Flat union '%s' must have a string base field"
                                 % name)
-        # The value of member 'discriminator' must name a member of the
-        # base type.
+        base_fields = find_base_fields(base)
+        if not base_fields:
+            raise QAPIExprError(expr_info,
+                                "Base '%s' is not a valid struct"
+                                % base)
+
+        # The value of member 'discriminator' must name a non-optional
+        # member of the base struct.
+        check_name(expr_info, "Discriminator of flat union '%s'" % name,
+                   discriminator)
         discriminator_type = base_fields.get(discriminator)
         if not discriminator_type:
             raise QAPIExprError(expr_info,
                                 "Discriminator '%s' is not a member of base "
-                                "type '%s'"
+                                "struct '%s'"
                                 % (discriminator, base))
         enum_define = find_enum(discriminator_type)
+        allow_metas=['struct']
         # Do not allow string discriminator
         if not enum_define:
             raise QAPIExprError(expr_info,
@@ -306,51 +517,196 @@ def check_union(expr, expr_info):
 
     # Check every branch
     for (key, value) in members.items():
-        # If this named member's value names an enum type, then all members
+        check_name(expr_info, "Member of union '%s'" % name, key)
+
+        # Each value must name a known type; furthermore, in flat unions,
+        # branches must be a struct with no overlapping member names
+        check_type(expr_info, "Member '%s' of union '%s'" % (key, name),
+                   value, allow_array=True, allow_metas=allow_metas)
+        if base:
+            branch_struct = find_struct(value)
+            assert branch_struct
+            check_member_clash(expr_info, base, branch_struct['data'],
+                               " of branch '%s'" % key)
+
+        # If the discriminator names an enum type, then all members
         # of 'data' must also be members of the enum type.
-        if enum_define and not key in enum_define['enum_values']:
+        if enum_define:
+            if not key in enum_define['enum_values']:
+                raise QAPIExprError(expr_info,
+                                    "Discriminator value '%s' is not found in "
+                                    "enum '%s'" %
+                                    (key, enum_define["enum_name"]))
+
+        # Otherwise, check for conflicts in the generated enum
+        else:
+            c_key = camel_to_upper(key)
+            if c_key in values:
+                raise QAPIExprError(expr_info,
+                                    "Union '%s' member '%s' clashes with '%s'"
+                                    % (name, key, values[c_key]))
+            values[c_key] = key
+
+def check_alternate(expr, expr_info):
+    name = expr['alternate']
+    members = expr['data']
+    values = { 'MAX': '(automatic)' }
+    types_seen = {}
+
+    # Check every branch
+    for (key, value) in members.items():
+        check_name(expr_info, "Member of alternate '%s'" % name, key)
+
+        # Check for conflicts in the generated enum
+        c_key = camel_to_upper(key)
+        if c_key in values:
             raise QAPIExprError(expr_info,
-                                "Discriminator value '%s' is not found in "
-                                "enum '%s'" %
-                                (key, enum_define["enum_name"]))
-        # Todo: add checking for values. Key is checked as above, value can be
-        # also checked here, but we need more functions to handle array case.
+                                "Alternate '%s' member '%s' clashes with '%s'"
+                                % (name, key, values[c_key]))
+        values[c_key] = key
+
+        # Ensure alternates have no type conflicts.
+        check_type(expr_info, "Member '%s' of alternate '%s'" % (key, name),
+                   value,
+                   allow_metas=['built-in', 'union', 'struct', 'enum'])
+        qtype = find_alternate_member_qtype(value)
+        assert qtype
+        if qtype in types_seen:
+            raise QAPIExprError(expr_info,
+                                "Alternate '%s' member '%s' can't "
+                                "be distinguished from member '%s'"
+                                % (name, key, types_seen[qtype]))
+        types_seen[qtype] = key
+
+def check_enum(expr, expr_info):
+    name = expr['enum']
+    members = expr.get('data')
+    values = { 'MAX': '(automatic)' }
+
+    if not isinstance(members, list):
+        raise QAPIExprError(expr_info,
+                            "Enum '%s' requires an array for 'data'" % name)
+    for member in members:
+        check_name(expr_info, "Member of enum '%s'" %name, member,
+                   enum_member=True)
+        key = camel_to_upper(member)
+        if key in values:
+            raise QAPIExprError(expr_info,
+                                "Enum '%s' member '%s' clashes with '%s'"
+                                % (name, member, values[key]))
+        values[key] = member
+
+def check_struct(expr, expr_info):
+    name = expr['struct']
+    members = expr['data']
+
+    check_type(expr_info, "'data' for struct '%s'" % name, members,
+               allow_dict=True, allow_optional=True)
+    check_type(expr_info, "'base' for struct '%s'" % name, expr.get('base'),
+               allow_metas=['struct'])
+    if expr.get('base'):
+        check_member_clash(expr_info, expr['base'], expr['data'])
 
 def check_exprs(schema):
     for expr_elem in schema.exprs:
         expr = expr_elem['expr']
-        if expr.has_key('union'):
-            check_union(expr, expr_elem['info'])
-        if expr.has_key('event'):
-            check_event(expr, expr_elem['info'])
+        info = expr_elem['info']
+
+        if expr.has_key('enum'):
+            check_enum(expr, info)
+        elif expr.has_key('union'):
+            check_union(expr, info)
+        elif expr.has_key('alternate'):
+            check_alternate(expr, info)
+        elif expr.has_key('struct'):
+            check_struct(expr, info)
+        elif expr.has_key('command'):
+            check_command(expr, info)
+        elif expr.has_key('event'):
+            check_event(expr, info)
+        else:
+            assert False, 'unexpected meta type'
+
+def check_keys(expr_elem, meta, required, optional=[]):
+    expr = expr_elem['expr']
+    info = expr_elem['info']
+    name = expr[meta]
+    if not isinstance(name, str):
+        raise QAPIExprError(info,
+                            "'%s' key must have a string value" % meta)
+    required = required + [ meta ]
+    for (key, value) in expr.items():
+        if not key in required and not key in optional:
+            raise QAPIExprError(info,
+                                "Unknown key '%s' in %s '%s'"
+                                % (key, meta, name))
+        if (key == 'gen' or key == 'success-response') and value != False:
+            raise QAPIExprError(info,
+                                "'%s' of %s '%s' should only use false value"
+                                % (key, meta, name))
+    for key in required:
+        if not expr.has_key(key):
+            raise QAPIExprError(info,
+                                "Key '%s' is missing from %s '%s'"
+                                % (key, meta, name))
+
 
 def parse_schema(input_file):
+    global all_names
+    exprs = []
+
+    # First pass: read entire file into memory
     try:
         schema = QAPISchema(open(input_file, "r"))
     except (QAPISchemaError, QAPIExprError), e:
         print >>sys.stderr, e
         exit(1)
 
-    exprs = []
-
-    for expr_elem in schema.exprs:
-        expr = expr_elem['expr']
-        if expr.has_key('enum'):
-            add_enum(expr['enum'], expr['data'])
-        elif expr.has_key('union'):
-            add_union(expr)
-        elif expr.has_key('type'):
-            add_struct(expr)
-        exprs.append(expr)
-
-    # Try again for hidden UnionKind enum
-    for expr_elem in schema.exprs:
-        expr = expr_elem['expr']
-        if expr.has_key('union'):
-            if not discriminator_find_enum_define(expr):
-                add_enum('%sKind' % expr['union'])
-
     try:
+        # Next pass: learn the types and check for valid expression keys. At
+        # this point, top-level 'include' has already been flattened.
+        for builtin in builtin_types.keys():
+            all_names[builtin] = 'built-in'
+        for expr_elem in schema.exprs:
+            expr = expr_elem['expr']
+            info = expr_elem['info']
+            if expr.has_key('enum'):
+                check_keys(expr_elem, 'enum', ['data'])
+                add_enum(expr['enum'], info, expr['data'])
+            elif expr.has_key('union'):
+                check_keys(expr_elem, 'union', ['data'],
+                           ['base', 'discriminator'])
+                add_union(expr, info)
+            elif expr.has_key('alternate'):
+                check_keys(expr_elem, 'alternate', ['data'])
+                add_name(expr['alternate'], info, 'alternate')
+            elif expr.has_key('struct'):
+                check_keys(expr_elem, 'struct', ['data'], ['base'])
+                add_struct(expr, info)
+            elif expr.has_key('command'):
+                check_keys(expr_elem, 'command', [],
+                           ['data', 'returns', 'gen', 'success-response'])
+                add_name(expr['command'], info, 'command')
+            elif expr.has_key('event'):
+                check_keys(expr_elem, 'event', [], ['data'])
+                add_name(expr['event'], info, 'event')
+            else:
+                raise QAPIExprError(expr_elem['info'],
+                                    "Expression is missing metatype")
+            exprs.append(expr)
+
+        # Try again for hidden UnionKind enum
+        for expr_elem in schema.exprs:
+            expr = expr_elem['expr']
+            if expr.has_key('union'):
+                if not discriminator_find_enum_define(expr):
+                    add_enum('%sKind' % expr['union'], expr_elem['info'],
+                             implicit=True)
+            elif expr.has_key('alternate'):
+                add_enum('%sKind' % expr['alternate'], expr_elem['info'],
+                         implicit=True)
+
+        # Final pass - validate that exprs make sense
         check_exprs(schema)
     except QAPIExprError, e:
         print >>sys.stderr, e
@@ -359,7 +715,7 @@ def parse_schema(input_file):
     return exprs
 
 def parse_args(typeinfo):
-    if isinstance(typeinfo, basestring):
+    if isinstance(typeinfo, str):
         struct = find_struct(typeinfo)
         assert struct != None
         typeinfo = struct['data']
@@ -368,24 +724,12 @@ def parse_args(typeinfo):
         argname = member
         argentry = typeinfo[member]
         optional = False
-        structured = False
         if member.startswith('*'):
             argname = member[1:]
             optional = True
-        if isinstance(argentry, OrderedDict):
-            structured = True
-        yield (argname, argentry, optional, structured)
-
-def de_camel_case(name):
-    new_name = ''
-    for ch in name:
-        if ch.isupper() and new_name:
-            new_name += '_'
-        if ch == '-':
-            new_name += '_'
-        else:
-            new_name += ch.lower()
-    return new_name
+        # Todo: allow argentry to be OrderedDict, for providing the
+        # value of an optional argument.
+        yield (argname, argentry, optional)
 
 def camel_case(name):
     new_name = ''
@@ -400,7 +744,43 @@ def camel_case(name):
             new_name += ch.lower()
     return new_name
 
-def c_var(name, protect=True):
+# ENUMName -> ENUM_NAME, EnumName1 -> ENUM_NAME1
+# ENUM_NAME -> ENUM_NAME, ENUM_NAME1 -> ENUM_NAME1, ENUM_Name2 -> ENUM_NAME2
+# ENUM24_Name -> ENUM24_NAME
+def camel_to_upper(value):
+    c_fun_str = c_name(value, False)
+    if value.isupper():
+        return c_fun_str
+
+    new_name = ''
+    l = len(c_fun_str)
+    for i in range(l):
+        c = c_fun_str[i]
+        # When c is upper and no "_" appears before, do more checks
+        if c.isupper() and (i > 0) and c_fun_str[i - 1] != "_":
+            # Case 1: next string is lower
+            # Case 2: previous string is digit
+            if (i < (l - 1) and c_fun_str[i + 1].islower()) or \
+            c_fun_str[i - 1].isdigit():
+                new_name += '_'
+        new_name += c
+    return new_name.lstrip('_').upper()
+
+def c_enum_const(type_name, const_name):
+    return camel_to_upper(type_name + '_' + const_name)
+
+c_name_trans = string.maketrans('.-', '__')
+
+# Map @name to a valid C identifier.
+# If @protect, avoid returning certain ticklish identifiers (like
+# C keywords) by prepending "q_".
+#
+# Used for converting 'name' from a 'name':'type' qapi definition
+# into a generated struct member, as well as converting type names
+# into substrings of a generated C function name.
+# '__a.b_c' -> '__a_b_c', 'x-foo' -> 'x_foo'
+# protect=True: 'int' -> 'q_int'; protect=False: 'int' -> 'int'
+def c_name(name, protect=True):
     # ANSI X3J11/88-090, 3.1.1
     c89_words = set(['auto', 'break', 'case', 'char', 'const', 'continue',
                      'default', 'do', 'double', 'else', 'enum', 'extern', 'float',
@@ -429,36 +809,58 @@ def c_var(name, protect=True):
     polluted_words = set(['unix', 'errno'])
     if protect and (name in c89_words | c99_words | c11_words | gcc_words | cpp_words | polluted_words):
         return "q_" + name
-    return name.replace('-', '_').lstrip("*")
+    return name.translate(c_name_trans)
 
-def c_fun(name, protect=True):
-    return c_var(name, protect).replace('.', '_')
-
+# Map type @name to the C typedef name for the list form.
+#
+# ['Name'] -> 'NameList', ['x-Foo'] -> 'x_FooList', ['int'] -> 'intList'
 def c_list_type(name):
-    return '%sList' % name
+    return type_name(name) + 'List'
 
-def type_name(name):
-    if type(name) == list:
-        return c_list_type(name[0])
-    return name
+# Map type @value to the C typedef form.
+#
+# Used for converting 'type' from a 'member':'type' qapi definition
+# into the alphanumeric portion of the type for a generated C parameter,
+# as well as generated C function names.  See c_type() for the rest of
+# the conversion such as adding '*' on pointer types.
+# 'int' -> 'int', '[x-Foo]' -> 'x_FooList', '__a.b_c' -> '__a_b_c'
+def type_name(value):
+    if type(value) == list:
+        return c_list_type(value[0])
+    if value in builtin_types.keys():
+        return value
+    return c_name(value)
 
-enum_types = []
-struct_types = []
-union_types = []
+def add_name(name, info, meta, implicit = False):
+    global all_names
+    check_name(info, "'%s'" % meta, name)
+    if name in all_names:
+        raise QAPIExprError(info,
+                            "%s '%s' is already defined"
+                            % (all_names[name], name))
+    if not implicit and name[-4:] == 'Kind':
+        raise QAPIExprError(info,
+                            "%s '%s' should not end in 'Kind'"
+                            % (meta, name))
+    all_names[name] = meta
 
-def add_struct(definition):
+def add_struct(definition, info):
     global struct_types
+    name = definition['struct']
+    add_name(name, info, 'struct')
     struct_types.append(definition)
 
 def find_struct(name):
     global struct_types
     for struct in struct_types:
-        if struct['type'] == name:
+        if struct['struct'] == name:
             return struct
     return None
 
-def add_union(definition):
+def add_union(definition, info):
     global union_types
+    name = definition['union']
+    add_name(name, info, 'union')
     union_types.append(definition)
 
 def find_union(name):
@@ -468,8 +870,9 @@ def find_union(name):
             return union
     return None
 
-def add_enum(name, enum_values = None):
+def add_enum(name, info, enum_values = None, implicit = False):
     global enum_types
+    add_name(name, info, 'enum', implicit)
     enum_types.append({"enum_name": name, "enum_values": enum_values})
 
 def find_enum(name):
@@ -483,42 +886,48 @@ def is_enum(name):
     return find_enum(name) != None
 
 eatspace = '\033EATSPACE.'
+pointer_suffix = ' *' + eatspace
 
+# Map type @name to its C type expression.
+# If @is_param, const-qualify the string type.
+#
+# This function is used for computing the full C type of 'member':'name'.
 # A special suffix is added in c_type() for pointer types, and it's
 # stripped in mcgen(). So please notice this when you check the return
 # value of c_type() outside mcgen().
-def c_type(name, is_param=False):
-    if name == 'str':
+def c_type(value, is_param=False):
+    if value == 'str':
         if is_param:
-            return 'const char *' + eatspace
-        return 'char *' + eatspace
+            return 'const char' + pointer_suffix
+        return 'char' + pointer_suffix
 
-    elif name == 'int':
+    elif value == 'int':
         return 'int64_t'
-    elif (name == 'int8' or name == 'int16' or name == 'int32' or
-          name == 'int64' or name == 'uint8' or name == 'uint16' or
-          name == 'uint32' or name == 'uint64'):
-        return name + '_t'
-    elif name == 'size':
+    elif (value == 'int8' or value == 'int16' or value == 'int32' or
+          value == 'int64' or value == 'uint8' or value == 'uint16' or
+          value == 'uint32' or value == 'uint64'):
+        return value + '_t'
+    elif value == 'size':
         return 'uint64_t'
-    elif name == 'bool':
+    elif value == 'bool':
         return 'bool'
-    elif name == 'number':
+    elif value == 'number':
         return 'double'
-    elif type(name) == list:
-        return '%s *%s' % (c_list_type(name[0]), eatspace)
-    elif is_enum(name):
-        return name
-    elif name == None or len(name) == 0:
+    elif type(value) == list:
+        return c_list_type(value[0]) + pointer_suffix
+    elif is_enum(value):
+        return c_name(value)
+    elif value == None:
         return 'void'
-    elif name == name.upper():
-        return '%sEvent *%s' % (camel_case(name), eatspace)
+    elif value in events:
+        return camel_case(value) + 'Event' + pointer_suffix
     else:
-        return '%s *%s' % (name, eatspace)
+        # complex type name
+        assert isinstance(value, str) and value != ""
+        return c_name(value) + pointer_suffix
 
-def is_c_ptr(name):
-    suffix = "*" + eatspace
-    return c_type(name).endswith(suffix)
+def is_c_ptr(value):
+    return c_type(value).endswith(pointer_suffix)
 
 def genindent(count):
     ret = ""
@@ -572,29 +981,88 @@ def guardend(name):
 ''',
                  name=guardname(name))
 
-# ENUMName -> ENUM_NAME, EnumName1 -> ENUM_NAME1
-# ENUM_NAME -> ENUM_NAME, ENUM_NAME1 -> ENUM_NAME1, ENUM_Name2 -> ENUM_NAME2
-# ENUM24_Name -> ENUM24_NAME
-def _generate_enum_string(value):
-    c_fun_str = c_fun(value, False)
-    if value.isupper():
-        return c_fun_str
+def parse_command_line(extra_options = "", extra_long_options = []):
 
-    new_name = ''
-    l = len(c_fun_str)
-    for i in range(l):
-        c = c_fun_str[i]
-        # When c is upper and no "_" appears before, do more checks
-        if c.isupper() and (i > 0) and c_fun_str[i - 1] != "_":
-            # Case 1: next string is lower
-            # Case 2: previous string is digit
-            if (i < (l - 1) and c_fun_str[i + 1].islower()) or \
-            c_fun_str[i - 1].isdigit():
-                new_name += '_'
-        new_name += c
-    return new_name.lstrip('_').upper()
+    try:
+        opts, args = getopt.gnu_getopt(sys.argv[1:],
+                                       "chp:o:" + extra_options,
+                                       ["source", "header", "prefix=",
+                                        "output-dir="] + extra_long_options)
+    except getopt.GetoptError, err:
+        print >>sys.stderr, "%s: %s" % (sys.argv[0], str(err))
+        sys.exit(1)
 
-def generate_enum_full_value(enum_name, enum_value):
-    abbrev_string = _generate_enum_string(enum_name)
-    value_string = _generate_enum_string(enum_value)
-    return "%s_%s" % (abbrev_string, value_string)
+    output_dir = ""
+    prefix = ""
+    do_c = False
+    do_h = False
+    extra_opts = []
+
+    for oa in opts:
+        o, a = oa
+        if o in ("-p", "--prefix"):
+            prefix = a
+        elif o in ("-o", "--output-dir"):
+            output_dir = a + "/"
+        elif o in ("-c", "--source"):
+            do_c = True
+        elif o in ("-h", "--header"):
+            do_h = True
+        else:
+            extra_opts.append(oa)
+
+    if not do_c and not do_h:
+        do_c = True
+        do_h = True
+
+    if len(args) != 1:
+        print >>sys.stderr, "%s: need exactly one argument" % sys.argv[0]
+        sys.exit(1)
+    input_file = args[0]
+
+    return (input_file, output_dir, do_c, do_h, prefix, extra_opts)
+
+def open_output(output_dir, do_c, do_h, prefix, c_file, h_file,
+                c_comment, h_comment):
+    c_file = output_dir + prefix + c_file
+    h_file = output_dir + prefix + h_file
+
+    try:
+        os.makedirs(output_dir)
+    except os.error, e:
+        if e.errno != errno.EEXIST:
+            raise
+
+    def maybe_open(really, name, opt):
+        if really:
+            return open(name, opt)
+        else:
+            import StringIO
+            return StringIO.StringIO()
+
+    fdef = maybe_open(do_c, c_file, 'w')
+    fdecl = maybe_open(do_h, h_file, 'w')
+
+    fdef.write(mcgen('''
+/* AUTOMATICALLY GENERATED, DO NOT MODIFY */
+%(comment)s
+''',
+                     comment = c_comment))
+
+    fdecl.write(mcgen('''
+/* AUTOMATICALLY GENERATED, DO NOT MODIFY */
+%(comment)s
+#ifndef %(guard)s
+#define %(guard)s
+
+''',
+                      comment = h_comment, guard = guardname(h_file)))
+
+    return (fdef, fdecl)
+
+def close_output(fdef, fdecl):
+    fdecl.write('''
+#endif
+''')
+    fdecl.close()
+    fdef.close()

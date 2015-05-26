@@ -23,10 +23,13 @@
 #include "cpu.h"
 #include "internals.h"
 #include "hw/arm/arm.h"
+#include "exec/memattrs.h"
 
 const KVMCapabilityInfo kvm_arch_required_capabilities[] = {
     KVM_CAP_LAST_INFO
 };
+
+static bool cap_has_mp_state;
 
 int kvm_arm_vcpu_init(CPUState *cs)
 {
@@ -150,12 +153,14 @@ static const TypeInfo host_arm_cpu_type_info = {
     .class_size = sizeof(ARMHostCPUClass),
 };
 
-int kvm_arch_init(KVMState *s)
+int kvm_arch_init(MachineState *ms, KVMState *s)
 {
     /* For ARM interrupt delivery is always asynchronous,
      * whether we are using an in-kernel VGIC or not.
      */
     kvm_async_interrupts_allowed = true;
+
+    cap_has_mp_state = kvm_check_extension(s, KVM_CAP_MP_STATE);
 
     type_register_static(&host_arm_cpu_type_info);
 
@@ -458,12 +463,53 @@ void kvm_arm_reset_vcpu(ARMCPU *cpu)
     }
 }
 
+/*
+ * Update KVM's MP_STATE based on what QEMU thinks it is
+ */
+int kvm_arm_sync_mpstate_to_kvm(ARMCPU *cpu)
+{
+    if (cap_has_mp_state) {
+        struct kvm_mp_state mp_state = {
+            .mp_state =
+            cpu->powered_off ? KVM_MP_STATE_STOPPED : KVM_MP_STATE_RUNNABLE
+        };
+        int ret = kvm_vcpu_ioctl(CPU(cpu), KVM_SET_MP_STATE, &mp_state);
+        if (ret) {
+            fprintf(stderr, "%s: failed to set MP_STATE %d/%s\n",
+                    __func__, ret, strerror(-ret));
+            return -1;
+        }
+    }
+
+    return 0;
+}
+
+/*
+ * Sync the KVM MP_STATE into QEMU
+ */
+int kvm_arm_sync_mpstate_to_qemu(ARMCPU *cpu)
+{
+    if (cap_has_mp_state) {
+        struct kvm_mp_state mp_state;
+        int ret = kvm_vcpu_ioctl(CPU(cpu), KVM_GET_MP_STATE, &mp_state);
+        if (ret) {
+            fprintf(stderr, "%s: failed to get MP_STATE %d/%s\n",
+                    __func__, ret, strerror(-ret));
+            abort();
+        }
+        cpu->powered_off = (mp_state.mp_state == KVM_MP_STATE_STOPPED);
+    }
+
+    return 0;
+}
+
 void kvm_arch_pre_run(CPUState *cs, struct kvm_run *run)
 {
 }
 
-void kvm_arch_post_run(CPUState *cs, struct kvm_run *run)
+MemTxAttrs kvm_arch_post_run(CPUState *cs, struct kvm_run *run)
 {
+    return MEMTXATTRS_UNSPECIFIED;
 }
 
 int kvm_arch_handle_exit(CPUState *cs, struct kvm_run *run)

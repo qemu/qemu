@@ -326,7 +326,7 @@ static void cmd646_pci_config_write(PCIDevice *d, uint32_t addr, uint32_t val,
 }
 
 /* CMD646 PCI IDE controller */
-static int pci_cmd646_ide_initfn(PCIDevice *dev)
+static void pci_cmd646_ide_realize(PCIDevice *dev, Error **errp)
 {
     PCIIDEState *d = PCI_IDE(dev);
     uint8_t *pci_conf = dev->config;
@@ -368,13 +368,11 @@ static int pci_cmd646_ide_initfn(PCIDevice *dev)
 
         bmdma_init(&d->bus[i], &d->bmdma[i], d);
         d->bmdma[i].bus = &d->bus[i];
-        qemu_add_vm_change_state_handler(d->bus[i].dma->ops->restart_cb,
-                                         &d->bmdma[i].dma);
+        ide_register_restart_cb(&d->bus[i]);
     }
 
     vmstate_register(DEVICE(dev), 0, &vmstate_ide_pci, d);
     qemu_register_reset(cmd646_reset, d);
-    return 0;
 }
 
 static void pci_cmd646_ide_exitfn(PCIDevice *dev)
@@ -410,7 +408,7 @@ static void cmd646_ide_class_init(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
 
-    k->init = pci_cmd646_ide_initfn;
+    k->realize = pci_cmd646_ide_realize;
     k->exit = pci_cmd646_ide_exitfn;
     k->vendor_id = PCI_VENDOR_ID_CMD;
     k->device_id = PCI_DEVICE_ID_CMD_646;

@@ -31,3 +31,5 @@ obj-$(CONFIG_DIGIC) += digic-timer.o
 obj-$(CONFIG_MC146818RTC) += mc146818rtc.o
 
 obj-$(CONFIG_ALLWINNER_A10_PIT) += allwinner-a10-pit.o
+
+common-obj-$(CONFIG_STM32F2XX_TIMER) += stm32f2xx_timer.o

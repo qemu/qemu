@@ -18,6 +18,7 @@
 #include "hw/sysbus.h"
 #include "hw/s390x/virtio-ccw.h"
 #include "hw/s390x/css.h"
+#include "ipl.h"
 
 #define KERN_IMAGE_START                0x010000UL
 #define KERN_PARM_AREA                  0x010480UL
@@ -50,25 +51,76 @@ typedef struct S390IPLState {
     /*< private >*/
     SysBusDevice parent_obj;
     uint64_t start_addr;
+    uint64_t bios_start_addr;
+    bool enforce_bios;
+    IplParameterBlock iplb;
+    bool iplb_valid;
+    bool reipl_requested;
 
     /*< public >*/
     char *kernel;
     char *initrd;
     char *cmdline;
     char *firmware;
+    uint8_t cssid;
+    uint8_t ssid;
+    uint16_t devno;
 } S390IPLState;
 
+static const VMStateDescription vmstate_iplb = {
+    .name = "ipl/iplb",
+    .version_id = 0,
+    .minimum_version_id = 0,
+    .fields = (VMStateField[]) {
+        VMSTATE_UINT8_ARRAY(reserved1, IplParameterBlock, 110),
+        VMSTATE_UINT16(devno, IplParameterBlock),
+        VMSTATE_UINT8_ARRAY(reserved2, IplParameterBlock, 88),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
+static const VMStateDescription vmstate_ipl = {
+    .name = "ipl",
+    .version_id = 0,
+    .minimum_version_id = 0,
+    .fields = (VMStateField[]) {
+        VMSTATE_UINT64(start_addr, S390IPLState),
+        VMSTATE_UINT64(bios_start_addr, S390IPLState),
+        VMSTATE_STRUCT(iplb, S390IPLState, 0, vmstate_iplb, IplParameterBlock),
+        VMSTATE_BOOL(iplb_valid, S390IPLState),
+        VMSTATE_UINT8(cssid, S390IPLState),
+        VMSTATE_UINT8(ssid, S390IPLState),
+        VMSTATE_UINT16(devno, S390IPLState),
+        VMSTATE_END_OF_LIST()
+     }
+};
+
+static uint64_t bios_translate_addr(void *opaque, uint64_t srcaddr)
+{
+    uint64_t dstaddr = *(uint64_t *) opaque;
+    /*
+     * Assuming that our s390-ccw.img was linked for starting at address 0,
+     * we can simply add the destination address for the final location
+     */
+    return srcaddr + dstaddr;
+}
 
 static int s390_ipl_init(SysBusDevice *dev)
 {
     S390IPLState *ipl = S390_IPL(dev);
+    uint64_t pentry = KERN_IMAGE_START;
     int kernel_size;
 
-    if (!ipl->kernel) {
-        int bios_size;
-        char *bios_filename;
+    int bios_size;
+    char *bios_filename;
 
-        /* Load zipl bootloader */
+    /*
+     * Always load the bios if it was enforced,
+     * even if an external kernel has been defined.
+     */
+    if (!ipl->kernel || ipl->enforce_bios) {
+        uint64_t fwbase = (MIN(ram_size, 0x80000000U) - 0x200000) & ~0xffffUL;
+
         if (bios_name == NULL) {
             bios_name = ipl->firmware;
         }
@@ -78,24 +130,29 @@ static int s390_ipl_init(SysBusDevice *dev)
             hw_error("could not find stage1 bootloader\n");
         }
 
-        bios_size = load_elf(bios_filename, NULL, NULL, &ipl->start_addr, NULL,
-                             NULL, 1, ELF_MACHINE, 0);
-        if (bios_size < 0) {
+        bios_size = load_elf(bios_filename, bios_translate_addr, &fwbase,
+                             &ipl->bios_start_addr, NULL, NULL, 1,
+                             ELF_MACHINE, 0);
+        if (bios_size > 0) {
+            /* Adjust ELF start address to final location */
+            ipl->bios_start_addr += fwbase;
+        } else {
+            /* Try to load non-ELF file (e.g. s390-zipl.rom) */
             bios_size = load_image_targphys(bios_filename, ZIPL_IMAGE_START,
                                             4096);
-            ipl->start_addr = ZIPL_IMAGE_START;
-            if (bios_size > 4096) {
-                hw_error("stage1 bootloader is > 4k\n");
-            }
+            ipl->bios_start_addr = ZIPL_IMAGE_START;
         }
         g_free(bios_filename);
 
         if (bios_size == -1) {
             hw_error("could not load bootloader '%s'\n", bios_name);
         }
-        return 0;
-    } else {
-        uint64_t pentry = KERN_IMAGE_START;
+
+        /* default boot target is the bios */
+        ipl->start_addr = ipl->bios_start_addr;
+    }
+
+    if (ipl->kernel) {
         kernel_size = load_elf(ipl->kernel, NULL, NULL, &pentry, NULL,
                                NULL, 1, ELF_MACHINE, 0);
         if (kernel_size < 0) {
@@ -118,27 +175,31 @@ static int s390_ipl_init(SysBusDevice *dev)
         } else {
             ipl->start_addr = pentry;
         }
-    }
-    if (ipl->initrd) {
-        ram_addr_t initrd_offset;
-        int initrd_size;
 
-        initrd_offset = INITRD_START;
-        while (kernel_size + 0x100000 > initrd_offset) {
-            initrd_offset += 0x100000;
+        if (ipl->initrd) {
+            ram_addr_t initrd_offset;
+            int initrd_size;
+
+            initrd_offset = INITRD_START;
+            while (kernel_size + 0x100000 > initrd_offset) {
+                initrd_offset += 0x100000;
+            }
+            initrd_size = load_image_targphys(ipl->initrd, initrd_offset,
+                                              ram_size - initrd_offset);
+            if (initrd_size == -1) {
+                fprintf(stderr, "qemu: could not load initrd '%s'\n",
+                        ipl->initrd);
+                exit(1);
+            }
+
+            /*
+             * we have to overwrite values in the kernel image,
+             * which are "rom"
+             */
+            stq_p(rom_ptr(INITRD_PARM_START), initrd_offset);
+            stq_p(rom_ptr(INITRD_PARM_SIZE), initrd_size);
         }
-        initrd_size = load_image_targphys(ipl->initrd, initrd_offset,
-                                          ram_size - initrd_offset);
-        if (initrd_size == -1) {
-            fprintf(stderr, "qemu: could not load initrd '%s'\n", ipl->initrd);
-            exit(1);
-        }
-
-        /* we have to overwrite values in the kernel image, which are "rom" */
-        stq_p(rom_ptr(INITRD_PARM_START), initrd_offset);
-        stq_p(rom_ptr(INITRD_PARM_SIZE), initrd_size);
     }
-
     return 0;
 }
 
@@ -147,8 +208,81 @@ static Property s390_ipl_properties[] = {
     DEFINE_PROP_STRING("initrd", S390IPLState, initrd),
     DEFINE_PROP_STRING("cmdline", S390IPLState, cmdline),
     DEFINE_PROP_STRING("firmware", S390IPLState, firmware),
+    DEFINE_PROP_BOOL("enforce_bios", S390IPLState, enforce_bios, false),
     DEFINE_PROP_END_OF_LIST(),
 };
+
+/*
+ * In addition to updating the iplstate, this function returns:
+ * - 0 if system was ipled with external kernel
+ * - -1 if no valid boot device was found
+ * - ccw id of the boot device otherwise
+ */
+static uint32_t s390_update_iplstate(CPUS390XState *env, S390IPLState *ipl)
+{
+    DeviceState *dev_st;
+
+    if (ipl->iplb_valid) {
+        ipl->cssid = 0;
+        ipl->ssid = 0;
+        ipl->devno = ipl->iplb.devno;
+        goto out;
+    }
+
+    if (ipl->kernel) {
+        return 0;
+    }
+
+    dev_st = get_boot_device(0);
+    if (dev_st) {
+        VirtioCcwDevice *ccw_dev = (VirtioCcwDevice *) object_dynamic_cast(
+            OBJECT(qdev_get_parent_bus(dev_st)->parent),
+                TYPE_VIRTIO_CCW_DEVICE);
+        if (ccw_dev) {
+            ipl->cssid = ccw_dev->sch->cssid;
+            ipl->ssid = ccw_dev->sch->ssid;
+            ipl->devno = ccw_dev->sch->devno;
+            goto out;
+        }
+    }
+
+    return -1;
+out:
+    return ipl->cssid << 24 | ipl->ssid << 16 | ipl->devno;
+}
+
+int s390_ipl_update_diag308(IplParameterBlock *iplb)
+{
+    S390IPLState *ipl;
+
+    ipl = S390_IPL(object_resolve_path(TYPE_S390_IPL, NULL));
+    if (ipl) {
+        ipl->iplb = *iplb;
+        ipl->iplb_valid = true;
+        return 0;
+    }
+    return -1;
+}
+
+IplParameterBlock *s390_ipl_get_iplb(void)
+{
+    S390IPLState *ipl;
+
+    ipl = S390_IPL(object_resolve_path(TYPE_S390_IPL, NULL));
+    if (!ipl || !ipl->iplb_valid) {
+        return NULL;
+    }
+    return &ipl->iplb;
+}
+
+void s390_reipl_request(void)
+{
+    S390IPLState *ipl;
+
+    ipl = S390_IPL(object_resolve_path(TYPE_S390_IPL, NULL));
+    ipl->reipl_requested = true;
+    qemu_system_reset_request();
+}
 
 static void s390_ipl_reset(DeviceState *dev)
 {
@@ -159,21 +293,14 @@ static void s390_ipl_reset(DeviceState *dev)
     env->psw.addr = ipl->start_addr;
     env->psw.mask = IPL_PSW_MASK;
 
-    if (!ipl->kernel) {
-        /* Tell firmware, if there is a preferred boot device */
-        env->regs[7] = -1;
-        DeviceState *dev_st = get_boot_device(0);
-        if (dev_st) {
-            VirtioCcwDevice *ccw_dev = (VirtioCcwDevice *) object_dynamic_cast(
-                OBJECT(qdev_get_parent_bus(dev_st)->parent),
-                TYPE_VIRTIO_CCW_DEVICE);
+    if (!ipl->reipl_requested) {
+        ipl->iplb_valid = false;
+    }
+    ipl->reipl_requested = false;
 
-            if (ccw_dev) {
-                env->regs[7] = ccw_dev->sch->cssid << 24 |
-                               ccw_dev->sch->ssid << 16 |
-                               ccw_dev->sch->devno;
-            }
-        }
+    if (!ipl->kernel || ipl->iplb_valid) {
+        env->psw.addr = ipl->bios_start_addr;
+        env->regs[7] = s390_update_iplstate(env, ipl);
     }
 
     s390_cpu_set_state(CPU_STATE_OPERATING, cpu);
@@ -187,6 +314,8 @@ static void s390_ipl_class_init(ObjectClass *klass, void *data)
     k->init = s390_ipl_init;
     dc->props = s390_ipl_properties;
     dc->reset = s390_ipl_reset;
+    dc->vmsd = &vmstate_ipl;
+    set_bit(DEVICE_CATEGORY_MISC, dc->categories);
 }
 
 static const TypeInfo s390_ipl_info = {

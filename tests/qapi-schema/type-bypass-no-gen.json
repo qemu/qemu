@@ -1,0 +1,2 @@
+# type bypass only works with 'gen':false
+{ 'command': 'unsafe', 'data': { 'arg': '**' }, 'returns': '**' }

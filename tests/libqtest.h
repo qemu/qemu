@@ -64,6 +64,15 @@ void qtest_qmp_discard_response(QTestState *s, const char *fmt, ...);
 QDict *qtest_qmp(QTestState *s, const char *fmt, ...);
 
 /**
+ * qtest_async_qmp:
+ * @s: #QTestState instance to operate on.
+ * @fmt...: QMP message to send to qemu
+ *
+ * Sends a QMP message to QEMU and leaves the response in the stream.
+ */
+void qtest_async_qmp(QTestState *s, const char *fmt, ...);
+
+/**
  * qtest_qmpv_discard_response:
  * @s: #QTestState instance to operate on.
  * @fmt: QMP message to send to QEMU
@@ -84,12 +93,31 @@ void qtest_qmpv_discard_response(QTestState *s, const char *fmt, va_list ap);
 QDict *qtest_qmpv(QTestState *s, const char *fmt, va_list ap);
 
 /**
+ * qtest_async_qmpv:
+ * @s: #QTestState instance to operate on.
+ * @fmt: QMP message to send to QEMU
+ * @ap: QMP message arguments
+ *
+ * Sends a QMP message to QEMU and leaves the response in the stream.
+ */
+void qtest_async_qmpv(QTestState *s, const char *fmt, va_list ap);
+
+/**
  * qtest_receive:
  * @s: #QTestState instance to operate on.
  *
  * Reads a QMP message from QEMU and returns the response.
  */
 QDict *qtest_qmp_receive(QTestState *s);
+
+/**
+ * qtest_qmp_eventwait:
+ * @s: #QTestState instance to operate on.
+ * @s: #event event to wait for.
+ *
+ * Continuosly polls for QMP responses until it receives the desired event.
+ */
+void qtest_qmp_eventwait(QTestState *s, const char *event);
 
 /**
  * qtest_get_irq:
@@ -273,6 +301,17 @@ uint64_t qtest_readq(QTestState *s, uint64_t addr);
 void qtest_memread(QTestState *s, uint64_t addr, void *data, size_t size);
 
 /**
+ * qtest_bufread:
+ * @s: #QTestState instance to operate on.
+ * @addr: Guest address to read from.
+ * @data: Pointer to where memory contents will be stored.
+ * @size: Number of bytes to read.
+ *
+ * Read guest memory into a buffer and receive using a base64 encoding.
+ */
+void qtest_bufread(QTestState *s, uint64_t addr, void *data, size_t size);
+
+/**
  * qtest_memwrite:
  * @s: #QTestState instance to operate on.
  * @addr: Guest address to write to.
@@ -282,6 +321,18 @@ void qtest_memread(QTestState *s, uint64_t addr, void *data, size_t size);
  * Write a buffer to guest memory.
  */
 void qtest_memwrite(QTestState *s, uint64_t addr, const void *data, size_t size);
+
+/**
+ * qtest_bufwrite:
+ * @s: #QTestState instance to operate on.
+ * @addr: Guest address to write to.
+ * @data: Pointer to the bytes that will be written to guest memory.
+ * @size: Number of bytes to write.
+ *
+ * Write a buffer to guest memory and transmit using a base64 encoding.
+ */
+void qtest_bufwrite(QTestState *s, uint64_t addr,
+                    const void *data, size_t size);
 
 /**
  * qtest_memset:
@@ -345,6 +396,38 @@ const char *qtest_get_arch(void);
 void qtest_add_func(const char *str, void (*fn));
 
 /**
+ * qtest_add_data_func:
+ * @str: Test case path.
+ * @data: Test case data
+ * @fn: Test case function
+ *
+ * Add a GTester testcase with the given name, data and function.
+ * The path is prefixed with the architecture under test, as
+ * returned by qtest_get_arch().
+ */
+void qtest_add_data_func(const char *str, const void *data, void (*fn));
+
+/**
+ * qtest_add:
+ * @testpath: Test case path
+ * @Fixture: Fixture type
+ * @tdata: Test case data
+ * @fsetup: Test case setup function
+ * @ftest: Test case function
+ * @fteardown: Test case teardown function
+ *
+ * Add a GTester testcase with the given name, data and functions.
+ * The path is prefixed with the architecture under test, as
+ * returned by qtest_get_arch().
+ */
+#define qtest_add(testpath, Fixture, tdata, fsetup, ftest, fteardown) \
+    do { \
+        char *path = g_strdup_printf("/%s/%s", qtest_get_arch(), testpath); \
+        g_test_add(path, Fixture, tdata, fsetup, ftest, fteardown); \
+        g_free(path); \
+    } while (0)
+
+/**
  * qtest_start:
  * @args: other arguments to pass to QEMU
  *
@@ -379,6 +462,14 @@ static inline void qtest_end(void)
 QDict *qmp(const char *fmt, ...);
 
 /**
+ * qmp_async:
+ * @fmt...: QMP message to send to qemu
+ *
+ * Sends a QMP message to QEMU and leaves the response in the stream.
+ */
+void qmp_async(const char *fmt, ...);
+
+/**
  * qmp_discard_response:
  * @fmt...: QMP message to send to qemu
  *
@@ -394,6 +485,17 @@ void qmp_discard_response(const char *fmt, ...);
 static inline QDict *qmp_receive(void)
 {
     return qtest_qmp_receive(global_qtest);
+}
+
+/**
+ * qmp_eventwait:
+ * @s: #event event to wait for.
+ *
+ * Continuosly polls for QMP responses until it receives the desired event.
+ */
+static inline void qmp_eventwait(const char *event)
+{
+    return qtest_qmp_eventwait(global_qtest, event);
 }
 
 /**
@@ -620,6 +722,19 @@ static inline void memread(uint64_t addr, void *data, size_t size)
 }
 
 /**
+ * bufread:
+ * @addr: Guest address to read from.
+ * @data: Pointer to where memory contents will be stored.
+ * @size: Number of bytes to read.
+ *
+ * Read guest memory into a buffer, receive using a base64 encoding.
+ */
+static inline void bufread(uint64_t addr, void *data, size_t size)
+{
+    qtest_bufread(global_qtest, addr, data, size);
+}
+
+/**
  * memwrite:
  * @addr: Guest address to write to.
  * @data: Pointer to the bytes that will be written to guest memory.
@@ -630,6 +745,19 @@ static inline void memread(uint64_t addr, void *data, size_t size)
 static inline void memwrite(uint64_t addr, const void *data, size_t size)
 {
     qtest_memwrite(global_qtest, addr, data, size);
+}
+
+/**
+ * bufwrite:
+ * @addr: Guest address to write to.
+ * @data: Pointer to the bytes that will be written to guest memory.
+ * @size: Number of bytes to write.
+ *
+ * Write a buffer to guest memory, transmit using a base64 encoding.
+ */
+static inline void bufwrite(uint64_t addr, const void *data, size_t size)
+{
+    qtest_bufwrite(global_qtest, addr, data, size);
 }
 
 /**

@@ -62,6 +62,7 @@ struct tpm_resp_hdr {
 
 #define TPM_FAIL                  9
 
+#define TPM_ORD_ContinueSelfTest  0x53
 #define TPM_ORD_GetTicks          0xf1
 
 #endif /* TPM_TPM_INT_H */

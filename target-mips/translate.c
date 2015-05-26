@@ -1998,8 +1998,8 @@ OP_LD_ATOMIC(lld,ld64);
 static inline void op_st_##insn(TCGv arg1, TCGv arg2, int rt, DisasContext *ctx) \
 {                                                                            \
     TCGv t0 = tcg_temp_new();                                                \
-    int l1 = gen_new_label();                                                \
-    int l2 = gen_new_label();                                                \
+    TCGLabel *l1 = gen_new_label();                                          \
+    TCGLabel *l2 = gen_new_label();                                          \
                                                                              \
     tcg_gen_andi_tl(t0, arg2, almask);                                       \
     tcg_gen_brcondi_tl(TCG_COND_EQ, t0, 0, l1);                              \
@@ -2428,7 +2428,7 @@ static void gen_arith_imm(DisasContext *ctx, uint32_t opc,
             TCGv t0 = tcg_temp_local_new();
             TCGv t1 = tcg_temp_new();
             TCGv t2 = tcg_temp_new();
-            int l1 = gen_new_label();
+            TCGLabel *l1 = gen_new_label();
 
             gen_load_gpr(t1, rs);
             tcg_gen_addi_tl(t0, t1, uimm);
@@ -2464,7 +2464,7 @@ static void gen_arith_imm(DisasContext *ctx, uint32_t opc,
             TCGv t0 = tcg_temp_local_new();
             TCGv t1 = tcg_temp_new();
             TCGv t2 = tcg_temp_new();
-            int l1 = gen_new_label();
+            TCGLabel *l1 = gen_new_label();
 
             gen_load_gpr(t1, rs);
             tcg_gen_addi_tl(t0, t1, uimm);
@@ -2694,7 +2694,7 @@ static void gen_arith(DisasContext *ctx, uint32_t opc,
             TCGv t0 = tcg_temp_local_new();
             TCGv t1 = tcg_temp_new();
             TCGv t2 = tcg_temp_new();
-            int l1 = gen_new_label();
+            TCGLabel *l1 = gen_new_label();
 
             gen_load_gpr(t1, rs);
             gen_load_gpr(t2, rt);
@@ -2732,7 +2732,7 @@ static void gen_arith(DisasContext *ctx, uint32_t opc,
             TCGv t0 = tcg_temp_local_new();
             TCGv t1 = tcg_temp_new();
             TCGv t2 = tcg_temp_new();
-            int l1 = gen_new_label();
+            TCGLabel *l1 = gen_new_label();
 
             gen_load_gpr(t1, rs);
             gen_load_gpr(t2, rt);
@@ -2772,7 +2772,7 @@ static void gen_arith(DisasContext *ctx, uint32_t opc,
             TCGv t0 = tcg_temp_local_new();
             TCGv t1 = tcg_temp_new();
             TCGv t2 = tcg_temp_new();
-            int l1 = gen_new_label();
+            TCGLabel *l1 = gen_new_label();
 
             gen_load_gpr(t1, rs);
             gen_load_gpr(t2, rt);
@@ -2808,7 +2808,7 @@ static void gen_arith(DisasContext *ctx, uint32_t opc,
             TCGv t0 = tcg_temp_local_new();
             TCGv t1 = tcg_temp_new();
             TCGv t2 = tcg_temp_new();
-            int l1 = gen_new_label();
+            TCGLabel *l1 = gen_new_label();
 
             gen_load_gpr(t1, rs);
             gen_load_gpr(t2, rt);
@@ -3846,9 +3846,9 @@ static void gen_loongson_integer(DisasContext *ctx, uint32_t opc,
     case OPC_DIV_G_2E:
     case OPC_DIV_G_2F:
         {
-            int l1 = gen_new_label();
-            int l2 = gen_new_label();
-            int l3 = gen_new_label();
+            TCGLabel *l1 = gen_new_label();
+            TCGLabel *l2 = gen_new_label();
+            TCGLabel *l3 = gen_new_label();
             tcg_gen_ext32s_tl(t0, t0);
             tcg_gen_ext32s_tl(t1, t1);
             tcg_gen_brcondi_tl(TCG_COND_NE, t1, 0, l1);
@@ -3869,8 +3869,8 @@ static void gen_loongson_integer(DisasContext *ctx, uint32_t opc,
     case OPC_DIVU_G_2E:
     case OPC_DIVU_G_2F:
         {
-            int l1 = gen_new_label();
-            int l2 = gen_new_label();
+            TCGLabel *l1 = gen_new_label();
+            TCGLabel *l2 = gen_new_label();
             tcg_gen_ext32u_tl(t0, t0);
             tcg_gen_ext32u_tl(t1, t1);
             tcg_gen_brcondi_tl(TCG_COND_NE, t1, 0, l1);
@@ -3886,9 +3886,9 @@ static void gen_loongson_integer(DisasContext *ctx, uint32_t opc,
     case OPC_MOD_G_2E:
     case OPC_MOD_G_2F:
         {
-            int l1 = gen_new_label();
-            int l2 = gen_new_label();
-            int l3 = gen_new_label();
+            TCGLabel *l1 = gen_new_label();
+            TCGLabel *l2 = gen_new_label();
+            TCGLabel *l3 = gen_new_label();
             tcg_gen_ext32u_tl(t0, t0);
             tcg_gen_ext32u_tl(t1, t1);
             tcg_gen_brcondi_tl(TCG_COND_EQ, t1, 0, l1);
@@ -3907,8 +3907,8 @@ static void gen_loongson_integer(DisasContext *ctx, uint32_t opc,
     case OPC_MODU_G_2E:
     case OPC_MODU_G_2F:
         {
-            int l1 = gen_new_label();
-            int l2 = gen_new_label();
+            TCGLabel *l1 = gen_new_label();
+            TCGLabel *l2 = gen_new_label();
             tcg_gen_ext32u_tl(t0, t0);
             tcg_gen_ext32u_tl(t1, t1);
             tcg_gen_brcondi_tl(TCG_COND_NE, t1, 0, l1);
@@ -3935,9 +3935,9 @@ static void gen_loongson_integer(DisasContext *ctx, uint32_t opc,
     case OPC_DDIV_G_2E:
     case OPC_DDIV_G_2F:
         {
-            int l1 = gen_new_label();
-            int l2 = gen_new_label();
-            int l3 = gen_new_label();
+            TCGLabel *l1 = gen_new_label();
+            TCGLabel *l2 = gen_new_label();
+            TCGLabel *l3 = gen_new_label();
             tcg_gen_brcondi_tl(TCG_COND_NE, t1, 0, l1);
             tcg_gen_movi_tl(cpu_gpr[rd], 0);
             tcg_gen_br(l3);
@@ -3955,8 +3955,8 @@ static void gen_loongson_integer(DisasContext *ctx, uint32_t opc,
     case OPC_DDIVU_G_2E:
     case OPC_DDIVU_G_2F:
         {
-            int l1 = gen_new_label();
-            int l2 = gen_new_label();
+            TCGLabel *l1 = gen_new_label();
+            TCGLabel *l2 = gen_new_label();
             tcg_gen_brcondi_tl(TCG_COND_NE, t1, 0, l1);
             tcg_gen_movi_tl(cpu_gpr[rd], 0);
             tcg_gen_br(l2);
@@ -3969,9 +3969,9 @@ static void gen_loongson_integer(DisasContext *ctx, uint32_t opc,
     case OPC_DMOD_G_2E:
     case OPC_DMOD_G_2F:
         {
-            int l1 = gen_new_label();
-            int l2 = gen_new_label();
-            int l3 = gen_new_label();
+            TCGLabel *l1 = gen_new_label();
+            TCGLabel *l2 = gen_new_label();
+            TCGLabel *l3 = gen_new_label();
             tcg_gen_brcondi_tl(TCG_COND_EQ, t1, 0, l1);
             tcg_gen_brcondi_tl(TCG_COND_NE, t0, -1LL << 63, l2);
             tcg_gen_brcondi_tl(TCG_COND_NE, t1, -1LL, l2);
@@ -3987,8 +3987,8 @@ static void gen_loongson_integer(DisasContext *ctx, uint32_t opc,
     case OPC_DMODU_G_2E:
     case OPC_DMODU_G_2F:
         {
-            int l1 = gen_new_label();
-            int l2 = gen_new_label();
+            TCGLabel *l1 = gen_new_label();
+            TCGLabel *l2 = gen_new_label();
             tcg_gen_brcondi_tl(TCG_COND_NE, t1, 0, l1);
             tcg_gen_movi_tl(cpu_gpr[rd], 0);
             tcg_gen_br(l2);
@@ -4204,7 +4204,7 @@ static void gen_loongson_multimedia(DisasContext *ctx, int rd, int rs, int rt)
     case OPC_DADD_CP2:
         {
             TCGv_i64 t2 = tcg_temp_new_i64();
-            int lab = gen_new_label();
+            TCGLabel *lab = gen_new_label();
 
             tcg_gen_mov_i64(t2, t0);
             tcg_gen_add_i64(t0, t1, t2);
@@ -4227,7 +4227,7 @@ static void gen_loongson_multimedia(DisasContext *ctx, int rd, int rs, int rt)
     case OPC_DSUB_CP2:
         {
             TCGv_i64 t2 = tcg_temp_new_i64();
-            int lab = gen_new_label();
+            TCGLabel *lab = gen_new_label();
 
             tcg_gen_mov_i64(t2, t0);
             tcg_gen_sub_i64(t0, t1, t2);
@@ -4338,7 +4338,7 @@ static void gen_trap (DisasContext *ctx, uint32_t opc,
             break;
         }
     } else {
-        int l1 = gen_new_label();
+        TCGLabel *l1 = gen_new_label();
 
         switch (opc) {
         case OPC_TEQ:
@@ -4947,7 +4947,7 @@ static void gen_mfc0(DisasContext *ctx, TCGv arg, int reg, int sel)
 #if defined(TARGET_MIPS64)
             if (ctx->rxi) {
                 TCGv tmp = tcg_temp_new();
-                tcg_gen_andi_tl(tmp, arg, (3ull << 62));
+                tcg_gen_andi_tl(tmp, arg, (3ull << CP0EnLo_XI));
                 tcg_gen_shri_tl(tmp, tmp, 32);
                 tcg_gen_or_tl(arg, arg, tmp);
                 tcg_temp_free(tmp);
@@ -5002,7 +5002,7 @@ static void gen_mfc0(DisasContext *ctx, TCGv arg, int reg, int sel)
 #if defined(TARGET_MIPS64)
             if (ctx->rxi) {
                 TCGv tmp = tcg_temp_new();
-                tcg_gen_andi_tl(tmp, arg, (3ull << 62));
+                tcg_gen_andi_tl(tmp, arg, (3ull << CP0EnLo_XI));
                 tcg_gen_shri_tl(tmp, tmp, 32);
                 tcg_gen_or_tl(arg, arg, tmp);
                 tcg_temp_free(tmp);
@@ -8430,7 +8430,7 @@ static void gen_cp1 (DisasContext *ctx, uint32_t opc, int rt, int fs)
 
 static void gen_movci (DisasContext *ctx, int rd, int rs, int cc, int tf)
 {
-    int l1;
+    TCGLabel *l1;
     TCGCond cond;
     TCGv_i32 t0;
 
@@ -8461,7 +8461,7 @@ static inline void gen_movcf_s (int fs, int fd, int cc, int tf)
 {
     int cond;
     TCGv_i32 t0 = tcg_temp_new_i32();
-    int l1 = gen_new_label();
+    TCGLabel *l1 = gen_new_label();
 
     if (tf)
         cond = TCG_COND_EQ;
@@ -8481,7 +8481,7 @@ static inline void gen_movcf_d (DisasContext *ctx, int fs, int fd, int cc, int t
     int cond;
     TCGv_i32 t0 = tcg_temp_new_i32();
     TCGv_i64 fp0;
-    int l1 = gen_new_label();
+    TCGLabel *l1 = gen_new_label();
 
     if (tf)
         cond = TCG_COND_EQ;
@@ -8503,8 +8503,8 @@ static inline void gen_movcf_ps(DisasContext *ctx, int fs, int fd,
 {
     int cond;
     TCGv_i32 t0 = tcg_temp_new_i32();
-    int l1 = gen_new_label();
-    int l2 = gen_new_label();
+    TCGLabel *l1 = gen_new_label();
+    TCGLabel *l2 = gen_new_label();
 
     if (tf)
         cond = TCG_COND_EQ;
@@ -8869,7 +8869,7 @@ static void gen_farith (DisasContext *ctx, enum fopcode op1,
     case OPC_MOVZ_S:
         check_insn_opc_removed(ctx, ISA_MIPS32R6);
         {
-            int l1 = gen_new_label();
+            TCGLabel *l1 = gen_new_label();
             TCGv_i32 fp0;
 
             if (ft != 0) {
@@ -8886,7 +8886,7 @@ static void gen_farith (DisasContext *ctx, enum fopcode op1,
     case OPC_MOVN_S:
         check_insn_opc_removed(ctx, ISA_MIPS32R6);
         {
-            int l1 = gen_new_label();
+            TCGLabel *l1 = gen_new_label();
             TCGv_i32 fp0;
 
             if (ft != 0) {
@@ -9414,7 +9414,7 @@ static void gen_farith (DisasContext *ctx, enum fopcode op1,
     case OPC_MOVZ_D:
         check_insn_opc_removed(ctx, ISA_MIPS32R6);
         {
-            int l1 = gen_new_label();
+            TCGLabel *l1 = gen_new_label();
             TCGv_i64 fp0;
 
             if (ft != 0) {
@@ -9431,7 +9431,7 @@ static void gen_farith (DisasContext *ctx, enum fopcode op1,
     case OPC_MOVN_D:
         check_insn_opc_removed(ctx, ISA_MIPS32R6);
         {
-            int l1 = gen_new_label();
+            TCGLabel *l1 = gen_new_label();
             TCGv_i64 fp0;
 
             if (ft != 0) {
@@ -9852,7 +9852,7 @@ static void gen_farith (DisasContext *ctx, enum fopcode op1,
     case OPC_MOVZ_PS:
         check_cp1_64bitmode(ctx);
         {
-            int l1 = gen_new_label();
+            TCGLabel *l1 = gen_new_label();
             TCGv_i64 fp0;
 
             if (ft != 0)
@@ -9868,7 +9868,7 @@ static void gen_farith (DisasContext *ctx, enum fopcode op1,
     case OPC_MOVN_PS:
         check_cp1_64bitmode(ctx);
         {
-            int l1 = gen_new_label();
+            TCGLabel *l1 = gen_new_label();
             TCGv_i64 fp0;
 
             if (ft != 0) {
@@ -10212,8 +10212,8 @@ static void gen_flt3_arith (DisasContext *ctx, uint32_t opc,
             TCGv t0 = tcg_temp_local_new();
             TCGv_i32 fp = tcg_temp_new_i32();
             TCGv_i32 fph = tcg_temp_new_i32();
-            int l1 = gen_new_label();
-            int l2 = gen_new_label();
+            TCGLabel *l1 = gen_new_label();
+            TCGLabel *l2 = gen_new_label();
 
             gen_load_gpr(t0, fr);
             tcg_gen_andi_tl(t0, t0, 0x7);
@@ -10531,14 +10531,25 @@ static void gen_rdhwr(DisasContext *ctx, int rt, int rd)
     tcg_temp_free(t0);
 }
 
+static inline void clear_branch_hflags(DisasContext *ctx)
+{
+    ctx->hflags &= ~MIPS_HFLAG_BMASK;
+    if (ctx->bstate == BS_NONE) {
+        save_cpu_state(ctx, 0);
+    } else {
+        /* it is not safe to save ctx->hflags as hflags may be changed
+           in execution time by the instruction in delay / forbidden slot. */
+        tcg_gen_andi_i32(hflags, hflags, ~MIPS_HFLAG_BMASK);
+    }
+}
+
 static void gen_branch(DisasContext *ctx, int insn_bytes)
 {
     if (ctx->hflags & MIPS_HFLAG_BMASK) {
         int proc_hflags = ctx->hflags & MIPS_HFLAG_BMASK;
         /* Branches completion */
-        ctx->hflags &= ~MIPS_HFLAG_BMASK;
+        clear_branch_hflags(ctx);
         ctx->bstate = BS_BRANCH;
-        save_cpu_state(ctx, 0);
         /* FIXME: Need to clear can_do_io.  */
         switch (proc_hflags & MIPS_HFLAG_BMASK_BASE) {
         case MIPS_HFLAG_FBNSLOT:
@@ -10562,7 +10573,7 @@ static void gen_branch(DisasContext *ctx, int insn_bytes)
             /* Conditional branch */
             MIPS_DEBUG("conditional branch");
             {
-                int l1 = gen_new_label();
+                TCGLabel *l1 = gen_new_label();
 
                 tcg_gen_brcondi_tl(TCG_COND_NE, bcond, 0, l1);
                 gen_goto_tb(ctx, 1, ctx->pc + insn_bytes);
@@ -10596,8 +10607,8 @@ static void gen_branch(DisasContext *ctx, int insn_bytes)
             tcg_gen_exit_tb(0);
             break;
         default:
-            MIPS_DEBUG("unknown branch");
-            break;
+            fprintf(stderr, "unknown branch 0x%x\n", proc_hflags);
+            abort();
         }
     }
 }
@@ -13653,7 +13664,7 @@ static void decode_micromips32_opc (CPUMIPSState *env, DisasContext *ctx,
                target. */
             break;
         case LUI:
-            gen_logic_imm(ctx, OPC_LUI, rs, -1, imm);
+            gen_logic_imm(ctx, OPC_LUI, rs, 0, imm);
             break;
         case SYNCI:
             /* Break the TB to be able to sync copied instructions
@@ -15998,7 +16009,7 @@ static void gen_compute_compact_branch(DisasContext *ctx, uint32_t opc,
         gen_branch(ctx, 4);
     } else {
         /* Conditional compact branch */
-        int fs = gen_new_label();
+        TCGLabel *fs = gen_new_label();
         save_cpu_state(ctx, 0);
 
         switch (opc) {
@@ -18403,12 +18414,14 @@ static void gen_msa(CPUMIPSState *env, DisasContext *ctx)
             case OPC_LD_H:
             case OPC_LD_W:
             case OPC_LD_D:
+                save_cpu_state(ctx, 1);
                 gen_helper_msa_ld_df(cpu_env, tdf, twd, trs, ts10);
                 break;
             case OPC_ST_B:
             case OPC_ST_H:
             case OPC_ST_W:
             case OPC_ST_D:
+                save_cpu_state(ctx, 1);
                 gen_helper_msa_st_df(cpu_env, tdf, twd, trs, ts10);
                 break;
             }
@@ -18438,12 +18451,13 @@ static void decode_opc(CPUMIPSState *env, DisasContext *ctx)
     if (ctx->pc & 0x3) {
         env->CP0_BadVAddr = ctx->pc;
         generate_exception_err(ctx, EXCP_AdEL, EXCP_INST_NOTAVAIL);
+        ctx->bstate = BS_STOP;
         return;
     }
 
     /* Handle blikely not taken case */
     if ((ctx->hflags & MIPS_HFLAG_BMASK_BASE) == MIPS_HFLAG_BL) {
-        int l1 = gen_new_label();
+        TCGLabel *l1 = gen_new_label();
 
         MIPS_DEBUG("blikely condition (" TARGET_FMT_lx ")", ctx->pc + 4);
         tcg_gen_brcondi_tl(TCG_COND_NE, bcond, 0, l1);
@@ -18729,6 +18743,7 @@ static void decode_opc(CPUMIPSState *env, DisasContext *ctx)
     case OPC_SWL:
     case OPC_SWR:
         check_insn_opc_removed(ctx, ISA_MIPS32R6);
+        /* fall through */
     case OPC_SB ... OPC_SH:
     case OPC_SW:
          gen_st(ctx, op, rt, rs, imm);
@@ -18817,6 +18832,7 @@ static void decode_opc(CPUMIPSState *env, DisasContext *ctx)
         case OPC_PS_FMT:
             check_cp1_enabled(ctx);
             check_insn_opc_removed(ctx, ISA_MIPS32R6);
+            /* fall through */
         case OPC_S_FMT:
         case OPC_D_FMT:
             check_cp1_enabled(ctx);
@@ -19000,6 +19016,7 @@ static void decode_opc(CPUMIPSState *env, DisasContext *ctx)
     case OPC_LDL ... OPC_LDR:
     case OPC_LLD:
         check_insn_opc_removed(ctx, ISA_MIPS32R6);
+        /* fall through */
     case OPC_LWU:
     case OPC_LD:
         check_insn(ctx, ISA_MIPS3);
@@ -19008,6 +19025,7 @@ static void decode_opc(CPUMIPSState *env, DisasContext *ctx)
         break;
     case OPC_SDL ... OPC_SDR:
         check_insn_opc_removed(ctx, ISA_MIPS32R6);
+        /* fall through */
     case OPC_SD:
         check_insn(ctx, ISA_MIPS3);
         check_mips_64(ctx);
@@ -19091,7 +19109,7 @@ gen_intermediate_code_internal(MIPSCPU *cpu, TranslationBlock *tb,
     CPUMIPSState *env = &cpu->env;
     DisasContext ctx;
     target_ulong pc_start;
-    uint16_t *gen_opc_end;
+    target_ulong next_page_start;
     CPUBreakpoint *bp;
     int j, lj = -1;
     int num_insns;
@@ -19103,7 +19121,7 @@ gen_intermediate_code_internal(MIPSCPU *cpu, TranslationBlock *tb,
         qemu_log("search pc %d\n", search_pc);
 
     pc_start = tb->pc;
-    gen_opc_end = tcg_ctx.gen_opc_buf + OPC_MAX_SIZE;
+    next_page_start = (pc_start & TARGET_PAGE_MASK) + TARGET_PAGE_SIZE;
     ctx.pc = pc_start;
     ctx.saved_pc = -1;
     ctx.singlestep_enabled = cs->singlestep_enabled;
@@ -19147,7 +19165,7 @@ gen_intermediate_code_internal(MIPSCPU *cpu, TranslationBlock *tb,
         }
 
         if (search_pc) {
-            j = tcg_ctx.gen_opc_ptr - tcg_ctx.gen_opc_buf;
+            j = tcg_op_buf_count();
             if (lj < j) {
                 lj++;
                 while (lj < j)
@@ -19202,10 +19220,11 @@ gen_intermediate_code_internal(MIPSCPU *cpu, TranslationBlock *tb,
             break;
         }
 
-        if ((ctx.pc & (TARGET_PAGE_SIZE - 1)) == 0)
+        if (ctx.pc >= next_page_start) {
             break;
+        }
 
-        if (tcg_ctx.gen_opc_ptr >= gen_opc_end) {
+        if (tcg_op_buf_full()) {
             break;
         }
 
@@ -19240,9 +19259,9 @@ gen_intermediate_code_internal(MIPSCPU *cpu, TranslationBlock *tb,
     }
 done_generating:
     gen_tb_end(tb, num_insns);
-    *tcg_ctx.gen_opc_ptr = INDEX_op_end;
+
     if (search_pc) {
-        j = tcg_ctx.gen_opc_ptr - tcg_ctx.gen_opc_buf;
+        j = tcg_op_buf_count();
         lj++;
         while (lj <= j)
             tcg_ctx.gen_opc_instr_start[lj++] = 0;

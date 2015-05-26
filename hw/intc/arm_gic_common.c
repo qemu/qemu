@@ -52,19 +52,20 @@ static const VMStateDescription vmstate_gic_irq_state = {
         VMSTATE_UINT8(level, gic_irq_state),
         VMSTATE_BOOL(model, gic_irq_state),
         VMSTATE_BOOL(edge_trigger, gic_irq_state),
+        VMSTATE_UINT8(group, gic_irq_state),
         VMSTATE_END_OF_LIST()
     }
 };
 
 static const VMStateDescription vmstate_gic = {
     .name = "arm_gic",
-    .version_id = 7,
-    .minimum_version_id = 7,
+    .version_id = 10,
+    .minimum_version_id = 10,
     .pre_save = gic_pre_save,
     .post_load = gic_post_load,
     .fields = (VMStateField[]) {
-        VMSTATE_BOOL(enabled, GICState),
-        VMSTATE_BOOL_ARRAY(cpu_enabled, GICState, GIC_NCPU),
+        VMSTATE_UINT32(ctlr, GICState),
+        VMSTATE_UINT32_ARRAY(cpu_ctlr, GICState, GIC_NCPU),
         VMSTATE_STRUCT_ARRAY(irq_state, GICState, GIC_MAXIRQ, 1,
                              vmstate_gic_irq_state, gic_irq_state),
         VMSTATE_UINT8_ARRAY(irq_target, GICState, GIC_MAXIRQ),
@@ -110,6 +111,13 @@ static void arm_gic_common_realize(DeviceState *dev, Error **errp)
                    num_irq);
         return;
     }
+
+    if (s->security_extn &&
+        (s->revision == REV_11MPCORE || s->revision == REV_NVIC)) {
+        error_setg(errp, "this GIC revision does not implement "
+                   "the security extensions");
+        return;
+    }
 }
 
 static void arm_gic_common_reset(DeviceState *dev)
@@ -126,7 +134,7 @@ static void arm_gic_common_reset(DeviceState *dev)
         s->current_pending[i] = 1023;
         s->running_irq[i] = 1023;
         s->running_priority[i] = 0x100;
-        s->cpu_enabled[i] = false;
+        s->cpu_ctlr[i] = 0;
     }
     for (i = 0; i < GIC_NR_SGIS; i++) {
         GIC_SET_ENABLED(i, ALL_CPU_MASK);
@@ -138,7 +146,7 @@ static void arm_gic_common_reset(DeviceState *dev)
             s->irq_target[i] = 1;
         }
     }
-    s->enabled = false;
+    s->ctlr = 0;
 }
 
 static Property arm_gic_common_properties[] = {
@@ -149,6 +157,8 @@ static Property arm_gic_common_properties[] = {
      * (Internally, 0xffffffff also indicates "not a GIC but an NVIC".)
      */
     DEFINE_PROP_UINT32("revision", GICState, revision, 1),
+    /* True if the GIC should implement the security extensions */
+    DEFINE_PROP_BOOL("has-security-extensions", GICState, security_extn, 0),
     DEFINE_PROP_END_OF_LIST(),
 };
 

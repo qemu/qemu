@@ -335,12 +335,26 @@ host_memory_backend_memory_complete(UserCreatable *uc, Error **errp)
     }
 }
 
+static bool
+host_memory_backend_can_be_deleted(UserCreatable *uc, Error **errp)
+{
+    MemoryRegion *mr;
+
+    mr = host_memory_backend_get_memory(MEMORY_BACKEND(uc), errp);
+    if (memory_region_is_mapped(mr)) {
+        return false;
+    } else {
+        return true;
+    }
+}
+
 static void
 host_memory_backend_class_init(ObjectClass *oc, void *data)
 {
     UserCreatableClass *ucc = USER_CREATABLE_CLASS(oc);
 
     ucc->complete = host_memory_backend_memory_complete;
+    ucc->can_be_deleted = host_memory_backend_can_be_deleted;
 }
 
 static const TypeInfo host_memory_backend_info = {

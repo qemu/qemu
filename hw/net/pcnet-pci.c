@@ -33,6 +33,7 @@
 #include "qemu/timer.h"
 #include "sysemu/dma.h"
 #include "sysemu/sysemu.h"
+#include "trace.h"
 
 #include "pcnet.h"
 
@@ -61,9 +62,8 @@ typedef struct {
 static void pcnet_aprom_writeb(void *opaque, uint32_t addr, uint32_t val)
 {
     PCNetState *s = opaque;
-#ifdef PCNET_DEBUG
-    printf("pcnet_aprom_writeb addr=0x%08x val=0x%02x\n", addr, val);
-#endif
+
+    trace_pcnet_aprom_writeb(opaque, addr, val);
     if (BCR_APROMWE(s)) {
         s->prom[addr & 15] = val;
     }
@@ -73,9 +73,8 @@ static uint32_t pcnet_aprom_readb(void *opaque, uint32_t addr)
 {
     PCNetState *s = opaque;
     uint32_t val = s->prom[addr & 15];
-#ifdef PCNET_DEBUG
-    printf("pcnet_aprom_readb addr=0x%08x val=0x%02x\n", addr, val);
-#endif
+
+    trace_pcnet_aprom_readb(opaque, addr, val);
     return val;
 }
 
@@ -84,6 +83,7 @@ static uint64_t pcnet_ioport_read(void *opaque, hwaddr addr,
 {
     PCNetState *d = opaque;
 
+    trace_pcnet_ioport_read(opaque, addr, size);
     if (addr < 0x10) {
         if (!BCR_DWIO(d) && size == 1) {
             return pcnet_aprom_readb(d, addr);
@@ -111,6 +111,7 @@ static void pcnet_ioport_write(void *opaque, hwaddr addr,
 {
     PCNetState *d = opaque;
 
+    trace_pcnet_ioport_write(opaque, addr, data, size);
     if (addr < 0x10) {
         if (!BCR_DWIO(d) && size == 1) {
             pcnet_aprom_writeb(d, addr, data);
@@ -141,10 +142,8 @@ static const MemoryRegionOps pcnet_io_ops = {
 static void pcnet_mmio_writeb(void *opaque, hwaddr addr, uint32_t val)
 {
     PCNetState *d = opaque;
-#ifdef PCNET_DEBUG_IO
-    printf("pcnet_mmio_writeb addr=0x" TARGET_FMT_plx" val=0x%02x\n", addr,
-           val);
-#endif
+
+    trace_pcnet_mmio_writeb(opaque, addr, val);
     if (!(addr & 0x10))
         pcnet_aprom_writeb(d, addr & 0x0f, val);
 }
@@ -153,22 +152,18 @@ static uint32_t pcnet_mmio_readb(void *opaque, hwaddr addr)
 {
     PCNetState *d = opaque;
     uint32_t val = -1;
+
     if (!(addr & 0x10))
         val = pcnet_aprom_readb(d, addr & 0x0f);
-#ifdef PCNET_DEBUG_IO
-    printf("pcnet_mmio_readb addr=0x" TARGET_FMT_plx " val=0x%02x\n", addr,
-           val & 0xff);
-#endif
+    trace_pcnet_mmio_readb(opaque, addr, val);
     return val;
 }
 
 static void pcnet_mmio_writew(void *opaque, hwaddr addr, uint32_t val)
 {
     PCNetState *d = opaque;
-#ifdef PCNET_DEBUG_IO
-    printf("pcnet_mmio_writew addr=0x" TARGET_FMT_plx " val=0x%04x\n", addr,
-           val);
-#endif
+
+    trace_pcnet_mmio_writew(opaque, addr, val);
     if (addr & 0x10)
         pcnet_ioport_writew(d, addr & 0x0f, val);
     else {
@@ -182,6 +177,7 @@ static uint32_t pcnet_mmio_readw(void *opaque, hwaddr addr)
 {
     PCNetState *d = opaque;
     uint32_t val = -1;
+
     if (addr & 0x10)
         val = pcnet_ioport_readw(d, addr & 0x0f);
     else {
@@ -190,20 +186,15 @@ static uint32_t pcnet_mmio_readw(void *opaque, hwaddr addr)
         val <<= 8;
         val |= pcnet_aprom_readb(d, addr);
     }
-#ifdef PCNET_DEBUG_IO
-    printf("pcnet_mmio_readw addr=0x" TARGET_FMT_plx" val = 0x%04x\n", addr,
-           val & 0xffff);
-#endif
+    trace_pcnet_mmio_readw(opaque, addr, val);
     return val;
 }
 
 static void pcnet_mmio_writel(void *opaque, hwaddr addr, uint32_t val)
 {
     PCNetState *d = opaque;
-#ifdef PCNET_DEBUG_IO
-    printf("pcnet_mmio_writel addr=0x" TARGET_FMT_plx" val=0x%08x\n", addr,
-           val);
-#endif
+
+    trace_pcnet_mmio_writel(opaque, addr, val);
     if (addr & 0x10)
         pcnet_ioport_writel(d, addr & 0x0f, val);
     else {
@@ -219,6 +210,7 @@ static uint32_t pcnet_mmio_readl(void *opaque, hwaddr addr)
 {
     PCNetState *d = opaque;
     uint32_t val;
+
     if (addr & 0x10)
         val = pcnet_ioport_readl(d, addr & 0x0f);
     else {
@@ -231,10 +223,7 @@ static uint32_t pcnet_mmio_readl(void *opaque, hwaddr addr)
         val <<= 8;
         val |= pcnet_aprom_readb(d, addr);
     }
-#ifdef PCNET_DEBUG_IO
-    printf("pcnet_mmio_readl addr=0x" TARGET_FMT_plx " val=0x%08x\n", addr,
-           val);
-#endif
+    trace_pcnet_mmio_readl(opaque, addr, val);
     return val;
 }
 
@@ -289,7 +278,7 @@ static NetClientInfo net_pci_pcnet_info = {
     .link_status_changed = pcnet_set_link_status,
 };
 
-static int pci_pcnet_init(PCIDevice *pci_dev)
+static void pci_pcnet_realize(PCIDevice *pci_dev, Error **errp)
 {
     PCIPCNetState *d = PCI_PCNET(pci_dev);
     PCNetState *s = &d->state;
@@ -327,7 +316,7 @@ static int pci_pcnet_init(PCIDevice *pci_dev)
     s->phys_mem_write = pci_physical_memory_write;
     s->dma_opaque = pci_dev;
 
-    return pcnet_common_init(DEVICE(pci_dev), s, &net_pci_pcnet_info);
+    pcnet_common_init(DEVICE(pci_dev), s, &net_pci_pcnet_info);
 }
 
 static void pci_reset(DeviceState *dev)
@@ -357,7 +346,7 @@ static void pcnet_class_init(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
 
-    k->init = pci_pcnet_init;
+    k->realize = pci_pcnet_realize;
     k->exit = pci_pcnet_uninit;
     k->romfile = "efi-pcnet.rom",
     k->vendor_id = PCI_VENDOR_ID_AMD;

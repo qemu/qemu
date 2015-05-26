@@ -205,10 +205,22 @@ again:
             if (size == 0) {
                 /* Transfer complete.  */
                 if (ch->lli) {
-                    ch->src = ldl_le_phys(&address_space_memory, ch->lli);
-                    ch->dest = ldl_le_phys(&address_space_memory, ch->lli + 4);
-                    ch->ctrl = ldl_le_phys(&address_space_memory, ch->lli + 12);
-                    ch->lli = ldl_le_phys(&address_space_memory, ch->lli + 8);
+                    ch->src = address_space_ldl_le(&address_space_memory,
+                                                   ch->lli,
+                                                   MEMTXATTRS_UNSPECIFIED,
+                                                   NULL);
+                    ch->dest = address_space_ldl_le(&address_space_memory,
+                                                    ch->lli + 4,
+                                                    MEMTXATTRS_UNSPECIFIED,
+                                                    NULL);
+                    ch->ctrl = address_space_ldl_le(&address_space_memory,
+                                                    ch->lli + 12,
+                                                    MEMTXATTRS_UNSPECIFIED,
+                                                    NULL);
+                    ch->lli = address_space_ldl_le(&address_space_memory,
+                                                   ch->lli + 8,
+                                                   MEMTXATTRS_UNSPECIFIED,
+                                                   NULL);
                 } else {
                     ch->conf &= ~PL080_CCONF_E;
                 }

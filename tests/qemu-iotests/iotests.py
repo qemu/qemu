@@ -21,8 +21,11 @@ import re
 import subprocess
 import string
 import unittest
-import sys; sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..', 'scripts', 'qmp'))
+import sys
+sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..', 'scripts'))
+sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..', 'scripts', 'qmp'))
 import qmp
+import qtest
 import struct
 
 __all__ = ['imgfmt', 'imgproto', 'test_dir' 'qemu_img', 'qemu_io',
@@ -75,18 +78,38 @@ def create_image(name, size):
         i = i + 512
     file.close()
 
+# Test if 'match' is a recursive subset of 'event'
+def event_match(event, match=None):
+    if match is None:
+        return True
+
+    for key in match:
+        if key in event:
+            if isinstance(event[key], dict):
+                if not event_match(event[key], match[key]):
+                    return False
+            elif event[key] != match[key]:
+                return False
+        else:
+            return False
+
+    return True
+
 class VM(object):
     '''A QEMU VM'''
 
     def __init__(self):
         self._monitor_path = os.path.join(test_dir, 'qemu-mon.%d' % os.getpid())
         self._qemu_log_path = os.path.join(test_dir, 'qemu-log.%d' % os.getpid())
+        self._qtest_path = os.path.join(test_dir, 'qemu-qtest.%d' % os.getpid())
         self._args = qemu_args + ['-chardev',
                      'socket,id=mon,path=' + self._monitor_path,
                      '-mon', 'chardev=mon,mode=control',
-                     '-qtest', 'stdio', '-machine', 'accel=qtest',
+                     '-qtest', 'unix:path=' + self._qtest_path,
+                     '-machine', 'accel=qtest',
                      '-display', 'none', '-vga', 'none']
         self._num_drives = 0
+        self._events = []
 
     # This can be used to add an unused monitor instance.
     def add_monitor_telnet(self, ip, port):
@@ -160,9 +183,11 @@ class VM(object):
         qemulog = open(self._qemu_log_path, 'wb')
         try:
             self._qmp = qmp.QEMUMonitorProtocol(self._monitor_path, server=True)
+            self._qtest = qtest.QEMUQtestProtocol(self._qtest_path, server=True)
             self._popen = subprocess.Popen(self._args, stdin=devnull, stdout=qemulog,
                                            stderr=subprocess.STDOUT)
             self._qmp.accept()
+            self._qtest.accept()
         except:
             os.remove(self._monitor_path)
             raise
@@ -173,27 +198,55 @@ class VM(object):
             self._qmp.cmd('quit')
             self._popen.wait()
             os.remove(self._monitor_path)
+            os.remove(self._qtest_path)
             os.remove(self._qemu_log_path)
             self._popen = None
 
     underscore_to_dash = string.maketrans('_', '-')
-    def qmp(self, cmd, **args):
+    def qmp(self, cmd, conv_keys=True, **args):
         '''Invoke a QMP command and return the result dict'''
         qmp_args = dict()
         for k in args.keys():
-            qmp_args[k.translate(self.underscore_to_dash)] = args[k]
+            if conv_keys:
+                qmp_args[k.translate(self.underscore_to_dash)] = args[k]
+            else:
+                qmp_args[k] = args[k]
 
         return self._qmp.cmd(cmd, args=qmp_args)
 
+    def qtest(self, cmd):
+        '''Send a qtest command to guest'''
+        return self._qtest.cmd(cmd)
+
     def get_qmp_event(self, wait=False):
         '''Poll for one queued QMP events and return it'''
+        if len(self._events) > 0:
+            return self._events.pop(0)
         return self._qmp.pull_event(wait=wait)
 
     def get_qmp_events(self, wait=False):
         '''Poll for queued QMP events and return a list of dicts'''
         events = self._qmp.get_events(wait=wait)
+        events.extend(self._events)
+        del self._events[:]
         self._qmp.clear_events()
         return events
+
+    def event_wait(self, name='BLOCK_JOB_COMPLETED', timeout=60.0, match=None):
+        # Search cached events
+        for event in self._events:
+            if (event['event'] == name) and event_match(event, match):
+                self._events.remove(event)
+                return event
+
+        # Poll for new events
+        while True:
+            event = self._qmp.pull_event(wait=timeout)
+            if (event['event'] == name) and event_match(event, match):
+                return event
+            self._events.append(event)
+
+        return None
 
 index_re = re.compile(r'([^\[]+)\[([^\]]+)\]')
 
@@ -285,23 +338,31 @@ def notrun(reason):
 def main(supported_fmts=[], supported_oses=['linux']):
     '''Run tests'''
 
+    debug = '-d' in sys.argv
+    verbosity = 1
     if supported_fmts and (imgfmt not in supported_fmts):
         notrun('not suitable for this image format: %s' % imgfmt)
 
-    if sys.platform not in supported_oses:
+    if True not in [sys.platform.startswith(x) for x in supported_oses]:
         notrun('not suitable for this OS: %s' % sys.platform)
 
     # We need to filter out the time taken from the output so that qemu-iotest
     # can reliably diff the results against master output.
     import StringIO
-    output = StringIO.StringIO()
+    if debug:
+        output = sys.stdout
+        verbosity = 2
+        sys.argv.remove('-d')
+    else:
+        output = StringIO.StringIO()
 
     class MyTestRunner(unittest.TextTestRunner):
-        def __init__(self, stream=output, descriptions=True, verbosity=1):
+        def __init__(self, stream=output, descriptions=True, verbosity=verbosity):
             unittest.TextTestRunner.__init__(self, stream, descriptions, verbosity)
 
     # unittest.main() will use sys.exit() so expect a SystemExit exception
     try:
         unittest.main(testRunner=MyTestRunner)
     finally:
-        sys.stderr.write(re.sub(r'Ran (\d+) tests? in [\d.]+s', r'Ran \1 tests', output.getvalue()))
+        if not debug:
+            sys.stderr.write(re.sub(r'Ran (\d+) tests? in [\d.]+s', r'Ran \1 tests', output.getvalue()))

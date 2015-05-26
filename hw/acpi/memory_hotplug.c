@@ -2,6 +2,7 @@
 #include "hw/acpi/pc-hotplug.h"
 #include "hw/mem/pc-dimm.h"
 #include "hw/boards.h"
+#include "hw/qdev-core.h"
 #include "trace.h"
 #include "qapi-event.h"
 
@@ -75,6 +76,7 @@ static uint64_t acpi_memory_hotplug_read(void *opaque, hwaddr addr,
     case 0x14: /* pack and return is_* fields */
         val |= mdev->is_enabled   ? 1 : 0;
         val |= mdev->is_inserting ? 2 : 0;
+        val |= mdev->is_removing  ? 4 : 0;
         trace_mhp_acpi_read_flags(mem_st->selector, val);
         break;
     default:
@@ -90,6 +92,9 @@ static void acpi_memory_hotplug_write(void *opaque, hwaddr addr, uint64_t data,
     MemHotplugState *mem_st = opaque;
     MemStatus *mdev;
     ACPIOSTInfo *info;
+    DeviceState *dev = NULL;
+    HotplugHandler *hotplug_ctrl = NULL;
+    Error *local_err = NULL;
 
     if (!mem_st->dev_count) {
         return;
@@ -127,12 +132,35 @@ static void acpi_memory_hotplug_write(void *opaque, hwaddr addr, uint64_t data,
         qapi_event_send_acpi_device_ost(info, &error_abort);
         qapi_free_ACPIOSTInfo(info);
         break;
-    case 0x14:
+    case 0x14: /* set is_* fields  */
         mdev = &mem_st->devs[mem_st->selector];
         if (data & 2) { /* clear insert event */
             mdev->is_inserting  = false;
             trace_mhp_acpi_clear_insert_evt(mem_st->selector);
+        } else if (data & 4) {
+            mdev->is_removing = false;
+            trace_mhp_acpi_clear_remove_evt(mem_st->selector);
+        } else if (data & 8) {
+            if (!mdev->is_enabled) {
+                trace_mhp_acpi_ejecting_invalid_slot(mem_st->selector);
+                break;
+            }
+
+            dev = DEVICE(mdev->dimm);
+            hotplug_ctrl = qdev_get_hotplug_handler(dev);
+            /* call pc-dimm unplug cb */
+            hotplug_handler_unplug(hotplug_ctrl, dev, &local_err);
+            if (local_err) {
+                trace_mhp_acpi_pc_dimm_delete_failed(mem_st->selector);
+                qapi_event_send_mem_unplug_error(dev->id,
+                                                 error_get_pretty(local_err),
+                                                 &error_abort);
+                break;
+            }
+            trace_mhp_acpi_pc_dimm_deleted(mem_st->selector);
         }
+        break;
+    default:
         break;
     }
 
@@ -163,28 +191,51 @@ void acpi_memory_hotplug_init(MemoryRegion *as, Object *owner,
     memory_region_add_subregion(as, ACPI_MEMORY_HOTPLUG_BASE, &state->io);
 }
 
-void acpi_memory_plug_cb(ACPIREGS *ar, qemu_irq irq, MemHotplugState *mem_st,
-                         DeviceState *dev, Error **errp)
+/**
+ * acpi_memory_slot_status:
+ * @mem_st: memory hotplug state
+ * @dev: device
+ * @errp: set in case of an error
+ *
+ * Obtain a single memory slot status.
+ *
+ * This function will be called by memory unplug request cb and unplug cb.
+ */
+static MemStatus *
+acpi_memory_slot_status(MemHotplugState *mem_st,
+                        DeviceState *dev, Error **errp)
 {
-    MemStatus *mdev;
     Error *local_err = NULL;
-    int slot = object_property_get_int(OBJECT(dev), "slot", &local_err);
+    int slot = object_property_get_int(OBJECT(dev), PC_DIMM_SLOT_PROP,
+                                       &local_err);
 
     if (local_err) {
         error_propagate(errp, local_err);
-        return;
+        return NULL;
     }
 
     if (slot >= mem_st->dev_count) {
         char *dev_path = object_get_canonical_path(OBJECT(dev));
-        error_setg(errp, "acpi_memory_plug_cb: "
+        error_setg(errp, "acpi_memory_slot_status: "
                    "device [%s] returned invalid memory slot[%d]",
                     dev_path, slot);
         g_free(dev_path);
+        return NULL;
+    }
+
+    return &mem_st->devs[slot];
+}
+
+void acpi_memory_plug_cb(ACPIREGS *ar, qemu_irq irq, MemHotplugState *mem_st,
+                         DeviceState *dev, Error **errp)
+{
+    MemStatus *mdev;
+
+    mdev = acpi_memory_slot_status(mem_st, dev, errp);
+    if (!mdev) {
         return;
     }
 
-    mdev = &mem_st->devs[slot];
     mdev->dimm = dev;
     mdev->is_enabled = true;
     mdev->is_inserting = true;
@@ -193,6 +244,38 @@ void acpi_memory_plug_cb(ACPIREGS *ar, qemu_irq irq, MemHotplugState *mem_st,
     ar->gpe.sts[0] |= ACPI_MEMORY_HOTPLUG_STATUS;
     acpi_update_sci(ar, irq);
     return;
+}
+
+void acpi_memory_unplug_request_cb(ACPIREGS *ar, qemu_irq irq,
+                                   MemHotplugState *mem_st,
+                                   DeviceState *dev, Error **errp)
+{
+    MemStatus *mdev;
+
+    mdev = acpi_memory_slot_status(mem_st, dev, errp);
+    if (!mdev) {
+        return;
+    }
+
+    mdev->is_removing = true;
+
+    /* Do ACPI magic */
+    ar->gpe.sts[0] |= ACPI_MEMORY_HOTPLUG_STATUS;
+    acpi_update_sci(ar, irq);
+}
+
+void acpi_memory_unplug_cb(MemHotplugState *mem_st,
+                           DeviceState *dev, Error **errp)
+{
+    MemStatus *mdev;
+
+    mdev = acpi_memory_slot_status(mem_st, dev, errp);
+    if (!mdev) {
+        return;
+    }
+
+    mdev->is_enabled = false;
+    mdev->dimm = NULL;
 }
 
 static const VMStateDescription vmstate_memhp_sts = {

@@ -127,7 +127,7 @@ static void fw_cfg_boot_set(void *opaque, const char *boot_device,
     fw_cfg_add_i16(opaque, FW_CFG_BOOT_DEVICE, boot_device[0]);
 }
 
-static void nvram_init(M48t59State *nvram, uint8_t *macaddr,
+static void nvram_init(Nvram *nvram, uint8_t *macaddr,
                        const char *cmdline, const char *boot_devices,
                        ram_addr_t RAM_size, uint32_t kernel_size,
                        int width, int height, int depth,
@@ -137,6 +137,7 @@ static void nvram_init(M48t59State *nvram, uint8_t *macaddr,
     uint32_t start, end;
     uint8_t image[0x1ff0];
     struct OpenBIOS_nvpart_v1 *part_header;
+    NvramClass *k = NVRAM_GET_CLASS(nvram);
 
     memset(image, '\0', sizeof(image));
 
@@ -170,19 +171,20 @@ static void nvram_init(M48t59State *nvram, uint8_t *macaddr,
     Sun_init_header((struct Sun_nvram *)&image[0x1fd8], macaddr,
                     nvram_machine_id);
 
-    for (i = 0; i < sizeof(image); i++)
-        m48t59_write(nvram, i, image[i]);
+    for (i = 0; i < sizeof(image); i++) {
+        (k->write)(nvram, i, image[i]);
+    }
 }
 
 static DeviceState *slavio_intctl;
 
-void sun4m_pic_info(Monitor *mon, const QDict *qdict)
+void sun4m_hmp_info_pic(Monitor *mon, const QDict *qdict)
 {
     if (slavio_intctl)
         slavio_pic_info(mon, slavio_intctl);
 }
 
-void sun4m_irq_info(Monitor *mon, const QDict *qdict)
+void sun4m_hmp_info_irq(Monitor *mon, const QDict *qdict)
 {
     if (slavio_intctl)
         slavio_irq_info(mon, slavio_intctl);
@@ -803,9 +805,8 @@ static int ram_init1(SysBusDevice *dev)
 {
     RamDevice *d = SUN4M_RAM(dev);
 
-    memory_region_init_ram(&d->ram, OBJECT(d), "sun4m.ram", d->size,
-                           &error_abort);
-    vmstate_register_ram_global(&d->ram);
+    memory_region_allocate_system_memory(&d->ram, OBJECT(d), "sun4m.ram",
+                                         d->size);
     sysbus_init_mmio(dev, &d->ram);
     return 0;
 }
@@ -1012,7 +1013,7 @@ static void sun4m_hw_init(const struct sun4m_hwdef *hwdef,
 
     lance_init(&nd_table[0], hwdef->le_base, ledma, ledma_irq);
 
-    nvram = m48t59_init(slavio_irq[0], hwdef->nvram_base, 0, 0x2000, 8);
+    nvram = m48t59_init(slavio_irq[0], hwdef->nvram_base, 0, 0x2000, 1968, 8);
 
     slavio_timer_init_all(hwdef->counter_base, slavio_irq[19], slavio_cpu_irq, smp_cpus);
 
@@ -1086,7 +1087,6 @@ static void sun4m_hw_init(const struct sun4m_hwdef *hwdef,
 
     fw_cfg = fw_cfg_init_mem(CFG_ADDR, CFG_ADDR + 2);
     fw_cfg_add_i16(fw_cfg, FW_CFG_MAX_CPUS, (uint16_t)max_cpus);
-    fw_cfg_add_i32(fw_cfg, FW_CFG_ID, 1);
     fw_cfg_add_i64(fw_cfg, FW_CFG_RAM_SIZE, (uint64_t)ram_size);
     fw_cfg_add_i16(fw_cfg, FW_CFG_MACHINE_ID, hwdef->machine_id);
     fw_cfg_add_i16(fw_cfg, FW_CFG_SUN4M_DEPTH, graphic_depth);

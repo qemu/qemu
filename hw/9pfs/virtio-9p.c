@@ -1950,7 +1950,8 @@ static void v9fs_write(void *opaque)
 
     err = pdu_unmarshal(pdu, offset, "dqd", &fid, &off, &count);
     if (err < 0) {
-        return complete_pdu(s, pdu, err);
+        complete_pdu(s, pdu, err);
+        return;
     }
     offset += err;
     v9fs_init_qiov_from_pdu(&qiov_full, pdu, offset, count, true);

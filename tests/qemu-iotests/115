@@ -1,0 +1,95 @@
+#!/bin/bash
+#
+# Test case for non-self-referential qcow2 refcount blocks
+#
+# Copyright (C) 2014 Red Hat, Inc.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+
+# creator
+owner=mreitz@redhat.com
+
+seq="$(basename $0)"
+echo "QA output created by $seq"
+
+here="$PWD"
+tmp=/tmp/$$
+status=1	# failure is the default!
+
+_cleanup()
+{
+	_cleanup_test_img
+}
+trap "_cleanup; exit \$status" 0 1 2 3 15
+
+# get standard environment, filters and checks
+. ./common.rc
+. ./common.filter
+
+_supported_fmt qcow2
+_supported_proto file
+_supported_os Linux
+# This test relies on refcounts being 64 bits wide (which does not work with
+# compat=0.10)
+_unsupported_imgopts 'refcount_bits=\([^6]\|.\([^4]\|$\)\)' 'compat=0.10'
+
+echo
+echo '=== Testing large refcount and L1 table ==='
+echo
+
+# Create an image with an L1 table and a refcount table that each span twice the
+# number of clusters which can be described by a single refblock; therefore, at
+# least two refblocks cannot count their own refcounts because all the clusters
+# they describe are part of the L1 table or refcount table.
+
+# One refblock can describe (with cluster_size=512 and refcount_bits=64)
+# 512/8 = 64 clusters, therefore the L1 table should cover 128 clusters, which
+# equals 128 * (512/8) = 8192 entries (actually, 8192 - 512/8 = 8129 would
+# suffice, but it does not really matter). 8192 L2 tables can in turn describe
+# 8192 * 512/8 = 524,288 clusters which cover a space of 256 MB.
+
+# Since with refcount_bits=64 every refcount block entry is 64 bits wide (just
+# like the L2 table entries), the same calculation applies to the refcount table
+# as well; the difference is that while for the L1 table the guest disk size is
+# concerned, for the refcount table it is the image length that has to be at
+# least 256 MB. We can achieve that by using preallocation=metadata for an image
+# which has a guest disk size of 256 MB.
+
+IMGOPTS="$IMGOPTS,refcount_bits=64,cluster_size=512,preallocation=metadata" \
+    _make_test_img 256M
+
+# We know for sure that the L1 and refcount tables do not overlap with any other
+# structure because the metadata overlap checks would have caught that case.
+
+# Because qemu refuses to open qcow2 files whose L1 table does not cover the
+# whole guest disk size, it is definitely large enough. On the other hand, to
+# test whether the refcount table is large enough, we simply have to verify that
+# indeed all the clusters are allocated, which is done by qemu-img check.
+
+# The final thing we need to test is whether the tables are actually covered by
+# refcount blocks; since all clusters of the tables are referenced, we can use
+# qemu-img check for that purpose, too.
+
+$QEMU_IMG check "$TEST_IMG" | \
+    sed -e 's/^.* = \([0-9]\+\.[0-9]\+% allocated\).*\(clusters\)$/\1 \2/' \
+        -e '/^Image end offset/d'
+
+# (Note that we cannot use _check_test_img because that function filters out the
+# allocation status)
+
+# success, all done
+echo '*** done'
+rm -f $seq.full
+status=0

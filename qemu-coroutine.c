@@ -99,29 +99,10 @@ static void coroutine_delete(Coroutine *co)
     qemu_coroutine_delete(co);
 }
 
-static void coroutine_swap(Coroutine *from, Coroutine *to)
-{
-    CoroutineAction ret;
-
-    ret = qemu_coroutine_switch(from, to, COROUTINE_YIELD);
-
-    qemu_co_queue_run_restart(to);
-
-    switch (ret) {
-    case COROUTINE_YIELD:
-        return;
-    case COROUTINE_TERMINATE:
-        trace_qemu_coroutine_terminate(to);
-        coroutine_delete(to);
-        return;
-    default:
-        abort();
-    }
-}
-
 void qemu_coroutine_enter(Coroutine *co, void *opaque)
 {
     Coroutine *self = qemu_coroutine_self();
+    CoroutineAction ret;
 
     trace_qemu_coroutine_enter(self, co, opaque);
 
@@ -132,7 +113,20 @@ void qemu_coroutine_enter(Coroutine *co, void *opaque)
 
     co->caller = self;
     co->entry_arg = opaque;
-    coroutine_swap(self, co);
+    ret = qemu_coroutine_switch(self, co, COROUTINE_ENTER);
+
+    qemu_co_queue_run_restart(co);
+
+    switch (ret) {
+    case COROUTINE_YIELD:
+        return;
+    case COROUTINE_TERMINATE:
+        trace_qemu_coroutine_terminate(co);
+        coroutine_delete(co);
+        return;
+    default:
+        abort();
+    }
 }
 
 void coroutine_fn qemu_coroutine_yield(void)
@@ -148,5 +142,5 @@ void coroutine_fn qemu_coroutine_yield(void)
     }
 
     self->caller = NULL;
-    coroutine_swap(self, to);
+    qemu_coroutine_switch(self, to, COROUTINE_YIELD);
 }

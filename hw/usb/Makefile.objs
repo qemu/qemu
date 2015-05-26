@@ -1,17 +1,18 @@
 # usb subsystem core
-common-obj-y += core.o combined-packet.o bus.o desc.o desc-msos.o
-common-obj-y += libhw.o
+common-obj-y += core.o combined-packet.o bus.o libhw.o
+common-obj-$(CONFIG_USB) += desc.o desc-msos.o
 
 # usb host adapters
 common-obj-$(CONFIG_USB_UHCI) += hcd-uhci.o
 common-obj-$(CONFIG_USB_OHCI) += hcd-ohci.o
-common-obj-$(CONFIG_USB_EHCI) += hcd-ehci.o hcd-ehci-pci.o hcd-ehci-sysbus.o
+common-obj-$(CONFIG_USB_EHCI) += hcd-ehci.o hcd-ehci-pci.o
+common-obj-$(CONFIG_USB_EHCI_SYSBUS) += hcd-ehci-sysbus.o
 common-obj-$(CONFIG_USB_XHCI) += hcd-xhci.o
 common-obj-$(CONFIG_USB_MUSB) += hcd-musb.o
 
 # emulated usb devices
-common-obj-y += dev-hub.o
-common-obj-y += dev-hid.o
+common-obj-$(CONFIG_USB) += dev-hub.o
+common-obj-$(CONFIG_USB) += dev-hid.o
 common-obj-$(CONFIG_USB_TABLET_WACOM) += dev-wacom.o
 common-obj-$(CONFIG_USB_STORAGE_BOT)  += dev-storage.o
 common-obj-$(CONFIG_USB_STORAGE_UAS)  += dev-uas.o

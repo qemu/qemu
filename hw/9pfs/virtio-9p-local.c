@@ -45,19 +45,17 @@
 
 static char *local_mapped_attr_path(FsContext *ctx, const char *path)
 {
-    char *dir_name;
-    char *tmp_path = g_strdup(path);
-    char *base_name = basename(tmp_path);
-    char *buffer;
-
-    /* NULL terminate the directory */
-    dir_name = tmp_path;
-    *(base_name - 1) = '\0';
-
-    buffer = g_strdup_printf("%s/%s/%s/%s",
-             ctx->fs_root, dir_name, VIRTFS_META_DIR, base_name);
-    g_free(tmp_path);
-    return buffer;
+    int dirlen;
+    const char *name = strrchr(path, '/');
+    if (name) {
+        dirlen = name - path;
+        ++name;
+    } else {
+        name = path;
+        dirlen = 0;
+    }
+    return g_strdup_printf("%s/%.*s/%s/%s", ctx->fs_root,
+                           dirlen, path, VIRTFS_META_DIR, name);
 }
 
 static FILE *local_fopen(const char *path, const char *mode)
@@ -332,7 +330,6 @@ static ssize_t local_readlink(FsContext *fs_ctx, V9fsPath *fs_path,
             tsize = read(fd, (void *)buf, bufsz);
         } while (tsize == -1 && errno == EINTR);
         close(fd);
-        return tsize;
     } else if ((fs_ctx->export_flags & V9FS_SM_PASSTHROUGH) ||
                (fs_ctx->export_flags & V9FS_SM_NONE)) {
         buffer = rpath(fs_ctx, path);
@@ -381,7 +378,7 @@ static int local_opendir(FsContext *ctx,
 
 static void local_rewinddir(FsContext *ctx, V9fsFidOpenState *fs)
 {
-    return rewinddir(fs->dir);
+    rewinddir(fs->dir);
 }
 
 static off_t local_telldir(FsContext *ctx, V9fsFidOpenState *fs)
@@ -412,7 +409,7 @@ again:
 
 static void local_seekdir(FsContext *ctx, V9fsFidOpenState *fs, off_t off)
 {
-    return seekdir(fs->dir, off);
+    seekdir(fs->dir, off);
 }
 
 static ssize_t local_preadv(FsContext *ctx, V9fsFidOpenState *fs,
@@ -489,7 +486,7 @@ static int local_mknod(FsContext *fs_ctx, V9fsPath *dir_path,
     int err = -1;
     int serrno = 0;
     V9fsString fullname;
-    char *buffer;
+    char *buffer = NULL;
 
     v9fs_string_init(&fullname);
     v9fs_string_sprintf(&fullname, "%s/%s", dir_path->data, name);
@@ -500,7 +497,6 @@ static int local_mknod(FsContext *fs_ctx, V9fsPath *dir_path,
         buffer = rpath(fs_ctx, path);
         err = mknod(buffer, SM_LOCAL_MODE_BITS|S_IFREG, 0);
         if (err == -1) {
-            g_free(buffer);
             goto out;
         }
         err = local_set_xattr(buffer, credp);
@@ -513,7 +509,6 @@ static int local_mknod(FsContext *fs_ctx, V9fsPath *dir_path,
         buffer = rpath(fs_ctx, path);
         err = mknod(buffer, SM_LOCAL_MODE_BITS|S_IFREG, 0);
         if (err == -1) {
-            g_free(buffer);
             goto out;
         }
         err = local_set_mapped_file_attr(fs_ctx, path, credp);
@@ -526,7 +521,6 @@ static int local_mknod(FsContext *fs_ctx, V9fsPath *dir_path,
         buffer = rpath(fs_ctx, path);
         err = mknod(buffer, credp->fc_mode, credp->fc_rdev);
         if (err == -1) {
-            g_free(buffer);
             goto out;
         }
         err = local_post_create_passthrough(fs_ctx, path, credp);
@@ -540,8 +534,8 @@ static int local_mknod(FsContext *fs_ctx, V9fsPath *dir_path,
 err_end:
     remove(buffer);
     errno = serrno;
-    g_free(buffer);
 out:
+    g_free(buffer);
     v9fs_string_free(&fullname);
     return err;
 }
@@ -553,7 +547,7 @@ static int local_mkdir(FsContext *fs_ctx, V9fsPath *dir_path,
     int err = -1;
     int serrno = 0;
     V9fsString fullname;
-    char *buffer;
+    char *buffer = NULL;
 
     v9fs_string_init(&fullname);
     v9fs_string_sprintf(&fullname, "%s/%s", dir_path->data, name);
@@ -564,7 +558,6 @@ static int local_mkdir(FsContext *fs_ctx, V9fsPath *dir_path,
         buffer = rpath(fs_ctx, path);
         err = mkdir(buffer, SM_LOCAL_DIR_MODE_BITS);
         if (err == -1) {
-            g_free(buffer);
             goto out;
         }
         credp->fc_mode = credp->fc_mode|S_IFDIR;
@@ -577,7 +570,6 @@ static int local_mkdir(FsContext *fs_ctx, V9fsPath *dir_path,
         buffer = rpath(fs_ctx, path);
         err = mkdir(buffer, SM_LOCAL_DIR_MODE_BITS);
         if (err == -1) {
-            g_free(buffer);
             goto out;
         }
         credp->fc_mode = credp->fc_mode|S_IFDIR;
@@ -591,7 +583,6 @@ static int local_mkdir(FsContext *fs_ctx, V9fsPath *dir_path,
         buffer = rpath(fs_ctx, path);
         err = mkdir(buffer, credp->fc_mode);
         if (err == -1) {
-            g_free(buffer);
             goto out;
         }
         err = local_post_create_passthrough(fs_ctx, path, credp);
@@ -605,8 +596,8 @@ static int local_mkdir(FsContext *fs_ctx, V9fsPath *dir_path,
 err_end:
     remove(buffer);
     errno = serrno;
-    g_free(buffer);
 out:
+    g_free(buffer);
     v9fs_string_free(&fullname);
     return err;
 }
@@ -660,7 +651,7 @@ static int local_open2(FsContext *fs_ctx, V9fsPath *dir_path, const char *name,
     int err = -1;
     int serrno = 0;
     V9fsString fullname;
-    char *buffer;
+    char *buffer = NULL;
 
     /*
      * Mark all the open to not follow symlinks
@@ -676,7 +667,6 @@ static int local_open2(FsContext *fs_ctx, V9fsPath *dir_path, const char *name,
         buffer = rpath(fs_ctx, path);
         fd = open(buffer, flags, SM_LOCAL_MODE_BITS);
         if (fd == -1) {
-            g_free(buffer);
             err = fd;
             goto out;
         }
@@ -691,7 +681,6 @@ static int local_open2(FsContext *fs_ctx, V9fsPath *dir_path, const char *name,
         buffer = rpath(fs_ctx, path);
         fd = open(buffer, flags, SM_LOCAL_MODE_BITS);
         if (fd == -1) {
-            g_free(buffer);
             err = fd;
             goto out;
         }
@@ -707,7 +696,6 @@ static int local_open2(FsContext *fs_ctx, V9fsPath *dir_path, const char *name,
         buffer = rpath(fs_ctx, path);
         fd = open(buffer, flags, credp->fc_mode);
         if (fd == -1) {
-            g_free(buffer);
             err = fd;
             goto out;
         }
@@ -725,8 +713,8 @@ err_end:
     close(fd);
     remove(buffer);
     errno = serrno;
-    g_free(buffer);
 out:
+    g_free(buffer);
     v9fs_string_free(&fullname);
     return err;
 }
@@ -739,7 +727,7 @@ static int local_symlink(FsContext *fs_ctx, const char *oldpath,
     int serrno = 0;
     char *newpath;
     V9fsString fullname;
-    char *buffer;
+    char *buffer = NULL;
 
     v9fs_string_init(&fullname);
     v9fs_string_sprintf(&fullname, "%s/%s", dir_path->data, name);
@@ -752,7 +740,6 @@ static int local_symlink(FsContext *fs_ctx, const char *oldpath,
         buffer = rpath(fs_ctx, newpath);
         fd = open(buffer, O_CREAT|O_EXCL|O_RDWR|O_NOFOLLOW, SM_LOCAL_MODE_BITS);
         if (fd == -1) {
-            g_free(buffer);
             err = fd;
             goto out;
         }
@@ -782,7 +769,6 @@ static int local_symlink(FsContext *fs_ctx, const char *oldpath,
         buffer = rpath(fs_ctx, newpath);
         fd = open(buffer, O_CREAT|O_EXCL|O_RDWR|O_NOFOLLOW, SM_LOCAL_MODE_BITS);
         if (fd == -1) {
-            g_free(buffer);
             err = fd;
             goto out;
         }
@@ -811,7 +797,6 @@ static int local_symlink(FsContext *fs_ctx, const char *oldpath,
         buffer = rpath(fs_ctx, newpath);
         err = symlink(oldpath, buffer);
         if (err) {
-            g_free(buffer);
             goto out;
         }
         err = lchown(buffer, credp->fc_uid, credp->fc_gid);
@@ -832,8 +817,8 @@ static int local_symlink(FsContext *fs_ctx, const char *oldpath,
 err_end:
     remove(buffer);
     errno = serrno;
-    g_free(buffer);
 out:
+    g_free(buffer);
     v9fs_string_free(&fullname);
     return err;
 }

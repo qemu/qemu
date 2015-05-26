@@ -283,6 +283,7 @@ bool aio_poll(AioContext *ctx, bool blocking)
     int count;
     int timeout;
 
+    aio_context_acquire(ctx);
     have_select_revents = aio_prepare(ctx);
     if (have_select_revents) {
         blocking = false;
@@ -323,7 +324,13 @@ bool aio_poll(AioContext *ctx, bool blocking)
 
         timeout = blocking
             ? qemu_timeout_ns_to_ms(aio_compute_timeout(ctx)) : 0;
+        if (timeout) {
+            aio_context_release(ctx);
+        }
         ret = WaitForMultipleObjects(count, events, FALSE, timeout);
+        if (timeout) {
+            aio_context_acquire(ctx);
+        }
         aio_set_dispatching(ctx, true);
 
         if (first && aio_bh_poll(ctx)) {
@@ -349,5 +356,6 @@ bool aio_poll(AioContext *ctx, bool blocking)
     progress |= timerlistgroup_run_timers(&ctx->tlg);
 
     aio_set_dispatching(ctx, was_dispatching);
+    aio_context_release(ctx);
     return progress;
 }

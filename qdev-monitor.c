@@ -667,15 +667,72 @@ static void qbus_print(Monitor *mon, BusState *bus, int indent)
 }
 #undef qdev_printf
 
-void do_info_qtree(Monitor *mon, const QDict *qdict)
+void hmp_info_qtree(Monitor *mon, const QDict *qdict)
 {
     if (sysbus_get_default())
         qbus_print(mon, sysbus_get_default(), 0);
 }
 
-void do_info_qdm(Monitor *mon, const QDict *qdict)
+void hmp_info_qdm(Monitor *mon, const QDict *qdict)
 {
     qdev_print_devinfos(true);
+}
+
+typedef struct QOMCompositionState {
+    Monitor *mon;
+    int indent;
+} QOMCompositionState;
+
+static void print_qom_composition(Monitor *mon, Object *obj, int indent);
+
+static int print_qom_composition_child(Object *obj, void *opaque)
+{
+    QOMCompositionState *s = opaque;
+
+    print_qom_composition(s->mon, obj, s->indent);
+
+    return 0;
+}
+
+static void print_qom_composition(Monitor *mon, Object *obj, int indent)
+{
+    QOMCompositionState s = {
+        .mon = mon,
+        .indent = indent + 2,
+    };
+    char *name;
+
+    if (obj == object_get_root()) {
+        name = g_strdup("");
+    } else {
+        name = object_get_canonical_path_component(obj);
+    }
+    monitor_printf(mon, "%*s/%s (%s)\n", indent, "", name,
+                   object_get_typename(obj));
+    g_free(name);
+    object_child_foreach(obj, print_qom_composition_child, &s);
+}
+
+void hmp_info_qom_tree(Monitor *mon, const QDict *dict)
+{
+    const char *path = qdict_get_try_str(dict, "path");
+    Object *obj;
+    bool ambiguous = false;
+
+    if (path) {
+        obj = object_resolve_path(path, &ambiguous);
+        if (!obj) {
+            monitor_printf(mon, "Path '%s' could not be resolved.\n", path);
+            return;
+        }
+        if (ambiguous) {
+            monitor_printf(mon, "Warning: Path '%s' is ambiguous.\n", path);
+            return;
+        }
+    } else {
+        obj = qdev_get_machine();
+    }
+    print_qom_composition(mon, obj, 0);
 }
 
 int do_device_add(Monitor *mon, const QDict *qdict, QObject **ret_data)
@@ -772,8 +829,8 @@ int qemu_global_option(const char *str)
     }
 
     opts = qemu_opts_create(&qemu_global_opts, NULL, 0, &error_abort);
-    qemu_opt_set(opts, "driver", driver);
-    qemu_opt_set(opts, "property", property);
-    qemu_opt_set(opts, "value", str+offset+1);
+    qemu_opt_set(opts, "driver", driver, &error_abort);
+    qemu_opt_set(opts, "property", property, &error_abort);
+    qemu_opt_set(opts, "value", str + offset + 1, &error_abort);
     return 0;
 }

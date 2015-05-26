@@ -2125,7 +2125,7 @@ static const MemoryRegionOps b1_ops = {
     },
 };
 
-static int vmxnet3_pci_init(PCIDevice *pci_dev)
+static void vmxnet3_pci_realize(PCIDevice *pci_dev, Error **errp)
 {
     DeviceState *dev = DEVICE(pci_dev);
     VMXNET3State *s = VMXNET3(pci_dev);
@@ -2164,8 +2164,6 @@ static int vmxnet3_pci_init(PCIDevice *pci_dev)
 
     register_savevm(dev, "vmxnet3-msix", -1, 1,
                     vmxnet3_msix_save, vmxnet3_msix_load, s);
-
-    return 0;
 }
 
 static void vmxnet3_instance_init(Object *obj)
@@ -2501,7 +2499,7 @@ static void vmxnet3_class_init(ObjectClass *class, void *data)
     DeviceClass *dc = DEVICE_CLASS(class);
     PCIDeviceClass *c = PCI_DEVICE_CLASS(class);
 
-    c->init = vmxnet3_pci_init;
+    c->realize = vmxnet3_pci_realize;
     c->exit = vmxnet3_pci_uninit;
     c->vendor_id = PCI_VENDOR_ID_VMWARE;
     c->device_id = PCI_DEVICE_ID_VMWARE_VMXNET3;

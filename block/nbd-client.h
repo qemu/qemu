@@ -20,7 +20,6 @@ typedef struct NbdClientSession {
     int sock;
     uint32_t nbdflags;
     off_t size;
-    size_t blocksize;
 
     CoMutex send_mutex;
     CoMutex free_sema;
@@ -31,24 +30,24 @@ typedef struct NbdClientSession {
     struct nbd_reply reply;
 
     bool is_unix;
-
-    BlockDriverState *bs;
 } NbdClientSession;
 
-int nbd_client_session_init(NbdClientSession *client, BlockDriverState *bs,
-                            int sock, const char *export_name);
-void nbd_client_session_close(NbdClientSession *client);
+NbdClientSession *nbd_get_client_session(BlockDriverState *bs);
 
-int nbd_client_session_co_discard(NbdClientSession *client, int64_t sector_num,
-                                  int nb_sectors);
-int nbd_client_session_co_flush(NbdClientSession *client);
-int nbd_client_session_co_writev(NbdClientSession *client, int64_t sector_num,
-                                 int nb_sectors, QEMUIOVector *qiov);
-int nbd_client_session_co_readv(NbdClientSession *client, int64_t sector_num,
-                                int nb_sectors, QEMUIOVector *qiov);
+int nbd_client_init(BlockDriverState *bs, int sock, const char *export_name,
+                    Error **errp);
+void nbd_client_close(BlockDriverState *bs);
 
-void nbd_client_session_detach_aio_context(NbdClientSession *client);
-void nbd_client_session_attach_aio_context(NbdClientSession *client,
-                                           AioContext *new_context);
+int nbd_client_co_discard(BlockDriverState *bs, int64_t sector_num,
+                          int nb_sectors);
+int nbd_client_co_flush(BlockDriverState *bs);
+int nbd_client_co_writev(BlockDriverState *bs, int64_t sector_num,
+                         int nb_sectors, QEMUIOVector *qiov);
+int nbd_client_co_readv(BlockDriverState *bs, int64_t sector_num,
+                        int nb_sectors, QEMUIOVector *qiov);
+
+void nbd_client_detach_aio_context(BlockDriverState *bs);
+void nbd_client_attach_aio_context(BlockDriverState *bs,
+                                   AioContext *new_context);
 
 #endif /* NBD_CLIENT_H */

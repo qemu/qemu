@@ -1,0 +1,3 @@
+# we reject a base that is not a struct
+{ 'union': 'Union', 'data': { 'a': 'int', 'b': 'str' } }
+{ 'struct': 'MyType', 'base': 'Union', 'data': { 'c': 'int' } }

@@ -1,3 +1,3 @@
-[OrderedDict([('id', 'eins')]), OrderedDict([('id', 'zwei')])]
+[OrderedDict([('command', 'eins')]), OrderedDict([('command', 'zwei')])]
 []
 []

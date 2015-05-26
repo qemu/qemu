@@ -1,5 +1,5 @@
 /*
- *  Firmware patch provider class and helpers.
+ *  Firmware path provider class and helpers.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by

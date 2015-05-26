@@ -12,8 +12,9 @@
 #include "virtio.h"
 
 char stack[PAGE_SIZE * 8] __attribute__((__aligned__(PAGE_SIZE)));
+char ring_area[PAGE_SIZE * 8] __attribute__((__aligned__(PAGE_SIZE)));
 uint64_t boot_value;
-struct subchannel_id blk_schid = { .one = 1 };
+static struct subchannel_id blk_schid = { .one = 1 };
 
 /*
  * Priniciples of Operations (SA22-7832-09) chapter 17 requires that

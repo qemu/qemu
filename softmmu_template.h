@@ -123,7 +123,7 @@
      * victim tlb. try to refill from the victim tlb before walking the       \
      * page table. */                                                         \
     int vidx;                                                                 \
-    hwaddr tmpiotlb;                                                          \
+    CPUIOTLBEntry tmpiotlb;                                                   \
     CPUTLBEntry tmptlb;                                                       \
     for (vidx = CPU_VTLB_SIZE-1; vidx >= 0; --vidx) {                         \
         if (env->tlb_v_table[mmu_idx][vidx].ty == (addr & TARGET_PAGE_MASK)) {\
@@ -143,13 +143,14 @@
 
 #ifndef SOFTMMU_CODE_ACCESS
 static inline DATA_TYPE glue(io_read, SUFFIX)(CPUArchState *env,
-                                              hwaddr physaddr,
+                                              CPUIOTLBEntry *iotlbentry,
                                               target_ulong addr,
                                               uintptr_t retaddr)
 {
     uint64_t val;
     CPUState *cpu = ENV_GET_CPU(env);
-    MemoryRegion *mr = iotlb_to_region(cpu->as, physaddr);
+    hwaddr physaddr = iotlbentry->addr;
+    MemoryRegion *mr = iotlb_to_region(cpu, physaddr);
 
     physaddr = (physaddr & TARGET_PAGE_MASK) + addr;
     cpu->mem_io_pc = retaddr;
@@ -158,7 +159,8 @@ static inline DATA_TYPE glue(io_read, SUFFIX)(CPUArchState *env,
     }
 
     cpu->mem_io_vaddr = addr;
-    io_mem_read(mr, physaddr, &val, 1 << SHIFT);
+    memory_region_dispatch_read(mr, physaddr, &val, 1 << SHIFT,
+                                iotlbentry->attrs);
     return val;
 }
 #endif
@@ -166,9 +168,10 @@ static inline DATA_TYPE glue(io_read, SUFFIX)(CPUArchState *env,
 #ifdef SOFTMMU_CODE_ACCESS
 static __attribute__((unused))
 #endif
-WORD_TYPE helper_le_ld_name(CPUArchState *env, target_ulong addr, int mmu_idx,
-                            uintptr_t retaddr)
+WORD_TYPE helper_le_ld_name(CPUArchState *env, target_ulong addr,
+                            TCGMemOpIdx oi, uintptr_t retaddr)
 {
+    unsigned mmu_idx = get_mmuidx(oi);
     int index = (addr >> TARGET_PAGE_BITS) & (CPU_TLB_SIZE - 1);
     target_ulong tlb_addr = env->tlb_table[mmu_idx][index].ADDR_READ;
     uintptr_t haddr;
@@ -180,12 +183,11 @@ WORD_TYPE helper_le_ld_name(CPUArchState *env, target_ulong addr, int mmu_idx,
     /* If the TLB entry is for a different page, reload and try again.  */
     if ((addr & TARGET_PAGE_MASK)
          != (tlb_addr & (TARGET_PAGE_MASK | TLB_INVALID_MASK))) {
-#ifdef ALIGNED_ONLY
-        if ((addr & (DATA_SIZE - 1)) != 0) {
+        if ((addr & (DATA_SIZE - 1)) != 0
+            && (get_memop(oi) & MO_AMASK) == MO_ALIGN) {
             cpu_unaligned_access(ENV_GET_CPU(env), addr, READ_ACCESS_TYPE,
                                  mmu_idx, retaddr);
         }
-#endif
         if (!VICTIM_TLB_HIT(ADDR_READ)) {
             tlb_fill(ENV_GET_CPU(env), addr, READ_ACCESS_TYPE,
                      mmu_idx, retaddr);
@@ -195,15 +197,15 @@ WORD_TYPE helper_le_ld_name(CPUArchState *env, target_ulong addr, int mmu_idx,
 
     /* Handle an IO access.  */
     if (unlikely(tlb_addr & ~TARGET_PAGE_MASK)) {
-        hwaddr ioaddr;
+        CPUIOTLBEntry *iotlbentry;
         if ((addr & (DATA_SIZE - 1)) != 0) {
             goto do_unaligned_access;
         }
-        ioaddr = env->iotlb[mmu_idx][index];
+        iotlbentry = &env->iotlb[mmu_idx][index];
 
         /* ??? Note that the io helpers always read data in the target
            byte ordering.  We should push the LE/BE request down into io.  */
-        res = glue(io_read, SUFFIX)(env, ioaddr, addr, retaddr);
+        res = glue(io_read, SUFFIX)(env, iotlbentry, addr, retaddr);
         res = TGT_LE(res);
         return res;
     }
@@ -216,16 +218,16 @@ WORD_TYPE helper_le_ld_name(CPUArchState *env, target_ulong addr, int mmu_idx,
         DATA_TYPE res1, res2;
         unsigned shift;
     do_unaligned_access:
-#ifdef ALIGNED_ONLY
-        cpu_unaligned_access(ENV_GET_CPU(env), addr, READ_ACCESS_TYPE,
-                             mmu_idx, retaddr);
-#endif
+        if ((get_memop(oi) & MO_AMASK) == MO_ALIGN) {
+            cpu_unaligned_access(ENV_GET_CPU(env), addr, READ_ACCESS_TYPE,
+                                 mmu_idx, retaddr);
+        }
         addr1 = addr & ~(DATA_SIZE - 1);
         addr2 = addr1 + DATA_SIZE;
         /* Note the adjustment at the beginning of the function.
            Undo that for the recursion.  */
-        res1 = helper_le_ld_name(env, addr1, mmu_idx, retaddr + GETPC_ADJ);
-        res2 = helper_le_ld_name(env, addr2, mmu_idx, retaddr + GETPC_ADJ);
+        res1 = helper_le_ld_name(env, addr1, oi, retaddr + GETPC_ADJ);
+        res2 = helper_le_ld_name(env, addr2, oi, retaddr + GETPC_ADJ);
         shift = (addr & (DATA_SIZE - 1)) * 8;
 
         /* Little-endian combine.  */
@@ -234,12 +236,11 @@ WORD_TYPE helper_le_ld_name(CPUArchState *env, target_ulong addr, int mmu_idx,
     }
 
     /* Handle aligned access or unaligned access in the same page.  */
-#ifdef ALIGNED_ONLY
-    if ((addr & (DATA_SIZE - 1)) != 0) {
+    if ((addr & (DATA_SIZE - 1)) != 0
+        && (get_memop(oi) & MO_AMASK) == MO_ALIGN) {
         cpu_unaligned_access(ENV_GET_CPU(env), addr, READ_ACCESS_TYPE,
                              mmu_idx, retaddr);
     }
-#endif
 
     haddr = addr + env->tlb_table[mmu_idx][index].addend;
 #if DATA_SIZE == 1
@@ -254,9 +255,10 @@ WORD_TYPE helper_le_ld_name(CPUArchState *env, target_ulong addr, int mmu_idx,
 #ifdef SOFTMMU_CODE_ACCESS
 static __attribute__((unused))
 #endif
-WORD_TYPE helper_be_ld_name(CPUArchState *env, target_ulong addr, int mmu_idx,
-                            uintptr_t retaddr)
+WORD_TYPE helper_be_ld_name(CPUArchState *env, target_ulong addr,
+                            TCGMemOpIdx oi, uintptr_t retaddr)
 {
+    unsigned mmu_idx = get_mmuidx(oi);
     int index = (addr >> TARGET_PAGE_BITS) & (CPU_TLB_SIZE - 1);
     target_ulong tlb_addr = env->tlb_table[mmu_idx][index].ADDR_READ;
     uintptr_t haddr;
@@ -268,12 +270,11 @@ WORD_TYPE helper_be_ld_name(CPUArchState *env, target_ulong addr, int mmu_idx,
     /* If the TLB entry is for a different page, reload and try again.  */
     if ((addr & TARGET_PAGE_MASK)
          != (tlb_addr & (TARGET_PAGE_MASK | TLB_INVALID_MASK))) {
-#ifdef ALIGNED_ONLY
-        if ((addr & (DATA_SIZE - 1)) != 0) {
+        if ((addr & (DATA_SIZE - 1)) != 0
+            && (get_memop(oi) & MO_AMASK) == MO_ALIGN) {
             cpu_unaligned_access(ENV_GET_CPU(env), addr, READ_ACCESS_TYPE,
                                  mmu_idx, retaddr);
         }
-#endif
         if (!VICTIM_TLB_HIT(ADDR_READ)) {
             tlb_fill(ENV_GET_CPU(env), addr, READ_ACCESS_TYPE,
                      mmu_idx, retaddr);
@@ -283,15 +284,15 @@ WORD_TYPE helper_be_ld_name(CPUArchState *env, target_ulong addr, int mmu_idx,
 
     /* Handle an IO access.  */
     if (unlikely(tlb_addr & ~TARGET_PAGE_MASK)) {
-        hwaddr ioaddr;
+        CPUIOTLBEntry *iotlbentry;
         if ((addr & (DATA_SIZE - 1)) != 0) {
             goto do_unaligned_access;
         }
-        ioaddr = env->iotlb[mmu_idx][index];
+        iotlbentry = &env->iotlb[mmu_idx][index];
 
         /* ??? Note that the io helpers always read data in the target
            byte ordering.  We should push the LE/BE request down into io.  */
-        res = glue(io_read, SUFFIX)(env, ioaddr, addr, retaddr);
+        res = glue(io_read, SUFFIX)(env, iotlbentry, addr, retaddr);
         res = TGT_BE(res);
         return res;
     }
@@ -304,16 +305,16 @@ WORD_TYPE helper_be_ld_name(CPUArchState *env, target_ulong addr, int mmu_idx,
         DATA_TYPE res1, res2;
         unsigned shift;
     do_unaligned_access:
-#ifdef ALIGNED_ONLY
-        cpu_unaligned_access(ENV_GET_CPU(env), addr, READ_ACCESS_TYPE,
-                             mmu_idx, retaddr);
-#endif
+        if ((get_memop(oi) & MO_AMASK) == MO_ALIGN) {
+            cpu_unaligned_access(ENV_GET_CPU(env), addr, READ_ACCESS_TYPE,
+                                 mmu_idx, retaddr);
+        }
         addr1 = addr & ~(DATA_SIZE - 1);
         addr2 = addr1 + DATA_SIZE;
         /* Note the adjustment at the beginning of the function.
            Undo that for the recursion.  */
-        res1 = helper_be_ld_name(env, addr1, mmu_idx, retaddr + GETPC_ADJ);
-        res2 = helper_be_ld_name(env, addr2, mmu_idx, retaddr + GETPC_ADJ);
+        res1 = helper_be_ld_name(env, addr1, oi, retaddr + GETPC_ADJ);
+        res2 = helper_be_ld_name(env, addr2, oi, retaddr + GETPC_ADJ);
         shift = (addr & (DATA_SIZE - 1)) * 8;
 
         /* Big-endian combine.  */
@@ -322,12 +323,11 @@ WORD_TYPE helper_be_ld_name(CPUArchState *env, target_ulong addr, int mmu_idx,
     }
 
     /* Handle aligned access or unaligned access in the same page.  */
-#ifdef ALIGNED_ONLY
-    if ((addr & (DATA_SIZE - 1)) != 0) {
+    if ((addr & (DATA_SIZE - 1)) != 0
+        && (get_memop(oi) & MO_AMASK) == MO_ALIGN) {
         cpu_unaligned_access(ENV_GET_CPU(env), addr, READ_ACCESS_TYPE,
                              mmu_idx, retaddr);
     }
-#endif
 
     haddr = addr + env->tlb_table[mmu_idx][index].addend;
     res = glue(glue(ld, LSUFFIX), _be_p)((uint8_t *)haddr);
@@ -339,7 +339,8 @@ DATA_TYPE
 glue(glue(helper_ld, SUFFIX), MMUSUFFIX)(CPUArchState *env, target_ulong addr,
                                          int mmu_idx)
 {
-    return helper_te_ld_name (env, addr, mmu_idx, GETRA());
+    TCGMemOpIdx oi = make_memop_idx(SHIFT, mmu_idx);
+    return helper_te_ld_name (env, addr, oi, GETRA());
 }
 
 #ifndef SOFTMMU_CODE_ACCESS
@@ -348,28 +349,29 @@ glue(glue(helper_ld, SUFFIX), MMUSUFFIX)(CPUArchState *env, target_ulong addr,
    avoid this for 64-bit data, or for 32-bit data on 32-bit host.  */
 #if DATA_SIZE * 8 < TCG_TARGET_REG_BITS
 WORD_TYPE helper_le_lds_name(CPUArchState *env, target_ulong addr,
-                             int mmu_idx, uintptr_t retaddr)
+                             TCGMemOpIdx oi, uintptr_t retaddr)
 {
-    return (SDATA_TYPE)helper_le_ld_name(env, addr, mmu_idx, retaddr);
+    return (SDATA_TYPE)helper_le_ld_name(env, addr, oi, retaddr);
 }
 
 # if DATA_SIZE > 1
 WORD_TYPE helper_be_lds_name(CPUArchState *env, target_ulong addr,
-                             int mmu_idx, uintptr_t retaddr)
+                             TCGMemOpIdx oi, uintptr_t retaddr)
 {
-    return (SDATA_TYPE)helper_be_ld_name(env, addr, mmu_idx, retaddr);
+    return (SDATA_TYPE)helper_be_ld_name(env, addr, oi, retaddr);
 }
 # endif
 #endif
 
 static inline void glue(io_write, SUFFIX)(CPUArchState *env,
-                                          hwaddr physaddr,
+                                          CPUIOTLBEntry *iotlbentry,
                                           DATA_TYPE val,
                                           target_ulong addr,
                                           uintptr_t retaddr)
 {
     CPUState *cpu = ENV_GET_CPU(env);
-    MemoryRegion *mr = iotlb_to_region(cpu->as, physaddr);
+    hwaddr physaddr = iotlbentry->addr;
+    MemoryRegion *mr = iotlb_to_region(cpu, physaddr);
 
     physaddr = (physaddr & TARGET_PAGE_MASK) + addr;
     if (mr != &io_mem_rom && mr != &io_mem_notdirty && !cpu_can_do_io(cpu)) {
@@ -378,12 +380,14 @@ static inline void glue(io_write, SUFFIX)(CPUArchState *env,
 
     cpu->mem_io_vaddr = addr;
     cpu->mem_io_pc = retaddr;
-    io_mem_write(mr, physaddr, val, 1 << SHIFT);
+    memory_region_dispatch_write(mr, physaddr, val, 1 << SHIFT,
+                                 iotlbentry->attrs);
 }
 
 void helper_le_st_name(CPUArchState *env, target_ulong addr, DATA_TYPE val,
-                       int mmu_idx, uintptr_t retaddr)
+                       TCGMemOpIdx oi, uintptr_t retaddr)
 {
+    unsigned mmu_idx = get_mmuidx(oi);
     int index = (addr >> TARGET_PAGE_BITS) & (CPU_TLB_SIZE - 1);
     target_ulong tlb_addr = env->tlb_table[mmu_idx][index].addr_write;
     uintptr_t haddr;
@@ -394,12 +398,11 @@ void helper_le_st_name(CPUArchState *env, target_ulong addr, DATA_TYPE val,
     /* If the TLB entry is for a different page, reload and try again.  */
     if ((addr & TARGET_PAGE_MASK)
         != (tlb_addr & (TARGET_PAGE_MASK | TLB_INVALID_MASK))) {
-#ifdef ALIGNED_ONLY
-        if ((addr & (DATA_SIZE - 1)) != 0) {
+        if ((addr & (DATA_SIZE - 1)) != 0
+            && (get_memop(oi) & MO_AMASK) == MO_ALIGN) {
             cpu_unaligned_access(ENV_GET_CPU(env), addr, MMU_DATA_STORE,
                                  mmu_idx, retaddr);
         }
-#endif
         if (!VICTIM_TLB_HIT(addr_write)) {
             tlb_fill(ENV_GET_CPU(env), addr, MMU_DATA_STORE, mmu_idx, retaddr);
         }
@@ -408,16 +411,16 @@ void helper_le_st_name(CPUArchState *env, target_ulong addr, DATA_TYPE val,
 
     /* Handle an IO access.  */
     if (unlikely(tlb_addr & ~TARGET_PAGE_MASK)) {
-        hwaddr ioaddr;
+        CPUIOTLBEntry *iotlbentry;
         if ((addr & (DATA_SIZE - 1)) != 0) {
             goto do_unaligned_access;
         }
-        ioaddr = env->iotlb[mmu_idx][index];
+        iotlbentry = &env->iotlb[mmu_idx][index];
 
         /* ??? Note that the io helpers always read data in the target
            byte ordering.  We should push the LE/BE request down into io.  */
         val = TGT_LE(val);
-        glue(io_write, SUFFIX)(env, ioaddr, val, addr, retaddr);
+        glue(io_write, SUFFIX)(env, iotlbentry, val, addr, retaddr);
         return;
     }
 
@@ -427,10 +430,10 @@ void helper_le_st_name(CPUArchState *env, target_ulong addr, DATA_TYPE val,
                      >= TARGET_PAGE_SIZE)) {
         int i;
     do_unaligned_access:
-#ifdef ALIGNED_ONLY
-        cpu_unaligned_access(ENV_GET_CPU(env), addr, MMU_DATA_STORE,
-                             mmu_idx, retaddr);
-#endif
+        if ((get_memop(oi) & MO_AMASK) == MO_ALIGN) {
+            cpu_unaligned_access(ENV_GET_CPU(env), addr, MMU_DATA_STORE,
+                                 mmu_idx, retaddr);
+        }
         /* XXX: not efficient, but simple */
         /* Note: relies on the fact that tlb_fill() does not remove the
          * previous page from the TLB cache.  */
@@ -440,18 +443,17 @@ void helper_le_st_name(CPUArchState *env, target_ulong addr, DATA_TYPE val,
             /* Note the adjustment at the beginning of the function.
                Undo that for the recursion.  */
             glue(helper_ret_stb, MMUSUFFIX)(env, addr + i, val8,
-                                            mmu_idx, retaddr + GETPC_ADJ);
+                                            oi, retaddr + GETPC_ADJ);
         }
         return;
     }
 
     /* Handle aligned access or unaligned access in the same page.  */
-#ifdef ALIGNED_ONLY
-    if ((addr & (DATA_SIZE - 1)) != 0) {
+    if ((addr & (DATA_SIZE - 1)) != 0
+        && (get_memop(oi) & MO_AMASK) == MO_ALIGN) {
         cpu_unaligned_access(ENV_GET_CPU(env), addr, MMU_DATA_STORE,
                              mmu_idx, retaddr);
     }
-#endif
 
     haddr = addr + env->tlb_table[mmu_idx][index].addend;
 #if DATA_SIZE == 1
@@ -463,8 +465,9 @@ void helper_le_st_name(CPUArchState *env, target_ulong addr, DATA_TYPE val,
 
 #if DATA_SIZE > 1
 void helper_be_st_name(CPUArchState *env, target_ulong addr, DATA_TYPE val,
-                       int mmu_idx, uintptr_t retaddr)
+                       TCGMemOpIdx oi, uintptr_t retaddr)
 {
+    unsigned mmu_idx = get_mmuidx(oi);
     int index = (addr >> TARGET_PAGE_BITS) & (CPU_TLB_SIZE - 1);
     target_ulong tlb_addr = env->tlb_table[mmu_idx][index].addr_write;
     uintptr_t haddr;
@@ -475,12 +478,11 @@ void helper_be_st_name(CPUArchState *env, target_ulong addr, DATA_TYPE val,
     /* If the TLB entry is for a different page, reload and try again.  */
     if ((addr & TARGET_PAGE_MASK)
         != (tlb_addr & (TARGET_PAGE_MASK | TLB_INVALID_MASK))) {
-#ifdef ALIGNED_ONLY
-        if ((addr & (DATA_SIZE - 1)) != 0) {
+        if ((addr & (DATA_SIZE - 1)) != 0
+            && (get_memop(oi) & MO_AMASK) == MO_ALIGN) {
             cpu_unaligned_access(ENV_GET_CPU(env), addr, MMU_DATA_STORE,
                                  mmu_idx, retaddr);
         }
-#endif
         if (!VICTIM_TLB_HIT(addr_write)) {
             tlb_fill(ENV_GET_CPU(env), addr, MMU_DATA_STORE, mmu_idx, retaddr);
         }
@@ -489,16 +491,16 @@ void helper_be_st_name(CPUArchState *env, target_ulong addr, DATA_TYPE val,
 
     /* Handle an IO access.  */
     if (unlikely(tlb_addr & ~TARGET_PAGE_MASK)) {
-        hwaddr ioaddr;
+        CPUIOTLBEntry *iotlbentry;
         if ((addr & (DATA_SIZE - 1)) != 0) {
             goto do_unaligned_access;
         }
-        ioaddr = env->iotlb[mmu_idx][index];
+        iotlbentry = &env->iotlb[mmu_idx][index];
 
         /* ??? Note that the io helpers always read data in the target
            byte ordering.  We should push the LE/BE request down into io.  */
         val = TGT_BE(val);
-        glue(io_write, SUFFIX)(env, ioaddr, val, addr, retaddr);
+        glue(io_write, SUFFIX)(env, iotlbentry, val, addr, retaddr);
         return;
     }
 
@@ -508,10 +510,10 @@ void helper_be_st_name(CPUArchState *env, target_ulong addr, DATA_TYPE val,
                      >= TARGET_PAGE_SIZE)) {
         int i;
     do_unaligned_access:
-#ifdef ALIGNED_ONLY
-        cpu_unaligned_access(ENV_GET_CPU(env), addr, MMU_DATA_STORE,
-                             mmu_idx, retaddr);
-#endif
+        if ((get_memop(oi) & MO_AMASK) == MO_ALIGN) {
+            cpu_unaligned_access(ENV_GET_CPU(env), addr, MMU_DATA_STORE,
+                                 mmu_idx, retaddr);
+        }
         /* XXX: not efficient, but simple */
         /* Note: relies on the fact that tlb_fill() does not remove the
          * previous page from the TLB cache.  */
@@ -521,18 +523,17 @@ void helper_be_st_name(CPUArchState *env, target_ulong addr, DATA_TYPE val,
             /* Note the adjustment at the beginning of the function.
                Undo that for the recursion.  */
             glue(helper_ret_stb, MMUSUFFIX)(env, addr + i, val8,
-                                            mmu_idx, retaddr + GETPC_ADJ);
+                                            oi, retaddr + GETPC_ADJ);
         }
         return;
     }
 
     /* Handle aligned access or unaligned access in the same page.  */
-#ifdef ALIGNED_ONLY
-    if ((addr & (DATA_SIZE - 1)) != 0) {
+    if ((addr & (DATA_SIZE - 1)) != 0
+        && (get_memop(oi) & MO_AMASK) == MO_ALIGN) {
         cpu_unaligned_access(ENV_GET_CPU(env), addr, MMU_DATA_STORE,
                              mmu_idx, retaddr);
     }
-#endif
 
     haddr = addr + env->tlb_table[mmu_idx][index].addend;
     glue(glue(st, SUFFIX), _be_p)((uint8_t *)haddr, val);
@@ -543,7 +544,8 @@ void
 glue(glue(helper_st, SUFFIX), MMUSUFFIX)(CPUArchState *env, target_ulong addr,
                                          DATA_TYPE val, int mmu_idx)
 {
-    helper_te_st_name(env, addr, val, mmu_idx, GETRA());
+    TCGMemOpIdx oi = make_memop_idx(SHIFT, mmu_idx);
+    helper_te_st_name(env, addr, val, oi, GETRA());
 }
 
 #endif /* !defined(SOFTMMU_CODE_ACCESS) */

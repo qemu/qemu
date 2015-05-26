@@ -139,6 +139,7 @@ static int64_t load_kernel(void)
     rom_add_blob_fixed("params", params_buf, params_size,
                        (16 << 20) - 264);
 
+    g_free(params_buf);
     return entry;
 }
 
@@ -165,7 +166,8 @@ void mips_r4k_init(MachineState *machine)
     MemoryRegion *ram = g_new(MemoryRegion, 1);
     MemoryRegion *bios;
     MemoryRegion *iomem = g_new(MemoryRegion, 1);
-    MemoryRegion *isa = g_new(MemoryRegion, 1);
+    MemoryRegion *isa_io = g_new(MemoryRegion, 1);
+    MemoryRegion *isa_mem = g_new(MemoryRegion, 1);
     int bios_size;
     MIPSCPU *cpu;
     CPUMIPSState *env;
@@ -204,8 +206,7 @@ void mips_r4k_init(MachineState *machine)
                 ((unsigned int)ram_size / (1 << 20)));
         exit(1);
     }
-    memory_region_init_ram(ram, NULL, "mips_r4k.ram", ram_size, &error_abort);
-    vmstate_register_ram_global(ram);
+    memory_region_allocate_system_memory(ram, NULL, "mips_r4k.ram", ram_size);
 
     memory_region_add_subregion(address_space_mem, 0, ram);
 
@@ -267,27 +268,23 @@ void mips_r4k_init(MachineState *machine)
     cpu_mips_irq_init_cpu(env);
     cpu_mips_clock_init(env);
 
+    /* ISA bus: IO space at 0x14000000, mem space at 0x10000000 */
+    memory_region_init_alias(isa_io, NULL, "isa-io",
+                             get_system_io(), 0, 0x00010000);
+    memory_region_init(isa_mem, NULL, "isa-mem", 0x01000000);
+    memory_region_add_subregion(get_system_memory(), 0x14000000, isa_io);
+    memory_region_add_subregion(get_system_memory(), 0x10000000, isa_mem);
+    isa_bus = isa_bus_new(NULL, isa_mem, get_system_io());
+
     /* The PIC is attached to the MIPS CPU INT0 pin */
-    isa_bus = isa_bus_new(NULL, get_system_io());
     i8259 = i8259_init(isa_bus, env->irq[2]);
     isa_bus_irqs(isa_bus, i8259);
 
     rtc_init(isa_bus, 2000, NULL);
 
-    /* Register 64 KB of ISA IO space at 0x14000000 */
-    memory_region_init_alias(isa, NULL, "isa_mmio",
-                             get_system_io(), 0, 0x00010000);
-    memory_region_add_subregion(get_system_memory(), 0x14000000, isa);
-
-    isa_mem_base = 0x10000000;
-
     pit = pit_init(isa_bus, 0x40, 0, NULL);
 
-    for(i = 0; i < MAX_SERIAL_PORTS; i++) {
-        if (serial_hds[i]) {
-            serial_isa_init(isa_bus, i, serial_hds[i]);
-        }
-    }
+    serial_hds_isa_init(isa_bus, MAX_SERIAL_PORTS);
 
     isa_vga_init(isa_bus);
 

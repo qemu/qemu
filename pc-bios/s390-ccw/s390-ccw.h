@@ -51,6 +51,9 @@ void disabled_wait(void);
 /* main.c */
 void virtio_panic(const char *string);
 void write_subsystem_identification(void);
+extern char stack[PAGE_SIZE * 8] __attribute__((__aligned__(PAGE_SIZE)));
+extern char ring_area[PAGE_SIZE * 8] __attribute__((__aligned__(PAGE_SIZE)));
+extern uint64_t boot_value;
 
 /* sclp-ascii.c */
 void sclp_print(const char *string);

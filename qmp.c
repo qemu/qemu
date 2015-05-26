@@ -45,15 +45,16 @@ NameInfo *qmp_query_name(Error **errp)
 
 VersionInfo *qmp_query_version(Error **errp)
 {
-    VersionInfo *info = g_malloc0(sizeof(*info));
+    VersionInfo *info = g_new0(VersionInfo, 1);
     const char *version = QEMU_VERSION;
     char *tmp;
 
-    info->qemu.major = strtol(version, &tmp, 10);
+    info->qemu = g_new0(VersionTriple, 1);
+    info->qemu->major = strtol(version, &tmp, 10);
     tmp++;
-    info->qemu.minor = strtol(tmp, &tmp, 10);
+    info->qemu->minor = strtol(tmp, &tmp, 10);
     tmp++;
-    info->qemu.micro = strtol(tmp, &tmp, 10);
+    info->qemu->micro = strtol(tmp, &tmp, 10);
     info->package = g_strdup(QEMU_PKGVERSION);
 
     return info;
@@ -134,22 +135,33 @@ VncInfo *qmp_query_vnc(Error **errp)
     error_set(errp, QERR_FEATURE_DISABLED, "vnc");
     return NULL;
 };
+
+VncInfo2List *qmp_query_vnc_servers(Error **errp)
+{
+    error_set(errp, QERR_FEATURE_DISABLED, "vnc");
+    return NULL;
+};
 #endif
 
 #ifndef CONFIG_SPICE
-/* If SPICE support is enabled, the "true" query-spice command is
-   defined in the SPICE subsystem. Also note that we use a small
-   trick to maintain query-spice's original behavior, which is not
-   to be available in the namespace if SPICE is not compiled in */
+/*
+ * qmp-commands.hx ensures that QMP command query-spice exists only
+ * #ifdef CONFIG_SPICE.  Necessary for an accurate query-commands
+ * result.  However, the QAPI schema is blissfully unaware of that,
+ * and the QAPI code generator happily generates a dead
+ * qmp_marshal_input_query_spice() that calls qmp_query_spice().
+ * Provide it one, or else linking fails.
+ * FIXME Educate the QAPI schema on CONFIG_SPICE.
+ */
 SpiceInfo *qmp_query_spice(Error **errp)
 {
-    error_set(errp, QERR_COMMAND_NOT_FOUND, "query-spice");
-    return NULL;
+    abort();
 };
 #endif
 
 void qmp_cont(Error **errp)
 {
+    Error *local_err = NULL;
     BlockDriverState *bs;
 
     if (runstate_needs_reset()) {
@@ -163,10 +175,9 @@ void qmp_cont(Error **errp)
         bdrv_iostatus_reset(bs);
     }
     for (bs = bdrv_next(NULL); bs; bs = bdrv_next(bs)) {
-        if (bdrv_key_required(bs)) {
-            error_set(errp, QERR_DEVICE_ENCRYPTED,
-                      bdrv_get_device_name(bs),
-                      bdrv_get_encrypted_filename(bs));
+        bdrv_add_key(bs, NULL, &local_err);
+        if (local_err) {
+            error_propagate(errp, local_err);
             return;
         }
     }
@@ -287,9 +298,7 @@ void qmp_set_password(const char *protocol, const char *password,
     }
 
     if (strcmp(protocol, "spice") == 0) {
-        if (!using_spice) {
-            /* correct one? spice isn't a device ,,, */
-            error_set(errp, QERR_DEVICE_NOT_ACTIVE, "spice");
+        if (!qemu_using_spice(errp)) {
             return;
         }
         rc = qemu_spice_set_passwd(password, fail_if_connected,
@@ -335,9 +344,7 @@ void qmp_expire_password(const char *protocol, const char *whenstr,
     }
 
     if (strcmp(protocol, "spice") == 0) {
-        if (!using_spice) {
-            /* correct one? spice isn't a device ,,, */
-            error_set(errp, QERR_DEVICE_NOT_ACTIVE, "spice");
+        if (!qemu_using_spice(errp)) {
             return;
         }
         rc = qemu_spice_set_pw_expire(when);
@@ -381,6 +388,10 @@ static void qmp_change_vnc_listen(const char *target, Error **errp)
         qemu_opts_del(opts);
     }
     opts = vnc_parse_func(target);
+    if (!opts) {
+        return;
+    }
+
     vnc_display_open("default", errp);
 }
 
@@ -575,8 +586,7 @@ void qmp_add_client(const char *protocol, const char *fdname,
     }
 
     if (strcmp(protocol, "spice") == 0) {
-        if (!using_spice) {
-            error_set(errp, QERR_DEVICE_NOT_ACTIVE, "spice");
+        if (!qemu_using_spice(errp)) {
             close(fd);
             return;
         }
@@ -700,6 +710,11 @@ void qmp_object_del(const char *id, Error **errp)
     obj = object_resolve_path_component(container, id);
     if (!obj) {
         error_setg(errp, "object id not found");
+        return;
+    }
+
+    if (!user_creatable_can_be_deleted(USER_CREATABLE(obj), errp)) {
+        error_setg(errp, "%s is in use, can not be deleted", id);
         return;
     }
     object_unparent(obj);

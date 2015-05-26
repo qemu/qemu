@@ -30,6 +30,20 @@
 namespace vixl {
 
 
+// Floating-point infinity values.
+const float kFP32PositiveInfinity = rawbits_to_float(0x7f800000);
+const float kFP32NegativeInfinity = rawbits_to_float(0xff800000);
+const double kFP64PositiveInfinity =
+    rawbits_to_double(UINT64_C(0x7ff0000000000000));
+const double kFP64NegativeInfinity =
+    rawbits_to_double(UINT64_C(0xfff0000000000000));
+
+
+// The default NaN values (for FPCR.DN=1).
+const double kFP64DefaultNaN = rawbits_to_double(UINT64_C(0x7ff8000000000000));
+const float kFP32DefaultNaN = rawbits_to_float(0x7fc00000);
+
+
 static uint64_t RotateRight(uint64_t value,
                             unsigned int rotate,
                             unsigned int width) {
@@ -51,6 +65,55 @@ static uint64_t RepeatBitsAcrossReg(unsigned reg_size,
     result |= (result << i);
   }
   return result;
+}
+
+
+bool Instruction::IsLoad() const {
+  if (Mask(LoadStoreAnyFMask) != LoadStoreAnyFixed) {
+    return false;
+  }
+
+  if (Mask(LoadStorePairAnyFMask) == LoadStorePairAnyFixed) {
+    return Mask(LoadStorePairLBit) != 0;
+  } else {
+    LoadStoreOp op = static_cast<LoadStoreOp>(Mask(LoadStoreOpMask));
+    switch (op) {
+      case LDRB_w:
+      case LDRH_w:
+      case LDR_w:
+      case LDR_x:
+      case LDRSB_w:
+      case LDRSB_x:
+      case LDRSH_w:
+      case LDRSH_x:
+      case LDRSW_x:
+      case LDR_s:
+      case LDR_d: return true;
+      default: return false;
+    }
+  }
+}
+
+
+bool Instruction::IsStore() const {
+  if (Mask(LoadStoreAnyFMask) != LoadStoreAnyFixed) {
+    return false;
+  }
+
+  if (Mask(LoadStorePairAnyFMask) == LoadStorePairAnyFixed) {
+    return Mask(LoadStorePairLBit) == 0;
+  } else {
+    LoadStoreOp op = static_cast<LoadStoreOp>(Mask(LoadStoreOpMask));
+    switch (op) {
+      case STRB_w:
+      case STRH_w:
+      case STR_w:
+      case STR_x:
+      case STR_s:
+      case STR_d: return true;
+      default: return false;
+    }
+  }
 }
 
 

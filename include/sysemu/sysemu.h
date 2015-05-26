@@ -74,10 +74,10 @@ void qemu_remove_exit_notifier(Notifier *notify);
 
 void qemu_add_machine_init_done_notifier(Notifier *notify);
 
-void do_savevm(Monitor *mon, const QDict *qdict);
+void hmp_savevm(Monitor *mon, const QDict *qdict);
 int load_vmstate(const char *name);
-void do_delvm(Monitor *mon, const QDict *qdict);
-void do_info_snapshots(Monitor *mon, const QDict *qdict);
+void hmp_delvm(Monitor *mon, const QDict *qdict);
+void hmp_info_snapshots(Monitor *mon, const QDict *qdict);
 
 void qemu_announce_self(void);
 
@@ -89,9 +89,6 @@ void qemu_savevm_state_complete(QEMUFile *f);
 void qemu_savevm_state_cancel(void);
 uint64_t qemu_savevm_state_pending(QEMUFile *f, uint64_t max_size);
 int qemu_loadvm_state(QEMUFile *f);
-
-/* SLIRP */
-void do_info_slirp(Monitor *mon);
 
 typedef enum DisplayType
 {
@@ -117,6 +114,7 @@ extern int graphic_width;
 extern int graphic_height;
 extern int graphic_depth;
 extern DisplayType display_type;
+extern int display_opengl;
 extern const char *keyboard_layout;
 extern int win2k_install_hack;
 extern int alt_grab;
@@ -147,24 +145,6 @@ extern int mem_prealloc;
  */
 #define MAX_CPUMASK_BITS 255
 
-extern int nb_numa_nodes;   /* Number of NUMA nodes */
-extern int max_numa_nodeid; /* Highest specified NUMA node ID, plus one.
-                             * For all nodes, nodeid < max_numa_nodeid
-                             */
-
-typedef struct node_info {
-    uint64_t node_mem;
-    DECLARE_BITMAP(node_cpu, MAX_CPUMASK_BITS);
-    struct HostMemoryBackend *node_memdev;
-    bool present;
-} NodeInfo;
-extern NodeInfo numa_info[MAX_NODES];
-void set_numa_nodes(void);
-void set_numa_modes(void);
-void query_numa_node_mem(uint64_t node_mem[]);
-extern QemuOptsList qemu_numa_opts;
-int numa_init_func(QemuOpts *opts, void *opaque);
-
 #define MAX_OPTION_ROMS 16
 typedef struct QEMUOptionRom {
     const char *name;
@@ -177,17 +157,12 @@ extern int nb_option_roms;
 extern const char *prom_envs[MAX_PROM_ENVS];
 extern unsigned int nb_prom_envs;
 
-/* pci-hotplug */
-void pci_device_hot_add(Monitor *mon, const QDict *qdict);
-int pci_drive_hot_add(Monitor *mon, const QDict *qdict, DriveInfo *dinfo);
-void do_pci_device_hot_remove(Monitor *mon, const QDict *qdict);
-
 /* generic hotplug */
-void drive_hot_add(Monitor *mon, const QDict *qdict);
+void hmp_drive_add(Monitor *mon, const QDict *qdict);
 
 /* pcie aer error injection */
 void pcie_aer_inject_error_print(Monitor *mon, const QObject *data);
-int do_pcie_aer_inject_error(Monitor *mon,
+int hmp_pcie_aer_inject_error(Monitor *mon,
                              const QDict *qdict, QObject **ret_data);
 
 /* serial ports */
@@ -202,9 +177,9 @@ extern CharDriverState *serial_hds[MAX_SERIAL_PORTS];
 
 extern CharDriverState *parallel_hds[MAX_PARALLEL_PORTS];
 
-void do_usb_add(Monitor *mon, const QDict *qdict);
-void do_usb_del(Monitor *mon, const QDict *qdict);
-void usb_info(Monitor *mon, const QDict *qdict);
+void hmp_usb_add(Monitor *mon, const QDict *qdict);
+void hmp_usb_del(Monitor *mon, const QDict *qdict);
+void hmp_info_usb(Monitor *mon, const QDict *qdict);
 
 void add_boot_device_path(int32_t bootindex, DeviceState *dev,
                           const char *suffix);

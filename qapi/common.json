@@ -29,15 +29,28 @@
             'DeviceNotActive', 'DeviceNotFound', 'KVMMissingCap' ] }
 
 ##
+# @VersionTriple
+#
+# A three-part version number.
+#
+# @qemu.major:  The major version number.
+#
+# @qemu.minor:  The minor version number.
+#
+# @qemu.micro:  The micro version number.
+#
+# Since: 2.4
+##
+{ 'struct': 'VersionTriple',
+  'data': {'major': 'int', 'minor': 'int', 'micro': 'int'} }
+
+
+##
 # @VersionInfo:
 #
 # A description of QEMU's version.
 #
-# @qemu.major:  The major version of QEMU
-#
-# @qemu.minor:  The minor version of QEMU
-#
-# @qemu.micro:  The micro version of QEMU.  By current convention, a micro
+# @qemu:        The version of QEMU.  By current convention, a micro
 #               version of 50 signifies a development branch.  A micro version
 #               greater than or equal to 90 signifies a release candidate for
 #               the next minor version.  A micro version of less than 50
@@ -50,9 +63,8 @@
 #
 # Since: 0.14.0
 ##
-{ 'type': 'VersionInfo',
-  'data': {'qemu': {'major': 'int', 'minor': 'int', 'micro': 'int'},
-           'package': 'str'} }
+{ 'struct': 'VersionInfo',
+  'data': {'qemu': 'VersionTriple', 'package': 'str'} }
 
 ##
 # @query-version:
@@ -74,7 +86,7 @@
 #
 # Since: 0.14.0
 ##
-{ 'type': 'CommandInfo', 'data': {'name': 'str'} }
+{ 'struct': 'CommandInfo', 'data': {'name': 'str'} }
 
 ##
 # @query-commands:

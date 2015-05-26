@@ -226,7 +226,7 @@ struct Property {
     PropertyInfo *info;
     int          offset;
     uint8_t      bitnr;
-    uint8_t      qtype;
+    qtype_code   qtype;
     int64_t      defval;
     int          arrayoffset;
     PropertyInfo *arrayinfo;
@@ -266,6 +266,7 @@ int qdev_init(DeviceState *dev) QEMU_WARN_UNUSED_RESULT;
 void qdev_init_nofail(DeviceState *dev);
 void qdev_set_legacy_instance_id(DeviceState *dev, int alias_id,
                                  int required_for_version);
+HotplugHandler *qdev_get_hotplug_handler(DeviceState *dev);
 void qdev_unplug(DeviceState *dev, Error **errp);
 void qdev_simple_device_unplug_cb(HotplugHandler *hotplug_dev,
                                   DeviceState *dev, Error **errp);
@@ -342,6 +343,7 @@ void qbus_reset_all_fn(void *opaque);
 BusState *sysbus_get_default(void);
 
 char *qdev_get_fw_dev_path(DeviceState *dev);
+char *qdev_get_own_fw_dev_path_from_handler(BusState *bus, DeviceState *dev);
 
 /**
  * @qdev_machine_init

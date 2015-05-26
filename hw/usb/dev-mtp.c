@@ -130,6 +130,9 @@ struct MTPState {
     QTAILQ_HEAD(, MTPObject) objects;
 };
 
+#define TYPE_USB_MTP "usb-mtp"
+#define USB_MTP(obj) OBJECT_CHECK(MTPState, (obj), TYPE_USB_MTP)
+
 #define QEMU_STORAGE_ID 0x00010001
 
 #define MTP_FLAG_WRITABLE 0
@@ -878,7 +881,7 @@ static void usb_mtp_command(MTPState *s, MTPControl *c)
 
 static void usb_mtp_handle_reset(USBDevice *dev)
 {
-    MTPState *s = DO_UPCAST(MTPState, dev, dev);
+    MTPState *s = USB_MTP(dev);
 
     trace_usb_mtp_reset(s->dev.addr);
 
@@ -914,7 +917,7 @@ static void usb_mtp_cancel_packet(USBDevice *dev, USBPacket *p)
 
 static void usb_mtp_handle_data(USBDevice *dev, USBPacket *p)
 {
-    MTPState *s = DO_UPCAST(MTPState, dev, dev);
+    MTPState *s = USB_MTP(dev);
     MTPControl cmd;
     mtp_container container;
     uint32_t params[5];
@@ -1062,12 +1065,16 @@ static void usb_mtp_handle_data(USBDevice *dev, USBPacket *p)
 
 static void usb_mtp_realize(USBDevice *dev, Error **errp)
 {
-    MTPState *s = DO_UPCAST(MTPState, dev, dev);
+    MTPState *s = USB_MTP(dev);
 
     usb_desc_create_serial(dev);
     usb_desc_init(dev);
     QTAILQ_INIT(&s->objects);
     if (s->desc == NULL) {
+        if (s->root == NULL) {
+            error_setg(errp, "usb-mtp: x-root property must be configured");
+            return;
+        }
         s->desc = strrchr(s->root, '/');
         if (s->desc && s->desc[0]) {
             s->desc = g_strdup(s->desc + 1);
@@ -1113,7 +1120,7 @@ static void usb_mtp_class_initfn(ObjectClass *klass, void *data)
 }
 
 static TypeInfo mtp_info = {
-    .name          = "usb-mtp",
+    .name          = TYPE_USB_MTP,
     .parent        = TYPE_USB_DEVICE,
     .instance_size = sizeof(MTPState),
     .class_init    = usb_mtp_class_initfn,

@@ -63,6 +63,6 @@ uint32_t pcnet_bcr_readw(PCNetState *s, uint32_t rap);
 int pcnet_can_receive(NetClientState *nc);
 ssize_t pcnet_receive(NetClientState *nc, const uint8_t *buf, size_t size_);
 void pcnet_set_link_status(NetClientState *nc);
-int pcnet_common_init(DeviceState *dev, PCNetState *s, NetClientInfo *info);
+void pcnet_common_init(DeviceState *dev, PCNetState *s, NetClientInfo *info);
 extern const VMStateDescription vmstate_pcnet;
 #endif

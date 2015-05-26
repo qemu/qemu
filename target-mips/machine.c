@@ -1,339 +1,296 @@
 #include "hw/hw.h"
-#include "hw/boards.h"
 
 #include "cpu.h"
 
-static void save_tc(QEMUFile *f, TCState *tc)
+static int cpu_post_load(void *opaque, int version_id)
 {
-    int i;
+    MIPSCPU *cpu = opaque;
+    CPUMIPSState *env = &cpu->env;
 
-    /* Save active TC */
-    for(i = 0; i < 32; i++)
-        qemu_put_betls(f, &tc->gpr[i]);
-    qemu_put_betls(f, &tc->PC);
-    for(i = 0; i < MIPS_DSP_ACC; i++)
-        qemu_put_betls(f, &tc->HI[i]);
-    for(i = 0; i < MIPS_DSP_ACC; i++)
-        qemu_put_betls(f, &tc->LO[i]);
-    for(i = 0; i < MIPS_DSP_ACC; i++)
-        qemu_put_betls(f, &tc->ACX[i]);
-    qemu_put_betls(f, &tc->DSPControl);
-    qemu_put_sbe32s(f, &tc->CP0_TCStatus);
-    qemu_put_sbe32s(f, &tc->CP0_TCBind);
-    qemu_put_betls(f, &tc->CP0_TCHalt);
-    qemu_put_betls(f, &tc->CP0_TCContext);
-    qemu_put_betls(f, &tc->CP0_TCSchedule);
-    qemu_put_betls(f, &tc->CP0_TCScheFBack);
-    qemu_put_sbe32s(f, &tc->CP0_Debug_tcstatus);
-    qemu_put_betls(f, &tc->CP0_UserLocal);
-}
+    restore_fp_status(env);
+    restore_msa_fp_status(env);
+    compute_hflags(env);
 
-static void save_fpu(QEMUFile *f, CPUMIPSFPUContext *fpu)
-{
-    int i;
-
-    for(i = 0; i < 32; i++)
-        qemu_put_be64s(f, &fpu->fpr[i].d);
-    qemu_put_s8s(f, &fpu->fp_status.float_detect_tininess);
-    qemu_put_s8s(f, &fpu->fp_status.float_rounding_mode);
-    qemu_put_s8s(f, &fpu->fp_status.float_exception_flags);
-    qemu_put_be32s(f, &fpu->fcr0);
-    qemu_put_be32s(f, &fpu->fcr31);
-}
-
-void cpu_save(QEMUFile *f, void *opaque)
-{
-    CPUMIPSState *env = opaque;
-    int i;
-
-    /* Save active TC */
-    save_tc(f, &env->active_tc);
-
-    /* Save active FPU */
-    save_fpu(f, &env->active_fpu);
-
-    /* Save MVP */
-    qemu_put_sbe32s(f, &env->mvp->CP0_MVPControl);
-    qemu_put_sbe32s(f, &env->mvp->CP0_MVPConf0);
-    qemu_put_sbe32s(f, &env->mvp->CP0_MVPConf1);
-
-    /* Save TLB */
-    qemu_put_be32s(f, &env->tlb->nb_tlb);
-    qemu_put_be32s(f, &env->tlb->tlb_in_use);
-    for(i = 0; i < MIPS_TLB_MAX; i++) {
-        uint16_t flags = ((env->tlb->mmu.r4k.tlb[i].EHINV << 15) |
-                          (env->tlb->mmu.r4k.tlb[i].RI1 << 14) |
-                          (env->tlb->mmu.r4k.tlb[i].RI0 << 13) |
-                          (env->tlb->mmu.r4k.tlb[i].XI1 << 12) |
-                          (env->tlb->mmu.r4k.tlb[i].XI0 << 11) |
-                          (env->tlb->mmu.r4k.tlb[i].G << 10) |
-                          (env->tlb->mmu.r4k.tlb[i].C0 << 7) |
-                          (env->tlb->mmu.r4k.tlb[i].C1 << 4) |
-                          (env->tlb->mmu.r4k.tlb[i].V0 << 3) |
-                          (env->tlb->mmu.r4k.tlb[i].V1 << 2) |
-                          (env->tlb->mmu.r4k.tlb[i].D0 << 1) |
-                          (env->tlb->mmu.r4k.tlb[i].D1 << 0));
-        uint8_t asid;
-
-        qemu_put_betls(f, &env->tlb->mmu.r4k.tlb[i].VPN);
-        qemu_put_be32s(f, &env->tlb->mmu.r4k.tlb[i].PageMask);
-        asid = env->tlb->mmu.r4k.tlb[i].ASID;
-        qemu_put_8s(f, &asid);
-        qemu_put_be16s(f, &flags);
-        qemu_put_betls(f, &env->tlb->mmu.r4k.tlb[i].PFN[0]);
-        qemu_put_betls(f, &env->tlb->mmu.r4k.tlb[i].PFN[1]);
-    }
-
-    /* Save CPU metastate */
-    qemu_put_be32s(f, &env->current_tc);
-    qemu_put_be32s(f, &env->current_fpu);
-    qemu_put_sbe32s(f, &env->error_code);
-    qemu_put_be32s(f, &env->hflags);
-    qemu_put_betls(f, &env->btarget);
-    i = env->bcond;
-    qemu_put_sbe32s(f, &i);
-
-    /* Save remaining CP1 registers */
-    qemu_put_sbe32s(f, &env->CP0_Index);
-    qemu_put_sbe32s(f, &env->CP0_Random);
-    qemu_put_sbe32s(f, &env->CP0_VPEControl);
-    qemu_put_sbe32s(f, &env->CP0_VPEConf0);
-    qemu_put_sbe32s(f, &env->CP0_VPEConf1);
-    qemu_put_betls(f, &env->CP0_YQMask);
-    qemu_put_betls(f, &env->CP0_VPESchedule);
-    qemu_put_betls(f, &env->CP0_VPEScheFBack);
-    qemu_put_sbe32s(f, &env->CP0_VPEOpt);
-    qemu_put_betls(f, &env->CP0_EntryLo0);
-    qemu_put_betls(f, &env->CP0_EntryLo1);
-    qemu_put_betls(f, &env->CP0_Context);
-    qemu_put_sbe32s(f, &env->CP0_PageMask);
-    qemu_put_sbe32s(f, &env->CP0_PageGrain);
-    qemu_put_sbe32s(f, &env->CP0_Wired);
-    qemu_put_sbe32s(f, &env->CP0_SRSConf0);
-    qemu_put_sbe32s(f, &env->CP0_SRSConf1);
-    qemu_put_sbe32s(f, &env->CP0_SRSConf2);
-    qemu_put_sbe32s(f, &env->CP0_SRSConf3);
-    qemu_put_sbe32s(f, &env->CP0_SRSConf4);
-    qemu_put_sbe32s(f, &env->CP0_HWREna);
-    qemu_put_betls(f, &env->CP0_BadVAddr);
-    qemu_put_be32s(f, &env->CP0_BadInstr);
-    qemu_put_be32s(f, &env->CP0_BadInstrP);
-    qemu_put_sbe32s(f, &env->CP0_Count);
-    qemu_put_betls(f, &env->CP0_EntryHi);
-    qemu_put_sbe32s(f, &env->CP0_Compare);
-    qemu_put_sbe32s(f, &env->CP0_Status);
-    qemu_put_sbe32s(f, &env->CP0_IntCtl);
-    qemu_put_sbe32s(f, &env->CP0_SRSCtl);
-    qemu_put_sbe32s(f, &env->CP0_SRSMap);
-    qemu_put_sbe32s(f, &env->CP0_Cause);
-    qemu_put_betls(f, &env->CP0_EPC);
-    qemu_put_sbe32s(f, &env->CP0_PRid);
-    qemu_put_sbe32s(f, &env->CP0_EBase);
-    qemu_put_sbe32s(f, &env->CP0_Config0);
-    qemu_put_sbe32s(f, &env->CP0_Config1);
-    qemu_put_sbe32s(f, &env->CP0_Config2);
-    qemu_put_sbe32s(f, &env->CP0_Config3);
-    qemu_put_sbe32s(f, &env->CP0_Config6);
-    qemu_put_sbe32s(f, &env->CP0_Config7);
-    qemu_put_betls(f, &env->lladdr);
-    for(i = 0; i < 8; i++)
-        qemu_put_betls(f, &env->CP0_WatchLo[i]);
-    for(i = 0; i < 8; i++)
-        qemu_put_sbe32s(f, &env->CP0_WatchHi[i]);
-    qemu_put_betls(f, &env->CP0_XContext);
-    qemu_put_sbe32s(f, &env->CP0_Framemask);
-    qemu_put_sbe32s(f, &env->CP0_Debug);
-    qemu_put_betls(f, &env->CP0_DEPC);
-    qemu_put_sbe32s(f, &env->CP0_Performance0);
-    qemu_put_sbe32s(f, &env->CP0_TagLo);
-    qemu_put_sbe32s(f, &env->CP0_DataLo);
-    qemu_put_sbe32s(f, &env->CP0_TagHi);
-    qemu_put_sbe32s(f, &env->CP0_DataHi);
-    qemu_put_betls(f, &env->CP0_ErrorEPC);
-    qemu_put_sbe32s(f, &env->CP0_DESAVE);
-    for (i = 0; i < MIPS_KSCRATCH_NUM; i++) {
-        qemu_put_betls(f, &env->CP0_KScratch[i]);
-    }
-
-    /* Save inactive TC state */
-    for (i = 0; i < MIPS_SHADOW_SET_MAX; i++)
-        save_tc(f, &env->tcs[i]);
-    for (i = 0; i < MIPS_FPU_MAX; i++)
-        save_fpu(f, &env->fpus[i]);
-}
-
-static void load_tc(QEMUFile *f, TCState *tc, int version_id)
-{
-    int i;
-
-    /* Save active TC */
-    for(i = 0; i < 32; i++)
-        qemu_get_betls(f, &tc->gpr[i]);
-    qemu_get_betls(f, &tc->PC);
-    for(i = 0; i < MIPS_DSP_ACC; i++)
-        qemu_get_betls(f, &tc->HI[i]);
-    for(i = 0; i < MIPS_DSP_ACC; i++)
-        qemu_get_betls(f, &tc->LO[i]);
-    for(i = 0; i < MIPS_DSP_ACC; i++)
-        qemu_get_betls(f, &tc->ACX[i]);
-    qemu_get_betls(f, &tc->DSPControl);
-    qemu_get_sbe32s(f, &tc->CP0_TCStatus);
-    qemu_get_sbe32s(f, &tc->CP0_TCBind);
-    qemu_get_betls(f, &tc->CP0_TCHalt);
-    qemu_get_betls(f, &tc->CP0_TCContext);
-    qemu_get_betls(f, &tc->CP0_TCSchedule);
-    qemu_get_betls(f, &tc->CP0_TCScheFBack);
-    qemu_get_sbe32s(f, &tc->CP0_Debug_tcstatus);
-    if (version_id >= 4) {
-        qemu_get_betls(f, &tc->CP0_UserLocal);
-    }
-}
-
-static void load_fpu(QEMUFile *f, CPUMIPSFPUContext *fpu)
-{
-    int i;
-
-    for(i = 0; i < 32; i++)
-        qemu_get_be64s(f, &fpu->fpr[i].d);
-    qemu_get_s8s(f, &fpu->fp_status.float_detect_tininess);
-    qemu_get_s8s(f, &fpu->fp_status.float_rounding_mode);
-    qemu_get_s8s(f, &fpu->fp_status.float_exception_flags);
-    qemu_get_be32s(f, &fpu->fcr0);
-    qemu_get_be32s(f, &fpu->fcr31);
-}
-
-int cpu_load(QEMUFile *f, void *opaque, int version_id)
-{
-    CPUMIPSState *env = opaque;
-    MIPSCPU *cpu = mips_env_get_cpu(env);
-    int i;
-
-    if (version_id < 3) {
-        return -EINVAL;
-    }
-
-    /* Load active TC */
-    load_tc(f, &env->active_tc, version_id);
-
-    /* Load active FPU */
-    load_fpu(f, &env->active_fpu);
-
-    /* Load MVP */
-    qemu_get_sbe32s(f, &env->mvp->CP0_MVPControl);
-    qemu_get_sbe32s(f, &env->mvp->CP0_MVPConf0);
-    qemu_get_sbe32s(f, &env->mvp->CP0_MVPConf1);
-
-    /* Load TLB */
-    qemu_get_be32s(f, &env->tlb->nb_tlb);
-    qemu_get_be32s(f, &env->tlb->tlb_in_use);
-    for(i = 0; i < MIPS_TLB_MAX; i++) {
-        uint16_t flags;
-        uint8_t asid;
-
-        qemu_get_betls(f, &env->tlb->mmu.r4k.tlb[i].VPN);
-        qemu_get_be32s(f, &env->tlb->mmu.r4k.tlb[i].PageMask);
-        qemu_get_8s(f, &asid);
-        env->tlb->mmu.r4k.tlb[i].ASID = asid;
-        qemu_get_be16s(f, &flags);
-        env->tlb->mmu.r4k.tlb[i].G = (flags >> 10) & 1;
-        env->tlb->mmu.r4k.tlb[i].C0 = (flags >> 7) & 3;
-        env->tlb->mmu.r4k.tlb[i].C1 = (flags >> 4) & 3;
-        env->tlb->mmu.r4k.tlb[i].V0 = (flags >> 3) & 1;
-        env->tlb->mmu.r4k.tlb[i].V1 = (flags >> 2) & 1;
-        env->tlb->mmu.r4k.tlb[i].D0 = (flags >> 1) & 1;
-        env->tlb->mmu.r4k.tlb[i].D1 = (flags >> 0) & 1;
-        if (version_id >= 5) {
-            env->tlb->mmu.r4k.tlb[i].EHINV = (flags >> 15) & 1;
-            env->tlb->mmu.r4k.tlb[i].RI1 = (flags >> 14) & 1;
-            env->tlb->mmu.r4k.tlb[i].RI0 = (flags >> 13) & 1;
-            env->tlb->mmu.r4k.tlb[i].XI1 = (flags >> 12) & 1;
-            env->tlb->mmu.r4k.tlb[i].XI0 = (flags >> 11) & 1;
-        }
-        qemu_get_betls(f, &env->tlb->mmu.r4k.tlb[i].PFN[0]);
-        qemu_get_betls(f, &env->tlb->mmu.r4k.tlb[i].PFN[1]);
-    }
-
-    /* Load CPU metastate */
-    qemu_get_be32s(f, &env->current_tc);
-    qemu_get_be32s(f, &env->current_fpu);
-    qemu_get_sbe32s(f, &env->error_code);
-    qemu_get_be32s(f, &env->hflags);
-    qemu_get_betls(f, &env->btarget);
-    qemu_get_sbe32s(f, &i);
-    env->bcond = i;
-
-    /* Load remaining CP1 registers */
-    qemu_get_sbe32s(f, &env->CP0_Index);
-    qemu_get_sbe32s(f, &env->CP0_Random);
-    qemu_get_sbe32s(f, &env->CP0_VPEControl);
-    qemu_get_sbe32s(f, &env->CP0_VPEConf0);
-    qemu_get_sbe32s(f, &env->CP0_VPEConf1);
-    qemu_get_betls(f, &env->CP0_YQMask);
-    qemu_get_betls(f, &env->CP0_VPESchedule);
-    qemu_get_betls(f, &env->CP0_VPEScheFBack);
-    qemu_get_sbe32s(f, &env->CP0_VPEOpt);
-    qemu_get_betls(f, &env->CP0_EntryLo0);
-    qemu_get_betls(f, &env->CP0_EntryLo1);
-    qemu_get_betls(f, &env->CP0_Context);
-    qemu_get_sbe32s(f, &env->CP0_PageMask);
-    qemu_get_sbe32s(f, &env->CP0_PageGrain);
-    qemu_get_sbe32s(f, &env->CP0_Wired);
-    qemu_get_sbe32s(f, &env->CP0_SRSConf0);
-    qemu_get_sbe32s(f, &env->CP0_SRSConf1);
-    qemu_get_sbe32s(f, &env->CP0_SRSConf2);
-    qemu_get_sbe32s(f, &env->CP0_SRSConf3);
-    qemu_get_sbe32s(f, &env->CP0_SRSConf4);
-    qemu_get_sbe32s(f, &env->CP0_HWREna);
-    qemu_get_betls(f, &env->CP0_BadVAddr);
-    qemu_get_sbe32s(f, &env->CP0_Count);
-    qemu_get_betls(f, &env->CP0_EntryHi);
-    qemu_get_sbe32s(f, &env->CP0_Compare);
-    qemu_get_sbe32s(f, &env->CP0_Status);
-    qemu_get_sbe32s(f, &env->CP0_IntCtl);
-    qemu_get_sbe32s(f, &env->CP0_SRSCtl);
-    qemu_get_sbe32s(f, &env->CP0_SRSMap);
-    qemu_get_sbe32s(f, &env->CP0_Cause);
-    qemu_get_betls(f, &env->CP0_EPC);
-    qemu_get_sbe32s(f, &env->CP0_PRid);
-    qemu_get_sbe32s(f, &env->CP0_EBase);
-    qemu_get_sbe32s(f, &env->CP0_Config0);
-    qemu_get_sbe32s(f, &env->CP0_Config1);
-    qemu_get_sbe32s(f, &env->CP0_Config2);
-    qemu_get_sbe32s(f, &env->CP0_Config3);
-    qemu_get_sbe32s(f, &env->CP0_Config6);
-    qemu_get_sbe32s(f, &env->CP0_Config7);
-    qemu_get_betls(f, &env->lladdr);
-    for(i = 0; i < 8; i++)
-        qemu_get_betls(f, &env->CP0_WatchLo[i]);
-    for(i = 0; i < 8; i++)
-        qemu_get_sbe32s(f, &env->CP0_WatchHi[i]);
-    qemu_get_betls(f, &env->CP0_XContext);
-    qemu_get_sbe32s(f, &env->CP0_Framemask);
-    qemu_get_sbe32s(f, &env->CP0_Debug);
-    qemu_get_betls(f, &env->CP0_DEPC);
-    qemu_get_sbe32s(f, &env->CP0_Performance0);
-    qemu_get_sbe32s(f, &env->CP0_TagLo);
-    qemu_get_sbe32s(f, &env->CP0_DataLo);
-    qemu_get_sbe32s(f, &env->CP0_TagHi);
-    qemu_get_sbe32s(f, &env->CP0_DataHi);
-    qemu_get_betls(f, &env->CP0_ErrorEPC);
-    qemu_get_sbe32s(f, &env->CP0_DESAVE);
-    if (version_id >= 5) {
-        qemu_get_be32s(f, &env->CP0_BadInstr);
-        qemu_get_be32s(f, &env->CP0_BadInstrP);
-        for (i = 0; i < MIPS_KSCRATCH_NUM; i++) {
-            qemu_get_betls(f, &env->CP0_KScratch[i]);
-        }
-    }
-
-    /* Load inactive TC state */
-    for (i = 0; i < MIPS_SHADOW_SET_MAX; i++) {
-        load_tc(f, &env->tcs[i], version_id);
-    }
-    for (i = 0; i < MIPS_FPU_MAX; i++)
-        load_fpu(f, &env->fpus[i]);
-
-    /* XXX: ensure compatibility for halted bit ? */
-    tlb_flush(CPU(cpu), 1);
     return 0;
 }
+
+/* FPU state */
+
+static int get_fpr(QEMUFile *f, void *pv, size_t size)
+{
+    int i;
+    fpr_t *v = pv;
+    /* Restore entire MSA vector register */
+    for (i = 0; i < MSA_WRLEN/64; i++) {
+        qemu_get_sbe64s(f, &v->wr.d[i]);
+    }
+    return 0;
+}
+
+static void put_fpr(QEMUFile *f, void *pv, size_t size)
+{
+    int i;
+    fpr_t *v = pv;
+    /* Save entire MSA vector register */
+    for (i = 0; i < MSA_WRLEN/64; i++) {
+        qemu_put_sbe64s(f, &v->wr.d[i]);
+    }
+}
+
+const VMStateInfo vmstate_info_fpr = {
+    .name = "fpr",
+    .get  = get_fpr,
+    .put  = put_fpr,
+};
+
+#define VMSTATE_FPR_ARRAY_V(_f, _s, _n, _v)                     \
+    VMSTATE_ARRAY(_f, _s, _n, _v, vmstate_info_fpr, fpr_t)
+
+#define VMSTATE_FPR_ARRAY(_f, _s, _n)                           \
+    VMSTATE_FPR_ARRAY_V(_f, _s, _n, 0)
+
+static VMStateField vmstate_fpu_fields[] = {
+    VMSTATE_FPR_ARRAY(fpr, CPUMIPSFPUContext, 32),
+    VMSTATE_UINT32(fcr0, CPUMIPSFPUContext),
+    VMSTATE_UINT32(fcr31, CPUMIPSFPUContext),
+    VMSTATE_END_OF_LIST()
+};
+
+const VMStateDescription vmstate_fpu = {
+    .name = "cpu/fpu",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .fields = vmstate_fpu_fields
+};
+
+const VMStateDescription vmstate_inactive_fpu = {
+    .name = "cpu/inactive_fpu",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .fields = vmstate_fpu_fields
+};
+
+/* TC state */
+
+static VMStateField vmstate_tc_fields[] = {
+    VMSTATE_UINTTL_ARRAY(gpr, TCState, 32),
+    VMSTATE_UINTTL(PC, TCState),
+    VMSTATE_UINTTL_ARRAY(HI, TCState, MIPS_DSP_ACC),
+    VMSTATE_UINTTL_ARRAY(LO, TCState, MIPS_DSP_ACC),
+    VMSTATE_UINTTL_ARRAY(ACX, TCState, MIPS_DSP_ACC),
+    VMSTATE_UINTTL(DSPControl, TCState),
+    VMSTATE_INT32(CP0_TCStatus, TCState),
+    VMSTATE_INT32(CP0_TCBind, TCState),
+    VMSTATE_UINTTL(CP0_TCHalt, TCState),
+    VMSTATE_UINTTL(CP0_TCContext, TCState),
+    VMSTATE_UINTTL(CP0_TCSchedule, TCState),
+    VMSTATE_UINTTL(CP0_TCScheFBack, TCState),
+    VMSTATE_INT32(CP0_Debug_tcstatus, TCState),
+    VMSTATE_UINTTL(CP0_UserLocal, TCState),
+    VMSTATE_INT32(msacsr, TCState),
+    VMSTATE_END_OF_LIST()
+};
+
+const VMStateDescription vmstate_tc = {
+    .name = "cpu/tc",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .fields = vmstate_tc_fields
+};
+
+const VMStateDescription vmstate_inactive_tc = {
+    .name = "cpu/inactive_tc",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .fields = vmstate_tc_fields
+};
+
+/* MVP state */
+
+const VMStateDescription vmstate_mvp = {
+    .name = "cpu/mvp",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .fields = (VMStateField[]) {
+        VMSTATE_INT32(CP0_MVPControl, CPUMIPSMVPContext),
+        VMSTATE_INT32(CP0_MVPConf0, CPUMIPSMVPContext),
+        VMSTATE_INT32(CP0_MVPConf1, CPUMIPSMVPContext),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
+/* TLB state */
+
+static int get_tlb(QEMUFile *f, void *pv, size_t size)
+{
+    r4k_tlb_t *v = pv;
+    uint16_t flags;
+
+    qemu_get_betls(f, &v->VPN);
+    qemu_get_be32s(f, &v->PageMask);
+    qemu_get_8s(f, &v->ASID);
+    qemu_get_be16s(f, &flags);
+    v->G = (flags >> 10) & 1;
+    v->C0 = (flags >> 7) & 3;
+    v->C1 = (flags >> 4) & 3;
+    v->V0 = (flags >> 3) & 1;
+    v->V1 = (flags >> 2) & 1;
+    v->D0 = (flags >> 1) & 1;
+    v->D1 = (flags >> 0) & 1;
+    v->EHINV = (flags >> 15) & 1;
+    v->RI1 = (flags >> 14) & 1;
+    v->RI0 = (flags >> 13) & 1;
+    v->XI1 = (flags >> 12) & 1;
+    v->XI0 = (flags >> 11) & 1;
+    qemu_get_betls(f, &v->PFN[0]);
+    qemu_get_betls(f, &v->PFN[1]);
+
+    return 0;
+}
+
+static void put_tlb(QEMUFile *f, void *pv, size_t size)
+{
+    r4k_tlb_t *v = pv;
+
+    uint16_t flags = ((v->EHINV << 15) |
+                      (v->RI1 << 14) |
+                      (v->RI0 << 13) |
+                      (v->XI1 << 12) |
+                      (v->XI0 << 11) |
+                      (v->G << 10) |
+                      (v->C0 << 7) |
+                      (v->C1 << 4) |
+                      (v->V0 << 3) |
+                      (v->V1 << 2) |
+                      (v->D0 << 1) |
+                      (v->D1 << 0));
+
+    qemu_put_betls(f, &v->VPN);
+    qemu_put_be32s(f, &v->PageMask);
+    qemu_put_8s(f, &v->ASID);
+    qemu_put_be16s(f, &flags);
+    qemu_put_betls(f, &v->PFN[0]);
+    qemu_put_betls(f, &v->PFN[1]);
+}
+
+const VMStateInfo vmstate_info_tlb = {
+    .name = "tlb_entry",
+    .get  = get_tlb,
+    .put  = put_tlb,
+};
+
+#define VMSTATE_TLB_ARRAY_V(_f, _s, _n, _v)                     \
+    VMSTATE_ARRAY(_f, _s, _n, _v, vmstate_info_tlb, r4k_tlb_t)
+
+#define VMSTATE_TLB_ARRAY(_f, _s, _n)                           \
+    VMSTATE_TLB_ARRAY_V(_f, _s, _n, 0)
+
+const VMStateDescription vmstate_tlb = {
+    .name = "cpu/tlb",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .fields = (VMStateField[]) {
+        VMSTATE_UINT32(nb_tlb, CPUMIPSTLBContext),
+        VMSTATE_UINT32(tlb_in_use, CPUMIPSTLBContext),
+        VMSTATE_TLB_ARRAY(mmu.r4k.tlb, CPUMIPSTLBContext, MIPS_TLB_MAX),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
+/* MIPS CPU state */
+
+const VMStateDescription vmstate_mips_cpu = {
+    .name = "cpu",
+    .version_id = 6,
+    .minimum_version_id = 6,
+    .post_load = cpu_post_load,
+    .fields = (VMStateField[]) {
+        /* Active TC */
+        VMSTATE_STRUCT(env.active_tc, MIPSCPU, 1, vmstate_tc, TCState),
+
+        /* Active FPU */
+        VMSTATE_STRUCT(env.active_fpu, MIPSCPU, 1, vmstate_fpu,
+                       CPUMIPSFPUContext),
+
+        /* MVP */
+        VMSTATE_STRUCT_POINTER(env.mvp, MIPSCPU, vmstate_mvp,
+                               CPUMIPSMVPContext),
+
+        /* TLB */
+        VMSTATE_STRUCT_POINTER(env.tlb, MIPSCPU, vmstate_tlb,
+                               CPUMIPSTLBContext),
+
+        /* CPU metastate */
+        VMSTATE_UINT32(env.current_tc, MIPSCPU),
+        VMSTATE_UINT32(env.current_fpu, MIPSCPU),
+        VMSTATE_INT32(env.error_code, MIPSCPU),
+        VMSTATE_UINTTL(env.btarget, MIPSCPU),
+        VMSTATE_UINTTL(env.bcond, MIPSCPU),
+
+        /* Remaining CP0 registers */
+        VMSTATE_INT32(env.CP0_Index, MIPSCPU),
+        VMSTATE_INT32(env.CP0_Random, MIPSCPU),
+        VMSTATE_INT32(env.CP0_VPEControl, MIPSCPU),
+        VMSTATE_INT32(env.CP0_VPEConf0, MIPSCPU),
+        VMSTATE_INT32(env.CP0_VPEConf1, MIPSCPU),
+        VMSTATE_UINTTL(env.CP0_YQMask, MIPSCPU),
+        VMSTATE_UINTTL(env.CP0_VPESchedule, MIPSCPU),
+        VMSTATE_UINTTL(env.CP0_VPEScheFBack, MIPSCPU),
+        VMSTATE_INT32(env.CP0_VPEOpt, MIPSCPU),
+        VMSTATE_UINTTL(env.CP0_EntryLo0, MIPSCPU),
+        VMSTATE_UINTTL(env.CP0_EntryLo1, MIPSCPU),
+        VMSTATE_UINTTL(env.CP0_Context, MIPSCPU),
+        VMSTATE_INT32(env.CP0_PageMask, MIPSCPU),
+        VMSTATE_INT32(env.CP0_PageGrain, MIPSCPU),
+        VMSTATE_INT32(env.CP0_Wired, MIPSCPU),
+        VMSTATE_INT32(env.CP0_SRSConf0, MIPSCPU),
+        VMSTATE_INT32(env.CP0_SRSConf1, MIPSCPU),
+        VMSTATE_INT32(env.CP0_SRSConf2, MIPSCPU),
+        VMSTATE_INT32(env.CP0_SRSConf3, MIPSCPU),
+        VMSTATE_INT32(env.CP0_SRSConf4, MIPSCPU),
+        VMSTATE_INT32(env.CP0_HWREna, MIPSCPU),
+        VMSTATE_UINTTL(env.CP0_BadVAddr, MIPSCPU),
+        VMSTATE_UINT32(env.CP0_BadInstr, MIPSCPU),
+        VMSTATE_UINT32(env.CP0_BadInstrP, MIPSCPU),
+        VMSTATE_INT32(env.CP0_Count, MIPSCPU),
+        VMSTATE_UINTTL(env.CP0_EntryHi, MIPSCPU),
+        VMSTATE_INT32(env.CP0_Compare, MIPSCPU),
+        VMSTATE_INT32(env.CP0_Status, MIPSCPU),
+        VMSTATE_INT32(env.CP0_IntCtl, MIPSCPU),
+        VMSTATE_INT32(env.CP0_SRSCtl, MIPSCPU),
+        VMSTATE_INT32(env.CP0_SRSMap, MIPSCPU),
+        VMSTATE_INT32(env.CP0_Cause, MIPSCPU),
+        VMSTATE_UINTTL(env.CP0_EPC, MIPSCPU),
+        VMSTATE_INT32(env.CP0_PRid, MIPSCPU),
+        VMSTATE_INT32(env.CP0_EBase, MIPSCPU),
+        VMSTATE_INT32(env.CP0_Config0, MIPSCPU),
+        VMSTATE_INT32(env.CP0_Config1, MIPSCPU),
+        VMSTATE_INT32(env.CP0_Config2, MIPSCPU),
+        VMSTATE_INT32(env.CP0_Config3, MIPSCPU),
+        VMSTATE_INT32(env.CP0_Config6, MIPSCPU),
+        VMSTATE_INT32(env.CP0_Config7, MIPSCPU),
+        VMSTATE_UINTTL(env.lladdr, MIPSCPU),
+        VMSTATE_UINTTL_ARRAY(env.CP0_WatchLo, MIPSCPU, 8),
+        VMSTATE_INT32_ARRAY(env.CP0_WatchHi, MIPSCPU, 8),
+        VMSTATE_UINTTL(env.CP0_XContext, MIPSCPU),
+        VMSTATE_INT32(env.CP0_Framemask, MIPSCPU),
+        VMSTATE_INT32(env.CP0_Debug, MIPSCPU),
+        VMSTATE_UINTTL(env.CP0_DEPC, MIPSCPU),
+        VMSTATE_INT32(env.CP0_Performance0, MIPSCPU),
+        VMSTATE_INT32(env.CP0_TagLo, MIPSCPU),
+        VMSTATE_INT32(env.CP0_DataLo, MIPSCPU),
+        VMSTATE_INT32(env.CP0_TagHi, MIPSCPU),
+        VMSTATE_INT32(env.CP0_DataHi, MIPSCPU),
+        VMSTATE_UINTTL(env.CP0_ErrorEPC, MIPSCPU),
+        VMSTATE_INT32(env.CP0_DESAVE, MIPSCPU),
+        VMSTATE_UINTTL_ARRAY(env.CP0_KScratch, MIPSCPU, MIPS_KSCRATCH_NUM),
+
+        /* Inactive TC */
+        VMSTATE_STRUCT_ARRAY(env.tcs, MIPSCPU, MIPS_SHADOW_SET_MAX, 1,
+                             vmstate_inactive_tc, TCState),
+        VMSTATE_STRUCT_ARRAY(env.fpus, MIPSCPU, MIPS_FPU_MAX, 1,
+                             vmstate_inactive_fpu, CPUMIPSFPUContext),
+
+        VMSTATE_END_OF_LIST()
+    },
+};

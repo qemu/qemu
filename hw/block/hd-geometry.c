@@ -121,8 +121,16 @@ void hd_geometry_guess(BlockBackend *blk,
                        int *ptrans)
 {
     int cylinders, heads, secs, translation;
+    HDGeometry geo;
 
-    if (guess_disk_lchs(blk, &cylinders, &heads, &secs) < 0) {
+    /* Try to probe the backing device geometry, otherwise fallback
+       to the old logic. (as of 12/2014 probing only succeeds on DASDs) */
+    if (blk_probe_geometry(blk, &geo) == 0) {
+        *pcyls = geo.cylinders;
+        *psecs = geo.sectors;
+        *pheads = geo.heads;
+        translation = BIOS_ATA_TRANSLATION_NONE;
+    } else if (guess_disk_lchs(blk, &cylinders, &heads, &secs) < 0) {
         /* no LCHS guess: use a standard physical disk geometry  */
         guess_chs_for_size(blk, pcyls, pheads, psecs);
         translation = hd_bios_chs_auto_trans(*pcyls, *pheads, *psecs);

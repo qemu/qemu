@@ -50,17 +50,40 @@
                                     s->priority1[irq][cpu] :            \
                                     s->priority2[(irq) - GIC_INTERNAL])
 #define GIC_TARGET(irq) s->irq_target[irq]
+#define GIC_CLEAR_GROUP(irq, cm) (s->irq_state[irq].group &= ~(cm))
+#define GIC_SET_GROUP(irq, cm) (s->irq_state[irq].group |= (cm))
+#define GIC_TEST_GROUP(irq, cm) ((s->irq_state[irq].group & (cm)) != 0)
+
+#define GICD_CTLR_EN_GRP0 (1U << 0)
+#define GICD_CTLR_EN_GRP1 (1U << 1)
+
+#define GICC_CTLR_EN_GRP0    (1U << 0)
+#define GICC_CTLR_EN_GRP1    (1U << 1)
+#define GICC_CTLR_ACK_CTL    (1U << 2)
+#define GICC_CTLR_FIQ_EN     (1U << 3)
+#define GICC_CTLR_CBPR       (1U << 4) /* GICv1: SBPR */
+#define GICC_CTLR_EOIMODE    (1U << 9)
+#define GICC_CTLR_EOIMODE_NS (1U << 10)
+
+/* Valid bits for GICC_CTLR for GICv1, v1 with security extensions,
+ * GICv2 and GICv2 with security extensions:
+ */
+#define GICC_CTLR_V1_MASK    0x1
+#define GICC_CTLR_V1_S_MASK  0x1f
+#define GICC_CTLR_V2_MASK    0x21f
+#define GICC_CTLR_V2_S_MASK  0x61f
 
 /* The special cases for the revision property: */
 #define REV_11MPCORE 0
 #define REV_NVIC 0xffffffff
 
 void gic_set_pending_private(GICState *s, int cpu, int irq);
-uint32_t gic_acknowledge_irq(GICState *s, int cpu);
-void gic_complete_irq(GICState *s, int cpu, int irq);
+uint32_t gic_acknowledge_irq(GICState *s, int cpu, MemTxAttrs attrs);
+void gic_complete_irq(GICState *s, int cpu, int irq, MemTxAttrs attrs);
 void gic_update(GICState *s);
 void gic_init_irqs_and_distributor(GICState *s);
-void gic_set_priority(GICState *s, int cpu, int irq, uint8_t val);
+void gic_set_priority(GICState *s, int cpu, int irq, uint8_t val,
+                      MemTxAttrs attrs);
 
 static inline bool gic_test_pending(GICState *s, int irq, int cm)
 {

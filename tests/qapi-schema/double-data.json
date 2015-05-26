@@ -1,0 +1,2 @@
+# we reject an expression with duplicate top-level keys
+{ 'struct': 'bar', 'data': { }, 'data': { 'string': 'str'} }

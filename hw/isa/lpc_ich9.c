@@ -575,7 +575,7 @@ static int ich9_lpc_init(PCIDevice *d)
     ICH9LPCState *lpc = ICH9_LPC_DEVICE(d);
     ISABus *isa_bus;
 
-    isa_bus = isa_bus_new(&d->qdev, get_system_io());
+    isa_bus = isa_bus_new(DEVICE(d), get_system_memory(), get_system_io());
 
     pci_set_long(d->wmask + ICH9_LPC_PMBASE,
                  ICH9_LPC_PMBASE_BASE_ADDRESS_MASK);
@@ -610,8 +610,17 @@ static void ich9_device_plug_cb(HotplugHandler *hotplug_dev,
 static void ich9_device_unplug_request_cb(HotplugHandler *hotplug_dev,
                                           DeviceState *dev, Error **errp)
 {
-    error_setg(errp, "acpi: device unplug request for not supported device"
-               " type: %s", object_get_typename(OBJECT(dev)));
+    ICH9LPCState *lpc = ICH9_LPC_DEVICE(hotplug_dev);
+
+    ich9_pm_device_unplug_request_cb(&lpc->pm, dev, errp);
+}
+
+static void ich9_device_unplug_cb(HotplugHandler *hotplug_dev,
+                                  DeviceState *dev, Error **errp)
+{
+    ICH9LPCState *lpc = ICH9_LPC_DEVICE(hotplug_dev);
+
+    ich9_pm_device_unplug_cb(&lpc->pm, dev, errp);
 }
 
 static bool ich9_rst_cnt_needed(void *opaque)
@@ -677,6 +686,7 @@ static void ich9_lpc_class_init(ObjectClass *klass, void *data)
     dc->cannot_instantiate_with_device_add_yet = true;
     hc->plug = ich9_device_plug_cb;
     hc->unplug_request = ich9_device_unplug_request_cb;
+    hc->unplug = ich9_device_unplug_cb;
     adevc->ospm_status = ich9_pm_ospm_status;
 }
 

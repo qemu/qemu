@@ -60,6 +60,7 @@ static const int ide_iobase2[MAX_IDE_BUS] = { 0x3f6, 0x376 };
 static const int ide_irq[MAX_IDE_BUS] = { 14, 15 };
 
 static bool has_acpi_build = true;
+static bool rsdp_in_ram = true;
 static int legacy_acpi_table_size;
 static bool smbios_defaults = true;
 static bool smbios_legacy_mode;
@@ -168,6 +169,7 @@ static void pc_init1(MachineState *machine,
 
     guest_info->isapc_ram_fw = !pci_enabled;
     guest_info->has_reserved_memory = has_reserved_memory;
+    guest_info->rsdp_in_ram = rsdp_in_ram;
 
     if (smbios_defaults) {
         MachineClass *mc = MACHINE_GET_CLASS(machine);
@@ -208,7 +210,7 @@ static void pc_init1(MachineState *machine,
     } else {
         pci_bus = NULL;
         i440fx_state = NULL;
-        isa_bus = isa_bus_new(NULL, system_io);
+        isa_bus = isa_bus_new(NULL, get_system_memory(), system_io);
         no_hpet = 1;
     }
     isa_bus_irqs(isa_bus, gsi);
@@ -308,8 +310,14 @@ static void pc_init_pci(MachineState *machine)
     pc_init1(machine, 1, 1);
 }
 
+static void pc_compat_2_3(MachineState *machine)
+{
+}
+
 static void pc_compat_2_2(MachineState *machine)
 {
+    pc_compat_2_3(machine);
+    rsdp_in_ram = false;
     x86_cpu_compat_set_features("kvm64", FEAT_1_EDX, 0, CPUID_VME);
     x86_cpu_compat_set_features("kvm32", FEAT_1_EDX, 0, CPUID_VME);
     x86_cpu_compat_set_features("Conroe", FEAT_1_EDX, 0, CPUID_VME);
@@ -328,10 +336,7 @@ static void pc_compat_2_2(MachineState *machine)
     x86_cpu_compat_set_features("Haswell", FEAT_1_ECX, 0, CPUID_EXT_RDRAND);
     x86_cpu_compat_set_features("Broadwell", FEAT_1_ECX, 0, CPUID_EXT_F16C);
     x86_cpu_compat_set_features("Broadwell", FEAT_1_ECX, 0, CPUID_EXT_RDRAND);
-    x86_cpu_compat_set_features("Haswell", FEAT_7_0_EBX,
-                                CPUID_7_0_EBX_HLE | CPUID_7_0_EBX_RTM, 0);
-    x86_cpu_compat_set_features("Broadwell", FEAT_7_0_EBX,
-                                CPUID_7_0_EBX_HLE | CPUID_7_0_EBX_RTM, 0);
+    machine->suppress_vmdesc = true;
 }
 
 static void pc_compat_2_1(MachineState *machine)
@@ -411,6 +416,12 @@ static void pc_compat_1_2(MachineState *machine)
 {
     pc_compat_1_3(machine);
     x86_cpu_compat_kvm_no_autoenable(FEAT_KVM, 1 << KVM_FEATURE_PV_EOI);
+}
+
+static void pc_init_pci_2_3(MachineState *machine)
+{
+    pc_compat_2_3(machine);
+    pc_init_pci(machine);
 }
 
 static void pc_init_pci_2_2(MachineState *machine)
@@ -512,17 +523,26 @@ static void pc_xen_hvm_init(MachineState *machine)
     .desc = "Standard PC (i440FX + PIIX, 1996)", \
     .hot_add_cpu = pc_hot_add_cpu
 
-#define PC_I440FX_2_3_MACHINE_OPTIONS                           \
+#define PC_I440FX_2_4_MACHINE_OPTIONS                           \
     PC_I440FX_MACHINE_OPTIONS,                                  \
     .default_machine_opts = "firmware=bios-256k.bin",           \
     .default_display = "std"
 
-static QEMUMachine pc_i440fx_machine_v2_3 = {
-    PC_I440FX_2_3_MACHINE_OPTIONS,
-    .name = "pc-i440fx-2.3",
+
+static QEMUMachine pc_i440fx_machine_v2_4 = {
+    PC_I440FX_2_4_MACHINE_OPTIONS,
+    .name = "pc-i440fx-2.4",
     .alias = "pc",
     .init = pc_init_pci,
     .is_default = 1,
+};
+
+#define PC_I440FX_2_3_MACHINE_OPTIONS PC_I440FX_2_4_MACHINE_OPTIONS
+
+static QEMUMachine pc_i440fx_machine_v2_3 = {
+    PC_I440FX_2_3_MACHINE_OPTIONS,
+    .name = "pc-i440fx-2.3",
+    .init = pc_init_pci_2_3,
 };
 
 #define PC_I440FX_2_2_MACHINE_OPTIONS PC_I440FX_2_3_MACHINE_OPTIONS
@@ -970,6 +990,7 @@ static QEMUMachine xenfv_machine = {
 
 static void pc_machine_init(void)
 {
+    qemu_register_pc_machine(&pc_i440fx_machine_v2_4);
     qemu_register_pc_machine(&pc_i440fx_machine_v2_3);
     qemu_register_pc_machine(&pc_i440fx_machine_v2_2);
     qemu_register_pc_machine(&pc_i440fx_machine_v2_1);

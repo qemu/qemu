@@ -199,11 +199,13 @@ listen:
         freeaddrinfo(res);
         return -1;
     }
-    snprintf(uport, sizeof(uport), "%d", inet_getport(e) - port_offset);
-    qemu_opt_set(opts, "host", uaddr);
-    qemu_opt_set(opts, "port", uport);
-    qemu_opt_set(opts, "ipv6", (e->ai_family == PF_INET6) ? "on" : "off");
-    qemu_opt_set(opts, "ipv4", (e->ai_family != PF_INET6) ? "on" : "off");
+    qemu_opt_set(opts, "host", uaddr, &error_abort);
+    qemu_opt_set_number(opts, "port", inet_getport(e) - port_offset,
+                        &error_abort);
+    qemu_opt_set_bool(opts, "ipv6", e->ai_family == PF_INET6,
+                      &error_abort);
+    qemu_opt_set_bool(opts, "ipv4", e->ai_family != PF_INET6,
+                      &error_abort);
     freeaddrinfo(res);
     return slisten;
 }
@@ -512,7 +514,7 @@ InetSocketAddress *inet_parse(const char *str, Error **errp)
 {
     InetSocketAddress *addr;
     const char *optstr, *h;
-    char host[64];
+    char host[65];
     char port[33];
     int to;
     int pos;
@@ -580,16 +582,14 @@ static void inet_addr_to_opts(QemuOpts *opts, const InetSocketAddress *addr)
     bool ipv6 = addr->ipv6 || !addr->has_ipv6;
 
     if (!ipv4 || !ipv6) {
-        qemu_opt_set_bool(opts, "ipv4", ipv4);
-        qemu_opt_set_bool(opts, "ipv6", ipv6);
+        qemu_opt_set_bool(opts, "ipv4", ipv4, &error_abort);
+        qemu_opt_set_bool(opts, "ipv6", ipv6, &error_abort);
     }
     if (addr->has_to) {
-        char to[20];
-        snprintf(to, sizeof(to), "%d", addr->to);
-        qemu_opt_set(opts, "to", to);
+        qemu_opt_set_number(opts, "to", addr->to, &error_abort);
     }
-    qemu_opt_set(opts, "host", addr->host);
-    qemu_opt_set(opts, "port", addr->port);
+    qemu_opt_set(opts, "host", addr->host, &error_abort);
+    qemu_opt_set(opts, "port", addr->port, &error_abort);
 }
 
 int inet_listen(const char *str, char *ostr, int olen,
@@ -694,7 +694,7 @@ int unix_listen_opts(QemuOpts *opts, Error **errp)
 
     sock = qemu_socket(PF_UNIX, SOCK_STREAM, 0);
     if (sock < 0) {
-        error_setg_errno(errp, errno, "Failed to create socket");
+        error_setg_errno(errp, errno, "Failed to create Unix socket");
         return -1;
     }
 
@@ -703,9 +703,15 @@ int unix_listen_opts(QemuOpts *opts, Error **errp)
     if (path && strlen(path)) {
         snprintf(un.sun_path, sizeof(un.sun_path), "%s", path);
     } else {
-        char *tmpdir = getenv("TMPDIR");
-        snprintf(un.sun_path, sizeof(un.sun_path), "%s/qemu-socket-XXXXXX",
-                 tmpdir ? tmpdir : "/tmp");
+        const char *tmpdir = getenv("TMPDIR");
+        tmpdir = tmpdir ? tmpdir : "/tmp";
+        if (snprintf(un.sun_path, sizeof(un.sun_path), "%s/qemu-socket-XXXXXX",
+                     tmpdir) >= sizeof(un.sun_path)) {
+            error_setg_errno(errp, errno,
+                             "TMPDIR environment variable (%s) too large", tmpdir);
+            goto err;
+        }
+
         /*
          * This dummy fd usage silences the mktemp() unsecure warning.
          * Using mkstemp() doesn't make things more secure here
@@ -713,13 +719,24 @@ int unix_listen_opts(QemuOpts *opts, Error **errp)
          * to unlink first and thus re-open the race window.  The
          * worst case possible is bind() failing, i.e. a DoS attack.
          */
-        fd = mkstemp(un.sun_path); close(fd);
-        qemu_opt_set(opts, "path", un.sun_path);
+        fd = mkstemp(un.sun_path);
+        if (fd < 0) {
+            error_setg_errno(errp, errno,
+                             "Failed to make a temporary socket name in %s", tmpdir);
+            goto err;
+        }
+        close(fd);
+        qemu_opt_set(opts, "path", un.sun_path, &error_abort);
     }
 
-    unlink(un.sun_path);
+    if ((access(un.sun_path, F_OK) == 0) &&
+        unlink(un.sun_path) < 0) {
+        error_setg_errno(errp, errno,
+                         "Failed to unlink socket %s", un.sun_path);
+        goto err;
+    }
     if (bind(sock, (struct sockaddr*) &un, sizeof(un)) < 0) {
-        error_setg_errno(errp, errno, "Failed to bind socket");
+        error_setg_errno(errp, errno, "Failed to bind socket to %s", un.sun_path);
         goto err;
     }
     if (listen(sock, 1) < 0) {
@@ -826,11 +843,11 @@ int unix_listen(const char *str, char *ostr, int olen, Error **errp)
         if (len) {
             path = g_malloc(len+1);
             snprintf(path, len+1, "%.*s", len, str);
-            qemu_opt_set(opts, "path", path);
+            qemu_opt_set(opts, "path", path, &error_abort);
             g_free(path);
         }
     } else {
-        qemu_opt_set(opts, "path", str);
+        qemu_opt_set(opts, "path", str, &error_abort);
     }
 
     sock = unix_listen_opts(opts, errp);
@@ -847,7 +864,7 @@ int unix_connect(const char *path, Error **errp)
     int sock;
 
     opts = qemu_opts_create(&socket_optslist, NULL, 0, &error_abort);
-    qemu_opt_set(opts, "path", path);
+    qemu_opt_set(opts, "path", path, &error_abort);
     sock = unix_connect_opts(opts, errp, NULL, NULL);
     qemu_opts_del(opts);
     return sock;
@@ -864,7 +881,7 @@ int unix_nonblocking_connect(const char *path,
     g_assert(callback != NULL);
 
     opts = qemu_opts_create(&socket_optslist, NULL, 0, &error_abort);
-    qemu_opt_set(opts, "path", path);
+    qemu_opt_set(opts, "path", path, &error_abort);
     sock = unix_connect_opts(opts, errp, callback, opaque);
     qemu_opts_del(opts);
     return sock;
@@ -921,7 +938,7 @@ int socket_connect(SocketAddress *addr, Error **errp,
         break;
 
     case SOCKET_ADDRESS_KIND_UNIX:
-        qemu_opt_set(opts, "path", addr->q_unix->path);
+        qemu_opt_set(opts, "path", addr->q_unix->path, &error_abort);
         fd = unix_connect_opts(opts, errp, callback, opaque);
         break;
 
@@ -953,7 +970,7 @@ int socket_listen(SocketAddress *addr, Error **errp)
         break;
 
     case SOCKET_ADDRESS_KIND_UNIX:
-        qemu_opt_set(opts, "path", addr->q_unix->path);
+        qemu_opt_set(opts, "path", addr->q_unix->path, &error_abort);
         fd = unix_listen_opts(opts, errp);
         break;
 
@@ -978,8 +995,8 @@ int socket_dgram(SocketAddress *remote, SocketAddress *local, Error **errp)
     case SOCKET_ADDRESS_KIND_INET:
         inet_addr_to_opts(opts, remote->inet);
         if (local) {
-            qemu_opt_set(opts, "localaddr", local->inet->host);
-            qemu_opt_set(opts, "localport", local->inet->port);
+            qemu_opt_set(opts, "localaddr", local->inet->host, &error_abort);
+            qemu_opt_set(opts, "localport", local->inet->port, &error_abort);
         }
         fd = inet_dgram_opts(opts, errp);
         break;

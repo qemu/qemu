@@ -66,6 +66,9 @@ typedef struct S390CPU {
     /*< public >*/
 
     CPUS390XState env;
+    /* needed for live migration */
+    void *irqstate;
+    uint32_t irqstate_saved_size;
 } S390CPU;
 
 static inline S390CPU *s390_env_get_cpu(CPUS390XState *env)

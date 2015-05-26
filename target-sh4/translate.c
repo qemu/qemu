@@ -211,7 +211,7 @@ static void gen_jump(DisasContext * ctx)
 static inline void gen_branch_slot(uint32_t delayed_pc, int t)
 {
     TCGv sr;
-    int label = gen_new_label();
+    TCGLabel *label = gen_new_label();
     tcg_gen_movi_i32(cpu_delayed_pc, delayed_pc);
     sr = tcg_temp_new();
     tcg_gen_andi_i32(sr, cpu_sr, SR_T);
@@ -224,7 +224,7 @@ static inline void gen_branch_slot(uint32_t delayed_pc, int t)
 static void gen_conditional_jump(DisasContext * ctx,
 				 target_ulong ift, target_ulong ifnott)
 {
-    int l1;
+    TCGLabel *l1;
     TCGv sr;
 
     l1 = gen_new_label();
@@ -239,7 +239,7 @@ static void gen_conditional_jump(DisasContext * ctx,
 /* Delayed conditional jump (bt or bf) */
 static void gen_delayed_conditional_jump(DisasContext * ctx)
 {
-    int l1;
+    TCGLabel *l1;
     TCGv ds;
 
     l1 = gen_new_label();
@@ -850,10 +850,10 @@ static void _decode_opc(DisasContext * ctx)
 	return;
     case 0x400c:		/* shad Rm,Rn */
 	{
-	    int label1 = gen_new_label();
-	    int label2 = gen_new_label();
-	    int label3 = gen_new_label();
-	    int label4 = gen_new_label();
+            TCGLabel *label1 = gen_new_label();
+            TCGLabel *label2 = gen_new_label();
+            TCGLabel *label3 = gen_new_label();
+            TCGLabel *label4 = gen_new_label();
 	    TCGv shift;
 	    tcg_gen_brcondi_i32(TCG_COND_LT, REG(B7_4), 0, label1);
 	    /* Rm positive, shift to the left */
@@ -885,9 +885,9 @@ static void _decode_opc(DisasContext * ctx)
 	return;
     case 0x400d:		/* shld Rm,Rn */
 	{
-	    int label1 = gen_new_label();
-	    int label2 = gen_new_label();
-	    int label3 = gen_new_label();
+            TCGLabel *label1 = gen_new_label();
+            TCGLabel *label2 = gen_new_label();
+            TCGLabel *label3 = gen_new_label();
 	    TCGv shift;
 	    tcg_gen_brcondi_i32(TCG_COND_LT, REG(B7_4), 0, label1);
 	    /* Rm positive, shift to the left */
@@ -1554,7 +1554,7 @@ static void _decode_opc(DisasContext * ctx)
                0 -> LDST
         */
         if (ctx->features & SH_FEATURE_SH4A) {
-	    int label = gen_new_label();
+            TCGLabel *label = gen_new_label();
             tcg_gen_andi_i32(cpu_sr, cpu_sr, ~SR_T);
 	    tcg_gen_or_i32(cpu_sr, cpu_sr, cpu_ldst);
 	    tcg_gen_brcondi_i32(TCG_COND_EQ, cpu_ldst, 0, label);
@@ -1865,14 +1865,12 @@ gen_intermediate_code_internal(SuperHCPU *cpu, TranslationBlock *tb,
     CPUSH4State *env = &cpu->env;
     DisasContext ctx;
     target_ulong pc_start;
-    static uint16_t *gen_opc_end;
     CPUBreakpoint *bp;
     int i, ii;
     int num_insns;
     int max_insns;
 
     pc_start = tb->pc;
-    gen_opc_end = tcg_ctx.gen_opc_buf + OPC_MAX_SIZE;
     ctx.pc = pc_start;
     ctx.flags = (uint32_t)tb->flags;
     ctx.bstate = BS_NONE;
@@ -1891,7 +1889,7 @@ gen_intermediate_code_internal(SuperHCPU *cpu, TranslationBlock *tb,
     if (max_insns == 0)
         max_insns = CF_COUNT_MASK;
     gen_tb_start(tb);
-    while (ctx.bstate == BS_NONE && tcg_ctx.gen_opc_ptr < gen_opc_end) {
+    while (ctx.bstate == BS_NONE && !tcg_op_buf_full()) {
         if (unlikely(!QTAILQ_EMPTY(&cs->breakpoints))) {
             QTAILQ_FOREACH(bp, &cs->breakpoints, entry) {
                 if (ctx.pc == bp->pc) {
@@ -1904,7 +1902,7 @@ gen_intermediate_code_internal(SuperHCPU *cpu, TranslationBlock *tb,
 	    }
 	}
         if (search_pc) {
-            i = tcg_ctx.gen_opc_ptr - tcg_ctx.gen_opc_buf;
+            i = tcg_op_buf_count();
             if (ii < i) {
                 ii++;
                 while (ii < i)
@@ -1962,9 +1960,9 @@ gen_intermediate_code_internal(SuperHCPU *cpu, TranslationBlock *tb,
     }
 
     gen_tb_end(tb, num_insns);
-    *tcg_ctx.gen_opc_ptr = INDEX_op_end;
+
     if (search_pc) {
-        i = tcg_ctx.gen_opc_ptr - tcg_ctx.gen_opc_buf;
+        i = tcg_op_buf_count();
         ii++;
         while (ii <= i)
             tcg_ctx.gen_opc_instr_start[ii++] = 0;

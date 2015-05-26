@@ -630,7 +630,7 @@ static void vscsi_save_request(QEMUFile *f, SCSIRequest *sreq)
     vscsi_req *req = sreq->hba_private;
     assert(req->active);
 
-    vmstate_save_state(f, &vmstate_spapr_vscsi_req, req);
+    vmstate_save_state(f, &vmstate_spapr_vscsi_req, req, NULL);
 
     DPRINTF("VSCSI: saving tag=%u, current desc#%d, offset=%x\n",
             req->qtag, req->cur_desc_num, req->cur_desc_offset);
@@ -1212,24 +1212,17 @@ static void spapr_vscsi_reset(VIOsPAPRDevice *dev)
     }
 }
 
-static int spapr_vscsi_init(VIOsPAPRDevice *dev)
+static void spapr_vscsi_realize(VIOsPAPRDevice *dev, Error **errp)
 {
     VSCSIState *s = VIO_SPAPR_VSCSI_DEVICE(dev);
-    Error *err = NULL;
 
     dev->crq.SendFunc = vscsi_do_crq;
 
     scsi_bus_new(&s->bus, sizeof(s->bus), DEVICE(dev),
                  &vscsi_scsi_info, NULL);
     if (!dev->qdev.hotplugged) {
-        scsi_bus_legacy_handle_cmdline(&s->bus, &err);
-        if (err != NULL) {
-            error_free(err);
-            return -1;
-        }
+        scsi_bus_legacy_handle_cmdline(&s->bus, errp);
     }
-
-    return 0;
 }
 
 void spapr_vscsi_create(VIOsPAPRBus *bus)
@@ -1281,7 +1274,7 @@ static void spapr_vscsi_class_init(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
     VIOsPAPRDeviceClass *k = VIO_SPAPR_DEVICE_CLASS(klass);
 
-    k->init = spapr_vscsi_init;
+    k->realize = spapr_vscsi_realize;
     k->reset = spapr_vscsi_reset;
     k->devnode = spapr_vscsi_devnode;
     k->dt_name = "v-scsi";

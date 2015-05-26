@@ -109,20 +109,6 @@ uint32_t virtio_bus_get_vdev_features(VirtioBusState *bus,
     return k->get_features(vdev, requested_features);
 }
 
-/* Set the features of the plugged device. */
-void virtio_bus_set_vdev_features(VirtioBusState *bus,
-                                      uint32_t requested_features)
-{
-    VirtIODevice *vdev = virtio_bus_get_device(bus);
-    VirtioDeviceClass *k;
-
-    assert(vdev != NULL);
-    k = VIRTIO_DEVICE_GET_CLASS(vdev);
-    if (k->set_features != NULL) {
-        k->set_features(vdev, requested_features);
-    }
-}
-
 /* Get bad features of the plugged device. */
 uint32_t virtio_bus_get_vdev_bad_features(VirtioBusState *bus)
 {

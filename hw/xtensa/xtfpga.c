@@ -162,6 +162,23 @@ static void lx60_reset(void *opaque)
     cpu_reset(CPU(cpu));
 }
 
+static uint64_t lx60_io_read(void *opaque, hwaddr addr,
+        unsigned size)
+{
+    return 0;
+}
+
+static void lx60_io_write(void *opaque, hwaddr addr,
+        uint64_t val, unsigned size)
+{
+}
+
+static const MemoryRegionOps lx60_io_ops = {
+    .read = lx60_io_read,
+    .write = lx60_io_write,
+    .endianness = DEVICE_NATIVE_ENDIAN,
+};
+
 static void lx_init(const LxBoardDesc *board, MachineState *machine)
 {
 #ifdef TARGET_WORDS_BIGENDIAN
@@ -190,7 +207,7 @@ static void lx_init(const LxBoardDesc *board, MachineState *machine)
     for (n = 0; n < smp_cpus; n++) {
         cpu = cpu_xtensa_init(cpu_model);
         if (cpu == NULL) {
-            error_report("unable to find CPU definition '%s'\n",
+            error_report("unable to find CPU definition '%s'",
                          cpu_model);
             exit(EXIT_FAILURE);
         }
@@ -211,7 +228,8 @@ static void lx_init(const LxBoardDesc *board, MachineState *machine)
     memory_region_add_subregion(system_memory, 0, ram);
 
     system_io = g_malloc(sizeof(*system_io));
-    memory_region_init(system_io, NULL, "lx60.io", 224 * 1024 * 1024);
+    memory_region_init_io(system_io, NULL, &lx60_io_ops, NULL, "lx60.io",
+                          224 * 1024 * 1024);
     memory_region_add_subregion(system_memory, 0xf0000000, system_io);
     lx60_fpga_init(system_io, 0x0d020000);
     if (nd_table[0].used) {
@@ -235,7 +253,7 @@ static void lx_init(const LxBoardDesc *board, MachineState *machine)
                 board->flash_size / board->flash_sector_size,
                 4, 0x0000, 0x0000, 0x0000, 0x0000, be);
         if (flash == NULL) {
-            error_report("unable to mount pflash\n");
+            error_report("unable to mount pflash");
             exit(EXIT_FAILURE);
         }
     }
@@ -287,7 +305,7 @@ static void lx_init(const LxBoardDesc *board, MachineState *machine)
             uint32_t dtb_addr = tswap32(cur_lowmem);
 
             if (!fdt) {
-                error_report("could not load DTB '%s'\n", dtb_filename);
+                error_report("could not load DTB '%s'", dtb_filename);
                 exit(EXIT_FAILURE);
             }
 
@@ -307,7 +325,7 @@ static void lx_init(const LxBoardDesc *board, MachineState *machine)
                                                   lowmem_end - cur_lowmem);
             }
             if (initrd_size < 0) {
-                error_report("could not load initrd '%s'\n", initrd_filename);
+                error_report("could not load initrd '%s'", initrd_filename);
                 exit(EXIT_FAILURE);
             }
             initrd_location.start = tswap32(cur_lowmem);
@@ -333,7 +351,7 @@ static void lx_init(const LxBoardDesc *board, MachineState *machine)
             if (success > 0 && is_linux) {
                 entry_point = ep;
             } else {
-                error_report("could not load kernel '%s'\n",
+                error_report("could not load kernel '%s'",
                              kernel_filename);
                 exit(EXIT_FAILURE);
             }
@@ -390,7 +408,7 @@ static void xtensa_ml605_init(MachineState *machine)
 {
     static const LxBoardDesc ml605_board = {
         .flash_base = 0xf8000000,
-        .flash_size = 0x02000000,
+        .flash_size = 0x01000000,
         .flash_sector_size = 0x20000,
         .sram_size = 0x2000000,
     };

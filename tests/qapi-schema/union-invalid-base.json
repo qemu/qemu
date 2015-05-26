@@ -1,10 +1,12 @@
-{ 'type': 'TestTypeA',
+# a union base type must be a struct
+{ 'struct': 'TestTypeA',
   'data': { 'string': 'str' } }
 
-{ 'type': 'TestTypeB',
+{ 'struct': 'TestTypeB',
   'data': { 'integer': 'int' } }
 
 { 'union': 'TestUnion',
-  'base': 'TestBaseWrong',
+  'base': 'int',
+  'discriminator': 'int',
   'data': { 'value1': 'TestTypeA',
             'value2': 'TestTypeB' } }

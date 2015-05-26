@@ -252,7 +252,6 @@ static void ide_atapi_cmd_reply(IDEState *s, int size, int max_size)
     s->packet_transfer_size = size;
     s->io_buffer_size = size;    /* dma: send the reply data as one chunk */
     s->elementary_transfer_size = 0;
-    s->io_buffer_index = 0;
 
     if (s->atapi_dma) {
         block_acct_start(blk_get_stats(s->blk), &s->acct, size,
@@ -261,6 +260,7 @@ static void ide_atapi_cmd_reply(IDEState *s, int size, int max_size)
         ide_start_dma(s, ide_atapi_cmd_read_dma_cb);
     } else {
         s->status = READY_STAT | SEEK_STAT;
+        s->io_buffer_index = 0;
         ide_atapi_cmd_reply_end(s);
     }
 }
@@ -368,7 +368,6 @@ static void ide_atapi_cmd_read_dma(IDEState *s, int lba, int nb_sectors,
 {
     s->lba = lba;
     s->packet_transfer_size = nb_sectors * sector_size;
-    s->io_buffer_index = 0;
     s->io_buffer_size = 0;
     s->cd_sector_size = sector_size;
 
@@ -392,6 +391,23 @@ static void ide_atapi_cmd_read(IDEState *s, int lba, int nb_sectors,
     } else {
         ide_atapi_cmd_read_pio(s, lba, nb_sectors, sector_size);
     }
+}
+
+
+/* Called by *_restart_bh when the transfer function points
+ * to ide_atapi_cmd
+ */
+void ide_atapi_dma_restart(IDEState *s)
+{
+    /*
+     * I'm not sure we have enough stored to restart the command
+     * safely, so give the guest an error it should recover from.
+     * I'm assuming most guests will try to recover from something
+     * listed as a medium error on a CD; it seems to work on Linux.
+     * This would be more of a problem if we did any other type of
+     * DMA operation.
+     */
+    ide_atapi_cmd_error(s, MEDIUM_ERROR, ASC_NO_SEEK_COMPLETE);
 }
 
 static inline uint8_t ide_atapi_set_profile(uint8_t *buf, uint8_t *index,

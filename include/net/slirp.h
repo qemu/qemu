@@ -31,8 +31,8 @@
 
 #ifdef CONFIG_SLIRP
 
-void net_slirp_hostfwd_add(Monitor *mon, const QDict *qdict);
-void net_slirp_hostfwd_remove(Monitor *mon, const QDict *qdict);
+void hmp_hostfwd_add(Monitor *mon, const QDict *qdict);
+void hmp_hostfwd_remove(Monitor *mon, const QDict *qdict);
 
 int net_slirp_redir(const char *redir_str);
 
@@ -40,7 +40,7 @@ int net_slirp_parse_legacy(QemuOptsList *opts_list, const char *optarg, int *ret
 
 int net_slirp_smb(const char *exported_dir);
 
-void do_info_usernet(Monitor *mon, const QDict *qdict);
+void hmp_info_usernet(Monitor *mon, const QDict *qdict);
 
 #endif
 

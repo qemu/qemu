@@ -217,14 +217,7 @@ void lm32_watchpoint_insert(CPULM32State *env, int index, target_ulong address,
 void lm32_watchpoint_remove(CPULM32State *env, int index);
 bool lm32_cpu_do_semihosting(CPUState *cs);
 
-static inline CPULM32State *cpu_init(const char *cpu_model)
-{
-    LM32CPU *cpu = cpu_lm32_init(cpu_model);
-    if (cpu == NULL) {
-        return NULL;
-    }
-    return &cpu->env;
-}
+#define cpu_init(cpu_model) CPU(cpu_lm32_init(cpu_model))
 
 #define cpu_list lm32_cpu_list
 #define cpu_exec cpu_lm32_exec

@@ -5,43 +5,54 @@ Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=134217728 backing_file='TEST_DIR
 === Unknown option ===
 
 Testing: -drive file=TEST_DIR/t.qcow2,format=qcow2,unknown_opt=
-QEMU_PROG: -drive file=TEST_DIR/t.qcow2,format=qcow2,unknown_opt=: could not open disk image TEST_DIR/t.qcow2: Block format 'qcow2' used by device 'ide0-hd0' doesn't support the option 'unknown_opt'
+QEMU_PROG: -drive file=TEST_DIR/t.qcow2,format=qcow2,unknown_opt=: Block format 'qcow2' used by device 'ide0-hd0' doesn't support the option 'unknown_opt'
 
 Testing: -drive file=TEST_DIR/t.qcow2,format=qcow2,unknown_opt=on
-QEMU_PROG: -drive file=TEST_DIR/t.qcow2,format=qcow2,unknown_opt=on: could not open disk image TEST_DIR/t.qcow2: Block format 'qcow2' used by device 'ide0-hd0' doesn't support the option 'unknown_opt'
+QEMU_PROG: -drive file=TEST_DIR/t.qcow2,format=qcow2,unknown_opt=on: Block format 'qcow2' used by device 'ide0-hd0' doesn't support the option 'unknown_opt'
 
 Testing: -drive file=TEST_DIR/t.qcow2,format=qcow2,unknown_opt=1234
-QEMU_PROG: -drive file=TEST_DIR/t.qcow2,format=qcow2,unknown_opt=1234: could not open disk image TEST_DIR/t.qcow2: Block format 'qcow2' used by device 'ide0-hd0' doesn't support the option 'unknown_opt'
+QEMU_PROG: -drive file=TEST_DIR/t.qcow2,format=qcow2,unknown_opt=1234: Block format 'qcow2' used by device 'ide0-hd0' doesn't support the option 'unknown_opt'
 
 Testing: -drive file=TEST_DIR/t.qcow2,format=qcow2,unknown_opt=foo
-QEMU_PROG: -drive file=TEST_DIR/t.qcow2,format=qcow2,unknown_opt=foo: could not open disk image TEST_DIR/t.qcow2: Block format 'qcow2' used by device 'ide0-hd0' doesn't support the option 'unknown_opt'
+QEMU_PROG: -drive file=TEST_DIR/t.qcow2,format=qcow2,unknown_opt=foo: Block format 'qcow2' used by device 'ide0-hd0' doesn't support the option 'unknown_opt'
 
 
 === Unknown protocol option ===
 
 Testing: -drive file=TEST_DIR/t.qcow2,format=qcow2,file.unknown_opt=
-QEMU_PROG: -drive file=TEST_DIR/t.qcow2,format=qcow2,file.unknown_opt=: could not open disk image TEST_DIR/t.qcow2: Block protocol 'file' doesn't support the option 'unknown_opt'
+QEMU_PROG: -drive file=TEST_DIR/t.qcow2,format=qcow2,file.unknown_opt=: Block protocol 'file' doesn't support the option 'unknown_opt'
 
 Testing: -drive file=TEST_DIR/t.qcow2,format=qcow2,file.unknown_opt=on
-QEMU_PROG: -drive file=TEST_DIR/t.qcow2,format=qcow2,file.unknown_opt=on: could not open disk image TEST_DIR/t.qcow2: Block protocol 'file' doesn't support the option 'unknown_opt'
+QEMU_PROG: -drive file=TEST_DIR/t.qcow2,format=qcow2,file.unknown_opt=on: Block protocol 'file' doesn't support the option 'unknown_opt'
 
 Testing: -drive file=TEST_DIR/t.qcow2,format=qcow2,file.unknown_opt=1234
-QEMU_PROG: -drive file=TEST_DIR/t.qcow2,format=qcow2,file.unknown_opt=1234: could not open disk image TEST_DIR/t.qcow2: Block protocol 'file' doesn't support the option 'unknown_opt'
+QEMU_PROG: -drive file=TEST_DIR/t.qcow2,format=qcow2,file.unknown_opt=1234: Block protocol 'file' doesn't support the option 'unknown_opt'
 
 Testing: -drive file=TEST_DIR/t.qcow2,format=qcow2,file.unknown_opt=foo
-QEMU_PROG: -drive file=TEST_DIR/t.qcow2,format=qcow2,file.unknown_opt=foo: could not open disk image TEST_DIR/t.qcow2: Block protocol 'file' doesn't support the option 'unknown_opt'
+QEMU_PROG: -drive file=TEST_DIR/t.qcow2,format=qcow2,file.unknown_opt=foo: Block protocol 'file' doesn't support the option 'unknown_opt'
 
 
 === Invalid format ===
 
 Testing: -drive file=TEST_DIR/t.qcow2,format=foo
-QEMU_PROG: -drive file=TEST_DIR/t.qcow2,format=foo: 'foo' invalid format
+QEMU_PROG: -drive file=TEST_DIR/t.qcow2,format=foo: Unknown driver 'foo'
 
 Testing: -drive file=TEST_DIR/t.qcow2,driver=foo
-QEMU_PROG: -drive file=TEST_DIR/t.qcow2,driver=foo: could not open disk image TEST_DIR/t.qcow2: Unknown driver 'foo'
+QEMU_PROG: -drive file=TEST_DIR/t.qcow2,driver=foo: Unknown driver 'foo'
 
 Testing: -drive file=TEST_DIR/t.qcow2,driver=raw,format=qcow2
-QEMU_PROG: -drive file=TEST_DIR/t.qcow2,driver=raw,format=qcow2: could not open disk image TEST_DIR/t.qcow2: Driver specified twice
+QEMU_PROG: -drive file=TEST_DIR/t.qcow2,driver=raw,format=qcow2: Cannot specify both 'driver' and 'format'
+
+Testing: -drive file=TEST_DIR/t.qcow2,driver=qcow2,format=qcow2
+QEMU_PROG: -drive file=TEST_DIR/t.qcow2,driver=qcow2,format=qcow2: Cannot specify both 'driver' and 'format'
+
+
+=== Device without drive ===
+
+Testing: -device virtio-scsi-pci -device scsi-hd
+QEMU X.Y.Z monitor - type 'help' for more information
+(qemu) QEMU_PROG: -device scsi-hd: drive property not set
+QEMU_PROG: -device scsi-hd: Device 'scsi-hd' could not be initialized
 
 
 === Overriding backing file ===
@@ -55,13 +66,13 @@ ide0-hd0: TEST_DIR/t.qcow2 (qcow2)
 (qemu) q[K[Dqu[K[D[Dqui[K[D[D[Dquit[K
 
 Testing: -drive file=TEST_DIR/t.qcow2,driver=raw,backing.file.filename=TEST_DIR/t.qcow2.orig
-QEMU_PROG: -drive file=TEST_DIR/t.qcow2,driver=raw,backing.file.filename=TEST_DIR/t.qcow2.orig: could not open disk image TEST_DIR/t.qcow2: Driver doesn't support backing files
+QEMU_PROG: -drive file=TEST_DIR/t.qcow2,driver=raw,backing.file.filename=TEST_DIR/t.qcow2.orig: Driver doesn't support backing files
 
 Testing: -drive file=TEST_DIR/t.qcow2,file.backing.driver=file,file.backing.filename=TEST_DIR/t.qcow2.orig
-QEMU_PROG: -drive file=TEST_DIR/t.qcow2,file.backing.driver=file,file.backing.filename=TEST_DIR/t.qcow2.orig: could not open disk image TEST_DIR/t.qcow2: Driver doesn't support backing files
+QEMU_PROG: -drive file=TEST_DIR/t.qcow2,file.backing.driver=file,file.backing.filename=TEST_DIR/t.qcow2.orig: Driver doesn't support backing files
 
 Testing: -drive file=TEST_DIR/t.qcow2,file.backing.driver=qcow2,file.backing.file.filename=TEST_DIR/t.qcow2.orig
-QEMU_PROG: -drive file=TEST_DIR/t.qcow2,file.backing.driver=qcow2,file.backing.file.filename=TEST_DIR/t.qcow2.orig: could not open disk image TEST_DIR/t.qcow2: Driver doesn't support backing files
+QEMU_PROG: -drive file=TEST_DIR/t.qcow2,file.backing.driver=qcow2,file.backing.file.filename=TEST_DIR/t.qcow2.orig: Driver doesn't support backing files
 
 
 === Enable and disable lazy refcounting on the command line, plus some invalid values ===
@@ -75,20 +86,20 @@ QEMU X.Y.Z monitor - type 'help' for more information
 (qemu) q[K[Dqu[K[D[Dqui[K[D[D[Dquit[K
 
 Testing: -drive file=TEST_DIR/t.qcow2,format=qcow2,lazy-refcounts=
-QEMU_PROG: -drive file=TEST_DIR/t.qcow2,format=qcow2,lazy-refcounts=: could not open disk image TEST_DIR/t.qcow2: Parameter 'lazy-refcounts' expects 'on' or 'off'
+QEMU_PROG: -drive file=TEST_DIR/t.qcow2,format=qcow2,lazy-refcounts=: Parameter 'lazy-refcounts' expects 'on' or 'off'
 
 Testing: -drive file=TEST_DIR/t.qcow2,format=qcow2,lazy-refcounts=42
-QEMU_PROG: -drive file=TEST_DIR/t.qcow2,format=qcow2,lazy-refcounts=42: could not open disk image TEST_DIR/t.qcow2: Parameter 'lazy-refcounts' expects 'on' or 'off'
+QEMU_PROG: -drive file=TEST_DIR/t.qcow2,format=qcow2,lazy-refcounts=42: Parameter 'lazy-refcounts' expects 'on' or 'off'
 
 Testing: -drive file=TEST_DIR/t.qcow2,format=qcow2,lazy-refcounts=foo
-QEMU_PROG: -drive file=TEST_DIR/t.qcow2,format=qcow2,lazy-refcounts=foo: could not open disk image TEST_DIR/t.qcow2: Parameter 'lazy-refcounts' expects 'on' or 'off'
+QEMU_PROG: -drive file=TEST_DIR/t.qcow2,format=qcow2,lazy-refcounts=foo: Parameter 'lazy-refcounts' expects 'on' or 'off'
 
 
 === With version 2 images enabling lazy refcounts must fail ===
 
 Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=134217728
 Testing: -drive file=TEST_DIR/t.qcow2,format=qcow2,lazy-refcounts=on
-QEMU_PROG: -drive file=TEST_DIR/t.qcow2,format=qcow2,lazy-refcounts=on: could not open disk image TEST_DIR/t.qcow2: Lazy refcounts require a qcow2 image with at least qemu 1.1 compatibility level
+QEMU_PROG: -drive file=TEST_DIR/t.qcow2,format=qcow2,lazy-refcounts=on: Lazy refcounts require a qcow2 image with at least qemu 1.1 compatibility level
 
 Testing: -drive file=TEST_DIR/t.qcow2,format=qcow2,lazy-refcounts=off
 QEMU X.Y.Z monitor - type 'help' for more information
@@ -112,20 +123,16 @@ QEMU X.Y.Z monitor - type 'help' for more information
 Testing: -drive if=ide
 QEMU X.Y.Z monitor - type 'help' for more information
 (qemu) QEMU_PROG: Device needs media, but drive is empty
-QEMU_PROG: Device initialization failed.
-QEMU_PROG: Initialization of device ide-hd failed
+QEMU_PROG: Initialization of device ide-hd failed: Device initialization failed.
 
 Testing: -drive if=virtio
 QEMU X.Y.Z monitor - type 'help' for more information
 (qemu) QEMU_PROG: -drive if=virtio: Device needs media, but drive is empty
-QEMU_PROG: -drive if=virtio: Device initialization failed.
 QEMU_PROG: -drive if=virtio: Device 'virtio-blk-pci' could not be initialized
 
 Testing: -drive if=scsi
 QEMU X.Y.Z monitor - type 'help' for more information
-(qemu) QEMU_PROG: -drive if=scsi: Device needs media, but drive is empty
-QEMU_PROG: Device initialization failed.
-QEMU_PROG: Initialization of device lsi53c895a failed
+(qemu) QEMU_PROG: Initialization of device lsi53c895a failed: Device needs media, but drive is empty
 
 Testing: -drive if=none,id=disk -device ide-cd,drive=disk
 QEMU X.Y.Z monitor - type 'help' for more information
@@ -175,8 +182,7 @@ QEMU X.Y.Z monitor - type 'help' for more information
 Testing: -drive file=TEST_DIR/t.qcow2,if=ide,readonly=on
 QEMU X.Y.Z monitor - type 'help' for more information
 (qemu) QEMU_PROG: Can't use a read-only drive
-QEMU_PROG: Device initialization failed.
-QEMU_PROG: Initialization of device ide-hd failed
+QEMU_PROG: Initialization of device ide-hd failed: Device initialization failed.
 
 Testing: -drive file=TEST_DIR/t.qcow2,if=virtio,readonly=on
 QEMU X.Y.Z monitor - type 'help' for more information
@@ -248,31 +254,31 @@ QEMU X.Y.Z monitor - type 'help' for more information
 (qemu) q[K[Dqu[K[D[Dqui[K[D[D[Dquit[K
 
 Testing: -drive file=TEST_DIR/t.qcow2,file.driver=qcow2
-QEMU_PROG: -drive file=TEST_DIR/t.qcow2,file.driver=qcow2: could not open disk image TEST_DIR/t.qcow2: Block format 'qcow2' used by device '' doesn't support the option 'filename'
+QEMU_PROG: -drive file=TEST_DIR/t.qcow2,file.driver=qcow2: Block format 'qcow2' used by device '' doesn't support the option 'filename'
 
 
 === Leaving out required options ===
 
 Testing: -drive driver=file
-QEMU_PROG: -drive driver=file: could not open disk image ide0-hd0: The 'file' block driver requires a file name
+QEMU_PROG: -drive driver=file: The 'file' block driver requires a file name
 
 Testing: -drive driver=nbd
-QEMU_PROG: -drive driver=nbd: could not open disk image ide0-hd0: one of path and host must be specified.
+QEMU_PROG: -drive driver=nbd: one of path and host must be specified.
 
 Testing: -drive driver=raw
-QEMU_PROG: -drive driver=raw: could not open disk image ide0-hd0: Can't use 'raw' as a block driver for the protocol level
+QEMU_PROG: -drive driver=raw: Can't use 'raw' as a block driver for the protocol level
 
 Testing: -drive file.driver=file
-QEMU_PROG: -drive file.driver=file: could not open disk image ide0-hd0: The 'file' block driver requires a file name
+QEMU_PROG: -drive file.driver=file: The 'file' block driver requires a file name
 
 Testing: -drive file.driver=nbd
-QEMU_PROG: -drive file.driver=nbd: could not open disk image ide0-hd0: one of path and host must be specified.
+QEMU_PROG: -drive file.driver=nbd: one of path and host must be specified.
 
 Testing: -drive file.driver=raw
-QEMU_PROG: -drive file.driver=raw: could not open disk image ide0-hd0: Can't use 'raw' as a block driver for the protocol level
+QEMU_PROG: -drive file.driver=raw: Can't use 'raw' as a block driver for the protocol level
 
 Testing: -drive foo=bar
-QEMU_PROG: -drive foo=bar: could not open disk image ide0-hd0: Must specify either driver or file
+QEMU_PROG: -drive foo=bar: Must specify either driver or file
 
 
 === Specifying both an option and its legacy alias ===
@@ -323,13 +329,13 @@ QEMU_PROG: -drive file=TEST_DIR/t.qcow2,readonly=on,read-only=off: 'read-only' a
 === Parsing protocol from file name ===
 
 Testing: -hda foo:bar
-QEMU_PROG: -hda foo:bar: could not open disk image foo:bar: Unknown protocol
+QEMU_PROG: -hda foo:bar: Unknown protocol 'foo'
 
 Testing: -drive file=foo:bar
-QEMU_PROG: -drive file=foo:bar: could not open disk image foo:bar: Unknown protocol
+QEMU_PROG: -drive file=foo:bar: Unknown protocol 'foo'
 
 Testing: -drive file.filename=foo:bar
-QEMU_PROG: -drive file.filename=foo:bar: could not open disk image ide0-hd0: Could not open 'foo:bar': No such file or directory
+QEMU_PROG: -drive file.filename=foo:bar: Could not open 'foo:bar': No such file or directory
 
 Testing: -hda file:TEST_DIR/t.qcow2
 QEMU X.Y.Z monitor - type 'help' for more information
@@ -340,7 +346,7 @@ QEMU X.Y.Z monitor - type 'help' for more information
 (qemu) q[K[Dqu[K[D[Dqui[K[D[D[Dquit[K
 
 Testing: -drive file.filename=file:TEST_DIR/t.qcow2
-QEMU_PROG: -drive file.filename=file:TEST_DIR/t.qcow2: could not open disk image ide0-hd0: Could not open 'file:TEST_DIR/t.qcow2': No such file or directory
+QEMU_PROG: -drive file.filename=file:TEST_DIR/t.qcow2: Could not open 'file:TEST_DIR/t.qcow2': No such file or directory
 
 
 === Snapshot mode ===

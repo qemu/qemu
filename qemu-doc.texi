@@ -539,8 +539,8 @@ storage.
 @item qcow2
 QEMU image format, the most versatile format. Use it to have smaller
 images (useful if your filesystem does not supports holes, for example
-on Windows), optional AES encryption, zlib based compression and
-support of multiple VM snapshots.
+on Windows), zlib based compression and support of multiple VM
+snapshots.
 
 Supported options:
 @table @code
@@ -574,9 +574,10 @@ original file must then be securely erased using a program like shred,
 though even this is ineffective with many modern storage technologies.
 @end itemize
 
-Use of qcow / qcow2 encryption is thus strongly discouraged. Users are
-recommended to use an alternative encryption technology such as the
-Linux dm-crypt / LUKS system.
+Use of qcow / qcow2 encryption with QEMU is deprecated, and support for
+it will go away in a future release.  Users are recommended to use an
+alternative encryption technology such as the Linux dm-crypt / LUKS
+system.
 
 @item cluster_size
 Changes the qcow2 cluster size (must be between 512 and 2M). Smaller cluster
@@ -735,8 +736,7 @@ devices. We describe here the usage for QEMU version >= 0.8.3.
 
 On Linux, you can directly use the host device filename instead of a
 disk image filename provided you have enough privileges to access
-it. For example, use @file{/dev/cdrom} to access to the CDROM or
-@file{/dev/fd0} for the floppy.
+it. For example, use @file{/dev/cdrom} to access to the CDROM.
 
 @table @code
 @item CD
@@ -748,6 +748,8 @@ You can specify a floppy device even if no floppy is loaded. Floppy
 removal is currently not detected accurately (if you change floppy
 without doing floppy access while the floppy is not loaded, the guest
 OS will think that the same floppy is loaded).
+Use of the host's floppy device is deprecated, and support for it will
+be removed in a future release.
 @item Hard disks
 Hard disks can be used. Normally you must specify the whole disk
 (@file{/dev/hdb} instead of @file{/dev/hdb1}) so that the guest OS can
@@ -2052,7 +2054,7 @@ firmware implementation. The goal is to implement a 100% IEEE
 
 A sample Linux 2.6 series kernel and ram disk image are available on
 the QEMU web site. There are still issues with NetBSD and OpenBSD, but
-some kernel versions work. Please note that currently older Solaris kernels
+most kernel versions work. Please note that currently older Solaris kernels
 don't work probably due to interface issues between OpenBIOS and
 Solaris.
 
@@ -2091,8 +2093,9 @@ Set the emulated machine type. Default is SS-5.
 
 Use the executable @file{qemu-system-sparc64} to simulate a Sun4u
 (UltraSPARC PC-like machine), Sun4v (T1 PC-like machine), or generic
-Niagara (T1) machine. The emulator is not usable for anything yet, but
-it can launch some kernels.
+Niagara (T1) machine. The Sun4u emulator is mostly complete, being
+able to run Linux, NetBSD and OpenBSD in headless (-nographic) mode. The
+Sun4v and Niagara emulators are still a work in progress.
 
 QEMU emulates the following peripherals:
 

@@ -54,3 +54,10 @@ void block_acct_highest_sector(BlockAcctStats *stats, int64_t sector_num,
         stats->wr_highest_sector = sector_num + nb_sectors - 1;
     }
 }
+
+void block_acct_merge_done(BlockAcctStats *stats, enum BlockAcctType type,
+                      int num_requests)
+{
+    assert(type < BLOCK_MAX_IOTYPE);
+    stats->merged[type] += num_requests;
+}

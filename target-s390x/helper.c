@@ -27,7 +27,6 @@
 #endif
 
 //#define DEBUG_S390
-//#define DEBUG_S390_PTE
 //#define DEBUG_S390_STDOUT
 
 #ifdef DEBUG_S390
@@ -44,12 +43,6 @@
     do { } while (0)
 #endif
 
-#ifdef DEBUG_S390_PTE
-#define PTE_DPRINTF DPRINTF
-#else
-#define PTE_DPRINTF(fmt, ...) \
-    do { } while (0)
-#endif
 
 #ifndef CONFIG_USER_ONLY
 void s390x_tod_timer(void *opaque)
@@ -105,327 +98,13 @@ int s390_cpu_handle_mmu_fault(CPUState *cs, vaddr address,
 #else /* !CONFIG_USER_ONLY */
 
 /* Ensure to exit the TB after this call! */
-static void trigger_pgm_exception(CPUS390XState *env, uint32_t code,
-                                  uint32_t ilen)
+void trigger_pgm_exception(CPUS390XState *env, uint32_t code, uint32_t ilen)
 {
     CPUState *cs = CPU(s390_env_get_cpu(env));
 
     cs->exception_index = EXCP_PGM;
     env->int_pgm_code = code;
     env->int_pgm_ilen = ilen;
-}
-
-static int trans_bits(CPUS390XState *env, uint64_t mode)
-{
-    S390CPU *cpu = s390_env_get_cpu(env);
-    int bits = 0;
-
-    switch (mode) {
-    case PSW_ASC_PRIMARY:
-        bits = 1;
-        break;
-    case PSW_ASC_SECONDARY:
-        bits = 2;
-        break;
-    case PSW_ASC_HOME:
-        bits = 3;
-        break;
-    default:
-        cpu_abort(CPU(cpu), "unknown asc mode\n");
-        break;
-    }
-
-    return bits;
-}
-
-static void trigger_prot_fault(CPUS390XState *env, target_ulong vaddr,
-                               uint64_t mode)
-{
-    CPUState *cs = CPU(s390_env_get_cpu(env));
-    int ilen = ILEN_LATER_INC;
-    int bits = trans_bits(env, mode) | 4;
-
-    DPRINTF("%s: vaddr=%016" PRIx64 " bits=%d\n", __func__, vaddr, bits);
-
-    stq_phys(cs->as,
-             env->psa + offsetof(LowCore, trans_exc_code), vaddr | bits);
-    trigger_pgm_exception(env, PGM_PROTECTION, ilen);
-}
-
-static void trigger_page_fault(CPUS390XState *env, target_ulong vaddr,
-                               uint32_t type, uint64_t asc, int rw)
-{
-    CPUState *cs = CPU(s390_env_get_cpu(env));
-    int ilen = ILEN_LATER;
-    int bits = trans_bits(env, asc);
-
-    /* Code accesses have an undefined ilc.  */
-    if (rw == 2) {
-        ilen = 2;
-    }
-
-    DPRINTF("%s: vaddr=%016" PRIx64 " bits=%d\n", __func__, vaddr, bits);
-
-    stq_phys(cs->as,
-             env->psa + offsetof(LowCore, trans_exc_code), vaddr | bits);
-    trigger_pgm_exception(env, type, ilen);
-}
-
-/**
- * Translate real address to absolute (= physical)
- * address by taking care of the prefix mapping.
- */
-static target_ulong mmu_real2abs(CPUS390XState *env, target_ulong raddr)
-{
-    if (raddr < 0x2000) {
-        return raddr + env->psa;    /* Map the lowcore. */
-    } else if (raddr >= env->psa && raddr < env->psa + 0x2000) {
-        return raddr - env->psa;    /* Map the 0 page. */
-    }
-    return raddr;
-}
-
-/* Decode page table entry (normal 4KB page) */
-static int mmu_translate_pte(CPUS390XState *env, target_ulong vaddr,
-                             uint64_t asc, uint64_t asce,
-                             target_ulong *raddr, int *flags, int rw)
-{
-    if (asce & _PAGE_INVALID) {
-        DPRINTF("%s: PTE=0x%" PRIx64 " invalid\n", __func__, asce);
-        trigger_page_fault(env, vaddr, PGM_PAGE_TRANS, asc, rw);
-        return -1;
-    }
-
-    if (asce & _PAGE_RO) {
-        *flags &= ~PAGE_WRITE;
-    }
-
-    *raddr = asce & _ASCE_ORIGIN;
-
-    PTE_DPRINTF("%s: PTE=0x%" PRIx64 "\n", __func__, asce);
-
-    return 0;
-}
-
-/* Decode EDAT1 segment frame absolute address (1MB page) */
-static int mmu_translate_sfaa(CPUS390XState *env, target_ulong vaddr,
-                              uint64_t asc, uint64_t asce, target_ulong *raddr,
-                              int *flags, int rw)
-{
-    if (asce & _SEGMENT_ENTRY_INV) {
-        DPRINTF("%s: SEG=0x%" PRIx64 " invalid\n", __func__, asce);
-        trigger_page_fault(env, vaddr, PGM_SEGMENT_TRANS, asc, rw);
-        return -1;
-    }
-
-    if (asce & _SEGMENT_ENTRY_RO) {
-        *flags &= ~PAGE_WRITE;
-    }
-
-    *raddr = (asce & 0xfffffffffff00000ULL) | (vaddr & 0xfffff);
-
-    PTE_DPRINTF("%s: SEG=0x%" PRIx64 "\n", __func__, asce);
-
-    return 0;
-}
-
-static int mmu_translate_asce(CPUS390XState *env, target_ulong vaddr,
-                              uint64_t asc, uint64_t asce, int level,
-                              target_ulong *raddr, int *flags, int rw)
-{
-    CPUState *cs = CPU(s390_env_get_cpu(env));
-    uint64_t offs = 0;
-    uint64_t origin;
-    uint64_t new_asce;
-
-    PTE_DPRINTF("%s: 0x%" PRIx64 "\n", __func__, asce);
-
-    if (((level != _ASCE_TYPE_SEGMENT) && (asce & _REGION_ENTRY_INV)) ||
-        ((level == _ASCE_TYPE_SEGMENT) && (asce & _SEGMENT_ENTRY_INV))) {
-        /* XXX different regions have different faults */
-        DPRINTF("%s: invalid region\n", __func__);
-        trigger_page_fault(env, vaddr, PGM_SEGMENT_TRANS, asc, rw);
-        return -1;
-    }
-
-    if ((level <= _ASCE_TYPE_MASK) && ((asce & _ASCE_TYPE_MASK) != level)) {
-        trigger_page_fault(env, vaddr, PGM_TRANS_SPEC, asc, rw);
-        return -1;
-    }
-
-    if (asce & _ASCE_REAL_SPACE) {
-        /* direct mapping */
-
-        *raddr = vaddr;
-        return 0;
-    }
-
-    origin = asce & _ASCE_ORIGIN;
-
-    switch (level) {
-    case _ASCE_TYPE_REGION1 + 4:
-        offs = (vaddr >> 50) & 0x3ff8;
-        break;
-    case _ASCE_TYPE_REGION1:
-        offs = (vaddr >> 39) & 0x3ff8;
-        break;
-    case _ASCE_TYPE_REGION2:
-        offs = (vaddr >> 28) & 0x3ff8;
-        break;
-    case _ASCE_TYPE_REGION3:
-        offs = (vaddr >> 17) & 0x3ff8;
-        break;
-    case _ASCE_TYPE_SEGMENT:
-        offs = (vaddr >> 9) & 0x07f8;
-        origin = asce & _SEGMENT_ENTRY_ORIGIN;
-        break;
-    }
-
-    /* XXX region protection flags */
-    /* *flags &= ~PAGE_WRITE */
-
-    new_asce = ldq_phys(cs->as, origin + offs);
-    PTE_DPRINTF("%s: 0x%" PRIx64 " + 0x%" PRIx64 " => 0x%016" PRIx64 "\n",
-                __func__, origin, offs, new_asce);
-
-    if (level == _ASCE_TYPE_SEGMENT) {
-        /* 4KB page */
-        return mmu_translate_pte(env, vaddr, asc, new_asce, raddr, flags, rw);
-    } else if (level - 4 == _ASCE_TYPE_SEGMENT &&
-               (new_asce & _SEGMENT_ENTRY_FC) && (env->cregs[0] & CR0_EDAT)) {
-        /* 1MB page */
-        return mmu_translate_sfaa(env, vaddr, asc, new_asce, raddr, flags, rw);
-    } else {
-        /* yet another region */
-        return mmu_translate_asce(env, vaddr, asc, new_asce, level - 4, raddr,
-                                  flags, rw);
-    }
-}
-
-static int mmu_translate_asc(CPUS390XState *env, target_ulong vaddr,
-                             uint64_t asc, target_ulong *raddr, int *flags,
-                             int rw)
-{
-    uint64_t asce = 0;
-    int level, new_level;
-    int r;
-
-    switch (asc) {
-    case PSW_ASC_PRIMARY:
-        PTE_DPRINTF("%s: asc=primary\n", __func__);
-        asce = env->cregs[1];
-        break;
-    case PSW_ASC_SECONDARY:
-        PTE_DPRINTF("%s: asc=secondary\n", __func__);
-        asce = env->cregs[7];
-        break;
-    case PSW_ASC_HOME:
-        PTE_DPRINTF("%s: asc=home\n", __func__);
-        asce = env->cregs[13];
-        break;
-    }
-
-    switch (asce & _ASCE_TYPE_MASK) {
-    case _ASCE_TYPE_REGION1:
-        break;
-    case _ASCE_TYPE_REGION2:
-        if (vaddr & 0xffe0000000000000ULL) {
-            DPRINTF("%s: vaddr doesn't fit 0x%16" PRIx64
-                    " 0xffe0000000000000ULL\n", __func__, vaddr);
-            trigger_page_fault(env, vaddr, PGM_TRANS_SPEC, asc, rw);
-            return -1;
-        }
-        break;
-    case _ASCE_TYPE_REGION3:
-        if (vaddr & 0xfffffc0000000000ULL) {
-            DPRINTF("%s: vaddr doesn't fit 0x%16" PRIx64
-                    " 0xfffffc0000000000ULL\n", __func__, vaddr);
-            trigger_page_fault(env, vaddr, PGM_TRANS_SPEC, asc, rw);
-            return -1;
-        }
-        break;
-    case _ASCE_TYPE_SEGMENT:
-        if (vaddr & 0xffffffff80000000ULL) {
-            DPRINTF("%s: vaddr doesn't fit 0x%16" PRIx64
-                    " 0xffffffff80000000ULL\n", __func__, vaddr);
-            trigger_page_fault(env, vaddr, PGM_TRANS_SPEC, asc, rw);
-            return -1;
-        }
-        break;
-    }
-
-    /* fake level above current */
-    level = asce & _ASCE_TYPE_MASK;
-    new_level = level + 4;
-    asce = (asce & ~_ASCE_TYPE_MASK) | (new_level & _ASCE_TYPE_MASK);
-
-    r = mmu_translate_asce(env, vaddr, asc, asce, new_level, raddr, flags, rw);
-
-    if ((rw == 1) && !(*flags & PAGE_WRITE)) {
-        trigger_prot_fault(env, vaddr, asc);
-        return -1;
-    }
-
-    return r;
-}
-
-int mmu_translate(CPUS390XState *env, target_ulong vaddr, int rw, uint64_t asc,
-                  target_ulong *raddr, int *flags)
-{
-    int r = -1;
-    uint8_t *sk;
-
-    *flags = PAGE_READ | PAGE_WRITE | PAGE_EXEC;
-    vaddr &= TARGET_PAGE_MASK;
-
-    if (!(env->psw.mask & PSW_MASK_DAT)) {
-        *raddr = vaddr;
-        r = 0;
-        goto out;
-    }
-
-    switch (asc) {
-    case PSW_ASC_PRIMARY:
-    case PSW_ASC_HOME:
-        r = mmu_translate_asc(env, vaddr, asc, raddr, flags, rw);
-        break;
-    case PSW_ASC_SECONDARY:
-        /*
-         * Instruction: Primary
-         * Data: Secondary
-         */
-        if (rw == 2) {
-            r = mmu_translate_asc(env, vaddr, PSW_ASC_PRIMARY, raddr, flags,
-                                  rw);
-            *flags &= ~(PAGE_READ | PAGE_WRITE);
-        } else {
-            r = mmu_translate_asc(env, vaddr, PSW_ASC_SECONDARY, raddr, flags,
-                                  rw);
-            *flags &= ~(PAGE_EXEC);
-        }
-        break;
-    case PSW_ASC_ACCREG:
-    default:
-        hw_error("guest switched to unknown asc mode\n");
-        break;
-    }
-
- out:
-    /* Convert real address -> absolute address */
-    *raddr = mmu_real2abs(env, *raddr);
-
-    if (*raddr <= ram_size) {
-        sk = &env->storage_keys[*raddr / TARGET_PAGE_SIZE];
-        if (*flags & PAGE_READ) {
-            *sk |= SK_R;
-        }
-
-        if (*flags & PAGE_WRITE) {
-            *sk |= SK_C;
-        }
-    }
-
-    return r;
 }
 
 int s390_cpu_handle_mmu_fault(CPUState *cs, vaddr orig_vaddr,
@@ -448,7 +127,7 @@ int s390_cpu_handle_mmu_fault(CPUState *cs, vaddr orig_vaddr,
         vaddr &= 0x7fffffff;
     }
 
-    if (mmu_translate(env, vaddr, rw, asc, &raddr, &prot)) {
+    if (mmu_translate(env, vaddr, rw, asc, &raddr, &prot, true)) {
         /* Translation ended in exception */
         return 1;
     }
@@ -475,8 +154,7 @@ hwaddr s390_cpu_get_phys_page_debug(CPUState *cs, vaddr vaddr)
     S390CPU *cpu = S390_CPU(cs);
     CPUS390XState *env = &cpu->env;
     target_ulong raddr;
-    int prot = PAGE_READ | PAGE_WRITE | PAGE_EXEC;
-    int old_exc = cs->exception_index;
+    int prot;
     uint64_t asc = env->psw.mask & PSW_MASK_ASC;
 
     /* 31-Bit mode */
@@ -484,8 +162,7 @@ hwaddr s390_cpu_get_phys_page_debug(CPUState *cs, vaddr vaddr)
         vaddr &= 0x7fffffff;
     }
 
-    mmu_translate(env, vaddr, 2, asc, &raddr, &prot);
-    cs->exception_index = old_exc;
+    mmu_translate(env, vaddr, MMU_INST_FETCH, asc, &raddr, &prot, false);
 
     return raddr;
 }
@@ -506,7 +183,9 @@ void load_psw(CPUS390XState *env, uint64_t mask, uint64_t addr)
 {
     env->psw.addr = addr;
     env->psw.mask = mask;
-    env->cc_op = (mask >> 44) & 3;
+    if (tcg_enabled()) {
+        env->cc_op = (mask >> 44) & 3;
+    }
 
     if (mask & PSW_MASK_WAIT) {
         S390CPU *cpu = s390_env_get_cpu(env);
@@ -520,14 +199,16 @@ void load_psw(CPUS390XState *env, uint64_t mask, uint64_t addr)
 
 static uint64_t get_psw_mask(CPUS390XState *env)
 {
-    uint64_t r;
+    uint64_t r = env->psw.mask;
 
-    env->cc_op = calc_cc(env, env->cc_op, env->cc_src, env->cc_dst, env->cc_vr);
+    if (tcg_enabled()) {
+        env->cc_op = calc_cc(env, env->cc_op, env->cc_src, env->cc_dst,
+                             env->cc_vr);
 
-    r = env->psw.mask;
-    r &= ~PSW_MASK_CC;
-    assert(!(env->cc_op & ~3));
-    r |= (uint64_t)env->cc_op << 44;
+        r &= ~PSW_MASK_CC;
+        assert(!(env->cc_op & ~3));
+        r |= (uint64_t)env->cc_op << 44;
+    }
 
     return r;
 }
@@ -552,29 +233,21 @@ static void cpu_unmap_lowcore(LowCore *lowcore)
     cpu_physical_memory_unmap(lowcore, sizeof(LowCore), 1, sizeof(LowCore));
 }
 
-void *s390_cpu_physical_memory_map(CPUS390XState *env, hwaddr addr, hwaddr *len,
-                                   int is_write)
+void do_restart_interrupt(CPUS390XState *env)
 {
-    hwaddr start = addr;
+    uint64_t mask, addr;
+    LowCore *lowcore;
 
-    /* Mind the prefix area. */
-    if (addr < 8192) {
-        /* Map the lowcore. */
-        start += env->psa;
-        *len = MIN(*len, 8192 - addr);
-    } else if ((addr >= env->psa) && (addr < env->psa + 8192)) {
-        /* Map the 0 page. */
-        start -= env->psa;
-        *len = MIN(*len, 8192 - start);
-    }
+    lowcore = cpu_map_lowcore(env);
 
-    return cpu_physical_memory_map(start, len, is_write);
-}
+    lowcore->restart_old_psw.mask = cpu_to_be64(get_psw_mask(env));
+    lowcore->restart_old_psw.addr = cpu_to_be64(env->psw.addr);
+    mask = be64_to_cpu(lowcore->restart_new_psw.mask);
+    addr = be64_to_cpu(lowcore->restart_new_psw.addr);
 
-void s390_cpu_physical_memory_unmap(CPUS390XState *env, void *addr, hwaddr len,
-                                    int is_write)
-{
-    cpu_physical_memory_unmap(addr, len, is_write, len);
+    cpu_unmap_lowcore(lowcore);
+
+    load_psw(env, mask, addr);
 }
 
 static void do_svc_interrupt(CPUS390XState *env)

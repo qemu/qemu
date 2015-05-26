@@ -1,0 +1,93 @@
+QEMU memory hotplug
+===================
+
+This document explains how to use the memory hotplug feature in QEMU,
+which is present since v2.1.0.
+
+Guest support is required for memory hotplug to work.
+
+Basic RAM hotplug
+-----------------
+
+In order to be able to hotplug memory, QEMU has to be told how many
+hotpluggable memory slots to create and what is the maximum amount of
+memory the guest can grow. This is done at startup time by means of
+the -m command-line option, which has the following format:
+
+ -m [size=]megs[,slots=n,maxmem=size]
+
+Where,
+
+ - "megs" is the startup RAM. It is the RAM the guest will boot with
+ - "slots" is the number of hotpluggable memory slots
+ - "maxmem" is the maximum RAM size the guest can have
+
+For example, the following command-line:
+
+ qemu [...] 1G,slots=3,maxmem=4G
+
+Creates a guest with 1GB of memory and three hotpluggable memory slots.
+The hotpluggable memory slots are empty when the guest is booted, so all
+memory the guest will see after boot is 1GB. The maximum memory the
+guest can reach is 4GB. This means that three additional gigabytes can be
+hotplugged by using any combination of the available memory slots.
+
+Two monitor commands are used to hotplug memory:
+
+ - "object_add": creates a memory backend object
+ - "device_add": creates a front-end pc-dimm device and inserts it
+                 into the first empty slot
+
+For example, the following commands add another 1GB to the guest
+discussed earlier:
+
+  (qemu) object_add memory-backend-ram,id=mem1,size=1G
+  (qemu) device_add pc-dimm,id=dimm1,memdev=mem1
+
+Using the file backend
+----------------------
+
+Besides basic RAM hotplug, QEMU also supports using files as a memory
+backend. This is useful for using hugetlbfs in Linux, which provides
+access to bigger page sizes.
+
+For example, assuming that the host has 1GB hugepages available in
+the /mnt/hugepages-1GB directory, a 1GB hugepage could be hotplugged
+into the guest from the previous section with the following commands:
+
+  (qemu) object_add memory-backend-file,id=mem1,size=1G,mem-path=/mnt/hugepages-1GB
+  (qemu) device_add pc-dimm,id=dimm1,memdev=mem1
+
+It's also possible to start a guest with memory cold-plugged into the
+hotpluggable memory slots. This might seem counterintuitive at first,
+but this allows for a lot of flexibility when using the file backend.
+
+In the following command-line example, a 8GB guest is created where 6GB
+comes from regular RAM, 1GB is a 1GB hugepage page and 256MB is from
+2MB pages. Also, the guest has additional memory slots to hotplug more
+2GB if needed:
+
+ qemu [...] -m 6GB,slots=4,maxmem=10G \
+   -object memory-backend-file,id=mem1,size=1G,mem-path=/mnt/hugepages-1G \
+   -device pc-dimm,id=dimm1,memdev=mem1 \
+   -object memory-backend-file,id=mem2,size=256M,mem-path=/mnt/hugepages-2MB \
+   -device pc-dimm,id=dimm2,memdev=mem2
+
+
+RAM hot-unplug
+---------------
+
+In order to be able to hot unplug pc-dimm device, QEMU has to be told the ids
+of pc-dimm device and memory backend object. The ids were assigned when you hot
+plugged memory.
+
+Two monitor commands are used to hot unplug memory:
+
+ - "device_del": deletes a front-end pc-dimm device
+ - "object_del": deletes a memory backend object
+
+For example, assuming that the pc-dimm device with id "dimm1" exists, and its memory
+backend is "mem1", the following commands tries to remove it.
+
+  (qemu) device_del dimm1
+  (qemu) object_del mem1

@@ -878,8 +878,7 @@ static int usb_host_open(USBHostDevice *s, libusb_device *dev)
 
     usb_device_attach(udev, &local_err);
     if (local_err) {
-        error_report("%s", error_get_pretty(local_err));
-        error_free(local_err);
+        error_report_err(local_err);
         goto fail;
     }
 
@@ -1637,7 +1636,7 @@ static void usb_host_auto_check(void *unused)
     timer_mod(usb_auto_timer, qemu_clock_get_ms(QEMU_CLOCK_REALTIME) + 2000);
 }
 
-void usb_host_info(Monitor *mon, const QDict *qdict)
+void hmp_info_usbhost(Monitor *mon, const QDict *qdict)
 {
     libusb_device **devs = NULL;
     struct libusb_device_descriptor ddesc;

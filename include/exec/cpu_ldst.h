@@ -244,9 +244,31 @@ uint64_t helper_ldq_cmmu(CPUArchState *env, target_ulong addr, int mmu_idx);
 #undef MEMSUFFIX
 #endif /* (NB_MMU_MODES >= 6) */
 
-#if (NB_MMU_MODES > 6)
-#error "NB_MMU_MODES > 6 is not supported for now"
-#endif /* (NB_MMU_MODES > 6) */
+#if (NB_MMU_MODES >= 7) && defined(MMU_MODE6_SUFFIX)
+
+#define CPU_MMU_INDEX 6
+#define MEMSUFFIX MMU_MODE6_SUFFIX
+#define DATA_SIZE 1
+#include "exec/cpu_ldst_template.h"
+
+#define DATA_SIZE 2
+#include "exec/cpu_ldst_template.h"
+
+#define DATA_SIZE 4
+#include "exec/cpu_ldst_template.h"
+
+#define DATA_SIZE 8
+#include "exec/cpu_ldst_template.h"
+#undef CPU_MMU_INDEX
+#undef MEMSUFFIX
+#endif /* (NB_MMU_MODES >= 7) */
+
+#if (NB_MMU_MODES > 7)
+/* Note that supporting NB_MMU_MODES == 9 would require
+ * changes to at least the ARM TCG backend.
+ */
+#error "NB_MMU_MODES > 7 is not supported for now"
+#endif /* (NB_MMU_MODES > 7) */
 
 /* these access are slower, they must be as rare as possible */
 #define CPU_MMU_INDEX (cpu_mmu_index(env))

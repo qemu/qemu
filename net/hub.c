@@ -245,9 +245,12 @@ void net_hub_info(Monitor *mon)
     QLIST_FOREACH(hub, &hubs, next) {
         monitor_printf(mon, "hub %d\n", hub->id);
         QLIST_FOREACH(port, &hub->ports, next) {
+            monitor_printf(mon, " \\ %s", port->nc.name);
             if (port->nc.peer) {
-                monitor_printf(mon, " \\ ");
+                monitor_printf(mon, ": ");
                 print_net_client(mon, port->nc.peer);
+            } else {
+                monitor_printf(mon, "\n");
             }
         }
     }
@@ -285,7 +288,6 @@ int net_init_hubport(const NetClientOptions *opts, const char *name,
     assert(opts->kind == NET_CLIENT_OPTIONS_KIND_HUBPORT);
     hubport = opts->hubport;
 
-    /* Treat hub port like a backend, NIC must be the one to peer */
     if (peer) {
         return -EINVAL;
     }

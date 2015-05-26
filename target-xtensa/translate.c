@@ -456,7 +456,7 @@ static bool gen_check_loop_end(DisasContext *dc, int slot)
     if (option_enabled(dc, XTENSA_OPTION_LOOP) &&
             !(dc->tb->flags & XTENSA_TBFLAG_EXCM) &&
             dc->next_pc == dc->lend) {
-        int label = gen_new_label();
+        TCGLabel *label = gen_new_label();
 
         gen_advance_ccount(dc);
         tcg_gen_brcondi_i32(TCG_COND_EQ, cpu_SR[LCOUNT], 0, label);
@@ -479,7 +479,7 @@ static void gen_jumpi_check_loop_end(DisasContext *dc, int slot)
 static void gen_brcond(DisasContext *dc, TCGCond cond,
         TCGv_i32 t0, TCGv_i32 t1, uint32_t offset)
 {
-    int label = gen_new_label();
+    TCGLabel *label = gen_new_label();
 
     gen_advance_ccount(dc);
     tcg_gen_brcond_i32(cond, t0, t1, label);
@@ -808,7 +808,7 @@ static void gen_load_store_alignment(DisasContext *dc, int shift,
         tcg_gen_andi_i32(addr, addr, ~0 << shift);
     } else if (option_enabled(dc, XTENSA_OPTION_HW_ALIGNMENT) &&
             no_hw_alignment) {
-        int label = gen_new_label();
+        TCGLabel *label = gen_new_label();
         TCGv_i32 tmp = tcg_temp_new_i32();
         tcg_gen_andi_i32(tmp, addr, ~(~0 << shift));
         tcg_gen_brcondi_i32(TCG_COND_EQ, tmp, 0, label);
@@ -1642,7 +1642,7 @@ static void disas_xtensa_insn(CPUXtensaState *env, DisasContext *dc)
 
             if (OP2 >= 12) {
                 HAS_OPTION(XTENSA_OPTION_32_BIT_IDIV);
-                int label = gen_new_label();
+                TCGLabel *label = gen_new_label();
                 tcg_gen_brcondi_i32(TCG_COND_NE, cpu_R[RRR_T], 0, label);
                 gen_exception_cause(dc, INTEGER_DIVIDE_BY_ZERO_CAUSE);
                 gen_set_label(label);
@@ -1714,8 +1714,8 @@ static void disas_xtensa_insn(CPUXtensaState *env, DisasContext *dc)
             case 13: /*QUOSi*/
             case 15: /*REMSi*/
                 {
-                    int label1 = gen_new_label();
-                    int label2 = gen_new_label();
+                    TCGLabel *label1 = gen_new_label();
+                    TCGLabel *label2 = gen_new_label();
 
                     tcg_gen_brcondi_i32(TCG_COND_NE, cpu_R[RRR_S], 0x80000000,
                             label1);
@@ -2468,7 +2468,7 @@ static void disas_xtensa_insn(CPUXtensaState *env, DisasContext *dc)
         case 14: /*S32C1Iy*/
             HAS_OPTION(XTENSA_OPTION_CONDITIONAL_STORE);
             if (gen_window_check2(dc, RRI8_S, RRI8_T)) {
-                int label = gen_new_label();
+                TCGLabel *label = gen_new_label();
                 TCGv_i32 tmp = tcg_temp_local_new_i32();
                 TCGv_i32 addr = tcg_temp_local_new_i32();
                 TCGv_i32 tpc;
@@ -2746,7 +2746,7 @@ static void disas_xtensa_insn(CPUXtensaState *env, DisasContext *dc)
                         tcg_temp_free(tmp);
 
                         if (BRI8_R > 8) {
-                            int label = gen_new_label();
+                            TCGLabel *label = gen_new_label();
                             tcg_gen_brcondi_i32(
                                     BRI8_R == 9 ? TCG_COND_NE : TCG_COND_GT,
                                     cpu_R[RRI8_S], 0, label);
@@ -3021,7 +3021,6 @@ void gen_intermediate_code_internal(XtensaCPU *cpu,
     DisasContext dc;
     int insn_count = 0;
     int j, lj = -1;
-    uint16_t *gen_opc_end = tcg_ctx.gen_opc_buf + OPC_MAX_SIZE;
     int max_insns = tb->cflags & CF_COUNT_MASK;
     uint32_t pc_start = tb->pc;
     uint32_t next_page_start =
@@ -3065,7 +3064,7 @@ void gen_intermediate_code_internal(XtensaCPU *cpu,
         check_breakpoint(env, &dc);
 
         if (search_pc) {
-            j = tcg_ctx.gen_opc_ptr - tcg_ctx.gen_opc_buf;
+            j = tcg_op_buf_count();
             if (lj < j) {
                 lj++;
                 while (lj < j) {
@@ -3088,7 +3087,7 @@ void gen_intermediate_code_internal(XtensaCPU *cpu,
         }
 
         if (dc.icount) {
-            int label = gen_new_label();
+            TCGLabel *label = gen_new_label();
 
             tcg_gen_addi_i32(dc.next_icount, cpu_SR[ICOUNT], 1);
             tcg_gen_brcondi_i32(TCG_COND_NE, dc.next_icount, 0, label);
@@ -3117,7 +3116,7 @@ void gen_intermediate_code_internal(XtensaCPU *cpu,
             insn_count < max_insns &&
             dc.pc < next_page_start &&
             dc.pc + xtensa_insn_len(env, &dc) <= next_page_start &&
-            tcg_ctx.gen_opc_ptr < gen_opc_end);
+            !tcg_op_buf_full());
 
     reset_litbase(&dc);
     reset_sar_tracker(&dc);
@@ -3133,7 +3132,6 @@ void gen_intermediate_code_internal(XtensaCPU *cpu,
         gen_jumpi(&dc, dc.pc, 0);
     }
     gen_tb_end(tb, insn_count);
-    *tcg_ctx.gen_opc_ptr = INDEX_op_end;
 
 #ifdef DEBUG_DISAS
     if (qemu_loglevel_mask(CPU_LOG_TB_IN_ASM)) {
@@ -3144,7 +3142,7 @@ void gen_intermediate_code_internal(XtensaCPU *cpu,
     }
 #endif
     if (search_pc) {
-        j = tcg_ctx.gen_opc_ptr - tcg_ctx.gen_opc_buf;
+        j = tcg_op_buf_count();
         memset(tcg_ctx.gen_opc_instr_start + lj + 1, 0,
                 (j - lj) * sizeof(tcg_ctx.gen_opc_instr_start[0]));
     } else {

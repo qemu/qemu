@@ -1,0 +1,1 @@
+tests/qapi-schema/bad-type-dict.json:2: 'command' key must have a string value

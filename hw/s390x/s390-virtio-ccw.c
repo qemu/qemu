@@ -22,6 +22,18 @@
 
 #define TYPE_S390_CCW_MACHINE               "s390-ccw-machine"
 
+#define S390_CCW_MACHINE(obj) \
+    OBJECT_CHECK(S390CcwMachineState, (obj), TYPE_S390_CCW_MACHINE)
+
+typedef struct S390CcwMachineState {
+    /*< private >*/
+    MachineState parent_obj;
+
+    /*< public >*/
+    bool aes_key_wrap;
+    bool dea_key_wrap;
+} S390CcwMachineState;
+
 void io_subsystem_reset(void)
 {
     DeviceState *css, *sclp, *flic;
@@ -97,6 +109,7 @@ static void ccw_init(MachineState *machine)
     ram_addr_t pad_size = 0;
     ram_addr_t maxmem = qemu_opt_get_size(opts, "maxmem", my_ram_size);
     ram_addr_t standby_mem_size = maxmem - my_ram_size;
+    uint64_t kvm_limit;
 
     /* The storage increment size is a multiple of 1M and is a power of 2.
      * The number of storage increments must be MAX_STORAGE_INCREMENTS or fewer.
@@ -121,12 +134,21 @@ static void ccw_init(MachineState *machine)
 
     /* let's propagate the changed ram size into the global variable. */
     ram_size = my_ram_size;
+    machine->maxram_size = my_ram_size + standby_mem_size;
+
+    ret = s390_set_memory_limit(machine->maxram_size, &kvm_limit);
+    if (ret == -E2BIG) {
+        hw_error("qemu: host supports a maximum of %" PRIu64 " GB",
+                 kvm_limit >> 30);
+    } else if (ret) {
+        hw_error("qemu: setting the guest size failed");
+    }
 
     /* get a BUS */
     css_bus = virtual_css_bus_init();
     s390_sclp_init();
     s390_init_ipl_dev(machine->kernel_filename, machine->kernel_cmdline,
-                      machine->initrd_filename, "s390-ccw.img");
+                      machine->initrd_filename, "s390-ccw.img", true);
     s390_flic_init();
 
     dev = qdev_create(NULL, TYPE_S390_PCI_HOST_BRIDGE);
@@ -171,6 +193,10 @@ static void ccw_init(MachineState *machine)
 
     /* Create VirtIO network adapters */
     s390_create_virtio_net(BUS(css_bus), "virtio-net-ccw");
+
+    /* Register savevm handler for guest TOD clock */
+    register_savevm(NULL, "todclock", 0, 1,
+                    gtod_save, gtod_load, kvm_state);
 }
 
 static void ccw_machine_class_init(ObjectClass *oc, void *data)
@@ -193,9 +219,60 @@ static void ccw_machine_class_init(ObjectClass *oc, void *data)
     nc->nmi_monitor_handler = s390_nmi;
 }
 
+static inline bool machine_get_aes_key_wrap(Object *obj, Error **errp)
+{
+    S390CcwMachineState *ms = S390_CCW_MACHINE(obj);
+
+    return ms->aes_key_wrap;
+}
+
+static inline void machine_set_aes_key_wrap(Object *obj, bool value,
+                                            Error **errp)
+{
+    S390CcwMachineState *ms = S390_CCW_MACHINE(obj);
+
+    ms->aes_key_wrap = value;
+}
+
+static inline bool machine_get_dea_key_wrap(Object *obj, Error **errp)
+{
+    S390CcwMachineState *ms = S390_CCW_MACHINE(obj);
+
+    return ms->dea_key_wrap;
+}
+
+static inline void machine_set_dea_key_wrap(Object *obj, bool value,
+                                            Error **errp)
+{
+    S390CcwMachineState *ms = S390_CCW_MACHINE(obj);
+
+    ms->dea_key_wrap = value;
+}
+
+static inline void s390_machine_initfn(Object *obj)
+{
+    object_property_add_bool(obj, "aes-key-wrap",
+                             machine_get_aes_key_wrap,
+                             machine_set_aes_key_wrap, NULL);
+    object_property_set_description(obj, "aes-key-wrap",
+            "enable/disable AES key wrapping using the CPACF wrapping key",
+            NULL);
+    object_property_set_bool(obj, true, "aes-key-wrap", NULL);
+
+    object_property_add_bool(obj, "dea-key-wrap",
+                             machine_get_dea_key_wrap,
+                             machine_set_dea_key_wrap, NULL);
+    object_property_set_description(obj, "dea-key-wrap",
+            "enable/disable DEA key wrapping using the CPACF wrapping key",
+            NULL);
+    object_property_set_bool(obj, true, "dea-key-wrap", NULL);
+}
+
 static const TypeInfo ccw_machine_info = {
     .name          = TYPE_S390_CCW_MACHINE,
     .parent        = TYPE_MACHINE,
+    .instance_size = sizeof(S390CcwMachineState),
+    .instance_init = s390_machine_initfn,
     .class_init    = ccw_machine_class_init,
     .interfaces = (InterfaceInfo[]) {
         { TYPE_NMI },
