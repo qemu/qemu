@@ -139,8 +139,6 @@ static void s390_virtio_device_init(VirtIOS390Device *dev,
 
     bus->dev_offs += dev_len;
 
-    dev->host_features = virtio_bus_get_vdev_features(&dev->bus,
-                                                      dev->host_features);
     s390_virtio_device_sync(dev);
     s390_virtio_reset_idx(dev);
     if (dev->qdev.hotplugged) {
@@ -433,7 +431,8 @@ void s390_virtio_device_sync(VirtIOS390Device *dev)
     cur_offs += num_vq * VIRTIO_VQCONFIG_LEN;
 
     /* Sync feature bitmap */
-    address_space_stl_le(&address_space_memory, cur_offs, dev->host_features,
+    address_space_stl_le(&address_space_memory, cur_offs,
+                         dev->vdev->host_features,
                          MEMTXATTRS_UNSPECIFIED, NULL);
 
     dev->feat_offs = cur_offs + dev->feat_len;
@@ -528,12 +527,6 @@ static void virtio_s390_notify(DeviceState *d, uint16_t vector)
     s390_virtio_irq(0, token);
 }
 
-static unsigned virtio_s390_get_features(DeviceState *d)
-{
-    VirtIOS390Device *dev = to_virtio_s390_device(d);
-    return dev->host_features;
-}
-
 /**************** S390 Virtio Bus Device Descriptions *******************/
 
 static void s390_virtio_net_class_init(ObjectClass *klass, void *data)
@@ -626,16 +619,10 @@ static void s390_virtio_busdev_reset(DeviceState *dev)
     virtio_reset(_dev->vdev);
 }
 
-static Property virtio_s390_properties[] = {
-    DEFINE_VIRTIO_COMMON_FEATURES(VirtIOS390Device, host_features),
-    DEFINE_PROP_END_OF_LIST(),
-};
-
 static void virtio_s390_device_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
-    dc->props = virtio_s390_properties;
     dc->realize = s390_virtio_busdev_realize;
     dc->bus_type = TYPE_S390_VIRTIO_BUS;
     dc->reset = s390_virtio_busdev_reset;
@@ -733,7 +720,6 @@ static void virtio_s390_bus_class_init(ObjectClass *klass, void *data)
     BusClass *bus_class = BUS_CLASS(klass);
     bus_class->max_dev = 1;
     k->notify = virtio_s390_notify;
-    k->get_features = virtio_s390_get_features;
 }
 
 static const TypeInfo virtio_s390_bus_info = {

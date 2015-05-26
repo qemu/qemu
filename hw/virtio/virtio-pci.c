@@ -306,7 +306,7 @@ static uint32_t virtio_ioport_read(VirtIOPCIProxy *proxy, uint32_t addr)
 
     switch (addr) {
     case VIRTIO_PCI_HOST_FEATURES:
-        ret = proxy->host_features;
+        ret = vdev->host_features;
         break;
     case VIRTIO_PCI_GUEST_FEATURES:
         ret = vdev->guest_features;
@@ -432,12 +432,6 @@ static void virtio_write_config(PCIDevice *pci_dev, uint32_t address,
         virtio_pci_stop_ioeventfd(proxy);
         virtio_set_status(vdev, vdev->status & ~VIRTIO_CONFIG_S_DRIVER_OK);
     }
-}
-
-static unsigned virtio_pci_get_features(DeviceState *d)
-{
-    VirtIOPCIProxy *proxy = to_virtio_pci_proxy(d);
-    return proxy->host_features;
 }
 
 static int kvm_virtio_pci_vq_vector_use(VirtIOPCIProxy *proxy,
@@ -924,6 +918,7 @@ static void virtio_pci_device_plugged(DeviceState *d)
     VirtioBusState *bus = &proxy->bus;
     uint8_t *config;
     uint32_t size;
+    VirtIODevice *vdev = virtio_bus_get_device(&proxy->bus);
 
     config = proxy->pci_dev.config;
     if (proxy->class_code) {
@@ -958,10 +953,8 @@ static void virtio_pci_device_plugged(DeviceState *d)
         proxy->flags &= ~VIRTIO_PCI_FLAG_USE_IOEVENTFD;
     }
 
-    virtio_add_feature(&proxy->host_features, VIRTIO_F_NOTIFY_ON_EMPTY);
-    virtio_add_feature(&proxy->host_features, VIRTIO_F_BAD_FEATURE);
-    proxy->host_features = virtio_bus_get_vdev_features(bus,
-                                                      proxy->host_features);
+    virtio_add_feature(&vdev->host_features, VIRTIO_F_NOTIFY_ON_EMPTY);
+    virtio_add_feature(&vdev->host_features, VIRTIO_F_BAD_FEATURE);
 }
 
 static void virtio_pci_device_unplugged(DeviceState *d)
@@ -999,7 +992,6 @@ static void virtio_pci_reset(DeviceState *qdev)
 static Property virtio_pci_properties[] = {
     DEFINE_PROP_BIT("virtio-pci-bus-master-bug-migration", VirtIOPCIProxy, flags,
                     VIRTIO_PCI_FLAG_BUS_MASTER_BUG_MIGRATION_BIT, false),
-    DEFINE_VIRTIO_COMMON_FEATURES(VirtIOPCIProxy, host_features),
     DEFINE_PROP_END_OF_LIST(),
 };
 
@@ -1469,7 +1461,6 @@ static void virtio_pci_bus_class_init(ObjectClass *klass, void *data)
     k->load_config = virtio_pci_load_config;
     k->save_queue = virtio_pci_save_queue;
     k->load_queue = virtio_pci_load_queue;
-    k->get_features = virtio_pci_get_features;
     k->query_guest_notifiers = virtio_pci_query_guest_notifiers;
     k->set_host_notifier = virtio_pci_set_host_notifier;
     k->set_guest_notifiers = virtio_pci_set_guest_notifiers;

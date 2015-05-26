@@ -970,13 +970,10 @@ void virtio_save(VirtIODevice *vdev, QEMUFile *f)
 
 int virtio_set_features(VirtIODevice *vdev, uint32_t val)
 {
-    BusState *qbus = qdev_get_parent_bus(DEVICE(vdev));
-    VirtioBusClass *vbusk = VIRTIO_BUS_GET_CLASS(qbus);
     VirtioDeviceClass *k = VIRTIO_DEVICE_GET_CLASS(vdev);
-    uint32_t supported_features = vbusk->get_features(qbus->parent);
-    bool bad = (val & ~supported_features) != 0;
+    bool bad = (val & ~(vdev->host_features)) != 0;
 
-    val &= supported_features;
+    val &= vdev->host_features;
     if (k->set_features) {
         k->set_features(vdev, val);
     }
@@ -990,7 +987,6 @@ int virtio_load(VirtIODevice *vdev, QEMUFile *f, int version_id)
     int32_t config_len;
     uint32_t num;
     uint32_t features;
-    uint32_t supported_features;
     BusState *qbus = qdev_get_parent_bus(DEVICE(vdev));
     VirtioBusClass *k = VIRTIO_BUS_GET_CLASS(qbus);
     VirtioDeviceClass *vdc = VIRTIO_DEVICE_GET_CLASS(vdev);
@@ -1016,9 +1012,8 @@ int virtio_load(VirtIODevice *vdev, QEMUFile *f, int version_id)
     qemu_get_be32s(f, &features);
 
     if (virtio_set_features(vdev, features) < 0) {
-        supported_features = k->get_features(qbus->parent);
         error_report("Features 0x%x unsupported. Allowed features: 0x%x",
-                     features, supported_features);
+                     features, vdev->host_features);
         return -1;
     }
     config_len = qemu_get_be32(f);
@@ -1351,6 +1346,11 @@ static void virtio_device_unrealize(DeviceState *dev, Error **errp)
     vdev->bus_name = NULL;
 }
 
+static Property virtio_properties[] = {
+    DEFINE_VIRTIO_COMMON_FEATURES(VirtIODevice, host_features),
+    DEFINE_PROP_END_OF_LIST(),
+};
+
 static void virtio_device_class_init(ObjectClass *klass, void *data)
 {
     /* Set the default value here. */
@@ -1359,6 +1359,7 @@ static void virtio_device_class_init(ObjectClass *klass, void *data)
     dc->realize = virtio_device_realize;
     dc->unrealize = virtio_device_unrealize;
     dc->bus_type = TYPE_VIRTIO_BUS;
+    dc->props = virtio_properties;
 }
 
 static const TypeInfo virtio_device_info = {
