@@ -2669,6 +2669,7 @@
 # Since: 1.3.0
 #
 # 'unmapped' and 'pause' since 2.0
+# 'ro' and 'kp_comma' since 2.4
 ##
 { 'enum': 'QKeyCode',
   'data': [ 'unmapped',
@@ -2686,7 +2687,8 @@
             'kp_9', 'less', 'f11', 'f12', 'print', 'home', 'pgup', 'pgdn', 'end',
             'left', 'up', 'down', 'right', 'insert', 'delete', 'stop', 'again',
             'props', 'undo', 'front', 'copy', 'open', 'paste', 'find', 'cut',
-             'lf', 'help', 'meta_l', 'meta_r', 'compose', 'pause' ] }
+            'lf', 'help', 'meta_l', 'meta_r', 'compose', 'pause', 'ro',
+            'kp_comma' ] }
 
 ##
 # @KeyValue

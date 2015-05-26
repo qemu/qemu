@@ -128,6 +128,10 @@ static const int qcode_to_number[] = {
 
     [Q_KEY_CODE_INSERT] = 0xd2,
     [Q_KEY_CODE_DELETE] = 0xd3,
+
+    [Q_KEY_CODE_RO] = 0x73,
+    [Q_KEY_CODE_KP_COMMA] = 0x7e,
+
     [Q_KEY_CODE_MAX] = 0,
 };
 
