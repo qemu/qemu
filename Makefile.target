@@ -1,5 +1,7 @@
 # -*- Mode: makefile -*-
 
+BUILD_DIR?=$(CURDIR)/..
+
 include ../config-host.mak
 include config-target.mak
 include config-devices.mak
