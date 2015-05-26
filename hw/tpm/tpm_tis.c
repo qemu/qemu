@@ -32,6 +32,7 @@
 #include "tpm_tis.h"
 #include "qemu-common.h"
 #include "qemu/main-loop.h"
+#include "sysemu/tpm_backend.h"
 
 #define DEBUG_TIS 0
 
@@ -959,6 +960,16 @@ static const MemoryRegionOps tpm_tis_memory_ops = {
 static int tpm_tis_do_startup_tpm(TPMState *s)
 {
     return tpm_backend_startup_tpm(s->be_driver);
+}
+
+/*
+ * Get the TPMVersion of the backend device being used
+ */
+TPMVersion tpm_tis_get_tpm_version(Object *obj)
+{
+    TPMState *s = TPM(obj);
+
+    return tpm_backend_get_tpm_version(s->be_driver);
 }
 
 /*

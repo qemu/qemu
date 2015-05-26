@@ -41,6 +41,7 @@
 #include "hw/acpi/memory_hotplug.h"
 #include "sysemu/tpm.h"
 #include "hw/acpi/tpm.h"
+#include "sysemu/tpm_backend.h"
 
 /* Supported chipsets: */
 #include "hw/acpi/piix4.h"
@@ -106,7 +107,7 @@ typedef struct AcpiPmInfo {
 
 typedef struct AcpiMiscInfo {
     bool has_hpet;
-    bool has_tpm;
+    TPMVersion tpm_version;
     const unsigned char *dsdt_code;
     unsigned dsdt_size;
     uint16_t pvpanic_port;
@@ -234,7 +235,7 @@ static void acpi_get_pm_info(AcpiPmInfo *pm)
 static void acpi_get_misc_info(AcpiMiscInfo *info)
 {
     info->has_hpet = hpet_find();
-    info->has_tpm = tpm_find();
+    info->tpm_version = tpm_get_version();
     info->pvpanic_port = pvpanic_port();
     info->applesmc_io_base = applesmc_port();
 }
@@ -414,6 +415,7 @@ build_madt(GArray *table_data, GArray *linker, AcpiCpuInfo *cpu,
 }
 
 #include "hw/i386/ssdt-tpm.hex"
+#include "hw/i386/ssdt-tpm2.hex"
 
 /* Assign BSEL property to all buses.  In the future, this can be changed
  * to only assign to buses that support hotplug.
@@ -1029,6 +1031,25 @@ build_tpm_ssdt(GArray *table_data, GArray *linker)
     memcpy(tpm_ptr, ssdt_tpm_aml, sizeof(ssdt_tpm_aml));
 }
 
+static void
+build_tpm2(GArray *table_data, GArray *linker)
+{
+    Acpi20TPM2 *tpm2_ptr;
+    void *tpm_ptr;
+
+    tpm_ptr = acpi_data_push(table_data, sizeof(ssdt_tpm2_aml));
+    memcpy(tpm_ptr, ssdt_tpm2_aml, sizeof(ssdt_tpm2_aml));
+
+    tpm2_ptr = acpi_data_push(table_data, sizeof *tpm2_ptr);
+
+    tpm2_ptr->platform_class = cpu_to_le16(TPM2_ACPI_CLASS_CLIENT);
+    tpm2_ptr->control_area_address = cpu_to_le64(0);
+    tpm2_ptr->start_method = cpu_to_le32(TPM2_START_METHOD_MMIO);
+
+    build_header(linker, table_data,
+                 (void *)tpm2_ptr, "TPM2", sizeof(*tpm2_ptr), 4);
+}
+
 typedef enum {
     MEM_AFFINITY_NOFLAGS      = 0,
     MEM_AFFINITY_ENABLED      = (1 << 0),
@@ -1343,12 +1364,21 @@ void acpi_build(PcGuestInfo *guest_info, AcpiBuildTables *tables)
         acpi_add_table(table_offsets, tables_blob);
         build_hpet(tables_blob, tables->linker);
     }
-    if (misc.has_tpm) {
+    if (misc.tpm_version != TPM_VERSION_UNSPEC) {
         acpi_add_table(table_offsets, tables_blob);
         build_tpm_tcpa(tables_blob, tables->linker, tables->tcpalog);
 
         acpi_add_table(table_offsets, tables_blob);
-        build_tpm_ssdt(tables_blob, tables->linker);
+        switch (misc.tpm_version) {
+        case TPM_VERSION_1_2:
+            build_tpm_ssdt(tables_blob, tables->linker);
+            break;
+        case TPM_VERSION_2_0:
+            build_tpm2(tables_blob, tables->linker);
+            break;
+        default:
+            assert(false);
+        }
     }
     if (guest_info->numa_nodes) {
         acpi_add_table(table_offsets, tables_blob);

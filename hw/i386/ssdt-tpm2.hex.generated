@@ -1,4 +1,4 @@
-static unsigned char ssdt_tpm_aml[] = {
+static unsigned char ssdt_tpm2_aml[] = {
 0x53,
 0x53,
 0x44,

@@ -26,11 +26,18 @@ typedef enum  TPMVersion {
     TPM_VERSION_2_0 = 2,
 } TPMVersion;
 
+TPMVersion tpm_tis_get_tpm_version(Object *obj);
+
 #define TYPE_TPM_TIS                "tpm-tis"
 
-static inline bool tpm_find(void)
+static inline TPMVersion tpm_get_version(void)
 {
-    return object_resolve_path_type("", TYPE_TPM_TIS, NULL);
+    Object *obj = object_resolve_path_type("", TYPE_TPM_TIS, NULL);
+
+    if (obj) {
+        return tpm_tis_get_tpm_version(obj);
+    }
+    return TPM_VERSION_UNSPEC;
 }
 
 #endif /* QEMU_TPM_H */
