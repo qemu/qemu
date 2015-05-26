@@ -2440,21 +2440,45 @@ static ExitStatus op_lm32(DisasContext *s, DisasOps *o)
 {
     int r1 = get_field(s->fields, r1);
     int r3 = get_field(s->fields, r3);
-    TCGv_i64 t = tcg_temp_new_i64();
-    TCGv_i64 t4 = tcg_const_i64(4);
+    TCGv_i64 t1, t2;
 
-    while (1) {
-        tcg_gen_qemu_ld32u(t, o->in2, get_mem_index(s));
-        store_reg32_i64(r1, t);
-        if (r1 == r3) {
-            break;
-        }
-        tcg_gen_add_i64(o->in2, o->in2, t4);
-        r1 = (r1 + 1) & 15;
+    /* Only one register to read. */
+    t1 = tcg_temp_new_i64();
+    if (unlikely(r1 == r3)) {
+        tcg_gen_qemu_ld32u(t1, o->in2, get_mem_index(s));
+        store_reg32_i64(r1, t1);
+        tcg_temp_free(t1);
+        return NO_EXIT;
     }
 
-    tcg_temp_free_i64(t);
-    tcg_temp_free_i64(t4);
+    /* First load the values of the first and last registers to trigger
+       possible page faults. */
+    t2 = tcg_temp_new_i64();
+    tcg_gen_qemu_ld32u(t1, o->in2, get_mem_index(s));
+    tcg_gen_addi_i64(t2, o->in2, 4 * ((r3 - r1) & 15));
+    tcg_gen_qemu_ld32u(t2, t2, get_mem_index(s));
+    store_reg32_i64(r1, t1);
+    store_reg32_i64(r3, t2);
+
+    /* Only two registers to read. */
+    if (((r1 + 1) & 15) == r3) {
+        tcg_temp_free(t2);
+        tcg_temp_free(t1);
+        return NO_EXIT;
+    }
+
+    /* Then load the remaining registers. Page fault can't occur. */
+    r3 = (r3 - 1) & 15;
+    tcg_gen_movi_i64(t2, 4);
+    while (r1 != r3) {
+        r1 = (r1 + 1) & 15;
+        tcg_gen_add_i64(o->in2, o->in2, t2);
+        tcg_gen_qemu_ld32u(t1, o->in2, get_mem_index(s));
+        store_reg32_i64(r1, t1);
+    }
+    tcg_temp_free(t2);
+    tcg_temp_free(t1);
+
     return NO_EXIT;
 }
 
@@ -2462,21 +2486,45 @@ static ExitStatus op_lmh(DisasContext *s, DisasOps *o)
 {
     int r1 = get_field(s->fields, r1);
     int r3 = get_field(s->fields, r3);
-    TCGv_i64 t = tcg_temp_new_i64();
-    TCGv_i64 t4 = tcg_const_i64(4);
+    TCGv_i64 t1, t2;
 
-    while (1) {
-        tcg_gen_qemu_ld32u(t, o->in2, get_mem_index(s));
-        store_reg32h_i64(r1, t);
-        if (r1 == r3) {
-            break;
-        }
-        tcg_gen_add_i64(o->in2, o->in2, t4);
-        r1 = (r1 + 1) & 15;
+    /* Only one register to read. */
+    t1 = tcg_temp_new_i64();
+    if (unlikely(r1 == r3)) {
+        tcg_gen_qemu_ld32u(t1, o->in2, get_mem_index(s));
+        store_reg32h_i64(r1, t1);
+        tcg_temp_free(t1);
+        return NO_EXIT;
     }
 
-    tcg_temp_free_i64(t);
-    tcg_temp_free_i64(t4);
+    /* First load the values of the first and last registers to trigger
+       possible page faults. */
+    t2 = tcg_temp_new_i64();
+    tcg_gen_qemu_ld32u(t1, o->in2, get_mem_index(s));
+    tcg_gen_addi_i64(t2, o->in2, 4 * ((r3 - r1) & 15));
+    tcg_gen_qemu_ld32u(t2, t2, get_mem_index(s));
+    store_reg32h_i64(r1, t1);
+    store_reg32h_i64(r3, t2);
+
+    /* Only two registers to read. */
+    if (((r1 + 1) & 15) == r3) {
+        tcg_temp_free(t2);
+        tcg_temp_free(t1);
+        return NO_EXIT;
+    }
+
+    /* Then load the remaining registers. Page fault can't occur. */
+    r3 = (r3 - 1) & 15;
+    tcg_gen_movi_i64(t2, 4);
+    while (r1 != r3) {
+        r1 = (r1 + 1) & 15;
+        tcg_gen_add_i64(o->in2, o->in2, t2);
+        tcg_gen_qemu_ld32u(t1, o->in2, get_mem_index(s));
+        store_reg32h_i64(r1, t1);
+    }
+    tcg_temp_free(t2);
+    tcg_temp_free(t1);
+
     return NO_EXIT;
 }
 
@@ -2484,18 +2532,40 @@ static ExitStatus op_lm64(DisasContext *s, DisasOps *o)
 {
     int r1 = get_field(s->fields, r1);
     int r3 = get_field(s->fields, r3);
-    TCGv_i64 t8 = tcg_const_i64(8);
+    TCGv_i64 t1, t2;
 
-    while (1) {
+    /* Only one register to read. */
+    if (unlikely(r1 == r3)) {
         tcg_gen_qemu_ld64(regs[r1], o->in2, get_mem_index(s));
-        if (r1 == r3) {
-            break;
-        }
-        tcg_gen_add_i64(o->in2, o->in2, t8);
-        r1 = (r1 + 1) & 15;
+        return NO_EXIT;
     }
 
-    tcg_temp_free_i64(t8);
+    /* First load the values of the first and last registers to trigger
+       possible page faults. */
+    t1 = tcg_temp_new_i64();
+    t2 = tcg_temp_new_i64();
+    tcg_gen_qemu_ld64(t1, o->in2, get_mem_index(s));
+    tcg_gen_addi_i64(t2, o->in2, 8 * ((r3 - r1) & 15));
+    tcg_gen_qemu_ld64(regs[r3], t2, get_mem_index(s));
+    tcg_gen_mov_i64(regs[r1], t1);
+    tcg_temp_free(t2);
+
+    /* Only two registers to read. */
+    if (((r1 + 1) & 15) == r3) {
+        tcg_temp_free(t1);
+        return NO_EXIT;
+    }
+
+    /* Then load the remaining registers. Page fault can't occur. */
+    r3 = (r3 - 1) & 15;
+    tcg_gen_movi_i64(t1, 8);
+    while (r1 != r3) {
+        r1 = (r1 + 1) & 15;
+        tcg_gen_add_i64(o->in2, o->in2, t1);
+        tcg_gen_qemu_ld64(regs[r1], o->in2, get_mem_index(s));
+    }
+    tcg_temp_free(t1);
+
     return NO_EXIT;
 }
 
