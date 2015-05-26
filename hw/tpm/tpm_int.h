@@ -29,6 +29,7 @@ struct TPMState {
 
     char *backend;
     TPMBackend *be_driver;
+    TPMVersion be_tpm_version;
 };
 
 #define TPM(obj) OBJECT_CHECK(TPMState, (obj), TYPE_TPM_TIS)

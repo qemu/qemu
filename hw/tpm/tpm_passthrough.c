@@ -267,6 +267,13 @@ static bool tpm_passthrough_get_tpm_established_flag(TPMBackend *tb)
     return false;
 }
 
+static int tpm_passthrough_reset_tpm_established_flag(TPMBackend *tb,
+                                                      uint8_t locty)
+{
+    /* only a TPM 2.0 will support this */
+    return 0;
+}
+
 static bool tpm_passthrough_get_startup_error(TPMBackend *tb)
 {
     TPMPassthruState *tpm_pt = TPM_PASSTHROUGH(tb);
@@ -322,6 +329,11 @@ static void tpm_passthrough_cancel_cmd(TPMBackend *tb)
 static const char *tpm_passthrough_create_desc(void)
 {
     return "Passthrough TPM backend driver";
+}
+
+static TPMVersion tpm_passthrough_get_tpm_version(TPMBackend *tb)
+{
+    return TPM_VERSION_1_2;
 }
 
 /*
@@ -540,6 +552,8 @@ static const TPMDriverOps tpm_passthrough_driver = {
     .deliver_request          = tpm_passthrough_deliver_request,
     .cancel_cmd               = tpm_passthrough_cancel_cmd,
     .get_tpm_established_flag = tpm_passthrough_get_tpm_established_flag,
+    .reset_tpm_established_flag = tpm_passthrough_reset_tpm_established_flag,
+    .get_tpm_version          = tpm_passthrough_get_tpm_version,
 };
 
 static void tpm_passthrough_inst_init(Object *obj)

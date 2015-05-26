@@ -20,6 +20,12 @@ int tpm_config_parse(QemuOptsList *opts_list, const char *optarg);
 int tpm_init(void);
 void tpm_cleanup(void);
 
+typedef enum  TPMVersion {
+    TPM_VERSION_UNSPEC = 0,
+    TPM_VERSION_1_2 = 1,
+    TPM_VERSION_2_0 = 2,
+} TPMVersion;
+
 #define TYPE_TPM_TIS                "tpm-tis"
 
 static inline bool tpm_find(void)
