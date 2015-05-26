@@ -598,7 +598,7 @@ stored in its "value" member. In our example, the "value" member is a pointer
 to an TimerAlarmMethod instance.
 
 Notice that the "current" variable is used as "true" only in the first
-interation of the loop. That's because the alarm timer method in use is the
+iteration of the loop. That's because the alarm timer method in use is the
 first element of the alarm_timers array. Also notice that QAPI lists are handled
 by hand and we return the head of the list.
 
