@@ -52,51 +52,6 @@ static void rtas_display_character(PowerPCCPU *cpu, sPAPREnvironment *spapr,
     }
 }
 
-static void rtas_get_time_of_day(PowerPCCPU *cpu, sPAPREnvironment *spapr,
-                                 uint32_t token, uint32_t nargs,
-                                 target_ulong args,
-                                 uint32_t nret, target_ulong rets)
-{
-    struct tm tm;
-
-    if (nret != 8) {
-        rtas_st(rets, 0, RTAS_OUT_PARAM_ERROR);
-        return;
-    }
-
-    qemu_get_timedate(&tm, spapr->rtc_offset);
-
-    rtas_st(rets, 0, RTAS_OUT_SUCCESS);
-    rtas_st(rets, 1, tm.tm_year + 1900);
-    rtas_st(rets, 2, tm.tm_mon + 1);
-    rtas_st(rets, 3, tm.tm_mday);
-    rtas_st(rets, 4, tm.tm_hour);
-    rtas_st(rets, 5, tm.tm_min);
-    rtas_st(rets, 6, tm.tm_sec);
-    rtas_st(rets, 7, 0); /* we don't do nanoseconds */
-}
-
-static void rtas_set_time_of_day(PowerPCCPU *cpu, sPAPREnvironment *spapr,
-                                 uint32_t token, uint32_t nargs,
-                                 target_ulong args,
-                                 uint32_t nret, target_ulong rets)
-{
-    struct tm tm;
-
-    tm.tm_year = rtas_ld(args, 0) - 1900;
-    tm.tm_mon = rtas_ld(args, 1) - 1;
-    tm.tm_mday = rtas_ld(args, 2);
-    tm.tm_hour = rtas_ld(args, 3);
-    tm.tm_min = rtas_ld(args, 4);
-    tm.tm_sec = rtas_ld(args, 5);
-
-    /* Just generate a monitor event for the change */
-    qapi_event_send_rtc_change(qemu_timedate_diff(&tm), &error_abort);
-    spapr->rtc_offset = qemu_timedate_diff(&tm);
-
-    rtas_st(rets, 0, RTAS_OUT_SUCCESS);
-}
-
 static void rtas_power_off(PowerPCCPU *cpu, sPAPREnvironment *spapr,
                            uint32_t token, uint32_t nargs, target_ulong args,
                            uint32_t nret, target_ulong rets)
@@ -400,10 +355,6 @@ static void core_rtas_register_types(void)
 {
     spapr_rtas_register(RTAS_DISPLAY_CHARACTER, "display-character",
                         rtas_display_character);
-    spapr_rtas_register(RTAS_GET_TIME_OF_DAY, "get-time-of-day",
-                        rtas_get_time_of_day);
-    spapr_rtas_register(RTAS_SET_TIME_OF_DAY, "set-time-of-day",
-                        rtas_set_time_of_day);
     spapr_rtas_register(RTAS_POWER_OFF, "power-off", rtas_power_off);
     spapr_rtas_register(RTAS_SYSTEM_REBOOT, "system-reboot",
                         rtas_system_reboot);

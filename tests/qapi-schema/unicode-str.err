@@ -1,0 +1,1 @@
+tests/qapi-schema/unicode-str.json:2: 'command' uses invalid name 'é'

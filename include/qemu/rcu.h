@@ -117,6 +117,7 @@ extern void synchronize_rcu(void);
  */
 extern void rcu_register_thread(void);
 extern void rcu_unregister_thread(void);
+extern void rcu_after_fork(void);
 
 struct rcu_head;
 typedef void RCUCBFunc(struct rcu_head *head);
@@ -139,6 +140,14 @@ extern void call_rcu1(struct rcu_head *head, RCUCBFunc *func);
          &(head)->field;                                                 \
       }),                                                                \
       (RCUCBFunc *)(func))
+
+#define g_free_rcu(obj, field) \
+    call_rcu1(({                                                         \
+        char __attribute__((unused))                                     \
+            offset_must_be_zero[-offsetof(typeof(*(obj)), field)];       \
+        &(obj)->field;                                                   \
+      }),                                                                \
+      (RCUCBFunc *)g_free);
 
 #ifdef __cplusplus
 }

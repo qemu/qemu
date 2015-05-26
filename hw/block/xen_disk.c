@@ -40,6 +40,8 @@
 #include "xen_blkif.h"
 #include "sysemu/blockdev.h"
 #include "sysemu/block-backend.h"
+#include "qapi/qmp/qdict.h"
+#include "qapi/qmp/qstring.h"
 
 /* ------------------------------------------------------------- */
 
@@ -897,30 +899,23 @@ static int blk_connect(struct XenDevice *xendev)
     blkdev->dinfo = drive_get(IF_XEN, 0, index);
     if (!blkdev->dinfo) {
         Error *local_err = NULL;
-        BlockBackend *blk;
-        BlockDriver *drv;
-        BlockDriverState *bs;
+        QDict *options = NULL;
+
+        if (strcmp(blkdev->fileproto, "<unset>")) {
+            options = qdict_new();
+            qdict_put(options, "driver", qstring_from_str(blkdev->fileproto));
+        }
 
         /* setup via xenbus -> create new block driver instance */
         xen_be_printf(&blkdev->xendev, 2, "create new bdrv (xenbus setup)\n");
-        blk = blk_new_with_bs(blkdev->dev, NULL);
-        if (!blk) {
-            return -1;
-        }
-        blkdev->blk = blk;
-
-        bs = blk_bs(blk);
-        drv = bdrv_find_whitelisted_format(blkdev->fileproto, readonly);
-        if (bdrv_open(&bs, blkdev->filename, NULL, NULL, qflags,
-                      drv, &local_err) != 0) {
+        blkdev->blk = blk_new_open(blkdev->dev, blkdev->filename, NULL, options,
+                                   qflags, &local_err);
+        if (!blkdev->blk) {
             xen_be_printf(&blkdev->xendev, 0, "error: %s\n",
                           error_get_pretty(local_err));
             error_free(local_err);
-            blk_unref(blk);
-            blkdev->blk = NULL;
             return -1;
         }
-        assert(bs == blk_bs(blk));
     } else {
         /* setup via qemu cmdline -> already setup for us */
         xen_be_printf(&blkdev->xendev, 2, "get configured bdrv (cmdline setup)\n");

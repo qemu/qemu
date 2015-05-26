@@ -133,25 +133,25 @@ static void zynq_init(MachineState *machine)
     if (object_property_find(OBJECT(cpu), "has_el3", NULL)) {
         object_property_set_bool(OBJECT(cpu), false, "has_el3", &err);
         if (err) {
-            error_report("%s", error_get_pretty(err));
+            error_report_err(err);
             exit(1);
         }
     }
 
     object_property_set_int(OBJECT(cpu), ZYNQ_BOARD_MIDR, "midr", &err);
     if (err) {
-        error_report("%s", error_get_pretty(err));
+        error_report_err(err);
         exit(1);
     }
 
     object_property_set_int(OBJECT(cpu), MPCORE_PERIPHBASE, "reset-cbar", &err);
     if (err) {
-        error_report("%s", error_get_pretty(err));
+        error_report_err(err);
         exit(1);
     }
     object_property_set_bool(OBJECT(cpu), true, "realized", &err);
     if (err) {
-        error_report("%s", error_get_pretty(err));
+        error_report_err(err);
         exit(1);
     }
 
@@ -161,9 +161,8 @@ static void zynq_init(MachineState *machine)
     }
 
     /* DDR remapped to address zero.  */
-    memory_region_init_ram(ext_ram, NULL, "zynq.ext_ram", ram_size,
-                           &error_abort);
-    vmstate_register_ram_global(ext_ram);
+    memory_region_allocate_system_memory(ext_ram, NULL, "zynq.ext_ram",
+                                         ram_size);
     memory_region_add_subregion(address_space_mem, 0, ext_ram);
 
     /* 256K of on-chip memory */

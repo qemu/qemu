@@ -61,7 +61,7 @@
 /* Same slot state masks are used for command and status registers */
 #define SHPC_SLOT_STATE_MASK     0x03
 #define SHPC_SLOT_STATE_SHIFT \
-    (ffs(SHPC_SLOT_STATE_MASK) - 1)
+    ctz32(SHPC_SLOT_STATE_MASK)
 
 #define SHPC_STATE_NO       0x0
 #define SHPC_STATE_PWRONLY  0x1
@@ -70,10 +70,10 @@
 
 #define SHPC_SLOT_PWR_LED_MASK   0xC
 #define SHPC_SLOT_PWR_LED_SHIFT \
-    (ffs(SHPC_SLOT_PWR_LED_MASK) - 1)
+    ctz32(SHPC_SLOT_PWR_LED_MASK)
 #define SHPC_SLOT_ATTN_LED_MASK  0x30
 #define SHPC_SLOT_ATTN_LED_SHIFT \
-    (ffs(SHPC_SLOT_ATTN_LED_MASK) - 1)
+    ctz32(SHPC_SLOT_ATTN_LED_MASK)
 
 #define SHPC_LED_NO     0x0
 #define SHPC_LED_ON     0x1
@@ -136,7 +136,7 @@ static int roundup_pow_of_two(int x)
 static uint16_t shpc_get_status(SHPCDevice *shpc, int slot, uint16_t msk)
 {
     uint8_t *status = shpc->config + SHPC_SLOT_STATUS(slot);
-    return (pci_get_word(status) & msk) >> (ffs(msk) - 1);
+    return (pci_get_word(status) & msk) >> ctz32(msk);
 }
 
 static void shpc_set_status(SHPCDevice *shpc,
@@ -144,7 +144,7 @@ static void shpc_set_status(SHPCDevice *shpc,
 {
     uint8_t *status = shpc->config + SHPC_SLOT_STATUS(slot);
     pci_word_test_and_clear_mask(status, msk);
-    pci_word_test_and_set_mask(status, value << (ffs(msk) - 1));
+    pci_word_test_and_set_mask(status, value << ctz32(msk));
 }
 
 static void shpc_interrupt_update(PCIDevice *d)
@@ -159,7 +159,7 @@ static void shpc_interrupt_update(PCIDevice *d)
     for (slot = 0; slot < shpc->nslots; ++slot) {
         uint8_t event = shpc->config[SHPC_SLOT_EVENT_LATCH(slot)];
         uint8_t disable = shpc->config[SHPC_SLOT_EVENT_SERR_INT_DIS(d, slot)];
-        uint32_t mask = 1 << SHPC_IDX_TO_LOGICAL(slot);
+        uint32_t mask = 1U << SHPC_IDX_TO_LOGICAL(slot);
         if (event & ~disable) {
             int_locator |= mask;
         }
@@ -663,13 +663,22 @@ void shpc_cleanup(PCIDevice *d, MemoryRegion *bar)
     SHPCDevice *shpc = d->shpc;
     d->cap_present &= ~QEMU_PCI_CAP_SHPC;
     memory_region_del_subregion(bar, &shpc->mmio);
-    object_unparent(OBJECT(&shpc->mmio));
     /* TODO: cleanup config space changes? */
+}
+
+void shpc_free(PCIDevice *d)
+{
+    SHPCDevice *shpc = d->shpc;
+    if (!shpc) {
+        return;
+    }
+    object_unparent(OBJECT(&shpc->mmio));
     g_free(shpc->config);
     g_free(shpc->cmask);
     g_free(shpc->wmask);
     g_free(shpc->w1cmask);
     g_free(shpc);
+    d->shpc = NULL;
 }
 
 void shpc_cap_write_config(PCIDevice *d, uint32_t addr, uint32_t val, int l)

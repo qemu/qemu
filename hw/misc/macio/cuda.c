@@ -638,8 +638,8 @@ static const VMStateDescription vmstate_cuda_timer = {
 
 static const VMStateDescription vmstate_cuda = {
     .name = "cuda",
-    .version_id = 1,
-    .minimum_version_id = 1,
+    .version_id = 2,
+    .minimum_version_id = 2,
     .fields = (VMStateField[]) {
         VMSTATE_UINT8(a, CUDAState),
         VMSTATE_UINT8(b, CUDAState),
@@ -660,6 +660,7 @@ static const VMStateDescription vmstate_cuda = {
         VMSTATE_UINT32(tick_offset, CUDAState),
         VMSTATE_STRUCT_ARRAY(timers, CUDAState, 2, 1,
                              vmstate_cuda_timer, CUDATimer),
+        VMSTATE_TIMER_PTR(adb_poll_timer, CUDAState),
         VMSTATE_END_OF_LIST()
     }
 };

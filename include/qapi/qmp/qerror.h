@@ -40,9 +40,6 @@ void qerror_report_err(Error *err);
 #define QERR_BLOCK_JOB_NOT_READY \
     ERROR_CLASS_GENERIC_ERROR, "The active block job for device '%s' cannot be completed"
 
-#define QERR_BLOCK_FORMAT_FEATURE_NOT_SUPPORTED \
-    ERROR_CLASS_GENERIC_ERROR, "Block format '%s' used by device '%s' does not support feature '%s'"
-
 #define QERR_BUS_NO_HOTPLUG \
     ERROR_CLASS_GENERIC_ERROR, "Bus '%s' does not support hotplugging"
 
@@ -57,9 +54,6 @@ void qerror_report_err(Error *err);
 
 #define QERR_DEVICE_IN_USE \
     ERROR_CLASS_GENERIC_ERROR, "Device '%s' is in use"
-
-#define QERR_DEVICE_IS_READ_ONLY \
-    ERROR_CLASS_GENERIC_ERROR, "Device '%s' is read only"
 
 #define QERR_DEVICE_NO_HOTPLUG \
     ERROR_CLASS_GENERIC_ERROR, "Device '%s' does not support hotplugging"

@@ -31,14 +31,17 @@ UserDefTwo *qmp_user_def_cmd2(UserDefOne *ud1a,
     ud1d->base = g_new0(UserDefZero, 1);
     ud1d->base->integer = has_udb1 ? ud1b->base->integer : 0;
 
-    ret = g_malloc0(sizeof(UserDefTwo));
-    ret->string = strdup("blah1");
-    ret->dict.string = strdup("blah2");
-    ret->dict.dict.userdef = ud1c;
-    ret->dict.dict.string = strdup("blah3");
-    ret->dict.has_dict2 = true;
-    ret->dict.dict2.userdef = ud1d;
-    ret->dict.dict2.string = strdup("blah4");
+    ret = g_new0(UserDefTwo, 1);
+    ret->string0 = strdup("blah1");
+    ret->dict1 = g_new0(UserDefTwoDict, 1);
+    ret->dict1->string1 = strdup("blah2");
+    ret->dict1->dict2 = g_new0(UserDefTwoDictDict, 1);
+    ret->dict1->dict2->userdef = ud1c;
+    ret->dict1->dict2->string = strdup("blah3");
+    ret->dict1->dict3 = g_new0(UserDefTwoDictDict, 1);
+    ret->dict1->has_dict3 = true;
+    ret->dict1->dict3->userdef = ud1d;
+    ret->dict1->dict3->string = strdup("blah4");
 
     return ret;
 }
@@ -47,6 +50,21 @@ int64_t qmp_user_def_cmd3(int64_t a, bool has_b, int64_t b, Error **errp)
 {
     return a + (has_b ? b : 0);
 }
+
+__org_qemu_x_Union1 *qmp___org_qemu_x_command(__org_qemu_x_EnumList *a,
+                                              __org_qemu_x_StructList *b,
+                                              __org_qemu_x_Union2 *c,
+                                              __org_qemu_x_Alt *d,
+                                              Error **errp)
+{
+    __org_qemu_x_Union1 *ret = g_new0(__org_qemu_x_Union1, 1);
+
+    ret->kind = ORG_QEMU_X_UNION1_KIND___ORG_QEMU_X_BRANCH;
+    ret->__org_qemu_x_branch = strdup("blah1");
+
+    return ret;
+}
+
 
 /* test commands with no input and no return value */
 static void test_dispatch_cmd(void)
@@ -120,15 +138,15 @@ static void test_dispatch_cmd_io(void)
 
     ret = qobject_to_qdict(test_qmp_dispatch(req));
 
-    assert(!strcmp(qdict_get_str(ret, "string"), "blah1"));
-    ret_dict = qdict_get_qdict(ret, "dict");
-    assert(!strcmp(qdict_get_str(ret_dict, "string"), "blah2"));
-    ret_dict_dict = qdict_get_qdict(ret_dict, "dict");
+    assert(!strcmp(qdict_get_str(ret, "string0"), "blah1"));
+    ret_dict = qdict_get_qdict(ret, "dict1");
+    assert(!strcmp(qdict_get_str(ret_dict, "string1"), "blah2"));
+    ret_dict_dict = qdict_get_qdict(ret_dict, "dict2");
     ret_dict_dict_userdef = qdict_get_qdict(ret_dict_dict, "userdef");
     assert(qdict_get_int(ret_dict_dict_userdef, "integer") == 42);
     assert(!strcmp(qdict_get_str(ret_dict_dict_userdef, "string"), "hello"));
     assert(!strcmp(qdict_get_str(ret_dict_dict, "string"), "blah3"));
-    ret_dict_dict2 = qdict_get_qdict(ret_dict, "dict2");
+    ret_dict_dict2 = qdict_get_qdict(ret_dict, "dict3");
     ret_dict_dict2_userdef = qdict_get_qdict(ret_dict_dict2, "userdef");
     assert(qdict_get_int(ret_dict_dict2_userdef, "integer") == 422);
     assert(!strcmp(qdict_get_str(ret_dict_dict2_userdef, "string"), "hello2"));
@@ -192,7 +210,7 @@ static void test_dealloc_partial(void)
         QmpInputVisitor *qiv;
 
         ud2_dict = qdict_new();
-        qdict_put_obj(ud2_dict, "string", QOBJECT(qstring_from_str(text)));
+        qdict_put_obj(ud2_dict, "string0", QOBJECT(qstring_from_str(text)));
 
         qiv = qmp_input_visitor_new(QOBJECT(ud2_dict));
         visit_type_UserDefTwo(qmp_input_get_visitor(qiv), &ud2, NULL, &err);
@@ -202,9 +220,9 @@ static void test_dealloc_partial(void)
 
     /* verify partial success */
     assert(ud2 != NULL);
-    assert(ud2->string != NULL);
-    assert(strcmp(ud2->string, text) == 0);
-    assert(ud2->dict.dict.userdef == NULL);
+    assert(ud2->string0 != NULL);
+    assert(strcmp(ud2->string0, text) == 0);
+    assert(ud2->dict1 == NULL);
 
     /* confirm & release construction error */
     assert(err != NULL);

@@ -31,8 +31,10 @@
 #include "qapi/qmp/types.h"
 #include "sysemu/block-backend.h"
 
-BlockDeviceInfo *bdrv_block_device_info(BlockDriverState *bs)
+BlockDeviceInfo *bdrv_block_device_info(BlockDriverState *bs, Error **errp)
 {
+    ImageInfo **p_image_info;
+    BlockDriverState *bs0;
     BlockDeviceInfo *info = g_malloc0(sizeof(*info));
 
     info->file                   = g_strdup(bs->filename);
@@ -91,6 +93,25 @@ BlockDeviceInfo *bdrv_block_device_info(BlockDriverState *bs)
     }
 
     info->write_threshold = bdrv_write_threshold_get(bs);
+
+    bs0 = bs;
+    p_image_info = &info->image;
+    while (1) {
+        Error *local_err = NULL;
+        bdrv_query_image_info(bs0, p_image_info, &local_err);
+        if (local_err) {
+            error_propagate(errp, local_err);
+            qapi_free_BlockDeviceInfo(info);
+            return NULL;
+        }
+        if (bs0->drv && bs0->backing_hd) {
+            bs0 = bs0->backing_hd;
+            (*p_image_info)->has_backing_image = true;
+            p_image_info = &((*p_image_info)->backing_image);
+        } else {
+            break;
+        }
+    }
 
     return info;
 }
@@ -264,9 +285,6 @@ static void bdrv_query_info(BlockBackend *blk, BlockInfo **p_info,
 {
     BlockInfo *info = g_malloc0(sizeof(*info));
     BlockDriverState *bs = blk_bs(blk);
-    BlockDriverState *bs0;
-    ImageInfo **p_image_info;
-    Error *local_err = NULL;
     info->device = g_strdup(blk_name(blk));
     info->type = g_strdup("unknown");
     info->locked = blk_dev_is_medium_locked(blk);
@@ -289,23 +307,9 @@ static void bdrv_query_info(BlockBackend *blk, BlockInfo **p_info,
 
     if (bs->drv) {
         info->has_inserted = true;
-        info->inserted = bdrv_block_device_info(bs);
-
-        bs0 = bs;
-        p_image_info = &info->inserted->image;
-        while (1) {
-            bdrv_query_image_info(bs0, p_image_info, &local_err);
-            if (local_err) {
-                error_propagate(errp, local_err);
-                goto err;
-            }
-            if (bs0->drv && bs0->backing_hd) {
-                bs0 = bs0->backing_hd;
-                (*p_image_info)->has_backing_image = true;
-                p_image_info = &((*p_image_info)->backing_image);
-            } else {
-                break;
-            }
+        info->inserted = bdrv_block_device_info(bs, errp);
+        if (info->inserted == NULL) {
+            goto err;
         }
     }
 
@@ -414,7 +418,7 @@ BlockStatsList *qmp_query_blockstats(bool has_query_nodes,
 
 static char *get_human_readable_size(char *buf, int buf_size, int64_t size)
 {
-    static const char suffixes[NB_SUFFIXES] = "KMGT";
+    static const char suffixes[NB_SUFFIXES] = {'K', 'M', 'G', 'T'};
     int64_t base;
     int i;
 
@@ -519,9 +523,6 @@ static void dump_qobject(fprintf_function func_fprintf, void *f,
             QDECREF(value);
             break;
         }
-        case QTYPE_NONE:
-            break;
-        case QTYPE_MAX:
         default:
             abort();
     }

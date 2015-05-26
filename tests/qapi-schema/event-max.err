@@ -1,0 +1,1 @@
+tests/qapi-schema/event-max.json:2: Event name 'MAX' cannot be created

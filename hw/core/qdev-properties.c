@@ -580,7 +580,8 @@ static void set_blocksize(Object *obj, Visitor *v, void *opaque,
         error_propagate(errp, local_err);
         return;
     }
-    if (value < min || value > max) {
+    /* value of 0 means "unset" */
+    if (value && (value < min || value > max)) {
         error_set(errp, QERR_PROPERTY_VALUE_OUT_OF_RANGE,
                   dev->id?:"", name, (int64_t)value, min, max);
         return;
@@ -990,8 +991,8 @@ int qdev_prop_check_globals(void)
     return ret;
 }
 
-void qdev_prop_set_globals_for_type(DeviceState *dev, const char *typename,
-                                    Error **errp)
+static void qdev_prop_set_globals_for_type(DeviceState *dev,
+                                const char *typename)
 {
     GlobalProperty *prop;
 
@@ -1004,25 +1005,22 @@ void qdev_prop_set_globals_for_type(DeviceState *dev, const char *typename,
         prop->used = true;
         object_property_parse(OBJECT(dev), prop->value, prop->property, &err);
         if (err != NULL) {
-            error_propagate(errp, err);
+            assert(prop->user_provided);
+            error_report("Warning: global %s.%s=%s ignored (%s)",
+                         prop->driver, prop->property, prop->value,
+                         error_get_pretty(err));
+            error_free(err);
             return;
         }
     }
 }
 
-void qdev_prop_set_globals(DeviceState *dev, Error **errp)
+void qdev_prop_set_globals(DeviceState *dev)
 {
     ObjectClass *class = object_get_class(OBJECT(dev));
 
     do {
-        Error *err = NULL;
-
-        qdev_prop_set_globals_for_type(dev, object_class_get_name(class),
-                                       &err);
-        if (err != NULL) {
-            error_propagate(errp, err);
-            return;
-        }
+        qdev_prop_set_globals_for_type(dev, object_class_get_name(class));
         class = object_class_get_parent(class);
     } while (class);
 }

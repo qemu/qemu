@@ -669,7 +669,7 @@ static int proxy_opendir(FsContext *ctx,
 
 static void proxy_rewinddir(FsContext *ctx, V9fsFidOpenState *fs)
 {
-    return rewinddir(fs->dir);
+    rewinddir(fs->dir);
 }
 
 static off_t proxy_telldir(FsContext *ctx, V9fsFidOpenState *fs)
@@ -686,23 +686,23 @@ static int proxy_readdir_r(FsContext *ctx, V9fsFidOpenState *fs,
 
 static void proxy_seekdir(FsContext *ctx, V9fsFidOpenState *fs, off_t off)
 {
-    return seekdir(fs->dir, off);
+    seekdir(fs->dir, off);
 }
 
 static ssize_t proxy_preadv(FsContext *ctx, V9fsFidOpenState *fs,
                             const struct iovec *iov,
                             int iovcnt, off_t offset)
 {
+    ssize_t ret;
 #ifdef CONFIG_PREADV
-    return preadv(fs->fd, iov, iovcnt, offset);
+    ret = preadv(fs->fd, iov, iovcnt, offset);
 #else
-    int err = lseek(fs->fd, offset, SEEK_SET);
-    if (err == -1) {
-        return err;
-    } else {
-        return readv(fs->fd, iov, iovcnt);
+    ret = lseek(fs->fd, offset, SEEK_SET);
+    if (ret >= 0) {
+        ret = readv(fs->fd, iov, iovcnt);
     }
 #endif
+    return ret;
 }
 
 static ssize_t proxy_pwritev(FsContext *ctx, V9fsFidOpenState *fs,
@@ -714,10 +714,8 @@ static ssize_t proxy_pwritev(FsContext *ctx, V9fsFidOpenState *fs,
 #ifdef CONFIG_PREADV
     ret = pwritev(fs->fd, iov, iovcnt, offset);
 #else
-    int err = lseek(fs->fd, offset, SEEK_SET);
-    if (err == -1) {
-        return err;
-    } else {
+    ret = lseek(fs->fd, offset, SEEK_SET);
+    if (ret >= 0) {
         ret = writev(fs->fd, iov, iovcnt);
     }
 #endif
@@ -1102,6 +1100,10 @@ static int connect_namedsocket(const char *path)
     int sockfd, size;
     struct sockaddr_un helper;
 
+    if (strlen(path) >= sizeof(helper.sun_path)) {
+        fprintf(stderr, "Socket name too large\n");
+        return -1;
+    }
     sockfd = socket(AF_UNIX, SOCK_STREAM, 0);
     if (sockfd < 0) {
         fprintf(stderr, "failed to create socket: %s\n", strerror(errno));

@@ -132,6 +132,11 @@ _img_info
 $QEMU_IO -c "write -P 0xa 900G 512" "$TEST_IMG" | _filter_qemu_io
 $QEMU_IO -c "read -v 900G 1024" "$TEST_IMG" | _filter_qemu_io
 
+echo
+echo "=== Testing afl image with a very large capacity ==="
+_use_sample_img afl9.vmdk.bz2
+_img_info
+
 # success, all done
 echo "*** done"
 rm -f $seq.full

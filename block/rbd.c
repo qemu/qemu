@@ -325,7 +325,7 @@ static int qemu_rbd_create(const char *filename, QemuOpts *opts, Error **errp)
             error_setg(errp, "obj size too small");
             return -EINVAL;
         }
-        obj_order = ffs(objsize) - 1;
+        obj_order = ctz32(objsize);
     }
 
     clientname = qemu_rbd_parse_clientname(conf, clientname_buf);

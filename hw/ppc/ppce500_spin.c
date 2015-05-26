@@ -74,7 +74,7 @@ static void spin_reset(void *opaque)
 /* Create -kernel TLB entries for BookE, linearly spanning 256MB.  */
 static inline hwaddr booke206_page_size_to_tlb(uint64_t size)
 {
-    return (ffs(size >> 10) - 1) >> 1;
+    return ctz32(size >> 10) >> 1;
 }
 
 static void mmubooke_create_initial_mapping(CPUPPCState *env,

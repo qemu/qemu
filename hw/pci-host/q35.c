@@ -390,7 +390,7 @@ static void mch_init_dmar(MCHPCIState *mch)
     pci_setup_iommu(pci_bus, q35_host_dma_iommu, mch->iommu);
 }
 
-static int mch_init(PCIDevice *d)
+static void mch_realize(PCIDevice *d, Error **errp)
 {
     int i;
     MCHPCIState *mch = MCH_PCI_DEVICE(d);
@@ -415,10 +415,9 @@ static int mch_init(PCIDevice *d)
                  PAM_EXPAN_BASE + i * PAM_EXPAN_SIZE, PAM_EXPAN_SIZE);
     }
     /* Intel IOMMU (VT-d) */
-    if (qemu_opt_get_bool(qemu_get_machine_opts(), "iommu", false)) {
+    if (machine_iommu(current_machine)) {
         mch_init_dmar(mch);
     }
-    return 0;
 }
 
 uint64_t mch_mcfg_base(void)
@@ -436,7 +435,7 @@ static void mch_class_init(ObjectClass *klass, void *data)
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
     DeviceClass *dc = DEVICE_CLASS(klass);
 
-    k->init = mch_init;
+    k->realize = mch_realize;
     k->config_write = mch_write_config;
     dc->reset = mch_reset;
     set_bit(DEVICE_CATEGORY_BRIDGE, dc->categories);

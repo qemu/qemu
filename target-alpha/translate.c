@@ -388,7 +388,7 @@ static ExitStatus gen_store_conditional(DisasContext *ctx, int ra, int rb,
     /* ??? In system mode we are never multi-threaded, so CAS can be
        implemented via a non-atomic load-compare-store sequence.  */
     {
-        int lab_fail, lab_done;
+        TCGLabel *lab_fail, *lab_done;
         TCGv val;
 
         lab_fail = gen_new_label();
@@ -465,7 +465,7 @@ static ExitStatus gen_bcond_internal(DisasContext *ctx, TCGCond cond,
                                      TCGv cmp, int32_t disp)
 {
     uint64_t dest = ctx->pc + (disp << 2);
-    int lab_true = gen_new_label();
+    TCGLabel *lab_true = gen_new_label();
 
     if (use_goto_tb(ctx, dest)) {
         tcg_gen_brcondi_i64(cond, cmp, 0, lab_true);
@@ -658,43 +658,36 @@ static TCGv gen_ieee_input(DisasContext *ctx, int reg, int fn11, int is_cmp)
             } else {
                 gen_helper_ieee_input(cpu_env, val);
             }
+        } else {
+#ifndef CONFIG_USER_ONLY
+            /* In system mode, raise exceptions for denormals like real
+               hardware.  In user mode, proceed as if the OS completion
+               handler is handling the denormal as per spec.  */
+            gen_helper_ieee_input_s(cpu_env, val);
+#endif
         }
     }
     return val;
 }
 
-static void gen_fp_exc_clear(void)
-{
-#if defined(CONFIG_SOFTFLOAT_INLINE)
-    TCGv_i32 zero = tcg_const_i32(0);
-    tcg_gen_st8_i32(zero, cpu_env,
-                    offsetof(CPUAlphaState, fp_status.float_exception_flags));
-    tcg_temp_free_i32(zero);
-#else
-    gen_helper_fp_exc_clear(cpu_env);
-#endif
-}
-
-static void gen_fp_exc_raise_ignore(int rc, int fn11, int ignore)
+static void gen_fp_exc_raise(int rc, int fn11)
 {
     /* ??? We ought to be able to do something with imprecise exceptions.
        E.g. notice we're still in the trap shadow of something within the
        TB and do not generate the code to signal the exception; end the TB
        when an exception is forced to arrive, either by consumption of a
        register value or TRAPB or EXCB.  */
-    TCGv_i32 exc = tcg_temp_new_i32();
-    TCGv_i32 reg;
+    TCGv_i32 reg, ign;
+    uint32_t ignore = 0;
 
-#if defined(CONFIG_SOFTFLOAT_INLINE)
-    tcg_gen_ld8u_i32(exc, cpu_env,
-                     offsetof(CPUAlphaState, fp_status.float_exception_flags));
-#else
-    gen_helper_fp_exc_get(exc, cpu_env);
-#endif
-
-    if (ignore) {
-        tcg_gen_andi_i32(exc, exc, ~ignore);
+    if (!(fn11 & QUAL_U)) {
+        /* Note that QUAL_U == QUAL_V, so ignore either.  */
+        ignore |= FPCR_UNF | FPCR_IOV;
     }
+    if (!(fn11 & QUAL_I)) {
+        ignore |= FPCR_INE;
+    }
+    ign = tcg_const_i32(ignore);
 
     /* ??? Pass in the regno of the destination so that the helper can
        set EXC_MASK, which contains a bitmask of destination registers
@@ -702,23 +695,17 @@ static void gen_fp_exc_raise_ignore(int rc, int fn11, int ignore)
        does not require this.  We do need it for a guest kernel's entArith,
        or if we were to do something clever with imprecise exceptions.  */
     reg = tcg_const_i32(rc + 32);
-
     if (fn11 & QUAL_S) {
-        gen_helper_fp_exc_raise_s(cpu_env, exc, reg);
+        gen_helper_fp_exc_raise_s(cpu_env, ign, reg);
     } else {
-        gen_helper_fp_exc_raise(cpu_env, exc, reg);
+        gen_helper_fp_exc_raise(cpu_env, ign, reg);
     }
 
     tcg_temp_free_i32(reg);
-    tcg_temp_free_i32(exc);
+    tcg_temp_free_i32(ign);
 }
 
-static inline void gen_fp_exc_raise(int rc, int fn11)
-{
-    gen_fp_exc_raise_ignore(rc, fn11, fn11 & QUAL_I ? 0 : float_flag_inexact);
-}
-
-static void gen_fcvtlq(TCGv vc, TCGv vb)
+static void gen_cvtlq(TCGv vc, TCGv vb)
 {
     TCGv tmp = tcg_temp_new();
 
@@ -733,19 +720,6 @@ static void gen_fcvtlq(TCGv vc, TCGv vb)
     tcg_temp_free(tmp);
 }
 
-static void gen_fcvtql(TCGv vc, TCGv vb)
-{
-    TCGv tmp = tcg_temp_new();
-
-    tcg_gen_andi_i64(tmp, vb, (int32_t)0xc0000000);
-    tcg_gen_andi_i64(vc, vb, 0x3FFFFFFF);
-    tcg_gen_shli_i64(tmp, tmp, 32);
-    tcg_gen_shli_i64(vc, vc, 29);
-    tcg_gen_or_i64(vc, vc, tmp);
-
-    tcg_temp_free(tmp);
-}
-
 static void gen_ieee_arith2(DisasContext *ctx,
                             void (*helper)(TCGv, TCGv_ptr, TCGv),
                             int rb, int rc, int fn11)
@@ -754,7 +728,6 @@ static void gen_ieee_arith2(DisasContext *ctx,
 
     gen_qual_roundmode(ctx, fn11);
     gen_qual_flushzero(ctx, fn11);
-    gen_fp_exc_clear();
 
     vb = gen_ieee_input(ctx, rb, fn11, 0);
     helper(dest_fpr(ctx, rc), cpu_env, vb);
@@ -763,8 +736,8 @@ static void gen_ieee_arith2(DisasContext *ctx,
 }
 
 #define IEEE_ARITH2(name)                                       \
-static inline void glue(gen_f, name)(DisasContext *ctx,         \
-                                     int rb, int rc, int fn11)  \
+static inline void glue(gen_, name)(DisasContext *ctx,          \
+                                    int rb, int rc, int fn11)   \
 {                                                               \
     gen_ieee_arith2(ctx, gen_helper_##name, rb, rc, fn11);      \
 }
@@ -773,38 +746,23 @@ IEEE_ARITH2(sqrtt)
 IEEE_ARITH2(cvtst)
 IEEE_ARITH2(cvtts)
 
-static void gen_fcvttq(DisasContext *ctx, int rb, int rc, int fn11)
+static void gen_cvttq(DisasContext *ctx, int rb, int rc, int fn11)
 {
     TCGv vb, vc;
-    int ignore = 0;
 
     /* No need to set flushzero, since we have an integer output.  */
-    gen_fp_exc_clear();
     vb = gen_ieee_input(ctx, rb, fn11, 0);
     vc = dest_fpr(ctx, rc);
 
-    /* Almost all integer conversions use cropped rounding, and most
-       also do not have integer overflow enabled.  Special case that.  */
-    switch (fn11) {
-    case QUAL_RM_C:
+    /* Almost all integer conversions use cropped rounding;
+       special case that.  */
+    if ((fn11 & QUAL_RM_MASK) == QUAL_RM_C) {
         gen_helper_cvttq_c(vc, cpu_env, vb);
-        break;
-    case QUAL_V | QUAL_RM_C:
-    case QUAL_S | QUAL_V | QUAL_RM_C:
-        ignore = float_flag_inexact;
-        /* FALLTHRU */
-    case QUAL_S | QUAL_V | QUAL_I | QUAL_RM_C:
-        gen_helper_cvttq_svic(vc, cpu_env, vb);
-        break;
-    default:
+    } else {
         gen_qual_roundmode(ctx, fn11);
         gen_helper_cvttq(vc, cpu_env, vb);
-        ignore |= (fn11 & QUAL_V ? 0 : float_flag_overflow);
-        ignore |= (fn11 & QUAL_I ? 0 : float_flag_inexact);
-        break;
     }
-
-    gen_fp_exc_raise_ignore(rc, fn11, ignore);
+    gen_fp_exc_raise(rc, fn11);
 }
 
 static void gen_ieee_intcvt(DisasContext *ctx,
@@ -821,7 +779,6 @@ static void gen_ieee_intcvt(DisasContext *ctx,
        is inexact.  Thus we only need to worry about exceptions when
        inexact handling is requested.  */
     if (fn11 & QUAL_I) {
-        gen_fp_exc_clear();
         helper(vc, cpu_env, vb);
         gen_fp_exc_raise(rc, fn11);
     } else {
@@ -830,8 +787,8 @@ static void gen_ieee_intcvt(DisasContext *ctx,
 }
 
 #define IEEE_INTCVT(name)                                       \
-static inline void glue(gen_f, name)(DisasContext *ctx,         \
-                                     int rb, int rc, int fn11)  \
+static inline void glue(gen_, name)(DisasContext *ctx,          \
+                                    int rb, int rc, int fn11)   \
 {                                                               \
     gen_ieee_intcvt(ctx, gen_helper_##name, rb, rc, fn11);      \
 }
@@ -864,7 +821,6 @@ static void gen_ieee_arith3(DisasContext *ctx,
 
     gen_qual_roundmode(ctx, fn11);
     gen_qual_flushzero(ctx, fn11);
-    gen_fp_exc_clear();
 
     va = gen_ieee_input(ctx, ra, fn11, 0);
     vb = gen_ieee_input(ctx, rb, fn11, 0);
@@ -875,8 +831,8 @@ static void gen_ieee_arith3(DisasContext *ctx,
 }
 
 #define IEEE_ARITH3(name)                                               \
-static inline void glue(gen_f, name)(DisasContext *ctx,                 \
-                                     int ra, int rb, int rc, int fn11)  \
+static inline void glue(gen_, name)(DisasContext *ctx,                  \
+                                    int ra, int rb, int rc, int fn11)   \
 {                                                                       \
     gen_ieee_arith3(ctx, gen_helper_##name, ra, rb, rc, fn11);          \
 }
@@ -895,8 +851,6 @@ static void gen_ieee_compare(DisasContext *ctx,
 {
     TCGv va, vb, vc;
 
-    gen_fp_exc_clear();
-
     va = gen_ieee_input(ctx, ra, fn11, 1);
     vb = gen_ieee_input(ctx, rb, fn11, 1);
     vc = dest_fpr(ctx, rc);
@@ -906,8 +860,8 @@ static void gen_ieee_compare(DisasContext *ctx,
 }
 
 #define IEEE_CMP3(name)                                                 \
-static inline void glue(gen_f, name)(DisasContext *ctx,                 \
-                                     int ra, int rb, int rc, int fn11)  \
+static inline void glue(gen_, name)(DisasContext *ctx,                  \
+                                    int ra, int rb, int rc, int fn11)   \
 {                                                                       \
     gen_ieee_compare(ctx, gen_helper_##name, ra, rb, rc, fn11);         \
 }
@@ -1382,6 +1336,13 @@ static ExitStatus gen_mtpr(DisasContext *ctx, TCGv vb, int regno)
 }
 #endif /* !USER_ONLY*/
 
+#define REQUIRE_NO_LIT                          \
+    do {                                        \
+        if (real_islit) {                       \
+            goto invalid_opc;                   \
+        }                                       \
+    } while (0)
+
 #define REQUIRE_TB_FLAG(FLAG)                   \
     do {                                        \
         if ((ctx->tb->flags & (FLAG)) == 0) {   \
@@ -1401,8 +1362,8 @@ static ExitStatus translate_one(DisasContext *ctx, uint32_t insn)
     int32_t disp21, disp16, disp12 __attribute__((unused));
     uint16_t fn11;
     uint8_t opc, ra, rb, rc, fpfn, fn7, lit;
-    bool islit;
-    TCGv va, vb, vc, tmp;
+    bool islit, real_islit;
+    TCGv va, vb, vc, tmp, tmp2;
     TCGv_i32 t32;
     ExitStatus ret;
 
@@ -1411,7 +1372,7 @@ static ExitStatus translate_one(DisasContext *ctx, uint32_t insn)
     ra = extract32(insn, 21, 5);
     rb = extract32(insn, 16, 5);
     rc = extract32(insn, 0, 5);
-    islit = extract32(insn, 12, 1);
+    real_islit = islit = extract32(insn, 12, 1);
     lit = extract32(insn, 13, 8);
 
     disp21 = sextract32(insn, 0, 21);
@@ -1614,11 +1575,23 @@ static ExitStatus translate_one(DisasContext *ctx, uint32_t insn)
             break;
         case 0x40:
             /* ADDL/V */
-            gen_helper_addlv(vc, cpu_env, va, vb);
+            tmp = tcg_temp_new();
+            tcg_gen_ext32s_i64(tmp, va);
+            tcg_gen_ext32s_i64(vc, vb);
+            tcg_gen_add_i64(tmp, tmp, vc);
+            tcg_gen_ext32s_i64(vc, tmp);
+            gen_helper_check_overflow(cpu_env, vc, tmp);
+            tcg_temp_free(tmp);
             break;
         case 0x49:
             /* SUBL/V */
-            gen_helper_sublv(vc, cpu_env, va, vb);
+            tmp = tcg_temp_new();
+            tcg_gen_ext32s_i64(tmp, va);
+            tcg_gen_ext32s_i64(vc, vb);
+            tcg_gen_sub_i64(tmp, tmp, vc);
+            tcg_gen_ext32s_i64(vc, tmp);
+            gen_helper_check_overflow(cpu_env, vc, tmp);
+            tcg_temp_free(tmp);
             break;
         case 0x4D:
             /* CMPLT */
@@ -1626,11 +1599,33 @@ static ExitStatus translate_one(DisasContext *ctx, uint32_t insn)
             break;
         case 0x60:
             /* ADDQ/V */
-            gen_helper_addqv(vc, cpu_env, va, vb);
+            tmp = tcg_temp_new();
+            tmp2 = tcg_temp_new();
+            tcg_gen_eqv_i64(tmp, va, vb);
+            tcg_gen_mov_i64(tmp2, va);
+            tcg_gen_add_i64(vc, va, vb);
+            tcg_gen_xor_i64(tmp2, tmp2, vc);
+            tcg_gen_and_i64(tmp, tmp, tmp2);
+            tcg_gen_shri_i64(tmp, tmp, 63);
+            tcg_gen_movi_i64(tmp2, 0);
+            gen_helper_check_overflow(cpu_env, tmp, tmp2);
+            tcg_temp_free(tmp);
+            tcg_temp_free(tmp2);
             break;
         case 0x69:
             /* SUBQ/V */
-            gen_helper_subqv(vc, cpu_env, va, vb);
+            tmp = tcg_temp_new();
+            tmp2 = tcg_temp_new();
+            tcg_gen_xor_i64(tmp, va, vb);
+            tcg_gen_mov_i64(tmp2, va);
+            tcg_gen_sub_i64(vc, va, vb);
+            tcg_gen_xor_i64(tmp2, tmp2, vc);
+            tcg_gen_and_i64(tmp, tmp, tmp2);
+            tcg_gen_shri_i64(tmp, tmp, 63);
+            tcg_gen_movi_i64(tmp2, 0);
+            gen_helper_check_overflow(cpu_env, tmp, tmp2);
+            tcg_temp_free(tmp);
+            tcg_temp_free(tmp2);
             break;
         case 0x6D:
             /* CMPLE */
@@ -1925,11 +1920,23 @@ static ExitStatus translate_one(DisasContext *ctx, uint32_t insn)
             break;
         case 0x40:
             /* MULL/V */
-            gen_helper_mullv(vc, cpu_env, va, vb);
+            tmp = tcg_temp_new();
+            tcg_gen_ext32s_i64(tmp, va);
+            tcg_gen_ext32s_i64(vc, vb);
+            tcg_gen_mul_i64(tmp, tmp, vc);
+            tcg_gen_ext32s_i64(vc, tmp);
+            gen_helper_check_overflow(cpu_env, vc, tmp);
+            tcg_temp_free(tmp);
             break;
         case 0x60:
             /* MULQ/V */
-            gen_helper_mulqv(vc, cpu_env, va, vb);
+            tmp = tcg_temp_new();
+            tmp2 = tcg_temp_new();
+            tcg_gen_muls2_i64(vc, tmp, va, vb);
+            tcg_gen_sari_i64(tmp2, vc, 63);
+            gen_helper_check_overflow(cpu_env, tmp, tmp2);
+            tcg_temp_free(tmp);
+            tcg_temp_free(tmp2);
             break;
         default:
             goto invalid_opc;
@@ -1958,7 +1965,7 @@ static ExitStatus translate_one(DisasContext *ctx, uint32_t insn)
         case 0x0B:
             /* SQRTS */
             REQUIRE_REG_31(ra);
-            gen_fsqrts(ctx, rb, rc, fn11);
+            gen_sqrts(ctx, rb, rc, fn11);
             break;
         case 0x14:
             /* ITOFF */
@@ -1984,7 +1991,7 @@ static ExitStatus translate_one(DisasContext *ctx, uint32_t insn)
         case 0x02B:
             /* SQRTT */
             REQUIRE_REG_31(ra);
-            gen_fsqrtt(ctx, rb, rc, fn11);
+            gen_sqrtt(ctx, rb, rc, fn11);
             break;
         default:
             goto invalid_opc;
@@ -2080,76 +2087,76 @@ static ExitStatus translate_one(DisasContext *ctx, uint32_t insn)
         switch (fpfn) { /* fn11 & 0x3F */
         case 0x00:
             /* ADDS */
-            gen_fadds(ctx, ra, rb, rc, fn11);
+            gen_adds(ctx, ra, rb, rc, fn11);
             break;
         case 0x01:
             /* SUBS */
-            gen_fsubs(ctx, ra, rb, rc, fn11);
+            gen_subs(ctx, ra, rb, rc, fn11);
             break;
         case 0x02:
             /* MULS */
-            gen_fmuls(ctx, ra, rb, rc, fn11);
+            gen_muls(ctx, ra, rb, rc, fn11);
             break;
         case 0x03:
             /* DIVS */
-            gen_fdivs(ctx, ra, rb, rc, fn11);
+            gen_divs(ctx, ra, rb, rc, fn11);
             break;
         case 0x20:
             /* ADDT */
-            gen_faddt(ctx, ra, rb, rc, fn11);
+            gen_addt(ctx, ra, rb, rc, fn11);
             break;
         case 0x21:
             /* SUBT */
-            gen_fsubt(ctx, ra, rb, rc, fn11);
+            gen_subt(ctx, ra, rb, rc, fn11);
             break;
         case 0x22:
             /* MULT */
-            gen_fmult(ctx, ra, rb, rc, fn11);
+            gen_mult(ctx, ra, rb, rc, fn11);
             break;
         case 0x23:
             /* DIVT */
-            gen_fdivt(ctx, ra, rb, rc, fn11);
+            gen_divt(ctx, ra, rb, rc, fn11);
             break;
         case 0x24:
             /* CMPTUN */
-            gen_fcmptun(ctx, ra, rb, rc, fn11);
+            gen_cmptun(ctx, ra, rb, rc, fn11);
             break;
         case 0x25:
             /* CMPTEQ */
-            gen_fcmpteq(ctx, ra, rb, rc, fn11);
+            gen_cmpteq(ctx, ra, rb, rc, fn11);
             break;
         case 0x26:
             /* CMPTLT */
-            gen_fcmptlt(ctx, ra, rb, rc, fn11);
+            gen_cmptlt(ctx, ra, rb, rc, fn11);
             break;
         case 0x27:
             /* CMPTLE */
-            gen_fcmptle(ctx, ra, rb, rc, fn11);
+            gen_cmptle(ctx, ra, rb, rc, fn11);
             break;
         case 0x2C:
             REQUIRE_REG_31(ra);
             if (fn11 == 0x2AC || fn11 == 0x6AC) {
                 /* CVTST */
-                gen_fcvtst(ctx, rb, rc, fn11);
+                gen_cvtst(ctx, rb, rc, fn11);
             } else {
                 /* CVTTS */
-                gen_fcvtts(ctx, rb, rc, fn11);
+                gen_cvtts(ctx, rb, rc, fn11);
             }
             break;
         case 0x2F:
             /* CVTTQ */
             REQUIRE_REG_31(ra);
-            gen_fcvttq(ctx, rb, rc, fn11);
+            gen_cvttq(ctx, rb, rc, fn11);
             break;
         case 0x3C:
             /* CVTQS */
             REQUIRE_REG_31(ra);
-            gen_fcvtqs(ctx, rb, rc, fn11);
+            gen_cvtqs(ctx, rb, rc, fn11);
             break;
         case 0x3E:
             /* CVTQT */
             REQUIRE_REG_31(ra);
-            gen_fcvtqt(ctx, rb, rc, fn11);
+            gen_cvtqt(ctx, rb, rc, fn11);
             break;
         default:
             goto invalid_opc;
@@ -2163,7 +2170,7 @@ static ExitStatus translate_one(DisasContext *ctx, uint32_t insn)
             REQUIRE_REG_31(ra);
             vc = dest_fpr(ctx, rc);
             vb = load_fpr(ctx, rb);
-            gen_fcvtlq(vc, vb);
+            gen_cvtlq(vc, vb);
             break;
         case 0x020:
             /* CPYS */
@@ -2199,6 +2206,11 @@ static ExitStatus translate_one(DisasContext *ctx, uint32_t insn)
             /* MT_FPCR */
             va = load_fpr(ctx, ra);
             gen_helper_store_fpcr(cpu_env, va);
+            if (ctx->tb_rm == QUAL_RM_D) {
+                /* Re-do the copy of the rounding mode to fp_status
+                   the next time we use dynamic rounding.  */
+                ctx->tb_rm = -1;
+            }
             break;
         case 0x025:
             /* MF_FPCR */
@@ -2229,25 +2241,14 @@ static ExitStatus translate_one(DisasContext *ctx, uint32_t insn)
             /* FCMOVGT */
             gen_fcmov(ctx, TCG_COND_GT, ra, rb, rc);
             break;
-        case 0x030:
-            /* CVTQL */
+        case 0x030: /* CVTQL */
+        case 0x130: /* CVTQL/V */
+        case 0x530: /* CVTQL/SV */
             REQUIRE_REG_31(ra);
             vc = dest_fpr(ctx, rc);
             vb = load_fpr(ctx, rb);
-            gen_fcvtql(vc, vb);
-            break;
-        case 0x130:
-            /* CVTQL/V */
-        case 0x530:
-            /* CVTQL/SV */
-            REQUIRE_REG_31(ra);
-            /* ??? I'm pretty sure there's nothing that /sv needs to do that
-               /v doesn't do.  The only thing I can think is that /sv is a
-               valid instruction merely for completeness in the ISA.  */
-            vc = dest_fpr(ctx, rc);
-            vb = load_fpr(ctx, rb);
-            gen_helper_fcvtql_v_input(cpu_env, vb);
-            gen_fcvtql(vc, vb);
+            gen_helper_cvtql(vc, cpu_env, vb);
+            gen_fp_exc_raise(rc, fn11);
             break;
         default:
             goto invalid_opc;
@@ -2305,6 +2306,10 @@ static ExitStatus translate_one(DisasContext *ctx, uint32_t insn)
             break;
         case 0xF800:
             /* WH64 */
+            /* No-op */
+            break;
+        case 0xFC00:
+            /* WH64EN */
             /* No-op */
             break;
         default:
@@ -2451,11 +2456,13 @@ static ExitStatus translate_one(DisasContext *ctx, uint32_t insn)
             /* CTPOP */
             REQUIRE_TB_FLAG(TB_FLAGS_AMASK_CIX);
             REQUIRE_REG_31(ra);
+            REQUIRE_NO_LIT;
             gen_helper_ctpop(vc, vb);
             break;
         case 0x31:
             /* PERR */
             REQUIRE_TB_FLAG(TB_FLAGS_AMASK_MVI);
+            REQUIRE_NO_LIT;
             va = load_gpr(ctx, ra);
             gen_helper_perr(vc, va, vb);
             break;
@@ -2463,36 +2470,42 @@ static ExitStatus translate_one(DisasContext *ctx, uint32_t insn)
             /* CTLZ */
             REQUIRE_TB_FLAG(TB_FLAGS_AMASK_CIX);
             REQUIRE_REG_31(ra);
+            REQUIRE_NO_LIT;
             gen_helper_ctlz(vc, vb);
             break;
         case 0x33:
             /* CTTZ */
             REQUIRE_TB_FLAG(TB_FLAGS_AMASK_CIX);
             REQUIRE_REG_31(ra);
+            REQUIRE_NO_LIT;
             gen_helper_cttz(vc, vb);
             break;
         case 0x34:
             /* UNPKBW */
             REQUIRE_TB_FLAG(TB_FLAGS_AMASK_MVI);
             REQUIRE_REG_31(ra);
+            REQUIRE_NO_LIT;
             gen_helper_unpkbw(vc, vb);
             break;
         case 0x35:
             /* UNPKBL */
             REQUIRE_TB_FLAG(TB_FLAGS_AMASK_MVI);
             REQUIRE_REG_31(ra);
+            REQUIRE_NO_LIT;
             gen_helper_unpkbl(vc, vb);
             break;
         case 0x36:
             /* PKWB */
             REQUIRE_TB_FLAG(TB_FLAGS_AMASK_MVI);
             REQUIRE_REG_31(ra);
+            REQUIRE_NO_LIT;
             gen_helper_pkwb(vc, vb);
             break;
         case 0x37:
             /* PKLB */
             REQUIRE_TB_FLAG(TB_FLAGS_AMASK_MVI);
             REQUIRE_REG_31(ra);
+            REQUIRE_NO_LIT;
             gen_helper_pklb(vc, vb);
             break;
         case 0x38:

@@ -14,7 +14,7 @@
 #ifndef CONFIG_USER_ONLY
 static inline int get_phys_addr(CPUARMState *env, target_ulong address,
                                 int access_type, ARMMMUIdx mmu_idx,
-                                hwaddr *phys_ptr, int *prot,
+                                hwaddr *phys_ptr, MemTxAttrs *attrs, int *prot,
                                 target_ulong *page_size);
 
 /* Definitions for the PMCCNTR and PMCR registers */
@@ -589,7 +589,7 @@ static void cpacr_write(CPUARMState *env, const ARMCPRegInfo *ri,
         }
         value &= mask;
     }
-    env->cp15.c1_coproc = value;
+    env->cp15.cpacr_el1 = value;
 }
 
 static const ARMCPRegInfo v6_cp_reginfo[] = {
@@ -615,7 +615,7 @@ static const ARMCPRegInfo v6_cp_reginfo[] = {
       .access = PL1_RW, .type = ARM_CP_CONST, .resetvalue = 0, },
     { .name = "CPACR", .state = ARM_CP_STATE_BOTH, .opc0 = 3,
       .crn = 1, .crm = 0, .opc1 = 0, .opc2 = 2,
-      .access = PL1_RW, .fieldoffset = offsetof(CPUARMState, cp15.c1_coproc),
+      .access = PL1_RW, .fieldoffset = offsetof(CPUARMState, cp15.cpacr_el1),
       .resetvalue = 0, .writefn = cpacr_write },
     REGINFO_SENTINEL
 };
@@ -816,8 +816,10 @@ static void scr_write(CPUARMState *env, const ARMCPRegInfo *ri, uint64_t value)
          * supported if EL2 exists. The bit is UNK/SBZP when
          * EL2 is unavailable. In QEMU ARMv7, we force it to always zero
          * when EL2 is unavailable.
+         * On ARMv8, this bit is always available.
          */
-        if (arm_feature(env, ARM_FEATURE_V7)) {
+        if (arm_feature(env, ARM_FEATURE_V7) &&
+            !arm_feature(env, ARM_FEATURE_V8)) {
             valid_mask &= ~SCR_SMD;
         }
     }
@@ -1247,7 +1249,7 @@ static void gt_tval_write(CPUARMState *env, const ARMCPRegInfo *ri,
     int timeridx = ri->crm & 1;
 
     env->cp15.c14_timer[timeridx].cval = gt_get_countervalue(env) +
-        + sextract64(value, 0, 32);
+                                         sextract64(value, 0, 32);
     gt_recalc_timer(arm_env_get_cpu(env), timeridx);
 }
 
@@ -1351,6 +1353,7 @@ static const ARMCPRegInfo generic_timer_cp_reginfo[] = {
     { .name = "CNTP_TVAL_EL0", .state = ARM_CP_STATE_AA64,
       .opc0 = 3, .opc1 = 3, .crn = 14, .crm = 2, .opc2 = 0,
       .type = ARM_CP_NO_RAW | ARM_CP_IO, .access = PL1_RW | PL0_R,
+      .accessfn = gt_ptimer_access,
       .readfn = gt_tval_read, .writefn = gt_tval_write,
     },
     { .name = "CNTV_TVAL", .cp = 15, .crn = 14, .crm = 3, .opc1 = 0, .opc2 = 0,
@@ -1361,6 +1364,7 @@ static const ARMCPRegInfo generic_timer_cp_reginfo[] = {
     { .name = "CNTV_TVAL_EL0", .state = ARM_CP_STATE_AA64,
       .opc0 = 3, .opc1 = 3, .crn = 14, .crm = 3, .opc2 = 0,
       .type = ARM_CP_NO_RAW | ARM_CP_IO, .access = PL1_RW | PL0_R,
+      .accessfn = gt_vtimer_access,
       .readfn = gt_tval_read, .writefn = gt_tval_write,
     },
     /* The counter itself */
@@ -1399,7 +1403,7 @@ static const ARMCPRegInfo generic_timer_cp_reginfo[] = {
       .access = PL1_RW | PL0_R,
       .type = ARM_CP_IO,
       .fieldoffset = offsetof(CPUARMState, cp15.c14_timer[GTIMER_PHYS].cval),
-      .resetvalue = 0, .accessfn = gt_vtimer_access,
+      .resetvalue = 0, .accessfn = gt_ptimer_access,
       .writefn = gt_cval_write, .raw_writefn = raw_write,
     },
     { .name = "CNTV_CVAL", .cp = 15, .crm = 14, .opc1 = 3,
@@ -1466,9 +1470,10 @@ static uint64_t do_ats_write(CPUARMState *env, uint64_t value,
     int prot;
     int ret;
     uint64_t par64;
+    MemTxAttrs attrs = {};
 
     ret = get_phys_addr(env, value, access_type, mmu_idx,
-                        &phys_addr, &prot, &page_size);
+                        &phys_addr, &attrs, &prot, &page_size);
     if (extended_addresses_enabled(env)) {
         /* ret is a DFSR/IFSR value for the long descriptor
          * translation table format, but with WnR always clear.
@@ -1477,6 +1482,9 @@ static uint64_t do_ats_write(CPUARMState *env, uint64_t value,
         par64 = (1 << 11); /* LPAE bit always set */
         if (ret == 0) {
             par64 |= phys_addr & ~0xfffULL;
+            if (!attrs.secure) {
+                par64 |= (1 << 9); /* NS */
+            }
             /* We don't set the ATTR or SH fields in the PAR. */
         } else {
             par64 |= 1; /* F */
@@ -1498,6 +1506,9 @@ static uint64_t do_ats_write(CPUARMState *env, uint64_t value,
                 par64 = (phys_addr & 0xff000000) | (1 << 1);
             } else {
                 par64 = phys_addr & 0xfffff000;
+            }
+            if (!attrs.secure) {
+                par64 |= (1 << 9); /* NS */
             }
         } else {
             par64 = ((ret & (1 << 10)) >> 5) | ((ret & (1 << 12)) >> 6) |
@@ -2438,7 +2449,7 @@ static const ARMCPRegInfo v8_cp_reginfo[] = {
     { .name = "SPSR_EL1", .state = ARM_CP_STATE_AA64,
       .type = ARM_CP_ALIAS,
       .opc0 = 3, .opc1 = 0, .crn = 4, .crm = 0, .opc2 = 0,
-      .access = PL1_RW, .fieldoffset = offsetof(CPUARMState, banked_spsr[0]) },
+      .access = PL1_RW, .fieldoffset = offsetof(CPUARMState, banked_spsr[1]) },
     /* We rely on the access checks not allowing the guest to write to the
      * state field when SPSel indicates that it's being used as the stack
      * pointer.
@@ -4344,6 +4355,16 @@ static void do_v7m_exception_exit(CPUARMState *env)
     env->regs[12] = v7m_pop(env);
     env->regs[14] = v7m_pop(env);
     env->regs[15] = v7m_pop(env);
+    if (env->regs[15] & 1) {
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "M profile return from interrupt with misaligned "
+                      "PC is UNPREDICTABLE\n");
+        /* Actual hardware seems to ignore the lsbit, and there are several
+         * RTOSes out there which incorrectly assume the r15 in the stack
+         * frame should be a Thumb-style "lsbit indicates ARM/Thumb" value.
+         */
+        env->regs[15] &= ~1U;
+    }
     xpsr = v7m_pop(env);
     xpsr_write(env, xpsr, 0xfffffdff);
     /* Undo stack alignment.  */
@@ -4861,6 +4882,26 @@ static inline uint32_t regime_el(CPUARMState *env, ARMMMUIdx mmu_idx)
     }
 }
 
+/* Return true if this address translation regime is secure */
+static inline bool regime_is_secure(CPUARMState *env, ARMMMUIdx mmu_idx)
+{
+    switch (mmu_idx) {
+    case ARMMMUIdx_S12NSE0:
+    case ARMMMUIdx_S12NSE1:
+    case ARMMMUIdx_S1NSE0:
+    case ARMMMUIdx_S1NSE1:
+    case ARMMMUIdx_S1E2:
+    case ARMMMUIdx_S2NS:
+        return false;
+    case ARMMMUIdx_S1E3:
+    case ARMMMUIdx_S1SE0:
+    case ARMMMUIdx_S1SE1:
+        return true;
+    default:
+        g_assert_not_reached();
+    }
+}
+
 /* Return the SCTLR value which controls this address translation regime */
 static inline uint32_t regime_sctlr(CPUARMState *env, ARMMMUIdx mmu_idx)
 {
@@ -4885,6 +4926,21 @@ static inline TCR *regime_tcr(CPUARMState *env, ARMMMUIdx mmu_idx)
         g_assert_not_reached();
     }
     return &env->cp15.tcr_el[regime_el(env, mmu_idx)];
+}
+
+/* Return the TTBR associated with this translation regime */
+static inline uint64_t regime_ttbr(CPUARMState *env, ARMMMUIdx mmu_idx,
+                                   int ttbrn)
+{
+    if (mmu_idx == ARMMMUIdx_S2NS) {
+        /* TODO: return VTTBR_EL2 */
+        g_assert_not_reached();
+    }
+    if (ttbrn == 0) {
+        return env->cp15.ttbr0_el[regime_el(env, mmu_idx)];
+    } else {
+        return env->cp15.ttbr1_el[regime_el(env, mmu_idx)];
+    }
 }
 
 /* Return true if the translation regime is using LPAE format page tables */
@@ -4916,32 +4972,26 @@ static inline bool regime_is_user(CPUARMState *env, ARMMMUIdx mmu_idx)
     }
 }
 
-/* Check section/page access permissions.
-   Returns the page protection flags, or zero if the access is not
-   permitted.  */
-static inline int check_ap(CPUARMState *env, ARMMMUIdx mmu_idx,
-                           int ap, int domain_prot,
-                           int access_type)
+/* Translate section/page access permissions to page
+ * R/W protection flags
+ *
+ * @env:         CPUARMState
+ * @mmu_idx:     MMU index indicating required translation regime
+ * @ap:          The 3-bit access permissions (AP[2:0])
+ * @domain_prot: The 2-bit domain access permissions
+ */
+static inline int ap_to_rw_prot(CPUARMState *env, ARMMMUIdx mmu_idx,
+                                int ap, int domain_prot)
 {
-    int prot_ro;
     bool is_user = regime_is_user(env, mmu_idx);
 
     if (domain_prot == 3) {
         return PAGE_READ | PAGE_WRITE;
     }
 
-    if (access_type == 1) {
-        prot_ro = 0;
-    } else {
-        prot_ro = PAGE_READ;
-    }
-
     switch (ap) {
     case 0:
         if (arm_feature(env, ARM_FEATURE_V7)) {
-            return 0;
-        }
-        if (access_type == 1) {
             return 0;
         }
         switch (regime_sctlr(env, mmu_idx) & (SCTLR_S | SCTLR_R)) {
@@ -4956,7 +5006,7 @@ static inline int check_ap(CPUARMState *env, ARMMMUIdx mmu_idx,
         return is_user ? 0 : PAGE_READ | PAGE_WRITE;
     case 2:
         if (is_user) {
-            return prot_ro;
+            return PAGE_READ;
         } else {
             return PAGE_READ | PAGE_WRITE;
         }
@@ -4965,24 +5015,132 @@ static inline int check_ap(CPUARMState *env, ARMMMUIdx mmu_idx,
     case 4: /* Reserved.  */
         return 0;
     case 5:
-        return is_user ? 0 : prot_ro;
+        return is_user ? 0 : PAGE_READ;
     case 6:
-        return prot_ro;
+        return PAGE_READ;
     case 7:
         if (!arm_feature(env, ARM_FEATURE_V6K)) {
             return 0;
         }
-        return prot_ro;
+        return PAGE_READ;
     default:
-        abort();
+        g_assert_not_reached();
     }
+}
+
+/* Translate section/page access permissions to page
+ * R/W protection flags.
+ *
+ * @ap:      The 2-bit simple AP (AP[2:1])
+ * @is_user: TRUE if accessing from PL0
+ */
+static inline int simple_ap_to_rw_prot_is_user(int ap, bool is_user)
+{
+    switch (ap) {
+    case 0:
+        return is_user ? 0 : PAGE_READ | PAGE_WRITE;
+    case 1:
+        return PAGE_READ | PAGE_WRITE;
+    case 2:
+        return is_user ? 0 : PAGE_READ;
+    case 3:
+        return PAGE_READ;
+    default:
+        g_assert_not_reached();
+    }
+}
+
+static inline int
+simple_ap_to_rw_prot(CPUARMState *env, ARMMMUIdx mmu_idx, int ap)
+{
+    return simple_ap_to_rw_prot_is_user(ap, regime_is_user(env, mmu_idx));
+}
+
+/* Translate section/page access permissions to protection flags
+ *
+ * @env:     CPUARMState
+ * @mmu_idx: MMU index indicating required translation regime
+ * @is_aa64: TRUE if AArch64
+ * @ap:      The 2-bit simple AP (AP[2:1])
+ * @ns:      NS (non-secure) bit
+ * @xn:      XN (execute-never) bit
+ * @pxn:     PXN (privileged execute-never) bit
+ */
+static int get_S1prot(CPUARMState *env, ARMMMUIdx mmu_idx, bool is_aa64,
+                      int ap, int ns, int xn, int pxn)
+{
+    bool is_user = regime_is_user(env, mmu_idx);
+    int prot_rw, user_rw;
+    bool have_wxn;
+    int wxn = 0;
+
+    assert(mmu_idx != ARMMMUIdx_S2NS);
+
+    user_rw = simple_ap_to_rw_prot_is_user(ap, true);
+    if (is_user) {
+        prot_rw = user_rw;
+    } else {
+        prot_rw = simple_ap_to_rw_prot_is_user(ap, false);
+    }
+
+    if (ns && arm_is_secure(env) && (env->cp15.scr_el3 & SCR_SIF)) {
+        return prot_rw;
+    }
+
+    /* TODO have_wxn should be replaced with
+     *   ARM_FEATURE_V8 || (ARM_FEATURE_V7 && ARM_FEATURE_EL2)
+     * when ARM_FEATURE_EL2 starts getting set. For now we assume all LPAE
+     * compatible processors have EL2, which is required for [U]WXN.
+     */
+    have_wxn = arm_feature(env, ARM_FEATURE_LPAE);
+
+    if (have_wxn) {
+        wxn = regime_sctlr(env, mmu_idx) & SCTLR_WXN;
+    }
+
+    if (is_aa64) {
+        switch (regime_el(env, mmu_idx)) {
+        case 1:
+            if (!is_user) {
+                xn = pxn || (user_rw & PAGE_WRITE);
+            }
+            break;
+        case 2:
+        case 3:
+            break;
+        }
+    } else if (arm_feature(env, ARM_FEATURE_V7)) {
+        switch (regime_el(env, mmu_idx)) {
+        case 1:
+        case 3:
+            if (is_user) {
+                xn = xn || !(user_rw & PAGE_READ);
+            } else {
+                int uwxn = 0;
+                if (have_wxn) {
+                    uwxn = regime_sctlr(env, mmu_idx) & SCTLR_UWXN;
+                }
+                xn = xn || !(prot_rw & PAGE_READ) || pxn ||
+                     (uwxn && (user_rw & PAGE_WRITE));
+            }
+            break;
+        case 2:
+            break;
+        }
+    } else {
+        xn = wxn = 0;
+    }
+
+    if (xn || (wxn && (prot_rw & PAGE_WRITE))) {
+        return prot_rw;
+    }
+    return prot_rw | PAGE_EXEC;
 }
 
 static bool get_level1_table_address(CPUARMState *env, ARMMMUIdx mmu_idx,
                                      uint32_t *table, uint32_t address)
 {
     /* Note that we can only get here for an AArch32 PL0/PL1 lookup */
-    int el = regime_el(env, mmu_idx);
     TCR *tcr = regime_tcr(env, mmu_idx);
 
     if (address & tcr->mask) {
@@ -4990,16 +5148,39 @@ static bool get_level1_table_address(CPUARMState *env, ARMMMUIdx mmu_idx,
             /* Translation table walk disabled for TTBR1 */
             return false;
         }
-        *table = env->cp15.ttbr1_el[el] & 0xffffc000;
+        *table = regime_ttbr(env, mmu_idx, 1) & 0xffffc000;
     } else {
         if (tcr->raw_tcr & TTBCR_PD0) {
             /* Translation table walk disabled for TTBR0 */
             return false;
         }
-        *table = env->cp15.ttbr0_el[el] & tcr->base_mask;
+        *table = regime_ttbr(env, mmu_idx, 0) & tcr->base_mask;
     }
     *table |= (address >> 18) & 0x3ffc;
     return true;
+}
+
+/* All loads done in the course of a page table walk go through here.
+ * TODO: rather than ignoring errors from physical memory reads (which
+ * are external aborts in ARM terminology) we should propagate this
+ * error out so that we can turn it into a Data Abort if this walk
+ * was being done for a CPU load/store or an address translation instruction
+ * (but not if it was for a debug access).
+ */
+static uint32_t arm_ldl_ptw(CPUState *cs, hwaddr addr, bool is_secure)
+{
+    MemTxAttrs attrs = {};
+
+    attrs.secure = is_secure;
+    return address_space_ldl(cs->as, addr, attrs, NULL);
+}
+
+static uint64_t arm_ldq_ptw(CPUState *cs, hwaddr addr, bool is_secure)
+{
+    MemTxAttrs attrs = {};
+
+    attrs.secure = is_secure;
+    return address_space_ldq(cs->as, addr, attrs, NULL);
 }
 
 static int get_phys_addr_v5(CPUARMState *env, uint32_t address, int access_type,
@@ -5024,7 +5205,7 @@ static int get_phys_addr_v5(CPUARMState *env, uint32_t address, int access_type,
         code = 5;
         goto do_fault;
     }
-    desc = ldl_phys(cs->as, table);
+    desc = arm_ldl_ptw(cs, table, regime_is_secure(env, mmu_idx));
     type = (desc & 3);
     domain = (desc >> 5) & 0x0f;
     if (regime_el(env, mmu_idx) == 1) {
@@ -5060,7 +5241,7 @@ static int get_phys_addr_v5(CPUARMState *env, uint32_t address, int access_type,
             /* Fine pagetable.  */
             table = (desc & 0xfffff000) | ((address >> 8) & 0xffc);
         }
-        desc = ldl_phys(cs->as, table);
+        desc = arm_ldl_ptw(cs, table, regime_is_secure(env, mmu_idx));
         switch (desc & 3) {
         case 0: /* Page translation fault.  */
             code = 7;
@@ -5096,12 +5277,12 @@ static int get_phys_addr_v5(CPUARMState *env, uint32_t address, int access_type,
         }
         code = 15;
     }
-    *prot = check_ap(env, mmu_idx, ap, domain_prot, access_type);
-    if (!*prot) {
+    *prot = ap_to_rw_prot(env, mmu_idx, ap, domain_prot);
+    *prot |= *prot ? PAGE_EXEC : 0;
+    if (!(*prot & (1 << access_type))) {
         /* Access permission fault.  */
         goto do_fault;
     }
-    *prot |= PAGE_EXEC;
     *phys_ptr = phys_addr;
     return 0;
 do_fault:
@@ -5110,6 +5291,7 @@ do_fault:
 
 static int get_phys_addr_v6(CPUARMState *env, uint32_t address, int access_type,
                             ARMMMUIdx mmu_idx, hwaddr *phys_ptr,
+                            MemTxAttrs *attrs,
                             int *prot, target_ulong *page_size)
 {
     CPUState *cs = CPU(arm_env_get_cpu(env));
@@ -5124,6 +5306,7 @@ static int get_phys_addr_v6(CPUARMState *env, uint32_t address, int access_type,
     int domain_prot;
     hwaddr phys_addr;
     uint32_t dacr;
+    bool ns;
 
     /* Pagetable walk.  */
     /* Lookup l1 descriptor.  */
@@ -5132,7 +5315,7 @@ static int get_phys_addr_v6(CPUARMState *env, uint32_t address, int access_type,
         code = 5;
         goto do_fault;
     }
-    desc = ldl_phys(cs->as, table);
+    desc = arm_ldl_ptw(cs, table, regime_is_secure(env, mmu_idx));
     type = (desc & 3);
     if (type == 0 || (type == 3 && !arm_feature(env, ARM_FEATURE_PXN))) {
         /* Section translation fault, or attempt to use the encoding
@@ -5173,13 +5356,15 @@ static int get_phys_addr_v6(CPUARMState *env, uint32_t address, int access_type,
         xn = desc & (1 << 4);
         pxn = desc & 1;
         code = 13;
+        ns = extract32(desc, 19, 1);
     } else {
         if (arm_feature(env, ARM_FEATURE_PXN)) {
             pxn = (desc >> 2) & 1;
         }
+        ns = extract32(desc, 3, 1);
         /* Lookup l2 entry.  */
         table = (desc & 0xfffffc00) | ((address >> 10) & 0x3fc);
-        desc = ldl_phys(cs->as, table);
+        desc = arm_ldl_ptw(cs, table, regime_is_secure(env, mmu_idx));
         ap = ((desc >> 4) & 3) | ((desc >> 7) & 4);
         switch (desc & 3) {
         case 0: /* Page translation fault.  */
@@ -5210,21 +5395,32 @@ static int get_phys_addr_v6(CPUARMState *env, uint32_t address, int access_type,
         if (xn && access_type == 2)
             goto do_fault;
 
-        /* The simplified model uses AP[0] as an access control bit.  */
-        if ((regime_sctlr(env, mmu_idx) & SCTLR_AFE)
-                && (ap & 1) == 0) {
-            /* Access flag fault.  */
-            code = (code == 15) ? 6 : 3;
-            goto do_fault;
+        if (arm_feature(env, ARM_FEATURE_V6K) &&
+                (regime_sctlr(env, mmu_idx) & SCTLR_AFE)) {
+            /* The simplified model uses AP[0] as an access control bit.  */
+            if ((ap & 1) == 0) {
+                /* Access flag fault.  */
+                code = (code == 15) ? 6 : 3;
+                goto do_fault;
+            }
+            *prot = simple_ap_to_rw_prot(env, mmu_idx, ap >> 1);
+        } else {
+            *prot = ap_to_rw_prot(env, mmu_idx, ap, domain_prot);
         }
-        *prot = check_ap(env, mmu_idx, ap, domain_prot, access_type);
-        if (!*prot) {
+        if (*prot && !xn) {
+            *prot |= PAGE_EXEC;
+        }
+        if (!(*prot & (1 << access_type))) {
             /* Access permission fault.  */
             goto do_fault;
         }
-        if (!xn) {
-            *prot |= PAGE_EXEC;
-        }
+    }
+    if (ns) {
+        /* The NS bit will (as required by the architecture) have no effect if
+         * the CPU doesn't support TZ or this is a non-secure translation
+         * regime, because the attribute will already be non-secure.
+         */
+        attrs->secure = false;
     }
     *phys_ptr = phys_addr;
     return 0;
@@ -5243,7 +5439,7 @@ typedef enum {
 
 static int get_phys_addr_lpae(CPUARMState *env, target_ulong address,
                               int access_type, ARMMMUIdx mmu_idx,
-                              hwaddr *phys_ptr, int *prot,
+                              hwaddr *phys_ptr, MemTxAttrs *txattrs, int *prot,
                               target_ulong *page_size_ptr)
 {
     CPUState *cs = CPU(arm_env_get_cpu(env));
@@ -5262,23 +5458,36 @@ static int get_phys_addr_lpae(CPUARMState *env, target_ulong address,
     int32_t granule_sz = 9;
     int32_t va_size = 32;
     int32_t tbi = 0;
-    bool is_user;
     TCR *tcr = regime_tcr(env, mmu_idx);
+    int ap, ns, xn, pxn;
+    uint32_t el = regime_el(env, mmu_idx);
+    bool ttbr1_valid = true;
 
     /* TODO:
-     * This code assumes we're either a 64-bit EL1 or a 32-bit PL1;
-     * it doesn't handle the different format TCR for TCR_EL2, TCR_EL3,
-     * and VTCR_EL2, or the fact that those regimes don't have a split
-     * TTBR0/TTBR1. Attribute and permission bit handling should also
-     * be checked when adding support for those page table walks.
+     * This code does not handle the different format TCR for VTCR_EL2.
+     * This code also does not support shareability levels.
+     * Attribute and permission bit handling should also be checked when adding
+     * support for those page table walks.
      */
-    if (arm_el_is_aa64(env, regime_el(env, mmu_idx))) {
+    if (arm_el_is_aa64(env, el)) {
         va_size = 64;
-        if (extract64(address, 55, 1))
-            tbi = extract64(tcr->raw_tcr, 38, 1);
-        else
-            tbi = extract64(tcr->raw_tcr, 37, 1);
+        if (el > 1) {
+            tbi = extract64(tcr->raw_tcr, 20, 1);
+        } else {
+            if (extract64(address, 55, 1)) {
+                tbi = extract64(tcr->raw_tcr, 38, 1);
+            } else {
+                tbi = extract64(tcr->raw_tcr, 37, 1);
+            }
+        }
         tbi *= 8;
+
+        /* If we are in 64-bit EL2 or EL3 then there is no TTBR1, so mark it
+         * invalid.
+         */
+        if (el > 1) {
+            ttbr1_valid = false;
+        }
     }
 
     /* Determine whether this address is in the region controlled by
@@ -5299,13 +5508,14 @@ static int get_phys_addr_lpae(CPUARMState *env, target_ulong address,
     if (t0sz && !extract64(address, va_size - t0sz, t0sz - tbi)) {
         /* there is a ttbr0 region and we are in it (high bits all zero) */
         ttbr_select = 0;
-    } else if (t1sz && !extract64(~address, va_size - t1sz, t1sz - tbi)) {
+    } else if (ttbr1_valid && t1sz &&
+               !extract64(~address, va_size - t1sz, t1sz - tbi)) {
         /* there is a ttbr1 region and we are in it (high bits all one) */
         ttbr_select = 1;
     } else if (!t0sz) {
         /* ttbr0 region is "everything not in the ttbr1 region" */
         ttbr_select = 0;
-    } else if (!t1sz) {
+    } else if (!t1sz && ttbr1_valid) {
         /* ttbr1 region is "everything not in the ttbr0 region" */
         ttbr_select = 1;
     } else {
@@ -5322,7 +5532,7 @@ static int get_phys_addr_lpae(CPUARMState *env, target_ulong address,
      * we will always flush the TLB any time the ASID is changed).
      */
     if (ttbr_select == 0) {
-        ttbr = A32_BANKED_CURRENT_REG_GET(env, ttbr0);
+        ttbr = regime_ttbr(env, mmu_idx, 0);
         epd = extract32(tcr->raw_tcr, 7, 1);
         tsz = t0sz;
 
@@ -5334,7 +5544,10 @@ static int get_phys_addr_lpae(CPUARMState *env, target_ulong address,
             granule_sz = 11;
         }
     } else {
-        ttbr = A32_BANKED_CURRENT_REG_GET(env, ttbr1);
+        /* We should only be here if TTBR1 is valid */
+        assert(ttbr1_valid);
+
+        ttbr = regime_ttbr(env, mmu_idx, 1);
         epd = extract32(tcr->raw_tcr, 23, 1);
         tsz = t1sz;
 
@@ -5352,7 +5565,9 @@ static int get_phys_addr_lpae(CPUARMState *env, target_ulong address,
      */
 
     if (epd) {
-        /* Translation table walk disabled => Translation fault on TLB miss */
+        /* Translation table walk disabled => Translation fault on TLB miss
+         * Note: This is always 0 on 64-bit EL2 and EL3.
+         */
         goto do_fault;
     }
 
@@ -5383,13 +5598,20 @@ static int get_phys_addr_lpae(CPUARMState *env, target_ulong address,
     descaddr = extract64(ttbr, 0, 48);
     descaddr &= ~((1ULL << (va_size - tsz - (granule_sz * (4 - level)))) - 1);
 
-    tableattrs = 0;
+    /* Secure accesses start with the page table in secure memory and
+     * can be downgraded to non-secure at any step. Non-secure accesses
+     * remain non-secure. We implement this by just ORing in the NSTable/NS
+     * bits at each step.
+     */
+    tableattrs = regime_is_secure(env, mmu_idx) ? 0 : (1 << 4);
     for (;;) {
         uint64_t descriptor;
+        bool nstable;
 
         descaddr |= (address >> (granule_sz * (4 - level))) & descmask;
         descaddr &= ~7ULL;
-        descriptor = ldq_phys(cs->as, descaddr);
+        nstable = extract32(tableattrs, 4, 1);
+        descriptor = arm_ldq_ptw(cs, descaddr, !nstable);
         if (!(descriptor & 1) ||
             (!(descriptor & 2) && (level == 3))) {
             /* Invalid, or the Reserved level 3 encoding */
@@ -5424,7 +5646,7 @@ static int get_phys_addr_lpae(CPUARMState *env, target_ulong address,
         if (extract32(tableattrs, 2, 1)) {
             attrs &= ~(1 << 4);
         }
-        /* Since we're always in the Non-secure state, NSTable is ignored. */
+        attrs |= nstable << 3; /* NS */
         break;
     }
     /* Here descaddr is the final physical address, and attributes
@@ -5435,32 +5657,26 @@ static int get_phys_addr_lpae(CPUARMState *env, target_ulong address,
         /* Access flag */
         goto do_fault;
     }
+
+    ap = extract32(attrs, 4, 2);
+    ns = extract32(attrs, 3, 1);
+    xn = extract32(attrs, 12, 1);
+    pxn = extract32(attrs, 11, 1);
+
+    *prot = get_S1prot(env, mmu_idx, va_size == 64, ap, ns, xn, pxn);
+
     fault_type = permission_fault;
-    is_user = regime_is_user(env, mmu_idx);
-    if (is_user && !(attrs & (1 << 4))) {
-        /* Unprivileged access not enabled */
+    if (!(*prot & (1 << access_type))) {
         goto do_fault;
     }
-    *prot = PAGE_READ | PAGE_WRITE | PAGE_EXEC;
-    if ((arm_feature(env, ARM_FEATURE_V8) && is_user && (attrs & (1 << 12))) ||
-        (!arm_feature(env, ARM_FEATURE_V8) && (attrs & (1 << 12))) ||
-        (!is_user && (attrs & (1 << 11)))) {
-        /* XN/UXN or PXN. Since we only implement EL0/EL1 we unconditionally
-         * treat XN/UXN as UXN for v8.
-         */
-        if (access_type == 2) {
-            goto do_fault;
-        }
-        *prot &= ~PAGE_EXEC;
-    }
-    if (attrs & (1 << 5)) {
-        /* Write access forbidden */
-        if (access_type == 1) {
-            goto do_fault;
-        }
-        *prot &= ~PAGE_WRITE;
-    }
 
+    if (ns) {
+        /* The NS bit will (as required by the architecture) have no effect if
+         * the CPU doesn't support TZ or this is a non-secure translation
+         * regime, because the attribute will already be non-secure.
+         */
+        txattrs->secure = false;
+    }
     *phys_ptr = descaddr;
     *page_size_ptr = page_size;
     return 0;
@@ -5544,8 +5760,8 @@ static int get_phys_addr_mpu(CPUARMState *env, uint32_t address,
  * by doing a translation table walk on MMU based systems or using the
  * MPU state on MPU based systems.
  *
- * Returns 0 if the translation was successful. Otherwise, phys_ptr,
- * prot and page_size are not filled in, and the return value provides
+ * Returns 0 if the translation was successful. Otherwise, phys_ptr, attrs,
+ * prot and page_size may not be filled in, and the return value provides
  * information on why the translation aborted, in the format of a
  * DFSR/IFSR fault register, with the following caveats:
  *  * we honour the short vs long DFSR format differences.
@@ -5558,23 +5774,32 @@ static int get_phys_addr_mpu(CPUARMState *env, uint32_t address,
  * @access_type: 0 for read, 1 for write, 2 for execute
  * @mmu_idx: MMU index indicating required translation regime
  * @phys_ptr: set to the physical address corresponding to the virtual address
+ * @attrs: set to the memory transaction attributes to use
  * @prot: set to the permissions for the page containing phys_ptr
  * @page_size: set to the size of the page containing phys_ptr
  */
 static inline int get_phys_addr(CPUARMState *env, target_ulong address,
                                 int access_type, ARMMMUIdx mmu_idx,
-                                hwaddr *phys_ptr, int *prot,
+                                hwaddr *phys_ptr, MemTxAttrs *attrs, int *prot,
                                 target_ulong *page_size)
 {
     if (mmu_idx == ARMMMUIdx_S12NSE0 || mmu_idx == ARMMMUIdx_S12NSE1) {
         /* TODO: when we support EL2 we should here call ourselves recursively
-         * to do the stage 1 and then stage 2 translations. The ldl_phys
-         * calls for stage 1 will also need changing.
+         * to do the stage 1 and then stage 2 translations. The arm_ld*_ptw
+         * functions will also need changing to perform ARMMMUIdx_S2NS loads
+         * rather than direct physical memory loads when appropriate.
          * For non-EL2 CPUs a stage1+stage2 translation is just stage 1.
          */
         assert(!arm_feature(env, ARM_FEATURE_EL2));
         mmu_idx += ARMMMUIdx_S1NSE0;
     }
+
+    /* The page table entries may downgrade secure to non-secure, but
+     * cannot upgrade an non-secure translation regime's attributes
+     * to secure.
+     */
+    attrs->secure = regime_is_secure(env, mmu_idx);
+    attrs->user = regime_is_user(env, mmu_idx);
 
     /* Fast Context Switch Extension. This doesn't exist at all in v8.
      * In v7 and earlier it affects all stage 1 translations.
@@ -5604,10 +5829,10 @@ static inline int get_phys_addr(CPUARMState *env, target_ulong address,
 
     if (regime_using_lpae_format(env, mmu_idx)) {
         return get_phys_addr_lpae(env, address, access_type, mmu_idx, phys_ptr,
-                                  prot, page_size);
+                                  attrs, prot, page_size);
     } else if (regime_sctlr(env, mmu_idx) & SCTLR_XP) {
         return get_phys_addr_v6(env, address, access_type, mmu_idx, phys_ptr,
-                                prot, page_size);
+                                attrs, prot, page_size);
     } else {
         return get_phys_addr_v5(env, address, access_type, mmu_idx, phys_ptr,
                                 prot, page_size);
@@ -5625,14 +5850,16 @@ int arm_cpu_handle_mmu_fault(CPUState *cs, vaddr address,
     int ret;
     uint32_t syn;
     bool same_el = (arm_current_el(env) != 0);
+    MemTxAttrs attrs = {};
 
-    ret = get_phys_addr(env, address, access_type, mmu_idx, &phys_addr, &prot,
-                        &page_size);
+    ret = get_phys_addr(env, address, access_type, mmu_idx, &phys_addr,
+                        &attrs, &prot, &page_size);
     if (ret == 0) {
         /* Map a single [sub]page.  */
         phys_addr &= TARGET_PAGE_MASK;
         address &= TARGET_PAGE_MASK;
-        tlb_set_page(cs, address, phys_addr, prot, mmu_idx, page_size);
+        tlb_set_page_with_attrs(cs, address, phys_addr, attrs,
+                                prot, mmu_idx, page_size);
         return 0;
     }
 
@@ -5667,9 +5894,10 @@ hwaddr arm_cpu_get_phys_page_debug(CPUState *cs, vaddr addr)
     target_ulong page_size;
     int prot;
     int ret;
+    MemTxAttrs attrs = {};
 
     ret = get_phys_addr(env, addr, 0, cpu_mmu_index(env), &phys_addr,
-                        &prot, &page_size);
+                        &attrs, &prot, &page_size);
 
     if (ret != 0) {
         return -1;
@@ -5833,13 +6061,15 @@ void HELPER(dc_zva)(CPUARMState *env, uint64_t vaddr_in)
         int maxidx = DIV_ROUND_UP(blocklen, TARGET_PAGE_SIZE);
         void *hostaddr[maxidx];
         int try, i;
+        unsigned mmu_idx = cpu_mmu_index(env);
+        TCGMemOpIdx oi = make_memop_idx(MO_UB, mmu_idx);
 
         for (try = 0; try < 2; try++) {
 
             for (i = 0; i < maxidx; i++) {
                 hostaddr[i] = tlb_vaddr_to_host(env,
                                                 vaddr + TARGET_PAGE_SIZE * i,
-                                                1, cpu_mmu_index(env));
+                                                1, mmu_idx);
                 if (!hostaddr[i]) {
                     break;
                 }
@@ -5860,12 +6090,12 @@ void HELPER(dc_zva)(CPUARMState *env, uint64_t vaddr_in)
              * this purpose use the actual register value passed to us
              * so that we get the fault address right.
              */
-            helper_ret_stb_mmu(env, vaddr_in, 0, cpu_mmu_index(env), GETRA());
+            helper_ret_stb_mmu(env, vaddr_in, 0, oi, GETRA());
             /* Now we can populate the other TLB entries, if any */
             for (i = 0; i < maxidx; i++) {
                 uint64_t va = vaddr + TARGET_PAGE_SIZE * i;
                 if (va != (vaddr_in & TARGET_PAGE_MASK)) {
-                    helper_ret_stb_mmu(env, va, 0, cpu_mmu_index(env), GETRA());
+                    helper_ret_stb_mmu(env, va, 0, oi, GETRA());
                 }
             }
         }
@@ -5882,7 +6112,7 @@ void HELPER(dc_zva)(CPUARMState *env, uint64_t vaddr_in)
          *    bounce buffer was in use
          */
         for (i = 0; i < blocklen; i++) {
-            helper_ret_stb_mmu(env, vaddr + i, 0, cpu_mmu_index(env), GETRA());
+            helper_ret_stb_mmu(env, vaddr + i, 0, oi, GETRA());
         }
     }
 #else

@@ -21,10 +21,17 @@
 #define ISA_BUS(obj) OBJECT_CHECK(ISABus, (obj), TYPE_ISA_BUS)
 
 #define TYPE_APPLE_SMC "isa-applesmc"
+#define APPLESMC_MAX_DATA_LENGTH       32
+#define APPLESMC_PROP_IO_BASE "iobase"
 
-static inline bool applesmc_find(void)
+static inline uint16_t applesmc_port(void)
 {
-    return object_resolve_path_type("", TYPE_APPLE_SMC, NULL);
+    Object *obj = object_resolve_path_type("", TYPE_APPLE_SMC, NULL);
+
+    if (obj) {
+        return object_property_get_int(obj, APPLESMC_PROP_IO_BASE, NULL);
+    }
+    return 0;
 }
 
 typedef struct ISADeviceClass {
@@ -36,6 +43,7 @@ struct ISABus {
     BusState parent_obj;
     /*< public >*/
 
+    MemoryRegion *address_space;
     MemoryRegion *address_space_io;
     qemu_irq *irqs;
 };
@@ -50,7 +58,8 @@ struct ISADevice {
     int ioport_id;
 };
 
-ISABus *isa_bus_new(DeviceState *dev, MemoryRegion *address_space_io);
+ISABus *isa_bus_new(DeviceState *dev, MemoryRegion *address_space,
+                    MemoryRegion *address_space_io);
 void isa_bus_irqs(ISABus *bus, qemu_irq *irqs);
 qemu_irq isa_get_irq(ISADevice *dev, int isairq);
 void isa_init_irq(ISADevice *dev, qemu_irq *p, int isairq);
@@ -96,8 +105,6 @@ static inline ISABus *isa_bus_from_device(ISADevice *d)
 {
     return ISA_BUS(qdev_get_parent_bus(DEVICE(d)));
 }
-
-extern hwaddr isa_mem_base;
 
 /* dma.c */
 int DMA_get_channel_mode (int nchan);

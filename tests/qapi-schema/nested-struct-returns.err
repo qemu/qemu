@@ -1,0 +1,1 @@
+tests/qapi-schema/nested-struct-returns.json:2: Member 'a' of 'returns' for command 'foo' should be a type name

@@ -1,0 +1,3 @@
+# we reject an expression with a metatype that is not a string
+# FIXME: once the parser understands integer inputs, improve the error message
+{ 'struct': 1, 'data': { } }

@@ -457,10 +457,19 @@ sclpMemoryHotplugDev *get_sclp_memory_hotplug_dev(void)
                                    TYPE_SCLP_MEMORY_HOTPLUG_DEV, NULL));
 }
 
+static void sclp_memory_hotplug_dev_class_init(ObjectClass *klass,
+                                               void *data)
+{
+    DeviceClass *dc = DEVICE_CLASS(klass);
+
+    set_bit(DEVICE_CATEGORY_MISC, dc->categories);
+}
+
 static TypeInfo sclp_memory_hotplug_dev_info = {
     .name = TYPE_SCLP_MEMORY_HOTPLUG_DEV,
     .parent = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(sclpMemoryHotplugDev),
+    .class_init = sclp_memory_hotplug_dev_class_init,
 };
 
 static void register_types(void)

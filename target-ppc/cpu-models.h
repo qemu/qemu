@@ -547,7 +547,6 @@ enum {
     CPU_POWERPC_POWER4P            = 0x00380000,
      /* XXX: missing 0x003A0201 */
     CPU_POWERPC_POWER5             = 0x003A0203,
-    CPU_POWERPC_POWER5P            = 0x003B0000,
     CPU_POWERPC_POWER5P_v21        = 0x003B0201,
     CPU_POWERPC_POWER6             = 0x003E0000,
     CPU_POWERPC_POWER6_5           = 0x0F000001, /* POWER6 in POWER5 mode */
@@ -561,7 +560,7 @@ enum {
     CPU_POWERPC_POWER8E_v10        = 0x004B0100,
     CPU_POWERPC_POWER8_BASE        = 0x004D0000,
     CPU_POWERPC_POWER8_v10         = 0x004D0100,
-    CPU_POWERPC_970                = 0x00390202,
+    CPU_POWERPC_970_v22            = 0x00390202,
     CPU_POWERPC_970FX_v10          = 0x00391100,
     CPU_POWERPC_970FX_v20          = 0x003C0200,
     CPU_POWERPC_970FX_v21          = 0x003C0201,

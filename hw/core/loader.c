@@ -267,7 +267,7 @@ int load_aout(const char *filename, hwaddr addr, int max_sz,
 
 /* ELF loader */
 
-static void *load_at(int fd, int offset, int size)
+static void *load_at(int fd, off_t offset, size_t size)
 {
     void *ptr;
     if (lseek(fd, offset, SEEK_SET) < 0)
@@ -297,6 +297,7 @@ static void *load_at(int fd, int offset, int size)
 #undef elf_phdr
 #undef elf_shdr
 #undef elf_sym
+#undef elf_rela
 #undef elf_note
 #undef elf_word
 #undef elf_sword
@@ -307,6 +308,7 @@ static void *load_at(int fd, int offset, int size)
 #define elf_note	elf64_note
 #define elf_shdr	elf64_shdr
 #define elf_sym		elf64_sym
+#define elf_rela        elf64_rela
 #define elf_word        uint64_t
 #define elf_sword        int64_t
 #define bswapSZs	bswap64s
@@ -833,12 +835,12 @@ err:
     return -1;
 }
 
-ram_addr_t rom_add_blob(const char *name, const void *blob, size_t len,
+MemoryRegion *rom_add_blob(const char *name, const void *blob, size_t len,
                    size_t max_len, hwaddr addr, const char *fw_file_name,
                    FWCfgReadCallback fw_callback, void *callback_opaque)
 {
     Rom *rom;
-    ram_addr_t ret = RAM_ADDR_MAX;
+    MemoryRegion *mr = NULL;
 
     rom           = g_malloc0(sizeof(*rom));
     rom->name     = g_strdup(name);
@@ -856,7 +858,7 @@ ram_addr_t rom_add_blob(const char *name, const void *blob, size_t len,
 
         if (rom_file_has_mr) {
             data = rom_set_mr(rom, OBJECT(fw_cfg), devpath);
-            ret = memory_region_get_ram_addr(rom->mr);
+            mr = rom->mr;
         } else {
             data = rom->data;
         }
@@ -865,7 +867,7 @@ ram_addr_t rom_add_blob(const char *name, const void *blob, size_t len,
                                  fw_callback, callback_opaque,
                                  data, rom->datasize);
     }
-    return ret;
+    return mr;
 }
 
 /* This function is specific for elf program because we don't need to allocate
@@ -1062,7 +1064,7 @@ void *rom_ptr(hwaddr addr)
     return rom->data + (addr - rom->addr);
 }
 
-void do_info_roms(Monitor *mon, const QDict *qdict)
+void hmp_info_roms(Monitor *mon, const QDict *qdict)
 {
     Rom *rom;
 

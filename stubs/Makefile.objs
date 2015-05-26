@@ -24,7 +24,6 @@ stub-obj-y += mon-printf.o
 stub-obj-y += mon-set-error.o
 stub-obj-y += monitor-init.o
 stub-obj-y += notify-event.o
-stub-obj-y += pci-drive-hot-add.o
 stub-obj-$(CONFIG_SPICE) += qemu-chr-open-spice.o
 stub-obj-y += qtest.o
 stub-obj-y += reset.o

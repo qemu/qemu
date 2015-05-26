@@ -535,8 +535,6 @@ struct FDCtrl {
     uint8_t pwrd;
     /* Floppy drives */
     uint8_t num_floppies;
-    /* Sun4m quirks? */
-    int sun4m;
     FDrive drives[MAX_FD];
     int reset_sensei;
     uint32_t check_media_rate;
@@ -885,13 +883,6 @@ static void fdctrl_reset_irq(FDCtrl *fdctrl)
 
 static void fdctrl_raise_irq(FDCtrl *fdctrl)
 {
-    /* Sparc mutation */
-    if (fdctrl->sun4m && (fdctrl->msr & FD_MSR_CMDBUSY)) {
-        /* XXX: not sure */
-        fdctrl->msr &= ~FD_MSR_CMDBUSY;
-        fdctrl->msr |= FD_MSR_RQM | FD_MSR_DIO;
-        return;
-    }
     if (!(fdctrl->sra & FD_SRA_INTPEND)) {
         qemu_set_irq(fdctrl->irq, 1);
         fdctrl->sra |= FD_SRA_INTPEND;
@@ -1079,12 +1070,6 @@ static uint32_t fdctrl_read_main_status(FDCtrl *fdctrl)
 
     fdctrl->dsr &= ~FD_DSR_PWRDOWN;
     fdctrl->dor |= FD_DOR_nRESET;
-
-    /* Sparc mutation */
-    if (fdctrl->sun4m) {
-        retval |= FD_MSR_DIO;
-        fdctrl_reset_irq(fdctrl);
-    };
 
     FLOPPY_DPRINTF("main status register: 0x%02x\n", retval);
 
@@ -1512,7 +1497,7 @@ static uint32_t fdctrl_read_data(FDCtrl *fdctrl)
 {
     FDrive *cur_drv;
     uint32_t retval = 0;
-    int pos;
+    uint32_t pos;
 
     cur_drv = get_cur_drv(fdctrl);
     fdctrl->dsr &= ~FD_DSR_PWRDOWN;
@@ -1521,8 +1506,8 @@ static uint32_t fdctrl_read_data(FDCtrl *fdctrl)
         return 0;
     }
     pos = fdctrl->data_pos;
+    pos %= FD_SECTOR_LEN;
     if (fdctrl->msr & FD_MSR_NONDMA) {
-        pos %= FD_SECTOR_LEN;
         if (pos == 0) {
             if (fdctrl->data_pos != 0)
                 if (!fdctrl_seek_to_next_sect(fdctrl, cur_drv)) {
@@ -1867,10 +1852,13 @@ static void fdctrl_handle_option(FDCtrl *fdctrl, int direction)
 static void fdctrl_handle_drive_specification_command(FDCtrl *fdctrl, int direction)
 {
     FDrive *cur_drv = get_cur_drv(fdctrl);
+    uint32_t pos;
 
-    if (fdctrl->fifo[fdctrl->data_pos - 1] & 0x80) {
+    pos = fdctrl->data_pos - 1;
+    pos %= FD_SECTOR_LEN;
+    if (fdctrl->fifo[pos] & 0x80) {
         /* Command parameters done */
-        if (fdctrl->fifo[fdctrl->data_pos - 1] & 0x40) {
+        if (fdctrl->fifo[pos] & 0x40) {
             fdctrl->fifo[0] = fdctrl->fifo[1];
             fdctrl->fifo[2] = 0;
             fdctrl->fifo[3] = 0;
@@ -1970,7 +1958,7 @@ static uint8_t command_to_handler[256];
 static void fdctrl_write_data(FDCtrl *fdctrl, uint32_t value)
 {
     FDrive *cur_drv;
-    int pos;
+    uint32_t pos;
 
     /* Reset mode */
     if (!(fdctrl->dor & FD_DOR_nRESET)) {
@@ -2019,7 +2007,9 @@ static void fdctrl_write_data(FDCtrl *fdctrl, uint32_t value)
     }
 
     FLOPPY_DPRINTF("%s: %02x\n", __func__, value);
-    fdctrl->fifo[fdctrl->data_pos++] = value;
+    pos = fdctrl->data_pos++;
+    pos %= FD_SECTOR_LEN;
+    fdctrl->fifo[pos] = value;
     if (fdctrl->data_pos == fdctrl->data_len) {
         /* We now have all parameters
          * and will be able to treat the command
@@ -2240,8 +2230,6 @@ static void sun4m_fdc_initfn(Object *obj)
     SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
     FDCtrlSysBus *sys = SYSBUS_FDC(obj);
     FDCtrl *fdctrl = &sys->state;
-
-    fdctrl->sun4m = 1;
 
     memory_region_init_io(&fdctrl->iomem, obj, &fdctrl_mem_strict_ops,
                           fdctrl, "fdctrl", 0x08);

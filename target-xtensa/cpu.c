@@ -151,6 +151,7 @@ static void xtensa_cpu_class_init(ObjectClass *oc, void *data)
 #ifndef CONFIG_USER_ONLY
     cc->do_unaligned_access = xtensa_cpu_do_unaligned_access;
     cc->get_phys_page_debug = xtensa_cpu_get_phys_page_debug;
+    cc->do_unassigned_access = xtensa_cpu_do_unassigned_access;
 #endif
     cc->debug_excp_handler = xtensa_breakpoint_handler;
     dc->vmsd = &vmstate_xtensa_cpu;

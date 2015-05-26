@@ -1,0 +1,1 @@
+tests/qapi-schema/bad-ident.json:2: 'struct' does not allow optional name '*oops'

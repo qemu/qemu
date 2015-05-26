@@ -710,6 +710,12 @@ int qemu_savevm_state_iterate(QEMUFile *f)
     return ret;
 }
 
+static bool should_send_vmdesc(void)
+{
+    MachineState *machine = MACHINE(qdev_get_machine());
+    return !machine->suppress_vmdesc;
+}
+
 void qemu_savevm_state_complete(QEMUFile *f)
 {
     QJSON *vmdesc;
@@ -782,9 +788,11 @@ void qemu_savevm_state_complete(QEMUFile *f)
     qjson_finish(vmdesc);
     vmdesc_len = strlen(qjson_get_str(vmdesc));
 
-    qemu_put_byte(f, QEMU_VM_VMDESCRIPTION);
-    qemu_put_be32(f, vmdesc_len);
-    qemu_put_buffer(f, (uint8_t *)qjson_get_str(vmdesc), vmdesc_len);
+    if (should_send_vmdesc()) {
+        qemu_put_byte(f, QEMU_VM_VMDESCRIPTION);
+        qemu_put_be32(f, vmdesc_len);
+        qemu_put_buffer(f, (uint8_t *)qjson_get_str(vmdesc), vmdesc_len);
+    }
     object_unref(OBJECT(vmdesc));
 
     qemu_fflush(f);
@@ -821,7 +829,7 @@ void qemu_savevm_state_cancel(void)
     }
 }
 
-static int qemu_savevm_state(QEMUFile *f)
+static int qemu_savevm_state(QEMUFile *f, Error **errp)
 {
     int ret;
     MigrationParams params = {
@@ -829,7 +837,7 @@ static int qemu_savevm_state(QEMUFile *f)
         .shared = 0
     };
 
-    if (qemu_savevm_state_blocked(NULL)) {
+    if (qemu_savevm_state_blocked(errp)) {
         return -EINVAL;
     }
 
@@ -850,6 +858,7 @@ static int qemu_savevm_state(QEMUFile *f)
     }
     if (ret != 0) {
         qemu_savevm_state_cancel();
+        error_setg_errno(errp, -ret, "Error while writing VM state");
     }
     return ret;
 }
@@ -929,10 +938,10 @@ int qemu_loadvm_state(QEMUFile *f)
     uint8_t section_type;
     unsigned int v;
     int ret;
+    int file_error_after_eof = -1;
 
     if (qemu_savevm_state_blocked(&local_err)) {
-        error_report("%s", error_get_pretty(local_err));
-        error_free(local_err);
+        error_report_err(local_err);
         return -EINVAL;
     }
 
@@ -1034,6 +1043,24 @@ int qemu_loadvm_state(QEMUFile *f)
         }
     }
 
+    file_error_after_eof = qemu_file_get_error(f);
+
+    /*
+     * Try to read in the VMDESC section as well, so that dumping tools that
+     * intercept our migration stream have the chance to see it.
+     */
+    if (qemu_get_byte(f) == QEMU_VM_VMDESCRIPTION) {
+        uint32_t size = qemu_get_be32(f);
+        uint8_t *buf = g_malloc(0x1000);
+
+        while (size > 0) {
+            uint32_t read_chunk = MIN(size, 0x1000);
+            qemu_get_buffer(f, buf, read_chunk);
+            size -= read_chunk;
+        }
+        g_free(buf);
+    }
+
     cpu_synchronize_all_post_init();
 
     ret = 0;
@@ -1045,7 +1072,8 @@ out:
     }
 
     if (ret == 0) {
-        ret = qemu_file_get_error(f);
+        /* We may not have a VMDESC section, so ignore relative errors */
+        ret = file_error_after_eof;
     }
 
     return ret;
@@ -1091,7 +1119,7 @@ static int del_existing_snapshots(Monitor *mon, const char *name)
     return 0;
 }
 
-void do_savevm(Monitor *mon, const QDict *qdict)
+void hmp_savevm(Monitor *mon, const QDict *qdict)
 {
     BlockDriverState *bs, *bs1;
     QEMUSnapshotInfo sn1, *sn = &sn1, old_sn1, *old_sn = &old_sn1;
@@ -1102,6 +1130,7 @@ void do_savevm(Monitor *mon, const QDict *qdict)
     qemu_timeval tv;
     struct tm tm;
     const char *name = qdict_get_try_str(qdict, "name");
+    Error *local_err = NULL;
 
     /* Verify if there is a device that doesn't support snapshots and is writable */
     bs = NULL;
@@ -1160,11 +1189,12 @@ void do_savevm(Monitor *mon, const QDict *qdict)
         monitor_printf(mon, "Could not open VM state file\n");
         goto the_end;
     }
-    ret = qemu_savevm_state(f);
+    ret = qemu_savevm_state(f, &local_err);
     vm_state_size = qemu_ftell(f);
     qemu_fclose(f);
     if (ret < 0) {
-        monitor_printf(mon, "Error %d while writing VM\n", ret);
+        monitor_printf(mon, "%s\n", error_get_pretty(local_err));
+        error_free(local_err);
         goto the_end;
     }
 
@@ -1295,7 +1325,7 @@ int load_vmstate(const char *name)
     return 0;
 }
 
-void do_delvm(Monitor *mon, const QDict *qdict)
+void hmp_delvm(Monitor *mon, const QDict *qdict)
 {
     BlockDriverState *bs;
     Error *err;
@@ -1323,7 +1353,7 @@ void do_delvm(Monitor *mon, const QDict *qdict)
     }
 }
 
-void do_info_snapshots(Monitor *mon, const QDict *qdict)
+void hmp_info_snapshots(Monitor *mon, const QDict *qdict)
 {
     BlockDriverState *bs, *bs1;
     QEMUSnapshotInfo *sn_tab, *sn, s, *sn_info = &s;

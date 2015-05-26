@@ -64,7 +64,7 @@ static void vga_isa_realizefn(DeviceState *dev, Error **errp)
         isa_register_portio_list(isadev, 0x1ce, vbe_ports, s, "vbe");
     }
     memory_region_add_subregion_overlap(isa_address_space(isadev),
-                                        isa_mem_base + 0x000a0000,
+                                        0x000a0000,
                                         vga_io_memory, 1);
     memory_region_set_coalescing(vga_io_memory);
     s->con = graphic_console_init(DEVICE(dev), 0, s->hw_ops, s);

@@ -65,7 +65,7 @@ static inline void cris_illegal_insn(DisasContext *dc)
 static void gen_store_v10_conditional(DisasContext *dc, TCGv addr, TCGv val,
                        unsigned int size, int mem_index)
 {
-    int l1 = gen_new_label();
+    TCGLabel *l1 = gen_new_label();
     TCGv taddr = tcg_temp_local_new();
     TCGv tval = tcg_temp_local_new();
     TCGv t1 = tcg_temp_local_new();
@@ -537,10 +537,8 @@ static void dec10_reg_scc(DisasContext *dc)
 
     if (cond != CC_A)
     {
-        int l1;
-
+        TCGLabel *l1 = gen_new_label();
         gen_tst_cc (dc, cpu_R[dc->src], cond);
-        l1 = gen_new_label();
         tcg_gen_brcondi_tl(TCG_COND_EQ, cpu_R[dc->src], 0, l1);
         tcg_gen_movi_tl(cpu_R[dc->src], 1);
         gen_set_label(l1);

@@ -1,3 +1,24 @@
+/*
+ *  Arguments to the opcode prototypes
+ *
+ *  C(OPC,    NAME,    FMT,   FAC, I1, I2, P, W, OP, CC)
+ *  D(OPC,    NAME,    FMT,   FAC, I1, I2, P, W, OP, CC, DATA)
+ *
+ *  OPC  = (op << 8) | op2 where op is the major, op2 the minor opcode
+ *  NAME = name of the opcode, used internally
+ *  FMT  = format of the opcode (defined in insn-format.def)
+ *  FAC  = facility the opcode is available in (defined in DisasFacility)
+ *  I1   = func in1_xx fills o->in1
+ *  I2   = func in2_xx fills o->in2
+ *  P    = func prep_xx initializes o->*out*
+ *  W    = func wout_xx writes o->*out* somewhere
+ *  OP   = func op_xx does the bulk of the operation
+ *  CC   = func cout_xx defines how cc should get set
+ *  DATA = immediate argument to op_xx function
+ *
+ *  The helpers get called in order: I1, I2, P, OP, W, CC
+ */
+
 /* ADD */
     C(0x1a00, AR,      RR_a,  Z,   r1, r2, new, r1_32, add, adds32)
     C(0xb9f8, ARK,     RRF_a, DO,  r2, r3, new, r1_32, add, adds32)
@@ -338,6 +359,21 @@
     C(0xe371, LAY,     RXY_a, LD,  0, a2, 0, r1, mov2, 0)
 /* LOAD ADDRESS RELATIVE LONG */
     C(0xc000, LARL,    RIL_b, Z,   0, ri2, 0, r1, mov2, 0)
+/* LOAD AND ADD */
+    C(0xebf8, LAA,     RSY_a, ILA, r3_32s, m2_32s_atomic, new, m2_32_r1_atomic, add, adds32)
+    C(0xebe8, LAAG,    RSY_a, ILA, r3, m2_64_atomic, new, m2_64_r1_atomic, add, adds64)
+/* LOAD AND ADD LOGICAL */
+    C(0xebfa, LAAL,    RSY_a, ILA, r3_32s, m2_32s_atomic, new, m2_32_r1_atomic, add, addu32)
+    C(0xebea, LAALG,   RSY_a, ILA, r3, m2_64_atomic, new, m2_64_r1_atomic, add, addu64)
+/* LOAD AND AND */
+    C(0xebf4, LAN,     RSY_a, ILA, r3_32s, m2_32s_atomic, new, m2_32_r1_atomic, and, nz32)
+    C(0xebe4, LANG,    RSY_a, ILA, r3, m2_64_atomic, new, m2_64_r1_atomic, and, nz64)
+/* LOAD AND EXCLUSIVE OR */
+    C(0xebf7, LAX,     RSY_a, ILA, r3_32s, m2_32s_atomic, new, m2_32_r1_atomic, xor, nz32)
+    C(0xebe7, LAXG,    RSY_a, ILA, r3, m2_64_atomic, new, m2_64_r1_atomic, xor, nz64)
+/* LOAD AND OR */
+    C(0xebf6, LAO,     RSY_a, ILA, r3_32s, m2_32s_atomic, new, m2_32_r1_atomic, or, nz32)
+    C(0xebe6, LAOG,    RSY_a, ILA, r3, m2_64_atomic, new, m2_64_r1_atomic, or, nz64)
 /* LOAD AND TEST */
     C(0x1200, LTR,     RR_a,  Z,   0, r2_o, 0, cond_r1r2_32, mov2, s32)
     C(0xb902, LTGR,    RRE,   Z,   0, r2_o, 0, r1, mov2, s64)
@@ -417,6 +453,7 @@
     C(0xb9e2, LOCGR,   RRF_c, LOC, r1, r2, r1, 0, loc, 0)
     C(0xebf2, LOC,     RSY_b, LOC, r1, m2_32u, new, r1_32, loc, 0)
     C(0xebe2, LOCG,    RSY_b, LOC, r1, m2_64, r1, 0, loc, 0)
+/* LOAD PAIR DISJOINT TODO */
 /* LOAD POSITIVE */
     C(0x1000, LPR,     RR_a,  Z,   0, r2_32s, new, r1_32, abs, abs32)
     C(0xb900, LPGR,    RRE,   Z,   0, r2, r1, 0, abs, abs64)

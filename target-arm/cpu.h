@@ -93,11 +93,6 @@
 #define ARM_CPU_VIRQ 2
 #define ARM_CPU_VFIQ 3
 
-typedef void ARMWriteCPFunc(void *opaque, int cp_info,
-                            int srcreg, int operand, uint32_t value);
-typedef uint32_t ARMReadCPFunc(void *opaque, int cp_info,
-                               int dstreg, int operand);
-
 struct arm_boot_info;
 
 #define NB_MMU_MODES 7
@@ -201,7 +196,7 @@ typedef struct CPUARMState {
             };
             uint64_t sctlr_el[4];
         };
-        uint64_t c1_coproc; /* Coprocessor access register.  */
+        uint64_t cpacr_el1; /* Architectural feature access control register */
         uint32_t c1_xscaleauxcr; /* XScale auxiliary control register.  */
         uint64_t sder; /* Secure debug enable register. */
         uint32_t nsacr; /* Non-secure access control register. */
@@ -1577,14 +1572,7 @@ static inline bool arm_excp_unmasked(CPUState *cs, unsigned int excp_idx)
     return unmasked || pstate_unmasked;
 }
 
-static inline CPUARMState *cpu_init(const char *cpu_model)
-{
-    ARMCPU *cpu = cpu_arm_init(cpu_model);
-    if (cpu) {
-        return &cpu->env;
-    }
-    return NULL;
-}
+#define cpu_init(cpu_model) CPU(cpu_arm_init(cpu_model))
 
 #define cpu_exec cpu_arm_exec
 #define cpu_gen_code cpu_arm_gen_code
@@ -1828,7 +1816,7 @@ static inline void cpu_get_tb_cpu_state(CPUARMState *env, target_ulong *pc,
     int fpen;
 
     if (arm_feature(env, ARM_FEATURE_V6)) {
-        fpen = extract32(env->cp15.c1_coproc, 20, 2);
+        fpen = extract32(env->cp15.cpacr_el1, 20, 2);
     } else {
         /* CPACR doesn't exist before v6, so VFP is always accessible */
         fpen = 3;
@@ -1893,15 +1881,6 @@ static inline void cpu_get_tb_cpu_state(CPUARMState *env, target_ulong *pc,
 }
 
 #include "exec/exec-all.h"
-
-static inline void cpu_pc_from_tb(CPUARMState *env, TranslationBlock *tb)
-{
-    if (ARM_TBFLAG_AARCH64_STATE(tb->flags)) {
-        env->pc = tb->pc;
-    } else {
-        env->regs[15] = tb->pc;
-    }
-}
 
 enum {
     QEMU_PSCI_CONDUIT_DISABLED = 0,

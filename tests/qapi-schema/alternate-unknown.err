@@ -1,0 +1,1 @@
+tests/qapi-schema/alternate-unknown.json:2: Member 'unknown' of alternate 'Alt' uses unknown type 'MissingType'

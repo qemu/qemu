@@ -18,7 +18,6 @@
 typedef struct VhostUserState {
     NetClientState nc;
     CharDriverState *chr;
-    bool vhostforce;
     VHostNetState *vhost_net;
 } VhostUserState;
 
@@ -51,7 +50,7 @@ static int vhost_user_start(VhostUserState *s)
     options.backend_type = VHOST_BACKEND_TYPE_USER;
     options.net_backend = &s->nc;
     options.opaque = s->chr;
-    options.force = s->vhostforce;
+    options.force = true;
 
     s->vhost_net = vhost_net_init(&options);
 
@@ -122,19 +121,18 @@ static void net_vhost_user_event(void *opaque, int event)
     case CHR_EVENT_OPENED:
         vhost_user_start(s);
         net_vhost_link_down(s, false);
-        error_report("chardev \"%s\" went up\n", s->chr->label);
+        error_report("chardev \"%s\" went up", s->chr->label);
         break;
     case CHR_EVENT_CLOSED:
         net_vhost_link_down(s, true);
         vhost_user_stop(s);
-        error_report("chardev \"%s\" went down\n", s->chr->label);
+        error_report("chardev \"%s\" went down", s->chr->label);
         break;
     }
 }
 
 static int net_vhost_user_init(NetClientState *peer, const char *device,
-                               const char *name, CharDriverState *chr,
-                               bool vhostforce)
+                               const char *name, CharDriverState *chr)
 {
     NetClientState *nc;
     VhostUserState *s;
@@ -149,7 +147,6 @@ static int net_vhost_user_init(NetClientState *peer, const char *device,
     /* We don't provide a receive callback */
     s->nc.receive_disabled = 1;
     s->chr = chr;
-    s->vhostforce = vhostforce;
 
     qemu_chr_add_handlers(s->chr, NULL, NULL, net_vhost_user_event, s);
 
@@ -230,7 +227,6 @@ int net_init_vhost_user(const NetClientOptions *opts, const char *name,
 {
     const NetdevVhostUserOptions *vhost_user_opts;
     CharDriverState *chr;
-    bool vhostforce;
 
     assert(opts->kind == NET_CLIENT_OPTIONS_KIND_VHOST_USER);
     vhost_user_opts = opts->vhost_user;
@@ -247,12 +243,6 @@ int net_init_vhost_user(const NetClientOptions *opts, const char *name,
         return -1;
     }
 
-    /* vhostforce for non-MSIX */
-    if (vhost_user_opts->has_vhostforce) {
-        vhostforce = vhost_user_opts->vhostforce;
-    } else {
-        vhostforce = false;
-    }
 
-    return net_vhost_user_init(peer, "vhost_user", name, chr, vhostforce);
+    return net_vhost_user_init(peer, "vhost_user", name, chr);
 }

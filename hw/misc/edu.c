@@ -279,7 +279,7 @@ static const MemoryRegionOps edu_mmio_ops = {
 };
 
 /*
- * We purposedly use a thread, so that users are forced to wait for the status
+ * We purposely use a thread, so that users are forced to wait for the status
  * register.
  */
 static void *edu_fact_thread(void *opaque)

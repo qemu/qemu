@@ -1,0 +1,1 @@
+tests/qapi-schema/bad-data.json:2: 'data' for command 'oops' cannot be an array

@@ -166,13 +166,12 @@ static void vt82c686b_init_ports(PCIIDEState *d) {
 
         bmdma_init(&d->bus[i], &d->bmdma[i], d);
         d->bmdma[i].bus = &d->bus[i];
-        qemu_add_vm_change_state_handler(d->bus[i].dma->ops->restart_cb,
-                                         &d->bmdma[i].dma);
+        ide_register_restart_cb(&d->bus[i]);
     }
 }
 
 /* via ide func */
-static int vt82c686b_ide_initfn(PCIDevice *dev)
+static void vt82c686b_ide_realize(PCIDevice *dev, Error **errp)
 {
     PCIIDEState *d = PCI_IDE(dev);
     uint8_t *pci_conf = dev->config;
@@ -187,8 +186,6 @@ static int vt82c686b_ide_initfn(PCIDevice *dev)
     vmstate_register(DEVICE(dev), 0, &vmstate_ide_pci, d);
 
     vt82c686b_init_ports(d);
-
-    return 0;
 }
 
 static void vt82c686b_ide_exitfn(PCIDevice *dev)
@@ -215,7 +212,7 @@ static void via_ide_class_init(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
 
-    k->init = vt82c686b_ide_initfn;
+    k->realize = vt82c686b_ide_realize;
     k->exit = vt82c686b_ide_exitfn;
     k->vendor_id = PCI_VENDOR_ID_VIA;
     k->device_id = PCI_DEVICE_ID_VIA_IDE;

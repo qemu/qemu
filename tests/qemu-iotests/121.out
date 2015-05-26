@@ -1,0 +1,23 @@
+QA output created by 121
+
+=== New refcount structures may not conflict with existing structures ===
+
+--- Test 1 ---
+
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=66060288 preallocation='metadata'
+Image resized.
+wrote 1049600/1049600 bytes at offset 65011712
+1.001 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+wrote 1048576/1048576 bytes at offset 67108864
+1 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+No errors were found on the image.
+
+--- Test 2 ---
+
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=66061312 preallocation='metadata'
+Image resized.
+wrote 133120/133120 bytes at offset 66060288
+130 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+No errors were found on the image.
+
+*** done

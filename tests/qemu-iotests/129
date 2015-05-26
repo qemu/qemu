@@ -1,0 +1,86 @@
+#!/usr/bin/env python
+#
+# Tests that "bdrv_drain_all" doesn't drain block jobs
+#
+# Copyright (C) 2015 Red Hat, Inc.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+
+import os
+import iotests
+import time
+
+class TestStopWithBlockJob(iotests.QMPTestCase):
+    test_img = os.path.join(iotests.test_dir, 'test.img')
+    target_img = os.path.join(iotests.test_dir, 'target.img')
+    base_img = os.path.join(iotests.test_dir, 'base.img')
+
+    def setUp(self):
+        iotests.qemu_img('create', '-f', iotests.imgfmt, self.base_img, "1G")
+        iotests.qemu_img('create', '-f', iotests.imgfmt, self.test_img, "-b", self.base_img)
+        iotests.qemu_io('-f', iotests.imgfmt, '-c', 'write -P0x5d 1M 128M', self.test_img)
+        self.vm = iotests.VM().add_drive(self.test_img)
+        self.vm.launch()
+
+    def tearDown(self):
+        params = {"device": "drive0",
+                  "bps": 0,
+                  "bps_rd": 0,
+                  "bps_wr": 0,
+                  "iops": 0,
+                  "iops_rd": 0,
+                  "iops_wr": 0,
+                 }
+        result = self.vm.qmp("block_set_io_throttle", conv_keys=False,
+                             **params)
+        self.vm.shutdown()
+
+    def do_test_stop(self, cmd, **args):
+        """Test 'stop' while block job is running on a throttled drive.
+        The 'stop' command shouldn't drain the job"""
+        params = {"device": "drive0",
+                  "bps": 1024,
+                  "bps_rd": 0,
+                  "bps_wr": 0,
+                  "iops": 0,
+                  "iops_rd": 0,
+                  "iops_wr": 0,
+                 }
+        result = self.vm.qmp("block_set_io_throttle", conv_keys=False,
+                             **params)
+        self.assert_qmp(result, 'return', {})
+        result = self.vm.qmp(cmd, **args)
+        self.assert_qmp(result, 'return', {})
+        result = self.vm.qmp("stop")
+        self.assert_qmp(result, 'return', {})
+        result = self.vm.qmp("query-block-jobs")
+        self.assert_qmp(result, 'return[0]/busy', True)
+        self.assert_qmp(result, 'return[0]/ready', False)
+
+    def test_drive_mirror(self):
+        self.do_test_stop("drive-mirror", device="drive0",
+                          target=self.target_img,
+                          sync="full")
+
+    def test_drive_backup(self):
+        self.do_test_stop("drive-backup", device="drive0",
+                          target=self.target_img,
+                          sync="full")
+
+    def test_block_commit(self):
+        self.do_test_stop("block-commit", device="drive0")
+
+if __name__ == '__main__':
+    iotests.main(supported_fmts=["qcow2"])

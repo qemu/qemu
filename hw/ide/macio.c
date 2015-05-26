@@ -51,18 +51,213 @@ static const int debug_macio = 0;
 
 #define MACIO_PAGE_SIZE 4096
 
+static void pmac_dma_read(BlockBackend *blk,
+                          int64_t sector_num, int nb_sectors,
+                          void (*cb)(void *opaque, int ret), void *opaque)
+{
+    DBDMA_io *io = opaque;
+    MACIOIDEState *m = io->opaque;
+    IDEState *s = idebus_active_if(&m->bus);
+    dma_addr_t dma_addr, dma_len;
+    void *mem;
+    int nsector, remainder;
+
+    qemu_iovec_destroy(&io->iov);
+    qemu_iovec_init(&io->iov, io->len / MACIO_PAGE_SIZE + 1);
+
+    if (io->remainder_len > 0) {
+        /* Return remainder of request */
+        int transfer = MIN(io->remainder_len, io->len);
+
+        MACIO_DPRINTF("--- DMA read pop     - bounce addr: %p addr: %"
+                      HWADDR_PRIx " remainder_len: %x\n",
+                      &io->remainder + (0x200 - transfer), io->addr,
+                      io->remainder_len);
+
+        cpu_physical_memory_write(io->addr,
+                                  &io->remainder + (0x200 - transfer),
+                                  transfer);
+
+        io->remainder_len -= transfer;
+        io->len -= transfer;
+        io->addr += transfer;
+
+        s->io_buffer_index += transfer;
+        s->io_buffer_size -= transfer;
+
+        if (io->remainder_len != 0) {
+            /* Still waiting for remainder */
+            return;
+        }
+
+        if (io->len == 0) {
+            MACIO_DPRINTF("--- finished all read processing; go and finish\n");
+            cb(opaque, 0);
+            return;
+        }
+    }
+
+    if (s->drive_kind == IDE_CD) {
+        sector_num = (int64_t)(s->lba << 2) + (s->io_buffer_index >> 9);
+    } else {
+        sector_num = ide_get_sector(s) + (s->io_buffer_index >> 9);
+    }
+
+    nsector = ((io->len + 0x1ff) >> 9);
+    remainder = (nsector << 9) - io->len;
+
+    MACIO_DPRINTF("--- DMA read transfer - addr: %" HWADDR_PRIx " len: %x\n",
+                  io->addr, io->len);
+
+    dma_addr = io->addr;
+    dma_len = io->len;
+    mem = dma_memory_map(&address_space_memory, dma_addr, &dma_len,
+                         DMA_DIRECTION_FROM_DEVICE);
+
+    if (!remainder) {
+        MACIO_DPRINTF("--- DMA read aligned - addr: %" HWADDR_PRIx
+                      " len: %x\n", io->addr, io->len);
+        qemu_iovec_add(&io->iov, mem, io->len);
+    } else {
+        MACIO_DPRINTF("--- DMA read unaligned - addr: %" HWADDR_PRIx
+                      " len: %x\n", io->addr, io->len);
+        qemu_iovec_add(&io->iov, mem, io->len);
+
+        MACIO_DPRINTF("--- DMA read push    - bounce addr: %p "
+                      "remainder_len: %x\n",
+                      &io->remainder + 0x200 - remainder, remainder);
+        qemu_iovec_add(&io->iov, &io->remainder + 0x200 - remainder,
+                       remainder);
+
+        io->remainder_len = remainder;
+    }
+
+    s->io_buffer_size -= io->len;
+    s->io_buffer_index += io->len;
+
+    io->len = 0;
+
+    MACIO_DPRINTF("--- Block read transfer   - sector_num: %"PRIx64"  "
+                  "nsector: %x\n",
+                  sector_num, nsector);
+
+    m->aiocb = blk_aio_readv(blk, sector_num, &io->iov, nsector, cb, io);
+}
+
+static void pmac_dma_write(BlockBackend *blk,
+                         int64_t sector_num, int nb_sectors,
+                         void (*cb)(void *opaque, int ret), void *opaque)
+{
+    DBDMA_io *io = opaque;
+    MACIOIDEState *m = io->opaque;
+    IDEState *s = idebus_active_if(&m->bus);
+    dma_addr_t dma_addr, dma_len;
+    void *mem;
+    int nsector, remainder;
+    int extra = 0;
+
+    qemu_iovec_destroy(&io->iov);
+    qemu_iovec_init(&io->iov, io->len / MACIO_PAGE_SIZE + 1);
+
+    if (io->remainder_len > 0) {
+        /* Return remainder of request */
+        int transfer = MIN(io->remainder_len, io->len);
+
+        MACIO_DPRINTF("--- processing write remainder %x\n", transfer);
+        cpu_physical_memory_read(io->addr,
+                                 &io->remainder + (0x200 - transfer),
+                                 transfer);
+
+        io->remainder_len -= transfer;
+        io->len -= transfer;
+        io->addr += transfer;
+
+        s->io_buffer_index += transfer;
+        s->io_buffer_size -= transfer;
+
+        if (io->remainder_len != 0) {
+            /* Still waiting for remainder */
+            return;
+        }
+
+        MACIO_DPRINTF("--> prepending bounce buffer with size 0x200\n");
+
+        /* Sector transfer complete - prepend to request */
+        qemu_iovec_add(&io->iov, &io->remainder, 0x200);
+        extra = 1;
+    }
+
+    if (s->drive_kind == IDE_CD) {
+        sector_num = (int64_t)(s->lba << 2) + (s->io_buffer_index >> 9);
+    } else {
+        sector_num = ide_get_sector(s) + (s->io_buffer_index >> 9);
+    }
+
+    nsector = (io->len >> 9);
+    remainder = io->len - (nsector << 9);
+
+    MACIO_DPRINTF("--- DMA write transfer - addr: %" HWADDR_PRIx " len: %x\n",
+                  io->addr, io->len);
+    MACIO_DPRINTF("xxx remainder: %x\n", remainder);
+    MACIO_DPRINTF("xxx sector_num: %"PRIx64"   nsector: %x\n",
+                  sector_num, nsector);
+
+    dma_addr = io->addr;
+    dma_len = io->len;
+    mem = dma_memory_map(&address_space_memory, dma_addr, &dma_len,
+                         DMA_DIRECTION_TO_DEVICE);
+
+    if (!remainder) {
+        MACIO_DPRINTF("--- DMA write aligned - addr: %" HWADDR_PRIx
+                      " len: %x\n", io->addr, io->len);
+        qemu_iovec_add(&io->iov, mem, io->len);
+    } else {
+        /* Write up to last complete sector */
+        MACIO_DPRINTF("--- DMA write unaligned - addr: %" HWADDR_PRIx
+                      " len: %x\n", io->addr, (nsector << 9));
+        qemu_iovec_add(&io->iov, mem, (nsector << 9));
+
+        MACIO_DPRINTF("--- DMA write read    - bounce addr: %p "
+                      "remainder_len: %x\n", &io->remainder, remainder);
+        cpu_physical_memory_read(io->addr + (nsector << 9), &io->remainder,
+                                 remainder);
+
+        io->remainder_len = 0x200 - remainder;
+
+        MACIO_DPRINTF("xxx remainder_len: %x\n", io->remainder_len);
+    }
+
+    s->io_buffer_size -= ((nsector + extra) << 9);
+    s->io_buffer_index += ((nsector + extra) << 9);
+
+    io->len = 0;
+
+    MACIO_DPRINTF("--- Block write transfer   - sector_num: %"PRIx64"  "
+                  "nsector: %x\n", sector_num, nsector + extra);
+
+    m->aiocb = blk_aio_writev(blk, sector_num, &io->iov, nsector + extra, cb,
+                              io);
+}
+
 static void pmac_ide_atapi_transfer_cb(void *opaque, int ret)
 {
     DBDMA_io *io = opaque;
     MACIOIDEState *m = io->opaque;
     IDEState *s = idebus_active_if(&m->bus);
-    int unaligned;
+    int64_t sector_num;
+    int nsector, remainder;
+
+    MACIO_DPRINTF("\ns is %p\n", s);
+    MACIO_DPRINTF("io_buffer_index: %x\n", s->io_buffer_index);
+    MACIO_DPRINTF("io_buffer_size: %x   packet_transfer_size: %x\n",
+                  s->io_buffer_size, s->packet_transfer_size);
+    MACIO_DPRINTF("lba: %x\n", s->lba);
+    MACIO_DPRINTF("io_addr: %" HWADDR_PRIx "  io_len: %x\n", io->addr,
+                  io->len);
 
     if (ret < 0) {
-        m->aiocb = NULL;
-        qemu_sglist_destroy(&s->sg);
+        MACIO_DPRINTF("THERE WAS AN ERROR!  %d\n", ret);
         ide_atapi_io_error(s, ret);
-        io->remainder_len = 0;
         goto done;
     }
 
@@ -74,105 +269,43 @@ static void pmac_ide_atapi_transfer_cb(void *opaque, int ret)
         return;
     }
 
-    MACIO_DPRINTF("io_buffer_size = %#x\n", s->io_buffer_size);
-
-    if (s->io_buffer_size > 0) {
-        m->aiocb = NULL;
-        qemu_sglist_destroy(&s->sg);
-
-        s->packet_transfer_size -= s->io_buffer_size;
-
-        s->io_buffer_index += s->io_buffer_size;
-        s->lba += s->io_buffer_index >> 11;
-        s->io_buffer_index &= 0x7ff;
-    }
-
-    s->io_buffer_size = MIN(io->len, s->packet_transfer_size);
-
-    MACIO_DPRINTF("remainder: %d io->len: %d size: %d\n", io->remainder_len,
-                  io->len, s->packet_transfer_size);
-    if (io->remainder_len && io->len) {
-        /* guest wants the rest of its previous transfer */
-        int remainder_len = MIN(io->remainder_len, io->len);
-
-        MACIO_DPRINTF("copying remainder %d bytes\n", remainder_len);
-
-        cpu_physical_memory_write(io->addr, io->remainder + 0x200 -
-                                  remainder_len, remainder_len);
-
-        io->addr += remainder_len;
-        io->len -= remainder_len;
-        s->io_buffer_size = remainder_len;
-        io->remainder_len -= remainder_len;
-        /* treat remainder as individual transfer, start again */
-        qemu_sglist_init(&s->sg, DEVICE(m), io->len / MACIO_PAGE_SIZE + 1,
-                         &address_space_memory);
-        pmac_ide_atapi_transfer_cb(opaque, 0);
-        return;
-    }
-
-    if (!s->packet_transfer_size) {
-        MACIO_DPRINTF("end of transfer\n");
+    if (s->io_buffer_size <= 0) {
         ide_atapi_cmd_ok(s);
         m->dma_active = false;
-    }
-
-    if (io->len == 0) {
-        MACIO_DPRINTF("end of DMA\n");
         goto done;
     }
 
-    /* launch next transfer */
-
-    /* handle unaligned accesses first, get them over with and only do the
-       remaining bulk transfer using our async DMA helpers */
-    unaligned = io->len & 0x1ff;
-    if (unaligned) {
-        int sector_num = (s->lba << 2) + (s->io_buffer_index >> 9);
-        int nsector = io->len >> 9;
-
-        MACIO_DPRINTF("precopying unaligned %d bytes to %#" HWADDR_PRIx "\n",
-                      unaligned, io->addr + io->len - unaligned);
-
-        blk_read(s->blk, sector_num + nsector, io->remainder, 1);
-        cpu_physical_memory_write(io->addr + io->len - unaligned,
-                                  io->remainder, unaligned);
-
-        io->len -= unaligned;
+    if (io->len == 0) {
+        MACIO_DPRINTF("End of DMA transfer\n");
+        goto done;
     }
 
-    MACIO_DPRINTF("io->len = %#x\n", io->len);
-
-    qemu_sglist_init(&s->sg, DEVICE(m), io->len / MACIO_PAGE_SIZE + 1,
-                     &address_space_memory);
-    qemu_sglist_add(&s->sg, io->addr, io->len);
-    io->addr += s->io_buffer_size;
-    io->remainder_len = MIN(s->packet_transfer_size - s->io_buffer_size,
-                            (0x200 - unaligned) & 0x1ff);
-    MACIO_DPRINTF("set remainder to: %d\n", io->remainder_len);
-
-    /* We would read no data from the block layer, thus not get a callback.
-       Just fake completion manually. */
-    if (!io->len) {
-        pmac_ide_atapi_transfer_cb(opaque, 0);
-        return;
+    if (s->lba == -1) {
+        /* Non-block ATAPI transfer - just copy to RAM */
+        s->io_buffer_size = MIN(s->io_buffer_size, io->len);
+        cpu_physical_memory_write(io->addr, s->io_buffer, s->io_buffer_size);
+        ide_atapi_cmd_ok(s);
+        m->dma_active = false;
+        goto done;
     }
 
-    io->len = 0;
+    /* Calculate number of sectors */
+    sector_num = (int64_t)(s->lba << 2) + (s->io_buffer_index >> 9);
+    nsector = (io->len + 0x1ff) >> 9;
+    remainder = io->len & 0x1ff;
 
-    MACIO_DPRINTF("sector_num=%d size=%d, cmd_cmd=%d\n",
-                  (s->lba << 2) + (s->io_buffer_index >> 9),
-                  s->packet_transfer_size, s->dma_cmd);
+    MACIO_DPRINTF("nsector: %d   remainder: %x\n", nsector, remainder);
+    MACIO_DPRINTF("sector: %"PRIx64"   %zx\n", sector_num, io->iov.size / 512);
 
-    m->aiocb = dma_blk_read(s->blk, &s->sg,
-                            (int64_t)(s->lba << 2) + (s->io_buffer_index >> 9),
-                            pmac_ide_atapi_transfer_cb, io);
+    pmac_dma_read(s->blk, sector_num, nsector, pmac_ide_atapi_transfer_cb, io);
     return;
 
 done:
-    MACIO_DPRINTF("done DMA\n");
+    MACIO_DPRINTF("done DMA\n\n");
     block_acct_done(blk_get_stats(s->blk), &s->acct);
     io->dma_end(opaque);
+
+    return;
 }
 
 static void pmac_ide_transfer_cb(void *opaque, int ret)
@@ -180,22 +313,17 @@ static void pmac_ide_transfer_cb(void *opaque, int ret)
     DBDMA_io *io = opaque;
     MACIOIDEState *m = io->opaque;
     IDEState *s = idebus_active_if(&m->bus);
-    int n = 0;
     int64_t sector_num;
-    int unaligned;
+    int nsector, remainder;
+
+    MACIO_DPRINTF("pmac_ide_transfer_cb\n");
 
     if (ret < 0) {
         MACIO_DPRINTF("DMA error\n");
         m->aiocb = NULL;
-        qemu_sglist_destroy(&s->sg);
         ide_dma_error(s);
         io->remainder_len = 0;
         goto done;
-    }
-
-    if (--io->requests) {
-        /* More requests still in flight */
-        return;
     }
 
     if (!m->dma_active) {
@@ -206,155 +334,48 @@ static void pmac_ide_transfer_cb(void *opaque, int ret)
         return;
     }
 
-    sector_num = ide_get_sector(s);
-    MACIO_DPRINTF("io_buffer_size = %#x\n", s->io_buffer_size);
-    if (s->io_buffer_size > 0) {
-        m->aiocb = NULL;
-        qemu_sglist_destroy(&s->sg);
-        n = (s->io_buffer_size + 0x1ff) >> 9;
-        sector_num += n;
-        ide_set_sector(s, sector_num);
-        s->nsector -= n;
-    }
-
-    if (io->finish_remain_read) {
-        /* Finish a stale read from the last iteration */
-        io->finish_remain_read = false;
-        cpu_physical_memory_write(io->finish_addr, io->remainder,
-                                  io->finish_len);
-    }
-
-    MACIO_DPRINTF("remainder: %d io->len: %d nsector: %d "
-                  "sector_num: %" PRId64 "\n",
-                  io->remainder_len, io->len, s->nsector, sector_num);
-    if (io->remainder_len && io->len) {
-        /* guest wants the rest of its previous transfer */
-        int remainder_len = MIN(io->remainder_len, io->len);
-        uint8_t *p = &io->remainder[0x200 - remainder_len];
-
-        MACIO_DPRINTF("copying remainder %d bytes at %#" HWADDR_PRIx "\n",
-                      remainder_len, io->addr);
-
-        switch (s->dma_cmd) {
-        case IDE_DMA_READ:
-            cpu_physical_memory_write(io->addr, p, remainder_len);
-            break;
-        case IDE_DMA_WRITE:
-            cpu_physical_memory_read(io->addr, p, remainder_len);
-            break;
-        case IDE_DMA_TRIM:
-            break;
-        }
-        io->addr += remainder_len;
-        io->len -= remainder_len;
-        io->remainder_len -= remainder_len;
-
-        if (s->dma_cmd == IDE_DMA_WRITE && !io->remainder_len) {
-            io->requests++;
-            qemu_iovec_reset(&io->iov);
-            qemu_iovec_add(&io->iov, io->remainder, 0x200);
-
-            m->aiocb = blk_aio_writev(s->blk, sector_num - 1, &io->iov, 1,
-                                      pmac_ide_transfer_cb, io);
-        }
-    }
-
-    if (s->nsector == 0 && !io->remainder_len) {
+    if (s->io_buffer_size <= 0) {
         MACIO_DPRINTF("end of transfer\n");
         s->status = READY_STAT | SEEK_STAT;
         ide_set_irq(s->bus);
         m->dma_active = false;
-    }
-
-    if (io->len == 0) {
-        MACIO_DPRINTF("end of DMA\n");
         goto done;
     }
 
-    /* launch next transfer */
-
-    s->io_buffer_index = 0;
-    s->io_buffer_size = MIN(io->len, s->nsector * 512);
-
-    /* handle unaligned accesses first, get them over with and only do the
-       remaining bulk transfer using our async DMA helpers */
-    unaligned = io->len & 0x1ff;
-    if (unaligned) {
-        int nsector = io->len >> 9;
-
-        MACIO_DPRINTF("precopying unaligned %d bytes to %#" HWADDR_PRIx "\n",
-                      unaligned, io->addr + io->len - unaligned);
-
-        switch (s->dma_cmd) {
-        case IDE_DMA_READ:
-            io->requests++;
-            io->finish_addr = io->addr + io->len - unaligned;
-            io->finish_len = unaligned;
-            io->finish_remain_read = true;
-            qemu_iovec_reset(&io->iov);
-            qemu_iovec_add(&io->iov, io->remainder, 0x200);
-
-            m->aiocb = blk_aio_readv(s->blk, sector_num + nsector, &io->iov, 1,
-                                     pmac_ide_transfer_cb, io);
-            break;
-        case IDE_DMA_WRITE:
-            /* cache the contents in our io struct */
-            cpu_physical_memory_read(io->addr + io->len - unaligned,
-                                     io->remainder + io->remainder_len,
-                                     unaligned);
-            break;
-        case IDE_DMA_TRIM:
-            break;
-        }
+    if (io->len == 0) {
+        MACIO_DPRINTF("End of DMA transfer\n");
+        goto done;
     }
 
-    MACIO_DPRINTF("io->len = %#x\n", io->len);
+    /* Calculate number of sectors */
+    sector_num = ide_get_sector(s) + (s->io_buffer_index >> 9);
+    nsector = (io->len + 0x1ff) >> 9;
+    remainder = io->len & 0x1ff;
 
-    qemu_sglist_init(&s->sg, DEVICE(m), io->len / MACIO_PAGE_SIZE + 1,
-                     &address_space_memory);
-    qemu_sglist_add(&s->sg, io->addr, io->len);
-    io->addr += io->len + unaligned;
-    io->remainder_len = (0x200 - unaligned) & 0x1ff;
-    MACIO_DPRINTF("set remainder to: %d\n", io->remainder_len);
+    s->nsector -= nsector;
 
-    /* Only subsector reads happening */
-    if (!io->len) {
-        if (!io->requests) {
-            io->requests++;
-            pmac_ide_transfer_cb(opaque, ret);
-        }
-        return;
-    }
-
-    io->len = 0;
-
-    MACIO_DPRINTF("sector_num=%" PRId64 " n=%d, nsector=%d, cmd_cmd=%d\n",
-                  sector_num, n, s->nsector, s->dma_cmd);
+    MACIO_DPRINTF("nsector: %d   remainder: %x\n", nsector, remainder);
+    MACIO_DPRINTF("sector: %"PRIx64"   %x\n", sector_num, nsector);
 
     switch (s->dma_cmd) {
     case IDE_DMA_READ:
-        m->aiocb = dma_blk_read(s->blk, &s->sg, sector_num,
-                                pmac_ide_transfer_cb, io);
+        pmac_dma_read(s->blk, sector_num, nsector, pmac_ide_transfer_cb, io);
         break;
     case IDE_DMA_WRITE:
-        m->aiocb = dma_blk_write(s->blk, &s->sg, sector_num,
-                                 pmac_ide_transfer_cb, io);
+        pmac_dma_write(s->blk, sector_num, nsector, pmac_ide_transfer_cb, io);
         break;
     case IDE_DMA_TRIM:
-        m->aiocb = dma_blk_io(s->blk, &s->sg, sector_num,
-                              ide_issue_trim, pmac_ide_transfer_cb, io,
-                              DMA_DIRECTION_TO_DEVICE);
+        MACIO_DPRINTF("TRIM command issued!");
         break;
     }
 
-    io->requests++;
     return;
 
 done:
     if (s->dma_cmd == IDE_DMA_READ || s->dma_cmd == IDE_DMA_WRITE) {
         block_acct_done(blk_get_stats(s->blk), &s->acct);
     }
-    io->dma_end(io);
+    io->dma_end(opaque);
 }
 
 static void pmac_ide_transfer(DBDMA_io *io)
@@ -364,31 +385,10 @@ static void pmac_ide_transfer(DBDMA_io *io)
 
     MACIO_DPRINTF("\n");
 
-    s->io_buffer_size = 0;
     if (s->drive_kind == IDE_CD) {
-
-        /* Handle non-block ATAPI DMA transfers */
-        if (s->lba == -1) {
-            s->io_buffer_size = MIN(io->len, s->packet_transfer_size);
-            block_acct_start(blk_get_stats(s->blk), &s->acct, s->io_buffer_size,
-                             BLOCK_ACCT_READ);
-            MACIO_DPRINTF("non-block ATAPI DMA transfer size: %d\n",
-                          s->io_buffer_size);
-
-            /* Copy ATAPI buffer directly to RAM and finish */
-            cpu_physical_memory_write(io->addr, s->io_buffer,
-                                      s->io_buffer_size);
-            ide_atapi_cmd_ok(s);
-            m->dma_active = false;
-
-            MACIO_DPRINTF("end of non-block ATAPI DMA transfer\n");
-            block_acct_done(blk_get_stats(s->blk), &s->acct);
-            io->dma_end(io);
-            return;
-        }
-
         block_acct_start(blk_get_stats(s->blk), &s->acct, io->len,
                          BLOCK_ACCT_READ);
+
         pmac_ide_atapi_transfer_cb(io, 0);
         return;
     }
@@ -406,7 +406,6 @@ static void pmac_ide_transfer(DBDMA_io *io)
         break;
     }
 
-    io->requests++;
     pmac_ide_transfer_cb(io, 0);
 }
 
@@ -558,14 +557,34 @@ static int32_t ide_nop_int32(IDEDMA *dma, int x)
     return 0;
 }
 
-static void ide_nop_restart(void *opaque, int x, RunState y)
-{
-}
-
 static void ide_dbdma_start(IDEDMA *dma, IDEState *s,
                             BlockCompletionFunc *cb)
 {
     MACIOIDEState *m = container_of(dma, MACIOIDEState, dma);
+    DBDMAState *dbdma = m->dbdma;
+    DBDMA_io *io;
+    int i;
+
+    s->io_buffer_index = 0;
+    if (s->drive_kind == IDE_CD) {
+        s->io_buffer_size = s->packet_transfer_size;
+    } else {
+        s->io_buffer_size = s->nsector * 0x200;
+    }
+
+    MACIO_DPRINTF("\n\n------------ IDE transfer\n");
+    MACIO_DPRINTF("buffer_size: %x   buffer_index: %x\n",
+                  s->io_buffer_size, s->io_buffer_index);
+    MACIO_DPRINTF("lba: %x    size: %x\n", s->lba, s->io_buffer_size);
+    MACIO_DPRINTF("-------------------------\n");
+
+    for (i = 0; i < DBDMA_CHANNELS; i++) {
+        io = &dbdma->channels[i].io;
+
+        if (io->opaque == m) {
+            io->remainder_len = 0;
+        }
+    }
 
     MACIO_DPRINTF("\n");
     m->dma_active = true;
@@ -576,8 +595,6 @@ static const IDEDMAOps dbdma_ops = {
     .start_dma      = ide_dbdma_start,
     .prepare_buf    = ide_nop_int32,
     .rw_buf         = ide_nop_int,
-    .set_unit       = ide_nop_int,
-    .restart_cb     = ide_nop_restart,
 };
 
 static void macio_ide_realizefn(DeviceState *dev, Error **errp)

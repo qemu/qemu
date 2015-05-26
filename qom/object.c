@@ -1543,6 +1543,85 @@ void object_property_add_bool(Object *obj, const char *name,
     }
 }
 
+typedef struct TMProperty {
+    void (*get)(Object *, struct tm *, Error **);
+} TMProperty;
+
+static void property_get_tm(Object *obj, Visitor *v, void *opaque,
+                            const char *name, Error **errp)
+{
+    TMProperty *prop = opaque;
+    Error *err = NULL;
+    struct tm value;
+
+    prop->get(obj, &value, &err);
+    if (err) {
+        goto out;
+    }
+
+    visit_start_struct(v, NULL, "struct tm", name, 0, &err);
+    if (err) {
+        goto out;
+    }
+    visit_type_int32(v, &value.tm_year, "tm_year", &err);
+    if (err) {
+        goto out_end;
+    }
+    visit_type_int32(v, &value.tm_mon, "tm_mon", &err);
+    if (err) {
+        goto out_end;
+    }
+    visit_type_int32(v, &value.tm_mday, "tm_mday", &err);
+    if (err) {
+        goto out_end;
+    }
+    visit_type_int32(v, &value.tm_hour, "tm_hour", &err);
+    if (err) {
+        goto out_end;
+    }
+    visit_type_int32(v, &value.tm_min, "tm_min", &err);
+    if (err) {
+        goto out_end;
+    }
+    visit_type_int32(v, &value.tm_sec, "tm_sec", &err);
+    if (err) {
+        goto out_end;
+    }
+out_end:
+    error_propagate(errp, err);
+    err = NULL;
+    visit_end_struct(v, errp);
+out:
+    error_propagate(errp, err);
+
+}
+
+static void property_release_tm(Object *obj, const char *name,
+                                void *opaque)
+{
+    TMProperty *prop = opaque;
+    g_free(prop);
+}
+
+void object_property_add_tm(Object *obj, const char *name,
+                            void (*get)(Object *, struct tm *, Error **),
+                            Error **errp)
+{
+    Error *local_err = NULL;
+    TMProperty *prop = g_malloc0(sizeof(*prop));
+
+    prop->get = get;
+
+    object_property_add(obj, name, "struct tm",
+                        get ? property_get_tm : NULL, NULL,
+                        property_release_tm,
+                        prop, &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        g_free(prop);
+    }
+}
+
 static char *qdev_get_type(Object *obj, Error **errp)
 {
     return g_strdup(object_get_typename(obj));
@@ -1682,7 +1761,7 @@ void object_property_add_alias(Object *obj, const char *name,
     }
     op->resolve = property_resolve_alias;
 
-    object_property_set_description(obj, name,
+    object_property_set_description(obj, op->name,
                                     target_prop->description,
                                     &error_abort);
 

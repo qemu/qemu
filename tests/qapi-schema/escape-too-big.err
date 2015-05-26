@@ -1,0 +1,1 @@
+tests/qapi-schema/escape-too-big.json:3:14: For now, \u escape only supports non-zero values up to \u007f

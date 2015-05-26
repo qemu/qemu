@@ -91,6 +91,7 @@ static struct {
 
 static struct {
     const char *loc_pfx, *bank, *manufacturer, *serial, *asset, *part;
+    uint16_t speed;
 } type17;
 
 static QemuOptsList qemu_smbios_opts = {
@@ -304,6 +305,10 @@ static const QemuOptDesc qemu_smbios_type17_opts[] = {
         .name = "part",
         .type = QEMU_OPT_STRING,
         .help = "part number",
+    },{
+        .name = "speed",
+        .type = QEMU_OPT_NUMBER,
+        .help = "maximum capable speed",
     },
     { /* end of list */ }
 };
@@ -697,13 +702,13 @@ static void smbios_build_type_17_table(unsigned instance, uint64_t size)
     SMBIOS_TABLE_SET_STR(17, bank_locator_str, type17.bank);
     t->memory_type = 0x07; /* RAM */
     t->type_detail = cpu_to_le16(0x02); /* Other */
-    t->speed = cpu_to_le16(0); /* Unknown */
+    t->speed = cpu_to_le16(type17.speed);
     SMBIOS_TABLE_SET_STR(17, manufacturer_str, type17.manufacturer);
     SMBIOS_TABLE_SET_STR(17, serial_number_str, type17.serial);
     SMBIOS_TABLE_SET_STR(17, asset_tag_number_str, type17.asset);
     SMBIOS_TABLE_SET_STR(17, part_number_str, type17.part);
     t->attributes = 0; /* Unknown */
-    t->configured_clock_speed = cpu_to_le16(0); /* Unknown */
+    t->configured_clock_speed = t->speed; /* reuse value for max speed */
     t->minimum_voltage = cpu_to_le16(0); /* Unknown */
     t->maximum_voltage = cpu_to_le16(0); /* Unknown */
     t->configured_voltage = cpu_to_le16(0); /* Unknown */
@@ -908,7 +913,7 @@ void smbios_entry_add(QemuOpts *opts)
 
         qemu_opts_validate(opts, qemu_smbios_file_opts, &local_err);
         if (local_err) {
-            error_report("%s", error_get_pretty(local_err));
+            error_report_err(local_err);
             exit(1);
         }
 
@@ -994,7 +999,7 @@ void smbios_entry_add(QemuOpts *opts)
         case 0:
             qemu_opts_validate(opts, qemu_smbios_type0_opts, &local_err);
             if (local_err) {
-                error_report("%s", error_get_pretty(local_err));
+                error_report_err(local_err);
                 exit(1);
             }
             save_opt(&type0.vendor, opts, "vendor");
@@ -1014,7 +1019,7 @@ void smbios_entry_add(QemuOpts *opts)
         case 1:
             qemu_opts_validate(opts, qemu_smbios_type1_opts, &local_err);
             if (local_err) {
-                error_report("%s", error_get_pretty(local_err));
+                error_report_err(local_err);
                 exit(1);
             }
             save_opt(&type1.manufacturer, opts, "manufacturer");
@@ -1036,7 +1041,7 @@ void smbios_entry_add(QemuOpts *opts)
         case 2:
             qemu_opts_validate(opts, qemu_smbios_type2_opts, &local_err);
             if (local_err) {
-                error_report("%s", error_get_pretty(local_err));
+                error_report_err(local_err);
                 exit(1);
             }
             save_opt(&type2.manufacturer, opts, "manufacturer");
@@ -1049,7 +1054,7 @@ void smbios_entry_add(QemuOpts *opts)
         case 3:
             qemu_opts_validate(opts, qemu_smbios_type3_opts, &local_err);
             if (local_err) {
-                error_report("%s", error_get_pretty(local_err));
+                error_report_err(local_err);
                 exit(1);
             }
             save_opt(&type3.manufacturer, opts, "manufacturer");
@@ -1061,7 +1066,7 @@ void smbios_entry_add(QemuOpts *opts)
         case 4:
             qemu_opts_validate(opts, qemu_smbios_type4_opts, &local_err);
             if (local_err) {
-                error_report("%s", error_get_pretty(local_err));
+                error_report_err(local_err);
                 exit(1);
             }
             save_opt(&type4.sock_pfx, opts, "sock_pfx");
@@ -1074,7 +1079,7 @@ void smbios_entry_add(QemuOpts *opts)
         case 17:
             qemu_opts_validate(opts, qemu_smbios_type17_opts, &local_err);
             if (local_err) {
-                error_report("%s", error_get_pretty(local_err));
+                error_report_err(local_err);
                 exit(1);
             }
             save_opt(&type17.loc_pfx, opts, "loc_pfx");
@@ -1083,6 +1088,7 @@ void smbios_entry_add(QemuOpts *opts)
             save_opt(&type17.serial, opts, "serial");
             save_opt(&type17.asset, opts, "asset");
             save_opt(&type17.part, opts, "part");
+            type17.speed = qemu_opt_get_number(opts, "speed", 0);
             return;
         default:
             error_report("Don't know how to build fields for SMBIOS type %ld",

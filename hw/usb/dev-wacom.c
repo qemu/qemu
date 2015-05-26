@@ -56,6 +56,9 @@ typedef struct USBWacomState {
     int changed;
 } USBWacomState;
 
+#define TYPE_USB_WACOM "usb-wacom-tablet"
+#define USB_WACOM(obj) OBJECT_CHECK(USBWacomState, (obj), TYPE_USB_WACOM)
+
 enum {
     STR_MANUFACTURER = 1,
     STR_PRODUCT,
@@ -337,7 +340,7 @@ static void usb_wacom_handle_destroy(USBDevice *dev)
 
 static void usb_wacom_realize(USBDevice *dev, Error **errp)
 {
-    USBWacomState *s = DO_UPCAST(USBWacomState, dev, dev);
+    USBWacomState *s = USB_WACOM(dev);
     usb_desc_create_serial(dev);
     usb_desc_init(dev);
     s->intr = usb_ep_get(dev, USB_TOKEN_IN, 1);
@@ -367,7 +370,7 @@ static void usb_wacom_class_init(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo wacom_info = {
-    .name          = "usb-wacom-tablet",
+    .name          = TYPE_USB_WACOM,
     .parent        = TYPE_USB_DEVICE,
     .instance_size = sizeof(USBWacomState),
     .class_init    = usb_wacom_class_init,
@@ -376,7 +379,7 @@ static const TypeInfo wacom_info = {
 static void usb_wacom_register_types(void)
 {
     type_register_static(&wacom_info);
-    usb_legacy_register("usb-wacom-tablet", "wacom-tablet", NULL);
+    usb_legacy_register(TYPE_USB_WACOM, "wacom-tablet", NULL);
 }
 
 type_init(usb_wacom_register_types)

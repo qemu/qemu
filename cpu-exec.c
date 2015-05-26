@@ -24,6 +24,9 @@
 #include "qemu/atomic.h"
 #include "sysemu/qtest.h"
 #include "qemu/timer.h"
+#include "exec/address-spaces.h"
+#include "exec/memory-internal.h"
+#include "qemu/rcu.h"
 
 /* -icount align implementation. */
 
@@ -140,6 +143,33 @@ void cpu_resume_from_signal(CPUState *cpu, void *puc)
 
     cpu->exception_index = -1;
     siglongjmp(cpu->jmp_env, 1);
+}
+
+void cpu_reload_memory_map(CPUState *cpu)
+{
+    AddressSpaceDispatch *d;
+
+    if (qemu_in_vcpu_thread()) {
+        /* Do not let the guest prolong the critical section as much as it
+         * as it desires.
+         *
+         * Currently, this is prevented by the I/O thread's periodinc kicking
+         * of the VCPU thread (iothread_requesting_mutex, qemu_cpu_kick_thread)
+         * but this will go away once TCG's execution moves out of the global
+         * mutex.
+         *
+         * This pair matches cpu_exec's rcu_read_lock()/rcu_read_unlock(), which
+         * only protects cpu->as->dispatch.  Since we reload it below, we can
+         * split the critical section.
+         */
+        rcu_read_unlock();
+        rcu_read_lock();
+    }
+
+    /* The CPU and TLB are protected by the iothread lock.  */
+    d = atomic_rcu_read(&cpu->as->dispatch);
+    cpu->memory_dispatch = d;
+    tlb_flush(cpu, 1);
 }
 #endif
 
@@ -352,6 +382,8 @@ int cpu_exec(CPUArchState *env)
      * an instruction scheduling constraint on modern architectures.  */
     smp_mb();
 
+    rcu_read_lock();
+
     if (unlikely(exit_request)) {
         cpu->exit_request = 1;
     }
@@ -548,6 +580,7 @@ int cpu_exec(CPUArchState *env)
     } /* for(;;) */
 
     cc->cpu_exec_exit(cpu);
+    rcu_read_unlock();
 
     /* fail safe : never use current_cpu outside cpu_exec() */
     current_cpu = NULL;

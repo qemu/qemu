@@ -1,0 +1,7 @@
+# we do not allow array branches in alternates
+# TODO: should we support this?
+{ 'struct': 'One',
+  'data': { 'name': 'str' } }
+{ 'alternate': 'Alt',
+  'data': { 'one': 'One',
+            'two': [ 'int' ] } }

@@ -111,7 +111,7 @@ static void arm_cpu_reset(CPUState *s)
         /* Userspace expects access to DC ZVA, CTL_EL0 and the cache ops */
         env->cp15.sctlr_el[1] |= SCTLR_UCT | SCTLR_UCI | SCTLR_DZE;
         /* and to the FP/Neon instructions */
-        env->cp15.c1_coproc = deposit64(env->cp15.c1_coproc, 20, 2, 3);
+        env->cp15.cpacr_el1 = deposit64(env->cp15.cpacr_el1, 20, 2, 3);
 #else
         /* Reset into the highest available EL */
         if (arm_feature(env, ARM_FEATURE_EL3)) {
@@ -126,7 +126,7 @@ static void arm_cpu_reset(CPUState *s)
     } else {
 #if defined(CONFIG_USER_ONLY)
         /* Userspace expects access to cp10 and cp11 for FP/Neon */
-        env->cp15.c1_coproc = deposit64(env->cp15.c1_coproc, 20, 4, 0xf);
+        env->cp15.cpacr_el1 = deposit64(env->cp15.cpacr_el1, 20, 4, 0xf);
 #endif
     }
 
@@ -524,9 +524,10 @@ static void arm_cpu_realizefn(DeviceState *dev, Error **errp)
         unset_feature(env, ARM_FEATURE_EL3);
 
         /* Disable the security extension feature bits in the processor feature
-         * register as well.  This is id_pfr1[7:4].
+         * registers as well. These are id_pfr1[7:4] and id_aa64pfr0[15:12].
          */
         cpu->id_pfr1 &= ~0xf0;
+        cpu->id_aa64pfr0 &= ~0xf000;
     }
 
     register_cp_regs_for_features(cpu);

@@ -82,11 +82,14 @@ static inline void arm_log_exception(int idx)
 
 /*
  * For AArch64, map a given EL to an index in the banked_spsr array.
+ * Note that this mapping and the AArch32 mapping defined in bank_number()
+ * must agree such that the AArch64<->AArch32 SPSRs have the architecturally
+ * mandated mapping between each other.
  */
 static inline unsigned int aarch64_banked_spsr_index(unsigned int el)
 {
     static const unsigned int map[4] = {
-        [1] = 0, /* EL1.  */
+        [1] = 1, /* EL1.  */
         [2] = 6, /* EL2.  */
         [3] = 7, /* EL3.  */
     };
@@ -342,6 +345,12 @@ static inline uint32_t syn_breakpoint(int same_el)
 {
     return (EC_BREAKPOINT << ARM_EL_EC_SHIFT) | (same_el << ARM_EL_EC_SHIFT)
         | ARM_EL_IL | 0x22;
+}
+
+static inline uint32_t syn_wfx(int cv, int cond, int ti)
+{
+    return (EC_WFX_TRAP << ARM_EL_EC_SHIFT) |
+           (cv << 24) | (cond << 20) | ti;
 }
 
 /* Update a QEMU watchpoint based on the information the guest has set in the

@@ -23,12 +23,6 @@
  */
 /* Ported SDL 1.2 code to 2.0 by Dave Airlie. */
 
-/* Avoid compiler warning because macro is redefined in SDL_syswm.h. */
-#undef WIN32_LEAN_AND_MEAN
-
-#include <SDL.h>
-#include <SDL_syswm.h>
-
 #include "qemu-common.h"
 #include "ui/console.h"
 #include "ui/input.h"
@@ -92,6 +86,9 @@ void sdl2_window_create(struct sdl2_console *scon)
                                          surface_height(scon->surface),
                                          flags);
     scon->real_renderer = SDL_CreateRenderer(scon->real_window, -1, 0);
+    if (scon->opengl) {
+        scon->winctx = SDL_GL_GetCurrentContext();
+    }
     sdl_update_caption(scon);
 }
 
@@ -116,6 +113,17 @@ void sdl2_window_resize(struct sdl2_console *scon)
     SDL_SetWindowSize(scon->real_window,
                       surface_width(scon->surface),
                       surface_height(scon->surface));
+}
+
+static void sdl2_redraw(struct sdl2_console *scon)
+{
+    if (scon->opengl) {
+#ifdef CONFIG_OPENGL
+        sdl2_gl_redraw(scon);
+#endif
+    } else {
+        sdl2_2d_redraw(scon);
+    }
 }
 
 static void sdl_update_caption(struct sdl2_console *scon)
@@ -316,7 +324,7 @@ static void toggle_full_screen(struct sdl2_console *scon)
         }
         SDL_SetWindowFullscreen(scon->real_window, 0);
     }
-    sdl2_2d_redraw(scon);
+    sdl2_redraw(scon);
 }
 
 static void handle_keydown(SDL_Event *ev)
@@ -364,8 +372,10 @@ static void handle_keydown(SDL_Event *ev)
         case SDL_SCANCODE_U:
             sdl2_window_destroy(scon);
             sdl2_window_create(scon);
-            /* re-create texture */
-            sdl2_2d_switch(&scon->dcl, scon->surface);
+            if (!scon->opengl) {
+                /* re-create scon->texture */
+                sdl2_2d_switch(&scon->dcl, scon->surface);
+            }
             gui_keysym = 1;
             break;
 #if 0
@@ -384,7 +394,7 @@ static void handle_keydown(SDL_Event *ev)
                 fprintf(stderr, "%s: scale to %dx%d\n",
                         __func__, width, height);
                 sdl_scale(scon, width, height);
-                sdl2_2d_redraw(scon);
+                sdl2_redraw(scon);
                 gui_keysym = 1;
             }
 #endif
@@ -520,10 +530,10 @@ static void handle_windowevent(SDL_Event *ev)
             info.height = ev->window.data2;
             dpy_set_ui_info(scon->dcl.con, &info);
         }
-        sdl2_2d_redraw(scon);
+        sdl2_redraw(scon);
         break;
     case SDL_WINDOWEVENT_EXPOSED:
-        sdl2_2d_redraw(scon);
+        sdl2_redraw(scon);
         break;
     case SDL_WINDOWEVENT_FOCUS_GAINED:
     case SDL_WINDOWEVENT_ENTER:
@@ -677,6 +687,35 @@ static const DisplayChangeListenerOps dcl_2d_ops = {
     .dpy_cursor_define    = sdl_mouse_define,
 };
 
+#ifdef CONFIG_OPENGL
+static const DisplayChangeListenerOps dcl_gl_ops = {
+    .dpy_name                = "sdl2-gl",
+    .dpy_gfx_update          = sdl2_gl_update,
+    .dpy_gfx_switch          = sdl2_gl_switch,
+    .dpy_gfx_check_format    = console_gl_check_format,
+    .dpy_refresh             = sdl2_gl_refresh,
+    .dpy_mouse_set           = sdl_mouse_warp,
+    .dpy_cursor_define       = sdl_mouse_define,
+};
+#endif
+
+void sdl_display_early_init(int opengl)
+{
+    switch (opengl) {
+    case -1: /* default */
+    case 0:  /* off */
+        break;
+    case 1: /* on */
+#ifdef CONFIG_OPENGL
+        display_opengl = 1;
+#endif
+        break;
+    default:
+        g_assert_not_reached();
+        break;
+    }
+}
+
 void sdl_display_init(DisplayState *ds, int full_screen, int no_frame)
 {
     int flags;
@@ -722,10 +761,16 @@ void sdl_display_init(DisplayState *ds, int full_screen, int no_frame)
         if (!qemu_console_is_graphic(con)) {
             sdl2_console[i].hidden = true;
         }
+        sdl2_console[i].idx = i;
+#ifdef CONFIG_OPENGL
+        sdl2_console[i].opengl = display_opengl;
+        sdl2_console[i].dcl.ops = display_opengl ? &dcl_gl_ops : &dcl_2d_ops;
+#else
+        sdl2_console[i].opengl = 0;
         sdl2_console[i].dcl.ops = &dcl_2d_ops;
+#endif
         sdl2_console[i].dcl.con = con;
         register_displaychangelistener(&sdl2_console[i].dcl);
-        sdl2_console[i].idx = i;
     }
 
     /* Load a 32x32x4 image. White pixels are transparent. */

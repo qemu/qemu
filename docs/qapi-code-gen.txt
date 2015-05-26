@@ -1,61 +1,193 @@
 = How to use the QAPI code generator =
 
+Copyright IBM Corp. 2011
+Copyright (C) 2012-2015 Red Hat, Inc.
+
+This work is licensed under the terms of the GNU GPL, version 2 or
+later. See the COPYING file in the top-level directory.
+
+== Introduction ==
+
 QAPI is a native C API within QEMU which provides management-level
-functionality to internal/external users. For external
-users/processes, this interface is made available by a JSON-based
-QEMU Monitor protocol that is provided by the QMP server.
+functionality to internal and external users. For external
+users/processes, this interface is made available by a JSON-based wire
+format for the QEMU Monitor Protocol (QMP) for controlling qemu, as
+well as the QEMU Guest Agent (QGA) for communicating with the guest.
+The remainder of this document uses "Client JSON Protocol" when
+referring to the wire contents of a QMP or QGA connection.
 
-To map QMP-defined interfaces to the native C QAPI implementations,
-a JSON-based schema is used to define types and function
-signatures, and a set of scripts is used to generate types/signatures,
-and marshaling/dispatch code. The QEMU Guest Agent also uses these
-scripts, paired with a separate schema, to generate
-marshaling/dispatch code for the guest agent server running in the
-guest.
-
-This document will describe how the schemas, scripts, and resulting
-code are used.
+To map Client JSON Protocol interfaces to the native C QAPI
+implementations, a JSON-based schema is used to define types and
+function signatures, and a set of scripts is used to generate types,
+signatures, and marshaling/dispatch code. This document will describe
+how the schemas, scripts, and resulting code are used.
 
 
 == QMP/Guest agent schema ==
 
-This file defines the types, commands, and events used by QMP.  It should
-fully describe the interface used by QMP.
+A QAPI schema file is designed to be loosely based on JSON
+(http://www.ietf.org/rfc/rfc7159.txt) with changes for quoting style
+and the use of comments; a QAPI schema file is then parsed by a python
+code generation program.  A valid QAPI schema consists of a series of
+top-level expressions, with no commas between them.  Where
+dictionaries (JSON objects) are used, they are parsed as python
+OrderedDicts so that ordering is preserved (for predictable layout of
+generated C structs and parameter lists).  Ordering doesn't matter
+between top-level expressions or the keys within an expression, but
+does matter within dictionary values for 'data' and 'returns' members
+of a single expression.  QAPI schema input is written using 'single
+quotes' instead of JSON's "double quotes" (in contrast, Client JSON
+Protocol uses no comments, and while input accepts 'single quotes' as
+an extension, output is strict JSON using only "double quotes").  As
+in JSON, trailing commas are not permitted in arrays or dictionaries.
+Input must be ASCII (although QMP supports full Unicode strings, the
+QAPI parser does not).  At present, there is no place where a QAPI
+schema requires the use of JSON numbers or null.
 
-This file is designed to be loosely based on JSON although it's technically
-executable Python.  While dictionaries are used, they are parsed as
-OrderedDicts so that ordering is preserved.
+Comments are allowed; anything between an unquoted # and the following
+newline is ignored.  Although there is not yet a documentation
+generator, a form of stylized comments has developed for consistently
+documenting details about an expression and when it was added to the
+schema.  The documentation is delimited between two lines of ##, then
+the first line names the expression, an optional overview is provided,
+then individual documentation about each member of 'data' is provided,
+and finally, a 'Since: x.y.z' tag lists the release that introduced
+the expression.  Optional fields are tagged with the phrase
+'#optional', often with their default value; and extensions added
+after the expression was first released are also given a '(since
+x.y.z)' comment.  For example:
 
-There are two basic syntaxes used, type definitions and command definitions.
+    ##
+    # @BlockStats:
+    #
+    # Statistics of a virtual block device or a block backing device.
+    #
+    # @device: #optional If the stats are for a virtual block device, the name
+    #          corresponding to the virtual block device.
+    #
+    # @stats:  A @BlockDeviceStats for the device.
+    #
+    # @parent: #optional This describes the file block device if it has one.
+    #
+    # @backing: #optional This describes the backing block device if it has one.
+    #           (Since 2.0)
+    #
+    # Since: 0.14.0
+    ##
+    { 'struct': 'BlockStats',
+      'data': {'*device': 'str', 'stats': 'BlockDeviceStats',
+               '*parent': 'BlockStats',
+               '*backing': 'BlockStats'} }
 
-The first syntax defines a type and is represented by a dictionary.  There are
-three kinds of user-defined types that are supported: complex types,
-enumeration types and union types.
+The schema sets up a series of types, as well as commands and events
+that will use those types.  Forward references are allowed: the parser
+scans in two passes, where the first pass learns all type names, and
+the second validates the schema and generates the code.  This allows
+the definition of complex structs that can have mutually recursive
+types, and allows for indefinite nesting of Client JSON Protocol that
+satisfies the schema.  A type name should not be defined more than
+once.  It is permissible for the schema to contain additional types
+not used by any commands or events in the Client JSON Protocol, for
+the side effect of generated C code used internally.
 
-Generally speaking, types definitions should always use CamelCase for the type
-names. Command names should be all lower case with words separated by a hyphen.
+There are seven top-level expressions recognized by the parser:
+'include', 'command', 'struct', 'enum', 'union', 'alternate', and
+'event'.  There are several groups of types: simple types (a number of
+built-in types, such as 'int' and 'str'; as well as enumerations),
+complex types (structs and two flavors of unions), and alternate types
+(a choice between other types).  The 'command' and 'event' expressions
+can refer to existing types by name, or list an anonymous type as a
+dictionary. Listing a type name inside an array refers to a
+single-dimension array of that type; multi-dimension arrays are not
+directly supported (although an array of a complex struct that
+contains an array member is possible).
+
+Types, commands, and events share a common namespace.  Therefore,
+generally speaking, type definitions should always use CamelCase for
+user-defined type names, while built-in types are lowercase. Type
+definitions should not end in 'Kind', as this namespace is used for
+creating implicit C enums for visiting union types.  Command names,
+and field names within a type, should be all lower case with words
+separated by a hyphen.  However, some existing older commands and
+complex types use underscore; when extending such expressions,
+consistency is preferred over blindly avoiding underscore.  Event
+names should be ALL_CAPS with words separated by underscore.  The
+special string '**' appears for some commands that manually perform
+their own type checking rather than relying on the type-safe code
+produced by the qapi code generators.
+
+Any name (command, event, type, field, or enum value) beginning with
+"x-" is marked experimental, and may be withdrawn or changed
+incompatibly in a future release.  Downstream vendors may add
+extensions; such extensions should begin with a prefix matching
+"__RFQDN_" (for the reverse-fully-qualified-domain-name of the
+vendor), even if the rest of the name uses dash (example:
+__com.redhat_drive-mirror).  Other than downstream extensions (with
+leading underscore and the use of dots), all names should begin with a
+letter, and contain only ASCII letters, digits, dash, and underscore.
+It is okay to reuse names that match C keywords; the generator will
+rename a field named "default" in the QAPI to "q_default" in the
+generated C code.
+
+In the rest of this document, usage lines are given for each
+expression type, with literal strings written in lower case and
+placeholders written in capitals.  If a literal string includes a
+prefix of '*', that key/value pair can be omitted from the expression.
+For example, a usage statement that includes '*base':STRUCT-NAME
+means that an expression has an optional key 'base', which if present
+must have a value that forms a struct name.
+
+
+=== Built-in Types ===
+
+The following types are built-in to the parser:
+  'str' - arbitrary UTF-8 string
+  'int' - 64-bit signed integer (although the C code may place further
+          restrictions on acceptable range)
+  'number' - floating point number
+  'bool' - JSON value of true or false
+  'int8', 'int16', 'int32', 'int64' - like 'int', but enforce maximum
+                                      bit size
+  'uint8', 'uint16', 'uint32', 'uint64' - unsigned counterparts
+  'size' - like 'uint64', but allows scaled suffix from command line
+           visitor
 
 
 === Includes ===
 
+Usage: { 'include': STRING }
+
 The QAPI schema definitions can be modularized using the 'include' directive:
 
- { 'include': 'path/to/file.json'}
+ { 'include': 'path/to/file.json' }
 
 The directive is evaluated recursively, and include paths are relative to the
-file using the directive. Multiple includes of the same file are safe.
+file using the directive. Multiple includes of the same file are
+safe.  No other keys should appear in the expression, and the include
+value should be a string.
+
+As a matter of style, it is a good idea to have all files be
+self-contained, but at the moment, nothing prevents an included file
+from making a forward reference to a type that is only introduced by
+an outer file.  The parser may be made stricter in the future to
+prevent incomplete include files.
 
 
-=== Complex types ===
+=== Struct types ===
 
-A complex type is a dictionary containing a single key whose value is a
-dictionary.  This corresponds to a struct in C or an Object in JSON.  An
-example of a complex type is:
+Usage: { 'struct': STRING, 'data': DICT, '*base': STRUCT-NAME }
 
- { 'type': 'MyType',
+A struct is a dictionary containing a single 'data' key whose
+value is a dictionary.  This corresponds to a struct in C or an Object
+in JSON. Each value of the 'data' dictionary must be the name of a
+type, or a one-element array containing a type name.  An example of a
+struct is:
+
+ { 'struct': 'MyType',
    'data': { 'member1': 'str', 'member2': 'int', '*member3': 'str' } }
 
-The use of '*' as a prefix to the name means the member is optional.
+The use of '*' as a prefix to the name means the member is optional in
+the corresponding JSON protocol usage.
 
 The default initialization value of an optional argument should not be changed
 between versions of QEMU unless the new default maintains backward
@@ -84,13 +216,13 @@ A structure that is used in both input and output of various commands
 must consider the backwards compatibility constraints of both directions
 of use.
 
-A complex type definition can specify another complex type as its base.
+A struct definition can specify another struct as its base.
 In this case, the fields of the base type are included as top-level fields
-of the new complex type's dictionary in the QMP wire format. An example
-definition is:
+of the new struct's dictionary in the Client JSON Protocol wire
+format. An example definition is:
 
- { 'type': 'BlockdevOptionsGenericFormat', 'data': { 'file': 'str' } }
- { 'type': 'BlockdevOptionsGenericCOWFormat',
+ { 'struct': 'BlockdevOptionsGenericFormat', 'data': { 'file': 'str' } }
+ { 'struct': 'BlockdevOptionsGenericCOWFormat',
    'base': 'BlockdevOptionsGenericFormat',
    'data': { '*backing': 'str' } }
 
@@ -100,97 +232,158 @@ both fields like this:
  { "file": "/some/place/my-image",
    "backing": "/some/place/my-backing-file" }
 
+
 === Enumeration types ===
 
-An enumeration type is a dictionary containing a single key whose value is a
-list of strings.  An example enumeration is:
+Usage: { 'enum': STRING, 'data': ARRAY-OF-STRING }
+
+An enumeration type is a dictionary containing a single 'data' key
+whose value is a list of strings.  An example enumeration is:
 
  { 'enum': 'MyEnum', 'data': [ 'value1', 'value2', 'value3' ] }
 
+Nothing prevents an empty enumeration, although it is probably not
+useful.  The list of strings should be lower case; if an enum name
+represents multiple words, use '-' between words.  The string 'max' is
+not allowed as an enum value, and values should not be repeated.
+
+The enumeration values are passed as strings over the Client JSON
+Protocol, but are encoded as C enum integral values in generated code.
+While the C code starts numbering at 0, it is better to use explicit
+comparisons to enum values than implicit comparisons to 0; the C code
+will also include a generated enum member ending in _MAX for tracking
+the size of the enum, useful when using common functions for
+converting between strings and enum values.  Since the wire format
+always passes by name, it is acceptable to reorder or add new
+enumeration members in any location without breaking clients of Client
+JSON Protocol; however, removing enum values would break
+compatibility.  For any struct that has a field that will only contain
+a finite set of string values, using an enum type for that field is
+better than open-coding the field to be type 'str'.
+
+
 === Union types ===
 
-Union types are used to let the user choose between several different data
-types.  A union type is defined using a dictionary as explained in the
-following paragraphs.
+Usage: { 'union': STRING, 'data': DICT }
+or:    { 'union': STRING, 'data': DICT, 'base': STRUCT-NAME,
+         'discriminator': ENUM-MEMBER-OF-BASE }
 
+Union types are used to let the user choose between several different
+variants for an object.  There are two flavors: simple (no
+discriminator or base), flat (both discriminator and base).  A union
+type is defined using a data dictionary as explained in the following
+paragraphs.
 
-A simple union type defines a mapping from discriminator values to data types
-like in this example:
+A simple union type defines a mapping from automatic discriminator
+values to data types like in this example:
 
- { 'type': 'FileOptions', 'data': { 'filename': 'str' } }
- { 'type': 'Qcow2Options',
+ { 'struct': 'FileOptions', 'data': { 'filename': 'str' } }
+ { 'struct': 'Qcow2Options',
    'data': { 'backing-file': 'str', 'lazy-refcounts': 'bool' } }
 
  { 'union': 'BlockdevOptions',
    'data': { 'file': 'FileOptions',
              'qcow2': 'Qcow2Options' } }
 
-In the QMP wire format, a simple union is represented by a dictionary that
-contains the 'type' field as a discriminator, and a 'data' field that is of the
-specified data type corresponding to the discriminator value:
+In the Client JSON Protocol, a simple union is represented by a
+dictionary that contains the 'type' field as a discriminator, and a
+'data' field that is of the specified data type corresponding to the
+discriminator value, as in these examples:
 
+ { "type": "file", "data" : { "filename": "/some/place/my-image" } }
  { "type": "qcow2", "data" : { "backing-file": "/some/place/my-image",
                                "lazy-refcounts": true } }
 
-
-A union definition can specify a complex type as its base. In this case, the
-fields of the complex type are included as top-level fields of the union
-dictionary in the QMP wire format. An example definition is:
-
- { 'type': 'BlockdevCommonOptions', 'data': { 'readonly': 'bool' } }
- { 'union': 'BlockdevOptions',
-   'base': 'BlockdevCommonOptions',
-   'data': { 'raw': 'RawOptions',
-             'qcow2': 'Qcow2Options' } }
-
-And it looks like this on the wire:
-
- { "type": "qcow2",
-   "readonly": false,
-   "data" : { "backing-file": "/some/place/my-image",
-              "lazy-refcounts": true } }
+The generated C code uses a struct containing a union. Additionally,
+an implicit C enum 'NameKind' is created, corresponding to the union
+'Name', for accessing the various branches of the union.  No branch of
+the union can be named 'max', as this would collide with the implicit
+enum.  The value for each branch can be of any type.
 
 
-Flat union types avoid the nesting on the wire. They are used whenever a
-specific field of the base type is declared as the discriminator ('type' is
-then no longer generated). The discriminator must be of enumeration type.
-The above example can then be modified as follows:
+A flat union definition specifies a struct as its base, and
+avoids nesting on the wire.  All branches of the union must be
+complex types, and the top-level fields of the union dictionary on
+the wire will be combination of fields from both the base type and the
+appropriate branch type (when merging two dictionaries, there must be
+no keys in common).  The 'discriminator' field must be the name of an
+enum-typed member of the base struct.
+
+The following example enhances the above simple union example by
+adding a common field 'readonly', renaming the discriminator to
+something more applicable, and reducing the number of {} required on
+the wire:
 
  { 'enum': 'BlockdevDriver', 'data': [ 'raw', 'qcow2' ] }
- { 'type': 'BlockdevCommonOptions',
+ { 'struct': 'BlockdevCommonOptions',
    'data': { 'driver': 'BlockdevDriver', 'readonly': 'bool' } }
  { 'union': 'BlockdevOptions',
    'base': 'BlockdevCommonOptions',
    'discriminator': 'driver',
-   'data': { 'raw': 'RawOptions',
+   'data': { 'file': 'FileOptions',
              'qcow2': 'Qcow2Options' } }
 
-Resulting in this JSON object:
+Resulting in these JSON objects:
 
- { "driver": "qcow2",
-   "readonly": false,
-   "backing-file": "/some/place/my-image",
-   "lazy-refcounts": true }
+ { "driver": "file", "readonly": true,
+   "filename": "/some/place/my-image" }
+ { "driver": "qcow2", "readonly": false,
+   "backing-file": "/some/place/my-image", "lazy-refcounts": true }
+
+Notice that in a flat union, the discriminator name is controlled by
+the user, but because it must map to a base member with enum type, the
+code generator can ensure that branches exist for all values of the
+enum (although the order of the keys need not match the declaration of
+the enum).  In the resulting generated C data types, a flat union is
+represented as a struct with the base member fields included directly,
+and then a union of structures for each branch of the struct.
+
+A simple union can always be re-written as a flat union where the base
+class has a single member named 'type', and where each branch of the
+union has a struct with a single member named 'data'.  That is,
+
+ { 'union': 'Simple', 'data': { 'one': 'str', 'two': 'int' } }
+
+is identical on the wire to:
+
+ { 'enum': 'Enum', 'data': ['one', 'two'] }
+ { 'struct': 'Base', 'data': { 'type': 'Enum' } }
+ { 'struct': 'Branch1', 'data': { 'data': 'str' } }
+ { 'struct': 'Branch2', 'data': { 'data': 'int' } }
+ { 'union': 'Flat': 'base': 'Base', 'discriminator': 'type',
+   'data': { 'one': 'Branch1', 'two': 'Branch2' } }
 
 
-A special type of unions are anonymous unions. They don't form a dictionary in
-the wire format but allow the direct use of different types in their place. As
-they aren't structured, they don't have any explicit discriminator but use
-the (QObject) data type of their value as an implicit discriminator. This means
-that they are restricted to using only one discriminator value per QObject
-type. For example, you cannot have two different complex types in an anonymous
-union, or two different integer types.
+=== Alternate types ===
 
-Anonymous unions are declared using an empty dictionary as their discriminator.
-The discriminator values never appear on the wire, they are only used in the
-generated C code. Anonymous unions cannot have a base type.
+Usage: { 'alternate': STRING, 'data': DICT }
 
- { 'union': 'BlockRef',
-   'discriminator': {},
+An alternate type is one that allows a choice between two or more JSON
+data types (string, integer, number, or object, but currently not
+array) on the wire.  The definition is similar to a simple union type,
+where each branch of the union names a QAPI type.  For example:
+
+ { 'alternate': 'BlockRef',
    'data': { 'definition': 'BlockdevOptions',
              'reference': 'str' } }
 
-This example allows using both of the following example objects:
+Just like for a simple union, an implicit C enum 'NameKind' is created
+to enumerate the branches for the alternate 'Name'.
+
+Unlike a union, the discriminator string is never passed on the wire
+for the Client JSON Protocol.  Instead, the value's JSON type serves
+as an implicit discriminator, which in turn means that an alternate
+can only express a choice between types represented differently in
+JSON.  If a branch is typed as the 'bool' built-in, the alternate
+accepts true and false; if it is typed as any of the various numeric
+built-ins, it accepts a JSON number; if it is typed as a 'str'
+built-in or named enum type, it accepts a JSON string; and if it is
+typed as a complex type (struct or union), it accepts a JSON object.
+Two different complex types, for instance, aren't permitted, because
+both are represented as a JSON object.
+
+The example alternate declaration above allows using both of the
+following example objects:
 
  { "file": "my_existing_block_device_id" }
  { "file": { "driver": "file",
@@ -200,23 +393,95 @@ This example allows using both of the following example objects:
 
 === Commands ===
 
-Commands are defined by using a list containing three members.  The first
-member is the command name, the second member is a dictionary containing
-arguments, and the third member is the return type.
+Usage: { 'command': STRING, '*data': COMPLEX-TYPE-NAME-OR-DICT,
+         '*returns': TYPE-NAME-OR-DICT,
+         '*gen': false, '*success-response': false }
 
-An example command is:
+Commands are defined by using a dictionary containing several members,
+where three members are most common.  The 'command' member is a
+mandatory string, and determines the "execute" value passed in a
+Client JSON Protocol command exchange.
 
- { 'command': 'my-command',
-   'data': { 'arg1': 'str', '*arg2': 'str' },
-   'returns': 'str' }
+The 'data' argument maps to the "arguments" dictionary passed in as
+part of a Client JSON Protocol command.  The 'data' member is optional
+and defaults to {} (an empty dictionary).  If present, it must be the
+string name of a complex type, a one-element array containing the name
+of a complex type, or a dictionary that declares an anonymous type
+with the same semantics as a 'struct' expression, with one exception
+noted below when 'gen' is used.
+
+The 'returns' member describes what will appear in the "return" field
+of a Client JSON Protocol reply on successful completion of a command.
+The member is optional from the command declaration; if absent, the
+"return" field will be an empty dictionary.  If 'returns' is present,
+it must be the string name of a complex or built-in type, a
+one-element array containing the name of a complex or built-in type,
+or a dictionary that declares an anonymous type with the same
+semantics as a 'struct' expression, with one exception noted below
+when 'gen' is used.  Although it is permitted to have the 'returns'
+member name a built-in type or an array of built-in types, any command
+that does this cannot be extended to return additional information in
+the future; thus, new commands should strongly consider returning a
+dictionary-based type or an array of dictionaries, even if the
+dictionary only contains one field at the present.
+
+All commands in Client JSON Protocol use a dictionary to report
+failure, with no way to specify that in QAPI.  Where the error return
+is different than the usual GenericError class in order to help the
+client react differently to certain error conditions, it is worth
+documenting this in the comments before the command declaration.
+
+Some example commands:
+
+ { 'command': 'my-first-command',
+   'data': { 'arg1': 'str', '*arg2': 'str' } }
+ { 'struct': 'MyType', 'data': { '*value': 'str' } }
+ { 'command': 'my-second-command',
+   'returns': [ 'MyType' ] }
+
+which would validate this Client JSON Protocol transaction:
+
+ => { "execute": "my-first-command",
+      "arguments": { "arg1": "hello" } }
+ <= { "return": { } }
+ => { "execute": "my-second-command" }
+ <= { "return": [ { "value": "one" }, { } ] }
+
+In rare cases, QAPI cannot express a type-safe representation of a
+corresponding Client JSON Protocol command.  In these cases, if the
+command expression includes the key 'gen' with boolean value false,
+then the 'data' or 'returns' member that intends to bypass generated
+type-safety and do its own manual validation should use an inline
+dictionary definition, with a value of '**' rather than a valid type
+name for the keys that the generated code will not validate.  Please
+try to avoid adding new commands that rely on this, and instead use
+type-safe unions.  For an example of bypass usage:
+
+ { 'command': 'netdev_add',
+   'data': {'type': 'str', 'id': 'str', '*props': '**'},
+   'gen': false }
+
+Normally, the QAPI schema is used to describe synchronous exchanges,
+where a response is expected.  But in some cases, the action of a
+command is expected to change state in a way that a successful
+response is not possible (although the command will still return a
+normal dictionary error on failure).  When a successful reply is not
+possible, the command expression should include the optional key
+'success-response' with boolean value false.  So far, only QGA makes
+use of this field.
+
 
 === Events ===
 
-Events are defined with the keyword 'event'.  When 'data' is also specified,
-additional info will be included in the event.  Finally there will be C API
-generated in qapi-event.h; when called by QEMU code, a message with timestamp
-will be emitted on the wire.  If timestamp is -1, it means failure to retrieve
-host time.
+Usage: { 'event': STRING, '*data': COMPLEX-TYPE-NAME-OR-DICT }
+
+Events are defined with the keyword 'event'.  It is not allowed to
+name an event 'MAX', since the generator also produces a C enumeration
+of all event names with a generated _MAX value at the end.  When
+'data' is also specified, additional info will be included in the
+event, with similar semantics to a 'struct' expression.  Finally there
+will be C API generated in qapi-event.h; when called by QEMU code, a
+message with timestamp will be emitted on the wire.
 
 An example event is:
 
@@ -234,9 +499,9 @@ Resulting in this JSON object:
 
 Schemas are fed into 3 scripts to generate all the code/files that, paired
 with the core QAPI libraries, comprise everything required to take JSON
-commands read in by a QMP/guest agent server, unmarshal the arguments into
+commands read in by a Client JSON Protocol server, unmarshal the arguments into
 the underlying C types, call into the corresponding C function, and map the
-response back to a QMP/guest agent response to be returned to the user.
+response back to a Client JSON Protocol response to be returned to the user.
 
 As an example, we'll use the following schema, which describes a single
 complex user-defined type (which will produce a C struct, along with a list
@@ -245,7 +510,7 @@ case we want to accept/return a list of this type with a command), and a
 command which takes that type as a parameter and returns the same type:
 
     $ cat example-schema.json
-    { 'type': 'UserDefOne',
+    { 'struct': 'UserDefOne',
       'data': { 'integer': 'int', 'string': 'str' } }
 
     { 'command': 'my-command',
@@ -271,7 +536,7 @@ created code.
 Example:
 
     $ python scripts/qapi-types.py --output-dir="qapi-generated" \
-    --prefix="example-" --input-file=example-schema.json
+    --prefix="example-" example-schema.json
     $ cat qapi-generated/example-qapi-types.c
 [Uninteresting stuff omitted...]
 
@@ -311,7 +576,7 @@ Example:
     #ifndef EXAMPLE_QAPI_TYPES_H
     #define EXAMPLE_QAPI_TYPES_H
 
-[Builtin types omitted...]
+[Built-in types omitted...]
 
     typedef struct UserDefOne UserDefOne;
 
@@ -324,7 +589,7 @@ Example:
         struct UserDefOneList *next;
     } UserDefOneList;
 
-[Functions on builtin types omitted...]
+[Functions on built-in types omitted...]
 
     struct UserDefOne
     {
@@ -358,7 +623,7 @@ $(prefix)qapi-visit.h: declarations for previously mentioned visitor
 Example:
 
     $ python scripts/qapi-visit.py --output-dir="qapi-generated"
-    --prefix="example-" --input-file=example-schema.json
+    --prefix="example-" example-schema.json
     $ cat qapi-generated/example-qapi-visit.c
 [Uninteresting stuff omitted...]
 
@@ -416,14 +681,14 @@ Example:
         error_propagate(errp, err);
     }
     $ python scripts/qapi-commands.py --output-dir="qapi-generated" \
-    --prefix="example-" --input-file=example-schema.json
+    --prefix="example-" example-schema.json
     $ cat qapi-generated/example-qapi-visit.h
 [Uninteresting stuff omitted...]
 
     #ifndef EXAMPLE_QAPI_VISIT_H
     #define EXAMPLE_QAPI_VISIT_H
 
-[Visitors for builtin types omitted...]
+[Visitors for built-in types omitted...]
 
     void visit_type_UserDefOne(Visitor *m, UserDefOne **obj, const char *name, Error **errp);
     void visit_type_UserDefOneList(Visitor *m, UserDefOneList **obj, const char *name, Error **errp);
@@ -450,7 +715,7 @@ $(prefix)qmp-commands.h: Function prototypes for the QMP commands
 Example:
 
     $ python scripts/qapi-commands.py --output-dir="qapi-generated"
-    --prefix="example-" --input-file=example-schema.json
+    --prefix="example-" example-schema.json
     $ cat qapi-generated/example-qmp-marshal.c
 [Uninteresting stuff omitted...]
 
@@ -541,7 +806,7 @@ $(prefix)qapi-event.c - Implementation of functions to send an event
 Example:
 
     $ python scripts/qapi-event.py --output-dir="qapi-generated"
-    --prefix="example-" --input-file=example-schema.json
+    --prefix="example-" example-schema.json
     $ cat qapi-generated/example-qapi-event.c
 [Uninteresting stuff omitted...]
 

@@ -36,7 +36,6 @@
 #endif
 
 /* Extra debugging, trap acceleration paths for more logging */
-#define VFIO_ALLOW_MMAP 1
 #define VFIO_ALLOW_KVM_INTX 1
 #define VFIO_ALLOW_KVM_MSI 1
 #define VFIO_ALLOW_KVM_MSIX 1
@@ -102,6 +101,7 @@ typedef struct VFIODevice {
     int type;
     bool reset_works;
     bool needs_reset;
+    bool allow_mmap;
     VFIODeviceOps *ops;
     unsigned int num_irqs;
     unsigned int num_regions;
@@ -131,7 +131,6 @@ void vfio_region_write(void *opaque, hwaddr addr,
                            uint64_t data, unsigned size);
 uint64_t vfio_region_read(void *opaque,
                           hwaddr addr, unsigned size);
-void vfio_listener_release(VFIOContainer *container);
 int vfio_mmap_region(Object *vdev, VFIORegion *region,
                      MemoryRegion *mem, MemoryRegion *submem,
                      void **map, size_t size, off_t offset,
@@ -143,7 +142,6 @@ int vfio_get_device(VFIOGroup *group, const char *name,
                     VFIODevice *vbasedev);
 
 extern const MemoryRegionOps vfio_region_ops;
-extern const MemoryListener vfio_memory_listener;
 extern QLIST_HEAD(vfio_group_head, VFIOGroup) vfio_group_list;
 extern QLIST_HEAD(vfio_as_head, VFIOAddressSpace) vfio_address_spaces;
 

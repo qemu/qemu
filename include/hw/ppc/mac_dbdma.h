@@ -43,10 +43,6 @@ struct DBDMA_io {
     uint8_t remainder[0x200];
     int remainder_len;
     QEMUIOVector iov;
-    bool finish_remain_read;
-    hwaddr finish_addr;
-    hwaddr finish_len;
-    int requests;
 };
 
 /*

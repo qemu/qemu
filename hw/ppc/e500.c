@@ -308,6 +308,7 @@ static int ppce500_load_device_tree(MachineState *machine,
         }
 
         fdt = load_device_tree(filename, &fdt_size);
+        g_free(filename);
         if (!fdt) {
             goto out;
         }
@@ -706,17 +707,19 @@ static DeviceState *ppce500_init_mpic_qemu(PPCE500Params *params,
 }
 
 static DeviceState *ppce500_init_mpic_kvm(PPCE500Params *params,
-                                          qemu_irq **irqs)
+                                          qemu_irq **irqs, Error **errp)
 {
+    Error *err = NULL;
     DeviceState *dev;
     CPUState *cs;
-    int r;
 
     dev = qdev_create(NULL, TYPE_KVM_OPENPIC);
     qdev_prop_set_uint32(dev, "model", params->mpic_version);
 
-    r = qdev_init(dev);
-    if (r) {
+    object_property_set_bool(OBJECT(dev), true, "realized", &err);
+    if (err) {
+        error_propagate(errp, err);
+        object_unparent(OBJECT(dev));
         return NULL;
     }
 
@@ -731,8 +734,8 @@ static DeviceState *ppce500_init_mpic_kvm(PPCE500Params *params,
     return dev;
 }
 
-static qemu_irq *ppce500_init_mpic(PPCE500Params *params, MemoryRegion *ccsr,
-                                   qemu_irq **irqs)
+static qemu_irq *ppce500_init_mpic(MachineState *machine, PPCE500Params *params,
+                                   MemoryRegion *ccsr, qemu_irq **irqs)
 {
     qemu_irq *mpic;
     DeviceState *dev = NULL;
@@ -742,20 +745,15 @@ static qemu_irq *ppce500_init_mpic(PPCE500Params *params, MemoryRegion *ccsr,
     mpic = g_new0(qemu_irq, 256);
 
     if (kvm_enabled()) {
-        QemuOpts *machine_opts = qemu_get_machine_opts();
-        bool irqchip_allowed = qemu_opt_get_bool(machine_opts,
-                                                "kernel_irqchip", true);
-        bool irqchip_required = qemu_opt_get_bool(machine_opts,
-                                                  "kernel_irqchip", false);
+        Error *err = NULL;
 
-        if (irqchip_allowed) {
-            dev = ppce500_init_mpic_kvm(params, irqs);
+        if (machine_kernel_irqchip_allowed(machine)) {
+            dev = ppce500_init_mpic_kvm(params, irqs, &err);
         }
-
-        if (irqchip_required && !dev) {
-            fprintf(stderr, "%s: irqchip requested but unavailable\n",
-                    __func__);
-            abort();
+        if (machine_kernel_irqchip_required(machine) && !dev) {
+            error_report("kernel_irqchip requested but unavailable: %s",
+                         error_get_pretty(err));
+            exit(1);
         }
     }
 
@@ -876,7 +874,7 @@ void ppce500_init(MachineState *machine, PPCE500Params *params)
     memory_region_add_subregion(address_space_mem, params->ccsrbar_base,
                                 ccsr_addr_space);
 
-    mpic = ppce500_init_mpic(params, ccsr_addr_space, irqs);
+    mpic = ppce500_init_mpic(machine, params, ccsr_addr_space, irqs);
 
     /* Serial */
     if (serial_hds[0]) {

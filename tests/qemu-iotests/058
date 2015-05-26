@@ -89,6 +89,8 @@ _supported_fmt qcow2
 _supported_proto file
 _supported_os Linux
 _require_command QEMU_NBD
+# Internal snapshots are (currently) impossible with refcount_bits=1
+_unsupported_imgopts 'refcount_bits=1[^0-9]'
 
 # Use -f raw instead of -f $IMGFMT for the NBD connection
 QEMU_IO_NBD="$QEMU_IO -f raw --cache=$CACHEMODE"

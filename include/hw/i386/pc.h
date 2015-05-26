@@ -104,26 +104,12 @@ struct PcGuestInfo {
     int legacy_acpi_table_size;
     bool has_acpi_build;
     bool has_reserved_memory;
+    bool rsdp_in_ram;
 };
 
 /* parallel.c */
-static inline bool parallel_init(ISABus *bus, int index, CharDriverState *chr)
-{
-    DeviceState *dev;
-    ISADevice *isadev;
 
-    isadev = isa_try_create(bus, "isa-parallel");
-    if (!isadev) {
-        return false;
-    }
-    dev = DEVICE(isadev);
-    qdev_prop_set_uint32(dev, "index", index);
-    qdev_prop_set_chr(dev, "chardev", chr);
-    if (qdev_init(dev) < 0) {
-        return false;
-    }
-    return true;
-}
+void parallel_hds_isa_init(ISABus *bus, int n);
 
 bool parallel_mm_init(MemoryRegion *address_space,
                       hwaddr base, int it_shift, qemu_irq irq,
@@ -136,8 +122,8 @@ qemu_irq *i8259_init(ISABus *bus, qemu_irq parent_irq);
 qemu_irq *kvm_i8259_init(ISABus *bus);
 int pic_read_irq(DeviceState *d);
 int pic_get_output(DeviceState *d);
-void pic_info(Monitor *mon, const QDict *qdict);
-void irq_info(Monitor *mon, const QDict *qdict);
+void hmp_info_pic(Monitor *mon, const QDict *qdict);
+void hmp_info_irq(Monitor *mon, const QDict *qdict);
 
 /* Global System Interrupts */
 

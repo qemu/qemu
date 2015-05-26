@@ -92,7 +92,10 @@ static uint32_t unin_get_config_reg(uint32_t reg, uint32_t addr)
         uint32_t slot, func;
 
         /* Grab CFA0 style values */
-        slot = ffs(reg & 0xfffff800) - 1;
+        slot = ctz32(reg & 0xfffff800);
+        if (slot == 32) {
+            slot = -1; /* XXX: should this be 0? */
+        }
         func = (reg >> 8) & 7;
 
         /* ... and then convert them to x86 format */
@@ -315,37 +318,33 @@ PCIBus *pci_pmac_u3_init(qemu_irq *pic,
     return h->bus;
 }
 
-static int unin_main_pci_host_init(PCIDevice *d)
+static void unin_main_pci_host_realize(PCIDevice *d, Error **errp)
 {
     d->config[0x0C] = 0x08; // cache_line_size
     d->config[0x0D] = 0x10; // latency_timer
     d->config[0x34] = 0x00; // capabilities_pointer
-    return 0;
 }
 
-static int unin_agp_pci_host_init(PCIDevice *d)
+static void unin_agp_pci_host_realize(PCIDevice *d, Error **errp)
 {
     d->config[0x0C] = 0x08; // cache_line_size
     d->config[0x0D] = 0x10; // latency_timer
     //    d->config[0x34] = 0x80; // capabilities_pointer
-    return 0;
 }
 
-static int u3_agp_pci_host_init(PCIDevice *d)
+static void u3_agp_pci_host_realize(PCIDevice *d, Error **errp)
 {
     /* cache line size */
     d->config[0x0C] = 0x08;
     /* latency timer */
     d->config[0x0D] = 0x10;
-    return 0;
 }
 
-static int unin_internal_pci_host_init(PCIDevice *d)
+static void unin_internal_pci_host_realize(PCIDevice *d, Error **errp)
 {
     d->config[0x0C] = 0x08; // cache_line_size
     d->config[0x0D] = 0x10; // latency_timer
     d->config[0x34] = 0x00; // capabilities_pointer
-    return 0;
 }
 
 static void unin_main_pci_host_class_init(ObjectClass *klass, void *data)
@@ -353,7 +352,7 @@ static void unin_main_pci_host_class_init(ObjectClass *klass, void *data)
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
     DeviceClass *dc = DEVICE_CLASS(klass);
 
-    k->init      = unin_main_pci_host_init;
+    k->realize   = unin_main_pci_host_realize;
     k->vendor_id = PCI_VENDOR_ID_APPLE;
     k->device_id = PCI_DEVICE_ID_APPLE_UNI_N_PCI;
     k->revision  = 0x00;
@@ -377,7 +376,7 @@ static void u3_agp_pci_host_class_init(ObjectClass *klass, void *data)
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
     DeviceClass *dc = DEVICE_CLASS(klass);
 
-    k->init      = u3_agp_pci_host_init;
+    k->realize   = u3_agp_pci_host_realize;
     k->vendor_id = PCI_VENDOR_ID_APPLE;
     k->device_id = PCI_DEVICE_ID_APPLE_U3_AGP;
     k->revision  = 0x00;
@@ -401,7 +400,7 @@ static void unin_agp_pci_host_class_init(ObjectClass *klass, void *data)
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
     DeviceClass *dc = DEVICE_CLASS(klass);
 
-    k->init      = unin_agp_pci_host_init;
+    k->realize   = unin_agp_pci_host_realize;
     k->vendor_id = PCI_VENDOR_ID_APPLE;
     k->device_id = PCI_DEVICE_ID_APPLE_UNI_N_AGP;
     k->revision  = 0x00;
@@ -425,7 +424,7 @@ static void unin_internal_pci_host_class_init(ObjectClass *klass, void *data)
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
     DeviceClass *dc = DEVICE_CLASS(klass);
 
-    k->init      = unin_internal_pci_host_init;
+    k->realize   = unin_internal_pci_host_realize;
     k->vendor_id = PCI_VENDOR_ID_APPLE;
     k->device_id = PCI_DEVICE_ID_APPLE_UNI_N_I_PCI;
     k->revision  = 0x00;

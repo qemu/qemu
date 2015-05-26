@@ -3678,7 +3678,7 @@ void cpu_wrdsp(uint32_t rs, uint32_t mask_num, CPUMIPSState *env)
 
 void helper_wrdsp(target_ulong rs, target_ulong mask_num, CPUMIPSState *env)
 {
-    return cpu_wrdsp(rs, mask_num, env);
+    cpu_wrdsp(rs, mask_num, env);
 }
 
 uint32_t cpu_rddsp(uint32_t mask_num, CPUMIPSState *env)

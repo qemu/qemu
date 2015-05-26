@@ -38,6 +38,7 @@
 #include "hw/s390x/sclp.h"
 #include "hw/s390x/s390_flic.h"
 #include "hw/s390x/s390-virtio.h"
+#include "cpu.h"
 
 //#define DEBUG_S390
 
@@ -52,6 +53,9 @@
 #define MAX_BLK_DEVS                    10
 #define ZIPL_FILENAME                   "s390-zipl.rom"
 #define TYPE_S390_MACHINE               "s390-machine"
+
+#define S390_TOD_CLOCK_VALUE_MISSING    0x00
+#define S390_TOD_CLOCK_VALUE_PRESENT    0x01
 
 static VirtIOS390Bus *s390_bus;
 static S390CPU **ipi_states;
@@ -73,6 +77,16 @@ static int s390_virtio_hcall_notify(const uint64_t *args)
     if (mem > ram_size) {
         VirtIOS390Device *dev = s390_virtio_bus_find_vring(s390_bus, mem, &i);
         if (dev) {
+            /*
+             * Older kernels will use the virtqueue before setting DRIVER_OK.
+             * In this case the feature bits are not yet up to date, meaning
+             * that several funny things can happen, e.g. the guest thinks
+             * EVENT_IDX is on and QEMU thinks it is off. Let's force a feature
+             * and status sync.
+             */
+            if (!(dev->vdev->status & VIRTIO_CONFIG_S_DRIVER_OK)) {
+                s390_virtio_device_update_status(dev);
+            }
             virtio_queue_notify(dev->vdev, i);
         } else {
             r = -EINVAL;
@@ -93,7 +107,9 @@ static int s390_virtio_hcall_reset(const uint64_t *args)
         return -EINVAL;
     }
     virtio_reset(dev->vdev);
-    stb_phys(&address_space_memory, dev->dev_offs + VIRTIO_DEV_OFFS_STATUS, 0);
+    address_space_stb(&address_space_memory,
+                      dev->dev_offs + VIRTIO_DEV_OFFS_STATUS, 0,
+                      MEMTXATTRS_UNSPECIFIED, NULL);
     s390_virtio_device_sync(dev);
     s390_virtio_reset_idx(dev);
 
@@ -128,7 +144,8 @@ static void s390_virtio_register_hcalls(void)
 void s390_init_ipl_dev(const char *kernel_filename,
                        const char *kernel_cmdline,
                        const char *initrd_filename,
-                       const char *firmware)
+                       const char *firmware,
+                       bool enforce_bios)
 {
     DeviceState *dev;
 
@@ -141,6 +158,9 @@ void s390_init_ipl_dev(const char *kernel_filename,
     }
     qdev_prop_set_string(dev, "cmdline", kernel_cmdline);
     qdev_prop_set_string(dev, "firmware", firmware);
+    qdev_prop_set_bit(dev, "enforce_bios", enforce_bios);
+    object_property_add_child(qdev_get_machine(), "s390-ipl",
+                              OBJECT(dev), NULL);
     qdev_init_nofail(dev);
 }
 
@@ -192,6 +212,51 @@ void s390_create_virtio_net(BusState *bus, const char *name)
     }
 }
 
+void gtod_save(QEMUFile *f, void *opaque)
+{
+    uint64_t tod_low;
+    uint8_t tod_high;
+    int r;
+
+    r = s390_get_clock(&tod_high, &tod_low);
+    if (r) {
+        fprintf(stderr, "WARNING: Unable to get guest clock for migration. "
+                        "Error code %d. Guest clock will not be migrated "
+                        "which could cause the guest to hang.\n", r);
+        qemu_put_byte(f, S390_TOD_CLOCK_VALUE_MISSING);
+        return;
+    }
+
+    qemu_put_byte(f, S390_TOD_CLOCK_VALUE_PRESENT);
+    qemu_put_byte(f, tod_high);
+    qemu_put_be64(f, tod_low);
+}
+
+int gtod_load(QEMUFile *f, void *opaque, int version_id)
+{
+    uint64_t tod_low;
+    uint8_t tod_high;
+    int r;
+
+    if (qemu_get_byte(f) == S390_TOD_CLOCK_VALUE_MISSING) {
+        fprintf(stderr, "WARNING: Guest clock was not migrated. This could "
+                        "cause the guest to hang.\n");
+        return 0;
+    }
+
+    tod_high = qemu_get_byte(f);
+    tod_low = qemu_get_be64(f);
+
+    r = s390_set_clock(&tod_high, &tod_low);
+    if (r) {
+        fprintf(stderr, "WARNING: Unable to set guest clock value. "
+                        "s390_get_clock returned error %d. This could cause "
+                        "the guest to hang.\n", r);
+    }
+
+    return 0;
+}
+
 /* PC hardware initialisation */
 static void s390_init(MachineState *machine)
 {
@@ -221,7 +286,7 @@ static void s390_init(MachineState *machine)
     s390_bus = s390_virtio_bus_init(&my_ram_size);
     s390_sclp_init();
     s390_init_ipl_dev(machine->kernel_filename, machine->kernel_cmdline,
-                      machine->initrd_filename, ZIPL_FILENAME);
+                      machine->initrd_filename, ZIPL_FILENAME, false);
     s390_flic_init();
 
     /* register hypercalls */
@@ -249,6 +314,9 @@ static void s390_init(MachineState *machine)
 
     /* Create VirtIO network adapters */
     s390_create_virtio_net((BusState *)s390_bus, "virtio-net-s390");
+
+    /* Register savevm handler for guest TOD clock */
+    register_savevm(NULL, "todclock", 0, 1, gtod_save, gtod_load, NULL);
 }
 
 void s390_nmi(NMIState *n, int cpu_index, Error **errp)

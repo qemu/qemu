@@ -24,8 +24,7 @@
 
 #include <zlib.h> /* For crc32 */
 
-#include "hw/sysbus.h"
-#include "net/net.h"
+#include "hw/net/cadence_gem.h"
 #include "net/checksum.h"
 
 #ifdef CADENCE_GEM_ERR_DEBUG
@@ -140,8 +139,6 @@
 #define GEM_DESCONF5      (0x00000290/4)
 #define GEM_DESCONF6      (0x00000294/4)
 #define GEM_DESCONF7      (0x00000298/4)
-
-#define GEM_MAXREG        (0x00000640/4) /* Last valid GEM address */
 
 /*****************************************/
 #define GEM_NWCTRL_TXSTART     0x00000200 /* Transmit Enable */
@@ -349,44 +346,6 @@ static inline void rx_desc_set_sar(unsigned *desc, int sar_idx)
     desc[1] |= R_DESC_1_RX_SAR_MATCH;
 }
 
-#define TYPE_CADENCE_GEM "cadence_gem"
-#define GEM(obj) OBJECT_CHECK(GemState, (obj), TYPE_CADENCE_GEM)
-
-typedef struct GemState {
-    SysBusDevice parent_obj;
-
-    MemoryRegion iomem;
-    NICState *nic;
-    NICConf conf;
-    qemu_irq irq;
-
-    /* GEM registers backing store */
-    uint32_t regs[GEM_MAXREG];
-    /* Mask of register bits which are write only */
-    uint32_t regs_wo[GEM_MAXREG];
-    /* Mask of register bits which are read only */
-    uint32_t regs_ro[GEM_MAXREG];
-    /* Mask of register bits which are clear on read */
-    uint32_t regs_rtc[GEM_MAXREG];
-    /* Mask of register bits which are write 1 to clear */
-    uint32_t regs_w1c[GEM_MAXREG];
-
-    /* PHY registers backing store */
-    uint16_t phy_regs[32];
-
-    uint8_t phy_loop; /* Are we in phy loopback? */
-
-    /* The current DMA descriptor pointers */
-    uint32_t rx_desc_addr;
-    uint32_t tx_desc_addr;
-
-    uint8_t can_rx_state; /* Debug only */
-
-    unsigned rx_desc[2];
-
-    bool sar_active[4];
-} GemState;
-
 /* The broadcast MAC address: 0xFFFFFFFFFFFF */
 static const uint8_t broadcast_addr[] = { 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF };
 
@@ -395,7 +354,7 @@ static const uint8_t broadcast_addr[] = { 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF };
  * One time initialization.
  * Set masks to identify which register bits have magical clear properties
  */
-static void gem_init_register_masks(GemState *s)
+static void gem_init_register_masks(CadenceGEMState *s)
 {
     /* Mask of register bits which are read only */
     memset(&s->regs_ro[0], 0, sizeof(s->regs_ro));
@@ -430,7 +389,7 @@ static void gem_init_register_masks(GemState *s)
  * phy_update_link:
  * Make the emulated PHY link state match the QEMU "interface" state.
  */
-static void phy_update_link(GemState *s)
+static void phy_update_link(CadenceGEMState *s)
 {
     DB_PRINT("down %d\n", qemu_get_queue(s->nic)->link_down);
 
@@ -450,7 +409,7 @@ static void phy_update_link(GemState *s)
 
 static int gem_can_receive(NetClientState *nc)
 {
-    GemState *s;
+    CadenceGEMState *s;
 
     s = qemu_get_nic_opaque(nc);
 
@@ -483,7 +442,7 @@ static int gem_can_receive(NetClientState *nc)
  * gem_update_int_status:
  * Raise or lower interrupt based on current status.
  */
-static void gem_update_int_status(GemState *s)
+static void gem_update_int_status(CadenceGEMState *s)
 {
     if (s->regs[GEM_ISR]) {
         DB_PRINT("asserting int. (0x%08x)\n", s->regs[GEM_ISR]);
@@ -495,7 +454,7 @@ static void gem_update_int_status(GemState *s)
  * gem_receive_updatestats:
  * Increment receive statistics.
  */
-static void gem_receive_updatestats(GemState *s, const uint8_t *packet,
+static void gem_receive_updatestats(CadenceGEMState *s, const uint8_t *packet,
                                     unsigned bytes)
 {
     uint64_t octets;
@@ -586,7 +545,7 @@ static unsigned calc_mac_hash(const uint8_t *mac)
  * GEM_RM_PROMISCUOUS_ACCEPT, GEM_RX_BROADCAST_ACCEPT,
  * GEM_RX_MULTICAST_HASH_ACCEPT or GEM_RX_UNICAST_HASH_ACCEPT
  */
-static int gem_mac_address_filter(GemState *s, const uint8_t *packet)
+static int gem_mac_address_filter(CadenceGEMState *s, const uint8_t *packet)
 {
     uint8_t *gem_spaddr;
     int i;
@@ -636,7 +595,7 @@ static int gem_mac_address_filter(GemState *s, const uint8_t *packet)
     return GEM_RX_REJECT;
 }
 
-static void gem_get_rx_desc(GemState *s)
+static void gem_get_rx_desc(CadenceGEMState *s)
 {
     DB_PRINT("read descriptor 0x%x\n", (unsigned)s->rx_desc_addr);
     /* read current descriptor */
@@ -660,7 +619,7 @@ static void gem_get_rx_desc(GemState *s)
  */
 static ssize_t gem_receive(NetClientState *nc, const uint8_t *buf, size_t size)
 {
-    GemState *s;
+    CadenceGEMState *s;
     unsigned   rxbufsize, bytes_to_copy;
     unsigned   rxbuf_offset;
     uint8_t    rxbuf[2048];
@@ -810,7 +769,7 @@ static ssize_t gem_receive(NetClientState *nc, const uint8_t *buf, size_t size)
  * gem_transmit_updatestats:
  * Increment transmit statistics.
  */
-static void gem_transmit_updatestats(GemState *s, const uint8_t *packet,
+static void gem_transmit_updatestats(CadenceGEMState *s, const uint8_t *packet,
                                      unsigned bytes)
 {
     uint64_t octets;
@@ -856,7 +815,7 @@ static void gem_transmit_updatestats(GemState *s, const uint8_t *packet,
  * gem_transmit:
  * Fish packets out of the descriptor ring and feed them to QEMU
  */
-static void gem_transmit(GemState *s)
+static void gem_transmit(CadenceGEMState *s)
 {
     unsigned    desc[2];
     hwaddr packet_desc_addr;
@@ -976,7 +935,7 @@ static void gem_transmit(GemState *s)
     }
 }
 
-static void gem_phy_reset(GemState *s)
+static void gem_phy_reset(CadenceGEMState *s)
 {
     memset(&s->phy_regs[0], 0, sizeof(s->phy_regs));
     s->phy_regs[PHY_REG_CONTROL] = 0x1140;
@@ -1004,7 +963,7 @@ static void gem_phy_reset(GemState *s)
 static void gem_reset(DeviceState *d)
 {
     int i;
-    GemState *s = GEM(d);
+    CadenceGEMState *s = CADENCE_GEM(d);
 
     DB_PRINT("\n");
 
@@ -1032,13 +991,13 @@ static void gem_reset(DeviceState *d)
     gem_update_int_status(s);
 }
 
-static uint16_t gem_phy_read(GemState *s, unsigned reg_num)
+static uint16_t gem_phy_read(CadenceGEMState *s, unsigned reg_num)
 {
     DB_PRINT("reg: %d value: 0x%04x\n", reg_num, s->phy_regs[reg_num]);
     return s->phy_regs[reg_num];
 }
 
-static void gem_phy_write(GemState *s, unsigned reg_num, uint16_t val)
+static void gem_phy_write(CadenceGEMState *s, unsigned reg_num, uint16_t val)
 {
     DB_PRINT("reg: %d value: 0x%04x\n", reg_num, val);
 
@@ -1072,10 +1031,10 @@ static void gem_phy_write(GemState *s, unsigned reg_num, uint16_t val)
  */
 static uint64_t gem_read(void *opaque, hwaddr offset, unsigned size)
 {
-    GemState *s;
+    CadenceGEMState *s;
     uint32_t retval;
 
-    s = (GemState *)opaque;
+    s = (CadenceGEMState *)opaque;
 
     offset >>= 2;
     retval = s->regs[offset];
@@ -1120,7 +1079,7 @@ static uint64_t gem_read(void *opaque, hwaddr offset, unsigned size)
 static void gem_write(void *opaque, hwaddr offset, uint64_t val,
         unsigned size)
 {
-    GemState *s = (GemState *)opaque;
+    CadenceGEMState *s = (CadenceGEMState *)opaque;
     uint32_t readonly;
 
     DB_PRINT("offset: 0x%04x write: 0x%08x ", (unsigned)offset, (unsigned)val);
@@ -1226,7 +1185,7 @@ static NetClientInfo net_gem_info = {
 static int gem_init(SysBusDevice *sbd)
 {
     DeviceState *dev = DEVICE(sbd);
-    GemState *s = GEM(dev);
+    CadenceGEMState *s = CADENCE_GEM(dev);
 
     DB_PRINT("\n");
 
@@ -1248,18 +1207,18 @@ static const VMStateDescription vmstate_cadence_gem = {
     .version_id = 2,
     .minimum_version_id = 2,
     .fields = (VMStateField[]) {
-        VMSTATE_UINT32_ARRAY(regs, GemState, GEM_MAXREG),
-        VMSTATE_UINT16_ARRAY(phy_regs, GemState, 32),
-        VMSTATE_UINT8(phy_loop, GemState),
-        VMSTATE_UINT32(rx_desc_addr, GemState),
-        VMSTATE_UINT32(tx_desc_addr, GemState),
-        VMSTATE_BOOL_ARRAY(sar_active, GemState, 4),
+        VMSTATE_UINT32_ARRAY(regs, CadenceGEMState, CADENCE_GEM_MAXREG),
+        VMSTATE_UINT16_ARRAY(phy_regs, CadenceGEMState, 32),
+        VMSTATE_UINT8(phy_loop, CadenceGEMState),
+        VMSTATE_UINT32(rx_desc_addr, CadenceGEMState),
+        VMSTATE_UINT32(tx_desc_addr, CadenceGEMState),
+        VMSTATE_BOOL_ARRAY(sar_active, CadenceGEMState, 4),
         VMSTATE_END_OF_LIST(),
     }
 };
 
 static Property gem_properties[] = {
-    DEFINE_NIC_PROPERTIES(GemState, conf),
+    DEFINE_NIC_PROPERTIES(CadenceGEMState, conf),
     DEFINE_PROP_END_OF_LIST(),
 };
 
@@ -1277,7 +1236,7 @@ static void gem_class_init(ObjectClass *klass, void *data)
 static const TypeInfo gem_info = {
     .name  = TYPE_CADENCE_GEM,
     .parent = TYPE_SYS_BUS_DEVICE,
-    .instance_size  = sizeof(GemState),
+    .instance_size  = sizeof(CadenceGEMState),
     .class_init = gem_class_init,
 };
 

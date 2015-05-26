@@ -50,6 +50,7 @@
 #define MAX_SATA_PORTS     6
 
 static bool has_acpi_build = true;
+static bool rsdp_in_ram = true;
 static bool smbios_defaults = true;
 static bool smbios_legacy_mode;
 static bool smbios_uuid_encoded = true;
@@ -154,6 +155,7 @@ static void pc_q35_init(MachineState *machine)
     guest_info->isapc_ram_fw = false;
     guest_info->has_acpi_build = has_acpi_build;
     guest_info->has_reserved_memory = has_reserved_memory;
+    guest_info->rsdp_in_ram = rsdp_in_ram;
 
     /* Migration was not supported in 2.0 for Q35, so do not bother
      * with this hack (see hw/i386/acpi-build.c).
@@ -287,8 +289,14 @@ static void pc_q35_init(MachineState *machine)
     }
 }
 
+static void pc_compat_2_3(MachineState *machine)
+{
+}
+
 static void pc_compat_2_2(MachineState *machine)
 {
+    pc_compat_2_3(machine);
+    rsdp_in_ram = false;
     x86_cpu_compat_set_features("kvm64", FEAT_1_EDX, 0, CPUID_VME);
     x86_cpu_compat_set_features("kvm32", FEAT_1_EDX, 0, CPUID_VME);
     x86_cpu_compat_set_features("Conroe", FEAT_1_EDX, 0, CPUID_VME);
@@ -307,10 +315,7 @@ static void pc_compat_2_2(MachineState *machine)
     x86_cpu_compat_set_features("Haswell", FEAT_1_ECX, 0, CPUID_EXT_RDRAND);
     x86_cpu_compat_set_features("Broadwell", FEAT_1_ECX, 0, CPUID_EXT_F16C);
     x86_cpu_compat_set_features("Broadwell", FEAT_1_ECX, 0, CPUID_EXT_RDRAND);
-    x86_cpu_compat_set_features("Haswell", FEAT_7_0_EBX,
-                                CPUID_7_0_EBX_HLE | CPUID_7_0_EBX_RTM, 0);
-    x86_cpu_compat_set_features("Broadwell", FEAT_7_0_EBX,
-                                CPUID_7_0_EBX_HLE | CPUID_7_0_EBX_RTM, 0);
+    machine->suppress_vmdesc = true;
 }
 
 static void pc_compat_2_1(MachineState *machine)
@@ -359,6 +364,12 @@ static void pc_compat_1_4(MachineState *machine)
     pc_compat_1_5(machine);
     x86_cpu_compat_set_features("n270", FEAT_1_ECX, 0, CPUID_EXT_MOVBE);
     x86_cpu_compat_set_features("Westmere", FEAT_1_ECX, 0, CPUID_EXT_PCLMULQDQ);
+}
+
+static void pc_q35_init_2_3(MachineState *machine)
+{
+    pc_compat_2_3(machine);
+    pc_q35_init(machine);
 }
 
 static void pc_q35_init_2_2(MachineState *machine)
@@ -410,16 +421,24 @@ static void pc_q35_init_1_4(MachineState *machine)
     .hot_add_cpu = pc_hot_add_cpu, \
     .units_per_default_bus = 1
 
-#define PC_Q35_2_3_MACHINE_OPTIONS                      \
+#define PC_Q35_2_4_MACHINE_OPTIONS                      \
     PC_Q35_MACHINE_OPTIONS,                             \
     .default_machine_opts = "firmware=bios-256k.bin",   \
     .default_display = "std"
 
+static QEMUMachine pc_q35_machine_v2_4 = {
+    PC_Q35_2_4_MACHINE_OPTIONS,
+    .name = "pc-q35-2.4",
+    .alias = "q35",
+    .init = pc_q35_init,
+};
+
+#define PC_Q35_2_3_MACHINE_OPTIONS PC_Q35_2_4_MACHINE_OPTIONS
+
 static QEMUMachine pc_q35_machine_v2_3 = {
     PC_Q35_2_3_MACHINE_OPTIONS,
     .name = "pc-q35-2.3",
-    .alias = "q35",
-    .init = pc_q35_init,
+    .init = pc_q35_init_2_3,
 };
 
 #define PC_Q35_2_2_MACHINE_OPTIONS PC_Q35_2_3_MACHINE_OPTIONS
@@ -506,6 +525,7 @@ static QEMUMachine pc_q35_machine_v1_4 = {
 
 static void pc_q35_machine_init(void)
 {
+    qemu_register_pc_machine(&pc_q35_machine_v2_4);
     qemu_register_pc_machine(&pc_q35_machine_v2_3);
     qemu_register_pc_machine(&pc_q35_machine_v2_2);
     qemu_register_pc_machine(&pc_q35_machine_v2_1);

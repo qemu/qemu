@@ -25,125 +25,39 @@
 #include "fpu/softfloat.h"
 #include "exec/helper-proto.h"
 
+
+#define CONVERT_BIT(X, SRC, DST) \
+    (SRC > DST ? (X) / (SRC / DST) & (DST) : ((X) & SRC) * (DST / SRC))
+
 uint64_t cpu_alpha_load_fpcr (CPUAlphaState *env)
 {
-    uint64_t r = 0;
-    uint8_t t;
-
-    t = env->fpcr_exc_status;
-    if (t) {
-        r = FPCR_SUM;
-        if (t & float_flag_invalid) {
-            r |= FPCR_INV;
-        }
-        if (t & float_flag_divbyzero) {
-            r |= FPCR_DZE;
-        }
-        if (t & float_flag_overflow) {
-            r |= FPCR_OVF;
-        }
-        if (t & float_flag_underflow) {
-            r |= FPCR_UNF;
-        }
-        if (t & float_flag_inexact) {
-            r |= FPCR_INE;
-        }
-    }
-
-    t = env->fpcr_exc_mask;
-    if (t & float_flag_invalid) {
-        r |= FPCR_INVD;
-    }
-    if (t & float_flag_divbyzero) {
-        r |= FPCR_DZED;
-    }
-    if (t & float_flag_overflow) {
-        r |= FPCR_OVFD;
-    }
-    if (t & float_flag_underflow) {
-        r |= FPCR_UNFD;
-    }
-    if (t & float_flag_inexact) {
-        r |= FPCR_INED;
-    }
-
-    switch (env->fpcr_dyn_round) {
-    case float_round_nearest_even:
-        r |= FPCR_DYN_NORMAL;
-        break;
-    case float_round_down:
-        r |= FPCR_DYN_MINUS;
-        break;
-    case float_round_up:
-        r |= FPCR_DYN_PLUS;
-        break;
-    case float_round_to_zero:
-        r |= FPCR_DYN_CHOPPED;
-        break;
-    }
-
-    if (env->fp_status.flush_inputs_to_zero) {
-        r |= FPCR_DNZ;
-    }
-    if (env->fpcr_dnod) {
-        r |= FPCR_DNOD;
-    }
-    if (env->fpcr_undz) {
-        r |= FPCR_UNDZ;
-    }
-
-    return r;
+    return (uint64_t)env->fpcr << 32;
 }
 
 void cpu_alpha_store_fpcr (CPUAlphaState *env, uint64_t val)
 {
-    uint8_t t;
+    uint32_t fpcr = val >> 32;
+    uint32_t t = 0;
 
-    t = 0;
-    if (val & FPCR_INV) {
-        t |= float_flag_invalid;
-    }
-    if (val & FPCR_DZE) {
-        t |= float_flag_divbyzero;
-    }
-    if (val & FPCR_OVF) {
-        t |= float_flag_overflow;
-    }
-    if (val & FPCR_UNF) {
-        t |= float_flag_underflow;
-    }
-    if (val & FPCR_INE) {
-        t |= float_flag_inexact;
-    }
-    env->fpcr_exc_status = t;
+    t |= CONVERT_BIT(fpcr, FPCR_INED, FPCR_INE);
+    t |= CONVERT_BIT(fpcr, FPCR_UNFD, FPCR_UNF);
+    t |= CONVERT_BIT(fpcr, FPCR_OVFD, FPCR_OVF);
+    t |= CONVERT_BIT(fpcr, FPCR_DZED, FPCR_DZE);
+    t |= CONVERT_BIT(fpcr, FPCR_INVD, FPCR_INV);
 
-    t = 0;
-    if (val & FPCR_INVD) {
-        t |= float_flag_invalid;
-    }
-    if (val & FPCR_DZED) {
-        t |= float_flag_divbyzero;
-    }
-    if (val & FPCR_OVFD) {
-        t |= float_flag_overflow;
-    }
-    if (val & FPCR_UNFD) {
-        t |= float_flag_underflow;
-    }
-    if (val & FPCR_INED) {
-        t |= float_flag_inexact;
-    }
-    env->fpcr_exc_mask = t;
+    env->fpcr = fpcr;
+    env->fpcr_exc_enable = ~t & FPCR_STATUS_MASK;
 
-    switch (val & FPCR_DYN_MASK) {
+    switch (fpcr & FPCR_DYN_MASK) {
+    case FPCR_DYN_NORMAL:
+    default:
+        t = float_round_nearest_even;
+        break;
     case FPCR_DYN_CHOPPED:
         t = float_round_to_zero;
         break;
     case FPCR_DYN_MINUS:
         t = float_round_down;
-        break;
-    case FPCR_DYN_NORMAL:
-        t = float_round_nearest_even;
         break;
     case FPCR_DYN_PLUS:
         t = float_round_up;
@@ -151,10 +65,8 @@ void cpu_alpha_store_fpcr (CPUAlphaState *env, uint64_t val)
     }
     env->fpcr_dyn_round = t;
 
-    env->fpcr_dnod = (val & FPCR_DNOD) != 0;
-    env->fpcr_undz = (val & FPCR_UNDZ) != 0;
-    env->fpcr_flush_to_zero = env->fpcr_dnod & env->fpcr_undz;
-    env->fp_status.flush_inputs_to_zero = (val & FPCR_DNZ) != 0;
+    env->fpcr_flush_to_zero = (fpcr & FPCR_UNFD) && (fpcr & FPCR_UNDZ);
+    env->fp_status.flush_inputs_to_zero = (fpcr & FPCR_DNZ) != 0;
 }
 
 uint64_t helper_load_fpcr(CPUAlphaState *env)
@@ -571,6 +483,8 @@ void QEMU_NORETURN dynamic_excp(CPUAlphaState *env, uintptr_t retaddr,
     env->error_code = error;
     if (retaddr) {
         cpu_restore_state(cs, retaddr);
+        /* Floating-point exceptions (our only users) point to the next PC.  */
+        env->pc += 4;
     }
     cpu_loop_exit(cs);
 }

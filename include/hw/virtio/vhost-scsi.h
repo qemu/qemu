@@ -60,11 +60,16 @@ typedef struct VHostSCSI {
     Error *migration_blocker;
 
     struct vhost_dev dev;
+    int32_t bootindex;
+    int channel;
+    int target;
+    int lun;
 } VHostSCSI;
 
 #define DEFINE_VHOST_SCSI_PROPERTIES(_state, _conf_field) \
     DEFINE_PROP_STRING("vhostfd", _state, _conf_field.vhostfd), \
     DEFINE_PROP_STRING("wwpn", _state, _conf_field.wwpn), \
+    DEFINE_PROP_UINT32("boot_tpgt", _state, _conf_field.boot_tpgt, 0), \
     DEFINE_PROP_UINT32("num_queues", _state, _conf_field.num_queues, 1), \
     DEFINE_PROP_UINT32("max_sectors", _state, _conf_field.max_sectors, 0xFFFF), \
     DEFINE_PROP_UINT32("cmd_per_lun", _state, _conf_field.cmd_per_lun, 128)

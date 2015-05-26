@@ -172,13 +172,6 @@ bool vmxnet_rx_pkt_has_virt_hdr(struct VmxnetRxPkt *pkt)
     return pkt->has_virt_hdr;
 }
 
-uint16_t vmxnet_rx_pkt_get_num_frags(struct VmxnetRxPkt *pkt)
-{
-    assert(pkt);
-
-    return pkt->vec_len;
-}
-
 uint16_t vmxnet_rx_pkt_get_vlan_tag(struct VmxnetRxPkt *pkt)
 {
     assert(pkt);

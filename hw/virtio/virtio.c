@@ -89,6 +89,7 @@ struct VirtQueue
     VirtIODevice *vdev;
     EventNotifier guest_notifier;
     EventNotifier host_notifier;
+    QLIST_ENTRY(VirtQueue) node;
 };
 
 /* virt queue functions */
@@ -155,7 +156,7 @@ static inline uint16_t vring_avail_ring(VirtQueue *vq, int i)
     return virtio_lduw_phys(vq->vdev, pa);
 }
 
-static inline uint16_t vring_used_event(VirtQueue *vq)
+static inline uint16_t vring_get_used_event(VirtQueue *vq)
 {
     return vring_avail_ring(vq, vq->vring.num);
 }
@@ -204,7 +205,7 @@ static inline void vring_used_flags_unset_bit(VirtQueue *vq, int mask)
     virtio_stw_phys(vdev, pa, virtio_lduw_phys(vdev, pa) & ~mask);
 }
 
-static inline void vring_avail_event(VirtQueue *vq, uint16_t val)
+static inline void vring_set_avail_event(VirtQueue *vq, uint16_t val)
 {
     hwaddr pa;
     if (!vq->notification) {
@@ -217,8 +218,8 @@ static inline void vring_avail_event(VirtQueue *vq, uint16_t val)
 void virtio_queue_set_notification(VirtQueue *vq, int enable)
 {
     vq->notification = enable;
-    if (vq->vdev->guest_features & (1 << VIRTIO_RING_F_EVENT_IDX)) {
-        vring_avail_event(vq, vring_avail_idx(vq));
+    if (virtio_has_feature(vq->vdev, VIRTIO_RING_F_EVENT_IDX)) {
+        vring_set_avail_event(vq, vring_avail_idx(vq));
     } else if (enable) {
         vring_used_flags_unset_bit(vq, VRING_USED_F_NO_NOTIFY);
     } else {
@@ -468,8 +469,8 @@ int virtqueue_pop(VirtQueue *vq, VirtQueueElement *elem)
     max = vq->vring.num;
 
     i = head = virtqueue_get_head(vq, vq->last_avail_idx++);
-    if (vdev->guest_features & (1 << VIRTIO_RING_F_EVENT_IDX)) {
-        vring_avail_event(vq, vq->last_avail_idx);
+    if (virtio_has_feature(vdev, VIRTIO_RING_F_EVENT_IDX)) {
+        vring_set_avail_event(vq, vq->last_avail_idx);
     }
 
     if (vring_desc_flags(vdev, desc_pa, i) & VRING_DESC_F_INDIRECT) {
@@ -605,7 +606,7 @@ void virtio_reset(void *opaque)
         vdev->vq[i].vring.used = 0;
         vdev->vq[i].last_avail_idx = 0;
         vdev->vq[i].pa = 0;
-        vdev->vq[i].vector = VIRTIO_NO_VECTOR;
+        virtio_queue_set_vector(vdev, i, VIRTIO_NO_VECTOR);
         vdev->vq[i].signalled_used = 0;
         vdev->vq[i].signalled_used_valid = false;
         vdev->vq[i].notification = true;
@@ -730,6 +731,16 @@ void virtio_queue_set_num(VirtIODevice *vdev, int n, int num)
     virtqueue_init(&vdev->vq[n]);
 }
 
+VirtQueue *virtio_vector_first_queue(VirtIODevice *vdev, uint16_t vector)
+{
+    return QLIST_FIRST(&vdev->vector_queues[vector]);
+}
+
+VirtQueue *virtio_vector_next_queue(VirtQueue *vq)
+{
+    return QLIST_NEXT(vq, node);
+}
+
 int virtio_queue_get_num(VirtIODevice *vdev, int n)
 {
     return vdev->vq[n].vring.num;
@@ -759,8 +770,9 @@ void virtio_queue_set_align(VirtIODevice *vdev, int n, int align)
 
 void virtio_queue_notify_vq(VirtQueue *vq)
 {
-    if (vq->vring.desc) {
+    if (vq->vring.desc && vq->handle_output) {
         VirtIODevice *vdev = vq->vdev;
+
         trace_virtio_queue_notify(vdev, vq - vdev->vq, vq);
         vq->handle_output(vdev, vq);
     }
@@ -779,8 +791,19 @@ uint16_t virtio_queue_vector(VirtIODevice *vdev, int n)
 
 void virtio_queue_set_vector(VirtIODevice *vdev, int n, uint16_t vector)
 {
-    if (n < VIRTIO_PCI_QUEUE_MAX)
+    VirtQueue *vq = &vdev->vq[n];
+
+    if (n < VIRTIO_PCI_QUEUE_MAX) {
+        if (vdev->vector_queues &&
+            vdev->vq[n].vector != VIRTIO_NO_VECTOR) {
+            QLIST_REMOVE(vq, node);
+        }
         vdev->vq[n].vector = vector;
+        if (vdev->vector_queues &&
+            vector != VIRTIO_NO_VECTOR) {
+            QLIST_INSERT_HEAD(&vdev->vector_queues[vector], vq, node);
+        }
+    }
 }
 
 VirtQueue *virtio_add_queue(VirtIODevice *vdev, int queue_size,
@@ -819,19 +842,6 @@ void virtio_irq(VirtQueue *vq)
     virtio_notify_vector(vq->vdev, vq->vector);
 }
 
-/* Assuming a given event_idx value from the other size, if
- * we have just incremented index from old to new_idx,
- * should we trigger an event? */
-static inline int vring_need_event(uint16_t event, uint16_t new, uint16_t old)
-{
-	/* Note: Xen has similar logic for notification hold-off
-	 * in include/xen/interface/io/ring.h with req_event and req_prod
-	 * corresponding to event_idx + 1 and new respectively.
-	 * Note also that req_event and req_prod in Xen start at 1,
-	 * event indexes in virtio start at 0. */
-	return (uint16_t)(new - event - 1) < (uint16_t)(new - old);
-}
-
 static bool vring_notify(VirtIODevice *vdev, VirtQueue *vq)
 {
     uint16_t old, new;
@@ -839,12 +849,12 @@ static bool vring_notify(VirtIODevice *vdev, VirtQueue *vq)
     /* We need to expose used array entries before checking used event. */
     smp_mb();
     /* Always notify when queue is empty (when feature acknowledge) */
-    if (((vdev->guest_features & (1 << VIRTIO_F_NOTIFY_ON_EMPTY)) &&
-         !vq->inuse && vring_avail_idx(vq) == vq->last_avail_idx)) {
+    if (virtio_has_feature(vdev, VIRTIO_F_NOTIFY_ON_EMPTY) &&
+        !vq->inuse && vring_avail_idx(vq) == vq->last_avail_idx) {
         return true;
     }
 
-    if (!(vdev->guest_features & (1 << VIRTIO_RING_F_EVENT_IDX))) {
+    if (!virtio_has_feature(vdev, VIRTIO_RING_F_EVENT_IDX)) {
         return !(vring_avail_flags(vq) & VRING_AVAIL_F_NO_INTERRUPT);
     }
 
@@ -852,7 +862,7 @@ static bool vring_notify(VirtIODevice *vdev, VirtQueue *vq)
     vq->signalled_used_valid = true;
     old = vq->signalled_used;
     new = vq->signalled_used = vring_used_idx(vq);
-    return !v || vring_need_event(vring_used_event(vq), new, old);
+    return !v || vring_need_event(vring_get_used_event(vq), new, old);
 }
 
 void virtio_notify(VirtIODevice *vdev, VirtQueue *vq)
@@ -1100,6 +1110,7 @@ void virtio_cleanup(VirtIODevice *vdev)
     qemu_del_vm_change_state_handler(vdev->vmstate);
     g_free(vdev->config);
     g_free(vdev->vq);
+    g_free(vdev->vector_queues);
 }
 
 static void virtio_vmstate_change(void *opaque, int running, RunState state)
@@ -1137,7 +1148,16 @@ void virtio_instance_init_common(Object *proxy_obj, void *data,
 void virtio_init(VirtIODevice *vdev, const char *name,
                  uint16_t device_id, size_t config_size)
 {
+    BusState *qbus = qdev_get_parent_bus(DEVICE(vdev));
+    VirtioBusClass *k = VIRTIO_BUS_GET_CLASS(qbus);
     int i;
+    int nvectors = k->query_nvectors ? k->query_nvectors(qbus->parent) : 0;
+
+    if (nvectors) {
+        vdev->vector_queues =
+            g_malloc0(sizeof(*vdev->vector_queues) * nvectors);
+    }
+
     vdev->device_id = device_id;
     vdev->status = 0;
     vdev->isr = 0;

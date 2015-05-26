@@ -34,15 +34,13 @@
 #include "sysemu/tpm_backend_int.h"
 #include "tpm_tis.h"
 
-/* #define DEBUG_TPM */
+#define DEBUG_TPM 0
 
-#ifdef DEBUG_TPM
-#define DPRINTF(fmt, ...) \
-    do { fprintf(stderr, fmt, ## __VA_ARGS__); } while (0)
-#else
-#define DPRINTF(fmt, ...) \
-    do { } while (0)
-#endif
+#define DPRINTF(fmt, ...) do { \
+    if (DEBUG_TPM) { \
+        fprintf(stderr, fmt, ## __VA_ARGS__); \
+    } \
+} while (0);
 
 #define TYPE_TPM_PASSTHROUGH "tpm-passthrough"
 #define TPM_PASSTHROUGH(obj) \
@@ -112,21 +110,38 @@ static void tpm_write_fatal_error_response(uint8_t *out, uint32_t out_len)
     }
 }
 
+static bool tpm_passthrough_is_selftest(const uint8_t *in, uint32_t in_len)
+{
+    struct tpm_req_hdr *hdr = (struct tpm_req_hdr *)in;
+
+    if (in_len >= sizeof(*hdr)) {
+        return (be32_to_cpu(hdr->ordinal) == TPM_ORD_ContinueSelfTest);
+    }
+
+    return false;
+}
+
 static int tpm_passthrough_unix_tx_bufs(TPMPassthruState *tpm_pt,
                                         const uint8_t *in, uint32_t in_len,
-                                        uint8_t *out, uint32_t out_len)
+                                        uint8_t *out, uint32_t out_len,
+                                        bool *selftest_done)
 {
     int ret;
+    bool is_selftest;
+    const struct tpm_resp_hdr *hdr;
 
     tpm_pt->tpm_op_canceled = false;
     tpm_pt->tpm_executing = true;
+    *selftest_done = false;
+
+    is_selftest = tpm_passthrough_is_selftest(in, in_len);
 
     ret = tpm_passthrough_unix_write(tpm_pt->tpm_fd, in, in_len);
     if (ret != in_len) {
         if (!tpm_pt->tpm_op_canceled ||
             (tpm_pt->tpm_op_canceled && errno != ECANCELED)) {
             error_report("tpm_passthrough: error while transmitting data "
-                         "to TPM: %s (%i)\n",
+                         "to TPM: %s (%i)",
                          strerror(errno), errno);
         }
         goto err_exit;
@@ -139,14 +154,19 @@ static int tpm_passthrough_unix_tx_bufs(TPMPassthruState *tpm_pt,
         if (!tpm_pt->tpm_op_canceled ||
             (tpm_pt->tpm_op_canceled && errno != ECANCELED)) {
             error_report("tpm_passthrough: error while reading data from "
-                         "TPM: %s (%i)\n",
+                         "TPM: %s (%i)",
                          strerror(errno), errno);
         }
     } else if (ret < sizeof(struct tpm_resp_hdr) ||
                tpm_passthrough_get_size_from_buffer(out) != ret) {
         ret = -1;
         error_report("tpm_passthrough: received invalid response "
-                     "packet from TPM\n");
+                     "packet from TPM");
+    }
+
+    if (is_selftest && (ret >= sizeof(struct tpm_resp_hdr))) {
+        hdr = (struct tpm_resp_hdr *)out;
+        *selftest_done = (be32_to_cpu(hdr->errcode) == 0);
     }
 
 err_exit:
@@ -160,13 +180,15 @@ err_exit:
 }
 
 static int tpm_passthrough_unix_transfer(TPMPassthruState *tpm_pt,
-                                         const TPMLocality *locty_data)
+                                         const TPMLocality *locty_data,
+                                         bool *selftest_done)
 {
     return tpm_passthrough_unix_tx_bufs(tpm_pt,
                                         locty_data->w_buffer.buffer,
                                         locty_data->w_offset,
                                         locty_data->r_buffer.buffer,
-                                        locty_data->r_buffer.size);
+                                        locty_data->r_buffer.size,
+                                        selftest_done);
 }
 
 static void tpm_passthrough_worker_thread(gpointer data,
@@ -175,16 +197,19 @@ static void tpm_passthrough_worker_thread(gpointer data,
     TPMPassthruThreadParams *thr_parms = user_data;
     TPMPassthruState *tpm_pt = TPM_PASSTHROUGH(thr_parms->tb);
     TPMBackendCmd cmd = (TPMBackendCmd)data;
+    bool selftest_done = false;
 
     DPRINTF("tpm_passthrough: processing command type %d\n", cmd);
 
     switch (cmd) {
     case TPM_BACKEND_CMD_PROCESS_CMD:
         tpm_passthrough_unix_transfer(tpm_pt,
-                                      thr_parms->tpm_state->locty_data);
+                                      thr_parms->tpm_state->locty_data,
+                                      &selftest_done);
 
         thr_parms->recv_data_callback(thr_parms->tpm_state,
-                                      thr_parms->tpm_state->locty_number);
+                                      thr_parms->tpm_state->locty_number,
+                                      selftest_done);
         break;
     case TPM_BACKEND_CMD_INIT:
     case TPM_BACKEND_CMD_END:
@@ -282,7 +307,7 @@ static void tpm_passthrough_cancel_cmd(TPMBackend *tb)
         if (tpm_pt->cancel_fd >= 0) {
             n = write(tpm_pt->cancel_fd, "-", 1);
             if (n != 1) {
-                error_report("Canceling TPM command failed: %s\n",
+                error_report("Canceling TPM command failed: %s",
                              strerror(errno));
             } else {
                 tpm_pt->tpm_op_canceled = true;
@@ -413,13 +438,13 @@ static int tpm_passthrough_handle_device_opts(QemuOpts *opts, TPMBackend *tb)
 
     tpm_pt->tpm_fd = qemu_open(tpm_pt->tpm_dev, O_RDWR);
     if (tpm_pt->tpm_fd < 0) {
-        error_report("Cannot access TPM device using '%s': %s\n",
+        error_report("Cannot access TPM device using '%s': %s",
                      tpm_pt->tpm_dev, strerror(errno));
         goto err_free_parameters;
     }
 
     if (tpm_passthrough_test_tpmdev(tpm_pt->tpm_fd)) {
-        error_report("'%s' is not a TPM device.\n",
+        error_report("'%s' is not a TPM device.",
                      tpm_pt->tpm_dev);
         goto err_close_tpmdev;
     }

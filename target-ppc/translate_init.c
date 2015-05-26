@@ -7819,6 +7819,15 @@ static void gen_spr_power8_ebb(CPUPPCState *env)
                      KVM_REG_PPC_BESCR, 0x00000000);
 }
 
+/* Virtual Time Base */
+static void gen_spr_vtb(CPUPPCState *env)
+{
+    spr_register(env, SPR_VTB, "VTB",
+                 SPR_NOACCESS, SPR_NOACCESS,
+                 &spr_read_tbl, SPR_NOACCESS,
+                 0x00000000);
+}
+
 static void gen_spr_power8_fscr(CPUPPCState *env)
 {
 #if defined(CONFIG_USER_ONLY)
@@ -7881,6 +7890,7 @@ static void init_proc_book3s_64(CPUPPCState *env, int version)
         gen_spr_power8_pmu_sup(env);
         gen_spr_power8_pmu_user(env);
         gen_spr_power8_tm(env);
+        gen_spr_vtb(env);
     }
     if (version < BOOK3S_CPU_POWER8) {
         gen_spr_book3s_dbg(env);

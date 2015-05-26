@@ -108,16 +108,6 @@ struct cris_support_reg
 };
 extern const struct cris_support_reg cris_support_regs[];
 
-struct cris_cond15
-{
-  /* The name of the condition.  */
-  const char *const name;
-
-  /* What CPU version this condition name applies to.  */
-  enum cris_insn_version_usage applicable_version;
-};
-extern const struct cris_cond15 cris_conds15[];
-
 /* Opcode-dependent constants.  */
 #define AUTOINCR_BIT (0x04)
 

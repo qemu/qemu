@@ -1,0 +1,1 @@
+tests/qapi-schema/unknown-expr-key.json:2: Unknown key 'bogus' in struct 'bar'

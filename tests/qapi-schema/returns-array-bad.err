@@ -1,0 +1,1 @@
+tests/qapi-schema/returns-array-bad.json:2: 'returns' for command 'oops': array type must contain single type name

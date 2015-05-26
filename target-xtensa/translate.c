@@ -456,7 +456,7 @@ static bool gen_check_loop_end(DisasContext *dc, int slot)
     if (option_enabled(dc, XTENSA_OPTION_LOOP) &&
             !(dc->tb->flags & XTENSA_TBFLAG_EXCM) &&
             dc->next_pc == dc->lend) {
-        int label = gen_new_label();
+        TCGLabel *label = gen_new_label();
 
         gen_advance_ccount(dc);
         tcg_gen_brcondi_i32(TCG_COND_EQ, cpu_SR[LCOUNT], 0, label);
@@ -479,7 +479,7 @@ static void gen_jumpi_check_loop_end(DisasContext *dc, int slot)
 static void gen_brcond(DisasContext *dc, TCGCond cond,
         TCGv_i32 t0, TCGv_i32 t1, uint32_t offset)
 {
-    int label = gen_new_label();
+    TCGLabel *label = gen_new_label();
 
     gen_advance_ccount(dc);
     tcg_gen_brcond_i32(cond, t0, t1, label);
@@ -808,7 +808,7 @@ static void gen_load_store_alignment(DisasContext *dc, int shift,
         tcg_gen_andi_i32(addr, addr, ~0 << shift);
     } else if (option_enabled(dc, XTENSA_OPTION_HW_ALIGNMENT) &&
             no_hw_alignment) {
-        int label = gen_new_label();
+        TCGLabel *label = gen_new_label();
         TCGv_i32 tmp = tcg_temp_new_i32();
         tcg_gen_andi_i32(tmp, addr, ~(~0 << shift));
         tcg_gen_brcondi_i32(TCG_COND_EQ, tmp, 0, label);
@@ -1642,7 +1642,7 @@ static void disas_xtensa_insn(CPUXtensaState *env, DisasContext *dc)
 
             if (OP2 >= 12) {
                 HAS_OPTION(XTENSA_OPTION_32_BIT_IDIV);
-                int label = gen_new_label();
+                TCGLabel *label = gen_new_label();
                 tcg_gen_brcondi_i32(TCG_COND_NE, cpu_R[RRR_T], 0, label);
                 gen_exception_cause(dc, INTEGER_DIVIDE_BY_ZERO_CAUSE);
                 gen_set_label(label);
@@ -1714,8 +1714,8 @@ static void disas_xtensa_insn(CPUXtensaState *env, DisasContext *dc)
             case 13: /*QUOSi*/
             case 15: /*REMSi*/
                 {
-                    int label1 = gen_new_label();
-                    int label2 = gen_new_label();
+                    TCGLabel *label1 = gen_new_label();
+                    TCGLabel *label2 = gen_new_label();
 
                     tcg_gen_brcondi_i32(TCG_COND_NE, cpu_R[RRR_S], 0x80000000,
                             label1);
@@ -2468,7 +2468,7 @@ static void disas_xtensa_insn(CPUXtensaState *env, DisasContext *dc)
         case 14: /*S32C1Iy*/
             HAS_OPTION(XTENSA_OPTION_CONDITIONAL_STORE);
             if (gen_window_check2(dc, RRI8_S, RRI8_T)) {
-                int label = gen_new_label();
+                TCGLabel *label = gen_new_label();
                 TCGv_i32 tmp = tcg_temp_local_new_i32();
                 TCGv_i32 addr = tcg_temp_local_new_i32();
                 TCGv_i32 tpc;
@@ -2746,7 +2746,7 @@ static void disas_xtensa_insn(CPUXtensaState *env, DisasContext *dc)
                         tcg_temp_free(tmp);
 
                         if (BRI8_R > 8) {
-                            int label = gen_new_label();
+                            TCGLabel *label = gen_new_label();
                             tcg_gen_brcondi_i32(
                                     BRI8_R == 9 ? TCG_COND_NE : TCG_COND_GT,
                                     cpu_R[RRI8_S], 0, label);
@@ -3087,7 +3087,7 @@ void gen_intermediate_code_internal(XtensaCPU *cpu,
         }
 
         if (dc.icount) {
-            int label = gen_new_label();
+            TCGLabel *label = gen_new_label();
 
             tcg_gen_addi_i32(dc.next_icount, cpu_SR[ICOUNT], 1);
             tcg_gen_brcondi_i32(TCG_COND_NE, dc.next_icount, 0, label);

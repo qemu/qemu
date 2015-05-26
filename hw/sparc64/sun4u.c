@@ -130,7 +130,7 @@ static void fw_cfg_boot_set(void *opaque, const char *boot_device,
     fw_cfg_add_i16(opaque, FW_CFG_BOOT_DEVICE, boot_device[0]);
 }
 
-static int sun4u_NVRAM_set_params(M48t59State *nvram, uint16_t NVRAM_size,
+static int sun4u_NVRAM_set_params(Nvram *nvram, uint16_t NVRAM_size,
                                   const char *arch, ram_addr_t RAM_size,
                                   const char *boot_devices,
                                   uint32_t kernel_image, uint32_t kernel_size,
@@ -144,6 +144,7 @@ static int sun4u_NVRAM_set_params(M48t59State *nvram, uint16_t NVRAM_size,
     uint32_t start, end;
     uint8_t image[0x1ff0];
     struct OpenBIOS_nvpart_v1 *part_header;
+    NvramClass *k = NVRAM_GET_CLASS(nvram);
 
     memset(image, '\0', sizeof(image));
 
@@ -176,8 +177,9 @@ static int sun4u_NVRAM_set_params(M48t59State *nvram, uint16_t NVRAM_size,
 
     Sun_init_header((struct Sun_nvram *)&image[0x1fd8], macaddr, 0x80);
 
-    for (i = 0; i < sizeof(image); i++)
-        m48t59_write(nvram, i, image[i]);
+    for (i = 0; i < sizeof(image); i++) {
+        (k->write)(nvram, i, image[i]);
+    }
 
     return 0;
 }
@@ -596,7 +598,8 @@ pci_ebus_init1(PCIDevice *pci_dev)
 {
     EbusState *s = DO_UPCAST(EbusState, pci_dev, pci_dev);
 
-    isa_bus_new(&pci_dev->qdev, pci_address_space_io(pci_dev));
+    isa_bus_new(DEVICE(pci_dev), get_system_memory(),
+                pci_address_space_io(pci_dev));
 
     pci_dev->config[0x04] = 0x06; // command = bus master, pci mem
     pci_dev->config[0x05] = 0x00;
@@ -609,7 +612,7 @@ pci_ebus_init1(PCIDevice *pci_dev)
                              0, 0x1000000);
     pci_register_bar(pci_dev, 0, PCI_BASE_ADDRESS_SPACE_MEMORY, &s->bar0);
     memory_region_init_alias(&s->bar1, OBJECT(s), "bar1", get_system_io(),
-                             0, 0x1000);
+                             0, 0x4000);
     pci_register_bar(pci_dev, 1, PCI_BASE_ADDRESS_SPACE_IO, &s->bar1);
     return 0;
 }
@@ -817,11 +820,12 @@ static void sun4uv_init(MemoryRegion *address_space_mem,
                         const struct hwdef *hwdef)
 {
     SPARCCPU *cpu;
-    M48t59State *nvram;
+    Nvram *nvram;
     unsigned int i;
     uint64_t initrd_addr, initrd_size, kernel_addr, kernel_size, kernel_entry;
     PCIBus *pci_bus, *pci_bus2, *pci_bus3;
     ISABus *isa_bus;
+    SysBusDevice *s;
     qemu_irq *ivec_irqs, *pbm_irqs;
     DriveInfo *hd[MAX_IDE_BUS * MAX_IDE_DEVS];
     DriveInfo *fd[MAX_FD];
@@ -849,17 +853,9 @@ static void sun4uv_init(MemoryRegion *address_space_mem,
                        NULL, 115200, serial_hds[i], DEVICE_BIG_ENDIAN);
         i++;
     }
-    for(; i < MAX_SERIAL_PORTS; i++) {
-        if (serial_hds[i]) {
-            serial_isa_init(isa_bus, i, serial_hds[i]);
-        }
-    }
 
-    for(i = 0; i < MAX_PARALLEL_PORTS; i++) {
-        if (parallel_hds[i]) {
-            parallel_init(isa_bus, i, parallel_hds[i]);
-        }
-    }
+    serial_hds_isa_init(isa_bus, MAX_SERIAL_PORTS);
+    parallel_hds_isa_init(isa_bus, MAX_PARALLEL_PORTS);
 
     for(i = 0; i < nb_nics; i++)
         pci_nic_init_nofail(&nd_table[i], pci_bus, "ne2k_pci", NULL);
@@ -873,8 +869,13 @@ static void sun4uv_init(MemoryRegion *address_space_mem,
         fd[i] = drive_get(IF_FLOPPY, 0, i);
     }
     fdctrl_init_isa(isa_bus, fd);
-    nvram = m48t59_init_isa(isa_bus, 0x0074, NVRAM_SIZE, 59);
 
+    /* Map NVRAM into I/O (ebus) space */
+    nvram = m48t59_init(NULL, 0, 0, NVRAM_SIZE, 1968, 59);
+    s = SYS_BUS_DEVICE(nvram);
+    memory_region_add_subregion(get_system_io(), 0x2000,
+                                sysbus_mmio_get_region(s, 0));
+ 
     initrd_size = 0;
     initrd_addr = 0;
     kernel_size = sun4u_load_kernel(machine->kernel_filename,
@@ -894,7 +895,6 @@ static void sun4uv_init(MemoryRegion *address_space_mem,
 
     fw_cfg = fw_cfg_init_io(BIOS_CFG_IOPORT);
     fw_cfg_add_i16(fw_cfg, FW_CFG_MAX_CPUS, (uint16_t)max_cpus);
-    fw_cfg_add_i32(fw_cfg, FW_CFG_ID, 1);
     fw_cfg_add_i64(fw_cfg, FW_CFG_RAM_SIZE, (uint64_t)ram_size);
     fw_cfg_add_i16(fw_cfg, FW_CFG_MACHINE_ID, hwdef->machine_id);
     fw_cfg_add_i64(fw_cfg, FW_CFG_KERNEL_ADDR, kernel_entry);

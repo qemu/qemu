@@ -33,6 +33,7 @@ VirtIOBlockReq *virtio_blk_alloc_request(VirtIOBlock *s)
     VirtIOBlockReq *req = g_slice_new(VirtIOBlockReq);
     req->dev = s;
     req->qiov.size = 0;
+    req->in_len = 0;
     req->next = NULL;
     req->mr_next = NULL;
     return req;
@@ -54,7 +55,7 @@ static void virtio_blk_complete_request(VirtIOBlockReq *req,
     trace_virtio_blk_req_complete(req, status);
 
     stb_p(&req->in->status, status);
-    virtqueue_push(s->vq, &req->elem, req->qiov.size + sizeof(*req->in));
+    virtqueue_push(s->vq, &req->elem, req->in_len);
     virtio_notify(vdev, s->vq);
 }
 
@@ -102,6 +103,14 @@ static void virtio_blk_rw_complete(void *opaque, int ret)
         if (ret) {
             int p = virtio_ldl_p(VIRTIO_DEVICE(req->dev), &req->out.type);
             bool is_read = !(p & VIRTIO_BLK_T_OUT);
+            /* Note that memory may be dirtied on read failure.  If the
+             * virtio request is not completed here, as is the case for
+             * BLOCK_ERROR_ACTION_STOP, the memory may not be copied
+             * correctly during live migration.  While this is ugly,
+             * it is acceptable because the device is free to write to
+             * the memory until the request is completed (which will
+             * happen on the other side of the migration).
+             */
             if (virtio_blk_handle_rw_error(req, -ret, is_read)) {
                 continue;
             }
@@ -201,6 +210,7 @@ static int virtio_blk_handle_scsi_req(VirtIOBlockReq *req)
 #ifdef __linux__
     int i;
     VirtIOBlockIoctlReq *ioctl_req;
+    BlockAIOCB *acb;
 #endif
 
     /*
@@ -278,8 +288,13 @@ static int virtio_blk_handle_scsi_req(VirtIOBlockReq *req)
     ioctl_req->hdr.sbp = elem->in_sg[elem->in_num - 3].iov_base;
     ioctl_req->hdr.mx_sb_len = elem->in_sg[elem->in_num - 3].iov_len;
 
-    blk_aio_ioctl(blk->blk, SG_IO, &ioctl_req->hdr,
-                  virtio_blk_ioctl_complete, ioctl_req);
+    acb = blk_aio_ioctl(blk->blk, SG_IO, &ioctl_req->hdr,
+                        virtio_blk_ioctl_complete, ioctl_req);
+    if (!acb) {
+        g_free(ioctl_req);
+        status = VIRTIO_BLK_S_UNSUPP;
+        goto fail;
+    }
     return -EINPROGRESS;
 #else
     abort();
@@ -490,6 +505,8 @@ void virtio_blk_handle_request(VirtIOBlockReq *req, MultiReqBuffer *mrb)
         exit(1);
     }
 
+    /* We always touch the last byte, so just see how big in_iov is.  */
+    req->in_len = iov_size(in_iov, in_num);
     req->in = (void *)in_iov[in_num - 1].iov_base
               + in_iov[in_num - 1].iov_len
               - sizeof(struct virtio_blk_inhdr);
@@ -498,7 +515,7 @@ void virtio_blk_handle_request(VirtIOBlockReq *req, MultiReqBuffer *mrb)
     type = virtio_ldl_p(VIRTIO_DEVICE(req->dev), &req->out.type);
 
     /* VIRTIO_BLK_T_OUT defines the command direction. VIRTIO_BLK_T_BARRIER
-     * is an optional flag. Altough a guest should not send this flag if
+     * is an optional flag. Although a guest should not send this flag if
      * not negotiated we ignored it in the past. So keep ignoring it. */
     switch (type & ~(VIRTIO_BLK_T_OUT | VIRTIO_BLK_T_BARRIER)) {
     case VIRTIO_BLK_T_IN:
@@ -591,12 +608,6 @@ static void virtio_blk_handle_output(VirtIODevice *vdev, VirtQueue *vq)
     if (mrb.num_reqs) {
         virtio_blk_submit_multireq(s->blk, &mrb);
     }
-
-    /*
-     * FIXME: Want to check for completions before returning to guest mode,
-     * so cached reads and writes are reported as quickly as possible. But
-     * that should be done in the generic block layer.
-     */
 }
 
 static void virtio_blk_dma_restart_bh(void *opaque)
@@ -667,11 +678,11 @@ static void virtio_blk_update_config(VirtIODevice *vdev, uint8_t *config)
     memset(&blkcfg, 0, sizeof(blkcfg));
     virtio_stq_p(vdev, &blkcfg.capacity, capacity);
     virtio_stl_p(vdev, &blkcfg.seg_max, 128 - 2);
-    virtio_stw_p(vdev, &blkcfg.cylinders, conf->cyls);
+    virtio_stw_p(vdev, &blkcfg.geometry.cylinders, conf->cyls);
     virtio_stl_p(vdev, &blkcfg.blk_size, blk_size);
     virtio_stw_p(vdev, &blkcfg.min_io_size, conf->min_io_size / blk_size);
     virtio_stw_p(vdev, &blkcfg.opt_io_size, conf->opt_io_size / blk_size);
-    blkcfg.heads = conf->heads;
+    blkcfg.geometry.heads = conf->heads;
     /*
      * We must ensure that the block device capacity is a multiple of
      * the logical block size. If that is not the case, let's use
@@ -684,9 +695,9 @@ static void virtio_blk_update_config(VirtIODevice *vdev, uint8_t *config)
      * per track (cylinder).
      */
     if (blk_getlength(s->blk) /  conf->heads / conf->secs % blk_size) {
-        blkcfg.sectors = conf->secs & ~s->sector_mask;
+        blkcfg.geometry.sectors = conf->secs & ~s->sector_mask;
     } else {
-        blkcfg.sectors = conf->secs;
+        blkcfg.geometry.sectors = conf->secs;
     }
     blkcfg.size_max = 0;
     blkcfg.physical_block_exp = get_physical_block_exp(conf);
@@ -711,20 +722,20 @@ static uint32_t virtio_blk_get_features(VirtIODevice *vdev, uint32_t features)
 {
     VirtIOBlock *s = VIRTIO_BLK(vdev);
 
-    features |= (1 << VIRTIO_BLK_F_SEG_MAX);
-    features |= (1 << VIRTIO_BLK_F_GEOMETRY);
-    features |= (1 << VIRTIO_BLK_F_TOPOLOGY);
-    features |= (1 << VIRTIO_BLK_F_BLK_SIZE);
-    features |= (1 << VIRTIO_BLK_F_SCSI);
+    virtio_add_feature(&features, VIRTIO_BLK_F_SEG_MAX);
+    virtio_add_feature(&features, VIRTIO_BLK_F_GEOMETRY);
+    virtio_add_feature(&features, VIRTIO_BLK_F_TOPOLOGY);
+    virtio_add_feature(&features, VIRTIO_BLK_F_BLK_SIZE);
+    virtio_add_feature(&features, VIRTIO_BLK_F_SCSI);
 
     if (s->conf.config_wce) {
-        features |= (1 << VIRTIO_BLK_F_CONFIG_WCE);
+        virtio_add_feature(&features, VIRTIO_BLK_F_CONFIG_WCE);
     }
     if (blk_enable_write_cache(s->blk)) {
-        features |= (1 << VIRTIO_BLK_F_WCE);
+        virtio_add_feature(&features, VIRTIO_BLK_F_WCE);
     }
     if (blk_is_read_only(s->blk)) {
-        features |= 1 << VIRTIO_BLK_F_RO;
+        virtio_add_feature(&features, VIRTIO_BLK_F_RO);
     }
 
     return features;
@@ -733,7 +744,6 @@ static uint32_t virtio_blk_get_features(VirtIODevice *vdev, uint32_t features)
 static void virtio_blk_set_status(VirtIODevice *vdev, uint8_t status)
 {
     VirtIOBlock *s = VIRTIO_BLK(vdev);
-    uint32_t features;
 
     if (s->dataplane && !(status & (VIRTIO_CONFIG_S_DRIVER |
                                     VIRTIO_CONFIG_S_DRIVER_OK))) {
@@ -743,8 +753,6 @@ static void virtio_blk_set_status(VirtIODevice *vdev, uint8_t status)
     if (!(status & VIRTIO_CONFIG_S_DRIVER_OK)) {
         return;
     }
-
-    features = vdev->guest_features;
 
     /* A guest that supports VIRTIO_BLK_F_CONFIG_WCE must be able to send
      * cache flushes.  Thus, the "auto writethrough" behavior is never
@@ -761,10 +769,10 @@ static void virtio_blk_set_status(VirtIODevice *vdev, uint8_t status)
      *
      * s->blk would erroneously be placed in writethrough mode.
      */
-    if (!(features & (1 << VIRTIO_BLK_F_CONFIG_WCE))) {
+    if (!virtio_has_feature(vdev, VIRTIO_BLK_F_CONFIG_WCE)) {
         aio_context_acquire(blk_get_aio_context(s->blk));
         blk_set_enable_write_cache(s->blk,
-                                   !!(features & (1 << VIRTIO_BLK_F_WCE)));
+                                   virtio_has_feature(vdev, VIRTIO_BLK_F_WCE));
         aio_context_release(blk_get_aio_context(s->blk));
     }
 }
@@ -858,8 +866,7 @@ static void virtio_blk_migration_state_changed(Notifier *notifier, void *data)
         virtio_blk_data_plane_create(VIRTIO_DEVICE(s), &s->conf,
                                      &s->dataplane, &err);
         if (err != NULL) {
-            error_report("%s", error_get_pretty(err));
-            error_free(err);
+            error_report_err(err);
         }
     }
 }
@@ -888,6 +895,7 @@ static void virtio_blk_device_realize(DeviceState *dev, Error **errp)
         error_propagate(errp, err);
         return;
     }
+    blkconf_blocksizes(&conf->conf);
 
     virtio_init(vdev, "virtio-blk", VIRTIO_ID_BLOCK,
                 sizeof(struct virtio_blk_config));

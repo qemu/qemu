@@ -350,7 +350,7 @@ uint64_t ppc_hash64_start_access(PowerPCCPU *cpu, target_ulong pte_index)
 void ppc_hash64_stop_access(uint64_t token)
 {
     if (kvmppc_kern_htab) {
-        return kvmppc_hash64_free_pteg(token);
+        kvmppc_hash64_free_pteg(token);
     }
 }
 
@@ -388,6 +388,24 @@ static hwaddr ppc_hash64_pteg_search(CPUPPCState *env, hwaddr hash,
     return -1;
 }
 
+static uint64_t ppc_hash64_page_shift(ppc_slb_t *slb)
+{
+    uint64_t epnshift;
+
+    /* Page size according to the SLB, which we use to generate the
+     * EPN for hash table lookup..  When we implement more recent MMU
+     * extensions this might be different from the actual page size
+     * encoded in the PTE */
+    if ((slb->vsid & SLB_VSID_LLP_MASK) == SLB_VSID_4K) {
+        epnshift = TARGET_PAGE_BITS;
+    } else if ((slb->vsid & SLB_VSID_LLP_MASK) == SLB_VSID_64K) {
+        epnshift = TARGET_PAGE_BITS_64K;
+    } else {
+        epnshift = TARGET_PAGE_BITS_16M;
+    }
+    return epnshift;
+}
+
 static hwaddr ppc_hash64_htab_lookup(CPUPPCState *env,
                                      ppc_slb_t *slb, target_ulong eaddr,
                                      ppc_hash_pte64_t *pte)
@@ -396,12 +414,7 @@ static hwaddr ppc_hash64_htab_lookup(CPUPPCState *env,
     hwaddr hash;
     uint64_t vsid, epnshift, epnmask, epn, ptem;
 
-    /* Page size according to the SLB, which we use to generate the
-     * EPN for hash table lookup..  When we implement more recent MMU
-     * extensions this might be different from the actual page size
-     * encoded in the PTE */
-    epnshift = (slb->vsid & SLB_VSID_L)
-        ? TARGET_PAGE_BITS_16M : TARGET_PAGE_BITS;
+    epnshift = ppc_hash64_page_shift(slb);
     epnmask = ~((1ULL << epnshift) - 1);
 
     if (slb->vsid & SLB_VSID_B) {
@@ -448,12 +461,14 @@ static hwaddr ppc_hash64_htab_lookup(CPUPPCState *env,
 static hwaddr ppc_hash64_pte_raddr(ppc_slb_t *slb, ppc_hash_pte64_t pte,
                                    target_ulong eaddr)
 {
+    hwaddr mask;
+    int target_page_bits;
     hwaddr rpn = pte.pte1 & HPTE64_R_RPN;
-    /* FIXME: Add support for SLLP extended page sizes */
-    int target_page_bits = (slb->vsid & SLB_VSID_L)
-        ? TARGET_PAGE_BITS_16M : TARGET_PAGE_BITS;
-    hwaddr mask = (1ULL << target_page_bits) - 1;
-
+    /*
+     * We support 4K, 64K and 16M now
+     */
+    target_page_bits = ppc_hash64_page_shift(slb);
+    mask = (1ULL << target_page_bits) - 1;
     return (rpn & ~mask) | (eaddr & mask);
 }
 
@@ -617,7 +632,8 @@ void ppc_hash64_store_hpte(CPUPPCState *env,
     CPUState *cs = CPU(ppc_env_get_cpu(env));
 
     if (kvmppc_kern_htab) {
-        return kvmppc_hash64_write_pte(env, pte_index, pte0, pte1);
+        kvmppc_hash64_write_pte(env, pte_index, pte0, pte1);
+        return;
     }
 
     pte_index *= HASH_PTE_SIZE_64;

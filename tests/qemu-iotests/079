@@ -42,19 +42,13 @@ _supported_fmt qcow2
 _supported_proto file nfs
 _supported_os Linux
 
-function test_qemu_img()
-{
-    echo qemu-img "$@" | _filter_testdir
-    $QEMU_IMG "$@" 2>&1 | _filter_testdir
-    echo
-}
-
 echo "=== Check option preallocation and cluster_size ==="
 echo
 cluster_sizes="16384 32768 65536 131072 262144 524288 1048576 2097152 4194304"
 
 for s in $cluster_sizes; do
-    test_qemu_img create -f $IMGFMT -o preallocation=metadata,cluster_size=$s "$TEST_IMG" 4G
+    IMGOPTS=$(_optstr_add "$IMGOPTS" "preallocation=metadata,cluster_size=$s") \
+        _make_test_img 4G
 done
 
 # success, all done

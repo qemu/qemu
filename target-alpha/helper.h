@@ -1,12 +1,7 @@
 DEF_HELPER_3(excp, noreturn, env, int, int)
 DEF_HELPER_FLAGS_1(load_pcc, TCG_CALL_NO_RWG_SE, i64, env)
 
-DEF_HELPER_FLAGS_3(addqv, TCG_CALL_NO_WG, i64, env, i64, i64)
-DEF_HELPER_FLAGS_3(addlv, TCG_CALL_NO_WG, i64, env, i64, i64)
-DEF_HELPER_FLAGS_3(subqv, TCG_CALL_NO_WG, i64, env, i64, i64)
-DEF_HELPER_FLAGS_3(sublv, TCG_CALL_NO_WG, i64, env, i64, i64)
-DEF_HELPER_FLAGS_3(mullv, TCG_CALL_NO_WG, i64, env, i64, i64)
-DEF_HELPER_FLAGS_3(mulqv, TCG_CALL_NO_WG, i64, env, i64, i64)
+DEF_HELPER_FLAGS_3(check_overflow, TCG_CALL_NO_WG, void, env, i64, i64)
 
 DEF_HELPER_FLAGS_1(ctpop, TCG_CALL_NO_RWG_SE, i64, i64)
 DEF_HELPER_FLAGS_1(ctlz, TCG_CALL_NO_RWG_SE, i64, i64)
@@ -83,18 +78,17 @@ DEF_HELPER_FLAGS_2(cvtqg, TCG_CALL_NO_RWG, i64, env, i64)
 
 DEF_HELPER_FLAGS_2(cvttq, TCG_CALL_NO_RWG, i64, env, i64)
 DEF_HELPER_FLAGS_2(cvttq_c, TCG_CALL_NO_RWG, i64, env, i64)
-DEF_HELPER_FLAGS_2(cvttq_svic, TCG_CALL_NO_RWG, i64, env, i64)
+
+DEF_HELPER_FLAGS_2(cvtql, TCG_CALL_NO_RWG, i64, env, i64)
 
 DEF_HELPER_FLAGS_2(setroundmode, TCG_CALL_NO_RWG, void, env, i32)
 DEF_HELPER_FLAGS_2(setflushzero, TCG_CALL_NO_RWG, void, env, i32)
-DEF_HELPER_FLAGS_1(fp_exc_clear, TCG_CALL_NO_RWG, void, env)
-DEF_HELPER_FLAGS_1(fp_exc_get, TCG_CALL_NO_RWG_SE, i32, env)
 DEF_HELPER_FLAGS_3(fp_exc_raise, TCG_CALL_NO_WG, void, env, i32, i32)
 DEF_HELPER_FLAGS_3(fp_exc_raise_s, TCG_CALL_NO_WG, void, env, i32, i32)
 
 DEF_HELPER_FLAGS_2(ieee_input, TCG_CALL_NO_WG, void, env, i64)
 DEF_HELPER_FLAGS_2(ieee_input_cmp, TCG_CALL_NO_WG, void, env, i64)
-DEF_HELPER_FLAGS_2(fcvtql_v_input, TCG_CALL_NO_WG, void, env, i64)
+DEF_HELPER_FLAGS_2(ieee_input_s, TCG_CALL_NO_WG, void, env, i64)
 
 #if !defined (CONFIG_USER_ONLY)
 DEF_HELPER_2(hw_ret, void, env, i64)

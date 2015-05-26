@@ -1,0 +1,114 @@
+#!/usr/bin/env python
+#
+# Tests for IO throttling
+#
+# Copyright (C) 2015 Red Hat, Inc.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+
+import iotests
+
+class ThrottleTestCase(iotests.QMPTestCase):
+    test_img = "null-aio://"
+
+    def blockstats(self, device):
+        result = self.vm.qmp("query-blockstats")
+        for r in result['return']:
+            if r['device'] == device:
+                stat = r['stats']
+                return stat['rd_bytes'], stat['rd_operations'], stat['wr_bytes'], stat['wr_operations']
+        raise Exception("Device not found for blockstats: %s" % device)
+
+    def setUp(self):
+        self.vm = iotests.VM().add_drive(self.test_img)
+        self.vm.launch()
+
+    def tearDown(self):
+        self.vm.shutdown()
+
+    def do_test_throttle(self, seconds, params):
+        def check_limit(limit, num):
+            # IO throttling algorithm is discrete, allow 10% error so the test
+            # is more robust
+            return limit == 0 or \
+                   (num < seconds * limit * 1.1
+                   and num > seconds * limit * 0.9)
+
+        nsec_per_sec = 1000000000
+
+        params['device'] = 'drive0'
+
+        result = self.vm.qmp("block_set_io_throttle", conv_keys=False, **params)
+        self.assert_qmp(result, 'return', {})
+
+        # Set vm clock to a known value
+        ns = seconds * nsec_per_sec
+        self.vm.qtest("clock_step %d" % ns)
+
+        # Submit enough requests. They will drain bps_max and iops_max, but the
+        # rest requests won't get executed until we advance the virtual clock
+        # with qtest interface
+        rq_size = 512
+        rd_nr = max(params['bps'] / rq_size / 2,
+                    params['bps_rd'] / rq_size,
+                    params['iops'] / 2,
+                    params['iops_rd'])
+        rd_nr *= seconds * 2
+        wr_nr = max(params['bps'] / rq_size / 2,
+                    params['bps_wr'] / rq_size,
+                    params['iops'] / 2,
+                    params['iops_wr'])
+        wr_nr *= seconds * 2
+        for i in range(rd_nr):
+            self.vm.hmp_qemu_io("drive0", "aio_read %d %d" % (i * rq_size, rq_size))
+        for i in range(wr_nr):
+            self.vm.hmp_qemu_io("drive0", "aio_write %d %d" % (i * rq_size, rq_size))
+
+        start_rd_bytes, start_rd_iops, start_wr_bytes, start_wr_iops = self.blockstats('drive0')
+
+        self.vm.qtest("clock_step %d" % ns)
+        end_rd_bytes, end_rd_iops, end_wr_bytes, end_wr_iops = self.blockstats('drive0')
+
+        rd_bytes = end_rd_bytes - start_rd_bytes
+        rd_iops = end_rd_iops - start_rd_iops
+        wr_bytes = end_wr_bytes - start_wr_bytes
+        wr_iops = end_wr_iops - start_wr_iops
+
+        self.assertTrue(check_limit(params['bps'], rd_bytes + wr_bytes))
+        self.assertTrue(check_limit(params['bps_rd'], rd_bytes))
+        self.assertTrue(check_limit(params['bps_wr'], wr_bytes))
+        self.assertTrue(check_limit(params['iops'], rd_iops + wr_iops))
+        self.assertTrue(check_limit(params['iops_rd'], rd_iops))
+        self.assertTrue(check_limit(params['iops_wr'], wr_iops))
+
+    def test_all(self):
+        params = {"bps": 4096,
+                  "bps_rd": 4096,
+                  "bps_wr": 4096,
+                  "iops": 10,
+                  "iops_rd": 10,
+                  "iops_wr": 10,
+                 }
+        # Pick each out of all possible params and test
+        for tk in params:
+            limits = dict([(k, 0) for k in params])
+            limits[tk] = params[tk]
+            self.do_test_throttle(5, limits)
+
+class ThrottleTestCoroutine(ThrottleTestCase):
+    test_img = "null-co://"
+
+if __name__ == '__main__':
+    iotests.main(supported_fmts=["raw"])

@@ -731,12 +731,14 @@ static target_ulong h_set_mode_resource_le(PowerPCCPU *cpu,
         CPU_FOREACH(cs) {
             set_spr(cs, SPR_LPCR, 0, LPCR_ILE);
         }
+        spapr_pci_switch_vga(true);
         return H_SUCCESS;
 
     case H_SET_MODE_ENDIAN_LITTLE:
         CPU_FOREACH(cs) {
             set_spr(cs, SPR_LPCR, LPCR_ILE, LPCR_ILE);
         }
+        spapr_pci_switch_vga(false);
         return H_SUCCESS;
     }
 

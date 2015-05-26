@@ -24,6 +24,7 @@
 #include "hw/virtio/virtio-scsi.h"
 #include "hw/virtio/virtio-bus.h"
 #include "hw/virtio/virtio-access.h"
+#include "hw/fw-path-provider.h"
 
 /* Features supported by host kernel. */
 static const int kernel_feature_bits[] = {
@@ -82,7 +83,7 @@ static int vhost_scsi_start(VHostSCSI *s)
     if (abi_version > VHOST_SCSI_ABI_VERSION) {
         error_report("vhost-scsi: The running tcm_vhost kernel abi_version:"
                      " %d is greater than vhost_scsi userspace supports: %d, please"
-                     " upgrade your version of QEMU\n", abi_version,
+                     " upgrade your version of QEMU", abi_version,
                      VHOST_SCSI_ABI_VERSION);
         return -ENOSYS;
     }
@@ -140,7 +141,7 @@ static void vhost_scsi_stop(VHostSCSI *s)
     if (k->set_guest_notifiers) {
         ret = k->set_guest_notifiers(qbus->parent, s->dev.nvqs, false);
         if (ret < 0) {
-                error_report("vhost guest notifier cleanup failed: %d\n", ret);
+                error_report("vhost guest notifier cleanup failed: %d", ret);
         }
     }
     assert(ret >= 0);
@@ -185,7 +186,7 @@ static void vhost_scsi_set_status(VirtIODevice *vdev, uint8_t val)
 
         ret = vhost_scsi_start(s);
         if (ret < 0) {
-            error_report("virtio-scsi: unable to start vhost: %s\n",
+            error_report("virtio-scsi: unable to start vhost: %s",
                          strerror(-ret));
 
             /* There is no userspace virtio-scsi fallback so exit */
@@ -214,9 +215,11 @@ static void vhost_scsi_realize(DeviceState *dev, Error **errp)
     }
 
     if (vs->conf.vhostfd) {
-        vhostfd = monitor_handle_fd_param(cur_mon, vs->conf.vhostfd);
+        vhostfd = monitor_fd_param(cur_mon, vs->conf.vhostfd, &err);
         if (vhostfd == -1) {
-            error_setg(errp, "vhost-scsi: unable to parse vhostfd");
+            error_setg(errp, "vhost-scsi: unable to parse vhostfd: %s",
+                       error_get_pretty(err));
+            error_free(err);
             return;
         }
     } else {
@@ -250,6 +253,12 @@ static void vhost_scsi_realize(DeviceState *dev, Error **errp)
         return;
     }
 
+    /* At present, channel and lun both are 0 for bootable vhost-scsi disk */
+    s->channel = 0;
+    s->lun = 0;
+    /* Note: we can also get the minimum tpgt from kernel */
+    s->target = vs->conf.boot_tpgt;
+
     error_setg(&s->migration_blocker,
             "vhost-scsi does not support migration");
     migrate_add_blocker(s->migration_blocker);
@@ -271,6 +280,19 @@ static void vhost_scsi_unrealize(DeviceState *dev, Error **errp)
     virtio_scsi_common_unrealize(dev, errp);
 }
 
+/*
+ * Implementation of an interface to adjust firmware path
+ * for the bootindex property handling.
+ */
+static char *vhost_scsi_get_fw_dev_path(FWPathProvider *p, BusState *bus,
+                                        DeviceState *dev)
+{
+    VHostSCSI *s = VHOST_SCSI(dev);
+    /* format: channel@channel/vhost-scsi@target,lun */
+    return g_strdup_printf("channel@%x/%s@%x,%x", s->channel,
+                           qdev_fw_name(dev), s->target, s->lun);
+}
+
 static Property vhost_scsi_properties[] = {
     DEFINE_VHOST_SCSI_PROPERTIES(VHostSCSI, parent_obj.conf),
     DEFINE_PROP_END_OF_LIST(),
@@ -280,6 +302,7 @@ static void vhost_scsi_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     VirtioDeviceClass *vdc = VIRTIO_DEVICE_CLASS(klass);
+    FWPathProviderClass *fwc = FW_PATH_PROVIDER_CLASS(klass);
 
     dc->props = vhost_scsi_properties;
     set_bit(DEVICE_CATEGORY_STORAGE, dc->categories);
@@ -288,6 +311,15 @@ static void vhost_scsi_class_init(ObjectClass *klass, void *data)
     vdc->get_features = vhost_scsi_get_features;
     vdc->set_config = vhost_scsi_set_config;
     vdc->set_status = vhost_scsi_set_status;
+    fwc->get_dev_path = vhost_scsi_get_fw_dev_path;
+}
+
+static void vhost_scsi_instance_init(Object *obj)
+{
+    VHostSCSI *dev = VHOST_SCSI(obj);
+
+    device_add_bootindex_property(obj, &dev->bootindex, "bootindex", NULL,
+                                  DEVICE(dev), NULL);
 }
 
 static const TypeInfo vhost_scsi_info = {
@@ -295,6 +327,11 @@ static const TypeInfo vhost_scsi_info = {
     .parent = TYPE_VIRTIO_SCSI_COMMON,
     .instance_size = sizeof(VHostSCSI),
     .class_init = vhost_scsi_class_init,
+    .instance_init = vhost_scsi_instance_init,
+    .interfaces = (InterfaceInfo[]) {
+        { TYPE_FW_PATH_PROVIDER },
+        { }
+    },
 };
 
 static void virtio_register_types(void)

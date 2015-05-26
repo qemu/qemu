@@ -295,14 +295,13 @@ static void i440fx_pcihost_realize(DeviceState *dev, Error **errp)
     sysbus_init_ioports(sbd, 0xcfc, 4);
 }
 
-static int i440fx_initfn(PCIDevice *dev)
+static void i440fx_realize(PCIDevice *dev, Error **errp)
 {
     PCII440FXState *d = I440FX_PCI_DEVICE(dev);
 
     dev->config[I440FX_SMRAM] = 0x02;
 
     cpu_smm_register(&i440fx_set_smm, d);
-    return 0;
 }
 
 PCIBus *i440fx_init(PCII440FXState **pi440fx_state,
@@ -631,11 +630,12 @@ static const MemoryRegionOps rcr_ops = {
     .endianness = DEVICE_LITTLE_ENDIAN
 };
 
-static int piix3_initfn(PCIDevice *dev)
+static void piix3_realize(PCIDevice *dev, Error **errp)
 {
     PIIX3State *d = DO_UPCAST(PIIX3State, dev, dev);
 
-    isa_bus_new(DEVICE(d), pci_address_space_io(dev));
+    isa_bus_new(DEVICE(d), get_system_memory(),
+                pci_address_space_io(dev));
 
     memory_region_init_io(&d->rcr_mem, OBJECT(dev), &rcr_ops, d,
                           "piix3-reset-control", 1);
@@ -643,7 +643,6 @@ static int piix3_initfn(PCIDevice *dev)
                                         &d->rcr_mem, 1);
 
     qemu_register_reset(piix3_reset, d);
-    return 0;
 }
 
 static void piix3_class_init(ObjectClass *klass, void *data)
@@ -654,7 +653,7 @@ static void piix3_class_init(ObjectClass *klass, void *data)
     dc->desc        = "ISA bridge";
     dc->vmsd        = &vmstate_piix3;
     dc->hotpluggable   = false;
-    k->init         = piix3_initfn;
+    k->realize      = piix3_realize;
     k->config_write = piix3_write_config;
     k->vendor_id    = PCI_VENDOR_ID_INTEL;
     /* 82371SB PIIX3 PCI-to-ISA bridge (Step A1) */
@@ -682,7 +681,7 @@ static void piix3_xen_class_init(ObjectClass *klass, void *data)
     dc->desc        = "ISA bridge";
     dc->vmsd        = &vmstate_piix3;
     dc->hotpluggable   = false;
-    k->init         = piix3_initfn;
+    k->realize      = piix3_realize;
     k->config_write = piix3_write_config_xen;
     k->vendor_id    = PCI_VENDOR_ID_INTEL;
     /* 82371SB PIIX3 PCI-to-ISA bridge (Step A1) */
@@ -707,7 +706,7 @@ static void i440fx_class_init(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
 
-    k->init = i440fx_initfn;
+    k->realize = i440fx_realize;
     k->config_write = i440fx_write_config;
     k->vendor_id = PCI_VENDOR_ID_INTEL;
     k->device_id = PCI_DEVICE_ID_INTEL_82441;

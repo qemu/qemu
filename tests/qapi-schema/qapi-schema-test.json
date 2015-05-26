@@ -3,44 +3,40 @@
 # for testing enums
 { 'enum': 'EnumOne',
   'data': [ 'value1', 'value2', 'value3' ] }
-{ 'type': 'NestedEnumsOne',
+{ 'struct': 'NestedEnumsOne',
   'data': { 'enum1': 'EnumOne', '*enum2': 'EnumOne', 'enum3': 'EnumOne', '*enum4': 'EnumOne' } }
 
 # for testing nested structs
-{ 'type': 'UserDefZero',
+{ 'struct': 'UserDefZero',
   'data': { 'integer': 'int' } }
 
-{ 'type': 'UserDefOne',
+{ 'struct': 'UserDefOne',
   'base': 'UserDefZero',
   'data': { 'string': 'str', '*enum1': 'EnumOne' } }
 
-{ 'type': 'UserDefTwo',
-  'data': { 'string': 'str',
-            'dict': { 'string': 'str',
-                      'dict': { 'userdef': 'UserDefOne', 'string': 'str' },
-                      '*dict2': { 'userdef': 'UserDefOne', 'string': 'str' } } } }
+{ 'struct': 'UserDefTwoDictDict',
+  'data': { 'userdef': 'UserDefOne', 'string': 'str' } }
 
-{ 'type': 'UserDefNested',
+{ 'struct': 'UserDefTwoDict',
+  'data': { 'string1': 'str',
+            'dict2': 'UserDefTwoDictDict',
+            '*dict3': 'UserDefTwoDictDict' } }
+
+{ 'struct': 'UserDefTwo',
   'data': { 'string0': 'str',
-            'dict1': { 'string1': 'str',
-                       'dict2': { 'userdef1': 'UserDefOne', 'string2': 'str' },
-                       '*dict3': { 'userdef2': 'UserDefOne', 'string3': 'str' } } } }
+            'dict1': 'UserDefTwoDict' } }
 
 # for testing unions
-{ 'type': 'UserDefA',
+{ 'struct': 'UserDefA',
   'data': { 'boolean': 'bool' } }
 
-{ 'type': 'UserDefB',
+{ 'struct': 'UserDefB',
   'data': { 'integer': 'int' } }
 
-{ 'type': 'UserDefC',
+{ 'struct': 'UserDefC',
   'data': { 'string1': 'str', 'string2': 'str' } }
 
-{ 'union': 'UserDefUnion',
-  'base': 'UserDefZero',
-  'data': { 'a' : 'UserDefA', 'b' : 'UserDefB' } }
-
-{ 'type': 'UserDefUnionBase',
+{ 'struct': 'UserDefUnionBase',
   'data': { 'string': 'str', 'enum1': 'EnumOne' } }
 
 { 'union': 'UserDefFlatUnion',
@@ -57,8 +53,7 @@
   'discriminator': 'enum1',
   'data': { 'value1' : 'UserDefC', 'value2' : 'UserDefB', 'value3' : 'UserDefA' } }
 
-{ 'union': 'UserDefAnonUnion',
-  'discriminator': {},
+{ 'alternate': 'UserDefAlternate',
   'data': { 'uda': 'UserDefA', 's': 'str', 'i': 'int' } }
 
 # for testing native lists
@@ -74,7 +69,8 @@
             'u64': ['uint64'],
             'number': ['number'],
             'boolean': ['bool'],
-            'string': ['str'] } }
+            'string': ['str'],
+            'sizes': ['size'] } }
 
 # testing commands
 { 'command': 'user_def_cmd', 'data': {} }
@@ -92,7 +88,7 @@
 #
 # For simplicity, this example doesn't use [type=]discriminator nor optargs
 # specific to discriminator values.
-{ 'type': 'UserDefOptions',
+{ 'struct': 'UserDefOptions',
   'data': {
     '*i64' : [ 'int'    ],
     '*u64' : [ 'uint64' ],
@@ -101,7 +97,7 @@
     '*u64x':   'uint64'  } }
 
 # testing event
-{ 'type': 'EventStructOne',
+{ 'struct': 'EventStructOne',
   'data': { 'struct1': 'UserDefOne', 'string': 'str', '*enum2': 'EnumOne' } }
 
 { 'event': 'EVENT_A' }
@@ -111,3 +107,23 @@
   'data': { '*a': 'int', '*b': 'UserDefOne', 'c': 'str' } }
 { 'event': 'EVENT_D',
   'data': { 'a' : 'EventStructOne', 'b' : 'str', '*c': 'str', '*enum3': 'EnumOne' } }
+
+# test that we correctly compile downstream extensions
+{ 'enum': '__org.qemu_x-Enum', 'data': [ '__org.qemu_x-value' ] }
+{ 'struct': '__org.qemu_x-Base',
+  'data': { '__org.qemu_x-member1': '__org.qemu_x-Enum' } }
+{ 'struct': '__org.qemu_x-Struct', 'base': '__org.qemu_x-Base',
+  'data': { '__org.qemu_x-member2': 'str' } }
+{ 'union': '__org.qemu_x-Union1', 'data': { '__org.qemu_x-branch': 'str' } }
+{ 'struct': '__org.qemu_x-Struct2',
+  'data': { 'array': ['__org.qemu_x-Union1'] } }
+{ 'union': '__org.qemu_x-Union2', 'base': '__org.qemu_x-Base',
+  'discriminator': '__org.qemu_x-member1',
+  'data': { '__org.qemu_x-value': '__org.qemu_x-Struct2' } }
+{ 'alternate': '__org.qemu_x-Alt',
+  'data': { '__org.qemu_x-branch': 'str', 'b': '__org.qemu_x-Base' } }
+{ 'event': '__ORG.QEMU_X-EVENT', 'data': '__org.qemu_x-Struct' }
+{ 'command': '__org.qemu_x-command',
+  'data': { 'a': ['__org.qemu_x-Enum'], 'b': ['__org.qemu_x-Struct'],
+            'c': '__org.qemu_x-Union2', 'd': '__org.qemu_x-Alt' },
+  'returns': '__org.qemu_x-Union1' }

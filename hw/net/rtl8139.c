@@ -3455,7 +3455,7 @@ static NetClientInfo net_rtl8139_info = {
     .link_status_changed = rtl8139_set_link_status,
 };
 
-static int pci_rtl8139_init(PCIDevice *dev)
+static void pci_rtl8139_realize(PCIDevice *dev, Error **errp)
 {
     RTL8139State *s = RTL8139(dev);
     DeviceState *d = DEVICE(dev);
@@ -3496,8 +3496,6 @@ static int pci_rtl8139_init(PCIDevice *dev)
     s->cplus_txbuffer_offset = 0;
 
     s->timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, rtl8139_timer, s);
-
-    return 0;
 }
 
 static void rtl8139_instance_init(Object *obj)
@@ -3519,7 +3517,7 @@ static void rtl8139_class_init(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
 
-    k->init = pci_rtl8139_init;
+    k->realize = pci_rtl8139_realize;
     k->exit = pci_rtl8139_uninit;
     k->romfile = "efi-rtl8139.rom";
     k->vendor_id = PCI_VENDOR_ID_REALTEK;

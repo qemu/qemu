@@ -170,12 +170,12 @@ restart:
         if (elem->state != THREAD_DONE) {
             continue;
         }
-        if (elem->state == THREAD_DONE) {
-            trace_thread_pool_complete(pool, elem, elem->common.opaque,
-                                       elem->ret);
-        }
-        if (elem->state == THREAD_DONE && elem->common.cb) {
-            QLIST_REMOVE(elem, all);
+
+        trace_thread_pool_complete(pool, elem, elem->common.opaque,
+                                   elem->ret);
+        QLIST_REMOVE(elem, all);
+
+        if (elem->common.cb) {
             /* Read state before ret.  */
             smp_rmb();
 
@@ -188,8 +188,6 @@ restart:
             qemu_aio_unref(elem);
             goto restart;
         } else {
-            /* remove the request */
-            QLIST_REMOVE(elem, all);
             qemu_aio_unref(elem);
         }
     }

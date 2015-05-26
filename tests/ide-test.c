@@ -29,6 +29,7 @@
 #include <glib.h>
 
 #include "libqtest.h"
+#include "libqos/libqos.h"
 #include "libqos/pci-pc.h"
 #include "libqos/malloc-pc.h"
 
@@ -118,7 +119,6 @@ static void ide_test_start(const char *cmdline_fmt, ...)
     va_end(ap);
 
     qtest_start(cmdline);
-    qtest_irq_intercept_in(global_qtest, "ioapic");
     guest_malloc = pc_alloc_init();
 
     g_free(cmdline);
@@ -388,6 +388,7 @@ static void test_bmdma_setup(void)
         "-drive file=%s,if=ide,serial=%s,cache=writeback,format=raw "
         "-global ide-hd.ver=%s",
         tmp_path, "testdisk", "version");
+    qtest_irq_intercept_in(global_qtest, "ioapic");
 }
 
 static void test_bmdma_teardown(void)
@@ -494,33 +495,10 @@ static void test_flush(void)
     ide_test_quit();
 }
 
-static void prepare_blkdebug_script(const char *debug_fn, const char *event)
-{
-    FILE *debug_file = fopen(debug_fn, "w");
-    int ret;
-
-    fprintf(debug_file, "[inject-error]\n");
-    fprintf(debug_file, "event = \"%s\"\n", event);
-    fprintf(debug_file, "errno = \"5\"\n");
-    fprintf(debug_file, "state = \"1\"\n");
-    fprintf(debug_file, "immediately = \"off\"\n");
-    fprintf(debug_file, "once = \"on\"\n");
-
-    fprintf(debug_file, "[set-state]\n");
-    fprintf(debug_file, "event = \"%s\"\n", event);
-    fprintf(debug_file, "new_state = \"2\"\n");
-    fflush(debug_file);
-    g_assert(!ferror(debug_file));
-
-    ret = fclose(debug_file);
-    g_assert(ret == 0);
-}
-
-static void test_retry_flush(void)
+static void test_retry_flush(const char *machine)
 {
     uint8_t data;
     const char *s;
-    QDict *response;
 
     prepare_blkdebug_script(debug_path, "flush_to_disk");
 
@@ -539,15 +517,7 @@ static void test_retry_flush(void)
     assert_bit_set(data, BSY | DRDY);
     assert_bit_clear(data, DF | ERR | DRQ);
 
-    for (;; response = NULL) {
-        response = qmp_receive();
-        if ((qdict_haskey(response, "event")) &&
-            (strcmp(qdict_get_str(response, "event"), "STOP") == 0)) {
-            QDECREF(response);
-            break;
-        }
-        QDECREF(response);
-    }
+    qmp_eventwait("STOP");
 
     /* Complete the command */
     s = "{'execute':'cont' }";
@@ -578,6 +548,16 @@ static void test_flush_nodev(void)
     /* Just testing that qemu doesn't crash... */
 
     ide_test_quit();
+}
+
+static void test_pci_retry_flush(const char *machine)
+{
+    test_retry_flush("pc");
+}
+
+static void test_isa_retry_flush(const char *machine)
+{
+    test_retry_flush("isapc");
 }
 
 int main(int argc, char **argv)
@@ -617,9 +597,9 @@ int main(int argc, char **argv)
     qtest_add_func("/ide/bmdma/teardown", test_bmdma_teardown);
 
     qtest_add_func("/ide/flush", test_flush);
-    qtest_add_func("/ide/flush_nodev", test_flush_nodev);
-
-    qtest_add_func("/ide/retry/flush", test_retry_flush);
+    qtest_add_func("/ide/flush/nodev", test_flush_nodev);
+    qtest_add_func("/ide/flush/retry_pci", test_pci_retry_flush);
+    qtest_add_func("/ide/flush/retry_isa", test_isa_retry_flush);
 
     ret = g_test_run();
 

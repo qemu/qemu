@@ -35,6 +35,7 @@
 #include "qemu/rcu.h"
 #include "qemu/atomic.h"
 #include "qemu/thread.h"
+#include "qemu/main-loop.h"
 
 /*
  * Global grace period counter.  Bit 0 is always one in rcu_gp_ctr.
@@ -223,32 +224,38 @@ static void *call_rcu_thread(void *opaque)
          * Fetch rcu_call_count now, we only must process elements that were
          * added before synchronize_rcu() starts.
          */
-        while (n < RCU_CALL_MIN_SIZE && ++tries <= 5) {
-            g_usleep(100000);
-            qemu_event_reset(&rcu_call_ready_event);
-            n = atomic_read(&rcu_call_count);
-            if (n < RCU_CALL_MIN_SIZE) {
-                qemu_event_wait(&rcu_call_ready_event);
+        while (n == 0 || (n < RCU_CALL_MIN_SIZE && ++tries <= 5)) {
+            g_usleep(10000);
+            if (n == 0) {
+                qemu_event_reset(&rcu_call_ready_event);
                 n = atomic_read(&rcu_call_count);
+                if (n == 0) {
+                    qemu_event_wait(&rcu_call_ready_event);
+                }
             }
+            n = atomic_read(&rcu_call_count);
         }
 
         atomic_sub(&rcu_call_count, n);
         synchronize_rcu();
+        qemu_mutex_lock_iothread();
         while (n > 0) {
             node = try_dequeue();
             while (!node) {
+                qemu_mutex_unlock_iothread();
                 qemu_event_reset(&rcu_call_ready_event);
                 node = try_dequeue();
                 if (!node) {
                     qemu_event_wait(&rcu_call_ready_event);
                     node = try_dequeue();
                 }
+                qemu_mutex_lock_iothread();
             }
 
             n--;
             node->func(node);
         }
+        qemu_mutex_unlock_iothread();
     }
     abort();
 }
@@ -276,7 +283,7 @@ void rcu_unregister_thread(void)
     qemu_mutex_unlock(&rcu_gp_lock);
 }
 
-static void __attribute__((__constructor__)) rcu_init(void)
+static void rcu_init_complete(void)
 {
     QemuThread thread;
 
@@ -284,8 +291,38 @@ static void __attribute__((__constructor__)) rcu_init(void)
     qemu_event_init(&rcu_gp_event, true);
 
     qemu_event_init(&rcu_call_ready_event, false);
+
+    /* The caller is assumed to have iothread lock, so the call_rcu thread
+     * must have been quiescent even after forking, just recreate it.
+     */
     qemu_thread_create(&thread, "call_rcu", call_rcu_thread,
                        NULL, QEMU_THREAD_DETACHED);
 
     rcu_register_thread();
+}
+
+#ifdef CONFIG_POSIX
+static void rcu_init_lock(void)
+{
+    qemu_mutex_lock(&rcu_gp_lock);
+}
+
+static void rcu_init_unlock(void)
+{
+    qemu_mutex_unlock(&rcu_gp_lock);
+}
+#endif
+
+void rcu_after_fork(void)
+{
+    memset(&registry, 0, sizeof(registry));
+    rcu_init_complete();
+}
+
+static void __attribute__((__constructor__)) rcu_init(void)
+{
+#ifdef CONFIG_POSIX
+    pthread_atfork(rcu_init_lock, rcu_init_unlock, rcu_init_unlock);
+#endif
+    rcu_init_complete();
 }

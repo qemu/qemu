@@ -1096,7 +1096,7 @@ static void disas_comp_b_imm(DisasContext *s, uint32_t insn)
 {
     unsigned int sf, op, rt;
     uint64_t addr;
-    int label_match;
+    TCGLabel *label_match;
     TCGv_i64 tcg_cmp;
 
     sf = extract32(insn, 31, 1);
@@ -1125,7 +1125,7 @@ static void disas_test_b_imm(DisasContext *s, uint32_t insn)
 {
     unsigned int bit_pos, op, rt;
     uint64_t addr;
-    int label_match;
+    TCGLabel *label_match;
     TCGv_i64 tcg_cmp;
 
     bit_pos = (extract32(insn, 31, 1) << 5) | extract32(insn, 19, 5);
@@ -1164,7 +1164,7 @@ static void disas_cond_b_imm(DisasContext *s, uint32_t insn)
 
     if (cond < 0x0e) {
         /* genuinely conditional branches */
-        int label_match = gen_new_label();
+        TCGLabel *label_match = gen_new_label();
         arm_gen_test_cc(cond, label_match);
         gen_goto_tb(s, 0, s->pc);
         gen_set_label(label_match);
@@ -1711,8 +1711,8 @@ static void gen_store_exclusive(DisasContext *s, int rd, int rt, int rt2,
      * }
      * env->exclusive_addr = -1;
      */
-    int fail_label = gen_new_label();
-    int done_label = gen_new_label();
+    TCGLabel *fail_label = gen_new_label();
+    TCGLabel *done_label = gen_new_label();
     TCGv_i64 addr = tcg_temp_local_new_i64();
     TCGv_i64 tmp;
 
@@ -3537,7 +3537,7 @@ static void disas_adc_sbc(DisasContext *s, uint32_t insn)
 static void disas_cc(DisasContext *s, uint32_t insn)
 {
     unsigned int sf, op, y, cond, rn, nzcv, is_imm;
-    int label_continue = -1;
+    TCGLabel *label_continue = NULL;
     TCGv_i64 tcg_tmp, tcg_y, tcg_rn;
 
     if (!extract32(insn, 29, 1)) {
@@ -3557,7 +3557,7 @@ static void disas_cc(DisasContext *s, uint32_t insn)
     nzcv = extract32(insn, 0, 4);
 
     if (cond < 0x0e) { /* not always */
-        int label_match = gen_new_label();
+        TCGLabel *label_match = gen_new_label();
         label_continue = gen_new_label();
         arm_gen_test_cc(cond, label_match);
         /* nomatch: */
@@ -3630,8 +3630,8 @@ static void disas_cond_select(DisasContext *s, uint32_t insn)
         /* OPTME: we could use movcond here, at the cost of duplicating
          * a lot of the arm_gen_test_cc() logic.
          */
-        int label_match = gen_new_label();
-        int label_continue = gen_new_label();
+        TCGLabel *label_match = gen_new_label();
+        TCGLabel *label_continue = gen_new_label();
 
         arm_gen_test_cc(cond, label_match);
         /* nomatch: */
@@ -4104,7 +4104,7 @@ static void disas_fp_ccomp(DisasContext *s, uint32_t insn)
 {
     unsigned int mos, type, rm, cond, rn, op, nzcv;
     TCGv_i64 tcg_flags;
-    int label_continue = -1;
+    TCGLabel *label_continue = NULL;
 
     mos = extract32(insn, 29, 3);
     type = extract32(insn, 22, 2); /* 0 = single, 1 = double */
@@ -4124,7 +4124,7 @@ static void disas_fp_ccomp(DisasContext *s, uint32_t insn)
     }
 
     if (cond < 0x0e) { /* not always */
-        int label_match = gen_new_label();
+        TCGLabel *label_match = gen_new_label();
         label_continue = gen_new_label();
         arm_gen_test_cc(cond, label_match);
         /* nomatch: */
@@ -4165,7 +4165,7 @@ static void gen_mov_fp2fp(DisasContext *s, int type, int dst, int src)
 static void disas_fp_csel(DisasContext *s, uint32_t insn)
 {
     unsigned int mos, type, rm, cond, rn, rd;
-    int label_continue = -1;
+    TCGLabel *label_continue = NULL;
 
     mos = extract32(insn, 29, 3);
     type = extract32(insn, 22, 2); /* 0 = single, 1 = double */
@@ -4184,7 +4184,7 @@ static void disas_fp_csel(DisasContext *s, uint32_t insn)
     }
 
     if (cond < 0x0e) { /* not always */
-        int label_match = gen_new_label();
+        TCGLabel *label_match = gen_new_label();
         label_continue = gen_new_label();
         arm_gen_test_cc(cond, label_match);
         /* nomatch: */

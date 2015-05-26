@@ -36,7 +36,7 @@ void tpm_backend_destroy(TPMBackend *s)
 {
     TPMBackendClass *k = TPM_BACKEND_GET_CLASS(s);
 
-    return k->ops->destroy(s);
+    k->ops->destroy(s);
 }
 
 int tpm_backend_init(TPMBackend *s, TPMState *state,
@@ -162,17 +162,6 @@ void tpm_backend_thread_end(TPMBackendThread *tbt)
         g_thread_pool_push(tbt->pool, (gpointer)TPM_BACKEND_CMD_END, NULL);
         g_thread_pool_free(tbt->pool, FALSE, TRUE);
         tbt->pool = NULL;
-    }
-}
-
-void tpm_backend_thread_tpm_reset(TPMBackendThread *tbt,
-                                  GFunc func, gpointer user_data)
-{
-    if (!tbt->pool) {
-        tpm_backend_thread_create(tbt, func, user_data);
-    } else {
-        g_thread_pool_push(tbt->pool, (gpointer)TPM_BACKEND_CMD_TPM_RESET,
-                           NULL);
     }
 }
 

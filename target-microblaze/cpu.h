@@ -36,12 +36,11 @@ typedef struct CPUMBState CPUMBState;
 
 #define ELF_MACHINE	EM_MICROBLAZE
 
-#define EXCP_NMI        1
-#define EXCP_MMU        2
-#define EXCP_IRQ        3
-#define EXCP_BREAK      4
-#define EXCP_HW_BREAK   5
-#define EXCP_HW_EXCP    6
+#define EXCP_MMU        1
+#define EXCP_IRQ        2
+#define EXCP_BREAK      3
+#define EXCP_HW_BREAK   4
+#define EXCP_HW_EXCP    5
 
 /* MicroBlaze-specific interrupt pending bits.  */
 #define CPU_INTERRUPT_NMI       CPU_INTERRUPT_TGT_EXT_3
@@ -284,12 +283,6 @@ int cpu_mb_exec(CPUMBState *s);
 int cpu_mb_signal_handler(int host_signum, void *pinfo,
                           void *puc);
 
-enum {
-    CC_OP_DYNAMIC, /* Use env->cc_op  */
-    CC_OP_FLAGS,
-    CC_OP_CMP,
-};
-
 /* FIXME: MB uses variable pages down to 1K but linux only uses 4k.  */
 #define TARGET_PAGE_BITS 12
 #define MMAP_SHIFT TARGET_PAGE_BITS
@@ -297,14 +290,7 @@ enum {
 #define TARGET_PHYS_ADDR_SPACE_BITS 32
 #define TARGET_VIRT_ADDR_SPACE_BITS 32
 
-static inline CPUMBState *cpu_init(const char *cpu_model)
-{
-    MicroBlazeCPU *cpu = cpu_mb_init(cpu_model);
-    if (cpu == NULL) {
-        return NULL;
-    }
-    return &cpu->env;
-}
+#define cpu_init(cpu_model) CPU(cpu_mb_init(cpu_model))
 
 #define cpu_exec cpu_mb_exec
 #define cpu_gen_code cpu_mb_gen_code
@@ -333,17 +319,7 @@ static inline int cpu_mmu_index (CPUMBState *env)
 int mb_cpu_handle_mmu_fault(CPUState *cpu, vaddr address, int rw,
                             int mmu_idx);
 
-static inline int cpu_interrupts_enabled(CPUMBState *env)
-{
-    return env->sregs[SR_MSR] & MSR_IE;
-}
-
 #include "exec/cpu-all.h"
-
-static inline target_ulong cpu_get_pc(CPUMBState *env)
-{
-    return env->sregs[SR_PC];
-}
 
 static inline void cpu_get_tb_cpu_state(CPUMBState *env, target_ulong *pc,
                                         target_ulong *cs_base, int *flags)

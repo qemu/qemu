@@ -118,9 +118,8 @@ milkymist_init(MachineState *machine)
 
     cpu_lm32_set_phys_msb_ignore(env, 1);
 
-    memory_region_init_ram(phys_sdram, NULL, "milkymist.sdram", sdram_size,
-                           &error_abort);
-    vmstate_register_ram_global(phys_sdram);
+    memory_region_allocate_system_memory(phys_sdram, NULL, "milkymist.sdram",
+                                         sdram_size);
     memory_region_add_subregion(address_space_mem, sdram_base, phys_sdram);
 
     dinfo = drive_get(IF_PFLASH, 0, 0);
@@ -155,6 +154,7 @@ milkymist_init(MachineState *machine)
                 bios_name);
         exit(1);
     }
+    g_free(bios_filename);
 
     milkymist_uart_create(0x60000000, irq[0]);
     milkymist_sysctl_create(0x60001000, irq[1], irq[2], irq[3],

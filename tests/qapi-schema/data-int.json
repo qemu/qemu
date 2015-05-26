@@ -1,0 +1,2 @@
+# we reject commands where data is not an array or complex type
+{ 'command': 'oops', 'data': 'int' }

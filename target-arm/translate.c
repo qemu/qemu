@@ -732,10 +732,10 @@ static void gen_thumb2_parallel_addsub(int op1, int op2, TCGv_i32 a, TCGv_i32 b)
  * generate a conditional branch based on ARM condition code cc.
  * This is common between ARM and Aarch64 targets.
  */
-void arm_gen_test_cc(int cc, int label)
+void arm_gen_test_cc(int cc, TCGLabel *label)
 {
     TCGv_i32 tmp;
-    int inv;
+    TCGLabel *inv;
 
     switch (cc) {
     case 0: /* eq: Z */
@@ -7436,8 +7436,8 @@ static void gen_store_exclusive(DisasContext *s, int rd, int rt, int rt2,
 {
     TCGv_i32 tmp;
     TCGv_i64 val64, extaddr;
-    int done_label;
-    int fail_label;
+    TCGLabel *done_label;
+    TCGLabel *fail_label;
 
     /* if (env->exclusive_addr == addr && env->exclusive_val == [addr]) {
          [addr] = {Rt};
@@ -8855,17 +8855,23 @@ static void disas_arm_insn(DisasContext *s, unsigned int insn)
         case 0x08:
         case 0x09:
             {
-                int j, n, user, loaded_base;
+                int j, n, loaded_base;
+                bool exc_return = false;
+                bool is_load = extract32(insn, 20, 1);
+                bool user = false;
                 TCGv_i32 loaded_var;
                 /* load/store multiple words */
                 /* XXX: store correct base if write back */
-                user = 0;
                 if (insn & (1 << 22)) {
+                    /* LDM (user), LDM (exception return) and STM (user) */
                     if (IS_USER(s))
                         goto illegal_op; /* only usable in supervisor mode */
 
-                    if ((insn & (1 << 15)) == 0)
-                        user = 1;
+                    if (is_load && extract32(insn, 15, 1)) {
+                        exc_return = true;
+                    } else {
+                        user = true;
+                    }
                 }
                 rn = (insn >> 16) & 0xf;
                 addr = load_reg(s, rn);
@@ -8899,7 +8905,7 @@ static void disas_arm_insn(DisasContext *s, unsigned int insn)
                 j = 0;
                 for(i=0;i<16;i++) {
                     if (insn & (1 << i)) {
-                        if (insn & (1 << 20)) {
+                        if (is_load) {
                             /* load */
                             tmp = tcg_temp_new_i32();
                             gen_aa32_ld32u(tmp, addr, get_mem_index(s));
@@ -8964,7 +8970,7 @@ static void disas_arm_insn(DisasContext *s, unsigned int insn)
                 if (loaded_base) {
                     store_reg(s, rn, loaded_var);
                 }
-                if ((insn & (1 << 22)) && !user) {
+                if (exc_return) {
                     /* Restore CPSR from SPSR.  */
                     tmp = load_cpu_field(spsr);
                     gen_set_cpsr(tmp, CPSR_ERET_MASK);

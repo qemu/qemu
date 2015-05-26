@@ -1,0 +1,149 @@
+Use multiple thread (de)compression in live migration
+=====================================================
+Copyright (C) 2015 Intel Corporation
+Author: Liang Li <liang.z.li@intel.com>
+
+This work is licensed under the terms of the GNU GPLv2 or later. See
+the COPYING file in the top-level directory.
+
+Contents:
+=========
+* Introduction
+* When to use
+* Performance
+* Usage
+* TODO
+
+Introduction
+============
+Instead of sending the guest memory directly, this solution will
+compress the RAM page before sending; after receiving, the data will
+be decompressed. Using compression in live migration can help
+to reduce the data transferred about 60%, this is very useful when the
+bandwidth is limited, and the total migration time can also be reduced
+about 70% in a typical case. In addition to this, the VM downtime can be
+reduced about 50%. The benefit depends on data's compressibility in VM.
+
+The process of compression will consume additional CPU cycles, and the
+extra CPU cycles will increase the migration time. On the other hand,
+the amount of data transferred will decrease; this factor can reduce
+the total migration time. If the process of the compression is quick
+enough, then the total migration time can be reduced, and multiple
+thread compression can be used to accelerate the compression process.
+
+The decompression speed of Zlib is at least 4 times as quick as
+compression, if the source and destination CPU have equal speed,
+keeping the compression thread count 4 times the decompression
+thread count can avoid resource waste.
+
+Compression level can be used to control the compression speed and the
+compression ratio. High compression ratio will take more time, level 0
+stands for no compression, level 1 stands for the best compression
+speed, and level 9 stands for the best compression ratio. Users can
+select a level number between 0 and 9.
+
+
+When to use the multiple thread compression in live migration
+=============================================================
+Compression of data will consume extra CPU cycles; so in a system with
+high overhead of CPU, avoid using this feature. When the network
+bandwidth is very limited and the CPU resource is adequate, use of
+multiple thread compression will be very helpful. If both the CPU and
+the network bandwidth are adequate, use of multiple thread compression
+can still help to reduce the migration time.
+
+Performance
+===========
+Test environment:
+
+CPU: Intel(R) Xeon(R) CPU E5-2680 0 @ 2.70GHz
+Socket Count: 2
+RAM: 128G
+NIC: Intel I350 (10/100/1000Mbps)
+Host OS: CentOS 7 64-bit
+Guest OS: RHEL 6.5 64-bit
+Parameter: qemu-system-x86_64 -enable-kvm -smp 4 -m 4096
+ /share/ia32e_rhel6u5.qcow -monitor stdio
+
+There is no additional application is running on the guest when doing
+the test.
+
+
+Speed limit: 1000Gb/s
+---------------------------------------------------------------
+                    | original  | compress thread: 8
+                    |   way     | decompress thread: 2
+                    |           | compression level: 1
+---------------------------------------------------------------
+total time(msec):   |   3333    |  1833
+---------------------------------------------------------------
+downtime(msec):     |    100    |   27
+---------------------------------------------------------------
+transferred ram(kB):|  363536   | 107819
+---------------------------------------------------------------
+throughput(mbps):   |  893.73   | 482.22
+---------------------------------------------------------------
+total ram(kB):      |  4211524  | 4211524
+---------------------------------------------------------------
+
+There is an application running on the guest which write random numbers
+to RAM block areas periodically.
+
+Speed limit: 1000Gb/s
+---------------------------------------------------------------
+                    | original  | compress thread: 8
+                    |   way     | decompress thread: 2
+                    |           | compression level: 1
+---------------------------------------------------------------
+total time(msec):   |   37369   | 15989
+---------------------------------------------------------------
+downtime(msec):     |    337    |  173
+---------------------------------------------------------------
+transferred ram(kB):|  4274143  | 1699824
+---------------------------------------------------------------
+throughput(mbps):   |  936.99   | 870.95
+---------------------------------------------------------------
+total ram(kB):      |  4211524  | 4211524
+---------------------------------------------------------------
+
+Usage
+=====
+1. Verify both the source and destination QEMU are able
+to support the multiple thread compression migration:
+    {qemu} info_migrate_capabilities
+    {qemu} ... compress: off ...
+
+2. Activate compression on the source:
+    {qemu} migrate_set_capability compress on
+
+3. Set the compression thread count on source:
+    {qemu} migrate_set_parameter compress_threads 12
+
+4. Set the compression level on the source:
+    {qemu} migrate_set_parameter compress_level 1
+
+5. Set the decompression thread count on destination:
+    {qemu} migrate_set_parameter decompress_threads 3
+
+6. Start outgoing migration:
+    {qemu} migrate -d tcp:destination.host:4444
+    {qemu} info migrate
+    Capabilities: ... compress: on
+    ...
+
+The following are the default settings:
+    compress: off
+    compress_threads: 8
+    decompress_threads: 2
+    compress_level: 1 (which means best speed)
+
+So, only the first two steps are required to use the multiple
+thread compression in migration. You can do more if the default
+settings are not appropriate.
+
+TODO
+====
+Some faster (de)compression method such as LZ4 and Quicklz can help
+to reduce the CPU consumption when doing (de)compression. If using
+these faster (de)compression method, less (de)compression threads
+are needed when doing the migration.

@@ -918,7 +918,8 @@ static void tcg_constant_folding(TCGContext *s)
 
         CASE_OP_32_64(qemu_ld):
             {
-                TCGMemOp mop = args[nb_oargs + nb_iargs];
+                TCGMemOpIdx oi = args[nb_oargs + nb_iargs];
+                TCGMemOp mop = get_memop(oi);
                 if (!(mop & MO_SIGN)) {
                     mask = (2ULL << ((8 << (mop & MO_SIZE)) - 1)) - 1;
                 }
@@ -980,8 +981,11 @@ static void tcg_constant_folding(TCGContext *s)
             if (temps_are_copies(args[1], args[2])) {
                 if (temps_are_copies(args[0], args[1])) {
                     tcg_op_remove(s, op);
-                } else {
+                } else if (temps[args[1]].state != TCG_TEMP_CONST) {
                     tcg_opt_gen_mov(s, op, args, opc, args[0], args[1]);
+                } else {
+                    tcg_opt_gen_movi(s, op, args, opc,
+                                     args[0], temps[args[1]].val);
                 }
                 continue;
             }

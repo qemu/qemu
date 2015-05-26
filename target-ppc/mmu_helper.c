@@ -2036,31 +2036,26 @@ void ppc_tlb_invalidate_one(CPUPPCState *env, target_ulong addr)
 /* Special registers manipulation */
 void ppc_store_sdr1(CPUPPCState *env, target_ulong value)
 {
-    PowerPCCPU *cpu = ppc_env_get_cpu(env);
-
     qemu_log_mask(CPU_LOG_MMU, "%s: " TARGET_FMT_lx "\n", __func__, value);
     assert(!env->external_htab);
-    if (env->spr[SPR_SDR1] != value) {
-        env->spr[SPR_SDR1] = value;
+    env->spr[SPR_SDR1] = value;
 #if defined(TARGET_PPC64)
-        if (env->mmu_model & POWERPC_MMU_64) {
-            target_ulong htabsize = value & SDR_64_HTABSIZE;
+    if (env->mmu_model & POWERPC_MMU_64) {
+        target_ulong htabsize = value & SDR_64_HTABSIZE;
 
-            if (htabsize > 28) {
-                fprintf(stderr, "Invalid HTABSIZE 0x" TARGET_FMT_lx
-                        " stored in SDR1\n", htabsize);
-                htabsize = 28;
-            }
-            env->htab_mask = (1ULL << (htabsize + 18 - 7)) - 1;
-            env->htab_base = value & SDR_64_HTABORG;
-        } else
-#endif /* defined(TARGET_PPC64) */
-        {
-            /* FIXME: Should check for valid HTABMASK values */
-            env->htab_mask = ((value & SDR_32_HTABMASK) << 16) | 0xFFFF;
-            env->htab_base = value & SDR_32_HTABORG;
+        if (htabsize > 28) {
+            fprintf(stderr, "Invalid HTABSIZE 0x" TARGET_FMT_lx
+                    " stored in SDR1\n", htabsize);
+            htabsize = 28;
         }
-        tlb_flush(CPU(cpu), 1);
+        env->htab_mask = (1ULL << (htabsize + 18 - 7)) - 1;
+        env->htab_base = value & SDR_64_HTABORG;
+    } else
+#endif /* defined(TARGET_PPC64) */
+    {
+        /* FIXME: Should check for valid HTABMASK values */
+        env->htab_mask = ((value & SDR_32_HTABMASK) << 16) | 0xFFFF;
+        env->htab_base = value & SDR_32_HTABORG;
     }
 }
 

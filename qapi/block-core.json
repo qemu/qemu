@@ -26,7 +26,7 @@
 #
 ##
 
-{ 'type': 'SnapshotInfo',
+{ 'struct': 'SnapshotInfo',
   'data': { 'id': 'str', 'name': 'str', 'vm-state-size': 'int',
             'date-sec': 'int', 'date-nsec': 'int',
             'vm-clock-sec': 'int', 'vm-clock-nsec': 'int' } }
@@ -41,13 +41,16 @@
 # @corrupt: #optional true if the image has been marked corrupt; only valid for
 #           compat >= 1.1 (since 2.2)
 #
+# @refcount-bits: width of a refcount entry in bits (since 2.3)
+#
 # Since: 1.7
 ##
-{ 'type': 'ImageInfoSpecificQCow2',
+{ 'struct': 'ImageInfoSpecificQCow2',
   'data': {
       'compat': 'str',
       '*lazy-refcounts': 'bool',
-      '*corrupt': 'bool'
+      '*corrupt': 'bool',
+      'refcount-bits': 'int'
   } }
 
 ##
@@ -63,7 +66,7 @@
 #
 # Since: 1.7
 ##
-{ 'type': 'ImageInfoSpecificVmdk',
+{ 'struct': 'ImageInfoSpecificVmdk',
   'data': {
       'create-type': 'str',
       'cid': 'int',
@@ -123,7 +126,7 @@
 #
 ##
 
-{ 'type': 'ImageInfo',
+{ 'struct': 'ImageInfo',
   'data': {'filename': 'str', 'format': 'str', '*dirty-flag': 'bool',
            '*actual-size': 'int', 'virtual-size': 'int',
            '*cluster-size': 'int', '*encrypted': 'bool', '*compressed': 'bool',
@@ -175,7 +178,7 @@
 #
 ##
 
-{ 'type': 'ImageCheck',
+{ 'struct': 'ImageCheck',
   'data': {'filename': 'str', 'format': 'str', 'check-errors': 'int',
            '*image-end-offset': 'int', '*corruptions': 'int', '*leaks': 'int',
            '*corruptions-fixed': 'int', '*leaks-fixed': 'int',
@@ -193,7 +196,7 @@
 #
 # Since: 2.3
 ##
-{ 'type': 'BlockdevCacheInfo',
+{ 'struct': 'BlockdevCacheInfo',
   'data': { 'writeback': 'bool',
             'direct': 'bool',
             'no-flush': 'bool' } }
@@ -215,6 +218,7 @@
 #       'host_floppy', 'http', 'https', 'nbd', 'parallels', 'qcow',
 #       'qcow2', 'raw', 'tftp', 'vdi', 'vmdk', 'vpc', 'vvfat'
 #       2.2: 'archipelago' added, 'cow' dropped
+#       2.3: 'host_floppy' deprecated
 #
 # @backing_file: #optional the name of the backing file (for copy-on-write)
 #
@@ -263,7 +267,7 @@
 # Since: 0.14.0
 #
 ##
-{ 'type': 'BlockDeviceInfo',
+{ 'struct': 'BlockDeviceInfo',
   'data': { 'file': 'str', '*node-name': 'str', 'ro': 'bool', 'drv': 'str',
             '*backing_file': 'str', 'backing_file_depth': 'int',
             'encrypted': 'bool', 'encryption_key_missing': 'bool',
@@ -317,7 +321,7 @@
 #
 # Since 1.7
 ##
-{ 'type': 'BlockDeviceMapEntry',
+{ 'struct': 'BlockDeviceMapEntry',
   'data': { 'start': 'int', 'length': 'int', 'depth': 'int', 'zero': 'bool',
             'data': 'bool', '*offset': 'int' } }
 
@@ -326,14 +330,19 @@
 #
 # Block dirty bitmap information.
 #
+# @name: #optional the name of the dirty bitmap (Since 2.4)
+#
 # @count: number of dirty bytes according to the dirty bitmap
 #
 # @granularity: granularity of the dirty bitmap in bytes (since 1.4)
 #
+# @frozen: whether the dirty bitmap is frozen (Since 2.4)
+#
 # Since: 1.3
 ##
-{ 'type': 'BlockDirtyInfo',
-  'data': {'count': 'int', 'granularity': 'int'} }
+{ 'struct': 'BlockDirtyInfo',
+  'data': {'*name': 'str', 'count': 'int', 'granularity': 'uint32',
+           'frozen': 'bool'} }
 
 ##
 # @BlockInfo:
@@ -366,7 +375,7 @@
 #
 # Since:  0.14.0
 ##
-{ 'type': 'BlockInfo',
+{ 'struct': 'BlockInfo',
   'data': {'device': 'str', 'type': 'str', 'removable': 'bool',
            'locked': 'bool', '*inserted': 'BlockDeviceInfo',
            '*tray_open': 'bool', '*io-status': 'BlockDeviceIoStatus',
@@ -419,7 +428,7 @@
 #
 # Since: 0.14.0
 ##
-{ 'type': 'BlockDeviceStats',
+{ 'struct': 'BlockDeviceStats',
   'data': {'rd_bytes': 'int', 'wr_bytes': 'int', 'rd_operations': 'int',
            'wr_operations': 'int', 'flush_operations': 'int',
            'flush_total_time_ns': 'int', 'wr_total_time_ns': 'int',
@@ -445,7 +454,7 @@
 #
 # Since: 0.14.0
 ##
-{ 'type': 'BlockStats',
+{ 'struct': 'BlockStats',
   'data': {'*device': 'str', '*node-name': 'str',
            'stats': 'BlockDeviceStats',
            '*parent': 'BlockStats',
@@ -506,10 +515,12 @@
 #
 # @none: only copy data written from now on
 #
+# @dirty-bitmap: only copy data described by the dirty bitmap. Since: 2.4
+#
 # Since: 1.3
 ##
 { 'enum': 'MirrorSyncMode',
-  'data': ['top', 'full', 'none'] }
+  'data': ['top', 'full', 'none', 'dirty-bitmap'] }
 
 ##
 # @BlockJobType:
@@ -556,7 +567,7 @@
 #
 # Since: 1.1
 ##
-{ 'type': 'BlockJobInfo',
+{ 'struct': 'BlockJobInfo',
   'data': {'type': 'str', 'device': 'str', 'len': 'int',
            'offset': 'int', 'busy': 'bool', 'paused': 'bool', 'speed': 'int',
            'io-status': 'BlockDeviceIoStatus', 'ready': 'bool'} }
@@ -666,7 +677,7 @@
 # @mode: #optional whether and how QEMU should create a new image, default is
 #        'absolute-paths'.
 ##
-{ 'type': 'BlockdevSnapshot',
+{ 'struct': 'BlockdevSnapshot',
   'data': { '*device': 'str', '*node-name': 'str',
             'snapshot-file': 'str', '*snapshot-node-name': 'str',
             '*format': 'str', '*mode': 'NewImageMode' } }
@@ -684,13 +695,17 @@
 #          probe if @mode is 'existing', else the format of the source
 #
 # @sync: what parts of the disk image should be copied to the destination
-#        (all the disk, only the sectors allocated in the topmost image, or
-#        only new I/O).
+#        (all the disk, only the sectors allocated in the topmost image, from a
+#        dirty bitmap, or only new I/O).
 #
 # @mode: #optional whether and how QEMU should create a new image, default is
 #        'absolute-paths'.
 #
 # @speed: #optional the maximum speed, in bytes per second
+#
+# @bitmap: #optional the name of dirty bitmap if sync is "dirty-bitmap".
+#          Must be present if sync is "dirty-bitmap", must NOT be present
+#          otherwise. (Since 2.4)
 #
 # @on-source-error: #optional the action to take on an error on the source,
 #                   default 'report'.  'stop' and 'enospc' can only be used
@@ -706,10 +721,10 @@
 #
 # Since: 1.6
 ##
-{ 'type': 'DriveBackup',
+{ 'struct': 'DriveBackup',
   'data': { 'device': 'str', 'target': 'str', '*format': 'str',
             'sync': 'MirrorSyncMode', '*mode': 'NewImageMode',
-            '*speed': 'int',
+            '*speed': 'int', '*bitmap': 'str',
             '*on-source-error': 'BlockdevOnError',
             '*on-target-error': 'BlockdevOnError' } }
 
@@ -741,7 +756,7 @@
 #
 # Since: 2.3
 ##
-{ 'type': 'BlockdevBackup',
+{ 'struct': 'BlockdevBackup',
   'data': { 'device': 'str', 'target': 'str',
             'sync': 'MirrorSyncMode',
             '*speed': 'int',
@@ -878,9 +893,6 @@
 #
 # For the arguments, see the documentation of BlockdevBackup.
 #
-# Returns: Nothing on success.
-#          If @device or @target is not a valid block device, DeviceNotFound.
-#
 # Since 2.3
 ##
 { 'command': 'blockdev-backup', 'data': 'BlockdevBackup' }
@@ -955,6 +967,76 @@
             '*speed': 'int', '*granularity': 'uint32',
             '*buf-size': 'int', '*on-source-error': 'BlockdevOnError',
             '*on-target-error': 'BlockdevOnError' } }
+
+##
+# @BlockDirtyBitmap
+#
+# @node: name of device/node which the bitmap is tracking
+#
+# @name: name of the dirty bitmap
+#
+# Since 2.4
+##
+{ 'struct': 'BlockDirtyBitmap',
+  'data': { 'node': 'str', 'name': 'str' } }
+
+##
+# @BlockDirtyBitmapAdd
+#
+# @node: name of device/node which the bitmap is tracking
+#
+# @name: name of the dirty bitmap
+#
+# @granularity: #optional the bitmap granularity, default is 64k for
+#               block-dirty-bitmap-add
+#
+# Since 2.4
+##
+{ 'struct': 'BlockDirtyBitmapAdd',
+  'data': { 'node': 'str', 'name': 'str', '*granularity': 'uint32' } }
+
+##
+# @block-dirty-bitmap-add
+#
+# Create a dirty bitmap with a name on the node
+#
+# Returns: nothing on success
+#          If @node is not a valid block device or node, DeviceNotFound
+#          If @name is already taken, GenericError with an explanation
+#
+# Since 2.4
+##
+{ 'command': 'block-dirty-bitmap-add',
+  'data': 'BlockDirtyBitmapAdd' }
+
+##
+# @block-dirty-bitmap-remove
+#
+# Remove a dirty bitmap on the node
+#
+# Returns: nothing on success
+#          If @node is not a valid block device or node, DeviceNotFound
+#          If @name is not found, GenericError with an explanation
+#          if @name is frozen by an operation, GenericError
+#
+# Since 2.4
+##
+{ 'command': 'block-dirty-bitmap-remove',
+  'data': 'BlockDirtyBitmap' }
+
+##
+# @block-dirty-bitmap-clear
+#
+# Clear (reset) a dirty bitmap on the device
+#
+# Returns: nothing on success
+#          If @node is not a valid block device, DeviceNotFound
+#          If @name is not found, GenericError with an explanation
+#
+# Since 2.4
+##
+{ 'command': 'block-dirty-bitmap-clear',
+  'data': 'BlockDirtyBitmap' }
 
 ##
 # @block_set_io_throttle:
@@ -1231,7 +1313,7 @@
 #
 # Since: 1.7
 ##
-{ 'type': 'BlockdevCacheOptions',
+{ 'struct': 'BlockdevCacheOptions',
   'data': { '*writeback': 'bool',
             '*direct': 'bool',
             '*no-flush': 'bool' } }
@@ -1242,6 +1324,7 @@
 # Drivers that are supported in block device operations.
 #
 # @host_device, @host_cdrom, @host_floppy: Since 2.1
+# @host_floppy: deprecated since 2.3
 #
 # Since: 2.0
 ##
@@ -1277,7 +1360,7 @@
 #
 # Since: 1.7
 ##
-{ 'type': 'BlockdevOptionsBase',
+{ 'struct': 'BlockdevOptionsBase',
   'data': { 'driver': 'BlockdevDriver',
             '*id': 'str',
             '*node-name': 'str',
@@ -1299,7 +1382,7 @@
 #
 # Since: 1.7
 ##
-{ 'type': 'BlockdevOptionsFile',
+{ 'struct': 'BlockdevOptionsFile',
   'data': { 'filename': 'str' } }
 
 ##
@@ -1308,11 +1391,14 @@
 # Driver specific block device options for the null backend.
 #
 # @size:    #optional size of the device in bytes.
+# @latency-ns: #optional emulated latency (in nanoseconds) in processing
+#              requests. Default to zero which completes requests immediately.
+#              (Since 2.4)
 #
 # Since: 2.2
 ##
-{ 'type': 'BlockdevOptionsNull',
-  'data': { '*size': 'int' } }
+{ 'struct': 'BlockdevOptionsNull',
+  'data': { '*size': 'int', '*latency-ns': 'uint64' } }
 
 ##
 # @BlockdevOptionsVVFAT
@@ -1327,7 +1413,7 @@
 #
 # Since: 1.7
 ##
-{ 'type': 'BlockdevOptionsVVFAT',
+{ 'struct': 'BlockdevOptionsVVFAT',
   'data': { 'dir': 'str', '*fat-type': 'int', '*floppy': 'bool',
             '*rw': 'bool' } }
 
@@ -1341,7 +1427,7 @@
 #
 # Since: 1.7
 ##
-{ 'type': 'BlockdevOptionsGenericFormat',
+{ 'struct': 'BlockdevOptionsGenericFormat',
   'data': { 'file': 'BlockdevRef' } }
 
 ##
@@ -1357,7 +1443,7 @@
 #
 # Since: 1.7
 ##
-{ 'type': 'BlockdevOptionsGenericCOWFormat',
+{ 'struct': 'BlockdevOptionsGenericCOWFormat',
   'base': 'BlockdevOptionsGenericFormat',
   'data': { '*backing': 'BlockdevRef' } }
 
@@ -1393,7 +1479,7 @@
 #
 # Since: 2.2
 ##
-{ 'type': 'Qcow2OverlapCheckFlags',
+{ 'struct': 'Qcow2OverlapCheckFlags',
   'data': { '*template':       'Qcow2OverlapCheckMode',
             '*main-header':    'bool',
             '*active-l1':      'bool',
@@ -1417,8 +1503,7 @@
 #
 # Since: 2.2
 ##
-{ 'union': 'Qcow2OverlapChecks',
-  'discriminator': {},
+{ 'alternate': 'Qcow2OverlapChecks',
   'data': { 'flags': 'Qcow2OverlapCheckFlags',
             'mode':  'Qcow2OverlapCheckMode' } }
 
@@ -1455,7 +1540,7 @@
 #
 # Since: 1.7
 ##
-{ 'type': 'BlockdevOptionsQcow2',
+{ 'struct': 'BlockdevOptionsQcow2',
   'base': 'BlockdevOptionsGenericCOWFormat',
   'data': { '*lazy-refcounts': 'bool',
             '*pass-discard-request': 'bool',
@@ -1490,7 +1575,7 @@
 #                       use the default value, 'archipelago'.
 # Since: 2.2
 ##
-{ 'type': 'BlockdevOptionsArchipelago',
+{ 'struct': 'BlockdevOptionsArchipelago',
   'data': { 'volume': 'str',
             '*mport': 'int',
             '*vport': 'int',
@@ -1542,7 +1627,7 @@
 #
 # Since: 2.0
 ##
-{ 'type': 'BlkdebugInjectErrorOptions',
+{ 'struct': 'BlkdebugInjectErrorOptions',
   'data': { 'event': 'BlkdebugEvent',
             '*state': 'int',
             '*errno': 'int',
@@ -1565,7 +1650,7 @@
 #
 # Since: 2.0
 ##
-{ 'type': 'BlkdebugSetStateOptions',
+{ 'struct': 'BlkdebugSetStateOptions',
   'data': { 'event': 'BlkdebugEvent',
             '*state': 'int',
             'new_state': 'int' } }
@@ -1587,7 +1672,7 @@
 #
 # Since: 2.0
 ##
-{ 'type': 'BlockdevOptionsBlkdebug',
+{ 'struct': 'BlockdevOptionsBlkdebug',
   'data': { 'image': 'BlockdevRef',
             '*config': 'str',
             '*align': 'int',
@@ -1605,7 +1690,7 @@
 #
 # Since: 2.0
 ##
-{ 'type': 'BlockdevOptionsBlkverify',
+{ 'struct': 'BlockdevOptionsBlkverify',
   'data': { 'test': 'BlockdevRef',
             'raw': 'BlockdevRef' } }
 
@@ -1642,7 +1727,7 @@
 #
 # Since: 2.0
 ##
-{ 'type': 'BlockdevOptionsQuorum',
+{ 'struct': 'BlockdevOptionsQuorum',
   'data': { '*blkverify': 'bool',
             'children': [ 'BlockdevRef' ],
             'vote-threshold': 'int',
@@ -1709,8 +1794,7 @@
 #
 # Since: 1.7
 ##
-{ 'union': 'BlockdevRef',
-  'discriminator': {},
+{ 'alternate': 'BlockdevRef',
   'data': { 'definition': 'BlockdevOptions',
             'reference': 'str' } }
 
@@ -1718,6 +1802,10 @@
 # @blockdev-add:
 #
 # Creates a new block device.
+#
+# This command is still a work in progress.  It doesn't support all
+# block drivers, it lacks a matching blockdev-del, and more.  Stay
+# away from it unless you want to help with its development.
 #
 # @options: block device options for the new device
 #
@@ -1748,14 +1836,18 @@
 #
 # Emitted when a corruption has been detected in a disk image
 #
-# @device: device name
+# @device: device name. This is always present for compatibility
+#          reasons, but it can be empty ("") if the image does not
+#          have a device name associated.
+#
+# @node-name: #optional node name (Since: 2.4)
 #
 # @msg: informative message for human consumption, such as the kind of
 #       corruption being detected. It should not be parsed by machine as it is
 #       not guaranteed to be stable
 #
 # @offset: #optional, if the corruption resulted from an image access, this is
-#          the access offset into the image
+#          the host's access offset into the image
 #
 # @size: #optional, if the corruption resulted from an image access, this is
 #        the access size
@@ -1767,11 +1859,12 @@
 # Since: 1.7
 ##
 { 'event': 'BLOCK_IMAGE_CORRUPTED',
-  'data': { 'device' : 'str',
-            'msg'    : 'str',
-            '*offset': 'int',
-            '*size'  : 'int',
-            'fatal'  : 'bool' } }
+  'data': { 'device'     : 'str',
+            '*node-name' : 'str',
+            'msg'        : 'str',
+            '*offset'    : 'int',
+            '*size'      : 'int',
+            'fatal'      : 'bool' } }
 
 ##
 # @BLOCK_IO_ERROR
@@ -1957,10 +2050,6 @@
 #
 # @write-threshold: configured threshold for the block device, bytes.
 #                   Use 0 to disable the threshold.
-#
-# Returns: Nothing on success
-#          If @node name is not found on the block device graph,
-#          DeviceNotFound
 #
 # Since: 2.3
 ##

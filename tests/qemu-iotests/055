@@ -126,7 +126,10 @@ class TestSingleDrive(iotests.QMPTestCase):
 
     def do_test_device_not_found(self, cmd, **args):
         result = self.vm.qmp(cmd, **args)
-        self.assert_qmp(result, 'error/class', 'DeviceNotFound')
+        if cmd == 'drive-backup':
+            self.assert_qmp(result, 'error/class', 'DeviceNotFound')
+        else:
+            self.assert_qmp(result, 'error/class', 'GenericError')
 
     def test_device_not_found(self):
         self.do_test_device_not_found('drive-backup', device='nonexistent',
@@ -364,7 +367,7 @@ class TestSingleTransaction(iotests.QMPTestCase):
                           'sync': 'full' },
             }
         ])
-        self.assert_qmp(result, 'error/class', 'DeviceNotFound')
+        self.assert_qmp(result, 'error/class', 'GenericError')
 
         result = self.vm.qmp('transaction', actions=[{
                 'type': 'blockdev-backup',
@@ -373,7 +376,7 @@ class TestSingleTransaction(iotests.QMPTestCase):
                           'sync': 'full' },
             }
         ])
-        self.assert_qmp(result, 'error/class', 'DeviceNotFound')
+        self.assert_qmp(result, 'error/class', 'GenericError')
 
         result = self.vm.qmp('transaction', actions=[{
                 'type': 'blockdev-backup',
@@ -382,7 +385,7 @@ class TestSingleTransaction(iotests.QMPTestCase):
                           'sync': 'full' },
             }
         ])
-        self.assert_qmp(result, 'error/class', 'DeviceNotFound')
+        self.assert_qmp(result, 'error/class', 'GenericError')
 
     def test_target_is_source(self):
         result = self.vm.qmp('transaction', actions=[{

@@ -773,8 +773,8 @@ pflash_t *pflash_cfi02_register(hwaddr base,
 {
     DeviceState *dev = qdev_create(NULL, TYPE_CFI_PFLASH02);
 
-    if (blk && qdev_prop_set_drive(dev, "drive", blk)) {
-        abort();
+    if (blk) {
+        qdev_prop_set_drive(dev, "drive", blk, &error_abort);
     }
     qdev_prop_set_uint32(dev, "num-blocks", nb_blocs);
     qdev_prop_set_uint32(dev, "sector-length", sector_len);

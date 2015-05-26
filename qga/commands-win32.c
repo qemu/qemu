@@ -14,10 +14,13 @@
 #include <glib.h>
 #include <wtypes.h>
 #include <powrprof.h>
+#include <stdio.h>
+#include <string.h>
 #include "qga/guest-agent-core.h"
 #include "qga/vss-win32.h"
 #include "qga-qmp-commands.h"
 #include "qapi/qmp/qerror.h"
+#include "qemu/queue.h"
 
 #ifndef SHTDN_REASON_FLAG_PLANNED
 #define SHTDN_REASON_FLAG_PLANNED 0x80000000
@@ -28,6 +31,146 @@
 #define W32_FT_OFFSET (10000000ULL * 60 * 60 * 24 * \
                        (365 * (1970 - 1601) +       \
                         (1970 - 1601) / 4 - 3))
+
+#define INVALID_SET_FILE_POINTER ((DWORD)-1)
+
+typedef struct GuestFileHandle {
+    int64_t id;
+    HANDLE fh;
+    QTAILQ_ENTRY(GuestFileHandle) next;
+} GuestFileHandle;
+
+static struct {
+    QTAILQ_HEAD(, GuestFileHandle) filehandles;
+} guest_file_state;
+
+
+typedef struct OpenFlags {
+    const char *forms;
+    DWORD desired_access;
+    DWORD creation_disposition;
+} OpenFlags;
+static OpenFlags guest_file_open_modes[] = {
+    {"r",   GENERIC_READ,               OPEN_EXISTING},
+    {"rb",  GENERIC_READ,               OPEN_EXISTING},
+    {"w",   GENERIC_WRITE,              CREATE_ALWAYS},
+    {"wb",  GENERIC_WRITE,              CREATE_ALWAYS},
+    {"a",   GENERIC_WRITE,              OPEN_ALWAYS  },
+    {"r+",  GENERIC_WRITE|GENERIC_READ, OPEN_EXISTING},
+    {"rb+", GENERIC_WRITE|GENERIC_READ, OPEN_EXISTING},
+    {"r+b", GENERIC_WRITE|GENERIC_READ, OPEN_EXISTING},
+    {"w+",  GENERIC_WRITE|GENERIC_READ, CREATE_ALWAYS},
+    {"wb+", GENERIC_WRITE|GENERIC_READ, CREATE_ALWAYS},
+    {"w+b", GENERIC_WRITE|GENERIC_READ, CREATE_ALWAYS},
+    {"a+",  GENERIC_WRITE|GENERIC_READ, OPEN_ALWAYS  },
+    {"ab+", GENERIC_WRITE|GENERIC_READ, OPEN_ALWAYS  },
+    {"a+b", GENERIC_WRITE|GENERIC_READ, OPEN_ALWAYS  }
+};
+
+static OpenFlags *find_open_flag(const char *mode_str)
+{
+    int mode;
+    Error **errp = NULL;
+
+    for (mode = 0; mode < ARRAY_SIZE(guest_file_open_modes); ++mode) {
+        OpenFlags *flags = guest_file_open_modes + mode;
+
+        if (strcmp(flags->forms, mode_str) == 0) {
+            return flags;
+        }
+    }
+
+    error_setg(errp, "invalid file open mode '%s'", mode_str);
+    return NULL;
+}
+
+static int64_t guest_file_handle_add(HANDLE fh, Error **errp)
+{
+    GuestFileHandle *gfh;
+    int64_t handle;
+
+    handle = ga_get_fd_handle(ga_state, errp);
+    if (handle < 0) {
+        return -1;
+    }
+    gfh = g_malloc0(sizeof(GuestFileHandle));
+    gfh->id = handle;
+    gfh->fh = fh;
+    QTAILQ_INSERT_TAIL(&guest_file_state.filehandles, gfh, next);
+
+    return handle;
+}
+
+static GuestFileHandle *guest_file_handle_find(int64_t id, Error **errp)
+{
+    GuestFileHandle *gfh;
+    QTAILQ_FOREACH(gfh, &guest_file_state.filehandles, next) {
+        if (gfh->id == id) {
+            return gfh;
+        }
+    }
+    error_setg(errp, "handle '%" PRId64 "' has not been found", id);
+    return NULL;
+}
+
+int64_t qmp_guest_file_open(const char *path, bool has_mode,
+                            const char *mode, Error **errp)
+{
+    int64_t fd;
+    HANDLE fh;
+    HANDLE templ_file = NULL;
+    DWORD share_mode = FILE_SHARE_READ;
+    DWORD flags_and_attr = FILE_ATTRIBUTE_NORMAL;
+    LPSECURITY_ATTRIBUTES sa_attr = NULL;
+    OpenFlags *guest_flags;
+
+    if (!has_mode) {
+        mode = "r";
+    }
+    slog("guest-file-open called, filepath: %s, mode: %s", path, mode);
+    guest_flags = find_open_flag(mode);
+    if (guest_flags == NULL) {
+        error_setg(errp, "invalid file open mode");
+        return -1;
+    }
+
+    fh = CreateFile(path, guest_flags->desired_access, share_mode, sa_attr,
+                    guest_flags->creation_disposition, flags_and_attr,
+                    templ_file);
+    if (fh == INVALID_HANDLE_VALUE) {
+        error_setg_win32(errp, GetLastError(), "failed to open file '%s'",
+                         path);
+        return -1;
+    }
+
+    fd = guest_file_handle_add(fh, errp);
+    if (fd < 0) {
+        CloseHandle(&fh);
+        error_setg(errp, "failed to add handle to qmp handle table");
+        return -1;
+    }
+
+    slog("guest-file-open, handle: % " PRId64, fd);
+    return fd;
+}
+
+void qmp_guest_file_close(int64_t handle, Error **errp)
+{
+    bool ret;
+    GuestFileHandle *gfh = guest_file_handle_find(handle, errp);
+    slog("guest-file-close called, handle: %" PRId64, handle);
+    if (gfh == NULL) {
+        return;
+    }
+    ret = CloseHandle(gfh->fh);
+    if (!ret) {
+        error_setg_win32(errp, GetLastError(), "failed close handle");
+        return;
+    }
+
+    QTAILQ_REMOVE(&guest_file_state.filehandles, gfh, next);
+    g_free(gfh);
+}
 
 static void acquire_privilege(const char *name, Error **errp)
 {
@@ -113,43 +256,130 @@ void qmp_guest_shutdown(bool has_mode, const char *mode, Error **errp)
     }
 }
 
-int64_t qmp_guest_file_open(const char *path, bool has_mode, const char *mode,
-                            Error **errp)
-{
-    error_set(errp, QERR_UNSUPPORTED);
-    return 0;
-}
-
-void qmp_guest_file_close(int64_t handle, Error **errp)
-{
-    error_set(errp, QERR_UNSUPPORTED);
-}
-
 GuestFileRead *qmp_guest_file_read(int64_t handle, bool has_count,
                                    int64_t count, Error **errp)
 {
-    error_set(errp, QERR_UNSUPPORTED);
-    return 0;
+    GuestFileRead *read_data = NULL;
+    guchar *buf;
+    HANDLE fh;
+    bool is_ok;
+    DWORD read_count;
+    GuestFileHandle *gfh = guest_file_handle_find(handle, errp);
+
+    if (!gfh) {
+        return NULL;
+    }
+    if (!has_count) {
+        count = QGA_READ_COUNT_DEFAULT;
+    } else if (count < 0) {
+        error_setg(errp, "value '%" PRId64
+                   "' is invalid for argument count", count);
+        return NULL;
+    }
+
+    fh = gfh->fh;
+    buf = g_malloc0(count+1);
+    is_ok = ReadFile(fh, buf, count, &read_count, NULL);
+    if (!is_ok) {
+        error_setg_win32(errp, GetLastError(), "failed to read file");
+        slog("guest-file-read failed, handle %" PRId64, handle);
+    } else {
+        buf[read_count] = 0;
+        read_data = g_malloc0(sizeof(GuestFileRead));
+        read_data->count = (size_t)read_count;
+        read_data->eof = read_count == 0;
+
+        if (read_count != 0) {
+            read_data->buf_b64 = g_base64_encode(buf, read_count);
+        }
+    }
+    g_free(buf);
+
+    return read_data;
 }
 
 GuestFileWrite *qmp_guest_file_write(int64_t handle, const char *buf_b64,
                                      bool has_count, int64_t count,
                                      Error **errp)
 {
-    error_set(errp, QERR_UNSUPPORTED);
-    return 0;
+    GuestFileWrite *write_data = NULL;
+    guchar *buf;
+    gsize buf_len;
+    bool is_ok;
+    DWORD write_count;
+    GuestFileHandle *gfh = guest_file_handle_find(handle, errp);
+    HANDLE fh;
+
+    if (!gfh) {
+        return NULL;
+    }
+    fh = gfh->fh;
+    buf = g_base64_decode(buf_b64, &buf_len);
+
+    if (!has_count) {
+        count = buf_len;
+    } else if (count < 0 || count > buf_len) {
+        error_setg(errp, "value '%" PRId64
+                   "' is invalid for argument count", count);
+        goto done;
+    }
+
+    is_ok = WriteFile(fh, buf, count, &write_count, NULL);
+    if (!is_ok) {
+        error_setg_win32(errp, GetLastError(), "failed to write to file");
+        slog("guest-file-write-failed, handle: %" PRId64, handle);
+    } else {
+        write_data = g_malloc0(sizeof(GuestFileWrite));
+        write_data->count = (size_t) write_count;
+    }
+
+done:
+    g_free(buf);
+    return write_data;
 }
 
 GuestFileSeek *qmp_guest_file_seek(int64_t handle, int64_t offset,
                                    int64_t whence, Error **errp)
 {
-    error_set(errp, QERR_UNSUPPORTED);
-    return 0;
+    GuestFileHandle *gfh;
+    GuestFileSeek *seek_data;
+    HANDLE fh;
+    LARGE_INTEGER new_pos, off_pos;
+    off_pos.QuadPart = offset;
+    BOOL res;
+    gfh = guest_file_handle_find(handle, errp);
+    if (!gfh) {
+        return NULL;
+    }
+
+    fh = gfh->fh;
+    res = SetFilePointerEx(fh, off_pos, &new_pos, whence);
+    if (!res) {
+        error_setg_win32(errp, GetLastError(), "failed to seek file");
+        return NULL;
+    }
+    seek_data = g_new0(GuestFileSeek, 1);
+    seek_data->position = new_pos.QuadPart;
+    return seek_data;
 }
 
 void qmp_guest_file_flush(int64_t handle, Error **errp)
 {
-    error_set(errp, QERR_UNSUPPORTED);
+    HANDLE fh;
+    GuestFileHandle *gfh = guest_file_handle_find(handle, errp);
+    if (!gfh) {
+        return;
+    }
+
+    fh = gfh->fh;
+    if (!FlushFileBuffers(fh)) {
+        error_setg_win32(errp, GetLastError(), "failed to flush file");
+    }
+}
+
+static void guest_file_init(void)
+{
+    QTAILQ_INIT(&guest_file_state.filehandles);
 }
 
 GuestFilesystemInfoList *qmp_guest_get_fsinfo(Error **errp)
@@ -395,31 +625,31 @@ void qmp_guest_set_time(bool has_time, int64_t time_ns, Error **errp)
     FILETIME tf;
     LONGLONG time;
 
-    if (has_time) {
-        /* Okay, user passed a time to set. Validate it. */
-        if (time_ns < 0 || time_ns / 100 > INT64_MAX - W32_FT_OFFSET) {
-            error_setg(errp, "Time %" PRId64 "is invalid", time_ns);
-            return;
-        }
+    if (!has_time) {
+        /* Unfortunately, Windows libraries don't provide an easy way to access
+         * RTC yet:
+         *
+         * https://msdn.microsoft.com/en-us/library/aa908981.aspx
+         */
+        error_setg(errp, "Time argument is required on this platform");
+        return;
+    }
 
-        time = time_ns / 100 + W32_FT_OFFSET;
+    /* Validate time passed by user. */
+    if (time_ns < 0 || time_ns / 100 > INT64_MAX - W32_FT_OFFSET) {
+        error_setg(errp, "Time %" PRId64 "is invalid", time_ns);
+        return;
+    }
 
-        tf.dwLowDateTime = (DWORD) time;
-        tf.dwHighDateTime = (DWORD) (time >> 32);
+    time = time_ns / 100 + W32_FT_OFFSET;
 
-        if (!FileTimeToSystemTime(&tf, &ts)) {
-            error_setg(errp, "Failed to convert system time %d",
-                       (int)GetLastError());
-            return;
-        }
-    } else {
-        /* Otherwise read the time from RTC which contains the correct value.
-         * Hopefully. */
-        GetSystemTime(&ts);
-        if (ts.wYear < 1601 || ts.wYear > 30827) {
-            error_setg(errp, "Failed to get time");
-            return;
-        }
+    tf.dwLowDateTime = (DWORD) time;
+    tf.dwHighDateTime = (DWORD) (time >> 32);
+
+    if (!FileTimeToSystemTime(&tf, &ts)) {
+        error_setg(errp, "Failed to convert system time %d",
+                   (int)GetLastError());
+        return;
     }
 
     acquire_privilege(SE_SYSTEMTIME_NAME, &local_err);
@@ -446,14 +676,42 @@ int64_t qmp_guest_set_vcpus(GuestLogicalProcessorList *vcpus, Error **errp)
     return -1;
 }
 
+void qmp_guest_set_user_password(const char *username,
+                                 const char *password,
+                                 bool crypted,
+                                 Error **errp)
+{
+    error_set(errp, QERR_UNSUPPORTED);
+}
+
+GuestMemoryBlockList *qmp_guest_get_memory_blocks(Error **errp)
+{
+    error_set(errp, QERR_UNSUPPORTED);
+    return NULL;
+}
+
+GuestMemoryBlockResponseList *
+qmp_guest_set_memory_blocks(GuestMemoryBlockList *mem_blks, Error **errp)
+{
+    error_set(errp, QERR_UNSUPPORTED);
+    return NULL;
+}
+
+GuestMemoryBlockInfo *qmp_guest_get_memory_block_info(Error **errp)
+{
+    error_set(errp, QERR_UNSUPPORTED);
+    return NULL;
+}
+
 /* add unsupported commands to the blacklist */
 GList *ga_command_blacklist_init(GList *blacklist)
 {
     const char *list_unsupported[] = {
-        "guest-file-open", "guest-file-close", "guest-file-read",
-        "guest-file-write", "guest-file-seek", "guest-file-flush",
         "guest-suspend-hybrid", "guest-network-get-interfaces",
         "guest-get-vcpus", "guest-set-vcpus",
+        "guest-set-user-password",
+        "guest-get-memory-blocks", "guest-set-memory-blocks",
+        "guest-get-memory-block-size",
         "guest-fsfreeze-freeze-list", "guest-get-fsinfo",
         "guest-fstrim", NULL};
     char **p = (char **)list_unsupported;
@@ -482,4 +740,5 @@ void ga_command_state_init(GAState *s, GACommandState *cs)
     if (!vss_initialized()) {
         ga_command_state_add(cs, NULL, guest_fsfreeze_cleanup);
     }
+    ga_command_state_add(cs, guest_file_init, NULL);
 }

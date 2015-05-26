@@ -681,7 +681,7 @@ static TCGv gen_ea(CPUM68KState *env, DisasContext *s, uint16_t insn,
 }
 
 /* This generates a conditional branch, clobbering all temporaries.  */
-static void gen_jmpcc(DisasContext *s, int cond, int l1)
+static void gen_jmpcc(DisasContext *s, int cond, TCGLabel *l1)
 {
     TCGv tmp;
 
@@ -786,7 +786,7 @@ static void gen_jmpcc(DisasContext *s, int cond, int l1)
 
 DISAS_INSN(scc)
 {
-    int l1;
+    TCGLabel *l1;
     int cond;
     TCGv reg;
 
@@ -1662,7 +1662,7 @@ DISAS_INSN(branch)
     int32_t offset;
     uint32_t base;
     int op;
-    int l1;
+    TCGLabel *l1;
 
     base = s->pc;
     op = (insn >> 8) & 0xf;
@@ -2399,7 +2399,7 @@ DISAS_INSN(fbcc)
     uint32_t offset;
     uint32_t addr;
     TCGv flag;
-    int l1;
+    TCGLabel *l1;
 
     addr = s->pc;
     offset = cpu_ldsw_code(env, s->pc);

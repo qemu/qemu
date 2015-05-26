@@ -2336,4 +2336,7 @@ e1000003e0:  00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
 e1000003f0:  00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
 read 1024/1024 bytes at offset 966367641600
 1 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+
+=== Testing afl image with a very large capacity ===
+qemu-img: Can't get size of device 'image': File too large
 *** done

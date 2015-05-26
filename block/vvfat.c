@@ -1180,9 +1180,10 @@ static int vvfat_open(BlockDriverState *bs, QDict *options, int flags,
 
     /* Disable migration when vvfat is used rw */
     if (s->qcow) {
-        error_set(&s->migration_blocker,
-                  QERR_BLOCK_FORMAT_FEATURE_NOT_SUPPORTED,
-                  "vvfat (rw)", bdrv_get_device_name(bs), "live migration");
+        error_setg(&s->migration_blocker,
+                   "The vvfat (rw) format used by node '%s' "
+                   "does not support live migration",
+                   bdrv_get_device_or_node_name(bs));
         migrate_add_blocker(s->migration_blocker);
     }
 
@@ -2924,8 +2925,9 @@ static int enable_write_target(BDRVVVFATState *s, Error **errp)
     }
 
     opts = qemu_opts_create(bdrv_qcow->create_opts, NULL, 0, &error_abort);
-    qemu_opt_set_number(opts, BLOCK_OPT_SIZE, s->sector_count * 512);
-    qemu_opt_set(opts, BLOCK_OPT_BACKING_FILE, "fat:");
+    qemu_opt_set_number(opts, BLOCK_OPT_SIZE, s->sector_count * 512,
+                        &error_abort);
+    qemu_opt_set(opts, BLOCK_OPT_BACKING_FILE, "fat:", &error_abort);
 
     ret = bdrv_create(bdrv_qcow, s->qcow_filename, opts, errp);
     qemu_opts_del(opts);

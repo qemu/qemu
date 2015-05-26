@@ -9,6 +9,11 @@
 #include "qapi-types.h"
 #include "qapi/error.h"
 
+#ifdef CONFIG_OPENGL
+# include <GLES2/gl2.h>
+# include <GLES2/gl2ext.h>
+#endif
+
 /* keyboard/mouse support */
 
 #define MOUSE_EVENT_LBUTTON 0x01
@@ -36,7 +41,6 @@ typedef struct QEMUPutLEDEntry QEMUPutLEDEntry;
 
 QEMUPutKbdEntry *qemu_add_kbd_event_handler(QEMUPutKBDEvent *func,
                                             void *opaque);
-void qemu_remove_kbd_event_handler(QEMUPutKbdEntry *entry);
 QEMUPutMouseEntry *qemu_add_mouse_event_handler(QEMUPutMouseEvent *func,
                                                 void *opaque, int absolute,
                                                 const char *name);
@@ -56,7 +60,7 @@ struct MouseTransformInfo {
     int a[7];
 };
 
-void do_mouse_set(Monitor *mon, const QDict *qdict);
+void hmp_mouse_set(Monitor *mon, const QDict *qdict);
 
 /* keysym is a unicode code except for special keys (see QEMU_KEY_xxx
    constants) */
@@ -118,6 +122,11 @@ struct DisplaySurface {
     pixman_format_code_t format;
     pixman_image_t *image;
     uint8_t flags;
+#ifdef CONFIG_OPENGL
+    GLenum glformat;
+    GLenum gltype;
+    GLuint texture;
+#endif
 };
 
 typedef struct QemuUIInfo {
@@ -194,7 +203,6 @@ DisplaySurface *qemu_create_displaysurface_guestmem(int width, int height,
                                                     pixman_format_code_t format,
                                                     int linesize,
                                                     uint64_t addr);
-PixelFormat qemu_different_endianness_pixelformat(int bpp);
 PixelFormat qemu_default_pixelformat(int bpp);
 
 DisplaySurface *qemu_create_displaysurface(int width, int height);
@@ -220,6 +228,7 @@ void update_displaychangelistener(DisplayChangeListener *dcl,
                                   uint64_t interval);
 void unregister_displaychangelistener(DisplayChangeListener *dcl);
 
+bool dpy_ui_info_supported(QemuConsole *con);
 int dpy_set_ui_info(QemuConsole *con, QemuUIInfo *info);
 
 void dpy_gfx_update(QemuConsole *con, int x, int y, int w, int h);
@@ -272,6 +281,11 @@ static inline int surface_bytes_per_pixel(DisplaySurface *s)
     return (bits + 7) / 8;
 }
 
+static inline pixman_format_code_t surface_format(DisplaySurface *s)
+{
+    return s->format;
+}
+
 #ifdef CONFIG_CURSES
 #include <curses.h>
 typedef chtype console_ch_t;
@@ -309,6 +323,7 @@ QemuConsole *qemu_console_lookup_by_device(DeviceState *dev, uint32_t head);
 bool qemu_console_is_visible(QemuConsole *con);
 bool qemu_console_is_graphic(QemuConsole *con);
 bool qemu_console_is_fixedsize(QemuConsole *con);
+char *qemu_console_get_label(QemuConsole *con);
 int qemu_console_get_index(QemuConsole *con);
 uint32_t qemu_console_get_head(QemuConsole *con);
 QemuUIInfo *qemu_console_get_ui_info(QemuConsole *con);
@@ -322,9 +337,30 @@ void qemu_console_resize(QemuConsole *con, int width, int height);
 void qemu_console_copy(QemuConsole *con, int src_x, int src_y,
                        int dst_x, int dst_y, int w, int h);
 DisplaySurface *qemu_console_surface(QemuConsole *con);
-DisplayState *qemu_console_displaystate(QemuConsole *console);
+
+/* console-gl.c */
+typedef struct ConsoleGLState ConsoleGLState;
+#ifdef CONFIG_OPENGL
+ConsoleGLState *console_gl_init_context(void);
+void console_gl_fini_context(ConsoleGLState *gls);
+bool console_gl_check_format(DisplayChangeListener *dcl,
+                             pixman_format_code_t format);
+void surface_gl_create_texture(ConsoleGLState *gls,
+                               DisplaySurface *surface);
+void surface_gl_update_texture(ConsoleGLState *gls,
+                               DisplaySurface *surface,
+                               int x, int y, int w, int h);
+void surface_gl_render_texture(ConsoleGLState *gls,
+                               DisplaySurface *surface);
+void surface_gl_destroy_texture(ConsoleGLState *gls,
+                               DisplaySurface *surface);
+void surface_gl_setup_viewport(ConsoleGLState *gls,
+                               DisplaySurface *surface,
+                               int ww, int wh);
+#endif
 
 /* sdl.c */
+void sdl_display_early_init(int opengl);
 void sdl_display_init(DisplayState *ds, int full_screen, int no_frame);
 
 /* cocoa.m */

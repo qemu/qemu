@@ -1,0 +1,81 @@
+#!/bin/bash
+#
+# Test case for drive-mirror to NBD (especially bdrv_swap() on NBD BDS)
+#
+# Copyright (C) 2015 Red Hat, Inc.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+
+# creator
+owner=mreitz@redhat.com
+
+seq="$(basename $0)"
+echo "QA output created by $seq"
+
+here="$PWD"
+tmp=/tmp/$$
+status=1	# failure is the default!
+
+trap "exit \$status" 0 1 2 3 15
+
+# get standard environment, filters and checks
+. ./common.rc
+. ./common.filter
+. ./common.qemu
+
+_supported_fmt generic
+_supported_proto nbd
+_supported_os Linux
+_unsupported_imgopts "subformat=monolithicFlat" "subformat=twoGbMaxExtentFlat"
+
+_make_test_img 64M
+$QEMU_IMG create -f $IMGFMT "$TEST_DIR/source.$IMGFMT" 64M | _filter_img_create
+
+_launch_qemu -drive if=none,id=src,file="$TEST_DIR/source.$IMGFMT",format=raw \
+             -nodefaults
+
+_send_qemu_cmd $QEMU_HANDLE \
+    "{'execute': 'qmp_capabilities'}" \
+    'return'
+
+# 'format': 'nbd' is not actually "correct", but this is probably the only way
+# to test bdrv_swap() on an NBD BDS
+_send_qemu_cmd $QEMU_HANDLE  \
+    "{'execute': 'drive-mirror',
+      'arguments': {'device': 'src',
+                    'target': '$TEST_IMG',
+                    'format': 'nbd',
+                    'sync':'full',
+                    'mode':'existing'}}" \
+    'BLOCK_JOB_READY'
+
+_send_qemu_cmd $QEMU_HANDLE  \
+    "{'execute': 'block-job-complete',
+      'arguments': {'device': 'src'}}" \
+    'BLOCK_JOB_COMPLETE'
+
+_send_qemu_cmd $QEMU_HANDLE \
+    "{'execute': 'quit'}" \
+    'return'
+
+wait=1 _cleanup_qemu
+
+_cleanup_test_img
+rm -f "$TEST_DIR/source.$IMGFMT"
+
+# success, all done
+echo '*** done'
+rm -f $seq.full
+status=0

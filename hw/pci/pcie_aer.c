@@ -123,7 +123,7 @@ int pcie_aer_init(PCIDevice *dev, uint16_t offset)
                  PCI_ERR_UNC_SUPPORTED);
 
     pci_long_test_and_set_mask(dev->w1cmask + offset + PCI_ERR_COR_STATUS,
-                               PCI_ERR_COR_STATUS);
+                               PCI_ERR_COR_SUPPORTED);
 
     pci_set_long(dev->config + offset + PCI_ERR_COR_MASK,
                  PCI_ERR_COR_MASK_DEFAULT);
@@ -410,7 +410,7 @@ static void pcie_aer_msg(PCIDevice *dev, const PCIEAERMsg *msg)
 static void pcie_aer_update_log(PCIDevice *dev, const PCIEAERErr *err)
 {
     uint8_t *aer_cap = dev->config + dev->exp.aer_cap;
-    uint8_t first_bit = ffs(err->status) - 1;
+    uint8_t first_bit = ctz32(err->status);
     uint32_t errcap = pci_get_long(aer_cap + PCI_ERR_CAP);
     int i;
 
@@ -433,7 +433,7 @@ static void pcie_aer_update_log(PCIDevice *dev, const PCIEAERErr *err)
     }
 
     if ((err->flags & PCIE_AER_ERR_TLP_PREFIX_PRESENT) &&
-        (pci_get_long(dev->config + dev->exp.exp_cap + PCI_EXP_DEVCTL2) &
+        (pci_get_long(dev->config + dev->exp.exp_cap + PCI_EXP_DEVCAP2) &
          PCI_EXP_DEVCAP2_EETLPP)) {
         for (i = 0; i < ARRAY_SIZE(err->prefix); ++i) {
             /* 7.10.12 tlp prefix log register */
@@ -618,12 +618,12 @@ static bool pcie_aer_inject_uncor_error(PCIEAERInject *inj, bool is_fatal)
  * non-Function specific error must be recorded in all functions.
  * It is the responsibility of the caller of this function.
  * It is also caller's responsibility to determine which function should
- * report the rerror.
+ * report the error.
  *
  * 6.2.4 Error Logging
- * 6.2.5 Sqeunce of Device Error Signaling and Logging Operations
- * table 6-2: Flowchard Showing Sequence of Device Error Signaling and Logging
- *            Operations
+ * 6.2.5 Sequence of Device Error Signaling and Logging Operations
+ * Figure 6-2: Flowchart Showing Sequence of Device Error Signaling and Logging
+ *             Operations
  */
 int pcie_aer_inject_error(PCIDevice *dev, const PCIEAERErr *err)
 {
@@ -962,7 +962,7 @@ static int pcie_aer_parse_error_string(const char *error_name,
     return -EINVAL;
 }
 
-int do_pcie_aer_inject_error(Monitor *mon,
+int hmp_pcie_aer_inject_error(Monitor *mon,
                              const QDict *qdict, QObject **ret_data)
 {
     const char *id = qdict_get_str(qdict, "id");

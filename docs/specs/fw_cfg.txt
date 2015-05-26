@@ -1,0 +1,205 @@
+QEMU Firmware Configuration (fw_cfg) Device
+===========================================
+
+= Guest-side Hardware Interface =
+
+This hardware interface allows the guest to retrieve various data items
+(blobs) that can influence how the firmware configures itself, or may
+contain tables to be installed for the guest OS. Examples include device
+boot order, ACPI and SMBIOS tables, virtual machine UUID, SMP and NUMA
+information, kernel/initrd images for direct (Linux) kernel booting, etc.
+
+== Selector (Control) Register ==
+
+* Write only
+* Location: platform dependent (IOport or MMIO)
+* Width: 16-bit
+* Endianness: little-endian (if IOport), or big-endian (if MMIO)
+
+A write to this register sets the index of a firmware configuration
+item which can subsequently be accessed via the data register.
+
+Setting the selector register will cause the data offset to be set
+to zero. The data offset impacts which data is accessed via the data
+register, and is explained below.
+
+Bit14 of the selector register indicates whether the configuration
+setting is being written. A value of 0 means the item is only being
+read, and all write access to the data port will be ignored. A value
+of 1 means the item's data can be overwritten by writes to the data
+register. In other words, configuration write mode is enabled when
+the selector value is between 0x4000-0x7fff or 0xc000-0xffff.
+
+NOTE: As of QEMU v2.4, writes to the fw_cfg data register are no
+      longer supported, and will be ignored (treated as no-ops)!
+
+Bit15 of the selector register indicates whether the configuration
+setting is architecture specific. A value of 0 means the item is a
+generic configuration item. A value of 1 means the item is specific
+to a particular architecture. In other words, generic configuration
+items are accessed with a selector value between 0x0000-0x7fff, and
+architecture specific configuration items are accessed with a selector
+value between 0x8000-0xffff.
+
+== Data Register ==
+
+* Read/Write (writes ignored as of QEMU v2.4)
+* Location: platform dependent (IOport [*] or MMIO)
+* Width: 8-bit (if IOport), 8/16/32/64-bit (if MMIO)
+* Endianness: string-preserving
+
+[*] On platforms where the data register is exposed as an IOport, its
+port number will always be one greater than the port number of the
+selector register. In other words, the two ports overlap, and can not
+be mapped separately.
+
+The data register allows access to an array of bytes for each firmware
+configuration data item. The specific item is selected by writing to
+the selector register, as described above.
+
+Initially following a write to the selector register, the data offset
+will be set to zero. Each successful access to the data register will
+increment the data offset by the appropriate access width.
+
+Each firmware configuration item has a maximum length of data
+associated with the item. After the data offset has passed the
+end of this maximum data length, then any reads will return a data
+value of 0x00, and all writes will be ignored.
+
+An N-byte wide read of the data register will return the next available
+N bytes of the selected firmware configuration item, as a substring, in
+increasing address order, similar to memcpy().
+
+== Register Locations ==
+
+=== x86, x86_64 Register Locations ===
+
+Selector Register IOport: 0x510
+Data Register IOport:     0x511
+
+== Firmware Configuration Items ==
+
+=== Signature (Key 0x0000, FW_CFG_SIGNATURE) ===
+
+The presence of the fw_cfg selector and data registers can be verified
+by selecting the "signature" item using key 0x0000 (FW_CFG_SIGNATURE),
+and reading four bytes from the data register. If the fw_cfg device is
+present, the four bytes read will contain the characters "QEMU".
+
+=== Revision (Key 0x0001, FW_CFG_ID) ===
+
+A 32-bit little-endian unsigned int, this item is used as an interface
+revision number, and is currently set to 1 by QEMU when fw_cfg is
+initialized.
+
+=== File Directory (Key 0x0019, FW_CFG_FILE_DIR) ===
+
+Firmware configuration items stored at selector keys 0x0020 or higher
+(FW_CFG_FILE_FIRST or higher) have an associated entry in a directory
+structure, which makes it easier for guest-side firmware to identify
+and retrieve them. The format of this file directory (from fw_cfg.h in
+the QEMU source tree) is shown here, slightly annotated for clarity:
+
+struct FWCfgFiles {		/* the entire file directory fw_cfg item */
+    uint32_t count;		/* number of entries, in big-endian format */
+    struct FWCfgFile f[];	/* array of file entries, see below */
+};
+
+struct FWCfgFile {		/* an individual file entry, 64 bytes total */
+    uint32_t size;		/* size of referenced fw_cfg item, big-endian */
+    uint16_t select;		/* selector key of fw_cfg item, big-endian */
+    uint16_t reserved;
+    char name[56];		/* fw_cfg item name, NUL-terminated ascii */
+};
+
+=== All Other Data Items ===
+
+Please consult the QEMU source for the most up-to-date and authoritative
+list of selector keys and their respective items' purpose and format.
+
+=== Ranges ===
+
+Theoretically, there may be up to 0x4000 generic firmware configuration
+items, and up to 0x4000 architecturally specific ones.
+
+Selector Reg.    Range Usage
+---------------  -----------
+0x0000 - 0x3fff  Generic (0x0000 - 0x3fff, RO)
+0x4000 - 0x7fff  Generic (0x0000 - 0x3fff, RW, ignored in QEMU v2.4+)
+0x8000 - 0xbfff  Arch. Specific (0x0000 - 0x3fff, RO)
+0xc000 - 0xffff  Arch. Specific (0x0000 - 0x3fff, RW, ignored in v2.4+)
+
+In practice, the number of allowed firmware configuration items is given
+by the value of FW_CFG_MAX_ENTRY (see fw_cfg.h).
+
+= Host-side API =
+
+The following functions are available to the QEMU programmer for adding
+data to a fw_cfg device during guest initialization (see fw_cfg.h for
+each function's complete prototype):
+
+== fw_cfg_add_bytes() ==
+
+Given a selector key value, starting pointer, and size, create an item
+as a raw "blob" of the given size, available by selecting the given key.
+The data referenced by the starting pointer is only linked, NOT copied,
+into the data structure of the fw_cfg device.
+
+== fw_cfg_add_string() ==
+
+Instead of a starting pointer and size, this function accepts a pointer
+to a NUL-terminated ascii string, and inserts a newly allocated copy of
+the string (including the NUL terminator) into the fw_cfg device data
+structure.
+
+== fw_cfg_add_iXX() ==
+
+Insert an XX-bit item, where XX may be 16, 32, or 64. These functions
+will convert a 16-, 32-, or 64-bit integer to little-endian, then add
+a dynamically allocated copy of the appropriately sized item to fw_cfg
+under the given selector key value.
+
+== fw_cfg_add_file() ==
+
+Given a filename (i.e., fw_cfg item name), starting pointer, and size,
+create an item as a raw "blob" of the given size. Unlike fw_cfg_add_bytes()
+above, the next available selector key (above 0x0020, FW_CFG_FILE_FIRST)
+will be used, and a new entry will be added to the file directory structure
+(at key 0x0019), containing the item name, blob size, and automatically
+assigned selector key value. The data referenced by the starting pointer
+is only linked, NOT copied, into the fw_cfg data structure.
+
+== fw_cfg_add_file_callback() ==
+
+Like fw_cfg_add_file(), but additionally sets pointers to a callback
+function (and opaque argument), which will be executed host-side by
+QEMU each time a byte is read by the guest from this particular item.
+
+NOTE: The callback function is given the opaque argument set by
+fw_cfg_add_file_callback(), but also the current data offset,
+allowing it the option of only acting upon specific offset values
+(e.g., 0, before the first data byte of the selected item is
+returned to the guest).
+
+== fw_cfg_modify_file() ==
+
+Given a filename (i.e., fw_cfg item name), starting pointer, and size,
+completely replace the configuration item referenced by the given item
+name with the new given blob. If an existing blob is found, its
+callback information is removed, and a pointer to the old data is
+returned to allow the caller to free it, helping avoid memory leaks.
+If a configuration item does not already exist under the given item
+name, a new item will be created as with fw_cfg_add_file(), and NULL
+is returned to the caller. In any case, the data referenced by the
+starting pointer is only linked, NOT copied, into the fw_cfg data
+structure.
+
+== fw_cfg_add_callback() ==
+
+Like fw_cfg_add_bytes(), but additionally sets pointers to a callback
+function (and opaque argument), which will be executed host-side by
+QEMU each time a guest-side write operation to this particular item
+completes fully overwriting the item's data.
+
+NOTE: This function is deprecated, and will be completely removed
+starting with QEMU v2.4.

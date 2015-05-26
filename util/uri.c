@@ -320,19 +320,23 @@ static int
 rfc3986_parse_port(URI *uri, const char **str)
 {
     const char *cur = *str;
+    int port = 0;
 
     if (ISA_DIGIT(cur)) {
-	if (uri != NULL)
-	    uri->port = 0;
-	while (ISA_DIGIT(cur)) {
-	    if (uri != NULL)
-		uri->port = uri->port * 10 + (*cur - '0');
-	    cur++;
-	}
-	*str = cur;
-	return(0);
+        while (ISA_DIGIT(cur)) {
+            port = port * 10 + (*cur - '0');
+            if (port > 65535) {
+                return 1;
+            }
+            cur++;
+        }
+        if (uri) {
+            uri->port = port;
+        }
+        *str = cur;
+        return 0;
     }
-    return(1);
+    return 1;
 }
 
 /**

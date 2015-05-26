@@ -1118,6 +1118,7 @@ typedef enum DisasFacility {
     FAC_PC,                 /* population count */
     FAC_SCF,                /* store clock fast */
     FAC_SFLE,               /* store facility list extended */
+    FAC_ILA,                /* interlocked access facility 1 */
 } DisasFacility;
 
 struct DisasInsn {
@@ -1177,7 +1178,7 @@ static ExitStatus help_branch(DisasContext *s, DisasCompare *c,
 {
     ExitStatus ret;
     uint64_t dest = s->pc + 2 * imm;
-    int lab;
+    TCGLabel *lab;
 
     /* Take care of the special cases first.  */
     if (c->cond == TCG_COND_NEVER) {
@@ -1953,7 +1954,7 @@ static ExitStatus op_cvd(DisasContext *s, DisasOps *o)
 static ExitStatus op_ct(DisasContext *s, DisasOps *o)
 {
     int m3 = get_field(s->fields, m3);
-    int lab = gen_new_label();
+    TCGLabel *lab = gen_new_label();
     TCGv_i32 t;
     TCGCond c;
 
@@ -2990,7 +2991,7 @@ static ExitStatus op_sam(DisasContext *s, DisasOps *o)
         break;
     }
 
-    /* Bizzare but true, we check the address of the current insn for the
+    /* Bizarre but true, we check the address of the current insn for the
        specification exception, not the next to be executed.  Thus the PoO
        documents that Bad Things Happen two bytes before the end.  */
     if (s->pc & ~mask) {
@@ -3077,9 +3078,14 @@ static ExitStatus op_soc(DisasContext *s, DisasOps *o)
 {
     DisasCompare c;
     TCGv_i64 a;
-    int lab, r1;
+    TCGLabel *lab;
+    int r1;
 
     disas_jcc(s, &c, get_field(s->fields, m3));
+
+    /* We want to store when the condition is fulfilled, so branch
+       out when it's not */
+    c.cond = tcg_invert_cond(c.cond);
 
     lab = gen_new_label();
     if (c.is_64) {
@@ -4060,6 +4066,22 @@ static void wout_m2_32(DisasContext *s, DisasFields *f, DisasOps *o)
 }
 #define SPEC_wout_m2_32 0
 
+static void wout_m2_32_r1_atomic(DisasContext *s, DisasFields *f, DisasOps *o)
+{
+    /* XXX release reservation */
+    tcg_gen_qemu_st32(o->out, o->addr1, get_mem_index(s));
+    store_reg32_i64(get_field(f, r1), o->in2);
+}
+#define SPEC_wout_m2_32_r1_atomic 0
+
+static void wout_m2_64_r1_atomic(DisasContext *s, DisasFields *f, DisasOps *o)
+{
+    /* XXX release reservation */
+    tcg_gen_qemu_st64(o->out, o->addr1, get_mem_index(s));
+    store_reg(get_field(f, r1), o->in2);
+}
+#define SPEC_wout_m2_64_r1_atomic 0
+
 /* ====================================================================== */
 /* The "INput 1" generators.  These load the first operand to an insn.  */
 
@@ -4480,6 +4502,24 @@ static void in2_mri2_64(DisasContext *s, DisasFields *f, DisasOps *o)
     tcg_gen_qemu_ld64(o->in2, o->in2, get_mem_index(s));
 }
 #define SPEC_in2_mri2_64 0
+
+static void in2_m2_32s_atomic(DisasContext *s, DisasFields *f, DisasOps *o)
+{
+    /* XXX should reserve the address */
+    in1_la2(s, f, o);
+    o->in2 = tcg_temp_new_i64();
+    tcg_gen_qemu_ld32s(o->in2, o->addr1, get_mem_index(s));
+}
+#define SPEC_in2_m2_32s_atomic 0
+
+static void in2_m2_64_atomic(DisasContext *s, DisasFields *f, DisasOps *o)
+{
+    /* XXX should reserve the address */
+    in1_la2(s, f, o);
+    o->in2 = tcg_temp_new_i64();
+    tcg_gen_qemu_ld64(o->in2, o->addr1, get_mem_index(s));
+}
+#define SPEC_in2_m2_64_atomic 0
 
 static void in2_i2(DisasContext *s, DisasFields *f, DisasOps *o)
 {

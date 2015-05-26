@@ -456,12 +456,11 @@ static void pci_vpb_realize(DeviceState *dev, Error **errp)
     object_property_set_bool(OBJECT(&s->pci_dev), true, "realized", errp);
 }
 
-static int versatile_pci_host_init(PCIDevice *d)
+static void versatile_pci_host_realize(PCIDevice *d, Error **errp)
 {
     pci_set_word(d->config + PCI_STATUS,
                  PCI_STATUS_66MHZ | PCI_STATUS_DEVSEL_MEDIUM);
     pci_set_byte(d->config + PCI_LATENCY_TIMER, 0x10);
-    return 0;
 }
 
 static void versatile_pci_host_class_init(ObjectClass *klass, void *data)
@@ -469,7 +468,7 @@ static void versatile_pci_host_class_init(ObjectClass *klass, void *data)
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
     DeviceClass *dc = DEVICE_CLASS(klass);
 
-    k->init = versatile_pci_host_init;
+    k->realize = versatile_pci_host_realize;
     k->vendor_id = PCI_VENDOR_ID_XILINX;
     k->device_id = PCI_DEVICE_ID_XILINX_XC2VP30;
     k->class_id = PCI_CLASS_PROCESSOR_CO;

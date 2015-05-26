@@ -393,7 +393,7 @@ static void nand_realize(DeviceState *dev, Error **errp)
         nand_init_2048(s);
         break;
     default:
-        error_setg(errp, "Unsupported NAND block size %#x\n",
+        error_setg(errp, "Unsupported NAND block size %#x",
                    1 << s->page_shift);
         return;
     }

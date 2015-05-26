@@ -45,15 +45,16 @@ NameInfo *qmp_query_name(Error **errp)
 
 VersionInfo *qmp_query_version(Error **errp)
 {
-    VersionInfo *info = g_malloc0(sizeof(*info));
+    VersionInfo *info = g_new0(VersionInfo, 1);
     const char *version = QEMU_VERSION;
     char *tmp;
 
-    info->qemu.major = strtol(version, &tmp, 10);
+    info->qemu = g_new0(VersionTriple, 1);
+    info->qemu->major = strtol(version, &tmp, 10);
     tmp++;
-    info->qemu.minor = strtol(tmp, &tmp, 10);
+    info->qemu->minor = strtol(tmp, &tmp, 10);
     tmp++;
-    info->qemu.micro = strtol(tmp, &tmp, 10);
+    info->qemu->micro = strtol(tmp, &tmp, 10);
     info->package = g_strdup(QEMU_PKGVERSION);
 
     return info;
@@ -387,6 +388,10 @@ static void qmp_change_vnc_listen(const char *target, Error **errp)
         qemu_opts_del(opts);
     }
     opts = vnc_parse_func(target);
+    if (!opts) {
+        return;
+    }
+
     vnc_display_open("default", errp);
 }
 
@@ -705,6 +710,11 @@ void qmp_object_del(const char *id, Error **errp)
     obj = object_resolve_path_component(container, id);
     if (!obj) {
         error_setg(errp, "object id not found");
+        return;
+    }
+
+    if (!user_creatable_can_be_deleted(USER_CREATABLE(obj), errp)) {
+        error_setg(errp, "%s is in use, can not be deleted", id);
         return;
     }
     object_unparent(obj);

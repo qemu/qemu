@@ -1,0 +1,1 @@
+tests/qapi-schema/alternate-nested.json:4: Member 'nested' of alternate 'Alt2' cannot use alternate type 'Alt1'

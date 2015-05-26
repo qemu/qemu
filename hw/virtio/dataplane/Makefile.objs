@@ -1,1 +1,1 @@
-common-obj-y += vring.o
+obj-y += vring.o

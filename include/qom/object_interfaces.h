@@ -25,6 +25,8 @@ typedef struct UserCreatable {
  * UserCreatableClass:
  * @parent_class: the base class
  * @complete: callback to be called after @obj's properties are set.
+ * @can_be_deleted: callback to be called before an object is removed
+ * to check if @obj can be removed safely.
  *
  * Interface is designed to work with -object/object-add/object_add
  * commands.
@@ -47,6 +49,7 @@ typedef struct UserCreatableClass {
 
     /* <public> */
     void (*complete)(UserCreatable *uc, Error **errp);
+    bool (*can_be_deleted)(UserCreatable *uc, Error **errp);
 } UserCreatableClass;
 
 /**
@@ -59,4 +62,14 @@ typedef struct UserCreatableClass {
  * nothing.
  */
 void user_creatable_complete(Object *obj, Error **errp);
+
+/**
+ * user_creatable_can_be_deleted:
+ * @uc: the object whose can_be_deleted() method is called if implemented
+ * @errp: if an error occurs, a pointer to an area to store the error
+ *
+ * Wrapper to call can_be_deleted() method if one of types it's inherited
+ * from implements USER_CREATABLE interface.
+ */
+bool user_creatable_can_be_deleted(UserCreatable *uc, Error **errp);
 #endif

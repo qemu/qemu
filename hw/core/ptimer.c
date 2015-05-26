@@ -189,7 +189,7 @@ void ptimer_set_limit(ptimer_state *s, uint64_t limit, int reload)
      * on the current generation of host machines.
      */
 
-    if (limit * s->period < 10000 && s->period) {
+    if (!use_icount && limit * s->period < 10000 && s->period) {
         limit = 10000 / s->period;
     }
 

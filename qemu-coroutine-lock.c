@@ -108,7 +108,7 @@ bool qemu_co_enter_next(CoQueue *queue)
 
 bool qemu_co_queue_empty(CoQueue *queue)
 {
-    return (QTAILQ_FIRST(&queue->entries) == NULL);
+    return QTAILQ_FIRST(&queue->entries) == NULL;
 }
 
 void qemu_co_mutex_init(CoMutex *mutex)

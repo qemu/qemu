@@ -140,6 +140,7 @@ static int qcow2_read_extensions(BlockDriverState *bs, uint64_t start_offset,
                 return 3;
             }
             bs->backing_format[ext.len] = '\0';
+            s->image_backing_format = g_strdup(bs->backing_format);
 #ifdef DEBUG_EXT
             printf("Qcow2: Got format extension %s\n", bs->backing_format);
 #endif
@@ -207,7 +208,7 @@ static void GCC_FMT_ATTR(3, 4) report_unsupported(BlockDriverState *bs,
     va_end(ap);
 
     error_set(errp, QERR_UNKNOWN_BLOCK_FORMAT_FEATURE,
-              bdrv_get_device_name(bs), "qcow2", msg);
+              bdrv_get_device_or_node_name(bs), "qcow2", msg);
 }
 
 static void report_unsupported_feature(BlockDriverState *bs,
@@ -677,13 +678,16 @@ static int qcow2_open(BlockDriverState *bs, QDict *options, int flags,
     }
 
     /* Check support for various header values */
-    if (header.refcount_order != 4) {
-        report_unsupported(bs, errp, "%d bit reference counts",
-                           1 << header.refcount_order);
-        ret = -ENOTSUP;
+    if (header.refcount_order > 6) {
+        error_setg(errp, "Reference count entry width too large; may not "
+                   "exceed 64 bits");
+        ret = -EINVAL;
         goto fail;
     }
     s->refcount_order = header.refcount_order;
+    s->refcount_bits = 1 << s->refcount_order;
+    s->refcount_max = UINT64_C(1) << (s->refcount_bits - 1);
+    s->refcount_max += s->refcount_max - 1;
 
     if (header.crypt_method > QCOW_CRYPT_AES) {
         error_setg(errp, "Unsupported encryption method: %" PRIu32,
@@ -739,7 +743,7 @@ static int qcow2_open(BlockDriverState *bs, QDict *options, int flags,
     }
 
     /* read the level 1 table */
-    if (header.l1_size > QCOW_MAX_L1_SIZE) {
+    if (header.l1_size > QCOW_MAX_L1_SIZE / sizeof(uint64_t)) {
         error_setg(errp, "Active L1 table too large");
         ret = -EFBIG;
         goto fail;
@@ -881,6 +885,7 @@ static int qcow2_open(BlockDriverState *bs, QDict *options, int flags,
             goto fail;
         }
         bs->backing_file[len] = '\0';
+        s->image_backing_file = g_strdup(bs->backing_file);
     }
 
     /* Internal snapshots */
@@ -1032,6 +1037,7 @@ static int qcow2_set_key(BlockDriverState *bs, const char *key)
     for(i = 0;i < len;i++) {
         keybuf[i] = key[i];
     }
+    assert(bs->encrypted);
     s->crypt_method = s->crypt_method_header;
 
     if (AES_set_encrypt_key(keybuf, 128, &s->aes_encrypt_key) != 0)
@@ -1219,7 +1225,9 @@ static coroutine_fn int qcow2_co_readv(BlockDriverState *bs, int64_t sector_num,
                 goto fail;
             }
 
-            if (s->crypt_method) {
+            if (bs->encrypted) {
+                assert(s->crypt_method);
+
                 /*
                  * For encrypted images, read everything into a temporary
                  * contiguous buffer on which the AES functions can work.
@@ -1250,7 +1258,8 @@ static coroutine_fn int qcow2_co_readv(BlockDriverState *bs, int64_t sector_num,
             if (ret < 0) {
                 goto fail;
             }
-            if (s->crypt_method) {
+            if (bs->encrypted) {
+                assert(s->crypt_method);
                 qcow2_encrypt_sectors(s, sector_num,  cluster_data,
                     cluster_data, cur_nr_sectors, 0, &s->aes_decrypt_key);
                 qemu_iovec_from_buf(qiov, bytes_done,
@@ -1310,7 +1319,7 @@ static coroutine_fn int qcow2_co_writev(BlockDriverState *bs,
         trace_qcow2_writev_start_part(qemu_coroutine_self());
         index_in_cluster = sector_num & (s->cluster_sectors - 1);
         cur_nr_sectors = remaining_sectors;
-        if (s->crypt_method &&
+        if (bs->encrypted &&
             cur_nr_sectors >
             QCOW_MAX_CRYPT_CLUSTERS * s->cluster_sectors - index_in_cluster) {
             cur_nr_sectors =
@@ -1329,7 +1338,8 @@ static coroutine_fn int qcow2_co_writev(BlockDriverState *bs,
         qemu_iovec_concat(&hd_qiov, qiov, bytes_done,
             cur_nr_sectors * 512);
 
-        if (s->crypt_method) {
+        if (bs->encrypted) {
+            assert(s->crypt_method);
             if (!cluster_data) {
                 cluster_data = qemu_try_blockalign(bs->file,
                                                    QCOW_MAX_CRYPT_CLUSTERS
@@ -1454,6 +1464,9 @@ static void qcow2_close(BlockDriverState *bs)
     g_free(s->unknown_header_fields);
     cleanup_unknown_header_ext(bs);
 
+    g_free(s->image_backing_file);
+    g_free(s->image_backing_format);
+
     g_free(s->cluster_cache);
     qemu_vfree(s->cluster_data);
     qcow2_refcount_close(bs);
@@ -1476,7 +1489,8 @@ static void qcow2_invalidate_cache(BlockDriverState *bs, Error **errp)
      * that means we don't have to worry about reopening them here.
      */
 
-    if (s->crypt_method) {
+    if (bs->encrypted) {
+        assert(s->crypt_method);
         crypt_method = s->crypt_method;
         memcpy(&aes_encrypt_key, &s->aes_encrypt_key, sizeof(aes_encrypt_key));
         memcpy(&aes_decrypt_key, &s->aes_decrypt_key, sizeof(aes_decrypt_key));
@@ -1505,7 +1519,7 @@ static void qcow2_invalidate_cache(BlockDriverState *bs, Error **errp)
         return;
     }
 
-    if (crypt_method) {
+    if (bs->encrypted) {
         s->crypt_method = crypt_method;
         memcpy(&s->aes_encrypt_key, &aes_encrypt_key, sizeof(aes_encrypt_key));
         memcpy(&s->aes_decrypt_key, &aes_decrypt_key, sizeof(aes_decrypt_key));
@@ -1619,9 +1633,10 @@ int qcow2_update_header(BlockDriverState *bs)
     }
 
     /* Backing file format header extension */
-    if (*bs->backing_format) {
+    if (s->image_backing_format) {
         ret = header_ext_add(buf, QCOW2_EXT_MAGIC_BACKING_FORMAT,
-                             bs->backing_format, strlen(bs->backing_format),
+                             s->image_backing_format,
+                             strlen(s->image_backing_format),
                              buflen);
         if (ret < 0) {
             goto fail;
@@ -1679,8 +1694,8 @@ int qcow2_update_header(BlockDriverState *bs)
     buflen -= ret;
 
     /* Backing file name */
-    if (*bs->backing_file) {
-        size_t backing_file_len = strlen(bs->backing_file);
+    if (s->image_backing_file) {
+        size_t backing_file_len = strlen(s->image_backing_file);
 
         if (buflen < backing_file_len) {
             ret = -ENOSPC;
@@ -1688,7 +1703,7 @@ int qcow2_update_header(BlockDriverState *bs)
         }
 
         /* Using strncpy is ok here, since buf is not NUL-terminated. */
-        strncpy(buf, bs->backing_file, buflen);
+        strncpy(buf, s->image_backing_file, buflen);
 
         header->backing_file_offset = cpu_to_be64(buf - ((char*) header));
         header->backing_file_size   = cpu_to_be32(backing_file_len);
@@ -1709,8 +1724,16 @@ fail:
 static int qcow2_change_backing_file(BlockDriverState *bs,
     const char *backing_file, const char *backing_fmt)
 {
+    BDRVQcowState *s = bs->opaque;
+
     pstrcpy(bs->backing_file, sizeof(bs->backing_file), backing_file ?: "");
     pstrcpy(bs->backing_format, sizeof(bs->backing_format), backing_fmt ?: "");
+
+    g_free(s->image_backing_file);
+    g_free(s->image_backing_format);
+
+    s->image_backing_file = backing_file ? g_strdup(bs->backing_file) : NULL;
+    s->image_backing_format = backing_fmt ? g_strdup(bs->backing_format) : NULL;
 
     return qcow2_update_header(bs);
 }
@@ -1780,12 +1803,12 @@ static int preallocate(BlockDriverState *bs)
 static int qcow2_create2(const char *filename, int64_t total_size,
                          const char *backing_file, const char *backing_format,
                          int flags, size_t cluster_size, PreallocMode prealloc,
-                         QemuOpts *opts, int version,
+                         QemuOpts *opts, int version, int refcount_order,
                          Error **errp)
 {
     /* Calculate cluster_bits */
     int cluster_bits;
-    cluster_bits = ffs(cluster_size) - 1;
+    cluster_bits = ctz32(cluster_size);
     if (cluster_bits < MIN_CLUSTER_BITS || cluster_bits > MAX_CLUSTER_BITS ||
         (1 << cluster_bits) != cluster_size)
     {
@@ -1813,9 +1836,21 @@ static int qcow2_create2(const char *filename, int64_t total_size,
     int ret;
 
     if (prealloc == PREALLOC_MODE_FULL || prealloc == PREALLOC_MODE_FALLOC) {
+        /* Note: The following calculation does not need to be exact; if it is a
+         * bit off, either some bytes will be "leaked" (which is fine) or we
+         * will need to increase the file size by some bytes (which is fine,
+         * too, as long as the bulk is allocated here). Therefore, using
+         * floating point arithmetic is fine. */
         int64_t meta_size = 0;
         uint64_t nreftablee, nrefblocke, nl1e, nl2e;
         int64_t aligned_total_size = align_offset(total_size, cluster_size);
+        int refblock_bits, refblock_size;
+        /* refcount entry size in bytes */
+        double rces = (1 << refcount_order) / 8.;
+
+        /* see qcow2_open() */
+        refblock_bits = cluster_bits - (refcount_order - 3);
+        refblock_size = 1 << refblock_bits;
 
         /* header: 1 cluster */
         meta_size += cluster_size;
@@ -1840,26 +1875,27 @@ static int qcow2_create2(const char *filename, int64_t total_size,
          *   c = cluster size
          *   y1 = number of refcount blocks entries
          *   y2 = meta size including everything
+         *   rces = refcount entry size in bytes
          * then,
          *   y1 = (y2 + a)/c
-         *   y2 = y1 * sizeof(u16) + y1 * sizeof(u16) * sizeof(u64) / c + m
+         *   y2 = y1 * rces + y1 * rces * sizeof(u64) / c + m
          * we can get y1:
-         *   y1 = (a + m) / (c - sizeof(u16) - sizeof(u16) * sizeof(u64) / c)
+         *   y1 = (a + m) / (c - rces - rces * sizeof(u64) / c)
          */
-        nrefblocke = (aligned_total_size + meta_size + cluster_size) /
-            (cluster_size - sizeof(uint16_t) -
-             1.0 * sizeof(uint16_t) * sizeof(uint64_t) / cluster_size);
-        nrefblocke = align_offset(nrefblocke, cluster_size / sizeof(uint16_t));
-        meta_size += nrefblocke * sizeof(uint16_t);
+        nrefblocke = (aligned_total_size + meta_size + cluster_size)
+                   / (cluster_size - rces - rces * sizeof(uint64_t)
+                                                 / cluster_size);
+        meta_size += DIV_ROUND_UP(nrefblocke, refblock_size) * cluster_size;
 
         /* total size of refcount tables */
-        nreftablee = nrefblocke * sizeof(uint16_t) / cluster_size;
+        nreftablee = nrefblocke / refblock_size;
         nreftablee = align_offset(nreftablee, cluster_size / sizeof(uint64_t));
         meta_size += nreftablee * sizeof(uint64_t);
 
         qemu_opt_set_number(opts, BLOCK_OPT_SIZE,
-                            aligned_total_size + meta_size);
-        qemu_opt_set(opts, BLOCK_OPT_PREALLOC, PreallocMode_lookup[prealloc]);
+                            aligned_total_size + meta_size, &error_abort);
+        qemu_opt_set(opts, BLOCK_OPT_PREALLOC, PreallocMode_lookup[prealloc],
+                     &error_abort);
     }
 
     ret = bdrv_create_file(filename, opts, &local_err);
@@ -1888,7 +1924,7 @@ static int qcow2_create2(const char *filename, int64_t total_size,
         .l1_size                    = cpu_to_be32(0),
         .refcount_table_offset      = cpu_to_be64(cluster_size),
         .refcount_table_clusters    = cpu_to_be32(1),
-        .refcount_order             = cpu_to_be32(4),
+        .refcount_order             = cpu_to_be32(refcount_order),
         .header_length              = cpu_to_be32(sizeof(*header)),
     };
 
@@ -2007,6 +2043,8 @@ static int qcow2_create(const char *filename, QemuOpts *opts, Error **errp)
     size_t cluster_size = DEFAULT_CLUSTER_SIZE;
     PreallocMode prealloc;
     int version = 3;
+    uint64_t refcount_bits = 16;
+    int refcount_order;
     Error *local_err = NULL;
     int ret;
 
@@ -2061,8 +2099,28 @@ static int qcow2_create(const char *filename, QemuOpts *opts, Error **errp)
         goto finish;
     }
 
+    refcount_bits = qemu_opt_get_number_del(opts, BLOCK_OPT_REFCOUNT_BITS,
+                                            refcount_bits);
+    if (refcount_bits > 64 || !is_power_of_2(refcount_bits)) {
+        error_setg(errp, "Refcount width must be a power of two and may not "
+                   "exceed 64 bits");
+        ret = -EINVAL;
+        goto finish;
+    }
+
+    if (version < 3 && refcount_bits != 16) {
+        error_setg(errp, "Different refcount widths than 16 bits require "
+                   "compatibility level 1.1 or above (use compat=1.1 or "
+                   "greater)");
+        ret = -EINVAL;
+        goto finish;
+    }
+
+    refcount_order = ctz32(refcount_bits);
+
     ret = qcow2_create2(filename, size, backing_file, backing_fmt, flags,
-                        cluster_size, prealloc, opts, version, &local_err);
+                        cluster_size, prealloc, opts, version, refcount_order,
+                        &local_err);
     if (local_err) {
         error_propagate(errp, local_err);
     }
@@ -2478,7 +2536,8 @@ static ImageInfoSpecific *qcow2_get_specific_info(BlockDriverState *bs)
     };
     if (s->qcow_version == 2) {
         *spec_info->qcow2 = (ImageInfoSpecificQCow2){
-            .compat = g_strdup("0.10"),
+            .compat             = g_strdup("0.10"),
+            .refcount_bits      = s->refcount_bits,
         };
     } else if (s->qcow_version == 3) {
         *spec_info->qcow2 = (ImageInfoSpecificQCow2){
@@ -2489,6 +2548,7 @@ static ImageInfoSpecific *qcow2_get_specific_info(BlockDriverState *bs)
             .corrupt            = s->incompatible_features &
                                   QCOW2_INCOMPAT_CORRUPT,
             .has_corrupt        = true,
+            .refcount_bits      = s->refcount_bits,
         };
     }
 
@@ -2521,15 +2581,12 @@ static int qcow2_save_vmstate(BlockDriverState *bs, QEMUIOVector *qiov,
 {
     BDRVQcowState *s = bs->opaque;
     int64_t total_sectors = bs->total_sectors;
-    int growable = bs->growable;
     bool zero_beyond_eof = bs->zero_beyond_eof;
     int ret;
 
     BLKDBG_EVENT(bs->file, BLKDBG_VMSTATE_SAVE);
-    bs->growable = 1;
     bs->zero_beyond_eof = false;
     ret = bdrv_pwritev(bs, qcow2_vm_state_offset(s) + pos, qiov);
-    bs->growable = growable;
     bs->zero_beyond_eof = zero_beyond_eof;
 
     /* bdrv_co_do_writev will have increased the total_sectors value to include
@@ -2544,15 +2601,12 @@ static int qcow2_load_vmstate(BlockDriverState *bs, uint8_t *buf,
                               int64_t pos, int size)
 {
     BDRVQcowState *s = bs->opaque;
-    int growable = bs->growable;
     bool zero_beyond_eof = bs->zero_beyond_eof;
     int ret;
 
     BLKDBG_EVENT(bs->file, BLKDBG_VMSTATE_LOAD);
-    bs->growable = 1;
     bs->zero_beyond_eof = false;
     ret = bdrv_pread(bs, qcow2_vm_state_offset(s) + pos, buf, size);
-    bs->growable = growable;
     bs->zero_beyond_eof = zero_beyond_eof;
 
     return ret;
@@ -2647,8 +2701,8 @@ static int qcow2_amend_options(BlockDriverState *bs, QemuOpts *opts,
             continue;
         }
 
-        if (!strcmp(desc->name, "compat")) {
-            compat = qemu_opt_get(opts, "compat");
+        if (!strcmp(desc->name, BLOCK_OPT_COMPAT_LEVEL)) {
+            compat = qemu_opt_get(opts, BLOCK_OPT_COMPAT_LEVEL);
             if (!compat) {
                 /* preserve default */
             } else if (!strcmp(compat, "0.10")) {
@@ -2659,33 +2713,37 @@ static int qcow2_amend_options(BlockDriverState *bs, QemuOpts *opts,
                 fprintf(stderr, "Unknown compatibility level %s.\n", compat);
                 return -EINVAL;
             }
-        } else if (!strcmp(desc->name, "preallocation")) {
+        } else if (!strcmp(desc->name, BLOCK_OPT_PREALLOC)) {
             fprintf(stderr, "Cannot change preallocation mode.\n");
             return -ENOTSUP;
-        } else if (!strcmp(desc->name, "size")) {
-            new_size = qemu_opt_get_size(opts, "size", 0);
-        } else if (!strcmp(desc->name, "backing_file")) {
-            backing_file = qemu_opt_get(opts, "backing_file");
-        } else if (!strcmp(desc->name, "backing_fmt")) {
-            backing_format = qemu_opt_get(opts, "backing_fmt");
-        } else if (!strcmp(desc->name, "encryption")) {
-            encrypt = qemu_opt_get_bool(opts, "encryption", s->crypt_method);
+        } else if (!strcmp(desc->name, BLOCK_OPT_SIZE)) {
+            new_size = qemu_opt_get_size(opts, BLOCK_OPT_SIZE, 0);
+        } else if (!strcmp(desc->name, BLOCK_OPT_BACKING_FILE)) {
+            backing_file = qemu_opt_get(opts, BLOCK_OPT_BACKING_FILE);
+        } else if (!strcmp(desc->name, BLOCK_OPT_BACKING_FMT)) {
+            backing_format = qemu_opt_get(opts, BLOCK_OPT_BACKING_FMT);
+        } else if (!strcmp(desc->name, BLOCK_OPT_ENCRYPT)) {
+            encrypt = qemu_opt_get_bool(opts, BLOCK_OPT_ENCRYPT,
+                                        s->crypt_method);
             if (encrypt != !!s->crypt_method) {
                 fprintf(stderr, "Changing the encryption flag is not "
                         "supported.\n");
                 return -ENOTSUP;
             }
-        } else if (!strcmp(desc->name, "cluster_size")) {
-            cluster_size = qemu_opt_get_size(opts, "cluster_size",
+        } else if (!strcmp(desc->name, BLOCK_OPT_CLUSTER_SIZE)) {
+            cluster_size = qemu_opt_get_size(opts, BLOCK_OPT_CLUSTER_SIZE,
                                              cluster_size);
             if (cluster_size != s->cluster_size) {
                 fprintf(stderr, "Changing the cluster size is not "
                         "supported.\n");
                 return -ENOTSUP;
             }
-        } else if (!strcmp(desc->name, "lazy_refcounts")) {
-            lazy_refcounts = qemu_opt_get_bool(opts, "lazy_refcounts",
+        } else if (!strcmp(desc->name, BLOCK_OPT_LAZY_REFCOUNTS)) {
+            lazy_refcounts = qemu_opt_get_bool(opts, BLOCK_OPT_LAZY_REFCOUNTS,
                                                lazy_refcounts);
+        } else if (!strcmp(desc->name, BLOCK_OPT_REFCOUNT_BITS)) {
+            error_report("Cannot change refcount entry width");
+            return -ENOTSUP;
         } else {
             /* if this assertion fails, this probably means a new option was
              * added without having it covered here */
@@ -2713,8 +2771,9 @@ static int qcow2_amend_options(BlockDriverState *bs, QemuOpts *opts,
     }
 
     if (backing_file || backing_format) {
-        ret = qcow2_change_backing_file(bs, backing_file ?: bs->backing_file,
-                                        backing_format ?: bs->backing_format);
+        ret = qcow2_change_backing_file(bs,
+                    backing_file ?: s->image_backing_file,
+                    backing_format ?: s->image_backing_format);
         if (ret < 0) {
             return ret;
         }
@@ -2771,6 +2830,7 @@ void qcow2_signal_corruption(BlockDriverState *bs, bool fatal, int64_t offset,
                              int64_t size, const char *message_format, ...)
 {
     BDRVQcowState *s = bs->opaque;
+    const char *node_name;
     char *message;
     va_list ap;
 
@@ -2794,8 +2854,11 @@ void qcow2_signal_corruption(BlockDriverState *bs, bool fatal, int64_t offset,
                 "corruption events will be suppressed\n", message);
     }
 
-    qapi_event_send_block_image_corrupted(bdrv_get_device_name(bs), message,
-                                          offset >= 0, offset, size >= 0, size,
+    node_name = bdrv_get_node_name(bs);
+    qapi_event_send_block_image_corrupted(bdrv_get_device_name(bs),
+                                          *node_name != '\0', node_name,
+                                          message, offset >= 0, offset,
+                                          size >= 0, size,
                                           fatal, &error_abort);
     g_free(message);
 
@@ -2854,6 +2917,12 @@ static QemuOptsList qcow2_create_opts = {
             .type = QEMU_OPT_BOOL,
             .help = "Postpone refcount updates",
             .def_value_str = "off"
+        },
+        {
+            .name = BLOCK_OPT_REFCOUNT_BITS,
+            .type = QEMU_OPT_NUMBER,
+            .help = "Width of a reference count entry in bits",
+            .def_value_str = "16"
         },
         { /* end of list */ }
     }

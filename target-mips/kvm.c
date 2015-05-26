@@ -23,6 +23,7 @@
 #include "cpu.h"
 #include "sysemu/cpus.h"
 #include "kvm_mips.h"
+#include "exec/memattrs.h"
 
 #define DEBUG_KVM 0
 
@@ -40,7 +41,7 @@ unsigned long kvm_arch_vcpu_id(CPUState *cs)
     return cs->cpu_index;
 }
 
-int kvm_arch_init(KVMState *s)
+int kvm_arch_init(MachineState *ms, KVMState *s)
 {
     /* MIPS has 128 signals */
     kvm_set_sigmask_len(s, 16);
@@ -110,9 +111,10 @@ void kvm_arch_pre_run(CPUState *cs, struct kvm_run *run)
     }
 }
 
-void kvm_arch_post_run(CPUState *cs, struct kvm_run *run)
+MemTxAttrs kvm_arch_post_run(CPUState *cs, struct kvm_run *run)
 {
     DPRINTF("%s\n", __func__);
+    return MEMTXATTRS_UNSPECIFIED;
 }
 
 int kvm_arch_process_async_events(CPUState *cs)

@@ -23,12 +23,6 @@
  */
 /* Ported SDL 1.2 code to 2.0 by Dave Airlie. */
 
-/* Avoid compiler warning because macro is redefined in SDL_syswm.h. */
-#undef WIN32_LEAN_AND_MEAN
-
-#include <SDL.h>
-#include <SDL_syswm.h>
-
 #include "qemu-common.h"
 #include "ui/console.h"
 #include "ui/input.h"
@@ -41,6 +35,8 @@ void sdl2_2d_update(DisplayChangeListener *dcl,
     struct sdl2_console *scon = container_of(dcl, struct sdl2_console, dcl);
     DisplaySurface *surf = qemu_console_surface(dcl->con);
     SDL_Rect rect;
+
+    assert(!scon->opengl);
 
     if (!surf) {
         return;
@@ -67,6 +63,8 @@ void sdl2_2d_switch(DisplayChangeListener *dcl,
     DisplaySurface *old_surface = scon->surface;
     int format = 0;
 
+    assert(!scon->opengl);
+
     scon->surface = new_surface;
 
     if (scon->texture) {
@@ -91,10 +89,21 @@ void sdl2_2d_switch(DisplayChangeListener *dcl,
                              surface_width(new_surface),
                              surface_height(new_surface));
 
-    if (surface_bits_per_pixel(scon->surface) == 16) {
+    switch (surface_format(scon->surface)) {
+    case PIXMAN_x1r5g5b5:
+        format = SDL_PIXELFORMAT_ARGB1555;
+        break;
+    case PIXMAN_r5g6b5:
         format = SDL_PIXELFORMAT_RGB565;
-    } else if (surface_bits_per_pixel(scon->surface) == 32) {
+        break;
+    case PIXMAN_x8r8g8b8:
         format = SDL_PIXELFORMAT_ARGB8888;
+        break;
+    case PIXMAN_r8g8b8x8:
+        format = SDL_PIXELFORMAT_RGBA8888;
+        break;
+    default:
+        g_assert_not_reached();
     }
     scon->texture = SDL_CreateTexture(scon->real_renderer, format,
                                       SDL_TEXTUREACCESS_STREAMING,
@@ -107,12 +116,15 @@ void sdl2_2d_refresh(DisplayChangeListener *dcl)
 {
     struct sdl2_console *scon = container_of(dcl, struct sdl2_console, dcl);
 
+    assert(!scon->opengl);
     graphic_hw_update(dcl->con);
     sdl2_poll_events(scon);
 }
 
 void sdl2_2d_redraw(struct sdl2_console *scon)
 {
+    assert(!scon->opengl);
+
     if (!scon->surface) {
         return;
     }

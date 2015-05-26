@@ -118,9 +118,7 @@ void openrisc_translate_init(void)
 /* Writeback SR_F translation space to execution space.  */
 static inline void wb_SR_F(void)
 {
-    int label;
-
-    label = gen_new_label();
+    TCGLabel *label = gen_new_label();
     tcg_gen_andi_tl(cpu_sr, cpu_sr, ~SR_F);
     tcg_gen_brcondi_tl(TCG_COND_EQ, env_btaken, 0, label);
     tcg_gen_ori_tl(cpu_sr, cpu_sr, SR_F);
@@ -226,7 +224,7 @@ static void gen_jump(DisasContext *dc, uint32_t imm, uint32_t reg, uint32_t op0)
     case 0x03:     /* l.bnf */
     case 0x04:     /* l.bf  */
         {
-            int lab = gen_new_label();
+            TCGLabel *lab = gen_new_label();
             TCGv sr_f = tcg_temp_new();
             tcg_gen_movi_tl(jmp_pc, dc->pc+8);
             tcg_gen_andi_tl(sr_f, cpu_sr, SR_F);
@@ -272,7 +270,7 @@ static void dec_calc(DisasContext *dc, uint32_t insn)
         case 0x00:    /* l.add */
             LOG_DIS("l.add r%d, r%d, r%d\n", rd, ra, rb);
             {
-                int lab = gen_new_label();
+                TCGLabel *lab = gen_new_label();
                 TCGv_i64 ta = tcg_temp_new_i64();
                 TCGv_i64 tb = tcg_temp_new_i64();
                 TCGv_i64 td = tcg_temp_local_new_i64();
@@ -311,7 +309,7 @@ static void dec_calc(DisasContext *dc, uint32_t insn)
         case 0x00:
             LOG_DIS("l.addc r%d, r%d, r%d\n", rd, ra, rb);
             {
-                int lab = gen_new_label();
+                TCGLabel *lab = gen_new_label();
                 TCGv_i64 ta = tcg_temp_new_i64();
                 TCGv_i64 tb = tcg_temp_new_i64();
                 TCGv_i64 tcy = tcg_temp_local_new_i64();
@@ -358,7 +356,7 @@ static void dec_calc(DisasContext *dc, uint32_t insn)
         case 0x00:
             LOG_DIS("l.sub r%d, r%d, r%d\n", rd, ra, rb);
             {
-                int lab = gen_new_label();
+                TCGLabel *lab = gen_new_label();
                 TCGv_i64 ta = tcg_temp_new_i64();
                 TCGv_i64 tb = tcg_temp_new_i64();
                 TCGv_i64 td = tcg_temp_local_new_i64();
@@ -450,10 +448,10 @@ static void dec_calc(DisasContext *dc, uint32_t insn)
         case 0x03:    /* l.div */
             LOG_DIS("l.div r%d, r%d, r%d\n", rd, ra, rb);
             {
-                int lab0 = gen_new_label();
-                int lab1 = gen_new_label();
-                int lab2 = gen_new_label();
-                int lab3 = gen_new_label();
+                TCGLabel *lab0 = gen_new_label();
+                TCGLabel *lab1 = gen_new_label();
+                TCGLabel *lab2 = gen_new_label();
+                TCGLabel *lab3 = gen_new_label();
                 TCGv_i32 sr_ove = tcg_temp_local_new_i32();
                 if (rb == 0) {
                     tcg_gen_ori_tl(cpu_sr, cpu_sr, (SR_OV | SR_CY));
@@ -492,9 +490,9 @@ static void dec_calc(DisasContext *dc, uint32_t insn)
         case 0x03:    /* l.divu */
             LOG_DIS("l.divu r%d, r%d, r%d\n", rd, ra, rb);
             {
-                int lab0 = gen_new_label();
-                int lab1 = gen_new_label();
-                int lab2 = gen_new_label();
+                TCGLabel *lab0 = gen_new_label();
+                TCGLabel *lab1 = gen_new_label();
+                TCGLabel *lab2 = gen_new_label();
                 TCGv_i32 sr_ove = tcg_temp_local_new_i32();
                 if (rb == 0) {
                     tcg_gen_ori_tl(cpu_sr, cpu_sr, (SR_OV | SR_CY));
@@ -533,7 +531,7 @@ static void dec_calc(DisasContext *dc, uint32_t insn)
                 TCGv_i64 trb = tcg_temp_local_new_i64();
                 TCGv_i64 high = tcg_temp_new_i64();
                 TCGv_i32 sr_ove = tcg_temp_local_new_i32();
-                int lab = gen_new_label();
+                TCGLabel *lab = gen_new_label();
                 /* Calculate each result. */
                 tcg_gen_extu_i32_i64(tra, cpu_R[ra]);
                 tcg_gen_extu_i32_i64(trb, cpu_R[rb]);
@@ -568,7 +566,7 @@ static void dec_calc(DisasContext *dc, uint32_t insn)
         case 0x00:    /* l.cmov */
             LOG_DIS("l.cmov r%d, r%d, r%d\n", rd, ra, rb);
             {
-                int lab = gen_new_label();
+                TCGLabel *lab = gen_new_label();
                 TCGv res = tcg_temp_local_new();
                 TCGv sr_f = tcg_temp_new();
                 tcg_gen_andi_tl(sr_f, cpu_sr, SR_F);
@@ -893,7 +891,7 @@ static void dec_misc(DisasContext *dc, uint32_t insn)
             if (I16 == 0) {
                 tcg_gen_mov_tl(cpu_R[rd], cpu_R[ra]);
             } else {
-                int lab = gen_new_label();
+                TCGLabel *lab = gen_new_label();
                 TCGv_i64 ta = tcg_temp_new_i64();
                 TCGv_i64 td = tcg_temp_local_new_i64();
                 TCGv_i32 res = tcg_temp_local_new_i32();
@@ -923,7 +921,7 @@ static void dec_misc(DisasContext *dc, uint32_t insn)
     case 0x28:    /* l.addic */
         LOG_DIS("l.addic r%d, r%d, %d\n", rd, ra, I16);
         {
-            int lab = gen_new_label();
+            TCGLabel *lab = gen_new_label();
             TCGv_i64 ta = tcg_temp_new_i64();
             TCGv_i64 td = tcg_temp_local_new_i64();
             TCGv_i64 tcy = tcg_temp_local_new_i64();

@@ -93,6 +93,7 @@ typedef struct X86CPU {
     bool expose_kvm;
     bool migratable;
     bool host_features;
+    int64_t apic_id;
 
     /* if true the CPUID code directly forward host cache leaves to the guest */
     bool cache_info_passthrough;

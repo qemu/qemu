@@ -64,7 +64,7 @@ static VirtIOSerialPort *find_port_by_name(char *name)
         VirtIOSerialPort *port;
 
         QTAILQ_FOREACH(port, &vser->ports, next) {
-            if (!strcmp(port->name, name)) {
+            if (port->name && !strcmp(port->name, name)) {
                 return port;
             }
         }
@@ -75,7 +75,7 @@ static VirtIOSerialPort *find_port_by_name(char *name)
 static bool use_multiport(VirtIOSerial *vser)
 {
     VirtIODevice *vdev = VIRTIO_DEVICE(vser);
-    return vdev->guest_features & (1 << VIRTIO_CONSOLE_F_MULTIPORT);
+    return virtio_has_feature(vdev, VIRTIO_CONSOLE_F_MULTIPORT);
 }
 
 static size_t write_to_port(VirtIOSerialPort *port,
@@ -465,6 +465,37 @@ static void handle_output(VirtIODevice *vdev, VirtQueue *vq)
 
 static void handle_input(VirtIODevice *vdev, VirtQueue *vq)
 {
+    /*
+     * Users of virtio-serial would like to know when guest becomes
+     * writable again -- i.e. if a vq had stuff queued up and the
+     * guest wasn't reading at all, the host would not be able to
+     * write to the vq anymore.  Once the guest reads off something,
+     * we can start queueing things up again.  However, this call is
+     * made for each buffer addition by the guest -- even though free
+     * buffers existed prior to the current buffer addition.  This is
+     * done so as not to maintain previous state, which will need
+     * additional live-migration-related changes.
+     */
+    VirtIOSerial *vser;
+    VirtIOSerialPort *port;
+    VirtIOSerialPortClass *vsc;
+
+    vser = VIRTIO_SERIAL(vdev);
+    port = find_port_by_vq(vser, vq);
+
+    if (!port) {
+        return;
+    }
+    vsc = VIRTIO_SERIAL_PORT_GET_CLASS(port);
+
+    /*
+     * If guest_connected is false, this call is being made by the
+     * early-boot queueing up of descriptors, which is just noise for
+     * the host apps -- don't disturb them in that case.
+     */
+    if (port->guest_connected && port->host_connected && vsc->guest_writable) {
+        vsc->guest_writable(port);
+    }
 }
 
 static uint32_t get_features(VirtIODevice *vdev, uint32_t features)
@@ -474,7 +505,7 @@ static uint32_t get_features(VirtIODevice *vdev, uint32_t features)
     vser = VIRTIO_SERIAL(vdev);
 
     if (vser->bus.max_nr_ports > 1) {
-        features |= (1 << VIRTIO_CONSOLE_F_MULTIPORT);
+        virtio_add_feature(&features, VIRTIO_CONSOLE_F_MULTIPORT);
     }
     return features;
 }
@@ -783,12 +814,12 @@ static uint32_t find_free_port_id(VirtIOSerial *vser)
 
     max_nr_ports = vser->serial.max_virtserial_ports;
     for (i = 0; i < (max_nr_ports + 31) / 32; i++) {
-        uint32_t map, bit;
+        uint32_t map, zeroes;
 
         map = vser->ports_map[i];
-        bit = ffs(~map);
-        if (bit) {
-            return (bit - 1) + i * 32;
+        zeroes = ctz32(~map);
+        if (zeroes != 32) {
+            return zeroes + i * 32;
         }
     }
     return VIRTIO_CONSOLE_BAD_ID;
@@ -949,8 +980,10 @@ static void virtio_serial_device_realize(DeviceState *dev, Error **errp)
         return;
     }
 
+    /* We don't support emergency write, skip it for now. */
+    /* TODO: cleaner fix, depending on host features. */
     virtio_init(vdev, "virtio-serial", VIRTIO_ID_CONSOLE,
-                sizeof(struct virtio_console_config));
+                offsetof(struct virtio_console_config, emerg_wr));
 
     /* Spawn a new virtio-serial bus on which the ports will ride as devices */
     qbus_create_inplace(&vser->bus, sizeof(vser->bus), TYPE_VIRTIO_SERIAL_BUS,

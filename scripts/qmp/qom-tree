@@ -1,0 +1,70 @@
+#!/usr/bin/python
+##
+# QEMU Object Model test tools
+#
+# Copyright IBM, Corp. 2011
+# Copyright (c) 2013 SUSE LINUX Products GmbH
+#
+# Authors:
+#  Anthony Liguori   <aliguori@amazon.com>
+#  Andreas Faerber   <afaerber@suse.de>
+#
+# This work is licensed under the terms of the GNU GPL, version 2 or later.  See
+# the COPYING file in the top-level directory.
+##
+
+import sys
+import os
+from qmp import QEMUMonitorProtocol
+
+cmd, args = sys.argv[0], sys.argv[1:]
+socket_path = None
+path = None
+prop = None
+
+def usage():
+    return '''environment variables:
+    QMP_SOCKET=<path | addr:port>
+usage:
+    %s [-h] [-s <QMP socket path | addr:port>] [<path>]
+''' % cmd
+
+def usage_error(error_msg = "unspecified error"):
+    sys.stderr.write('%s\nERROR: %s\n' % (usage(), error_msg))
+    exit(1)
+
+if len(args) > 0:
+    if args[0] == "-h":
+        print usage()
+        exit(0);
+    elif args[0] == "-s":
+        try:
+            socket_path = args[1]
+        except:
+            usage_error("missing argument: QMP socket path or address");
+        args = args[2:]
+
+if not socket_path:
+    if os.environ.has_key('QMP_SOCKET'):
+        socket_path = os.environ['QMP_SOCKET']
+    else:
+        usage_error("no QMP socket path or address given");
+
+srv = QEMUMonitorProtocol(socket_path)
+srv.connect()
+
+def list_node(path):
+    print '%s' % path
+    items = srv.command('qom-list', path=path)
+    for item in items:
+        if not item['type'].startswith('child<'):
+            try:
+                print '  %s: %s (%s)' % (item['name'], srv.command('qom-get', path=path, property=item['name']), item['type'])
+            except:
+                print '  %s: <EXCEPTION> (%s)' % (item['name'], item['type'])
+    print ''
+    for item in items:
+        if item['type'].startswith('child<'):
+            list_node(path + '/' + item['name'])
+
+list_node('/machine')

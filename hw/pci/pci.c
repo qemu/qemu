@@ -115,7 +115,7 @@ static const TypeInfo pcie_bus_info = {
 static PCIBus *pci_find_bus_nr(PCIBus *bus, int bus_num);
 static void pci_update_mappings(PCIDevice *d);
 static void pci_irq_handler(void *opaque, int irq_num, int level);
-static int pci_add_option_rom(PCIDevice *pdev, bool is_default_rom);
+static void pci_add_option_rom(PCIDevice *pdev, bool is_default_rom, Error **);
 static void pci_del_option_rom(PCIDevice *pdev);
 
 static uint16_t pci_default_sub_vendor_id = PCI_SUBVENDOR_ID_REDHAT_QUMRANET;
@@ -539,8 +539,8 @@ static void pci_set_default_subsystem_id(PCIDevice *pci_dev)
  * Parse [[<domain>:]<bus>:]<slot>, return -1 on error if funcp == NULL
  *       [[<domain>:]<bus>:]<slot>.<func>, return -1 on error
  */
-int pci_parse_devaddr(const char *addr, int *domp, int *busp,
-                      unsigned int *slotp, unsigned int *funcp)
+static int pci_parse_devaddr(const char *addr, int *domp, int *busp,
+                             unsigned int *slotp, unsigned int *funcp)
 {
     const char *p;
     char *e;
@@ -598,7 +598,8 @@ int pci_parse_devaddr(const char *addr, int *domp, int *busp,
     return 0;
 }
 
-PCIBus *pci_get_bus_devfn(int *devfnp, PCIBus *root, const char *devaddr)
+static PCIBus *pci_get_bus_devfn(int *devfnp, PCIBus *root,
+                                 const char *devaddr)
 {
     int dom, bus;
     unsigned slot;
@@ -726,7 +727,7 @@ static void pci_init_mask_bridge(PCIDevice *d)
                                PCI_PREF_RANGE_TYPE_MASK);
 }
 
-static int pci_init_multifunction(PCIBus *bus, PCIDevice *dev)
+static void pci_init_multifunction(PCIBus *bus, PCIDevice *dev, Error **errp)
 {
     uint8_t slot = PCI_SLOT(dev->devfn);
     uint8_t func;
@@ -752,26 +753,25 @@ static int pci_init_multifunction(PCIBus *bus, PCIDevice *dev)
         PCIDevice *f0 = bus->devices[PCI_DEVFN(slot, 0)];
         if (f0 && !(f0->cap_present & QEMU_PCI_CAP_MULTIFUNCTION)) {
             /* function 0 should set multifunction bit */
-            error_report("PCI: single function device can't be populated "
-                         "in function %x.%x", slot, PCI_FUNC(dev->devfn));
-            return -1;
+            error_setg(errp, "PCI: single function device can't be populated "
+                       "in function %x.%x", slot, PCI_FUNC(dev->devfn));
+            return;
         }
-        return 0;
+        return;
     }
 
     if (dev->cap_present & QEMU_PCI_CAP_MULTIFUNCTION) {
-        return 0;
+        return;
     }
     /* function 0 indicates single function, so function > 0 must be NULL */
     for (func = 1; func < PCI_FUNC_MAX; ++func) {
         if (bus->devices[PCI_DEVFN(slot, func)]) {
-            error_report("PCI: %x.0 indicates single function, "
-                         "but %x.%x is already populated.",
-                         slot, slot, func);
-            return -1;
+            error_setg(errp, "PCI: %x.0 indicates single function, "
+                       "but %x.%x is already populated.",
+                       slot, slot, func);
+            return;
         }
     }
-    return 0;
 }
 
 static void pci_config_alloc(PCIDevice *pci_dev)
@@ -804,11 +804,13 @@ static void do_pci_unregister_device(PCIDevice *pci_dev)
 
 /* -1 for devfn means auto assign */
 static PCIDevice *do_pci_register_device(PCIDevice *pci_dev, PCIBus *bus,
-                                         const char *name, int devfn)
+                                         const char *name, int devfn,
+                                         Error **errp)
 {
     PCIDeviceClass *pc = PCI_DEVICE_GET_CLASS(pci_dev);
     PCIConfigReadFunc *config_read = pc->config_read;
     PCIConfigWriteFunc *config_write = pc->config_write;
+    Error *local_err = NULL;
     AddressSpace *dma_as;
 
     if (devfn < 0) {
@@ -817,12 +819,15 @@ static PCIDevice *do_pci_register_device(PCIDevice *pci_dev, PCIBus *bus,
             if (!bus->devices[devfn])
                 goto found;
         }
-        error_report("PCI: no slot/function available for %s, all in use", name);
+        error_setg(errp, "PCI: no slot/function available for %s, all in use",
+                   name);
         return NULL;
     found: ;
     } else if (bus->devices[devfn]) {
-        error_report("PCI: slot %d function %d not available for %s, in use by %s",
-                     PCI_SLOT(devfn), PCI_FUNC(devfn), name, bus->devices[devfn]->name);
+        error_setg(errp, "PCI: slot %d function %d not available for %s,"
+                   " in use by %s",
+                   PCI_SLOT(devfn), PCI_FUNC(devfn), name,
+                   bus->devices[devfn]->name);
         return NULL;
     }
 
@@ -866,7 +871,9 @@ static PCIDevice *do_pci_register_device(PCIDevice *pci_dev, PCIBus *bus,
     if (pc->is_bridge) {
         pci_init_mask_bridge(pci_dev);
     }
-    if (pci_init_multifunction(bus, pci_dev)) {
+    pci_init_multifunction(bus, pci_dev, &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
         do_pci_unregister_device(pci_dev);
         return NULL;
     }
@@ -897,7 +904,7 @@ static void pci_unregister_io_regions(PCIDevice *pci_dev)
     pci_unregister_vga(pci_dev);
 }
 
-static int pci_unregister_device(DeviceState *dev)
+static void pci_qdev_unrealize(DeviceState *dev, Error **errp)
 {
     PCIDevice *pci_dev = PCI_DEVICE(dev);
     PCIDeviceClass *pc = PCI_DEVICE_GET_CLASS(pci_dev);
@@ -910,7 +917,6 @@ static int pci_unregister_device(DeviceState *dev)
     }
 
     do_pci_unregister_device(pci_dev);
-    return 0;
 }
 
 void pci_register_bar(PCIDevice *pci_dev, int region_num,
@@ -1450,24 +1456,26 @@ static PciBridgeInfo *qmp_query_pci_bridge(PCIDevice *dev, PCIBus *bus,
                                            int bus_num)
 {
     PciBridgeInfo *info;
+    PciMemoryRange *range;
 
-    info = g_malloc0(sizeof(*info));
+    info = g_new0(PciBridgeInfo, 1);
 
-    info->bus.number = dev->config[PCI_PRIMARY_BUS];
-    info->bus.secondary = dev->config[PCI_SECONDARY_BUS];
-    info->bus.subordinate = dev->config[PCI_SUBORDINATE_BUS];
+    info->bus = g_new0(PciBusInfo, 1);
+    info->bus->number = dev->config[PCI_PRIMARY_BUS];
+    info->bus->secondary = dev->config[PCI_SECONDARY_BUS];
+    info->bus->subordinate = dev->config[PCI_SUBORDINATE_BUS];
 
-    info->bus.io_range = g_malloc0(sizeof(*info->bus.io_range));
-    info->bus.io_range->base = pci_bridge_get_base(dev, PCI_BASE_ADDRESS_SPACE_IO);
-    info->bus.io_range->limit = pci_bridge_get_limit(dev, PCI_BASE_ADDRESS_SPACE_IO);
+    range = info->bus->io_range = g_new0(PciMemoryRange, 1);
+    range->base = pci_bridge_get_base(dev, PCI_BASE_ADDRESS_SPACE_IO);
+    range->limit = pci_bridge_get_limit(dev, PCI_BASE_ADDRESS_SPACE_IO);
 
-    info->bus.memory_range = g_malloc0(sizeof(*info->bus.memory_range));
-    info->bus.memory_range->base = pci_bridge_get_base(dev, PCI_BASE_ADDRESS_SPACE_MEMORY);
-    info->bus.memory_range->limit = pci_bridge_get_limit(dev, PCI_BASE_ADDRESS_SPACE_MEMORY);
+    range = info->bus->memory_range = g_new0(PciMemoryRange, 1);
+    range->base = pci_bridge_get_base(dev, PCI_BASE_ADDRESS_SPACE_MEMORY);
+    range->limit = pci_bridge_get_limit(dev, PCI_BASE_ADDRESS_SPACE_MEMORY);
 
-    info->bus.prefetchable_range = g_malloc0(sizeof(*info->bus.prefetchable_range));
-    info->bus.prefetchable_range->base = pci_bridge_get_base(dev, PCI_BASE_ADDRESS_MEM_PREFETCH);
-    info->bus.prefetchable_range->limit = pci_bridge_get_limit(dev, PCI_BASE_ADDRESS_MEM_PREFETCH);
+    range = info->bus->prefetchable_range = g_new0(PciMemoryRange, 1);
+    range->base = pci_bridge_get_base(dev, PCI_BASE_ADDRESS_MEM_PREFETCH);
+    range->limit = pci_bridge_get_limit(dev, PCI_BASE_ADDRESS_MEM_PREFETCH);
 
     if (dev->config[PCI_SECONDARY_BUS] != 0) {
         PCIBus *child_bus = pci_find_bus_nr(bus, dev->config[PCI_SECONDARY_BUS]);
@@ -1488,21 +1496,23 @@ static PciDeviceInfo *qmp_query_pci_device(PCIDevice *dev, PCIBus *bus,
     uint8_t type;
     int class;
 
-    info = g_malloc0(sizeof(*info));
+    info = g_new0(PciDeviceInfo, 1);
     info->bus = bus_num;
     info->slot = PCI_SLOT(dev->devfn);
     info->function = PCI_FUNC(dev->devfn);
 
+    info->class_info = g_new0(PciDeviceClass, 1);
     class = pci_get_word(dev->config + PCI_CLASS_DEVICE);
-    info->class_info.q_class = class;
+    info->class_info->q_class = class;
     desc = get_class_desc(class);
     if (desc->desc) {
-        info->class_info.has_desc = true;
-        info->class_info.desc = g_strdup(desc->desc);
+        info->class_info->has_desc = true;
+        info->class_info->desc = g_strdup(desc->desc);
     }
 
-    info->id.vendor = pci_get_word(dev->config + PCI_VENDOR_ID);
-    info->id.device = pci_get_word(dev->config + PCI_DEVICE_ID);
+    info->id = g_new0(PciDeviceId, 1);
+    info->id->vendor = pci_get_word(dev->config + PCI_VENDOR_ID);
+    info->id->device = pci_get_word(dev->config + PCI_DEVICE_ID);
     info->regions = qmp_query_pci_regions(dev);
     info->qdev_id = g_strdup(dev->qdev.id ? dev->qdev.id : "");
 
@@ -1627,50 +1637,46 @@ static const char * const pci_nic_names[] = {
 };
 
 /* Initialize a PCI NIC.  */
-/* FIXME callers should check for failure, but don't */
-PCIDevice *pci_nic_init(NICInfo *nd, PCIBus *rootbus,
-                        const char *default_model,
-                        const char *default_devaddr)
+PCIDevice *pci_nic_init_nofail(NICInfo *nd, PCIBus *rootbus,
+                               const char *default_model,
+                               const char *default_devaddr)
 {
     const char *devaddr = nd->devaddr ? nd->devaddr : default_devaddr;
+    Error *err = NULL;
     PCIBus *bus;
-    int devfn;
     PCIDevice *pci_dev;
     DeviceState *dev;
+    int devfn;
     int i;
 
+    if (qemu_show_nic_models(nd->model, pci_nic_models)) {
+        exit(0);
+    }
+
     i = qemu_find_nic_model(nd, pci_nic_models, default_model);
-    if (i < 0)
-        return NULL;
+    if (i < 0) {
+        exit(1);
+    }
 
     bus = pci_get_bus_devfn(&devfn, rootbus, devaddr);
     if (!bus) {
         error_report("Invalid PCI device address %s for device %s",
                      devaddr, pci_nic_names[i]);
-        return NULL;
+        exit(1);
     }
 
     pci_dev = pci_create(bus, devfn, pci_nic_names[i]);
     dev = &pci_dev->qdev;
     qdev_set_nic_properties(dev, nd);
-    if (qdev_init(dev) < 0)
-        return NULL;
-    return pci_dev;
-}
 
-PCIDevice *pci_nic_init_nofail(NICInfo *nd, PCIBus *rootbus,
-                               const char *default_model,
-                               const char *default_devaddr)
-{
-    PCIDevice *res;
-
-    if (qemu_show_nic_models(nd->model, pci_nic_models))
-        exit(0);
-
-    res = pci_nic_init(nd, rootbus, default_model, default_devaddr);
-    if (!res)
+    object_property_set_bool(OBJECT(dev), true, "realized", &err);
+    if (err) {
+        error_report_err(err);
+        object_unparent(OBJECT(dev));
         exit(1);
-    return res;
+    }
+
+    return pci_dev;
 }
 
 PCIDevice *pci_vga_init(PCIBus *bus)
@@ -1773,12 +1779,12 @@ PCIDevice *pci_find_device(PCIBus *bus, int bus_num, uint8_t devfn)
     return bus->devices[devfn];
 }
 
-static int pci_qdev_init(DeviceState *qdev)
+static void pci_qdev_realize(DeviceState *qdev, Error **errp)
 {
     PCIDevice *pci_dev = (PCIDevice *)qdev;
     PCIDeviceClass *pc = PCI_DEVICE_GET_CLASS(pci_dev);
+    Error *local_err = NULL;
     PCIBus *bus;
-    int rc;
     bool is_default_rom;
 
     /* initialize cap_present for pci_is_express() and pci_config_size() */
@@ -1789,15 +1795,16 @@ static int pci_qdev_init(DeviceState *qdev)
     bus = PCI_BUS(qdev_get_parent_bus(qdev));
     pci_dev = do_pci_register_device(pci_dev, bus,
                                      object_get_typename(OBJECT(qdev)),
-                                     pci_dev->devfn);
+                                     pci_dev->devfn, errp);
     if (pci_dev == NULL)
-        return -1;
+        return;
 
-    if (pc->init) {
-        rc = pc->init(pci_dev);
-        if (rc != 0) {
+    if (pc->realize) {
+        pc->realize(pci_dev, &local_err);
+        if (local_err) {
+            error_propagate(errp, local_err);
             do_pci_unregister_device(pci_dev);
-            return rc;
+            return;
         }
     }
 
@@ -1808,13 +1815,24 @@ static int pci_qdev_init(DeviceState *qdev)
         is_default_rom = true;
     }
 
-    rc = pci_add_option_rom(pci_dev, is_default_rom);
-    if (rc != 0) {
-        pci_unregister_device(DEVICE(pci_dev));
-        return rc;
+    pci_add_option_rom(pci_dev, is_default_rom, &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        pci_qdev_unrealize(DEVICE(pci_dev), NULL);
+        return;
     }
+}
 
-    return 0;
+static void pci_default_realize(PCIDevice *dev, Error **errp)
+{
+    PCIDeviceClass *pc = PCI_DEVICE_GET_CLASS(dev);
+
+    if (pc->init) {
+        if (pc->init(dev) < 0) {
+            error_setg(errp, "Device initialization failed");
+            return;
+        }
+    }
 }
 
 PCIDevice *pci_create_multifunction(PCIBus *bus, int devfn, bool multifunction,
@@ -1954,7 +1972,8 @@ static void pci_patch_ids(PCIDevice *pdev, uint8_t *ptr, int size)
 }
 
 /* Add an option rom for the device */
-static int pci_add_option_rom(PCIDevice *pdev, bool is_default_rom)
+static void pci_add_option_rom(PCIDevice *pdev, bool is_default_rom,
+                               Error **errp)
 {
     int size;
     char *path;
@@ -1963,9 +1982,9 @@ static int pci_add_option_rom(PCIDevice *pdev, bool is_default_rom)
     const VMStateDescription *vmsd;
 
     if (!pdev->romfile)
-        return 0;
+        return;
     if (strlen(pdev->romfile) == 0)
-        return 0;
+        return;
 
     if (!pdev->rom_bar) {
         /*
@@ -1979,7 +1998,9 @@ static int pci_add_option_rom(PCIDevice *pdev, bool is_default_rom)
          * if the rom bar is disabled.
          */
         if (DEVICE(pdev)->hotplugged) {
-            return -1;
+            error_setg(errp, "Hot-plugged device without ROM bar"
+                       " can't have an option ROM");
+            return;
         }
 
         if (class == 0x0300) {
@@ -1987,7 +2008,7 @@ static int pci_add_option_rom(PCIDevice *pdev, bool is_default_rom)
         } else {
             rom_add_option(pdev->romfile, -1);
         }
-        return 0;
+        return;
     }
 
     path = qemu_find_file(QEMU_FILE_TYPE_BIOS, pdev->romfile);
@@ -1997,15 +2018,13 @@ static int pci_add_option_rom(PCIDevice *pdev, bool is_default_rom)
 
     size = get_image_size(path);
     if (size < 0) {
-        error_report("%s: failed to find romfile \"%s\"",
-                     __func__, pdev->romfile);
+        error_setg(errp, "failed to find romfile \"%s\"", pdev->romfile);
         g_free(path);
-        return -1;
+        return;
     } else if (size == 0) {
-        error_report("%s: ignoring empty romfile \"%s\"",
-                     __func__, pdev->romfile);
+        error_setg(errp, "romfile \"%s\" is empty", pdev->romfile);
         g_free(path);
-        return -1;
+        return;
     }
     if (size & (size - 1)) {
         size = 1 << qemu_fls(size);
@@ -2031,8 +2050,6 @@ static int pci_add_option_rom(PCIDevice *pdev, bool is_default_rom)
     }
 
     pci_register_bar(pdev, PCI_ROM_SLOT, 0, &pdev->rom);
-
-    return 0;
 }
 
 static void pci_del_option_rom(PCIDevice *pdev)
@@ -2060,8 +2077,7 @@ int pci_add_capability(PCIDevice *pdev, uint8_t cap_id,
     ret = pci_add_capability2(pdev, cap_id, offset, size, &local_err);
     if (local_err) {
         assert(ret < 0);
-        error_report("%s", error_get_pretty(local_err));
-        error_free(local_err);
+        error_report_err(local_err);
     } else {
         /* success implies a positive offset in config space */
         assert(ret > 0);
@@ -2314,10 +2330,13 @@ MemoryRegion *pci_address_space_io(PCIDevice *dev)
 static void pci_device_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *k = DEVICE_CLASS(klass);
-    k->init = pci_qdev_init;
-    k->exit = pci_unregister_device;
+    PCIDeviceClass *pc = PCI_DEVICE_CLASS(klass);
+
+    k->realize = pci_qdev_realize;
+    k->unrealize = pci_qdev_unrealize;
     k->bus_type = TYPE_PCI_BUS;
     k->props = pci_props;
+    pc->realize = pci_default_realize;
 }
 
 AddressSpace *pci_device_iommu_address_space(PCIDevice *dev)

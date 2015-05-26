@@ -151,6 +151,13 @@ int parse_host_port(struct sockaddr_in *saddr, const char *str)
     return 0;
 }
 
+char *qemu_mac_strdup_printf(const uint8_t *macaddr)
+{
+    return g_strdup_printf("%.2x:%.2x:%.2x:%.2x:%.2x:%.2x",
+                           macaddr[0], macaddr[1], macaddr[2],
+                           macaddr[3], macaddr[4], macaddr[5]);
+}
+
 void qemu_format_nic_info_str(NetClientState *nc, uint8_t macaddr[6])
 {
     snprintf(nc->info_str, sizeof(nc->info_str),
@@ -324,6 +331,8 @@ void qemu_del_net_client(NetClientState *nc)
     NetClientState *ncs[MAX_QUEUE_NUM];
     int queues, i;
 
+    assert(nc->info->type != NET_CLIENT_OPTIONS_KIND_NIC);
+
     /* If the NetClientState belongs to a multiqueue backend, we will change all
      * other NetClientStates also.
      */
@@ -354,8 +363,6 @@ void qemu_del_net_client(NetClientState *nc)
 
         return;
     }
-
-    assert(nc->info->type != NET_CLIENT_OPTIONS_KIND_NIC);
 
     for (i = 0; i < queues; i++) {
         qemu_cleanup_net_client(ncs[i]);
@@ -953,7 +960,7 @@ static int net_host_check_device(const char *device)
     return 0;
 }
 
-void net_host_device_add(Monitor *mon, const QDict *qdict)
+void hmp_host_net_add(Monitor *mon, const QDict *qdict)
 {
     const char *device = qdict_get_str(qdict, "device");
     const char *opts_str = qdict_get_try_str(qdict, "opts");
@@ -970,17 +977,16 @@ void net_host_device_add(Monitor *mon, const QDict *qdict)
         return;
     }
 
-    qemu_opt_set(opts, "type", device);
+    qemu_opt_set(opts, "type", device, &error_abort);
 
     net_client_init(opts, 0, &local_err);
     if (local_err) {
-        qerror_report_err(local_err);
-        error_free(local_err);
+        error_report_err(local_err);
         monitor_printf(mon, "adding host network device %s failed\n", device);
     }
 }
 
-void net_host_device_remove(Monitor *mon, const QDict *qdict)
+void hmp_host_net_remove(Monitor *mon, const QDict *qdict)
 {
     NetClientState *nc;
     int vlan_id = qdict_get_int(qdict, "vlan_id");
@@ -992,7 +998,7 @@ void net_host_device_remove(Monitor *mon, const QDict *qdict)
                      device, vlan_id);
         return;
     }
-    if (!net_host_check_device(nc->model)) {
+    if (nc->info->type == NET_CLIENT_OPTIONS_KIND_NIC) {
         error_report("invalid host network device '%s'", device);
         return;
     }
@@ -1117,7 +1123,7 @@ RxFilterInfoList *qmp_query_rx_filter(bool has_name, const char *name,
     return filter_list;
 }
 
-void do_info_network(Monitor *mon, const QDict *qdict)
+void hmp_info_network(Monitor *mon, const QDict *qdict)
 {
     NetClientState *nc, *peer;
     NetClientOptionsKind type;
@@ -1270,8 +1276,7 @@ static int net_init_client(QemuOpts *opts, void *dummy)
 
     net_client_init(opts, 0, &local_err);
     if (local_err) {
-        qerror_report_err(local_err);
-        error_free(local_err);
+        error_report_err(local_err);
         return -1;
     }
 
@@ -1285,8 +1290,7 @@ static int net_init_netdev(QemuOpts *opts, void *dummy)
 
     ret = net_client_init(opts, 1, &local_err);
     if (local_err) {
-        qerror_report_err(local_err);
-        error_free(local_err);
+        error_report_err(local_err);
         return -1;
     }
 
@@ -1299,9 +1303,9 @@ int net_init_clients(void)
 
     if (default_net) {
         /* if no clients, we use a default config */
-        qemu_opts_set(net, NULL, "type", "nic");
+        qemu_opts_set(net, NULL, "type", "nic", &error_abort);
 #ifdef CONFIG_SLIRP
-        qemu_opts_set(net, NULL, "type", "user");
+        qemu_opts_set(net, NULL, "type", "user", &error_abort);
 #endif
     }
 

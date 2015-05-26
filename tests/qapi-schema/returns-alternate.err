@@ -1,0 +1,1 @@
+tests/qapi-schema/returns-alternate.json:3: 'returns' for command 'oops' cannot use alternate type 'Alt'

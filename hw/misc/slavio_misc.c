@@ -68,6 +68,7 @@ typedef struct APCState {
 } APCState;
 
 #define MISC_SIZE 1
+#define LED_SIZE 2
 #define SYSCTRL_SIZE 4
 
 #define AUX1_TC        0x02
@@ -452,13 +453,13 @@ static int slavio_misc_init1(SysBusDevice *sbd)
     /* 16 bit registers */
     /* ss600mp diag LEDs */
     memory_region_init_io(&s->led_iomem, OBJECT(s), &slavio_led_mem_ops, s,
-                          "leds", MISC_SIZE);
+                          "leds", LED_SIZE);
     sysbus_init_mmio(sbd, &s->led_iomem);
 
     /* 32 bit registers */
     /* System control */
     memory_region_init_io(&s->sysctrl_iomem, OBJECT(s), &slavio_sysctrl_mem_ops, s,
-                          "system-control", MISC_SIZE);
+                          "system-control", SYSCTRL_SIZE);
     sysbus_init_mmio(sbd, &s->sysctrl_iomem);
 
     /* AUX 1 (Misc System Functions) */
