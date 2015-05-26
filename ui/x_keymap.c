@@ -94,7 +94,7 @@ static const uint8_t x_keycode_to_pc_keycode[115] = {
  */
 
 static const uint8_t evdev_keycode_to_pc_keycode[61] = {
-    0,         /*  97 EVDEV - RO   ("Internet" Keyboards) */
+    0x73,      /*  97 EVDEV - RO   ("Internet" Keyboards) */
     0,         /*  98 EVDEV - KATA (Katakana) */
     0,         /*  99 EVDEV - HIRA (Hiragana) */
     0x79,      /* 100 EVDEV - HENK (Henkan) */
@@ -126,7 +126,7 @@ static const uint8_t evdev_keycode_to_pc_keycode[61] = {
     0,         /* 126 EVDEV - I126 ("Internet" Keyboards) */
     0,         /* 127 EVDEV - PAUS */
     0,         /* 128 EVDEV - ???? */
-    0,         /* 129 EVDEV - I129 ("Internet" Keyboards) */
+    0x7e,      /* 129 EVDEV - KP_COMMA (brazilian) */
     0xf1,      /* 130 EVDEV - HNGL (Korean Hangul Latin toggle) */
     0xf2,      /* 131 EVDEV - HJCV (Korean Hangul Hanja toggle) */
     0x7d,      /* 132 AE13 (Yen)*/
