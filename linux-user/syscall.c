@@ -1228,17 +1228,18 @@ static inline abi_long target_to_host_cmsg(struct msghdr *msgh,
             int *target_fd = (int *)target_data;
             int i, numfds = len / sizeof(int);
 
-            for (i = 0; i < numfds; i++)
-                fd[i] = tswap32(target_fd[i]);
+            for (i = 0; i < numfds; i++) {
+                __get_user(fd[i], target_fd + i);
+            }
         } else if (cmsg->cmsg_level == SOL_SOCKET
                &&  cmsg->cmsg_type == SCM_CREDENTIALS) {
             struct ucred *cred = (struct ucred *)data;
             struct target_ucred *target_cred =
                 (struct target_ucred *)target_data;
 
-            __put_user(target_cred->pid, &cred->pid);
-            __put_user(target_cred->uid, &cred->uid);
-            __put_user(target_cred->gid, &cred->gid);
+            __get_user(cred->pid, &target_cred->pid);
+            __get_user(cred->uid, &target_cred->uid);
+            __get_user(cred->gid, &target_cred->gid);
         } else {
             gemu_log("Unsupported ancillary data: %d/%d\n",
                                         cmsg->cmsg_level, cmsg->cmsg_type);
@@ -1333,8 +1334,9 @@ static inline abi_long host_to_target_cmsg(struct target_msghdr *target_msgh,
                 int *target_fd = (int *)target_data;
                 int i, numfds = tgt_len / sizeof(int);
 
-                for (i = 0; i < numfds; i++)
-                    target_fd[i] = tswap32(fd[i]);
+                for (i = 0; i < numfds; i++) {
+                    __put_user(fd[i], target_fd + i);
+                }
                 break;
             }
             case SO_TIMESTAMP:
@@ -1349,8 +1351,8 @@ static inline abi_long host_to_target_cmsg(struct target_msghdr *target_msgh,
                 }
 
                 /* copy struct timeval to target */
-                target_tv->tv_sec = tswapal(tv->tv_sec);
-                target_tv->tv_usec = tswapal(tv->tv_usec);
+                __put_user(tv->tv_sec, &target_tv->tv_sec);
+                __put_user(tv->tv_usec, &target_tv->tv_usec);
                 break;
             }
             case SCM_CREDENTIALS:
