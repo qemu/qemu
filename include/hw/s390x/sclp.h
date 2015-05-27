@@ -163,6 +163,28 @@ typedef struct SCCB {
     char data[SCCB_DATA_LEN];
  } QEMU_PACKED SCCB;
 
+#define TYPE_SCLP "sclp"
+#define SCLP(obj) OBJECT_CHECK(SCLPDevice, (obj), TYPE_SCLP)
+#define SCLP_CLASS(oc) OBJECT_CLASS_CHECK(SCLPDeviceClass, (oc), TYPE_SCLP)
+#define SCLP_GET_CLASS(obj) OBJECT_GET_CLASS(SCLPDeviceClass, (obj), TYPE_SCLP)
+
+typedef struct SCLPEventFacility SCLPEventFacility;
+
+typedef struct SCLPDevice {
+    /* private */
+    DeviceState parent_obj;
+    SCLPEventFacility *event_facility;
+
+    /* public */
+} SCLPDevice;
+
+typedef struct SCLPDeviceClass {
+    /* private */
+    DeviceClass parent_class;
+
+    /* public */
+} SCLPDeviceClass;
+
 typedef struct sclpMemoryHotplugDev sclpMemoryHotplugDev;
 
 #define TYPE_SCLP_MEMORY_HOTPLUG_DEV "sclp-memory-hotplug-dev"

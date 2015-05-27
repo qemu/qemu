@@ -189,8 +189,6 @@ typedef struct SCLPEventClass {
      OBJECT_GET_CLASS(SCLPEventFacilityClass, (obj), \
                       TYPE_SCLP_EVENT_FACILITY)
 
-typedef struct SCLPEventFacility SCLPEventFacility;
-
 typedef struct SCLPEventFacilityClass {
     SysBusDeviceClass parent_class;
     void (*command_handler)(SCLPEventFacility *ef, SCCB *sccb, uint64_t code);

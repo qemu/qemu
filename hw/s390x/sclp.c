@@ -24,11 +24,8 @@
 
 static inline SCLPEventFacility *get_event_facility(void)
 {
-    ObjectProperty *op = object_property_find(qdev_get_machine(),
-                                              TYPE_SCLP_EVENT_FACILITY,
-                                              NULL);
-    assert(op);
-    return op->opaque;
+    return EVENT_FACILITY(object_resolve_path_type("", TYPE_SCLP_EVENT_FACILITY,
+                                                   NULL));
 }
 
 /* Provide information about the configuration, CPUs and storage */
@@ -438,12 +435,61 @@ void sclp_service_interrupt(uint32_t sccb)
 
 void s390_sclp_init(void)
 {
-    DeviceState *dev  = qdev_create(NULL, TYPE_SCLP_EVENT_FACILITY);
+    Object *new = object_new(TYPE_SCLP);
 
-    object_property_add_child(qdev_get_machine(), TYPE_SCLP_EVENT_FACILITY,
-                              OBJECT(dev), NULL);
-    qdev_init_nofail(dev);
+    object_property_add_child(qdev_get_machine(), TYPE_SCLP, new,
+                              NULL);
+    object_unref(OBJECT(new));
+    qdev_init_nofail(DEVICE(new));
 }
+
+static void sclp_realize(DeviceState *dev, Error **errp)
+{
+    SCLPDevice *sclp = SCLP(dev);
+    Error *l_err = NULL;
+
+    object_property_set_bool(OBJECT(sclp->event_facility), true, "realized",
+                             &l_err);
+    if (l_err) {
+        goto error;
+    }
+    return;
+error:
+    assert(l_err);
+    error_propagate(errp, l_err);
+}
+
+static void sclp_init(Object *obj)
+{
+    SCLPDevice *sclp = SCLP(obj);
+    Object *new;
+
+    new = object_new(TYPE_SCLP_EVENT_FACILITY);
+    object_property_add_child(obj, TYPE_SCLP_EVENT_FACILITY, new, NULL);
+    /* qdev_device_add searches the sysbus for TYPE_SCLP_EVENTS_BUS */
+    qdev_set_parent_bus(DEVICE(new), sysbus_get_default());
+    object_unref(new);
+    sclp->event_facility = EVENT_FACILITY(new);
+}
+
+static void sclp_class_init(ObjectClass *oc, void *data)
+{
+    DeviceClass *dc = DEVICE_CLASS(oc);
+
+    dc->desc = "SCLP (Service-Call Logical Processor)";
+    dc->realize = sclp_realize;
+    dc->hotpluggable = false;
+    set_bit(DEVICE_CATEGORY_MISC, dc->categories);
+}
+
+static TypeInfo sclp_info = {
+    .name = TYPE_SCLP,
+    .parent = TYPE_DEVICE,
+    .instance_init = sclp_init,
+    .instance_size = sizeof(SCLPDevice),
+    .class_init = sclp_class_init,
+    .class_size = sizeof(SCLPDeviceClass),
+};
 
 sclpMemoryHotplugDev *init_sclp_memory_hotplug_dev(void)
 {
@@ -481,5 +527,6 @@ static TypeInfo sclp_memory_hotplug_dev_info = {
 static void register_types(void)
 {
     type_register_static(&sclp_memory_hotplug_dev_info);
+    type_register_static(&sclp_info);
 }
 type_init(register_types);
