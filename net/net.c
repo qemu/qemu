@@ -942,6 +942,17 @@ static int net_client_init1(const void *object, int is_netdev, Error **errp)
         }
         /* missing optional values have been initialized to "all bits zero" */
         name = u.net->has_id ? u.net->id : u.net->name;
+
+        if (opts->kind == NET_CLIENT_OPTIONS_KIND_NONE) {
+            return 0; /* nothing to do */
+        }
+
+        if (!net_client_init_fun[opts->kind]) {
+            error_setg(errp, QERR_INVALID_PARAMETER_VALUE, "type",
+                       "a net backend type (maybe it is not compiled "
+                       "into this binary)");
+            return -1;
+        }
     }
 
     if (net_client_init_fun[opts->kind]) {
