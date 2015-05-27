@@ -181,8 +181,17 @@ typedef struct SCLPDevice {
 typedef struct SCLPDeviceClass {
     /* private */
     DeviceClass parent_class;
+    void (*read_SCP_info)(SCLPDevice *sclp, SCCB *sccb);
+    void (*read_storage_element0_info)(SCLPDevice *sclp, SCCB *sccb);
+    void (*read_storage_element1_info)(SCLPDevice *sclp, SCCB *sccb);
+    void (*attach_storage_element)(SCLPDevice *sclp, SCCB *sccb,
+                                   uint16_t element);
+    void (*assign_storage)(SCLPDevice *sclp, SCCB *sccb);
+    void (*unassign_storage)(SCLPDevice *sclp, SCCB *sccb);
+    void (*read_cpu_info)(SCLPDevice *sclp, SCCB *sccb);
 
     /* public */
+    void (*execute)(SCLPDevice *sclp, SCCB *sccb, uint32_t code);
 } SCLPDeviceClass;
 
 typedef struct sclpMemoryHotplugDev sclpMemoryHotplugDev;

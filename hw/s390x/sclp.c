@@ -28,8 +28,13 @@ static inline SCLPEventFacility *get_event_facility(void)
                                                    NULL));
 }
 
+static inline SCLPDevice *get_sclp_device(void)
+{
+    return SCLP(object_resolve_path_type("", TYPE_SCLP, NULL));
+}
+
 /* Provide information about the configuration, CPUs and storage */
-static void read_SCP_info(SCCB *sccb)
+static void read_SCP_info(SCLPDevice *sclp, SCCB *sccb)
 {
     ReadInfo *read_info = (ReadInfo *) sccb;
     sclpMemoryHotplugDev *mhd = get_sclp_memory_hotplug_dev();
@@ -129,7 +134,7 @@ static void read_SCP_info(SCCB *sccb)
     sccb->h.response_code = cpu_to_be16(SCLP_RC_NORMAL_READ_COMPLETION);
 }
 
-static void read_storage_element0_info(SCCB *sccb)
+static void read_storage_element0_info(SCLPDevice *sclp, SCCB *sccb)
 {
     int i, assigned;
     int subincrement_id = SCLP_STARTING_SUBINCREMENT_ID;
@@ -155,7 +160,7 @@ static void read_storage_element0_info(SCCB *sccb)
     sccb->h.response_code = cpu_to_be16(SCLP_RC_NORMAL_READ_COMPLETION);
 }
 
-static void read_storage_element1_info(SCCB *sccb)
+static void read_storage_element1_info(SCLPDevice *sclp, SCCB *sccb)
 {
     ReadStorageElementInfo *storage_info = (ReadStorageElementInfo *) sccb;
     sclpMemoryHotplugDev *mhd = get_sclp_memory_hotplug_dev();
@@ -176,7 +181,8 @@ static void read_storage_element1_info(SCCB *sccb)
     sccb->h.response_code = cpu_to_be16(SCLP_RC_STANDBY_READ_COMPLETION);
 }
 
-static void attach_storage_element(SCCB *sccb, uint16_t element)
+static void attach_storage_element(SCLPDevice *sclp, SCCB *sccb,
+                                   uint16_t element)
 {
     int i, assigned, subincrement_id;
     AttachStorageElement *attach_info = (AttachStorageElement *) sccb;
@@ -200,7 +206,7 @@ static void attach_storage_element(SCCB *sccb, uint16_t element)
     sccb->h.response_code = cpu_to_be16(SCLP_RC_NORMAL_COMPLETION);
 }
 
-static void assign_storage(SCCB *sccb)
+static void assign_storage(SCLPDevice *sclp, SCCB *sccb)
 {
     MemoryRegion *mr = NULL;
     uint64_t this_subregion_size;
@@ -255,7 +261,7 @@ static void assign_storage(SCCB *sccb)
     sccb->h.response_code = cpu_to_be16(SCLP_RC_NORMAL_COMPLETION);
 }
 
-static void unassign_storage(SCCB *sccb)
+static void unassign_storage(SCLPDevice *sclp, SCCB *sccb)
 {
     MemoryRegion *mr = NULL;
     AssignStorage *assign_info = (AssignStorage *) sccb;
@@ -299,7 +305,7 @@ static void unassign_storage(SCCB *sccb)
 }
 
 /* Provide information about the CPU */
-static void sclp_read_cpu_info(SCCB *sccb)
+static void sclp_read_cpu_info(SCLPDevice *sclp, SCCB *sccb)
 {
     ReadCpuInfo *cpu_info = (ReadCpuInfo *) sccb;
     CPUState *cpu;
@@ -326,34 +332,35 @@ static void sclp_read_cpu_info(SCCB *sccb)
     sccb->h.response_code = cpu_to_be16(SCLP_RC_NORMAL_READ_COMPLETION);
 }
 
-static void sclp_execute(SCCB *sccb, uint32_t code)
+static void sclp_execute(SCLPDevice *sclp, SCCB *sccb, uint32_t code)
 {
-    SCLPEventFacility *ef = get_event_facility();
+    SCLPDeviceClass *sclp_c = SCLP_GET_CLASS(sclp);
+    SCLPEventFacility *ef = sclp->event_facility;
     SCLPEventFacilityClass *efc = EVENT_FACILITY_GET_CLASS(ef);
 
     switch (code & SCLP_CMD_CODE_MASK) {
     case SCLP_CMDW_READ_SCP_INFO:
     case SCLP_CMDW_READ_SCP_INFO_FORCED:
-        read_SCP_info(sccb);
+        sclp_c->read_SCP_info(sclp, sccb);
         break;
     case SCLP_CMDW_READ_CPU_INFO:
-        sclp_read_cpu_info(sccb);
+        sclp_c->read_cpu_info(sclp, sccb);
         break;
     case SCLP_READ_STORAGE_ELEMENT_INFO:
         if (code & 0xff00) {
-            read_storage_element1_info(sccb);
+            sclp_c->read_storage_element1_info(sclp, sccb);
         } else {
-            read_storage_element0_info(sccb);
+            sclp_c->read_storage_element0_info(sclp, sccb);
         }
         break;
     case SCLP_ATTACH_STORAGE_ELEMENT:
-        attach_storage_element(sccb, (code & 0xff00) >> 8);
+        sclp_c->attach_storage_element(sclp, sccb, (code & 0xff00) >> 8);
         break;
     case SCLP_ASSIGN_STORAGE:
-        assign_storage(sccb);
+        sclp_c->assign_storage(sclp, sccb);
         break;
     case SCLP_UNASSIGN_STORAGE:
-        unassign_storage(sccb);
+        sclp_c->unassign_storage(sclp, sccb);
         break;
     case SCLP_CMDW_CONFIGURE_PCI:
         s390_pci_sclp_configure(1, sccb);
@@ -369,6 +376,8 @@ static void sclp_execute(SCCB *sccb, uint32_t code)
 
 int sclp_service_call(CPUS390XState *env, uint64_t sccb, uint32_t code)
 {
+    SCLPDevice *sclp = get_sclp_device();
+    SCLPDeviceClass *sclp_c = SCLP_GET_CLASS(sclp);
     int r = 0;
     SCCB work_sccb;
 
@@ -403,7 +412,7 @@ int sclp_service_call(CPUS390XState *env, uint64_t sccb, uint32_t code)
         goto out;
     }
 
-    sclp_execute((SCCB *)&work_sccb, code);
+    sclp_c->execute(sclp, (SCCB *)&work_sccb, code);
 
     cpu_physical_memory_write(sccb, &work_sccb,
                               be16_to_cpu(work_sccb.h.length));
@@ -474,12 +483,22 @@ static void sclp_init(Object *obj)
 
 static void sclp_class_init(ObjectClass *oc, void *data)
 {
+    SCLPDeviceClass *sc = SCLP_CLASS(oc);
     DeviceClass *dc = DEVICE_CLASS(oc);
 
     dc->desc = "SCLP (Service-Call Logical Processor)";
     dc->realize = sclp_realize;
     dc->hotpluggable = false;
     set_bit(DEVICE_CATEGORY_MISC, dc->categories);
+
+    sc->read_SCP_info = read_SCP_info;
+    sc->read_storage_element0_info = read_storage_element0_info;
+    sc->read_storage_element1_info = read_storage_element1_info;
+    sc->attach_storage_element = attach_storage_element;
+    sc->assign_storage = assign_storage;
+    sc->unassign_storage = unassign_storage;
+    sc->read_cpu_info = sclp_read_cpu_info;
+    sc->execute = sclp_execute;
 }
 
 static TypeInfo sclp_info = {
