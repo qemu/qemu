@@ -925,31 +925,9 @@ static int net_client_init1(const void *object, int is_netdev, Error **errp)
         opts = u.netdev->opts;
         name = u.netdev->id;
 
-        switch (opts->kind) {
-#ifdef CONFIG_SLIRP
-        case NET_CLIENT_OPTIONS_KIND_USER:
-#endif
-        case NET_CLIENT_OPTIONS_KIND_TAP:
-        case NET_CLIENT_OPTIONS_KIND_SOCKET:
-#ifdef CONFIG_VDE
-        case NET_CLIENT_OPTIONS_KIND_VDE:
-#endif
-#ifdef CONFIG_NETMAP
-        case NET_CLIENT_OPTIONS_KIND_NETMAP:
-#endif
-#ifdef CONFIG_NET_BRIDGE
-        case NET_CLIENT_OPTIONS_KIND_BRIDGE:
-#endif
-        case NET_CLIENT_OPTIONS_KIND_HUBPORT:
-#ifdef CONFIG_VHOST_NET_USED
-        case NET_CLIENT_OPTIONS_KIND_VHOST_USER:
-#endif
-#ifdef CONFIG_L2TPV3
-        case NET_CLIENT_OPTIONS_KIND_L2TPV3:
-#endif
-            break;
-
-        default:
+        if (opts->kind == NET_CLIENT_OPTIONS_KIND_DUMP ||
+            opts->kind == NET_CLIENT_OPTIONS_KIND_NIC ||
+            !net_client_init_fun[opts->kind]) {
             error_setg(errp, QERR_INVALID_PARAMETER_VALUE, "type",
                        "a netdev backend type");
             return -1;
