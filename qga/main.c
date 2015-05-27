@@ -274,7 +274,7 @@ static void ga_log(const gchar *domain, GLogLevelFlags level,
 
     level &= G_LOG_LEVEL_MASK;
 #ifndef _WIN32
-    if (domain && strcmp(domain, "syslog") == 0) {
+    if (g_strcmp0(domain, "syslog") == 0) {
         syslog(LOG_INFO, "%s: %s", level_str, msg);
     } else if (level & s->log_level) {
 #else
