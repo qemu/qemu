@@ -244,6 +244,48 @@ static void test_dummy_badenum(void)
 }
 
 
+static void test_dummy_getenum(void)
+{
+    Error *err = NULL;
+    int val;
+    Object *parent = object_get_objects_root();
+    DummyObject *dobj = DUMMY_OBJECT(
+        object_new_with_props(TYPE_DUMMY,
+                         parent,
+                         "dummy0",
+                         &err,
+                         "av", "platypus",
+                         NULL));
+
+    g_assert(err == NULL);
+    g_assert(dobj->av == DUMMY_PLATYPUS);
+
+    val = object_property_get_enum(OBJECT(dobj),
+                                   "av",
+                                   "DummyAnimal",
+                                   &err);
+    g_assert(err == NULL);
+    g_assert(val == DUMMY_PLATYPUS);
+
+    /* A bad enum type name */
+    val = object_property_get_enum(OBJECT(dobj),
+                                   "av",
+                                   "BadAnimal",
+                                   &err);
+    g_assert(err != NULL);
+    error_free(err);
+    err = NULL;
+
+    /* A non-enum property name */
+    val = object_property_get_enum(OBJECT(dobj),
+                                   "iv",
+                                   "DummyAnimal",
+                                   &err);
+    g_assert(err != NULL);
+    error_free(err);
+}
+
+
 int main(int argc, char **argv)
 {
     g_test_init(&argc, &argv, NULL);
@@ -254,6 +296,7 @@ int main(int argc, char **argv)
     g_test_add_func("/qom/proplist/createlist", test_dummy_createlist);
     g_test_add_func("/qom/proplist/createv", test_dummy_createv);
     g_test_add_func("/qom/proplist/badenum", test_dummy_badenum);
+    g_test_add_func("/qom/proplist/getenum", test_dummy_getenum);
 
     return g_test_run();
 }

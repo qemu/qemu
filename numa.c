@@ -456,7 +456,7 @@ static int query_memdev(Object *obj, void *opaque)
 
         m->value->policy = object_property_get_enum(obj,
                                                     "policy",
-                                                    HostMemPolicy_lookup,
+                                                    "HostMemPolicy",
                                                     &err);
         if (err) {
             goto error;

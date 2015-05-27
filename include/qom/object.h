@@ -1073,7 +1073,7 @@ int64_t object_property_get_int(Object *obj, const char *name,
  * object_property_get_enum:
  * @obj: the object
  * @name: the name of the property
- * @strings: strings corresponding to enums
+ * @typename: the name of the enum data type
  * @errp: returns an error if this function fails
  *
  * Returns: the value of the property, converted to an integer, or
@@ -1081,7 +1081,7 @@ int64_t object_property_get_int(Object *obj, const char *name,
  * an enum).
  */
 int object_property_get_enum(Object *obj, const char *name,
-                             const char * const strings[], Error **errp);
+                             const char *typename, Error **errp);
 
 /**
  * object_property_get_uint16List:
