@@ -60,6 +60,9 @@ const char *host_net_devices[] = {
 #ifdef CONFIG_NET_BRIDGE
     "bridge",
 #endif
+#ifdef CONFIG_NETMAP
+    "netmap",
+#endif
 #ifdef CONFIG_SLIRP
     "user",
 #endif
