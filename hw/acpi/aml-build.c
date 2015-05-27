@@ -19,6 +19,7 @@
  * with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <glib/gprintf.h>
 #include <stdio.h>
 #include <stdarg.h>
 #include <assert.h>
@@ -59,7 +60,6 @@ static void build_append_array(GArray *array, GArray *val)
 static void
 build_append_nameseg(GArray *array, const char *seg)
 {
-    /* It would be nicer to use g_string_vprintf but it's only there in 2.22 */
     int len;
 
     len = strlen(seg);
@@ -73,22 +73,12 @@ build_append_nameseg(GArray *array, const char *seg)
 static void GCC_FMT_ATTR(2, 0)
 build_append_namestringv(GArray *array, const char *format, va_list ap)
 {
-    /* It would be nicer to use g_string_vprintf but it's only there in 2.22 */
     char *s;
-    int len;
-    va_list va_len;
     char **segs;
     char **segs_iter;
     int seg_count = 0;
 
-    va_copy(va_len, ap);
-    len = vsnprintf(NULL, 0, format, va_len);
-    va_end(va_len);
-    len += 1;
-    s = g_new(typeof(*s), len);
-
-    len = vsnprintf(s, len, format, ap);
-
+    s = g_strdup_vprintf(format, ap);
     segs = g_strsplit(s, ".", 0);
     g_free(s);
 
@@ -753,22 +743,15 @@ Aml *aml_create_dword_field(Aml *srcbuf, Aml *index, const char *name)
 Aml *aml_string(const char *name_format, ...)
 {
     Aml *var = aml_opcode(0x0D /* StringPrefix */);
-    va_list ap, va_len;
+    va_list ap;
     char *s;
     int len;
 
     va_start(ap, name_format);
-    va_copy(va_len, ap);
-    len = vsnprintf(NULL, 0, name_format, va_len);
-    va_end(va_len);
-    len += 1;
-    s = g_new0(typeof(*s), len);
-
-    len = vsnprintf(s, len, name_format, ap);
+    len = g_vasprintf(&s, name_format, ap);
     va_end(ap);
 
-    g_array_append_vals(var->buf, s, len);
-    build_append_byte(var->buf, 0x0); /* NullChar */
+    g_array_append_vals(var->buf, s, len + 1);
     g_free(s);
 
     return var;
