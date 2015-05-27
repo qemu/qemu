@@ -919,6 +919,7 @@ static int net_client_init1(const void *object, int is_netdev, Error **errp)
     } u;
     const NetClientOptions *opts;
     const char *name;
+    NetClientState *peer = NULL;
 
     if (is_netdev) {
         u.netdev = object;
@@ -955,25 +956,21 @@ static int net_client_init1(const void *object, int is_netdev, Error **errp)
         }
     }
 
-    if (net_client_init_fun[opts->kind]) {
-        NetClientState *peer = NULL;
+    /* Do not add to a vlan if it's a -netdev or a nic with a netdev=
+     * parameter. */
+    if (!is_netdev &&
+        (opts->kind != NET_CLIENT_OPTIONS_KIND_NIC ||
+         !opts->nic->has_netdev)) {
+        peer = net_hub_add_port(u.net->has_vlan ? u.net->vlan : 0, NULL);
+    }
 
-        /* Do not add to a vlan if it's a -netdev or a nic with a netdev=
-         * parameter. */
-        if (!is_netdev &&
-            (opts->kind != NET_CLIENT_OPTIONS_KIND_NIC ||
-             !opts->nic->has_netdev)) {
-            peer = net_hub_add_port(u.net->has_vlan ? u.net->vlan : 0, NULL);
+    if (net_client_init_fun[opts->kind](opts, name, peer, errp) < 0) {
+        /* FIXME drop when all init functions store an Error */
+        if (errp && !*errp) {
+            error_setg(errp, QERR_DEVICE_INIT_FAILED,
+                       NetClientOptionsKind_lookup[opts->kind]);
         }
-
-        if (net_client_init_fun[opts->kind](opts, name, peer, errp) < 0) {
-            /* FIXME drop when all init functions store an Error */
-            if (errp && !*errp) {
-                error_setg(errp, QERR_DEVICE_INIT_FAILED,
-                           NetClientOptionsKind_lookup[opts->kind]);
-            }
-            return -1;
-        }
+        return -1;
     }
     return 0;
 }
