@@ -89,6 +89,7 @@ static void pc_q35_init(MachineState *machine)
     PcGuestInfo *guest_info;
     ram_addr_t lowmem;
     DriveInfo *hd[MAX_SATA_PORTS];
+    MachineClass *mc = MACHINE_GET_CLASS(machine);
 
     /* Check whether RAM fits below 4G (leaving 1/2 GByte for IO memory
      * and 256 Mbytes for PCI Express Enhanced Configuration Access Mapping
@@ -163,7 +164,6 @@ static void pc_q35_init(MachineState *machine)
     guest_info->legacy_acpi_table_size = 0;
 
     if (smbios_defaults) {
-        MachineClass *mc = MACHINE_GET_CLASS(machine);
         /* These values are guest ABI, do not change */
         smbios_set_defaults("QEMU", "Standard PC (Q35 + ICH9, 2009)",
                             mc->name, smbios_legacy_mode, smbios_uuid_encoded);
@@ -250,7 +250,7 @@ static void pc_q35_init(MachineState *machine)
     }
 
     /* init basic PC hardware */
-    pc_basic_device_init(isa_bus, gsi, &rtc_state, true, &floppy,
+    pc_basic_device_init(isa_bus, gsi, &rtc_state, !mc->no_floppy, &floppy,
                          (pc_machine->vmport != ON_OFF_AUTO_ON), 0xff0104);
 
     /* connect pm stuff to lpc */
