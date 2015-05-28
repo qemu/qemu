@@ -2167,9 +2167,6 @@ void hmp_drive_del(Monitor *mon, const QDict *qdict)
         return;
     }
 
-    /* quiesce block driver; prevent further io */
-    bdrv_drain_all();
-    bdrv_flush(bs);
     bdrv_close(bs);
 
     /* if we have a device attached to this BlockDriverState
