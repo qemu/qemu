@@ -1490,6 +1490,7 @@ void pc_basic_device_init(ISABus *isa_bus, qemu_irq *gsi,
 
     for(i = 0; i < MAX_FD; i++) {
         fd[i] = drive_get(IF_FLOPPY, 0, i);
+        create_fdctrl |= !!fd[i];
     }
     *floppy = create_fdctrl ? fdctrl_init_isa(isa_bus, fd) : NULL;
 }
