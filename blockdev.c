@@ -2380,9 +2380,6 @@ void qmp_block_commit(const char *device,
     aio_context = bdrv_get_aio_context(bs);
     aio_context_acquire(aio_context);
 
-    /* drain all i/o before commits */
-    bdrv_drain_all();
-
     if (bdrv_op_is_blocked(bs, BLOCK_OP_TYPE_COMMIT_SOURCE, errp)) {
         goto out;
     }
