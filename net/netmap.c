@@ -446,8 +446,9 @@ static NetClientInfo net_netmap_info = {
  * ... -net netmap,ifname="..."
  */
 int net_init_netmap(const NetClientOptions *opts,
-        const char *name, NetClientState *peer)
+                    const char *name, NetClientState *peer, Error **errp)
 {
+    /* FIXME error_setg(errp, ...) on failure */
     const NetdevNetmapOptions *netmap_opts = opts->netmap;
     NetClientState *nc;
     NetmapPriv me;

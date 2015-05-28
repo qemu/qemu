@@ -101,7 +101,8 @@ static NetClientInfo net_dump_info = {
 };
 
 static int net_dump_init(NetClientState *peer, const char *device,
-                         const char *name, const char *filename, int len)
+                         const char *name, const char *filename, int len,
+                         Error **errp)
 {
     struct pcap_file_hdr hdr;
     NetClientState *nc;
@@ -111,7 +112,7 @@ static int net_dump_init(NetClientState *peer, const char *device,
 
     fd = open(filename, O_CREAT | O_TRUNC | O_WRONLY | O_BINARY, 0644);
     if (fd < 0) {
-        error_report("-net dump: can't open %s", filename);
+        error_setg_errno(errp, errno, "-net dump: can't open %s", filename);
         return -1;
     }
 
@@ -124,7 +125,7 @@ static int net_dump_init(NetClientState *peer, const char *device,
     hdr.linktype = 1;
 
     if (write(fd, &hdr, sizeof(hdr)) < sizeof(hdr)) {
-        error_report("-net dump write error: %s", strerror(errno));
+        error_setg_errno(errp, errno, "-net dump write error");
         close(fd);
         return -1;
     }
@@ -146,7 +147,7 @@ static int net_dump_init(NetClientState *peer, const char *device,
 }
 
 int net_init_dump(const NetClientOptions *opts, const char *name,
-                  NetClientState *peer)
+                  NetClientState *peer, Error **errp)
 {
     int len;
     const char *file;
@@ -173,7 +174,7 @@ int net_init_dump(const NetClientOptions *opts, const char *name,
 
     if (dump->has_len) {
         if (dump->len > INT_MAX) {
-            error_report("invalid length: %"PRIu64, dump->len);
+            error_setg(errp, "invalid length: %"PRIu64, dump->len);
             return -1;
         }
         len = dump->len;
@@ -181,5 +182,5 @@ int net_init_dump(const NetClientOptions *opts, const char *name,
         len = 65536;
     }
 
-    return net_dump_init(peer, "dump", name, file, len);
+    return net_dump_init(peer, "dump", name, file, len, errp);
 }

@@ -167,19 +167,68 @@ void qemu_format_nic_info_str(NetClientState *nc, uint8_t macaddr[6])
              macaddr[3], macaddr[4], macaddr[5]);
 }
 
+static int mac_table[256] = {0};
+
+static void qemu_macaddr_set_used(MACAddr *macaddr)
+{
+    int index;
+
+    for (index = 0x56; index < 0xFF; index++) {
+        if (macaddr->a[5] == index) {
+            mac_table[index]++;
+        }
+    }
+}
+
+static void qemu_macaddr_set_free(MACAddr *macaddr)
+{
+    int index;
+    static const MACAddr base = { .a = { 0x52, 0x54, 0x00, 0x12, 0x34, 0 } };
+
+    if (memcmp(macaddr->a, &base.a, (sizeof(base.a) - 1)) != 0) {
+        return;
+    }
+    for (index = 0x56; index < 0xFF; index++) {
+        if (macaddr->a[5] == index) {
+            mac_table[index]--;
+        }
+    }
+}
+
+static int qemu_macaddr_get_free(void)
+{
+    int index;
+
+    for (index = 0x56; index < 0xFF; index++) {
+        if (mac_table[index] == 0) {
+            return index;
+        }
+    }
+
+    return -1;
+}
+
 void qemu_macaddr_default_if_unset(MACAddr *macaddr)
 {
-    static int index = 0;
     static const MACAddr zero = { .a = { 0,0,0,0,0,0 } };
+    static const MACAddr base = { .a = { 0x52, 0x54, 0x00, 0x12, 0x34, 0 } };
 
-    if (memcmp(macaddr, &zero, sizeof(zero)) != 0)
-        return;
+    if (memcmp(macaddr, &zero, sizeof(zero)) != 0) {
+        if (memcmp(macaddr->a, &base.a, (sizeof(base.a) - 1)) != 0) {
+            return;
+        } else {
+            qemu_macaddr_set_used(macaddr);
+            return;
+        }
+    }
+
     macaddr->a[0] = 0x52;
     macaddr->a[1] = 0x54;
     macaddr->a[2] = 0x00;
     macaddr->a[3] = 0x12;
     macaddr->a[4] = 0x34;
-    macaddr->a[5] = 0x56 + index++;
+    macaddr->a[5] = qemu_macaddr_get_free();
+    qemu_macaddr_set_used(macaddr);
 }
 
 /**
@@ -373,6 +422,8 @@ void qemu_del_net_client(NetClientState *nc)
 void qemu_del_nic(NICState *nic)
 {
     int i, queues = MAX(nic->conf->peers.queues, 1);
+
+    qemu_macaddr_set_free(&nic->conf->macaddr);
 
     /* If this is a peer NIC and peer has already been deleted, free it now. */
     if (nic->peer_deleted) {
@@ -740,7 +791,7 @@ int qemu_find_nic_model(NICInfo *nd, const char * const *models,
 }
 
 static int net_init_nic(const NetClientOptions *opts, const char *name,
-                        NetClientState *peer)
+                        NetClientState *peer, Error **errp)
 {
     int idx;
     NICInfo *nd;
@@ -751,7 +802,7 @@ static int net_init_nic(const NetClientOptions *opts, const char *name,
 
     idx = nic_get_free_idx();
     if (idx == -1 || nb_nics >= MAX_NICS) {
-        error_report("Too Many NICs");
+        error_setg(errp, "too many NICs");
         return -1;
     }
 
@@ -762,7 +813,7 @@ static int net_init_nic(const NetClientOptions *opts, const char *name,
     if (nic->has_netdev) {
         nd->netdev = qemu_find_netdev(nic->netdev);
         if (!nd->netdev) {
-            error_report("netdev '%s' not found", nic->netdev);
+            error_setg(errp, "netdev '%s' not found", nic->netdev);
             return -1;
         }
     } else {
@@ -779,19 +830,20 @@ static int net_init_nic(const NetClientOptions *opts, const char *name,
 
     if (nic->has_macaddr &&
         net_parse_macaddr(nd->macaddr.a, nic->macaddr) < 0) {
-        error_report("invalid syntax for ethernet address");
+        error_setg(errp, "invalid syntax for ethernet address");
         return -1;
     }
     if (nic->has_macaddr &&
         is_multicast_ether_addr(nd->macaddr.a)) {
-        error_report("NIC cannot have multicast MAC address (odd 1st byte)");
+        error_setg(errp,
+                   "NIC cannot have multicast MAC address (odd 1st byte)");
         return -1;
     }
     qemu_macaddr_default_if_unset(&nd->macaddr);
 
     if (nic->has_vectors) {
         if (nic->vectors > 0x7ffffff) {
-            error_report("invalid # of vectors: %"PRIu32, nic->vectors);
+            error_setg(errp, "invalid # of vectors: %"PRIu32, nic->vectors);
             return -1;
         }
         nd->nvectors = nic->vectors;
@@ -809,7 +861,7 @@ static int net_init_nic(const NetClientOptions *opts, const char *name,
 static int (* const net_client_init_fun[NET_CLIENT_OPTIONS_KIND_MAX])(
     const NetClientOptions *opts,
     const char *name,
-    NetClientState *peer) = {
+    NetClientState *peer, Error **errp) = {
         [NET_CLIENT_OPTIONS_KIND_NIC]       = net_init_nic,
 #ifdef CONFIG_SLIRP
         [NET_CLIENT_OPTIONS_KIND_USER]      = net_init_slirp,
@@ -882,6 +934,11 @@ static int net_client_init1(const void *object, int is_netdev, Error **errp)
     } else {
         u.net = object;
         opts = u.net->opts;
+        if (opts->kind == NET_CLIENT_OPTIONS_KIND_HUBPORT) {
+            error_set(errp, QERR_INVALID_PARAMETER_VALUE, "type",
+                      "a net type");
+            return -1;
+        }
         /* missing optional values have been initialized to "all bits zero" */
         name = u.net->has_id ? u.net->id : u.net->name;
     }
@@ -897,10 +954,12 @@ static int net_client_init1(const void *object, int is_netdev, Error **errp)
             peer = net_hub_add_port(u.net->has_vlan ? u.net->vlan : 0, NULL);
         }
 
-        if (net_client_init_fun[opts->kind](opts, name, peer) < 0) {
-            /* TODO push error reporting into init() methods */
-            error_set(errp, QERR_DEVICE_INIT_FAILED,
-                      NetClientOptionsKind_lookup[opts->kind]);
+        if (net_client_init_fun[opts->kind](opts, name, peer, errp) < 0) {
+            /* FIXME drop when all init functions store an Error */
+            if (errp && !*errp) {
+                error_set(errp, QERR_DEVICE_INIT_FAILED,
+                          NetClientOptionsKind_lookup[opts->kind]);
+            }
             return -1;
         }
     }

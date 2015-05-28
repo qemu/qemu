@@ -26,15 +26,14 @@
 #include <stdio.h>
 
 int tap_open(char *ifname, int ifname_size, int *vnet_hdr,
-             int vnet_hdr_required, int mq_required)
+             int vnet_hdr_required, int mq_required, Error **errp)
 {
-    fprintf(stderr, "no tap on Haiku\n");
+    error_setg(errp, "no tap on Haiku");
     return -1;
 }
 
-int tap_set_sndbuf(int fd, const NetdevTapOptions *tap)
+void tap_set_sndbuf(int fd, const NetdevTapOptions *tap, Error **errp)
 {
-    return 0;
 }
 
 int tap_probe_vnet_hdr(int fd)
