@@ -172,7 +172,7 @@ static GSource *spice_chr_add_watch(CharDriverState *chr, GIOCondition cond)
     SpiceCharDriver *scd = chr->opaque;
     SpiceCharSource *src;
 
-    assert(cond == G_IO_OUT);
+    assert(cond & G_IO_OUT);
 
     src = (SpiceCharSource *)g_source_new(&SpiceCharSourceFuncs,
                                           sizeof(SpiceCharSource));
