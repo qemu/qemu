@@ -1,0 +1,184 @@
+Copyright (c) 2015 Linaro Ltd.
+
+This work is licensed under the terms of the GNU GPL, version 2 or later.  See
+the COPYING file in the top-level directory.
+
+STATUS: DRAFTING
+
+Introduction
+============
+
+This document outlines the design for multi-threaded TCG emulation.
+The original TCG implementation was single threaded and dealt with
+multiple CPUs by with simple round-robin scheduling. This simplified a
+lot of things but became increasingly limited as systems being
+emulated gained additional cores and per-core performance gains for
+host systems started to level off.
+
+vCPU Scheduling
+===============
+
+We introduce a new running mode where each vCPU will run on its own
+user-space thread. This will be enabled by default for all
+FE/BE combinations that have had the required work done to support
+this safely.
+
+In the general case of running translated code there should be no
+inter-vCPU dependencies and all vCPUs should be able to run at full
+speed. Synchronisation will only be required while accessing internal
+shared data structures or when the emulated architecture requires a
+coherent representation of the emulated machine state.
+
+Shared Data Structures
+======================
+
+Global TCG State
+----------------
+
+We need to protect the entire code generation cycle including any post
+generation patching of the translated code. This also implies a shared
+translation buffer which contains code running on all cores. Any
+execution path that comes to the main run loop will need to hold a
+mutex for code generation. This also includes times when we need flush
+code or jumps from the tb_cache.
+
+DESIGN REQUIREMENT: Add locking around all code generation, patching
+and jump cache modification.
+
+Translation Blocks
+------------------
+
+Currently the whole system shares a single code generation buffer
+which when full will force a flush of all translations and start from
+scratch again.
+
+Once a basic block has been translated it will continue to be used
+until it is invalidated. These invalidation events are typically due
+to page changes in system emulation and changes in memory mapping in
+user mode. Debugging operations can also trigger invalidation's.
+
+The invalidation also requires removing the TB from look-ups
+(tb_phys_hash and tb_jmp_cache) as well removing any direct TB to TB
+patched jumps.
+
+DESIGN REQUIREMENT: Safely handle invalidation of TBs
+
+Memory maps and TLBs
+--------------------
+
+The memory handling code is fairly critical to the speed of memory
+access in the emulated system.
+
+  - Memory regions (dividing up access to PIO, MMIO and RAM)
+  - Dirty page tracking (for code gen, migration and display)
+  - Virtual TLB (for translating guest address->real address)
+
+There is a both a fast path walked by the generated code and a slow
+path when resolution is required. When the TLB tables are updated we
+need to ensure they are done in a safe way by bringing all executing
+threads to a halt before making the modifications.
+
+DESIGN REQUIREMENTS:
+
+  - TLB Flush All/Page
+    - can be across-CPUs
+    - will need all other CPUs brought to a halt
+  - TLB Update (update a CPUTLBEntry, via tlb_set_page_with_attrs)
+    - This is a per-CPU table - by definition can't race
+    - updated by it's own thread when the slow-path is forced
+
+Emulated hardware state
+-----------------------
+
+Currently thanks to KVM work any access to IO memory is automatically
+protected by the global iothread mutex. Any IO region that doesn't use
+global mutex is expected to do its own locking.
+
+Memory Consistency
+==================
+
+Between emulated guests and host systems there are a range of memory
+consistency models. While emulating weakly ordered systems on strongly
+ordered hosts shouldn't cause any problems the same is not true for
+the reverse setup.
+
+The proposed design currently does not address the problem of
+emulating strong ordering on a weakly ordered host although even on
+strongly ordered systems software should be using synchronisation
+primitives to ensure correct operation.
+
+Memory Barriers
+---------------
+
+Barriers (sometimes known as fences) provide a mechanism for software
+to enforce a particular ordering of memory operations from the point
+of view of external observers (e.g. another processor core). They can
+apply to any memory operations as well as just loads or stores.
+
+The Linux kernel has an excellent write-up on the various forms of
+memory barrier and the guarantees they can provide [1].
+
+Barriers are often wrapped around synchronisation primitives to
+provide explicit memory ordering semantics. However they can be used
+by themselves to provide safe lockless access by ensuring for example
+a signal flag will always be set after a payload.
+
+DESIGN REQUIREMENT: Add a new tcg_memory_barrier op
+
+This would enforce a strong load/store ordering so all loads/stores
+complete at the memory barrier. On single-core non-SMP strongly
+ordered backends this could become a NOP.
+
+There may be a case for further refinement if this causes performance
+bottlenecks.
+
+Memory Control and Maintenance
+------------------------------
+
+This includes a class of instructions for controlling system cache
+behaviour. While QEMU doesn't model cache behaviour these instructions
+are often seen when code modification has taken place to ensure the
+changes take effect.
+
+Synchronisation Primitives
+--------------------------
+
+There are two broad types of synchronisation primitives found in
+modern ISAs: atomic instructions and exclusive regions.
+
+The first type offer a simple atomic instruction which will guarantee
+some sort of test and conditional store will be truly atomic w.r.t.
+other cores sharing access to the memory. The classic example is the
+x86 cmpxchg instruction.
+
+The second type offer a pair of load/store instructions which offer a
+guarantee that an region of memory has not been touched between the
+load and store instructions. An example of this is ARM's ldrex/strex
+pair where the strex instruction will return a flag indicating a
+successful store only if no other CPU has accessed the memory region
+since the ldrex.
+
+Traditionally TCG has generated a series of operations that work
+because they are within the context of a single translation block so
+will have completed before another CPU is scheduled. However with
+the ability to have multiple threads running to emulate multiple CPUs
+we will need to explicitly expose these semantics.
+
+DESIGN REQUIREMENTS:
+ - atomics
+   - Introduce some atomic TCG ops for the common semantics
+   - The default fallback helper function will use qemu_atomics
+   - Each backend can then add a more efficient implementation
+ - load/store exclusive
+   [AJB:
+        There are currently a number proposals of interest:
+     - Greensocs tweaks to ldst ex (using locks)
+     - Slow-path for atomic instruction translation [2]
+     - Helper-based Atomic Instruction Emulation (AIE) [3]
+    ]
+
+==========
+
+[1] https://git.kernel.org/cgit/linux/kernel/git/torvalds/linux.git/plain/Documentation/memory-barriers.txt
+[2] http://thread.gmane.org/gmane.comp.emulators.qemu/334561
+[3] http://thread.gmane.org/gmane.comp.emulators.qemu/335297
