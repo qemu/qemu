@@ -210,7 +210,12 @@ static int vhost_user_call(struct vhost_dev *dev, unsigned long int request,
         break;
 
     case VHOST_SET_OWNER:
+        break;
+
     case VHOST_RESET_OWNER:
+        memcpy(&msg.state, arg, sizeof(struct vhost_vring_state));
+        msg.state.index += dev->vq_index;
+        msg.size = sizeof(m.state);
         break;
 
     case VHOST_SET_MEM_TABLE:
@@ -253,17 +258,20 @@ static int vhost_user_call(struct vhost_dev *dev, unsigned long int request,
     case VHOST_SET_VRING_NUM:
     case VHOST_SET_VRING_BASE:
         memcpy(&msg.state, arg, sizeof(struct vhost_vring_state));
+        msg.state.index += dev->vq_index;
         msg.size = sizeof(m.state);
         break;
 
     case VHOST_GET_VRING_BASE:
         memcpy(&msg.state, arg, sizeof(struct vhost_vring_state));
+        msg.state.index += dev->vq_index;
         msg.size = sizeof(m.state);
         need_reply = 1;
         break;
 
     case VHOST_SET_VRING_ADDR:
         memcpy(&msg.addr, arg, sizeof(struct vhost_vring_addr));
+        msg.addr.index += dev->vq_index;
         msg.size = sizeof(m.addr);
         break;
 
@@ -271,7 +279,7 @@ static int vhost_user_call(struct vhost_dev *dev, unsigned long int request,
     case VHOST_SET_VRING_CALL:
     case VHOST_SET_VRING_ERR:
         file = arg;
-        msg.u64 = file->index & VHOST_USER_VRING_IDX_MASK;
+        msg.u64 = (file->index + dev->vq_index) & VHOST_USER_VRING_IDX_MASK;
         msg.size = sizeof(m.u64);
         if (ioeventfd_enabled() && file->fd > 0) {
             fds[fd_num++] = file->fd;
@@ -313,6 +321,7 @@ static int vhost_user_call(struct vhost_dev *dev, unsigned long int request,
                 error_report("Received bad msg size.");
                 return -1;
             }
+            msg.state.index -= dev->vq_index;
             memcpy(arg, &msg.state, sizeof(struct vhost_vring_state));
             break;
         default:
