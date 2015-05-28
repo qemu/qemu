@@ -81,7 +81,11 @@ typedef struct MchkQueue {
 
 typedef struct CPUS390XState {
     uint64_t regs[16];     /* GP registers */
-    CPU_DoubleU fregs[16]; /* FP registers */
+    /*
+     * The floating point registers are part of the vector registers.
+     * vregs[0][0] -> vregs[15][0] are 16 floating point registers
+     */
+    CPU_DoubleU vregs[32][2];  /* vector registers */
     uint32_t aregs[16];    /* access registers */
 
     uint32_t fpc;          /* floating-point control register */
@@ -161,6 +165,11 @@ typedef struct CPUS390XState {
     uint8_t sigp_order;
 
 } CPUS390XState;
+
+static inline CPU_DoubleU *get_freg(CPUS390XState *cs, int nr)
+{
+    return &cs->vregs[nr][0];
+}
 
 #include "cpu-qom.h"
 #include <sysemu/kvm.h>
@@ -936,6 +945,7 @@ struct sysib_322 {
 #define SIGP_SET_PREFIX        0x0d
 #define SIGP_STORE_STATUS_ADDR 0x0e
 #define SIGP_SET_ARCH          0x12
+#define SIGP_STORE_ADTL_STATUS 0x17
 
 /* SIGP condition codes */
 #define SIGP_CC_ORDER_CODE_ACCEPTED 0
@@ -1180,4 +1190,18 @@ static inline int s390_assign_subch_ioeventfd(EventNotifier *notifier,
     }
 }
 
+#ifdef CONFIG_KVM
+static inline bool vregs_needed(void *opaque)
+{
+    if (kvm_enabled()) {
+        return kvm_check_extension(kvm_state, KVM_CAP_S390_VECTOR_REGISTERS);
+    }
+    return 0;
+}
+#else
+static inline bool vregs_needed(void *opaque)
+{
+    return 0;
+}
+#endif
 #endif

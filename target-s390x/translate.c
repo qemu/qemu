@@ -113,12 +113,18 @@ void s390_cpu_dump_state(CPUState *cs, FILE *f, fprintf_function cpu_fprintf,
     }
 
     for (i = 0; i < 16; i++) {
-        cpu_fprintf(f, "F%02d=%016" PRIx64, i, env->fregs[i].ll);
+        cpu_fprintf(f, "F%02d=%016" PRIx64, i, get_freg(env, i)->ll);
         if ((i % 4) == 3) {
             cpu_fprintf(f, "\n");
         } else {
             cpu_fprintf(f, " ");
         }
+    }
+
+    for (i = 0; i < 32; i++) {
+        cpu_fprintf(f, "V%02d=%016" PRIx64 "%016" PRIx64, i,
+                    env->vregs[i][0].ll, env->vregs[i][1].ll);
+        cpu_fprintf(f, (i % 2) ? " " : "\n");
     }
 
 #ifndef CONFIG_USER_ONLY
@@ -187,7 +193,7 @@ void s390x_translate_init(void)
     for (i = 0; i < 16; i++) {
         snprintf(cpu_reg_names[i + 16], sizeof(cpu_reg_names[0]), "f%d", i);
         fregs[i] = tcg_global_mem_new(TCG_AREG0,
-                                      offsetof(CPUS390XState, fregs[i].d),
+                                      offsetof(CPUS390XState, vregs[i][0].d),
                                       cpu_reg_names[i + 16]);
     }
 }

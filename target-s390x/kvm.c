@@ -269,6 +269,7 @@ int kvm_arch_init(MachineState *ms, KVMState *s)
     }
 
     kvm_vm_enable_cap(s, KVM_CAP_S390_USER_SIGP, 0);
+    kvm_vm_enable_cap(s, KVM_CAP_S390_VECTOR_REGISTERS, 0);
     kvm_vm_enable_cap(s, KVM_CAP_S390_USER_STSI, 0);
 
     return 0;
@@ -337,15 +338,24 @@ int kvm_arch_put_registers(CPUState *cs, int level)
         }
     }
 
-    /* Floating point */
-    for (i = 0; i < 16; i++) {
-        fpu.fprs[i] = env->fregs[i].ll;
-    }
-    fpu.fpc = env->fpc;
+    if (can_sync_regs(cs, KVM_SYNC_VRS)) {
+        for (i = 0; i < 32; i++) {
+            cs->kvm_run->s.regs.vrs[i][0] = env->vregs[i][0].ll;
+            cs->kvm_run->s.regs.vrs[i][1] = env->vregs[i][1].ll;
+        }
+        cs->kvm_run->s.regs.fpc = env->fpc;
+        cs->kvm_run->kvm_dirty_regs |= KVM_SYNC_VRS;
+    } else {
+        /* Floating point */
+        for (i = 0; i < 16; i++) {
+            fpu.fprs[i] = get_freg(env, i)->ll;
+        }
+        fpu.fpc = env->fpc;
 
-    r = kvm_vcpu_ioctl(cs, KVM_SET_FPU, &fpu);
-    if (r < 0) {
-        return r;
+        r = kvm_vcpu_ioctl(cs, KVM_SET_FPU, &fpu);
+        if (r < 0) {
+            return r;
+        }
     }
 
     /* Do we need to save more than that? */
@@ -468,15 +478,23 @@ int kvm_arch_get_registers(CPUState *cs)
         }
     }
 
-    /* Floating point */
-    r = kvm_vcpu_ioctl(cs, KVM_GET_FPU, &fpu);
-    if (r < 0) {
-        return r;
+    /* Floating point and vector registers */
+    if (can_sync_regs(cs, KVM_SYNC_VRS)) {
+        for (i = 0; i < 32; i++) {
+            env->vregs[i][0].ll = cs->kvm_run->s.regs.vrs[i][0];
+            env->vregs[i][1].ll = cs->kvm_run->s.regs.vrs[i][1];
+        }
+        env->fpc = cs->kvm_run->s.regs.fpc;
+    } else {
+        r = kvm_vcpu_ioctl(cs, KVM_GET_FPU, &fpu);
+        if (r < 0) {
+            return r;
+        }
+        for (i = 0; i < 16; i++) {
+            get_freg(env, i)->ll = fpu.fprs[i];
+        }
+        env->fpc = fpu.fpc;
     }
-    for (i = 0; i < 16; i++) {
-        env->fregs[i].ll = fpu.fprs[i];
-    }
-    env->fpc = fpu.fpc;
 
     /* The prefix */
     if (can_sync_regs(cs, KVM_SYNC_PREFIX)) {
@@ -1356,6 +1374,28 @@ static void sigp_stop(void *arg)
     si->cc = SIGP_CC_ORDER_CODE_ACCEPTED;
 }
 
+#define ADTL_SAVE_AREA_SIZE 1024
+static int kvm_s390_store_adtl_status(S390CPU *cpu, hwaddr addr)
+{
+    void *mem;
+    hwaddr len = ADTL_SAVE_AREA_SIZE;
+
+    mem = cpu_physical_memory_map(addr, &len, 1);
+    if (!mem) {
+        return -EFAULT;
+    }
+    if (len != ADTL_SAVE_AREA_SIZE) {
+        cpu_physical_memory_unmap(mem, len, 1, 0);
+        return -EFAULT;
+    }
+
+    memcpy(mem, &cpu->env.vregs, 512);
+
+    cpu_physical_memory_unmap(mem, len, 1, len);
+
+    return 0;
+}
+
 #define KVM_S390_STORE_STATUS_DEF_ADDR offsetof(LowCore, floating_pt_save_area)
 #define SAVE_AREA_SIZE 512
 static int kvm_s390_store_status(S390CPU *cpu, hwaddr addr, bool store_arch)
@@ -1363,6 +1403,7 @@ static int kvm_s390_store_status(S390CPU *cpu, hwaddr addr, bool store_arch)
     static const uint8_t ar_id = 1;
     uint64_t ckc = cpu->env.ckc >> 8;
     void *mem;
+    int i;
     hwaddr len = SAVE_AREA_SIZE;
 
     mem = cpu_physical_memory_map(addr, &len, 1);
@@ -1377,7 +1418,9 @@ static int kvm_s390_store_status(S390CPU *cpu, hwaddr addr, bool store_arch)
     if (store_arch) {
         cpu_physical_memory_write(offsetof(LowCore, ar_access_id), &ar_id, 1);
     }
-    memcpy(mem, &cpu->env.fregs, 128);
+    for (i = 0; i < 16; ++i) {
+        *((uint64 *)mem + i) = get_freg(&cpu->env, i)->ll;
+    }
     memcpy(mem + 128, &cpu->env.regs, 128);
     memcpy(mem + 256, &cpu->env.psw, 16);
     memcpy(mem + 280, &cpu->env.psa, 4);
@@ -1435,6 +1478,36 @@ static void sigp_store_status_at_address(void *arg)
     cpu_synchronize_state(CPU(si->cpu));
 
     if (kvm_s390_store_status(si->cpu, address, false)) {
+        set_sigp_status(si, SIGP_STAT_INVALID_PARAMETER);
+        return;
+    }
+    si->cc = SIGP_CC_ORDER_CODE_ACCEPTED;
+}
+
+static void sigp_store_adtl_status(void *arg)
+{
+    SigpInfo *si = arg;
+
+    if (!kvm_check_extension(kvm_state, KVM_CAP_S390_VECTOR_REGISTERS)) {
+        set_sigp_status(si, SIGP_STAT_INVALID_ORDER);
+        return;
+    }
+
+    /* cpu has to be stopped */
+    if (s390_cpu_get_state(si->cpu) != CPU_STATE_STOPPED) {
+        set_sigp_status(si, SIGP_STAT_INCORRECT_STATE);
+        return;
+    }
+
+    /* parameter must be aligned to 1024-byte boundary */
+    if (si->param & 0x3ff) {
+        set_sigp_status(si, SIGP_STAT_INVALID_PARAMETER);
+        return;
+    }
+
+    cpu_synchronize_state(CPU(si->cpu));
+
+    if (kvm_s390_store_adtl_status(si->cpu, si->param)) {
         set_sigp_status(si, SIGP_STAT_INVALID_PARAMETER);
         return;
     }
@@ -1557,6 +1630,9 @@ static int handle_sigp_single_dst(S390CPU *dst_cpu, uint8_t order,
         break;
     case SIGP_STORE_STATUS_ADDR:
         run_on_cpu(CPU(dst_cpu), sigp_store_status_at_address, &si);
+        break;
+    case SIGP_STORE_ADTL_STATUS:
+        run_on_cpu(CPU(dst_cpu), sigp_store_adtl_status, &si);
         break;
     case SIGP_SET_PREFIX:
         run_on_cpu(CPU(dst_cpu), sigp_set_prefix, &si);
