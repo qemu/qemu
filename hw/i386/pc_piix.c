@@ -242,7 +242,7 @@ static void pc_init1(MachineState *machine)
     }
 
     /* init basic PC hardware */
-    pc_basic_device_init(isa_bus, gsi, &rtc_state, &floppy,
+    pc_basic_device_init(isa_bus, gsi, &rtc_state, true, &floppy,
                          (pc_machine->vmport != ON_OFF_AUTO_ON), 0x4);
 
     pc_nic_init(isa_bus, pci_bus);

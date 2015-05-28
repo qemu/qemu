@@ -197,6 +197,7 @@ qemu_irq *pc_allocate_cpu_irq(void);
 DeviceState *pc_vga_init(ISABus *isa_bus, PCIBus *pci_bus);
 void pc_basic_device_init(ISABus *isa_bus, qemu_irq *gsi,
                           ISADevice **rtc_state,
+                          bool create_fdctrl,
                           ISADevice **floppy,
                           bool no_vmport,
                           uint32 hpet_irqs);
