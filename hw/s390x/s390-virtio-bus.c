@@ -45,6 +45,8 @@
     do { } while (0)
 #endif
 
+#define VIRTIO_S390_QUEUE_MAX 64
+
 static void virtio_s390_bus_new(VirtioBusState *bus, size_t bus_size,
                                 VirtIOS390Device *dev);
 
@@ -352,7 +354,7 @@ static ram_addr_t s390_virtio_device_num_vq(VirtIOS390Device *dev)
     VirtIODevice *vdev = dev->vdev;
     int num_vq;
 
-    for (num_vq = 0; num_vq < VIRTIO_PCI_QUEUE_MAX; num_vq++) {
+    for (num_vq = 0; num_vq < VIRTIO_S390_QUEUE_MAX; num_vq++) {
         if (!virtio_queue_get_num(vdev, num_vq)) {
             break;
         }
@@ -475,7 +477,7 @@ VirtIOS390Device *s390_virtio_bus_find_vring(VirtIOS390Bus *bus,
     QTAILQ_FOREACH(kid, &bus->bus.children, sibling) {
         VirtIOS390Device *dev = (VirtIOS390Device *)kid->child;
 
-        for(i = 0; i < VIRTIO_PCI_QUEUE_MAX; i++) {
+        for (i = 0; i < VIRTIO_S390_QUEUE_MAX; i++) {
             if (!virtio_queue_get_addr(dev->vdev, i))
                 break;
             if (virtio_queue_get_addr(dev->vdev, i) == mem) {
