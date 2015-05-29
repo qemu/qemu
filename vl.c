@@ -468,6 +468,9 @@ static QemuOptsList qemu_icount_opts = {
         }, {
             .name = "align",
             .type = QEMU_OPT_BOOL,
+        }, {
+            .name = "sleep",
+            .type = QEMU_OPT_BOOL,
         },
         { /* end of list */ }
     },

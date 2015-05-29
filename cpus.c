@@ -520,11 +520,18 @@ void configure_icount(QemuOpts *opts, Error **errp)
         }
         return;
     }
+
+    icount_sleep = qemu_opt_get_bool(opts, "sleep", true);
     if (icount_sleep) {
         icount_warp_timer = timer_new_ns(QEMU_CLOCK_VIRTUAL_RT,
                                          icount_warp_rt, NULL);
     }
+
     icount_align_option = qemu_opt_get_bool(opts, "align", false);
+
+    if (icount_align_option && !icount_sleep) {
+        error_setg(errp, "align=on and sleep=no are incompatible");
+    }
     if (strcmp(option, "auto") != 0) {
         errno = 0;
         icount_time_shift = strtol(option, &rem_str, 0);
@@ -535,6 +542,8 @@ void configure_icount(QemuOpts *opts, Error **errp)
         return;
     } else if (icount_align_option) {
         error_setg(errp, "shift=auto and align=on are incompatible");
+    } else if (!icount_sleep) {
+        error_setg(errp, "shift=auto and sleep=no are incompatible");
     }
 
     use_icount = 2;

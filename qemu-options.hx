@@ -3100,9 +3100,10 @@ re-inject them.
 ETEXI
 
 DEF("icount", HAS_ARG, QEMU_OPTION_icount, \
-    "-icount [shift=N|auto][,align=on|off]\n" \
+    "-icount [shift=N|auto][,align=on|off][,sleep=no]\n" \
     "                enable virtual instruction counter with 2^N clock ticks per\n" \
-    "                instruction and enable aligning the host and virtual clocks\n", QEMU_ARCH_ALL)
+    "                instruction, enable aligning the host and virtual clocks\n" \
+    "                or disable real time cpu sleeping\n", QEMU_ARCH_ALL)
 STEXI
 @item -icount [shift=@var{N}|auto]
 @findex -icount
@@ -3110,6 +3111,13 @@ Enable virtual instruction counter.  The virtual cpu will execute one
 instruction every 2^@var{N} ns of virtual time.  If @code{auto} is specified
 then the virtual cpu speed will be automatically adjusted to keep virtual
 time within a few seconds of real time.
+
+When the virtual cpu is sleeping, the virtual time will advance at default
+speed unless @option{sleep=no} is specified.
+With @option{sleep=no}, the virtual time will jump to the next timer deadline
+instantly whenever the virtual cpu goes to sleep mode and will not advance
+if no timer is enabled. This behavior give deterministic execution times from
+the guest point of view.
 
 Note that while this option can give deterministic behavior, it does not
 provide cycle accurate emulation.  Modern CPUs contain superscalar out of
