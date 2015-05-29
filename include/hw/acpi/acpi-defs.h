@@ -341,6 +341,43 @@ struct AcpiMadtGenericDistributor {
 typedef struct AcpiMadtGenericDistributor AcpiMadtGenericDistributor;
 
 /*
+ * Generic Timer Description Table (GTDT)
+ */
+
+#define ACPI_GTDT_INTERRUPT_MODE        (1 << 0)
+#define ACPI_GTDT_INTERRUPT_POLARITY    (1 << 1)
+#define ACPI_GTDT_ALWAYS_ON             (1 << 2)
+
+/* Triggering */
+
+#define ACPI_LEVEL_SENSITIVE            ((uint8_t) 0x00)
+#define ACPI_EDGE_SENSITIVE             ((uint8_t) 0x01)
+
+/* Polarity */
+
+#define ACPI_ACTIVE_HIGH                ((uint8_t) 0x00)
+#define ACPI_ACTIVE_LOW                 ((uint8_t) 0x01)
+#define ACPI_ACTIVE_BOTH                ((uint8_t) 0x02)
+
+struct AcpiGenericTimerTable {
+    ACPI_TABLE_HEADER_DEF
+    uint64_t counter_block_addresss;
+    uint32_t reserved;
+    uint32_t secure_el1_interrupt;
+    uint32_t secure_el1_flags;
+    uint32_t non_secure_el1_interrupt;
+    uint32_t non_secure_el1_flags;
+    uint32_t virtual_timer_interrupt;
+    uint32_t virtual_timer_flags;
+    uint32_t non_secure_el2_interrupt;
+    uint32_t non_secure_el2_flags;
+    uint64_t counter_read_block_address;
+    uint32_t platform_timer_count;
+    uint32_t platform_timer_offset;
+} QEMU_PACKED;
+typedef struct AcpiGenericTimerTable AcpiGenericTimerTable;
+
+/*
  * HPET Description Table
  */
 struct Acpi20Hpet {

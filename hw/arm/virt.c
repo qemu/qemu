@@ -265,10 +265,10 @@ static void fdt_add_timer_nodes(const VirtBoardInfo *vbi)
                                 "arm,armv7-timer");
     }
     qemu_fdt_setprop_cells(vbi->fdt, "/timer", "interrupts",
-                               GIC_FDT_IRQ_TYPE_PPI, 13, irqflags,
-                               GIC_FDT_IRQ_TYPE_PPI, 14, irqflags,
-                               GIC_FDT_IRQ_TYPE_PPI, 11, irqflags,
-                               GIC_FDT_IRQ_TYPE_PPI, 10, irqflags);
+                       GIC_FDT_IRQ_TYPE_PPI, ARCH_TIMER_S_EL1_IRQ, irqflags,
+                       GIC_FDT_IRQ_TYPE_PPI, ARCH_TIMER_NS_EL1_IRQ, irqflags,
+                       GIC_FDT_IRQ_TYPE_PPI, ARCH_TIMER_VIRT_IRQ, irqflags,
+                       GIC_FDT_IRQ_TYPE_PPI, ARCH_TIMER_NS_EL2_IRQ, irqflags);
 }
 
 static void fdt_add_cpu_nodes(const VirtBoardInfo *vbi)
