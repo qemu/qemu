@@ -470,18 +470,78 @@ void s390_sclp_init(void)
 
 static void sclp_realize(DeviceState *dev, Error **errp)
 {
+    MachineState *machine = MACHINE(qdev_get_machine());
     SCLPDevice *sclp = SCLP(dev);
     Error *l_err = NULL;
+    uint64_t hw_limit;
+    int ret;
 
     object_property_set_bool(OBJECT(sclp->event_facility), true, "realized",
                              &l_err);
     if (l_err) {
         goto error;
     }
+
+    ret = s390_set_memory_limit(machine->maxram_size, &hw_limit);
+    if (ret == -E2BIG) {
+        error_setg(&l_err, "qemu: host supports a maximum of %" PRIu64 " GB",
+                   hw_limit >> 30);
+        goto error;
+    } else if (ret) {
+        error_setg(&l_err, "qemu: setting the guest size failed");
+        goto error;
+    }
     return;
 error:
     assert(l_err);
     error_propagate(errp, l_err);
+}
+
+static void sclp_memory_init(SCLPDevice *sclp)
+{
+    MachineState *machine = MACHINE(qdev_get_machine());
+    ram_addr_t initial_mem = machine->ram_size;
+    ram_addr_t max_mem = machine->maxram_size;
+    ram_addr_t standby_mem = max_mem - initial_mem;
+    ram_addr_t pad_mem = 0;
+    int increment_size = 20;
+
+    /* The storage increment size is a multiple of 1M and is a power of 2.
+     * The number of storage increments must be MAX_STORAGE_INCREMENTS or fewer.
+     * The variable 'increment_size' is an exponent of 2 that can be
+     * used to calculate the size (in bytes) of an increment. */
+    while ((initial_mem >> increment_size) > MAX_STORAGE_INCREMENTS) {
+        increment_size++;
+    }
+    if (machine->ram_slots) {
+        while ((standby_mem >> increment_size) > MAX_STORAGE_INCREMENTS) {
+            increment_size++;
+        }
+    }
+
+    /* The core and standby memory areas need to be aligned with
+     * the increment size.  In effect, this can cause the
+     * user-specified memory size to be rounded down to align
+     * with the nearest increment boundary. */
+    initial_mem = initial_mem >> increment_size << increment_size;
+    standby_mem = standby_mem >> increment_size << increment_size;
+
+    /* If the size of ram is not on a MEM_SECTION_SIZE boundary,
+       calculate the pad size necessary to force this boundary. */
+    if (machine->ram_slots && standby_mem) {
+        sclpMemoryHotplugDev *mhd = init_sclp_memory_hotplug_dev();
+
+        if (initial_mem % MEM_SECTION_SIZE) {
+            pad_mem = MEM_SECTION_SIZE - initial_mem % MEM_SECTION_SIZE;
+        }
+        mhd->increment_size = increment_size;
+        mhd->pad_size = pad_mem;
+        mhd->standby_mem_size = standby_mem;
+    }
+    machine->ram_size = initial_mem;
+    machine->maxram_size = initial_mem + pad_mem + standby_mem;
+    /* let's propagate the changed ram size into the global variable. */
+    ram_size = initial_mem;
 }
 
 static void sclp_init(Object *obj)
@@ -495,6 +555,8 @@ static void sclp_init(Object *obj)
     qdev_set_parent_bus(DEVICE(new), sysbus_get_default());
     object_unref(new);
     sclp->event_facility = EVENT_FACILITY(new);
+
+    sclp_memory_init(sclp);
 }
 
 static void sclp_class_init(ObjectClass *oc, void *data)

@@ -102,54 +102,16 @@ static void virtio_ccw_register_hcalls(void)
 
 static void ccw_init(MachineState *machine)
 {
-    ram_addr_t my_ram_size = machine->ram_size;
     MemoryRegion *sysmem = get_system_memory();
     MemoryRegion *ram = g_new(MemoryRegion, 1);
-    sclpMemoryHotplugDev *mhd = init_sclp_memory_hotplug_dev();
     int ret;
     VirtualCssBus *css_bus;
     DeviceState *dev;
-    ram_addr_t pad_size = 0;
-    ram_addr_t maxmem = machine->maxram_size;
-    ram_addr_t standby_mem_size = maxmem - my_ram_size;
-    uint64_t kvm_limit;
 
-    /* The storage increment size is a multiple of 1M and is a power of 2.
-     * The number of storage increments must be MAX_STORAGE_INCREMENTS or fewer.
-     * The variable 'mhd->increment_size' is an exponent of 2 that can be
-     * used to calculate the size (in bytes) of an increment. */
-    mhd->increment_size = 20;
-    while ((my_ram_size >> mhd->increment_size) > MAX_STORAGE_INCREMENTS) {
-        mhd->increment_size++;
-    }
-    while ((standby_mem_size >> mhd->increment_size) > MAX_STORAGE_INCREMENTS) {
-        mhd->increment_size++;
-    }
-
-    /* The core and standby memory areas need to be aligned with
-     * the increment size.  In effect, this can cause the
-     * user-specified memory size to be rounded down to align
-     * with the nearest increment boundary. */
-    standby_mem_size = standby_mem_size >> mhd->increment_size
-                                        << mhd->increment_size;
-    my_ram_size = my_ram_size >> mhd->increment_size
-                              << mhd->increment_size;
-
-    /* let's propagate the changed ram size into the global variable. */
-    ram_size = my_ram_size;
-    machine->maxram_size = my_ram_size + standby_mem_size;
-
-    ret = s390_set_memory_limit(machine->maxram_size, &kvm_limit);
-    if (ret == -E2BIG) {
-        hw_error("qemu: host supports a maximum of %" PRIu64 " GB",
-                 kvm_limit >> 30);
-    } else if (ret) {
-        hw_error("qemu: setting the guest size failed");
-    }
+    s390_sclp_init();
 
     /* get a BUS */
     css_bus = virtual_css_bus_init();
-    s390_sclp_init();
     s390_init_ipl_dev(machine->kernel_filename, machine->kernel_cmdline,
                       machine->initrd_filename, "s390-ccw.img", true);
     s390_flic_init();
@@ -163,20 +125,10 @@ static void ccw_init(MachineState *machine)
     virtio_ccw_register_hcalls();
 
     /* allocate RAM for core */
-    memory_region_init_ram(ram, NULL, "s390.ram", my_ram_size, &error_abort);
+    memory_region_init_ram(ram, NULL, "s390.ram", machine->ram_size,
+                           &error_abort);
     vmstate_register_ram_global(ram);
     memory_region_add_subregion(sysmem, 0, ram);
-
-    /* If the size of ram is not on a MEM_SECTION_SIZE boundary,
-       calculate the pad size necessary to force this boundary. */
-    if (standby_mem_size) {
-        if (my_ram_size % MEM_SECTION_SIZE) {
-            pad_size = MEM_SECTION_SIZE - my_ram_size % MEM_SECTION_SIZE;
-        }
-        my_ram_size += standby_mem_size + pad_size;
-        mhd->pad_size = pad_size;
-        mhd->standby_mem_size = standby_mem_size;
-    }
 
     /* Initialize storage key device */
     s390_skeys_init();

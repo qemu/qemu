@@ -261,10 +261,9 @@ int gtod_load(QEMUFile *f, void *opaque, int version_id)
 /* PC hardware initialisation */
 static void s390_init(MachineState *machine)
 {
-    ram_addr_t my_ram_size = machine->ram_size;
+    ram_addr_t my_ram_size;
     MemoryRegion *sysmem = get_system_memory();
     MemoryRegion *ram = g_new(MemoryRegion, 1);
-    int increment_size = 20;
     void *virtio_region;
     hwaddr virtio_region_len;
     hwaddr virtio_region_start;
@@ -273,22 +272,11 @@ static void s390_init(MachineState *machine)
         error_report("Memory hotplug not supported by the selected machine.");
         exit(EXIT_FAILURE);
     }
-    /*
-     * The storage increment size is a multiple of 1M and is a power of 2.
-     * The number of storage increments must be MAX_STORAGE_INCREMENTS or
-     * fewer.
-     */
-    while ((my_ram_size >> increment_size) > MAX_STORAGE_INCREMENTS) {
-        increment_size++;
-    }
-    my_ram_size = my_ram_size >> increment_size << increment_size;
-
-    /* let's propagate the changed ram size into the global variable. */
-    ram_size = my_ram_size;
+    s390_sclp_init();
+    my_ram_size = machine->ram_size;
 
     /* get a BUS */
     s390_bus = s390_virtio_bus_init(&my_ram_size);
-    s390_sclp_init();
     s390_init_ipl_dev(machine->kernel_filename, machine->kernel_cmdline,
                       machine->initrd_filename, ZIPL_FILENAME, false);
     s390_flic_init();
