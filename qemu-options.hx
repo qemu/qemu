@@ -3239,7 +3239,9 @@ DEF("incoming", HAS_ARG, QEMU_OPTION_incoming, \
     "-incoming fd:fd\n" \
     "-incoming exec:cmdline\n" \
     "                accept incoming migration on given file descriptor\n" \
-    "                or from given external command\n",
+    "                or from given external command\n" \
+    "-incoming defer\n" \
+    "                wait for the URI to be specified via migrate_incoming\n",
     QEMU_ARCH_ALL)
 STEXI
 @item -incoming tcp:[@var{host}]:@var{port}[,to=@var{maxport}][,ipv4][,ipv6]
@@ -3255,6 +3257,11 @@ Accept incoming migration from a given filedescriptor.
 
 @item -incoming exec:@var{cmdline}
 Accept incoming migration as an output from specified external command.
+
+@item -incoming defer
+Wait for the URI to be specified via migrate_incoming.  The monitor can
+be used to change settings (such as migration parameters) prior to issuing
+the migrate_incoming to allow the migration to begin.
 ETEXI
 
 DEF("nodefaults", 0, QEMU_OPTION_nodefaults, \
