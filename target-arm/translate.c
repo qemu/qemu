@@ -8423,18 +8423,53 @@ static void disas_arm_insn(DisasContext *s, unsigned int insn)
                 }
             } else {
                 int address_offset;
-                int load;
+                bool load = insn & (1 << 20);
+                bool doubleword = false;
                 /* Misc load/store */
                 rn = (insn >> 16) & 0xf;
                 rd = (insn >> 12) & 0xf;
+
+                if (!load && (sh & 2)) {
+                    /* doubleword */
+                    ARCH(5TE);
+                    if (rd & 1) {
+                        /* UNPREDICTABLE; we choose to UNDEF */
+                        goto illegal_op;
+                    }
+                    load = (sh & 1) == 0;
+                    doubleword = true;
+                }
+
                 addr = load_reg(s, rn);
                 if (insn & (1 << 24))
                     gen_add_datah_offset(s, insn, 0, addr);
                 address_offset = 0;
-                if (insn & (1 << 20)) {
+
+                if (doubleword) {
+                    if (!load) {
+                        /* store */
+                        tmp = load_reg(s, rd);
+                        gen_aa32_st32(tmp, addr, get_mem_index(s));
+                        tcg_temp_free_i32(tmp);
+                        tcg_gen_addi_i32(addr, addr, 4);
+                        tmp = load_reg(s, rd + 1);
+                        gen_aa32_st32(tmp, addr, get_mem_index(s));
+                        tcg_temp_free_i32(tmp);
+                    } else {
+                        /* load */
+                        tmp = tcg_temp_new_i32();
+                        gen_aa32_ld32u(tmp, addr, get_mem_index(s));
+                        store_reg(s, rd, tmp);
+                        tcg_gen_addi_i32(addr, addr, 4);
+                        tmp = tcg_temp_new_i32();
+                        gen_aa32_ld32u(tmp, addr, get_mem_index(s));
+                        rd++;
+                    }
+                    address_offset = -4;
+                } else if (load) {
                     /* load */
                     tmp = tcg_temp_new_i32();
-                    switch(sh) {
+                    switch (sh) {
                     case 1:
                         gen_aa32_ld16u(tmp, addr, get_mem_index(s));
                         break;
@@ -8446,38 +8481,11 @@ static void disas_arm_insn(DisasContext *s, unsigned int insn)
                         gen_aa32_ld16s(tmp, addr, get_mem_index(s));
                         break;
                     }
-                    load = 1;
-                } else if (sh & 2) {
-                    ARCH(5TE);
-                    /* doubleword */
-                    if (sh & 1) {
-                        /* store */
-                        tmp = load_reg(s, rd);
-                        gen_aa32_st32(tmp, addr, get_mem_index(s));
-                        tcg_temp_free_i32(tmp);
-                        tcg_gen_addi_i32(addr, addr, 4);
-                        tmp = load_reg(s, rd + 1);
-                        gen_aa32_st32(tmp, addr, get_mem_index(s));
-                        tcg_temp_free_i32(tmp);
-                        load = 0;
-                    } else {
-                        /* load */
-                        tmp = tcg_temp_new_i32();
-                        gen_aa32_ld32u(tmp, addr, get_mem_index(s));
-                        store_reg(s, rd, tmp);
-                        tcg_gen_addi_i32(addr, addr, 4);
-                        tmp = tcg_temp_new_i32();
-                        gen_aa32_ld32u(tmp, addr, get_mem_index(s));
-                        rd++;
-                        load = 1;
-                    }
-                    address_offset = -4;
                 } else {
                     /* store */
                     tmp = load_reg(s, rd);
                     gen_aa32_st16(tmp, addr, get_mem_index(s));
                     tcg_temp_free_i32(tmp);
-                    load = 0;
                 }
                 /* Perform base writeback before the loaded value to
                    ensure correct behavior with overlapping index registers.
