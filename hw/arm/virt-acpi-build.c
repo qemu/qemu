@@ -137,6 +137,31 @@ static void acpi_dsdt_add_virtio(Aml *scope,
     }
 }
 
+/* FADT */
+static void
+build_fadt(GArray *table_data, GArray *linker, unsigned dsdt)
+{
+    AcpiFadtDescriptorRev5_1 *fadt = acpi_data_push(table_data, sizeof(*fadt));
+
+    /* Hardware Reduced = 1 and use PSCI 0.2+ and with HVC */
+    fadt->flags = cpu_to_le32(1 << ACPI_FADT_F_HW_REDUCED_ACPI);
+    fadt->arm_boot_flags = cpu_to_le16((1 << ACPI_FADT_ARM_USE_PSCI_G_0_2) |
+                                       (1 << ACPI_FADT_ARM_PSCI_USE_HVC));
+
+    /* ACPI v5.1 (fadt->revision.fadt->minor_revision) */
+    fadt->minor_revision = 0x1;
+
+    fadt->dsdt = cpu_to_le32(dsdt);
+    /* DSDT address to be filled by Guest linker */
+    bios_linker_loader_add_pointer(linker, ACPI_BUILD_TABLE_FILE,
+                                   ACPI_BUILD_TABLE_FILE,
+                                   table_data, &fadt->dsdt,
+                                   sizeof fadt->dsdt);
+
+    build_header(linker, table_data,
+                 (void *)fadt, "FACP", sizeof(*fadt), 5);
+}
+
 /* DSDT */
 static void
 build_dsdt(GArray *table_data, GArray *linker, VirtGuestInfo *guest_info)
@@ -183,6 +208,7 @@ static
 void virt_acpi_build(VirtGuestInfo *guest_info, AcpiBuildTables *tables)
 {
     GArray *table_offsets;
+    unsigned dsdt;
     GArray *tables_blob = tables->table_data;
 
     table_offsets = g_array_new(false, true /* clear */,
@@ -202,7 +228,12 @@ void virt_acpi_build(VirtGuestInfo *guest_info, AcpiBuildTables *tables)
      */
 
     /* DSDT is pointed to by FADT */
+    dsdt = tables_blob->len;
     build_dsdt(tables_blob, tables->linker, guest_info);
+
+    /* FADT MADT GTDT pointed to by RSDT */
+    acpi_add_table(table_offsets, tables_blob);
+    build_fadt(tables_blob, tables->linker, dsdt);
 
     /* Cleanup memory that's no longer used. */
     g_array_free(table_offsets, true);
