@@ -830,10 +830,10 @@ void virtio_scsi_common_realize(DeviceState *dev, Error **errp,
                 sizeof(VirtIOSCSIConfig));
 
     if (s->conf.num_queues == 0 ||
-            s->conf.num_queues > VIRTIO_PCI_QUEUE_MAX - 2) {
+            s->conf.num_queues > VIRTIO_QUEUE_MAX - 2) {
         error_setg(errp, "Invalid number of queues (= %" PRIu32 "), "
                          "must be a positive integer less than %d.",
-                   s->conf.num_queues, VIRTIO_PCI_QUEUE_MAX - 2);
+                   s->conf.num_queues, VIRTIO_QUEUE_MAX - 2);
         virtio_cleanup(vdev);
         return;
     }

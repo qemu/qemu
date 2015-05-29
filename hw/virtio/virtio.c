@@ -600,7 +600,7 @@ void virtio_reset(void *opaque)
     vdev->config_vector = VIRTIO_NO_VECTOR;
     virtio_notify_vector(vdev, vdev->config_vector);
 
-    for(i = 0; i < VIRTIO_PCI_QUEUE_MAX; i++) {
+    for(i = 0; i < VIRTIO_QUEUE_MAX; i++) {
         vdev->vq[i].vring.desc = 0;
         vdev->vq[i].vring.avail = 0;
         vdev->vq[i].vring.used = 0;
@@ -750,7 +750,7 @@ int virtio_get_num_queues(VirtIODevice *vdev)
 {
     int i;
 
-    for (i = 0; i < VIRTIO_PCI_QUEUE_MAX; i++) {
+    for (i = 0; i < VIRTIO_QUEUE_MAX; i++) {
         if (!virtio_queue_get_num(vdev, i)) {
             break;
         }
@@ -762,7 +762,7 @@ int virtio_get_num_queues(VirtIODevice *vdev)
 int virtio_queue_get_id(VirtQueue *vq)
 {
     VirtIODevice *vdev = vq->vdev;
-    assert(vq >= &vdev->vq[0] && vq < &vdev->vq[VIRTIO_PCI_QUEUE_MAX]);
+    assert(vq >= &vdev->vq[0] && vq < &vdev->vq[VIRTIO_QUEUE_MAX]);
     return vq - &vdev->vq[0];
 }
 
@@ -798,7 +798,7 @@ void virtio_queue_notify(VirtIODevice *vdev, int n)
 
 uint16_t virtio_queue_vector(VirtIODevice *vdev, int n)
 {
-    return n < VIRTIO_PCI_QUEUE_MAX ? vdev->vq[n].vector :
+    return n < VIRTIO_QUEUE_MAX ? vdev->vq[n].vector :
         VIRTIO_NO_VECTOR;
 }
 
@@ -806,7 +806,7 @@ void virtio_queue_set_vector(VirtIODevice *vdev, int n, uint16_t vector)
 {
     VirtQueue *vq = &vdev->vq[n];
 
-    if (n < VIRTIO_PCI_QUEUE_MAX) {
+    if (n < VIRTIO_QUEUE_MAX) {
         if (vdev->vector_queues &&
             vdev->vq[n].vector != VIRTIO_NO_VECTOR) {
             QLIST_REMOVE(vq, node);
@@ -824,12 +824,12 @@ VirtQueue *virtio_add_queue(VirtIODevice *vdev, int queue_size,
 {
     int i;
 
-    for (i = 0; i < VIRTIO_PCI_QUEUE_MAX; i++) {
+    for (i = 0; i < VIRTIO_QUEUE_MAX; i++) {
         if (vdev->vq[i].vring.num == 0)
             break;
     }
 
-    if (i == VIRTIO_PCI_QUEUE_MAX || queue_size > VIRTQUEUE_MAX_SIZE)
+    if (i == VIRTIO_QUEUE_MAX || queue_size > VIRTQUEUE_MAX_SIZE)
         abort();
 
     vdev->vq[i].vring.num = queue_size;
@@ -841,7 +841,7 @@ VirtQueue *virtio_add_queue(VirtIODevice *vdev, int queue_size,
 
 void virtio_del_queue(VirtIODevice *vdev, int n)
 {
-    if (n < 0 || n >= VIRTIO_PCI_QUEUE_MAX) {
+    if (n < 0 || n >= VIRTIO_QUEUE_MAX) {
         abort();
     }
 
@@ -951,14 +951,14 @@ void virtio_save(VirtIODevice *vdev, QEMUFile *f)
     qemu_put_be32(f, vdev->config_len);
     qemu_put_buffer(f, vdev->config, vdev->config_len);
 
-    for (i = 0; i < VIRTIO_PCI_QUEUE_MAX; i++) {
+    for (i = 0; i < VIRTIO_QUEUE_MAX; i++) {
         if (vdev->vq[i].vring.num == 0)
             break;
     }
 
     qemu_put_be32(f, i);
 
-    for (i = 0; i < VIRTIO_PCI_QUEUE_MAX; i++) {
+    for (i = 0; i < VIRTIO_QUEUE_MAX; i++) {
         if (vdev->vq[i].vring.num == 0)
             break;
 
@@ -1019,7 +1019,7 @@ int virtio_load(VirtIODevice *vdev, QEMUFile *f, int version_id)
     qemu_get_8s(f, &vdev->status);
     qemu_get_8s(f, &vdev->isr);
     qemu_get_be16s(f, &vdev->queue_sel);
-    if (vdev->queue_sel >= VIRTIO_PCI_QUEUE_MAX) {
+    if (vdev->queue_sel >= VIRTIO_QUEUE_MAX) {
         return -1;
     }
     qemu_get_be32s(f, &features);
@@ -1045,7 +1045,7 @@ int virtio_load(VirtIODevice *vdev, QEMUFile *f, int version_id)
 
     num = qemu_get_be32(f);
 
-    if (num > VIRTIO_PCI_QUEUE_MAX) {
+    if (num > VIRTIO_QUEUE_MAX) {
         error_report("Invalid number of PCI queues: 0x%x", num);
         return -1;
     }
@@ -1171,9 +1171,9 @@ void virtio_init(VirtIODevice *vdev, const char *name,
     vdev->isr = 0;
     vdev->queue_sel = 0;
     vdev->config_vector = VIRTIO_NO_VECTOR;
-    vdev->vq = g_malloc0(sizeof(VirtQueue) * VIRTIO_PCI_QUEUE_MAX);
+    vdev->vq = g_malloc0(sizeof(VirtQueue) * VIRTIO_QUEUE_MAX);
     vdev->vm_running = runstate_is_running();
-    for (i = 0; i < VIRTIO_PCI_QUEUE_MAX; i++) {
+    for (i = 0; i < VIRTIO_QUEUE_MAX; i++) {
         vdev->vq[i].vector = VIRTIO_NO_VECTOR;
         vdev->vq[i].vdev = vdev;
         vdev->vq[i].queue_index = i;

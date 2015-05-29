@@ -171,7 +171,7 @@ static void virtio_pci_start_ioeventfd(VirtIOPCIProxy *proxy)
         return;
     }
 
-    for (n = 0; n < VIRTIO_PCI_QUEUE_MAX; n++) {
+    for (n = 0; n < VIRTIO_QUEUE_MAX; n++) {
         if (!virtio_queue_get_num(vdev, n)) {
             continue;
         }
@@ -207,7 +207,7 @@ static void virtio_pci_stop_ioeventfd(VirtIOPCIProxy *proxy)
         return;
     }
 
-    for (n = 0; n < VIRTIO_PCI_QUEUE_MAX; n++) {
+    for (n = 0; n < VIRTIO_QUEUE_MAX; n++) {
         if (!virtio_queue_get_num(vdev, n)) {
             continue;
         }
@@ -243,11 +243,11 @@ static void virtio_ioport_write(void *opaque, uint32_t addr, uint32_t val)
             virtio_queue_set_addr(vdev, vdev->queue_sel, pa);
         break;
     case VIRTIO_PCI_QUEUE_SEL:
-        if (val < VIRTIO_PCI_QUEUE_MAX)
+        if (val < VIRTIO_QUEUE_MAX)
             vdev->queue_sel = val;
         break;
     case VIRTIO_PCI_QUEUE_NOTIFY:
-        if (val < VIRTIO_PCI_QUEUE_MAX) {
+        if (val < VIRTIO_QUEUE_MAX) {
             virtio_queue_notify(vdev, val);
         }
         break;
@@ -744,7 +744,7 @@ static int virtio_pci_set_guest_notifiers(DeviceState *d, int nvqs, bool assign)
     bool with_irqfd = msix_enabled(&proxy->pci_dev) &&
         kvm_msi_via_irqfd_enabled();
 
-    nvqs = MIN(nvqs, VIRTIO_PCI_QUEUE_MAX);
+    nvqs = MIN(nvqs, VIRTIO_QUEUE_MAX);
 
     /* When deassigning, pass a consistent nvqs value
      * to avoid leaking notifiers.
