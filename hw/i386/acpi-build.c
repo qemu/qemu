@@ -733,7 +733,7 @@ build_ssdt(GArray *table_data, GArray *linker,
     if (misc->pvpanic_port) {
         scope = aml_scope("\\_SB.PCI0.ISA");
 
-        dev = aml_device("PEVR");
+        dev = aml_device("PEVT");
         aml_append(dev, aml_name_decl("_HID", aml_string("QEMU0001")));
 
         crs = aml_resource_template();
@@ -747,6 +747,9 @@ build_ssdt(GArray *table_data, GArray *linker,
         field = aml_field("PEOR", AML_BYTE_ACC, AML_PRESERVE);
         aml_append(field, aml_named_field("PEPT", 8));
         aml_append(dev, field);
+
+        /* device present, functioning, decoding, not shown in UI */
+        aml_append(dev, aml_name_decl("_STA", aml_int(0xB)));
 
         method = aml_method("RDPT", 0);
         aml_append(method, aml_store(aml_name("PEPT"), aml_local(0)));
