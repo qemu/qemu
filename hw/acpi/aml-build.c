@@ -632,6 +632,13 @@ Aml *aml_if(Aml *predicate)
     return var;
 }
 
+/* ACPI 1.0b: 16.2.5.3 Type 1 Opcodes Encoding: DefElse */
+Aml *aml_else(void)
+{
+    Aml *var = aml_bundle(0xA1 /* ElseOp */, AML_PACKAGE);
+    return var;
+}
+
 /* ACPI 1.0b: 16.2.5.2 Named Objects Encoding: DefMethod */
 Aml *aml_method(const char *name, int arg_count)
 {
