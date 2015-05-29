@@ -246,13 +246,14 @@ void HELPER(exception_internal)(CPUARMState *env, uint32_t excp)
 
 /* Raise an exception with the specified syndrome register value */
 void HELPER(exception_with_syndrome)(CPUARMState *env, uint32_t excp,
-                                     uint32_t syndrome)
+                                     uint32_t syndrome, uint32_t target_el)
 {
     CPUState *cs = CPU(arm_env_get_cpu(env));
 
     assert(!excp_is_internal(excp));
     cs->exception_index = excp;
     env->exception.syndrome = syndrome;
+    env->exception.target_el = target_el;
     cpu_loop_exit(cs);
 }
 
