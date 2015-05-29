@@ -419,6 +419,11 @@ void qemu_clock_warp(QEMUClockType type)
     clock = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL_RT);
     deadline = qemu_clock_deadline_ns_all(QEMU_CLOCK_VIRTUAL);
     if (deadline < 0) {
+        static bool notified;
+        if (!icount_sleep && !notified) {
+            error_report("WARNING: icount sleep disabled and no active timers");
+            notified = true;
+        }
         return;
     }
 
