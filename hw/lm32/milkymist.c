@@ -86,7 +86,7 @@ milkymist_init(MachineState *machine)
     DriveInfo *dinfo;
     MemoryRegion *address_space_mem = get_system_memory();
     MemoryRegion *phys_sdram = g_new(MemoryRegion, 1);
-    qemu_irq irq[32], *cpu_irq;
+    qemu_irq irq[32];
     int i;
     char *bios_filename;
     ResetInfo *reset_info;
@@ -130,8 +130,7 @@ milkymist_init(MachineState *machine)
                           2, 0x00, 0x89, 0x00, 0x1d, 1);
 
     /* create irq lines */
-    cpu_irq = qemu_allocate_irqs(cpu_irq_handler, cpu, 1);
-    env->pic_state = lm32_pic_init(*cpu_irq);
+    env->pic_state = lm32_pic_init(qemu_allocate_irq(cpu_irq_handler, cpu, 0));
     for (i = 0; i < 32; i++) {
         irq[i] = qdev_get_gpio_in(env->pic_state, i);
     }
