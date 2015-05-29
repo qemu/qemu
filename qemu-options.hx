@@ -1352,7 +1352,7 @@ be needed to boot from old floppy disks.
 ETEXI
 
 DEF("no-acpi", 0, QEMU_OPTION_no_acpi,
-           "-no-acpi        disable ACPI\n", QEMU_ARCH_I386)
+           "-no-acpi        disable ACPI\n", QEMU_ARCH_I386 | QEMU_ARCH_ARM)
 STEXI
 @item -no-acpi
 @findex -no-acpi
