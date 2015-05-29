@@ -110,6 +110,7 @@ void tlb_fill(CPUState *cs, target_ulong addr, int is_write, int mmu_idx,
         }
 
         env->exception.syndrome = syn;
+        env->exception.target_el = exception_target_el(env);
         env->exception.vaddress = addr;
         env->exception.fsr = ret;
         raise_exception(env, exc);
