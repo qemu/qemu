@@ -248,15 +248,71 @@ uint32_t HELPER(usat16)(CPUARMState *env, uint32_t x, uint32_t shift)
     return res;
 }
 
+/* Function checks whether WFx (WFI/WFE) instructions are set up to be trapped.
+ * The function returns the target EL (1-3) if the instruction is to be trapped;
+ * otherwise it returns 0 indicating it is not trapped.
+ */
+static inline int check_wfx_trap(CPUARMState *env, bool is_wfe)
+{
+    int cur_el = arm_current_el(env);
+    uint64_t mask;
+
+    /* If we are currently in EL0 then we need to check if SCTLR is set up for
+     * WFx instructions being trapped to EL1. These trap bits don't exist in v7.
+     */
+    if (cur_el < 1 && arm_feature(env, ARM_FEATURE_V8)) {
+        int target_el;
+
+        mask = is_wfe ? SCTLR_nTWE : SCTLR_nTWI;
+        if (arm_is_secure_below_el3(env) && !arm_el_is_aa64(env, 3)) {
+            /* Secure EL0 and Secure PL1 is at EL3 */
+            target_el = 3;
+        } else {
+            target_el = 1;
+        }
+
+        if (!(env->cp15.sctlr_el[target_el] & mask)) {
+            return target_el;
+        }
+    }
+
+    /* We are not trapping to EL1; trap to EL2 if HCR_EL2 requires it
+     * No need for ARM_FEATURE check as if HCR_EL2 doesn't exist the
+     * bits will be zero indicating no trap.
+     */
+    if (cur_el < 2 && !arm_is_secure(env)) {
+        mask = (is_wfe) ? HCR_TWE : HCR_TWI;
+        if (env->cp15.hcr_el2 & mask) {
+            return 2;
+        }
+    }
+
+    /* We are not trapping to EL1 or EL2; trap to EL3 if SCR_EL3 requires it */
+    if (cur_el < 3) {
+        mask = (is_wfe) ? SCR_TWE : SCR_TWI;
+        if (env->cp15.scr_el3 & mask) {
+            return 3;
+        }
+    }
+
+    return 0;
+}
+
 void HELPER(wfi)(CPUARMState *env)
 {
     CPUState *cs = CPU(arm_env_get_cpu(env));
+    int target_el = check_wfx_trap(env, false);
 
     if (cpu_has_work(cs)) {
         /* Don't bother to go into our "low power state" if
          * we would just wake up immediately.
          */
         return;
+    }
+
+    if (target_el) {
+        env->pc -= 4;
+        raise_exception(env, EXCP_UDEF, syn_wfx(1, 0xe, 0), target_el);
     }
 
     cs->exception_index = EXCP_HLT;
@@ -269,7 +325,9 @@ void HELPER(wfe)(CPUARMState *env)
     CPUState *cs = CPU(arm_env_get_cpu(env));
 
     /* Don't actually halt the CPU, just yield back to top
-     * level loop
+     * level loop. This is not going into a "low power state"
+     * (ie halting until some event occurs), so we never take
+     * a configurable trap to a different exception level.
      */
     cs->exception_index = EXCP_YIELD;
     cpu_loop_exit(cs);
