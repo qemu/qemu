@@ -110,12 +110,14 @@ static void mb_cpu_realizefn(DeviceState *dev, Error **errp)
                         | PVR2_USE_DIV_MASK \
                         | PVR2_USE_HW_MUL_MASK \
                         | PVR2_USE_MUL64_MASK \
-                        | PVR2_USE_FPU_MASK \
-                        | PVR2_USE_FPU2_MASK \
                         | PVR2_FPU_EXC_MASK \
                         | 0;
 
-    env->pvr.regs[0] |= cpu->cfg.stackprot ? PVR0_SPROT_MASK : 0;
+    env->pvr.regs[0] |= (cpu->cfg.stackprot ? PVR0_SPROT_MASK : 0) |
+                        (cpu->cfg.usefpu ? PVR0_USE_FPU_MASK : 0);
+
+    env->pvr.regs[2] |= (cpu->cfg.usefpu ? PVR2_USE_FPU_MASK : 0) |
+                        (cpu->cfg.usefpu > 1 ? PVR2_USE_FPU2_MASK : 0);
 
     env->pvr.regs[10] = 0x0c000000; /* Default to spartan 3a dsp family.  */
     env->pvr.regs[11] = PVR11_USE_MMU | (16 << 17);
@@ -161,6 +163,11 @@ static Property mb_properties[] = {
     DEFINE_PROP_UINT32("base-vectors", MicroBlazeCPU, cfg.base_vectors, 0),
     DEFINE_PROP_BOOL("use-stack-protection", MicroBlazeCPU, cfg.stackprot,
                      true),
+    /* If use-fpu > 0 - FPU is enabled
+     * If use-fpu = 2 - Floating point conversion and square root instructions
+     *                  are enabled
+     */
+    DEFINE_PROP_UINT8("use-fpu", MicroBlazeCPU, cfg.usefpu, 2),
     DEFINE_PROP_END_OF_LIST(),
 };
 

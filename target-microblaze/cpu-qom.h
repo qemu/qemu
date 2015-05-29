@@ -63,6 +63,7 @@ typedef struct MicroBlazeCPU {
     struct {
         bool stackprot;
         uint32_t base_vectors;
+        uint8_t usefpu;
     } cfg;
 
     CPUMBState env;
