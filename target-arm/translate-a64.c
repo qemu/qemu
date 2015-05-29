@@ -11113,6 +11113,10 @@ void gen_intermediate_code_internal_a64(ARMCPU *cpu,
              */
             gen_a64_set_pc_im(dc->pc);
             gen_helper_wfi(cpu_env);
+            /* The helper doesn't necessarily throw an exception, but we
+             * must go back to the main loop to check for interrupts anyway.
+             */
+            tcg_gen_exit_tb(0);
             break;
         }
     }
