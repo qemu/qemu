@@ -17,7 +17,7 @@
 #include "exec/memory.h"
 #include "sysemu/sysemu.h"
 #include "exec/address-spaces.h"
-#include "qemu/config-file.h"
+#include "hw/boards.h"
 #include "hw/s390x/sclp.h"
 #include "hw/s390x/event-facility.h"
 #include "hw/s390x/s390-pci-bus.h"
@@ -31,19 +31,14 @@ static inline SCLPDevice *get_sclp_device(void)
 static void read_SCP_info(SCLPDevice *sclp, SCCB *sccb)
 {
     ReadInfo *read_info = (ReadInfo *) sccb;
+    MachineState *machine = MACHINE(qdev_get_machine());
     sclpMemoryHotplugDev *mhd = get_sclp_memory_hotplug_dev();
     CPUState *cpu;
     int cpu_count = 0;
     int i = 0;
     int increment_size = 20;
     int rnsize, rnmax;
-    QemuOpts *opts = qemu_opts_find(qemu_find_opts("memory"), NULL);
-    int slots = qemu_opt_get_number(opts, "slots", 0);
-    int max_avail_slots = s390_get_memslot_count(kvm_state);
-
-    if (slots > max_avail_slots) {
-        slots = max_avail_slots;
-    }
+    int slots = MIN(machine->ram_slots, s390_get_memslot_count(kvm_state));
 
     CPU_FOREACH(cpu) {
         cpu_count++;

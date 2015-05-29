@@ -109,9 +109,8 @@ static void ccw_init(MachineState *machine)
     int ret;
     VirtualCssBus *css_bus;
     DeviceState *dev;
-    QemuOpts *opts = qemu_opts_find(qemu_find_opts("memory"), NULL);
     ram_addr_t pad_size = 0;
-    ram_addr_t maxmem = qemu_opt_get_size(opts, "maxmem", my_ram_size);
+    ram_addr_t maxmem = machine->maxram_size;
     ram_addr_t standby_mem_size = maxmem - my_ram_size;
     uint64_t kvm_limit;
 
