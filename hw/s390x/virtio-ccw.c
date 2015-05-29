@@ -1381,7 +1381,16 @@ static int virtio_ccw_load_config(DeviceState *d, QEMUFile *f)
 static void virtio_ccw_device_plugged(DeviceState *d, Error **errp)
 {
     VirtioCcwDevice *dev = VIRTIO_CCW_DEVICE(d);
+    VirtIODevice *vdev = virtio_bus_get_device(&dev->bus);
     SubchDev *sch = dev->sch;
+    int n = virtio_get_num_queues(vdev);
+
+    if (virtio_get_num_queues(vdev) > VIRTIO_CCW_QUEUE_MAX) {
+        error_setg(errp, "The nubmer of virtqueues %d "
+                   "exceeds ccw limit %d", n,
+                   VIRTIO_CCW_QUEUE_MAX);
+        return;
+    }
 
     sch->id.cu_model = virtio_bus_get_vdev_id(&dev->bus);
 
