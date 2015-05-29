@@ -1378,7 +1378,7 @@ static int virtio_ccw_load_config(DeviceState *d, QEMUFile *f)
 }
 
 /* This is called by virtio-bus just after the device is plugged. */
-static void virtio_ccw_device_plugged(DeviceState *d)
+static void virtio_ccw_device_plugged(DeviceState *d, Error **errp)
 {
     VirtioCcwDevice *dev = VIRTIO_CCW_DEVICE(d);
     SubchDev *sch = dev->sch;

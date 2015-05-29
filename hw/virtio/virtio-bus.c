@@ -38,7 +38,7 @@ do { printf("virtio_bus: " fmt , ## __VA_ARGS__); } while (0)
 #endif
 
 /* A VirtIODevice is being plugged */
-int virtio_bus_device_plugged(VirtIODevice *vdev)
+void virtio_bus_device_plugged(VirtIODevice *vdev, Error **errp)
 {
     DeviceState *qdev = DEVICE(vdev);
     BusState *qbus = BUS(qdev_get_parent_bus(qdev));
@@ -49,13 +49,12 @@ int virtio_bus_device_plugged(VirtIODevice *vdev)
     DPRINTF("%s: plug device.\n", qbus->name);
 
     if (klass->device_plugged != NULL) {
-        klass->device_plugged(qbus->parent);
+        klass->device_plugged(qbus->parent, errp);
     }
 
     /* Get the features of the plugged device. */
     assert(vdc->get_features != NULL);
     vdev->host_features = vdc->get_features(vdev, vdev->host_features);
-    return 0;
 }
 
 /* Reset the virtio_bus */
