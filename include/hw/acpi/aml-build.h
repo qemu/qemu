@@ -36,49 +36,49 @@ struct Aml {
 typedef struct Aml Aml;
 
 typedef enum {
-    aml_decode10 = 0,
-    aml_decode16 = 1,
+    AML_DECODE10 = 0,
+    AML_DECODE16 = 1,
 } AmlIODecode;
 
 typedef enum {
-    aml_any_acc = 0,
-    aml_byte_acc = 1,
-    aml_word_acc = 2,
-    aml_dword_acc = 3,
-    aml_qword_acc = 4,
-    aml_buffer_acc = 5,
+    AML_ANY_ACC = 0,
+    AML_BYTE_ACC = 1,
+    AML_WORD_ACC = 2,
+    AML_DWORD_ACC = 3,
+    AML_QWORD_ACC = 4,
+    AML_BUFFER_ACC = 5,
 } AmlAccessType;
 
 typedef enum {
-    aml_preserve = 0,
-    aml_write_as_ones = 1,
-    aml_write_as_zeros = 2,
+    AML_PRESERVE = 0,
+    AML_WRITE_AS_ONES = 1,
+    AML_WRITE_AS_ZEROS = 2,
 } AmlUpdateRule;
 
 typedef enum {
-    aml_system_memory = 0x00,
-    aml_system_io = 0x01,
+    AML_SYSTEM_MEMORY = 0X00,
+    AML_SYSTEM_IO = 0X01,
 } AmlRegionSpace;
 
 typedef enum {
-    aml_memory_range = 0,
-    aml_io_range = 1,
-    aml_bus_number_range = 2,
+    AML_MEMORY_RANGE = 0,
+    AML_IO_RANGE = 1,
+    AML_BUS_NUMBER_RANGE = 2,
 } AmlResourceType;
 
 typedef enum {
-    aml_sub_decode = 1 << 1,
-    aml_pos_decode = 0
+    AML_SUB_DECODE = 1 << 1,
+    AML_POS_DECODE = 0
 } AmlDecode;
 
 typedef enum {
-    aml_max_fixed = 1 << 3,
-    aml_max_not_fixed = 0,
+    AML_MAX_FIXED = 1 << 3,
+    AML_MAX_NOT_FIXED = 0,
 } AmlMaxFixed;
 
 typedef enum {
-    aml_min_fixed = 1 << 2,
-    aml_min_not_fixed = 0
+    AML_MIN_FIXED = 1 << 2,
+    AML_MIN_NOT_FIXED = 0
 } AmlMinFixed;
 
 /*
@@ -86,9 +86,9 @@ typedef enum {
  * _RNG field definition
  */
 typedef enum {
-    aml_isa_only = 1,
-    aml_non_isa_only = 2,
-    aml_entire_range = 3,
+    AML_ISA_ONLY = 1,
+    AML_NON_ISA_ONLY = 2,
+    AML_ENTIRE_RANGE = 3,
 } AmlISARanges;
 
 /*
@@ -96,19 +96,19 @@ typedef enum {
  * _MEM field definition
  */
 typedef enum {
-    aml_non_cacheable = 0,
-    aml_cacheable = 1,
-    aml_write_combining = 2,
-    aml_prefetchable = 3,
-} AmlCacheble;
+    AML_NON_CACHEABLE = 0,
+    AML_CACHEABLE = 1,
+    AML_WRITE_COMBINING = 2,
+    AML_PREFETCHABLE = 3,
+} AmlCacheable;
 
 /*
  * ACPI 1.0b: Table 6-25 Memory Resource Flag (Resource Type = 0) Definitions
  * _RW field definition
  */
 typedef enum {
-    aml_ReadOnly = 0,
-    aml_ReadWrite = 1,
+    AML_READ_ONLY = 0,
+    AML_READ_WRITE = 1,
 } AmlReadAndWrite;
 
 typedef
@@ -191,13 +191,13 @@ Aml *aml_word_io(AmlMinFixed min_fixed, AmlMaxFixed max_fixed,
                  uint16_t addr_max, uint16_t addr_trans,
                  uint16_t len);
 Aml *aml_dword_memory(AmlDecode dec, AmlMinFixed min_fixed,
-                      AmlMaxFixed max_fixed, AmlCacheble cacheable,
+                      AmlMaxFixed max_fixed, AmlCacheable cacheable,
                       AmlReadAndWrite read_and_write,
                       uint32_t addr_gran, uint32_t addr_min,
                       uint32_t addr_max, uint32_t addr_trans,
                       uint32_t len);
 Aml *aml_qword_memory(AmlDecode dec, AmlMinFixed min_fixed,
-                      AmlMaxFixed max_fixed, AmlCacheble cacheable,
+                      AmlMaxFixed max_fixed, AmlCacheable cacheable,
                       AmlReadAndWrite read_and_write,
                       uint64_t addr_gran, uint64_t addr_min,
                       uint64_t addr_max, uint64_t addr_trans,

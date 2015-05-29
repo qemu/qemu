@@ -833,7 +833,7 @@ Aml *aml_word_bus_number(AmlMinFixed min_fixed, AmlMaxFixed max_fixed,
                          uint16_t addr_trans, uint16_t len)
 
 {
-    return aml_word_as_desc(aml_bus_number_range, min_fixed, max_fixed, dec,
+    return aml_word_as_desc(AML_BUS_NUMBER_RANGE, min_fixed, max_fixed, dec,
                             addr_gran, addr_min, addr_max, addr_trans, len, 0);
 }
 
@@ -850,7 +850,7 @@ Aml *aml_word_io(AmlMinFixed min_fixed, AmlMaxFixed max_fixed,
                  uint16_t len)
 
 {
-    return aml_word_as_desc(aml_io_range, min_fixed, max_fixed, dec,
+    return aml_word_as_desc(AML_IO_RANGE, min_fixed, max_fixed, dec,
                             addr_gran, addr_min, addr_max, addr_trans, len,
                             isa_ranges);
 }
@@ -862,7 +862,7 @@ Aml *aml_word_io(AmlMinFixed min_fixed, AmlMaxFixed max_fixed,
  * ACPI 5.0: 19.5.34 DWordMemory (DWord Memory Resource Descriptor Macro)
  */
 Aml *aml_dword_memory(AmlDecode dec, AmlMinFixed min_fixed,
-                      AmlMaxFixed max_fixed, AmlCacheble cacheable,
+                      AmlMaxFixed max_fixed, AmlCacheable cacheable,
                       AmlReadAndWrite read_and_write,
                       uint32_t addr_gran, uint32_t addr_min,
                       uint32_t addr_max, uint32_t addr_trans,
@@ -870,7 +870,7 @@ Aml *aml_dword_memory(AmlDecode dec, AmlMinFixed min_fixed,
 {
     uint8_t flags = read_and_write | (cacheable << 1);
 
-    return aml_dword_as_desc(aml_memory_range, min_fixed, max_fixed,
+    return aml_dword_as_desc(AML_MEMORY_RANGE, min_fixed, max_fixed,
                              dec, addr_gran, addr_min, addr_max,
                              addr_trans, len, flags);
 }
@@ -882,7 +882,7 @@ Aml *aml_dword_memory(AmlDecode dec, AmlMinFixed min_fixed,
  * ACPI 5.0: 19.5.102 QWordMemory (QWord Memory Resource Descriptor Macro)
  */
 Aml *aml_qword_memory(AmlDecode dec, AmlMinFixed min_fixed,
-                      AmlMaxFixed max_fixed, AmlCacheble cacheable,
+                      AmlMaxFixed max_fixed, AmlCacheable cacheable,
                       AmlReadAndWrite read_and_write,
                       uint64_t addr_gran, uint64_t addr_min,
                       uint64_t addr_max, uint64_t addr_trans,
@@ -890,7 +890,7 @@ Aml *aml_qword_memory(AmlDecode dec, AmlMinFixed min_fixed,
 {
     uint8_t flags = read_and_write | (cacheable << 1);
 
-    return aml_qword_as_desc(aml_memory_range, min_fixed, max_fixed,
+    return aml_qword_as_desc(AML_MEMORY_RANGE, min_fixed, max_fixed,
                              dec, addr_gran, addr_min, addr_max,
                              addr_trans, len, flags);
 }

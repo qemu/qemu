@@ -620,31 +620,31 @@ build_ssdt(GArray *table_data, GArray *linker,
     /* build PCI0._CRS */
     crs = aml_resource_template();
     aml_append(crs,
-        aml_word_bus_number(aml_min_fixed, aml_max_fixed, aml_pos_decode,
+        aml_word_bus_number(AML_MIN_FIXED, AML_MAX_FIXED, AML_POS_DECODE,
                             0x0000, 0x0000, 0x00FF, 0x0000, 0x0100));
-    aml_append(crs, aml_io(aml_decode16, 0x0CF8, 0x0CF8, 0x01, 0x08));
+    aml_append(crs, aml_io(AML_DECODE16, 0x0CF8, 0x0CF8, 0x01, 0x08));
 
     aml_append(crs,
-        aml_word_io(aml_min_fixed, aml_max_fixed,
-                    aml_pos_decode, aml_entire_range,
+        aml_word_io(AML_MIN_FIXED, AML_MAX_FIXED,
+                    AML_POS_DECODE, AML_ENTIRE_RANGE,
                     0x0000, 0x0000, 0x0CF7, 0x0000, 0x0CF8));
     aml_append(crs,
-        aml_word_io(aml_min_fixed, aml_max_fixed,
-                    aml_pos_decode, aml_entire_range,
+        aml_word_io(AML_MIN_FIXED, AML_MAX_FIXED,
+                    AML_POS_DECODE, AML_ENTIRE_RANGE,
                     0x0000, 0x0D00, 0xFFFF, 0x0000, 0xF300));
     aml_append(crs,
-        aml_dword_memory(aml_pos_decode, aml_min_fixed, aml_max_fixed,
-                         aml_cacheable, aml_ReadWrite,
+        aml_dword_memory(AML_POS_DECODE, AML_MIN_FIXED, AML_MAX_FIXED,
+                         AML_CACHEABLE, AML_READ_WRITE,
                          0, 0x000A0000, 0x000BFFFF, 0, 0x00020000));
     aml_append(crs,
-        aml_dword_memory(aml_pos_decode, aml_min_fixed, aml_max_fixed,
-                         aml_non_cacheable, aml_ReadWrite,
+        aml_dword_memory(AML_POS_DECODE, AML_MIN_FIXED, AML_MAX_FIXED,
+                         AML_NON_CACHEABLE, AML_READ_WRITE,
                          0, pci->w32.begin, pci->w32.end - 1, 0,
                          pci->w32.end - pci->w32.begin));
     if (pci->w64.begin) {
         aml_append(crs,
-            aml_qword_memory(aml_pos_decode, aml_min_fixed, aml_max_fixed,
-                             aml_cacheable, aml_ReadWrite,
+            aml_qword_memory(AML_POS_DECODE, AML_MIN_FIXED, AML_MAX_FIXED,
+                             AML_CACHEABLE, AML_READ_WRITE,
                              0, pci->w64.begin, pci->w64.end - 1, 0,
                              pci->w64.end - pci->w64.begin));
     }
@@ -658,7 +658,7 @@ build_ssdt(GArray *table_data, GArray *linker,
     aml_append(dev, aml_name_decl("_STA", aml_int(0xB)));
     crs = aml_resource_template();
     aml_append(crs,
-        aml_io(aml_decode16, pm->gpe0_blk, pm->gpe0_blk, 1, pm->gpe0_blk_len)
+        aml_io(AML_DECODE16, pm->gpe0_blk, pm->gpe0_blk, 1, pm->gpe0_blk_len)
     );
     aml_append(dev, aml_name_decl("_CRS", crs));
     aml_append(scope, dev);
@@ -673,7 +673,7 @@ build_ssdt(GArray *table_data, GArray *linker,
         aml_append(dev, aml_name_decl("_STA", aml_int(0xB)));
         crs = aml_resource_template();
         aml_append(crs,
-            aml_io(aml_decode16, pm->pcihp_io_base, pm->pcihp_io_base, 1,
+            aml_io(AML_DECODE16, pm->pcihp_io_base, pm->pcihp_io_base, 1,
                    pm->pcihp_io_len)
         );
         aml_append(dev, aml_name_decl("_CRS", crs));
@@ -720,7 +720,7 @@ build_ssdt(GArray *table_data, GArray *linker,
 
         crs = aml_resource_template();
         aml_append(crs,
-            aml_io(aml_decode16, misc->applesmc_io_base, misc->applesmc_io_base,
+            aml_io(AML_DECODE16, misc->applesmc_io_base, misc->applesmc_io_base,
                    0x01, APPLESMC_MAX_DATA_LENGTH)
         );
         aml_append(crs, aml_irq_no_flags(6));
@@ -738,13 +738,13 @@ build_ssdt(GArray *table_data, GArray *linker,
 
         crs = aml_resource_template();
         aml_append(crs,
-            aml_io(aml_decode16, misc->pvpanic_port, misc->pvpanic_port, 1, 1)
+            aml_io(AML_DECODE16, misc->pvpanic_port, misc->pvpanic_port, 1, 1)
         );
         aml_append(dev, aml_name_decl("_CRS", crs));
 
-        aml_append(dev, aml_operation_region("PEOR", aml_system_io,
+        aml_append(dev, aml_operation_region("PEOR", AML_SYSTEM_IO,
                                               misc->pvpanic_port, 1));
-        field = aml_field("PEOR", aml_byte_acc, aml_preserve);
+        field = aml_field("PEOR", AML_BYTE_ACC, AML_PRESERVE);
         aml_append(field, aml_named_field("PEPT", 8));
         aml_append(dev, field);
 
@@ -773,15 +773,15 @@ build_ssdt(GArray *table_data, GArray *linker,
         aml_append(dev, aml_name_decl("_STA", aml_int(0xB)));
         crs = aml_resource_template();
         aml_append(crs,
-            aml_io(aml_decode16, pm->cpu_hp_io_base, pm->cpu_hp_io_base, 1,
+            aml_io(AML_DECODE16, pm->cpu_hp_io_base, pm->cpu_hp_io_base, 1,
                    pm->cpu_hp_io_len)
         );
         aml_append(dev, aml_name_decl("_CRS", crs));
         aml_append(sb_scope, dev);
         /* declare CPU hotplug MMIO region and PRS field to access it */
         aml_append(sb_scope, aml_operation_region(
-            "PRST", aml_system_io, pm->cpu_hp_io_base, pm->cpu_hp_io_len));
-        field = aml_field("PRST", aml_byte_acc, aml_preserve);
+            "PRST", AML_SYSTEM_IO, pm->cpu_hp_io_base, pm->cpu_hp_io_len));
+        field = aml_field("PRST", AML_BYTE_ACC, AML_PRESERVE);
         aml_append(field, aml_named_field("PRS", 256));
         aml_append(sb_scope, field);
 
@@ -845,18 +845,18 @@ build_ssdt(GArray *table_data, GArray *linker,
 
         crs = aml_resource_template();
         aml_append(crs,
-            aml_io(aml_decode16, pm->mem_hp_io_base, pm->mem_hp_io_base, 0,
+            aml_io(AML_DECODE16, pm->mem_hp_io_base, pm->mem_hp_io_base, 0,
                    pm->mem_hp_io_len)
         );
         aml_append(scope, aml_name_decl("_CRS", crs));
 
         aml_append(scope, aml_operation_region(
-            stringify(MEMORY_HOTPLUG_IO_REGION), aml_system_io,
+            stringify(MEMORY_HOTPLUG_IO_REGION), AML_SYSTEM_IO,
             pm->mem_hp_io_base, pm->mem_hp_io_len)
         );
 
-        field = aml_field(stringify(MEMORY_HOTPLUG_IO_REGION), aml_dword_acc,
-                          aml_preserve);
+        field = aml_field(stringify(MEMORY_HOTPLUG_IO_REGION), AML_DWORD_ACC,
+                          AML_PRESERVE);
         aml_append(field, /* read only */
             aml_named_field(stringify(MEMORY_SLOT_ADDR_LOW), 32));
         aml_append(field, /* read only */
@@ -869,8 +869,8 @@ build_ssdt(GArray *table_data, GArray *linker,
             aml_named_field(stringify(MEMORY_SLOT_PROXIMITY), 32));
         aml_append(scope, field);
 
-        field = aml_field(stringify(MEMORY_HOTPLUG_IO_REGION), aml_byte_acc,
-                          aml_write_as_zeros);
+        field = aml_field(stringify(MEMORY_HOTPLUG_IO_REGION), AML_BYTE_ACC,
+                          AML_WRITE_AS_ZEROS);
         aml_append(field, aml_reserved_field(160 /* bits, Offset(20) */));
         aml_append(field, /* 1 if enabled, read only */
             aml_named_field(stringify(MEMORY_SLOT_ENABLED), 1));
@@ -885,8 +885,8 @@ build_ssdt(GArray *table_data, GArray *linker,
             aml_named_field(stringify(MEMORY_SLOT_EJECT), 1));
         aml_append(scope, field);
 
-        field = aml_field(stringify(MEMORY_HOTPLUG_IO_REGION), aml_dword_acc,
-                          aml_preserve);
+        field = aml_field(stringify(MEMORY_HOTPLUG_IO_REGION), AML_DWORD_ACC,
+                          AML_PRESERVE);
         aml_append(field, /* DIMM selector, write only */
             aml_named_field(stringify(MEMORY_SLOT_SLECTOR), 32));
         aml_append(field, /* _OST event code, write only */
