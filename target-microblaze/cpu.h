@@ -128,6 +128,7 @@ typedef struct CPUMBState CPUMBState;
 #define PVR0_FAULT			0x00100000
 #define PVR0_VERSION_MASK               0x0000FF00
 #define PVR0_USER1_MASK                 0x000000FF
+#define PVR0_SPROT_MASK                 0x00000001
 
 /* User 2 PVR mask */
 #define PVR1_USER2_MASK                 0xFFFFFFFF

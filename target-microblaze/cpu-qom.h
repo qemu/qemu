@@ -59,6 +59,11 @@ typedef struct MicroBlazeCPU {
     uint32_t base_vectors;
     /*< public >*/
 
+    /* Microblaze Configuration Settings */
+    struct {
+        bool stackprot;
+    } cfg;
+
     CPUMBState env;
 } MicroBlazeCPU;
 

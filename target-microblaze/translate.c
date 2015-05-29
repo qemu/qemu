@@ -862,7 +862,7 @@ static inline TCGv *compute_ldst_addr(DisasContext *dc, TCGv *t)
     int stackprot = 0;
 
     /* All load/stores use ra.  */
-    if (dc->ra == 1) {
+    if (dc->ra == 1 && dc->cpu->cfg.stackprot) {
         stackprot = 1;
     }
 
@@ -875,7 +875,7 @@ static inline TCGv *compute_ldst_addr(DisasContext *dc, TCGv *t)
             return &cpu_R[dc->ra];
         }
 
-        if (dc->rb == 1) {
+        if (dc->rb == 1 && dc->cpu->cfg.stackprot) {
             stackprot = 1;
         }
 
