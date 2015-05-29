@@ -26,6 +26,7 @@
 #include <string.h>
 #include "hw/acpi/aml-build.h"
 #include "qemu/bswap.h"
+#include "qemu/bitops.h"
 #include "hw/acpi/bios-linker-loader.h"
 
 static GArray *build_alloc_array(void)
@@ -502,6 +503,33 @@ Aml *aml_call4(const char *method, Aml *arg1, Aml *arg2, Aml *arg3, Aml *arg4)
     aml_append(var, arg2);
     aml_append(var, arg3);
     aml_append(var, arg4);
+    return var;
+}
+
+/*
+ * ACPI 1.0b: 6.4.3.4 32-Bit Fixed Location Memory Range Descriptor
+ * (Type 1, Large Item Name 0x6)
+ */
+Aml *aml_memory32_fixed(uint32_t addr, uint32_t size,
+                        AmlReadAndWrite read_and_write)
+{
+    Aml *var = aml_alloc();
+    build_append_byte(var->buf, 0x86); /* Memory32Fixed Resource Descriptor */
+    build_append_byte(var->buf, 9);    /* Length, bits[7:0] value = 9 */
+    build_append_byte(var->buf, 0);    /* Length, bits[15:8] value = 0 */
+    build_append_byte(var->buf, read_and_write); /* Write status, 1 rw 0 ro */
+
+    /* Range base address */
+    build_append_byte(var->buf, extract32(addr, 0, 8));  /* bits[7:0] */
+    build_append_byte(var->buf, extract32(addr, 8, 8));  /* bits[15:8] */
+    build_append_byte(var->buf, extract32(addr, 16, 8)); /* bits[23:16] */
+    build_append_byte(var->buf, extract32(addr, 24, 8)); /* bits[31:24] */
+
+    /* Range length */
+    build_append_byte(var->buf, extract32(size, 0, 8));  /* bits[7:0] */
+    build_append_byte(var->buf, extract32(size, 8, 8));  /* bits[15:8] */
+    build_append_byte(var->buf, extract32(size, 16, 8)); /* bits[23:16] */
+    build_append_byte(var->buf, extract32(size, 24, 8)); /* bits[31:24] */
     return var;
 }
 
