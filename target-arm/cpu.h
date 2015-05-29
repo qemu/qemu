@@ -197,6 +197,7 @@ typedef struct CPUARMState {
             uint64_t sctlr_el[4];
         };
         uint64_t cpacr_el1; /* Architectural feature access control register */
+        uint64_t cptr_el[4];  /* ARMv8 feature trap registers */
         uint32_t c1_xscaleauxcr; /* XScale auxiliary control register.  */
         uint64_t sder; /* Secure debug enable register. */
         uint32_t nsacr; /* Non-secure access control register. */
@@ -567,6 +568,10 @@ void pmccntr_sync(CPUARMState *env);
 #define SCTLR_TRE     (1U << 28)
 #define SCTLR_AFE     (1U << 29)
 #define SCTLR_TE      (1U << 30)
+
+#define CPTR_TCPAC    (1U << 31)
+#define CPTR_TTA      (1U << 20)
+#define CPTR_TFP      (1U << 10)
 
 #define CPSR_M (0x1fU)
 #define CPSR_T (1U << 5)

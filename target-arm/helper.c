@@ -592,6 +592,33 @@ static void cpacr_write(CPUARMState *env, const ARMCPRegInfo *ri,
     env->cp15.cpacr_el1 = value;
 }
 
+static CPAccessResult cpacr_access(CPUARMState *env, const ARMCPRegInfo *ri)
+{
+    if (arm_feature(env, ARM_FEATURE_V8)) {
+        /* Check if CPACR accesses are to be trapped to EL2 */
+        if (arm_current_el(env) == 1 &&
+            (env->cp15.cptr_el[2] & CPTR_TCPAC) && !arm_is_secure(env)) {
+            return CP_ACCESS_TRAP_EL2;
+        /* Check if CPACR accesses are to be trapped to EL3 */
+        } else if (arm_current_el(env) < 3 &&
+                   (env->cp15.cptr_el[3] & CPTR_TCPAC)) {
+            return CP_ACCESS_TRAP_EL3;
+        }
+    }
+
+    return CP_ACCESS_OK;
+}
+
+static CPAccessResult cptr_access(CPUARMState *env, const ARMCPRegInfo *ri)
+{
+    /* Check if CPTR accesses are set to trap to EL3 */
+    if (arm_current_el(env) == 2 && (env->cp15.cptr_el[3] & CPTR_TCPAC)) {
+        return CP_ACCESS_TRAP_EL3;
+    }
+
+    return CP_ACCESS_OK;
+}
+
 static const ARMCPRegInfo v6_cp_reginfo[] = {
     /* prefetch by MVA in v6, NOP in v7 */
     { .name = "MVA_prefetch",
@@ -614,7 +641,7 @@ static const ARMCPRegInfo v6_cp_reginfo[] = {
     { .name = "WFAR", .cp = 15, .crn = 6, .crm = 0, .opc1 = 0, .opc2 = 1,
       .access = PL1_RW, .type = ARM_CP_CONST, .resetvalue = 0, },
     { .name = "CPACR", .state = ARM_CP_STATE_BOTH, .opc0 = 3,
-      .crn = 1, .crm = 0, .opc1 = 0, .opc2 = 2,
+      .crn = 1, .crm = 0, .opc1 = 0, .opc2 = 2, .accessfn = cpacr_access,
       .access = PL1_RW, .fieldoffset = offsetof(CPUARMState, cp15.cpacr_el1),
       .resetvalue = 0, .writefn = cpacr_write },
     REGINFO_SENTINEL
@@ -2481,6 +2508,9 @@ static const ARMCPRegInfo v8_el3_no_el2_cp_reginfo[] = {
       .opc0 = 3, .opc1 = 4, .crn = 1, .crm = 1, .opc2 = 0,
       .access = PL2_RW,
       .readfn = arm_cp_read_zero, .writefn = arm_cp_write_ignore },
+    { .name = "CPTR_EL2", .state = ARM_CP_STATE_BOTH,
+      .opc0 = 3, .opc1 = 4, .crn = 1, .crm = 1, .opc2 = 2,
+      .access = PL2_RW, .type = ARM_CP_CONST, .resetvalue = 0 },
     REGINFO_SENTINEL
 };
 
@@ -2548,6 +2578,10 @@ static const ARMCPRegInfo v8_el2_cp_reginfo[] = {
       .opc0 = 3, .opc1 = 6, .crn = 4, .crm = 1, .opc2 = 0,
       .access = PL3_RW, .type = ARM_CP_ALIAS,
       .fieldoffset = offsetof(CPUARMState, sp_el[2]) },
+    { .name = "CPTR_EL2", .state = ARM_CP_STATE_BOTH,
+      .opc0 = 3, .opc1 = 4, .crn = 1, .crm = 1, .opc2 = 2,
+      .access = PL2_RW, .accessfn = cptr_access, .resetvalue = 0,
+      .fieldoffset = offsetof(CPUARMState, cp15.cptr_el[2]) },
     REGINFO_SENTINEL
 };
 
@@ -2609,6 +2643,10 @@ static const ARMCPRegInfo el3_cp_reginfo[] = {
       .access = PL3_RW, .writefn = vbar_write,
       .fieldoffset = offsetof(CPUARMState, cp15.vbar_el[3]),
       .resetvalue = 0 },
+    { .name = "CPTR_EL3", .state = ARM_CP_STATE_AA64,
+      .opc0 = 3, .opc1 = 6, .crn = 1, .crm = 1, .opc2 = 2,
+      .access = PL3_RW, .accessfn = cptr_access, .resetvalue = 0,
+      .fieldoffset = offsetof(CPUARMState, cp15.cptr_el[3]) },
     REGINFO_SENTINEL
 };
 
