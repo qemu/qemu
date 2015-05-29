@@ -259,6 +259,7 @@ Aml *aml_package(uint8_t num_elements);
 Aml *aml_buffer(int buffer_size, uint8_t *byte_list);
 Aml *aml_resource_template(void);
 Aml *aml_field(const char *name, AmlAccessType type, AmlUpdateRule rule);
+Aml *aml_create_dword_field(Aml *srcbuf, Aml *index, const char *name);
 Aml *aml_varpackage(uint32_t num_elements);
 Aml *aml_touuid(const char *uuid);
 
