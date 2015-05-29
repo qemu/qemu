@@ -130,7 +130,10 @@ static void read_storage_element0_info(SCLPDevice *sclp, SCCB *sccb)
     ReadStorageElementInfo *storage_info = (ReadStorageElementInfo *) sccb;
     sclpMemoryHotplugDev *mhd = get_sclp_memory_hotplug_dev();
 
-    assert(mhd);
+    if (!mhd) {
+        sccb->h.response_code = cpu_to_be16(SCLP_RC_INVALID_SCLP_COMMAND);
+        return;
+    }
 
     if ((ram_size >> mhd->increment_size) >= 0x10000) {
         sccb->h.response_code = cpu_to_be16(SCLP_RC_SCCB_BOUNDARY_VIOLATION);
@@ -154,7 +157,10 @@ static void read_storage_element1_info(SCLPDevice *sclp, SCCB *sccb)
     ReadStorageElementInfo *storage_info = (ReadStorageElementInfo *) sccb;
     sclpMemoryHotplugDev *mhd = get_sclp_memory_hotplug_dev();
 
-    assert(mhd);
+    if (!mhd) {
+        sccb->h.response_code = cpu_to_be16(SCLP_RC_INVALID_SCLP_COMMAND);
+        return;
+    }
 
     if ((mhd->standby_mem_size >> mhd->increment_size) >= 0x10000) {
         sccb->h.response_code = cpu_to_be16(SCLP_RC_SCCB_BOUNDARY_VIOLATION);
@@ -177,7 +183,10 @@ static void attach_storage_element(SCLPDevice *sclp, SCCB *sccb,
     AttachStorageElement *attach_info = (AttachStorageElement *) sccb;
     sclpMemoryHotplugDev *mhd = get_sclp_memory_hotplug_dev();
 
-    assert(mhd);
+    if (!mhd) {
+        sccb->h.response_code = cpu_to_be16(SCLP_RC_INVALID_SCLP_COMMAND);
+        return;
+    }
 
     if (element != 1) {
         sccb->h.response_code = cpu_to_be16(SCLP_RC_INVALID_SCLP_COMMAND);
@@ -201,9 +210,14 @@ static void assign_storage(SCLPDevice *sclp, SCCB *sccb)
     uint64_t this_subregion_size;
     AssignStorage *assign_info = (AssignStorage *) sccb;
     sclpMemoryHotplugDev *mhd = get_sclp_memory_hotplug_dev();
-    assert(mhd);
-    ram_addr_t assign_addr = (assign_info->rn - 1) * mhd->rzm;
+    ram_addr_t assign_addr;
     MemoryRegion *sysmem = get_system_memory();
+
+    if (!mhd) {
+        sccb->h.response_code = cpu_to_be16(SCLP_RC_INVALID_SCLP_COMMAND);
+        return;
+    }
+    assign_addr = (assign_info->rn - 1) * mhd->rzm;
 
     if ((assign_addr % MEM_SECTION_SIZE == 0) &&
         (assign_addr >= mhd->padded_ram_size)) {
@@ -255,9 +269,14 @@ static void unassign_storage(SCLPDevice *sclp, SCCB *sccb)
     MemoryRegion *mr = NULL;
     AssignStorage *assign_info = (AssignStorage *) sccb;
     sclpMemoryHotplugDev *mhd = get_sclp_memory_hotplug_dev();
-    assert(mhd);
-    ram_addr_t unassign_addr = (assign_info->rn - 1) * mhd->rzm;
+    ram_addr_t unassign_addr;
     MemoryRegion *sysmem = get_system_memory();
+
+    if (!mhd) {
+        sccb->h.response_code = cpu_to_be16(SCLP_RC_INVALID_SCLP_COMMAND);
+        return;
+    }
+    unassign_addr = (assign_info->rn - 1) * mhd->rzm;
 
     /* if the addr is a multiple of 256 MB */
     if ((unassign_addr % MEM_SECTION_SIZE == 0) &&
