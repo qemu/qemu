@@ -63,12 +63,33 @@ static void mb_cpu_reset(CPUState *s)
 
     mcc->parent_reset(s);
 
-    memset(env, 0, sizeof(CPUMBState));
+    memset(env, 0, offsetof(CPUMBState, pvr));
     env->res_addr = RES_ADDR_NONE;
     tlb_flush(s, 1);
 
     /* Disable stack protector.  */
     env->shr = ~0;
+
+#if defined(CONFIG_USER_ONLY)
+    /* start in user mode with interrupts enabled.  */
+    env->sregs[SR_MSR] = MSR_EE | MSR_IE | MSR_VM | MSR_UM;
+#else
+    env->sregs[SR_MSR] = 0;
+    mmu_init(&env->mmu);
+    env->mmu.c_mmu = 3;
+    env->mmu.c_mmu_tlb_access = 3;
+    env->mmu.c_mmu_zones = 16;
+#endif
+}
+
+static void mb_cpu_realizefn(DeviceState *dev, Error **errp)
+{
+    CPUState *cs = CPU(dev);
+    MicroBlazeCPUClass *mcc = MICROBLAZE_CPU_GET_CLASS(dev);
+    MicroBlazeCPU *cpu = MICROBLAZE_CPU(cs);
+    CPUMBState *env = &cpu->env;
+
+    qemu_init_vcpu(cs);
 
     env->pvr.regs[0] = PVR0_PVR_FULL_MASK \
                        | PVR0_USE_BARREL_MASK \
@@ -99,25 +120,8 @@ static void mb_cpu_reset(CPUState *s)
     env->sregs[SR_PC] = cpu->base_vectors;
 
 #if defined(CONFIG_USER_ONLY)
-    /* start in user mode with interrupts enabled.  */
-    env->sregs[SR_MSR] = MSR_EE | MSR_IE | MSR_VM | MSR_UM;
     env->pvr.regs[10] = 0x0c000000; /* Spartan 3a dsp.  */
-#else
-    env->sregs[SR_MSR] = 0;
-    mmu_init(&env->mmu);
-    env->mmu.c_mmu = 3;
-    env->mmu.c_mmu_tlb_access = 3;
-    env->mmu.c_mmu_zones = 16;
 #endif
-}
-
-static void mb_cpu_realizefn(DeviceState *dev, Error **errp)
-{
-    CPUState *cs = CPU(dev);
-    MicroBlazeCPUClass *mcc = MICROBLAZE_CPU_GET_CLASS(dev);
-
-    cpu_reset(cs);
-    qemu_init_vcpu(cs);
 
     mcc->parent_realize(dev, errp);
 }
