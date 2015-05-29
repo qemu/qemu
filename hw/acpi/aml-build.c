@@ -959,6 +959,24 @@ Aml *aml_word_io(AmlMinFixed min_fixed, AmlMaxFixed max_fixed,
 }
 
 /*
+ * ACPI 1.0b: 6.4.3.5.4 ASL Macros for DWORD Address Descriptor
+ *
+ * More verbose description at:
+ * ACPI 5.0: 19.5.33 DWordIO (DWord IO Resource Descriptor Macro)
+ */
+Aml *aml_dword_io(AmlMinFixed min_fixed, AmlMaxFixed max_fixed,
+                 AmlDecode dec, AmlISARanges isa_ranges,
+                 uint32_t addr_gran, uint32_t addr_min,
+                 uint32_t addr_max, uint32_t addr_trans,
+                 uint32_t len)
+
+{
+    return aml_dword_as_desc(AML_IO_RANGE, min_fixed, max_fixed, dec,
+                            addr_gran, addr_min, addr_max, addr_trans, len,
+                            isa_ranges);
+}
+
+/*
  * ACPI 1.0b: 6.4.3.5.4 ASL Macros for DWORD Address Space Descriptor
  *
  * More verbose description at:

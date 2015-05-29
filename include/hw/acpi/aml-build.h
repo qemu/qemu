@@ -236,6 +236,11 @@ Aml *aml_word_io(AmlMinFixed min_fixed, AmlMaxFixed max_fixed,
                  uint16_t addr_gran, uint16_t addr_min,
                  uint16_t addr_max, uint16_t addr_trans,
                  uint16_t len);
+Aml *aml_dword_io(AmlMinFixed min_fixed, AmlMaxFixed max_fixed,
+                 AmlDecode dec, AmlISARanges isa_ranges,
+                 uint32_t addr_gran, uint32_t addr_min,
+                 uint32_t addr_max, uint32_t addr_trans,
+                 uint32_t len);
 Aml *aml_dword_memory(AmlDecode dec, AmlMinFixed min_fixed,
                       AmlMaxFixed max_fixed, AmlCacheable cacheable,
                       AmlReadAndWrite read_and_write,
