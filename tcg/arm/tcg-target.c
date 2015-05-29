@@ -1260,9 +1260,9 @@ static void tcg_out_qemu_ld_slow_path(TCGContext *s, TCGLabelQemuLdst *lb)
        icache usage.  For pre-armv6, use the signed helpers since we do
        not have a single insn sign-extend.  */
     if (use_armv6_instructions) {
-        func = qemu_ld_helpers[opc & ~MO_SIGN];
+        func = qemu_ld_helpers[opc & (MO_BSWAP | MO_SIZE)];
     } else {
-        func = qemu_ld_helpers[opc];
+        func = qemu_ld_helpers[opc & (MO_BSWAP | MO_SSIZE)];
         if (opc & MO_SIGN) {
             opc = MO_UL;
         }
@@ -1337,7 +1337,7 @@ static void tcg_out_qemu_st_slow_path(TCGContext *s, TCGLabelQemuLdst *lb)
     argreg = tcg_out_arg_reg32(s, argreg, TCG_REG_R14);
 
     /* Tail-call to the helper, which will return to the fast path.  */
-    tcg_out_goto(s, COND_AL, qemu_st_helpers[opc]);
+    tcg_out_goto(s, COND_AL, qemu_st_helpers[opc & (MO_BSWAP | MO_SIZE)]);
 }
 #endif /* SOFTMMU */
 
