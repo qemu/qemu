@@ -170,7 +170,7 @@ static void virtio_ccw_start_ioeventfd(VirtioCcwDevice *dev)
         return;
     }
     vdev = virtio_bus_get_device(&dev->bus);
-    for (n = 0; n < VIRTIO_PCI_QUEUE_MAX; n++) {
+    for (n = 0; n < VIRTIO_CCW_QUEUE_MAX; n++) {
         if (!virtio_queue_get_num(vdev, n)) {
             continue;
         }
@@ -205,7 +205,7 @@ static void virtio_ccw_stop_ioeventfd(VirtioCcwDevice *dev)
         return;
     }
     vdev = virtio_bus_get_device(&dev->bus);
-    for (n = 0; n < VIRTIO_PCI_QUEUE_MAX; n++) {
+    for (n = 0; n < VIRTIO_CCW_QUEUE_MAX; n++) {
         if (!virtio_queue_get_num(vdev, n)) {
             continue;
         }
@@ -266,7 +266,7 @@ static int virtio_ccw_set_vqs(SubchDev *sch, uint64_t addr, uint32_t align,
 {
     VirtIODevice *vdev = virtio_ccw_get_vdev(sch);
 
-    if (index >= VIRTIO_PCI_QUEUE_MAX) {
+    if (index >= VIRTIO_CCW_QUEUE_MAX) {
         return -EINVAL;
     }
 
@@ -291,7 +291,7 @@ static int virtio_ccw_set_vqs(SubchDev *sch, uint64_t addr, uint32_t align,
         virtio_queue_set_vector(vdev, index, index);
     }
     /* tell notify handler in case of config change */
-    vdev->config_vector = VIRTIO_PCI_QUEUE_MAX;
+    vdev->config_vector = VIRTIO_CCW_QUEUE_MAX;
     return 0;
 }
 
@@ -573,7 +573,7 @@ static int virtio_ccw_cb(SubchDev *sch, CCW1 ccw)
                                                     ccw.cda,
                                                     MEMTXATTRS_UNSPECIFIED,
                                                     NULL);
-            if (vq_config.index >= VIRTIO_PCI_QUEUE_MAX) {
+            if (vq_config.index >= VIRTIO_CCW_QUEUE_MAX) {
                 ret = -EINVAL;
                 break;
             }
@@ -1025,7 +1025,7 @@ static void virtio_ccw_notify(DeviceState *d, uint16_t vector)
         return;
     }
 
-    if (vector < VIRTIO_PCI_QUEUE_MAX) {
+    if (vector < VIRTIO_CCW_QUEUE_MAX) {
         if (!dev->indicators) {
             return;
         }
