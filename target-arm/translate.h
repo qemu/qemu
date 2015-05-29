@@ -22,7 +22,7 @@ typedef struct DisasContext {
 #endif
     ARMMMUIdx mmu_idx; /* MMU index to use for normal loads/stores */
     bool ns;        /* Use non-secure CPREG bank on access */
-    bool cpacr_fpen; /* FP enabled via CPACR.FPEN */
+    int fp_excp_el; /* FP exception EL or 0 if enabled */
     bool el3_is_aa64;  /* Flag indicating whether EL3 is AArch64 or not */
     bool vfp_enabled; /* FP enabled via FPSCR.EN */
     int vec_len;

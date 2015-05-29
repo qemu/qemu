@@ -412,7 +412,7 @@ static TCGv_i64 read_cpu_reg_sp(DisasContext *s, int reg, int sf)
 static inline void assert_fp_access_checked(DisasContext *s)
 {
 #ifdef CONFIG_DEBUG_TCG
-    if (unlikely(!s->fp_access_checked || !s->cpacr_fpen)) {
+    if (unlikely(!s->fp_access_checked || s->fp_excp_el)) {
         fprintf(stderr, "target-arm: FP access check missing for "
                 "instruction 0x%08x\n", s->insn);
         abort();
@@ -972,12 +972,12 @@ static inline bool fp_access_check(DisasContext *s)
     assert(!s->fp_access_checked);
     s->fp_access_checked = true;
 
-    if (s->cpacr_fpen) {
+    if (!s->fp_excp_el) {
         return true;
     }
 
     gen_exception_insn(s, 4, EXCP_UDEF, syn_fp_access_trap(1, 0xe, false),
-                       default_exception_el(s));
+                       s->fp_excp_el);
     return false;
 }
 
@@ -10954,7 +10954,7 @@ void gen_intermediate_code_internal_a64(ARMCPU *cpu,
 #if !defined(CONFIG_USER_ONLY)
     dc->user = (dc->current_el == 0);
 #endif
-    dc->cpacr_fpen = ARM_TBFLAG_AA64_FPEN(tb->flags);
+    dc->fp_excp_el = ARM_TBFLAG_FPEXC_EL(tb->flags);
     dc->vec_len = 0;
     dc->vec_stride = 0;
     dc->cp_regs = cpu->cp_regs;

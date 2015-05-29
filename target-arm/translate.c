@@ -3044,10 +3044,9 @@ static int disas_vfp_insn(DisasContext *s, uint32_t insn)
      * for invalid encodings; we will generate incorrect syndrome information
      * for attempts to execute invalid vfp/neon encodings with FP disabled.
      */
-    if (!s->cpacr_fpen) {
+    if (s->fp_excp_el) {
         gen_exception_insn(s, 4, EXCP_UDEF,
-                           syn_fp_access_trap(1, 0xe, s->thumb),
-                           default_exception_el(s));
+                           syn_fp_access_trap(1, 0xe, s->thumb), s->fp_excp_el);
         return 0;
     }
 
@@ -4363,10 +4362,9 @@ static int disas_neon_ls_insn(DisasContext *s, uint32_t insn)
      * for invalid encodings; we will generate incorrect syndrome information
      * for attempts to execute invalid vfp/neon encodings with FP disabled.
      */
-    if (!s->cpacr_fpen) {
+    if (s->fp_excp_el) {
         gen_exception_insn(s, 4, EXCP_UDEF,
-                           syn_fp_access_trap(1, 0xe, s->thumb),
-                           default_exception_el(s));
+                           syn_fp_access_trap(1, 0xe, s->thumb), s->fp_excp_el);
         return 0;
     }
 
@@ -5102,10 +5100,9 @@ static int disas_neon_data_insn(DisasContext *s, uint32_t insn)
      * for invalid encodings; we will generate incorrect syndrome information
      * for attempts to execute invalid vfp/neon encodings with FP disabled.
      */
-    if (!s->cpacr_fpen) {
+    if (s->fp_excp_el) {
         gen_exception_insn(s, 4, EXCP_UDEF,
-                           syn_fp_access_trap(1, 0xe, s->thumb),
-                           default_exception_el(s));
+                           syn_fp_access_trap(1, 0xe, s->thumb), s->fp_excp_el);
         return 0;
     }
 
@@ -11082,7 +11079,7 @@ static inline void gen_intermediate_code_internal(ARMCPU *cpu,
     dc->user = (dc->current_el == 0);
 #endif
     dc->ns = ARM_TBFLAG_NS(tb->flags);
-    dc->cpacr_fpen = ARM_TBFLAG_CPACR_FPEN(tb->flags);
+    dc->fp_excp_el = ARM_TBFLAG_FPEXC_EL(tb->flags);
     dc->vfp_enabled = ARM_TBFLAG_VFPEN(tb->flags);
     dc->vec_len = ARM_TBFLAG_VECLEN(tb->flags);
     dc->vec_stride = ARM_TBFLAG_VECSTRIDE(tb->flags);
