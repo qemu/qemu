@@ -33,6 +33,20 @@ static void raise_exception(CPUARMState *env, int tt)
     cpu_loop_exit(cs);
 }
 
+static int exception_target_el(CPUARMState *env)
+{
+    int target_el = MAX(1, arm_current_el(env));
+
+    /* No such thing as secure EL1 if EL3 is aarch32, so update the target EL
+     * to EL3 in this case.
+     */
+    if (arm_is_secure(env) && !arm_el_is_aa64(env, 3) && target_el == 1) {
+        target_el = 3;
+    }
+
+    return target_el;
+}
+
 uint32_t HELPER(neon_tbl)(CPUARMState *env, uint32_t ireg, uint32_t def,
                           uint32_t rn, uint32_t maxindex)
 {
@@ -306,6 +320,7 @@ void HELPER(access_check_cp_reg)(CPUARMState *env, void *rip, uint32_t syndrome)
     if (arm_feature(env, ARM_FEATURE_XSCALE) && ri->cp < 14
         && extract32(env->cp15.c15_cpar, ri->cp, 1) == 0) {
         env->exception.syndrome = syndrome;
+        env->exception.target_el = exception_target_el(env);
         raise_exception(env, EXCP_UDEF);
     }
 
@@ -318,9 +333,11 @@ void HELPER(access_check_cp_reg)(CPUARMState *env, void *rip, uint32_t syndrome)
         return;
     case CP_ACCESS_TRAP:
         env->exception.syndrome = syndrome;
+        env->exception.target_el = exception_target_el(env);
         break;
     case CP_ACCESS_TRAP_UNCATEGORIZED:
         env->exception.syndrome = syn_uncategorized();
+        env->exception.target_el = exception_target_el(env);
         break;
     default:
         g_assert_not_reached();
@@ -363,6 +380,7 @@ void HELPER(msr_i_pstate)(CPUARMState *env, uint32_t op, uint32_t imm)
      * to catch that case at translate time.
      */
     if (arm_current_el(env) == 0 && !(env->cp15.sctlr_el[1] & SCTLR_UMA)) {
+        env->exception.target_el = exception_target_el(env);
         raise_exception(env, EXCP_UDEF);
     }
 
@@ -422,6 +440,7 @@ void HELPER(pre_hvc)(CPUARMState *env)
 
     if (undef) {
         env->exception.syndrome = syn_uncategorized();
+        env->exception.target_el = exception_target_el(env);
         raise_exception(env, EXCP_UDEF);
     }
 }
@@ -452,11 +471,13 @@ void HELPER(pre_smc)(CPUARMState *env, uint32_t syndrome)
     } else if (!secure && cur_el == 1 && (env->cp15.hcr_el2 & HCR_TSC)) {
         /* In NS EL1, HCR controlled routing to EL2 has priority over SMD. */
         env->exception.syndrome = syndrome;
+        env->exception.target_el = 2;
         raise_exception(env, EXCP_HYP_TRAP);
     }
 
     if (undef) {
         env->exception.syndrome = syn_uncategorized();
+        env->exception.target_el = exception_target_el(env);
         raise_exception(env, EXCP_UDEF);
     }
 }
