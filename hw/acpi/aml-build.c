@@ -642,10 +642,22 @@ Aml *aml_resource_template(void)
     return var;
 }
 
-/* ACPI 1.0b: 16.2.5.4 Type 2 Opcodes Encoding: DefBuffer */
-Aml *aml_buffer(void)
+/* ACPI 1.0b: 16.2.5.4 Type 2 Opcodes Encoding: DefBuffer
+ * Pass byte_list as NULL to request uninitialized buffer to reserve space.
+ */
+Aml *aml_buffer(int buffer_size, uint8_t *byte_list)
 {
+    int i;
     Aml *var = aml_bundle(0x11 /* BufferOp */, AML_BUFFER);
+
+    for (i = 0; i < buffer_size; i++) {
+        if (byte_list == NULL) {
+            build_append_byte(var->buf, 0x0);
+        } else {
+            build_append_byte(var->buf, byte_list[i]);
+        }
+    }
+
     return var;
 }
 
