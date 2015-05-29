@@ -162,7 +162,7 @@ static const VMStateDescription vmstate_mb_cpu = {
 static Property mb_properties[] = {
     DEFINE_PROP_UINT32("base-vectors", MicroBlazeCPU, cfg.base_vectors, 0),
     DEFINE_PROP_BOOL("use-stack-protection", MicroBlazeCPU, cfg.stackprot,
-                     true),
+                     false),
     /* If use-fpu > 0 - FPU is enabled
      * If use-fpu = 2 - Floating point conversion and square root instructions
      *                  are enabled
