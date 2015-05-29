@@ -23,6 +23,7 @@
 
 #include "hw/hw.h"
 #include "qapi/qmp/qerror.h"
+#include "qemu/error-report.h"
 #include "sysemu/block-backend.h"
 #include "sysemu/blockdev.h"
 #include "sysemu/sysemu.h"
@@ -268,6 +269,10 @@ static void s390_init(MachineState *machine)
     hwaddr virtio_region_len;
     hwaddr virtio_region_start;
 
+    if (machine->ram_slots) {
+        error_report("Memory hotplug not supported by the selected machine.");
+        exit(EXIT_FAILURE);
+    }
     /*
      * The storage increment size is a multiple of 1M and is a power of 2.
      * The number of storage increments must be MAX_STORAGE_INCREMENTS or
