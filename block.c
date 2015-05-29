@@ -3116,6 +3116,17 @@ bool bdrv_dirty_bitmap_enabled(BdrvDirtyBitmap *bitmap)
     return !(bitmap->disabled || bitmap->successor);
 }
 
+DirtyBitmapStatus bdrv_dirty_bitmap_status(BdrvDirtyBitmap *bitmap)
+{
+    if (bdrv_dirty_bitmap_frozen(bitmap)) {
+        return DIRTY_BITMAP_STATUS_FROZEN;
+    } else if (!bdrv_dirty_bitmap_enabled(bitmap)) {
+        return DIRTY_BITMAP_STATUS_DISABLED;
+    } else {
+        return DIRTY_BITMAP_STATUS_ACTIVE;
+    }
+}
+
 /**
  * Create a successor bitmap destined to replace this bitmap after an operation.
  * Requires that the bitmap is not frozen and has no successor.
@@ -3256,7 +3267,7 @@ BlockDirtyInfoList *bdrv_query_dirty_bitmaps(BlockDriverState *bs)
         info->granularity = bdrv_dirty_bitmap_granularity(bm);
         info->has_name = !!bm->name;
         info->name = g_strdup(bm->name);
-        info->frozen = bdrv_dirty_bitmap_frozen(bm);
+        info->status = bdrv_dirty_bitmap_status(bm);
         entry->value = info;
         *plist = entry;
         plist = &entry->next;
