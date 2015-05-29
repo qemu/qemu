@@ -3166,14 +3166,14 @@ else
 fi
 
 if test "$opengl" != "no" ; then
-  opengl_pkgs="gl glesv2"
+  opengl_pkgs="gl glesv2 epoxy egl"
   if $pkg_config $opengl_pkgs x11 && test "$have_glx" = "yes"; then
     opengl_cflags="$($pkg_config --cflags $opengl_pkgs) $x11_cflags"
     opengl_libs="$($pkg_config --libs $opengl_pkgs) $x11_libs"
     opengl=yes
   else
     if test "$opengl" = "yes" ; then
-      feature_not_found "opengl" "Install GL devel (e.g. MESA)"
+      feature_not_found "opengl" "Please install opengl (mesa) devel pkgs: $opengl_pkgs"
     fi
     opengl_cflags=""
     opengl_libs=""
