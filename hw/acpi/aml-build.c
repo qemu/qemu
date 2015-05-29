@@ -607,6 +607,14 @@ Aml *aml_irq_no_flags(uint8_t irq)
     return var;
 }
 
+/* ACPI 1.0b: 16.2.5.4 Type 2 Opcodes Encoding: DefLNot */
+Aml *aml_lnot(Aml *arg)
+{
+    Aml *var = aml_opcode(0x92 /* LNotOp */);
+    aml_append(var, arg);
+    return var;
+}
+
 /* ACPI 1.0b: 16.2.5.4 Type 2 Opcodes Encoding: DefLEqual */
 Aml *aml_equal(Aml *arg1, Aml *arg2)
 {
