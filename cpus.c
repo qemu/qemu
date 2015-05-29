@@ -105,6 +105,7 @@ static bool all_cpu_threads_idle(void)
 
 /* Protected by TimersState seqlock */
 
+static bool icount_sleep = true;
 static int64_t vm_clock_warp_start = -1;
 /* Conversion factor from emulated instructions to virtual clock ticks.  */
 static int icount_time_shift;
@@ -393,15 +394,18 @@ void qemu_clock_warp(QEMUClockType type)
         return;
     }
 
-    /*
-     * If the CPUs have been sleeping, advance QEMU_CLOCK_VIRTUAL timer now.
-     * This ensures that the deadline for the timer is computed correctly below.
-     * This also makes sure that the insn counter is synchronized before the
-     * CPU starts running, in case the CPU is woken by an event other than
-     * the earliest QEMU_CLOCK_VIRTUAL timer.
-     */
-    icount_warp_rt(NULL);
-    timer_del(icount_warp_timer);
+    if (icount_sleep) {
+        /*
+         * If the CPUs have been sleeping, advance QEMU_CLOCK_VIRTUAL timer now.
+         * This ensures that the deadline for the timer is computed correctly
+         * below.
+         * This also makes sure that the insn counter is synchronized before
+         * the CPU starts running, in case the CPU is woken by an event other
+         * than the earliest QEMU_CLOCK_VIRTUAL timer.
+         */
+        icount_warp_rt(NULL);
+        timer_del(icount_warp_timer);
+    }
     if (!all_cpu_threads_idle()) {
         return;
     }
@@ -425,23 +429,35 @@ void qemu_clock_warp(QEMUClockType type)
          * interrupt to wake it up, but the interrupt never comes because
          * the vCPU isn't running any insns and thus doesn't advance the
          * QEMU_CLOCK_VIRTUAL.
-         *
-         * An extreme solution for this problem would be to never let VCPUs
-         * sleep in icount mode if there is a pending QEMU_CLOCK_VIRTUAL
-         * timer; rather time could just advance to the next QEMU_CLOCK_VIRTUAL
-         * event.  Instead, we do stop VCPUs and only advance QEMU_CLOCK_VIRTUAL
-         * after some "real" time, (related to the time left until the next
-         * event) has passed. The QEMU_CLOCK_VIRTUAL_RT clock will do this.
-         * This avoids that the warps are visible externally; for example,
-         * you will not be sending network packets continuously instead of
-         * every 100ms.
          */
-        seqlock_write_lock(&timers_state.vm_clock_seqlock);
-        if (vm_clock_warp_start == -1 || vm_clock_warp_start > clock) {
-            vm_clock_warp_start = clock;
+        if (!icount_sleep) {
+            /*
+             * We never let VCPUs sleep in no sleep icount mode.
+             * If there is a pending QEMU_CLOCK_VIRTUAL timer we just advance
+             * to the next QEMU_CLOCK_VIRTUAL event and notify it.
+             * It is useful when we want a deterministic execution time,
+             * isolated from host latencies.
+             */
+            seqlock_write_lock(&timers_state.vm_clock_seqlock);
+            timers_state.qemu_icount_bias += deadline;
+            seqlock_write_unlock(&timers_state.vm_clock_seqlock);
+            qemu_clock_notify(QEMU_CLOCK_VIRTUAL);
+        } else {
+            /*
+             * We do stop VCPUs and only advance QEMU_CLOCK_VIRTUAL after some
+             * "real" time, (related to the time left until the next event) has
+             * passed. The QEMU_CLOCK_VIRTUAL_RT clock will do this.
+             * This avoids that the warps are visible externally; for example,
+             * you will not be sending network packets continuously instead of
+             * every 100ms.
+             */
+            seqlock_write_lock(&timers_state.vm_clock_seqlock);
+            if (vm_clock_warp_start == -1 || vm_clock_warp_start > clock) {
+                vm_clock_warp_start = clock;
+            }
+            seqlock_write_unlock(&timers_state.vm_clock_seqlock);
+            timer_mod_anticipate(icount_warp_timer, clock + deadline);
         }
-        seqlock_write_unlock(&timers_state.vm_clock_seqlock);
-        timer_mod_anticipate(icount_warp_timer, clock + deadline);
     } else if (deadline == 0) {
         qemu_clock_notify(QEMU_CLOCK_VIRTUAL);
     }
@@ -504,9 +520,11 @@ void configure_icount(QemuOpts *opts, Error **errp)
         }
         return;
     }
+    if (icount_sleep) {
+        icount_warp_timer = timer_new_ns(QEMU_CLOCK_VIRTUAL_RT,
+                                         icount_warp_rt, NULL);
+    }
     icount_align_option = qemu_opt_get_bool(opts, "align", false);
-    icount_warp_timer = timer_new_ns(QEMU_CLOCK_VIRTUAL_RT,
-                                     icount_warp_rt, NULL);
     if (strcmp(option, "auto") != 0) {
         errno = 0;
         icount_time_shift = strtol(option, &rem_str, 0);
