@@ -103,7 +103,6 @@ static void sx1_init(MachineState *machine, const int version)
     struct omap_mpu_state_s *mpu;
     MemoryRegion *address_space = get_system_memory();
     MemoryRegion *flash = g_new(MemoryRegion, 1);
-    MemoryRegion *flash_1 = g_new(MemoryRegion, 1);
     MemoryRegion *cs = g_new(MemoryRegion, 4);
     static uint32_t cs0val = 0x00213090;
     static uint32_t cs1val = 0x00215070;
@@ -165,6 +164,7 @@ static void sx1_init(MachineState *machine, const int version)
 
     if ((version == 1) &&
             (dinfo = drive_get(IF_PFLASH, 0, fl_idx)) != NULL) {
+        MemoryRegion *flash_1 = g_new(MemoryRegion, 1);
         memory_region_init_ram(flash_1, NULL, "omap_sx1.flash1-0", flash1_size,
                                &error_abort);
         vmstate_register_ram_global(flash_1);
