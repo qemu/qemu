@@ -746,6 +746,19 @@ int virtio_queue_get_num(VirtIODevice *vdev, int n)
     return vdev->vq[n].vring.num;
 }
 
+int virtio_get_num_queues(VirtIODevice *vdev)
+{
+    int i;
+
+    for (i = 0; i < VIRTIO_PCI_QUEUE_MAX; i++) {
+        if (!virtio_queue_get_num(vdev, i)) {
+            break;
+        }
+    }
+
+    return i;
+}
+
 int virtio_queue_get_id(VirtQueue *vq)
 {
     VirtIODevice *vdev = vq->vdev;
