@@ -953,7 +953,6 @@ static void virtio_pci_device_plugged(DeviceState *d)
         proxy->flags &= ~VIRTIO_PCI_FLAG_USE_IOEVENTFD;
     }
 
-    virtio_add_feature(&vdev->host_features, VIRTIO_F_NOTIFY_ON_EMPTY);
     virtio_add_feature(&vdev->host_features, VIRTIO_F_BAD_FEATURE);
 }
 

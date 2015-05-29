@@ -194,10 +194,12 @@ typedef struct VirtIOSCSIConf VirtIOSCSIConf;
 typedef struct VirtIORNGConf VirtIORNGConf;
 
 #define DEFINE_VIRTIO_COMMON_FEATURES(_state, _field) \
-	DEFINE_PROP_BIT("indirect_desc", _state, _field, \
-			VIRTIO_RING_F_INDIRECT_DESC, true), \
-	DEFINE_PROP_BIT("event_idx", _state, _field, \
-			VIRTIO_RING_F_EVENT_IDX, true)
+    DEFINE_PROP_BIT("indirect_desc", _state, _field,    \
+                    VIRTIO_RING_F_INDIRECT_DESC, true), \
+    DEFINE_PROP_BIT("event_idx", _state, _field,        \
+                    VIRTIO_RING_F_EVENT_IDX, true),     \
+    DEFINE_PROP_BIT("notify_on_empty", _state, _field,  \
+                    VIRTIO_F_NOTIFY_ON_EMPTY, true)
 
 hwaddr virtio_queue_get_desc_addr(VirtIODevice *vdev, int n);
 hwaddr virtio_queue_get_avail_addr(VirtIODevice *vdev, int n);

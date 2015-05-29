@@ -336,15 +336,6 @@ static void virtio_mmio_reset(DeviceState *d)
 
 /* virtio-mmio device */
 
-/* This is called by virtio-bus just after the device is plugged. */
-static void virtio_mmio_device_plugged(DeviceState *opaque)
-{
-    VirtIOMMIOProxy *proxy = VIRTIO_MMIO(opaque);
-    VirtIODevice *vdev = virtio_bus_get_device(&proxy->bus);
-
-    virtio_add_feature(&vdev->host_features, VIRTIO_F_NOTIFY_ON_EMPTY);
-}
-
 static void virtio_mmio_realizefn(DeviceState *d, Error **errp)
 {
     VirtIOMMIOProxy *proxy = VIRTIO_MMIO(d);
@@ -384,7 +375,6 @@ static void virtio_mmio_bus_class_init(ObjectClass *klass, void *data)
     k->notify = virtio_mmio_update_irq;
     k->save_config = virtio_mmio_save_config;
     k->load_config = virtio_mmio_load_config;
-    k->device_plugged = virtio_mmio_device_plugged;
     k->has_variable_vring_alignment = true;
     bus_class->max_dev = 1;
 }

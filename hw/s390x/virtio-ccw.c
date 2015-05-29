@@ -1382,11 +1382,8 @@ static void virtio_ccw_device_plugged(DeviceState *d)
 {
     VirtioCcwDevice *dev = VIRTIO_CCW_DEVICE(d);
     SubchDev *sch = dev->sch;
-    VirtIODevice *vdev = virtio_ccw_get_vdev(sch);
 
     sch->id.cu_model = virtio_bus_get_vdev_id(&dev->bus);
-
-    virtio_add_feature(&vdev->host_features, VIRTIO_F_NOTIFY_ON_EMPTY);
 
     css_generate_sch_crws(sch->cssid, sch->ssid, sch->schid,
                           d->hotplugged, 1);
