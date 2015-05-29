@@ -24,12 +24,15 @@
 #define SIGNBIT (uint32_t)0x80000000
 #define SIGNBIT64 ((uint64_t)1 << 63)
 
-static void raise_exception(CPUARMState *env, int tt)
+static void raise_exception(CPUARMState *env, uint32_t excp,
+                            uint32_t syndrome, uint32_t target_el)
 {
-    ARMCPU *cpu = arm_env_get_cpu(env);
-    CPUState *cs = CPU(cpu);
+    CPUState *cs = CPU(arm_env_get_cpu(env));
 
-    cs->exception_index = tt;
+    assert(!excp_is_internal(excp));
+    cs->exception_index = excp;
+    env->exception.syndrome = syndrome;
+    env->exception.target_el = target_el;
     cpu_loop_exit(cs);
 }
 
@@ -109,11 +112,9 @@ void tlb_fill(CPUState *cs, target_ulong addr, int is_write, int mmu_idx,
             exc = EXCP_DATA_ABORT;
         }
 
-        env->exception.syndrome = syn;
-        env->exception.target_el = exception_target_el(env);
         env->exception.vaddress = addr;
         env->exception.fsr = ret;
-        raise_exception(env, exc);
+        raise_exception(env, exc, syn, exception_target_el(env));
     }
 }
 #endif
@@ -286,13 +287,7 @@ void HELPER(exception_internal)(CPUARMState *env, uint32_t excp)
 void HELPER(exception_with_syndrome)(CPUARMState *env, uint32_t excp,
                                      uint32_t syndrome, uint32_t target_el)
 {
-    CPUState *cs = CPU(arm_env_get_cpu(env));
-
-    assert(!excp_is_internal(excp));
-    cs->exception_index = excp;
-    env->exception.syndrome = syndrome;
-    env->exception.target_el = target_el;
-    cpu_loop_exit(cs);
+    raise_exception(env, excp, syndrome, target_el);
 }
 
 uint32_t HELPER(cpsr_read)(CPUARMState *env)
@@ -343,9 +338,7 @@ void HELPER(access_check_cp_reg)(CPUARMState *env, void *rip, uint32_t syndrome)
 
     if (arm_feature(env, ARM_FEATURE_XSCALE) && ri->cp < 14
         && extract32(env->cp15.c15_cpar, ri->cp, 1) == 0) {
-        env->exception.syndrome = syndrome;
-        env->exception.target_el = exception_target_el(env);
-        raise_exception(env, EXCP_UDEF);
+        raise_exception(env, EXCP_UDEF, syndrome, exception_target_el(env));
     }
 
     if (!ri->accessfn) {
@@ -356,17 +349,15 @@ void HELPER(access_check_cp_reg)(CPUARMState *env, void *rip, uint32_t syndrome)
     case CP_ACCESS_OK:
         return;
     case CP_ACCESS_TRAP:
-        env->exception.syndrome = syndrome;
-        env->exception.target_el = exception_target_el(env);
         break;
     case CP_ACCESS_TRAP_UNCATEGORIZED:
-        env->exception.syndrome = syn_uncategorized();
-        env->exception.target_el = exception_target_el(env);
+        syndrome = syn_uncategorized();
         break;
     default:
         g_assert_not_reached();
     }
-    raise_exception(env, EXCP_UDEF);
+
+    raise_exception(env, EXCP_UDEF, syndrome, exception_target_el(env));
 }
 
 void HELPER(set_cp_reg)(CPUARMState *env, void *rip, uint32_t value)
@@ -404,11 +395,10 @@ void HELPER(msr_i_pstate)(CPUARMState *env, uint32_t op, uint32_t imm)
      * to catch that case at translate time.
      */
     if (arm_current_el(env) == 0 && !(env->cp15.sctlr_el[1] & SCTLR_UMA)) {
-        env->exception.target_el = exception_target_el(env);
-        env->exception.syndrome = syn_aa64_sysregtrap(0, extract32(op, 0, 3),
-                                                      extract32(op, 3, 3), 4,
-                                                      imm, 0x1f, 0);
-        raise_exception(env, EXCP_UDEF);
+        uint32_t syndrome = syn_aa64_sysregtrap(0, extract32(op, 0, 3),
+                                                extract32(op, 3, 3), 4,
+                                                imm, 0x1f, 0);
+        raise_exception(env, EXCP_UDEF, syndrome, exception_target_el(env));
     }
 
     switch (op) {
@@ -466,9 +456,8 @@ void HELPER(pre_hvc)(CPUARMState *env)
     }
 
     if (undef) {
-        env->exception.syndrome = syn_uncategorized();
-        env->exception.target_el = exception_target_el(env);
-        raise_exception(env, EXCP_UDEF);
+        raise_exception(env, EXCP_UDEF, syn_uncategorized(),
+                        exception_target_el(env));
     }
 }
 
@@ -497,15 +486,12 @@ void HELPER(pre_smc)(CPUARMState *env, uint32_t syndrome)
         undef = true;
     } else if (!secure && cur_el == 1 && (env->cp15.hcr_el2 & HCR_TSC)) {
         /* In NS EL1, HCR controlled routing to EL2 has priority over SMD. */
-        env->exception.syndrome = syndrome;
-        env->exception.target_el = 2;
-        raise_exception(env, EXCP_HYP_TRAP);
+        raise_exception(env, EXCP_HYP_TRAP, syndrome, 2);
     }
 
     if (undef) {
-        env->exception.syndrome = syn_uncategorized();
-        env->exception.target_el = exception_target_el(env);
-        raise_exception(env, EXCP_UDEF);
+        raise_exception(env, EXCP_UDEF, syn_uncategorized(),
+                        exception_target_el(env));
     }
 }
 
@@ -798,14 +784,15 @@ void arm_debug_excp_handler(CPUState *cs)
                 bool wnr = (wp_hit->flags & BP_WATCHPOINT_HIT_WRITE) != 0;
                 bool same_el = arm_debug_target_el(env) == arm_current_el(env);
 
-                env->exception.syndrome = syn_watchpoint(same_el, 0, wnr);
                 if (extended_addresses_enabled(env)) {
                     env->exception.fsr = (1 << 9) | 0x22;
                 } else {
                     env->exception.fsr = 0x2;
                 }
                 env->exception.vaddress = wp_hit->hitaddr;
-                raise_exception(env, EXCP_DATA_ABORT);
+                raise_exception(env, EXCP_DATA_ABORT,
+                                syn_watchpoint(same_el, 0, wnr),
+                                arm_debug_target_el(env));
             } else {
                 cpu_resume_from_signal(cs, NULL);
             }
@@ -813,14 +800,15 @@ void arm_debug_excp_handler(CPUState *cs)
     } else {
         if (check_breakpoints(cpu)) {
             bool same_el = (arm_debug_target_el(env) == arm_current_el(env));
-            env->exception.syndrome = syn_breakpoint(same_el);
             if (extended_addresses_enabled(env)) {
                 env->exception.fsr = (1 << 9) | 0x22;
             } else {
                 env->exception.fsr = 0x2;
             }
             /* FAR is UNKNOWN, so doesn't need setting */
-            raise_exception(env, EXCP_PREFETCH_ABORT);
+            raise_exception(env, EXCP_PREFETCH_ABORT,
+                            syn_breakpoint(same_el),
+                            arm_debug_target_el(env));
         }
     }
 }
