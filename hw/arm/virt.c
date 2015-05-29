@@ -31,6 +31,7 @@
 #include "hw/sysbus.h"
 #include "hw/arm/arm.h"
 #include "hw/arm/primecell.h"
+#include "hw/arm/virt.h"
 #include "hw/devices.h"
 #include "net/net.h"
 #include "sysemu/block-backend.h"
@@ -43,8 +44,6 @@
 #include "qemu/bitops.h"
 #include "qemu/error-report.h"
 #include "hw/pci-host/gpex.h"
-
-#define NUM_VIRTIO_TRANSPORTS 32
 
 /* Number of external interrupt lines to configure the GIC with */
 #define NUM_IRQS 128
@@ -59,24 +58,6 @@
 
 #define GIC_FDT_IRQ_PPI_CPU_START 8
 #define GIC_FDT_IRQ_PPI_CPU_WIDTH 8
-
-enum {
-    VIRT_FLASH,
-    VIRT_MEM,
-    VIRT_CPUPERIPHS,
-    VIRT_GIC_DIST,
-    VIRT_GIC_CPU,
-    VIRT_UART,
-    VIRT_MMIO,
-    VIRT_RTC,
-    VIRT_FW_CFG,
-    VIRT_PCIE,
-};
-
-typedef struct MemMapEntry {
-    hwaddr base;
-    hwaddr size;
-} MemMapEntry;
 
 typedef struct VirtBoardInfo {
     struct arm_boot_info bootinfo;
