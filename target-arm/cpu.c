@@ -206,31 +206,52 @@ static void arm_cpu_reset(CPUState *s)
 bool arm_cpu_exec_interrupt(CPUState *cs, int interrupt_request)
 {
     CPUClass *cc = CPU_GET_CLASS(cs);
+    CPUARMState *env = cs->env_ptr;
+    uint32_t cur_el = arm_current_el(env);
+    bool secure = arm_is_secure(env);
+    uint32_t target_el;
+    uint32_t excp_idx;
     bool ret = false;
 
-    if (interrupt_request & CPU_INTERRUPT_FIQ
-        && arm_excp_unmasked(cs, EXCP_FIQ)) {
-        cs->exception_index = EXCP_FIQ;
-        cc->do_interrupt(cs);
-        ret = true;
+    if (interrupt_request & CPU_INTERRUPT_FIQ) {
+        excp_idx = EXCP_FIQ;
+        target_el = arm_phys_excp_target_el(cs, excp_idx, cur_el, secure);
+        if (arm_excp_unmasked(cs, excp_idx, target_el)) {
+            cs->exception_index = excp_idx;
+            env->exception.target_el = target_el;
+            cc->do_interrupt(cs);
+            ret = true;
+        }
     }
-    if (interrupt_request & CPU_INTERRUPT_HARD
-        && arm_excp_unmasked(cs, EXCP_IRQ)) {
-        cs->exception_index = EXCP_IRQ;
-        cc->do_interrupt(cs);
-        ret = true;
+    if (interrupt_request & CPU_INTERRUPT_HARD) {
+        excp_idx = EXCP_IRQ;
+        target_el = arm_phys_excp_target_el(cs, excp_idx, cur_el, secure);
+        if (arm_excp_unmasked(cs, excp_idx, target_el)) {
+            cs->exception_index = excp_idx;
+            env->exception.target_el = target_el;
+            cc->do_interrupt(cs);
+            ret = true;
+        }
     }
-    if (interrupt_request & CPU_INTERRUPT_VIRQ
-        && arm_excp_unmasked(cs, EXCP_VIRQ)) {
-        cs->exception_index = EXCP_VIRQ;
-        cc->do_interrupt(cs);
-        ret = true;
+    if (interrupt_request & CPU_INTERRUPT_VIRQ) {
+        excp_idx = EXCP_VIRQ;
+        target_el = 1;
+        if (arm_excp_unmasked(cs, excp_idx, target_el)) {
+            cs->exception_index = excp_idx;
+            env->exception.target_el = target_el;
+            cc->do_interrupt(cs);
+            ret = true;
+        }
     }
-    if (interrupt_request & CPU_INTERRUPT_VFIQ
-        && arm_excp_unmasked(cs, EXCP_VFIQ)) {
-        cs->exception_index = EXCP_VFIQ;
-        cc->do_interrupt(cs);
-        ret = true;
+    if (interrupt_request & CPU_INTERRUPT_VFIQ) {
+        excp_idx = EXCP_VFIQ;
+        target_el = 1;
+        if (arm_excp_unmasked(cs, excp_idx, target_el)) {
+            cs->exception_index = excp_idx;
+            env->exception.target_el = target_el;
+            cc->do_interrupt(cs);
+            ret = true;
+        }
     }
 
     return ret;
@@ -1196,6 +1217,23 @@ static Property arm_cpu_properties[] = {
     DEFINE_PROP_UINT32("midr", ARMCPU, midr, 0),
     DEFINE_PROP_END_OF_LIST()
 };
+
+#ifdef CONFIG_USER_ONLY
+static int arm_cpu_handle_mmu_fault(CPUState *cs, vaddr address, int rw,
+                                    int mmu_idx)
+{
+    ARMCPU *cpu = ARM_CPU(cs);
+    CPUARMState *env = &cpu->env;
+
+    env->exception.vaddress = address;
+    if (rw == 2) {
+        cs->exception_index = EXCP_PREFETCH_ABORT;
+    } else {
+        cs->exception_index = EXCP_DATA_ABORT;
+    }
+    return 1;
+}
+#endif
 
 static void arm_cpu_class_init(ObjectClass *oc, void *data)
 {

@@ -592,6 +592,33 @@ static void cpacr_write(CPUARMState *env, const ARMCPRegInfo *ri,
     env->cp15.cpacr_el1 = value;
 }
 
+static CPAccessResult cpacr_access(CPUARMState *env, const ARMCPRegInfo *ri)
+{
+    if (arm_feature(env, ARM_FEATURE_V8)) {
+        /* Check if CPACR accesses are to be trapped to EL2 */
+        if (arm_current_el(env) == 1 &&
+            (env->cp15.cptr_el[2] & CPTR_TCPAC) && !arm_is_secure(env)) {
+            return CP_ACCESS_TRAP_EL2;
+        /* Check if CPACR accesses are to be trapped to EL3 */
+        } else if (arm_current_el(env) < 3 &&
+                   (env->cp15.cptr_el[3] & CPTR_TCPAC)) {
+            return CP_ACCESS_TRAP_EL3;
+        }
+    }
+
+    return CP_ACCESS_OK;
+}
+
+static CPAccessResult cptr_access(CPUARMState *env, const ARMCPRegInfo *ri)
+{
+    /* Check if CPTR accesses are set to trap to EL3 */
+    if (arm_current_el(env) == 2 && (env->cp15.cptr_el[3] & CPTR_TCPAC)) {
+        return CP_ACCESS_TRAP_EL3;
+    }
+
+    return CP_ACCESS_OK;
+}
+
 static const ARMCPRegInfo v6_cp_reginfo[] = {
     /* prefetch by MVA in v6, NOP in v7 */
     { .name = "MVA_prefetch",
@@ -614,7 +641,7 @@ static const ARMCPRegInfo v6_cp_reginfo[] = {
     { .name = "WFAR", .cp = 15, .crn = 6, .crm = 0, .opc1 = 0, .opc2 = 1,
       .access = PL1_RW, .type = ARM_CP_CONST, .resetvalue = 0, },
     { .name = "CPACR", .state = ARM_CP_STATE_BOTH, .opc0 = 3,
-      .crn = 1, .crm = 0, .opc1 = 0, .opc2 = 2,
+      .crn = 1, .crm = 0, .opc1 = 0, .opc2 = 2, .accessfn = cpacr_access,
       .access = PL1_RW, .fieldoffset = offsetof(CPUARMState, cp15.cpacr_el1),
       .resetvalue = 0, .writefn = cpacr_write },
     REGINFO_SENTINEL
@@ -2481,6 +2508,9 @@ static const ARMCPRegInfo v8_el3_no_el2_cp_reginfo[] = {
       .opc0 = 3, .opc1 = 4, .crn = 1, .crm = 1, .opc2 = 0,
       .access = PL2_RW,
       .readfn = arm_cp_read_zero, .writefn = arm_cp_write_ignore },
+    { .name = "CPTR_EL2", .state = ARM_CP_STATE_BOTH,
+      .opc0 = 3, .opc1 = 4, .crn = 1, .crm = 1, .opc2 = 2,
+      .access = PL2_RW, .type = ARM_CP_CONST, .resetvalue = 0 },
     REGINFO_SENTINEL
 };
 
@@ -2548,6 +2578,10 @@ static const ARMCPRegInfo v8_el2_cp_reginfo[] = {
       .opc0 = 3, .opc1 = 6, .crn = 4, .crm = 1, .opc2 = 0,
       .access = PL3_RW, .type = ARM_CP_ALIAS,
       .fieldoffset = offsetof(CPUARMState, sp_el[2]) },
+    { .name = "CPTR_EL2", .state = ARM_CP_STATE_BOTH,
+      .opc0 = 3, .opc1 = 4, .crn = 1, .crm = 1, .opc2 = 2,
+      .access = PL2_RW, .accessfn = cptr_access, .resetvalue = 0,
+      .fieldoffset = offsetof(CPUARMState, cp15.cptr_el[2]) },
     REGINFO_SENTINEL
 };
 
@@ -2609,6 +2643,10 @@ static const ARMCPRegInfo el3_cp_reginfo[] = {
       .access = PL3_RW, .writefn = vbar_write,
       .fieldoffset = offsetof(CPUARMState, cp15.vbar_el[3]),
       .resetvalue = 0 },
+    { .name = "CPTR_EL3", .state = ARM_CP_STATE_AA64,
+      .opc0 = 3, .opc1 = 6, .crn = 1, .crm = 1, .opc2 = 2,
+      .access = PL3_RW, .accessfn = cptr_access, .resetvalue = 0,
+      .fieldoffset = offsetof(CPUARMState, cp15.cptr_el[3]) },
     REGINFO_SENTINEL
 };
 
@@ -4047,21 +4085,6 @@ uint32_t HELPER(rbit)(uint32_t x)
 
 #if defined(CONFIG_USER_ONLY)
 
-int arm_cpu_handle_mmu_fault(CPUState *cs, vaddr address, int rw,
-                             int mmu_idx)
-{
-    ARMCPU *cpu = ARM_CPU(cs);
-    CPUARMState *env = &cpu->env;
-
-    env->exception.vaddress = address;
-    if (rw == 2) {
-        cs->exception_index = EXCP_PREFETCH_ABORT;
-    } else {
-        cs->exception_index = EXCP_DATA_ABORT;
-    }
-    return 1;
-}
-
 /* These should probably raise undefined insn exceptions.  */
 void HELPER(v7m_msr)(CPUARMState *env, uint32_t reg, uint32_t val)
 {
@@ -4102,7 +4125,8 @@ uint32_t HELPER(get_r13_banked)(CPUARMState *env, uint32_t mode)
     return 0;
 }
 
-unsigned int arm_excp_target_el(CPUState *cs, unsigned int excp_idx)
+uint32_t arm_phys_excp_target_el(CPUState *cs, uint32_t excp_idx,
+                                 uint32_t cur_el, bool secure)
 {
     return 1;
 }
@@ -4226,8 +4250,8 @@ const int8_t target_el_table[2][2][2][2][2][4] = {
 /*
  * Determine the target EL for physical exceptions
  */
-static inline uint32_t arm_phys_excp_target_el(CPUState *cs, uint32_t excp_idx,
-                                        uint32_t cur_el, bool secure)
+uint32_t arm_phys_excp_target_el(CPUState *cs, uint32_t excp_idx,
+                                 uint32_t cur_el, bool secure)
 {
     CPUARMState *env = cs->env_ptr;
     int rw = ((env->cp15.scr_el3 & SCR_RW) == SCR_RW);
@@ -4259,40 +4283,6 @@ static inline uint32_t arm_phys_excp_target_el(CPUState *cs, uint32_t excp_idx,
 
     assert(target_el > 0);
 
-    return target_el;
-}
-
-/*
- * Determine the target EL for a given exception type.
- */
-unsigned int arm_excp_target_el(CPUState *cs, unsigned int excp_idx)
-{
-    ARMCPU *cpu = ARM_CPU(cs);
-    CPUARMState *env = &cpu->env;
-    unsigned int cur_el = arm_current_el(env);
-    unsigned int target_el;
-    bool secure = arm_is_secure(env);
-
-    switch (excp_idx) {
-    case EXCP_HVC:
-    case EXCP_HYP_TRAP:
-        target_el = 2;
-        break;
-    case EXCP_SMC:
-        target_el = 3;
-        break;
-    case EXCP_FIQ:
-    case EXCP_IRQ:
-        target_el = arm_phys_excp_target_el(cs, excp_idx, cur_el, secure);
-        break;
-    case EXCP_VIRQ:
-    case EXCP_VFIQ:
-        target_el = 1;
-        break;
-    default:
-        target_el = MAX(cur_el, 1);
-        break;
-    }
     return target_el;
 }
 
@@ -5826,8 +5816,12 @@ static inline int get_phys_addr(CPUARMState *env, target_ulong address,
     }
 }
 
-int arm_cpu_handle_mmu_fault(CPUState *cs, vaddr address,
-                             int access_type, int mmu_idx)
+/* Walk the page table and (if the mapping exists) add the page
+ * to the TLB. Return 0 on success, or an ARM DFSR/IFSR fault
+ * register format value on failure.
+ */
+int arm_tlb_fill(CPUState *cs, vaddr address,
+                 int access_type, int mmu_idx)
 {
     ARMCPU *cpu = ARM_CPU(cs);
     CPUARMState *env = &cpu->env;
@@ -5835,8 +5829,6 @@ int arm_cpu_handle_mmu_fault(CPUState *cs, vaddr address,
     target_ulong page_size;
     int prot;
     int ret;
-    uint32_t syn;
-    bool same_el = (arm_current_el(env) != 0);
     MemTxAttrs attrs = {};
 
     ret = get_phys_addr(env, address, access_type, mmu_idx, &phys_addr,
@@ -5850,27 +5842,7 @@ int arm_cpu_handle_mmu_fault(CPUState *cs, vaddr address,
         return 0;
     }
 
-    /* AArch64 syndrome does not have an LPAE bit */
-    syn = ret & ~(1 << 9);
-
-    /* For insn and data aborts we assume there is no instruction syndrome
-     * information; this is always true for exceptions reported to EL1.
-     */
-    if (access_type == 2) {
-        syn = syn_insn_abort(same_el, 0, 0, syn);
-        cs->exception_index = EXCP_PREFETCH_ABORT;
-    } else {
-        syn = syn_data_abort(same_el, 0, 0, 0, access_type == 1, syn);
-        if (access_type == 1 && arm_feature(env, ARM_FEATURE_V6)) {
-            ret |= (1 << 11);
-        }
-        cs->exception_index = EXCP_DATA_ABORT;
-    }
-
-    env->exception.syndrome = syn;
-    env->exception.vaddress = address;
-    env->exception.fsr = ret;
-    return 1;
+    return ret;
 }
 
 hwaddr arm_cpu_get_phys_page_debug(CPUState *cs, vaddr addr)

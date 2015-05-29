@@ -26,6 +26,7 @@
 #include <string.h>
 #include "hw/acpi/aml-build.h"
 #include "qemu/bswap.h"
+#include "qemu/bitops.h"
 #include "hw/acpi/bios-linker-loader.h"
 
 static GArray *build_alloc_array(void)
@@ -454,6 +455,16 @@ Aml *aml_and(Aml *arg1, Aml *arg2)
     return var;
 }
 
+/* ACPI 1.0b: 16.2.5.4 Type 2 Opcodes Encoding: DefOr */
+Aml *aml_or(Aml *arg1, Aml *arg2)
+{
+    Aml *var = aml_opcode(0x7D /* OrOp */);
+    aml_append(var, arg1);
+    aml_append(var, arg2);
+    build_append_byte(var->buf, 0x00 /* NullNameOp */);
+    return var;
+}
+
 /* ACPI 1.0b: 16.2.5.3 Type 1 Opcodes Encoding: DefNotify */
 Aml *aml_notify(Aml *arg1, Aml *arg2)
 {
@@ -505,6 +516,60 @@ Aml *aml_call4(const char *method, Aml *arg1, Aml *arg2, Aml *arg3, Aml *arg4)
     return var;
 }
 
+/*
+ * ACPI 1.0b: 6.4.3.4 32-Bit Fixed Location Memory Range Descriptor
+ * (Type 1, Large Item Name 0x6)
+ */
+Aml *aml_memory32_fixed(uint32_t addr, uint32_t size,
+                        AmlReadAndWrite read_and_write)
+{
+    Aml *var = aml_alloc();
+    build_append_byte(var->buf, 0x86); /* Memory32Fixed Resource Descriptor */
+    build_append_byte(var->buf, 9);    /* Length, bits[7:0] value = 9 */
+    build_append_byte(var->buf, 0);    /* Length, bits[15:8] value = 0 */
+    build_append_byte(var->buf, read_and_write); /* Write status, 1 rw 0 ro */
+
+    /* Range base address */
+    build_append_byte(var->buf, extract32(addr, 0, 8));  /* bits[7:0] */
+    build_append_byte(var->buf, extract32(addr, 8, 8));  /* bits[15:8] */
+    build_append_byte(var->buf, extract32(addr, 16, 8)); /* bits[23:16] */
+    build_append_byte(var->buf, extract32(addr, 24, 8)); /* bits[31:24] */
+
+    /* Range length */
+    build_append_byte(var->buf, extract32(size, 0, 8));  /* bits[7:0] */
+    build_append_byte(var->buf, extract32(size, 8, 8));  /* bits[15:8] */
+    build_append_byte(var->buf, extract32(size, 16, 8)); /* bits[23:16] */
+    build_append_byte(var->buf, extract32(size, 24, 8)); /* bits[31:24] */
+    return var;
+}
+
+/*
+ * ACPI 5.0: 6.4.3.6 Extended Interrupt Descriptor
+ * Type 1, Large Item Name 0x9
+ */
+Aml *aml_interrupt(AmlConsumerAndProducer con_and_pro,
+                   AmlLevelAndEdge level_and_edge,
+                   AmlActiveHighAndLow high_and_low, AmlShared shared,
+                   uint32_t irq)
+{
+    Aml *var = aml_alloc();
+    uint8_t irq_flags = con_and_pro | (level_and_edge << 1)
+                        | (high_and_low << 2) | (shared << 3);
+
+    build_append_byte(var->buf, 0x89); /* Extended irq descriptor */
+    build_append_byte(var->buf, 6); /* Length, bits[7:0] minimum value = 6 */
+    build_append_byte(var->buf, 0); /* Length, bits[15:8] minimum value = 0 */
+    build_append_byte(var->buf, irq_flags); /* Interrupt Vector Information. */
+    build_append_byte(var->buf, 0x01);      /* Interrupt table length = 1 */
+
+    /* Interrupt Number */
+    build_append_byte(var->buf, extract32(irq, 0, 8));  /* bits[7:0] */
+    build_append_byte(var->buf, extract32(irq, 8, 8));  /* bits[15:8] */
+    build_append_byte(var->buf, extract32(irq, 16, 8)); /* bits[23:16] */
+    build_append_byte(var->buf, extract32(irq, 24, 8)); /* bits[31:24] */
+    return var;
+}
+
 /* ACPI 1.0b: 6.4.2.5 I/O Port Descriptor */
 Aml *aml_io(AmlIODecode dec, uint16_t min_base, uint16_t max_base,
             uint8_t aln, uint8_t len)
@@ -542,6 +607,14 @@ Aml *aml_irq_no_flags(uint8_t irq)
     return var;
 }
 
+/* ACPI 1.0b: 16.2.5.4 Type 2 Opcodes Encoding: DefLNot */
+Aml *aml_lnot(Aml *arg)
+{
+    Aml *var = aml_opcode(0x92 /* LNotOp */);
+    aml_append(var, arg);
+    return var;
+}
+
 /* ACPI 1.0b: 16.2.5.4 Type 2 Opcodes Encoding: DefLEqual */
 Aml *aml_equal(Aml *arg1, Aml *arg2)
 {
@@ -556,6 +629,13 @@ Aml *aml_if(Aml *predicate)
 {
     Aml *var = aml_bundle(0xA0 /* IfOp */, AML_PACKAGE);
     aml_append(var, predicate);
+    return var;
+}
+
+/* ACPI 1.0b: 16.2.5.3 Type 1 Opcodes Encoding: DefElse */
+Aml *aml_else(void)
+{
+    Aml *var = aml_bundle(0xA1 /* ElseOp */, AML_PACKAGE);
     return var;
 }
 
@@ -587,10 +667,22 @@ Aml *aml_resource_template(void)
     return var;
 }
 
-/* ACPI 1.0b: 16.2.5.4 Type 2 Opcodes Encoding: DefBuffer */
-Aml *aml_buffer(void)
+/* ACPI 1.0b: 16.2.5.4 Type 2 Opcodes Encoding: DefBuffer
+ * Pass byte_list as NULL to request uninitialized buffer to reserve space.
+ */
+Aml *aml_buffer(int buffer_size, uint8_t *byte_list)
 {
+    int i;
     Aml *var = aml_bundle(0x11 /* BufferOp */, AML_BUFFER);
+
+    for (i = 0; i < buffer_size; i++) {
+        if (byte_list == NULL) {
+            build_append_byte(var->buf, 0x0);
+        } else {
+            build_append_byte(var->buf, byte_list[i]);
+        }
+    }
+
     return var;
 }
 
@@ -643,6 +735,17 @@ Aml *aml_field(const char *name, AmlAccessType type, AmlUpdateRule rule)
 
     build_append_namestring(var->buf, "%s", name);
     build_append_byte(var->buf, flags);
+    return var;
+}
+
+/* ACPI 1.0b: 16.2.5.2 Named Objects Encoding: DefCreateDWordField */
+Aml *aml_create_dword_field(Aml *srcbuf, Aml *index, const char *name)
+{
+    Aml *var = aml_alloc();
+    build_append_byte(var->buf, 0x8A); /* CreateDWordFieldOp */
+    aml_append(var, srcbuf);
+    aml_append(var, index);
+    build_append_namestring(var->buf, "%s", name);
     return var;
 }
 
@@ -833,7 +936,7 @@ Aml *aml_word_bus_number(AmlMinFixed min_fixed, AmlMaxFixed max_fixed,
                          uint16_t addr_trans, uint16_t len)
 
 {
-    return aml_word_as_desc(aml_bus_number_range, min_fixed, max_fixed, dec,
+    return aml_word_as_desc(AML_BUS_NUMBER_RANGE, min_fixed, max_fixed, dec,
                             addr_gran, addr_min, addr_max, addr_trans, len, 0);
 }
 
@@ -850,7 +953,25 @@ Aml *aml_word_io(AmlMinFixed min_fixed, AmlMaxFixed max_fixed,
                  uint16_t len)
 
 {
-    return aml_word_as_desc(aml_io_range, min_fixed, max_fixed, dec,
+    return aml_word_as_desc(AML_IO_RANGE, min_fixed, max_fixed, dec,
+                            addr_gran, addr_min, addr_max, addr_trans, len,
+                            isa_ranges);
+}
+
+/*
+ * ACPI 1.0b: 6.4.3.5.4 ASL Macros for DWORD Address Descriptor
+ *
+ * More verbose description at:
+ * ACPI 5.0: 19.5.33 DWordIO (DWord IO Resource Descriptor Macro)
+ */
+Aml *aml_dword_io(AmlMinFixed min_fixed, AmlMaxFixed max_fixed,
+                 AmlDecode dec, AmlISARanges isa_ranges,
+                 uint32_t addr_gran, uint32_t addr_min,
+                 uint32_t addr_max, uint32_t addr_trans,
+                 uint32_t len)
+
+{
+    return aml_dword_as_desc(AML_IO_RANGE, min_fixed, max_fixed, dec,
                             addr_gran, addr_min, addr_max, addr_trans, len,
                             isa_ranges);
 }
@@ -862,7 +983,7 @@ Aml *aml_word_io(AmlMinFixed min_fixed, AmlMaxFixed max_fixed,
  * ACPI 5.0: 19.5.34 DWordMemory (DWord Memory Resource Descriptor Macro)
  */
 Aml *aml_dword_memory(AmlDecode dec, AmlMinFixed min_fixed,
-                      AmlMaxFixed max_fixed, AmlCacheble cacheable,
+                      AmlMaxFixed max_fixed, AmlCacheable cacheable,
                       AmlReadAndWrite read_and_write,
                       uint32_t addr_gran, uint32_t addr_min,
                       uint32_t addr_max, uint32_t addr_trans,
@@ -870,7 +991,7 @@ Aml *aml_dword_memory(AmlDecode dec, AmlMinFixed min_fixed,
 {
     uint8_t flags = read_and_write | (cacheable << 1);
 
-    return aml_dword_as_desc(aml_memory_range, min_fixed, max_fixed,
+    return aml_dword_as_desc(AML_MEMORY_RANGE, min_fixed, max_fixed,
                              dec, addr_gran, addr_min, addr_max,
                              addr_trans, len, flags);
 }
@@ -882,7 +1003,7 @@ Aml *aml_dword_memory(AmlDecode dec, AmlMinFixed min_fixed,
  * ACPI 5.0: 19.5.102 QWordMemory (QWord Memory Resource Descriptor Macro)
  */
 Aml *aml_qword_memory(AmlDecode dec, AmlMinFixed min_fixed,
-                      AmlMaxFixed max_fixed, AmlCacheble cacheable,
+                      AmlMaxFixed max_fixed, AmlCacheable cacheable,
                       AmlReadAndWrite read_and_write,
                       uint64_t addr_gran, uint64_t addr_min,
                       uint64_t addr_max, uint64_t addr_trans,
@@ -890,9 +1011,79 @@ Aml *aml_qword_memory(AmlDecode dec, AmlMinFixed min_fixed,
 {
     uint8_t flags = read_and_write | (cacheable << 1);
 
-    return aml_qword_as_desc(aml_memory_range, min_fixed, max_fixed,
+    return aml_qword_as_desc(AML_MEMORY_RANGE, min_fixed, max_fixed,
                              dec, addr_gran, addr_min, addr_max,
                              addr_trans, len, flags);
+}
+
+static uint8_t Hex2Byte(const char *src)
+{
+    int hi, lo;
+
+    hi = Hex2Digit(src[0]);
+    assert(hi >= 0);
+    assert(hi <= 15);
+
+    lo = Hex2Digit(src[1]);
+    assert(lo >= 0);
+    assert(lo <= 15);
+    return (hi << 4) | lo;
+}
+
+/*
+ * ACPI 3.0: 17.5.124 ToUUID (Convert String to UUID Macro)
+ * e.g. UUID: aabbccdd-eeff-gghh-iijj-kkllmmnnoopp
+ * call aml_touuid("aabbccdd-eeff-gghh-iijj-kkllmmnnoopp");
+ */
+Aml *aml_touuid(const char *uuid)
+{
+    Aml *var = aml_bundle(0x11 /* BufferOp */, AML_BUFFER);
+
+    assert(strlen(uuid) == 36);
+    assert(uuid[8] == '-');
+    assert(uuid[13] == '-');
+    assert(uuid[18] == '-');
+    assert(uuid[23] == '-');
+
+    build_append_byte(var->buf, Hex2Byte(uuid + 6));  /* dd - at offset 00 */
+    build_append_byte(var->buf, Hex2Byte(uuid + 4));  /* cc - at offset 01 */
+    build_append_byte(var->buf, Hex2Byte(uuid + 2));  /* bb - at offset 02 */
+    build_append_byte(var->buf, Hex2Byte(uuid + 0));  /* aa - at offset 03 */
+
+    build_append_byte(var->buf, Hex2Byte(uuid + 11)); /* ff - at offset 04 */
+    build_append_byte(var->buf, Hex2Byte(uuid + 9));  /* ee - at offset 05 */
+
+    build_append_byte(var->buf, Hex2Byte(uuid + 16)); /* hh - at offset 06 */
+    build_append_byte(var->buf, Hex2Byte(uuid + 14)); /* gg - at offset 07 */
+
+    build_append_byte(var->buf, Hex2Byte(uuid + 19)); /* ii - at offset 08 */
+    build_append_byte(var->buf, Hex2Byte(uuid + 21)); /* jj - at offset 09 */
+
+    build_append_byte(var->buf, Hex2Byte(uuid + 24)); /* kk - at offset 10 */
+    build_append_byte(var->buf, Hex2Byte(uuid + 26)); /* ll - at offset 11 */
+    build_append_byte(var->buf, Hex2Byte(uuid + 28)); /* mm - at offset 12 */
+    build_append_byte(var->buf, Hex2Byte(uuid + 30)); /* nn - at offset 13 */
+    build_append_byte(var->buf, Hex2Byte(uuid + 32)); /* oo - at offset 14 */
+    build_append_byte(var->buf, Hex2Byte(uuid + 34)); /* pp - at offset 15 */
+
+    return var;
+}
+
+/*
+ * ACPI 2.0b: 16.2.3.6.4.3  Unicode Macro (Convert Ascii String To Unicode)
+ */
+Aml *aml_unicode(const char *str)
+{
+    int i = 0;
+    Aml *var = aml_bundle(0x11 /* BufferOp */, AML_BUFFER);
+
+    do {
+        build_append_byte(var->buf, str[i]);
+        build_append_byte(var->buf, 0);
+        i++;
+    } while (i <= strlen(str));
+
+    return var;
 }
 
 void
@@ -950,4 +1141,28 @@ void acpi_build_tables_cleanup(AcpiBuildTables *tables, bool mfre)
     g_array_free(tables->rsdp, true);
     g_array_free(tables->table_data, true);
     g_array_free(tables->tcpalog, mfre);
+}
+
+/* Build rsdt table */
+void
+build_rsdt(GArray *table_data, GArray *linker, GArray *table_offsets)
+{
+    AcpiRsdtDescriptorRev1 *rsdt;
+    size_t rsdt_len;
+    int i;
+    const int table_data_len = (sizeof(uint32_t) * table_offsets->len);
+
+    rsdt_len = sizeof(*rsdt) + table_data_len;
+    rsdt = acpi_data_push(table_data, rsdt_len);
+    memcpy(rsdt->table_offset_entry, table_offsets->data, table_data_len);
+    for (i = 0; i < table_offsets->len; ++i) {
+        /* rsdt->table_offset_entry to be filled by Guest linker */
+        bios_linker_loader_add_pointer(linker,
+                                       ACPI_BUILD_TABLE_FILE,
+                                       ACPI_BUILD_TABLE_FILE,
+                                       table_data, &rsdt->table_offset_entry[i],
+                                       sizeof(uint32_t));
+    }
+    build_header(linker, table_data,
+                 (void *)rsdt, "RSDT", rsdt_len, 1);
 }

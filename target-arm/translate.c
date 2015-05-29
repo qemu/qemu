@@ -217,12 +217,16 @@ static void gen_exception_internal(int excp)
     tcg_temp_free_i32(tcg_excp);
 }
 
-static void gen_exception(int excp, uint32_t syndrome)
+static void gen_exception(int excp, uint32_t syndrome, uint32_t target_el)
 {
     TCGv_i32 tcg_excp = tcg_const_i32(excp);
     TCGv_i32 tcg_syn = tcg_const_i32(syndrome);
+    TCGv_i32 tcg_el = tcg_const_i32(target_el);
 
-    gen_helper_exception_with_syndrome(cpu_env, tcg_excp, tcg_syn);
+    gen_helper_exception_with_syndrome(cpu_env, tcg_excp,
+                                       tcg_syn, tcg_el);
+
+    tcg_temp_free_i32(tcg_el);
     tcg_temp_free_i32(tcg_syn);
     tcg_temp_free_i32(tcg_excp);
 }
@@ -250,7 +254,8 @@ static void gen_step_complete_exception(DisasContext *s)
      * of the exception, and our syndrome information is always correct.
      */
     gen_ss_advance(s);
-    gen_exception(EXCP_UDEF, syn_swstep(s->ss_same_el, 1, s->is_ldex));
+    gen_exception(EXCP_UDEF, syn_swstep(s->ss_same_el, 1, s->is_ldex),
+                  default_exception_el(s));
     s->is_jmp = DISAS_EXC;
 }
 
@@ -1013,11 +1018,12 @@ static void gen_exception_internal_insn(DisasContext *s, int offset, int excp)
     s->is_jmp = DISAS_JUMP;
 }
 
-static void gen_exception_insn(DisasContext *s, int offset, int excp, int syn)
+static void gen_exception_insn(DisasContext *s, int offset, int excp,
+                               int syn, uint32_t target_el)
 {
     gen_set_condexec(s);
     gen_set_pc_im(s, s->pc - offset);
-    gen_exception(excp, syn);
+    gen_exception(excp, syn, target_el);
     s->is_jmp = DISAS_JUMP;
 }
 
@@ -3038,9 +3044,9 @@ static int disas_vfp_insn(DisasContext *s, uint32_t insn)
      * for invalid encodings; we will generate incorrect syndrome information
      * for attempts to execute invalid vfp/neon encodings with FP disabled.
      */
-    if (!s->cpacr_fpen) {
+    if (s->fp_excp_el) {
         gen_exception_insn(s, 4, EXCP_UDEF,
-                           syn_fp_access_trap(1, 0xe, s->thumb));
+                           syn_fp_access_trap(1, 0xe, s->thumb), s->fp_excp_el);
         return 0;
     }
 
@@ -4356,9 +4362,9 @@ static int disas_neon_ls_insn(DisasContext *s, uint32_t insn)
      * for invalid encodings; we will generate incorrect syndrome information
      * for attempts to execute invalid vfp/neon encodings with FP disabled.
      */
-    if (!s->cpacr_fpen) {
+    if (s->fp_excp_el) {
         gen_exception_insn(s, 4, EXCP_UDEF,
-                           syn_fp_access_trap(1, 0xe, s->thumb));
+                           syn_fp_access_trap(1, 0xe, s->thumb), s->fp_excp_el);
         return 0;
     }
 
@@ -5094,9 +5100,9 @@ static int disas_neon_data_insn(DisasContext *s, uint32_t insn)
      * for invalid encodings; we will generate incorrect syndrome information
      * for attempts to execute invalid vfp/neon encodings with FP disabled.
      */
-    if (!s->cpacr_fpen) {
+    if (s->fp_excp_el) {
         gen_exception_insn(s, 4, EXCP_UDEF,
-                           syn_fp_access_trap(1, 0xe, s->thumb));
+                           syn_fp_access_trap(1, 0xe, s->thumb), s->fp_excp_el);
         return 0;
     }
 
@@ -7960,7 +7966,8 @@ static void disas_arm_insn(DisasContext *s, unsigned int insn)
                 /* bkpt */
                 ARCH(5);
                 gen_exception_insn(s, 4, EXCP_BKPT,
-                                   syn_aa32_bkpt(imm16, false));
+                                   syn_aa32_bkpt(imm16, false),
+                                   default_exception_el(s));
                 break;
             case 2:
                 /* Hypervisor call (v7) */
@@ -8423,18 +8430,53 @@ static void disas_arm_insn(DisasContext *s, unsigned int insn)
                 }
             } else {
                 int address_offset;
-                int load;
+                bool load = insn & (1 << 20);
+                bool doubleword = false;
                 /* Misc load/store */
                 rn = (insn >> 16) & 0xf;
                 rd = (insn >> 12) & 0xf;
+
+                if (!load && (sh & 2)) {
+                    /* doubleword */
+                    ARCH(5TE);
+                    if (rd & 1) {
+                        /* UNPREDICTABLE; we choose to UNDEF */
+                        goto illegal_op;
+                    }
+                    load = (sh & 1) == 0;
+                    doubleword = true;
+                }
+
                 addr = load_reg(s, rn);
                 if (insn & (1 << 24))
                     gen_add_datah_offset(s, insn, 0, addr);
                 address_offset = 0;
-                if (insn & (1 << 20)) {
+
+                if (doubleword) {
+                    if (!load) {
+                        /* store */
+                        tmp = load_reg(s, rd);
+                        gen_aa32_st32(tmp, addr, get_mem_index(s));
+                        tcg_temp_free_i32(tmp);
+                        tcg_gen_addi_i32(addr, addr, 4);
+                        tmp = load_reg(s, rd + 1);
+                        gen_aa32_st32(tmp, addr, get_mem_index(s));
+                        tcg_temp_free_i32(tmp);
+                    } else {
+                        /* load */
+                        tmp = tcg_temp_new_i32();
+                        gen_aa32_ld32u(tmp, addr, get_mem_index(s));
+                        store_reg(s, rd, tmp);
+                        tcg_gen_addi_i32(addr, addr, 4);
+                        tmp = tcg_temp_new_i32();
+                        gen_aa32_ld32u(tmp, addr, get_mem_index(s));
+                        rd++;
+                    }
+                    address_offset = -4;
+                } else if (load) {
                     /* load */
                     tmp = tcg_temp_new_i32();
-                    switch(sh) {
+                    switch (sh) {
                     case 1:
                         gen_aa32_ld16u(tmp, addr, get_mem_index(s));
                         break;
@@ -8446,38 +8488,11 @@ static void disas_arm_insn(DisasContext *s, unsigned int insn)
                         gen_aa32_ld16s(tmp, addr, get_mem_index(s));
                         break;
                     }
-                    load = 1;
-                } else if (sh & 2) {
-                    ARCH(5TE);
-                    /* doubleword */
-                    if (sh & 1) {
-                        /* store */
-                        tmp = load_reg(s, rd);
-                        gen_aa32_st32(tmp, addr, get_mem_index(s));
-                        tcg_temp_free_i32(tmp);
-                        tcg_gen_addi_i32(addr, addr, 4);
-                        tmp = load_reg(s, rd + 1);
-                        gen_aa32_st32(tmp, addr, get_mem_index(s));
-                        tcg_temp_free_i32(tmp);
-                        load = 0;
-                    } else {
-                        /* load */
-                        tmp = tcg_temp_new_i32();
-                        gen_aa32_ld32u(tmp, addr, get_mem_index(s));
-                        store_reg(s, rd, tmp);
-                        tcg_gen_addi_i32(addr, addr, 4);
-                        tmp = tcg_temp_new_i32();
-                        gen_aa32_ld32u(tmp, addr, get_mem_index(s));
-                        rd++;
-                        load = 1;
-                    }
-                    address_offset = -4;
                 } else {
                     /* store */
                     tmp = load_reg(s, rd);
                     gen_aa32_st16(tmp, addr, get_mem_index(s));
                     tcg_temp_free_i32(tmp);
-                    load = 0;
                 }
                 /* Perform base writeback before the loaded value to
                    ensure correct behavior with overlapping index registers.
@@ -9021,7 +9036,8 @@ static void disas_arm_insn(DisasContext *s, unsigned int insn)
             break;
         default:
         illegal_op:
-            gen_exception_insn(s, 4, EXCP_UDEF, syn_uncategorized());
+            gen_exception_insn(s, 4, EXCP_UDEF, syn_uncategorized(),
+                               default_exception_el(s));
             break;
         }
     }
@@ -10858,7 +10874,8 @@ static void disas_thumb_insn(CPUARMState *env, DisasContext *s)
         {
             int imm8 = extract32(insn, 0, 8);
             ARCH(5);
-            gen_exception_insn(s, 2, EXCP_BKPT, syn_aa32_bkpt(imm8, true));
+            gen_exception_insn(s, 2, EXCP_BKPT, syn_aa32_bkpt(imm8, true),
+                               default_exception_el(s));
             break;
         }
 
@@ -11013,11 +11030,13 @@ static void disas_thumb_insn(CPUARMState *env, DisasContext *s)
     }
     return;
 undef32:
-    gen_exception_insn(s, 4, EXCP_UDEF, syn_uncategorized());
+    gen_exception_insn(s, 4, EXCP_UDEF, syn_uncategorized(),
+                       default_exception_el(s));
     return;
 illegal_op:
 undef:
-    gen_exception_insn(s, 2, EXCP_UDEF, syn_uncategorized());
+    gen_exception_insn(s, 2, EXCP_UDEF, syn_uncategorized(),
+                       default_exception_el(s));
 }
 
 /* generate intermediate code in gen_opc_buf and gen_opparam_buf for
@@ -11057,6 +11076,7 @@ static inline void gen_intermediate_code_internal(ARMCPU *cpu,
     dc->condjmp = 0;
 
     dc->aarch64 = 0;
+    dc->el3_is_aa64 = arm_el_is_aa64(env, 3);
     dc->thumb = ARM_TBFLAG_THUMB(tb->flags);
     dc->bswap_code = ARM_TBFLAG_BSWAP_CODE(tb->flags);
     dc->condexec_mask = (ARM_TBFLAG_CONDEXEC(tb->flags) & 0xf) << 1;
@@ -11067,7 +11087,7 @@ static inline void gen_intermediate_code_internal(ARMCPU *cpu,
     dc->user = (dc->current_el == 0);
 #endif
     dc->ns = ARM_TBFLAG_NS(tb->flags);
-    dc->cpacr_fpen = ARM_TBFLAG_CPACR_FPEN(tb->flags);
+    dc->fp_excp_el = ARM_TBFLAG_FPEXC_EL(tb->flags);
     dc->vfp_enabled = ARM_TBFLAG_VFPEN(tb->flags);
     dc->vec_len = ARM_TBFLAG_VECLEN(tb->flags);
     dc->vec_stride = ARM_TBFLAG_VECSTRIDE(tb->flags);
@@ -11216,7 +11236,8 @@ static inline void gen_intermediate_code_internal(ARMCPU *cpu,
              * bits should be zero.
              */
             assert(num_insns == 0);
-            gen_exception(EXCP_UDEF, syn_swstep(dc->ss_same_el, 0, 0));
+            gen_exception(EXCP_UDEF, syn_swstep(dc->ss_same_el, 0, 0),
+                          default_exception_el(dc));
             goto done_generating;
         }
 
@@ -11276,13 +11297,14 @@ static inline void gen_intermediate_code_internal(ARMCPU *cpu,
             gen_set_condexec(dc);
             if (dc->is_jmp == DISAS_SWI) {
                 gen_ss_advance(dc);
-                gen_exception(EXCP_SWI, syn_aa32_svc(dc->svc_imm, dc->thumb));
+                gen_exception(EXCP_SWI, syn_aa32_svc(dc->svc_imm, dc->thumb),
+                              default_exception_el(dc));
             } else if (dc->is_jmp == DISAS_HVC) {
                 gen_ss_advance(dc);
-                gen_exception(EXCP_HVC, syn_aa32_hvc(dc->svc_imm));
+                gen_exception(EXCP_HVC, syn_aa32_hvc(dc->svc_imm), 2);
             } else if (dc->is_jmp == DISAS_SMC) {
                 gen_ss_advance(dc);
-                gen_exception(EXCP_SMC, syn_aa32_smc());
+                gen_exception(EXCP_SMC, syn_aa32_smc(), 3);
             } else if (dc->ss_active) {
                 gen_step_complete_exception(dc);
             } else {
@@ -11297,13 +11319,14 @@ static inline void gen_intermediate_code_internal(ARMCPU *cpu,
         gen_set_condexec(dc);
         if (dc->is_jmp == DISAS_SWI && !dc->condjmp) {
             gen_ss_advance(dc);
-            gen_exception(EXCP_SWI, syn_aa32_svc(dc->svc_imm, dc->thumb));
+            gen_exception(EXCP_SWI, syn_aa32_svc(dc->svc_imm, dc->thumb),
+                          default_exception_el(dc));
         } else if (dc->is_jmp == DISAS_HVC && !dc->condjmp) {
             gen_ss_advance(dc);
-            gen_exception(EXCP_HVC, syn_aa32_hvc(dc->svc_imm));
+            gen_exception(EXCP_HVC, syn_aa32_hvc(dc->svc_imm), 2);
         } else if (dc->is_jmp == DISAS_SMC && !dc->condjmp) {
             gen_ss_advance(dc);
-            gen_exception(EXCP_SMC, syn_aa32_smc());
+            gen_exception(EXCP_SMC, syn_aa32_smc(), 3);
         } else if (dc->ss_active) {
             gen_step_complete_exception(dc);
         } else {
@@ -11336,18 +11359,23 @@ static inline void gen_intermediate_code_internal(ARMCPU *cpu,
             break;
         case DISAS_WFI:
             gen_helper_wfi(cpu_env);
+            /* The helper doesn't necessarily throw an exception, but we
+             * must go back to the main loop to check for interrupts anyway.
+             */
+            tcg_gen_exit_tb(0);
             break;
         case DISAS_WFE:
             gen_helper_wfe(cpu_env);
             break;
         case DISAS_SWI:
-            gen_exception(EXCP_SWI, syn_aa32_svc(dc->svc_imm, dc->thumb));
+            gen_exception(EXCP_SWI, syn_aa32_svc(dc->svc_imm, dc->thumb),
+                          default_exception_el(dc));
             break;
         case DISAS_HVC:
-            gen_exception(EXCP_HVC, syn_aa32_hvc(dc->svc_imm));
+            gen_exception(EXCP_HVC, syn_aa32_hvc(dc->svc_imm), 2);
             break;
         case DISAS_SMC:
-            gen_exception(EXCP_SMC, syn_aa32_smc());
+            gen_exception(EXCP_SMC, syn_aa32_smc(), 3);
             break;
         }
         if (dc->condjmp) {
