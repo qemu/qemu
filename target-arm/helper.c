@@ -4087,7 +4087,8 @@ uint32_t HELPER(get_r13_banked)(CPUARMState *env, uint32_t mode)
     return 0;
 }
 
-unsigned int arm_excp_target_el(CPUState *cs, unsigned int excp_idx)
+uint32_t arm_phys_excp_target_el(CPUState *cs, uint32_t excp_idx,
+                                 uint32_t cur_el, bool secure)
 {
     return 1;
 }
@@ -4211,8 +4212,8 @@ const int8_t target_el_table[2][2][2][2][2][4] = {
 /*
  * Determine the target EL for physical exceptions
  */
-static inline uint32_t arm_phys_excp_target_el(CPUState *cs, uint32_t excp_idx,
-                                        uint32_t cur_el, bool secure)
+uint32_t arm_phys_excp_target_el(CPUState *cs, uint32_t excp_idx,
+                                 uint32_t cur_el, bool secure)
 {
     CPUARMState *env = cs->env_ptr;
     int rw = ((env->cp15.scr_el3 & SCR_RW) == SCR_RW);
@@ -4244,40 +4245,6 @@ static inline uint32_t arm_phys_excp_target_el(CPUState *cs, uint32_t excp_idx,
 
     assert(target_el > 0);
 
-    return target_el;
-}
-
-/*
- * Determine the target EL for a given exception type.
- */
-unsigned int arm_excp_target_el(CPUState *cs, unsigned int excp_idx)
-{
-    ARMCPU *cpu = ARM_CPU(cs);
-    CPUARMState *env = &cpu->env;
-    unsigned int cur_el = arm_current_el(env);
-    unsigned int target_el;
-    bool secure = arm_is_secure(env);
-
-    switch (excp_idx) {
-    case EXCP_HVC:
-    case EXCP_HYP_TRAP:
-        target_el = 2;
-        break;
-    case EXCP_SMC:
-        target_el = 3;
-        break;
-    case EXCP_FIQ:
-    case EXCP_IRQ:
-        target_el = arm_phys_excp_target_el(cs, excp_idx, cur_el, secure);
-        break;
-    case EXCP_VIRQ:
-    case EXCP_VFIQ:
-        target_el = 1;
-        break;
-    default:
-        target_el = MAX(cur_el, 1);
-        break;
-    }
     return target_el;
 }
 

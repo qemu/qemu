@@ -1000,7 +1000,8 @@ static inline bool access_secure_reg(CPUARMState *env)
                        (_val))
 
 void arm_cpu_list(FILE *f, fprintf_function cpu_fprintf);
-unsigned int arm_excp_target_el(CPUState *cs, unsigned int excp_idx);
+uint32_t arm_phys_excp_target_el(CPUState *cs, uint32_t excp_idx,
+                                 uint32_t cur_el, bool secure);
 
 /* Interface between CPU and Interrupt controller.  */
 void armv7m_nvic_set_pending(void *opaque, int irq);
@@ -1482,11 +1483,11 @@ bool write_cpustate_to_list(ARMCPU *cpu);
 #  define TARGET_VIRT_ADDR_SPACE_BITS 32
 #endif
 
-static inline bool arm_excp_unmasked(CPUState *cs, unsigned int excp_idx)
+static inline bool arm_excp_unmasked(CPUState *cs, unsigned int excp_idx,
+                                     unsigned int target_el)
 {
     CPUARMState *env = cs->env_ptr;
     unsigned int cur_el = arm_current_el(env);
-    unsigned int target_el = arm_excp_target_el(cs, excp_idx);
     bool secure = arm_is_secure(env);
     uint32_t scr;
     uint32_t hcr;
