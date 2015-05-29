@@ -262,8 +262,6 @@ int gtod_load(QEMUFile *f, void *opaque, int version_id)
 static void s390_init(MachineState *machine)
 {
     ram_addr_t my_ram_size;
-    MemoryRegion *sysmem = get_system_memory();
-    MemoryRegion *ram = g_new(MemoryRegion, 1);
     void *virtio_region;
     hwaddr virtio_region_len;
     hwaddr virtio_region_start;
@@ -285,9 +283,7 @@ static void s390_init(MachineState *machine)
     s390_virtio_register_hcalls();
 
     /* allocate RAM */
-    memory_region_init_ram(ram, NULL, "s390.ram", my_ram_size, &error_abort);
-    vmstate_register_ram_global(ram);
-    memory_region_add_subregion(sysmem, 0, ram);
+    s390_memory_init(my_ram_size);
 
     /* clear virtio region */
     virtio_region_len = my_ram_size - ram_size;
@@ -297,9 +293,6 @@ static void s390_init(MachineState *machine)
     memset(virtio_region, 0, virtio_region_len);
     cpu_physical_memory_unmap(virtio_region, virtio_region_len, 1,
                               virtio_region_len);
-
-    /* Initialize storage key device */
-    s390_skeys_init();
 
     /* init CPUs */
     s390_init_cpus(machine->cpu_model);

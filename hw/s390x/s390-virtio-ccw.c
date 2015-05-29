@@ -100,15 +100,28 @@ static void virtio_ccw_register_hcalls(void)
                                    virtio_ccw_hcall_early_printk);
 }
 
-static void ccw_init(MachineState *machine)
+void s390_memory_init(ram_addr_t mem_size)
 {
     MemoryRegion *sysmem = get_system_memory();
     MemoryRegion *ram = g_new(MemoryRegion, 1);
+
+    /* allocate RAM for core */
+    memory_region_init_ram(ram, NULL, "s390.ram", mem_size, &error_abort);
+    vmstate_register_ram_global(ram);
+    memory_region_add_subregion(sysmem, 0, ram);
+
+    /* Initialize storage key device */
+    s390_skeys_init();
+}
+
+static void ccw_init(MachineState *machine)
+{
     int ret;
     VirtualCssBus *css_bus;
     DeviceState *dev;
 
     s390_sclp_init();
+    s390_memory_init(machine->ram_size);
 
     /* get a BUS */
     css_bus = virtual_css_bus_init();
@@ -123,15 +136,6 @@ static void ccw_init(MachineState *machine)
 
     /* register hypercalls */
     virtio_ccw_register_hcalls();
-
-    /* allocate RAM for core */
-    memory_region_init_ram(ram, NULL, "s390.ram", machine->ram_size,
-                           &error_abort);
-    vmstate_register_ram_global(ram);
-    memory_region_add_subregion(sysmem, 0, ram);
-
-    /* Initialize storage key device */
-    s390_skeys_init();
 
     /* init CPUs */
     s390_init_cpus(machine->cpu_model);
