@@ -188,6 +188,7 @@ int virtio_set_features(VirtIODevice *vdev, uint32_t val);
 typedef struct VirtIOBlkConf VirtIOBlkConf;
 struct virtio_net_conf;
 typedef struct virtio_serial_conf virtio_serial_conf;
+typedef struct virtio_input_conf virtio_input_conf;
 typedef struct VirtIOSCSIConf VirtIOSCSIConf;
 typedef struct VirtIORNGConf VirtIORNGConf;
 
