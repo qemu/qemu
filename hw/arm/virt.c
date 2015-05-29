@@ -112,14 +112,9 @@ static const MemMapEntry a15memmap[] = {
     [VIRT_FW_CFG] =     { 0x09020000, 0x0000000a },
     [VIRT_MMIO] =       { 0x0a000000, 0x00000200 },
     /* ...repeating for a total of NUM_VIRTIO_TRANSPORTS, each of that size */
-    /*
-     * PCIE verbose map:
-     *
-     * MMIO window      { 0x10000000, 0x2eff0000 },
-     * PIO window       { 0x3eff0000, 0x00010000 },
-     * ECAM             { 0x3f000000, 0x01000000 },
-     */
-    [VIRT_PCIE] =       { 0x10000000, 0x30000000 },
+    [VIRT_PCIE_MMIO] =  { 0x10000000, 0x2eff0000 },
+    [VIRT_PCIE_PIO] =   { 0x3eff0000, 0x00010000 },
+    [VIRT_PCIE_ECAM] =  { 0x3f000000, 0x01000000 },
     [VIRT_MEM] =        { 0x40000000, 30ULL * 1024 * 1024 * 1024 },
 };
 
@@ -625,16 +620,14 @@ static void create_pcie_irq_map(const VirtBoardInfo *vbi, uint32_t gic_phandle,
 static void create_pcie(const VirtBoardInfo *vbi, qemu_irq *pic,
                         uint32_t gic_phandle)
 {
-    hwaddr base = vbi->memmap[VIRT_PCIE].base;
-    hwaddr size = vbi->memmap[VIRT_PCIE].size;
-    hwaddr end = base + size;
-    hwaddr size_mmio;
-    hwaddr size_ioport = 64 * 1024;
-    int nr_pcie_buses = 16;
-    hwaddr size_ecam = PCIE_MMCFG_SIZE_MIN * nr_pcie_buses;
-    hwaddr base_mmio = base;
-    hwaddr base_ioport;
-    hwaddr base_ecam;
+    hwaddr base_mmio = vbi->memmap[VIRT_PCIE_MMIO].base;
+    hwaddr size_mmio = vbi->memmap[VIRT_PCIE_MMIO].size;
+    hwaddr base_pio = vbi->memmap[VIRT_PCIE_PIO].base;
+    hwaddr size_pio = vbi->memmap[VIRT_PCIE_PIO].size;
+    hwaddr base_ecam = vbi->memmap[VIRT_PCIE_ECAM].base;
+    hwaddr size_ecam = vbi->memmap[VIRT_PCIE_ECAM].size;
+    hwaddr base = base_mmio;
+    int nr_pcie_buses = size_ecam / PCIE_MMCFG_SIZE_MIN;
     int irq = vbi->irqmap[VIRT_PCIE];
     MemoryRegion *mmio_alias;
     MemoryRegion *mmio_reg;
@@ -643,10 +636,6 @@ static void create_pcie(const VirtBoardInfo *vbi, qemu_irq *pic,
     DeviceState *dev;
     char *nodename;
     int i;
-
-    base_ecam = QEMU_ALIGN_DOWN(end - size_ecam, size_ecam);
-    base_ioport = QEMU_ALIGN_DOWN(base_ecam - size_ioport, size_ioport);
-    size_mmio = base_ioport - base;
 
     dev = qdev_create(NULL, TYPE_GPEX_HOST);
     qdev_init_nofail(dev);
@@ -670,7 +659,7 @@ static void create_pcie(const VirtBoardInfo *vbi, qemu_irq *pic,
     memory_region_add_subregion(get_system_memory(), base_mmio, mmio_alias);
 
     /* Map IO port space */
-    sysbus_mmio_map(SYS_BUS_DEVICE(dev), 2, base_ioport);
+    sysbus_mmio_map(SYS_BUS_DEVICE(dev), 2, base_pio);
 
     for (i = 0; i < GPEX_NUM_IRQS; i++) {
         sysbus_connect_irq(SYS_BUS_DEVICE(dev), i, pic[irq + i]);
@@ -690,7 +679,7 @@ static void create_pcie(const VirtBoardInfo *vbi, qemu_irq *pic,
                                  2, base_ecam, 2, size_ecam);
     qemu_fdt_setprop_sized_cells(vbi->fdt, nodename, "ranges",
                                  1, FDT_PCI_RANGE_IOPORT, 2, 0,
-                                 2, base_ioport, 2, size_ioport,
+                                 2, base_pio, 2, size_pio,
                                  1, FDT_PCI_RANGE_MMIO, 2, base_mmio,
                                  2, base_mmio, 2, size_mmio);
 
