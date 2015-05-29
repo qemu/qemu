@@ -120,7 +120,7 @@ static void mb_cpu_realizefn(DeviceState *dev, Error **errp)
     env->pvr.regs[10] = 0x0c000000; /* Default to spartan 3a dsp family.  */
     env->pvr.regs[11] = PVR11_USE_MMU | (16 << 17);
 
-    env->sregs[SR_PC] = cpu->base_vectors;
+    env->sregs[SR_PC] = cpu->cfg.base_vectors;
 
 #if defined(CONFIG_USER_ONLY)
     env->pvr.regs[10] = 0x0c000000; /* Spartan 3a dsp.  */
@@ -158,7 +158,7 @@ static const VMStateDescription vmstate_mb_cpu = {
 };
 
 static Property mb_properties[] = {
-    DEFINE_PROP_UINT32("xlnx.base-vectors", MicroBlazeCPU, base_vectors, 0),
+    DEFINE_PROP_UINT32("base-vectors", MicroBlazeCPU, cfg.base_vectors, 0),
     DEFINE_PROP_BOOL("use-stack-protection", MicroBlazeCPU, cfg.stackprot,
                      true),
     DEFINE_PROP_END_OF_LIST(),
