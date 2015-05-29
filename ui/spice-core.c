@@ -804,6 +804,7 @@ void qemu_spice_init(void)
     qemu_spice_audio_init();
 
     qemu_add_vm_change_state_handler(vm_change_state_handler, NULL);
+    qemu_spice_display_stop();
 
     g_free(x509_key_file);
     g_free(x509_cert_file);

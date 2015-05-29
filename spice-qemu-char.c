@@ -110,6 +110,9 @@ static SpiceCharDeviceInterface vmc_interface = {
 #if SPICE_SERVER_VERSION >= 0x000c02
     .event              = vmc_event,
 #endif
+#if SPICE_SERVER_VERSION >= 0x000c06
+    .flags              = SPICE_CHAR_DEVICE_NOTIFY_WRITABLE,
+#endif
 };
 
 
@@ -169,7 +172,7 @@ static GSource *spice_chr_add_watch(CharDriverState *chr, GIOCondition cond)
     SpiceCharDriver *scd = chr->opaque;
     SpiceCharSource *src;
 
-    assert(cond == G_IO_OUT);
+    assert(cond & G_IO_OUT);
 
     src = (SpiceCharSource *)g_source_new(&SpiceCharSourceFuncs,
                                           sizeof(SpiceCharSource));
@@ -260,6 +263,13 @@ static void print_allowed_subtypes(void)
     fprintf(stderr, "\n");
 }
 
+static void spice_chr_accept_input(struct CharDriverState *chr)
+{
+    SpiceCharDriver *s = chr->opaque;
+
+    spice_server_char_device_wakeup(&s->sin);
+}
+
 static CharDriverState *chr_open(const char *subtype,
     void (*set_fe_open)(struct CharDriverState *, int))
 
@@ -279,6 +289,7 @@ static CharDriverState *chr_open(const char *subtype,
     chr->chr_set_fe_open = set_fe_open;
     chr->explicit_be_open = true;
     chr->chr_fe_event = spice_chr_fe_event;
+    chr->chr_accept_input = spice_chr_accept_input;
 
     QLIST_INSERT_HEAD(&spice_chars, s, next);
 
