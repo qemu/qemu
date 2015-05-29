@@ -1761,13 +1761,13 @@ static inline bool arm_singlestep_active(CPUARMState *env)
 /* We store the bottom two bits of the CPAR as TB flags and handle
  * checks on the other bits at runtime
  */
-#define ARM_TBFLAG_XSCALE_CPAR_SHIFT 20
+#define ARM_TBFLAG_XSCALE_CPAR_SHIFT 17
 #define ARM_TBFLAG_XSCALE_CPAR_MASK (3 << ARM_TBFLAG_XSCALE_CPAR_SHIFT)
 /* Indicates whether cp register reads and writes by guest code should access
  * the secure or nonsecure bank of banked registers; note that this is not
  * the same thing as the current security state of the processor!
  */
-#define ARM_TBFLAG_NS_SHIFT         22
+#define ARM_TBFLAG_NS_SHIFT         19
 #define ARM_TBFLAG_NS_MASK          (1 << ARM_TBFLAG_NS_SHIFT)
 
 /* Bit usage when in AArch64 state: currently we have no A64 specific bits */
