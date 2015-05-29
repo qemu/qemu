@@ -421,7 +421,7 @@ void HELPER(access_check_cp_reg)(CPUARMState *env, void *rip, uint32_t syndrome)
         /* Requesting a trap to EL2 when we're in EL3 or S-EL0/1 is
          * a bug in the access function.
          */
-        assert(!arm_is_secure(env) && !arm_current_el(env) == 3);
+        assert(!arm_is_secure(env) && arm_current_el(env) != 3);
         target_el = 2;
         break;
     case CP_ACCESS_TRAP_EL3:
