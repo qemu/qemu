@@ -10975,8 +10975,8 @@ void gen_intermediate_code_internal_a64(ARMCPU *cpu,
      *   emit code to generate a software step exception
      *   end the TB
      */
-    dc->ss_active = ARM_TBFLAG_AA64_SS_ACTIVE(tb->flags);
-    dc->pstate_ss = ARM_TBFLAG_AA64_PSTATE_SS(tb->flags);
+    dc->ss_active = ARM_TBFLAG_SS_ACTIVE(tb->flags);
+    dc->pstate_ss = ARM_TBFLAG_PSTATE_SS(tb->flags);
     dc->is_ldex = false;
     dc->ss_same_el = (arm_debug_target_el(env) == dc->current_el);
 
