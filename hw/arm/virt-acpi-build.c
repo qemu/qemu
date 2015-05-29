@@ -42,6 +42,20 @@
 
 #define ARM_SPI_BASE 32
 
+typedef struct VirtAcpiCpuInfo {
+    DECLARE_BITMAP(found_cpus, VIRT_ACPI_CPU_ID_LIMIT);
+} VirtAcpiCpuInfo;
+
+static void virt_acpi_get_cpu_info(VirtAcpiCpuInfo *cpuinfo)
+{
+    CPUState *cpu;
+
+    memset(cpuinfo->found_cpus, 0, sizeof cpuinfo->found_cpus);
+    CPU_FOREACH(cpu) {
+        set_bit(cpu->cpu_index, cpuinfo->found_cpus);
+    }
+}
+
 static void acpi_dsdt_add_cpus(Aml *scope, int smp_cpus)
 {
     uint16_t i;
@@ -137,6 +151,43 @@ static void acpi_dsdt_add_virtio(Aml *scope,
     }
 }
 
+/* MADT */
+static void
+build_madt(GArray *table_data, GArray *linker, VirtGuestInfo *guest_info,
+           VirtAcpiCpuInfo *cpuinfo)
+{
+    int madt_start = table_data->len;
+    const MemMapEntry *memmap = guest_info->memmap;
+    AcpiMultipleApicTable *madt;
+    AcpiMadtGenericDistributor *gicd;
+    int i;
+
+    madt = acpi_data_push(table_data, sizeof *madt);
+
+    for (i = 0; i < guest_info->smp_cpus; i++) {
+        AcpiMadtGenericInterrupt *gicc = acpi_data_push(table_data,
+                                                     sizeof *gicc);
+        gicc->type = ACPI_APIC_GENERIC_INTERRUPT;
+        gicc->length = sizeof(*gicc);
+        gicc->base_address = memmap[VIRT_GIC_CPU].base;
+        gicc->cpu_interface_number = i;
+        gicc->arm_mpidr = i;
+        gicc->uid = i;
+        if (test_bit(i, cpuinfo->found_cpus)) {
+            gicc->flags = cpu_to_le32(ACPI_GICC_ENABLED);
+        }
+    }
+
+    gicd = acpi_data_push(table_data, sizeof *gicd);
+    gicd->type = ACPI_APIC_GENERIC_DISTRIBUTOR;
+    gicd->length = sizeof(*gicd);
+    gicd->base_address = memmap[VIRT_GIC_DIST].base;
+
+    build_header(linker, table_data,
+                 (void *)(table_data->data + madt_start), "APIC",
+                 table_data->len - madt_start, 5);
+}
+
 /* FADT */
 static void
 build_fadt(GArray *table_data, GArray *linker, unsigned dsdt)
@@ -209,7 +260,10 @@ void virt_acpi_build(VirtGuestInfo *guest_info, AcpiBuildTables *tables)
 {
     GArray *table_offsets;
     unsigned dsdt;
+    VirtAcpiCpuInfo cpuinfo;
     GArray *tables_blob = tables->table_data;
+
+    virt_acpi_get_cpu_info(&cpuinfo);
 
     table_offsets = g_array_new(false, true /* clear */,
                                         sizeof(uint32_t));
@@ -234,6 +288,9 @@ void virt_acpi_build(VirtGuestInfo *guest_info, AcpiBuildTables *tables)
     /* FADT MADT GTDT pointed to by RSDT */
     acpi_add_table(table_offsets, tables_blob);
     build_fadt(tables_blob, tables->linker, dsdt);
+
+    acpi_add_table(table_offsets, tables_blob);
+    build_madt(tables_blob, tables->linker, guest_info, &cpuinfo);
 
     /* Cleanup memory that's no longer used. */
     g_array_free(table_offsets, true);

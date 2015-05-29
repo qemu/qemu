@@ -256,7 +256,13 @@ typedef struct AcpiMultipleApicTable AcpiMultipleApicTable;
 #define ACPI_APIC_IO_SAPIC           6
 #define ACPI_APIC_LOCAL_SAPIC        7
 #define ACPI_APIC_XRUPT_SOURCE       8
-#define ACPI_APIC_RESERVED           9           /* 9 and greater are reserved */
+#define ACPI_APIC_LOCAL_X2APIC       9
+#define ACPI_APIC_LOCAL_X2APIC_NMI      10
+#define ACPI_APIC_GENERIC_INTERRUPT     11
+#define ACPI_APIC_GENERIC_DISTRIBUTOR   12
+#define ACPI_APIC_GENERIC_MSI_FRAME     13
+#define ACPI_APIC_GENERIC_REDISTRIBUTOR 14
+#define ACPI_APIC_RESERVED              15   /* 15 and greater are reserved */
 
 /*
  * MADT sub-structures (Follow MULTIPLE_APIC_DESCRIPTION_TABLE)
@@ -303,6 +309,36 @@ struct AcpiMadtLocalNmi {
     uint8_t  lint;                   /* Local APIC LINT# */
 } QEMU_PACKED;
 typedef struct AcpiMadtLocalNmi AcpiMadtLocalNmi;
+
+struct AcpiMadtGenericInterrupt {
+    ACPI_SUB_HEADER_DEF
+    uint16_t reserved;
+    uint32_t cpu_interface_number;
+    uint32_t uid;
+    uint32_t flags;
+    uint32_t parking_version;
+    uint32_t performance_interrupt;
+    uint64_t parked_address;
+    uint64_t base_address;
+    uint64_t gicv_base_address;
+    uint64_t gich_base_address;
+    uint32_t vgic_interrupt;
+    uint64_t gicr_base_address;
+    uint64_t arm_mpidr;
+} QEMU_PACKED;
+
+typedef struct AcpiMadtGenericInterrupt AcpiMadtGenericInterrupt;
+
+struct AcpiMadtGenericDistributor {
+    ACPI_SUB_HEADER_DEF
+    uint16_t reserved;
+    uint32_t gic_id;
+    uint64_t base_address;
+    uint32_t global_irq_base;
+    uint32_t reserved2;
+} QEMU_PACKED;
+
+typedef struct AcpiMadtGenericDistributor AcpiMadtGenericDistributor;
 
 /*
  * HPET Description Table
