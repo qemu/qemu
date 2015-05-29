@@ -151,6 +151,35 @@ static void acpi_dsdt_add_virtio(Aml *scope,
     }
 }
 
+/* RSDP */
+static GArray *
+build_rsdp(GArray *rsdp_table, GArray *linker, unsigned rsdt)
+{
+    AcpiRsdpDescriptor *rsdp = acpi_data_push(rsdp_table, sizeof *rsdp);
+
+    bios_linker_loader_alloc(linker, ACPI_BUILD_RSDP_FILE, 16,
+                             true /* fseg memory */);
+
+    memcpy(&rsdp->signature, "RSD PTR ", sizeof(rsdp->signature));
+    memcpy(rsdp->oem_id, ACPI_BUILD_APPNAME6, sizeof(rsdp->oem_id));
+    rsdp->length = cpu_to_le32(sizeof(*rsdp));
+    rsdp->revision = 0x02;
+
+    /* Point to RSDT */
+    rsdp->rsdt_physical_address = cpu_to_le32(rsdt);
+    /* Address to be filled by Guest linker */
+    bios_linker_loader_add_pointer(linker, ACPI_BUILD_RSDP_FILE,
+                                   ACPI_BUILD_TABLE_FILE,
+                                   rsdp_table, &rsdp->rsdt_physical_address,
+                                   sizeof rsdp->rsdt_physical_address);
+    rsdp->checksum = 0;
+    /* Checksum to be filled by Guest linker */
+    bios_linker_loader_add_checksum(linker, ACPI_BUILD_RSDP_FILE,
+                                    rsdp, rsdp, sizeof *rsdp, &rsdp->checksum);
+
+    return rsdp_table;
+}
+
 /* GTDT */
 static void
 build_gtdt(GArray *table_data, GArray *linker)
@@ -285,7 +314,7 @@ static
 void virt_acpi_build(VirtGuestInfo *guest_info, AcpiBuildTables *tables)
 {
     GArray *table_offsets;
-    unsigned dsdt;
+    unsigned dsdt, rsdt;
     VirtAcpiCpuInfo cpuinfo;
     GArray *tables_blob = tables->table_data;
 
@@ -322,7 +351,11 @@ void virt_acpi_build(VirtGuestInfo *guest_info, AcpiBuildTables *tables)
     build_gtdt(tables_blob, tables->linker);
 
     /* RSDT is pointed to by RSDP */
+    rsdt = tables_blob->len;
     build_rsdt(tables_blob, tables->linker, table_offsets);
+
+    /* RSDP is in FSEG memory, so allocate it separately */
+    build_rsdp(tables->rsdp, tables->linker, rsdt);
 
     /* Cleanup memory that's no longer used. */
     g_array_free(table_offsets, true);
