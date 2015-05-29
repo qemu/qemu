@@ -533,6 +533,33 @@ Aml *aml_memory32_fixed(uint32_t addr, uint32_t size,
     return var;
 }
 
+/*
+ * ACPI 5.0: 6.4.3.6 Extended Interrupt Descriptor
+ * Type 1, Large Item Name 0x9
+ */
+Aml *aml_interrupt(AmlConsumerAndProducer con_and_pro,
+                   AmlLevelAndEdge level_and_edge,
+                   AmlActiveHighAndLow high_and_low, AmlShared shared,
+                   uint32_t irq)
+{
+    Aml *var = aml_alloc();
+    uint8_t irq_flags = con_and_pro | (level_and_edge << 1)
+                        | (high_and_low << 2) | (shared << 3);
+
+    build_append_byte(var->buf, 0x89); /* Extended irq descriptor */
+    build_append_byte(var->buf, 6); /* Length, bits[7:0] minimum value = 6 */
+    build_append_byte(var->buf, 0); /* Length, bits[15:8] minimum value = 0 */
+    build_append_byte(var->buf, irq_flags); /* Interrupt Vector Information. */
+    build_append_byte(var->buf, 0x01);      /* Interrupt table length = 1 */
+
+    /* Interrupt Number */
+    build_append_byte(var->buf, extract32(irq, 0, 8));  /* bits[7:0] */
+    build_append_byte(var->buf, extract32(irq, 8, 8));  /* bits[15:8] */
+    build_append_byte(var->buf, extract32(irq, 16, 8)); /* bits[23:16] */
+    build_append_byte(var->buf, extract32(irq, 24, 8)); /* bits[31:24] */
+    return var;
+}
+
 /* ACPI 1.0b: 6.4.2.5 I/O Port Descriptor */
 Aml *aml_io(AmlIODecode dec, uint16_t min_base, uint16_t max_base,
             uint8_t aln, uint8_t len)
