@@ -1345,9 +1345,9 @@ FWCfgState *pc_memory_init(MachineState *machine,
     return fw_cfg;
 }
 
-qemu_irq *pc_allocate_cpu_irq(void)
+qemu_irq pc_allocate_cpu_irq(void)
 {
-    return qemu_allocate_irqs(pic_irq_request, NULL, 1);
+    return qemu_allocate_irq(pic_irq_request, NULL, 0);
 }
 
 DeviceState *pc_vga_init(ISABus *isa_bus, PCIBus *pci_bus)
