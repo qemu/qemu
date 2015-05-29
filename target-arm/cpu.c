@@ -1197,6 +1197,23 @@ static Property arm_cpu_properties[] = {
     DEFINE_PROP_END_OF_LIST()
 };
 
+#ifdef CONFIG_USER_ONLY
+static int arm_cpu_handle_mmu_fault(CPUState *cs, vaddr address, int rw,
+                                    int mmu_idx)
+{
+    ARMCPU *cpu = ARM_CPU(cs);
+    CPUARMState *env = &cpu->env;
+
+    env->exception.vaddress = address;
+    if (rw == 2) {
+        cs->exception_index = EXCP_PREFETCH_ABORT;
+    } else {
+        cs->exception_index = EXCP_DATA_ABORT;
+    }
+    return 1;
+}
+#endif
+
 static void arm_cpu_class_init(ObjectClass *oc, void *data)
 {
     ARMCPUClass *acc = ARM_CPU_CLASS(oc);

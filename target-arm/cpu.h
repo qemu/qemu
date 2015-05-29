@@ -504,8 +504,6 @@ static inline bool is_a64(CPUARMState *env)
    is returned if the signal was handled by the virtual CPU.  */
 int cpu_arm_signal_handler(int host_signum, void *pinfo,
                            void *puc);
-int arm_cpu_handle_mmu_fault(CPUState *cpu, vaddr address, int rw,
-                             int mmu_idx);
 
 /**
  * pmccntr_sync

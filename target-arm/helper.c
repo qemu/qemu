@@ -4047,21 +4047,6 @@ uint32_t HELPER(rbit)(uint32_t x)
 
 #if defined(CONFIG_USER_ONLY)
 
-int arm_cpu_handle_mmu_fault(CPUState *cs, vaddr address, int rw,
-                             int mmu_idx)
-{
-    ARMCPU *cpu = ARM_CPU(cs);
-    CPUARMState *env = &cpu->env;
-
-    env->exception.vaddress = address;
-    if (rw == 2) {
-        cs->exception_index = EXCP_PREFETCH_ABORT;
-    } else {
-        cs->exception_index = EXCP_DATA_ABORT;
-    }
-    return 1;
-}
-
 /* These should probably raise undefined insn exceptions.  */
 void HELPER(v7m_msr)(CPUARMState *env, uint32_t reg, uint32_t val)
 {
@@ -5826,8 +5811,12 @@ static inline int get_phys_addr(CPUARMState *env, target_ulong address,
     }
 }
 
-int arm_cpu_handle_mmu_fault(CPUState *cs, vaddr address,
-                             int access_type, int mmu_idx)
+/* Walk the page table and (if the mapping exists) add the page
+ * to the TLB. Return 0 on success, or an ARM DFSR/IFSR fault
+ * register format value on failure.
+ */
+int arm_tlb_fill(CPUState *cs, vaddr address,
+                 int access_type, int mmu_idx)
 {
     ARMCPU *cpu = ARM_CPU(cs);
     CPUARMState *env = &cpu->env;
@@ -5835,8 +5824,6 @@ int arm_cpu_handle_mmu_fault(CPUState *cs, vaddr address,
     target_ulong page_size;
     int prot;
     int ret;
-    uint32_t syn;
-    bool same_el = (arm_current_el(env) != 0);
     MemTxAttrs attrs = {};
 
     ret = get_phys_addr(env, address, access_type, mmu_idx, &phys_addr,
@@ -5850,27 +5837,7 @@ int arm_cpu_handle_mmu_fault(CPUState *cs, vaddr address,
         return 0;
     }
 
-    /* AArch64 syndrome does not have an LPAE bit */
-    syn = ret & ~(1 << 9);
-
-    /* For insn and data aborts we assume there is no instruction syndrome
-     * information; this is always true for exceptions reported to EL1.
-     */
-    if (access_type == 2) {
-        syn = syn_insn_abort(same_el, 0, 0, syn);
-        cs->exception_index = EXCP_PREFETCH_ABORT;
-    } else {
-        syn = syn_data_abort(same_el, 0, 0, 0, access_type == 1, syn);
-        if (access_type == 1 && arm_feature(env, ARM_FEATURE_V6)) {
-            ret |= (1 << 11);
-        }
-        cs->exception_index = EXCP_DATA_ABORT;
-    }
-
-    env->exception.syndrome = syn;
-    env->exception.vaddress = address;
-    env->exception.fsr = ret;
-    return 1;
+    return ret;
 }
 
 hwaddr arm_cpu_get_phys_page_debug(CPUState *cs, vaddr addr)

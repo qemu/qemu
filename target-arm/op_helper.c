@@ -80,16 +80,39 @@ void tlb_fill(CPUState *cs, target_ulong addr, int is_write, int mmu_idx,
 {
     int ret;
 
-    ret = arm_cpu_handle_mmu_fault(cs, addr, is_write, mmu_idx);
+    ret = arm_tlb_fill(cs, addr, is_write, mmu_idx);
     if (unlikely(ret)) {
         ARMCPU *cpu = ARM_CPU(cs);
         CPUARMState *env = &cpu->env;
+        uint32_t syn, exc;
+        bool same_el = (arm_current_el(env) != 0);
 
         if (retaddr) {
             /* now we have a real cpu fault */
             cpu_restore_state(cs, retaddr);
         }
-        raise_exception(env, cs->exception_index);
+
+        /* AArch64 syndrome does not have an LPAE bit */
+        syn = ret & ~(1 << 9);
+
+        /* For insn and data aborts we assume there is no instruction syndrome
+         * information; this is always true for exceptions reported to EL1.
+         */
+        if (is_write == 2) {
+            syn = syn_insn_abort(same_el, 0, 0, syn);
+            exc = EXCP_PREFETCH_ABORT;
+        } else {
+            syn = syn_data_abort(same_el, 0, 0, 0, is_write == 1, syn);
+            if (is_write == 1 && arm_feature(env, ARM_FEATURE_V6)) {
+                ret |= (1 << 11);
+            }
+            exc = EXCP_DATA_ABORT;
+        }
+
+        env->exception.syndrome = syn;
+        env->exception.vaddress = addr;
+        env->exception.fsr = ret;
+        raise_exception(env, exc);
     }
 }
 #endif
