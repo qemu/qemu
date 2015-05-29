@@ -381,6 +381,9 @@ void HELPER(msr_i_pstate)(CPUARMState *env, uint32_t op, uint32_t imm)
      */
     if (arm_current_el(env) == 0 && !(env->cp15.sctlr_el[1] & SCTLR_UMA)) {
         env->exception.target_el = exception_target_el(env);
+        env->exception.syndrome = syn_aa64_sysregtrap(0, extract32(op, 0, 3),
+                                                      extract32(op, 3, 3), 4,
+                                                      imm, 0x1f, 0);
         raise_exception(env, EXCP_UDEF);
     }
 
