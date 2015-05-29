@@ -44,6 +44,7 @@
 #include "qemu/bitops.h"
 #include "qemu/error-report.h"
 #include "hw/pci-host/gpex.h"
+#include "hw/arm/virt-acpi-build.h"
 
 /* Number of external interrupt lines to configure the GIC with */
 #define NUM_IRQS 128
@@ -697,6 +698,14 @@ static void *machvirt_dtb(const struct arm_boot_info *binfo, int *fdt_size)
     return board->fdt;
 }
 
+static
+void virt_guest_info_machine_done(Notifier *notifier, void *data)
+{
+    VirtGuestInfoState *guest_info_state = container_of(notifier,
+                                              VirtGuestInfoState, machine_done);
+    virt_acpi_setup(&guest_info_state->info);
+}
+
 static void machvirt_init(MachineState *machine)
 {
     VirtMachineState *vms = VIRT_MACHINE(machine);
@@ -706,6 +715,8 @@ static void machvirt_init(MachineState *machine)
     MemoryRegion *ram = g_new(MemoryRegion, 1);
     const char *cpu_model = machine->cpu_model;
     VirtBoardInfo *vbi;
+    VirtGuestInfoState *guest_info_state = g_malloc0(sizeof *guest_info_state);
+    VirtGuestInfo *guest_info = &guest_info_state->info;
     uint32_t gic_phandle;
     char **cpustr;
 
@@ -798,6 +809,14 @@ static void machvirt_init(MachineState *machine)
     create_virtio_devices(vbi, pic);
 
     create_fw_cfg(vbi);
+    rom_set_fw(fw_cfg_find());
+
+    guest_info->smp_cpus = smp_cpus;
+    guest_info->fw_cfg = fw_cfg_find();
+    guest_info->memmap = vbi->memmap;
+    guest_info->irqmap = vbi->irqmap;
+    guest_info_state->machine_done.notify = virt_guest_info_machine_done;
+    qemu_add_machine_init_done_notifier(&guest_info_state->machine_done);
 
     vbi->bootinfo.ram_size = machine->ram_size;
     vbi->bootinfo.kernel_filename = machine->kernel_filename;
