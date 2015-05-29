@@ -468,11 +468,11 @@ void helper_memalign(CPUMBState *env, uint32_t addr, uint32_t dr, uint32_t wr,
 void helper_stackprot(CPUMBState *env, uint32_t addr)
 {
     if (addr < env->slr || addr > env->shr) {
-            qemu_log("Stack protector violation at %x %x %x\n",
-                     addr, env->slr, env->shr);
-            env->sregs[SR_EAR] = addr;
-            env->sregs[SR_ESR] = ESR_EC_STACKPROT;
-            helper_raise_exception(env, EXCP_HW_EXCP);
+        qemu_log("Stack protector violation at %x %x %x\n",
+                 addr, env->slr, env->shr);
+        env->sregs[SR_EAR] = addr;
+        env->sregs[SR_ESR] = ESR_EC_STACKPROT;
+        helper_raise_exception(env, EXCP_HW_EXCP);
     }
 }
 
