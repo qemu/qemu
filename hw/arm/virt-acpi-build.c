@@ -321,6 +321,9 @@ void virt_acpi_build(VirtGuestInfo *guest_info, AcpiBuildTables *tables)
     acpi_add_table(table_offsets, tables_blob);
     build_gtdt(tables_blob, tables->linker);
 
+    /* RSDT is pointed to by RSDP */
+    build_rsdt(tables_blob, tables->linker, table_offsets);
+
     /* Cleanup memory that's no longer used. */
     g_array_free(table_offsets, true);
 }

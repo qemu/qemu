@@ -266,5 +266,7 @@ unsigned acpi_data_len(GArray *table);
 void acpi_add_table(GArray *table_offsets, GArray *table_data);
 void acpi_build_tables_init(AcpiBuildTables *tables);
 void acpi_build_tables_cleanup(AcpiBuildTables *tables, bool mfre);
+void
+build_rsdt(GArray *table_data, GArray *linker, GArray *table_offsets);
 
 #endif
