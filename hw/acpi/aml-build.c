@@ -962,6 +962,59 @@ Aml *aml_qword_memory(AmlDecode dec, AmlMinFixed min_fixed,
                              addr_trans, len, flags);
 }
 
+static uint8_t Hex2Byte(const char *src)
+{
+    int hi, lo;
+
+    hi = Hex2Digit(src[0]);
+    assert(hi >= 0);
+    assert(hi <= 15);
+
+    lo = Hex2Digit(src[1]);
+    assert(lo >= 0);
+    assert(lo <= 15);
+    return (hi << 4) | lo;
+}
+
+/*
+ * ACPI 3.0: 17.5.124 ToUUID (Convert String to UUID Macro)
+ * e.g. UUID: aabbccdd-eeff-gghh-iijj-kkllmmnnoopp
+ * call aml_touuid("aabbccdd-eeff-gghh-iijj-kkllmmnnoopp");
+ */
+Aml *aml_touuid(const char *uuid)
+{
+    Aml *var = aml_bundle(0x11 /* BufferOp */, AML_BUFFER);
+
+    assert(strlen(uuid) == 36);
+    assert(uuid[8] == '-');
+    assert(uuid[13] == '-');
+    assert(uuid[18] == '-');
+    assert(uuid[23] == '-');
+
+    build_append_byte(var->buf, Hex2Byte(uuid + 6));  /* dd - at offset 00 */
+    build_append_byte(var->buf, Hex2Byte(uuid + 4));  /* cc - at offset 01 */
+    build_append_byte(var->buf, Hex2Byte(uuid + 2));  /* bb - at offset 02 */
+    build_append_byte(var->buf, Hex2Byte(uuid + 0));  /* aa - at offset 03 */
+
+    build_append_byte(var->buf, Hex2Byte(uuid + 11)); /* ff - at offset 04 */
+    build_append_byte(var->buf, Hex2Byte(uuid + 9));  /* ee - at offset 05 */
+
+    build_append_byte(var->buf, Hex2Byte(uuid + 16)); /* hh - at offset 06 */
+    build_append_byte(var->buf, Hex2Byte(uuid + 14)); /* gg - at offset 07 */
+
+    build_append_byte(var->buf, Hex2Byte(uuid + 19)); /* ii - at offset 08 */
+    build_append_byte(var->buf, Hex2Byte(uuid + 21)); /* jj - at offset 09 */
+
+    build_append_byte(var->buf, Hex2Byte(uuid + 24)); /* kk - at offset 10 */
+    build_append_byte(var->buf, Hex2Byte(uuid + 26)); /* ll - at offset 11 */
+    build_append_byte(var->buf, Hex2Byte(uuid + 28)); /* mm - at offset 12 */
+    build_append_byte(var->buf, Hex2Byte(uuid + 30)); /* nn - at offset 13 */
+    build_append_byte(var->buf, Hex2Byte(uuid + 32)); /* oo - at offset 14 */
+    build_append_byte(var->buf, Hex2Byte(uuid + 34)); /* pp - at offset 15 */
+
+    return var;
+}
+
 void
 build_header(GArray *linker, GArray *table_data,
              AcpiTableHeader *h, const char *sig, int len, uint8_t rev)
