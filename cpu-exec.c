@@ -27,6 +27,7 @@
 #include "exec/address-spaces.h"
 #include "exec/memory-internal.h"
 #include "qemu/rcu.h"
+#include "exec/tb-hash.h"
 
 /* -icount align implementation. */
 
