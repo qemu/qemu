@@ -161,7 +161,6 @@ typedef struct CPUIOTLBEntry {
 #endif
 
 
-#define CPU_TEMP_BUF_NLONGS 128
 #define CPU_COMMON                                                      \
     /* soft mmu support */                                              \
     CPU_COMMON_TLB                                                      \
