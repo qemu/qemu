@@ -56,12 +56,6 @@ typedef uint64_t target_ulong;
 #error TARGET_LONG_SIZE undefined
 #endif
 
-#define EXCP_INTERRUPT 	0x10000 /* async interruption */
-#define EXCP_HLT        0x10001 /* hlt instruction reached */
-#define EXCP_DEBUG      0x10002 /* cpu stopped after a breakpoint or singlestep */
-#define EXCP_HALTED     0x10003 /* cpu is halted (waiting for external event) */
-#define EXCP_YIELD      0x10004 /* cpu wants to yield timeslice to another */
-
 /* Only the bottom TB_JMP_PAGE_BITS of the jump cache hash bits vary for
    addresses on the same page.  The top bits are the same.  This allows
    TLB invalidation to quickly clear a subset of the hash table.  */
