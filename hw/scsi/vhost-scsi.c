@@ -151,8 +151,8 @@ static void vhost_scsi_stop(VHostSCSI *s)
     vhost_dev_disable_notifiers(&s->dev, vdev);
 }
 
-static uint32_t vhost_scsi_get_features(VirtIODevice *vdev,
-                                        uint32_t features)
+static uint64_t vhost_scsi_get_features(VirtIODevice *vdev,
+                                        uint64_t features)
 {
     VHostSCSI *s = VHOST_SCSI(vdev);
 

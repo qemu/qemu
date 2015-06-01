@@ -906,12 +906,29 @@ static bool virtio_device_endian_needed(void *opaque)
     return vdev->device_endian != virtio_default_endian();
 }
 
+static bool virtio_64bit_features_needed(void *opaque)
+{
+    VirtIODevice *vdev = opaque;
+
+    return (vdev->host_features >> 32) != 0;
+}
+
 static const VMStateDescription vmstate_virtio_device_endian = {
     .name = "virtio/device_endian",
     .version_id = 1,
     .minimum_version_id = 1,
     .fields = (VMStateField[]) {
         VMSTATE_UINT8(device_endian, VirtIODevice),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
+static const VMStateDescription vmstate_virtio_64bit_features = {
+    .name = "virtio/64bit_features",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .fields = (VMStateField[]) {
+        VMSTATE_UINT64(guest_features, VirtIODevice),
         VMSTATE_END_OF_LIST()
     }
 };
@@ -929,6 +946,10 @@ static const VMStateDescription vmstate_virtio = {
             .vmsd = &vmstate_virtio_device_endian,
             .needed = &virtio_device_endian_needed
         },
+        {
+            .vmsd = &vmstate_virtio_64bit_features,
+            .needed = &virtio_64bit_features_needed
+        },
         { 0 }
     }
 };
@@ -938,6 +959,7 @@ void virtio_save(VirtIODevice *vdev, QEMUFile *f)
     BusState *qbus = qdev_get_parent_bus(DEVICE(vdev));
     VirtioBusClass *k = VIRTIO_BUS_GET_CLASS(qbus);
     VirtioDeviceClass *vdc = VIRTIO_DEVICE_GET_CLASS(vdev);
+    uint32_t guest_features_lo = (vdev->guest_features & 0xffffffff);
     int i;
 
     if (k->save_config) {
@@ -947,7 +969,7 @@ void virtio_save(VirtIODevice *vdev, QEMUFile *f)
     qemu_put_8s(f, &vdev->status);
     qemu_put_8s(f, &vdev->isr);
     qemu_put_be16s(f, &vdev->queue_sel);
-    qemu_put_be32s(f, &vdev->guest_features);
+    qemu_put_be32s(f, &guest_features_lo);
     qemu_put_be32(f, vdev->config_len);
     qemu_put_buffer(f, vdev->config, vdev->config_len);
 
@@ -1024,11 +1046,6 @@ int virtio_load(VirtIODevice *vdev, QEMUFile *f, int version_id)
     }
     qemu_get_be32s(f, &features);
 
-    if (virtio_set_features(vdev, features) < 0) {
-        error_report("Features 0x%x unsupported. Allowed features: 0x%x",
-                     features, vdev->host_features);
-        return -1;
-    }
     config_len = qemu_get_be32(f);
 
     /*
@@ -1092,6 +1109,28 @@ int virtio_load(VirtIODevice *vdev, QEMUFile *f, int version_id)
 
     if (vdev->device_endian == VIRTIO_DEVICE_ENDIAN_UNKNOWN) {
         vdev->device_endian = virtio_default_endian();
+    }
+
+    if (virtio_64bit_features_needed(vdev)) {
+        /*
+         * Subsection load filled vdev->guest_features.  Run them
+         * through virtio_set_features to sanity-check them against
+         * host_features.
+         */
+        uint64_t features64 = vdev->guest_features;
+        if (virtio_set_features(vdev, features64) < 0) {
+            error_report("Features 0x%" PRIx64 " unsupported. "
+                         "Allowed features: 0x%" PRIx64,
+                         features64, vdev->host_features);
+            return -1;
+        }
+    } else {
+        if (virtio_set_features(vdev, features) < 0) {
+            error_report("Features 0x%x unsupported. "
+                         "Allowed features: 0x%" PRIx64,
+                         features, vdev->host_features);
+            return -1;
+        }
     }
 
     for (i = 0; i < num; i++) {

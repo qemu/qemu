@@ -310,7 +310,7 @@ static void virtio_balloon_set_config(VirtIODevice *vdev,
     trace_virtio_balloon_set_config(dev->actual, oldactual);
 }
 
-static uint32_t virtio_balloon_get_features(VirtIODevice *vdev, uint32_t f)
+static uint64_t virtio_balloon_get_features(VirtIODevice *vdev, uint64_t f)
 {
     f |= (1 << VIRTIO_BALLOON_F_STATS_VQ);
     return f;

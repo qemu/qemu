@@ -73,8 +73,8 @@ struct VirtIODevice
     uint8_t status;
     uint8_t isr;
     uint16_t queue_sel;
-    uint32_t guest_features;
-    uint32_t host_features;
+    uint64_t guest_features;
+    uint64_t host_features;
     size_t config_len;
     void *config;
     uint16_t config_vector;
@@ -96,8 +96,8 @@ typedef struct VirtioDeviceClass {
     /* This is what a VirtioDevice must implement */
     DeviceRealize realize;
     DeviceUnrealize unrealize;
-    uint32_t (*get_features)(VirtIODevice *vdev, uint32_t requested_features);
-    uint32_t (*bad_features)(VirtIODevice *vdev);
+    uint64_t (*get_features)(VirtIODevice *vdev, uint64_t requested_features);
+    uint64_t (*bad_features)(VirtIODevice *vdev);
     void (*set_features)(VirtIODevice *vdev, uint32_t val);
     void (*get_config)(VirtIODevice *vdev, uint8_t *config);
     void (*set_config)(VirtIODevice *vdev, const uint8_t *config);
@@ -195,12 +195,12 @@ typedef struct VirtIOSCSIConf VirtIOSCSIConf;
 typedef struct VirtIORNGConf VirtIORNGConf;
 
 #define DEFINE_VIRTIO_COMMON_FEATURES(_state, _field) \
-    DEFINE_PROP_BIT("indirect_desc", _state, _field,    \
-                    VIRTIO_RING_F_INDIRECT_DESC, true), \
-    DEFINE_PROP_BIT("event_idx", _state, _field,        \
-                    VIRTIO_RING_F_EVENT_IDX, true),     \
-    DEFINE_PROP_BIT("notify_on_empty", _state, _field,  \
-                    VIRTIO_F_NOTIFY_ON_EMPTY, true)
+    DEFINE_PROP_BIT64("indirect_desc", _state, _field,    \
+                      VIRTIO_RING_F_INDIRECT_DESC, true), \
+    DEFINE_PROP_BIT64("event_idx", _state, _field,        \
+                      VIRTIO_RING_F_EVENT_IDX, true),     \
+    DEFINE_PROP_BIT64("notify_on_empty", _state, _field,  \
+                      VIRTIO_F_NOTIFY_ON_EMPTY, true)
 
 hwaddr virtio_queue_get_desc_addr(VirtIODevice *vdev, int n);
 hwaddr virtio_queue_get_avail_addr(VirtIODevice *vdev, int n);
@@ -227,21 +227,21 @@ void virtio_irq(VirtQueue *vq);
 VirtQueue *virtio_vector_first_queue(VirtIODevice *vdev, uint16_t vector);
 VirtQueue *virtio_vector_next_queue(VirtQueue *vq);
 
-static inline void virtio_add_feature(uint32_t *features, unsigned int fbit)
+static inline void virtio_add_feature(uint64_t *features, unsigned int fbit)
 {
-    assert(fbit < 32);
+    assert(fbit < 64);
     *features |= (1 << fbit);
 }
 
-static inline void virtio_clear_feature(uint32_t *features, unsigned int fbit)
+static inline void virtio_clear_feature(uint64_t *features, unsigned int fbit)
 {
-    assert(fbit < 32);
+    assert(fbit < 64);
     *features &= ~(1 << fbit);
 }
 
-static inline bool __virtio_has_feature(uint32_t features, unsigned int fbit)
+static inline bool __virtio_has_feature(uint64_t features, unsigned int fbit)
 {
-    assert(fbit < 32);
+    assert(fbit < 64);
     return !!(features & (1 << fbit));
 }
 

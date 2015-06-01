@@ -21,7 +21,7 @@
 #include "virtio-9p-coth.h"
 #include "hw/virtio/virtio-access.h"
 
-static uint32_t virtio_9p_get_features(VirtIODevice *vdev, uint32_t features)
+static uint64_t virtio_9p_get_features(VirtIODevice *vdev, uint64_t features)
 {
     virtio_add_feature(&features, VIRTIO_9P_MOUNT_TAG);
     return features;

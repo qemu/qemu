@@ -628,8 +628,8 @@ static void virtio_scsi_set_config(VirtIODevice *vdev,
     vs->cdb_size = virtio_ldl_p(vdev, &scsiconf->cdb_size);
 }
 
-static uint32_t virtio_scsi_get_features(VirtIODevice *vdev,
-                                         uint32_t requested_features)
+static uint64_t virtio_scsi_get_features(VirtIODevice *vdev,
+                                         uint64_t requested_features)
 {
     VirtIOSCSI *s = VIRTIO_SCSI(vdev);
 

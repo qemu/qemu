@@ -718,7 +718,7 @@ static void virtio_blk_set_config(VirtIODevice *vdev, const uint8_t *config)
     aio_context_release(blk_get_aio_context(s->blk));
 }
 
-static uint32_t virtio_blk_get_features(VirtIODevice *vdev, uint32_t features)
+static uint64_t virtio_blk_get_features(VirtIODevice *vdev, uint64_t features)
 {
     VirtIOBlock *s = VIRTIO_BLK(vdev);
 
