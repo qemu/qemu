@@ -56,7 +56,6 @@ static void read_SCP_info(SCLPDevice *sclp, SCCB *sccb)
     read_info->facilities = cpu_to_be64(SCLP_HAS_CPU_INFO |
                                         SCLP_HAS_PCI_RECONFIG);
 
-    rnmax = ram_size >> sclp->increment_size;
     /* Memory Hotplug is only supported for the ccw machine type */
     if (mhd) {
         mhd->standby_subregion_size = MEM_SECTION_SIZE;
@@ -84,8 +83,6 @@ static void read_SCP_info(SCLPDevice *sclp, SCCB *sccb)
         }
         mhd->padded_ram_size = ram_size + mhd->pad_size;
         mhd->rzm = 1 << mhd->increment_size;
-        rnmax = ((ram_size + mhd->standby_mem_size + mhd->pad_size)
-             >> mhd->increment_size);
 
         read_info->facilities |= cpu_to_be64(SCLP_FC_ASSIGN_ATTACH_READ_STOR);
     }
@@ -98,6 +95,7 @@ static void read_SCP_info(SCLPDevice *sclp, SCCB *sccb)
         read_info->rnsize2 = cpu_to_be32(rnsize);
     }
 
+    rnmax = machine->maxram_size >> sclp->increment_size;
     if (rnmax < 0x10000) {
         read_info->rnmax = cpu_to_be16(rnmax);
     } else {
