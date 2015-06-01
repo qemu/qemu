@@ -1414,6 +1414,7 @@ typedef struct DisasContext {
     int32_t CP0_Config1;
     /* Routine used to access memory */
     int mem_idx;
+    TCGMemOp default_tcg_memop_mask;
     uint32_t hflags, saved_hflags;
     int bstate;
     target_ulong btarget;
@@ -2086,12 +2087,14 @@ static void gen_ld(DisasContext *ctx, uint32_t opc,
     switch (opc) {
 #if defined(TARGET_MIPS64)
     case OPC_LWU:
-        tcg_gen_qemu_ld_tl(t0, t0, ctx->mem_idx, MO_TEUL);
+        tcg_gen_qemu_ld_tl(t0, t0, ctx->mem_idx, MO_TEUL |
+                           ctx->default_tcg_memop_mask);
         gen_store_gpr(t0, rt);
         opn = "lwu";
         break;
     case OPC_LD:
-        tcg_gen_qemu_ld_tl(t0, t0, ctx->mem_idx, MO_TEQ);
+        tcg_gen_qemu_ld_tl(t0, t0, ctx->mem_idx, MO_TEQ |
+                           ctx->default_tcg_memop_mask);
         gen_store_gpr(t0, rt);
         opn = "ld";
         break;
@@ -2162,17 +2165,20 @@ static void gen_ld(DisasContext *ctx, uint32_t opc,
         opn = "lwpc";
         break;
     case OPC_LW:
-        tcg_gen_qemu_ld_tl(t0, t0, ctx->mem_idx, MO_TESL);
+        tcg_gen_qemu_ld_tl(t0, t0, ctx->mem_idx, MO_TESL |
+                           ctx->default_tcg_memop_mask);
         gen_store_gpr(t0, rt);
         opn = "lw";
         break;
     case OPC_LH:
-        tcg_gen_qemu_ld_tl(t0, t0, ctx->mem_idx, MO_TESW);
+        tcg_gen_qemu_ld_tl(t0, t0, ctx->mem_idx, MO_TESW |
+                           ctx->default_tcg_memop_mask);
         gen_store_gpr(t0, rt);
         opn = "lh";
         break;
     case OPC_LHU:
-        tcg_gen_qemu_ld_tl(t0, t0, ctx->mem_idx, MO_TEUW);
+        tcg_gen_qemu_ld_tl(t0, t0, ctx->mem_idx, MO_TEUW |
+                           ctx->default_tcg_memop_mask);
         gen_store_gpr(t0, rt);
         opn = "lhu";
         break;
@@ -2256,7 +2262,8 @@ static void gen_st (DisasContext *ctx, uint32_t opc, int rt,
     switch (opc) {
 #if defined(TARGET_MIPS64)
     case OPC_SD:
-        tcg_gen_qemu_st_tl(t1, t0, ctx->mem_idx, MO_TEQ);
+        tcg_gen_qemu_st_tl(t1, t0, ctx->mem_idx, MO_TEQ |
+                           ctx->default_tcg_memop_mask);
         opn = "sd";
         break;
     case OPC_SDL:
@@ -2271,11 +2278,13 @@ static void gen_st (DisasContext *ctx, uint32_t opc, int rt,
         break;
 #endif
     case OPC_SW:
-        tcg_gen_qemu_st_tl(t1, t0, ctx->mem_idx, MO_TEUL);
+        tcg_gen_qemu_st_tl(t1, t0, ctx->mem_idx, MO_TEUL |
+                           ctx->default_tcg_memop_mask);
         opn = "sw";
         break;
     case OPC_SH:
-        tcg_gen_qemu_st_tl(t1, t0, ctx->mem_idx, MO_TEUW);
+        tcg_gen_qemu_st_tl(t1, t0, ctx->mem_idx, MO_TEUW |
+                           ctx->default_tcg_memop_mask);
         opn = "sh";
         break;
     case OPC_SB:
@@ -2352,7 +2361,8 @@ static void gen_flt_ldst (DisasContext *ctx, uint32_t opc, int ft,
     case OPC_LWC1:
         {
             TCGv_i32 fp0 = tcg_temp_new_i32();
-            tcg_gen_qemu_ld_i32(fp0, t0, ctx->mem_idx, MO_TESL);
+            tcg_gen_qemu_ld_i32(fp0, t0, ctx->mem_idx, MO_TESL |
+                                ctx->default_tcg_memop_mask);
             gen_store_fpr32(ctx, fp0, ft);
             tcg_temp_free_i32(fp0);
         }
@@ -2362,7 +2372,8 @@ static void gen_flt_ldst (DisasContext *ctx, uint32_t opc, int ft,
         {
             TCGv_i32 fp0 = tcg_temp_new_i32();
             gen_load_fpr32(ctx, fp0, ft);
-            tcg_gen_qemu_st_i32(fp0, t0, ctx->mem_idx, MO_TEUL);
+            tcg_gen_qemu_st_i32(fp0, t0, ctx->mem_idx, MO_TEUL |
+                                ctx->default_tcg_memop_mask);
             tcg_temp_free_i32(fp0);
         }
         opn = "swc1";
@@ -2370,7 +2381,8 @@ static void gen_flt_ldst (DisasContext *ctx, uint32_t opc, int ft,
     case OPC_LDC1:
         {
             TCGv_i64 fp0 = tcg_temp_new_i64();
-            tcg_gen_qemu_ld_i64(fp0, t0, ctx->mem_idx, MO_TEQ);
+            tcg_gen_qemu_ld_i64(fp0, t0, ctx->mem_idx, MO_TEQ |
+                                ctx->default_tcg_memop_mask);
             gen_store_fpr64(ctx, fp0, ft);
             tcg_temp_free_i64(fp0);
         }
@@ -2380,7 +2392,8 @@ static void gen_flt_ldst (DisasContext *ctx, uint32_t opc, int ft,
         {
             TCGv_i64 fp0 = tcg_temp_new_i64();
             gen_load_fpr64(ctx, fp0, ft);
-            tcg_gen_qemu_st_i64(fp0, t0, ctx->mem_idx, MO_TEQ);
+            tcg_gen_qemu_st_i64(fp0, t0, ctx->mem_idx, MO_TEQ |
+                                ctx->default_tcg_memop_mask);
             tcg_temp_free_i64(fp0);
         }
         opn = "sdc1";
@@ -19149,6 +19162,8 @@ gen_intermediate_code_internal(MIPSCPU *cpu, TranslationBlock *tb,
 #else
         ctx.mem_idx = ctx.hflags & MIPS_HFLAG_KSU;
 #endif
+    ctx.default_tcg_memop_mask = (ctx.insn_flags & ISA_MIPS32R6) ?
+                                 MO_UNALN : MO_ALIGN;
     num_insns = 0;
     max_insns = tb->cflags & CF_COUNT_MASK;
     if (max_insns == 0)
