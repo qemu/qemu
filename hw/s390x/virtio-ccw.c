@@ -170,7 +170,7 @@ static void virtio_ccw_start_ioeventfd(VirtioCcwDevice *dev)
         return;
     }
     vdev = virtio_bus_get_device(&dev->bus);
-    for (n = 0; n < VIRTIO_PCI_QUEUE_MAX; n++) {
+    for (n = 0; n < VIRTIO_CCW_QUEUE_MAX; n++) {
         if (!virtio_queue_get_num(vdev, n)) {
             continue;
         }
@@ -205,7 +205,7 @@ static void virtio_ccw_stop_ioeventfd(VirtioCcwDevice *dev)
         return;
     }
     vdev = virtio_bus_get_device(&dev->bus);
-    for (n = 0; n < VIRTIO_PCI_QUEUE_MAX; n++) {
+    for (n = 0; n < VIRTIO_CCW_QUEUE_MAX; n++) {
         if (!virtio_queue_get_num(vdev, n)) {
             continue;
         }
@@ -266,7 +266,7 @@ static int virtio_ccw_set_vqs(SubchDev *sch, uint64_t addr, uint32_t align,
 {
     VirtIODevice *vdev = virtio_ccw_get_vdev(sch);
 
-    if (index >= VIRTIO_PCI_QUEUE_MAX) {
+    if (index >= VIRTIO_CCW_QUEUE_MAX) {
         return -EINVAL;
     }
 
@@ -291,7 +291,7 @@ static int virtio_ccw_set_vqs(SubchDev *sch, uint64_t addr, uint32_t align,
         virtio_queue_set_vector(vdev, index, index);
     }
     /* tell notify handler in case of config change */
-    vdev->config_vector = VIRTIO_PCI_QUEUE_MAX;
+    vdev->config_vector = VIRTIO_CCW_QUEUE_MAX;
     return 0;
 }
 
@@ -381,8 +381,8 @@ static int virtio_ccw_cb(SubchDev *sch, CCW1 ccw)
                                                 + sizeof(features.features),
                                                 MEMTXATTRS_UNSPECIFIED,
                                                 NULL);
-            if (features.index < ARRAY_SIZE(dev->host_features)) {
-                features.features = dev->host_features[features.index];
+            if (features.index == 0) {
+                features.features = vdev->host_features;
             } else {
                 /* Return zeroes if the guest supports more feature bits. */
                 features.features = 0;
@@ -417,7 +417,7 @@ static int virtio_ccw_cb(SubchDev *sch, CCW1 ccw)
                                                      ccw.cda,
                                                      MEMTXATTRS_UNSPECIFIED,
                                                      NULL);
-            if (features.index < ARRAY_SIZE(dev->host_features)) {
+            if (features.index == 0) {
                 virtio_set_features(vdev, features.features);
             } else {
                 /*
@@ -573,7 +573,7 @@ static int virtio_ccw_cb(SubchDev *sch, CCW1 ccw)
                                                     ccw.cda,
                                                     MEMTXATTRS_UNSPECIFIED,
                                                     NULL);
-            if (vq_config.index >= VIRTIO_PCI_QUEUE_MAX) {
+            if (vq_config.index >= VIRTIO_CCW_QUEUE_MAX) {
                 ret = -EINVAL;
                 break;
             }
@@ -896,44 +896,17 @@ static void virtio_ccw_balloon_realize(VirtioCcwDevice *ccw_dev, Error **errp)
     }
 }
 
-static void balloon_ccw_stats_get_all(Object *obj, struct Visitor *v,
-                                      void *opaque, const char *name,
-                                      Error **errp)
-{
-    VirtIOBalloonCcw *dev = opaque;
-    object_property_get(OBJECT(&dev->vdev), v, "guest-stats", errp);
-}
-
-static void balloon_ccw_stats_get_poll_interval(Object *obj, struct Visitor *v,
-                                                void *opaque, const char *name,
-                                                Error **errp)
-{
-    VirtIOBalloonCcw *dev = opaque;
-    object_property_get(OBJECT(&dev->vdev), v, "guest-stats-polling-interval",
-                        errp);
-}
-
-static void balloon_ccw_stats_set_poll_interval(Object *obj, struct Visitor *v,
-                                                void *opaque, const char *name,
-                                                Error **errp)
-{
-    VirtIOBalloonCcw *dev = opaque;
-    object_property_set(OBJECT(&dev->vdev), v, "guest-stats-polling-interval",
-                        errp);
-}
-
 static void virtio_ccw_balloon_instance_init(Object *obj)
 {
     VirtIOBalloonCcw *dev = VIRTIO_BALLOON_CCW(obj);
+
     virtio_instance_init_common(obj, &dev->vdev, sizeof(dev->vdev),
                                 TYPE_VIRTIO_BALLOON);
-    object_property_add(obj, "guest-stats", "guest statistics",
-                        balloon_ccw_stats_get_all, NULL, NULL, dev, NULL);
-
-    object_property_add(obj, "guest-stats-polling-interval", "int",
-                        balloon_ccw_stats_get_poll_interval,
-                        balloon_ccw_stats_set_poll_interval,
-                        NULL, dev, NULL);
+    object_property_add_alias(obj, "guest-stats", OBJECT(&dev->vdev),
+                              "guest-stats", &error_abort);
+    object_property_add_alias(obj, "guest-stats-polling-interval",
+                              OBJECT(&dev->vdev),
+                              "guest-stats-polling-interval", &error_abort);
 }
 
 static void virtio_ccw_scsi_realize(VirtioCcwDevice *ccw_dev, Error **errp)
@@ -1052,7 +1025,7 @@ static void virtio_ccw_notify(DeviceState *d, uint16_t vector)
         return;
     }
 
-    if (vector < VIRTIO_PCI_QUEUE_MAX) {
+    if (vector < VIRTIO_CCW_QUEUE_MAX) {
         if (!dev->indicators) {
             return;
         }
@@ -1096,14 +1069,6 @@ static void virtio_ccw_notify(DeviceState *d, uint16_t vector)
                           indicators, MEMTXATTRS_UNSPECIFIED, NULL);
         css_conditional_io_interrupt(sch);
     }
-}
-
-static unsigned virtio_ccw_get_features(DeviceState *d)
-{
-    VirtioCcwDevice *dev = VIRTIO_CCW_DEVICE(d);
-
-    /* Only the first 32 feature bits are used. */
-    return dev->host_features[0];
 }
 
 static void virtio_ccw_reset(DeviceState *d)
@@ -1413,18 +1378,21 @@ static int virtio_ccw_load_config(DeviceState *d, QEMUFile *f)
 }
 
 /* This is called by virtio-bus just after the device is plugged. */
-static void virtio_ccw_device_plugged(DeviceState *d)
+static void virtio_ccw_device_plugged(DeviceState *d, Error **errp)
 {
     VirtioCcwDevice *dev = VIRTIO_CCW_DEVICE(d);
+    VirtIODevice *vdev = virtio_bus_get_device(&dev->bus);
     SubchDev *sch = dev->sch;
+    int n = virtio_get_num_queues(vdev);
+
+    if (virtio_get_num_queues(vdev) > VIRTIO_CCW_QUEUE_MAX) {
+        error_setg(errp, "The nubmer of virtqueues %d "
+                   "exceeds ccw limit %d", n,
+                   VIRTIO_CCW_QUEUE_MAX);
+        return;
+    }
 
     sch->id.cu_model = virtio_bus_get_vdev_id(&dev->bus);
-
-    /* Only the first 32 feature bits are used. */
-    virtio_add_feature(&dev->host_features[0], VIRTIO_F_NOTIFY_ON_EMPTY);
-    virtio_add_feature(&dev->host_features[0], VIRTIO_F_BAD_FEATURE);
-    dev->host_features[0] = virtio_bus_get_vdev_features(&dev->bus,
-                                                         dev->host_features[0]);
 
     css_generate_sch_crws(sch->cssid, sch->ssid, sch->schid,
                           d->hotplugged, 1);
@@ -1675,16 +1643,10 @@ static void virtio_ccw_busdev_unplug(HotplugHandler *hotplug_dev,
     object_unparent(OBJECT(dev));
 }
 
-static Property virtio_ccw_properties[] = {
-    DEFINE_VIRTIO_COMMON_FEATURES(VirtioCcwDevice, host_features[0]),
-    DEFINE_PROP_END_OF_LIST(),
-};
-
 static void virtio_ccw_device_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
-    dc->props = virtio_ccw_properties;
     dc->realize = virtio_ccw_busdev_realize;
     dc->exit = virtio_ccw_busdev_exit;
     dc->bus_type = TYPE_VIRTUAL_CSS_BUS;
@@ -1749,7 +1711,6 @@ static void virtio_ccw_bus_class_init(ObjectClass *klass, void *data)
 
     bus_class->max_dev = 1;
     k->notify = virtio_ccw_notify;
-    k->get_features = virtio_ccw_get_features;
     k->vmstate_change = virtio_ccw_vmstate_change;
     k->query_guest_notifiers = virtio_ccw_query_guest_notifiers;
     k->set_host_notifier = virtio_ccw_set_host_notifier;

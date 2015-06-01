@@ -47,7 +47,6 @@ typedef struct VirtioBusClass {
     int (*load_config)(DeviceState *d, QEMUFile *f);
     int (*load_queue)(DeviceState *d, int n, QEMUFile *f);
     int (*load_done)(DeviceState *d, QEMUFile *f);
-    unsigned (*get_features)(DeviceState *d);
     bool (*query_guest_notifiers)(DeviceState *d);
     int (*set_guest_notifiers)(DeviceState *d, int nvqs, bool assign);
     int (*set_host_notifier)(DeviceState *d, int n, bool assigned);
@@ -56,7 +55,7 @@ typedef struct VirtioBusClass {
      * transport independent init function.
      * This is called by virtio-bus just after the device is plugged.
      */
-    void (*device_plugged)(DeviceState *d);
+    void (*device_plugged)(DeviceState *d, Error **errp);
     /*
      * transport independent exit function.
      * This is called by virtio-bus just before the device is unplugged.
@@ -75,7 +74,7 @@ struct VirtioBusState {
     BusState parent_obj;
 };
 
-int virtio_bus_device_plugged(VirtIODevice *vdev);
+void virtio_bus_device_plugged(VirtIODevice *vdev, Error **errp);
 void virtio_bus_reset(VirtioBusState *bus);
 void virtio_bus_device_unplugged(VirtIODevice *bus);
 /* Get the device id of the plugged device. */

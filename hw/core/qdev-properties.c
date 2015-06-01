@@ -125,6 +125,64 @@ PropertyInfo qdev_prop_bit = {
     .set   = prop_set_bit,
 };
 
+/* Bit64 */
+
+static uint64_t qdev_get_prop_mask64(Property *prop)
+{
+    assert(prop->info == &qdev_prop_bit);
+    return 0x1 << prop->bitnr;
+}
+
+static void bit64_prop_set(DeviceState *dev, Property *props, bool val)
+{
+    uint64_t *p = qdev_get_prop_ptr(dev, props);
+    uint64_t mask = qdev_get_prop_mask64(props);
+    if (val) {
+        *p |= mask;
+    } else {
+        *p &= ~mask;
+    }
+}
+
+static void prop_get_bit64(Object *obj, Visitor *v, void *opaque,
+                           const char *name, Error **errp)
+{
+    DeviceState *dev = DEVICE(obj);
+    Property *prop = opaque;
+    uint64_t *p = qdev_get_prop_ptr(dev, prop);
+    bool value = (*p & qdev_get_prop_mask64(prop)) != 0;
+
+    visit_type_bool(v, &value, name, errp);
+}
+
+static void prop_set_bit64(Object *obj, Visitor *v, void *opaque,
+                           const char *name, Error **errp)
+{
+    DeviceState *dev = DEVICE(obj);
+    Property *prop = opaque;
+    Error *local_err = NULL;
+    bool value;
+
+    if (dev->realized) {
+        qdev_prop_set_after_realize(dev, name, errp);
+        return;
+    }
+
+    visit_type_bool(v, &value, name, &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        return;
+    }
+    bit64_prop_set(dev, prop, value);
+}
+
+PropertyInfo qdev_prop_bit64 = {
+    .name  = "bool",
+    .description = "on/off",
+    .get   = prop_get_bit64,
+    .set   = prop_set_bit64,
+};
+
 /* --- bool --- */
 
 static void get_bool(Object *obj, Visitor *v, void *opaque,

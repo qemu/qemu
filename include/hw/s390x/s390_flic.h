@@ -17,10 +17,13 @@
 #include "hw/s390x/adapter.h"
 #include "hw/virtio/virtio.h"
 
+#define ADAPTER_ROUTES_MAX_GSI 64
+#define VIRTIO_CCW_QUEUE_MAX ADAPTER_ROUTES_MAX_GSI
+
 typedef struct AdapterRoutes {
     AdapterInfo adapter;
     int num_routes;
-    int gsi[VIRTIO_PCI_QUEUE_MAX];
+    int gsi[ADAPTER_ROUTES_MAX_GSI];
 } AdapterRoutes;
 
 #define TYPE_S390_FLIC_COMMON "s390-flic"

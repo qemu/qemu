@@ -127,6 +127,11 @@ in the ancillary data:
 If Master is unable to send the full message or receives a wrong reply it will
 close the connection. An optional reconnection mechanism can be implemented.
 
+Multi queue support
+-------------------
+The protocol supports multiple queues by setting all index fields in the sent
+messages to a properly calculated value.
+
 Message types
 -------------
 

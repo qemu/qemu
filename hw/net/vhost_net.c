@@ -157,6 +157,7 @@ struct vhost_net *vhost_net_init(VhostNetOptions *options)
 
     net->dev.nvqs = 2;
     net->dev.vqs = net->vqs;
+    net->dev.vq_index = net->nc->queue_index;
 
     r = vhost_dev_init(&net->dev, options->opaque,
                        options->backend_type, options->force);
@@ -267,7 +268,7 @@ static void vhost_net_stop_one(struct vhost_net *net,
         for (file.index = 0; file.index < net->dev.nvqs; ++file.index) {
             const VhostOps *vhost_ops = net->dev.vhost_ops;
             int r = vhost_ops->vhost_call(&net->dev, VHOST_RESET_OWNER,
-                                          NULL);
+                                          &file);
             assert(r >= 0);
         }
     }

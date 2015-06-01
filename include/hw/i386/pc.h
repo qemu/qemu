@@ -73,8 +73,6 @@ typedef struct PCMachineClass PCMachineClass;
 #define PC_MACHINE_CLASS(klass) \
     OBJECT_CLASS_CHECK(PCMachineClass, (klass), TYPE_PC_MACHINE)
 
-void qemu_register_pc_machine(QEMUMachine *m);
-
 /* PC-style peripherals (also used by other machines).  */
 
 typedef struct PcPciInfo {
@@ -199,6 +197,7 @@ qemu_irq *pc_allocate_cpu_irq(void);
 DeviceState *pc_vga_init(ISABus *isa_bus, PCIBus *pci_bus);
 void pc_basic_device_init(ISABus *isa_bus, qemu_irq *gsi,
                           ISADevice **rtc_state,
+                          bool create_fdctrl,
                           ISADevice **floppy,
                           bool no_vmport,
                           uint32 hpet_irqs);
@@ -295,8 +294,19 @@ int e820_add_entry(uint64_t, uint64_t, uint32_t);
 int e820_get_num_entries(void);
 bool e820_get_entry(int, uint32_t, uint64_t *, uint64_t *);
 
+#define PC_COMPAT_2_3 \
+        HW_COMPAT_2_3
+
+#define PC_COMPAT_2_2 \
+        PC_COMPAT_2_3 \
+        HW_COMPAT_2_2
+
+#define PC_COMPAT_2_1 \
+        PC_COMPAT_2_2 \
+        HW_COMPAT_2_1
+
 #define PC_COMPAT_2_0 \
-        HW_COMPAT_2_1, \
+        PC_COMPAT_2_1 \
         {\
             .driver   = "virtio-scsi-pci",\
             .property = "any_layout",\
@@ -353,10 +363,10 @@ bool e820_get_entry(int, uint32_t, uint64_t *, uint64_t *);
             .driver   = "ioh3420",\
             .property = COMPAT_PROP_PCP,\
             .value    = "off",\
-        }
+        },
 
 #define PC_COMPAT_1_7 \
-        PC_COMPAT_2_0, \
+        PC_COMPAT_2_0 \
         {\
             .driver   = TYPE_USB_DEVICE,\
             .property = "msos-desc",\
@@ -371,10 +381,10 @@ bool e820_get_entry(int, uint32_t, uint64_t *, uint64_t *);
             .driver   = "hpet",\
             .property = HPET_INTCAP,\
             .value    = stringify(4),\
-        }
+        },
 
 #define PC_COMPAT_1_6 \
-        PC_COMPAT_1_7, \
+        PC_COMPAT_1_7 \
         {\
             .driver   = "e1000",\
             .property = "mitigation",\
@@ -395,10 +405,10 @@ bool e820_get_entry(int, uint32_t, uint64_t *, uint64_t *);
             .driver   = "q35-pcihost",\
             .property = "short_root_bus",\
             .value    = stringify(1),\
-        }
+        },
 
 #define PC_COMPAT_1_5 \
-        PC_COMPAT_1_6, \
+        PC_COMPAT_1_6 \
         {\
             .driver   = "Conroe-" TYPE_X86_CPU,\
             .property = "model",\
@@ -439,31 +449,31 @@ bool e820_get_entry(int, uint32_t, uint64_t *, uint64_t *);
             .driver   = "q35-pcihost",\
             .property = "short_root_bus",\
             .value    = stringify(0),\
-        }
+        },
 
 #define PC_COMPAT_1_4 \
-        PC_COMPAT_1_5, \
+        PC_COMPAT_1_5 \
         {\
             .driver   = "scsi-hd",\
             .property = "discard_granularity",\
             .value    = stringify(0),\
-	},{\
+        },{\
             .driver   = "scsi-cd",\
             .property = "discard_granularity",\
             .value    = stringify(0),\
-	},{\
+        },{\
             .driver   = "scsi-disk",\
             .property = "discard_granularity",\
             .value    = stringify(0),\
-	},{\
+        },{\
             .driver   = "ide-hd",\
             .property = "discard_granularity",\
             .value    = stringify(0),\
-	},{\
+        },{\
             .driver   = "ide-cd",\
             .property = "discard_granularity",\
             .value    = stringify(0),\
-	},{\
+        },{\
             .driver   = "ide-drive",\
             .property = "discard_granularity",\
             .value    = stringify(0),\
@@ -471,7 +481,7 @@ bool e820_get_entry(int, uint32_t, uint64_t *, uint64_t *);
             .driver   = "virtio-blk-pci",\
             .property = "discard_granularity",\
             .value    = stringify(0),\
-	},{\
+        },{\
             .driver   = "virtio-serial-pci",\
             .property = "vectors",\
             /* DEV_NVECTORS_UNSPECIFIED as a uint32_t string */\
@@ -504,14 +514,45 @@ bool e820_get_entry(int, uint32_t, uint64_t *, uint64_t *);
             .driver   = "486-" TYPE_X86_CPU,\
             .property = "model",\
             .value    = stringify(0),\
-        }
+        },
 
-#define PC_COMMON_MACHINE_OPTIONS \
-    .default_boot_order = "cad"
+static inline void pc_common_machine_options(MachineClass *m)
+{
+    m->default_boot_order = "cad";
+}
 
-#define PC_DEFAULT_MACHINE_OPTIONS \
-    PC_COMMON_MACHINE_OPTIONS, \
-    .hot_add_cpu = pc_hot_add_cpu, \
-    .max_cpus = 255
+static inline void pc_default_machine_options(MachineClass *m)
+{
+    pc_common_machine_options(m);
+    m->hot_add_cpu = pc_hot_add_cpu;
+    m->max_cpus = 255;
+}
+
+#define DEFINE_PC_MACHINE(suffix, namestr, initfn, optsfn) \
+    static void pc_machine_##suffix##_class_init(ObjectClass *oc, void *data) \
+    { \
+        MachineClass *mc = MACHINE_CLASS(oc); \
+        optsfn(mc); \
+        mc->name = namestr; \
+        mc->init = initfn; \
+    } \
+    static const TypeInfo pc_machine_type_##suffix = { \
+        .name       = namestr TYPE_MACHINE_SUFFIX, \
+        .parent     = TYPE_PC_MACHINE, \
+        .class_init = pc_machine_##suffix##_class_init, \
+    }; \
+    static void pc_machine_init_##suffix(void) \
+    { \
+        type_register(&pc_machine_type_##suffix); \
+    } \
+    machine_init(pc_machine_init_##suffix)
+
+#define SET_MACHINE_COMPAT(m, COMPAT) do { \
+    static GlobalProperty props[] = { \
+        COMPAT \
+        { /* end of list */ } \
+    }; \
+    (m)->compat_props = props; \
+} while (0)
 
 #endif

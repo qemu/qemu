@@ -14,10 +14,10 @@
  */
 #include "hw/acpi/tpm.h"
 
-ACPI_EXTRACT_ALL_CODE ssdt_tpm_aml
+ACPI_EXTRACT_ALL_CODE ssdt_tpm2_aml
 
 DefinitionBlock (
-    "ssdt-tpm.aml",     // Output Filename
+    "ssdt-tpm2.aml",    // Output Filename
     "SSDT",             // Signature
     0x01,               // SSDT Compliance Revision
     "BXPC",             // OEMID

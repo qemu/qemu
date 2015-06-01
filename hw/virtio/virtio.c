@@ -600,7 +600,7 @@ void virtio_reset(void *opaque)
     vdev->config_vector = VIRTIO_NO_VECTOR;
     virtio_notify_vector(vdev, vdev->config_vector);
 
-    for(i = 0; i < VIRTIO_PCI_QUEUE_MAX; i++) {
+    for(i = 0; i < VIRTIO_QUEUE_MAX; i++) {
         vdev->vq[i].vring.desc = 0;
         vdev->vq[i].vring.avail = 0;
         vdev->vq[i].vring.used = 0;
@@ -746,10 +746,23 @@ int virtio_queue_get_num(VirtIODevice *vdev, int n)
     return vdev->vq[n].vring.num;
 }
 
+int virtio_get_num_queues(VirtIODevice *vdev)
+{
+    int i;
+
+    for (i = 0; i < VIRTIO_QUEUE_MAX; i++) {
+        if (!virtio_queue_get_num(vdev, i)) {
+            break;
+        }
+    }
+
+    return i;
+}
+
 int virtio_queue_get_id(VirtQueue *vq)
 {
     VirtIODevice *vdev = vq->vdev;
-    assert(vq >= &vdev->vq[0] && vq < &vdev->vq[VIRTIO_PCI_QUEUE_MAX]);
+    assert(vq >= &vdev->vq[0] && vq < &vdev->vq[VIRTIO_QUEUE_MAX]);
     return vq - &vdev->vq[0];
 }
 
@@ -785,7 +798,7 @@ void virtio_queue_notify(VirtIODevice *vdev, int n)
 
 uint16_t virtio_queue_vector(VirtIODevice *vdev, int n)
 {
-    return n < VIRTIO_PCI_QUEUE_MAX ? vdev->vq[n].vector :
+    return n < VIRTIO_QUEUE_MAX ? vdev->vq[n].vector :
         VIRTIO_NO_VECTOR;
 }
 
@@ -793,7 +806,7 @@ void virtio_queue_set_vector(VirtIODevice *vdev, int n, uint16_t vector)
 {
     VirtQueue *vq = &vdev->vq[n];
 
-    if (n < VIRTIO_PCI_QUEUE_MAX) {
+    if (n < VIRTIO_QUEUE_MAX) {
         if (vdev->vector_queues &&
             vdev->vq[n].vector != VIRTIO_NO_VECTOR) {
             QLIST_REMOVE(vq, node);
@@ -811,12 +824,12 @@ VirtQueue *virtio_add_queue(VirtIODevice *vdev, int queue_size,
 {
     int i;
 
-    for (i = 0; i < VIRTIO_PCI_QUEUE_MAX; i++) {
+    for (i = 0; i < VIRTIO_QUEUE_MAX; i++) {
         if (vdev->vq[i].vring.num == 0)
             break;
     }
 
-    if (i == VIRTIO_PCI_QUEUE_MAX || queue_size > VIRTQUEUE_MAX_SIZE)
+    if (i == VIRTIO_QUEUE_MAX || queue_size > VIRTQUEUE_MAX_SIZE)
         abort();
 
     vdev->vq[i].vring.num = queue_size;
@@ -828,7 +841,7 @@ VirtQueue *virtio_add_queue(VirtIODevice *vdev, int queue_size,
 
 void virtio_del_queue(VirtIODevice *vdev, int n)
 {
-    if (n < 0 || n >= VIRTIO_PCI_QUEUE_MAX) {
+    if (n < 0 || n >= VIRTIO_QUEUE_MAX) {
         abort();
     }
 
@@ -893,12 +906,29 @@ static bool virtio_device_endian_needed(void *opaque)
     return vdev->device_endian != virtio_default_endian();
 }
 
+static bool virtio_64bit_features_needed(void *opaque)
+{
+    VirtIODevice *vdev = opaque;
+
+    return (vdev->host_features >> 32) != 0;
+}
+
 static const VMStateDescription vmstate_virtio_device_endian = {
     .name = "virtio/device_endian",
     .version_id = 1,
     .minimum_version_id = 1,
     .fields = (VMStateField[]) {
         VMSTATE_UINT8(device_endian, VirtIODevice),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
+static const VMStateDescription vmstate_virtio_64bit_features = {
+    .name = "virtio/64bit_features",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .fields = (VMStateField[]) {
+        VMSTATE_UINT64(guest_features, VirtIODevice),
         VMSTATE_END_OF_LIST()
     }
 };
@@ -916,6 +946,10 @@ static const VMStateDescription vmstate_virtio = {
             .vmsd = &vmstate_virtio_device_endian,
             .needed = &virtio_device_endian_needed
         },
+        {
+            .vmsd = &vmstate_virtio_64bit_features,
+            .needed = &virtio_64bit_features_needed
+        },
         { 0 }
     }
 };
@@ -925,6 +959,7 @@ void virtio_save(VirtIODevice *vdev, QEMUFile *f)
     BusState *qbus = qdev_get_parent_bus(DEVICE(vdev));
     VirtioBusClass *k = VIRTIO_BUS_GET_CLASS(qbus);
     VirtioDeviceClass *vdc = VIRTIO_DEVICE_GET_CLASS(vdev);
+    uint32_t guest_features_lo = (vdev->guest_features & 0xffffffff);
     int i;
 
     if (k->save_config) {
@@ -934,18 +969,18 @@ void virtio_save(VirtIODevice *vdev, QEMUFile *f)
     qemu_put_8s(f, &vdev->status);
     qemu_put_8s(f, &vdev->isr);
     qemu_put_be16s(f, &vdev->queue_sel);
-    qemu_put_be32s(f, &vdev->guest_features);
+    qemu_put_be32s(f, &guest_features_lo);
     qemu_put_be32(f, vdev->config_len);
     qemu_put_buffer(f, vdev->config, vdev->config_len);
 
-    for (i = 0; i < VIRTIO_PCI_QUEUE_MAX; i++) {
+    for (i = 0; i < VIRTIO_QUEUE_MAX; i++) {
         if (vdev->vq[i].vring.num == 0)
             break;
     }
 
     qemu_put_be32(f, i);
 
-    for (i = 0; i < VIRTIO_PCI_QUEUE_MAX; i++) {
+    for (i = 0; i < VIRTIO_QUEUE_MAX; i++) {
         if (vdev->vq[i].vring.num == 0)
             break;
 
@@ -970,13 +1005,10 @@ void virtio_save(VirtIODevice *vdev, QEMUFile *f)
 
 int virtio_set_features(VirtIODevice *vdev, uint32_t val)
 {
-    BusState *qbus = qdev_get_parent_bus(DEVICE(vdev));
-    VirtioBusClass *vbusk = VIRTIO_BUS_GET_CLASS(qbus);
     VirtioDeviceClass *k = VIRTIO_DEVICE_GET_CLASS(vdev);
-    uint32_t supported_features = vbusk->get_features(qbus->parent);
-    bool bad = (val & ~supported_features) != 0;
+    bool bad = (val & ~(vdev->host_features)) != 0;
 
-    val &= supported_features;
+    val &= vdev->host_features;
     if (k->set_features) {
         k->set_features(vdev, val);
     }
@@ -990,7 +1022,6 @@ int virtio_load(VirtIODevice *vdev, QEMUFile *f, int version_id)
     int32_t config_len;
     uint32_t num;
     uint32_t features;
-    uint32_t supported_features;
     BusState *qbus = qdev_get_parent_bus(DEVICE(vdev));
     VirtioBusClass *k = VIRTIO_BUS_GET_CLASS(qbus);
     VirtioDeviceClass *vdc = VIRTIO_DEVICE_GET_CLASS(vdev);
@@ -1010,17 +1041,11 @@ int virtio_load(VirtIODevice *vdev, QEMUFile *f, int version_id)
     qemu_get_8s(f, &vdev->status);
     qemu_get_8s(f, &vdev->isr);
     qemu_get_be16s(f, &vdev->queue_sel);
-    if (vdev->queue_sel >= VIRTIO_PCI_QUEUE_MAX) {
+    if (vdev->queue_sel >= VIRTIO_QUEUE_MAX) {
         return -1;
     }
     qemu_get_be32s(f, &features);
 
-    if (virtio_set_features(vdev, features) < 0) {
-        supported_features = k->get_features(qbus->parent);
-        error_report("Features 0x%x unsupported. Allowed features: 0x%x",
-                     features, supported_features);
-        return -1;
-    }
     config_len = qemu_get_be32(f);
 
     /*
@@ -1037,7 +1062,7 @@ int virtio_load(VirtIODevice *vdev, QEMUFile *f, int version_id)
 
     num = qemu_get_be32(f);
 
-    if (num > VIRTIO_PCI_QUEUE_MAX) {
+    if (num > VIRTIO_QUEUE_MAX) {
         error_report("Invalid number of PCI queues: 0x%x", num);
         return -1;
     }
@@ -1084,6 +1109,28 @@ int virtio_load(VirtIODevice *vdev, QEMUFile *f, int version_id)
 
     if (vdev->device_endian == VIRTIO_DEVICE_ENDIAN_UNKNOWN) {
         vdev->device_endian = virtio_default_endian();
+    }
+
+    if (virtio_64bit_features_needed(vdev)) {
+        /*
+         * Subsection load filled vdev->guest_features.  Run them
+         * through virtio_set_features to sanity-check them against
+         * host_features.
+         */
+        uint64_t features64 = vdev->guest_features;
+        if (virtio_set_features(vdev, features64) < 0) {
+            error_report("Features 0x%" PRIx64 " unsupported. "
+                         "Allowed features: 0x%" PRIx64,
+                         features64, vdev->host_features);
+            return -1;
+        }
+    } else {
+        if (virtio_set_features(vdev, features) < 0) {
+            error_report("Features 0x%x unsupported. "
+                         "Allowed features: 0x%" PRIx64,
+                         features, vdev->host_features);
+            return -1;
+        }
     }
 
     for (i = 0; i < num; i++) {
@@ -1163,9 +1210,9 @@ void virtio_init(VirtIODevice *vdev, const char *name,
     vdev->isr = 0;
     vdev->queue_sel = 0;
     vdev->config_vector = VIRTIO_NO_VECTOR;
-    vdev->vq = g_malloc0(sizeof(VirtQueue) * VIRTIO_PCI_QUEUE_MAX);
+    vdev->vq = g_malloc0(sizeof(VirtQueue) * VIRTIO_QUEUE_MAX);
     vdev->vm_running = runstate_is_running();
-    for (i = 0; i < VIRTIO_PCI_QUEUE_MAX; i++) {
+    for (i = 0; i < VIRTIO_QUEUE_MAX; i++) {
         vdev->vq[i].vector = VIRTIO_NO_VECTOR;
         vdev->vq[i].vdev = vdev;
         vdev->vq[i].queue_index = i;
@@ -1328,7 +1375,12 @@ static void virtio_device_realize(DeviceState *dev, Error **errp)
             return;
         }
     }
-    virtio_bus_device_plugged(vdev);
+
+    virtio_bus_device_plugged(vdev, &err);
+    if (err != NULL) {
+        error_propagate(errp, err);
+        return;
+    }
 }
 
 static void virtio_device_unrealize(DeviceState *dev, Error **errp)
@@ -1351,6 +1403,11 @@ static void virtio_device_unrealize(DeviceState *dev, Error **errp)
     vdev->bus_name = NULL;
 }
 
+static Property virtio_properties[] = {
+    DEFINE_VIRTIO_COMMON_FEATURES(VirtIODevice, host_features),
+    DEFINE_PROP_END_OF_LIST(),
+};
+
 static void virtio_device_class_init(ObjectClass *klass, void *data)
 {
     /* Set the default value here. */
@@ -1359,6 +1416,7 @@ static void virtio_device_class_init(ObjectClass *klass, void *data)
     dc->realize = virtio_device_realize;
     dc->unrealize = virtio_device_unrealize;
     dc->bus_type = TYPE_VIRTIO_BUS;
+    dc->props = virtio_properties;
 }
 
 static const TypeInfo virtio_device_info = {

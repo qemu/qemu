@@ -498,7 +498,7 @@ static void handle_input(VirtIODevice *vdev, VirtQueue *vq)
     }
 }
 
-static uint32_t get_features(VirtIODevice *vdev, uint32_t features)
+static uint64_t get_features(VirtIODevice *vdev, uint64_t features)
 {
     VirtIOSerial *vser;
 
@@ -973,7 +973,7 @@ static void virtio_serial_device_realize(DeviceState *dev, Error **errp)
     }
 
     /* Each port takes 2 queues, and one pair is for the control queue */
-    max_supported_ports = VIRTIO_PCI_QUEUE_MAX / 2 - 1;
+    max_supported_ports = VIRTIO_QUEUE_MAX / 2 - 1;
 
     if (vser->serial.max_virtserial_ports > max_supported_ports) {
         error_setg(errp, "maximum ports supported: %u", max_supported_ports);

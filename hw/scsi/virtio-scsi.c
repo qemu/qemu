@@ -628,8 +628,8 @@ static void virtio_scsi_set_config(VirtIODevice *vdev,
     vs->cdb_size = virtio_ldl_p(vdev, &scsiconf->cdb_size);
 }
 
-static uint32_t virtio_scsi_get_features(VirtIODevice *vdev,
-                                         uint32_t requested_features)
+static uint64_t virtio_scsi_get_features(VirtIODevice *vdev,
+                                         uint64_t requested_features)
 {
     VirtIOSCSI *s = VIRTIO_SCSI(vdev);
 
@@ -830,10 +830,10 @@ void virtio_scsi_common_realize(DeviceState *dev, Error **errp,
                 sizeof(VirtIOSCSIConfig));
 
     if (s->conf.num_queues == 0 ||
-            s->conf.num_queues > VIRTIO_PCI_QUEUE_MAX - 2) {
+            s->conf.num_queues > VIRTIO_QUEUE_MAX - 2) {
         error_setg(errp, "Invalid number of queues (= %" PRIu32 "), "
                          "must be a positive integer less than %d.",
-                   s->conf.num_queues, VIRTIO_PCI_QUEUE_MAX - 2);
+                   s->conf.num_queues, VIRTIO_QUEUE_MAX - 2);
         virtio_cleanup(vdev);
         return;
     }
