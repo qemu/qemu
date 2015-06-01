@@ -174,6 +174,7 @@ typedef struct SCLPDevice {
     /* private */
     DeviceState parent_obj;
     SCLPEventFacility *event_facility;
+    int increment_size;
 
     /* public */
 } SCLPDevice;

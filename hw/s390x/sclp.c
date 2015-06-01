@@ -36,7 +36,6 @@ static void read_SCP_info(SCLPDevice *sclp, SCCB *sccb)
     CPUState *cpu;
     int cpu_count = 0;
     int i = 0;
-    int increment_size = 20;
     int rnsize, rnmax;
     int slots = MIN(machine->ram_slots, s390_get_memslot_count(kvm_state));
 
@@ -57,23 +56,9 @@ static void read_SCP_info(SCLPDevice *sclp, SCCB *sccb)
     read_info->facilities = cpu_to_be64(SCLP_HAS_CPU_INFO |
                                         SCLP_HAS_PCI_RECONFIG);
 
-    /*
-     * The storage increment size is a multiple of 1M and is a power of 2.
-     * The number of storage increments must be MAX_STORAGE_INCREMENTS or fewer.
-     */
-    while ((ram_size >> increment_size) > MAX_STORAGE_INCREMENTS) {
-        increment_size++;
-    }
-    rnmax = ram_size >> increment_size;
-
+    rnmax = ram_size >> sclp->increment_size;
     /* Memory Hotplug is only supported for the ccw machine type */
     if (mhd) {
-        while ((mhd->standby_mem_size >> increment_size) >
-               MAX_STORAGE_INCREMENTS) {
-            increment_size++;
-        }
-        assert(increment_size == mhd->increment_size);
-
         mhd->standby_subregion_size = MEM_SECTION_SIZE;
         /* Deduct the memory slot already used for core */
         if (slots > 0) {
@@ -105,7 +90,7 @@ static void read_SCP_info(SCLPDevice *sclp, SCCB *sccb)
         read_info->facilities |= cpu_to_be64(SCLP_FC_ASSIGN_ATTACH_READ_STOR);
     }
 
-    rnsize = 1 << (increment_size - 20);
+    rnsize = 1 << (sclp->increment_size - 20);
     if (rnsize <= 128) {
         read_info->rnsize = rnsize;
     } else {
@@ -518,6 +503,7 @@ static void sclp_memory_init(SCLPDevice *sclp)
             increment_size++;
         }
     }
+    sclp->increment_size = increment_size;
 
     /* The core and standby memory areas need to be aligned with
      * the increment size.  In effect, this can cause the
