@@ -548,6 +548,28 @@ glue(glue(helper_st, SUFFIX), MMUSUFFIX)(CPUArchState *env, target_ulong addr,
     helper_te_st_name(env, addr, val, oi, GETRA());
 }
 
+#if DATA_SIZE == 1
+/* Probe for whether the specified guest write access is permitted.
+ * If it is not permitted then an exception will be taken in the same
+ * way as if this were a real write access (and we will not return).
+ * Otherwise the function will return, and there will be a valid
+ * entry in the TLB for this access.
+ */
+void probe_write(CPUArchState *env, target_ulong addr, int mmu_idx,
+                 uintptr_t retaddr)
+{
+    int index = (addr >> TARGET_PAGE_BITS) & (CPU_TLB_SIZE - 1);
+    target_ulong tlb_addr = env->tlb_table[mmu_idx][index].addr_write;
+
+    if ((addr & TARGET_PAGE_MASK)
+        != (tlb_addr & (TARGET_PAGE_MASK | TLB_INVALID_MASK))) {
+        /* TLB entry is for a different page */
+        if (!VICTIM_TLB_HIT(addr_write)) {
+            tlb_fill(ENV_GET_CPU(env), addr, MMU_DATA_STORE, mmu_idx, retaddr);
+        }
+    }
+}
+#endif
 #endif /* !defined(SOFTMMU_CODE_ACCESS) */
 
 #undef READ_ACCESS_TYPE
