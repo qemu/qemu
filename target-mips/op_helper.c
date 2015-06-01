@@ -90,10 +90,10 @@ static inline type do_##name(CPUMIPSState *env, target_ulong addr,      \
     }                                                                   \
 }
 #endif
-HELPER_LD(lbu, ldub, uint8_t)
-HELPER_LD(lhu, lduw, uint16_t)
 HELPER_LD(lw, ldl, int32_t)
+#if defined(TARGET_MIPS64)
 HELPER_LD(ld, ldq, int64_t)
+#endif
 #undef HELPER_LD
 
 #if defined(CONFIG_USER_ONLY)
@@ -118,9 +118,10 @@ static inline void do_##name(CPUMIPSState *env, target_ulong addr,      \
 }
 #endif
 HELPER_ST(sb, stb, uint8_t)
-HELPER_ST(sh, stw, uint16_t)
 HELPER_ST(sw, stl, uint32_t)
+#if defined(TARGET_MIPS64)
 HELPER_ST(sd, stq, uint64_t)
+#endif
 #undef HELPER_ST
 
 target_ulong helper_clo (target_ulong arg1)
@@ -3592,72 +3593,82 @@ FOP_CONDN_S(sne,  (float32_lt(fst1, fst0, &env->active_fpu.fp_status)
 /* Element-by-element access macros */
 #define DF_ELEMENTS(df) (MSA_WRLEN / DF_BITS(df))
 
-void helper_msa_ld_df(CPUMIPSState *env, uint32_t df, uint32_t wd, uint32_t rs,
-                     int32_t s10)
-{
-    wr_t *pwd = &(env->active_fpu.fpr[wd].wr);
-    target_ulong addr = env->active_tc.gpr[rs] + (s10 << df);
-    int i;
+#if !defined(CONFIG_USER_ONLY)
+#define MEMOP_IDX(DF)                                           \
+        TCGMemOpIdx oi = make_memop_idx(MO_TE | DF | MO_UNALN,  \
+                                        cpu_mmu_index(env));
+#else
+#define MEMOP_IDX(DF)
+#endif
 
-    switch (df) {
-    case DF_BYTE:
-        for (i = 0; i < DF_ELEMENTS(DF_BYTE); i++) {
-            pwd->b[i] = do_lbu(env, addr + (i << DF_BYTE),
-                                env->hflags & MIPS_HFLAG_KSU);
-        }
-        break;
-    case DF_HALF:
-        for (i = 0; i < DF_ELEMENTS(DF_HALF); i++) {
-            pwd->h[i] = do_lhu(env, addr + (i << DF_HALF),
-                                env->hflags & MIPS_HFLAG_KSU);
-        }
-        break;
-    case DF_WORD:
-        for (i = 0; i < DF_ELEMENTS(DF_WORD); i++) {
-            pwd->w[i] = do_lw(env, addr + (i << DF_WORD),
-                                env->hflags & MIPS_HFLAG_KSU);
-        }
-        break;
-    case DF_DOUBLE:
-        for (i = 0; i < DF_ELEMENTS(DF_DOUBLE); i++) {
-            pwd->d[i] = do_ld(env, addr + (i << DF_DOUBLE),
-                                env->hflags & MIPS_HFLAG_KSU);
-        }
-        break;
-    }
+#define MSA_LD_DF(DF, TYPE, LD_INSN, ...)                               \
+void helper_msa_ld_ ## TYPE(CPUMIPSState *env, uint32_t wd,             \
+                            target_ulong addr)                          \
+{                                                                       \
+    wr_t *pwd = &(env->active_fpu.fpr[wd].wr);                          \
+    wr_t wx;                                                            \
+    int i;                                                              \
+    MEMOP_IDX(DF)                                                       \
+    for (i = 0; i < DF_ELEMENTS(DF); i++) {                             \
+        wx.TYPE[i] = LD_INSN(env, addr + (i << DF), ##__VA_ARGS__);     \
+    }                                                                   \
+    memcpy(pwd, &wx, sizeof(wr_t));                                     \
 }
 
-void helper_msa_st_df(CPUMIPSState *env, uint32_t df, uint32_t wd, uint32_t rs,
-                     int32_t s10)
-{
-    wr_t *pwd = &(env->active_fpu.fpr[wd].wr);
-    target_ulong addr = env->active_tc.gpr[rs] + (s10 << df);
-    int i;
+#if !defined(CONFIG_USER_ONLY)
+MSA_LD_DF(DF_BYTE,   b, helper_ret_ldub_mmu, oi, GETRA())
+MSA_LD_DF(DF_HALF,   h, helper_ret_lduw_mmu, oi, GETRA())
+MSA_LD_DF(DF_WORD,   w, helper_ret_ldul_mmu, oi, GETRA())
+MSA_LD_DF(DF_DOUBLE, d, helper_ret_ldq_mmu,  oi, GETRA())
+#else
+MSA_LD_DF(DF_BYTE,   b, cpu_ldub_data)
+MSA_LD_DF(DF_HALF,   h, cpu_lduw_data)
+MSA_LD_DF(DF_WORD,   w, cpu_ldl_data)
+MSA_LD_DF(DF_DOUBLE, d, cpu_ldq_data)
+#endif
 
-    switch (df) {
-    case DF_BYTE:
-        for (i = 0; i < DF_ELEMENTS(DF_BYTE); i++) {
-            do_sb(env, addr + (i << DF_BYTE), pwd->b[i],
-                    env->hflags & MIPS_HFLAG_KSU);
-        }
-        break;
-    case DF_HALF:
-        for (i = 0; i < DF_ELEMENTS(DF_HALF); i++) {
-            do_sh(env, addr + (i << DF_HALF), pwd->h[i],
-                    env->hflags & MIPS_HFLAG_KSU);
-        }
-        break;
-    case DF_WORD:
-        for (i = 0; i < DF_ELEMENTS(DF_WORD); i++) {
-            do_sw(env, addr + (i << DF_WORD), pwd->w[i],
-                    env->hflags & MIPS_HFLAG_KSU);
-        }
-        break;
-    case DF_DOUBLE:
-        for (i = 0; i < DF_ELEMENTS(DF_DOUBLE); i++) {
-            do_sd(env, addr + (i << DF_DOUBLE), pwd->d[i],
-                    env->hflags & MIPS_HFLAG_KSU);
-        }
-        break;
+#define MSA_PAGESPAN(x) \
+        ((((x) & ~TARGET_PAGE_MASK) + MSA_WRLEN/8 - 1) >= TARGET_PAGE_SIZE)
+
+static inline void ensure_writable_pages(CPUMIPSState *env,
+                                         target_ulong addr,
+                                         int mmu_idx,
+                                         uintptr_t retaddr)
+{
+#if !defined(CONFIG_USER_ONLY)
+    target_ulong page_addr;
+    if (unlikely(MSA_PAGESPAN(addr))) {
+        /* first page */
+        probe_write(env, addr, mmu_idx, retaddr);
+        /* second page */
+        page_addr = (addr & TARGET_PAGE_MASK) + TARGET_PAGE_SIZE;
+        probe_write(env, page_addr, mmu_idx, retaddr);
     }
+#endif
 }
+
+#define MSA_ST_DF(DF, TYPE, ST_INSN, ...)                               \
+void helper_msa_st_ ## TYPE(CPUMIPSState *env, uint32_t wd,             \
+                            target_ulong addr)                          \
+{                                                                       \
+    wr_t *pwd = &(env->active_fpu.fpr[wd].wr);                          \
+    int mmu_idx = cpu_mmu_index(env);                                   \
+    int i;                                                              \
+    MEMOP_IDX(DF)                                                       \
+    ensure_writable_pages(env, addr, mmu_idx, GETRA());                 \
+    for (i = 0; i < DF_ELEMENTS(DF); i++) {                             \
+        ST_INSN(env, addr + (i << DF), pwd->TYPE[i], ##__VA_ARGS__);    \
+    }                                                                   \
+}
+
+#if !defined(CONFIG_USER_ONLY)
+MSA_ST_DF(DF_BYTE,   b, helper_ret_stb_mmu, oi, GETRA())
+MSA_ST_DF(DF_HALF,   h, helper_ret_stw_mmu, oi, GETRA())
+MSA_ST_DF(DF_WORD,   w, helper_ret_stl_mmu, oi, GETRA())
+MSA_ST_DF(DF_DOUBLE, d, helper_ret_stq_mmu, oi, GETRA())
+#else
+MSA_ST_DF(DF_BYTE,   b, cpu_stb_data)
+MSA_ST_DF(DF_HALF,   h, cpu_stw_data)
+MSA_ST_DF(DF_WORD,   w, cpu_stl_data)
+MSA_ST_DF(DF_DOUBLE, d, cpu_stq_data)
+#endif
