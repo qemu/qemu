@@ -2504,7 +2504,7 @@ static const ARMCPRegInfo v8_cp_reginfo[] = {
 };
 
 /* Used to describe the behaviour of EL2 regs when EL2 does not exist.  */
-static const ARMCPRegInfo v8_el3_no_el2_cp_reginfo[] = {
+static const ARMCPRegInfo el3_no_el2_cp_reginfo[] = {
     { .name = "VBAR_EL2", .state = ARM_CP_STATE_AA64,
       .opc0 = 3, .opc1 = 4, .crn = 12, .crm = 0, .opc2 = 0,
       .access = PL2_RW,
@@ -2567,7 +2567,7 @@ static void hcr_write(CPUARMState *env, const ARMCPRegInfo *ri, uint64_t value)
     raw_write(env, ri, value);
 }
 
-static const ARMCPRegInfo v8_el2_cp_reginfo[] = {
+static const ARMCPRegInfo el2_cp_reginfo[] = {
     { .name = "HCR_EL2", .state = ARM_CP_STATE_AA64,
       .opc0 = 3, .opc1 = 4, .crn = 1, .crm = 1, .opc2 = 0,
       .access = PL2_RW, .fieldoffset = offsetof(CPUARMState, cp15.hcr_el2),
@@ -3312,7 +3312,7 @@ void register_cp_regs_for_features(ARMCPU *cpu)
         define_arm_cp_regs(cpu, v8_cp_reginfo);
     }
     if (arm_feature(env, ARM_FEATURE_EL2)) {
-        define_arm_cp_regs(cpu, v8_el2_cp_reginfo);
+        define_arm_cp_regs(cpu, el2_cp_reginfo);
         /* RVBAR_EL2 is only implemented if EL2 is the highest EL */
         if (!arm_feature(env, ARM_FEATURE_EL3)) {
             ARMCPRegInfo rvbar = {
@@ -3327,7 +3327,7 @@ void register_cp_regs_for_features(ARMCPU *cpu)
          * register the no_el2 reginfos.
          */
         if (arm_feature(env, ARM_FEATURE_EL3)) {
-            define_arm_cp_regs(cpu, v8_el3_no_el2_cp_reginfo);
+            define_arm_cp_regs(cpu, el3_no_el2_cp_reginfo);
         }
     }
     if (arm_feature(env, ARM_FEATURE_EL3)) {
