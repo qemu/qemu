@@ -494,7 +494,7 @@ static void ich9_lpc_machine_ready(Notifier *n, void *opaque)
         /* lpt */
         pci_conf[0x82] |= 0x04;
     }
-    if (memory_region_present(io_as, 0x3f0)) {
+    if (memory_region_present(io_as, 0x3f2)) {
         /* floppy */
         pci_conf[0x82] |= 0x08;
     }
