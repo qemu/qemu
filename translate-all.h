@@ -21,7 +21,6 @@
 
 /* translate-all.c */
 void tb_invalidate_phys_page_fast(tb_page_addr_t start, int len);
-void cpu_unlink_tb(CPUState *cpu);
 void tb_check_watchpoint(CPUState *cpu);
 
 #endif /* TRANSLATE_ALL_H */
