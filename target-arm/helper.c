@@ -2647,6 +2647,10 @@ static const ARMCPRegInfo v8_el2_cp_reginfo[] = {
       .access = PL2_RW, .type = ARM_CP_64BIT | ARM_CP_ALIAS,
       .resetvalue = 0,
       .fieldoffset = offsetof(CPUARMState, cp15.ttbr0_el[2]) },
+    { .name = "TLBI_ALLE2", .state = ARM_CP_STATE_AA64,
+      .opc0 = 1, .opc1 = 4, .crn = 8, .crm = 7, .opc2 = 0,
+      .type = ARM_CP_NO_RAW, .access = PL2_W,
+      .writefn = tlbiall_write },
     REGINFO_SENTINEL
 };
 
