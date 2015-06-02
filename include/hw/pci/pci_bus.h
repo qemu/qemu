@@ -15,6 +15,7 @@ typedef struct PCIBusClass {
 
     bool (*is_root)(PCIBus *bus);
     int (*bus_num)(PCIBus *bus);
+    uint16_t (*numa_node)(PCIBus *bus);
 } PCIBusClass;
 
 struct PCIBus {

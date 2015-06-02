@@ -101,6 +101,11 @@ static int pcibus_num(PCIBus *bus)
     return bus->parent_dev->config[PCI_SECONDARY_BUS];
 }
 
+static uint16_t pcibus_numa_node(PCIBus *bus)
+{
+    return NUMA_NODE_UNASSIGNED;
+}
+
 static void pci_bus_class_init(ObjectClass *klass, void *data)
 {
     BusClass *k = BUS_CLASS(klass);
@@ -115,6 +120,7 @@ static void pci_bus_class_init(ObjectClass *klass, void *data)
 
     pbc->is_root = pcibus_is_root;
     pbc->bus_num = pcibus_num;
+    pbc->numa_node = pcibus_numa_node;
 }
 
 static const TypeInfo pci_bus_info = {
@@ -400,6 +406,11 @@ PCIBus *pci_register_bus(DeviceState *parent, const char *name,
 int pci_bus_num(PCIBus *s)
 {
     return PCI_BUS_GET_CLASS(s)->bus_num(s);
+}
+
+int pci_bus_numa_node(PCIBus *bus)
+{
+    return PCI_BUS_GET_CLASS(bus)->numa_node(bus);
 }
 
 static int get_pci_config_device(QEMUFile *f, void *pv, size_t size)
