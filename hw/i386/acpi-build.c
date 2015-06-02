@@ -617,6 +617,86 @@ static void build_append_pci_bus_devices(Aml *parent_scope, PCIBus *bus,
     aml_append(parent_scope, method);
 }
 
+/*
+ * initialize_route - Initialize the interrupt routing rule
+ * through a specific LINK:
+ *  if (lnk_idx == idx)
+ *      route using link 'link_name'
+ */
+static Aml *initialize_route(Aml *route, const char *link_name,
+                             Aml *lnk_idx, int idx)
+{
+    Aml *if_ctx = aml_if(aml_equal(lnk_idx, aml_int(idx)));
+    Aml *pkg = aml_package(4);
+
+    aml_append(pkg, aml_int(0));
+    aml_append(pkg, aml_int(0));
+    aml_append(pkg, aml_name("%s", link_name));
+    aml_append(pkg, aml_int(0));
+    aml_append(if_ctx, aml_store(pkg, route));
+
+    return if_ctx;
+}
+
+/*
+ * build_prt - Define interrupt rounting rules
+ *
+ * Returns an array of 128 routes, one for each device,
+ * based on device location.
+ * The main goal is to equaly distribute the interrupts
+ * over the 4 existing ACPI links (works only for i440fx).
+ * The hash function is  (slot + pin) & 3 -> "LNK[D|A|B|C]".
+ *
+ */
+static Aml *build_prt(void)
+{
+    Aml *method, *while_ctx, *pin, *res;
+
+    method = aml_method("_PRT", 0);
+    res = aml_local(0);
+    pin = aml_local(1);
+    aml_append(method, aml_store(aml_package(128), res));
+    aml_append(method, aml_store(aml_int(0), pin));
+
+    /* while (pin < 128) */
+    while_ctx = aml_while(aml_lless(pin, aml_int(128)));
+    {
+        Aml *slot = aml_local(2);
+        Aml *lnk_idx = aml_local(3);
+        Aml *route = aml_local(4);
+
+        /* slot = pin >> 2 */
+        aml_append(while_ctx,
+                   aml_store(aml_shiftright(pin, aml_int(2)), slot));
+        /* lnk_idx = (slot + pin) & 3 */
+        aml_append(while_ctx,
+                   aml_store(aml_and(aml_add(pin, slot), aml_int(3)), lnk_idx));
+
+        /* route[2] = "LNK[D|A|B|C]", selection based on pin % 3  */
+        aml_append(while_ctx, initialize_route(route, "LNKD", lnk_idx, 0));
+        aml_append(while_ctx, initialize_route(route, "LNKA", lnk_idx, 1));
+        aml_append(while_ctx, initialize_route(route, "LNKB", lnk_idx, 2));
+        aml_append(while_ctx, initialize_route(route, "LNKC", lnk_idx, 3));
+
+        /* route[0] = 0x[slot]FFFF */
+        aml_append(while_ctx,
+            aml_store(aml_or(aml_shiftleft(slot, aml_int(16)), aml_int(0xFFFF)),
+                      aml_index(route, aml_int(0))));
+        /* route[1] = pin & 3 */
+        aml_append(while_ctx,
+            aml_store(aml_and(pin, aml_int(3)), aml_index(route, aml_int(1))));
+        /* res[pin] = route */
+        aml_append(while_ctx, aml_store(route, aml_index(res, pin)));
+        /* pin++ */
+        aml_append(while_ctx, aml_increment(pin));
+    }
+    aml_append(method, while_ctx);
+    /* return res*/
+    aml_append(method, aml_return(res));
+
+    return method;
+}
+
 static void
 build_ssdt(GArray *table_data, GArray *linker,
            AcpiCpuInfo *cpu, AcpiPmInfo *pm, AcpiMiscInfo *misc,
@@ -655,6 +735,7 @@ build_ssdt(GArray *table_data, GArray *linker,
                        aml_name_decl("_UID", aml_string("PC%.02X", bus_num)));
             aml_append(dev, aml_name_decl("_HID", aml_string("PNP0A03")));
             aml_append(dev, aml_name_decl("_BBN", aml_int(bus_num)));
+            aml_append(dev, build_prt());
             aml_append(scope, dev);
             aml_append(ssdt, scope);
         }
