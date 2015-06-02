@@ -732,7 +732,7 @@ if test "$mingw32" = "yes" ; then
   sysconfdir="\${prefix}"
   local_statedir=
   confsuffix=""
-  libs_qga="-lws2_32 -lwinmm -lpowrprof $libs_qga"
+  libs_qga="-lws2_32 -lwinmm -lpowrprof -liphlpapi $libs_qga"
 fi
 
 werror=""
