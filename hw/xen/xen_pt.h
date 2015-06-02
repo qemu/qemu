@@ -175,6 +175,7 @@ typedef struct XenPTMSIXEntry {
     uint32_t data;
     uint32_t vector_ctrl;
     bool updated; /* indicate whether MSI ADDR or DATA is updated */
+    bool warned;  /* avoid issuing (bogus) warning more than once */
 } XenPTMSIXEntry;
 typedef struct XenPTMSIX {
     uint32_t ctrl_offset;
