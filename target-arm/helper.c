@@ -2517,6 +2517,13 @@ static const ARMCPRegInfo v8_el3_no_el2_cp_reginfo[] = {
     { .name = "CPTR_EL2", .state = ARM_CP_STATE_BOTH,
       .opc0 = 3, .opc1 = 4, .crn = 1, .crm = 1, .opc2 = 2,
       .access = PL2_RW, .type = ARM_CP_CONST, .resetvalue = 0 },
+    { .name = "MAIR_EL2", .state = ARM_CP_STATE_BOTH,
+      .opc0 = 3, .opc1 = 4, .crn = 10, .crm = 2, .opc2 = 0,
+      .access = PL2_RW, .type = ARM_CP_CONST,
+      .resetvalue = 0 },
+    { .name = "HMAIR1", .state = ARM_CP_STATE_AA32,
+      .opc1 = 4, .crn = 10, .crm = 2, .opc2 = 1,
+      .access = PL2_RW, .type = ARM_CP_CONST, .resetvalue = 0 },
     REGINFO_SENTINEL
 };
 
@@ -2588,6 +2595,14 @@ static const ARMCPRegInfo v8_el2_cp_reginfo[] = {
       .opc0 = 3, .opc1 = 4, .crn = 1, .crm = 1, .opc2 = 2,
       .access = PL2_RW, .accessfn = cptr_access, .resetvalue = 0,
       .fieldoffset = offsetof(CPUARMState, cp15.cptr_el[2]) },
+    { .name = "MAIR_EL2", .state = ARM_CP_STATE_BOTH,
+      .opc0 = 3, .opc1 = 4, .crn = 10, .crm = 2, .opc2 = 0,
+      .access = PL2_RW, .fieldoffset = offsetof(CPUARMState, cp15.mair_el[2]),
+      .resetvalue = 0 },
+    { .name = "HMAIR1", .state = ARM_CP_STATE_AA32,
+      .opc1 = 4, .crn = 10, .crm = 2, .opc2 = 1,
+      .access = PL2_RW, .type = ARM_CP_ALIAS,
+      .fieldoffset = offsetofhigh32(CPUARMState, cp15.mair_el[2]) },
     REGINFO_SENTINEL
 };
 
