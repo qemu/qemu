@@ -70,6 +70,7 @@ typedef struct VirtBoardInfo {
     int fdt_size;
     uint32_t clock_phandle;
     uint32_t gic_phandle;
+    uint32_t v2m_phandle;
 } VirtBoardInfo;
 
 typedef struct {
@@ -109,6 +110,7 @@ static const MemMapEntry a15memmap[] = {
     /* GIC distributor and CPU interfaces sit inside the CPU peripheral space */
     [VIRT_GIC_DIST] =   { 0x08000000, 0x00010000 },
     [VIRT_GIC_CPU] =    { 0x08010000, 0x00010000 },
+    [VIRT_GIC_V2M] =    { 0x08020000, 0x00001000 },
     [VIRT_UART] =       { 0x09000000, 0x00001000 },
     [VIRT_RTC] =        { 0x09010000, 0x00001000 },
     [VIRT_FW_CFG] =     { 0x09020000, 0x0000000a },
@@ -125,6 +127,7 @@ static const int a15irqmap[] = {
     [VIRT_RTC] = 2,
     [VIRT_PCIE] = 3, /* ... to 6 */
     [VIRT_MMIO] = 16, /* ...to 16 + NUM_VIRTIO_TRANSPORTS - 1 */
+    [VIRT_GIC_V2M] = 48, /* ...to 48 + NUM_GICV2M_SPIS - 1 */
 };
 
 static VirtBoardInfo machines[] = {
@@ -300,9 +303,21 @@ static void fdt_add_cpu_nodes(const VirtBoardInfo *vbi)
     }
 }
 
+static void fdt_add_v2m_gic_node(VirtBoardInfo *vbi)
+{
+    vbi->v2m_phandle = qemu_fdt_alloc_phandle(vbi->fdt);
+    qemu_fdt_add_subnode(vbi->fdt, "/intc/v2m");
+    qemu_fdt_setprop_string(vbi->fdt, "/intc/v2m", "compatible",
+                            "arm,gic-v2m-frame");
+    qemu_fdt_setprop(vbi->fdt, "/intc/v2m", "msi-controller", NULL, 0);
+    qemu_fdt_setprop_sized_cells(vbi->fdt, "/intc/v2m", "reg",
+                                 2, vbi->memmap[VIRT_GIC_V2M].base,
+                                 2, vbi->memmap[VIRT_GIC_V2M].size);
+    qemu_fdt_setprop_cell(vbi->fdt, "/intc/v2m", "phandle", vbi->v2m_phandle);
+}
+
 static void fdt_add_gic_node(VirtBoardInfo *vbi)
 {
-
     vbi->gic_phandle = qemu_fdt_alloc_phandle(vbi->fdt);
     qemu_fdt_setprop_cell(vbi->fdt, "/", "interrupt-parent", vbi->gic_phandle);
 
@@ -321,6 +336,25 @@ static void fdt_add_gic_node(VirtBoardInfo *vbi)
     qemu_fdt_setprop_cell(vbi->fdt, "/intc", "#size-cells", 0x2);
     qemu_fdt_setprop(vbi->fdt, "/intc", "ranges", NULL, 0);
     qemu_fdt_setprop_cell(vbi->fdt, "/intc", "phandle", vbi->gic_phandle);
+}
+
+static void create_v2m(VirtBoardInfo *vbi, qemu_irq *pic)
+{
+    int i;
+    int irq = vbi->irqmap[VIRT_GIC_V2M];
+    DeviceState *dev;
+
+    dev = qdev_create(NULL, "arm-gicv2m");
+    sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, vbi->memmap[VIRT_GIC_V2M].base);
+    qdev_prop_set_uint32(dev, "base-spi", irq);
+    qdev_prop_set_uint32(dev, "num-spi", NUM_GICV2M_SPIS);
+    qdev_init_nofail(dev);
+
+    for (i = 0; i < NUM_GICV2M_SPIS; i++) {
+        sysbus_connect_irq(SYS_BUS_DEVICE(dev), i, pic[irq + i]);
+    }
+
+    fdt_add_v2m_gic_node(vbi);
 }
 
 static void create_gic(VirtBoardInfo *vbi, qemu_irq *pic)
@@ -373,6 +407,8 @@ static void create_gic(VirtBoardInfo *vbi, qemu_irq *pic)
     }
 
     fdt_add_gic_node(vbi);
+
+    create_v2m(vbi, pic);
 }
 
 static void create_uart(const VirtBoardInfo *vbi, qemu_irq *pic)
@@ -675,6 +711,8 @@ static void create_pcie(const VirtBoardInfo *vbi, qemu_irq *pic)
     qemu_fdt_setprop_cell(vbi->fdt, nodename, "#size-cells", 2);
     qemu_fdt_setprop_cells(vbi->fdt, nodename, "bus-range", 0,
                            nr_pcie_buses - 1);
+
+    qemu_fdt_setprop_cells(vbi->fdt, nodename, "msi-parent", vbi->v2m_phandle);
 
     qemu_fdt_setprop_sized_cells(vbi->fdt, nodename, "reg",
                                  2, base_ecam, 2, size_ecam);
