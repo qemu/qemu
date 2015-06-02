@@ -790,6 +790,13 @@ static int qemu_rdma_broken_ipv6_kernel(Error **errp, struct ibv_context *verbs)
 
         for (x = 0; x < num_devices; x++) {
             verbs = ibv_open_device(dev_list[x]);
+            if (!verbs) {
+                if (errno == EPERM) {
+                    continue;
+                } else {
+                    return -EINVAL;
+                }
+            }
 
             if (ibv_query_port(verbs, 1, &port_attr)) {
                 ibv_close_device(verbs);
