@@ -120,6 +120,24 @@ static int pxb_register_bus(PCIDevice *dev, PCIBus *pxb_bus)
     return 0;
 }
 
+static int pxb_map_irq_fn(PCIDevice *pci_dev, int pin)
+{
+    PCIDevice *pxb = pci_dev->bus->parent_dev;
+
+    /*
+     * The bios does not index the pxb slot number when
+     * it computes the IRQ because it resides on bus 0
+     * and not on the current bus.
+     * However QEMU routes the irq through bus 0 and adds
+     * the pxb slot to the IRQ computation of the PXB
+     * device.
+     *
+     * Synchronize between bios and QEMU by canceling
+     * pxb's effect.
+     */
+    return pin - PCI_SLOT(pxb->devfn);
+}
+
 static int pxb_dev_initfn(PCIDevice *dev)
 {
     PXBDev *pxb = PXB_DEV(dev);
@@ -137,7 +155,7 @@ static int pxb_dev_initfn(PCIDevice *dev)
     bus->parent_dev = dev;
     bus->address_space_mem = dev->bus->address_space_mem;
     bus->address_space_io = dev->bus->address_space_io;
-    bus->map_irq = pci_swizzle_map_irq_fn;
+    bus->map_irq = pxb_map_irq_fn;
 
     bds = qdev_create(BUS(bus), "pci-bridge");
     bds->id = dev_name;
