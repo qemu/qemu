@@ -16,11 +16,16 @@
 #include <powrprof.h>
 #include <stdio.h>
 #include <string.h>
+#include <winsock2.h>
+#include <ws2tcpip.h>
+#include <iptypes.h>
+#include <iphlpapi.h>
 #include "qga/guest-agent-core.h"
 #include "qga/vss-win32.h"
 #include "qga-qmp-commands.h"
 #include "qapi/qmp/qerror.h"
 #include "qemu/queue.h"
+#include "qemu/host-utils.h"
 
 #ifndef SHTDN_REASON_FLAG_PLANNED
 #define SHTDN_REASON_FLAG_PLANNED 0x80000000
@@ -591,10 +596,218 @@ void qmp_guest_suspend_hybrid(Error **errp)
     error_setg(errp, QERR_UNSUPPORTED);
 }
 
+static IP_ADAPTER_ADDRESSES *guest_get_adapters_addresses(Error **errp)
+{
+    IP_ADAPTER_ADDRESSES *adptr_addrs = NULL;
+    ULONG adptr_addrs_len = 0;
+    DWORD ret;
+
+    /* Call the first time to get the adptr_addrs_len. */
+    GetAdaptersAddresses(AF_UNSPEC, GAA_FLAG_INCLUDE_PREFIX,
+                         NULL, adptr_addrs, &adptr_addrs_len);
+
+    adptr_addrs = g_malloc(adptr_addrs_len);
+    ret = GetAdaptersAddresses(AF_UNSPEC, GAA_FLAG_INCLUDE_PREFIX,
+                               NULL, adptr_addrs, &adptr_addrs_len);
+    if (ret != ERROR_SUCCESS) {
+        error_setg_win32(errp, ret, "failed to get adapters addresses");
+        g_free(adptr_addrs);
+        adptr_addrs = NULL;
+    }
+    return adptr_addrs;
+}
+
+static char *guest_wctomb_dup(WCHAR *wstr)
+{
+    char *str;
+    size_t i;
+
+    i = wcslen(wstr) + 1;
+    str = g_malloc(i);
+    WideCharToMultiByte(CP_ACP, WC_COMPOSITECHECK,
+                        wstr, -1, str, i, NULL, NULL);
+    return str;
+}
+
+static char *guest_addr_to_str(IP_ADAPTER_UNICAST_ADDRESS *ip_addr,
+                               Error **errp)
+{
+    char addr_str[INET6_ADDRSTRLEN + INET_ADDRSTRLEN];
+    DWORD len;
+    int ret;
+
+    if (ip_addr->Address.lpSockaddr->sa_family == AF_INET ||
+            ip_addr->Address.lpSockaddr->sa_family == AF_INET6) {
+        len = sizeof(addr_str);
+        ret = WSAAddressToString(ip_addr->Address.lpSockaddr,
+                                 ip_addr->Address.iSockaddrLength,
+                                 NULL,
+                                 addr_str,
+                                 &len);
+        if (ret != 0) {
+            error_setg_win32(errp, WSAGetLastError(),
+                "failed address presentation form conversion");
+            return NULL;
+        }
+        return g_strdup(addr_str);
+    }
+    return NULL;
+}
+
+#if (_WIN32_WINNT >= 0x0600)
+static int64_t guest_ip_prefix(IP_ADAPTER_UNICAST_ADDRESS *ip_addr)
+{
+    /* For Windows Vista/2008 and newer, use the OnLinkPrefixLength
+     * field to obtain the prefix.
+     */
+    return ip_addr->OnLinkPrefixLength;
+}
+#else
+/* When using the Windows XP and 2003 build environment, do the best we can to
+ * figure out the prefix.
+ */
+static IP_ADAPTER_INFO *guest_get_adapters_info(void)
+{
+    IP_ADAPTER_INFO *adptr_info = NULL;
+    ULONG adptr_info_len = 0;
+    DWORD ret;
+
+    /* Call the first time to get the adptr_info_len. */
+    GetAdaptersInfo(adptr_info, &adptr_info_len);
+
+    adptr_info = g_malloc(adptr_info_len);
+    ret = GetAdaptersInfo(adptr_info, &adptr_info_len);
+    if (ret != ERROR_SUCCESS) {
+        g_free(adptr_info);
+        adptr_info = NULL;
+    }
+    return adptr_info;
+}
+
+static int64_t guest_ip_prefix(IP_ADAPTER_UNICAST_ADDRESS *ip_addr)
+{
+    int64_t prefix = -1; /* Use for AF_INET6 and unknown/undetermined values. */
+    IP_ADAPTER_INFO *adptr_info, *info;
+    IP_ADDR_STRING *ip;
+    struct in_addr *p;
+
+    if (ip_addr->Address.lpSockaddr->sa_family != AF_INET) {
+        return prefix;
+    }
+    adptr_info = guest_get_adapters_info();
+    if (adptr_info == NULL) {
+        return prefix;
+    }
+
+    /* Match up the passed in ip_addr with one found in adaptr_info.
+     * The matching one in adptr_info will have the netmask.
+     */
+    p = &((struct sockaddr_in *)ip_addr->Address.lpSockaddr)->sin_addr;
+    for (info = adptr_info; info; info = info->Next) {
+        for (ip = &info->IpAddressList; ip; ip = ip->Next) {
+            if (p->S_un.S_addr == inet_addr(ip->IpAddress.String)) {
+                prefix = ctpop32(inet_addr(ip->IpMask.String));
+                goto out;
+            }
+        }
+    }
+out:
+    g_free(adptr_info);
+    return prefix;
+}
+#endif
+
 GuestNetworkInterfaceList *qmp_guest_network_get_interfaces(Error **errp)
 {
-    error_setg(errp, QERR_UNSUPPORTED);
-    return NULL;
+    IP_ADAPTER_ADDRESSES *adptr_addrs, *addr;
+    IP_ADAPTER_UNICAST_ADDRESS *ip_addr = NULL;
+    GuestNetworkInterfaceList *head = NULL, *cur_item = NULL;
+    GuestIpAddressList *head_addr, *cur_addr;
+    GuestNetworkInterfaceList *info;
+    GuestIpAddressList *address_item = NULL;
+    unsigned char *mac_addr;
+    char *addr_str;
+    WORD wsa_version;
+    WSADATA wsa_data;
+    int ret;
+
+    adptr_addrs = guest_get_adapters_addresses(errp);
+    if (adptr_addrs == NULL) {
+        return NULL;
+    }
+
+    /* Make WSA APIs available. */
+    wsa_version = MAKEWORD(2, 2);
+    ret = WSAStartup(wsa_version, &wsa_data);
+    if (ret != 0) {
+        error_setg_win32(errp, ret, "failed socket startup");
+        goto out;
+    }
+
+    for (addr = adptr_addrs; addr; addr = addr->Next) {
+        info = g_malloc0(sizeof(*info));
+
+        if (cur_item == NULL) {
+            head = cur_item = info;
+        } else {
+            cur_item->next = info;
+            cur_item = info;
+        }
+
+        info->value = g_malloc0(sizeof(*info->value));
+        info->value->name = guest_wctomb_dup(addr->FriendlyName);
+
+        if (addr->PhysicalAddressLength != 0) {
+            mac_addr = addr->PhysicalAddress;
+
+            info->value->hardware_address =
+                g_strdup_printf("%02x:%02x:%02x:%02x:%02x:%02x",
+                                (int) mac_addr[0], (int) mac_addr[1],
+                                (int) mac_addr[2], (int) mac_addr[3],
+                                (int) mac_addr[4], (int) mac_addr[5]);
+
+            info->value->has_hardware_address = true;
+        }
+
+        head_addr = NULL;
+        cur_addr = NULL;
+        for (ip_addr = addr->FirstUnicastAddress;
+                ip_addr;
+                ip_addr = ip_addr->Next) {
+            addr_str = guest_addr_to_str(ip_addr, errp);
+            if (addr_str == NULL) {
+                continue;
+            }
+
+            address_item = g_malloc0(sizeof(*address_item));
+
+            if (!cur_addr) {
+                head_addr = cur_addr = address_item;
+            } else {
+                cur_addr->next = address_item;
+                cur_addr = address_item;
+            }
+
+            address_item->value = g_malloc0(sizeof(*address_item->value));
+            address_item->value->ip_address = addr_str;
+            address_item->value->prefix = guest_ip_prefix(ip_addr);
+            if (ip_addr->Address.lpSockaddr->sa_family == AF_INET) {
+                address_item->value->ip_address_type =
+                    GUEST_IP_ADDRESS_TYPE_IPV4;
+            } else if (ip_addr->Address.lpSockaddr->sa_family == AF_INET6) {
+                address_item->value->ip_address_type =
+                    GUEST_IP_ADDRESS_TYPE_IPV6;
+            }
+        }
+        if (head_addr) {
+            info->value->has_ip_addresses = true;
+            info->value->ip_addresses = head_addr;
+        }
+    }
+    WSACleanup();
+out:
+    g_free(adptr_addrs);
+    return head;
 }
 
 int64_t qmp_guest_get_time(Error **errp)
@@ -709,7 +922,7 @@ GuestMemoryBlockInfo *qmp_guest_get_memory_block_info(Error **errp)
 GList *ga_command_blacklist_init(GList *blacklist)
 {
     const char *list_unsupported[] = {
-        "guest-suspend-hybrid", "guest-network-get-interfaces",
+        "guest-suspend-hybrid",
         "guest-get-vcpus", "guest-set-vcpus",
         "guest-set-user-password",
         "guest-get-memory-blocks", "guest-set-memory-blocks",
