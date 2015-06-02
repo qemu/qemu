@@ -719,6 +719,50 @@ static void crs_range_free(gpointer data)
     g_free(entry);
 }
 
+static gint crs_range_compare(gconstpointer a, gconstpointer b)
+{
+     CrsRangeEntry *entry_a = *(CrsRangeEntry **)a;
+     CrsRangeEntry *entry_b = *(CrsRangeEntry **)b;
+
+     return (int64_t)entry_a->base - (int64_t)entry_b->base;
+}
+
+/*
+ * crs_replace_with_free_ranges - given the 'used' ranges within [start - end]
+ * interval, computes the 'free' ranges from the same interval.
+ * Example: If the input array is { [a1 - a2],[b1 - b2] }, the function
+ * will return { [base - a1], [a2 - b1], [b2 - limit] }.
+ */
+static void crs_replace_with_free_ranges(GPtrArray *ranges,
+                                         uint64_t start, uint64_t end)
+{
+    GPtrArray *free_ranges = g_ptr_array_new_with_free_func(crs_range_free);
+    uint64_t free_base = start;
+    int i;
+
+    g_ptr_array_sort(ranges, crs_range_compare);
+    for (i = 0; i < ranges->len; i++) {
+        CrsRangeEntry *used = g_ptr_array_index(ranges, i);
+
+        if (free_base < used->base) {
+            crs_range_insert(free_ranges, free_base, used->base - 1);
+        }
+
+        free_base = used->limit + 1;
+    }
+
+    if (free_base < end) {
+        crs_range_insert(free_ranges, free_base, end);
+    }
+
+    g_ptr_array_set_size(ranges, 0);
+    for (i = 0; i < free_ranges->len; i++) {
+        g_ptr_array_add(ranges, g_ptr_array_index(free_ranges, i));
+    }
+
+    g_ptr_array_free(free_ranges, false);
+}
+
 static Aml *build_crs(PCIHostState *host,
                       GPtrArray *io_ranges, GPtrArray *mem_ranges)
 {
@@ -744,8 +788,8 @@ static Aml *build_crs(PCIHostState *host,
 
             if (r->type & PCI_BASE_ADDRESS_SPACE_IO) {
                 aml_append(crs,
-                    aml_word_io(aml_min_fixed, aml_max_fixed,
-                                aml_pos_decode, aml_entire_range,
+                    aml_word_io(AML_MIN_FIXED, AML_MAX_FIXED,
+                                AML_POS_DECODE, AML_ENTIRE_RANGE,
                                 0,
                                 range_base,
                                 range_limit,
@@ -754,9 +798,9 @@ static Aml *build_crs(PCIHostState *host,
                 crs_range_insert(io_ranges, range_base, range_limit);
             } else { /* "memory" */
                 aml_append(crs,
-                    aml_dword_memory(aml_pos_decode, aml_min_fixed,
-                                     aml_max_fixed, aml_non_cacheable,
-                                     aml_ReadWrite,
+                    aml_dword_memory(AML_POS_DECODE, AML_MIN_FIXED,
+                                     AML_MAX_FIXED, AML_NON_CACHEABLE,
+                                     AML_READ_WRITE,
                                      0,
                                      range_base,
                                      range_limit,
@@ -776,8 +820,8 @@ static Aml *build_crs(PCIHostState *host,
             range_base = pci_bridge_get_base(dev, PCI_BASE_ADDRESS_SPACE_IO);
             range_limit = pci_bridge_get_limit(dev, PCI_BASE_ADDRESS_SPACE_IO);
             aml_append(crs,
-                aml_word_io(aml_min_fixed, aml_max_fixed,
-                            aml_pos_decode, aml_entire_range,
+                aml_word_io(AML_MIN_FIXED, AML_MAX_FIXED,
+                            AML_POS_DECODE, AML_ENTIRE_RANGE,
                             0,
                             range_base,
                             range_limit,
@@ -790,9 +834,9 @@ static Aml *build_crs(PCIHostState *host,
             range_limit =
                 pci_bridge_get_limit(dev, PCI_BASE_ADDRESS_SPACE_MEMORY);
             aml_append(crs,
-                aml_dword_memory(aml_pos_decode, aml_min_fixed,
-                                 aml_max_fixed, aml_non_cacheable,
-                                 aml_ReadWrite,
+                aml_dword_memory(AML_POS_DECODE, AML_MIN_FIXED,
+                                 AML_MAX_FIXED, AML_NON_CACHEABLE,
+                                 AML_READ_WRITE,
                                  0,
                                  range_base,
                                  range_limit,
@@ -805,9 +849,9 @@ static Aml *build_crs(PCIHostState *host,
             range_limit =
                 pci_bridge_get_limit(dev, PCI_BASE_ADDRESS_MEM_PREFETCH);
             aml_append(crs,
-                aml_dword_memory(aml_pos_decode, aml_min_fixed,
-                                 aml_max_fixed, aml_non_cacheable,
-                                 aml_ReadWrite,
+                aml_dword_memory(AML_POS_DECODE, AML_MIN_FIXED,
+                                 AML_MAX_FIXED, AML_NON_CACHEABLE,
+                                 AML_READ_WRITE,
                                  0,
                                  range_base,
                                  range_limit,
@@ -818,7 +862,7 @@ static Aml *build_crs(PCIHostState *host,
     }
 
     aml_append(crs,
-        aml_word_bus_number(aml_min_fixed, aml_max_fixed, aml_pos_decode,
+        aml_word_bus_number(AML_MIN_FIXED, AML_MAX_FIXED, AML_POS_DECODE,
                             0,
                             pci_bus_num(host->bus),
                             max_bus,
@@ -840,6 +884,8 @@ build_ssdt(GArray *table_data, GArray *linker,
     PCIBus *bus = NULL;
     GPtrArray *io_ranges = g_ptr_array_new_with_free_func(crs_range_free);
     GPtrArray *mem_ranges = g_ptr_array_new_with_free_func(crs_range_free);
+    CrsRangeEntry *entry;
+    int root_bus_limit = 0xFF;
     int i;
 
     ssdt = init_aml_allocator();
@@ -862,6 +908,10 @@ build_ssdt(GArray *table_data, GArray *linker,
                 continue;
             }
 
+            if (bus_num < root_bus_limit) {
+                root_bus_limit = bus_num - 1;
+            }
+
             scope = aml_scope("\\_SB");
             dev = aml_device("PC%.02X", bus_num);
             aml_append(dev,
@@ -875,9 +925,6 @@ build_ssdt(GArray *table_data, GArray *linker,
             aml_append(scope, dev);
             aml_append(ssdt, scope);
         }
-
-        g_ptr_array_free(io_ranges, true);
-        g_ptr_array_free(mem_ranges, true);
     }
 
     scope = aml_scope("\\_SB.PCI0");
@@ -885,26 +932,40 @@ build_ssdt(GArray *table_data, GArray *linker,
     crs = aml_resource_template();
     aml_append(crs,
         aml_word_bus_number(AML_MIN_FIXED, AML_MAX_FIXED, AML_POS_DECODE,
-                            0x0000, 0x0000, 0x00FF, 0x0000, 0x0100));
+                            0x0000, 0x0, root_bus_limit,
+                            0x0000, root_bus_limit + 1));
     aml_append(crs, aml_io(AML_DECODE16, 0x0CF8, 0x0CF8, 0x01, 0x08));
 
     aml_append(crs,
         aml_word_io(AML_MIN_FIXED, AML_MAX_FIXED,
                     AML_POS_DECODE, AML_ENTIRE_RANGE,
                     0x0000, 0x0000, 0x0CF7, 0x0000, 0x0CF8));
-    aml_append(crs,
-        aml_word_io(AML_MIN_FIXED, AML_MAX_FIXED,
-                    AML_POS_DECODE, AML_ENTIRE_RANGE,
-                    0x0000, 0x0D00, 0xFFFF, 0x0000, 0xF300));
+
+    crs_replace_with_free_ranges(io_ranges, 0x0D00, 0xFFFF);
+    for (i = 0; i < io_ranges->len; i++) {
+        entry = g_ptr_array_index(io_ranges, i);
+        aml_append(crs,
+            aml_word_io(AML_MIN_FIXED, AML_MAX_FIXED,
+                        AML_POS_DECODE, AML_ENTIRE_RANGE,
+                        0x0000, entry->base, entry->limit,
+                        0x0000, entry->limit - entry->base + 1));
+    }
+
     aml_append(crs,
         aml_dword_memory(AML_POS_DECODE, AML_MIN_FIXED, AML_MAX_FIXED,
                          AML_CACHEABLE, AML_READ_WRITE,
                          0, 0x000A0000, 0x000BFFFF, 0, 0x00020000));
-    aml_append(crs,
-        aml_dword_memory(AML_POS_DECODE, AML_MIN_FIXED, AML_MAX_FIXED,
-                         AML_NON_CACHEABLE, AML_READ_WRITE,
-                         0, pci->w32.begin, pci->w32.end - 1, 0,
-                         pci->w32.end - pci->w32.begin));
+
+    crs_replace_with_free_ranges(mem_ranges, pci->w32.begin, pci->w32.end - 1);
+    for (i = 0; i < mem_ranges->len; i++) {
+        entry = g_ptr_array_index(mem_ranges, i);
+        aml_append(crs,
+            aml_dword_memory(AML_POS_DECODE, AML_MIN_FIXED, AML_MAX_FIXED,
+                             AML_NON_CACHEABLE, AML_READ_WRITE,
+                             0, entry->base, entry->limit,
+                             0, entry->limit - entry->base + 1));
+    }
+
     if (pci->w64.begin) {
         aml_append(crs,
             aml_qword_memory(AML_POS_DECODE, AML_MIN_FIXED, AML_MAX_FIXED,
@@ -926,6 +987,9 @@ build_ssdt(GArray *table_data, GArray *linker,
     );
     aml_append(dev, aml_name_decl("_CRS", crs));
     aml_append(scope, dev);
+
+    g_ptr_array_free(io_ranges, true);
+    g_ptr_array_free(mem_ranges, true);
 
     /* reserve PCIHP resources */
     if (pm->pcihp_io_len) {
