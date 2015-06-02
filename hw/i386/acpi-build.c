@@ -786,6 +786,14 @@ static Aml *build_crs(PCIHostState *host,
             range_base = r->addr;
             range_limit = r->addr + r->size - 1;
 
+            /*
+             * Work-around for old bioses
+             * that do not support multiple root buses
+             */
+            if (!range_base || range_base > range_limit) {
+                continue;
+            }
+
             if (r->type & PCI_BASE_ADDRESS_SPACE_IO) {
                 aml_append(crs,
                     aml_word_io(AML_MIN_FIXED, AML_MAX_FIXED,
@@ -819,45 +827,66 @@ static Aml *build_crs(PCIHostState *host,
 
             range_base = pci_bridge_get_base(dev, PCI_BASE_ADDRESS_SPACE_IO);
             range_limit = pci_bridge_get_limit(dev, PCI_BASE_ADDRESS_SPACE_IO);
-            aml_append(crs,
-                aml_word_io(AML_MIN_FIXED, AML_MAX_FIXED,
-                            AML_POS_DECODE, AML_ENTIRE_RANGE,
-                            0,
-                            range_base,
-                            range_limit,
-                            0,
-                            range_limit - range_base + 1));
-            crs_range_insert(io_ranges, range_base, range_limit);
+
+            /*
+             * Work-around for old bioses
+             * that do not support multiple root buses
+             */
+            if (range_base || range_base > range_limit) {
+                aml_append(crs,
+                           aml_word_io(AML_MIN_FIXED, AML_MAX_FIXED,
+                                       AML_POS_DECODE, AML_ENTIRE_RANGE,
+                                       0,
+                                       range_base,
+                                       range_limit,
+                                       0,
+                                       range_limit - range_base + 1));
+                crs_range_insert(io_ranges, range_base, range_limit);
+            }
 
             range_base =
                 pci_bridge_get_base(dev, PCI_BASE_ADDRESS_SPACE_MEMORY);
             range_limit =
                 pci_bridge_get_limit(dev, PCI_BASE_ADDRESS_SPACE_MEMORY);
-            aml_append(crs,
-                aml_dword_memory(AML_POS_DECODE, AML_MIN_FIXED,
-                                 AML_MAX_FIXED, AML_NON_CACHEABLE,
-                                 AML_READ_WRITE,
-                                 0,
-                                 range_base,
-                                 range_limit,
-                                 0,
-                                 range_limit - range_base + 1));
-            crs_range_insert(mem_ranges, range_base, range_limit);
+
+            /*
+             * Work-around for old bioses
+             * that do not support multiple root buses
+             */
+            if (range_base || range_base > range_limit) {
+                aml_append(crs,
+                           aml_dword_memory(AML_POS_DECODE, AML_MIN_FIXED,
+                                            AML_MAX_FIXED, AML_NON_CACHEABLE,
+                                            AML_READ_WRITE,
+                                            0,
+                                            range_base,
+                                            range_limit,
+                                            0,
+                                            range_limit - range_base + 1));
+                crs_range_insert(mem_ranges, range_base, range_limit);
+          }
 
             range_base =
                 pci_bridge_get_base(dev, PCI_BASE_ADDRESS_MEM_PREFETCH);
             range_limit =
                 pci_bridge_get_limit(dev, PCI_BASE_ADDRESS_MEM_PREFETCH);
-            aml_append(crs,
-                aml_dword_memory(AML_POS_DECODE, AML_MIN_FIXED,
-                                 AML_MAX_FIXED, AML_NON_CACHEABLE,
-                                 AML_READ_WRITE,
-                                 0,
-                                 range_base,
-                                 range_limit,
-                                 0,
-                                 range_limit - range_base + 1));
-            crs_range_insert(mem_ranges, range_base, range_limit);
+
+            /*
+             * Work-around for old bioses
+             * that do not support multiple root buses
+             */
+            if (range_base || range_base > range_limit) {
+                aml_append(crs,
+                           aml_dword_memory(AML_POS_DECODE, AML_MIN_FIXED,
+                                            AML_MAX_FIXED, AML_NON_CACHEABLE,
+                                            AML_READ_WRITE,
+                                            0,
+                                            range_base,
+                                            range_limit,
+                                            0,
+                                            range_limit - range_base + 1));
+                crs_range_insert(mem_ranges, range_base, range_limit);
+            }
         }
     }
 
