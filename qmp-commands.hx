@@ -784,23 +784,23 @@ EQMP
         .name       = "client_migrate_info",
         .args_type  = "protocol:s,hostname:s,port:i?,tls-port:i?,cert-subject:s?",
         .params     = "protocol hostname port tls-port cert-subject",
-        .help       = "send migration info to spice/vnc client",
-        .mhandler.cmd_new = client_migrate_info,
+        .help       = "set migration information for remote display",
+        .mhandler.cmd_new = qmp_marshal_input_client_migrate_info,
     },
 
 SQMP
 client_migrate_info
-------------------
+-------------------
 
-Set the spice/vnc connection info for the migration target.  The spice/vnc
-server will ask the spice/vnc client to automatically reconnect using the
-new parameters (if specified) once the vm migration finished successfully.
+Set migration information for remote display.  This makes the server
+ask the client to automatically reconnect using the new parameters
+once migration finished successfully.  Only implemented for SPICE.
 
 Arguments:
 
-- "protocol":     protocol: "spice" or "vnc" (json-string)
+- "protocol":     must be "spice" (json-string)
 - "hostname":     migration target hostname (json-string)
-- "port":         spice/vnc tcp port for plaintext channels (json-int, optional)
+- "port":         spice tcp port for plaintext channels (json-int, optional)
 - "tls-port":     spice tcp port for tls-secured channels (json-int, optional)
 - "cert-subject": server certificate subject (json-string, optional)
 

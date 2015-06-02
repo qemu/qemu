@@ -16,10 +16,7 @@ extern Monitor *default_mon;
 #define MONITOR_USE_CONTROL   0x04
 #define MONITOR_USE_PRETTY    0x08
 
-/* flags for monitor commands */
-#define MONITOR_CMD_ASYNC       0x0001
-
-int monitor_cur_is_qmp(void);
+bool monitor_cur_is_qmp(void);
 
 void monitor_init(CharDriverState *chr, int flags);
 
@@ -42,8 +39,6 @@ void monitor_printf(Monitor *mon, const char *fmt, ...) GCC_FMT_ATTR(2, 3);
 void monitor_flush(Monitor *mon);
 int monitor_set_cpu(int cpu_index);
 int monitor_get_cpu_index(void);
-
-typedef void (MonitorCompletion)(void *opaque, QObject *ret_data);
 
 void monitor_set_error(Monitor *mon, QError *qerror);
 void monitor_read_command(Monitor *mon, int show_prompt);

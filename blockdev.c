@@ -2113,7 +2113,7 @@ void qmp_block_dirty_bitmap_clear(const char *node, const char *name,
     aio_context_release(aio_context);
 }
 
-int hmp_drive_del(Monitor *mon, const QDict *qdict, QObject **ret_data)
+void hmp_drive_del(Monitor *mon, const QDict *qdict)
 {
     const char *id = qdict_get_str(qdict, "id");
     BlockBackend *blk;
@@ -2124,14 +2124,14 @@ int hmp_drive_del(Monitor *mon, const QDict *qdict, QObject **ret_data)
     blk = blk_by_name(id);
     if (!blk) {
         error_report("Device '%s' not found", id);
-        return -1;
+        return;
     }
     bs = blk_bs(blk);
 
     if (!blk_legacy_dinfo(blk)) {
         error_report("Deleting device added with blockdev-add"
                      " is not supported");
-        return -1;
+        return;
     }
 
     aio_context = bdrv_get_aio_context(bs);
@@ -2140,7 +2140,7 @@ int hmp_drive_del(Monitor *mon, const QDict *qdict, QObject **ret_data)
     if (bdrv_op_is_blocked(bs, BLOCK_OP_TYPE_DRIVE_DEL, &local_err)) {
         error_report_err(local_err);
         aio_context_release(aio_context);
-        return -1;
+        return;
     }
 
     /* quiesce block driver; prevent further io */
@@ -2163,7 +2163,6 @@ int hmp_drive_del(Monitor *mon, const QDict *qdict, QObject **ret_data)
     }
 
     aio_context_release(aio_context);
-    return 0;
 }
 
 void qmp_block_resize(bool has_device, const char *device,
