@@ -1699,8 +1699,26 @@ static bool pci_secondary_bus_in_range(PCIDevice *dev, int bus_num)
 {
     return !(pci_get_word(dev->config + PCI_BRIDGE_CONTROL) &
              PCI_BRIDGE_CTL_BUS_RESET) /* Don't walk the bus if it's reset. */ &&
-        dev->config[PCI_SECONDARY_BUS] < bus_num &&
+        dev->config[PCI_SECONDARY_BUS] <= bus_num &&
         bus_num <= dev->config[PCI_SUBORDINATE_BUS];
+}
+
+/* Whether a given bus number is in a range of a root bus */
+static bool pci_root_bus_in_range(PCIBus *bus, int bus_num)
+{
+    int i;
+
+    for (i = 0; i < ARRAY_SIZE(bus->devices); ++i) {
+        PCIDevice *dev = bus->devices[i];
+
+        if (dev && PCI_DEVICE_GET_CLASS(dev)->is_bridge) {
+            if (pci_secondary_bus_in_range(dev, bus_num)) {
+                return true;
+            }
+        }
+    }
+
+    return false;
 }
 
 static PCIBus *pci_find_bus_nr(PCIBus *bus, int bus_num)
@@ -1724,12 +1742,18 @@ static PCIBus *pci_find_bus_nr(PCIBus *bus, int bus_num)
     /* try child bus */
     for (; bus; bus = sec) {
         QLIST_FOREACH(sec, &bus->child, sibling) {
-            assert(!pci_bus_is_root(sec));
-            if (sec->parent_dev->config[PCI_SECONDARY_BUS] == bus_num) {
+            if (pci_bus_num(sec) == bus_num) {
                 return sec;
             }
-            if (pci_secondary_bus_in_range(sec->parent_dev, bus_num)) {
-                break;
+            /* PXB buses assumed to be children of bus 0 */
+            if (pci_bus_is_root(sec)) {
+                if (pci_root_bus_in_range(sec, bus_num)) {
+                    break;
+                }
+            } else {
+                if (pci_secondary_bus_in_range(sec->parent_dev, bus_num)) {
+                    break;
+                }
             }
         }
     }
