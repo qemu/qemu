@@ -239,6 +239,7 @@ static void xen_pt_pci_write_config(PCIDevice *d, uint32_t addr,
     XenPTReg *reg_entry = NULL;
     uint32_t find_addr = addr;
     XenPTRegInfo *reg = NULL;
+    bool wp_flag = false;
 
     if (xen_pt_pci_config_access_check(d, addr, len)) {
         return;
@@ -278,6 +279,10 @@ static void xen_pt_pci_write_config(PCIDevice *d, uint32_t addr,
 
     /* pass directly to the real device for passthrough type register group */
     if (reg_grp_entry == NULL) {
+        if (!s->permissive) {
+            wb_mask = 0;
+            wp_flag = true;
+        }
         goto out;
     }
 
@@ -298,12 +303,15 @@ static void xen_pt_pci_write_config(PCIDevice *d, uint32_t addr,
             uint32_t real_offset = reg_grp_entry->base_offset + reg->offset;
             uint32_t valid_mask = 0xFFFFFFFF >> ((4 - emul_len) << 3);
             uint8_t *ptr_val = NULL;
+            uint32_t wp_mask = reg->emu_mask | reg->ro_mask;
 
             valid_mask <<= (find_addr - real_offset) << 3;
             ptr_val = (uint8_t *)&val + (real_offset & 3);
-            if (reg->emu_mask == (0xFFFFFFFF >> ((4 - reg->size) << 3))) {
-                wb_mask &= ~((reg->emu_mask
-                              >> ((find_addr - real_offset) << 3))
+            if (!s->permissive) {
+                wp_mask |= reg->res_mask;
+            }
+            if (wp_mask == (0xFFFFFFFF >> ((4 - reg->size) << 3))) {
+                wb_mask &= ~((wp_mask >> ((find_addr - real_offset) << 3))
                              << ((len - emul_len) << 3));
             }
 
@@ -347,6 +355,16 @@ static void xen_pt_pci_write_config(PCIDevice *d, uint32_t addr,
         } else {
             /* nothing to do with passthrough type register,
              * continue to find next byte */
+            if (!s->permissive) {
+                wb_mask &= ~(0xff << ((len - emul_len) << 3));
+                /* Unused BARs will make it here, but we don't want to issue
+                 * warnings for writes to them (bogus writes get dealt with
+                 * above).
+                 */
+                if (index < 0) {
+                    wp_flag = true;
+                }
+            }
             emul_len--;
             find_addr++;
         }
@@ -358,6 +376,13 @@ static void xen_pt_pci_write_config(PCIDevice *d, uint32_t addr,
     memory_region_transaction_commit();
 
 out:
+    if (wp_flag && !s->permissive_warned) {
+        s->permissive_warned = true;
+        xen_pt_log(d, "Write-back to unknown field 0x%02x (partially) inhibited (0x%0*x)\n",
+                   addr, len * 2, wb_mask);
+        xen_pt_log(d, "If the device doesn't work, try enabling permissive mode\n");
+        xen_pt_log(d, "(unsafe) and if it helps report the problem to xen-devel\n");
+    }
     for (index = 0; wb_mask; index += len) {
         /* unknown regs are passed through */
         while (!(wb_mask & 0xff)) {
@@ -824,6 +849,7 @@ static void xen_pt_unregister_device(PCIDevice *d)
 
 static Property xen_pci_passthrough_properties[] = {
     DEFINE_PROP_PCI_HOST_DEVADDR("hostaddr", XenPCIPassthroughState, hostaddr),
+    DEFINE_PROP_BOOL("permissive", XenPCIPassthroughState, permissive, false),
     DEFINE_PROP_END_OF_LIST(),
 };
 

@@ -101,6 +101,10 @@ static uint32_t get_throughable_mask(const XenPCIPassthroughState *s,
 {
     uint32_t throughable_mask = ~(reg->emu_mask | reg->ro_mask);
 
+    if (!s->permissive) {
+        throughable_mask &= ~reg->res_mask;
+    }
+
     return throughable_mask & valid_mask;
 }
 

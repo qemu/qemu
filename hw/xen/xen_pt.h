@@ -197,6 +197,8 @@ struct XenPCIPassthroughState {
 
     PCIHostDeviceAddress hostaddr;
     bool is_virtfn;
+    bool permissive;
+    bool permissive_warned;
     XenHostPCIDevice real_device;
     XenPTRegion bases[PCI_NUM_REGIONS]; /* Access regions */
     QLIST_HEAD(, XenPTRegGroup) reg_grps;
