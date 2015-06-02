@@ -1228,7 +1228,7 @@ int kvm_irqchip_add_msi_route(KVMState *s, MSIMessage msg)
     int virq;
 
     if (kvm_gsi_direct_mapping()) {
-        return msg.data & 0xffff;
+        return kvm_arch_msi_data_to_gsi(msg.data);
     }
 
     if (!kvm_gsi_routing_enabled()) {

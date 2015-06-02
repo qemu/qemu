@@ -2410,3 +2410,8 @@ int kvm_arch_fixup_msi_route(struct kvm_irq_routing_entry *route,
 {
     return 0;
 }
+
+int kvm_arch_msi_data_to_gsi(uint32_t data)
+{
+    return data & 0xffff;
+}
