@@ -88,9 +88,15 @@ static void pci_bus_unrealize(BusState *qbus, Error **errp)
     vmstate_unregister(NULL, &vmstate_pcibus, bus);
 }
 
+static bool pcibus_is_root(PCIBus *bus)
+{
+    return !bus->parent_dev;
+}
+
 static void pci_bus_class_init(ObjectClass *klass, void *data)
 {
     BusClass *k = BUS_CLASS(klass);
+    PCIBusClass *pbc = PCI_BUS_CLASS(klass);
 
     k->print_dev = pcibus_dev_print;
     k->get_dev_path = pcibus_get_dev_path;
@@ -98,12 +104,15 @@ static void pci_bus_class_init(ObjectClass *klass, void *data)
     k->realize = pci_bus_realize;
     k->unrealize = pci_bus_unrealize;
     k->reset = pcibus_reset;
+
+    pbc->is_root = pcibus_is_root;
 }
 
 static const TypeInfo pci_bus_info = {
     .name = TYPE_PCI_BUS,
     .parent = TYPE_BUS,
     .instance_size = sizeof(PCIBus),
+    .class_size = sizeof(PCIBusClass),
     .class_init = pci_bus_class_init,
 };
 
@@ -278,7 +287,10 @@ PCIBus *pci_device_root_bus(const PCIDevice *d)
 {
     PCIBus *bus = d->bus;
 
-    while ((d = bus->parent_dev) != NULL) {
+    while (!pci_bus_is_root(bus)) {
+        d = bus->parent_dev;
+        assert(d != NULL);
+
         bus = d->bus;
     }
 
@@ -291,7 +303,6 @@ const char *pci_root_bus_path(PCIDevice *dev)
     PCIHostState *host_bridge = PCI_HOST_BRIDGE(rootbus->qbus.parent);
     PCIHostBridgeClass *hc = PCI_HOST_BRIDGE_GET_CLASS(host_bridge);
 
-    assert(!rootbus->parent_dev);
     assert(host_bridge->bus == rootbus);
 
     if (hc->root_bus_path) {
@@ -325,7 +336,7 @@ bool pci_bus_is_express(PCIBus *bus)
 
 bool pci_bus_is_root(PCIBus *bus)
 {
-    return !bus->parent_dev;
+    return PCI_BUS_GET_CLASS(bus)->is_root(bus);
 }
 
 void pci_bus_new_inplace(PCIBus *bus, size_t bus_size, DeviceState *parent,

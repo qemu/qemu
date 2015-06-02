@@ -8,6 +8,14 @@
  * use accessor functions in pci.h, pci_bridge.h
  */
 
+typedef struct PCIBusClass {
+    /*< private >*/
+    BusClass parent_class;
+    /*< public >*/
+
+    bool (*is_root)(PCIBus *bus);
+} PCIBusClass;
+
 struct PCIBus {
     BusState qbus;
     PCIIOMMUFunc iommu_fn;
