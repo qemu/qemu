@@ -95,6 +95,14 @@ XenPTReg *xen_pt_find_reg(XenPTRegGroup *reg_grp, uint32_t address)
     return NULL;
 }
 
+static uint32_t get_throughable_mask(const XenPCIPassthroughState *s,
+                                     const XenPTRegInfo *reg,
+                                     uint32_t valid_mask)
+{
+    uint32_t throughable_mask = ~(reg->emu_mask | reg->ro_mask);
+
+    return throughable_mask & valid_mask;
+}
 
 /****************
  * general register functions
@@ -157,14 +165,13 @@ static int xen_pt_byte_reg_write(XenPCIPassthroughState *s, XenPTReg *cfg_entry,
 {
     XenPTRegInfo *reg = cfg_entry->reg;
     uint8_t writable_mask = 0;
-    uint8_t throughable_mask = 0;
+    uint8_t throughable_mask = get_throughable_mask(s, reg, valid_mask);
 
     /* modify emulate register */
     writable_mask = reg->emu_mask & ~reg->ro_mask & valid_mask;
     cfg_entry->data = XEN_PT_MERGE_VALUE(*val, cfg_entry->data, writable_mask);
 
     /* create value for writing to I/O device register */
-    throughable_mask = ~reg->emu_mask & valid_mask;
     *val = XEN_PT_MERGE_VALUE(*val, dev_value, throughable_mask);
 
     return 0;
@@ -175,14 +182,13 @@ static int xen_pt_word_reg_write(XenPCIPassthroughState *s, XenPTReg *cfg_entry,
 {
     XenPTRegInfo *reg = cfg_entry->reg;
     uint16_t writable_mask = 0;
-    uint16_t throughable_mask = 0;
+    uint16_t throughable_mask = get_throughable_mask(s, reg, valid_mask);
 
     /* modify emulate register */
     writable_mask = reg->emu_mask & ~reg->ro_mask & valid_mask;
     cfg_entry->data = XEN_PT_MERGE_VALUE(*val, cfg_entry->data, writable_mask);
 
     /* create value for writing to I/O device register */
-    throughable_mask = ~reg->emu_mask & valid_mask;
     *val = XEN_PT_MERGE_VALUE(*val, dev_value, throughable_mask);
 
     return 0;
@@ -193,14 +199,13 @@ static int xen_pt_long_reg_write(XenPCIPassthroughState *s, XenPTReg *cfg_entry,
 {
     XenPTRegInfo *reg = cfg_entry->reg;
     uint32_t writable_mask = 0;
-    uint32_t throughable_mask = 0;
+    uint32_t throughable_mask = get_throughable_mask(s, reg, valid_mask);
 
     /* modify emulate register */
     writable_mask = reg->emu_mask & ~reg->ro_mask & valid_mask;
     cfg_entry->data = XEN_PT_MERGE_VALUE(*val, cfg_entry->data, writable_mask);
 
     /* create value for writing to I/O device register */
-    throughable_mask = ~reg->emu_mask & valid_mask;
     *val = XEN_PT_MERGE_VALUE(*val, dev_value, throughable_mask);
 
     return 0;
@@ -292,15 +297,13 @@ static int xen_pt_cmd_reg_write(XenPCIPassthroughState *s, XenPTReg *cfg_entry,
 {
     XenPTRegInfo *reg = cfg_entry->reg;
     uint16_t writable_mask = 0;
-    uint16_t throughable_mask = 0;
+    uint16_t throughable_mask = get_throughable_mask(s, reg, valid_mask);
 
     /* modify emulate register */
     writable_mask = ~reg->ro_mask & valid_mask;
     cfg_entry->data = XEN_PT_MERGE_VALUE(*val, cfg_entry->data, writable_mask);
 
     /* create value for writing to I/O device register */
-    throughable_mask = ~reg->emu_mask & valid_mask;
-
     if (*val & PCI_COMMAND_INTX_DISABLE) {
         throughable_mask |= PCI_COMMAND_INTX_DISABLE;
     } else {
@@ -454,7 +457,6 @@ static int xen_pt_bar_reg_write(XenPCIPassthroughState *s, XenPTReg *cfg_entry,
     PCIDevice *d = &s->dev;
     const PCIIORegion *r;
     uint32_t writable_mask = 0;
-    uint32_t throughable_mask = 0;
     uint32_t bar_emu_mask = 0;
     uint32_t bar_ro_mask = 0;
     uint32_t r_size = 0;
@@ -511,8 +513,7 @@ static int xen_pt_bar_reg_write(XenPCIPassthroughState *s, XenPTReg *cfg_entry,
     }
 
     /* create value for writing to I/O device register */
-    throughable_mask = ~bar_emu_mask & valid_mask;
-    *val = XEN_PT_MERGE_VALUE(*val, dev_value, throughable_mask);
+    *val = XEN_PT_MERGE_VALUE(*val, dev_value, 0);
 
     return 0;
 }
@@ -526,9 +527,8 @@ static int xen_pt_exp_rom_bar_reg_write(XenPCIPassthroughState *s,
     XenPTRegion *base = NULL;
     PCIDevice *d = (PCIDevice *)&s->dev;
     uint32_t writable_mask = 0;
-    uint32_t throughable_mask = 0;
+    uint32_t throughable_mask = get_throughable_mask(s, reg, valid_mask);
     pcibus_t r_size = 0;
-    uint32_t bar_emu_mask = 0;
     uint32_t bar_ro_mask = 0;
 
     r_size = d->io_regions[PCI_ROM_SLOT].size;
@@ -537,7 +537,6 @@ static int xen_pt_exp_rom_bar_reg_write(XenPCIPassthroughState *s,
     r_size = xen_pt_get_emul_size(base->bar_flag, r_size);
 
     /* set emulate mask and read-only mask */
-    bar_emu_mask = reg->emu_mask;
     bar_ro_mask = (reg->ro_mask | (r_size - 1)) & ~PCI_ROM_ADDRESS_ENABLE;
 
     /* modify emulate register */
@@ -545,7 +544,6 @@ static int xen_pt_exp_rom_bar_reg_write(XenPCIPassthroughState *s,
     cfg_entry->data = XEN_PT_MERGE_VALUE(*val, cfg_entry->data, writable_mask);
 
     /* create value for writing to I/O device register */
-    throughable_mask = ~bar_emu_mask & valid_mask;
     *val = XEN_PT_MERGE_VALUE(*val, dev_value, throughable_mask);
 
     return 0;
@@ -940,14 +938,13 @@ static int xen_pt_pmcsr_reg_write(XenPCIPassthroughState *s,
 {
     XenPTRegInfo *reg = cfg_entry->reg;
     uint16_t writable_mask = 0;
-    uint16_t throughable_mask = 0;
+    uint16_t throughable_mask = get_throughable_mask(s, reg, valid_mask);
 
     /* modify emulate register */
     writable_mask = reg->emu_mask & ~reg->ro_mask & valid_mask;
     cfg_entry->data = XEN_PT_MERGE_VALUE(*val, cfg_entry->data, writable_mask);
 
     /* create value for writing to I/O device register */
-    throughable_mask = ~reg->emu_mask & valid_mask;
     *val = XEN_PT_MERGE_VALUE(*val, dev_value & ~PCI_PM_CTRL_PME_STATUS,
                               throughable_mask);
 
@@ -1036,7 +1033,7 @@ static int xen_pt_msgctrl_reg_write(XenPCIPassthroughState *s,
     XenPTRegInfo *reg = cfg_entry->reg;
     XenPTMSI *msi = s->msi;
     uint16_t writable_mask = 0;
-    uint16_t throughable_mask = 0;
+    uint16_t throughable_mask = get_throughable_mask(s, reg, valid_mask);
 
     /* Currently no support for multi-vector */
     if (*val & PCI_MSI_FLAGS_QSIZE) {
@@ -1049,7 +1046,6 @@ static int xen_pt_msgctrl_reg_write(XenPCIPassthroughState *s,
     msi->flags |= cfg_entry->data & ~PCI_MSI_FLAGS_ENABLE;
 
     /* create value for writing to I/O device register */
-    throughable_mask = ~reg->emu_mask & valid_mask;
     *val = XEN_PT_MERGE_VALUE(*val, dev_value, throughable_mask);
 
     /* update MSI */
@@ -1161,7 +1157,6 @@ static int xen_pt_msgaddr32_reg_write(XenPCIPassthroughState *s,
 {
     XenPTRegInfo *reg = cfg_entry->reg;
     uint32_t writable_mask = 0;
-    uint32_t throughable_mask = 0;
     uint32_t old_addr = cfg_entry->data;
 
     /* modify emulate register */
@@ -1170,8 +1165,7 @@ static int xen_pt_msgaddr32_reg_write(XenPCIPassthroughState *s,
     s->msi->addr_lo = cfg_entry->data;
 
     /* create value for writing to I/O device register */
-    throughable_mask = ~reg->emu_mask & valid_mask;
-    *val = XEN_PT_MERGE_VALUE(*val, dev_value, throughable_mask);
+    *val = XEN_PT_MERGE_VALUE(*val, dev_value, 0);
 
     /* update MSI */
     if (cfg_entry->data != old_addr) {
@@ -1189,7 +1183,6 @@ static int xen_pt_msgaddr64_reg_write(XenPCIPassthroughState *s,
 {
     XenPTRegInfo *reg = cfg_entry->reg;
     uint32_t writable_mask = 0;
-    uint32_t throughable_mask = 0;
     uint32_t old_addr = cfg_entry->data;
 
     /* check whether the type is 64 bit or not */
@@ -1206,8 +1199,7 @@ static int xen_pt_msgaddr64_reg_write(XenPCIPassthroughState *s,
     s->msi->addr_hi = cfg_entry->data;
 
     /* create value for writing to I/O device register */
-    throughable_mask = ~reg->emu_mask & valid_mask;
-    *val = XEN_PT_MERGE_VALUE(*val, dev_value, throughable_mask);
+    *val = XEN_PT_MERGE_VALUE(*val, dev_value, 0);
 
     /* update MSI */
     if (cfg_entry->data != old_addr) {
@@ -1229,7 +1221,6 @@ static int xen_pt_msgdata_reg_write(XenPCIPassthroughState *s,
     XenPTRegInfo *reg = cfg_entry->reg;
     XenPTMSI *msi = s->msi;
     uint16_t writable_mask = 0;
-    uint16_t throughable_mask = 0;
     uint16_t old_data = cfg_entry->data;
     uint32_t offset = reg->offset;
 
@@ -1247,8 +1238,7 @@ static int xen_pt_msgdata_reg_write(XenPCIPassthroughState *s,
     msi->data = cfg_entry->data;
 
     /* create value for writing to I/O device register */
-    throughable_mask = ~reg->emu_mask & valid_mask;
-    *val = XEN_PT_MERGE_VALUE(*val, dev_value, throughable_mask);
+    *val = XEN_PT_MERGE_VALUE(*val, dev_value, 0);
 
     /* update MSI */
     if (cfg_entry->data != old_data) {
@@ -1410,7 +1400,7 @@ static int xen_pt_msixctrl_reg_write(XenPCIPassthroughState *s,
 {
     XenPTRegInfo *reg = cfg_entry->reg;
     uint16_t writable_mask = 0;
-    uint16_t throughable_mask = 0;
+    uint16_t throughable_mask = get_throughable_mask(s, reg, valid_mask);
     int debug_msix_enabled_old;
 
     /* modify emulate register */
@@ -1418,7 +1408,6 @@ static int xen_pt_msixctrl_reg_write(XenPCIPassthroughState *s,
     cfg_entry->data = XEN_PT_MERGE_VALUE(*val, cfg_entry->data, writable_mask);
 
     /* create value for writing to I/O device register */
-    throughable_mask = ~reg->emu_mask & valid_mask;
     *val = XEN_PT_MERGE_VALUE(*val, dev_value, throughable_mask);
 
     /* update MSI-X */
