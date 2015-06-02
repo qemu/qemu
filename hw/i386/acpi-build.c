@@ -626,6 +626,7 @@ build_ssdt(GArray *table_data, GArray *linker,
     uint32_t nr_mem = machine->ram_slots;
     unsigned acpi_cpus = guest_info->apic_id_limit;
     Aml *ssdt, *sb_scope, *scope, *pkg, *dev, *method, *crs, *field, *ifctx;
+    PCIBus *bus = NULL;
     int i;
 
     ssdt = init_aml_allocator();
@@ -636,6 +637,28 @@ build_ssdt(GArray *table_data, GArray *linker,
 
     /* Reserve space for header */
     acpi_data_push(ssdt->buf, sizeof(AcpiTableHeader));
+
+    /* Extra PCI root buses are implemented  only for i440fx */
+    bus = find_i440fx();
+    if (bus) {
+        QLIST_FOREACH(bus, &bus->child, sibling) {
+            uint8_t bus_num = pci_bus_num(bus);
+
+            /* look only for expander root buses */
+            if (!pci_bus_is_root(bus)) {
+                continue;
+            }
+
+            scope = aml_scope("\\_SB");
+            dev = aml_device("PC%.02X", bus_num);
+            aml_append(dev,
+                       aml_name_decl("_UID", aml_string("PC%.02X", bus_num)));
+            aml_append(dev, aml_name_decl("_HID", aml_string("PNP0A03")));
+            aml_append(dev, aml_name_decl("_BBN", aml_int(bus_num)));
+            aml_append(scope, dev);
+            aml_append(ssdt, scope);
+        }
+    }
 
     scope = aml_scope("\\_SB.PCI0");
     /* build PCI0._CRS */
