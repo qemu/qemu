@@ -434,11 +434,10 @@ static void pci_msix_write(void *opaque, hwaddr addr,
     XenPCIPassthroughState *s = opaque;
     XenPTMSIX *msix = s->msix;
     XenPTMSIXEntry *entry;
-    int entry_nr, offset;
+    unsigned int entry_nr, offset;
 
     entry_nr = addr / PCI_MSIX_ENTRY_SIZE;
-    if (entry_nr < 0 || entry_nr >= msix->total_entries) {
-        XEN_PT_ERR(&s->dev, "asked MSI-X entry '%i' invalid!\n", entry_nr);
+    if (entry_nr >= msix->total_entries) {
         return;
     }
     entry = &msix->msix_entry[entry_nr];
@@ -460,8 +459,11 @@ static void pci_msix_write(void *opaque, hwaddr addr,
             + PCI_MSIX_ENTRY_VECTOR_CTRL;
 
         if (msix->enabled && !(*vec_ctrl & PCI_MSIX_ENTRY_CTRL_MASKBIT)) {
-            XEN_PT_ERR(&s->dev, "Can't update msix entry %d since MSI-X is"
-                       " already enabled.\n", entry_nr);
+            if (!entry->warned) {
+                entry->warned = true;
+                XEN_PT_ERR(&s->dev, "Can't update msix entry %d since MSI-X is"
+                           " already enabled.\n", entry_nr);
+            }
             return;
         }
 
