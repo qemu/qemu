@@ -105,8 +105,6 @@ struct XenPTRegInfo {
     uint32_t ro_mask;
     /* reg emulate field mask (ON:emu, OFF:passthrough) */
     uint32_t emu_mask;
-    /* no write back allowed */
-    uint32_t no_wb;
     xen_pt_conf_reg_init init;
     /* read/write function pointer
      * for double_word/word/byte size */

@@ -234,7 +234,7 @@ static void xen_pt_pci_write_config(PCIDevice *d, uint32_t addr,
     int index = 0;
     XenPTRegGroup *reg_grp_entry = NULL;
     int rc = 0;
-    uint32_t read_val = 0;
+    uint32_t read_val = 0, wb_mask;
     int emul_len = 0;
     XenPTReg *reg_entry = NULL;
     uint32_t find_addr = addr;
@@ -271,6 +271,9 @@ static void xen_pt_pci_write_config(PCIDevice *d, uint32_t addr,
     if (rc < 0) {
         XEN_PT_ERR(d, "pci_read_block failed. return value: %d.\n", rc);
         memset(&read_val, 0xff, len);
+        wb_mask = 0;
+    } else {
+        wb_mask = 0xFFFFFFFF >> ((4 - len) << 3);
     }
 
     /* pass directly to the real device for passthrough type register group */
@@ -298,6 +301,11 @@ static void xen_pt_pci_write_config(PCIDevice *d, uint32_t addr,
 
             valid_mask <<= (find_addr - real_offset) << 3;
             ptr_val = (uint8_t *)&val + (real_offset & 3);
+            if (reg->emu_mask == (0xFFFFFFFF >> ((4 - reg->size) << 3))) {
+                wb_mask &= ~((reg->emu_mask
+                              >> ((find_addr - real_offset) << 3))
+                             << ((len - emul_len) << 3));
+            }
 
             /* do emulation based on register size */
             switch (reg->size) {
@@ -350,10 +358,19 @@ static void xen_pt_pci_write_config(PCIDevice *d, uint32_t addr,
     memory_region_transaction_commit();
 
 out:
-    if (!(reg && reg->no_wb)) {
+    for (index = 0; wb_mask; index += len) {
         /* unknown regs are passed through */
-        rc = xen_host_pci_set_block(&s->real_device, addr,
-                                    (uint8_t *)&val, len);
+        while (!(wb_mask & 0xff)) {
+            index++;
+            wb_mask >>= 8;
+        }
+        len = 0;
+        do {
+            len++;
+            wb_mask >>= 8;
+        } while (wb_mask & 0xff);
+        rc = xen_host_pci_set_block(&s->real_device, addr + index,
+                                    (uint8_t *)&val + index, len);
 
         if (rc < 0) {
             XEN_PT_ERR(d, "pci_write_block failed. return value: %d.\n", rc);
