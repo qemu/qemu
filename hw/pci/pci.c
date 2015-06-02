@@ -93,6 +93,14 @@ static bool pcibus_is_root(PCIBus *bus)
     return !bus->parent_dev;
 }
 
+static int pcibus_num(PCIBus *bus)
+{
+    if (pcibus_is_root(bus)) {
+        return 0; /* pci host bridge */
+    }
+    return bus->parent_dev->config[PCI_SECONDARY_BUS];
+}
+
 static void pci_bus_class_init(ObjectClass *klass, void *data)
 {
     BusClass *k = BUS_CLASS(klass);
@@ -106,6 +114,7 @@ static void pci_bus_class_init(ObjectClass *klass, void *data)
     k->reset = pcibus_reset;
 
     pbc->is_root = pcibus_is_root;
+    pbc->bus_num = pcibus_num;
 }
 
 static const TypeInfo pci_bus_info = {
@@ -390,9 +399,7 @@ PCIBus *pci_register_bus(DeviceState *parent, const char *name,
 
 int pci_bus_num(PCIBus *s)
 {
-    if (pci_bus_is_root(s))
-        return 0;       /* pci host bridge */
-    return s->parent_dev->config[PCI_SECONDARY_BUS];
+    return PCI_BUS_GET_CLASS(s)->bus_num(s);
 }
 
 static int get_pci_config_device(QEMUFile *f, void *pv, size_t size)
