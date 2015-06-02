@@ -754,6 +754,15 @@ static XenPTRegInfo xen_pt_emu_reg_vpd[] = {
         .u.b.write  = xen_pt_byte_reg_write,
     },
     {
+        .offset     = PCI_VPD_ADDR,
+        .size       = 2,
+        .ro_mask    = 0x0003,
+        .emu_mask   = 0x0003,
+        .init       = xen_pt_common_reg_init,
+        .u.w.read   = xen_pt_word_reg_read,
+        .u.w.write  = xen_pt_word_reg_write,
+    },
+    {
         .size = 0,
     },
 };
@@ -889,6 +898,16 @@ static XenPTRegInfo xen_pt_emu_reg_pcie[] = {
         .u.w.read   = xen_pt_word_reg_read,
         .u.w.write  = xen_pt_word_reg_write,
     },
+    /* Device Status reg */
+    {
+        .offset     = PCI_EXP_DEVSTA,
+        .size       = 2,
+        .res_mask   = 0xFFC0,
+        .ro_mask    = 0x0030,
+        .init       = xen_pt_common_reg_init,
+        .u.w.read   = xen_pt_word_reg_read,
+        .u.w.write  = xen_pt_word_reg_write,
+    },
     /* Link Control reg */
     {
         .offset     = PCI_EXP_LNKCTL,
@@ -897,6 +916,15 @@ static XenPTRegInfo xen_pt_emu_reg_pcie[] = {
         .ro_mask    = 0xFC34,
         .emu_mask   = 0xFFFF,
         .init       = xen_pt_linkctrl_reg_init,
+        .u.w.read   = xen_pt_word_reg_read,
+        .u.w.write  = xen_pt_word_reg_write,
+    },
+    /* Link Status reg */
+    {
+        .offset     = PCI_EXP_LNKSTA,
+        .size       = 2,
+        .ro_mask    = 0x3FFF,
+        .init       = xen_pt_common_reg_init,
         .u.w.read   = xen_pt_word_reg_read,
         .u.w.write  = xen_pt_word_reg_write,
     },
