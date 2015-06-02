@@ -1594,7 +1594,8 @@ PciInfoList *qmp_query_pci(Error **errp)
 
     QLIST_FOREACH(host_bridge, &pci_host_bridges, next) {
         info = g_malloc0(sizeof(*info));
-        info->value = qmp_query_pci_bus(host_bridge->bus, 0);
+        info->value = qmp_query_pci_bus(host_bridge->bus,
+                                        pci_bus_num(host_bridge->bus));
 
         /* XXX: waiting for the qapi to support GSList */
         if (!cur_item) {
