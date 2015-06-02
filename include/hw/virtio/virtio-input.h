@@ -14,8 +14,14 @@ typedef struct virtio_input_config virtio_input_config;
 typedef struct virtio_input_event virtio_input_event;
 
 #if defined(HOST_WORDS_BIGENDIAN)
-# define const_le32(_x) bswap32(_x)
-# define const_le16(_x) bswap32(_x)
+# define const_le32(_x)                          \
+    (((_x & 0x000000ffU) << 24) |                \
+     ((_x & 0x0000ff00U) <<  8) |                \
+     ((_x & 0x00ff0000U) >>  8) |                \
+     ((_x & 0xff000000U) >> 24))
+# define const_le16(_x)                          \
+    (((_x & 0x00ff) << 8) |                      \
+     ((_x & 0xff00) >> 8))
 #else
 # define const_le32(_x) (_x)
 # define const_le16(_x) (_x)
@@ -34,10 +40,10 @@ typedef struct virtio_input_event virtio_input_event;
 #define VIRTIO_INPUT_CLASS(klass) \
         OBJECT_CLASS_CHECK(VirtIOInputClass, klass, TYPE_VIRTIO_INPUT)
 
-#define TYPE_VIRTIO_INPUT_HID "virtio-input-hid"
-#define TYPE_VIRTIO_KEYBOARD  "virtio-keyboard"
-#define TYPE_VIRTIO_MOUSE     "virtio-mouse"
-#define TYPE_VIRTIO_TABLET    "virtio-tablet"
+#define TYPE_VIRTIO_INPUT_HID "virtio-input-hid-device"
+#define TYPE_VIRTIO_KEYBOARD  "virtio-keyboard-device"
+#define TYPE_VIRTIO_MOUSE     "virtio-mouse-device"
+#define TYPE_VIRTIO_TABLET    "virtio-tablet-device"
 
 #define VIRTIO_INPUT_HID(obj) \
         OBJECT_CHECK(VirtIOInputHID, (obj), TYPE_VIRTIO_INPUT_HID)
