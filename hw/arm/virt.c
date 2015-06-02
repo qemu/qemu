@@ -317,6 +317,9 @@ static void fdt_add_gic_node(VirtBoardInfo *vbi)
                                      2, vbi->memmap[VIRT_GIC_DIST].size,
                                      2, vbi->memmap[VIRT_GIC_CPU].base,
                                      2, vbi->memmap[VIRT_GIC_CPU].size);
+    qemu_fdt_setprop_cell(vbi->fdt, "/intc", "#address-cells", 0x2);
+    qemu_fdt_setprop_cell(vbi->fdt, "/intc", "#size-cells", 0x2);
+    qemu_fdt_setprop(vbi->fdt, "/intc", "ranges", NULL, 0);
     qemu_fdt_setprop_cell(vbi->fdt, "/intc", "phandle", vbi->gic_phandle);
 }
 
@@ -585,7 +588,7 @@ static void create_pcie_irq_map(const VirtBoardInfo *vbi, uint32_t gic_phandle,
                                 int first_irq, const char *nodename)
 {
     int devfn, pin;
-    uint32_t full_irq_map[4 * 4 * 8] = { 0 };
+    uint32_t full_irq_map[4 * 4 * 10] = { 0 };
     uint32_t *irq_map = full_irq_map;
 
     for (devfn = 0; devfn <= 0x18; devfn += 0x8) {
@@ -598,13 +601,13 @@ static void create_pcie_irq_map(const VirtBoardInfo *vbi, uint32_t gic_phandle,
             uint32_t map[] = {
                 devfn << 8, 0, 0,                           /* devfn */
                 pin + 1,                                    /* PCI pin */
-                gic_phandle, irq_type, irq_nr, irq_level }; /* GIC irq */
+                gic_phandle, 0, 0, irq_type, irq_nr, irq_level }; /* GIC irq */
 
             /* Convert map to big endian */
-            for (i = 0; i < 8; i++) {
+            for (i = 0; i < 10; i++) {
                 irq_map[i] = cpu_to_be32(map[i]);
             }
-            irq_map += 8;
+            irq_map += 10;
         }
     }
 
