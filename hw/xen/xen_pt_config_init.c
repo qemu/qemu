@@ -1053,7 +1053,6 @@ static int xen_pt_msgctrl_reg_write(XenPCIPassthroughState *s,
     XenPTMSI *msi = s->msi;
     uint16_t writable_mask = 0;
     uint16_t throughable_mask = 0;
-    uint16_t raw_val;
 
     /* Currently no support for multi-vector */
     if (*val & PCI_MSI_FLAGS_QSIZE) {
@@ -1066,12 +1065,11 @@ static int xen_pt_msgctrl_reg_write(XenPCIPassthroughState *s,
     msi->flags |= cfg_entry->data & ~PCI_MSI_FLAGS_ENABLE;
 
     /* create value for writing to I/O device register */
-    raw_val = *val;
     throughable_mask = ~reg->emu_mask & valid_mask;
     *val = XEN_PT_MERGE_VALUE(*val, dev_value, throughable_mask);
 
     /* update MSI */
-    if (raw_val & PCI_MSI_FLAGS_ENABLE) {
+    if (*val & PCI_MSI_FLAGS_ENABLE) {
         /* setup MSI pirq for the first time */
         if (!msi->initialized) {
             /* Init physical one */
@@ -1098,10 +1096,6 @@ static int xen_pt_msgctrl_reg_write(XenPCIPassthroughState *s,
     } else if (msi->mapped) {
         xen_pt_msi_disable(s);
     }
-
-    /* pass through MSI_ENABLE bit */
-    *val &= ~PCI_MSI_FLAGS_ENABLE;
-    *val |= raw_val & PCI_MSI_FLAGS_ENABLE;
 
     return 0;
 }
@@ -1301,7 +1295,7 @@ static XenPTRegInfo xen_pt_emu_reg_msi[] = {
         .size       = 2,
         .init_val   = 0x0000,
         .ro_mask    = 0xFF8E,
-        .emu_mask   = 0x017F,
+        .emu_mask   = 0x017E,
         .init       = xen_pt_msgctrl_reg_init,
         .u.w.read   = xen_pt_word_reg_read,
         .u.w.write  = xen_pt_msgctrl_reg_write,
