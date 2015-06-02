@@ -148,6 +148,8 @@ static void gicv2m_realize(DeviceState *dev, Error **errp)
     }
 
     msi_supported = true;
+    kvm_gsi_direct_mapping = true;
+    kvm_msi_via_irqfd_allowed = kvm_irqfds_enabled();
 }
 
 static void gicv2m_init(Object *obj)
