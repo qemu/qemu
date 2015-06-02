@@ -948,7 +948,8 @@ static int xen_pt_pmcsr_reg_write(XenPCIPassthroughState *s,
 
     /* create value for writing to I/O device register */
     throughable_mask = ~reg->emu_mask & valid_mask;
-    *val = XEN_PT_MERGE_VALUE(*val, dev_value, throughable_mask);
+    *val = XEN_PT_MERGE_VALUE(*val, dev_value & ~PCI_PM_CTRL_PME_STATUS,
+                              throughable_mask);
 
     return 0;
 }
