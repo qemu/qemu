@@ -492,10 +492,16 @@ static const ARMCPRegInfo not_v8_cp_reginfo[] = {
       .writefn = dacr_write, .raw_writefn = raw_write,
       .bank_fieldoffsets = { offsetoflow32(CPUARMState, cp15.dacr_s),
                              offsetoflow32(CPUARMState, cp15.dacr_ns) } },
-    /* ??? This covers not just the impdef TLB lockdown registers but also
-     * some v7VMSA registers relating to TEX remap, so it is overly broad.
+    /* ARMv7 allocates a range of implementation defined TLB LOCKDOWN regs.
+     * For v6 and v5, these mappings are overly broad.
      */
-    { .name = "TLB_LOCKDOWN", .cp = 15, .crn = 10, .crm = CP_ANY,
+    { .name = "TLB_LOCKDOWN", .cp = 15, .crn = 10, .crm = 0,
+      .opc1 = CP_ANY, .opc2 = CP_ANY, .access = PL1_RW, .type = ARM_CP_NOP },
+    { .name = "TLB_LOCKDOWN", .cp = 15, .crn = 10, .crm = 1,
+      .opc1 = CP_ANY, .opc2 = CP_ANY, .access = PL1_RW, .type = ARM_CP_NOP },
+    { .name = "TLB_LOCKDOWN", .cp = 15, .crn = 10, .crm = 4,
+      .opc1 = CP_ANY, .opc2 = CP_ANY, .access = PL1_RW, .type = ARM_CP_NOP },
+    { .name = "TLB_LOCKDOWN", .cp = 15, .crn = 10, .crm = 8,
       .opc1 = CP_ANY, .opc2 = CP_ANY, .access = PL1_RW, .type = ARM_CP_NOP },
     /* Cache maintenance ops; some of this space may be overridden later. */
     { .name = "CACHEMAINT", .cp = 15, .crn = 7, .crm = CP_ANY,
@@ -555,6 +561,10 @@ static const ARMCPRegInfo not_v7_cp_reginfo[] = {
     { .name = "TLBIMVAA", .cp = 15, .crn = 8, .crm = CP_ANY,
       .opc1 = CP_ANY, .opc2 = 3, .access = PL1_W, .writefn = tlbimvaa_write,
       .type = ARM_CP_NO_RAW },
+    { .name = "PRRR", .cp = 15, .crn = 10, .crm = 2,
+      .opc1 = 0, .opc2 = 0, .access = PL1_RW, .type = ARM_CP_NOP },
+    { .name = "NMRR", .cp = 15, .crn = 10, .crm = 2,
+      .opc1 = 0, .opc2 = 1, .access = PL1_RW, .type = ARM_CP_NOP },
     REGINFO_SENTINEL
 };
 
@@ -1021,19 +1031,17 @@ static const ARMCPRegInfo v7_cp_reginfo[] = {
       .resetvalue = 0 },
     /* For non-long-descriptor page tables these are PRRR and NMRR;
      * regardless they still act as reads-as-written for QEMU.
-     * The override is necessary because of the overly-broad TLB_LOCKDOWN
-     * definition.
      */
      /* MAIR0/1 are defined separately from their 64-bit counterpart which
       * allows them to assign the correct fieldoffset based on the endianness
       * handled in the field definitions.
       */
-    { .name = "MAIR0", .state = ARM_CP_STATE_AA32, .type = ARM_CP_OVERRIDE,
+    { .name = "MAIR0", .state = ARM_CP_STATE_AA32,
       .cp = 15, .opc1 = 0, .crn = 10, .crm = 2, .opc2 = 0, .access = PL1_RW,
       .bank_fieldoffsets = { offsetof(CPUARMState, cp15.mair0_s),
                              offsetof(CPUARMState, cp15.mair0_ns) },
       .resetfn = arm_cp_reset_ignore },
-    { .name = "MAIR1", .state = ARM_CP_STATE_AA32, .type = ARM_CP_OVERRIDE,
+    { .name = "MAIR1", .state = ARM_CP_STATE_AA32,
       .cp = 15, .opc1 = 0, .crn = 10, .crm = 2, .opc2 = 1, .access = PL1_RW,
       .bank_fieldoffsets = { offsetof(CPUARMState, cp15.mair1_s),
                              offsetof(CPUARMState, cp15.mair1_ns) },
@@ -2088,16 +2096,14 @@ static const ARMCPRegInfo mpidr_cp_reginfo[] = {
 };
 
 static const ARMCPRegInfo lpae_cp_reginfo[] = {
-    /* NOP AMAIR0/1: the override is because these clash with the rather
-     * broadly specified TLB_LOCKDOWN entry in the generic cp_reginfo.
-     */
+    /* NOP AMAIR0/1 */
     { .name = "AMAIR0", .state = ARM_CP_STATE_BOTH,
       .opc0 = 3, .crn = 10, .crm = 3, .opc1 = 0, .opc2 = 0,
-      .access = PL1_RW, .type = ARM_CP_CONST | ARM_CP_OVERRIDE,
+      .access = PL1_RW, .type = ARM_CP_CONST,
       .resetvalue = 0 },
     /* AMAIR1 is mapped to AMAIR_EL1[63:32] */
     { .name = "AMAIR1", .cp = 15, .crn = 10, .crm = 3, .opc1 = 0, .opc2 = 1,
-      .access = PL1_RW, .type = ARM_CP_CONST | ARM_CP_OVERRIDE,
+      .access = PL1_RW, .type = ARM_CP_CONST,
       .resetvalue = 0 },
     { .name = "PAR", .cp = 15, .crm = 7, .opc1 = 0,
       .access = PL1_RW, .type = ARM_CP_64BIT, .resetvalue = 0,
