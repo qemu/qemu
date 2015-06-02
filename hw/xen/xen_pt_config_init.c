@@ -933,38 +933,21 @@ static XenPTRegInfo xen_pt_emu_reg_pcie[] = {
  * Power Management Capability
  */
 
-/* read Power Management Control/Status register */
-static int xen_pt_pmcsr_reg_read(XenPCIPassthroughState *s, XenPTReg *cfg_entry,
-                                 uint16_t *value, uint16_t valid_mask)
-{
-    XenPTRegInfo *reg = cfg_entry->reg;
-    uint16_t valid_emu_mask = reg->emu_mask;
-
-    valid_emu_mask |= PCI_PM_CTRL_STATE_MASK | PCI_PM_CTRL_NO_SOFT_RESET;
-
-    valid_emu_mask = valid_emu_mask & valid_mask;
-    *value = XEN_PT_MERGE_VALUE(*value, cfg_entry->data, ~valid_emu_mask);
-
-    return 0;
-}
 /* write Power Management Control/Status register */
 static int xen_pt_pmcsr_reg_write(XenPCIPassthroughState *s,
                                   XenPTReg *cfg_entry, uint16_t *val,
                                   uint16_t dev_value, uint16_t valid_mask)
 {
     XenPTRegInfo *reg = cfg_entry->reg;
-    uint16_t emu_mask = reg->emu_mask;
     uint16_t writable_mask = 0;
     uint16_t throughable_mask = 0;
 
-    emu_mask |= PCI_PM_CTRL_STATE_MASK | PCI_PM_CTRL_NO_SOFT_RESET;
-
     /* modify emulate register */
-    writable_mask = emu_mask & ~reg->ro_mask & valid_mask;
+    writable_mask = reg->emu_mask & ~reg->ro_mask & valid_mask;
     cfg_entry->data = XEN_PT_MERGE_VALUE(*val, cfg_entry->data, writable_mask);
 
     /* create value for writing to I/O device register */
-    throughable_mask = ~emu_mask & valid_mask;
+    throughable_mask = ~reg->emu_mask & valid_mask;
     *val = XEN_PT_MERGE_VALUE(*val, dev_value, throughable_mask);
 
     return 0;
@@ -1000,9 +983,9 @@ static XenPTRegInfo xen_pt_emu_reg_pm[] = {
         .size       = 2,
         .init_val   = 0x0008,
         .ro_mask    = 0xE1FC,
-        .emu_mask   = 0x8100,
+        .emu_mask   = 0x810B,
         .init       = xen_pt_common_reg_init,
-        .u.w.read   = xen_pt_pmcsr_reg_read,
+        .u.w.read   = xen_pt_word_reg_read,
         .u.w.write  = xen_pt_pmcsr_reg_write,
     },
     {
