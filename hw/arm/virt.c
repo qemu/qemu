@@ -45,9 +45,11 @@
 #include "qemu/error-report.h"
 #include "hw/pci-host/gpex.h"
 #include "hw/arm/virt-acpi-build.h"
+#include "hw/arm/sysbus-fdt.h"
+#include "hw/platform-bus.h"
 
 /* Number of external interrupt lines to configure the GIC with */
-#define NUM_IRQS 128
+#define NUM_IRQS 256
 
 #define GIC_FDT_IRQ_TYPE_SPI 0
 #define GIC_FDT_IRQ_TYPE_PPI 1
@@ -59,6 +61,10 @@
 
 #define GIC_FDT_IRQ_PPI_CPU_START 8
 #define GIC_FDT_IRQ_PPI_CPU_WIDTH 8
+
+#define PLATFORM_BUS_NUM_IRQS 64
+
+static ARMPlatformBusSystemParams platform_bus_params;
 
 typedef struct VirtBoardInfo {
     struct arm_boot_info bootinfo;
@@ -116,6 +122,7 @@ static const MemMapEntry a15memmap[] = {
     [VIRT_FW_CFG] =     { 0x09020000, 0x0000000a },
     [VIRT_MMIO] =       { 0x0a000000, 0x00000200 },
     /* ...repeating for a total of NUM_VIRTIO_TRANSPORTS, each of that size */
+    [VIRT_PLATFORM_BUS] =   { 0x0c000000, 0x02000000 },
     [VIRT_PCIE_MMIO] =  { 0x10000000, 0x2eff0000 },
     [VIRT_PCIE_PIO] =   { 0x3eff0000, 0x00010000 },
     [VIRT_PCIE_ECAM] =  { 0x3f000000, 0x01000000 },
@@ -128,6 +135,7 @@ static const int a15irqmap[] = {
     [VIRT_PCIE] = 3, /* ... to 6 */
     [VIRT_MMIO] = 16, /* ...to 16 + NUM_VIRTIO_TRANSPORTS - 1 */
     [VIRT_GIC_V2M] = 48, /* ...to 48 + NUM_GICV2M_SPIS - 1 */
+    [VIRT_PLATFORM_BUS] = 112, /* ...to 112 + PLATFORM_BUS_NUM_IRQS -1 */
 };
 
 static VirtBoardInfo machines[] = {
@@ -728,6 +736,47 @@ static void create_pcie(const VirtBoardInfo *vbi, qemu_irq *pic)
     g_free(nodename);
 }
 
+static void create_platform_bus(VirtBoardInfo *vbi, qemu_irq *pic)
+{
+    DeviceState *dev;
+    SysBusDevice *s;
+    int i;
+    ARMPlatformBusFDTParams *fdt_params = g_new(ARMPlatformBusFDTParams, 1);
+    MemoryRegion *sysmem = get_system_memory();
+
+    platform_bus_params.platform_bus_base = vbi->memmap[VIRT_PLATFORM_BUS].base;
+    platform_bus_params.platform_bus_size = vbi->memmap[VIRT_PLATFORM_BUS].size;
+    platform_bus_params.platform_bus_first_irq = vbi->irqmap[VIRT_PLATFORM_BUS];
+    platform_bus_params.platform_bus_num_irqs = PLATFORM_BUS_NUM_IRQS;
+
+    fdt_params->system_params = &platform_bus_params;
+    fdt_params->binfo = &vbi->bootinfo;
+    fdt_params->intc = "/intc";
+    /*
+     * register a machine init done notifier that creates the device tree
+     * nodes of the platform bus and its children dynamic sysbus devices
+     */
+    arm_register_platform_bus_fdt_creator(fdt_params);
+
+    dev = qdev_create(NULL, TYPE_PLATFORM_BUS_DEVICE);
+    dev->id = TYPE_PLATFORM_BUS_DEVICE;
+    qdev_prop_set_uint32(dev, "num_irqs",
+        platform_bus_params.platform_bus_num_irqs);
+    qdev_prop_set_uint32(dev, "mmio_size",
+        platform_bus_params.platform_bus_size);
+    qdev_init_nofail(dev);
+    s = SYS_BUS_DEVICE(dev);
+
+    for (i = 0; i < platform_bus_params.platform_bus_num_irqs; i++) {
+        int irqn = platform_bus_params.platform_bus_first_irq + i;
+        sysbus_connect_irq(s, i, pic[irqn]);
+    }
+
+    memory_region_add_subregion(sysmem,
+                                platform_bus_params.platform_bus_base,
+                                sysbus_mmio_get_region(s, 0));
+}
+
 static void *machvirt_dtb(const struct arm_boot_info *binfo, int *fdt_size)
 {
     const VirtBoardInfo *board = (const VirtBoardInfo *)binfo;
@@ -865,6 +914,14 @@ static void machvirt_init(MachineState *machine)
     vbi->bootinfo.get_dtb = machvirt_dtb;
     vbi->bootinfo.firmware_loaded = bios_name || drive_get(IF_PFLASH, 0, 0);
     arm_load_kernel(ARM_CPU(first_cpu), &vbi->bootinfo);
+
+    /*
+     * arm_load_kernel machine init done notifier registration must
+     * happen before the platform_bus_create call. In this latter,
+     * another notifier is registered which adds platform bus nodes.
+     * Notifiers are executed in registration reverse order.
+     */
+    create_platform_bus(vbi, pic);
 }
 
 static bool virt_get_secure(Object *obj, Error **errp)
@@ -903,6 +960,7 @@ static void virt_class_init(ObjectClass *oc, void *data)
     mc->desc = "ARM Virtual Machine",
     mc->init = machvirt_init;
     mc->max_cpus = 8;
+    mc->has_dynamic_sysbus = true;
 }
 
 static const TypeInfo machvirt_info = {

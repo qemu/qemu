@@ -55,6 +55,7 @@ enum {
     VIRT_PCIE_PIO,
     VIRT_PCIE_ECAM,
     VIRT_GIC_V2M,
+    VIRT_PLATFORM_BUS,
 };
 
 typedef struct MemMapEntry {
