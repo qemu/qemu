@@ -240,13 +240,32 @@ static void acpi_get_misc_info(AcpiMiscInfo *info)
     info->applesmc_io_base = applesmc_port();
 }
 
+/*
+ * Because of the PXB hosts we cannot simply query TYPE_PCI_HOST_BRIDGE.
+ * On i386 arch we only have two pci hosts, so we can look only for them.
+ */
+static Object *acpi_get_i386_pci_host(void)
+{
+    PCIHostState *host;
+
+    host = OBJECT_CHECK(PCIHostState,
+                        object_resolve_path("/machine/i440fx", NULL),
+                        TYPE_PCI_HOST_BRIDGE);
+    if (!host) {
+        host = OBJECT_CHECK(PCIHostState,
+                            object_resolve_path("/machine/q35", NULL),
+                            TYPE_PCI_HOST_BRIDGE);
+    }
+
+    return OBJECT(host);
+}
+
 static void acpi_get_pci_info(PcPciInfo *info)
 {
     Object *pci_host;
-    bool ambiguous;
 
-    pci_host = object_resolve_path_type("", TYPE_PCI_HOST_BRIDGE, &ambiguous);
-    g_assert(!ambiguous);
+
+    pci_host = acpi_get_i386_pci_host();
     g_assert(pci_host);
 
     info->w32.begin = object_property_get_int(pci_host,
@@ -957,10 +976,9 @@ build_ssdt(GArray *table_data, GArray *linker,
         {
             Object *pci_host;
             PCIBus *bus = NULL;
-            bool ambiguous;
 
-            pci_host = object_resolve_path_type("", TYPE_PCI_HOST_BRIDGE, &ambiguous);
-            if (!ambiguous && pci_host) {
+            pci_host = acpi_get_i386_pci_host();
+            if (pci_host) {
                 bus = PCI_HOST_BRIDGE(pci_host)->bus;
             }
 
@@ -1272,10 +1290,8 @@ static bool acpi_get_mcfg(AcpiMcfgInfo *mcfg)
 {
     Object *pci_host;
     QObject *o;
-    bool ambiguous;
 
-    pci_host = object_resolve_path_type("", TYPE_PCI_HOST_BRIDGE, &ambiguous);
-    g_assert(!ambiguous);
+    pci_host = acpi_get_i386_pci_host();
     g_assert(pci_host);
 
     o = object_property_get_qobject(pci_host, PCIE_HOST_MCFG_BASE, NULL);
