@@ -17,6 +17,7 @@
 #include "hw/i386/pc.h"
 #include "qemu/range.h"
 #include "qemu/error-report.h"
+#include "sysemu/numa.h"
 
 #define TYPE_PXB_BUS "pxb-bus"
 #define PXB_BUS(obj) OBJECT_CHECK(PXBBus, (obj), TYPE_PXB_BUS)
@@ -38,6 +39,7 @@ typedef struct PXBDev {
     /*< public >*/
 
     uint8_t bus_nr;
+    uint16_t numa_node;
 } PXBDev;
 
 #define TYPE_PXB_HOST "pxb-host"
@@ -54,12 +56,20 @@ static bool pxb_is_root(PCIBus *bus)
     return true; /* by definition */
 }
 
+static uint16_t pxb_bus_numa_node(PCIBus *bus)
+{
+    PXBDev *pxb = PXB_DEV(bus->parent_dev);
+
+    return pxb->numa_node;
+}
+
 static void pxb_bus_class_init(ObjectClass *class, void *data)
 {
     PCIBusClass *pbc = PCI_BUS_CLASS(class);
 
     pbc->bus_num = pxb_bus_num;
     pbc->is_root = pxb_is_root;
+    pbc->numa_node = pxb_bus_numa_node;
 }
 
 static const TypeInfo pxb_bus_info = {
@@ -145,6 +155,12 @@ static int pxb_dev_initfn(PCIDevice *dev)
     PCIBus *bus;
     const char *dev_name = NULL;
 
+    if (pxb->numa_node != NUMA_NODE_UNASSIGNED &&
+        pxb->numa_node >= nb_numa_nodes) {
+        error_report("Illegal numa node %d.", pxb->numa_node);
+        return -EINVAL;
+    }
+
     if (dev->qdev.id && *dev->qdev.id) {
         dev_name = dev->qdev.id;
     }
@@ -180,6 +196,7 @@ static int pxb_dev_initfn(PCIDevice *dev)
 static Property pxb_dev_properties[] = {
     /* Note: 0 is not a legal a PXB bus number. */
     DEFINE_PROP_UINT8("bus_nr", PXBDev, bus_nr, 0),
+    DEFINE_PROP_UINT16("numa_node", PXBDev, numa_node, NUMA_NODE_UNASSIGNED),
     DEFINE_PROP_END_OF_LIST(),
 };
 

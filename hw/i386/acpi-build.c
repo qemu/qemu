@@ -902,6 +902,7 @@ build_ssdt(GArray *table_data, GArray *linker,
     if (bus) {
         QLIST_FOREACH(bus, &bus->child, sibling) {
             uint8_t bus_num = pci_bus_num(bus);
+            uint8_t numa_node = pci_bus_numa_node(bus);
 
             /* look only for expander root buses */
             if (!pci_bus_is_root(bus)) {
@@ -918,6 +919,11 @@ build_ssdt(GArray *table_data, GArray *linker,
                        aml_name_decl("_UID", aml_string("PC%.02X", bus_num)));
             aml_append(dev, aml_name_decl("_HID", aml_string("PNP0A03")));
             aml_append(dev, aml_name_decl("_BBN", aml_int(bus_num)));
+
+            if (numa_node != NUMA_NODE_UNASSIGNED) {
+                aml_append(dev, aml_name_decl("_PXM", aml_int(numa_node)));
+            }
+
             aml_append(dev, build_prt());
             crs = build_crs(PCI_HOST_BRIDGE(BUS(bus)->parent),
                             io_ranges, mem_ranges);
