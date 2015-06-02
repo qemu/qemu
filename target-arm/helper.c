@@ -2651,6 +2651,14 @@ static const ARMCPRegInfo v8_el2_cp_reginfo[] = {
       .opc0 = 1, .opc1 = 4, .crn = 8, .crm = 7, .opc2 = 0,
       .type = ARM_CP_NO_RAW, .access = PL2_W,
       .writefn = tlbiall_write },
+    { .name = "TLBI_VAE2", .state = ARM_CP_STATE_AA64,
+      .opc0 = 1, .opc1 = 4, .crn = 8, .crm = 7, .opc2 = 1,
+      .type = ARM_CP_NO_RAW, .access = PL2_W,
+      .writefn = tlbi_aa64_vaa_write },
+    { .name = "TLBI_VAE2IS", .state = ARM_CP_STATE_AA64,
+      .opc0 = 1, .opc1 = 4, .crn = 8, .crm = 3, .opc2 = 1,
+      .type = ARM_CP_NO_RAW, .access = PL2_W,
+      .writefn = tlbi_aa64_vaa_write },
     REGINFO_SENTINEL
 };
 
