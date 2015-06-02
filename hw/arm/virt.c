@@ -111,22 +111,22 @@ typedef struct {
  */
 static const MemMapEntry a15memmap[] = {
     /* Space up to 0x8000000 is reserved for a boot ROM */
-    [VIRT_FLASH] =      {          0, 0x08000000 },
-    [VIRT_CPUPERIPHS] = { 0x08000000, 0x00020000 },
+    [VIRT_FLASH] =              {          0, 0x08000000 },
+    [VIRT_CPUPERIPHS] =         { 0x08000000, 0x00020000 },
     /* GIC distributor and CPU interfaces sit inside the CPU peripheral space */
-    [VIRT_GIC_DIST] =   { 0x08000000, 0x00010000 },
-    [VIRT_GIC_CPU] =    { 0x08010000, 0x00010000 },
-    [VIRT_GIC_V2M] =    { 0x08020000, 0x00001000 },
-    [VIRT_UART] =       { 0x09000000, 0x00001000 },
-    [VIRT_RTC] =        { 0x09010000, 0x00001000 },
-    [VIRT_FW_CFG] =     { 0x09020000, 0x0000000a },
-    [VIRT_MMIO] =       { 0x0a000000, 0x00000200 },
+    [VIRT_GIC_DIST] =           { 0x08000000, 0x00010000 },
+    [VIRT_GIC_CPU] =            { 0x08010000, 0x00010000 },
+    [VIRT_GIC_V2M] =            { 0x08020000, 0x00001000 },
+    [VIRT_UART] =               { 0x09000000, 0x00001000 },
+    [VIRT_RTC] =                { 0x09010000, 0x00001000 },
+    [VIRT_FW_CFG] =             { 0x09020000, 0x0000000a },
+    [VIRT_MMIO] =               { 0x0a000000, 0x00000200 },
     /* ...repeating for a total of NUM_VIRTIO_TRANSPORTS, each of that size */
-    [VIRT_PLATFORM_BUS] =   { 0x0c000000, 0x02000000 },
-    [VIRT_PCIE_MMIO] =  { 0x10000000, 0x2eff0000 },
-    [VIRT_PCIE_PIO] =   { 0x3eff0000, 0x00010000 },
-    [VIRT_PCIE_ECAM] =  { 0x3f000000, 0x01000000 },
-    [VIRT_MEM] =        { 0x40000000, 30ULL * 1024 * 1024 * 1024 },
+    [VIRT_PLATFORM_BUS] =       { 0x0c000000, 0x02000000 },
+    [VIRT_PCIE_MMIO] =          { 0x10000000, 0x2eff0000 },
+    [VIRT_PCIE_PIO] =           { 0x3eff0000, 0x00010000 },
+    [VIRT_PCIE_ECAM] =          { 0x3f000000, 0x01000000 },
+    [VIRT_MEM] =                { 0x40000000, 30ULL * 1024 * 1024 * 1024 },
 };
 
 static const int a15irqmap[] = {
