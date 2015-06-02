@@ -21,10 +21,6 @@
 #include "hw/pci/msi.h"
 #include "qemu/range.h"
 
-/* Eventually those constants should go to Linux pci_regs.h */
-#define PCI_MSI_PENDING_32      0x10
-#define PCI_MSI_PENDING_64      0x14
-
 /* PCI_MSI_ADDRESS_LO */
 #define PCI_MSI_ADDRESS_LO_MASK         (~0x3)
 

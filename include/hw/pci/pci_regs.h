@@ -298,8 +298,10 @@
 #define PCI_MSI_ADDRESS_HI	8	/* Upper 32 bits (if PCI_MSI_FLAGS_64BIT set) */
 #define PCI_MSI_DATA_32		8	/* 16 bits of data for 32-bit devices */
 #define PCI_MSI_MASK_32		12	/* Mask bits register for 32-bit devices */
+#define PCI_MSI_PENDING_32	16	/* Pending bits register for 32-bit devices */
 #define PCI_MSI_DATA_64		12	/* 16 bits of data for 64-bit devices */
 #define PCI_MSI_MASK_64		16	/* Mask bits register for 64-bit devices */
+#define PCI_MSI_PENDING_64	20	/* Pending bits register for 32-bit devices */
 
 /* MSI-X registers */
 #define PCI_MSIX_FLAGS		2

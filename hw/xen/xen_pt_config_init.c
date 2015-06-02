@@ -1016,13 +1016,9 @@ static XenPTRegInfo xen_pt_emu_reg_pm[] = {
  */
 
 /* Helper */
-static bool xen_pt_msgdata_check_type(uint32_t offset, uint16_t flags)
-{
-    /* check the offset whether matches the type or not */
-    bool is_32 = (offset == PCI_MSI_DATA_32) && !(flags & PCI_MSI_FLAGS_64BIT);
-    bool is_64 = (offset == PCI_MSI_DATA_64) &&  (flags & PCI_MSI_FLAGS_64BIT);
-    return is_32 || is_64;
-}
+#define xen_pt_msi_check_type(offset, flags, what) \
+        ((offset) == ((flags) & PCI_MSI_FLAGS_64BIT ? \
+                      PCI_MSI_##what##_64 : PCI_MSI_##what##_32))
 
 /* Message Control register */
 static int xen_pt_msgctrl_reg_init(XenPCIPassthroughState *s,
@@ -1134,7 +1130,45 @@ static int xen_pt_msgdata_reg_init(XenPCIPassthroughState *s,
     uint32_t offset = reg->offset;
 
     /* check the offset whether matches the type or not */
-    if (xen_pt_msgdata_check_type(offset, flags)) {
+    if (xen_pt_msi_check_type(offset, flags, DATA)) {
+        *data = reg->init_val;
+    } else {
+        *data = XEN_PT_INVALID_REG;
+    }
+    return 0;
+}
+
+/* this function will be called twice (for 32 bit and 64 bit type) */
+/* initialize Mask register */
+static int xen_pt_mask_reg_init(XenPCIPassthroughState *s,
+                                XenPTRegInfo *reg, uint32_t real_offset,
+                                uint32_t *data)
+{
+    uint32_t flags = s->msi->flags;
+
+    /* check the offset whether matches the type or not */
+    if (!(flags & PCI_MSI_FLAGS_MASKBIT)) {
+        *data = XEN_PT_INVALID_REG;
+    } else if (xen_pt_msi_check_type(reg->offset, flags, MASK)) {
+        *data = reg->init_val;
+    } else {
+        *data = XEN_PT_INVALID_REG;
+    }
+    return 0;
+}
+
+/* this function will be called twice (for 32 bit and 64 bit type) */
+/* initialize Pending register */
+static int xen_pt_pending_reg_init(XenPCIPassthroughState *s,
+                                   XenPTRegInfo *reg, uint32_t real_offset,
+                                   uint32_t *data)
+{
+    uint32_t flags = s->msi->flags;
+
+    /* check the offset whether matches the type or not */
+    if (!(flags & PCI_MSI_FLAGS_MASKBIT)) {
+        *data = XEN_PT_INVALID_REG;
+    } else if (xen_pt_msi_check_type(reg->offset, flags, PENDING)) {
         *data = reg->init_val;
     } else {
         *data = XEN_PT_INVALID_REG;
@@ -1222,7 +1256,7 @@ static int xen_pt_msgdata_reg_write(XenPCIPassthroughState *s,
     uint32_t offset = reg->offset;
 
     /* check the offset whether matches the type or not */
-    if (!xen_pt_msgdata_check_type(offset, msi->flags)) {
+    if (!xen_pt_msi_check_type(offset, msi->flags, DATA)) {
         /* exit I/O emulator */
         XEN_PT_ERR(&s->dev, "the offset does not match the 32/64 bit type!\n");
         return -1;
@@ -1267,7 +1301,7 @@ static XenPTRegInfo xen_pt_emu_reg_msi[] = {
         .size       = 2,
         .init_val   = 0x0000,
         .ro_mask    = 0xFF8E,
-        .emu_mask   = 0x007F,
+        .emu_mask   = 0x017F,
         .init       = xen_pt_msgctrl_reg_init,
         .u.w.read   = xen_pt_word_reg_read,
         .u.w.write  = xen_pt_msgctrl_reg_write,
@@ -1315,6 +1349,50 @@ static XenPTRegInfo xen_pt_emu_reg_msi[] = {
         .init       = xen_pt_msgdata_reg_init,
         .u.w.read   = xen_pt_word_reg_read,
         .u.w.write  = xen_pt_msgdata_reg_write,
+    },
+    /* Mask reg (if PCI_MSI_FLAGS_MASKBIT set, for 32-bit devices) */
+    {
+        .offset     = PCI_MSI_MASK_32,
+        .size       = 4,
+        .init_val   = 0x00000000,
+        .ro_mask    = 0xFFFFFFFF,
+        .emu_mask   = 0xFFFFFFFF,
+        .init       = xen_pt_mask_reg_init,
+        .u.dw.read  = xen_pt_long_reg_read,
+        .u.dw.write = xen_pt_long_reg_write,
+    },
+    /* Mask reg (if PCI_MSI_FLAGS_MASKBIT set, for 64-bit devices) */
+    {
+        .offset     = PCI_MSI_MASK_64,
+        .size       = 4,
+        .init_val   = 0x00000000,
+        .ro_mask    = 0xFFFFFFFF,
+        .emu_mask   = 0xFFFFFFFF,
+        .init       = xen_pt_mask_reg_init,
+        .u.dw.read  = xen_pt_long_reg_read,
+        .u.dw.write = xen_pt_long_reg_write,
+    },
+    /* Pending reg (if PCI_MSI_FLAGS_MASKBIT set, for 32-bit devices) */
+    {
+        .offset     = PCI_MSI_MASK_32 + 4,
+        .size       = 4,
+        .init_val   = 0x00000000,
+        .ro_mask    = 0xFFFFFFFF,
+        .emu_mask   = 0x00000000,
+        .init       = xen_pt_pending_reg_init,
+        .u.dw.read  = xen_pt_long_reg_read,
+        .u.dw.write = xen_pt_long_reg_write,
+    },
+    /* Pending reg (if PCI_MSI_FLAGS_MASKBIT set, for 64-bit devices) */
+    {
+        .offset     = PCI_MSI_MASK_64 + 4,
+        .size       = 4,
+        .init_val   = 0x00000000,
+        .ro_mask    = 0xFFFFFFFF,
+        .emu_mask   = 0x00000000,
+        .init       = xen_pt_pending_reg_init,
+        .u.dw.read  = xen_pt_long_reg_read,
+        .u.dw.write = xen_pt_long_reg_write,
     },
     {
         .size = 0,
