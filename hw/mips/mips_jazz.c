@@ -282,6 +282,7 @@ static void mips_jazz_init(MachineState *machine,
             qdev_init_nofail(dev);
             sysbus = SYS_BUS_DEVICE(dev);
             sysbus_mmio_map(sysbus, 0, 0x80001000);
+            sysbus_mmio_map(sysbus, 1, 0x8000b000);
             sysbus_connect_irq(sysbus, 0, qdev_get_gpio_in(rc4030, 4));
             break;
         } else if (is_help_option(nd->model)) {
