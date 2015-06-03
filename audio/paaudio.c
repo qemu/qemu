@@ -47,6 +47,8 @@ typedef struct {
     paaudio *g;
 } PAVoiceIn;
 
+static void qpa_audio_fini(void *opaque);
+
 static void GCC_FMT_ATTR (2, 3) qpa_logerr (int err, const char *fmt, ...)
 {
     va_list ap;
@@ -814,6 +816,8 @@ static void *qpa_audio_init (void)
 {
     paaudio *g = g_malloc(sizeof(paaudio));
     g->conf = glob_conf;
+    g->mainloop = NULL;
+    g->context = NULL;
 
     g->mainloop = pa_threaded_mainloop_new ();
     if (!g->mainloop) {
@@ -867,7 +871,7 @@ unlock_and_fail:
     pa_threaded_mainloop_unlock (g->mainloop);
 fail:
     AUD_log (AUDIO_CAP, "Failed to initialize PA context");
-    g_free(g);
+    qpa_audio_fini(g);
     return NULL;
 }
 
