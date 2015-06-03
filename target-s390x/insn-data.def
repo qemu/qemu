@@ -389,6 +389,9 @@
     C(0xb302, LTEBR,   RRE,   Z,   0, e2, 0, cond_e1e2, mov2, f32)
     C(0xb312, LTDBR,   RRE,   Z,   0, f2_o, 0, f1, mov2, f64)
     C(0xb342, LTXBR,   RRE,   Z,   0, x2_o, 0, x1, movx, f128)
+/* LOAD AND TRAP */
+    C(0xe39f, LAT,     RXY_a, LAT, 0, m2_32u, r1, 0, lat, 0)
+    C(0xe385, LGAT,    RXY_a, LAT, 0, a2, r1, 0, lgat, 0)
 /* LOAD BYTE */
     C(0xb926, LBR,     RRE,   EI,  0, r2_8s, 0, r1_32, mov2, 0)
     C(0xb906, LGBR,    RRE,   EI,  0, r2_8s, 0, r1, mov2, 0)
@@ -414,9 +417,13 @@
 /* LOAD HALFWORD RELATIVE LONG */
     C(0xc405, LHRL,    RIL_b, GIE, 0, ri2, new, r1_32, ld16s, 0)
     C(0xc404, LGHRL,   RIL_b, GIE, 0, ri2, r1, 0, ld16s, 0)
+/* LOAG HIGH AND TRAP */
+    C(0xe3c8, LFHAT,   RXY_a, LAT, 0, m2_32u, r1, 0, lfhat, 0)
 /* LOAD LOGICAL */
     C(0xb916, LLGFR,   RRE,   Z,   0, r2_32u, 0, r1, mov2, 0)
     C(0xe316, LLGF,    RXY_a, Z,   0, a2, r1, 0, ld32u, 0)
+/* LOAD LOGICAL AND TRAP */
+    C(0xe39d, LLGFAT,  RXY_a, LAT, 0, a2, r1, 0, llgfat, 0)
 /* LOAD LOGICAL RELATIVE LONG */
     C(0xc40e, LLGFRL,  RIL_b, GIE, 0, ri2, r1, 0, ld32u, 0)
 /* LOAD LOGICAL CHARACTER */
@@ -442,6 +449,9 @@
 /* LOAD LOGICAL THIRTY ONE BITS */
     C(0xb917, LLGTR,   RRE,   Z,  0, r2_o, r1, 0, llgt, 0)
     C(0xe317, LLGT,    RXY_a, Z,  0, m2_32u, r1, 0, llgt, 0)
+/* LOAD LOGICAL THIRTY ONE BITS AND TRAP */
+    C(0xe39c, LLGTAT,  RXY_a, LAT, 0, m2_32u, r1, 0, llgtat, 0)
+
 /* LOAD FPR FROM GR */
     C(0xb3c1, LDGR,    RRE,   FPRGR, 0, r2_o, 0, f1, mov2, 0)
 /* LOAD GR FROM FPR */

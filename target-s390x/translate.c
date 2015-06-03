@@ -323,6 +323,20 @@ static inline void gen_illegal_opcode(DisasContext *s)
     gen_program_exception(s, PGM_OPERATION);
 }
 
+static inline void gen_trap(DisasContext *s)
+{
+    TCGv_i32 t;
+
+    /* Set DXC to 0xff.  */
+    t = tcg_temp_new_i32();
+    tcg_gen_ld_i32(t, cpu_env, offsetof(CPUS390XState, fpc));
+    tcg_gen_ori_i32(t, t, 0xff00);
+    tcg_gen_st_i32(t, cpu_env, offsetof(CPUS390XState, fpc));
+    tcg_temp_free_i32(t);
+
+    gen_program_exception(s, PGM_DATA);
+}
+
 #ifndef CONFIG_USER_ONLY
 static void check_privileged(DisasContext *s)
 {
@@ -1120,6 +1134,7 @@ typedef enum DisasFacility {
     FAC_HW,                 /* high-word */
     FAC_IEEEE_SIM,          /* IEEE exception sumilation */
     FAC_MIE,                /* miscellaneous-instruction-extensions */
+    FAC_LAT,                /* load-and-trap */
     FAC_LOC,                /* load/store on condition */
     FAC_LD,                 /* long displacement */
     FAC_PC,                 /* population count */
@@ -1968,7 +1983,6 @@ static ExitStatus op_ct(DisasContext *s, DisasOps *o)
 {
     int m3 = get_field(s->fields, m3);
     TCGLabel *lab = gen_new_label();
-    TCGv_i32 t;
     TCGCond c;
 
     c = tcg_invert_cond(ltgt_cond[m3]);
@@ -1977,15 +1991,8 @@ static ExitStatus op_ct(DisasContext *s, DisasOps *o)
     }
     tcg_gen_brcond_i64(c, o->in1, o->in2, lab);
 
-    /* Set DXC to 0xff.  */
-    t = tcg_temp_new_i32();
-    tcg_gen_ld_i32(t, cpu_env, offsetof(CPUS390XState, fpc));
-    tcg_gen_ori_i32(t, t, 0xff00);
-    tcg_gen_st_i32(t, cpu_env, offsetof(CPUS390XState, fpc));
-    tcg_temp_free_i32(t);
-
     /* Trap.  */
-    gen_program_exception(s, PGM_DATA);
+    gen_trap(s);
 
     gen_set_label(lab);
     return NO_EXIT;
@@ -2348,6 +2355,61 @@ static ExitStatus op_ld32u(DisasContext *s, DisasOps *o)
 static ExitStatus op_ld64(DisasContext *s, DisasOps *o)
 {
     tcg_gen_qemu_ld64(o->out, o->in2, get_mem_index(s));
+    return NO_EXIT;
+}
+
+static ExitStatus op_lat(DisasContext *s, DisasOps *o)
+{
+    TCGLabel *lab = gen_new_label();
+    store_reg32_i64(get_field(s->fields, r1), o->in2);
+    /* The value is stored even in case of trap. */
+    tcg_gen_brcondi_i64(TCG_COND_NE, o->in2, 0, lab);
+    gen_trap(s);
+    gen_set_label(lab);
+    return NO_EXIT;
+}
+
+static ExitStatus op_lgat(DisasContext *s, DisasOps *o)
+{
+    TCGLabel *lab = gen_new_label();
+    tcg_gen_qemu_ld64(o->out, o->in2, get_mem_index(s));
+    /* The value is stored even in case of trap. */
+    tcg_gen_brcondi_i64(TCG_COND_NE, o->out, 0, lab);
+    gen_trap(s);
+    gen_set_label(lab);
+    return NO_EXIT;
+}
+
+static ExitStatus op_lfhat(DisasContext *s, DisasOps *o)
+{
+    TCGLabel *lab = gen_new_label();
+    store_reg32h_i64(get_field(s->fields, r1), o->in2);
+    /* The value is stored even in case of trap. */
+    tcg_gen_brcondi_i64(TCG_COND_NE, o->in2, 0, lab);
+    gen_trap(s);
+    gen_set_label(lab);
+    return NO_EXIT;
+}
+
+static ExitStatus op_llgfat(DisasContext *s, DisasOps *o)
+{
+    TCGLabel *lab = gen_new_label();
+    tcg_gen_qemu_ld32u(o->out, o->in2, get_mem_index(s));
+    /* The value is stored even in case of trap. */
+    tcg_gen_brcondi_i64(TCG_COND_NE, o->out, 0, lab);
+    gen_trap(s);
+    gen_set_label(lab);
+    return NO_EXIT;
+}
+
+static ExitStatus op_llgtat(DisasContext *s, DisasOps *o)
+{
+    TCGLabel *lab = gen_new_label();
+    tcg_gen_andi_i64(o->out, o->in2, 0x7fffffff);
+    /* The value is stored even in case of trap. */
+    tcg_gen_brcondi_i64(TCG_COND_NE, o->out, 0, lab);
+    gen_trap(s);
+    gen_set_label(lab);
     return NO_EXIT;
 }
 
