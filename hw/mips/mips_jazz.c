@@ -157,12 +157,7 @@ static void mips_jazz_init(MachineState *machine,
 
     /* init CPUs */
     if (cpu_model == NULL) {
-#ifdef TARGET_MIPS64
         cpu_model = "R4000";
-#else
-        /* FIXME: All wrong, this maybe should be R3000 for the older JAZZs. */
-        cpu_model = "24Kf";
-#endif
     }
     cpu = cpu_mips_init(cpu_model);
     if (cpu == NULL) {

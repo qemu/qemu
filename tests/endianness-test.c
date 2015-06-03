@@ -31,8 +31,6 @@ struct TestCase {
 
 static const TestCase test_cases[] = {
     { "i386", "pc", -1 },
-    { "mips", "magnum", 0x90000000, .bswap = true },
-    { "mips", "pica61", 0x90000000, .bswap = true },
     { "mips", "mips", 0x14000000, .bswap = true },
     { "mips", "malta", 0x10000000, .bswap = true },
     { "mips64", "magnum", 0x90000000, .bswap = true },
