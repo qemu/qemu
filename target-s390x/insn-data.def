@@ -622,7 +622,7 @@
     C(0xb299, SRNM,    S,     Z,   0, 0, 0, 0, srnm, 0)
     C(0xb2b8, SRNMB,   S,     FPE, 0, 0, 0, 0, srnm, 0)
 /* SET DFP ROUNDING MODE */
-    C(0xb2b9, SRNMT,   S,     DFP, 0, 0, 0, 0, srnm, 0)
+    C(0xb2b9, SRNMT,   S,     DFPR, 0, 0, 0, 0, srnm, 0)
 
 /* SHIFT LEFT SINGLE */
     D(0x8b00, SLA,     RS_a,  Z,   r1, sh32, new, r1_32, sla, 0, 31)
