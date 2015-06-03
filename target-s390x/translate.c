@@ -1482,6 +1482,30 @@ static ExitStatus op_bct32(DisasContext *s, DisasOps *o)
     return help_branch(s, &c, is_imm, imm, o->in2);
 }
 
+static ExitStatus op_bcth(DisasContext *s, DisasOps *o)
+{
+    int r1 = get_field(s->fields, r1);
+    int imm = get_field(s->fields, i2);
+    DisasCompare c;
+    TCGv_i64 t;
+
+    c.cond = TCG_COND_NE;
+    c.is_64 = false;
+    c.g1 = false;
+    c.g2 = false;
+
+    t = tcg_temp_new_i64();
+    tcg_gen_shri_i64(t, regs[r1], 32);
+    tcg_gen_subi_i64(t, t, 1);
+    store_reg32h_i64(r1, t);
+    c.u.s32.a = tcg_temp_new_i32();
+    c.u.s32.b = tcg_const_i32(0);
+    tcg_gen_trunc_i64_i32(c.u.s32.a, t);
+    tcg_temp_free_i64(t);
+
+    return help_branch(s, &c, 1, imm, o->in2);
+}
+
 static ExitStatus op_bct64(DisasContext *s, DisasOps *o)
 {
     int r1 = get_field(s->fields, r1);
@@ -4212,6 +4236,12 @@ static void wout_r1_32(DisasContext *s, DisasFields *f, DisasOps *o)
 }
 #define SPEC_wout_r1_32 0
 
+static void wout_r1_32h(DisasContext *s, DisasFields *f, DisasOps *o)
+{
+    store_reg32h_i64(get_field(f, r1), o->out);
+}
+#define SPEC_wout_r1_32h 0
+
 static void wout_r1_P32(DisasContext *s, DisasFields *f, DisasOps *o)
 {
     int r1 = get_field(f, r1);
@@ -4381,6 +4411,13 @@ static void in1_r2(DisasContext *s, DisasFields *f, DisasOps *o)
     o->in1 = load_reg(get_field(f, r2));
 }
 #define SPEC_in1_r2 0
+
+static void in1_r2_sr32(DisasContext *s, DisasFields *f, DisasOps *o)
+{
+    o->in1 = tcg_temp_new_i64();
+    tcg_gen_shri_i64(o->in1, regs[get_field(f, r2)], 32);
+}
+#define SPEC_in1_r2_sr32 0
 
 static void in1_r3(DisasContext *s, DisasFields *f, DisasOps *o)
 {
@@ -4595,6 +4632,13 @@ static void in2_r3(DisasContext *s, DisasFields *f, DisasOps *o)
 }
 #define SPEC_in2_r3 0
 
+static void in2_r3_sr32(DisasContext *s, DisasFields *f, DisasOps *o)
+{
+    o->in2 = tcg_temp_new_i64();
+    tcg_gen_shri_i64(o->in2, regs[get_field(f, r3)], 32);
+}
+#define SPEC_in2_r3_sr32 0
+
 static void in2_r2_32s(DisasContext *s, DisasFields *f, DisasOps *o)
 {
     o->in2 = tcg_temp_new_i64();
@@ -4608,6 +4652,13 @@ static void in2_r2_32u(DisasContext *s, DisasFields *f, DisasOps *o)
     tcg_gen_ext32u_i64(o->in2, regs[get_field(f, r2)]);
 }
 #define SPEC_in2_r2_32u 0
+
+static void in2_r2_sr32(DisasContext *s, DisasFields *f, DisasOps *o)
+{
+    o->in2 = tcg_temp_new_i64();
+    tcg_gen_shri_i64(o->in2, regs[get_field(f, r2)], 32);
+}
+#define SPEC_in2_r2_sr32 0
 
 static void in2_e2(DisasContext *s, DisasFields *f, DisasOps *o)
 {
