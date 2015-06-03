@@ -4016,7 +4016,7 @@ static QDict *monitor_parse_arguments(Monitor *mon,
                 if (len <= 0) {
                     monitor_printf(mon, "%s: string expected\n",
                                    cmd->name);
-                    break;
+                    goto fail;
                 }
                 qdict_put(qdict, key, qstring_from_str(p));
                 p += len;
