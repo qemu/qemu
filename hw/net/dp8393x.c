@@ -473,8 +473,10 @@ static void do_command(dp8393xState *s, uint16_t command)
         do_load_cam(s);
 }
 
-static uint16_t read_register(dp8393xState *s, int reg)
+static uint64_t dp8393x_read(void *opaque, hwaddr addr, unsigned int size)
 {
+    dp8393xState *s = opaque;
+    int reg = addr >> s->it_shift;
     uint16_t val = 0;
 
     switch (reg) {
@@ -503,14 +505,18 @@ static uint16_t read_register(dp8393xState *s, int reg)
     return val;
 }
 
-static void write_register(dp8393xState *s, int reg, uint16_t val)
+static void dp8393x_write(void *opaque, hwaddr addr, uint64_t data,
+                          unsigned int size)
 {
-    DPRINTF("write 0x%04x to reg %s\n", val, reg_names[reg]);
+    dp8393xState *s = opaque;
+    int reg = addr >> s->it_shift;
+
+    DPRINTF("write 0x%04x to reg %s\n", (uint16_t)data, reg_names[reg]);
 
     switch (reg) {
         /* Command register */
         case SONIC_CR:
-            do_command(s, val);
+            do_command(s, data);
             break;
         /* Prevent write to read-only registers */
         case SONIC_CAP2:
@@ -523,36 +529,36 @@ static void write_register(dp8393xState *s, int reg, uint16_t val)
         /* Accept write to some registers only when in reset mode */
         case SONIC_DCR:
             if (s->regs[SONIC_CR] & SONIC_CR_RST) {
-                s->regs[reg] = val & 0xbfff;
+                s->regs[reg] = data & 0xbfff;
             } else {
                 DPRINTF("writing to DCR invalid\n");
             }
             break;
         case SONIC_DCR2:
             if (s->regs[SONIC_CR] & SONIC_CR_RST) {
-                s->regs[reg] = val & 0xf017;
+                s->regs[reg] = data & 0xf017;
             } else {
                 DPRINTF("writing to DCR2 invalid\n");
             }
             break;
         /* 12 lower bytes are Read Only */
         case SONIC_TCR:
-            s->regs[reg] = val & 0xf000;
+            s->regs[reg] = data & 0xf000;
             break;
         /* 9 lower bytes are Read Only */
         case SONIC_RCR:
-            s->regs[reg] = val & 0xffe0;
+            s->regs[reg] = data & 0xffe0;
             break;
         /* Ignore most significant bit */
         case SONIC_IMR:
-            s->regs[reg] = val & 0x7fff;
+            s->regs[reg] = data & 0x7fff;
             dp8393x_update_irq(s);
             break;
         /* Clear bits by writing 1 to them */
         case SONIC_ISR:
-            val &= s->regs[reg];
-            s->regs[reg] &= ~val;
-            if (val & SONIC_ISR_RBE) {
+            data &= s->regs[reg];
+            s->regs[reg] &= ~data;
+            if (data & SONIC_ISR_RBE) {
                 do_read_rra(s);
             }
             dp8393x_update_irq(s);
@@ -562,23 +568,31 @@ static void write_register(dp8393xState *s, int reg, uint16_t val)
         case SONIC_REA:
         case SONIC_RRP:
         case SONIC_RWP:
-            s->regs[reg] = val & 0xfffe;
+            s->regs[reg] = data & 0xfffe;
             break;
         /* Invert written value for some registers */
         case SONIC_CRCT:
         case SONIC_FAET:
         case SONIC_MPT:
-            s->regs[reg] = val ^ 0xffff;
+            s->regs[reg] = data ^ 0xffff;
             break;
         /* All other registers have no special contrainst */
         default:
-            s->regs[reg] = val;
+            s->regs[reg] = data;
     }
 
     if (reg == SONIC_WT0 || reg == SONIC_WT1) {
         set_next_tick(s);
     }
 }
+
+static const MemoryRegionOps dp8393x_ops = {
+    .read = dp8393x_read,
+    .write = dp8393x_write,
+    .impl.min_access_size = 2,
+    .impl.max_access_size = 2,
+    .endianness = DEVICE_NATIVE_ENDIAN,
+};
 
 static void dp8393x_watchdog(void *opaque)
 {
@@ -596,76 +610,6 @@ static void dp8393x_watchdog(void *opaque)
     s->regs[SONIC_ISR] |= SONIC_ISR_TC;
     dp8393x_update_irq(s);
 }
-
-static uint32_t dp8393x_readw(void *opaque, hwaddr addr)
-{
-    dp8393xState *s = opaque;
-    int reg;
-
-    if ((addr & ((1 << s->it_shift) - 1)) != 0) {
-        return 0;
-    }
-
-    reg = addr >> s->it_shift;
-    return read_register(s, reg);
-}
-
-static uint32_t dp8393x_readb(void *opaque, hwaddr addr)
-{
-    uint16_t v = dp8393x_readw(opaque, addr & ~0x1);
-    return (v >> (8 * (addr & 0x1))) & 0xff;
-}
-
-static uint32_t dp8393x_readl(void *opaque, hwaddr addr)
-{
-    uint32_t v;
-    v = dp8393x_readw(opaque, addr);
-    v |= dp8393x_readw(opaque, addr + 2) << 16;
-    return v;
-}
-
-static void dp8393x_writew(void *opaque, hwaddr addr, uint32_t val)
-{
-    dp8393xState *s = opaque;
-    int reg;
-
-    if ((addr & ((1 << s->it_shift) - 1)) != 0) {
-        return;
-    }
-
-    reg = addr >> s->it_shift;
-
-    write_register(s, reg, (uint16_t)val);
-}
-
-static void dp8393x_writeb(void *opaque, hwaddr addr, uint32_t val)
-{
-    uint16_t old_val = dp8393x_readw(opaque, addr & ~0x1);
-
-    switch (addr & 3) {
-    case 0:
-        val = val | (old_val & 0xff00);
-        break;
-    case 1:
-        val = (val << 8) | (old_val & 0x00ff);
-        break;
-    }
-    dp8393x_writew(opaque, addr & ~0x1, val);
-}
-
-static void dp8393x_writel(void *opaque, hwaddr addr, uint32_t val)
-{
-    dp8393x_writew(opaque, addr, val & 0xffff);
-    dp8393x_writew(opaque, addr + 2, (val >> 16) & 0xffff);
-}
-
-static const MemoryRegionOps dp8393x_ops = {
-    .old_mmio = {
-        .read = { dp8393x_readb, dp8393x_readw, dp8393x_readl, },
-        .write = { dp8393x_writeb, dp8393x_writew, dp8393x_writel, },
-    },
-    .endianness = DEVICE_NATIVE_ENDIAN,
-};
 
 static int nic_can_receive(NetClientState *nc)
 {
