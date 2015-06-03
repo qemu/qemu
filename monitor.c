@@ -4069,6 +4069,8 @@ static void handle_hmp_command(Monitor *mon, const char *cmdline)
 
     qdict = monitor_parse_arguments(mon, &cmdline, cmd);
     if (!qdict) {
+        monitor_printf(mon, "Try \"help %s\" for more information\n",
+                       cmd->name);
         return;
     }
 
