@@ -355,7 +355,7 @@ for opt do
   --extra-cflags=*) QEMU_CFLAGS="$QEMU_CFLAGS $optarg"
                     EXTRA_CFLAGS="$optarg"
   ;;
-  --extra-ldflags=*) LDFLAGS="$optarg $LDFLAGS"
+  --extra-ldflags=*) LDFLAGS="$LDFLAGS $optarg"
                      EXTRA_LDFLAGS="$optarg"
   ;;
   --enable-debug-info) debug_info="yes"
