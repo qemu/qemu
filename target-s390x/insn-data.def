@@ -451,6 +451,7 @@
     C(0xb301, LNEBR,   RRE,   Z,   0, e2, new, e1, nabsf32, f32)
     C(0xb311, LNDBR,   RRE,   Z,   0, f2_o, f1, 0, nabsf64, f64)
     C(0xb341, LNXBR,   RRE,   Z,   0, x2_o, x1, 0, nabsf128, f128)
+    C(0xb371, LNDFR,   RRE,   FPSSH, 0, f2_o, f1, 0, nabsf64, 0)
 /* LOAD ON CONDITION */
     C(0xb9f2, LOCR,    RRF_c, LOC, r1, r2, new, r1_32, loc, 0)
     C(0xb9e2, LOCGR,   RRF_c, LOC, r1, r2, r1, 0, loc, 0)
@@ -464,6 +465,7 @@
     C(0xb300, LPEBR,   RRE,   Z,   0, e2, new, e1, absf32, f32)
     C(0xb310, LPDBR,   RRE,   Z,   0, f2_o, f1, 0, absf64, f64)
     C(0xb340, LPXBR,   RRE,   Z,   0, x2_o, x1, 0, absf128, f128)
+    C(0xb370, LPDFR,   RRE,   FPSSH, 0, f2_o, f1, 0, absf64, 0)
 /* LOAD REVERSED */
     C(0xb91f, LRVR,    RRE,   Z,   0, r2_32u, new, r1_32, rev32, 0)
     C(0xb90f, LRVGR,   RRE,   Z,   0, r2_o, r1, 0, rev64, 0)
