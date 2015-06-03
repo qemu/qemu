@@ -26,24 +26,7 @@
 #include "hw/mips/mips.h"
 #include "qemu/timer.h"
 #include "exec/address-spaces.h"
-
-/********************************************************/
-/* debug rc4030 */
-
-//#define DEBUG_RC4030
-//#define DEBUG_RC4030_DMA
-
-#ifdef DEBUG_RC4030
-#define DPRINTF(fmt, ...) \
-do { printf("rc4030: " fmt , ## __VA_ARGS__); } while (0)
-static const char* irq_names[] = { "parallel", "floppy", "sound", "video",
-            "network", "scsi", "keyboard", "mouse", "serial0", "serial1" };
-#else
-#define DPRINTF(fmt, ...)
-#endif
-
-#define RC4030_ERROR(fmt, ...) \
-do { fprintf(stderr, "rc4030 ERROR: %s: " fmt, __func__ , ## __VA_ARGS__); } while (0)
+#include "trace.h"
 
 /********************************************************/
 /* rc4030 emulation                                     */
@@ -251,13 +234,14 @@ static uint64_t rc4030_read(void *opaque, hwaddr addr, unsigned int size)
         val = 7; /* FIXME: should be read from EISA controller */
         break;
     default:
-        RC4030_ERROR("invalid read [" TARGET_FMT_plx "]\n", addr);
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "rc4030: invalid read at 0x%x", (int)addr);
         val = 0;
         break;
     }
 
     if ((addr & ~3) != 0x230) {
-        DPRINTF("read 0x%02x at " TARGET_FMT_plx "\n", val, addr);
+        trace_rc4030_read(addr, val);
     }
 
     return val;
@@ -360,7 +344,7 @@ static void rc4030_write(void *opaque, hwaddr addr, uint64_t data,
     uint32_t val = data;
     addr &= 0x3fff;
 
-    DPRINTF("write 0x%02x at " TARGET_FMT_plx "\n", val, addr);
+    trace_rc4030_write(addr, val);
 
     switch (addr & ~0x3) {
     /* Global config register */
@@ -475,7 +459,9 @@ static void rc4030_write(void *opaque, hwaddr addr, uint64_t data,
     case 0x0238:
         break;
     default:
-        RC4030_ERROR("invalid write of 0x%02x at [" TARGET_FMT_plx "]\n", val, addr);
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "rc4030: invalid write of 0x%02x at 0x%x",
+                      val, (int)addr);
         break;
     }
 }
@@ -493,22 +479,6 @@ static void update_jazz_irq(rc4030State *s)
     uint16_t pending;
 
     pending = s->isr_jazz & s->imr_jazz;
-
-#ifdef DEBUG_RC4030
-    if (s->isr_jazz != 0) {
-        uint32_t irq = 0;
-        DPRINTF("pending irqs:");
-        for (irq = 0; irq < ARRAY_SIZE(irq_names); irq++) {
-            if (s->isr_jazz & (1 << irq)) {
-                printf(" %s", irq_names[irq]);
-                if (!(s->imr_jazz & (1 << irq))) {
-                    printf("(ignored)");
-                }
-            }
-        }
-        printf("\n");
-    }
-#endif
 
     if (pending != 0)
         qemu_irq_raise(s->jazz_bus_irq);
@@ -552,7 +522,6 @@ static uint64_t jazzio_read(void *opaque, hwaddr addr, unsigned int size)
         irq = 0;
         while (pending) {
             if (pending & 1) {
-                DPRINTF("returning irq %s\n", irq_names[irq]);
                 val = (irq + 1) << 2;
                 break;
             }
@@ -566,11 +535,13 @@ static uint64_t jazzio_read(void *opaque, hwaddr addr, unsigned int size)
         val = s->imr_jazz;
         break;
     default:
-        RC4030_ERROR("(jazz io controller) invalid read [" TARGET_FMT_plx "]\n", addr);
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "rc4030/jazzio: invalid read at 0x%x", (int)addr);
         val = 0;
+        break;
     }
 
-    DPRINTF("(jazz io controller) read 0x%04x at " TARGET_FMT_plx "\n", val, addr);
+    trace_jazzio_read(addr, val);
 
     return val;
 }
@@ -582,7 +553,7 @@ static void jazzio_write(void *opaque, hwaddr addr, uint64_t data,
     uint32_t val = data;
     addr &= 0xfff;
 
-    DPRINTF("(jazz io controller) write 0x%04x at " TARGET_FMT_plx "\n", val, addr);
+    trace_jazzio_write(addr, val);
 
     switch (addr) {
     /* Local bus int enable mask */
@@ -591,7 +562,9 @@ static void jazzio_write(void *opaque, hwaddr addr, uint64_t data,
         update_jazz_irq(s);
         break;
     default:
-        RC4030_ERROR("(jazz io controller) invalid write of 0x%04x at [" TARGET_FMT_plx "]\n", val, addr);
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "rc4030/jazzio: invalid write of 0x%02x at 0x%x",
+                      val, (int)addr);
         break;
     }
 }
@@ -724,28 +697,6 @@ static void rc4030_do_dma(void *opaque, int n, uint8_t *buf, int len, int is_wri
 
     s->dma_regs[n][DMA_REG_ENABLE] |= DMA_FLAG_TC_INTR;
     s->dma_regs[n][DMA_REG_COUNT] -= len;
-
-#ifdef DEBUG_RC4030_DMA
-    {
-        int i, j;
-        printf("rc4030 dma: Copying %d bytes %s host %p\n",
-            len, is_write ? "from" : "to", buf);
-        for (i = 0; i < len; i += 16) {
-            int n = 16;
-            if (n > len - i) {
-                n = len - i;
-            }
-            for (j = 0; j < n; j++)
-                printf("%02x ", buf[i + j]);
-            while (j++ < 16)
-                printf("   ");
-            printf("| ");
-            for (j = 0; j < n; j++)
-                printf("%c", isprint(buf[i + j]) ? buf[i + j] : '.');
-            printf("\n");
-        }
-    }
-#endif
 }
 
 struct rc4030DMAState {
