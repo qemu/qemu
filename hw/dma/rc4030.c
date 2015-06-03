@@ -25,6 +25,7 @@
 #include "hw/hw.h"
 #include "hw/mips/mips.h"
 #include "qemu/timer.h"
+#include "exec/address-spaces.h"
 
 /********************************************************/
 /* debug rc4030 */
@@ -46,6 +47,8 @@ do { fprintf(stderr, "rc4030 ERROR: %s: " fmt, __func__ , ## __VA_ARGS__); } whi
 
 /********************************************************/
 /* rc4030 emulation                                     */
+
+#define MAX_TL_ENTRIES 512
 
 typedef struct dma_pagetable_entry {
     int32_t frame;
@@ -95,6 +98,16 @@ typedef struct rc4030State
 
     qemu_irq timer_irq;
     qemu_irq jazz_bus_irq;
+
+    /* biggest translation table */
+    MemoryRegion dma_tt;
+    /* translation table memory region alias, added to system RAM */
+    MemoryRegion dma_tt_alias;
+    /* whole DMA memory region, root of DMA address space */
+    MemoryRegion dma_mr;
+    /* translation table entry aliases, added to DMA memory region */
+    MemoryRegion dma_mrs[MAX_TL_ENTRIES];
+    AddressSpace dma_as;
 
     MemoryRegion iomem_chipset;
     MemoryRegion iomem_jazzio;
@@ -265,6 +278,97 @@ static uint32_t rc4030_readb(void *opaque, hwaddr addr)
     return (v >> (8 * (addr & 0x3))) & 0xff;
 }
 
+static void rc4030_dma_as_update_one(rc4030State *s, int index, uint32_t frame)
+{
+    if (index < MAX_TL_ENTRIES) {
+        memory_region_set_enabled(&s->dma_mrs[index], false);
+    }
+
+    if (!frame) {
+        return;
+    }
+
+    if (index >= MAX_TL_ENTRIES) {
+        qemu_log_mask(LOG_UNIMP,
+                      "rc4030: trying to use too high "
+                      "translation table entry %d (max allowed=%d)",
+                      index, MAX_TL_ENTRIES);
+        return;
+    }
+    memory_region_set_alias_offset(&s->dma_mrs[index], frame);
+    memory_region_set_enabled(&s->dma_mrs[index], true);
+}
+
+static void rc4030_dma_tt_write(void *opaque, hwaddr addr, uint64_t data,
+                                unsigned int size)
+{
+    rc4030State *s = opaque;
+
+    /* write memory */
+    memcpy(memory_region_get_ram_ptr(&s->dma_tt) + addr, &data, size);
+
+    /* update dma address space (only if frame field has been written) */
+    if (addr % sizeof(dma_pagetable_entry) == 0) {
+        int index = addr / sizeof(dma_pagetable_entry);
+        memory_region_transaction_begin();
+        rc4030_dma_as_update_one(s, index, (uint32_t)data);
+        memory_region_transaction_commit();
+    }
+}
+
+static const MemoryRegionOps rc4030_dma_tt_ops = {
+    .write = rc4030_dma_tt_write,
+    .impl.min_access_size = 4,
+    .impl.max_access_size = 4,
+};
+
+static void rc4030_dma_tt_update(rc4030State *s, uint32_t new_tl_base,
+                                 uint32_t new_tl_limit)
+{
+    int entries, i;
+    dma_pagetable_entry *dma_tl_contents;
+
+    if (s->dma_tl_limit) {
+        /* write old dma tl table to physical memory */
+        memory_region_del_subregion(get_system_memory(), &s->dma_tt_alias);
+        cpu_physical_memory_write(s->dma_tl_limit & 0x7fffffff,
+                                  memory_region_get_ram_ptr(&s->dma_tt),
+                                  memory_region_size(&s->dma_tt_alias));
+    }
+    object_unparent(OBJECT(&s->dma_tt_alias));
+
+    s->dma_tl_base = new_tl_base;
+    s->dma_tl_limit = new_tl_limit;
+    new_tl_base &= 0x7fffffff;
+
+    if (s->dma_tl_limit) {
+        uint64_t dma_tt_size;
+        if (s->dma_tl_limit <= memory_region_size(&s->dma_tt)) {
+            dma_tt_size = s->dma_tl_limit;
+        } else {
+            dma_tt_size = memory_region_size(&s->dma_tt);
+        }
+        memory_region_init_alias(&s->dma_tt_alias, NULL,
+                                 "dma-table-alias",
+                                 &s->dma_tt, 0, dma_tt_size);
+        dma_tl_contents = memory_region_get_ram_ptr(&s->dma_tt);
+        cpu_physical_memory_read(new_tl_base, dma_tl_contents, dma_tt_size);
+
+        memory_region_transaction_begin();
+        entries = dma_tt_size / sizeof(dma_pagetable_entry);
+        for (i = 0; i < entries; i++) {
+            rc4030_dma_as_update_one(s, i, dma_tl_contents[i].frame);
+        }
+        memory_region_add_subregion(get_system_memory(), new_tl_base,
+                                    &s->dma_tt_alias);
+        memory_region_transaction_commit();
+    } else {
+        memory_region_init(&s->dma_tt_alias, NULL,
+                           "dma-table-alias", 0);
+    }
+}
+
+
 static void rc4030_writel(void *opaque, hwaddr addr, uint32_t val)
 {
     rc4030State *s = opaque;
@@ -279,11 +383,11 @@ static void rc4030_writel(void *opaque, hwaddr addr, uint32_t val)
         break;
     /* DMA transl. table base */
     case 0x0018:
-        s->dma_tl_base = val;
+        rc4030_dma_tt_update(s, val, s->dma_tl_limit);
         break;
     /* DMA transl. table limit */
     case 0x0020:
-        s->dma_tl_limit = val;
+        rc4030_dma_tt_update(s, s->dma_tl_base, val);
         break;
     /* DMA transl. table invalidated */
     case 0x0028:
@@ -590,7 +694,7 @@ static void rc4030_reset(void *opaque)
     s->invalid_address_register = 0;
 
     memset(s->dma_regs, 0, sizeof(s->dma_regs));
-    s->dma_tl_base = s->dma_tl_limit = 0;
+    rc4030_dma_tt_update(s, 0, 0);
 
     s->remote_failed_address = s->memory_failed_address = 0;
     s->cache_maint = 0;
@@ -675,39 +779,8 @@ static void rc4030_save(QEMUFile *f, void *opaque)
 void rc4030_dma_memory_rw(void *opaque, hwaddr addr, uint8_t *buf, int len, int is_write)
 {
     rc4030State *s = opaque;
-    hwaddr entry_addr;
-    hwaddr phys_addr;
-    dma_pagetable_entry entry;
-    int index;
-    int ncpy, i;
-
-    i = 0;
-    for (;;) {
-        if (i == len) {
-            break;
-        }
-
-        ncpy = DMA_PAGESIZE - (addr & (DMA_PAGESIZE - 1));
-        if (ncpy > len - i)
-            ncpy = len - i;
-
-        /* Get DMA translation table entry */
-        index = addr / DMA_PAGESIZE;
-        if (index >= s->dma_tl_limit / sizeof(dma_pagetable_entry)) {
-            break;
-        }
-        entry_addr = s->dma_tl_base + index * sizeof(dma_pagetable_entry);
-        /* XXX: not sure. should we really use only lowest bits? */
-        entry_addr &= 0x7fffffff;
-        cpu_physical_memory_read(entry_addr, &entry, sizeof(entry));
-
-        /* Read/write data at right place */
-        phys_addr = entry.frame + (addr & (DMA_PAGESIZE - 1));
-        cpu_physical_memory_rw(phys_addr, &buf[i], ncpy, is_write);
-
-        i += ncpy;
-        addr += ncpy;
-    }
+    address_space_rw(&s->dma_as, addr, MEMTXATTRS_UNSPECIFIED, buf, len,
+                     is_write);
 }
 
 static void rc4030_do_dma(void *opaque, int n, uint8_t *buf, int len, int is_write)
@@ -733,7 +806,8 @@ static void rc4030_do_dma(void *opaque, int n, uint8_t *buf, int len, int is_wri
     dma_addr = s->dma_regs[n][DMA_REG_ADDRESS];
 
     /* Read/write data at right place */
-    rc4030_dma_memory_rw(opaque, dma_addr, buf, len, is_write);
+    address_space_rw(&s->dma_as, dma_addr, MEMTXATTRS_UNSPECIFIED,
+                     buf, len, is_write);
 
     s->dma_regs[n][DMA_REG_ENABLE] |= DMA_FLAG_TC_INTR;
     s->dma_regs[n][DMA_REG_COUNT] -= len;
@@ -800,6 +874,7 @@ void *rc4030_init(qemu_irq timer, qemu_irq jazz_bus,
                   MemoryRegion *sysmem)
 {
     rc4030State *s;
+    int i;
 
     s = g_malloc0(sizeof(rc4030State));
 
@@ -821,5 +896,19 @@ void *rc4030_init(qemu_irq timer, qemu_irq jazz_bus,
                           "rc4030.jazzio", 0x00001000);
     memory_region_add_subregion(sysmem, 0xf0000000, &s->iomem_jazzio);
 
+    memory_region_init_rom_device(&s->dma_tt, NULL,
+                                  &rc4030_dma_tt_ops, s, "dma-table",
+                                  MAX_TL_ENTRIES * sizeof(dma_pagetable_entry),
+                                  NULL);
+    memory_region_init(&s->dma_tt_alias, NULL, "dma-table-alias", 0);
+    memory_region_init(&s->dma_mr, NULL, "dma", INT32_MAX);
+    for (i = 0; i < MAX_TL_ENTRIES; ++i) {
+        memory_region_init_alias(&s->dma_mrs[i], NULL, "dma-alias",
+                                 get_system_memory(), 0, DMA_PAGESIZE);
+        memory_region_set_enabled(&s->dma_mrs[i], false);
+        memory_region_add_subregion(&s->dma_mr, i * DMA_PAGESIZE,
+                                    &s->dma_mrs[i]);
+    }
+    address_space_init(&s->dma_as, &s->dma_mr, "rc4030-dma");
     return s;
 }
