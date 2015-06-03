@@ -1015,59 +1015,46 @@ uint32_t HELPER(csp)(CPUS390XState *env, uint32_t r1, uint64_t r2)
     return cc;
 }
 
-static uint32_t mvc_asc(CPUS390XState *env, int64_t l, uint64_t a1,
-                        uint64_t mode1, uint64_t a2, uint64_t mode2)
+uint32_t HELPER(mvcs)(CPUS390XState *env, uint64_t l, uint64_t a1, uint64_t a2)
 {
-    CPUState *cs = CPU(s390_env_get_cpu(env));
-    target_ulong src, dest;
-    int flags, cc = 0, i;
+    int cc = 0, i;
 
-    if (!l) {
-        return 0;
-    } else if (l > 256) {
+    HELPER_LOG("%s: %16" PRIx64 " %16" PRIx64 " %16" PRIx64 "\n",
+               __func__, l, a1, a2);
+
+    if (l > 256) {
         /* max 256 */
         l = 256;
         cc = 3;
     }
 
-    if (mmu_translate(env, a1, 1, mode1, &dest, &flags, true)) {
-        cpu_loop_exit(CPU(s390_env_get_cpu(env)));
-    }
-    dest |= a1 & ~TARGET_PAGE_MASK;
-
-    if (mmu_translate(env, a2, 0, mode2, &src, &flags, true)) {
-        cpu_loop_exit(CPU(s390_env_get_cpu(env)));
-    }
-    src |= a2 & ~TARGET_PAGE_MASK;
-
     /* XXX replace w/ memcpy */
     for (i = 0; i < l; i++) {
-        /* XXX be more clever */
-        if ((((dest + i) & TARGET_PAGE_MASK) != (dest & TARGET_PAGE_MASK)) ||
-            (((src + i) & TARGET_PAGE_MASK) != (src & TARGET_PAGE_MASK))) {
-            mvc_asc(env, l - i, a1 + i, mode1, a2 + i, mode2);
-            break;
-        }
-        stb_phys(cs->as, dest + i, ldub_phys(cs->as, src + i));
+        cpu_stb_secondary(env, a1 + i, cpu_ldub_primary(env, a2 + i));
     }
 
     return cc;
 }
 
-uint32_t HELPER(mvcs)(CPUS390XState *env, uint64_t l, uint64_t a1, uint64_t a2)
-{
-    HELPER_LOG("%s: %16" PRIx64 " %16" PRIx64 " %16" PRIx64 "\n",
-               __func__, l, a1, a2);
-
-    return mvc_asc(env, l, a1, PSW_ASC_SECONDARY, a2, PSW_ASC_PRIMARY);
-}
-
 uint32_t HELPER(mvcp)(CPUS390XState *env, uint64_t l, uint64_t a1, uint64_t a2)
 {
+    int cc = 0, i;
+
     HELPER_LOG("%s: %16" PRIx64 " %16" PRIx64 " %16" PRIx64 "\n",
                __func__, l, a1, a2);
 
-    return mvc_asc(env, l, a1, PSW_ASC_PRIMARY, a2, PSW_ASC_SECONDARY);
+    if (l > 256) {
+        /* max 256 */
+        l = 256;
+        cc = 3;
+    }
+
+    /* XXX replace w/ memcpy */
+    for (i = 0; i < l; i++) {
+        cpu_stb_primary(env, a1 + i, cpu_ldub_secondary(env, a2 + i));
+    }
+
+    return cc;
 }
 
 /* invalidate pte */
