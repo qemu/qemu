@@ -815,7 +815,7 @@
     C(0xae00, SIGP,    RS_a,  Z,   r3_o, a2, 0, 0, sigp, 0)
 /* STORE CLOCK */
     C(0xb205, STCK,    S,     Z,   la2, 0, new, m1_64, stck, 0)
-    C(0xb27c, STCKF,   S,     Z,   la2, 0, new, m1_64, stck, 0)
+    C(0xb27c, STCKF,   S,     SCF, la2, 0, new, m1_64, stck, 0)
 /* STORE CLOCK EXTENDED */
     C(0xb278, STCKE,   S,     Z,   0, a2, 0, 0, stcke, 0)
 /* STORE CLOCK COMPARATOR */
