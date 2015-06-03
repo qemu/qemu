@@ -86,7 +86,7 @@ typedef struct rc4030State
     uint32_t cache_bmask; /* 0x0058: I/O Cache Byte Mask */
 
     uint32_t nmi_interrupt; /* 0x0200: interrupt source */
-    uint32_t offset210;
+    uint32_t memory_refresh_rate; /* 0x0210: memory refresh rate */
     uint32_t nvram_protect; /* 0x0220: NV ram protect register */
     uint32_t rem_speed[16];
     uint32_t imr_jazz; /* Local bus int enable mask */
@@ -233,9 +233,9 @@ static uint64_t rc4030_read(void *opaque, hwaddr addr, unsigned int size)
     case 0x0208:
         val = 0;
         break;
-    /* Offset 0x0210 */
+    /* Memory refresh rate */
     case 0x0210:
-        val = s->offset210;
+        val = s->memory_refresh_rate;
         break;
     /* NV ram protect register */
     case 0x0220:
@@ -461,9 +461,9 @@ static void rc4030_write(void *opaque, hwaddr addr, uint64_t data,
             s->dma_regs[entry][idx] = val;
         }
         break;
-    /* Offset 0x0210 */
+    /* Memory refresh rate */
     case 0x0210:
-        s->offset210 = val;
+        s->memory_refresh_rate = val;
         break;
     /* Interval timer reload */
     case 0x0228:
@@ -621,7 +621,7 @@ static void rc4030_reset(void *opaque)
     s->cache_ptag = s->cache_ltag = 0;
     s->cache_bmask = 0;
 
-    s->offset210 = 0x18186;
+    s->memory_refresh_rate = 0x18186;
     s->nvram_protect = 7;
     for (i = 0; i < 15; i++)
         s->rem_speed[i] = 7;
@@ -655,7 +655,7 @@ static int rc4030_load(QEMUFile *f, void *opaque, int version_id)
     s->cache_ptag = qemu_get_be32(f);
     s->cache_ltag = qemu_get_be32(f);
     s->cache_bmask = qemu_get_be32(f);
-    s->offset210 = qemu_get_be32(f);
+    s->memory_refresh_rate = qemu_get_be32(f);
     s->nvram_protect = qemu_get_be32(f);
     for (i = 0; i < 15; i++)
         s->rem_speed[i] = qemu_get_be32(f);
@@ -687,7 +687,7 @@ static void rc4030_save(QEMUFile *f, void *opaque)
     qemu_put_be32(f, s->cache_ptag);
     qemu_put_be32(f, s->cache_ltag);
     qemu_put_be32(f, s->cache_bmask);
-    qemu_put_be32(f, s->offset210);
+    qemu_put_be32(f, s->memory_refresh_rate);
     qemu_put_be32(f, s->nvram_protect);
     for (i = 0; i < 15; i++)
         qemu_put_be32(f, s->rem_speed[i]);
