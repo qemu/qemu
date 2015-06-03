@@ -125,7 +125,7 @@ static void set_next_tick(rc4030State *s)
 }
 
 /* called for accesses to rc4030 */
-static uint32_t rc4030_readl(void *opaque, hwaddr addr)
+static uint64_t rc4030_read(void *opaque, hwaddr addr, unsigned int size)
 {
     rc4030State *s = opaque;
     uint32_t val;
@@ -263,21 +263,6 @@ static uint32_t rc4030_readl(void *opaque, hwaddr addr)
     return val;
 }
 
-static uint32_t rc4030_readw(void *opaque, hwaddr addr)
-{
-    uint32_t v = rc4030_readl(opaque, addr & ~0x3);
-    if (addr & 0x2)
-        return v >> 16;
-    else
-        return v & 0xffff;
-}
-
-static uint32_t rc4030_readb(void *opaque, hwaddr addr)
-{
-    uint32_t v = rc4030_readl(opaque, addr & ~0x3);
-    return (v >> (8 * (addr & 0x3))) & 0xff;
-}
-
 static void rc4030_dma_as_update_one(rc4030State *s, int index, uint32_t frame)
 {
     if (index < MAX_TL_ENTRIES) {
@@ -368,10 +353,11 @@ static void rc4030_dma_tt_update(rc4030State *s, uint32_t new_tl_base,
     }
 }
 
-
-static void rc4030_writel(void *opaque, hwaddr addr, uint32_t val)
+static void rc4030_write(void *opaque, hwaddr addr, uint64_t data,
+                         unsigned int size)
 {
     rc4030State *s = opaque;
+    uint32_t val = data;
     addr &= 0x3fff;
 
     DPRINTF("write 0x%02x at " TARGET_FMT_plx "\n", val, addr);
@@ -494,43 +480,11 @@ static void rc4030_writel(void *opaque, hwaddr addr, uint32_t val)
     }
 }
 
-static void rc4030_writew(void *opaque, hwaddr addr, uint32_t val)
-{
-    uint32_t old_val = rc4030_readl(opaque, addr & ~0x3);
-
-    if (addr & 0x2)
-        val = (val << 16) | (old_val & 0x0000ffff);
-    else
-        val = val | (old_val & 0xffff0000);
-    rc4030_writel(opaque, addr & ~0x3, val);
-}
-
-static void rc4030_writeb(void *opaque, hwaddr addr, uint32_t val)
-{
-    uint32_t old_val = rc4030_readl(opaque, addr & ~0x3);
-
-    switch (addr & 3) {
-    case 0:
-        val = val | (old_val & 0xffffff00);
-        break;
-    case 1:
-        val = (val << 8) | (old_val & 0xffff00ff);
-        break;
-    case 2:
-        val = (val << 16) | (old_val & 0xff00ffff);
-        break;
-    case 3:
-        val = (val << 24) | (old_val & 0x00ffffff);
-        break;
-    }
-    rc4030_writel(opaque, addr & ~0x3, val);
-}
-
 static const MemoryRegionOps rc4030_ops = {
-    .old_mmio = {
-        .read = { rc4030_readb, rc4030_readw, rc4030_readl, },
-        .write = { rc4030_writeb, rc4030_writew, rc4030_writel, },
-    },
+    .read = rc4030_read,
+    .write = rc4030_write,
+    .impl.min_access_size = 4,
+    .impl.max_access_size = 4,
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
@@ -583,7 +537,7 @@ static void rc4030_periodic_timer(void *opaque)
     qemu_irq_raise(s->timer_irq);
 }
 
-static uint32_t jazzio_readw(void *opaque, hwaddr addr)
+static uint64_t jazzio_read(void *opaque, hwaddr addr, unsigned int size)
 {
     rc4030State *s = opaque;
     uint32_t val;
@@ -621,24 +575,11 @@ static uint32_t jazzio_readw(void *opaque, hwaddr addr)
     return val;
 }
 
-static uint32_t jazzio_readb(void *opaque, hwaddr addr)
-{
-    uint32_t v;
-    v = jazzio_readw(opaque, addr & ~0x1);
-    return (v >> (8 * (addr & 0x1))) & 0xff;
-}
-
-static uint32_t jazzio_readl(void *opaque, hwaddr addr)
-{
-    uint32_t v;
-    v = jazzio_readw(opaque, addr);
-    v |= jazzio_readw(opaque, addr + 2) << 16;
-    return v;
-}
-
-static void jazzio_writew(void *opaque, hwaddr addr, uint32_t val)
+static void jazzio_write(void *opaque, hwaddr addr, uint64_t data,
+                         unsigned int size)
 {
     rc4030State *s = opaque;
+    uint32_t val = data;
     addr &= 0xfff;
 
     DPRINTF("(jazz io controller) write 0x%04x at " TARGET_FMT_plx "\n", val, addr);
@@ -655,32 +596,11 @@ static void jazzio_writew(void *opaque, hwaddr addr, uint32_t val)
     }
 }
 
-static void jazzio_writeb(void *opaque, hwaddr addr, uint32_t val)
-{
-    uint32_t old_val = jazzio_readw(opaque, addr & ~0x1);
-
-    switch (addr & 1) {
-    case 0:
-        val = val | (old_val & 0xff00);
-        break;
-    case 1:
-        val = (val << 8) | (old_val & 0x00ff);
-        break;
-    }
-    jazzio_writew(opaque, addr & ~0x1, val);
-}
-
-static void jazzio_writel(void *opaque, hwaddr addr, uint32_t val)
-{
-    jazzio_writew(opaque, addr, val & 0xffff);
-    jazzio_writew(opaque, addr + 2, (val >> 16) & 0xffff);
-}
-
 static const MemoryRegionOps jazzio_ops = {
-    .old_mmio = {
-        .read = { jazzio_readb, jazzio_readw, jazzio_readl, },
-        .write = { jazzio_writeb, jazzio_writew, jazzio_writel, },
-    },
+    .read = jazzio_read,
+    .write = jazzio_write,
+    .impl.min_access_size = 2,
+    .impl.max_access_size = 2,
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
