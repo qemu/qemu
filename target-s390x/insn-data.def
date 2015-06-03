@@ -230,6 +230,8 @@
 /* COMPARE LOGICAL AND TRAP */
     D(0xb973, CLRT,    RRF_c, GIE, r1_32u, r2_32u, 0, 0, ct, 0, 1)
     D(0xb961, CLGRT,   RRF_c, GIE, r1_o, r2_o, 0, 0, ct, 0, 1)
+    D(0xeb23, CLT,     RSY_b, MIE, r1_32u, m2_32u, 0, 0, ct, 0, 1)
+    D(0xeb2b, CLGT,    RSY_b, MIE, r1_o, m2_64, 0, 0, ct, 0, 1)
     D(0xec73, CLFIT,   RIE_a, GIE, r1_32u, i2_32u, 0, 0, ct, 0, 1)
     D(0xec71, CLGIT,   RIE_a, GIE, r1_o, i2_32u, 0, 0, ct, 0, 1)
 
@@ -604,6 +606,7 @@
 
 /* ROTATE THEN INSERT SELECTED BITS */
     C(0xec55, RISBG,   RIE_f, GIE, 0, r2, r1, 0, risbg, s64)
+    C(0xec59, RISBGN,  RIE_f, MIE, 0, r2, r1, 0, risbg, 0)
     C(0xec5d, RISBHG,  RIE_f, HW,  0, r2, r1, 0, risbg, 0)
     C(0xec51, RISBLG,  RIE_f, HW,  0, r2, r1, 0, risbg, 0)
 /* ROTATE_THEN <OP> SELECTED BITS */

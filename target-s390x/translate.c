@@ -1119,6 +1119,7 @@ typedef enum DisasFacility {
     FAC_HFP_MA,             /* HFP multiply-and-add/subtract */
     FAC_HW,                 /* high-word */
     FAC_IEEEE_SIM,          /* IEEE exception sumilation */
+    FAC_MIE,                /* miscellaneous-instruction-extensions */
     FAC_LOC,                /* load/store on condition */
     FAC_LD,                 /* long displacement */
     FAC_PC,                 /* population count */
