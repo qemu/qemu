@@ -262,7 +262,7 @@ static HW *glue (audio_pcm_hw_add_new_, TYPE) (struct audsettings *as)
 #ifdef DAC
     QLIST_INIT (&hw->cap_head);
 #endif
-    if (glue (hw->pcm_ops->init_, TYPE) (hw, as)) {
+    if (glue (hw->pcm_ops->init_, TYPE) (hw, as, s->drv_opaque)) {
         goto err0;
     }
 

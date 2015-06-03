@@ -332,7 +332,8 @@ static void sdl_fini_out (HWVoiceOut *hw)
     sdl_close (&glob_sdl);
 }
 
-static int sdl_init_out (HWVoiceOut *hw, struct audsettings *as)
+static int sdl_init_out(HWVoiceOut *hw, struct audsettings *as,
+                        void *drv_opaque)
 {
     SDLVoiceOut *sdl = (SDLVoiceOut *) hw;
     SDLAudioState *s = &glob_sdl;

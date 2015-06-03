@@ -105,7 +105,8 @@ static void le_store (uint8_t *buf, uint32_t val, int len)
     }
 }
 
-static int wav_init_out (HWVoiceOut *hw, struct audsettings *as)
+static int wav_init_out(HWVoiceOut *hw, struct audsettings *as,
+                        void *drv_opaque)
 {
     WAVVoiceOut *wav = (WAVVoiceOut *) hw;
     int bits16 = 0, stereo = 0;
@@ -116,8 +117,6 @@ static int wav_init_out (HWVoiceOut *hw, struct audsettings *as)
         0x00, 0x10, 0x00, 0x64, 0x61, 0x74, 0x61, 0x00, 0x00, 0x00, 0x00
     };
     struct audsettings wav_as = conf.settings;
-
-    (void) as;
 
     stereo = wav_as.nchannels == 2;
     switch (wav_as.fmt) {

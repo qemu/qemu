@@ -807,7 +807,8 @@ static void alsa_fini_out (HWVoiceOut *hw)
     alsa->pcm_buf = NULL;
 }
 
-static int alsa_init_out (HWVoiceOut *hw, struct audsettings *as)
+static int alsa_init_out(HWVoiceOut *hw, struct audsettings *as,
+                         void *drv_opaque)
 {
     ALSAVoiceOut *alsa = (ALSAVoiceOut *) hw;
     struct alsa_params_req req;
@@ -916,7 +917,7 @@ static int alsa_ctl_out (HWVoiceOut *hw, int cmd, ...)
     return -1;
 }
 
-static int alsa_init_in (HWVoiceIn *hw, struct audsettings *as)
+static int alsa_init_in(HWVoiceIn *hw, struct audsettings *as, void *drv_opaque)
 {
     ALSAVoiceIn *alsa = (ALSAVoiceIn *) hw;
     struct alsa_params_req req;

@@ -534,7 +534,8 @@ fail:
     return NULL;
 }
 
-static int qpa_init_out (HWVoiceOut *hw, struct audsettings *as)
+static int qpa_init_out(HWVoiceOut *hw, struct audsettings *as,
+                        void *drv_opaque)
 {
     int error;
     static pa_sample_spec ss;
@@ -601,7 +602,7 @@ static int qpa_init_out (HWVoiceOut *hw, struct audsettings *as)
     return -1;
 }
 
-static int qpa_init_in (HWVoiceIn *hw, struct audsettings *as)
+static int qpa_init_in(HWVoiceIn *hw, struct audsettings *as, void *drv_opaque)
 {
     int error;
     static pa_sample_spec ss;
