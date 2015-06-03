@@ -183,7 +183,7 @@ static void dp8393x_update_irq(dp8393xState *s)
     qemu_set_irq(s->irq, level);
 }
 
-static void do_load_cam(dp8393xState *s)
+static void dp8393x_do_load_cam(dp8393xState *s)
 {
     uint16_t data[8];
     int width, size;
@@ -225,7 +225,7 @@ static void do_load_cam(dp8393xState *s)
     dp8393x_update_irq(s);
 }
 
-static void do_read_rra(dp8393xState *s)
+static void dp8393x_do_read_rra(dp8393xState *s)
 {
     uint16_t data[8];
     int width, size;
@@ -265,7 +265,7 @@ static void do_read_rra(dp8393xState *s)
     s->regs[SONIC_CR] &= ~SONIC_CR_RRRA;
 }
 
-static void do_software_reset(dp8393xState *s)
+static void dp8393x_do_software_reset(dp8393xState *s)
 {
     timer_del(s->watchdog);
 
@@ -273,7 +273,7 @@ static void do_software_reset(dp8393xState *s)
     s->regs[SONIC_CR] |= SONIC_CR_RST | SONIC_CR_RXDIS;
 }
 
-static void set_next_tick(dp8393xState *s)
+static void dp8393x_set_next_tick(dp8393xState *s)
 {
     uint32_t ticks;
     int64_t delay;
@@ -289,7 +289,7 @@ static void set_next_tick(dp8393xState *s)
     timer_mod(s->watchdog, s->wt_last_update + delay);
 }
 
-static void update_wt_regs(dp8393xState *s)
+static void dp8393x_update_wt_regs(dp8393xState *s)
 {
     int64_t elapsed;
     uint32_t val;
@@ -304,33 +304,33 @@ static void update_wt_regs(dp8393xState *s)
     val -= elapsed / 5000000;
     s->regs[SONIC_WT1] = (val >> 16) & 0xffff;
     s->regs[SONIC_WT0] = (val >> 0)  & 0xffff;
-    set_next_tick(s);
+    dp8393x_set_next_tick(s);
 
 }
 
-static void do_start_timer(dp8393xState *s)
+static void dp8393x_do_start_timer(dp8393xState *s)
 {
     s->regs[SONIC_CR] &= ~SONIC_CR_STP;
-    set_next_tick(s);
+    dp8393x_set_next_tick(s);
 }
 
-static void do_stop_timer(dp8393xState *s)
+static void dp8393x_do_stop_timer(dp8393xState *s)
 {
     s->regs[SONIC_CR] &= ~SONIC_CR_ST;
-    update_wt_regs(s);
+    dp8393x_update_wt_regs(s);
 }
 
-static void do_receiver_enable(dp8393xState *s)
+static void dp8393x_do_receiver_enable(dp8393xState *s)
 {
     s->regs[SONIC_CR] &= ~SONIC_CR_RXDIS;
 }
 
-static void do_receiver_disable(dp8393xState *s)
+static void dp8393x_do_receiver_disable(dp8393xState *s)
 {
     s->regs[SONIC_CR] &= ~SONIC_CR_RXEN;
 }
 
-static void do_transmit_packets(dp8393xState *s)
+static void dp8393x_do_transmit_packets(dp8393xState *s)
 {
     NetClientState *nc = qemu_get_queue(s->nic);
     uint16_t data[12];
@@ -439,12 +439,12 @@ static void do_transmit_packets(dp8393xState *s)
     dp8393x_update_irq(s);
 }
 
-static void do_halt_transmission(dp8393xState *s)
+static void dp8393x_do_halt_transmission(dp8393xState *s)
 {
     /* Nothing to do */
 }
 
-static void do_command(dp8393xState *s, uint16_t command)
+static void dp8393x_do_command(dp8393xState *s, uint16_t command)
 {
     if ((s->regs[SONIC_CR] & SONIC_CR_RST) && !(command & SONIC_CR_RST)) {
         s->regs[SONIC_CR] &= ~SONIC_CR_RST;
@@ -454,23 +454,23 @@ static void do_command(dp8393xState *s, uint16_t command)
     s->regs[SONIC_CR] |= (command & SONIC_CR_MASK);
 
     if (command & SONIC_CR_HTX)
-        do_halt_transmission(s);
+        dp8393x_do_halt_transmission(s);
     if (command & SONIC_CR_TXP)
-        do_transmit_packets(s);
+        dp8393x_do_transmit_packets(s);
     if (command & SONIC_CR_RXDIS)
-        do_receiver_disable(s);
+        dp8393x_do_receiver_disable(s);
     if (command & SONIC_CR_RXEN)
-        do_receiver_enable(s);
+        dp8393x_do_receiver_enable(s);
     if (command & SONIC_CR_STP)
-        do_stop_timer(s);
+        dp8393x_do_stop_timer(s);
     if (command & SONIC_CR_ST)
-        do_start_timer(s);
+        dp8393x_do_start_timer(s);
     if (command & SONIC_CR_RST)
-        do_software_reset(s);
+        dp8393x_do_software_reset(s);
     if (command & SONIC_CR_RRRA)
-        do_read_rra(s);
+        dp8393x_do_read_rra(s);
     if (command & SONIC_CR_LCAM)
-        do_load_cam(s);
+        dp8393x_do_load_cam(s);
 }
 
 static uint64_t dp8393x_read(void *opaque, hwaddr addr, unsigned int size)
@@ -483,7 +483,7 @@ static uint64_t dp8393x_read(void *opaque, hwaddr addr, unsigned int size)
         /* Update data before reading it */
         case SONIC_WT0:
         case SONIC_WT1:
-            update_wt_regs(s);
+            dp8393x_update_wt_regs(s);
             val = s->regs[reg];
             break;
         /* Accept read to some registers only when in reset mode */
@@ -516,7 +516,7 @@ static void dp8393x_write(void *opaque, hwaddr addr, uint64_t data,
     switch (reg) {
         /* Command register */
         case SONIC_CR:
-            do_command(s, data);
+            dp8393x_do_command(s, data);
             break;
         /* Prevent write to read-only registers */
         case SONIC_CAP2:
@@ -559,7 +559,7 @@ static void dp8393x_write(void *opaque, hwaddr addr, uint64_t data,
             data &= s->regs[reg];
             s->regs[reg] &= ~data;
             if (data & SONIC_ISR_RBE) {
-                do_read_rra(s);
+                dp8393x_do_read_rra(s);
             }
             dp8393x_update_irq(s);
             break;
@@ -582,7 +582,7 @@ static void dp8393x_write(void *opaque, hwaddr addr, uint64_t data,
     }
 
     if (reg == SONIC_WT0 || reg == SONIC_WT1) {
-        set_next_tick(s);
+        dp8393x_set_next_tick(s);
     }
 }
 
@@ -604,14 +604,14 @@ static void dp8393x_watchdog(void *opaque)
 
     s->regs[SONIC_WT1] = 0xffff;
     s->regs[SONIC_WT0] = 0xffff;
-    set_next_tick(s);
+    dp8393x_set_next_tick(s);
 
     /* Signal underflow */
     s->regs[SONIC_ISR] |= SONIC_ISR_TC;
     dp8393x_update_irq(s);
 }
 
-static int nic_can_receive(NetClientState *nc)
+static int dp8393x_can_receive(NetClientState *nc)
 {
     dp8393xState *s = qemu_get_nic_opaque(nc);
 
@@ -622,7 +622,8 @@ static int nic_can_receive(NetClientState *nc)
     return 1;
 }
 
-static int receive_filter(dp8393xState *s, const uint8_t * buf, int size)
+static int dp8393x_receive_filter(dp8393xState *s, const uint8_t * buf,
+                                  int size)
 {
     static const uint8_t bcast[] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
     int i;
@@ -660,7 +661,8 @@ static int receive_filter(dp8393xState *s, const uint8_t * buf, int size)
     return -1;
 }
 
-static ssize_t nic_receive(NetClientState *nc, const uint8_t * buf, size_t size)
+static ssize_t dp8393x_receive(NetClientState *nc, const uint8_t * buf,
+                               size_t size)
 {
     dp8393xState *s = qemu_get_nic_opaque(nc);
     uint16_t data[10];
@@ -674,7 +676,7 @@ static ssize_t nic_receive(NetClientState *nc, const uint8_t * buf, size_t size)
     s->regs[SONIC_RCR] &= ~(SONIC_RCR_PRX | SONIC_RCR_LBK | SONIC_RCR_FAER |
         SONIC_RCR_CRCR | SONIC_RCR_LPKT | SONIC_RCR_BC | SONIC_RCR_MC);
 
-    packet_type = receive_filter(s, buf, size);
+    packet_type = dp8393x_receive_filter(s, buf, size);
     if (packet_type < 0) {
         DPRINTF("packet not for netcard\n");
         return -1;
@@ -762,7 +764,7 @@ static ssize_t nic_receive(NetClientState *nc, const uint8_t * buf, size_t size)
 
         if (s->regs[SONIC_RCR] & SONIC_RCR_LPKT) {
             /* Read next RRA */
-            do_read_rra(s);
+            dp8393x_do_read_rra(s);
         }
     }
 
@@ -772,7 +774,7 @@ static ssize_t nic_receive(NetClientState *nc, const uint8_t * buf, size_t size)
     return size;
 }
 
-static void nic_reset(void *opaque)
+static void dp8393x_reset(void *opaque)
 {
     dp8393xState *s = opaque;
     timer_del(s->watchdog);
@@ -799,8 +801,8 @@ static void nic_reset(void *opaque)
 static NetClientInfo net_dp83932_info = {
     .type = NET_CLIENT_OPTIONS_KIND_NIC,
     .size = sizeof(NICState),
-    .can_receive = nic_can_receive,
-    .receive = nic_receive,
+    .can_receive = dp8393x_can_receive,
+    .receive = dp8393x_receive,
 };
 
 void dp83932_init(NICInfo *nd, hwaddr base, int it_shift,
@@ -826,8 +828,8 @@ void dp83932_init(NICInfo *nd, hwaddr base, int it_shift,
     s->nic = qemu_new_nic(&net_dp83932_info, &s->conf, nd->model, nd->name, s);
 
     qemu_format_nic_info_str(qemu_get_queue(s->nic), s->conf.macaddr.a);
-    qemu_register_reset(nic_reset, s);
-    nic_reset(s);
+    qemu_register_reset(dp8393x_reset, s);
+    dp8393x_reset(s);
 
     memory_region_init_io(&s->mmio, NULL, &dp8393x_ops, s,
                           "dp8393x", 0x40 << it_shift);
