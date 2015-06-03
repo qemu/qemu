@@ -1,7 +1,7 @@
 /*
  * QEMU JAZZ RC4030 chipset
  *
- * Copyright (c) 2007-2009 Herve Poussineau
+ * Copyright (c) 2007-2013 Hervé Poussineau
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -24,6 +24,7 @@
 
 #include "hw/hw.h"
 #include "hw/mips/mips.h"
+#include "hw/sysbus.h"
 #include "qemu/timer.h"
 #include "exec/address-spaces.h"
 #include "trace.h"
@@ -49,8 +50,14 @@ typedef struct dma_pagetable_entry {
 #define DMA_FLAG_MEM_INTR   0x0200
 #define DMA_FLAG_ADDR_INTR  0x0400
 
+#define TYPE_RC4030 "rc4030"
+#define RC4030(obj) \
+    OBJECT_CHECK(rc4030State, (obj), TYPE_RC4030)
+
 typedef struct rc4030State
 {
+    SysBusDevice parent;
+
     uint32_t config; /* 0x0000: RC4030 config register */
     uint32_t revision; /* 0x0008: RC4030 Revision register */
     uint32_t invalid_address_register; /* 0x0010: Invalid Address register */
@@ -317,7 +324,7 @@ static void rc4030_dma_tt_update(rc4030State *s, uint32_t new_tl_base,
         } else {
             dma_tt_size = memory_region_size(&s->dma_tt);
         }
-        memory_region_init_alias(&s->dma_tt_alias, NULL,
+        memory_region_init_alias(&s->dma_tt_alias, OBJECT(s),
                                  "dma-table-alias",
                                  &s->dma_tt, 0, dma_tt_size);
         dma_tl_contents = memory_region_get_ram_ptr(&s->dma_tt);
@@ -332,7 +339,7 @@ static void rc4030_dma_tt_update(rc4030State *s, uint32_t new_tl_base,
                                     &s->dma_tt_alias);
         memory_region_transaction_commit();
     } else {
-        memory_region_init(&s->dma_tt_alias, NULL,
+        memory_region_init(&s->dma_tt_alias, OBJECT(s),
                            "dma-table-alias", 0);
     }
 }
@@ -577,9 +584,9 @@ static const MemoryRegionOps jazzio_ops = {
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
-static void rc4030_reset(void *opaque)
+static void rc4030_reset(DeviceState *dev)
 {
-    rc4030State *s = opaque;
+    rc4030State *s = RC4030(dev);
     int i;
 
     s->config = 0x410; /* some boards seem to accept 0x104 too */
@@ -733,46 +740,102 @@ static rc4030_dma *rc4030_allocate_dmas(void *opaque, int n)
     return s;
 }
 
-MemoryRegion *rc4030_init(qemu_irq timer, qemu_irq jazz_bus,
-                          qemu_irq **irqs, rc4030_dma **dmas,
-                          MemoryRegion *sysmem)
+static void rc4030_initfn(Object *obj)
 {
-    rc4030State *s;
+    DeviceState *dev = DEVICE(obj);
+    rc4030State *s = RC4030(obj);
+    SysBusDevice *sysbus = SYS_BUS_DEVICE(obj);
+
+    qdev_init_gpio_in(dev, rc4030_irq_jazz_request, 16);
+
+    sysbus_init_irq(sysbus, &s->timer_irq);
+    sysbus_init_irq(sysbus, &s->jazz_bus_irq);
+
+    register_savevm(NULL, "rc4030", 0, 2, rc4030_save, rc4030_load, s);
+
+    sysbus_init_mmio(sysbus, &s->iomem_chipset);
+    sysbus_init_mmio(sysbus, &s->iomem_jazzio);
+}
+
+static void rc4030_realize(DeviceState *dev, Error **errp)
+{
+    rc4030State *s = RC4030(dev);
+    Object *o = OBJECT(dev);
     int i;
 
-    s = g_malloc0(sizeof(rc4030State));
-
-    *irqs = qemu_allocate_irqs(rc4030_irq_jazz_request, s, 16);
-    *dmas = rc4030_allocate_dmas(s, 4);
-
-    s->periodic_timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, rc4030_periodic_timer, s);
-    s->timer_irq = timer;
-    s->jazz_bus_irq = jazz_bus;
-
-    qemu_register_reset(rc4030_reset, s);
-    register_savevm(NULL, "rc4030", 0, 2, rc4030_save, rc4030_load, s);
-    rc4030_reset(s);
+    s->periodic_timer = timer_new_ns(QEMU_CLOCK_VIRTUAL,
+                                     rc4030_periodic_timer, s);
 
     memory_region_init_io(&s->iomem_chipset, NULL, &rc4030_ops, s,
                           "rc4030.chipset", 0x300);
-    memory_region_add_subregion(sysmem, 0x80000000, &s->iomem_chipset);
     memory_region_init_io(&s->iomem_jazzio, NULL, &jazzio_ops, s,
                           "rc4030.jazzio", 0x00001000);
-    memory_region_add_subregion(sysmem, 0xf0000000, &s->iomem_jazzio);
 
-    memory_region_init_rom_device(&s->dma_tt, NULL,
+    memory_region_init_rom_device(&s->dma_tt, o,
                                   &rc4030_dma_tt_ops, s, "dma-table",
                                   MAX_TL_ENTRIES * sizeof(dma_pagetable_entry),
                                   NULL);
-    memory_region_init(&s->dma_tt_alias, NULL, "dma-table-alias", 0);
-    memory_region_init(&s->dma_mr, NULL, "dma", INT32_MAX);
+    memory_region_init(&s->dma_tt_alias, o, "dma-table-alias", 0);
+    memory_region_init(&s->dma_mr, o, "dma", INT32_MAX);
     for (i = 0; i < MAX_TL_ENTRIES; ++i) {
-        memory_region_init_alias(&s->dma_mrs[i], NULL, "dma-alias",
+        memory_region_init_alias(&s->dma_mrs[i], o, "dma-alias",
                                  get_system_memory(), 0, DMA_PAGESIZE);
         memory_region_set_enabled(&s->dma_mrs[i], false);
         memory_region_add_subregion(&s->dma_mr, i * DMA_PAGESIZE,
                                     &s->dma_mrs[i]);
     }
     address_space_init(&s->dma_as, &s->dma_mr, "rc4030-dma");
-    return &s->dma_mr;
+}
+
+static void rc4030_unrealize(DeviceState *dev, Error **errp)
+{
+    rc4030State *s = RC4030(dev);
+    int i;
+
+    timer_free(s->periodic_timer);
+
+    address_space_destroy(&s->dma_as);
+    object_unparent(OBJECT(&s->dma_tt));
+    object_unparent(OBJECT(&s->dma_tt_alias));
+    object_unparent(OBJECT(&s->dma_mr));
+    for (i = 0; i < MAX_TL_ENTRIES; ++i) {
+        memory_region_del_subregion(&s->dma_mr, &s->dma_mrs[i]);
+        object_unparent(OBJECT(&s->dma_mrs[i]));
+    }
+}
+
+static void rc4030_class_init(ObjectClass *klass, void *class_data)
+{
+    DeviceClass *dc = DEVICE_CLASS(klass);
+
+    dc->realize = rc4030_realize;
+    dc->unrealize = rc4030_unrealize;
+    dc->reset = rc4030_reset;
+}
+
+static const TypeInfo rc4030_info = {
+    .name = TYPE_RC4030,
+    .parent = TYPE_SYS_BUS_DEVICE,
+    .instance_size = sizeof(rc4030State),
+    .instance_init = rc4030_initfn,
+    .class_init = rc4030_class_init,
+};
+
+static void rc4030_register_types(void)
+{
+    type_register_static(&rc4030_info);
+}
+
+type_init(rc4030_register_types)
+
+DeviceState *rc4030_init(rc4030_dma **dmas, MemoryRegion **dma_mr)
+{
+    DeviceState *dev;
+
+    dev = qdev_create(NULL, TYPE_RC4030);
+    qdev_init_nofail(dev);
+
+    *dmas = rc4030_allocate_dmas(dev, 4);
+    *dma_mr = &RC4030(dev)->dma_mr;
+    return dev;
 }

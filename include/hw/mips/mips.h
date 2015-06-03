@@ -18,9 +18,7 @@ typedef struct rc4030DMAState *rc4030_dma;
 void rc4030_dma_read(void *dma, uint8_t *buf, int len);
 void rc4030_dma_write(void *dma, uint8_t *buf, int len);
 
-MemoryRegion *rc4030_init(qemu_irq timer, qemu_irq jazz_bus,
-                          qemu_irq **irqs, rc4030_dma **dmas,
-                          MemoryRegion *sysmem);
+DeviceState *rc4030_init(rc4030_dma **dmas, MemoryRegion **dma_mr);
 
 /* dp8393x.c */
 void dp83932_init(NICInfo *nd, hwaddr base, int it_shift,

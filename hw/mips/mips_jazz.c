@@ -135,7 +135,7 @@ static void mips_jazz_init(MachineState *machine,
     MIPSCPU *cpu;
     CPUClass *cc;
     CPUMIPSState *env;
-    qemu_irq *rc4030, *i8259;
+    qemu_irq *i8259;
     rc4030_dma *dmas;
     MemoryRegion *rc4030_dma_mr;
     MemoryRegion *isa_mem = g_new(MemoryRegion, 1);
@@ -144,7 +144,7 @@ static void mips_jazz_init(MachineState *machine,
     MemoryRegion *i8042 = g_new(MemoryRegion, 1);
     MemoryRegion *dma_dummy = g_new(MemoryRegion, 1);
     NICInfo *nd;
-    DeviceState *dev;
+    DeviceState *dev, *rc4030;
     SysBusDevice *sysbus;
     ISABus *isa_bus;
     ISADevice *pit;
@@ -213,8 +213,14 @@ static void mips_jazz_init(MachineState *machine,
     cpu_mips_clock_init(env);
 
     /* Chipset */
-    rc4030_dma_mr = rc4030_init(env->irq[6], env->irq[3], &rc4030, &dmas,
-                                address_space);
+    rc4030 = rc4030_init(&dmas, &rc4030_dma_mr);
+    sysbus = SYS_BUS_DEVICE(rc4030);
+    sysbus_connect_irq(sysbus, 0, env->irq[6]);
+    sysbus_connect_irq(sysbus, 1, env->irq[3]);
+    memory_region_add_subregion(address_space, 0x80000000,
+                                sysbus_mmio_get_region(sysbus, 0));
+    memory_region_add_subregion(address_space, 0xf0000000,
+                                sysbus_mmio_get_region(sysbus, 1));
     memory_region_init_io(dma_dummy, NULL, &dma_dummy_ops, NULL, "dummy_dma", 0x1000);
     memory_region_add_subregion(address_space, 0x8000d000, dma_dummy);
 
@@ -241,7 +247,7 @@ static void mips_jazz_init(MachineState *machine,
         sysbus = SYS_BUS_DEVICE(dev);
         sysbus_mmio_map(sysbus, 0, 0x60080000);
         sysbus_mmio_map(sysbus, 1, 0x40000000);
-        sysbus_connect_irq(sysbus, 0, rc4030[3]);
+        sysbus_connect_irq(sysbus, 0, qdev_get_gpio_in(rc4030, 3));
         {
             /* Simple ROM, so user doesn't have to provide one */
             MemoryRegion *rom_mr = g_new(MemoryRegion, 1);
@@ -267,8 +273,8 @@ static void mips_jazz_init(MachineState *machine,
         if (!nd->model)
             nd->model = g_strdup("dp83932");
         if (strcmp(nd->model, "dp83932") == 0) {
-            dp83932_init(nd, 0x80001000, 2, get_system_memory(), rc4030[4],
-                         rc4030_dma_mr);
+            dp83932_init(nd, 0x80001000, 2, get_system_memory(),
+                         qdev_get_gpio_in(rc4030, 4), rc4030_dma_mr);
             break;
         } else if (is_help_option(nd->model)) {
             fprintf(stderr, "qemu: Supported NICs: dp83932\n");
@@ -282,7 +288,7 @@ static void mips_jazz_init(MachineState *machine,
     /* SCSI adapter */
     esp_init(0x80002000, 0,
              rc4030_dma_read, rc4030_dma_write, dmas[0],
-             rc4030[5], &esp_reset, &dma_enable);
+             qdev_get_gpio_in(rc4030, 5), &esp_reset, &dma_enable);
 
     /* Floppy */
     if (drive_get_max_bus(IF_FLOPPY) >= MAX_FD) {
@@ -292,7 +298,7 @@ static void mips_jazz_init(MachineState *machine,
     for (n = 0; n < MAX_FD; n++) {
         fds[n] = drive_get(IF_FLOPPY, 0, n);
     }
-    fdctrl_init_sysbus(rc4030[1], 0, 0x80003000, fds);
+    fdctrl_init_sysbus(qdev_get_gpio_in(rc4030, 1), 0, 0x80003000, fds);
 
     /* Real time clock */
     rtc_init(isa_bus, 1980, NULL);
@@ -300,23 +306,26 @@ static void mips_jazz_init(MachineState *machine,
     memory_region_add_subregion(address_space, 0x80004000, rtc);
 
     /* Keyboard (i8042) */
-    i8042_mm_init(rc4030[6], rc4030[7], i8042, 0x1000, 0x1);
+    i8042_mm_init(qdev_get_gpio_in(rc4030, 6), qdev_get_gpio_in(rc4030, 7),
+                  i8042, 0x1000, 0x1);
     memory_region_add_subregion(address_space, 0x80005000, i8042);
 
     /* Serial ports */
     if (serial_hds[0]) {
-        serial_mm_init(address_space, 0x80006000, 0, rc4030[8], 8000000/16,
+        serial_mm_init(address_space, 0x80006000, 0,
+                       qdev_get_gpio_in(rc4030, 8), 8000000/16,
                        serial_hds[0], DEVICE_NATIVE_ENDIAN);
     }
     if (serial_hds[1]) {
-        serial_mm_init(address_space, 0x80007000, 0, rc4030[9], 8000000/16,
+        serial_mm_init(address_space, 0x80007000, 0,
+                       qdev_get_gpio_in(rc4030, 9), 8000000/16,
                        serial_hds[1], DEVICE_NATIVE_ENDIAN);
     }
 
     /* Parallel port */
     if (parallel_hds[0])
-        parallel_mm_init(address_space, 0x80008000, 0, rc4030[0],
-                         parallel_hds[0]);
+        parallel_mm_init(address_space, 0x80008000, 0,
+                         qdev_get_gpio_in(rc4030, 0), parallel_hds[0]);
 
     /* FIXME: missing Jazz sound at 0x8000c000, rc4030[2] */
 
