@@ -2116,6 +2116,31 @@ static ExitStatus op_ex(DisasContext *s, DisasOps *o)
     return NO_EXIT;
 }
 
+static ExitStatus op_fieb(DisasContext *s, DisasOps *o)
+{
+    TCGv_i32 m3 = tcg_const_i32(get_field(s->fields, m3));
+    gen_helper_fieb(o->out, cpu_env, o->in2, m3);
+    tcg_temp_free_i32(m3);
+    return NO_EXIT;
+}
+
+static ExitStatus op_fidb(DisasContext *s, DisasOps *o)
+{
+    TCGv_i32 m3 = tcg_const_i32(get_field(s->fields, m3));
+    gen_helper_fidb(o->out, cpu_env, o->in2, m3);
+    tcg_temp_free_i32(m3);
+    return NO_EXIT;
+}
+
+static ExitStatus op_fixb(DisasContext *s, DisasOps *o)
+{
+    TCGv_i32 m3 = tcg_const_i32(get_field(s->fields, m3));
+    gen_helper_fixb(o->out, cpu_env, o->in1, o->in2, m3);
+    return_low128(o->out2);
+    tcg_temp_free_i32(m3);
+    return NO_EXIT;
+}
+
 static ExitStatus op_flogr(DisasContext *s, DisasOps *o)
 {
     /* We'll use the original input for cc computation, since we get to
