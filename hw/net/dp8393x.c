@@ -786,6 +786,7 @@ static void dp8393x_reset(DeviceState *dev)
     dp8393xState *s = DP8393X(dev);
     timer_del(s->watchdog);
 
+    memset(s->regs, 0, sizeof(s->regs));
     s->regs[SONIC_CR] = SONIC_CR_RST | SONIC_CR_STP | SONIC_CR_RXDIS;
     s->regs[SONIC_DCR] &= ~(SONIC_DCR_EXBUS | SONIC_DCR_LBR);
     s->regs[SONIC_RCR] &= ~(SONIC_RCR_LB0 | SONIC_RCR_LB1 | SONIC_RCR_BRD | SONIC_RCR_RNT);
