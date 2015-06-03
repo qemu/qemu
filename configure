@@ -285,8 +285,6 @@ sysconfdir="\${prefix}/etc"
 local_statedir="\${prefix}/var"
 confsuffix="/qemu"
 slirp="yes"
-fmod_lib=""
-fmod_inc=""
 oss_lib=""
 bsd="no"
 linux="no"
@@ -569,7 +567,7 @@ CYGWIN*)
 ;;
 MINGW32*)
   mingw32="yes"
-  audio_possible_drivers="winwave dsound sdl fmod"
+  audio_possible_drivers="winwave dsound sdl"
   audio_drv_list="winwave"
 ;;
 GNU/kFreeBSD)
@@ -619,7 +617,7 @@ Darwin)
   fi
   cocoa="yes"
   audio_drv_list="coreaudio"
-  audio_possible_drivers="coreaudio sdl fmod"
+  audio_possible_drivers="coreaudio sdl"
   LDFLAGS="-framework CoreFoundation -framework IOKit $LDFLAGS"
   libs_softmmu="-F/System/Library/Frameworks -framework Cocoa -framework IOKit $libs_softmmu"
   # Disable attempts to use ObjectiveC features in os/object.h since they
@@ -680,9 +678,6 @@ Haiku)
   kvm="yes"
   vhost_net="yes"
   vhost_scsi="yes"
-  if [ "$cpu" = "i386" -o "$cpu" = "x86_64" -o "$cpu" = "x32" ] ; then
-    audio_possible_drivers="$audio_possible_drivers fmod"
-  fi
   QEMU_INCLUDES="-I\$(SRC_PATH)/linux-headers -I$(pwd)/linux-headers $QEMU_INCLUDES"
 ;;
 esac
@@ -846,10 +841,6 @@ for opt do
   --disable-vnc) vnc="no"
   ;;
   --enable-vnc) vnc="yes"
-  ;;
-  --fmod-lib=*) fmod_lib="$optarg"
-  ;;
-  --fmod-inc=*) fmod_inc="$optarg"
   ;;
   --oss-lib=*) oss_lib="$optarg"
   ;;
@@ -1349,8 +1340,6 @@ Advanced options (experts only):
   --disable-guest-base     disable GUEST_BASE support
   --enable-pie             build Position Independent Executables
   --disable-pie            do not build Position Independent Executables
-  --fmod-lib               path to FMOD library
-  --fmod-inc               path to FMOD includes
   --oss-lib                path to OSS library
   --cpu=CPU                Build for host CPU [$cpu]
   --disable-uuid           disable uuid support
@@ -2619,15 +2608,6 @@ for drv in $audio_drv_list; do
     audio_drv_probe $drv alsa/asoundlib.h -lasound \
         "return snd_pcm_close((snd_pcm_t *)0);"
     libs_softmmu="-lasound $libs_softmmu"
-    ;;
-
-    fmod)
-    if test -z $fmod_lib || test -z $fmod_inc; then
-        error_exit "You must specify path to FMOD library and headers" \
-            "Example: --fmod-inc=/path/include/fmod --fmod-lib=/path/lib/libfmod-3.74.so"
-    fi
-    audio_drv_probe $drv fmod.h $fmod_lib "return FSOUND_GetVersion();" "-I $fmod_inc"
-    libs_softmmu="$fmod_lib $libs_softmmu"
     ;;
 
     pa)
@@ -4623,9 +4603,6 @@ echo "CONFIG_AUDIO_DRIVERS=$audio_drv_list" >> $config_host_mak
 for drv in $audio_drv_list; do
     def=CONFIG_`echo $drv | LC_ALL=C tr '[a-z]' '[A-Z]'`
     echo "$def=y" >> $config_host_mak
-    if test "$drv" = "fmod"; then
-        echo "FMOD_CFLAGS=-I$fmod_inc" >> $config_host_mak
-    fi
 done
 if test "$audio_pt_int" = "yes" ; then
   echo "CONFIG_AUDIO_PT_INT=y" >> $config_host_mak
