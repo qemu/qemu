@@ -686,7 +686,7 @@ Notes:
 
 (1) QEMU must be started with -incoming defer to allow migrate-incoming to
     be used
-(2) The uri format is the same as to -incoming
+(2) The uri format is the same as for -incoming
 
 EQMP
     {
