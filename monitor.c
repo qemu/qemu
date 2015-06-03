@@ -81,9 +81,6 @@
 #endif
 #include "hw/lm32/lm32_pic.h"
 
-//#define DEBUG
-//#define DEBUG_COMPLETION
-
 /*
  * Supported types:
  *
@@ -3661,10 +3658,6 @@ static const mon_cmd_t *monitor_parse_command(Monitor *mon,
     char buf[1024];
     char *key;
 
-#ifdef DEBUG
-    monitor_printf(mon, "command='%s', start='%d'\n", cmdline, start);
-#endif
-
     /* extract the command name */
     p = get_command_name(cmdline + start, cmdname, sizeof(cmdname));
     if (!p)
@@ -4115,10 +4108,7 @@ static void file_completion(Monitor *mon, const char *input)
         path[input_path_len] = '\0';
         pstrcpy(file_prefix, sizeof(file_prefix), p + 1);
     }
-#ifdef DEBUG_COMPLETION
-    monitor_printf(mon, "input='%s' path='%s' prefix='%s'\n",
-                   input, path, file_prefix);
-#endif
+
     ffs = opendir(path);
     if (!ffs)
         return;
@@ -4696,14 +4686,6 @@ static void monitor_find_completion(void *opaque,
     if (parse_cmdline(cmdline, &nb_args, args) < 0) {
         return;
     }
-#ifdef DEBUG_COMPLETION
-    {
-        int i;
-        for (i = 0; i < nb_args; i++) {
-            monitor_printf(mon, "arg%d = '%s'\n", i, args[i]);
-        }
-    }
-#endif
 
     /* if the line ends with a space, it means we want to complete the
        next arg */
