@@ -320,7 +320,7 @@ static void gen_program_exception(DisasContext *s, int code)
 
 static inline void gen_illegal_opcode(DisasContext *s)
 {
-    gen_program_exception(s, PGM_SPECIFICATION);
+    gen_program_exception(s, PGM_OPERATION);
 }
 
 #ifndef CONFIG_USER_ONLY
