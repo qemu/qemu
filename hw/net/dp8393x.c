@@ -21,16 +21,10 @@
 #include "qemu/timer.h"
 #include "net/net.h"
 #include "hw/mips/mips.h"
+#include <zlib.h>
 
 //#define DEBUG_SONIC
 
-/* Calculate CRCs properly on Rx packets */
-#define SONIC_CALCULATE_RXCRC
-
-#if defined(SONIC_CALCULATE_RXCRC)
-/* For crc32 */
-#include <zlib.h>
-#endif
 
 #ifdef DEBUG_SONIC
 #define DPRINTF(fmt, ...) \
@@ -764,11 +758,7 @@ static ssize_t nic_receive(NetClientState *nc, const uint8_t * buf, size_t size)
     s->regs[SONIC_TRBA0] = s->regs[SONIC_CRBA0];
 
     /* Calculate the ethernet checksum */
-#ifdef SONIC_CALCULATE_RXCRC
     checksum = cpu_to_le32(crc32(0, buf, rx_len));
-#else
-    checksum = 0;
-#endif
 
     /* Put packet into RBA */
     DPRINTF("Receive packet at %08x\n", (s->regs[SONIC_CRBA1] << 16) | s->regs[SONIC_CRBA0]);
