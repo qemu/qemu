@@ -168,8 +168,7 @@ typedef struct dp8393xState {
     int loopback_packet;
 
     /* Memory access */
-    void (*memory_rw)(void *opaque, hwaddr addr, uint8_t *buf, int len, int is_write);
-    void* mem_opaque;
+    AddressSpace as;
 } dp8393xState;
 
 static void dp8393x_update_irq(dp8393xState *s)
@@ -201,9 +200,9 @@ static void do_load_cam(dp8393xState *s)
 
     while (s->regs[SONIC_CDC] & 0x1f) {
         /* Fill current entry */
-        s->memory_rw(s->mem_opaque,
+        address_space_rw(&s->as,
             (s->regs[SONIC_URRA] << 16) | s->regs[SONIC_CDP],
-            (uint8_t *)data, size, 0);
+            MEMTXATTRS_UNSPECIFIED, (uint8_t *)data, size, 0);
         s->cam[index][0] = data[1 * width] & 0xff;
         s->cam[index][1] = data[1 * width] >> 8;
         s->cam[index][2] = data[2 * width] & 0xff;
@@ -220,9 +219,9 @@ static void do_load_cam(dp8393xState *s)
     }
 
     /* Read CAM enable */
-    s->memory_rw(s->mem_opaque,
+    address_space_rw(&s->as,
         (s->regs[SONIC_URRA] << 16) | s->regs[SONIC_CDP],
-        (uint8_t *)data, size, 0);
+        MEMTXATTRS_UNSPECIFIED, (uint8_t *)data, size, 0);
     s->regs[SONIC_CE] = data[0 * width];
     DPRINTF("load cam done. cam enable mask 0x%04x\n", s->regs[SONIC_CE]);
 
@@ -240,9 +239,9 @@ static void do_read_rra(dp8393xState *s)
     /* Read memory */
     width = (s->regs[SONIC_DCR] & SONIC_DCR_DW) ? 2 : 1;
     size = sizeof(uint16_t) * 4 * width;
-    s->memory_rw(s->mem_opaque,
+    address_space_rw(&s->as,
         (s->regs[SONIC_URRA] << 16) | s->regs[SONIC_RRP],
-        (uint8_t *)data, size, 0);
+        MEMTXATTRS_UNSPECIFIED, (uint8_t *)data, size, 0);
 
     /* Update SONIC registers */
     s->regs[SONIC_CRBA0] = data[0 * width];
@@ -353,9 +352,9 @@ static void do_transmit_packets(dp8393xState *s)
                 (s->regs[SONIC_UTDA] << 16) | s->regs[SONIC_CTDA]);
         size = sizeof(uint16_t) * 6 * width;
         s->regs[SONIC_TTDA] = s->regs[SONIC_CTDA];
-        s->memory_rw(s->mem_opaque,
+        address_space_rw(&s->as,
             ((s->regs[SONIC_UTDA] << 16) | s->regs[SONIC_TTDA]) + sizeof(uint16_t) * width,
-            (uint8_t *)data, size, 0);
+            MEMTXATTRS_UNSPECIFIED, (uint8_t *)data, size, 0);
         tx_len = 0;
 
         /* Update registers */
@@ -379,18 +378,18 @@ static void do_transmit_packets(dp8393xState *s)
             if (tx_len + len > sizeof(s->tx_buffer)) {
                 len = sizeof(s->tx_buffer) - tx_len;
             }
-            s->memory_rw(s->mem_opaque,
+            address_space_rw(&s->as,
                 (s->regs[SONIC_TSA1] << 16) | s->regs[SONIC_TSA0],
-                &s->tx_buffer[tx_len], len, 0);
+                MEMTXATTRS_UNSPECIFIED, &s->tx_buffer[tx_len], len, 0);
             tx_len += len;
 
             i++;
             if (i != s->regs[SONIC_TFC]) {
                 /* Read next fragment details */
                 size = sizeof(uint16_t) * 3 * width;
-                s->memory_rw(s->mem_opaque,
+                address_space_rw(&s->as,
                     ((s->regs[SONIC_UTDA] << 16) | s->regs[SONIC_TTDA]) + sizeof(uint16_t) * (4 + 3 * i) * width,
-                    (uint8_t *)data, size, 0);
+                    MEMTXATTRS_UNSPECIFIED, (uint8_t *)data, size, 0);
                 s->regs[SONIC_TSA0] = data[0 * width];
                 s->regs[SONIC_TSA1] = data[1 * width];
                 s->regs[SONIC_TFS] = data[2 * width];
@@ -422,16 +421,16 @@ static void do_transmit_packets(dp8393xState *s)
         /* Write status */
         data[0 * width] = s->regs[SONIC_TCR] & 0x0fff; /* status */
         size = sizeof(uint16_t) * width;
-        s->memory_rw(s->mem_opaque,
+        address_space_rw(&s->as,
             (s->regs[SONIC_UTDA] << 16) | s->regs[SONIC_TTDA],
-            (uint8_t *)data, size, 1);
+            MEMTXATTRS_UNSPECIFIED, (uint8_t *)data, size, 1);
 
         if (!(s->regs[SONIC_CR] & SONIC_CR_HTX)) {
             /* Read footer of packet */
             size = sizeof(uint16_t) * width;
-            s->memory_rw(s->mem_opaque,
+            address_space_rw(&s->as,
                 ((s->regs[SONIC_UTDA] << 16) | s->regs[SONIC_TTDA]) + sizeof(uint16_t) * (4 + 3 * s->regs[SONIC_TFC]) * width,
-                (uint8_t *)data, size, 0);
+                MEMTXATTRS_UNSPECIFIED, (uint8_t *)data, size, 0);
             s->regs[SONIC_CTDA] = data[0 * width] & ~0x1;
             if (data[0 * width] & 0x1) {
                 /* EOL detected */
@@ -750,7 +749,8 @@ static ssize_t nic_receive(NetClientState *nc, const uint8_t * buf, size_t size)
         /* Are we still in resource exhaustion? */
         size = sizeof(uint16_t) * 1 * width;
         address = ((s->regs[SONIC_URDA] << 16) | s->regs[SONIC_CRDA]) + sizeof(uint16_t) * 5 * width;
-        s->memory_rw(s->mem_opaque, address, (uint8_t*)data, size, 0);
+        address_space_rw(&s->as, address, MEMTXATTRS_UNSPECIFIED,
+                         (uint8_t *)data, size, 0);
         if (data[0 * width] & 0x1) {
             /* Still EOL ; stop reception */
             return -1;
@@ -773,9 +773,11 @@ static ssize_t nic_receive(NetClientState *nc, const uint8_t * buf, size_t size)
     /* Put packet into RBA */
     DPRINTF("Receive packet at %08x\n", (s->regs[SONIC_CRBA1] << 16) | s->regs[SONIC_CRBA0]);
     address = (s->regs[SONIC_CRBA1] << 16) | s->regs[SONIC_CRBA0];
-    s->memory_rw(s->mem_opaque, address, (uint8_t*)buf, rx_len, 1);
+    address_space_rw(&s->as, address,
+        MEMTXATTRS_UNSPECIFIED, (uint8_t *)buf, rx_len, 1);
     address += rx_len;
-    s->memory_rw(s->mem_opaque, address, (uint8_t*)&checksum, 4, 1);
+    address_space_rw(&s->as, address,
+        MEMTXATTRS_UNSPECIFIED, (uint8_t *)&checksum, 4, 1);
     rx_len += 4;
     s->regs[SONIC_CRBA1] = address >> 16;
     s->regs[SONIC_CRBA0] = address & 0xffff;
@@ -803,22 +805,23 @@ static ssize_t nic_receive(NetClientState *nc, const uint8_t * buf, size_t size)
     data[3 * width] = s->regs[SONIC_TRBA1]; /* pkt_ptr1 */
     data[4 * width] = s->regs[SONIC_RSC]; /* seq_no */
     size = sizeof(uint16_t) * 5 * width;
-    s->memory_rw(s->mem_opaque, (s->regs[SONIC_URDA] << 16) | s->regs[SONIC_CRDA], (uint8_t *)data, size, 1);
+    address_space_rw(&s->as, (s->regs[SONIC_URDA] << 16) | s->regs[SONIC_CRDA],
+        MEMTXATTRS_UNSPECIFIED, (uint8_t *)data, size, 1);
 
     /* Move to next descriptor */
     size = sizeof(uint16_t) * width;
-    s->memory_rw(s->mem_opaque,
+    address_space_rw(&s->as,
         ((s->regs[SONIC_URDA] << 16) | s->regs[SONIC_CRDA]) + sizeof(uint16_t) * 5 * width,
-        (uint8_t *)data, size, 0);
+        MEMTXATTRS_UNSPECIFIED, (uint8_t *)data, size, 0);
     s->regs[SONIC_LLFA] = data[0 * width];
     if (s->regs[SONIC_LLFA] & 0x1) {
         /* EOL detected */
         s->regs[SONIC_ISR] |= SONIC_ISR_RDE;
     } else {
         data[0 * width] = 0; /* in_use */
-        s->memory_rw(s->mem_opaque,
+        address_space_rw(&s->as,
             ((s->regs[SONIC_URDA] << 16) | s->regs[SONIC_CRDA]) + sizeof(uint16_t) * 6 * width,
-            (uint8_t *)data, size, 1);
+            MEMTXATTRS_UNSPECIFIED, (uint8_t *)data, size, 1);
         s->regs[SONIC_CRDA] = s->regs[SONIC_LLFA];
         s->regs[SONIC_ISR] |= SONIC_ISR_PKTRX;
         s->regs[SONIC_RSC] = (s->regs[SONIC_RSC] & 0xff00) | (((s->regs[SONIC_RSC] & 0x00ff) + 1) & 0x00ff);
@@ -868,8 +871,7 @@ static NetClientInfo net_dp83932_info = {
 
 void dp83932_init(NICInfo *nd, hwaddr base, int it_shift,
                   MemoryRegion *address_space,
-                  qemu_irq irq, void* mem_opaque,
-                  void (*memory_rw)(void *opaque, hwaddr addr, uint8_t *buf, int len, int is_write))
+                  qemu_irq irq, MemoryRegion *dma_mr)
 {
     dp8393xState *s;
 
@@ -878,8 +880,7 @@ void dp83932_init(NICInfo *nd, hwaddr base, int it_shift,
     s = g_malloc0(sizeof(dp8393xState));
 
     s->address_space = address_space;
-    s->mem_opaque = mem_opaque;
-    s->memory_rw = memory_rw;
+    address_space_init(&s->as, dma_mr, "dp8393x-dma");
     s->it_shift = it_shift;
     s->irq = irq;
     s->watchdog = timer_new_ns(QEMU_CLOCK_VIRTUAL, dp8393x_watchdog, s);

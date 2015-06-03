@@ -776,13 +776,6 @@ static void rc4030_save(QEMUFile *f, void *opaque)
     qemu_put_be32(f, s->itr);
 }
 
-void rc4030_dma_memory_rw(void *opaque, hwaddr addr, uint8_t *buf, int len, int is_write)
-{
-    rc4030State *s = opaque;
-    address_space_rw(&s->dma_as, addr, MEMTXATTRS_UNSPECIFIED, buf, len,
-                     is_write);
-}
-
 static void rc4030_do_dma(void *opaque, int n, uint8_t *buf, int len, int is_write)
 {
     rc4030State *s = opaque;
@@ -869,9 +862,9 @@ static rc4030_dma *rc4030_allocate_dmas(void *opaque, int n)
     return s;
 }
 
-void *rc4030_init(qemu_irq timer, qemu_irq jazz_bus,
-                  qemu_irq **irqs, rc4030_dma **dmas,
-                  MemoryRegion *sysmem)
+MemoryRegion *rc4030_init(qemu_irq timer, qemu_irq jazz_bus,
+                          qemu_irq **irqs, rc4030_dma **dmas,
+                          MemoryRegion *sysmem)
 {
     rc4030State *s;
     int i;
@@ -910,5 +903,5 @@ void *rc4030_init(qemu_irq timer, qemu_irq jazz_bus,
                                     &s->dma_mrs[i]);
     }
     address_space_init(&s->dma_as, &s->dma_mr, "rc4030-dma");
-    return s;
+    return &s->dma_mr;
 }
