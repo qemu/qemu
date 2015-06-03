@@ -213,21 +213,22 @@ void HELPER(mvc)(CPUS390XState *env, uint32_t l, uint64_t dest, uint64_t src)
     if (dest == (src + 1)) {
         memset(g2h(dest), cpu_ldub_data(env, src), l + 1);
         return;
-    } else {
+    /* mvc and memmove do not behave the same when areas overlap! */
+    } else if ((dest < src) || (src + l < dest)) {
         memmove(g2h(dest), g2h(src), l + 1);
         return;
     }
 #endif
 
     /* handle the parts that fit into 8-byte loads/stores */
-    if (dest != (src + 1)) {
+    if ((dest + 8 <= src) || (src + 8 <= dest)) {
         for (i = 0; i < l_64; i++) {
             cpu_stq_data(env, dest + x, cpu_ldq_data(env, src + x));
             x += 8;
         }
     }
 
-    /* slow version crossing pages with byte accesses */
+    /* slow version with byte accesses which always work */
     for (i = x; i <= l; i++) {
         cpu_stb_data(env, dest + i, cpu_ldub_data(env, src + i));
     }
