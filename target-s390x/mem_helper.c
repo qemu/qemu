@@ -509,6 +509,9 @@ uint32_t HELPER(ex)(CPUS390XState *env, uint32_t cc, uint64_t v1,
         case 0xc00:
             helper_tr(env, l, get_address(env, 0, b1, d1),
                       get_address(env, 0, b2, d2));
+        case 0xd00:
+            cc = helper_trt(env, l, get_address(env, 0, b1, d1),
+                            get_address(env, 0, b2, d2));
             break;
         default:
             goto abort;
@@ -799,6 +802,27 @@ void HELPER(tr)(CPUS390XState *env, uint32_t len, uint64_t array,
 
         cpu_stb_data(env, array + i, new_byte);
     }
+}
+
+uint32_t HELPER(trt)(CPUS390XState *env, uint32_t len, uint64_t array,
+                     uint64_t trans)
+{
+    uint32_t cc = 0;
+    int i;
+
+    for (i = 0; i <= len; i++) {
+        uint8_t byte = cpu_ldub_data(env, array + i);
+        uint8_t sbyte = cpu_ldub_data(env, trans + byte);
+
+        if (sbyte != 0) {
+            env->regs[1] = array + i;
+            env->regs[2] = (env->regs[2] & ~0xff) | sbyte;
+            cc = (i == len) ? 2 : 1;
+            break;
+        }
+    }
+
+    return cc;
 }
 
 #if !defined(CONFIG_USER_ONLY)
