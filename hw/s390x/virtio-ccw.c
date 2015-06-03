@@ -1311,6 +1311,7 @@ static void virtio_ccw_save_config(DeviceState *d, QEMUFile *f)
 {
     VirtioCcwDevice *dev = VIRTIO_CCW_DEVICE(d);
     SubchDev *s = dev->sch;
+    VirtIODevice *vdev = virtio_ccw_get_vdev(s);
 
     subch_device_save(s, f);
     if (dev->indicators != NULL) {
@@ -1334,6 +1335,7 @@ static void virtio_ccw_save_config(DeviceState *d, QEMUFile *f)
         qemu_put_be32(f, 0);
         qemu_put_be64(f, 0UL);
     }
+    qemu_put_be16(f, vdev->config_vector);
     qemu_put_be64(f, dev->routes.adapter.ind_offset);
     qemu_put_byte(f, dev->thinint_isc);
 }
@@ -1342,6 +1344,7 @@ static int virtio_ccw_load_config(DeviceState *d, QEMUFile *f)
 {
     VirtioCcwDevice *dev = VIRTIO_CCW_DEVICE(d);
     SubchDev *s = dev->sch;
+    VirtIODevice *vdev = virtio_ccw_get_vdev(s);
     int len;
 
     s->driver_data = dev;
@@ -1367,6 +1370,7 @@ static int virtio_ccw_load_config(DeviceState *d, QEMUFile *f)
         qemu_get_be64(f);
         dev->summary_indicator = NULL;
     }
+    qemu_get_be16s(f, &vdev->config_vector);
     dev->routes.adapter.ind_offset = qemu_get_be64(f);
     dev->thinint_isc = qemu_get_byte(f);
     if (s->thinint_active) {
