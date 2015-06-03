@@ -853,6 +853,17 @@ static void dp8393x_realize(DeviceState *dev, Error **errp)
     prom[7] = 0xff - checksum;
 }
 
+static const VMStateDescription vmstate_dp8393x = {
+    .name = "dp8393x",
+    .version_id = 0,
+    .minimum_version_id = 0,
+    .fields = (VMStateField []) {
+        VMSTATE_BUFFER_UNSAFE(cam, dp8393xState, 0, 16 * 6),
+        VMSTATE_UINT16_ARRAY(regs, dp8393xState, 0x40),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
 static Property dp8393x_properties[] = {
     DEFINE_NIC_PROPERTIES(dp8393xState, conf),
     DEFINE_PROP_PTR("dma_mr", dp8393xState, dma_mr),
@@ -867,6 +878,7 @@ static void dp8393x_class_init(ObjectClass *klass, void *data)
     set_bit(DEVICE_CATEGORY_NETWORK, dc->categories);
     dc->realize = dp8393x_realize;
     dc->reset = dp8393x_reset;
+    dc->vmsd = &vmstate_dp8393x;
     dc->props = dp8393x_properties;
 }
 
