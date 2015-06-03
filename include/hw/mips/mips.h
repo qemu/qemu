@@ -20,9 +20,4 @@ void rc4030_dma_write(void *dma, uint8_t *buf, int len);
 
 DeviceState *rc4030_init(rc4030_dma **dmas, MemoryRegion **dma_mr);
 
-/* dp8393x.c */
-void dp83932_init(NICInfo *nd, hwaddr base, int it_shift,
-                  MemoryRegion *address_space,
-                  qemu_irq irq, MemoryRegion *dma_mr);
-
 #endif

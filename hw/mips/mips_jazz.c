@@ -273,8 +273,16 @@ static void mips_jazz_init(MachineState *machine,
         if (!nd->model)
             nd->model = g_strdup("dp83932");
         if (strcmp(nd->model, "dp83932") == 0) {
-            dp83932_init(nd, 0x80001000, 2, get_system_memory(),
-                         qdev_get_gpio_in(rc4030, 4), rc4030_dma_mr);
+            qemu_check_nic_model(nd, "dp83932");
+
+            dev = qdev_create(NULL, "dp8393x");
+            qdev_set_nic_properties(dev, nd);
+            qdev_prop_set_uint8(dev, "it_shift", 2);
+            qdev_prop_set_ptr(dev, "dma_mr", rc4030_dma_mr);
+            qdev_init_nofail(dev);
+            sysbus = SYS_BUS_DEVICE(dev);
+            sysbus_mmio_map(sysbus, 0, 0x80001000);
+            sysbus_connect_irq(sysbus, 0, qdev_get_gpio_in(rc4030, 4));
             break;
         } else if (is_help_option(nd->model)) {
             fprintf(stderr, "qemu: Supported NICs: dp83932\n");
