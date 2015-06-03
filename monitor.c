@@ -3634,39 +3634,32 @@ static const mon_cmd_t *qmp_find_cmd(const char *cmdname)
 }
 
 /*
- * Parse @cmdline according to command table @table.
- * If @cmdline is blank, return NULL.
- * If it can't be parsed, report to @mon, and return NULL.
- * Else, insert command arguments into @qdict, and return the command.
- * If a sub-command table exists, and if @cmdline contains an additional string
- * for a sub-command, this function will try to search the sub-command table.
- * If no additional string for a sub-command is present, this function will
- * return the command found in @table.
- * Do not assume the returned command points into @table!  It doesn't
- * when the command is a sub-command.
+ * Parse command name from @cmdp according to command table @table.
+ * If blank, return NULL.
+ * Else, if no valid command can be found, report to @mon, and return
+ * NULL.
+ * Else, change @cmdp to point right behind the name, and return its
+ * command table entry.
+ * Do not assume the return value points into @table!  It doesn't when
+ * the command is found in a sub-command table.
  */
 static const mon_cmd_t *monitor_parse_command(Monitor *mon,
-                                              const char *cmdline,
-                                              int start,
-                                              mon_cmd_t *table,
-                                              QDict *qdict)
+                                              const char **cmdp,
+                                              mon_cmd_t *table)
 {
-    const char *p, *typestr;
-    int c;
+    const char *p;
     const mon_cmd_t *cmd;
     char cmdname[256];
-    char buf[1024];
-    char *key;
 
     /* extract the command name */
-    p = get_command_name(cmdline + start, cmdname, sizeof(cmdname));
+    p = get_command_name(*cmdp, cmdname, sizeof(cmdname));
     if (!p)
         return NULL;
 
     cmd = search_dispatch_table(table, cmdname);
     if (!cmd) {
         monitor_printf(mon, "unknown command: '%.*s'\n",
-                       (int)(p - cmdline), cmdline);
+                       (int)(p - *cmdp), *cmdp);
         return NULL;
     }
 
@@ -3674,15 +3667,33 @@ static const mon_cmd_t *monitor_parse_command(Monitor *mon,
     while (qemu_isspace(*p)) {
         p++;
     }
+
+    *cmdp = p;
     /* search sub command */
-    if (cmd->sub_table != NULL) {
-        /* check if user set additional command */
-        if (*p == '\0') {
-            return cmd;
-        }
-        return monitor_parse_command(mon, cmdline, p - cmdline,
-                                     cmd->sub_table, qdict);
+    if (cmd->sub_table != NULL && *p != '\0') {
+        return monitor_parse_command(mon, cmdp, cmd->sub_table);
     }
+
+    return cmd;
+}
+
+/*
+ * Parse arguments for @cmd.
+ * If it can't be parsed, report to @mon, and return NULL.
+ * Else, insert command arguments into a QDict, and return it.
+ * Note: On success, caller has to free the QDict structure.
+ */
+
+static QDict *monitor_parse_arguments(Monitor *mon,
+                                      const char **endp,
+                                      const mon_cmd_t *cmd)
+{
+    const char *typestr;
+    char *key;
+    int c;
+    const char *p = *endp;
+    char buf[1024];
+    QDict *qdict = qdict_new();
 
     /* parse the parameters */
     typestr = cmd->args_type;
@@ -3713,14 +3724,14 @@ static const mon_cmd_t *monitor_parse_command(Monitor *mon,
                     switch(c) {
                     case 'F':
                         monitor_printf(mon, "%s: filename expected\n",
-                                       cmdname);
+                                       cmd->name);
                         break;
                     case 'B':
                         monitor_printf(mon, "%s: block device name expected\n",
-                                       cmdname);
+                                       cmd->name);
                         break;
                     default:
-                        monitor_printf(mon, "%s: string expected\n", cmdname);
+                        monitor_printf(mon, "%s: string expected\n", cmd->name);
                         break;
                     }
                     goto fail;
@@ -3862,7 +3873,7 @@ static const mon_cmd_t *monitor_parse_command(Monitor *mon,
                     goto fail;
                 /* Check if 'i' is greater than 32-bit */
                 if ((c == 'i') && ((val >> 32) & 0xffffffff)) {
-                    monitor_printf(mon, "\'%s\' has failed: ", cmdname);
+                    monitor_printf(mon, "\'%s\' has failed: ", cmd->name);
                     monitor_printf(mon, "integer is for 32-bit values\n");
                     goto fail;
                 } else if (c == 'M') {
@@ -3970,7 +3981,7 @@ static const mon_cmd_t *monitor_parse_command(Monitor *mon,
                         if(!is_valid_option(p, typestr)) {
                   
                             monitor_printf(mon, "%s: unsupported option -%c\n",
-                                           cmdname, *p);
+                                           cmd->name, *p);
                             goto fail;
                         } else {
                             skip_key = 1;
@@ -4004,7 +4015,7 @@ static const mon_cmd_t *monitor_parse_command(Monitor *mon,
                 len = strlen(p);
                 if (len <= 0) {
                     monitor_printf(mon, "%s: string expected\n",
-                                   cmdname);
+                                   cmd->name);
                     break;
                 }
                 qdict_put(qdict, key, qstring_from_str(p));
@@ -4013,7 +4024,7 @@ static const mon_cmd_t *monitor_parse_command(Monitor *mon,
             break;
         default:
         bad_type:
-            monitor_printf(mon, "%s: unknown type '%c'\n", cmdname, c);
+            monitor_printf(mon, "%s: unknown type '%c'\n", cmd->name, c);
             goto fail;
         }
         g_free(key);
@@ -4024,13 +4035,14 @@ static const mon_cmd_t *monitor_parse_command(Monitor *mon,
         p++;
     if (*p != '\0') {
         monitor_printf(mon, "%s: extraneous characters at the end of line\n",
-                       cmdname);
+                       cmd->name);
         goto fail;
     }
 
-    return cmd;
+    return qdict;
 
 fail:
+    QDECREF(qdict);
     g_free(key);
     return NULL;
 }
@@ -4050,13 +4062,17 @@ static void handle_hmp_command(Monitor *mon, const char *cmdline)
     QDict *qdict;
     const mon_cmd_t *cmd;
 
-    qdict = qdict_new();
-
-    cmd = monitor_parse_command(mon, cmdline, 0, mon->cmd_table, qdict);
-    if (cmd) {
-        cmd->mhandler.cmd(mon, qdict);
+    cmd = monitor_parse_command(mon, &cmdline, mon->cmd_table);
+    if (!cmd) {
+        return;
     }
 
+    qdict = monitor_parse_arguments(mon, &cmdline, cmd);
+    if (!qdict) {
+        return;
+    }
+
+    cmd->mhandler.cmd(mon, qdict);
     QDECREF(qdict);
 }
 
