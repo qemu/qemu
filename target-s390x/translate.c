@@ -3787,6 +3787,15 @@ static ExitStatus op_tr(DisasContext *s, DisasOps *o)
     return NO_EXIT;
 }
 
+static ExitStatus op_tre(DisasContext *s, DisasOps *o)
+{
+    potential_page_fault(s);
+    gen_helper_tre(o->out, cpu_env, o->out, o->out2, o->in2);
+    return_low128(o->out2);
+    set_cc_static(s);
+    return NO_EXIT;
+}
+
 static ExitStatus op_trt(DisasContext *s, DisasOps *o)
 {
     TCGv_i32 l = tcg_const_i32(get_field(s->fields, l1));
