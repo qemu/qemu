@@ -389,13 +389,8 @@ ifneq (,$(findstring qemu-ga,$(TOOLS)))
 endif
 endif
 
-install-confdir:
-	$(INSTALL_DIR) "$(DESTDIR)$(qemu_confdir)"
 
-install-sysconfig: install-datadir install-confdir
-	$(INSTALL_DATA) $(SRC_PATH)/sysconfigs/target/target-x86_64.conf "$(DESTDIR)$(qemu_confdir)"
-
-install: all $(if $(BUILD_DOCS),install-doc) install-sysconfig \
+install: all $(if $(BUILD_DOCS),install-doc) \
 install-datadir install-localstatedir
 ifneq ($(TOOLS),)
 	$(call install-prog,$(TOOLS),$(DESTDIR)$(bindir))

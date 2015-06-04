@@ -370,13 +370,14 @@ static int apic_irq_pending(APICCommonState *s)
 static void apic_update_irq(APICCommonState *s)
 {
     CPUState *cpu;
+    DeviceState *dev = (DeviceState *)s;
 
     cpu = CPU(s->cpu);
     if (!qemu_cpu_is_self(cpu)) {
         cpu_interrupt(cpu, CPU_INTERRUPT_POLL);
     } else if (apic_irq_pending(s) > 0) {
         cpu_interrupt(cpu, CPU_INTERRUPT_HARD);
-    } else if (!apic_accept_pic_intr(&s->busdev.qdev) || !pic_get_output(isa_pic)) {
+    } else if (!apic_accept_pic_intr(dev) || !pic_get_output(isa_pic)) {
         cpu_reset_interrupt(cpu, CPU_INTERRUPT_HARD);
     }
 }
@@ -549,10 +550,12 @@ static void apic_deliver(DeviceState *dev, uint8_t dest, uint8_t dest_mode,
 
 static bool apic_check_pic(APICCommonState *s)
 {
-    if (!apic_accept_pic_intr(&s->busdev.qdev) || !pic_get_output(isa_pic)) {
+    DeviceState *dev = (DeviceState *)s;
+
+    if (!apic_accept_pic_intr(dev) || !pic_get_output(isa_pic)) {
         return false;
     }
-    apic_deliver_pic_intr(&s->busdev.qdev, 1);
+    apic_deliver_pic_intr(dev, 1);
     return true;
 }
 
