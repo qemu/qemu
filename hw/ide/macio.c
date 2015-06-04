@@ -52,7 +52,7 @@ static const int debug_macio = 0;
 #define MACIO_PAGE_SIZE 4096
 
 static void pmac_dma_read(BlockBackend *blk,
-                          int64_t sector_num, int nb_sectors,
+                          int64_t offset, unsigned int bytes,
                           void (*cb)(void *opaque, int ret), void *opaque)
 {
     DBDMA_io *io = opaque;
@@ -60,76 +60,48 @@ static void pmac_dma_read(BlockBackend *blk,
     IDEState *s = idebus_active_if(&m->bus);
     dma_addr_t dma_addr, dma_len;
     void *mem;
-    int nsector, remainder;
+    int64_t sector_num;
+    int nsector;
+    uint64_t align = BDRV_SECTOR_SIZE;
+    size_t head_bytes, tail_bytes;
 
     qemu_iovec_destroy(&io->iov);
     qemu_iovec_init(&io->iov, io->len / MACIO_PAGE_SIZE + 1);
 
-    if (io->remainder_len > 0) {
-        /* Return remainder of request */
-        int transfer = MIN(io->remainder_len, io->len);
+    sector_num = (offset >> 9);
+    nsector = (io->len >> 9);
 
-        MACIO_DPRINTF("--- DMA read pop     - bounce addr: %p addr: %"
-                      HWADDR_PRIx " remainder_len: %x\n",
-                      &io->remainder + (0x200 - transfer), io->addr,
-                      io->remainder_len);
-
-        cpu_physical_memory_write(io->addr,
-                                  &io->remainder + (0x200 - transfer),
-                                  transfer);
-
-        io->remainder_len -= transfer;
-        io->len -= transfer;
-        io->addr += transfer;
-
-        s->io_buffer_index += transfer;
-        s->io_buffer_size -= transfer;
-
-        if (io->remainder_len != 0) {
-            /* Still waiting for remainder */
-            return;
-        }
-
-        if (io->len == 0) {
-            MACIO_DPRINTF("--- finished all read processing; go and finish\n");
-            cb(opaque, 0);
-            return;
-        }
-    }
-
-    if (s->drive_kind == IDE_CD) {
-        sector_num = (int64_t)(s->lba << 2) + (s->io_buffer_index >> 9);
-    } else {
-        sector_num = ide_get_sector(s) + (s->io_buffer_index >> 9);
-    }
-
-    nsector = ((io->len + 0x1ff) >> 9);
-    remainder = (nsector << 9) - io->len;
-
-    MACIO_DPRINTF("--- DMA read transfer - addr: %" HWADDR_PRIx " len: %x\n",
-                  io->addr, io->len);
+    MACIO_DPRINTF("--- DMA read transfer (0x%" HWADDR_PRIx ",0x%x): "
+                  "sector_num: %" PRId64 ", nsector: %d\n", io->addr, io->len,
+                  sector_num, nsector);
 
     dma_addr = io->addr;
     dma_len = io->len;
     mem = dma_memory_map(&address_space_memory, dma_addr, &dma_len,
                          DMA_DIRECTION_FROM_DEVICE);
 
-    if (!remainder) {
-        MACIO_DPRINTF("--- DMA read aligned - addr: %" HWADDR_PRIx
-                      " len: %x\n", io->addr, io->len);
-        qemu_iovec_add(&io->iov, mem, io->len);
-    } else {
-        MACIO_DPRINTF("--- DMA read unaligned - addr: %" HWADDR_PRIx
-                      " len: %x\n", io->addr, io->len);
-        qemu_iovec_add(&io->iov, mem, io->len);
+    if (offset & (align - 1)) {
+        head_bytes = offset & (align - 1);
 
-        MACIO_DPRINTF("--- DMA read push    - bounce addr: %p "
-                      "remainder_len: %x\n",
-                      &io->remainder + 0x200 - remainder, remainder);
-        qemu_iovec_add(&io->iov, &io->remainder + 0x200 - remainder,
-                       remainder);
+        MACIO_DPRINTF("--- DMA unaligned head: sector %" PRId64 ", "
+                      "discarding %zu bytes\n", sector_num, head_bytes);
 
-        io->remainder_len = remainder;
+        qemu_iovec_add(&io->iov, &io->remainder, head_bytes);
+
+        bytes += offset & (align - 1);
+        offset = offset & ~(align - 1);
+    }
+
+    qemu_iovec_add(&io->iov, mem, io->len);
+
+    if ((offset + bytes) & (align - 1)) {
+        tail_bytes = (offset + bytes) & (align - 1);
+
+        MACIO_DPRINTF("--- DMA unaligned tail: sector %" PRId64 ", "
+                      "discarding bytes %zu\n", sector_num, tail_bytes);
+
+        qemu_iovec_add(&io->iov, &io->remainder, align - tail_bytes);
+        bytes = ROUND_UP(bytes, align);
     }
 
     s->io_buffer_size -= io->len;
@@ -137,11 +109,11 @@ static void pmac_dma_read(BlockBackend *blk,
 
     io->len = 0;
 
-    MACIO_DPRINTF("--- Block read transfer   - sector_num: %"PRIx64"  "
-                  "nsector: %x\n",
-                  sector_num, nsector);
+    MACIO_DPRINTF("--- Block read transfer - sector_num: %" PRIx64 "  "
+                  "nsector: %x\n", (offset >> 9), (bytes >> 9));
 
-    m->aiocb = blk_aio_readv(blk, sector_num, &io->iov, nsector, cb, io);
+    m->aiocb = blk_aio_readv(blk, (offset >> 9), &io->iov, (bytes >> 9),
+                             cb, io);
 }
 
 static void pmac_dma_write(BlockBackend *blk,
@@ -246,6 +218,7 @@ static void pmac_ide_atapi_transfer_cb(void *opaque, int ret)
     IDEState *s = idebus_active_if(&m->bus);
     int64_t sector_num;
     int nsector, remainder;
+    int64_t offset;
 
     MACIO_DPRINTF("\ns is %p\n", s);
     MACIO_DPRINTF("io_buffer_index: %x\n", s->io_buffer_index);
@@ -294,10 +267,13 @@ static void pmac_ide_atapi_transfer_cb(void *opaque, int ret)
     nsector = (io->len + 0x1ff) >> 9;
     remainder = io->len & 0x1ff;
 
+    /* Calculate current offset */
+    offset = (int64_t)(s->lba << 11) + s->io_buffer_index;
+
     MACIO_DPRINTF("nsector: %d   remainder: %x\n", nsector, remainder);
     MACIO_DPRINTF("sector: %"PRIx64"   %zx\n", sector_num, io->iov.size / 512);
 
-    pmac_dma_read(s->blk, sector_num, nsector, pmac_ide_atapi_transfer_cb, io);
+    pmac_dma_read(s->blk, offset, io->len, pmac_ide_atapi_transfer_cb, io);
     return;
 
 done:
@@ -315,6 +291,7 @@ static void pmac_ide_transfer_cb(void *opaque, int ret)
     IDEState *s = idebus_active_if(&m->bus);
     int64_t sector_num;
     int nsector, remainder;
+    int64_t offset;
 
     MACIO_DPRINTF("pmac_ide_transfer_cb\n");
 
@@ -349,6 +326,7 @@ static void pmac_ide_transfer_cb(void *opaque, int ret)
 
     /* Calculate number of sectors */
     sector_num = ide_get_sector(s) + (s->io_buffer_index >> 9);
+    offset = (ide_get_sector(s) << 9) + s->io_buffer_index;
     nsector = (io->len + 0x1ff) >> 9;
     remainder = io->len & 0x1ff;
 
@@ -359,7 +337,7 @@ static void pmac_ide_transfer_cb(void *opaque, int ret)
 
     switch (s->dma_cmd) {
     case IDE_DMA_READ:
-        pmac_dma_read(s->blk, sector_num, nsector, pmac_ide_transfer_cb, io);
+        pmac_dma_read(s->blk, offset, io->len, pmac_ide_transfer_cb, io);
         break;
     case IDE_DMA_WRITE:
         pmac_dma_write(s->blk, sector_num, nsector, pmac_ide_transfer_cb, io);
