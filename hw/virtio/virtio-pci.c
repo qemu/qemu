@@ -1341,16 +1341,8 @@ static void virtio_pci_device_plugged(DeviceState *d, Error **errp)
 
 
     if (modern) {
-        struct virtio_pci_cap common = {
-            .cap_len = sizeof common,
-            .bar = modern_mem_bar,
-        };
-        struct virtio_pci_cap isr = {
-            .cap_len = sizeof isr,
-            .bar = modern_mem_bar,
-        };
-        struct virtio_pci_cap device = {
-            .cap_len = sizeof device,
+        struct virtio_pci_cap cap = {
+            .cap_len = sizeof cap,
             .bar = modern_mem_bar,
         };
         struct virtio_pci_notify_cap notify = {
@@ -1367,9 +1359,9 @@ static void virtio_pci_device_plugged(DeviceState *d, Error **errp)
                            2 * QEMU_VIRTIO_PCI_QUEUE_MEM_MULT *
                            VIRTIO_QUEUE_MAX);
         virtio_pci_modern_regions_init(proxy);
-        virtio_pci_modern_region_map(proxy, &proxy->common, &common);
-        virtio_pci_modern_region_map(proxy, &proxy->isr, &isr);
-        virtio_pci_modern_region_map(proxy, &proxy->device, &device);
+        virtio_pci_modern_region_map(proxy, &proxy->common, &cap);
+        virtio_pci_modern_region_map(proxy, &proxy->isr, &cap);
+        virtio_pci_modern_region_map(proxy, &proxy->device, &cap);
         virtio_pci_modern_region_map(proxy, &proxy->notify, &notify.cap);
         pci_register_bar(&proxy->pci_dev, modern_mem_bar,
                          PCI_BASE_ADDRESS_SPACE_MEMORY |
