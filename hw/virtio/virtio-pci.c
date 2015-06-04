@@ -1252,18 +1252,21 @@ static void virtio_pci_modern_regions_init(VirtIOPCIProxy *proxy)
                           proxy,
                           "virtio-pci-common", 0x1000);
     proxy->common.offset = 0x0;
+    proxy->common.type = VIRTIO_PCI_CAP_COMMON_CFG;
 
     memory_region_init_io(&proxy->isr.mr, OBJECT(proxy),
                           &isr_ops,
                           proxy,
                           "virtio-pci-isr", 0x1000);
     proxy->isr.offset = 0x1000;
+    proxy->isr.type = VIRTIO_PCI_CAP_ISR_CFG;
 
     memory_region_init_io(&proxy->device.mr, OBJECT(proxy),
                           &device_ops,
                           virtio_bus_get_device(&proxy->bus),
                           "virtio-pci-device", 0x1000);
     proxy->device.offset = 0x2000;
+    proxy->device.type = VIRTIO_PCI_CAP_DEVICE_CFG;
 
     memory_region_init_io(&proxy->notify.mr, OBJECT(proxy),
                           &notify_ops,
@@ -1272,6 +1275,7 @@ static void virtio_pci_modern_regions_init(VirtIOPCIProxy *proxy)
                           QEMU_VIRTIO_PCI_QUEUE_MEM_MULT *
                           VIRTIO_QUEUE_MAX);
     proxy->notify.offset = 0x3000;
+    proxy->notify.type = VIRTIO_PCI_CAP_NOTIFY_CFG;
 }
 
 static void virtio_pci_modern_region_map(VirtIOPCIProxy *proxy,
@@ -1282,6 +1286,7 @@ static void virtio_pci_modern_region_map(VirtIOPCIProxy *proxy,
                                 region->offset,
                                 &region->mr);
 
+    cap->cfg_type = region->type;
     cap->offset = cpu_to_le32(region->offset);
     cap->length = cpu_to_le32(memory_region_size(&region->mr));
     virtio_pci_add_mem_cap(proxy, cap);
@@ -1337,22 +1342,18 @@ static void virtio_pci_device_plugged(DeviceState *d, Error **errp)
 
     if (modern) {
         struct virtio_pci_cap common = {
-            .cfg_type = VIRTIO_PCI_CAP_COMMON_CFG,
             .cap_len = sizeof common,
             .bar = modern_mem_bar,
         };
         struct virtio_pci_cap isr = {
-            .cfg_type = VIRTIO_PCI_CAP_ISR_CFG,
             .cap_len = sizeof isr,
             .bar = modern_mem_bar,
         };
         struct virtio_pci_cap device = {
-            .cfg_type = VIRTIO_PCI_CAP_DEVICE_CFG,
             .cap_len = sizeof device,
             .bar = modern_mem_bar,
         };
         struct virtio_pci_notify_cap notify = {
-            .cap.cfg_type = VIRTIO_PCI_CAP_NOTIFY_CFG,
             .cap.cap_len = sizeof notify,
             .cap.bar = modern_mem_bar,
             .notify_off_multiplier =
