@@ -41,6 +41,7 @@ typedef struct VirtIONetPCI VirtIONetPCI;
 typedef struct VHostSCSIPCI VHostSCSIPCI;
 typedef struct VirtIORngPCI VirtIORngPCI;
 typedef struct VirtIOInputPCI VirtIOInputPCI;
+typedef struct VirtIOInputHIDPCI VirtIOInputHIDPCI;
 
 /* virtio-pci-bus */
 
@@ -246,6 +247,18 @@ struct VirtIORngPCI {
 struct VirtIOInputPCI {
     VirtIOPCIProxy parent_obj;
     VirtIOInput vdev;
+};
+
+#define TYPE_VIRTIO_INPUT_HID_PCI "virtio-input-hid-pci"
+#define TYPE_VIRTIO_KEYBOARD_PCI  "virtio-keyboard-pci"
+#define TYPE_VIRTIO_MOUSE_PCI     "virtio-mouse-pci"
+#define TYPE_VIRTIO_TABLET_PCI    "virtio-tablet-pci"
+#define VIRTIO_INPUT_HID_PCI(obj) \
+        OBJECT_CHECK(VirtIOInputHIDPCI, (obj), TYPE_VIRTIO_INPUT_HID_PCI)
+
+struct VirtIOInputHIDPCI {
+    VirtIOPCIProxy parent_obj;
+    VirtIOInputHID vdev;
 };
 
 /* Virtio ABI version, if we increment this, we break the guest driver. */
