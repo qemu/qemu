@@ -109,13 +109,13 @@ static const int *vhost_net_get_feature_bits(struct vhost_net *net)
     return feature_bits;
 }
 
-unsigned vhost_net_get_features(struct vhost_net *net, unsigned features)
+uint64_t vhost_net_get_features(struct vhost_net *net, uint64_t features)
 {
     return vhost_get_features(&net->dev, vhost_net_get_feature_bits(net),
             features);
 }
 
-void vhost_net_ack_features(struct vhost_net *net, unsigned features)
+void vhost_net_ack_features(struct vhost_net *net, uint64_t features)
 {
     net->dev.acked_features = net->dev.backend_features;
     vhost_ack_features(&net->dev, vhost_net_get_feature_bits(net), features);
@@ -149,7 +149,7 @@ struct vhost_net *vhost_net_init(VhostNetOptions *options)
             goto fail;
         }
         net->dev.backend_features = qemu_has_vnet_hdr(options->net_backend)
-            ? 0 : (1 << VHOST_NET_F_VIRTIO_NET_HDR);
+            ? 0 : (1ULL << VHOST_NET_F_VIRTIO_NET_HDR);
         net->backend = r;
     } else {
         net->dev.backend_features = 0;
@@ -169,7 +169,7 @@ struct vhost_net *vhost_net_init(VhostNetOptions *options)
     if (backend_kernel) {
         if (!qemu_has_vnet_hdr_len(options->net_backend,
                                sizeof(struct virtio_net_hdr_mrg_rxbuf))) {
-            net->dev.features &= ~(1 << VIRTIO_NET_F_MRG_RXBUF);
+            net->dev.features &= ~(1ULL << VIRTIO_NET_F_MRG_RXBUF);
         }
         if (~net->dev.features & net->dev.backend_features) {
             fprintf(stderr, "vhost lacks feature mask %" PRIu64
@@ -433,11 +433,11 @@ void vhost_net_cleanup(struct vhost_net *net)
 {
 }
 
-unsigned vhost_net_get_features(struct vhost_net *net, unsigned features)
+uint64_t vhost_net_get_features(struct vhost_net *net, uint64_t features)
 {
     return features;
 }
-void vhost_net_ack_features(struct vhost_net *net, unsigned features)
+void vhost_net_ack_features(struct vhost_net *net, uint64_t features)
 {
 }
 
