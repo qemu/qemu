@@ -1162,13 +1162,13 @@ static uint64_t virtio_pci_device_read(void *opaque, hwaddr addr,
 
     switch (size) {
     case 1:
-        val = virtio_config_readb(vdev, addr);
+        val = virtio_config_modern_readb(vdev, addr);
         break;
     case 2:
-        val = virtio_config_readw(vdev, addr);
+        val = virtio_config_modern_readw(vdev, addr);
         break;
     case 4:
-        val = virtio_config_readl(vdev, addr);
+        val = virtio_config_modern_readl(vdev, addr);
         break;
     }
     return val;
@@ -1180,13 +1180,13 @@ static void virtio_pci_device_write(void *opaque, hwaddr addr,
     VirtIODevice *vdev = opaque;
     switch (size) {
     case 1:
-        virtio_config_writeb(vdev, addr, val);
+        virtio_config_modern_writeb(vdev, addr, val);
         break;
     case 2:
-        virtio_config_writew(vdev, addr, val);
+        virtio_config_modern_writew(vdev, addr, val);
         break;
     case 4:
-        virtio_config_writel(vdev, addr, val);
+        virtio_config_modern_writel(vdev, addr, val);
         break;
     }
 }
