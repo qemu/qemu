@@ -470,6 +470,7 @@ static uint64_t virtio_net_get_features(VirtIODevice *vdev, uint64_t features)
     }
 
     if (!get_vhost_net(nc->peer)) {
+        virtio_add_feature(&features, VIRTIO_F_VERSION_1);
         return features;
     }
     return vhost_net_get_features(get_vhost_net(nc->peer), features);
