@@ -62,14 +62,12 @@ typedef struct TAPState {
 static void launch_script(const char *setup_script, const char *ifname,
                           int fd, Error **errp);
 
-static int tap_can_send(void *opaque);
 static void tap_send(void *opaque);
 static void tap_writable(void *opaque);
 
 static void tap_update_fd_handler(TAPState *s)
 {
-    qemu_set_fd_handler2(s->fd,
-                         s->read_poll && s->enabled ? tap_can_send : NULL,
+    qemu_set_fd_handler2(s->fd, NULL,
                          s->read_poll && s->enabled ? tap_send     : NULL,
                          s->write_poll && s->enabled ? tap_writable : NULL,
                          s);
@@ -166,13 +164,6 @@ static ssize_t tap_receive(NetClientState *nc, const uint8_t *buf, size_t size)
     return tap_write_packet(s, iov, 1);
 }
 
-static int tap_can_send(void *opaque)
-{
-    TAPState *s = opaque;
-
-    return qemu_can_send_packet(&s->nc);
-}
-
 #ifndef __sun__
 ssize_t tap_read_packet(int tapfd, uint8_t *buf, int maxlen)
 {
@@ -192,7 +183,7 @@ static void tap_send(void *opaque)
     int size;
     int packets = 0;
 
-    while (qemu_can_send_packet(&s->nc)) {
+    while (true) {
         uint8_t *buf = s->buf;
 
         size = tap_read_packet(s->fd, s->buf, sizeof(s->buf));
