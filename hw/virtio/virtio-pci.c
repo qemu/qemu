@@ -1208,6 +1208,64 @@ static void virtio_pci_device_write(void *opaque, hwaddr addr,
     }
 }
 
+static void virtio_pci_modern_regions_init(VirtIOPCIProxy *proxy)
+{
+    static const MemoryRegionOps common_ops = {
+        .read = virtio_pci_common_read,
+        .write = virtio_pci_common_write,
+        .impl = {
+            .min_access_size = 1,
+            .max_access_size = 4,
+        },
+        .endianness = DEVICE_LITTLE_ENDIAN,
+    };
+    static const MemoryRegionOps isr_ops = {
+        .read = virtio_pci_isr_read,
+        .write = virtio_pci_isr_write,
+        .impl = {
+            .min_access_size = 1,
+            .max_access_size = 4,
+        },
+        .endianness = DEVICE_LITTLE_ENDIAN,
+    };
+    static const MemoryRegionOps device_ops = {
+        .read = virtio_pci_device_read,
+        .write = virtio_pci_device_write,
+        .impl = {
+            .min_access_size = 1,
+            .max_access_size = 4,
+        },
+        .endianness = DEVICE_LITTLE_ENDIAN,
+    };
+    static const MemoryRegionOps notify_ops = {
+        .read = virtio_pci_notify_read,
+        .write = virtio_pci_notify_write,
+        .impl = {
+            .min_access_size = 1,
+            .max_access_size = 4,
+        },
+        .endianness = DEVICE_LITTLE_ENDIAN,
+    };
+
+    memory_region_init_io(&proxy->common.mr, OBJECT(proxy),
+                          &common_ops,
+                          proxy,
+                          "virtio-pci-common", 0x1000);
+    memory_region_init_io(&proxy->isr.mr, OBJECT(proxy),
+                          &isr_ops,
+                          proxy,
+                          "virtio-pci-isr", 0x1000);
+    memory_region_init_io(&proxy->device.mr, OBJECT(proxy),
+                          &device_ops,
+                          virtio_bus_get_device(&proxy->bus),
+                          "virtio-pci-device", 0x1000);
+    memory_region_init_io(&proxy->notify.mr, OBJECT(proxy),
+                          &notify_ops,
+                          virtio_bus_get_device(&proxy->bus),
+                          "virtio-pci-notify",
+                          QEMU_VIRTIO_PCI_QUEUE_MEM_MULT *
+                          VIRTIO_QUEUE_MAX);
+}
 
 /* This is called by virtio-bus just after the device is plugged. */
 static void virtio_pci_device_plugged(DeviceState *d, Error **errp)
@@ -1290,46 +1348,6 @@ static void virtio_pci_device_plugged(DeviceState *d, Error **errp)
                 cpu_to_le32(QEMU_VIRTIO_PCI_QUEUE_MEM_MULT),
         };
 
-        static const MemoryRegionOps common_ops = {
-            .read = virtio_pci_common_read,
-            .write = virtio_pci_common_write,
-            .impl = {
-                .min_access_size = 1,
-                .max_access_size = 4,
-            },
-            .endianness = DEVICE_LITTLE_ENDIAN,
-        };
-
-        static const MemoryRegionOps isr_ops = {
-            .read = virtio_pci_isr_read,
-            .write = virtio_pci_isr_write,
-            .impl = {
-                .min_access_size = 1,
-                .max_access_size = 4,
-            },
-            .endianness = DEVICE_LITTLE_ENDIAN,
-        };
-
-        static const MemoryRegionOps device_ops = {
-            .read = virtio_pci_device_read,
-            .write = virtio_pci_device_write,
-            .impl = {
-                .min_access_size = 1,
-                .max_access_size = 4,
-            },
-            .endianness = DEVICE_LITTLE_ENDIAN,
-        };
-
-        static const MemoryRegionOps notify_ops = {
-            .read = virtio_pci_notify_read,
-            .write = virtio_pci_notify_write,
-            .impl = {
-                .min_access_size = 1,
-                .max_access_size = 4,
-            },
-            .endianness = DEVICE_LITTLE_ENDIAN,
-        };
-
         /* TODO: add io access for speed */
         virtio_pci_add_mem_cap(proxy, &common);
         virtio_pci_add_mem_cap(proxy, &isr);
@@ -1340,28 +1358,11 @@ static void virtio_pci_device_plugged(DeviceState *d, Error **errp)
         memory_region_init(&proxy->modern_bar, OBJECT(proxy), "virtio-pci",
                            2 * QEMU_VIRTIO_PCI_QUEUE_MEM_MULT *
                            VIRTIO_QUEUE_MAX);
-        memory_region_init_io(&proxy->common.mr, OBJECT(proxy),
-                              &common_ops,
-                              proxy,
-                              "virtio-pci-common", 0x1000);
+        virtio_pci_modern_regions_init(proxy);
         memory_region_add_subregion(&proxy->modern_bar, 0, &proxy->common.mr);
-        memory_region_init_io(&proxy->isr.mr, OBJECT(proxy),
-                              &isr_ops,
-                              proxy,
-                              "virtio-pci-isr", 0x1000);
         memory_region_add_subregion(&proxy->modern_bar, 0x1000, &proxy->isr.mr);
-        memory_region_init_io(&proxy->device.mr, OBJECT(proxy),
-                              &device_ops,
-                              virtio_bus_get_device(&proxy->bus),
-                              "virtio-pci-device", 0x1000);
         memory_region_add_subregion(&proxy->modern_bar, 0x2000,
                                     &proxy->device.mr);
-        memory_region_init_io(&proxy->notify.mr, OBJECT(proxy),
-                              &notify_ops,
-                              virtio_bus_get_device(&proxy->bus),
-                              "virtio-pci-notify",
-                              QEMU_VIRTIO_PCI_QUEUE_MEM_MULT *
-                              VIRTIO_QUEUE_MAX);
         memory_region_add_subregion(&proxy->modern_bar, 0x3000,
                                     &proxy->notify.mr);
         pci_register_bar(&proxy->pci_dev, modern_mem_bar,
