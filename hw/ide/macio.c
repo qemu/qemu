@@ -278,7 +278,6 @@ static void pmac_ide_transfer_cb(void *opaque, int ret)
         MACIO_DPRINTF("DMA error: %d\n", ret);
         m->aiocb = NULL;
         ide_dma_error(s);
-        io->remainder_len = 0;
         goto done;
     }
 
@@ -509,9 +508,6 @@ static void ide_dbdma_start(IDEDMA *dma, IDEState *s,
                             BlockCompletionFunc *cb)
 {
     MACIOIDEState *m = container_of(dma, MACIOIDEState, dma);
-    DBDMAState *dbdma = m->dbdma;
-    DBDMA_io *io;
-    int i;
 
     s->io_buffer_index = 0;
     if (s->drive_kind == IDE_CD) {
@@ -526,15 +522,6 @@ static void ide_dbdma_start(IDEDMA *dma, IDEState *s,
     MACIO_DPRINTF("lba: %x    size: %x\n", s->lba, s->io_buffer_size);
     MACIO_DPRINTF("-------------------------\n");
 
-    for (i = 0; i < DBDMA_CHANNELS; i++) {
-        io = &dbdma->channels[i].io;
-
-        if (io->opaque == m) {
-            io->remainder_len = 0;
-        }
-    }
-
-    MACIO_DPRINTF("\n");
     m->dma_active = true;
     DBDMA_kick(m->dbdma);
 }
