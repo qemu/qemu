@@ -145,7 +145,7 @@ static int virtio_pci_set_host_notifier_internal(VirtIOPCIProxy *proxy,
     EventNotifier *notifier = virtio_queue_get_host_notifier(vq);
     bool legacy = !(proxy->flags & VIRTIO_PCI_FLAG_DISABLE_LEGACY);
     bool modern = !(proxy->flags & VIRTIO_PCI_FLAG_DISABLE_MODERN);
-    MemoryRegion *modern_mr = &proxy->notify;
+    MemoryRegion *modern_mr = &proxy->notify.mr;
     MemoryRegion *legacy_mr = &proxy->bar;
     hwaddr modern_addr = QEMU_VIRTIO_PCI_QUEUE_MEM_MULT *
                          virtio_get_queue_index(vq);
@@ -1340,28 +1340,30 @@ static void virtio_pci_device_plugged(DeviceState *d, Error **errp)
         memory_region_init(&proxy->modern_bar, OBJECT(proxy), "virtio-pci",
                            2 * QEMU_VIRTIO_PCI_QUEUE_MEM_MULT *
                            VIRTIO_QUEUE_MAX);
-        memory_region_init_io(&proxy->common, OBJECT(proxy),
+        memory_region_init_io(&proxy->common.mr, OBJECT(proxy),
                               &common_ops,
                               proxy,
                               "virtio-pci-common", 0x1000);
-        memory_region_add_subregion(&proxy->modern_bar, 0, &proxy->common);
-        memory_region_init_io(&proxy->isr, OBJECT(proxy),
+        memory_region_add_subregion(&proxy->modern_bar, 0, &proxy->common.mr);
+        memory_region_init_io(&proxy->isr.mr, OBJECT(proxy),
                               &isr_ops,
                               proxy,
                               "virtio-pci-isr", 0x1000);
-        memory_region_add_subregion(&proxy->modern_bar, 0x1000, &proxy->isr);
-        memory_region_init_io(&proxy->device, OBJECT(proxy),
+        memory_region_add_subregion(&proxy->modern_bar, 0x1000, &proxy->isr.mr);
+        memory_region_init_io(&proxy->device.mr, OBJECT(proxy),
                               &device_ops,
                               virtio_bus_get_device(&proxy->bus),
                               "virtio-pci-device", 0x1000);
-        memory_region_add_subregion(&proxy->modern_bar, 0x2000, &proxy->device);
-        memory_region_init_io(&proxy->notify, OBJECT(proxy),
+        memory_region_add_subregion(&proxy->modern_bar, 0x2000,
+                                    &proxy->device.mr);
+        memory_region_init_io(&proxy->notify.mr, OBJECT(proxy),
                               &notify_ops,
                               virtio_bus_get_device(&proxy->bus),
                               "virtio-pci-notify",
                               QEMU_VIRTIO_PCI_QUEUE_MEM_MULT *
                               VIRTIO_QUEUE_MAX);
-        memory_region_add_subregion(&proxy->modern_bar, 0x3000, &proxy->notify);
+        memory_region_add_subregion(&proxy->modern_bar, 0x3000,
+                                    &proxy->notify.mr);
         pci_register_bar(&proxy->pci_dev, modern_mem_bar,
                          PCI_BASE_ADDRESS_SPACE_MEMORY |
                          PCI_BASE_ADDRESS_MEM_PREFETCH |

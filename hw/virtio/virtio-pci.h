@@ -91,13 +91,17 @@ typedef struct VirtioPCIClass {
     void (*realize)(VirtIOPCIProxy *vpci_dev, Error **errp);
 } VirtioPCIClass;
 
+typedef struct VirtIOPCIRegion {
+    MemoryRegion mr;
+} VirtIOPCIRegion;
+
 struct VirtIOPCIProxy {
     PCIDevice pci_dev;
     MemoryRegion bar;
-    MemoryRegion common;
-    MemoryRegion isr;
-    MemoryRegion device;
-    MemoryRegion notify;
+    VirtIOPCIRegion common;
+    VirtIOPCIRegion isr;
+    VirtIOPCIRegion device;
+    VirtIOPCIRegion notify;
     MemoryRegion modern_bar;
     uint32_t flags;
     uint32_t class_code;
