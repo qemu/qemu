@@ -1021,7 +1021,7 @@ void virtio_save(VirtIODevice *vdev, QEMUFile *f)
     vmstate_save_state(f, &vmstate_virtio, vdev, NULL);
 }
 
-int virtio_set_features(VirtIODevice *vdev, uint64_t val)
+static int virtio_set_features_nocheck(VirtIODevice *vdev, uint64_t val)
 {
     VirtioDeviceClass *k = VIRTIO_DEVICE_GET_CLASS(vdev);
     bool bad = (val & ~(vdev->host_features)) != 0;
@@ -1032,6 +1032,18 @@ int virtio_set_features(VirtIODevice *vdev, uint64_t val)
     }
     vdev->guest_features = val;
     return bad ? -1 : 0;
+}
+
+int virtio_set_features(VirtIODevice *vdev, uint64_t val)
+{
+   /*
+     * The driver must not attempt to set features after feature negotiation
+     * has finished.
+     */
+    if (vdev->status & VIRTIO_CONFIG_S_FEATURES_OK) {
+        return -EINVAL;
+    }
+    return virtio_set_features_nocheck(vdev, val);
 }
 
 int virtio_load(VirtIODevice *vdev, QEMUFile *f, int version_id)
@@ -1137,14 +1149,14 @@ int virtio_load(VirtIODevice *vdev, QEMUFile *f, int version_id)
          * host_features.
          */
         uint64_t features64 = vdev->guest_features;
-        if (virtio_set_features(vdev, features64) < 0) {
+        if (virtio_set_features_nocheck(vdev, features64) < 0) {
             error_report("Features 0x%" PRIx64 " unsupported. "
                          "Allowed features: 0x%" PRIx64,
                          features64, vdev->host_features);
             return -1;
         }
     } else {
-        if (virtio_set_features(vdev, features) < 0) {
+        if (virtio_set_features_nocheck(vdev, features) < 0) {
             error_report("Features 0x%x unsupported. "
                          "Allowed features: 0x%" PRIx64,
                          features, vdev->host_features);
