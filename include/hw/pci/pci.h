@@ -91,6 +91,7 @@
 #define PCI_DEVICE_ID_REDHAT_ROCKER      0x0006
 #define PCI_DEVICE_ID_REDHAT_SDHCI       0x0007
 #define PCI_DEVICE_ID_REDHAT_PCIE_HOST   0x0008
+#define PCI_DEVICE_ID_REDHAT_PXB         0x0009
 #define PCI_DEVICE_ID_REDHAT_QXL         0x0100
 
 #define FMT_PCIBUS                      PRIx64
@@ -346,6 +347,8 @@ typedef PCIINTxRoute (*pci_route_irq_fn)(void *opaque, int pin);
 
 #define TYPE_PCI_BUS "PCI"
 #define PCI_BUS(obj) OBJECT_CHECK(PCIBus, (obj), TYPE_PCI_BUS)
+#define PCI_BUS_CLASS(klass) OBJECT_CLASS_CHECK(PCIBusClass, (klass), TYPE_PCI_BUS)
+#define PCI_BUS_GET_CLASS(obj) OBJECT_GET_CLASS(PCIBusClass, (obj), TYPE_PCI_BUS)
 #define TYPE_PCIE_BUS "PCIE"
 
 bool pci_bus_is_express(PCIBus *bus);
@@ -385,6 +388,7 @@ PCIDevice *pci_nic_init_nofail(NICInfo *nd, PCIBus *rootbus,
 PCIDevice *pci_vga_init(PCIBus *bus);
 
 int pci_bus_num(PCIBus *s);
+int pci_bus_numa_node(PCIBus *bus);
 void pci_for_each_device(PCIBus *bus, int bus_num,
                          void (*fn)(PCIBus *bus, PCIDevice *d, void *opaque),
                          void *opaque);

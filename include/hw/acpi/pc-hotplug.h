@@ -16,7 +16,6 @@
  * ONLY DEFINEs are permited in this file since it's shared
  * between C and ASL code.
  */
-#define ACPI_CPU_HOTPLUG_STATUS 4
 
 /* Limit for CPU arch IDs for CPU hotplug. All hotpluggable CPUs should
  * have CPUClass.get_arch_id() < ACPI_CPU_HOTPLUG_ID_LIMIT.

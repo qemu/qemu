@@ -632,21 +632,26 @@ static int virtio_pci_vector_unmask(PCIDevice *dev, unsigned vector,
         if (!virtio_queue_get_num(vdev, index)) {
             break;
         }
-        ret = virtio_pci_vq_vector_unmask(proxy, index, vector, msg);
-        if (ret < 0) {
-            goto undo;
+        if (index < proxy->nvqs_with_notifiers) {
+            ret = virtio_pci_vq_vector_unmask(proxy, index, vector, msg);
+            if (ret < 0) {
+                goto undo;
+            }
+            ++unmasked;
         }
         vq = virtio_vector_next_queue(vq);
-        ++unmasked;
     }
 
     return 0;
 
 undo:
     vq = virtio_vector_first_queue(vdev, vector);
-    while (vq && --unmasked >= 0) {
+    while (vq && unmasked >= 0) {
         index = virtio_get_queue_index(vq);
-        virtio_pci_vq_vector_mask(proxy, index, vector);
+        if (index < proxy->nvqs_with_notifiers) {
+            virtio_pci_vq_vector_mask(proxy, index, vector);
+            --unmasked;
+        }
         vq = virtio_vector_next_queue(vq);
     }
     return ret;
@@ -664,7 +669,9 @@ static void virtio_pci_vector_mask(PCIDevice *dev, unsigned vector)
         if (!virtio_queue_get_num(vdev, index)) {
             break;
         }
-        virtio_pci_vq_vector_mask(proxy, index, vector);
+        if (index < proxy->nvqs_with_notifiers) {
+            virtio_pci_vq_vector_mask(proxy, index, vector);
+        }
         vq = virtio_vector_next_queue(vq);
     }
 }

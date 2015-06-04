@@ -240,13 +240,32 @@ static void acpi_get_misc_info(AcpiMiscInfo *info)
     info->applesmc_io_base = applesmc_port();
 }
 
+/*
+ * Because of the PXB hosts we cannot simply query TYPE_PCI_HOST_BRIDGE.
+ * On i386 arch we only have two pci hosts, so we can look only for them.
+ */
+static Object *acpi_get_i386_pci_host(void)
+{
+    PCIHostState *host;
+
+    host = OBJECT_CHECK(PCIHostState,
+                        object_resolve_path("/machine/i440fx", NULL),
+                        TYPE_PCI_HOST_BRIDGE);
+    if (!host) {
+        host = OBJECT_CHECK(PCIHostState,
+                            object_resolve_path("/machine/q35", NULL),
+                            TYPE_PCI_HOST_BRIDGE);
+    }
+
+    return OBJECT(host);
+}
+
 static void acpi_get_pci_info(PcPciInfo *info)
 {
     Object *pci_host;
-    bool ambiguous;
 
-    pci_host = object_resolve_path_type("", TYPE_PCI_HOST_BRIDGE, &ambiguous);
-    g_assert(!ambiguous);
+
+    pci_host = acpi_get_i386_pci_host();
     g_assert(pci_host);
 
     info->w32.begin = object_property_get_int(pci_host,
@@ -599,6 +618,290 @@ static void build_append_pci_bus_devices(Aml *parent_scope, PCIBus *bus,
     qobject_decref(bsel);
 }
 
+/*
+ * initialize_route - Initialize the interrupt routing rule
+ * through a specific LINK:
+ *  if (lnk_idx == idx)
+ *      route using link 'link_name'
+ */
+static Aml *initialize_route(Aml *route, const char *link_name,
+                             Aml *lnk_idx, int idx)
+{
+    Aml *if_ctx = aml_if(aml_equal(lnk_idx, aml_int(idx)));
+    Aml *pkg = aml_package(4);
+
+    aml_append(pkg, aml_int(0));
+    aml_append(pkg, aml_int(0));
+    aml_append(pkg, aml_name("%s", link_name));
+    aml_append(pkg, aml_int(0));
+    aml_append(if_ctx, aml_store(pkg, route));
+
+    return if_ctx;
+}
+
+/*
+ * build_prt - Define interrupt rounting rules
+ *
+ * Returns an array of 128 routes, one for each device,
+ * based on device location.
+ * The main goal is to equaly distribute the interrupts
+ * over the 4 existing ACPI links (works only for i440fx).
+ * The hash function is  (slot + pin) & 3 -> "LNK[D|A|B|C]".
+ *
+ */
+static Aml *build_prt(void)
+{
+    Aml *method, *while_ctx, *pin, *res;
+
+    method = aml_method("_PRT", 0);
+    res = aml_local(0);
+    pin = aml_local(1);
+    aml_append(method, aml_store(aml_package(128), res));
+    aml_append(method, aml_store(aml_int(0), pin));
+
+    /* while (pin < 128) */
+    while_ctx = aml_while(aml_lless(pin, aml_int(128)));
+    {
+        Aml *slot = aml_local(2);
+        Aml *lnk_idx = aml_local(3);
+        Aml *route = aml_local(4);
+
+        /* slot = pin >> 2 */
+        aml_append(while_ctx,
+                   aml_store(aml_shiftright(pin, aml_int(2)), slot));
+        /* lnk_idx = (slot + pin) & 3 */
+        aml_append(while_ctx,
+                   aml_store(aml_and(aml_add(pin, slot), aml_int(3)), lnk_idx));
+
+        /* route[2] = "LNK[D|A|B|C]", selection based on pin % 3  */
+        aml_append(while_ctx, initialize_route(route, "LNKD", lnk_idx, 0));
+        aml_append(while_ctx, initialize_route(route, "LNKA", lnk_idx, 1));
+        aml_append(while_ctx, initialize_route(route, "LNKB", lnk_idx, 2));
+        aml_append(while_ctx, initialize_route(route, "LNKC", lnk_idx, 3));
+
+        /* route[0] = 0x[slot]FFFF */
+        aml_append(while_ctx,
+            aml_store(aml_or(aml_shiftleft(slot, aml_int(16)), aml_int(0xFFFF)),
+                      aml_index(route, aml_int(0))));
+        /* route[1] = pin & 3 */
+        aml_append(while_ctx,
+            aml_store(aml_and(pin, aml_int(3)), aml_index(route, aml_int(1))));
+        /* res[pin] = route */
+        aml_append(while_ctx, aml_store(route, aml_index(res, pin)));
+        /* pin++ */
+        aml_append(while_ctx, aml_increment(pin));
+    }
+    aml_append(method, while_ctx);
+    /* return res*/
+    aml_append(method, aml_return(res));
+
+    return method;
+}
+
+typedef struct CrsRangeEntry {
+    uint64_t base;
+    uint64_t limit;
+} CrsRangeEntry;
+
+static void crs_range_insert(GPtrArray *ranges, uint64_t base, uint64_t limit)
+{
+    CrsRangeEntry *entry;
+
+    entry = g_malloc(sizeof(*entry));
+    entry->base = base;
+    entry->limit = limit;
+
+    g_ptr_array_add(ranges, entry);
+}
+
+static void crs_range_free(gpointer data)
+{
+    CrsRangeEntry *entry = (CrsRangeEntry *)data;
+    g_free(entry);
+}
+
+static gint crs_range_compare(gconstpointer a, gconstpointer b)
+{
+     CrsRangeEntry *entry_a = *(CrsRangeEntry **)a;
+     CrsRangeEntry *entry_b = *(CrsRangeEntry **)b;
+
+     return (int64_t)entry_a->base - (int64_t)entry_b->base;
+}
+
+/*
+ * crs_replace_with_free_ranges - given the 'used' ranges within [start - end]
+ * interval, computes the 'free' ranges from the same interval.
+ * Example: If the input array is { [a1 - a2],[b1 - b2] }, the function
+ * will return { [base - a1], [a2 - b1], [b2 - limit] }.
+ */
+static void crs_replace_with_free_ranges(GPtrArray *ranges,
+                                         uint64_t start, uint64_t end)
+{
+    GPtrArray *free_ranges = g_ptr_array_new_with_free_func(crs_range_free);
+    uint64_t free_base = start;
+    int i;
+
+    g_ptr_array_sort(ranges, crs_range_compare);
+    for (i = 0; i < ranges->len; i++) {
+        CrsRangeEntry *used = g_ptr_array_index(ranges, i);
+
+        if (free_base < used->base) {
+            crs_range_insert(free_ranges, free_base, used->base - 1);
+        }
+
+        free_base = used->limit + 1;
+    }
+
+    if (free_base < end) {
+        crs_range_insert(free_ranges, free_base, end);
+    }
+
+    g_ptr_array_set_size(ranges, 0);
+    for (i = 0; i < free_ranges->len; i++) {
+        g_ptr_array_add(ranges, g_ptr_array_index(free_ranges, i));
+    }
+
+    g_ptr_array_free(free_ranges, false);
+}
+
+static Aml *build_crs(PCIHostState *host,
+                      GPtrArray *io_ranges, GPtrArray *mem_ranges)
+{
+    Aml *crs = aml_resource_template();
+    uint8_t max_bus = pci_bus_num(host->bus);
+    uint8_t type;
+    int devfn;
+
+    for (devfn = 0; devfn < ARRAY_SIZE(host->bus->devices); devfn++) {
+        int i;
+        uint64_t range_base, range_limit;
+        PCIDevice *dev = host->bus->devices[devfn];
+
+        if (!dev) {
+            continue;
+        }
+
+        for (i = 0; i < PCI_NUM_REGIONS; i++) {
+            PCIIORegion *r = &dev->io_regions[i];
+
+            range_base = r->addr;
+            range_limit = r->addr + r->size - 1;
+
+            /*
+             * Work-around for old bioses
+             * that do not support multiple root buses
+             */
+            if (!range_base || range_base > range_limit) {
+                continue;
+            }
+
+            if (r->type & PCI_BASE_ADDRESS_SPACE_IO) {
+                aml_append(crs,
+                    aml_word_io(AML_MIN_FIXED, AML_MAX_FIXED,
+                                AML_POS_DECODE, AML_ENTIRE_RANGE,
+                                0,
+                                range_base,
+                                range_limit,
+                                0,
+                                range_limit - range_base + 1));
+                crs_range_insert(io_ranges, range_base, range_limit);
+            } else { /* "memory" */
+                aml_append(crs,
+                    aml_dword_memory(AML_POS_DECODE, AML_MIN_FIXED,
+                                     AML_MAX_FIXED, AML_NON_CACHEABLE,
+                                     AML_READ_WRITE,
+                                     0,
+                                     range_base,
+                                     range_limit,
+                                     0,
+                                     range_limit - range_base + 1));
+                crs_range_insert(mem_ranges, range_base, range_limit);
+            }
+        }
+
+        type = dev->config[PCI_HEADER_TYPE] & ~PCI_HEADER_TYPE_MULTI_FUNCTION;
+        if (type == PCI_HEADER_TYPE_BRIDGE) {
+            uint8_t subordinate = dev->config[PCI_SUBORDINATE_BUS];
+            if (subordinate > max_bus) {
+                max_bus = subordinate;
+            }
+
+            range_base = pci_bridge_get_base(dev, PCI_BASE_ADDRESS_SPACE_IO);
+            range_limit = pci_bridge_get_limit(dev, PCI_BASE_ADDRESS_SPACE_IO);
+
+            /*
+             * Work-around for old bioses
+             * that do not support multiple root buses
+             */
+            if (range_base || range_base > range_limit) {
+                aml_append(crs,
+                           aml_word_io(AML_MIN_FIXED, AML_MAX_FIXED,
+                                       AML_POS_DECODE, AML_ENTIRE_RANGE,
+                                       0,
+                                       range_base,
+                                       range_limit,
+                                       0,
+                                       range_limit - range_base + 1));
+                crs_range_insert(io_ranges, range_base, range_limit);
+            }
+
+            range_base =
+                pci_bridge_get_base(dev, PCI_BASE_ADDRESS_SPACE_MEMORY);
+            range_limit =
+                pci_bridge_get_limit(dev, PCI_BASE_ADDRESS_SPACE_MEMORY);
+
+            /*
+             * Work-around for old bioses
+             * that do not support multiple root buses
+             */
+            if (range_base || range_base > range_limit) {
+                aml_append(crs,
+                           aml_dword_memory(AML_POS_DECODE, AML_MIN_FIXED,
+                                            AML_MAX_FIXED, AML_NON_CACHEABLE,
+                                            AML_READ_WRITE,
+                                            0,
+                                            range_base,
+                                            range_limit,
+                                            0,
+                                            range_limit - range_base + 1));
+                crs_range_insert(mem_ranges, range_base, range_limit);
+          }
+
+            range_base =
+                pci_bridge_get_base(dev, PCI_BASE_ADDRESS_MEM_PREFETCH);
+            range_limit =
+                pci_bridge_get_limit(dev, PCI_BASE_ADDRESS_MEM_PREFETCH);
+
+            /*
+             * Work-around for old bioses
+             * that do not support multiple root buses
+             */
+            if (range_base || range_base > range_limit) {
+                aml_append(crs,
+                           aml_dword_memory(AML_POS_DECODE, AML_MIN_FIXED,
+                                            AML_MAX_FIXED, AML_NON_CACHEABLE,
+                                            AML_READ_WRITE,
+                                            0,
+                                            range_base,
+                                            range_limit,
+                                            0,
+                                            range_limit - range_base + 1));
+                crs_range_insert(mem_ranges, range_base, range_limit);
+            }
+        }
+    }
+
+    aml_append(crs,
+        aml_word_bus_number(AML_MIN_FIXED, AML_MAX_FIXED, AML_POS_DECODE,
+                            0,
+                            pci_bus_num(host->bus),
+                            max_bus,
+                            0,
+                            max_bus - pci_bus_num(host->bus) + 1));
+
+    return crs;
+}
+
 static void
 build_ssdt(GArray *table_data, GArray *linker,
            AcpiCpuInfo *cpu, AcpiPmInfo *pm, AcpiMiscInfo *misc,
@@ -608,6 +911,11 @@ build_ssdt(GArray *table_data, GArray *linker,
     uint32_t nr_mem = machine->ram_slots;
     unsigned acpi_cpus = guest_info->apic_id_limit;
     Aml *ssdt, *sb_scope, *scope, *pkg, *dev, *method, *crs, *field, *ifctx;
+    PCIBus *bus = NULL;
+    GPtrArray *io_ranges = g_ptr_array_new_with_free_func(crs_range_free);
+    GPtrArray *mem_ranges = g_ptr_array_new_with_free_func(crs_range_free);
+    CrsRangeEntry *entry;
+    int root_bus_limit = 0xFF;
     int i;
 
     ssdt = init_aml_allocator();
@@ -619,31 +927,81 @@ build_ssdt(GArray *table_data, GArray *linker,
     /* Reserve space for header */
     acpi_data_push(ssdt->buf, sizeof(AcpiTableHeader));
 
+    /* Extra PCI root buses are implemented  only for i440fx */
+    bus = find_i440fx();
+    if (bus) {
+        QLIST_FOREACH(bus, &bus->child, sibling) {
+            uint8_t bus_num = pci_bus_num(bus);
+            uint8_t numa_node = pci_bus_numa_node(bus);
+
+            /* look only for expander root buses */
+            if (!pci_bus_is_root(bus)) {
+                continue;
+            }
+
+            if (bus_num < root_bus_limit) {
+                root_bus_limit = bus_num - 1;
+            }
+
+            scope = aml_scope("\\_SB");
+            dev = aml_device("PC%.02X", bus_num);
+            aml_append(dev,
+                       aml_name_decl("_UID", aml_string("PC%.02X", bus_num)));
+            aml_append(dev, aml_name_decl("_HID", aml_string("PNP0A03")));
+            aml_append(dev, aml_name_decl("_BBN", aml_int(bus_num)));
+
+            if (numa_node != NUMA_NODE_UNASSIGNED) {
+                aml_append(dev, aml_name_decl("_PXM", aml_int(numa_node)));
+            }
+
+            aml_append(dev, build_prt());
+            crs = build_crs(PCI_HOST_BRIDGE(BUS(bus)->parent),
+                            io_ranges, mem_ranges);
+            aml_append(dev, aml_name_decl("_CRS", crs));
+            aml_append(scope, dev);
+            aml_append(ssdt, scope);
+        }
+    }
+
     scope = aml_scope("\\_SB.PCI0");
     /* build PCI0._CRS */
     crs = aml_resource_template();
     aml_append(crs,
         aml_word_bus_number(AML_MIN_FIXED, AML_MAX_FIXED, AML_POS_DECODE,
-                            0x0000, 0x0000, 0x00FF, 0x0000, 0x0100));
+                            0x0000, 0x0, root_bus_limit,
+                            0x0000, root_bus_limit + 1));
     aml_append(crs, aml_io(AML_DECODE16, 0x0CF8, 0x0CF8, 0x01, 0x08));
 
     aml_append(crs,
         aml_word_io(AML_MIN_FIXED, AML_MAX_FIXED,
                     AML_POS_DECODE, AML_ENTIRE_RANGE,
                     0x0000, 0x0000, 0x0CF7, 0x0000, 0x0CF8));
-    aml_append(crs,
-        aml_word_io(AML_MIN_FIXED, AML_MAX_FIXED,
-                    AML_POS_DECODE, AML_ENTIRE_RANGE,
-                    0x0000, 0x0D00, 0xFFFF, 0x0000, 0xF300));
+
+    crs_replace_with_free_ranges(io_ranges, 0x0D00, 0xFFFF);
+    for (i = 0; i < io_ranges->len; i++) {
+        entry = g_ptr_array_index(io_ranges, i);
+        aml_append(crs,
+            aml_word_io(AML_MIN_FIXED, AML_MAX_FIXED,
+                        AML_POS_DECODE, AML_ENTIRE_RANGE,
+                        0x0000, entry->base, entry->limit,
+                        0x0000, entry->limit - entry->base + 1));
+    }
+
     aml_append(crs,
         aml_dword_memory(AML_POS_DECODE, AML_MIN_FIXED, AML_MAX_FIXED,
                          AML_CACHEABLE, AML_READ_WRITE,
                          0, 0x000A0000, 0x000BFFFF, 0, 0x00020000));
-    aml_append(crs,
-        aml_dword_memory(AML_POS_DECODE, AML_MIN_FIXED, AML_MAX_FIXED,
-                         AML_NON_CACHEABLE, AML_READ_WRITE,
-                         0, pci->w32.begin, pci->w32.end - 1, 0,
-                         pci->w32.end - pci->w32.begin));
+
+    crs_replace_with_free_ranges(mem_ranges, pci->w32.begin, pci->w32.end - 1);
+    for (i = 0; i < mem_ranges->len; i++) {
+        entry = g_ptr_array_index(mem_ranges, i);
+        aml_append(crs,
+            aml_dword_memory(AML_POS_DECODE, AML_MIN_FIXED, AML_MAX_FIXED,
+                             AML_NON_CACHEABLE, AML_READ_WRITE,
+                             0, entry->base, entry->limit,
+                             0, entry->limit - entry->base + 1));
+    }
+
     if (pci->w64.begin) {
         aml_append(crs,
             aml_qword_memory(AML_POS_DECODE, AML_MIN_FIXED, AML_MAX_FIXED,
@@ -665,6 +1023,9 @@ build_ssdt(GArray *table_data, GArray *linker,
     );
     aml_append(dev, aml_name_decl("_CRS", crs));
     aml_append(scope, dev);
+
+    g_ptr_array_free(io_ranges, true);
+    g_ptr_array_free(mem_ranges, true);
 
     /* reserve PCIHP resources */
     if (pm->pcihp_io_len) {
@@ -958,10 +1319,9 @@ build_ssdt(GArray *table_data, GArray *linker,
         {
             Object *pci_host;
             PCIBus *bus = NULL;
-            bool ambiguous;
 
-            pci_host = object_resolve_path_type("", TYPE_PCI_HOST_BRIDGE, &ambiguous);
-            if (!ambiguous && pci_host) {
+            pci_host = acpi_get_i386_pci_host();
+            if (pci_host) {
                 bus = PCI_HOST_BRIDGE(pci_host)->bus;
             }
 
@@ -1273,10 +1633,8 @@ static bool acpi_get_mcfg(AcpiMcfgInfo *mcfg)
 {
     Object *pci_host;
     QObject *o;
-    bool ambiguous;
 
-    pci_host = object_resolve_path_type("", TYPE_PCI_HOST_BRIDGE, &ambiguous);
-    g_assert(!ambiguous);
+    pci_host = acpi_get_i386_pci_host();
     g_assert(pci_host);
 
     o = object_property_get_qobject(pci_host, PCIE_HOST_MCFG_BASE, NULL);

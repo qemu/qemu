@@ -1,0 +1,58 @@
+PCI EXPANDER BRIDGE (PXB)
+=========================
+
+Description
+===========
+PXB is a "light-weight" host bridge in the same PCI domain
+as the main host bridge whose purpose is to enable
+the main host bridge to support multiple PCI root buses.
+It is implemented only for i440fx and can be placed only
+on bus 0 (pci.0).
+
+As opposed to PCI-2-PCI bridge's secondary bus, PXB's bus
+is a primary bus and can be associated with a NUMA node
+(different from the main host bridge) allowing the guest OS
+to recognize the proximity of a pass-through device to
+other resources as RAM and CPUs.
+
+Usage
+=====
+A detailed command line would be:
+
+[qemu-bin + storage options]
+-m 2G
+-object memory-backend-ram,size=1024M,policy=bind,host-nodes=0,id=ram-node0 -numa node,nodeid=0,cpus=0,memdev=ram-node0
+-object memory-backend-ram,size=1024M,policy=bind,host-nodes=1,id=ram-node1 -numa node,nodeid=1,cpus=1,memdev=ram-node1
+-device pxb,id=bridge1,bus=pci.0,numa_node=1,bus_nr=4 -netdev user,id=nd-device e1000,bus=bridge1,addr=0x4,netdev=nd
+-device pxb,id=bridge2,bus=pci.0,numa_node=0,bus_nr=8,bus=pci.0 -device e1000,bus=bridge2,addr=0x3
+-device pxb,id=bridge3,bus=pci.0,bus_nr=40,bus=pci.0 -drive if=none,id=drive0,file=[img] -device virtio-blk-pci,drive=drive0,scsi=off,bus=bridge3,addr=1
+
+Here you have:
+ - 2 NUMA nodes for the guest, 0 and 1. (both mapped to the same NUMA node in host, but you can and should put it in different host NUMA nodes)
+ - a pxb host bridge attached to NUMA 1 with an e1000 behind it
+ - a pxb host bridge attached to NUMA 0 with an e1000 behind it
+ - a pxb host bridge not attached to any NUMA with a hard drive behind it.
+
+Limitations
+===========
+Please observe that we specified the bus "pci.0" for the second and third pxb.
+This is because when no bus is given, another pxb can be selected by QEMU as default bus,
+however, PXBs can be placed only under the root bus.
+
+Implementation
+==============
+The PXB is composed by:
+- HostBridge (TYPE_PXB_HOST)
+  The host bridge allows to register and query the PXB's rPCI root bus in QEMU.
+- PXBDev(TYPE_PXB_DEVICE)
+  It is a regular PCI Device that resides on the piix host-bridge bus and its bus uses the same PCI domain.
+  However, the bus behind is exposed through ACPI as a primary PCI bus and starts a new PCI hierarchy.
+  The interrupts from devices behind the PXB are routed through this device the same as if it were a
+  PCI-2-PCI bridge. The _PRT follows the i440fx model.
+- PCIBridgeDev(TYPE_PCI_BRIDGE_DEV)
+  Created automatically as part of init sequence.
+  When adding a device to PXB it is attached to the bridge for two reasons:
+  - Using the bridge will enable hotplug support
+  - All the devices behind the bridge will use bridge's IO/MEM windows compacting
+    the PCI address space.
+

@@ -30,6 +30,7 @@
 #include "hw/block/fdc.h"
 #include "hw/ide.h"
 #include "hw/pci/pci.h"
+#include "hw/pci/pci_bus.h"
 #include "monitor/monitor.h"
 #include "hw/nvram/fw_cfg.h"
 #include "hw/timer/hpet.h"
@@ -1126,6 +1127,25 @@ void pc_guest_info_machine_done(Notifier *notifier, void *data)
     PcGuestInfoState *guest_info_state = container_of(notifier,
                                                       PcGuestInfoState,
                                                       machine_done);
+    PCIBus *bus = find_i440fx();
+
+    if (bus) {
+        int extra_hosts = 0;
+
+        QLIST_FOREACH(bus, &bus->child, sibling) {
+            /* look for expander root buses */
+            if (pci_bus_is_root(bus)) {
+                extra_hosts++;
+            }
+        }
+        if (extra_hosts && guest_info_state->info.fw_cfg) {
+            uint64_t *val = g_malloc(sizeof(*val));
+            *val = cpu_to_le64(extra_hosts);
+            fw_cfg_add_file(guest_info_state->info.fw_cfg,
+                    "etc/extra-pci-roots", val, sizeof(*val));
+        }
+    }
+
     acpi_setup(&guest_info_state->info);
 }
 

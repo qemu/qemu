@@ -687,6 +687,14 @@ Aml *aml_else(void)
     return var;
 }
 
+/* ACPI 1.0b: 16.2.5.3 Type 1 Opcodes Encoding: DefWhile */
+Aml *aml_while(Aml *predicate)
+{
+    Aml *var = aml_bundle(0xA2 /* WhileOp */, AML_PACKAGE);
+    aml_append(var, predicate);
+    return var;
+}
+
 /* ACPI 1.0b: 16.2.5.2 Named Objects Encoding: DefMethod */
 Aml *aml_method(const char *name, int arg_count)
 {

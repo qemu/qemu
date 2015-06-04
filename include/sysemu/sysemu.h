@@ -137,6 +137,7 @@ extern const char *mem_path;
 extern int mem_prealloc;
 
 #define MAX_NODES 128
+#define NUMA_NODE_UNASSIGNED MAX_NODES
 
 /* The following shall be true for all CPUs:
  *   cpu->cpu_index < max_cpus <= MAX_CPUMASK_BITS

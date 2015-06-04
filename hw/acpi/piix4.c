@@ -475,7 +475,7 @@ static void piix4_pm_realize(PCIDevice *dev, Error **errp)
 
     acpi_pm_tmr_init(&s->ar, pm_tmr_timer, &s->io);
     acpi_pm1_evt_init(&s->ar, pm_tmr_timer, &s->io);
-    acpi_pm1_cnt_init(&s->ar, &s->io, s->s4_val);
+    acpi_pm1_cnt_init(&s->ar, &s->io, s->disable_s3, s->disable_s4, s->s4_val);
     acpi_gpe_init(&s->ar, GPE_LEN);
 
     s->powerdown_notifier.notify = piix4_pm_powerdown_req;
@@ -503,8 +503,7 @@ Object *piix4_pm_find(void)
 
 I2CBus *piix4_pm_init(PCIBus *bus, int devfn, uint32_t smb_io_base,
                       qemu_irq sci_irq, qemu_irq smi_irq,
-                      int kvm_enabled, FWCfgState *fw_cfg,
-                      DeviceState **piix4_pm)
+                      int kvm_enabled, DeviceState **piix4_pm)
 {
     DeviceState *dev;
     PIIX4PMState *s;
@@ -524,14 +523,6 @@ I2CBus *piix4_pm_init(PCIBus *bus, int devfn, uint32_t smb_io_base,
     }
 
     qdev_init_nofail(dev);
-
-    if (fw_cfg) {
-        uint8_t suspend[6] = {128, 0, 0, 129, 128, 128};
-        suspend[3] = 1 | ((!s->disable_s3) << 7);
-        suspend[4] = s->s4_val | ((!s->disable_s4) << 7);
-
-        fw_cfg_add_file(fw_cfg, "etc/system-states", g_memdup(suspend, 6), 6);
-    }
 
     return s->smb.smbus;
 }

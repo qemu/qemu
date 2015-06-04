@@ -32,11 +32,13 @@ TPMVersion tpm_tis_get_tpm_version(Object *obj);
 
 static inline TPMVersion tpm_get_version(void)
 {
+#ifdef CONFIG_TPM
     Object *obj = object_resolve_path_type("", TYPE_TPM_TIS, NULL);
 
     if (obj) {
         return tpm_tis_get_tpm_version(obj);
     }
+#endif
     return TPM_VERSION_UNSPEC;
 }
 
