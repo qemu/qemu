@@ -1344,7 +1344,9 @@ static void virtio_pci_device_plugged(DeviceState *d, Error **errp)
                               VIRTIO_QUEUE_MAX);
         memory_region_add_subregion(&proxy->modern_bar, 0x3000, &proxy->notify);
         pci_register_bar(&proxy->pci_dev, modern_mem_bar,
-                         PCI_BASE_ADDRESS_SPACE_MEMORY,
+                         PCI_BASE_ADDRESS_SPACE_MEMORY |
+                         PCI_BASE_ADDRESS_MEM_PREFETCH |
+                         PCI_BASE_ADDRESS_MEM_TYPE_64,
                          &proxy->modern_bar);
     }
 
