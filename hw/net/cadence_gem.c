@@ -155,7 +155,7 @@
 #define GEM_NWCFG_BCAST_REJ    0x00000020 /* Reject broadcast packets */
 #define GEM_NWCFG_PROMISC      0x00000010 /* Accept all packets */
 
-#define GEM_DMACFG_RBUFSZ_M    0x007F0000 /* DMA RX Buffer Size mask */
+#define GEM_DMACFG_RBUFSZ_M    0x00FF0000 /* DMA RX Buffer Size mask */
 #define GEM_DMACFG_RBUFSZ_S    16         /* DMA RX Buffer Size shift */
 #define GEM_DMACFG_RBUFSZ_MUL  64         /* DMA RX Buffer Size multiplier */
 #define GEM_DMACFG_TXCSUM_OFFL 0x00000800 /* Transmit checksum offload */

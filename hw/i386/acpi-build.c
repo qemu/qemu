@@ -596,6 +596,7 @@ static void build_append_pci_bus_devices(Aml *parent_scope, PCIBus *bus,
         }
     }
     aml_append(parent_scope, method);
+    qobject_decref(bsel);
 }
 
 static void

@@ -528,7 +528,6 @@ static void ppc_prep_init(MachineState *machine)
     PCIDevice *pci;
     ISABus *isa_bus;
     ISADevice *isa;
-    qemu_irq *cpu_exit_irq;
     int ppc_boot_device;
     DriveInfo *hd[MAX_IDE_BUS * MAX_IDE_DEVS];
 
@@ -625,11 +624,11 @@ static void ppc_prep_init(MachineState *machine)
 
     /* PCI -> ISA bridge */
     pci = pci_create_simple(pci_bus, PCI_DEVFN(1, 0), "i82378");
-    cpu_exit_irq = qemu_allocate_irqs(cpu_request_exit, NULL, 1);
     cpu = POWERPC_CPU(first_cpu);
     qdev_connect_gpio_out(&pci->qdev, 0,
                           cpu->env.irq_inputs[PPC6xx_INPUT_INT]);
-    qdev_connect_gpio_out(&pci->qdev, 1, *cpu_exit_irq);
+    qdev_connect_gpio_out(&pci->qdev, 1,
+                          qemu_allocate_irq(cpu_request_exit, NULL, 0));
     sysbus_connect_irq(&pcihost->busdev, 0, qdev_get_gpio_in(&pci->qdev, 9));
     sysbus_connect_irq(&pcihost->busdev, 1, qdev_get_gpio_in(&pci->qdev, 11));
     sysbus_connect_irq(&pcihost->busdev, 2, qdev_get_gpio_in(&pci->qdev, 9));

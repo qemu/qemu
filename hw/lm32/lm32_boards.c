@@ -78,7 +78,7 @@ static void lm32_evr_init(MachineState *machine)
     DriveInfo *dinfo;
     MemoryRegion *address_space_mem =  get_system_memory();
     MemoryRegion *phys_ram = g_new(MemoryRegion, 1);
-    qemu_irq *cpu_irq, irq[32];
+    qemu_irq irq[32];
     ResetInfo *reset_info;
     int i;
 
@@ -123,8 +123,7 @@ static void lm32_evr_init(MachineState *machine)
                           1, 2, 0x01, 0x7e, 0x43, 0x00, 0x555, 0x2aa, 1);
 
     /* create irq lines */
-    cpu_irq = qemu_allocate_irqs(cpu_irq_handler, cpu, 1);
-    env->pic_state = lm32_pic_init(*cpu_irq);
+    env->pic_state = lm32_pic_init(qemu_allocate_irq(cpu_irq_handler, cpu, 0));
     for (i = 0; i < 32; i++) {
         irq[i] = qdev_get_gpio_in(env->pic_state, i);
     }
@@ -173,7 +172,7 @@ static void lm32_uclinux_init(MachineState *machine)
     DriveInfo *dinfo;
     MemoryRegion *address_space_mem =  get_system_memory();
     MemoryRegion *phys_ram = g_new(MemoryRegion, 1);
-    qemu_irq *cpu_irq, irq[32];
+    qemu_irq irq[32];
     HWSetup *hw;
     ResetInfo *reset_info;
     int i;
@@ -225,8 +224,7 @@ static void lm32_uclinux_init(MachineState *machine)
                           1, 2, 0x01, 0x7e, 0x43, 0x00, 0x555, 0x2aa, 1);
 
     /* create irq lines */
-    cpu_irq = qemu_allocate_irqs(cpu_irq_handler, env, 1);
-    env->pic_state = lm32_pic_init(*cpu_irq);
+    env->pic_state = lm32_pic_init(qemu_allocate_irq(cpu_irq_handler, env, 0));
     for (i = 0; i < 32; i++) {
         irq[i] = qdev_get_gpio_in(env->pic_state, i);
     }

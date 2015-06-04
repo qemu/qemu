@@ -285,7 +285,6 @@ int cpu_mb_signal_handler(int host_signum, void *pinfo,
 
 /* FIXME: MB uses variable pages down to 1K but linux only uses 4k.  */
 #define TARGET_PAGE_BITS 12
-#define MMAP_SHIFT TARGET_PAGE_BITS
 
 #define TARGET_PHYS_ADDR_SPACE_BITS 32
 #define TARGET_VIRT_ADDR_SPACE_BITS 32

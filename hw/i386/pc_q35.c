@@ -79,7 +79,6 @@ static void pc_q35_init(MachineState *machine)
     GSIState *gsi_state;
     ISABus *isa_bus;
     int pci_enabled = 1;
-    qemu_irq *cpu_irq;
     qemu_irq *gsi;
     qemu_irq *i8259;
     int i;
@@ -230,8 +229,7 @@ static void pc_q35_init(MachineState *machine)
     } else if (xen_enabled()) {
         i8259 = xen_interrupt_controller_init();
     } else {
-        cpu_irq = pc_allocate_cpu_irq();
-        i8259 = i8259_init(isa_bus, cpu_irq[0]);
+        i8259 = i8259_init(isa_bus, pc_allocate_cpu_irq());
     }
 
     for (i = 0; i < ISA_NUM_IRQS; i++) {

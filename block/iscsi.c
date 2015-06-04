@@ -1323,13 +1323,6 @@ static int iscsi_open(BlockDriverState *bs, QDict *options, int flags,
     const char *filename;
     int i, ret = 0;
 
-    if ((BDRV_SECTOR_SIZE % 512) != 0) {
-        error_setg(errp, "iSCSI: Invalid BDRV_SECTOR_SIZE. "
-                   "BDRV_SECTOR_SIZE(%lld) is not a multiple "
-                   "of 512", BDRV_SECTOR_SIZE);
-        return -EINVAL;
-    }
-
     opts = qemu_opts_create(&runtime_opts, NULL, 0, &error_abort);
     qemu_opts_absorb_qdict(opts, options, &local_err);
     if (local_err) {

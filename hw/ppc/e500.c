@@ -1030,6 +1030,7 @@ void ppce500_init(MachineState *machine, PPCE500Params *params)
             exit(1);
         }
     }
+    g_free(filename);
 
     /* Reserve space for dtb */
     dt_base = (loadaddr + bios_size + DTC_LOAD_PAD) & ~DTC_PAD_MASK;

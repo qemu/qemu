@@ -45,6 +45,12 @@ QemuOptsList socket_optslist = {
             .name = "port",
             .type = QEMU_OPT_STRING,
         },{
+            .name = "localaddr",
+            .type = QEMU_OPT_STRING,
+        },{
+            .name = "localport",
+            .type = QEMU_OPT_STRING,
+        },{
             .name = "to",
             .type = QEMU_OPT_NUMBER,
         },{
