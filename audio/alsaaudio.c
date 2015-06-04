@@ -266,31 +266,19 @@ static int alsa_poll_helper (snd_pcm_t *handle, struct pollhlp *hlp, int mask)
 
     for (i = 0; i < count; ++i) {
         if (pfds[i].events & POLLIN) {
-            err = qemu_set_fd_handler (pfds[i].fd, alsa_poll_handler,
-                                       NULL, hlp);
+            qemu_set_fd_handler (pfds[i].fd, alsa_poll_handler, NULL, hlp);
         }
         if (pfds[i].events & POLLOUT) {
             if (conf.verbose) {
                 dolog ("POLLOUT %d %d\n", i, pfds[i].fd);
             }
-            err = qemu_set_fd_handler (pfds[i].fd, NULL,
-                                       alsa_poll_handler, hlp);
+            qemu_set_fd_handler (pfds[i].fd, NULL, alsa_poll_handler, hlp);
         }
         if (conf.verbose) {
             dolog ("Set handler events=%#x index=%d fd=%d err=%d\n",
                    pfds[i].events, i, pfds[i].fd, err);
         }
 
-        if (err) {
-            dolog ("Failed to set handler events=%#x index=%d fd=%d err=%d\n",
-                   pfds[i].events, i, pfds[i].fd, err);
-
-            while (i--) {
-                qemu_set_fd_handler (pfds[i].fd, NULL, NULL, NULL);
-            }
-            g_free (pfds);
-            return -1;
-        }
     }
     hlp->pfds = pfds;
     hlp->count = count;
