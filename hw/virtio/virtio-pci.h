@@ -24,6 +24,7 @@
 #include "hw/virtio/virtio-balloon.h"
 #include "hw/virtio/virtio-bus.h"
 #include "hw/virtio/virtio-9p.h"
+#include "hw/virtio/virtio-input.h"
 #ifdef CONFIG_VIRTFS
 #include "hw/9pfs/virtio-9p.h"
 #endif
@@ -39,6 +40,7 @@ typedef struct VirtIOSerialPCI VirtIOSerialPCI;
 typedef struct VirtIONetPCI VirtIONetPCI;
 typedef struct VHostSCSIPCI VHostSCSIPCI;
 typedef struct VirtIORngPCI VirtIORngPCI;
+typedef struct VirtIOInputPCI VirtIOInputPCI;
 
 /* virtio-pci-bus */
 
@@ -232,6 +234,18 @@ typedef struct V9fsPCIState {
 struct VirtIORngPCI {
     VirtIOPCIProxy parent_obj;
     VirtIORNG vdev;
+};
+
+/*
+ * virtio-input-pci: This extends VirtioPCIProxy.
+ */
+#define TYPE_VIRTIO_INPUT_PCI "virtio-input-pci"
+#define VIRTIO_INPUT_PCI(obj) \
+        OBJECT_CHECK(VirtIOInputPCI, (obj), TYPE_VIRTIO_INPUT_PCI)
+
+struct VirtIOInputPCI {
+    VirtIOPCIProxy parent_obj;
+    VirtIOInput vdev;
 };
 
 /* Virtio ABI version, if we increment this, we break the guest driver. */
