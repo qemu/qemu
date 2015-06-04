@@ -920,6 +920,278 @@ static int virtio_pci_query_nvectors(DeviceState *d)
     return proxy->nvectors;
 }
 
+static void virtio_pci_add_mem_cap(VirtIOPCIProxy *proxy,
+                                   struct virtio_pci_cap *cap)
+{
+    PCIDevice *dev = &proxy->pci_dev;
+    int offset;
+
+    cap->bar = 2;
+
+    offset = pci_add_capability(dev, PCI_CAP_ID_VNDR, 0, cap->cap_len);
+    assert(offset > 0);
+
+    assert(cap->cap_len >= sizeof *cap);
+    memcpy(dev->config + offset + PCI_CAP_FLAGS, &cap->cap_len,
+           cap->cap_len - PCI_CAP_FLAGS);
+}
+
+#define QEMU_VIRTIO_PCI_QUEUE_MEM_MULT 0x10000
+
+static uint64_t virtio_pci_common_read(void *opaque, hwaddr addr,
+                                       unsigned size)
+{
+    VirtIOPCIProxy *proxy = opaque;
+    VirtIODevice *vdev = virtio_bus_get_device(&proxy->bus);
+    uint32_t val = 0;
+    int i;
+
+    switch (addr) {
+    case VIRTIO_PCI_COMMON_DFSELECT:
+        val = proxy->dfselect;
+        break;
+    case VIRTIO_PCI_COMMON_DF:
+        if (proxy->dfselect <= 1) {
+            val = vdev->host_features >> (32 * proxy->dfselect);
+        }
+        break;
+    case VIRTIO_PCI_COMMON_GFSELECT:
+        val = proxy->gfselect;
+        break;
+    case VIRTIO_PCI_COMMON_GF:
+        if (proxy->gfselect <= ARRAY_SIZE(proxy->guest_features)) {
+            val = proxy->guest_features[proxy->gfselect];
+        }
+        break;
+    case VIRTIO_PCI_COMMON_MSIX:
+        val = vdev->config_vector;
+        break;
+    case VIRTIO_PCI_COMMON_NUMQ:
+        for (i = 0; i < VIRTIO_QUEUE_MAX; ++i) {
+            if (virtio_queue_get_num(vdev, i)) {
+                val = i + 1;
+            }
+        }
+        break;
+    case VIRTIO_PCI_COMMON_STATUS:
+        val = vdev->status;
+        break;
+    case VIRTIO_PCI_COMMON_CFGGENERATION:
+        val = 0; /* TODO */
+        break;
+    case VIRTIO_PCI_COMMON_Q_SELECT:
+        val = vdev->queue_sel;
+        break;
+    case VIRTIO_PCI_COMMON_Q_SIZE:
+        val = virtio_queue_get_num(vdev, vdev->queue_sel);
+        break;
+    case VIRTIO_PCI_COMMON_Q_MSIX:
+        val = virtio_queue_vector(vdev, vdev->queue_sel);
+        break;
+    case VIRTIO_PCI_COMMON_Q_ENABLE:
+        val = proxy->vqs[vdev->queue_sel].enabled;
+        break;
+    case VIRTIO_PCI_COMMON_Q_NOFF:
+        /* Simply map queues in order */
+        val = vdev->queue_sel;
+        break;
+    case VIRTIO_PCI_COMMON_Q_DESCLO:
+        val = proxy->vqs[vdev->queue_sel].desc[0];
+        break;
+    case VIRTIO_PCI_COMMON_Q_DESCHI:
+        val = proxy->vqs[vdev->queue_sel].desc[1];
+        break;
+    case VIRTIO_PCI_COMMON_Q_AVAILLO:
+        val = proxy->vqs[vdev->queue_sel].avail[0];
+        break;
+    case VIRTIO_PCI_COMMON_Q_AVAILHI:
+        val = proxy->vqs[vdev->queue_sel].avail[1];
+        break;
+    case VIRTIO_PCI_COMMON_Q_USEDLO:
+        val = proxy->vqs[vdev->queue_sel].used[0];
+        break;
+    case VIRTIO_PCI_COMMON_Q_USEDHI:
+        val = proxy->vqs[vdev->queue_sel].used[1];
+        break;
+    default:
+        val = 0;
+    }
+
+    return val;
+}
+
+static void virtio_pci_common_write(void *opaque, hwaddr addr,
+                                    uint64_t val, unsigned size)
+{
+    VirtIOPCIProxy *proxy = opaque;
+    VirtIODevice *vdev = virtio_bus_get_device(&proxy->bus);
+
+    switch (addr) {
+    case VIRTIO_PCI_COMMON_DFSELECT:
+        proxy->dfselect = val;
+        break;
+    case VIRTIO_PCI_COMMON_GFSELECT:
+        proxy->gfselect = val;
+        break;
+    case VIRTIO_PCI_COMMON_GF:
+        if (proxy->gfselect <= ARRAY_SIZE(proxy->guest_features)) {
+            proxy->guest_features[proxy->gfselect] = val;
+            virtio_set_features(vdev,
+                                (((uint64_t)proxy->guest_features[1]) << 32) |
+                                proxy->guest_features[0]);
+        }
+        break;
+    case VIRTIO_PCI_COMMON_MSIX:
+        msix_vector_unuse(&proxy->pci_dev, vdev->config_vector);
+        /* Make it possible for guest to discover an error took place. */
+        if (msix_vector_use(&proxy->pci_dev, val) < 0) {
+            val = VIRTIO_NO_VECTOR;
+        }
+        vdev->config_vector = val;
+        break;
+    case VIRTIO_PCI_COMMON_STATUS:
+        if (!(val & VIRTIO_CONFIG_S_DRIVER_OK)) {
+            virtio_pci_stop_ioeventfd(proxy);
+        }
+
+        virtio_set_status(vdev, val & 0xFF);
+
+        if (val & VIRTIO_CONFIG_S_DRIVER_OK) {
+            virtio_pci_start_ioeventfd(proxy);
+        }
+
+        if (vdev->status == 0) {
+            virtio_reset(vdev);
+            msix_unuse_all_vectors(&proxy->pci_dev);
+        }
+
+        break;
+    case VIRTIO_PCI_COMMON_Q_SELECT:
+        if (val < VIRTIO_QUEUE_MAX) {
+            vdev->queue_sel = val;
+        }
+        break;
+    case VIRTIO_PCI_COMMON_Q_SIZE:
+        proxy->vqs[vdev->queue_sel].num = val;
+        break;
+    case VIRTIO_PCI_COMMON_Q_MSIX:
+        msix_vector_unuse(&proxy->pci_dev,
+                          virtio_queue_vector(vdev, vdev->queue_sel));
+        /* Make it possible for guest to discover an error took place. */
+        if (msix_vector_use(&proxy->pci_dev, val) < 0) {
+            val = VIRTIO_NO_VECTOR;
+        }
+        virtio_queue_set_vector(vdev, vdev->queue_sel, val);
+        break;
+    case VIRTIO_PCI_COMMON_Q_ENABLE:
+        /* TODO: need a way to put num back on reset. */
+        virtio_queue_set_num(vdev, vdev->queue_sel,
+                             proxy->vqs[vdev->queue_sel].num);
+        virtio_queue_set_rings(vdev, vdev->queue_sel,
+                       ((uint64_t)proxy->vqs[vdev->queue_sel].desc[1]) << 32 |
+                       proxy->vqs[vdev->queue_sel].desc[0],
+                       ((uint64_t)proxy->vqs[vdev->queue_sel].avail[1]) << 32 |
+                       proxy->vqs[vdev->queue_sel].avail[0],
+                       ((uint64_t)proxy->vqs[vdev->queue_sel].used[1]) << 32 |
+                       proxy->vqs[vdev->queue_sel].used[0]);
+        break;
+    case VIRTIO_PCI_COMMON_Q_DESCLO:
+        proxy->vqs[vdev->queue_sel].desc[0] = val;
+        break;
+    case VIRTIO_PCI_COMMON_Q_DESCHI:
+        proxy->vqs[vdev->queue_sel].desc[1] = val;
+        break;
+    case VIRTIO_PCI_COMMON_Q_AVAILLO:
+        proxy->vqs[vdev->queue_sel].avail[0] = val;
+        break;
+    case VIRTIO_PCI_COMMON_Q_AVAILHI:
+        proxy->vqs[vdev->queue_sel].avail[1] = val;
+        break;
+    case VIRTIO_PCI_COMMON_Q_USEDLO:
+        proxy->vqs[vdev->queue_sel].used[0] = val;
+        break;
+    case VIRTIO_PCI_COMMON_Q_USEDHI:
+        proxy->vqs[vdev->queue_sel].used[1] = val;
+        break;
+    default:
+        break;
+    }
+}
+
+
+static uint64_t virtio_pci_notify_read(void *opaque, hwaddr addr,
+                                       unsigned size)
+{
+    return 0;
+}
+
+static void virtio_pci_notify_write(void *opaque, hwaddr addr,
+                                    uint64_t val, unsigned size)
+{
+    VirtIODevice *vdev = opaque;
+    unsigned queue = addr / QEMU_VIRTIO_PCI_QUEUE_MEM_MULT;
+
+    if (queue < VIRTIO_QUEUE_MAX) {
+        virtio_queue_notify(vdev, queue);
+    }
+}
+
+static uint64_t virtio_pci_isr_read(void *opaque, hwaddr addr,
+                                    unsigned size)
+{
+    VirtIOPCIProxy *proxy = opaque;
+    VirtIODevice *vdev = virtio_bus_get_device(&proxy->bus);
+    uint64_t val = vdev->isr;
+
+    vdev->isr = 0;
+    pci_irq_deassert(&proxy->pci_dev);
+
+    return val;
+}
+
+static void virtio_pci_isr_write(void *opaque, hwaddr addr,
+                                 uint64_t val, unsigned size)
+{
+}
+
+static uint64_t virtio_pci_device_read(void *opaque, hwaddr addr,
+                                       unsigned size)
+{
+    VirtIODevice *vdev = opaque;
+    uint64_t val = 0;
+
+    switch (size) {
+    case 1:
+        val = virtio_config_readb(vdev, addr);
+        break;
+    case 2:
+        val = virtio_config_readw(vdev, addr);
+        break;
+    case 4:
+        val = virtio_config_readl(vdev, addr);
+        break;
+    }
+    return val;
+}
+
+static void virtio_pci_device_write(void *opaque, hwaddr addr,
+                                    uint64_t val, unsigned size)
+{
+    VirtIODevice *vdev = opaque;
+    switch (size) {
+    case 1:
+        virtio_config_writeb(vdev, addr, val);
+        break;
+    case 2:
+        virtio_config_writew(vdev, addr, val);
+        break;
+    case 4:
+        virtio_config_writel(vdev, addr, val);
+        break;
+    }
+}
+
+
 /* This is called by virtio-bus just after the device is plugged. */
 static void virtio_pci_device_plugged(DeviceState *d, Error **errp)
 {
@@ -938,6 +1210,112 @@ static void virtio_pci_device_plugged(DeviceState *d, Error **errp)
     pci_set_word(config + PCI_SUBSYSTEM_ID, virtio_bus_get_vdev_id(bus));
     config[PCI_INTERRUPT_PIN] = 1;
 
+
+    if (1) { /* TODO: Make this optional, dependent on virtio 1.0 */
+        struct virtio_pci_cap common = {
+            .cfg_type = VIRTIO_PCI_CAP_COMMON_CFG,
+            .cap_len = sizeof common,
+            .offset = cpu_to_le32(0x0),
+            .length = cpu_to_le32(0x1000),
+        };
+        struct virtio_pci_cap isr = {
+            .cfg_type = VIRTIO_PCI_CAP_ISR_CFG,
+            .cap_len = sizeof isr,
+            .offset = cpu_to_le32(0x1000),
+            .length = cpu_to_le32(0x1000),
+        };
+        struct virtio_pci_cap device = {
+            .cfg_type = VIRTIO_PCI_CAP_DEVICE_CFG,
+            .cap_len = sizeof device,
+            .offset = cpu_to_le32(0x2000),
+            .length = cpu_to_le32(0x1000),
+        };
+        struct virtio_pci_notify_cap notify = {
+            .cap.cfg_type = VIRTIO_PCI_CAP_NOTIFY_CFG,
+            .cap.cap_len = sizeof notify,
+            .cap.offset = cpu_to_le32(0x3000),
+            .cap.length = cpu_to_le32(QEMU_VIRTIO_PCI_QUEUE_MEM_MULT *
+                                      VIRTIO_QUEUE_MAX),
+            .notify_off_multiplier =
+                cpu_to_le32(QEMU_VIRTIO_PCI_QUEUE_MEM_MULT),
+        };
+
+        static const MemoryRegionOps common_ops = {
+            .read = virtio_pci_common_read,
+            .write = virtio_pci_common_write,
+            .impl = {
+                .min_access_size = 1,
+                .max_access_size = 4,
+            },
+            .endianness = DEVICE_LITTLE_ENDIAN,
+        };
+
+        static const MemoryRegionOps isr_ops = {
+            .read = virtio_pci_isr_read,
+            .write = virtio_pci_isr_write,
+            .impl = {
+                .min_access_size = 1,
+                .max_access_size = 4,
+            },
+            .endianness = DEVICE_LITTLE_ENDIAN,
+        };
+
+        static const MemoryRegionOps device_ops = {
+            .read = virtio_pci_device_read,
+            .write = virtio_pci_device_write,
+            .impl = {
+                .min_access_size = 1,
+                .max_access_size = 4,
+            },
+            .endianness = DEVICE_LITTLE_ENDIAN,
+        };
+
+        static const MemoryRegionOps notify_ops = {
+            .read = virtio_pci_notify_read,
+            .write = virtio_pci_notify_write,
+            .impl = {
+                .min_access_size = 1,
+                .max_access_size = 4,
+            },
+            .endianness = DEVICE_LITTLE_ENDIAN,
+        };
+
+        /* TODO: add io access for speed */
+        virtio_pci_add_mem_cap(proxy, &common);
+        virtio_pci_add_mem_cap(proxy, &isr);
+        virtio_pci_add_mem_cap(proxy, &device);
+        virtio_pci_add_mem_cap(proxy, &notify.cap);
+
+        virtio_add_feature(&vdev->host_features, VIRTIO_F_VERSION_1);
+        memory_region_init(&proxy->modern_bar, OBJECT(proxy), "virtio-pci",
+                           2 * QEMU_VIRTIO_PCI_QUEUE_MEM_MULT *
+                           VIRTIO_QUEUE_MAX);
+        memory_region_init_io(&proxy->common, OBJECT(proxy),
+                              &common_ops,
+                              proxy,
+                              "virtio-pci-common", 0x1000);
+        memory_region_add_subregion(&proxy->modern_bar, 0, &proxy->common);
+        memory_region_init_io(&proxy->isr, OBJECT(proxy),
+                              &isr_ops,
+                              proxy,
+                              "virtio-pci-isr", 0x1000);
+        memory_region_add_subregion(&proxy->modern_bar, 0x1000, &proxy->isr);
+        memory_region_init_io(&proxy->device, OBJECT(proxy),
+                              &device_ops,
+                              virtio_bus_get_device(&proxy->bus),
+                              "virtio-pci-device", 0x1000);
+        memory_region_add_subregion(&proxy->modern_bar, 0x2000, &proxy->device);
+        memory_region_init_io(&proxy->notify, OBJECT(proxy),
+                              &notify_ops,
+                              virtio_bus_get_device(&proxy->bus),
+                              "virtio-pci-notify",
+                              QEMU_VIRTIO_PCI_QUEUE_MEM_MULT *
+                              VIRTIO_QUEUE_MAX);
+        memory_region_add_subregion(&proxy->modern_bar, 0x3000, &proxy->notify);
+        pci_register_bar(&proxy->pci_dev, 2, PCI_BASE_ADDRESS_SPACE_MEMORY,
+                         &proxy->modern_bar);
+    }
+
     if (proxy->nvectors &&
         msix_init_exclusive_bar(&proxy->pci_dev, proxy->nvectors, 1)) {
         error_report("unable to init msix vectors to %" PRIu32,
@@ -955,6 +1333,7 @@ static void virtio_pci_device_plugged(DeviceState *d, Error **errp)
 
     memory_region_init_io(&proxy->bar, OBJECT(proxy), &virtio_pci_config_ops,
                           proxy, "virtio-pci", size);
+
     pci_register_bar(&proxy->pci_dev, 0, PCI_BASE_ADDRESS_SPACE_IO,
                      &proxy->bar);
 

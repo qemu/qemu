@@ -88,9 +88,25 @@ typedef struct VirtioPCIClass {
 struct VirtIOPCIProxy {
     PCIDevice pci_dev;
     MemoryRegion bar;
+    MemoryRegion common;
+    MemoryRegion isr;
+    MemoryRegion device;
+    MemoryRegion notify;
+    MemoryRegion modern_bar;
     uint32_t flags;
     uint32_t class_code;
     uint32_t nvectors;
+    uint32_t dfselect;
+    uint32_t gfselect;
+    uint32_t guest_features[2];
+    struct {
+        uint16_t num;
+        bool enabled;
+        uint32_t desc[2];
+        uint32_t avail[2];
+        uint32_t used[2];
+    } vqs[VIRTIO_QUEUE_MAX];
+
     bool ioeventfd_disabled;
     bool ioeventfd_started;
     VirtIOIRQFD *vector_irqfd;
