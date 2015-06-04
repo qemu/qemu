@@ -135,12 +135,21 @@ static int virtio_pci_load_queue(DeviceState *d, int n, QEMUFile *f)
     return 0;
 }
 
+#define QEMU_VIRTIO_PCI_QUEUE_MEM_MULT 0x1000
+
 static int virtio_pci_set_host_notifier_internal(VirtIOPCIProxy *proxy,
                                                  int n, bool assign, bool set_handler)
 {
     VirtIODevice *vdev = virtio_bus_get_device(&proxy->bus);
     VirtQueue *vq = virtio_get_queue(vdev, n);
     EventNotifier *notifier = virtio_queue_get_host_notifier(vq);
+    bool legacy = !(proxy->flags & VIRTIO_PCI_FLAG_DISABLE_LEGACY);
+    bool modern = !(proxy->flags & VIRTIO_PCI_FLAG_DISABLE_MODERN);
+    MemoryRegion *modern_mr = &proxy->notify;
+    MemoryRegion *legacy_mr = &proxy->bar;
+    hwaddr modern_addr = QEMU_VIRTIO_PCI_QUEUE_MEM_MULT *
+                         virtio_get_queue_index(vq);
+    hwaddr legacy_addr = VIRTIO_PCI_QUEUE_NOTIFY;
     int r = 0;
 
     if (assign) {
@@ -151,11 +160,23 @@ static int virtio_pci_set_host_notifier_internal(VirtIOPCIProxy *proxy,
             return r;
         }
         virtio_queue_set_host_notifier_fd_handler(vq, true, set_handler);
-        memory_region_add_eventfd(&proxy->bar, VIRTIO_PCI_QUEUE_NOTIFY, 2,
-                                  true, n, notifier);
+        if (modern) {
+            memory_region_add_eventfd(modern_mr, modern_addr, 2,
+                                      true, n, notifier);
+        }
+        if (legacy) {
+            memory_region_add_eventfd(legacy_mr, legacy_addr, 2,
+                                      true, n, notifier);
+        }
     } else {
-        memory_region_del_eventfd(&proxy->bar, VIRTIO_PCI_QUEUE_NOTIFY, 2,
-                                  true, n, notifier);
+        if (modern) {
+            memory_region_del_eventfd(modern_mr, modern_addr, 2,
+                                      true, n, notifier);
+        }
+        if (legacy) {
+            memory_region_del_eventfd(legacy_mr, legacy_addr, 2,
+                                      true, n, notifier);
+        }
         virtio_queue_set_host_notifier_fd_handler(vq, false, false);
         event_notifier_cleanup(notifier);
     }
@@ -933,8 +954,6 @@ static void virtio_pci_add_mem_cap(VirtIOPCIProxy *proxy,
     memcpy(dev->config + offset + PCI_CAP_FLAGS, &cap->cap_len,
            cap->cap_len - PCI_CAP_FLAGS);
 }
-
-#define QEMU_VIRTIO_PCI_QUEUE_MEM_MULT 0x1000
 
 static uint64_t virtio_pci_common_read(void *opaque, hwaddr addr,
                                        unsigned size)
