@@ -1251,20 +1251,35 @@ static void virtio_pci_modern_regions_init(VirtIOPCIProxy *proxy)
                           &common_ops,
                           proxy,
                           "virtio-pci-common", 0x1000);
+    proxy->common.offset = 0x0;
+
     memory_region_init_io(&proxy->isr.mr, OBJECT(proxy),
                           &isr_ops,
                           proxy,
                           "virtio-pci-isr", 0x1000);
+    proxy->isr.offset = 0x1000;
+
     memory_region_init_io(&proxy->device.mr, OBJECT(proxy),
                           &device_ops,
                           virtio_bus_get_device(&proxy->bus),
                           "virtio-pci-device", 0x1000);
+    proxy->device.offset = 0x2000;
+
     memory_region_init_io(&proxy->notify.mr, OBJECT(proxy),
                           &notify_ops,
                           virtio_bus_get_device(&proxy->bus),
                           "virtio-pci-notify",
                           QEMU_VIRTIO_PCI_QUEUE_MEM_MULT *
                           VIRTIO_QUEUE_MAX);
+    proxy->notify.offset = 0x3000;
+}
+
+static void virtio_pci_modern_region_map(VirtIOPCIProxy *proxy,
+                                         VirtIOPCIRegion *region)
+{
+    memory_region_add_subregion(&proxy->modern_bar,
+                                region->offset,
+                                &region->mr);
 }
 
 /* This is called by virtio-bus just after the device is plugged. */
@@ -1359,12 +1374,10 @@ static void virtio_pci_device_plugged(DeviceState *d, Error **errp)
                            2 * QEMU_VIRTIO_PCI_QUEUE_MEM_MULT *
                            VIRTIO_QUEUE_MAX);
         virtio_pci_modern_regions_init(proxy);
-        memory_region_add_subregion(&proxy->modern_bar, 0, &proxy->common.mr);
-        memory_region_add_subregion(&proxy->modern_bar, 0x1000, &proxy->isr.mr);
-        memory_region_add_subregion(&proxy->modern_bar, 0x2000,
-                                    &proxy->device.mr);
-        memory_region_add_subregion(&proxy->modern_bar, 0x3000,
-                                    &proxy->notify.mr);
+        virtio_pci_modern_region_map(proxy, &proxy->common);
+        virtio_pci_modern_region_map(proxy, &proxy->isr);
+        virtio_pci_modern_region_map(proxy, &proxy->device);
+        virtio_pci_modern_region_map(proxy, &proxy->notify);
         pci_register_bar(&proxy->pci_dev, modern_mem_bar,
                          PCI_BASE_ADDRESS_SPACE_MEMORY |
                          PCI_BASE_ADDRESS_MEM_PREFETCH |
