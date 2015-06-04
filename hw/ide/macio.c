@@ -51,6 +51,13 @@ static const int debug_macio = 0;
 
 #define MACIO_PAGE_SIZE 4096
 
+/*
+ * Unaligned DMA read/write access functions required for OS X/Darwin which
+ * don't perform DMA transactions on sector boundaries. These functions are
+ * modelled on bdrv_co_do_preadv()/bdrv_co_do_pwritev() and so should be
+ * easy to remove if the unaligned block APIs are ever exposed.
+ */
+
 static void pmac_dma_read(BlockBackend *blk,
                           int64_t offset, unsigned int bytes,
                           void (*cb)(void *opaque, int ret), void *opaque)
@@ -206,20 +213,12 @@ static void pmac_ide_atapi_transfer_cb(void *opaque, int ret)
     DBDMA_io *io = opaque;
     MACIOIDEState *m = io->opaque;
     IDEState *s = idebus_active_if(&m->bus);
-    int64_t sector_num;
-    int nsector, remainder;
     int64_t offset;
 
-    MACIO_DPRINTF("\ns is %p\n", s);
-    MACIO_DPRINTF("io_buffer_index: %x\n", s->io_buffer_index);
-    MACIO_DPRINTF("io_buffer_size: %x   packet_transfer_size: %x\n",
-                  s->io_buffer_size, s->packet_transfer_size);
-    MACIO_DPRINTF("lba: %x\n", s->lba);
-    MACIO_DPRINTF("io_addr: %" HWADDR_PRIx "  io_len: %x\n", io->addr,
-                  io->len);
+    MACIO_DPRINTF("pmac_ide_atapi_transfer_cb\n");
 
     if (ret < 0) {
-        MACIO_DPRINTF("THERE WAS AN ERROR!  %d\n", ret);
+        MACIO_DPRINTF("DMA error: %d\n", ret);
         ide_atapi_io_error(s, ret);
         goto done;
     }
@@ -233,6 +232,7 @@ static void pmac_ide_atapi_transfer_cb(void *opaque, int ret)
     }
 
     if (s->io_buffer_size <= 0) {
+        MACIO_DPRINTF("End of IDE transfer\n");
         ide_atapi_cmd_ok(s);
         m->dma_active = false;
         goto done;
@@ -252,22 +252,13 @@ static void pmac_ide_atapi_transfer_cb(void *opaque, int ret)
         goto done;
     }
 
-    /* Calculate number of sectors */
-    sector_num = (int64_t)(s->lba << 2) + (s->io_buffer_index >> 9);
-    nsector = (io->len + 0x1ff) >> 9;
-    remainder = io->len & 0x1ff;
-
     /* Calculate current offset */
     offset = (int64_t)(s->lba << 11) + s->io_buffer_index;
-
-    MACIO_DPRINTF("nsector: %d   remainder: %x\n", nsector, remainder);
-    MACIO_DPRINTF("sector: %"PRIx64"   %zx\n", sector_num, io->iov.size / 512);
 
     pmac_dma_read(s->blk, offset, io->len, pmac_ide_atapi_transfer_cb, io);
     return;
 
 done:
-    MACIO_DPRINTF("done DMA\n\n");
     block_acct_done(blk_get_stats(s->blk), &s->acct);
     io->dma_end(opaque);
 
@@ -279,14 +270,12 @@ static void pmac_ide_transfer_cb(void *opaque, int ret)
     DBDMA_io *io = opaque;
     MACIOIDEState *m = io->opaque;
     IDEState *s = idebus_active_if(&m->bus);
-    int64_t sector_num;
-    int nsector, remainder;
     int64_t offset;
 
     MACIO_DPRINTF("pmac_ide_transfer_cb\n");
 
     if (ret < 0) {
-        MACIO_DPRINTF("DMA error\n");
+        MACIO_DPRINTF("DMA error: %d\n", ret);
         m->aiocb = NULL;
         ide_dma_error(s);
         io->remainder_len = 0;
@@ -302,7 +291,7 @@ static void pmac_ide_transfer_cb(void *opaque, int ret)
     }
 
     if (s->io_buffer_size <= 0) {
-        MACIO_DPRINTF("end of transfer\n");
+        MACIO_DPRINTF("End of IDE transfer\n");
         s->status = READY_STAT | SEEK_STAT;
         ide_set_irq(s->bus);
         m->dma_active = false;
@@ -315,15 +304,7 @@ static void pmac_ide_transfer_cb(void *opaque, int ret)
     }
 
     /* Calculate number of sectors */
-    sector_num = ide_get_sector(s) + (s->io_buffer_index >> 9);
     offset = (ide_get_sector(s) << 9) + s->io_buffer_index;
-    nsector = (io->len + 0x1ff) >> 9;
-    remainder = io->len & 0x1ff;
-
-    s->nsector -= nsector;
-
-    MACIO_DPRINTF("nsector: %d   remainder: %x\n", nsector, remainder);
-    MACIO_DPRINTF("sector: %"PRIx64"   %x\n", sector_num, nsector);
 
     switch (s->dma_cmd) {
     case IDE_DMA_READ:
@@ -333,7 +314,6 @@ static void pmac_ide_transfer_cb(void *opaque, int ret)
         pmac_dma_write(s->blk, offset, io->len, pmac_ide_transfer_cb, io);
         break;
     case IDE_DMA_TRIM:
-        MACIO_DPRINTF("TRIM command issued!");
         break;
     }
 
@@ -537,7 +517,7 @@ static void ide_dbdma_start(IDEDMA *dma, IDEState *s,
     if (s->drive_kind == IDE_CD) {
         s->io_buffer_size = s->packet_transfer_size;
     } else {
-        s->io_buffer_size = s->nsector * 0x200;
+        s->io_buffer_size = s->nsector * BDRV_SECTOR_SIZE;
     }
 
     MACIO_DPRINTF("\n\n------------ IDE transfer\n");
