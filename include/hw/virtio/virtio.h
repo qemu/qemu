@@ -252,7 +252,11 @@ static inline bool virtio_has_feature(VirtIODevice *vdev, unsigned int fbit)
 
 static inline bool virtio_is_big_endian(VirtIODevice *vdev)
 {
-    assert(vdev->device_endian != VIRTIO_DEVICE_ENDIAN_UNKNOWN);
-    return vdev->device_endian == VIRTIO_DEVICE_ENDIAN_BIG;
+    if (!virtio_has_feature(vdev, VIRTIO_F_VERSION_1)) {
+        assert(vdev->device_endian != VIRTIO_DEVICE_ENDIAN_UNKNOWN);
+        return vdev->device_endian == VIRTIO_DEVICE_ENDIAN_BIG;
+    }
+    /* Devices conforming to VIRTIO 1.0 or later are always LE. */
+    return false;
 }
 #endif
