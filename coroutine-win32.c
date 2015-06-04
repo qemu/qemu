@@ -33,8 +33,44 @@ typedef struct
     CoroutineAction action;
 } CoroutineWin32;
 
-static __thread CoroutineWin32 leader;
-static __thread Coroutine *current;
+static int qemu_coroutine_tls_index = TLS_OUT_OF_INDEXES;
+
+//static __thread CoroutineWin32 leader;
+//static __thread Coroutine *current;
+
+static void error_exit(int err, const char *msg)
+{
+    char *pstr;
+
+    FormatMessage(FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_ALLOCATE_BUFFER,
+                  NULL, err, 0, (LPTSTR)&pstr, 2, NULL);
+    fprintf(stderr, "qemu: %s: %s\n", msg, pstr);
+    LocalFree(pstr);
+    abort();
+}
+
+static void qemu_coroutine_init(void)
+{
+    if (qemu_coroutine_tls_index == TLS_OUT_OF_INDEXES) {
+        qemu_coroutine_tls_index = TlsAlloc();
+        if (qemu_coroutine_tls_index == TLS_OUT_OF_INDEXES) {
+            error_exit(ERROR_NO_SYSTEM_RESOURCES, __func__);
+        }
+    }
+}
+
+static Coroutine *qemu_coroutine_get_current(void)
+{
+    qemu_coroutine_init();
+    return TlsGetValue(qemu_coroutine_tls_index);
+}
+
+
+static void qemu_coroutine_set_current(Coroutine *current)
+{
+    qemu_coroutine_init();
+    TlsSetValue(qemu_coroutine_tls_index, current);
+}
 
 /* This function is marked noinline to prevent GCC from inlining it
  * into coroutine_trampoline(). If we allow it to do that then it
@@ -51,7 +87,7 @@ qemu_coroutine_switch(Coroutine *from_, Coroutine *to_,
     CoroutineWin32 *from = DO_UPCAST(CoroutineWin32, base, from_);
     CoroutineWin32 *to = DO_UPCAST(CoroutineWin32, base, to_);
 
-    current = to_;
+    qemu_coroutine_set_current(to_);
 
     to->action = action;
     SwitchToFiber(to->fiber);
@@ -88,14 +124,20 @@ void qemu_coroutine_delete(Coroutine *co_)
 
 Coroutine *qemu_coroutine_self(void)
 {
+    Coroutine *current = qemu_coroutine_get_current();
+
     if (!current) {
-        current = &leader.base;
-        leader.fiber = ConvertThreadToFiber(NULL);
+        CoroutineWin32 *co = g_malloc0(sizeof(*co));
+        current = &co->base;
+        co->fiber = ConvertThreadToFiber(NULL);
+        qemu_coroutine_set_current(current);
     }
     return current;
 }
 
 bool qemu_in_coroutine(void)
 {
+    Coroutine *current = qemu_coroutine_get_current();
+
     return current && current->caller;
 }
