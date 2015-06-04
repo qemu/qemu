@@ -43,7 +43,7 @@ void qmp_nbd_server_start(SocketAddress *addr, Error **errp)
 
     server_fd = socket_listen(addr, errp);
     if (server_fd != -1) {
-        qemu_set_fd_handler2(server_fd, NULL, nbd_accept, NULL, NULL);
+        qemu_set_fd_handler(server_fd, nbd_accept, NULL, NULL);
     }
 }
 
@@ -129,7 +129,7 @@ void qmp_nbd_server_stop(Error **errp)
     }
 
     if (server_fd != -1) {
-        qemu_set_fd_handler2(server_fd, NULL, NULL, NULL, NULL);
+        qemu_set_fd_handler(server_fd, NULL, NULL, NULL);
         close(server_fd);
         server_fd = -1;
     }

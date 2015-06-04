@@ -138,10 +138,10 @@ static void netmap_writable(void *opaque);
 /* Set the event-loop handlers for the netmap backend. */
 static void netmap_update_fd_handler(NetmapState *s)
 {
-    qemu_set_fd_handler2(s->me.fd, NULL,
-                         s->read_poll  ? netmap_send     : NULL,
-                         s->write_poll ? netmap_writable : NULL,
-                         s);
+    qemu_set_fd_handler(s->me.fd,
+                        s->read_poll ? netmap_send : NULL,
+                        s->write_poll ? netmap_writable : NULL,
+                        s);
 }
 
 /* Update the read handler. */

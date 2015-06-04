@@ -138,10 +138,10 @@ static void l2tpv3_writable(void *opaque);
 
 static void l2tpv3_update_fd_handler(NetL2TPV3State *s)
 {
-    qemu_set_fd_handler2(s->fd, NULL,
-                         s->read_poll ? net_l2tpv3_send     : NULL,
-                         s->write_poll ? l2tpv3_writable : NULL,
-                         s);
+    qemu_set_fd_handler(s->fd,
+                        s->read_poll ? net_l2tpv3_send : NULL,
+                        s->write_poll ? l2tpv3_writable : NULL,
+                        s);
 }
 
 static void l2tpv3_read_poll(NetL2TPV3State *s, bool enable)

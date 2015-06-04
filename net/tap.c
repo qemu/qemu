@@ -67,10 +67,10 @@ static void tap_writable(void *opaque);
 
 static void tap_update_fd_handler(TAPState *s)
 {
-    qemu_set_fd_handler2(s->fd, NULL,
-                         s->read_poll && s->enabled ? tap_send     : NULL,
-                         s->write_poll && s->enabled ? tap_writable : NULL,
-                         s);
+    qemu_set_fd_handler(s->fd,
+                        s->read_poll && s->enabled ? tap_send : NULL,
+                        s->write_poll && s->enabled ? tap_writable : NULL,
+                        s);
 }
 
 static void tap_read_poll(TAPState *s, bool enable)
