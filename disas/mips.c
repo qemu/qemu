@@ -2407,6 +2407,7 @@ const struct mips_opcode mips_builtin_opcodes[] =
 {"emt",     "",		0x41600be1, 0xffffffff, TRAP,			0,		MT32	},
 {"emt",     "t",	0x41600be1, 0xffe0ffff, TRAP|WR_t,		0,		MT32	},
 {"eret",    "",         0x42000018, 0xffffffff, 0,      		0,		I3|I32	},
+{"eretnc",  "",         0x42000058, 0xffffffff, 0,                    0, I33},
 {"evpe",    "",		0x41600021, 0xffffffff, TRAP,			0,		MT32	},
 {"evpe",    "t",	0x41600021, 0xffe0ffff, TRAP|WR_t,		0,		MT32	},
 {"ext",     "t,r,+A,+C", 0x7c000000, 0xfc00003f, WR_t|RD_s,    		0,		I33	},

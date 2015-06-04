@@ -466,6 +466,7 @@ struct CPUMIPSState {
 #define CP0C5_UFE        9
 #define CP0C5_FRE        8
 #define CP0C5_SBRI       6
+#define CP0C5_LLB        4
 #define CP0C5_UFR        2
 #define CP0C5_NFExists   0
     int32_t CP0_Config6;

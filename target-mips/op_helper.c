@@ -2099,7 +2099,7 @@ static void set_pc(CPUMIPSState *env, target_ulong error_pc)
     }
 }
 
-void helper_eret(CPUMIPSState *env)
+static inline void exception_return(CPUMIPSState *env)
 {
     debug_pre_eret(env);
     if (env->CP0_Status & (1 << CP0St_ERL)) {
@@ -2111,7 +2111,17 @@ void helper_eret(CPUMIPSState *env)
     }
     compute_hflags(env);
     debug_post_eret(env);
+}
+
+void helper_eret(CPUMIPSState *env)
+{
+    exception_return(env);
     env->lladdr = 1;
+}
+
+void helper_eretnc(CPUMIPSState *env)
+{
+    exception_return(env);
 }
 
 void helper_deret(CPUMIPSState *env)

@@ -348,6 +348,7 @@ DEF_HELPER_1(tlbinvf, void, env)
 DEF_HELPER_1(di, tl, env)
 DEF_HELPER_1(ei, tl, env)
 DEF_HELPER_1(eret, void, env)
+DEF_HELPER_1(eretnc, void, env)
 DEF_HELPER_1(deret, void, env)
 #endif /* !CONFIG_USER_ONLY */
 DEF_HELPER_1(rdhwr_cpunum, tl, env)
