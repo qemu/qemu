@@ -930,6 +930,7 @@ void virtio_notify_config(VirtIODevice *vdev)
         return;
 
     vdev->isr |= 0x03;
+    vdev->generation++;
     virtio_notify_vector(vdev, vdev->config_vector);
 }
 

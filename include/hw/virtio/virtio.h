@@ -78,6 +78,7 @@ struct VirtIODevice
     size_t config_len;
     void *config;
     uint16_t config_vector;
+    uint32_t generation;
     int nvectors;
     VirtQueue *vq;
     uint16_t device_id;

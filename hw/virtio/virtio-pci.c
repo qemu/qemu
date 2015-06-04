@@ -977,7 +977,7 @@ static uint64_t virtio_pci_common_read(void *opaque, hwaddr addr,
         val = vdev->status;
         break;
     case VIRTIO_PCI_COMMON_CFGGENERATION:
-        val = 0; /* TODO */
+        val = vdev->generation;
         break;
     case VIRTIO_PCI_COMMON_Q_SELECT:
         val = vdev->queue_sel;
