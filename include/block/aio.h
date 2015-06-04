@@ -241,7 +241,7 @@ bool aio_dispatch(AioContext *ctx);
 bool aio_poll(AioContext *ctx, bool blocking);
 
 /* Register a file descriptor and associated callbacks.  Behaves very similarly
- * to qemu_set_fd_handler2.  Unlike qemu_set_fd_handler2, these callbacks will
+ * to qemu_set_fd_handler.  Unlike qemu_set_fd_handler, these callbacks will
  * be invoked when using aio_poll().
  *
  * Code that invokes AIO completion functions should rely on this function

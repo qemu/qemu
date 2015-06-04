@@ -33,7 +33,6 @@
 #endif
 
 typedef struct IOHandlerRecord {
-    IOCanReadHandler *fd_read_poll;
     IOHandler *fd_read;
     IOHandler *fd_write;
     void *opaque;
@@ -46,14 +45,10 @@ typedef struct IOHandlerRecord {
 static QLIST_HEAD(, IOHandlerRecord) io_handlers =
     QLIST_HEAD_INITIALIZER(io_handlers);
 
-
-/* XXX: fd_read_poll should be suppressed, but an API change is
-   necessary in the character devices to suppress fd_can_read(). */
-int qemu_set_fd_handler2(int fd,
-                         IOCanReadHandler *fd_read_poll,
-                         IOHandler *fd_read,
-                         IOHandler *fd_write,
-                         void *opaque)
+int qemu_set_fd_handler(int fd,
+                        IOHandler *fd_read,
+                        IOHandler *fd_write,
+                        void *opaque)
 {
     IOHandlerRecord *ioh;
 
@@ -75,7 +70,6 @@ int qemu_set_fd_handler2(int fd,
         QLIST_INSERT_HEAD(&io_handlers, ioh, next);
     found:
         ioh->fd = fd;
-        ioh->fd_read_poll = fd_read_poll;
         ioh->fd_read = fd_read;
         ioh->fd_write = fd_write;
         ioh->opaque = opaque;
@@ -84,14 +78,6 @@ int qemu_set_fd_handler2(int fd,
         qemu_notify_event();
     }
     return 0;
-}
-
-int qemu_set_fd_handler(int fd,
-                        IOHandler *fd_read,
-                        IOHandler *fd_write,
-                        void *opaque)
-{
-    return qemu_set_fd_handler2(fd, NULL, fd_read, fd_write, opaque);
 }
 
 void qemu_iohandler_fill(GArray *pollfds)
@@ -103,9 +89,7 @@ void qemu_iohandler_fill(GArray *pollfds)
 
         if (ioh->deleted)
             continue;
-        if (ioh->fd_read &&
-            (!ioh->fd_read_poll ||
-             ioh->fd_read_poll(ioh->opaque) != 0)) {
+        if (ioh->fd_read) {
             events |= G_IO_IN | G_IO_HUP | G_IO_ERR;
         }
         if (ioh->fd_write) {
