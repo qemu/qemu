@@ -1197,6 +1197,8 @@ static void virtio_pci_device_plugged(DeviceState *d, Error **errp)
 {
     VirtIOPCIProxy *proxy = VIRTIO_PCI(d);
     VirtioBusState *bus = &proxy->bus;
+    bool legacy = !(proxy->flags & VIRTIO_PCI_FLAG_DISABLE_LEGACY);
+    bool modern = !(proxy->flags & VIRTIO_PCI_FLAG_DISABLE_MODERN);
     uint8_t *config;
     uint32_t size;
     VirtIODevice *vdev = virtio_bus_get_device(&proxy->bus);
@@ -1205,13 +1207,24 @@ static void virtio_pci_device_plugged(DeviceState *d, Error **errp)
     if (proxy->class_code) {
         pci_config_set_class(config, proxy->class_code);
     }
-    pci_set_word(config + PCI_SUBSYSTEM_VENDOR_ID,
-                 pci_get_word(config + PCI_VENDOR_ID));
-    pci_set_word(config + PCI_SUBSYSTEM_ID, virtio_bus_get_vdev_id(bus));
+
+    if (legacy) {
+        /* legacy and transitional */
+        pci_set_word(config + PCI_SUBSYSTEM_VENDOR_ID,
+                     pci_get_word(config + PCI_VENDOR_ID));
+        pci_set_word(config + PCI_SUBSYSTEM_ID, virtio_bus_get_vdev_id(bus));
+    } else {
+        /* pure virtio-1.0 */
+        pci_set_word(config + PCI_VENDOR_ID,
+                     PCI_VENDOR_ID_REDHAT_QUMRANET);
+        pci_set_word(config + PCI_DEVICE_ID,
+                     0x1040 + virtio_bus_get_vdev_id(bus));
+        pci_config_set_revision(config, 1);
+    }
     config[PCI_INTERRUPT_PIN] = 1;
 
 
-    if (1) { /* TODO: Make this optional, dependent on virtio 1.0 */
+    if (modern) {
         struct virtio_pci_cap common = {
             .cfg_type = VIRTIO_PCI_CAP_COMMON_CFG,
             .cap_len = sizeof common,
@@ -1325,17 +1338,20 @@ static void virtio_pci_device_plugged(DeviceState *d, Error **errp)
 
     proxy->pci_dev.config_write = virtio_write_config;
 
-    size = VIRTIO_PCI_REGION_SIZE(&proxy->pci_dev)
-         + virtio_bus_get_vdev_config_len(bus);
-    if (size & (size - 1)) {
-        size = 1 << qemu_fls(size);
+    if (legacy) {
+        size = VIRTIO_PCI_REGION_SIZE(&proxy->pci_dev)
+            + virtio_bus_get_vdev_config_len(bus);
+        if (size & (size - 1)) {
+            size = 1 << qemu_fls(size);
+        }
+
+        memory_region_init_io(&proxy->bar, OBJECT(proxy),
+                              &virtio_pci_config_ops,
+                              proxy, "virtio-pci", size);
+
+        pci_register_bar(&proxy->pci_dev, 0, PCI_BASE_ADDRESS_SPACE_IO,
+                         &proxy->bar);
     }
-
-    memory_region_init_io(&proxy->bar, OBJECT(proxy), &virtio_pci_config_ops,
-                          proxy, "virtio-pci", size);
-
-    pci_register_bar(&proxy->pci_dev, 0, PCI_BASE_ADDRESS_SPACE_IO,
-                     &proxy->bar);
 
     if (!kvm_has_many_ioeventfds()) {
         proxy->flags &= ~VIRTIO_PCI_FLAG_USE_IOEVENTFD;
@@ -1379,6 +1395,10 @@ static void virtio_pci_reset(DeviceState *qdev)
 static Property virtio_pci_properties[] = {
     DEFINE_PROP_BIT("virtio-pci-bus-master-bug-migration", VirtIOPCIProxy, flags,
                     VIRTIO_PCI_FLAG_BUS_MASTER_BUG_MIGRATION_BIT, false),
+    DEFINE_PROP_BIT("disable-legacy", VirtIOPCIProxy, flags,
+                    VIRTIO_PCI_FLAG_DISABLE_LEGACY_BIT, false),
+    DEFINE_PROP_BIT("disable-modern", VirtIOPCIProxy, flags,
+                    VIRTIO_PCI_FLAG_DISABLE_MODERN_BIT, true),
     DEFINE_PROP_END_OF_LIST(),
 };
 
