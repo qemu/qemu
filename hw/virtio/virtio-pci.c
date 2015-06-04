@@ -1275,11 +1275,16 @@ static void virtio_pci_modern_regions_init(VirtIOPCIProxy *proxy)
 }
 
 static void virtio_pci_modern_region_map(VirtIOPCIProxy *proxy,
-                                         VirtIOPCIRegion *region)
+                                         VirtIOPCIRegion *region,
+                                         struct virtio_pci_cap *cap)
 {
     memory_region_add_subregion(&proxy->modern_bar,
                                 region->offset,
                                 &region->mr);
+
+    cap->offset = cpu_to_le32(region->offset);
+    cap->length = cpu_to_le32(memory_region_size(&region->mr));
+    virtio_pci_add_mem_cap(proxy, cap);
 }
 
 /* This is called by virtio-bus just after the device is plugged. */
@@ -1335,49 +1340,36 @@ static void virtio_pci_device_plugged(DeviceState *d, Error **errp)
             .cfg_type = VIRTIO_PCI_CAP_COMMON_CFG,
             .cap_len = sizeof common,
             .bar = modern_mem_bar,
-            .offset = cpu_to_le32(0x0),
-            .length = cpu_to_le32(0x1000),
         };
         struct virtio_pci_cap isr = {
             .cfg_type = VIRTIO_PCI_CAP_ISR_CFG,
             .cap_len = sizeof isr,
             .bar = modern_mem_bar,
-            .offset = cpu_to_le32(0x1000),
-            .length = cpu_to_le32(0x1000),
         };
         struct virtio_pci_cap device = {
             .cfg_type = VIRTIO_PCI_CAP_DEVICE_CFG,
             .cap_len = sizeof device,
             .bar = modern_mem_bar,
-            .offset = cpu_to_le32(0x2000),
-            .length = cpu_to_le32(0x1000),
         };
         struct virtio_pci_notify_cap notify = {
             .cap.cfg_type = VIRTIO_PCI_CAP_NOTIFY_CFG,
             .cap.cap_len = sizeof notify,
             .cap.bar = modern_mem_bar,
-            .cap.offset = cpu_to_le32(0x3000),
-            .cap.length = cpu_to_le32(QEMU_VIRTIO_PCI_QUEUE_MEM_MULT *
-                                      VIRTIO_QUEUE_MAX),
             .notify_off_multiplier =
                 cpu_to_le32(QEMU_VIRTIO_PCI_QUEUE_MEM_MULT),
         };
 
         /* TODO: add io access for speed */
-        virtio_pci_add_mem_cap(proxy, &common);
-        virtio_pci_add_mem_cap(proxy, &isr);
-        virtio_pci_add_mem_cap(proxy, &device);
-        virtio_pci_add_mem_cap(proxy, &notify.cap);
 
         virtio_add_feature(&vdev->host_features, VIRTIO_F_VERSION_1);
         memory_region_init(&proxy->modern_bar, OBJECT(proxy), "virtio-pci",
                            2 * QEMU_VIRTIO_PCI_QUEUE_MEM_MULT *
                            VIRTIO_QUEUE_MAX);
         virtio_pci_modern_regions_init(proxy);
-        virtio_pci_modern_region_map(proxy, &proxy->common);
-        virtio_pci_modern_region_map(proxy, &proxy->isr);
-        virtio_pci_modern_region_map(proxy, &proxy->device);
-        virtio_pci_modern_region_map(proxy, &proxy->notify);
+        virtio_pci_modern_region_map(proxy, &proxy->common, &common);
+        virtio_pci_modern_region_map(proxy, &proxy->isr, &isr);
+        virtio_pci_modern_region_map(proxy, &proxy->device, &device);
+        virtio_pci_modern_region_map(proxy, &proxy->notify, &notify.cap);
         pci_register_bar(&proxy->pci_dev, modern_mem_bar,
                          PCI_BASE_ADDRESS_SPACE_MEMORY |
                          PCI_BASE_ADDRESS_MEM_PREFETCH |
