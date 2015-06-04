@@ -2007,6 +2007,16 @@ static void tcg_reg_alloc_op(TCGContext *s,
                 if (!IS_DEAD_ARG(i)) {
                     goto allocate_in_reg;
                 }
+                /* check if the current register has already been allocated
+                   for another input aliased to an output */
+                int k2, i2;
+                for (k2 = 0 ; k2 < k ; k2++) {
+                    i2 = def->sorted_args[nb_oargs + k2];
+                    if ((def->args_ct[i2].ct & TCG_CT_IALIAS) &&
+                        (new_args[i2] == ts->reg)) {
+                        goto allocate_in_reg;
+                    }
+                }
             }
         }
         reg = ts->reg;
