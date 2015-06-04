@@ -157,15 +157,18 @@ bool vring_should_notify(VirtIODevice *vdev, Vring *vring)
 }
 
 
-static int get_desc(Vring *vring, VirtQueueElement *elem,
+static int get_desc(VirtIODevice *vdev, Vring *vring, VirtQueueElement *elem,
                     struct vring_desc *desc)
 {
     unsigned *num;
     struct iovec *iov;
     hwaddr *addr;
     MemoryRegion *mr;
+    int is_write = virtio_tswap16(vdev, desc->flags) & VRING_DESC_F_WRITE;
+    uint32_t len = virtio_tswap32(vdev, desc->len);
+    uint64_t desc_addr = virtio_tswap64(vdev, desc->addr);
 
-    if (desc->flags & VRING_DESC_F_WRITE) {
+    if (is_write) {
         num = &elem->in_num;
         iov = &elem->in_sg[*num];
         addr = &elem->in_addr[*num];
@@ -189,18 +192,17 @@ static int get_desc(Vring *vring, VirtQueueElement *elem,
     }
 
     /* TODO handle non-contiguous memory across region boundaries */
-    iov->iov_base = vring_map(&mr, desc->addr, desc->len,
-                              desc->flags & VRING_DESC_F_WRITE);
+    iov->iov_base = vring_map(&mr, desc_addr, len, is_write);
     if (!iov->iov_base) {
         error_report("Failed to map descriptor addr %#" PRIx64 " len %u",
-                     (uint64_t)desc->addr, desc->len);
+                     (uint64_t)desc_addr, len);
         return -EFAULT;
     }
 
     /* The MemoryRegion is looked up again and unref'ed later, leave the
      * ref in place.  */
-    iov->iov_len = desc->len;
-    *addr = desc->addr;
+    iov->iov_len = len;
+    *addr = desc_addr;
     *num += 1;
     return 0;
 }
@@ -222,21 +224,23 @@ static int get_indirect(VirtIODevice *vdev, Vring *vring,
     struct vring_desc desc;
     unsigned int i = 0, count, found = 0;
     int ret;
+    uint32_t len = virtio_tswap32(vdev, indirect->len);
+    uint64_t addr = virtio_tswap64(vdev, indirect->addr);
 
     /* Sanity check */
-    if (unlikely(indirect->len % sizeof(desc))) {
+    if (unlikely(len % sizeof(desc))) {
         error_report("Invalid length in indirect descriptor: "
                      "len %#x not multiple of %#zx",
-                     indirect->len, sizeof(desc));
+                     len, sizeof(desc));
         vring->broken = true;
         return -EFAULT;
     }
 
-    count = indirect->len / sizeof(desc);
+    count = len / sizeof(desc);
     /* Buffers are chained via a 16 bit next field, so
      * we can have at most 2^16 of these. */
     if (unlikely(count > USHRT_MAX + 1)) {
-        error_report("Indirect buffer length too big: %d", indirect->len);
+        error_report("Indirect buffer length too big: %d", len);
         vring->broken = true;
         return -EFAULT;
     }
@@ -247,12 +251,12 @@ static int get_indirect(VirtIODevice *vdev, Vring *vring,
 
         /* Translate indirect descriptor */
         desc_ptr = vring_map(&mr,
-                             indirect->addr + found * sizeof(desc),
+                             addr + found * sizeof(desc),
                              sizeof(desc), false);
         if (!desc_ptr) {
             error_report("Failed to map indirect descriptor "
                          "addr %#" PRIx64 " len %zu",
-                         (uint64_t)indirect->addr + found * sizeof(desc),
+                         (uint64_t)addr + found * sizeof(desc),
                          sizeof(desc));
             vring->broken = true;
             return -EFAULT;
@@ -270,19 +274,20 @@ static int get_indirect(VirtIODevice *vdev, Vring *vring,
             return -EFAULT;
         }
 
-        if (unlikely(desc.flags & VRING_DESC_F_INDIRECT)) {
+        if (unlikely(virtio_tswap16(vdev, desc.flags)
+                     & VRING_DESC_F_INDIRECT)) {
             error_report("Nested indirect descriptor");
             vring->broken = true;
             return -EFAULT;
         }
 
-        ret = get_desc(vring, elem, &desc);
+        ret = get_desc(vdev, vring, elem, &desc);
         if (ret < 0) {
             vring->broken |= (ret == -EFAULT);
             return ret;
         }
-        i = desc.next;
-    } while (desc.flags & VRING_DESC_F_NEXT);
+        i = virtio_tswap16(vdev, desc.next);
+    } while (virtio_tswap16(vdev, desc.flags) & VRING_DESC_F_NEXT);
     return 0;
 }
 
@@ -383,7 +388,7 @@ int vring_pop(VirtIODevice *vdev, Vring *vring,
         /* Ensure descriptor is loaded before accessing fields */
         barrier();
 
-        if (desc.flags & VRING_DESC_F_INDIRECT) {
+        if (virtio_tswap16(vdev, desc.flags) & VRING_DESC_F_INDIRECT) {
             ret = get_indirect(vdev, vring, elem, &desc);
             if (ret < 0) {
                 goto out;
@@ -391,13 +396,13 @@ int vring_pop(VirtIODevice *vdev, Vring *vring,
             continue;
         }
 
-        ret = get_desc(vring, elem, &desc);
+        ret = get_desc(vdev, vring, elem, &desc);
         if (ret < 0) {
             goto out;
         }
 
-        i = desc.next;
-    } while (desc.flags & VRING_DESC_F_NEXT);
+        i = virtio_tswap16(vdev, desc.next);
+    } while (virtio_tswap16(vdev, desc.flags) & VRING_DESC_F_NEXT);
 
     /* On success, increment avail index. */
     vring->last_avail_idx++;
