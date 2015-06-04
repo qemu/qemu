@@ -32,6 +32,7 @@
 
 #include "qemu-common.h"
 
+#define NUM_GICV2M_SPIS       64
 #define NUM_VIRTIO_TRANSPORTS 32
 
 #define ARCH_TIMER_VIRT_IRQ   11
@@ -53,6 +54,8 @@ enum {
     VIRT_PCIE_MMIO,
     VIRT_PCIE_PIO,
     VIRT_PCIE_ECAM,
+    VIRT_GIC_V2M,
+    VIRT_PLATFORM_BUS,
 };
 
 typedef struct MemMapEntry {

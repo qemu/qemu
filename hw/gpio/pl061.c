@@ -173,7 +173,7 @@ static uint64_t pl061_read(void *opaque, hwaddr offset,
     case 0x414: /* Raw interrupt status */
         return s->istate;
     case 0x418: /* Masked interrupt status */
-        return s->istate | s->im;
+        return s->istate & s->im;
     case 0x420: /* Alternate function select */
         return s->afsel;
     case 0x500: /* 2mA drive */

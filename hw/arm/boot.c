@@ -557,7 +557,7 @@ static void load_image_to_fw_cfg(FWCfgState *fw_cfg, uint16_t size_key,
     fw_cfg_add_bytes(fw_cfg, data_key, data, size);
 }
 
-void arm_load_kernel(ARMCPU *cpu, struct arm_boot_info *info)
+static void arm_load_kernel_notify(Notifier *notifier, void *data)
 {
     CPUState *cs;
     int kernel_size;
@@ -568,6 +568,11 @@ void arm_load_kernel(ARMCPU *cpu, struct arm_boot_info *info)
     hwaddr entry, kernel_load_offset;
     int big_endian;
     static const ARMInsnFixup *primary_loader;
+    ArmLoadKernelNotifier *n = DO_UPCAST(ArmLoadKernelNotifier,
+                                         notifier, notifier);
+    ARMCPU *cpu = n->cpu;
+    struct arm_boot_info *info =
+        container_of(n, struct arm_boot_info, load_kernel_notifier);
 
     /* CPU objects (unlike devices) are not automatically reset on system
      * reset, so we must always register a handler to do so. If we're
@@ -774,4 +779,11 @@ void arm_load_kernel(ARMCPU *cpu, struct arm_boot_info *info)
     for (cs = CPU(cpu); cs; cs = CPU_NEXT(cs)) {
         ARM_CPU(cs)->env.boot_info = info;
     }
+}
+
+void arm_load_kernel(ARMCPU *cpu, struct arm_boot_info *info)
+{
+    info->load_kernel_notifier.cpu = cpu;
+    info->load_kernel_notifier.notifier.notify = arm_load_kernel_notify;
+    qemu_add_machine_init_done_notifier(&info->load_kernel_notifier.notifier);
 }

@@ -294,23 +294,15 @@ static gint cpreg_key_compare(gconstpointer a, gconstpointer b)
     return 0;
 }
 
-static void cpreg_make_keylist(gpointer key, gpointer value, gpointer udata)
-{
-    GList **plist = udata;
-
-    *plist = g_list_prepend(*plist, key);
-}
-
 void init_cpreg_list(ARMCPU *cpu)
 {
     /* Initialise the cpreg_tuples[] array based on the cp_regs hash.
      * Note that we require cpreg_tuples[] to be sorted by key ID.
      */
-    GList *keys = NULL;
+    GList *keys;
     int arraylen;
 
-    g_hash_table_foreach(cpu->cp_regs, cpreg_make_keylist, &keys);
-
+    keys = g_hash_table_get_keys(cpu->cp_regs);
     keys = g_list_sort(keys, cpreg_key_compare);
 
     cpu->cpreg_array_len = 0;
@@ -492,10 +484,16 @@ static const ARMCPRegInfo not_v8_cp_reginfo[] = {
       .writefn = dacr_write, .raw_writefn = raw_write,
       .bank_fieldoffsets = { offsetoflow32(CPUARMState, cp15.dacr_s),
                              offsetoflow32(CPUARMState, cp15.dacr_ns) } },
-    /* ??? This covers not just the impdef TLB lockdown registers but also
-     * some v7VMSA registers relating to TEX remap, so it is overly broad.
+    /* ARMv7 allocates a range of implementation defined TLB LOCKDOWN regs.
+     * For v6 and v5, these mappings are overly broad.
      */
-    { .name = "TLB_LOCKDOWN", .cp = 15, .crn = 10, .crm = CP_ANY,
+    { .name = "TLB_LOCKDOWN", .cp = 15, .crn = 10, .crm = 0,
+      .opc1 = CP_ANY, .opc2 = CP_ANY, .access = PL1_RW, .type = ARM_CP_NOP },
+    { .name = "TLB_LOCKDOWN", .cp = 15, .crn = 10, .crm = 1,
+      .opc1 = CP_ANY, .opc2 = CP_ANY, .access = PL1_RW, .type = ARM_CP_NOP },
+    { .name = "TLB_LOCKDOWN", .cp = 15, .crn = 10, .crm = 4,
+      .opc1 = CP_ANY, .opc2 = CP_ANY, .access = PL1_RW, .type = ARM_CP_NOP },
+    { .name = "TLB_LOCKDOWN", .cp = 15, .crn = 10, .crm = 8,
       .opc1 = CP_ANY, .opc2 = CP_ANY, .access = PL1_RW, .type = ARM_CP_NOP },
     /* Cache maintenance ops; some of this space may be overridden later. */
     { .name = "CACHEMAINT", .cp = 15, .crn = 7, .crm = CP_ANY,
@@ -555,6 +553,10 @@ static const ARMCPRegInfo not_v7_cp_reginfo[] = {
     { .name = "TLBIMVAA", .cp = 15, .crn = 8, .crm = CP_ANY,
       .opc1 = CP_ANY, .opc2 = 3, .access = PL1_W, .writefn = tlbimvaa_write,
       .type = ARM_CP_NO_RAW },
+    { .name = "PRRR", .cp = 15, .crn = 10, .crm = 2,
+      .opc1 = 0, .opc2 = 0, .access = PL1_RW, .type = ARM_CP_NOP },
+    { .name = "NMRR", .cp = 15, .crn = 10, .crm = 2,
+      .opc1 = 0, .opc2 = 1, .access = PL1_RW, .type = ARM_CP_NOP },
     REGINFO_SENTINEL
 };
 
@@ -1021,19 +1023,17 @@ static const ARMCPRegInfo v7_cp_reginfo[] = {
       .resetvalue = 0 },
     /* For non-long-descriptor page tables these are PRRR and NMRR;
      * regardless they still act as reads-as-written for QEMU.
-     * The override is necessary because of the overly-broad TLB_LOCKDOWN
-     * definition.
      */
      /* MAIR0/1 are defined separately from their 64-bit counterpart which
       * allows them to assign the correct fieldoffset based on the endianness
       * handled in the field definitions.
       */
-    { .name = "MAIR0", .state = ARM_CP_STATE_AA32, .type = ARM_CP_OVERRIDE,
+    { .name = "MAIR0", .state = ARM_CP_STATE_AA32,
       .cp = 15, .opc1 = 0, .crn = 10, .crm = 2, .opc2 = 0, .access = PL1_RW,
       .bank_fieldoffsets = { offsetof(CPUARMState, cp15.mair0_s),
                              offsetof(CPUARMState, cp15.mair0_ns) },
       .resetfn = arm_cp_reset_ignore },
-    { .name = "MAIR1", .state = ARM_CP_STATE_AA32, .type = ARM_CP_OVERRIDE,
+    { .name = "MAIR1", .state = ARM_CP_STATE_AA32,
       .cp = 15, .opc1 = 0, .crn = 10, .crm = 2, .opc2 = 1, .access = PL1_RW,
       .bank_fieldoffsets = { offsetof(CPUARMState, cp15.mair1_s),
                              offsetof(CPUARMState, cp15.mair1_ns) },
@@ -2088,16 +2088,14 @@ static const ARMCPRegInfo mpidr_cp_reginfo[] = {
 };
 
 static const ARMCPRegInfo lpae_cp_reginfo[] = {
-    /* NOP AMAIR0/1: the override is because these clash with the rather
-     * broadly specified TLB_LOCKDOWN entry in the generic cp_reginfo.
-     */
+    /* NOP AMAIR0/1 */
     { .name = "AMAIR0", .state = ARM_CP_STATE_BOTH,
       .opc0 = 3, .crn = 10, .crm = 3, .opc1 = 0, .opc2 = 0,
-      .access = PL1_RW, .type = ARM_CP_CONST | ARM_CP_OVERRIDE,
+      .access = PL1_RW, .type = ARM_CP_CONST,
       .resetvalue = 0 },
     /* AMAIR1 is mapped to AMAIR_EL1[63:32] */
     { .name = "AMAIR1", .cp = 15, .crn = 10, .crm = 3, .opc1 = 0, .opc2 = 1,
-      .access = PL1_RW, .type = ARM_CP_CONST | ARM_CP_OVERRIDE,
+      .access = PL1_RW, .type = ARM_CP_CONST,
       .resetvalue = 0 },
     { .name = "PAR", .cp = 15, .crm = 7, .opc1 = 0,
       .access = PL1_RW, .type = ARM_CP_64BIT, .resetvalue = 0,
@@ -2362,6 +2360,14 @@ static const ARMCPRegInfo v8_cp_reginfo[] = {
       .opc0 = 1, .opc1 = 0, .crn = 7, .crm = 14, .opc2 = 2,
       .access = PL1_W, .type = ARM_CP_NOP },
     /* TLBI operations */
+    { .name = "TLBI_ALLE1", .state = ARM_CP_STATE_AA64,
+      .opc0 = 1, .opc1 = 4, .crn = 8, .crm = 7, .opc2 = 4,
+      .access = PL2_W, .type = ARM_CP_NO_RAW,
+      .writefn = tlbiall_write },
+    { .name = "TLBI_ALLE1IS", .state = ARM_CP_STATE_AA64,
+      .opc0 = 1, .opc1 = 4, .crn = 8, .crm = 3, .opc2 = 4,
+      .access = PL2_W, .type = ARM_CP_NO_RAW,
+      .writefn = tlbiall_write },
     { .name = "TLBI_VMALLE1IS", .state = ARM_CP_STATE_AA64,
       .opc0 = 1, .opc1 = 0, .crn = 8, .crm = 3, .opc2 = 0,
       .access = PL1_W, .type = ARM_CP_NO_RAW,
@@ -2498,7 +2504,7 @@ static const ARMCPRegInfo v8_cp_reginfo[] = {
 };
 
 /* Used to describe the behaviour of EL2 regs when EL2 does not exist.  */
-static const ARMCPRegInfo v8_el3_no_el2_cp_reginfo[] = {
+static const ARMCPRegInfo el3_no_el2_cp_reginfo[] = {
     { .name = "VBAR_EL2", .state = ARM_CP_STATE_AA64,
       .opc0 = 3, .opc1 = 4, .crn = 12, .crm = 0, .opc2 = 0,
       .access = PL2_RW,
@@ -2511,6 +2517,28 @@ static const ARMCPRegInfo v8_el3_no_el2_cp_reginfo[] = {
     { .name = "CPTR_EL2", .state = ARM_CP_STATE_BOTH,
       .opc0 = 3, .opc1 = 4, .crn = 1, .crm = 1, .opc2 = 2,
       .access = PL2_RW, .type = ARM_CP_CONST, .resetvalue = 0 },
+    { .name = "MAIR_EL2", .state = ARM_CP_STATE_BOTH,
+      .opc0 = 3, .opc1 = 4, .crn = 10, .crm = 2, .opc2 = 0,
+      .access = PL2_RW, .type = ARM_CP_CONST,
+      .resetvalue = 0 },
+    { .name = "HMAIR1", .state = ARM_CP_STATE_AA32,
+      .opc1 = 4, .crn = 10, .crm = 2, .opc2 = 1,
+      .access = PL2_RW, .type = ARM_CP_CONST, .resetvalue = 0 },
+    { .name = "TCR_EL2", .state = ARM_CP_STATE_BOTH,
+      .opc0 = 3, .opc1 = 4, .crn = 2, .crm = 0, .opc2 = 2,
+      .access = PL2_RW, .type = ARM_CP_CONST, .resetvalue = 0 },
+    { .name = "SCTLR_EL2", .state = ARM_CP_STATE_BOTH,
+      .opc0 = 3, .opc1 = 4, .crn = 1, .crm = 0, .opc2 = 0,
+      .access = PL2_RW, .type = ARM_CP_CONST, .resetvalue = 0 },
+    { .name = "TPIDR_EL2", .state = ARM_CP_STATE_BOTH,
+      .opc0 = 3, .opc1 = 4, .crn = 13, .crm = 0, .opc2 = 2,
+      .access = PL2_RW, .type = ARM_CP_CONST, .resetvalue = 0 },
+    { .name = "TTBR0_EL2", .state = ARM_CP_STATE_AA64,
+      .opc0 = 3, .opc1 = 4, .crn = 2, .crm = 0, .opc2 = 0,
+      .access = PL2_RW, .type = ARM_CP_CONST, .resetvalue = 0 },
+    { .name = "HTTBR", .cp = 15, .opc1 = 4, .crm = 2,
+      .access = PL2_RW, .type = ARM_CP_64BIT | ARM_CP_CONST,
+      .resetvalue = 0 },
     REGINFO_SENTINEL
 };
 
@@ -2539,7 +2567,7 @@ static void hcr_write(CPUARMState *env, const ARMCPRegInfo *ri, uint64_t value)
     raw_write(env, ri, value);
 }
 
-static const ARMCPRegInfo v8_el2_cp_reginfo[] = {
+static const ARMCPRegInfo el2_cp_reginfo[] = {
     { .name = "HCR_EL2", .state = ARM_CP_STATE_AA64,
       .opc0 = 3, .opc1 = 4, .crn = 1, .crm = 1, .opc2 = 0,
       .access = PL2_RW, .fieldoffset = offsetof(CPUARMState, cp15.hcr_el2),
@@ -2582,6 +2610,47 @@ static const ARMCPRegInfo v8_el2_cp_reginfo[] = {
       .opc0 = 3, .opc1 = 4, .crn = 1, .crm = 1, .opc2 = 2,
       .access = PL2_RW, .accessfn = cptr_access, .resetvalue = 0,
       .fieldoffset = offsetof(CPUARMState, cp15.cptr_el[2]) },
+    { .name = "MAIR_EL2", .state = ARM_CP_STATE_BOTH,
+      .opc0 = 3, .opc1 = 4, .crn = 10, .crm = 2, .opc2 = 0,
+      .access = PL2_RW, .fieldoffset = offsetof(CPUARMState, cp15.mair_el[2]),
+      .resetvalue = 0 },
+    { .name = "HMAIR1", .state = ARM_CP_STATE_AA32,
+      .opc1 = 4, .crn = 10, .crm = 2, .opc2 = 1,
+      .access = PL2_RW, .type = ARM_CP_ALIAS,
+      .fieldoffset = offsetofhigh32(CPUARMState, cp15.mair_el[2]) },
+    { .name = "TCR_EL2", .state = ARM_CP_STATE_BOTH,
+      .opc0 = 3, .opc1 = 4, .crn = 2, .crm = 0, .opc2 = 2,
+      .access = PL2_RW, .writefn = vmsa_tcr_el1_write,
+      .resetfn = vmsa_ttbcr_reset, .raw_writefn = raw_write,
+      .fieldoffset = offsetof(CPUARMState, cp15.tcr_el[2]) },
+    { .name = "SCTLR_EL2", .state = ARM_CP_STATE_BOTH,
+      .opc0 = 3, .opc1 = 4, .crn = 1, .crm = 0, .opc2 = 0,
+      .access = PL2_RW, .raw_writefn = raw_write, .writefn = sctlr_write,
+      .fieldoffset = offsetof(CPUARMState, cp15.sctlr_el[2]) },
+    { .name = "TPIDR_EL2", .state = ARM_CP_STATE_BOTH,
+      .opc0 = 3, .opc1 = 4, .crn = 13, .crm = 0, .opc2 = 2,
+      .access = PL2_RW, .resetvalue = 0,
+      .fieldoffset = offsetof(CPUARMState, cp15.tpidr_el[2]) },
+    { .name = "TTBR0_EL2", .state = ARM_CP_STATE_AA64,
+      .opc0 = 3, .opc1 = 4, .crn = 2, .crm = 0, .opc2 = 0,
+      .access = PL2_RW, .resetvalue = 0,
+      .fieldoffset = offsetof(CPUARMState, cp15.ttbr0_el[2]) },
+    { .name = "HTTBR", .cp = 15, .opc1 = 4, .crm = 2,
+      .access = PL2_RW, .type = ARM_CP_64BIT | ARM_CP_ALIAS,
+      .resetvalue = 0,
+      .fieldoffset = offsetof(CPUARMState, cp15.ttbr0_el[2]) },
+    { .name = "TLBI_ALLE2", .state = ARM_CP_STATE_AA64,
+      .opc0 = 1, .opc1 = 4, .crn = 8, .crm = 7, .opc2 = 0,
+      .type = ARM_CP_NO_RAW, .access = PL2_W,
+      .writefn = tlbiall_write },
+    { .name = "TLBI_VAE2", .state = ARM_CP_STATE_AA64,
+      .opc0 = 1, .opc1 = 4, .crn = 8, .crm = 7, .opc2 = 1,
+      .type = ARM_CP_NO_RAW, .access = PL2_W,
+      .writefn = tlbi_aa64_vaa_write },
+    { .name = "TLBI_VAE2IS", .state = ARM_CP_STATE_AA64,
+      .opc0 = 1, .opc1 = 4, .crn = 8, .crm = 3, .opc2 = 1,
+      .type = ARM_CP_NO_RAW, .access = PL2_W,
+      .writefn = tlbi_aa64_vaa_write },
     REGINFO_SENTINEL
 };
 
@@ -3243,7 +3312,7 @@ void register_cp_regs_for_features(ARMCPU *cpu)
         define_arm_cp_regs(cpu, v8_cp_reginfo);
     }
     if (arm_feature(env, ARM_FEATURE_EL2)) {
-        define_arm_cp_regs(cpu, v8_el2_cp_reginfo);
+        define_arm_cp_regs(cpu, el2_cp_reginfo);
         /* RVBAR_EL2 is only implemented if EL2 is the highest EL */
         if (!arm_feature(env, ARM_FEATURE_EL3)) {
             ARMCPRegInfo rvbar = {
@@ -3258,7 +3327,7 @@ void register_cp_regs_for_features(ARMCPU *cpu)
          * register the no_el2 reginfos.
          */
         if (arm_feature(env, ARM_FEATURE_EL3)) {
-            define_arm_cp_regs(cpu, v8_el3_no_el2_cp_reginfo);
+            define_arm_cp_regs(cpu, el3_no_el2_cp_reginfo);
         }
     }
     if (arm_feature(env, ARM_FEATURE_EL3)) {

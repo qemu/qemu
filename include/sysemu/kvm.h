@@ -287,6 +287,8 @@ void kvm_arch_init_irq_routing(KVMState *s);
 int kvm_arch_fixup_msi_route(struct kvm_irq_routing_entry *route,
                              uint64_t address, uint32_t data);
 
+int kvm_arch_msi_data_to_gsi(uint32_t data);
+
 int kvm_set_irq(KVMState *s, int irq, int level);
 int kvm_irqchip_send_msi(KVMState *s, MSIMessage msg);
 
