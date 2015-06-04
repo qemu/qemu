@@ -936,7 +936,7 @@ static void virtio_pci_add_mem_cap(VirtIOPCIProxy *proxy,
            cap->cap_len - PCI_CAP_FLAGS);
 }
 
-#define QEMU_VIRTIO_PCI_QUEUE_MEM_MULT 0x10000
+#define QEMU_VIRTIO_PCI_QUEUE_MEM_MULT 0x1000
 
 static uint64_t virtio_pci_common_read(void *opaque, hwaddr addr,
                                        unsigned size)
