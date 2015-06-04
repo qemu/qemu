@@ -45,10 +45,10 @@ typedef struct IOHandlerRecord {
 static QLIST_HEAD(, IOHandlerRecord) io_handlers =
     QLIST_HEAD_INITIALIZER(io_handlers);
 
-int qemu_set_fd_handler(int fd,
-                        IOHandler *fd_read,
-                        IOHandler *fd_write,
-                        void *opaque)
+void qemu_set_fd_handler(int fd,
+                         IOHandler *fd_read,
+                         IOHandler *fd_write,
+                         void *opaque)
 {
     IOHandlerRecord *ioh;
 
@@ -77,7 +77,6 @@ int qemu_set_fd_handler(int fd,
         ioh->deleted = 0;
         qemu_notify_event();
     }
-    return 0;
 }
 
 void qemu_iohandler_fill(GArray *pollfds)

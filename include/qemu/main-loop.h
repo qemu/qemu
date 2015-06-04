@@ -198,10 +198,10 @@ typedef int IOCanReadHandler(void *opaque);
  *
  * @opaque: A pointer-sized value that is passed to @fd_read and @fd_write.
  */
-int qemu_set_fd_handler(int fd,
-                        IOHandler *fd_read,
-                        IOHandler *fd_write,
-                        void *opaque);
+void qemu_set_fd_handler(int fd,
+                         IOHandler *fd_read,
+                         IOHandler *fd_write,
+                         void *opaque);
 
 #ifdef CONFIG_POSIX
 /**
