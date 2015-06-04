@@ -22,15 +22,19 @@
 #include "hw/virtio/virtio-bus.h"
 #include "migration/migration.h"
 
+static struct vhost_log *vhost_log;
+
 static void vhost_dev_sync_region(struct vhost_dev *dev,
                                   MemoryRegionSection *section,
                                   uint64_t mfirst, uint64_t mlast,
                                   uint64_t rfirst, uint64_t rlast)
 {
+    vhost_log_chunk_t *log = dev->log->log;
+
     uint64_t start = MAX(mfirst, rfirst);
     uint64_t end = MIN(mlast, rlast);
-    vhost_log_chunk_t *from = dev->log + start / VHOST_LOG_CHUNK;
-    vhost_log_chunk_t *to = dev->log + end / VHOST_LOG_CHUNK + 1;
+    vhost_log_chunk_t *from = log + start / VHOST_LOG_CHUNK;
+    vhost_log_chunk_t *to = log + end / VHOST_LOG_CHUNK + 1;
     uint64_t addr = (start / VHOST_LOG_CHUNK) * VHOST_LOG_CHUNK;
 
     if (end < start) {
@@ -280,22 +284,57 @@ static uint64_t vhost_get_log_size(struct vhost_dev *dev)
     }
     return log_size;
 }
+static struct vhost_log *vhost_log_alloc(uint64_t size)
+{
+    struct vhost_log *log = g_malloc0(sizeof *log + size * sizeof(*(log->log)));
+
+    log->size = size;
+    log->refcnt = 1;
+
+    return log;
+}
+
+static struct vhost_log *vhost_log_get(uint64_t size)
+{
+    if (!vhost_log || vhost_log->size != size) {
+        vhost_log = vhost_log_alloc(size);
+    } else {
+        ++vhost_log->refcnt;
+    }
+
+    return vhost_log;
+}
+
+static void vhost_log_put(struct vhost_dev *dev, bool sync)
+{
+    struct vhost_log *log = dev->log;
+
+    if (!log) {
+        return;
+    }
+
+    --log->refcnt;
+    if (log->refcnt == 0) {
+        /* Sync only the range covered by the old log */
+        if (dev->log_size && sync) {
+            vhost_log_sync_range(dev, 0, dev->log_size * VHOST_LOG_CHUNK - 1);
+        }
+        if (vhost_log == log) {
+            vhost_log = NULL;
+        }
+        g_free(log);
+    }
+}
 
 static inline void vhost_dev_log_resize(struct vhost_dev* dev, uint64_t size)
 {
-    vhost_log_chunk_t *log;
-    uint64_t log_base;
+    struct vhost_log *log = vhost_log_get(size);
+    uint64_t log_base = (uintptr_t)log->log;
     int r;
 
-    log = g_malloc0(size * sizeof *log);
-    log_base = (uintptr_t)log;
     r = dev->vhost_ops->vhost_call(dev, VHOST_SET_LOG_BASE, &log_base);
     assert(r >= 0);
-    /* Sync only the range covered by the old log */
-    if (dev->log_size) {
-        vhost_log_sync_range(dev, 0, dev->log_size * VHOST_LOG_CHUNK - 1);
-    }
-    g_free(dev->log);
+    vhost_log_put(dev, true);
     dev->log = log;
     dev->log_size = size;
 }
@@ -601,7 +640,7 @@ static int vhost_migration_log(MemoryListener *listener, int enable)
         if (r < 0) {
             return r;
         }
-        g_free(dev->log);
+        vhost_log_put(dev, false);
         dev->log = NULL;
         dev->log_size = 0;
     } else {
@@ -1060,10 +1099,10 @@ int vhost_dev_start(struct vhost_dev *hdev, VirtIODevice *vdev)
         uint64_t log_base;
 
         hdev->log_size = vhost_get_log_size(hdev);
-        hdev->log = hdev->log_size ?
-            g_malloc0(hdev->log_size * sizeof *hdev->log) : NULL;
-        log_base = (uintptr_t)hdev->log;
-        r = hdev->vhost_ops->vhost_call(hdev, VHOST_SET_LOG_BASE, &log_base);
+        hdev->log = vhost_log_get(hdev->log_size);
+        log_base = (uintptr_t)hdev->log->log;
+        r = hdev->vhost_ops->vhost_call(hdev, VHOST_SET_LOG_BASE,
+                                        hdev->log_size ? &log_base : NULL);
         if (r < 0) {
             r = -errno;
             goto fail_log;
@@ -1072,6 +1111,9 @@ int vhost_dev_start(struct vhost_dev *hdev, VirtIODevice *vdev)
 
     return 0;
 fail_log:
+    if (hdev->log_size) {
+        vhost_log_put(hdev, false);
+    }
 fail_vq:
     while (--i >= 0) {
         vhost_virtqueue_stop(hdev,
@@ -1098,10 +1140,9 @@ void vhost_dev_stop(struct vhost_dev *hdev, VirtIODevice *vdev)
                              hdev->vqs + i,
                              hdev->vq_index + i);
     }
-    vhost_log_sync_range(hdev, 0, ~0x0ull);
 
+    vhost_log_put(hdev, true);
     hdev->started = false;
-    g_free(hdev->log);
     hdev->log = NULL;
     hdev->log_size = 0;
 }

@@ -28,6 +28,12 @@ typedef unsigned long vhost_log_chunk_t;
 #define VHOST_LOG_CHUNK (VHOST_LOG_PAGE * VHOST_LOG_BITS)
 #define VHOST_INVALID_FEATURE_BIT   (0xff)
 
+struct vhost_log {
+    unsigned long long size;
+    int refcnt;
+    vhost_log_chunk_t log[0];
+};
+
 struct vhost_memory;
 struct vhost_dev {
     MemoryListener memory_listener;
@@ -43,7 +49,6 @@ struct vhost_dev {
     unsigned long long backend_features;
     bool started;
     bool log_enabled;
-    vhost_log_chunk_t *log;
     unsigned long long log_size;
     Error *migration_blocker;
     bool force;
@@ -52,6 +57,7 @@ struct vhost_dev {
     hwaddr mem_changed_end_addr;
     const VhostOps *vhost_ops;
     void *opaque;
+    struct vhost_log *log;
 };
 
 int vhost_dev_init(struct vhost_dev *hdev, void *opaque,
