@@ -94,6 +94,7 @@ typedef struct VirtioPCIClass {
 typedef struct VirtIOPCIRegion {
     MemoryRegion mr;
     uint32_t offset;
+    uint32_t size;
     uint32_t type;
 } VirtIOPCIRegion;
 
@@ -105,6 +106,9 @@ struct VirtIOPCIProxy {
     VirtIOPCIRegion device;
     VirtIOPCIRegion notify;
     MemoryRegion modern_bar;
+    uint32_t legacy_io_bar;
+    uint32_t msix_bar;
+    uint32_t modern_mem_bar;
     uint32_t flags;
     uint32_t class_code;
     uint32_t nvectors;
