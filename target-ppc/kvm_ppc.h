@@ -24,6 +24,7 @@ bool kvmppc_get_host_serial(char **buf);
 int kvmppc_get_hasidle(CPUPPCState *env);
 int kvmppc_get_hypercall(CPUPPCState *env, uint8_t *buf, int buf_len);
 int kvmppc_set_interrupt(PowerPCCPU *cpu, int irq, int level);
+void kvmppc_enable_logical_ci_hcalls(void);
 void kvmppc_set_papr(PowerPCCPU *cpu);
 int kvmppc_set_compat(PowerPCCPU *cpu, uint32_t cpu_version);
 void kvmppc_set_mpic_proxy(PowerPCCPU *cpu, int mpic_proxy);
@@ -105,6 +106,10 @@ static inline int kvmppc_read_segment_page_sizes(uint32_t *prop, int maxcells)
 static inline int kvmppc_set_interrupt(PowerPCCPU *cpu, int irq, int level)
 {
     return -1;
+}
+
+static inline void kvmppc_enable_logical_ci_hcalls(void)
+{
 }
 
 static inline void kvmppc_set_papr(PowerPCCPU *cpu)

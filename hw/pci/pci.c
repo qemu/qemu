@@ -123,7 +123,7 @@ static uint16_t pci_default_sub_device_id = PCI_SUBDEVICE_ID_QEMU;
 
 static QLIST_HEAD(, PCIHostState) pci_host_bridges;
 
-static int pci_bar(PCIDevice *d, int reg)
+int pci_bar(PCIDevice *d, int reg)
 {
     uint8_t type;
 

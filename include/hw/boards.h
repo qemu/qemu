@@ -106,6 +106,7 @@ struct MachineClass {
     const char *default_display;
     GlobalProperty *compat_props;
     const char *hw_version;
+    ram_addr_t default_ram_size;
 
     HotplugHandler *(*get_hotplug_handler)(MachineState *machine,
                                            DeviceState *dev);

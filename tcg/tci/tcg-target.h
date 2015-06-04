@@ -44,6 +44,7 @@
 
 #define TCG_TARGET_INTERPRETER 1
 #define TCG_TARGET_INSN_UNIT_SIZE 1
+#define TCG_TARGET_TLB_DISPLACEMENT_BITS 32
 
 #if UINTPTR_MAX == UINT32_MAX
 # define TCG_TARGET_REG_BITS 32
@@ -175,8 +176,7 @@ typedef enum {
 
 void tci_disas(uint8_t opc);
 
-uintptr_t tcg_qemu_tb_exec(CPUArchState *env, uint8_t *tb_ptr);
-#define tcg_qemu_tb_exec tcg_qemu_tb_exec
+#define HAVE_TCG_QEMU_TB_EXEC
 
 static inline void flush_icache_range(uintptr_t start, uintptr_t stop)
 {

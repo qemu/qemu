@@ -41,7 +41,7 @@ enum sPAPRTCEAccess {
 
 static QLIST_HEAD(spapr_tce_tables, sPAPRTCETable) spapr_tce_tables;
 
-static sPAPRTCETable *spapr_tce_find_by_liobn(uint32_t liobn)
+sPAPRTCETable *spapr_tce_find_by_liobn(target_ulong liobn)
 {
     sPAPRTCETable *tcet;
 
@@ -52,7 +52,7 @@ static sPAPRTCETable *spapr_tce_find_by_liobn(uint32_t liobn)
     }
 
     QLIST_FOREACH(tcet, &spapr_tce_tables, list) {
-        if (tcet->liobn == liobn) {
+        if (tcet->liobn == (uint32_t)liobn) {
             return tcet;
         }
     }
@@ -126,11 +126,11 @@ static MemoryRegionIOMMUOps spapr_iommu_ops = {
 static int spapr_tce_table_realize(DeviceState *dev)
 {
     sPAPRTCETable *tcet = SPAPR_TCE_TABLE(dev);
+    uint64_t window_size = (uint64_t)tcet->nb_table << tcet->page_shift;
 
-    if (kvm_enabled()) {
+    if (kvm_enabled() && !(window_size >> 32)) {
         tcet->table = kvmppc_create_spapr_tce(tcet->liobn,
-                                              tcet->nb_table <<
-                                              tcet->page_shift,
+                                              window_size,
                                               &tcet->fd,
                                               tcet->vfio_accel);
     }
@@ -161,6 +161,7 @@ sPAPRTCETable *spapr_tce_new_table(DeviceState *owner, uint32_t liobn,
                                    bool vfio_accel)
 {
     sPAPRTCETable *tcet;
+    char tmp[64];
 
     if (spapr_tce_find_by_liobn(liobn)) {
         fprintf(stderr, "Attempted to create TCE table with duplicate"
@@ -179,7 +180,8 @@ sPAPRTCETable *spapr_tce_new_table(DeviceState *owner, uint32_t liobn,
     tcet->nb_table = nb_table;
     tcet->vfio_accel = vfio_accel;
 
-    object_property_add_child(OBJECT(owner), "tce-table", OBJECT(tcet), NULL);
+    snprintf(tmp, sizeof(tmp), "tce-table-%x", liobn);
+    object_property_add_child(OBJECT(owner), tmp, OBJECT(tcet), NULL);
 
     object_property_set_bool(OBJECT(tcet), true, "realized", NULL);
 
@@ -247,7 +249,7 @@ static target_ulong h_put_tce_indirect(PowerPCCPU *cpu,
     target_ulong ioba1 = ioba;
     target_ulong tce_list = args[2];
     target_ulong npages = args[3];
-    target_ulong ret = H_PARAMETER;
+    target_ulong ret = H_PARAMETER, tce = 0;
     sPAPRTCETable *tcet = spapr_tce_find_by_liobn(liobn);
     CPUState *cs = CPU(cpu);
     hwaddr page_mask, page_size;
@@ -267,7 +269,7 @@ static target_ulong h_put_tce_indirect(PowerPCCPU *cpu,
     for (i = 0; i < npages; ++i, ioba += page_size) {
         target_ulong off = (tce_list & ~SPAPR_TCE_RW) +
                                 i * sizeof(target_ulong);
-        target_ulong tce = ldq_phys(cs->as, off);
+        tce = ldq_be_phys(cs->as, off);
 
         ret = put_tce_emu(tcet, ioba, tce);
         if (ret) {
@@ -277,11 +279,11 @@ static target_ulong h_put_tce_indirect(PowerPCCPU *cpu,
 
     /* Trace last successful or the first problematic entry */
     i = i ? (i - 1) : 0;
-    trace_spapr_iommu_indirect(liobn, ioba1, tce_list, i,
-                               ldq_phys(cs->as,
-                               tce_list + i * sizeof(target_ulong)),
-                               ret);
-
+    if (SPAPR_IS_PCI_LIOBN(liobn)) {
+        trace_spapr_iommu_pci_indirect(liobn, ioba1, tce_list, i, tce, ret);
+    } else {
+        trace_spapr_iommu_indirect(liobn, ioba1, tce_list, i, tce, ret);
+    }
     return ret;
 }
 
@@ -315,7 +317,11 @@ static target_ulong h_stuff_tce(PowerPCCPU *cpu, sPAPREnvironment *spapr,
             break;
         }
     }
-    trace_spapr_iommu_stuff(liobn, ioba, tce_value, npages, ret);
+    if (SPAPR_IS_PCI_LIOBN(liobn)) {
+        trace_spapr_iommu_pci_stuff(liobn, ioba, tce_value, npages, ret);
+    } else {
+        trace_spapr_iommu_stuff(liobn, ioba, tce_value, npages, ret);
+    }
 
     return ret;
 }
@@ -336,7 +342,11 @@ static target_ulong h_put_tce(PowerPCCPU *cpu, sPAPREnvironment *spapr,
 
         ret = put_tce_emu(tcet, ioba, tce);
     }
-    trace_spapr_iommu_put(liobn, ioba, tce, ret);
+    if (SPAPR_IS_PCI_LIOBN(liobn)) {
+        trace_spapr_iommu_pci_put(liobn, ioba, tce, ret);
+    } else {
+        trace_spapr_iommu_put(liobn, ioba, tce, ret);
+    }
 
     return ret;
 }
@@ -376,7 +386,11 @@ static target_ulong h_get_tce(PowerPCCPU *cpu, sPAPREnvironment *spapr,
             args[0] = tce;
         }
     }
-    trace_spapr_iommu_get(liobn, ioba, ret, tce);
+    if (SPAPR_IS_PCI_LIOBN(liobn)) {
+        trace_spapr_iommu_pci_get(liobn, ioba, ret, tce);
+    } else {
+        trace_spapr_iommu_get(liobn, ioba, ret, tce);
+    }
 
     return ret;
 }

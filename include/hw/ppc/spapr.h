@@ -3,10 +3,13 @@
 
 #include "sysemu/dma.h"
 #include "hw/ppc/xics.h"
+#include "hw/ppc/spapr_drc.h"
 
 struct VIOsPAPRBus;
 struct sPAPRPHBState;
 struct sPAPRNVRAM;
+typedef struct sPAPRConfigureConnectorState sPAPRConfigureConnectorState;
+typedef struct sPAPREventLogEntry sPAPREventLogEntry;
 
 #define HPTE64_V_HPTE_DIRTY     0x0000000000000040ULL
 
@@ -31,14 +34,18 @@ typedef struct sPAPREnvironment {
     struct PPCTimebase tb;
     bool has_graphics;
 
-    uint32_t epow_irq;
+    uint32_t check_exception_irq;
     Notifier epow_notifier;
+    QTAILQ_HEAD(, sPAPREventLogEntry) pending_events;
 
     /* Migration state */
     int htab_save_index;
     bool htab_first_pass;
     int htab_fd;
     bool htab_fd_stale;
+
+    /* RTAS state */
+    QTAILQ_HEAD(, sPAPRConfigureConnectorState) ccs_list;
 } sPAPREnvironment;
 
 #define H_SUCCESS         0
@@ -430,6 +437,17 @@ int spapr_allocate_irq_block(int num, bool lsi, bool msi);
 #define RTAS_SYSPARM_DIAGNOSTICS_RUN_MODE        42
 #define RTAS_SYSPARM_UUID                        48
 
+/* RTAS indicator/sensor types
+ *
+ * as defined by PAPR+ 2.7 7.3.5.4, Table 41
+ *
+ * NOTE: currently only DR-related sensors are implemented here
+ */
+#define RTAS_SENSOR_TYPE_ISOLATION_STATE        9001
+#define RTAS_SENSOR_TYPE_DR                     9002
+#define RTAS_SENSOR_TYPE_ALLOCATION_STATE       9003
+#define RTAS_SENSOR_TYPE_ENTITY_SENSE RTAS_SENSOR_TYPE_ALLOCATION_STATE
+
 /* Possible values for the platform-processor-diagnostics-run-mode parameter
  * of the RTAS ibm,get-system-parameter call.
  */
@@ -453,6 +471,13 @@ static inline void rtas_st(target_ulong phys, int n, uint32_t val)
     stl_be_phys(&address_space_memory, ppc64_phys_to_real(phys + 4*n), val);
 }
 
+static inline void rtas_st_buffer_direct(target_ulong phys,
+                                         target_ulong phys_len,
+                                         uint8_t *buffer, uint16_t buffer_len)
+{
+    cpu_physical_memory_write(ppc64_phys_to_real(phys), buffer,
+                              MIN(buffer_len, phys_len));
+}
 
 static inline void rtas_st_buffer(target_ulong phys, target_ulong phys_len,
                                   uint8_t *buffer, uint16_t buffer_len)
@@ -462,8 +487,7 @@ static inline void rtas_st_buffer(target_ulong phys, target_ulong phys_len,
     }
     stw_be_phys(&address_space_memory,
                 ppc64_phys_to_real(phys), buffer_len);
-    cpu_physical_memory_write(ppc64_phys_to_real(phys + 2),
-                              buffer, MIN(buffer_len, phys_len - 2));
+    rtas_st_buffer_direct(phys + 2, phys_len - 2, buffer, buffer_len);
 }
 
 typedef void (*spapr_rtas_fn)(PowerPCCPU *cpu, sPAPREnvironment *spapr,
@@ -482,9 +506,15 @@ int spapr_rtas_device_tree_setup(void *fdt, hwaddr rtas_addr,
 #define SPAPR_TCE_PAGE_MASK    (SPAPR_TCE_PAGE_SIZE - 1)
 
 #define SPAPR_VIO_BASE_LIOBN    0x00000000
-#define SPAPR_PCI_BASE_LIOBN    0x80000000
+#define SPAPR_VIO_LIOBN(reg)    (0x00000000 | (reg))
+#define SPAPR_PCI_LIOBN(phb_index, window_num) \
+    (0x80000000 | ((phb_index) << 8) | (window_num))
+#define SPAPR_IS_PCI_LIOBN(liobn)   (!!((liobn) & 0x80000000))
+#define SPAPR_PCI_DMA_WINDOW_NUM(liobn) ((liobn) & 0xff)
 
 #define RTAS_ERROR_LOG_MAX      2048
+
+#define RTAS_EVENT_SCAN_RATE    1
 
 typedef struct sPAPRTCETable sPAPRTCETable;
 
@@ -507,6 +537,15 @@ struct sPAPRTCETable {
     QLIST_ENTRY(sPAPRTCETable) list;
 };
 
+sPAPRTCETable *spapr_tce_find_by_liobn(target_ulong liobn);
+
+struct sPAPREventLogEntry {
+    int log_type;
+    bool exception;
+    void *data;
+    QTAILQ_ENTRY(sPAPREventLogEntry) next;
+};
+
 void spapr_events_init(sPAPREnvironment *spapr);
 void spapr_events_fdt_skel(void *fdt, uint32_t epow_irq);
 int spapr_h_cas_compose_response(target_ulong addr, target_ulong size);
@@ -521,6 +560,18 @@ int spapr_dma_dt(void *fdt, int node_off, const char *propname,
 int spapr_tcet_dma_dt(void *fdt, int node_off, const char *propname,
                       sPAPRTCETable *tcet);
 void spapr_pci_switch_vga(bool big_endian);
+void spapr_hotplug_req_add_event(sPAPRDRConnector *drc);
+void spapr_hotplug_req_remove_event(sPAPRDRConnector *drc);
+
+/* rtas-configure-connector state */
+struct sPAPRConfigureConnectorState {
+    uint32_t drc_index;
+    int fdt_offset;
+    int fdt_depth;
+    QTAILQ_ENTRY(sPAPRConfigureConnectorState) next;
+};
+
+void spapr_ccs_reset_hook(void *opaque);
 
 #define TYPE_SPAPR_RTC "spapr-rtc"
 
