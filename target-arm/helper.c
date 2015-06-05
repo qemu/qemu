@@ -35,6 +35,18 @@ static bool get_phys_addr_lpae(CPUARMState *env, target_ulong address,
 #define PMCRE   0x1
 #endif
 
+#ifdef CONFIG_SOFTMMU
+bool arm_get_phys_addr(CPUARMState *env, target_ulong address, int access_type,
+                       hwaddr *phys_ptr, int *prot, target_ulong *page_size)
+{
+    MemTxAttrs attrs = {};
+    ARMMMUFaultInfo fi = {};
+    uint32_t fsr;
+    return get_phys_addr(env, address, access_type, cpu_mmu_index(env, false),
+                         phys_ptr, &attrs, prot, page_size, &fsr, &fi);
+}
+#endif
+
 static int vfp_gdb_get_reg(CPUARMState *env, uint8_t *buf, int reg)
 {
     int nregs;
@@ -6103,6 +6115,10 @@ static void arm_cpu_do_interrupt_aarch32(CPUState *cs)
     int new_mode;
     uint32_t offset;
     uint32_t moe;
+
+    arm_exclusive_lock();
+    env->exclusive_addr = -1;
+    arm_exclusive_unlock();
 
     /* If this is a debug exception we must update the DBGDSCR.MOE bits */
     switch (env->exception.syndrome >> ARM_EL_EC_SHIFT) {

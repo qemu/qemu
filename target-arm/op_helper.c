@@ -31,10 +31,139 @@ static void raise_exception(CPUARMState *env, uint32_t excp,
     CPUState *cs = CPU(arm_env_get_cpu(env));
 
     assert(!excp_is_internal(excp));
+    arm_exclusive_lock();
     cs->exception_index = excp;
     env->exception.syndrome = syndrome;
     env->exception.target_el = target_el;
+    /*
+     * We MAY already have the lock - in which case we are exiting the
+     * instruction due to an exception. Otherwise we better make sure we are not
+     * about to enter a STREX anyway.
+     */
+    env->exclusive_addr = -1;
+    arm_exclusive_unlock();
     cpu_loop_exit(cs);
+}
+
+#ifdef CONFIG_SOFTMMU
+/* NB return 1 for fail, 0 for pass */
+uint32_t HELPER(atomic_cmpxchg64)(CPUARMState *env, uint32_t addr,
+                                  uint64_t newval, uint32_t size)
+{
+    ARMCPU *cpu = arm_env_get_cpu(env);
+    CPUState *cs = CPU(cpu);
+
+    uintptr_t retaddr = GETRA();
+    bool result = false;
+    hwaddr len = 1 << size;
+
+    hwaddr paddr;
+    target_ulong page_size;
+    int prot;
+
+    arm_exclusive_lock();
+
+    if (env->exclusive_addr != addr) {
+        arm_exclusive_unlock();
+        return 1;
+    }
+
+    if (arm_get_phys_addr(env, addr, 1, &paddr, &prot, &page_size)) {
+        tlb_fill(ENV_GET_CPU(env), addr, MMU_DATA_STORE,
+                 cpu_mmu_index(env, false), retaddr);
+        if (arm_get_phys_addr(env, addr, 1, &paddr, &prot, &page_size)) {
+            arm_exclusive_unlock();
+            return 1;
+        }
+    }
+
+    switch (size) {
+    case 0:
+    {
+        uint8_t oldval, *p;
+        p = address_space_map(cs->as, paddr, &len, true);
+        if (len == 1 << size) {
+            oldval = (uint8_t)env->exclusive_val;
+            result = atomic_bool_cmpxchg(p, oldval, (uint8_t)newval);
+        }
+        address_space_unmap(cs->as, p, len, true, result ? len : 0);
+    }
+    break;
+    case 1:
+    {
+        uint16_t oldval, *p;
+        p = address_space_map(cs->as, paddr, &len, true);
+        if (len == 1 << size) {
+            oldval = (uint16_t)env->exclusive_val;
+            result = atomic_bool_cmpxchg(p, oldval, (uint16_t)newval);
+        }
+        address_space_unmap(cs->as, p, len, true, result ? len : 0);
+    }
+    break;
+    case 2:
+    {
+        uint32_t oldval, *p;
+        p = address_space_map(cs->as, paddr, &len, true);
+        if (len == 1 << size) {
+            oldval = (uint32_t)env->exclusive_val;
+            result = atomic_bool_cmpxchg(p, oldval, (uint32_t)newval);
+        }
+        address_space_unmap(cs->as, p, len, true, result ? len : 0);
+    }
+    break;
+    case 3:
+    {
+        uint64_t oldval, *p;
+        p = address_space_map(cs->as, paddr, &len, true);
+        if (len == 1 << size) {
+            oldval = (uint64_t)env->exclusive_val;
+            result = atomic_bool_cmpxchg(p, oldval, (uint64_t)newval);
+        }
+        address_space_unmap(cs->as, p, len, true, result ? len : 0);
+    }
+    break;
+    default:
+        abort();
+    break;
+    }
+
+    env->exclusive_addr = -1;
+    arm_exclusive_unlock();
+    if (result) {
+        return 0;
+    } else {
+        return 1;
+    }
+}
+#endif
+
+void HELPER(atomic_clear)(CPUARMState *env)
+{
+    /* make sure no STREX is about to start */
+    arm_exclusive_lock();
+    env->exclusive_addr = -1;
+    arm_exclusive_unlock();
+}
+
+void HELPER(atomic_claim)(CPUARMState *env, uint32_t addr, uint64_t val)
+{
+    CPUState *cpu;
+    CPUARMState *current_cpu;
+
+    /* ensure that there are no STREX's executing */
+    arm_exclusive_lock();
+
+    CPU_FOREACH(cpu) {
+        current_cpu = &ARM_CPU(cpu)->env;
+        if (current_cpu->exclusive_addr  == addr) {
+            /* We steal the atomic of this CPU. */
+            current_cpu->exclusive_addr = -1;
+        }
+    }
+
+    env->exclusive_val = val;
+    env->exclusive_addr = addr;
+    arm_exclusive_unlock();
 }
 
 static int exception_target_el(CPUARMState *env)
@@ -862,7 +991,6 @@ void HELPER(exception_return)(CPUARMState *env)
 
     aarch64_save_sp(env, cur_el);
 
-    env->exclusive_addr = -1;
 
     /* We must squash the PSTATE.SS bit to zero unless both of the
      * following hold:

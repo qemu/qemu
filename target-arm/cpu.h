@@ -523,6 +523,9 @@ static inline bool is_a64(CPUARMState *env)
 int cpu_arm_signal_handler(int host_signum, void *pinfo,
                            void *puc);
 
+bool arm_get_phys_addr(CPUARMState *env, target_ulong address, int access_type,
+                       hwaddr *phys_ptr, int *prot, target_ulong *page_size);
+
 /**
  * pmccntr_sync
  * @env: CPUARMState
@@ -2169,6 +2172,9 @@ static inline void cpu_get_tb_cpu_state(CPUARMState *env, target_ulong *pc,
 }
 
 #include "exec/exec-all.h"
+
+void arm_exclusive_lock(void);
+void arm_exclusive_unlock(void);
 
 enum {
     QEMU_PSCI_CONDUIT_DISABLED = 0,
