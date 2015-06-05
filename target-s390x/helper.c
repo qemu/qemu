@@ -112,7 +112,7 @@ int s390_cpu_handle_mmu_fault(CPUState *cs, vaddr orig_vaddr,
 {
     S390CPU *cpu = S390_CPU(cs);
     CPUS390XState *env = &cpu->env;
-    uint64_t asc = env->psw.mask & PSW_MASK_ASC;
+    uint64_t asc = cpu_mmu_idx_to_asc(mmu_idx);
     target_ulong vaddr, raddr;
     int prot;
 

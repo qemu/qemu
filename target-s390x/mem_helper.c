@@ -213,21 +213,22 @@ void HELPER(mvc)(CPUS390XState *env, uint32_t l, uint64_t dest, uint64_t src)
     if (dest == (src + 1)) {
         memset(g2h(dest), cpu_ldub_data(env, src), l + 1);
         return;
-    } else {
+    /* mvc and memmove do not behave the same when areas overlap! */
+    } else if ((dest < src) || (src + l < dest)) {
         memmove(g2h(dest), g2h(src), l + 1);
         return;
     }
 #endif
 
     /* handle the parts that fit into 8-byte loads/stores */
-    if (dest != (src + 1)) {
+    if ((dest + 8 <= src) || (src + 8 <= dest)) {
         for (i = 0; i < l_64; i++) {
             cpu_stq_data(env, dest + x, cpu_ldq_data(env, src + x));
             x += 8;
         }
     }
 
-    /* slow version crossing pages with byte accesses */
+    /* slow version with byte accesses which always work */
     for (i = x; i <= l; i++) {
         cpu_stb_data(env, dest + i, cpu_ldub_data(env, src + i));
     }
@@ -509,6 +510,9 @@ uint32_t HELPER(ex)(CPUS390XState *env, uint32_t cc, uint64_t v1,
         case 0xc00:
             helper_tr(env, l, get_address(env, 0, b1, d1),
                       get_address(env, 0, b2, d2));
+        case 0xd00:
+            cc = helper_trt(env, l, get_address(env, 0, b1, d1),
+                            get_address(env, 0, b2, d2));
             break;
         default:
             goto abort;
@@ -801,6 +805,66 @@ void HELPER(tr)(CPUS390XState *env, uint32_t len, uint64_t array,
     }
 }
 
+uint64_t HELPER(tre)(CPUS390XState *env, uint64_t array,
+                     uint64_t len, uint64_t trans)
+{
+    uint8_t end = env->regs[0] & 0xff;
+    uint64_t l = len;
+    uint64_t i;
+
+    if (!(env->psw.mask & PSW_MASK_64)) {
+        array &= 0x7fffffff;
+        l = (uint32_t)l;
+    }
+
+    /* Lest we fail to service interrupts in a timely manner, limit the
+       amount of work we're willing to do.  For now, let's cap at 8k.  */
+    if (l > 0x2000) {
+        l = 0x2000;
+        env->cc_op = 3;
+    } else {
+        env->cc_op = 0;
+    }
+
+    for (i = 0; i < l; i++) {
+        uint8_t byte, new_byte;
+
+        byte = cpu_ldub_data(env, array + i);
+
+        if (byte == end) {
+            env->cc_op = 1;
+            break;
+        }
+
+        new_byte = cpu_ldub_data(env, trans + byte);
+        cpu_stb_data(env, array + i, new_byte);
+    }
+
+    env->retxl = len - i;
+    return array + i;
+}
+
+uint32_t HELPER(trt)(CPUS390XState *env, uint32_t len, uint64_t array,
+                     uint64_t trans)
+{
+    uint32_t cc = 0;
+    int i;
+
+    for (i = 0; i <= len; i++) {
+        uint8_t byte = cpu_ldub_data(env, array + i);
+        uint8_t sbyte = cpu_ldub_data(env, trans + byte);
+
+        if (sbyte != 0) {
+            env->regs[1] = array + i;
+            env->regs[2] = (env->regs[2] & ~0xff) | sbyte;
+            cc = (i == len) ? 2 : 1;
+            break;
+        }
+    }
+
+    return cc;
+}
+
 #if !defined(CONFIG_USER_ONLY)
 void HELPER(lctlg)(CPUS390XState *env, uint32_t r1, uint64_t a2, uint32_t r3)
 {
@@ -952,59 +1016,46 @@ uint32_t HELPER(csp)(CPUS390XState *env, uint32_t r1, uint64_t r2)
     return cc;
 }
 
-static uint32_t mvc_asc(CPUS390XState *env, int64_t l, uint64_t a1,
-                        uint64_t mode1, uint64_t a2, uint64_t mode2)
+uint32_t HELPER(mvcs)(CPUS390XState *env, uint64_t l, uint64_t a1, uint64_t a2)
 {
-    CPUState *cs = CPU(s390_env_get_cpu(env));
-    target_ulong src, dest;
-    int flags, cc = 0, i;
+    int cc = 0, i;
 
-    if (!l) {
-        return 0;
-    } else if (l > 256) {
+    HELPER_LOG("%s: %16" PRIx64 " %16" PRIx64 " %16" PRIx64 "\n",
+               __func__, l, a1, a2);
+
+    if (l > 256) {
         /* max 256 */
         l = 256;
         cc = 3;
     }
 
-    if (mmu_translate(env, a1, 1, mode1, &dest, &flags, true)) {
-        cpu_loop_exit(CPU(s390_env_get_cpu(env)));
-    }
-    dest |= a1 & ~TARGET_PAGE_MASK;
-
-    if (mmu_translate(env, a2, 0, mode2, &src, &flags, true)) {
-        cpu_loop_exit(CPU(s390_env_get_cpu(env)));
-    }
-    src |= a2 & ~TARGET_PAGE_MASK;
-
     /* XXX replace w/ memcpy */
     for (i = 0; i < l; i++) {
-        /* XXX be more clever */
-        if ((((dest + i) & TARGET_PAGE_MASK) != (dest & TARGET_PAGE_MASK)) ||
-            (((src + i) & TARGET_PAGE_MASK) != (src & TARGET_PAGE_MASK))) {
-            mvc_asc(env, l - i, a1 + i, mode1, a2 + i, mode2);
-            break;
-        }
-        stb_phys(cs->as, dest + i, ldub_phys(cs->as, src + i));
+        cpu_stb_secondary(env, a1 + i, cpu_ldub_primary(env, a2 + i));
     }
 
     return cc;
 }
 
-uint32_t HELPER(mvcs)(CPUS390XState *env, uint64_t l, uint64_t a1, uint64_t a2)
-{
-    HELPER_LOG("%s: %16" PRIx64 " %16" PRIx64 " %16" PRIx64 "\n",
-               __func__, l, a1, a2);
-
-    return mvc_asc(env, l, a1, PSW_ASC_SECONDARY, a2, PSW_ASC_PRIMARY);
-}
-
 uint32_t HELPER(mvcp)(CPUS390XState *env, uint64_t l, uint64_t a1, uint64_t a2)
 {
+    int cc = 0, i;
+
     HELPER_LOG("%s: %16" PRIx64 " %16" PRIx64 " %16" PRIx64 "\n",
                __func__, l, a1, a2);
 
-    return mvc_asc(env, l, a1, PSW_ASC_PRIMARY, a2, PSW_ASC_SECONDARY);
+    if (l > 256) {
+        /* max 256 */
+        l = 256;
+        cc = 3;
+    }
+
+    /* XXX replace w/ memcpy */
+    for (i = 0; i < l; i++) {
+        cpu_stb_primary(env, a1 + i, cpu_ldub_secondary(env, a2 + i));
+    }
+
+    return cc;
 }
 
 /* invalidate pte */

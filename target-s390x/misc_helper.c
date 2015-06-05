@@ -61,7 +61,7 @@ void QEMU_NORETURN runtime_exception(CPUS390XState *env, int excp,
     /* Advance past the insn.  */
     t = cpu_ldub_code(env, env->psw.addr);
     env->int_pgm_ilen = t = get_ilen(t);
-    env->psw.addr += 2 * t;
+    env->psw.addr += t;
 
     cpu_loop_exit(cs);
 }
@@ -268,7 +268,8 @@ void HELPER(spx)(CPUS390XState *env, uint64_t a1)
     tlb_flush_page(cs, TARGET_PAGE_SIZE);
 }
 
-static inline uint64_t clock_value(CPUS390XState *env)
+/* Store Clock */
+uint64_t HELPER(stck)(CPUS390XState *env)
 {
     uint64_t time;
 
@@ -278,12 +279,6 @@ static inline uint64_t clock_value(CPUS390XState *env)
     return time;
 }
 
-/* Store Clock */
-uint64_t HELPER(stck)(CPUS390XState *env)
-{
-    return clock_value(env);
-}
-
 /* Set Clock Comparator */
 void HELPER(sckc)(CPUS390XState *env, uint64_t time)
 {
@@ -291,19 +286,21 @@ void HELPER(sckc)(CPUS390XState *env, uint64_t time)
         return;
     }
 
-    /* difference between now and then */
-    time -= clock_value(env);
-    /* nanoseconds */
-    time = (time * 125) >> 9;
+    env->ckc = time;
 
-    timer_mod(env->tod_timer, qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) + time);
+    /* difference between origins */
+    time -= env->tod_offset;
+
+    /* nanoseconds */
+    time = tod2time(time);
+
+    timer_mod(env->tod_timer, env->tod_basetime + time);
 }
 
 /* Store Clock Comparator */
 uint64_t HELPER(stckc)(CPUS390XState *env)
 {
-    /* XXX implement */
-    return 0;
+    return env->ckc;
 }
 
 /* Set CPU Timer */
@@ -314,16 +311,17 @@ void HELPER(spt)(CPUS390XState *env, uint64_t time)
     }
 
     /* nanoseconds */
-    time = (time * 125) >> 9;
+    time = tod2time(time);
 
-    timer_mod(env->cpu_timer, qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) + time);
+    env->cputm = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) + time;
+
+    timer_mod(env->cpu_timer, env->cputm);
 }
 
 /* Store CPU Timer */
 uint64_t HELPER(stpt)(CPUS390XState *env)
 {
-    /* XXX implement */
-    return 0;
+    return time2tod(env->cputm - qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL));
 }
 
 /* Store System Information */

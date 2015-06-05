@@ -48,7 +48,7 @@
 #define MMU_MODE1_SUFFIX _secondary
 #define MMU_MODE2_SUFFIX _home
 
-#define MMU_USER_IDX 1
+#define MMU_USER_IDX 0
 
 #define MAX_EXT_QUEUE 16
 #define MAX_IO_QUEUE 16
@@ -302,13 +302,39 @@ static inline CPU_DoubleU *get_freg(CPUS390XState *cs, int nr)
 #define CR0_LOWPROT             0x0000000010000000ULL
 #define CR0_EDAT                0x0000000000800000ULL
 
+/* MMU */
+#define MMU_PRIMARY_IDX         0
+#define MMU_SECONDARY_IDX       1
+#define MMU_HOME_IDX            2
+
 static inline int cpu_mmu_index (CPUS390XState *env)
 {
-    if (env->psw.mask & PSW_MASK_PSTATE) {
-        return 1;
+    switch (env->psw.mask & PSW_MASK_ASC) {
+    case PSW_ASC_PRIMARY:
+        return MMU_PRIMARY_IDX;
+    case PSW_ASC_SECONDARY:
+        return MMU_SECONDARY_IDX;
+    case PSW_ASC_HOME:
+        return MMU_HOME_IDX;
+    case PSW_ASC_ACCREG:
+        /* Fallthrough: access register mode is not yet supported */
+    default:
+        abort();
     }
+}
 
-    return 0;
+static inline uint64_t cpu_mmu_idx_to_asc(int mmu_idx)
+{
+    switch (mmu_idx) {
+    case MMU_PRIMARY_IDX:
+        return PSW_ASC_PRIMARY;
+    case MMU_SECONDARY_IDX:
+        return PSW_ASC_SECONDARY;
+    case MMU_HOME_IDX:
+        return PSW_ASC_HOME;
+    default:
+        abort();
+    }
 }
 
 static inline void cpu_get_tb_cpu_state(CPUS390XState* env, target_ulong *pc,
@@ -993,6 +1019,11 @@ int s390_cpu_virt_mem_rw(S390CPU *cpu, vaddr laddr, uint8_t ar, void *hostbuf,
 /* Converts ns to s390's clock format */
 static inline uint64_t time2tod(uint64_t ns) {
     return (ns << 9) / 125;
+}
+
+/* Converts s390's clock format to ns */
+static inline uint64_t tod2time(uint64_t t) {
+    return (t * 125) >> 9;
 }
 
 static inline void cpu_inject_ext(S390CPU *cpu, uint32_t code, uint32_t param,
