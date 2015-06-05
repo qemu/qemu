@@ -1111,9 +1111,7 @@ int vhost_dev_start(struct vhost_dev *hdev, VirtIODevice *vdev)
 
     return 0;
 fail_log:
-    if (hdev->log_size) {
-        vhost_log_put(hdev, false);
-    }
+    vhost_log_put(hdev, false);
 fail_vq:
     while (--i >= 0) {
         vhost_virtqueue_stop(hdev,
