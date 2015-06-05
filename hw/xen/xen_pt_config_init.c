@@ -96,8 +96,7 @@ XenPTReg *xen_pt_find_reg(XenPTRegGroup *reg_grp, uint32_t address)
 }
 
 static uint32_t get_throughable_mask(const XenPCIPassthroughState *s,
-                                     const XenPTRegInfo *reg,
-                                     uint32_t valid_mask)
+                                     XenPTRegInfo *reg, uint32_t valid_mask)
 {
     uint32_t throughable_mask = ~(reg->emu_mask | reg->ro_mask);
 
