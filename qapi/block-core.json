@@ -536,12 +536,12 @@
 #
 # @none: only copy data written from now on
 #
-# @dirty-bitmap: only copy data described by the dirty bitmap. Since: 2.4
+# @incremental: only copy data described by the dirty bitmap. Since: 2.4
 #
 # Since: 1.3
 ##
 { 'enum': 'MirrorSyncMode',
-  'data': ['top', 'full', 'none', 'dirty-bitmap'] }
+  'data': ['top', 'full', 'none', 'incremental'] }
 
 ##
 # @BlockJobType:
@@ -724,8 +724,8 @@
 #
 # @speed: #optional the maximum speed, in bytes per second
 #
-# @bitmap: #optional the name of dirty bitmap if sync is "dirty-bitmap".
-#          Must be present if sync is "dirty-bitmap", must NOT be present
+# @bitmap: #optional the name of dirty bitmap if sync is "incremental".
+#          Must be present if sync is "incremental", must NOT be present
 #          otherwise. (Since 2.4)
 #
 # @on-source-error: #optional the action to take on an error on the source,

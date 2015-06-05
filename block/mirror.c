@@ -710,8 +710,8 @@ void mirror_start(BlockDriverState *bs, BlockDriverState *target,
     bool is_none_mode;
     BlockDriverState *base;
 
-    if (mode == MIRROR_SYNC_MODE_DIRTY_BITMAP) {
-        error_setg(errp, "Sync mode 'dirty-bitmap' not supported");
+    if (mode == MIRROR_SYNC_MODE_INCREMENTAL) {
+        error_setg(errp, "Sync mode 'incremental' not supported");
         return;
     }
     is_none_mode = mode == MIRROR_SYNC_MODE_NONE;

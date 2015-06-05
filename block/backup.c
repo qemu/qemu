@@ -38,7 +38,7 @@ typedef struct CowRequest {
 typedef struct BackupBlockJob {
     BlockJob common;
     BlockDriverState *target;
-    /* bitmap for sync=dirty-bitmap */
+    /* bitmap for sync=incremental */
     BdrvDirtyBitmap *sync_bitmap;
     MirrorSyncMode sync_mode;
     RateLimit limit;
@@ -365,7 +365,7 @@ static void coroutine_fn backup_run(void *opaque)
             qemu_coroutine_yield();
             job->common.busy = true;
         }
-    } else if (job->sync_mode == MIRROR_SYNC_MODE_DIRTY_BITMAP) {
+    } else if (job->sync_mode == MIRROR_SYNC_MODE_INCREMENTAL) {
         ret = backup_run_incremental(job);
     } else {
         /* Both FULL and TOP SYNC_MODE's require copying.. */
@@ -497,10 +497,10 @@ void backup_start(BlockDriverState *bs, BlockDriverState *target,
         return;
     }
 
-    if (sync_mode == MIRROR_SYNC_MODE_DIRTY_BITMAP) {
+    if (sync_mode == MIRROR_SYNC_MODE_INCREMENTAL) {
         if (!sync_bitmap) {
             error_setg(errp, "must provide a valid bitmap name for "
-                             "\"dirty-bitmap\" sync mode");
+                             "\"incremental\" sync mode");
             return;
         }
 
@@ -535,7 +535,7 @@ void backup_start(BlockDriverState *bs, BlockDriverState *target,
     job->on_target_error = on_target_error;
     job->target = target;
     job->sync_mode = sync_mode;
-    job->sync_bitmap = sync_mode == MIRROR_SYNC_MODE_DIRTY_BITMAP ?
+    job->sync_bitmap = sync_mode == MIRROR_SYNC_MODE_INCREMENTAL ?
                        sync_bitmap : NULL;
     job->common.len = len;
     job->common.co = qemu_coroutine_create(backup_run);

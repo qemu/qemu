@@ -1137,10 +1137,10 @@ Arguments:
             (json-string, optional)
 - "sync": what parts of the disk image should be copied to the destination;
   possibilities include "full" for all the disk, "top" for only the sectors
-  allocated in the topmost image, "dirty-bitmap" for only the dirty sectors in
+  allocated in the topmost image, "incremental" for only the dirty sectors in
   the bitmap, or "none" to only replicate new I/O (MirrorSyncMode).
-- "bitmap": dirty bitmap name for sync==dirty-bitmap. Must be present if sync
-            is "dirty-bitmap", must NOT be present otherwise.
+- "bitmap": dirty bitmap name for sync==incremental. Must be present if sync
+            is "incremental", must NOT be present otherwise.
 - "mode": whether and how QEMU should create a new image
           (NewImageMode, optional, default 'absolute-paths')
 - "speed": the maximum speed, in bytes per second (json-int, optional)
