@@ -343,11 +343,11 @@ static void stm32_timer_write(void * opaque, hwaddr offset,
 		break;
 	case TIMER_EGR_OFFSET:
 		s->egr = value & 0x1E;
-		if (s->egr & 0x40) {
+		if (value & 0x40) {
 			/* TG bit */
 			s->sr |= 0x40;
 		}
-		if (s->egr & 0x1) {
+		if (value & 0x1) {
 			 /* UG bit - reload count */
 			ptimer_set_limit(s->timer, s->arr, 1);
 		}
