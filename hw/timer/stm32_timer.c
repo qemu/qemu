@@ -195,7 +195,7 @@ static void stm32_timer_update(Stm32Timer *s)
 
 static void stm32_timer_update_UIF(Stm32Timer *s, uint8_t value) {
     s->sr &= ~0x1; /* update interrupt flag in status reg */
-    s->sr |= 0x1;
+    s->sr |= (value & 0x1);
 
     qemu_set_irq(s->irq, value);
 }
