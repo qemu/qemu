@@ -216,7 +216,7 @@ static void stm32_timer_tick(void *opaque)
 		stm32_timer_set_count(s, s->arr);
 	}
 
-	if (s->cr1 & 0x0300) /* CMS */
+	if (s->cr1 & 0x0060) /* CMS */
 	{
 		if (s->countMode == TIMER_UP_COUNT)
 		{
