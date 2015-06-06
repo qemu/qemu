@@ -93,6 +93,11 @@ static void test_gpio_read(void)
 
     value = readl(addr_idr);
     g_assert_cmpint(value, ==, 0x81);
+
+    set_irq_in("/machine/stm32/gpio[a]", 0, 0);
+
+    value = readl(addr_idr);
+    g_assert_cmpint(value, ==, 0x80);
 }
 
 static void test_gpio_write(void)
@@ -123,6 +128,17 @@ static void test_gpio_write(void)
 
     writel(addr_bsrr, 0x0000ffef);
 
+    // Make sure pin can be toggled between input and output
+    writel(addr_odr, 0x00000000);
+    config_gpio(GPIOA_BASE_ADDR, 0x33333333, 0x33333330); // Pin 0 is input
+    g_assert_cmpint(get_irq_for_gpio(gpio_a_out_id, 0x0), ==, 0);
+    writel(addr_odr, 0x00000001);
+    g_assert_cmpint(get_irq_for_gpio(gpio_a_out_id, 0x0), ==, 0);
+    writel(addr_odr, 0x00000000);
+    config_gpio(GPIOA_BASE_ADDR, 0x33333333, 0x33333333); // Pin 0 is output
+    g_assert_cmpint(get_irq_for_gpio(gpio_a_out_id, 0x0), ==, 0);
+    writel(addr_odr, 0x00000001);
+    g_assert_cmpint(get_irq_for_gpio(gpio_a_out_id, 0x0), ==, 1);
 
     //config_gpio(GPIOB_BASE_ADDR, 0x33333333, 0x33333333); // All outputs
 
