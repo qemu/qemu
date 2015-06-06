@@ -183,10 +183,12 @@ static void stm32_timer_update(Stm32Timer *s)
 
 	if (s->cr1 & 0x01) /* timer enable */
 	{
+	    DPRINTF("%s Enabling timer\n", stm32_periph_name(s->periph));
 		ptimer_run(s->timer, !(s->cr1 & 0x04));
 	}
 	else
 	{
+	    DPRINTF("%s Disabling timer\n", stm32_periph_name(s->periph));
 		ptimer_stop(s->timer);
 	}
 }
@@ -319,8 +321,8 @@ static void stm32_timer_write(void * opaque, hwaddr offset,
     switch (offset) {
 	case TIMER_CR1_OFFSET:
 		s->cr1 = value & 0x3FF;
-		stm32_timer_update(s);
         DPRINTF("%s cr1 = %x\n", stm32_periph_name(s->periph), s->cr1);
+		stm32_timer_update(s);
 		break;
 	case TIMER_CR2_OFFSET:
 	 	/* s->cr2 = value & 0xF8; */
