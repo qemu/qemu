@@ -115,6 +115,8 @@ struct Stm32Timer {
 
 static void stm32_timer_freq(Stm32Timer *s)
 {
+    // Why do we need to multiply the frequency by 2?  This is how real hardware
+    // behaves.
     uint32_t clk_freq = 2*stm32_rcc_get_periph_freq(s->stm32_rcc, s->periph) / (s->psc + 1);
 	DPRINTF
 	(
