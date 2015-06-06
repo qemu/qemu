@@ -1302,7 +1302,7 @@ static void tcg_out_qemu_st(TCGContext *s, const TCGArg *args, bool is_64)
        so we can reuse that for the base.  */
     base = (TARGET_LONG_BITS == 32 ? TCG_REG_A1 : TCG_REG_A2);
     tcg_out_tlb_load(s, base, addr_regl, addr_regh, mem_index,
-                     s_bits, label_ptr, 1);
+                     s_bits, label_ptr, 0);
     tcg_out_qemu_st_direct(s, data_regl, data_regh, base, opc);
     add_qemu_ldst_label(s, 0, opc, data_regl, data_regh, addr_regl, addr_regh,
                         mem_index, s->code_ptr, label_ptr);

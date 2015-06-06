@@ -660,7 +660,6 @@ int net_init_l2tpv3(const NetClientOptions *opts,
     if (fd == -1) {
         fd = -errno;
         error_report("l2tpv3_open : socket creation failed, errno = %d", -fd);
-        freeaddrinfo(result);
         goto outerr;
     }
     if (bind(fd, (struct sockaddr *) result->ai_addr, result->ai_addrlen)) {

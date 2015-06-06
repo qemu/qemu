@@ -447,6 +447,7 @@ static int raw_open_common(BlockDriverState *bs, QDict *options,
     s->has_write_zeroes = true;
 
     if (fstat(s->fd, &st) < 0) {
+        ret = -errno;
         error_setg_errno(errp, errno, "Could not stat file");
         goto fail;
     }
@@ -1585,7 +1586,7 @@ static QemuOptsList raw_create_opts = {
     }
 };
 
-static BlockDriver bdrv_file = {
+BlockDriver bdrv_file = {
     .format_name = "file",
     .protocol_name = "file",
     .instance_size = sizeof(BDRVRawState),

@@ -14,8 +14,10 @@
  */
 
 #include "qemu-common.h"
+#include "qemu/host-utils.h"
 #include "sysemu/sysemu.h"
 #include "sysemu/kvm.h"
+#include "sysemu/cpus.h"
 #include "hw/sysbus.h"
 #include "hw/kvm/clock.h"
 
@@ -34,6 +36,48 @@ typedef struct KVMClockState {
     bool clock_valid;
 } KVMClockState;
 
+struct pvclock_vcpu_time_info {
+    uint32_t   version;
+    uint32_t   pad0;
+    uint64_t   tsc_timestamp;
+    uint64_t   system_time;
+    uint32_t   tsc_to_system_mul;
+    int8_t     tsc_shift;
+    uint8_t    flags;
+    uint8_t    pad[2];
+} __attribute__((__packed__)); /* 32 bytes */
+
+static uint64_t kvmclock_current_nsec(KVMClockState *s)
+{
+    CPUState *cpu = first_cpu;
+    CPUX86State *env = cpu->env_ptr;
+    hwaddr kvmclock_struct_pa = env->system_time_msr & ~1ULL;
+    uint64_t migration_tsc = env->tsc;
+    struct pvclock_vcpu_time_info time;
+    uint64_t delta;
+    uint64_t nsec_lo;
+    uint64_t nsec_hi;
+    uint64_t nsec;
+
+    if (!(env->system_time_msr & 1ULL)) {
+        /* KVM clock not active */
+        return 0;
+    }
+
+    cpu_physical_memory_read(kvmclock_struct_pa, &time, sizeof(time));
+
+    assert(time.tsc_timestamp <= migration_tsc);
+    delta = migration_tsc - time.tsc_timestamp;
+    if (time.tsc_shift < 0) {
+        delta >>= -time.tsc_shift;
+    } else {
+        delta <<= time.tsc_shift;
+    }
+
+    mulu64(&nsec_lo, &nsec_hi, delta, time.tsc_to_system_mul);
+    nsec = (nsec_lo >> 32) | (nsec_hi << 32);
+    return nsec + time.system_time;
+}
 
 static void kvmclock_vm_state_change(void *opaque, int running,
                                      RunState state)
@@ -45,8 +89,14 @@ static void kvmclock_vm_state_change(void *opaque, int running,
 
     if (running) {
         struct kvm_clock_data data;
+        uint64_t time_at_migration = kvmclock_current_nsec(s);
 
         s->clock_valid = false;
+
+        /* We can't rely on the migrated clock value, just discard it */
+        if (time_at_migration) {
+            s->clock = time_at_migration;
+        }
 
         data.clock = s->clock;
         data.flags = 0;
@@ -75,6 +125,23 @@ static void kvmclock_vm_state_change(void *opaque, int running,
         if (s->clock_valid) {
             return;
         }
+
+        cpu_synchronize_all_states();
+        /* In theory, the cpu_synchronize_all_states() call above wouldn't
+         * affect the rest of the code, as the VCPU state inside CPUState
+         * is supposed to always match the VCPU state on the kernel side.
+         *
+         * In practice, calling cpu_synchronize_state() too soon will load the
+         * kernel-side APIC state into X86CPU.apic_state too early, APIC state
+         * won't be reloaded later because CPUState.vcpu_dirty==true, and
+         * outdated APIC state may be migrated to another host.
+         *
+         * The real fix would be to make sure outdated APIC state is read
+         * from the kernel again when necessary. While this is not fixed, we
+         * need the cpu_clean_all_dirty() call below.
+         */
+        cpu_clean_all_dirty();
+
         ret = kvm_vm_ioctl(kvm_state, KVM_GET_CLOCK, &data);
         if (ret < 0) {
             fprintf(stderr, "KVM_GET_CLOCK failed: %s\n", strerror(ret));

@@ -253,7 +253,8 @@ static void bamboo_init(MachineState *machine)
 
     /* Load kernel. */
     if (kernel_filename) {
-        success = load_uimage(kernel_filename, &entry, &loadaddr, NULL);
+        success = load_uimage(kernel_filename, &entry, &loadaddr, NULL,
+                              NULL, NULL);
         if (success < 0) {
             success = load_elf(kernel_filename, NULL, NULL, &elf_entry,
                                &elf_lowaddr, NULL, 1, ELF_MACHINE, 0);

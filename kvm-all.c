@@ -617,8 +617,10 @@ static void kvm_set_phys_mem(MemoryRegionSection *section, bool add)
     unsigned delta;
 
     /* kvm works in page size chunks, but the function may be called
-       with sub-page size and unaligned start address. */
-    delta = TARGET_PAGE_ALIGN(size) - size;
+       with sub-page size and unaligned start address. Pad the start
+       address to next and truncate size to previous page boundary. */
+    delta = (TARGET_PAGE_SIZE - (start_addr & ~TARGET_PAGE_MASK));
+    delta &= ~TARGET_PAGE_MASK;
     if (delta > size) {
         return;
     }
@@ -1678,6 +1680,11 @@ void kvm_cpu_synchronize_post_reset(CPUState *cpu)
 void kvm_cpu_synchronize_post_init(CPUState *cpu)
 {
     kvm_arch_put_registers(cpu, KVM_PUT_FULL_STATE);
+    cpu->kvm_vcpu_dirty = false;
+}
+
+void kvm_cpu_clean_state(CPUState *cpu)
+{
     cpu->kvm_vcpu_dirty = false;
 }
 

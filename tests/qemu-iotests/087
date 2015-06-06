@@ -218,6 +218,23 @@ run_qemu <<EOF
 { "execute": "quit" }
 EOF
 
+echo
+echo === Missing driver ===
+echo
+
+_make_test_img -o encryption=on $size
+run_qemu -S <<EOF
+{ "execute": "qmp_capabilities" }
+{ "execute": "blockdev-add",
+  "arguments": {
+      "options": {
+        "id": "disk"
+      }
+    }
+  }
+{ "execute": "quit" }
+EOF
+
 # success, all done
 echo "*** done"
 rm -f $seq.full

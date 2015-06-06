@@ -292,8 +292,59 @@ enum {
     SVGA_CURSOR_ON_RESTORE_TO_FB = 3,
 };
 
+static inline bool vmsvga_verify_rect(DisplaySurface *surface,
+                                      const char *name,
+                                      int x, int y, int w, int h)
+{
+    if (x < 0) {
+        fprintf(stderr, "%s: x was < 0 (%d)\n", name, x);
+        return false;
+    }
+    if (x > SVGA_MAX_WIDTH) {
+        fprintf(stderr, "%s: x was > %d (%d)\n", name, SVGA_MAX_WIDTH, x);
+        return false;
+    }
+    if (w < 0) {
+        fprintf(stderr, "%s: w was < 0 (%d)\n", name, w);
+        return false;
+    }
+    if (w > SVGA_MAX_WIDTH) {
+        fprintf(stderr, "%s: w was > %d (%d)\n", name, SVGA_MAX_WIDTH, w);
+        return false;
+    }
+    if (x + w > surface_width(surface)) {
+        fprintf(stderr, "%s: width was > %d (x: %d, w: %d)\n",
+                name, surface_width(surface), x, w);
+        return false;
+    }
+
+    if (y < 0) {
+        fprintf(stderr, "%s: y was < 0 (%d)\n", name, y);
+        return false;
+    }
+    if (y > SVGA_MAX_HEIGHT) {
+        fprintf(stderr, "%s: y was > %d (%d)\n", name, SVGA_MAX_HEIGHT, y);
+        return false;
+    }
+    if (h < 0) {
+        fprintf(stderr, "%s: h was < 0 (%d)\n", name, h);
+        return false;
+    }
+    if (h > SVGA_MAX_HEIGHT) {
+        fprintf(stderr, "%s: h was > %d (%d)\n", name, SVGA_MAX_HEIGHT, h);
+        return false;
+    }
+    if (y + h > surface_height(surface)) {
+        fprintf(stderr, "%s: update height > %d (y: %d, h: %d)\n",
+                name, surface_height(surface), y, h);
+        return false;
+    }
+
+    return true;
+}
+
 static inline void vmsvga_update_rect(struct vmsvga_state_s *s,
-                int x, int y, int w, int h)
+                                      int x, int y, int w, int h)
 {
     DisplaySurface *surface = qemu_console_surface(s->vga.con);
     int line;
@@ -303,36 +354,12 @@ static inline void vmsvga_update_rect(struct vmsvga_state_s *s,
     uint8_t *src;
     uint8_t *dst;
 
-    if (x < 0) {
-        fprintf(stderr, "%s: update x was < 0 (%d)\n", __func__, x);
-        w += x;
+    if (!vmsvga_verify_rect(surface, __func__, x, y, w, h)) {
+        /* go for a fullscreen update as fallback */
         x = 0;
-    }
-    if (w < 0) {
-        fprintf(stderr, "%s: update w was < 0 (%d)\n", __func__, w);
-        w = 0;
-    }
-    if (x + w > surface_width(surface)) {
-        fprintf(stderr, "%s: update width too large x: %d, w: %d\n",
-                __func__, x, w);
-        x = MIN(x, surface_width(surface));
-        w = surface_width(surface) - x;
-    }
-
-    if (y < 0) {
-        fprintf(stderr, "%s: update y was < 0 (%d)\n",  __func__, y);
-        h += y;
         y = 0;
-    }
-    if (h < 0) {
-        fprintf(stderr, "%s: update h was < 0 (%d)\n",  __func__, h);
-        h = 0;
-    }
-    if (y + h > surface_height(surface)) {
-        fprintf(stderr, "%s: update height too large y: %d, h: %d\n",
-                __func__, y, h);
-        y = MIN(y, surface_height(surface));
-        h = surface_height(surface) - y;
+        w = surface_width(surface);
+        h = surface_height(surface);
     }
 
     bypl = surface_stride(surface);
@@ -377,7 +404,7 @@ static inline void vmsvga_update_rect_flush(struct vmsvga_state_s *s)
 }
 
 #ifdef HW_RECT_ACCEL
-static inline void vmsvga_copy_rect(struct vmsvga_state_s *s,
+static inline int vmsvga_copy_rect(struct vmsvga_state_s *s,
                 int x0, int y0, int x1, int y1, int w, int h)
 {
     DisplaySurface *surface = qemu_console_surface(s->vga.con);
@@ -387,6 +414,13 @@ static inline void vmsvga_copy_rect(struct vmsvga_state_s *s,
     int width = bypp * w;
     int line = h;
     uint8_t *ptr[2];
+
+    if (!vmsvga_verify_rect(surface, "vmsvga_copy_rect/src", x0, y0, w, h)) {
+        return -1;
+    }
+    if (!vmsvga_verify_rect(surface, "vmsvga_copy_rect/dst", x1, y1, w, h)) {
+        return -1;
+    }
 
     if (y1 > y0) {
         ptr[0] = vram + bypp * x0 + bypl * (y0 + h - 1);
@@ -403,11 +437,12 @@ static inline void vmsvga_copy_rect(struct vmsvga_state_s *s,
     }
 
     vmsvga_update_rect_delayed(s, x1, y1, w, h);
+    return 0;
 }
 #endif
 
 #ifdef HW_FILL_ACCEL
-static inline void vmsvga_fill_rect(struct vmsvga_state_s *s,
+static inline int vmsvga_fill_rect(struct vmsvga_state_s *s,
                 uint32_t c, int x, int y, int w, int h)
 {
     DisplaySurface *surface = qemu_console_surface(s->vga.con);
@@ -419,6 +454,10 @@ static inline void vmsvga_fill_rect(struct vmsvga_state_s *s,
     uint8_t *dst;
     uint8_t *src;
     uint8_t col[4];
+
+    if (!vmsvga_verify_rect(surface, __func__, x, y, w, h)) {
+        return -1;
+    }
 
     col[0] = c;
     col[1] = c >> 8;
@@ -444,6 +483,7 @@ static inline void vmsvga_fill_rect(struct vmsvga_state_s *s,
     }
 
     vmsvga_update_rect_delayed(s, x, y, w, h);
+    return 0;
 }
 #endif
 
@@ -576,12 +616,12 @@ static void vmsvga_fifo_run(struct vmsvga_state_s *s)
             width = vmsvga_fifo_read(s);
             height = vmsvga_fifo_read(s);
 #ifdef HW_FILL_ACCEL
-            vmsvga_fill_rect(s, colour, x, y, width, height);
-            break;
-#else
+            if (vmsvga_fill_rect(s, colour, x, y, width, height) == 0) {
+                break;
+            }
+#endif
             args = 0;
             goto badcmd;
-#endif
 
         case SVGA_CMD_RECT_COPY:
             len -= 7;
@@ -596,12 +636,12 @@ static void vmsvga_fifo_run(struct vmsvga_state_s *s)
             width = vmsvga_fifo_read(s);
             height = vmsvga_fifo_read(s);
 #ifdef HW_RECT_ACCEL
-            vmsvga_copy_rect(s, x, y, dx, dy, width, height);
-            break;
-#else
+            if (vmsvga_copy_rect(s, x, y, dx, dy, width, height) == 0) {
+                break;
+            }
+#endif
             args = 0;
             goto badcmd;
-#endif
 
         case SVGA_CMD_DEFINE_CURSOR:
             len -= 8;

@@ -30,10 +30,14 @@ blkverify: read sector_num=0 nb_sectors=4 contents mismatch in sector 0
 
 === Testing blkdebug through filename ===
 
+Failed to flush the L2 table cache: Input/output error
+Failed to flush the refcount block cache: Input/output error
 read failed: Input/output error
 
 === Testing blkdebug through file blockref ===
 
+Failed to flush the L2 table cache: Input/output error
+Failed to flush the refcount block cache: Input/output error
 read failed: Input/output error
 
 === Testing blkdebug on existing block device ===
@@ -48,6 +52,8 @@ read failed: Input/output error
 {"timestamp": {"seconds":  TIMESTAMP, "microseconds":  TIMESTAMP}, "event": "SHUTDOWN"}
 {"timestamp": {"seconds":  TIMESTAMP, "microseconds":  TIMESTAMP}, "event": "DEVICE_TRAY_MOVED", "data": {"device": "ide1-cd0", "tray-open": true}}
 {"timestamp": {"seconds":  TIMESTAMP, "microseconds":  TIMESTAMP}, "event": "DEVICE_TRAY_MOVED", "data": {"device": "floppy0", "tray-open": true}}
+qemu-system-x86_64: Failed to flush the L2 table cache: Input/output error
+qemu-system-x86_64: Failed to flush the refcount block cache: Input/output error
 
 
 === Testing blkverify on existing block device ===
@@ -86,5 +92,7 @@ read failed: Input/output error
 {"timestamp": {"seconds":  TIMESTAMP, "microseconds":  TIMESTAMP}, "event": "SHUTDOWN"}
 {"timestamp": {"seconds":  TIMESTAMP, "microseconds":  TIMESTAMP}, "event": "DEVICE_TRAY_MOVED", "data": {"device": "ide1-cd0", "tray-open": true}}
 {"timestamp": {"seconds":  TIMESTAMP, "microseconds":  TIMESTAMP}, "event": "DEVICE_TRAY_MOVED", "data": {"device": "floppy0", "tray-open": true}}
+qemu-system-x86_64: Failed to flush the L2 table cache: Input/output error
+qemu-system-x86_64: Failed to flush the refcount block cache: Input/output error
 
 *** done

@@ -24,10 +24,12 @@
 #include "migration/migration.h"
 #include "qapi/qmp/qerror.h"
 #include "qemu/event_notifier.h"
+#include "qemu/fifo8.h"
 #include "sysemu/char.h"
 
 #include <sys/mman.h>
 #include <sys/types.h>
+#include <limits.h>
 
 #define PCI_VENDOR_ID_IVSHMEM   PCI_VENDOR_ID_REDHAT_QUMRANET
 #define PCI_DEVICE_ID_IVSHMEM   0x1110
@@ -73,6 +75,7 @@ typedef struct IVShmemState {
 
     CharDriverState **eventfd_chr;
     CharDriverState *server_chr;
+    Fifo8 incoming_fifo;
     MemoryRegion ivshmem_mmio;
 
     /* We might need to register the BAR before we actually have the memory.
@@ -383,6 +386,9 @@ static void close_guest_eventfds(IVShmemState *s, int posn)
     if (!ivshmem_has_feature(s, IVSHMEM_IOEVENTFD)) {
         return;
     }
+    if (posn < 0 || posn >= s->nb_peers) {
+        return;
+    }
 
     guest_curr_max = s->peers[posn].nb_eventfds;
 
@@ -401,14 +407,24 @@ static void close_guest_eventfds(IVShmemState *s, int posn)
 
 /* this function increase the dynamic storage need to store data about other
  * guests */
-static void increase_dynamic_storage(IVShmemState *s, int new_min_size) {
+static int increase_dynamic_storage(IVShmemState *s, int new_min_size)
+{
 
     int j, old_nb_alloc;
 
+    /* check for integer overflow */
+    if (new_min_size >= INT_MAX / sizeof(Peer) - 1 || new_min_size <= 0) {
+        return -1;
+    }
+
     old_nb_alloc = s->nb_peers;
 
-    while (new_min_size >= s->nb_peers)
-        s->nb_peers = s->nb_peers * 2;
+    if (new_min_size >= s->nb_peers) {
+        /* +1 because #new_min_size is used as last array index */
+        s->nb_peers = new_min_size + 1;
+    } else {
+        return 0;
+    }
 
     IVSHMEM_DPRINTF("bumping storage to %d guests\n", s->nb_peers);
     s->peers = g_realloc(s->peers, s->nb_peers * sizeof(Peer));
@@ -418,23 +434,57 @@ static void increase_dynamic_storage(IVShmemState *s, int new_min_size) {
         s->peers[j].eventfds = NULL;
         s->peers[j].nb_eventfds = 0;
     }
+
+    return 0;
 }
 
-static void ivshmem_read(void *opaque, const uint8_t * buf, int flags)
+static void ivshmem_read(void *opaque, const uint8_t *buf, int size)
 {
     IVShmemState *s = opaque;
     int incoming_fd, tmp_fd;
     int guest_max_eventfd;
     long incoming_posn;
 
-    memcpy(&incoming_posn, buf, sizeof(long));
+    if (fifo8_is_empty(&s->incoming_fifo) && size == sizeof(incoming_posn)) {
+        memcpy(&incoming_posn, buf, size);
+    } else {
+        const uint8_t *p;
+        uint32_t num;
+
+        IVSHMEM_DPRINTF("short read of %d bytes\n", size);
+        num = MAX(size, sizeof(long) - fifo8_num_used(&s->incoming_fifo));
+        fifo8_push_all(&s->incoming_fifo, buf, num);
+        if (fifo8_num_used(&s->incoming_fifo) < sizeof(incoming_posn)) {
+            return;
+        }
+        size -= num;
+        buf += num;
+        p = fifo8_pop_buf(&s->incoming_fifo, sizeof(incoming_posn), &num);
+        g_assert(num == sizeof(incoming_posn));
+        memcpy(&incoming_posn, p, sizeof(incoming_posn));
+        if (size > 0) {
+            fifo8_push_all(&s->incoming_fifo, buf, size);
+        }
+    }
+
+    if (incoming_posn < -1) {
+        IVSHMEM_DPRINTF("invalid incoming_posn %ld\n", incoming_posn);
+        return;
+    }
+
     /* pick off s->server_chr->msgfd and store it, posn should accompany msg */
     tmp_fd = qemu_chr_fe_get_msgfd(s->server_chr);
     IVSHMEM_DPRINTF("posn is %ld, fd is %d\n", incoming_posn, tmp_fd);
 
     /* make sure we have enough space for this guest */
     if (incoming_posn >= s->nb_peers) {
-        increase_dynamic_storage(s, incoming_posn);
+        if (increase_dynamic_storage(s, incoming_posn) < 0) {
+            error_report("increase_dynamic_storage() failed");
+            if (tmp_fd != -1) {
+                close(tmp_fd);
+            }
+            return;
+        }
     }
 
     if (tmp_fd == -1) {
@@ -458,6 +508,7 @@ static void ivshmem_read(void *opaque, const uint8_t * buf, int flags)
     if (incoming_fd == -1) {
         fprintf(stderr, "could not allocate file descriptor %s\n",
                                                             strerror(errno));
+        close(tmp_fd);
         return;
     }
 
@@ -659,6 +710,8 @@ static int pci_ivshmem_init(PCIDevice *dev)
         s->ivshmem_size = ivshmem_get_size(s);
     }
 
+    fifo8_create(&s->incoming_fifo, sizeof(long));
+
     register_savevm(DEVICE(dev), "ivshmem", 0, 0, ivshmem_save, ivshmem_load,
                                                                         dev);
 
@@ -795,6 +848,7 @@ static void pci_ivshmem_uninit(PCIDevice *dev)
     memory_region_destroy(&s->ivshmem);
     memory_region_destroy(&s->bar);
     unregister_savevm(DEVICE(dev), "ivshmem", s);
+    fifo8_destroy(&s->incoming_fifo);
 }
 
 static Property ivshmem_properties[] = {

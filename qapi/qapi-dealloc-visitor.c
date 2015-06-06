@@ -162,6 +162,31 @@ static void qapi_dealloc_type_enum(Visitor *v, int *obj, const char *strings[],
 {
 }
 
+/* If there's no data present, the dealloc visitor has nothing to free.
+ * Thus, indicate to visitor code that the subsequent union fields can
+ * be skipped. This is not an error condition, since the cleanup of the
+ * rest of an object can continue unhindered, so leave errp unset in
+ * these cases.
+ *
+ * NOTE: In cases where we're attempting to deallocate an object that
+ * may have missing fields, the field indicating the union type may
+ * be missing. In such a case, it's possible we don't have enough
+ * information to differentiate data_present == false from a case where
+ * data *is* present but happens to be a scalar with a value of 0.
+ * This is okay, since in the case of the dealloc visitor there's no
+ * work that needs to done in either situation.
+ *
+ * The current inability in QAPI code to more thoroughly verify a union
+ * type in such cases will likely need to be addressed if we wish to
+ * implement this interface for other types of visitors in the future,
+ * however.
+ */
+static bool qapi_dealloc_start_union(Visitor *v, bool data_present,
+                                     Error **errp)
+{
+    return data_present;
+}
+
 Visitor *qapi_dealloc_get_visitor(QapiDeallocVisitor *v)
 {
     return &v->visitor;
@@ -191,6 +216,7 @@ QapiDeallocVisitor *qapi_dealloc_visitor_new(void)
     v->visitor.type_str = qapi_dealloc_type_str;
     v->visitor.type_number = qapi_dealloc_type_number;
     v->visitor.type_size = qapi_dealloc_type_size;
+    v->visitor.start_union = qapi_dealloc_start_union;
 
     QTAILQ_INIT(&v->stack);
 

@@ -314,6 +314,16 @@ static void virtio_ioport_write(void *opaque, uint32_t addr, uint32_t val)
             msix_unuse_all_vectors(&proxy->pci_dev);
         }
 
+        /* Linux before 2.6.34 drives the device without enabling
+           the PCI device bus master bit. Enable it automatically
+           for the guest. This is a PCI spec violation but so is
+           initiating DMA with bus master bit clear. */
+        if (val == (VIRTIO_CONFIG_S_ACKNOWLEDGE | VIRTIO_CONFIG_S_DRIVER)) {
+            pci_default_write_config(&proxy->pci_dev, PCI_COMMAND,
+                                     proxy->pci_dev.config[PCI_COMMAND] |
+                                     PCI_COMMAND_MASTER, 1);
+        }
+
         /* Linux before 2.6.34 sets the device as OK without enabling
            the PCI device bus master bit. In this case we need to disable
            some safety checks. */
@@ -914,7 +924,6 @@ static Property virtio_9p_pci_properties[] = {
     DEFINE_PROP_BIT("ioeventfd", VirtIOPCIProxy, flags,
                     VIRTIO_PCI_FLAG_USE_IOEVENTFD_BIT, true),
     DEFINE_PROP_UINT32("vectors", VirtIOPCIProxy, nvectors, 2),
-    DEFINE_VIRTIO_9P_PROPERTIES(V9fsPCIState, vdev.fsconf),
     DEFINE_PROP_END_OF_LIST(),
 };
 
@@ -938,6 +947,8 @@ static void virtio_9p_pci_instance_init(Object *obj)
     V9fsPCIState *dev = VIRTIO_9P_PCI(obj);
     object_initialize(&dev->vdev, sizeof(dev->vdev), TYPE_VIRTIO_9P);
     object_property_add_child(obj, "virtio-backend", OBJECT(&dev->vdev), NULL);
+    qdev_alias_all_properties(DEVICE(&dev->vdev), obj);
+    object_unref(OBJECT(&dev->vdev));
 }
 
 static const TypeInfo virtio_9p_pci_info = {
@@ -1127,7 +1138,6 @@ static Property virtio_scsi_pci_properties[] = {
     DEFINE_PROP_UINT32("vectors", VirtIOPCIProxy, nvectors,
                        DEV_NVECTORS_UNSPECIFIED),
     DEFINE_VIRTIO_SCSI_FEATURES(VirtIOPCIProxy, host_features),
-    DEFINE_VIRTIO_SCSI_PROPERTIES(VirtIOSCSIPCI, vdev.parent_obj.conf),
     DEFINE_PROP_END_OF_LIST(),
 };
 
@@ -1179,6 +1189,8 @@ static void virtio_scsi_pci_instance_init(Object *obj)
     VirtIOSCSIPCI *dev = VIRTIO_SCSI_PCI(obj);
     object_initialize(&dev->vdev, sizeof(dev->vdev), TYPE_VIRTIO_SCSI);
     object_property_add_child(obj, "virtio-backend", OBJECT(&dev->vdev), NULL);
+    object_unref(OBJECT(&dev->vdev));
+    qdev_alias_all_properties(DEVICE(&dev->vdev), obj);
 }
 
 static const TypeInfo virtio_scsi_pci_info = {
@@ -1195,7 +1207,6 @@ static const TypeInfo virtio_scsi_pci_info = {
 static Property vhost_scsi_pci_properties[] = {
     DEFINE_PROP_UINT32("vectors", VirtIOPCIProxy, nvectors,
                        DEV_NVECTORS_UNSPECIFIED),
-    DEFINE_VHOST_SCSI_PROPERTIES(VHostSCSIPCI, vdev.parent_obj.conf),
     DEFINE_PROP_END_OF_LIST(),
 };
 
@@ -1235,6 +1246,8 @@ static void vhost_scsi_pci_instance_init(Object *obj)
     VHostSCSIPCI *dev = VHOST_SCSI_PCI(obj);
     object_initialize(&dev->vdev, sizeof(dev->vdev), TYPE_VHOST_SCSI);
     object_property_add_child(obj, "virtio-backend", OBJECT(&dev->vdev), NULL);
+    object_unref(OBJECT(&dev->vdev));
+    qdev_alias_all_properties(DEVICE(&dev->vdev), obj);
 }
 
 static const TypeInfo vhost_scsi_pci_info = {
@@ -1315,7 +1328,7 @@ static void virtio_balloon_pci_instance_init(Object *obj)
     VirtIOBalloonPCI *dev = VIRTIO_BALLOON_PCI(obj);
     object_initialize(&dev->vdev, sizeof(dev->vdev), TYPE_VIRTIO_BALLOON);
     object_property_add_child(obj, "virtio-backend", OBJECT(&dev->vdev), NULL);
-
+    object_unref(OBJECT(&dev->vdev));
     object_property_add(obj, "guest-stats", "guest statistics",
                         balloon_pci_stats_get_all, NULL, NULL, dev,
                         NULL);
@@ -1377,7 +1390,6 @@ static Property virtio_serial_pci_properties[] = {
                     VIRTIO_PCI_FLAG_USE_IOEVENTFD_BIT, true),
     DEFINE_PROP_UINT32("vectors", VirtIOPCIProxy, nvectors, 2),
     DEFINE_PROP_UINT32("class", VirtIOPCIProxy, class_code, 0),
-    DEFINE_VIRTIO_SERIAL_PROPERTIES(VirtIOSerialPCI, vdev.serial),
     DEFINE_PROP_END_OF_LIST(),
 };
 
@@ -1400,6 +1412,8 @@ static void virtio_serial_pci_instance_init(Object *obj)
     VirtIOSerialPCI *dev = VIRTIO_SERIAL_PCI(obj);
     object_initialize(&dev->vdev, sizeof(dev->vdev), TYPE_VIRTIO_SERIAL);
     object_property_add_child(obj, "virtio-backend", OBJECT(&dev->vdev), NULL);
+    qdev_alias_all_properties(DEVICE(&dev->vdev), obj);
+    object_unref(OBJECT(&dev->vdev));
 }
 
 static const TypeInfo virtio_serial_pci_info = {
@@ -1417,8 +1431,6 @@ static Property virtio_net_properties[] = {
                     VIRTIO_PCI_FLAG_USE_IOEVENTFD_BIT, false),
     DEFINE_PROP_UINT32("vectors", VirtIOPCIProxy, nvectors, 3),
     DEFINE_VIRTIO_NET_FEATURES(VirtIOPCIProxy, host_features),
-    DEFINE_NIC_PROPERTIES(VirtIONetPCI, vdev.nic_conf),
-    DEFINE_VIRTIO_NET_PROPERTIES(VirtIONetPCI, vdev.net_conf),
     DEFINE_PROP_END_OF_LIST(),
 };
 
@@ -1459,6 +1471,8 @@ static void virtio_net_pci_instance_init(Object *obj)
     VirtIONetPCI *dev = VIRTIO_NET_PCI(obj);
     object_initialize(&dev->vdev, sizeof(dev->vdev), TYPE_VIRTIO_NET);
     object_property_add_child(obj, "virtio-backend", OBJECT(&dev->vdev), NULL);
+    object_unref(OBJECT(&dev->vdev));
+    qdev_alias_all_properties(DEVICE(&dev->vdev), obj);
 }
 
 static const TypeInfo virtio_net_pci_info = {
@@ -1472,7 +1486,6 @@ static const TypeInfo virtio_net_pci_info = {
 /* virtio-rng-pci */
 
 static Property virtio_rng_pci_properties[] = {
-    DEFINE_VIRTIO_RNG_PROPERTIES(VirtIORngPCI, vdev.conf),
     DEFINE_PROP_END_OF_LIST(),
 };
 
@@ -1514,6 +1527,8 @@ static void virtio_rng_initfn(Object *obj)
     VirtIORngPCI *dev = VIRTIO_RNG_PCI(obj);
     object_initialize(&dev->vdev, sizeof(dev->vdev), TYPE_VIRTIO_RNG);
     object_property_add_child(obj, "virtio-backend", OBJECT(&dev->vdev), NULL);
+    qdev_alias_all_properties(DEVICE(&dev->vdev), obj);
+    object_unref(OBJECT(&dev->vdev));
     object_property_add_link(obj, "rng", TYPE_RNG_BACKEND,
                              (Object **)&dev->vdev.conf.rng,
                              qdev_prop_allow_set_link_before_realize,

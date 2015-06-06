@@ -158,12 +158,14 @@ static int l2_load(BlockDriverState *bs, uint64_t l2_offset,
 int qcow2_write_l1_entry(BlockDriverState *bs, int l1_index)
 {
     BDRVQcowState *s = bs->opaque;
-    uint64_t buf[L1_ENTRIES_PER_SECTOR];
+    uint64_t buf[L1_ENTRIES_PER_SECTOR] = { 0 };
     int l1_start_index;
     int i, ret;
 
     l1_start_index = l1_index & ~(L1_ENTRIES_PER_SECTOR - 1);
-    for (i = 0; i < L1_ENTRIES_PER_SECTOR; i++) {
+    for (i = 0; i < L1_ENTRIES_PER_SECTOR && l1_start_index + i < s->l1_size;
+         i++)
+    {
         buf[i] = cpu_to_be64(s->l1_table[l1_start_index + i]);
     }
 
@@ -1200,7 +1202,7 @@ int qcow2_alloc_cluster_offset(BlockDriverState *bs, uint64_t offset,
 
 again:
     start = offset;
-    remaining = *num << BDRV_SECTOR_BITS;
+    remaining = (uint64_t)*num << BDRV_SECTOR_BITS;
     cluster_offset = 0;
     *host_offset = 0;
     cur_bytes = 0;

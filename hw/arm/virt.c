@@ -371,7 +371,7 @@ static void create_uart(const VirtBoardInfo *vbi, qemu_irq *pic)
                                      2, base, 2, size);
     qemu_fdt_setprop_cells(vbi->fdt, nodename, "interrupts",
                                GIC_FDT_IRQ_TYPE_SPI, irq,
-                               GIC_FDT_IRQ_FLAGS_EDGE_LO_HI);
+                               GIC_FDT_IRQ_FLAGS_LEVEL_HI);
     qemu_fdt_setprop_cells(vbi->fdt, nodename, "clocks",
                                vbi->clock_phandle, vbi->clock_phandle);
     qemu_fdt_setprop(vbi->fdt, nodename, "clock-names",
@@ -396,7 +396,7 @@ static void create_rtc(const VirtBoardInfo *vbi, qemu_irq *pic)
                                  2, base, 2, size);
     qemu_fdt_setprop_cells(vbi->fdt, nodename, "interrupts",
                            GIC_FDT_IRQ_TYPE_SPI, irq,
-                           GIC_FDT_IRQ_FLAGS_EDGE_LO_HI);
+                           GIC_FDT_IRQ_FLAGS_LEVEL_HI);
     qemu_fdt_setprop_cell(vbi->fdt, nodename, "clocks", vbi->clock_phandle);
     qemu_fdt_setprop_string(vbi->fdt, nodename, "clock-names", "apb_pclk");
     g_free(nodename);
