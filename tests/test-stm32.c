@@ -25,6 +25,7 @@
 #define RCC_BASE_ADDR 0x40021000
 #define AFIO_BASE_ADDR 0x40010000
 #define EXTI_BASE_ADDR 0x40010400
+#define TIM2_BASE_ADDR 0x40000000
 #define UART2_BASE_ADDR 0x40004400
 
 const char *dummy_kernel_path = "tests/test-stm32-dummy-kernel.bin";
@@ -271,9 +272,30 @@ static void test_uart(void)
     // so that we did not need to add test logic into the UART itself.....
 }
 
-static void test_timer(void)
+/*static void test_timer(void)
 {
-}
+    uint32_t status;
+
+    writel(TIM2_BASE_ADDR + 0x00, 0x0);    // Disable Timer
+    writel(TIM2_BASE_ADDR + 0x0C, 0x1);    // Enable Timer Interrupt
+    writel(TIM2_BASE_ADDR + 0x28, 8000);   // PSC - Set Prescale value
+    writel(TIM2_BASE_ADDR + 0x2C, 0x2000); // ARR - Set Auto-Reload count
+    //writel(TIM2_BASE_ADDR + 0x14, 0x1);  // EGR - Reset count
+
+    g_assert_cmpint(get_irq_for_gpio(nvic_in_id, 28), ==, 0);
+    g_assert_cmpint(readl(TIM2_BASE_ADDR + 0x10), ==, 0);
+    writel(TIM2_BASE_ADDR + 0x00, 0x1); // Enable Timer
+
+    //TODO: Add a timeout to avoid infinite loop
+    do {
+        //readl(TIM2_BASE_ADDR + 0x24);
+        status = readl(TIM2_BASE_ADDR + 0x10);
+    } while(status == 0); // Loop until transmit complete
+    g_assert_cmpint(status, ==, 1);
+    g_assert_cmpint(get_irq_for_gpio(nvic_in_id, 28), ==, 1);
+
+    writel(TIM2_BASE_ADDR + 0x00, 0x0); // Disable Timer
+}*/
 
 int main(int argc, char **argv)
 {
@@ -301,7 +323,7 @@ int main(int argc, char **argv)
     qtest_add_func("/stm32/gpio/write", test_gpio_write);
     qtest_add_func("/stm32/gpio/interrupt", test_gpio_interrupt);
     qtest_add_func("/stm32/uart", test_uart);
-    qtest_add_func("/stm32/timer", test_timer);
+//    qtest_add_func("/stm32/timer", test_timer);
 
     ret = g_test_run();
 
