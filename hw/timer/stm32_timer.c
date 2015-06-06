@@ -33,12 +33,7 @@
 
 #ifdef DEBUG_STM32_TIMER
 #define DPRINTF(fmt, ...)                                       \
-    do { \
-		int64_t now = qemu_get_clock_ns(vm_clock); \
-		int64_t secs = now / 1000000000; \
-		int64_t frac = (now % 1000000000); \
-		printf("STM32_TIMER (%"PRId64".%09"PRId64"): ", secs, frac); \
-		printf(fmt, ## __VA_ARGS__); } while (0)
+    do { printf("STM32_TIMER: " fmt , ## __VA_ARGS__); } while (0)
 #else
 #define DPRINTF(fmt, ...)
 #endif
