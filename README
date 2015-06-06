@@ -24,10 +24,9 @@ Other configure options which control the STM32 implementation:
         Print out clock tree debug statements.
 
     --extra-cflags=-DDEBUG_STM32_RCC
-        Print RCC debug statements.
-
     --extra-cflags=-DDEBUG_STM32_UART
-        Print UART debug statements.
+    --extra-cflags=-DDEBUG_STM32_TIMER
+        Print debug statements for specific peripherals.
 
     --extra-cflags=-DSTM32_UART_NO_BAUD_DELAY
         Disable the BAUD rate timing simulation
