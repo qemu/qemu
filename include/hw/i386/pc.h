@@ -293,7 +293,12 @@ int e820_get_num_entries(void);
 bool e820_get_entry(int, uint32_t, uint64_t *, uint64_t *);
 
 #define PC_COMPAT_2_3 \
-        HW_COMPAT_2_3
+        HW_COMPAT_2_3 \
+        {\
+            .driver   = TYPE_X86_CPU,\
+            .property = "arat",\
+            .value    = "off",\
+        },
 
 #define PC_COMPAT_2_2 \
         PC_COMPAT_2_3 \
