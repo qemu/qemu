@@ -1,10 +1,12 @@
 /*
  * Throttle infrastructure tests
  *
- * Copyright Nodalink, SARL. 2013
+ * Copyright Nodalink, EURL. 2013-2014
+ * Copyright Igalia, S.L. 2015
  *
  * Authors:
- *  Benoît Canet     <benoit.canet@irqsave.net>
+ *  Benoît Canet     <benoit.canet@nodalink.com>
+ *  Alberto Garcia   <berto@igalia.com>
  *
  * This work is licensed under the terms of the GNU LGPL, version 2 or later.
  * See the COPYING.LIB file in the top-level directory.
@@ -15,6 +17,7 @@
 #include "block/aio.h"
 #include "qemu/throttle.h"
 #include "qemu/error-report.h"
+#include "block/throttle-groups.h"
 
 static AioContext     *ctx;
 static LeakyBucket    bkt;
@@ -500,23 +503,80 @@ static void test_accounting(void)
                                 (64.0 / 13)));
 }
 
+static void test_groups(void)
+{
+    ThrottleConfig cfg1, cfg2;
+    BlockDriverState *bdrv1, *bdrv2, *bdrv3;
+
+    bdrv1 = bdrv_new();
+    bdrv2 = bdrv_new();
+    bdrv3 = bdrv_new();
+
+    g_assert(bdrv1->throttle_state == NULL);
+    g_assert(bdrv2->throttle_state == NULL);
+    g_assert(bdrv3->throttle_state == NULL);
+
+    throttle_group_register_bs(bdrv1, "bar");
+    throttle_group_register_bs(bdrv2, "foo");
+    throttle_group_register_bs(bdrv3, "bar");
+
+    g_assert(bdrv1->throttle_state != NULL);
+    g_assert(bdrv2->throttle_state != NULL);
+    g_assert(bdrv3->throttle_state != NULL);
+
+    g_assert(!strcmp(throttle_group_get_name(bdrv1), "bar"));
+    g_assert(!strcmp(throttle_group_get_name(bdrv2), "foo"));
+    g_assert(bdrv1->throttle_state == bdrv3->throttle_state);
+
+    /* Setting the config of a group member affects the whole group */
+    memset(&cfg1, 0, sizeof(cfg1));
+    cfg1.buckets[THROTTLE_BPS_READ].avg  = 500000;
+    cfg1.buckets[THROTTLE_BPS_WRITE].avg = 285000;
+    cfg1.buckets[THROTTLE_OPS_READ].avg  = 20000;
+    cfg1.buckets[THROTTLE_OPS_WRITE].avg = 12000;
+    throttle_group_config(bdrv1, &cfg1);
+
+    throttle_group_get_config(bdrv1, &cfg1);
+    throttle_group_get_config(bdrv3, &cfg2);
+    g_assert(!memcmp(&cfg1, &cfg2, sizeof(cfg1)));
+
+    cfg2.buckets[THROTTLE_BPS_READ].avg  = 4547;
+    cfg2.buckets[THROTTLE_BPS_WRITE].avg = 1349;
+    cfg2.buckets[THROTTLE_OPS_READ].avg  = 123;
+    cfg2.buckets[THROTTLE_OPS_WRITE].avg = 86;
+    throttle_group_config(bdrv3, &cfg1);
+
+    throttle_group_get_config(bdrv1, &cfg1);
+    throttle_group_get_config(bdrv3, &cfg2);
+    g_assert(!memcmp(&cfg1, &cfg2, sizeof(cfg1)));
+
+    throttle_group_unregister_bs(bdrv1);
+    throttle_group_unregister_bs(bdrv2);
+    throttle_group_unregister_bs(bdrv3);
+
+    g_assert(bdrv1->throttle_state == NULL);
+    g_assert(bdrv2->throttle_state == NULL);
+    g_assert(bdrv3->throttle_state == NULL);
+}
+
 int main(int argc, char **argv)
 {
-    GSource *src;
     Error *local_error = NULL;
 
-    init_clocks();
+    qemu_init_main_loop(&local_error);
+    ctx = qemu_get_aio_context();
 
-    ctx = aio_context_new(&local_error);
     if (!ctx) {
         error_report("Failed to create AIO Context: '%s'",
-                     error_get_pretty(local_error));
-        error_free(local_error);
+                     local_error ? error_get_pretty(local_error) :
+                     "Failed to initialize the QEMU main loop");
+        if (local_error) {
+            error_free(local_error);
+        }
         exit(1);
     }
-    src = aio_get_g_source(ctx);
-    g_source_attach(src, NULL);
-    g_source_unref(src);
+
+    bdrv_init();
 
     do {} while (g_main_context_iteration(NULL, false));
 
@@ -533,6 +593,7 @@ int main(int argc, char **argv)
     g_test_add_func("/throttle/config/is_valid",    test_is_valid);
     g_test_add_func("/throttle/config_functions",   test_config_functions);
     g_test_add_func("/throttle/accounting",         test_accounting);
+    g_test_add_func("/throttle/groups",             test_groups);
     return g_test_run();
 }
 
