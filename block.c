@@ -3528,18 +3528,6 @@ void bdrv_set_dirty(BlockDriverState *bs, int64_t cur_sector,
     }
 }
 
-void bdrv_reset_dirty(BlockDriverState *bs, int64_t cur_sector,
-                      int nr_sectors)
-{
-    BdrvDirtyBitmap *bitmap;
-    QLIST_FOREACH(bitmap, &bs->dirty_bitmaps, list) {
-        if (!bdrv_dirty_bitmap_enabled(bitmap)) {
-            continue;
-        }
-        hbitmap_reset(bitmap->bitmap, cur_sector, nr_sectors);
-    }
-}
-
 /**
  * Advance an HBitmapIter to an arbitrary offset.
  */
