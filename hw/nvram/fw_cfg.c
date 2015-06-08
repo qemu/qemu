@@ -484,6 +484,16 @@ void fw_cfg_add_i16(FWCfgState *s, uint16_t key, uint16_t value)
     fw_cfg_add_bytes(s, key, copy, sizeof(value));
 }
 
+void fw_cfg_modify_i16(FWCfgState *s, uint16_t key, uint16_t value)
+{
+    uint16_t *copy, *old;
+
+    copy = g_malloc(sizeof(value));
+    *copy = cpu_to_le16(value);
+    old = fw_cfg_modify_bytes_read(s, key, copy, sizeof(value));
+    g_free(old);
+}
+
 void fw_cfg_add_i32(FWCfgState *s, uint16_t key, uint32_t value)
 {
     uint32_t *copy;
