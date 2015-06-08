@@ -2412,8 +2412,6 @@ int coroutine_fn bdrv_co_discard(BlockDriverState *bs, int64_t sector_num,
         return -EPERM;
     }
 
-    bdrv_reset_dirty(bs, sector_num, nb_sectors);
-
     /* Do nothing if disabled.  */
     if (!(bs->open_flags & BDRV_O_UNMAP)) {
         return 0;
@@ -2422,6 +2420,8 @@ int coroutine_fn bdrv_co_discard(BlockDriverState *bs, int64_t sector_num,
     if (!bs->drv->bdrv_co_discard && !bs->drv->bdrv_aio_discard) {
         return 0;
     }
+
+    bdrv_set_dirty(bs, sector_num, nb_sectors);
 
     max_discard = MIN_NON_ZERO(bs->bl.max_discard, BDRV_REQUEST_MAX_SECTORS);
     while (nb_sectors > 0) {
