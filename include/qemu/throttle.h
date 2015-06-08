@@ -1,10 +1,12 @@
 /*
  * QEMU throttling infrastructure
  *
- * Copyright (C) Nodalink, SARL. 2013
+ * Copyright (C) Nodalink, EURL. 2013-2014
+ * Copyright (C) Igalia, S.L. 2015
  *
- * Author:
- *   Benoît Canet <benoit.canet@irqsave.net>
+ * Authors:
+ *   Benoît Canet <benoit.canet@nodalink.com>
+ *   Alberto Garcia <berto@igalia.com>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
