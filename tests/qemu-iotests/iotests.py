@@ -328,13 +328,8 @@ class QMPTestCase(unittest.TestCase):
 
     def wait_ready(self, drive='drive0'):
         '''Wait until a block job BLOCK_JOB_READY event'''
-        ready = False
-        while not ready:
-            for event in self.vm.get_qmp_events(wait=True):
-                if event['event'] == 'BLOCK_JOB_READY':
-                    self.assert_qmp(event, 'data/type', 'mirror')
-                    self.assert_qmp(event, 'data/device', drive)
-                    ready = True
+        f = {'data': {'type': 'mirror', 'device': drive } }
+        event = self.vm.event_wait(name='BLOCK_JOB_READY', match=f)
 
     def wait_ready_and_cancel(self, drive='drive0'):
         self.wait_ready(drive=drive)
