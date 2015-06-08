@@ -65,7 +65,7 @@ void bdrv_set_io_limits(BlockDriverState *bs,
 {
     int i;
 
-    throttle_config(&bs->throttle_state, cfg);
+    throttle_config(&bs->throttle_state, &bs->throttle_timers, cfg);
 
     for (i = 0; i < 2; i++) {
         qemu_co_enter_next(&bs->throttled_reqs[i]);
@@ -98,7 +98,7 @@ void bdrv_io_limits_disable(BlockDriverState *bs)
 
     bdrv_start_throttled_reqs(bs);
 
-    throttle_destroy(&bs->throttle_state);
+    throttle_timers_destroy(&bs->throttle_timers);
 }
 
 static void bdrv_throttle_read_timer_cb(void *opaque)
@@ -123,12 +123,13 @@ void bdrv_io_limits_enable(BlockDriverState *bs)
         clock_type = QEMU_CLOCK_VIRTUAL;
     }
     assert(!bs->io_limits_enabled);
-    throttle_init(&bs->throttle_state,
-                  bdrv_get_aio_context(bs),
-                  clock_type,
-                  bdrv_throttle_read_timer_cb,
-                  bdrv_throttle_write_timer_cb,
-                  bs);
+    throttle_init(&bs->throttle_state);
+    throttle_timers_init(&bs->throttle_timers,
+                         bdrv_get_aio_context(bs),
+                         clock_type,
+                         bdrv_throttle_read_timer_cb,
+                         bdrv_throttle_write_timer_cb,
+                         bs);
     bs->io_limits_enabled = true;
 }
 
@@ -142,7 +143,9 @@ static void bdrv_io_limits_intercept(BlockDriverState *bs,
                                      bool is_write)
 {
     /* does this io must wait */
-    bool must_wait = throttle_schedule_timer(&bs->throttle_state, is_write);
+    bool must_wait = throttle_schedule_timer(&bs->throttle_state,
+                                             &bs->throttle_timers,
+                                             is_write);
 
     /* if must wait or any request of this type throttled queue the IO */
     if (must_wait ||
@@ -155,7 +158,8 @@ static void bdrv_io_limits_intercept(BlockDriverState *bs,
 
 
     /* if the next request must wait -> do nothing */
-    if (throttle_schedule_timer(&bs->throttle_state, is_write)) {
+    if (throttle_schedule_timer(&bs->throttle_state, &bs->throttle_timers,
+                                is_write)) {
         return;
     }
 

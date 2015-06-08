@@ -380,6 +380,7 @@ struct BlockDriverState {
 
     /* I/O throttling */
     ThrottleState throttle_state;
+    ThrottleTimers throttle_timers;
     CoQueue      throttled_reqs[2];
     bool         io_limits_enabled;
 

@@ -1825,6 +1825,9 @@ static void bdrv_move_feature_fields(BlockDriverState *bs_dest,
     memcpy(&bs_dest->throttle_state,
            &bs_src->throttle_state,
            sizeof(ThrottleState));
+    memcpy(&bs_dest->throttle_timers,
+           &bs_src->throttle_timers,
+           sizeof(ThrottleTimers));
     bs_dest->throttled_reqs[0]  = bs_src->throttled_reqs[0];
     bs_dest->throttled_reqs[1]  = bs_src->throttled_reqs[1];
     bs_dest->io_limits_enabled  = bs_src->io_limits_enabled;
@@ -1886,7 +1889,7 @@ void bdrv_swap(BlockDriverState *bs_new, BlockDriverState *bs_old)
     assert(QLIST_EMPTY(&bs_new->dirty_bitmaps));
     assert(bs_new->job == NULL);
     assert(bs_new->io_limits_enabled == false);
-    assert(!throttle_have_timer(&bs_new->throttle_state));
+    assert(!throttle_timers_are_initialized(&bs_new->throttle_timers));
 
     tmp = *bs_new;
     *bs_new = *bs_old;
@@ -1903,7 +1906,7 @@ void bdrv_swap(BlockDriverState *bs_new, BlockDriverState *bs_old)
     /* Check a few fields that should remain attached to the device */
     assert(bs_new->job == NULL);
     assert(bs_new->io_limits_enabled == false);
-    assert(!throttle_have_timer(&bs_new->throttle_state));
+    assert(!throttle_timers_are_initialized(&bs_new->throttle_timers));
 
     /* insert the nodes back into the graph node list if needed */
     if (bs_new->node_name[0] != '\0') {
@@ -3691,7 +3694,7 @@ void bdrv_detach_aio_context(BlockDriverState *bs)
     }
 
     if (bs->io_limits_enabled) {
-        throttle_detach_aio_context(&bs->throttle_state);
+        throttle_timers_detach_aio_context(&bs->throttle_timers);
     }
     if (bs->drv->bdrv_detach_aio_context) {
         bs->drv->bdrv_detach_aio_context(bs);
@@ -3727,7 +3730,7 @@ void bdrv_attach_aio_context(BlockDriverState *bs,
         bs->drv->bdrv_attach_aio_context(bs, new_context);
     }
     if (bs->io_limits_enabled) {
-        throttle_attach_aio_context(&bs->throttle_state, new_context);
+        throttle_timers_attach_aio_context(&bs->throttle_timers, new_context);
     }
 
     QLIST_FOREACH(ban, &bs->aio_notifiers, list) {
