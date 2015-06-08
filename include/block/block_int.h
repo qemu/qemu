@@ -383,6 +383,7 @@ struct BlockDriverState {
     ThrottleTimers throttle_timers;
     CoQueue      throttled_reqs[2];
     bool         io_limits_enabled;
+    QLIST_ENTRY(BlockDriverState) round_robin;
 
     /* I/O stats (display with "info blockstats"). */
     BlockAcctStats stats;
