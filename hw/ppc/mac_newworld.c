@@ -119,7 +119,7 @@ static const MemoryRegionOps unin_ops = {
 static void fw_cfg_boot_set(void *opaque, const char *boot_device,
                             Error **errp)
 {
-    fw_cfg_add_i16(opaque, FW_CFG_BOOT_DEVICE, boot_device[0]);
+    fw_cfg_modify_i16(opaque, FW_CFG_BOOT_DEVICE, boot_device[0]);
 }
 
 static uint64_t translate_kernel_address(void *opaque, uint64_t addr)
