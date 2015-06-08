@@ -511,6 +511,10 @@ static void handle_windowevent(SDL_Event *ev)
 {
     struct sdl2_console *scon = get_scon_from_window(ev->window.windowID);
 
+    if (!scon) {
+        return;
+    }
+
     switch (ev->window.event) {
     case SDL_WINDOWEVENT_RESIZED:
         {
