@@ -1531,28 +1531,54 @@ static int64_t coroutine_fn bdrv_co_get_block_status(BlockDriverState *bs,
     return ret;
 }
 
-/* Coroutine wrapper for bdrv_get_block_status() */
-static void coroutine_fn bdrv_get_block_status_co_entry(void *opaque)
+static int64_t coroutine_fn bdrv_co_get_block_status_above(BlockDriverState *bs,
+        BlockDriverState *base,
+        int64_t sector_num,
+        int nb_sectors,
+        int *pnum)
+{
+    BlockDriverState *p;
+    int64_t ret = 0;
+
+    assert(bs != base);
+    for (p = bs; p != base; p = p->backing_hd) {
+        ret = bdrv_co_get_block_status(p, sector_num, nb_sectors, pnum);
+        if (ret < 0 || ret & BDRV_BLOCK_ALLOCATED) {
+            break;
+        }
+        /* [sector_num, pnum] unallocated on this layer, which could be only
+         * the first part of [sector_num, nb_sectors].  */
+        nb_sectors = MIN(nb_sectors, *pnum);
+    }
+    return ret;
+}
+
+/* Coroutine wrapper for bdrv_get_block_status_above() */
+static void coroutine_fn bdrv_get_block_status_above_co_entry(void *opaque)
 {
     BdrvCoGetBlockStatusData *data = opaque;
-    BlockDriverState *bs = data->bs;
 
-    data->ret = bdrv_co_get_block_status(bs, data->sector_num, data->nb_sectors,
-                                         data->pnum);
+    data->ret = bdrv_co_get_block_status_above(data->bs, data->base,
+                                               data->sector_num,
+                                               data->nb_sectors,
+                                               data->pnum);
     data->done = true;
 }
 
 /*
- * Synchronous wrapper around bdrv_co_get_block_status().
+ * Synchronous wrapper around bdrv_co_get_block_status_above().
  *
- * See bdrv_co_get_block_status() for details.
+ * See bdrv_co_get_block_status_above() for details.
  */
-int64_t bdrv_get_block_status(BlockDriverState *bs, int64_t sector_num,
-                              int nb_sectors, int *pnum)
+int64_t bdrv_get_block_status_above(BlockDriverState *bs,
+                                    BlockDriverState *base,
+                                    int64_t sector_num,
+                                    int nb_sectors, int *pnum)
 {
     Coroutine *co;
     BdrvCoGetBlockStatusData data = {
         .bs = bs,
+        .base = base,
         .sector_num = sector_num,
         .nb_sectors = nb_sectors,
         .pnum = pnum,
@@ -1561,17 +1587,25 @@ int64_t bdrv_get_block_status(BlockDriverState *bs, int64_t sector_num,
 
     if (qemu_in_coroutine()) {
         /* Fast-path if already in coroutine context */
-        bdrv_get_block_status_co_entry(&data);
+        bdrv_get_block_status_above_co_entry(&data);
     } else {
         AioContext *aio_context = bdrv_get_aio_context(bs);
 
-        co = qemu_coroutine_create(bdrv_get_block_status_co_entry);
+        co = qemu_coroutine_create(bdrv_get_block_status_above_co_entry);
         qemu_coroutine_enter(co, &data);
         while (!data.done) {
             aio_poll(aio_context, true);
         }
     }
     return data.ret;
+}
+
+int64_t bdrv_get_block_status(BlockDriverState *bs,
+                              int64_t sector_num,
+                              int nb_sectors, int *pnum)
+{
+    return bdrv_get_block_status_above(bs, bs->backing_hd,
+                                       sector_num, nb_sectors, pnum);
 }
 
 int coroutine_fn bdrv_is_allocated(BlockDriverState *bs, int64_t sector_num,
