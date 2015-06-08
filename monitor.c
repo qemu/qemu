@@ -4955,6 +4955,8 @@ static QDict *qmp_check_input_obj(QObject *input_obj, Error **errp)
                           "arguments", "object");
                 return NULL;
             }
+        } else if (!strcmp(arg_name, "id")) {
+            /* Any string is acceptable as "id", so nothing to check */
         } else {
             error_set(errp, QERR_QMP_EXTRA_MEMBER, arg_name);
             return NULL;
