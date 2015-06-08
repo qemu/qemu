@@ -40,4 +40,7 @@ void coroutine_fn throttle_group_co_io_limits_intercept(BlockDriverState *bs,
                                                         unsigned int bytes,
                                                         bool is_write);
 
+void throttle_group_lock(BlockDriverState *bs);
+void throttle_group_unlock(BlockDriverState *bs);
+
 #endif

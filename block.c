@@ -36,6 +36,7 @@
 #include "qmp-commands.h"
 #include "qemu/timer.h"
 #include "qapi-event.h"
+#include "block/throttle-groups.h"
 
 #ifdef CONFIG_BSD
 #include <sys/types.h>
@@ -1887,11 +1888,20 @@ void bdrv_swap(BlockDriverState *bs_new, BlockDriverState *bs_old)
         QTAILQ_REMOVE(&graph_bdrv_states, bs_old, node_list);
     }
 
+    /* If the BlockDriverState is part of a throttling group acquire
+     * its lock since we're going to mess with the protected fields.
+     * Otherwise there's no need to worry since no one else can touch
+     * them. */
+    if (bs_old->throttle_state) {
+        throttle_group_lock(bs_old);
+    }
+
     /* bs_new must be unattached and shouldn't have anything fancy enabled */
     assert(!bs_new->blk);
     assert(QLIST_EMPTY(&bs_new->dirty_bitmaps));
     assert(bs_new->job == NULL);
     assert(bs_new->io_limits_enabled == false);
+    assert(bs_new->throttle_state == NULL);
     assert(!throttle_timers_are_initialized(&bs_new->throttle_timers));
 
     tmp = *bs_new;
@@ -1909,7 +1919,13 @@ void bdrv_swap(BlockDriverState *bs_new, BlockDriverState *bs_old)
     /* Check a few fields that should remain attached to the device */
     assert(bs_new->job == NULL);
     assert(bs_new->io_limits_enabled == false);
+    assert(bs_new->throttle_state == NULL);
     assert(!throttle_timers_are_initialized(&bs_new->throttle_timers));
+
+    /* Release the ThrottleGroup lock */
+    if (bs_old->throttle_state) {
+        throttle_group_unlock(bs_old);
+    }
 
     /* insert the nodes back into the graph node list if needed */
     if (bs_new->node_name[0] != '\0') {
