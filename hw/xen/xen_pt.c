@@ -249,10 +249,18 @@ static void xen_pt_pci_write_config(PCIDevice *d, uint32_t addr,
 
     /* check unused BAR register */
     index = xen_pt_bar_offset_to_index(addr);
-    if ((index >= 0) && (val > 0 && val < XEN_PT_BAR_ALLF) &&
-        (s->bases[index].bar_flag == XEN_PT_BAR_FLAG_UNUSED)) {
-        XEN_PT_WARN(d, "Guest attempt to set address to unused Base Address "
-                    "Register. (addr: 0x%02x, len: %d)\n", addr, len);
+    if ((index >= 0) && (val != 0)) {
+        uint32_t chk = val;
+
+        if (index == PCI_ROM_SLOT)
+            chk |= (uint32_t)~PCI_ROM_ADDRESS_MASK;
+
+        if ((chk != XEN_PT_BAR_ALLF) &&
+            (s->bases[index].bar_flag == XEN_PT_BAR_FLAG_UNUSED)) {
+            XEN_PT_WARN(d, "Guest attempt to set address to unused "
+                        "Base Address Register. (addr: 0x%02x, len: %d)\n",
+                        addr, len);
+        }
     }
 
     /* find register group entry */
