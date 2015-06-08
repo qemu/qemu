@@ -168,6 +168,8 @@ static uint64_t coroutine_fn mirror_iteration(MirrorBlockJob *s)
     int64_t end, sector_num, next_chunk, next_sector, hbitmap_next_sector;
     uint64_t delay_ns = 0;
     MirrorOp *op;
+    int pnum;
+    int64_t ret;
 
     s->sector_num = hbitmap_iter_next(&s->hbi);
     if (s->sector_num < 0) {
@@ -296,8 +298,22 @@ static uint64_t coroutine_fn mirror_iteration(MirrorBlockJob *s)
     s->in_flight++;
     s->sectors_in_flight += nb_sectors;
     trace_mirror_one_iteration(s, sector_num, nb_sectors);
-    bdrv_aio_readv(source, sector_num, &op->qiov, nb_sectors,
-                   mirror_read_complete, op);
+
+    ret = bdrv_get_block_status_above(source, NULL, sector_num,
+                                      nb_sectors, &pnum);
+    if (ret < 0 || pnum < nb_sectors ||
+            (ret & BDRV_BLOCK_DATA && !(ret & BDRV_BLOCK_ZERO))) {
+        bdrv_aio_readv(source, sector_num, &op->qiov, nb_sectors,
+                       mirror_read_complete, op);
+    } else if (ret & BDRV_BLOCK_ZERO) {
+        bdrv_aio_write_zeroes(s->target, sector_num, op->nb_sectors,
+                              s->unmap ? BDRV_REQ_MAY_UNMAP : 0,
+                              mirror_write_complete, op);
+    } else {
+        assert(!(ret & BDRV_BLOCK_DATA));
+        bdrv_aio_discard(s->target, sector_num, op->nb_sectors,
+                         mirror_write_complete, op);
+    }
     return delay_ns;
 }
 
