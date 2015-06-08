@@ -1380,6 +1380,7 @@ EQMP
         .args_type  = "sync:s,device:B,target:s,speed:i?,mode:s?,format:s?,"
                       "node-name:s?,replaces:s?,"
                       "on-source-error:s?,on-target-error:s?,"
+                      "unmap:b?,"
                       "granularity:i?,buf-size:i?",
         .mhandler.cmd_new = qmp_marshal_input_drive_mirror,
     },
@@ -1419,6 +1420,8 @@ Arguments:
   (BlockdevOnError, default 'report')
 - "on-target-error": the action to take on an error on the target
   (BlockdevOnError, default 'report')
+- "unmap": whether the target sectors should be discarded where source has only
+  zeroes. (json-bool, optional, default true)
 
 The default value of the granularity is the image cluster size clamped
 between 4096 and 65536, if the image format defines one.  If the format

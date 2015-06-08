@@ -2461,6 +2461,7 @@ void qmp_drive_mirror(const char *device, const char *target,
                       bool has_buf_size, int64_t buf_size,
                       bool has_on_source_error, BlockdevOnError on_source_error,
                       bool has_on_target_error, BlockdevOnError on_target_error,
+                      bool has_unmap, bool unmap,
                       Error **errp)
 {
     BlockBackend *blk;
@@ -2491,6 +2492,9 @@ void qmp_drive_mirror(const char *device, const char *target,
     }
     if (!has_buf_size) {
         buf_size = DEFAULT_MIRROR_BUF_SIZE;
+    }
+    if (!has_unmap) {
+        unmap = true;
     }
 
     if (granularity != 0 && (granularity < 512 || granularity > 1048576 * 64)) {
@@ -2631,6 +2635,7 @@ void qmp_drive_mirror(const char *device, const char *target,
                  has_replaces ? replaces : NULL,
                  speed, granularity, buf_size, sync,
                  on_source_error, on_target_error,
+                 unmap,
                  block_job_cb, bs, &local_err);
     if (local_err != NULL) {
         bdrv_unref(target_bs);

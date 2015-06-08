@@ -57,6 +57,7 @@ typedef struct MirrorBlockJob {
     int in_flight;
     int sectors_in_flight;
     int ret;
+    bool unmap;
 } MirrorBlockJob;
 
 typedef struct MirrorOp {
@@ -660,6 +661,7 @@ static void mirror_start_job(BlockDriverState *bs, BlockDriverState *target,
                              int64_t buf_size,
                              BlockdevOnError on_source_error,
                              BlockdevOnError on_target_error,
+                             bool unmap,
                              BlockCompletionFunc *cb,
                              void *opaque, Error **errp,
                              const BlockJobDriver *driver,
@@ -702,6 +704,7 @@ static void mirror_start_job(BlockDriverState *bs, BlockDriverState *target,
     s->base = base;
     s->granularity = granularity;
     s->buf_size = MAX(buf_size, granularity);
+    s->unmap = unmap;
 
     s->dirty_bitmap = bdrv_create_dirty_bitmap(bs, granularity, errp);
     if (!s->dirty_bitmap) {
@@ -720,6 +723,7 @@ void mirror_start(BlockDriverState *bs, BlockDriverState *target,
                   int64_t speed, int64_t granularity, int64_t buf_size,
                   MirrorSyncMode mode, BlockdevOnError on_source_error,
                   BlockdevOnError on_target_error,
+                  bool unmap,
                   BlockCompletionFunc *cb,
                   void *opaque, Error **errp)
 {
@@ -730,7 +734,7 @@ void mirror_start(BlockDriverState *bs, BlockDriverState *target,
     base = mode == MIRROR_SYNC_MODE_TOP ? bs->backing_hd : NULL;
     mirror_start_job(bs, target, replaces,
                      speed, granularity, buf_size,
-                     on_source_error, on_target_error, cb, opaque, errp,
+                     on_source_error, on_target_error, unmap, cb, opaque, errp,
                      &mirror_job_driver, is_none_mode, base);
 }
 
@@ -778,7 +782,7 @@ void commit_active_start(BlockDriverState *bs, BlockDriverState *base,
 
     bdrv_ref(base);
     mirror_start_job(bs, base, NULL, speed, 0, 0,
-                     on_error, on_error, cb, opaque, &local_err,
+                     on_error, on_error, false, cb, opaque, &local_err,
                      &commit_active_job_driver, false, base);
     if (local_err) {
         error_propagate(errp, local_err);

@@ -943,6 +943,11 @@
 # @on-target-error: #optional the action to take on an error on the target,
 #                   default 'report' (no limitations, since this applies to
 #                   a different block device than @device).
+# @unmap: #optional Whether to try to unmap target sectors where source has
+#         only zero. If true, and target unallocated sectors will read as zero,
+#         target image sectors will be unmapped; otherwise, zeroes will be
+#         written. Both will result in identical contents.
+#         Default is true. (Since 2.4)
 #
 # Returns: nothing on success
 #          If @device is not a valid block device, DeviceNotFound
@@ -955,7 +960,8 @@
             'sync': 'MirrorSyncMode', '*mode': 'NewImageMode',
             '*speed': 'int', '*granularity': 'uint32',
             '*buf-size': 'int', '*on-source-error': 'BlockdevOnError',
-            '*on-target-error': 'BlockdevOnError' } }
+            '*on-target-error': 'BlockdevOnError',
+            '*unmap': 'bool' } }
 
 ##
 # @block_set_io_throttle:

@@ -1034,7 +1034,7 @@ void hmp_drive_mirror(Monitor *mon, const QDict *qdict)
                      false, NULL, false, NULL,
                      full ? MIRROR_SYNC_MODE_FULL : MIRROR_SYNC_MODE_TOP,
                      true, mode, false, 0, false, 0, false, 0,
-                     false, 0, false, 0, &err);
+                     false, 0, false, 0, false, true, &err);
     hmp_handle_error(mon, &err);
 }
 
