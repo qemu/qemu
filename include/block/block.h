@@ -361,6 +361,10 @@ bool bdrv_unallocated_blocks_are_zero(BlockDriverState *bs);
 bool bdrv_can_write_zeroes_with_unmap(BlockDriverState *bs);
 int64_t bdrv_get_block_status(BlockDriverState *bs, int64_t sector_num,
                               int nb_sectors, int *pnum);
+int64_t bdrv_get_block_status_above(BlockDriverState *bs,
+                                    BlockDriverState *base,
+                                    int64_t sector_num,
+                                    int nb_sectors, int *pnum);
 int bdrv_is_allocated(BlockDriverState *bs, int64_t sector_num, int nb_sectors,
                       int *pnum);
 int bdrv_is_allocated_above(BlockDriverState *top, BlockDriverState *base,
