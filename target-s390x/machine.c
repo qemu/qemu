@@ -70,6 +70,7 @@ const VMStateDescription vmstate_fpu = {
 
 static inline bool fpu_needed(void *opaque)
 {
+    /* This looks odd, but we might want to NOT transfer fprs in the future */
     return true;
 }
 
