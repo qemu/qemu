@@ -99,8 +99,6 @@ static QLIST_HEAD(, BlockDriver) bdrv_drivers =
 
 static void bdrv_set_dirty(BlockDriverState *bs, int64_t cur_sector,
                            int nr_sectors);
-static void bdrv_reset_dirty(BlockDriverState *bs, int64_t cur_sector,
-                             int nr_sectors);
 /* If non-zero, use only whitelisted block drivers */
 static int use_bdrv_whitelist;
 
@@ -5299,8 +5297,6 @@ int coroutine_fn bdrv_co_discard(BlockDriverState *bs, int64_t sector_num,
         return -EROFS;
     }
 
-    bdrv_reset_dirty(bs, sector_num, nb_sectors);
-
     /* Do nothing if disabled.  */
     if (!(bs->open_flags & BDRV_O_UNMAP)) {
         return 0;
@@ -5309,6 +5305,8 @@ int coroutine_fn bdrv_co_discard(BlockDriverState *bs, int64_t sector_num,
     if (!bs->drv->bdrv_co_discard && !bs->drv->bdrv_aio_discard) {
         return 0;
     }
+
+    bdrv_set_dirty(bs, sector_num, nb_sectors);
 
     max_discard = MIN_NON_ZERO(bs->bl.max_discard, BDRV_REQUEST_MAX_SECTORS);
     while (nb_sectors > 0) {
@@ -5617,15 +5615,6 @@ static void bdrv_set_dirty(BlockDriverState *bs, int64_t cur_sector,
     BdrvDirtyBitmap *bitmap;
     QLIST_FOREACH(bitmap, &bs->dirty_bitmaps, list) {
         hbitmap_set(bitmap->bitmap, cur_sector, nr_sectors);
-    }
-}
-
-static void bdrv_reset_dirty(BlockDriverState *bs, int64_t cur_sector,
-                             int nr_sectors)
-{
-    BdrvDirtyBitmap *bitmap;
-    QLIST_FOREACH(bitmap, &bs->dirty_bitmaps, list) {
-        hbitmap_reset(bitmap->bitmap, cur_sector, nr_sectors);
     }
 }
 
