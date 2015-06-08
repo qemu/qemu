@@ -259,6 +259,8 @@
 #
 # @iops_size: #optional an I/O size in bytes (Since 1.7)
 #
+# @group: #optional throttle group name (Since 2.4)
+#
 # @cache: the cache mode used for the block device (since: 2.3)
 #
 # @write_threshold: configured write threshold for the device.
@@ -278,7 +280,7 @@
             '*bps_max': 'int', '*bps_rd_max': 'int',
             '*bps_wr_max': 'int', '*iops_max': 'int',
             '*iops_rd_max': 'int', '*iops_wr_max': 'int',
-            '*iops_size': 'int', 'cache': 'BlockdevCacheInfo',
+            '*iops_size': 'int', '*group': 'str', 'cache': 'BlockdevCacheInfo',
             'write_threshold': 'int' } }
 
 ##
