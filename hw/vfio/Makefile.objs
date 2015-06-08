@@ -1,4 +1,5 @@
 ifeq ($(CONFIG_LINUX), y)
 obj-$(CONFIG_SOFTMMU) += common.o
 obj-$(CONFIG_PCI) += pci.o
+obj-$(CONFIG_SOFTMMU) += platform.o
 endif
