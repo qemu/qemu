@@ -29,7 +29,9 @@ typedef struct MemTxAttrs {
      * "didn't specify" if necessary.
      */
     unsigned int unspecified:1;
-    /* ARM/AMBA TrustZone Secure access */
+    /* ARM/AMBA: TrustZone Secure access
+     * x86: System Management Mode access
+     */
     unsigned int secure:1;
     /* Memory access is usermode (unprivileged) */
     unsigned int user:1;

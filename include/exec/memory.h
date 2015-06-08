@@ -206,8 +206,10 @@ struct MemoryListener {
     void (*region_add)(MemoryListener *listener, MemoryRegionSection *section);
     void (*region_del)(MemoryListener *listener, MemoryRegionSection *section);
     void (*region_nop)(MemoryListener *listener, MemoryRegionSection *section);
-    void (*log_start)(MemoryListener *listener, MemoryRegionSection *section);
-    void (*log_stop)(MemoryListener *listener, MemoryRegionSection *section);
+    void (*log_start)(MemoryListener *listener, MemoryRegionSection *section,
+                      int old, int new);
+    void (*log_stop)(MemoryListener *listener, MemoryRegionSection *section,
+                     int old, int new);
     void (*log_sync)(MemoryListener *listener, MemoryRegionSection *section);
     void (*log_global_start)(MemoryListener *listener);
     void (*log_global_stop)(MemoryListener *listener);
@@ -591,11 +593,23 @@ const char *memory_region_name(const MemoryRegion *mr);
 /**
  * memory_region_is_logging: return whether a memory region is logging writes
  *
- * Returns %true if the memory region is logging writes
+ * Returns %true if the memory region is logging writes for the given client
+ *
+ * @mr: the memory region being queried
+ * @client: the client being queried
+ */
+bool memory_region_is_logging(MemoryRegion *mr, uint8_t client);
+
+/**
+ * memory_region_get_dirty_log_mask: return the clients for which a
+ * memory region is logging writes.
+ *
+ * Returns a bitmap of clients, in which the DIRTY_MEMORY_* constants
+ * are the bit indices.
  *
  * @mr: the memory region being queried
  */
-bool memory_region_is_logging(MemoryRegion *mr);
+uint8_t memory_region_get_dirty_log_mask(MemoryRegion *mr);
 
 /**
  * memory_region_is_rom: check whether a memory region is ROM
@@ -647,8 +661,7 @@ void memory_region_ram_resize(MemoryRegion *mr, ram_addr_t newsize,
  *
  * @mr: the memory region being updated.
  * @log: whether dirty logging is to be enabled or disabled.
- * @client: the user of the logging information; %DIRTY_MEMORY_MIGRATION or
- *          %DIRTY_MEMORY_VGA.
+ * @client: the user of the logging information; %DIRTY_MEMORY_VGA only.
  */
 void memory_region_set_log(MemoryRegion *mr, bool log, unsigned client);
 

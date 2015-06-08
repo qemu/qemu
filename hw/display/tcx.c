@@ -353,6 +353,7 @@ static void tcx_update_display(void *opaque)
         return;
     }
 
+    memory_region_sync_dirty_bitmap(&ts->vram_mem);
     for (y = 0; y < ts->height; page += TARGET_PAGE_SIZE) {
         if (memory_region_get_dirty(&ts->vram_mem, page, TARGET_PAGE_SIZE,
                                     DIRTY_MEMORY_VGA)) {
@@ -446,6 +447,7 @@ static void tcx24_update_display(void *opaque)
     dd = surface_stride(surface);
     ds = 1024;
 
+    memory_region_sync_dirty_bitmap(&ts->vram_mem);
     for (y = 0; y < ts->height; page += TARGET_PAGE_SIZE,
             page24 += TARGET_PAGE_SIZE, cpage += TARGET_PAGE_SIZE) {
         if (tcx24_check_dirty(ts, page, page24, cpage)) {
@@ -1006,6 +1008,7 @@ static void tcx_realizefn(DeviceState *dev, Error **errp)
     memory_region_init_ram(&s->vram_mem, OBJECT(s), "tcx.vram",
                            s->vram_size * (1 + 4 + 4), &error_abort);
     vmstate_register_ram_global(&s->vram_mem);
+    memory_region_set_log(&s->vram_mem, true, DIRTY_MEMORY_VGA);
     vram_base = memory_region_get_ram_ptr(&s->vram_mem);
 
     /* 10/ROM : FCode ROM */

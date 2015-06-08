@@ -174,6 +174,8 @@ gcov-files-i386-y += hw/usb/dev-storage.c
 check-qtest-i386-y += tests/usb-hcd-xhci-test$(EXESUF)
 gcov-files-i386-y += hw/usb/hcd-xhci.c
 check-qtest-i386-y += tests/pc-cpu-test$(EXESUF)
+check-qtest-i386-y += tests/q35-test$(EXESUF)
+gcov-files-i386-y += hw/pci-host/q35.c
 check-qtest-i386-$(CONFIG_LINUX) += tests/vhost-user-test$(EXESUF)
 check-qtest-x86_64-y = $(check-qtest-i386-y)
 gcov-files-i386-y += i386-softmmu/hw/timer/mc146818rtc.c
@@ -355,6 +357,7 @@ tests/boot-order-test$(EXESUF): tests/boot-order-test.o $(libqos-obj-y)
 tests/bios-tables-test$(EXESUF): tests/bios-tables-test.o $(libqos-obj-y)
 tests/tmp105-test$(EXESUF): tests/tmp105-test.o $(libqos-omap-obj-y)
 tests/i440fx-test$(EXESUF): tests/i440fx-test.o $(libqos-pc-obj-y)
+tests/q35-test$(EXESUF): tests/q35-test.o $(libqos-pc-obj-y)
 tests/fw_cfg-test$(EXESUF): tests/fw_cfg-test.o $(libqos-pc-obj-y)
 tests/e1000-test$(EXESUF): tests/e1000-test.o
 tests/rtl8139-test$(EXESUF): tests/rtl8139-test.o $(libqos-pc-obj-y)

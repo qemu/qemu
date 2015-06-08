@@ -42,7 +42,7 @@ static void *vring_map(MemoryRegion **mr, hwaddr phys, hwaddr len,
     }
 
     /* Ignore regions with dirty logging, we cannot mark them dirty */
-    if (memory_region_is_logging(section.mr)) {
+    if (memory_region_get_dirty_log_mask(section.mr)) {
         goto out;
     }
 

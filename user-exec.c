@@ -22,6 +22,7 @@
 #include "tcg.h"
 #include "qemu/bitops.h"
 #include "exec/cpu_ldst.h"
+#include "translate-all.h"
 
 #undef EAX
 #undef ECX

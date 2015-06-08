@@ -1290,6 +1290,24 @@ void object_property_add_alias(Object *obj, const char *name,
                                Error **errp);
 
 /**
+ * object_property_add_const_link:
+ * @obj: the object to add a property to
+ * @name: the name of the property
+ * @target: the object to be referred by the link
+ * @errp: if an error occurs, a pointer to an area to store the error
+ *
+ * Add an unmodifiable link for a property on an object.  This function will
+ * add a property of type link<TYPE> where TYPE is the type of @target.
+ *
+ * The caller must ensure that @target stays alive as long as
+ * this property exists.  In the case @target is a child of @obj,
+ * this will be the case.  Otherwise, the caller is responsible for
+ * taking a reference.
+ */
+void object_property_add_const_link(Object *obj, const char *name,
+                                    Object *target, Error **errp);
+
+/**
  * object_property_set_description:
  * @obj: the object owning the property
  * @name: the name of the property

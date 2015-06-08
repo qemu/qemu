@@ -260,6 +260,7 @@ static void g364fb_update_display(void *opaque)
         qemu_console_resize(s->con, s->width, s->height);
     }
 
+    memory_region_sync_dirty_bitmap(&s->mem_vram);
     if (s->ctla & CTLA_FORCE_BLANK) {
         g364fb_draw_blank(s);
     } else if (s->depth == 8) {
@@ -489,7 +490,7 @@ static void g364fb_init(DeviceState *dev, G364State *s)
     memory_region_init_ram_ptr(&s->mem_vram, NULL, "vram",
                                s->vram_size, s->vram);
     vmstate_register_ram(&s->mem_vram, dev);
-    memory_region_set_coalescing(&s->mem_vram);
+    memory_region_set_log(&s->mem_vram, true, DIRTY_MEMORY_VGA);
 }
 
 #define TYPE_G364 "sysbus-g364"

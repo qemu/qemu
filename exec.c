@@ -59,8 +59,6 @@
 //#define DEBUG_SUBPAGE
 
 #if !defined(CONFIG_USER_ONLY)
-static bool in_migration;
-
 /* ram_list is read under rcu_read_lock()/rcu_read_unlock().  Writes
  * are protected by the ramlist lock.
  */
@@ -173,17 +171,22 @@ static void phys_map_node_reserve(PhysPageMap *map, unsigned nodes)
     }
 }
 
-static uint32_t phys_map_node_alloc(PhysPageMap *map)
+static uint32_t phys_map_node_alloc(PhysPageMap *map, bool leaf)
 {
     unsigned i;
     uint32_t ret;
+    PhysPageEntry e;
+    PhysPageEntry *p;
 
     ret = map->nodes_nb++;
+    p = map->nodes[ret];
     assert(ret != PHYS_MAP_NODE_NIL);
     assert(ret != map->nodes_nb_alloc);
+
+    e.skip = leaf ? 0 : 1;
+    e.ptr = leaf ? PHYS_SECTION_UNASSIGNED : PHYS_MAP_NODE_NIL;
     for (i = 0; i < P_L2_SIZE; ++i) {
-        map->nodes[ret][i].skip = 1;
-        map->nodes[ret][i].ptr = PHYS_MAP_NODE_NIL;
+        memcpy(&p[i], &e, sizeof(e));
     }
     return ret;
 }
@@ -193,21 +196,12 @@ static void phys_page_set_level(PhysPageMap *map, PhysPageEntry *lp,
                                 int level)
 {
     PhysPageEntry *p;
-    int i;
     hwaddr step = (hwaddr)1 << (level * P_L2_BITS);
 
     if (lp->skip && lp->ptr == PHYS_MAP_NODE_NIL) {
-        lp->ptr = phys_map_node_alloc(map);
-        p = map->nodes[lp->ptr];
-        if (level == 0) {
-            for (i = 0; i < P_L2_SIZE; i++) {
-                p[i].skip = 0;
-                p[i].ptr = PHYS_SECTION_UNASSIGNED;
-            }
-        }
-    } else {
-        p = map->nodes[lp->ptr];
+        lp->ptr = phys_map_node_alloc(map, level == 0);
     }
+    p = map->nodes[lp->ptr];
     lp = &p[(*index >> (level * P_L2_BITS)) & (P_L2_SIZE - 1)];
 
     while (*nb && lp < &p[P_L2_SIZE]) {
@@ -858,21 +852,27 @@ static void tlb_reset_dirty_range_all(ram_addr_t start, ram_addr_t length)
 }
 
 /* Note: start and end must be within the same ram block.  */
-void cpu_physical_memory_reset_dirty(ram_addr_t start, ram_addr_t length,
-                                     unsigned client)
+bool cpu_physical_memory_test_and_clear_dirty(ram_addr_t start,
+                                              ram_addr_t length,
+                                              unsigned client)
 {
-    if (length == 0)
-        return;
-    cpu_physical_memory_clear_dirty_range_type(start, length, client);
+    unsigned long end, page;
+    bool dirty;
 
-    if (tcg_enabled()) {
+    if (length == 0) {
+        return false;
+    }
+
+    end = TARGET_PAGE_ALIGN(start + length) >> TARGET_PAGE_BITS;
+    page = start >> TARGET_PAGE_BITS;
+    dirty = bitmap_test_and_clear_atomic(ram_list.dirty_memory[client],
+                                         page, end - page);
+
+    if (dirty && tcg_enabled()) {
         tlb_reset_dirty_range_all(start, length);
     }
-}
 
-static void cpu_physical_memory_set_dirty_tracking(bool enable)
-{
-    in_migration = enable;
+    return dirty;
 }
 
 /* Called from RCU critical section */
@@ -1362,7 +1362,8 @@ int qemu_ram_resize(ram_addr_t base, ram_addr_t newsize, Error **errp)
 
     cpu_physical_memory_clear_dirty_range(block->offset, block->used_length);
     block->used_length = newsize;
-    cpu_physical_memory_set_dirty_range(block->offset, block->used_length);
+    cpu_physical_memory_set_dirty_range(block->offset, block->used_length,
+                                        DIRTY_CLIENTS_ALL);
     memory_region_set_size(block->mr, newsize);
     if (block->resized) {
         block->resized(block->idstr, newsize, block->host);
@@ -1436,7 +1437,8 @@ static ram_addr_t ram_block_add(RAMBlock *new_block, Error **errp)
        }
     }
     cpu_physical_memory_set_dirty_range(new_block->offset,
-                                        new_block->used_length);
+                                        new_block->used_length,
+                                        DIRTY_CLIENTS_ALL);
 
     if (new_block->host) {
         qemu_ram_setup_dump(new_block->host, new_block->max_length);
@@ -1824,7 +1826,11 @@ static void notdirty_mem_write(void *opaque, hwaddr ram_addr,
     default:
         abort();
     }
-    cpu_physical_memory_set_dirty_range_nocode(ram_addr, size);
+    /* Set both VGA and migration bits for simplicity and to remove
+     * the notdirty callback faster.
+     */
+    cpu_physical_memory_set_dirty_range(ram_addr, size,
+                                        DIRTY_CLIENTS_NOCODE);
     /* we remove the notdirty callback only if the code has been
        flushed */
     if (!cpu_physical_memory_is_clean(ram_addr)) {
@@ -2165,22 +2171,6 @@ static void tcg_commit(MemoryListener *listener)
     }
 }
 
-static void core_log_global_start(MemoryListener *listener)
-{
-    cpu_physical_memory_set_dirty_tracking(true);
-}
-
-static void core_log_global_stop(MemoryListener *listener)
-{
-    cpu_physical_memory_set_dirty_tracking(false);
-}
-
-static MemoryListener core_memory_listener = {
-    .log_global_start = core_log_global_start,
-    .log_global_stop = core_log_global_stop,
-    .priority = 1,
-};
-
 void address_space_init_dispatch(AddressSpace *as)
 {
     as->dispatch = NULL;
@@ -2220,8 +2210,6 @@ static void memory_map_init(void)
     memory_region_init_io(system_io, NULL, &unassigned_io_ops, NULL, "io",
                           65536);
     address_space_init(&address_space_io, system_io, "I/O");
-
-    memory_listener_register(&core_memory_listener, &address_space_memory);
 }
 
 MemoryRegion *get_system_memory(void)
@@ -2279,14 +2267,23 @@ int cpu_memory_rw_debug(CPUState *cpu, target_ulong addr,
 
 #else
 
-static void invalidate_and_set_dirty(hwaddr addr,
+static void invalidate_and_set_dirty(MemoryRegion *mr, hwaddr addr,
                                      hwaddr length)
 {
-    if (cpu_physical_memory_range_includes_clean(addr, length)) {
-        tb_invalidate_phys_range(addr, addr + length, 0);
-        cpu_physical_memory_set_dirty_range_nocode(addr, length);
+    uint8_t dirty_log_mask = memory_region_get_dirty_log_mask(mr);
+    /* No early return if dirty_log_mask is or becomes 0, because
+     * cpu_physical_memory_set_dirty_range will still call
+     * xen_modified_memory.
+     */
+    if (dirty_log_mask) {
+        dirty_log_mask =
+            cpu_physical_memory_range_includes_clean(addr, length, dirty_log_mask);
     }
-    xen_modified_memory(addr, length);
+    if (dirty_log_mask & (1 << DIRTY_MEMORY_CODE)) {
+        tb_invalidate_phys_range(addr, addr + length);
+        dirty_log_mask &= ~(1 << DIRTY_MEMORY_CODE);
+    }
+    cpu_physical_memory_set_dirty_range(addr, length, dirty_log_mask);
 }
 
 static int memory_access_size(MemoryRegion *mr, unsigned l, hwaddr addr)
@@ -2371,7 +2368,7 @@ MemTxResult address_space_rw(AddressSpace *as, hwaddr addr, MemTxAttrs attrs,
                 /* RAM case */
                 ptr = qemu_get_ram_ptr(addr1);
                 memcpy(ptr, buf, l);
-                invalidate_and_set_dirty(addr1, l);
+                invalidate_and_set_dirty(mr, addr1, l);
             }
         } else {
             if (!memory_access_is_direct(mr, is_write)) {
@@ -2468,7 +2465,7 @@ static inline void cpu_physical_memory_write_rom_internal(AddressSpace *as,
             switch (type) {
             case WRITE_DATA:
                 memcpy(ptr, buf, l);
-                invalidate_and_set_dirty(addr1, l);
+                invalidate_and_set_dirty(mr, addr1, l);
                 break;
             case FLUSH_CACHE:
                 flush_icache_range((uintptr_t)ptr, (uintptr_t)ptr + l);
@@ -2693,7 +2690,7 @@ void address_space_unmap(AddressSpace *as, void *buffer, hwaddr len,
         mr = qemu_ram_addr_from_host(buffer, &addr1);
         assert(mr != NULL);
         if (is_write) {
-            invalidate_and_set_dirty(addr1, access_len);
+            invalidate_and_set_dirty(mr, addr1, access_len);
         }
         if (xen_enabled()) {
             xen_invalidate_map_cache_entry(buffer);
@@ -3022,6 +3019,7 @@ void address_space_stl_notdirty(AddressSpace *as, hwaddr addr, uint32_t val,
     hwaddr l = 4;
     hwaddr addr1;
     MemTxResult r;
+    uint8_t dirty_log_mask;
 
     rcu_read_lock();
     mr = address_space_translate(as, addr, &addr1, &l,
@@ -3033,14 +3031,9 @@ void address_space_stl_notdirty(AddressSpace *as, hwaddr addr, uint32_t val,
         ptr = qemu_get_ram_ptr(addr1);
         stl_p(ptr, val);
 
-        if (unlikely(in_migration)) {
-            if (cpu_physical_memory_is_clean(addr1)) {
-                /* invalidate code */
-                tb_invalidate_phys_page_range(addr1, addr1 + 4, 0);
-                /* set dirty bit */
-                cpu_physical_memory_set_dirty_range_nocode(addr1, 4);
-            }
-        }
+        dirty_log_mask = memory_region_get_dirty_log_mask(mr);
+        dirty_log_mask &= ~(1 << DIRTY_MEMORY_CODE);
+        cpu_physical_memory_set_dirty_range(addr1, 4, dirty_log_mask);
         r = MEMTX_OK;
     }
     if (result) {
@@ -3096,7 +3089,7 @@ static inline void address_space_stl_internal(AddressSpace *as,
             stl_p(ptr, val);
             break;
         }
-        invalidate_and_set_dirty(addr1, 4);
+        invalidate_and_set_dirty(mr, addr1, 4);
         r = MEMTX_OK;
     }
     if (result) {
@@ -3200,7 +3193,7 @@ static inline void address_space_stw_internal(AddressSpace *as,
             stw_p(ptr, val);
             break;
         }
-        invalidate_and_set_dirty(addr1, 2);
+        invalidate_and_set_dirty(mr, addr1, 2);
         r = MEMTX_OK;
     }
     if (result) {

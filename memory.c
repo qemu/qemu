@@ -28,6 +28,8 @@
 
 //#define DEBUG_UNASSIGNED
 
+#define RAM_ADDR_INVALID (~(ram_addr_t)0)
+
 static unsigned memory_region_transaction_depth;
 static bool memory_region_update_pending;
 static bool ioeventfd_update_pending;
@@ -152,7 +154,7 @@ static bool memory_listener_match(MemoryListener *listener,
     } while (0)
 
 /* No need to ref/unref .mr, the FlatRange keeps it alive.  */
-#define MEMORY_LISTENER_UPDATE_REGION(fr, as, dir, callback)            \
+#define MEMORY_LISTENER_UPDATE_REGION(fr, as, dir, callback, _args...)  \
     MEMORY_LISTENER_CALL(callback, dir, (&(MemoryRegionSection) {       \
         .mr = (fr)->mr,                                                 \
         .address_space = (as),                                          \
@@ -160,7 +162,7 @@ static bool memory_listener_match(MemoryListener *listener,
         .size = (fr)->addr.size,                                        \
         .offset_within_address_space = int128_get64((fr)->addr.start),  \
         .readonly = (fr)->readonly,                                     \
-              }))
+              }), ##_args)
 
 struct CoalescedMemoryRange {
     AddrRange addr;
@@ -588,7 +590,7 @@ static void render_memory_region(FlatView *view,
     remain = clip.size;
 
     fr.mr = mr;
-    fr.dirty_log_mask = mr->dirty_log_mask;
+    fr.dirty_log_mask = memory_region_get_dirty_log_mask(mr);
     fr.romd_mode = mr->romd_mode;
     fr.readonly = readonly;
 
@@ -774,10 +776,15 @@ static void address_space_update_topology_pass(AddressSpace *as,
 
             if (adding) {
                 MEMORY_LISTENER_UPDATE_REGION(frnew, as, Forward, region_nop);
-                if (frold->dirty_log_mask && !frnew->dirty_log_mask) {
-                    MEMORY_LISTENER_UPDATE_REGION(frnew, as, Reverse, log_stop);
-                } else if (frnew->dirty_log_mask && !frold->dirty_log_mask) {
-                    MEMORY_LISTENER_UPDATE_REGION(frnew, as, Forward, log_start);
+                if (frnew->dirty_log_mask & ~frold->dirty_log_mask) {
+                    MEMORY_LISTENER_UPDATE_REGION(frnew, as, Forward, log_start,
+                                                  frold->dirty_log_mask,
+                                                  frnew->dirty_log_mask);
+                }
+                if (frold->dirty_log_mask & ~frnew->dirty_log_mask) {
+                    MEMORY_LISTENER_UPDATE_REGION(frnew, as, Reverse, log_stop,
+                                                  frold->dirty_log_mask,
+                                                  frnew->dirty_log_mask);
                 }
             }
 
@@ -1002,6 +1009,7 @@ static void memory_region_initfn(Object *obj)
     ObjectProperty *op;
 
     mr->ops = &unassigned_mem_ops;
+    mr->ram_addr = RAM_ADDR_INVALID;
     mr->enabled = true;
     mr->romd_mode = true;
     mr->destructor = memory_region_destructor_none;
@@ -1193,7 +1201,6 @@ void memory_region_init_io(MemoryRegion *mr,
     mr->ops = ops;
     mr->opaque = opaque;
     mr->terminates = true;
-    mr->ram_addr = ~(ram_addr_t)0;
 }
 
 void memory_region_init_ram(MemoryRegion *mr,
@@ -1207,6 +1214,7 @@ void memory_region_init_ram(MemoryRegion *mr,
     mr->terminates = true;
     mr->destructor = memory_region_destructor_ram;
     mr->ram_addr = qemu_ram_alloc(size, mr, errp);
+    mr->dirty_log_mask = tcg_enabled() ? (1 << DIRTY_MEMORY_CODE) : 0;
 }
 
 void memory_region_init_resizeable_ram(MemoryRegion *mr,
@@ -1224,6 +1232,7 @@ void memory_region_init_resizeable_ram(MemoryRegion *mr,
     mr->terminates = true;
     mr->destructor = memory_region_destructor_ram;
     mr->ram_addr = qemu_ram_alloc_resizeable(size, max_size, resized, mr, errp);
+    mr->dirty_log_mask = tcg_enabled() ? (1 << DIRTY_MEMORY_CODE) : 0;
 }
 
 #ifdef __linux__
@@ -1240,6 +1249,7 @@ void memory_region_init_ram_from_file(MemoryRegion *mr,
     mr->terminates = true;
     mr->destructor = memory_region_destructor_ram;
     mr->ram_addr = qemu_ram_alloc_from_file(size, mr, share, path, errp);
+    mr->dirty_log_mask = tcg_enabled() ? (1 << DIRTY_MEMORY_CODE) : 0;
 }
 #endif
 
@@ -1253,6 +1263,7 @@ void memory_region_init_ram_ptr(MemoryRegion *mr,
     mr->ram = true;
     mr->terminates = true;
     mr->destructor = memory_region_destructor_ram_from_ptr;
+    mr->dirty_log_mask = tcg_enabled() ? (1 << DIRTY_MEMORY_CODE) : 0;
 
     /* qemu_ram_alloc_from_ptr cannot fail with ptr != NULL.  */
     assert(ptr != NULL);
@@ -1389,9 +1400,18 @@ bool memory_region_is_skip_dump(MemoryRegion *mr)
     return mr->skip_dump;
 }
 
-bool memory_region_is_logging(MemoryRegion *mr)
+uint8_t memory_region_get_dirty_log_mask(MemoryRegion *mr)
 {
-    return mr->dirty_log_mask;
+    uint8_t mask = mr->dirty_log_mask;
+    if (global_dirty_log) {
+        mask |= (1 << DIRTY_MEMORY_MIGRATION);
+    }
+    return mask;
+}
+
+bool memory_region_is_logging(MemoryRegion *mr, uint8_t client)
+{
+    return memory_region_get_dirty_log_mask(mr) & (1 << client);
 }
 
 bool memory_region_is_rom(MemoryRegion *mr)
@@ -1425,6 +1445,7 @@ void memory_region_set_log(MemoryRegion *mr, bool log, unsigned client)
 {
     uint8_t mask = 1 << client;
 
+    assert(client == DIRTY_MEMORY_VGA);
     memory_region_transaction_begin();
     mr->dirty_log_mask = (mr->dirty_log_mask & ~mask) | (log * mask);
     memory_region_update_pending |= mr->enabled;
@@ -1434,27 +1455,24 @@ void memory_region_set_log(MemoryRegion *mr, bool log, unsigned client)
 bool memory_region_get_dirty(MemoryRegion *mr, hwaddr addr,
                              hwaddr size, unsigned client)
 {
-    assert(mr->terminates);
+    assert(mr->ram_addr != RAM_ADDR_INVALID);
     return cpu_physical_memory_get_dirty(mr->ram_addr + addr, size, client);
 }
 
 void memory_region_set_dirty(MemoryRegion *mr, hwaddr addr,
                              hwaddr size)
 {
-    assert(mr->terminates);
-    cpu_physical_memory_set_dirty_range(mr->ram_addr + addr, size);
+    assert(mr->ram_addr != RAM_ADDR_INVALID);
+    cpu_physical_memory_set_dirty_range(mr->ram_addr + addr, size,
+                                        memory_region_get_dirty_log_mask(mr));
 }
 
 bool memory_region_test_and_clear_dirty(MemoryRegion *mr, hwaddr addr,
                                         hwaddr size, unsigned client)
 {
-    bool ret;
-    assert(mr->terminates);
-    ret = cpu_physical_memory_get_dirty(mr->ram_addr + addr, size, client);
-    if (ret) {
-        cpu_physical_memory_reset_dirty(mr->ram_addr + addr, size, client);
-    }
-    return ret;
+    assert(mr->ram_addr != RAM_ADDR_INVALID);
+    return cpu_physical_memory_test_and_clear_dirty(mr->ram_addr + addr,
+                                                    size, client);
 }
 
 
@@ -1497,8 +1515,9 @@ void memory_region_rom_device_set_romd(MemoryRegion *mr, bool romd_mode)
 void memory_region_reset_dirty(MemoryRegion *mr, hwaddr addr,
                                hwaddr size, unsigned client)
 {
-    assert(mr->terminates);
-    cpu_physical_memory_reset_dirty(mr->ram_addr + addr, size, client);
+    assert(mr->ram_addr != RAM_ADDR_INVALID);
+    cpu_physical_memory_test_and_clear_dirty(mr->ram_addr + addr, size,
+                                             client);
 }
 
 int memory_region_get_fd(MemoryRegion *mr)
@@ -1507,7 +1526,7 @@ int memory_region_get_fd(MemoryRegion *mr)
         return memory_region_get_fd(mr->alias);
     }
 
-    assert(mr->terminates);
+    assert(mr->ram_addr != RAM_ADDR_INVALID);
 
     return qemu_get_ram_fd(mr->ram_addr & TARGET_PAGE_MASK);
 }
@@ -1518,14 +1537,14 @@ void *memory_region_get_ram_ptr(MemoryRegion *mr)
         return memory_region_get_ram_ptr(mr->alias) + mr->alias_offset;
     }
 
-    assert(mr->terminates);
+    assert(mr->ram_addr != RAM_ADDR_INVALID);
 
     return qemu_get_ram_ptr(mr->ram_addr & TARGET_PAGE_MASK);
 }
 
 void memory_region_ram_resize(MemoryRegion *mr, ram_addr_t newsize, Error **errp)
 {
-    assert(mr->terminates);
+    assert(mr->ram_addr != RAM_ADDR_INVALID);
 
     qemu_ram_resize(mr->ram_addr, newsize, errp);
 }
@@ -1947,12 +1966,24 @@ void address_space_sync_dirty_bitmap(AddressSpace *as)
 void memory_global_dirty_log_start(void)
 {
     global_dirty_log = true;
+
     MEMORY_LISTENER_CALL_GLOBAL(log_global_start, Forward);
+
+    /* Refresh DIRTY_LOG_MIGRATION bit.  */
+    memory_region_transaction_begin();
+    memory_region_update_pending = true;
+    memory_region_transaction_commit();
 }
 
 void memory_global_dirty_log_stop(void)
 {
     global_dirty_log = false;
+
+    /* Refresh DIRTY_LOG_MIGRATION bit.  */
+    memory_region_transaction_begin();
+    memory_region_update_pending = true;
+    memory_region_transaction_commit();
+
     MEMORY_LISTENER_CALL_GLOBAL(log_global_stop, Reverse);
 }
 

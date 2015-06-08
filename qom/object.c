@@ -1266,6 +1266,22 @@ out:
     g_free(full_type);
 }
 
+void object_property_add_const_link(Object *obj, const char *name,
+                                    Object *target, Error **errp)
+{
+    char *link_type;
+    ObjectProperty *op;
+
+    link_type = g_strdup_printf("link<%s>", object_get_typename(target));
+    op = object_property_add(obj, name, link_type,
+                             object_get_child_property, NULL,
+                             NULL, target, errp);
+    if (op != NULL) {
+        op->resolve = object_resolve_child_property;
+    }
+    g_free(link_type);
+}
+
 gchar *object_get_canonical_path_component(Object *obj)
 {
     ObjectProperty *prop = NULL;

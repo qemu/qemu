@@ -215,10 +215,6 @@ void cpu_list_unlock(void)
 /***********************************************************/
 /* CPUX86 core interface */
 
-void cpu_smm_update(CPUX86State *env)
-{
-}
-
 uint64_t cpu_get_tsc(CPUX86State *env)
 {
     return cpu_get_real_ticks();

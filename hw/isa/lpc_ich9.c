@@ -407,12 +407,28 @@ static void ich9_lpc_rcba_update(ICH9LPCState *lpc, uint32_t rbca_old)
     }
 }
 
+/* config:GEN_PMCON* */
+static void
+ich9_lpc_pmcon_update(ICH9LPCState *lpc)
+{
+    uint16_t gen_pmcon_1 = pci_get_word(lpc->d.config + ICH9_LPC_GEN_PMCON_1);
+    uint16_t wmask;
+
+    if (gen_pmcon_1 & ICH9_LPC_GEN_PMCON_1_SMI_LOCK) {
+        wmask = pci_get_word(lpc->d.wmask + ICH9_LPC_GEN_PMCON_1);
+        wmask &= ~ICH9_LPC_GEN_PMCON_1_SMI_LOCK;
+        pci_set_word(lpc->d.wmask + ICH9_LPC_GEN_PMCON_1, wmask);
+        lpc->pm.smi_en_wmask &= ~1;
+    }
+}
+
 static int ich9_lpc_post_load(void *opaque, int version_id)
 {
     ICH9LPCState *lpc = opaque;
 
     ich9_lpc_pmbase_update(lpc);
     ich9_lpc_rcba_update(lpc, 0 /* disabled ICH9_LPC_RBCA_EN */);
+    ich9_lpc_pmcon_update(lpc);
     return 0;
 }
 
@@ -434,6 +450,9 @@ static void ich9_lpc_config_write(PCIDevice *d,
     }
     if (ranges_overlap(addr, len, ICH9_LPC_PIRQE_ROUT, 4)) {
         pci_bus_fire_intx_routing_notifier(lpc->d.bus);
+    }
+    if (ranges_overlap(addr, len, ICH9_LPC_GEN_PMCON_1, 8)) {
+        ich9_lpc_pmcon_update(lpc);
     }
 }
 

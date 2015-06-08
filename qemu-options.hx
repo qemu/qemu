@@ -171,11 +171,13 @@ Set parameter @var{arg} for item @var{id} of type @var{group}\n"
 ETEXI
 
 DEF("global", HAS_ARG, QEMU_OPTION_global,
-    "-global driver.prop=value\n"
+    "-global driver.property=value\n"
+    "-global driver=driver,property=property,value=value\n"
     "                set a global default for a driver property\n",
     QEMU_ARCH_ALL)
 STEXI
 @item -global @var{driver}.@var{prop}=@var{value}
+@itemx -global driver=@var{driver},property=@var{property},value=@var{value}
 @findex -global
 Set default value of @var{driver}'s property @var{prop} to @var{value}, e.g.:
 
@@ -186,6 +188,9 @@ qemu-system-i386 -global ide-drive.physical_block_size=4096 -drive file=file,if=
 In particular, you can use this to set driver properties for devices which are 
 created automatically by the machine model. To create a device which is not 
 created automatically and set properties on it, use -@option{device}.
+
+The two syntaxes are equivalent.  The longer one works for drivers whose name
+contains a dot.
 ETEXI
 
 DEF("boot", HAS_ARG, QEMU_OPTION_boot,
@@ -3099,9 +3104,10 @@ re-inject them.
 ETEXI
 
 DEF("icount", HAS_ARG, QEMU_OPTION_icount, \
-    "-icount [shift=N|auto][,align=on|off]\n" \
+    "-icount [shift=N|auto][,align=on|off][,sleep=no]\n" \
     "                enable virtual instruction counter with 2^N clock ticks per\n" \
-    "                instruction and enable aligning the host and virtual clocks\n", QEMU_ARCH_ALL)
+    "                instruction, enable aligning the host and virtual clocks\n" \
+    "                or disable real time cpu sleeping\n", QEMU_ARCH_ALL)
 STEXI
 @item -icount [shift=@var{N}|auto]
 @findex -icount
@@ -3109,6 +3115,13 @@ Enable virtual instruction counter.  The virtual cpu will execute one
 instruction every 2^@var{N} ns of virtual time.  If @code{auto} is specified
 then the virtual cpu speed will be automatically adjusted to keep virtual
 time within a few seconds of real time.
+
+When the virtual cpu is sleeping, the virtual time will advance at default
+speed unless @option{sleep=no} is specified.
+With @option{sleep=no}, the virtual time will jump to the next timer deadline
+instantly whenever the virtual cpu goes to sleep mode and will not advance
+if no timer is enabled. This behavior give deterministic execution times from
+the guest point of view.
 
 Note that while this option can give deterministic behavior, it does not
 provide cycle accurate emulation.  Modern CPUs contain superscalar out of

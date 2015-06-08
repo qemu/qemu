@@ -86,10 +86,6 @@ typedef struct PAMMemoryRegion {
     unsigned current;
 } PAMMemoryRegion;
 
-void smram_update(MemoryRegion *smram_region, uint8_t smram,
-                  uint8_t smm_enabled);
-void smram_set_smm(uint8_t *host_smm_enabled, int smm, uint8_t smram,
-                   MemoryRegion *smram_region);
 void init_pam(DeviceState *dev, MemoryRegion *ram, MemoryRegion *system,
               MemoryRegion *pci, PAMMemoryRegion *mem, uint32_t start, uint32_t size);
 void pam_update(PAMMemoryRegion *mem, int idx, uint8_t val);

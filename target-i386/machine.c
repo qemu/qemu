@@ -372,6 +372,9 @@ static int cpu_post_load(void *opaque, int version_id)
     }
     tlb_flush(cs, 1);
 
+    if (tcg_enabled()) {
+        cpu_smm_update(cpu);
+    }
     return 0;
 }
 
