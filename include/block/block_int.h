@@ -379,10 +379,13 @@ struct BlockDriverState {
     unsigned int serialising_in_flight;
 
     /* I/O throttling */
-    ThrottleState throttle_state;
-    ThrottleTimers throttle_timers;
     CoQueue      throttled_reqs[2];
     bool         io_limits_enabled;
+    /* The following fields are protected by the ThrottleGroup lock.
+     * See the ThrottleGroup documentation for details. */
+    ThrottleState *throttle_state;
+    ThrottleTimers throttle_timers;
+    unsigned       pending_reqs[2];
     QLIST_ENTRY(BlockDriverState) round_robin;
 
     /* I/O stats (display with "info blockstats"). */

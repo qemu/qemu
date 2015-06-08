@@ -34,6 +34,7 @@
 #include "sysemu/blockdev.h"
 #include "hw/block/block.h"
 #include "block/blockjob.h"
+#include "block/throttle-groups.h"
 #include "monitor/monitor.h"
 #include "qemu/option.h"
 #include "qemu/config-file.h"
@@ -357,6 +358,7 @@ static BlockBackend *blockdev_init(const char *file, QDict *bs_opts,
     const char *id;
     bool has_driver_specific_opts;
     BlockdevDetectZeroesOptions detect_zeroes;
+    const char *throttling_group;
 
     /* Check common options by copying from bs_opts to opts, all other options
      * stay in bs_opts for processing by bdrv_open(). */
@@ -459,6 +461,8 @@ static BlockBackend *blockdev_init(const char *file, QDict *bs_opts,
 
     cfg.op_size = qemu_opt_get_number(opts, "throttling.iops-size", 0);
 
+    throttling_group = qemu_opt_get(opts, "throttling.group");
+
     if (!check_throttle_config(&cfg, &error)) {
         error_propagate(errp, error);
         goto early_err;
@@ -547,7 +551,10 @@ static BlockBackend *blockdev_init(const char *file, QDict *bs_opts,
 
     /* disk I/O throttling */
     if (throttle_enabled(&cfg)) {
-        bdrv_io_limits_enable(bs);
+        if (!throttling_group) {
+            throttling_group = blk_name(blk);
+        }
+        bdrv_io_limits_enable(bs, throttling_group);
         bdrv_set_io_limits(bs, &cfg);
     }
 
@@ -710,6 +717,8 @@ DriveInfo *drive_new(QemuOpts *all_opts, BlockInterfaceType block_default_type)
         { "bps_wr_max",     "throttling.bps-write-max" },
 
         { "iops_size",      "throttling.iops-size" },
+
+        { "group",          "throttling.group" },
 
         { "readonly",       "read-only" },
     };
@@ -1951,7 +1960,9 @@ void qmp_block_set_io_throttle(const char *device, int64_t bps, int64_t bps_rd,
                                bool has_iops_wr_max,
                                int64_t iops_wr_max,
                                bool has_iops_size,
-                               int64_t iops_size, Error **errp)
+                               int64_t iops_size,
+                               bool has_group,
+                               const char *group, Error **errp)
 {
     ThrottleConfig cfg;
     BlockDriverState *bs;
@@ -2004,14 +2015,19 @@ void qmp_block_set_io_throttle(const char *device, int64_t bps, int64_t bps_rd,
     aio_context = bdrv_get_aio_context(bs);
     aio_context_acquire(aio_context);
 
-    if (!bs->io_limits_enabled && throttle_enabled(&cfg)) {
-        bdrv_io_limits_enable(bs);
-    } else if (bs->io_limits_enabled && !throttle_enabled(&cfg)) {
-        bdrv_io_limits_disable(bs);
-    }
-
-    if (bs->io_limits_enabled) {
+    if (throttle_enabled(&cfg)) {
+        /* Enable I/O limits if they're not enabled yet, otherwise
+         * just update the throttling group. */
+        if (!bs->io_limits_enabled) {
+            bdrv_io_limits_enable(bs, has_group ? group : device);
+        } else if (has_group) {
+            bdrv_io_limits_update_group(bs, group);
+        }
+        /* Set the new throttling configuration */
         bdrv_set_io_limits(bs, &cfg);
+    } else if (bs->io_limits_enabled) {
+        /* If all throttling settings are set to 0, disable I/O limits */
+        bdrv_io_limits_disable(bs);
     }
 
     aio_context_release(aio_context);
@@ -3188,6 +3204,10 @@ QemuOptsList qemu_common_drive_opts = {
             .name = "throttling.iops-size",
             .type = QEMU_OPT_NUMBER,
             .help = "when limiting by iops max size of an I/O in bytes",
+        },{
+            .name = "throttling.group",
+            .type = QEMU_OPT_STRING,
+            .help = "name of the block throttling group",
         },{
             .name = "copy-on-read",
             .type = QEMU_OPT_BOOL,

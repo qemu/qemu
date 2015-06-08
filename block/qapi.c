@@ -24,6 +24,7 @@
 
 #include "block/qapi.h"
 #include "block/block_int.h"
+#include "block/throttle-groups.h"
 #include "block/write-threshold.h"
 #include "qmp-commands.h"
 #include "qapi-visit.h"
@@ -65,7 +66,9 @@ BlockDeviceInfo *bdrv_block_device_info(BlockDriverState *bs, Error **errp)
 
     if (bs->io_limits_enabled) {
         ThrottleConfig cfg;
-        throttle_get_config(&bs->throttle_state, &cfg);
+
+        throttle_group_get_config(bs, &cfg);
+
         info->bps     = cfg.buckets[THROTTLE_BPS_TOTAL].avg;
         info->bps_rd  = cfg.buckets[THROTTLE_BPS_READ].avg;
         info->bps_wr  = cfg.buckets[THROTTLE_BPS_WRITE].avg;

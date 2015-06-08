@@ -1062,6 +1062,27 @@
 #
 # Change I/O throttle limits for a block drive.
 #
+# Since QEMU 2.4, each device with I/O limits is member of a throttle
+# group.
+#
+# If two or more devices are members of the same group, the limits
+# will apply to the combined I/O of the whole group in a round-robin
+# fashion. Therefore, setting new I/O limits to a device will affect
+# the whole group.
+#
+# The name of the group can be specified using the 'group' parameter.
+# If the parameter is unset, it is assumed to be the current group of
+# that device. If it's not in any group yet, the name of the device
+# will be used as the name for its group.
+#
+# The 'group' parameter can also be used to move a device to a
+# different group. In this case the limits specified in the parameters
+# will be applied to the new group only.
+#
+# I/O limits can be disabled by setting all of them to 0. In this case
+# the device will be removed from its group and the rest of its
+# members will no be affected. The 'group' parameter is ignored.
+#
 # @device: The name of the device
 #
 # @bps: total throughput limit in bytes per second
@@ -1090,6 +1111,8 @@
 #
 # @iops_size: #optional an I/O size in bytes (Since 1.7)
 #
+# @group: #optional throttle group name (Since 2.4)
+#
 # Returns: Nothing on success
 #          If @device is not a valid block device, DeviceNotFound
 #
@@ -1101,7 +1124,7 @@
             '*bps_max': 'int', '*bps_rd_max': 'int',
             '*bps_wr_max': 'int', '*iops_max': 'int',
             '*iops_rd_max': 'int', '*iops_wr_max': 'int',
-            '*iops_size': 'int' } }
+            '*iops_size': 'int', '*group': 'str' } }
 
 ##
 # @block-stream:
