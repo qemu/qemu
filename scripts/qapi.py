@@ -101,14 +101,13 @@ class QAPIExprError(Exception):
 
 class QAPISchema:
 
-    def __init__(self, fp, fname = None, include_hist = [],
+    def __init__(self, fp, include_hist = [],
                  previously_included = [], incl_info = None):
         """ include_hist is a stack used to detect inclusion cycles
             previously_included is a global state used to avoid multiple
                                 inclusions of the same file"""
         abs_fname = os.path.abspath(fp.name)
-        if fname is None:
-            fname = fp.name
+        fname = fp.name
         self.fname = fname
         self.include_hist = include_hist + [(fname, abs_fname)]
         previously_included.append(abs_fname)
@@ -148,7 +147,7 @@ class QAPISchema:
                 except IOError, e:
                     raise QAPIExprError(expr_info,
                                         '%s: %s' % (e.strerror, include))
-                exprs_include = QAPISchema(fobj, include, self.include_hist,
+                exprs_include = QAPISchema(fobj, self.include_hist,
                                            previously_included, expr_info)
                 self.exprs.extend(exprs_include.exprs)
             else:
