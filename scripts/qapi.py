@@ -101,15 +101,10 @@ class QAPIExprError(Exception):
 
 class QAPISchema:
 
-    def __init__(self, fp, include_hist = [],
-                 previously_included = [], incl_info = None):
-        """ include_hist is a stack used to detect inclusion cycles
-            previously_included is a global state used to avoid multiple
-                                inclusions of the same file"""
+    def __init__(self, fp, previously_included = [], incl_info = None):
         abs_fname = os.path.abspath(fp.name)
         fname = fp.name
         self.fname = fname
-        self.include_hist = include_hist + [(fname, abs_fname)]
         previously_included.append(abs_fname)
         self.incl_info = incl_info
         self.src = fp.read()
@@ -135,10 +130,13 @@ class QAPISchema:
                                         % include)
                 incl_abs_fname = os.path.join(os.path.dirname(abs_fname),
                                               include)
-                for elem in self.include_hist:
-                    if incl_abs_fname == elem[1]:
+                # catch inclusion cycle
+                inf = expr_info
+                while inf:
+                    if incl_abs_fname == os.path.abspath(inf['file']):
                         raise QAPIExprError(expr_info, "Inclusion loop for %s"
                                             % include)
+                    inf = inf['parent']
                 # skip multiple include of the same file
                 if incl_abs_fname in previously_included:
                     continue
@@ -147,8 +145,8 @@ class QAPISchema:
                 except IOError, e:
                     raise QAPIExprError(expr_info,
                                         '%s: %s' % (e.strerror, include))
-                exprs_include = QAPISchema(fobj, self.include_hist,
-                                           previously_included, expr_info)
+                exprs_include = QAPISchema(fobj, previously_included,
+                                           expr_info)
                 self.exprs.extend(exprs_include.exprs)
             else:
                 expr_elem = {'expr': expr,
