@@ -199,7 +199,7 @@ static void qemu_spice_create_update(SimpleSpiceDisplay *ssd)
     static const int blksize = 32;
     int blocks = (surface_width(ssd->ds) + blksize - 1) / blksize;
     int dirty_top[blocks];
-    int y, yoff, x, xoff, blk, bw;
+    int y, yoff1, yoff2, x, xoff, blk, bw;
     int bpp = surface_bytes_per_pixel(ssd->ds);
     uint8_t *guest, *mirror;
 
@@ -214,13 +214,14 @@ static void qemu_spice_create_update(SimpleSpiceDisplay *ssd)
     guest = surface_data(ssd->ds);
     mirror = (void *)pixman_image_get_data(ssd->mirror);
     for (y = ssd->dirty.top; y < ssd->dirty.bottom; y++) {
-        yoff = y * surface_stride(ssd->ds);
+        yoff1 = y * surface_stride(ssd->ds);
+        yoff2 = y * pixman_image_get_stride(ssd->mirror);
         for (x = ssd->dirty.left; x < ssd->dirty.right; x += blksize) {
             xoff = x * bpp;
             blk = x / blksize;
             bw = MIN(blksize, ssd->dirty.right - x);
-            if (memcmp(guest + yoff + xoff,
-                       mirror + yoff + xoff,
+            if (memcmp(guest + yoff1 + xoff,
+                       mirror + yoff2 + xoff,
                        bw * bpp) == 0) {
                 if (dirty_top[blk] != -1) {
                     QXLRect update = {
