@@ -163,7 +163,7 @@ The QAPI schema definitions can be modularized using the 'include' directive:
 
 The directive is evaluated recursively, and include paths are relative to the
 file using the directive. Multiple includes of the same file are
-safe.  No other keys should appear in the expression, and the include
+idempotent.  No other keys should appear in the expression, and the include
 value should be a string.
 
 As a matter of style, it is a good idea to have all files be
@@ -555,6 +555,7 @@ Example:
         qapi_dealloc_visitor_cleanup(md);
     }
 
+
     void qapi_free_UserDefOne(UserDefOne *obj)
     {
         QapiDeallocVisitor *md;
@@ -769,7 +770,6 @@ Example:
         v = qapi_dealloc_get_visitor(md);
         visit_type_UserDefOne(v, &arg1, "arg1", NULL);
         qapi_dealloc_visitor_cleanup(md);
-        return;
     }
 
     static void qmp_init_marshal(void)
