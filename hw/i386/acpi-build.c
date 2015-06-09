@@ -1290,7 +1290,7 @@ static void build_isa_devices_aml(Aml *table)
     } else if (!obj) {
         error_report("No ISA bus, unable to define IPMI ACPI data");
     } else {
-        build_acpi_ipmi_devices(scope, BUS(obj));
+        build_acpi_ipmi_devices(scope, BUS(obj), "\\_SB.PCI0.ISA");
     }
 
     aml_append(table, scope);
