@@ -100,9 +100,11 @@ void qemu_opt_set_bool(QemuOpts *opts, const char *name, bool val,
                        Error **errp);
 void qemu_opt_set_number(QemuOpts *opts, const char *name, int64_t val,
                          Error **errp);
-typedef int (*qemu_opt_loopfunc)(const char *name, const char *value, void *opaque);
+typedef int (*qemu_opt_loopfunc)(void *opaque,
+                                 const char *name, const char *value,
+                                 Error **errp);
 int qemu_opt_foreach(QemuOpts *opts, qemu_opt_loopfunc func, void *opaque,
-                     int abort_on_failure);
+                     Error **errp);
 
 QemuOpts *qemu_opts_find(QemuOptsList *list, const char *id);
 QemuOpts *qemu_opts_create(QemuOptsList *list, const char *id,
@@ -125,10 +127,10 @@ QemuOpts *qemu_opts_from_qdict(QemuOptsList *list, const QDict *qdict,
 QDict *qemu_opts_to_qdict(QemuOpts *opts, QDict *qdict);
 void qemu_opts_absorb_qdict(QemuOpts *opts, QDict *qdict, Error **errp);
 
-typedef int (*qemu_opts_loopfunc)(QemuOpts *opts, void *opaque);
+typedef int (*qemu_opts_loopfunc)(void *opaque, QemuOpts *opts, Error **errp);
+int qemu_opts_foreach(QemuOptsList *list, qemu_opts_loopfunc func,
+                      void *opaque, Error **errp);
 void qemu_opts_print(QemuOpts *opts, const char *sep);
-int qemu_opts_foreach(QemuOptsList *list, qemu_opts_loopfunc func, void *opaque,
-                      int abort_on_failure);
 void qemu_opts_print_help(QemuOptsList *list);
 void qemu_opts_free(QemuOptsList *list);
 QemuOptsList *qemu_opts_append(QemuOptsList *dst, QemuOptsList *list);

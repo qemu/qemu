@@ -596,18 +596,26 @@ void qemu_opt_set_number(QemuOpts *opts, const char *name, int64_t val,
     QTAILQ_INSERT_TAIL(&opts->head, opt, next);
 }
 
+/**
+ * For each member of @opts, call @func(@opaque, name, value, @errp).
+ * @func() may store an Error through @errp, but must return non-zero then.
+ * When @func() returns non-zero, break the loop and return that value.
+ * Return zero when the loop completes.
+ */
 int qemu_opt_foreach(QemuOpts *opts, qemu_opt_loopfunc func, void *opaque,
-                     int abort_on_failure)
+                     Error **errp)
 {
     QemuOpt *opt;
-    int rc = 0;
+    int rc;
 
     QTAILQ_FOREACH(opt, &opts->head, next) {
-        rc = func(opt->name, opt->str, opaque);
-        if (abort_on_failure  &&  rc != 0)
-            break;
+        rc = func(opaque, opt->name, opt->str, errp);
+        if (rc) {
+            return rc;
+        }
+        assert(!errp || !*errp);
     }
-    return rc;
+    return 0;
 }
 
 QemuOpts *qemu_opts_find(QemuOptsList *list, const char *id)
@@ -1046,22 +1054,31 @@ void qemu_opts_validate(QemuOpts *opts, const QemuOptDesc *desc, Error **errp)
     }
 }
 
-int qemu_opts_foreach(QemuOptsList *list, qemu_opts_loopfunc func, void *opaque,
-                      int abort_on_failure)
+/**
+ * For each member of @list, call @func(@opaque, member, @errp).
+ * Call it with the current location temporarily set to the member's.
+ * @func() may store an Error through @errp, but must return non-zero then.
+ * When @func() returns non-zero, break the loop and return that value.
+ * Return zero when the loop completes.
+ */
+int qemu_opts_foreach(QemuOptsList *list, qemu_opts_loopfunc func,
+                      void *opaque, Error **errp)
 {
     Location loc;
     QemuOpts *opts;
-    int rc = 0;
+    int rc;
 
     loc_push_none(&loc);
     QTAILQ_FOREACH(opts, &list->head, next) {
         loc_restore(&opts->loc);
-        rc |= func(opts, opaque);
-        if (abort_on_failure  &&  rc != 0)
-            break;
+        rc = func(opaque, opts, errp);
+        if (rc) {
+            return rc;
+        }
+        assert(!errp || !*errp);
     }
     loc_pop(&loc);
-    return rc;
+    return 0;
 }
 
 static size_t count_opts_list(QemuOptsList *list)

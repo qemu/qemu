@@ -370,7 +370,7 @@ char *vnc_display_local_addr(const char *id);
 int vnc_display_password(const char *id, const char *password);
 int vnc_display_pw_expire(const char *id, time_t expires);
 QemuOpts *vnc_parse_func(const char *str);
-int vnc_init_func(QemuOpts *opts, void *opaque);
+int vnc_init_func(void *opaque, QemuOpts *opts, Error **errp);
 #else
 static inline int vnc_display_password(const char *id, const char *password)
 {
