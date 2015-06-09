@@ -109,7 +109,6 @@ class QAPISchema:
         input_fname = os.path.abspath(fp.name)
         if input_relname is None:
             input_relname = fp.name
-        self.input_dir = os.path.dirname(input_fname)
         self.input_file = input_relname
         self.include_hist = include_hist + [(input_relname, input_fname)]
         previously_included.append(input_fname)
@@ -134,7 +133,8 @@ class QAPISchema:
                     raise QAPIExprError(expr_info,
                                         'Expected a file name (string), got: %s'
                                         % include)
-                include_path = os.path.join(self.input_dir, include)
+                include_path = os.path.join(os.path.dirname(input_fname),
+                                            include)
                 for elem in self.include_hist:
                     if include_path == elem[1]:
                         raise QAPIExprError(expr_info, "Inclusion loop for %s"
