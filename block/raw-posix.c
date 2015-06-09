@@ -1848,8 +1848,9 @@ static int64_t coroutine_fn raw_co_get_block_status(BlockDriverState *bs,
         *pnum = nb_sectors;
         ret = BDRV_BLOCK_DATA;
     } else if (data == start) {
-        /* On a data extent, compute sectors to the end of the extent.  */
-        *pnum = MIN(nb_sectors, (hole - start) / BDRV_SECTOR_SIZE);
+        /* On a data extent, compute sectors to the end of the extent,
+         * possibly including a partial sector at EOF. */
+        *pnum = MIN(nb_sectors, DIV_ROUND_UP(hole - start, BDRV_SECTOR_SIZE));
         ret = BDRV_BLOCK_DATA;
     } else {
         /* On a hole, compute sectors to the beginning of the next extent.  */
