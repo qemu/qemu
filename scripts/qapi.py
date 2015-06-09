@@ -75,7 +75,7 @@ def error_path(parent):
 
 class QAPISchemaError(Exception):
     def __init__(self, schema, msg):
-        self.input_file = schema.input_file
+        self.fname = schema.fname
         self.msg = msg
         self.col = 1
         self.line = schema.line
@@ -84,11 +84,11 @@ class QAPISchemaError(Exception):
                 self.col = (self.col + 7) % 8 + 1
             else:
                 self.col += 1
-        self.info = schema.parent_info
+        self.info = schema.incl_info
 
     def __str__(self):
         return error_path(self.info) + \
-            "%s:%d:%d: %s" % (self.input_file, self.line, self.col, self.msg)
+            "%s:%d:%d: %s" % (self.fname, self.line, self.col, self.msg)
 
 class QAPIExprError(Exception):
     def __init__(self, expr_info, msg):
@@ -101,18 +101,18 @@ class QAPIExprError(Exception):
 
 class QAPISchema:
 
-    def __init__(self, fp, input_relname=None, include_hist=[],
-                 previously_included=[], parent_info=None):
+    def __init__(self, fp, fname = None, include_hist = [],
+                 previously_included = [], incl_info = None):
         """ include_hist is a stack used to detect inclusion cycles
             previously_included is a global state used to avoid multiple
                                 inclusions of the same file"""
-        input_fname = os.path.abspath(fp.name)
-        if input_relname is None:
-            input_relname = fp.name
-        self.input_file = input_relname
-        self.include_hist = include_hist + [(input_relname, input_fname)]
-        previously_included.append(input_fname)
-        self.parent_info = parent_info
+        abs_fname = os.path.abspath(fp.name)
+        if fname is None:
+            fname = fp.name
+        self.fname = fname
+        self.include_hist = include_hist + [(fname, abs_fname)]
+        previously_included.append(abs_fname)
+        self.incl_info = incl_info
         self.src = fp.read()
         if self.src == '' or self.src[-1] != '\n':
             self.src += '\n'
@@ -123,7 +123,8 @@ class QAPISchema:
         self.accept()
 
         while self.tok != None:
-            expr_info = {'file': input_relname, 'line': self.line, 'parent': self.parent_info}
+            expr_info = {'file': fname, 'line': self.line,
+                         'parent': self.incl_info}
             expr = self.get_expr(False)
             if isinstance(expr, dict) and "include" in expr:
                 if len(expr) != 1:
@@ -133,17 +134,17 @@ class QAPISchema:
                     raise QAPIExprError(expr_info,
                                         'Expected a file name (string), got: %s'
                                         % include)
-                include_path = os.path.join(os.path.dirname(input_fname),
-                                            include)
+                incl_abs_fname = os.path.join(os.path.dirname(abs_fname),
+                                              include)
                 for elem in self.include_hist:
-                    if include_path == elem[1]:
+                    if incl_abs_fname == elem[1]:
                         raise QAPIExprError(expr_info, "Inclusion loop for %s"
                                             % include)
                 # skip multiple include of the same file
-                if include_path in previously_included:
+                if incl_abs_fname in previously_included:
                     continue
                 try:
-                    fobj = open(include_path, 'r')
+                    fobj = open(incl_abs_fname, 'r')
                 except IOError, e:
                     raise QAPIExprError(expr_info,
                                         '%s: %s' % (e.strerror, include))
@@ -651,13 +652,13 @@ def check_keys(expr_elem, meta, required, optional=[]):
                                 % (key, meta, name))
 
 
-def parse_schema(input_file):
+def parse_schema(fname):
     global all_names
     exprs = []
 
     # First pass: read entire file into memory
     try:
-        schema = QAPISchema(open(input_file, "r"))
+        schema = QAPISchema(open(fname, "r"))
     except (QAPISchemaError, QAPIExprError), e:
         print >>sys.stderr, e
         exit(1)
@@ -1018,9 +1019,9 @@ def parse_command_line(extra_options = "", extra_long_options = []):
     if len(args) != 1:
         print >>sys.stderr, "%s: need exactly one argument" % sys.argv[0]
         sys.exit(1)
-    input_file = args[0]
+    fname = args[0]
 
-    return (input_file, output_dir, do_c, do_h, prefix, extra_opts)
+    return (fname, output_dir, do_c, do_h, prefix, extra_opts)
 
 def open_output(output_dir, do_c, do_h, prefix, c_file, h_file,
                 c_comment, h_comment):
