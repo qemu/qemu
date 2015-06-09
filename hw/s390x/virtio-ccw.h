@@ -1,8 +1,9 @@
 /*
  * virtio ccw target definitions
  *
- * Copyright 2012 IBM Corp.
+ * Copyright 2012,2015 IBM Corp.
  * Author(s): Cornelia Huck <cornelia.huck@de.ibm.com>
+ *            Pierre Morel <pmorel@linux.vnet.ibm.com>
  *
  * This work is licensed under the terms of the GNU GPL, version 2 or (at
  * your option) any later version. See the COPYING file in the top-level
@@ -189,4 +190,19 @@ typedef struct VirtIORNGCcw {
 VirtualCssBus *virtual_css_bus_init(void);
 void virtio_ccw_device_update_status(SubchDev *sch);
 VirtIODevice *virtio_ccw_get_vdev(SubchDev *sch);
+
+#ifdef CONFIG_VIRTFS
+#include "hw/9pfs/virtio-9p.h"
+
+#define TYPE_VIRTIO_9P_CCW "virtio-9p-ccw"
+#define VIRTIO_9P_CCW(obj) \
+    OBJECT_CHECK(V9fsCCWState, (obj), TYPE_VIRTIO_9P_CCW)
+
+typedef struct V9fsCCWState {
+    VirtioCcwDevice parent_obj;
+    V9fsState vdev;
+} V9fsCCWState;
+
+#endif /* CONFIG_VIRTFS */
+
 #endif
