@@ -4833,6 +4833,15 @@ static void gen_bshfl (DisasContext *ctx, uint32_t op2, int rt, int rd)
 
 #ifndef CONFIG_USER_ONLY
 /* CP0 (MMU and control) */
+static inline void gen_move_low32(TCGv ret, TCGv_i64 arg)
+{
+#if defined(TARGET_MIPS64)
+    tcg_gen_ext32s_tl(ret, arg);
+#else
+    tcg_gen_trunc_i64_tl(ret, arg);
+#endif
+}
+
 static inline void gen_mfc0_load32 (TCGv arg, target_ulong off)
 {
     TCGv_i32 t0 = tcg_temp_new_i32();
@@ -4961,17 +4970,20 @@ static void gen_mfc0(DisasContext *ctx, TCGv arg, int reg, int sel)
     case 2:
         switch (sel) {
         case 0:
-            tcg_gen_ld_tl(arg, cpu_env, offsetof(CPUMIPSState, CP0_EntryLo0));
+            {
+                TCGv_i64 tmp = tcg_temp_new_i64();
+                tcg_gen_ld_i64(tmp, cpu_env,
+                               offsetof(CPUMIPSState, CP0_EntryLo0));
 #if defined(TARGET_MIPS64)
-            if (ctx->rxi) {
-                /* Move RI/XI fields to bits 31:30 */
-                TCGv tmp = tcg_temp_new();
-                tcg_gen_shri_tl(tmp, arg, CP0EnLo_XI);
-                tcg_gen_deposit_tl(arg, arg, tmp, 30, 2);
-                tcg_temp_free(tmp);
-            }
+                if (ctx->rxi) {
+                    /* Move RI/XI fields to bits 31:30 */
+                    tcg_gen_shri_tl(arg, tmp, CP0EnLo_XI);
+                    tcg_gen_deposit_tl(tmp, tmp, arg, 30, 2);
+                }
 #endif
-            tcg_gen_ext32s_tl(arg, arg);
+                gen_move_low32(arg, tmp);
+                tcg_temp_free_i64(tmp);
+            }
             rn = "EntryLo0";
             break;
         case 1:
@@ -5016,17 +5028,20 @@ static void gen_mfc0(DisasContext *ctx, TCGv arg, int reg, int sel)
     case 3:
         switch (sel) {
         case 0:
-            tcg_gen_ld_tl(arg, cpu_env, offsetof(CPUMIPSState, CP0_EntryLo1));
+            {
+                TCGv_i64 tmp = tcg_temp_new_i64();
+                tcg_gen_ld_i64(tmp, cpu_env,
+                               offsetof(CPUMIPSState, CP0_EntryLo1));
 #if defined(TARGET_MIPS64)
-            if (ctx->rxi) {
-                /* Move RI/XI fields to bits 31:30 */
-                TCGv tmp = tcg_temp_new();
-                tcg_gen_shri_tl(tmp, arg, CP0EnLo_XI);
-                tcg_gen_deposit_tl(arg, arg, tmp, 30, 2);
-                tcg_temp_free(tmp);
-            }
+                if (ctx->rxi) {
+                    /* Move RI/XI fields to bits 31:30 */
+                    tcg_gen_shri_tl(arg, tmp, CP0EnLo_XI);
+                    tcg_gen_deposit_tl(tmp, tmp, arg, 30, 2);
+                }
 #endif
-            tcg_gen_ext32s_tl(arg, arg);
+                gen_move_low32(arg, tmp);
+                tcg_temp_free_i64(tmp);
+            }
             rn = "EntryLo1";
             break;
         default:
@@ -5436,7 +5451,12 @@ static void gen_mfc0(DisasContext *ctx, TCGv arg, int reg, int sel)
         case 2:
         case 4:
         case 6:
-            gen_mfc0_load32(arg, offsetof(CPUMIPSState, CP0_TagLo));
+            {
+                TCGv_i64 tmp = tcg_temp_new_i64();
+                tcg_gen_ld_i64(tmp, cpu_env, offsetof(CPUMIPSState, CP0_TagLo));
+                gen_move_low32(arg, tmp);
+                tcg_temp_free_i64(tmp);
+            }
             rn = "TagLo";
             break;
         case 1:
@@ -19423,7 +19443,8 @@ void mips_cpu_dump_state(CPUState *cs, FILE *f, fprintf_function cpu_fprintf,
 
     cpu_fprintf(f, "CP0 Status  0x%08x Cause   0x%08x EPC    0x" TARGET_FMT_lx "\n",
                 env->CP0_Status, env->CP0_Cause, env->CP0_EPC);
-    cpu_fprintf(f, "    Config0 0x%08x Config1 0x%08x LLAddr 0x" TARGET_FMT_lx "\n",
+    cpu_fprintf(f, "    Config0 0x%08x Config1 0x%08x LLAddr 0x%016"
+                PRIx64 "\n",
                 env->CP0_Config0, env->CP0_Config1, env->lladdr);
     cpu_fprintf(f, "    Config2 0x%08x Config3 0x%08x\n",
                 env->CP0_Config2, env->CP0_Config3);
@@ -19557,7 +19578,7 @@ void cpu_state_reset(CPUMIPSState *env)
     }
 #endif
     env->PABITS = env->cpu_model->PABITS;
-    env->PAMask = (target_ulong)((1ULL << env->cpu_model->PABITS) - 1);
+    env->PAMask = (1ULL << env->cpu_model->PABITS) - 1;
     env->CP0_SRSConf0_rw_bitmask = env->cpu_model->CP0_SRSConf0_rw_bitmask;
     env->CP0_SRSConf0 = env->cpu_model->CP0_SRSConf0;
     env->CP0_SRSConf1_rw_bitmask = env->cpu_model->CP0_SRSConf1_rw_bitmask;
