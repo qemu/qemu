@@ -680,8 +680,6 @@ Example:
     out:
         error_propagate(errp, err);
     }
-    $ python scripts/qapi-commands.py --output-dir="qapi-generated" \
-    --prefix="example-" example-schema.json
     $ cat qapi-generated/example-qapi-visit.h
 [Uninteresting stuff omitted...]
 
