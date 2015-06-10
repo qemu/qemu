@@ -233,17 +233,6 @@ static bool bdrv_requests_pending(BlockDriverState *bs)
     return false;
 }
 
-static bool bdrv_drain_one(BlockDriverState *bs)
-{
-    bool bs_busy;
-
-    bdrv_flush_io_queue(bs);
-    bdrv_start_throttled_reqs(bs);
-    bs_busy = bdrv_requests_pending(bs);
-    bs_busy |= aio_poll(bdrv_get_aio_context(bs), bs_busy);
-    return bs_busy;
-}
-
 /*
  * Wait for pending requests to complete on a single BlockDriverState subtree
  *
@@ -256,8 +245,13 @@ static bool bdrv_drain_one(BlockDriverState *bs)
  */
 void bdrv_drain(BlockDriverState *bs)
 {
-    while (bdrv_drain_one(bs)) {
+    bool busy = true;
+
+    while (busy) {
         /* Keep iterating */
+         bdrv_flush_io_queue(bs);
+         busy = bdrv_requests_pending(bs);
+         busy |= aio_poll(bdrv_get_aio_context(bs), busy);
     }
 }
 
@@ -278,6 +272,7 @@ void bdrv_drain_all(void)
     /* Always run first iteration so any pending completion BHs run */
     bool busy = true;
     BlockDriverState *bs = NULL;
+    GSList *aio_ctxs = NULL, *ctx;
 
     while ((bs = bdrv_next(bs))) {
         AioContext *aio_context = bdrv_get_aio_context(bs);
@@ -287,17 +282,30 @@ void bdrv_drain_all(void)
             block_job_pause(bs->job);
         }
         aio_context_release(aio_context);
+
+        if (!aio_ctxs || !g_slist_find(aio_ctxs, aio_context)) {
+            aio_ctxs = g_slist_prepend(aio_ctxs, aio_context);
+        }
     }
 
     while (busy) {
         busy = false;
-        bs = NULL;
 
-        while ((bs = bdrv_next(bs))) {
-            AioContext *aio_context = bdrv_get_aio_context(bs);
+        for (ctx = aio_ctxs; ctx != NULL; ctx = ctx->next) {
+            AioContext *aio_context = ctx->data;
+            bs = NULL;
 
             aio_context_acquire(aio_context);
-            busy |= bdrv_drain_one(bs);
+            while ((bs = bdrv_next(bs))) {
+                if (aio_context == bdrv_get_aio_context(bs)) {
+                    bdrv_flush_io_queue(bs);
+                    if (bdrv_requests_pending(bs)) {
+                        busy = true;
+                        aio_poll(aio_context, busy);
+                    }
+                }
+            }
+            busy |= aio_poll(aio_context, false);
             aio_context_release(aio_context);
         }
     }
@@ -312,6 +320,7 @@ void bdrv_drain_all(void)
         }
         aio_context_release(aio_context);
     }
+    g_slist_free(aio_ctxs);
 }
 
 /**
@@ -2562,4 +2571,5 @@ void bdrv_flush_io_queue(BlockDriverState *bs)
     } else if (bs->file) {
         bdrv_flush_io_queue(bs->file);
     }
+    bdrv_start_throttled_reqs(bs);
 }
