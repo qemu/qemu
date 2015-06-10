@@ -1,0 +1,10 @@
+Traceback (most recent call last):
+  File "tests/qapi-schema/test-qapi.py", line 19, in <module>
+    exprs = parse_schema(sys.argv[1])
+  File "scripts/qapi.py", line 760, in parse_schema
+    return check_exprs(schema.exprs)
+  File "scripts/qapi.py", line 743, in check_exprs
+    check_union(expr, info)
+  File "scripts/qapi.py", line 586, in check_union
+    assert branch_struct
+AssertionError

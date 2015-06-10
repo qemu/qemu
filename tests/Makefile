@@ -237,7 +237,8 @@ check-qapi-schema-y := $(addprefix tests/qapi-schema/, \
 	flat-union-invalid-branch-key.json flat-union-reverse-define.json \
 	flat-union-string-discriminator.json union-base-no-discriminator.json \
 	flat-union-bad-discriminator.json flat-union-bad-base.json \
-	flat-union-base-star.json flat-union-int-branch.json \
+	flat-union-base-star.json \
+	flat-union-array-branch.json flat-union-int-branch.json \
 	flat-union-base-union.json flat-union-branch-clash.json \
 	alternate-nested.json alternate-unknown.json alternate-clash.json \
 	alternate-good.json alternate-base.json alternate-array.json \
