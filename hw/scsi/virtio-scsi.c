@@ -948,8 +948,17 @@ static void virtio_scsi_device_unrealize(DeviceState *dev, Error **errp)
 }
 
 static Property virtio_scsi_properties[] = {
-    DEFINE_VIRTIO_SCSI_PROPERTIES(VirtIOSCSI, parent_obj.conf),
-    DEFINE_VIRTIO_SCSI_FEATURES(VirtIOSCSI, host_features),
+    DEFINE_PROP_UINT32("num_queues", VirtIOSCSI, parent_obj.conf.num_queues, 1),
+    DEFINE_PROP_UINT32("max_sectors", VirtIOSCSI, parent_obj.conf.max_sectors,
+                                                  0xFFFF),
+    DEFINE_PROP_UINT32("cmd_per_lun", VirtIOSCSI, parent_obj.conf.cmd_per_lun,
+                                                  128),
+    DEFINE_PROP_BIT("any_layout", VirtIOSCSI, host_features,
+                                              VIRTIO_F_ANY_LAYOUT, true),
+    DEFINE_PROP_BIT("hotplug", VirtIOSCSI, host_features,
+                                           VIRTIO_SCSI_F_HOTPLUG, true),
+    DEFINE_PROP_BIT("param_change", VirtIOSCSI, host_features,
+                                                VIRTIO_SCSI_F_CHANGE, true),
     DEFINE_PROP_END_OF_LIST(),
 };
 
