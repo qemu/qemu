@@ -65,6 +65,10 @@ union_types = []
 events = []
 all_names = {}
 
+#
+# Parsing the schema into expressions
+#
+
 def error_path(parent):
     res = ""
     while parent:
@@ -296,6 +300,10 @@ class QAPISchema:
             raise QAPISchemaError(self, 'Expected "{", "[" or string')
         return expr
 
+#
+# Semantic analysis of schema expressions
+#
+
 def find_base_fields(base):
     base_struct_define = find_struct(base)
     if not base_struct_define:
@@ -355,6 +363,60 @@ def check_name(expr_info, source, name, allow_optional = False,
     if not valid_name.match(membername):
         raise QAPIExprError(expr_info,
                             "%s uses invalid name '%s'" % (source, name))
+
+def add_name(name, info, meta, implicit = False):
+    global all_names
+    check_name(info, "'%s'" % meta, name)
+    if name in all_names:
+        raise QAPIExprError(info,
+                            "%s '%s' is already defined"
+                            % (all_names[name], name))
+    if not implicit and name[-4:] == 'Kind':
+        raise QAPIExprError(info,
+                            "%s '%s' should not end in 'Kind'"
+                            % (meta, name))
+    all_names[name] = meta
+
+def add_struct(definition, info):
+    global struct_types
+    name = definition['struct']
+    add_name(name, info, 'struct')
+    struct_types.append(definition)
+
+def find_struct(name):
+    global struct_types
+    for struct in struct_types:
+        if struct['struct'] == name:
+            return struct
+    return None
+
+def add_union(definition, info):
+    global union_types
+    name = definition['union']
+    add_name(name, info, 'union')
+    union_types.append(definition)
+
+def find_union(name):
+    global union_types
+    for union in union_types:
+        if union['union'] == name:
+            return union
+    return None
+
+def add_enum(name, info, enum_values = None, implicit = False):
+    global enum_types
+    add_name(name, info, 'enum', implicit)
+    enum_types.append({"enum_name": name, "enum_values": enum_values})
+
+def find_enum(name):
+    global enum_types
+    for enum in enum_types:
+        if enum['enum_name'] == name:
+            return enum
+    return None
+
+def is_enum(name):
+    return find_enum(name) != None
 
 def check_type(expr_info, source, value, allow_array = False,
                allow_dict = False, allow_optional = False,
@@ -700,6 +762,10 @@ def parse_schema(fname):
         print >>sys.stderr, e
         exit(1)
 
+#
+# Code generation helpers
+#
+
 def parse_args(typeinfo):
     if isinstance(typeinfo, str):
         struct = find_struct(typeinfo)
@@ -817,60 +883,6 @@ def type_name(value):
         return value
     return c_name(value)
 
-def add_name(name, info, meta, implicit = False):
-    global all_names
-    check_name(info, "'%s'" % meta, name)
-    if name in all_names:
-        raise QAPIExprError(info,
-                            "%s '%s' is already defined"
-                            % (all_names[name], name))
-    if not implicit and name[-4:] == 'Kind':
-        raise QAPIExprError(info,
-                            "%s '%s' should not end in 'Kind'"
-                            % (meta, name))
-    all_names[name] = meta
-
-def add_struct(definition, info):
-    global struct_types
-    name = definition['struct']
-    add_name(name, info, 'struct')
-    struct_types.append(definition)
-
-def find_struct(name):
-    global struct_types
-    for struct in struct_types:
-        if struct['struct'] == name:
-            return struct
-    return None
-
-def add_union(definition, info):
-    global union_types
-    name = definition['union']
-    add_name(name, info, 'union')
-    union_types.append(definition)
-
-def find_union(name):
-    global union_types
-    for union in union_types:
-        if union['union'] == name:
-            return union
-    return None
-
-def add_enum(name, info, enum_values = None, implicit = False):
-    global enum_types
-    add_name(name, info, 'enum', implicit)
-    enum_types.append({"enum_name": name, "enum_values": enum_values})
-
-def find_enum(name):
-    global enum_types
-    for enum in enum_types:
-        if enum['enum_name'] == name:
-            return enum
-    return None
-
-def is_enum(name):
-    return find_enum(name) != None
-
 eatspace = '\033EATSPACE.'
 pointer_suffix = ' *' + eatspace
 
@@ -967,6 +979,10 @@ def guardend(name):
 ''',
                  name=guardname(name))
 
+#
+# Common command line parsing
+#
+
 def parse_command_line(extra_options = "", extra_long_options = []):
 
     try:
@@ -1007,6 +1023,10 @@ def parse_command_line(extra_options = "", extra_long_options = []):
     fname = args[0]
 
     return (fname, output_dir, do_c, do_h, prefix, extra_opts)
+
+#
+# Generate output files with boilerplate
+#
 
 def open_output(output_dir, do_c, do_h, prefix, c_file, h_file,
                 c_comment, h_comment):
