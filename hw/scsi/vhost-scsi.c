@@ -294,7 +294,14 @@ static char *vhost_scsi_get_fw_dev_path(FWPathProvider *p, BusState *bus,
 }
 
 static Property vhost_scsi_properties[] = {
-    DEFINE_VHOST_SCSI_PROPERTIES(VHostSCSI, parent_obj.conf),
+    DEFINE_PROP_STRING("vhostfd", VHostSCSI, parent_obj.conf.vhostfd),
+    DEFINE_PROP_STRING("wwpn", VHostSCSI, parent_obj.conf.wwpn),
+    DEFINE_PROP_UINT32("boot_tpgt", VHostSCSI, parent_obj.conf.boot_tpgt, 0),
+    DEFINE_PROP_UINT32("num_queues", VHostSCSI, parent_obj.conf.num_queues, 1),
+    DEFINE_PROP_UINT32("max_sectors", VHostSCSI, parent_obj.conf.max_sectors,
+                                                 0xFFFF),
+    DEFINE_PROP_UINT32("cmd_per_lun", VHostSCSI, parent_obj.conf.cmd_per_lun,
+                                                 128),
     DEFINE_PROP_END_OF_LIST(),
 };
 
