@@ -1083,7 +1083,8 @@ static void virtio_serial_device_unrealize(DeviceState *dev, Error **errp)
 }
 
 static Property virtio_serial_properties[] = {
-    DEFINE_VIRTIO_SERIAL_PROPERTIES(VirtIOSerial, serial),
+    DEFINE_PROP_UINT32("max_ports", VirtIOSerial, serial.max_virtserial_ports,
+                                                  31),
     DEFINE_PROP_END_OF_LIST(),
 };
 
