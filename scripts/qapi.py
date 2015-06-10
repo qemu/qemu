@@ -580,7 +580,7 @@ def check_union(expr, expr_info):
         # Each value must name a known type; furthermore, in flat unions,
         # branches must be a struct with no overlapping member names
         check_type(expr_info, "Member '%s' of union '%s'" % (key, name),
-                   value, allow_array=True, allow_metas=allow_metas)
+                   value, allow_array=not base, allow_metas=allow_metas)
         if base:
             branch_struct = find_struct(value)
             assert branch_struct
