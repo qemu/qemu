@@ -603,26 +603,6 @@ def check_struct(expr, expr_info):
     if expr.get('base'):
         check_member_clash(expr_info, expr['base'], expr['data'])
 
-def check_exprs(schema):
-    for expr_elem in schema.exprs:
-        expr = expr_elem['expr']
-        info = expr_elem['info']
-
-        if expr.has_key('enum'):
-            check_enum(expr, info)
-        elif expr.has_key('union'):
-            check_union(expr, info)
-        elif expr.has_key('alternate'):
-            check_alternate(expr, info)
-        elif expr.has_key('struct'):
-            check_struct(expr, info)
-        elif expr.has_key('command'):
-            check_command(expr, info)
-        elif expr.has_key('event'):
-            check_event(expr, info)
-        else:
-            assert False, 'unexpected meta type'
-
 def check_keys(expr_elem, meta, required, optional=[]):
     expr = expr_elem['expr']
     info = expr_elem['info']
@@ -646,69 +626,79 @@ def check_keys(expr_elem, meta, required, optional=[]):
                                 "Key '%s' is missing from %s '%s'"
                                 % (key, meta, name))
 
+def check_exprs(exprs):
+    global all_names
+
+    # Learn the types and check for valid expression keys
+    for builtin in builtin_types.keys():
+        all_names[builtin] = 'built-in'
+    for expr_elem in exprs:
+        expr = expr_elem['expr']
+        info = expr_elem['info']
+        if expr.has_key('enum'):
+            check_keys(expr_elem, 'enum', ['data'])
+            add_enum(expr['enum'], info, expr['data'])
+        elif expr.has_key('union'):
+            check_keys(expr_elem, 'union', ['data'],
+                       ['base', 'discriminator'])
+            add_union(expr, info)
+        elif expr.has_key('alternate'):
+            check_keys(expr_elem, 'alternate', ['data'])
+            add_name(expr['alternate'], info, 'alternate')
+        elif expr.has_key('struct'):
+            check_keys(expr_elem, 'struct', ['data'], ['base'])
+            add_struct(expr, info)
+        elif expr.has_key('command'):
+            check_keys(expr_elem, 'command', [],
+                       ['data', 'returns', 'gen', 'success-response'])
+            add_name(expr['command'], info, 'command')
+        elif expr.has_key('event'):
+            check_keys(expr_elem, 'event', [], ['data'])
+            add_name(expr['event'], info, 'event')
+        else:
+            raise QAPIExprError(expr_elem['info'],
+                                "Expression is missing metatype")
+
+    # Try again for hidden UnionKind enum
+    for expr_elem in exprs:
+        expr = expr_elem['expr']
+        if expr.has_key('union'):
+            if not discriminator_find_enum_define(expr):
+                add_enum('%sKind' % expr['union'], expr_elem['info'],
+                         implicit=True)
+        elif expr.has_key('alternate'):
+            add_enum('%sKind' % expr['alternate'], expr_elem['info'],
+                     implicit=True)
+
+    # Validate that exprs make sense
+    for expr_elem in exprs:
+        expr = expr_elem['expr']
+        info = expr_elem['info']
+
+        if expr.has_key('enum'):
+            check_enum(expr, info)
+        elif expr.has_key('union'):
+            check_union(expr, info)
+        elif expr.has_key('alternate'):
+            check_alternate(expr, info)
+        elif expr.has_key('struct'):
+            check_struct(expr, info)
+        elif expr.has_key('command'):
+            check_command(expr, info)
+        elif expr.has_key('event'):
+            check_event(expr, info)
+        else:
+            assert False, 'unexpected meta type'
+
+    return map(lambda expr_elem: expr_elem['expr'], exprs)
 
 def parse_schema(fname):
-    global all_names
-    exprs = []
-
-    # First pass: read entire file into memory
     try:
         schema = QAPISchema(open(fname, "r"))
+        return check_exprs(schema.exprs)
     except (QAPISchemaError, QAPIExprError), e:
         print >>sys.stderr, e
         exit(1)
-
-    try:
-        # Next pass: learn the types and check for valid expression keys. At
-        # this point, top-level 'include' has already been flattened.
-        for builtin in builtin_types.keys():
-            all_names[builtin] = 'built-in'
-        for expr_elem in schema.exprs:
-            expr = expr_elem['expr']
-            info = expr_elem['info']
-            if expr.has_key('enum'):
-                check_keys(expr_elem, 'enum', ['data'])
-                add_enum(expr['enum'], info, expr['data'])
-            elif expr.has_key('union'):
-                check_keys(expr_elem, 'union', ['data'],
-                           ['base', 'discriminator'])
-                add_union(expr, info)
-            elif expr.has_key('alternate'):
-                check_keys(expr_elem, 'alternate', ['data'])
-                add_name(expr['alternate'], info, 'alternate')
-            elif expr.has_key('struct'):
-                check_keys(expr_elem, 'struct', ['data'], ['base'])
-                add_struct(expr, info)
-            elif expr.has_key('command'):
-                check_keys(expr_elem, 'command', [],
-                           ['data', 'returns', 'gen', 'success-response'])
-                add_name(expr['command'], info, 'command')
-            elif expr.has_key('event'):
-                check_keys(expr_elem, 'event', [], ['data'])
-                add_name(expr['event'], info, 'event')
-            else:
-                raise QAPIExprError(expr_elem['info'],
-                                    "Expression is missing metatype")
-            exprs.append(expr)
-
-        # Try again for hidden UnionKind enum
-        for expr_elem in schema.exprs:
-            expr = expr_elem['expr']
-            if expr.has_key('union'):
-                if not discriminator_find_enum_define(expr):
-                    add_enum('%sKind' % expr['union'], expr_elem['info'],
-                             implicit=True)
-            elif expr.has_key('alternate'):
-                add_enum('%sKind' % expr['alternate'], expr_elem['info'],
-                         implicit=True)
-
-        # Final pass - validate that exprs make sense
-        check_exprs(schema)
-    except QAPIExprError, e:
-        print >>sys.stderr, e
-        exit(1)
-
-    return exprs
 
 def parse_args(typeinfo):
     if isinstance(typeinfo, str):
