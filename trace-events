@@ -1564,6 +1564,18 @@ vfio_put_group(int fd) "close group->fd=%d"
 vfio_get_device(const char * name, unsigned int flags, unsigned int num_regions, unsigned int num_irqs) "Device %s flags: %u, regions: %u, irqs: %u"
 vfio_put_base_device(int fd) "close vdev->fd=%d"
 
+# hw/vfio/platform.c
+vfio_platform_populate_regions(int region_index, unsigned long flag, unsigned long size, int fd, unsigned long offset) "- region %d flags = 0x%lx, size = 0x%lx, fd= %d, offset = 0x%lx"
+vfio_platform_base_device_init(char *name, int groupid) "%s belongs to group #%d"
+vfio_platform_realize(char *name, char *compat) "vfio device %s, compat = %s"
+vfio_platform_eoi(int pin, int fd) "EOI IRQ pin %d (fd=%d)"
+vfio_platform_mmap_set_enabled(bool enabled) "fast path = %d"
+vfio_platform_intp_mmap_enable(int pin) "IRQ #%d still active, stay in slow path"
+vfio_platform_intp_interrupt(int pin, int fd) "Inject IRQ #%d (fd = %d)"
+vfio_platform_intp_inject_pending_lockheld(int pin, int fd) "Inject pending IRQ #%d (fd = %d)"
+vfio_platform_populate_interrupts(int pin, int count, int flags) "- IRQ index %d: count %d, flags=0x%x"
+vfio_intp_interrupt_set_pending(int index) "irq %d is set PENDING"
+
 #hw/acpi/memory_hotplug.c
 mhp_acpi_invalid_slot_selected(uint32_t slot) "0x%"PRIx32
 mhp_acpi_ejecting_invalid_slot(uint32_t slot) "0x%"PRIx32
