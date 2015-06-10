@@ -1959,6 +1959,9 @@ void bdrv_swap(BlockDriverState *bs_new, BlockDriverState *bs_old)
 {
     BlockDriverState tmp;
 
+    bdrv_drain(bs_new);
+    bdrv_drain(bs_old);
+
     /* The code needs to swap the node_name but simply swapping node_list won't
      * work so first remove the nodes from the graph list, do the swap then
      * insert them back if needed.
@@ -2001,6 +2004,9 @@ void bdrv_swap(BlockDriverState *bs_new, BlockDriverState *bs_old)
     if (bs_old->node_name[0] != '\0') {
         QTAILQ_INSERT_TAIL(&graph_bdrv_states, bs_old, node_list);
     }
+
+    assert(QLIST_EMPTY(&bs_old->tracked_requests));
+    assert(QLIST_EMPTY(&bs_new->tracked_requests));
 
     bdrv_rebind(bs_new);
     bdrv_rebind(bs_old);
