@@ -6,7 +6,7 @@
 #include "qapi/error.h"
 #include "qmp-commands.h"
 
-static QemuOptsList *vm_config_groups[32];
+static QemuOptsList *vm_config_groups[48];
 static QemuOptsList *drive_config_groups[4];
 
 static QemuOptsList *find_list(QemuOptsList **lists, const char *group,

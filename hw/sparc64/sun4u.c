@@ -127,7 +127,7 @@ void DMA_register_channel (int nchan,
 static void fw_cfg_boot_set(void *opaque, const char *boot_device,
                             Error **errp)
 {
-    fw_cfg_add_i16(opaque, FW_CFG_BOOT_DEVICE, boot_device[0]);
+    fw_cfg_modify_i16(opaque, FW_CFG_BOOT_DEVICE, boot_device[0]);
 }
 
 static int sun4u_NVRAM_set_params(Nvram *nvram, uint16_t NVRAM_size,

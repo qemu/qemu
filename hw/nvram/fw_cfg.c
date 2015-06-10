@@ -46,7 +46,6 @@ typedef struct FWCfgEntry {
     uint32_t len;
     uint8_t *data;
     void *callback_opaque;
-    FWCfgCallback callback;
     FWCfgReadCallback read_callback;
 } FWCfgEntry;
 
@@ -232,19 +231,7 @@ static void fw_cfg_reboot(FWCfgState *s)
 
 static void fw_cfg_write(FWCfgState *s, uint8_t value)
 {
-    int arch = !!(s->cur_entry & FW_CFG_ARCH_LOCAL);
-    FWCfgEntry *e = &s->entries[arch][s->cur_entry & FW_CFG_ENTRY_MASK];
-
-    trace_fw_cfg_write(s, value);
-
-    if (s->cur_entry & FW_CFG_WRITE_CHANNEL && e->callback &&
-        s->cur_offset < e->len) {
-        e->data[s->cur_offset++] = value;
-        if (s->cur_offset == e->len) {
-            e->callback(e->callback_opaque, e->data);
-            s->cur_offset = 0;
-        }
-    }
+    /* nothing, write support removed in QEMU v2.4+ */
 }
 
 static int fw_cfg_select(FWCfgState *s, uint16_t key)
@@ -436,6 +423,7 @@ static void fw_cfg_add_bytes_read_callback(FWCfgState *s, uint16_t key,
     key &= FW_CFG_ENTRY_MASK;
 
     assert(key < FW_CFG_MAX_ENTRY && len < UINT32_MAX);
+    assert(s->entries[arch][key].data == NULL); /* avoid key conflict */
 
     s->entries[arch][key].data = data;
     s->entries[arch][key].len = (uint32_t)len;
@@ -458,7 +446,6 @@ static void *fw_cfg_modify_bytes_read(FWCfgState *s, uint16_t key,
     s->entries[arch][key].data = data;
     s->entries[arch][key].len = len;
     s->entries[arch][key].callback_opaque = NULL;
-    s->entries[arch][key].callback = NULL;
 
     return ptr;
 }
@@ -484,6 +471,16 @@ void fw_cfg_add_i16(FWCfgState *s, uint16_t key, uint16_t value)
     fw_cfg_add_bytes(s, key, copy, sizeof(value));
 }
 
+void fw_cfg_modify_i16(FWCfgState *s, uint16_t key, uint16_t value)
+{
+    uint16_t *copy, *old;
+
+    copy = g_malloc(sizeof(value));
+    *copy = cpu_to_le16(value);
+    old = fw_cfg_modify_bytes_read(s, key, copy, sizeof(value));
+    g_free(old);
+}
+
 void fw_cfg_add_i32(FWCfgState *s, uint16_t key, uint32_t value)
 {
     uint32_t *copy;
@@ -502,23 +499,6 @@ void fw_cfg_add_i64(FWCfgState *s, uint16_t key, uint64_t value)
     fw_cfg_add_bytes(s, key, copy, sizeof(value));
 }
 
-void fw_cfg_add_callback(FWCfgState *s, uint16_t key, FWCfgCallback callback,
-                         void *callback_opaque, void *data, size_t len)
-{
-    int arch = !!(key & FW_CFG_ARCH_LOCAL);
-
-    assert(key & FW_CFG_WRITE_CHANNEL);
-
-    key &= FW_CFG_ENTRY_MASK;
-
-    assert(key < FW_CFG_MAX_ENTRY && len <= UINT32_MAX);
-
-    s->entries[arch][key].data = data;
-    s->entries[arch][key].len = (uint32_t)len;
-    s->entries[arch][key].callback_opaque = callback_opaque;
-    s->entries[arch][key].callback = callback;
-}
-
 void fw_cfg_add_file_callback(FWCfgState *s,  const char *filename,
                               FWCfgReadCallback callback, void *callback_opaque,
                               void *data, size_t len)
@@ -535,17 +515,18 @@ void fw_cfg_add_file_callback(FWCfgState *s,  const char *filename,
     index = be32_to_cpu(s->files->count);
     assert(index < FW_CFG_FILE_SLOTS);
 
-    fw_cfg_add_bytes_read_callback(s, FW_CFG_FILE_FIRST + index,
-                                   callback, callback_opaque, data, len);
-
     pstrcpy(s->files->f[index].name, sizeof(s->files->f[index].name),
             filename);
     for (i = 0; i < index; i++) {
         if (strcmp(s->files->f[index].name, s->files->f[i].name) == 0) {
-            trace_fw_cfg_add_file_dupe(s, s->files->f[index].name);
-            return;
+            error_report("duplicate fw_cfg file name: %s",
+                         s->files->f[index].name);
+            exit(1);
         }
     }
+
+    fw_cfg_add_bytes_read_callback(s, FW_CFG_FILE_FIRST + index,
+                                   callback, callback_opaque, data, len);
 
     s->files->f[index].size   = cpu_to_be32(len);
     s->files->f[index].select = cpu_to_be16(FW_CFG_FILE_FIRST + index);

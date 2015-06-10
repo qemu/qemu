@@ -2686,6 +2686,17 @@ STEXI
 @table @option
 ETEXI
 
+DEF("fw_cfg", HAS_ARG, QEMU_OPTION_fwcfg,
+    "-fw_cfg [name=]<name>,file=<file>\n"
+    "                add named fw_cfg entry from file\n",
+    QEMU_ARCH_ALL)
+STEXI
+@item -fw_cfg [name=]@var{name},file=@var{file}
+@findex -fw_cfg
+Add named fw_cfg entry from file. @var{name} determines the name of
+the entry in the fw_cfg file directory exposed to the guest.
+ETEXI
+
 DEF("serial", HAS_ARG, QEMU_OPTION_serial, \
     "-serial dev     redirect the serial port to char device 'dev'\n",
     QEMU_ARCH_ALL)

@@ -203,3 +203,24 @@ completes fully overwriting the item's data.
 
 NOTE: This function is deprecated, and will be completely removed
 starting with QEMU v2.4.
+
+== Externally Provided Items ==
+
+As of v2.4, "file" fw_cfg items (i.e., items with selector keys above
+FW_CFG_FILE_FIRST, and with a corresponding entry in the fw_cfg file
+directory structure) may be inserted via the QEMU command line, using
+the following syntax:
+
+    -fw_cfg [name=]<item_name>,file=<path>
+
+where <item_name> is the fw_cfg item name, and <path> is the location
+on the host file system of a file containing the data to be inserted.
+
+NOTE: Users *SHOULD* choose item names beginning with the prefix "opt/"
+when using the "-fw_cfg" command line option, to avoid conflicting with
+item names used internally by QEMU. For instance:
+
+    -fw_cfg name=opt/my_item_name,file=./my_blob.bin
+
+Similarly, QEMU developers *SHOULD NOT* use item names prefixed with
+"opt/" when inserting items programmatically, e.g. via fw_cfg_add_file().
