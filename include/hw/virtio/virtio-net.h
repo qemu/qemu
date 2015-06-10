@@ -107,12 +107,7 @@ typedef struct VirtIONet {
  * VIRTIO_NET_F_CTRL_GUEST_OFFLOADS feature bit.
  */
 #define VIRTIO_NET_CTRL_GUEST_OFFLOADS   5
- #define VIRTIO_NET_CTRL_GUEST_OFFLOADS_SET        0
-
-#define DEFINE_VIRTIO_NET_PROPERTIES(_state, _field)                           \
-    DEFINE_PROP_UINT32("x-txtimer", _state, _field.txtimer, TX_TIMER_INTERVAL),\
-    DEFINE_PROP_INT32("x-txburst", _state, _field.txburst, TX_BURST),          \
-    DEFINE_PROP_STRING("tx", _state, _field.tx)
+#define VIRTIO_NET_CTRL_GUEST_OFFLOADS_SET        0
 
 void virtio_net_set_netclient_name(VirtIONet *n, const char *name,
                                    const char *type);
