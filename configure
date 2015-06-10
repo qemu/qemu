@@ -435,6 +435,14 @@ EOF
   compile_object
 }
 
+check_include() {
+cat > $TMPC <<EOF
+#include <$1>
+int main(void) { return 0; }
+EOF
+  compile_object
+}
+
 write_c_skeleton() {
     cat > $TMPC <<EOF
 int main(void) { return 0; }
@@ -568,7 +576,11 @@ CYGWIN*)
 MINGW32*)
   mingw32="yes"
   audio_possible_drivers="dsound sdl"
-  audio_drv_list="dsound"
+  if check_include dsound.h; then
+    audio_drv_list="dsound"
+  else
+    audio_drv_list=""
+  fi
 ;;
 GNU/kFreeBSD)
   bsd="yes"
