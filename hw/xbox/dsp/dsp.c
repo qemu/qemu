@@ -1,6 +1,8 @@
 /*
     DSP56300 emulation
 
+    Copyright (c) 2015 espes
+
     Adapted from Hatari DSP M56001 emulation
     (C) 2001-2008 ARAnyM developer team
     Adaption to Hatari (C) 2008 by Thomas Huth

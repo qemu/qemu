@@ -64,7 +64,7 @@ static uint32_t cur_inst;
 
 /* DSP is in disasm mode ? */
 /* If yes, stack overflow, underflow and illegal instructions messages are not displayed */
-static bool isDsp_in_disasm_mode;
+static bool is_dsp_in_disasm_mode;
 
 static char str_disasm_memory[2][50];     /* Buffer for memory change text in disasm mode */
 static uint32_t disasm_memory_ptr;        /* Pointer for memory change in disasm mode */
@@ -178,6 +178,9 @@ static void dsp_movec_reg(void);
 static void dsp_movep_0(void);
 static void dsp_movep_1(void);
 static void dsp_movep_23(void);
+
+static void dsp_movep_x_low(void);
+static void dsp_movex_a(void);
 
 /* Parallel move analyzer */
 static int dsp_pm_read_accu24(int numreg, uint32_t *dest);
@@ -466,14 +469,14 @@ static const dsp_emul_t opcodes8h[512] = {
     dsp_norm, dsp_undefined, dsp_undefined, dsp_undefined, dsp_undefined, dsp_undefined, dsp_undefined, dsp_undefined,
     
     /* 0x40 - 0x7f */
-    dsp_tcc, dsp_tcc, dsp_tcc, dsp_tcc, dsp_undefined, dsp_undefined, dsp_undefined, dsp_undefined,
-    dsp_tcc, dsp_tcc, dsp_tcc, dsp_tcc, dsp_undefined, dsp_undefined, dsp_undefined, dsp_undefined,
-    dsp_tcc, dsp_tcc, dsp_tcc, dsp_tcc, dsp_undefined, dsp_undefined, dsp_undefined, dsp_undefined,
-    dsp_tcc, dsp_tcc, dsp_tcc, dsp_tcc, dsp_undefined, dsp_undefined, dsp_undefined, dsp_undefined,
-    dsp_tcc, dsp_tcc, dsp_tcc, dsp_tcc, dsp_undefined, dsp_undefined, dsp_undefined, dsp_undefined,
-    dsp_tcc, dsp_tcc, dsp_tcc, dsp_tcc, dsp_undefined, dsp_undefined, dsp_undefined, dsp_undefined,
-    dsp_tcc, dsp_tcc, dsp_tcc, dsp_tcc, dsp_undefined, dsp_undefined, dsp_undefined, dsp_undefined,
-    dsp_tcc, dsp_tcc, dsp_tcc, dsp_tcc, dsp_undefined, dsp_undefined, dsp_undefined, dsp_undefined,
+    dsp_tcc, dsp_tcc, dsp_tcc, dsp_tcc, dsp_movex_a, dsp_undefined, dsp_movex_a, dsp_undefined,
+    dsp_tcc, dsp_tcc, dsp_tcc, dsp_tcc, dsp_movex_a, dsp_undefined, dsp_movex_a, dsp_undefined,
+    dsp_tcc, dsp_tcc, dsp_tcc, dsp_tcc, dsp_movex_a, dsp_undefined, dsp_movex_a, dsp_undefined,
+    dsp_tcc, dsp_tcc, dsp_tcc, dsp_tcc, dsp_undefined, dsp_undefined, dsp_movex_a, dsp_undefined,
+    dsp_tcc, dsp_tcc, dsp_tcc, dsp_tcc, dsp_movex_a, dsp_undefined, dsp_movex_a, dsp_undefined,
+    dsp_tcc, dsp_tcc, dsp_tcc, dsp_tcc, dsp_movex_a, dsp_undefined, dsp_movex_a, dsp_undefined,
+    dsp_tcc, dsp_tcc, dsp_tcc, dsp_tcc, dsp_movex_a, dsp_undefined, dsp_undefined, dsp_undefined,
+    dsp_tcc, dsp_tcc, dsp_tcc, dsp_tcc, dsp_movex_a, dsp_undefined, dsp_movex_a, dsp_undefined,
 
     /* 0x80 - 0xbf */
     dsp_undefined, dsp_undefined, dsp_undefined, dsp_undefined, dsp_undefined, dsp_undefined, dsp_undefined, dsp_undefined,
@@ -486,14 +489,14 @@ static const dsp_emul_t opcodes8h[512] = {
     dsp_undefined, dsp_movec_ea, dsp_undefined, dsp_movec_ea, dsp_undefined, dsp_movec_imm, dsp_undefined, dsp_undefined,
     
     /* 0xc0 - 0xff */
-    dsp_do_aa, dsp_rep_aa, dsp_do_aa, dsp_rep_aa, dsp_do_imm, dsp_rep_imm, dsp_undefined, dsp_undefined, 
-    dsp_do_ea, dsp_rep_ea, dsp_do_ea, dsp_rep_ea, dsp_do_imm, dsp_rep_imm, dsp_undefined, dsp_undefined, 
-    dsp_undefined, dsp_undefined, dsp_undefined, dsp_undefined, dsp_do_imm, dsp_rep_imm, dsp_undefined, dsp_undefined, 
-    dsp_do_reg, dsp_rep_reg, dsp_undefined, dsp_undefined, dsp_do_imm, dsp_rep_imm, dsp_undefined, dsp_undefined, 
-    dsp_movem_aa, dsp_movem_aa, dsp_undefined, dsp_undefined, dsp_undefined, dsp_undefined, dsp_undefined, dsp_undefined, 
-    dsp_undefined, dsp_undefined, dsp_undefined, dsp_undefined, dsp_movem_ea, dsp_movem_ea, dsp_undefined, dsp_undefined, 
-    dsp_movem_aa, dsp_movem_aa, dsp_undefined, dsp_undefined, dsp_undefined, dsp_undefined, dsp_undefined, dsp_undefined, 
-    dsp_undefined, dsp_undefined, dsp_undefined, dsp_undefined, dsp_movem_ea, dsp_movem_ea, dsp_undefined, dsp_undefined, 
+    /* 0xc0 */ dsp_do_aa, dsp_rep_aa, dsp_do_aa, dsp_rep_aa, dsp_do_imm, dsp_rep_imm, dsp_undefined, dsp_undefined, 
+    /* 0xc8 */ dsp_do_ea, dsp_rep_ea, dsp_do_ea, dsp_rep_ea, dsp_do_imm, dsp_rep_imm, dsp_undefined, dsp_undefined, 
+    /* 0xd0 */ dsp_undefined, dsp_undefined, dsp_undefined, dsp_undefined, dsp_do_imm, dsp_rep_imm, dsp_undefined, dsp_undefined, 
+    /* 0xd8 */ dsp_do_reg, dsp_rep_reg, dsp_undefined, dsp_undefined, dsp_do_imm, dsp_rep_imm, dsp_undefined, dsp_undefined, 
+    /* 0xe0 */ dsp_movem_aa, dsp_movem_aa, dsp_undefined, dsp_undefined, dsp_undefined, dsp_undefined, dsp_undefined, dsp_undefined, 
+    /* 0xe8 */ dsp_movep_x_low, dsp_movep_x_low, dsp_movep_x_low, dsp_movep_x_low, dsp_movem_ea, dsp_movem_ea, dsp_undefined, dsp_undefined, 
+    /* 0xf0 */ dsp_movem_aa, dsp_movem_aa, dsp_undefined, dsp_undefined, dsp_undefined, dsp_undefined, dsp_undefined, dsp_undefined, 
+    /* 0xf8 */ dsp_movep_x_low, dsp_movep_x_low, dsp_movep_x_low, dsp_movep_x_low, dsp_movem_ea, dsp_movem_ea, dsp_undefined, dsp_undefined, 
 
     /* 0x100 - 0x13f */
     dsp_pm_0, dsp_pm_0, dsp_pm_0, dsp_pm_0, dsp_pm_0, dsp_pm_0, dsp_pm_0, dsp_pm_0,
@@ -650,7 +653,7 @@ static const dsp_interrupt_t dsp_interrupt[12] = {
 void dsp56k_init_cpu(void)
 {
     dsp56k_disasm_init();
-    isDsp_in_disasm_mode = false;
+    is_dsp_in_disasm_mode = false;
     // start_time = SDL_GetTicks();
     num_inst = 0;
 }
@@ -668,7 +671,7 @@ uint16_t dsp56k_execute_one_disasm_instruction(FILE *out, uint32_t pc)
     ptr2 = &dsp_core_save;
 
     /* Set DSP in disasm mode */
-    isDsp_in_disasm_mode = true;
+    is_dsp_in_disasm_mode = true;
 
     /* Save DSP context before executing instruction */
     memcpy(ptr2, ptr1, sizeof(dsp_core));
@@ -688,7 +691,7 @@ uint16_t dsp56k_execute_one_disasm_instruction(FILE *out, uint32_t pc)
     memcpy(ptr1, ptr2, sizeof(dsp_core));
     
     /* Unset DSP in disasm mode */
-    isDsp_in_disasm_mode = false;
+    is_dsp_in_disasm_mode = false;
 
     return instruction_length;
 }
@@ -709,7 +712,7 @@ void dsp56k_execute_instruction(void)
     /* Disasm current instruction ? (trace mode only) */
     if (TRACE_DSP_DISASM) {    
         /* Call dsp56k_disasm only when DSP is called in trace mode */
-        if (isDsp_in_disasm_mode == false) {
+        if (is_dsp_in_disasm_mode == false) {
             disasm_return = dsp56k_disasm(DSP_TRACE_MODE);
             
             if (disasm_return != 0 && TRACE_DSP_DISASM_REG) {
@@ -720,8 +723,10 @@ void dsp56k_execute_instruction(void)
     }
             
     if (cur_inst < 0x100000) {
+        // 000011111100000011100000
         value = (cur_inst >> 11) & (BITMASK(6) << 3);
         value += (cur_inst >> 5) & BITMASK(3);
+        printf("0x%06x - 0x%02x\n", cur_inst, value);
         opcodes8h[value]();
     } else {
         /* Do parallel move read */
@@ -731,7 +736,7 @@ void dsp56k_execute_instruction(void)
     /* Disasm current instruction ? (trace mode only) */
     if (TRACE_DSP_DISASM) {
         /* Display only when DSP is called in trace mode */
-        if (isDsp_in_disasm_mode == false) {
+        if (is_dsp_in_disasm_mode == false) {
             if (disasm_return != 0) {
                 fprintf(stderr, "%s", dsp56k_get_instruction_text());
                 
@@ -1087,7 +1092,8 @@ uint32_t dsp56k_read_memory(int space, uint32_t address)
 
     if (space == DSP_SPACE_X) {
         if (address >= DSP_PERIPH_BASE) {
-            assert(false);
+            // assert(false);
+            return 0xababa;
         }
         assert(address < DSP_XRAM_SIZE);
         return dsp_core.xram[address];
@@ -1117,7 +1123,7 @@ static void write_memory_peripheral(uint32_t address, uint32_t value) {
     assert((value & 0xFF000000) == 0);
     assert((address & 0xFF000000) == 0);
 
-    assert(false);    
+    // assert(false);    
 }
 
 static void write_memory_raw(int space, uint32_t address, uint32_t value)
@@ -1128,6 +1134,7 @@ static void write_memory_raw(int space, uint32_t address, uint32_t value)
     if (space == DSP_SPACE_X) {
         if (address >= DSP_PERIPH_BASE) {
             write_memory_peripheral(address, value);
+            return;
         }
         assert(address < DSP_XRAM_SIZE);
         dsp_core.xram[address] = value;
@@ -1197,7 +1204,7 @@ static void dsp_write_reg(uint32_t numreg, uint32_t value)
                 /* Stack underflow or overflow detected, raise interrupt */
                 dsp56k_add_interrupt(DSP_INTER_STACK_ERROR);
                 dsp_core.registers[DSP_REG_SP] = value & (3<<DSP_SP_SE);
-                if (!isDsp_in_disasm_mode)
+                if (!is_dsp_in_disasm_mode)
                     fprintf(stderr,"Dsp: Stack Overflow or Underflow\n");
                 if (bExceptionDebugging)
                     assert(false);
@@ -1240,7 +1247,7 @@ static void dsp_stack_push(uint32_t curpc, uint32_t cursr, uint16_t sshOnly)
     if ((stack_error==0) && (stack & (1<<DSP_SP_SE))) {
         /* Stack full, raise interrupt */
         dsp56k_add_interrupt(DSP_INTER_STACK_ERROR);
-        if (!isDsp_in_disasm_mode)
+        if (!is_dsp_in_disasm_mode)
             fprintf(stderr,"Dsp: Stack Overflow\n");
         if (bExceptionDebugging)
             assert(false);
@@ -1277,7 +1284,7 @@ static void dsp_stack_pop(uint32_t *newpc, uint32_t *newsr)
     if ((stack_error==0) && (stack & (1<<DSP_SP_SE))) {
         /* Stack empty*/
         dsp56k_add_interrupt(DSP_INTER_STACK_ERROR);
-        if (!isDsp_in_disasm_mode)
+        if (!is_dsp_in_disasm_mode)
             fprintf(stderr,"Dsp: Stack underflow\n");
         if (bExceptionDebugging)
             assert(false);
@@ -1587,7 +1594,7 @@ static void opcode8h_0(void)
 
 static void dsp_undefined(void)
 {
-    if (isDsp_in_disasm_mode == false) {
+    if (is_dsp_in_disasm_mode == false) {
         cur_inst_len = 0;
         fprintf(stderr, "Dsp: 0x%04x: 0x%06x Illegal instruction\n",dsp_core.pc, cur_inst);
         /* Add some artificial CPU cycles to avoid being stuck in an infinite loop */
@@ -1682,7 +1689,7 @@ static void dsp_bchg_pp(void)
     value = (cur_inst>>8) & BITMASK(6);
     numbit = cur_inst & BITMASK(5);
 
-    addr = 0xffc0 + value;
+    addr = 0xffffc0 + value;
     value = dsp56k_read_memory(memspace, addr);
     newcarry = (value>>numbit) & 1;
     if (newcarry) {
@@ -1777,7 +1784,7 @@ static void dsp_bclr_pp(void)
     value = (cur_inst>>8) & BITMASK(6);
     numbit = cur_inst & BITMASK(5);
 
-    addr = 0xffc0 + value;
+    addr = 0xffffc0 + value;
     value = dsp56k_read_memory(memspace, addr);
     newcarry = (value>>numbit) & 1;
     value &= 0xffffffff-(1<<numbit);
@@ -1864,7 +1871,7 @@ static void dsp_bset_pp(void)
     memspace = (cur_inst>>6) & 1;
     value = (cur_inst>>8) & BITMASK(6);
     numbit = cur_inst & BITMASK(5);
-    addr = 0xffc0 + value;
+    addr = 0xffffc0 + value;
     value = dsp56k_read_memory(memspace, addr);
     newcarry = (value>>numbit) & 1;
     value |= (1<<numbit);
@@ -1948,7 +1955,7 @@ static void dsp_btst_pp(void)
     value = (cur_inst>>8) & BITMASK(6);
     numbit = cur_inst & BITMASK(5);
 
-    addr = 0xffc0 + value;
+    addr = 0xffffc0 + value;
     value = dsp56k_read_memory(memspace, addr);
     newcarry = (value>>numbit) & 1;
 
@@ -2225,7 +2232,7 @@ static void dsp_jclr_pp(void)
     memspace = (cur_inst>>6) & 1;
     value = (cur_inst>>8) & BITMASK(6);
     numbit = cur_inst & BITMASK(5);
-    addr = 0xffc0 + value;
+    addr = 0xffffc0 + value;
     value = dsp56k_read_memory(memspace, addr);
     newaddr = read_memory_p(dsp_core.pc+1);
 
@@ -2368,7 +2375,7 @@ static void dsp_jsclr_pp(void)
     memspace = (cur_inst>>6) & 1;
     value = (cur_inst>>8) & BITMASK(6);
     numbit = cur_inst & BITMASK(5);
-    addr = 0xffc0 + value;
+    addr = 0xffffc0 + value;
     value = dsp56k_read_memory(memspace, addr);
     newaddr = read_memory_p(dsp_core.pc+1);
 
@@ -2460,7 +2467,7 @@ static void dsp_jset_pp(void)
     memspace = (cur_inst>>6) & 1;
     value = (cur_inst>>8) & BITMASK(6);
     numbit = cur_inst & BITMASK(5);
-    addr = 0xffc0 + value;
+    addr = 0xffffc0 + value;
     value = dsp56k_read_memory(memspace, addr);
     newaddr = read_memory_p(dsp_core.pc+1);
 
@@ -2590,7 +2597,7 @@ static void dsp_jsset_pp(void)
     memspace = (cur_inst>>6) & 1;
     value = (cur_inst>>8) & BITMASK(6);
     numbit = cur_inst & BITMASK(5);
-    addr = 0xffc0 + value;
+    addr = 0xffffc0 + value;
     value = dsp56k_read_memory(memspace, addr);
     newaddr = read_memory_p(dsp_core.pc+1);
 
@@ -2846,7 +2853,7 @@ static void dsp_movep_0(void)
     
     uint32_t addr, memspace, numreg, value, dummy;
 
-    addr = 0xffc0 + (cur_inst & BITMASK(6));
+    addr = 0xffffc0 + (cur_inst & BITMASK(6));
     memspace = (cur_inst>>16) & 1;
     numreg = (cur_inst>>8) & BITMASK(6);
 
@@ -2881,7 +2888,7 @@ static void dsp_movep_1(void)
 
     uint32_t xyaddr, memspace, paddr;
 
-    xyaddr = 0xffc0 + (cur_inst & BITMASK(6));
+    xyaddr = 0xffffc0 + (cur_inst & BITMASK(6));
     dsp_calc_ea((cur_inst>>8) & BITMASK(6), &paddr);
     memspace = (cur_inst>>16) & 1;
 
@@ -2915,7 +2922,7 @@ static void dsp_movep_23(void)
     uint32_t addr, peraddr, easpace, perspace, ea_mode;
     int retour;
 
-    peraddr = 0xffc0 + (cur_inst & BITMASK(6));
+    peraddr = 0xffffc0 + (cur_inst & BITMASK(6));
     perspace = (cur_inst>>16) & 1;
     
     ea_mode = (cur_inst>>8) & BITMASK(6);
@@ -2936,6 +2943,32 @@ static void dsp_movep_23(void)
     }
 
     dsp_core.instr_cycle += 2;
+}
+
+static void dsp_movep_x_low(void) {
+    // 00000111W1MMMRRR0sqqqqqq
+
+    uint32_t addr, peraddr, easpace, ea_mode;
+    int retour;
+
+    peraddr = 0xffff80 + (cur_inst & BITMASK(6));
+    
+    ea_mode = (cur_inst>>8) & BITMASK(6);
+    easpace = (cur_inst>>6) & 1;
+    retour = dsp_calc_ea(ea_mode, &addr);
+
+    // TODO
+
+    dsp_core.instr_cycle += 2; // ???
+}
+
+static void dsp_movex_a(void) {
+    // 0000001aaaaaaRRR1a0WDDDD
+    int W = (cur_inst >> 4) & 1;
+    int a = (((cur_inst >> 11) & BITMASK(6)) << 1)
+             + ((cur_inst >> 6) & 1);
+    //QQQ
+    dsp_core.instr_cycle += 2; //???
 }
 
 static void dsp_norm(void)

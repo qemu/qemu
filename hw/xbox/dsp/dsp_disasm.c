@@ -1,6 +1,8 @@
 /*
     DSP56300 Disassembler
 
+    Copyright (c) 2015 espes
+
     Adapted from Hatari DSP M56001 Disassembler
     (C) 2003-2008 ARAnyM developer team
 
@@ -180,6 +182,9 @@ static void dsp_movep_0(void);
 static void dsp_movep_1(void);
 static void dsp_movep_23(void);
 
+static void dsp_movep_x_low(void);
+static void dsp_movex_a(void);
+
 /* Parallel moves */
 static void dsp_pm_class2(void);
 static void dsp_pm(void);
@@ -202,14 +207,14 @@ static const dsp_emul_t opcodes8h[512] = {
     dsp_norm, dsp_undefined, dsp_undefined, dsp_undefined, dsp_undefined, dsp_undefined, dsp_undefined, dsp_undefined,
     
     /* 0x40 - 0x7f */
-    dsp_tcc, dsp_tcc, dsp_tcc, dsp_tcc, dsp_undefined, dsp_undefined, dsp_undefined, dsp_undefined,
-    dsp_tcc, dsp_tcc, dsp_tcc, dsp_tcc, dsp_undefined, dsp_undefined, dsp_undefined, dsp_undefined,
-    dsp_tcc, dsp_tcc, dsp_tcc, dsp_tcc, dsp_undefined, dsp_undefined, dsp_undefined, dsp_undefined,
-    dsp_tcc, dsp_tcc, dsp_tcc, dsp_tcc, dsp_undefined, dsp_undefined, dsp_undefined, dsp_undefined,
-    dsp_tcc, dsp_tcc, dsp_tcc, dsp_tcc, dsp_undefined, dsp_undefined, dsp_undefined, dsp_undefined,
-    dsp_tcc, dsp_tcc, dsp_tcc, dsp_tcc, dsp_undefined, dsp_undefined, dsp_undefined, dsp_undefined,
-    dsp_tcc, dsp_tcc, dsp_tcc, dsp_tcc, dsp_undefined, dsp_undefined, dsp_undefined, dsp_undefined,
-    dsp_tcc, dsp_tcc, dsp_tcc, dsp_tcc, dsp_undefined, dsp_undefined, dsp_undefined, dsp_undefined,
+    dsp_tcc, dsp_tcc, dsp_tcc, dsp_tcc, dsp_movex_a, dsp_undefined, dsp_movex_a, dsp_undefined,
+    dsp_tcc, dsp_tcc, dsp_tcc, dsp_tcc, dsp_movex_a, dsp_undefined, dsp_movex_a, dsp_undefined,
+    dsp_tcc, dsp_tcc, dsp_tcc, dsp_tcc, dsp_movex_a, dsp_undefined, dsp_movex_a, dsp_undefined,
+    dsp_tcc, dsp_tcc, dsp_tcc, dsp_tcc, dsp_undefined, dsp_undefined, dsp_movex_a, dsp_undefined,
+    dsp_tcc, dsp_tcc, dsp_tcc, dsp_tcc, dsp_movex_a, dsp_undefined, dsp_movex_a, dsp_undefined,
+    dsp_tcc, dsp_tcc, dsp_tcc, dsp_tcc, dsp_movex_a, dsp_undefined, dsp_movex_a, dsp_undefined,
+    dsp_tcc, dsp_tcc, dsp_tcc, dsp_tcc, dsp_movex_a, dsp_undefined, dsp_undefined, dsp_undefined,
+    dsp_tcc, dsp_tcc, dsp_tcc, dsp_tcc, dsp_movex_a, dsp_undefined, dsp_movex_a, dsp_undefined,
 
     /* 0x80 - 0xbf */
     dsp_undefined, dsp_undefined, dsp_undefined, dsp_undefined, dsp_undefined, dsp_undefined, dsp_undefined, dsp_undefined,
@@ -222,14 +227,14 @@ static const dsp_emul_t opcodes8h[512] = {
     dsp_undefined, dsp_movec_ea, dsp_undefined, dsp_movec_ea, dsp_undefined, dsp_movec_imm, dsp_undefined, dsp_undefined,
     
     /* 0xc0 - 0xff */
-    dsp_do_aa, dsp_rep_aa, dsp_do_aa, dsp_rep_aa, dsp_do_imm, dsp_rep_imm, dsp_undefined, dsp_undefined, 
-    dsp_do_ea, dsp_rep_ea, dsp_do_ea, dsp_rep_ea, dsp_do_imm, dsp_rep_imm, dsp_undefined, dsp_undefined, 
-    dsp_undefined, dsp_undefined, dsp_undefined, dsp_undefined, dsp_do_imm, dsp_rep_imm, dsp_undefined, dsp_undefined, 
-    dsp_do_reg, dsp_rep_reg, dsp_undefined, dsp_undefined, dsp_do_imm, dsp_rep_imm, dsp_undefined, dsp_undefined, 
-    dsp_movem_aa, dsp_movem_aa, dsp_undefined, dsp_undefined, dsp_undefined, dsp_undefined, dsp_undefined, dsp_undefined, 
-    dsp_undefined, dsp_undefined, dsp_undefined, dsp_undefined, dsp_movem_ea, dsp_movem_ea, dsp_undefined, dsp_undefined, 
-    dsp_movem_aa, dsp_movem_aa, dsp_undefined, dsp_undefined, dsp_undefined, dsp_undefined, dsp_undefined, dsp_undefined, 
-    dsp_undefined, dsp_undefined, dsp_undefined, dsp_undefined, dsp_movem_ea, dsp_movem_ea, dsp_undefined, dsp_undefined, 
+    /* 0xc0 */ dsp_do_aa, dsp_rep_aa, dsp_do_aa, dsp_rep_aa, dsp_do_imm, dsp_rep_imm, dsp_undefined, dsp_undefined, 
+    /* 0xc8 */ dsp_do_ea, dsp_rep_ea, dsp_do_ea, dsp_rep_ea, dsp_do_imm, dsp_rep_imm, dsp_undefined, dsp_undefined, 
+    /* 0xd0 */ dsp_undefined, dsp_undefined, dsp_undefined, dsp_undefined, dsp_do_imm, dsp_rep_imm, dsp_undefined, dsp_undefined, 
+    /* 0xd8 */ dsp_do_reg, dsp_rep_reg, dsp_undefined, dsp_undefined, dsp_do_imm, dsp_rep_imm, dsp_undefined, dsp_undefined, 
+    /* 0xe0 */ dsp_movem_aa, dsp_movem_aa, dsp_undefined, dsp_undefined, dsp_undefined, dsp_undefined, dsp_undefined, dsp_undefined, 
+    /* 0xe8 */ dsp_movep_x_low, dsp_movep_x_low, dsp_movep_x_low, dsp_movep_x_low, dsp_movem_ea, dsp_movem_ea, dsp_undefined, dsp_undefined, 
+    /* 0xf0 */ dsp_movem_aa, dsp_movem_aa, dsp_undefined, dsp_undefined, dsp_undefined, dsp_undefined, dsp_undefined, dsp_undefined, 
+    /* 0xf8 */ dsp_movep_x_low, dsp_movep_x_low, dsp_movep_x_low, dsp_movep_x_low, dsp_movem_ea, dsp_movem_ea, dsp_undefined, dsp_undefined, 
 
     /* 0x100 - 0x13f */
     dsp_pm_class2, dsp_pm_class2, dsp_pm_class2, dsp_pm_class2, dsp_pm_class2, dsp_pm_class2, dsp_pm_class2, dsp_pm_class2,
@@ -752,9 +757,9 @@ static void dsp_bchg_pp(void)
     numbit = cur_inst & BITMASK(5);
 
     if (memspace) {
-        sprintf(name,"y:$%04x",value+0xffc0);
+        sprintf(name,"y:$%06x",value+0xffffc0);
     } else {
-        sprintf(name,"x:$%04x",value+0xffc0);
+        sprintf(name,"x:$%06x",value+0xffffc0);
     }
 
     sprintf(str_instr,"bchg #%d,%s", numbit, name);
@@ -824,9 +829,9 @@ static void dsp_bclr_pp(void)
     numbit = cur_inst & BITMASK(5);
 
     if (memspace) {
-        sprintf(name,"y:$%04x",value+0xffc0);
+        sprintf(name,"y:$%06x",value+0xffffc0);
     } else {
-        sprintf(name,"x:$%04x",value+0xffc0);
+        sprintf(name,"x:$%06x",value+0xffffc0);
     }
 
     sprintf(str_instr,"bclr #%d,%s", numbit, name);
@@ -896,9 +901,9 @@ static void dsp_bset_pp(void)
     numbit = cur_inst & BITMASK(5);
 
     if (memspace) {
-        sprintf(name,"y:$%04x",value+0xffc0);
+        sprintf(name,"y:$%06x",value+0xffffc0);
     } else {
-        sprintf(name,"x:$%04x",value+0xffc0);
+        sprintf(name,"x:$%06x",value+0xffffc0);
     }
 
     sprintf(str_instr,"bset #%d,%s", numbit, name);
@@ -968,9 +973,9 @@ static void dsp_btst_pp(void)
     numbit = cur_inst & BITMASK(5);
 
     if (memspace) {
-        sprintf(name,"y:$%04x",value+0xffc0);
+        sprintf(name,"y:$%06x",value+0xffffc0);
     } else {
-        sprintf(name,"x:$%04x",value+0xffc0);
+        sprintf(name,"x:$%06x",value+0xffffc0);
     }
 
     sprintf(str_instr,"btst #%d,%s", numbit, name);
@@ -1170,11 +1175,11 @@ static void dsp_jclr_pp(void)
     value = (cur_inst>>8) & BITMASK(6);
     numbit = cur_inst & BITMASK(5);
 
-    value += 0xffc0;
+    value += 0xffffc0;
     if (memspace) {
-        sprintf(srcname, "y:$%04x", value);
+        sprintf(srcname, "y:$%06x", value);
     } else {
-        sprintf(srcname, "x:$%04x", value);
+        sprintf(srcname, "x:$%06x", value);
     }
 
     sprintf(str_instr,"jclr #%d,%s,p:$%04x",
@@ -1305,11 +1310,11 @@ static void dsp_jsclr_pp(void)
     value = (cur_inst>>8) & BITMASK(6);
     numbit = cur_inst & BITMASK(5);
 
-    value += 0xffc0;
+    value += 0xffffc0;
     if (memspace) {
-        sprintf(srcname, "y:$%04x", value);
+        sprintf(srcname, "y:$%06x", value);
     } else {
-        sprintf(srcname, "x:$%04x", value);
+        sprintf(srcname, "x:$%06x", value);
     }
 
     sprintf(str_instr,"jsclr #%d,%s,p:$%04x",
@@ -1402,11 +1407,11 @@ static void dsp_jset_pp(void)
     value = (cur_inst>>8) & BITMASK(6);
     numbit = cur_inst & BITMASK(5);
 
-    value += 0xffc0;
+    value += 0xffffc0;
     if (memspace) {
-        sprintf(srcname, "y:$%04x", value);
+        sprintf(srcname, "y:$%06x", value);
     } else {
-        sprintf(srcname, "x:$%04x", value);
+        sprintf(srcname, "x:$%06x", value);
     }
 
     sprintf(str_instr,"jset #%d,%s,p:$%04x",
@@ -1513,11 +1518,11 @@ static void dsp_jsset_pp(void)
     value = (cur_inst>>8) & BITMASK(6);
     numbit = cur_inst & BITMASK(5);
 
-    value += 0xffc0;
+    value += 0xffffc0;
     if (memspace) {
-        sprintf(srcname, "y:$%04x", value);
+        sprintf(srcname, "y:$%06x", value);
     } else {
-        sprintf(srcname, "x:$%04x", value);
+        sprintf(srcname, "x:$%06x", value);
     }
 
     sprintf(str_instr,"jsset #%d,%s,p:$%04x",
@@ -1715,7 +1720,7 @@ static void dsp_movep_0(void)
     /* S,y:pp */
     /* y:pp,D */
 
-    addr = 0xffc0 + (cur_inst & BITMASK(6));
+    addr = 0xffffc0 + (cur_inst & BITMASK(6));
     memspace = (cur_inst>>16) & 1;
     numreg = (cur_inst>>8) & BITMASK(6);
 
@@ -1725,17 +1730,17 @@ static void dsp_movep_0(void)
         strcpy(srcname, registers_name[numreg]);
 
         if (memspace) {
-            sprintf(dstname, "y:$%04x", addr);
+            sprintf(dstname, "y:$%06x", addr);
         } else {
-            sprintf(dstname, "x:$%04x", addr);
+            sprintf(dstname, "x:$%06x", addr);
         }
     } else {
         /* Read pp */
 
         if (memspace) {
-            sprintf(srcname, "y:$%04x", addr);
+            sprintf(srcname, "y:$%06x", addr);
         } else {
-            sprintf(srcname, "x:$%04x", addr);
+            sprintf(srcname, "x:$%06x", addr);
         }
 
         strcpy(dstname, registers_name[numreg]);
@@ -1754,7 +1759,7 @@ static void dsp_movep_1(void)
     /* p:ea,y:pp */
     /* y:pp,p:ea */
 
-    addr = 0xffc0 + (cur_inst & BITMASK(6));
+    addr = 0xffffc0 + (cur_inst & BITMASK(6));
     dsp_calc_ea((cur_inst>>8) & BITMASK(6), name);
     memspace = (cur_inst>>16) & 1;
 
@@ -1764,17 +1769,17 @@ static void dsp_movep_1(void)
         sprintf(srcname, "p:%s", name);
 
         if (memspace) {
-            sprintf(dstname, "y:$%04x", addr);
+            sprintf(dstname, "y:$%06x", addr);
         } else {
-            sprintf(dstname, "x:$%04x", addr);
+            sprintf(dstname, "x:$%06x", addr);
         }
     } else {
         /* Read pp */
 
         if (memspace) {
-            sprintf(srcname, "y:$%04x", addr);
+            sprintf(srcname, "y:$%06x", addr);
         } else {
-            sprintf(srcname, "x:$%04x", addr);
+            sprintf(srcname, "x:$%06x", addr);
         }
 
         sprintf(dstname, "p:%s", name);
@@ -1800,7 +1805,7 @@ static void dsp_movep_23(void)
     /* y:pp,y:ea */
     /* y:pp,x:ea */
 
-    addr = 0xffc0 + (cur_inst & BITMASK(6));
+    addr = 0xffffc0 + (cur_inst & BITMASK(6));
     retour = dsp_calc_ea((cur_inst>>8) & BITMASK(6), name);
     memspace = (cur_inst>>16) & 1;
     easpace = (cur_inst>>6) & 1;
@@ -1819,17 +1824,17 @@ static void dsp_movep_23(void)
         }
 
         if (memspace) {
-            sprintf(dstname, "y:$%04x", addr);
+            sprintf(dstname, "y:$%06x", addr);
         } else {
-            sprintf(dstname, "x:$%04x", addr);
+            sprintf(dstname, "x:$%06x", addr);
         }
     } else {
         /* Read pp */
 
         if (memspace) {
-            sprintf(srcname, "y:$%04x", addr);
+            sprintf(srcname, "y:$%06x", addr);
         } else {
-            sprintf(srcname, "x:$%04x", addr);
+            sprintf(srcname, "x:$%06x", addr);
         }
 
         if (easpace) {
@@ -1840,6 +1845,58 @@ static void dsp_movep_23(void)
     }
 
     sprintf(str_instr,"movep %s,%s", srcname, dstname);
+}
+
+static void dsp_movep_x_low(void) {
+    // 00000111W1MMMRRR0Sqqqqqq
+
+    char srcname[16]="",dstname[16]="",name[16]="";
+    uint32_t addr, easpace, retour; 
+
+    addr = 0xffff80 + (cur_inst & BITMASK(6));
+    retour = dsp_calc_ea((cur_inst>>8) & BITMASK(6), name);
+    easpace = (cur_inst>>6) & 1;
+
+    if (cur_inst & (1<<15)) {
+        /* Write pp */
+
+        if (retour) {
+            sprintf(srcname, "#%s", name);
+        } else {
+            if (easpace) {
+                sprintf(srcname, "y:%s", name);
+            } else {
+                sprintf(srcname, "x:%s", name);
+            }
+        }
+
+        sprintf(dstname, "x:$%04x", addr);
+    } else {
+        /* Read pp */
+
+        sprintf(srcname, "x:$%04x", addr);
+
+        if (easpace) {
+            sprintf(dstname, "y:%s", name);
+        } else {
+            sprintf(dstname, "x:%s", name);
+        }
+    }
+
+    sprintf(str_instr,"movep %s,%s", srcname, dstname);
+}
+
+
+static void dsp_movex_a(void) {
+    // 0000001aaaaaaRRR1a0WDDDD
+    int W = (cur_inst >> 4) & 1;
+    int a = (((cur_inst >> 11) & BITMASK(6)) << 1)
+             + ((cur_inst >> 6) & 1);
+    if (W) {
+        sprintf(str_instr, "move x:(?? + %d), ??", a);
+    } else {
+        sprintf(str_instr, "move ??, x:(?? + %d)", a);
+    }
 }
 
 static void dsp_nop(void)
