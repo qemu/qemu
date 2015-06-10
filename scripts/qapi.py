@@ -217,20 +217,18 @@ class QAPISchema:
                         return
                     else:
                         string += ch
-            elif self.tok in "tfn":
-                val = self.src[self.cursor - 1:]
-                if val.startswith("true"):
-                    self.val = True
-                    self.cursor += 3
-                    return
-                elif val.startswith("false"):
-                    self.val = False
-                    self.cursor += 4
-                    return
-                elif val.startswith("null"):
-                    self.val = None
-                    self.cursor += 3
-                    return
+            elif self.src.startswith("true", self.pos):
+                self.val = True
+                self.cursor += 3
+                return
+            elif self.src.startswith("false", self.pos):
+                self.val = False
+                self.cursor += 4
+                return
+            elif self.src.startswith("null", self.pos):
+                self.val = None
+                self.cursor += 3
+                return
             elif self.tok == '\n':
                 if self.cursor == len(self.src):
                     self.tok = None
