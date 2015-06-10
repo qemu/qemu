@@ -140,7 +140,8 @@ out:
 /* virtio-9p device */
 
 static Property virtio_9p_properties[] = {
-    DEFINE_VIRTIO_9P_PROPERTIES(V9fsState, fsconf),
+    DEFINE_PROP_STRING("mount_tag", V9fsState, fsconf.tag),
+    DEFINE_PROP_STRING("fsdev", V9fsState, fsconf.fsdev_id),
     DEFINE_PROP_END_OF_LIST(),
 };
 
