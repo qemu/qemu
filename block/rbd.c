@@ -74,24 +74,17 @@ typedef struct RBDAIOCB {
     QEMUIOVector *qiov;
     char *bounce;
     RBDAIOCmd cmd;
-    int64_t sector_num;
     int error;
     struct BDRVRBDState *s;
-    int status;
 } RBDAIOCB;
 
 typedef struct RADOSCB {
-    int rcbid;
     RBDAIOCB *acb;
     struct BDRVRBDState *s;
-    int done;
     int64_t size;
     char *buf;
     int64_t ret;
 } RADOSCB;
-
-#define RBD_FD_READ 0
-#define RBD_FD_WRITE 1
 
 typedef struct BDRVRBDState {
     rados_t cluster;
@@ -405,7 +398,6 @@ static void qemu_rbd_complete_aio(RADOSCB *rcb)
     }
     qemu_vfree(acb->bounce);
     acb->common.cb(acb->common.opaque, (acb->ret > 0 ? 0 : acb->ret));
-    acb->status = 0;
 
     qemu_aio_unref(acb);
 }
@@ -621,7 +613,6 @@ static BlockAIOCB *rbd_start_aio(BlockDriverState *bs,
     acb->error = 0;
     acb->s = s;
     acb->bh = NULL;
-    acb->status = -EINPROGRESS;
 
     if (cmd == RBD_AIO_WRITE) {
         qemu_iovec_to_buf(acb->qiov, 0, acb->bounce, qiov->size);
@@ -633,7 +624,6 @@ static BlockAIOCB *rbd_start_aio(BlockDriverState *bs,
     size = nb_sectors * BDRV_SECTOR_SIZE;
 
     rcb = g_new(RADOSCB, 1);
-    rcb->done = 0;
     rcb->acb = acb;
     rcb->buf = buf;
     rcb->s = acb->s;
