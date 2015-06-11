@@ -618,16 +618,19 @@ static int qemu_rdma_init_ram_blocks(RDMAContext *rdma)
     return 0;
 }
 
-static int rdma_delete_block(RDMAContext *rdma, ram_addr_t block_offset)
+/*
+ * Note: If used outside of cleanup, the caller must ensure that the destination
+ * block structures are also updated
+ */
+static int rdma_delete_block(RDMAContext *rdma, RDMALocalBlock *block)
 {
     RDMALocalBlocks *local = &rdma->local_ram_blocks;
-    RDMALocalBlock *block = g_hash_table_lookup(rdma->blockmap,
-        (void *) block_offset);
     RDMALocalBlock *old = local->block;
     int x;
 
-    assert(block);
-
+    if (rdma->blockmap) {
+        g_hash_table_remove(rdma->blockmap, (void *)(uintptr_t)block->offset);
+    }
     if (block->pmr) {
         int j;
 
@@ -660,8 +663,11 @@ static int rdma_delete_block(RDMAContext *rdma, ram_addr_t block_offset)
     g_free(block->block_name);
     block->block_name = NULL;
 
-    for (x = 0; x < local->nb_blocks; x++) {
-        g_hash_table_remove(rdma->blockmap, (void *)(uintptr_t)old[x].offset);
+    if (rdma->blockmap) {
+        for (x = 0; x < local->nb_blocks; x++) {
+            g_hash_table_remove(rdma->blockmap,
+                                (void *)(uintptr_t)old[x].offset);
+        }
     }
 
     if (local->nb_blocks > 1) {
@@ -683,8 +689,7 @@ static int rdma_delete_block(RDMAContext *rdma, ram_addr_t block_offset)
         local->block = NULL;
     }
 
-    trace_rdma_delete_block(local->nb_blocks,
-                           (uintptr_t)block->local_host_addr,
+    trace_rdma_delete_block(block, (uintptr_t)block->local_host_addr,
                            block->offset, block->length,
                             (uintptr_t)(block->local_host_addr + block->length),
                            BITS_TO_LONGS(block->nb_chunks) *
@@ -694,7 +699,7 @@ static int rdma_delete_block(RDMAContext *rdma, ram_addr_t block_offset)
 
     local->nb_blocks--;
 
-    if (local->nb_blocks) {
+    if (local->nb_blocks && rdma->blockmap) {
         for (x = 0; x < local->nb_blocks; x++) {
             g_hash_table_insert(rdma->blockmap,
                                 (void *)(uintptr_t)local->block[x].offset,
@@ -2222,7 +2227,7 @@ static void qemu_rdma_cleanup(RDMAContext *rdma)
 
     if (rdma->local_ram_blocks.block) {
         while (rdma->local_ram_blocks.nb_blocks) {
-            rdma_delete_block(rdma, rdma->local_ram_blocks.block->offset);
+            rdma_delete_block(rdma, &rdma->local_ram_blocks.block[0]);
         }
     }
 
