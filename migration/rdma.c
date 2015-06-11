@@ -534,23 +534,22 @@ static int rdma_add_block(RDMAContext *rdma, const char *block_name,
                          ram_addr_t block_offset, uint64_t length)
 {
     RDMALocalBlocks *local = &rdma->local_ram_blocks;
-    RDMALocalBlock *block = g_hash_table_lookup(rdma->blockmap,
-        (void *)(uintptr_t)block_offset);
+    RDMALocalBlock *block;
     RDMALocalBlock *old = local->block;
-
-    assert(block == NULL);
 
     local->block = g_malloc0(sizeof(RDMALocalBlock) * (local->nb_blocks + 1));
 
     if (local->nb_blocks) {
         int x;
 
-        for (x = 0; x < local->nb_blocks; x++) {
-            g_hash_table_remove(rdma->blockmap,
-                                (void *)(uintptr_t)old[x].offset);
-            g_hash_table_insert(rdma->blockmap,
-                                (void *)(uintptr_t)old[x].offset,
-                                &local->block[x]);
+        if (rdma->blockmap) {
+            for (x = 0; x < local->nb_blocks; x++) {
+                g_hash_table_remove(rdma->blockmap,
+                                    (void *)(uintptr_t)old[x].offset);
+                g_hash_table_insert(rdma->blockmap,
+                                    (void *)(uintptr_t)old[x].offset,
+                                    &local->block[x]);
+            }
         }
         memcpy(local->block, old, sizeof(RDMALocalBlock) * local->nb_blocks);
         g_free(old);
@@ -572,7 +571,9 @@ static int rdma_add_block(RDMAContext *rdma, const char *block_name,
 
     block->is_ram_block = local->init ? false : true;
 
-    g_hash_table_insert(rdma->blockmap, (void *) block_offset, block);
+    if (rdma->blockmap) {
+        g_hash_table_insert(rdma->blockmap, (void *) block_offset, block);
+    }
 
     trace_rdma_add_block(block_name, local->nb_blocks,
                          (uintptr_t) block->local_host_addr,
@@ -608,7 +609,6 @@ static int qemu_rdma_init_ram_blocks(RDMAContext *rdma)
     RDMALocalBlocks *local = &rdma->local_ram_blocks;
 
     assert(rdma->blockmap == NULL);
-    rdma->blockmap = g_hash_table_new(g_direct_hash, g_direct_equal);
     memset(local, 0, sizeof *local);
     qemu_ram_foreach_block(qemu_rdma_init_one_block, rdma);
     trace_qemu_rdma_init_ram_blocks(local->nb_blocks);
@@ -2298,6 +2298,14 @@ static int qemu_rdma_source_init(RDMAContext *rdma, Error **errp, bool pin_all)
     if (ret) {
         ERROR(temp, "rdma migration: error initializing ram blocks!");
         goto err_rdma_source_init;
+    }
+
+    /* Build the hash that maps from offset to RAMBlock */
+    rdma->blockmap = g_hash_table_new(g_direct_hash, g_direct_equal);
+    for (idx = 0; idx < rdma->local_ram_blocks.nb_blocks; idx++) {
+        g_hash_table_insert(rdma->blockmap,
+                (void *)(uintptr_t)rdma->local_ram_blocks.block[idx].offset,
+                &rdma->local_ram_blocks.block[idx]);
     }
 
     for (idx = 0; idx < RDMA_WRID_MAX; idx++) {
