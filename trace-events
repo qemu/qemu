@@ -1405,8 +1405,8 @@ migrate_pending(uint64_t size, uint64_t max) "pending size %" PRIu64 " max %" PR
 migrate_transferred(uint64_t tranferred, uint64_t time_spent, double bandwidth, uint64_t size) "transferred %" PRIu64 " time_spent %" PRIu64 " bandwidth %g max_size %" PRId64
 
 # migration/rdma.c
-qemu_dma_accept_incoming_migration(void) ""
-qemu_dma_accept_incoming_migration_accepted(void) ""
+qemu_rdma_accept_incoming_migration(void) ""
+qemu_rdma_accept_incoming_migration_accepted(void) ""
 qemu_rdma_accept_pin_state(bool pin) "%d"
 qemu_rdma_accept_pin_verbsc(void *verbs) "Verbs context after listen: %p"
 qemu_rdma_block_for_wrid_miss(const char *wcompstr, int wcomp, const char *gcompstr, uint64_t req) "A Wanted wrid %s (%d) but got %s (%" PRIu64 ")"

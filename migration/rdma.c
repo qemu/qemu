@@ -1223,7 +1223,7 @@ const char *print_wrid(int wrid)
 
 /*
  * Perform a non-optimized memory unregistration after every transfer
- * for demonsration purposes, only if pin-all is not requested.
+ * for demonstration purposes, only if pin-all is not requested.
  *
  * Potential optimizations:
  * 1. Start a new thread to run this function continuously
@@ -3288,7 +3288,7 @@ static void rdma_accept_incoming_migration(void *opaque)
     QEMUFile *f;
     Error *local_err = NULL, **errp = &local_err;
 
-    trace_qemu_dma_accept_incoming_migration();
+    trace_qemu_rdma_accept_incoming_migration();
     ret = qemu_rdma_accept(rdma);
 
     if (ret) {
@@ -3296,7 +3296,7 @@ static void rdma_accept_incoming_migration(void *opaque)
         return;
     }
 
-    trace_qemu_dma_accept_incoming_migration_accepted();
+    trace_qemu_rdma_accept_incoming_migration_accepted();
 
     f = qemu_fopen_rdma(rdma, "rb");
     if (f == NULL) {
