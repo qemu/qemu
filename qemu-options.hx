@@ -3152,7 +3152,7 @@ when the shift value is high (how high depends on the host machine).
 ETEXI
 
 DEF("watchdog", HAS_ARG, QEMU_OPTION_watchdog, \
-    "-watchdog i6300esb|ib700\n" \
+    "-watchdog model\n" \
     "                enable virtual hardware watchdog [default=none]\n",
     QEMU_ARCH_ALL)
 STEXI
@@ -3160,16 +3160,21 @@ STEXI
 @findex -watchdog
 Create a virtual hardware watchdog device.  Once enabled (by a guest
 action), the watchdog must be periodically polled by an agent inside
-the guest or else the guest will be restarted.
+the guest or else the guest will be restarted. Choose a model for
+which your guest has drivers.
 
-The @var{model} is the model of hardware watchdog to emulate.  Choices
-for model are: @code{ib700} (iBASE 700) which is a very simple ISA
-watchdog with a single timer, or @code{i6300esb} (Intel 6300ESB I/O
-controller hub) which is a much more featureful PCI-based dual-timer
-watchdog.  Choose a model for which your guest has drivers.
-
-Use @code{-watchdog help} to list available hardware models.  Only one
+The @var{model} is the model of hardware watchdog to emulate. Use
+@code{-watchdog help} to list available hardware models. Only one
 watchdog can be enabled for a guest.
+
+The following models may be available:
+@table @option
+@item ib700
+iBASE 700 is a very simple ISA watchdog with a single timer.
+@item i6300esb
+Intel 6300ESB I/O controller hub is a much more featureful PCI-based
+dual-timer watchdog.
+@end table
 ETEXI
 
 DEF("watchdog-action", HAS_ARG, QEMU_OPTION_watchdog_action, \
