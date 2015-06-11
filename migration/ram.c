@@ -1477,6 +1477,8 @@ static int ram_load(QEMUFile *f, void *opaque, int version_id)
                                 error_report_err(local_err);
                             }
                         }
+                        ram_control_load_hook(f, RAM_CONTROL_BLOCK_REG,
+                                              block->idstr);
                         break;
                     }
                 }
@@ -1545,7 +1547,7 @@ static int ram_load(QEMUFile *f, void *opaque, int version_id)
             break;
         default:
             if (flags & RAM_SAVE_FLAG_HOOK) {
-                ram_control_load_hook(f, flags);
+                ram_control_load_hook(f, RAM_CONTROL_HOOK, NULL);
             } else {
                 error_report("Unknown combination of migration flags: %#x",
                              flags);

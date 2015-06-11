@@ -2913,8 +2913,7 @@ err_rdma_dest_wait:
  *
  * Keep doing this until the source tells us to stop.
  */
-static int qemu_rdma_registration_handle(QEMUFile *f, void *opaque,
-                                         uint64_t flags)
+static int qemu_rdma_registration_handle(QEMUFile *f, void *opaque)
 {
     RDMAControlHeader reg_resp = { .len = sizeof(RDMARegisterResult),
                                .type = RDMA_CONTROL_REGISTER_RESULT,
@@ -2944,7 +2943,7 @@ static int qemu_rdma_registration_handle(QEMUFile *f, void *opaque,
     CHECK_ERROR_STATE();
 
     do {
-        trace_qemu_rdma_registration_handle_wait(flags);
+        trace_qemu_rdma_registration_handle_wait();
 
         ret = qemu_rdma_exchange_recv(rdma, &head, RDMA_CONTROL_NONE);
 
@@ -3132,8 +3131,25 @@ out:
     return ret;
 }
 
+static int rdma_load_hook(QEMUFile *f, void *opaque, uint64_t flags, void *data)
+{
+    switch (flags) {
+    case RAM_CONTROL_BLOCK_REG:
+        /* TODO A later patch */
+        return 0;
+        break;
+
+    case RAM_CONTROL_HOOK:
+        return qemu_rdma_registration_handle(f, opaque);
+
+    default:
+        /* Shouldn't be called with any other values */
+        abort();
+    }
+}
+
 static int qemu_rdma_registration_start(QEMUFile *f, void *opaque,
-                                        uint64_t flags)
+                                        uint64_t flags, void *data)
 {
     QEMUFileRDMA *rfile = opaque;
     RDMAContext *rdma = rfile->rdma;
@@ -3152,7 +3168,7 @@ static int qemu_rdma_registration_start(QEMUFile *f, void *opaque,
  * First, flush writes, if any.
  */
 static int qemu_rdma_registration_stop(QEMUFile *f, void *opaque,
-                                       uint64_t flags)
+                                       uint64_t flags, void *data)
 {
     Error *local_err = NULL, **errp = &local_err;
     QEMUFileRDMA *rfile = opaque;
@@ -3274,7 +3290,7 @@ static const QEMUFileOps rdma_read_ops = {
     .get_buffer    = qemu_rdma_get_buffer,
     .get_fd        = qemu_rdma_get_fd,
     .close         = qemu_rdma_close,
-    .hook_ram_load = qemu_rdma_registration_handle,
+    .hook_ram_load = rdma_load_hook,
 };
 
 static const QEMUFileOps rdma_write_ops = {

@@ -1439,7 +1439,7 @@ qemu_rdma_registration_handle_register_rkey(int rkey) "%x"
 qemu_rdma_registration_handle_unregister(int requests) "%d requests"
 qemu_rdma_registration_handle_unregister_loop(int count, int index, uint64_t chunk) "Unregistration request (%d): index %d, chunk %" PRIu64
 qemu_rdma_registration_handle_unregister_success(uint64_t chunk) "%" PRIu64
-qemu_rdma_registration_handle_wait(uint64_t flags) "Waiting for next request %" PRIu64
+qemu_rdma_registration_handle_wait(void) ""
 qemu_rdma_registration_start(uint64_t flags) "%" PRIu64
 qemu_rdma_registration_stop(uint64_t flags) "%" PRIu64
 qemu_rdma_registration_stop_ram(void) ""
