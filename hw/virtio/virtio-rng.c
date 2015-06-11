@@ -219,7 +219,13 @@ static void virtio_rng_device_unrealize(DeviceState *dev, Error **errp)
 }
 
 static Property virtio_rng_properties[] = {
-    DEFINE_VIRTIO_RNG_PROPERTIES(VirtIORNG, conf),
+    /* Set a default rate limit of 2^47 bytes per minute or roughly 2TB/s.  If
+     * you have an entropy source capable of generating more entropy than this
+     * and you can pass it through via virtio-rng, then hats off to you.  Until
+     * then, this is unlimited for all practical purposes.
+     */
+    DEFINE_PROP_UINT64("max-bytes", VirtIORNG, conf.max_bytes, INT64_MAX),
+    DEFINE_PROP_UINT32("period", VirtIORNG, conf.period_ms, 1 << 16),
     DEFINE_PROP_END_OF_LIST(),
 };
 

@@ -87,6 +87,7 @@ static void virtio_net_set_config(VirtIODevice *vdev, const uint8_t *config)
     memcpy(&netcfg, config, n->config_size);
 
     if (!virtio_has_feature(vdev, VIRTIO_NET_F_CTRL_MAC_ADDR) &&
+        !virtio_has_feature(vdev, VIRTIO_F_VERSION_1) &&
         memcmp(netcfg.mac, n->mac, ETH_ALEN)) {
         memcpy(n->mac, netcfg.mac, ETH_ALEN);
         qemu_format_nic_info_str(qemu_get_queue(n->nic), n->mac);
@@ -366,15 +367,21 @@ static int peer_has_ufo(VirtIONet *n)
     return n->has_ufo;
 }
 
-static void virtio_net_set_mrg_rx_bufs(VirtIONet *n, int mergeable_rx_bufs)
+static void virtio_net_set_mrg_rx_bufs(VirtIONet *n, int mergeable_rx_bufs,
+                                       int version_1)
 {
     int i;
     NetClientState *nc;
 
     n->mergeable_rx_bufs = mergeable_rx_bufs;
 
-    n->guest_hdr_len = n->mergeable_rx_bufs ?
-        sizeof(struct virtio_net_hdr_mrg_rxbuf) : sizeof(struct virtio_net_hdr);
+    if (version_1) {
+        n->guest_hdr_len = sizeof(struct virtio_net_hdr_mrg_rxbuf);
+    } else {
+        n->guest_hdr_len = n->mergeable_rx_bufs ?
+            sizeof(struct virtio_net_hdr_mrg_rxbuf) :
+            sizeof(struct virtio_net_hdr);
+    }
 
     for (i = 0; i < n->max_queues; i++) {
         nc = qemu_get_subqueue(n->nic, i);
@@ -463,6 +470,7 @@ static uint64_t virtio_net_get_features(VirtIODevice *vdev, uint64_t features)
     }
 
     if (!get_vhost_net(nc->peer)) {
+        virtio_add_feature(&features, VIRTIO_F_VERSION_1);
         return features;
     }
     return vhost_net_get_features(get_vhost_net(nc->peer), features);
@@ -521,7 +529,9 @@ static void virtio_net_set_features(VirtIODevice *vdev, uint64_t features)
 
     virtio_net_set_mrg_rx_bufs(n,
                                __virtio_has_feature(features,
-                                                    VIRTIO_NET_F_MRG_RXBUF));
+                                                    VIRTIO_NET_F_MRG_RXBUF),
+                               __virtio_has_feature(features,
+                                                    VIRTIO_F_VERSION_1));
 
     if (n->has_vnet_hdr) {
         n->curr_guest_offloads =
@@ -1374,7 +1384,8 @@ static int virtio_net_load_device(VirtIODevice *vdev, QEMUFile *f,
     qemu_get_buffer(f, n->mac, ETH_ALEN);
     n->vqs[0].tx_waiting = qemu_get_be32(f);
 
-    virtio_net_set_mrg_rx_bufs(n, qemu_get_be32(f));
+    virtio_net_set_mrg_rx_bufs(n, qemu_get_be32(f),
+                               virtio_has_feature(vdev, VIRTIO_F_VERSION_1));
 
     if (version_id >= 3)
         n->status = qemu_get_be16(f);
@@ -1626,7 +1637,7 @@ static void virtio_net_device_realize(DeviceState *dev, Error **errp)
 
     n->vqs[0].tx_waiting = 0;
     n->tx_burst = n->net_conf.txburst;
-    virtio_net_set_mrg_rx_bufs(n, 0);
+    virtio_net_set_mrg_rx_bufs(n, 0, 0);
     n->promisc = 1; /* for compatibility */
 
     n->mac_table.macs = g_malloc0(MAC_TABLE_ENTRIES * ETH_ALEN);
@@ -1696,10 +1707,50 @@ static void virtio_net_instance_init(Object *obj)
 }
 
 static Property virtio_net_properties[] = {
-    DEFINE_VIRTIO_NET_FEATURES(VirtIONet, host_features),
+    DEFINE_PROP_BIT("any_layout", VirtIONet, host_features,
+                    VIRTIO_F_ANY_LAYOUT, true),
+    DEFINE_PROP_BIT("csum", VirtIONet, host_features, VIRTIO_NET_F_CSUM, true),
+    DEFINE_PROP_BIT("guest_csum", VirtIONet, host_features,
+                    VIRTIO_NET_F_GUEST_CSUM, true),
+    DEFINE_PROP_BIT("gso", VirtIONet, host_features, VIRTIO_NET_F_GSO, true),
+    DEFINE_PROP_BIT("guest_tso4", VirtIONet, host_features,
+                    VIRTIO_NET_F_GUEST_TSO4, true),
+    DEFINE_PROP_BIT("guest_tso6", VirtIONet, host_features,
+                    VIRTIO_NET_F_GUEST_TSO6, true),
+    DEFINE_PROP_BIT("guest_ecn", VirtIONet, host_features,
+                    VIRTIO_NET_F_GUEST_ECN, true),
+    DEFINE_PROP_BIT("guest_ufo", VirtIONet, host_features,
+                    VIRTIO_NET_F_GUEST_UFO, true),
+    DEFINE_PROP_BIT("guest_announce", VirtIONet, host_features,
+                    VIRTIO_NET_F_GUEST_ANNOUNCE, true),
+    DEFINE_PROP_BIT("host_tso4", VirtIONet, host_features,
+                    VIRTIO_NET_F_HOST_TSO4, true),
+    DEFINE_PROP_BIT("host_tso6", VirtIONet, host_features,
+                    VIRTIO_NET_F_HOST_TSO6, true),
+    DEFINE_PROP_BIT("host_ecn", VirtIONet, host_features,
+                    VIRTIO_NET_F_HOST_ECN, true),
+    DEFINE_PROP_BIT("host_ufo", VirtIONet, host_features,
+                    VIRTIO_NET_F_HOST_UFO, true),
+    DEFINE_PROP_BIT("mrg_rxbuf", VirtIONet, host_features,
+                    VIRTIO_NET_F_MRG_RXBUF, true),
+    DEFINE_PROP_BIT("status", VirtIONet, host_features,
+                    VIRTIO_NET_F_STATUS, true),
+    DEFINE_PROP_BIT("ctrl_vq", VirtIONet, host_features,
+                    VIRTIO_NET_F_CTRL_VQ, true),
+    DEFINE_PROP_BIT("ctrl_rx", VirtIONet, host_features,
+                    VIRTIO_NET_F_CTRL_RX, true),
+    DEFINE_PROP_BIT("ctrl_vlan", VirtIONet, host_features,
+                    VIRTIO_NET_F_CTRL_VLAN, true),
+    DEFINE_PROP_BIT("ctrl_rx_extra", VirtIONet, host_features,
+                    VIRTIO_NET_F_CTRL_RX_EXTRA, true),
+    DEFINE_PROP_BIT("ctrl_mac_addr", VirtIONet, host_features,
+                    VIRTIO_NET_F_CTRL_MAC_ADDR, true),
+    DEFINE_PROP_BIT("ctrl_guest_offloads", VirtIONet, host_features,
+                    VIRTIO_NET_F_CTRL_GUEST_OFFLOADS, true),
+    DEFINE_PROP_BIT("mq", VirtIONet, host_features, VIRTIO_NET_F_MQ, false),
     DEFINE_NIC_PROPERTIES(VirtIONet, nic_conf),
     DEFINE_PROP_UINT32("x-txtimer", VirtIONet, net_conf.txtimer,
-                                               TX_TIMER_INTERVAL),
+                       TX_TIMER_INTERVAL),
     DEFINE_PROP_INT32("x-txburst", VirtIONet, net_conf.txburst, TX_BURST),
     DEFINE_PROP_STRING("tx", VirtIONet, net_conf.tx),
     DEFINE_PROP_END_OF_LIST(),

@@ -312,7 +312,7 @@ static void virtio_balloon_set_config(VirtIODevice *vdev,
 
 static uint64_t virtio_balloon_get_features(VirtIODevice *vdev, uint64_t f)
 {
-    f |= (1 << VIRTIO_BALLOON_F_STATS_VQ);
+    virtio_add_feature(&f, VIRTIO_BALLOON_F_STATS_VQ);
     return f;
 }
 

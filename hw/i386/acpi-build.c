@@ -833,7 +833,7 @@ static Aml *build_crs(PCIHostState *host,
              * Work-around for old bioses
              * that do not support multiple root buses
              */
-            if (range_base || range_base > range_limit) {
+            if (range_base && range_base <= range_limit) {
                 aml_append(crs,
                            aml_word_io(AML_MIN_FIXED, AML_MAX_FIXED,
                                        AML_POS_DECODE, AML_ENTIRE_RANGE,
@@ -854,7 +854,7 @@ static Aml *build_crs(PCIHostState *host,
              * Work-around for old bioses
              * that do not support multiple root buses
              */
-            if (range_base || range_base > range_limit) {
+            if (range_base && range_base <= range_limit) {
                 aml_append(crs,
                            aml_dword_memory(AML_POS_DECODE, AML_MIN_FIXED,
                                             AML_MAX_FIXED, AML_NON_CACHEABLE,
@@ -865,7 +865,7 @@ static Aml *build_crs(PCIHostState *host,
                                             0,
                                             range_limit - range_base + 1));
                 crs_range_insert(mem_ranges, range_base, range_limit);
-          }
+            }
 
             range_base =
                 pci_bridge_get_base(dev, PCI_BASE_ADDRESS_MEM_PREFETCH);
@@ -876,7 +876,7 @@ static Aml *build_crs(PCIHostState *host,
              * Work-around for old bioses
              * that do not support multiple root buses
              */
-            if (range_base || range_base > range_limit) {
+            if (range_base && range_base <= range_limit) {
                 aml_append(crs,
                            aml_dword_memory(AML_POS_DECODE, AML_MIN_FIXED,
                                             AML_MAX_FIXED, AML_NON_CACHEABLE,
@@ -945,9 +945,8 @@ build_ssdt(GArray *table_data, GArray *linker,
 
             scope = aml_scope("\\_SB");
             dev = aml_device("PC%.02X", bus_num);
-            aml_append(dev,
-                       aml_name_decl("_UID", aml_string("PC%.02X", bus_num)));
-            aml_append(dev, aml_name_decl("_HID", aml_string("PNP0A03")));
+            aml_append(dev, aml_name_decl("_UID", aml_int(bus_num)));
+            aml_append(dev, aml_name_decl("_HID", aml_eisaid("PNP0A03")));
             aml_append(dev, aml_name_decl("_BBN", aml_int(bus_num)));
 
             if (numa_node != NUMA_NODE_UNASSIGNED) {

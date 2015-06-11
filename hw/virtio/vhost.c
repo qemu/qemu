@@ -591,7 +591,7 @@ static int vhost_dev_set_features(struct vhost_dev *dev, bool enable_log)
     uint64_t features = dev->acked_features;
     int r;
     if (enable_log) {
-        features |= 0x1 << VHOST_F_LOG_ALL;
+        features |= 0x1ULL << VHOST_F_LOG_ALL;
     }
     r = dev->vhost_ops->vhost_call(dev, VHOST_SET_FEATURES, &features);
     return r < 0 ? -errno : 0;
@@ -902,7 +902,7 @@ int vhost_dev_init(struct vhost_dev *hdev, void *opaque,
         .priority = 10
     };
     hdev->migration_blocker = NULL;
-    if (!(hdev->features & (0x1 << VHOST_F_LOG_ALL))) {
+    if (!(hdev->features & (0x1ULL << VHOST_F_LOG_ALL))) {
         error_setg(&hdev->migration_blocker,
                    "Migration disabled: vhost lacks VHOST_F_LOG_ALL feature.");
         migrate_add_blocker(hdev->migration_blocker);
@@ -1045,12 +1045,12 @@ void vhost_virtqueue_mask(struct vhost_dev *hdev, VirtIODevice *vdev, int n,
     assert(r >= 0);
 }
 
-unsigned vhost_get_features(struct vhost_dev *hdev, const int *feature_bits,
-        unsigned features)
+uint64_t vhost_get_features(struct vhost_dev *hdev, const int *feature_bits,
+                            uint64_t features)
 {
     const int *bit = feature_bits;
     while (*bit != VHOST_INVALID_FEATURE_BIT) {
-        unsigned bit_mask = (1 << *bit);
+        uint64_t bit_mask = (1ULL << *bit);
         if (!(hdev->features & bit_mask)) {
             features &= ~bit_mask;
         }
@@ -1060,11 +1060,11 @@ unsigned vhost_get_features(struct vhost_dev *hdev, const int *feature_bits,
 }
 
 void vhost_ack_features(struct vhost_dev *hdev, const int *feature_bits,
-        unsigned features)
+                        uint64_t features)
 {
     const int *bit = feature_bits;
     while (*bit != VHOST_INVALID_FEATURE_BIT) {
-        unsigned bit_mask = (1 << *bit);
+        uint64_t bit_mask = (1ULL << *bit);
         if (features & bit_mask) {
             hdev->acked_features |= bit_mask;
         }
@@ -1114,9 +1114,7 @@ int vhost_dev_start(struct vhost_dev *hdev, VirtIODevice *vdev)
 
     return 0;
 fail_log:
-    if (hdev->log_size) {
-        vhost_log_put(hdev, false);
-    }
+    vhost_log_put(hdev, false);
 fail_vq:
     while (--i >= 0) {
         vhost_virtqueue_stop(hdev,

@@ -69,7 +69,6 @@ typedef struct VRing
 struct VirtQueue
 {
     VRing vring;
-    hwaddr pa;
     uint16_t last_avail_idx;
     /* Last used index value we have signalled on */
     uint16_t signalled_used;
@@ -93,15 +92,18 @@ struct VirtQueue
 };
 
 /* virt queue functions */
-static void virtqueue_init(VirtQueue *vq)
+void virtio_queue_update_rings(VirtIODevice *vdev, int n)
 {
-    hwaddr pa = vq->pa;
+    VRing *vring = &vdev->vq[n].vring;
 
-    vq->vring.desc = pa;
-    vq->vring.avail = pa + vq->vring.num * sizeof(VRingDesc);
-    vq->vring.used = vring_align(vq->vring.avail +
-                                 offsetof(VRingAvail, ring[vq->vring.num]),
-                                 vq->vring.align);
+    if (!vring->desc) {
+        /* not yet setup -> nothing to do */
+        return;
+    }
+    vring->avail = vring->desc + vring->num * sizeof(VRingDesc);
+    vring->used = vring_align(vring->avail +
+                              offsetof(VRingAvail, ring[vring->num]),
+                              vring->align);
 }
 
 static inline uint64_t vring_desc_addr(VirtIODevice *vdev, hwaddr desc_pa,
@@ -542,15 +544,37 @@ void virtio_update_irq(VirtIODevice *vdev)
     virtio_notify_vector(vdev, VIRTIO_NO_VECTOR);
 }
 
-void virtio_set_status(VirtIODevice *vdev, uint8_t val)
+static int virtio_validate_features(VirtIODevice *vdev)
+{
+    VirtioDeviceClass *k = VIRTIO_DEVICE_GET_CLASS(vdev);
+
+    if (k->validate_features) {
+        return k->validate_features(vdev);
+    } else {
+        return 0;
+    }
+}
+
+int virtio_set_status(VirtIODevice *vdev, uint8_t val)
 {
     VirtioDeviceClass *k = VIRTIO_DEVICE_GET_CLASS(vdev);
     trace_virtio_set_status(vdev, val);
 
+    if (virtio_has_feature(vdev, VIRTIO_F_VERSION_1)) {
+        if (!(vdev->status & VIRTIO_CONFIG_S_FEATURES_OK) &&
+            val & VIRTIO_CONFIG_S_FEATURES_OK) {
+            int ret = virtio_validate_features(vdev);
+
+            if (ret) {
+                return ret;
+            }
+        }
+    }
     if (k->set_status) {
         k->set_status(vdev, val);
     }
     vdev->status = val;
+    return 0;
 }
 
 bool target_words_bigendian(void);
@@ -605,7 +629,6 @@ void virtio_reset(void *opaque)
         vdev->vq[i].vring.avail = 0;
         vdev->vq[i].vring.used = 0;
         vdev->vq[i].last_avail_idx = 0;
-        vdev->vq[i].pa = 0;
         virtio_queue_set_vector(vdev, i, VIRTIO_NO_VECTOR);
         vdev->vq[i].signalled_used = 0;
         vdev->vq[i].signalled_used_valid = false;
@@ -706,15 +729,119 @@ void virtio_config_writel(VirtIODevice *vdev, uint32_t addr, uint32_t data)
     }
 }
 
+uint32_t virtio_config_modern_readb(VirtIODevice *vdev, uint32_t addr)
+{
+    VirtioDeviceClass *k = VIRTIO_DEVICE_GET_CLASS(vdev);
+    uint8_t val;
+
+    if (addr + sizeof(val) > vdev->config_len) {
+        return (uint32_t)-1;
+    }
+
+    k->get_config(vdev, vdev->config);
+
+    val = ldub_p(vdev->config + addr);
+    return val;
+}
+
+uint32_t virtio_config_modern_readw(VirtIODevice *vdev, uint32_t addr)
+{
+    VirtioDeviceClass *k = VIRTIO_DEVICE_GET_CLASS(vdev);
+    uint16_t val;
+
+    if (addr + sizeof(val) > vdev->config_len) {
+        return (uint32_t)-1;
+    }
+
+    k->get_config(vdev, vdev->config);
+
+    val = lduw_le_p(vdev->config + addr);
+    return val;
+}
+
+uint32_t virtio_config_modern_readl(VirtIODevice *vdev, uint32_t addr)
+{
+    VirtioDeviceClass *k = VIRTIO_DEVICE_GET_CLASS(vdev);
+    uint32_t val;
+
+    if (addr + sizeof(val) > vdev->config_len) {
+        return (uint32_t)-1;
+    }
+
+    k->get_config(vdev, vdev->config);
+
+    val = ldl_le_p(vdev->config + addr);
+    return val;
+}
+
+void virtio_config_modern_writeb(VirtIODevice *vdev,
+                                 uint32_t addr, uint32_t data)
+{
+    VirtioDeviceClass *k = VIRTIO_DEVICE_GET_CLASS(vdev);
+    uint8_t val = data;
+
+    if (addr + sizeof(val) > vdev->config_len) {
+        return;
+    }
+
+    stb_p(vdev->config + addr, val);
+
+    if (k->set_config) {
+        k->set_config(vdev, vdev->config);
+    }
+}
+
+void virtio_config_modern_writew(VirtIODevice *vdev,
+                                 uint32_t addr, uint32_t data)
+{
+    VirtioDeviceClass *k = VIRTIO_DEVICE_GET_CLASS(vdev);
+    uint16_t val = data;
+
+    if (addr + sizeof(val) > vdev->config_len) {
+        return;
+    }
+
+    stw_le_p(vdev->config + addr, val);
+
+    if (k->set_config) {
+        k->set_config(vdev, vdev->config);
+    }
+}
+
+void virtio_config_modern_writel(VirtIODevice *vdev,
+                                 uint32_t addr, uint32_t data)
+{
+    VirtioDeviceClass *k = VIRTIO_DEVICE_GET_CLASS(vdev);
+    uint32_t val = data;
+
+    if (addr + sizeof(val) > vdev->config_len) {
+        return;
+    }
+
+    stl_le_p(vdev->config + addr, val);
+
+    if (k->set_config) {
+        k->set_config(vdev, vdev->config);
+    }
+}
+
 void virtio_queue_set_addr(VirtIODevice *vdev, int n, hwaddr addr)
 {
-    vdev->vq[n].pa = addr;
-    virtqueue_init(&vdev->vq[n]);
+    vdev->vq[n].vring.desc = addr;
+    virtio_queue_update_rings(vdev, n);
 }
 
 hwaddr virtio_queue_get_addr(VirtIODevice *vdev, int n)
 {
-    return vdev->vq[n].pa;
+    return vdev->vq[n].vring.desc;
+}
+
+void virtio_queue_set_rings(VirtIODevice *vdev, int n, hwaddr desc,
+                            hwaddr avail, hwaddr used)
+{
+    vdev->vq[n].vring.desc = desc;
+    vdev->vq[n].vring.avail = avail;
+    vdev->vq[n].vring.used = used;
 }
 
 void virtio_queue_set_num(VirtIODevice *vdev, int n, int num)
@@ -728,7 +855,6 @@ void virtio_queue_set_num(VirtIODevice *vdev, int n, int num)
         return;
     }
     vdev->vq[n].vring.num = num;
-    virtqueue_init(&vdev->vq[n]);
 }
 
 VirtQueue *virtio_vector_first_queue(VirtIODevice *vdev, uint16_t vector)
@@ -771,6 +897,11 @@ void virtio_queue_set_align(VirtIODevice *vdev, int n, int align)
     BusState *qbus = qdev_get_parent_bus(DEVICE(vdev));
     VirtioBusClass *k = VIRTIO_BUS_GET_CLASS(qbus);
 
+    /* virtio-1 compliant devices cannot change the alignment */
+    if (virtio_has_feature(vdev, VIRTIO_F_VERSION_1)) {
+        error_report("tried to modify queue alignment for virtio-1 device");
+        return;
+    }
     /* Check that the transport told us it was going to do this
      * (so a buggy transport will immediately assert rather than
      * silently failing to migrate this state)
@@ -778,7 +909,7 @@ void virtio_queue_set_align(VirtIODevice *vdev, int n, int align)
     assert(k->has_variable_vring_alignment);
 
     vdev->vq[n].vring.align = align;
-    virtqueue_init(&vdev->vq[n]);
+    virtio_queue_update_rings(vdev, n);
 }
 
 void virtio_queue_notify_vq(VirtQueue *vq)
@@ -895,6 +1026,7 @@ void virtio_notify_config(VirtIODevice *vdev)
         return;
 
     vdev->isr |= 0x03;
+    vdev->generation++;
     virtio_notify_vector(vdev, vdev->config_vector);
 }
 
@@ -903,7 +1035,11 @@ static bool virtio_device_endian_needed(void *opaque)
     VirtIODevice *vdev = opaque;
 
     assert(vdev->device_endian != VIRTIO_DEVICE_ENDIAN_UNKNOWN);
-    return vdev->device_endian != virtio_default_endian();
+    if (!virtio_has_feature(vdev, VIRTIO_F_VERSION_1)) {
+        return vdev->device_endian != virtio_default_endian();
+    }
+    /* Devices conforming to VIRTIO 1.0 or later are always LE. */
+    return vdev->device_endian != VIRTIO_DEVICE_ENDIAN_LITTLE;
 }
 
 static bool virtio_64bit_features_needed(void *opaque)
@@ -988,7 +1124,8 @@ void virtio_save(VirtIODevice *vdev, QEMUFile *f)
         if (k->has_variable_vring_alignment) {
             qemu_put_be32(f, vdev->vq[i].vring.align);
         }
-        qemu_put_be64(f, vdev->vq[i].pa);
+        /* XXX virtio-1 devices */
+        qemu_put_be64(f, vdev->vq[i].vring.desc);
         qemu_put_be16s(f, &vdev->vq[i].last_avail_idx);
         if (k->save_queue) {
             k->save_queue(qbus->parent, i, f);
@@ -1003,7 +1140,7 @@ void virtio_save(VirtIODevice *vdev, QEMUFile *f)
     vmstate_save_state(f, &vmstate_virtio, vdev, NULL);
 }
 
-int virtio_set_features(VirtIODevice *vdev, uint64_t val)
+static int virtio_set_features_nocheck(VirtIODevice *vdev, uint64_t val)
 {
     VirtioDeviceClass *k = VIRTIO_DEVICE_GET_CLASS(vdev);
     bool bad = (val & ~(vdev->host_features)) != 0;
@@ -1014,6 +1151,18 @@ int virtio_set_features(VirtIODevice *vdev, uint64_t val)
     }
     vdev->guest_features = val;
     return bad ? -1 : 0;
+}
+
+int virtio_set_features(VirtIODevice *vdev, uint64_t val)
+{
+   /*
+     * The driver must not attempt to set features after feature negotiation
+     * has finished.
+     */
+    if (vdev->status & VIRTIO_CONFIG_S_FEATURES_OK) {
+        return -EINVAL;
+    }
+    return virtio_set_features_nocheck(vdev, val);
 }
 
 int virtio_load(VirtIODevice *vdev, QEMUFile *f, int version_id)
@@ -1072,13 +1221,14 @@ int virtio_load(VirtIODevice *vdev, QEMUFile *f, int version_id)
         if (k->has_variable_vring_alignment) {
             vdev->vq[i].vring.align = qemu_get_be32(f);
         }
-        vdev->vq[i].pa = qemu_get_be64(f);
+        vdev->vq[i].vring.desc = qemu_get_be64(f);
         qemu_get_be16s(f, &vdev->vq[i].last_avail_idx);
         vdev->vq[i].signalled_used_valid = false;
         vdev->vq[i].notification = true;
 
-        if (vdev->vq[i].pa) {
-            virtqueue_init(&vdev->vq[i]);
+        if (vdev->vq[i].vring.desc) {
+            /* XXX virtio-1 devices */
+            virtio_queue_update_rings(vdev, i);
         } else if (vdev->vq[i].last_avail_idx) {
             error_report("VQ %d address 0x0 "
                          "inconsistent with Host index 0x%x",
@@ -1118,14 +1268,14 @@ int virtio_load(VirtIODevice *vdev, QEMUFile *f, int version_id)
          * host_features.
          */
         uint64_t features64 = vdev->guest_features;
-        if (virtio_set_features(vdev, features64) < 0) {
+        if (virtio_set_features_nocheck(vdev, features64) < 0) {
             error_report("Features 0x%" PRIx64 " unsupported. "
                          "Allowed features: 0x%" PRIx64,
                          features64, vdev->host_features);
             return -1;
         }
     } else {
-        if (virtio_set_features(vdev, features) < 0) {
+        if (virtio_set_features_nocheck(vdev, features) < 0) {
             error_report("Features 0x%x unsupported. "
                          "Allowed features: 0x%" PRIx64,
                          features, vdev->host_features);
@@ -1134,7 +1284,7 @@ int virtio_load(VirtIODevice *vdev, QEMUFile *f, int version_id)
     }
 
     for (i = 0; i < num; i++) {
-        if (vdev->vq[i].pa) {
+        if (vdev->vq[i].vring.desc) {
             uint16_t nheads;
             nheads = vring_avail_idx(&vdev->vq[i]) - vdev->vq[i].last_avail_idx;
             /* Check it isn't doing strange things with descriptor numbers. */

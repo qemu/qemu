@@ -333,8 +333,11 @@ static void virtio_mmio_write(void *opaque, hwaddr offset, uint64_t value,
     case VIRTIO_MMIO_QUEUENUM:
         DPRINTF("mmio_queue write %d max %d\n", (int)value, VIRTQUEUE_MAX_SIZE);
         virtio_queue_set_num(vdev, vdev->queue_sel, value);
+        /* Note: only call this function for legacy devices */
+        virtio_queue_update_rings(vdev, vdev->queue_sel);
         break;
     case VIRTIO_MMIO_QUEUEALIGN:
+        /* Note: this is only valid for legacy devices */
         virtio_queue_set_align(vdev, vdev->queue_sel, value);
         break;
     case VIRTIO_MMIO_QUEUEPFN:
