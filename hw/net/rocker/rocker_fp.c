@@ -51,6 +51,16 @@ bool fp_port_get_link_up(FpPort *port)
     return !qemu_get_queue(port->nic)->link_down;
 }
 
+void fp_port_get_info(FpPort *port, RockerPortList *info)
+{
+    info->value->name = g_strdup(port->name);
+    info->value->enabled = port->enabled;
+    info->value->link_up = fp_port_get_link_up(port);
+    info->value->speed = port->speed;
+    info->value->duplex = port->duplex;
+    info->value->autoneg = port->autoneg;
+}
+
 void fp_port_get_macaddr(FpPort *port, MACAddr *macaddr)
 {
     memcpy(macaddr->a, port->conf.macaddr.a, sizeof(macaddr->a));

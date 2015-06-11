@@ -94,6 +94,51 @@ World *rocker_get_world(Rocker *r, enum rocker_world_type type)
     return NULL;
 }
 
+RockerSwitch *qmp_query_rocker(const char *name, Error **errp)
+{
+    RockerSwitch *rocker = g_malloc0(sizeof(*rocker));
+    Rocker *r;
+
+    r = rocker_find(name);
+    if (!r) {
+        error_set(errp, ERROR_CLASS_GENERIC_ERROR,
+                  "rocker %s not found", name);
+        return NULL;
+    }
+
+    rocker->name = g_strdup(r->name);
+    rocker->id = r->switch_id;
+    rocker->ports = r->fp_ports;
+
+    return rocker;
+}
+
+RockerPortList *qmp_query_rocker_ports(const char *name, Error **errp)
+{
+    RockerPortList *list = NULL;
+    Rocker *r;
+    int i;
+
+    r = rocker_find(name);
+    if (!r) {
+        error_set(errp, ERROR_CLASS_GENERIC_ERROR,
+                  "rocker %s not found", name);
+        return NULL;
+    }
+
+    for (i = r->fp_ports - 1; i >= 0; i--) {
+        RockerPortList *info = g_malloc0(sizeof(*info));
+        info->value = g_malloc0(sizeof(*info->value));
+        struct fp_port *port = r->fp_port[i];
+
+        fp_port_get_info(port, info);
+        info->next = list;
+        list = info;
+    }
+
+    return list;
+}
+
 uint32_t rocker_fp_ports(Rocker *r)
 {
     return r->fp_ports;
