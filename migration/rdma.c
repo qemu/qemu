@@ -215,17 +215,18 @@ static void network_to_caps(RDMACapabilities *cap)
  * the information. It's small anyway, so a list is overkill.
  */
 typedef struct RDMALocalBlock {
-    uint8_t  *local_host_addr; /* local virtual address */
-    uint64_t remote_host_addr; /* remote virtual address */
-    uint64_t offset;
-    uint64_t length;
-    struct   ibv_mr **pmr;     /* MRs for chunk-level registration */
-    struct   ibv_mr *mr;       /* MR for non-chunk-level registration */
-    uint32_t *remote_keys;     /* rkeys for chunk-level registration */
-    uint32_t remote_rkey;      /* rkeys for non-chunk-level registration */
-    int      index;            /* which block are we */
-    bool     is_ram_block;
-    int      nb_chunks;
+    char          *block_name;
+    uint8_t       *local_host_addr; /* local virtual address */
+    uint64_t       remote_host_addr; /* remote virtual address */
+    uint64_t       offset;
+    uint64_t       length;
+    struct         ibv_mr **pmr;    /* MRs for chunk-level registration */
+    struct         ibv_mr *mr;      /* MR for non-chunk-level registration */
+    uint32_t      *remote_keys;     /* rkeys for chunk-level registration */
+    uint32_t       remote_rkey;     /* rkeys for non-chunk-level registration */
+    int            index;           /* which block are we */
+    bool           is_ram_block;
+    int            nb_chunks;
     unsigned long *transit_bitmap;
     unsigned long *unregister_bitmap;
 } RDMALocalBlock;
@@ -511,7 +512,8 @@ static inline uint8_t *ram_chunk_end(const RDMALocalBlock *rdma_ram_block,
     return result;
 }
 
-static int rdma_add_block(RDMAContext *rdma, void *host_addr,
+static int rdma_add_block(RDMAContext *rdma, const char *block_name,
+                         void *host_addr,
                          ram_addr_t block_offset, uint64_t length)
 {
     RDMALocalBlocks *local = &rdma->local_ram_blocks;
@@ -539,6 +541,7 @@ static int rdma_add_block(RDMAContext *rdma, void *host_addr,
 
     block = &local->block[local->nb_blocks];
 
+    block->block_name = g_strdup(block_name);
     block->local_host_addr = host_addr;
     block->offset = block_offset;
     block->length = length;
@@ -554,7 +557,8 @@ static int rdma_add_block(RDMAContext *rdma, void *host_addr,
 
     g_hash_table_insert(rdma->blockmap, (void *) block_offset, block);
 
-    trace_rdma_add_block(local->nb_blocks, (uintptr_t) block->local_host_addr,
+    trace_rdma_add_block(block_name, local->nb_blocks,
+                         (uintptr_t) block->local_host_addr,
                          block->offset, block->length,
                          (uintptr_t) (block->local_host_addr + block->length),
                          BITS_TO_LONGS(block->nb_chunks) *
@@ -574,7 +578,7 @@ static int rdma_add_block(RDMAContext *rdma, void *host_addr,
 static int qemu_rdma_init_one_block(const char *block_name, void *host_addr,
     ram_addr_t block_offset, ram_addr_t length, void *opaque)
 {
-    return rdma_add_block(opaque, host_addr, block_offset, length);
+    return rdma_add_block(opaque, block_name, host_addr, block_offset, length);
 }
 
 /*
@@ -635,6 +639,9 @@ static int rdma_delete_block(RDMAContext *rdma, ram_addr_t block_offset)
 
     g_free(block->remote_keys);
     block->remote_keys = NULL;
+
+    g_free(block->block_name);
+    block->block_name = NULL;
 
     for (x = 0; x < local->nb_blocks; x++) {
         g_hash_table_remove(rdma->blockmap, (void *)(uintptr_t)old[x].offset);
