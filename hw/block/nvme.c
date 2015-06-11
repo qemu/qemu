@@ -207,9 +207,21 @@ static void nvme_rw_cb(void *opaque, int ret)
     } else {
         req->status = NVME_INTERNAL_DEV_ERROR;
     }
-
-    qemu_sglist_destroy(&req->qsg);
+    if (req->has_sg) {
+        qemu_sglist_destroy(&req->qsg);
+    }
     nvme_enqueue_req_completion(cq, req);
+}
+
+static uint16_t nvme_flush(NvmeCtrl *n, NvmeNamespace *ns, NvmeCmd *cmd,
+    NvmeRequest *req)
+{
+    req->has_sg = false;
+    block_acct_start(blk_get_stats(n->conf.blk), &req->acct, 0,
+         BLOCK_ACCT_FLUSH);
+    req->aiocb = blk_aio_flush(n->conf.blk, nvme_rw_cb, req);
+
+    return NVME_NO_COMPLETE;
 }
 
 static uint16_t nvme_rw(NvmeCtrl *n, NvmeNamespace *ns, NvmeCmd *cmd,
@@ -235,6 +247,7 @@ static uint16_t nvme_rw(NvmeCtrl *n, NvmeNamespace *ns, NvmeCmd *cmd,
     }
     assert((nlb << data_shift) == req->qsg.size);
 
+    req->has_sg = true;
     dma_acct_start(n->conf.blk, &req->acct, &req->qsg,
                    is_write ? BLOCK_ACCT_WRITE : BLOCK_ACCT_READ);
     req->aiocb = is_write ?
@@ -256,7 +269,7 @@ static uint16_t nvme_io_cmd(NvmeCtrl *n, NvmeCmd *cmd, NvmeRequest *req)
     ns = &n->namespaces[nsid - 1];
     switch (cmd->opcode) {
     case NVME_CMD_FLUSH:
-        return NVME_SUCCESS;
+        return nvme_flush(n, ns, cmd, req);
     case NVME_CMD_WRITE:
     case NVME_CMD_READ:
         return nvme_rw(n, ns, cmd, req);
