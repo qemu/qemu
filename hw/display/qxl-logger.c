@@ -22,7 +22,7 @@
 #include "qemu/timer.h"
 #include "qxl.h"
 
-static const char *qxl_type[] = {
+static const char *const qxl_type[] = {
     [ QXL_CMD_NOP ]     = "nop",
     [ QXL_CMD_DRAW ]    = "draw",
     [ QXL_CMD_UPDATE ]  = "update",
@@ -31,7 +31,7 @@ static const char *qxl_type[] = {
     [ QXL_CMD_SURFACE ] = "surface",
 };
 
-static const char *qxl_draw_type[] = {
+static const char *const qxl_draw_type[] = {
     [ QXL_DRAW_NOP         ] = "nop",
     [ QXL_DRAW_FILL        ] = "fill",
     [ QXL_DRAW_OPAQUE      ] = "opaque",
@@ -48,7 +48,7 @@ static const char *qxl_draw_type[] = {
     [ QXL_DRAW_ALPHA_BLEND ] = "alpha-blend",
 };
 
-static const char *qxl_draw_effect[] = {
+static const char *const qxl_draw_effect[] = {
     [ QXL_EFFECT_BLEND            ] = "blend",
     [ QXL_EFFECT_OPAQUE           ] = "opaque",
     [ QXL_EFFECT_REVERT_ON_DUP    ] = "revert-on-dup",
@@ -59,12 +59,12 @@ static const char *qxl_draw_effect[] = {
     [ QXL_EFFECT_OPAQUE_BRUSH     ] = "opaque-brush",
 };
 
-static const char *qxl_surface_cmd[] = {
+static const char *const qxl_surface_cmd[] = {
    [ QXL_SURFACE_CMD_CREATE  ] = "create",
    [ QXL_SURFACE_CMD_DESTROY ] = "destroy",
 };
 
-static const char *spice_surface_fmt[] = {
+static const char *const spice_surface_fmt[] = {
    [ SPICE_SURFACE_FMT_INVALID  ] = "invalid",
    [ SPICE_SURFACE_FMT_1_A      ] = "alpha/1",
    [ SPICE_SURFACE_FMT_8_A      ] = "alpha/8",
@@ -74,14 +74,14 @@ static const char *spice_surface_fmt[] = {
    [ SPICE_SURFACE_FMT_32_ARGB  ] = "ARGB/32",
 };
 
-static const char *qxl_cursor_cmd[] = {
+static const char *const qxl_cursor_cmd[] = {
    [ QXL_CURSOR_SET   ] = "set",
    [ QXL_CURSOR_MOVE  ] = "move",
    [ QXL_CURSOR_HIDE  ] = "hide",
    [ QXL_CURSOR_TRAIL ] = "trail",
 };
 
-static const char *spice_cursor_type[] = {
+static const char *const spice_cursor_type[] = {
    [ SPICE_CURSOR_TYPE_ALPHA   ] = "alpha",
    [ SPICE_CURSOR_TYPE_MONO    ] = "mono",
    [ SPICE_CURSOR_TYPE_COLOR4  ] = "color4",
@@ -91,7 +91,7 @@ static const char *spice_cursor_type[] = {
    [ SPICE_CURSOR_TYPE_COLOR32 ] = "color32",
 };
 
-static const char *qxl_v2n(const char *n[], size_t l, int v)
+static const char *qxl_v2n(const char *const n[], size_t l, int v)
 {
     if (v >= l || !n[v]) {
         return "???";
