@@ -41,6 +41,11 @@ struct fp_port {
     NICConf conf;
 };
 
+char *fp_port_get_name(FpPort *port)
+{
+    return port->name;
+}
+
 bool fp_port_get_link_up(FpPort *port)
 {
     return !qemu_get_queue(port->nic)->link_down;
@@ -201,7 +206,7 @@ FpPort *fp_port_alloc(Rocker *r, char *sw_name,
 
     /* front-panel switch port names are 1-based */
 
-    port->name = g_strdup_printf("%s.%d", sw_name, port->pport);
+    port->name = g_strdup_printf("%sp%d", sw_name, port->pport);
 
     memcpy(port->conf.macaddr.a, start_mac, sizeof(port->conf.macaddr.a));
     port->conf.macaddr.a[5] += index;

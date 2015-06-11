@@ -420,6 +420,7 @@ Other properties for front-panel ports are available via DMA CMD descriptors:
 		LEARNING	1	MAC address learning on port
 						1 = enabled
 						0 = disabled
+		PHYS_NAME	<var>	Physical port name (string)
 
 	Set PORT_SETTINGS descriptor:
 

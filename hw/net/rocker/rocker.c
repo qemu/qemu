@@ -238,6 +238,7 @@ static int cmd_get_port_settings(Rocker *r,
     uint8_t duplex;
     uint8_t autoneg;
     uint8_t learning;
+    char *phys_name;
     MACAddr macaddr;
     enum rocker_world_type mode;
     size_t tlv_size;
@@ -265,6 +266,7 @@ static int cmd_get_port_settings(Rocker *r,
     fp_port_get_macaddr(fp_port, &macaddr);
     mode = world_type(fp_port_get_world(fp_port));
     learning = fp_port_get_learning(fp_port);
+    phys_name = fp_port_get_name(fp_port);
 
     tlv_size = rocker_tlv_total_size(0) +                 /* nest */
                rocker_tlv_total_size(sizeof(uint32_t)) +  /*   pport */
@@ -273,7 +275,8 @@ static int cmd_get_port_settings(Rocker *r,
                rocker_tlv_total_size(sizeof(uint8_t)) +   /*   autoneg */
                rocker_tlv_total_size(sizeof(macaddr.a)) + /*   macaddr */
                rocker_tlv_total_size(sizeof(uint8_t)) +   /*   mode */
-               rocker_tlv_total_size(sizeof(uint8_t));    /*   learning */
+               rocker_tlv_total_size(sizeof(uint8_t)) +   /*   learning */
+               rocker_tlv_total_size(strlen(phys_name));
 
     if (tlv_size > desc_buf_size(info)) {
         return -ROCKER_EMSGSIZE;
@@ -290,6 +293,8 @@ static int cmd_get_port_settings(Rocker *r,
     rocker_tlv_put_u8(buf, &pos, ROCKER_TLV_CMD_PORT_SETTINGS_MODE, mode);
     rocker_tlv_put_u8(buf, &pos, ROCKER_TLV_CMD_PORT_SETTINGS_LEARNING,
                       learning);
+    rocker_tlv_put(buf, &pos, ROCKER_TLV_CMD_PORT_SETTINGS_PHYS_NAME,
+                   strlen(phys_name), phys_name);
     rocker_tlv_nest_end(buf, &pos, nest);
 
     return desc_set_buf(info, tlv_size);
@@ -1275,6 +1280,22 @@ static int pci_rocker_init(PCIDevice *dev)
     if (rocker_find(r->name)) {
         err = -EEXIST;
         goto err_duplicate;
+    }
+
+    /* Rocker name is passed in port name requests to OS with the intention
+     * that the name is used in interface names. Limit the length of the
+     * rocker name to avoid naming problems in the OS. Also, adding the
+     * port number as p# and unganged breakout b#, where # is at most 2
+     * digits, so leave room for it too (-1 for string terminator, -3 for
+     * p# and -3 for b#)
+     */
+#define ROCKER_IFNAMSIZ 16
+#define MAX_ROCKER_NAME_LEN  (ROCKER_IFNAMSIZ - 1 - 3 - 3)
+    if (strlen(r->name) > MAX_ROCKER_NAME_LEN) {
+        fprintf(stderr,
+                "rocker: name too long; please shorten to at most %d chars\n",
+                MAX_ROCKER_NAME_LEN);
+        return -EINVAL;
     }
 
     if (memcmp(&r->fp_start_macaddr, &zero, sizeof(zero)) == 0) {
