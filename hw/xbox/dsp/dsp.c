@@ -113,6 +113,7 @@ uint32_t dsp_get_pc(void)
     return dsp_core.pc;
 }
 
+#if 0
 /**
  * Get next DSP PC without output (for debugging)
  */
@@ -137,6 +138,7 @@ uint32_t dsp_get_next_pc(uint32_t pc)
 
     return pc + instruction_length;
 }
+#endif
 
 /**
  * Get current DSP instruction cycles (for profiling)

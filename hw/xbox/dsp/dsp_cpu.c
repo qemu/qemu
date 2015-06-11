@@ -35,6 +35,7 @@
 #define DPRINTF(s, ...) fprintf(stderr, s, ## __VA_ARGS__)
 
 #define BITMASK(x)  ((1<<(x))-1)
+#define ARRAYSIZE(x) (sizeof(x)/sizeof(x[0]))
 
 // #define DSP_COUNT_IPS     /* Count instruction per seconds */
 
@@ -69,13 +70,11 @@ static bool is_dsp_in_disasm_mode;
 static char str_disasm_memory[2][50];     /* Buffer for memory change text in disasm mode */
 static uint32_t disasm_memory_ptr;        /* Pointer for memory change in disasm mode */
 
-static bool bExceptionDebugging = 1;
+static bool bExceptionDebugging = false;
 
 /**********************************
  *  Functions
  **********************************/
-
-typedef void (*dsp_emul_t)(void);
 
 static void dsp_postexecute_update_pc(void);
 static void dsp_postexecute_interrupts(void);
@@ -94,105 +93,111 @@ static void dsp_stack_push(uint32_t curpc, uint32_t cursr, uint16_t sshOnly);
 static void dsp_stack_pop(uint32_t *curpc, uint32_t *cursr);
 static void dsp_compute_ssh_ssl(void);
 
-static void opcode8h_0(void);
-
 static void dsp_update_rn(uint32_t numreg, int16_t modifier);
 static void dsp_update_rn_bitreverse(uint32_t numreg);
 static void dsp_update_rn_modulo(uint32_t numreg, int16_t modifier);
 static int dsp_calc_ea(uint32_t ea_mode, uint32_t *dst_addr);
 static int dsp_calc_cc(uint32_t cc_code);
 
-static void dsp_undefined(void);
+typedef void (*emu_func_t)(void);
+
+static void emu_undefined(void);
 
 /* Instructions without parallel moves */
-static void dsp_andi(void);
-static void dsp_bchg_aa(void);
-static void dsp_bchg_ea(void);
-static void dsp_bchg_pp(void);
-static void dsp_bchg_reg(void);
-static void dsp_bclr_aa(void);
-static void dsp_bclr_ea(void);
-static void dsp_bclr_pp(void);
-static void dsp_bclr_reg(void);
-static void dsp_bset_aa(void);
-static void dsp_bset_ea(void);
-static void dsp_bset_pp(void);
-static void dsp_bset_reg(void);
-static void dsp_btst_aa(void);
-static void dsp_btst_ea(void);
-static void dsp_btst_pp(void);
-static void dsp_btst_reg(void);
-static void dsp_div(void);
-static void dsp_enddo(void);
-static void dsp_illegal(void);
-static void dsp_jcc_imm(void);
-static void dsp_jcc_ea(void);
-static void dsp_jclr_aa(void);
-static void dsp_jclr_ea(void);
-static void dsp_jclr_pp(void);
-static void dsp_jclr_reg(void);
-static void dsp_jmp_ea(void);
-static void dsp_jmp_imm(void);
-static void dsp_jscc_ea(void);
-static void dsp_jscc_imm(void);
-static void dsp_jsclr_aa(void);
-static void dsp_jsclr_ea(void);
-static void dsp_jsclr_pp(void);
-static void dsp_jsclr_reg(void);
-static void dsp_jset_aa(void);
-static void dsp_jset_ea(void);
-static void dsp_jset_pp(void);
-static void dsp_jset_reg(void);
-static void dsp_jsr_ea(void);
-static void dsp_jsr_imm(void);
-static void dsp_jsset_aa(void);
-static void dsp_jsset_ea(void);
-static void dsp_jsset_pp(void);
-static void dsp_jsset_reg(void);
-static void dsp_lua(void);
-static void dsp_movem_ea(void);
-static void dsp_movem_aa(void);
-static void dsp_nop(void);
-static void dsp_norm(void);
-static void dsp_ori(void);
-static void dsp_reset(void);
-static void dsp_rti(void);
-static void dsp_rts(void);
-static void dsp_stop(void);
-static void dsp_swi(void);
-static void dsp_tcc(void);
-static void dsp_wait(void);
+static void emu_add_long(void);
+static void emu_andi(void);
+static void emu_bcc_long(void);
+static void emu_bcc_imm(void);
+static void emu_bchg_aa(void);
+static void emu_bchg_ea(void);
+static void emu_bchg_pp(void);
+static void emu_bchg_reg(void);
+static void emu_bclr_aa(void);
+static void emu_bclr_ea(void);
+static void emu_bclr_pp(void);
+static void emu_bclr_reg(void);
+static void emu_bra_imm(void);
+static void emu_bset_aa(void);
+static void emu_bset_ea(void);
+static void emu_bset_pp(void);
+static void emu_bset_reg(void);
+static void emu_btst_aa(void);
+static void emu_btst_ea(void);
+static void emu_btst_pp(void);
+static void emu_btst_reg(void);
+static void emu_cmpu(void);
+static void emu_div(void);
+static void emu_enddo(void);
+static void emu_illegal(void);
+static void emu_jcc_imm(void);
+static void emu_jcc_ea(void);
+static void emu_jclr_aa(void);
+static void emu_jclr_ea(void);
+static void emu_jclr_pp(void);
+static void emu_jclr_reg(void);
+static void emu_jmp_ea(void);
+static void emu_jmp_imm(void);
+static void emu_jscc_ea(void);
+static void emu_jscc_imm(void);
+static void emu_jsclr_aa(void);
+static void emu_jsclr_ea(void);
+static void emu_jsclr_pp(void);
+static void emu_jsclr_reg(void);
+static void emu_jset_aa(void);
+static void emu_jset_ea(void);
+static void emu_jset_pp(void);
+static void emu_jset_reg(void);
+static void emu_jsr_ea(void);
+static void emu_jsr_imm(void);
+static void emu_jsset_aa(void);
+static void emu_jsset_ea(void);
+static void emu_jsset_pp(void);
+static void emu_jsset_reg(void);
+static void emu_lua(void);
+static void emu_movem_ea(void);
+static void emu_movem_aa(void);
+static void emu_nop(void);
+static void emu_norm(void);
+static void emu_ori(void);
+static void emu_reset(void);
+static void emu_rti(void);
+static void emu_rts(void);
+static void emu_stop(void);
+static void emu_swi(void);
+static void emu_tcc(void);
+static void emu_wait(void);
 
-static void dsp_do_ea(void);
-static void dsp_do_aa(void);
-static void dsp_do_imm(void);
-static void dsp_do_reg(void);
-static void dsp_rep_aa(void);
-static void dsp_rep_ea(void);
-static void dsp_rep_imm(void);
-static void dsp_rep_reg(void);
-static void dsp_movec_aa(void);
-static void dsp_movec_ea(void);
-static void dsp_movec_imm(void);
-static void dsp_movec_reg(void);
-static void dsp_movep_0(void);
-static void dsp_movep_1(void);
-static void dsp_movep_23(void);
+static void emu_do_ea(void);
+static void emu_do_aa(void);
+static void emu_do_imm(void);
+static void emu_do_reg(void);
+static void emu_dor_imm(void);
+static void emu_rep_aa(void);
+static void emu_rep_ea(void);
+static void emu_rep_imm(void);
+static void emu_rep_reg(void);
+static void emu_movec_aa(void);
+static void emu_movec_ea(void);
+static void emu_movec_imm(void);
+static void emu_movec_reg(void);
+static void emu_movep_0(void);
+static void emu_movep_1(void);
+static void emu_movep_23(void);
 
-static void dsp_movep_x_low(void);
-static void dsp_movex_a(void);
+static void emu_movep_x_low(void);
+static void emu_move_x_aa(void);
 
 /* Parallel move analyzer */
-static int dsp_pm_read_accu24(int numreg, uint32_t *dest);
-static void dsp_pm_0(void);
-static void dsp_pm_1(void);
-static void dsp_pm_2(void);
-static void dsp_pm_2_2(void);
-static void dsp_pm_3(void);
-static void dsp_pm_4(void);
-static void dsp_pm_4x(void);
-static void dsp_pm_5(void);
-static void dsp_pm_8(void);
+static int emu_pm_read_accu24(int numreg, uint32_t *dest);
+static void emu_pm_0(void);
+static void emu_pm_1(void);
+static void emu_pm_2(void);
+static void emu_pm_2_2(void);
+static void emu_pm_3(void);
+static void emu_pm_4(void);
+static void emu_pm_4x(void);
+static void emu_pm_5(void);
+static void emu_pm_8(void);
 
 /* 56bits arithmetic */
 static uint16_t dsp_abs56(uint32_t *dest);
@@ -204,386 +209,304 @@ static void dsp_mul56(uint32_t source1, uint32_t source2, uint32_t *dest, uint8_
 static void dsp_rnd56(uint32_t *dest);
 
 /* Instructions with parallel moves */
-static void dsp_abs_a(void);
-static void dsp_abs_b(void);
-static void dsp_adc_x_a(void);
-static void dsp_adc_x_b(void);
-static void dsp_adc_y_a(void);
-static void dsp_adc_y_b(void);
-static void dsp_add_b_a(void);
-static void dsp_add_a_b(void);
-static void dsp_add_x_a(void);
-static void dsp_add_x_b(void);
-static void dsp_add_y_a(void);
-static void dsp_add_y_b(void);
-static void dsp_add_x0_a(void);
-static void dsp_add_x0_b(void);
-static void dsp_add_y0_a(void);
-static void dsp_add_y0_b(void);
-static void dsp_add_x1_a(void);
-static void dsp_add_x1_b(void);
-static void dsp_add_y1_a(void);
-static void dsp_add_y1_b(void);
-static void dsp_addl_b_a(void);
-static void dsp_addl_b_a(void);
-static void dsp_addl_a_b(void);
-static void dsp_addr_b_a(void);
-static void dsp_addr_a_b(void);
-static void dsp_and_x0_a(void);
-static void dsp_and_x0_b(void);
-static void dsp_and_y0_a(void);
-static void dsp_and_y0_b(void);
-static void dsp_and_x1_a(void);
-static void dsp_and_x1_b(void);
-static void dsp_and_y1_a(void);
-static void dsp_and_y1_b(void);
-static void dsp_asl_a(void);
-static void dsp_asl_b(void);
-static void dsp_asr_a(void);
-static void dsp_asr_b(void);
-static void dsp_clr_a(void);
-static void dsp_clr_b(void);
-static void dsp_cmp_b_a(void);
-static void dsp_cmp_a_b(void);
-static void dsp_cmp_x0_a(void);
-static void dsp_cmp_x0_b(void);
-static void dsp_cmp_y0_a(void);
-static void dsp_cmp_y0_b(void);
-static void dsp_cmp_x1_a(void);
-static void dsp_cmp_x1_b(void);
-static void dsp_cmp_y1_a(void);
-static void dsp_cmp_y1_b(void);
-static void dsp_cmpm_b_a(void);
-static void dsp_cmpm_a_b(void);
-static void dsp_cmpm_x0_a(void);
-static void dsp_cmpm_x0_b(void);
-static void dsp_cmpm_y0_a(void);
-static void dsp_cmpm_y0_b(void);
-static void dsp_cmpm_x1_a(void);
-static void dsp_cmpm_x1_b(void);
-static void dsp_cmpm_y1_a(void);
-static void dsp_cmpm_y1_b(void);
-static void dsp_eor_x0_a(void);
-static void dsp_eor_x0_b(void);
-static void dsp_eor_y0_a(void);
-static void dsp_eor_y0_b(void);
-static void dsp_eor_x1_a(void);
-static void dsp_eor_x1_b(void);
-static void dsp_eor_y1_a(void);
-static void dsp_eor_y1_b(void);
-static void dsp_lsl_a(void);
-static void dsp_lsl_b(void);
-static void dsp_lsr_a(void);
-static void dsp_lsr_b(void);
-static void dsp_mac_p_x0_x0_a(void);
-static void dsp_mac_m_x0_x0_a(void);
-static void dsp_mac_p_x0_x0_b(void);
-static void dsp_mac_m_x0_x0_b(void);
-static void dsp_mac_p_y0_y0_a(void);
-static void dsp_mac_m_y0_y0_a(void);
-static void dsp_mac_p_y0_y0_b(void);
-static void dsp_mac_m_y0_y0_b(void);
-static void dsp_mac_p_x1_x0_a(void);
-static void dsp_mac_m_x1_x0_a(void);
-static void dsp_mac_p_x1_x0_b(void);
-static void dsp_mac_m_x1_x0_b(void);
-static void dsp_mac_p_y1_y0_a(void);
-static void dsp_mac_m_y1_y0_a(void);
-static void dsp_mac_p_y1_y0_b(void);
-static void dsp_mac_m_y1_y0_b(void);
-static void dsp_mac_p_x0_y1_a(void);
-static void dsp_mac_m_x0_y1_a(void);
-static void dsp_mac_p_x0_y1_b(void);
-static void dsp_mac_m_x0_y1_b(void);
-static void dsp_mac_p_y0_x0_a(void);
-static void dsp_mac_m_y0_x0_a(void);
-static void dsp_mac_p_y0_x0_b(void);
-static void dsp_mac_m_y0_x0_b(void);
-static void dsp_mac_p_x1_y0_a(void);
-static void dsp_mac_m_x1_y0_a(void);
-static void dsp_mac_p_x1_y0_b(void);
-static void dsp_mac_m_x1_y0_b(void);
-static void dsp_mac_p_y1_x1_a(void);
-static void dsp_mac_m_y1_x1_a(void);
-static void dsp_mac_p_y1_x1_b(void);
-static void dsp_mac_m_y1_x1_b(void);
-static void dsp_macr_p_x0_x0_a(void);
-static void dsp_macr_m_x0_x0_a(void);
-static void dsp_macr_p_x0_x0_b(void);
-static void dsp_macr_m_x0_x0_b(void);
-static void dsp_macr_p_y0_y0_a(void);
-static void dsp_macr_m_y0_y0_a(void);
-static void dsp_macr_p_y0_y0_b(void);
-static void dsp_macr_m_y0_y0_b(void);
-static void dsp_macr_p_x1_x0_a(void);
-static void dsp_macr_m_x1_x0_a(void);
-static void dsp_macr_p_x1_x0_b(void);
-static void dsp_macr_m_x1_x0_b(void);
-static void dsp_macr_p_y1_y0_a(void);
-static void dsp_macr_m_y1_y0_a(void);
-static void dsp_macr_p_y1_y0_b(void);
-static void dsp_macr_m_y1_y0_b(void);
-static void dsp_macr_p_x0_y1_a(void);
-static void dsp_macr_m_x0_y1_a(void);
-static void dsp_macr_p_x0_y1_b(void);
-static void dsp_macr_m_x0_y1_b(void);
-static void dsp_macr_p_y0_x0_a(void);
-static void dsp_macr_m_y0_x0_a(void);
-static void dsp_macr_p_y0_x0_b(void);
-static void dsp_macr_m_y0_x0_b(void);
-static void dsp_macr_p_x1_y0_a(void);
-static void dsp_macr_m_x1_y0_a(void);
-static void dsp_macr_p_x1_y0_b(void);
-static void dsp_macr_m_x1_y0_b(void);
-static void dsp_macr_p_y1_x1_a(void);
-static void dsp_macr_m_y1_x1_a(void);
-static void dsp_macr_p_y1_x1_b(void);
-static void dsp_macr_m_y1_x1_b(void);
-static void dsp_move(void);
-static void dsp_mpy_p_x0_x0_a(void);
-static void dsp_mpy_m_x0_x0_a(void);
-static void dsp_mpy_p_x0_x0_b(void);
-static void dsp_mpy_m_x0_x0_b(void);
-static void dsp_mpy_p_y0_y0_a(void);
-static void dsp_mpy_m_y0_y0_a(void);
-static void dsp_mpy_p_y0_y0_b(void);
-static void dsp_mpy_m_y0_y0_b(void);
-static void dsp_mpy_p_x1_x0_a(void);
-static void dsp_mpy_m_x1_x0_a(void);
-static void dsp_mpy_p_x1_x0_b(void);
-static void dsp_mpy_m_x1_x0_b(void);
-static void dsp_mpy_p_y1_y0_a(void);
-static void dsp_mpy_m_y1_y0_a(void);
-static void dsp_mpy_p_y1_y0_b(void);
-static void dsp_mpy_m_y1_y0_b(void);
-static void dsp_mpy_p_x0_y1_a(void);
-static void dsp_mpy_m_x0_y1_a(void);
-static void dsp_mpy_p_x0_y1_b(void);
-static void dsp_mpy_m_x0_y1_b(void);
-static void dsp_mpy_p_y0_x0_a(void);
-static void dsp_mpy_m_y0_x0_a(void);
-static void dsp_mpy_p_y0_x0_b(void);
-static void dsp_mpy_m_y0_x0_b(void);
-static void dsp_mpy_p_x1_y0_a(void);
-static void dsp_mpy_m_x1_y0_a(void);
-static void dsp_mpy_p_x1_y0_b(void);
-static void dsp_mpy_m_x1_y0_b(void);
-static void dsp_mpy_p_y1_x1_a(void);
-static void dsp_mpy_m_y1_x1_a(void);
-static void dsp_mpy_p_y1_x1_b(void);
-static void dsp_mpy_m_y1_x1_b(void);
-static void dsp_mpyr_p_x0_x0_a(void);
-static void dsp_mpyr_m_x0_x0_a(void);
-static void dsp_mpyr_p_x0_x0_b(void);
-static void dsp_mpyr_m_x0_x0_b(void);
-static void dsp_mpyr_p_y0_y0_a(void);
-static void dsp_mpyr_m_y0_y0_a(void);
-static void dsp_mpyr_p_y0_y0_b(void);
-static void dsp_mpyr_m_y0_y0_b(void);
-static void dsp_mpyr_p_x1_x0_a(void);
-static void dsp_mpyr_m_x1_x0_a(void);
-static void dsp_mpyr_p_x1_x0_b(void);
-static void dsp_mpyr_m_x1_x0_b(void);
-static void dsp_mpyr_p_y1_y0_a(void);
-static void dsp_mpyr_m_y1_y0_a(void);
-static void dsp_mpyr_p_y1_y0_b(void);
-static void dsp_mpyr_m_y1_y0_b(void);
-static void dsp_mpyr_p_x0_y1_a(void);
-static void dsp_mpyr_m_x0_y1_a(void);
-static void dsp_mpyr_p_x0_y1_b(void);
-static void dsp_mpyr_m_x0_y1_b(void);
-static void dsp_mpyr_p_y0_x0_a(void);
-static void dsp_mpyr_m_y0_x0_a(void);
-static void dsp_mpyr_p_y0_x0_b(void);
-static void dsp_mpyr_m_y0_x0_b(void);
-static void dsp_mpyr_p_x1_y0_a(void);
-static void dsp_mpyr_m_x1_y0_a(void);
-static void dsp_mpyr_p_x1_y0_b(void);
-static void dsp_mpyr_m_x1_y0_b(void);
-static void dsp_mpyr_p_y1_x1_a(void);
-static void dsp_mpyr_m_y1_x1_a(void);
-static void dsp_mpyr_p_y1_x1_b(void);
-static void dsp_mpyr_m_y1_x1_b(void);
-static void dsp_neg_a(void);
-static void dsp_neg_b(void);
-static void dsp_not_a(void);
-static void dsp_not_b(void);
-static void dsp_or_x0_a(void);
-static void dsp_or_x0_b(void);
-static void dsp_or_y0_a(void);
-static void dsp_or_y0_b(void);
-static void dsp_or_x1_a(void);
-static void dsp_or_x1_b(void);
-static void dsp_or_y1_a(void);
-static void dsp_or_y1_b(void);
-static void dsp_rnd_a(void);
-static void dsp_rnd_b(void);
-static void dsp_rol_a(void);
-static void dsp_rol_b(void);
-static void dsp_ror_a(void);
-static void dsp_ror_b(void);
-static void dsp_sbc_x_a(void);
-static void dsp_sbc_x_b(void);
-static void dsp_sbc_y_a(void);
-static void dsp_sbc_y_b(void);
-static void dsp_sub_b_a(void);
-static void dsp_sub_a_b(void);
-static void dsp_sub_x_a(void);
-static void dsp_sub_x_b(void);
-static void dsp_sub_y_a(void);
-static void dsp_sub_y_b(void);
-static void dsp_sub_x0_a(void);
-static void dsp_sub_x0_b(void);
-static void dsp_sub_y0_a(void);
-static void dsp_sub_y0_b(void);
-static void dsp_sub_x1_a(void);
-static void dsp_sub_x1_b(void);
-static void dsp_sub_y1_a(void);
-static void dsp_sub_y1_b(void);
-static void dsp_subl_a(void);
-static void dsp_subl_b(void);
-static void dsp_subr_a(void);
-static void dsp_subr_b(void);
-static void dsp_tfr_b_a(void);
-static void dsp_tfr_a_b(void);
-static void dsp_tfr_x0_a(void);
-static void dsp_tfr_x0_b(void);
-static void dsp_tfr_y0_a(void);
-static void dsp_tfr_y0_b(void);
-static void dsp_tfr_x1_a(void);
-static void dsp_tfr_x1_b(void);
-static void dsp_tfr_y1_a(void);
-static void dsp_tfr_y1_b(void);
-static void dsp_tst_a(void);
-static void dsp_tst_b(void);
+static void emu_abs_a(void);
+static void emu_abs_b(void);
+static void emu_adc_x_a(void);
+static void emu_adc_x_b(void);
+static void emu_adc_y_a(void);
+static void emu_adc_y_b(void);
+static void emu_add_b_a(void);
+static void emu_add_a_b(void);
+static void emu_add_x_a(void);
+static void emu_add_x_b(void);
+static void emu_add_y_a(void);
+static void emu_add_y_b(void);
+static void emu_add_x0_a(void);
+static void emu_add_x0_b(void);
+static void emu_add_y0_a(void);
+static void emu_add_y0_b(void);
+static void emu_add_x1_a(void);
+static void emu_add_x1_b(void);
+static void emu_add_y1_a(void);
+static void emu_add_y1_b(void);
+static void emu_addl_b_a(void);
+static void emu_addl_b_a(void);
+static void emu_addl_a_b(void);
+static void emu_addr_b_a(void);
+static void emu_addr_a_b(void);
+static void emu_and_x0_a(void);
+static void emu_and_x0_b(void);
+static void emu_and_y0_a(void);
+static void emu_and_y0_b(void);
+static void emu_and_x1_a(void);
+static void emu_and_x1_b(void);
+static void emu_and_y1_a(void);
+static void emu_and_y1_b(void);
+static void emu_asl_a(void);
+static void emu_asl_b(void);
+static void emu_asr_a(void);
+static void emu_asr_b(void);
+static void emu_clr_a(void);
+static void emu_clr_b(void);
+static void emu_cmp_b_a(void);
+static void emu_cmp_a_b(void);
+static void emu_cmp_x0_a(void);
+static void emu_cmp_x0_b(void);
+static void emu_cmp_y0_a(void);
+static void emu_cmp_y0_b(void);
+static void emu_cmp_x1_a(void);
+static void emu_cmp_x1_b(void);
+static void emu_cmp_y1_a(void);
+static void emu_cmp_y1_b(void);
+static void emu_cmpm_b_a(void);
+static void emu_cmpm_a_b(void);
+static void emu_cmpm_x0_a(void);
+static void emu_cmpm_x0_b(void);
+static void emu_cmpm_y0_a(void);
+static void emu_cmpm_y0_b(void);
+static void emu_cmpm_x1_a(void);
+static void emu_cmpm_x1_b(void);
+static void emu_cmpm_y1_a(void);
+static void emu_cmpm_y1_b(void);
+static void emu_eor_x0_a(void);
+static void emu_eor_x0_b(void);
+static void emu_eor_y0_a(void);
+static void emu_eor_y0_b(void);
+static void emu_eor_x1_a(void);
+static void emu_eor_x1_b(void);
+static void emu_eor_y1_a(void);
+static void emu_eor_y1_b(void);
+static void emu_lsl_a(void);
+static void emu_lsl_b(void);
+static void emu_lsr_a(void);
+static void emu_lsr_b(void);
+static void emu_mac_p_x0_x0_a(void);
+static void emu_mac_m_x0_x0_a(void);
+static void emu_mac_p_x0_x0_b(void);
+static void emu_mac_m_x0_x0_b(void);
+static void emu_mac_p_y0_y0_a(void);
+static void emu_mac_m_y0_y0_a(void);
+static void emu_mac_p_y0_y0_b(void);
+static void emu_mac_m_y0_y0_b(void);
+static void emu_mac_p_x1_x0_a(void);
+static void emu_mac_m_x1_x0_a(void);
+static void emu_mac_p_x1_x0_b(void);
+static void emu_mac_m_x1_x0_b(void);
+static void emu_mac_p_y1_y0_a(void);
+static void emu_mac_m_y1_y0_a(void);
+static void emu_mac_p_y1_y0_b(void);
+static void emu_mac_m_y1_y0_b(void);
+static void emu_mac_p_x0_y1_a(void);
+static void emu_mac_m_x0_y1_a(void);
+static void emu_mac_p_x0_y1_b(void);
+static void emu_mac_m_x0_y1_b(void);
+static void emu_mac_p_y0_x0_a(void);
+static void emu_mac_m_y0_x0_a(void);
+static void emu_mac_p_y0_x0_b(void);
+static void emu_mac_m_y0_x0_b(void);
+static void emu_mac_p_x1_y0_a(void);
+static void emu_mac_m_x1_y0_a(void);
+static void emu_mac_p_x1_y0_b(void);
+static void emu_mac_m_x1_y0_b(void);
+static void emu_mac_p_y1_x1_a(void);
+static void emu_mac_m_y1_x1_a(void);
+static void emu_mac_p_y1_x1_b(void);
+static void emu_mac_m_y1_x1_b(void);
+static void emu_macr_p_x0_x0_a(void);
+static void emu_macr_m_x0_x0_a(void);
+static void emu_macr_p_x0_x0_b(void);
+static void emu_macr_m_x0_x0_b(void);
+static void emu_macr_p_y0_y0_a(void);
+static void emu_macr_m_y0_y0_a(void);
+static void emu_macr_p_y0_y0_b(void);
+static void emu_macr_m_y0_y0_b(void);
+static void emu_macr_p_x1_x0_a(void);
+static void emu_macr_m_x1_x0_a(void);
+static void emu_macr_p_x1_x0_b(void);
+static void emu_macr_m_x1_x0_b(void);
+static void emu_macr_p_y1_y0_a(void);
+static void emu_macr_m_y1_y0_a(void);
+static void emu_macr_p_y1_y0_b(void);
+static void emu_macr_m_y1_y0_b(void);
+static void emu_macr_p_x0_y1_a(void);
+static void emu_macr_m_x0_y1_a(void);
+static void emu_macr_p_x0_y1_b(void);
+static void emu_macr_m_x0_y1_b(void);
+static void emu_macr_p_y0_x0_a(void);
+static void emu_macr_m_y0_x0_a(void);
+static void emu_macr_p_y0_x0_b(void);
+static void emu_macr_m_y0_x0_b(void);
+static void emu_macr_p_x1_y0_a(void);
+static void emu_macr_m_x1_y0_a(void);
+static void emu_macr_p_x1_y0_b(void);
+static void emu_macr_m_x1_y0_b(void);
+static void emu_macr_p_y1_x1_a(void);
+static void emu_macr_m_y1_x1_a(void);
+static void emu_macr_p_y1_x1_b(void);
+static void emu_macr_m_y1_x1_b(void);
+static void emu_move(void);
+static void emu_mpy_p_x0_x0_a(void);
+static void emu_mpy_m_x0_x0_a(void);
+static void emu_mpy_p_x0_x0_b(void);
+static void emu_mpy_m_x0_x0_b(void);
+static void emu_mpy_p_y0_y0_a(void);
+static void emu_mpy_m_y0_y0_a(void);
+static void emu_mpy_p_y0_y0_b(void);
+static void emu_mpy_m_y0_y0_b(void);
+static void emu_mpy_p_x1_x0_a(void);
+static void emu_mpy_m_x1_x0_a(void);
+static void emu_mpy_p_x1_x0_b(void);
+static void emu_mpy_m_x1_x0_b(void);
+static void emu_mpy_p_y1_y0_a(void);
+static void emu_mpy_m_y1_y0_a(void);
+static void emu_mpy_p_y1_y0_b(void);
+static void emu_mpy_m_y1_y0_b(void);
+static void emu_mpy_p_x0_y1_a(void);
+static void emu_mpy_m_x0_y1_a(void);
+static void emu_mpy_p_x0_y1_b(void);
+static void emu_mpy_m_x0_y1_b(void);
+static void emu_mpy_p_y0_x0_a(void);
+static void emu_mpy_m_y0_x0_a(void);
+static void emu_mpy_p_y0_x0_b(void);
+static void emu_mpy_m_y0_x0_b(void);
+static void emu_mpy_p_x1_y0_a(void);
+static void emu_mpy_m_x1_y0_a(void);
+static void emu_mpy_p_x1_y0_b(void);
+static void emu_mpy_m_x1_y0_b(void);
+static void emu_mpy_p_y1_x1_a(void);
+static void emu_mpy_m_y1_x1_a(void);
+static void emu_mpy_p_y1_x1_b(void);
+static void emu_mpy_m_y1_x1_b(void);
+static void emu_mpyr_p_x0_x0_a(void);
+static void emu_mpyr_m_x0_x0_a(void);
+static void emu_mpyr_p_x0_x0_b(void);
+static void emu_mpyr_m_x0_x0_b(void);
+static void emu_mpyr_p_y0_y0_a(void);
+static void emu_mpyr_m_y0_y0_a(void);
+static void emu_mpyr_p_y0_y0_b(void);
+static void emu_mpyr_m_y0_y0_b(void);
+static void emu_mpyr_p_x1_x0_a(void);
+static void emu_mpyr_m_x1_x0_a(void);
+static void emu_mpyr_p_x1_x0_b(void);
+static void emu_mpyr_m_x1_x0_b(void);
+static void emu_mpyr_p_y1_y0_a(void);
+static void emu_mpyr_m_y1_y0_a(void);
+static void emu_mpyr_p_y1_y0_b(void);
+static void emu_mpyr_m_y1_y0_b(void);
+static void emu_mpyr_p_x0_y1_a(void);
+static void emu_mpyr_m_x0_y1_a(void);
+static void emu_mpyr_p_x0_y1_b(void);
+static void emu_mpyr_m_x0_y1_b(void);
+static void emu_mpyr_p_y0_x0_a(void);
+static void emu_mpyr_m_y0_x0_a(void);
+static void emu_mpyr_p_y0_x0_b(void);
+static void emu_mpyr_m_y0_x0_b(void);
+static void emu_mpyr_p_x1_y0_a(void);
+static void emu_mpyr_m_x1_y0_a(void);
+static void emu_mpyr_p_x1_y0_b(void);
+static void emu_mpyr_m_x1_y0_b(void);
+static void emu_mpyr_p_y1_x1_a(void);
+static void emu_mpyr_m_y1_x1_a(void);
+static void emu_mpyr_p_y1_x1_b(void);
+static void emu_mpyr_m_y1_x1_b(void);
+static void emu_neg_a(void);
+static void emu_neg_b(void);
+static void emu_not_a(void);
+static void emu_not_b(void);
+static void emu_or_x0_a(void);
+static void emu_or_x0_b(void);
+static void emu_or_y0_a(void);
+static void emu_or_y0_b(void);
+static void emu_or_x1_a(void);
+static void emu_or_x1_b(void);
+static void emu_or_y1_a(void);
+static void emu_or_y1_b(void);
+static void emu_rnd_a(void);
+static void emu_rnd_b(void);
+static void emu_rol_a(void);
+static void emu_rol_b(void);
+static void emu_ror_a(void);
+static void emu_ror_b(void);
+static void emu_sbc_x_a(void);
+static void emu_sbc_x_b(void);
+static void emu_sbc_y_a(void);
+static void emu_sbc_y_b(void);
+static void emu_sub_b_a(void);
+static void emu_sub_a_b(void);
+static void emu_sub_x_a(void);
+static void emu_sub_x_b(void);
+static void emu_sub_y_a(void);
+static void emu_sub_y_b(void);
+static void emu_sub_x0_a(void);
+static void emu_sub_x0_b(void);
+static void emu_sub_y0_a(void);
+static void emu_sub_y0_b(void);
+static void emu_sub_x1_a(void);
+static void emu_sub_x1_b(void);
+static void emu_sub_y1_a(void);
+static void emu_sub_y1_b(void);
+static void emu_subl_a(void);
+static void emu_subl_b(void);
+static void emu_subr_a(void);
+static void emu_subr_b(void);
+static void emu_tfr_b_a(void);
+static void emu_tfr_a_b(void);
+static void emu_tfr_x0_a(void);
+static void emu_tfr_x0_b(void);
+static void emu_tfr_y0_a(void);
+static void emu_tfr_y0_b(void);
+static void emu_tfr_x1_a(void);
+static void emu_tfr_x1_b(void);
+static void emu_tfr_y1_a(void);
+static void emu_tfr_y1_b(void);
+static void emu_tst_a(void);
+static void emu_tst_b(void);
 
-static const dsp_emul_t opcodes8h[512] = {
-    /* 0x00 - 0x3f */
-    opcode8h_0, dsp_undefined, dsp_undefined, dsp_undefined, opcode8h_0, dsp_andi, dsp_undefined, dsp_ori,
-    dsp_undefined, dsp_undefined, dsp_undefined, dsp_undefined, dsp_undefined, dsp_andi, dsp_undefined, dsp_ori,
-    dsp_undefined, dsp_undefined, dsp_undefined, dsp_undefined, dsp_undefined, dsp_andi, dsp_undefined, dsp_ori,
-    dsp_undefined, dsp_undefined, dsp_undefined, dsp_undefined, dsp_undefined, dsp_andi, dsp_undefined, dsp_ori,
-    dsp_undefined, dsp_undefined, dsp_undefined, dsp_undefined, dsp_undefined, dsp_undefined, dsp_undefined, dsp_undefined,
-    dsp_undefined, dsp_undefined, dsp_undefined, dsp_undefined, dsp_undefined, dsp_undefined, dsp_undefined, dsp_undefined,
-    dsp_undefined, dsp_undefined, dsp_div, dsp_div, dsp_undefined, dsp_undefined, dsp_undefined, dsp_undefined,
-    dsp_norm, dsp_undefined, dsp_undefined, dsp_undefined, dsp_undefined, dsp_undefined, dsp_undefined, dsp_undefined,
-    
-    /* 0x40 - 0x7f */
-    dsp_tcc, dsp_tcc, dsp_tcc, dsp_tcc, dsp_movex_a, dsp_undefined, dsp_movex_a, dsp_undefined,
-    dsp_tcc, dsp_tcc, dsp_tcc, dsp_tcc, dsp_movex_a, dsp_undefined, dsp_movex_a, dsp_undefined,
-    dsp_tcc, dsp_tcc, dsp_tcc, dsp_tcc, dsp_movex_a, dsp_undefined, dsp_movex_a, dsp_undefined,
-    dsp_tcc, dsp_tcc, dsp_tcc, dsp_tcc, dsp_undefined, dsp_undefined, dsp_movex_a, dsp_undefined,
-    dsp_tcc, dsp_tcc, dsp_tcc, dsp_tcc, dsp_movex_a, dsp_undefined, dsp_movex_a, dsp_undefined,
-    dsp_tcc, dsp_tcc, dsp_tcc, dsp_tcc, dsp_movex_a, dsp_undefined, dsp_movex_a, dsp_undefined,
-    dsp_tcc, dsp_tcc, dsp_tcc, dsp_tcc, dsp_movex_a, dsp_undefined, dsp_undefined, dsp_undefined,
-    dsp_tcc, dsp_tcc, dsp_tcc, dsp_tcc, dsp_movex_a, dsp_undefined, dsp_movex_a, dsp_undefined,
-
-    /* 0x80 - 0xbf */
-    dsp_undefined, dsp_undefined, dsp_undefined, dsp_undefined, dsp_undefined, dsp_undefined, dsp_undefined, dsp_undefined,
-    dsp_lua, dsp_undefined, dsp_undefined, dsp_undefined, dsp_undefined, dsp_movec_reg, dsp_undefined, dsp_undefined, 
-    dsp_undefined, dsp_undefined, dsp_undefined, dsp_undefined, dsp_undefined, dsp_undefined, dsp_undefined, dsp_undefined,
-    dsp_undefined, dsp_undefined, dsp_undefined, dsp_undefined, dsp_undefined, dsp_movec_reg, dsp_undefined, dsp_undefined, 
-    dsp_undefined, dsp_movec_aa, dsp_undefined, dsp_movec_aa, dsp_undefined, dsp_movec_imm, dsp_undefined, dsp_undefined,
-    dsp_undefined, dsp_movec_ea, dsp_undefined, dsp_movec_ea, dsp_undefined, dsp_movec_imm, dsp_undefined, dsp_undefined,
-    dsp_undefined, dsp_movec_aa, dsp_undefined, dsp_movec_aa, dsp_undefined, dsp_movec_imm, dsp_undefined, dsp_undefined,
-    dsp_undefined, dsp_movec_ea, dsp_undefined, dsp_movec_ea, dsp_undefined, dsp_movec_imm, dsp_undefined, dsp_undefined,
-    
-    /* 0xc0 - 0xff */
-    /* 0xc0 */ dsp_do_aa, dsp_rep_aa, dsp_do_aa, dsp_rep_aa, dsp_do_imm, dsp_rep_imm, dsp_undefined, dsp_undefined, 
-    /* 0xc8 */ dsp_do_ea, dsp_rep_ea, dsp_do_ea, dsp_rep_ea, dsp_do_imm, dsp_rep_imm, dsp_undefined, dsp_undefined, 
-    /* 0xd0 */ dsp_undefined, dsp_undefined, dsp_undefined, dsp_undefined, dsp_do_imm, dsp_rep_imm, dsp_undefined, dsp_undefined, 
-    /* 0xd8 */ dsp_do_reg, dsp_rep_reg, dsp_undefined, dsp_undefined, dsp_do_imm, dsp_rep_imm, dsp_undefined, dsp_undefined, 
-    /* 0xe0 */ dsp_movem_aa, dsp_movem_aa, dsp_undefined, dsp_undefined, dsp_undefined, dsp_undefined, dsp_undefined, dsp_undefined, 
-    /* 0xe8 */ dsp_movep_x_low, dsp_movep_x_low, dsp_movep_x_low, dsp_movep_x_low, dsp_movem_ea, dsp_movem_ea, dsp_undefined, dsp_undefined, 
-    /* 0xf0 */ dsp_movem_aa, dsp_movem_aa, dsp_undefined, dsp_undefined, dsp_undefined, dsp_undefined, dsp_undefined, dsp_undefined, 
-    /* 0xf8 */ dsp_movep_x_low, dsp_movep_x_low, dsp_movep_x_low, dsp_movep_x_low, dsp_movem_ea, dsp_movem_ea, dsp_undefined, dsp_undefined, 
-
-    /* 0x100 - 0x13f */
-    dsp_pm_0, dsp_pm_0, dsp_pm_0, dsp_pm_0, dsp_pm_0, dsp_pm_0, dsp_pm_0, dsp_pm_0,
-    dsp_movep_0, dsp_movep_0, dsp_movep_1, dsp_movep_1, dsp_movep_23, dsp_movep_23, dsp_movep_23, dsp_movep_23,
-    dsp_pm_0, dsp_pm_0, dsp_pm_0, dsp_pm_0, dsp_pm_0, dsp_pm_0, dsp_pm_0, dsp_pm_0,
-    dsp_movep_0, dsp_movep_0, dsp_movep_1, dsp_movep_1, dsp_movep_23, dsp_movep_23, dsp_movep_23, dsp_movep_23,
-    dsp_pm_0, dsp_pm_0, dsp_pm_0, dsp_pm_0, dsp_pm_0, dsp_pm_0, dsp_pm_0, dsp_pm_0,
-    dsp_movep_0, dsp_movep_0, dsp_movep_1, dsp_movep_1, dsp_movep_23, dsp_movep_23, dsp_movep_23, dsp_movep_23,
-    dsp_pm_0, dsp_pm_0, dsp_pm_0, dsp_pm_0, dsp_pm_0, dsp_pm_0, dsp_pm_0, dsp_pm_0,
-    dsp_movep_0, dsp_movep_0, dsp_movep_1, dsp_movep_1, dsp_movep_23, dsp_movep_23, dsp_movep_23, dsp_movep_23,
-
-    /* 0x140 - 0x17f */
-    dsp_bclr_aa, dsp_bset_aa, dsp_bclr_aa, dsp_bset_aa, dsp_jclr_aa, dsp_jset_aa, dsp_jclr_aa, dsp_jset_aa,
-    dsp_bclr_ea, dsp_bset_ea, dsp_bclr_ea, dsp_bset_ea, dsp_jclr_ea, dsp_jset_ea, dsp_jclr_ea, dsp_jset_ea,
-    dsp_bclr_pp, dsp_bset_pp, dsp_bclr_pp, dsp_bset_pp, dsp_jclr_pp, dsp_jset_pp, dsp_jclr_pp, dsp_jset_pp,
-    dsp_jclr_reg, dsp_jset_reg, dsp_bclr_reg, dsp_bset_reg, dsp_jmp_ea, dsp_jcc_ea, dsp_undefined, dsp_undefined,
-    dsp_bchg_aa, dsp_btst_aa, dsp_bchg_aa, dsp_btst_aa, dsp_jsclr_aa, dsp_jsset_aa, dsp_jsclr_aa, dsp_jsset_aa,
-    dsp_bchg_ea, dsp_btst_ea, dsp_bchg_ea, dsp_btst_ea, dsp_jsclr_ea, dsp_jsset_ea, dsp_jsclr_ea, dsp_jsset_ea,
-    dsp_bchg_pp, dsp_btst_pp, dsp_bchg_pp, dsp_btst_pp, dsp_jsclr_pp, dsp_jsset_pp, dsp_jsclr_pp, dsp_jsset_pp,
-    dsp_jsclr_reg, dsp_jsset_reg, dsp_bchg_reg, dsp_btst_reg, dsp_jsr_ea, dsp_jscc_ea, dsp_undefined, dsp_undefined,
-
-    /* 0x180 - 0x1bf */
-    dsp_jmp_imm, dsp_jmp_imm, dsp_jmp_imm, dsp_jmp_imm, dsp_jmp_imm, dsp_jmp_imm, dsp_jmp_imm, dsp_jmp_imm,
-    dsp_undefined, dsp_undefined, dsp_undefined, dsp_undefined, dsp_undefined, dsp_undefined, dsp_undefined, dsp_undefined, 
-    dsp_undefined, dsp_undefined, dsp_undefined, dsp_undefined, dsp_undefined, dsp_undefined, dsp_undefined, dsp_undefined, 
-    dsp_undefined, dsp_undefined, dsp_undefined, dsp_undefined, dsp_undefined, dsp_undefined, dsp_undefined, dsp_undefined, 
-    dsp_jsr_imm, dsp_jsr_imm, dsp_jsr_imm, dsp_jsr_imm, dsp_jsr_imm, dsp_jsr_imm, dsp_jsr_imm, dsp_jsr_imm, 
-    dsp_undefined, dsp_undefined, dsp_undefined, dsp_undefined, dsp_undefined, dsp_undefined, dsp_undefined, dsp_undefined, 
-    dsp_undefined, dsp_undefined, dsp_undefined, dsp_undefined, dsp_undefined, dsp_undefined, dsp_undefined, dsp_undefined, 
-    dsp_undefined, dsp_undefined, dsp_undefined, dsp_undefined, dsp_undefined, dsp_undefined, dsp_undefined, dsp_undefined, 
-
-    /* 0x1c0 - 0x1ff */
-    dsp_jcc_imm, dsp_jcc_imm, dsp_jcc_imm, dsp_jcc_imm, dsp_jcc_imm, dsp_jcc_imm, dsp_jcc_imm, dsp_jcc_imm, 
-    dsp_jcc_imm, dsp_jcc_imm, dsp_jcc_imm, dsp_jcc_imm, dsp_jcc_imm, dsp_jcc_imm, dsp_jcc_imm, dsp_jcc_imm, 
-    dsp_jcc_imm, dsp_jcc_imm, dsp_jcc_imm, dsp_jcc_imm, dsp_jcc_imm, dsp_jcc_imm, dsp_jcc_imm, dsp_jcc_imm, 
-    dsp_jcc_imm, dsp_jcc_imm, dsp_jcc_imm, dsp_jcc_imm, dsp_jcc_imm, dsp_jcc_imm, dsp_jcc_imm, dsp_jcc_imm, 
-    dsp_jscc_imm, dsp_jscc_imm, dsp_jscc_imm, dsp_jscc_imm, dsp_jscc_imm, dsp_jscc_imm, dsp_jscc_imm, dsp_jscc_imm, 
-    dsp_jscc_imm, dsp_jscc_imm, dsp_jscc_imm, dsp_jscc_imm, dsp_jscc_imm, dsp_jscc_imm, dsp_jscc_imm, dsp_jscc_imm, 
-    dsp_jscc_imm, dsp_jscc_imm, dsp_jscc_imm, dsp_jscc_imm, dsp_jscc_imm, dsp_jscc_imm, dsp_jscc_imm, dsp_jscc_imm, 
-    dsp_jscc_imm, dsp_jscc_imm, dsp_jscc_imm, dsp_jscc_imm, dsp_jscc_imm, dsp_jscc_imm, dsp_jscc_imm, dsp_jscc_imm, 
+static const emu_func_t opcodes_parmove[16] = {
+    emu_pm_0, emu_pm_1, emu_pm_2, emu_pm_3, emu_pm_4, emu_pm_5, emu_pm_5, emu_pm_5,
+    emu_pm_8, emu_pm_8, emu_pm_8, emu_pm_8, emu_pm_8, emu_pm_8, emu_pm_8, emu_pm_8
 };
 
-static const dsp_emul_t opcodes_parmove[16] = {
-    dsp_pm_0, dsp_pm_1, dsp_pm_2, dsp_pm_3, dsp_pm_4, dsp_pm_5, dsp_pm_5, dsp_pm_5,
-    dsp_pm_8, dsp_pm_8, dsp_pm_8, dsp_pm_8, dsp_pm_8, dsp_pm_8, dsp_pm_8, dsp_pm_8
-};
-
-static const dsp_emul_t opcodes_alu[256] = {
+static const emu_func_t opcodes_alu[256] = {
     /* 0x00 - 0x3f */
-    dsp_move     , dsp_tfr_b_a, dsp_addr_b_a, dsp_tst_a, dsp_undefined, dsp_cmp_b_a, dsp_subr_a, dsp_cmpm_b_a,
-    dsp_undefined, dsp_tfr_a_b, dsp_addr_a_b, dsp_tst_b, dsp_undefined, dsp_cmp_a_b, dsp_subr_b, dsp_cmpm_a_b,
-    dsp_add_b_a, dsp_rnd_a, dsp_addl_b_a, dsp_clr_a, dsp_sub_b_a, dsp_undefined, dsp_subl_a, dsp_not_a,
-    dsp_add_a_b, dsp_rnd_b, dsp_addl_a_b, dsp_clr_b, dsp_sub_a_b, dsp_undefined, dsp_subl_b, dsp_not_b,
-    dsp_add_x_a, dsp_adc_x_a, dsp_asr_a, dsp_lsr_a, dsp_sub_x_a, dsp_sbc_x_a, dsp_abs_a, dsp_ror_a,
-    dsp_add_x_b, dsp_adc_x_b, dsp_asr_b, dsp_lsr_b, dsp_sub_x_b, dsp_sbc_x_b, dsp_abs_b, dsp_ror_b,
-    dsp_add_y_a, dsp_adc_y_a, dsp_asl_a, dsp_lsl_a, dsp_sub_y_a, dsp_sbc_y_a, dsp_neg_a, dsp_rol_a,
-    dsp_add_y_b, dsp_adc_y_b, dsp_asl_b, dsp_lsl_b, dsp_sub_y_b, dsp_sbc_y_b, dsp_neg_b, dsp_rol_b,
+    emu_move     , emu_tfr_b_a, emu_addr_b_a, emu_tst_a, emu_undefined, emu_cmp_b_a, emu_subr_a, emu_cmpm_b_a,
+    emu_undefined, emu_tfr_a_b, emu_addr_a_b, emu_tst_b, emu_undefined, emu_cmp_a_b, emu_subr_b, emu_cmpm_a_b,
+    emu_add_b_a, emu_rnd_a, emu_addl_b_a, emu_clr_a, emu_sub_b_a, emu_undefined, emu_subl_a, emu_not_a,
+    emu_add_a_b, emu_rnd_b, emu_addl_a_b, emu_clr_b, emu_sub_a_b, emu_undefined, emu_subl_b, emu_not_b,
+    emu_add_x_a, emu_adc_x_a, emu_asr_a, emu_lsr_a, emu_sub_x_a, emu_sbc_x_a, emu_abs_a, emu_ror_a,
+    emu_add_x_b, emu_adc_x_b, emu_asr_b, emu_lsr_b, emu_sub_x_b, emu_sbc_x_b, emu_abs_b, emu_ror_b,
+    emu_add_y_a, emu_adc_y_a, emu_asl_a, emu_lsl_a, emu_sub_y_a, emu_sbc_y_a, emu_neg_a, emu_rol_a,
+    emu_add_y_b, emu_adc_y_b, emu_asl_b, emu_lsl_b, emu_sub_y_b, emu_sbc_y_b, emu_neg_b, emu_rol_b,
     
     /* 0x40 - 0x7f */
-    dsp_add_x0_a, dsp_tfr_x0_a, dsp_or_x0_a, dsp_eor_x0_a, dsp_sub_x0_a, dsp_cmp_x0_a, dsp_and_x0_a, dsp_cmpm_x0_a,
-    dsp_add_x0_b, dsp_tfr_x0_b, dsp_or_x0_b, dsp_eor_x0_b, dsp_sub_x0_b, dsp_cmp_x0_b, dsp_and_x0_b, dsp_cmpm_x0_b,
-    dsp_add_y0_a, dsp_tfr_y0_a, dsp_or_y0_a, dsp_eor_y0_a, dsp_sub_y0_a, dsp_cmp_y0_a, dsp_and_y0_a, dsp_cmpm_y0_a,
-    dsp_add_y0_b, dsp_tfr_y0_b, dsp_or_y0_b, dsp_eor_y0_b, dsp_sub_y0_b, dsp_cmp_y0_b, dsp_and_y0_b, dsp_cmpm_y0_b,
-    dsp_add_x1_a, dsp_tfr_x1_a, dsp_or_x1_a, dsp_eor_x1_a, dsp_sub_x1_a, dsp_cmp_x1_a, dsp_and_x1_a, dsp_cmpm_x1_a,
-    dsp_add_x1_b, dsp_tfr_x1_b, dsp_or_x1_b, dsp_eor_x1_b, dsp_sub_x1_b, dsp_cmp_x1_b, dsp_and_x1_b, dsp_cmpm_x1_b,
-    dsp_add_y1_a, dsp_tfr_y1_a, dsp_or_y1_a, dsp_eor_y1_a, dsp_sub_y1_a, dsp_cmp_y1_a, dsp_and_y1_a, dsp_cmpm_y1_a,
-    dsp_add_y1_b, dsp_tfr_y1_b, dsp_or_y1_b, dsp_eor_y1_b, dsp_sub_y1_b, dsp_cmp_y1_b, dsp_and_y1_b, dsp_cmpm_y1_b,
+    emu_add_x0_a, emu_tfr_x0_a, emu_or_x0_a, emu_eor_x0_a, emu_sub_x0_a, emu_cmp_x0_a, emu_and_x0_a, emu_cmpm_x0_a,
+    emu_add_x0_b, emu_tfr_x0_b, emu_or_x0_b, emu_eor_x0_b, emu_sub_x0_b, emu_cmp_x0_b, emu_and_x0_b, emu_cmpm_x0_b,
+    emu_add_y0_a, emu_tfr_y0_a, emu_or_y0_a, emu_eor_y0_a, emu_sub_y0_a, emu_cmp_y0_a, emu_and_y0_a, emu_cmpm_y0_a,
+    emu_add_y0_b, emu_tfr_y0_b, emu_or_y0_b, emu_eor_y0_b, emu_sub_y0_b, emu_cmp_y0_b, emu_and_y0_b, emu_cmpm_y0_b,
+    emu_add_x1_a, emu_tfr_x1_a, emu_or_x1_a, emu_eor_x1_a, emu_sub_x1_a, emu_cmp_x1_a, emu_and_x1_a, emu_cmpm_x1_a,
+    emu_add_x1_b, emu_tfr_x1_b, emu_or_x1_b, emu_eor_x1_b, emu_sub_x1_b, emu_cmp_x1_b, emu_and_x1_b, emu_cmpm_x1_b,
+    emu_add_y1_a, emu_tfr_y1_a, emu_or_y1_a, emu_eor_y1_a, emu_sub_y1_a, emu_cmp_y1_a, emu_and_y1_a, emu_cmpm_y1_a,
+    emu_add_y1_b, emu_tfr_y1_b, emu_or_y1_b, emu_eor_y1_b, emu_sub_y1_b, emu_cmp_y1_b, emu_and_y1_b, emu_cmpm_y1_b,
 
     /* 0x80 - 0xbf */
-    dsp_mpy_p_x0_x0_a, dsp_mpyr_p_x0_x0_a, dsp_mac_p_x0_x0_a, dsp_macr_p_x0_x0_a, dsp_mpy_m_x0_x0_a, dsp_mpyr_m_x0_x0_a, dsp_mac_m_x0_x0_a, dsp_macr_m_x0_x0_a,
-    dsp_mpy_p_x0_x0_b, dsp_mpyr_p_x0_x0_b, dsp_mac_p_x0_x0_b, dsp_macr_p_x0_x0_b, dsp_mpy_m_x0_x0_b, dsp_mpyr_m_x0_x0_b, dsp_mac_m_x0_x0_b, dsp_macr_m_x0_x0_b,
-    dsp_mpy_p_y0_y0_a, dsp_mpyr_p_y0_y0_a, dsp_mac_p_y0_y0_a, dsp_macr_p_y0_y0_a, dsp_mpy_m_y0_y0_a, dsp_mpyr_m_y0_y0_a, dsp_mac_m_y0_y0_a, dsp_macr_m_y0_y0_a,
-    dsp_mpy_p_y0_y0_b, dsp_mpyr_p_y0_y0_b, dsp_mac_p_y0_y0_b, dsp_macr_p_y0_y0_b, dsp_mpy_m_y0_y0_b, dsp_mpyr_m_y0_y0_b, dsp_mac_m_y0_y0_b, dsp_macr_m_y0_y0_b,
-    dsp_mpy_p_x1_x0_a, dsp_mpyr_p_x1_x0_a, dsp_mac_p_x1_x0_a, dsp_macr_p_x1_x0_a, dsp_mpy_m_x1_x0_a, dsp_mpyr_m_x1_x0_a, dsp_mac_m_x1_x0_a, dsp_macr_m_x1_x0_a,
-    dsp_mpy_p_x1_x0_b, dsp_mpyr_p_x1_x0_b, dsp_mac_p_x1_x0_b, dsp_macr_p_x1_x0_b, dsp_mpy_m_x1_x0_b, dsp_mpyr_m_x1_x0_b, dsp_mac_m_x1_x0_b, dsp_macr_m_x1_x0_b,
-    dsp_mpy_p_y1_y0_a, dsp_mpyr_p_y1_y0_a, dsp_mac_p_y1_y0_a, dsp_macr_p_y1_y0_a, dsp_mpy_m_y1_y0_a, dsp_mpyr_m_y1_y0_a, dsp_mac_m_y1_y0_a, dsp_macr_m_y1_y0_a,
-    dsp_mpy_p_y1_y0_b, dsp_mpyr_p_y1_y0_b, dsp_mac_p_y1_y0_b, dsp_macr_p_y1_y0_b, dsp_mpy_m_y1_y0_b, dsp_mpyr_m_y1_y0_b, dsp_mac_m_y1_y0_b, dsp_macr_m_y1_y0_b,
+    emu_mpy_p_x0_x0_a, emu_mpyr_p_x0_x0_a, emu_mac_p_x0_x0_a, emu_macr_p_x0_x0_a, emu_mpy_m_x0_x0_a, emu_mpyr_m_x0_x0_a, emu_mac_m_x0_x0_a, emu_macr_m_x0_x0_a,
+    emu_mpy_p_x0_x0_b, emu_mpyr_p_x0_x0_b, emu_mac_p_x0_x0_b, emu_macr_p_x0_x0_b, emu_mpy_m_x0_x0_b, emu_mpyr_m_x0_x0_b, emu_mac_m_x0_x0_b, emu_macr_m_x0_x0_b,
+    emu_mpy_p_y0_y0_a, emu_mpyr_p_y0_y0_a, emu_mac_p_y0_y0_a, emu_macr_p_y0_y0_a, emu_mpy_m_y0_y0_a, emu_mpyr_m_y0_y0_a, emu_mac_m_y0_y0_a, emu_macr_m_y0_y0_a,
+    emu_mpy_p_y0_y0_b, emu_mpyr_p_y0_y0_b, emu_mac_p_y0_y0_b, emu_macr_p_y0_y0_b, emu_mpy_m_y0_y0_b, emu_mpyr_m_y0_y0_b, emu_mac_m_y0_y0_b, emu_macr_m_y0_y0_b,
+    emu_mpy_p_x1_x0_a, emu_mpyr_p_x1_x0_a, emu_mac_p_x1_x0_a, emu_macr_p_x1_x0_a, emu_mpy_m_x1_x0_a, emu_mpyr_m_x1_x0_a, emu_mac_m_x1_x0_a, emu_macr_m_x1_x0_a,
+    emu_mpy_p_x1_x0_b, emu_mpyr_p_x1_x0_b, emu_mac_p_x1_x0_b, emu_macr_p_x1_x0_b, emu_mpy_m_x1_x0_b, emu_mpyr_m_x1_x0_b, emu_mac_m_x1_x0_b, emu_macr_m_x1_x0_b,
+    emu_mpy_p_y1_y0_a, emu_mpyr_p_y1_y0_a, emu_mac_p_y1_y0_a, emu_macr_p_y1_y0_a, emu_mpy_m_y1_y0_a, emu_mpyr_m_y1_y0_a, emu_mac_m_y1_y0_a, emu_macr_m_y1_y0_a,
+    emu_mpy_p_y1_y0_b, emu_mpyr_p_y1_y0_b, emu_mac_p_y1_y0_b, emu_macr_p_y1_y0_b, emu_mpy_m_y1_y0_b, emu_mpyr_m_y1_y0_b, emu_mac_m_y1_y0_b, emu_macr_m_y1_y0_b,
 
     /* 0xc0_m_ 0xff */
-    dsp_mpy_p_x0_y1_a, dsp_mpyr_p_x0_y1_a, dsp_mac_p_x0_y1_a, dsp_macr_p_x0_y1_a, dsp_mpy_m_x0_y1_a, dsp_mpyr_m_x0_y1_a, dsp_mac_m_x0_y1_a, dsp_macr_m_x0_y1_a,
-    dsp_mpy_p_x0_y1_b, dsp_mpyr_p_x0_y1_b, dsp_mac_p_x0_y1_b, dsp_macr_p_x0_y1_b, dsp_mpy_m_x0_y1_b, dsp_mpyr_m_x0_y1_b, dsp_mac_m_x0_y1_b, dsp_macr_m_x0_y1_b,
-    dsp_mpy_p_y0_x0_a, dsp_mpyr_p_y0_x0_a, dsp_mac_p_y0_x0_a, dsp_macr_p_y0_x0_a, dsp_mpy_m_y0_x0_a, dsp_mpyr_m_y0_x0_a, dsp_mac_m_y0_x0_a, dsp_macr_m_y0_x0_a,
-    dsp_mpy_p_y0_x0_b, dsp_mpyr_p_y0_x0_b, dsp_mac_p_y0_x0_b, dsp_macr_p_y0_x0_b, dsp_mpy_m_y0_x0_b, dsp_mpyr_m_y0_x0_b, dsp_mac_m_y0_x0_b, dsp_macr_m_y0_x0_b,
-    dsp_mpy_p_x1_y0_a, dsp_mpyr_p_x1_y0_a, dsp_mac_p_x1_y0_a, dsp_macr_p_x1_y0_a, dsp_mpy_m_x1_y0_a, dsp_mpyr_m_x1_y0_a, dsp_mac_m_x1_y0_a, dsp_macr_m_x1_y0_a,
-    dsp_mpy_p_x1_y0_b, dsp_mpyr_p_x1_y0_b, dsp_mac_p_x1_y0_b, dsp_macr_p_x1_y0_b, dsp_mpy_m_x1_y0_b, dsp_mpyr_m_x1_y0_b, dsp_mac_m_x1_y0_b, dsp_macr_m_x1_y0_b,
-    dsp_mpy_p_y1_x1_a, dsp_mpyr_p_y1_x1_a, dsp_mac_p_y1_x1_a, dsp_macr_p_y1_x1_a, dsp_mpy_m_y1_x1_a, dsp_mpyr_m_y1_x1_a, dsp_mac_m_y1_x1_a, dsp_macr_m_y1_x1_a,
-    dsp_mpy_p_y1_x1_b, dsp_mpyr_p_y1_x1_b, dsp_mac_p_y1_x1_b, dsp_macr_p_y1_x1_b, dsp_mpy_m_y1_x1_b, dsp_mpyr_m_y1_x1_b, dsp_mac_m_y1_x1_b, dsp_macr_m_y1_x1_b
+    emu_mpy_p_x0_y1_a, emu_mpyr_p_x0_y1_a, emu_mac_p_x0_y1_a, emu_macr_p_x0_y1_a, emu_mpy_m_x0_y1_a, emu_mpyr_m_x0_y1_a, emu_mac_m_x0_y1_a, emu_macr_m_x0_y1_a,
+    emu_mpy_p_x0_y1_b, emu_mpyr_p_x0_y1_b, emu_mac_p_x0_y1_b, emu_macr_p_x0_y1_b, emu_mpy_m_x0_y1_b, emu_mpyr_m_x0_y1_b, emu_mac_m_x0_y1_b, emu_macr_m_x0_y1_b,
+    emu_mpy_p_y0_x0_a, emu_mpyr_p_y0_x0_a, emu_mac_p_y0_x0_a, emu_macr_p_y0_x0_a, emu_mpy_m_y0_x0_a, emu_mpyr_m_y0_x0_a, emu_mac_m_y0_x0_a, emu_macr_m_y0_x0_a,
+    emu_mpy_p_y0_x0_b, emu_mpyr_p_y0_x0_b, emu_mac_p_y0_x0_b, emu_macr_p_y0_x0_b, emu_mpy_m_y0_x0_b, emu_mpyr_m_y0_x0_b, emu_mac_m_y0_x0_b, emu_macr_m_y0_x0_b,
+    emu_mpy_p_x1_y0_a, emu_mpyr_p_x1_y0_a, emu_mac_p_x1_y0_a, emu_macr_p_x1_y0_a, emu_mpy_m_x1_y0_a, emu_mpyr_m_x1_y0_a, emu_mac_m_x1_y0_a, emu_macr_m_x1_y0_a,
+    emu_mpy_p_x1_y0_b, emu_mpyr_p_x1_y0_b, emu_mac_p_x1_y0_b, emu_macr_p_x1_y0_b, emu_mpy_m_x1_y0_b, emu_mpyr_m_x1_y0_b, emu_mac_m_x1_y0_b, emu_macr_m_x1_y0_b,
+    emu_mpy_p_y1_x1_a, emu_mpyr_p_y1_x1_a, emu_mac_p_y1_x1_a, emu_macr_p_y1_x1_a, emu_mpy_m_y1_x1_a, emu_mpyr_m_y1_x1_a, emu_mac_m_y1_x1_a, emu_macr_m_y1_x1_a,
+    emu_mpy_p_y1_x1_b, emu_mpyr_p_y1_x1_b, emu_mac_p_y1_x1_b, emu_macr_p_y1_x1_b, emu_mpy_m_y1_x1_b, emu_mpyr_m_y1_x1_b, emu_mac_m_y1_x1_b, emu_macr_m_y1_x1_b
 };
 
 static const int registers_tcc[16][2] = {
@@ -646,41 +569,316 @@ static const dsp_interrupt_t dsp_interrupt[12] = {
 };
 
 
+typedef struct OpcodeEntry {
+    const char* template;
+    const char* name;
+    dis_func_t dis_func;
+    emu_func_t emu_func;
+} OpcodeEntry;
+
+static const OpcodeEntry nonparallel_opcodes[] = {
+    { "0000000101iiiiii1000d000", "add #xx, D", NULL, NULL },
+    { "00000001010000001100d000", "add #xxxx, D", dis_add_long, emu_add_long },
+    { "0000000101iiiiii1000d110", "and #xx, D", NULL, NULL },
+    { "00000001010000001100d110", "and #xxxx, D", NULL, NULL },
+    { "00000000iiiiiiii101110EE", "andi #xx, D", dis_andi, emu_andi },
+    { "0000110000011101SiiiiiiD", "asl #ii, S2, D", NULL, NULL },
+    { "0000110000011110010SsssD", "asl S1, S2, D", NULL, NULL },
+    { "0000110000011100SiiiiiiD", "asr #ii, S2, D", NULL, NULL },
+    { "0000110000011110011SsssD", "asr S1, S2, D", NULL, NULL },
+    { "00001101000100000100CCCC", "bcc xxxx", dis_bcc_long, emu_bcc_long }, //??
+    { "00000101CCCC01aaaa0aaaaa", "bcc xxx", dis_bcc_imm, emu_bcc_imm },
+    { "0000110100011RRR0100CCCC", "bcc Rn", NULL, NULL },
+    { "0000101101MMMRRR0S00bbbb", "bchg #n, [X or Y]:ea", dis_bchg_ea, emu_bchg_ea },
+    { "0000101100aaaaaa0S00bbbb", "bchg #n, [X or Y]:aa", dis_bchg_aa, emu_bchg_aa },
+    { "0000101110pppppp0S00bbbb", "bchg #n, [X or Y]:pp", dis_bchg_pp, emu_bchg_pp },
+    { "0000000101qqqqqq0S0bbbbb", "bchg #n, [X or Y]:qq", NULL, NULL },
+    { "0000101111DDDDDD010bbbbb", "bchg, #n, D", dis_bchg_reg, emu_bchg_reg },
+    { "0000101001MMMRRR0S00bbbb", "bclr #n, [X or Y]:ea", dis_bclr_ea, emu_bclr_ea },
+    { "0000101000aaaaaa0S00bbbb", "bclr #n, [X or Y]:aa", dis_bclr_aa, emu_bclr_aa },
+    { "0000101010pppppp0S00bbbb", "bclr #n, [X or Y]:pp", dis_bclr_pp, emu_bclr_pp },
+    { "0000000100qqqqqq0S00bbbb", "bclr #n, [X or Y]:qq", NULL, NULL },
+    { "0000101011DDDDDD010bbbbb", "bclr #n, D", dis_bclr_reg, emu_bclr_reg },
+    { "000011010001000011000000", "bra xxxx", NULL, NULL },
+    { "00000101000011aaaa0aaaaa", "bra xxx", dis_bra_imm, emu_bra_imm },
+    { "0000110100011RRR11000000", "bra Rn", NULL, NULL },
+    { "0000110010MMMRRR0S0bbbbb", "brclr #n, [X or Y]:ea, xxxx", NULL, NULL },
+    { "0000110010aaaaaa1S0bbbbb", "brclr #n, [X or Y]:aa, xxxx", NULL, NULL },
+    { "0000110011pppppp0S0bbbbb", "brclr #n, [X or Y]:pp, xxxx", NULL, NULL },
+    { "0000010010qqqqqq0S0bbbbb", "brclr #n, [X or Y]:qq, xxxx", NULL, NULL },
+    { "0000110011DDDDDD100bbbbb", "brclr #n, S, xxxx", NULL, NULL },
+    { "00000000000000100001CCCC", "brkcc", NULL, NULL },
+    { "0000110010MMMRRR0S1bbbbb", "brset #n, [X or Y]:ea, xxxx", NULL, NULL },
+    { "0000110010aaaaaa1S1bbbbb", "brset #n, [X or Y]:aa, xxxx", NULL, NULL },
+    { "0000110011pppppp0S1bbbbb", "brset #n, [X or Y]:pp, xxxx", NULL, NULL },
+    { "0000010010qqqqqq0S1bbbbb", "brset #n, [X or Y]:qq, xxxx", NULL, NULL },
+    { "0000110011DDDDDD101bbbbb", "brset #n, S, xxxx", NULL, NULL },
+    { "00001101000100000000CCCC", "bscc xxxx", NULL, NULL },
+    { "00000101CCCC00aaaa0aaaaa", "bscc xxx", NULL, NULL },
+    { "0000110100011RRR0000CCCC", "bscc Rn", NULL, NULL },
+    { "0000110110MMMRRR0S0bbbbb", "bsclr #n, [X or Y]:ea, xxxx", NULL, NULL },
+    { "0000110110aaaaaa1S0bbbbb", "bsclr #n, [X or Y]:aa, xxxx", NULL, NULL },
+    { "0000010010qqqqqq1S0bbbbb", "bsclr #n, [X or Y]:qq, xxxx", NULL, NULL },
+    { "0000110111pppppp0S0bbbbb", "bsclr #n, [X or Y]:pp, xxxx", NULL, NULL },
+    { "0000110111DDDDDD100bbbbb", "bsclr, #n, S, xxxx", NULL, NULL },
+    { "0000101001MMMRRR0S1bbbbb", "bset #n, [X or Y]:ea", dis_bset_ea, emu_bset_ea },
+    { "0000101000aaaaaa0S1bbbbb", "bset #n, [X or Y]:aa", dis_bset_aa, emu_bset_aa },
+    { "0000101010pppppp0S1bbbbb", "bset #n, [X or Y]:pp", dis_bset_pp, emu_bset_pp },
+    { "0000000100qqqqqq0S1bbbbb", "bset #n, [X or Y]:qq", NULL, NULL },
+    { "0000101011DDDDDD011bbbbb", "bset, #n, D", dis_bset_reg, emu_bset_reg },
+    { "000011010001000010000000", "bsr xxxx", NULL, NULL },
+    { "00000101000010aaaa0aaaaa", "bsr xxx", NULL, NULL },
+    { "0000110100011RRR10000000", "bsr Rn", NULL, NULL },
+    { "0000110110MMMRRR0S1bbbbb", "bsset #n, [X or Y]:ea, xxxx", NULL, NULL },
+    { "0000110110aaaaaa1S1bbbbb", "bsset #n, [X or Y]:aa, xxxx", NULL, NULL },
+    { "0000110111pppppp0S1bbbbb", "bsset #n, [X or Y]:pp, xxxx", NULL, NULL },
+    { "0000010010qqqqqq1S1bbbbb", "bsset #n, [X or Y]:qq, xxxx", NULL, NULL },
+    { "0000110111DDDDDD101bbbbb", "bsset #n, S, xxxx", NULL, NULL },
+    { "0000101101MMMRRR0S10bbbb", "btst #n, [X or Y]:ea", dis_btst_ea, emu_btst_ea },
+    { "0000101100aaaaaa0S10bbbb", "btst #n, [X or Y]:aa", dis_btst_aa, emu_btst_aa },
+    { "0000101110pppppp0S10bbbb", "btst #n, [X or Y]:pp", dis_btst_pp, emu_btst_pp },
+    { "0000000101qqqqqq0S10bbbb", "btst #n, [X or Y]:qq", NULL, NULL },
+    { "0000101111DDDDDD0110bbbb", "btst #n, D", dis_btst_reg, emu_btst_reg },
+    { "0000110000011110000000SD", "clb S, D", NULL, NULL },
+    { "0000000101iiiiii1000d101", "cmp #xx, S2", NULL, NULL },
+    { "00000001010000001100d101", "cmp #xxxx, S2", NULL, NULL },
+    { "00001100000111111111gggd", "cmpu S1, S2", dis_cmpu, emu_cmpu },
+    { "000000000000001000000000", "debug", NULL, NULL },
+    { "00000000000000110000CCCC", "debugcc", NULL, NULL },
+    { "00000000000000000000101d", "dec D", NULL, NULL, /*dis_dec, emu_dec*/ },
+    { "000000011000000001JJd000", "div S, D", dis_div, emu_div },
+    { "000000010010010s1sdkQQQQ", "dmac S1, S2, D", NULL, NULL },
+    { "0000011001MMMRRR0S000000", "do [X or Y]:ea, expr", dis_do_ea, emu_do_ea },
+    { "0000011000aaaaaa0S000000", "do [X or Y]:aa, expr", dis_do_aa, emu_do_aa },
+    { "00000110iiiiiiii1000hhhh", "do #xxx, expr", dis_do_imm, emu_do_imm },
+    { "0000011011DDDDDD00000000", "do S, expr", dis_do_reg, emu_do_reg },
+    { "000000000000001000000011", "do_f", NULL, NULL },
+    { "0000011001MMMRRR0S010000", "dor [X or Y]:ea, label", NULL, NULL },
+    { "0000011000aaaaaa0S010000", "dor [X or Y]:aa, label", NULL, NULL },
+    { "00000110iiiiiiii1001hhhh", "dor #xxx, label", dis_dor_imm, emu_dor_imm },
+    { "0000011011DDDDDD00010000", "dor S, label", NULL, NULL },
+    { "000000000000001000000010", "dor_f", NULL, NULL },
+    { "000000000000000010001100", "enddo", NULL, emu_enddo },
+    { "0000000101iiiiii1000d011", "eor #xx, D", NULL, NULL },
+    { "00000001010000001100d011", "eor #xxxx, D", NULL, NULL },
+    { "0000110000011010000sSSSD", "extract S1, S2, D", NULL, NULL },
+    { "0000110000011000000s000D", "extract #CO, S2, D", NULL, NULL },
+    { "0000110000011010100sSSSD", "extractu S1, S2, D", NULL, NULL },
+    { "0000110000011000100s000D", "extractu #CO, S2, D", NULL, NULL },
+    { "000000000000000000000101", "ill", NULL, emu_illegal },
+    { "00000000000000000000100d", "inc D", NULL, NULL },
+    { "00001100000110110qqqSSSD", "insert S1, S2, D", NULL, NULL },
+    { "00001100000110010qqq000D", "insert #CO, S2, D", NULL, NULL },
+    { "00001110CCCCaaaaaaaaaaaa", "jcc xxx", dis_jcc_imm, emu_jcc_imm },
+    { "0000101011MMMRRR1010CCCC", "jcc ea", dis_jcc_ea, emu_jcc_ea },
+    { "0000101001MMMRRR1S00bbbb", "jclr #n, [X or Y]:ea, xxxx", dis_jclr_ea, emu_jclr_ea },
+    { "0000101000aaaaaa1S00bbbb", "jclr #n, [X or Y]:aa, xxxx", dis_jclr_aa, emu_jclr_aa },
+    { "0000101010pppppp1S00bbbb", "jclr #n, [X or Y]:pp, xxxx", dis_jclr_pp, emu_jclr_pp },
+    { "0000000110qqqqqq1S00bbbb", "jclr #n, [X or Y]:qq, xxxx", NULL, NULL },
+    { "0000101011DDDDDD0000bbbb", "jclr #n, S, xxxx", dis_jclr_reg, emu_jclr_reg },
+    { "0000101011MMMRRR10000000", "jmp ea", dis_jmp_ea, emu_jmp_ea },
+    { "000011000000aaaaaaaaaaaa", "jmp xxx", dis_jmp_imm, emu_jmp_imm },
+    { "00001111CCCCaaaaaaaaaaaa", "jscc xxx", dis_jscc_imm, emu_jscc_imm },
+    { "0000101111MMMRRR1010CCCC", "jscc ea", dis_jscc_ea, emu_jscc_ea },
+    { "0000101101MMMRRR1S00bbbb", "jsclr #n, [X or Y]:ea, xxxx", dis_jsclr_ea, emu_jsclr_ea },
+    { "0000101100MMMRRR1S00bbbb", "jsclr #n, [X or Y]:aa, xxxx", dis_jsclr_aa, emu_jsclr_aa },
+    { "0000101110pppppp1S0bbbbb", "jsclr #n, [X or Y]:pp, xxxx", dis_jsclr_pp, emu_jsclr_pp },
+    { "0000000111qqqqqq1S0bbbbb", "jsclr #n, [X or Y]:qq, xxxx", NULL, NULL },
+    { "0000101111DDDDDD000bbbbb", "jsclr #n, S, xxxx", dis_jsclr_reg, emu_jsclr_reg },
+    { "0000101001MMMRRR1S10bbbb", "jset #n, [X or Y]:ea, xxxx", dis_jset_ea, emu_jset_ea },
+    { "0000101000MMMRRR1S10bbbb", "jset #n, [X or Y]:aa, xxxx", dis_jset_aa, emu_jset_aa },
+    { "0000101010pppppp1S10bbbb", "jset #n, [X or Y]:pp, xxxx", dis_jset_pp, emu_jset_pp },
+    { "0000000110qqqqqq1S10bbbb", "jset #n, [X or Y]:qq, xxxx", NULL, NULL },
+    { "0000101011DDDDDD0010bbbb", "jset #n, S, xxxx", dis_jset_reg, emu_jset_reg },
+    { "0000101111MMMRRR10000000", "jsr ea", dis_jsr_ea, emu_jsr_ea },
+    { "000011010000aaaaaaaaaaaa", "jsr xxx", dis_jsr_imm, emu_jsr_imm },
+    { "0000101101MMMRRR1S10bbbb", "jsset #n, [X or Y]:ea, xxxx", dis_jsset_ea, emu_jsset_ea },
+    { "0000101100aaaaaa1S10bbbb", "jsset #n, [X or Y]:aa, xxxx", dis_jsset_aa, emu_jsset_aa },
+    { "0000101110pppppp1S1bbbbb", "jsset #n, [X or Y]:pp, xxxx", dis_jsset_pp, emu_jsset_pp },
+    { "0000000111qqqqqq1S1bbbbb", "jsset #n, [X or Y]:qq, xxxx", NULL, NULL },
+    { "0000101111DDDDDD001bbbbb", "jsset #n, S, xxxx", dis_jsset_reg, emu_jsset_reg },
+    { "0000010011000RRR000ddddd", "lra Rn, D", NULL, NULL },
+    { "0000010001000000010ddddd", "lra xxxx, D", NULL, NULL },
+    { "000011000001111010iiiiiD", "lsl #ii, D", NULL, NULL },
+    { "00001100000111100001sssD", "lsl S, D", NULL, NULL },
+    { "000011000001111011iiiiiD", "lsr #ii, D", NULL, NULL },
+    { "00001100000111100011sssD", "lsr S, D", NULL, NULL },
+    { "00000100010MMRRR000ddddd", "lua ea, D", dis_lua, emu_lua },
+    { "0000010000aaaRRRaaaadddd", "lua {Rn + aa}, D", NULL, NULL },
+    { "00000001000sssss11QQdk10", "mac S, #n, D", NULL, NULL },
+    { "000000010100000111qqdk10", "maci #xxxx, S, D", NULL, NULL },
+    { "00000001001001101sdkQQQQ", "mac_s_u S1, S2, D", NULL, NULL },
+    { "00000001000sssss11QQdk11", "macr S1, S2, D", NULL, NULL },
+    { "000000010100000111qqdk11", "macri #xxxx, S, D", NULL, NULL },
+    { "00001100000110111000sssD", "merge S, D", NULL, NULL },
+    { "0000101001110RRR1WDDDDDD", "move X:{Rn + xxxx} <-> R", NULL, NULL },
+    { "0000101101110RRR1WDDDDDD", "move Y:{Rn + xxxx} <-> R", NULL, NULL },
+    { "0000001aaaaaaRRR1a0WDDDD", "move X:{Rn + xxx} <-> R", dis_move_x_aa, emu_move_x_aa },
+    { "0000001aaaaaaRRR1a1WDDDD", "move Y:{Rn + xxx} <-> R", NULL, NULL },
+    { "00000101W1MMMRRR0s1ddddd", "movec [X or Y]:ea <-> R", dis_movec_ea, emu_movec_ea },
+    { "00000101W0aaaaaa0s1ddddd", "movec [X or Y]:aa <-> R", dis_movec_aa, emu_movec_aa },
+    { "00000100W1eeeeee101ddddd", "movec R1, R2", dis_movec_reg, emu_movec_reg },
+    { "00000101iiiiiiii101ddddd", "movec #xx, D1", dis_movec_imm, emu_movec_imm },
+    { "00000111W1MMMRRR10dddddd", "movem P:ea <-> R", dis_movem_ea, emu_movem_ea },
+    { "00000111W0aaaaaa00dddddd", "movem P:ea <-> R", dis_movem_aa, emu_movem_aa },
+    { "0000100sW1MMMRRR1Spppppp", "movep [X or Y]:ea <-> [X or Y]:pp", dis_movep_23, emu_movep_23 },
+    { "00000111W1MMMRRR0Sqqqqqq", "movep [X or Y]:ea <-> X:qq", dis_movep_x_low, emu_movep_x_low },
+    { "00000111W0MMMRRR1Sqqqqqq", "movep [X or Y]:ea <-> Y:qq", NULL, NULL },
+    { "0000100sW1MMMRRR01pppppp", "movep [X or Y]:pp <-> P:ea", dis_movep_1, emu_movep_1 },
+    { "000000001WMMMRRR0sqqqqqq", "movep [X or Y]:qq <-> P:ea", NULL, NULL },
+    { "0000100sW1dddddd00pppppp", "movep [X or Y]:pp <-> R", dis_movep_0, emu_movep_0 },
+    { "00000100W1dddddd1q0qqqqq", "movep X:qq <-> R", NULL, NULL },
+    { "00000100W1dddddd0q1qqqqq", "movep Y:qq <-> R", NULL, NULL },
+    { "00000001000sssss11QQdk00", "mpy S, #n, D", NULL, NULL },
+    { "00000001001001111sdkQQQQ", "mpy_s_u S1, S2, D", NULL, NULL },
+    { "000000010100000111qqdk00", "mpyi #xxxx, S, D", NULL, NULL },
+    { "00000001000sssss11QQdk01", "mpyr S, #n, D", NULL, NULL },
+    { "000000010100000111qqdk01", "mpyri #xxxx, S, D", NULL, NULL },
+    { "000000000000000000000000", "nop", NULL, emu_nop},
+    { "0000000111011RRR0001d101", "norm Rn, D", dis_norm, emu_norm },
+    { "00001100000111100010sssD", "normf S, D", NULL, NULL },
+    { "0000000101iiiiii1000d010", "or #xx, D", NULL, NULL },
+    { "00000001010000001100d010", "or #xxxx, D", NULL, NULL },
+    { "00000000iiiiiiii111110EE", "ori #xx, D", dis_ori, emu_ori },
+    { "000000000000000000000011", "pflush", NULL, NULL },
+    { "000000000000000000000001", "pflushun", NULL, NULL },
+    { "000000000000000000000010", "pfree", NULL, NULL },
+    { "0000101111MMMRRR10000001", "plock ea", NULL, NULL },
+    { "000000000000000000001111", "plockr xxxx", NULL, NULL },
+    { "0000101011MMMRRR10000001", "punlock ea", NULL, NULL },
+    { "000000000000000000001110", "punlockr xxxx", NULL, NULL },
+    { "0000011001MMMRRR0S100000", "rep [X or Y]:ea", dis_rep_ea, emu_rep_ea },
+    { "0000011000aaaaaa0S100000", "rep [X or Y]:aa", dis_rep_aa, emu_rep_aa },
+    { "00000110iiiiiiii1010hhhh", "rep #xxx", dis_rep_imm, emu_rep_imm },
+    { "0000011011dddddd00100000", "rep S", dis_rep_reg, emu_rep_reg },
+    { "000000000000000010000100", "reset", NULL, emu_reset },
+    { "000000000000000000000100", "rti", NULL, emu_rti },
+    { "000000000000000000001100", "rts", NULL, emu_rts },
+    { "000000000000000010000111", "stop", NULL, emu_stop },
+    { "0000000101iiiiii1000d100", "sub #xx, D", NULL, NULL },
+    { "00000001010000001100d100", "sub #xxxx, D", NULL, NULL },
+    { "00000010CCCC00000JJJd000", "tcc S1, D1", dis_tcc, emu_tcc },
+    { "00000011CCCC0ttt0JJJdTTT", "tcc S1,D2 S2,D2", dis_tcc, emu_tcc },
+    { "00000010CCCC1ttt00000TTT", "tcc S2, D2", dis_tcc, emu_tcc },
+    { "000000000000000000000110", "trap", NULL, NULL },
+    { "00000000000000000001CCCC", "trapcc", NULL, NULL },
+    { "0000101S11MMMRRR110i0000", "vsl", NULL, NULL },
+    { "000000000000000010000110", "wait", NULL, emu_wait },
+};
+
+static uint32_t nonparallel_matches[ARRAYSIZE(nonparallel_opcodes)][2];
+
 /**********************************
  *  Emulator kernel
  **********************************/
 
 void dsp56k_init_cpu(void)
 {
-    dsp56k_disasm_init();
+    int i;
+    for (i=0; i<ARRAYSIZE(nonparallel_opcodes); i++) {
+        const OpcodeEntry t = nonparallel_opcodes[i];
+        assert(strlen(t.template) == 24);
+
+        uint32_t mask = 0;
+        uint32_t match = 0;
+        int j;
+        for (j=0; j<24; j++) {
+            if (t.template[j] == '0' || t.template[j] == '1') {
+                mask |= 1 << (24-j-1);
+                match |= (t.template[j] - '0') << (24-j-1);
+            }
+        }
+
+        nonparallel_matches[i][0] = mask;
+        nonparallel_matches[i][1] = match;
+    }
+
+
     is_dsp_in_disasm_mode = false;
     // start_time = SDL_GetTicks();
     num_inst = 0;
 }
+
+
+typedef enum {
+    DSP_TRACE_MODE,
+    DSP_DISASM_MODE
+} dsp_trace_disasm_t;
+
+static OpcodeEntry lookup_opcode(uint32_t op) {
+    OpcodeEntry r = {0};
+    int i;
+    for (i=0; i<ARRAYSIZE(nonparallel_opcodes); i++) {
+        if ((op & nonparallel_matches[i][0]) == nonparallel_matches[i][1]) {
+            assert(r.template == NULL);
+            r = nonparallel_opcodes[i];
+        }
+    }
+    return r;
+}
+
+static uint16_t dsp56k_disasm(dsp_trace_disasm_t mode)
+{
+    uint32_t value;
+
+    if (mode == DSP_TRACE_MODE) {
+        isInDisasmMode = false;
+        if (prev_inst_pc == dsp_core.pc) {
+            if (!isLooping) {
+                fprintf(stderr, "Looping on DSP instruction at PC = $%04x\n", prev_inst_pc);
+                isLooping = true;
+            }
+            return 0;
+        }
+    }
+    else {
+        isInDisasmMode = true;
+    }
+
+    prev_inst_pc = dsp_core.pc;
+    isLooping = false;
+
+    disasm_cur_inst = dsp56k_read_memory(DSP_SPACE_P, dsp_core.pc);
+    disasm_cur_inst_len = 1;
+
+    strcpy(parallelmove_name, "");
+
+    if (disasm_cur_inst < 0x100000) {
+        const OpcodeEntry op = lookup_opcode(disasm_cur_inst);
+        if (op.template) {
+            if (op.dis_func) {
+                op.dis_func();
+            } else {
+                sprintf(str_instr, "%s", op.name);
+            }
+        } else {
+            dis_undefined();
+        }
+    } else {
+        dis_pm_class2();
+    }
+    return disasm_cur_inst_len;
+}
+
 
 /**
  * Execute one instruction in trace mode at a given PC address.
  * */
 uint16_t dsp56k_execute_one_disasm_instruction(FILE *out, uint32_t pc)
 {
-    dsp_core_t *ptr1, *ptr2;
-    static dsp_core_t dsp_core_save;
-    uint16_t instruction_length;
-
-    ptr1 = &dsp_core;
-    ptr2 = &dsp_core_save;
+    dsp_core_t dsp_core_save;
 
     /* Set DSP in disasm mode */
     is_dsp_in_disasm_mode = true;
 
     /* Save DSP context before executing instruction */
-    memcpy(ptr2, ptr1, sizeof(dsp_core));
+    memcpy(&dsp_core_save, &dsp_core, sizeof(dsp_core));
 
     /* execute and disasm instruction */
     dsp_core.pc = pc;
 
     /* Disasm instruction */
-    instruction_length = dsp56k_disasm(DSP_DISASM_MODE) - 1;
+    uint16_t instruction_length = dsp56k_disasm(DSP_DISASM_MODE) - 1;
 
     /* Execute instruction at address given in parameter to get the number of cycles it takes */
     dsp56k_execute_instruction();
@@ -688,7 +886,7 @@ uint16_t dsp56k_execute_one_disasm_instruction(FILE *out, uint32_t pc)
     fprintf(out, "%s", dsp56k_get_instruction_text());
 
     /* Restore DSP context after executing instruction */
-    memcpy(ptr1, ptr2, sizeof(dsp_core));
+    memcpy(&dsp_core, &dsp_core_save, sizeof(dsp_core));
     
     /* Unset DSP in disasm mode */
     is_dsp_in_disasm_mode = false;
@@ -723,11 +921,13 @@ void dsp56k_execute_instruction(void)
     }
             
     if (cur_inst < 0x100000) {
-        // 000011111100000011100000
-        value = (cur_inst >> 11) & (BITMASK(6) << 3);
-        value += (cur_inst >> 5) & BITMASK(3);
-        printf("0x%06x - 0x%02x\n", cur_inst, value);
-        opcodes8h[value]();
+        const OpcodeEntry op = lookup_opcode(cur_inst);
+        if (op.emu_func) {
+            op.emu_func();
+        } else {
+            printf("%x - %s\n", cur_inst, op.name);
+            emu_undefined();
+        }
     } else {
         /* Do parallel move read */
         opcodes_parmove[(cur_inst>>20) & BITMASK(4)]();
@@ -1552,47 +1752,11 @@ static int dsp_calc_cc(uint32_t cc_code)
  *  Highbyte opcodes dispatchers
  **********************************/
 
-static void opcode8h_0(void)
-{
-    switch(cur_inst) {
-        case 0x000000:
-            dsp_nop();
-            break;
-        case 0x000004:
-            dsp_rti();
-            break;
-        case 0x000005:
-            dsp_illegal();
-            break;
-        case 0x000006:
-            dsp_swi();
-            break;
-        case 0x00000c:
-            dsp_rts();
-            break;
-        case 0x000084:
-            dsp_reset();
-            break;
-        case 0x000086:
-            dsp_wait();
-            break;
-        case 0x000087:
-            dsp_stop();
-            break;
-        case 0x00008c:
-            dsp_enddo();
-            break;
-        default:
-            dsp_undefined();
-            break;
-    }
-}
-
 /**********************************
  *  Non-parallel moves instructions
  **********************************/
 
-static void dsp_undefined(void)
+static void emu_undefined(void)
 {
     if (is_dsp_in_disasm_mode == false) {
         cur_inst_len = 0;
@@ -1609,7 +1773,14 @@ static void dsp_undefined(void)
     }
 }
 
-static void dsp_andi(void)
+static void emu_add_long(void)
+{
+    uint32_t xxxx = read_memory_p(dsp_core.pc+1);
+    // QQQ
+    cur_inst_len++;
+}
+
+static void emu_andi(void)
 {
     uint32_t regnum, value;
 
@@ -1631,7 +1802,19 @@ static void dsp_andi(void)
     }
 }
 
-static void dsp_bchg_aa(void)
+static void emu_bcc_long(void) {
+    uint32_t xxxx = read_memory_p(dsp_core.pc+1);
+    cur_inst_len++;
+    //QQQ
+    dsp_core.instr_cycle += 2; //??
+}
+
+static void emu_bcc_imm(void) {
+    //QQQ
+    dsp_core.instr_cycle += 2; //??
+}
+
+static void emu_bchg_aa(void)
 {
     uint32_t memspace, addr, value, newcarry, numbit;
     
@@ -1656,7 +1839,7 @@ static void dsp_bchg_aa(void)
     dsp_core.instr_cycle += 2;
 }
 
-static void dsp_bchg_ea(void)
+static void emu_bchg_ea(void)
 {
     uint32_t memspace, addr, value, newcarry, numbit;
     
@@ -1681,7 +1864,7 @@ static void dsp_bchg_ea(void)
     dsp_core.instr_cycle += 2;
 }
 
-static void dsp_bchg_pp(void)
+static void emu_bchg_pp(void)
 {
     uint32_t memspace, addr, value, newcarry, numbit;
     
@@ -1706,7 +1889,7 @@ static void dsp_bchg_pp(void)
     dsp_core.instr_cycle += 2;
 }
 
-static void dsp_bchg_reg(void)
+static void emu_bchg_reg(void)
 {
     uint32_t value, numreg, newcarry, numbit;
     
@@ -1714,7 +1897,7 @@ static void dsp_bchg_reg(void)
     numbit = cur_inst & BITMASK(5);
 
     if ((numreg==DSP_REG_A) || (numreg==DSP_REG_B)) {
-        dsp_pm_read_accu24(numreg, &value);
+        emu_pm_read_accu24(numreg, &value);
     } else {
         value = dsp_core.registers[numreg];
     }
@@ -1735,7 +1918,7 @@ static void dsp_bchg_reg(void)
     dsp_core.instr_cycle += 2;
 }
 
-static void dsp_bclr_aa(void)
+static void emu_bclr_aa(void)
 {
     uint32_t memspace, addr, value, newcarry, numbit;
     
@@ -1755,7 +1938,7 @@ static void dsp_bclr_aa(void)
     dsp_core.instr_cycle += 2;
 }
 
-static void dsp_bclr_ea(void)
+static void emu_bclr_ea(void)
 {
     uint32_t memspace, addr, value, newcarry, numbit;
     
@@ -1776,7 +1959,7 @@ static void dsp_bclr_ea(void)
     dsp_core.instr_cycle += 2;
 }
 
-static void dsp_bclr_pp(void)
+static void emu_bclr_pp(void)
 {
     uint32_t memspace, addr, value, newcarry, numbit;
     
@@ -1797,7 +1980,7 @@ static void dsp_bclr_pp(void)
     dsp_core.instr_cycle += 2;
 }
 
-static void dsp_bclr_reg(void)
+static void emu_bclr_reg(void)
 {
     uint32_t value, numreg, newcarry, numbit;
     
@@ -1805,7 +1988,7 @@ static void dsp_bclr_reg(void)
     numbit = cur_inst & BITMASK(5);
 
     if ((numreg==DSP_REG_A) || (numreg==DSP_REG_B)) {
-        dsp_pm_read_accu24(numreg, &value);
+        emu_pm_read_accu24(numreg, &value);
     } else {
         value = dsp_core.registers[numreg];
     }
@@ -1822,7 +2005,12 @@ static void dsp_bclr_reg(void)
     dsp_core.instr_cycle += 2;
 }
 
-static void dsp_bset_aa(void)
+static void emu_bra_imm(void) {
+    // QQQ
+    dsp_core.instr_cycle += 2;
+}
+
+static void emu_bset_aa(void)
 {
     uint32_t memspace, addr, value, newcarry, numbit;
     
@@ -1843,7 +2031,7 @@ static void dsp_bset_aa(void)
     dsp_core.instr_cycle += 2;
 }
 
-static void dsp_bset_ea(void)
+static void emu_bset_ea(void)
 {
     uint32_t memspace, addr, value, newcarry, numbit;
     
@@ -1864,7 +2052,7 @@ static void dsp_bset_ea(void)
     dsp_core.instr_cycle += 2;
 }
 
-static void dsp_bset_pp(void)
+static void emu_bset_pp(void)
 {
     uint32_t memspace, addr, value, newcarry, numbit;
     
@@ -1884,7 +2072,7 @@ static void dsp_bset_pp(void)
     dsp_core.instr_cycle += 2;
 }
 
-static void dsp_bset_reg(void)
+static void emu_bset_reg(void)
 {
     uint32_t value, numreg, newcarry, numbit;
     
@@ -1892,7 +2080,7 @@ static void dsp_bset_reg(void)
     numbit = cur_inst & BITMASK(5);
 
     if ((numreg==DSP_REG_A) || (numreg==DSP_REG_B)) {
-        dsp_pm_read_accu24(numreg, &value);
+        emu_pm_read_accu24(numreg, &value);
     } else {
         value = dsp_core.registers[numreg];
     }
@@ -1909,7 +2097,7 @@ static void dsp_bset_reg(void)
     dsp_core.instr_cycle += 2;
 }
 
-static void dsp_btst_aa(void)
+static void emu_btst_aa(void)
 {
     uint32_t memspace, addr, value, newcarry, numbit;
     
@@ -1928,7 +2116,7 @@ static void dsp_btst_aa(void)
     dsp_core.instr_cycle += 2;
 }
 
-static void dsp_btst_ea(void)
+static void emu_btst_ea(void)
 {
     uint32_t memspace, addr, value, newcarry, numbit;
     
@@ -1947,7 +2135,7 @@ static void dsp_btst_ea(void)
     dsp_core.instr_cycle += 2;
 }
 
-static void dsp_btst_pp(void)
+static void emu_btst_pp(void)
 {
     uint32_t memspace, addr, value, newcarry, numbit;
     
@@ -1966,7 +2154,7 @@ static void dsp_btst_pp(void)
     dsp_core.instr_cycle += 2;
 }
 
-static void dsp_btst_reg(void)
+static void emu_btst_reg(void)
 {
     uint32_t value, numreg, newcarry, numbit;
     
@@ -1974,7 +2162,7 @@ static void dsp_btst_reg(void)
     numbit = cur_inst & BITMASK(5);
 
     if ((numreg==DSP_REG_A) || (numreg==DSP_REG_B)) {
-        dsp_pm_read_accu24(numreg, &value);
+        emu_pm_read_accu24(numreg, &value);
     } else {
         value = dsp_core.registers[numreg];
     }
@@ -1988,7 +2176,11 @@ static void dsp_btst_reg(void)
     dsp_core.instr_cycle += 2;
 }
 
-static void dsp_div(void)
+static void emu_cmpu(void) {
+    // QQQ
+}
+
+static void emu_div(void)
 {
     uint32_t srcreg, destreg, source[3], dest[3];
     uint16_t newsr;
@@ -2054,7 +2246,7 @@ static void dsp_div(void)
     xxxxxxxx 11xxxxxx 0xxxxxxx  reg
 */
 
-static void dsp_do_aa(void)
+static void emu_do_aa(void)
 {
     uint32_t memspace, addr;
 
@@ -2074,7 +2266,7 @@ static void dsp_do_aa(void)
     dsp_core.instr_cycle += 4;
 }
 
-static void dsp_do_imm(void)
+static void emu_do_imm(void)
 {
     /* #xx */
 
@@ -2090,7 +2282,7 @@ static void dsp_do_imm(void)
     dsp_core.instr_cycle += 4;
 }
 
-static void dsp_do_ea(void)
+static void emu_do_ea(void)
 {
     uint32_t memspace, ea_mode, addr;
 
@@ -2111,7 +2303,7 @@ static void dsp_do_ea(void)
     dsp_core.instr_cycle += 4;
 }
 
-static void dsp_do_reg(void)
+static void emu_do_reg(void)
 {
     uint32_t numreg;
 
@@ -2123,7 +2315,7 @@ static void dsp_do_reg(void)
 
     numreg = (cur_inst>>8) & BITMASK(6);
     if ((numreg == DSP_REG_A) || (numreg == DSP_REG_B)) {
-        dsp_pm_read_accu24(numreg, &dsp_core.registers[DSP_REG_LC]); 
+        emu_pm_read_accu24(numreg, &dsp_core.registers[DSP_REG_LC]); 
     } else {
         dsp_core.registers[DSP_REG_LC] = dsp_core.registers[numreg];
     }
@@ -2135,7 +2327,14 @@ static void dsp_do_reg(void)
     dsp_core.instr_cycle += 4;
 }
 
-static void dsp_enddo(void)
+static void emu_dor_imm(void)
+{
+    //QQQ
+
+    dsp_core.instr_cycle += 4;
+}
+
+static void emu_enddo(void)
 {
     uint32_t saved_pc, saved_sr;
 
@@ -2145,7 +2344,7 @@ static void dsp_enddo(void)
     dsp_stack_pop(&dsp_core.registers[DSP_REG_LA], &dsp_core.registers[DSP_REG_LC]);
 }
 
-static void dsp_illegal(void)
+static void emu_illegal(void)
 {
     /* Raise interrupt p:0x003e */
     dsp56k_add_interrupt(DSP_INTER_ILLEGAL);
@@ -2154,7 +2353,7 @@ static void dsp_illegal(void)
     }
 }
 
-static void dsp_jcc_imm(void)
+static void emu_jcc_imm(void)
 {
     uint32_t cc_code, newpc;
 
@@ -2168,7 +2367,7 @@ static void dsp_jcc_imm(void)
     dsp_core.instr_cycle += 2;
 }
 
-static void dsp_jcc_ea(void)
+static void emu_jcc_ea(void)
 {
     uint32_t newpc, cc_code;
 
@@ -2183,7 +2382,7 @@ static void dsp_jcc_ea(void)
     dsp_core.instr_cycle += 2;
 }
 
-static void dsp_jclr_aa(void)
+static void emu_jclr_aa(void)
 {
     uint32_t memspace, addr, value, numbit, newaddr;
     
@@ -2203,7 +2402,7 @@ static void dsp_jclr_aa(void)
     ++cur_inst_len;
 }
 
-static void dsp_jclr_ea(void)
+static void emu_jclr_ea(void)
 {
     uint32_t memspace, addr, value, numbit, newaddr;
     
@@ -2225,7 +2424,7 @@ static void dsp_jclr_ea(void)
     ++cur_inst_len;
 }
 
-static void dsp_jclr_pp(void)
+static void emu_jclr_pp(void)
 {
     uint32_t memspace, addr, value, numbit, newaddr;
     
@@ -2246,7 +2445,7 @@ static void dsp_jclr_pp(void)
     ++cur_inst_len;
 }
 
-static void dsp_jclr_reg(void)
+static void emu_jclr_reg(void)
 {
     uint32_t value, numreg, numbit, newaddr;
     
@@ -2255,7 +2454,7 @@ static void dsp_jclr_reg(void)
     newaddr = read_memory_p(dsp_core.pc+1);
 
     if ((numreg==DSP_REG_A) || (numreg==DSP_REG_B)) {
-        dsp_pm_read_accu24(numreg, &value);
+        emu_pm_read_accu24(numreg, &value);
     } else {
         value = dsp_core.registers[numreg];
     }
@@ -2270,7 +2469,7 @@ static void dsp_jclr_reg(void)
     ++cur_inst_len;
 }
 
-static void dsp_jmp_ea(void)
+static void emu_jmp_ea(void)
 {
     uint32_t newpc;
 
@@ -2281,7 +2480,7 @@ static void dsp_jmp_ea(void)
     dsp_core.instr_cycle += 2;
 }
 
-static void dsp_jmp_imm(void)
+static void emu_jmp_imm(void)
 {
     uint32_t newpc;
 
@@ -2292,7 +2491,7 @@ static void dsp_jmp_imm(void)
     dsp_core.instr_cycle += 2;
 }
 
-static void dsp_jscc_ea(void)
+static void emu_jscc_ea(void)
 {
     uint32_t newpc, cc_code;
 
@@ -2308,7 +2507,7 @@ static void dsp_jscc_ea(void)
     dsp_core.instr_cycle += 2;
 }
 
-static void dsp_jscc_imm(void)
+static void emu_jscc_imm(void)
 {
     uint32_t cc_code, newpc;
 
@@ -2323,7 +2522,7 @@ static void dsp_jscc_imm(void)
     dsp_core.instr_cycle += 2;
 }
 
-static void dsp_jsclr_aa(void)
+static void emu_jsclr_aa(void)
 {
     uint32_t memspace, addr, value, newpc, numbit, newaddr;
     
@@ -2345,7 +2544,7 @@ static void dsp_jsclr_aa(void)
     ++cur_inst_len;
 }
 
-static void dsp_jsclr_ea(void)
+static void emu_jsclr_ea(void)
 {
     uint32_t memspace, addr, value, newpc, numbit, newaddr;
     
@@ -2368,7 +2567,7 @@ static void dsp_jsclr_ea(void)
     ++cur_inst_len;
 }
 
-static void dsp_jsclr_pp(void)
+static void emu_jsclr_pp(void)
 {
     uint32_t memspace, addr, value, newpc, numbit, newaddr;
     
@@ -2391,7 +2590,7 @@ static void dsp_jsclr_pp(void)
     ++cur_inst_len;
 }
 
-static void dsp_jsclr_reg(void)
+static void emu_jsclr_reg(void)
 {
     uint32_t value, numreg, newpc, numbit, newaddr;
     
@@ -2400,7 +2599,7 @@ static void dsp_jsclr_reg(void)
     newaddr = read_memory_p(dsp_core.pc+1);
 
     if ((numreg==DSP_REG_A) || (numreg==DSP_REG_B)) {
-        dsp_pm_read_accu24(numreg, &value);
+        emu_pm_read_accu24(numreg, &value);
     } else {
         value = dsp_core.registers[numreg];
     }
@@ -2417,7 +2616,7 @@ static void dsp_jsclr_reg(void)
     ++cur_inst_len;
 }
 
-static void dsp_jset_aa(void)
+static void emu_jset_aa(void)
 {
     uint32_t memspace, addr, value, numbit, newpc, newaddr;
     
@@ -2438,7 +2637,7 @@ static void dsp_jset_aa(void)
     ++cur_inst_len;
 }
 
-static void dsp_jset_ea(void)
+static void emu_jset_ea(void)
 {
     uint32_t memspace, addr, value, numbit, newpc, newaddr;
     
@@ -2460,7 +2659,7 @@ static void dsp_jset_ea(void)
     ++cur_inst_len;
 }
 
-static void dsp_jset_pp(void)
+static void emu_jset_pp(void)
 {
     uint32_t memspace, addr, value, numbit, newpc, newaddr;
     
@@ -2482,7 +2681,7 @@ static void dsp_jset_pp(void)
     ++cur_inst_len;
 }
 
-static void dsp_jset_reg(void)
+static void emu_jset_reg(void)
 {
     uint32_t value, numreg, numbit, newpc, newaddr;
     
@@ -2491,7 +2690,7 @@ static void dsp_jset_reg(void)
     newaddr = read_memory_p(dsp_core.pc+1);
     
     if ((numreg==DSP_REG_A) || (numreg==DSP_REG_B)) {
-        dsp_pm_read_accu24(numreg, &value);
+        emu_pm_read_accu24(numreg, &value);
     } else {
         value = dsp_core.registers[numreg];
     }
@@ -2507,7 +2706,7 @@ static void dsp_jset_reg(void)
     ++cur_inst_len;
 }
 
-static void dsp_jsr_imm(void)
+static void emu_jsr_imm(void)
 {
     uint32_t newpc;
 
@@ -2526,7 +2725,7 @@ static void dsp_jsr_imm(void)
     dsp_core.instr_cycle += 2;
 }
 
-static void dsp_jsr_ea(void)
+static void emu_jsr_ea(void)
 {
     uint32_t newpc;
 
@@ -2545,7 +2744,7 @@ static void dsp_jsr_ea(void)
     dsp_core.instr_cycle += 2;
 }
 
-static void dsp_jsset_aa(void)
+static void emu_jsset_aa(void)
 {
     uint32_t memspace, addr, value, newpc, numbit, newaddr;
     
@@ -2567,7 +2766,7 @@ static void dsp_jsset_aa(void)
     ++cur_inst_len;
 }
 
-static void dsp_jsset_ea(void)
+static void emu_jsset_ea(void)
 {
     uint32_t memspace, addr, value, newpc, numbit, newaddr;
     
@@ -2590,7 +2789,7 @@ static void dsp_jsset_ea(void)
     ++cur_inst_len;
 }
 
-static void dsp_jsset_pp(void)
+static void emu_jsset_pp(void)
 {
     uint32_t memspace, addr, value, newpc, numbit, newaddr;
     
@@ -2613,7 +2812,7 @@ static void dsp_jsset_pp(void)
     ++cur_inst_len;
 }
 
-static void dsp_jsset_reg(void)
+static void emu_jsset_reg(void)
 {
     uint32_t value, numreg, newpc, numbit, newaddr;
     
@@ -2622,7 +2821,7 @@ static void dsp_jsset_reg(void)
     newaddr = read_memory_p(dsp_core.pc+1);
     
     if ((numreg==DSP_REG_A) || (numreg==DSP_REG_B)) {
-        dsp_pm_read_accu24(numreg, &value);
+        emu_pm_read_accu24(numreg, &value);
     } else {
         value = dsp_core.registers[numreg];
     }
@@ -2639,7 +2838,7 @@ static void dsp_jsset_reg(void)
     ++cur_inst_len;
 }
 
-static void dsp_lua(void)
+static void emu_lua(void)
 {
     uint32_t value, srcreg, dstreg, srcsave, srcnew;
 
@@ -2661,7 +2860,7 @@ static void dsp_lua(void)
     dsp_core.instr_cycle += 2;
 }
 
-static void dsp_movec_reg(void)
+static void emu_movec_reg(void)
 {
     uint32_t numreg1, numreg2, value, dummy;
 
@@ -2675,7 +2874,7 @@ static void dsp_movec_reg(void)
         /* Write D1 */
 
         if ((numreg2 == DSP_REG_A) || (numreg2 == DSP_REG_B)) {
-            dsp_pm_read_accu24(numreg2, &value); 
+            emu_pm_read_accu24(numreg2, &value); 
         } else {
             value = dsp_core.registers[numreg2];
         }
@@ -2706,7 +2905,7 @@ static void dsp_movec_reg(void)
     }
 }
 
-static void dsp_movec_aa(void)
+static void emu_movec_aa(void)
 {
     uint32_t numreg, addr, memspace, value, dummy;
 
@@ -2736,7 +2935,7 @@ static void dsp_movec_aa(void)
     }
 }
 
-static void dsp_movec_imm(void)
+static void emu_movec_imm(void)
 {
     uint32_t numreg, value;
 
@@ -2747,7 +2946,7 @@ static void dsp_movec_imm(void)
     dsp_write_reg(numreg, value);
 }
 
-static void dsp_movec_ea(void)
+static void emu_movec_ea(void)
 {
     uint32_t numreg, addr, memspace, ea_mode, value, dummy;
     int retour;
@@ -2785,7 +2984,7 @@ static void dsp_movec_ea(void)
     }
 }
 
-static void dsp_movem_aa(void)
+static void emu_movem_aa(void)
 {
     uint32_t numreg, addr, value, dummy;
 
@@ -2803,7 +3002,7 @@ static void dsp_movem_aa(void)
             dsp_stack_pop(&value, &dummy);
         } 
         else if ((numreg == DSP_REG_A) || (numreg == DSP_REG_B)) {
-            dsp_pm_read_accu24(numreg, &value); 
+            emu_pm_read_accu24(numreg, &value); 
         } 
         else {
             value = dsp_core.registers[numreg];
@@ -2814,7 +3013,7 @@ static void dsp_movem_aa(void)
     dsp_core.instr_cycle += 4;
 }
 
-static void dsp_movem_ea(void)
+static void emu_movem_ea(void)
 {
     uint32_t numreg, addr, ea_mode, value, dummy;
 
@@ -2833,7 +3032,7 @@ static void dsp_movem_ea(void)
             dsp_stack_pop(&value, &dummy);
         } 
         else if ((numreg == DSP_REG_A) || (numreg == DSP_REG_B)) {
-            dsp_pm_read_accu24(numreg, &value); 
+            emu_pm_read_accu24(numreg, &value); 
         } 
         else {
             value = dsp_core.registers[numreg];
@@ -2844,7 +3043,7 @@ static void dsp_movem_ea(void)
     dsp_core.instr_cycle += 4;
 }
 
-static void dsp_movep_0(void)
+static void emu_movep_0(void)
 {
     /* S,x:pp */
     /* x:pp,D */
@@ -2860,7 +3059,7 @@ static void dsp_movep_0(void)
     if  (cur_inst & (1<<15)) {
         /* Write pp */
         if ((numreg == DSP_REG_A) || (numreg == DSP_REG_B)) {
-            dsp_pm_read_accu24(numreg, &value); 
+            emu_pm_read_accu24(numreg, &value); 
         }
         else if (numreg == DSP_REG_SSH) {
             dsp_stack_pop(&value, &dummy);
@@ -2879,7 +3078,7 @@ static void dsp_movep_0(void)
     dsp_core.instr_cycle += 2;
 }
 
-static void dsp_movep_1(void)
+static void emu_movep_1(void)
 {
     /* p:ea,x:pp */
     /* x:pp,p:ea */
@@ -2906,7 +3105,7 @@ static void dsp_movep_1(void)
     dsp_core.instr_cycle += 4;
 }
 
-static void dsp_movep_23(void)
+static void emu_movep_23(void)
 {
     /* x:ea,x:pp */
     /* y:ea,x:pp */
@@ -2945,7 +3144,7 @@ static void dsp_movep_23(void)
     dsp_core.instr_cycle += 2;
 }
 
-static void dsp_movep_x_low(void) {
+static void emu_movep_x_low(void) {
     // 00000111W1MMMRRR0sqqqqqq
 
     uint32_t addr, peraddr, easpace, ea_mode;
@@ -2957,12 +3156,12 @@ static void dsp_movep_x_low(void) {
     easpace = (cur_inst>>6) & 1;
     retour = dsp_calc_ea(ea_mode, &addr);
 
-    // TODO
+    // QQQ
 
     dsp_core.instr_cycle += 2; // ???
 }
 
-static void dsp_movex_a(void) {
+static void emu_move_x_aa(void) {
     // 0000001aaaaaaRRR1a0WDDDD
     int W = (cur_inst >> 4) & 1;
     int a = (((cur_inst >> 11) & BITMASK(6)) << 1)
@@ -2971,7 +3170,7 @@ static void dsp_movex_a(void) {
     dsp_core.instr_cycle += 2; //???
 }
 
-static void dsp_norm(void)
+static void emu_norm(void)
 {
     uint32_t cursr,cur_e, cur_euz, dest[3], numreg, rreg;
     uint16_t newsr;
@@ -3011,7 +3210,7 @@ static void dsp_norm(void)
     dsp_core.registers[DSP_REG_SR] |= newsr;
 }
 
-static void dsp_ori(void)
+static void emu_ori(void)
 {
     uint32_t regnum, value;
 
@@ -3042,7 +3241,7 @@ static void dsp_ori(void)
     xxxxxxxx 11xxxxxx 0xxxxxxx  reg
 */
 
-static void dsp_rep_aa(void)
+static void emu_rep_aa(void)
 {
     /* x:aa */
     /* y:aa */
@@ -3055,7 +3254,7 @@ static void dsp_rep_aa(void)
     dsp_core.instr_cycle += 2;
 }
 
-static void dsp_rep_imm(void)
+static void emu_rep_imm(void)
 {
     /* #xxx */
 
@@ -3069,7 +3268,7 @@ static void dsp_rep_imm(void)
     dsp_core.instr_cycle += 2;
 }
 
-static void dsp_rep_ea(void)
+static void emu_rep_ea(void)
 {
     uint32_t value;
 
@@ -3086,7 +3285,7 @@ static void dsp_rep_ea(void)
     dsp_core.instr_cycle += 2;
 }
 
-static void dsp_rep_reg(void)
+static void emu_rep_reg(void)
 {
     uint32_t numreg;
 
@@ -3098,7 +3297,7 @@ static void dsp_rep_reg(void)
 
     numreg = (cur_inst>>8) & BITMASK(6);
     if ((numreg == DSP_REG_A) || (numreg == DSP_REG_B)) {
-        dsp_pm_read_accu24(numreg, &dsp_core.registers[DSP_REG_LC]); 
+        emu_pm_read_accu24(numreg, &dsp_core.registers[DSP_REG_LC]); 
     } else {
         dsp_core.registers[DSP_REG_LC] = dsp_core.registers[numreg];
     }
@@ -3107,13 +3306,13 @@ static void dsp_rep_reg(void)
     dsp_core.instr_cycle += 2;
 }
 
-static void dsp_reset(void)
+static void emu_reset(void)
 {
     /* Reset external peripherals */
     dsp_core.instr_cycle += 2;
 }
 
-static void dsp_rti(void)
+static void emu_rti(void)
 {
     uint32_t newpc = 0, newsr = 0;
 
@@ -3125,7 +3324,7 @@ static void dsp_rti(void)
     dsp_core.instr_cycle += 2;
 }
 
-static void dsp_rts(void)
+static void emu_rts(void)
 {
     uint32_t newpc = 0, newsr;
 
@@ -3136,18 +3335,18 @@ static void dsp_rts(void)
     dsp_core.instr_cycle += 2;
 }
 
-static void dsp_stop(void)
+static void emu_stop(void)
 {
     DPRINTF("Dsp: STOP instruction\n");
 }
 
-static void dsp_swi(void)
+static void emu_swi(void)
 {
     /* Raise interrupt p:0x0006 */
     dsp_core.instr_cycle += 6;
 }
 
-static void dsp_tcc(void)
+static void emu_tcc(void)
 {
     uint32_t cc_code, regsrc1, regdest1;
     uint32_t regsrc2, regdest2;
@@ -3198,12 +3397,12 @@ static void dsp_tcc(void)
     }
 }
 
-static void dsp_wait(void)
+static void emu_wait(void)
 {
     DPRINTF("Dsp: WAIT instruction\n");
 }
 
-static int dsp_pm_read_accu24(int numreg, uint32_t *dest)
+static int emu_pm_read_accu24(int numreg, uint32_t *dest)
 {
     uint32_t scaling, value, reg;
     int got_limited = 0;
@@ -3268,7 +3467,7 @@ static int dsp_pm_read_accu24(int numreg, uint32_t *dest)
     return got_limited;
 }
 
-static void dsp_pm_0(void)
+static void emu_pm_0(void)
 {
     uint32_t memspace, numreg, addr, save_accu, save_xy0;
 /*
@@ -3280,7 +3479,7 @@ static void dsp_pm_0(void)
     dsp_calc_ea((cur_inst>>8) & BITMASK(6), &addr);
 
     /* Save A or B */   
-    dsp_pm_read_accu24(numreg, &save_accu);
+    emu_pm_read_accu24(numreg, &save_accu);
 
     /* Save X0 or Y0 */
     save_xy0 = dsp_core.registers[DSP_REG_X0+(memspace<<1)];
@@ -3297,7 +3496,7 @@ static void dsp_pm_0(void)
     dsp_core.registers[DSP_REG_A2+numreg] = save_xy0 & (1<<23) ? 0xff : 0x0;
 }
 
-static void dsp_pm_1(void)
+static void emu_pm_1(void)
 {
     uint32_t memspace, numreg1, numreg2, value, xy_addr, retour, save_1, save_2;
 /*
@@ -3340,7 +3539,7 @@ static void dsp_pm_1(void)
     } else {
         /* Read S1 */
         if ((numreg1==DSP_REG_A) || (numreg1==DSP_REG_B))
-            dsp_pm_read_accu24(numreg1, &save_1);
+            emu_pm_read_accu24(numreg1, &save_1);
         else
             save_1 = dsp_core.registers[numreg1];
     }
@@ -3353,7 +3552,7 @@ static void dsp_pm_1(void)
         /* X: */
         numreg2 = DSP_REG_A + ((cur_inst>>17) & 1);
     }   
-    dsp_pm_read_accu24(numreg2, &save_2);
+    emu_pm_read_accu24(numreg2, &save_2);
     
 
     /* Execute parallel instruction */
@@ -3391,7 +3590,7 @@ static void dsp_pm_1(void)
     dsp_core.registers[numreg2] = save_2;
 }
 
-static void dsp_pm_2(void)
+static void emu_pm_2(void)
 {
     uint32_t dummy;
 /*
@@ -3414,14 +3613,14 @@ static void dsp_pm_2(void)
     }
 
     if ((cur_inst & 0xfc0000) == 0x200000) {
-        dsp_pm_2_2();
+        emu_pm_2_2();
         return;
     }
 
-    dsp_pm_3();
+    emu_pm_3();
 }
 
-static void dsp_pm_2_2(void)
+static void emu_pm_2_2(void)
 {
 /*
     0010 00ee eeed dddd S,D
@@ -3433,7 +3632,7 @@ static void dsp_pm_2_2(void)
 
     if ((srcreg == DSP_REG_A) || (srcreg == DSP_REG_B))
         /* Accu to register: limited 24 bits */
-        dsp_pm_read_accu24(srcreg, &save_reg);
+        emu_pm_read_accu24(srcreg, &save_reg);
     else
         save_reg = dsp_core.registers[srcreg];
 
@@ -3456,7 +3655,7 @@ static void dsp_pm_2_2(void)
     }
 }
 
-static void dsp_pm_3(void)
+static void emu_pm_3(void)
 {
     uint32_t dstreg, srcvalue;
 /*
@@ -3496,7 +3695,7 @@ static void dsp_pm_3(void)
     }
 }
 
-static void dsp_pm_4(void)
+static void emu_pm_4(void)
 {
 /*
     0100 l0ll w0aa aaaa             l:aa,D
@@ -3515,14 +3714,14 @@ static void dsp_pm_4(void)
                         #xxxxxx,D
 */
     if ((cur_inst & 0xf40000)==0x400000) {
-        dsp_pm_4x();
+        emu_pm_4x();
         return;
     }
 
-    dsp_pm_5();
+    emu_pm_5();
 }
 
-static void dsp_pm_4x(void)
+static void emu_pm_4x(void)
 {
     uint32_t value, numreg, l_addr, save_lx, save_ly;
 /*
@@ -3571,7 +3770,7 @@ static void dsp_pm_4x(void)
                 break;
             case 4:
                 /* A */
-                if (dsp_pm_read_accu24(DSP_REG_A, &save_lx)) {
+                if (emu_pm_read_accu24(DSP_REG_A, &save_lx)) {
                     /* Was limited, set lower part */
                     save_ly = (save_lx & (1<<23) ? 0 : 0xffffff);
                 } else {
@@ -3581,7 +3780,7 @@ static void dsp_pm_4x(void)
                 break;
             case 5:
                 /* B */
-                if (dsp_pm_read_accu24(DSP_REG_B, &save_lx)) {
+                if (emu_pm_read_accu24(DSP_REG_B, &save_lx)) {
                     /* Was limited, set lower part */
                     save_ly = (save_lx & (1<<23) ? 0 : 0xffffff);
                 } else {
@@ -3591,13 +3790,13 @@ static void dsp_pm_4x(void)
                 break;
             case 6:
                 /* AB */
-                dsp_pm_read_accu24(DSP_REG_A, &save_lx); 
-                dsp_pm_read_accu24(DSP_REG_B, &save_ly); 
+                emu_pm_read_accu24(DSP_REG_A, &save_lx); 
+                emu_pm_read_accu24(DSP_REG_B, &save_ly); 
                 break;
             case 7:
                 /* BA */
-                dsp_pm_read_accu24(DSP_REG_B, &save_lx); 
-                dsp_pm_read_accu24(DSP_REG_A, &save_ly); 
+                emu_pm_read_accu24(DSP_REG_B, &save_lx); 
+                emu_pm_read_accu24(DSP_REG_A, &save_ly); 
                 break;
         }
     }
@@ -3660,7 +3859,7 @@ static void dsp_pm_4x(void)
     }
 }
 
-static void dsp_pm_5(void)
+static void emu_pm_5(void)
 {
     uint32_t memspace, numreg, value, xy_addr, retour;
 /*
@@ -3699,7 +3898,7 @@ static void dsp_pm_5(void)
     else {
         /* Read S */
         if ((numreg==DSP_REG_A) || (numreg==DSP_REG_B))
-            dsp_pm_read_accu24(numreg, &value);
+            emu_pm_read_accu24(numreg, &value);
         else
             value = dsp_core.registers[numreg];
     }
@@ -3730,7 +3929,7 @@ static void dsp_pm_5(void)
     }
 }
 
-static void dsp_pm_8(void)
+static void emu_pm_8(void)
 {
     uint32_t ea1, ea2;
     uint32_t numreg1, numreg2;
@@ -3778,7 +3977,7 @@ static void dsp_pm_8(void)
     } else {
         /* Read S1 */
         if ((numreg1==DSP_REG_A) || (numreg1==DSP_REG_B))
-            dsp_pm_read_accu24(numreg1, &save_reg1);
+            emu_pm_read_accu24(numreg1, &save_reg1);
         else
             save_reg1 = dsp_core.registers[numreg1];
     }
@@ -3789,7 +3988,7 @@ static void dsp_pm_8(void)
     } else {
         /* Read S2 */
         if ((numreg2==DSP_REG_A) || (numreg2==DSP_REG_B))
-            dsp_pm_read_accu24(numreg2, &save_reg2);
+            emu_pm_read_accu24(numreg2, &save_reg2);
         else
             save_reg2 = dsp_core.registers[numreg2];
     }
@@ -4076,7 +4275,7 @@ static void dsp_rnd56(uint32_t *dest)
  *  Parallel moves instructions
  **********************************/
 
-static void dsp_abs_a(void)
+static void emu_abs_a(void)
 {
     uint32_t dest[3], overflowed;
 
@@ -4098,7 +4297,7 @@ static void dsp_abs_a(void)
     dsp_ccr_update_e_u_n_z(dest[0], dest[1], dest[2]);
 }
 
-static void dsp_abs_b(void)
+static void emu_abs_b(void)
 {
     uint32_t dest[3], overflowed;
 
@@ -4120,7 +4319,7 @@ static void dsp_abs_b(void)
     dsp_ccr_update_e_u_n_z(dest[0], dest[1], dest[2]);
 }
 
-static void dsp_adc_x_a(void)
+static void emu_adc_x_a(void)
 {
     uint32_t source[3], dest[3], curcarry;
     uint16_t newsr;
@@ -4152,7 +4351,7 @@ static void dsp_adc_x_a(void)
     dsp_core.registers[DSP_REG_SR] |= newsr;
 }
 
-static void dsp_adc_x_b(void)
+static void emu_adc_x_b(void)
 {
     uint32_t source[3], dest[3], curcarry;
     uint16_t newsr;
@@ -4184,7 +4383,7 @@ static void dsp_adc_x_b(void)
     dsp_core.registers[DSP_REG_SR] |= newsr;
 }
 
-static void dsp_adc_y_a(void)
+static void emu_adc_y_a(void)
 {
     uint32_t source[3], dest[3], curcarry;
     uint16_t newsr;
@@ -4216,7 +4415,7 @@ static void dsp_adc_y_a(void)
     dsp_core.registers[DSP_REG_SR] |= newsr;
 }
 
-static void dsp_adc_y_b(void)
+static void emu_adc_y_b(void)
 {
     uint32_t source[3], dest[3], curcarry;
     uint16_t newsr;
@@ -4248,7 +4447,7 @@ static void dsp_adc_y_b(void)
     dsp_core.registers[DSP_REG_SR] |= newsr;
 }
 
-static void dsp_add_b_a(void)
+static void emu_add_b_a(void)
 {
     uint32_t source[3], dest[3];
     uint16_t newsr;
@@ -4273,7 +4472,7 @@ static void dsp_add_b_a(void)
     dsp_core.registers[DSP_REG_SR] |= newsr;
 }
 
-static void dsp_add_a_b(void)
+static void emu_add_a_b(void)
 {
     uint32_t source[3], dest[3];
     uint16_t newsr;
@@ -4298,7 +4497,7 @@ static void dsp_add_a_b(void)
     dsp_core.registers[DSP_REG_SR] |= newsr;
 }
 
-static void dsp_add_x_a(void)
+static void emu_add_x_a(void)
 {
     uint32_t source[3], dest[3];
     uint16_t newsr;
@@ -4323,7 +4522,7 @@ static void dsp_add_x_a(void)
     dsp_core.registers[DSP_REG_SR] |= newsr;
 }
 
-static void dsp_add_x_b(void)
+static void emu_add_x_b(void)
 {
     uint32_t source[3], dest[3];
     uint16_t newsr;
@@ -4348,7 +4547,7 @@ static void dsp_add_x_b(void)
     dsp_core.registers[DSP_REG_SR] |= newsr;
 }
 
-static void dsp_add_y_a(void)
+static void emu_add_y_a(void)
 {
     uint32_t source[3], dest[3];
     uint16_t newsr;
@@ -4373,7 +4572,7 @@ static void dsp_add_y_a(void)
     dsp_core.registers[DSP_REG_SR] |= newsr;
 }
 
-static void dsp_add_y_b(void)
+static void emu_add_y_b(void)
 {
     uint32_t source[3], dest[3];
     uint16_t newsr;
@@ -4398,7 +4597,7 @@ static void dsp_add_y_b(void)
     dsp_core.registers[DSP_REG_SR] |= newsr;
 }
 
-static void dsp_add_x0_a(void)
+static void emu_add_x0_a(void)
 {
     uint32_t source[3], dest[3];
     uint16_t newsr;
@@ -4423,7 +4622,7 @@ static void dsp_add_x0_a(void)
     dsp_core.registers[DSP_REG_SR] |= newsr;
 }
 
-static void dsp_add_x0_b(void)
+static void emu_add_x0_b(void)
 {
     uint32_t source[3], dest[3];
     uint16_t newsr;
@@ -4448,7 +4647,7 @@ static void dsp_add_x0_b(void)
     dsp_core.registers[DSP_REG_SR] |= newsr;
 }
 
-static void dsp_add_y0_a(void)
+static void emu_add_y0_a(void)
 {
     uint32_t source[3], dest[3];
     uint16_t newsr;
@@ -4473,7 +4672,7 @@ static void dsp_add_y0_a(void)
     dsp_core.registers[DSP_REG_SR] |= newsr;
 }
 
-static void dsp_add_y0_b(void)
+static void emu_add_y0_b(void)
 {
     uint32_t source[3], dest[3];
     uint16_t newsr;
@@ -4498,7 +4697,7 @@ static void dsp_add_y0_b(void)
     dsp_core.registers[DSP_REG_SR] |= newsr;
 }
 
-static void dsp_add_x1_a(void)
+static void emu_add_x1_a(void)
 {
     uint32_t source[3], dest[3];
     uint16_t newsr;
@@ -4523,7 +4722,7 @@ static void dsp_add_x1_a(void)
     dsp_core.registers[DSP_REG_SR] |= newsr;
 }
 
-static void dsp_add_x1_b(void)
+static void emu_add_x1_b(void)
 {
     uint32_t source[3], dest[3];
     uint16_t newsr;
@@ -4548,7 +4747,7 @@ static void dsp_add_x1_b(void)
     dsp_core.registers[DSP_REG_SR] |= newsr;
 }
 
-static void dsp_add_y1_a(void)
+static void emu_add_y1_a(void)
 {
     uint32_t source[3], dest[3];
     uint16_t newsr;
@@ -4573,7 +4772,7 @@ static void dsp_add_y1_a(void)
     dsp_core.registers[DSP_REG_SR] |= newsr;
 }
 
-static void dsp_add_y1_b(void)
+static void emu_add_y1_b(void)
 {
     uint32_t source[3], dest[3];
     uint16_t newsr;
@@ -4598,7 +4797,7 @@ static void dsp_add_y1_b(void)
     dsp_core.registers[DSP_REG_SR] |= newsr;
 }
 
-static void dsp_addl_b_a(void)
+static void emu_addl_b_a(void)
 {
     uint32_t source[3], dest[3];
     uint16_t newsr;
@@ -4623,7 +4822,7 @@ static void dsp_addl_b_a(void)
     dsp_core.registers[DSP_REG_SR] |= newsr;
 }
 
-static void dsp_addl_a_b(void)
+static void emu_addl_a_b(void)
 {
     uint32_t source[3], dest[3];
     uint16_t newsr;
@@ -4648,7 +4847,7 @@ static void dsp_addl_a_b(void)
     dsp_core.registers[DSP_REG_SR] |= newsr;
 }
 
-static void dsp_addr_b_a(void)
+static void emu_addr_b_a(void)
 {
     uint32_t source[3], dest[3];
     uint16_t newsr;
@@ -4673,7 +4872,7 @@ static void dsp_addr_b_a(void)
     dsp_core.registers[DSP_REG_SR] |= newsr;
 }
 
-static void dsp_addr_a_b(void)
+static void emu_addr_a_b(void)
 {
     uint32_t source[3], dest[3];
     uint16_t newsr;
@@ -4698,7 +4897,7 @@ static void dsp_addr_a_b(void)
     dsp_core.registers[DSP_REG_SR] |= newsr;
 }
 
-static void dsp_and_x0_a(void)
+static void emu_and_x0_a(void)
 {
     dsp_core.registers[DSP_REG_A1] &= dsp_core.registers[DSP_REG_X0];
 
@@ -4707,7 +4906,7 @@ static void dsp_and_x0_a(void)
     dsp_core.registers[DSP_REG_SR] |= (dsp_core.registers[DSP_REG_A1]==0)<<DSP_SR_Z;
 }
 
-static void dsp_and_x0_b(void)
+static void emu_and_x0_b(void)
 {
     dsp_core.registers[DSP_REG_B1] &= dsp_core.registers[DSP_REG_X0];
 
@@ -4716,7 +4915,7 @@ static void dsp_and_x0_b(void)
     dsp_core.registers[DSP_REG_SR] |= (dsp_core.registers[DSP_REG_B1]==0)<<DSP_SR_Z;
 }
 
-static void dsp_and_y0_a(void)
+static void emu_and_y0_a(void)
 {
     dsp_core.registers[DSP_REG_A1] &= dsp_core.registers[DSP_REG_Y0];
 
@@ -4725,7 +4924,7 @@ static void dsp_and_y0_a(void)
     dsp_core.registers[DSP_REG_SR] |= (dsp_core.registers[DSP_REG_A1]==0)<<DSP_SR_Z;
 }
 
-static void dsp_and_y0_b(void)
+static void emu_and_y0_b(void)
 {
     dsp_core.registers[DSP_REG_B1] &= dsp_core.registers[DSP_REG_Y0];
 
@@ -4734,7 +4933,7 @@ static void dsp_and_y0_b(void)
     dsp_core.registers[DSP_REG_SR] |= (dsp_core.registers[DSP_REG_B1]==0)<<DSP_SR_Z;
 }
 
-static void dsp_and_x1_a(void)
+static void emu_and_x1_a(void)
 {
     dsp_core.registers[DSP_REG_A1] &= dsp_core.registers[DSP_REG_X1];
 
@@ -4743,7 +4942,7 @@ static void dsp_and_x1_a(void)
     dsp_core.registers[DSP_REG_SR] |= (dsp_core.registers[DSP_REG_A1]==0)<<DSP_SR_Z;
 }
 
-static void dsp_and_x1_b(void)
+static void emu_and_x1_b(void)
 {
     dsp_core.registers[DSP_REG_B1] &= dsp_core.registers[DSP_REG_X1];
 
@@ -4752,7 +4951,7 @@ static void dsp_and_x1_b(void)
     dsp_core.registers[DSP_REG_SR] |= (dsp_core.registers[DSP_REG_B1]==0)<<DSP_SR_Z;
 }
 
-static void dsp_and_y1_a(void)
+static void emu_and_y1_a(void)
 {
     dsp_core.registers[DSP_REG_A1] &= dsp_core.registers[DSP_REG_Y1];
 
@@ -4761,7 +4960,7 @@ static void dsp_and_y1_a(void)
     dsp_core.registers[DSP_REG_SR] |= (dsp_core.registers[DSP_REG_A1]==0)<<DSP_SR_Z;
 }
 
-static void dsp_and_y1_b(void)
+static void emu_and_y1_b(void)
 {
     dsp_core.registers[DSP_REG_B1] &= dsp_core.registers[DSP_REG_Y1];
 
@@ -4770,7 +4969,7 @@ static void dsp_and_y1_b(void)
     dsp_core.registers[DSP_REG_SR] |= (dsp_core.registers[DSP_REG_B1]==0)<<DSP_SR_Z;
 }
 
-static void dsp_asl_a(void)
+static void emu_asl_a(void)
 {
     uint32_t dest[3];
     uint16_t newsr;
@@ -4791,7 +4990,7 @@ static void dsp_asl_a(void)
     dsp_ccr_update_e_u_n_z(dest[0], dest[1], dest[2]);
 }
 
-static void dsp_asl_b(void)
+static void emu_asl_b(void)
 {
     uint32_t dest[3];
     uint16_t newsr;
@@ -4812,7 +5011,7 @@ static void dsp_asl_b(void)
     dsp_ccr_update_e_u_n_z(dest[0], dest[1], dest[2]);
 }
 
-static void dsp_asr_a(void)
+static void emu_asr_a(void)
 {
     uint32_t dest[3];
     uint16_t newsr;
@@ -4833,7 +5032,7 @@ static void dsp_asr_a(void)
     dsp_ccr_update_e_u_n_z(dest[0], dest[1], dest[2]);
 }
 
-static void dsp_asr_b(void)
+static void emu_asr_b(void)
 {
     uint32_t dest[3];
     uint16_t newsr;
@@ -4854,7 +5053,7 @@ static void dsp_asr_b(void)
     dsp_ccr_update_e_u_n_z(dest[0], dest[1], dest[2]);
 }
 
-static void dsp_clr_a(void)
+static void emu_clr_a(void)
 {
     dsp_core.registers[DSP_REG_A2] = 0;
     dsp_core.registers[DSP_REG_A1] = 0;
@@ -4864,7 +5063,7 @@ static void dsp_clr_a(void)
     dsp_core.registers[DSP_REG_SR] |= (1<<DSP_SR_U)|(1<<DSP_SR_Z);
 }
 
-static void dsp_clr_b(void)
+static void emu_clr_b(void)
 {
     dsp_core.registers[DSP_REG_B2] = 0;
     dsp_core.registers[DSP_REG_B1] = 0;
@@ -4874,7 +5073,7 @@ static void dsp_clr_b(void)
     dsp_core.registers[DSP_REG_SR] |= (1<<DSP_SR_U)|(1<<DSP_SR_Z);
 }
 
-static void dsp_cmp_b_a(void)
+static void emu_cmp_b_a(void)
 {
     uint32_t source[3], dest[3];
     uint16_t newsr;
@@ -4895,7 +5094,7 @@ static void dsp_cmp_b_a(void)
     dsp_core.registers[DSP_REG_SR] |= newsr;
 }
 
-static void dsp_cmp_a_b(void)
+static void emu_cmp_a_b(void)
 {
     uint32_t source[3], dest[3];
     uint16_t newsr;
@@ -4916,7 +5115,7 @@ static void dsp_cmp_a_b(void)
     dsp_core.registers[DSP_REG_SR] |= newsr;
 }
 
-static void dsp_cmp_x0_a(void)
+static void emu_cmp_x0_a(void)
 {
     uint32_t source[3], dest[3];
     uint16_t newsr;
@@ -4937,7 +5136,7 @@ static void dsp_cmp_x0_a(void)
     dsp_core.registers[DSP_REG_SR] |= newsr;
 }
 
-static void dsp_cmp_x0_b(void)
+static void emu_cmp_x0_b(void)
 {
     uint32_t source[3], dest[3];
     uint16_t newsr;
@@ -4958,7 +5157,7 @@ static void dsp_cmp_x0_b(void)
     dsp_core.registers[DSP_REG_SR] |= newsr;
 }
 
-static void dsp_cmp_y0_a(void)
+static void emu_cmp_y0_a(void)
 {
     uint32_t source[3], dest[3];
     uint16_t newsr;
@@ -4979,7 +5178,7 @@ static void dsp_cmp_y0_a(void)
     dsp_core.registers[DSP_REG_SR] |= newsr;
 }
 
-static void dsp_cmp_y0_b(void)
+static void emu_cmp_y0_b(void)
 {
     uint32_t source[3], dest[3];
     uint16_t newsr;
@@ -4999,7 +5198,7 @@ static void dsp_cmp_y0_b(void)
     dsp_core.registers[DSP_REG_SR] &= BITMASK(16)-((1<<DSP_SR_V)|(1<<DSP_SR_C));
     dsp_core.registers[DSP_REG_SR] |= newsr;
 }
-static void dsp_cmp_x1_a(void)
+static void emu_cmp_x1_a(void)
 {
     uint32_t source[3], dest[3];
     uint16_t newsr;
@@ -5020,7 +5219,7 @@ static void dsp_cmp_x1_a(void)
     dsp_core.registers[DSP_REG_SR] |= newsr;
 }
 
-static void dsp_cmp_x1_b(void)
+static void emu_cmp_x1_b(void)
 {
     uint32_t source[3], dest[3];
     uint16_t newsr;
@@ -5041,7 +5240,7 @@ static void dsp_cmp_x1_b(void)
     dsp_core.registers[DSP_REG_SR] |= newsr;
 }
 
-static void dsp_cmp_y1_a(void)
+static void emu_cmp_y1_a(void)
 {
     uint32_t source[3], dest[3];
     uint16_t newsr;
@@ -5062,7 +5261,7 @@ static void dsp_cmp_y1_a(void)
     dsp_core.registers[DSP_REG_SR] |= newsr;
 }
 
-static void dsp_cmp_y1_b(void)
+static void emu_cmp_y1_b(void)
 {
     uint32_t source[3], dest[3];
     uint16_t newsr;
@@ -5083,7 +5282,7 @@ static void dsp_cmp_y1_b(void)
     dsp_core.registers[DSP_REG_SR] |= newsr;
 }
 
-static void dsp_cmpm_b_a(void)
+static void emu_cmpm_b_a(void)
 {
     uint32_t source[3], dest[3];
     uint16_t newsr;
@@ -5106,7 +5305,7 @@ static void dsp_cmpm_b_a(void)
     dsp_core.registers[DSP_REG_SR] |= newsr;
 }
 
-static void dsp_cmpm_a_b(void)
+static void emu_cmpm_a_b(void)
 {
     uint32_t source[3], dest[3];
     uint16_t newsr;
@@ -5129,7 +5328,7 @@ static void dsp_cmpm_a_b(void)
     dsp_core.registers[DSP_REG_SR] |= newsr;
 }
 
-static void dsp_cmpm_x0_a(void)
+static void emu_cmpm_x0_a(void)
 {
     uint32_t source[3], dest[3];
     uint16_t newsr;
@@ -5152,7 +5351,7 @@ static void dsp_cmpm_x0_a(void)
     dsp_core.registers[DSP_REG_SR] |= newsr;
 }
 
-static void dsp_cmpm_x0_b(void)
+static void emu_cmpm_x0_b(void)
 {
     uint32_t source[3], dest[3];
     uint16_t newsr;
@@ -5175,7 +5374,7 @@ static void dsp_cmpm_x0_b(void)
     dsp_core.registers[DSP_REG_SR] |= newsr;
 }
 
-static void dsp_cmpm_y0_a(void)
+static void emu_cmpm_y0_a(void)
 {
     uint32_t source[3], dest[3];
     uint16_t newsr;
@@ -5198,7 +5397,7 @@ static void dsp_cmpm_y0_a(void)
     dsp_core.registers[DSP_REG_SR] |= newsr;
 }
 
-static void dsp_cmpm_y0_b(void)
+static void emu_cmpm_y0_b(void)
 {
     uint32_t source[3], dest[3];
     uint16_t newsr;
@@ -5221,7 +5420,7 @@ static void dsp_cmpm_y0_b(void)
     dsp_core.registers[DSP_REG_SR] |= newsr;
 }
 
-static void dsp_cmpm_x1_a(void)
+static void emu_cmpm_x1_a(void)
 {
     uint32_t source[3], dest[3];
     uint16_t newsr;
@@ -5244,7 +5443,7 @@ static void dsp_cmpm_x1_a(void)
     dsp_core.registers[DSP_REG_SR] |= newsr;
 }
 
-static void dsp_cmpm_x1_b(void)
+static void emu_cmpm_x1_b(void)
 {
     uint32_t source[3], dest[3];
     uint16_t newsr;
@@ -5267,7 +5466,7 @@ static void dsp_cmpm_x1_b(void)
     dsp_core.registers[DSP_REG_SR] |= newsr;
 }
 
-static void dsp_cmpm_y1_a(void)
+static void emu_cmpm_y1_a(void)
 {
     uint32_t source[3], dest[3];
     uint16_t newsr;
@@ -5290,7 +5489,7 @@ static void dsp_cmpm_y1_a(void)
     dsp_core.registers[DSP_REG_SR] |= newsr;
 }
 
-static void dsp_cmpm_y1_b(void)
+static void emu_cmpm_y1_b(void)
 {
     uint32_t source[3], dest[3];
     uint16_t newsr;
@@ -5313,7 +5512,7 @@ static void dsp_cmpm_y1_b(void)
     dsp_core.registers[DSP_REG_SR] |= newsr;
 }
 
-static void dsp_eor_x0_a(void)
+static void emu_eor_x0_a(void)
 {
     dsp_core.registers[DSP_REG_A1] ^= dsp_core.registers[DSP_REG_X0];
     dsp_core.registers[DSP_REG_A1] &= BITMASK(24); /* FIXME: useless ? */
@@ -5323,7 +5522,7 @@ static void dsp_eor_x0_a(void)
     dsp_core.registers[DSP_REG_SR] |= (dsp_core.registers[DSP_REG_A1]==0)<<DSP_SR_Z;
 }
 
-static void dsp_eor_x0_b(void)
+static void emu_eor_x0_b(void)
 {
     dsp_core.registers[DSP_REG_B1] ^= dsp_core.registers[DSP_REG_X0];
     dsp_core.registers[DSP_REG_B1] &= BITMASK(24); /* FIXME: useless ? */
@@ -5333,7 +5532,7 @@ static void dsp_eor_x0_b(void)
     dsp_core.registers[DSP_REG_SR] |= (dsp_core.registers[DSP_REG_B1]==0)<<DSP_SR_Z;
 }
 
-static void dsp_eor_y0_a(void)
+static void emu_eor_y0_a(void)
 {
     dsp_core.registers[DSP_REG_A1] ^= dsp_core.registers[DSP_REG_Y0];
     dsp_core.registers[DSP_REG_A1] &= BITMASK(24); /* FIXME: useless ? */
@@ -5343,7 +5542,7 @@ static void dsp_eor_y0_a(void)
     dsp_core.registers[DSP_REG_SR] |= (dsp_core.registers[DSP_REG_A1]==0)<<DSP_SR_Z;
 }
 
-static void dsp_eor_y0_b(void)
+static void emu_eor_y0_b(void)
 {
     dsp_core.registers[DSP_REG_B1] ^= dsp_core.registers[DSP_REG_Y0];
     dsp_core.registers[DSP_REG_B1] &= BITMASK(24); /* FIXME: useless ? */
@@ -5353,7 +5552,7 @@ static void dsp_eor_y0_b(void)
     dsp_core.registers[DSP_REG_SR] |= (dsp_core.registers[DSP_REG_B1]==0)<<DSP_SR_Z;
 }
 
-static void dsp_eor_x1_a(void)
+static void emu_eor_x1_a(void)
 {
     dsp_core.registers[DSP_REG_A1] ^= dsp_core.registers[DSP_REG_X1];
     dsp_core.registers[DSP_REG_A1] &= BITMASK(24); /* FIXME: useless ? */
@@ -5363,7 +5562,7 @@ static void dsp_eor_x1_a(void)
     dsp_core.registers[DSP_REG_SR] |= (dsp_core.registers[DSP_REG_A1]==0)<<DSP_SR_Z;
 }
 
-static void dsp_eor_x1_b(void)
+static void emu_eor_x1_b(void)
 {
     dsp_core.registers[DSP_REG_B1] ^= dsp_core.registers[DSP_REG_X1];
     dsp_core.registers[DSP_REG_B1] &= BITMASK(24); /* FIXME: useless ? */
@@ -5373,7 +5572,7 @@ static void dsp_eor_x1_b(void)
     dsp_core.registers[DSP_REG_SR] |= (dsp_core.registers[DSP_REG_B1]==0)<<DSP_SR_Z;
 }
 
-static void dsp_eor_y1_a(void)
+static void emu_eor_y1_a(void)
 {
     dsp_core.registers[DSP_REG_A1] ^= dsp_core.registers[DSP_REG_Y1];
     dsp_core.registers[DSP_REG_A1] &= BITMASK(24); /* FIXME: useless ? */
@@ -5383,7 +5582,7 @@ static void dsp_eor_y1_a(void)
     dsp_core.registers[DSP_REG_SR] |= (dsp_core.registers[DSP_REG_A1]==0)<<DSP_SR_Z;
 }
 
-static void dsp_eor_y1_b(void)
+static void emu_eor_y1_b(void)
 {
     dsp_core.registers[DSP_REG_B1] ^= dsp_core.registers[DSP_REG_Y1];
     dsp_core.registers[DSP_REG_B1] &= BITMASK(24); /* FIXME: useless ? */
@@ -5393,7 +5592,7 @@ static void dsp_eor_y1_b(void)
     dsp_core.registers[DSP_REG_SR] |= (dsp_core.registers[DSP_REG_B1]==0)<<DSP_SR_Z;
 }
 
-static void dsp_lsl_a(void)
+static void emu_lsl_a(void)
 {
     uint32_t newcarry = (dsp_core.registers[DSP_REG_A1]>>23) & 1;
 
@@ -5406,7 +5605,7 @@ static void dsp_lsl_a(void)
     dsp_core.registers[DSP_REG_SR] |= (dsp_core.registers[DSP_REG_A1]==0)<<DSP_SR_Z;
 }
 
-static void dsp_lsl_b(void)
+static void emu_lsl_b(void)
 {
     uint32_t newcarry = (dsp_core.registers[DSP_REG_B1]>>23) & 1;
 
@@ -5419,7 +5618,7 @@ static void dsp_lsl_b(void)
     dsp_core.registers[DSP_REG_SR] |= (dsp_core.registers[DSP_REG_B1]==0)<<DSP_SR_Z;
 }
 
-static void dsp_lsr_a(void)
+static void emu_lsr_a(void)
 {
     uint32_t newcarry = dsp_core.registers[DSP_REG_A1] & 1;
     dsp_core.registers[DSP_REG_A1] >>= 1;
@@ -5429,7 +5628,7 @@ static void dsp_lsr_a(void)
     dsp_core.registers[DSP_REG_SR] |= (dsp_core.registers[DSP_REG_A1]==0)<<DSP_SR_Z;
 }
 
-static void dsp_lsr_b(void)
+static void emu_lsr_b(void)
 {
     uint32_t newcarry = dsp_core.registers[DSP_REG_B1] & 1;
     dsp_core.registers[DSP_REG_B1] >>= 1;
@@ -5439,7 +5638,7 @@ static void dsp_lsr_b(void)
     dsp_core.registers[DSP_REG_SR] |= (dsp_core.registers[DSP_REG_B1]==0)<<DSP_SR_Z;
 }
 
-static void dsp_mac_p_x0_x0_a(void)
+static void emu_mac_p_x0_x0_a(void)
 {
     uint32_t source[3], dest[3];
     uint16_t newsr;
@@ -5461,7 +5660,7 @@ static void dsp_mac_p_x0_x0_a(void)
     dsp_core.registers[DSP_REG_SR] |= newsr & 0xfe;
 }
 
-static void dsp_mac_m_x0_x0_a(void)
+static void emu_mac_m_x0_x0_a(void)
 {
     uint32_t source[3], dest[3];
     uint16_t newsr;
@@ -5482,7 +5681,7 @@ static void dsp_mac_m_x0_x0_a(void)
     dsp_core.registers[DSP_REG_SR] &= BITMASK(16)-(1<<DSP_SR_V);
     dsp_core.registers[DSP_REG_SR] |= newsr & 0xfe;
 }
-static void dsp_mac_p_x0_x0_b(void)
+static void emu_mac_p_x0_x0_b(void)
 {
     uint32_t source[3], dest[3];
     uint16_t newsr;
@@ -5504,7 +5703,7 @@ static void dsp_mac_p_x0_x0_b(void)
     dsp_core.registers[DSP_REG_SR] |= newsr & 0xfe;
 }
 
-static void dsp_mac_m_x0_x0_b(void)
+static void emu_mac_m_x0_x0_b(void)
 {
     uint32_t source[3], dest[3];
     uint16_t newsr;
@@ -5526,7 +5725,7 @@ static void dsp_mac_m_x0_x0_b(void)
     dsp_core.registers[DSP_REG_SR] |= newsr & 0xfe;
 }
 
-static void dsp_mac_p_y0_y0_a(void)
+static void emu_mac_p_y0_y0_a(void)
 {
     uint32_t source[3], dest[3];
     uint16_t newsr;
@@ -5548,7 +5747,7 @@ static void dsp_mac_p_y0_y0_a(void)
     dsp_core.registers[DSP_REG_SR] |= newsr & 0xfe;
 }
 
-static void dsp_mac_m_y0_y0_a(void)
+static void emu_mac_m_y0_y0_a(void)
 {
     uint32_t source[3], dest[3];
     uint16_t newsr;
@@ -5569,7 +5768,7 @@ static void dsp_mac_m_y0_y0_a(void)
     dsp_core.registers[DSP_REG_SR] &= BITMASK(16)-(1<<DSP_SR_V);
     dsp_core.registers[DSP_REG_SR] |= newsr & 0xfe;
 }
-static void dsp_mac_p_y0_y0_b(void)
+static void emu_mac_p_y0_y0_b(void)
 {
     uint32_t source[3], dest[3];
     uint16_t newsr;
@@ -5591,7 +5790,7 @@ static void dsp_mac_p_y0_y0_b(void)
     dsp_core.registers[DSP_REG_SR] |= newsr & 0xfe;
 }
 
-static void dsp_mac_m_y0_y0_b(void)
+static void emu_mac_m_y0_y0_b(void)
 {
     uint32_t source[3], dest[3];
     uint16_t newsr;
@@ -5613,7 +5812,7 @@ static void dsp_mac_m_y0_y0_b(void)
     dsp_core.registers[DSP_REG_SR] |= newsr & 0xfe;
 }
 
-static void dsp_mac_p_x1_x0_a(void)
+static void emu_mac_p_x1_x0_a(void)
 {
     uint32_t source[3], dest[3];
     uint16_t newsr;
@@ -5635,7 +5834,7 @@ static void dsp_mac_p_x1_x0_a(void)
     dsp_core.registers[DSP_REG_SR] |= newsr & 0xfe;
 }
 
-static void dsp_mac_m_x1_x0_a(void)
+static void emu_mac_m_x1_x0_a(void)
 {
     uint32_t source[3], dest[3];
     uint16_t newsr;
@@ -5657,7 +5856,7 @@ static void dsp_mac_m_x1_x0_a(void)
     dsp_core.registers[DSP_REG_SR] |= newsr & 0xfe;
 }
 
-static void dsp_mac_p_x1_x0_b(void)
+static void emu_mac_p_x1_x0_b(void)
 {
     uint32_t source[3], dest[3];
     uint16_t newsr;
@@ -5679,7 +5878,7 @@ static void dsp_mac_p_x1_x0_b(void)
     dsp_core.registers[DSP_REG_SR] |= newsr & 0xfe;
 }
 
-static void dsp_mac_m_x1_x0_b(void)
+static void emu_mac_m_x1_x0_b(void)
 {
     uint32_t source[3], dest[3];
     uint16_t newsr;
@@ -5701,7 +5900,7 @@ static void dsp_mac_m_x1_x0_b(void)
     dsp_core.registers[DSP_REG_SR] |= newsr & 0xfe;
 }
 
-static void dsp_mac_p_y1_y0_a(void)
+static void emu_mac_p_y1_y0_a(void)
 {
     uint32_t source[3], dest[3];
     uint16_t newsr;
@@ -5723,7 +5922,7 @@ static void dsp_mac_p_y1_y0_a(void)
     dsp_core.registers[DSP_REG_SR] |= newsr & 0xfe;
 }
 
-static void dsp_mac_m_y1_y0_a(void)
+static void emu_mac_m_y1_y0_a(void)
 {
     uint32_t source[3], dest[3];
     uint16_t newsr;
@@ -5745,7 +5944,7 @@ static void dsp_mac_m_y1_y0_a(void)
     dsp_core.registers[DSP_REG_SR] |= newsr & 0xfe;
 }
 
-static void dsp_mac_p_y1_y0_b(void)
+static void emu_mac_p_y1_y0_b(void)
 {
     uint32_t source[3], dest[3];
     uint16_t newsr;
@@ -5767,7 +5966,7 @@ static void dsp_mac_p_y1_y0_b(void)
     dsp_core.registers[DSP_REG_SR] |= newsr & 0xfe;
 }
 
-static void dsp_mac_m_y1_y0_b(void)
+static void emu_mac_m_y1_y0_b(void)
 {
     uint32_t source[3], dest[3];
     uint16_t newsr;
@@ -5789,7 +5988,7 @@ static void dsp_mac_m_y1_y0_b(void)
     dsp_core.registers[DSP_REG_SR] |= newsr & 0xfe;
 }
 
-static void dsp_mac_p_x0_y1_a(void)
+static void emu_mac_p_x0_y1_a(void)
 {
     uint32_t source[3], dest[3];
     uint16_t newsr;
@@ -5811,7 +6010,7 @@ static void dsp_mac_p_x0_y1_a(void)
     dsp_core.registers[DSP_REG_SR] |= newsr & 0xfe;
 }
 
-static void dsp_mac_m_x0_y1_a(void)
+static void emu_mac_m_x0_y1_a(void)
 {
     uint32_t source[3], dest[3];
     uint16_t newsr;
@@ -5833,7 +6032,7 @@ static void dsp_mac_m_x0_y1_a(void)
     dsp_core.registers[DSP_REG_SR] |= newsr & 0xfe;
 }
 
-static void dsp_mac_p_x0_y1_b(void)
+static void emu_mac_p_x0_y1_b(void)
 {
     uint32_t source[3], dest[3];
     uint16_t newsr;
@@ -5855,7 +6054,7 @@ static void dsp_mac_p_x0_y1_b(void)
     dsp_core.registers[DSP_REG_SR] |= newsr & 0xfe;
 }
 
-static void dsp_mac_m_x0_y1_b(void)
+static void emu_mac_m_x0_y1_b(void)
 {
     uint32_t source[3], dest[3];
     uint16_t newsr;
@@ -5877,7 +6076,7 @@ static void dsp_mac_m_x0_y1_b(void)
     dsp_core.registers[DSP_REG_SR] |= newsr & 0xfe;
 }
 
-static void dsp_mac_p_y0_x0_a(void)
+static void emu_mac_p_y0_x0_a(void)
 {
     uint32_t source[3], dest[3];
     uint16_t newsr;
@@ -5899,7 +6098,7 @@ static void dsp_mac_p_y0_x0_a(void)
     dsp_core.registers[DSP_REG_SR] |= newsr & 0xfe;
 }
 
-static void dsp_mac_m_y0_x0_a(void)
+static void emu_mac_m_y0_x0_a(void)
 {
     uint32_t source[3], dest[3];
     uint16_t newsr;
@@ -5921,7 +6120,7 @@ static void dsp_mac_m_y0_x0_a(void)
     dsp_core.registers[DSP_REG_SR] |= newsr & 0xfe;
 }
 
-static void dsp_mac_p_y0_x0_b(void)
+static void emu_mac_p_y0_x0_b(void)
 {
     uint32_t source[3], dest[3];
     uint16_t newsr;
@@ -5943,7 +6142,7 @@ static void dsp_mac_p_y0_x0_b(void)
     dsp_core.registers[DSP_REG_SR] |= newsr & 0xfe;
 }
 
-static void dsp_mac_m_y0_x0_b(void)
+static void emu_mac_m_y0_x0_b(void)
 {
     uint32_t source[3], dest[3];
     uint16_t newsr;
@@ -5965,7 +6164,7 @@ static void dsp_mac_m_y0_x0_b(void)
     dsp_core.registers[DSP_REG_SR] |= newsr & 0xfe;
 }
 
-static void dsp_mac_p_x1_y0_a(void)
+static void emu_mac_p_x1_y0_a(void)
 {
     uint32_t source[3], dest[3];
     uint16_t newsr;
@@ -5987,7 +6186,7 @@ static void dsp_mac_p_x1_y0_a(void)
     dsp_core.registers[DSP_REG_SR] |= newsr & 0xfe;
 }
 
-static void dsp_mac_m_x1_y0_a(void)
+static void emu_mac_m_x1_y0_a(void)
 {
     uint32_t source[3], dest[3];
     uint16_t newsr;
@@ -6009,7 +6208,7 @@ static void dsp_mac_m_x1_y0_a(void)
     dsp_core.registers[DSP_REG_SR] |= newsr & 0xfe;
 }
 
-static void dsp_mac_p_x1_y0_b(void)
+static void emu_mac_p_x1_y0_b(void)
 {
     uint32_t source[3], dest[3];
     uint16_t newsr;
@@ -6031,7 +6230,7 @@ static void dsp_mac_p_x1_y0_b(void)
     dsp_core.registers[DSP_REG_SR] |= newsr & 0xfe;
 }
 
-static void dsp_mac_m_x1_y0_b(void)
+static void emu_mac_m_x1_y0_b(void)
 {
     uint32_t source[3], dest[3];
     uint16_t newsr;
@@ -6053,7 +6252,7 @@ static void dsp_mac_m_x1_y0_b(void)
     dsp_core.registers[DSP_REG_SR] |= newsr & 0xfe;
 }
 
-static void dsp_mac_p_y1_x1_a(void)
+static void emu_mac_p_y1_x1_a(void)
 {
     uint32_t source[3], dest[3];
     uint16_t newsr;
@@ -6075,7 +6274,7 @@ static void dsp_mac_p_y1_x1_a(void)
     dsp_core.registers[DSP_REG_SR] |= newsr & 0xfe;
 }
 
-static void dsp_mac_m_y1_x1_a(void)
+static void emu_mac_m_y1_x1_a(void)
 {
     uint32_t source[3], dest[3];
     uint16_t newsr;
@@ -6097,7 +6296,7 @@ static void dsp_mac_m_y1_x1_a(void)
     dsp_core.registers[DSP_REG_SR] |= newsr & 0xfe;
 }
 
-static void dsp_mac_p_y1_x1_b(void)
+static void emu_mac_p_y1_x1_b(void)
 {
     uint32_t source[3], dest[3];
     uint16_t newsr;
@@ -6119,7 +6318,7 @@ static void dsp_mac_p_y1_x1_b(void)
     dsp_core.registers[DSP_REG_SR] |= newsr & 0xfe;
 }
 
-static void dsp_mac_m_y1_x1_b(void)
+static void emu_mac_m_y1_x1_b(void)
 {
     uint32_t source[3], dest[3];
     uint16_t newsr;
@@ -6141,7 +6340,7 @@ static void dsp_mac_m_y1_x1_b(void)
     dsp_core.registers[DSP_REG_SR] |= newsr & 0xfe;
 }
 
-static void dsp_macr_p_x0_x0_a(void)
+static void emu_macr_p_x0_x0_a(void)
 {
     uint32_t source[3], dest[3];
     uint16_t newsr;
@@ -6165,7 +6364,7 @@ static void dsp_macr_p_x0_x0_a(void)
     dsp_core.registers[DSP_REG_SR] |= newsr & 0xfe;
 }
 
-static void dsp_macr_m_x0_x0_a(void)
+static void emu_macr_m_x0_x0_a(void)
 {
     uint32_t source[3], dest[3];
     uint16_t newsr;
@@ -6188,7 +6387,7 @@ static void dsp_macr_m_x0_x0_a(void)
     dsp_core.registers[DSP_REG_SR] &= BITMASK(16)-(1<<DSP_SR_V);
     dsp_core.registers[DSP_REG_SR] |= newsr & 0xfe;
 }
-static void dsp_macr_p_x0_x0_b(void)
+static void emu_macr_p_x0_x0_b(void)
 {
     uint32_t source[3], dest[3];
     uint16_t newsr;
@@ -6212,7 +6411,7 @@ static void dsp_macr_p_x0_x0_b(void)
     dsp_core.registers[DSP_REG_SR] |= newsr & 0xfe;
 }
 
-static void dsp_macr_m_x0_x0_b(void)
+static void emu_macr_m_x0_x0_b(void)
 {
     uint32_t source[3], dest[3];
     uint16_t newsr;
@@ -6236,7 +6435,7 @@ static void dsp_macr_m_x0_x0_b(void)
     dsp_core.registers[DSP_REG_SR] |= newsr & 0xfe;
 }
 
-static void dsp_macr_p_y0_y0_a(void)
+static void emu_macr_p_y0_y0_a(void)
 {
     uint32_t source[3], dest[3];
     uint16_t newsr;
@@ -6260,7 +6459,7 @@ static void dsp_macr_p_y0_y0_a(void)
     dsp_core.registers[DSP_REG_SR] |= newsr & 0xfe;
 }
 
-static void dsp_macr_m_y0_y0_a(void)
+static void emu_macr_m_y0_y0_a(void)
 {
     uint32_t source[3], dest[3];
     uint16_t newsr;
@@ -6283,7 +6482,7 @@ static void dsp_macr_m_y0_y0_a(void)
     dsp_core.registers[DSP_REG_SR] &= BITMASK(16)-(1<<DSP_SR_V);
     dsp_core.registers[DSP_REG_SR] |= newsr & 0xfe;
 }
-static void dsp_macr_p_y0_y0_b(void)
+static void emu_macr_p_y0_y0_b(void)
 {
     uint32_t source[3], dest[3];
     uint16_t newsr;
@@ -6307,7 +6506,7 @@ static void dsp_macr_p_y0_y0_b(void)
     dsp_core.registers[DSP_REG_SR] |= newsr & 0xfe;
 }
 
-static void dsp_macr_m_y0_y0_b(void)
+static void emu_macr_m_y0_y0_b(void)
 {
     uint32_t source[3], dest[3];
     uint16_t newsr;
@@ -6331,7 +6530,7 @@ static void dsp_macr_m_y0_y0_b(void)
     dsp_core.registers[DSP_REG_SR] |= newsr & 0xfe;
 }
 
-static void dsp_macr_p_x1_x0_a(void)
+static void emu_macr_p_x1_x0_a(void)
 {
     uint32_t source[3], dest[3];
     uint16_t newsr;
@@ -6355,7 +6554,7 @@ static void dsp_macr_p_x1_x0_a(void)
     dsp_core.registers[DSP_REG_SR] |= newsr & 0xfe;
 }
 
-static void dsp_macr_m_x1_x0_a(void)
+static void emu_macr_m_x1_x0_a(void)
 {
     uint32_t source[3], dest[3];
     uint16_t newsr;
@@ -6379,7 +6578,7 @@ static void dsp_macr_m_x1_x0_a(void)
     dsp_core.registers[DSP_REG_SR] |= newsr & 0xfe;
 }
 
-static void dsp_macr_p_x1_x0_b(void)
+static void emu_macr_p_x1_x0_b(void)
 {
     uint32_t source[3], dest[3];
     uint16_t newsr;
@@ -6403,7 +6602,7 @@ static void dsp_macr_p_x1_x0_b(void)
     dsp_core.registers[DSP_REG_SR] |= newsr & 0xfe;
 }
 
-static void dsp_macr_m_x1_x0_b(void)
+static void emu_macr_m_x1_x0_b(void)
 {
     uint32_t source[3], dest[3];
     uint16_t newsr;
@@ -6427,7 +6626,7 @@ static void dsp_macr_m_x1_x0_b(void)
     dsp_core.registers[DSP_REG_SR] |= newsr & 0xfe;
 }
 
-static void dsp_macr_p_y1_y0_a(void)
+static void emu_macr_p_y1_y0_a(void)
 {
     uint32_t source[3], dest[3];
     uint16_t newsr;
@@ -6451,7 +6650,7 @@ static void dsp_macr_p_y1_y0_a(void)
     dsp_core.registers[DSP_REG_SR] |= newsr & 0xfe;
 }
 
-static void dsp_macr_m_y1_y0_a(void)
+static void emu_macr_m_y1_y0_a(void)
 {
     uint32_t source[3], dest[3];
     uint16_t newsr;
@@ -6475,7 +6674,7 @@ static void dsp_macr_m_y1_y0_a(void)
     dsp_core.registers[DSP_REG_SR] |= newsr & 0xfe;
 }
 
-static void dsp_macr_p_y1_y0_b(void)
+static void emu_macr_p_y1_y0_b(void)
 {
     uint32_t source[3], dest[3];
     uint16_t newsr;
@@ -6499,7 +6698,7 @@ static void dsp_macr_p_y1_y0_b(void)
     dsp_core.registers[DSP_REG_SR] |= newsr & 0xfe;
 }
 
-static void dsp_macr_m_y1_y0_b(void)
+static void emu_macr_m_y1_y0_b(void)
 {
     uint32_t source[3], dest[3];
     uint16_t newsr;
@@ -6523,7 +6722,7 @@ static void dsp_macr_m_y1_y0_b(void)
     dsp_core.registers[DSP_REG_SR] |= newsr & 0xfe;
 }
 
-static void dsp_macr_p_x0_y1_a(void)
+static void emu_macr_p_x0_y1_a(void)
 {
     uint32_t source[3], dest[3];
     uint16_t newsr;
@@ -6547,7 +6746,7 @@ static void dsp_macr_p_x0_y1_a(void)
     dsp_core.registers[DSP_REG_SR] |= newsr & 0xfe;
 }
 
-static void dsp_macr_m_x0_y1_a(void)
+static void emu_macr_m_x0_y1_a(void)
 {
     uint32_t source[3], dest[3];
     uint16_t newsr;
@@ -6571,7 +6770,7 @@ static void dsp_macr_m_x0_y1_a(void)
     dsp_core.registers[DSP_REG_SR] |= newsr & 0xfe;
 }
 
-static void dsp_macr_p_x0_y1_b(void)
+static void emu_macr_p_x0_y1_b(void)
 {
     uint32_t source[3], dest[3];
     uint16_t newsr;
@@ -6595,7 +6794,7 @@ static void dsp_macr_p_x0_y1_b(void)
     dsp_core.registers[DSP_REG_SR] |= newsr & 0xfe;
 }
 
-static void dsp_macr_m_x0_y1_b(void)
+static void emu_macr_m_x0_y1_b(void)
 {
     uint32_t source[3], dest[3];
     uint16_t newsr;
@@ -6619,7 +6818,7 @@ static void dsp_macr_m_x0_y1_b(void)
     dsp_core.registers[DSP_REG_SR] |= newsr & 0xfe;
 }
 
-static void dsp_macr_p_y0_x0_a(void)
+static void emu_macr_p_y0_x0_a(void)
 {
     uint32_t source[3], dest[3];
     uint16_t newsr;
@@ -6643,7 +6842,7 @@ static void dsp_macr_p_y0_x0_a(void)
     dsp_core.registers[DSP_REG_SR] |= newsr & 0xfe;
 }
 
-static void dsp_macr_m_y0_x0_a(void)
+static void emu_macr_m_y0_x0_a(void)
 {
     uint32_t source[3], dest[3];
     uint16_t newsr;
@@ -6667,7 +6866,7 @@ static void dsp_macr_m_y0_x0_a(void)
     dsp_core.registers[DSP_REG_SR] |= newsr & 0xfe;
 }
 
-static void dsp_macr_p_y0_x0_b(void)
+static void emu_macr_p_y0_x0_b(void)
 {
     uint32_t source[3], dest[3];
     uint16_t newsr;
@@ -6691,7 +6890,7 @@ static void dsp_macr_p_y0_x0_b(void)
     dsp_core.registers[DSP_REG_SR] |= newsr & 0xfe;
 }
 
-static void dsp_macr_m_y0_x0_b(void)
+static void emu_macr_m_y0_x0_b(void)
 {
     uint32_t source[3], dest[3];
     uint16_t newsr;
@@ -6715,7 +6914,7 @@ static void dsp_macr_m_y0_x0_b(void)
     dsp_core.registers[DSP_REG_SR] |= newsr & 0xfe;
 }
 
-static void dsp_macr_p_x1_y0_a(void)
+static void emu_macr_p_x1_y0_a(void)
 {
     uint32_t source[3], dest[3];
     uint16_t newsr;
@@ -6739,7 +6938,7 @@ static void dsp_macr_p_x1_y0_a(void)
     dsp_core.registers[DSP_REG_SR] |= newsr & 0xfe;
 }
 
-static void dsp_macr_m_x1_y0_a(void)
+static void emu_macr_m_x1_y0_a(void)
 {
     uint32_t source[3], dest[3];
     uint16_t newsr;
@@ -6763,7 +6962,7 @@ static void dsp_macr_m_x1_y0_a(void)
     dsp_core.registers[DSP_REG_SR] |= newsr & 0xfe;
 }
 
-static void dsp_macr_p_x1_y0_b(void)
+static void emu_macr_p_x1_y0_b(void)
 {
     uint32_t source[3], dest[3];
     uint16_t newsr;
@@ -6787,7 +6986,7 @@ static void dsp_macr_p_x1_y0_b(void)
     dsp_core.registers[DSP_REG_SR] |= newsr & 0xfe;
 }
 
-static void dsp_macr_m_x1_y0_b(void)
+static void emu_macr_m_x1_y0_b(void)
 {
     uint32_t source[3], dest[3];
     uint16_t newsr;
@@ -6811,7 +7010,7 @@ static void dsp_macr_m_x1_y0_b(void)
     dsp_core.registers[DSP_REG_SR] |= newsr & 0xfe;
 }
 
-static void dsp_macr_p_y1_x1_a(void)
+static void emu_macr_p_y1_x1_a(void)
 {
     uint32_t source[3], dest[3];
     uint16_t newsr;
@@ -6835,7 +7034,7 @@ static void dsp_macr_p_y1_x1_a(void)
     dsp_core.registers[DSP_REG_SR] |= newsr & 0xfe;
 }
 
-static void dsp_macr_m_y1_x1_a(void)
+static void emu_macr_m_y1_x1_a(void)
 {
     uint32_t source[3], dest[3];
     uint16_t newsr;
@@ -6859,7 +7058,7 @@ static void dsp_macr_m_y1_x1_a(void)
     dsp_core.registers[DSP_REG_SR] |= newsr & 0xfe;
 }
 
-static void dsp_macr_p_y1_x1_b(void)
+static void emu_macr_p_y1_x1_b(void)
 {
     uint32_t source[3], dest[3];
     uint16_t newsr;
@@ -6883,7 +7082,7 @@ static void dsp_macr_p_y1_x1_b(void)
     dsp_core.registers[DSP_REG_SR] |= newsr & 0xfe;
 }
 
-static void dsp_macr_m_y1_x1_b(void)
+static void emu_macr_m_y1_x1_b(void)
 {
     uint32_t source[3], dest[3];
     uint16_t newsr;
@@ -6908,13 +7107,13 @@ static void dsp_macr_m_y1_x1_b(void)
 }
 
 
-static void dsp_move(void)
+static void emu_move(void)
 {
     /*  move instruction inside alu opcodes
         taken care of by parallel move dispatcher */
 }
 
-static void dsp_mpy_p_x0_x0_a(void)
+static void emu_mpy_p_x0_x0_a(void)
 {
     uint32_t source[3];
 
@@ -6928,7 +7127,7 @@ static void dsp_mpy_p_x0_x0_a(void)
     dsp_core.registers[DSP_REG_SR] &= BITMASK(16)-(1<<DSP_SR_V);
 }
 
-static void dsp_mpy_m_x0_x0_a(void)
+static void emu_mpy_m_x0_x0_a(void)
 {
     uint32_t source[3];
 
@@ -6942,7 +7141,7 @@ static void dsp_mpy_m_x0_x0_a(void)
     dsp_core.registers[DSP_REG_SR] &= BITMASK(16)-(1<<DSP_SR_V);
 }
 
-static void dsp_mpy_p_x0_x0_b(void)
+static void emu_mpy_p_x0_x0_b(void)
 {
     uint32_t source[3];
 
@@ -6956,7 +7155,7 @@ static void dsp_mpy_p_x0_x0_b(void)
     dsp_core.registers[DSP_REG_SR] &= BITMASK(16)-(1<<DSP_SR_V);
 }
 
-static void dsp_mpy_m_x0_x0_b(void)
+static void emu_mpy_m_x0_x0_b(void)
 {
     uint32_t source[3];
 
@@ -6971,7 +7170,7 @@ static void dsp_mpy_m_x0_x0_b(void)
     dsp_core.registers[DSP_REG_SR] &= BITMASK(16)-(1<<DSP_SR_V);
 }
 
-static void dsp_mpy_p_y0_y0_a(void)
+static void emu_mpy_p_y0_y0_a(void)
 {
     uint32_t source[3];
 
@@ -6985,7 +7184,7 @@ static void dsp_mpy_p_y0_y0_a(void)
     dsp_core.registers[DSP_REG_SR] &= BITMASK(16)-(1<<DSP_SR_V);
 }
 
-static void dsp_mpy_m_y0_y0_a(void)
+static void emu_mpy_m_y0_y0_a(void)
 {
     uint32_t source[3];
 
@@ -6999,7 +7198,7 @@ static void dsp_mpy_m_y0_y0_a(void)
     dsp_core.registers[DSP_REG_SR] &= BITMASK(16)-(1<<DSP_SR_V);
 }
 
-static void dsp_mpy_p_y0_y0_b(void)
+static void emu_mpy_p_y0_y0_b(void)
 {
     uint32_t source[3];
 
@@ -7013,7 +7212,7 @@ static void dsp_mpy_p_y0_y0_b(void)
     dsp_core.registers[DSP_REG_SR] &= BITMASK(16)-(1<<DSP_SR_V);
 }
 
-static void dsp_mpy_m_y0_y0_b(void)
+static void emu_mpy_m_y0_y0_b(void)
 {
     uint32_t source[3];
 
@@ -7027,7 +7226,7 @@ static void dsp_mpy_m_y0_y0_b(void)
     dsp_core.registers[DSP_REG_SR] &= BITMASK(16)-(1<<DSP_SR_V);
 }
 
-static void dsp_mpy_p_x1_x0_a(void)
+static void emu_mpy_p_x1_x0_a(void)
 {
     uint32_t source[3];
 
@@ -7041,7 +7240,7 @@ static void dsp_mpy_p_x1_x0_a(void)
     dsp_core.registers[DSP_REG_SR] &= BITMASK(16)-(1<<DSP_SR_V);
 }
 
-static void dsp_mpy_m_x1_x0_a(void)
+static void emu_mpy_m_x1_x0_a(void)
 {
     uint32_t source[3];
 
@@ -7055,7 +7254,7 @@ static void dsp_mpy_m_x1_x0_a(void)
     dsp_core.registers[DSP_REG_SR] &= BITMASK(16)-(1<<DSP_SR_V);
 }
 
-static void dsp_mpy_p_x1_x0_b(void)
+static void emu_mpy_p_x1_x0_b(void)
 {
     uint32_t source[3];
 
@@ -7069,7 +7268,7 @@ static void dsp_mpy_p_x1_x0_b(void)
     dsp_core.registers[DSP_REG_SR] &= BITMASK(16)-(1<<DSP_SR_V);
 }
 
-static void dsp_mpy_m_x1_x0_b(void)
+static void emu_mpy_m_x1_x0_b(void)
 {
     uint32_t source[3];
 
@@ -7083,7 +7282,7 @@ static void dsp_mpy_m_x1_x0_b(void)
     dsp_core.registers[DSP_REG_SR] &= BITMASK(16)-(1<<DSP_SR_V);
 }
 
-static void dsp_mpy_p_y1_y0_a(void)
+static void emu_mpy_p_y1_y0_a(void)
 {
     uint32_t source[3];
 
@@ -7097,7 +7296,7 @@ static void dsp_mpy_p_y1_y0_a(void)
     dsp_core.registers[DSP_REG_SR] &= BITMASK(16)-(1<<DSP_SR_V);
 }
 
-static void dsp_mpy_m_y1_y0_a(void)
+static void emu_mpy_m_y1_y0_a(void)
 {
     uint32_t source[3];
 
@@ -7111,7 +7310,7 @@ static void dsp_mpy_m_y1_y0_a(void)
     dsp_core.registers[DSP_REG_SR] &= BITMASK(16)-(1<<DSP_SR_V);
 }
 
-static void dsp_mpy_p_y1_y0_b(void)
+static void emu_mpy_p_y1_y0_b(void)
 {
     uint32_t source[3];
 
@@ -7125,7 +7324,7 @@ static void dsp_mpy_p_y1_y0_b(void)
     dsp_core.registers[DSP_REG_SR] &= BITMASK(16)-(1<<DSP_SR_V);
 }
 
-static void dsp_mpy_m_y1_y0_b(void)
+static void emu_mpy_m_y1_y0_b(void)
 {
     uint32_t source[3];
 
@@ -7139,7 +7338,7 @@ static void dsp_mpy_m_y1_y0_b(void)
     dsp_core.registers[DSP_REG_SR] &= BITMASK(16)-(1<<DSP_SR_V);
 }
 
-static void dsp_mpy_p_x0_y1_a(void)
+static void emu_mpy_p_x0_y1_a(void)
 {
     uint32_t source[3];
 
@@ -7153,7 +7352,7 @@ static void dsp_mpy_p_x0_y1_a(void)
     dsp_core.registers[DSP_REG_SR] &= BITMASK(16)-(1<<DSP_SR_V);
 }
 
-static void dsp_mpy_m_x0_y1_a(void)
+static void emu_mpy_m_x0_y1_a(void)
 {
     uint32_t source[3];
 
@@ -7167,7 +7366,7 @@ static void dsp_mpy_m_x0_y1_a(void)
     dsp_core.registers[DSP_REG_SR] &= BITMASK(16)-(1<<DSP_SR_V);
 }
 
-static void dsp_mpy_p_x0_y1_b(void)
+static void emu_mpy_p_x0_y1_b(void)
 {
     uint32_t source[3];
 
@@ -7181,7 +7380,7 @@ static void dsp_mpy_p_x0_y1_b(void)
     dsp_core.registers[DSP_REG_SR] &= BITMASK(16)-(1<<DSP_SR_V);
 }
 
-static void dsp_mpy_m_x0_y1_b(void)
+static void emu_mpy_m_x0_y1_b(void)
 {
     uint32_t source[3];
 
@@ -7195,7 +7394,7 @@ static void dsp_mpy_m_x0_y1_b(void)
     dsp_core.registers[DSP_REG_SR] &= BITMASK(16)-(1<<DSP_SR_V);
 }
 
-static void dsp_mpy_p_y0_x0_a(void)
+static void emu_mpy_p_y0_x0_a(void)
 {
     uint32_t source[3];
 
@@ -7209,7 +7408,7 @@ static void dsp_mpy_p_y0_x0_a(void)
     dsp_core.registers[DSP_REG_SR] &= BITMASK(16)-(1<<DSP_SR_V);
 }
 
-static void dsp_mpy_m_y0_x0_a(void)
+static void emu_mpy_m_y0_x0_a(void)
 {
     uint32_t source[3];
 
@@ -7223,7 +7422,7 @@ static void dsp_mpy_m_y0_x0_a(void)
     dsp_core.registers[DSP_REG_SR] &= BITMASK(16)-(1<<DSP_SR_V);
 }
 
-static void dsp_mpy_p_y0_x0_b(void)
+static void emu_mpy_p_y0_x0_b(void)
 {
     uint32_t source[3];
 
@@ -7237,7 +7436,7 @@ static void dsp_mpy_p_y0_x0_b(void)
     dsp_core.registers[DSP_REG_SR] &= BITMASK(16)-(1<<DSP_SR_V);
 }
 
-static void dsp_mpy_m_y0_x0_b(void)
+static void emu_mpy_m_y0_x0_b(void)
 {
     uint32_t source[3];
 
@@ -7251,7 +7450,7 @@ static void dsp_mpy_m_y0_x0_b(void)
     dsp_core.registers[DSP_REG_SR] &= BITMASK(16)-(1<<DSP_SR_V);
 }
 
-static void dsp_mpy_p_x1_y0_a(void)
+static void emu_mpy_p_x1_y0_a(void)
 {
     uint32_t source[3];
 
@@ -7265,7 +7464,7 @@ static void dsp_mpy_p_x1_y0_a(void)
     dsp_core.registers[DSP_REG_SR] &= BITMASK(16)-(1<<DSP_SR_V);
 }
 
-static void dsp_mpy_m_x1_y0_a(void)
+static void emu_mpy_m_x1_y0_a(void)
 {
     uint32_t source[3];
 
@@ -7279,7 +7478,7 @@ static void dsp_mpy_m_x1_y0_a(void)
     dsp_core.registers[DSP_REG_SR] &= BITMASK(16)-(1<<DSP_SR_V);
 }
 
-static void dsp_mpy_p_x1_y0_b(void)
+static void emu_mpy_p_x1_y0_b(void)
 {
     uint32_t source[3];
 
@@ -7293,7 +7492,7 @@ static void dsp_mpy_p_x1_y0_b(void)
     dsp_core.registers[DSP_REG_SR] &= BITMASK(16)-(1<<DSP_SR_V);
 }
 
-static void dsp_mpy_m_x1_y0_b(void)
+static void emu_mpy_m_x1_y0_b(void)
 {
     uint32_t source[3];
 
@@ -7307,7 +7506,7 @@ static void dsp_mpy_m_x1_y0_b(void)
     dsp_core.registers[DSP_REG_SR] &= BITMASK(16)-(1<<DSP_SR_V);
 }
 
-static void dsp_mpy_p_y1_x1_a(void)
+static void emu_mpy_p_y1_x1_a(void)
 {
     uint32_t source[3];
 
@@ -7321,7 +7520,7 @@ static void dsp_mpy_p_y1_x1_a(void)
     dsp_core.registers[DSP_REG_SR] &= BITMASK(16)-(1<<DSP_SR_V);
 }
 
-static void dsp_mpy_m_y1_x1_a(void)
+static void emu_mpy_m_y1_x1_a(void)
 {
     uint32_t source[3];
 
@@ -7335,7 +7534,7 @@ static void dsp_mpy_m_y1_x1_a(void)
     dsp_core.registers[DSP_REG_SR] &= BITMASK(16)-(1<<DSP_SR_V);
 }
 
-static void dsp_mpy_p_y1_x1_b(void)
+static void emu_mpy_p_y1_x1_b(void)
 {
     uint32_t source[3];
 
@@ -7349,7 +7548,7 @@ static void dsp_mpy_p_y1_x1_b(void)
     dsp_core.registers[DSP_REG_SR] &= BITMASK(16)-(1<<DSP_SR_V);
 }
 
-static void dsp_mpy_m_y1_x1_b(void)
+static void emu_mpy_m_y1_x1_b(void)
 {
     uint32_t source[3];
 
@@ -7363,7 +7562,7 @@ static void dsp_mpy_m_y1_x1_b(void)
     dsp_core.registers[DSP_REG_SR] &= BITMASK(16)-(1<<DSP_SR_V);
 }
 
-static void dsp_mpyr_p_x0_x0_a(void)
+static void emu_mpyr_p_x0_x0_a(void)
 {
     uint32_t source[3];
 
@@ -7378,7 +7577,7 @@ static void dsp_mpyr_p_x0_x0_a(void)
     dsp_core.registers[DSP_REG_SR] &= BITMASK(16)-(1<<DSP_SR_V);
 }
 
-static void dsp_mpyr_m_x0_x0_a(void)
+static void emu_mpyr_m_x0_x0_a(void)
 {
     uint32_t source[3];
 
@@ -7393,7 +7592,7 @@ static void dsp_mpyr_m_x0_x0_a(void)
     dsp_core.registers[DSP_REG_SR] &= BITMASK(16)-(1<<DSP_SR_V);
 }
 
-static void dsp_mpyr_p_x0_x0_b(void)
+static void emu_mpyr_p_x0_x0_b(void)
 {
     uint32_t source[3];
 
@@ -7408,7 +7607,7 @@ static void dsp_mpyr_p_x0_x0_b(void)
     dsp_core.registers[DSP_REG_SR] &= BITMASK(16)-(1<<DSP_SR_V);
 }
 
-static void dsp_mpyr_m_x0_x0_b(void)
+static void emu_mpyr_m_x0_x0_b(void)
 {
     uint32_t source[3];
 
@@ -7424,7 +7623,7 @@ static void dsp_mpyr_m_x0_x0_b(void)
     dsp_core.registers[DSP_REG_SR] &= BITMASK(16)-(1<<DSP_SR_V);
 }
 
-static void dsp_mpyr_p_y0_y0_a(void)
+static void emu_mpyr_p_y0_y0_a(void)
 {
     uint32_t source[3];
 
@@ -7439,7 +7638,7 @@ static void dsp_mpyr_p_y0_y0_a(void)
     dsp_core.registers[DSP_REG_SR] &= BITMASK(16)-(1<<DSP_SR_V);
 }
 
-static void dsp_mpyr_m_y0_y0_a(void)
+static void emu_mpyr_m_y0_y0_a(void)
 {
     uint32_t source[3];
 
@@ -7454,7 +7653,7 @@ static void dsp_mpyr_m_y0_y0_a(void)
     dsp_core.registers[DSP_REG_SR] &= BITMASK(16)-(1<<DSP_SR_V);
 }
 
-static void dsp_mpyr_p_y0_y0_b(void)
+static void emu_mpyr_p_y0_y0_b(void)
 {
     uint32_t source[3];
 
@@ -7469,7 +7668,7 @@ static void dsp_mpyr_p_y0_y0_b(void)
     dsp_core.registers[DSP_REG_SR] &= BITMASK(16)-(1<<DSP_SR_V);
 }
 
-static void dsp_mpyr_m_y0_y0_b(void)
+static void emu_mpyr_m_y0_y0_b(void)
 {
     uint32_t source[3];
 
@@ -7484,7 +7683,7 @@ static void dsp_mpyr_m_y0_y0_b(void)
     dsp_core.registers[DSP_REG_SR] &= BITMASK(16)-(1<<DSP_SR_V);
 }
 
-static void dsp_mpyr_p_x1_x0_a(void)
+static void emu_mpyr_p_x1_x0_a(void)
 {
     uint32_t source[3];
 
@@ -7499,7 +7698,7 @@ static void dsp_mpyr_p_x1_x0_a(void)
     dsp_core.registers[DSP_REG_SR] &= BITMASK(16)-(1<<DSP_SR_V);
 }
 
-static void dsp_mpyr_m_x1_x0_a(void)
+static void emu_mpyr_m_x1_x0_a(void)
 {
     uint32_t source[3];
 
@@ -7514,7 +7713,7 @@ static void dsp_mpyr_m_x1_x0_a(void)
     dsp_core.registers[DSP_REG_SR] &= BITMASK(16)-(1<<DSP_SR_V);
 }
 
-static void dsp_mpyr_p_x1_x0_b(void)
+static void emu_mpyr_p_x1_x0_b(void)
 {
     uint32_t source[3];
 
@@ -7529,7 +7728,7 @@ static void dsp_mpyr_p_x1_x0_b(void)
     dsp_core.registers[DSP_REG_SR] &= BITMASK(16)-(1<<DSP_SR_V);
 }
 
-static void dsp_mpyr_m_x1_x0_b(void)
+static void emu_mpyr_m_x1_x0_b(void)
 {
     uint32_t source[3];
 
@@ -7544,7 +7743,7 @@ static void dsp_mpyr_m_x1_x0_b(void)
     dsp_core.registers[DSP_REG_SR] &= BITMASK(16)-(1<<DSP_SR_V);
 }
 
-static void dsp_mpyr_p_y1_y0_a(void)
+static void emu_mpyr_p_y1_y0_a(void)
 {
     uint32_t source[3];
 
@@ -7559,7 +7758,7 @@ static void dsp_mpyr_p_y1_y0_a(void)
     dsp_core.registers[DSP_REG_SR] &= BITMASK(16)-(1<<DSP_SR_V);
 }
 
-static void dsp_mpyr_m_y1_y0_a(void)
+static void emu_mpyr_m_y1_y0_a(void)
 {
     uint32_t source[3];
 
@@ -7574,7 +7773,7 @@ static void dsp_mpyr_m_y1_y0_a(void)
     dsp_core.registers[DSP_REG_SR] &= BITMASK(16)-(1<<DSP_SR_V);
 }
 
-static void dsp_mpyr_p_y1_y0_b(void)
+static void emu_mpyr_p_y1_y0_b(void)
 {
     uint32_t source[3];
 
@@ -7589,7 +7788,7 @@ static void dsp_mpyr_p_y1_y0_b(void)
     dsp_core.registers[DSP_REG_SR] &= BITMASK(16)-(1<<DSP_SR_V);
 }
 
-static void dsp_mpyr_m_y1_y0_b(void)
+static void emu_mpyr_m_y1_y0_b(void)
 {
     uint32_t source[3];
 
@@ -7604,7 +7803,7 @@ static void dsp_mpyr_m_y1_y0_b(void)
     dsp_core.registers[DSP_REG_SR] &= BITMASK(16)-(1<<DSP_SR_V);
 }
 
-static void dsp_mpyr_p_x0_y1_a(void)
+static void emu_mpyr_p_x0_y1_a(void)
 {
     uint32_t source[3];
 
@@ -7619,7 +7818,7 @@ static void dsp_mpyr_p_x0_y1_a(void)
     dsp_core.registers[DSP_REG_SR] &= BITMASK(16)-(1<<DSP_SR_V);
 }
 
-static void dsp_mpyr_m_x0_y1_a(void)
+static void emu_mpyr_m_x0_y1_a(void)
 {
     uint32_t source[3];
 
@@ -7634,7 +7833,7 @@ static void dsp_mpyr_m_x0_y1_a(void)
     dsp_core.registers[DSP_REG_SR] &= BITMASK(16)-(1<<DSP_SR_V);
 }
 
-static void dsp_mpyr_p_x0_y1_b(void)
+static void emu_mpyr_p_x0_y1_b(void)
 {
     uint32_t source[3];
 
@@ -7649,7 +7848,7 @@ static void dsp_mpyr_p_x0_y1_b(void)
     dsp_core.registers[DSP_REG_SR] &= BITMASK(16)-(1<<DSP_SR_V);
 }
 
-static void dsp_mpyr_m_x0_y1_b(void)
+static void emu_mpyr_m_x0_y1_b(void)
 {
     uint32_t source[3];
 
@@ -7664,7 +7863,7 @@ static void dsp_mpyr_m_x0_y1_b(void)
     dsp_core.registers[DSP_REG_SR] &= BITMASK(16)-(1<<DSP_SR_V);
 }
 
-static void dsp_mpyr_p_y0_x0_a(void)
+static void emu_mpyr_p_y0_x0_a(void)
 {
     uint32_t source[3];
 
@@ -7679,7 +7878,7 @@ static void dsp_mpyr_p_y0_x0_a(void)
     dsp_core.registers[DSP_REG_SR] &= BITMASK(16)-(1<<DSP_SR_V);
 }
 
-static void dsp_mpyr_m_y0_x0_a(void)
+static void emu_mpyr_m_y0_x0_a(void)
 {
     uint32_t source[3];
 
@@ -7694,7 +7893,7 @@ static void dsp_mpyr_m_y0_x0_a(void)
     dsp_core.registers[DSP_REG_SR] &= BITMASK(16)-(1<<DSP_SR_V);
 }
 
-static void dsp_mpyr_p_y0_x0_b(void)
+static void emu_mpyr_p_y0_x0_b(void)
 {
     uint32_t source[3];
 
@@ -7709,7 +7908,7 @@ static void dsp_mpyr_p_y0_x0_b(void)
     dsp_core.registers[DSP_REG_SR] &= BITMASK(16)-(1<<DSP_SR_V);
 }
 
-static void dsp_mpyr_m_y0_x0_b(void)
+static void emu_mpyr_m_y0_x0_b(void)
 {
     uint32_t source[3];
 
@@ -7724,7 +7923,7 @@ static void dsp_mpyr_m_y0_x0_b(void)
     dsp_core.registers[DSP_REG_SR] &= BITMASK(16)-(1<<DSP_SR_V);
 }
 
-static void dsp_mpyr_p_x1_y0_a(void)
+static void emu_mpyr_p_x1_y0_a(void)
 {
     uint32_t source[3];
 
@@ -7739,7 +7938,7 @@ static void dsp_mpyr_p_x1_y0_a(void)
     dsp_core.registers[DSP_REG_SR] &= BITMASK(16)-(1<<DSP_SR_V);
 }
 
-static void dsp_mpyr_m_x1_y0_a(void)
+static void emu_mpyr_m_x1_y0_a(void)
 {
     uint32_t source[3];
 
@@ -7754,7 +7953,7 @@ static void dsp_mpyr_m_x1_y0_a(void)
     dsp_core.registers[DSP_REG_SR] &= BITMASK(16)-(1<<DSP_SR_V);
 }
 
-static void dsp_mpyr_p_x1_y0_b(void)
+static void emu_mpyr_p_x1_y0_b(void)
 {
     uint32_t source[3];
 
@@ -7769,7 +7968,7 @@ static void dsp_mpyr_p_x1_y0_b(void)
     dsp_core.registers[DSP_REG_SR] &= BITMASK(16)-(1<<DSP_SR_V);
 }
 
-static void dsp_mpyr_m_x1_y0_b(void)
+static void emu_mpyr_m_x1_y0_b(void)
 {
     uint32_t source[3];
 
@@ -7784,7 +7983,7 @@ static void dsp_mpyr_m_x1_y0_b(void)
     dsp_core.registers[DSP_REG_SR] &= BITMASK(16)-(1<<DSP_SR_V);
 }
 
-static void dsp_mpyr_p_y1_x1_a(void)
+static void emu_mpyr_p_y1_x1_a(void)
 {
     uint32_t source[3];
 
@@ -7799,7 +7998,7 @@ static void dsp_mpyr_p_y1_x1_a(void)
     dsp_core.registers[DSP_REG_SR] &= BITMASK(16)-(1<<DSP_SR_V);
 }
 
-static void dsp_mpyr_m_y1_x1_a(void)
+static void emu_mpyr_m_y1_x1_a(void)
 {
     uint32_t source[3];
 
@@ -7814,7 +8013,7 @@ static void dsp_mpyr_m_y1_x1_a(void)
     dsp_core.registers[DSP_REG_SR] &= BITMASK(16)-(1<<DSP_SR_V);
 }
 
-static void dsp_mpyr_p_y1_x1_b(void)
+static void emu_mpyr_p_y1_x1_b(void)
 {
     uint32_t source[3];
 
@@ -7829,7 +8028,7 @@ static void dsp_mpyr_p_y1_x1_b(void)
     dsp_core.registers[DSP_REG_SR] &= BITMASK(16)-(1<<DSP_SR_V);
 }
 
-static void dsp_mpyr_m_y1_x1_b(void)
+static void emu_mpyr_m_y1_x1_b(void)
 {
     uint32_t source[3];
 
@@ -7844,7 +8043,7 @@ static void dsp_mpyr_m_y1_x1_b(void)
     dsp_core.registers[DSP_REG_SR] &= BITMASK(16)-(1<<DSP_SR_V);
 }
 
-static void dsp_neg_a(void)
+static void emu_neg_a(void)
 {
     uint32_t source[3], dest[3], overflowed;
 
@@ -7868,7 +8067,7 @@ static void dsp_neg_a(void)
     dsp_ccr_update_e_u_n_z(dest[0], dest[1], dest[2]);
 }
 
-static void dsp_neg_b(void)
+static void emu_neg_b(void)
 {
     uint32_t source[3], dest[3], overflowed;
 
@@ -7892,11 +8091,11 @@ static void dsp_neg_b(void)
     dsp_ccr_update_e_u_n_z(dest[0], dest[1], dest[2]);
 }
 
-static void dsp_nop(void)
+static void emu_nop(void)
 {
 }
 
-static void dsp_not_a(void)
+static void emu_not_a(void)
 {
     dsp_core.registers[DSP_REG_A1] = ~dsp_core.registers[DSP_REG_A1];
     dsp_core.registers[DSP_REG_A1] &= BITMASK(24); /* FIXME: useless ? */
@@ -7906,7 +8105,7 @@ static void dsp_not_a(void)
     dsp_core.registers[DSP_REG_SR] |= (dsp_core.registers[DSP_REG_A1]==0)<<DSP_SR_Z;
 }
 
-static void dsp_not_b(void)
+static void emu_not_b(void)
 {
     dsp_core.registers[DSP_REG_B1] = ~dsp_core.registers[DSP_REG_B1];
     dsp_core.registers[DSP_REG_B1] &= BITMASK(24); /* FIXME: useless ? */
@@ -7916,7 +8115,7 @@ static void dsp_not_b(void)
     dsp_core.registers[DSP_REG_SR] |= (dsp_core.registers[DSP_REG_B1]==0)<<DSP_SR_Z;
 }
 
-static void dsp_or_x0_a(void)
+static void emu_or_x0_a(void)
 {
     dsp_core.registers[DSP_REG_A1] |= dsp_core.registers[DSP_REG_X0];
     dsp_core.registers[DSP_REG_A1] &= BITMASK(24); /* FIXME: useless ? */
@@ -7926,7 +8125,7 @@ static void dsp_or_x0_a(void)
     dsp_core.registers[DSP_REG_SR] |= (dsp_core.registers[DSP_REG_A1]==0)<<DSP_SR_Z;
 }
 
-static void dsp_or_x0_b(void)
+static void emu_or_x0_b(void)
 {
     dsp_core.registers[DSP_REG_B1] |= dsp_core.registers[DSP_REG_X0];
     dsp_core.registers[DSP_REG_B1] &= BITMASK(24); /* FIXME: useless ? */
@@ -7936,7 +8135,7 @@ static void dsp_or_x0_b(void)
     dsp_core.registers[DSP_REG_SR] |= (dsp_core.registers[DSP_REG_B1]==0)<<DSP_SR_Z;
 }
 
-static void dsp_or_y0_a(void)
+static void emu_or_y0_a(void)
 {
     dsp_core.registers[DSP_REG_A1] |= dsp_core.registers[DSP_REG_Y0];
     dsp_core.registers[DSP_REG_A1] &= BITMASK(24); /* FIXME: useless ? */
@@ -7946,7 +8145,7 @@ static void dsp_or_y0_a(void)
     dsp_core.registers[DSP_REG_SR] |= (dsp_core.registers[DSP_REG_A1]==0)<<DSP_SR_Z;
 }
 
-static void dsp_or_y0_b(void)
+static void emu_or_y0_b(void)
 {
     dsp_core.registers[DSP_REG_B1] |= dsp_core.registers[DSP_REG_Y0];
     dsp_core.registers[DSP_REG_B1] &= BITMASK(24); /* FIXME: useless ? */
@@ -7956,7 +8155,7 @@ static void dsp_or_y0_b(void)
     dsp_core.registers[DSP_REG_SR] |= (dsp_core.registers[DSP_REG_B1]==0)<<DSP_SR_Z;
 }
 
-static void dsp_or_x1_a(void)
+static void emu_or_x1_a(void)
 {
     dsp_core.registers[DSP_REG_A1] |= dsp_core.registers[DSP_REG_X1];
     dsp_core.registers[DSP_REG_A1] &= BITMASK(24); /* FIXME: useless ? */
@@ -7966,7 +8165,7 @@ static void dsp_or_x1_a(void)
     dsp_core.registers[DSP_REG_SR] |= (dsp_core.registers[DSP_REG_A1]==0)<<DSP_SR_Z;
 }
 
-static void dsp_or_x1_b(void)
+static void emu_or_x1_b(void)
 {
     dsp_core.registers[DSP_REG_B1] |= dsp_core.registers[DSP_REG_X1];
     dsp_core.registers[DSP_REG_B1] &= BITMASK(24); /* FIXME: useless ? */
@@ -7976,7 +8175,7 @@ static void dsp_or_x1_b(void)
     dsp_core.registers[DSP_REG_SR] |= (dsp_core.registers[DSP_REG_B1]==0)<<DSP_SR_Z;
 }
 
-static void dsp_or_y1_a(void)
+static void emu_or_y1_a(void)
 {
     dsp_core.registers[DSP_REG_A1] |= dsp_core.registers[DSP_REG_Y1];
     dsp_core.registers[DSP_REG_A1] &= BITMASK(24); /* FIXME: useless ? */
@@ -7986,7 +8185,7 @@ static void dsp_or_y1_a(void)
     dsp_core.registers[DSP_REG_SR] |= (dsp_core.registers[DSP_REG_A1]==0)<<DSP_SR_Z;
 }
 
-static void dsp_or_y1_b(void)
+static void emu_or_y1_b(void)
 {
     dsp_core.registers[DSP_REG_B1] |= dsp_core.registers[DSP_REG_Y1];
     dsp_core.registers[DSP_REG_B1] &= BITMASK(24); /* FIXME: useless ? */
@@ -7996,7 +8195,7 @@ static void dsp_or_y1_b(void)
     dsp_core.registers[DSP_REG_SR] |= (dsp_core.registers[DSP_REG_B1]==0)<<DSP_SR_Z;
 }
 
-static void dsp_rnd_a(void)
+static void emu_rnd_a(void)
 {
     uint32_t dest[3];
 
@@ -8013,7 +8212,7 @@ static void dsp_rnd_a(void)
     dsp_ccr_update_e_u_n_z(dest[0], dest[1], dest[2]);
 }
 
-static void dsp_rnd_b(void)
+static void emu_rnd_b(void)
 {
     uint32_t dest[3];
 
@@ -8030,7 +8229,7 @@ static void dsp_rnd_b(void)
     dsp_ccr_update_e_u_n_z(dest[0], dest[1], dest[2]);
 }
 
-static void dsp_rol_a(void)
+static void emu_rol_a(void)
 {
     uint32_t newcarry;
 
@@ -8046,7 +8245,7 @@ static void dsp_rol_a(void)
     dsp_core.registers[DSP_REG_SR] |= (dsp_core.registers[DSP_REG_A1]==0)<<DSP_SR_Z;
 }
 
-static void dsp_rol_b(void)
+static void emu_rol_b(void)
 {
     uint32_t newcarry;
 
@@ -8062,7 +8261,7 @@ static void dsp_rol_b(void)
     dsp_core.registers[DSP_REG_SR] |= (dsp_core.registers[DSP_REG_B1]==0)<<DSP_SR_Z;
 }
 
-static void dsp_ror_a(void)
+static void emu_ror_a(void)
 {
     uint32_t newcarry;
 
@@ -8077,7 +8276,7 @@ static void dsp_ror_a(void)
     dsp_core.registers[DSP_REG_SR] |= (dsp_core.registers[DSP_REG_A1]==0)<<DSP_SR_Z;
 }
 
-static void dsp_ror_b(void)
+static void emu_ror_b(void)
 {
     uint32_t newcarry;
 
@@ -8092,7 +8291,7 @@ static void dsp_ror_b(void)
     dsp_core.registers[DSP_REG_SR] |= (dsp_core.registers[DSP_REG_B1]==0)<<DSP_SR_Z;
 }
 
-static void dsp_sbc_x_a(void)
+static void emu_sbc_x_a(void)
 {
     uint32_t source[3], dest[3], curcarry;
     uint16_t newsr;
@@ -8124,7 +8323,7 @@ static void dsp_sbc_x_a(void)
     dsp_core.registers[DSP_REG_SR] |= newsr;
 }
 
-static void dsp_sbc_x_b(void)
+static void emu_sbc_x_b(void)
 {
     uint32_t source[3], dest[3], curcarry;
     uint16_t newsr;
@@ -8156,7 +8355,7 @@ static void dsp_sbc_x_b(void)
     dsp_core.registers[DSP_REG_SR] |= newsr;
 }
 
-static void dsp_sbc_y_a(void)
+static void emu_sbc_y_a(void)
 {
     uint32_t source[3], dest[3], curcarry;
     uint16_t newsr;
@@ -8188,7 +8387,7 @@ static void dsp_sbc_y_a(void)
     dsp_core.registers[DSP_REG_SR] |= newsr;
 }
 
-static void dsp_sbc_y_b(void)
+static void emu_sbc_y_b(void)
 {
     uint32_t source[3], dest[3], curcarry;
     uint16_t newsr;
@@ -8220,7 +8419,7 @@ static void dsp_sbc_y_b(void)
     dsp_core.registers[DSP_REG_SR] |= newsr;
 }
 
-static void dsp_sub_b_a(void)
+static void emu_sub_b_a(void)
 {
     uint32_t source[3], dest[3];
     uint16_t newsr;
@@ -8245,7 +8444,7 @@ static void dsp_sub_b_a(void)
     dsp_core.registers[DSP_REG_SR] |= newsr;
 }
 
-static void dsp_sub_a_b(void)
+static void emu_sub_a_b(void)
 {
     uint32_t source[3], dest[3];
     uint16_t newsr;
@@ -8270,7 +8469,7 @@ static void dsp_sub_a_b(void)
     dsp_core.registers[DSP_REG_SR] |= newsr;
 }
 
-static void dsp_sub_x_a(void)
+static void emu_sub_x_a(void)
 {
     uint32_t source[3], dest[3];
     uint16_t newsr;
@@ -8295,7 +8494,7 @@ static void dsp_sub_x_a(void)
     dsp_core.registers[DSP_REG_SR] |= newsr;
 }
 
-static void dsp_sub_x_b(void)
+static void emu_sub_x_b(void)
 {
     uint32_t source[3], dest[3];
     uint16_t newsr;
@@ -8320,7 +8519,7 @@ static void dsp_sub_x_b(void)
     dsp_core.registers[DSP_REG_SR] |= newsr;
 }
 
-static void dsp_sub_y_a(void)
+static void emu_sub_y_a(void)
 {
     uint32_t source[3], dest[3];
     uint16_t newsr;
@@ -8345,7 +8544,7 @@ static void dsp_sub_y_a(void)
     dsp_core.registers[DSP_REG_SR] |= newsr;
 }
 
-static void dsp_sub_y_b(void)
+static void emu_sub_y_b(void)
 {
     uint32_t source[3], dest[3];
     uint16_t newsr;
@@ -8370,7 +8569,7 @@ static void dsp_sub_y_b(void)
     dsp_core.registers[DSP_REG_SR] |= newsr;
 }
 
-static void dsp_sub_x0_a(void)
+static void emu_sub_x0_a(void)
 {
     uint32_t source[3], dest[3];
     uint16_t newsr;
@@ -8395,7 +8594,7 @@ static void dsp_sub_x0_a(void)
     dsp_core.registers[DSP_REG_SR] |= newsr;
 }
 
-static void dsp_sub_x0_b(void)
+static void emu_sub_x0_b(void)
 {
     uint32_t source[3], dest[3];
     uint16_t newsr;
@@ -8420,7 +8619,7 @@ static void dsp_sub_x0_b(void)
     dsp_core.registers[DSP_REG_SR] |= newsr;
 }
 
-static void dsp_sub_y0_a(void)
+static void emu_sub_y0_a(void)
 {
     uint32_t source[3], dest[3];
     uint16_t newsr;
@@ -8445,7 +8644,7 @@ static void dsp_sub_y0_a(void)
     dsp_core.registers[DSP_REG_SR] |= newsr;
 }
 
-static void dsp_sub_y0_b(void)
+static void emu_sub_y0_b(void)
 {
     uint32_t source[3], dest[3];
     uint16_t newsr;
@@ -8470,7 +8669,7 @@ static void dsp_sub_y0_b(void)
     dsp_core.registers[DSP_REG_SR] |= newsr;
 }
 
-static void dsp_sub_x1_a(void)
+static void emu_sub_x1_a(void)
 {
     uint32_t source[3], dest[3];
     uint16_t newsr;
@@ -8495,7 +8694,7 @@ static void dsp_sub_x1_a(void)
     dsp_core.registers[DSP_REG_SR] |= newsr;
 }
 
-static void dsp_sub_x1_b(void)
+static void emu_sub_x1_b(void)
 {
     uint32_t source[3], dest[3];
     uint16_t newsr;
@@ -8520,7 +8719,7 @@ static void dsp_sub_x1_b(void)
     dsp_core.registers[DSP_REG_SR] |= newsr;
 }
 
-static void dsp_sub_y1_a(void)
+static void emu_sub_y1_a(void)
 {
     uint32_t source[3], dest[3];
     uint16_t newsr;
@@ -8545,7 +8744,7 @@ static void dsp_sub_y1_a(void)
     dsp_core.registers[DSP_REG_SR] |= newsr;
 }
 
-static void dsp_sub_y1_b(void)
+static void emu_sub_y1_b(void)
 {
     uint32_t source[3], dest[3];
     uint16_t newsr;
@@ -8570,7 +8769,7 @@ static void dsp_sub_y1_b(void)
     dsp_core.registers[DSP_REG_SR] |= newsr;
 }
 
-static void dsp_subl_a(void)
+static void emu_subl_a(void)
 {
     uint32_t source[3], dest[3];
     uint16_t newsr;
@@ -8595,7 +8794,7 @@ static void dsp_subl_a(void)
     dsp_core.registers[DSP_REG_SR] |= newsr;
 }
 
-static void dsp_subl_b(void)
+static void emu_subl_b(void)
 {
     uint32_t source[3], dest[3];
     uint16_t newsr;
@@ -8620,7 +8819,7 @@ static void dsp_subl_b(void)
     dsp_core.registers[DSP_REG_SR] |= newsr;
 }
 
-static void dsp_subr_a(void)
+static void emu_subr_a(void)
 {
     uint32_t source[3], dest[3];
     uint16_t newsr;
@@ -8647,7 +8846,7 @@ static void dsp_subr_a(void)
     dsp_core.registers[DSP_REG_SR] |= newsr;
 }
 
-static void dsp_subr_b(void)
+static void emu_subr_b(void)
 {
     uint32_t source[3], dest[3];
     uint16_t newsr;
@@ -8674,21 +8873,21 @@ static void dsp_subr_b(void)
     dsp_core.registers[DSP_REG_SR] |= newsr;
 }
 
-static void dsp_tfr_b_a(void)
+static void emu_tfr_b_a(void)
 {
     dsp_core.registers[DSP_REG_A0] = dsp_core.registers[DSP_REG_B0];
     dsp_core.registers[DSP_REG_A1] = dsp_core.registers[DSP_REG_B1];
     dsp_core.registers[DSP_REG_A2] = dsp_core.registers[DSP_REG_B2];
 }
 
-static void dsp_tfr_a_b(void)
+static void emu_tfr_a_b(void)
 {
     dsp_core.registers[DSP_REG_B0] = dsp_core.registers[DSP_REG_A0];
     dsp_core.registers[DSP_REG_B1] = dsp_core.registers[DSP_REG_A1];
     dsp_core.registers[DSP_REG_B2] = dsp_core.registers[DSP_REG_A2];
 }
 
-static void dsp_tfr_x0_a(void)
+static void emu_tfr_x0_a(void)
 {
     dsp_core.registers[DSP_REG_A0] = 0;
     dsp_core.registers[DSP_REG_A1] = dsp_core.registers[DSP_REG_X0];
@@ -8698,7 +8897,7 @@ static void dsp_tfr_x0_a(void)
         dsp_core.registers[DSP_REG_A2] = 0x0;
 }
 
-static void dsp_tfr_x0_b(void)
+static void emu_tfr_x0_b(void)
 {
     dsp_core.registers[DSP_REG_B0] = 0;
     dsp_core.registers[DSP_REG_B1] = dsp_core.registers[DSP_REG_X0];
@@ -8708,7 +8907,7 @@ static void dsp_tfr_x0_b(void)
         dsp_core.registers[DSP_REG_B2] = 0x0;
 }
 
-static void dsp_tfr_y0_a(void)
+static void emu_tfr_y0_a(void)
 {
     dsp_core.registers[DSP_REG_A0] = 0;
     dsp_core.registers[DSP_REG_A1] = dsp_core.registers[DSP_REG_Y0];
@@ -8718,7 +8917,7 @@ static void dsp_tfr_y0_a(void)
         dsp_core.registers[DSP_REG_A2] = 0x0;
 }
 
-static void dsp_tfr_y0_b(void)
+static void emu_tfr_y0_b(void)
 {
     dsp_core.registers[DSP_REG_B0] = 0;
     dsp_core.registers[DSP_REG_B1] = dsp_core.registers[DSP_REG_Y0];
@@ -8728,7 +8927,7 @@ static void dsp_tfr_y0_b(void)
         dsp_core.registers[DSP_REG_B2] = 0x0;
 }
 
-static void dsp_tfr_x1_a(void)
+static void emu_tfr_x1_a(void)
 {
     dsp_core.registers[DSP_REG_A0] = 0;
     dsp_core.registers[DSP_REG_A1] = dsp_core.registers[DSP_REG_X1];
@@ -8738,7 +8937,7 @@ static void dsp_tfr_x1_a(void)
         dsp_core.registers[DSP_REG_A2] = 0x0;
 }
 
-static void dsp_tfr_x1_b(void)
+static void emu_tfr_x1_b(void)
 {
     dsp_core.registers[DSP_REG_B0] = 0;
     dsp_core.registers[DSP_REG_B1] = dsp_core.registers[DSP_REG_X1];
@@ -8748,7 +8947,7 @@ static void dsp_tfr_x1_b(void)
         dsp_core.registers[DSP_REG_B2] = 0x0;
 }
 
-static void dsp_tfr_y1_a(void)
+static void emu_tfr_y1_a(void)
 {
     dsp_core.registers[DSP_REG_A0] = 0;
     dsp_core.registers[DSP_REG_A1] = dsp_core.registers[DSP_REG_Y1];
@@ -8758,7 +8957,7 @@ static void dsp_tfr_y1_a(void)
         dsp_core.registers[DSP_REG_A2] = 0x0;
 }
 
-static void dsp_tfr_y1_b(void)
+static void emu_tfr_y1_b(void)
 {
     dsp_core.registers[DSP_REG_B0] = 0;
     dsp_core.registers[DSP_REG_B1] = dsp_core.registers[DSP_REG_Y1];
@@ -8768,7 +8967,7 @@ static void dsp_tfr_y1_b(void)
         dsp_core.registers[DSP_REG_B2] = 0x0;
 }
 
-static void dsp_tst_a(void)
+static void emu_tst_a(void)
 {
     dsp_ccr_update_e_u_n_z( dsp_core.registers[DSP_REG_A2],
                 dsp_core.registers[DSP_REG_A1],
@@ -8777,7 +8976,7 @@ static void dsp_tst_a(void)
     dsp_core.registers[DSP_REG_SR] &= BITMASK(16)-(1<<DSP_SR_V);
 }
 
-static void dsp_tst_b(void)
+static void emu_tst_b(void)
 {
     dsp_ccr_update_e_u_n_z( dsp_core.registers[DSP_REG_B2],
                 dsp_core.registers[DSP_REG_B1],

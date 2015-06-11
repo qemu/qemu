@@ -143,40 +143,39 @@ typedef struct dsp_interrupt_s {
 } dsp_interrupt_t;
 
 typedef struct dsp_core_s {
-
     /* DSP executing instructions ? */
     int running;
     
     /* DSP instruction Cycle counter */
-    uint16_t    instr_cycle;
+    uint16_t instr_cycle;
 
     /* Registers */
-    uint32_t    pc;
-    uint32_t    registers[DSP_REG_MAX];
+    uint32_t pc;
+    uint32_t registers[DSP_REG_MAX];
 
     /* stack[0=ssh], stack[1=ssl] */
-    uint32_t    stack[2][16];
+    uint32_t stack[2][16];
 
     uint32_t xram[DSP_XRAM_SIZE];
     uint32_t yram[DSP_YRAM_SIZE];
     uint32_t pram[DSP_PRAM_SIZE];
 
     /* peripheral space, x:0xffff80-0xffffff */
-    uint32_t    periph[DSP_PERIPH_SIZE];
+    uint32_t periph[DSP_PERIPH_SIZE];
 
     /* Misc */
     uint32_t loop_rep;      /* executing rep ? */
     uint32_t pc_on_rep;     /* True if PC is on REP instruction */
 
     /* Interruptions */
-    uint16_t    interrupt_state;        /* NONE, FAST or LONG interrupt */
-    uint16_t  interrupt_instr_fetch;        /* vector of the current interrupt */
-    uint16_t  interrupt_save_pc;        /* save next pc value before interrupt */
-    uint16_t  interrupt_counter;        /* count number of pending interrupts */
-    uint16_t  interrupt_IplToRaise;     /* save the IPL level to save in the SR register */
-    uint16_t  interrupt_pipeline_count; /* used to prefetch correctly the 2 inter instructions */
-    int16_t  interrupt_ipl[12];     /* store the current IPL for each interrupt */
-    uint16_t  interrupt_isPending[12];  /* store if interrupt is pending for each interrupt */
+    uint16_t interrupt_state;        /* NONE, FAST or LONG interrupt */
+    uint16_t interrupt_instr_fetch;        /* vector of the current interrupt */
+    uint16_t interrupt_save_pc;        /* save next pc value before interrupt */
+    uint16_t interrupt_counter;        /* count number of pending interrupts */
+    uint16_t interrupt_IplToRaise;     /* save the IPL level to save in the SR register */
+    uint16_t interrupt_pipeline_count; /* used to prefetch correctly the 2 inter instructions */
+    int16_t interrupt_ipl[12];     /* store the current IPL for each interrupt */
+    uint16_t interrupt_isPending[12];  /* store if interrupt is pending for each interrupt */
 } dsp_core_t;
 
 /* DSP */
