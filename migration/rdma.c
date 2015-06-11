@@ -2992,6 +2992,13 @@ static int qemu_rdma_registration_handle(QEMUFile *f, void *opaque)
             trace_qemu_rdma_registration_handle_compress(comp->length,
                                                          comp->block_idx,
                                                          comp->offset);
+            if (comp->block_idx >= rdma->local_ram_blocks.nb_blocks) {
+                error_report("rdma: 'compress' bad block index %u (vs %d)",
+                             (unsigned int)comp->block_idx,
+                             rdma->local_ram_blocks.nb_blocks);
+                ret = -EIO;
+                break;
+            }
             block = &(rdma->local_ram_blocks.block[comp->block_idx]);
 
             host_addr = block->local_host_addr +
@@ -3080,8 +3087,23 @@ static int qemu_rdma_registration_handle(QEMUFile *f, void *opaque)
                 trace_qemu_rdma_registration_handle_register_loop(count,
                          reg->current_index, reg->key.current_addr, reg->chunks);
 
+                if (reg->current_index >= rdma->local_ram_blocks.nb_blocks) {
+                    error_report("rdma: 'register' bad block index %u (vs %d)",
+                                 (unsigned int)reg->current_index,
+                                 rdma->local_ram_blocks.nb_blocks);
+                    ret = -ENOENT;
+                    break;
+                }
                 block = &(rdma->local_ram_blocks.block[reg->current_index]);
                 if (block->is_ram_block) {
+                    if (block->offset > reg->key.current_addr) {
+                        error_report("rdma: bad register address for block %s"
+                            " offset: %" PRIx64 " current_addr: %" PRIx64,
+                            block->block_name, block->offset,
+                            reg->key.current_addr);
+                        ret = -ERANGE;
+                        break;
+                    }
                     host_addr = (block->local_host_addr +
                                 (reg->key.current_addr - block->offset));
                     chunk = ram_chunk_index(block->local_host_addr,
@@ -3090,6 +3112,14 @@ static int qemu_rdma_registration_handle(QEMUFile *f, void *opaque)
                     chunk = reg->key.chunk;
                     host_addr = block->local_host_addr +
                         (reg->key.chunk * (1UL << RDMA_REG_CHUNK_SHIFT));
+                    /* Check for particularly bad chunk value */
+                    if (host_addr < (void *)block->local_host_addr) {
+                        error_report("rdma: bad chunk for block %s"
+                            " chunk: %" PRIx64,
+                            block->block_name, reg->key.chunk);
+                        ret = -ERANGE;
+                        break;
+                    }
                 }
                 chunk_start = ram_chunk_start(block, chunk);
                 chunk_end = ram_chunk_end(block, chunk + reg->chunks);
