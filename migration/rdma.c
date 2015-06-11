@@ -412,7 +412,7 @@ static void network_to_control(RDMAControlHeader *control)
  */
 typedef struct QEMU_PACKED {
     union QEMU_PACKED {
-        uint64_t current_addr;  /* offset into the ramblock of the chunk */
+        uint64_t current_addr;  /* offset into the ram_addr_t space */
         uint64_t chunk;         /* chunk to lookup if unregistering */
     } key;
     uint32_t current_index; /* which ramblock the chunk belongs to */
@@ -420,8 +420,19 @@ typedef struct QEMU_PACKED {
     uint64_t chunks;            /* how many sequential chunks to register */
 } RDMARegister;
 
-static void register_to_network(RDMARegister *reg)
+static void register_to_network(RDMAContext *rdma, RDMARegister *reg)
 {
+    RDMALocalBlock *local_block;
+    local_block  = &rdma->local_ram_blocks.block[reg->current_index];
+
+    if (local_block->is_ram_block) {
+        /*
+         * current_addr as passed in is an address in the local ram_addr_t
+         * space, we need to translate this for the destination
+         */
+        reg->key.current_addr -= local_block->offset;
+        reg->key.current_addr += rdma->dest_blocks[reg->current_index].offset;
+    }
     reg->key.current_addr = htonll(reg->key.current_addr);
     reg->current_index = htonl(reg->current_index);
     reg->chunks = htonll(reg->chunks);
@@ -437,13 +448,19 @@ static void network_to_register(RDMARegister *reg)
 typedef struct QEMU_PACKED {
     uint32_t value;     /* if zero, we will madvise() */
     uint32_t block_idx; /* which ram block index */
-    uint64_t offset;    /* where in the remote ramblock this chunk */
+    uint64_t offset;    /* Address in remote ram_addr_t space */
     uint64_t length;    /* length of the chunk */
 } RDMACompress;
 
-static void compress_to_network(RDMACompress *comp)
+static void compress_to_network(RDMAContext *rdma, RDMACompress *comp)
 {
     comp->value = htonl(comp->value);
+    /*
+     * comp->offset as passed in is an address in the local ram_addr_t
+     * space, we need to translate this for the destination
+     */
+    comp->offset -= rdma->local_ram_blocks.block[comp->block_idx].offset;
+    comp->offset += rdma->dest_blocks[comp->block_idx].offset;
     comp->block_idx = htonl(comp->block_idx);
     comp->offset = htonll(comp->offset);
     comp->length = htonll(comp->length);
@@ -1296,7 +1313,7 @@ static int qemu_rdma_unregister_waiting(RDMAContext *rdma)
         rdma->total_registrations--;
 
         reg.key.chunk = chunk;
-        register_to_network(&reg);
+        register_to_network(rdma, &reg);
         ret = qemu_rdma_exchange_send(rdma, &head, (uint8_t *) &reg,
                                 &resp, NULL, NULL);
         if (ret < 0) {
@@ -1917,7 +1934,7 @@ retry:
                 trace_qemu_rdma_write_one_zero(chunk, sge.length,
                                                current_index, current_addr);
 
-                compress_to_network(&comp);
+                compress_to_network(rdma, &comp);
                 ret = qemu_rdma_exchange_send(rdma, &head,
                                 (uint8_t *) &comp, NULL, NULL, NULL);
 
@@ -1944,7 +1961,7 @@ retry:
             trace_qemu_rdma_write_one_sendreg(chunk, sge.length, current_index,
                                               current_addr);
 
-            register_to_network(&reg);
+            register_to_network(rdma, &reg);
             ret = qemu_rdma_exchange_send(rdma, &head, (uint8_t *) &reg,
                                     &resp, &reg_result_idx, NULL);
             if (ret < 0) {
