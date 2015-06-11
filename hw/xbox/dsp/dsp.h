@@ -27,6 +27,9 @@
 
 #include <stdint.h>
 #include <stdbool.h>
+#include <stdio.h>
+
+typedef struct dsp_core_s dsp_core_t;
 
 /* Dsp commands */
 bool dsp_process_irq(void);

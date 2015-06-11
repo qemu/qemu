@@ -27,7 +27,6 @@
 #include <assert.h>
 
 #include "dsp_cpu.h"
-#include "dsp_disasm.h"
 #include "dsp_int.h"
 
 #include "dsp.h"
@@ -52,7 +51,7 @@ void dsp_init(void)
 
     memset(&dsp_core, 0, sizeof(dsp_core_t));
 
-    dsp56k_init_cpu();
+    dsp56k_init_cpu(&dsp_core);
     save_cycles = 0;
 }
 
@@ -99,7 +98,7 @@ void dsp_run(int cycles)
     //  fprintf(stderr, "--> %d\n", save_cycles);
     while (save_cycles > 0)
     {
-        dsp56k_execute_instruction();
+        dsp56k_execute_instruction(&dsp_core);
         save_cycles -= dsp_core.instr_cycle;
     }
 
@@ -157,7 +156,7 @@ uint32_t dsp_disasm_address(FILE *out, uint32_t lowerAdr, uint32_t UpperAdr)
     uint32_t dsp_pc;
 
     for (dsp_pc=lowerAdr; dsp_pc<=UpperAdr; dsp_pc++) {
-        dsp_pc += dsp56k_execute_one_disasm_instruction(out, dsp_pc);
+        dsp_pc += dsp56k_execute_one_disasm_instruction(&dsp_core, out, dsp_pc);
     }
     return dsp_pc;
 }
@@ -197,7 +196,7 @@ uint32_t dsp_read_memory(uint32_t address, char space_id, const char **mem_str)
         assert(false);
     }
 
-    return dsp56k_read_memory(space, address);
+    return dsp56k_read_memory(&dsp_core, space, address);
 }
 
 
@@ -504,5 +503,5 @@ void dsp_core_reset(void)
     dsp_core.loop_rep = 0;
 
     DPRINTF("Dsp: reset done\n");
-    dsp56k_init_cpu();
+    dsp56k_init_cpu(&dsp_core);
 }

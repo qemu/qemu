@@ -142,7 +142,7 @@ typedef struct dsp_interrupt_s {
     const char *name;
 } dsp_interrupt_t;
 
-typedef struct dsp_core_s {
+struct dsp_core_s {
     /* DSP executing instructions ? */
     int running;
     
@@ -176,7 +176,58 @@ typedef struct dsp_core_s {
     uint16_t interrupt_pipeline_count; /* used to prefetch correctly the 2 inter instructions */
     int16_t interrupt_ipl[12];     /* store the current IPL for each interrupt */
     uint16_t interrupt_isPending[12];  /* store if interrupt is pending for each interrupt */
-} dsp_core_t;
+
+
+    /* runtime data */
+
+    /* Instructions per second */
+#ifdef DSP_COUNT_IPS
+    uint32_t start_time;
+#endif
+    uint32_t num_inst;
+
+/* Length of current instruction */
+    uint32_t cur_inst_len; /* =0:jump, >0:increment */
+/* Current instruction */
+    uint32_t cur_inst;
+
+    /* DSP is in disasm mode ? */
+    /* If yes, stack overflow, underflow and illegal instructions messages are not displayed */
+    bool in_disasm_mode;
+
+    char str_disasm_memory[2][50];     /* Buffer for memory change text in disasm mode */
+    uint32_t disasm_memory_ptr;        /* Pointer for memory change in disasm mode */
+
+    bool exception_debugging;
+
+
+    /* disasm data */
+
+    /* Previous instruction */
+    uint32_t disasm_prev_inst_pc;
+    bool disasm_is_looping;
+
+    /* Used to display dc instead of unknown instruction for illegal opcodes */
+    bool isInDisasmMode;
+
+    uint32_t disasm_cur_inst;
+    uint16_t disasm_cur_inst_len;
+
+    /* Current instruction */
+    char disasm_str_instr[50];
+    char disasm_str_instr2[120];
+    char disasm_parallelmove_name[64];
+
+    /**********************************
+     *  Register change
+     **********************************/
+
+    uint32_t disasm_registers_save[64];
+#if DSP_DISASM_REG_PC
+    uint32_t pc_save;
+#endif
+
+};
 
 /* DSP */
 extern dsp_core_t dsp_core;

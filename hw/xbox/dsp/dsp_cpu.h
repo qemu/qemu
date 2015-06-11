@@ -25,15 +25,17 @@
 #include <stdio.h>
 #include <stdint.h>
 
-/* Functions */
-void dsp56k_init_cpu(void);		/* Set dsp_core to use */
-void dsp56k_execute_instruction(void);	/* Execute 1 instruction */
-uint16_t dsp56k_execute_one_disasm_instruction(FILE *out, uint32_t pc);	/* Execute 1 instruction in disasm mode */
+#include "dsp.h"
 
-uint32_t dsp56k_read_memory(int space, uint32_t address);
-void dsp56k_write_memory(int space, uint32_t address, uint32_t value);
+/* Functions */
+void dsp56k_init_cpu(dsp_core_t* dsp);		/* Set dsp_core to use */
+void dsp56k_execute_instruction(dsp_core_t* dsp);	/* Execute 1 instruction */
+uint16_t dsp56k_execute_one_disasm_instruction(dsp_core_t* dsp, FILE *out, uint32_t pc);	/* Execute 1 instruction in disasm mode */
+
+uint32_t dsp56k_read_memory(dsp_core_t* dsp, int space, uint32_t address);
+void dsp56k_write_memory(dsp_core_t* dsp, int space, uint32_t address, uint32_t value);
 
 /* Interrupt relative functions */
-void dsp56k_add_interrupt(uint16_t inter);
+void dsp56k_add_interrupt(dsp_core_t* dsp, uint16_t inter);
 
 #endif	/* DSP_CPU_H */
