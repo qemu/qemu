@@ -30,6 +30,7 @@
 #include <linux/kvm.h>
 #endif
 #include "exec/cpu_ldst.h"
+#include "hw/watchdog/wdt_diag288.h"
 
 #if !defined(CONFIG_USER_ONLY)
 #include "sysemu/cpus.h"
@@ -151,6 +152,34 @@ static int load_normal_reset(S390CPU *cpu)
     cpu_synchronize_all_post_reset();
     resume_all_vcpus();
     return 0;
+}
+
+int handle_diag_288(CPUS390XState *env, uint64_t r1, uint64_t r3)
+{
+    uint64_t func = env->regs[r1];
+    uint64_t timeout = env->regs[r1 + 1];
+    uint64_t action = env->regs[r3];
+    Object *obj;
+    DIAG288State *diag288;
+    DIAG288Class *diag288_class;
+
+    if (r1 % 2 || action != 0) {
+        return -1;
+    }
+
+    /* Timeout must be more than 15 seconds except for timer deletion */
+    if (func != WDT_DIAG288_CANCEL && timeout < 15) {
+        return -1;
+    }
+
+    obj = object_resolve_path_type("", TYPE_WDT_DIAG288, NULL);
+    if (!obj) {
+        return -1;
+    }
+
+    diag288 = DIAG288(obj);
+    diag288_class = DIAG288_GET_CLASS(diag288);
+    return diag288_class->handle_timer(diag288, func, timeout);
 }
 
 #define DIAG_308_RC_OK              0x0001
