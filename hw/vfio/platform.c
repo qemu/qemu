@@ -346,8 +346,7 @@ static int vfio_populate_device(VFIODevice *vbasedev)
         return ret;
     }
 
-    vdev->regions = g_malloc0_n(vbasedev->num_regions,
-                                sizeof(VFIORegion *));
+    vdev->regions = g_new0(VFIORegion *, vbasedev->num_regions);
 
     for (i = 0; i < vbasedev->num_regions; i++) {
         struct vfio_region_info reg_info = { .argsz = sizeof(reg_info) };
