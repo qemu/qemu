@@ -1179,13 +1179,14 @@ virtio_gpu_cmd_res_flush(uint32_t res, uint32_t w, uint32_t h, uint32_t x, uint3
 virtio_gpu_fence_ctrl(uint64_t fence, uint32_t type) "fence 0x%" PRIx64 ", type 0x%x"
 virtio_gpu_fence_resp(uint64_t fence) "fence 0x%" PRIx64
 
-# savevm.c
+# migration/savevm.c
 qemu_loadvm_state_section(unsigned int section_type) "%d"
 qemu_loadvm_state_section_partend(uint32_t section_id) "%u"
 qemu_loadvm_state_section_startfull(uint32_t section_id, const char *idstr, uint32_t instance_id, uint32_t version_id) "%u(%s) %u %u"
 savevm_section_start(const char *id, unsigned int section_id) "%s, section_id %u"
 savevm_section_end(const char *id, unsigned int section_id, int ret) "%s, section_id %u -> %d"
 savevm_state_begin(void) ""
+savevm_state_header(void) ""
 savevm_state_iterate(void) ""
 savevm_state_complete(void) ""
 savevm_state_cancel(void) ""
@@ -1205,7 +1206,7 @@ vmstate_subsection_load_good(const char *parent) "%s"
 # qemu-file.c
 qemu_file_fclose(void) ""
 
-# arch_init.c
+# migration/ram.c
 migration_bitmap_sync_start(void) ""
 migration_bitmap_sync_end(uint64_t dirty_pages) "dirty_pages %" PRIu64""
 migration_throttle(void) ""

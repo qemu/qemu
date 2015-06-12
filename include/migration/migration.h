@@ -34,6 +34,7 @@
 #define QEMU_VM_SECTION_FULL         0x04
 #define QEMU_VM_SUBSECTION           0x05
 #define QEMU_VM_VMDESCRIPTION        0x06
+#define QEMU_VM_SECTION_FOOTER       0x7e
 
 struct MigrationParams {
     bool blk;
@@ -41,6 +42,20 @@ struct MigrationParams {
 };
 
 typedef struct MigrationState MigrationState;
+
+typedef QLIST_HEAD(, LoadStateEntry) LoadStateEntry_Head;
+
+/* State for the incoming migration */
+struct MigrationIncomingState {
+    QEMUFile *file;
+
+    /* See savevm.c */
+    LoadStateEntry_Head loadvm_handlers;
+};
+
+MigrationIncomingState *migration_incoming_get_current(void);
+MigrationIncomingState *migration_incoming_state_new(QEMUFile *f);
+void migration_incoming_state_destroy(void);
 
 struct MigrationState
 {
@@ -180,4 +195,6 @@ size_t ram_control_save_page(QEMUFile *f, ram_addr_t block_offset,
                              ram_addr_t offset, size_t size,
                              uint64_t *bytes_sent);
 
+void ram_mig_init(void);
+void savevm_skip_section_footers(void);
 #endif

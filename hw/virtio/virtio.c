@@ -1053,6 +1053,7 @@ static const VMStateDescription vmstate_virtio_device_endian = {
     .name = "virtio/device_endian",
     .version_id = 1,
     .minimum_version_id = 1,
+    .needed = &virtio_device_endian_needed,
     .fields = (VMStateField[]) {
         VMSTATE_UINT8(device_endian, VirtIODevice),
         VMSTATE_END_OF_LIST()
@@ -1063,6 +1064,7 @@ static const VMStateDescription vmstate_virtio_64bit_features = {
     .name = "virtio/64bit_features",
     .version_id = 1,
     .minimum_version_id = 1,
+    .needed = &virtio_64bit_features_needed,
     .fields = (VMStateField[]) {
         VMSTATE_UINT64(guest_features, VirtIODevice),
         VMSTATE_END_OF_LIST()
@@ -1077,16 +1079,10 @@ static const VMStateDescription vmstate_virtio = {
     .fields = (VMStateField[]) {
         VMSTATE_END_OF_LIST()
     },
-    .subsections = (VMStateSubsection[]) {
-        {
-            .vmsd = &vmstate_virtio_device_endian,
-            .needed = &virtio_device_endian_needed
-        },
-        {
-            .vmsd = &vmstate_virtio_64bit_features,
-            .needed = &virtio_64bit_features_needed
-        },
-        { 0 }
+    .subsections = (const VMStateDescription*[]) {
+        &vmstate_virtio_device_endian,
+        &vmstate_virtio_64bit_features,
+        NULL
     }
 };
 

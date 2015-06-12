@@ -53,6 +53,7 @@ static bool deferred_incoming;
    migrations at once.  For now we don't need to add
    dynamic creation of migration */
 
+/* For outgoing */
 MigrationState *migrate_get_current(void)
 {
     static MigrationState current_migration = {
@@ -69,6 +70,30 @@ MigrationState *migrate_get_current(void)
     };
 
     return &current_migration;
+}
+
+/* For incoming */
+static MigrationIncomingState *mis_current;
+
+MigrationIncomingState *migration_incoming_get_current(void)
+{
+    return mis_current;
+}
+
+MigrationIncomingState *migration_incoming_state_new(QEMUFile* f)
+{
+    mis_current = g_malloc0(sizeof(MigrationIncomingState));
+    mis_current->file = f;
+    QLIST_INIT(&mis_current->loadvm_handlers);
+
+    return mis_current;
+}
+
+void migration_incoming_state_destroy(void)
+{
+    loadvm_free_handlers(mis_current);
+    g_free(mis_current);
+    mis_current = NULL;
 }
 
 /*
@@ -115,9 +140,14 @@ static void process_incoming_migration_co(void *opaque)
     Error *local_err = NULL;
     int ret;
 
+    migration_incoming_state_new(f);
+
     ret = qemu_loadvm_state(f);
+
     qemu_fclose(f);
     free_xbzrle_decoded_buf();
+    migration_incoming_state_destroy();
+
     if (ret < 0) {
         error_report("load of migration failed: %s", strerror(-ret));
         migrate_decompress_threads_join();
@@ -738,6 +768,7 @@ static void *migration_thread(void *opaque)
     int64_t start_time = initial_time;
     bool old_vm_running = false;
 
+    qemu_savevm_state_header(s->file);
     qemu_savevm_state_begin(s->file, &s->params);
 
     s->setup_time = qemu_clock_get_ms(QEMU_CLOCK_HOST) - setup_start;
@@ -838,9 +869,6 @@ static void *migration_thread(void *opaque)
 
 void migrate_fd_connect(MigrationState *s)
 {
-    s->state = MIGRATION_STATUS_SETUP;
-    trace_migrate_set_state(MIGRATION_STATUS_SETUP);
-
     /* This is a best 1st approximation. ns to ms */
     s->expected_downtime = max_downtime/1000000;
     s->cleanup_bh = qemu_bh_new(migrate_fd_cleanup, s);

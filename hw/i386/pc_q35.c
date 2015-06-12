@@ -45,6 +45,7 @@
 #include "hw/usb.h"
 #include "hw/cpu/icc_bus.h"
 #include "qemu/error-report.h"
+#include "migration/migration.h"
 
 /* ICH9 AHCI has 6 ports */
 #define MAX_SATA_PORTS     6
@@ -289,6 +290,7 @@ static void pc_q35_init(MachineState *machine)
 
 static void pc_compat_2_3(MachineState *machine)
 {
+    savevm_skip_section_footers();
 }
 
 static void pc_compat_2_2(MachineState *machine)

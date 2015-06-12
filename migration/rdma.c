@@ -236,13 +236,13 @@ typedef struct RDMALocalBlock {
  * corresponding RDMALocalBlock with
  * the information needed to perform the actual RDMA.
  */
-typedef struct QEMU_PACKED RDMARemoteBlock {
+typedef struct QEMU_PACKED RDMADestBlock {
     uint64_t remote_host_addr;
     uint64_t offset;
     uint64_t length;
     uint32_t remote_rkey;
     uint32_t padding;
-} RDMARemoteBlock;
+} RDMADestBlock;
 
 static uint64_t htonll(uint64_t v)
 {
@@ -258,20 +258,20 @@ static uint64_t ntohll(uint64_t v) {
     return ((uint64_t)ntohl(u.lv[0]) << 32) | (uint64_t) ntohl(u.lv[1]);
 }
 
-static void remote_block_to_network(RDMARemoteBlock *rb)
+static void dest_block_to_network(RDMADestBlock *db)
 {
-    rb->remote_host_addr = htonll(rb->remote_host_addr);
-    rb->offset = htonll(rb->offset);
-    rb->length = htonll(rb->length);
-    rb->remote_rkey = htonl(rb->remote_rkey);
+    db->remote_host_addr = htonll(db->remote_host_addr);
+    db->offset = htonll(db->offset);
+    db->length = htonll(db->length);
+    db->remote_rkey = htonl(db->remote_rkey);
 }
 
-static void network_to_remote_block(RDMARemoteBlock *rb)
+static void network_to_dest_block(RDMADestBlock *db)
 {
-    rb->remote_host_addr = ntohll(rb->remote_host_addr);
-    rb->offset = ntohll(rb->offset);
-    rb->length = ntohll(rb->length);
-    rb->remote_rkey = ntohl(rb->remote_rkey);
+    db->remote_host_addr = ntohll(db->remote_host_addr);
+    db->offset = ntohll(db->offset);
+    db->length = ntohll(db->length);
+    db->remote_rkey = ntohl(db->remote_rkey);
 }
 
 /*
@@ -350,7 +350,7 @@ typedef struct RDMAContext {
      * Description of ram blocks used throughout the code.
      */
     RDMALocalBlocks local_ram_blocks;
-    RDMARemoteBlock *block;
+    RDMADestBlock  *dest_blocks;
 
     /*
      * Migration on *destination* started.
@@ -570,10 +570,10 @@ static int rdma_add_block(RDMAContext *rdma, void *host_addr,
  * in advanced before the migration starts. This tells us where the RAM blocks
  * are so that we can register them individually.
  */
-static void qemu_rdma_init_one_block(void *host_addr,
+static int qemu_rdma_init_one_block(const char *block_name, void *host_addr,
     ram_addr_t block_offset, ram_addr_t length, void *opaque)
 {
-    rdma_add_block(opaque, host_addr, block_offset, length);
+    return rdma_add_block(opaque, host_addr, block_offset, length);
 }
 
 /*
@@ -590,7 +590,7 @@ static int qemu_rdma_init_ram_blocks(RDMAContext *rdma)
     memset(local, 0, sizeof *local);
     qemu_ram_foreach_block(qemu_rdma_init_one_block, rdma);
     trace_qemu_rdma_init_ram_blocks(local->nb_blocks);
-    rdma->block = (RDMARemoteBlock *) g_malloc0(sizeof(RDMARemoteBlock) *
+    rdma->dest_blocks = (RDMADestBlock *) g_malloc0(sizeof(RDMADestBlock) *
                         rdma->local_ram_blocks.nb_blocks);
     local->init = true;
     return 0;
@@ -790,6 +790,13 @@ static int qemu_rdma_broken_ipv6_kernel(Error **errp, struct ibv_context *verbs)
 
         for (x = 0; x < num_devices; x++) {
             verbs = ibv_open_device(dev_list[x]);
+            if (!verbs) {
+                if (errno == EPERM) {
+                    continue;
+                } else {
+                    return -EINVAL;
+                }
+            }
 
             if (ibv_query_port(verbs, 1, &port_attr)) {
                 ibv_close_device(verbs);
@@ -2177,8 +2184,8 @@ static void qemu_rdma_cleanup(RDMAContext *rdma)
         rdma->connected = false;
     }
 
-    g_free(rdma->block);
-    rdma->block = NULL;
+    g_free(rdma->dest_blocks);
+    rdma->dest_blocks = NULL;
 
     for (idx = 0; idx < RDMA_WRID_MAX; idx++) {
         if (rdma->wr_data[idx].control_mr) {
@@ -2445,7 +2452,6 @@ static void *qemu_rdma_data_init(const char *host_port, Error **errp)
 
     if (host_port) {
         rdma = g_malloc0(sizeof(RDMAContext));
-        memset(rdma, 0, sizeof(RDMAContext));
         rdma->current_index = -1;
         rdma->current_chunk = -1;
 
@@ -2967,25 +2973,25 @@ static int qemu_rdma_registration_handle(QEMUFile *f, void *opaque,
              * their "local" descriptions with what was sent.
              */
             for (i = 0; i < local->nb_blocks; i++) {
-                rdma->block[i].remote_host_addr =
+                rdma->dest_blocks[i].remote_host_addr =
                     (uintptr_t)(local->block[i].local_host_addr);
 
                 if (rdma->pin_all) {
-                    rdma->block[i].remote_rkey = local->block[i].mr->rkey;
+                    rdma->dest_blocks[i].remote_rkey = local->block[i].mr->rkey;
                 }
 
-                rdma->block[i].offset = local->block[i].offset;
-                rdma->block[i].length = local->block[i].length;
+                rdma->dest_blocks[i].offset = local->block[i].offset;
+                rdma->dest_blocks[i].length = local->block[i].length;
 
-                remote_block_to_network(&rdma->block[i]);
+                dest_block_to_network(&rdma->dest_blocks[i]);
             }
 
             blocks.len = rdma->local_ram_blocks.nb_blocks
-                                                * sizeof(RDMARemoteBlock);
+                                                * sizeof(RDMADestBlock);
 
 
             ret = qemu_rdma_post_send_control(rdma,
-                                        (uint8_t *) rdma->block, &blocks);
+                                        (uint8_t *) rdma->dest_blocks, &blocks);
 
             if (ret < 0) {
                 error_report("rdma migration: error sending remote info");
@@ -3141,7 +3147,7 @@ static int qemu_rdma_registration_stop(QEMUFile *f, void *opaque,
     if (flags == RAM_CONTROL_SETUP) {
         RDMAControlHeader resp = {.type = RDMA_CONTROL_RAM_BLOCKS_RESULT };
         RDMALocalBlocks *local = &rdma->local_ram_blocks;
-        int reg_result_idx, i, j, nb_remote_blocks;
+        int reg_result_idx, i, j, nb_dest_blocks;
 
         head.type = RDMA_CONTROL_RAM_BLOCKS_REQUEST;
         trace_qemu_rdma_registration_stop_ram();
@@ -3162,7 +3168,7 @@ static int qemu_rdma_registration_stop(QEMUFile *f, void *opaque,
             return ret;
         }
 
-        nb_remote_blocks = resp.len / sizeof(RDMARemoteBlock);
+        nb_dest_blocks = resp.len / sizeof(RDMADestBlock);
 
         /*
          * The protocol uses two different sets of rkeys (mutually exclusive):
@@ -3176,7 +3182,7 @@ static int qemu_rdma_registration_stop(QEMUFile *f, void *opaque,
          * and then propagates the remote ram block descriptions to his local copy.
          */
 
-        if (local->nb_blocks != nb_remote_blocks) {
+        if (local->nb_blocks != nb_dest_blocks) {
             ERROR(errp, "ram blocks mismatch #1! "
                         "Your QEMU command line parameters are probably "
                         "not identical on both the source and destination.");
@@ -3184,26 +3190,26 @@ static int qemu_rdma_registration_stop(QEMUFile *f, void *opaque,
         }
 
         qemu_rdma_move_header(rdma, reg_result_idx, &resp);
-        memcpy(rdma->block,
+        memcpy(rdma->dest_blocks,
             rdma->wr_data[reg_result_idx].control_curr, resp.len);
-        for (i = 0; i < nb_remote_blocks; i++) {
-            network_to_remote_block(&rdma->block[i]);
+        for (i = 0; i < nb_dest_blocks; i++) {
+            network_to_dest_block(&rdma->dest_blocks[i]);
 
             /* search local ram blocks */
             for (j = 0; j < local->nb_blocks; j++) {
-                if (rdma->block[i].offset != local->block[j].offset) {
+                if (rdma->dest_blocks[i].offset != local->block[j].offset) {
                     continue;
                 }
 
-                if (rdma->block[i].length != local->block[j].length) {
+                if (rdma->dest_blocks[i].length != local->block[j].length) {
                     ERROR(errp, "ram blocks mismatch #2! "
                         "Your QEMU command line parameters are probably "
                         "not identical on both the source and destination.");
                     return -EINVAL;
                 }
                 local->block[j].remote_host_addr =
-                        rdma->block[i].remote_host_addr;
-                local->block[j].remote_rkey = rdma->block[i].remote_rkey;
+                        rdma->dest_blocks[i].remote_host_addr;
+                local->block[j].remote_rkey = rdma->dest_blocks[i].remote_rkey;
                 break;
             }
 

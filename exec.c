@@ -454,6 +454,7 @@ static const VMStateDescription vmstate_cpu_common_exception_index = {
     .name = "cpu_common/exception_index",
     .version_id = 1,
     .minimum_version_id = 1,
+    .needed = cpu_common_exception_index_needed,
     .fields = (VMStateField[]) {
         VMSTATE_INT32(exception_index, CPUState),
         VMSTATE_END_OF_LIST()
@@ -471,13 +472,9 @@ const VMStateDescription vmstate_cpu_common = {
         VMSTATE_UINT32(interrupt_request, CPUState),
         VMSTATE_END_OF_LIST()
     },
-    .subsections = (VMStateSubsection[]) {
-        {
-            .vmsd = &vmstate_cpu_common_exception_index,
-            .needed = cpu_common_exception_index_needed,
-        } , {
-            /* empty */
-        }
+    .subsections = (const VMStateDescription*[]) {
+        &vmstate_cpu_common_exception_index,
+        NULL
     }
 };
 
@@ -3348,14 +3345,20 @@ bool cpu_physical_memory_is_io(hwaddr phys_addr)
     return res;
 }
 
-void qemu_ram_foreach_block(RAMBlockIterFunc func, void *opaque)
+int qemu_ram_foreach_block(RAMBlockIterFunc func, void *opaque)
 {
     RAMBlock *block;
+    int ret = 0;
 
     rcu_read_lock();
     QLIST_FOREACH_RCU(block, &ram_list.blocks, next) {
-        func(block->host, block->offset, block->used_length, opaque);
+        ret = func(block->idstr, block->host, block->offset,
+                   block->used_length, opaque);
+        if (ret) {
+            break;
+        }
     }
     rcu_read_unlock();
+    return ret;
 }
 #endif

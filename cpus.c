@@ -480,6 +480,7 @@ static const VMStateDescription icount_vmstate_timers = {
     .name = "timer/icount",
     .version_id = 1,
     .minimum_version_id = 1,
+    .needed = icount_state_needed,
     .fields = (VMStateField[]) {
         VMSTATE_INT64(qemu_icount_bias, TimersState),
         VMSTATE_INT64(qemu_icount, TimersState),
@@ -497,13 +498,9 @@ static const VMStateDescription vmstate_timers = {
         VMSTATE_INT64_V(cpu_clock_offset, TimersState, 2),
         VMSTATE_END_OF_LIST()
     },
-    .subsections = (VMStateSubsection[]) {
-        {
-            .vmsd = &icount_vmstate_timers,
-            .needed = icount_state_needed,
-        }, {
-            /* empty */
-        }
+    .subsections = (const VMStateDescription*[]) {
+        &icount_vmstate_timers,
+        NULL
     }
 };
 

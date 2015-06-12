@@ -40,6 +40,7 @@ static const VMStateDescription vmstate_vfp = {
     .name = "cpu/vfp",
     .version_id = 3,
     .minimum_version_id = 3,
+    .needed = vfp_needed,
     .fields = (VMStateField[]) {
         VMSTATE_FLOAT64_ARRAY(env.vfp.regs, ARMCPU, 64),
         /* The xregs array is a little awkward because element 1 (FPSCR)
@@ -72,6 +73,7 @@ static const VMStateDescription vmstate_iwmmxt = {
     .name = "cpu/iwmmxt",
     .version_id = 1,
     .minimum_version_id = 1,
+    .needed = iwmmxt_needed,
     .fields = (VMStateField[]) {
         VMSTATE_UINT64_ARRAY(env.iwmmxt.regs, ARMCPU, 16),
         VMSTATE_UINT32_ARRAY(env.iwmmxt.cregs, ARMCPU, 16),
@@ -91,6 +93,7 @@ static const VMStateDescription vmstate_m = {
     .name = "cpu/m",
     .version_id = 1,
     .minimum_version_id = 1,
+    .needed = m_needed,
     .fields = (VMStateField[]) {
         VMSTATE_UINT32(env.v7m.other_sp, ARMCPU),
         VMSTATE_UINT32(env.v7m.vecbase, ARMCPU),
@@ -114,6 +117,7 @@ static const VMStateDescription vmstate_thumb2ee = {
     .name = "cpu/thumb2ee",
     .version_id = 1,
     .minimum_version_id = 1,
+    .needed = thumb2ee_needed,
     .fields = (VMStateField[]) {
         VMSTATE_UINT32(env.teecr, ARMCPU),
         VMSTATE_UINT32(env.teehbr, ARMCPU),
@@ -282,21 +286,11 @@ const VMStateDescription vmstate_arm_cpu = {
         VMSTATE_BOOL(powered_off, ARMCPU),
         VMSTATE_END_OF_LIST()
     },
-    .subsections = (VMStateSubsection[]) {
-        {
-            .vmsd = &vmstate_vfp,
-            .needed = vfp_needed,
-        } , {
-            .vmsd = &vmstate_iwmmxt,
-            .needed = iwmmxt_needed,
-        } , {
-            .vmsd = &vmstate_m,
-            .needed = m_needed,
-        } , {
-            .vmsd = &vmstate_thumb2ee,
-            .needed = thumb2ee_needed,
-        } , {
-            /* empty */
-        }
+    .subsections = (const VMStateDescription*[]) {
+        &vmstate_vfp,
+        &vmstate_iwmmxt,
+        &vmstate_m,
+        &vmstate_thumb2ee,
+        NULL
     }
 };

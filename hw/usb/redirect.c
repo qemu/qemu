@@ -2257,16 +2257,6 @@ static const VMStateInfo usbredir_ep_bufpq_vmstate_info = {
 
 
 /* For endp_data migration */
-static const VMStateDescription usbredir_bulk_receiving_vmstate = {
-    .name = "usb-redir-ep/bulk-receiving",
-    .version_id = 1,
-    .minimum_version_id = 1,
-    .fields = (VMStateField[]) {
-        VMSTATE_UINT8(bulk_receiving_started, struct endp_data),
-        VMSTATE_END_OF_LIST()
-    }
-};
-
 static bool usbredir_bulk_receiving_needed(void *priv)
 {
     struct endp_data *endp = priv;
@@ -2274,12 +2264,13 @@ static bool usbredir_bulk_receiving_needed(void *priv)
     return endp->bulk_receiving_started;
 }
 
-static const VMStateDescription usbredir_stream_vmstate = {
-    .name = "usb-redir-ep/stream-state",
+static const VMStateDescription usbredir_bulk_receiving_vmstate = {
+    .name = "usb-redir-ep/bulk-receiving",
     .version_id = 1,
     .minimum_version_id = 1,
+    .needed = usbredir_bulk_receiving_needed,
     .fields = (VMStateField[]) {
-        VMSTATE_UINT32(max_streams, struct endp_data),
+        VMSTATE_UINT8(bulk_receiving_started, struct endp_data),
         VMSTATE_END_OF_LIST()
     }
 };
@@ -2290,6 +2281,17 @@ static bool usbredir_stream_needed(void *priv)
 
     return endp->max_streams;
 }
+
+static const VMStateDescription usbredir_stream_vmstate = {
+    .name = "usb-redir-ep/stream-state",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .needed = usbredir_stream_needed,
+    .fields = (VMStateField[]) {
+        VMSTATE_UINT32(max_streams, struct endp_data),
+        VMSTATE_END_OF_LIST()
+    }
+};
 
 static const VMStateDescription usbredir_ep_vmstate = {
     .name = "usb-redir-ep",
@@ -2318,16 +2320,10 @@ static const VMStateDescription usbredir_ep_vmstate = {
         VMSTATE_INT32(bufpq_target_size, struct endp_data),
         VMSTATE_END_OF_LIST()
     },
-    .subsections = (VMStateSubsection[]) {
-        {
-            .vmsd = &usbredir_bulk_receiving_vmstate,
-            .needed = usbredir_bulk_receiving_needed,
-        }, {
-            .vmsd = &usbredir_stream_vmstate,
-            .needed = usbredir_stream_needed,
-        }, {
-            /* empty */
-        }
+    .subsections = (const VMStateDescription*[]) {
+        &usbredir_bulk_receiving_vmstate,
+        &usbredir_stream_vmstate,
+        NULL
     }
 };
 

@@ -369,6 +369,7 @@ static const VMStateDescription vmstate_apic_common_sipi = {
     .name = "apic_sipi",
     .version_id = 1,
     .minimum_version_id = 1,
+    .needed = apic_common_sipi_needed,
     .fields = (VMStateField[]) {
         VMSTATE_INT32(sipi_vector, APICCommonState),
         VMSTATE_INT32(wait_for_sipi, APICCommonState),
@@ -408,12 +409,9 @@ static const VMStateDescription vmstate_apic_common = {
                       APICCommonState), /* open-coded timer state */
         VMSTATE_END_OF_LIST()
     },
-    .subsections = (VMStateSubsection[]) {
-        {
-            .vmsd = &vmstate_apic_common_sipi,
-            .needed = apic_common_sipi_needed,
-        },
-        VMSTATE_END_OF_LIST()
+    .subsections = (const VMStateDescription*[]) {
+        &vmstate_apic_common_sipi,
+        NULL
     }
 };
 

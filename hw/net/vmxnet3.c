@@ -2226,6 +2226,7 @@ static const VMStateDescription vmxstate_vmxnet3_mcast_list = {
     .version_id = 1,
     .minimum_version_id = 1,
     .pre_load = vmxnet3_mcast_list_pre_load,
+    .needed = vmxnet3_mc_list_needed,
     .fields = (VMStateField[]) {
         VMSTATE_VBUFFER_UINT32(mcast_list, VMXNET3State, 0, NULL, 0,
             mcast_list_buff_size),
@@ -2470,14 +2471,9 @@ static const VMStateDescription vmstate_vmxnet3 = {
 
             VMSTATE_END_OF_LIST()
     },
-    .subsections = (VMStateSubsection[]) {
-        {
-            .vmsd = &vmxstate_vmxnet3_mcast_list,
-            .needed = vmxnet3_mc_list_needed
-        },
-        {
-            /* empty element. */
-        }
+    .subsections = (const VMStateDescription*[]) {
+        &vmxstate_vmxnet3_mcast_list,
+        NULL
     }
 };
 
