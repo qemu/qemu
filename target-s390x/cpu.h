@@ -380,6 +380,18 @@ static inline int get_ilen(uint8_t opc)
 #define PER_CODE_EVENT_STORE_REAL      0x0800
 #define PER_CODE_EVENT_NULLIFICATION   0x0100
 
+/* Compute the ATMID field that is stored in the per_perc_atmid lowcore
+   entry when a PER exception is triggered.  */
+static inline uint8_t get_per_atmid(CPUS390XState *env)
+{
+    return ((env->psw.mask & PSW_MASK_64) ?      (1 << 7) : 0) |
+           (                                     (1 << 6)    ) |
+           ((env->psw.mask & PSW_MASK_32) ?      (1 << 5) : 0) |
+           ((env->psw.mask & PSW_MASK_DAT)?      (1 << 4) : 0) |
+           ((env->psw.mask & PSW_ASC_SECONDARY)? (1 << 3) : 0) |
+           ((env->psw.mask & PSW_ASC_ACCREG)?    (1 << 2) : 0);
+}
+
 #ifndef CONFIG_USER_ONLY
 /* In several cases of runtime exceptions, we havn't recorded the true
    instruction length.  Use these codes when raising exceptions in order
