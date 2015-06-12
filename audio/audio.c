@@ -30,7 +30,6 @@
 #define AUDIO_CAP "audio"
 #include "audio_int.h"
 
-/* #define DEBUG_PLIVE */
 /* #define DEBUG_LIVE */
 /* #define DEBUG_OUT */
 /* #define DEBUG_CAPTURE */
@@ -66,7 +65,6 @@ static struct {
         int hertz;
         int64_t ticks;
     } period;
-    int plive;
     int try_poll_in;
     int try_poll_out;
 } conf = {
@@ -95,7 +93,6 @@ static struct {
     },
 
     .period = { .hertz = 100 },
-    .plive = 0,
     .try_poll_in = 1,
     .try_poll_out = 1,
 };
@@ -1443,9 +1440,6 @@ static void audio_run_out (AudioState *s)
             while (sw) {
                 sw1 = sw->entries.le_next;
                 if (!sw->active && !sw->callback.fn) {
-#ifdef DEBUG_PLIVE
-                    dolog ("Finishing with old voice\n");
-#endif
                     audio_close_out (sw);
                 }
                 sw = sw1;
@@ -1636,12 +1630,6 @@ static struct audio_option audio_options[] = {
         .tag   = AUD_OPT_INT,
         .valp  = &conf.period.hertz,
         .descr = "Timer period in HZ (0 - use lowest possible)"
-    },
-    {
-        .name  = "PLIVE",
-        .tag   = AUD_OPT_BOOL,
-        .valp  = &conf.plive,
-        .descr = "(undocumented)"
     },
     { /* End of list */ }
 };
