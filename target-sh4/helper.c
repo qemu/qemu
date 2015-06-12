@@ -93,7 +93,7 @@ void superh_cpu_do_interrupt(CPUState *cs)
     do_exp = cs->exception_index != -1;
     do_irq = do_irq && (cs->exception_index == -1);
 
-    if (env->sr & SR_BL) {
+    if (env->sr & (1u << SR_BL)) {
         if (do_exp && cs->exception_index != 0x1e0) {
             cs->exception_index = 0x000; /* masked exception -> reset */
         }
@@ -162,10 +162,10 @@ void superh_cpu_do_interrupt(CPUState *cs)
         log_cpu_state(cs, 0);
     }
 
-    env->ssr = env->sr;
+    env->ssr = cpu_read_sr(env);
     env->spc = env->pc;
     env->sgr = env->gregs[15];
-    env->sr |= SR_BL | SR_MD | SR_RB;
+    env->sr |= (1u << SR_BL) | (1u << SR_MD) | (1u << SR_RB);
 
     if (env->flags & (DELAY_SLOT | DELAY_SLOT_CONDITIONAL)) {
         /* Branch instruction should be executed again before delay slot. */
@@ -182,7 +182,7 @@ void superh_cpu_do_interrupt(CPUState *cs)
         case 0x000:
         case 0x020:
         case 0x140:
-            env->sr &= ~SR_FD;
+            env->sr &= ~(1u << SR_FD);
             env->sr |= 0xf << 4; /* IMASK */
             env->pc = 0xa0000000;
             break;
@@ -355,23 +355,24 @@ static int get_mmu_address(CPUSH4State * env, target_ulong * physical,
     int use_asid, n;
     tlb_t *matching = NULL;
 
-    use_asid = (env->mmucr & MMUCR_SV) == 0 || (env->sr & SR_MD) == 0;
+    use_asid = !(env->mmucr & MMUCR_SV) || !(env->sr & (1u << SR_MD));
 
     if (rw == 2) {
         n = find_itlb_entry(env, address, use_asid);
 	if (n >= 0) {
 	    matching = &env->itlb[n];
-	    if (!(env->sr & SR_MD) && !(matching->pr & 2))
+            if (!(env->sr & (1u << SR_MD)) && !(matching->pr & 2)) {
 		n = MMU_ITLB_VIOLATION;
-	    else
+            } else {
 		*prot = PAGE_EXEC;
+            }
         } else {
             n = find_utlb_entry(env, address, use_asid);
             if (n >= 0) {
                 n = copy_utlb_entry_itlb(env, n);
                 matching = &env->itlb[n];
-                if (!(env->sr & SR_MD) && !(matching->pr & 2)) {
-                      n = MMU_ITLB_VIOLATION;
+                if (!(env->sr & (1u << SR_MD)) && !(matching->pr & 2)) {
+                    n = MMU_ITLB_VIOLATION;
                 } else {
                     *prot = PAGE_READ | PAGE_EXEC;
                     if ((matching->pr & 1) && matching->d) {
@@ -388,7 +389,7 @@ static int get_mmu_address(CPUSH4State * env, target_ulong * physical,
 	n = find_utlb_entry(env, address, use_asid);
 	if (n >= 0) {
 	    matching = &env->utlb[n];
-            if (!(env->sr & SR_MD) && !(matching->pr & 2)) {
+            if (!(env->sr & (1u << SR_MD)) && !(matching->pr & 2)) {
                 n = (rw == 1) ? MMU_DTLB_VIOLATION_WRITE :
                     MMU_DTLB_VIOLATION_READ;
             } else if ((rw == 1) && !(matching->pr & 1)) {
@@ -421,7 +422,7 @@ static int get_physical_address(CPUSH4State * env, target_ulong * physical,
     /* P1, P2 and P4 areas do not use translation */
     if ((address >= 0x80000000 && address < 0xc0000000) ||
 	address >= 0xe0000000) {
-	if (!(env->sr & SR_MD)
+        if (!(env->sr & (1u << SR_MD))
 	    && (address < 0xe0000000 || address >= 0xe4000000)) {
 	    /* Unauthorized access in user mode (only store queues are available) */
 	    fprintf(stderr, "Unauthorized access\n");
@@ -690,7 +691,7 @@ void cpu_sh4_write_mmaped_utlb_addr(CPUSH4State *s, hwaddr addr,
     uint8_t d = (uint8_t)((mem_value & 0x00000200) >> 9);
     uint8_t v = (uint8_t)((mem_value & 0x00000100) >> 8);
     uint8_t asid = (uint8_t)(mem_value & 0x000000ff);
-    int use_asid = (s->mmucr & MMUCR_SV) == 0 || (s->sr & SR_MD) == 0;
+    int use_asid = !(s->mmucr & MMUCR_SV) || !(s->sr & (1u << SR_MD));
 
     if (associate) {
         int i;
@@ -821,10 +822,10 @@ void cpu_sh4_write_mmaped_utlb_data(CPUSH4State *s, hwaddr addr,
 int cpu_sh4_is_cached(CPUSH4State * env, target_ulong addr)
 {
     int n;
-    int use_asid = (env->mmucr & MMUCR_SV) == 0 || (env->sr & SR_MD) == 0;
+    int use_asid = !(env->mmucr & MMUCR_SV) || !(env->sr & (1u << SR_MD));
 
     /* check area */
-    if (env->sr & SR_MD) {
+    if (env->sr & (1u << SR_MD)) {
         /* For previledged mode, P2 and P4 area is not cachable. */
         if ((0xA0000000 <= addr && addr < 0xC0000000) || 0xE0000000 <= addr)
             return 0;

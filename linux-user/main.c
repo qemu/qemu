@@ -3925,6 +3925,8 @@ int main(int argc, char **argv, char **envp)
 # else
         cpu_model = "750";
 # endif
+#elif defined TARGET_SH4
+        cpu_model = TYPE_SH7785_CPU;
 #else
         cpu_model = "any";
 #endif
