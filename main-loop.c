@@ -100,8 +100,7 @@ static int qemu_signal_init(void)
 
     fcntl_setfl(sigfd, O_NONBLOCK);
 
-    qemu_set_fd_handler2(sigfd, NULL, sigfd_handler, NULL,
-                         (void *)(intptr_t)sigfd);
+    qemu_set_fd_handler(sigfd, sigfd_handler, NULL, (void *)(intptr_t)sigfd);
 
     return 0;
 }

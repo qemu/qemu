@@ -4165,3 +4165,106 @@ Example:
 <- { "return": {} }
 
 EQMP
+
+    {
+        .name       = "query-rocker",
+        .args_type  = "name:s",
+        .mhandler.cmd_new = qmp_marshal_input_query_rocker,
+    },
+
+SQMP
+Show rocker switch
+------------------
+
+Arguments:
+
+- "name": switch name
+
+Example:
+
+-> { "execute": "query-rocker", "arguments": { "name": "sw1" } }
+<- { "return": {"name": "sw1", "ports": 2, "id": 1327446905938}}
+
+EQMP
+
+    {
+        .name       = "query-rocker-ports",
+        .args_type  = "name:s",
+        .mhandler.cmd_new = qmp_marshal_input_query_rocker_ports,
+    },
+
+SQMP
+Show rocker switch ports
+------------------------
+
+Arguments:
+
+- "name": switch name
+
+Example:
+
+-> { "execute": "query-rocker-ports", "arguments": { "name": "sw1" } }
+<- { "return": [ {"duplex": "full", "enabled": true, "name": "sw1.1",
+                  "autoneg": "off", "link-up": true, "speed": 10000},
+                 {"duplex": "full", "enabled": true, "name": "sw1.2",
+                  "autoneg": "off", "link-up": true, "speed": 10000}
+   ]}
+
+EQMP
+
+    {
+        .name       = "query-rocker-of-dpa-flows",
+        .args_type  = "name:s,tbl-id:i?",
+        .mhandler.cmd_new = qmp_marshal_input_query_rocker_of_dpa_flows,
+    },
+
+SQMP
+Show rocker switch OF-DPA flow tables
+-------------------------------------
+
+Arguments:
+
+- "name": switch name
+- "tbl-id": (optional) flow table ID
+
+Example:
+
+-> { "execute": "query-rocker-of-dpa-flows", "arguments": { "name": "sw1" } }
+<- { "return": [ {"key": {"in-pport": 0, "priority": 1, "tbl-id": 0},
+                  "hits": 138,
+                  "cookie": 0,
+                  "action": {"goto-tbl": 10},
+                  "mask": {"in-pport": 4294901760}
+                 },
+                 {...more...},
+   ]}
+
+EQMP
+
+    {
+        .name       = "query-rocker-of-dpa-groups",
+        .args_type  = "name:s,type:i?",
+        .mhandler.cmd_new = qmp_marshal_input_query_rocker_of_dpa_groups,
+    },
+
+SQMP
+Show rocker OF-DPA group tables
+-------------------------------
+
+Arguments:
+
+- "name": switch name
+- "type": (optional) group type
+
+Example:
+
+-> { "execute": "query-rocker-of-dpa-groups", "arguments": { "name": "sw1" } }
+<- { "return": [ {"type": 0, "out-pport": 2, "pport": 2, "vlan-id": 3841,
+                  "pop-vlan": 1, "id": 251723778},
+                 {"type": 0, "out-pport": 0, "pport": 0, "vlan-id": 3841,
+                  "pop-vlan": 1, "id": 251723776},
+                 {"type": 0, "out-pport": 1, "pport": 1, "vlan-id": 3840,
+                  "pop-vlan": 1, "id": 251658241},
+                 {"type": 0, "out-pport": 0, "pport": 0, "vlan-id": 3840,
+                  "pop-vlan": 1, "id": 251658240}
+   ]}

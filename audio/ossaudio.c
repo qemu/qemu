@@ -138,18 +138,18 @@ static void oss_helper_poll_in (void *opaque)
     audio_run ("oss_poll_in");
 }
 
-static int oss_poll_out (HWVoiceOut *hw)
+static void oss_poll_out (HWVoiceOut *hw)
 {
     OSSVoiceOut *oss = (OSSVoiceOut *) hw;
 
-    return qemu_set_fd_handler (oss->fd, NULL, oss_helper_poll_out, NULL);
+    qemu_set_fd_handler (oss->fd, NULL, oss_helper_poll_out, NULL);
 }
 
-static int oss_poll_in (HWVoiceIn *hw)
+static void oss_poll_in (HWVoiceIn *hw)
 {
     OSSVoiceIn *oss = (OSSVoiceIn *) hw;
 
-    return qemu_set_fd_handler (oss->fd, oss_helper_poll_in, NULL, NULL);
+    qemu_set_fd_handler (oss->fd, oss_helper_poll_in, NULL, NULL);
 }
 
 static int oss_write (SWVoiceOut *sw, void *buf, int len)
@@ -634,7 +634,8 @@ static int oss_ctl_out (HWVoiceOut *hw, int cmd, ...)
             va_end (ap);
 
             ldebug ("enabling voice\n");
-            if (poll_mode && oss_poll_out (hw)) {
+            if (poll_mode) {
+                oss_poll_out (hw);
                 poll_mode = 0;
             }
             hw->poll_mode = poll_mode;
@@ -828,7 +829,8 @@ static int oss_ctl_in (HWVoiceIn *hw, int cmd, ...)
             poll_mode = va_arg (ap, int);
             va_end (ap);
 
-            if (poll_mode && oss_poll_in (hw)) {
+            if (poll_mode) {
+                oss_poll_in (hw);
                 poll_mode = 0;
             }
             hw->poll_mode = poll_mode;

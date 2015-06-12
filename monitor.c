@@ -2863,6 +2863,34 @@ static mon_cmd_t info_cmds[] = {
         .mhandler.cmd = hmp_info_memory_devices,
     },
     {
+        .name       = "rocker",
+        .args_type  = "name:s",
+        .params     = "name",
+        .help       = "Show rocker switch",
+        .mhandler.cmd = hmp_rocker,
+    },
+    {
+        .name       = "rocker-ports",
+        .args_type  = "name:s",
+        .params     = "name",
+        .help       = "Show rocker ports",
+        .mhandler.cmd = hmp_rocker_ports,
+    },
+    {
+        .name       = "rocker-of-dpa-flows",
+        .args_type  = "name:s,tbl_id:i?",
+        .params     = "name [tbl_id]",
+        .help       = "Show rocker OF-DPA flow tables",
+        .mhandler.cmd = hmp_rocker_of_dpa_flows,
+    },
+    {
+        .name       = "rocker-of-dpa-groups",
+        .args_type  = "name:s,type:i?",
+        .params     = "name [type]",
+        .help       = "Show rocker OF-DPA groups",
+        .mhandler.cmd = hmp_rocker_of_dpa_groups,
+    },
+    {
         .name       = NULL,
     },
 };

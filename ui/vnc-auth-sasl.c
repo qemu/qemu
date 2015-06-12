@@ -86,7 +86,7 @@ long vnc_client_write_sasl(VncState *vs)
      * SASL encoded output
      */
     if (vs->output.offset == 0) {
-        qemu_set_fd_handler2(vs->csock, NULL, vnc_client_read, NULL, vs);
+        qemu_set_fd_handler(vs->csock, vnc_client_read, NULL, vs);
     }
 
     return ret;

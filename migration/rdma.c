@@ -2840,7 +2840,7 @@ static int qemu_rdma_accept(RDMAContext *rdma)
         }
     }
 
-    qemu_set_fd_handler2(rdma->channel->fd, NULL, NULL, NULL, NULL);
+    qemu_set_fd_handler(rdma->channel->fd, NULL, NULL, NULL);
 
     ret = rdma_accept(rdma->cm_id, &conn_param);
     if (ret) {
@@ -3337,9 +3337,8 @@ void rdma_start_incoming_migration(const char *host_port, Error **errp)
 
     trace_rdma_start_incoming_migration_after_rdma_listen();
 
-    qemu_set_fd_handler2(rdma->channel->fd, NULL,
-                         rdma_accept_incoming_migration, NULL,
-                            (void *)(intptr_t) rdma);
+    qemu_set_fd_handler(rdma->channel->fd, rdma_accept_incoming_migration,
+                        NULL, (void *)(intptr_t)rdma);
     return;
 err:
     error_propagate(errp, local_err);

@@ -1799,5 +1799,29 @@ show available trace events and their state
 ETEXI
 
 STEXI
+@item rocker @var{name}
+@findex rocker
+Show Rocker(s)
+ETEXI
+
+STEXI
+@item rocker_ports @var{name}
+@findex rocker_ports
+Show Rocker ports
+ETEXI
+
+STEXI
+@item rocker_of_dpa_flows @var{name} [@var{tbl_id}]
+@findex rocker_of_dpa_flows
+Show Rocker OF-DPA flow tables
+ETEXI
+
+STEXI
+@item rocker_of_dpa_groups @var{name} [@var{type}]
+@findex rocker_of_dpa_groups
+Show Rocker OF-DPA groups
+ETEXI
+
+STEXI
 @end table
 ETEXI

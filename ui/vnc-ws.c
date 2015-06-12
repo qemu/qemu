@@ -56,7 +56,7 @@ static int vncws_start_tls_handshake(VncState *vs)
     }
 
     VNC_DEBUG("Handshake done, switching to TLS data mode\n");
-    qemu_set_fd_handler2(vs->csock, NULL, vncws_handshake_read, NULL, vs);
+    qemu_set_fd_handler(vs->csock, vncws_handshake_read, NULL, vs);
 
     return 0;
 }
@@ -98,7 +98,7 @@ void vncws_handshake_read(void *opaque)
     handshake_end = (uint8_t *)g_strstr_len((char *)vs->ws_input.buffer,
             vs->ws_input.offset, WS_HANDSHAKE_END);
     if (handshake_end) {
-        qemu_set_fd_handler2(vs->csock, NULL, vnc_client_read, NULL, vs);
+        qemu_set_fd_handler(vs->csock, vnc_client_read, NULL, vs);
         vncws_process_handshake(vs, vs->ws_input.buffer, vs->ws_input.offset);
         buffer_advance(&vs->ws_input, handshake_end - vs->ws_input.buffer +
                 strlen(WS_HANDSHAKE_END));
@@ -176,7 +176,7 @@ long vnc_client_write_ws(VncState *vs)
     buffer_advance(&vs->ws_output, ret);
 
     if (vs->ws_output.offset == 0) {
-        qemu_set_fd_handler2(vs->csock, NULL, vnc_client_read, NULL, vs);
+        qemu_set_fd_handler(vs->csock, vnc_client_read, NULL, vs);
     }
 
     return ret;

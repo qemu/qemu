@@ -1213,7 +1213,7 @@ static void vnc_disconnect_start(VncState *vs)
     if (vs->csock == -1)
         return;
     vnc_set_share_mode(vs, VNC_SHARE_MODE_DISCONNECTED);
-    qemu_set_fd_handler2(vs->csock, NULL, NULL, NULL, NULL);
+    qemu_set_fd_handler(vs->csock, NULL, NULL, NULL);
     closesocket(vs->csock);
     vs->csock = -1;
 }
@@ -1387,7 +1387,7 @@ static long vnc_client_write_plain(VncState *vs)
     buffer_advance(&vs->output, ret);
 
     if (vs->output.offset == 0) {
-        qemu_set_fd_handler2(vs->csock, NULL, vnc_client_read, NULL, vs);
+        qemu_set_fd_handler(vs->csock, vnc_client_read, NULL, vs);
     }
 
     return ret;
@@ -1434,7 +1434,7 @@ void vnc_client_write(void *opaque)
             ) {
         vnc_client_write_locked(opaque);
     } else if (vs->csock != -1) {
-        qemu_set_fd_handler2(vs->csock, NULL, vnc_client_read, NULL, vs);
+        qemu_set_fd_handler(vs->csock, vnc_client_read, NULL, vs);
     }
     vnc_unlock_output(vs);
 }
@@ -1581,7 +1581,7 @@ void vnc_write(VncState *vs, const void *data, size_t len)
     buffer_reserve(&vs->output, len);
 
     if (vs->csock != -1 && buffer_empty(&vs->output)) {
-        qemu_set_fd_handler2(vs->csock, NULL, vnc_client_read, vnc_client_write, vs);
+        qemu_set_fd_handler(vs->csock, vnc_client_read, vnc_client_write, vs);
     }
 
     buffer_append(&vs->output, data, len);
@@ -3022,18 +3022,16 @@ static void vnc_connect(VncDisplay *vd, int csock,
         vs->websocket = 1;
 #ifdef CONFIG_VNC_TLS
         if (vd->ws_tls) {
-            qemu_set_fd_handler2(vs->csock, NULL, vncws_tls_handshake_io,
-                                 NULL, vs);
+            qemu_set_fd_handler(vs->csock, vncws_tls_handshake_io, NULL, vs);
         } else
 #endif /* CONFIG_VNC_TLS */
         {
-            qemu_set_fd_handler2(vs->csock, NULL, vncws_handshake_read,
-                                 NULL, vs);
+            qemu_set_fd_handler(vs->csock, vncws_handshake_read, NULL, vs);
         }
     } else
 #endif /* CONFIG_VNC_WS */
     {
-        qemu_set_fd_handler2(vs->csock, NULL, vnc_client_read, NULL, vs);
+        qemu_set_fd_handler(vs->csock, vnc_client_read, NULL, vs);
     }
 
     vnc_client_cache_addr(vs);
@@ -3182,14 +3180,14 @@ static void vnc_display_close(VncDisplay *vs)
     vs->enabled = false;
     vs->is_unix = false;
     if (vs->lsock != -1) {
-        qemu_set_fd_handler2(vs->lsock, NULL, NULL, NULL, NULL);
+        qemu_set_fd_handler(vs->lsock, NULL, NULL, NULL);
         close(vs->lsock);
         vs->lsock = -1;
     }
 #ifdef CONFIG_VNC_WS
     vs->ws_enabled = false;
     if (vs->lwebsock != -1) {
-        qemu_set_fd_handler2(vs->lwebsock, NULL, NULL, NULL, NULL);
+        qemu_set_fd_handler(vs->lwebsock, NULL, NULL, NULL);
         close(vs->lwebsock);
         vs->lwebsock = -1;
     }
@@ -3707,12 +3705,11 @@ void vnc_display_open(const char *id, Error **errp)
 #endif /* CONFIG_VNC_WS */
         }
         vs->enabled = true;
-        qemu_set_fd_handler2(vs->lsock, NULL,
-                vnc_listen_regular_read, NULL, vs);
+        qemu_set_fd_handler(vs->lsock, vnc_listen_regular_read, NULL, vs);
 #ifdef CONFIG_VNC_WS
         if (vs->ws_enabled) {
-            qemu_set_fd_handler2(vs->lwebsock, NULL,
-                    vnc_listen_websocket_read, NULL, vs);
+            qemu_set_fd_handler(vs->lwebsock, vnc_listen_websocket_read,
+                                NULL, vs);
         }
 #endif /* CONFIG_VNC_WS */
     }
