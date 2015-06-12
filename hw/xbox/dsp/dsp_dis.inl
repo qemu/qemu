@@ -227,6 +227,14 @@ static void dis_add_long(dsp_core_t* dsp)
     sprintf(dsp->disasm_str_instr, "add #$%04x,%s", xxxx, registers_name[accname]);
 }
 
+static void dis_and_long(dsp_core_t* dsp)
+{
+    dsp->disasm_cur_inst_len++;
+    uint32_t xxxx = read_memory_p(dsp, dsp->pc+1);
+    uint32_t accname = ((dsp->disasm_cur_inst >> 3) & 1) ? DSP_REG_B : DSP_REG_A;
+    sprintf(dsp->disasm_str_instr, "and #$%04x,%s", xxxx, registers_name[accname]);
+}
+
 static void dis_andi(dsp_core_t* dsp)
 {
     switch(dsp->disasm_cur_inst & BITMASK(2)) {
@@ -420,6 +428,44 @@ static void dis_bra_imm(dsp_core_t* dsp)
     sprintf(dsp->disasm_str_instr, "bra p:$%04x", xxx);
 }
 
+static void dis_brclr_pp(dsp_core_t* dsp)
+{
+    uint32_t xxxx = read_memory_p(dsp, dsp->pc+1);
+    dsp->disasm_cur_inst_len++;
+    
+    uint32_t memspace = (dsp->disasm_cur_inst>>6) & 1;
+    uint32_t value = (dsp->disasm_cur_inst>>8) & BITMASK(6);
+    uint32_t numbit = dsp->disasm_cur_inst & BITMASK(5);
+
+    char name[16];
+    if (memspace) {
+        sprintf(name,"y:$%06x",value+0xffffc0);
+    } else {
+        sprintf(name,"x:$%06x",value+0xffffc0);
+    }
+
+    sprintf(dsp->disasm_str_instr,"brclr #%d,%s,p:$%06x", numbit, name, xxxx);
+}
+
+static void dis_brset_pp(dsp_core_t* dsp)
+{
+    uint32_t xxxx = read_memory_p(dsp, dsp->pc+1);
+    dsp->disasm_cur_inst_len++;
+    
+    uint32_t memspace = (dsp->disasm_cur_inst>>6) & 1;
+    uint32_t value = (dsp->disasm_cur_inst>>8) & BITMASK(6);
+    uint32_t numbit = dsp->disasm_cur_inst & BITMASK(5);
+
+    char name[16];
+    if (memspace) {
+        sprintf(name,"y:$%06x",value+0xffffc0);
+    } else {
+        sprintf(name,"x:$%06x",value+0xffffc0);
+    }
+
+    sprintf(dsp->disasm_str_instr,"brset #%d,%s,p:$%06x", numbit, name, xxxx);
+}
+
 static void dis_bset_aa(dsp_core_t* dsp)
 {
     /* bset #n,x:aa */
@@ -490,6 +536,20 @@ static void dis_bset_reg(dsp_core_t* dsp)
     numbit = dsp->disasm_cur_inst & BITMASK(5);
 
     sprintf(dsp->disasm_str_instr,"bset #%d,%s", numbit, registers_name[value]);
+}
+
+static void dis_bsr_long(dsp_core_t* dsp)
+{
+    dsp->disasm_cur_inst_len++;
+    uint32_t xxxx = read_memory_p(dsp, dsp->pc+1);
+    sprintf(dsp->disasm_str_instr, "bsr p:$%06x", xxxx);
+}
+
+static void dis_bsr_imm(dsp_core_t* dsp)
+{
+    uint32_t xxx = (dsp->disasm_cur_inst & BITMASK(5))
+                 + ((dsp->disasm_cur_inst & (BITMASK(4) << 6)) >> 1);
+    sprintf(dsp->disasm_str_instr, "bsr p:$%04x", xxx);
 }
 
 static void dis_btst_aa(dsp_core_t* dsp)
@@ -1476,15 +1536,35 @@ static void dis_movep_x_low(dsp_core_t* dsp) {
 }
 
 
-static void dis_move_x_aa(dsp_core_t* dsp) {
+static void dis_move_x_long(dsp_core_t* dsp) {
+    dsp->disasm_cur_inst_len++;
+
+    int W = (dsp->disasm_cur_inst >> 6) & 1;
+    uint32_t xxxx = read_memory_p(dsp, dsp->pc+1);
+    uint32_t offreg = DSP_REG_R0 + ((dsp->disasm_cur_inst >> 8) & BITMASK(3));
+    uint32_t numreg = dsp->disasm_cur_inst & BITMASK(6);
+    if (W) {
+        sprintf(dsp->disasm_str_instr, "move x:(%s + %d), %s",
+            registers_name[offreg], xxxx, registers_name[numreg]);
+    } else {
+        sprintf(dsp->disasm_str_instr, "move %s, x:(%s + %d)",
+            registers_name[numreg], registers_name[offreg], xxxx);
+    }
+}
+
+static void dis_move_x_imm(dsp_core_t* dsp) {
     // 0000001aaaaaaRRR1a0WDDDD
     int W = (dsp->disasm_cur_inst >> 4) & 1;
-    int a = (((dsp->disasm_cur_inst >> 11) & BITMASK(6)) << 1)
+    int xxx = (((dsp->disasm_cur_inst >> 11) & BITMASK(6)) << 1)
              + ((dsp->disasm_cur_inst >> 6) & 1);
+    uint32_t offreg = DSP_REG_R0 + ((dsp->disasm_cur_inst >> 8) & BITMASK(3));
+    uint32_t numreg = dsp->disasm_cur_inst & BITMASK(4);
     if (W) {
-        sprintf(dsp->disasm_str_instr, "move x:(?? + %d), ??", a);
+        sprintf(dsp->disasm_str_instr, "move x:(%s + %d), %s",
+            registers_name[offreg], xxx, registers_name[numreg]);
     } else {
-        sprintf(dsp->disasm_str_instr, "move ??, x:(?? + %d)", a);
+        sprintf(dsp->disasm_str_instr, "move %s, x:(%s + %d)",
+            registers_name[numreg], registers_name[offreg], xxx);
     }
 }
 
@@ -1496,6 +1576,14 @@ static void dis_norm(dsp_core_t* dsp)
     destreg = DSP_REG_A+((dsp->disasm_cur_inst>>3) & 1);
 
     sprintf(dsp->disasm_str_instr,"norm %s,%s", registers_name[srcreg], registers_name[destreg]);
+}
+
+static void dis_or_long(dsp_core_t* dsp)
+{
+    dsp->disasm_cur_inst_len++;
+    uint32_t xxxx = read_memory_p(dsp, dsp->pc+1);
+    uint32_t accname = ((dsp->disasm_cur_inst >> 3) & 1) ? DSP_REG_B : DSP_REG_A;
+    sprintf(dsp->disasm_str_instr, "or #$%04x,%s", xxxx, registers_name[accname]);
 }
 
 static void dis_ori(dsp_core_t* dsp)

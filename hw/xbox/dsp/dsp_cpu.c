@@ -150,7 +150,7 @@ static const OpcodeEntry nonparallel_opcodes[] = {
     { "0000000101iiiiii1000d000", "add #xx, D", NULL, NULL },
     { "00000001010000001100d000", "add #xxxx, D", dis_add_long, emu_add_long },
     { "0000000101iiiiii1000d110", "and #xx, D", NULL, NULL },
-    { "00000001010000001100d110", "and #xxxx, D", NULL, NULL },
+    { "00000001010000001100d110", "and #xxxx, D", dis_and_long, emu_and_long },
     { "00000000iiiiiiii101110EE", "andi #xx, D", dis_andi, emu_andi },
     { "0000110000011101SiiiiiiD", "asl #ii, S2, D", NULL, NULL },
     { "0000110000011110010SsssD", "asl S1, S2, D", NULL, NULL },
@@ -174,13 +174,13 @@ static const OpcodeEntry nonparallel_opcodes[] = {
     { "0000110100011RRR11000000", "bra Rn", NULL, NULL },
     { "0000110010MMMRRR0S0bbbbb", "brclr #n, [X or Y]:ea, xxxx", NULL, NULL },
     { "0000110010aaaaaa1S0bbbbb", "brclr #n, [X or Y]:aa, xxxx", NULL, NULL },
-    { "0000110011pppppp0S0bbbbb", "brclr #n, [X or Y]:pp, xxxx", NULL, NULL },
+    { "0000110011pppppp0S0bbbbb", "brclr #n, [X or Y]:pp, xxxx", dis_brclr_pp, emu_brclr_pp },
     { "0000010010qqqqqq0S0bbbbb", "brclr #n, [X or Y]:qq, xxxx", NULL, NULL },
     { "0000110011DDDDDD100bbbbb", "brclr #n, S, xxxx", NULL, NULL },
     { "00000000000000100001CCCC", "brkcc", NULL, NULL },
     { "0000110010MMMRRR0S1bbbbb", "brset #n, [X or Y]:ea, xxxx", NULL, NULL },
     { "0000110010aaaaaa1S1bbbbb", "brset #n, [X or Y]:aa, xxxx", NULL, NULL },
-    { "0000110011pppppp0S1bbbbb", "brset #n, [X or Y]:pp, xxxx", NULL, NULL },
+    { "0000110011pppppp0S1bbbbb", "brset #n, [X or Y]:pp, xxxx", dis_brset_pp, emu_brset_pp },
     { "0000010010qqqqqq0S1bbbbb", "brset #n, [X or Y]:qq, xxxx", NULL, NULL },
     { "0000110011DDDDDD101bbbbb", "brset #n, S, xxxx", NULL, NULL },
     { "00001101000100000000CCCC", "bscc xxxx", NULL, NULL },
@@ -196,8 +196,8 @@ static const OpcodeEntry nonparallel_opcodes[] = {
     { "0000101010pppppp0S1bbbbb", "bset #n, [X or Y]:pp", dis_bset_pp, emu_bset_pp },
     { "0000000100qqqqqq0S1bbbbb", "bset #n, [X or Y]:qq", NULL, NULL },
     { "0000101011DDDDDD011bbbbb", "bset, #n, D", dis_bset_reg, emu_bset_reg },
-    { "000011010001000010000000", "bsr xxxx", NULL, NULL },
-    { "00000101000010aaaa0aaaaa", "bsr xxx", NULL, NULL },
+    { "000011010001000010000000", "bsr xxxx", dis_bsr_long, emu_bsr_long },
+    { "00000101000010aaaa0aaaaa", "bsr xxx", dis_bsr_imm, emu_bsr_imm },
     { "0000110100011RRR10000000", "bsr Rn", NULL, NULL },
     { "0000110110MMMRRR0S1bbbbb", "bsset #n, [X or Y]:ea, xxxx", NULL, NULL },
     { "0000110110aaaaaa1S1bbbbb", "bsset #n, [X or Y]:aa, xxxx", NULL, NULL },
@@ -281,9 +281,9 @@ static const OpcodeEntry nonparallel_opcodes[] = {
     { "00000001000sssss11QQdk11", "macr S1, S2, D", NULL, NULL },
     { "000000010100000111qqdk11", "macri #xxxx, S, D", NULL, NULL },
     { "00001100000110111000sssD", "merge S, D", NULL, NULL },
-    { "0000101001110RRR1WDDDDDD", "move X:{Rn + xxxx} <-> R", NULL, NULL },
+    { "0000101001110RRR1WDDDDDD", "move X:{Rn + xxxx} <-> R", dis_move_x_long, emu_move_x_long },
     { "0000101101110RRR1WDDDDDD", "move Y:{Rn + xxxx} <-> R", NULL, NULL },
-    { "0000001aaaaaaRRR1a0WDDDD", "move X:{Rn + xxx} <-> R", dis_move_x_aa, emu_move_x_aa },
+    { "0000001aaaaaaRRR1a0WDDDD", "move X:{Rn + xxx} <-> R", dis_move_x_imm, emu_move_x_imm },
     { "0000001aaaaaaRRR1a1WDDDD", "move Y:{Rn + xxx} <-> R", NULL, NULL },
     { "00000101W1MMMRRR0s1ddddd", "movec [X or Y]:ea <-> R", dis_movec_ea, emu_movec_ea },
     { "00000101W0aaaaaa0s1ddddd", "movec [X or Y]:aa <-> R", dis_movec_aa, emu_movec_aa },
@@ -308,7 +308,7 @@ static const OpcodeEntry nonparallel_opcodes[] = {
     { "0000000111011RRR0001d101", "norm Rn, D", dis_norm, emu_norm },
     { "00001100000111100010sssD", "normf S, D", NULL, NULL },
     { "0000000101iiiiii1000d010", "or #xx, D", NULL, NULL },
-    { "00000001010000001100d010", "or #xxxx, D", NULL, NULL },
+    { "00000001010000001100d010", "or #xxxx, D", dis_or_long, emu_or_long },
     { "00000000iiiiiiii111110EE", "ori #xx, D", dis_ori, emu_ori },
     { "000000000000000000000011", "pflush", NULL, NULL },
     { "000000000000000000000001", "pflushun", NULL, NULL },
@@ -383,8 +383,6 @@ static OpcodeEntry lookup_opcode(uint32_t op) {
 
 static uint16_t disasm_instruction(dsp_core_t* dsp, dsp_trace_disasm_t mode)
 {
-    uint32_t value;
-
     dsp->disasm_mode = mode;
     if (mode == DSP_TRACE_MODE) {
         if (dsp->disasm_prev_inst_pc == dsp->pc) {
@@ -578,7 +576,6 @@ uint16_t dsp56k_execute_one_disasm_instruction(dsp_core_t* dsp, FILE *out, uint3
 
 void dsp56k_execute_instruction(dsp_core_t* dsp)
 {
-    uint32_t value;
     uint32_t disasm_return = 0;
     dsp->disasm_memory_ptr = 0;
 

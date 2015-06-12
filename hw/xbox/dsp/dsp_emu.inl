@@ -5749,6 +5749,13 @@ static void emu_add_long(dsp_core_t* dsp)
     dsp->cur_inst_len++;
 }
 
+static void emu_and_long(dsp_core_t* dsp)
+{
+    uint32_t xxxx = read_memory_p(dsp, dsp->pc+1);
+    // QQQ
+    dsp->cur_inst_len++;
+}
+
 static void emu_andi(dsp_core_t* dsp)
 {
     uint32_t regnum, value;
@@ -5979,6 +5986,32 @@ static void emu_bra_imm(dsp_core_t* dsp) {
     dsp->instr_cycle += 2;
 }
 
+static void emu_brclr_pp(dsp_core_t* dsp) {
+    uint32_t xxxx = read_memory_p(dsp, dsp->pc+1);
+    dsp->cur_inst_len++;
+
+    uint32_t memspace = (dsp->cur_inst>>6) & 1;
+    uint32_t value = (dsp->cur_inst>>8) & BITMASK(6);
+    uint32_t numbit = dsp->cur_inst & BITMASK(5);
+    uint32_t addr = 0xffffc0 + value;
+    value = dsp56k_read_memory(dsp, memspace, addr);
+    //QQQ
+
+}
+
+static void emu_brset_pp(dsp_core_t* dsp) {
+    uint32_t xxxx = read_memory_p(dsp, dsp->pc+1);
+    dsp->cur_inst_len++;
+
+    uint32_t memspace = (dsp->cur_inst>>6) & 1;
+    uint32_t value = (dsp->cur_inst>>8) & BITMASK(6);
+    uint32_t numbit = dsp->cur_inst & BITMASK(5);
+    uint32_t addr = 0xffffc0 + value;
+    value = dsp56k_read_memory(dsp, memspace, addr);
+    //QQQ
+
+}
+
 static void emu_bset_aa(dsp_core_t* dsp)
 {
     uint32_t memspace, addr, value, newcarry, numbit;
@@ -5998,6 +6031,21 @@ static void emu_bset_aa(dsp_core_t* dsp)
     dsp->registers[DSP_REG_SR] |= newcarry<<DSP_SR_C;
 
     dsp->instr_cycle += 2;
+}
+
+static void emu_bsr_long(dsp_core_t* dsp)
+{
+    uint32_t xxxx = read_memory_p(dsp, dsp->pc+1);
+    dsp->cur_inst_len++;
+
+    // QQQ
+}
+
+static void emu_bsr_imm(dsp_core_t* dsp)
+{
+    uint32_t xxx = (dsp->disasm_cur_inst & BITMASK(5))
+                 + ((dsp->disasm_cur_inst & (BITMASK(4) << 6)) >> 1);
+    // QQQ
 }
 
 static void emu_bset_ea(dsp_core_t* dsp)
@@ -7130,7 +7178,15 @@ static void emu_movep_x_low(dsp_core_t* dsp) {
     dsp->instr_cycle += 2; // ???
 }
 
-static void emu_move_x_aa(dsp_core_t* dsp) {
+static void emu_move_x_long(dsp_core_t* dsp) {
+    int W = (dsp->cur_inst >> 6) & 1;
+    uint32_t xxxx = read_memory_p(dsp, dsp->pc+1);
+    dsp->cur_inst_len++;
+    //QQQ
+    dsp->instr_cycle += 2; //???
+}
+
+static void emu_move_x_imm(dsp_core_t* dsp) {
     // 0000001aaaaaaRRR1a0WDDDD
     int W = (dsp->cur_inst >> 4) & 1;
     int a = (((dsp->cur_inst >> 11) & BITMASK(6)) << 1)
@@ -7177,6 +7233,13 @@ static void emu_norm(dsp_core_t* dsp)
 
     dsp->registers[DSP_REG_SR] &= BITMASK(16)-((1<<DSP_SR_V)|(1<<DSP_SR_C));
     dsp->registers[DSP_REG_SR] |= newsr;
+}
+
+static void emu_or_long(dsp_core_t* dsp)
+{
+    uint32_t xxxx = read_memory_p(dsp, dsp->pc+1);
+    // QQQ
+    dsp->cur_inst_len++;
 }
 
 static void emu_ori(dsp_core_t* dsp)
