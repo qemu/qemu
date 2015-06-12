@@ -1644,3 +1644,7 @@ alsa_xrun_in(void) "Recovering from capture xrun"
 alsa_resume_out(void) "Resuming suspended output stream"
 alsa_resume_in(void) "Resuming suspended input stream"
 alsa_no_frames(int state) "No frames available and ALSA state is %d"
+
+# audio/ossaudio.c
+oss_version(int version) "OSS version = %#x"
+oss_invalid_available_size(int size, int bufsize) "Invalid available size, size=%d bufsize=%d"

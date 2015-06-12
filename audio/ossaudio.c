@@ -30,6 +30,7 @@
 #include "qemu/main-loop.h"
 #include "qemu/host-utils.h"
 #include "audio.h"
+#include "trace.h"
 
 #define AUDIO_CAP "oss"
 #include "audio_int.h"
@@ -44,7 +45,6 @@ typedef struct OSSConf {
     int fragsize;
     const char *devpath_out;
     const char *devpath_in;
-    int debug;
     int exclusive;
     int policy;
 } OSSConf;
@@ -314,9 +314,7 @@ static int oss_open (int in, struct oss_params *req,
         int version;
 
         if (!oss_get_version (fd, &version, typ)) {
-            if (conf->debug) {
-                dolog ("OSS version = %#x\n", version);
-            }
+            trace_oss_version(version);
 
             if (version >= 0x040000) {
                 int policy = conf->policy;
@@ -427,7 +425,6 @@ static int oss_run_out (HWVoiceOut *hw, int live)
     struct audio_buf_info abinfo;
     struct count_info cntinfo;
     int bufsize;
-    OSSConf *conf = oss->conf;
 
     bufsize = hw->samples << hw->info.shift;
 
@@ -452,19 +449,12 @@ static int oss_run_out (HWVoiceOut *hw, int live)
         }
 
         if (abinfo.bytes > bufsize) {
-            if (conf->debug) {
-                dolog ("warning: Invalid available size, size=%d bufsize=%d\n"
-                       "please report your OS/audio hw to av1474@comtv.ru\n",
-                       abinfo.bytes, bufsize);
-            }
+            trace_oss_invalid_available_size(abinfo.bytes, bufsize);
             abinfo.bytes = bufsize;
         }
 
         if (abinfo.bytes < 0) {
-            if (conf->debug) {
-                dolog ("warning: Invalid available size, size=%d bufsize=%d\n",
-                       abinfo.bytes, bufsize);
-            }
+            trace_oss_invalid_available_size(abinfo.bytes, bufsize);
             return 0;
         }
 
@@ -852,7 +842,6 @@ static OSSConf glob_conf = {
     .fragsize = 4096,
     .devpath_out = "/dev/dsp",
     .devpath_in = "/dev/dsp",
-    .debug = 0,
     .exclusive = 0,
     .policy = 5
 };
@@ -919,12 +908,6 @@ static struct audio_option oss_options[] = {
         .descr = "Set the timing policy of the device, -1 to use fragment mode",
     },
 #endif
-    {
-        .name  = "DEBUG",
-        .tag   = AUD_OPT_BOOL,
-        .valp  = &glob_conf.debug,
-        .descr = "Turn on some debugging messages"
-    },
     { /* End of list */ }
 };
 
