@@ -148,7 +148,7 @@ typedef struct dsp_interrupt_s {
 
 struct dsp_core_s {
     /* DSP executing instructions ? */
-    int running;
+    bool running;
     
     /* DSP instruction Cycle counter */
     uint16_t instr_cycle;
@@ -183,6 +183,8 @@ struct dsp_core_s {
 
 
     /* runtime data */
+
+    int save_cycles;
 
     /* Instructions per second */
 #ifdef DSP_COUNT_IPS

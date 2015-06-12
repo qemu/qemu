@@ -32,25 +32,19 @@
 typedef struct dsp_core_s dsp_core_t;
 
 /* Dsp commands */
-void dsp_init(void);
-void dsp_uninit(void);
-void dsp_reset(void);
-void dsp_run(int nHostCycles);
-
-void dsp_core_reset(void);
+dsp_core_t* dsp_init(void);
+void dsp_destroy(dsp_core_t* dsp);
+void dsp_run(dsp_core_t* dsp, int nHostCycles);
 
 
 /* Dsp Debugger commands */
-uint32_t dsp_get_pc(void);
-uint32_t dsp_get_next_pc(uint32_t pc);
-uint16_t dsp_get_instr_cycles(void);
-uint32_t dsp_read_memory(uint32_t addr, char space, const char **mem_str);
-uint32_t dsp_disasm_memory(uint32_t dsp_memdump_addr, uint32_t dsp_memdump_upper, char space);
-uint32_t dsp_disasm_address(FILE *out, uint32_t lowerAdr, uint32_t UpperAdr);
-void dsp_info(uint32_t dummy);
-void dsp_print_registers(void);
-int dsp_get_register_address(const char *arg, uint32_t **addr, uint32_t *mask);
-bool dsp_disasm_set_register(const char *arg, uint32_t value);
+uint32_t dsp_read_memory(dsp_core_t* dsp, uint32_t addr, char space, const char **mem_str);
+uint32_t dsp_disasm_memory(dsp_core_t* dsp, uint32_t dsp_memdump_addr, uint32_t dsp_memdump_upper, char space);
+uint32_t dsp_disasm_address(dsp_core_t* dsp, FILE *out, uint32_t lowerAdr, uint32_t UpperAdr);
+void dsp_info(dsp_core_t* dsp);
+void dsp_print_registers(dsp_core_t* dsp);
+int dsp_get_register_address(dsp_core_t* dsp, const char *arg, uint32_t **addr, uint32_t *mask);
+bool dsp_disasm_set_register(dsp_core_t* dsp, const char *arg, uint32_t value);
 
 
 #endif /* DSP_H */
