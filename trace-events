@@ -280,6 +280,12 @@ slavio_timer_mem_writel_mode_counter(unsigned int timer_index) "processor %d cha
 slavio_timer_mem_writel_mode_invalid(void) "not system timer"
 slavio_timer_mem_writel_invalid(uint64_t addr) "invalid write address %"PRIx64
 
+# hw/dma/rc4030.c
+jazzio_read(uint64_t addr, uint32_t ret) "read reg[0x%"PRIx64"] = 0x%x"
+jazzio_write(uint64_t addr, uint32_t val) "write reg[0x%"PRIx64"] = 0x%x"
+rc4030_read(uint64_t addr, uint32_t ret) "read reg[0x%"PRIx64"] = 0x%x"
+rc4030_write(uint64_t addr, uint32_t val) "write reg[0x%"PRIx64"] = 0x%x"
+
 # hw/dma/sparc32_dma.c
 ledma_memory_read(uint64_t addr) "DMA read addr 0x%"PRIx64
 ledma_memory_write(uint64_t addr) "DMA write addr 0x%"PRIx64

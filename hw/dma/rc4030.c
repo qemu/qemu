@@ -1,7 +1,7 @@
 /*
  * QEMU JAZZ RC4030 chipset
  *
- * Copyright (c) 2007-2009 Herve Poussineau
+ * Copyright (c) 2007-2013 Hervé Poussineau
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -24,28 +24,15 @@
 
 #include "hw/hw.h"
 #include "hw/mips/mips.h"
+#include "hw/sysbus.h"
 #include "qemu/timer.h"
-
-/********************************************************/
-/* debug rc4030 */
-
-//#define DEBUG_RC4030
-//#define DEBUG_RC4030_DMA
-
-#ifdef DEBUG_RC4030
-#define DPRINTF(fmt, ...) \
-do { printf("rc4030: " fmt , ## __VA_ARGS__); } while (0)
-static const char* irq_names[] = { "parallel", "floppy", "sound", "video",
-            "network", "scsi", "keyboard", "mouse", "serial0", "serial1" };
-#else
-#define DPRINTF(fmt, ...)
-#endif
-
-#define RC4030_ERROR(fmt, ...) \
-do { fprintf(stderr, "rc4030 ERROR: %s: " fmt, __func__ , ## __VA_ARGS__); } while (0)
+#include "exec/address-spaces.h"
+#include "trace.h"
 
 /********************************************************/
 /* rc4030 emulation                                     */
+
+#define MAX_TL_ENTRIES 512
 
 typedef struct dma_pagetable_entry {
     int32_t frame;
@@ -63,8 +50,14 @@ typedef struct dma_pagetable_entry {
 #define DMA_FLAG_MEM_INTR   0x0200
 #define DMA_FLAG_ADDR_INTR  0x0400
 
+#define TYPE_RC4030 "rc4030"
+#define RC4030(obj) \
+    OBJECT_CHECK(rc4030State, (obj), TYPE_RC4030)
+
 typedef struct rc4030State
 {
+    SysBusDevice parent;
+
     uint32_t config; /* 0x0000: RC4030 config register */
     uint32_t revision; /* 0x0008: RC4030 Revision register */
     uint32_t invalid_address_register; /* 0x0010: Invalid Address register */
@@ -83,7 +76,7 @@ typedef struct rc4030State
     uint32_t cache_bmask; /* 0x0058: I/O Cache Byte Mask */
 
     uint32_t nmi_interrupt; /* 0x0200: interrupt source */
-    uint32_t offset210;
+    uint32_t memory_refresh_rate; /* 0x0210: memory refresh rate */
     uint32_t nvram_protect; /* 0x0220: NV ram protect register */
     uint32_t rem_speed[16];
     uint32_t imr_jazz; /* Local bus int enable mask */
@@ -95,6 +88,16 @@ typedef struct rc4030State
 
     qemu_irq timer_irq;
     qemu_irq jazz_bus_irq;
+
+    /* biggest translation table */
+    MemoryRegion dma_tt;
+    /* translation table memory region alias, added to system RAM */
+    MemoryRegion dma_tt_alias;
+    /* whole DMA memory region, root of DMA address space */
+    MemoryRegion dma_mr;
+    /* translation table entry aliases, added to DMA memory region */
+    MemoryRegion dma_mrs[MAX_TL_ENTRIES];
+    AddressSpace dma_as;
 
     MemoryRegion iomem_chipset;
     MemoryRegion iomem_jazzio;
@@ -112,7 +115,7 @@ static void set_next_tick(rc4030State *s)
 }
 
 /* called for accesses to rc4030 */
-static uint32_t rc4030_readl(void *opaque, hwaddr addr)
+static uint64_t rc4030_read(void *opaque, hwaddr addr, unsigned int size)
 {
     rc4030State *s = opaque;
     uint32_t val;
@@ -220,9 +223,9 @@ static uint32_t rc4030_readl(void *opaque, hwaddr addr)
     case 0x0208:
         val = 0;
         break;
-    /* Offset 0x0210 */
+    /* Memory refresh rate */
     case 0x0210:
-        val = s->offset210;
+        val = s->memory_refresh_rate;
         break;
     /* NV ram protect register */
     case 0x0220:
@@ -238,39 +241,117 @@ static uint32_t rc4030_readl(void *opaque, hwaddr addr)
         val = 7; /* FIXME: should be read from EISA controller */
         break;
     default:
-        RC4030_ERROR("invalid read [" TARGET_FMT_plx "]\n", addr);
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "rc4030: invalid read at 0x%x", (int)addr);
         val = 0;
         break;
     }
 
     if ((addr & ~3) != 0x230) {
-        DPRINTF("read 0x%02x at " TARGET_FMT_plx "\n", val, addr);
+        trace_rc4030_read(addr, val);
     }
 
     return val;
 }
 
-static uint32_t rc4030_readw(void *opaque, hwaddr addr)
+static void rc4030_dma_as_update_one(rc4030State *s, int index, uint32_t frame)
 {
-    uint32_t v = rc4030_readl(opaque, addr & ~0x3);
-    if (addr & 0x2)
-        return v >> 16;
-    else
-        return v & 0xffff;
+    if (index < MAX_TL_ENTRIES) {
+        memory_region_set_enabled(&s->dma_mrs[index], false);
+    }
+
+    if (!frame) {
+        return;
+    }
+
+    if (index >= MAX_TL_ENTRIES) {
+        qemu_log_mask(LOG_UNIMP,
+                      "rc4030: trying to use too high "
+                      "translation table entry %d (max allowed=%d)",
+                      index, MAX_TL_ENTRIES);
+        return;
+    }
+    memory_region_set_alias_offset(&s->dma_mrs[index], frame);
+    memory_region_set_enabled(&s->dma_mrs[index], true);
 }
 
-static uint32_t rc4030_readb(void *opaque, hwaddr addr)
-{
-    uint32_t v = rc4030_readl(opaque, addr & ~0x3);
-    return (v >> (8 * (addr & 0x3))) & 0xff;
-}
-
-static void rc4030_writel(void *opaque, hwaddr addr, uint32_t val)
+static void rc4030_dma_tt_write(void *opaque, hwaddr addr, uint64_t data,
+                                unsigned int size)
 {
     rc4030State *s = opaque;
+
+    /* write memory */
+    memcpy(memory_region_get_ram_ptr(&s->dma_tt) + addr, &data, size);
+
+    /* update dma address space (only if frame field has been written) */
+    if (addr % sizeof(dma_pagetable_entry) == 0) {
+        int index = addr / sizeof(dma_pagetable_entry);
+        memory_region_transaction_begin();
+        rc4030_dma_as_update_one(s, index, (uint32_t)data);
+        memory_region_transaction_commit();
+    }
+}
+
+static const MemoryRegionOps rc4030_dma_tt_ops = {
+    .write = rc4030_dma_tt_write,
+    .impl.min_access_size = 4,
+    .impl.max_access_size = 4,
+};
+
+static void rc4030_dma_tt_update(rc4030State *s, uint32_t new_tl_base,
+                                 uint32_t new_tl_limit)
+{
+    int entries, i;
+    dma_pagetable_entry *dma_tl_contents;
+
+    if (s->dma_tl_limit) {
+        /* write old dma tl table to physical memory */
+        memory_region_del_subregion(get_system_memory(), &s->dma_tt_alias);
+        cpu_physical_memory_write(s->dma_tl_limit & 0x7fffffff,
+                                  memory_region_get_ram_ptr(&s->dma_tt),
+                                  memory_region_size(&s->dma_tt_alias));
+    }
+    object_unparent(OBJECT(&s->dma_tt_alias));
+
+    s->dma_tl_base = new_tl_base;
+    s->dma_tl_limit = new_tl_limit;
+    new_tl_base &= 0x7fffffff;
+
+    if (s->dma_tl_limit) {
+        uint64_t dma_tt_size;
+        if (s->dma_tl_limit <= memory_region_size(&s->dma_tt)) {
+            dma_tt_size = s->dma_tl_limit;
+        } else {
+            dma_tt_size = memory_region_size(&s->dma_tt);
+        }
+        memory_region_init_alias(&s->dma_tt_alias, OBJECT(s),
+                                 "dma-table-alias",
+                                 &s->dma_tt, 0, dma_tt_size);
+        dma_tl_contents = memory_region_get_ram_ptr(&s->dma_tt);
+        cpu_physical_memory_read(new_tl_base, dma_tl_contents, dma_tt_size);
+
+        memory_region_transaction_begin();
+        entries = dma_tt_size / sizeof(dma_pagetable_entry);
+        for (i = 0; i < entries; i++) {
+            rc4030_dma_as_update_one(s, i, dma_tl_contents[i].frame);
+        }
+        memory_region_add_subregion(get_system_memory(), new_tl_base,
+                                    &s->dma_tt_alias);
+        memory_region_transaction_commit();
+    } else {
+        memory_region_init(&s->dma_tt_alias, OBJECT(s),
+                           "dma-table-alias", 0);
+    }
+}
+
+static void rc4030_write(void *opaque, hwaddr addr, uint64_t data,
+                         unsigned int size)
+{
+    rc4030State *s = opaque;
+    uint32_t val = data;
     addr &= 0x3fff;
 
-    DPRINTF("write 0x%02x at " TARGET_FMT_plx "\n", val, addr);
+    trace_rc4030_write(addr, val);
 
     switch (addr & ~0x3) {
     /* Global config register */
@@ -279,11 +360,11 @@ static void rc4030_writel(void *opaque, hwaddr addr, uint32_t val)
         break;
     /* DMA transl. table base */
     case 0x0018:
-        s->dma_tl_base = val;
+        rc4030_dma_tt_update(s, val, s->dma_tl_limit);
         break;
     /* DMA transl. table limit */
     case 0x0020:
-        s->dma_tl_limit = val;
+        rc4030_dma_tt_update(s, s->dma_tl_base, val);
         break;
     /* DMA transl. table invalidated */
     case 0x0028:
@@ -371,9 +452,9 @@ static void rc4030_writel(void *opaque, hwaddr addr, uint32_t val)
             s->dma_regs[entry][idx] = val;
         }
         break;
-    /* Offset 0x0210 */
+    /* Memory refresh rate */
     case 0x0210:
-        s->offset210 = val;
+        s->memory_refresh_rate = val;
         break;
     /* Interval timer reload */
     case 0x0228:
@@ -385,48 +466,18 @@ static void rc4030_writel(void *opaque, hwaddr addr, uint32_t val)
     case 0x0238:
         break;
     default:
-        RC4030_ERROR("invalid write of 0x%02x at [" TARGET_FMT_plx "]\n", val, addr);
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "rc4030: invalid write of 0x%02x at 0x%x",
+                      val, (int)addr);
         break;
     }
-}
-
-static void rc4030_writew(void *opaque, hwaddr addr, uint32_t val)
-{
-    uint32_t old_val = rc4030_readl(opaque, addr & ~0x3);
-
-    if (addr & 0x2)
-        val = (val << 16) | (old_val & 0x0000ffff);
-    else
-        val = val | (old_val & 0xffff0000);
-    rc4030_writel(opaque, addr & ~0x3, val);
-}
-
-static void rc4030_writeb(void *opaque, hwaddr addr, uint32_t val)
-{
-    uint32_t old_val = rc4030_readl(opaque, addr & ~0x3);
-
-    switch (addr & 3) {
-    case 0:
-        val = val | (old_val & 0xffffff00);
-        break;
-    case 1:
-        val = (val << 8) | (old_val & 0xffff00ff);
-        break;
-    case 2:
-        val = (val << 16) | (old_val & 0xff00ffff);
-        break;
-    case 3:
-        val = (val << 24) | (old_val & 0x00ffffff);
-        break;
-    }
-    rc4030_writel(opaque, addr & ~0x3, val);
 }
 
 static const MemoryRegionOps rc4030_ops = {
-    .old_mmio = {
-        .read = { rc4030_readb, rc4030_readw, rc4030_readl, },
-        .write = { rc4030_writeb, rc4030_writew, rc4030_writel, },
-    },
+    .read = rc4030_read,
+    .write = rc4030_write,
+    .impl.min_access_size = 4,
+    .impl.max_access_size = 4,
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
@@ -435,22 +486,6 @@ static void update_jazz_irq(rc4030State *s)
     uint16_t pending;
 
     pending = s->isr_jazz & s->imr_jazz;
-
-#ifdef DEBUG_RC4030
-    if (s->isr_jazz != 0) {
-        uint32_t irq = 0;
-        DPRINTF("pending irqs:");
-        for (irq = 0; irq < ARRAY_SIZE(irq_names); irq++) {
-            if (s->isr_jazz & (1 << irq)) {
-                printf(" %s", irq_names[irq]);
-                if (!(s->imr_jazz & (1 << irq))) {
-                    printf("(ignored)");
-                }
-            }
-        }
-        printf("\n");
-    }
-#endif
 
     if (pending != 0)
         qemu_irq_raise(s->jazz_bus_irq);
@@ -479,7 +514,7 @@ static void rc4030_periodic_timer(void *opaque)
     qemu_irq_raise(s->timer_irq);
 }
 
-static uint32_t jazzio_readw(void *opaque, hwaddr addr)
+static uint64_t jazzio_read(void *opaque, hwaddr addr, unsigned int size)
 {
     rc4030State *s = opaque;
     uint32_t val;
@@ -494,7 +529,6 @@ static uint32_t jazzio_readw(void *opaque, hwaddr addr)
         irq = 0;
         while (pending) {
             if (pending & 1) {
-                DPRINTF("returning irq %s\n", irq_names[irq]);
                 val = (irq + 1) << 2;
                 break;
             }
@@ -508,36 +542,25 @@ static uint32_t jazzio_readw(void *opaque, hwaddr addr)
         val = s->imr_jazz;
         break;
     default:
-        RC4030_ERROR("(jazz io controller) invalid read [" TARGET_FMT_plx "]\n", addr);
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "rc4030/jazzio: invalid read at 0x%x", (int)addr);
         val = 0;
+        break;
     }
 
-    DPRINTF("(jazz io controller) read 0x%04x at " TARGET_FMT_plx "\n", val, addr);
+    trace_jazzio_read(addr, val);
 
     return val;
 }
 
-static uint32_t jazzio_readb(void *opaque, hwaddr addr)
-{
-    uint32_t v;
-    v = jazzio_readw(opaque, addr & ~0x1);
-    return (v >> (8 * (addr & 0x1))) & 0xff;
-}
-
-static uint32_t jazzio_readl(void *opaque, hwaddr addr)
-{
-    uint32_t v;
-    v = jazzio_readw(opaque, addr);
-    v |= jazzio_readw(opaque, addr + 2) << 16;
-    return v;
-}
-
-static void jazzio_writew(void *opaque, hwaddr addr, uint32_t val)
+static void jazzio_write(void *opaque, hwaddr addr, uint64_t data,
+                         unsigned int size)
 {
     rc4030State *s = opaque;
+    uint32_t val = data;
     addr &= 0xfff;
 
-    DPRINTF("(jazz io controller) write 0x%04x at " TARGET_FMT_plx "\n", val, addr);
+    trace_jazzio_write(addr, val);
 
     switch (addr) {
     /* Local bus int enable mask */
@@ -546,43 +569,24 @@ static void jazzio_writew(void *opaque, hwaddr addr, uint32_t val)
         update_jazz_irq(s);
         break;
     default:
-        RC4030_ERROR("(jazz io controller) invalid write of 0x%04x at [" TARGET_FMT_plx "]\n", val, addr);
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "rc4030/jazzio: invalid write of 0x%02x at 0x%x",
+                      val, (int)addr);
         break;
     }
-}
-
-static void jazzio_writeb(void *opaque, hwaddr addr, uint32_t val)
-{
-    uint32_t old_val = jazzio_readw(opaque, addr & ~0x1);
-
-    switch (addr & 1) {
-    case 0:
-        val = val | (old_val & 0xff00);
-        break;
-    case 1:
-        val = (val << 8) | (old_val & 0x00ff);
-        break;
-    }
-    jazzio_writew(opaque, addr & ~0x1, val);
-}
-
-static void jazzio_writel(void *opaque, hwaddr addr, uint32_t val)
-{
-    jazzio_writew(opaque, addr, val & 0xffff);
-    jazzio_writew(opaque, addr + 2, (val >> 16) & 0xffff);
 }
 
 static const MemoryRegionOps jazzio_ops = {
-    .old_mmio = {
-        .read = { jazzio_readb, jazzio_readw, jazzio_readl, },
-        .write = { jazzio_writeb, jazzio_writew, jazzio_writel, },
-    },
+    .read = jazzio_read,
+    .write = jazzio_write,
+    .impl.min_access_size = 2,
+    .impl.max_access_size = 2,
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
-static void rc4030_reset(void *opaque)
+static void rc4030_reset(DeviceState *dev)
 {
-    rc4030State *s = opaque;
+    rc4030State *s = RC4030(dev);
     int i;
 
     s->config = 0x410; /* some boards seem to accept 0x104 too */
@@ -590,14 +594,14 @@ static void rc4030_reset(void *opaque)
     s->invalid_address_register = 0;
 
     memset(s->dma_regs, 0, sizeof(s->dma_regs));
-    s->dma_tl_base = s->dma_tl_limit = 0;
+    rc4030_dma_tt_update(s, 0, 0);
 
     s->remote_failed_address = s->memory_failed_address = 0;
     s->cache_maint = 0;
     s->cache_ptag = s->cache_ltag = 0;
     s->cache_bmask = 0;
 
-    s->offset210 = 0x18186;
+    s->memory_refresh_rate = 0x18186;
     s->nvram_protect = 7;
     for (i = 0; i < 15; i++)
         s->rem_speed[i] = 7;
@@ -631,7 +635,7 @@ static int rc4030_load(QEMUFile *f, void *opaque, int version_id)
     s->cache_ptag = qemu_get_be32(f);
     s->cache_ltag = qemu_get_be32(f);
     s->cache_bmask = qemu_get_be32(f);
-    s->offset210 = qemu_get_be32(f);
+    s->memory_refresh_rate = qemu_get_be32(f);
     s->nvram_protect = qemu_get_be32(f);
     for (i = 0; i < 15; i++)
         s->rem_speed[i] = qemu_get_be32(f);
@@ -663,51 +667,13 @@ static void rc4030_save(QEMUFile *f, void *opaque)
     qemu_put_be32(f, s->cache_ptag);
     qemu_put_be32(f, s->cache_ltag);
     qemu_put_be32(f, s->cache_bmask);
-    qemu_put_be32(f, s->offset210);
+    qemu_put_be32(f, s->memory_refresh_rate);
     qemu_put_be32(f, s->nvram_protect);
     for (i = 0; i < 15; i++)
         qemu_put_be32(f, s->rem_speed[i]);
     qemu_put_be32(f, s->imr_jazz);
     qemu_put_be32(f, s->isr_jazz);
     qemu_put_be32(f, s->itr);
-}
-
-void rc4030_dma_memory_rw(void *opaque, hwaddr addr, uint8_t *buf, int len, int is_write)
-{
-    rc4030State *s = opaque;
-    hwaddr entry_addr;
-    hwaddr phys_addr;
-    dma_pagetable_entry entry;
-    int index;
-    int ncpy, i;
-
-    i = 0;
-    for (;;) {
-        if (i == len) {
-            break;
-        }
-
-        ncpy = DMA_PAGESIZE - (addr & (DMA_PAGESIZE - 1));
-        if (ncpy > len - i)
-            ncpy = len - i;
-
-        /* Get DMA translation table entry */
-        index = addr / DMA_PAGESIZE;
-        if (index >= s->dma_tl_limit / sizeof(dma_pagetable_entry)) {
-            break;
-        }
-        entry_addr = s->dma_tl_base + index * sizeof(dma_pagetable_entry);
-        /* XXX: not sure. should we really use only lowest bits? */
-        entry_addr &= 0x7fffffff;
-        cpu_physical_memory_read(entry_addr, &entry, sizeof(entry));
-
-        /* Read/write data at right place */
-        phys_addr = entry.frame + (addr & (DMA_PAGESIZE - 1));
-        cpu_physical_memory_rw(phys_addr, &buf[i], ncpy, is_write);
-
-        i += ncpy;
-        addr += ncpy;
-    }
 }
 
 static void rc4030_do_dma(void *opaque, int n, uint8_t *buf, int len, int is_write)
@@ -733,32 +699,11 @@ static void rc4030_do_dma(void *opaque, int n, uint8_t *buf, int len, int is_wri
     dma_addr = s->dma_regs[n][DMA_REG_ADDRESS];
 
     /* Read/write data at right place */
-    rc4030_dma_memory_rw(opaque, dma_addr, buf, len, is_write);
+    address_space_rw(&s->dma_as, dma_addr, MEMTXATTRS_UNSPECIFIED,
+                     buf, len, is_write);
 
     s->dma_regs[n][DMA_REG_ENABLE] |= DMA_FLAG_TC_INTR;
     s->dma_regs[n][DMA_REG_COUNT] -= len;
-
-#ifdef DEBUG_RC4030_DMA
-    {
-        int i, j;
-        printf("rc4030 dma: Copying %d bytes %s host %p\n",
-            len, is_write ? "from" : "to", buf);
-        for (i = 0; i < len; i += 16) {
-            int n = 16;
-            if (n > len - i) {
-                n = len - i;
-            }
-            for (j = 0; j < n; j++)
-                printf("%02x ", buf[i + j]);
-            while (j++ < 16)
-                printf("   ");
-            printf("| ");
-            for (j = 0; j < n; j++)
-                printf("%c", isprint(buf[i + j]) ? buf[i + j] : '.');
-            printf("\n");
-        }
-    }
-#endif
 }
 
 struct rc4030DMAState {
@@ -795,31 +740,102 @@ static rc4030_dma *rc4030_allocate_dmas(void *opaque, int n)
     return s;
 }
 
-void *rc4030_init(qemu_irq timer, qemu_irq jazz_bus,
-                  qemu_irq **irqs, rc4030_dma **dmas,
-                  MemoryRegion *sysmem)
+static void rc4030_initfn(Object *obj)
 {
-    rc4030State *s;
+    DeviceState *dev = DEVICE(obj);
+    rc4030State *s = RC4030(obj);
+    SysBusDevice *sysbus = SYS_BUS_DEVICE(obj);
 
-    s = g_malloc0(sizeof(rc4030State));
+    qdev_init_gpio_in(dev, rc4030_irq_jazz_request, 16);
 
-    *irqs = qemu_allocate_irqs(rc4030_irq_jazz_request, s, 16);
-    *dmas = rc4030_allocate_dmas(s, 4);
+    sysbus_init_irq(sysbus, &s->timer_irq);
+    sysbus_init_irq(sysbus, &s->jazz_bus_irq);
 
-    s->periodic_timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, rc4030_periodic_timer, s);
-    s->timer_irq = timer;
-    s->jazz_bus_irq = jazz_bus;
-
-    qemu_register_reset(rc4030_reset, s);
     register_savevm(NULL, "rc4030", 0, 2, rc4030_save, rc4030_load, s);
-    rc4030_reset(s);
+
+    sysbus_init_mmio(sysbus, &s->iomem_chipset);
+    sysbus_init_mmio(sysbus, &s->iomem_jazzio);
+}
+
+static void rc4030_realize(DeviceState *dev, Error **errp)
+{
+    rc4030State *s = RC4030(dev);
+    Object *o = OBJECT(dev);
+    int i;
+
+    s->periodic_timer = timer_new_ns(QEMU_CLOCK_VIRTUAL,
+                                     rc4030_periodic_timer, s);
 
     memory_region_init_io(&s->iomem_chipset, NULL, &rc4030_ops, s,
                           "rc4030.chipset", 0x300);
-    memory_region_add_subregion(sysmem, 0x80000000, &s->iomem_chipset);
     memory_region_init_io(&s->iomem_jazzio, NULL, &jazzio_ops, s,
                           "rc4030.jazzio", 0x00001000);
-    memory_region_add_subregion(sysmem, 0xf0000000, &s->iomem_jazzio);
 
-    return s;
+    memory_region_init_rom_device(&s->dma_tt, o,
+                                  &rc4030_dma_tt_ops, s, "dma-table",
+                                  MAX_TL_ENTRIES * sizeof(dma_pagetable_entry),
+                                  NULL);
+    memory_region_init(&s->dma_tt_alias, o, "dma-table-alias", 0);
+    memory_region_init(&s->dma_mr, o, "dma", INT32_MAX);
+    for (i = 0; i < MAX_TL_ENTRIES; ++i) {
+        memory_region_init_alias(&s->dma_mrs[i], o, "dma-alias",
+                                 get_system_memory(), 0, DMA_PAGESIZE);
+        memory_region_set_enabled(&s->dma_mrs[i], false);
+        memory_region_add_subregion(&s->dma_mr, i * DMA_PAGESIZE,
+                                    &s->dma_mrs[i]);
+    }
+    address_space_init(&s->dma_as, &s->dma_mr, "rc4030-dma");
+}
+
+static void rc4030_unrealize(DeviceState *dev, Error **errp)
+{
+    rc4030State *s = RC4030(dev);
+    int i;
+
+    timer_free(s->periodic_timer);
+
+    address_space_destroy(&s->dma_as);
+    object_unparent(OBJECT(&s->dma_tt));
+    object_unparent(OBJECT(&s->dma_tt_alias));
+    object_unparent(OBJECT(&s->dma_mr));
+    for (i = 0; i < MAX_TL_ENTRIES; ++i) {
+        memory_region_del_subregion(&s->dma_mr, &s->dma_mrs[i]);
+        object_unparent(OBJECT(&s->dma_mrs[i]));
+    }
+}
+
+static void rc4030_class_init(ObjectClass *klass, void *class_data)
+{
+    DeviceClass *dc = DEVICE_CLASS(klass);
+
+    dc->realize = rc4030_realize;
+    dc->unrealize = rc4030_unrealize;
+    dc->reset = rc4030_reset;
+}
+
+static const TypeInfo rc4030_info = {
+    .name = TYPE_RC4030,
+    .parent = TYPE_SYS_BUS_DEVICE,
+    .instance_size = sizeof(rc4030State),
+    .instance_init = rc4030_initfn,
+    .class_init = rc4030_class_init,
+};
+
+static void rc4030_register_types(void)
+{
+    type_register_static(&rc4030_info);
+}
+
+type_init(rc4030_register_types)
+
+DeviceState *rc4030_init(rc4030_dma **dmas, MemoryRegion **dma_mr)
+{
+    DeviceState *dev;
+
+    dev = qdev_create(NULL, TYPE_RC4030);
+    qdev_init_nofail(dev);
+
+    *dmas = rc4030_allocate_dmas(dev, 4);
+    *dma_mr = &RC4030(dev)->dma_mr;
+    return dev;
 }
