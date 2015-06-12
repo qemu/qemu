@@ -329,7 +329,6 @@ fdecl.write(mcgen('''
 '''))
 
 exprs = parse_schema(input_file)
-exprs = filter(lambda expr: not expr.has_key('gen'), exprs)
 
 fdecl.write(guardstart("QAPI_TYPES_BUILTIN_STRUCT_DECL"))
 for typename in builtin_types.keys():
