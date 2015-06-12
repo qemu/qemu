@@ -392,6 +392,17 @@ static inline uint8_t get_per_atmid(CPUS390XState *env)
            ((env->psw.mask & PSW_ASC_ACCREG)?    (1 << 2) : 0);
 }
 
+/* Check if an address is within the PER starting address and the PER
+   ending address.  The address range might loop.  */
+static inline bool get_per_in_range(CPUS390XState *env, uint64_t addr)
+{
+    if (env->cregs[10] <= env->cregs[11]) {
+        return env->cregs[10] <= addr && addr <= env->cregs[11];
+    } else {
+        return env->cregs[10] <= addr || addr <= env->cregs[11];
+    }
+}
+
 #ifndef CONFIG_USER_ONLY
 /* In several cases of runtime exceptions, we havn't recorded the true
    instruction length.  Use these codes when raising exceptions in order
