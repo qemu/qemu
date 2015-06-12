@@ -42,9 +42,6 @@
 /* #define DEBUG_DSOUND */
 
 typedef struct {
-    int lock_retries;
-    int restore_retries;
-    int getstatus_retries;
     int set_primary;
     int bufsize_in;
     int bufsize_out;
@@ -274,26 +271,14 @@ static void print_wave_format (WAVEFORMATEX *wfx)
 static int dsound_restore_out (LPDIRECTSOUNDBUFFER dsb, dsound *s)
 {
     HRESULT hr;
-    int i;
 
-    for (i = 0; i < s->conf.restore_retries; ++i) {
-        hr = IDirectSoundBuffer_Restore (dsb);
+    hr = IDirectSoundBuffer_Restore (dsb);
 
-        switch (hr) {
-        case DS_OK:
-            return 0;
-
-        case DSERR_BUFFERLOST:
-            continue;
-
-        default:
-            dsound_logerr (hr, "Could not restore playback buffer\n");
-            return -1;
-        }
+    if (hr != DS_OK) {
+        dsound_logerr (hr, "Could not restore playback buffer\n");
+        return -1;
     }
-
-    dolog ("%d attempts to restore playback buffer failed\n", i);
-    return -1;
+    return 0;
 }
 
 #include "dsound_template.h"
@@ -305,22 +290,16 @@ static int dsound_get_status_out (LPDIRECTSOUNDBUFFER dsb, DWORD *statusp,
                                   dsound *s)
 {
     HRESULT hr;
-    int i;
 
-    for (i = 0; i < s->conf.getstatus_retries; ++i) {
-        hr = IDirectSoundBuffer_GetStatus (dsb, statusp);
-        if (FAILED (hr)) {
-            dsound_logerr (hr, "Could not get playback buffer status\n");
-            return -1;
-        }
+    hr = IDirectSoundBuffer_GetStatus (dsb, statusp);
+    if (FAILED (hr)) {
+        dsound_logerr (hr, "Could not get playback buffer status\n");
+        return -1;
+    }
 
-        if (*statusp & DSERR_BUFFERLOST) {
-            if (dsound_restore_out (dsb, s)) {
-                return -1;
-            }
-            continue;
-        }
-        break;
+    if (*statusp & DSERR_BUFFERLOST) {
+        dsound_restore_out(dsb, s);
+        return -1;
     }
 
     return 0;
@@ -844,9 +823,6 @@ static int dsound_run_in (HWVoiceIn *hw)
 }
 
 static DSoundConf glob_conf = {
-    .lock_retries       = 1,
-    .restore_retries    = 1,
-    .getstatus_retries  = 1,
     .set_primary        = 0,
     .bufsize_in         = 16384,
     .bufsize_out        = 16384,
@@ -958,24 +934,6 @@ static void *dsound_audio_init (void)
 }
 
 static struct audio_option dsound_options[] = {
-    {
-        .name  = "LOCK_RETRIES",
-        .tag   = AUD_OPT_INT,
-        .valp  = &glob_conf.lock_retries,
-        .descr = "Number of times to attempt locking the buffer"
-    },
-    {
-        .name  = "RESTOURE_RETRIES",
-        .tag   = AUD_OPT_INT,
-        .valp  = &glob_conf.restore_retries,
-        .descr = "Number of times to attempt restoring the buffer"
-    },
-    {
-        .name  = "GETSTATUS_RETRIES",
-        .tag   = AUD_OPT_INT,
-        .valp  = &glob_conf.getstatus_retries,
-        .descr = "Number of times to attempt getting status of the buffer"
-    },
     {
         .name  = "SET_PRIMARY",
         .tag   = AUD_OPT_BOOL,
