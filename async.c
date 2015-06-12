@@ -280,6 +280,12 @@ static void aio_timerlist_notify(void *opaque)
     aio_notify(opaque);
 }
 
+static void aio_rfifolock_cb(void *opaque)
+{
+    /* Kick owner thread in case they are blocked in aio_poll() */
+    aio_notify(opaque);
+}
+
 AioContext *aio_context_new(Error **errp)
 {
     int ret;
@@ -297,7 +303,7 @@ AioContext *aio_context_new(Error **errp)
                            event_notifier_test_and_clear);
     ctx->thread_pool = NULL;
     qemu_mutex_init(&ctx->bh_lock);
-    rfifolock_init(&ctx->lock, NULL, NULL);
+    rfifolock_init(&ctx->lock, aio_rfifolock_cb, ctx);
     timerlistgroup_init(&ctx->tlg, aio_timerlist_notify, ctx);
 
     return ctx;

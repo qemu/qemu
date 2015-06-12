@@ -36,6 +36,7 @@
 #include "qmp-commands.h"
 #include "qemu/timer.h"
 #include "qapi-event.h"
+#include "block/throttle-groups.h"
 
 #ifdef CONFIG_BSD
 #include <sys/types.h>
@@ -1822,12 +1823,18 @@ static void bdrv_move_feature_fields(BlockDriverState *bs_dest,
     bs_dest->enable_write_cache = bs_src->enable_write_cache;
 
     /* i/o throttled req */
-    memcpy(&bs_dest->throttle_state,
-           &bs_src->throttle_state,
-           sizeof(ThrottleState));
+    bs_dest->throttle_state     = bs_src->throttle_state,
+    bs_dest->io_limits_enabled  = bs_src->io_limits_enabled;
+    bs_dest->pending_reqs[0]    = bs_src->pending_reqs[0];
+    bs_dest->pending_reqs[1]    = bs_src->pending_reqs[1];
     bs_dest->throttled_reqs[0]  = bs_src->throttled_reqs[0];
     bs_dest->throttled_reqs[1]  = bs_src->throttled_reqs[1];
-    bs_dest->io_limits_enabled  = bs_src->io_limits_enabled;
+    memcpy(&bs_dest->round_robin,
+           &bs_src->round_robin,
+           sizeof(bs_dest->round_robin));
+    memcpy(&bs_dest->throttle_timers,
+           &bs_src->throttle_timers,
+           sizeof(ThrottleTimers));
 
     /* r/w error */
     bs_dest->on_read_error      = bs_src->on_read_error;
@@ -1881,12 +1888,21 @@ void bdrv_swap(BlockDriverState *bs_new, BlockDriverState *bs_old)
         QTAILQ_REMOVE(&graph_bdrv_states, bs_old, node_list);
     }
 
+    /* If the BlockDriverState is part of a throttling group acquire
+     * its lock since we're going to mess with the protected fields.
+     * Otherwise there's no need to worry since no one else can touch
+     * them. */
+    if (bs_old->throttle_state) {
+        throttle_group_lock(bs_old);
+    }
+
     /* bs_new must be unattached and shouldn't have anything fancy enabled */
     assert(!bs_new->blk);
     assert(QLIST_EMPTY(&bs_new->dirty_bitmaps));
     assert(bs_new->job == NULL);
     assert(bs_new->io_limits_enabled == false);
-    assert(!throttle_have_timer(&bs_new->throttle_state));
+    assert(bs_new->throttle_state == NULL);
+    assert(!throttle_timers_are_initialized(&bs_new->throttle_timers));
 
     tmp = *bs_new;
     *bs_new = *bs_old;
@@ -1903,7 +1919,13 @@ void bdrv_swap(BlockDriverState *bs_new, BlockDriverState *bs_old)
     /* Check a few fields that should remain attached to the device */
     assert(bs_new->job == NULL);
     assert(bs_new->io_limits_enabled == false);
-    assert(!throttle_have_timer(&bs_new->throttle_state));
+    assert(bs_new->throttle_state == NULL);
+    assert(!throttle_timers_are_initialized(&bs_new->throttle_timers));
+
+    /* Release the ThrottleGroup lock */
+    if (bs_old->throttle_state) {
+        throttle_group_unlock(bs_old);
+    }
 
     /* insert the nodes back into the graph node list if needed */
     if (bs_new->node_name[0] != '\0') {
@@ -3691,7 +3713,7 @@ void bdrv_detach_aio_context(BlockDriverState *bs)
     }
 
     if (bs->io_limits_enabled) {
-        throttle_detach_aio_context(&bs->throttle_state);
+        throttle_timers_detach_aio_context(&bs->throttle_timers);
     }
     if (bs->drv->bdrv_detach_aio_context) {
         bs->drv->bdrv_detach_aio_context(bs);
@@ -3727,7 +3749,7 @@ void bdrv_attach_aio_context(BlockDriverState *bs,
         bs->drv->bdrv_attach_aio_context(bs, new_context);
     }
     if (bs->io_limits_enabled) {
-        throttle_attach_aio_context(&bs->throttle_state, new_context);
+        throttle_timers_attach_aio_context(&bs->throttle_timers, new_context);
     }
 
     QLIST_FOREACH(ban, &bs->aio_notifiers, list) {

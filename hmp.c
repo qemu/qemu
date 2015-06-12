@@ -400,7 +400,8 @@ static void print_block_info(Monitor *mon, BlockInfo *info,
                         " iops_max=%" PRId64
                         " iops_rd_max=%" PRId64
                         " iops_wr_max=%" PRId64
-                        " iops_size=%" PRId64 "\n",
+                        " iops_size=%" PRId64
+                        " group=%s\n",
                         inserted->bps,
                         inserted->bps_rd,
                         inserted->bps_wr,
@@ -413,7 +414,8 @@ static void print_block_info(Monitor *mon, BlockInfo *info,
                         inserted->iops_max,
                         inserted->iops_rd_max,
                         inserted->iops_wr_max,
-                        inserted->iops_size);
+                        inserted->iops_size,
+                        inserted->group);
     }
 
     if (verbose) {
@@ -1357,7 +1359,9 @@ void hmp_block_set_io_throttle(Monitor *mon, const QDict *qdict)
                               false,
                               0,
                               false, /* No default I/O size */
-                              0, &err);
+                              0,
+                              false,
+                              NULL, &err);
     hmp_handle_error(mon, &err);
 }
 
