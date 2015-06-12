@@ -68,12 +68,12 @@ static void dsp_stack_pop(dsp_core_t* dsp, uint32_t *curpc, uint32_t *cursr);
 static void dsp_compute_ssh_ssl(dsp_core_t* dsp);
 
 /* 56bits arithmetic */
-static uint16_t dsp_abs56(dsp_core_t* dsp, uint32_t *dest);
-static uint16_t dsp_asl56(dsp_core_t* dsp, uint32_t *dest);
-static uint16_t dsp_asr56(dsp_core_t* dsp, uint32_t *dest);
-static uint16_t dsp_add56(dsp_core_t* dsp, uint32_t *source, uint32_t *dest);
-static uint16_t dsp_sub56(dsp_core_t* dsp, uint32_t *source, uint32_t *dest);
-static void dsp_mul56(dsp_core_t* dsp, uint32_t source1, uint32_t source2, uint32_t *dest, uint8_t signe);
+static uint16_t dsp_abs56(uint32_t *dest);
+static uint16_t dsp_asl56(uint32_t *dest);
+static uint16_t dsp_asr56(uint32_t *dest);
+static uint16_t dsp_add56(uint32_t *source, uint32_t *dest);
+static uint16_t dsp_sub56(uint32_t *source, uint32_t *dest);
+static void dsp_mul56(uint32_t source1, uint32_t source2, uint32_t *dest, uint8_t signe);
 static void dsp_rnd56(dsp_core_t* dsp, uint32_t *dest);
 static uint32_t dsp_signextend(int bits, uint32_t v);
 
@@ -1145,7 +1145,7 @@ static void dsp_compute_ssh_ssl(dsp_core_t* dsp)
 /* source,dest[1] is 47:24 */
 /* source,dest[2] is 23:00 */
 
-static uint16_t dsp_abs56(dsp_core_t* dsp, uint32_t *dest)
+static uint16_t dsp_abs56(uint32_t *dest)
 {
     uint32_t zerodest[3];
     uint16_t newsr;
@@ -1155,7 +1155,7 @@ static uint16_t dsp_abs56(dsp_core_t* dsp, uint32_t *dest)
     if (dest[0] & (1<<7)) {
         zerodest[0] = zerodest[1] = zerodest[2] = 0;
 
-        newsr = dsp_sub56(dsp, dest, zerodest);
+        newsr = dsp_sub56(dest, zerodest);
 
         dest[0] = zerodest[0];
         dest[1] = zerodest[1];
@@ -1167,7 +1167,7 @@ static uint16_t dsp_abs56(dsp_core_t* dsp, uint32_t *dest)
     return newsr;
 }
 
-static uint16_t dsp_asl56(dsp_core_t* dsp, uint32_t *dest)
+static uint16_t dsp_asl56(uint32_t *dest)
 {
     uint16_t overflow, carry;
 
@@ -1191,7 +1191,7 @@ static uint16_t dsp_asl56(dsp_core_t* dsp, uint32_t *dest)
     return (overflow<<DSP_SR_L)|(overflow<<DSP_SR_V)|(carry<<DSP_SR_C);
 }
 
-static uint16_t dsp_asr56(dsp_core_t* dsp, uint32_t *dest)
+static uint16_t dsp_asr56(uint32_t *dest)
 {
     uint16_t carry;
 
@@ -1211,7 +1211,7 @@ static uint16_t dsp_asr56(dsp_core_t* dsp, uint32_t *dest)
     return (carry<<DSP_SR_C);
 }
 
-static uint16_t dsp_add56(dsp_core_t* dsp, uint32_t *source, uint32_t *dest)
+static uint16_t dsp_add56(uint32_t *source, uint32_t *dest)
 {
     uint16_t overflow, carry, flg_s, flg_d, flg_r;
 
@@ -1237,7 +1237,7 @@ static uint16_t dsp_add56(dsp_core_t* dsp, uint32_t *source, uint32_t *dest)
     return (overflow<<DSP_SR_L)|(overflow<<DSP_SR_V)|(carry<<DSP_SR_C);
 }
 
-static uint16_t dsp_sub56(dsp_core_t* dsp, uint32_t *source, uint32_t *dest)
+static uint16_t dsp_sub56(uint32_t *source, uint32_t *dest)
 {
     uint16_t overflow, carry, flg_s, flg_d, flg_r, dest_save;
 
@@ -1264,7 +1264,7 @@ static uint16_t dsp_sub56(dsp_core_t* dsp, uint32_t *source, uint32_t *dest)
     return (overflow<<DSP_SR_L)|(overflow<<DSP_SR_V)|(carry<<DSP_SR_C);
 }
 
-static void dsp_mul56(dsp_core_t* dsp, uint32_t source1, uint32_t source2, uint32_t *dest, uint8_t signe)
+static void dsp_mul56(uint32_t source1, uint32_t source2, uint32_t *dest, uint8_t signe)
 {
     uint32_t part[4], zerodest[3], value;
 
@@ -1313,12 +1313,12 @@ static void dsp_mul56(dsp_core_t* dsp, uint32_t source1, uint32_t source2, uint3
     }
 
     /* Get rid of extra sign bit */
-    dsp_asl56(dsp, dest);
+    dsp_asl56(dest);
 
     if (signe) {
         zerodest[0] = zerodest[1] = zerodest[2] = 0;
 
-        dsp_sub56(dsp, dest, zerodest);
+        dsp_sub56(dest, zerodest);
 
         dest[0] = zerodest[0];
         dest[1] = zerodest[1];
@@ -1336,7 +1336,7 @@ static void dsp_rnd56(dsp_core_t* dsp, uint32_t *dest)
     if (dsp->registers[DSP_REG_SR] & (1<<DSP_SR_S0)) {
         rnd_const[1] = 1;
         rnd_const[2] = 0;
-        dsp_add56(dsp, rnd_const, dest);
+        dsp_add56(rnd_const, dest);
 
         if ((dest[2]==0) && ((dest[1] & 1) == 0)) {
             dest[1] &= (0xffffff - 0x3);
@@ -1348,7 +1348,7 @@ static void dsp_rnd56(dsp_core_t* dsp, uint32_t *dest)
     else if (dsp->registers[DSP_REG_SR] & (1<<DSP_SR_S1)) {
         rnd_const[1] = 0;
         rnd_const[2] = (1<<22);
-        dsp_add56(dsp, rnd_const, dest);
+        dsp_add56(rnd_const, dest);
    
         if ((dest[2] & 0x7fffff) == 0){
             dest[2] = 0;
@@ -1359,7 +1359,7 @@ static void dsp_rnd56(dsp_core_t* dsp, uint32_t *dest)
     else {
         rnd_const[1] = 0;
         rnd_const[2] = (1<<23);
-        dsp_add56(dsp, rnd_const, dest);
+        dsp_add56(rnd_const, dest);
 
         if (dest[2] == 0) {
             dest[1] &= 0xfffffe;
