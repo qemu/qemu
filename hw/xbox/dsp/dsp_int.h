@@ -173,10 +173,10 @@ struct dsp_core_s {
     uint16_t interrupt_instr_fetch;        /* vector of the current interrupt */
     uint16_t interrupt_save_pc;        /* save next pc value before interrupt */
     uint16_t interrupt_counter;        /* count number of pending interrupts */
-    uint16_t interrupt_IplToRaise;     /* save the IPL level to save in the SR register */
+    uint16_t interrupt_ipl_to_raise;     /* save the IPL level to save in the SR register */
     uint16_t interrupt_pipeline_count; /* used to prefetch correctly the 2 inter instructions */
     int16_t interrupt_ipl[12];     /* store the current IPL for each interrupt */
-    uint16_t interrupt_isPending[12];  /* store if interrupt is pending for each interrupt */
+    uint16_t interrupt_is_pending[12];  /* store if interrupt is pending for each interrupt */
 
 
     /* runtime data */

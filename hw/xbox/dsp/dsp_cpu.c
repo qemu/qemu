@@ -377,7 +377,7 @@ void dsp56k_init_cpu(dsp_core_t* dsp)
     }
 
     /* Interruptions */
-    memset(dsp->interrupt_isPending, 0, sizeof(dsp->interrupt_isPending));
+    memset(dsp->interrupt_is_pending, 0, sizeof(dsp->interrupt_is_pending));
     dsp->interrupt_state = DSP_INTERRUPT_NONE;
     dsp->interrupt_instr_fetch = -1;
     dsp->interrupt_save_pc = -1;
@@ -761,8 +761,8 @@ void dsp56k_add_interrupt(dsp_core_t* dsp, uint16_t inter)
         return;
 
     /* add this interrupt to the pending interrupts table */
-    if (dsp->interrupt_isPending[inter] == 0) { 
-        dsp->interrupt_isPending[inter] = 1;
+    if (dsp->interrupt_is_pending[inter] == 0) { 
+        dsp->interrupt_is_pending[inter] = 1;
         dsp->interrupt_counter ++;
     }
 }
@@ -797,7 +797,7 @@ static void dsp_postexecute_interrupts(dsp_core_t* dsp)
                     dsp->registers[DSP_REG_SR] &= BITMASK(16)-((1<<DSP_SR_LF)|(1<<DSP_SR_T)  |
                                             (1<<DSP_SR_S1)|(1<<DSP_SR_S0) |
                                             (1<<DSP_SR_I0)|(1<<DSP_SR_I1));
-                    dsp->registers[DSP_REG_SR] |= dsp->interrupt_IplToRaise<<DSP_SR_I0;
+                    dsp->registers[DSP_REG_SR] |= dsp->interrupt_ipl_to_raise<<DSP_SR_I0;
                 }
                 dsp->interrupt_pipeline_count --;
                 return;
@@ -811,7 +811,7 @@ static void dsp_postexecute_interrupts(dsp_core_t* dsp)
                         dsp->registers[DSP_REG_SR] &= BITMASK(16)-((1<<DSP_SR_LF)|(1<<DSP_SR_T)  |
                                                 (1<<DSP_SR_S1)|(1<<DSP_SR_S0) |
                                                 (1<<DSP_SR_I0)|(1<<DSP_SR_I1));
-                        dsp->registers[DSP_REG_SR] |= dsp->interrupt_IplToRaise<<DSP_SR_I0;
+                        dsp->registers[DSP_REG_SR] |= dsp->interrupt_ipl_to_raise<<DSP_SR_I0;
                     }
                 }
                 dsp->interrupt_pipeline_count --;
@@ -857,7 +857,7 @@ static void dsp_postexecute_interrupts(dsp_core_t* dsp)
 
     /* Arbitrate between all pending interrupts */
     for (i=0; i<12; i++) {
-        if (dsp->interrupt_isPending[i] == 1) {
+        if (dsp->interrupt_is_pending[i] == 1) {
 
             /* level 3 interrupt ? */
             if (dsp->interrupt_ipl[i] == 3) {
@@ -886,7 +886,7 @@ static void dsp_postexecute_interrupts(dsp_core_t* dsp)
     }
 
     /* remove this interrupt from the pending interrupts table */
-    dsp->interrupt_isPending[index] = 0;
+    dsp->interrupt_is_pending[index] = 0;
     dsp->interrupt_counter --;
 
     /* process arbritrated interrupt */
@@ -898,7 +898,7 @@ static void dsp_postexecute_interrupts(dsp_core_t* dsp)
     dsp->interrupt_instr_fetch = dsp_interrupt[index].vectorAddr;
     dsp->interrupt_pipeline_count = 5;
     dsp->interrupt_state = DSP_INTERRUPT_DISABLED;
-    dsp->interrupt_IplToRaise = ipl_to_raise;
+    dsp->interrupt_ipl_to_raise = ipl_to_raise;
 
     DPRINTF("Dsp interrupt: %s\n", dsp_interrupt[index].name);
 

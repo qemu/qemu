@@ -179,8 +179,8 @@ void dsp_info(dsp_core_t* dsp)
     fputs("\n", stderr);
 
     fprintf(stderr, "- Pending ints: ");
-    for (i = 0; i < ARRAYSIZE(dsp->interrupt_isPending); i++) {
-        fprintf(stderr, " %04hx", dsp->interrupt_isPending[i]);
+    for (i = 0; i < ARRAYSIZE(dsp->interrupt_is_pending); i++) {
+        fprintf(stderr, " %04hx", dsp->interrupt_is_pending[i]);
     }
     fputs("\n", stderr);
 }
