@@ -789,14 +789,16 @@ typedef struct LowCore
     uint8_t         pad5[0xf4-0xf0];          /* 0x0f0 */
     uint32_t        external_damage_code;     /* 0x0f4 */
     uint64_t        failing_storage_address;  /* 0x0f8 */
-    uint8_t         pad6[0x120-0x100];        /* 0x100 */
+    uint8_t         pad6[0x110-0x100];        /* 0x100 */
+    uint64_t        per_breaking_event_addr;  /* 0x110 */
+    uint8_t         pad7[0x120-0x118];        /* 0x118 */
     PSW             restart_old_psw;          /* 0x120 */
     PSW             external_old_psw;         /* 0x130 */
     PSW             svc_old_psw;              /* 0x140 */
     PSW             program_old_psw;          /* 0x150 */
     PSW             mcck_old_psw;             /* 0x160 */
     PSW             io_old_psw;               /* 0x170 */
-    uint8_t         pad7[0x1a0-0x180];        /* 0x180 */
+    uint8_t         pad8[0x1a0-0x180];        /* 0x180 */
     PSW             restart_new_psw;          /* 0x1a0 */
     PSW             external_new_psw;         /* 0x1b0 */
     PSW             svc_new_psw;              /* 0x1c0 */
@@ -814,10 +816,10 @@ typedef struct LowCore
     uint64_t        last_update_clock;        /* 0x280 */
     uint64_t        steal_clock;              /* 0x288 */
     PSW             return_mcck_psw;          /* 0x290 */
-    uint8_t         pad8[0xc00-0x2a0];        /* 0x2a0 */
+    uint8_t         pad9[0xc00-0x2a0];        /* 0x2a0 */
     /* System info area */
     uint64_t        save_area[16];            /* 0xc00 */
-    uint8_t         pad9[0xd40-0xc80];        /* 0xc80 */
+    uint8_t         pad10[0xd40-0xc80];       /* 0xc80 */
     uint64_t        kernel_stack;             /* 0xd40 */
     uint64_t        thread_info;              /* 0xd48 */
     uint64_t        async_stack;              /* 0xd50 */
@@ -825,7 +827,7 @@ typedef struct LowCore
     uint64_t        user_asce;                /* 0xd60 */
     uint64_t        panic_stack;              /* 0xd68 */
     uint64_t        user_exec_asce;           /* 0xd70 */
-    uint8_t         pad10[0xdc0-0xd78];       /* 0xd78 */
+    uint8_t         pad11[0xdc0-0xd78];       /* 0xd78 */
 
     /* SMP info area: defined by DJB */
     uint64_t        clock_comparator;         /* 0xdc0 */

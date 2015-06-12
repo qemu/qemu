@@ -150,6 +150,7 @@ void s390_cpu_dump_state(CPUState *cs, FILE *f, fprintf_function cpu_fprintf,
 
 static TCGv_i64 psw_addr;
 static TCGv_i64 psw_mask;
+static TCGv_i64 gbea;
 
 static TCGv_i32 cc_op;
 static TCGv_i64 cc_src;
@@ -173,6 +174,9 @@ void s390x_translate_init(void)
     psw_mask = tcg_global_mem_new_i64(TCG_AREG0,
                                       offsetof(CPUS390XState, psw.mask),
                                       "psw_mask");
+    gbea = tcg_global_mem_new_i64(TCG_AREG0,
+                                  offsetof(CPUS390XState, gbea),
+                                  "gbea");
 
     cc_op = tcg_global_mem_new_i32(TCG_AREG0, offsetof(CPUS390XState, cc_op),
                                    "cc_op");
@@ -252,14 +256,14 @@ static void update_psw_addr(DisasContext *s)
 static void per_branch(DisasContext *s, bool to_next)
 {
 #ifndef CONFIG_USER_ONLY
+    tcg_gen_movi_i64(gbea, s->pc);
+
     if (s->tb->flags & FLAG_MASK_PER) {
-        TCGv_i64 pc = tcg_const_i64(s->pc);
         TCGv_i64 next_pc = to_next ? tcg_const_i64(s->next_pc) : psw_addr;
-        gen_helper_per_branch(cpu_env, pc, next_pc);
+        gen_helper_per_branch(cpu_env, gbea, next_pc);
         if (to_next) {
             tcg_temp_free_i64(next_pc);
         }
-        tcg_temp_free_i64(pc);
     }
 #endif
 }
@@ -272,13 +276,21 @@ static void per_branch_cond(DisasContext *s, TCGCond cond,
         TCGLabel *lab = gen_new_label();
         tcg_gen_brcond_i64(tcg_invert_cond(cond), arg1, arg2, lab);
 
-        TCGv_i64 pc = tcg_const_i64(s->pc);
-        gen_helper_per_branch(cpu_env, pc, psw_addr);
-        tcg_temp_free_i64(pc);
+        tcg_gen_movi_i64(gbea, s->pc);
+        gen_helper_per_branch(cpu_env, gbea, psw_addr);
 
         gen_set_label(lab);
+    } else {
+        TCGv_i64 pc = tcg_const_i64(s->pc);
+        tcg_gen_movcond_i64(cond, gbea, arg1, arg2, gbea, pc);
+        tcg_temp_free_i64(pc);
     }
 #endif
+}
+
+static void per_breaking_event(DisasContext *s)
+{
+    tcg_gen_movi_i64(gbea, s->pc);
 }
 
 static void update_cc_op(DisasContext *s)
@@ -1220,6 +1232,7 @@ static ExitStatus help_goto_direct(DisasContext *s, uint64_t dest)
     }
     if (use_goto_tb(s, dest)) {
         update_cc_op(s);
+        per_breaking_event(s);
         tcg_gen_goto_tb(0);
         tcg_gen_movi_i64(psw_addr, dest);
         tcg_gen_exit_tb((uintptr_t)s->tb);
@@ -1287,6 +1300,7 @@ static ExitStatus help_branch(DisasContext *s, DisasCompare *c,
 
             /* Branch taken.  */
             gen_set_label(lab);
+            per_breaking_event(s);
             tcg_gen_goto_tb(1);
             tcg_gen_movi_i64(psw_addr, dest);
             tcg_gen_exit_tb((uintptr_t)s->tb + 1);
@@ -1318,6 +1332,7 @@ static ExitStatus help_branch(DisasContext *s, DisasCompare *c,
             if (is_imm) {
                 tcg_gen_movi_i64(psw_addr, dest);
             }
+            per_breaking_event(s);
             ret = EXIT_PC_UPDATED;
         }
     } else {
@@ -2550,6 +2565,7 @@ static ExitStatus op_lpsw(DisasContext *s, DisasOps *o)
     TCGv_i64 t1, t2;
 
     check_privileged(s);
+    per_breaking_event(s);
 
     t1 = tcg_temp_new_i64();
     t2 = tcg_temp_new_i64();
@@ -2569,6 +2585,7 @@ static ExitStatus op_lpswe(DisasContext *s, DisasOps *o)
     TCGv_i64 t1, t2;
 
     check_privileged(s);
+    per_breaking_event(s);
 
     t1 = tcg_temp_new_i64();
     t2 = tcg_temp_new_i64();

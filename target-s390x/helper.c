@@ -293,6 +293,7 @@ static void do_program_interrupt(CPUS390XState *env)
     lowcore->program_old_psw.addr = cpu_to_be64(env->psw.addr);
     mask = be64_to_cpu(lowcore->program_new_psw.mask);
     addr = be64_to_cpu(lowcore->program_new_psw.addr);
+    lowcore->per_breaking_event_addr = cpu_to_be64(env->gbea);
 
     cpu_unmap_lowcore(lowcore);
 

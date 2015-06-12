@@ -117,6 +117,9 @@ static void s390_cpu_initial_reset(CPUState *s)
     env->cregs[0] = CR0_RESET;
     env->cregs[14] = CR14_RESET;
 
+    /* architectured initial value for Breaking-Event-Address register */
+    env->gbea = 1;
+
     env->pfault_token = -1UL;
     env->ext_index = -1;
     for (i = 0; i < ARRAY_SIZE(env->io_index); i++) {
@@ -151,6 +154,9 @@ static void s390_cpu_full_reset(CPUState *s)
     /* architectured initial values for CR 0 and 14 */
     env->cregs[0] = CR0_RESET;
     env->cregs[14] = CR14_RESET;
+
+    /* architectured initial value for Breaking-Event-Address register */
+    env->gbea = 1;
 
     env->pfault_token = -1UL;
     env->ext_index = -1;
