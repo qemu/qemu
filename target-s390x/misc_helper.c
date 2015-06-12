@@ -625,6 +625,18 @@ void HELPER(per_ifetch)(CPUS390XState *env, uint64_t addr)
     if ((env->cregs[9] & PER_CR9_EVENT_IFETCH) && get_per_in_range(env, addr)) {
         env->per_address = addr;
         env->per_perc_atmid = PER_CODE_EVENT_IFETCH | get_per_atmid(env);
+
+        /* If the instruction has to be nullified, trigger the
+           exception immediately. */
+        if (env->cregs[9] & PER_CR9_EVENT_NULLIFICATION) {
+            CPUState *cs = CPU(s390_env_get_cpu(env));
+
+            env->int_pgm_code = PGM_PER;
+            env->int_pgm_ilen = get_ilen(cpu_ldub_code(env, addr));
+
+            cs->exception_index = EXCP_PGM;
+            cpu_loop_exit(cs);
+        }
     }
 }
 #endif
