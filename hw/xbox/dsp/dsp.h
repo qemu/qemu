@@ -1,5 +1,5 @@
 /*
-    DSP56300 emulation
+    DSP56300 emulator
 
     Copyright (c) 2015 espes
 
@@ -32,7 +32,6 @@
 typedef struct dsp_core_s dsp_core_t;
 
 /* Dsp commands */
-bool dsp_process_irq(void);
 void dsp_init(void);
 void dsp_uninit(void);
 void dsp_reset(void);

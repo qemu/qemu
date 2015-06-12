@@ -1,6 +1,8 @@
 /*
     DSP56300 emulator
 
+    Copyright (c) 2015 espes
+
     Adapted from Hatari DSP M56001 emulation
     (C) 2003-2008 ARAnyM developer team
 
@@ -554,13 +556,13 @@ const char* disasm_get_instruction_text(dsp_core_t* dsp)
  * */
 uint16_t dsp56k_execute_one_disasm_instruction(dsp_core_t* dsp, FILE *out, uint32_t pc)
 {
-    // dsp_core_t dsp_core_save;
+    dsp_core_t dsp_core_save;
 
     /* Set DSP in disasm mode */
     dsp->in_disasm_mode = true;
 
     /* Save DSP context before executing instruction */
-    // memcpy(&dsp_core_save, &dsp_core, sizeof(dsp_core));
+    memcpy(&dsp_core_save, dsp, sizeof(dsp_core_t));
 
     /* execute and disasm instruction */
     dsp->pc = pc;
@@ -574,7 +576,7 @@ uint16_t dsp56k_execute_one_disasm_instruction(dsp_core_t* dsp, FILE *out, uint3
     fprintf(out, "%s", disasm_get_instruction_text(dsp));
 
     /* Restore DSP context after executing instruction */
-    // memcpy(&dsp_core, &dsp_core_save, sizeof(dsp_core));
+    memcpy(dsp, &dsp_core_save, sizeof(dsp_core_t));
     
     /* Unset DSP in disasm mode */
     dsp->in_disasm_mode = false;
@@ -624,7 +626,7 @@ void dsp56k_execute_instruction(dsp_core_t* dsp)
     /* Disasm current instruction ? (trace mode only) */
     if (TRACE_DSP_DISASM) {
         /* Display only when DSP is called in trace mode */
-        if (dsp->in_disasm_mode == false) {
+        if (!dsp->in_disasm_mode) {
             if (disasm_return != 0) {
                 fprintf(stderr, "%s", disasm_get_instruction_text(dsp));
                 

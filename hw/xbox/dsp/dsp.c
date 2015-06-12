@@ -1,5 +1,5 @@
 /*
-    DSP56300 emulation
+    DSP56300 emulator
 
     Copyright (c) 2015 espes
 
