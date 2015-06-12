@@ -42,17 +42,14 @@
 /* #define DEBUG_DSOUND */
 
 typedef struct {
-    int set_primary;
     int bufsize_in;
     int bufsize_out;
-    struct audsettings settings;
     int latency_millis;
 } DSoundConf;
 
 typedef struct {
     LPDIRECTSOUND dsound;
     LPDIRECTSOUNDCAPTURE dsound_capture;
-    LPDIRECTSOUNDBUFFER dsound_primary_buffer;
     struct audsettings settings;
     DSoundConf conf;
 } dsound;
@@ -387,27 +384,10 @@ static void dsound_clear_sample (HWVoiceOut *hw, LPDIRECTSOUNDBUFFER dsb,
     dsound_unlock_out (dsb, p1, p2, blen1, blen2);
 }
 
-static void dsound_close (dsound *s)
-{
-    HRESULT hr;
-
-    if (s->dsound_primary_buffer) {
-        hr = IDirectSoundBuffer_Release (s->dsound_primary_buffer);
-        if (FAILED (hr)) {
-            dsound_logerr (hr, "Could not release primary buffer\n");
-        }
-        s->dsound_primary_buffer = NULL;
-    }
-}
-
 static int dsound_open (dsound *s)
 {
-    int err;
     HRESULT hr;
-    WAVEFORMATEX wfx;
-    DSBUFFERDESC dsbd;
     HWND hwnd;
-    DSoundConf *conf = &s->conf;
 
     hwnd = GetForegroundWindow ();
     hr = IDirectSound_SetCooperativeLevel (
@@ -422,63 +402,7 @@ static int dsound_open (dsound *s)
         return -1;
     }
 
-    if (!conf->set_primary) {
-        return 0;
-    }
-
-    err = waveformat_from_audio_settings (&wfx, &conf->settings);
-    if (err) {
-        return -1;
-    }
-
-    memset (&dsbd, 0, sizeof (dsbd));
-    dsbd.dwSize = sizeof (dsbd);
-    dsbd.dwFlags = DSBCAPS_PRIMARYBUFFER;
-    dsbd.dwBufferBytes = 0;
-    dsbd.lpwfxFormat = NULL;
-
-    hr = IDirectSound_CreateSoundBuffer (
-        s->dsound,
-        &dsbd,
-        &s->dsound_primary_buffer,
-        NULL
-        );
-    if (FAILED (hr)) {
-        dsound_logerr (hr, "Could not create primary playback buffer\n");
-        return -1;
-    }
-
-    hr = IDirectSoundBuffer_SetFormat (s->dsound_primary_buffer, &wfx);
-    if (FAILED (hr)) {
-        dsound_logerr (hr, "Could not set primary playback buffer format\n");
-    }
-
-    hr = IDirectSoundBuffer_GetFormat (
-        s->dsound_primary_buffer,
-        &wfx,
-        sizeof (wfx),
-        NULL
-        );
-    if (FAILED (hr)) {
-        dsound_logerr (hr, "Could not get primary playback buffer format\n");
-        goto fail0;
-    }
-
-#ifdef DEBUG_DSOUND
-    dolog ("Primary\n");
-    print_wave_format (&wfx);
-#endif
-
-    err = waveformat_to_audio_settings (&wfx, &s->settings);
-    if (err) {
-        goto fail0;
-    }
-
     return 0;
-
- fail0:
-    dsound_close (s);
-    return -1;
 }
 
 static int dsound_ctl_out (HWVoiceOut *hw, int cmd, ...)
@@ -823,12 +747,8 @@ static int dsound_run_in (HWVoiceIn *hw)
 }
 
 static DSoundConf glob_conf = {
-    .set_primary        = 0,
     .bufsize_in         = 16384,
     .bufsize_out        = 16384,
-    .settings.freq      = 44100,
-    .settings.nchannels = 2,
-    .settings.fmt       = AUD_FMT_S16,
     .latency_millis     = 10
 };
 
@@ -935,34 +855,10 @@ static void *dsound_audio_init (void)
 
 static struct audio_option dsound_options[] = {
     {
-        .name  = "SET_PRIMARY",
-        .tag   = AUD_OPT_BOOL,
-        .valp  = &glob_conf.set_primary,
-        .descr = "Set the parameters of primary buffer"
-    },
-    {
         .name  = "LATENCY_MILLIS",
         .tag   = AUD_OPT_INT,
         .valp  = &glob_conf.latency_millis,
         .descr = "(undocumented)"
-    },
-    {
-        .name  = "PRIMARY_FREQ",
-        .tag   = AUD_OPT_INT,
-        .valp  = &glob_conf.settings.freq,
-        .descr = "Primary buffer frequency"
-    },
-    {
-        .name  = "PRIMARY_CHANNELS",
-        .tag   = AUD_OPT_INT,
-        .valp  = &glob_conf.settings.nchannels,
-        .descr = "Primary buffer number of channels (1 - mono, 2 - stereo)"
-    },
-    {
-        .name  = "PRIMARY_FMT",
-        .tag   = AUD_OPT_FMT,
-        .valp  = &glob_conf.settings.fmt,
-        .descr = "Primary buffer format"
     },
     {
         .name  = "BUFSIZE_OUT",
