@@ -75,6 +75,7 @@ static uint16_t dsp_add56(dsp_core_t* dsp, uint32_t *source, uint32_t *dest);
 static uint16_t dsp_sub56(dsp_core_t* dsp, uint32_t *source, uint32_t *dest);
 static void dsp_mul56(dsp_core_t* dsp, uint32_t source1, uint32_t source2, uint32_t *dest, uint8_t signe);
 static void dsp_rnd56(dsp_core_t* dsp, uint32_t *dest);
+static uint32_t dsp_signextend(int bits, uint32_t v);
 
 static const dsp_interrupt_t dsp_interrupt[12] = {
     {DSP_INTER_RESET    ,   0x00, 0, "Reset"},
@@ -292,7 +293,7 @@ static const OpcodeEntry nonparallel_opcodes[] = {
     { "00000111W1MMMRRR10dddddd", "movem P:ea <-> R", dis_movem_ea, emu_movem_ea },
     { "00000111W0aaaaaa00dddddd", "movem P:ea <-> R", dis_movem_aa, emu_movem_aa },
     { "0000100sW1MMMRRR1Spppppp", "movep [X or Y]:ea <-> [X or Y]:pp", dis_movep_23, emu_movep_23 },
-    { "00000111W1MMMRRR0Sqqqqqq", "movep [X or Y]:ea <-> X:qq", dis_movep_x_low, emu_movep_x_low },
+    { "00000111W1MMMRRR0Sqqqqqq", "movep [X or Y]:ea <-> X:qq", dis_movep_x_qq, emu_movep_x_qq },
     { "00000111W0MMMRRR1Sqqqqqq", "movep [X or Y]:ea <-> Y:qq", NULL, NULL },
     { "0000100sW1MMMRRR01pppppp", "movep [X or Y]:pp <-> P:ea", dis_movep_1, emu_movep_1 },
     { "000000001WMMMRRR0sqqqqqq", "movep [X or Y]:qq <-> P:ea", NULL, NULL },
@@ -898,7 +899,9 @@ static uint32_t read_memory_p(dsp_core_t* dsp, uint32_t address)
 {
     assert((address & 0xFF000000) == 0);
     assert(address < DSP_PRAM_SIZE);
-    return dsp->pram[address];
+    uint32_t r = dsp->pram[address];
+    assert((r & 0xFF000000) == 0);
+    return r;
 }
 
 uint32_t dsp56k_read_memory(dsp_core_t* dsp, int space, uint32_t address)
@@ -1364,4 +1367,11 @@ static void dsp_rnd56(dsp_core_t* dsp, uint32_t *dest)
         dest[2]=0;
     }
 }
+
+static uint32_t dsp_signextend(int bits, uint32_t v) {
+    const int shift = sizeof(int)*8 - bits;
+    assert(shift > 0);
+    return (uint32_t)(((int32_t)v << shift) >> shift);
+}
+
 

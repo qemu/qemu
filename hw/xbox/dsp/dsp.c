@@ -40,7 +40,7 @@
 
 dsp_core_t* dsp_init(void)
 {
-    DPRINTF("dsp_init %d\n", sizeof(dsp_core_t));
+    DPRINTF("dsp_init\n");
 
     dsp_core_t* dsp = (dsp_core_t*)malloc(sizeof(dsp_core_t));
     memset(dsp, 0, sizeof(dsp_core_t));

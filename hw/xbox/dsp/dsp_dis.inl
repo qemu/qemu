@@ -422,7 +422,6 @@ static void dis_bclr_reg(dsp_core_t* dsp)
 
 static void dis_bra_imm(dsp_core_t* dsp)
 {
-    // QQQ - sign-extend
     uint32_t xxx = (dsp->disasm_cur_inst & BITMASK(5))
                     + ((dsp->disasm_cur_inst & (BITMASK(4) << 6)) >> 1);
     sprintf(dsp->disasm_str_instr, "bra p:$%04x", xxx);
@@ -628,8 +627,8 @@ static void dis_cmpu(dsp_core_t* dsp) {
     uint32_t ggg = (dsp->disasm_cur_inst >> 1) & BITMASK(3);
     uint32_t d = dsp->disasm_cur_inst & 1;
 
-    uint32_t srcreg = DSP_REG_NULL;
     uint32_t srcacc = d ? DSP_REG_B : DSP_REG_A;
+    uint32_t srcreg = DSP_REG_NULL;
     switch (ggg) {
     case 0: srcreg = d ? DSP_REG_A : DSP_REG_B; break;
     case 4: srcreg = DSP_REG_X0; break;
@@ -1496,18 +1495,18 @@ static void dis_movep_23(dsp_core_t* dsp)
     sprintf(dsp->disasm_str_instr,"movep %s,%s", srcname, dstname);
 }
 
-static void dis_movep_x_low(dsp_core_t* dsp) {
+static void dis_movep_x_qq(dsp_core_t* dsp) {
     // 00000111W1MMMRRR0Sqqqqqq
 
     char srcname[16]="",dstname[16]="",name[16]="";
-    uint32_t addr, easpace, retour; 
 
-    addr = 0xffff80 + (dsp->disasm_cur_inst & BITMASK(6));
-    retour = dis_calc_ea(dsp, (dsp->disasm_cur_inst>>8) & BITMASK(6), name);
-    easpace = (dsp->disasm_cur_inst>>6) & 1;
+    uint32_t addr = 0xffff80 + (dsp->disasm_cur_inst & BITMASK(6));
+    uint32_t ea_mode = (dsp->cur_inst>>8) & BITMASK(6);
+    uint32_t easpace = (dsp->disasm_cur_inst>>6) & 1;
+    int retour = dis_calc_ea(dsp, ea_mode, name);
 
     if (dsp->disasm_cur_inst & (1<<15)) {
-        /* Write pp */
+        /* Write qq */
 
         if (retour) {
             sprintf(srcname, "#%s", name);
@@ -1521,7 +1520,7 @@ static void dis_movep_x_low(dsp_core_t* dsp) {
 
         sprintf(dstname, "x:$%04x", addr);
     } else {
-        /* Read pp */
+        /* Read qq */
 
         sprintf(srcname, "x:$%04x", addr);
 
@@ -1555,7 +1554,7 @@ static void dis_move_x_long(dsp_core_t* dsp) {
 static void dis_move_x_imm(dsp_core_t* dsp) {
     // 0000001aaaaaaRRR1a0WDDDD
     int W = (dsp->disasm_cur_inst >> 4) & 1;
-    int xxx = (((dsp->disasm_cur_inst >> 11) & BITMASK(6)) << 1)
+    uint32_t xxx = (((dsp->disasm_cur_inst >> 11) & BITMASK(6)) << 1)
              + ((dsp->disasm_cur_inst >> 6) & 1);
     uint32_t offreg = DSP_REG_R0 + ((dsp->disasm_cur_inst >> 8) & BITMASK(3));
     uint32_t numreg = dsp->disasm_cur_inst & BITMASK(4);
