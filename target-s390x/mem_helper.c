@@ -65,30 +65,30 @@ static inline uint64_t adj_len_to_page(uint64_t len, uint64_t addr)
     return len;
 }
 
-#ifndef CONFIG_USER_ONLY
-static void mvc_fast_memset(CPUS390XState *env, uint32_t l, uint64_t dest,
-                            uint8_t byte)
+static void fast_memset(CPUS390XState *env, uint64_t dest, uint8_t byte,
+                        uint32_t l)
 {
-    S390CPU *cpu = s390_env_get_cpu(env);
-    hwaddr dest_phys;
-    hwaddr len = l;
-    void *dest_p;
-    uint64_t asc = env->psw.mask & PSW_MASK_ASC;
-    int flags;
+    int mmu_idx = cpu_mmu_index(env);
 
-    if (mmu_translate(env, dest, 1, asc, &dest_phys, &flags, true)) {
-        cpu_stb_data(env, dest, byte);
-        cpu_abort(CPU(cpu), "should never reach here");
+    while (l > 0) {
+        void *p = tlb_vaddr_to_host(env, dest, MMU_DATA_STORE, mmu_idx);
+        if (p) {
+            /* Access to the whole page in write mode granted.  */
+            int l_adj = adj_len_to_page(l, dest);
+            memset(p, byte, l_adj);
+            dest += l_adj;
+            l -= l_adj;
+        } else {
+            /* We failed to get access to the whole page. The next write
+               access will likely fill the QEMU TLB for the next iteration.  */
+            cpu_stb_data(env, dest, byte);
+            dest++;
+            l--;
+        }
     }
-    dest_phys |= dest & ~TARGET_PAGE_MASK;
-
-    dest_p = cpu_physical_memory_map(dest_phys, &len, 1);
-
-    memset(dest_p, byte, len);
-
-    cpu_physical_memory_unmap(dest_p, 1, len, len);
 }
 
+#ifndef CONFIG_USER_ONLY
 static void mvc_fast_memmove(CPUS390XState *env, uint32_t l, uint64_t dest,
                              uint64_t src)
 {
@@ -154,19 +154,11 @@ uint32_t HELPER(xc)(CPUS390XState *env, uint32_t l, uint64_t dest,
     HELPER_LOG("%s l %d dest %" PRIx64 " src %" PRIx64 "\n",
                __func__, l, dest, src);
 
-#ifndef CONFIG_USER_ONLY
     /* xor with itself is the same as memset(0) */
-    if ((l > 32) && (src == dest) &&
-        (src & TARGET_PAGE_MASK) == ((src + l) & TARGET_PAGE_MASK)) {
-        mvc_fast_memset(env, l + 1, dest, 0);
-        return 0;
-    }
-#else
     if (src == dest) {
-        memset(g2h(dest), 0, l + 1);
+        fast_memset(env, dest, 0, l + 1);
         return 0;
     }
-#endif
 
     for (i = 0; i <= l; i++) {
         x = cpu_ldub_data(env, dest + i) ^ cpu_ldub_data(env, src + i);
@@ -208,24 +200,23 @@ void HELPER(mvc)(CPUS390XState *env, uint32_t l, uint64_t dest, uint64_t src)
     HELPER_LOG("%s l %d dest %" PRIx64 " src %" PRIx64 "\n",
                __func__, l, dest, src);
 
+    /* mvc with source pointing to the byte after the destination is the
+       same as memset with the first source byte */
+    if (dest == (src + 1)) {
+        fast_memset(env, dest, cpu_ldub_data(env, src), l + 1);
+        return;
+    }
 #ifndef CONFIG_USER_ONLY
     if ((l > 32) &&
         (src & TARGET_PAGE_MASK) == ((src + l) & TARGET_PAGE_MASK) &&
-        (dest & TARGET_PAGE_MASK) == ((dest + l) & TARGET_PAGE_MASK)) {
-        if (dest == (src + 1)) {
-            mvc_fast_memset(env, l + 1, dest, cpu_ldub_data(env, src));
-            return;
-        } else if ((src & TARGET_PAGE_MASK) != (dest & TARGET_PAGE_MASK)) {
-            mvc_fast_memmove(env, l + 1, dest, src);
-            return;
-        }
+        (dest & TARGET_PAGE_MASK) == ((dest + l) & TARGET_PAGE_MASK) &&
+        (src & TARGET_PAGE_MASK) != (dest & TARGET_PAGE_MASK)) {
+        mvc_fast_memmove(env, l + 1, dest, src);
+        return;
     }
 #else
-    if (dest == (src + 1)) {
-        memset(g2h(dest), cpu_ldub_data(env, src), l + 1);
-        return;
     /* mvc and memmove do not behave the same when areas overlap! */
-    } else if ((dest < src) || (src + l < dest)) {
+    if ((dest < src) || (src + l < dest)) {
         memmove(g2h(dest), g2h(src), l + 1);
         return;
     }
