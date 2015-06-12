@@ -841,11 +841,17 @@ uint32_t HELPER(trt)(CPUS390XState *env, uint32_t len, uint64_t array,
 void HELPER(lctlg)(CPUS390XState *env, uint32_t r1, uint64_t a2, uint32_t r3)
 {
     S390CPU *cpu = s390_env_get_cpu(env);
+    bool PERchanged = false;
     int i;
     uint64_t src = a2;
+    uint64_t val;
 
     for (i = r1;; i = (i + 1) % 16) {
-        env->cregs[i] = cpu_ldq_data(env, src);
+        val = cpu_ldq_data(env, src);
+        if (env->cregs[i] != val && i >= 9 && i <= 11) {
+            PERchanged = true;
+        }
+        env->cregs[i] = val;
         HELPER_LOG("load ctl %d from 0x%" PRIx64 " == 0x%" PRIx64 "\n",
                    i, src, env->cregs[i]);
         src += sizeof(uint64_t);
@@ -855,23 +861,36 @@ void HELPER(lctlg)(CPUS390XState *env, uint32_t r1, uint64_t a2, uint32_t r3)
         }
     }
 
+    if (PERchanged && env->psw.mask & PSW_MASK_PER) {
+        s390_cpu_recompute_watchpoints(CPU(cpu));
+    }
+
     tlb_flush(CPU(cpu), 1);
 }
 
 void HELPER(lctl)(CPUS390XState *env, uint32_t r1, uint64_t a2, uint32_t r3)
 {
     S390CPU *cpu = s390_env_get_cpu(env);
+    bool PERchanged = false;
     int i;
     uint64_t src = a2;
+    uint32_t val;
 
     for (i = r1;; i = (i + 1) % 16) {
-        env->cregs[i] = (env->cregs[i] & 0xFFFFFFFF00000000ULL) |
-            cpu_ldl_data(env, src);
+        val = cpu_ldl_data(env, src);
+        if ((uint32_t)env->cregs[i] != val && i >= 9 && i <= 11) {
+            PERchanged = true;
+        }
+        env->cregs[i] = (env->cregs[i] & 0xFFFFFFFF00000000ULL) | val;
         src += sizeof(uint32_t);
 
         if (i == r3) {
             break;
         }
+    }
+
+    if (PERchanged && env->psw.mask & PSW_MASK_PER) {
+        s390_cpu_recompute_watchpoints(CPU(cpu));
     }
 
     tlb_flush(CPU(cpu), 1);

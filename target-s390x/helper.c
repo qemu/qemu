@@ -181,10 +181,16 @@ hwaddr s390_cpu_get_phys_addr_debug(CPUState *cs, vaddr vaddr)
 
 void load_psw(CPUS390XState *env, uint64_t mask, uint64_t addr)
 {
+    uint64_t old_mask = env->psw.mask;
+
     env->psw.addr = addr;
     env->psw.mask = mask;
     if (tcg_enabled()) {
         env->cc_op = (mask >> 44) & 3;
+    }
+
+    if ((old_mask ^ mask) & PSW_MASK_PER) {
+        s390_cpu_recompute_watchpoints(CPU(s390_env_get_cpu(env)));
     }
 
     if (mask & PSW_MASK_WAIT) {
@@ -572,5 +578,74 @@ bool s390_cpu_exec_interrupt(CPUState *cs, int interrupt_request)
         }
     }
     return false;
+}
+
+void s390_cpu_recompute_watchpoints(CPUState *cs)
+{
+    const int wp_flags = BP_CPU | BP_MEM_WRITE | BP_STOP_BEFORE_ACCESS;
+    S390CPU *cpu = S390_CPU(cs);
+    CPUS390XState *env = &cpu->env;
+
+    /* We are called when the watchpoints have changed. First
+       remove them all.  */
+    cpu_watchpoint_remove_all(cs, BP_CPU);
+
+    /* Return if PER is not enabled */
+    if (!(env->psw.mask & PSW_MASK_PER)) {
+        return;
+    }
+
+    /* Return if storage-alteration event is not enabled.  */
+    if (!(env->cregs[9] & PER_CR9_EVENT_STORE)) {
+        return;
+    }
+
+    if (env->cregs[10] == 0 && env->cregs[11] == -1LL) {
+        /* We can't create a watchoint spanning the whole memory range, so
+           split it in two parts.   */
+        cpu_watchpoint_insert(cs, 0, 1ULL << 63, wp_flags, NULL);
+        cpu_watchpoint_insert(cs, 1ULL << 63, 1ULL << 63, wp_flags, NULL);
+    } else if (env->cregs[10] > env->cregs[11]) {
+        /* The address range loops, create two watchpoints.  */
+        cpu_watchpoint_insert(cs, env->cregs[10], -env->cregs[10],
+                              wp_flags, NULL);
+        cpu_watchpoint_insert(cs, 0, env->cregs[11] + 1, wp_flags, NULL);
+
+    } else {
+        /* Default case, create a single watchpoint.  */
+        cpu_watchpoint_insert(cs, env->cregs[10],
+                              env->cregs[11] - env->cregs[10] + 1,
+                              wp_flags, NULL);
+    }
+}
+
+void s390x_cpu_debug_excp_handler(CPUState *cs)
+{
+    S390CPU *cpu = S390_CPU(cs);
+    CPUS390XState *env = &cpu->env;
+    CPUWatchpoint *wp_hit = cs->watchpoint_hit;
+
+    if (wp_hit && wp_hit->flags & BP_CPU) {
+        /* FIXME: When the storage-alteration-space control bit is set,
+           the exception should only be triggered if the memory access
+           is done using an address space with the storage-alteration-event
+           bit set.  We have no way to detect that with the current
+           watchpoint code.  */
+        cs->watchpoint_hit = NULL;
+
+        env->per_address = env->psw.addr;
+        env->per_perc_atmid |= PER_CODE_EVENT_STORE | get_per_atmid(env);
+        /* FIXME: We currently no way to detect the address space used
+           to trigger the watchpoint.  For now just consider it is the
+           current default ASC. This turn to be true except when MVCP
+           and MVCS instrutions are not used.  */
+        env->per_perc_atmid |= env->psw.mask & (PSW_MASK_ASC) >> 46;
+
+        /* Remove all watchpoints to re-execute the code.  A PER exception
+           will be triggered, it will call load_psw which will recompute
+           the watchpoints.  */
+        cpu_watchpoint_remove_all(cs, BP_CPU);
+        cpu_resume_from_signal(cs, NULL);
+    }
 }
 #endif /* CONFIG_USER_ONLY */
