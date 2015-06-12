@@ -249,6 +249,38 @@ static void update_psw_addr(DisasContext *s)
     tcg_gen_movi_i64(psw_addr, s->pc);
 }
 
+static void per_branch(DisasContext *s, bool to_next)
+{
+#ifndef CONFIG_USER_ONLY
+    if (s->tb->flags & FLAG_MASK_PER) {
+        TCGv_i64 pc = tcg_const_i64(s->pc);
+        TCGv_i64 next_pc = to_next ? tcg_const_i64(s->next_pc) : psw_addr;
+        gen_helper_per_branch(cpu_env, pc, next_pc);
+        if (to_next) {
+            tcg_temp_free_i64(next_pc);
+        }
+        tcg_temp_free_i64(pc);
+    }
+#endif
+}
+
+static void per_branch_cond(DisasContext *s, TCGCond cond,
+                            TCGv_i64 arg1, TCGv_i64 arg2)
+{
+#ifndef CONFIG_USER_ONLY
+    if (s->tb->flags & FLAG_MASK_PER) {
+        TCGLabel *lab = gen_new_label();
+        tcg_gen_brcond_i64(tcg_invert_cond(cond), arg1, arg2, lab);
+
+        TCGv_i64 pc = tcg_const_i64(s->pc);
+        gen_helper_per_branch(cpu_env, pc, psw_addr);
+        tcg_temp_free_i64(pc);
+
+        gen_set_label(lab);
+    }
+#endif
+}
+
 static void update_cc_op(DisasContext *s)
 {
     if (s->cc_op != CC_OP_DYNAMIC && s->cc_op != CC_OP_STATIC) {
@@ -1183,6 +1215,7 @@ static void help_l2_shift(DisasContext *s, DisasFields *f,
 static ExitStatus help_goto_direct(DisasContext *s, uint64_t dest)
 {
     if (dest == s->next_pc) {
+        per_branch(s, true);
         return NO_EXIT;
     }
     if (use_goto_tb(s, dest)) {
@@ -1193,6 +1226,7 @@ static ExitStatus help_goto_direct(DisasContext *s, uint64_t dest)
         return EXIT_GOTO_TB;
     } else {
         tcg_gen_movi_i64(psw_addr, dest);
+        per_branch(s, false);
         return EXIT_PC_UPDATED;
     }
 }
@@ -1212,6 +1246,7 @@ static ExitStatus help_branch(DisasContext *s, DisasCompare *c,
     if (is_imm) {
         if (dest == s->next_pc) {
             /* Branch to next.  */
+            per_branch(s, true);
             ret = NO_EXIT;
             goto egress;
         }
@@ -1227,6 +1262,7 @@ static ExitStatus help_branch(DisasContext *s, DisasCompare *c,
         }
         if (c->cond == TCG_COND_ALWAYS) {
             tcg_gen_mov_i64(psw_addr, cdest);
+            per_branch(s, false);
             ret = EXIT_PC_UPDATED;
             goto egress;
         }
@@ -1297,6 +1333,7 @@ static ExitStatus help_branch(DisasContext *s, DisasCompare *c,
         if (c->is_64) {
             tcg_gen_movcond_i64(c->cond, psw_addr, c->u.s64.a, c->u.s64.b,
                                 cdest, next);
+            per_branch_cond(s, c->cond, c->u.s64.a, c->u.s64.b);
         } else {
             TCGv_i32 t0 = tcg_temp_new_i32();
             TCGv_i64 t1 = tcg_temp_new_i64();
@@ -1305,6 +1342,7 @@ static ExitStatus help_branch(DisasContext *s, DisasCompare *c,
             tcg_gen_extu_i32_i64(t1, t0);
             tcg_temp_free_i32(t0);
             tcg_gen_movcond_i64(TCG_COND_NE, psw_addr, t1, z, cdest, next);
+            per_branch_cond(s, TCG_COND_NE, t1, z);
             tcg_temp_free_i64(t1);
             tcg_temp_free_i64(z);
         }
@@ -1437,6 +1475,7 @@ static ExitStatus op_bas(DisasContext *s, DisasOps *o)
     tcg_gen_movi_i64(o->out, pc_to_link_info(s, s->next_pc));
     if (!TCGV_IS_UNUSED_I64(o->in2)) {
         tcg_gen_mov_i64(psw_addr, o->in2);
+        per_branch(s, false);
         return EXIT_PC_UPDATED;
     } else {
         return NO_EXIT;
