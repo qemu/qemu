@@ -51,8 +51,6 @@
 #  define LOG_TB(...) do { } while (0)
 #endif
 
-#define NSEC_PER_SEC    1000000000LL
-
 static void cpu_ppc_tb_stop (CPUPPCState *env);
 static void cpu_ppc_tb_start (CPUPPCState *env);
 

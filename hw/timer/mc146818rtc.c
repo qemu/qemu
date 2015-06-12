@@ -48,7 +48,6 @@
 # define DPRINTF_C(format, ...)      do { } while (0)
 #endif
 
-#define NSEC_PER_SEC    1000000000LL
 #define SEC_PER_MIN     60
 #define MIN_PER_HOUR    60
 #define SEC_PER_HOUR    3600
