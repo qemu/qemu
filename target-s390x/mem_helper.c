@@ -54,6 +54,17 @@ void tlb_fill(CPUState *cs, target_ulong addr, int is_write, int mmu_idx,
 #define HELPER_LOG(x...)
 #endif
 
+/* Reduce the length so that addr + len doesn't cross a page boundary.  */
+static inline uint64_t adj_len_to_page(uint64_t len, uint64_t addr)
+{
+#ifndef CONFIG_USER_ONLY
+    if ((addr & ~TARGET_PAGE_MASK) + len - 1 >= TARGET_PAGE_SIZE) {
+        return -addr & ~TARGET_PAGE_MASK;
+    }
+#endif
+    return len;
+}
+
 #ifndef CONFIG_USER_ONLY
 static void mvc_fast_memset(CPUS390XState *env, uint32_t l, uint64_t dest,
                             uint8_t byte)
