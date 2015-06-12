@@ -364,6 +364,22 @@ static inline int get_ilen(uint8_t opc)
     }
 }
 
+/* PER bits from control register 9 */
+#define PER_CR9_EVENT_BRANCH           0x80000000
+#define PER_CR9_EVENT_IFETCH           0x40000000
+#define PER_CR9_EVENT_STORE            0x20000000
+#define PER_CR9_EVENT_STORE_REAL       0x08000000
+#define PER_CR9_EVENT_NULLIFICATION    0x01000000
+#define PER_CR9_CONTROL_BRANCH_ADDRESS 0x00800000
+#define PER_CR9_CONTROL_ALTERATION     0x00200000
+
+/* PER bits from the PER CODE/ATMID/AI in lowcore */
+#define PER_CODE_EVENT_BRANCH          0x8000
+#define PER_CODE_EVENT_IFETCH          0x4000
+#define PER_CODE_EVENT_STORE           0x2000
+#define PER_CODE_EVENT_STORE_REAL      0x0800
+#define PER_CODE_EVENT_NULLIFICATION   0x0100
+
 #ifndef CONFIG_USER_ONLY
 /* In several cases of runtime exceptions, we havn't recorded the true
    instruction length.  Use these codes when raising exceptions in order
