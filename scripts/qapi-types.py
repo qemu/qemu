@@ -12,7 +12,7 @@
 from ordereddict import OrderedDict
 from qapi import *
 
-def generate_fwd_struct(name, members, builtin_type=False):
+def generate_fwd_struct(name, builtin_type=False):
     if builtin_type:
         return mcgen('''
 
@@ -43,7 +43,7 @@ typedef struct %(name)sList
 ''',
                  name=c_name(name))
 
-def generate_fwd_enum_struct(name, members):
+def generate_fwd_enum_struct(name):
     return mcgen('''
 typedef struct %(name)sList
 {
@@ -332,26 +332,26 @@ exprs = parse_schema(input_file)
 
 fdecl.write(guardstart("QAPI_TYPES_BUILTIN_STRUCT_DECL"))
 for typename in builtin_types.keys():
-    fdecl.write(generate_fwd_struct(typename, None, builtin_type=True))
+    fdecl.write(generate_fwd_struct(typename, builtin_type=True))
 fdecl.write(guardend("QAPI_TYPES_BUILTIN_STRUCT_DECL"))
 
 for expr in exprs:
     ret = "\n"
     if expr.has_key('struct'):
-        ret += generate_fwd_struct(expr['struct'], expr['data'])
+        ret += generate_fwd_struct(expr['struct'])
     elif expr.has_key('enum'):
         ret += generate_enum(expr['enum'], expr['data']) + "\n"
-        ret += generate_fwd_enum_struct(expr['enum'], expr['data'])
+        ret += generate_fwd_enum_struct(expr['enum'])
         fdef.write(generate_enum_lookup(expr['enum'], expr['data']))
     elif expr.has_key('union'):
-        ret += generate_fwd_struct(expr['union'], expr['data']) + "\n"
+        ret += generate_fwd_struct(expr['union']) + "\n"
         enum_define = discriminator_find_enum_define(expr)
         if not enum_define:
             ret += generate_enum('%sKind' % expr['union'], expr['data'].keys())
             fdef.write(generate_enum_lookup('%sKind' % expr['union'],
                                             expr['data'].keys()))
     elif expr.has_key('alternate'):
-        ret += generate_fwd_struct(expr['alternate'], expr['data']) + "\n"
+        ret += generate_fwd_struct(expr['alternate']) + "\n"
         ret += generate_enum('%sKind' % expr['alternate'], expr['data'].keys())
         fdef.write(generate_enum_lookup('%sKind' % expr['alternate'],
                                         expr['data'].keys()))
