@@ -147,9 +147,6 @@ typedef struct dsp_interrupt_s {
 } dsp_interrupt_t;
 
 struct dsp_core_s {
-    /* DSP executing instructions ? */
-    bool running;
-    
     /* DSP instruction Cycle counter */
     uint16_t instr_cycle;
 

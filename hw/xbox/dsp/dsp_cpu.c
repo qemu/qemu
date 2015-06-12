@@ -364,10 +364,45 @@ void dsp56k_init_cpu(dsp_core_t* dsp)
         nonparallel_matches[i][1] = match;
     }
 
+    /* Memory */
+    memset(dsp->periph, 0, sizeof(dsp->periph));
+    memset(dsp->stack, 0, sizeof(dsp->stack));
+    memset(dsp->registers, 0, sizeof(dsp->registers));
+    
+    /* Registers */
+    dsp->pc = 0x0000;
+    dsp->registers[DSP_REG_OMR]=0x02;
+    for (i=0;i<8;i++) {
+        dsp->registers[DSP_REG_M0+i]=0x00ffff;
+    }
+
+    /* Interruptions */
+    memset(dsp->interrupt_isPending, 0, sizeof(dsp->interrupt_isPending));
+    dsp->interrupt_state = DSP_INTERRUPT_NONE;
+    dsp->interrupt_instr_fetch = -1;
+    dsp->interrupt_save_pc = -1;
+    dsp->interrupt_counter = 0;
+    dsp->interrupt_pipeline_count = 0;
+    for (i=0;i<5;i++) {
+        dsp->interrupt_ipl[i] = 3;
+    }
+    for (i=5;i<12;i++) {
+        dsp->interrupt_ipl[i] = -1;
+    }
+
+    /* Misc */
+    dsp->loop_rep = 0;
+
+
+    /* runtime shit */
+
 
     dsp->executing_for_disasm = false;
     // start_time = SDL_GetTicks();
     dsp->num_inst = 0;
+
+    dsp->exception_debugging = true;
+    dsp->disasm_prev_inst_pc = 0xFFFFFFFF;
 }
 
 static OpcodeEntry lookup_opcode(uint32_t op) {

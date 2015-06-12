@@ -65,8 +65,6 @@ void dsp_run(dsp_core_t* dsp, int cycles)
 {
     dsp->save_cycles += cycles;
 
-    if (dsp->running == 0) return;
-
     if (dsp->save_cycles <= 0) return;
 
     // if (unlikely(bDspDebugging)) {
