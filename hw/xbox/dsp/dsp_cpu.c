@@ -25,8 +25,6 @@
 #include <string.h>
 #include <assert.h>
 
-#include "dsp.h"
-#include "dsp_int.h"
 #include "dsp_cpu.h"
 
 #define TRACE_DSP_DISASM 1
@@ -337,31 +335,35 @@ static const OpcodeEntry nonparallel_opcodes[] = {
     { "000000000000000010000110", "wait", NULL, emu_wait },
 };
 
+static bool matches_initialised;
 static uint32_t nonparallel_matches[ARRAYSIZE(nonparallel_opcodes)][2];
 
 /**********************************
  *  Emulator kernel
  **********************************/
 
-void dsp56k_init_cpu(dsp_core_t* dsp)
+void dsp56k_reset_cpu(dsp_core_t* dsp)
 {
     int i;
-    for (i=0; i<ARRAYSIZE(nonparallel_opcodes); i++) {
-        const OpcodeEntry t = nonparallel_opcodes[i];
-        assert(strlen(t.template) == 24);
+    if (!matches_initialised) {
+        for (i=0; i<ARRAYSIZE(nonparallel_opcodes); i++) {
+            const OpcodeEntry t = nonparallel_opcodes[i];
+            assert(strlen(t.template) == 24);
 
-        uint32_t mask = 0;
-        uint32_t match = 0;
-        int j;
-        for (j=0; j<24; j++) {
-            if (t.template[j] == '0' || t.template[j] == '1') {
-                mask |= 1 << (24-j-1);
-                match |= (t.template[j] - '0') << (24-j-1);
+            uint32_t mask = 0;
+            uint32_t match = 0;
+            int j;
+            for (j=0; j<24; j++) {
+                if (t.template[j] == '0' || t.template[j] == '1') {
+                    mask |= 1 << (24-j-1);
+                    match |= (t.template[j] - '0') << (24-j-1);
+                }
             }
-        }
 
-        nonparallel_matches[i][0] = mask;
-        nonparallel_matches[i][1] = match;
+            nonparallel_matches[i][0] = mask;
+            nonparallel_matches[i][1] = match;
+        }
+        matches_initialised = true;
     }
 
     /* Memory */
@@ -945,8 +947,8 @@ uint32_t dsp56k_read_memory(dsp_core_t* dsp, int space, uint32_t address)
 
     if (space == DSP_SPACE_X) {
         if (address >= DSP_PERIPH_BASE) {
-            // assert(false);
-            return 0xababa;
+            assert(dsp->read_peripheral);
+            return dsp->read_peripheral(dsp, address);
         }
         assert(address < DSP_XRAM_SIZE);
         return dsp->xram[address];
@@ -972,14 +974,6 @@ void dsp56k_write_memory(dsp_core_t* dsp, int space, uint32_t address, uint32_t 
         write_memory_raw(dsp, space, address, value);
 }
 
-static void write_memory_peripheral(dsp_core_t* dsp, uint32_t address, uint32_t value) {
-    assert((value & 0xFF000000) == 0);
-    assert((address & 0xFF000000) == 0);
-
-    // assert(false);    
-}
-
-
 static void write_memory_raw(dsp_core_t* dsp, int space, uint32_t address, uint32_t value)
 {
     assert((value & 0xFF000000) == 0);
@@ -987,7 +981,8 @@ static void write_memory_raw(dsp_core_t* dsp, int space, uint32_t address, uint3
 
     if (space == DSP_SPACE_X) {
         if (address >= DSP_PERIPH_BASE) {
-            write_memory_peripheral(dsp, address, value);
+            assert(dsp->write_peripheral);
+            dsp->write_peripheral(dsp, address, value);
             return;
         }
         assert(address < DSP_XRAM_SIZE);

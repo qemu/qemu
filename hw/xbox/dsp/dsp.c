@@ -27,8 +27,10 @@
 #include <string.h>
 #include <assert.h>
 
+#include <stddef.h>
+
 #include "dsp_cpu.h"
-#include "dsp_int.h"
+#include "dsp_dma.h"
 
 #include "dsp.h"
 
@@ -36,64 +38,120 @@
 #define BITMASK(x)  ((1<<(x))-1)
 #define ARRAYSIZE(x) (int)(sizeof(x)/sizeof(x[0]))
 
+#ifndef container_of
+#define container_of(ptr, type, member) ({                      \
+        const typeof(((type *) 0)->member) *__mptr = (ptr);     \
+        (type *) ((char *) __mptr - offsetof(type, member));})
+#endif
+
+
 #define DPRINTF(s, ...) fprintf(stderr, s, ## __VA_ARGS__)
 
-dsp_core_t* dsp_init(void)
+struct DSPState {
+    dsp_core_t core;
+    DSPDMAState dma;
+    int save_cycles;
+};
+
+static uint32_t read_peripheral(dsp_core_t* core, uint32_t address);
+static void write_peripheral(dsp_core_t* core, uint32_t address, uint32_t value);
+
+DSPState* dsp_init(void)
 {
     DPRINTF("dsp_init\n");
 
-    dsp_core_t* dsp = (dsp_core_t*)malloc(sizeof(dsp_core_t));
-    memset(dsp, 0, sizeof(dsp_core_t));
+    DSPState* dsp = (DSPState*)malloc(sizeof(DSPState));
+    memset(dsp, 0, sizeof(*dsp));
 
-    dsp56k_init_cpu(dsp);
-    dsp->save_cycles = 0;
+    dsp->core.read_peripheral = read_peripheral;
+    dsp->core.write_peripheral = write_peripheral;
 
+    dsp_reset(dsp);
     return dsp;
 }
 
+void dsp_reset(DSPState* dsp)
+{
+    dsp56k_reset_cpu(&dsp->core);
+    dsp->save_cycles = 0;
+}
 
-void dsp_destroy(dsp_core_t* dsp)
+void dsp_destroy(DSPState* dsp)
 {
     free(dsp);
 }
 
+static uint32_t read_peripheral(dsp_core_t* core, uint32_t address) {
+    DSPState* dsp = container_of(core, DSPState, core);
 
-/**
- * Run DSP for certain cycles
- */
-void dsp_run(dsp_core_t* dsp, int cycles)
+    printf("read_peripheral 0x%06x\n", address);
+
+    switch(address) {
+    // case 0xFFFFC5: // interrupt
+    case 0xFFFFD6:
+        return dsp_dma_read(&dsp->dma, DMA_CONTROL);
+    }
+
+    return 0xababa;
+}
+
+static void write_peripheral(dsp_core_t* core, uint32_t address, uint32_t value) {
+    DSPState* dsp = container_of(core, DSPState, core);
+
+    printf("write_peripheral [0x%06x] = 0x%06x\n", address, value);
+
+    switch(address) {
+    // case 0xFFFFC5: // interrupt
+    case 0xFFFFD6:
+        return dsp_dma_write(&dsp->dma, DMA_CONTROL, value);
+    }
+}
+
+
+void dsp_step(DSPState* dsp)
+{
+    dsp56k_execute_instruction(&dsp->core);
+}
+
+void dsp_run(DSPState* dsp, int cycles)
 {
     dsp->save_cycles += cycles;
 
     if (dsp->save_cycles <= 0) return;
 
     // if (unlikely(bDspDebugging)) {
-    //     while (dsp->save_cycles > 0)
+    //     while (dsp->core.save_cycles > 0)
     //     {
     //         dsp56k_execute_instruction();
-    //         dsp->save_cycles -= dsp->instr_cycle;
+    //         dsp->core.save_cycles -= dsp->core.instr_cycle;
     //         DebugDsp_Check();
     //     }
     // } else {
-    //  fprintf(stderr, "--> %d\n", dsp->save_cycles);
+    //  fprintf(stderr, "--> %d\n", dsp->core.save_cycles);
     while (dsp->save_cycles > 0)
     {
-        dsp56k_execute_instruction(dsp);
-        dsp->save_cycles -= dsp->instr_cycle;
+        dsp56k_execute_instruction(&dsp->core);
+        dsp->save_cycles -= dsp->core.instr_cycle;
     }
 
 } 
+
+void dsp_bootstrap(DSPState* dsp, const uint32_t* pram, size_t len)
+{
+    assert(sizeof(dsp->core.pram) >= len);
+    memcpy(dsp->core.pram, pram, len);
+}
 
 
 /**
  * Disassemble DSP code between given addresses, return next PC address
  */
-uint32_t dsp_disasm_address(dsp_core_t* dsp, FILE *out, uint32_t lowerAdr, uint32_t UpperAdr)
+uint32_t dsp_disasm_address(DSPState* dsp, FILE *out, uint32_t lowerAdr, uint32_t UpperAdr)
 {
     uint32_t dsp_pc;
 
     for (dsp_pc=lowerAdr; dsp_pc<=UpperAdr; dsp_pc++) {
-        dsp_pc += dsp56k_execute_one_disasm_instruction(dsp, out, dsp_pc);
+        dsp_pc += dsp56k_execute_one_disasm_instruction(&dsp->core, out, dsp_pc);
     }
     return dsp_pc;
 }
@@ -108,7 +166,7 @@ uint32_t dsp_disasm_address(dsp_core_t* dsp, FILE *out, uint32_t lowerAdr, uint3
  * Return the value at given address. For valid values AND the return
  * value with BITMASK(24).
  */
-uint32_t dsp_read_memory(dsp_core_t* dsp, uint32_t address, char space_id, const char **mem_str)
+uint32_t dsp_read_memory(DSPState* dsp, uint32_t address, char space_id, const char **mem_str)
 {
     int space;
 
@@ -133,7 +191,7 @@ uint32_t dsp_read_memory(dsp_core_t* dsp, uint32_t address, char space_id, const
         assert(false);
     }
 
-    return dsp56k_read_memory(dsp, space, address);
+    return dsp56k_read_memory(&dsp->core, space, address);
 }
 
 
@@ -141,7 +199,7 @@ uint32_t dsp_read_memory(dsp_core_t* dsp, uint32_t address, char space_id, const
  * Output memory values between given addresses in given DSP address space.
  * Return next DSP address value.
  */
-uint32_t dsp_disasm_memory(dsp_core_t* dsp, uint32_t dsp_memdump_addr, uint32_t dsp_memdump_upper, char space)
+uint32_t dsp_disasm_memory(DSPState* dsp, uint32_t dsp_memdump_addr, uint32_t dsp_memdump_upper, char space)
 {
     uint32_t mem, value;
     const char *mem_str;
@@ -157,7 +215,7 @@ uint32_t dsp_disasm_memory(dsp_core_t* dsp, uint32_t dsp_memdump_addr, uint32_t 
  * Show information on DSP core state which isn't
  * shown by any of the other commands (dd, dm, dr).
  */
-void dsp_info(dsp_core_t* dsp)
+void dsp_info(DSPState* dsp)
 {
     int i, j;
     const char *stackname[] = { "SSH", "SSL" };
@@ -166,21 +224,21 @@ void dsp_info(dsp_core_t* dsp)
 
     for (i = 0; i < ARRAYSIZE(stackname); i++) {
         fprintf(stderr, "- %s stack:", stackname[i]);
-        for (j = 0; j < ARRAYSIZE(dsp->stack[0]); j++) {
-            fprintf(stderr, " %04x", dsp->stack[i][j]);
+        for (j = 0; j < ARRAYSIZE(dsp->core.stack[0]); j++) {
+            fprintf(stderr, " %04x", dsp->core.stack[i][j]);
         }
         fputs("\n", stderr);
     }
 
     fprintf(stderr, "- Interrupt IPL:");
-    for (i = 0; i < ARRAYSIZE(dsp->interrupt_ipl); i++) {
-        fprintf(stderr, " %04x", dsp->interrupt_ipl[i]);
+    for (i = 0; i < ARRAYSIZE(dsp->core.interrupt_ipl); i++) {
+        fprintf(stderr, " %04x", dsp->core.interrupt_ipl[i]);
     }
     fputs("\n", stderr);
 
     fprintf(stderr, "- Pending ints: ");
-    for (i = 0; i < ARRAYSIZE(dsp->interrupt_is_pending); i++) {
-        fprintf(stderr, " %04hx", dsp->interrupt_is_pending[i]);
+    for (i = 0; i < ARRAYSIZE(dsp->core.interrupt_is_pending); i++) {
+        fprintf(stderr, " %04hx", dsp->core.interrupt_is_pending[i]);
     }
     fputs("\n", stderr);
 }
@@ -188,29 +246,29 @@ void dsp_info(dsp_core_t* dsp)
 /**
  * Show DSP register contents
  */
-void dsp_print_registers(dsp_core_t* dsp)
+void dsp_print_registers(DSPState* dsp)
 {
     uint32_t i;
 
     fprintf(stderr,"A: A2: %02x  A1: %06x  A0: %06x\n",
-        dsp->registers[DSP_REG_A2], dsp->registers[DSP_REG_A1], dsp->registers[DSP_REG_A0]);
+        dsp->core.registers[DSP_REG_A2], dsp->core.registers[DSP_REG_A1], dsp->core.registers[DSP_REG_A0]);
     fprintf(stderr,"B: B2: %02x  B1: %06x  B0: %06x\n",
-        dsp->registers[DSP_REG_B2], dsp->registers[DSP_REG_B1], dsp->registers[DSP_REG_B0]);
+        dsp->core.registers[DSP_REG_B2], dsp->core.registers[DSP_REG_B1], dsp->core.registers[DSP_REG_B0]);
     
-    fprintf(stderr,"X: X1: %06x  X0: %06x\n", dsp->registers[DSP_REG_X1], dsp->registers[DSP_REG_X0]);
-    fprintf(stderr,"Y: Y1: %06x  Y0: %06x\n", dsp->registers[DSP_REG_Y1], dsp->registers[DSP_REG_Y0]);
+    fprintf(stderr,"X: X1: %06x  X0: %06x\n", dsp->core.registers[DSP_REG_X1], dsp->core.registers[DSP_REG_X0]);
+    fprintf(stderr,"Y: Y1: %06x  Y0: %06x\n", dsp->core.registers[DSP_REG_Y1], dsp->core.registers[DSP_REG_Y0]);
 
     for (i=0; i<8; i++) {
         fprintf(stderr,"R%01x: %04x   N%01x: %04x   M%01x: %04x\n", 
-            i, dsp->registers[DSP_REG_R0+i],
-            i, dsp->registers[DSP_REG_N0+i],
-            i, dsp->registers[DSP_REG_M0+i]);
+            i, dsp->core.registers[DSP_REG_R0+i],
+            i, dsp->core.registers[DSP_REG_N0+i],
+            i, dsp->core.registers[DSP_REG_M0+i]);
     }
 
-    fprintf(stderr,"LA: %04x   LC: %04x   PC: %04x\n", dsp->registers[DSP_REG_LA], dsp->registers[DSP_REG_LC], dsp->pc);
-    fprintf(stderr,"SR: %04x  OMR: %02x\n", dsp->registers[DSP_REG_SR], dsp->registers[DSP_REG_OMR]);
+    fprintf(stderr,"LA: %04x   LC: %04x   PC: %04x\n", dsp->core.registers[DSP_REG_LA], dsp->core.registers[DSP_REG_LC], dsp->core.pc);
+    fprintf(stderr,"SR: %04x  OMR: %02x\n", dsp->core.registers[DSP_REG_SR], dsp->core.registers[DSP_REG_OMR]);
     fprintf(stderr,"SP: %02x    SSH: %04x  SSL: %04x\n", 
-        dsp->registers[DSP_REG_SP], dsp->registers[DSP_REG_SSH], dsp->registers[DSP_REG_SSL]);
+        dsp->core.registers[DSP_REG_SP], dsp->core.registers[DSP_REG_SSH], dsp->core.registers[DSP_REG_SSL]);
 }
 
 
@@ -221,7 +279,7 @@ void dsp_print_registers(dsp_core_t* dsp)
  * need special handling (in DSP*SetRegister()) when they are set.
  * Return the register width in bits or zero for an error.
  */
-int dsp_get_register_address(dsp_core_t* dsp, const char *regname, uint32_t **addr, uint32_t *mask)
+int dsp_get_register_address(DSPState* dsp, const char *regname, uint32_t **addr, uint32_t *mask)
 {
 #define MAX_REGNAME_LEN 4
     typedef struct {
@@ -235,68 +293,68 @@ int dsp_get_register_address(dsp_core_t* dsp, const char *regname, uint32_t **ad
     const reg_addr_t registers[] = {
 
         /* 56-bit A register */
-        { "A0",  &dsp->registers[DSP_REG_A0],  32, BITMASK(24) },
-        { "A1",  &dsp->registers[DSP_REG_A1],  32, BITMASK(24) },
-        { "A2",  &dsp->registers[DSP_REG_A2],  32, BITMASK(8) },
+        { "A0",  &dsp->core.registers[DSP_REG_A0],  32, BITMASK(24) },
+        { "A1",  &dsp->core.registers[DSP_REG_A1],  32, BITMASK(24) },
+        { "A2",  &dsp->core.registers[DSP_REG_A2],  32, BITMASK(8) },
 
         /* 56-bit B register */
-        { "B0",  &dsp->registers[DSP_REG_B0],  32, BITMASK(24) },
-        { "B1",  &dsp->registers[DSP_REG_B1],  32, BITMASK(24) },
-        { "B2",  &dsp->registers[DSP_REG_B2],  32, BITMASK(8) },
+        { "B0",  &dsp->core.registers[DSP_REG_B0],  32, BITMASK(24) },
+        { "B1",  &dsp->core.registers[DSP_REG_B1],  32, BITMASK(24) },
+        { "B2",  &dsp->core.registers[DSP_REG_B2],  32, BITMASK(8) },
 
         /* 16-bit LA & LC registers */
-        { "LA",  &dsp->registers[DSP_REG_LA],  32, BITMASK(16) },
-        { "LC",  &dsp->registers[DSP_REG_LC],  32, BITMASK(16) },
+        { "LA",  &dsp->core.registers[DSP_REG_LA],  32, BITMASK(16) },
+        { "LC",  &dsp->core.registers[DSP_REG_LC],  32, BITMASK(16) },
 
         /* 16-bit M registers */
-        { "M0",  &dsp->registers[DSP_REG_M0],  32, BITMASK(16) },
-        { "M1",  &dsp->registers[DSP_REG_M1],  32, BITMASK(16) },
-        { "M2",  &dsp->registers[DSP_REG_M2],  32, BITMASK(16) },
-        { "M3",  &dsp->registers[DSP_REG_M3],  32, BITMASK(16) },
-        { "M4",  &dsp->registers[DSP_REG_M4],  32, BITMASK(16) },
-        { "M5",  &dsp->registers[DSP_REG_M5],  32, BITMASK(16) },
-        { "M6",  &dsp->registers[DSP_REG_M6],  32, BITMASK(16) },
-        { "M7",  &dsp->registers[DSP_REG_M7],  32, BITMASK(16) },
+        { "M0",  &dsp->core.registers[DSP_REG_M0],  32, BITMASK(16) },
+        { "M1",  &dsp->core.registers[DSP_REG_M1],  32, BITMASK(16) },
+        { "M2",  &dsp->core.registers[DSP_REG_M2],  32, BITMASK(16) },
+        { "M3",  &dsp->core.registers[DSP_REG_M3],  32, BITMASK(16) },
+        { "M4",  &dsp->core.registers[DSP_REG_M4],  32, BITMASK(16) },
+        { "M5",  &dsp->core.registers[DSP_REG_M5],  32, BITMASK(16) },
+        { "M6",  &dsp->core.registers[DSP_REG_M6],  32, BITMASK(16) },
+        { "M7",  &dsp->core.registers[DSP_REG_M7],  32, BITMASK(16) },
 
         /* 16-bit N registers */
-        { "N0",  &dsp->registers[DSP_REG_N0],  32, BITMASK(16) },
-        { "N1",  &dsp->registers[DSP_REG_N1],  32, BITMASK(16) },
-        { "N2",  &dsp->registers[DSP_REG_N2],  32, BITMASK(16) },
-        { "N3",  &dsp->registers[DSP_REG_N3],  32, BITMASK(16) },
-        { "N4",  &dsp->registers[DSP_REG_N4],  32, BITMASK(16) },
-        { "N5",  &dsp->registers[DSP_REG_N5],  32, BITMASK(16) },
-        { "N6",  &dsp->registers[DSP_REG_N6],  32, BITMASK(16) },
-        { "N7",  &dsp->registers[DSP_REG_N7],  32, BITMASK(16) },
+        { "N0",  &dsp->core.registers[DSP_REG_N0],  32, BITMASK(16) },
+        { "N1",  &dsp->core.registers[DSP_REG_N1],  32, BITMASK(16) },
+        { "N2",  &dsp->core.registers[DSP_REG_N2],  32, BITMASK(16) },
+        { "N3",  &dsp->core.registers[DSP_REG_N3],  32, BITMASK(16) },
+        { "N4",  &dsp->core.registers[DSP_REG_N4],  32, BITMASK(16) },
+        { "N5",  &dsp->core.registers[DSP_REG_N5],  32, BITMASK(16) },
+        { "N6",  &dsp->core.registers[DSP_REG_N6],  32, BITMASK(16) },
+        { "N7",  &dsp->core.registers[DSP_REG_N7],  32, BITMASK(16) },
 
-        { "OMR", &dsp->registers[DSP_REG_OMR], 32, 0x5f },
+        { "OMR", &dsp->core.registers[DSP_REG_OMR], 32, 0x5f },
 
         /* 16-bit program counter */
-        { "PC",  (uint32_t*)(&dsp->pc),  24, BITMASK(24) },
+        { "PC",  (uint32_t*)(&dsp->core.pc),  24, BITMASK(24) },
 
         /* 16-bit DSP R (address) registers */
-        { "R0",  &dsp->registers[DSP_REG_R0],  32, BITMASK(16) },
-        { "R1",  &dsp->registers[DSP_REG_R1],  32, BITMASK(16) },
-        { "R2",  &dsp->registers[DSP_REG_R2],  32, BITMASK(16) },
-        { "R3",  &dsp->registers[DSP_REG_R3],  32, BITMASK(16) },
-        { "R4",  &dsp->registers[DSP_REG_R4],  32, BITMASK(16) },
-        { "R5",  &dsp->registers[DSP_REG_R5],  32, BITMASK(16) },
-        { "R6",  &dsp->registers[DSP_REG_R6],  32, BITMASK(16) },
-        { "R7",  &dsp->registers[DSP_REG_R7],  32, BITMASK(16) },
+        { "R0",  &dsp->core.registers[DSP_REG_R0],  32, BITMASK(16) },
+        { "R1",  &dsp->core.registers[DSP_REG_R1],  32, BITMASK(16) },
+        { "R2",  &dsp->core.registers[DSP_REG_R2],  32, BITMASK(16) },
+        { "R3",  &dsp->core.registers[DSP_REG_R3],  32, BITMASK(16) },
+        { "R4",  &dsp->core.registers[DSP_REG_R4],  32, BITMASK(16) },
+        { "R5",  &dsp->core.registers[DSP_REG_R5],  32, BITMASK(16) },
+        { "R6",  &dsp->core.registers[DSP_REG_R6],  32, BITMASK(16) },
+        { "R7",  &dsp->core.registers[DSP_REG_R7],  32, BITMASK(16) },
 
-        { "SSH", &dsp->registers[DSP_REG_SSH], 32, BITMASK(16) },
-        { "SSL", &dsp->registers[DSP_REG_SSL], 32, BITMASK(16) },
-        { "SP",  &dsp->registers[DSP_REG_SP],  32, BITMASK(6) },
+        { "SSH", &dsp->core.registers[DSP_REG_SSH], 32, BITMASK(16) },
+        { "SSL", &dsp->core.registers[DSP_REG_SSL], 32, BITMASK(16) },
+        { "SP",  &dsp->core.registers[DSP_REG_SP],  32, BITMASK(6) },
 
         /* 16-bit status register */
-        { "SR",  &dsp->registers[DSP_REG_SR],  32, 0xefff },
+        { "SR",  &dsp->core.registers[DSP_REG_SR],  32, 0xefff },
 
         /* 48-bit X register */
-        { "X0",  &dsp->registers[DSP_REG_X0],  32, BITMASK(24) },
-        { "X1",  &dsp->registers[DSP_REG_X1],  32, BITMASK(24) },
+        { "X0",  &dsp->core.registers[DSP_REG_X0],  32, BITMASK(24) },
+        { "X1",  &dsp->core.registers[DSP_REG_X1],  32, BITMASK(24) },
 
         /* 48-bit Y register */
-        { "Y0",  &dsp->registers[DSP_REG_Y0],  32, BITMASK(24) },
-        { "Y1",  &dsp->registers[DSP_REG_Y1],  32, BITMASK(24) }
+        { "Y0",  &dsp->core.registers[DSP_REG_Y0],  32, BITMASK(24) },
+        { "Y1",  &dsp->core.registers[DSP_REG_Y1],  32, BITMASK(24) }
     };
     /* left, right, middle, direction */
     int l, r, m, dir = 0;
@@ -342,7 +400,7 @@ int dsp_get_register_address(dsp_core_t* dsp, const char *regname, uint32_t **ad
 /**
  * Set given DSP register value, return false if unknown register given
  */
-bool dsp_disasm_set_register(dsp_core_t* dsp, const char *arg, uint32_t value)
+bool dsp_disasm_set_register(DSPState* dsp, const char *arg, uint32_t value)
 {
     uint32_t *addr, mask, sp_value;
     int bits;
@@ -350,31 +408,31 @@ bool dsp_disasm_set_register(dsp_core_t* dsp, const char *arg, uint32_t value)
     /* first check registers needing special handling... */
     if (arg[0]=='S' || arg[0]=='s') {
         if (arg[1]=='P' || arg[1]=='p') {
-            dsp->registers[DSP_REG_SP] = value & BITMASK(6);
+            dsp->core.registers[DSP_REG_SP] = value & BITMASK(6);
             value &= BITMASK(4); 
-            dsp->registers[DSP_REG_SSH] = dsp->stack[0][value];
-            dsp->registers[DSP_REG_SSL] = dsp->stack[1][value];
+            dsp->core.registers[DSP_REG_SSH] = dsp->core.stack[0][value];
+            dsp->core.registers[DSP_REG_SSL] = dsp->core.stack[1][value];
             return true;
         }
         if (arg[1]=='S' || arg[1]=='s') {
-            sp_value = dsp->registers[DSP_REG_SP] & BITMASK(4);
+            sp_value = dsp->core.registers[DSP_REG_SP] & BITMASK(4);
             if (arg[2]=='H' || arg[2]=='h') {
                 if (sp_value == 0) {
-                    dsp->registers[DSP_REG_SSH] = 0;
-                    dsp->stack[0][sp_value] = 0;
+                    dsp->core.registers[DSP_REG_SSH] = 0;
+                    dsp->core.stack[0][sp_value] = 0;
                 } else {
-                    dsp->registers[DSP_REG_SSH] = value & BITMASK(16);
-                    dsp->stack[0][sp_value] = value & BITMASK(16);
+                    dsp->core.registers[DSP_REG_SSH] = value & BITMASK(16);
+                    dsp->core.stack[0][sp_value] = value & BITMASK(16);
                 }
                 return true;
             }
             if (arg[2]=='L' || arg[2]=='l') {
                 if (sp_value == 0) {
-                    dsp->registers[DSP_REG_SSL] = 0;
-                    dsp->stack[1][sp_value] = 0;
+                    dsp->core.registers[DSP_REG_SSL] = 0;
+                    dsp->core.stack[1][sp_value] = 0;
                 } else {
-                    dsp->registers[DSP_REG_SSL] = value & BITMASK(16);
-                    dsp->stack[1][sp_value] = value & BITMASK(16);
+                    dsp->core.registers[DSP_REG_SSL] = value & BITMASK(16);
+                    dsp->core.stack[1][sp_value] = value & BITMASK(16);
                 }
                 return true;
             }

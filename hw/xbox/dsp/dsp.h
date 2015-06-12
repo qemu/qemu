@@ -29,22 +29,27 @@
 #include <stdbool.h>
 #include <stdio.h>
 
-typedef struct dsp_core_s dsp_core_t;
+typedef struct DSPState DSPState;
 
 /* Dsp commands */
-dsp_core_t* dsp_init(void);
-void dsp_destroy(dsp_core_t* dsp);
-void dsp_run(dsp_core_t* dsp, int nHostCycles);
+DSPState* dsp_init(void);
+void dsp_destroy(DSPState* dsp);
+void dsp_reset(DSPState* dsp);
+
+void dsp_step(DSPState* dsp);
+void dsp_run(DSPState* dsp, int cycles);
+
+void dsp_bootstrap(DSPState* dsp, const uint32_t* pmem, size_t len);
 
 
 /* Dsp Debugger commands */
-uint32_t dsp_read_memory(dsp_core_t* dsp, uint32_t addr, char space, const char **mem_str);
-uint32_t dsp_disasm_memory(dsp_core_t* dsp, uint32_t dsp_memdump_addr, uint32_t dsp_memdump_upper, char space);
-uint32_t dsp_disasm_address(dsp_core_t* dsp, FILE *out, uint32_t lowerAdr, uint32_t UpperAdr);
-void dsp_info(dsp_core_t* dsp);
-void dsp_print_registers(dsp_core_t* dsp);
-int dsp_get_register_address(dsp_core_t* dsp, const char *arg, uint32_t **addr, uint32_t *mask);
-bool dsp_disasm_set_register(dsp_core_t* dsp, const char *arg, uint32_t value);
+uint32_t dsp_read_memory(DSPState* dsp, uint32_t addr, char space, const char **mem_str);
+uint32_t dsp_disasm_memory(DSPState* dsp, uint32_t dsp_memdump_addr, uint32_t dsp_memdump_upper, char space);
+uint32_t dsp_disasm_address(DSPState* dsp, FILE *out, uint32_t lowerAdr, uint32_t UpperAdr);
+void dsp_info(DSPState* dsp);
+void dsp_print_registers(DSPState* dsp);
+int dsp_get_register_address(DSPState* dsp, const char *arg, uint32_t **addr, uint32_t *mask);
+bool dsp_disasm_set_register(DSPState* dsp, const char *arg, uint32_t value);
 
 
 #endif /* DSP_H */
