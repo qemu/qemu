@@ -226,7 +226,6 @@ static mon_cmd_t info_cmds[];
 static const mon_cmd_t qmp_cmds[];
 
 Monitor *cur_mon;
-Monitor *default_mon;
 
 static void monitor_command_cb(void *opaque, const char *cmdline,
                                void *readline_opaque);
@@ -5298,9 +5297,6 @@ void monitor_init(CharDriverState *chr, int flags)
     qemu_mutex_lock(&monitor_lock);
     QLIST_INSERT_HEAD(&mon_list, mon, entry);
     qemu_mutex_unlock(&monitor_lock);
-
-    if (!default_mon || (flags & MONITOR_IS_DEFAULT))
-        default_mon = mon;
 }
 
 static void bdrv_password_cb(void *opaque, const char *password,
