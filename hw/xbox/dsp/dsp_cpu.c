@@ -364,7 +364,7 @@ void dsp56k_init_cpu(dsp_core_t* dsp)
     }
 
 
-    dsp->in_disasm_mode = false;
+    dsp->executing_for_disasm = false;
     // start_time = SDL_GetTicks();
     dsp->num_inst = 0;
 }
@@ -381,17 +381,12 @@ static OpcodeEntry lookup_opcode(uint32_t op) {
     return r;
 }
 
-typedef enum {
-    DSP_TRACE_MODE,
-    DSP_DISASM_MODE
-} dsp_trace_disasm_t;
-
 static uint16_t disasm_instruction(dsp_core_t* dsp, dsp_trace_disasm_t mode)
 {
     uint32_t value;
 
+    dsp->disasm_mode = mode;
     if (mode == DSP_TRACE_MODE) {
-        dsp->isInDisasmMode = false;
         if (dsp->disasm_prev_inst_pc == dsp->pc) {
             if (!dsp->disasm_is_looping) {
                 fprintf(stderr, "Looping on DSP instruction at PC = $%04x\n", dsp->disasm_prev_inst_pc);
@@ -399,9 +394,6 @@ static uint16_t disasm_instruction(dsp_core_t* dsp, dsp_trace_disasm_t mode)
             }
             return 0;
         }
-    }
-    else {
-        dsp->isInDisasmMode = true;
     }
 
     dsp->disasm_prev_inst_pc = dsp->pc;
@@ -559,7 +551,7 @@ uint16_t dsp56k_execute_one_disasm_instruction(dsp_core_t* dsp, FILE *out, uint3
     dsp_core_t dsp_core_save;
 
     /* Set DSP in disasm mode */
-    dsp->in_disasm_mode = true;
+    dsp->executing_for_disasm = true;
 
     /* Save DSP context before executing instruction */
     memcpy(&dsp_core_save, dsp, sizeof(dsp_core_t));
@@ -579,7 +571,7 @@ uint16_t dsp56k_execute_one_disasm_instruction(dsp_core_t* dsp, FILE *out, uint3
     memcpy(dsp, &dsp_core_save, sizeof(dsp_core_t));
     
     /* Unset DSP in disasm mode */
-    dsp->in_disasm_mode = false;
+    dsp->executing_for_disasm = false;
 
     return instruction_length;
 }
@@ -600,7 +592,7 @@ void dsp56k_execute_instruction(dsp_core_t* dsp)
     /* Disasm current instruction ? (trace mode only) */
     if (TRACE_DSP_DISASM) {    
         /* Call disasm_instruction only when DSP is called in trace mode */
-        if (dsp->in_disasm_mode == false) {
+        if (!dsp->executing_for_disasm) {
             disasm_return = disasm_instruction(dsp, DSP_TRACE_MODE);
             
             if (disasm_return != 0 && TRACE_DSP_DISASM_REG) {
@@ -626,7 +618,7 @@ void dsp56k_execute_instruction(dsp_core_t* dsp)
     /* Disasm current instruction ? (trace mode only) */
     if (TRACE_DSP_DISASM) {
         /* Display only when DSP is called in trace mode */
-        if (!dsp->in_disasm_mode) {
+        if (!dsp->executing_for_disasm) {
             if (disasm_return != 0) {
                 fprintf(stderr, "%s", disasm_get_instruction_text(dsp));
                 
@@ -1036,7 +1028,7 @@ static void dsp_write_reg(dsp_core_t* dsp, uint32_t numreg, uint32_t value)
                 /* Stack underflow or overflow detected, raise interrupt */
                 dsp56k_add_interrupt(dsp, DSP_INTER_STACK_ERROR);
                 dsp->registers[DSP_REG_SP] = value & (3<<DSP_SP_SE);
-                if (!dsp->in_disasm_mode) {
+                if (!dsp->executing_for_disasm) {
                     fprintf(stderr, "Dsp: Stack Overflow or Underflow\n");
                 }
                 if (dsp->exception_debugging) {
@@ -1081,7 +1073,7 @@ static void dsp_stack_push(dsp_core_t* dsp, uint32_t curpc, uint32_t cursr, uint
     if ((stack_error==0) && (stack & (1<<DSP_SP_SE))) {
         /* Stack full, raise interrupt */
         dsp56k_add_interrupt(dsp, DSP_INTER_STACK_ERROR);
-        if (!dsp->in_disasm_mode)
+        if (!dsp->executing_for_disasm)
             fprintf(stderr,"Dsp: Stack Overflow\n");
         if (dsp->exception_debugging)
             assert(false);
@@ -1118,7 +1110,7 @@ static void dsp_stack_pop(dsp_core_t* dsp, uint32_t *newpc, uint32_t *newsr)
     if ((stack_error==0) && (stack & (1<<DSP_SP_SE))) {
         /* Stack empty*/
         dsp56k_add_interrupt(dsp, DSP_INTER_STACK_ERROR);
-        if (!dsp->in_disasm_mode)
+        if (!dsp->executing_for_disasm)
             fprintf(stderr,"Dsp: Stack underflow\n");
         if (dsp->exception_debugging)
             assert(false);

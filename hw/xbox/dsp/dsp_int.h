@@ -134,6 +134,10 @@
 #define DSP_INTER_SSI_TRX_DATA_E    0xa
 #define DSP_INTER_SSI_TRX_DATA      0xb
 
+typedef enum {
+    DSP_TRACE_MODE,
+    DSP_DISASM_MODE
+} dsp_trace_disasm_t;
 
 typedef struct dsp_interrupt_s {
     const uint16_t inter;
@@ -193,7 +197,7 @@ struct dsp_core_s {
 
     /* DSP is in disasm mode ? */
     /* If yes, stack overflow, underflow and illegal instructions messages are not displayed */
-    bool in_disasm_mode;
+    bool executing_for_disasm;
 
     char str_disasm_memory[2][50];     /* Buffer for memory change text in disasm mode */
     uint32_t disasm_memory_ptr;        /* Pointer for memory change in disasm mode */
@@ -208,7 +212,7 @@ struct dsp_core_s {
     bool disasm_is_looping;
 
     /* Used to display dc instead of unknown instruction for illegal opcodes */
-    bool isInDisasmMode;
+    dsp_trace_disasm_t disasm_mode;
 
     uint32_t disasm_cur_inst;
     uint16_t disasm_cur_inst_len;
