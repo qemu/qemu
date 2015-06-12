@@ -1308,7 +1308,7 @@ static void pgraph_bind_converted_vertex_attributes(NV2AState *d,
                                     * attribute->converted_count;
             
             if (num_elements > attribute->converted_elements) {
-                attribute->converted_buffer = realloc(
+                attribute->converted_buffer = g_realloc(
                     attribute->converted_buffer,
                     num_elements * stride);
             }
@@ -2676,7 +2676,7 @@ static void pgraph_method(NV2AState *d,
             vertex_attribute->converted_elements = 0;
         } else {
             if (vertex_attribute->converted_buffer) {
-                free(vertex_attribute->converted_buffer);
+                g_free(vertex_attribute->converted_buffer);
                 vertex_attribute->converted_buffer = NULL;
             }
         }
