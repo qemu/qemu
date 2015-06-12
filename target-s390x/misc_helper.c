@@ -619,4 +619,12 @@ void HELPER(per_branch)(CPUS390XState *env, uint64_t from, uint64_t to)
         }
     }
 }
+
+void HELPER(per_ifetch)(CPUS390XState *env, uint64_t addr)
+{
+    if ((env->cregs[9] & PER_CR9_EVENT_IFETCH) && get_per_in_range(env, addr)) {
+        env->per_address = addr;
+        env->per_perc_atmid = PER_CODE_EVENT_IFETCH | get_per_atmid(env);
+    }
+}
 #endif

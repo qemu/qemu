@@ -5187,6 +5187,14 @@ static ExitStatus translate_one(CPUS390XState *env, DisasContext *s)
         return EXIT_NORETURN;
     }
 
+#ifndef CONFIG_USER_ONLY
+    if (s->tb->flags & FLAG_MASK_PER) {
+        TCGv_i64 addr = tcg_const_i64(s->pc);
+        gen_helper_per_ifetch(cpu_env, addr);
+        tcg_temp_free_i64(addr);
+    }
+#endif
+
     /* Check for insn specification exceptions.  */
     if (insn->spec) {
         int spec = insn->spec, excp = 0, r;
