@@ -1105,6 +1105,14 @@ void HELPER(stura)(CPUS390XState *env, uint64_t addr, uint64_t v1)
     CPUState *cs = CPU(s390_env_get_cpu(env));
 
     stl_phys(cs->as, get_address(env, 0, 0, addr), (uint32_t)v1);
+
+    if ((env->psw.mask & PSW_MASK_PER) &&
+        (env->cregs[9] & PER_CR9_EVENT_STORE) &&
+        (env->cregs[9] & PER_CR9_EVENT_STORE_REAL)) {
+        /* PSW is saved just before calling the helper.  */
+        env->per_address = env->psw.addr;
+        env->per_perc_atmid = PER_CODE_EVENT_STORE_REAL | get_per_atmid(env);
+    }
 }
 
 void HELPER(sturg)(CPUS390XState *env, uint64_t addr, uint64_t v1)
@@ -1112,6 +1120,14 @@ void HELPER(sturg)(CPUS390XState *env, uint64_t addr, uint64_t v1)
     CPUState *cs = CPU(s390_env_get_cpu(env));
 
     stq_phys(cs->as, get_address(env, 0, 0, addr), v1);
+
+    if ((env->psw.mask & PSW_MASK_PER) &&
+        (env->cregs[9] & PER_CR9_EVENT_STORE) &&
+        (env->cregs[9] & PER_CR9_EVENT_STORE_REAL)) {
+        /* PSW is saved just before calling the helper.  */
+        env->per_address = env->psw.addr;
+        env->per_perc_atmid = PER_CODE_EVENT_STORE_REAL | get_per_atmid(env);
+    }
 }
 
 /* load real address */
