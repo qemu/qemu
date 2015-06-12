@@ -29,8 +29,6 @@
 #include "qemu-common.h"
 #include "qemu/timer.h"
 
-#define NANOSECONDS_PER_SECOND  1000000000.0
-
 typedef enum {
     THROTTLE_BPS_TOTAL,
     THROTTLE_BPS_READ,

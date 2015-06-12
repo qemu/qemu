@@ -5,6 +5,8 @@
 #include "qemu-common.h"
 #include "qemu/notify.h"
 
+#define NANOSECONDS_PER_SECOND 1000000000LL
+
 /* timers */
 
 #define SCALE_MS 1000000
