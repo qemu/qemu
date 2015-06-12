@@ -88,40 +88,33 @@ static void fast_memset(CPUS390XState *env, uint64_t dest, uint8_t byte,
     }
 }
 
-#ifndef CONFIG_USER_ONLY
-static void mvc_fast_memmove(CPUS390XState *env, uint32_t l, uint64_t dest,
-                             uint64_t src)
+static void fast_memmove(CPUS390XState *env, uint64_t dest, uint64_t src,
+                         uint32_t l)
 {
-    S390CPU *cpu = s390_env_get_cpu(env);
-    hwaddr dest_phys;
-    hwaddr src_phys;
-    hwaddr len = l;
-    void *dest_p;
-    void *src_p;
-    uint64_t asc = env->psw.mask & PSW_MASK_ASC;
-    int flags;
+    int mmu_idx = cpu_mmu_index(env);
 
-    if (mmu_translate(env, dest, 1, asc, &dest_phys, &flags, true)) {
-        cpu_stb_data(env, dest, 0);
-        cpu_abort(CPU(cpu), "should never reach here");
+    while (l > 0) {
+        void *src_p = tlb_vaddr_to_host(env, src, MMU_DATA_LOAD, mmu_idx);
+        void *dest_p = tlb_vaddr_to_host(env, dest, MMU_DATA_STORE, mmu_idx);
+        if (src_p && dest_p) {
+            /* Access to both whole pages granted.  */
+            int l_adj = adj_len_to_page(l, src);
+            l_adj = adj_len_to_page(l_adj, dest);
+            memmove(dest_p, src_p, l_adj);
+            src += l_adj;
+            dest += l_adj;
+            l -= l_adj;
+        } else {
+            /* We failed to get access to one or both whole pages. The next
+               read or write access will likely fill the QEMU TLB for the
+               next iteration.  */
+            cpu_stb_data(env, dest, cpu_ldub_data(env, src));
+            src++;
+            dest++;
+            l--;
+        }
     }
-    dest_phys |= dest & ~TARGET_PAGE_MASK;
-
-    if (mmu_translate(env, src, 0, asc, &src_phys, &flags, true)) {
-        cpu_ldub_data(env, src);
-        cpu_abort(CPU(cpu), "should never reach here");
-    }
-    src_phys |= src & ~TARGET_PAGE_MASK;
-
-    dest_p = cpu_physical_memory_map(dest_phys, &len, 1);
-    src_p = cpu_physical_memory_map(src_phys, &len, 0);
-
-    memmove(dest_p, src_p, len);
-
-    cpu_physical_memory_unmap(dest_p, 1, len, len);
-    cpu_physical_memory_unmap(src_p, 0, len, len);
 }
-#endif
 
 /* and on array */
 uint32_t HELPER(nc)(CPUS390XState *env, uint32_t l, uint64_t dest,
@@ -194,8 +187,6 @@ uint32_t HELPER(oc)(CPUS390XState *env, uint32_t l, uint64_t dest,
 void HELPER(mvc)(CPUS390XState *env, uint32_t l, uint64_t dest, uint64_t src)
 {
     int i = 0;
-    int x = 0;
-    uint32_t l_64 = (l + 1) / 8;
 
     HELPER_LOG("%s l %d dest %" PRIx64 " src %" PRIx64 "\n",
                __func__, l, dest, src);
@@ -206,32 +197,15 @@ void HELPER(mvc)(CPUS390XState *env, uint32_t l, uint64_t dest, uint64_t src)
         fast_memset(env, dest, cpu_ldub_data(env, src), l + 1);
         return;
     }
-#ifndef CONFIG_USER_ONLY
-    if ((l > 32) &&
-        (src & TARGET_PAGE_MASK) == ((src + l) & TARGET_PAGE_MASK) &&
-        (dest & TARGET_PAGE_MASK) == ((dest + l) & TARGET_PAGE_MASK) &&
-        (src & TARGET_PAGE_MASK) != (dest & TARGET_PAGE_MASK)) {
-        mvc_fast_memmove(env, l + 1, dest, src);
-        return;
-    }
-#else
+
     /* mvc and memmove do not behave the same when areas overlap! */
     if ((dest < src) || (src + l < dest)) {
-        memmove(g2h(dest), g2h(src), l + 1);
+        fast_memmove(env, dest, src, l + 1);
         return;
-    }
-#endif
-
-    /* handle the parts that fit into 8-byte loads/stores */
-    if ((dest + 8 <= src) || (src + 8 <= dest)) {
-        for (i = 0; i < l_64; i++) {
-            cpu_stq_data(env, dest + x, cpu_ldq_data(env, src + x));
-            x += 8;
-        }
     }
 
     /* slow version with byte accesses which always work */
-    for (i = x; i <= l; i++) {
+    for (i = 0; i <= l; i++) {
         cpu_stb_data(env, dest + i, cpu_ldub_data(env, src + i));
     }
 }
@@ -398,11 +372,7 @@ void HELPER(mvpg)(CPUS390XState *env, uint64_t r0, uint64_t r1, uint64_t r2)
 {
     /* XXX missing r0 handling */
     env->cc_op = 0;
-#ifdef CONFIG_USER_ONLY
-    memmove(g2h(r1), g2h(r2), TARGET_PAGE_SIZE);
-#else
-    mvc_fast_memmove(env, TARGET_PAGE_SIZE, r1, r2);
-#endif
+    fast_memmove(env, r1, r2, TARGET_PAGE_SIZE);
 }
 
 /* string copy (c is string terminator) */
