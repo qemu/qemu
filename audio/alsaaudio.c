@@ -25,6 +25,7 @@
 #include "qemu-common.h"
 #include "qemu/main-loop.h"
 #include "audio.h"
+#include "trace.h"
 
 #if QEMU_GNUC_PREREQ(4, 3)
 #pragma GCC diagnostic ignored "-Waddress"
@@ -49,7 +50,6 @@ typedef struct ALSAConf {
 
     int buffer_size_out_overridden;
     int period_size_out_overridden;
-    int verbose;
 } ALSAConf;
 
 struct pollhlp {
@@ -180,7 +180,6 @@ static void alsa_poll_handler (void *opaque)
     snd_pcm_state_t state;
     struct pollhlp *hlp = opaque;
     unsigned short revents;
-    ALSAConf *conf = hlp->conf;
 
     count = poll (hlp->pfds, hlp->count, 0);
     if (count < 0) {
@@ -202,9 +201,7 @@ static void alsa_poll_handler (void *opaque)
     }
 
     if (!(revents & hlp->mask)) {
-        if (conf->verbose) {
-            dolog ("revents = %d\n", revents);
-        }
+        trace_alsa_revents(revents);
         return;
     }
 
@@ -239,7 +236,6 @@ static int alsa_poll_helper (snd_pcm_t *handle, struct pollhlp *hlp, int mask)
 {
     int i, count, err;
     struct pollfd *pfds;
-    ALSAConf *conf = hlp->conf;
 
     count = snd_pcm_poll_descriptors_count (handle);
     if (count <= 0) {
@@ -267,15 +263,10 @@ static int alsa_poll_helper (snd_pcm_t *handle, struct pollhlp *hlp, int mask)
             qemu_set_fd_handler (pfds[i].fd, alsa_poll_handler, NULL, hlp);
         }
         if (pfds[i].events & POLLOUT) {
-            if (conf->verbose) {
-                dolog ("POLLOUT %d %d\n", i, pfds[i].fd);
-            }
+            trace_alsa_pollout(i, pfds[i].fd);
             qemu_set_fd_handler (pfds[i].fd, NULL, alsa_poll_handler, hlp);
         }
-        if (conf->verbose) {
-            dolog ("Set handler events=%#x index=%d fd=%d err=%d\n",
-                   pfds[i].events, i, pfds[i].fd, err);
-        }
+        trace_alsa_set_handler(pfds[i].events, i, pfds[i].fd, err);
 
     }
     hlp->pfds = pfds;
@@ -509,7 +500,7 @@ static int alsa_open (int in, struct alsa_params_req *req,
     }
 
     err = snd_pcm_hw_params_set_format (handle, hw_params, req->fmt);
-    if (err < 0 && conf->verbose) {
+    if (err < 0) {
         alsa_logerr2 (err, typ, "Failed to set format %d\n", req->fmt);
     }
 
@@ -673,10 +664,9 @@ static int alsa_open (int in, struct alsa_params_req *req,
 
     *handlep = handle;
 
-    if (conf->verbose &&
-        (obtfmt != req->fmt ||
+    if (obtfmt != req->fmt ||
          obt->nchannels != req->nchannels ||
-         obt->freq != req->freq)) {
+         obt->freq != req->freq) {
         dolog ("Audio parameters for %s\n", typ);
         alsa_dump_info (req, obt, obtfmt);
     }
@@ -716,7 +706,6 @@ static snd_pcm_sframes_t alsa_get_avail (snd_pcm_t *handle)
 static void alsa_write_pending (ALSAVoiceOut *alsa)
 {
     HWVoiceOut *hw = &alsa->hw;
-    ALSAConf *conf = alsa->pollhlp.conf;
 
     while (alsa->pending) {
         int left_till_end_samples = hw->samples - alsa->wpos;
@@ -731,9 +720,7 @@ static void alsa_write_pending (ALSAVoiceOut *alsa)
             if (written <= 0) {
                 switch (written) {
                 case 0:
-                    if (conf->verbose) {
-                        dolog ("Failed to write %d frames (wrote zero)\n", len);
-                    }
+                    trace_alsa_wrote_zero(len);
                     return;
 
                 case -EPIPE:
@@ -742,9 +729,7 @@ static void alsa_write_pending (ALSAVoiceOut *alsa)
                                      len);
                         return;
                     }
-                    if (conf->verbose) {
-                        dolog ("Recovering from playback xrun\n");
-                    }
+                    trace_alsa_xrun_out();
                     continue;
 
                 case -ESTRPIPE:
@@ -755,9 +740,7 @@ static void alsa_write_pending (ALSAVoiceOut *alsa)
                                      len);
                         return;
                     }
-                    if (conf->verbose) {
-                        dolog ("Resuming suspended output stream\n");
-                    }
+                    trace_alsa_resume_out();
                     continue;
 
                 case -EAGAIN:
@@ -990,7 +973,6 @@ static int alsa_run_in (HWVoiceIn *hw)
     };
     snd_pcm_sframes_t avail;
     snd_pcm_uframes_t read_samples = 0;
-    ALSAConf *conf = alsa->pollhlp.conf;
 
     if (!dead) {
         return 0;
@@ -1016,14 +998,10 @@ static int alsa_run_in (HWVoiceIn *hw)
                 dolog ("Failed to resume suspended input stream\n");
                 return 0;
             }
-            if (conf->verbose) {
-                dolog ("Resuming suspended input stream\n");
-            }
+            trace_alsa_resume_in();
             break;
         default:
-            if (conf->verbose) {
-                dolog ("No frames available and ALSA state is %d\n", state);
-            }
+            trace_alsa_no_frames(state);
             return 0;
         }
     }
@@ -1058,9 +1036,7 @@ static int alsa_run_in (HWVoiceIn *hw)
             if (nread <= 0) {
                 switch (nread) {
                 case 0:
-                    if (conf->verbose) {
-                        dolog ("Failed to read %ld frames (read zero)\n", len);
-                    }
+                    trace_alsa_read_zero(len);
                     goto exit;
 
                 case -EPIPE:
@@ -1068,9 +1044,7 @@ static int alsa_run_in (HWVoiceIn *hw)
                         alsa_logerr (nread, "Failed to read %ld frames\n", len);
                         goto exit;
                     }
-                    if (conf->verbose) {
-                        dolog ("Recovering from capture xrun\n");
-                    }
+                    trace_alsa_xrun_in();
                     continue;
 
                 case -EAGAIN:
@@ -1220,12 +1194,6 @@ static struct audio_option alsa_options[] = {
         .tag         = AUD_OPT_STR,
         .valp        = &glob_conf.pcm_name_in,
         .descr       = "ADC device name"
-    },
-    {
-        .name        = "VERBOSE",
-        .tag         = AUD_OPT_BOOL,
-        .valp        = &glob_conf.verbose,
-        .descr       = "Behave in a more verbose way"
     },
     { /* End of list */ }
 };

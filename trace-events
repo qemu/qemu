@@ -1632,3 +1632,15 @@ cpu_unhalt(int cpu_index) "unhalting cpu %d"
 
 # hw/arm/virt-acpi-build.c
 virt_acpi_setup(void) "No fw cfg or ACPI disabled. Bailing out."
+
+# audio/alsaaudio.c
+alsa_revents(int revents) "revents = %d"
+alsa_pollout(int i, int fd) "i = %d fd = %d"
+alsa_set_handler(int events, int index, int fd, int err) "events=%#x index=%d fd=%d err=%d"
+alsa_wrote_zero(int len) "Failed to write %d frames (wrote zero)"
+alsa_read_zero(long len) "Failed to read %ld frames (read zero)"
+alsa_xrun_out(void) "Recovering from playback xrun"
+alsa_xrun_in(void) "Recovering from capture xrun"
+alsa_resume_out(void) "Resuming suspended output stream"
+alsa_resume_in(void) "Resuming suspended input stream"
+alsa_no_frames(int state) "No frames available and ALSA state is %d"
