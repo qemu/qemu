@@ -75,7 +75,6 @@ def generate_struct_fields(members):
 def generate_struct(expr):
 
     structname = expr.get('struct', "")
-    fieldname = expr.get('field', "")
     members = expr['data']
     base = expr.get('base')
 
@@ -98,12 +97,9 @@ struct %(name)s
     char qapi_dummy_field_for_empty_struct;
 ''')
 
-    if len(fieldname):
-        fieldname = " " + fieldname
     ret += mcgen('''
-}%(field)s;
-''',
-            field=fieldname)
+};
+''')
 
     return ret
 
