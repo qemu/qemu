@@ -116,6 +116,7 @@ DEF_HELPER_FLAGS_2(lura, TCG_CALL_NO_WG, i64, env, i64)
 DEF_HELPER_FLAGS_2(lurag, TCG_CALL_NO_WG, i64, env, i64)
 DEF_HELPER_FLAGS_3(stura, TCG_CALL_NO_WG, void, env, i64, i64)
 DEF_HELPER_FLAGS_3(sturg, TCG_CALL_NO_WG, void, env, i64, i64)
+DEF_HELPER_1(per_check_exception, void, env)
 
 DEF_HELPER_2(xsch, void, env, i64)
 DEF_HELPER_2(csch, void, env, i64)

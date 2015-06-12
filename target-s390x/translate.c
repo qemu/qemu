@@ -568,7 +568,8 @@ static int use_goto_tb(DisasContext *s, uint64_t dest)
     return (((dest & TARGET_PAGE_MASK) == (s->tb->pc & TARGET_PAGE_MASK)
              || (dest & TARGET_PAGE_MASK) == ((s->pc - 1) & TARGET_PAGE_MASK))
             && !s->singlestep_enabled
-            && !(s->tb->cflags & CF_LAST_IO));
+            && !(s->tb->cflags & CF_LAST_IO)
+            && !(s->tb->flags & FLAG_MASK_PER));
 }
 
 static void account_noninline_branch(DisasContext *s, int cc_op)
@@ -5233,6 +5234,21 @@ static ExitStatus translate_one(CPUS390XState *env, DisasContext *s)
     if (!TCGV_IS_UNUSED_I64(o.addr1)) {
         tcg_temp_free_i64(o.addr1);
     }
+
+#ifndef CONFIG_USER_ONLY
+    if (s->tb->flags & FLAG_MASK_PER) {
+        /* An exception might be triggered, save PSW if not already done.  */
+        if (ret == NO_EXIT || ret == EXIT_PC_STALE) {
+            tcg_gen_movi_i64(psw_addr, s->next_pc);
+        }
+
+        /* Save off cc.  */
+        update_cc_op(s);
+
+        /* Call the helper to check for a possible PER exception.  */
+        gen_helper_per_check_exception(cpu_env);
+    }
+#endif
 
     /* Advance to the next instruction.  */
     s->pc = s->next_pc;

@@ -250,25 +250,6 @@ void do_restart_interrupt(CPUS390XState *env)
     load_psw(env, mask, addr);
 }
 
-static void do_svc_interrupt(CPUS390XState *env)
-{
-    uint64_t mask, addr;
-    LowCore *lowcore;
-
-    lowcore = cpu_map_lowcore(env);
-
-    lowcore->svc_code = cpu_to_be16(env->int_svc_code);
-    lowcore->svc_ilen = cpu_to_be16(env->int_svc_ilen);
-    lowcore->svc_old_psw.mask = cpu_to_be64(get_psw_mask(env));
-    lowcore->svc_old_psw.addr = cpu_to_be64(env->psw.addr + env->int_svc_ilen);
-    mask = be64_to_cpu(lowcore->svc_new_psw.mask);
-    addr = be64_to_cpu(lowcore->svc_new_psw.addr);
-
-    cpu_unmap_lowcore(lowcore);
-
-    load_psw(env, mask, addr);
-}
-
 static void do_program_interrupt(CPUS390XState *env)
 {
     uint64_t mask, addr;
@@ -292,6 +273,14 @@ static void do_program_interrupt(CPUS390XState *env)
 
     lowcore = cpu_map_lowcore(env);
 
+    /* Signal PER events with the exception.  */
+    if (env->per_perc_atmid) {
+        env->int_pgm_code |= PGM_PER;
+        lowcore->per_address = cpu_to_be64(env->per_address);
+        lowcore->per_perc_atmid = cpu_to_be16(env->per_perc_atmid);
+        env->per_perc_atmid = 0;
+    }
+
     lowcore->pgm_ilen = cpu_to_be16(ilen);
     lowcore->pgm_code = cpu_to_be16(env->int_pgm_code);
     lowcore->program_old_psw.mask = cpu_to_be64(get_psw_mask(env));
@@ -306,6 +295,33 @@ static void do_program_interrupt(CPUS390XState *env)
             env->psw.addr);
 
     load_psw(env, mask, addr);
+}
+
+static void do_svc_interrupt(CPUS390XState *env)
+{
+    uint64_t mask, addr;
+    LowCore *lowcore;
+
+    lowcore = cpu_map_lowcore(env);
+
+    lowcore->svc_code = cpu_to_be16(env->int_svc_code);
+    lowcore->svc_ilen = cpu_to_be16(env->int_svc_ilen);
+    lowcore->svc_old_psw.mask = cpu_to_be64(get_psw_mask(env));
+    lowcore->svc_old_psw.addr = cpu_to_be64(env->psw.addr + env->int_svc_ilen);
+    mask = be64_to_cpu(lowcore->svc_new_psw.mask);
+    addr = be64_to_cpu(lowcore->svc_new_psw.addr);
+
+    cpu_unmap_lowcore(lowcore);
+
+    load_psw(env, mask, addr);
+
+    /* When a PER event is pending, the PER exception has to happen
+       immediately after the SERVICE CALL one.  */
+    if (env->per_perc_atmid) {
+        env->int_pgm_code = PGM_PER;
+        env->int_pgm_ilen = env->int_svc_ilen;
+        do_program_interrupt(env);
+    }
 }
 
 #define VIRTIO_SUBCODE_64 0x0D00

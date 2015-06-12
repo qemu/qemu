@@ -111,6 +111,9 @@ typedef struct CPUS390XState {
     uint32_t int_svc_code;
     uint32_t int_svc_ilen;
 
+    uint64_t per_address;
+    uint16_t per_perc_atmid;
+
     uint64_t cregs[16]; /* control registers */
 
     ExtQueue ext_queue[MAX_EXT_QUEUE];
