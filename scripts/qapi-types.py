@@ -12,9 +12,8 @@
 from ordereddict import OrderedDict
 from qapi import *
 
-def generate_fwd_struct(name, builtin_type=False):
-    if builtin_type:
-        return mcgen('''
+def generate_fwd_builtin(name):
+    return mcgen('''
 
 typedef struct %(name)sList
 {
@@ -25,9 +24,10 @@ typedef struct %(name)sList
     struct %(name)sList *next;
 } %(name)sList;
 ''',
-                     type=c_type(name),
-                     name=name)
+                 type=c_type(name),
+                 name=name)
 
+def generate_fwd_struct(name):
     return mcgen('''
 
 typedef struct %(name)s %(name)s;
@@ -332,7 +332,7 @@ exprs = parse_schema(input_file)
 
 fdecl.write(guardstart("QAPI_TYPES_BUILTIN_STRUCT_DECL"))
 for typename in builtin_types.keys():
-    fdecl.write(generate_fwd_struct(typename, builtin_type=True))
+    fdecl.write(generate_fwd_builtin(typename))
 fdecl.write(guardend("QAPI_TYPES_BUILTIN_STRUCT_DECL"))
 
 for expr in exprs:
