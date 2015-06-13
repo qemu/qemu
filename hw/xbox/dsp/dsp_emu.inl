@@ -7349,10 +7349,16 @@ static void emu_move_x_long(dsp_core_t* dsp) {
     uint32_t numreg = dsp->cur_inst & BITMASK(6);
     uint32_t x_addr = (dsp->registers[offreg] + xxxx) & BITMASK(24);
 
-    if (W) {
-        dsp56k_write_memory(dsp, DSP_SPACE_X, x_addr, dsp->registers[numreg]);
+    if (!W) {
+        uint32_t value;
+        if (numreg == DSP_REG_A || numreg == DSP_REG_B) {
+            emu_pm_read_accu24(dsp, numreg, &value);
+        } else {
+            value = dsp->registers[numreg];
+        }
+        dsp56k_write_memory(dsp, DSP_SPACE_X, x_addr, value);
     } else {
-        dsp->registers[numreg] = dsp56k_read_memory(dsp, DSP_SPACE_X, x_addr);
+        dsp_write_reg(dsp, numreg, dsp56k_read_memory(dsp, DSP_SPACE_X, x_addr));
     }
 
     // TODO: cycles
@@ -7367,10 +7373,16 @@ static void emu_move_x_imm(dsp_core_t* dsp) {
     uint32_t numreg = dsp->disasm_cur_inst & BITMASK(4);
     uint32_t x_addr = (dsp->registers[offreg] + dsp_signextend(7, xxx)) & BITMASK(24);
     
-    if (W) {
-        dsp56k_write_memory(dsp, DSP_SPACE_X, x_addr, dsp->registers[numreg]);
+    if (!W) {
+        uint32_t value;
+        if (numreg == DSP_REG_A || numreg == DSP_REG_B) {
+            emu_pm_read_accu24(dsp, numreg, &value);
+        } else {
+            value = dsp->registers[numreg];
+        }
+        dsp56k_write_memory(dsp, DSP_SPACE_X, x_addr, value);
     } else {
-        dsp->registers[numreg] = dsp56k_read_memory(dsp, DSP_SPACE_X, x_addr);
+        dsp_write_reg(dsp, numreg, dsp56k_read_memory(dsp, DSP_SPACE_X, x_addr));
     }
 
     // TODO: cycles

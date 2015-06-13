@@ -27,7 +27,7 @@
 #include <string.h>
 #include <assert.h>
 
-#include <stddef.h>
+#include "qemu-common.h"
 
 #include "dsp_cpu.h"
 #include "dsp_dma.h"
@@ -38,12 +38,9 @@
 #define BITMASK(x)  ((1<<(x))-1)
 #define ARRAYSIZE(x) (int)(sizeof(x)/sizeof(x[0]))
 
-#ifndef container_of
-#define container_of(ptr, type, member) ({                      \
-        const typeof(((type *) 0)->member) *__mptr = (ptr);     \
-        (type *) ((char *) __mptr - offsetof(type, member));})
-#endif
-
+#define INTERRUPT_ABORT_FRAME (1 << 0)
+#define INTERRUPT_START_FRAME (1 << 1)
+#define INTERRUPT_DMA_EOL (1 << 7)
 
 #define DPRINTF(s, ...) fprintf(stderr, s, ## __VA_ARGS__)
 
@@ -51,12 +48,14 @@ struct DSPState {
     dsp_core_t core;
     DSPDMAState dma;
     int save_cycles;
+
+    uint32_t interrupts;
 };
 
 static uint32_t read_peripheral(dsp_core_t* core, uint32_t address);
 static void write_peripheral(dsp_core_t* core, uint32_t address, uint32_t value);
 
-DSPState* dsp_init(void)
+DSPState* dsp_init(void* scratch_rw_opaque, dsp_scratch_rw_func scratch_rw)
 {
     DPRINTF("dsp_init\n");
 
@@ -66,7 +65,12 @@ DSPState* dsp_init(void)
     dsp->core.read_peripheral = read_peripheral;
     dsp->core.write_peripheral = write_peripheral;
 
+    dsp->dma.core = &dsp->core;
+    dsp->dma.scratch_rw_opaque = scratch_rw_opaque;
+    dsp->dma.scratch_rw = scratch_rw;
+
     dsp_reset(dsp);
+
     return dsp;
 }
 
@@ -86,13 +90,30 @@ static uint32_t read_peripheral(dsp_core_t* core, uint32_t address) {
 
     printf("read_peripheral 0x%06x\n", address);
 
+    uint32_t v = 0xababa;
     switch(address) {
-    // case 0xFFFFC5: // interrupt
+    case 0xFFFFC5:
+        v = dsp->interrupts;
+        if (dsp->dma.eol) {
+            v |= INTERRUPT_DMA_EOL;
+        }
+        break;
+    case 0xFFFFD4:
+        v = dsp_dma_read(&dsp->dma, DMA_NEXT_BLOCK);
+        break;
+    case 0xFFFFD5:
+        v = dsp_dma_read(&dsp->dma, DMA_START_BLOCK);
+        break;
     case 0xFFFFD6:
-        return dsp_dma_read(&dsp->dma, DMA_CONTROL);
+        v = dsp_dma_read(&dsp->dma, DMA_CONTROL);
+        break;
+    case 0xFFFFD7:
+        v = dsp_dma_read(&dsp->dma, DMA_CONFIGURATION);
+        break;
     }
 
-    return 0xababa;
+    printf(" -> 0x%06x\n", v);
+    return v;
 }
 
 static void write_peripheral(dsp_core_t* core, uint32_t address, uint32_t value) {
@@ -101,9 +122,24 @@ static void write_peripheral(dsp_core_t* core, uint32_t address, uint32_t value)
     printf("write_peripheral [0x%06x] = 0x%06x\n", address, value);
 
     switch(address) {
-    // case 0xFFFFC5: // interrupt
+    case 0xFFFFC5:
+        dsp->interrupts &= ~value;
+        if (value & INTERRUPT_DMA_EOL) {
+            dsp->dma.eol = false;
+        }
+        break;
+    case 0xFFFFD4:
+        dsp_dma_write(&dsp->dma, DMA_NEXT_BLOCK, value);
+        break;
+    case 0xFFFFD5:
+        dsp_dma_write(&dsp->dma, DMA_START_BLOCK, value);
+        break;
     case 0xFFFFD6:
-        return dsp_dma_write(&dsp->dma, DMA_CONTROL, value);
+        dsp_dma_write(&dsp->dma, DMA_CONTROL, value);
+        break;
+    case 0xFFFFD7:
+        dsp_dma_write(&dsp->dma, DMA_CONFIGURATION, value);
+        break;
     }
 }
 
@@ -142,6 +178,10 @@ void dsp_bootstrap(DSPState* dsp, const uint32_t* pram, size_t len)
     memcpy(dsp->core.pram, pram, len);
 }
 
+void dsp_start_frame(DSPState* dsp)
+{
+    dsp->interrupts |= INTERRUPT_START_FRAME;
+}
 
 /**
  * Disassemble DSP code between given addresses, return next PC address
