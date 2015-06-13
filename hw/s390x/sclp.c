@@ -217,6 +217,7 @@ static void assign_storage(SCCB *sccb)
         (assign_addr >= mhd->padded_ram_size)) {
         /* Re-use existing memory region if found */
         mr = memory_region_find(sysmem, assign_addr, 1).mr;
+        memory_region_unref(mr);
         if (!mr) {
 
             MemoryRegion *standby_ram = g_new(MemoryRegion, 1);
@@ -242,6 +243,11 @@ static void assign_storage(SCCB *sccb)
             }
 
             memory_region_init_ram(standby_ram, NULL, id, this_subregion_size, &error_abort);
+            /* This is a hack to make memory hotunplug work again. Once we have
+             * subdevices, we have to unparent them when unassigning memory,
+             * instead of doing it via the ref count of the MemoryRegion. */
+            object_ref(OBJECT(standby_ram));
+            object_unparent(OBJECT(standby_ram));
             vmstate_register_ram_global(standby_ram);
             memory_region_add_subregion(sysmem, offset, standby_ram);
         }
@@ -269,6 +275,7 @@ static void unassign_storage(SCCB *sccb)
 
         /* find the specified memory region and destroy it */
         mr = memory_region_find(sysmem, unassign_addr, 1).mr;
+        memory_region_unref(mr);
         if (mr) {
             int i;
             int is_removable = 1;
@@ -287,8 +294,7 @@ static void unassign_storage(SCCB *sccb)
             }
             if (is_removable) {
                 memory_region_del_subregion(sysmem, mr);
-                object_unparent(OBJECT(mr));
-                g_free(mr);
+                object_unref(OBJECT(mr));
             }
         }
     }
