@@ -298,7 +298,6 @@ static int xbox_lpc_initfn(PCIDevice *d)
     QemuOpts *machine_opts = qemu_opts_find(qemu_find_opts("machine"), 0);
     if (machine_opts) {
         const char *bootrom_file = qemu_opt_get(machine_opts, "bootrom");
-        if (!bootrom_file) bootrom_file = "mcpx.bin";
 
         int rc, fd = -1;
         if (bootrom_file) {

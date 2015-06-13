@@ -251,7 +251,7 @@ static void usb_xid_handle_control(USBDevice *dev, USBPacket *p,
         break;
     case InterfaceRequestVendor | XID_GET_CAPABILITIES:
         DPRINTF("xid XID_GET_CAPABILITIES %x\n", value);
-        assert(false);
+        // assert(false);
         break;
     default:
         p->status = USB_RET_STALL;
