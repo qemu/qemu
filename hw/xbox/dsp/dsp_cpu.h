@@ -111,9 +111,13 @@
 #define DSP_SPACE_Y 0x01
 #define DSP_SPACE_P 0x02
 
-#define DSP_XRAM_SIZE 4096
+#define DSP_XRAM_SIZE 3072
 #define DSP_YRAM_SIZE 2048
 #define DSP_PRAM_SIZE 4096
+
+#define DSP_MIXBUFFER_BASE 3072
+#define DSP_MIXBUFFER_SIZE 1024
+#define DSP_MIXBUFFER_READ_BASE 5120
 
 #define DSP_PERIPH_BASE 0xFFFF80
 #define DSP_PERIPH_SIZE 128
@@ -163,6 +167,8 @@ struct dsp_core_s {
     uint32_t xram[DSP_XRAM_SIZE];
     uint32_t yram[DSP_YRAM_SIZE];
     uint32_t pram[DSP_PRAM_SIZE];
+
+    uint32_t mixbuffer[DSP_MIXBUFFER_SIZE];
 
     /* peripheral space, x:0xffff80-0xffffff */
     uint32_t periph[DSP_PERIPH_SIZE];

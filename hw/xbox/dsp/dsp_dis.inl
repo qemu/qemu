@@ -219,10 +219,18 @@ static void dis_undefined(dsp_core_t* dsp)
     }
 }
 
+static void dis_add_imm(dsp_core_t* dsp)
+{
+    uint32_t xx = (dsp->disasm_cur_inst >> 8) & BITMASK(6);
+    uint32_t accname = ((dsp->disasm_cur_inst >> 3) & 1) ? DSP_REG_B : DSP_REG_A;
+    sprintf(dsp->disasm_str_instr, "add #$%02x,%s", xx, registers_name[accname]);
+}
+
 static void dis_add_long(dsp_core_t* dsp)
 {
-    dsp->disasm_cur_inst_len++;
     uint32_t xxxx = read_memory_p(dsp, dsp->pc+1);
+    dsp->disasm_cur_inst_len++;
+
     uint32_t accname = ((dsp->disasm_cur_inst >> 3) & 1) ? DSP_REG_B : DSP_REG_A;
     sprintf(dsp->disasm_str_instr, "add #$%04x,%s", xxxx, registers_name[accname]);
 }
@@ -424,7 +432,8 @@ static void dis_bra_imm(dsp_core_t* dsp)
 {
     uint32_t xxx = (dsp->disasm_cur_inst & BITMASK(5))
                     + ((dsp->disasm_cur_inst & (BITMASK(4) << 6)) >> 1);
-    sprintf(dsp->disasm_str_instr, "bra p:$%04x", xxx);
+    sprintf(dsp->disasm_str_instr, "bra p:$%04x",
+        (dsp->pc + dsp_signextend(9, xxx)) & BITMASK(24) );
 }
 
 static void dis_brclr_pp(dsp_core_t* dsp)
@@ -443,7 +452,20 @@ static void dis_brclr_pp(dsp_core_t* dsp)
         sprintf(name,"x:$%06x",value+0xffffc0);
     }
 
-    sprintf(dsp->disasm_str_instr,"brclr #%d,%s,p:$%06x", numbit, name, xxxx);
+    sprintf(dsp->disasm_str_instr,"brclr #%d,%s,p:$%06x",
+        numbit, name, (dsp->pc + xxxx) & BITMASK(24) );
+}
+
+static void dis_brclr_reg(dsp_core_t* dsp)
+{
+    uint32_t xxxx = read_memory_p(dsp, dsp->pc+1);
+    dsp->disasm_cur_inst_len++;
+
+    uint32_t value = (dsp->disasm_cur_inst>>8) & BITMASK(6);
+    uint32_t numbit = dsp->disasm_cur_inst & BITMASK(5);
+
+    sprintf(dsp->disasm_str_instr, "brclr #%d,%s,p:$%04x",
+        numbit, registers_name[value], (dsp->pc + xxxx) & BITMASK(24));
 }
 
 static void dis_brset_pp(dsp_core_t* dsp)
@@ -462,7 +484,20 @@ static void dis_brset_pp(dsp_core_t* dsp)
         sprintf(name,"x:$%06x",value+0xffffc0);
     }
 
-    sprintf(dsp->disasm_str_instr,"brset #%d,%s,p:$%06x", numbit, name, xxxx);
+    sprintf(dsp->disasm_str_instr,"brset #%d,%s,p:$%06x",
+        numbit, name, (dsp->pc + xxxx) & BITMASK(24) );
+}
+
+static void dis_brset_reg(dsp_core_t* dsp)
+{
+    uint32_t xxxx = read_memory_p(dsp, dsp->pc+1);
+    dsp->disasm_cur_inst_len++;
+
+    uint32_t value = (dsp->disasm_cur_inst>>8) & BITMASK(6);
+    uint32_t numbit = dsp->disasm_cur_inst & BITMASK(5);
+
+    sprintf(dsp->disasm_str_instr, "brset #%d,%s,p:$%04x",
+        numbit, registers_name[value], (dsp->pc + xxxx) & BITMASK(24));
 }
 
 static void dis_bset_aa(dsp_core_t* dsp)
@@ -541,14 +576,16 @@ static void dis_bsr_long(dsp_core_t* dsp)
 {
     dsp->disasm_cur_inst_len++;
     uint32_t xxxx = read_memory_p(dsp, dsp->pc+1);
-    sprintf(dsp->disasm_str_instr, "bsr p:$%06x", xxxx);
+    sprintf(dsp->disasm_str_instr, "bsr p:$%06x",
+        (dsp->pc + xxxx) & BITMASK(24));
 }
 
 static void dis_bsr_imm(dsp_core_t* dsp)
 {
     uint32_t xxx = (dsp->disasm_cur_inst & BITMASK(5))
                  + ((dsp->disasm_cur_inst & (BITMASK(4) << 6)) >> 1);
-    sprintf(dsp->disasm_str_instr, "bsr p:$%04x", xxx);
+    sprintf(dsp->disasm_str_instr, "bsr p:$%04x",
+        (dsp->pc + dsp_signextend(9, xxx)) & BITMASK(24) );
 }
 
 static void dis_btst_aa(dsp_core_t* dsp)
@@ -621,6 +658,14 @@ static void dis_btst_reg(dsp_core_t* dsp)
     numbit = dsp->disasm_cur_inst & BITMASK(5);
 
     sprintf(dsp->disasm_str_instr,"btst #%d,%s", numbit, registers_name[value]);
+}
+
+static void dis_cmp_imm(dsp_core_t* dsp) {
+    uint32_t xx = (dsp->disasm_cur_inst >> 8) & BITMASK(6);
+    uint32_t d = (dsp->disasm_cur_inst >> 3) & 1;
+
+    sprintf(dsp->disasm_str_instr, "cmp #$%02x,%s",
+        xx, registers_name[d ? DSP_REG_B : DSP_REG_A]);
 }
 
 static void dis_cmpu(dsp_core_t* dsp) {
@@ -725,12 +770,24 @@ static void dis_do_reg(dsp_core_t* dsp)
 
 static void dis_dor_imm(dsp_core_t* dsp)
 {
+    uint32_t addr = read_memory_p(dsp, dsp->pc+1);
     dsp->disasm_cur_inst_len++;
 
+    uint32_t xxx = ((dsp->disasm_cur_inst>>8) & BITMASK(8)) | ((dsp->disasm_cur_inst & BITMASK(4))<<8);
+
     sprintf(dsp->disasm_str_instr,"dor #$%04x,p:$%04x",
-        ((dsp->disasm_cur_inst>>8) & BITMASK(8))|((dsp->disasm_cur_inst & BITMASK(4))<<8),
-        read_memory_p(dsp, dsp->pc+1)
-    );
+        xxx, (dsp->pc + addr) & BITMASK(24));
+}
+
+static void dis_dor_reg(dsp_core_t* dsp)
+{
+    uint32_t addr = read_memory_p(dsp, dsp->pc+1);
+    dsp->disasm_cur_inst_len++;
+
+    uint32_t numreg = (dsp->disasm_cur_inst >> 8) & BITMASK(6);
+
+    sprintf(dsp->disasm_str_instr,"dor %s,p:$%04x",
+        registers_name[numreg], (dsp->pc + addr) & BITMASK(24));
 }
 
 static void dis_jcc_ea(dsp_core_t* dsp)
@@ -1501,7 +1558,7 @@ static void dis_movep_x_qq(dsp_core_t* dsp) {
     char srcname[16]="",dstname[16]="",name[16]="";
 
     uint32_t addr = 0xffff80 + (dsp->disasm_cur_inst & BITMASK(6));
-    uint32_t ea_mode = (dsp->cur_inst>>8) & BITMASK(6);
+    uint32_t ea_mode = (dsp->disasm_cur_inst>>8) & BITMASK(6);
     uint32_t easpace = (dsp->disasm_cur_inst>>6) & 1;
     int retour = dis_calc_ea(dsp, ea_mode, name);
 

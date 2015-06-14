@@ -21,6 +21,7 @@
 #define DMA_CONTROL_FROZEN (1 << 3)
 #define DMA_CONTROL_RUNNING (1 << 4)
 #define DMA_CONTROL_STOPPED (1 << 5)
+#define DMA_CONTROL_WRITE_
 
 #define NODE_POINTER_VAL 0x3fff
 #define NODE_POINTER_EOL (1 << 14)
@@ -37,13 +38,13 @@ static void dsp_dma_run(DSPDMAState *s)
         uint32_t addr = s->next_block & NODE_POINTER_VAL;
         assert((addr+6) < sizeof(s->core->xram));
 
-        uint32_t next_block = s->core->xram[addr];
-        uint32_t control = s->core->xram[addr+1];
-        uint32_t count = s->core->xram[addr+2];
-        uint32_t dsp_offset = s->core->xram[addr+3];
-        uint32_t scratch_offset = s->core->xram[addr+4];
-        uint32_t scratch_base = s->core->xram[addr+5];
-        uint32_t scratch_size = s->core->xram[addr+6]+1;
+        uint32_t next_block = dsp56k_read_memory(s->core, DSP_SPACE_X, addr);
+        uint32_t control = dsp56k_read_memory(s->core, DSP_SPACE_X, addr+1);
+        uint32_t count = dsp56k_read_memory(s->core, DSP_SPACE_X, addr+2);
+        uint32_t dsp_offset = dsp56k_read_memory(s->core, DSP_SPACE_X, addr+3);
+        uint32_t scratch_offset = dsp56k_read_memory(s->core, DSP_SPACE_X, addr+4);
+        uint32_t scratch_base = dsp56k_read_memory(s->core, DSP_SPACE_X, addr+5);
+        uint32_t scratch_size = dsp56k_read_memory(s->core, DSP_SPACE_X, addr+6)+1;
 
         printf("\n\n\nQQQ DMA addr %x, control %x, count %x, dsp_offset %x, scratch_offset %x, base %x, size %x\n\n\n",
             addr, control, count, dsp_offset, scratch_offset, scratch_base, scratch_size);
@@ -64,25 +65,31 @@ static void dsp_dma_run(DSPDMAState *s)
 
         uint32_t buf_id = (control >> 5) & 0xf;
 
-        size_t scratch_addr = scratch_offset;
+        size_t scratch_addr;
         if (buf_id == 0xe) { // 'circular'?
-            assert(scratch_addr == 0);
+            // assert(scratch_offset == 0);
             assert(scratch_offset + count * item_size < scratch_size);
-            scratch_addr += scratch_base; //??
-        } else if (buf_id != 0xf) { // 'offset'?
+            scratch_addr = scratch_base + scratch_offset; //??
+        } else if (buf_id == 0xf) { // 'offset'?
+            scratch_addr = scratch_offset;
+        } else {
             assert(false);
         }
 
-        uint32_t* dsp_ptr;
+        uint32_t mem_address;
+        int mem_space;
         if (dsp_offset < 0x1800) {
-            assert(dsp_offset+count < sizeof(s->core->xram));
-            dsp_ptr = s->core->xram + dsp_offset;
+            assert(dsp_offset+count < 0x1800);
+            mem_space = DSP_SPACE_X;
+            mem_address = dsp_offset;
         } else if (dsp_offset >= 0x1800 && dsp_offset < 0x2000) { //?
-            assert(dsp_offset-0x1800 + count < sizeof(s->core->yram));
-            dsp_ptr = s->core->yram + dsp_offset - 0x1800;
+            assert(dsp_offset+count < 0x2000);
+            mem_space = DSP_SPACE_Y;
+            mem_address = dsp_offset - 0x1800;
         } else if (dsp_offset >= 0x2800 && dsp_offset < 0x3800) { //?
-            assert(dsp_offset-0x2800 + count < sizeof(s->core->pram));
-            dsp_ptr = s->core->pram + dsp_offset - 0x2800;
+            assert(dsp_offset+count < 0x3800);
+            mem_space = DSP_SPACE_P;
+            mem_address = dsp_offset - 0x2800;
         } else {
             assert(false);
         }
@@ -94,9 +101,10 @@ static void dsp_dma_run(DSPDMAState *s)
         if (control & NODE_CONTROL_DIRECTION) {
             int i;
             for (i=0; i<count; i++) {
+                uint32_t v = dsp56k_read_memory(s->core, mem_space, mem_address+i);
                 switch(item_size) {
                 case 4:
-                    *(uint32_t*)(scratch_buf + i*4) = dsp_ptr[i];
+                    *(uint32_t*)(scratch_buf + i*4) = v;
                     break;
                 default:
                     assert(false);
@@ -112,14 +120,16 @@ static void dsp_dma_run(DSPDMAState *s)
 
             int i;
             for (i=0; i<count; i++) {
+                uint32_t v;
                 switch(item_size) {
                 case 4:
-                    dsp_ptr[i] = (*(uint32_t*)(scratch_buf + i*4)) & item_mask;
+                    v = (*(uint32_t*)(scratch_buf + i*4)) & item_mask;
                     break;
                 default:
                     assert(false);
                     break;
                 }
+                dsp56k_write_memory(s->core, mem_space, mem_address+i, v);
             }
         }
 
