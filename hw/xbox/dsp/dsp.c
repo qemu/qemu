@@ -1,26 +1,26 @@
 /*
-    DSP56300 emulator
-
-    Copyright (c) 2015 espes
-
-    Adapted from Hatari DSP M56001 emulation
-    (C) 2001-2008 ARAnyM developer team
-    Adaption to Hatari (C) 2008 by Thomas Huth
-
-    This program is free software; you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation; either version 2 of the License, or
-    (at your option) any later version.
-
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with this program; if not, write to the Free Software
-    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
-*/
+ * MCPX DSP emulator
+ *
+ * Copyright (c) 2015 espes
+ *
+ * Adapted from Hatari DSP M56001 emulation
+ * (C) 2001-2008 ARAnyM developer team
+ * Adaption to Hatari (C) 2008 by Thomas Huth
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ */
 
 #include <stdlib.h>
 #include <ctype.h>
@@ -88,7 +88,7 @@ void dsp_destroy(DSPState* dsp)
 static uint32_t read_peripheral(dsp_core_t* core, uint32_t address) {
     DSPState* dsp = container_of(core, DSPState, core);
 
-    printf("read_peripheral 0x%06x\n", address);
+    // printf("read_peripheral 0x%06x\n", address);
 
     uint32_t v = 0xababa;
     switch(address) {
@@ -112,14 +112,14 @@ static uint32_t read_peripheral(dsp_core_t* core, uint32_t address) {
         break;
     }
 
-    printf(" -> 0x%06x\n", v);
+    // printf(" -> 0x%06x\n", v);
     return v;
 }
 
 static void write_peripheral(dsp_core_t* core, uint32_t address, uint32_t value) {
     DSPState* dsp = container_of(core, DSPState, core);
 
-    printf("write_peripheral [0x%06x] = 0x%06x\n", address, value);
+    // printf("write_peripheral [0x%06x] = 0x%06x\n", address, value);
 
     switch(address) {
     case 0xFFFFC5:

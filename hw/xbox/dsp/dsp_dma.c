@@ -1,3 +1,22 @@
+/*
+ * MCPX DSP DMA
+ *
+ * Copyright (c) 2015 espes
+ *
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License as
+ * published by the Free Software Foundation; either version 2 or
+ * (at your option) version 3 of the License.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, see <http://www.gnu.org/licenses/>.
+ */
+
 #include <stdlib.h>
 #include <stdint.h>
 #include <stdbool.h>
@@ -21,7 +40,6 @@
 #define DMA_CONTROL_FROZEN (1 << 3)
 #define DMA_CONTROL_RUNNING (1 << 4)
 #define DMA_CONTROL_STOPPED (1 << 5)
-#define DMA_CONTROL_WRITE_
 
 #define NODE_POINTER_VAL 0x3fff
 #define NODE_POINTER_EOL (1 << 14)
@@ -46,8 +64,8 @@ static void dsp_dma_run(DSPDMAState *s)
         uint32_t scratch_base = dsp56k_read_memory(s->core, DSP_SPACE_X, addr+5);
         uint32_t scratch_size = dsp56k_read_memory(s->core, DSP_SPACE_X, addr+6)+1;
 
-        printf("\n\n\nQQQ DMA addr %x, control %x, count %x, dsp_offset %x, scratch_offset %x, base %x, size %x\n\n\n",
-            addr, control, count, dsp_offset, scratch_offset, scratch_base, scratch_size);
+        // printf("\n\n\nQQQ DMA addr %x, control %x, count %x, dsp_offset %x, scratch_offset %x, base %x, size %x\n\n\n",
+        //     addr, control, count, dsp_offset, scratch_offset, scratch_base, scratch_size);
 
         uint32_t format = (control >> 10) & 7;
         unsigned int item_size;
@@ -130,6 +148,7 @@ static void dsp_dma_run(DSPDMAState *s)
                     assert(false);
                     break;
                 }
+                // printf("... %06x\n", v);
                 dsp56k_write_memory(s->core, mem_space, mem_address+i, v);
             }
         }

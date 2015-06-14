@@ -20,6 +20,7 @@
 #include "hw/i386/pc.h"
 #include "hw/pci/pci.h"
 
+#include "hw/xbox/dsp/dsp.h"
 
 #define NV_PAPU_ISTS                                     0x00001000
 #   define NV_PAPU_ISTS_GINTSTS                               (1 << 0)
@@ -47,6 +48,7 @@
 #   define NV_PAPU_SECTL_XCNTMODE                           0x00000018
 #       define NV_PAPU_SECTL_XCNTMODE_OFF                       0
 #define NV_PAPU_VPVADDR                                  0x0000202C
+#define NV_PAPU_GPSADDR                                  0x00002040
 #define NV_PAPU_TVL2D                                    0x00002054
 #define NV_PAPU_CVL2D                                    0x00002058
 #define NV_PAPU_NVL2D                                    0x0000205C
@@ -56,6 +58,14 @@
 #define NV_PAPU_TVLMP                                    0x0000206C
 #define NV_PAPU_CVLMP                                    0x00002070
 #define NV_PAPU_NVLMP                                    0x00002074
+#define NV_PAPU_GPSMAXSGE                                0x000020D4
+
+#define NV_PAPU_GPRST                                    0x0000FFFC
+#define NV_PAPU_GPRST_GPRST                                 (1 << 0)
+#define NV_PAPU_GPRST_GPDSPRST                              (1 << 1)
+#define NV_PAPU_GPRST_GPNMI                                 (1 << 2)
+#define NV_PAPU_GPRST_GPABORT                               (1 << 3)
+
 
 static const struct {
     hwaddr top, current, next;
@@ -105,7 +115,7 @@ static const struct {
 
 
 
-//#define DEBUG
+// #define DEBUG
 #ifdef DEBUG
 # define MCPX_DPRINTF(format, ...)       printf(format, ## __VA_ARGS__)
 #else
@@ -131,6 +141,8 @@ typedef struct MCPXAPUState {
     /* Global Processor */
     struct {
         MemoryRegion mmio;
+        DSPState *dsp;
+        uint32_t regs[0x10000];
     } gp;
 
     uint32_t regs[0x20000];
@@ -360,18 +372,61 @@ static const MemoryRegionOps vp_ops = {
     .write = vp_write,
 };
 
+static void gp_scratch_rw(void *opaque, uint8_t* ptr, uint32_t addr, size_t len, bool dir)
+{
+    MCPXAPUState *d = opaque;
+
+    hwaddr sge_base = d->regs[NV_PAPU_GPSADDR];
+
+    int i;
+    for (i=0; i<len; i++) {
+        unsigned int entry = (addr + i) / TARGET_PAGE_SIZE;
+        assert(entry < d->regs[NV_PAPU_GPSMAXSGE]);
+        uint32_t prd_address = ldl_le_phys(sge_base + entry*4*2);
+        uint32_t prd_control = ldl_le_phys(sge_base + entry*4*2 + 1);
+
+        hwaddr paddr = prd_address + (addr + i) % TARGET_PAGE_SIZE;
+
+        if (dir) {
+            stb_phys(paddr, ptr[i]);
+        } else {
+            ptr[i] = ldub_phys(paddr);
+        }
+    }
+}
 
 /* Global Processor - programmable DSP */
 static uint64_t gp_read(void *opaque,
                         hwaddr addr, unsigned int size)
 {
-    MCPX_DPRINTF("mcpx apu GP: read [0x%llx]\n", addr);
-    return 0;
+    MCPXAPUState *d = opaque;
+
+    uint64_t r = d->gp.regs[addr];
+    MCPX_DPRINTF("mcpx apu GP: read [0x%llx] -> 0x%llx\n", addr, r);
+    return r;
 }
 static void gp_write(void *opaque, hwaddr addr,
                      uint64_t val, unsigned int size)
 {
+    MCPXAPUState *d = opaque;
+
     MCPX_DPRINTF("mcpx apu GP: [0x%llx] = 0x%llx\n", addr, val);
+
+    switch (addr) {
+    case NV_PAPU_GPRST:
+        if (!(val & NV_PAPU_GPRST_GPRST) || !(val & NV_PAPU_GPRST_GPDSPRST)) {
+            dsp_reset(d->gp.dsp);
+        } else if ((!(d->gp.regs[NV_PAPU_GPRST] & NV_PAPU_GPRST_GPRST)
+                    || !(d->gp.regs[NV_PAPU_GPRST] & NV_PAPU_GPRST_GPDSPRST))
+                && ((val & NV_PAPU_GPRST_GPRST) && (val & NV_PAPU_GPRST_GPDSPRST)) ) {
+            dsp_bootstrap(d->gp.dsp);
+        }
+        d->gp.regs[NV_PAPU_GPRST] = val;
+        break;
+    default:
+        d->gp.regs[addr] = val;
+        break;
+    }
 }
 static const MemoryRegionOps gp_ops = {
     .read = gp_read,
@@ -406,6 +461,15 @@ static void se_frame(void *opaque)
             d->regs[current] = d->regs[next];
         }
     }
+
+    if ((d->gp.regs[NV_PAPU_GPRST] & NV_PAPU_GPRST_GPRST)
+        && (d->gp.regs[NV_PAPU_GPRST] & NV_PAPU_GPRST_GPDSPRST)) {
+        dsp_start_frame(d->gp.dsp);
+
+        // hax
+        dsp_run(d->gp.dsp, 10000);
+    }
+
 }
 
 
@@ -428,6 +492,8 @@ static int mcpx_apu_initfn(PCIDevice *dev)
 
 
     d->se.frame_timer = qemu_new_timer_ms(vm_clock, se_frame, d);
+
+    d->gp.dsp = dsp_init(d, gp_scratch_rw);
 
     return 0;
 }
