@@ -1,1 +1,1 @@
-obj-y += dsp.o dsp_cpu.o
+obj-y += dsp.o dsp_cpu.o dsp_dma.o

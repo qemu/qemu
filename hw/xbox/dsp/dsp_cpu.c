@@ -359,6 +359,7 @@ void dsp56k_reset_cpu(dsp_core_t* dsp)
 {
     int i;
     if (!matches_initialised) {
+        matches_initialised = true;
         for (i=0; i<ARRAYSIZE(nonparallel_opcodes); i++) {
             const OpcodeEntry t = nonparallel_opcodes[i];
             assert(strlen(t.template) == 24);
@@ -376,7 +377,6 @@ void dsp56k_reset_cpu(dsp_core_t* dsp)
             nonparallel_matches[i][0] = mask;
             nonparallel_matches[i][1] = match;
         }
-        matches_initialised = true;
     }
 
     /* Memory */
@@ -410,7 +410,6 @@ void dsp56k_reset_cpu(dsp_core_t* dsp)
 
 
     /* runtime shit */
-
 
     dsp->executing_for_disasm = false;
     // start_time = SDL_GetTicks();
@@ -480,7 +479,7 @@ static uint16_t disasm_instruction(dsp_core_t* dsp, dsp_trace_disasm_t mode)
 static void disasm_reg_save(dsp_core_t* dsp)
 {
     memcpy(dsp->disasm_registers_save, dsp->registers , sizeof(dsp->disasm_registers_save));
-#if DSP_DISASM_REG_PC
+#ifdef DSP_DISASM_REG_PC
     dsp->pc_save = dsp->pc;
 #endif
 }
@@ -566,7 +565,7 @@ static void disasm_reg_compare(dsp_core_t* dsp)
         }
     }
 
-#if DSP_DISASM_REG_PC
+#ifdef DSP_DISASM_REG_PC
     if (pc_save != dsp->pc) {
         fprintf(stderr,"\tReg: pc  $%04x -> $%04x\n", pc_save, dsp->pc);
     }

@@ -96,12 +96,11 @@ static void dsp_dma_run(DSPDMAState *s)
 
         uint8_t* scratch_buf = calloc(count, item_size);
 
-        assert(s->scratch_rw);
-
         if (control & NODE_CONTROL_DIRECTION) {
             int i;
             for (i=0; i<count; i++) {
-                uint32_t v = dsp56k_read_memory(s->core, mem_space, mem_address+i);
+                uint32_t v = dsp56k_read_memory(s->core,
+                    mem_space, mem_address+i);
                 switch(item_size) {
                 case 4:
                     *(uint32_t*)(scratch_buf + i*4) = v;
@@ -113,10 +112,12 @@ static void dsp_dma_run(DSPDMAState *s)
             }
 
             // write to scratch memory
-            s->scratch_rw(scratch_buf, scratch_addr, count*item_size, 1);
+            s->scratch_rw(s->scratch_rw_opaque,
+                scratch_buf, scratch_addr, count*item_size, 1);
         } else {
             // read from scratch memory
-            s->scratch_rw(scratch_buf, scratch_addr, count*item_size, 0);
+            s->scratch_rw(s->scratch_rw_opaque,
+                scratch_buf, scratch_addr, count*item_size, 0);
 
             int i;
             for (i=0; i<count; i++) {

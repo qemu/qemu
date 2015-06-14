@@ -32,7 +32,7 @@
 typedef struct DSPState DSPState;
 
 typedef void (*dsp_scratch_rw_func)(
-    uint8_t* ptr, uint64_t addr, size_t len, bool dir);
+    void* opaque, uint8_t* ptr, uint64_t addr, size_t len, bool dir);
 
 /* Dsp commands */
 DSPState* dsp_init(void* scratch_rw_opaque, dsp_scratch_rw_func scratch_rw);
@@ -42,7 +42,7 @@ void dsp_reset(DSPState* dsp);
 void dsp_step(DSPState* dsp);
 void dsp_run(DSPState* dsp, int cycles);
 
-void dsp_bootstrap(DSPState* dsp, const uint32_t* pmem, size_t len);
+void dsp_bootstrap(DSPState* dsp);
 void dsp_start_frame(DSPState* dsp);
 
 

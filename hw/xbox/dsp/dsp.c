@@ -172,10 +172,11 @@ void dsp_run(DSPState* dsp, int cycles)
 
 } 
 
-void dsp_bootstrap(DSPState* dsp, const uint32_t* pram, size_t len)
+void dsp_bootstrap(DSPState* dsp)
 {
-    assert(sizeof(dsp->core.pram) >= len);
-    memcpy(dsp->core.pram, pram, len);
+    // scratch memory is dma'd in to pram by the bootrom
+    dsp->dma.scratch_rw(dsp->dma.scratch_rw_opaque,
+        (uint8_t*)dsp->core.pram, 0, 0x600, false);
 }
 
 void dsp_start_frame(DSPState* dsp)

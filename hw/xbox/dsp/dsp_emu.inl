@@ -7835,12 +7835,6 @@ static void emu_stop(dsp_core_t* dsp)
     DPRINTF("Dsp: STOP instruction\n");
 }
 
-static void emu_swi(dsp_core_t* dsp)
-{
-    /* Raise interrupt p:0x0006 */
-    dsp->instr_cycle += 6;
-}
-
 static void emu_sub_imm(dsp_core_t* dsp)
 {
     uint32_t xx = (dsp->cur_inst >> 8) & BITMASK(6);
