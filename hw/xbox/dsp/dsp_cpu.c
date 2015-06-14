@@ -67,8 +67,8 @@ static void dsp_compute_ssh_ssl(dsp_core_t* dsp);
 
 /* 56bits arithmetic */
 static uint16_t dsp_abs56(uint32_t *dest);
-static uint16_t dsp_asl56(uint32_t *dest);
-static uint16_t dsp_asr56(uint32_t *dest);
+static uint16_t dsp_asl56(uint32_t *dest, int n);
+static uint16_t dsp_asr56(uint32_t *dest, int n);
 static uint16_t dsp_add56(uint32_t *source, uint32_t *dest);
 static uint16_t dsp_sub56(uint32_t *source, uint32_t *dest);
 static void dsp_mul56(uint32_t source1, uint32_t source2, uint32_t *dest, uint8_t signe);
@@ -164,9 +164,9 @@ static const OpcodeEntry nonparallel_opcodes[] = {
     { "0000000101iiiiii1000d110", "and #xx, D", NULL, NULL },
     { "00000001010000001100d110", "and #xxxx, D", dis_and_long, emu_and_long },
     { "00000000iiiiiiii101110EE", "andi #xx, D", dis_andi, emu_andi },
-    { "0000110000011101SiiiiiiD", "asl #ii, S2, D", NULL, NULL },
+    { "0000110000011101SiiiiiiD", "asl #ii, S2, D", dis_asl_imm, emu_asl_imm },
     { "0000110000011110010SsssD", "asl S1, S2, D", NULL, NULL },
-    { "0000110000011100SiiiiiiD", "asr #ii, S2, D", NULL, NULL },
+    { "0000110000011100SiiiiiiD", "asr #ii, S2, D", dis_asr_imm, emu_asr_imm },
     { "0000110000011110011SsssD", "asr S1, S2, D", NULL, NULL },
     { "00001101000100000100CCCC", "bcc xxxx", dis_bcc_long, emu_bcc_long }, //??
     { "00000101CCCC01aaaa0aaaaa", "bcc xxx", dis_bcc_imm, emu_bcc_imm },
@@ -181,7 +181,7 @@ static const OpcodeEntry nonparallel_opcodes[] = {
     { "0000101010pppppp0S00bbbb", "bclr #n, [X or Y]:pp", dis_bclr_pp, emu_bclr_pp },
     { "0000000100qqqqqq0S00bbbb", "bclr #n, [X or Y]:qq", NULL, NULL },
     { "0000101011DDDDDD010bbbbb", "bclr #n, D", dis_bclr_reg, emu_bclr_reg },
-    { "000011010001000011000000", "bra xxxx", NULL, NULL },
+    { "000011010001000011000000", "bra xxxx", dis_bra_long, emu_bra_long },
     { "00000101000011aaaa0aaaaa", "bra xxx", dis_bra_imm, emu_bra_imm },
     { "0000110100011RRR11000000", "bra Rn", NULL, NULL },
     { "0000110010MMMRRR0S0bbbbb", "brclr #n, [X or Y]:ea, xxxx", NULL, NULL, match_MMMRRR },
@@ -286,17 +286,17 @@ static const OpcodeEntry nonparallel_opcodes[] = {
     { "000011000001111011iiiiiD", "lsr #ii, D", NULL, NULL },
     { "00001100000111100011sssD", "lsr S, D", NULL, NULL },
     { "00000100010MMRRR000ddddd", "lua ea, D", dis_lua, emu_lua },
-    { "0000010000aaaRRRaaaadddd", "lua {Rn + aa}, D", NULL, NULL },
+    { "0000010000aaaRRRaaaadddd", "lua (Rn + aa), D", dis_lua_rel, emu_lua_rel },
     { "00000001000sssss11QQdk10", "mac S, #n, D", NULL, NULL },
     { "000000010100000111qqdk10", "maci #xxxx, S, D", NULL, NULL },
     { "00000001001001101sdkQQQQ", "mac_s_u S1, S2, D", NULL, NULL },
     { "00000001000sssss11QQdk11", "macr S1, S2, D", NULL, NULL },
     { "000000010100000111qqdk11", "macri #xxxx, S, D", NULL, NULL },
     { "00001100000110111000sssD", "merge S, D", NULL, NULL },
-    { "0000101001110RRR1WDDDDDD", "move X:{Rn + xxxx} <-> R", dis_move_x_long, emu_move_x_long },
-    { "0000101101110RRR1WDDDDDD", "move Y:{Rn + xxxx} <-> R", NULL, NULL },
-    { "0000001aaaaaaRRR1a0WDDDD", "move X:{Rn + xxx} <-> R", dis_move_x_imm, emu_move_x_imm },
-    { "0000001aaaaaaRRR1a1WDDDD", "move Y:{Rn + xxx} <-> R", NULL, NULL },
+    { "0000101001110RRR1WDDDDDD", "move X:(Rn + xxxx) <-> R", dis_move_x_long, emu_move_x_long },
+    { "0000101101110RRR1WDDDDDD", "move Y:(Rn + xxxx) <-> R", NULL, NULL },
+    { "0000001aaaaaaRRR1a0WDDDD", "move X:(Rn + xxx) <-> R", dis_move_x_imm, emu_move_x_imm },
+    { "0000001aaaaaaRRR1a1WDDDD", "move Y:(Rn + xxx) <-> R", dis_move_y_imm, emu_move_y_imm },
     { "00000101W1MMMRRR0s1ddddd", "movec [X or Y]:ea <-> R", dis_movec_ea, emu_movec_ea, match_MMMRRR },
     { "00000101W0aaaaaa0s1ddddd", "movec [X or Y]:aa <-> R", dis_movec_aa, emu_movec_aa, match_MMMRRR },
     { "00000100W1eeeeee101ddddd", "movec R1, R2", dis_movec_reg, emu_movec_reg },
@@ -337,7 +337,7 @@ static const OpcodeEntry nonparallel_opcodes[] = {
     { "000000000000000000000100", "rti", NULL, emu_rti },
     { "000000000000000000001100", "rts", NULL, emu_rts },
     { "000000000000000010000111", "stop", NULL, emu_stop },
-    { "0000000101iiiiii1000d100", "sub #xx, D", NULL, NULL },
+    { "0000000101iiiiii1000d100", "sub #xx, D", dis_sub_imm, emu_sub_imm },
     { "00000001010000001100d100", "sub #xxxx, D", NULL, NULL },
     { "00000010CCCC00000JJJd000", "tcc S1, D1", dis_tcc, emu_tcc },
     { "00000011CCCC0ttt0JJJdTTT", "tcc S1,D2 S2,D2", dis_tcc, emu_tcc },
@@ -1227,46 +1227,37 @@ static uint16_t dsp_abs56(uint32_t *dest)
     return newsr;
 }
 
-static uint16_t dsp_asl56(uint32_t *dest)
+static uint16_t dsp_asl56(uint32_t *dest, int n)
 {
-    uint16_t overflow, carry;
+    /* Shift left dest n bits: D<<=n */
 
-    /* Shift left dest 1 bit: D<<=1 */
+    uint64_t dest_v = dest[2] | ((uint64_t)dest[1] << 24) | ((uint64_t)dest[0] << 48);
 
-    carry = (dest[0]>>7) & 1;
+    uint32_t carry = (dest_v >> (56-n)) & 1;
 
-    dest[0] <<= 1;
-    dest[0] |= (dest[1]>>23) & 1;
-    dest[0] &= BITMASK(8);
+    uint64_t dest_s = dest_v << n;
+    dest[2] = dest_s & BITMASK(24);
+    dest[1] = (dest_s >> 24) & BITMASK(24);
+    dest[0] = (dest_s >> 48) & BITMASK(8);
 
-    dest[1] <<= 1;
-    dest[1] |= (dest[2]>>23) & 1;
-    dest[1] &= BITMASK(24);
-    
-    dest[2] <<= 1;
-    dest[2] &= BITMASK(24);
+    uint32_t overflow = (dest_v >> (56-n)) != 0;
+    uint32_t v = ((dest_v >> 55) & 1) != ((dest_s >> 55) & 1);
 
-    overflow = (carry != ((dest[0]>>7) & 1));
-
-    return (overflow<<DSP_SR_L)|(overflow<<DSP_SR_V)|(carry<<DSP_SR_C);
+    return (overflow<<DSP_SR_L)|(v<<DSP_SR_V)|(carry<<DSP_SR_C);
 }
 
-static uint16_t dsp_asr56(uint32_t *dest)
+static uint16_t dsp_asr56(uint32_t *dest, int n)
 {
-    uint16_t carry;
+    /* Shift right dest n bits: D>>=n */
 
-    /* Shift right dest 1 bit: D>>=1 */
+    uint64_t dest_v = dest[2] | ((uint64_t)dest[1] << 24) | ((uint64_t)dest[0] << 48);
 
-    carry = dest[2] & 1;
-
-    dest[2] >>= 1;
-    dest[2] |= (dest[1] & 1)<<23;
-
-    dest[1] >>= 1;
-    dest[1] |= (dest[0] & 1)<<23;
-
-    dest[0] >>= 1;
-    dest[0] |= (dest[0] & (1<<6))<<1;
+    uint16_t carry = (dest_v >> (n-1)) & 1;
+    
+    dest_v >>= n;
+    dest[2] = dest_v & BITMASK(24);
+    dest[1] = (dest_v >> 24) & BITMASK(24);
+    dest[0] = (dest_v >> 48) & BITMASK(8);
 
     return (carry<<DSP_SR_C);
 }
@@ -1373,7 +1364,7 @@ static void dsp_mul56(uint32_t source1, uint32_t source2, uint32_t *dest, uint8_
     }
 
     /* Get rid of extra sign bit */
-    dsp_asl56(dest);
+    dsp_asl56(dest, 1);
 
     if (signe) {
         zerodest[0] = zerodest[1] = zerodest[2] = 0;
