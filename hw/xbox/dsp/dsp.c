@@ -176,7 +176,7 @@ void dsp_bootstrap(DSPState* dsp)
 {
     // scratch memory is dma'd in to pram by the bootrom
     dsp->dma.scratch_rw(dsp->dma.scratch_rw_opaque,
-        (uint8_t*)dsp->core.pram, 0, 0x600, false);
+        (uint8_t*)dsp->core.pram, 0, 0x800*4, false);
 }
 
 void dsp_start_frame(DSPState* dsp)
