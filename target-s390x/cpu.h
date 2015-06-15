@@ -709,6 +709,7 @@ static inline void setcc(S390CPU *cpu, uint64_t cc)
 
     env->psw.mask &= ~(3ull << 44);
     env->psw.mask |= (cc & 3) << 44;
+    env->cc_op = cc;
 }
 
 typedef struct LowCore
