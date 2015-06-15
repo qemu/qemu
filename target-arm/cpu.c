@@ -545,6 +545,10 @@ static void arm_cpu_realizefn(DeviceState *dev, Error **errp)
     if (arm_feature(env, ARM_FEATURE_CBAR_RO)) {
         set_feature(env, ARM_FEATURE_CBAR);
     }
+    if (arm_feature(env, ARM_FEATURE_THUMB2) &&
+        !arm_feature(env, ARM_FEATURE_M)) {
+        set_feature(env, ARM_FEATURE_THUMB_DSP);
+    }
 
     if (cpu->reset_hivecs) {
             cpu->reset_sctlr |= (1 << 13);

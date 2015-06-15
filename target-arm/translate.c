@@ -9444,6 +9444,9 @@ static int disas_thumb2_insn(CPUARMState *env, DisasContext *s, uint16_t insn_hw
 
         op = (insn >> 21) & 0xf;
         if (op == 6) {
+            if (!arm_dc_feature(s, ARM_FEATURE_THUMB_DSP)) {
+                goto illegal_op;
+            }
             /* Halfword pack.  */
             tmp = load_reg(s, rn);
             tmp2 = load_reg(s, rm);
@@ -9508,6 +9511,27 @@ static int disas_thumb2_insn(CPUARMState *env, DisasContext *s, uint16_t insn_hw
             store_reg_bx(s, rd, tmp);
             break;
         case 1: /* Sign/zero extend.  */
+            op = (insn >> 20) & 7;
+            switch (op) {
+            case 0: /* SXTAH, SXTH */
+            case 1: /* UXTAH, UXTH */
+            case 4: /* SXTAB, SXTB */
+            case 5: /* UXTAB, UXTB */
+                break;
+            case 2: /* SXTAB16, SXTB16 */
+            case 3: /* UXTAB16, UXTB16 */
+                if (!arm_dc_feature(s, ARM_FEATURE_THUMB_DSP)) {
+                    goto illegal_op;
+                }
+                break;
+            default:
+                goto illegal_op;
+            }
+            if (rn != 15) {
+                if (!arm_dc_feature(s, ARM_FEATURE_THUMB_DSP)) {
+                    goto illegal_op;
+                }
+            }
             tmp = load_reg(s, rm);
             shift = (insn >> 4) & 3;
             /* ??? In many cases it's not necessary to do a
@@ -9522,7 +9546,8 @@ static int disas_thumb2_insn(CPUARMState *env, DisasContext *s, uint16_t insn_hw
             case 3: gen_uxtb16(tmp); break;
             case 4: gen_sxtb(tmp);   break;
             case 5: gen_uxtb(tmp);   break;
-            default: goto illegal_op;
+            default:
+                g_assert_not_reached();
             }
             if (rn != 15) {
                 tmp2 = load_reg(s, rn);
@@ -9536,6 +9561,9 @@ static int disas_thumb2_insn(CPUARMState *env, DisasContext *s, uint16_t insn_hw
             store_reg(s, rd, tmp);
             break;
         case 2: /* SIMD add/subtract.  */
+            if (!arm_dc_feature(s, ARM_FEATURE_THUMB_DSP)) {
+                goto illegal_op;
+            }
             op = (insn >> 20) & 7;
             shift = (insn >> 4) & 7;
             if ((op & 3) == 3 || (shift & 3) == 3)
@@ -9550,6 +9578,9 @@ static int disas_thumb2_insn(CPUARMState *env, DisasContext *s, uint16_t insn_hw
             op = ((insn >> 17) & 0x38) | ((insn >> 4) & 7);
             if (op < 4) {
                 /* Saturating add/subtract.  */
+                if (!arm_dc_feature(s, ARM_FEATURE_THUMB_DSP)) {
+                    goto illegal_op;
+                }
                 tmp = load_reg(s, rn);
                 tmp2 = load_reg(s, rm);
                 if (op & 1)
@@ -9560,6 +9591,31 @@ static int disas_thumb2_insn(CPUARMState *env, DisasContext *s, uint16_t insn_hw
                     gen_helper_add_saturate(tmp, cpu_env, tmp, tmp2);
                 tcg_temp_free_i32(tmp2);
             } else {
+                switch (op) {
+                case 0x0a: /* rbit */
+                case 0x08: /* rev */
+                case 0x09: /* rev16 */
+                case 0x0b: /* revsh */
+                case 0x18: /* clz */
+                    break;
+                case 0x10: /* sel */
+                    if (!arm_dc_feature(s, ARM_FEATURE_THUMB_DSP)) {
+                        goto illegal_op;
+                    }
+                    break;
+                case 0x20: /* crc32/crc32c */
+                case 0x21:
+                case 0x22:
+                case 0x28:
+                case 0x29:
+                case 0x2a:
+                    if (!arm_dc_feature(s, ARM_FEATURE_CRC)) {
+                        goto illegal_op;
+                    }
+                    break;
+                default:
+                    goto illegal_op;
+                }
                 tmp = load_reg(s, rn);
                 switch (op) {
                 case 0x0a: /* rbit */
@@ -9596,10 +9652,6 @@ static int disas_thumb2_insn(CPUARMState *env, DisasContext *s, uint16_t insn_hw
                     uint32_t sz = op & 0x3;
                     uint32_t c = op & 0x8;
 
-                    if (!arm_dc_feature(s, ARM_FEATURE_CRC)) {
-                        goto illegal_op;
-                    }
-
                     tmp2 = load_reg(s, rm);
                     if (sz == 0) {
                         tcg_gen_andi_i32(tmp2, tmp2, 0xff);
@@ -9617,12 +9669,26 @@ static int disas_thumb2_insn(CPUARMState *env, DisasContext *s, uint16_t insn_hw
                     break;
                 }
                 default:
-                    goto illegal_op;
+                    g_assert_not_reached();
                 }
             }
             store_reg(s, rd, tmp);
             break;
         case 4: case 5: /* 32-bit multiply.  Sum of absolute differences.  */
+            switch ((insn >> 20) & 7) {
+            case 0: /* 32 x 32 -> 32 */
+            case 7: /* Unsigned sum of absolute differences.  */
+                break;
+            case 1: /* 16 x 16 -> 32 */
+            case 2: /* Dual multiply add.  */
+            case 3: /* 32 * 16 -> 32msb */
+            case 4: /* Dual multiply subtract.  */
+            case 5: case 6: /* 32 * 32 -> 32msb (SMMUL, SMMLA, SMMLS) */
+                if (!arm_dc_feature(s, ARM_FEATURE_THUMB_DSP)) {
+                    goto illegal_op;
+                }
+                break;
+            }
             op = (insn >> 4) & 0xf;
             tmp = load_reg(s, rn);
             tmp2 = load_reg(s, rm);
@@ -9735,6 +9801,11 @@ static int disas_thumb2_insn(CPUARMState *env, DisasContext *s, uint16_t insn_hw
                 store_reg(s, rd, tmp);
             } else if ((op & 0xe) == 0xc) {
                 /* Dual multiply accumulate long.  */
+                if (!arm_dc_feature(s, ARM_FEATURE_THUMB_DSP)) {
+                    tcg_temp_free_i32(tmp);
+                    tcg_temp_free_i32(tmp2);
+                    goto illegal_op;
+                }
                 if (op & 1)
                     gen_swap_half(tmp2);
                 gen_smul_dual(tmp, tmp2);
@@ -9758,6 +9829,11 @@ static int disas_thumb2_insn(CPUARMState *env, DisasContext *s, uint16_t insn_hw
                 } else {
                     if (op & 8) {
                         /* smlalxy */
+                        if (!arm_dc_feature(s, ARM_FEATURE_THUMB_DSP)) {
+                            tcg_temp_free_i32(tmp2);
+                            tcg_temp_free_i32(tmp);
+                            goto illegal_op;
+                        }
                         gen_mulxy(tmp, tmp2, op & 2, op & 1);
                         tcg_temp_free_i32(tmp2);
                         tmp64 = tcg_temp_new_i64();
@@ -9770,6 +9846,10 @@ static int disas_thumb2_insn(CPUARMState *env, DisasContext *s, uint16_t insn_hw
                 }
                 if (op & 4) {
                     /* umaal */
+                    if (!arm_dc_feature(s, ARM_FEATURE_THUMB_DSP)) {
+                        tcg_temp_free_i64(tmp64);
+                        goto illegal_op;
+                    }
                     gen_addq_lo(s, tmp64, rs);
                     gen_addq_lo(s, tmp64, rd);
                 } else if (op & 0x40) {
@@ -10034,16 +10114,28 @@ static int disas_thumb2_insn(CPUARMState *env, DisasContext *s, uint16_t insn_hw
                         tmp2 = tcg_const_i32(imm);
                         if (op & 4) {
                             /* Unsigned.  */
-                            if ((op & 1) && shift == 0)
+                            if ((op & 1) && shift == 0) {
+                                if (!arm_dc_feature(s, ARM_FEATURE_THUMB_DSP)) {
+                                    tcg_temp_free_i32(tmp);
+                                    tcg_temp_free_i32(tmp2);
+                                    goto illegal_op;
+                                }
                                 gen_helper_usat16(tmp, cpu_env, tmp, tmp2);
-                            else
+                            } else {
                                 gen_helper_usat(tmp, cpu_env, tmp, tmp2);
+                            }
                         } else {
                             /* Signed.  */
-                            if ((op & 1) && shift == 0)
+                            if ((op & 1) && shift == 0) {
+                                if (!arm_dc_feature(s, ARM_FEATURE_THUMB_DSP)) {
+                                    tcg_temp_free_i32(tmp);
+                                    tcg_temp_free_i32(tmp2);
+                                    goto illegal_op;
+                                }
                                 gen_helper_ssat16(tmp, cpu_env, tmp, tmp2);
-                            else
+                            } else {
                                 gen_helper_ssat(tmp, cpu_env, tmp, tmp2);
+                            }
                         }
                         tcg_temp_free_i32(tmp2);
                         break;
