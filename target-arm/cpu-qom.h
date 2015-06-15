@@ -127,6 +127,7 @@ typedef struct ARMCPU {
      * prefix means a constant register.
      */
     uint32_t midr;
+    uint32_t revidr;
     uint32_t reset_fpsid;
     uint32_t mvfr0;
     uint32_t mvfr1;

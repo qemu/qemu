@@ -3424,15 +3424,14 @@ void register_cp_regs_for_features(ARMCPU *cpu)
         };
         ARMCPRegInfo id_v8_midr_cp_reginfo[] = {
             /* v8 MIDR -- the wildcard isn't necessary, and nor is the
-             * variable-MIDR TI925 behaviour. Instead we have a single
-             * (strictly speaking IMPDEF) alias of the MIDR, REVIDR.
+             * variable-MIDR TI925 behaviour.
              */
             { .name = "MIDR_EL1", .state = ARM_CP_STATE_BOTH,
               .opc0 = 3, .opc1 = 0, .crn = 0, .crm = 0, .opc2 = 0,
               .access = PL1_R, .type = ARM_CP_CONST, .resetvalue = cpu->midr },
             { .name = "REVIDR_EL1", .state = ARM_CP_STATE_BOTH,
               .opc0 = 3, .opc1 = 0, .crn = 0, .crm = 0, .opc2 = 6,
-              .access = PL1_R, .type = ARM_CP_CONST, .resetvalue = cpu->midr },
+              .access = PL1_R, .type = ARM_CP_CONST, .resetvalue = cpu->revidr },
             REGINFO_SENTINEL
         };
         ARMCPRegInfo id_cp_reginfo[] = {
