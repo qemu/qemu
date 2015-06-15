@@ -574,15 +574,6 @@ static void arm_load_kernel_notify(Notifier *notifier, void *data)
     struct arm_boot_info *info =
         container_of(n, struct arm_boot_info, load_kernel_notifier);
 
-    /* CPU objects (unlike devices) are not automatically reset on system
-     * reset, so we must always register a handler to do so. If we're
-     * actually loading a kernel, the handler is also responsible for
-     * arranging that we start it correctly.
-     */
-    for (cs = CPU(cpu); cs; cs = CPU_NEXT(cs)) {
-        qemu_register_reset(do_cpu_reset, ARM_CPU(cs));
-    }
-
     /* Load the kernel.  */
     if (!info->kernel_filename || info->firmware_loaded) {
 
@@ -783,7 +774,18 @@ static void arm_load_kernel_notify(Notifier *notifier, void *data)
 
 void arm_load_kernel(ARMCPU *cpu, struct arm_boot_info *info)
 {
+    CPUState *cs;
+
     info->load_kernel_notifier.cpu = cpu;
     info->load_kernel_notifier.notifier.notify = arm_load_kernel_notify;
     qemu_add_machine_init_done_notifier(&info->load_kernel_notifier.notifier);
+
+    /* CPU objects (unlike devices) are not automatically reset on system
+     * reset, so we must always register a handler to do so. If we're
+     * actually loading a kernel, the handler is also responsible for
+     * arranging that we start it correctly.
+     */
+    for (cs = CPU(cpu); cs; cs = CPU_NEXT(cs)) {
+        qemu_register_reset(do_cpu_reset, ARM_CPU(cs));
+    }
 }
