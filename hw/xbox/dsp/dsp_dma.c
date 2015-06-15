@@ -49,9 +49,9 @@
 
 // #define DEBUG
 #ifdef DEBUG
-# define DPRINTF(s, ...)            printf(s, ## __VA_ARGS__)
+# define DPRINTF(s, ...) printf(s, ## __VA_ARGS__)
 #else
-# define DPRINTF(format, ...)       do { } while (0)
+# define DPRINTF(s, ...) do { } while (0)
 #endif
 
 static void dsp_dma_run(DSPDMAState *s)
