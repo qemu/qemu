@@ -756,6 +756,22 @@ static int pxa2xx_ssp_load(QEMUFile *f, void *opaque, int version_id)
     return 0;
 }
 
+static void pxa2xx_ssp_reset(DeviceState *d)
+{
+    PXA2xxSSPState *s = PXA2XX_SSP(d);
+
+    s->enable = 0;
+    s->sscr[0] = s->sscr[1] = 0;
+    s->sspsp = 0;
+    s->ssto = 0;
+    s->ssitr = 0;
+    s->sssr = 0;
+    s->sstsa = 0;
+    s->ssrsa = 0;
+    s->ssacd = 0;
+    s->rx_start = s->rx_level = 0;
+}
+
 static int pxa2xx_ssp_init(SysBusDevice *sbd)
 {
     DeviceState *dev = DEVICE(sbd);
@@ -2336,8 +2352,10 @@ PXA2xxState *pxa255_init(MemoryRegion *address_space, unsigned int sdram_size)
 static void pxa2xx_ssp_class_init(ObjectClass *klass, void *data)
 {
     SysBusDeviceClass *sdc = SYS_BUS_DEVICE_CLASS(klass);
+    DeviceClass *dc = DEVICE_CLASS(klass);
 
     sdc->init = pxa2xx_ssp_init;
+    dc->reset = pxa2xx_ssp_reset;
 }
 
 static const TypeInfo pxa2xx_ssp_info = {
