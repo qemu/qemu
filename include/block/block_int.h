@@ -335,11 +335,11 @@ struct BdrvChildRole {
 extern const BdrvChildRole child_file;
 extern const BdrvChildRole child_format;
 
-typedef struct BdrvChild {
+struct BdrvChild {
     BlockDriverState *bs;
     const BdrvChildRole *role;
     QLIST_ENTRY(BdrvChild) next;
-} BdrvChild;
+};
 
 /*
  * Note: the function bdrv_append() copies and swaps contents of
