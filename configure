@@ -4415,6 +4415,10 @@ if test "$target_bsd_user" = "yes" ; then
   echo "CONFIG_BSD_USER=y" >> $config_target_mak
 fi
 
+if test "$target_name" = "xbox"; then
+  echo "TARGET_XBOX=y" >> $config_target_mak
+fi
+
 # generate QEMU_CFLAGS/LDFLAGS for targets
 
 cflags=""

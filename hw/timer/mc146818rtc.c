@@ -406,11 +406,14 @@ static void cmos_ioport_write(void *opaque, hwaddr addr,
             s->cmos_data[s->cmos_index] = data;
             check_update_timer(s);
             break;
-        //case RTC_IBM_PS2_CENTURY_BYTE:
-        //    s->cmos_index = RTC_CENTURY;
-        //    /* fall through */
-        //case RTC_CENTURY:
+#ifdef TARGET_XBOX
         case RTC_XBOX_CENTURY:
+#else
+        case RTC_IBM_PS2_CENTURY_BYTE:
+            s->cmos_index = RTC_CENTURY;
+            /* fall through */
+        case RTC_CENTURY:
+#endif
         case RTC_SECONDS:
         case RTC_MINUTES:
         case RTC_HOURS:
@@ -529,8 +532,11 @@ static void rtc_get_time(RTCState *s, struct tm *tm)
     tm->tm_mon = rtc_from_bcd(s, s->cmos_data[RTC_MONTH]) - 1;
     tm->tm_year =
         rtc_from_bcd(s, s->cmos_data[RTC_YEAR]) + s->base_year +
-        //rtc_from_bcd(s, s->cmos_data[RTC_CENTURY]) * 100 - 1900;
+#ifdef TARGET_XBOX
         rtc_from_bcd(s, s->cmos_data[RTC_XBOX_CENTURY]) * 100 - 1900;
+#else
+        rtc_from_bcd(s, s->cmos_data[RTC_CENTURY]) * 100 - 1900;
+#endif
 }
 
 static void rtc_set_time(RTCState *s)
@@ -565,8 +571,11 @@ static void rtc_set_cmos(RTCState *s, const struct tm *tm)
     s->cmos_data[RTC_MONTH] = rtc_to_bcd(s, tm->tm_mon + 1);
     year = tm->tm_year + 1900 - s->base_year;
     s->cmos_data[RTC_YEAR] = rtc_to_bcd(s, year % 100);
-    //s->cmos_data[RTC_CENTURY] = rtc_to_bcd(s, year / 100);
+#ifdef TARGET_XBOX
     s->cmos_data[RTC_XBOX_CENTURY] = rtc_to_bcd(s, year / 100);
+#else
+    s->cmos_data[RTC_CENTURY] = rtc_to_bcd(s, year / 100);
+#endif
 }
 
 static void rtc_update_time(RTCState *s)
@@ -618,11 +627,14 @@ static uint64_t cmos_ioport_read(void *opaque, hwaddr addr,
         return 0xff;
     } else {
         switch(s->cmos_index) {
-        //case RTC_IBM_PS2_CENTURY_BYTE:
-        //    s->cmos_index = RTC_CENTURY;
-        //    /* fall through */
-        //case RTC_CENTURY:
+#ifdef TARGET_XBOX
         case RTC_XBOX_CENTURY:
+#else
+        case RTC_IBM_PS2_CENTURY_BYTE:
+           s->cmos_index = RTC_CENTURY;
+           /* fall through */
+        case RTC_CENTURY:
+#endif
         case RTC_SECONDS:
         case RTC_MINUTES:
         case RTC_HOURS:
