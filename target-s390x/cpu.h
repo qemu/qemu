@@ -1215,11 +1215,7 @@ static inline int s390_assign_subch_ioeventfd(EventNotifier *notifier,
                                               uint32_t sch_id, int vq,
                                               bool assign)
 {
-    if (kvm_enabled()) {
-        return kvm_s390_assign_subch_ioeventfd(notifier, sch_id, vq, assign);
-    } else {
-        return -ENOSYS;
-    }
+    return kvm_s390_assign_subch_ioeventfd(notifier, sch_id, vq, assign);
 }
 
 #ifdef CONFIG_KVM
