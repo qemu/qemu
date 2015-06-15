@@ -334,10 +334,10 @@ static uint64_t pxa2xx_cpccnt_read(CPUARMState *env, const ARMCPRegInfo *ri)
 static const ARMCPRegInfo pxa_cp_reginfo[] = {
     /* cp14 crm==1: perf registers */
     { .name = "CPPMNC", .cp = 14, .crn = 0, .crm = 1, .opc1 = 0, .opc2 = 0,
-      .access = PL1_RW,
+      .access = PL1_RW, .type = ARM_CP_IO,
       .readfn = pxa2xx_cppmnc_read, .writefn = pxa2xx_cppmnc_write },
     { .name = "CPCCNT", .cp = 14, .crn = 1, .crm = 1, .opc1 = 0, .opc2 = 0,
-      .access = PL1_RW,
+      .access = PL1_RW, .type = ARM_CP_IO,
       .readfn = pxa2xx_cpccnt_read, .writefn = arm_cp_write_ignore },
     { .name = "CPINTEN", .cp = 14, .crn = 4, .crm = 1, .opc1 = 0, .opc2 = 0,
       .access = PL1_RW, .type = ARM_CP_CONST, .resetvalue = 0 },
@@ -356,11 +356,11 @@ static const ARMCPRegInfo pxa_cp_reginfo[] = {
       .access = PL1_RW, .type = ARM_CP_CONST, .resetvalue = 0 },
     /* cp14 crn==6: CLKCFG */
     { .name = "CLKCFG", .cp = 14, .crn = 6, .crm = 0, .opc1 = 0, .opc2 = 0,
-      .access = PL1_RW,
+      .access = PL1_RW, .type = ARM_CP_IO,
       .readfn = pxa2xx_clkcfg_read, .writefn = pxa2xx_clkcfg_write },
     /* cp14 crn==7: PWRMODE */
     { .name = "PWRMODE", .cp = 14, .crn = 7, .crm = 0, .opc1 = 0, .opc2 = 0,
-      .access = PL1_RW,
+      .access = PL1_RW, .type = ARM_CP_IO,
       .readfn = arm_cp_read_zero, .writefn = pxa2xx_pwrmode_write },
     REGINFO_SENTINEL
 };
