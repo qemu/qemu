@@ -103,6 +103,9 @@ typedef struct ARMCPU {
     /* CPU has security extension */
     bool has_el3;
 
+    /* CPU has memory protection unit */
+    bool has_mpu;
+
     /* PSCI conduit used to invoke PSCI methods
      * 0 - disabled, 1 - smc, 2 - hvc
      */

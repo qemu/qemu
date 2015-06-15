@@ -454,6 +454,9 @@ static Property arm_cpu_rvbar_property =
 static Property arm_cpu_has_el3_property =
             DEFINE_PROP_BOOL("has_el3", ARMCPU, has_el3, true);
 
+static Property arm_cpu_has_mpu_property =
+            DEFINE_PROP_BOOL("has-mpu", ARMCPU, has_mpu, true);
+
 static void arm_cpu_post_init(Object *obj)
 {
     ARMCPU *cpu = ARM_CPU(obj);
@@ -481,6 +484,12 @@ static void arm_cpu_post_init(Object *obj)
         qdev_property_add_static(DEVICE(obj), &arm_cpu_has_el3_property,
                                  &error_abort);
     }
+
+    if (arm_feature(&cpu->env, ARM_FEATURE_MPU)) {
+        qdev_property_add_static(DEVICE(obj), &arm_cpu_has_mpu_property,
+                                 &error_abort);
+    }
+
 }
 
 static void arm_cpu_finalizefn(Object *obj)
@@ -565,6 +574,10 @@ static void arm_cpu_realizefn(DeviceState *dev, Error **errp)
          */
         cpu->id_pfr1 &= ~0xf0;
         cpu->id_aa64pfr0 &= ~0xf000;
+    }
+
+    if (!cpu->has_mpu) {
+        unset_feature(env, ARM_FEATURE_MPU);
     }
 
     register_cp_regs_for_features(cpu);
