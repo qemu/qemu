@@ -1846,7 +1846,7 @@ static void vmsa_ttbr_write(CPUARMState *env, const ARMCPRegInfo *ri,
     raw_write(env, ri, value);
 }
 
-static const ARMCPRegInfo vmsa_cp_reginfo[] = {
+static const ARMCPRegInfo vmsa_pmsa_cp_reginfo[] = {
     { .name = "DFSR", .cp = 15, .crn = 5, .crm = 0, .opc1 = 0, .opc2 = 0,
       .access = PL1_RW, .type = ARM_CP_ALIAS,
       .bank_fieldoffsets = { offsetoflow32(CPUARMState, cp15.dfsr_s),
@@ -1856,6 +1856,18 @@ static const ARMCPRegInfo vmsa_cp_reginfo[] = {
       .access = PL1_RW, .resetvalue = 0,
       .bank_fieldoffsets = { offsetoflow32(CPUARMState, cp15.ifsr_s),
                              offsetoflow32(CPUARMState, cp15.ifsr_ns) } },
+    { .name = "DFAR", .cp = 15, .opc1 = 0, .crn = 6, .crm = 0, .opc2 = 0,
+      .access = PL1_RW, .resetvalue = 0,
+      .bank_fieldoffsets = { offsetof(CPUARMState, cp15.dfar_s),
+                             offsetof(CPUARMState, cp15.dfar_ns) } },
+    { .name = "FAR_EL1", .state = ARM_CP_STATE_AA64,
+      .opc0 = 3, .crn = 6, .crm = 0, .opc1 = 0, .opc2 = 0,
+      .access = PL1_RW, .fieldoffset = offsetof(CPUARMState, cp15.far_el[1]),
+      .resetvalue = 0, },
+    REGINFO_SENTINEL
+};
+
+static const ARMCPRegInfo vmsa_cp_reginfo[] = {
     { .name = "ESR_EL1", .state = ARM_CP_STATE_AA64,
       .opc0 = 3, .crn = 5, .crm = 2, .opc1 = 0, .opc2 = 0,
       .access = PL1_RW,
@@ -1880,14 +1892,6 @@ static const ARMCPRegInfo vmsa_cp_reginfo[] = {
       .resetfn = arm_cp_reset_ignore, .raw_writefn = vmsa_ttbcr_raw_write,
       .bank_fieldoffsets = { offsetoflow32(CPUARMState, cp15.tcr_el[3]),
                              offsetoflow32(CPUARMState, cp15.tcr_el[1])} },
-    { .name = "FAR_EL1", .state = ARM_CP_STATE_AA64,
-      .opc0 = 3, .crn = 6, .crm = 0, .opc1 = 0, .opc2 = 0,
-      .access = PL1_RW, .fieldoffset = offsetof(CPUARMState, cp15.far_el[1]),
-      .resetvalue = 0, },
-    { .name = "DFAR", .cp = 15, .opc1 = 0, .crn = 6, .crm = 0, .opc2 = 0,
-      .access = PL1_RW, .resetvalue = 0,
-      .bank_fieldoffsets = { offsetof(CPUARMState, cp15.dfar_s),
-                             offsetof(CPUARMState, cp15.dfar_ns) } },
     REGINFO_SENTINEL
 };
 
@@ -3346,6 +3350,7 @@ void register_cp_regs_for_features(ARMCPU *cpu)
         assert(!arm_feature(env, ARM_FEATURE_V6));
         define_arm_cp_regs(cpu, pmsav5_cp_reginfo);
     } else {
+        define_arm_cp_regs(cpu, vmsa_pmsa_cp_reginfo);
         define_arm_cp_regs(cpu, vmsa_cp_reginfo);
     }
     if (arm_feature(env, ARM_FEATURE_THUMB2EE)) {
