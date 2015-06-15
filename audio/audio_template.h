@@ -262,7 +262,7 @@ static HW *glue (audio_pcm_hw_add_new_, TYPE) (struct audsettings *as)
 #ifdef DAC
     QLIST_INIT (&hw->cap_head);
 #endif
-    if (glue (hw->pcm_ops->init_, TYPE) (hw, as)) {
+    if (glue (hw->pcm_ops->init_, TYPE) (hw, as, s->drv_opaque)) {
         goto err0;
     }
 
@@ -398,10 +398,6 @@ SW *glue (AUD_open_, TYPE) (
     )
 {
     AudioState *s = &glob_audio_state;
-#ifdef DAC
-    int live = 0;
-    SW *old_sw = NULL;
-#endif
 
     if (audio_bug (AUDIO_FUNC, !card || !name || !callback_fn || !as)) {
         dolog ("card=%p name=%p callback_fn=%p as=%p\n",
@@ -425,29 +421,6 @@ SW *glue (AUD_open_, TYPE) (
     if (sw && audio_pcm_info_eq (&sw->info, as)) {
         return sw;
     }
-
-#ifdef DAC
-    if (conf.plive && sw && (!sw->active && !sw->empty)) {
-        live = sw->total_hw_samples_mixed;
-
-#ifdef DEBUG_PLIVE
-        dolog ("Replacing voice %s with %d live samples\n", SW_NAME (sw), live);
-        dolog ("Old %s freq %d, bits %d, channels %d\n",
-               SW_NAME (sw), sw->info.freq, sw->info.bits, sw->info.nchannels);
-        dolog ("New %s freq %d, bits %d, channels %d\n",
-               name,
-               as->freq,
-               (as->fmt == AUD_FMT_S16 || as->fmt == AUD_FMT_U16) ? 16 : 8,
-               as->nchannels);
-#endif
-
-        if (live) {
-            old_sw = sw;
-            old_sw->callback.fn = NULL;
-            sw = NULL;
-        }
-    }
-#endif
 
     if (!glue (conf.fixed_, TYPE).enabled && sw) {
         glue (AUD_close_, TYPE) (card, sw);
@@ -480,20 +453,6 @@ SW *glue (AUD_open_, TYPE) (
     sw->vol = nominal_volume;
     sw->callback.fn = callback_fn;
     sw->callback.opaque = callback_opaque;
-
-#ifdef DAC
-    if (live) {
-        int mixed =
-            (live << old_sw->info.shift)
-            * old_sw->info.bytes_per_second
-            / sw->info.bytes_per_second;
-
-#ifdef DEBUG_PLIVE
-        dolog ("Silence will be mixed %d\n", mixed);
-#endif
-        sw->total_hw_samples_mixed += mixed;
-    }
-#endif
 
 #ifdef DEBUG_AUDIO
     dolog ("%s\n", name);

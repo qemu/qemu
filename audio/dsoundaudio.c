@@ -41,42 +41,25 @@
 
 /* #define DEBUG_DSOUND */
 
-static struct {
-    int lock_retries;
-    int restore_retries;
-    int getstatus_retries;
-    int set_primary;
+typedef struct {
     int bufsize_in;
     int bufsize_out;
-    struct audsettings settings;
     int latency_millis;
-} conf = {
-    .lock_retries       = 1,
-    .restore_retries    = 1,
-    .getstatus_retries  = 1,
-    .set_primary        = 0,
-    .bufsize_in         = 16384,
-    .bufsize_out        = 16384,
-    .settings.freq      = 44100,
-    .settings.nchannels = 2,
-    .settings.fmt       = AUD_FMT_S16,
-    .latency_millis     = 10
-};
+} DSoundConf;
 
 typedef struct {
     LPDIRECTSOUND dsound;
     LPDIRECTSOUNDCAPTURE dsound_capture;
-    LPDIRECTSOUNDBUFFER dsound_primary_buffer;
     struct audsettings settings;
+    DSoundConf conf;
 } dsound;
-
-static dsound glob_dsound;
 
 typedef struct {
     HWVoiceOut hw;
     LPDIRECTSOUNDBUFFER dsound_buffer;
     DWORD old_pos;
     int first_time;
+    dsound *s;
 #ifdef DEBUG_DSOUND
     DWORD old_ppos;
     DWORD played;
@@ -88,6 +71,7 @@ typedef struct {
     HWVoiceIn hw;
     int first_time;
     LPDIRECTSOUNDCAPTUREBUFFER dsound_capture_buffer;
+    dsound *s;
 } DSoundVoiceIn;
 
 static void dsound_log_hresult (HRESULT hr)
@@ -281,29 +265,17 @@ static void print_wave_format (WAVEFORMATEX *wfx)
 }
 #endif
 
-static int dsound_restore_out (LPDIRECTSOUNDBUFFER dsb)
+static int dsound_restore_out (LPDIRECTSOUNDBUFFER dsb, dsound *s)
 {
     HRESULT hr;
-    int i;
 
-    for (i = 0; i < conf.restore_retries; ++i) {
-        hr = IDirectSoundBuffer_Restore (dsb);
+    hr = IDirectSoundBuffer_Restore (dsb);
 
-        switch (hr) {
-        case DS_OK:
-            return 0;
-
-        case DSERR_BUFFERLOST:
-            continue;
-
-        default:
-            dsound_logerr (hr, "Could not restore playback buffer\n");
-            return -1;
-        }
+    if (hr != DS_OK) {
+        dsound_logerr (hr, "Could not restore playback buffer\n");
+        return -1;
     }
-
-    dolog ("%d attempts to restore playback buffer failed\n", i);
-    return -1;
+    return 0;
 }
 
 #include "dsound_template.h"
@@ -311,25 +283,20 @@ static int dsound_restore_out (LPDIRECTSOUNDBUFFER dsb)
 #include "dsound_template.h"
 #undef DSBTYPE_IN
 
-static int dsound_get_status_out (LPDIRECTSOUNDBUFFER dsb, DWORD *statusp)
+static int dsound_get_status_out (LPDIRECTSOUNDBUFFER dsb, DWORD *statusp,
+                                  dsound *s)
 {
     HRESULT hr;
-    int i;
 
-    for (i = 0; i < conf.getstatus_retries; ++i) {
-        hr = IDirectSoundBuffer_GetStatus (dsb, statusp);
-        if (FAILED (hr)) {
-            dsound_logerr (hr, "Could not get playback buffer status\n");
-            return -1;
-        }
+    hr = IDirectSoundBuffer_GetStatus (dsb, statusp);
+    if (FAILED (hr)) {
+        dsound_logerr (hr, "Could not get playback buffer status\n");
+        return -1;
+    }
 
-        if (*statusp & DSERR_BUFFERLOST) {
-            if (dsound_restore_out (dsb)) {
-                return -1;
-            }
-            continue;
-        }
-        break;
+    if (*statusp & DSERR_BUFFERLOST) {
+        dsound_restore_out(dsb, s);
+        return -1;
     }
 
     return 0;
@@ -376,7 +343,8 @@ static void dsound_write_sample (HWVoiceOut *hw, uint8_t *dst, int dst_len)
     hw->rpos = pos % hw->samples;
 }
 
-static void dsound_clear_sample (HWVoiceOut *hw, LPDIRECTSOUNDBUFFER dsb)
+static void dsound_clear_sample (HWVoiceOut *hw, LPDIRECTSOUNDBUFFER dsb,
+                                 dsound *s)
 {
     int err;
     LPVOID p1, p2;
@@ -389,7 +357,8 @@ static void dsound_clear_sample (HWVoiceOut *hw, LPDIRECTSOUNDBUFFER dsb)
         hw->samples << hw->info.shift,
         &p1, &p2,
         &blen1, &blen2,
-        1
+        1,
+        s
         );
     if (err) {
         return;
@@ -415,25 +384,9 @@ static void dsound_clear_sample (HWVoiceOut *hw, LPDIRECTSOUNDBUFFER dsb)
     dsound_unlock_out (dsb, p1, p2, blen1, blen2);
 }
 
-static void dsound_close (dsound *s)
-{
-    HRESULT hr;
-
-    if (s->dsound_primary_buffer) {
-        hr = IDirectSoundBuffer_Release (s->dsound_primary_buffer);
-        if (FAILED (hr)) {
-            dsound_logerr (hr, "Could not release primary buffer\n");
-        }
-        s->dsound_primary_buffer = NULL;
-    }
-}
-
 static int dsound_open (dsound *s)
 {
-    int err;
     HRESULT hr;
-    WAVEFORMATEX wfx;
-    DSBUFFERDESC dsbd;
     HWND hwnd;
 
     hwnd = GetForegroundWindow ();
@@ -449,63 +402,7 @@ static int dsound_open (dsound *s)
         return -1;
     }
 
-    if (!conf.set_primary) {
-        return 0;
-    }
-
-    err = waveformat_from_audio_settings (&wfx, &conf.settings);
-    if (err) {
-        return -1;
-    }
-
-    memset (&dsbd, 0, sizeof (dsbd));
-    dsbd.dwSize = sizeof (dsbd);
-    dsbd.dwFlags = DSBCAPS_PRIMARYBUFFER;
-    dsbd.dwBufferBytes = 0;
-    dsbd.lpwfxFormat = NULL;
-
-    hr = IDirectSound_CreateSoundBuffer (
-        s->dsound,
-        &dsbd,
-        &s->dsound_primary_buffer,
-        NULL
-        );
-    if (FAILED (hr)) {
-        dsound_logerr (hr, "Could not create primary playback buffer\n");
-        return -1;
-    }
-
-    hr = IDirectSoundBuffer_SetFormat (s->dsound_primary_buffer, &wfx);
-    if (FAILED (hr)) {
-        dsound_logerr (hr, "Could not set primary playback buffer format\n");
-    }
-
-    hr = IDirectSoundBuffer_GetFormat (
-        s->dsound_primary_buffer,
-        &wfx,
-        sizeof (wfx),
-        NULL
-        );
-    if (FAILED (hr)) {
-        dsound_logerr (hr, "Could not get primary playback buffer format\n");
-        goto fail0;
-    }
-
-#ifdef DEBUG_DSOUND
-    dolog ("Primary\n");
-    print_wave_format (&wfx);
-#endif
-
-    err = waveformat_to_audio_settings (&wfx, &s->settings);
-    if (err) {
-        goto fail0;
-    }
-
     return 0;
-
- fail0:
-    dsound_close (s);
-    return -1;
 }
 
 static int dsound_ctl_out (HWVoiceOut *hw, int cmd, ...)
@@ -514,6 +411,7 @@ static int dsound_ctl_out (HWVoiceOut *hw, int cmd, ...)
     DWORD status;
     DSoundVoiceOut *ds = (DSoundVoiceOut *) hw;
     LPDIRECTSOUNDBUFFER dsb = ds->dsound_buffer;
+    dsound *s = ds->s;
 
     if (!dsb) {
         dolog ("Attempt to control voice without a buffer\n");
@@ -522,7 +420,7 @@ static int dsound_ctl_out (HWVoiceOut *hw, int cmd, ...)
 
     switch (cmd) {
     case VOICE_ENABLE:
-        if (dsound_get_status_out (dsb, &status)) {
+        if (dsound_get_status_out (dsb, &status, s)) {
             return -1;
         }
 
@@ -531,7 +429,7 @@ static int dsound_ctl_out (HWVoiceOut *hw, int cmd, ...)
             return 0;
         }
 
-        dsound_clear_sample (hw, dsb);
+        dsound_clear_sample (hw, dsb, s);
 
         hr = IDirectSoundBuffer_Play (dsb, 0, 0, DSBPLAY_LOOPING);
         if (FAILED (hr)) {
@@ -541,7 +439,7 @@ static int dsound_ctl_out (HWVoiceOut *hw, int cmd, ...)
         break;
 
     case VOICE_DISABLE:
-        if (dsound_get_status_out (dsb, &status)) {
+        if (dsound_get_status_out (dsb, &status, s)) {
             return -1;
         }
 
@@ -578,6 +476,8 @@ static int dsound_run_out (HWVoiceOut *hw, int live)
     DWORD wpos, ppos, old_pos;
     LPVOID p1, p2;
     int bufsize;
+    dsound *s = ds->s;
+    DSoundConf *conf = &s->conf;
 
     if (!dsb) {
         dolog ("Attempt to run empty with playback buffer\n");
@@ -600,14 +500,14 @@ static int dsound_run_out (HWVoiceOut *hw, int live)
     len = live << hwshift;
 
     if (ds->first_time) {
-        if (conf.latency_millis) {
+        if (conf->latency_millis) {
             DWORD cur_blat;
 
             cur_blat = audio_ring_dist (wpos, ppos, bufsize);
             ds->first_time = 0;
             old_pos = wpos;
             old_pos +=
-                millis_to_bytes (&hw->info, conf.latency_millis) - cur_blat;
+                millis_to_bytes (&hw->info, conf->latency_millis) - cur_blat;
             old_pos %= bufsize;
             old_pos &= ~hw->info.align;
         }
@@ -663,7 +563,8 @@ static int dsound_run_out (HWVoiceOut *hw, int live)
         len,
         &p1, &p2,
         &blen1, &blen2,
-        0
+        0,
+        s
         );
     if (err) {
         return 0;
@@ -766,6 +667,7 @@ static int dsound_run_in (HWVoiceIn *hw)
     DWORD cpos, rpos;
     LPVOID p1, p2;
     int hwshift;
+    dsound *s = ds->s;
 
     if (!dscb) {
         dolog ("Attempt to run without capture buffer\n");
@@ -820,7 +722,8 @@ static int dsound_run_in (HWVoiceIn *hw)
         &p2,
         &blen1,
         &blen2,
-        0
+        0,
+        s
         );
     if (err) {
         return 0;
@@ -843,12 +746,19 @@ static int dsound_run_in (HWVoiceIn *hw)
     return decr;
 }
 
+static DSoundConf glob_conf = {
+    .bufsize_in         = 16384,
+    .bufsize_out        = 16384,
+    .latency_millis     = 10
+};
+
 static void dsound_audio_fini (void *opaque)
 {
     HRESULT hr;
     dsound *s = opaque;
 
     if (!s->dsound) {
+        g_free(s);
         return;
     }
 
@@ -859,6 +769,7 @@ static void dsound_audio_fini (void *opaque)
     s->dsound = NULL;
 
     if (!s->dsound_capture) {
+        g_free(s);
         return;
     }
 
@@ -867,17 +778,21 @@ static void dsound_audio_fini (void *opaque)
         dsound_logerr (hr, "Could not release DirectSoundCapture\n");
     }
     s->dsound_capture = NULL;
+
+    g_free(s);
 }
 
 static void *dsound_audio_init (void)
 {
     int err;
     HRESULT hr;
-    dsound *s = &glob_dsound;
+    dsound *s = g_malloc0(sizeof(dsound));
 
+    s->conf = glob_conf;
     hr = CoInitialize (NULL);
     if (FAILED (hr)) {
         dsound_logerr (hr, "Could not initialize COM\n");
+        g_free(s);
         return NULL;
     }
 
@@ -890,6 +805,7 @@ static void *dsound_audio_init (void)
         );
     if (FAILED (hr)) {
         dsound_logerr (hr, "Could not create DirectSound instance\n");
+        g_free(s);
         return NULL;
     }
 
@@ -901,7 +817,7 @@ static void *dsound_audio_init (void)
         if (FAILED (hr)) {
             dsound_logerr (hr, "Could not release DirectSound\n");
         }
-        s->dsound = NULL;
+        g_free(s);
         return NULL;
     }
 
@@ -939,63 +855,21 @@ static void *dsound_audio_init (void)
 
 static struct audio_option dsound_options[] = {
     {
-        .name  = "LOCK_RETRIES",
-        .tag   = AUD_OPT_INT,
-        .valp  = &conf.lock_retries,
-        .descr = "Number of times to attempt locking the buffer"
-    },
-    {
-        .name  = "RESTOURE_RETRIES",
-        .tag   = AUD_OPT_INT,
-        .valp  = &conf.restore_retries,
-        .descr = "Number of times to attempt restoring the buffer"
-    },
-    {
-        .name  = "GETSTATUS_RETRIES",
-        .tag   = AUD_OPT_INT,
-        .valp  = &conf.getstatus_retries,
-        .descr = "Number of times to attempt getting status of the buffer"
-    },
-    {
-        .name  = "SET_PRIMARY",
-        .tag   = AUD_OPT_BOOL,
-        .valp  = &conf.set_primary,
-        .descr = "Set the parameters of primary buffer"
-    },
-    {
         .name  = "LATENCY_MILLIS",
         .tag   = AUD_OPT_INT,
-        .valp  = &conf.latency_millis,
+        .valp  = &glob_conf.latency_millis,
         .descr = "(undocumented)"
-    },
-    {
-        .name  = "PRIMARY_FREQ",
-        .tag   = AUD_OPT_INT,
-        .valp  = &conf.settings.freq,
-        .descr = "Primary buffer frequency"
-    },
-    {
-        .name  = "PRIMARY_CHANNELS",
-        .tag   = AUD_OPT_INT,
-        .valp  = &conf.settings.nchannels,
-        .descr = "Primary buffer number of channels (1 - mono, 2 - stereo)"
-    },
-    {
-        .name  = "PRIMARY_FMT",
-        .tag   = AUD_OPT_FMT,
-        .valp  = &conf.settings.fmt,
-        .descr = "Primary buffer format"
     },
     {
         .name  = "BUFSIZE_OUT",
         .tag   = AUD_OPT_INT,
-        .valp  = &conf.bufsize_out,
+        .valp  = &glob_conf.bufsize_out,
         .descr = "(undocumented)"
     },
     {
         .name  = "BUFSIZE_IN",
         .tag   = AUD_OPT_INT,
-        .valp  = &conf.bufsize_in,
+        .valp  = &glob_conf.bufsize_in,
         .descr = "(undocumented)"
     },
     { /* End of list */ }
