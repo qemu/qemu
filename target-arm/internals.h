@@ -388,6 +388,7 @@ void arm_handle_psci_call(ARMCPU *cpu);
 #endif
 
 /* Do a page table walk and add page to TLB if possible */
-int arm_tlb_fill(CPUState *cpu, vaddr address, int rw, int mmu_idx);
+bool arm_tlb_fill(CPUState *cpu, vaddr address, int rw, int mmu_idx,
+                  uint32_t *fsr);
 
 #endif

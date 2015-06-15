@@ -12,10 +12,10 @@
 #include <zlib.h> /* For crc32 */
 
 #ifndef CONFIG_USER_ONLY
-static inline int get_phys_addr(CPUARMState *env, target_ulong address,
-                                int access_type, ARMMMUIdx mmu_idx,
-                                hwaddr *phys_ptr, MemTxAttrs *attrs, int *prot,
-                                target_ulong *page_size);
+static inline bool get_phys_addr(CPUARMState *env, target_ulong address,
+                                 int access_type, ARMMMUIdx mmu_idx,
+                                 hwaddr *phys_ptr, MemTxAttrs *attrs, int *prot,
+                                 target_ulong *page_size, uint32_t *fsr);
 
 /* Definitions for the PMCCNTR and PMCR registers */
 #define PMCRD   0x8
@@ -1495,19 +1495,20 @@ static uint64_t do_ats_write(CPUARMState *env, uint64_t value,
     hwaddr phys_addr;
     target_ulong page_size;
     int prot;
-    int ret;
+    uint32_t fsr;
+    bool ret;
     uint64_t par64;
     MemTxAttrs attrs = {};
 
     ret = get_phys_addr(env, value, access_type, mmu_idx,
-                        &phys_addr, &attrs, &prot, &page_size);
+                        &phys_addr, &attrs, &prot, &page_size, &fsr);
     if (extended_addresses_enabled(env)) {
-        /* ret is a DFSR/IFSR value for the long descriptor
+        /* fsr is a DFSR/IFSR value for the long descriptor
          * translation table format, but with WnR always clear.
          * Convert it to a 64-bit PAR.
          */
         par64 = (1 << 11); /* LPAE bit always set */
-        if (ret == 0) {
+        if (!ret) {
             par64 |= phys_addr & ~0xfffULL;
             if (!attrs.secure) {
                 par64 |= (1 << 9); /* NS */
@@ -1515,18 +1516,18 @@ static uint64_t do_ats_write(CPUARMState *env, uint64_t value,
             /* We don't set the ATTR or SH fields in the PAR. */
         } else {
             par64 |= 1; /* F */
-            par64 |= (ret & 0x3f) << 1; /* FS */
+            par64 |= (fsr & 0x3f) << 1; /* FS */
             /* Note that S2WLK and FSTAGE are always zero, because we don't
              * implement virtualization and therefore there can't be a stage 2
              * fault.
              */
         }
     } else {
-        /* ret is a DFSR/IFSR value for the short descriptor
+        /* fsr is a DFSR/IFSR value for the short descriptor
          * translation table format (with WnR always clear).
          * Convert it to a 32-bit PAR.
          */
-        if (ret == 0) {
+        if (!ret) {
             /* We do not set any attribute bits in the PAR */
             if (page_size == (1 << 24)
                 && arm_feature(env, ARM_FEATURE_V7)) {
@@ -1538,8 +1539,8 @@ static uint64_t do_ats_write(CPUARMState *env, uint64_t value,
                 par64 |= (1 << 9); /* NS */
             }
         } else {
-            par64 = ((ret & (1 << 10)) >> 5) | ((ret & (1 << 12)) >> 6) |
-                    ((ret & 0xf) << 1) | 1;
+            par64 = ((fsr & (1 << 10)) >> 5) | ((fsr & (1 << 12)) >> 6) |
+                    ((fsr & 0xf) << 1) | 1;
         }
     }
     return par64;
@@ -5242,9 +5243,10 @@ static uint64_t arm_ldq_ptw(CPUState *cs, hwaddr addr, bool is_secure)
     return address_space_ldq(cs->as, addr, attrs, NULL);
 }
 
-static int get_phys_addr_v5(CPUARMState *env, uint32_t address, int access_type,
-                            ARMMMUIdx mmu_idx, hwaddr *phys_ptr,
-                            int *prot, target_ulong *page_size)
+static bool get_phys_addr_v5(CPUARMState *env, uint32_t address,
+                             int access_type, ARMMMUIdx mmu_idx,
+                             hwaddr *phys_ptr, int *prot,
+                             target_ulong *page_size, uint32_t *fsr)
 {
     CPUState *cs = CPU(arm_env_get_cpu(env));
     int code;
@@ -5348,15 +5350,16 @@ static int get_phys_addr_v5(CPUARMState *env, uint32_t address, int access_type,
         goto do_fault;
     }
     *phys_ptr = phys_addr;
-    return 0;
+    return false;
 do_fault:
-    return code | (domain << 4);
+    *fsr = code | (domain << 4);
+    return true;
 }
 
-static int get_phys_addr_v6(CPUARMState *env, uint32_t address, int access_type,
-                            ARMMMUIdx mmu_idx, hwaddr *phys_ptr,
-                            MemTxAttrs *attrs,
-                            int *prot, target_ulong *page_size)
+static bool get_phys_addr_v6(CPUARMState *env, uint32_t address,
+                             int access_type, ARMMMUIdx mmu_idx,
+                             hwaddr *phys_ptr, MemTxAttrs *attrs, int *prot,
+                             target_ulong *page_size, uint32_t *fsr)
 {
     CPUState *cs = CPU(arm_env_get_cpu(env));
     int code;
@@ -5489,9 +5492,10 @@ static int get_phys_addr_v6(CPUARMState *env, uint32_t address, int access_type,
         attrs->secure = false;
     }
     *phys_ptr = phys_addr;
-    return 0;
+    return false;
 do_fault:
-    return code | (domain << 4);
+    *fsr = code | (domain << 4);
+    return true;
 }
 
 /* Fault type for long-descriptor MMU fault reporting; this corresponds
@@ -5503,10 +5507,10 @@ typedef enum {
     permission_fault = 3,
 } MMUFaultType;
 
-static int get_phys_addr_lpae(CPUARMState *env, target_ulong address,
-                              int access_type, ARMMMUIdx mmu_idx,
-                              hwaddr *phys_ptr, MemTxAttrs *txattrs, int *prot,
-                              target_ulong *page_size_ptr)
+static bool get_phys_addr_lpae(CPUARMState *env, target_ulong address,
+                               int access_type, ARMMMUIdx mmu_idx,
+                               hwaddr *phys_ptr, MemTxAttrs *txattrs, int *prot,
+                               target_ulong *page_size_ptr, uint32_t *fsr)
 {
     CPUState *cs = CPU(arm_env_get_cpu(env));
     /* Read an LPAE long-descriptor translation table. */
@@ -5745,16 +5749,17 @@ static int get_phys_addr_lpae(CPUARMState *env, target_ulong address,
     }
     *phys_ptr = descaddr;
     *page_size_ptr = page_size;
-    return 0;
+    return false;
 
 do_fault:
     /* Long-descriptor format IFSR/DFSR value */
-    return (1 << 9) | (fault_type << 2) | level;
+    *fsr = (1 << 9) | (fault_type << 2) | level;
+    return true;
 }
 
-static int get_phys_addr_mpu(CPUARMState *env, uint32_t address,
-                             int access_type, ARMMMUIdx mmu_idx,
-                             hwaddr *phys_ptr, int *prot)
+static bool get_phys_addr_mpu(CPUARMState *env, uint32_t address,
+                              int access_type, ARMMMUIdx mmu_idx,
+                              hwaddr *phys_ptr, int *prot, uint32_t *fsr)
 {
     int n;
     uint32_t mask;
@@ -5776,7 +5781,8 @@ static int get_phys_addr_mpu(CPUARMState *env, uint32_t address,
         }
     }
     if (n < 0) {
-        return 2;
+        *fsr = 2;
+        return true;
     }
 
     if (access_type == 2) {
@@ -5787,10 +5793,12 @@ static int get_phys_addr_mpu(CPUARMState *env, uint32_t address,
     mask = (mask >> (n * 4)) & 0xf;
     switch (mask) {
     case 0:
-        return 1;
+        *fsr = 1;
+        return true;
     case 1:
         if (is_user) {
-            return 1;
+            *fsr = 1;
+            return true;
         }
         *prot = PAGE_READ | PAGE_WRITE;
         break;
@@ -5805,7 +5813,8 @@ static int get_phys_addr_mpu(CPUARMState *env, uint32_t address,
         break;
     case 5:
         if (is_user) {
-            return 1;
+            *fsr = 1;
+            return true;
         }
         *prot = PAGE_READ;
         break;
@@ -5814,10 +5823,11 @@ static int get_phys_addr_mpu(CPUARMState *env, uint32_t address,
         break;
     default:
         /* Bad permission.  */
-        return 1;
+        *fsr = 1;
+        return true;
     }
     *prot |= PAGE_EXEC;
-    return 0;
+    return false;
 }
 
 /* get_phys_addr - get the physical address for this virtual address
@@ -5826,8 +5836,8 @@ static int get_phys_addr_mpu(CPUARMState *env, uint32_t address,
  * by doing a translation table walk on MMU based systems or using the
  * MPU state on MPU based systems.
  *
- * Returns 0 if the translation was successful. Otherwise, phys_ptr, attrs,
- * prot and page_size may not be filled in, and the return value provides
+ * Returns false if the translation was successful. Otherwise, phys_ptr, attrs,
+ * prot and page_size may not be filled in, and the populated fsr value provides
  * information on why the translation aborted, in the format of a
  * DFSR/IFSR fault register, with the following caveats:
  *  * we honour the short vs long DFSR format differences.
@@ -5843,11 +5853,12 @@ static int get_phys_addr_mpu(CPUARMState *env, uint32_t address,
  * @attrs: set to the memory transaction attributes to use
  * @prot: set to the permissions for the page containing phys_ptr
  * @page_size: set to the size of the page containing phys_ptr
+ * @fsr: set to the DFSR/IFSR value on failure
  */
-static inline int get_phys_addr(CPUARMState *env, target_ulong address,
-                                int access_type, ARMMMUIdx mmu_idx,
-                                hwaddr *phys_ptr, MemTxAttrs *attrs, int *prot,
-                                target_ulong *page_size)
+static inline bool get_phys_addr(CPUARMState *env, target_ulong address,
+                                 int access_type, ARMMMUIdx mmu_idx,
+                                 hwaddr *phys_ptr, MemTxAttrs *attrs, int *prot,
+                                 target_ulong *page_size, uint32_t *fsr)
 {
     if (mmu_idx == ARMMMUIdx_S12NSE0 || mmu_idx == ARMMMUIdx_S12NSE1) {
         /* TODO: when we support EL2 we should here call ourselves recursively
@@ -5890,27 +5901,27 @@ static inline int get_phys_addr(CPUARMState *env, target_ulong address,
     if (arm_feature(env, ARM_FEATURE_MPU)) {
         *page_size = TARGET_PAGE_SIZE;
         return get_phys_addr_mpu(env, address, access_type, mmu_idx, phys_ptr,
-                                 prot);
+                                 prot, fsr);
     }
 
     if (regime_using_lpae_format(env, mmu_idx)) {
         return get_phys_addr_lpae(env, address, access_type, mmu_idx, phys_ptr,
-                                  attrs, prot, page_size);
+                                  attrs, prot, page_size, fsr);
     } else if (regime_sctlr(env, mmu_idx) & SCTLR_XP) {
         return get_phys_addr_v6(env, address, access_type, mmu_idx, phys_ptr,
-                                attrs, prot, page_size);
+                                attrs, prot, page_size, fsr);
     } else {
         return get_phys_addr_v5(env, address, access_type, mmu_idx, phys_ptr,
-                                prot, page_size);
+                                prot, page_size, fsr);
     }
 }
 
 /* Walk the page table and (if the mapping exists) add the page
- * to the TLB. Return 0 on success, or an ARM DFSR/IFSR fault
- * register format value on failure.
+ * to the TLB. Return false on success, or true on failure. Populate
+ * fsr with ARM DFSR/IFSR fault register format value on failure.
  */
-int arm_tlb_fill(CPUState *cs, vaddr address,
-                 int access_type, int mmu_idx)
+bool arm_tlb_fill(CPUState *cs, vaddr address,
+                  int access_type, int mmu_idx, uint32_t *fsr)
 {
     ARMCPU *cpu = ARM_CPU(cs);
     CPUARMState *env = &cpu->env;
@@ -5921,8 +5932,8 @@ int arm_tlb_fill(CPUState *cs, vaddr address,
     MemTxAttrs attrs = {};
 
     ret = get_phys_addr(env, address, access_type, mmu_idx, &phys_addr,
-                        &attrs, &prot, &page_size);
-    if (ret == 0) {
+                        &attrs, &prot, &page_size, fsr);
+    if (!ret) {
         /* Map a single [sub]page.  */
         phys_addr &= TARGET_PAGE_MASK;
         address &= TARGET_PAGE_MASK;
@@ -5941,13 +5952,14 @@ hwaddr arm_cpu_get_phys_page_debug(CPUState *cs, vaddr addr)
     hwaddr phys_addr;
     target_ulong page_size;
     int prot;
-    int ret;
+    bool ret;
+    uint32_t fsr;
     MemTxAttrs attrs = {};
 
     ret = get_phys_addr(env, addr, 0, cpu_mmu_index(env), &phys_addr,
-                        &attrs, &prot, &page_size);
+                        &attrs, &prot, &page_size, &fsr);
 
-    if (ret != 0) {
+    if (ret) {
         return -1;
     }
 
