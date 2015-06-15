@@ -1759,24 +1759,33 @@ static PXA2xxI2SState *pxa2xx_i2s_init(MemoryRegion *sysmem,
 }
 
 /* PXA Fast Infra-red Communications Port */
+#define TYPE_PXA2XX_FIR "pxa2xx-fir"
+#define PXA2XX_FIR(obj) OBJECT_CHECK(PXA2xxFIrState, (obj), TYPE_PXA2XX_FIR)
+
 struct PXA2xxFIrState {
+    /*< private >*/
+    SysBusDevice parent_obj;
+    /*< public >*/
+
     MemoryRegion iomem;
     qemu_irq irq;
     qemu_irq rx_dma;
     qemu_irq tx_dma;
-    int enable;
+    uint32_t enable;
     CharDriverState *chr;
 
     uint8_t control[3];
     uint8_t status[2];
 
-    int rx_len;
-    int rx_start;
+    uint32_t rx_len;
+    uint32_t rx_start;
     uint8_t rx_fifo[64];
 };
 
-static void pxa2xx_fir_reset(PXA2xxFIrState *s)
+static void pxa2xx_fir_reset(DeviceState *d)
 {
+    PXA2xxFIrState *s = PXA2XX_FIR(d);
+
     s->control[0] = 0x00;
     s->control[1] = 0x00;
     s->control[2] = 0x00;
@@ -1953,73 +1962,94 @@ static void pxa2xx_fir_event(void *opaque, int event)
 {
 }
 
-static void pxa2xx_fir_save(QEMUFile *f, void *opaque)
+static void pxa2xx_fir_instance_init(Object *obj)
 {
-    PXA2xxFIrState *s = (PXA2xxFIrState *) opaque;
-    int i;
+    PXA2xxFIrState *s = PXA2XX_FIR(obj);
+    SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
 
-    qemu_put_be32(f, s->enable);
-
-    qemu_put_8s(f, &s->control[0]);
-    qemu_put_8s(f, &s->control[1]);
-    qemu_put_8s(f, &s->control[2]);
-    qemu_put_8s(f, &s->status[0]);
-    qemu_put_8s(f, &s->status[1]);
-
-    qemu_put_byte(f, s->rx_len);
-    for (i = 0; i < s->rx_len; i ++)
-        qemu_put_byte(f, s->rx_fifo[(s->rx_start + i) & 63]);
+    memory_region_init_io(&s->iomem, NULL, &pxa2xx_fir_ops, s,
+                          "pxa2xx-fir", 0x1000);
+    sysbus_init_mmio(sbd, &s->iomem);
+    sysbus_init_irq(sbd, &s->irq);
+    sysbus_init_irq(sbd, &s->rx_dma);
+    sysbus_init_irq(sbd, &s->tx_dma);
 }
 
-static int pxa2xx_fir_load(QEMUFile *f, void *opaque, int version_id)
+static void pxa2xx_fir_realize(DeviceState *dev, Error **errp)
 {
-    PXA2xxFIrState *s = (PXA2xxFIrState *) opaque;
-    int i;
+    PXA2xxFIrState *s = PXA2XX_FIR(dev);
 
-    s->enable = qemu_get_be32(f);
-
-    qemu_get_8s(f, &s->control[0]);
-    qemu_get_8s(f, &s->control[1]);
-    qemu_get_8s(f, &s->control[2]);
-    qemu_get_8s(f, &s->status[0]);
-    qemu_get_8s(f, &s->status[1]);
-
-    s->rx_len = qemu_get_byte(f);
-    s->rx_start = 0;
-    for (i = 0; i < s->rx_len; i ++)
-        s->rx_fifo[i] = qemu_get_byte(f);
-
-    return 0;
-}
-
-static PXA2xxFIrState *pxa2xx_fir_init(MemoryRegion *sysmem,
-                hwaddr base,
-                qemu_irq irq, qemu_irq rx_dma, qemu_irq tx_dma,
-                CharDriverState *chr)
-{
-    PXA2xxFIrState *s = (PXA2xxFIrState *)
-            g_malloc0(sizeof(PXA2xxFIrState));
-
-    s->irq = irq;
-    s->rx_dma = rx_dma;
-    s->tx_dma = tx_dma;
-    s->chr = chr;
-
-    pxa2xx_fir_reset(s);
-
-    memory_region_init_io(&s->iomem, NULL, &pxa2xx_fir_ops, s, "pxa2xx-fir", 0x1000);
-    memory_region_add_subregion(sysmem, base, &s->iomem);
-
-    if (chr) {
-        qemu_chr_fe_claim_no_fail(chr);
-        qemu_chr_add_handlers(chr, pxa2xx_fir_is_empty,
+    if (s->chr) {
+        qemu_chr_fe_claim_no_fail(s->chr);
+        qemu_chr_add_handlers(s->chr, pxa2xx_fir_is_empty,
                         pxa2xx_fir_rx, pxa2xx_fir_event, s);
     }
+}
 
-    register_savevm(NULL, "pxa2xx_fir", 0, 0, pxa2xx_fir_save,
-                    pxa2xx_fir_load, s);
+static bool pxa2xx_fir_vmstate_validate(void *opaque, int version_id)
+{
+    PXA2xxFIrState *s = opaque;
 
-    return s;
+    return s->rx_start < sizeof(s->rx_fifo);
+}
+
+static const VMStateDescription pxa2xx_fir_vmsd = {
+    .name = "pxa2xx-fir",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .fields = (VMStateField[]) {
+        VMSTATE_UINT32(enable, PXA2xxFIrState),
+        VMSTATE_UINT8_ARRAY(control, PXA2xxFIrState, 3),
+        VMSTATE_UINT8_ARRAY(status, PXA2xxFIrState, 2),
+        VMSTATE_UINT32(rx_len, PXA2xxFIrState),
+        VMSTATE_UINT32(rx_start, PXA2xxFIrState),
+        VMSTATE_VALIDATE("fifo is 64 bytes", pxa2xx_fir_vmstate_validate),
+        VMSTATE_UINT8_ARRAY(rx_fifo, PXA2xxFIrState, 64),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
+static Property pxa2xx_fir_properties[] = {
+    DEFINE_PROP_CHR("chardev", PXA2xxFIrState, chr),
+    DEFINE_PROP_END_OF_LIST(),
+};
+
+static void pxa2xx_fir_class_init(ObjectClass *klass, void *data)
+{
+    DeviceClass *dc = DEVICE_CLASS(klass);
+
+    dc->realize = pxa2xx_fir_realize;
+    dc->vmsd = &pxa2xx_fir_vmsd;
+    dc->props = pxa2xx_fir_properties;
+    dc->reset = pxa2xx_fir_reset;
+}
+
+static const TypeInfo pxa2xx_fir_info = {
+    .name = TYPE_PXA2XX_FIR,
+    .parent = TYPE_SYS_BUS_DEVICE,
+    .instance_size = sizeof(PXA2xxFIrState),
+    .class_init = pxa2xx_fir_class_init,
+    .instance_init = pxa2xx_fir_instance_init,
+};
+
+static PXA2xxFIrState *pxa2xx_fir_init(MemoryRegion *sysmem,
+                                       hwaddr base,
+                                       qemu_irq irq, qemu_irq rx_dma,
+                                       qemu_irq tx_dma,
+                                       CharDriverState *chr)
+{
+    DeviceState *dev;
+    SysBusDevice *sbd;
+
+    dev = qdev_create(NULL, TYPE_PXA2XX_FIR);
+    qdev_prop_set_chr(dev, "chardev", chr);
+    qdev_init_nofail(dev);
+    sbd = SYS_BUS_DEVICE(dev);
+    sysbus_mmio_map(sbd, 0, base);
+    sysbus_connect_irq(sbd, 0, irq);
+    sysbus_connect_irq(sbd, 1, rx_dma);
+    sysbus_connect_irq(sbd, 2, tx_dma);
+    return PXA2XX_FIR(dev);
 }
 
 static void pxa2xx_reset(void *opaque, int line, int level)
@@ -2323,6 +2353,7 @@ static void pxa2xx_register_types(void)
     type_register_static(&pxa2xx_ssp_info);
     type_register_static(&pxa2xx_i2c_info);
     type_register_static(&pxa2xx_rtc_sysbus_info);
+    type_register_static(&pxa2xx_fir_info);
 }
 
 type_init(pxa2xx_register_types)
