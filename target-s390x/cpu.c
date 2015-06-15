@@ -131,6 +131,7 @@ static void s390_cpu_initial_reset(CPUState *s)
     if (kvm_enabled()) {
         kvm_s390_reset_vcpu(cpu);
     }
+    tlb_flush(s, 1);
 }
 
 /* CPUClass:reset() */
