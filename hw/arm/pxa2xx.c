@@ -457,7 +457,7 @@ typedef struct {
 
     MemoryRegion iomem;
     qemu_irq irq;
-    int enable;
+    uint32_t enable;
     SSIBus *bus;
 
     uint32_t sscr[2];
@@ -470,9 +470,38 @@ typedef struct {
     uint8_t ssacd;
 
     uint32_t rx_fifo[16];
-    int rx_level;
-    int rx_start;
+    uint32_t rx_level;
+    uint32_t rx_start;
 } PXA2xxSSPState;
+
+static bool pxa2xx_ssp_vmstate_validate(void *opaque, int version_id)
+{
+    PXA2xxSSPState *s = opaque;
+
+    return s->rx_start < sizeof(s->rx_fifo);
+}
+
+static const VMStateDescription vmstate_pxa2xx_ssp = {
+    .name = "pxa2xx-ssp",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .fields = (VMStateField[]) {
+        VMSTATE_UINT32(enable, PXA2xxSSPState),
+        VMSTATE_UINT32_ARRAY(sscr, PXA2xxSSPState, 2),
+        VMSTATE_UINT32(sspsp, PXA2xxSSPState),
+        VMSTATE_UINT32(ssto, PXA2xxSSPState),
+        VMSTATE_UINT32(ssitr, PXA2xxSSPState),
+        VMSTATE_UINT32(sssr, PXA2xxSSPState),
+        VMSTATE_UINT8(sstsa, PXA2xxSSPState),
+        VMSTATE_UINT8(ssrsa, PXA2xxSSPState),
+        VMSTATE_UINT8(ssacd, PXA2xxSSPState),
+        VMSTATE_UINT32(rx_level, PXA2xxSSPState),
+        VMSTATE_UINT32(rx_start, PXA2xxSSPState),
+        VMSTATE_VALIDATE("fifo is 16 bytes", pxa2xx_ssp_vmstate_validate),
+        VMSTATE_UINT32_ARRAY(rx_fifo, PXA2xxSSPState, 16),
+        VMSTATE_END_OF_LIST()
+    }
+};
 
 #define SSCR0	0x00	/* SSP Control register 0 */
 #define SSCR1	0x04	/* SSP Control register 1 */
@@ -705,57 +734,6 @@ static const MemoryRegionOps pxa2xx_ssp_ops = {
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
-static void pxa2xx_ssp_save(QEMUFile *f, void *opaque)
-{
-    PXA2xxSSPState *s = (PXA2xxSSPState *) opaque;
-    int i;
-
-    qemu_put_be32(f, s->enable);
-
-    qemu_put_be32s(f, &s->sscr[0]);
-    qemu_put_be32s(f, &s->sscr[1]);
-    qemu_put_be32s(f, &s->sspsp);
-    qemu_put_be32s(f, &s->ssto);
-    qemu_put_be32s(f, &s->ssitr);
-    qemu_put_be32s(f, &s->sssr);
-    qemu_put_8s(f, &s->sstsa);
-    qemu_put_8s(f, &s->ssrsa);
-    qemu_put_8s(f, &s->ssacd);
-
-    qemu_put_byte(f, s->rx_level);
-    for (i = 0; i < s->rx_level; i ++)
-        qemu_put_byte(f, s->rx_fifo[(s->rx_start + i) & 0xf]);
-}
-
-static int pxa2xx_ssp_load(QEMUFile *f, void *opaque, int version_id)
-{
-    PXA2xxSSPState *s = (PXA2xxSSPState *) opaque;
-    int i, v;
-
-    s->enable = qemu_get_be32(f);
-
-    qemu_get_be32s(f, &s->sscr[0]);
-    qemu_get_be32s(f, &s->sscr[1]);
-    qemu_get_be32s(f, &s->sspsp);
-    qemu_get_be32s(f, &s->ssto);
-    qemu_get_be32s(f, &s->ssitr);
-    qemu_get_be32s(f, &s->sssr);
-    qemu_get_8s(f, &s->sstsa);
-    qemu_get_8s(f, &s->ssrsa);
-    qemu_get_8s(f, &s->ssacd);
-
-    v = qemu_get_byte(f);
-    if (v < 0 || v > ARRAY_SIZE(s->rx_fifo)) {
-        return -EINVAL;
-    }
-    s->rx_level = v;
-    s->rx_start = 0;
-    for (i = 0; i < s->rx_level; i ++)
-        s->rx_fifo[i] = qemu_get_byte(f);
-
-    return 0;
-}
-
 static void pxa2xx_ssp_reset(DeviceState *d)
 {
     PXA2xxSSPState *s = PXA2XX_SSP(d);
@@ -782,8 +760,6 @@ static int pxa2xx_ssp_init(SysBusDevice *sbd)
     memory_region_init_io(&s->iomem, OBJECT(s), &pxa2xx_ssp_ops, s,
                           "pxa2xx-ssp", 0x1000);
     sysbus_init_mmio(sbd, &s->iomem);
-    register_savevm(dev, "pxa2xx_ssp", -1, 0,
-                    pxa2xx_ssp_save, pxa2xx_ssp_load, s);
 
     s->bus = ssi_create_bus(dev, "ssi");
     return 0;
@@ -2006,7 +1982,7 @@ static bool pxa2xx_fir_vmstate_validate(void *opaque, int version_id)
 {
     PXA2xxFIrState *s = opaque;
 
-    return s->rx_start < sizeof(s->rx_fifo);
+    return s->rx_start < ARRAY_SIZE(s->rx_fifo);
 }
 
 static const VMStateDescription pxa2xx_fir_vmsd = {
@@ -2356,6 +2332,7 @@ static void pxa2xx_ssp_class_init(ObjectClass *klass, void *data)
 
     sdc->init = pxa2xx_ssp_init;
     dc->reset = pxa2xx_ssp_reset;
+    dc->vmsd = &vmstate_pxa2xx_ssp;
 }
 
 static const TypeInfo pxa2xx_ssp_info = {
