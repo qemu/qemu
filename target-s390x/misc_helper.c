@@ -215,6 +215,12 @@ void handle_diag_308(CPUS390XState *env, uint64_t r1, uint64_t r3)
             cpu_loop_exit(CPU(s390_env_get_cpu(env)));
         }
         break;
+    case 3:
+        s390_reipl_request();
+        if (tcg_enabled()) {
+            cpu_loop_exit(CPU(s390_env_get_cpu(env)));
+        }
+        break;
     case 5:
         if ((r1 & 1) || (addr & 0x0fffULL)) {
             program_interrupt(env, PGM_SPECIFICATION, ILEN_LATER_INC);
