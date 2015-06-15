@@ -383,16 +383,28 @@ static inline void unset_feature(CPUARMState *env, int feature)
     env->features &= ~(1ULL << feature);
 }
 
+#define ARM_CPUS_PER_CLUSTER 8
+
 static void arm_cpu_initfn(Object *obj)
 {
     CPUState *cs = CPU(obj);
     ARMCPU *cpu = ARM_CPU(obj);
     static bool inited;
+    uint32_t Aff1, Aff0;
 
     cs->env_ptr = &cpu->env;
     cpu_exec_init(&cpu->env);
     cpu->cp_regs = g_hash_table_new_full(g_int_hash, g_int_equal,
                                          g_free, g_free);
+
+    /* This cpu-id-to-MPIDR affinity is used only for TCG; KVM will override it.
+     * We don't support setting cluster ID ([16..23]) (known as Aff2
+     * in later ARM ARM versions), or any of the higher affinity level fields,
+     * so these bits always RAZ.
+     */
+    Aff1 = cs->cpu_index / ARM_CPUS_PER_CLUSTER;
+    Aff0 = cs->cpu_index % ARM_CPUS_PER_CLUSTER;
+    cpu->mp_affinity = (Aff1 << 8) | Aff0;
 
 #ifndef CONFIG_USER_ONLY
     /* Our inbound IRQ and FIQ lines */
@@ -442,6 +454,9 @@ static Property arm_cpu_rvbar_property =
 static Property arm_cpu_has_el3_property =
             DEFINE_PROP_BOOL("has_el3", ARMCPU, has_el3, true);
 
+static Property arm_cpu_has_mpu_property =
+            DEFINE_PROP_BOOL("has-mpu", ARMCPU, has_mpu, true);
+
 static void arm_cpu_post_init(Object *obj)
 {
     ARMCPU *cpu = ARM_CPU(obj);
@@ -469,6 +484,12 @@ static void arm_cpu_post_init(Object *obj)
         qdev_property_add_static(DEVICE(obj), &arm_cpu_has_el3_property,
                                  &error_abort);
     }
+
+    if (arm_feature(&cpu->env, ARM_FEATURE_MPU)) {
+        qdev_property_add_static(DEVICE(obj), &arm_cpu_has_mpu_property,
+                                 &error_abort);
+    }
+
 }
 
 static void arm_cpu_finalizefn(Object *obj)
@@ -533,6 +554,10 @@ static void arm_cpu_realizefn(DeviceState *dev, Error **errp)
     if (arm_feature(env, ARM_FEATURE_CBAR_RO)) {
         set_feature(env, ARM_FEATURE_CBAR);
     }
+    if (arm_feature(env, ARM_FEATURE_THUMB2) &&
+        !arm_feature(env, ARM_FEATURE_M)) {
+        set_feature(env, ARM_FEATURE_THUMB_DSP);
+    }
 
     if (cpu->reset_hivecs) {
             cpu->reset_sctlr |= (1 << 13);
@@ -549,6 +574,10 @@ static void arm_cpu_realizefn(DeviceState *dev, Error **errp)
          */
         cpu->id_pfr1 &= ~0xf0;
         cpu->id_aa64pfr0 &= ~0xf000;
+    }
+
+    if (!cpu->has_mpu) {
+        unset_feature(env, ARM_FEATURE_MPU);
     }
 
     register_cp_regs_for_features(cpu);

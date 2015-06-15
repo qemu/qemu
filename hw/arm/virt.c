@@ -145,6 +145,11 @@ static VirtBoardInfo machines[] = {
         .irqmap = a15irqmap,
     },
     {
+        .cpu_model = "cortex-a53",
+        .memmap = a15memmap,
+        .irqmap = a15irqmap,
+    },
+    {
         .cpu_model = "cortex-a57",
         .memmap = a15memmap,
         .irqmap = a15irqmap,
@@ -306,7 +311,7 @@ static void fdt_add_cpu_nodes(const VirtBoardInfo *vbi)
                                         "enable-method", "psci");
         }
 
-        qemu_fdt_setprop_cell(vbi->fdt, nodename, "reg", cpu);
+        qemu_fdt_setprop_cell(vbi->fdt, nodename, "reg", armcpu->mp_affinity);
         g_free(nodename);
     }
 }

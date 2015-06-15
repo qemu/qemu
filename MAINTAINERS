@@ -356,6 +356,13 @@ F: hw/misc/zynq_slcr.c
 F: hw/*/cadence_*
 F: hw/ssi/xilinx_spips.c
 
+ARM ACPI Subsystem
+M: Shannon Zhao <zhaoshenglong@huawei.com>
+M: Shannon Zhao <shannon.zhao@linaro.org>
+S: Maintained
+F: hw/arm/virt-acpi-build.c
+F: include/hw/arm/virt-acpi-build.h
+
 CRIS Machines
 -------------
 Axis Dev88
