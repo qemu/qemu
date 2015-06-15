@@ -5302,20 +5302,25 @@ static int get_phys_addr_v5(CPUARMState *env, uint32_t address, int access_type,
             ap = (desc >> (4 + ((address >> 9) & 6))) & 3;
             *page_size = 0x1000;
             break;
-        case 3: /* 1k page.  */
+        case 3: /* 1k page, or ARMv6/XScale "extended small (4k) page" */
             if (type == 1) {
-                if (arm_feature(env, ARM_FEATURE_XSCALE)) {
+                /* ARMv6/XScale extended small page format */
+                if (arm_feature(env, ARM_FEATURE_XSCALE)
+                    || arm_feature(env, ARM_FEATURE_V6)) {
                     phys_addr = (desc & 0xfffff000) | (address & 0xfff);
+                    *page_size = 0x1000;
                 } else {
-                    /* Page translation fault.  */
+                    /* UNPREDICTABLE in ARMv5; we choose to take a
+                     * page translation fault.
+                     */
                     code = 7;
                     goto do_fault;
                 }
             } else {
                 phys_addr = (desc & 0xfffffc00) | (address & 0x3ff);
+                *page_size = 0x400;
             }
             ap = (desc >> 4) & 3;
-            *page_size = 0x400;
             break;
         default:
             /* Never happens, but compiler isn't smart enough to tell.  */
