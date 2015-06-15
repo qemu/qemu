@@ -205,9 +205,15 @@ void handle_diag_308(CPUS390XState *env, uint64_t r1, uint64_t r3)
     switch (subcode) {
     case 0:
         modified_clear_reset(s390_env_get_cpu(env));
+        if (tcg_enabled()) {
+            cpu_loop_exit(CPU(s390_env_get_cpu(env)));
+        }
         break;
     case 1:
         load_normal_reset(s390_env_get_cpu(env));
+        if (tcg_enabled()) {
+            cpu_loop_exit(CPU(s390_env_get_cpu(env)));
+        }
         break;
     case 5:
         if ((r1 & 1) || (addr & 0x0fffULL)) {
@@ -254,9 +260,7 @@ void handle_diag_308(CPUS390XState *env, uint64_t r1, uint64_t r3)
 }
 #endif
 
-/* DIAG */
-uint64_t HELPER(diag)(CPUS390XState *env, uint32_t num, uint64_t mem,
-                      uint64_t code)
+void HELPER(diag)(CPUS390XState *env, uint32_t r1, uint32_t r3, uint32_t num)
 {
     uint64_t r;
 
@@ -271,6 +275,7 @@ uint64_t HELPER(diag)(CPUS390XState *env, uint32_t num, uint64_t mem,
         break;
     case 0x308:
         /* ipl */
+        handle_diag_308(env, r1, r3);
         r = 0;
         break;
     default:
@@ -281,8 +286,6 @@ uint64_t HELPER(diag)(CPUS390XState *env, uint32_t num, uint64_t mem,
     if (r) {
         program_interrupt(env, PGM_OPERATION, ILEN_LATER_INC);
     }
-
-    return r;
 }
 
 /* Set Prefix */

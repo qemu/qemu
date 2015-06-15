@@ -835,7 +835,7 @@
 /* COMPARE AND SWAP AND PURGE */
     C(0xb250, CSP,     RRE,   Z,   0, ra2, 0, 0, csp, 0)
 /* DIAGNOSE (KVM hypercall) */
-    C(0x8300, DIAG,    RX_a,  Z,   0, 0, 0, 0, diag, 0)
+    C(0x8300, DIAG,    RSI,   Z,   0, 0, 0, 0, diag, 0)
 /* INSERT STORAGE KEY EXTENDED */
     C(0xb229, ISKE,    RRE,   Z,   0, r2_o, new, r1_8, iske, 0)
 /* INVALIDATE PAGE TABLE ENTRY */

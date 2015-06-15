@@ -2025,15 +2025,19 @@ static ExitStatus op_ct(DisasContext *s, DisasOps *o)
 #ifndef CONFIG_USER_ONLY
 static ExitStatus op_diag(DisasContext *s, DisasOps *o)
 {
-    TCGv_i32 tmp;
+    TCGv_i32 r1 = tcg_const_i32(get_field(s->fields, r1));
+    TCGv_i32 r3 = tcg_const_i32(get_field(s->fields, r3));
+    TCGv_i32 func_code = tcg_const_i32(get_field(s->fields, i2));
 
     check_privileged(s);
-    potential_page_fault(s);
+    update_psw_addr(s);
+    gen_op_calc_cc(s);
 
-    /* We pretend the format is RX_a so that D2 is the field we want.  */
-    tmp = tcg_const_i32(get_field(s->fields, d2) & 0xfff);
-    gen_helper_diag(regs[2], cpu_env, tmp, regs[2], regs[1]);
-    tcg_temp_free_i32(tmp);
+    gen_helper_diag(cpu_env, r1, r3, func_code);
+
+    tcg_temp_free_i32(func_code);
+    tcg_temp_free_i32(r3);
+    tcg_temp_free_i32(r1);
     return NO_EXIT;
 }
 #endif
