@@ -1,6 +1,7 @@
 #!/bin/bash
 #
-# Test that opening O_DIRECT succeeds when image file I/O produces EIO
+# Non-NBD test cases for overriding BDRV_O_PROTOCOL by explicitly
+# specifying a driver
 #
 # Copyright (C) 2015 Red Hat, Inc.
 #
@@ -19,45 +20,18 @@
 #
 
 # creator
-owner=stefanha@redhat.com
+owner=mreitz@redhat.com
 
-seq=`basename $0`
+seq="$(basename $0)"
 echo "QA output created by $seq"
 
-here=`pwd`
+here="$PWD"
 tmp=/tmp/$$
 status=1	# failure is the default!
 
-devname="eiodev$$"
-sudo=""
-
-_setup_eiodev()
-{
-	# This test should either be run as root or with passwordless sudo
-	for cmd in "" "sudo -n"; do
-		echo "0 $((1024 * 1024 * 1024 / 512)) error" | \
-			$cmd dmsetup create "$devname" 2>/dev/null
-		if [ "$?" -eq 0 ]; then
-			sudo="$cmd"
-			return
-		fi
-	done
-	_notrun "root privileges required to run dmsetup"
-}
-
-_cleanup_eiodev()
-{
-	for cmd in "" "sudo -n"; do
-		$cmd dmsetup remove "$devname" 2>/dev/null
-		if [ "$?" -eq 0 ]; then
-			return
-		fi
-	done
-}
-
 _cleanup()
 {
-	_cleanup_eiodev
+	_cleanup_test_img
 }
 trap "_cleanup; exit \$status" 0 1 2 3 15
 
@@ -65,20 +39,27 @@ trap "_cleanup; exit \$status" 0 1 2 3 15
 . ./common.rc
 . ./common.filter
 
-_supported_fmt raw
+_supported_fmt generic
 _supported_proto file
 _supported_os Linux
 
-_setup_eiodev
+_make_test_img 64M
 
-TEST_IMG="/dev/mapper/$devname"
+echo "{'execute': 'qmp_capabilities'}
+      {'execute': 'human-monitor-command',
+       'arguments': {'command-line': 'qemu-io drv \"write -P 42 0 64k\"'}}
+      {'execute': 'quit'}" \
+    | $QEMU -qmp stdio -nodefaults \
+            -drive id=drv,if=none,file="$TEST_IMG",driver=raw,file.driver=$IMGFMT \
+    | _filter_qmp | _filter_qemu_io
+$QEMU_IO -c 'read -P 42 0 64k' "$TEST_IMG" | _filter_qemu_io
 
-echo
-echo "== reading from error device =="
-# Opening image should succeed but the read operation should fail
-$sudo $QEMU_IO --format "$IMGFMT" --nocache -c "read 0 65536" "$TEST_IMG" | _filter_qemu_io
+$QEMU_IO_PROG -c 'read -P 42 0 64k' \
+    "json:{'driver': 'raw', 'file': {'driver': '$IMGFMT', 'file': {'filename': '$TEST_IMG'}}}" \
+    | _filter_qemu_io
 
 # success, all done
-echo "*** done"
+echo
+echo '*** done'
 rm -f $seq.full
 status=0

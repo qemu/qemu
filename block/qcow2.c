@@ -483,9 +483,11 @@ static const char *overlap_bool_option_names[QCOW2_OL_MAX_BITNR] = {
     [QCOW2_OL_INACTIVE_L2_BITNR]    = QCOW2_OPT_OVERLAP_INACTIVE_L2,
 };
 
-static void read_cache_sizes(QemuOpts *opts, uint64_t *l2_cache_size,
+static void read_cache_sizes(BlockDriverState *bs, QemuOpts *opts,
+                             uint64_t *l2_cache_size,
                              uint64_t *refcount_cache_size, Error **errp)
 {
+    BDRVQcowState *s = bs->opaque;
     uint64_t combined_cache_size;
     bool l2_cache_size_set, refcount_cache_size_set, combined_cache_size_set;
 
@@ -525,7 +527,9 @@ static void read_cache_sizes(QemuOpts *opts, uint64_t *l2_cache_size,
         }
     } else {
         if (!l2_cache_size_set && !refcount_cache_size_set) {
-            *l2_cache_size = DEFAULT_L2_CACHE_BYTE_SIZE;
+            *l2_cache_size = MAX(DEFAULT_L2_CACHE_BYTE_SIZE,
+                                 (uint64_t)DEFAULT_L2_CACHE_CLUSTERS
+                                 * s->cluster_size);
             *refcount_cache_size = *l2_cache_size
                                  / DEFAULT_L2_REFCOUNT_SIZE_RATIO;
         } else if (!l2_cache_size_set) {
@@ -803,7 +807,8 @@ static int qcow2_open(BlockDriverState *bs, QDict *options, int flags,
         goto fail;
     }
 
-    read_cache_sizes(opts, &l2_cache_size, &refcount_cache_size, &local_err);
+    read_cache_sizes(bs, opts, &l2_cache_size, &refcount_cache_size,
+                     &local_err);
     if (local_err) {
         error_propagate(errp, local_err);
         ret = -EINVAL;

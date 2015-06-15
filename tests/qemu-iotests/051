@@ -194,7 +194,6 @@ echo === Specifying the protocol layer ===
 echo
 
 run_qemu -drive file="$TEST_IMG",file.driver=file
-run_qemu -drive file="$TEST_IMG",file.driver=qcow2
 
 echo
 echo === Leaving out required options ===

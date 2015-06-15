@@ -125,7 +125,7 @@ class TestIncrementalBackup(iotests.QMPTestCase):
 
         event = self.vm.event_wait(name="BLOCK_JOB_COMPLETED",
                                    match={'data': {'device': kwargs['device']}})
-        self.assertIsNotNone(event)
+        self.assertNotEqual(event, None)
 
         try:
             failure = self.dictpath(event, 'data/error')
