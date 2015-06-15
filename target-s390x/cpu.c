@@ -117,6 +117,7 @@ static void s390_cpu_initial_reset(CPUState *s)
     env->cregs[14] = CR14_RESET;
 
     env->pfault_token = -1UL;
+    env->ext_index = -1;
 
     /* tininess for underflow is detected before rounding */
     set_float_detect_tininess(float_tininess_before_rounding,
@@ -146,6 +147,7 @@ static void s390_cpu_full_reset(CPUState *s)
     env->cregs[14] = CR14_RESET;
 
     env->pfault_token = -1UL;
+    env->ext_index = -1;
 
     /* tininess for underflow is detected before rounding */
     set_float_detect_tininess(float_tininess_before_rounding,
@@ -207,7 +209,6 @@ static void s390_cpu_initfn(Object *obj)
     s390_cpu_set_state(CPU_STATE_STOPPED, cpu);
 #endif
     env->cpu_num = cpu_num++;
-    env->ext_index = -1;
 
     if (tcg_enabled() && !inited) {
         inited = true;
