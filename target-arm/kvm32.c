@@ -153,10 +153,14 @@ bool kvm_arm_reg_syncs_via_cpreg_list(uint64_t regidx)
     }
 }
 
+#define ARM_MPIDR_HWID_BITMASK 0xFFFFFF
+#define ARM_CPU_ID_MPIDR       0, 0, 0, 5
+
 int kvm_arch_init_vcpu(CPUState *cs)
 {
     int ret;
     uint64_t v;
+    uint32_t mpidr;
     struct kvm_one_reg r;
     ARMCPU *cpu = ARM_CPU(cs);
 
@@ -192,6 +196,17 @@ int kvm_arch_init_vcpu(CPUState *cs)
     if (ret == -ENOENT) {
         return -EINVAL;
     }
+
+    /*
+     * When KVM is in use, PSCI is emulated in-kernel and not by qemu.
+     * Currently KVM has its own idea about MPIDR assignment, so we
+     * override our defaults with what we get from KVM.
+     */
+    ret = kvm_get_one_reg(cs, ARM_CP15_REG32(ARM_CPU_ID_MPIDR), &mpidr);
+    if (ret) {
+        return ret;
+    }
+    cpu->mp_affinity = mpidr & ARM_MPIDR_HWID_BITMASK;
 
     return kvm_arm_init_cpreg_list(cpu);
 }

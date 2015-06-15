@@ -383,16 +383,28 @@ static inline void unset_feature(CPUARMState *env, int feature)
     env->features &= ~(1ULL << feature);
 }
 
+#define ARM_CPUS_PER_CLUSTER 8
+
 static void arm_cpu_initfn(Object *obj)
 {
     CPUState *cs = CPU(obj);
     ARMCPU *cpu = ARM_CPU(obj);
     static bool inited;
+    uint32_t Aff1, Aff0;
 
     cs->env_ptr = &cpu->env;
     cpu_exec_init(&cpu->env);
     cpu->cp_regs = g_hash_table_new_full(g_int_hash, g_int_equal,
                                          g_free, g_free);
+
+    /* This cpu-id-to-MPIDR affinity is used only for TCG; KVM will override it.
+     * We don't support setting cluster ID ([16..23]) (known as Aff2
+     * in later ARM ARM versions), or any of the higher affinity level fields,
+     * so these bits always RAZ.
+     */
+    Aff1 = cs->cpu_index / ARM_CPUS_PER_CLUSTER;
+    Aff0 = cs->cpu_index % ARM_CPUS_PER_CLUSTER;
+    cpu->mp_affinity = (Aff1 << 8) | Aff0;
 
 #ifndef CONFIG_USER_ONLY
     /* Our inbound IRQ and FIQ lines */

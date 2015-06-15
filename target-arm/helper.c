@@ -2063,12 +2063,9 @@ static const ARMCPRegInfo strongarm_cp_reginfo[] = {
 
 static uint64_t mpidr_read(CPUARMState *env, const ARMCPRegInfo *ri)
 {
-    CPUState *cs = CPU(arm_env_get_cpu(env));
-    uint32_t mpidr = cs->cpu_index;
-    /* We don't support setting cluster ID ([8..11]) (known as Aff1
-     * in later ARM ARM versions), or any of the higher affinity level fields,
-     * so these bits always RAZ.
-     */
+    ARMCPU *cpu = ARM_CPU(arm_env_get_cpu(env));
+    uint64_t mpidr = cpu->mp_affinity;
+
     if (arm_feature(env, ARM_FEATURE_V7MP)) {
         mpidr |= (1U << 31);
         /* Cores which are uniprocessor (non-coherent)
