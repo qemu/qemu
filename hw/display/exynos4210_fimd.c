@@ -337,7 +337,7 @@ static inline void fimd_swap_data(unsigned int swap_ctl, uint64_t *data)
     if (swap_ctl & FIMD_WINCON_SWAP_BITS) {
         res = 0;
         for (i = 0; i < 64; i++) {
-            if (x & (1ULL << (64 - i))) {
+            if (x & (1ULL << (63 - i))) {
                 res |= (1ULL << i);
             }
         }
