@@ -129,12 +129,12 @@ void ioinst_handle_hsch(S390CPU *cpu, uint64_t reg1)
 
 static int ioinst_schib_valid(SCHIB *schib)
 {
-    if ((schib->pmcw.flags & PMCW_FLAGS_MASK_INVALID) ||
-        (schib->pmcw.chars & PMCW_CHARS_MASK_INVALID)) {
+    if ((be16_to_cpu(schib->pmcw.flags) & PMCW_FLAGS_MASK_INVALID) ||
+        (be32_to_cpu(schib->pmcw.chars) & PMCW_CHARS_MASK_INVALID)) {
         return 0;
     }
     /* Disallow extended measurements for now. */
-    if (schib->pmcw.chars & PMCW_CHARS_MASK_XMWME) {
+    if (be32_to_cpu(schib->pmcw.chars) & PMCW_CHARS_MASK_XMWME) {
         return 0;
     }
     return 1;
