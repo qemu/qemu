@@ -324,9 +324,14 @@ void throttle_group_config(BlockDriverState *bs, ThrottleConfig *cfg)
     ThrottleState *ts = bs->throttle_state;
     ThrottleGroup *tg = container_of(ts, ThrottleGroup, ts);
     qemu_mutex_lock(&tg->lock);
-    throttle_config(ts, tt, cfg);
     /* throttle_config() cancels the timers */
-    tg->any_timer_armed[0] = tg->any_timer_armed[1] = false;
+    if (timer_pending(tt->timers[0])) {
+        tg->any_timer_armed[0] = false;
+    }
+    if (timer_pending(tt->timers[1])) {
+        tg->any_timer_armed[1] = false;
+    }
+    throttle_config(ts, tt, cfg);
     qemu_mutex_unlock(&tg->lock);
 }
 
