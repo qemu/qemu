@@ -532,3 +532,65 @@ uint32_t HELPER(sigp)(CPUS390XState *env, uint64_t order_code, uint32_t r1,
     return cc;
 }
 #endif
+
+#ifndef CONFIG_USER_ONLY
+void HELPER(xsch)(CPUS390XState *env, uint64_t r1)
+{
+    S390CPU *cpu = s390_env_get_cpu(env);
+    ioinst_handle_xsch(cpu, r1);
+}
+
+void HELPER(csch)(CPUS390XState *env, uint64_t r1)
+{
+    S390CPU *cpu = s390_env_get_cpu(env);
+    ioinst_handle_csch(cpu, r1);
+}
+
+void HELPER(hsch)(CPUS390XState *env, uint64_t r1)
+{
+    S390CPU *cpu = s390_env_get_cpu(env);
+    ioinst_handle_hsch(cpu, r1);
+}
+
+void HELPER(msch)(CPUS390XState *env, uint64_t r1, uint64_t inst)
+{
+    S390CPU *cpu = s390_env_get_cpu(env);
+    ioinst_handle_msch(cpu, r1, inst >> 16);
+}
+
+void HELPER(rchp)(CPUS390XState *env, uint64_t r1)
+{
+    S390CPU *cpu = s390_env_get_cpu(env);
+    ioinst_handle_rchp(cpu, r1);
+}
+
+void HELPER(rsch)(CPUS390XState *env, uint64_t r1)
+{
+    S390CPU *cpu = s390_env_get_cpu(env);
+    ioinst_handle_rsch(cpu, r1);
+}
+
+void HELPER(ssch)(CPUS390XState *env, uint64_t r1, uint64_t inst)
+{
+    S390CPU *cpu = s390_env_get_cpu(env);
+    ioinst_handle_ssch(cpu, r1, inst >> 16);
+}
+
+void HELPER(stsch)(CPUS390XState *env, uint64_t r1, uint64_t inst)
+{
+    S390CPU *cpu = s390_env_get_cpu(env);
+    ioinst_handle_stsch(cpu, r1, inst >> 16);
+}
+
+void HELPER(tsch)(CPUS390XState *env, uint64_t r1, uint64_t inst)
+{
+    S390CPU *cpu = s390_env_get_cpu(env);
+    ioinst_handle_tsch(cpu, r1, inst >> 16);
+}
+
+void HELPER(chsc)(CPUS390XState *env, uint64_t inst)
+{
+    S390CPU *cpu = s390_env_get_cpu(env);
+    ioinst_handle_chsc(cpu, inst >> 16);
+}
+#endif

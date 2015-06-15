@@ -1001,6 +1001,7 @@ enum DisasFieldIndexC {
 };
 
 struct DisasFields {
+    uint64_t raw_insn;
     unsigned op:8;
     unsigned op2:8;
     unsigned presentC:16;
@@ -3588,11 +3589,93 @@ static ExitStatus op_spx(DisasContext *s, DisasOps *o)
     return NO_EXIT;
 }
 
-static ExitStatus op_subchannel(DisasContext *s, DisasOps *o)
+static ExitStatus op_xsch(DisasContext *s, DisasOps *o)
 {
     check_privileged(s);
-    /* Not operational.  */
-    gen_op_movi_cc(s, 3);
+    potential_page_fault(s);
+    gen_helper_xsch(cpu_env, regs[1]);
+    set_cc_static(s);
+    return NO_EXIT;
+}
+
+static ExitStatus op_csch(DisasContext *s, DisasOps *o)
+{
+    check_privileged(s);
+    potential_page_fault(s);
+    gen_helper_csch(cpu_env, regs[1]);
+    set_cc_static(s);
+    return NO_EXIT;
+}
+
+static ExitStatus op_hsch(DisasContext *s, DisasOps *o)
+{
+    check_privileged(s);
+    potential_page_fault(s);
+    gen_helper_hsch(cpu_env, regs[1]);
+    set_cc_static(s);
+    return NO_EXIT;
+}
+
+static ExitStatus op_msch(DisasContext *s, DisasOps *o)
+{
+    check_privileged(s);
+    potential_page_fault(s);
+    gen_helper_msch(cpu_env, regs[1], o->in2);
+    set_cc_static(s);
+    return NO_EXIT;
+}
+
+static ExitStatus op_rchp(DisasContext *s, DisasOps *o)
+{
+    check_privileged(s);
+    potential_page_fault(s);
+    gen_helper_rchp(cpu_env, regs[1]);
+    set_cc_static(s);
+    return NO_EXIT;
+}
+
+static ExitStatus op_rsch(DisasContext *s, DisasOps *o)
+{
+    check_privileged(s);
+    potential_page_fault(s);
+    gen_helper_rsch(cpu_env, regs[1]);
+    set_cc_static(s);
+    return NO_EXIT;
+}
+
+static ExitStatus op_ssch(DisasContext *s, DisasOps *o)
+{
+    check_privileged(s);
+    potential_page_fault(s);
+    gen_helper_ssch(cpu_env, regs[1], o->in2);
+    set_cc_static(s);
+    return NO_EXIT;
+}
+
+static ExitStatus op_stsch(DisasContext *s, DisasOps *o)
+{
+    check_privileged(s);
+    potential_page_fault(s);
+    gen_helper_stsch(cpu_env, regs[1], o->in2);
+    set_cc_static(s);
+    return NO_EXIT;
+}
+
+static ExitStatus op_tsch(DisasContext *s, DisasOps *o)
+{
+    check_privileged(s);
+    potential_page_fault(s);
+    gen_helper_tsch(cpu_env, regs[1], o->in2);
+    set_cc_static(s);
+    return NO_EXIT;
+}
+
+static ExitStatus op_chsc(DisasContext *s, DisasOps *o)
+{
+    check_privileged(s);
+    potential_page_fault(s);
+    gen_helper_chsc(cpu_env, o->in2);
+    set_cc_static(s);
     return NO_EXIT;
 }
 
@@ -4843,6 +4926,14 @@ static void in2_i2_32u_shl(DisasContext *s, DisasFields *f, DisasOps *o)
 }
 #define SPEC_in2_i2_32u_shl 0
 
+#ifndef CONFIG_USER_ONLY
+static void in2_insn(DisasContext *s, DisasFields *f, DisasOps *o)
+{
+    o->in2 = tcg_const_i64(s->fields->raw_insn);
+}
+#define SPEC_in2_insn 0
+#endif
+
 /* ====================================================================== */
 
 /* Find opc within the table of insns.  This is formulated as a switch
@@ -5019,6 +5110,7 @@ static const DisasInsn *extract_insn(CPUS390XState *env, DisasContext *s,
     }
 
     memset(f, 0, sizeof(*f));
+    f->raw_insn = insn;
     f->op = op;
     f->op2 = op2;
 
