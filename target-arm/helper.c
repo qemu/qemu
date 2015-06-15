@@ -5759,9 +5759,9 @@ do_fault:
     return true;
 }
 
-static bool get_phys_addr_mpu(CPUARMState *env, uint32_t address,
-                              int access_type, ARMMMUIdx mmu_idx,
-                              hwaddr *phys_ptr, int *prot, uint32_t *fsr)
+static bool get_phys_addr_pmsav5(CPUARMState *env, uint32_t address,
+                                 int access_type, ARMMMUIdx mmu_idx,
+                                 hwaddr *phys_ptr, int *prot, uint32_t *fsr)
 {
     int n;
     uint32_t mask;
@@ -5902,8 +5902,8 @@ static inline bool get_phys_addr(CPUARMState *env, target_ulong address,
 
     if (arm_feature(env, ARM_FEATURE_MPU)) {
         *page_size = TARGET_PAGE_SIZE;
-        return get_phys_addr_mpu(env, address, access_type, mmu_idx, phys_ptr,
-                                 prot, fsr);
+        return get_phys_addr_pmsav5(env, address, access_type, mmu_idx,
+                                    phys_ptr, prot, fsr);
     }
 
     if (regime_using_lpae_format(env, mmu_idx)) {
