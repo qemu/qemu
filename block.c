@@ -1117,6 +1117,24 @@ static BdrvChild *bdrv_attach_child(BlockDriverState *parent_bs,
     return child;
 }
 
+static void bdrv_detach_child(BdrvChild *child)
+{
+    QLIST_REMOVE(child, next);
+    g_free(child);
+}
+
+void bdrv_unref_child(BlockDriverState *parent, BdrvChild *child)
+{
+    BlockDriverState *child_bs = child->bs;
+
+    if (child->bs->inherits_from == parent) {
+        child->bs->inherits_from = NULL;
+    }
+
+    bdrv_detach_child(child);
+    bdrv_unref(child_bs);
+}
+
 void bdrv_set_backing_hd(BlockDriverState *bs, BlockDriverState *backing_hd)
 {
 
@@ -1884,11 +1902,12 @@ void bdrv_close(BlockDriverState *bs)
         BdrvChild *child, *next;
 
         QLIST_FOREACH_SAFE(child, &bs->children, next, next) {
+            /* TODO Remove bdrv_unref() from drivers' close function and use
+             * bdrv_unref_child() here */
             if (child->bs->inherits_from == bs) {
                 child->bs->inherits_from = NULL;
             }
-            QLIST_REMOVE(child, next);
-            g_free(child);
+            bdrv_detach_child(child);
         }
 
         if (bs->backing_hd) {
