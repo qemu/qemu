@@ -381,6 +381,7 @@ struct BlockDriverState {
     BlockDriverState *backing_hd;
     BdrvChild *backing_child;
     BlockDriverState *file;
+    BdrvChild *file_child;
 
     NotifierList close_notifiers;
 

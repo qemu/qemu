@@ -1487,10 +1487,16 @@ static int bdrv_open_inherit(BlockDriverState **pbs, const char *filename,
 
         assert(file == NULL);
         bs->open_flags = flags;
-        ret = bdrv_open_image(&file, filename, options, "file",
-                              bs, &child_file, true, &local_err);
-        if (ret < 0) {
+
+        bs->file_child = bdrv_open_child(filename, options, "file", bs,
+                                         &child_file, true, &local_err);
+        if (local_err) {
+            ret = -EINVAL;
             goto fail;
+        }
+
+        if (bs->file_child) {
+            file = bs->file_child->bs;
         }
     }
 
