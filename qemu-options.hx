@@ -189,8 +189,9 @@ In particular, you can use this to set driver properties for devices which are
 created automatically by the machine model. To create a device which is not 
 created automatically and set properties on it, use -@option{device}.
 
-The two syntaxes are equivalent.  The longer one works for drivers whose name
-contains a dot.
+-global @var{driver}.@var{prop}=@var{value} is shorthand for -global
+driver=@var{driver},property=@var{prop},value=@var{value}.  The
+longhand syntax works even when @var{driver} contains a dot.
 ETEXI
 
 DEF("boot", HAS_ARG, QEMU_OPTION_boot,
