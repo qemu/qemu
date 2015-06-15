@@ -106,6 +106,7 @@ static void s390_cpu_initial_reset(CPUState *s)
 {
     S390CPU *cpu = S390_CPU(s);
     CPUS390XState *env = &cpu->env;
+    int i;
 
     s390_cpu_reset(s);
     /* initial reset does not touch regs,fregs and aregs */
@@ -118,6 +119,9 @@ static void s390_cpu_initial_reset(CPUState *s)
 
     env->pfault_token = -1UL;
     env->ext_index = -1;
+    for (i = 0; i < ARRAY_SIZE(env->io_index); i++) {
+        env->io_index[i] = -1;
+    }
 
     /* tininess for underflow is detected before rounding */
     set_float_detect_tininess(float_tininess_before_rounding,
@@ -135,6 +139,7 @@ static void s390_cpu_full_reset(CPUState *s)
     S390CPU *cpu = S390_CPU(s);
     S390CPUClass *scc = S390_CPU_GET_CLASS(cpu);
     CPUS390XState *env = &cpu->env;
+    int i;
 
     scc->parent_reset(s);
     cpu->env.sigp_order = 0;
@@ -148,6 +153,9 @@ static void s390_cpu_full_reset(CPUState *s)
 
     env->pfault_token = -1UL;
     env->ext_index = -1;
+    for (i = 0; i < ARRAY_SIZE(env->io_index); i++) {
+        env->io_index[i] = -1;
+    }
 
     /* tininess for underflow is detected before rounding */
     set_float_detect_tininess(float_tininess_before_rounding,
