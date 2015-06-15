@@ -1102,6 +1102,19 @@ static int bdrv_fill_options(QDict **options, const char **pfilename,
     return 0;
 }
 
+static void bdrv_attach_child(BlockDriverState *parent_bs,
+                              BlockDriverState *child_bs,
+                              const BdrvChildRole *child_role)
+{
+    BdrvChild *child = g_new(BdrvChild, 1);
+    *child = (BdrvChild) {
+        .bs     = child_bs,
+        .role   = child_role,
+    };
+
+    QLIST_INSERT_HEAD(&parent_bs->children, child, next);
+}
+
 void bdrv_set_backing_hd(BlockDriverState *bs, BlockDriverState *backing_hd)
 {
 
@@ -1202,6 +1215,8 @@ int bdrv_open_backing_file(BlockDriverState *bs, QDict *options, Error **errp)
         error_free(local_err);
         goto free_exit;
     }
+
+    bdrv_attach_child(bs, backing_hd, &child_backing);
     bdrv_set_backing_hd(bs, backing_hd);
 
 free_exit:
@@ -1237,6 +1252,7 @@ int bdrv_open_image(BlockDriverState **pbs, const char *filename,
 
     assert(pbs);
     assert(*pbs == NULL);
+    assert(child_role != NULL);
 
     bdref_key_dot = g_strdup_printf("%s.", bdref_key);
     qdict_extract_subqdict(options, &image_options, bdref_key_dot);
@@ -1257,6 +1273,11 @@ int bdrv_open_image(BlockDriverState **pbs, const char *filename,
 
     ret = bdrv_open_inherit(pbs, filename, reference, image_options, 0,
                             parent, child_role, NULL, errp);
+    if (ret < 0) {
+        goto done;
+    }
+
+    bdrv_attach_child(parent, *pbs, child_role);
 
 done:
     qdict_del(options, bdref_key);
@@ -1328,19 +1349,6 @@ out:
     return ret;
 }
 
-static void bdrv_attach_child(BlockDriverState *parent_bs,
-                              BlockDriverState *child_bs,
-                              const BdrvChildRole *child_role)
-{
-    BdrvChild *child = g_new(BdrvChild, 1);
-    *child = (BdrvChild) {
-        .bs     = child_bs,
-        .role   = child_role,
-    };
-
-    QLIST_INSERT_HEAD(&parent_bs->children, child, next);
-}
-
 /*
  * Opens a disk image (raw, qcow2, vmdk, ...)
  *
@@ -1393,9 +1401,6 @@ static int bdrv_open_inherit(BlockDriverState **pbs, const char *filename,
             return -ENODEV;
         }
         bdrv_ref(bs);
-        if (child_role) {
-            bdrv_attach_child(parent, bs, child_role);
-        }
         *pbs = bs;
         return 0;
     }
@@ -1538,10 +1543,6 @@ static int bdrv_open_inherit(BlockDriverState **pbs, const char *filename,
                    "Guest must be stopped for opening of encrypted image");
         ret = -EBUSY;
         goto close_and_fail;
-    }
-
-    if (child_role) {
-        bdrv_attach_child(parent, bs, child_role);
     }
 
     QDECREF(options);
