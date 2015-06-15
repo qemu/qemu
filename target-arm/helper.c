@@ -2075,9 +2075,11 @@ static uint64_t mpidr_read(CPUARMState *env, const ARMCPRegInfo *ri)
         mpidr |= (1U << 31);
         /* Cores which are uniprocessor (non-coherent)
          * but still implement the MP extensions set
-         * bit 30. (For instance, A9UP.) However we do
-         * not currently model any of those cores.
+         * bit 30. (For instance, Cortex-R5).
          */
+        if (cpu->mp_is_up) {
+            mpidr |= (1u << 30);
+        }
     }
     return mpidr;
 }
