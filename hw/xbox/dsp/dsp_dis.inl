@@ -314,7 +314,8 @@ static void dis_bcc_long(dsp_core_t* dsp) {
     char cond_name[16];
     dis_calc_cc(dsp, cc_code, cond_name);
 
-    sprintf(dsp->disasm_str_instr, "b%s p:$%06x", cond_name, xxxx);    
+    sprintf(dsp->disasm_str_instr, "b%s p:$%06x",
+        cond_name, (dsp->pc + xxxx) & BITMASK(24));
 }
 
 static void dis_bcc_imm(dsp_core_t* dsp) {
@@ -326,7 +327,8 @@ static void dis_bcc_imm(dsp_core_t* dsp) {
 
     dis_calc_cc(dsp, cc_code, cond_name);    
 
-    sprintf(dsp->disasm_str_instr,"b%s p:$%04x", cond_name, xxx);
+    sprintf(dsp->disasm_str_instr,"b%s p:$%06x",
+        cond_name, (dsp->pc + dsp_signextend(9, xxx)) & BITMASK(24) );
 }
 
 static void dis_bchg_aa(dsp_core_t* dsp)

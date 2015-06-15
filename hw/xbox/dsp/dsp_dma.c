@@ -46,6 +46,14 @@
 
 #define NODE_CONTROL_DIRECTION (1 << 1)
 
+
+// #define DEBUG
+#ifdef DEBUG
+# define DPRINTF(s, ...)            printf(s, ## __VA_ARGS__)
+#else
+# define DPRINTF(format, ...)       do { } while (0)
+#endif
+
 static void dsp_dma_run(DSPDMAState *s)
 {
     if (!(s->control & DMA_CONTROL_RUNNING)
@@ -64,13 +72,24 @@ static void dsp_dma_run(DSPDMAState *s)
         uint32_t scratch_base = dsp56k_read_memory(s->core, DSP_SPACE_X, addr+5);
         uint32_t scratch_size = dsp56k_read_memory(s->core, DSP_SPACE_X, addr+6)+1;
 
-        // printf("\n\n\nQQQ DMA addr %x, control %x, count %x, dsp_offset %x, scratch_offset %x, base %x, size %x\n\n\n",
-        //     addr, control, count, dsp_offset, scratch_offset, scratch_base, scratch_size);
+        s->next_block = next_block;
+        if (s->next_block & NODE_POINTER_EOL) {
+            s->eol = true;
+        }
+
+
+        DPRINTF("\n\n\nDMA addr %x, control %x, count %x, "
+                 "dsp_offset %x, scratch_offset %x, base %x, size %x\n\n\n",
+                addr, control, count, dsp_offset,
+                scratch_offset, scratch_base, scratch_size);
 
         uint32_t format = (control >> 10) & 7;
         unsigned int item_size;
-        uint32_t item_mask;
+        uint32_t item_mask = 0xffffffff;
         switch(format) {
+        case 1:
+            item_size = 2;
+            break;
         case 2: //big-endian?
         case 6:
             item_size = 4;
@@ -86,12 +105,17 @@ static void dsp_dma_run(DSPDMAState *s)
         size_t scratch_addr;
         if (buf_id == 0xe) { // 'circular'?
             // assert(scratch_offset == 0);
-            assert(scratch_offset + count * item_size < scratch_size);
+            // assert(scratch_offset + count * item_size < scratch_size);
+            if (scratch_offset + count * item_size >= scratch_size) {
+                // This happens during the startup sound effect.
+                // I think it might actually be a bug in the code...
+                DPRINTF("skipping bad dma...\n");
+                continue;
+            }
             scratch_addr = scratch_base + scratch_offset; //??
-        } else if (buf_id == 0xf) { // 'offset'?
-            scratch_addr = scratch_offset;
         } else {
-            assert(false);
+            // assert(buf_id == 0xf) // 'offset'
+            scratch_addr = scratch_offset;
         }
 
         uint32_t mem_address;
@@ -120,6 +144,9 @@ static void dsp_dma_run(DSPDMAState *s)
                 uint32_t v = dsp56k_read_memory(s->core,
                     mem_space, mem_address+i);
                 switch(item_size) {
+                case 2:
+                    *(uint16_t*)(scratch_buf + i*2) = v;
+                    break;
                 case 4:
                     *(uint32_t*)(scratch_buf + i*4) = v;
                     break;
@@ -141,6 +168,9 @@ static void dsp_dma_run(DSPDMAState *s)
             for (i=0; i<count; i++) {
                 uint32_t v;
                 switch(item_size) {
+                case 2:
+                    v = *(uint16_t*)(scratch_buf + i*2);
+                    break;
                 case 4:
                     v = (*(uint32_t*)(scratch_buf + i*4)) & item_mask;
                     break;
@@ -148,18 +178,13 @@ static void dsp_dma_run(DSPDMAState *s)
                     assert(false);
                     break;
                 }
-                // printf("... %06x\n", v);
+                // DPRINTF("... %06x\n", v);
                 dsp56k_write_memory(s->core, mem_space, mem_address+i, v);
             }
         }
 
         free(scratch_buf);
 
-        s->next_block = next_block;
-
-        if (s->next_block & NODE_POINTER_EOL) {
-            s->eol = true;
-        }
     }
 }
 
