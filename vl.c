@@ -4579,18 +4579,15 @@ int main(int argc, char **argv, char **envp)
 
     qdev_machine_creation_done();
 
-    if (rom_load_all() != 0) {
-        fprintf(stderr, "rom loading failed\n");
-        exit(1);
-    }
-
     /* TODO: once all bus devices are qdevified, this should be done
      * when bus is created by qdev.c */
     qemu_register_reset(qbus_reset_all_fn, sysbus_get_default());
     qemu_run_machine_init_done_notifiers();
 
-    /* Done notifiers can load ROMs */
-    rom_load_done();
+    if (rom_check_and_register_reset() != 0) {
+        fprintf(stderr, "rom check and register reset failed\n");
+        exit(1);
+    }
 
     qemu_system_reset(VMRESET_SILENT);
     if (loadvm) {
