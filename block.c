@@ -1279,40 +1279,6 @@ done:
     return c;
 }
 
-/*
- * This is a version of bdrv_open_child() that returns 0/-EINVAL instead of
- * a BdrvChild object.
- *
- * If allow_none is true, no image will be opened if filename is false and no
- * BlockdevRef is given. *pbs will remain unchanged and 0 will be returned.
- *
- * To conform with the behavior of bdrv_open(), *pbs has to be NULL.
- */
-int bdrv_open_image(BlockDriverState **pbs, const char *filename,
-                    QDict *options, const char *bdref_key,
-                    BlockDriverState* parent, const BdrvChildRole *child_role,
-                    bool allow_none, Error **errp)
-{
-    Error *local_err = NULL;
-    BdrvChild *c;
-
-    assert(pbs);
-    assert(*pbs == NULL);
-
-    c = bdrv_open_child(filename, options, bdref_key, parent, child_role,
-                        allow_none, &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
-        return -EINVAL;
-    }
-
-    if (c != NULL) {
-        *pbs = c->bs;
-    }
-
-    return 0;
-}
-
 int bdrv_append_temp_snapshot(BlockDriverState *bs, int flags, Error **errp)
 {
     /* TODO: extra byte is a hack to ensure MAX_PATH space on Windows. */
