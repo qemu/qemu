@@ -70,6 +70,7 @@ typedef struct IscsiLun {
     bool dpofua;
     bool has_write_same;
     bool force_next_flush;
+    bool request_timed_out;
 } IscsiLun;
 
 typedef struct IscsiTask {
@@ -100,7 +101,8 @@ typedef struct IscsiAIOCB {
 #endif
 } IscsiAIOCB;
 
-#define EVENT_INTERVAL 250
+/* libiscsi uses time_t so its enough to process events every second */
+#define EVENT_INTERVAL 1000
 #define NOP_INTERVAL 5000
 #define MAX_NOP_FAILURES 3
 #define ISCSI_CMD_RETRIES ARRAY_SIZE(iscsi_retry_times)
@@ -187,13 +189,18 @@ iscsi_co_generic_cb(struct iscsi_context *iscsi, int status,
                 iTask->do_retry = 1;
                 goto out;
             }
-            /* status 0x28 is SCSI_TASK_SET_FULL. It was first introduced
-             * in libiscsi 1.10.0. Hardcode this value here to avoid
-             * the need to bump the libiscsi requirement to 1.10.0 */
-            if (status == SCSI_STATUS_BUSY || status == 0x28) {
+            if (status == SCSI_STATUS_BUSY || status == SCSI_STATUS_TIMEOUT ||
+                status == SCSI_STATUS_TASK_SET_FULL) {
                 unsigned retry_time =
                     exp_random(iscsi_retry_times[iTask->retries - 1]);
-                error_report("iSCSI Busy/TaskSetFull (retry #%u in %u ms): %s",
+                if (status == SCSI_STATUS_TIMEOUT) {
+                    /* make sure the request is rescheduled AFTER the
+                     * reconnect is initiated */
+                    retry_time = EVENT_INTERVAL * 2;
+                    iTask->iscsilun->request_timed_out = true;
+                }
+                error_report("iSCSI Busy/TaskSetFull/TimeOut"
+                             " (retry #%u in %u ms): %s",
                              iTask->retries, retry_time,
                              iscsi_get_error(iscsi));
                 aio_timer_init(iTask->iscsilun->aio_context,
@@ -277,20 +284,26 @@ iscsi_set_events(IscsiLun *iscsilun)
                            iscsilun);
         iscsilun->events = ev;
     }
-
-    /* newer versions of libiscsi may return zero events. In this
-     * case start a timer to ensure we are able to return to service
-     * once this situation changes. */
-    if (!ev) {
-        timer_mod(iscsilun->event_timer,
-                  qemu_clock_get_ms(QEMU_CLOCK_REALTIME) + EVENT_INTERVAL);
-    }
 }
 
-static void iscsi_timed_set_events(void *opaque)
+static void iscsi_timed_check_events(void *opaque)
 {
     IscsiLun *iscsilun = opaque;
+
+    /* check for timed out requests */
+    iscsi_service(iscsilun->iscsi, 0);
+
+    if (iscsilun->request_timed_out) {
+        iscsilun->request_timed_out = false;
+        iscsi_reconnect(iscsilun->iscsi);
+    }
+
+    /* newer versions of libiscsi may return zero events. Ensure we are able
+     * to return to service once this situation changes. */
     iscsi_set_events(iscsilun);
+
+    timer_mod(iscsilun->event_timer,
+              qemu_clock_get_ms(QEMU_CLOCK_REALTIME) + EVENT_INTERVAL);
 }
 
 static void
@@ -1093,16 +1106,37 @@ static char *parse_initiator_name(const char *target)
     return iscsi_name;
 }
 
+static int parse_timeout(const char *target)
+{
+    QemuOptsList *list;
+    QemuOpts *opts;
+    const char *timeout;
+
+    list = qemu_find_opts("iscsi");
+    if (list) {
+        opts = qemu_opts_find(list, target);
+        if (!opts) {
+            opts = QTAILQ_FIRST(&list->head);
+        }
+        if (opts) {
+            timeout = qemu_opt_get(opts, "timeout");
+            if (timeout) {
+                return atoi(timeout);
+            }
+        }
+    }
+
+    return 0;
+}
+
 static void iscsi_nop_timed_event(void *opaque)
 {
     IscsiLun *iscsilun = opaque;
 
-    if (iscsi_get_nops_in_flight(iscsilun->iscsi) > MAX_NOP_FAILURES) {
+    if (iscsi_get_nops_in_flight(iscsilun->iscsi) >= MAX_NOP_FAILURES) {
         error_report("iSCSI: NOP timeout. Reconnecting...");
-        iscsi_reconnect(iscsilun->iscsi);
-    }
-
-    if (iscsi_nop_out_async(iscsilun->iscsi, NULL, NULL, 0, NULL) != 0) {
+        iscsilun->request_timed_out = true;
+    } else if (iscsi_nop_out_async(iscsilun->iscsi, NULL, NULL, 0, NULL) != 0) {
         error_report("iSCSI: failed to sent NOP-Out. Disabling NOP messages.");
         return;
     }
@@ -1260,10 +1294,13 @@ static void iscsi_attach_aio_context(BlockDriverState *bs,
     timer_mod(iscsilun->nop_timer,
               qemu_clock_get_ms(QEMU_CLOCK_REALTIME) + NOP_INTERVAL);
 
-    /* Prepare a timer for a delayed call to iscsi_set_events */
+    /* Set up a timer for periodic calls to iscsi_set_events and to
+     * scan for command timeout */
     iscsilun->event_timer = aio_timer_new(iscsilun->aio_context,
                                           QEMU_CLOCK_REALTIME, SCALE_MS,
-                                          iscsi_timed_set_events, iscsilun);
+                                          iscsi_timed_check_events, iscsilun);
+    timer_mod(iscsilun->event_timer,
+              qemu_clock_get_ms(QEMU_CLOCK_REALTIME) + EVENT_INTERVAL);
 }
 
 static void iscsi_modesense_sync(IscsiLun *iscsilun)
@@ -1387,6 +1424,8 @@ static int iscsi_open(BlockDriverState *bs, QDict *options, int flags,
         ret = -EINVAL;
         goto out;
     }
+
+    iscsi_set_timeout(iscsi, parse_timeout(iscsi_url->target));
 
     if (iscsi_full_connect_sync(iscsi, iscsi_url->portal, iscsi_url->lun) != 0) {
         error_setg(errp, "iSCSI: Failed to connect to LUN : %s",
@@ -1736,6 +1775,10 @@ static QemuOptsList qemu_iscsi_opts = {
             .name = "initiator-name",
             .type = QEMU_OPT_STRING,
             .help = "Initiator iqn name to use when connecting",
+        },{
+            .name = "timeout",
+            .type = QEMU_OPT_NUMBER,
+            .help = "Request timeout in seconds (default 0 = no timeout)",
         },
         { /* end of list */ }
     },

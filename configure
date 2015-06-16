@@ -3618,15 +3618,15 @@ if compile_prog "" "" ; then
 fi
 
 ##########################################
-# Do we have libiscsi >= 1.9.0
+# Do we have libiscsi >= 1.10.0
 if test "$libiscsi" != "no" ; then
-  if $pkg_config --atleast-version=1.9.0 libiscsi; then
+  if $pkg_config --atleast-version=1.10.0 libiscsi; then
     libiscsi="yes"
     libiscsi_cflags=$($pkg_config --cflags libiscsi)
     libiscsi_libs=$($pkg_config --libs libiscsi)
   else
     if test "$libiscsi" = "yes" ; then
-      feature_not_found "libiscsi" "Install libiscsi >= 1.9.0"
+      feature_not_found "libiscsi" "Install libiscsi >= 1.10.0"
     fi
     libiscsi="no"
   fi
