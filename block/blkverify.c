@@ -14,7 +14,7 @@
 #include "qapi/qmp/qstring.h"
 
 typedef struct {
-    BlockDriverState *test_file;
+    BdrvChild *test_file;
 } BDRVBlkverifyState;
 
 typedef struct BlkverifyAIOCB BlkverifyAIOCB;
@@ -132,12 +132,12 @@ static int blkverify_open(BlockDriverState *bs, QDict *options, int flags,
     }
 
     /* Open the test file */
-    assert(s->test_file == NULL);
-    ret = bdrv_open_image(&s->test_file, qemu_opt_get(opts, "x-image"), options,
-                          "test", bs, &child_format, false, &local_err);
-    if (ret < 0) {
+    s->test_file = bdrv_open_child(qemu_opt_get(opts, "x-image"), options,
+                                   "test", bs, &child_format, false,
+                                   &local_err);
+    if (local_err) {
+        ret = -EINVAL;
         error_propagate(errp, local_err);
-        s->test_file = NULL;
         goto fail;
     }
 
@@ -151,7 +151,7 @@ static void blkverify_close(BlockDriverState *bs)
 {
     BDRVBlkverifyState *s = bs->opaque;
 
-    bdrv_unref(s->test_file);
+    bdrv_unref_child(bs, s->test_file);
     s->test_file = NULL;
 }
 
@@ -159,7 +159,7 @@ static int64_t blkverify_getlength(BlockDriverState *bs)
 {
     BDRVBlkverifyState *s = bs->opaque;
 
-    return bdrv_getlength(s->test_file);
+    return bdrv_getlength(s->test_file->bs);
 }
 
 static BlkverifyAIOCB *blkverify_aio_get(BlockDriverState *bs, bool is_write,
@@ -242,7 +242,7 @@ static BlockAIOCB *blkverify_aio_readv(BlockDriverState *bs,
     qemu_iovec_init(&acb->raw_qiov, acb->qiov->niov);
     qemu_iovec_clone(&acb->raw_qiov, qiov, acb->buf);
 
-    bdrv_aio_readv(s->test_file, sector_num, qiov, nb_sectors,
+    bdrv_aio_readv(s->test_file->bs, sector_num, qiov, nb_sectors,
                    blkverify_aio_cb, acb);
     bdrv_aio_readv(bs->file, sector_num, &acb->raw_qiov, nb_sectors,
                    blkverify_aio_cb, acb);
@@ -257,7 +257,7 @@ static BlockAIOCB *blkverify_aio_writev(BlockDriverState *bs,
     BlkverifyAIOCB *acb = blkverify_aio_get(bs, true, sector_num, qiov,
                                             nb_sectors, cb, opaque);
 
-    bdrv_aio_writev(s->test_file, sector_num, qiov, nb_sectors,
+    bdrv_aio_writev(s->test_file->bs, sector_num, qiov, nb_sectors,
                     blkverify_aio_cb, acb);
     bdrv_aio_writev(bs->file, sector_num, qiov, nb_sectors,
                     blkverify_aio_cb, acb);
@@ -271,7 +271,7 @@ static BlockAIOCB *blkverify_aio_flush(BlockDriverState *bs,
     BDRVBlkverifyState *s = bs->opaque;
 
     /* Only flush test file, the raw file is not important */
-    return bdrv_aio_flush(s->test_file, cb, opaque);
+    return bdrv_aio_flush(s->test_file->bs, cb, opaque);
 }
 
 static bool blkverify_recurse_is_first_non_filter(BlockDriverState *bs,
@@ -285,7 +285,7 @@ static bool blkverify_recurse_is_first_non_filter(BlockDriverState *bs,
         return true;
     }
 
-    return bdrv_recurse_is_first_non_filter(s->test_file, candidate);
+    return bdrv_recurse_is_first_non_filter(s->test_file->bs, candidate);
 }
 
 /* Propagate AioContext changes to ->test_file */
@@ -293,7 +293,7 @@ static void blkverify_detach_aio_context(BlockDriverState *bs)
 {
     BDRVBlkverifyState *s = bs->opaque;
 
-    bdrv_detach_aio_context(s->test_file);
+    bdrv_detach_aio_context(s->test_file->bs);
 }
 
 static void blkverify_attach_aio_context(BlockDriverState *bs,
@@ -301,7 +301,7 @@ static void blkverify_attach_aio_context(BlockDriverState *bs,
 {
     BDRVBlkverifyState *s = bs->opaque;
 
-    bdrv_attach_aio_context(s->test_file, new_context);
+    bdrv_attach_aio_context(s->test_file->bs, new_context);
 }
 
 static void blkverify_refresh_filename(BlockDriverState *bs)
@@ -309,24 +309,25 @@ static void blkverify_refresh_filename(BlockDriverState *bs)
     BDRVBlkverifyState *s = bs->opaque;
 
     /* bs->file has already been refreshed */
-    bdrv_refresh_filename(s->test_file);
+    bdrv_refresh_filename(s->test_file->bs);
 
-    if (bs->file->full_open_options && s->test_file->full_open_options) {
+    if (bs->file->full_open_options && s->test_file->bs->full_open_options) {
         QDict *opts = qdict_new();
         qdict_put_obj(opts, "driver", QOBJECT(qstring_from_str("blkverify")));
 
         QINCREF(bs->file->full_open_options);
         qdict_put_obj(opts, "raw", QOBJECT(bs->file->full_open_options));
-        QINCREF(s->test_file->full_open_options);
-        qdict_put_obj(opts, "test", QOBJECT(s->test_file->full_open_options));
+        QINCREF(s->test_file->bs->full_open_options);
+        qdict_put_obj(opts, "test",
+                      QOBJECT(s->test_file->bs->full_open_options));
 
         bs->full_open_options = opts;
     }
 
-    if (bs->file->exact_filename[0] && s->test_file->exact_filename[0]) {
+    if (bs->file->exact_filename[0] && s->test_file->bs->exact_filename[0]) {
         snprintf(bs->exact_filename, sizeof(bs->exact_filename),
                  "blkverify:%s:%s",
-                 bs->file->exact_filename, s->test_file->exact_filename);
+                 bs->file->exact_filename, s->test_file->bs->exact_filename);
     }
 }
 
