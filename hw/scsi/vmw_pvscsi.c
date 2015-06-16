@@ -1174,13 +1174,6 @@ static const VMStateDescription vmstate_pvscsi = {
     }
 };
 
-static void
-pvscsi_write_config(PCIDevice *pci, uint32_t addr, uint32_t val, int len)
-{
-    pci_default_write_config(pci, addr, val, len);
-    msi_write_config(pci, addr, val, len);
-}
-
 static Property pvscsi_properties[] = {
     DEFINE_PROP_UINT8("use_msg", PVSCSIState, use_msg, 1),
     DEFINE_PROP_END_OF_LIST(),
@@ -1202,7 +1195,6 @@ static void pvscsi_class_init(ObjectClass *klass, void *data)
     dc->vmsd = &vmstate_pvscsi;
     dc->props = pvscsi_properties;
     set_bit(DEVICE_CATEGORY_STORAGE, dc->categories);
-    k->config_write = pvscsi_write_config;
     hc->unplug = pvscsi_hot_unplug;
     hc->plug = pvscsi_hotplug;
 }
