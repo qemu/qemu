@@ -11,12 +11,10 @@ typedef struct VhostNetOptions {
     VhostBackendType backend_type;
     NetClientState *net_backend;
     void *opaque;
-    bool force;
 } VhostNetOptions;
 
 struct vhost_net *vhost_net_init(VhostNetOptions *options);
 
-bool vhost_net_query(VHostNetState *net, VirtIODevice *dev);
 int vhost_net_start(VirtIODevice *dev, NetClientState *ncs, int total_queues);
 void vhost_net_stop(VirtIODevice *dev, NetClientState *ncs, int total_queues);
 
