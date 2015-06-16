@@ -101,6 +101,15 @@ ivshmem_server_send_initial_info(IvshmemServer *server, IvshmemServerPeer *peer)
 {
     int ret;
 
+    /* send our protocol version first */
+    ret = ivshmem_server_send_one_msg(peer->sock_fd, IVSHMEM_PROTOCOL_VERSION,
+                                      -1);
+    if (ret < 0) {
+        IVSHMEM_SERVER_DEBUG(server, "cannot send version: %s\n",
+                             strerror(errno));
+        return -1;
+    }
+
     /* send the peer id to the client */
     ret = ivshmem_server_send_one_msg(peer->sock_fd, peer->id, -1);
     if (ret < 0) {

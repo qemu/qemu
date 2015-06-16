@@ -27,6 +27,8 @@
 #include "qemu/fifo8.h"
 #include "sysemu/char.h"
 
+#include "hw/misc/ivshmem.h"
+
 #include <sys/mman.h>
 #include <sys/types.h>
 #include <limits.h>
@@ -596,6 +598,31 @@ static void ivshmem_read(void *opaque, const uint8_t *buf, int size)
     }
 }
 
+static void ivshmem_check_version(void *opaque, const uint8_t * buf, int size)
+{
+    IVShmemState *s = opaque;
+    int tmp;
+    long version;
+
+    if (!fifo_update_and_get(s, buf, size,
+                             &version, sizeof(version))) {
+        return;
+    }
+
+    tmp = qemu_chr_fe_get_msgfd(s->server_chr);
+    if (tmp != -1 || version != IVSHMEM_PROTOCOL_VERSION) {
+        fprintf(stderr, "incompatible version, you are connecting to a ivshmem-"
+                "server using a different protocol please check your setup\n");
+        qemu_chr_delete(s->server_chr);
+        s->server_chr = NULL;
+        return;
+    }
+
+    IVSHMEM_DPRINTF("version check ok, switch to real chardev handler\n");
+    qemu_chr_add_handlers(s->server_chr, ivshmem_can_receive, ivshmem_read,
+                          ivshmem_event, s);
+}
+
 /* Select the MSI-X vectors used by device.
  * ivshmem maps events to vectors statically, so
  * we just enable all vectors on init and after reset. */
@@ -769,8 +796,8 @@ static void pci_ivshmem_realize(PCIDevice *dev, Error **errp)
 
         s->eventfd_chr = g_malloc0(s->vectors * sizeof(CharDriverState *));
 
-        qemu_chr_add_handlers(s->server_chr, ivshmem_can_receive, ivshmem_read,
-                     ivshmem_event, s);
+        qemu_chr_add_handlers(s->server_chr, ivshmem_can_receive,
+                              ivshmem_check_version, ivshmem_event, s);
     } else {
         /* just map the file immediately, we're not using a server */
         int fd;

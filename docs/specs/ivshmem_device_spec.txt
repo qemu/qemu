@@ -64,6 +64,8 @@ It creates a shared memory object then waits for clients to connect on a unix
 socket.
 
 For each client (QEMU process) that connects to the server:
+- the server sends a protocol version, if client does not support it, the client
+  closes the communication,
 - the server assigns an ID for this client and sends this ID to him as the first
   message,
 - the server sends a fd to the shared memory object to this client,
@@ -86,9 +88,10 @@ been provided in qemu.git/contrib/ivshmem-client for debug.
 
 *QEMU as an ivshmem client*
 
-At initialisation, when creating the ivshmem device, QEMU gets its ID from the
-server then makes it available through BAR0 IVPosition register for the VM to
-use (see 'PCI device registers' subsection).
+At initialisation, when creating the ivshmem device, QEMU first receives a
+protocol version and closes communication with server if it does not match.
+Then, QEMU gets its ID from the server then makes it available through BAR0
+IVPosition register for the VM to use (see 'PCI device registers' subsection).
 QEMU then uses the fd to the shared memory to map it to BAR2.
 eventfds for all other clients received from the server are stored to implement
 BAR0 Doorbell register (see 'PCI device registers' subsection).

@@ -206,10 +206,17 @@ ivshmem_client_connect(IvshmemClient *client)
         goto err_close;
     }
 
-    /* first, we expect our index + a fd == -1 */
+    /* first, we expect a protocol version */
+    if (ivshmem_client_read_one_msg(client, &tmp, &fd) < 0 ||
+        (tmp != IVSHMEM_PROTOCOL_VERSION) || fd != -1) {
+        IVSHMEM_CLIENT_DEBUG(client, "cannot read from server\n");
+        goto err_close;
+    }
+
+    /* then, we expect our index + a fd == -1 */
     if (ivshmem_client_read_one_msg(client, &client->local.id, &fd) < 0 ||
         client->local.id < 0 || fd != -1) {
-        IVSHMEM_CLIENT_DEBUG(client, "cannot read from server\n");
+        IVSHMEM_CLIENT_DEBUG(client, "cannot read from server (2)\n");
         goto err_close;
     }
     IVSHMEM_CLIENT_DEBUG(client, "our_id=%ld\n", client->local.id);
@@ -221,7 +228,7 @@ ivshmem_client_connect(IvshmemClient *client)
         if (fd >= 0) {
             close(fd);
         }
-        IVSHMEM_CLIENT_DEBUG(client, "cannot read from server (2)\n");
+        IVSHMEM_CLIENT_DEBUG(client, "cannot read from server (3)\n");
         goto err_close;
     }
     client->shm_fd = fd;
