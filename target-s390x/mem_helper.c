@@ -550,7 +550,7 @@ uint32_t HELPER(mvcl)(CPUS390XState *env, uint32_t r1, uint32_t r2)
     uint64_t dest = get_address_31fix(env, r1);
     uint64_t srclen = env->regs[r2 + 1] & 0xffffff;
     uint64_t src = get_address_31fix(env, r2);
-    uint8_t pad = src >> 24;
+    uint8_t pad = env->regs[r2 + 1] >> 24;
     uint8_t v;
     uint32_t cc;
 
