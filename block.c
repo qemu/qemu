@@ -1901,6 +1901,14 @@ void bdrv_close(BlockDriverState *bs)
     if (bs->drv) {
         BdrvChild *child, *next;
 
+        bs->drv->bdrv_close(bs);
+
+        if (bs->backing_hd) {
+            BlockDriverState *backing_hd = bs->backing_hd;
+            bdrv_set_backing_hd(bs, NULL);
+            bdrv_unref(backing_hd);
+        }
+
         QLIST_FOREACH_SAFE(child, &bs->children, next, next) {
             /* TODO Remove bdrv_unref() from drivers' close function and use
              * bdrv_unref_child() here */
@@ -1910,12 +1918,6 @@ void bdrv_close(BlockDriverState *bs)
             bdrv_detach_child(child);
         }
 
-        if (bs->backing_hd) {
-            BlockDriverState *backing_hd = bs->backing_hd;
-            bdrv_set_backing_hd(bs, NULL);
-            bdrv_unref(backing_hd);
-        }
-        bs->drv->bdrv_close(bs);
         g_free(bs->opaque);
         bs->opaque = NULL;
         bs->drv = NULL;
