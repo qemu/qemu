@@ -534,7 +534,7 @@ int virtio_gpu_create_mapping_iov(struct virtio_gpu_resource_attach_backing *ab,
 
     if (ab->nr_entries > 16384) {
         qemu_log_mask(LOG_GUEST_ERROR,
-                      "%s: nr_entries is too big (%d > 1024)\n",
+                      "%s: nr_entries is too big (%d > 16384)\n",
                       __func__, ab->nr_entries);
         return -1;
     }

@@ -179,6 +179,9 @@ ISADevice *isa_vga_init(ISABus *bus)
     case VGA_VMWARE:
         fprintf(stderr, "%s: vmware_vga: no PCI bus\n", __func__);
         return NULL;
+    case VGA_VIRTIO:
+        fprintf(stderr, "%s: virtio-vga: no PCI bus\n", __func__);
+        return NULL;
     case VGA_NONE:
     default:
         return NULL;
