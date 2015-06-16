@@ -72,7 +72,7 @@ int qcow2_grow_l1_table(BlockDriverState *bs, uint64_t min_size,
 #endif
 
     new_l1_size2 = sizeof(uint64_t) * new_l1_size;
-    new_l1_table = qemu_try_blockalign(bs->file,
+    new_l1_table = qemu_try_blockalign(bs->file->bs,
                                        align_offset(new_l1_size2, 512));
     if (new_l1_table == NULL) {
         return -ENOMEM;
@@ -105,7 +105,8 @@ int qcow2_grow_l1_table(BlockDriverState *bs, uint64_t min_size,
     BLKDBG_EVENT(bs->file, BLKDBG_L1_GROW_WRITE_TABLE);
     for(i = 0; i < s->l1_size; i++)
         new_l1_table[i] = cpu_to_be64(new_l1_table[i]);
-    ret = bdrv_pwrite_sync(bs->file, new_l1_table_offset, new_l1_table, new_l1_size2);
+    ret = bdrv_pwrite_sync(bs->file->bs, new_l1_table_offset,
+                           new_l1_table, new_l1_size2);
     if (ret < 0)
         goto fail;
     for(i = 0; i < s->l1_size; i++)
@@ -115,7 +116,8 @@ int qcow2_grow_l1_table(BlockDriverState *bs, uint64_t min_size,
     BLKDBG_EVENT(bs->file, BLKDBG_L1_GROW_ACTIVATE_TABLE);
     cpu_to_be32w((uint32_t*)data, new_l1_size);
     stq_be_p(data + 4, new_l1_table_offset);
-    ret = bdrv_pwrite_sync(bs->file, offsetof(QCowHeader, l1_size), data,sizeof(data));
+    ret = bdrv_pwrite_sync(bs->file->bs, offsetof(QCowHeader, l1_size),
+                           data, sizeof(data));
     if (ret < 0) {
         goto fail;
     }
@@ -182,8 +184,9 @@ int qcow2_write_l1_entry(BlockDriverState *bs, int l1_index)
     }
 
     BLKDBG_EVENT(bs->file, BLKDBG_L1_UPDATE);
-    ret = bdrv_pwrite_sync(bs->file, s->l1_table_offset + 8 * l1_start_index,
-        buf, sizeof(buf));
+    ret = bdrv_pwrite_sync(bs->file->bs,
+                           s->l1_table_offset + 8 * l1_start_index,
+                           buf, sizeof(buf));
     if (ret < 0) {
         return ret;
     }
@@ -440,7 +443,8 @@ static int coroutine_fn copy_sectors(BlockDriverState *bs,
     }
 
     BLKDBG_EVENT(bs->file, BLKDBG_COW_WRITE);
-    ret = bdrv_co_writev(bs->file, (cluster_offset >> 9) + n_start, n, &qiov);
+    ret = bdrv_co_writev(bs->file->bs, (cluster_offset >> 9) + n_start, n,
+                         &qiov);
     if (ret < 0) {
         goto out;
     }
@@ -817,7 +821,6 @@ int qcow2_alloc_cluster_link_l2(BlockDriverState *bs, QCowL2Meta *m)
 
     /*
      * If this was a COW, we need to decrease the refcount of the old cluster.
-     * Also flush bs->file to get the right order for L2 and refcount update.
      *
      * Don't discard clusters that reach a refcount of 0 (e.g. compressed
      * clusters), the next write will reuse them anyway.
@@ -1412,7 +1415,8 @@ int qcow2_decompress_cluster(BlockDriverState *bs, uint64_t cluster_offset)
         sector_offset = coffset & 511;
         csize = nb_csectors * 512 - sector_offset;
         BLKDBG_EVENT(bs->file, BLKDBG_READ_COMPRESSED);
-        ret = bdrv_read(bs->file, coffset >> 9, s->cluster_data, nb_csectors);
+        ret = bdrv_read(bs->file->bs, coffset >> 9, s->cluster_data,
+                        nb_csectors);
         if (ret < 0) {
             return ret;
         }
@@ -1645,7 +1649,7 @@ static int expand_zero_clusters_in_l1(BlockDriverState *bs, uint64_t *l1_table,
     if (!is_active_l1) {
         /* inactive L2 tables require a buffer to be stored in when loading
          * them from disk */
-        l2_table = qemu_try_blockalign(bs->file, s->cluster_size);
+        l2_table = qemu_try_blockalign(bs->file->bs, s->cluster_size);
         if (l2_table == NULL) {
             return -ENOMEM;
         }
@@ -1679,8 +1683,8 @@ static int expand_zero_clusters_in_l1(BlockDriverState *bs, uint64_t *l1_table,
                     (void **)&l2_table);
         } else {
             /* load inactive L2 tables from disk */
-            ret = bdrv_read(bs->file, l2_offset / BDRV_SECTOR_SIZE,
-                    (void *)l2_table, s->cluster_sectors);
+            ret = bdrv_read(bs->file->bs, l2_offset / BDRV_SECTOR_SIZE,
+                            (void *)l2_table, s->cluster_sectors);
         }
         if (ret < 0) {
             goto fail;
@@ -1754,7 +1758,7 @@ static int expand_zero_clusters_in_l1(BlockDriverState *bs, uint64_t *l1_table,
                 goto fail;
             }
 
-            ret = bdrv_write_zeroes(bs->file, offset / BDRV_SECTOR_SIZE,
+            ret = bdrv_write_zeroes(bs->file->bs, offset / BDRV_SECTOR_SIZE,
                                     s->cluster_sectors, 0);
             if (ret < 0) {
                 if (!preallocated) {
@@ -1787,8 +1791,8 @@ static int expand_zero_clusters_in_l1(BlockDriverState *bs, uint64_t *l1_table,
                     goto fail;
                 }
 
-                ret = bdrv_write(bs->file, l2_offset / BDRV_SECTOR_SIZE,
-                        (void *)l2_table, s->cluster_sectors);
+                ret = bdrv_write(bs->file->bs, l2_offset / BDRV_SECTOR_SIZE,
+                                 (void *)l2_table, s->cluster_sectors);
                 if (ret < 0) {
                     goto fail;
                 }
@@ -1861,8 +1865,9 @@ int qcow2_expand_zero_clusters(BlockDriverState *bs,
 
         l1_table = g_realloc(l1_table, l1_sectors * BDRV_SECTOR_SIZE);
 
-        ret = bdrv_read(bs->file, s->snapshots[i].l1_table_offset /
-                BDRV_SECTOR_SIZE, (void *)l1_table, l1_sectors);
+        ret = bdrv_read(bs->file->bs,
+                        s->snapshots[i].l1_table_offset / BDRV_SECTOR_SIZE,
+                        (void *)l1_table, l1_sectors);
         if (ret < 0) {
             goto fail;
         }

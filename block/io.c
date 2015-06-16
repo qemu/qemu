@@ -156,15 +156,15 @@ void bdrv_refresh_limits(BlockDriverState *bs, Error **errp)
 
     /* Take some limits from the children as a default */
     if (bs->file) {
-        bdrv_refresh_limits(bs->file, &local_err);
+        bdrv_refresh_limits(bs->file->bs, &local_err);
         if (local_err) {
             error_propagate(errp, local_err);
             return;
         }
-        bs->bl.opt_transfer_length = bs->file->bl.opt_transfer_length;
-        bs->bl.max_transfer_length = bs->file->bl.max_transfer_length;
-        bs->bl.min_mem_alignment = bs->file->bl.min_mem_alignment;
-        bs->bl.opt_mem_alignment = bs->file->bl.opt_mem_alignment;
+        bs->bl.opt_transfer_length = bs->file->bs->bl.opt_transfer_length;
+        bs->bl.max_transfer_length = bs->file->bs->bl.max_transfer_length;
+        bs->bl.min_mem_alignment = bs->file->bs->bl.min_mem_alignment;
+        bs->bl.opt_mem_alignment = bs->file->bs->bl.opt_mem_alignment;
     } else {
         bs->bl.min_mem_alignment = 512;
         bs->bl.opt_mem_alignment = getpagesize();
@@ -224,7 +224,7 @@ static bool bdrv_requests_pending(BlockDriverState *bs)
     if (!qemu_co_queue_empty(&bs->throttled_reqs[1])) {
         return true;
     }
-    if (bs->file && bdrv_requests_pending(bs->file)) {
+    if (bs->file && bdrv_requests_pending(bs->file->bs)) {
         return true;
     }
     if (bs->backing_hd && bdrv_requests_pending(bs->backing_hd)) {
@@ -1137,13 +1137,13 @@ static int coroutine_fn bdrv_aligned_pwritev(BlockDriverState *bs,
     if (ret < 0) {
         /* Do nothing, write notifier decided to fail this request */
     } else if (flags & BDRV_REQ_ZERO_WRITE) {
-        BLKDBG_EVENT(bs, BLKDBG_PWRITEV_ZERO);
+        bdrv_debug_event(bs, BLKDBG_PWRITEV_ZERO);
         ret = bdrv_co_do_write_zeroes(bs, sector_num, nb_sectors, flags);
     } else {
-        BLKDBG_EVENT(bs, BLKDBG_PWRITEV);
+        bdrv_debug_event(bs, BLKDBG_PWRITEV);
         ret = drv->bdrv_co_writev(bs, sector_num, nb_sectors, qiov);
     }
-    BLKDBG_EVENT(bs, BLKDBG_PWRITEV_DONE);
+    bdrv_debug_event(bs, BLKDBG_PWRITEV_DONE);
 
     if (ret == 0 && !bs->enable_write_cache) {
         ret = bdrv_co_flush(bs);
@@ -1192,13 +1192,13 @@ static int coroutine_fn bdrv_co_do_zero_pwritev(BlockDriverState *bs,
         /* RMW the unaligned part before head. */
         mark_request_serialising(req, align);
         wait_serialising_requests(req);
-        BLKDBG_EVENT(bs, BLKDBG_PWRITEV_RMW_HEAD);
+        bdrv_debug_event(bs, BLKDBG_PWRITEV_RMW_HEAD);
         ret = bdrv_aligned_preadv(bs, req, offset & ~(align - 1), align,
                                   align, &local_qiov, 0);
         if (ret < 0) {
             goto fail;
         }
-        BLKDBG_EVENT(bs, BLKDBG_PWRITEV_RMW_AFTER_HEAD);
+        bdrv_debug_event(bs, BLKDBG_PWRITEV_RMW_AFTER_HEAD);
 
         memset(buf + head_padding_bytes, 0, zero_bytes);
         ret = bdrv_aligned_pwritev(bs, req, offset & ~(align - 1), align,
@@ -1230,13 +1230,13 @@ static int coroutine_fn bdrv_co_do_zero_pwritev(BlockDriverState *bs,
         /* RMW the unaligned part after tail. */
         mark_request_serialising(req, align);
         wait_serialising_requests(req);
-        BLKDBG_EVENT(bs, BLKDBG_PWRITEV_RMW_TAIL);
+        bdrv_debug_event(bs, BLKDBG_PWRITEV_RMW_TAIL);
         ret = bdrv_aligned_preadv(bs, req, offset, align,
                                   align, &local_qiov, 0);
         if (ret < 0) {
             goto fail;
         }
-        BLKDBG_EVENT(bs, BLKDBG_PWRITEV_RMW_AFTER_TAIL);
+        bdrv_debug_event(bs, BLKDBG_PWRITEV_RMW_AFTER_TAIL);
 
         memset(buf, 0, bytes);
         ret = bdrv_aligned_pwritev(bs, req, offset, align,
@@ -1307,13 +1307,13 @@ static int coroutine_fn bdrv_co_do_pwritev(BlockDriverState *bs,
         };
         qemu_iovec_init_external(&head_qiov, &head_iov, 1);
 
-        BLKDBG_EVENT(bs, BLKDBG_PWRITEV_RMW_HEAD);
+        bdrv_debug_event(bs, BLKDBG_PWRITEV_RMW_HEAD);
         ret = bdrv_aligned_preadv(bs, &req, offset & ~(align - 1), align,
                                   align, &head_qiov, 0);
         if (ret < 0) {
             goto fail;
         }
-        BLKDBG_EVENT(bs, BLKDBG_PWRITEV_RMW_AFTER_HEAD);
+        bdrv_debug_event(bs, BLKDBG_PWRITEV_RMW_AFTER_HEAD);
 
         qemu_iovec_init(&local_qiov, qiov->niov + 2);
         qemu_iovec_add(&local_qiov, head_buf, offset & (align - 1));
@@ -1341,13 +1341,13 @@ static int coroutine_fn bdrv_co_do_pwritev(BlockDriverState *bs,
         };
         qemu_iovec_init_external(&tail_qiov, &tail_iov, 1);
 
-        BLKDBG_EVENT(bs, BLKDBG_PWRITEV_RMW_TAIL);
+        bdrv_debug_event(bs, BLKDBG_PWRITEV_RMW_TAIL);
         ret = bdrv_aligned_preadv(bs, &req, (offset + bytes) & ~(align - 1), align,
                                   align, &tail_qiov, 0);
         if (ret < 0) {
             goto fail;
         }
-        BLKDBG_EVENT(bs, BLKDBG_PWRITEV_RMW_AFTER_TAIL);
+        bdrv_debug_event(bs, BLKDBG_PWRITEV_RMW_AFTER_TAIL);
 
         if (!use_local_qiov) {
             qemu_iovec_init(&local_qiov, qiov->niov + 1);
@@ -1496,7 +1496,7 @@ static int64_t coroutine_fn bdrv_co_get_block_status(BlockDriverState *bs,
 
     if (ret & BDRV_BLOCK_RAW) {
         assert(ret & BDRV_BLOCK_OFFSET_VALID);
-        return bdrv_get_block_status(bs->file, ret >> BDRV_SECTOR_BITS,
+        return bdrv_get_block_status(bs->file->bs, ret >> BDRV_SECTOR_BITS,
                                      *pnum, pnum);
     }
 
@@ -1519,7 +1519,7 @@ static int64_t coroutine_fn bdrv_co_get_block_status(BlockDriverState *bs,
         (ret & BDRV_BLOCK_OFFSET_VALID)) {
         int file_pnum;
 
-        ret2 = bdrv_co_get_block_status(bs->file, ret >> BDRV_SECTOR_BITS,
+        ret2 = bdrv_co_get_block_status(bs->file->bs, ret >> BDRV_SECTOR_BITS,
                                         *pnum, &file_pnum);
         if (ret2 >= 0) {
             /* Ignore errors.  This is just providing extra information, it
@@ -1723,7 +1723,7 @@ int bdrv_writev_vmstate(BlockDriverState *bs, QEMUIOVector *qiov, int64_t pos)
     } else if (drv->bdrv_save_vmstate) {
         return drv->bdrv_save_vmstate(bs, qiov, pos);
     } else if (bs->file) {
-        return bdrv_writev_vmstate(bs->file, qiov, pos);
+        return bdrv_writev_vmstate(bs->file->bs, qiov, pos);
     }
 
     return -ENOTSUP;
@@ -1738,7 +1738,7 @@ int bdrv_load_vmstate(BlockDriverState *bs, uint8_t *buf,
     if (drv->bdrv_load_vmstate)
         return drv->bdrv_load_vmstate(bs, buf, pos, size);
     if (bs->file)
-        return bdrv_load_vmstate(bs->file, buf, pos, size);
+        return bdrv_load_vmstate(bs->file->bs, buf, pos, size);
     return -ENOTSUP;
 }
 
@@ -2366,7 +2366,7 @@ int coroutine_fn bdrv_co_flush(BlockDriverState *bs)
      * in the case of cache=unsafe, so there are no useless flushes.
      */
 flush_parent:
-    return bdrv_co_flush(bs->file);
+    return bs->file ? bdrv_co_flush(bs->file->bs) : 0;
 }
 
 int bdrv_flush(BlockDriverState *bs)
@@ -2594,7 +2594,7 @@ void bdrv_io_plug(BlockDriverState *bs)
     if (drv && drv->bdrv_io_plug) {
         drv->bdrv_io_plug(bs);
     } else if (bs->file) {
-        bdrv_io_plug(bs->file);
+        bdrv_io_plug(bs->file->bs);
     }
 }
 
@@ -2604,7 +2604,7 @@ void bdrv_io_unplug(BlockDriverState *bs)
     if (drv && drv->bdrv_io_unplug) {
         drv->bdrv_io_unplug(bs);
     } else if (bs->file) {
-        bdrv_io_unplug(bs->file);
+        bdrv_io_unplug(bs->file->bs);
     }
 }
 
@@ -2614,7 +2614,7 @@ void bdrv_flush_io_queue(BlockDriverState *bs)
     if (drv && drv->bdrv_flush_io_queue) {
         drv->bdrv_flush_io_queue(bs);
     } else if (bs->file) {
-        bdrv_flush_io_queue(bs->file);
+        bdrv_flush_io_queue(bs->file->bs);
     }
     bdrv_start_throttled_reqs(bs);
 }

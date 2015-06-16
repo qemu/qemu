@@ -149,7 +149,7 @@ int bdrv_can_snapshot(BlockDriverState *bs)
 
     if (!drv->bdrv_snapshot_create) {
         if (bs->file != NULL) {
-            return bdrv_can_snapshot(bs->file);
+            return bdrv_can_snapshot(bs->file->bs);
         }
         return 0;
     }
@@ -168,7 +168,7 @@ int bdrv_snapshot_create(BlockDriverState *bs,
         return drv->bdrv_snapshot_create(bs, sn_info);
     }
     if (bs->file) {
-        return bdrv_snapshot_create(bs->file, sn_info);
+        return bdrv_snapshot_create(bs->file->bs, sn_info);
     }
     return -ENOTSUP;
 }
@@ -188,10 +188,10 @@ int bdrv_snapshot_goto(BlockDriverState *bs,
 
     if (bs->file) {
         drv->bdrv_close(bs);
-        ret = bdrv_snapshot_goto(bs->file, snapshot_id);
+        ret = bdrv_snapshot_goto(bs->file->bs, snapshot_id);
         open_ret = drv->bdrv_open(bs, NULL, bs->open_flags, NULL);
         if (open_ret < 0) {
-            bdrv_unref(bs->file);
+            bdrv_unref(bs->file->bs);
             bs->drv = NULL;
             return open_ret;
         }
@@ -245,7 +245,7 @@ int bdrv_snapshot_delete(BlockDriverState *bs,
         return drv->bdrv_snapshot_delete(bs, snapshot_id, name, errp);
     }
     if (bs->file) {
-        return bdrv_snapshot_delete(bs->file, snapshot_id, name, errp);
+        return bdrv_snapshot_delete(bs->file->bs, snapshot_id, name, errp);
     }
     error_setg(errp, "Block format '%s' used by device '%s' "
                "does not support internal snapshot deletion",
@@ -283,7 +283,7 @@ int bdrv_snapshot_list(BlockDriverState *bs,
         return drv->bdrv_snapshot_list(bs, psn_info);
     }
     if (bs->file) {
-        return bdrv_snapshot_list(bs->file, psn_info);
+        return bdrv_snapshot_list(bs->file->bs, psn_info);
     }
     return -ENOTSUP;
 }

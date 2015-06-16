@@ -809,7 +809,7 @@ static QemuOptsList bdrv_runtime_opts = {
  *
  * Removes all processed options from *options.
  */
-static int bdrv_open_common(BlockDriverState *bs, BlockDriverState *file,
+static int bdrv_open_common(BlockDriverState *bs, BdrvChild *file,
     QDict *options, int flags, BlockDriver *drv, Error **errp)
 {
     int ret, open_flags;
@@ -823,7 +823,7 @@ static int bdrv_open_common(BlockDriverState *bs, BlockDriverState *file,
     assert(options != NULL && bs->options != options);
 
     if (file != NULL) {
-        filename = file->filename;
+        filename = file->bs->filename;
     } else {
         filename = qdict_get_try_str(options, "filename");
     }
@@ -1401,7 +1401,8 @@ static int bdrv_open_inherit(BlockDriverState **pbs, const char *filename,
                              const BdrvChildRole *child_role, Error **errp)
 {
     int ret;
-    BlockDriverState *file = NULL, *bs;
+    BdrvChild *file = NULL;
+    BlockDriverState *bs;
     BlockDriver *drv = NULL;
     const char *drvname;
     Error *local_err = NULL;
@@ -1485,25 +1486,20 @@ static int bdrv_open_inherit(BlockDriverState **pbs, const char *filename,
             flags = bdrv_backing_flags(flags);
         }
 
-        assert(file == NULL);
         bs->open_flags = flags;
 
-        bs->file_child = bdrv_open_child(filename, options, "file", bs,
-                                         &child_file, true, &local_err);
+        file = bdrv_open_child(filename, options, "file", bs,
+                               &child_file, true, &local_err);
         if (local_err) {
             ret = -EINVAL;
             goto fail;
-        }
-
-        if (bs->file_child) {
-            file = bs->file_child->bs;
         }
     }
 
     /* Image format probing */
     bs->probed = !drv;
     if (!drv && file) {
-        ret = find_image_format(file, filename, &drv, &local_err);
+        ret = find_image_format(file->bs, filename, &drv, &local_err);
         if (ret < 0) {
             goto fail;
         }
@@ -1526,7 +1522,7 @@ static int bdrv_open_inherit(BlockDriverState **pbs, const char *filename,
     }
 
     if (file && (bs->file != file)) {
-        bdrv_unref(file);
+        bdrv_unref_child(bs, file);
         file = NULL;
     }
 
@@ -1587,7 +1583,7 @@ static int bdrv_open_inherit(BlockDriverState **pbs, const char *filename,
 
 fail:
     if (file != NULL) {
-        bdrv_unref(file);
+        bdrv_unref_child(bs, file);
     }
     QDECREF(bs->options);
     QDECREF(options);
@@ -1928,11 +1924,17 @@ void bdrv_close(BlockDriverState *bs)
         BdrvChild *child, *next;
 
         bs->drv->bdrv_close(bs);
+        bs->drv = NULL;
 
         if (bs->backing_hd) {
             BlockDriverState *backing_hd = bs->backing_hd;
             bdrv_set_backing_hd(bs, NULL);
             bdrv_unref(backing_hd);
+        }
+
+        if (bs->file != NULL) {
+            bdrv_unref_child(bs, bs->file);
+            bs->file = NULL;
         }
 
         QLIST_FOREACH_SAFE(child, &bs->children, next, next) {
@@ -1946,7 +1948,6 @@ void bdrv_close(BlockDriverState *bs)
 
         g_free(bs->opaque);
         bs->opaque = NULL;
-        bs->drv = NULL;
         bs->copy_on_read = 0;
         bs->backing_file[0] = '\0';
         bs->backing_format[0] = '\0';
@@ -1959,11 +1960,6 @@ void bdrv_close(BlockDriverState *bs)
         bs->options = NULL;
         QDECREF(bs->full_open_options);
         bs->full_open_options = NULL;
-
-        if (bs->file != NULL) {
-            bdrv_unref(bs->file);
-            bs->file = NULL;
-        }
     }
 
     if (bs->blk) {
@@ -2566,7 +2562,7 @@ int64_t bdrv_get_allocated_file_size(BlockDriverState *bs)
         return drv->bdrv_get_allocated_file_size(bs);
     }
     if (bs->file) {
-        return bdrv_get_allocated_file_size(bs->file);
+        return bdrv_get_allocated_file_size(bs->file->bs);
     }
     return -ENOTSUP;
 }
@@ -3048,7 +3044,7 @@ int bdrv_debug_breakpoint(BlockDriverState *bs, const char *event,
                           const char *tag)
 {
     while (bs && bs->drv && !bs->drv->bdrv_debug_breakpoint) {
-        bs = bs->file;
+        bs = bs->file ? bs->file->bs : NULL;
     }
 
     if (bs && bs->drv && bs->drv->bdrv_debug_breakpoint) {
@@ -3061,7 +3057,7 @@ int bdrv_debug_breakpoint(BlockDriverState *bs, const char *event,
 int bdrv_debug_remove_breakpoint(BlockDriverState *bs, const char *tag)
 {
     while (bs && bs->drv && !bs->drv->bdrv_debug_remove_breakpoint) {
-        bs = bs->file;
+        bs = bs->file ? bs->file->bs : NULL;
     }
 
     if (bs && bs->drv && bs->drv->bdrv_debug_remove_breakpoint) {
@@ -3074,7 +3070,7 @@ int bdrv_debug_remove_breakpoint(BlockDriverState *bs, const char *tag)
 int bdrv_debug_resume(BlockDriverState *bs, const char *tag)
 {
     while (bs && (!bs->drv || !bs->drv->bdrv_debug_resume)) {
-        bs = bs->file;
+        bs = bs->file ? bs->file->bs : NULL;
     }
 
     if (bs && bs->drv && bs->drv->bdrv_debug_resume) {
@@ -3087,7 +3083,7 @@ int bdrv_debug_resume(BlockDriverState *bs, const char *tag)
 bool bdrv_debug_is_suspended(BlockDriverState *bs, const char *tag)
 {
     while (bs && bs->drv && !bs->drv->bdrv_debug_is_suspended) {
-        bs = bs->file;
+        bs = bs->file ? bs->file->bs : NULL;
     }
 
     if (bs && bs->drv && bs->drv->bdrv_debug_is_suspended) {
@@ -3209,7 +3205,7 @@ void bdrv_invalidate_cache(BlockDriverState *bs, Error **errp)
     if (bs->drv->bdrv_invalidate_cache) {
         bs->drv->bdrv_invalidate_cache(bs, &local_err);
     } else if (bs->file) {
-        bdrv_invalidate_cache(bs->file, &local_err);
+        bdrv_invalidate_cache(bs->file->bs, &local_err);
     }
     if (local_err) {
         error_propagate(errp, local_err);
@@ -3939,7 +3935,7 @@ void bdrv_detach_aio_context(BlockDriverState *bs)
         bs->drv->bdrv_detach_aio_context(bs);
     }
     if (bs->file) {
-        bdrv_detach_aio_context(bs->file);
+        bdrv_detach_aio_context(bs->file->bs);
     }
     if (bs->backing_hd) {
         bdrv_detach_aio_context(bs->backing_hd);
@@ -3963,7 +3959,7 @@ void bdrv_attach_aio_context(BlockDriverState *bs,
         bdrv_attach_aio_context(bs->backing_hd, new_context);
     }
     if (bs->file) {
-        bdrv_attach_aio_context(bs->file, new_context);
+        bdrv_attach_aio_context(bs->file->bs, new_context);
     }
     if (bs->drv->bdrv_attach_aio_context) {
         bs->drv->bdrv_attach_aio_context(bs, new_context);
@@ -4175,7 +4171,7 @@ void bdrv_refresh_filename(BlockDriverState *bs)
     /* This BDS's file name will most probably depend on its file's name, so
      * refresh that first */
     if (bs->file) {
-        bdrv_refresh_filename(bs->file);
+        bdrv_refresh_filename(bs->file->bs);
     }
 
     if (drv->bdrv_refresh_filename) {
@@ -4203,19 +4199,20 @@ void bdrv_refresh_filename(BlockDriverState *bs)
 
         /* If no specific options have been given for this BDS, the filename of
          * the underlying file should suffice for this one as well */
-        if (bs->file->exact_filename[0] && !has_open_options) {
-            strcpy(bs->exact_filename, bs->file->exact_filename);
+        if (bs->file->bs->exact_filename[0] && !has_open_options) {
+            strcpy(bs->exact_filename, bs->file->bs->exact_filename);
         }
         /* Reconstructing the full options QDict is simple for most format block
          * drivers, as long as the full options are known for the underlying
          * file BDS. The full options QDict of that file BDS should somehow
          * contain a representation of the filename, therefore the following
          * suffices without querying the (exact_)filename of this BDS. */
-        if (bs->file->full_open_options) {
+        if (bs->file->bs->full_open_options) {
             qdict_put_obj(opts, "driver",
                           QOBJECT(qstring_from_str(drv->format_name)));
-            QINCREF(bs->file->full_open_options);
-            qdict_put_obj(opts, "file", QOBJECT(bs->file->full_open_options));
+            QINCREF(bs->file->bs->full_open_options);
+            qdict_put_obj(opts, "file",
+                          QOBJECT(bs->file->bs->full_open_options));
 
             bs->full_open_options = opts;
         } else {

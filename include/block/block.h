@@ -585,7 +585,13 @@ typedef enum {
     BLKDBG_EVENT_MAX,
 } BlkDebugEvent;
 
-#define BLKDBG_EVENT(bs, evt) bdrv_debug_event(bs, evt)
+#define BLKDBG_EVENT(child, evt) \
+    do { \
+        if (child) { \
+            bdrv_debug_event(child->bs, evt); \
+        } \
+    } while (0)
+
 void bdrv_debug_event(BlockDriverState *bs, BlkDebugEvent event);
 
 int bdrv_debug_breakpoint(BlockDriverState *bs, const char *event,

@@ -359,7 +359,7 @@ static BlockStats *bdrv_query_stats(const BlockDriverState *bs,
 
     if (bs->file) {
         s->has_parent = true;
-        s->parent = bdrv_query_stats(bs->file, query_backing);
+        s->parent = bdrv_query_stats(bs->file->bs, query_backing);
     }
 
     if (query_backing && bs->backing_hd) {

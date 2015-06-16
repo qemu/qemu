@@ -221,7 +221,7 @@ static void vmdk_free_extents(BlockDriverState *bs)
         g_free(e->l2_cache);
         g_free(e->l1_backup_table);
         g_free(e->type);
-        if (e->file != bs->file_child) {
+        if (e->file != bs->file) {
             bdrv_unref_child(bs, e->file);
         }
     }
@@ -248,7 +248,7 @@ static uint32_t vmdk_read_cid(BlockDriverState *bs, int parent)
     BDRVVmdkState *s = bs->opaque;
     int ret;
 
-    ret = bdrv_pread(bs->file, s->desc_offset, desc, DESC_SIZE);
+    ret = bdrv_pread(bs->file->bs, s->desc_offset, desc, DESC_SIZE);
     if (ret < 0) {
         return 0;
     }
@@ -278,7 +278,7 @@ static int vmdk_write_cid(BlockDriverState *bs, uint32_t cid)
     BDRVVmdkState *s = bs->opaque;
     int ret;
 
-    ret = bdrv_pread(bs->file, s->desc_offset, desc, DESC_SIZE);
+    ret = bdrv_pread(bs->file->bs, s->desc_offset, desc, DESC_SIZE);
     if (ret < 0) {
         return ret;
     }
@@ -297,7 +297,7 @@ static int vmdk_write_cid(BlockDriverState *bs, uint32_t cid)
         pstrcat(desc, sizeof(desc), tmp_desc);
     }
 
-    ret = bdrv_pwrite_sync(bs->file, s->desc_offset, desc, DESC_SIZE);
+    ret = bdrv_pwrite_sync(bs->file->bs, s->desc_offset, desc, DESC_SIZE);
     if (ret < 0) {
         return ret;
     }
@@ -340,7 +340,7 @@ static int vmdk_parent_open(BlockDriverState *bs)
     int ret;
 
     desc[DESC_SIZE] = '\0';
-    ret = bdrv_pread(bs->file, s->desc_offset, desc, DESC_SIZE);
+    ret = bdrv_pread(bs->file->bs, s->desc_offset, desc, DESC_SIZE);
     if (ret < 0) {
         return ret;
     }
@@ -621,7 +621,7 @@ static int vmdk_open_vmdk4(BlockDriverState *bs,
         } QEMU_PACKED footer;
 
         ret = bdrv_pread(file->bs,
-            bs->file->total_sectors * 512 - 1536,
+            bs->file->bs->total_sectors * 512 - 1536,
             &footer, sizeof(footer));
         if (ret < 0) {
             error_setg_errno(errp, -ret, "Failed to read footer");
@@ -819,7 +819,7 @@ static int vmdk_parse_extents(const char *desc, BlockDriverState *bs,
             !desc_file_path[0])
         {
             error_setg(errp, "Cannot use relative extent paths with VMDK "
-                       "descriptor file '%s'", bs->file->filename);
+                       "descriptor file '%s'", bs->file->bs->filename);
             return -EINVAL;
         }
 
@@ -905,7 +905,8 @@ static int vmdk_open_desc_file(BlockDriverState *bs, int flags, char *buf,
     }
     s->create_type = g_strdup(ct);
     s->desc_offset = 0;
-    ret = vmdk_parse_extents(buf, bs, bs->file->exact_filename, options, errp);
+    ret = vmdk_parse_extents(buf, bs, bs->file->bs->exact_filename, options,
+                             errp);
 exit:
     return ret;
 }
@@ -918,7 +919,7 @@ static int vmdk_open(BlockDriverState *bs, QDict *options, int flags,
     BDRVVmdkState *s = bs->opaque;
     uint32_t magic;
 
-    buf = vmdk_read_desc(bs->file, 0, errp);
+    buf = vmdk_read_desc(bs->file->bs, 0, errp);
     if (!buf) {
         return -EINVAL;
     }
@@ -927,7 +928,7 @@ static int vmdk_open(BlockDriverState *bs, QDict *options, int flags,
     switch (magic) {
         case VMDK3_MAGIC:
         case VMDK4_MAGIC:
-            ret = vmdk_open_sparse(bs, bs->file_child, flags, buf, options,
+            ret = vmdk_open_sparse(bs, bs->file, flags, buf, options,
                                    errp);
             s->desc_offset = 0x200;
             break;
@@ -1275,7 +1276,7 @@ static int64_t coroutine_fn vmdk_co_get_block_status(BlockDriverState *bs,
         break;
     case VMDK_OK:
         ret = BDRV_BLOCK_DATA;
-        if (extent->file == bs->file_child && !extent->compressed) {
+        if (extent->file == bs->file && !extent->compressed) {
             ret |= BDRV_BLOCK_OFFSET_VALID | offset;
         }
 
@@ -2051,12 +2052,12 @@ static int64_t vmdk_get_allocated_file_size(BlockDriverState *bs)
     int64_t r;
     BDRVVmdkState *s = bs->opaque;
 
-    ret = bdrv_get_allocated_file_size(bs->file);
+    ret = bdrv_get_allocated_file_size(bs->file->bs);
     if (ret < 0) {
         return ret;
     }
     for (i = 0; i < s->num_extents; i++) {
-        if (s->extents[i].file == bs->file_child) {
+        if (s->extents[i].file == bs->file) {
             continue;
         }
         r = bdrv_get_allocated_file_size(s->extents[i].file->bs);

@@ -399,7 +399,7 @@ static int vdi_open(BlockDriverState *bs, QDict *options, int flags,
 
     logout("\n");
 
-    ret = bdrv_read(bs->file, 0, (uint8_t *)&header, 1);
+    ret = bdrv_read(bs->file->bs, 0, (uint8_t *)&header, 1);
     if (ret < 0) {
         goto fail;
     }
@@ -490,13 +490,14 @@ static int vdi_open(BlockDriverState *bs, QDict *options, int flags,
 
     bmap_size = header.blocks_in_image * sizeof(uint32_t);
     bmap_size = DIV_ROUND_UP(bmap_size, SECTOR_SIZE);
-    s->bmap = qemu_try_blockalign(bs->file, bmap_size * SECTOR_SIZE);
+    s->bmap = qemu_try_blockalign(bs->file->bs, bmap_size * SECTOR_SIZE);
     if (s->bmap == NULL) {
         ret = -ENOMEM;
         goto fail;
     }
 
-    ret = bdrv_read(bs->file, s->bmap_sector, (uint8_t *)s->bmap, bmap_size);
+    ret = bdrv_read(bs->file->bs, s->bmap_sector, (uint8_t *)s->bmap,
+                    bmap_size);
     if (ret < 0) {
         goto fail_free_bmap;
     }
@@ -585,7 +586,7 @@ static int vdi_co_read(BlockDriverState *bs,
             uint64_t offset = s->header.offset_data / SECTOR_SIZE +
                               (uint64_t)bmap_entry * s->block_sectors +
                               sector_in_block;
-            ret = bdrv_read(bs->file, offset, buf, n_sectors);
+            ret = bdrv_read(bs->file->bs, offset, buf, n_sectors);
         }
         logout("%u sectors read\n", n_sectors);
 
@@ -653,7 +654,7 @@ static int vdi_co_write(BlockDriverState *bs,
              * acquire the lock and thus the padded cluster is written before
              * the other coroutines can write to the affected area. */
             qemu_co_mutex_lock(&s->write_lock);
-            ret = bdrv_write(bs->file, offset, block, s->block_sectors);
+            ret = bdrv_write(bs->file->bs, offset, block, s->block_sectors);
             qemu_co_mutex_unlock(&s->write_lock);
         } else {
             uint64_t offset = s->header.offset_data / SECTOR_SIZE +
@@ -669,7 +670,7 @@ static int vdi_co_write(BlockDriverState *bs,
              * that that write operation has returned (there may be other writes
              * in flight, but they do not concern this very operation). */
             qemu_co_mutex_unlock(&s->write_lock);
-            ret = bdrv_write(bs->file, offset, buf, n_sectors);
+            ret = bdrv_write(bs->file->bs, offset, buf, n_sectors);
         }
 
         nb_sectors -= n_sectors;
@@ -694,7 +695,7 @@ static int vdi_co_write(BlockDriverState *bs,
         assert(VDI_IS_ALLOCATED(bmap_first));
         *header = s->header;
         vdi_header_to_le(header);
-        ret = bdrv_write(bs->file, 0, block, 1);
+        ret = bdrv_write(bs->file->bs, 0, block, 1);
         g_free(block);
         block = NULL;
 
@@ -712,7 +713,7 @@ static int vdi_co_write(BlockDriverState *bs,
         base = ((uint8_t *)&s->bmap[0]) + bmap_first * SECTOR_SIZE;
         logout("will write %u block map sectors starting from entry %u\n",
                n_sectors, bmap_first);
-        ret = bdrv_write(bs->file, offset, base, n_sectors);
+        ret = bdrv_write(bs->file->bs, offset, base, n_sectors);
     }
 
     return ret;
