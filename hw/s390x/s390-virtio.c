@@ -345,7 +345,6 @@ static void s390_machine_class_init(ObjectClass *oc, void *data)
     mc->no_floppy = 1;
     mc->no_cdrom = 1;
     mc->no_sdcard = 1;
-    mc->is_default = 1;
     nc->nmi_monitor_handler = s390_nmi;
 }
 

@@ -942,7 +942,7 @@ DriveInfo *drive_new(QemuOpts *all_opts, BlockInterfaceType block_default_type)
         devopts = qemu_opts_create(qemu_find_opts("device"), NULL, 0,
                                    &error_abort);
         if (arch_type == QEMU_ARCH_S390X) {
-            qemu_opt_set(devopts, "driver", "virtio-blk-s390", &error_abort);
+            qemu_opt_set(devopts, "driver", "virtio-blk-ccw", &error_abort);
         } else {
             qemu_opt_set(devopts, "driver", "virtio-blk-pci", &error_abort);
         }
