@@ -1643,8 +1643,10 @@ static void tcg_out_qemu_ld(TCGContext* s, TCGReg data_reg, TCGReg addr_reg,
 
     base_reg = tcg_out_tlb_read(s, addr_reg, opc, mem_index, 1);
 
-    label_ptr = s->code_ptr + 1;
-    tcg_out_insn(s, RI, BRC, S390_CC_NE, 0);
+    /* We need to keep the offset unchanged for retranslation.  */
+    tcg_out16(s, RI_BRC | (S390_CC_NE << 4));
+    label_ptr = s->code_ptr;
+    s->code_ptr += 1;
 
     tcg_out_qemu_ld_direct(s, opc, data_reg, base_reg, TCG_REG_R2, 0);
 
@@ -1669,8 +1671,10 @@ static void tcg_out_qemu_st(TCGContext* s, TCGReg data_reg, TCGReg addr_reg,
 
     base_reg = tcg_out_tlb_read(s, addr_reg, opc, mem_index, 0);
 
-    label_ptr = s->code_ptr + 1;
-    tcg_out_insn(s, RI, BRC, S390_CC_NE, 0);
+    /* We need to keep the offset unchanged for retranslation.  */
+    tcg_out16(s, RI_BRC | (S390_CC_NE << 4));
+    label_ptr = s->code_ptr;
+    s->code_ptr += 1;
 
     tcg_out_qemu_st_direct(s, opc, data_reg, base_reg, TCG_REG_R2, 0);
 
