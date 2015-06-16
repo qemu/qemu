@@ -550,7 +550,6 @@ void migrate_fd_error(MigrationState *s)
     trace_migrate_fd_error();
     assert(s->file == NULL);
     migrate_set_state(s, MIGRATION_STATUS_SETUP, MIGRATION_STATUS_FAILED);
-    trace_migrate_set_state(MIGRATION_STATUS_FAILED);
     notifier_list_notify(&migration_state_notifiers, s);
 }
 
@@ -635,7 +634,6 @@ static MigrationState *migrate_init(const MigrationParams *params)
                decompress_thread_count;
     s->bandwidth_limit = bandwidth_limit;
     migrate_set_state(s, MIGRATION_STATUS_NONE, MIGRATION_STATUS_SETUP);
-    trace_migrate_set_state(MIGRATION_STATUS_SETUP);
 
     s->total_time = qemu_clock_get_ms(QEMU_CLOCK_REALTIME);
     return s;
