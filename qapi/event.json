@@ -255,6 +255,23 @@
   'data': {'status': 'MigrationStatus'}}
 
 ##
+# @COLO_EXIT
+#
+# Emitted when VM finishes COLO mode due to some errors happening or
+# at the request of users.
+#
+# @mode: which COLO mode the VM was in when it exited.
+#
+# @reason: describes the reason for the COLO exit.
+#
+# @error: #optional, error message. Only present on error happening.
+#
+# Since: 2.6
+##
+{ 'event': 'COLO_EXIT',
+  'data': {'mode': 'COLOMode', 'reason': 'COLOExitReason', '*error': 'str' } }
+
+##
 # @ACPI_DEVICE_OST
 #
 # Emitted when guest executes ACPI _OST method.

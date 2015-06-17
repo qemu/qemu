@@ -18,6 +18,7 @@
 #include "qemu/error-report.h"
 #include "qemu/sockets.h"
 #include "migration/failover.h"
+#include "qapi-event.h"
 
 /*
  * The delay time before qemu begin the procedure of default failover treatment.
@@ -334,6 +335,9 @@ out:
     current_time = error_time = qemu_clock_get_ms(QEMU_CLOCK_HOST);
     if (ret < 0) {
         error_report("%s: %s", __func__, strerror(-ret));
+        qapi_event_send_colo_exit(COLO_MODE_PRIMARY, COLO_EXIT_REASON_ERROR,
+                                  true, strerror(-ret), NULL);
+
         /* Give users time to get involved in this verdict */
         while (current_time - error_time <= DEFAULT_FAILOVER_DELAY) {
             if (failover_request_is_active()) {
@@ -350,6 +354,9 @@ out:
             failover_request_active(NULL);
         }
         qemu_mutex_unlock_iothread();
+    } else {
+        qapi_event_send_colo_exit(COLO_MODE_PRIMARY, COLO_EXIT_REASON_REQUEST,
+                                  false, NULL, NULL);
     }
 
     qsb_free(buffer);
@@ -530,6 +537,9 @@ out:
     if (ret < 0) {
         error_report("colo incoming thread will exit, detect error: %s",
                      strerror(-ret));
+        qapi_event_send_colo_exit(COLO_MODE_SECONDARY, COLO_EXIT_REASON_ERROR,
+                                  true, strerror(-ret), NULL);
+
         /* Give users time to get involved in this verdict */
         while (current_time - error_time <= DEFAULT_FAILOVER_DELAY) {
             if (failover_request_is_active()) {
@@ -548,6 +558,9 @@ out:
             error_report("SVM is going to exit in default!");
             exit(1);
         }
+    } else {
+        qapi_event_send_colo_exit(COLO_MODE_SECONDARY, COLO_EXIT_REASON_REQUEST,
+                                  false, NULL, NULL);
     }
 
     if (fb) {
