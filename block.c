@@ -1141,6 +1141,7 @@ void bdrv_set_backing_hd(BlockDriverState *bs, BlockDriverState *backing_hd)
     if (bs->backing_hd) {
         assert(bs->backing_blocker);
         bdrv_op_unblock_all(bs->backing_hd, bs->backing_blocker);
+        bdrv_detach_child(bs->backing_child);
     } else if (backing_hd) {
         error_setg(&bs->backing_blocker,
                    "node is used as backing hd of '%s'",
@@ -1151,8 +1152,10 @@ void bdrv_set_backing_hd(BlockDriverState *bs, BlockDriverState *backing_hd)
     if (!backing_hd) {
         error_free(bs->backing_blocker);
         bs->backing_blocker = NULL;
+        bs->backing_child = NULL;
         goto out;
     }
+    bs->backing_child = bdrv_attach_child(bs, backing_hd, &child_backing);
     bs->open_flags &= ~BDRV_O_NO_BACKING;
     pstrcpy(bs->backing_file, sizeof(bs->backing_file), backing_hd->filename);
     pstrcpy(bs->backing_format, sizeof(bs->backing_format),
@@ -1236,7 +1239,6 @@ int bdrv_open_backing_file(BlockDriverState *bs, QDict *options, Error **errp)
         goto free_exit;
     }
 
-    bdrv_attach_child(bs, backing_hd, &child_backing);
     bdrv_set_backing_hd(bs, backing_hd);
 
 free_exit:
@@ -2171,7 +2173,6 @@ void bdrv_append(BlockDriverState *bs_new, BlockDriverState *bs_top)
     /* The contents of 'tmp' will become bs_top, as we are
      * swapping bs_new and bs_top contents. */
     bdrv_set_backing_hd(bs_top, bs_new);
-    bdrv_attach_child(bs_top, bs_new, &child_backing);
 }
 
 static void bdrv_delete(BlockDriverState *bs)

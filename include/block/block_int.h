@@ -379,6 +379,7 @@ struct BlockDriverState {
     char exact_filename[PATH_MAX];
 
     BlockDriverState *backing_hd;
+    BdrvChild *backing_child;
     BlockDriverState *file;
 
     NotifierList close_notifiers;
