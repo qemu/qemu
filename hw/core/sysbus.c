@@ -281,19 +281,15 @@ static void sysbus_dev_print(Monitor *mon, DeviceState *dev, int indent)
 static char *sysbus_get_fw_dev_path(DeviceState *dev)
 {
     SysBusDevice *s = SYS_BUS_DEVICE(dev);
-    char path[40];
-    int off;
-
-    off = snprintf(path, sizeof(path), "%s", qdev_fw_name(dev));
 
     if (s->num_mmio) {
-        snprintf(path + off, sizeof(path) - off, "@"TARGET_FMT_plx,
-                 s->mmio[0].addr);
-    } else if (s->num_pio) {
-        snprintf(path + off, sizeof(path) - off, "@i%04x", s->pio[0]);
+        return g_strdup_printf("%s@" TARGET_FMT_plx, qdev_fw_name(dev),
+                               s->mmio[0].addr);
     }
-
-    return g_strdup(path);
+    if (s->num_pio) {
+        return g_strdup_printf("%s@i%04x", qdev_fw_name(dev), s->pio[0]);
+    }
+    return g_strdup(qdev_fw_name(dev));
 }
 
 void sysbus_add_io(SysBusDevice *dev, hwaddr addr,
