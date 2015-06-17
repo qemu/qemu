@@ -184,6 +184,22 @@ Example:
 Note: The "ready to complete" status is always reset by a BLOCK_JOB_ERROR
 event.
 
+COLO_EXIT
+---------
+
+Emitted when VM finishes COLO mode due to some errors happening or
+at the request of users.
+
+Data:
+
+ - "mode": COLO mode, primary or secondary side (json-string)
+ - "reason": the exit reason, internal error or external request. (json-string)
+
+Example:
+
+{"timestamp": {"seconds": 2032141960, "microseconds": 417172},
+ "event": "COLO_EXIT", "data": {"mode": "primary", "reason": "request" } }
+
 DEVICE_DELETED
 --------------
 
