@@ -1431,12 +1431,22 @@ void tb_check_watchpoint(CPUState *cpu)
     TranslationBlock *tb;
 
     tb = tb_find_pc(cpu->mem_io_pc);
-    if (!tb) {
-        cpu_abort(cpu, "check_watchpoint: could not find TB for pc=%p",
-                  (void *)cpu->mem_io_pc);
+    if (tb) {
+        /* We can use retranslation to find the PC.  */
+        cpu_restore_state_from_tb(cpu, tb, cpu->mem_io_pc);
+        tb_phys_invalidate(tb, -1);
+    } else {
+        /* The exception probably happened in a helper.  The CPU state should
+           have been saved before calling it. Fetch the PC from there.  */
+        CPUArchState *env = cpu->env_ptr;
+        target_ulong pc, cs_base;
+        tb_page_addr_t addr;
+        int flags;
+
+        cpu_get_tb_cpu_state(env, &pc, &cs_base, &flags);
+        addr = get_page_addr_code(env, pc);
+        tb_invalidate_phys_range(addr, addr + 1);
     }
-    cpu_restore_state_from_tb(cpu, tb, cpu->mem_io_pc);
-    tb_phys_invalidate(tb, -1);
 }
 
 #ifndef CONFIG_USER_ONLY

@@ -1401,6 +1401,10 @@ static void virtio_ccw_device_plugged(DeviceState *d, Error **errp)
         return;
     }
 
+    if (!kvm_eventfds_enabled()) {
+        dev->flags &= ~VIRTIO_CCW_FLAG_USE_IOEVENTFD;
+    }
+
     sch->id.cu_model = virtio_bus_get_vdev_id(&dev->bus);
 
     css_generate_sch_crws(sch->cssid, sch->ssid, sch->schid,

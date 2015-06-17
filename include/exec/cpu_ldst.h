@@ -399,6 +399,8 @@ uint64_t helper_ldq_cmmu(CPUArchState *env, target_ulong addr, int mmu_idx);
 #undef MEMSUFFIX
 #undef SOFTMMU_CODE_ACCESS
 
+#endif /* defined(CONFIG_USER_ONLY) */
+
 /**
  * tlb_vaddr_to_host:
  * @env: CPUArchState
@@ -417,6 +419,9 @@ uint64_t helper_ldq_cmmu(CPUArchState *env, target_ulong addr, int mmu_idx);
 static inline void *tlb_vaddr_to_host(CPUArchState *env, target_ulong addr,
                                       int access_type, int mmu_idx)
 {
+#if defined(CONFIG_USER_ONLY)
+    return g2h(vaddr);
+#else
     int index = (addr >> TARGET_PAGE_BITS) & (CPU_TLB_SIZE - 1);
     CPUTLBEntry *tlbentry = &env->tlb_table[mmu_idx][index];
     target_ulong tlb_addr;
@@ -449,8 +454,7 @@ static inline void *tlb_vaddr_to_host(CPUArchState *env, target_ulong addr,
 
     haddr = addr + env->tlb_table[mmu_idx][index].addend;
     return (void *)haddr;
-}
-
 #endif /* defined(CONFIG_USER_ONLY) */
+}
 
 #endif /* CPU_LDST_H */

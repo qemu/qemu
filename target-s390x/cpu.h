@@ -111,6 +111,9 @@ typedef struct CPUS390XState {
     uint32_t int_svc_code;
     uint32_t int_svc_ilen;
 
+    uint64_t per_address;
+    uint16_t per_perc_atmid;
+
     uint64_t cregs[16]; /* control registers */
 
     ExtQueue ext_queue[MAX_EXT_QUEUE];
@@ -361,6 +364,45 @@ static inline int get_ilen(uint8_t opc)
         return 4;
     default:
         return 6;
+    }
+}
+
+/* PER bits from control register 9 */
+#define PER_CR9_EVENT_BRANCH           0x80000000
+#define PER_CR9_EVENT_IFETCH           0x40000000
+#define PER_CR9_EVENT_STORE            0x20000000
+#define PER_CR9_EVENT_STORE_REAL       0x08000000
+#define PER_CR9_EVENT_NULLIFICATION    0x01000000
+#define PER_CR9_CONTROL_BRANCH_ADDRESS 0x00800000
+#define PER_CR9_CONTROL_ALTERATION     0x00200000
+
+/* PER bits from the PER CODE/ATMID/AI in lowcore */
+#define PER_CODE_EVENT_BRANCH          0x8000
+#define PER_CODE_EVENT_IFETCH          0x4000
+#define PER_CODE_EVENT_STORE           0x2000
+#define PER_CODE_EVENT_STORE_REAL      0x0800
+#define PER_CODE_EVENT_NULLIFICATION   0x0100
+
+/* Compute the ATMID field that is stored in the per_perc_atmid lowcore
+   entry when a PER exception is triggered.  */
+static inline uint8_t get_per_atmid(CPUS390XState *env)
+{
+    return ((env->psw.mask & PSW_MASK_64) ?      (1 << 7) : 0) |
+           (                                     (1 << 6)    ) |
+           ((env->psw.mask & PSW_MASK_32) ?      (1 << 5) : 0) |
+           ((env->psw.mask & PSW_MASK_DAT)?      (1 << 4) : 0) |
+           ((env->psw.mask & PSW_ASC_SECONDARY)? (1 << 3) : 0) |
+           ((env->psw.mask & PSW_ASC_ACCREG)?    (1 << 2) : 0);
+}
+
+/* Check if an address is within the PER starting address and the PER
+   ending address.  The address range might loop.  */
+static inline bool get_per_in_range(CPUS390XState *env, uint64_t addr)
+{
+    if (env->cregs[10] <= env->cregs[11]) {
+        return env->cregs[10] <= addr && addr <= env->cregs[11];
+    } else {
+        return env->cregs[10] <= addr || addr <= env->cregs[11];
     }
 }
 
@@ -709,6 +751,7 @@ static inline void setcc(S390CPU *cpu, uint64_t cc)
 
     env->psw.mask &= ~(3ull << 44);
     env->psw.mask |= (cc & 3) << 44;
+    env->cc_op = cc;
 }
 
 typedef struct LowCore
@@ -746,14 +789,16 @@ typedef struct LowCore
     uint8_t         pad5[0xf4-0xf0];          /* 0x0f0 */
     uint32_t        external_damage_code;     /* 0x0f4 */
     uint64_t        failing_storage_address;  /* 0x0f8 */
-    uint8_t         pad6[0x120-0x100];        /* 0x100 */
+    uint8_t         pad6[0x110-0x100];        /* 0x100 */
+    uint64_t        per_breaking_event_addr;  /* 0x110 */
+    uint8_t         pad7[0x120-0x118];        /* 0x118 */
     PSW             restart_old_psw;          /* 0x120 */
     PSW             external_old_psw;         /* 0x130 */
     PSW             svc_old_psw;              /* 0x140 */
     PSW             program_old_psw;          /* 0x150 */
     PSW             mcck_old_psw;             /* 0x160 */
     PSW             io_old_psw;               /* 0x170 */
-    uint8_t         pad7[0x1a0-0x180];        /* 0x180 */
+    uint8_t         pad8[0x1a0-0x180];        /* 0x180 */
     PSW             restart_new_psw;          /* 0x1a0 */
     PSW             external_new_psw;         /* 0x1b0 */
     PSW             svc_new_psw;              /* 0x1c0 */
@@ -771,10 +816,10 @@ typedef struct LowCore
     uint64_t        last_update_clock;        /* 0x280 */
     uint64_t        steal_clock;              /* 0x288 */
     PSW             return_mcck_psw;          /* 0x290 */
-    uint8_t         pad8[0xc00-0x2a0];        /* 0x2a0 */
+    uint8_t         pad9[0xc00-0x2a0];        /* 0x2a0 */
     /* System info area */
     uint64_t        save_area[16];            /* 0xc00 */
-    uint8_t         pad9[0xd40-0xc80];        /* 0xc80 */
+    uint8_t         pad10[0xd40-0xc80];       /* 0xc80 */
     uint64_t        kernel_stack;             /* 0xd40 */
     uint64_t        thread_info;              /* 0xd48 */
     uint64_t        async_stack;              /* 0xd50 */
@@ -782,7 +827,7 @@ typedef struct LowCore
     uint64_t        user_asce;                /* 0xd60 */
     uint64_t        panic_stack;              /* 0xd68 */
     uint64_t        user_exec_asce;           /* 0xd70 */
-    uint8_t         pad10[0xdc0-0xd78];       /* 0xd78 */
+    uint8_t         pad11[0xdc0-0xd78];       /* 0xd78 */
 
     /* SMP info area: defined by DJB */
     uint64_t        clock_comparator;         /* 0xdc0 */
@@ -1002,6 +1047,7 @@ int mmu_translate(CPUS390XState *env, target_ulong vaddr, int rw, uint64_t asc,
 int sclp_service_call(CPUS390XState *env, uint64_t sccb, uint32_t code);
 uint32_t calc_cc(CPUS390XState *env, uint32_t cc_op, uint64_t src, uint64_t dst,
                  uint64_t vr);
+void s390_cpu_recompute_watchpoints(CPUState *cs);
 
 int s390_cpu_virt_mem_rw(S390CPU *cpu, vaddr laddr, uint8_t ar, void *hostbuf,
                          int len, bool is_write);
@@ -1215,11 +1261,7 @@ static inline int s390_assign_subch_ioeventfd(EventNotifier *notifier,
                                               uint32_t sch_id, int vq,
                                               bool assign)
 {
-    if (kvm_enabled()) {
-        return kvm_s390_assign_subch_ioeventfd(notifier, sch_id, vq, assign);
-    } else {
-        return -ENOSYS;
-    }
+    return kvm_s390_assign_subch_ioeventfd(notifier, sch_id, vq, assign);
 }
 
 #ifdef CONFIG_KVM

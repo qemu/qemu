@@ -205,9 +205,21 @@ void handle_diag_308(CPUS390XState *env, uint64_t r1, uint64_t r3)
     switch (subcode) {
     case 0:
         modified_clear_reset(s390_env_get_cpu(env));
+        if (tcg_enabled()) {
+            cpu_loop_exit(CPU(s390_env_get_cpu(env)));
+        }
         break;
     case 1:
         load_normal_reset(s390_env_get_cpu(env));
+        if (tcg_enabled()) {
+            cpu_loop_exit(CPU(s390_env_get_cpu(env)));
+        }
+        break;
+    case 3:
+        s390_reipl_request();
+        if (tcg_enabled()) {
+            cpu_loop_exit(CPU(s390_env_get_cpu(env)));
+        }
         break;
     case 5:
         if ((r1 & 1) || (addr & 0x0fffULL)) {
@@ -254,9 +266,7 @@ void handle_diag_308(CPUS390XState *env, uint64_t r1, uint64_t r3)
 }
 #endif
 
-/* DIAG */
-uint64_t HELPER(diag)(CPUS390XState *env, uint32_t num, uint64_t mem,
-                      uint64_t code)
+void HELPER(diag)(CPUS390XState *env, uint32_t r1, uint32_t r3, uint32_t num)
 {
     uint64_t r;
 
@@ -271,6 +281,7 @@ uint64_t HELPER(diag)(CPUS390XState *env, uint32_t num, uint64_t mem,
         break;
     case 0x308:
         /* ipl */
+        handle_diag_308(env, r1, r3);
         r = 0;
         break;
     default:
@@ -281,8 +292,6 @@ uint64_t HELPER(diag)(CPUS390XState *env, uint32_t num, uint64_t mem,
     if (r) {
         program_interrupt(env, PGM_OPERATION, ILEN_LATER_INC);
     }
-
-    return r;
 }
 
 /* Set Prefix */
@@ -521,5 +530,113 @@ uint32_t HELPER(sigp)(CPUS390XState *env, uint64_t order_code, uint32_t r1,
     }
 
     return cc;
+}
+#endif
+
+#ifndef CONFIG_USER_ONLY
+void HELPER(xsch)(CPUS390XState *env, uint64_t r1)
+{
+    S390CPU *cpu = s390_env_get_cpu(env);
+    ioinst_handle_xsch(cpu, r1);
+}
+
+void HELPER(csch)(CPUS390XState *env, uint64_t r1)
+{
+    S390CPU *cpu = s390_env_get_cpu(env);
+    ioinst_handle_csch(cpu, r1);
+}
+
+void HELPER(hsch)(CPUS390XState *env, uint64_t r1)
+{
+    S390CPU *cpu = s390_env_get_cpu(env);
+    ioinst_handle_hsch(cpu, r1);
+}
+
+void HELPER(msch)(CPUS390XState *env, uint64_t r1, uint64_t inst)
+{
+    S390CPU *cpu = s390_env_get_cpu(env);
+    ioinst_handle_msch(cpu, r1, inst >> 16);
+}
+
+void HELPER(rchp)(CPUS390XState *env, uint64_t r1)
+{
+    S390CPU *cpu = s390_env_get_cpu(env);
+    ioinst_handle_rchp(cpu, r1);
+}
+
+void HELPER(rsch)(CPUS390XState *env, uint64_t r1)
+{
+    S390CPU *cpu = s390_env_get_cpu(env);
+    ioinst_handle_rsch(cpu, r1);
+}
+
+void HELPER(ssch)(CPUS390XState *env, uint64_t r1, uint64_t inst)
+{
+    S390CPU *cpu = s390_env_get_cpu(env);
+    ioinst_handle_ssch(cpu, r1, inst >> 16);
+}
+
+void HELPER(stsch)(CPUS390XState *env, uint64_t r1, uint64_t inst)
+{
+    S390CPU *cpu = s390_env_get_cpu(env);
+    ioinst_handle_stsch(cpu, r1, inst >> 16);
+}
+
+void HELPER(tsch)(CPUS390XState *env, uint64_t r1, uint64_t inst)
+{
+    S390CPU *cpu = s390_env_get_cpu(env);
+    ioinst_handle_tsch(cpu, r1, inst >> 16);
+}
+
+void HELPER(chsc)(CPUS390XState *env, uint64_t inst)
+{
+    S390CPU *cpu = s390_env_get_cpu(env);
+    ioinst_handle_chsc(cpu, inst >> 16);
+}
+#endif
+
+#ifndef CONFIG_USER_ONLY
+void HELPER(per_check_exception)(CPUS390XState *env)
+{
+    CPUState *cs = CPU(s390_env_get_cpu(env));
+
+    if (env->per_perc_atmid) {
+        env->int_pgm_code = PGM_PER;
+        env->int_pgm_ilen = get_ilen(cpu_ldub_code(env, env->per_address));
+
+        cs->exception_index = EXCP_PGM;
+        cpu_loop_exit(cs);
+    }
+}
+
+void HELPER(per_branch)(CPUS390XState *env, uint64_t from, uint64_t to)
+{
+    if ((env->cregs[9] & PER_CR9_EVENT_BRANCH)) {
+        if (!(env->cregs[9] & PER_CR9_CONTROL_BRANCH_ADDRESS)
+            || get_per_in_range(env, to)) {
+            env->per_address = from;
+            env->per_perc_atmid = PER_CODE_EVENT_BRANCH | get_per_atmid(env);
+        }
+    }
+}
+
+void HELPER(per_ifetch)(CPUS390XState *env, uint64_t addr)
+{
+    if ((env->cregs[9] & PER_CR9_EVENT_IFETCH) && get_per_in_range(env, addr)) {
+        env->per_address = addr;
+        env->per_perc_atmid = PER_CODE_EVENT_IFETCH | get_per_atmid(env);
+
+        /* If the instruction has to be nullified, trigger the
+           exception immediately. */
+        if (env->cregs[9] & PER_CR9_EVENT_NULLIFICATION) {
+            CPUState *cs = CPU(s390_env_get_cpu(env));
+
+            env->int_pgm_code = PGM_PER;
+            env->int_pgm_ilen = get_ilen(cpu_ldub_code(env, addr));
+
+            cs->exception_index = EXCP_PGM;
+            cpu_loop_exit(cs);
+        }
+    }
 }
 #endif
