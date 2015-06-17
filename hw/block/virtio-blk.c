@@ -651,16 +651,21 @@ static void virtio_blk_dma_restart_cb(void *opaque, int running,
 static void virtio_blk_reset(VirtIODevice *vdev)
 {
     VirtIOBlock *s = VIRTIO_BLK(vdev);
-
-    if (s->dataplane) {
-        virtio_blk_data_plane_stop(s->dataplane);
-    }
+    AioContext *ctx;
 
     /*
      * This should cancel pending requests, but can't do nicely until there
      * are per-device request lists.
      */
-    blk_drain_all();
+    ctx = blk_get_aio_context(s->blk);
+    aio_context_acquire(ctx);
+    blk_drain(s->blk);
+
+    if (s->dataplane) {
+        virtio_blk_data_plane_stop(s->dataplane);
+    }
+    aio_context_release(ctx);
+
     blk_set_enable_write_cache(s->blk, s->original_wce);
 }
 
