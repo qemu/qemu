@@ -308,10 +308,11 @@ static int vmdk_write_cid(BlockDriverState *bs, uint32_t cid)
 static int vmdk_is_cid_valid(BlockDriverState *bs)
 {
     BDRVVmdkState *s = bs->opaque;
-    BlockDriverState *p_bs = bs->backing_hd;
     uint32_t cur_pcid;
 
-    if (!s->cid_checked && p_bs) {
+    if (!s->cid_checked && bs->backing) {
+        BlockDriverState *p_bs = bs->backing->bs;
+
         cur_pcid = vmdk_read_cid(p_bs, 0);
         if (s->parent_cid != cur_pcid) {
             /* CID not valid */
@@ -1006,7 +1007,7 @@ static int get_whole_cluster(BlockDriverState *bs,
     cluster_bytes = extent->cluster_sectors << BDRV_SECTOR_BITS;
     whole_grain = qemu_blockalign(bs, cluster_bytes);
 
-    if (!bs->backing_hd) {
+    if (!bs->backing) {
         memset(whole_grain, 0,  skip_start_sector << BDRV_SECTOR_BITS);
         memset(whole_grain + (skip_end_sector << BDRV_SECTOR_BITS), 0,
                cluster_bytes - (skip_end_sector << BDRV_SECTOR_BITS));
@@ -1015,15 +1016,15 @@ static int get_whole_cluster(BlockDriverState *bs,
     assert(skip_end_sector <= extent->cluster_sectors);
     /* we will be here if it's first write on non-exist grain(cluster).
      * try to read from parent image, if exist */
-    if (bs->backing_hd && !vmdk_is_cid_valid(bs)) {
+    if (bs->backing && !vmdk_is_cid_valid(bs)) {
         ret = VMDK_ERROR;
         goto exit;
     }
 
     /* Read backing data before skip range */
     if (skip_start_sector > 0) {
-        if (bs->backing_hd) {
-            ret = bdrv_read(bs->backing_hd, sector_num,
+        if (bs->backing) {
+            ret = bdrv_read(bs->backing->bs, sector_num,
                             whole_grain, skip_start_sector);
             if (ret < 0) {
                 ret = VMDK_ERROR;
@@ -1039,8 +1040,8 @@ static int get_whole_cluster(BlockDriverState *bs,
     }
     /* Read backing data after skip range */
     if (skip_end_sector < extent->cluster_sectors) {
-        if (bs->backing_hd) {
-            ret = bdrv_read(bs->backing_hd, sector_num + skip_end_sector,
+        if (bs->backing) {
+            ret = bdrv_read(bs->backing->bs, sector_num + skip_end_sector,
                             whole_grain + (skip_end_sector << BDRV_SECTOR_BITS),
                             extent->cluster_sectors - skip_end_sector);
             if (ret < 0) {
@@ -1433,11 +1434,11 @@ static int vmdk_read(BlockDriverState *bs, int64_t sector_num,
         }
         if (ret != VMDK_OK) {
             /* if not allocated, try to read from parent image, if exist */
-            if (bs->backing_hd && ret != VMDK_ZEROED) {
+            if (bs->backing && ret != VMDK_ZEROED) {
                 if (!vmdk_is_cid_valid(bs)) {
                     return -EINVAL;
                 }
-                ret = bdrv_read(bs->backing_hd, sector_num, buf, n);
+                ret = bdrv_read(bs->backing->bs, sector_num, buf, n);
                 if (ret < 0) {
                     return ret;
                 }

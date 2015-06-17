@@ -772,8 +772,8 @@ static void qed_read_backing_file(BDRVQEDState *s, uint64_t pos,
     /* If there is a backing file, get its length.  Treat the absence of a
      * backing file like a zero length backing file.
      */
-    if (s->bs->backing_hd) {
-        int64_t l = bdrv_getlength(s->bs->backing_hd);
+    if (s->bs->backing) {
+        int64_t l = bdrv_getlength(s->bs->backing->bs);
         if (l < 0) {
             cb(opaque, l);
             return;
@@ -802,7 +802,7 @@ static void qed_read_backing_file(BDRVQEDState *s, uint64_t pos,
     qemu_iovec_concat(*backing_qiov, qiov, 0, size);
 
     BLKDBG_EVENT(s->bs->file, BLKDBG_READ_BACKING_AIO);
-    bdrv_aio_readv(s->bs->backing_hd, pos / BDRV_SECTOR_SIZE,
+    bdrv_aio_readv(s->bs->backing->bs, pos / BDRV_SECTOR_SIZE,
                    *backing_qiov, size / BDRV_SECTOR_SIZE, cb, opaque);
 }
 
@@ -1081,7 +1081,7 @@ static void qed_aio_write_main(void *opaque, int ret)
     if (acb->find_cluster_ret == QED_CLUSTER_FOUND) {
         next_fn = qed_aio_next_io;
     } else {
-        if (s->bs->backing_hd) {
+        if (s->bs->backing) {
             next_fn = qed_aio_write_flush_before_l2_update;
         } else {
             next_fn = qed_aio_write_l2_update_cb;
@@ -1139,7 +1139,7 @@ static void qed_aio_write_prefill(void *opaque, int ret)
 static bool qed_should_set_need_check(BDRVQEDState *s)
 {
     /* The flush before L2 update path ensures consistency */
-    if (s->bs->backing_hd) {
+    if (s->bs->backing) {
         return false;
     }
 
@@ -1443,7 +1443,7 @@ static int coroutine_fn bdrv_qed_co_write_zeroes(BlockDriverState *bs,
     struct iovec iov;
 
     /* Refuse if there are untouched backing file sectors */
-    if (bs->backing_hd) {
+    if (bs->backing) {
         if (qed_offset_into_cluster(s, sector_num * BDRV_SECTOR_SIZE) != 0) {
             return -ENOTSUP;
         }

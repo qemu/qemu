@@ -1473,7 +1473,7 @@ static int discard_single_l2(BlockDriverState *bs, uint64_t offset,
          */
         switch (qcow2_get_cluster_type(old_l2_entry)) {
             case QCOW2_CLUSTER_UNALLOCATED:
-                if (full_discard || !bs->backing_hd) {
+                if (full_discard || !bs->backing) {
                     continue;
                 }
                 break;
@@ -1707,7 +1707,7 @@ static int expand_zero_clusters_in_l1(BlockDriverState *bs, uint64_t *l1_table,
             }
 
             if (!preallocated) {
-                if (!bs->backing_hd) {
+                if (!bs->backing) {
                     /* not backed; therefore we can simply deallocate the
                      * cluster */
                     l2_table[j] = 0;

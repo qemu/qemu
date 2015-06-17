@@ -1369,9 +1369,9 @@ static coroutine_fn int qcow2_co_readv(BlockDriverState *bs, int64_t sector_num,
         switch (ret) {
         case QCOW2_CLUSTER_UNALLOCATED:
 
-            if (bs->backing_hd) {
+            if (bs->backing) {
                 /* read from the base image */
-                n1 = qcow2_backing_read1(bs->backing_hd, &hd_qiov,
+                n1 = qcow2_backing_read1(bs->backing->bs, &hd_qiov,
                     sector_num, cur_nr_sectors);
                 if (n1 > 0) {
                     QEMUIOVector local_qiov;
@@ -1382,7 +1382,7 @@ static coroutine_fn int qcow2_co_readv(BlockDriverState *bs, int64_t sector_num,
 
                     BLKDBG_EVENT(bs->file, BLKDBG_READ_BACKING_AIO);
                     qemu_co_mutex_unlock(&s->lock);
-                    ret = bdrv_co_readv(bs->backing_hd, sector_num,
+                    ret = bdrv_co_readv(bs->backing->bs, sector_num,
                                         n1, &local_qiov);
                     qemu_co_mutex_lock(&s->lock);
 

@@ -378,8 +378,7 @@ struct BlockDriverState {
     QDict *full_open_options;
     char exact_filename[PATH_MAX];
 
-    BlockDriverState *backing_hd;
-    BdrvChild *backing_child;
+    BdrvChild *backing;
     BdrvChild *file;
 
     NotifierList close_notifiers;
@@ -458,6 +457,11 @@ struct BlockDriverState {
     NotifierWithReturn write_threshold_notifier;
 };
 
+static inline BlockDriverState *backing_bs(BlockDriverState *bs)
+{
+    return bs->backing ? bs->backing->bs : NULL;
+}
+
 
 /* Essential block drivers which must always be statically linked into qemu, and
  * which therefore can be accessed without using bdrv_find_format() */
@@ -496,7 +500,7 @@ void bdrv_add_before_write_notifier(BlockDriverState *bs,
  *
  * May be called from .bdrv_detach_aio_context() to detach children from the
  * current #AioContext.  This is only needed by block drivers that manage their
- * own children.  Both ->file and ->backing_hd are automatically handled and
+ * own children.  Both ->file and ->backing are automatically handled and
  * block drivers should not call this function on them explicitly.
  */
 void bdrv_detach_aio_context(BlockDriverState *bs);
@@ -506,7 +510,7 @@ void bdrv_detach_aio_context(BlockDriverState *bs);
  *
  * May be called from .bdrv_attach_aio_context() to attach children to the new
  * #AioContext.  This is only needed by block drivers that manage their own
- * children.  Both ->file and ->backing_hd are automatically handled and block
+ * children.  Both ->file and ->backing are automatically handled and block
  * drivers should not call this function on them explicitly.
  */
 void bdrv_attach_aio_context(BlockDriverState *bs,

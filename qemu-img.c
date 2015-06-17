@@ -748,7 +748,7 @@ static int img_commit(int argc, char **argv)
         /* This is different from QMP, which by default uses the deepest file in
          * the backing chain (i.e., the very base); however, the traditional
          * behavior of qemu-img commit is using the immediate backing file. */
-        base_bs = bs->backing_hd;
+        base_bs = backing_bs(bs);
         if (!base_bs) {
             error_setg(&local_err, "Image does not have a backing file");
             goto done;
@@ -2207,7 +2207,7 @@ static int get_block_status(BlockDriverState *bs, int64_t sector_num,
         if (ret & (BDRV_BLOCK_ZERO|BDRV_BLOCK_DATA)) {
             break;
         }
-        bs = bs->backing_hd;
+        bs = backing_bs(bs);
         if (bs == NULL) {
             ret = 0;
             break;

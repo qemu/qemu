@@ -597,13 +597,13 @@ static coroutine_fn int qcow_co_readv(BlockDriverState *bs, int64_t sector_num,
         }
 
         if (!cluster_offset) {
-            if (bs->backing_hd) {
+            if (bs->backing) {
                 /* read from the base image */
                 hd_iov.iov_base = (void *)buf;
                 hd_iov.iov_len = n * 512;
                 qemu_iovec_init_external(&hd_qiov, &hd_iov, 1);
                 qemu_co_mutex_unlock(&s->lock);
-                ret = bdrv_co_readv(bs->backing_hd, sector_num,
+                ret = bdrv_co_readv(bs->backing->bs, sector_num,
                                     n, &hd_qiov);
                 qemu_co_mutex_lock(&s->lock);
                 if (ret < 0) {

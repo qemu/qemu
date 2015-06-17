@@ -170,24 +170,24 @@ void bdrv_refresh_limits(BlockDriverState *bs, Error **errp)
         bs->bl.opt_mem_alignment = getpagesize();
     }
 
-    if (bs->backing_hd) {
-        bdrv_refresh_limits(bs->backing_hd, &local_err);
+    if (bs->backing) {
+        bdrv_refresh_limits(bs->backing->bs, &local_err);
         if (local_err) {
             error_propagate(errp, local_err);
             return;
         }
         bs->bl.opt_transfer_length =
             MAX(bs->bl.opt_transfer_length,
-                bs->backing_hd->bl.opt_transfer_length);
+                bs->backing->bs->bl.opt_transfer_length);
         bs->bl.max_transfer_length =
             MIN_NON_ZERO(bs->bl.max_transfer_length,
-                         bs->backing_hd->bl.max_transfer_length);
+                         bs->backing->bs->bl.max_transfer_length);
         bs->bl.opt_mem_alignment =
             MAX(bs->bl.opt_mem_alignment,
-                bs->backing_hd->bl.opt_mem_alignment);
+                bs->backing->bs->bl.opt_mem_alignment);
         bs->bl.min_mem_alignment =
             MAX(bs->bl.min_mem_alignment,
-                bs->backing_hd->bl.min_mem_alignment);
+                bs->backing->bs->bl.min_mem_alignment);
     }
 
     /* Then let the driver override it */
@@ -227,7 +227,7 @@ static bool bdrv_requests_pending(BlockDriverState *bs)
     if (bs->file && bdrv_requests_pending(bs->file->bs)) {
         return true;
     }
-    if (bs->backing_hd && bdrv_requests_pending(bs->backing_hd)) {
+    if (bs->backing && bdrv_requests_pending(bs->backing->bs)) {
         return true;
     }
     return false;
@@ -1505,8 +1505,8 @@ static int64_t coroutine_fn bdrv_co_get_block_status(BlockDriverState *bs,
     } else {
         if (bdrv_unallocated_blocks_are_zero(bs)) {
             ret |= BDRV_BLOCK_ZERO;
-        } else if (bs->backing_hd) {
-            BlockDriverState *bs2 = bs->backing_hd;
+        } else if (bs->backing) {
+            BlockDriverState *bs2 = bs->backing->bs;
             int64_t nb_sectors2 = bdrv_nb_sectors(bs2);
             if (nb_sectors2 >= 0 && sector_num >= nb_sectors2) {
                 ret |= BDRV_BLOCK_ZERO;
@@ -1551,7 +1551,7 @@ static int64_t coroutine_fn bdrv_co_get_block_status_above(BlockDriverState *bs,
     int64_t ret = 0;
 
     assert(bs != base);
-    for (p = bs; p != base; p = p->backing_hd) {
+    for (p = bs; p != base; p = backing_bs(p)) {
         ret = bdrv_co_get_block_status(p, sector_num, nb_sectors, pnum);
         if (ret < 0 || ret & BDRV_BLOCK_ALLOCATED) {
             break;
@@ -1614,7 +1614,7 @@ int64_t bdrv_get_block_status(BlockDriverState *bs,
                               int64_t sector_num,
                               int nb_sectors, int *pnum)
 {
-    return bdrv_get_block_status_above(bs, bs->backing_hd,
+    return bdrv_get_block_status_above(bs, backing_bs(bs),
                                        sector_num, nb_sectors, pnum);
 }
 
@@ -1672,7 +1672,7 @@ int bdrv_is_allocated_above(BlockDriverState *top,
             n = pnum_inter;
         }
 
-        intermediate = intermediate->backing_hd;
+        intermediate = backing_bs(intermediate);
     }
 
     *pnum = n;

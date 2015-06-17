@@ -721,7 +721,7 @@ const BdrvChildRole child_format = {
 };
 
 /*
- * Returns the flags that bs->backing_hd should get, based on the given flags
+ * Returns the flags that bs->backing should get, based on the given flags
  * for the parent BDS
  */
 static int bdrv_backing_flags(int flags)
@@ -1115,32 +1115,31 @@ void bdrv_unref_child(BlockDriverState *parent, BdrvChild *child)
 void bdrv_set_backing_hd(BlockDriverState *bs, BlockDriverState *backing_hd)
 {
 
-    if (bs->backing_hd) {
+    if (bs->backing) {
         assert(bs->backing_blocker);
-        bdrv_op_unblock_all(bs->backing_hd, bs->backing_blocker);
-        bdrv_detach_child(bs->backing_child);
+        bdrv_op_unblock_all(bs->backing->bs, bs->backing_blocker);
+        bdrv_detach_child(bs->backing);
     } else if (backing_hd) {
         error_setg(&bs->backing_blocker,
                    "node is used as backing hd of '%s'",
                    bdrv_get_device_or_node_name(bs));
     }
 
-    bs->backing_hd = backing_hd;
     if (!backing_hd) {
         error_free(bs->backing_blocker);
         bs->backing_blocker = NULL;
-        bs->backing_child = NULL;
+        bs->backing = NULL;
         goto out;
     }
-    bs->backing_child = bdrv_attach_child(bs, backing_hd, &child_backing);
+    bs->backing = bdrv_attach_child(bs, backing_hd, &child_backing);
     bs->open_flags &= ~BDRV_O_NO_BACKING;
     pstrcpy(bs->backing_file, sizeof(bs->backing_file), backing_hd->filename);
     pstrcpy(bs->backing_format, sizeof(bs->backing_format),
             backing_hd->drv ? backing_hd->drv->format_name : "");
 
-    bdrv_op_block_all(bs->backing_hd, bs->backing_blocker);
+    bdrv_op_block_all(backing_hd, bs->backing_blocker);
     /* Otherwise we won't be able to commit due to check in bdrv_commit */
-    bdrv_op_unblock(bs->backing_hd, BLOCK_OP_TYPE_COMMIT_TARGET,
+    bdrv_op_unblock(backing_hd, BLOCK_OP_TYPE_COMMIT_TARGET,
                     bs->backing_blocker);
 out:
     bdrv_refresh_limits(bs, NULL);
@@ -1161,7 +1160,7 @@ int bdrv_open_backing_file(BlockDriverState *bs, QDict *options, Error **errp)
     BlockDriverState *backing_hd;
     Error *local_err = NULL;
 
-    if (bs->backing_hd != NULL) {
+    if (bs->backing != NULL) {
         QDECREF(options);
         goto free_exit;
     }
@@ -1201,7 +1200,7 @@ int bdrv_open_backing_file(BlockDriverState *bs, QDict *options, Error **errp)
         qdict_put(options, "driver", qstring_from_str(bs->backing_format));
     }
 
-    assert(bs->backing_hd == NULL);
+    assert(bs->backing == NULL);
     ret = bdrv_open_inherit(&backing_hd,
                             *backing_filename ? backing_filename : NULL,
                             NULL, options, 0, bs, &child_backing, &local_err);
@@ -1892,8 +1891,8 @@ void bdrv_close(BlockDriverState *bs)
         bs->drv->bdrv_close(bs);
         bs->drv = NULL;
 
-        if (bs->backing_hd) {
-            BlockDriverState *backing_hd = bs->backing_hd;
+        if (bs->backing) {
+            BlockDriverState *backing_hd = bs->backing->bs;
             bdrv_set_backing_hd(bs, NULL);
             bdrv_unref(backing_hd);
         }
@@ -2205,20 +2204,20 @@ int bdrv_commit(BlockDriverState *bs)
     if (!drv)
         return -ENOMEDIUM;
 
-    if (!bs->backing_hd) {
+    if (!bs->backing) {
         return -ENOTSUP;
     }
 
     if (bdrv_op_is_blocked(bs, BLOCK_OP_TYPE_COMMIT_SOURCE, NULL) ||
-        bdrv_op_is_blocked(bs->backing_hd, BLOCK_OP_TYPE_COMMIT_TARGET, NULL)) {
+        bdrv_op_is_blocked(bs->backing->bs, BLOCK_OP_TYPE_COMMIT_TARGET, NULL)) {
         return -EBUSY;
     }
 
-    ro = bs->backing_hd->read_only;
-    open_flags =  bs->backing_hd->open_flags;
+    ro = bs->backing->bs->read_only;
+    open_flags =  bs->backing->bs->open_flags;
 
     if (ro) {
-        if (bdrv_reopen(bs->backing_hd, open_flags | BDRV_O_RDWR, NULL)) {
+        if (bdrv_reopen(bs->backing->bs, open_flags | BDRV_O_RDWR, NULL)) {
             return -EACCES;
         }
     }
@@ -2229,7 +2228,7 @@ int bdrv_commit(BlockDriverState *bs)
         goto ro_cleanup;
     }
 
-    backing_length = bdrv_getlength(bs->backing_hd);
+    backing_length = bdrv_getlength(bs->backing->bs);
     if (backing_length < 0) {
         ret = backing_length;
         goto ro_cleanup;
@@ -2239,7 +2238,7 @@ int bdrv_commit(BlockDriverState *bs)
      * grow the backing file image if possible.  If not possible,
      * we must return an error */
     if (length > backing_length) {
-        ret = bdrv_truncate(bs->backing_hd, length);
+        ret = bdrv_truncate(bs->backing->bs, length);
         if (ret < 0) {
             goto ro_cleanup;
         }
@@ -2248,7 +2247,7 @@ int bdrv_commit(BlockDriverState *bs)
     total_sectors = length >> BDRV_SECTOR_BITS;
 
     /* qemu_try_blockalign() for bs will choose an alignment that works for
-     * bs->backing_hd as well, so no need to compare the alignment manually. */
+     * bs->backing->bs as well, so no need to compare the alignment manually. */
     buf = qemu_try_blockalign(bs, COMMIT_BUF_SECTORS * BDRV_SECTOR_SIZE);
     if (buf == NULL) {
         ret = -ENOMEM;
@@ -2266,7 +2265,7 @@ int bdrv_commit(BlockDriverState *bs)
                 goto ro_cleanup;
             }
 
-            ret = bdrv_write(bs->backing_hd, sector, buf, n);
+            ret = bdrv_write(bs->backing->bs, sector, buf, n);
             if (ret < 0) {
                 goto ro_cleanup;
             }
@@ -2285,8 +2284,8 @@ int bdrv_commit(BlockDriverState *bs)
      * Make sure all data we wrote to the backing device is actually
      * stable on disk.
      */
-    if (bs->backing_hd) {
-        bdrv_flush(bs->backing_hd);
+    if (bs->backing) {
+        bdrv_flush(bs->backing->bs);
     }
 
     ret = 0;
@@ -2295,7 +2294,7 @@ ro_cleanup:
 
     if (ro) {
         /* ignoring error return here */
-        bdrv_reopen(bs->backing_hd, open_flags & ~BDRV_O_RDWR, NULL);
+        bdrv_reopen(bs->backing->bs, open_flags & ~BDRV_O_RDWR, NULL);
     }
 
     return ret;
@@ -2309,7 +2308,7 @@ int bdrv_commit_all(void)
         AioContext *aio_context = bdrv_get_aio_context(bs);
 
         aio_context_acquire(aio_context);
-        if (bs->drv && bs->backing_hd) {
+        if (bs->drv && bs->backing) {
             int ret = bdrv_commit(bs);
             if (ret < 0) {
                 aio_context_release(aio_context);
@@ -2366,8 +2365,8 @@ int bdrv_change_backing_file(BlockDriverState *bs,
 BlockDriverState *bdrv_find_overlay(BlockDriverState *active,
                                     BlockDriverState *bs)
 {
-    while (active && bs != active->backing_hd) {
-        active = active->backing_hd;
+    while (active && bs != backing_bs(active)) {
+        active = backing_bs(active);
     }
 
     return active;
@@ -2437,9 +2436,9 @@ int bdrv_drop_intermediate(BlockDriverState *active, BlockDriverState *top,
         goto exit;
     }
 
-    /* special case of new_top_bs->backing_hd already pointing to base - nothing
+    /* special case of new_top_bs->backing->bs already pointing to base - nothing
      * to do, no intermediate images */
-    if (new_top_bs->backing_hd == base) {
+    if (backing_bs(new_top_bs) == base) {
         ret = 0;
         goto exit;
     }
@@ -2454,11 +2453,11 @@ int bdrv_drop_intermediate(BlockDriverState *active, BlockDriverState *top,
         intermediate_state->bs = intermediate;
         QSIMPLEQ_INSERT_TAIL(&states_to_delete, intermediate_state, entry);
 
-        if (intermediate->backing_hd == base) {
-            base_bs = intermediate->backing_hd;
+        if (backing_bs(intermediate) == base) {
+            base_bs = backing_bs(intermediate);
             break;
         }
-        intermediate = intermediate->backing_hd;
+        intermediate = backing_bs(intermediate);
     }
     if (base_bs == NULL) {
         /* something went wrong, we did not end at the base. safely
@@ -2677,25 +2676,27 @@ void bdrv_set_enable_write_cache(BlockDriverState *bs, bool wce)
 
 int bdrv_is_encrypted(BlockDriverState *bs)
 {
-    if (bs->backing_hd && bs->backing_hd->encrypted)
+    if (bs->backing && bs->backing->bs->encrypted) {
         return 1;
+    }
     return bs->encrypted;
 }
 
 int bdrv_key_required(BlockDriverState *bs)
 {
-    BlockDriverState *backing_hd = bs->backing_hd;
+    BdrvChild *backing = bs->backing;
 
-    if (backing_hd && backing_hd->encrypted && !backing_hd->valid_key)
+    if (backing && backing->bs->encrypted && !backing->bs->valid_key) {
         return 1;
+    }
     return (bs->encrypted && !bs->valid_key);
 }
 
 int bdrv_set_key(BlockDriverState *bs, const char *key)
 {
     int ret;
-    if (bs->backing_hd && bs->backing_hd->encrypted) {
-        ret = bdrv_set_key(bs->backing_hd, key);
+    if (bs->backing && bs->backing->bs->encrypted) {
+        ret = bdrv_set_key(bs->backing->bs, key);
         if (ret < 0)
             return ret;
         if (!bs->encrypted)
@@ -2862,7 +2863,7 @@ BlockDriverState *bdrv_lookup_bs(const char *device,
 bool bdrv_chain_contains(BlockDriverState *top, BlockDriverState *base)
 {
     while (top && top != base) {
-        top = top->backing_hd;
+        top = backing_bs(top);
     }
 
     return top != NULL;
@@ -2920,7 +2921,7 @@ int bdrv_has_zero_init(BlockDriverState *bs)
 
     /* If BS is a copy on write image, it is initialized to
        the contents of the base image, which may not be zeroes.  */
-    if (bs->backing_hd) {
+    if (bs->backing) {
         return 0;
     }
     if (bs->drv->bdrv_has_zero_init) {
@@ -2935,7 +2936,7 @@ bool bdrv_unallocated_blocks_are_zero(BlockDriverState *bs)
 {
     BlockDriverInfo bdi;
 
-    if (bs->backing_hd) {
+    if (bs->backing) {
         return false;
     }
 
@@ -2950,7 +2951,7 @@ bool bdrv_can_write_zeroes_with_unmap(BlockDriverState *bs)
 {
     BlockDriverInfo bdi;
 
-    if (bs->backing_hd || !(bs->open_flags & BDRV_O_UNMAP)) {
+    if (bs->backing || !(bs->open_flags & BDRV_O_UNMAP)) {
         return false;
     }
 
@@ -2963,7 +2964,7 @@ bool bdrv_can_write_zeroes_with_unmap(BlockDriverState *bs)
 
 const char *bdrv_get_encrypted_filename(BlockDriverState *bs)
 {
-    if (bs->backing_hd && bs->backing_hd->encrypted)
+    if (bs->backing && bs->backing->bs->encrypted)
         return bs->backing_file;
     else if (bs->encrypted)
         return bs->filename;
@@ -3088,13 +3089,13 @@ BlockDriverState *bdrv_find_backing_image(BlockDriverState *bs,
 
     is_protocol = path_has_protocol(backing_file);
 
-    for (curr_bs = bs; curr_bs->backing_hd; curr_bs = curr_bs->backing_hd) {
+    for (curr_bs = bs; curr_bs->backing; curr_bs = curr_bs->backing->bs) {
 
         /* If either of the filename paths is actually a protocol, then
          * compare unmodified paths; otherwise make paths relative */
         if (is_protocol || path_has_protocol(curr_bs->backing_file)) {
             if (strcmp(backing_file, curr_bs->backing_file) == 0) {
-                retval = curr_bs->backing_hd;
+                retval = curr_bs->backing->bs;
                 break;
             }
         } else {
@@ -3118,7 +3119,7 @@ BlockDriverState *bdrv_find_backing_image(BlockDriverState *bs,
             }
 
             if (strcmp(backing_file_full, filename_full) == 0) {
-                retval = curr_bs->backing_hd;
+                retval = curr_bs->backing->bs;
                 break;
             }
         }
@@ -3136,11 +3137,11 @@ int bdrv_get_backing_file_depth(BlockDriverState *bs)
         return 0;
     }
 
-    if (!bs->backing_hd) {
+    if (!bs->backing) {
         return 0;
     }
 
-    return 1 + bdrv_get_backing_file_depth(bs->backing_hd);
+    return 1 + bdrv_get_backing_file_depth(bs->backing->bs);
 }
 
 void bdrv_init(void)
@@ -3903,8 +3904,8 @@ void bdrv_detach_aio_context(BlockDriverState *bs)
     if (bs->file) {
         bdrv_detach_aio_context(bs->file->bs);
     }
-    if (bs->backing_hd) {
-        bdrv_detach_aio_context(bs->backing_hd);
+    if (bs->backing) {
+        bdrv_detach_aio_context(bs->backing->bs);
     }
 
     bs->aio_context = NULL;
@@ -3921,8 +3922,8 @@ void bdrv_attach_aio_context(BlockDriverState *bs,
 
     bs->aio_context = new_context;
 
-    if (bs->backing_hd) {
-        bdrv_attach_aio_context(bs->backing_hd, new_context);
+    if (bs->backing) {
+        bdrv_attach_aio_context(bs->backing->bs, new_context);
     }
     if (bs->file) {
         bdrv_attach_aio_context(bs->file->bs, new_context);

@@ -110,8 +110,8 @@ BlockDeviceInfo *bdrv_block_device_info(BlockDriverState *bs, Error **errp)
             qapi_free_BlockDeviceInfo(info);
             return NULL;
         }
-        if (bs0->drv && bs0->backing_hd) {
-            bs0 = bs0->backing_hd;
+        if (bs0->drv && bs0->backing) {
+            bs0 = bs0->backing->bs;
             (*p_image_info)->has_backing_image = true;
             p_image_info = &((*p_image_info)->backing_image);
         } else {
@@ -362,9 +362,9 @@ static BlockStats *bdrv_query_stats(const BlockDriverState *bs,
         s->parent = bdrv_query_stats(bs->file->bs, query_backing);
     }
 
-    if (query_backing && bs->backing_hd) {
+    if (query_backing && bs->backing) {
         s->has_backing = true;
-        s->backing = bdrv_query_stats(bs->backing_hd, query_backing);
+        s->backing = bdrv_query_stats(bs->backing->bs, query_backing);
     }
 
     return s;

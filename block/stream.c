@@ -56,7 +56,7 @@ static void close_unused_images(BlockDriverState *top, BlockDriverState *base,
                                 const char *base_id)
 {
     BlockDriverState *intermediate;
-    intermediate = top->backing_hd;
+    intermediate = backing_bs(top);
 
     /* Must assign before bdrv_delete() to prevent traversing dangling pointer
      * while we delete backing image instances.
@@ -72,7 +72,7 @@ static void close_unused_images(BlockDriverState *top, BlockDriverState *base,
         }
 
         unused = intermediate;
-        intermediate = intermediate->backing_hd;
+        intermediate = backing_bs(intermediate);
         bdrv_set_backing_hd(unused, NULL);
         bdrv_unref(unused);
     }
@@ -121,7 +121,7 @@ static void coroutine_fn stream_run(void *opaque)
     int n = 0;
     void *buf;
 
-    if (!bs->backing_hd) {
+    if (!bs->backing) {
         block_job_completed(&s->common, 0);
         return;
     }
@@ -166,7 +166,7 @@ wait:
         } else if (ret >= 0) {
             /* Copy if allocated in the intermediate images.  Limit to the
              * known-unallocated area [sector_num, sector_num+n).  */
-            ret = bdrv_is_allocated_above(bs->backing_hd, base,
+            ret = bdrv_is_allocated_above(backing_bs(bs), base,
                                           sector_num, n, &n);
 
             /* Finish early if end of backing file has been reached */

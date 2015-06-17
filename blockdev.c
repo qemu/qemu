@@ -2508,7 +2508,7 @@ void qmp_drive_backup(const char *device, const char *target,
     /* See if we have a backing HD we can use to create our new image
      * on top of. */
     if (sync == MIRROR_SYNC_MODE_TOP) {
-        source = bs->backing_hd;
+        source = backing_bs(bs);
         if (!source) {
             sync = MIRROR_SYNC_MODE_FULL;
         }
@@ -2716,7 +2716,7 @@ void qmp_drive_mirror(const char *device, const char *target,
     }
 
     flags = bs->open_flags | BDRV_O_RDWR;
-    source = bs->backing_hd;
+    source = backing_bs(bs);
     if (!source && sync == MIRROR_SYNC_MODE_TOP) {
         sync = MIRROR_SYNC_MODE_FULL;
     }
