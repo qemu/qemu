@@ -353,7 +353,7 @@ address_space_translate_internal(AddressSpaceDispatch *d, hwaddr addr, hwaddr *x
 
     mr = section->mr;
     if (memory_region_is_ram(mr)) {
-        diff = int128_sub(mr->size, int128_make64(addr));
+        diff = int128_sub(section->size, int128_make64(addr));
         *plen = int128_get64(int128_min(diff, int128_make64(*plen)));
     }
     return section;
