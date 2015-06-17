@@ -132,8 +132,6 @@ static void macio_common_realize(PCIDevice *d, Error **errp)
     SysBusDevice *sysbus_dev;
     Error *err = NULL;
 
-    d->config[0x3d] = 0x01; // interrupt on pin 1
-
     object_property_set_bool(OBJECT(&s->cuda), true, "realized", &err);
     if (err) {
         error_propagate(errp, err);
