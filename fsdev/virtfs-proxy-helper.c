@@ -49,6 +49,7 @@ static struct option helper_opts[] = {
     {"socket", required_argument, NULL, 's'},
     {"uid", required_argument, NULL, 'u'},
     {"gid", required_argument, NULL, 'g'},
+    {},
 };
 
 static bool is_daemon;
@@ -738,7 +739,12 @@ static int proxy_socket(const char *path, uid_t uid, gid_t gid)
         return -1;
     }
 
-    g_assert(strlen(path) < sizeof(proxy.sun_path));
+    if (strlen(path) >= sizeof(proxy.sun_path)) {
+        do_log(LOG_CRIT, "UNIX domain socket path exceeds %zu characters\n",
+               sizeof(proxy.sun_path));
+        return -1;
+    }
+
     sock = socket(AF_UNIX, SOCK_STREAM, 0);
     if (sock < 0) {
         do_perror("socket");
