@@ -14,8 +14,8 @@
  *  Copyright Red Hat, Inc. 2012
  */
 
-#include <linux/vfio.h>
 #include <sys/ioctl.h>
+#include <linux/vfio.h>
 
 #include "hw/vfio/vfio-platform.h"
 #include "qemu/error-report.h"
