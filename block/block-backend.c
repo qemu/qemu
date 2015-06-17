@@ -700,6 +700,11 @@ int blk_flush_all(void)
     return bdrv_flush_all();
 }
 
+void blk_drain(BlockBackend *blk)
+{
+    bdrv_drain(blk->bs);
+}
+
 void blk_drain_all(void)
 {
     bdrv_drain_all();
