@@ -314,6 +314,7 @@
 
 #define MSR_P6_PERFCTR0                 0xc1
 
+#define MSR_IA32_SMBASE                 0x9e
 #define MSR_MTRRcap                     0xfe
 #define MSR_MTRRcap_VCNT                8
 #define MSR_MTRRcap_FIXRANGE_SUPPORT    (1 << 8)
