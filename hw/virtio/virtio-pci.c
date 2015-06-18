@@ -1900,8 +1900,7 @@ static const TypeInfo virtio_rng_pci_info = {
 
 /* virtio-input-pci */
 
-static Property virtio_input_hid_pci_properties[] = {
-    DEFINE_VIRTIO_INPUT_PROPERTIES(VirtIOInputPCI, vdev.input),
+static Property virtio_input_pci_properties[] = {
     DEFINE_PROP_UINT32("vectors", VirtIOPCIProxy, nvectors, 2),
     DEFINE_PROP_END_OF_LIST(),
 };
@@ -1924,17 +1923,11 @@ static void virtio_input_pci_class_init(ObjectClass *klass, void *data)
     VirtioPCIClass *k = VIRTIO_PCI_CLASS(klass);
     PCIDeviceClass *pcidev_k = PCI_DEVICE_CLASS(klass);
 
+    dc->props = virtio_input_pci_properties;
     k->realize = virtio_input_pci_realize;
     set_bit(DEVICE_CATEGORY_INPUT, dc->categories);
 
     pcidev_k->class_id = PCI_CLASS_INPUT_OTHER;
-}
-
-static void virtio_input_hid_pci_class_init(ObjectClass *klass, void *data)
-{
-    DeviceClass *dc = DEVICE_CLASS(klass);
-
-    dc->props = virtio_input_hid_pci_properties;
 }
 
 static void virtio_input_hid_kbd_pci_class_init(ObjectClass *klass, void *data)
@@ -1955,22 +1948,25 @@ static void virtio_input_hid_mouse_pci_class_init(ObjectClass *klass,
 static void virtio_keyboard_initfn(Object *obj)
 {
     VirtIOInputHIDPCI *dev = VIRTIO_INPUT_HID_PCI(obj);
-    object_initialize(&dev->vdev, sizeof(dev->vdev), TYPE_VIRTIO_KEYBOARD);
-    object_property_add_child(obj, "virtio-backend", OBJECT(&dev->vdev), NULL);
+
+    virtio_instance_init_common(obj, &dev->vdev, sizeof(dev->vdev),
+                                TYPE_VIRTIO_KEYBOARD);
 }
 
 static void virtio_mouse_initfn(Object *obj)
 {
     VirtIOInputHIDPCI *dev = VIRTIO_INPUT_HID_PCI(obj);
-    object_initialize(&dev->vdev, sizeof(dev->vdev), TYPE_VIRTIO_MOUSE);
-    object_property_add_child(obj, "virtio-backend", OBJECT(&dev->vdev), NULL);
+
+    virtio_instance_init_common(obj, &dev->vdev, sizeof(dev->vdev),
+                                TYPE_VIRTIO_MOUSE);
 }
 
 static void virtio_tablet_initfn(Object *obj)
 {
     VirtIOInputHIDPCI *dev = VIRTIO_INPUT_HID_PCI(obj);
-    object_initialize(&dev->vdev, sizeof(dev->vdev), TYPE_VIRTIO_TABLET);
-    object_property_add_child(obj, "virtio-backend", OBJECT(&dev->vdev), NULL);
+
+    virtio_instance_init_common(obj, &dev->vdev, sizeof(dev->vdev),
+                                TYPE_VIRTIO_TABLET);
 }
 
 static const TypeInfo virtio_input_pci_info = {
@@ -1985,7 +1981,6 @@ static const TypeInfo virtio_input_hid_pci_info = {
     .name          = TYPE_VIRTIO_INPUT_HID_PCI,
     .parent        = TYPE_VIRTIO_INPUT_PCI,
     .instance_size = sizeof(VirtIOInputHIDPCI),
-    .class_init    = virtio_input_hid_pci_class_init,
     .abstract      = true,
 };
 
