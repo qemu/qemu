@@ -123,7 +123,7 @@ static inline bool is_power_of_two(uint64_t x) {
 }
 
 /* accessing registers - based on rtl8139 */
-static void ivshmem_update_irq(IVShmemState *s, int val)
+static void ivshmem_update_irq(IVShmemState *s)
 {
     PCIDevice *d = PCI_DEVICE(s);
     int isr;
@@ -144,7 +144,7 @@ static void ivshmem_IntrMask_write(IVShmemState *s, uint32_t val)
 
     s->intrmask = val;
 
-    ivshmem_update_irq(s, val);
+    ivshmem_update_irq(s);
 }
 
 static uint32_t ivshmem_IntrMask_read(IVShmemState *s)
@@ -162,7 +162,7 @@ static void ivshmem_IntrStatus_write(IVShmemState *s, uint32_t val)
 
     s->intrstatus = val;
 
-    ivshmem_update_irq(s, val);
+    ivshmem_update_irq(s);
 }
 
 static uint32_t ivshmem_IntrStatus_read(IVShmemState *s)
@@ -172,7 +172,7 @@ static uint32_t ivshmem_IntrStatus_read(IVShmemState *s)
     /* reading ISR clears all interrupts */
     s->intrstatus = 0;
 
-    ivshmem_update_irq(s, 0);
+    ivshmem_update_irq(s);
 
     return ret;
 }
