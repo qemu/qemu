@@ -24,13 +24,11 @@
 #include "qemu/atomic.h"
 #include "qemu/option.h"
 #include "qemu/config-file.h"
-#include "sysemu/sysemu.h"
-#include "sysemu/accel.h"
 #include "hw/hw.h"
 #include "hw/pci/msi.h"
 #include "hw/s390x/adapter.h"
 #include "exec/gdbstub.h"
-#include "sysemu/kvm.h"
+#include "sysemu/kvm_int.h"
 #include "qemu/bswap.h"
 #include "exec/memory.h"
 #include "exec/ram_addr.h"
@@ -59,15 +57,6 @@
 #endif
 
 #define KVM_MSI_HASHTAB_SIZE    256
-
-typedef struct KVMSlot
-{
-    hwaddr start_addr;
-    ram_addr_t memory_size;
-    void *ram;
-    int slot;
-    int flags;
-} KVMSlot;
 
 struct KVMState
 {
@@ -105,11 +94,6 @@ struct KVMState
     bool direct_msi;
 #endif
 };
-
-#define TYPE_KVM_ACCEL ACCEL_CLASS_NAME("kvm")
-
-#define KVM_STATE(obj) \
-    OBJECT_CHECK(KVMState, (obj), TYPE_KVM_ACCEL)
 
 KVMState *kvm_state;
 bool kvm_kernel_irqchip;
