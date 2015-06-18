@@ -954,7 +954,7 @@ static void *qemu_kvm_cpu_thread_fn(void *arg)
     CPUState *cpu = arg;
     int r;
 
-    qemu_mutex_lock(&qemu_global_mutex);
+    qemu_mutex_lock_iothread();
     qemu_thread_get_self(cpu->thread);
     cpu->thread_id = qemu_get_thread_id();
     cpu->can_do_io = 1;
@@ -1034,10 +1034,10 @@ static void *qemu_tcg_cpu_thread_fn(void *arg)
 {
     CPUState *cpu = arg;
 
+    qemu_mutex_lock_iothread();
     qemu_tcg_init_cpu_signals();
     qemu_thread_get_self(cpu->thread);
 
-    qemu_mutex_lock(&qemu_global_mutex);
     CPU_FOREACH(cpu) {
         cpu->thread_id = qemu_get_thread_id();
         cpu->created = true;
@@ -1149,7 +1149,11 @@ bool qemu_in_vcpu_thread(void)
 void qemu_mutex_lock_iothread(void)
 {
     atomic_inc(&iothread_requesting_mutex);
-    if (!tcg_enabled() || !first_cpu || !first_cpu->thread) {
+    /* In the simple case there is no need to bump the VCPU thread out of
+     * TCG code execution.
+     */
+    if (!tcg_enabled() || qemu_in_vcpu_thread() ||
+        !first_cpu || !first_cpu->thread) {
         qemu_mutex_lock(&qemu_global_mutex);
         atomic_dec(&iothread_requesting_mutex);
     } else {
