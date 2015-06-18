@@ -319,22 +319,23 @@ static CharDriverState* create_eventfd_chr_device(void * opaque, EventNotifier *
 
 }
 
-static int check_shm_size(IVShmemState *s, int fd) {
+static int check_shm_size(IVShmemState *s, int fd, Error **errp)
+{
     /* check that the guest isn't going to try and map more memory than the
      * the object has allocated return -1 to indicate error */
 
     struct stat buf;
 
     if (fstat(fd, &buf) < 0) {
-        error_report("exiting: fstat on fd %d failed: %s",
-                     fd, strerror(errno));
+        error_setg(errp, "exiting: fstat on fd %d failed: %s",
+                   fd, strerror(errno));
         return -1;
     }
 
     if (s->ivshmem_size > buf.st_size) {
-        error_report("Requested memory size greater"
-                     " than shared object size (%" PRIu64 " > %" PRIu64")",
-                     s->ivshmem_size, (uint64_t)buf.st_size);
+        error_setg(errp, "Requested memory size greater"
+                   " than shared object size (%" PRIu64 " > %" PRIu64")",
+                   s->ivshmem_size, (uint64_t)buf.st_size);
         return -1;
     } else {
         return 0;
@@ -343,13 +344,18 @@ static int check_shm_size(IVShmemState *s, int fd) {
 
 /* create the shared memory BAR when we are not using the server, so we can
  * create the BAR and map the memory immediately */
-static void create_shared_memory_BAR(IVShmemState *s, int fd, uint8_t attr) {
-
+static int create_shared_memory_BAR(IVShmemState *s, int fd, uint8_t attr,
+                                    Error **errp)
+{
     void * ptr;
 
-    s->shm_fd = fd;
-
     ptr = mmap(0, s->ivshmem_size, PROT_READ|PROT_WRITE, MAP_SHARED, fd, 0);
+    if (ptr == MAP_FAILED) {
+        error_setg_errno(errp, errno, "Failed to mmap shared memory");
+        return -1;
+    }
+
+    s->shm_fd = fd;
 
     memory_region_init_ram_ptr(&s->ivshmem, OBJECT(s), "ivshmem.bar2",
                                s->ivshmem_size, ptr);
@@ -358,6 +364,8 @@ static void create_shared_memory_BAR(IVShmemState *s, int fd, uint8_t attr) {
 
     /* region for shared memory */
     pci_register_bar(PCI_DEVICE(s), 2, attr, &s->bar);
+
+    return 0;
 }
 
 static void ivshmem_add_eventfd(IVShmemState *s, int posn, int i)
@@ -481,6 +489,7 @@ static void ivshmem_read(void *opaque, const uint8_t *buf, int size)
     int incoming_fd;
     int guest_max_eventfd;
     long incoming_posn;
+    Error *err = NULL;
 
     if (!fifo_update_and_get(s, buf, size,
                              &incoming_posn, sizeof(incoming_posn))) {
@@ -524,18 +533,24 @@ static void ivshmem_read(void *opaque, const uint8_t *buf, int size)
 
     /* if the position is -1, then it's shared memory region fd */
     if (incoming_posn == -1) {
-
         void * map_ptr;
 
         s->max_peer = 0;
 
-        if (check_shm_size(s, incoming_fd) == -1) {
-            exit(1);
+        if (check_shm_size(s, incoming_fd, &err) == -1) {
+            error_report_err(err);
+            close(incoming_fd);
+            return;
         }
 
         /* mmap the region and map into the BAR2 */
         map_ptr = mmap(0, s->ivshmem_size, PROT_READ|PROT_WRITE, MAP_SHARED,
                                                             incoming_fd, 0);
+        if (map_ptr == MAP_FAILED) {
+            error_report("Failed to mmap shared memory %s", strerror(errno));
+            close(incoming_fd);
+            return;
+        }
         memory_region_init_ram_ptr(&s->ivshmem, OBJECT(s),
                                    "ivshmem.bar2", s->ivshmem_size, map_ptr);
         vmstate_register_ram(&s->ivshmem, DEVICE(s));
@@ -610,7 +625,7 @@ static void ivshmem_reset(DeviceState *d)
     ivshmem_use_msix(s);
 }
 
-static uint64_t ivshmem_get_size(IVShmemState * s) {
+static uint64_t ivshmem_get_size(IVShmemState * s, Error **errp) {
 
     uint64_t value;
     char *ptr;
@@ -624,24 +639,23 @@ static uint64_t ivshmem_get_size(IVShmemState * s) {
             value <<= 30;
             break;
         default:
-            error_report("invalid ram size: %s", s->sizearg);
-            exit(1);
+            error_setg(errp, "invalid ram size: %s", s->sizearg);
+            return 0;
     }
 
     /* BARs must be a power of 2 */
     if (!is_power_of_two(value)) {
-        error_report("size must be power of 2");
-        exit(1);
+        error_setg(errp, "size must be power of 2");
+        return 0;
     }
 
     return value;
 }
 
-static void ivshmem_setup_msi(IVShmemState * s)
+static int ivshmem_setup_msi(IVShmemState * s)
 {
     if (msix_init_exclusive_bar(PCI_DEVICE(s), s->vectors, 1)) {
-        IVSHMEM_DPRINTF("msix initialization failed\n");
-        exit(1);
+        return -1;
     }
 
     IVSHMEM_DPRINTF("msix initialized (%d vectors)\n", s->vectors);
@@ -650,6 +664,7 @@ static void ivshmem_setup_msi(IVShmemState * s)
     s->eventfd_table = g_malloc0(s->vectors * sizeof(EventfdEntry));
 
     ivshmem_use_msix(s);
+    return 0;
 }
 
 static void ivshmem_save(QEMUFile* f, void *opaque)
@@ -703,34 +718,37 @@ static int ivshmem_load(QEMUFile* f, void *opaque, int version_id)
 }
 
 static void ivshmem_write_config(PCIDevice *pci_dev, uint32_t address,
-				 uint32_t val, int len)
+                                 uint32_t val, int len)
 {
     pci_default_write_config(pci_dev, address, val, len);
 }
 
-static int pci_ivshmem_init(PCIDevice *dev)
+static void pci_ivshmem_realize(PCIDevice *dev, Error **errp)
 {
     IVShmemState *s = IVSHMEM(dev);
     uint8_t *pci_conf;
     uint8_t attr = PCI_BASE_ADDRESS_SPACE_MEMORY |
         PCI_BASE_ADDRESS_MEM_PREFETCH;
+    Error *local_err = NULL;
 
-    if (s->sizearg == NULL)
+    if (s->sizearg == NULL) {
         s->ivshmem_size = 4 << 20; /* 4 MB default */
-    else {
-        s->ivshmem_size = ivshmem_get_size(s);
+    } else {
+        s->ivshmem_size = ivshmem_get_size(s, &local_err);
+        if (local_err) {
+            error_propagate(errp, local_err);
+            return;
+        }
     }
 
     fifo8_create(&s->incoming_fifo, sizeof(long));
-
     register_savevm(DEVICE(dev), "ivshmem", 0, 0, ivshmem_save, ivshmem_load,
                                                                         dev);
-
     /* IRQFD requires MSI */
     if (ivshmem_has_feature(s, IVSHMEM_IOEVENTFD) &&
         !ivshmem_has_feature(s, IVSHMEM_MSI)) {
-        error_report("ioeventfd/irqfd requires MSI");
-        exit(1);
+        error_setg(errp, "ioeventfd/irqfd requires MSI");
+        return;
     }
 
     /* check that role is reasonable */
@@ -740,8 +758,8 @@ static int pci_ivshmem_init(PCIDevice *dev)
         } else if (strncmp(s->role, "master", 7) == 0) {
             s->role_val = IVSHMEM_MASTER;
         } else {
-            error_report("'role' must be 'peer' or 'master'");
-            exit(1);
+            error_setg(errp, "'role' must be 'peer' or 'master'");
+            return;
         }
     } else {
         s->role_val = IVSHMEM_MASTER; /* default */
@@ -778,15 +796,18 @@ static int pci_ivshmem_init(PCIDevice *dev)
          * to the ivshmem server to receive the memory region */
 
         if (s->shmobj != NULL) {
-            error_report("WARNING: do not specify both 'chardev' "
-                         "and 'shm' with ivshmem");
+            error_setg(errp, "do not specify both 'chardev' "
+                       "and 'shm' with ivshmem");
+            return;
         }
 
         IVSHMEM_DPRINTF("using shared memory server (socket = %s)\n",
                         s->server_chr->filename);
 
-        if (ivshmem_has_feature(s, IVSHMEM_MSI)) {
-            ivshmem_setup_msi(s);
+        if (ivshmem_has_feature(s, IVSHMEM_MSI) &&
+            ivshmem_setup_msi(s)) {
+            error_setg(errp, "msix initialization failed");
+            return;
         }
 
         /* we allocate enough space for 16 guests and grow as needed */
@@ -807,8 +828,8 @@ static int pci_ivshmem_init(PCIDevice *dev)
         int fd;
 
         if (s->shmobj == NULL) {
-            error_report("Must specify 'chardev' or 'shm' to ivshmem");
-            exit(1);
+            error_setg(errp, "Must specify 'chardev' or 'shm' to ivshmem");
+            return;
         }
 
         IVSHMEM_DPRINTF("using shm_open (shm object = %s)\n", s->shmobj);
@@ -824,24 +845,19 @@ static int pci_ivshmem_init(PCIDevice *dev)
 
         } else if ((fd = shm_open(s->shmobj, O_CREAT|O_RDWR,
                         S_IRWXU|S_IRWXG|S_IRWXO)) < 0) {
-            error_report("could not open shared file");
-            exit(1);
-
+            error_setg(errp, "could not open shared file");
+            return;
         }
 
-        if (check_shm_size(s, fd) == -1) {
-            exit(1);
+        if (check_shm_size(s, fd, errp) == -1) {
+            return;
         }
 
-        create_shared_memory_BAR(s, fd, attr);
+        create_shared_memory_BAR(s, fd, attr, errp);
     }
-
-    dev->config_write = ivshmem_write_config;
-
-    return 0;
 }
 
-static void pci_ivshmem_uninit(PCIDevice *dev)
+static void pci_ivshmem_exit(PCIDevice *dev)
 {
     IVShmemState *s = IVSHMEM(dev);
 
@@ -873,8 +889,9 @@ static void ivshmem_class_init(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
 
-    k->init = pci_ivshmem_init;
-    k->exit = pci_ivshmem_uninit;
+    k->realize = pci_ivshmem_realize;
+    k->exit = pci_ivshmem_exit;
+    k->config_write = ivshmem_write_config;
     k->vendor_id = PCI_VENDOR_ID_IVSHMEM;
     k->device_id = PCI_DEVICE_ID_IVSHMEM;
     k->class_id = PCI_CLASS_MEMORY_RAM;
