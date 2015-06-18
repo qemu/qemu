@@ -62,7 +62,6 @@ struct KVMState
 {
     AccelState parent_obj;
 
-    KVMSlot *slots;
     int nr_slots;
     int fd;
     int vmfd;
@@ -93,6 +92,7 @@ struct KVMState
     QTAILQ_HEAD(msi_hashtab, KVMMSIRoute) msi_hashtab[KVM_MSI_HASHTAB_SIZE];
     bool direct_msi;
 #endif
+    KVMMemoryListener memory_listener;
 };
 
 KVMState *kvm_state;
@@ -115,13 +115,14 @@ static const KVMCapabilityInfo kvm_required_capabilites[] = {
     KVM_CAP_LAST_INFO
 };
 
-static KVMSlot *kvm_get_free_slot(KVMState *s)
+static KVMSlot *kvm_get_free_slot(KVMMemoryListener *kml)
 {
+    KVMState *s = kvm_state;
     int i;
 
     for (i = 0; i < s->nr_slots; i++) {
-        if (s->slots[i].memory_size == 0) {
-            return &s->slots[i];
+        if (kml->slots[i].memory_size == 0) {
+            return &kml->slots[i];
         }
     }
 
@@ -130,12 +131,14 @@ static KVMSlot *kvm_get_free_slot(KVMState *s)
 
 bool kvm_has_free_slot(MachineState *ms)
 {
-    return kvm_get_free_slot(KVM_STATE(ms->accelerator));
+    KVMState *s = KVM_STATE(ms->accelerator);
+
+    return kvm_get_free_slot(&s->memory_listener);
 }
 
-static KVMSlot *kvm_alloc_slot(KVMState *s)
+static KVMSlot *kvm_alloc_slot(KVMMemoryListener *kml)
 {
-    KVMSlot *slot = kvm_get_free_slot(s);
+    KVMSlot *slot = kvm_get_free_slot(kml);
 
     if (slot) {
         return slot;
@@ -145,14 +148,15 @@ static KVMSlot *kvm_alloc_slot(KVMState *s)
     abort();
 }
 
-static KVMSlot *kvm_lookup_matching_slot(KVMState *s,
+static KVMSlot *kvm_lookup_matching_slot(KVMMemoryListener *kml,
                                          hwaddr start_addr,
                                          hwaddr end_addr)
 {
+    KVMState *s = kvm_state;
     int i;
 
     for (i = 0; i < s->nr_slots; i++) {
-        KVMSlot *mem = &s->slots[i];
+        KVMSlot *mem = &kml->slots[i];
 
         if (start_addr == mem->start_addr &&
             end_addr == mem->start_addr + mem->memory_size) {
@@ -166,15 +170,16 @@ static KVMSlot *kvm_lookup_matching_slot(KVMState *s,
 /*
  * Find overlapping slot with lowest start address
  */
-static KVMSlot *kvm_lookup_overlapping_slot(KVMState *s,
+static KVMSlot *kvm_lookup_overlapping_slot(KVMMemoryListener *kml,
                                             hwaddr start_addr,
                                             hwaddr end_addr)
 {
+    KVMState *s = kvm_state;
     KVMSlot *found = NULL;
     int i;
 
     for (i = 0; i < s->nr_slots; i++) {
-        KVMSlot *mem = &s->slots[i];
+        KVMSlot *mem = &kml->slots[i];
 
         if (mem->memory_size == 0 ||
             (found && found->start_addr < mem->start_addr)) {
@@ -193,10 +198,11 @@ static KVMSlot *kvm_lookup_overlapping_slot(KVMState *s,
 int kvm_physical_memory_addr_from_host(KVMState *s, void *ram,
                                        hwaddr *phys_addr)
 {
+    KVMMemoryListener *kml = &s->memory_listener;
     int i;
 
     for (i = 0; i < s->nr_slots; i++) {
-        KVMSlot *mem = &s->slots[i];
+        KVMSlot *mem = &kml->slots[i];
 
         if (ram >= mem->ram && ram < mem->ram + mem->memory_size) {
             *phys_addr = mem->start_addr + (ram - mem->ram);
@@ -207,8 +213,9 @@ int kvm_physical_memory_addr_from_host(KVMState *s, void *ram,
     return 0;
 }
 
-static int kvm_set_user_memory_region(KVMState *s, KVMSlot *slot)
+static int kvm_set_user_memory_region(KVMMemoryListener *kml, KVMSlot *slot)
 {
+    KVMState *s = kvm_state;
     struct kvm_userspace_memory_region mem;
 
     mem.slot = slot->slot;
@@ -287,9 +294,9 @@ static int kvm_mem_flags(MemoryRegion *mr)
     return flags;
 }
 
-static int kvm_slot_update_flags(KVMSlot *mem, MemoryRegion *mr)
+static int kvm_slot_update_flags(KVMMemoryListener *kml, KVMSlot *mem,
+                                 MemoryRegion *mr)
 {
-    KVMState *s = kvm_state;
     int old_flags;
 
     old_flags = mem->flags;
@@ -300,20 +307,20 @@ static int kvm_slot_update_flags(KVMSlot *mem, MemoryRegion *mr)
         return 0;
     }
 
-    return kvm_set_user_memory_region(s, mem);
+    return kvm_set_user_memory_region(kml, mem);
 }
 
-static int kvm_section_update_flags(MemoryRegionSection *section)
+static int kvm_section_update_flags(KVMMemoryListener *kml,
+                                    MemoryRegionSection *section)
 {
-    KVMState *s = kvm_state;
     hwaddr phys_addr = section->offset_within_address_space;
     ram_addr_t size = int128_get64(section->size);
-    KVMSlot *mem = kvm_lookup_matching_slot(s, phys_addr, phys_addr + size);
+    KVMSlot *mem = kvm_lookup_matching_slot(kml, phys_addr, phys_addr + size);
 
     if (mem == NULL)  {
         return 0;
     } else {
-        return kvm_slot_update_flags(mem, section->mr);
+        return kvm_slot_update_flags(kml, mem, section->mr);
     }
 }
 
@@ -321,13 +328,14 @@ static void kvm_log_start(MemoryListener *listener,
                           MemoryRegionSection *section,
                           int old, int new)
 {
+    KVMMemoryListener *kml = container_of(listener, KVMMemoryListener, listener);
     int r;
 
     if (old != 0) {
         return;
     }
 
-    r = kvm_section_update_flags(section);
+    r = kvm_section_update_flags(kml, section);
     if (r < 0) {
         abort();
     }
@@ -337,13 +345,14 @@ static void kvm_log_stop(MemoryListener *listener,
                           MemoryRegionSection *section,
                           int old, int new)
 {
+    KVMMemoryListener *kml = container_of(listener, KVMMemoryListener, listener);
     int r;
 
     if (new != 0) {
         return;
     }
 
-    r = kvm_section_update_flags(section);
+    r = kvm_section_update_flags(kml, section);
     if (r < 0) {
         abort();
     }
@@ -371,7 +380,8 @@ static int kvm_get_dirty_pages_log_range(MemoryRegionSection *section,
  * @start_add: start of logged region.
  * @end_addr: end of logged region.
  */
-static int kvm_physical_sync_dirty_bitmap(MemoryRegionSection *section)
+static int kvm_physical_sync_dirty_bitmap(KVMMemoryListener *kml,
+                                          MemoryRegionSection *section)
 {
     KVMState *s = kvm_state;
     unsigned long size, allocated_size = 0;
@@ -383,7 +393,7 @@ static int kvm_physical_sync_dirty_bitmap(MemoryRegionSection *section)
 
     d.dirty_bitmap = NULL;
     while (start_addr < end_addr) {
-        mem = kvm_lookup_overlapping_slot(s, start_addr, end_addr);
+        mem = kvm_lookup_overlapping_slot(kml, start_addr, end_addr);
         if (mem == NULL) {
             break;
         }
@@ -614,7 +624,8 @@ kvm_check_extension_list(KVMState *s, const KVMCapabilityInfo *list)
     return NULL;
 }
 
-static void kvm_set_phys_mem(MemoryRegionSection *section, bool add)
+static void kvm_set_phys_mem(KVMMemoryListener *kml,
+                             MemoryRegionSection *section, bool add)
 {
     KVMState *s = kvm_state;
     KVMSlot *mem, old;
@@ -654,7 +665,7 @@ static void kvm_set_phys_mem(MemoryRegionSection *section, bool add)
     ram = memory_region_get_ram_ptr(mr) + section->offset_within_region + delta;
 
     while (1) {
-        mem = kvm_lookup_overlapping_slot(s, start_addr, start_addr + size);
+        mem = kvm_lookup_overlapping_slot(kml, start_addr, start_addr + size);
         if (!mem) {
             break;
         }
@@ -664,19 +675,19 @@ static void kvm_set_phys_mem(MemoryRegionSection *section, bool add)
             (ram - start_addr == mem->ram - mem->start_addr)) {
             /* The new slot fits into the existing one and comes with
              * identical parameters - update flags and done. */
-            kvm_slot_update_flags(mem, mr);
+            kvm_slot_update_flags(kml, mem, mr);
             return;
         }
 
         old = *mem;
 
         if (mem->flags & KVM_MEM_LOG_DIRTY_PAGES) {
-            kvm_physical_sync_dirty_bitmap(section);
+            kvm_physical_sync_dirty_bitmap(kml, section);
         }
 
         /* unregister the overlapping slot */
         mem->memory_size = 0;
-        err = kvm_set_user_memory_region(s, mem);
+        err = kvm_set_user_memory_region(kml, mem);
         if (err) {
             fprintf(stderr, "%s: error unregistering overlapping slot: %s\n",
                     __func__, strerror(-err));
@@ -693,13 +704,13 @@ static void kvm_set_phys_mem(MemoryRegionSection *section, bool add)
          * - and actually require a recent KVM version. */
         if (s->broken_set_mem_region &&
             old.start_addr == start_addr && old.memory_size < size && add) {
-            mem = kvm_alloc_slot(s);
+            mem = kvm_alloc_slot(kml);
             mem->memory_size = old.memory_size;
             mem->start_addr = old.start_addr;
             mem->ram = old.ram;
             mem->flags = kvm_mem_flags(mr);
 
-            err = kvm_set_user_memory_region(s, mem);
+            err = kvm_set_user_memory_region(kml, mem);
             if (err) {
                 fprintf(stderr, "%s: error updating slot: %s\n", __func__,
                         strerror(-err));
@@ -714,13 +725,13 @@ static void kvm_set_phys_mem(MemoryRegionSection *section, bool add)
 
         /* register prefix slot */
         if (old.start_addr < start_addr) {
-            mem = kvm_alloc_slot(s);
+            mem = kvm_alloc_slot(kml);
             mem->memory_size = start_addr - old.start_addr;
             mem->start_addr = old.start_addr;
             mem->ram = old.ram;
             mem->flags =  kvm_mem_flags(mr);
 
-            err = kvm_set_user_memory_region(s, mem);
+            err = kvm_set_user_memory_region(kml, mem);
             if (err) {
                 fprintf(stderr, "%s: error registering prefix slot: %s\n",
                         __func__, strerror(-err));
@@ -737,14 +748,14 @@ static void kvm_set_phys_mem(MemoryRegionSection *section, bool add)
         if (old.start_addr + old.memory_size > start_addr + size) {
             ram_addr_t size_delta;
 
-            mem = kvm_alloc_slot(s);
+            mem = kvm_alloc_slot(kml);
             mem->start_addr = start_addr + size;
             size_delta = mem->start_addr - old.start_addr;
             mem->memory_size = old.memory_size - size_delta;
             mem->ram = old.ram + size_delta;
             mem->flags = kvm_mem_flags(mr);
 
-            err = kvm_set_user_memory_region(s, mem);
+            err = kvm_set_user_memory_region(kml, mem);
             if (err) {
                 fprintf(stderr, "%s: error registering suffix slot: %s\n",
                         __func__, strerror(-err));
@@ -760,13 +771,13 @@ static void kvm_set_phys_mem(MemoryRegionSection *section, bool add)
     if (!add) {
         return;
     }
-    mem = kvm_alloc_slot(s);
+    mem = kvm_alloc_slot(kml);
     mem->memory_size = size;
     mem->start_addr = start_addr;
     mem->ram = ram;
     mem->flags = kvm_mem_flags(mr);
 
-    err = kvm_set_user_memory_region(s, mem);
+    err = kvm_set_user_memory_region(kml, mem);
     if (err) {
         fprintf(stderr, "%s: error registering slot: %s\n", __func__,
                 strerror(-err));
@@ -777,23 +788,28 @@ static void kvm_set_phys_mem(MemoryRegionSection *section, bool add)
 static void kvm_region_add(MemoryListener *listener,
                            MemoryRegionSection *section)
 {
+    KVMMemoryListener *kml = container_of(listener, KVMMemoryListener, listener);
+
     memory_region_ref(section->mr);
-    kvm_set_phys_mem(section, true);
+    kvm_set_phys_mem(kml, section, true);
 }
 
 static void kvm_region_del(MemoryListener *listener,
                            MemoryRegionSection *section)
 {
-    kvm_set_phys_mem(section, false);
+    KVMMemoryListener *kml = container_of(listener, KVMMemoryListener, listener);
+
+    kvm_set_phys_mem(kml, section, false);
     memory_region_unref(section->mr);
 }
 
 static void kvm_log_sync(MemoryListener *listener,
                          MemoryRegionSection *section)
 {
+    KVMMemoryListener *kml = container_of(listener, KVMMemoryListener, listener);
     int r;
 
-    r = kvm_physical_sync_dirty_bitmap(section);
+    r = kvm_physical_sync_dirty_bitmap(kml, section);
     if (r < 0) {
         abort();
     }
@@ -868,18 +884,27 @@ static void kvm_io_ioeventfd_del(MemoryListener *listener,
     }
 }
 
-static MemoryListener kvm_memory_listener = {
-    .region_add = kvm_region_add,
-    .region_del = kvm_region_del,
-    .log_start = kvm_log_start,
-    .log_stop = kvm_log_stop,
-    .log_sync = kvm_log_sync,
-    .eventfd_add = kvm_mem_ioeventfd_add,
-    .eventfd_del = kvm_mem_ioeventfd_del,
-    .coalesced_mmio_add = kvm_coalesce_mmio_region,
-    .coalesced_mmio_del = kvm_uncoalesce_mmio_region,
-    .priority = 10,
-};
+static void kvm_memory_listener_register(KVMState *s,
+                                         KVMMemoryListener *kml,
+                                         AddressSpace *as)
+{
+    int i;
+
+    kml->slots = g_malloc0(s->nr_slots * sizeof(KVMSlot));
+
+    for (i = 0; i < s->nr_slots; i++) {
+        kml->slots[i].slot = i;
+    }
+
+    kml->listener.region_add = kvm_region_add;
+    kml->listener.region_del = kvm_region_del;
+    kml->listener.log_start = kvm_log_start;
+    kml->listener.log_stop = kvm_log_stop;
+    kml->listener.log_sync = kvm_log_sync;
+    kml->listener.priority = 10;
+
+    memory_listener_register(&kml->listener, as);
+}
 
 static MemoryListener kvm_io_listener = {
     .eventfd_add = kvm_io_ioeventfd_add,
@@ -1390,7 +1415,7 @@ static int kvm_init(MachineState *ms)
     KVMState *s;
     const KVMCapabilityInfo *missing_cap;
     int ret;
-    int i, type = 0;
+    int type = 0;
     const char *kvm_type;
 
     s = KVM_STATE(ms->accelerator);
@@ -1437,12 +1462,6 @@ static int kvm_init(MachineState *ms)
     /* If unspecified, use the default value */
     if (!s->nr_slots) {
         s->nr_slots = 32;
-    }
-
-    s->slots = g_malloc0(s->nr_slots * sizeof(KVMSlot));
-
-    for (i = 0; i < s->nr_slots; i++) {
-        s->slots[i].slot = i;
     }
 
     /* check the vcpu limits */
@@ -1582,8 +1601,16 @@ static int kvm_init(MachineState *ms)
     }
 
     kvm_state = s;
-    memory_listener_register(&kvm_memory_listener, &address_space_memory);
-    memory_listener_register(&kvm_io_listener, &address_space_io);
+
+    s->memory_listener.listener.eventfd_add = kvm_mem_ioeventfd_add;
+    s->memory_listener.listener.eventfd_del = kvm_mem_ioeventfd_del;
+    s->memory_listener.listener.coalesced_mmio_add = kvm_coalesce_mmio_region;
+    s->memory_listener.listener.coalesced_mmio_del = kvm_uncoalesce_mmio_region;
+
+    kvm_memory_listener_register(s, &s->memory_listener,
+                                 &address_space_memory);
+    memory_listener_register(&kvm_io_listener,
+                             &address_space_io);
 
     s->many_ioeventfds = kvm_check_many_ioeventfds();
 
@@ -1599,7 +1626,7 @@ err:
     if (s->fd != -1) {
         close(s->fd);
     }
-    g_free(s->slots);
+    g_free(s->memory_listener.slots);
 
     return ret;
 }

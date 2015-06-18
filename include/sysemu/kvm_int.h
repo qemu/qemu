@@ -22,6 +22,11 @@ typedef struct KVMSlot
     int flags;
 } KVMSlot;
 
+typedef struct KVMMemoryListener {
+    MemoryListener listener;
+    KVMSlot *slots;
+} KVMMemoryListener;
+
 #define TYPE_KVM_ACCEL ACCEL_CLASS_NAME("kvm")
 
 #define KVM_STATE(obj) \
