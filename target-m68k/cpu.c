@@ -115,6 +115,14 @@ static void cfv4e_cpu_initfn(Object *obj)
     m68k_set_feature(env, M68K_FEATURE_USP);
 }
 
+static void mc68000_cpu_initfn(Object *obj)
+{
+    M68kCPU *cpu = M68K_CPU(obj);
+    CPUM68KState *env = &cpu->env;
+
+    m68k_set_feature(env, M68K_FEATURE_CF_ISA_A);
+}
+
 static void any_cpu_initfn(Object *obj)
 {
     M68kCPU *cpu = M68K_CPU(obj);
@@ -143,6 +151,7 @@ static const M68kCPUInfo m68k_cpus[] = {
     { .name = "m5206", .instance_init = m5206_cpu_initfn },
     { .name = "m5208", .instance_init = m5208_cpu_initfn },
     { .name = "cfv4e", .instance_init = cfv4e_cpu_initfn },
+	{ .name = "mc68000", .instance_init = mc68000_cpu_initfn },
     { .name = "any",   .instance_init = any_cpu_initfn },
 };
 
