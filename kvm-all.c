@@ -218,7 +218,7 @@ static int kvm_set_user_memory_region(KVMMemoryListener *kml, KVMSlot *slot)
     KVMState *s = kvm_state;
     struct kvm_userspace_memory_region mem;
 
-    mem.slot = slot->slot;
+    mem.slot = slot->slot | (kml->as_id << 16);
     mem.guest_phys_addr = slot->start_addr;
     mem.userspace_addr = (unsigned long)slot->ram;
     mem.flags = slot->flags;
@@ -420,8 +420,7 @@ static int kvm_physical_sync_dirty_bitmap(KVMMemoryListener *kml,
         allocated_size = size;
         memset(d.dirty_bitmap, 0, allocated_size);
 
-        d.slot = mem->slot;
-
+        d.slot = mem->slot | (kml->as_id << 16);
         if (kvm_vm_ioctl(s, KVM_GET_DIRTY_LOG, &d) == -1) {
             DPRINTF("ioctl failed %d\n", errno);
             ret = -1;
@@ -884,13 +883,13 @@ static void kvm_io_ioeventfd_del(MemoryListener *listener,
     }
 }
 
-static void kvm_memory_listener_register(KVMState *s,
-                                         KVMMemoryListener *kml,
-                                         AddressSpace *as)
+void kvm_memory_listener_register(KVMState *s, KVMMemoryListener *kml,
+                                  AddressSpace *as, int as_id)
 {
     int i;
 
     kml->slots = g_malloc0(s->nr_slots * sizeof(KVMSlot));
+    kml->as_id = as_id;
 
     for (i = 0; i < s->nr_slots; i++) {
         kml->slots[i].slot = i;
@@ -1608,7 +1607,7 @@ static int kvm_init(MachineState *ms)
     s->memory_listener.listener.coalesced_mmio_del = kvm_uncoalesce_mmio_region;
 
     kvm_memory_listener_register(s, &s->memory_listener,
-                                 &address_space_memory);
+                                 &address_space_memory, 0);
     memory_listener_register(&kvm_io_listener,
                              &address_space_io);
 
