@@ -1146,6 +1146,13 @@ bool qemu_in_vcpu_thread(void)
     return current_cpu && qemu_cpu_is_self(current_cpu);
 }
 
+static __thread bool iothread_locked = false;
+
+bool qemu_mutex_iothread_locked(void)
+{
+    return iothread_locked;
+}
+
 void qemu_mutex_lock_iothread(void)
 {
     atomic_inc(&iothread_requesting_mutex);
@@ -1164,10 +1171,12 @@ void qemu_mutex_lock_iothread(void)
         atomic_dec(&iothread_requesting_mutex);
         qemu_cond_broadcast(&qemu_io_proceeded_cond);
     }
+    iothread_locked = true;
 }
 
 void qemu_mutex_unlock_iothread(void)
 {
+    iothread_locked = false;
     qemu_mutex_unlock(&qemu_global_mutex);
 }
 
