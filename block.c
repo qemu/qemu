@@ -1516,15 +1516,6 @@ static int bdrv_open_inherit(BlockDriverState **pbs, const char *filename,
 
     bdrv_refresh_filename(bs);
 
-    /* For snapshot=on, create a temporary qcow2 overlay. bs points to the
-     * temporary snapshot afterwards. */
-    if (snapshot_flags) {
-        ret = bdrv_append_temp_snapshot(bs, snapshot_flags, &local_err);
-        if (local_err) {
-            goto close_and_fail;
-        }
-    }
-
     /* Check if any unknown options were used */
     if (options && (qdict_size(options) != 0)) {
         const QDictEntry *entry = qdict_first(options);
@@ -1556,6 +1547,16 @@ static int bdrv_open_inherit(BlockDriverState **pbs, const char *filename,
 
     QDECREF(options);
     *pbs = bs;
+
+    /* For snapshot=on, create a temporary qcow2 overlay. bs points to the
+     * temporary snapshot afterwards. */
+    if (snapshot_flags) {
+        ret = bdrv_append_temp_snapshot(bs, snapshot_flags, &local_err);
+        if (local_err) {
+            goto close_and_fail;
+        }
+    }
+
     return 0;
 
 fail:
@@ -2000,6 +2001,24 @@ static void bdrv_move_feature_fields(BlockDriverState *bs_dest,
 
     bs_dest->enable_write_cache = bs_src->enable_write_cache;
 
+    /* r/w error */
+    bs_dest->on_read_error      = bs_src->on_read_error;
+    bs_dest->on_write_error     = bs_src->on_write_error;
+
+    /* i/o status */
+    bs_dest->iostatus_enabled   = bs_src->iostatus_enabled;
+    bs_dest->iostatus           = bs_src->iostatus;
+
+    /* dirty bitmap */
+    bs_dest->dirty_bitmaps      = bs_src->dirty_bitmaps;
+}
+
+/* Fields that only need to be swapped if the contents of BDSes is swapped
+ * rather than pointers being changed in the parents, and throttling fields
+ * because only bdrv_swap() messes with internals of throttling. */
+static void bdrv_move_reference_fields(BlockDriverState *bs_dest,
+                                       BlockDriverState *bs_src)
+{
     /* i/o throttled req */
     bs_dest->throttle_state     = bs_src->throttle_state,
     bs_dest->io_limits_enabled  = bs_src->io_limits_enabled;
@@ -2014,23 +2033,6 @@ static void bdrv_move_feature_fields(BlockDriverState *bs_dest,
            &bs_src->throttle_timers,
            sizeof(ThrottleTimers));
 
-    /* r/w error */
-    bs_dest->on_read_error      = bs_src->on_read_error;
-    bs_dest->on_write_error     = bs_src->on_write_error;
-
-    /* i/o status */
-    bs_dest->iostatus_enabled   = bs_src->iostatus_enabled;
-    bs_dest->iostatus           = bs_src->iostatus;
-
-    /* dirty bitmap */
-    bs_dest->dirty_bitmaps      = bs_src->dirty_bitmaps;
-}
-
-/* Fields that only need to be swapped if the contents of BDSes is swapped
- * rather than pointers being changed in the parents. */
-static void bdrv_move_reference_fields(BlockDriverState *bs_dest,
-                                       BlockDriverState *bs_src)
-{
     /* reference count */
     bs_dest->refcnt             = bs_src->refcnt;
 
@@ -2156,6 +2158,45 @@ void bdrv_swap(BlockDriverState *bs_new, BlockDriverState *bs_old)
     bdrv_rebind(bs_old);
 }
 
+static void change_parent_backing_link(BlockDriverState *from,
+                                       BlockDriverState *to)
+{
+    BdrvChild *c, *next;
+
+    QLIST_FOREACH_SAFE(c, &from->parents, next_parent, next) {
+        assert(c->role != &child_backing);
+        c->bs = to;
+        QLIST_REMOVE(c, next_parent);
+        QLIST_INSERT_HEAD(&to->parents, c, next_parent);
+        bdrv_ref(to);
+        bdrv_unref(from);
+    }
+    if (from->blk) {
+        blk_set_bs(from->blk, to);
+        if (!to->device_list.tqe_prev) {
+            QTAILQ_INSERT_BEFORE(from, to, device_list);
+        }
+        QTAILQ_REMOVE(&bdrv_states, from, device_list);
+    }
+}
+
+static void swap_feature_fields(BlockDriverState *bs_top,
+                                BlockDriverState *bs_new)
+{
+    BlockDriverState tmp;
+
+    bdrv_move_feature_fields(&tmp, bs_top);
+    bdrv_move_feature_fields(bs_top, bs_new);
+    bdrv_move_feature_fields(bs_new, &tmp);
+
+    assert(!bs_new->throttle_state);
+    if (bs_top->throttle_state) {
+        assert(bs_top->io_limits_enabled);
+        bdrv_io_limits_enable(bs_new, throttle_group_get_name(bs_top));
+        bdrv_io_limits_disable(bs_top);
+    }
+}
+
 /*
  * Add new bs contents at the top of an image chain while the chain is
  * live, while keeping required fields on the top layer.
@@ -2166,14 +2207,29 @@ void bdrv_swap(BlockDriverState *bs_new, BlockDriverState *bs_old)
  * bs_new must not be attached to a BlockBackend.
  *
  * This function does not create any image files.
+ *
+ * bdrv_append() takes ownership of a bs_new reference and unrefs it because
+ * that's what the callers commonly need. bs_new will be referenced by the old
+ * parents of bs_top after bdrv_append() returns. If the caller needs to keep a
+ * reference of its own, it must call bdrv_ref().
  */
 void bdrv_append(BlockDriverState *bs_new, BlockDriverState *bs_top)
 {
-    bdrv_swap(bs_new, bs_top);
+    assert(!bdrv_requests_pending(bs_top));
+    assert(!bdrv_requests_pending(bs_new));
 
-    /* The contents of 'tmp' will become bs_top, as we are
-     * swapping bs_new and bs_top contents. */
-    bdrv_set_backing_hd(bs_top, bs_new);
+    bdrv_ref(bs_top);
+    change_parent_backing_link(bs_top, bs_new);
+
+    /* Some fields always stay on top of the backing file chain */
+    swap_feature_fields(bs_top, bs_new);
+
+    bdrv_set_backing_hd(bs_new, bs_top);
+    bdrv_unref(bs_top);
+
+    /* bs_new is now referenced by its new parents, we don't need the
+     * additional reference any more. */
+    bdrv_unref(bs_new);
 }
 
 static void bdrv_delete(BlockDriverState *bs)

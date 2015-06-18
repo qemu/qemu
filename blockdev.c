@@ -1546,7 +1546,7 @@ static void external_snapshot_commit(BlkTransactionState *common)
     /* We don't need (or want) to use the transactional
      * bdrv_reopen_multiple() across all the entries at once, because we
      * don't want to abort all of them if one of them fails the reopen */
-    bdrv_reopen(state->new_bs, state->new_bs->open_flags & ~BDRV_O_RDWR,
+    bdrv_reopen(state->old_bs, state->old_bs->open_flags & ~BDRV_O_RDWR,
                 NULL);
 
     aio_context_release(state->aio_context);
