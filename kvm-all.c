@@ -69,8 +69,6 @@ typedef struct KVMSlot
     int flags;
 } KVMSlot;
 
-typedef struct kvm_dirty_log KVMDirtyLog;
-
 struct KVMState
 {
     AccelState parent_obj;
@@ -393,7 +391,7 @@ static int kvm_physical_sync_dirty_bitmap(MemoryRegionSection *section)
 {
     KVMState *s = kvm_state;
     unsigned long size, allocated_size = 0;
-    KVMDirtyLog d = {};
+    struct kvm_dirty_log d = {};
     KVMSlot *mem;
     int ret = 0;
     hwaddr start_addr = section->offset_within_address_space;
