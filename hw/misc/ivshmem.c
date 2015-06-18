@@ -208,10 +208,13 @@ static void ivshmem_io_write(void *opaque, hwaddr addr,
             if (vector < s->peers[dest].nb_eventfds) {
                 IVSHMEM_DPRINTF("Notifying VM %d on vector %d\n", dest, vector);
                 event_notifier_set(&s->peers[dest].eventfds[vector]);
+            } else {
+                IVSHMEM_DPRINTF("Invalid destination vector %d on VM %d\n",
+                                vector, dest);
             }
             break;
         default:
-            IVSHMEM_DPRINTF("Invalid VM Doorbell VM %d\n", dest);
+            IVSHMEM_DPRINTF("Unhandled write " TARGET_FMT_plx "\n", addr);
     }
 }
 
@@ -263,9 +266,9 @@ static void ivshmem_receive(void *opaque, const uint8_t *buf, int size)
 {
     IVShmemState *s = opaque;
 
-    ivshmem_IntrStatus_write(s, *buf);
+    IVSHMEM_DPRINTF("ivshmem_receive 0x%02x size: %d\n", *buf, size);
 
-    IVSHMEM_DPRINTF("ivshmem_receive 0x%02x\n", *buf);
+    ivshmem_IntrStatus_write(s, *buf);
 }
 
 static int ivshmem_can_receive(void * opaque)
@@ -592,6 +595,7 @@ static void ivshmem_use_msix(IVShmemState * s)
     PCIDevice *d = PCI_DEVICE(s);
     int i;
 
+    IVSHMEM_DPRINTF("%s, msix present: %d\n", __func__, msix_present(d));
     if (!msix_present(d)) {
         return;
     }
