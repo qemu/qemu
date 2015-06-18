@@ -28,7 +28,8 @@
 #include "hw/pci/pci_bus.h"
 #include "hw/hotplug.h"
 
-#define TYPE_PCI_BRIDGE_DEV "pci-bridge"
+#define TYPE_PCI_BRIDGE_DEV      "pci-bridge"
+#define TYPE_PCI_BRIDGE_SEAT_DEV "pci-bridge-seat"
 #define PCI_BRIDGE_DEV(obj) \
     OBJECT_CHECK(PCIBridgeDev, (obj), TYPE_PCI_BRIDGE_DEV)
 
@@ -170,9 +171,31 @@ static const TypeInfo pci_bridge_dev_info = {
     }
 };
 
+/*
+ * Multiseat bridge.  Same as the standard pci bridge, only with a
+ * different pci id, so we can match it easily in the guest for
+ * automagic multiseat configuration.  See docs/multiseat.txt for more.
+ */
+static void pci_bridge_dev_seat_class_init(ObjectClass *klass, void *data)
+{
+    DeviceClass *dc = DEVICE_CLASS(klass);
+    PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
+
+    k->device_id = PCI_DEVICE_ID_REDHAT_BRIDGE_SEAT;
+    dc->desc = "Standard PCI Bridge (multiseat)";
+}
+
+static const TypeInfo pci_bridge_dev_seat_info = {
+    .name              = TYPE_PCI_BRIDGE_SEAT_DEV,
+    .parent            = TYPE_PCI_BRIDGE_DEV,
+    .instance_size     = sizeof(PCIBridgeDev),
+    .class_init        = pci_bridge_dev_seat_class_init,
+};
+
 static void pci_bridge_dev_register(void)
 {
     type_register_static(&pci_bridge_dev_info);
+    type_register_static(&pci_bridge_dev_seat_info);
 }
 
 type_init(pci_bridge_dev_register);
