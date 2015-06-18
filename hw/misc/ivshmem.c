@@ -651,56 +651,6 @@ static int ivshmem_setup_msi(IVShmemState * s)
     return 0;
 }
 
-static void ivshmem_save(QEMUFile* f, void *opaque)
-{
-    IVShmemState *proxy = opaque;
-    PCIDevice *pci_dev = PCI_DEVICE(proxy);
-
-    IVSHMEM_DPRINTF("ivshmem_save\n");
-    pci_device_save(pci_dev, f);
-
-    if (ivshmem_has_feature(proxy, IVSHMEM_MSI)) {
-        msix_save(pci_dev, f);
-    } else {
-        qemu_put_be32(f, proxy->intrstatus);
-        qemu_put_be32(f, proxy->intrmask);
-    }
-
-}
-
-static int ivshmem_load(QEMUFile* f, void *opaque, int version_id)
-{
-    IVSHMEM_DPRINTF("ivshmem_load\n");
-
-    IVShmemState *proxy = opaque;
-    PCIDevice *pci_dev = PCI_DEVICE(proxy);
-    int ret;
-
-    if (version_id > 0) {
-        return -EINVAL;
-    }
-
-    if (proxy->role_val == IVSHMEM_PEER) {
-        error_report("'peer' devices are not migratable");
-        return -EINVAL;
-    }
-
-    ret = pci_device_load(pci_dev, f);
-    if (ret) {
-        return ret;
-    }
-
-    if (ivshmem_has_feature(proxy, IVSHMEM_MSI)) {
-        msix_load(pci_dev, f);
-	ivshmem_use_msix(proxy);
-    } else {
-        proxy->intrstatus = qemu_get_be32(f);
-        proxy->intrmask = qemu_get_be32(f);
-    }
-
-    return 0;
-}
-
 static void ivshmem_write_config(PCIDevice *pci_dev, uint32_t address,
                                  uint32_t val, int len)
 {
@@ -726,8 +676,7 @@ static void pci_ivshmem_realize(PCIDevice *dev, Error **errp)
     }
 
     fifo8_create(&s->incoming_fifo, sizeof(long));
-    register_savevm(DEVICE(dev), "ivshmem", 0, 0, ivshmem_save, ivshmem_load,
-                                                                        dev);
+
     /* IRQFD requires MSI */
     if (ivshmem_has_feature(s, IVSHMEM_IOEVENTFD) &&
         !ivshmem_has_feature(s, IVSHMEM_MSI)) {
@@ -853,9 +802,95 @@ static void pci_ivshmem_exit(PCIDevice *dev)
 
     memory_region_del_subregion(&s->bar, &s->ivshmem);
     vmstate_unregister_ram(&s->ivshmem, DEVICE(dev));
-    unregister_savevm(DEVICE(dev), "ivshmem", s);
     fifo8_destroy(&s->incoming_fifo);
 }
+
+static bool test_msix(void *opaque, int version_id)
+{
+    IVShmemState *s = opaque;
+
+    return ivshmem_has_feature(s, IVSHMEM_MSI);
+}
+
+static bool test_no_msix(void *opaque, int version_id)
+{
+    return !test_msix(opaque, version_id);
+}
+
+static int ivshmem_pre_load(void *opaque)
+{
+    IVShmemState *s = opaque;
+
+    if (s->role_val == IVSHMEM_PEER) {
+        error_report("'peer' devices are not migratable");
+        return -EINVAL;
+    }
+
+    return 0;
+}
+
+static int ivshmem_post_load(void *opaque, int version_id)
+{
+    IVShmemState *s = opaque;
+
+    if (ivshmem_has_feature(s, IVSHMEM_MSI)) {
+        ivshmem_use_msix(s);
+    }
+
+    return 0;
+}
+
+static int ivshmem_load_old(QEMUFile *f, void *opaque, int version_id)
+{
+    IVShmemState *s = opaque;
+    PCIDevice *pdev = PCI_DEVICE(s);
+    int ret;
+
+    IVSHMEM_DPRINTF("ivshmem_load_old\n");
+
+    if (version_id != 0) {
+        return -EINVAL;
+    }
+
+    if (s->role_val == IVSHMEM_PEER) {
+        error_report("'peer' devices are not migratable");
+        return -EINVAL;
+    }
+
+    ret = pci_device_load(pdev, f);
+    if (ret) {
+        return ret;
+    }
+
+    if (ivshmem_has_feature(s, IVSHMEM_MSI)) {
+        msix_load(pdev, f);
+        ivshmem_use_msix(s);
+    } else {
+        s->intrstatus = qemu_get_be32(f);
+        s->intrmask = qemu_get_be32(f);
+    }
+
+    return 0;
+}
+
+static const VMStateDescription ivshmem_vmsd = {
+    .name = "ivshmem",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .pre_load = ivshmem_pre_load,
+    .post_load = ivshmem_post_load,
+    .fields = (VMStateField[]) {
+        VMSTATE_PCI_DEVICE(parent_obj, IVShmemState),
+
+        VMSTATE_MSIX_TEST(parent_obj, IVShmemState, test_msix),
+        VMSTATE_UINT32_TEST(intrstatus, IVShmemState, test_no_msix),
+        VMSTATE_UINT32_TEST(intrmask, IVShmemState, test_no_msix),
+
+        VMSTATE_END_OF_LIST()
+    },
+    .load_state_old = ivshmem_load_old,
+    .minimum_version_id_old = 0
+};
 
 static Property ivshmem_properties[] = {
     DEFINE_PROP_CHR("chardev", IVShmemState, server_chr),
@@ -882,6 +917,7 @@ static void ivshmem_class_init(ObjectClass *klass, void *data)
     k->class_id = PCI_CLASS_MEMORY_RAM;
     dc->reset = ivshmem_reset;
     dc->props = ivshmem_properties;
+    dc->vmsd = &ivshmem_vmsd;
     set_bit(DEVICE_CATEGORY_MISC, dc->categories);
 }
 
