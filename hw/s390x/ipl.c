@@ -218,7 +218,7 @@ static Property s390_ipl_properties[] = {
  * - -1 if no valid boot device was found
  * - ccw id of the boot device otherwise
  */
-static uint32_t s390_update_iplstate(CPUS390XState *env, S390IPLState *ipl)
+static uint64_t s390_update_iplstate(CPUS390XState *env, S390IPLState *ipl)
 {
     DeviceState *dev_st;
 
@@ -248,7 +248,7 @@ static uint32_t s390_update_iplstate(CPUS390XState *env, S390IPLState *ipl)
 
     return -1;
 out:
-    return ipl->cssid << 24 | ipl->ssid << 16 | ipl->devno;
+    return (uint32_t) (ipl->cssid << 24 | ipl->ssid << 16 | ipl->devno);
 }
 
 int s390_ipl_update_diag308(IplParameterBlock *iplb)
