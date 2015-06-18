@@ -287,7 +287,8 @@ static void pc_init1(MachineState *machine)
         /* TODO: Populate SPD eeprom data.  */
         smbus = piix4_pm_init(pci_bus, piix3_devfn + 3, 0xb100,
                               gsi[9], smi_irq,
-                              !kvm_enabled(), &piix4_pm);
+                              pc_machine_is_smm_enabled(pc_machine),
+                              &piix4_pm);
         smbus_eeprom_init(smbus, 8, NULL, 0);
 
         object_property_add_link(OBJECT(machine), PC_MACHINE_ACPI_DEVICE_PROP,
@@ -306,7 +307,11 @@ static void pc_init1(MachineState *machine)
 
 static void pc_compat_2_3(MachineState *machine)
 {
+    PCMachineState *pcms = PC_MACHINE(machine);
     savevm_skip_section_footers();
+    if (kvm_enabled()) {
+        pcms->smm = ON_OFF_AUTO_OFF;
+    }
 }
 
 static void pc_compat_2_2(MachineState *machine)

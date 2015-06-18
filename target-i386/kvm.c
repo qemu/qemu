@@ -86,6 +86,11 @@ static bool has_msr_xss;
 static bool has_msr_architectural_pmu;
 static uint32_t num_architectural_pmu_counters;
 
+bool kvm_has_smm(void)
+{
+    return kvm_check_extension(kvm_state, KVM_CAP_X86_SMM);
+}
+
 bool kvm_allows_irq0_override(void)
 {
     return !kvm_irqchip_in_kernel() || kvm_has_gsi_routing();
