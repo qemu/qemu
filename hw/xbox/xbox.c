@@ -119,7 +119,7 @@ bios_error:
 
 /* mostly from pc_init1 */
 void xbox_init_common(QEMUMachineInitArgs *args,
-                      uint8_t *default_eeprom,
+                      const uint8_t *default_eeprom,
                       ISABus **out_isa_bus)
 {
     int i;
@@ -329,7 +329,7 @@ static void xbox_init(QEMUMachineInitArgs *args)
     };
 
     ISABus *isa_bus;
-    xbox_init_common(args, (uint8_t*)eeprom, &isa_bus);
+    xbox_init_common(args, eeprom, &isa_bus);
 }
 
 static QEMUMachine xbox_machine = {

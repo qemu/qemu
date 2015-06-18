@@ -26,7 +26,7 @@
 #define MAX_IDE_BUS 2
 
 void xbox_init_common(QEMUMachineInitArgs *args,
-                      uint8_t *default_eeprom,
+                      const uint8_t *default_eeprom,
                       ISABus **out_isa_bus);
 
 #endif

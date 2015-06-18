@@ -295,7 +295,7 @@ static int xbox_lpc_initfn(PCIDevice *d)
      * can't load it through loader.c because it overlaps with the bios...
      * We really should just commandeer the entire top 16Mb.
      */
-    QemuOpts *machine_opts = qemu_opts_find(qemu_find_opts("machine"), 0);
+    QemuOpts *machine_opts = qemu_opts_find(qemu_find_opts("machine"), NULL);
     if (machine_opts) {
         const char *bootrom_file = qemu_opt_get(machine_opts, "bootrom");
 

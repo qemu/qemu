@@ -248,7 +248,7 @@ static void chihiro_init(QEMUMachineInitArgs *args)
         0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
     };
 
-    QemuOpts *machine_opts = qemu_opts_find(qemu_find_opts("machine"), 0);
+    QemuOpts *machine_opts = qemu_opts_find(qemu_find_opts("machine"), NULL);
     if (machine_opts) {
         const char *mediaboard_rom_file =
             qemu_opt_get(machine_opts, "mediaboard_rom");
