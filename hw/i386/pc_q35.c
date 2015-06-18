@@ -403,6 +403,7 @@ DEFINE_Q35_MACHINE(v2_4, "pc-q35-2.4", NULL,
 static void pc_q35_2_3_machine_options(MachineClass *m)
 {
     pc_q35_2_4_machine_options(m);
+    m->no_floppy = 0;
     m->alias = NULL;
     SET_MACHINE_COMPAT(m, PC_COMPAT_2_3);
 }
