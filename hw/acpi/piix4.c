@@ -112,6 +112,9 @@ static void apm_ctrl_changed(uint32_t val, void *arg)
 
     /* ACPI specs 3.0, 4.7.2.5 */
     acpi_pm1_cnt_update(&s->ar, val == ACPI_ENABLE, val == ACPI_DISABLE);
+    if (val == ACPI_ENABLE || val == ACPI_DISABLE) {
+        return;
+    }
 
     if (d->config[0x5b] & (1 << 1)) {
         if (s->smi_irq) {
