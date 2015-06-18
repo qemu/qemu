@@ -85,7 +85,6 @@ typedef struct IVShmemState {
     MemoryRegion bar;
     MemoryRegion ivshmem;
     uint64_t ivshmem_size; /* size of shared memory region */
-    uint32_t ivshmem_attr;
     uint32_t ivshmem_64bit;
     int shm_fd; /* shared memory file descriptor */
 
@@ -345,7 +344,7 @@ static int check_shm_size(IVShmemState *s, int fd) {
 
 /* create the shared memory BAR when we are not using the server, so we can
  * create the BAR and map the memory immediately */
-static void create_shared_memory_BAR(IVShmemState *s, int fd) {
+static void create_shared_memory_BAR(IVShmemState *s, int fd, uint8_t attr) {
 
     void * ptr;
 
@@ -359,7 +358,7 @@ static void create_shared_memory_BAR(IVShmemState *s, int fd) {
     memory_region_add_subregion(&s->bar, 0, &s->ivshmem);
 
     /* region for shared memory */
-    pci_register_bar(PCI_DEVICE(s), 2, s->ivshmem_attr, &s->bar);
+    pci_register_bar(PCI_DEVICE(s), 2, attr, &s->bar);
 }
 
 static void ivshmem_add_eventfd(IVShmemState *s, int posn, int i)
@@ -714,6 +713,8 @@ static int pci_ivshmem_init(PCIDevice *dev)
 {
     IVShmemState *s = IVSHMEM(dev);
     uint8_t *pci_conf;
+    uint8_t attr = PCI_BASE_ADDRESS_SPACE_MEMORY |
+        PCI_BASE_ADDRESS_MEM_PREFETCH;
 
     if (s->sizearg == NULL)
         s->ivshmem_size = 4 << 20; /* 4 MB default */
@@ -768,10 +769,8 @@ static int pci_ivshmem_init(PCIDevice *dev)
                      &s->ivshmem_mmio);
 
     memory_region_init(&s->bar, OBJECT(s), "ivshmem-bar2-container", s->ivshmem_size);
-    s->ivshmem_attr = PCI_BASE_ADDRESS_SPACE_MEMORY |
-        PCI_BASE_ADDRESS_MEM_PREFETCH;
     if (s->ivshmem_64bit) {
-        s->ivshmem_attr |= PCI_BASE_ADDRESS_MEM_TYPE_64;
+        attr |= PCI_BASE_ADDRESS_MEM_TYPE_64;
     }
 
     if ((s->server_chr != NULL) &&
@@ -798,7 +797,7 @@ static int pci_ivshmem_init(PCIDevice *dev)
         /* allocate/initialize space for interrupt handling */
         s->peers = g_malloc0(s->nb_peers * sizeof(Peer));
 
-        pci_register_bar(dev, 2, s->ivshmem_attr, &s->bar);
+        pci_register_bar(dev, 2, attr, &s->bar);
 
         s->eventfd_chr = g_malloc0(s->vectors * sizeof(CharDriverState *));
 
@@ -835,8 +834,7 @@ static int pci_ivshmem_init(PCIDevice *dev)
             exit(1);
         }
 
-        create_shared_memory_BAR(s, fd);
-
+        create_shared_memory_BAR(s, fd, attr);
     }
 
     dev->config_write = ivshmem_write_config;
