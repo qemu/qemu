@@ -1359,7 +1359,6 @@ int vm_stop_force_state(RunState state)
 
 static int tcg_cpu_exec(CPUState *cpu)
 {
-    CPUArchState *env = cpu->env_ptr;
     int ret;
 #ifdef CONFIG_PROFILER
     int64_t ti;
@@ -1394,7 +1393,7 @@ static int tcg_cpu_exec(CPUState *cpu)
         cpu->icount_decr.u16.low = decr;
         cpu->icount_extra = count;
     }
-    ret = cpu_exec(env);
+    ret = cpu_exec(cpu);
 #ifdef CONFIG_PROFILER
     tcg_time += profile_getclock() - ti;
 #endif
