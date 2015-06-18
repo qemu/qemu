@@ -396,9 +396,6 @@ static MemTxResult  memory_region_read_accessor(MemoryRegion *mr,
 {
     uint64_t tmp;
 
-    if (mr->flush_coalesced_mmio) {
-        qemu_flush_coalesced_mmio_buffer();
-    }
     tmp = mr->ops->read(mr->opaque, addr, size);
     trace_memory_region_ops_read(mr, addr, tmp, size);
     *value |= (tmp & mask) << shift;
@@ -416,9 +413,6 @@ static MemTxResult memory_region_read_with_attrs_accessor(MemoryRegion *mr,
     uint64_t tmp = 0;
     MemTxResult r;
 
-    if (mr->flush_coalesced_mmio) {
-        qemu_flush_coalesced_mmio_buffer();
-    }
     r = mr->ops->read_with_attrs(mr->opaque, addr, &tmp, size, attrs);
     trace_memory_region_ops_read(mr, addr, tmp, size);
     *value |= (tmp & mask) << shift;
@@ -451,9 +445,6 @@ static MemTxResult memory_region_write_accessor(MemoryRegion *mr,
 {
     uint64_t tmp;
 
-    if (mr->flush_coalesced_mmio) {
-        qemu_flush_coalesced_mmio_buffer();
-    }
     tmp = (*value >> shift) & mask;
     trace_memory_region_ops_write(mr, addr, tmp, size);
     mr->ops->write(mr->opaque, addr, tmp, size);
@@ -470,9 +461,6 @@ static MemTxResult memory_region_write_with_attrs_accessor(MemoryRegion *mr,
 {
     uint64_t tmp;
 
-    if (mr->flush_coalesced_mmio) {
-        qemu_flush_coalesced_mmio_buffer();
-    }
     tmp = (*value >> shift) & mask;
     trace_memory_region_ops_write(mr, addr, tmp, size);
     return mr->ops->write_with_attrs(mr->opaque, addr, tmp, size, attrs);

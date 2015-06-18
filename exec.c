@@ -2316,6 +2316,13 @@ static int memory_access_size(MemoryRegion *mr, unsigned l, hwaddr addr)
     return l;
 }
 
+static void prepare_mmio_access(MemoryRegion *mr)
+{
+    if (mr->flush_coalesced_mmio) {
+        qemu_flush_coalesced_mmio_buffer();
+    }
+}
+
 MemTxResult address_space_rw(AddressSpace *as, hwaddr addr, MemTxAttrs attrs,
                              uint8_t *buf, int len, bool is_write)
 {
@@ -2333,6 +2340,7 @@ MemTxResult address_space_rw(AddressSpace *as, hwaddr addr, MemTxAttrs attrs,
 
         if (is_write) {
             if (!memory_access_is_direct(mr, is_write)) {
+                prepare_mmio_access(mr);
                 l = memory_access_size(mr, l, addr1);
                 /* XXX: could force current_cpu to NULL to avoid
                    potential bugs */
@@ -2374,6 +2382,7 @@ MemTxResult address_space_rw(AddressSpace *as, hwaddr addr, MemTxAttrs attrs,
         } else {
             if (!memory_access_is_direct(mr, is_write)) {
                 /* I/O case */
+                prepare_mmio_access(mr);
                 l = memory_access_size(mr, l, addr1);
                 switch (l) {
                 case 8:
@@ -2739,6 +2748,8 @@ static inline uint32_t address_space_ldl_internal(AddressSpace *as, hwaddr addr,
     rcu_read_lock();
     mr = address_space_translate(as, addr, &addr1, &l, false);
     if (l < 4 || !memory_access_is_direct(mr, false)) {
+        prepare_mmio_access(mr);
+
         /* I/O case */
         r = memory_region_dispatch_read(mr, addr1, &val, 4, attrs);
 #if defined(TARGET_WORDS_BIGENDIAN)
@@ -2828,6 +2839,8 @@ static inline uint64_t address_space_ldq_internal(AddressSpace *as, hwaddr addr,
     mr = address_space_translate(as, addr, &addr1, &l,
                                  false);
     if (l < 8 || !memory_access_is_direct(mr, false)) {
+        prepare_mmio_access(mr);
+
         /* I/O case */
         r = memory_region_dispatch_read(mr, addr1, &val, 8, attrs);
 #if defined(TARGET_WORDS_BIGENDIAN)
@@ -2937,6 +2950,8 @@ static inline uint32_t address_space_lduw_internal(AddressSpace *as,
     mr = address_space_translate(as, addr, &addr1, &l,
                                  false);
     if (l < 2 || !memory_access_is_direct(mr, false)) {
+        prepare_mmio_access(mr);
+
         /* I/O case */
         r = memory_region_dispatch_read(mr, addr1, &val, 2, attrs);
 #if defined(TARGET_WORDS_BIGENDIAN)
@@ -3026,6 +3041,8 @@ void address_space_stl_notdirty(AddressSpace *as, hwaddr addr, uint32_t val,
     mr = address_space_translate(as, addr, &addr1, &l,
                                  true);
     if (l < 4 || !memory_access_is_direct(mr, true)) {
+        prepare_mmio_access(mr);
+
         r = memory_region_dispatch_write(mr, addr1, val, 4, attrs);
     } else {
         addr1 += memory_region_get_ram_addr(mr) & TARGET_PAGE_MASK;
@@ -3065,6 +3082,8 @@ static inline void address_space_stl_internal(AddressSpace *as,
     mr = address_space_translate(as, addr, &addr1, &l,
                                  true);
     if (l < 4 || !memory_access_is_direct(mr, true)) {
+        prepare_mmio_access(mr);
+
 #if defined(TARGET_WORDS_BIGENDIAN)
         if (endian == DEVICE_LITTLE_ENDIAN) {
             val = bswap32(val);
@@ -3169,6 +3188,8 @@ static inline void address_space_stw_internal(AddressSpace *as,
     rcu_read_lock();
     mr = address_space_translate(as, addr, &addr1, &l, true);
     if (l < 2 || !memory_access_is_direct(mr, true)) {
+        prepare_mmio_access(mr);
+
 #if defined(TARGET_WORDS_BIGENDIAN)
         if (endian == DEVICE_LITTLE_ENDIAN) {
             val = bswap16(val);
