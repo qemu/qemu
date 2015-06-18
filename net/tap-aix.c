@@ -55,6 +55,16 @@ void tap_fd_set_vnet_hdr_len(int fd, int len)
 {
 }
 
+int tap_fd_set_vnet_le(int fd, int is_le)
+{
+    return -EINVAL;
+}
+
+int tap_fd_set_vnet_be(int fd, int is_be)
+{
+    return -EINVAL;
+}
+
 void tap_fd_set_offload(int fd, int csum, int tso4,
                         int tso6, int ecn, int ufo)
 {
