@@ -301,7 +301,7 @@ static CharDriverState* create_eventfd_chr_device(void * opaque, EventNotifier *
     chr = qemu_chr_open_eventfd(eventfd);
 
     if (chr == NULL) {
-        error_report("creating eventfd for eventfd %d failed", eventfd);
+        error_report("creating chardriver for eventfd %d failed", eventfd);
         return NULL;
     }
     qemu_chr_fe_claim_no_fail(chr);
@@ -778,8 +778,12 @@ static void pci_ivshmem_realize(PCIDevice *dev, Error **errp)
         attr |= PCI_BASE_ADDRESS_MEM_TYPE_64;
     }
 
-    if ((s->server_chr != NULL) &&
-                        (strncmp(s->server_chr->filename, "unix:", 5) == 0)) {
+    if (s->server_chr != NULL) {
+        if (strncmp(s->server_chr->filename, "unix:", 5)) {
+            error_setg(errp, "chardev is not a unix client socket");
+            return;
+        }
+
         /* if we get a UNIX socket as the parameter we will talk
          * to the ivshmem server to receive the memory region */
 
