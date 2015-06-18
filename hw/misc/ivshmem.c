@@ -117,10 +117,6 @@ static inline uint32_t ivshmem_has_feature(IVShmemState *ivs,
     return (ivs->features & (1 << feature));
 }
 
-static inline bool is_power_of_two(uint64_t x) {
-    return (x & (x - 1)) == 0;
-}
-
 /* accessing registers - based on rtl8139 */
 static void ivshmem_update_irq(IVShmemState *s)
 {
@@ -632,7 +628,7 @@ static uint64_t ivshmem_get_size(IVShmemState * s, Error **errp) {
     }
 
     /* BARs must be a power of 2 */
-    if (!is_power_of_two(value)) {
+    if (!is_power_of_2(value)) {
         error_setg(errp, "size must be power of 2");
         return 0;
     }
