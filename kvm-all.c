@@ -1804,13 +1804,12 @@ int kvm_cpu_exec(CPUState *cpu)
         switch (run->exit_reason) {
         case KVM_EXIT_IO:
             DPRINTF("handle_io\n");
-            qemu_mutex_lock_iothread();
+            /* Called outside BQL */
             kvm_handle_io(run->io.port, attrs,
                           (uint8_t *)run + run->io.data_offset,
                           run->io.direction,
                           run->io.size,
                           run->io.count);
-            qemu_mutex_unlock_iothread();
             ret = 0;
             break;
         case KVM_EXIT_MMIO:
