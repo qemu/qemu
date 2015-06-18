@@ -71,7 +71,6 @@ typedef struct IVShmemState {
 
     uint32_t intrmask;
     uint32_t intrstatus;
-    uint32_t doorbell;
 
     CharDriverState **eventfd_chr;
     CharDriverState *server_chr;
