@@ -177,6 +177,7 @@ static int pxb_dev_initfn(PCIDevice *dev)
     bds = qdev_create(BUS(bus), "pci-bridge");
     bds->id = dev_name;
     qdev_prop_set_uint8(bds, PCI_BRIDGE_DEV_PROP_CHASSIS_NR, pxb->bus_nr);
+    qdev_prop_set_bit(bds, PCI_BRIDGE_DEV_PROP_SHPC, false);
 
     PCI_HOST_BRIDGE(ds)->bus = bus;
 
