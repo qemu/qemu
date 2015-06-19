@@ -64,10 +64,10 @@ static void xlnx_zynqmp_init(Object *obj)
     XlnxZynqMPState *s = XLNX_ZYNQMP(obj);
     int i;
 
-    for (i = 0; i < XLNX_ZYNQMP_NUM_CPUS; i++) {
-        object_initialize(&s->cpu[i], sizeof(s->cpu[i]),
+    for (i = 0; i < XLNX_ZYNQMP_NUM_APU_CPUS; i++) {
+        object_initialize(&s->apu_cpu[i], sizeof(s->apu_cpu[i]),
                           "cortex-a53-" TYPE_ARM_CPU);
-        object_property_add_child(obj, "cpu[*]", OBJECT(&s->cpu[i]),
+        object_property_add_child(obj, "apu-cpu[*]", OBJECT(&s->apu_cpu[i]),
                                   &error_abort);
     }
 
@@ -95,7 +95,7 @@ static void xlnx_zynqmp_realize(DeviceState *dev, Error **errp)
 
     qdev_prop_set_uint32(DEVICE(&s->gic), "num-irq", GIC_NUM_SPI_INTR + 32);
     qdev_prop_set_uint32(DEVICE(&s->gic), "revision", 2);
-    qdev_prop_set_uint32(DEVICE(&s->gic), "num-cpu", XLNX_ZYNQMP_NUM_CPUS);
+    qdev_prop_set_uint32(DEVICE(&s->gic), "num-cpu", XLNX_ZYNQMP_NUM_APU_CPUS);
     object_property_set_bool(OBJECT(&s->gic), true, "realized", &err);
     if (err) {
         error_propagate((errp), (err));
@@ -121,38 +121,40 @@ static void xlnx_zynqmp_realize(DeviceState *dev, Error **errp)
         }
     }
 
-    for (i = 0; i < XLNX_ZYNQMP_NUM_CPUS; i++) {
+    for (i = 0; i < XLNX_ZYNQMP_NUM_APU_CPUS; i++) {
         qemu_irq irq;
 
-        object_property_set_int(OBJECT(&s->cpu[i]), QEMU_PSCI_CONDUIT_SMC,
+        object_property_set_int(OBJECT(&s->apu_cpu[i]), QEMU_PSCI_CONDUIT_SMC,
                                 "psci-conduit", &error_abort);
         if (i > 0) {
             /* Secondary CPUs start in PSCI powered-down state */
-            object_property_set_bool(OBJECT(&s->cpu[i]), true,
+            object_property_set_bool(OBJECT(&s->apu_cpu[i]), true,
                                      "start-powered-off", &error_abort);
         }
 
-        object_property_set_int(OBJECT(&s->cpu[i]), GIC_BASE_ADDR,
+        object_property_set_int(OBJECT(&s->apu_cpu[i]), GIC_BASE_ADDR,
                                 "reset-cbar", &err);
         if (err) {
             error_propagate((errp), (err));
             return;
         }
 
-        object_property_set_bool(OBJECT(&s->cpu[i]), true, "realized", &err);
+        object_property_set_bool(OBJECT(&s->apu_cpu[i]), true, "realized",
+                                 &err);
         if (err) {
             error_propagate((errp), (err));
             return;
         }
 
         sysbus_connect_irq(SYS_BUS_DEVICE(&s->gic), i,
-                           qdev_get_gpio_in(DEVICE(&s->cpu[i]), ARM_CPU_IRQ));
+                           qdev_get_gpio_in(DEVICE(&s->apu_cpu[i]),
+                                            ARM_CPU_IRQ));
         irq = qdev_get_gpio_in(DEVICE(&s->gic),
                                arm_gic_ppi_index(i, ARM_PHYS_TIMER_PPI));
-        qdev_connect_gpio_out(DEVICE(&s->cpu[i]), 0, irq);
+        qdev_connect_gpio_out(DEVICE(&s->apu_cpu[i]), 0, irq);
         irq = qdev_get_gpio_in(DEVICE(&s->gic),
                                arm_gic_ppi_index(i, ARM_VIRT_TIMER_PPI));
-        qdev_connect_gpio_out(DEVICE(&s->cpu[i]), 1, irq);
+        qdev_connect_gpio_out(DEVICE(&s->apu_cpu[i]), 1, irq);
     }
 
     for (i = 0; i < GIC_NUM_SPI_INTR; i++) {
