@@ -55,7 +55,7 @@ static void cp_reg_reset(gpointer key, gpointer value, gpointer opaque)
     ARMCPRegInfo *ri = value;
     ARMCPU *cpu = opaque;
 
-    if (ri->type & ARM_CP_SPECIAL) {
+    if (ri->type & (ARM_CP_SPECIAL | ARM_CP_ALIAS)) {
         return;
     }
 
@@ -457,6 +457,9 @@ static Property arm_cpu_has_el3_property =
 static Property arm_cpu_has_mpu_property =
             DEFINE_PROP_BOOL("has-mpu", ARMCPU, has_mpu, true);
 
+static Property arm_cpu_pmsav7_dregion_property =
+            DEFINE_PROP_UINT32("pmsav7-dregion", ARMCPU, pmsav7_dregion, 16);
+
 static void arm_cpu_post_init(Object *obj)
 {
     ARMCPU *cpu = ARM_CPU(obj);
@@ -488,6 +491,11 @@ static void arm_cpu_post_init(Object *obj)
     if (arm_feature(&cpu->env, ARM_FEATURE_MPU)) {
         qdev_property_add_static(DEVICE(obj), &arm_cpu_has_mpu_property,
                                  &error_abort);
+        if (arm_feature(&cpu->env, ARM_FEATURE_V7)) {
+            qdev_property_add_static(DEVICE(obj),
+                                     &arm_cpu_pmsav7_dregion_property,
+                                     &error_abort);
+        }
     }
 
 }
@@ -578,6 +586,22 @@ static void arm_cpu_realizefn(DeviceState *dev, Error **errp)
 
     if (!cpu->has_mpu) {
         unset_feature(env, ARM_FEATURE_MPU);
+    }
+
+    if (arm_feature(env, ARM_FEATURE_MPU) &&
+        arm_feature(env, ARM_FEATURE_V7)) {
+        uint32_t nr = cpu->pmsav7_dregion;
+
+        if (nr > 0xff) {
+            error_setg(errp, "PMSAv7 MPU #regions invalid %" PRIu32 "\n", nr);
+            return;
+        }
+
+        if (nr) {
+            env->pmsav7.drbar = g_new0(uint32_t, nr);
+            env->pmsav7.drsr = g_new0(uint32_t, nr);
+            env->pmsav7.dracr = g_new0(uint32_t, nr);
+        }
     }
 
     register_cp_regs_for_features(cpu);
@@ -812,6 +836,15 @@ static void cortex_m3_initfn(Object *obj)
     cpu->midr = 0x410fc231;
 }
 
+static void cortex_m4_initfn(Object *obj)
+{
+    ARMCPU *cpu = ARM_CPU(obj);
+
+    set_feature(&cpu->env, ARM_FEATURE_V7);
+    set_feature(&cpu->env, ARM_FEATURE_M);
+    set_feature(&cpu->env, ARM_FEATURE_THUMB_DSP);
+    cpu->midr = 0x410fc240; /* r0p0 */
+}
 static void arm_v7m_class_init(ObjectClass *oc, void *data)
 {
     CPUClass *cc = CPU_CLASS(oc);
@@ -821,6 +854,43 @@ static void arm_v7m_class_init(ObjectClass *oc, void *data)
 #endif
 
     cc->cpu_exec_interrupt = arm_v7m_cpu_exec_interrupt;
+}
+
+static const ARMCPRegInfo cortexr5_cp_reginfo[] = {
+    /* Dummy the TCM region regs for the moment */
+    { .name = "ATCM", .cp = 15, .opc1 = 0, .crn = 9, .crm = 1, .opc2 = 0,
+      .access = PL1_RW, .type = ARM_CP_CONST },
+    { .name = "BTCM", .cp = 15, .opc1 = 0, .crn = 9, .crm = 1, .opc2 = 1,
+      .access = PL1_RW, .type = ARM_CP_CONST },
+    REGINFO_SENTINEL
+};
+
+static void cortex_r5_initfn(Object *obj)
+{
+    ARMCPU *cpu = ARM_CPU(obj);
+
+    set_feature(&cpu->env, ARM_FEATURE_V7);
+    set_feature(&cpu->env, ARM_FEATURE_THUMB_DIV);
+    set_feature(&cpu->env, ARM_FEATURE_ARM_DIV);
+    set_feature(&cpu->env, ARM_FEATURE_V7MP);
+    set_feature(&cpu->env, ARM_FEATURE_MPU);
+    cpu->midr = 0x411fc153; /* r1p3 */
+    cpu->id_pfr0 = 0x0131;
+    cpu->id_pfr1 = 0x001;
+    cpu->id_dfr0 = 0x010400;
+    cpu->id_afr0 = 0x0;
+    cpu->id_mmfr0 = 0x0210030;
+    cpu->id_mmfr1 = 0x00000000;
+    cpu->id_mmfr2 = 0x01200000;
+    cpu->id_mmfr3 = 0x0211;
+    cpu->id_isar0 = 0x2101111;
+    cpu->id_isar1 = 0x13112111;
+    cpu->id_isar2 = 0x21232141;
+    cpu->id_isar3 = 0x01112131;
+    cpu->id_isar4 = 0x0010142;
+    cpu->id_isar5 = 0x0;
+    cpu->mp_is_up = true;
+    define_arm_cp_regs(cpu, cortexr5_cp_reginfo);
 }
 
 static const ARMCPRegInfo cortexa8_cp_reginfo[] = {
@@ -1214,6 +1284,9 @@ static const ARMCPUInfo arm_cpus[] = {
     { .name = "arm11mpcore", .initfn = arm11mpcore_initfn },
     { .name = "cortex-m3",   .initfn = cortex_m3_initfn,
                              .class_init = arm_v7m_class_init },
+    { .name = "cortex-m4",   .initfn = cortex_m4_initfn,
+                             .class_init = arm_v7m_class_init },
+    { .name = "cortex-r5",   .initfn = cortex_r5_initfn },
     { .name = "cortex-a8",   .initfn = cortex_a8_initfn },
     { .name = "cortex-a9",   .initfn = cortex_a9_initfn },
     { .name = "cortex-a15",  .initfn = cortex_a15_initfn },

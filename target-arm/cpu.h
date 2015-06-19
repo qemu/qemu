@@ -284,6 +284,9 @@ typedef struct CPUARMState {
             };
             uint64_t par_el[4];
         };
+
+        uint32_t c6_rgnr;
+
         uint32_t c9_insn; /* Cache lockdown registers.  */
         uint32_t c9_data;
         uint64_t c9_pmcr; /* performance monitor control register */
@@ -482,6 +485,13 @@ typedef struct CPUARMState {
     /* Internal CPU feature flags.  */
     uint64_t features;
 
+    /* PMSAv7 MPU */
+    struct {
+        uint32_t *drbar;
+        uint32_t *drsr;
+        uint32_t *dracr;
+    } pmsav7;
+
     void *nvic;
     const struct arm_boot_info *boot_info;
 } CPUARMState;
@@ -550,6 +560,7 @@ void pmccntr_sync(CPUARMState *env);
 #define SCTLR_DT      (1U << 16) /* up to ??, RAO in v6 and v7 */
 #define SCTLR_nTWI    (1U << 16) /* v8 onward */
 #define SCTLR_HA      (1U << 17)
+#define SCTLR_BR      (1U << 17) /* PMSA only */
 #define SCTLR_IT      (1U << 18) /* up to ??, RAO in v6 and v7 */
 #define SCTLR_nTWE    (1U << 18) /* v8 onward */
 #define SCTLR_WXN     (1U << 19)
@@ -1116,8 +1127,8 @@ static inline uint64_t cpreg_to_kvm_id(uint32_t cpregid)
  * old must have the OVERRIDE bit set.
  * ALIAS indicates that this register is an alias view of some underlying
  * state which is also visible via another register, and that the other
- * register is handling migration; registers marked ALIAS will not be migrated
- * but may have their state set by syncing of register state from KVM.
+ * register is handling migration and reset; registers marked ALIAS will not be
+ * migrated but may have their state set by syncing of register state from KVM.
  * NO_RAW indicates that this register has no underlying state and does not
  * support raw access for state saving/loading; it will not be used for either
  * migration or KVM state synchronization. (Typically this is for "registers"

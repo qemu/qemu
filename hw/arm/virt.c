@@ -47,20 +47,10 @@
 #include "hw/arm/virt-acpi-build.h"
 #include "hw/arm/sysbus-fdt.h"
 #include "hw/platform-bus.h"
+#include "hw/arm/fdt.h"
 
 /* Number of external interrupt lines to configure the GIC with */
 #define NUM_IRQS 256
-
-#define GIC_FDT_IRQ_TYPE_SPI 0
-#define GIC_FDT_IRQ_TYPE_PPI 1
-
-#define GIC_FDT_IRQ_FLAGS_EDGE_LO_HI 1
-#define GIC_FDT_IRQ_FLAGS_EDGE_HI_LO 2
-#define GIC_FDT_IRQ_FLAGS_LEVEL_HI 4
-#define GIC_FDT_IRQ_FLAGS_LEVEL_LO 8
-
-#define GIC_FDT_IRQ_PPI_CPU_START 8
-#define GIC_FDT_IRQ_PPI_CPU_WIDTH 8
 
 #define PLATFORM_BUS_NUM_IRQS 64
 

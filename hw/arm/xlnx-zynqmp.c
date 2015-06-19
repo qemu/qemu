@@ -64,10 +64,17 @@ static void xlnx_zynqmp_init(Object *obj)
     XlnxZynqMPState *s = XLNX_ZYNQMP(obj);
     int i;
 
-    for (i = 0; i < XLNX_ZYNQMP_NUM_CPUS; i++) {
-        object_initialize(&s->cpu[i], sizeof(s->cpu[i]),
+    for (i = 0; i < XLNX_ZYNQMP_NUM_APU_CPUS; i++) {
+        object_initialize(&s->apu_cpu[i], sizeof(s->apu_cpu[i]),
                           "cortex-a53-" TYPE_ARM_CPU);
-        object_property_add_child(obj, "cpu[*]", OBJECT(&s->cpu[i]),
+        object_property_add_child(obj, "apu-cpu[*]", OBJECT(&s->apu_cpu[i]),
+                                  &error_abort);
+    }
+
+    for (i = 0; i < XLNX_ZYNQMP_NUM_RPU_CPUS; i++) {
+        object_initialize(&s->rpu_cpu[i], sizeof(s->rpu_cpu[i]),
+                          "cortex-r5-" TYPE_ARM_CPU);
+        object_property_add_child(obj, "rpu-cpu[*]", OBJECT(&s->rpu_cpu[i]),
                                   &error_abort);
     }
 
@@ -90,12 +97,13 @@ static void xlnx_zynqmp_realize(DeviceState *dev, Error **errp)
     XlnxZynqMPState *s = XLNX_ZYNQMP(dev);
     MemoryRegion *system_memory = get_system_memory();
     uint8_t i;
+    const char *boot_cpu = s->boot_cpu ? s->boot_cpu : "apu-cpu[0]";
     qemu_irq gic_spi[GIC_NUM_SPI_INTR];
     Error *err = NULL;
 
     qdev_prop_set_uint32(DEVICE(&s->gic), "num-irq", GIC_NUM_SPI_INTR + 32);
     qdev_prop_set_uint32(DEVICE(&s->gic), "revision", 2);
-    qdev_prop_set_uint32(DEVICE(&s->gic), "num-cpu", XLNX_ZYNQMP_NUM_CPUS);
+    qdev_prop_set_uint32(DEVICE(&s->gic), "num-cpu", XLNX_ZYNQMP_NUM_APU_CPUS);
     object_property_set_bool(OBJECT(&s->gic), true, "realized", &err);
     if (err) {
         error_propagate((errp), (err));
@@ -121,38 +129,77 @@ static void xlnx_zynqmp_realize(DeviceState *dev, Error **errp)
         }
     }
 
-    for (i = 0; i < XLNX_ZYNQMP_NUM_CPUS; i++) {
+    for (i = 0; i < XLNX_ZYNQMP_NUM_APU_CPUS; i++) {
         qemu_irq irq;
+        char *name;
 
-        object_property_set_int(OBJECT(&s->cpu[i]), QEMU_PSCI_CONDUIT_SMC,
+        object_property_set_int(OBJECT(&s->apu_cpu[i]), QEMU_PSCI_CONDUIT_SMC,
                                 "psci-conduit", &error_abort);
-        if (i > 0) {
+
+        name = object_get_canonical_path_component(OBJECT(&s->apu_cpu[i]));
+        if (strcmp(name, boot_cpu)) {
             /* Secondary CPUs start in PSCI powered-down state */
-            object_property_set_bool(OBJECT(&s->cpu[i]), true,
+            object_property_set_bool(OBJECT(&s->apu_cpu[i]), true,
                                      "start-powered-off", &error_abort);
+        } else {
+            s->boot_cpu_ptr = &s->apu_cpu[i];
         }
 
-        object_property_set_int(OBJECT(&s->cpu[i]), GIC_BASE_ADDR,
+        object_property_set_int(OBJECT(&s->apu_cpu[i]), GIC_BASE_ADDR,
                                 "reset-cbar", &err);
         if (err) {
             error_propagate((errp), (err));
             return;
         }
 
-        object_property_set_bool(OBJECT(&s->cpu[i]), true, "realized", &err);
+        object_property_set_bool(OBJECT(&s->apu_cpu[i]), true, "realized",
+                                 &err);
         if (err) {
             error_propagate((errp), (err));
             return;
         }
 
         sysbus_connect_irq(SYS_BUS_DEVICE(&s->gic), i,
-                           qdev_get_gpio_in(DEVICE(&s->cpu[i]), ARM_CPU_IRQ));
+                           qdev_get_gpio_in(DEVICE(&s->apu_cpu[i]),
+                                            ARM_CPU_IRQ));
         irq = qdev_get_gpio_in(DEVICE(&s->gic),
                                arm_gic_ppi_index(i, ARM_PHYS_TIMER_PPI));
-        qdev_connect_gpio_out(DEVICE(&s->cpu[i]), 0, irq);
+        qdev_connect_gpio_out(DEVICE(&s->apu_cpu[i]), 0, irq);
         irq = qdev_get_gpio_in(DEVICE(&s->gic),
                                arm_gic_ppi_index(i, ARM_VIRT_TIMER_PPI));
-        qdev_connect_gpio_out(DEVICE(&s->cpu[i]), 1, irq);
+        qdev_connect_gpio_out(DEVICE(&s->apu_cpu[i]), 1, irq);
+    }
+
+    for (i = 0; i < XLNX_ZYNQMP_NUM_RPU_CPUS; i++) {
+        char *name;
+
+        name = object_get_canonical_path_component(OBJECT(&s->rpu_cpu[i]));
+        if (strcmp(name, boot_cpu)) {
+            /* Secondary CPUs start in PSCI powered-down state */
+            object_property_set_bool(OBJECT(&s->rpu_cpu[i]), true,
+                                     "start-powered-off", &error_abort);
+        } else {
+            s->boot_cpu_ptr = &s->rpu_cpu[i];
+        }
+
+        object_property_set_bool(OBJECT(&s->rpu_cpu[i]), true, "reset-hivecs",
+                                 &err);
+        if (err != NULL) {
+            error_propagate(errp, err);
+            return;
+        }
+
+        object_property_set_bool(OBJECT(&s->rpu_cpu[i]), true, "realized",
+                                 &err);
+        if (err) {
+            error_propagate((errp), (err));
+            return;
+        }
+    }
+
+    if (!s->boot_cpu_ptr) {
+        error_setg(errp, "ZynqMP Boot cpu %s not found\n", boot_cpu);
+        return;
     }
 
     for (i = 0; i < GIC_NUM_SPI_INTR; i++) {
@@ -188,10 +235,16 @@ static void xlnx_zynqmp_realize(DeviceState *dev, Error **errp)
     }
 }
 
+static Property xlnx_zynqmp_props[] = {
+    DEFINE_PROP_STRING("boot-cpu", XlnxZynqMPState, boot_cpu),
+    DEFINE_PROP_END_OF_LIST()
+};
+
 static void xlnx_zynqmp_class_init(ObjectClass *oc, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(oc);
 
+    dc->props = xlnx_zynqmp_props;
     dc->realize = xlnx_zynqmp_realize;
 }
 

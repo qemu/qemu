@@ -37,6 +37,7 @@
 #include "qemu/log.h"
 #include "sysemu/sysemu.h"
 #include "exec/cpu_ldst.h"
+#include "exec/semihost.h"
 
 #include "exec/helper-proto.h"
 #include "exec/helper-gen.h"
@@ -1216,7 +1217,7 @@ static void disas_xtensa_insn(CPUXtensaState *env, DisasContext *dc)
                         break;
 
                     case 1: /*SIMCALL*/
-                        if (semihosting_enabled) {
+                        if (semihosting_enabled()) {
                             if (gen_check_privilege(dc)) {
                                 gen_helper_simcall(cpu_env);
                             }

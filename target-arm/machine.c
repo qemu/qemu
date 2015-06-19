@@ -125,6 +125,39 @@ static const VMStateDescription vmstate_thumb2ee = {
     }
 };
 
+static bool pmsav7_needed(void *opaque)
+{
+    ARMCPU *cpu = opaque;
+    CPUARMState *env = &cpu->env;
+
+    return arm_feature(env, ARM_FEATURE_MPU) &&
+           arm_feature(env, ARM_FEATURE_V7);
+}
+
+static bool pmsav7_rgnr_vmstate_validate(void *opaque, int version_id)
+{
+    ARMCPU *cpu = opaque;
+
+    return cpu->env.cp15.c6_rgnr < cpu->pmsav7_dregion;
+}
+
+static const VMStateDescription vmstate_pmsav7 = {
+    .name = "cpu/pmsav7",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .needed = pmsav7_needed,
+    .fields = (VMStateField[]) {
+        VMSTATE_VARRAY_UINT32(env.pmsav7.drbar, ARMCPU, pmsav7_dregion, 0,
+                              vmstate_info_uint32, uint32_t),
+        VMSTATE_VARRAY_UINT32(env.pmsav7.drsr, ARMCPU, pmsav7_dregion, 0,
+                              vmstate_info_uint32, uint32_t),
+        VMSTATE_VARRAY_UINT32(env.pmsav7.dracr, ARMCPU, pmsav7_dregion, 0,
+                              vmstate_info_uint32, uint32_t),
+        VMSTATE_VALIDATE("rgnr is valid", pmsav7_rgnr_vmstate_validate),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
 static int get_cpsr(QEMUFile *f, void *opaque, size_t size)
 {
     ARMCPU *cpu = opaque;
@@ -291,6 +324,7 @@ const VMStateDescription vmstate_arm_cpu = {
         &vmstate_iwmmxt,
         &vmstate_m,
         &vmstate_thumb2ee,
+        &vmstate_pmsav7,
         NULL
     }
 };
