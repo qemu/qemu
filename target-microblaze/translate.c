@@ -1411,11 +1411,11 @@ static void dec_rts(DisasContext *dc)
 
 static int dec_check_fpuv2(DisasContext *dc)
 {
-    if ((dc->cpu->cfg.usefpu != 2) && (dc->tb_flags & MSR_EE_FLAG)) {
+    if ((dc->cpu->cfg.use_fpu != 2) && (dc->tb_flags & MSR_EE_FLAG)) {
         tcg_gen_movi_tl(cpu_SR[SR_ESR], ESR_EC_FPU);
         t_gen_raise_exception(dc, EXCP_HW_EXCP);
     }
-    return (dc->cpu->cfg.usefpu == 2) ? 0 : PVR2_USE_FPU2_MASK;
+    return (dc->cpu->cfg.use_fpu == 2) ? 0 : PVR2_USE_FPU2_MASK;
 }
 
 static void dec_fpu(DisasContext *dc)
@@ -1424,7 +1424,7 @@ static void dec_fpu(DisasContext *dc)
 
     if ((dc->tb_flags & MSR_EE_FLAG)
           && (dc->cpu->env.pvr.regs[2] & PVR2_ILL_OPCODE_EXC_MASK)
-          && (dc->cpu->cfg.usefpu != 1)) {
+          && (dc->cpu->cfg.use_fpu != 1)) {
         tcg_gen_movi_tl(cpu_SR[SR_ESR], ESR_EC_ILLEGAL_OP);
         t_gen_raise_exception(dc, EXCP_HW_EXCP);
         return;
