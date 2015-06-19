@@ -51,13 +51,6 @@
 #define ETHLITE_IRQ         1
 #define UARTLITE_IRQ        3
 
-static void machine_cpu_reset(MicroBlazeCPU *cpu)
-{
-    CPUMBState *env = &cpu->env;
-
-    env->pvr.regs[10] = 0x0c000000; /* spartan 3a dsp family.  */
-}
-
 static void
 petalogix_s3adsp1800_init(MachineState *machine)
 {
@@ -128,7 +121,7 @@ petalogix_s3adsp1800_init(MachineState *machine)
     microblaze_load_kernel(cpu, ddr_base, ram_size,
                            machine->initrd_filename,
                            BINARY_DEVICE_TREE_FILE,
-                           machine_cpu_reset);
+                           NULL);
 }
 
 static QEMUMachine petalogix_s3adsp1800_machine = {
