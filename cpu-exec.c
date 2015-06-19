@@ -365,6 +365,17 @@ int cpu_exec(CPUState *cpu)
     uintptr_t next_tb;
     SyncClocks sc;
 
+    /*
+     * This happen when somebody doesn't want this CPU to start
+     * In case of MTTCG.
+     */
+#ifdef CONFIG_SOFTMMU
+    if (async_safe_work_pending()) {
+        cpu->exit_request = 1;
+        return 0;
+    }
+#endif
+
     /* replay_interrupt may need current_cpu */
     current_cpu = cpu;
 

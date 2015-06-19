@@ -928,6 +928,19 @@ static QemuCond qemu_cpu_cond;
 static QemuCond qemu_pause_cond;
 static QemuCond qemu_work_cond;
 
+/* safe work */
+static int safe_work_pending;
+static int tcg_scheduled_cpus;
+
+typedef struct {
+    CPUState            *cpu;  /* CPU affected */
+    run_on_cpu_func     func;  /* Helper function */
+    void                *data; /* Helper data */
+} qemu_safe_work_item;
+
+static GArray *safe_work;       /* array of qemu_safe_work_items */
+static QemuMutex safe_work_mutex;
+
 void qemu_init_cpu_loop(void)
 {
     qemu_init_sigbus();
@@ -937,6 +950,9 @@ void qemu_init_cpu_loop(void)
     qemu_mutex_init(&qemu_global_mutex);
 
     qemu_thread_get_self(&io_thread);
+
+    safe_work = g_array_sized_new(TRUE, TRUE, sizeof(qemu_safe_work_item), 128);
+    qemu_mutex_init(&safe_work_mutex);
 }
 
 void run_on_cpu(CPUState *cpu, run_on_cpu_func func, void *data)
@@ -995,6 +1011,81 @@ void async_run_on_cpu(CPUState *cpu, run_on_cpu_func func, void *data)
     qemu_mutex_unlock(&cpu->work_mutex);
 
     qemu_cpu_kick(cpu);
+}
+
+/*
+ * Safe work interface
+ *
+ * Safe work is defined as work that requires the system to be
+ * quiescent before making changes.
+ */
+
+void async_safe_run_on_cpu(CPUState *cpu, run_on_cpu_func func, void *data)
+{
+    CPUState *iter;
+    qemu_safe_work_item wi;
+    wi.cpu = cpu;
+    wi.func = func;
+    wi.data = data;
+
+    qemu_mutex_lock(&safe_work_mutex);
+    g_array_append_val(safe_work, wi);
+    atomic_inc(&safe_work_pending);
+    qemu_mutex_unlock(&safe_work_mutex);
+
+    /* Signal all vCPUs to halt */
+    CPU_FOREACH(iter) {
+        qemu_cpu_kick(iter);
+    }
+}
+
+/**
+ * flush_queued_safe_work:
+ *
+ * @scheduled_cpu_count
+ *
+ * If not 0 will signal the other vCPUs and sleep. The last vCPU to
+ * get to the function then drains the queue while the system is in a
+ * quiescent state. This allows the operations to change shared
+ * structures.
+ *
+ * @see async_run_safe_work_on_cpu
+ */
+static void flush_queued_safe_work(int scheduled_cpu_count)
+{
+    qemu_safe_work_item *wi;
+    int i;
+
+    /* bail out if there is nothing to do */
+    if (!async_safe_work_pending()) {
+        return;
+    }
+
+    if (scheduled_cpu_count) {
+
+        /* Nothing to do but sleep */
+        qemu_cond_wait(&qemu_work_cond, &qemu_global_mutex);
+
+    } else {
+
+        /* We can now do the work */
+        qemu_mutex_lock(&safe_work_mutex);
+        for (i = 0; i < safe_work->len; i++) {
+            wi = &g_array_index(safe_work, qemu_safe_work_item, i);
+            wi->func(wi->cpu, wi->data);
+        }
+        g_array_remove_range(safe_work, 0, safe_work->len);
+        atomic_set(&safe_work_pending, 0);
+        qemu_mutex_unlock(&safe_work_mutex);
+
+        /* Wake everyone up */
+        qemu_cond_broadcast(&qemu_work_cond);
+    }
+}
+
+bool async_safe_work_pending(void)
+{
+    return (atomic_read(&safe_work_pending) != 0);
 }
 
 static void flush_queued_work(CPUState *cpu)
@@ -1259,6 +1350,7 @@ static void *qemu_tcg_single_cpu_thread_fn(void *arg)
 
         if (cpu) {
             g_assert(cpu->exit_request);
+            flush_queued_safe_work(0);
             /* Pairs with smp_wmb in qemu_cpu_kick.  */
             atomic_mb_set(&cpu->exit_request, 0);
             qemu_tcg_wait_io_event(cpu);
@@ -1300,8 +1392,13 @@ static void *qemu_tcg_cpu_thread_fn(void *arg)
     while (1) {
         bool sleep = false;
 
-        if (cpu_can_run(cpu)) {
-            int r = tcg_cpu_exec(cpu);
+        if (cpu_can_run(cpu) && !async_safe_work_pending()) {
+            int r;
+
+            atomic_inc(&tcg_scheduled_cpus);
+            r = tcg_cpu_exec(cpu);
+            flush_queued_safe_work(atomic_dec_fetch(&tcg_scheduled_cpus));
+
             switch (r)
             {
             case EXCP_DEBUG:
@@ -1319,6 +1416,7 @@ static void *qemu_tcg_cpu_thread_fn(void *arg)
                 /* Ignore everything else? */
                 break;
             }
+
         } else {
             sleep = true;
         }
