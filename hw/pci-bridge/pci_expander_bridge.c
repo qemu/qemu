@@ -43,6 +43,8 @@ typedef struct PXBDev {
     uint16_t numa_node;
 } PXBDev;
 
+static GList *pxb_dev_list;
+
 #define TYPE_PXB_HOST "pxb-host"
 
 static int pxb_bus_num(PCIBus *bus)
@@ -89,12 +91,45 @@ static const char *pxb_host_root_bus_path(PCIHostState *host_bridge,
     return bus->bus_path;
 }
 
+static char *pxb_host_ofw_unit_address(const SysBusDevice *dev)
+{
+    const PCIHostState *pxb_host;
+    const PCIBus *pxb_bus;
+    const PXBDev *pxb_dev;
+    int position;
+    const DeviceState *pxb_dev_base;
+    const PCIHostState *main_host;
+    const SysBusDevice *main_host_sbd;
+
+    pxb_host = PCI_HOST_BRIDGE(dev);
+    pxb_bus = pxb_host->bus;
+    pxb_dev = PXB_DEV(pxb_bus->parent_dev);
+    position = g_list_index(pxb_dev_list, pxb_dev);
+    assert(position >= 0);
+
+    pxb_dev_base = DEVICE(pxb_dev);
+    main_host = PCI_HOST_BRIDGE(pxb_dev_base->parent_bus->parent);
+    main_host_sbd = SYS_BUS_DEVICE(main_host);
+
+    if (main_host_sbd->num_mmio > 0) {
+        return g_strdup_printf(TARGET_FMT_plx ",%x",
+                               main_host_sbd->mmio[0].addr, position + 1);
+    }
+    if (main_host_sbd->num_pio > 0) {
+        return g_strdup_printf("i%04x,%x",
+                               main_host_sbd->pio[0], position + 1);
+    }
+    return NULL;
+}
+
 static void pxb_host_class_init(ObjectClass *class, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(class);
+    SysBusDeviceClass *sbc = SYS_BUS_DEVICE_CLASS(class);
     PCIHostBridgeClass *hc = PCI_HOST_BRIDGE_CLASS(class);
 
     dc->fw_name = "pci";
+    sbc->explicit_ofw_unit_address = pxb_host_ofw_unit_address;
     hc->root_bus_path = pxb_host_root_bus_path;
 }
 
@@ -149,6 +184,15 @@ static int pxb_map_irq_fn(PCIDevice *pci_dev, int pin)
     return pin - PCI_SLOT(pxb->devfn);
 }
 
+static gint pxb_compare(gconstpointer a, gconstpointer b)
+{
+    const PXBDev *pxb_a = a, *pxb_b = b;
+
+    return pxb_a->bus_nr < pxb_b->bus_nr ? -1 :
+           pxb_a->bus_nr > pxb_b->bus_nr ?  1 :
+           0;
+}
+
 static int pxb_dev_initfn(PCIDevice *dev)
 {
     PXBDev *pxb = PXB_DEV(dev);
@@ -192,7 +236,15 @@ static int pxb_dev_initfn(PCIDevice *dev)
                                PCI_STATUS_66MHZ | PCI_STATUS_FAST_BACK);
     pci_config_set_class(dev->config, PCI_CLASS_BRIDGE_HOST);
 
+    pxb_dev_list = g_list_insert_sorted(pxb_dev_list, pxb, pxb_compare);
     return 0;
+}
+
+static void pxb_dev_exitfn(PCIDevice *pci_dev)
+{
+    PXBDev *pxb = PXB_DEV(pci_dev);
+
+    pxb_dev_list = g_list_remove(pxb_dev_list, pxb);
 }
 
 static Property pxb_dev_properties[] = {
@@ -208,6 +260,7 @@ static void pxb_dev_class_init(ObjectClass *klass, void *data)
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
 
     k->init = pxb_dev_initfn;
+    k->exit = pxb_dev_exitfn;
     k->vendor_id = PCI_VENDOR_ID_REDHAT;
     k->device_id = PCI_DEVICE_ID_REDHAT_PXB;
     k->class_id = PCI_CLASS_BRIDGE_HOST;
