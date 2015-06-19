@@ -728,6 +728,12 @@ S: Supported
 F: hw/s390x/virtio-ccw.[hc]
 T: git git://github.com/cohuck/qemu virtio-ccw-upstr
 
+virtio-input
+M: Gerd Hoffmann <kraxel@redhat.com>
+S: Maintained
+F: hw/input/virtio-input*.c
+F: include/hw/virtio/virtio-input.h
+
 virtio-serial
 M: Amit Shah <amit.shah@redhat.com>
 S: Supported
