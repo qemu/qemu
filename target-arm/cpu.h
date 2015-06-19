@@ -284,6 +284,9 @@ typedef struct CPUARMState {
             };
             uint64_t par_el[4];
         };
+
+        uint32_t c6_rgnr;
+
         uint32_t c9_insn; /* Cache lockdown registers.  */
         uint32_t c9_data;
         uint64_t c9_pmcr; /* performance monitor control register */
@@ -481,6 +484,13 @@ typedef struct CPUARMState {
 
     /* Internal CPU feature flags.  */
     uint64_t features;
+
+    /* PMSAv7 MPU */
+    struct {
+        uint32_t *drbar;
+        uint32_t *drsr;
+        uint32_t *dracr;
+    } pmsav7;
 
     void *nvic;
     const struct arm_boot_info *boot_info;

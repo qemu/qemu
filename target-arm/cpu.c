@@ -596,6 +596,12 @@ static void arm_cpu_realizefn(DeviceState *dev, Error **errp)
             error_setg(errp, "PMSAv7 MPU #regions invalid %" PRIu32 "\n", nr);
             return;
         }
+
+        if (nr) {
+            env->pmsav7.drbar = g_new0(uint32_t, nr);
+            env->pmsav7.drsr = g_new0(uint32_t, nr);
+            env->pmsav7.dracr = g_new0(uint32_t, nr);
+        }
     }
 
     register_cp_regs_for_features(cpu);
