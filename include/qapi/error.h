@@ -104,16 +104,26 @@ ErrorClass error_get_class(const Error *err);
  * The new error's class is ERROR_CLASS_GENERIC_ERROR, and its
  * human-readable error message is made from printf-style @fmt, ...
  */
-void error_setg(Error **errp, const char *fmt, ...)
-    GCC_FMT_ATTR(2, 3);
+#define error_setg(errp, fmt, ...)                              \
+    error_setg_internal((errp), __FILE__, __LINE__, __func__,   \
+                        (fmt), ## __VA_ARGS__)
+void error_setg_internal(Error **errp,
+                         const char *src, int line, const char *func,
+                         const char *fmt, ...)
+    GCC_FMT_ATTR(5, 6);
 
 /*
  * Just like error_setg(), with @os_error info added to the message.
  * If @os_error is non-zero, ": " + strerror(os_error) is appended to
  * the human-readable error message.
  */
-void error_setg_errno(Error **errp, int os_error, const char *fmt, ...)
-    GCC_FMT_ATTR(3, 4);
+#define error_setg_errno(errp, os_error, fmt, ...)                      \
+    error_setg_errno_internal((errp), __FILE__, __LINE__, __func__,     \
+                              (os_error), (fmt), ## __VA_ARGS__)
+void error_setg_errno_internal(Error **errp,
+                               const char *fname, int line, const char *func,
+                               int os_error, const char *fmt, ...)
+    GCC_FMT_ATTR(6, 7);
 
 #ifdef _WIN32
 /*
@@ -121,8 +131,13 @@ void error_setg_errno(Error **errp, int os_error, const char *fmt, ...)
  * If @win32_error is non-zero, ": " + g_win32_error_message(win32_err)
  * is appended to the human-readable error message.
  */
-void error_setg_win32(Error **errp, int win32_err, const char *fmt, ...)
-    GCC_FMT_ATTR(3, 4);
+#define error_setg_win32(errp, win32_err, fmt, ...)                     \
+    error_setg_win32_internal((errp), __FILE__, __LINE__, __func__,     \
+                              (win32_err), (fmt), ## __VA_ARGS__)
+void error_setg_win32_internal(Error **errp,
+                               const char *src, int line, const char *func,
+                               int win32_err, const char *fmt, ...)
+    GCC_FMT_ATTR(6, 7);
 #endif
 
 /*
@@ -143,7 +158,12 @@ void error_propagate(Error **dst_errp, Error *local_err);
 /*
  * Convenience function to report open() failure.
  */
-void error_setg_file_open(Error **errp, int os_errno, const char *filename);
+#define error_setg_file_open(errp, os_errno, filename)                  \
+    error_setg_file_open_internal((errp), __FILE__, __LINE__, __func__, \
+                                  (os_errno), (filename))
+void error_setg_file_open_internal(Error **errp,
+                                   const char *src, int line, const char *func,
+                                   int os_errno, const char *filename);
 
 /*
  * Return an exact copy of @err.
@@ -166,8 +186,13 @@ void error_report_err(Error *);
  * Note: use of error classes other than ERROR_CLASS_GENERIC_ERROR is
  * strongly discouraged.
  */
-void error_set(Error **errp, ErrorClass err_class, const char *fmt, ...)
-    GCC_FMT_ATTR(3, 4);
+#define error_set(errp, err_class, fmt, ...)                    \
+    error_set_internal((errp), __FILE__, __LINE__, __func__,    \
+                       (err_class), (fmt), ## __VA_ARGS__)
+void error_set_internal(Error **errp,
+                        const char *src, int line, const char *func,
+                        ErrorClass err_class, const char *fmt, ...)
+    GCC_FMT_ATTR(6, 7);
 
 /*
  * Pass to error_setg() & friends to abort() on error.

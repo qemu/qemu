@@ -18,12 +18,23 @@ struct Error
 {
     char *msg;
     ErrorClass err_class;
+    const char *src, *func;
+    int line;
 };
 
 Error *error_abort;
 
-static void error_setv(Error **errp, ErrorClass err_class,
-                       const char *fmt, va_list ap)
+static void error_do_abort(Error *err)
+{
+    fprintf(stderr, "Unexpected error in %s() at %s:%d:\n",
+            err->func, err->src, err->line);
+    error_report_err(err);
+    abort();
+}
+
+static void error_setv(Error **errp,
+                       const char *src, int line, const char *func,
+                       ErrorClass err_class, const char *fmt, va_list ap)
 {
     Error *err;
     int saved_errno = errno;
@@ -36,10 +47,12 @@ static void error_setv(Error **errp, ErrorClass err_class,
     err = g_malloc0(sizeof(*err));
     err->msg = g_strdup_vprintf(fmt, ap);
     err->err_class = err_class;
+    err->src = src;
+    err->line = line;
+    err->func = func;
 
     if (errp == &error_abort) {
-        error_report_err(err);
-        abort();
+        error_do_abort(err);
     }
 
     *errp = err;
@@ -47,25 +60,31 @@ static void error_setv(Error **errp, ErrorClass err_class,
     errno = saved_errno;
 }
 
-void error_set(Error **errp, ErrorClass err_class, const char *fmt, ...)
+void error_set_internal(Error **errp,
+                        const char *src, int line, const char *func,
+                        ErrorClass err_class, const char *fmt, ...)
 {
     va_list ap;
 
     va_start(ap, fmt);
-    error_setv(errp, err_class, fmt, ap);
+    error_setv(errp, src, line, func, err_class, fmt, ap);
     va_end(ap);
 }
 
-void error_setg(Error **errp, const char *fmt, ...)
+void error_setg_internal(Error **errp,
+                         const char *src, int line, const char *func,
+                         const char *fmt, ...)
 {
     va_list ap;
 
     va_start(ap, fmt);
-    error_setv(errp, ERROR_CLASS_GENERIC_ERROR, fmt, ap);
+    error_setv(errp, src, line, func, ERROR_CLASS_GENERIC_ERROR, fmt, ap);
     va_end(ap);
 }
 
-void error_setg_errno(Error **errp, int os_errno, const char *fmt, ...)
+void error_setg_errno_internal(Error **errp,
+                               const char *src, int line, const char *func,
+                               int os_errno, const char *fmt, ...)
 {
     va_list ap;
     char *msg;
@@ -76,7 +95,7 @@ void error_setg_errno(Error **errp, int os_errno, const char *fmt, ...)
     }
 
     va_start(ap, fmt);
-    error_setv(errp, ERROR_CLASS_GENERIC_ERROR, fmt, ap);
+    error_setv(errp, src, line, func, ERROR_CLASS_GENERIC_ERROR, fmt, ap);
     va_end(ap);
 
     if (os_errno != 0) {
@@ -88,14 +107,19 @@ void error_setg_errno(Error **errp, int os_errno, const char *fmt, ...)
     errno = saved_errno;
 }
 
-void error_setg_file_open(Error **errp, int os_errno, const char *filename)
+void error_setg_file_open_internal(Error **errp,
+                                   const char *src, int line, const char *func,
+                                   int os_errno, const char *filename)
 {
-    error_setg_errno(errp, os_errno, "Could not open '%s'", filename);
+    error_setg_errno_internal(errp, src, line, func, os_errno,
+                              "Could not open '%s'", filename);
 }
 
 #ifdef _WIN32
 
-void error_setg_win32(Error **errp, int win32_err, const char *fmt, ...)
+void error_setg_win32_internal(Error **errp,
+                               const char *src, int line, const char *func,
+                               int win32_err, const char *fmt, ...)
 {
     va_list ap;
     char *msg1, *msg2;
@@ -105,7 +129,7 @@ void error_setg_win32(Error **errp, int win32_err, const char *fmt, ...)
     }
 
     va_start(ap, fmt);
-    error_setv(errp, ERROR_CLASS_GENERIC_ERROR, fmt, ap);
+    error_setv(errp, src, line, func, ERROR_CLASS_GENERIC_ERROR, fmt, ap);
     va_end(ap);
 
     if (win32_err != 0) {
@@ -158,8 +182,7 @@ void error_free(Error *err)
 void error_propagate(Error **dst_errp, Error *local_err)
 {
     if (local_err && dst_errp == &error_abort) {
-        error_report_err(local_err);
-        abort();
+        error_do_abort(local_err);
     } else if (dst_errp && !*dst_errp) {
         *dst_errp = local_err;
     } else if (local_err) {

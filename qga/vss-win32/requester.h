@@ -23,8 +23,10 @@ extern "C" {
 struct Error;
 
 /* Callback to set Error; used to avoid linking glib to the DLL */
-typedef void (*ErrorSetFunc)(struct Error **errp, int win32_err,
-                             const char *fmt, ...) GCC_FMT_ATTR(3, 4);
+typedef void (*ErrorSetFunc)(struct Error **errp,
+                             const char *src, int line, const char *func,
+                             int win32_err, const char *fmt, ...)
+    GCC_FMT_ATTR(6, 7);
 typedef struct ErrorSet {
     ErrorSetFunc error_setg_win32;
     struct Error **errp;        /* restriction: must not be null */
