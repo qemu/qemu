@@ -856,6 +856,43 @@ static void arm_v7m_class_init(ObjectClass *oc, void *data)
     cc->cpu_exec_interrupt = arm_v7m_cpu_exec_interrupt;
 }
 
+static const ARMCPRegInfo cortexr5_cp_reginfo[] = {
+    /* Dummy the TCM region regs for the moment */
+    { .name = "ATCM", .cp = 15, .opc1 = 0, .crn = 9, .crm = 1, .opc2 = 0,
+      .access = PL1_RW, .type = ARM_CP_CONST },
+    { .name = "BTCM", .cp = 15, .opc1 = 0, .crn = 9, .crm = 1, .opc2 = 1,
+      .access = PL1_RW, .type = ARM_CP_CONST },
+    REGINFO_SENTINEL
+};
+
+static void cortex_r5_initfn(Object *obj)
+{
+    ARMCPU *cpu = ARM_CPU(obj);
+
+    set_feature(&cpu->env, ARM_FEATURE_V7);
+    set_feature(&cpu->env, ARM_FEATURE_THUMB_DIV);
+    set_feature(&cpu->env, ARM_FEATURE_ARM_DIV);
+    set_feature(&cpu->env, ARM_FEATURE_V7MP);
+    set_feature(&cpu->env, ARM_FEATURE_MPU);
+    cpu->midr = 0x411fc153; /* r1p3 */
+    cpu->id_pfr0 = 0x0131;
+    cpu->id_pfr1 = 0x001;
+    cpu->id_dfr0 = 0x010400;
+    cpu->id_afr0 = 0x0;
+    cpu->id_mmfr0 = 0x0210030;
+    cpu->id_mmfr1 = 0x00000000;
+    cpu->id_mmfr2 = 0x01200000;
+    cpu->id_mmfr3 = 0x0211;
+    cpu->id_isar0 = 0x2101111;
+    cpu->id_isar1 = 0x13112111;
+    cpu->id_isar2 = 0x21232141;
+    cpu->id_isar3 = 0x01112131;
+    cpu->id_isar4 = 0x0010142;
+    cpu->id_isar5 = 0x0;
+    cpu->mp_is_up = true;
+    define_arm_cp_regs(cpu, cortexr5_cp_reginfo);
+}
+
 static const ARMCPRegInfo cortexa8_cp_reginfo[] = {
     { .name = "L2LOCKDOWN", .cp = 15, .crn = 9, .crm = 0, .opc1 = 1, .opc2 = 0,
       .access = PL1_RW, .type = ARM_CP_CONST, .resetvalue = 0 },
@@ -1249,6 +1286,7 @@ static const ARMCPUInfo arm_cpus[] = {
                              .class_init = arm_v7m_class_init },
     { .name = "cortex-m4",   .initfn = cortex_m4_initfn,
                              .class_init = arm_v7m_class_init },
+    { .name = "cortex-r5",   .initfn = cortex_r5_initfn },
     { .name = "cortex-a8",   .initfn = cortex_a8_initfn },
     { .name = "cortex-a9",   .initfn = cortex_a9_initfn },
     { .name = "cortex-a15",  .initfn = cortex_a15_initfn },
