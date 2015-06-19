@@ -90,7 +90,6 @@ typedef struct IVShmemState {
 
     Peer *peers;
     int nb_peers; /* how many guests we have space for */
-    int max_peer; /* maximum numbered peer */
 
     int vm_id;
     uint32_t vectors;
@@ -200,7 +199,7 @@ static void ivshmem_io_write(void *opaque, hwaddr addr,
 
         case DOORBELL:
             /* check that dest VM ID is reasonable */
-            if (dest > s->max_peer) {
+            if (dest >= s->nb_peers) {
                 IVSHMEM_DPRINTF("Invalid destination VM ID (%d)\n", dest);
                 break;
             }
@@ -574,11 +573,6 @@ static void ivshmem_read(void *opaque, const uint8_t *buf, int size)
     /* increment count for particular guest */
     s->peers[incoming_posn].nb_eventfds++;
 
-    /* keep track of the maximum VM ID */
-    if (incoming_posn > s->max_peer) {
-        s->max_peer = incoming_posn;
-    }
-
     if (incoming_posn == s->vm_id) {
         s->eventfd_chr[guest_max_eventfd] = create_eventfd_chr_device(s,
                    &s->peers[s->vm_id].eventfds[guest_max_eventfd],
@@ -720,8 +714,6 @@ static void pci_ivshmem_realize(PCIDevice *dev, Error **errp)
     uint8_t attr = PCI_BASE_ADDRESS_SPACE_MEMORY |
         PCI_BASE_ADDRESS_MEM_PREFETCH;
     Error *local_err = NULL;
-
-    s->max_peer = -1;
 
     if (s->sizearg == NULL) {
         s->ivshmem_size = 4 << 20; /* 4 MB default */
