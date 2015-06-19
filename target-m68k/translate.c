@@ -1995,8 +1995,8 @@ DISAS_INSN(move_from_usp)
         gen_exception(s, s->pc - 2, EXCP_PRIVILEGE);
         return;
     }
-    /* TODO: Implement USP.  */
-    gen_exception(s, s->pc - 2, EXCP_ILLEGAL);
+    tcg_gen_ld_i32(AREG(insn, 0), cpu_env,
+                   offsetof(CPUM68KState, sp[M68K_USP]));
 }
 
 DISAS_INSN(move_to_usp)
@@ -2005,8 +2005,8 @@ DISAS_INSN(move_to_usp)
         gen_exception(s, s->pc - 2, EXCP_PRIVILEGE);
         return;
     }
-    /* TODO: Implement USP.  */
-    gen_exception(s, s->pc - 2, EXCP_ILLEGAL);
+    tcg_gen_st_i32(AREG(insn, 0), cpu_env,
+                   offsetof(CPUM68KState, sp[M68K_USP]));
 }
 
 DISAS_INSN(halt)
