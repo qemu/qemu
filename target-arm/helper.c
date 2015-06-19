@@ -5835,6 +5835,167 @@ do_fault:
     return true;
 }
 
+static inline void get_phys_addr_pmsav7_default(CPUARMState *env,
+                                                ARMMMUIdx mmu_idx,
+                                                int32_t address, int *prot)
+{
+    *prot = PAGE_READ | PAGE_WRITE;
+    switch (address) {
+    case 0xF0000000 ... 0xFFFFFFFF:
+        if (regime_sctlr(env, mmu_idx) & SCTLR_V) { /* hivecs execing is ok */
+            *prot |= PAGE_EXEC;
+        }
+        break;
+    case 0x00000000 ... 0x7FFFFFFF:
+        *prot |= PAGE_EXEC;
+        break;
+    }
+
+}
+
+static bool get_phys_addr_pmsav7(CPUARMState *env, uint32_t address,
+                                 int access_type, ARMMMUIdx mmu_idx,
+                                 hwaddr *phys_ptr, int *prot, uint32_t *fsr)
+{
+    ARMCPU *cpu = arm_env_get_cpu(env);
+    int n;
+    bool is_user = regime_is_user(env, mmu_idx);
+
+    *phys_ptr = address;
+    *prot = 0;
+
+    if (regime_translation_disabled(env, mmu_idx)) { /* MPU disabled */
+        get_phys_addr_pmsav7_default(env, mmu_idx, address, prot);
+    } else { /* MPU enabled */
+        for (n = (int)cpu->pmsav7_dregion - 1; n >= 0; n--) {
+            /* region search */
+            uint32_t base = env->pmsav7.drbar[n];
+            uint32_t rsize = extract32(env->pmsav7.drsr[n], 1, 5);
+            uint32_t rmask;
+            bool srdis = false;
+
+            if (!(env->pmsav7.drsr[n] & 0x1)) {
+                continue;
+            }
+
+            if (!rsize) {
+                qemu_log_mask(LOG_GUEST_ERROR, "DRSR.Rsize field can not be 0");
+                continue;
+            }
+            rsize++;
+            rmask = (1ull << rsize) - 1;
+
+            if (base & rmask) {
+                qemu_log_mask(LOG_GUEST_ERROR, "DRBAR %" PRIx32 " misaligned "
+                              "to DRSR region size, mask = %" PRIx32,
+                              base, rmask);
+                continue;
+            }
+
+            if (address < base || address > base + rmask) {
+                continue;
+            }
+
+            /* Region matched */
+
+            if (rsize >= 8) { /* no subregions for regions < 256 bytes */
+                int i, snd;
+                uint32_t srdis_mask;
+
+                rsize -= 3; /* sub region size (power of 2) */
+                snd = ((address - base) >> rsize) & 0x7;
+                srdis = extract32(env->pmsav7.drsr[n], snd + 8, 1);
+
+                srdis_mask = srdis ? 0x3 : 0x0;
+                for (i = 2; i <= 8 && rsize < TARGET_PAGE_BITS; i *= 2) {
+                    /* This will check in groups of 2, 4 and then 8, whether
+                     * the subregion bits are consistent. rsize is incremented
+                     * back up to give the region size, considering consistent
+                     * adjacent subregions as one region. Stop testing if rsize
+                     * is already big enough for an entire QEMU page.
+                     */
+                    int snd_rounded = snd & ~(i - 1);
+                    uint32_t srdis_multi = extract32(env->pmsav7.drsr[n],
+                                                     snd_rounded + 8, i);
+                    if (srdis_mask ^ srdis_multi) {
+                        break;
+                    }
+                    srdis_mask = (srdis_mask << i) | srdis_mask;
+                    rsize++;
+                }
+            }
+            if (rsize < TARGET_PAGE_BITS) {
+                qemu_log_mask(LOG_UNIMP, "No support for MPU (sub)region"
+                              "alignment of %" PRIu32 " bits. Minimum is %d\n",
+                              rsize, TARGET_PAGE_BITS);
+                continue;
+            }
+            if (srdis) {
+                continue;
+            }
+            break;
+        }
+
+        if (n == -1) { /* no hits */
+            if (cpu->pmsav7_dregion &&
+                (is_user || !(regime_sctlr(env, mmu_idx) & SCTLR_BR))) {
+                /* background fault */
+                *fsr = 0;
+                return true;
+            }
+            get_phys_addr_pmsav7_default(env, mmu_idx, address, prot);
+        } else { /* a MPU hit! */
+            uint32_t ap = extract32(env->pmsav7.dracr[n], 8, 3);
+
+            if (is_user) { /* User mode AP bit decoding */
+                switch (ap) {
+                case 0:
+                case 1:
+                case 5:
+                    break; /* no access */
+                case 3:
+                    *prot |= PAGE_WRITE;
+                    /* fall through */
+                case 2:
+                case 6:
+                    *prot |= PAGE_READ | PAGE_EXEC;
+                    break;
+                default:
+                    qemu_log_mask(LOG_GUEST_ERROR,
+                                  "Bad value for AP bits in DRACR %"
+                                  PRIx32 "\n", ap);
+                }
+            } else { /* Priv. mode AP bits decoding */
+                switch (ap) {
+                case 0:
+                    break; /* no access */
+                case 1:
+                case 2:
+                case 3:
+                    *prot |= PAGE_WRITE;
+                    /* fall through */
+                case 5:
+                case 6:
+                    *prot |= PAGE_READ | PAGE_EXEC;
+                    break;
+                default:
+                    qemu_log_mask(LOG_GUEST_ERROR,
+                                  "Bad value for AP bits in DRACR %"
+                                  PRIx32 "\n", ap);
+                }
+            }
+
+            /* execute never */
+            if (env->pmsav7.dracr[n] & (1 << 12)) {
+                *prot &= ~PAGE_EXEC;
+            }
+        }
+    }
+
+    *fsr = 0x00d; /* Permission fault */
+    return !(*prot & (1 << access_type));
+}
+
 static bool get_phys_addr_pmsav5(CPUARMState *env, uint32_t address,
                                  int access_type, ARMMMUIdx mmu_idx,
                                  hwaddr *phys_ptr, int *prot, uint32_t *fsr)
@@ -5920,7 +6081,7 @@ static bool get_phys_addr_pmsav5(CPUARMState *env, uint32_t address,
  * DFSR/IFSR fault register, with the following caveats:
  *  * we honour the short vs long DFSR format differences.
  *  * the WnR bit is never set (the caller must do this).
- *  * for MPU based systems we don't bother to return a full FSR format
+ *  * for PSMAv5 based systems we don't bother to return a full FSR format
  *    value.
  *
  * @env: CPUARMState
@@ -5968,6 +6129,16 @@ static inline bool get_phys_addr(CPUARMState *env, target_ulong address,
         }
     }
 
+    /* pmsav7 has special handling for when MPU is disabled so call it before
+     * the common MMU/MPU disabled check below.
+     */
+    if (arm_feature(env, ARM_FEATURE_MPU) &&
+        arm_feature(env, ARM_FEATURE_V7)) {
+        *page_size = TARGET_PAGE_SIZE;
+        return get_phys_addr_pmsav7(env, address, access_type, mmu_idx,
+                                    phys_ptr, prot, fsr);
+    }
+
     if (regime_translation_disabled(env, mmu_idx)) {
         /* MMU/MPU disabled.  */
         *phys_ptr = address;
@@ -5977,6 +6148,7 @@ static inline bool get_phys_addr(CPUARMState *env, target_ulong address,
     }
 
     if (arm_feature(env, ARM_FEATURE_MPU)) {
+        /* Pre-v7 MPU */
         *page_size = TARGET_PAGE_SIZE;
         return get_phys_addr_pmsav5(env, address, access_type, mmu_idx,
                                     phys_ptr, prot, fsr);

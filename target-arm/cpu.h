@@ -560,6 +560,7 @@ void pmccntr_sync(CPUARMState *env);
 #define SCTLR_DT      (1U << 16) /* up to ??, RAO in v6 and v7 */
 #define SCTLR_nTWI    (1U << 16) /* v8 onward */
 #define SCTLR_HA      (1U << 17)
+#define SCTLR_BR      (1U << 17) /* PMSA only */
 #define SCTLR_IT      (1U << 18) /* up to ??, RAO in v6 and v7 */
 #define SCTLR_nTWE    (1U << 18) /* v8 onward */
 #define SCTLR_WXN     (1U << 19)
