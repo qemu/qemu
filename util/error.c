@@ -22,10 +22,10 @@ struct Error
 
 Error *error_abort;
 
-void error_set(Error **errp, ErrorClass err_class, const char *fmt, ...)
+static void error_setv(Error **errp, ErrorClass err_class,
+                       const char *fmt, va_list ap)
 {
     Error *err;
-    va_list ap;
     int saved_errno = errno;
 
     if (errp == NULL) {
@@ -34,10 +34,7 @@ void error_set(Error **errp, ErrorClass err_class, const char *fmt, ...)
     assert(*errp == NULL);
 
     err = g_malloc0(sizeof(*err));
-
-    va_start(ap, fmt);
     err->msg = g_strdup_vprintf(fmt, ap);
-    va_end(ap);
     err->err_class = err_class;
 
     if (errp == &error_abort) {
@@ -50,38 +47,35 @@ void error_set(Error **errp, ErrorClass err_class, const char *fmt, ...)
     errno = saved_errno;
 }
 
+void error_set(Error **errp, ErrorClass err_class, const char *fmt, ...)
+{
+    va_list ap;
+
+    va_start(ap, fmt);
+    error_setv(errp, err_class, fmt, ap);
+    va_end(ap);
+}
+
 void error_set_errno(Error **errp, int os_errno, ErrorClass err_class,
                      const char *fmt, ...)
 {
-    Error *err;
-    char *msg1;
     va_list ap;
+    char *msg;
     int saved_errno = errno;
 
     if (errp == NULL) {
         return;
     }
-    assert(*errp == NULL);
-
-    err = g_malloc0(sizeof(*err));
 
     va_start(ap, fmt);
-    msg1 = g_strdup_vprintf(fmt, ap);
-    if (os_errno != 0) {
-        err->msg = g_strdup_printf("%s: %s", msg1, strerror(os_errno));
-        g_free(msg1);
-    } else {
-        err->msg = msg1;
-    }
+    error_setv(errp, err_class, fmt, ap);
     va_end(ap);
-    err->err_class = err_class;
 
-    if (errp == &error_abort) {
-        error_report_err(err);
-        abort();
+    if (os_errno != 0) {
+        msg = (*errp)->msg;
+        (*errp)->msg = g_strdup_printf("%s: %s", msg, strerror(os_errno));
+        g_free(msg);
     }
-
-    *errp = err;
 
     errno = saved_errno;
 }
@@ -96,37 +90,25 @@ void error_setg_file_open(Error **errp, int os_errno, const char *filename)
 void error_set_win32(Error **errp, int win32_err, ErrorClass err_class,
                      const char *fmt, ...)
 {
-    Error *err;
-    char *msg1;
     va_list ap;
+    char *msg1, *msg2;
 
     if (errp == NULL) {
         return;
     }
-    assert(*errp == NULL);
-
-    err = g_malloc0(sizeof(*err));
 
     va_start(ap, fmt);
-    msg1 = g_strdup_vprintf(fmt, ap);
+    error_setv(errp, err_class, fmt, ap);
+    va_end(ap);
+
     if (win32_err != 0) {
-        char *msg2 = g_win32_error_message(win32_err);
-        err->msg = g_strdup_printf("%s: %s (error: %x)", msg1, msg2,
-                                   (unsigned)win32_err);
+        msg1 = (*errp)->msg;
+        msg2 = g_win32_error_message(win32_err);
+        (*errp)->msg = g_strdup_printf("%s: %s (error: %x)", msg1, msg2,
+                                       (unsigned)win32_err);
         g_free(msg2);
         g_free(msg1);
-    } else {
-        err->msg = msg1;
     }
-    va_end(ap);
-    err->err_class = err_class;
-
-    if (errp == &error_abort) {
-        error_report_err(err);
-        abort();
-    }
-
-    *errp = err;
 }
 
 #endif
