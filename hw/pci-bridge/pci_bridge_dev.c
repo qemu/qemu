@@ -125,7 +125,8 @@ static Property pci_bridge_dev_properties[] = {
                     /* Note: 0 is not a legal chassis number. */
     DEFINE_PROP_UINT8(PCI_BRIDGE_DEV_PROP_CHASSIS_NR, PCIBridgeDev, chassis_nr,
                       0),
-    DEFINE_PROP_BIT("msi", PCIBridgeDev, flags, PCI_BRIDGE_DEV_F_MSI_REQ, true),
+    DEFINE_PROP_BIT(PCI_BRIDGE_DEV_PROP_MSI, PCIBridgeDev, flags,
+                    PCI_BRIDGE_DEV_F_MSI_REQ, true),
     DEFINE_PROP_END_OF_LIST(),
 };
 
