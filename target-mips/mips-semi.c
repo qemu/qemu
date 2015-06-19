@@ -72,6 +72,28 @@ enum UHIOpenFlags {
     UHIOpen_EXCL   = 0x800
 };
 
+/* Errno values taken from asm-mips/errno.h */
+static uint16_t host_to_mips_errno[] = {
+    [ENAMETOOLONG] = 78,
+#ifdef EOVERFLOW
+    [EOVERFLOW]    = 79,
+#endif
+#ifdef ELOOP
+    [ELOOP]        = 90,
+#endif
+};
+
+static int errno_mips(int err)
+{
+    if (err < 0 || err >= ARRAY_SIZE(host_to_mips_errno)) {
+        return EINVAL;
+    } else if (host_to_mips_errno[err]) {
+        return host_to_mips_errno[err];
+    } else {
+        return err;
+    }
+}
+
 static int copy_stat_to_target(CPUMIPSState *env, const struct stat *src,
                                target_ulong vaddr)
 {
@@ -223,7 +245,7 @@ void helper_do_semihosting(CPUMIPSState *env)
             gpr[2] = 2;
         } else {
             gpr[2] = open(p, get_open_flags(gpr[5]), gpr[6]);
-            gpr[3] = errno;
+            gpr[3] = errno_mips(errno);
         }
         FREE_TARGET_STRING(p, gpr[4]);
         break;
@@ -234,24 +256,24 @@ void helper_do_semihosting(CPUMIPSState *env)
             goto uhi_done;
         }
         gpr[2] = close(gpr[4]);
-        gpr[3] = errno;
+        gpr[3] = errno_mips(errno);
         break;
     case UHI_read:
         gpr[2] = read_from_file(env, gpr[4], gpr[5], gpr[6], 0);
-        gpr[3] = errno;
+        gpr[3] = errno_mips(errno);
         break;
     case UHI_write:
         gpr[2] = write_to_file(env, gpr[4], gpr[5], gpr[6], 0);
-        gpr[3] = errno;
+        gpr[3] = errno_mips(errno);
         break;
     case UHI_lseek:
         gpr[2] = lseek(gpr[4], gpr[5], gpr[6]);
-        gpr[3] = errno;
+        gpr[3] = errno_mips(errno);
         break;
     case UHI_unlink:
         GET_TARGET_STRING(p, gpr[4]);
         gpr[2] = remove(p);
-        gpr[3] = errno;
+        gpr[3] = errno_mips(errno);
         FREE_TARGET_STRING(p, gpr[4]);
         break;
     case UHI_fstat:
@@ -259,12 +281,12 @@ void helper_do_semihosting(CPUMIPSState *env)
             struct stat sbuf;
             memset(&sbuf, 0, sizeof(sbuf));
             gpr[2] = fstat(gpr[4], &sbuf);
-            gpr[3] = errno;
+            gpr[3] = errno_mips(errno);
             if (gpr[2]) {
                 goto uhi_done;
             }
             gpr[2] = copy_stat_to_target(env, &sbuf, gpr[5]);
-            gpr[3] = errno;
+            gpr[3] = errno_mips(errno);
         }
         break;
     case UHI_argc:
@@ -311,18 +333,18 @@ void helper_do_semihosting(CPUMIPSState *env)
         break;
     case UHI_pread:
         gpr[2] = read_from_file(env, gpr[4], gpr[5], gpr[6], gpr[7]);
-        gpr[3] = errno;
+        gpr[3] = errno_mips(errno);
         break;
     case UHI_pwrite:
         gpr[2] = write_to_file(env, gpr[4], gpr[5], gpr[6], gpr[7]);
-        gpr[3] = errno;
+        gpr[3] = errno_mips(errno);
         break;
 #ifndef _WIN32
     case UHI_link:
         GET_TARGET_STRING(p, gpr[4]);
         GET_TARGET_STRING(p2, gpr[5]);
         gpr[2] = link(p, p2);
-        gpr[3] = errno;
+        gpr[3] = errno_mips(errno);
         FREE_TARGET_STRING(p2, gpr[5]);
         FREE_TARGET_STRING(p, gpr[4]);
         break;
