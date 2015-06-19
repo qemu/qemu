@@ -30,6 +30,7 @@
 #include "ui/input.h"
 #include "sysemu/sysemu.h"
 #include "qmp-commands.h"
+#include "sysemu/blockdev.h"
 
 #ifndef MAC_OS_X_VERSION_10_5
 #define MAC_OS_X_VERSION_10_5 1050
@@ -67,6 +68,7 @@ int gArgc;
 char **gArgv;
 bool stretch_video;
 NSTextField *pauseLabel;
+NSArray * supportedImageFileTypes;
 
 // keymap conversion
 int keymap[] =
@@ -242,7 +244,24 @@ static int cocoa_keycode_to_qemu(int keycode)
     return keymap[keycode];
 }
 
+/* Displays an alert dialog box with the specified message */
+static void QEMU_Alert(NSString *message)
+{
+    NSAlert *alert;
+    alert = [NSAlert new];
+    [alert setMessageText: message];
+    [alert runModal];
+}
 
+/* Handles any errors that happen with a device transaction */
+static void handleAnyDeviceErrors(Error * err)
+{
+    if (err) {
+        QEMU_Alert([NSString stringWithCString: error_get_pretty(err)
+                                      encoding: NSASCIIStringEncoding]);
+        error_free(err);
+    }
+}
 
 /*
  ------------------------------------------------------
@@ -808,6 +827,8 @@ QemuCocoaView *cocoaView;
 - (void)removePause;
 - (void)restartQEMU:(id)sender;
 - (void)powerDownQEMU:(id)sender;
+- (void)ejectDeviceMedia:(id)sender;
+- (void)changeDeviceMedia:(id)sender;
 @end
 
 @implementation QemuCocoaAppController
@@ -854,6 +875,10 @@ QemuCocoaView *cocoaView;
         [pauseLabel setFont: [NSFont fontWithName: @"Helvetica" size: 90]];
         [pauseLabel setTextColor: [NSColor blackColor]];
         [pauseLabel sizeToFit];
+
+        // set the supported image file types that can be opened
+        supportedImageFileTypes = [NSArray arrayWithObjects: @"img", @"iso", @"dmg",
+                                 @"qcow", @"qcow2", @"cloop", @"vmdk", nil];
     }
     return self;
 }
@@ -877,10 +902,8 @@ QemuCocoaView *cocoaView;
         NSOpenPanel *op = [[NSOpenPanel alloc] init];
         [op setPrompt:@"Boot image"];
         [op setMessage:@"Select the disk image you want to boot.\n\nHit the \"Cancel\" button to quit"];
-        NSArray *filetypes = [NSArray arrayWithObjects:@"img", @"iso", @"dmg",
-                                 @"qcow", @"qcow2", @"cloop", @"vmdk", nil];
 #if (MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_6)
-        [op setAllowedFileTypes:filetypes];
+        [op setAllowedFileTypes:supportedImageFileTypes];
         [op beginSheetModalForWindow:normalWindow
             completionHandler:^(NSInteger returnCode)
             { [self openPanelDidEnd:op
@@ -1045,6 +1068,61 @@ QemuCocoaView *cocoaView;
 - (void)powerDownQEMU:(id)sender
 {
     qmp_system_powerdown(NULL);
+}
+
+/* Ejects the media.
+ * Uses sender's tag to figure out the device to eject.
+ */
+- (void)ejectDeviceMedia:(id)sender
+{
+    NSString * drive;
+    drive = [sender representedObject];
+    if(drive == nil) {
+        NSBeep();
+        QEMU_Alert(@"Failed to find drive to eject!");
+        return;
+    }
+
+    Error *err = NULL;
+    qmp_eject([drive cStringUsingEncoding: NSASCIIStringEncoding], false, false, &err);
+    handleAnyDeviceErrors(err);
+}
+
+/* Displays a dialog box asking the user to select an image file to load.
+ * Uses sender's represented object value to figure out which drive to use.
+ */
+- (void)changeDeviceMedia:(id)sender
+{
+    /* Find the drive name */
+    NSString * drive;
+    drive = [sender representedObject];
+    if(drive == nil) {
+        NSBeep();
+        QEMU_Alert(@"Could not find drive!");
+        return;
+    }
+
+    /* Display the file open dialog */
+    NSOpenPanel * openPanel;
+    openPanel = [NSOpenPanel openPanel];
+    [openPanel setCanChooseFiles: YES];
+    [openPanel setAllowsMultipleSelection: NO];
+    [openPanel setAllowedFileTypes: supportedImageFileTypes];
+    if([openPanel runModal] == NSFileHandlingPanelOKButton) {
+        NSString * file = [[[openPanel URLs] objectAtIndex: 0] path];
+        if(file == nil) {
+            NSBeep();
+            QEMU_Alert(@"Failed to convert URL to file path!");
+            return;
+        }
+
+        Error *err = NULL;
+        qmp_change_blockdev([drive cStringUsingEncoding: NSASCIIStringEncoding],
+                            [file cStringUsingEncoding: NSASCIIStringEncoding],
+                            "raw",
+                            &err);
+        handleAnyDeviceErrors(err);
+    }
 }
 
 @end
@@ -1260,6 +1338,72 @@ static void add_console_menu_entries(void)
     }
 }
 
+/* Make menu items for all removable devices.
+ * Each device is given an 'Eject' and 'Change' menu item.
+ */
+static void addRemovableDevicesMenuItems()
+{
+    NSMenu *menu;
+    NSMenuItem *menuItem;
+    BlockInfoList *currentDevice, *pointerToFree;
+    NSString *deviceName;
+
+    currentDevice = qmp_query_block(NULL);
+    pointerToFree = currentDevice;
+    if(currentDevice == NULL) {
+        NSBeep();
+        QEMU_Alert(@"Failed to query for block devices!");
+        return;
+    }
+
+    menu = [[[NSApp mainMenu] itemWithTitle:@"Machine"] submenu];
+
+    // Add a separator between related groups of menu items
+    [menu addItem:[NSMenuItem separatorItem]];
+
+    // Set the attributes to the "Removable Media" menu item
+    NSString *titleString = @"Removable Media";
+    NSMutableAttributedString *attString=[[NSMutableAttributedString alloc] initWithString:titleString];
+    NSColor *newColor = [NSColor blackColor];
+    NSFontManager *fontManager = [NSFontManager sharedFontManager];
+    NSFont *font = [fontManager fontWithFamily:@"Helvetica"
+                                          traits:NSBoldFontMask|NSItalicFontMask
+                                          weight:0
+                                            size:14];
+    [attString addAttribute:NSFontAttributeName value:font range:NSMakeRange(0, [titleString length])];
+    [attString addAttribute:NSForegroundColorAttributeName value:newColor range:NSMakeRange(0, [titleString length])];
+    [attString addAttribute:NSUnderlineStyleAttributeName value:[NSNumber numberWithInt: 1] range:NSMakeRange(0, [titleString length])];
+
+    // Add the "Removable Media" menu item
+    menuItem = [NSMenuItem new];
+    [menuItem setAttributedTitle: attString];
+    [menuItem setEnabled: NO];
+    [menu addItem: menuItem];
+
+    /* Loop thru all the block devices in the emulator */
+    while (currentDevice) {
+        deviceName = [[NSString stringWithFormat: @"%s", currentDevice->value->device] retain];
+
+        if(currentDevice->value->removable) {
+            menuItem = [[NSMenuItem alloc] initWithTitle: [NSString stringWithFormat: @"Change %s...", currentDevice->value->device]
+                                                  action: @selector(changeDeviceMedia:)
+                                           keyEquivalent: @""];
+            [menu addItem: menuItem];
+            [menuItem setRepresentedObject: deviceName];
+            [menuItem autorelease];
+
+            menuItem = [[NSMenuItem alloc] initWithTitle: [NSString stringWithFormat: @"Eject %s", currentDevice->value->device]
+                                                  action: @selector(ejectDeviceMedia:)
+                                           keyEquivalent: @""];
+            [menu addItem: menuItem];
+            [menuItem setRepresentedObject: deviceName];
+            [menuItem autorelease];
+        }
+        currentDevice = currentDevice->next;
+    }
+    qapi_free_BlockInfoList(pointerToFree);
+}
+
 void cocoa_display_init(DisplayState *ds, int full_screen)
 {
     COCOA_DEBUG("qemu_cocoa: cocoa_display_init\n");
@@ -1283,4 +1427,10 @@ void cocoa_display_init(DisplayState *ds, int full_screen)
      * menu entries for them.
      */
     add_console_menu_entries();
+
+    /* Give all removable devices a menu item.
+     * Has to be called after QEMU has started to
+     * find out what removable devices it has.
+     */
+    addRemovableDevicesMenuItems();
 }
