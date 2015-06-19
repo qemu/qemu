@@ -179,10 +179,6 @@ static void mb_cpu_realizefn(DeviceState *dev, Error **errp)
 
     env->sregs[SR_PC] = cpu->cfg.base_vectors;
 
-#if defined(CONFIG_USER_ONLY)
-    env->pvr.regs[10] = 0x0c000000; /* Spartan 3a dsp.  */
-#endif
-
     mcc->parent_realize(dev, errp);
 }
 
