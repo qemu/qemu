@@ -24,7 +24,7 @@
 #define VSS_TIMEOUT_EVENT_MSEC 10
 
 #define err_set(e, err, fmt, ...) \
-    ((e)->error_set((e)->errp, err, (e)->err_class, fmt, ## __VA_ARGS__))
+    ((e)->error_setg_win32((e)->errp, err, fmt, ## __VA_ARGS__))
 #define err_is_set(e) ((e)->errp && *(e)->errp)
 
 

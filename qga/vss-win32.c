@@ -150,9 +150,8 @@ void qga_vss_fsfreeze(int *nr_volume, Error **errp, bool freeze)
     const char *func_name = freeze ? "requester_freeze" : "requester_thaw";
     QGAVSSRequesterFunc func;
     ErrorSet errset = {
-        .error_set = (ErrorSetFunc)error_set_win32,
-        .errp = (void **)errp,
-        .err_class = ERROR_CLASS_GENERIC_ERROR
+        .error_setg_win32 = error_setg_win32,
+        .errp = errp,
     };
 
     func = (QGAVSSRequesterFunc)GetProcAddress(provider_lib, func_name);

@@ -96,8 +96,7 @@ void error_setg_file_open(Error **errp, int os_errno, const char *filename)
 
 #ifdef _WIN32
 
-void error_set_win32(Error **errp, int win32_err, ErrorClass err_class,
-                     const char *fmt, ...)
+void error_setg_win32(Error **errp, int win32_err, const char *fmt, ...)
 {
     va_list ap;
     char *msg1, *msg2;
@@ -107,7 +106,7 @@ void error_set_win32(Error **errp, int win32_err, ErrorClass err_class,
     }
 
     va_start(ap, fmt);
-    error_setv(errp, err_class, fmt, ap);
+    error_setv(errp, ERROR_CLASS_GENERIC_ERROR, fmt, ap);
     va_end(ap);
 
     if (win32_err != 0) {
