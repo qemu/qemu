@@ -3351,14 +3351,25 @@ STEXI
 Enable semihosting mode (ARM, M68K, Xtensa only).
 ETEXI
 DEF("semihosting-config", HAS_ARG, QEMU_OPTION_semihosting_config,
-    "-semihosting-config [enable=on|off,]target=native|gdb|auto   semihosting configuration\n",
+    "-semihosting-config [enable=on|off][,target=native|gdb|auto][,arg=str[,...]]\n" \
+    "                semihosting configuration\n",
 QEMU_ARCH_ARM | QEMU_ARCH_M68K | QEMU_ARCH_XTENSA | QEMU_ARCH_LM32)
 STEXI
-@item -semihosting-config [enable=on|off,]target=native|gdb|auto
+@item -semihosting-config [enable=on|off][,target=native|gdb|auto][,arg=str[,...]]
 @findex -semihosting-config
-Enable semihosting and define where the semihosting calls will be addressed,
-to QEMU (@code{native}) or to GDB (@code{gdb}). The default is @code{auto}, which means
-@code{gdb} during debug sessions and @code{native} otherwise (ARM, M68K, Xtensa only).
+Enable and configure semihosting (ARM, M68K, Xtensa only).
+@table @option
+@item target=@code{native|gdb|auto}
+Defines where the semihosting calls will be addressed, to QEMU (@code{native})
+or to GDB (@code{gdb}). The default is @code{auto}, which means @code{gdb}
+during debug sessions and @code{native} otherwise.
+@item arg=@var{str1},arg=@var{str2},...
+Allows the user to pass input arguments, and can be used multiple times to build
+up a list. The old-style @code{-kernel}/@code{-append} method of passing a
+command line is still supported for backward compatibility. If both the
+@code{--semihosting-config arg} and the @code{-kernel}/@code{-append} are
+specified, the former is passed to semihosting as it always takes precedence.
+@end table
 ETEXI
 DEF("old-param", 0, QEMU_OPTION_old_param,
     "-old-param      old param mode\n", QEMU_ARCH_ARM)

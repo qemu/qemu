@@ -488,6 +488,9 @@ static QemuOptsList qemu_semihosting_config_opts = {
         }, {
             .name = "target",
             .type = QEMU_OPT_STRING,
+        }, {
+            .name = "arg",
+            .type = QEMU_OPT_STRING,
         },
         { /* end of list */ }
     },
@@ -1251,6 +1254,9 @@ static void configure_msg(QemuOpts *opts)
 typedef struct SemihostingConfig {
     bool enabled;
     SemihostingTarget target;
+    const char **argv;
+    int argc;
+    const char *cmdline; /* concatenated argv */
 } SemihostingConfig;
 
 static SemihostingConfig semihosting;
@@ -1263,6 +1269,58 @@ bool semihosting_enabled(void)
 SemihostingTarget semihosting_get_target(void)
 {
     return semihosting.target;
+}
+
+const char *semihosting_get_arg(int i)
+{
+    if (i >= semihosting.argc) {
+        return NULL;
+    }
+    return semihosting.argv[i];
+}
+
+int semihosting_get_argc(void)
+{
+    return semihosting.argc;
+}
+
+const char *semihosting_get_cmdline(void)
+{
+    if (semihosting.cmdline == NULL && semihosting.argc > 0) {
+        semihosting.cmdline = g_strjoinv(" ", (gchar **)semihosting.argv);
+    }
+    return semihosting.cmdline;
+}
+
+static int add_semihosting_arg(void *opaque,
+                               const char *name, const char *val,
+                               Error **errp)
+{
+    SemihostingConfig *s = opaque;
+    if (strcmp(name, "arg") == 0) {
+        s->argc++;
+        /* one extra element as g_strjoinv() expects NULL-terminated array */
+        s->argv = g_realloc(s->argv, (s->argc + 1) * sizeof(void *));
+        s->argv[s->argc - 1] = val;
+        s->argv[s->argc] = NULL;
+    }
+    return 0;
+}
+
+/* Use strings passed via -kernel/-append to initialize semihosting.argv[] */
+static inline void semihosting_arg_fallback(const char *file, const char *cmd)
+{
+    char *cmd_token;
+
+    /* argv[0] */
+    add_semihosting_arg(&semihosting, "arg", file, NULL);
+
+    /* split -append and initialize argv[1..n] */
+    cmd_token = strtok(g_strdup(cmd), " ");
+    while (cmd_token) {
+        add_semihosting_arg(&semihosting, "arg", cmd_token, NULL);
+        cmd_token = strtok(NULL, " ");
+    }
 }
 
 /***********************************************************/
@@ -3669,6 +3727,9 @@ int main(int argc, char **argv, char **envp)
                     } else {
                         semihosting.target = SEMIHOSTING_TARGET_AUTO;
                     }
+                    /* Set semihosting argument count and vector */
+                    qemu_opt_foreach(opts, add_semihosting_arg,
+                                     &semihosting, NULL);
                 } else {
                     fprintf(stderr, "Unsupported semihosting-config %s\n",
                             optarg);
@@ -4235,6 +4296,11 @@ int main(int argc, char **argv, char **envp)
     if (!linux_boot && qemu_opt_get(machine_opts, "dtb")) {
         fprintf(stderr, "-dtb only allowed with -kernel option\n");
         exit(1);
+    }
+
+    if (semihosting_enabled() && !semihosting_get_argc() && kernel_filename) {
+        /* fall back to the -kernel/-append */
+        semihosting_arg_fallback(kernel_filename, kernel_cmdline);
     }
 
     os_set_line_buffering();
