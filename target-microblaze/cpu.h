@@ -124,7 +124,7 @@ typedef struct CPUMBState CPUMBState;
 #define PVR0_USE_DCACHE_MASK            0x01000000
 #define PVR0_USE_MMU_MASK               0x00800000
 #define PVR0_USE_BTC			0x00400000
-#define PVR0_ENDI			0x00200000
+#define PVR0_ENDI_MASK                  0x00200000
 #define PVR0_FAULT			0x00100000
 #define PVR0_VERSION_MASK               0x0000FF00
 #define PVR0_USER1_MASK                 0x000000FF

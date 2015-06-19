@@ -66,6 +66,7 @@ typedef struct MicroBlazeCPU {
         uint8_t use_fpu;
         bool use_mmu;
         bool dcache_writeback;
+        bool endi;
     } cfg;
 
     CPUMBState env;

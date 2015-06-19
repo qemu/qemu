@@ -114,7 +114,8 @@ static void mb_cpu_realizefn(DeviceState *dev, Error **errp)
 
     env->pvr.regs[0] |= (cpu->cfg.stackprot ? PVR0_SPROT_MASK : 0) |
                         (cpu->cfg.use_fpu ? PVR0_USE_FPU_MASK : 0) |
-                        (cpu->cfg.use_mmu ? PVR0_USE_MMU_MASK : 0);
+                        (cpu->cfg.use_mmu ? PVR0_USE_MMU_MASK : 0) |
+                        (cpu->cfg.endi ? PVR0_ENDI_MASK : 0);
 
     env->pvr.regs[2] |= (cpu->cfg.use_fpu ? PVR2_USE_FPU_MASK : 0) |
                         (cpu->cfg.use_fpu > 1 ? PVR2_USE_FPU2_MASK : 0);
@@ -174,6 +175,7 @@ static Property mb_properties[] = {
     DEFINE_PROP_BOOL("use-mmu", MicroBlazeCPU, cfg.use_mmu, true),
     DEFINE_PROP_BOOL("dcache-writeback", MicroBlazeCPU, cfg.dcache_writeback,
                      false),
+    DEFINE_PROP_BOOL("endianness", MicroBlazeCPU, cfg.endi, false),
     DEFINE_PROP_END_OF_LIST(),
 };
 
