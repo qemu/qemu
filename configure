@@ -337,6 +337,7 @@ libssh2=""
 vhdx=""
 numa=""
 tcmalloc="no"
+jemalloc="no"
 
 # parse CC options first
 for opt do
@@ -1143,6 +1144,10 @@ for opt do
   ;;
   --enable-tcmalloc) tcmalloc="yes"
   ;;
+  --disable-jemalloc) jemalloc="no"
+  ;;
+  --enable-jemalloc) jemalloc="yes"
+  ;;
   *)
       echo "ERROR: unknown option $opt"
       echo "Try '$0 --help' for more information"
@@ -1367,6 +1372,7 @@ disabled with --disable-FEATURE, default is enabled if available:
   vhdx            support for the Microsoft VHDX image format
   numa            libnuma support
   tcmalloc        tcmalloc support
+  jemalloc        jemalloc support
 
 NOTE: The object files are built at the place where configure is launched
 EOF
@@ -3367,6 +3373,11 @@ EOF
   fi
 fi
 
+if test "$tcmalloc" = "yes" && test "$jemalloc" = "yes" ; then
+    echo "ERROR: tcmalloc && jemalloc can't be used at the same time"
+    exit 1
+fi
+
 ##########################################
 # tcmalloc probe
 
@@ -3380,6 +3391,22 @@ EOF
     LIBS="-ltcmalloc $LIBS"
   else
     feature_not_found "tcmalloc" "install gperftools devel"
+  fi
+fi
+
+##########################################
+# jemalloc probe
+
+if test "$jemalloc" = "yes" ; then
+  cat > $TMPC << EOF
+#include <stdlib.h>
+int main(void) { malloc(1); return 0; }
+EOF
+
+  if compile_prog "" "-ljemalloc" ; then
+    LIBS="-ljemalloc $LIBS"
+  else
+    feature_not_found "jemalloc" "install jemalloc devel"
   fi
 fi
 
@@ -4594,6 +4621,7 @@ echo "snappy support    $snappy"
 echo "bzip2 support     $bzip2"
 echo "NUMA host support $numa"
 echo "tcmalloc support  $tcmalloc"
+echo "jemalloc support  $jemalloc"
 
 if test "$sdl_too_old" = "yes"; then
 echo "-> Your SDL version is too old - please upgrade to have SDL support"
