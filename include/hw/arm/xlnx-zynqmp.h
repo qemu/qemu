@@ -28,6 +28,7 @@
                                        TYPE_XLNX_ZYNQMP)
 
 #define XLNX_ZYNQMP_NUM_APU_CPUS 4
+#define XLNX_ZYNQMP_NUM_RPU_CPUS 2
 #define XLNX_ZYNQMP_NUM_GEMS 4
 #define XLNX_ZYNQMP_NUM_UARTS 2
 
@@ -48,6 +49,7 @@ typedef struct XlnxZynqMPState {
 
     /*< public >*/
     ARMCPU apu_cpu[XLNX_ZYNQMP_NUM_APU_CPUS];
+    ARMCPU rpu_cpu[XLNX_ZYNQMP_NUM_RPU_CPUS];
     GICState gic;
     MemoryRegion gic_mr[XLNX_ZYNQMP_GIC_REGIONS][XLNX_ZYNQMP_GIC_ALIASES];
     CadenceGEMState gem[XLNX_ZYNQMP_NUM_GEMS];

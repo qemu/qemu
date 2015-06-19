@@ -71,6 +71,13 @@ static void xlnx_zynqmp_init(Object *obj)
                                   &error_abort);
     }
 
+    for (i = 0; i < XLNX_ZYNQMP_NUM_RPU_CPUS; i++) {
+        object_initialize(&s->rpu_cpu[i], sizeof(s->rpu_cpu[i]),
+                          "cortex-r5-" TYPE_ARM_CPU);
+        object_property_add_child(obj, "rpu-cpu[*]", OBJECT(&s->rpu_cpu[i]),
+                                  &error_abort);
+    }
+
     object_initialize(&s->gic, sizeof(s->gic), TYPE_ARM_GIC);
     qdev_set_parent_bus(DEVICE(&s->gic), sysbus_get_default());
 
@@ -161,6 +168,33 @@ static void xlnx_zynqmp_realize(DeviceState *dev, Error **errp)
         irq = qdev_get_gpio_in(DEVICE(&s->gic),
                                arm_gic_ppi_index(i, ARM_VIRT_TIMER_PPI));
         qdev_connect_gpio_out(DEVICE(&s->apu_cpu[i]), 1, irq);
+    }
+
+    for (i = 0; i < XLNX_ZYNQMP_NUM_RPU_CPUS; i++) {
+        char *name;
+
+        name = object_get_canonical_path_component(OBJECT(&s->rpu_cpu[i]));
+        if (strcmp(name, boot_cpu)) {
+            /* Secondary CPUs start in PSCI powered-down state */
+            object_property_set_bool(OBJECT(&s->rpu_cpu[i]), true,
+                                     "start-powered-off", &error_abort);
+        } else {
+            s->boot_cpu_ptr = &s->rpu_cpu[i];
+        }
+
+        object_property_set_bool(OBJECT(&s->rpu_cpu[i]), true, "reset-hivecs",
+                                 &err);
+        if (err != NULL) {
+            error_propagate(errp, err);
+            return;
+        }
+
+        object_property_set_bool(OBJECT(&s->rpu_cpu[i]), true, "realized",
+                                 &err);
+        if (err) {
+            error_propagate((errp), (err));
+            return;
+        }
     }
 
     if (!s->boot_cpu_ptr) {
