@@ -2477,14 +2477,6 @@ static const VMStateDescription vmstate_vmxnet3 = {
     }
 };
 
-static void
-vmxnet3_write_config(PCIDevice *pci_dev, uint32_t addr, uint32_t val, int len)
-{
-    pci_default_write_config(pci_dev, addr, val, len);
-    msix_write_config(pci_dev, addr, val, len);
-    msi_write_config(pci_dev, addr, val, len);
-}
-
 static Property vmxnet3_properties[] = {
     DEFINE_NIC_PROPERTIES(VMXNET3State, conf),
     DEFINE_PROP_END_OF_LIST(),
@@ -2503,7 +2495,6 @@ static void vmxnet3_class_init(ObjectClass *class, void *data)
     c->class_id = PCI_CLASS_NETWORK_ETHERNET;
     c->subsystem_vendor_id = PCI_VENDOR_ID_VMWARE;
     c->subsystem_id = PCI_DEVICE_ID_VMWARE_VMXNET3;
-    c->config_write = vmxnet3_write_config,
     dc->desc = "VMWare Paravirtualized Ethernet v3";
     dc->reset = vmxnet3_qdev_reset;
     dc->vmsd = &vmstate_vmxnet3;

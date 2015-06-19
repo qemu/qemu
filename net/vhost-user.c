@@ -50,7 +50,6 @@ static int vhost_user_start(VhostUserState *s)
     options.backend_type = VHOST_BACKEND_TYPE_USER;
     options.net_backend = &s->nc;
     options.opaque = s->chr;
-    options.force = true;
 
     s->vhost_net = vhost_net_init(&options);
 

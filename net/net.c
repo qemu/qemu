@@ -510,6 +510,24 @@ void qemu_set_vnet_hdr_len(NetClientState *nc, int len)
     nc->info->set_vnet_hdr_len(nc, len);
 }
 
+int qemu_set_vnet_le(NetClientState *nc, bool is_le)
+{
+    if (!nc || !nc->info->set_vnet_le) {
+        return -ENOSYS;
+    }
+
+    return nc->info->set_vnet_le(nc, is_le);
+}
+
+int qemu_set_vnet_be(NetClientState *nc, bool is_be)
+{
+    if (!nc || !nc->info->set_vnet_be) {
+        return -ENOSYS;
+    }
+
+    return nc->info->set_vnet_be(nc, is_be);
+}
+
 int qemu_can_send_packet(NetClientState *sender)
 {
     int vm_running = runstate_is_running();

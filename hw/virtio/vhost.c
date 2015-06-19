@@ -17,9 +17,11 @@
 #include "hw/hw.h"
 #include "qemu/atomic.h"
 #include "qemu/range.h"
+#include "qemu/error-report.h"
 #include <linux/vhost.h>
 #include "exec/address-spaces.h"
 #include "hw/virtio/virtio-bus.h"
+#include "hw/virtio/virtio-access.h"
 #include "migration/migration.h"
 
 static struct vhost_log *vhost_log;
@@ -689,6 +691,27 @@ static void vhost_log_stop(MemoryListener *listener,
     /* FIXME: implement */
 }
 
+static int vhost_virtqueue_set_vring_endian_legacy(struct vhost_dev *dev,
+                                                   bool is_big_endian,
+                                                   int vhost_vq_index)
+{
+    struct vhost_vring_state s = {
+        .index = vhost_vq_index,
+        .num = is_big_endian
+    };
+
+    if (!dev->vhost_ops->vhost_call(dev, VHOST_SET_VRING_ENDIAN, &s)) {
+        return 0;
+    }
+
+    if (errno == ENOTTY) {
+        error_report("vhost does not support cross-endian");
+        return -ENOSYS;
+    }
+
+    return -errno;
+}
+
 static int vhost_virtqueue_start(struct vhost_dev *dev,
                                 struct VirtIODevice *vdev,
                                 struct vhost_virtqueue *vq,
@@ -717,6 +740,16 @@ static int vhost_virtqueue_start(struct vhost_dev *dev,
     r = dev->vhost_ops->vhost_call(dev, VHOST_SET_VRING_BASE, &state);
     if (r) {
         return -errno;
+    }
+
+    if (!virtio_has_feature(vdev, VIRTIO_F_VERSION_1) &&
+        virtio_legacy_is_cross_endian(vdev)) {
+        r = vhost_virtqueue_set_vring_endian_legacy(dev,
+                                                    virtio_is_big_endian(vdev),
+                                                    vhost_vq_index);
+        if (r) {
+            return -errno;
+        }
     }
 
     s = l = virtio_queue_get_desc_size(vdev, idx);
@@ -789,8 +822,9 @@ static void vhost_virtqueue_stop(struct vhost_dev *dev,
                                     struct vhost_virtqueue *vq,
                                     unsigned idx)
 {
+    int vhost_vq_index = idx - dev->vq_index;
     struct vhost_vring_state state = {
-        .index = idx - dev->vq_index
+        .index = vhost_vq_index,
     };
     int r;
     assert(idx >= dev->vq_index && idx < dev->vq_index + dev->nvqs);
@@ -801,6 +835,20 @@ static void vhost_virtqueue_stop(struct vhost_dev *dev,
     }
     virtio_queue_set_last_avail_idx(vdev, idx, state.num);
     virtio_queue_invalidate_signalled_used(vdev, idx);
+
+    /* In the cross-endian case, we need to reset the vring endianness to
+     * native as legacy devices expect so by default.
+     */
+    if (!virtio_has_feature(vdev, VIRTIO_F_VERSION_1) &&
+        virtio_legacy_is_cross_endian(vdev)) {
+        r = vhost_virtqueue_set_vring_endian_legacy(dev,
+                                                    !virtio_is_big_endian(vdev),
+                                                    vhost_vq_index);
+        if (r < 0) {
+            error_report("failed to reset vring endianness");
+        }
+    }
+
     assert (r >= 0);
     cpu_physical_memory_unmap(vq->ring, virtio_queue_get_ring_size(vdev, idx),
                               0, virtio_queue_get_ring_size(vdev, idx));
@@ -853,7 +901,7 @@ static void vhost_virtqueue_cleanup(struct vhost_virtqueue *vq)
 }
 
 int vhost_dev_init(struct vhost_dev *hdev, void *opaque,
-                   VhostBackendType backend_type, bool force)
+                   VhostBackendType backend_type)
 {
     uint64_t features;
     int i, r;
@@ -916,7 +964,6 @@ int vhost_dev_init(struct vhost_dev *hdev, void *opaque,
     hdev->started = false;
     hdev->memory_changed = false;
     memory_listener_register(&hdev->memory_listener, &address_space_memory);
-    hdev->force = force;
     return 0;
 fail_vq:
     while (--i >= 0) {
@@ -942,17 +989,6 @@ void vhost_dev_cleanup(struct vhost_dev *hdev)
     g_free(hdev->mem);
     g_free(hdev->mem_sections);
     hdev->vhost_ops->vhost_backend_cleanup(hdev);
-}
-
-bool vhost_dev_query(struct vhost_dev *hdev, VirtIODevice *vdev)
-{
-    BusState *qbus = BUS(qdev_get_parent_bus(DEVICE(vdev)));
-    VirtioBusState *vbus = VIRTIO_BUS(qbus);
-    VirtioBusClass *k = VIRTIO_BUS_GET_CLASS(vbus);
-
-    return !k->query_guest_notifiers ||
-           k->query_guest_notifiers(qbus->parent) ||
-           hdev->force;
 }
 
 /* Stop processing guest IO notifications in qemu.
