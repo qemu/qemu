@@ -64,6 +64,7 @@ typedef struct MicroBlazeCPU {
         bool stackprot;
         uint32_t base_vectors;
         uint8_t use_fpu;
+        bool use_mmu;
     } cfg;
 
     CPUMBState env;

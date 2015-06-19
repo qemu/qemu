@@ -98,7 +98,6 @@ static void mb_cpu_realizefn(DeviceState *dev, Error **errp)
                        | PVR0_USE_EXC_MASK \
                        | PVR0_USE_ICACHE_MASK \
                        | PVR0_USE_DCACHE_MASK \
-                       | PVR0_USE_MMU \
                        | (0xb << 8);
     env->pvr.regs[2] = PVR2_D_OPB_MASK \
                         | PVR2_D_LMB_MASK \
@@ -114,7 +113,8 @@ static void mb_cpu_realizefn(DeviceState *dev, Error **errp)
                         | 0;
 
     env->pvr.regs[0] |= (cpu->cfg.stackprot ? PVR0_SPROT_MASK : 0) |
-                        (cpu->cfg.use_fpu ? PVR0_USE_FPU_MASK : 0);
+                        (cpu->cfg.use_fpu ? PVR0_USE_FPU_MASK : 0) |
+                        (cpu->cfg.use_mmu ? PVR0_USE_MMU_MASK : 0);
 
     env->pvr.regs[2] |= (cpu->cfg.use_fpu ? PVR2_USE_FPU_MASK : 0) |
                         (cpu->cfg.use_fpu > 1 ? PVR2_USE_FPU2_MASK : 0);
@@ -168,6 +168,7 @@ static Property mb_properties[] = {
      *                  are enabled
      */
     DEFINE_PROP_UINT8("use-fpu", MicroBlazeCPU, cfg.use_fpu, 2),
+    DEFINE_PROP_BOOL("use-mmu", MicroBlazeCPU, cfg.use_mmu, true),
     DEFINE_PROP_END_OF_LIST(),
 };
 
