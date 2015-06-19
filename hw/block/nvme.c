@@ -154,6 +154,7 @@ static uint16_t nvme_dma_read_prp(NvmeCtrl *n, uint8_t *ptr, uint32_t len,
         qemu_sglist_destroy(&qsg);
         return NVME_INVALID_FIELD | NVME_DNR;
     }
+    qemu_sglist_destroy(&qsg);
     return NVME_SUCCESS;
 }
 
