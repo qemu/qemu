@@ -119,6 +119,9 @@ static void mb_cpu_realizefn(DeviceState *dev, Error **errp)
     env->pvr.regs[2] |= (cpu->cfg.use_fpu ? PVR2_USE_FPU_MASK : 0) |
                         (cpu->cfg.use_fpu > 1 ? PVR2_USE_FPU2_MASK : 0);
 
+    env->pvr.regs[5] |= cpu->cfg.dcache_writeback ?
+                                        PVR5_DCACHE_WRITEBACK_MASK : 0;
+
     env->pvr.regs[10] = 0x0c000000; /* Default to spartan 3a dsp family.  */
     env->pvr.regs[11] = PVR11_USE_MMU | (16 << 17);
 
@@ -169,6 +172,8 @@ static Property mb_properties[] = {
      */
     DEFINE_PROP_UINT8("use-fpu", MicroBlazeCPU, cfg.use_fpu, 2),
     DEFINE_PROP_BOOL("use-mmu", MicroBlazeCPU, cfg.use_mmu, true),
+    DEFINE_PROP_BOOL("dcache-writeback", MicroBlazeCPU, cfg.dcache_writeback,
+                     false),
     DEFINE_PROP_END_OF_LIST(),
 };
 
