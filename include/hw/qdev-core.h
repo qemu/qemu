@@ -65,8 +65,8 @@ struct VMStateDescription;
  * Operations depending on @props static properties should go into @realize.
  * After successful realization, setting static properties will fail.
  *
- * As an interim step, the #DeviceState:realized property is set by deprecated
- * function qdev_init_nofail().
+ * As an interim step, the #DeviceState:realized property can also be
+ * set with qdev_init_nofail().
  * In the future, devices will propagate this state change to their children
  * and along busses they expose.
  * The point in time will be deferred to machine creation, so that values
