@@ -26,6 +26,43 @@
 #include "hw/qdev-properties.h"
 #include "migration/vmstate.h"
 
+static const struct {
+    const char *name;
+    uint8_t version_id;
+} mb_cpu_lookup[] = {
+    /* These key value are as per MBV field in PVR0 */
+    {"5.00.a", 0x01},
+    {"5.00.b", 0x02},
+    {"5.00.c", 0x03},
+    {"6.00.a", 0x04},
+    {"6.00.b", 0x06},
+    {"7.00.a", 0x05},
+    {"7.00.b", 0x07},
+    {"7.10.a", 0x08},
+    {"7.10.b", 0x09},
+    {"7.10.c", 0x0a},
+    {"7.10.d", 0x0b},
+    {"7.20.a", 0x0c},
+    {"7.20.b", 0x0d},
+    {"7.20.c", 0x0e},
+    {"7.20.d", 0x0f},
+    {"7.30.a", 0x10},
+    {"7.30.b", 0x11},
+    {"8.00.a", 0x12},
+    {"8.00.b", 0x13},
+    {"8.10.a", 0x14},
+    {"8.20.a", 0x15},
+    {"8.20.b", 0x16},
+    {"8.30.a", 0x17},
+    {"8.40.a", 0x18},
+    {"8.40.b", 0x19},
+    {"8.50.a", 0x1A},
+    {"9.0", 0x1B},
+    {"9.1", 0x1D},
+    {"9.2", 0x1F},
+    {"9.3", 0x20},
+    {NULL, 0},
+};
 
 static void mb_cpu_set_pc(CPUState *cs, vaddr value)
 {
@@ -88,6 +125,8 @@ static void mb_cpu_realizefn(DeviceState *dev, Error **errp)
     MicroBlazeCPUClass *mcc = MICROBLAZE_CPU_GET_CLASS(dev);
     MicroBlazeCPU *cpu = MICROBLAZE_CPU(cs);
     CPUMBState *env = &cpu->env;
+    uint8_t version_code = 0;
+    int i = 0;
 
     qemu_init_vcpu(cs);
 
@@ -112,10 +151,22 @@ static void mb_cpu_realizefn(DeviceState *dev, Error **errp)
                         | PVR2_FPU_EXC_MASK \
                         | 0;
 
+    for (i = 0; mb_cpu_lookup[i].name && cpu->cfg.version; i++) {
+        if (strcmp(mb_cpu_lookup[i].name, cpu->cfg.version) == 0) {
+            version_code = mb_cpu_lookup[i].version_id;
+            break;
+        }
+    }
+
+    if (!version_code) {
+        qemu_log("Invalid MicroBlaze version number: %s\n", cpu->cfg.version);
+    }
+
     env->pvr.regs[0] |= (cpu->cfg.stackprot ? PVR0_SPROT_MASK : 0) |
                         (cpu->cfg.use_fpu ? PVR0_USE_FPU_MASK : 0) |
                         (cpu->cfg.use_mmu ? PVR0_USE_MMU_MASK : 0) |
-                        (cpu->cfg.endi ? PVR0_ENDI_MASK : 0);
+                        (cpu->cfg.endi ? PVR0_ENDI_MASK : 0) |
+                        (version_code << 16);
 
     env->pvr.regs[2] |= (cpu->cfg.use_fpu ? PVR2_USE_FPU_MASK : 0) |
                         (cpu->cfg.use_fpu > 1 ? PVR2_USE_FPU2_MASK : 0);
@@ -176,6 +227,7 @@ static Property mb_properties[] = {
     DEFINE_PROP_BOOL("dcache-writeback", MicroBlazeCPU, cfg.dcache_writeback,
                      false),
     DEFINE_PROP_BOOL("endianness", MicroBlazeCPU, cfg.endi, false),
+    DEFINE_PROP_STRING("version", MicroBlazeCPU, cfg.version),
     DEFINE_PROP_END_OF_LIST(),
 };
 
