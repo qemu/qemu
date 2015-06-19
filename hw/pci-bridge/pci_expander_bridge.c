@@ -14,6 +14,7 @@
 #include "hw/pci/pci_bus.h"
 #include "hw/pci/pci_host.h"
 #include "hw/pci/pci_bus.h"
+#include "hw/pci/pci_bridge.h"
 #include "hw/i386/pc.h"
 #include "qemu/range.h"
 #include "qemu/error-report.h"
@@ -175,7 +176,7 @@ static int pxb_dev_initfn(PCIDevice *dev)
 
     bds = qdev_create(BUS(bus), "pci-bridge");
     bds->id = dev_name;
-    qdev_prop_set_uint8(bds, "chassis_nr", pxb->bus_nr);
+    qdev_prop_set_uint8(bds, PCI_BRIDGE_DEV_PROP_CHASSIS_NR, pxb->bus_nr);
 
     PCI_HOST_BRIDGE(ds)->bus = bus;
 
