@@ -488,9 +488,10 @@ static void ivshmem_read(void *opaque, const uint8_t *buf, int size)
 {
     IVShmemState *s = opaque;
     int incoming_fd;
-    int guest_max_eventfd;
+    int new_eventfd;
     long incoming_posn;
     Error *err = NULL;
+    Peer *peer;
 
     if (!fifo_update_and_get(s, buf, size,
                              &incoming_posn, sizeof(incoming_posn))) {
@@ -516,6 +517,8 @@ static void ivshmem_read(void *opaque, const uint8_t *buf, int size)
             return;
         }
     }
+
+    peer = &s->peers[incoming_posn];
 
     if (incoming_fd == -1) {
         /* if posn is positive and unseen before then this is our posn*/
@@ -564,27 +567,24 @@ static void ivshmem_read(void *opaque, const uint8_t *buf, int size)
         return;
     }
 
-    /* each guest has an array of eventfds, and we keep track of how many
-     * guests for each VM */
-    guest_max_eventfd = s->peers[incoming_posn].nb_eventfds;
+    /* each peer has an associated array of eventfds, and we keep
+     * track of how many eventfds received so far */
+    /* get a new eventfd: */
+    new_eventfd = peer->nb_eventfds++;
 
     /* this is an eventfd for a particular guest VM */
     IVSHMEM_DPRINTF("eventfds[%ld][%d] = %d\n", incoming_posn,
-                    guest_max_eventfd, incoming_fd);
-    event_notifier_init_fd(&s->peers[incoming_posn].eventfds[guest_max_eventfd],
-                           incoming_fd);
-
-    /* increment count for particular guest */
-    s->peers[incoming_posn].nb_eventfds++;
+                    new_eventfd, incoming_fd);
+    event_notifier_init_fd(&peer->eventfds[new_eventfd], incoming_fd);
 
     if (incoming_posn == s->vm_id) {
-        s->eventfd_chr[guest_max_eventfd] = create_eventfd_chr_device(s,
-                   &s->peers[s->vm_id].eventfds[guest_max_eventfd],
-                   guest_max_eventfd);
+        s->eventfd_chr[new_eventfd] = create_eventfd_chr_device(s,
+                   &s->peers[s->vm_id].eventfds[new_eventfd],
+                   new_eventfd);
     }
 
     if (ivshmem_has_feature(s, IVSHMEM_IOEVENTFD)) {
-        ivshmem_add_eventfd(s, incoming_posn, guest_max_eventfd);
+        ivshmem_add_eventfd(s, incoming_posn, new_eventfd);
     }
 }
 
