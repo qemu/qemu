@@ -1116,8 +1116,8 @@ static inline uint64_t cpreg_to_kvm_id(uint32_t cpregid)
  * old must have the OVERRIDE bit set.
  * ALIAS indicates that this register is an alias view of some underlying
  * state which is also visible via another register, and that the other
- * register is handling migration; registers marked ALIAS will not be migrated
- * but may have their state set by syncing of register state from KVM.
+ * register is handling migration and reset; registers marked ALIAS will not be
+ * migrated but may have their state set by syncing of register state from KVM.
  * NO_RAW indicates that this register has no underlying state and does not
  * support raw access for state saving/loading; it will not be used for either
  * migration or KVM state synchronization. (Typically this is for "registers"
