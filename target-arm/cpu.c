@@ -457,6 +457,9 @@ static Property arm_cpu_has_el3_property =
 static Property arm_cpu_has_mpu_property =
             DEFINE_PROP_BOOL("has-mpu", ARMCPU, has_mpu, true);
 
+static Property arm_cpu_pmsav7_dregion_property =
+            DEFINE_PROP_UINT32("pmsav7-dregion", ARMCPU, pmsav7_dregion, 16);
+
 static void arm_cpu_post_init(Object *obj)
 {
     ARMCPU *cpu = ARM_CPU(obj);
@@ -488,6 +491,11 @@ static void arm_cpu_post_init(Object *obj)
     if (arm_feature(&cpu->env, ARM_FEATURE_MPU)) {
         qdev_property_add_static(DEVICE(obj), &arm_cpu_has_mpu_property,
                                  &error_abort);
+        if (arm_feature(&cpu->env, ARM_FEATURE_V7)) {
+            qdev_property_add_static(DEVICE(obj),
+                                     &arm_cpu_pmsav7_dregion_property,
+                                     &error_abort);
+        }
     }
 
 }
@@ -578,6 +586,16 @@ static void arm_cpu_realizefn(DeviceState *dev, Error **errp)
 
     if (!cpu->has_mpu) {
         unset_feature(env, ARM_FEATURE_MPU);
+    }
+
+    if (arm_feature(env, ARM_FEATURE_MPU) &&
+        arm_feature(env, ARM_FEATURE_V7)) {
+        uint32_t nr = cpu->pmsav7_dregion;
+
+        if (nr > 0xff) {
+            error_setg(errp, "PMSAv7 MPU #regions invalid %" PRIu32 "\n", nr);
+            return;
+        }
     }
 
     register_cp_regs_for_features(cpu);
