@@ -41,6 +41,7 @@ struct PCIBridgeDev {
     MemoryRegion bar;
     uint8_t chassis_nr;
 #define PCI_BRIDGE_DEV_F_MSI_REQ 0
+#define PCI_BRIDGE_DEV_F_SHPC_REQ 1
     uint32_t flags;
 };
 typedef struct PCIBridgeDev PCIBridgeDev;
@@ -55,11 +56,17 @@ static int pci_bridge_dev_initfn(PCIDevice *dev)
     if (err) {
         goto bridge_error;
     }
-    dev->config[PCI_INTERRUPT_PIN] = 0x1;
-    memory_region_init(&bridge_dev->bar, OBJECT(dev), "shpc-bar", shpc_bar_size(dev));
-    err = shpc_init(dev, &br->sec_bus, &bridge_dev->bar, 0);
-    if (err) {
-        goto shpc_error;
+    if (bridge_dev->flags & (1 << PCI_BRIDGE_DEV_F_SHPC_REQ)) {
+        dev->config[PCI_INTERRUPT_PIN] = 0x1;
+        memory_region_init(&bridge_dev->bar, OBJECT(dev), "shpc-bar",
+                           shpc_bar_size(dev));
+        err = shpc_init(dev, &br->sec_bus, &bridge_dev->bar, 0);
+        if (err) {
+            goto shpc_error;
+        }
+    } else {
+        /* MSI is not applicable without SHPC */
+        bridge_dev->flags &= ~(1 << PCI_BRIDGE_DEV_F_MSI_REQ);
     }
     err = slotid_cap_init(dev, 0, bridge_dev->chassis_nr, 0);
     if (err) {
@@ -72,15 +79,19 @@ static int pci_bridge_dev_initfn(PCIDevice *dev)
             goto msi_error;
         }
     }
-    /* TODO: spec recommends using 64 bit prefetcheable BAR.
-     * Check whether that works well. */
-    pci_register_bar(dev, 0, PCI_BASE_ADDRESS_SPACE_MEMORY |
-		     PCI_BASE_ADDRESS_MEM_TYPE_64, &bridge_dev->bar);
+    if (shpc_present(dev)) {
+        /* TODO: spec recommends using 64 bit prefetcheable BAR.
+         * Check whether that works well. */
+        pci_register_bar(dev, 0, PCI_BASE_ADDRESS_SPACE_MEMORY |
+                         PCI_BASE_ADDRESS_MEM_TYPE_64, &bridge_dev->bar);
+    }
     return 0;
 msi_error:
     slotid_cap_cleanup(dev);
 slotid_error:
-    shpc_cleanup(dev, &bridge_dev->bar);
+    if (shpc_present(dev)) {
+        shpc_cleanup(dev, &bridge_dev->bar);
+    }
 shpc_error:
     pci_bridge_exitfn(dev);
 bridge_error:
@@ -94,12 +105,15 @@ static void pci_bridge_dev_exitfn(PCIDevice *dev)
         msi_uninit(dev);
     }
     slotid_cap_cleanup(dev);
-    shpc_cleanup(dev, &bridge_dev->bar);
+    if (shpc_present(dev)) {
+        shpc_cleanup(dev, &bridge_dev->bar);
+    }
     pci_bridge_exitfn(dev);
 }
 
 static void pci_bridge_dev_instance_finalize(Object *obj)
 {
+    /* this function is idempotent and handles (PCIDevice.shpc == NULL) */
     shpc_free(PCI_DEVICE(obj));
 }
 
@@ -110,7 +124,9 @@ static void pci_bridge_dev_write_config(PCIDevice *d,
     if (msi_present(d)) {
         msi_write_config(d, address, val, len);
     }
-    shpc_cap_write_config(d, address, val, len);
+    if (shpc_present(d)) {
+        shpc_cap_write_config(d, address, val, len);
+    }
 }
 
 static void qdev_pci_bridge_dev_reset(DeviceState *qdev)
@@ -118,7 +134,9 @@ static void qdev_pci_bridge_dev_reset(DeviceState *qdev)
     PCIDevice *dev = PCI_DEVICE(qdev);
 
     pci_bridge_reset(qdev);
-    shpc_reset(dev);
+    if (shpc_present(dev)) {
+        shpc_reset(dev);
+    }
 }
 
 static Property pci_bridge_dev_properties[] = {
@@ -127,17 +145,53 @@ static Property pci_bridge_dev_properties[] = {
                       0),
     DEFINE_PROP_BIT(PCI_BRIDGE_DEV_PROP_MSI, PCIBridgeDev, flags,
                     PCI_BRIDGE_DEV_F_MSI_REQ, true),
+    DEFINE_PROP_BIT(PCI_BRIDGE_DEV_PROP_SHPC, PCIBridgeDev, flags,
+                    PCI_BRIDGE_DEV_F_SHPC_REQ, true),
     DEFINE_PROP_END_OF_LIST(),
 };
+
+static bool pci_device_shpc_present(void *opaque, int version_id)
+{
+    PCIDevice *dev = opaque;
+
+    return shpc_present(dev);
+}
 
 static const VMStateDescription pci_bridge_dev_vmstate = {
     .name = "pci_bridge",
     .fields = (VMStateField[]) {
         VMSTATE_PCI_DEVICE(parent_obj, PCIBridge),
-        SHPC_VMSTATE(shpc, PCIDevice, NULL),
+        SHPC_VMSTATE(shpc, PCIDevice, pci_device_shpc_present),
         VMSTATE_END_OF_LIST()
     }
 };
+
+static void pci_bridge_dev_hotplug_cb(HotplugHandler *hotplug_dev,
+                                      DeviceState *dev, Error **errp)
+{
+    PCIDevice *pci_hotplug_dev = PCI_DEVICE(hotplug_dev);
+
+    if (!shpc_present(pci_hotplug_dev)) {
+        error_setg(errp, "standard hotplug controller has been disabled for "
+                   "this %s", TYPE_PCI_BRIDGE_DEV);
+        return;
+    }
+    shpc_device_hotplug_cb(hotplug_dev, dev, errp);
+}
+
+static void pci_bridge_dev_hot_unplug_request_cb(HotplugHandler *hotplug_dev,
+                                                 DeviceState *dev,
+                                                 Error **errp)
+{
+    PCIDevice *pci_hotplug_dev = PCI_DEVICE(hotplug_dev);
+
+    if (!shpc_present(pci_hotplug_dev)) {
+        error_setg(errp, "standard hotplug controller has been disabled for "
+                   "this %s", TYPE_PCI_BRIDGE_DEV);
+        return;
+    }
+    shpc_device_hot_unplug_request_cb(hotplug_dev, dev, errp);
+}
 
 static void pci_bridge_dev_class_init(ObjectClass *klass, void *data)
 {
@@ -157,8 +211,8 @@ static void pci_bridge_dev_class_init(ObjectClass *klass, void *data)
     dc->props = pci_bridge_dev_properties;
     dc->vmsd = &pci_bridge_dev_vmstate;
     set_bit(DEVICE_CATEGORY_BRIDGE, dc->categories);
-    hc->plug = shpc_device_hotplug_cb;
-    hc->unplug_request = shpc_device_hot_unplug_request_cb;
+    hc->plug = pci_bridge_dev_hotplug_cb;
+    hc->unplug_request = pci_bridge_dev_hot_unplug_request_cb;
 }
 
 static const TypeInfo pci_bridge_dev_info = {
