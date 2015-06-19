@@ -40,6 +40,7 @@
 #include "cpu.h"
 #include "qemu/sockets.h"
 #include "sysemu/kvm.h"
+#include "exec/semihost.h"
 
 #ifdef CONFIG_USER_ONLY
 #define GDB_ATTACHED "0"
@@ -323,8 +324,6 @@ static GDBState *gdbserver_state;
 
 bool gdb_has_xml;
 
-int semihosting_target = SEMIHOSTING_TARGET_AUTO;
-
 #ifdef CONFIG_USER_ONLY
 /* XXX: This is not thread safe.  Do we care?  */
 static int gdbserver_fd = -1;
@@ -362,10 +361,11 @@ static enum {
 /* Decide if either remote gdb syscalls or native file IO should be used. */
 int use_gdb_syscalls(void)
 {
-    if (semihosting_target == SEMIHOSTING_TARGET_NATIVE) {
+    SemihostingTarget target = semihosting_get_target();
+    if (target == SEMIHOSTING_TARGET_NATIVE) {
         /* -semihosting-config target=native */
         return false;
-    } else if (semihosting_target == SEMIHOSTING_TARGET_GDB) {
+    } else if (target == SEMIHOSTING_TARGET_GDB) {
         /* -semihosting-config target=gdb */
         return true;
     }
