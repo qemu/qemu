@@ -272,7 +272,7 @@ static void ivshmem_receive(void *opaque, const uint8_t *buf, int size)
 
 static int ivshmem_can_receive(void * opaque)
 {
-    return 8;
+    return sizeof(long);
 }
 
 static void ivshmem_event(void *opaque, int event)
