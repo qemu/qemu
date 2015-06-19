@@ -65,8 +65,7 @@ void error_setg(Error **errp, const char *fmt, ...)
     va_end(ap);
 }
 
-void error_set_errno(Error **errp, int os_errno, ErrorClass err_class,
-                     const char *fmt, ...)
+void error_setg_errno(Error **errp, int os_errno, const char *fmt, ...)
 {
     va_list ap;
     char *msg;
@@ -77,7 +76,7 @@ void error_set_errno(Error **errp, int os_errno, ErrorClass err_class,
     }
 
     va_start(ap, fmt);
-    error_setv(errp, err_class, fmt, ap);
+    error_setv(errp, ERROR_CLASS_GENERIC_ERROR, fmt, ap);
     va_end(ap);
 
     if (os_errno != 0) {

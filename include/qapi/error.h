@@ -35,8 +35,8 @@ void error_set(Error **errp, ErrorClass err_class, const char *fmt, ...)
  * printf-style human message, followed by a strerror() string if
  * @os_error is not zero.
  */
-void error_set_errno(Error **errp, int os_error, ErrorClass err_class,
-                     const char *fmt, ...) GCC_FMT_ATTR(4, 5);
+void error_setg_errno(Error **errp, int os_error, const char *fmt, ...)
+    GCC_FMT_ATTR(3, 4);
 
 #ifdef _WIN32
 /**
@@ -53,9 +53,6 @@ void error_setg_win32(Error **errp, int win32_err, const char *fmt, ...)
  */
 void error_setg(Error **errp, const char *fmt, ...)
     GCC_FMT_ATTR(2, 3);
-#define error_setg_errno(errp, os_error, fmt, ...) \
-    error_set_errno(errp, os_error, ERROR_CLASS_GENERIC_ERROR, \
-                    fmt, ## __VA_ARGS__)
 
 /**
  * Helper for open() errors
