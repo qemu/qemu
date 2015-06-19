@@ -51,8 +51,8 @@ void error_set_win32(Error **errp, int win32_err, ErrorClass err_class,
 /**
  * Same as error_set(), but sets a generic error
  */
-#define error_setg(errp, fmt, ...) \
-    error_set(errp, ERROR_CLASS_GENERIC_ERROR, fmt, ## __VA_ARGS__)
+void error_setg(Error **errp, const char *fmt, ...)
+    GCC_FMT_ATTR(2, 3);
 #define error_setg_errno(errp, os_error, fmt, ...) \
     error_set_errno(errp, os_error, ERROR_CLASS_GENERIC_ERROR, \
                     fmt, ## __VA_ARGS__)
