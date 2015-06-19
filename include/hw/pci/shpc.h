@@ -51,7 +51,8 @@ void shpc_device_hot_unplug_request_cb(HotplugHandler *hotplug_dev,
                                        DeviceState *dev, Error **errp);
 
 extern VMStateInfo shpc_vmstate_info;
-#define SHPC_VMSTATE(_field, _type) \
-    VMSTATE_BUFFER_UNSAFE_INFO(_field, _type, 0, shpc_vmstate_info, 0)
+#define SHPC_VMSTATE(_field, _type,  _test) \
+    VMSTATE_BUFFER_UNSAFE_INFO_TEST(_field, _type, _test, 0, \
+                                    shpc_vmstate_info, 0)
 
 #endif
