@@ -52,6 +52,9 @@ typedef struct XlnxZynqMPState {
     MemoryRegion gic_mr[XLNX_ZYNQMP_GIC_REGIONS][XLNX_ZYNQMP_GIC_ALIASES];
     CadenceGEMState gem[XLNX_ZYNQMP_NUM_GEMS];
     CadenceUARTState uart[XLNX_ZYNQMP_NUM_UARTS];
+
+    char *boot_cpu;
+    ARMCPU *boot_cpu_ptr;
 }  XlnxZynqMPState;
 
 #define XLNX_ZYNQMP_H

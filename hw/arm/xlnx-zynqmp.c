@@ -90,6 +90,7 @@ static void xlnx_zynqmp_realize(DeviceState *dev, Error **errp)
     XlnxZynqMPState *s = XLNX_ZYNQMP(dev);
     MemoryRegion *system_memory = get_system_memory();
     uint8_t i;
+    const char *boot_cpu = s->boot_cpu ? s->boot_cpu : "apu-cpu[0]";
     qemu_irq gic_spi[GIC_NUM_SPI_INTR];
     Error *err = NULL;
 
@@ -123,13 +124,18 @@ static void xlnx_zynqmp_realize(DeviceState *dev, Error **errp)
 
     for (i = 0; i < XLNX_ZYNQMP_NUM_APU_CPUS; i++) {
         qemu_irq irq;
+        char *name;
 
         object_property_set_int(OBJECT(&s->apu_cpu[i]), QEMU_PSCI_CONDUIT_SMC,
                                 "psci-conduit", &error_abort);
-        if (i > 0) {
+
+        name = object_get_canonical_path_component(OBJECT(&s->apu_cpu[i]));
+        if (strcmp(name, boot_cpu)) {
             /* Secondary CPUs start in PSCI powered-down state */
             object_property_set_bool(OBJECT(&s->apu_cpu[i]), true,
                                      "start-powered-off", &error_abort);
+        } else {
+            s->boot_cpu_ptr = &s->apu_cpu[i];
         }
 
         object_property_set_int(OBJECT(&s->apu_cpu[i]), GIC_BASE_ADDR,
@@ -155,6 +161,11 @@ static void xlnx_zynqmp_realize(DeviceState *dev, Error **errp)
         irq = qdev_get_gpio_in(DEVICE(&s->gic),
                                arm_gic_ppi_index(i, ARM_VIRT_TIMER_PPI));
         qdev_connect_gpio_out(DEVICE(&s->apu_cpu[i]), 1, irq);
+    }
+
+    if (!s->boot_cpu_ptr) {
+        error_setg(errp, "ZynqMP Boot cpu %s not found\n", boot_cpu);
+        return;
     }
 
     for (i = 0; i < GIC_NUM_SPI_INTR; i++) {
@@ -190,10 +201,16 @@ static void xlnx_zynqmp_realize(DeviceState *dev, Error **errp)
     }
 }
 
+static Property xlnx_zynqmp_props[] = {
+    DEFINE_PROP_STRING("boot-cpu", XlnxZynqMPState, boot_cpu),
+    DEFINE_PROP_END_OF_LIST()
+};
+
 static void xlnx_zynqmp_class_init(ObjectClass *oc, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(oc);
 
+    dc->props = xlnx_zynqmp_props;
     dc->realize = xlnx_zynqmp_realize;
 }
 
