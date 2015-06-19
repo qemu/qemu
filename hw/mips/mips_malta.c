@@ -887,7 +887,7 @@ static void main_cpu_reset(void *opaque)
        read only location. The kernel location and the arguments table
        location does not change. */
     if (loaderparams.kernel_filename) {
-        env->CP0_Status &= ~((1 << CP0St_BEV) | (1 << CP0St_ERL));
+        env->CP0_Status &= ~(1 << CP0St_ERL);
     }
 
     malta_mips_config(cpu);
