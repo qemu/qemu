@@ -525,13 +525,12 @@ static void ivshmem_read(void *opaque, const uint8_t *buf, int size)
         if (incoming_posn >= 0 && s->vm_id == -1) {
             /* receive our posn */
             s->vm_id = incoming_posn;
-            return;
         } else {
             /* otherwise an fd == -1 means an existing guest has gone away */
             IVSHMEM_DPRINTF("posn %ld has gone away\n", incoming_posn);
             close_guest_eventfds(s, incoming_posn);
-            return;
         }
+        return;
     }
 
     /* if the position is -1, then it's shared memory region fd */
