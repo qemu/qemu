@@ -66,7 +66,7 @@ struct VMStateDescription;
  * After successful realization, setting static properties will fail.
  *
  * As an interim step, the #DeviceState:realized property is set by deprecated
- * functions qdev_init() and qdev_init_nofail().
+ * function qdev_init_nofail().
  * In the future, devices will propagate this state change to their children
  * and along busses they expose.
  * The point in time will be deferred to machine creation, so that values
@@ -262,7 +262,6 @@ typedef struct GlobalProperty {
 
 DeviceState *qdev_create(BusState *bus, const char *name);
 DeviceState *qdev_try_create(BusState *bus, const char *name);
-int qdev_init(DeviceState *dev) QEMU_WARN_UNUSED_RESULT;
 void qdev_init_nofail(DeviceState *dev);
 void qdev_set_legacy_instance_id(DeviceState *dev, int alias_id,
                                  int required_for_version);
