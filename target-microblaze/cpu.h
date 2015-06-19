@@ -212,7 +212,9 @@ typedef struct CPUMBState CPUMBState;
 /* MSR Reset value PVR mask */
 #define PVR11_MSR_RESET_VALUE_MASK      0x000007FF
 
-
+#define C_PVR_NONE                      0
+#define C_PVR_BASIC                     1
+#define C_PVR_FULL                      2
 
 /* CPU flags.  */
 

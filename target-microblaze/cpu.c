@@ -130,8 +130,7 @@ static void mb_cpu_realizefn(DeviceState *dev, Error **errp)
 
     qemu_init_vcpu(cs);
 
-    env->pvr.regs[0] = PVR0_PVR_FULL_MASK \
-                       | PVR0_USE_BARREL_MASK \
+    env->pvr.regs[0] = PVR0_USE_BARREL_MASK \
                        | PVR0_USE_DIV_MASK \
                        | PVR0_USE_HW_MUL_MASK \
                        | PVR0_USE_EXC_MASK \
@@ -166,7 +165,8 @@ static void mb_cpu_realizefn(DeviceState *dev, Error **errp)
                         (cpu->cfg.use_fpu ? PVR0_USE_FPU_MASK : 0) |
                         (cpu->cfg.use_mmu ? PVR0_USE_MMU_MASK : 0) |
                         (cpu->cfg.endi ? PVR0_ENDI_MASK : 0) |
-                        (version_code << 16);
+                        (version_code << 16) |
+                        (cpu->cfg.pvr == C_PVR_FULL ? PVR0_PVR_FULL_MASK : 0);
 
     env->pvr.regs[2] |= (cpu->cfg.use_fpu ? PVR2_USE_FPU_MASK : 0) |
                         (cpu->cfg.use_fpu > 1 ? PVR2_USE_FPU2_MASK : 0);
@@ -228,6 +228,7 @@ static Property mb_properties[] = {
                      false),
     DEFINE_PROP_BOOL("endianness", MicroBlazeCPU, cfg.endi, false),
     DEFINE_PROP_STRING("version", MicroBlazeCPU, cfg.version),
+    DEFINE_PROP_UINT8("pvr", MicroBlazeCPU, cfg.pvr, C_PVR_FULL),
     DEFINE_PROP_END_OF_LIST(),
 };
 

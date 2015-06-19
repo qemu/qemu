@@ -58,8 +58,8 @@ int mb_cpu_handle_mmu_fault(CPUState *cs, vaddr address, int rw,
     mmu_available = 0;
     if (cpu->cfg.use_mmu) {
         mmu_available = 1;
-        if ((env->pvr.regs[0] & PVR0_PVR_FULL_MASK)
-            && (env->pvr.regs[11] & PVR11_USE_MMU) != PVR11_USE_MMU) {
+        if ((cpu->cfg.pvr == C_PVR_FULL) &&
+            (env->pvr.regs[11] & PVR11_USE_MMU) != PVR11_USE_MMU) {
             mmu_available = 0;
         }
     }
