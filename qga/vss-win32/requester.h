@@ -27,7 +27,7 @@ typedef void (*ErrorSetFunc)(struct Error **errp, int win32_err,
                              const char *fmt, ...) GCC_FMT_ATTR(3, 4);
 typedef struct ErrorSet {
     ErrorSetFunc error_setg_win32;
-    struct Error **errp;
+    struct Error **errp;        /* restriction: must not be null */
 } ErrorSet;
 
 STDAPI requester_init(void);

@@ -25,8 +25,9 @@
 
 #define err_set(e, err, fmt, ...) \
     ((e)->error_setg_win32((e)->errp, err, fmt, ## __VA_ARGS__))
+/* Bad idea, works only when (e)->errp != NULL: */
 #define err_is_set(e) ((e)->errp && *(e)->errp)
-
+/* To lift this restriction, error_propagate(), like we do in QEMU code */
 
 /* Handle to VSSAPI.DLL */
 static HMODULE hLib;
